@@ -10,10 +10,10 @@
 '' fb_GfxLine, fb_GfxPset and the rest resolve to.
 ''
 '' The one #ifdef is the PLATFORM's, and both roles see the same side of it: the
-'' window readback (CaptureAndEmit) is BitBlt, so off Windows it reports
-'' CAPTURE-FAILED, which gate-entry.sh counts as a skip. Run off Windows with
-'' FBGFX=null on both sides, every other case compares a framebuffer with no
-'' window at all (docs/graphics RFC-0012).
+'' window readback (CaptureAndEmit) is BitBlt on Windows and XGetImage on Linux,
+'' and anywhere else it reports CAPTURE-FAILED, which gate-entry.sh counts as a
+'' skip. Run with FBGFX=null on both sides, every case but the readback compares
+'' a framebuffer with no window at all (docs/graphics RFC-0012).
 ''
 '' That is the substitution harness RFC-0001 section 6.1 wanted, reached by
 '' LINKING rather than by archive surgery -- and it is the only way this seam can
@@ -40,6 +40,22 @@
 #include once "fbgfx.bi"
 #ifdef __FB_WIN32__
 #include once "windows.bi"
+#elseif defined( __FB_LINUX__ )
+'' Inside a namespace: Xlib's `Window` type would otherwise shadow the WINDOW
+'' statement this file uses. The C runtime's headers first, globally, so the
+'' bindings' own includes of them are no-ops.
+#include once "crt/long.bi"
+#include once "crt/sys/types.bi"
+#include once "crt/stddef.bi"
+namespace GX
+#include once "X11/Xlib.bi"
+end namespace
+#inclib "X11"
+dim shared as long GxErrors
+function GxOnError cdecl ( byval d as GX.Display ptr, byval e as GX.XErrorEvent ptr ) as long
+    GxErrors += 1
+    return 0
+end function
 #endif
 using FB
 
@@ -644,6 +660,52 @@ sub CaptureAndEmit( byref nm as string )
             if got andalso (isblank = 0) then exit for
         next
 
+        if got then
+            Emit( nm, dig )
+        else
+            Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
+        end if
+    end if
+#elseif defined( __FB_LINUX__ )
+    '' XGetImage over a SECOND connection, with the rules above: retried while
+    '' the frame is blank, reported as soon as it is not, and a black frame that
+    '' never fills is still a result. An X error -- the window not viewable yet --
+    '' is caught by the handler and counts as "not captured", never as a crash.
+    dim as integer winh
+    screencontrol GET_WINDOW_HANDLE, winh
+    dim as GX.Display ptr d = 0
+    if winh <> 0 then d = GX.XOpenDisplay( 0 )
+    if d = 0 then
+        Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
+    else
+        GX.XSetErrorHandler( @GxOnError )
+        dim as ulongint dig = 0
+        dim as long got = 0
+        for attempt as integer = 1 to 40
+            sleep 60
+            GxErrors = 0
+            dim as GX.XImage ptr img = GX.XGetImage( d, cast( GX.Window, winh ), 0, 0, W, H, _
+                                                     GX.XAllPlanes( ), GX.ZPixmap )
+            GX.XSync( d, 0 )
+            if (img <> 0) andalso (GxErrors = 0) then
+                dim as ulongint acc = 14695981039346656037ull
+                dim as long nonzero = 0
+                for y as integer = 0 to H - 1
+                    for x as integer = 0 to W - 1
+                        dim as ulong c = img->f.get_pixel( img, x, y ) and &hFFFFFF
+                        if c <> 0 then nonzero += 1
+                        acc = (acc xor c) * 1099511628211ull
+                    next
+                next
+                dig = acc
+                got = 1
+                img->f.destroy_image( img )
+                if nonzero > 0 then exit for
+            elseif img <> 0 then
+                img->f.destroy_image( img )
+            end if
+        next
+        GX.XCloseDisplay( d )
         if got then
             Emit( nm, dig )
         else

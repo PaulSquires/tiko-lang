@@ -1,0 +1,263 @@
+'' xlib.ti -- libX11, libXext and libXrandr, loaded at run time.
+''
+'' ORIGINAL WORK. Part of libtkogfx, LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' NOTHING HERE IS LINKED. gfxlib2 links -lX11 -lXext -lXrandr ..., so every
+'' program that names fbgfx.bi needs the X11 development symlinks just to link,
+'' whether or not it ever opens a window. libtkogfx opens the libraries when a
+'' window is first asked for (docs/graphics RFC-0012, Q2 = load at run time, the
+'' author's choice 2026-11-06), which is also what tiko-rt does for MULTIKEY.
+''
+''   libX11.so.6     required -- without it a window cannot open
+''   libXext.so.6    optional -- MIT-SHM; without it frames go by XPutImage
+''   libXrandr.so.2  optional -- the refresh rate and SCREENLIST's modes
+''
+'' THE RUNTIME PACKAGES' NAMES, .so.6 and .so.2, not the -dev symlinks: a machine
+'' with X but no development packages has only those. The bare name is tried
+'' second, for a system that ships only a symlink.
+''
+'' THE TYPES ARE THE BINDINGS' (inc/X11), INCLUDED INSIDE namespace TkoX. Global,
+'' they would bring Depth, Cursor, Window, Display and Screen into scope, and
+'' FreeBASIC is case-insensitive -- every `depth` and `cursor` parameter in this
+'' library would collide. Their layouts were measured against the C headers on
+'' x86-64 Linux, 39 sizes and offsets, all equal (tools/probe-x11layout.*).
+''
+'' EACH SYMBOL IS LOOKED UP BY NAME INTO ITS OWN FIELD, never by position in a
+'' parallel list -- swapping two names in such a list swaps two function pointers
+'' and still links.
+
+#pragma once
+
+'' THE C RUNTIME'S HEADERS FIRST, AND GLOBALLY. The X11 bindings include them, and
+'' `#include once` means whichever includes them first owns them: inside TkoX they
+'' would make clong and culong TkoX's, and crt/stdio.bi, included later by
+'' entry/bmpio.ti, could not see them.
+#include once "crt/long.bi"
+#include once "crt/sys/types.bi"
+#include once "crt/stddef.bi"
+
+namespace TkoX
+#include once "X11/Xlib.bi"
+#include once "X11/Xutil.bi"
+#include once "X11/extensions/XShm.bi"
+#include once "X11/extensions/Xrandr.bi"
+#include once "X11/cursorfont.bi"
+end namespace
+
+extern "c"
+    declare function TkoDlopen alias "dlopen" ( byval nm as const zstring ptr, byval mode as long ) as any ptr
+    declare function TkoDlsym alias "dlsym" ( byval h as any ptr, byval nm as const zstring ptr ) as any ptr
+end extern
+
+namespace TkoGfx
+
+const X_RTLD_NOW = 2
+
+type X11Api
+    loaded          as long            '' 1 = libX11 and every required symbol
+    has_shm         as long
+    has_xrandr      as long
+
+    XInitThreads       as function cdecl ( ) as long
+    XOpenDisplay       as function cdecl ( byval as const zstring ptr ) as TkoX.Display ptr
+    XCloseDisplay      as function cdecl ( byval as TkoX.Display ptr ) as long
+    XDisplayName       as function cdecl ( byval as const zstring ptr ) as zstring ptr
+    XDefaultScreen     as function cdecl ( byval as TkoX.Display ptr ) as long
+    XDefaultVisual     as function cdecl ( byval as TkoX.Display ptr, byval as long ) as TkoX.Visual ptr
+    XDefaultDepth      as function cdecl ( byval as TkoX.Display ptr, byval as long ) as long
+    XDefaultRootWindow as function cdecl ( byval as TkoX.Display ptr ) as TkoX.Window
+    XDefaultGC         as function cdecl ( byval as TkoX.Display ptr, byval as long ) as TkoX.GC
+    XDisplayWidth      as function cdecl ( byval as TkoX.Display ptr, byval as long ) as long
+    XDisplayHeight     as function cdecl ( byval as TkoX.Display ptr, byval as long ) as long
+    XBlackPixel        as function cdecl ( byval as TkoX.Display ptr, byval as long ) as culong
+    XListPixmapFormats as function cdecl ( byval as TkoX.Display ptr, byval as long ptr ) as TkoX.XPixmapFormatValues ptr
+    XFree              as function cdecl ( byval as any ptr ) as long
+    XCreateColormap    as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.Visual ptr, byval as long ) as TkoX.Colormap
+    XFreeColormap      as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Colormap ) as long
+    XCreateWindow      as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as long, byval as long, _
+                          byval as ulong, byval as ulong, byval as ulong, byval as long, byval as ulong, _
+                          byval as TkoX.Visual ptr, byval as culong, byval as TkoX.XSetWindowAttributes ptr ) as TkoX.Window
+    XDestroyWindow     as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window ) as long
+    XStoreName         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as const zstring ptr ) as long
+    XAllocSizeHints    as function cdecl ( ) as TkoX.XSizeHints ptr
+    XSetWMNormalHints  as sub cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.XSizeHints ptr )
+    XInternAtom        as function cdecl ( byval as TkoX.Display ptr, byval as const zstring ptr, byval as long ) as TkoX.XAtom
+    XSetWMProtocols    as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.XAtom ptr, byval as long ) as long
+    XMapRaised         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window ) as long
+    XUnmapWindow       as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window ) as long
+    XMoveWindow        as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as long, byval as long ) as long
+    XClearWindow       as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window ) as long
+    XMaskEvent         as function cdecl ( byval as TkoX.Display ptr, byval as clong, byval as TkoX.XEvent ptr ) as long
+    XPending           as function cdecl ( byval as TkoX.Display ptr ) as long
+    XNextEvent         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.XEvent ptr ) as long
+    XPeekEvent         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.XEvent ptr ) as long
+    XCheckWindowEvent  as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as clong, byval as TkoX.XEvent ptr ) as long
+    XLookupString      as function cdecl ( byval as TkoX.XKeyEvent ptr, byval as zstring ptr, byval as long, _
+                          byval as TkoX.KeySym ptr, byval as TkoX.XComposeStatus ptr ) as long
+    XCreateImage       as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Visual ptr, byval as ulong, byval as long, _
+                          byval as long, byval as zstring ptr, byval as ulong, byval as ulong, byval as long, byval as long ) as TkoX.XImage ptr
+    XPutImage          as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Drawable, byval as TkoX.GC, byval as TkoX.XImage ptr, _
+                          byval as long, byval as long, byval as long, byval as long, byval as ulong, byval as ulong ) as long
+    XSync              as function cdecl ( byval as TkoX.Display ptr, byval as long ) as long
+    XLockDisplay       as sub cdecl ( byval as TkoX.Display ptr )
+    XUnlockDisplay     as sub cdecl ( byval as TkoX.Display ptr )
+    XQueryPointer      as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.Window ptr, byval as TkoX.Window ptr, _
+                          byval as long ptr, byval as long ptr, byval as long ptr, byval as long ptr, byval as ulong ptr ) as long
+    XWarpPointer       as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.Window, byval as long, byval as long, _
+                          byval as ulong, byval as ulong, byval as long, byval as long ) as long
+    XCreatePixmap      as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Drawable, byval as ulong, byval as ulong, byval as ulong ) as TkoX.Pixmap
+    XFreePixmap        as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Pixmap ) as long
+    XCreateBitmapFromData as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Drawable, _
+                          byval as const zstring ptr, byval as ulong, byval as ulong ) as TkoX.Pixmap
+    XCreatePixmapCursor as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Pixmap, byval as TkoX.Pixmap, _
+                          byval as TkoX.XColor ptr, byval as TkoX.XColor ptr, byval as ulong, byval as ulong ) as TkoX.Cursor
+    XCreateFontCursor  as function cdecl ( byval as TkoX.Display ptr, byval as ulong ) as TkoX.Cursor
+    XDefineCursor      as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.Cursor ) as long
+    XUndefineCursor    as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window ) as long
+    XFreeCursor        as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Cursor ) as long
+    XGrabPointer       as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as long, byval as ulong, _
+                          byval as long, byval as long, byval as TkoX.Window, byval as TkoX.Cursor, byval as TkoX.Time ) as long
+    XUngrabPointer     as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Time ) as long
+    XGetWindowAttributes as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.XWindowAttributes ptr ) as long
+    XQueryTree         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window, byval as TkoX.Window ptr, _
+                          byval as TkoX.Window ptr, byval as TkoX.Window ptr ptr, byval as ulong ptr ) as long
+    XDisplayKeycodes   as any ptr       '' handed to the runtime's keycode table, untyped
+    XGetKeyboardMapping as any ptr
+
+    '' libXext, optional
+    XShmQueryExtension as function cdecl ( byval as TkoX.Display ptr ) as long
+    XShmCreateImage    as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Visual ptr, byval as ulong, byval as long, _
+                          byval as zstring ptr, byval as TkoX.XShmSegmentInfo ptr, byval as ulong, byval as ulong ) as TkoX.XImage ptr
+    XShmAttach         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.XShmSegmentInfo ptr ) as long
+    XShmDetach         as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.XShmSegmentInfo ptr ) as long
+    XShmPutImage       as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Drawable, byval as TkoX.GC, byval as TkoX.XImage ptr, _
+                          byval as long, byval as long, byval as long, byval as long, byval as ulong, byval as ulong, byval as long ) as long
+
+    '' libXrandr, optional
+    XRRQueryExtension  as function cdecl ( byval as TkoX.Display ptr, byval as long ptr, byval as long ptr ) as long
+    XRRQueryVersion    as function cdecl ( byval as TkoX.Display ptr, byval as long ptr, byval as long ptr ) as long
+    XRRGetScreenInfo   as function cdecl ( byval as TkoX.Display ptr, byval as TkoX.Window ) as any ptr
+    XRRConfigCurrentRate as function cdecl ( byval as any ptr ) as short
+    XRRConfigSizes     as function cdecl ( byval as any ptr, byval as long ptr ) as TkoX.XRRScreenSize ptr
+    XRRFreeScreenConfigInfo as sub cdecl ( byval as any ptr )
+end type
+
+dim shared as X11Api TheX
+dim shared as long TheXTried
+
+'' One symbol into one field. A missing REQUIRED symbol marks the whole library
+'' unusable rather than leaving a null pointer to be called later.
+private function XSym( byval h as any ptr, byref nm as string, byref ok as long ) as any ptr
+    dim as any ptr p = TkoDlsym( h, strptr( nm ) )
+    if p = nullptr then ok = 0
+    return p
+end function
+
+private function XOpenLib( byref a as string, byref b as string ) as any ptr
+    dim as any ptr h = TkoDlopen( strptr( a ), X_RTLD_NOW )
+    if h = nullptr then h = TkoDlopen( strptr( b ), X_RTLD_NOW )
+    return h
+end function
+
+'' Load once per process. Returns 1 when a window can be attempted. XInitThreads
+'' runs here, before any other Xlib call this library makes, as gfxlib2's
+'' fb_hXlibInit does: the window lives on its own thread.
+private function X11Load( ) as long
+    if TheXTried then return TheX.loaded
+    TheXTried = 1
+
+    dim as any ptr h = XOpenLib( "libX11.so.6", "libX11.so" )
+    if h = nullptr then return 0
+    dim as long ok = 1
+    with TheX
+        .XInitThreads        = XSym( h, "XInitThreads", ok )
+        .XOpenDisplay        = XSym( h, "XOpenDisplay", ok )
+        .XCloseDisplay       = XSym( h, "XCloseDisplay", ok )
+        .XDisplayName        = XSym( h, "XDisplayName", ok )
+        .XDefaultScreen      = XSym( h, "XDefaultScreen", ok )
+        .XDefaultVisual      = XSym( h, "XDefaultVisual", ok )
+        .XDefaultDepth       = XSym( h, "XDefaultDepth", ok )
+        .XDefaultRootWindow  = XSym( h, "XDefaultRootWindow", ok )
+        .XDefaultGC          = XSym( h, "XDefaultGC", ok )
+        .XDisplayWidth       = XSym( h, "XDisplayWidth", ok )
+        .XDisplayHeight      = XSym( h, "XDisplayHeight", ok )
+        .XBlackPixel         = XSym( h, "XBlackPixel", ok )
+        .XListPixmapFormats  = XSym( h, "XListPixmapFormats", ok )
+        .XFree               = XSym( h, "XFree", ok )
+        .XCreateColormap     = XSym( h, "XCreateColormap", ok )
+        .XFreeColormap       = XSym( h, "XFreeColormap", ok )
+        .XCreateWindow       = XSym( h, "XCreateWindow", ok )
+        .XDestroyWindow      = XSym( h, "XDestroyWindow", ok )
+        .XStoreName          = XSym( h, "XStoreName", ok )
+        .XAllocSizeHints     = XSym( h, "XAllocSizeHints", ok )
+        .XSetWMNormalHints   = XSym( h, "XSetWMNormalHints", ok )
+        .XInternAtom         = XSym( h, "XInternAtom", ok )
+        .XSetWMProtocols     = XSym( h, "XSetWMProtocols", ok )
+        .XMapRaised          = XSym( h, "XMapRaised", ok )
+        .XUnmapWindow        = XSym( h, "XUnmapWindow", ok )
+        .XMoveWindow         = XSym( h, "XMoveWindow", ok )
+        .XClearWindow        = XSym( h, "XClearWindow", ok )
+        .XMaskEvent          = XSym( h, "XMaskEvent", ok )
+        .XPending            = XSym( h, "XPending", ok )
+        .XNextEvent          = XSym( h, "XNextEvent", ok )
+        .XPeekEvent          = XSym( h, "XPeekEvent", ok )
+        .XCheckWindowEvent   = XSym( h, "XCheckWindowEvent", ok )
+        .XLookupString       = XSym( h, "XLookupString", ok )
+        .XCreateImage        = XSym( h, "XCreateImage", ok )
+        .XPutImage           = XSym( h, "XPutImage", ok )
+        .XSync               = XSym( h, "XSync", ok )
+        .XLockDisplay        = XSym( h, "XLockDisplay", ok )
+        .XUnlockDisplay      = XSym( h, "XUnlockDisplay", ok )
+        .XQueryPointer       = XSym( h, "XQueryPointer", ok )
+        .XWarpPointer        = XSym( h, "XWarpPointer", ok )
+        .XCreatePixmap       = XSym( h, "XCreatePixmap", ok )
+        .XFreePixmap         = XSym( h, "XFreePixmap", ok )
+        .XCreateBitmapFromData = XSym( h, "XCreateBitmapFromData", ok )
+        .XCreatePixmapCursor = XSym( h, "XCreatePixmapCursor", ok )
+        .XCreateFontCursor   = XSym( h, "XCreateFontCursor", ok )
+        .XDefineCursor       = XSym( h, "XDefineCursor", ok )
+        .XUndefineCursor     = XSym( h, "XUndefineCursor", ok )
+        .XFreeCursor         = XSym( h, "XFreeCursor", ok )
+        .XGrabPointer        = XSym( h, "XGrabPointer", ok )
+        .XUngrabPointer      = XSym( h, "XUngrabPointer", ok )
+        .XGetWindowAttributes = XSym( h, "XGetWindowAttributes", ok )
+        .XQueryTree          = XSym( h, "XQueryTree", ok )
+        .XDisplayKeycodes    = XSym( h, "XDisplayKeycodes", ok )
+        .XGetKeyboardMapping = XSym( h, "XGetKeyboardMapping", ok )
+    end with
+    if ok = 0 then return 0
+
+    dim as any ptr hx = XOpenLib( "libXext.so.6", "libXext.so" )
+    if hx <> nullptr then
+        dim as long okx = 1
+        with TheX
+            .XShmQueryExtension = XSym( hx, "XShmQueryExtension", okx )
+            .XShmCreateImage    = XSym( hx, "XShmCreateImage", okx )
+            .XShmAttach         = XSym( hx, "XShmAttach", okx )
+            .XShmDetach         = XSym( hx, "XShmDetach", okx )
+            .XShmPutImage       = XSym( hx, "XShmPutImage", okx )
+            .has_shm = okx
+        end with
+    end if
+
+    dim as any ptr hr = XOpenLib( "libXrandr.so.2", "libXrandr.so" )
+    if hr <> nullptr then
+        dim as long okr = 1
+        with TheX
+            .XRRQueryExtension      = XSym( hr, "XRRQueryExtension", okr )
+            .XRRQueryVersion        = XSym( hr, "XRRQueryVersion", okr )
+            .XRRGetScreenInfo       = XSym( hr, "XRRGetScreenInfo", okr )
+            .XRRConfigCurrentRate   = XSym( hr, "XRRConfigCurrentRate", okr )
+            .XRRConfigSizes         = XSym( hr, "XRRConfigSizes", okr )
+            .XRRFreeScreenConfigInfo = XSym( hr, "XRRFreeScreenConfigInfo", okr )
+            .has_xrandr = okr
+        end with
+    end if
+
+    TheX.XInitThreads( )
+    TheX.loaded = 1
+    return 1
+end function
+
+end namespace

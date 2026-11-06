@@ -122,20 +122,6 @@ dim shared as long PendingMinW, PendingMinH
 '' same two functions gfxlib2 calls -- so an event's ascii is what INKEY would
 '' have delivered for that key, and 0 for anything that translates to an
 '' extended code.
-const EV_KEY_PRESS            = 1
-const EV_KEY_RELEASE          = 2
-const EV_KEY_REPEAT           = 3
-const EV_MOUSE_MOVE           = 4
-const EV_MOUSE_BUTTON_PRESS   = 5
-const EV_MOUSE_BUTTON_RELEASE = 6
-const EV_MOUSE_DOUBLE_CLICK   = 7
-const EV_MOUSE_WHEEL          = 8
-const EV_MOUSE_ENTER          = 9
-const EV_MOUSE_EXIT           = 10
-const EV_WINDOW_GOT_FOCUS     = 11
-const EV_WINDOW_LOST_FOCUS    = 12
-const EV_WINDOW_CLOSE         = 13
-const EV_MOUSE_HWHEEL         = 14
 
 '' winuser.bi declares WM_MOUSEHWHEEL only for _WIN32_WINNT above &h0502, and
 '' this library is built at the stock &h0502. The message number is Vista's.
@@ -695,17 +681,31 @@ private sub WindowSetMouse( byref w as GfxWindow, byval cw as long, byval ch as 
     MouseSet( w.mouse, w.hwnd, cw, ch, x, y, cursor, clip )
 end sub
 
-'' SCREENLIST's source: the i-th mode EnumDisplaySettings knows. Returns 0 once
-'' there are no more -- entry/misc.ti decides which of them a depth lists.
-private function DesktopModeAt( byval i as long, byref w as long, byref h as long, _
-        byref bpp as long ) as long
+'' GETMOUSE: the state the window procedure cached -- driver/mouse.ti says why
+'' it is not a query.
+private function WindowGetMouse( byref w as GfxWindow, byref x as long, byref y as long, _
+        byref z as long, byref buttons as long, byref clip as long ) as long
+    return MouseGet( w.mouse, w.active, x, y, z, buttons, clip )
+end function
+
+'' SCREENLIST's source: the i-th mode EnumDisplaySettings knows, and whether
+'' `depth` lists it. gfxlib2 asks its Direct2D driver first, which lists the
+'' desktop's 32-BIT modes WHATEVER DEPTH WAS PASSED; its GDI driver adds the modes
+'' of the depth itself, 15 and 16 interchangeable and 24 and 32. The 32-bit modes
+'' here stand for DXGI's -- measured on this machine, the two lists are identical.
+private function DesktopModeAt( byval depth as long, byval i as long, _
+        byref w as long, byref h as long ) as long
     dim as DEVMODE dm
     dm.dmSize = sizeof( DEVMODE )
     if EnumDisplaySettings( nullptr, i, @dm ) = 0 then return 0
     w = dm.dmPelsWidth
     h = dm.dmPelsHeight
-    bpp = dm.dmBitsPerPel
-    return 1
+    dim as long b = dm.dmBitsPerPel
+    dim as boolean d2d = (b = 32)
+    dim as boolean same = (b = depth)
+    dim as boolean hi = ((b = 15) andalso (depth = 16)) orelse ((b = 16) andalso (depth = 15))
+    dim as boolean tc = ((b = 24) andalso (depth = 32)) orelse ((b = 32) andalso (depth = 24))
+    return iif( d2d orelse same orelse hi orelse tc, 1, 2 )
 end function
 
 '' The program's own path, for the title a window nothing named gets.

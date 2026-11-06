@@ -78,9 +78,15 @@ private sub DesktopInfo( byref w as long, byref h as long, _
     w = 0 : h = 0 : depth = 0 : refresh = 0
 end sub
 
-private function DesktopModeAt( byval i as long, byref w as long, byref h as long, _
-        byref bpp as long ) as long
+private function DesktopModeAt( byval depth as long, byval i as long, _
+        byref w as long, byref h as long ) as long
     return 0
+end function
+
+'' No window, so no pointer.
+private function WindowGetMouse( byref w as GfxWindow, byref x as long, byref y as long, _
+        byref z as long, byref buttons as long, byref clip as long ) as long
+    return -1
 end function
 
 private function PlatExePath( ) as string

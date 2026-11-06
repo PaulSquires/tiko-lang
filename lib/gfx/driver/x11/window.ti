@@ -1,0 +1,782 @@
+'' window.ti -- the X11 window, its thread, and its presenter.
+''
+'' Derived from: unix/gfx_x11.c (fb_hX11Init, window_thread, fb_hX11Exit, the
+'' lock, fb_hX11GetMouse, fb_hX11SetMouse, fb_hX11SetWindowTitle,
+'' fb_hX11SetWindowPos, fb_hX11FetchModes, fb_hX11ScreenInfo) and
+'' unix/gfx_driver_x11.c (x11_init, x11_update, x11_exit).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' INCLUDED BY driver/window.ti, the platform seam, on Linux. libX11 is loaded at
+'' run time by xlib.ti; nothing here is linked.
+''
+'' gfxlib2's MODEL, KEPT: the window lives on its own thread, which presents the
+'' dirty rows and drains the event queue under one lock every 30 ms (its
+'' usleep(30000); Windows' frame is 10 ms). XInitThreads makes Xlib safe for the
+'' caller's thread too, and the lock also takes XLockDisplay, as fb_hX11Lock does.
+''
+'' PRESENTATION IS gfxlib2's BLITTER, not a format of ours: raster/blit.ti's
+'' BlitSelect picks the converter from the screen depth, the visual's depth and
+'' its byte order exactly as fb_hGetBlitter does, so every visual gfxlib2 can
+'' present to, this can. The paletted converters want gfxlib2's device palette,
+'' r | g << 8 | b << 16, which is PaletteLut (r << 16 | g << 8 | b) with red and
+'' blue swapped -- see X11Present.
+''
+'' WHAT IS DELIBERATELY NOT HERE, and each is said so rather than half-done:
+''   - GFX_FULLSCREEN and Alt-Enter (gfxlib2 switches the XRandR mode and grabs
+''     the keyboard); a fullscreen request opens a window.
+''   - The wmwindow / fswindow pair gfxlib2 reparents its window into. Here the
+''     one window is the WM's top-level, which is what GET_WINDOW_HANDLE answers.
+''   - GFX_SHAPED_WINDOW, GFX_NO_FRAME, GFX_ALWAYS_ON_TOP, PseudoColor visuals.
+''   - GETJOYSTICK (gfxlib2 reads /dev/input/js*); it answers "no device".
+''
+'' FOUR DIVERGENCES, ALL CHOSEN:
+''   - The shared-memory segment is marked IPC_RMID as soon as it is attached,
+''     not at exit, so a process that dies does not leak it.
+''   - SETMOUSE's clip grab retries 20 times, not forever.
+''   - The close box sets `closed` as well as posting KEY_QUIT and the event,
+''     so an INPUT waiting on the window gives up as it does on Windows.
+''   - A window that never maps fails WindowOpen after 10 seconds rather than
+''     blocking SCREEN forever.
+
+#pragma once
+
+#include once "xlib.ti"
+#include once "../../raster/blit.ti"
+#include once "../../abi/rtlseam.ti"
+
+extern "c"
+    declare function TkoPthreadCreate alias "pthread_create" ( byval t as ulongint ptr, byval attr as any ptr, _
+        byval fn as function cdecl ( byval as any ptr ) as any ptr, byval arg as any ptr ) as long
+    declare function TkoPthreadJoin alias "pthread_join" ( byval t as ulongint, byval ret as any ptr ptr ) as long
+    declare function TkoMutexInit alias "pthread_mutex_init" ( byval m as any ptr, byval attr as any ptr ) as long
+    declare function TkoMutexLock alias "pthread_mutex_lock" ( byval m as any ptr ) as long
+    declare function TkoMutexUnlock alias "pthread_mutex_unlock" ( byval m as any ptr ) as long
+    declare function TkoMutexDestroy alias "pthread_mutex_destroy" ( byval m as any ptr ) as long
+    declare function TkoUsleep alias "usleep" ( byval us as ulong ) as long
+    declare function TkoShmget alias "shmget" ( byval key as long, byval size as uinteger, byval flg as long ) as long
+    declare function TkoShmat alias "shmat" ( byval id as long, byval addr as any ptr, byval flg as long ) as any ptr
+    declare function TkoShmdt alias "shmdt" ( byval addr as any ptr ) as long
+    declare function TkoShmctl alias "shmctl" ( byval id as long, byval cmd as long, byval buf as any ptr ) as long
+    declare function TkoReadlink alias "readlink" ( byval path as const zstring ptr, byval buf as zstring ptr, byval n as uinteger ) as integer
+
+    '' The runtime's X11 keyboard map -- the table MULTIKEY uses in a console, and
+    '' gfxlib2's fb_x11keycode_to_scancode, which the window procedure indexes.
+    declare sub TkoInitX11Keys alias "fb_hInitX11KeycodeToScancodeTb" ( byval dpy as any ptr, _
+        byval keycodes as any ptr, byval mapping as any ptr, byval xfree as any ptr )
+    declare function TkoScancodeToExtendedKey alias "fb_hScancodeToExtendedKey" ( byval sc as long ) as long
+end extern
+
+type TkoX11ScanTb
+    v( 0 to 255 ) as ubyte
+end type
+extern "c"
+    extern TkoX11Scan alias "fb_x11keycode_to_scancode" as TkoX11ScanTb
+end extern
+
+'' Global, as on Windows: the entry layer calls it from outside the namespace.
+private sub PlatSleep( byval ms as ulong )
+    TkoUsleep( ms * 1000 )
+end sub
+
+namespace TkoGfx
+
+const PLATFORM_DRIVER_NAME = "X11"
+
+const X11_FRAME_MS        = 30       '' gfx_x11.c's usleep(30000)
+const X11_DOUBLE_CLICK_MS = 250      '' fb_gfx_x11.h's DOUBLE_CLICK_TIME
+const X11_IPC_PRIVATE     = 0
+const X11_IPC_CREAT       = &o1000
+const X11_IPC_RMID        = 0
+
+type GfxWindow extends WindowBase
+    dpy          as TkoX.Display ptr
+    win          as TkoX.Window
+    root         as TkoX.Window
+    vis          as TkoX.Visual ptr
+    scr          as long
+    xdepth       as long             '' the default depth -- what the image is made at
+    vdepth       as long             '' bits per pixel of that depth: the blitter's device depth
+    isrgb        as long
+    gc           as TkoX.GC
+    cmap         as TkoX.Colormap
+    img          as TkoX.XImage ptr
+    shm          as TkoX.XShmSegmentInfo
+    is_shm       as long
+    blitproc     as BlitRowProc
+    devpal( 0 to 255 ) as ulong
+    conv( 0 to 511 )   as ulong
+    wm_delete    as TkoX.XAtom
+    blank_cursor as TkoX.Cursor
+    arrow_cursor as TkoX.Cursor
+    cursor_shown as long
+    root_x       as long             '' the last motion's root position; -1 before one
+    root_y       as long
+    last_click   as TkoX.Time
+    thread       as ulongint
+    thread_live  as long
+    mtx( 0 to 7 ) as ulongint        '' pthread_mutex_t: 40 bytes, 8-aligned
+    lock_ready   as long
+    ready        as long             '' 0 waiting, 1 open, -1 failed
+end type
+
+private sub WindowLock( byref w as GfxWindow )
+    if w.lock_ready then
+        TkoMutexLock( @w.mtx(0) )
+        if w.dpy <> nullptr then TheX.XLockDisplay( w.dpy )
+    end if
+end sub
+
+private sub WindowUnlock( byref w as GfxWindow )
+    if w.lock_ready then
+        if w.dpy <> nullptr then TheX.XUnlockDisplay( w.dpy )
+        TkoMutexUnlock( @w.mtx(0) )
+    end if
+end sub
+
+private sub X11MarkAllDirty( byref w as GfxWindow )
+    if (w.surf <> nullptr) andalso (w.surf->dirty <> nullptr) then
+        memset( w.surf->dirty, 1, w.surf->h )
+    end if
+end sub
+
+'' ------------------------------------------------------------ creation
+
+'' Create the window, the cursors and the image. Runs ON THE WINDOW THREAD, which
+'' then owns the display connection. gfxlib2 splits this between fb_hX11Init (the
+'' caller) and x11_init (the thread); with XInitThreads either is safe, and doing
+'' it all here is the Windows driver's shape.
+private function X11Create( byref w as GfxWindow ) as long
+    with TheX
+        w.dpy = .XOpenDisplay( nullptr )
+        if w.dpy = nullptr then return 0
+        w.scr = .XDefaultScreen( w.dpy )
+        w.vis = .XDefaultVisual( w.dpy, w.scr )
+        w.xdepth = .XDefaultDepth( w.dpy, w.scr )
+        w.root = .XDefaultRootWindow( w.dpy )
+
+        '' The visual's depth as the blitter means it: bits per pixel, except that
+        '' a 16-bit format keeps its depth (15 or 16).
+        w.vdepth = w.xdepth
+        dim as long nf = 0
+        dim as TkoX.XPixmapFormatValues ptr fmt = .XListPixmapFormats( w.dpy, @nf )
+        if fmt <> nullptr then
+            for i as integer = 0 to nf - 1
+                if fmt[i].depth = w.xdepth then
+                    w.vdepth = iif( fmt[i].bits_per_pixel = 16, fmt[i].depth, fmt[i].bits_per_pixel )
+                    exit for
+                end if
+            next
+            .XFree( fmt )
+        end if
+
+        dim as TkoX.XSetWindowAttributes a
+        a.border_pixel = .XBlackPixel( w.dpy, w.scr )
+        a.background_pixel = a.border_pixel
+        a.event_mask = TkoX.KeyPressMask or TkoX.KeyReleaseMask or TkoX.ButtonPressMask or _
+                       TkoX.ButtonReleaseMask or TkoX.PointerMotionMask or TkoX.FocusChangeMask or _
+                       TkoX.EnterWindowMask or TkoX.LeaveWindowMask or TkoX.ExposureMask or _
+                       TkoX.StructureNotifyMask
+        a.backing_store = TkoX.NotUseful
+        w.cmap = .XCreateColormap( w.dpy, w.root, w.vis, TkoX.AllocNone )
+        a.colormap = w.cmap
+        w.win = .XCreateWindow( w.dpy, w.root, 0, 0, w.w, w.h, 0, w.xdepth, TkoX.InputOutput, w.vis, _
+                    TkoX.CWBackPixel or TkoX.CWBorderPixel or TkoX.CWEventMask or _
+                    TkoX.CWBackingStore or TkoX.CWColormap, @a )
+        if w.win = 0 then return 0
+        .XStoreName( w.dpy, w.win, @w.title )
+
+        '' A fixed size: what gfxlib2 gives its framed window.
+        dim as TkoX.XSizeHints ptr size = .XAllocSizeHints( )
+        if size <> nullptr then
+            size->flags = TkoX.PBaseSize or TkoX.PMinSize or TkoX.PMaxSize or TkoX.PResizeInc
+            size->min_width = w.w : size->base_width = w.w : size->max_width = w.w
+            size->min_height = w.h : size->base_height = w.h : size->max_height = w.h
+            size->width_inc = &h10000
+            size->height_inc = &h10000
+            .XSetWMNormalHints( w.dpy, w.win, size )
+            .XFree( size )
+        end if
+
+        w.wm_delete = .XInternAtom( w.dpy, "WM_DELETE_WINDOW", 0 )
+        .XSetWMProtocols( w.dpy, w.win, @w.wm_delete, 1 )
+        .XClearWindow( w.dpy, w.win )
+
+        '' The blank cursor SETMOUSE ..., 0 shows: a 1x1 pixmap, cleared.
+        dim as ubyte zero = 0
+        dim as TkoX.Pixmap pm = .XCreateBitmapFromData( w.dpy, w.win, cast( zstring ptr, @zero ), 1, 1 )
+        dim as TkoX.XColor black
+        black.flags = TkoX.DoRed or TkoX.DoGreen or TkoX.DoBlue
+        w.blank_cursor = .XCreatePixmapCursor( w.dpy, pm, pm, @black, @black, 0, 0 )
+        w.arrow_cursor = .XCreateFontCursor( w.dpy, TkoX.XC_left_ptr )
+        .XFreePixmap( w.dpy, pm )
+        w.cursor_shown = 1
+        w.gc = .XDefaultGC( w.dpy, w.scr )
+        .XSync( w.dpy, 0 )
+
+        TkoInitX11Keys( w.dpy, .XDisplayKeycodes, .XGetKeyboardMapping, .XFree )
+    end with
+
+    '' x11_init: the blitter, then the window on screen, then the image.
+    if (w.vdepth >= 24) andalso (w.vis->red_mask = &hFF) then
+        w.isrgb = 1
+    elseif (w.vdepth >= 15) andalso (w.vis->red_mask = &h1F) then
+        w.isrgb = 1
+    else
+        w.isrgb = 0
+    end if
+    dim as long sdepth = w.surf->bpp * 8
+    w.blitproc = BlitSelect( sdepth, w.vdepth, w.isrgb )
+    if w.blitproc = nullptr then return 0
+    if sdepth = 16 then BlitConvInit( @w.conv(0), w.isrgb )
+
+    with TheX
+        .XMapRaised( w.dpy, w.win )
+        dim as TkoX.XEvent e
+        do
+            .XMaskEvent( w.dpy, TkoX.StructureNotifyMask, @e )
+        loop until (e.type = TkoX.MapNotify) andalso (e.xmap.event = w.win)
+
+        '' MIT-SHM only on a LOCAL display, as gfxlib2 decides it.
+        w.is_shm = 0
+        w.img = nullptr
+        dim as zstring ptr dn = .XDisplayName( nullptr )
+        dim as long local_ = 0
+        if dn <> nullptr then
+            if (dn[0] = 0) orelse (dn[0] = asc( ":" )) orelse (left( *dn, 5 ) = "unix:") then local_ = 1
+        end if
+        if local_ andalso (TheX.has_shm <> 0) then
+            if .XShmQueryExtension( w.dpy ) then
+                w.img = .XShmCreateImage( w.dpy, w.vis, w.xdepth, TkoX.ZPixmap, nullptr, @w.shm, w.w, w.h )
+                if w.img <> nullptr then
+                    w.shm.shmid = TkoShmget( X11_IPC_PRIVATE, w.img->bytes_per_line * w.img->height, X11_IPC_CREAT or &o777 )
+                    w.shm.shmaddr = TkoShmat( w.shm.shmid, nullptr, 0 )
+                    w.img->data = w.shm.shmaddr
+                    w.shm.readOnly = 0
+                    if (w.shm.shmaddr <> cast( any ptr, -1 )) andalso (.XShmAttach( w.dpy, @w.shm ) <> 0) then
+                        .XSync( w.dpy, 0 )
+                        TkoShmctl( w.shm.shmid, X11_IPC_RMID, nullptr )
+                        w.is_shm = 1
+                    else
+                        if w.shm.shmaddr <> cast( any ptr, -1 ) then TkoShmdt( w.shm.shmaddr )
+                        TkoShmctl( w.shm.shmid, X11_IPC_RMID, nullptr )
+                        w.img->data = nullptr
+                        w.img->f.destroy_image( w.img )
+                        w.img = nullptr
+                    end if
+                end if
+            end if
+        end if
+        if w.img = nullptr then
+            w.img = .XCreateImage( w.dpy, w.vis, w.xdepth, TkoX.ZPixmap, 0, nullptr, w.w, w.h, 32, 0 )
+            if w.img = nullptr then return 0
+            w.img->data = callocate( cast( integer, w.img->bytes_per_line ) * w.img->height )
+            if w.img->data = nullptr then
+                w.img->f.destroy_image( w.img )
+                w.img = nullptr
+                return 0
+            end if
+        end if
+    end with
+
+    X11MarkAllDirty( w )
+    return 1
+end function
+
+private sub X11Destroy( byref w as GfxWindow )
+    if w.dpy = nullptr then exit sub
+    with TheX
+        if w.img <> nullptr then
+            if w.is_shm then
+                .XShmDetach( w.dpy, @w.shm )
+                TkoShmdt( w.shm.shmaddr )
+            else
+                deallocate( w.img->data )
+            end if
+            w.img->data = nullptr
+            w.img->f.destroy_image( w.img )
+            w.img = nullptr
+        end if
+        if w.win <> 0 then
+            .XUnmapWindow( w.dpy, w.win )
+            if w.arrow_cursor <> 0 then
+                .XUndefineCursor( w.dpy, w.win )
+                .XFreeCursor( w.dpy, w.arrow_cursor )
+                .XFreeCursor( w.dpy, w.blank_cursor )
+                w.arrow_cursor = 0
+                w.blank_cursor = 0
+            end if
+            .XDestroyWindow( w.dpy, w.win )
+            w.win = 0
+        end if
+        if w.cmap <> 0 then
+            .XFreeColormap( w.dpy, w.cmap )
+            w.cmap = 0
+        end if
+        .XSync( w.dpy, 0 )
+        .XCloseDisplay( w.dpy )
+    end with
+    w.dpy = nullptr
+end sub
+
+'' ------------------------------------------------------------ the frame
+
+'' x11_update: convert the dirty rows into the image, put each run of them, and
+'' clear the marks.
+private sub X11Present( byref w as GfxWindow )
+    dim as Surface ptr s = w.surf
+    if (s = nullptr) orelse (w.img = nullptr) orelse (s->dirty = nullptr) then exit sub
+
+    '' gfxlib2's device palette is r | g << 8 | b << 16; PaletteLut is the other
+    '' way round.
+    if (s->bpp = 1) andalso (w.lut <> nullptr) then
+        for i as integer = 0 to 255
+            dim as ulong c = w.lut[i]
+            w.devpal(i) = ((c shr 16) and &hFF) or (c and &hFF00) or ((c and &hFF) shl 16)
+        next
+    end if
+
+    dim as BlitSrc src
+    src.pixels = s->pixels
+    src.pitch = s->pitch
+    src.w = s->w
+    src.h = s->h
+    src.scanline_size = 1
+    src.dirty = s->dirty
+    src.palette = @w.devpal(0)
+    src.conv = @w.conv(0)
+    BlitFrame( src, cast( ubyte ptr, w.img->data ), w.img->bytes_per_line, w.blitproc )
+
+    dim as long hh = s->h
+    dim as long i = 0
+    dim as long any_ = 0
+    while i < hh
+        if s->dirty[i] then
+            dim as long y = i
+            while (i < hh) andalso (s->dirty[i] <> 0)
+                i += 1
+            wend
+            if w.is_shm then
+                TheX.XShmPutImage( w.dpy, w.win, w.gc, w.img, 0, y, 0, y, w.w, i - y, 0 )
+            else
+                TheX.XPutImage( w.dpy, w.win, w.gc, w.img, 0, y, 0, y, w.w, i - y )
+            end if
+            any_ = 1
+        else
+            i += 1
+        end if
+    wend
+    if any_ then
+        memset( s->dirty, 0, hh )
+        w.frames += 1
+    end if
+end sub
+
+'' translate_key: the character XLookupString gives, ASCII DEL remapped to FB's
+'' Delete, or for a key with no character the extended code of its scancode.
+private function X11TranslateKey( byval ev as TkoX.XEvent ptr, byval scancode as long ) as long
+    dim as zstring * 8 buf
+    if TheX.XLookupString( @ev->xkey, @buf, 8, nullptr, nullptr ) = 1 then
+        dim as long k = buf[0]
+        if k = &h7F then k = KEY_DEL_CODE
+        return k
+    end if
+    return TkoScancodeToExtendedKey( scancode )
+end function
+
+'' key_repeated: X reports auto-repeat as a release immediately followed by a
+'' press of the same key with the same time stamp.
+private function X11KeyRepeated( byref w as GfxWindow, byval ev as TkoX.XEvent ptr ) as long
+    if TheX.XPending( w.dpy ) then
+        dim as TkoX.XEvent peek_
+        TheX.XPeekEvent( w.dpy, @peek_ )
+        if (peek_.type = TkoX.KeyPress) andalso (peek_.xkey.keycode = ev->xkey.keycode) andalso _
+           ((peek_.xkey.time - ev->xkey.time) < 2) then
+            TheX.XNextEvent( w.dpy, @peek_ )
+            return 1
+        end if
+    end if
+    return 0
+end function
+
+'' window_thread's event half, message by message, and nothing it does not do.
+'' Called with the frame lock held, so it posts straight into the rings.
+private sub X11Events( byref w as GfxWindow )
+    dim as TkoX.XEvent ev
+    while TheX.XPending( w.dpy )
+        dim as TkoAbi.EVENT e
+        TheX.XNextEvent( w.dpy, @ev )
+        select case ev.type
+        case TkoX.FocusIn, TkoX.MapNotify, TkoX.Expose
+            if (ev.type <> TkoX.Expose) andalso (w.active = 0) then
+                w.active = 1
+                e.etype = EV_WINDOW_GOT_FOCUS
+            end if
+            X11MarkAllDirty( w )
+
+        case TkoX.FocusOut
+            KeyTableClear( w.ktab )
+            w.active = 0
+            w.mouse.on_ = 0
+            e.etype = EV_WINDOW_LOST_FOCUS
+
+        case TkoX.EnterNotify
+            if w.active then
+                w.mouse.on_ = 1
+                e.etype = EV_MOUSE_ENTER
+            end if
+
+        case TkoX.LeaveNotify
+            if w.active then
+                w.mouse.on_ = 0
+                e.etype = EV_MOUSE_EXIT
+            end if
+
+        case TkoX.MotionNotify
+            if w.root_x < 0 then
+                e.dx = 0 : e.dy = 0
+            else
+                e.dx = ev.xmotion.x_root - w.root_x
+                e.dy = ev.xmotion.y_root - w.root_y
+            end if
+            w.root_x = ev.xmotion.x_root
+            w.root_y = ev.xmotion.y_root
+            w.mouse.x = ev.xmotion.x
+            w.mouse.y = ev.xmotion.y
+            w.mouse.on_ = iif( (w.mouse.x >= 0) andalso (w.mouse.x < w.w) andalso _
+                               (w.mouse.y >= 0) andalso (w.mouse.y < w.h), 1, 0 )
+            if w.active then
+                e.etype = EV_MOUSE_MOVE
+                e.x = w.mouse.x
+                e.y = w.mouse.y
+                if w.scanline <> 1 then
+                    e.y = e.y \ w.scanline
+                    e.dy = e.dy \ w.scanline
+                end if
+            end if
+
+        case TkoX.ButtonPress
+            select case ev.xbutton.button
+            case 1 : w.mouse.buttons or= MOUSE_BUTTON_LEFT   : e.button = MOUSE_BUTTON_LEFT
+            case 3 : w.mouse.buttons or= MOUSE_BUTTON_RIGHT  : e.button = MOUSE_BUTTON_RIGHT
+            case 2 : w.mouse.buttons or= MOUSE_BUTTON_MIDDLE : e.button = MOUSE_BUTTON_MIDDLE
+            '' THE OLD TOTAL, as the C's post-increment gives it.
+            case 4 : e.z = w.mouse.wheel : w.mouse.wheel += 1
+            case 5 : e.z = w.mouse.wheel : w.mouse.wheel -= 1
+            case 6 : e.w = w.mouse.hwheel : w.mouse.hwheel -= 1
+            case 7 : e.w = w.mouse.hwheel : w.mouse.hwheel += 1
+            end select
+            select case ev.xbutton.button
+            case 4, 5 : e.etype = EV_MOUSE_WHEEL
+            case 6, 7 : e.etype = EV_MOUSE_HWHEEL
+            case else
+                e.etype = EV_MOUSE_BUTTON_PRESS
+                if (ev.xbutton.time - w.last_click) < X11_DOUBLE_CLICK_MS then e.etype = EV_MOUSE_DOUBLE_CLICK
+                w.last_click = ev.xbutton.time
+            end select
+
+        case TkoX.ButtonRelease
+            e.etype = EV_MOUSE_BUTTON_RELEASE
+            select case ev.xbutton.button
+            case 1 : w.mouse.buttons and= not MOUSE_BUTTON_LEFT   : e.button = MOUSE_BUTTON_LEFT
+            case 3 : w.mouse.buttons and= not MOUSE_BUTTON_RIGHT  : e.button = MOUSE_BUTTON_RIGHT
+            case 2 : w.mouse.buttons and= not MOUSE_BUTTON_MIDDLE : e.button = MOUSE_BUTTON_MIDDLE
+            case else : e.etype = 0
+            end select
+
+        case TkoX.KeyPress
+            if w.active then
+                e.scancode = TkoX11Scan.v( ev.xkey.keycode and 255 )
+                e.ascii = 0
+                KeyTableSet( w.ktab, e.scancode, 1 )
+                dim as long k = X11TranslateKey( @ev, e.scancode )
+                if k then
+                    KeyPost( w.keys, k )
+                    e.ascii = iif( (k < 0) orelse (k > 255), 0, k )
+                end if
+                e.etype = EV_KEY_PRESS
+            end if
+
+        case TkoX.KeyRelease
+            if w.active then
+                e.scancode = TkoX11Scan.v( ev.xkey.keycode and 255 )
+                dim as long k = X11TranslateKey( @ev, e.scancode )
+                e.ascii = iif( (k < 0) orelse (k > 255), 0, k )
+                if X11KeyRepeated( w, @ev ) then
+                    if k then KeyPost( w.keys, k )
+                    e.etype = EV_KEY_REPEAT
+                else
+                    KeyTableSet( w.ktab, e.scancode, 0 )
+                    e.etype = EV_KEY_RELEASE
+                end if
+            end if
+
+        case TkoX.ClientMessage
+            if cast( TkoX.XAtom, ev.xclient.data.l(0) ) = w.wm_delete then
+                KeyPost( w.keys, KEY_QUIT_CODE )
+                w.closed = 1
+                e.etype = EV_WINDOW_CLOSE
+            end if
+        end select
+        if e.etype <> 0 then EventPost( w.events, e )
+    wend
+end sub
+
+private function X11Thread cdecl ( byval param as any ptr ) as any ptr
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, param )
+    w->root_x = -1
+    if X11Create( *w ) = 0 then
+        X11Destroy( *w )
+        w->ready = -1
+        return nullptr
+    end if
+    w->ready = 1
+
+    while w->running <> 0
+        WindowLock( *w )
+        X11Present( *w )
+        X11Events( *w )
+        w->started = 1
+        WindowUnlock( *w )
+        PlatSleep( X11_FRAME_MS )
+    wend
+
+    '' Destroyed by the thread that owns the connection. Unlocked: the only other
+    '' party is WindowClose, which cleared `running` and is waiting in the join.
+    X11Destroy( *w )
+    return nullptr
+end function
+
+'' ------------------------------------------------------------ the seam
+
+private function WindowOpen( _
+        byref w as GfxWindow, byref s as Surface, _
+        byval cw as long, byval ch as long, byref caption as string, _
+        byval headless as long = 0 ) as long
+
+    w.dpy = nullptr : w.win = 0 : w.img = nullptr : w.cmap = 0
+    w.arrow_cursor = 0 : w.blank_cursor = 0
+    w.thread_live = 0 : w.lock_ready = 0 : w.ready = 0
+    if WindowBaseOpen( w, s, cw, ch, caption ) = 0 then return 0
+    if headless then return 1
+
+    if X11Load( ) = 0 then return 0
+    TkoMutexInit( @w.mtx(0), nullptr )
+    w.lock_ready = 1
+
+    if TkoPthreadCreate( @w.thread, nullptr, @X11Thread, @w ) <> 0 then
+        w.running = 0
+        return 0
+    end if
+    w.thread_live = 1
+
+    '' Ready or failed; ten seconds is far beyond a map, and far below a hang.
+    for i as integer = 1 to 10000
+        if w.ready <> 0 then exit for
+        PlatSleep( 1 )
+    next
+    if w.ready <> 1 then
+        w.running = 0
+        return 0
+    end if
+    return 1
+end function
+
+private sub WindowClose( byref w as GfxWindow )
+    w.running = 0
+    if w.thread_live then
+        TkoPthreadJoin( w.thread, nullptr )
+        w.thread_live = 0
+    end if
+    if w.lock_ready then
+        TkoMutexDestroy( @w.mtx(0) )
+        w.lock_ready = 0
+    end if
+    WindowBaseClose( w )
+end sub
+
+private sub WindowSetTitle( byref w as GfxWindow, byref title as string, _
+        byval held as long )
+    w.title = left( title, 255 )
+    if (w.dpy = nullptr) orelse (w.win = 0) then exit sub
+    TheX.XStoreName( w.dpy, w.win, @w.title )
+end sub
+
+'' fb_hX11SetWindowPos's walk: up from the window to the child of the root,
+'' adding each offset, so the answer is where the frame is.
+private sub X11FramePos( byref w as GfxWindow, byref fx as long, byref fy as long, _
+        byref dx as long, byref dy as long )
+    dim as TkoX.XWindowAttributes a
+    dim as TkoX.Window cur = w.win, rootw, parent
+    dim as TkoX.Window ptr kids
+    dim as ulong nkids
+    dx = 0 : dy = 0
+    do
+        TheX.XGetWindowAttributes( w.dpy, cur, @a )
+        kids = nullptr
+        if TheX.XQueryTree( w.dpy, cur, @rootw, @parent, @kids, @nkids ) = 0 then exit do
+        if kids <> nullptr then TheX.XFree( kids )
+        if (parent = rootw) orelse (parent = 0) then exit do
+        dx += a.x
+        dy += a.y
+        cur = parent
+    loop
+    fx = a.x + dx
+    fy = a.y + dy
+end sub
+
+private function WindowGetPosPacked( byref w as GfxWindow ) as long
+    if (w.dpy = nullptr) orelse (w.win = 0) then return 0
+    dim as long fx, fy, dx, dy
+    X11FramePos( w, fx, fy, dx, dy )
+    return (fx and &hFFFF) or (fy shl 16)
+end function
+
+private sub WindowSetPos( byref w as GfxWindow, byval x as long, byval y as long )
+    if (w.dpy = nullptr) orelse (w.win = 0) then exit sub
+    TheX.XMoveWindow( w.dpy, w.win, x, y )
+    '' fb_hX11SetWindowPos drops the motion the move generated
+    dim as TkoX.XEvent ev
+    while TheX.XCheckWindowEvent( w.dpy, w.win, TkoX.PointerMotionMask, @ev )
+    wend
+end sub
+
+private function WindowHandle( byref w as GfxWindow ) as any ptr
+    if w.dpy = nullptr then return nullptr
+    return cast( any ptr, w.win )
+end function
+
+'' fb_hX11GetMouse: a LIVE query when it can be, the cached motion otherwise.
+private function WindowGetMouse( byref w as GfxWindow, byref x as long, byref y as long, _
+        byref z as long, byref buttons as long, byref clip as long ) as long
+    if (w.mouse.on_ = 0) orelse (w.active = 0) orelse (w.dpy = nullptr) then return -1
+    z = w.mouse.wheel
+    dim as TkoX.Window rootw, child
+    dim as long rx, ry, wx, wy
+    dim as ulong mask
+    if TheX.XQueryPointer( w.dpy, w.win, @rootw, @child, @rx, @ry, @wx, @wy, @mask ) then
+        x = wx
+        y = wy
+        buttons = iif( mask and TkoX.Button1Mask, MOUSE_BUTTON_LEFT, 0 ) or _
+                  iif( mask and TkoX.Button3Mask, MOUSE_BUTTON_RIGHT, 0 ) or _
+                  iif( mask and TkoX.Button2Mask, MOUSE_BUTTON_MIDDLE, 0 )
+    else
+        x = w.mouse.x
+        y = w.mouse.y
+        buttons = w.mouse.buttons
+    end if
+    clip = w.mouse.clip
+    return 0
+end function
+
+'' fb_hX11SetMouse. The move needs focus, as in gfxlib2.
+private sub WindowSetMouse( byref w as GfxWindow, byval cw as long, byval ch as long, _
+        byval x as long, byval y as long, byval cursor as long, byval clip as long )
+    if w.dpy = nullptr then exit sub
+    if ((x <> MOUSE_KEEP) orelse (y <> MOUSE_KEEP)) andalso (w.active <> 0) then
+        if x = MOUSE_KEEP then
+            x = w.mouse.x
+        elseif y = MOUSE_KEEP then
+            y = w.mouse.y
+        end if
+        if x < 0 then x = 0
+        if x > w.w - 1 then x = w.w - 1
+        if y < 0 then y = 0
+        if y > w.h - 1 then y = w.h - 1
+        w.mouse.on_ = 1
+        w.mouse.x = x
+        w.mouse.y = y
+        TheX.XWarpPointer( w.dpy, 0, w.win, 0, 0, 0, 0, x, y )
+    end if
+    if (cursor > 0) andalso (w.cursor_shown = 0) then
+        TheX.XUndefineCursor( w.dpy, w.win )
+        TheX.XDefineCursor( w.dpy, w.win, w.arrow_cursor )
+        w.cursor_shown = 1
+        w.mouse.shown = 1
+    elseif (cursor = 0) andalso (w.cursor_shown <> 0) then
+        TheX.XUndefineCursor( w.dpy, w.win )
+        TheX.XDefineCursor( w.dpy, w.win, w.blank_cursor )
+        w.cursor_shown = 0
+        w.mouse.shown = 0
+    end if
+    if clip = 0 then
+        w.mouse.clip = 0
+        TheX.XUngrabPointer( w.dpy, TkoX.CurrentTime )
+    elseif clip > 0 then
+        w.mouse.clip = 1
+        for i as integer = 1 to 20
+            if TheX.XGrabPointer( w.dpy, w.win, 1, 0, TkoX.GrabModeAsync, TkoX.GrabModeAsync, _
+                                 w.win, 0, TkoX.CurrentTime ) = TkoX.GrabSuccess then exit for
+            PlatSleep( 100 )
+        next
+    end if
+end sub
+
+'' fb_hX11ScreenInfo: its own connection, so it answers with no screen open.
+private sub DesktopInfo( byref w as long, byref h as long, _
+        byref depth as long, byref refresh as long )
+    w = 0 : h = 0 : depth = 0 : refresh = 0
+    if X11Load( ) = 0 then exit sub
+    dim as TkoX.Display ptr d = TheX.XOpenDisplay( nullptr )
+    if d = nullptr then exit sub
+    dim as long scr = TheX.XDefaultScreen( d )
+    w = TheX.XDisplayWidth( d, scr )
+    h = TheX.XDisplayHeight( d, scr )
+    depth = TheX.XDefaultDepth( d, scr )
+    if TheX.has_xrandr then
+        dim as long dummy, ver
+        if TheX.XRRQueryExtension( d, @dummy, @dummy ) andalso TheX.XRRQueryVersion( d, @ver, @dummy ) andalso (ver >= 1) then
+            dim as any ptr cfg = TheX.XRRGetScreenInfo( d, TheX.XDefaultRootWindow( d ) )
+            if cfg <> nullptr then
+                refresh = TheX.XRRConfigCurrentRate( cfg )
+                TheX.XRRFreeScreenConfigInfo( cfg )
+            end if
+        end if
+    end if
+    TheX.XCloseDisplay( d )
+end sub
+
+'' fb_hX11FetchModes: every XRandR size, for depths 8, 15, 16, 24 and 32 only.
+private function DesktopModeAt( byval depth as long, byval i as long, _
+        byref w as long, byref h as long ) as long
+    select case depth
+    case 8, 15, 16, 24, 32
+    case else : return 0
+    end select
+    if (X11Load( ) = 0) orelse (TheX.has_xrandr = 0) then return 0
+    dim as TkoX.Display ptr d = TheX.XOpenDisplay( nullptr )
+    if d = nullptr then return 0
+    dim as long r = 0
+    dim as any ptr cfg = TheX.XRRGetScreenInfo( d, TheX.XDefaultRootWindow( d ) )
+    if cfg <> nullptr then
+        dim as long n = 0
+        dim as TkoX.XRRScreenSize ptr sizes = TheX.XRRConfigSizes( cfg, @n )
+        if (sizes <> nullptr) andalso (i >= 0) andalso (i < n) then
+            w = sizes[i].width
+            h = sizes[i].height
+            r = 1
+        end if
+        TheX.XRRFreeScreenConfigInfo( cfg )
+    end if
+    TheX.XCloseDisplay( d )
+    return r
+end function
+
+'' fb_hGetExeName: the program's own path, from /proc.
+private function PlatExePath( ) as string
+    dim as zstring * 4096 buf
+    dim as integer n = TkoReadlink( "/proc/self/exe", @buf, 4095 )
+    if n <= 0 then return command( 0 )
+    buf[n] = 0
+    return buf
+end function
+
+'' gfxlib2 reads /dev/input/js*; not ported yet -- see the file header.
+private function JoystickRead( byval id as long, byval buttons as integer ptr, _
+        byval a1 as single ptr, byval a2 as single ptr, _
+        byval a3 as single ptr, byval a4 as single ptr, _
+        byval a5 as single ptr, byval a6 as single ptr, _
+        byval a7 as single ptr, byval a8 as single ptr ) as long
+    return 1
+end function
+
+end namespace

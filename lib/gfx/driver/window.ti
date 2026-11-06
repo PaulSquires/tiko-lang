@@ -23,8 +23,15 @@
 ''     WindowGetPosPacked( w ) / WindowSetPos( w, x, y )
 ''     WindowHandle( w )                         SCREENCONTROL GET_WINDOW_HANDLE's answer
 ''     WindowSetMouse( w, cw, ch, x, y, cursor, clip )   SETMOUSE
+''     WindowGetMouse( w, x, y, z, buttons, clip )      GETMOUSE's driver half: 0, or -1
+''                                               when inactive or outside. A CACHE on
+''                                               Windows, a live query on X11 -- each
+''                                               as gfxlib2 does it there
 ''     DesktopInfo( w, h, depth, refresh )      the desktop's current mode
-''     DesktopModeAt( i, w, h, bpp )            SCREENLIST's i-th mode; 0 when there is none
+''     DesktopModeAt( depth, i, w, h )          SCREENLIST's source for `depth`: 0 when
+''                                               there are no more, 1 for a mode it lists,
+''                                               2 for one it skips -- which modes a depth
+''                                               lists is the platform driver's rule
 ''     PlatExePath( )                                the program's own path, for the default title
 ''     JoystickRead( id, buttons, axes )        GETJOYSTICK's device half; 0 = read
 ''     PlatSleep( ms )                           an internal wait that is NOT the SLEEP statement
@@ -46,6 +53,27 @@
 #include once "../core/events.ti"     '' EventQueue
 
 namespace TkoGfx
+
+'' SCREENEVENT's event codes -- gfxlib2's EVENT_*, the same on every platform.
+const EV_KEY_PRESS            = 1
+const EV_KEY_RELEASE          = 2
+const EV_KEY_REPEAT           = 3
+const EV_MOUSE_MOVE           = 4
+const EV_MOUSE_BUTTON_PRESS   = 5
+const EV_MOUSE_BUTTON_RELEASE = 6
+const EV_MOUSE_DOUBLE_CLICK   = 7
+const EV_MOUSE_WHEEL          = 8
+const EV_MOUSE_ENTER          = 9
+const EV_MOUSE_EXIT           = 10
+const EV_WINDOW_GOT_FOCUS     = 11
+const EV_WINDOW_LOST_FOCUS    = 12
+const EV_WINDOW_CLOSE         = 13
+const EV_MOUSE_HWHEEL         = 14
+
+'' INKEY's two-byte codes a window posts itself: FB_MAKE_EXT_KEY('k') when the
+'' close box is clicked, and ('S') -- Delete -- for an ASCII DEL (fb_event.h).
+const KEY_QUIT_CODE = (&h6B shl 8) or 255
+const KEY_DEL_CODE  = (&h53 shl 8) or 255
 
 '' WHAT THE ENTRY LAYER READS, and the state every platform keeps the same way.
 '' Filled on the platform's event side and read on the caller's, both under
@@ -133,6 +161,8 @@ end namespace
 
 #if defined( __FB_WIN32__ )
     #include once "win32/window.ti"
+#elseif defined( __FB_LINUX__ )
+    #include once "x11/window.ti"
 #else
     #include once "nodisplay/window.ti"
 #endif

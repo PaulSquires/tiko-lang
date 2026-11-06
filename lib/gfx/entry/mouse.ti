@@ -53,8 +53,7 @@ function TkoGfxGetMouse cdecl ( byval x as long ptr, byval y as long ptr, _
 
     if TkoGfx.TheScreen.isOpen <> 0 then
         TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
-        dim as long rc = TkoGfx.MouseGet( TkoGfx.TheScreen.wnd.mouse, _
-                             TkoGfx.TheScreen.wnd.active, mx, my, mz, mb, mc )
+        dim as long rc = TkoGfx.WindowGetMouse( TkoGfx.TheScreen.wnd, mx, my, mz, mb, mc )
         TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
         ok = iif( rc = 0, 1, 0 )
     end if

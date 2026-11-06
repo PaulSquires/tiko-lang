@@ -101,13 +101,11 @@ end function
 '' and stays 0 until a depth above 0 is asked again. Transcribed from
 '' gfx_screenlist.c: a sorted, de-duplicated union of every driver's modes.
 ''
-'' WHICH MODES. gfxlib2 asks its Direct2D driver first, and that driver asks DXGI
-'' for the desktop's 32-BIT modes WHATEVER DEPTH WAS PASSED -- which is why fbc
-'' lists the same 27 modes here for depth 1, 8, 15, 16, 24 and 32. The GDI driver
-'' adds EnumDisplaySettings' modes of the depth itself, 15 and 16 interchangeable
-'' and 24 and 32. This takes both from the platform's DesktopModeAt (on Windows,
-'' EnumDisplaySettings): its 32-bit modes stand for DXGI's, and measured on this
-'' machine the two lists are identical.
+'' WHICH MODES is the platform driver's rule, and the platforms differ: on Windows
+'' gfxlib2 lists the desktop's 32-bit modes whatever depth was passed (fbc lists
+'' the same 27 modes for depth 1, 8, 15, 16, 24 and 32), on X11 every XRandR size
+'' for depths 8, 15, 16, 24 and 32 only. Each lives beside its driver, in
+'' DesktopModeAt.
 ''
 '' This replaced a walk over the legacy SCREEN mode table: `screenlist( 32 )` found
 '' nothing, and `screenlist( )` restarted the walk -- so the help's own
@@ -118,17 +116,13 @@ function TkoGfxScreenList alias "fb_GfxScreenList" ( byval depth as long ) as lo
         TkoGfx.SlList = nullptr
         TkoGfx.SlSize = 0
         dim as long i = 0
-        dim as long mw, mh, b
-        while TkoGfx.DesktopModeAt( i, mw, mh, b )
-            dim as boolean d2d = (b = 32)
-            dim as boolean same = (b = depth)
-            dim as boolean hi = ((b = 15) andalso (depth = 16)) orelse ((b = 16) andalso (depth = 15))
-            dim as boolean tc = ((b = 24) andalso (depth = 32)) orelse ((b = 32) andalso (depth = 24))
-            if d2d orelse same orelse hi orelse tc then
-                TkoGfx.SlAdd( (mw shl 16) or mh )
-            end if
+        dim as long mw, mh
+        do
+            dim as long r = TkoGfx.DesktopModeAt( depth, i, mw, mh )
+            if r = 0 then exit do
+            if r = 1 then TkoGfx.SlAdd( (mw shl 16) or mh )
             i += 1
-        wend
+        loop
         TkoGfx.SlSort( )
         TkoGfx.SlCurrent = 0
     end if
