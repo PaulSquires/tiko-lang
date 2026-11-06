@@ -40,6 +40,41 @@ private sub ParseCLayoutClause_( byref p as Tko.ParserState, byref sp as Tko.Stm
     end if
 end sub
 
+'' The names in a generic's parameter list, after the 'of', as an N_BLOCK of N_IDENT.
+'' Positional: the first name binds the first argument. One node kind per name rather
+'' than a bare InternId list, because everything downstream already walks children.
+function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as Tko.NodeIdVec names
+    dim as containers.Array( of uint32 ) seen
+    do
+        if (Peek( p ) <> Tko.TK_IDENT) andalso (Tko.IsKeywordKind( Peek( p ) ) = false) then
+            '' 'type Empty( of )' and 'type NotId( of 42 )'. fbc reports both at the
+            '' DECLARATION, without waiting for an instantiation, and so does this --
+            '' a parameter list that names nothing usable would otherwise produce a
+            '' generic that can never be instantiated and never says why.
+            ErrorNode( p, Tko.TKO0321 )
+            exit do
+        end if
+        dim as Tko.Token nt = Cur( p )
+        dim as Tko.InternId nid = cast( Tko.InternId, nt.literal )
+        dim as boolean dup = false
+        for i as int32 = 0 to seen.Count - 1
+            if cast( Tko.InternId, seen[i] ) = nid then dup = true
+        next
+        if dup then
+            ErrorNode( p, Tko.TKO0322, p.names->Spelling( nid ) )
+        else
+            seen.Push( cast( uint32, nid ) )
+        end if
+        names.Push( cast( uint32, MakeIdent( p, nt ) ) )
+        Advance( p )
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
+    loop
+    Expect( p, Tko.TK_RPAREN, ")" )
+    return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, names )
+end function
+
 private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
     dim as int32 typeTok0 = p.pos
@@ -222,6 +257,12 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             wend
         end if
     end if
+    '' 'type T extends B implements I' -- fbc's header spelling is not taken: 'implements'
+    '' is a body line (docs/tiko-interfaces §4.5).
+    if Peek( p ) = Tko.KW_IMPLEMENTS then
+        if p.silent = false then p.diags->Report( Tko.TKO0436, Tko.PointRange( Cur( p ).loc ), p.names->Spelling( iif( sp.rawName <> 0, sp.rawName, sp.name ) ) )
+        SkipRestOfLine( p )
+    end if
 
     dim as boolean isGeneric = (sp.b <> Tko.NODE_NONE)
     dim as boolean outerUnion_ = p.aggUnion
@@ -232,6 +273,174 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' is scanned linearly, so keeping every type in it would cost for nothing.
     if isGeneric then p.ast->RecordTokens( tn, typeTok0, p.pos )
     return tn
+end function
+
+'' ---------------------------------------------------------------- class and interface
+'' docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §4. The line-level halves -- the
+'' 'interface' test, the 'inherits'/'implements' body lines, a method's 'implements I.M'
+'' -- are in declclass.tiko; these two need ParseProc and ParseAggregateBody.
+
+'' 'class Name [( of T, ... )] [field = N] [alias "..."]' ... 'end class' -- A TYPE THAT ALWAYS
+'' EXTENDS OBJECT. Its base is an 'inherits' line in the body (AggPrologue), 'object' when it
+'' writes none; the node is the N_TYPE 'type Name extends B' builds, marked PF_CLASS.
+private function ParseClassDecl_( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    dim as int32 typeTok0 = p.pos
+    Advance( p )
+    dim as Tko.StmtPayload sp
+    sp.rawName = RawSpelling( p )
+    if DeclName( p, sp.name ) = false then return ErrorNode( p, Tko.TKO0406 )
+    if (Peek( p ) = Tko.TK_LPAREN) andalso IdentSpelledAt( p, p.pos + 1, "of" ) then
+        Advance( p )
+        Advance( p )
+        sp.b = ParseTypeParams( p )
+    end if
+    dim as string shown = p.names->Spelling( iif( sp.rawName <> 0, sp.rawName, sp.name ) )
+    do
+        dim as Tko.Token ht = Cur( p )
+        select case Peek( p )
+        case Tko.KW_FIELD
+            ParseFieldClause( p, sp )
+        case Tko.KW_ALIAS
+            Advance( p )
+            if Peek( p ) = Tko.TK_STRING_LIT then
+                EmptyAliasCheck( p, StringLitText( p ), Cur( p ), false )
+                Advance( p )
+            end if
+        case Tko.KW_EXTERN
+            '' C layout cannot describe a vptr, and every class has one.
+            Advance( p )
+            dim as string ext = "extern"
+            if Peek( p ) = Tko.TK_STRING_LIT then
+                dim as Tko.InternId lang = StringLitText( p )
+                if lang <> 0 then ext &= " """ & p.names->Spelling( lang ) & """"
+                Advance( p )
+            end if
+            if p.silent = false then p.diags->Report( Tko.TKO0437, Tko.PointRange( ht.loc ), ext )
+        case Tko.KW_EXTENDS
+            if p.silent = false then p.diags->Report( Tko.TKO0432, Tko.PointRange( ht.loc ), "class" )
+            SkipRestOfLine( p )
+        case Tko.KW_IMPLEMENTS
+            if p.silent = false then p.diags->Report( Tko.TKO0436, Tko.PointRange( ht.loc ), shown )
+            SkipRestOfLine( p )
+        case else
+            exit do
+        end select
+    loop
+    sp.extra or= Tko.PF_CLASS
+    dim as boolean outerUnion = p.aggUnion
+    p.aggUnion = false
+    dim as Tko.NodeId tn = ParseAggregateBody( p, t, sp, false )
+    p.aggUnion = outerUnion
+    if sp.b <> Tko.NODE_NONE then p.ast->RecordTokens( tn, typeTok0, p.pos )
+    return tn
+end function
+
+'' ONE LINE OF AN INTERFACE BODY that is not an 'inherits' line: a member declaration, with
+'' or without 'declare' (§4.3), or something an interface cannot hold.
+private function InterfaceMember_( byref p as Tko.ParserState ) as Tko.NodeId
+    Accept( p, Tko.KW_DECLARE )
+    dim as Tko.Token mt = Cur( p )
+    dim as string word = lcase( Tko.TokenKindText( Peek( p ) ) )
+    if Peek( p ) = Tko.TK_IDENT then word = p.names->Spelling( cast( Tko.InternId, mt.literal ) )
+    dim as boolean isProc = false
+    select case Peek( p )
+    case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY
+        isProc = true
+    case Tko.KW_CONST
+        '' 'declare const function F( )' -- a const method; const-ness is in the signature.
+        if HasTok( p, p.pos + 1 ) then
+            select case cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+            case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY : isProc = true
+            end select
+        end if
+    case Tko.KW_VIRTUAL, Tko.KW_ABSTRACT, Tko.KW_STATIC, Tko.KW_PRIVATE, Tko.KW_PUBLIC, Tko.KW_PROTECTED
+        if p.silent = false then p.diags->Report( Tko.TKO0429, Tko.PointRange( mt.loc ), word )
+        SkipRestOfLine( p )
+        return Tko.NODE_NONE
+    end select
+    if isProc = false then
+        if p.silent = false then p.diags->Report( Tko.TKO0428, Tko.PointRange( mt.loc ), word )
+        SkipRestOfLine( p )
+        return Tko.NODE_NONE
+    end if
+    dim as Tko.NodeId m = ParseProc( p, true )
+    if (m = Tko.NODE_NONE) orelse (p.ast->Kind( m ) <> Tko.N_PROC) then return m
+    dim as string bad = ""
+    if (p.ast->StmtOf( m )->extra and Tko.PF_OVERRIDE) <> 0 then bad = "override"
+    if Tko.ImplementsOf( *p.ast, m ) <> Tko.NODE_NONE then bad = "implements"
+    if (len( bad ) > 0) andalso (p.silent = false) then
+        p.diags->Report( Tko.TKO0429, Tko.PointRange( mt.loc ), bad )
+    end if
+    return m
+end function
+
+'' 'interface Name [( of T, ... )]' ... 'end interface' (§4.2-§4.4). Recognised by
+'' InterfaceHere; the cursor is on the contextual word. 'c' holds the 'inherits' list.
+private function ParseInterfaceDecl_( byref p as Tko.ParserState ) as Tko.NodeId
+    dim as Tko.Token t = Cur( p )
+    Advance( p )
+    dim as Tko.StmtPayload sp
+    sp.rawName = RawSpelling( p )
+    DeclName( p, sp.name )
+    if Peek( p ) = Tko.TK_LPAREN then
+        Advance( p )
+        Advance( p )                                    '' 'of', checked by InterfaceHere
+        sp.b = ParseTypeParams( p )
+    end if
+    EndOfStatement( p )
+
+    dim as Tko.NodeIdVec inh, members
+    dim as boolean sawMember = false
+    p.aggDepth += 1                                     '' members are members (memberProcNames)
+    do
+        SkipEols( p )
+        if AtEnd( p ) orelse (Peek( p ) = Tko.KW_END) then exit do
+        if Peek( p ) = Tko.TK_HASH then                 '' a passed-through '#undef'
+            SkipRestOfLine( p )
+            continue do
+        end if
+        dim as int32 before = p.pos
+        if InheritsLineHere( p ) then
+            if sawMember andalso (p.silent = false) then
+                p.diags->Report( Tko.TKO0435, Tko.PointRange( Cur( p ).loc ), "inherits" )
+            end if
+            Advance( p )
+            do
+                dim as int32 b2 = p.pos
+                dim as Tko.NodeId tr = TypeRef( p )
+                if p.pos = b2 then exit do
+                inh.Push( cast( uint32, tr ) )
+                if Accept( p, Tko.TK_COMMA ) = false then exit do
+            loop
+        else
+            dim as Tko.NodeId m = InterfaceMember_( p )
+            if m <> Tko.NODE_NONE then
+                members.Push( cast( uint32, m ) )
+                sawMember = true
+            end if
+        end if
+        if p.pos = before then Advance( p )
+        EndOfStatement( p )
+    loop
+    p.aggDepth -= 1
+
+    if inh.Count > 0 then sp.c = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, inh )
+    sp.first = p.ast->ChildPoolCount( )
+    sp.count = members.Count
+    for i as int32 = 0 to members.Count - 1
+        p.ast->PushChild( members[i] )
+    next
+    if (Peek( p ) = Tko.KW_END) andalso IdentSpelledAt( p, p.pos + 1, "interface" ) then
+        Advance( p )
+        Advance( p )
+    elseif p.silent = false then
+        '' Not reached from a clean recognition (InterfaceHere saw the 'end interface'); a
+        '' member whose parse ran past its line could still get here.
+        ErrorNode( p, Tko.TKO0405, "INTERFACE" )
+        p.diags->AddNote( Tko.TKO0905, Tko.PointRange( t.loc ), "INTERFACE" )
+    end if
+    return MakeStmt( p, Tko.N_INTERFACE, t.loc, sp )
 end function
 
 private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
@@ -702,6 +911,14 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeId tn = ParseTypeDecl( p )
         NoteTypes_( p, tn )
         return MarkPrivate( p, tn, visKw )
+
+    case Tko.KW_CLASS
+        dim as Tko.NodeId cn = ParseClassDecl_( p )
+        NoteTypes_( p, cn )
+        return MarkPrivate( p, cn, visKw )
+
+    case Tko.TK_IDENT
+        if InterfaceHere( p ) then return MarkPrivate( p, ParseInterfaceDecl_( p ), visKw )
 
     case Tko.KW_ENUM
         dim as Tko.NodeId en = ParseEnumDecl( p )

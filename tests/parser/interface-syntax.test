@@ -1,0 +1,7 @@
+'' 'interface ... end interface' with bare and 'declare' members, 'inherits' lines (which
+'' accumulate), type-level 'implements' lines and method-level 'implements I.M' lists
+'' (docs/tiko-interfaces §4.2-§4.5). Parse only.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/interface-syntax.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/interface-syntax.out

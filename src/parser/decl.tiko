@@ -45,7 +45,7 @@ function IsDeclarationStart( byval k as Tko.TokenKind ) as boolean
          Tko.KW_ENUM, Tko.KW_DECLARE, Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, _
          Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR, Tko.KW_NAMESPACE, _
          Tko.KW_USING, Tko.KW_OPTION, Tko.KW_PRIVATE, Tko.KW_PUBLIC, _
-         Tko.KW_VIRTUAL, Tko.KW_ABSTRACT
+         Tko.KW_VIRTUAL, Tko.KW_ABSTRACT, Tko.KW_CLASS
         '' VIRTUAL and ABSTRACT were missing, so a member DEFINITION carrying one --
         '' 'virtual sub Base.vs( )' at module level -- never reached the declaration
         '' parser at all, even though the modifier loop inside it already handled both.
@@ -915,6 +915,7 @@ private function ParseProc _
     '' loop consumed it with everything else, so a broken promise said nothing.
     dim as int32 structPrio = 0
     while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
+        if Peek( p ) = Tko.KW_IMPLEMENTS then ProcImplementsClause( p, declareOnly, procTok0 ) : continue while   '' declclass.tiko
         '' Spelled out rather than through IsContextual, which is defined AFTER this
         '' file in parser.tiko: 'override' is not a reserved word, so it arrives as an
         '' identifier and is recognised by its interned spelling.
@@ -1048,6 +1049,7 @@ private function ParseProc _
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
         if qualified then p.ast->OrFlags( dn, Tko.NF_QUALIFIED )
         if byrefRet then p.ast->OrFlags( dn, Tko.NF_BYREF )
+        TakeProcImplements( p, dn, procTok0 )
         return dn
     end if
 
@@ -1115,6 +1117,8 @@ private function ParseAggregateBody _
     ''
     '' The typeref is still on the TYPE node as well, because a later pass wanting the
     '' base type should not have to recognise a field by its name.
+    '' A CLASS's base, and any type's 'implements' lines, are body lines read first.
+    dim as Tko.NodeId implList = AggPrologue( p, t, sp )   '' declclass.tiko
     if sp.c <> Tko.NODE_NONE then
         dim as Tko.StmtPayload bp
         bp.name = p.names->GetString( "base" )
@@ -1147,7 +1151,7 @@ private function ParseAggregateBody _
             dim as boolean endsBody = true
             if HasTok( p, p.pos + 1 ) then
                 select case cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
-                case Tko.KW_TYPE, Tko.KW_UNION, Tko.KW_ENUM, Tko.TK_EOL
+                case Tko.KW_TYPE, Tko.KW_UNION, Tko.KW_ENUM, Tko.KW_CLASS, Tko.TK_EOL
                 case else
                     endsBody = false
                 end select
@@ -1163,6 +1167,7 @@ private function ParseAggregateBody _
             wend
             continue do
         end if
+        if LateBodyLine( p, sp ) then continue do   '' 'implements'/'inherits' after a member
 
         dim as int32 before = p.pos
         dim as Tko.TokenKind k = Peek( p )
@@ -1426,8 +1431,9 @@ private function ParseAggregateBody _
     next
 
     EmptyAggCheck_( p, sp, isUnion )
-    ExpectEnd( p, iif( isUnion, Tko.KW_UNION, Tko.KW_TYPE ), t.loc )
+    ExpectEnd( p, iif( isUnion, Tko.KW_UNION, iif( (sp.extra and Tko.PF_CLASS) <> 0, Tko.KW_CLASS, Tko.KW_TYPE ) ), t.loc )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPE, t.loc, sp )
+    if implList <> Tko.NODE_NONE then Tko.RecordImplements( *p.ast, n, implList )
     if isUnion then p.ast->OrFlags( n, Tko.NF_IS_UNION )
     '' THE DECREMENT USED TO SIT AFTER THE RETURN, so aggDepth only ever grew: once one
     '' TYPE had been seen anywhere in the unit, a bare anonymous 'union' at module level
@@ -1454,41 +1460,6 @@ private sub ParseFieldClause( byref p as Tko.ParserState, byref sp as Tko.StmtPa
     if (ConstFoldsToInt_( p, nExpr, fv ) = false) orelse (fv < 0) orelse (fv > 65535) then return
     sp.extra or= cast( uint32, fv )
 end sub
-
-'' The names in a generic's parameter list, after the 'of', as an N_BLOCK of N_IDENT.
-'' Positional: the first name binds the first argument. One node kind per name rather
-'' than a bare InternId list, because everything downstream already walks children.
-function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
-    dim as Tko.Token t = Cur( p )
-    dim as Tko.NodeIdVec names
-    dim as containers.Array( of uint32 ) seen
-    do
-        if (Peek( p ) <> Tko.TK_IDENT) andalso (Tko.IsKeywordKind( Peek( p ) ) = false) then
-            '' 'type Empty( of )' and 'type NotId( of 42 )'. fbc reports both at the
-            '' DECLARATION, without waiting for an instantiation, and so does this --
-            '' a parameter list that names nothing usable would otherwise produce a
-            '' generic that can never be instantiated and never says why.
-            ErrorNode( p, Tko.TKO0321 )
-            exit do
-        end if
-        dim as Tko.Token nt = Cur( p )
-        dim as Tko.InternId nid = cast( Tko.InternId, nt.literal )
-        dim as boolean dup = false
-        for i as int32 = 0 to seen.Count - 1
-            if cast( Tko.InternId, seen[i] ) = nid then dup = true
-        next
-        if dup then
-            ErrorNode( p, Tko.TKO0322, p.names->Spelling( nid ) )
-        else
-            seen.Push( cast( uint32, nid ) )
-        end if
-        names.Push( cast( uint32, MakeIdent( p, nt ) ) )
-        Advance( p )
-        if Accept( p, Tko.TK_COMMA ) = false then exit do
-    loop
-    Expect( p, Tko.TK_RPAREN, ")" )
-    return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, names )
-end function
 
 '' TYPE / ENUM / NAMESPACE and the top-level Declaration dispatch live in their own
 '' file: this one reached the 1500-line cap. Included HERE rather than compiled

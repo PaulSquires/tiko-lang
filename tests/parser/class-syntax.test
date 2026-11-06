@@ -1,0 +1,6 @@
+'' 'class ... end class' is a TYPE marked PF_CLASS whose base is its 'inherits' line, or
+'' 'object' (docs/tiko-interfaces §4.5); the base field is built as for 'extends'.
+'' TEST: cli
+'' ARGS: --dump-ast tests/parser/src/class-syntax.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/class-syntax.out

@@ -1,0 +1,32 @@
+'' astimpl.tiko -- the AST side table for 'implements' LISTS (docs/tiko-interfaces).
+''
+''     class Document
+''         implements IPrintable, ISavable                      '' on the N_TYPE
+''         declare sub Save( ) implements ISavable.Save         '' on the N_PROC
+''     end class
+''
+'' Pairs (declaration, N_BLOCK) in AstArena.implementsLists, found through implementsAt. A
+'' side table and not a payload slot, so no tree walk meets the interface names before the
+'' passes that know what an interface is: Collect, Resolve and Check walk a, b, c and the
+'' children of every declaration.
+
+#import "std/containers"
+#include once "ast/nodes.ti"
+
+namespace Tko
+
+sub RecordImplements( byref ast as AstArena, byval decl as NodeId, byval list as NodeId )
+    if (decl = NODE_NONE) orelse (list = NODE_NONE) then return
+    ast.implementsLists.Push( cast( uint32, decl ) )
+    ast.implementsLists.Push( cast( uint32, list ) )
+end sub
+
+'' NODE_NONE when the declaration lists nothing, which is the normal case.
+function ImplementsOf( byref ast as AstArena, byval decl as NodeId ) as NodeId
+    if decl = NODE_NONE then return NODE_NONE
+    dim as int32 i = SideTableFind( ast.implementsAt, ast.implementsLists, 2, decl )
+    if i < 0 then return NODE_NONE
+    return cast( NodeId, ast.implementsLists[i + 1] )
+end function
+
+end namespace

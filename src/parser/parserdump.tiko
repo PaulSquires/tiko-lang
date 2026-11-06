@@ -93,6 +93,7 @@ private sub DumpAny _
     '' EXPLICIT is invisible in the dump otherwise, and an unparsed EXPLICIT looked
     '' exactly like a parsed one -- as an extra member nobody wrote.
     if (n->kind = Tko.N_ENUM) andalso ((sp->extra and 1) <> 0) then row += " explicit"
+    if (n->kind = Tko.N_TYPE) andalso ((sp->extra and Tko.PF_CLASS) <> 0) then row += " class"
     outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
 
     DumpAny( ast, src, names, sp->a, indent + 1, outp )
@@ -101,6 +102,18 @@ private sub DumpAny _
     for i as int32 = 0 to sp->count - 1
         DumpAny( ast, src, names, ast.ChildAt( sp->first, i ), _
                  indent + 1, outp )
+    next
+    '' An 'implements' list (AstArena.implementsLists), one line per entry, as written.
+    dim as Tko.NodeId impl = Tko.ImplementsOf( ast, id )
+    if impl = Tko.NODE_NONE then return
+    dim as Tko.ListPayload ptr ip = ast.ListOf( impl )
+    for i as int32 = 0 to ip->count - 1
+        dim as Tko.NodeId tr = ast.ChildAt( ip->first, i )
+        dim as Tko.StmtPayload ptr tp = ast.StmtOf( tr )
+        dim as string q = names.Spelling( tp->name )
+        if tp->ownerName <> Tko.INTERN_NONE then q = names.Spelling( tp->ownerName ) & "." & q
+        dim as Tko.DecodedLoc il = src.Decode( ast.Loc( tr ) )
+        outp += space( (indent + 1) * 2 ) & "implements '" & q & "' <" & il.lineNo & ":" & il.column & ">" & chr( 10 )
     next
 end sub
 

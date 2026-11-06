@@ -117,6 +117,10 @@ namespace Tko
         NODE( N_OPTION,       NCAT_DECL )
         NODE( N_EXTERN_BLOCK, NCAT_DECL )
         NODE( N_ERROR_DECL,   NCAT_DECL )
+        '' 'interface I ... end interface' (docs/tiko-interfaces): name; 'b' type params;
+        '' 'c' an N_BLOCK of the 'inherits' typerefs, first written first; children the
+        '' member N_PROCs, all declarations. Last in the list so no kind number moves.
+        NODE( N_INTERFACE,    NCAT_DECL )
     #endmacro
 
     enum NodeCategory
@@ -360,6 +364,10 @@ namespace Tko
     '' bit-fields and for a packed record's alignment. #cinclude and c2t write it on every
     '' record they emit. A high bit, clear of the packing that shares 'extra'.
     const PF_C_LAYOUT       as uint32 = &h02000000
+    '' N_TYPE: written 'class ... end class' (docs/tiko-interfaces). The node is the one
+    '' 'type ... extends object' (or the 'inherits' base) builds; only 'end class', the
+    '' body's 'inherits' line and the dump read the bit.
+    const PF_CLASS          as uint32 = &h04000000
     '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
     '' a DLL exports, reached through its import pointer (T85). See llvmglobal.tiko.
     const VF_DLLIMPORT      as uint32 = &h00000001
@@ -542,6 +550,13 @@ namespace Tko
         as NodeSideIndex tokenRangeAt
         as NodeSideIndex callTypeArgAt
         as NodeSideIndex collInitAt
+        '' 'implements' LISTS (docs/tiko-interfaces): pairs (declaration, N_BLOCK). On an N_TYPE
+        '' the block holds one N_TYPEREF per interface its body lists; on an N_PROC, one per
+        '' 'implements I.M' entry, the typeref's ownerName naming I and its name M. A side
+        '' table so no tree walk reaches the interface names before Resolve knows them.
+        '' ast/astimpl.tiko.
+        as ChildPool   implementsLists
+        as NodeSideIndex implementsAt
 
         '' WHICH PAYLOAD POOL EACH NODE KIND WAS BUILT IN, as the parser's constructors saw it:
         '' AstPool, POOL_MIXED for a kind built in two. Read only by the -g pool check below.
@@ -773,6 +788,9 @@ namespace Tko
         ( byref ast as AstArena, byval item as NodeId, byval braces as NodeId, _
           byval block as NodeId )
     declare function CollInitOf( byref ast as AstArena, byval item as NodeId ) as NodeId
+    '' ast/astimpl.tiko: AstArena.implementsLists.
+    declare sub RecordImplements( byref ast as AstArena, byval decl as NodeId, byval list as NodeId )
+    declare function ImplementsOf( byref ast as AstArena, byval decl as NodeId ) as NodeId
     '' The index of the newest 'stride'-wide entry of 'pool' whose first element is id, or -1.
     declare function SideTableFind _
         ( byref ix as NodeSideIndex, byref pool as ChildPool, byval stride as int32, _

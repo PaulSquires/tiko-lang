@@ -19,6 +19,8 @@
 '' for a TYPE or a CONST and not only for a macro -- see NoteDeclaredName_ in decl.tiko.
 '' expr.tiko already reaches this header to pull tokens through PpEnsure.
 #include once "pp/pp.ti"
+'' 'class', 'interface' and 'implements' -- the parts that need no procedure parser.
+#include once "parser/declclass.ti"
 
 namespace Tko.Parse
 

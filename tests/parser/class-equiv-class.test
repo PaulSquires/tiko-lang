@@ -1,0 +1,6 @@
+'' THE PHASE 1 CLASS GATE (docs/tiko-interfaces §16.7a): a 'class' and the 'type ... extends
+'' object' it stands for lower to the same IR. class-equiv-type.test shares this golden.
+'' TEST: cli
+'' ARGS: --dump-ir tests/parser/src/class-equiv-class.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/class-equiv.out

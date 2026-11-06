@@ -716,6 +716,7 @@ sub WalkStmt _
     c.syms->usePos = cast( uint32, id )    '' which side of an '#undef': see UndefSym
     dim as Tko.NodeKind k = c.ast->Kind( id )
     dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
+    if k = Tko.N_INTERFACE then return    '' refused by Collect until docs/tiko-interfaces Phase 2
 
     '' Collect recorded the scope for anything that opened one; otherwise inherit.
     dim as Tko.ScopeId here = c.info->ScopeOf( id )

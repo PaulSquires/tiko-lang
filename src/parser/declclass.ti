@@ -1,0 +1,55 @@
+'' declclass.ti -- the token-level halves of 'class', 'interface' and 'implements'
+'' (docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §4, Phase 1).
+''
+'' What is here reads lines and clauses that need no procedure or aggregate parser: the
+'' contextual 'interface' test, the 'inherits'/'implements' lines a class or type body
+'' opens with, and a method's 'implements I.M' list. The declarations themselves --
+'' ParseClassDecl_ and ParseInterfaceDecl_ -- are in decltype.tiko, beside ParseTypeDecl,
+'' because they call the private ParseProc and ParseAggregateBody.
+
+#ifndef __TKO_DECLCLASS_BI__
+#define __TKO_DECLCLASS_BI__
+
+#include once "parser/expr.ti"
+
+namespace Tko.Parse
+
+    '' 'interface Name' at the cursor STARTS AN INTERFACE (§4.2): 'interface' is not a
+    '' reserved word -- fbc takes it as an identifier, and Windows headers use it as one -- so
+    '' the shape decides. A name and end of line (or '( of'), outside any procedure or
+    '' aggregate, and a forward scan reaching 'end interface' over member-shaped lines only.
+    declare function InterfaceHere( byref p as Tko.ParserState ) as boolean
+
+    '' 'inherits Name' at the cursor: the contextual word, as the first word of a body line,
+    '' followed by a name. 'inherits as long' is still a field called 'inherits'.
+    declare function InheritsLineHere( byref p as Tko.ParserState ) as boolean
+
+    '' The 'inherits' and 'implements' lines a named TYPE or CLASS body opens with. Sets a
+    '' class's base in sp.c -- 'object' when it writes none -- and returns the N_BLOCK of the
+    '' interfaces listed, or NODE_NONE.
+    declare function AggPrologue _
+        ( byref p as Tko.ParserState, byref t as Tko.Token, _
+          byref sp as Tko.StmtPayload ) as Tko.NodeId
+
+    '' An 'inherits' or 'implements' line AFTER a member: reported and skipped. True when
+    '' the line was one.
+    declare function LateBodyLine _
+        ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload ) as boolean
+
+    '' A method's trailing 'implements I.M [, J.N ...]', the cursor on 'implements'. Kept
+    '' in ParserState.pendingImpl for TakeProcImplements, when the declaration may carry one.
+    declare sub ProcImplementsClause _
+        ( byref p as Tko.ParserState, byval declareOnly as boolean, byval tok0 as int32 )
+    declare sub TakeProcImplements _
+        ( byref p as Tko.ParserState, byval dn as Tko.NodeId, byval tok0 as int32 )
+
+    '' Advance to the end of the line, leaving the TK_EOL: recovery after a reported line.
+    declare sub SkipRestOfLine( byref p as Tko.ParserState )
+
+    '' The folded spelling at token 'i' is 'w' (an identifier only).
+    declare function IdentSpelledAt _
+        ( byref p as Tko.ParserState, byval i as int32, byref w as string ) as boolean
+
+end namespace
+
+#endif

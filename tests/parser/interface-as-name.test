@@ -1,0 +1,6 @@
+'' 'interface' and 'inherits' stay identifiers -- a typedef, a field, a parameter and a
+'' variable -- through the whole front end (docs/tiko-interfaces §4.2).
+'' TEST: cli
+'' ARGS: --dump-ir tests/parser/src/interface-as-name.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0

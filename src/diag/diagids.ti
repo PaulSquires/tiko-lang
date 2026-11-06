@@ -282,6 +282,26 @@
     '' fbc's error 17, "Syntax error, found ','": a TYPE extends ONE base. tiko read the base
     '' and silently dropped the rest of the line.
     DIAG( TKO0427, SEV_ERROR,   "a type extends one base type" )
+    '' ---- interfaces and classes (docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §13.2)
+    '' Fields, constructors, operators, nested types ... inside 'interface ... end interface'.
+    DIAG( TKO0428, SEV_ERROR,   "an interface holds only 'inherits' lines and member declarations; '%0' cannot appear in one" )
+    '' 'virtual', 'abstract', 'override', 'static', 'implements' or an access label on a member.
+    DIAG( TKO0429, SEV_ERROR,   "'%0' cannot be written on an interface member: every member is public and abstract" )
+    '' A method's 'implements' entry with no member after the interface: 'implements IFoo'.
+    DIAG( TKO0430, SEV_ERROR,   "'implements' names an interface member, as 'IName.Member'" )
+    '' TKO0431 (§13.2, "needs 'end interface'") is not used: InterfaceHere only recognises a
+    '' block whose 'end interface' it has seen, so a missing one is never an interface.
+    '' %0 'class' or 'interface': 'class C extends B' -- the base is a body line.
+    DIAG( TKO0432, SEV_ERROR,   "a %0 names its base with an 'inherits' line in its body, not 'extends'" )
+    DIAG( TKO0433, SEV_ERROR,   "a type names its base with 'extends' on its header; 'inherits' lines are for classes and interfaces" )
+    '' %0 'inherits' or 'implements', written after a member (or 'inherits' after 'implements').
+    DIAG( TKO0435, SEV_ERROR,   "'%0' lines come first in the body, before any member" )
+    '' 'type T extends B implements I' -- the FreeBASIC header spelling is not taken.
+    DIAG( TKO0436, SEV_ERROR,   "write 'implements' on its own line in the body of '%0', not on its header" )
+    '' 'class C extern "c"' -- C layout cannot describe a vptr.
+    DIAG( TKO0437, SEV_ERROR,   "a class cannot be '%0'" )
+    '' 'implements I.M' on a definition with a body, or on a declaration outside a type.
+    DIAG( TKO0438, SEV_ERROR,   "'implements' is written on the method's declaration inside its type" )
     '' fbc's 17, "found 'as'": 'sub F( ) as long' -- parser/decl.tiko.
     DIAG( TKO0598, SEV_ERROR,   "a sub has no result type; declare it as a function to return a value" )
 

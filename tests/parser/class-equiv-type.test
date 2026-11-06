@@ -1,0 +1,6 @@
+'' THE PHASE 1 CLASS GATE, the other half: the same program written with 'type ... extends'.
+'' Shares class-equiv-class.test's golden, so any difference between the two fails one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/parser/src/class-equiv-type.bas
+'' EXPECT-EXIT: 0
+'' GOLDEN: expected/class-equiv.out

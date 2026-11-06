@@ -1,0 +1,215 @@
+'' declclass.tiko -- the token-level halves of 'class', 'interface' and 'implements'. See
+'' declclass.ti; docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §4 is the design.
+
+#import "std/containers"
+#include once "parser/parser.ti"
+
+namespace Tko.Parse
+
+'' parser.tiko's, defined there and declared where each split-out unit needs them.
+declare function AtEnd( byref p as Tko.ParserState ) as boolean
+declare sub SkipEols( byref p as Tko.ParserState )
+declare sub EndOfStatement( byref p as Tko.ParserState )
+
+function IdentSpelledAt _
+    ( byref p as Tko.ParserState, byval i as int32, byref w as string ) as boolean
+    if HasTok( p, i ) = false then return false
+    dim as Tko.Token tk = p.toks->At( i )
+    if cast( Tko.TokenKind, tk.kind ) <> Tko.TK_IDENT then return false
+    return p.names->Spelling( p.names->Fold( cast( Tko.InternId, tk.literal ) ) ) = w
+end function
+
+private function KindAt_( byref p as Tko.ParserState, byval i as int32 ) as Tko.TokenKind
+    if HasTok( p, i ) = false then return Tko.TK_EOF
+    return cast( Tko.TokenKind, p.toks->At( i ).kind )
+end function
+
+sub SkipRestOfLine( byref p as Tko.ParserState )
+    while (Peek( p ) <> Tko.TK_EOL) andalso (AtEnd( p ) = false)
+        Advance( p )
+    wend
+end sub
+
+'' A LINE AN INTERFACE BODY MAY HOLD, by its first token -- including the ones it refuses
+'' with a diagnostic of its own (TKO0428/TKO0429), so a misplaced 'private:' or field is
+'' reported as what it is rather than turning the whole block back into statements.
+'' Whatever starts a statement -- a call, an assignment, PRINT, IF -- ends the scan, and so
+'' does any 'end' that is not 'end interface': a procedure DEFINITION always has one.
+private function MemberLineStart_( byref p as Tko.ParserState, byval i as int32 ) as boolean
+    select case KindAt_( p, i )
+    case Tko.KW_DECLARE, Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
+         Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_CONST, Tko.KW_STATIC, _
+         Tko.KW_VIRTUAL, Tko.KW_ABSTRACT, Tko.KW_PRIVATE, Tko.KW_PUBLIC, _
+         Tko.KW_PROTECTED, Tko.KW_DIM, Tko.KW_AS, Tko.KW_IMPLEMENTS, Tko.TK_HASH
+        return true
+    case Tko.TK_IDENT
+        if IdentSpelledAt( p, i, "inherits" ) then return true
+        return (KindAt_( p, i + 1 ) = Tko.KW_AS)          '' a field, 'x as long': TKO0428
+    end select
+    return false
+end function
+
+'' THE RESIDUAL AMBIGUITY (§4.2). fbc reads 'interface IFoo' as a call to a procedure named
+'' 'interface', and 'end interface' as END with that procedure's value as the exit code. A
+'' program is misread here only if it does both with nothing but member-shaped lines in
+'' between -- the scan below gives up at the first statement or definition.
+function InterfaceHere( byref p as Tko.ParserState ) as boolean
+    if (p.procDepth > 0) orelse (p.aggDepth > 0) then return false
+    if IdentSpelledAt( p, p.pos, "interface" ) = false then return false
+    dim as int32 i = p.pos + 1
+    if KindAt_( p, i ) <> Tko.TK_IDENT then return false
+    i += 1
+    '' 'interface IList( of T )' -- the parameter list is skipped to its ')'.
+    if KindAt_( p, i ) = Tko.TK_LPAREN then
+        if IdentSpelledAt( p, i + 1, "of" ) = false then return false
+        while (KindAt_( p, i ) <> Tko.TK_RPAREN) andalso (KindAt_( p, i ) <> Tko.TK_EOL)
+            if KindAt_( p, i ) = Tko.TK_EOF then return false
+            i += 1
+        wend
+        if KindAt_( p, i ) <> Tko.TK_RPAREN then return false
+        i += 1
+    end if
+    if KindAt_( p, i ) <> Tko.TK_EOL then return false
+    do
+        while KindAt_( p, i ) = Tko.TK_EOL
+            i += 1
+        wend
+        select case KindAt_( p, i )
+        case Tko.TK_EOF
+            return false
+        case Tko.KW_END
+            return IdentSpelledAt( p, i + 1, "interface" )
+        end select
+        if MemberLineStart_( p, i ) = false then return false
+        while KindAt_( p, i ) <> Tko.TK_EOL
+            if KindAt_( p, i ) = Tko.TK_EOF then return false
+            i += 1
+        wend
+    loop
+end function
+
+function InheritsLineHere( byref p as Tko.ParserState ) as boolean
+    if IdentSpelledAt( p, p.pos, "inherits" ) = false then return false
+    select case KindAt_( p, p.pos + 1 )
+    case Tko.TK_IDENT, Tko.TK_DOT
+        return true
+    end select
+    return false
+end function
+
+'' 'class C' with no 'inherits' line extends 'object' (§4.5): the typeref 'extends object'
+'' would have produced, at the class's own location.
+private function ObjectTypeRef_( byref p as Tko.ParserState, byval loc as Tko.SourceLoc ) as Tko.NodeId
+    dim as Tko.StmtPayload tp
+    tp.name = p.names->Fold( p.names->GetString( "object" ) )
+    return MakeStmt( p, Tko.N_TYPEREF, loc, tp )
+end function
+
+'' A comma list of type references after 'implements' or 'inherits', onto 'items'.
+private sub TypeRefList_( byref p as Tko.ParserState, byref items as Tko.NodeIdVec )
+    do
+        dim as int32 before = p.pos
+        dim as Tko.NodeId tr = TypeRef( p )
+        if p.pos = before then exit do
+        items.Push( cast( uint32, tr ) )
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
+    loop
+end sub
+
+private sub Report_( byref p as Tko.ParserState, byval id as Tko.DiagId, byval loc as Tko.SourceLoc, _
+                     byval a0 as string = "", byval a1 as string = "" )
+    if p.silent then return
+    p.diags->Report( id, Tko.PointRange( loc ), a0, a1 )
+end sub
+
+function AggPrologue _
+    ( byref p as Tko.ParserState, byref t as Tko.Token, _
+      byref sp as Tko.StmtPayload ) as Tko.NodeId
+
+    if sp.name = 0 then return Tko.NODE_NONE          '' an anonymous union or type
+    dim as boolean isClass = ((sp.extra and Tko.PF_CLASS) <> 0)
+    dim as Tko.NodeIdVec items
+    dim as boolean sawImpl = false, sawInh = false
+    dim as Tko.SourceLoc implLoc = t.loc
+    do
+        SkipEols( p )
+        if AtEnd( p ) then exit do
+        dim as Tko.Token lt = Cur( p )
+        if Peek( p ) = Tko.KW_IMPLEMENTS then
+            if sawImpl = false then implLoc = lt.loc
+            Advance( p )
+            TypeRefList_( p, items )
+            sawImpl = true
+        elseif InheritsLineHere( p ) then
+            if isClass = false then
+                Report_( p, Tko.TKO0433, lt.loc )
+                SkipRestOfLine( p )
+            elseif sawInh then
+                Report_( p, Tko.TKO0427, lt.loc )            '' one base, as for 'extends'
+                SkipRestOfLine( p )
+            else
+                if sawImpl then Report_( p, Tko.TKO0435, lt.loc, "inherits" )
+                Advance( p )
+                sp.c = TypeRef( p )
+                sawInh = true
+                if Peek( p ) = Tko.TK_COMMA then
+                    Report_( p, Tko.TKO0427, Cur( p ).loc )
+                    SkipRestOfLine( p )
+                end if
+            end if
+        else
+            exit do
+        end if
+        EndOfStatement( p )
+    loop
+    if isClass andalso (sp.c = Tko.NODE_NONE) then sp.c = ObjectTypeRef_( p, t.loc )
+    if items.Count = 0 then return Tko.NODE_NONE
+    return MakeList( p, Tko.N_BLOCK, implLoc, Tko.NODE_NONE, items )
+end function
+
+function LateBodyLine( byref p as Tko.ParserState, byref sp as Tko.StmtPayload ) as boolean
+    dim as Tko.Token lt = Cur( p )
+    if Peek( p ) = Tko.KW_IMPLEMENTS then
+        Report_( p, Tko.TKO0435, lt.loc, "implements" )
+    elseif InheritsLineHere( p ) then
+        if (sp.extra and Tko.PF_CLASS) <> 0 then
+            Report_( p, Tko.TKO0435, lt.loc, "inherits" )
+        else
+            Report_( p, Tko.TKO0433, lt.loc )
+        end if
+    else
+        return false
+    end if
+    SkipRestOfLine( p )
+    return true
+end function
+
+sub ProcImplementsClause _
+    ( byref p as Tko.ParserState, byval declareOnly as boolean, byval tok0 as int32 )
+    dim as Tko.Token it = Cur( p )
+    Advance( p )
+    dim as Tko.NodeIdVec items
+    TypeRefList_( p, items )
+    '' 'implements IFoo' with no member: the entry names one member, 'IFoo.Bar'.
+    for i as int32 = 0 to items.Count - 1
+        dim as Tko.NodeId tr = cast( Tko.NodeId, items[i] )
+        if p.ast->StmtOf( tr )->ownerName = 0 then Report_( p, Tko.TKO0430, p.ast->Loc( tr ) )
+    next
+    p.pendingImpl = Tko.NODE_NONE
+    if (declareOnly = false) orelse (p.aggDepth = 0) then
+        Report_( p, Tko.TKO0438, it.loc )
+        return
+    end if
+    if items.Count = 0 then return
+    p.pendingImpl = MakeList( p, Tko.N_BLOCK, it.loc, Tko.NODE_NONE, items )
+    p.pendingImplTok = tok0
+end sub
+
+sub TakeProcImplements _
+    ( byref p as Tko.ParserState, byval dn as Tko.NodeId, byval tok0 as int32 )
+    if p.pendingImpl = Tko.NODE_NONE then return
+    if p.pendingImplTok = tok0 then Tko.RecordImplements( *p.ast, dn, p.pendingImpl )
+    p.pendingImpl = Tko.NODE_NONE
+end sub
+
+end namespace

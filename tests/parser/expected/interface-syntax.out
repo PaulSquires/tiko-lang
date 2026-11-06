@@ -1,0 +1,55 @@
+N_MODULE (19) <1:81>
+  N_INTERFACE 'ianimal' <3:1>
+    N_PROC 'speak' [SUB] <4:5>
+    N_PROC 'name' [FUNCTION] <5:13>
+      N_TYPEREF 'string' [STRING] <5:33>
+    N_PROC 'legs' [FUNCTION] <6:13>
+      N_TYPEREF 'long' [LONG] <6:39>
+    N_PROC 'scale' [FUNCTION] <7:5>
+      N_TYPEREF 'ianimal' <7:44>
+      N_PARAM 'f' byval <7:21>
+        N_TYPEREF 'double' [DOUBLE] <7:32>
+  N_INTERFACE 'ipet' <10:1>
+    N_BLOCK (1) <10:1>
+      N_TYPEREF 'ianimal' <11:14>
+    N_PROC 'owner' [FUNCTION] <12:5>
+      N_TYPEREF 'string' [STRING] <12:26>
+  N_INTERFACE 'iamphibian' <15:1>
+    N_BLOCK (3) <15:1>
+      N_TYPEREF 'ilandanimal' <16:14>
+      N_TYPEREF 'iwateranimal' <16:27>
+      N_TYPEREF 'ianimal' <17:14>
+  N_INTERFACE 'ilist' <20:1>
+    N_BLOCK (1) <20:21>
+      N_IDENT 't' <20:21>
+    N_PROC 'add' [SUB] <21:5>
+      N_PARAM 'x' byref <21:14>
+        N_TYPEREF 't' <21:25>
+  N_TYPE 'dog' class <24:1>
+    N_TYPEREF 'animal' <25:14>
+    N_FIELD 'base' <24:1>
+      N_TYPEREF 'animal' <25:14>
+    N_PROC 'speak' [SUB] <28:13>
+    N_PROC 'owner' [FUNCTION] <29:13>
+      N_TYPEREF 'string' [STRING] <29:34>
+      implements 'ipet.owner' <29:52>
+    N_PROC 'flush' [SUB] <30:13>
+      implements 'isavable.flush' <30:37>
+      implements 'iprintable.flush' <30:53>
+    N_PROC 'compareto' [FUNCTION] <31:13>
+      N_TYPEREF 'long' [LONG] <31:61>
+      N_PARAM 'o' byval <31:33>
+        N_TYPEREF 'icomparable' <31:44>
+      implements 'ns.icomparable.compareto' <31:77>
+    implements 'ipet' <26:16>
+    implements 'icomparable' <27:16>
+    implements 'ishow' <27:29>
+  N_TYPE 'point' <34:1>
+    N_FIELD 'x' <36:13>
+      N_TYPEREF 'long' [LONG] <36:8>
+    N_FIELD 'y' <36:16>
+      N_TYPEREF 'long' [LONG] <36:8>
+    N_PROC 'show' [FUNCTION] <37:13>
+      N_TYPEREF 'string' [STRING] <37:33>
+      implements 'ishow.show' <37:51>
+    implements 'ishow' <35:16>

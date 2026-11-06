@@ -1,0 +1,19 @@
+'' The parser's interface and class diagnostics, TKO0428-TKO0438 (docs/tiko-interfaces
+'' §13.2), one per line. TKO0431 and TKO0434 are not used (see diagids.ti).
+'' TEST: cli
+'' ARGS: --dump-ast tests/diagnostics/src/interface-parse-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: interface-parse-errors.bas(7,5): error TKO0428: an interface holds only 'inherits' lines and member declarations; 'as' cannot appear in one
+'' EXPECT-OUT: interface-parse-errors.bas(8,13): error TKO0428
+'' EXPECT-OUT: interface-parse-errors.bas(9,13): error TKO0429: 'virtual' cannot be written on an interface member
+'' EXPECT-OUT: interface-parse-errors.bas(10,5): error TKO0429: 'private'
+'' EXPECT-OUT: interface-parse-errors.bas(11,5): error TKO0429: 'override'
+'' EXPECT-OUT: interface-parse-errors.bas(13,5): error TKO0435: 'inherits' lines come first
+'' EXPECT-OUT: interface-parse-errors.bas(16,10): error TKO0432: a class names its base
+'' EXPECT-OUT: interface-parse-errors.bas(19,10): error TKO0437: a class cannot be 'extern "c"'
+'' EXPECT-OUT: interface-parse-errors.bas(23,24): error TKO0436: write 'implements' on its own line in the body of 'T1'
+'' EXPECT-OUT: interface-parse-errors.bas(27,5): error TKO0433
+'' EXPECT-OUT: interface-parse-errors.bas(33,5): error TKO0435: 'implements' lines come first
+'' EXPECT-OUT: interface-parse-errors.bas(34,33): error TKO0430
+'' EXPECT-OUT: interface-parse-errors.bas(37,13): error TKO0438
+'' EXPECT-MAX-DIAG: 13

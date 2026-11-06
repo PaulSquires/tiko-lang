@@ -18,8 +18,10 @@ src/lexer/littype.tiko
 src/pp/pp.tiko
 src/parser/expr.tiko
 src/ast/collinit.tiko
+src/ast/astimpl.tiko
 src/parser/parser.tiko
 src/parser/parserend.tiko
+src/parser/declclass.tiko
 src/types/type.tiko
 src/symbols/symbol.tiko
 src/symbols/collect.tiko
