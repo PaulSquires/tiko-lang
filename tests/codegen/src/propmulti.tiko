@@ -1,0 +1,61 @@
+'' Multi-index properties (docs/tiko-properties R13). See propmulti-run.test.
+type Grid
+    cells( 0 to 2, 0 to 3 ) as double
+    declare property Cell( byval r as long, byval c as long ) as double
+    declare property Cell( byval r as long, byval c as long, byval value as double )
+    declare property Tag( byval r as long, byval c as long ) as string
+    declare property Tag( byval r as long, byval c as long, byval value as string )
+    names( 0 to 2, 0 to 3 ) as string
+end type
+property Grid.Cell( byval r as long, byval c as long ) as double
+    return cells( r, c )
+end property
+property Grid.Cell( byval r as long, byval c as long, byval value as double )
+    cells( r, c ) = value
+end property
+property Grid.Tag( byval r as long, byval c as long ) as string
+    return names( r, c )
+end property
+property Grid.Tag( byval r as long, byval c as long, byval value as string )
+    names( r, c ) = value
+end property
+type Cube
+    declare property V( byval a as long, byval b as long, byval c as long ) as long
+    declare property V( byval a as long, byval b as long, byval c as long, byval value as long )
+    s as long
+end type
+property Cube.V( byval a as long, byval b as long, byval c as long ) as long
+    return s + a * 100 + b * 10 + c
+end property
+property Cube.V( byval a as long, byval b as long, byval c as long, byval value as long )
+    s = value
+end property
+dim as Grid g
+g.Cell( 1, 2 ) = 4.5
+g.Cell( 1, 2 ) += 1
+print g.Cell( 1, 2 ); g.Cell( 0, 0 )
+g.Tag( 2, 3 ) = "x"
+g.Tag( 2, 3 ) &= "y"
+print g.Tag( 2, 3 )
+g.Cell( 0, 1 ) = 7
+swap g.Cell( 0, 1 ), g.Cell( 1, 2 )
+print g.Cell( 0, 1 ); g.Cell( 1, 2 )
+dim as Cube q
+q.V( 1, 2, 3 ) = 1000
+print q.V( 1, 2, 3 )
+type M2
+    declare property Item( byval r as long, byval c as long ) as long
+    declare property Item( byval r as long, byval c as long, byval value as long )
+    x as long
+end type
+property M2.Item( byval r as long, byval c as long ) as long
+    get
+        value = r * 10 + c + x
+    end get
+    set
+        x = value
+    end set
+end property
+dim as M2 mm
+mm.Item( 0, 0 ) = 5
+print mm.Item( 2, 3 )

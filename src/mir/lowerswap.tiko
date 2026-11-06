@@ -844,6 +844,13 @@ function PropertyAt_ _
     '' THE ACCESSOR ALONE, receiver not lowered: a compound assignment lowers it once,
     '' for the setter, and hands the same value to the getter (PropertyCompound_).
     if noSelf then return want_
+    '' A STATIC ACCESSOR HAS NO RECEIVER: 'T.Count', 'obj.Count' and a bare 'Count' alike -- nor does
+    '' a namespace's, 'Cfg.Level' or 'Level' (R11).
+    if ProcHasNoReceiver_( c, want_ ) then
+        dim as MirValue noRecv_
+        self_ = noRecv_
+        return want_
+    end if
 
     '' ...AND A BARE NAME IN A METHOD IS 'this.V', the receiver THIS's value (ImplicitThisProp_).
     if implicitThis then

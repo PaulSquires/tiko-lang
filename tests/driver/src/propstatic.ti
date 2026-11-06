@@ -1,0 +1,9 @@
+'' Shared by propstatic-a.tiko and propstatic-b.tiko (propstatic-two-modules.test).
+type Registry
+    declare static property Count as long = 100 get, private set
+    declare static property Label as string get, set
+    declare static property Seed as long get
+    declare static sub Bump( )
+    x as long
+end type
+declare sub Other( )

@@ -484,10 +484,12 @@ private sub ResolveAmbiguous _
     '' which is the path lowering already takes to LowerPropertySet_; the call carries
     '' the fact that its arity is one short of the setter's on purpose, which is what
     '' the resolver needs and the only thing it needs.
+    dim as boolean propSet = false
     if isAssign andalso (sp->a <> Tko.NODE_NONE) then
         if c.ast->Kind( sp->a ) = Tko.N_CALL then
             if HasPropertySetter_( c, PropertyNameSym_( c, sp->a, sid ) ) then
                 c.info->SetAmbiguous( sp->a, Tko.AMB_PROPERTY_SET )
+                propSet = true
             end if
         end if
     end if
@@ -510,7 +512,9 @@ private sub ResolveAmbiguous _
     '' The BRACKET spelling is untouched: 'a[ 1 ] = 99' over an 'operator []' is
     '' 'vr = _ZN1TixEi( &A, 1 ); *vr = 99' -- measured -- and its callee is a
     '' VARIABLE rather than a procedure, which is what the test below asks.
-    if isAssign then
+    '' ...AND A PROPERTY STORE IS NOT A CALL: 'Cfg.Slot( 1 ) = 5' over a NAMESPACE's indexed property
+    '' names the procedure itself, so the member test inside could not tell (docs/tiko-properties R11).
+    if isAssign andalso (propSet = false) then
         if ReadCallAssignAsCall_( c, id, sp, sid ) then
             c.info->SetAmbiguous( id, Tko.AMB_CALL )
             c.st->calls += 1

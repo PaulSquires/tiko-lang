@@ -1,0 +1,13 @@
+'' docs/tiko-properties R11: A STATIC AUTO-PROPERTY IN TWO MODULES. Each unit that reads the type
+'' writes its storage ('dim as long Registry.count@prop = 100') and its accessors; the storage is
+'' weak with a COMDAT, as the accessors are, so the linker keeps one -- without the COMDAT lld-link
+'' called the two copies duplicates. Run, so one shared value is shown: both units bump it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/propstatic-a.tiko tests/driver/src/propstatic-b.tiko -o tests/driver/propstatic2.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' RUN: tests/driver/propstatic2.exe
+'' EXPECT-RUN-OUT:  100 0
+'' EXPECT-RUN-OUT: other 102 reg!
+'' EXPECT-RUN-OUT:  102

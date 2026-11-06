@@ -1,0 +1,19 @@
+'' docs/tiko-properties R11, RUN: STATIC AND NAMESPACE PROPERTIES (fbc's 213 and 17/168 lifted,
+'' decisions Q4, Q5). A type's static getter and setter -- through the type, through an object,
+'' bare in a constructor and a method, '+=', indexed; a namespace's -- a get/set block, indexed,
+'' swap, '&=' on a module-level string property; and static auto-properties with an initialiser,
+'' a private setter and get-only. tiko-only, so each line was checked by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propstatic.tiko -o tests/codegen/propstatic.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propstatic.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT:  15 30
+'' EXPECT-RUN-OUT: show 15
+'' EXPECT-RUN-OUT:  15
+'' EXPECT-RUN-OUT:  10
+'' EXPECT-RUN-OUT:  6 5
+'' EXPECT-RUN-OUT: tu
+'' EXPECT-RUN-OUT:  12 7 pool! 12

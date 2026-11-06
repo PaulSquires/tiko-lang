@@ -257,17 +257,14 @@ private sub CheckPropertyShape_ _
       byval kw as Tko.TokenKind, byval at as Tko.SourceLoc )
     if kw <> Tko.KW_PROPERTY then exit sub
     if p.silent then exit sub
-    if (sp.extra and Tko.PF_STATIC) <> 0 then
-        p.diags->Report( Tko.TKO0788, Tko.PointRange( at ) )
-        exit sub
-    end if
+    '' A STATIC PROPERTY is a tiko extension (docs/tiko-properties R11, decision Q5): fbc's 213 is gone.
     dim as int32 n = 0
     for i as int32 = 0 to sp.count - 1
         if p.ast->Kind( p.ast->ChildAt( sp.first, i ) ) = Tko.N_PARAM then n += 1
     next
-    if sp.a <> Tko.NODE_NONE then
-        if n > 1 then p.diags->Report( Tko.TKO0786, Tko.PointRange( at ) )
-    elseif (n < 1) orelse (n > 2) then
+    '' MORE THAN ONE INDEX is a tiko extension (docs/tiko-properties R13, decision Q5), so a getter's
+    '' 190 is gone and a setter's 191 is only for one with no value at all.
+    if (sp.a = Tko.NODE_NONE) andalso (n < 1) then
         p.diags->Report( Tko.TKO0787, Tko.PointRange( at ) )
     end if
 end sub

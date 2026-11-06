@@ -250,8 +250,9 @@ sub LowerProc _
         '' reaches the UDT's scope from its own 'this' and keeps the receiver.
         dim as boolean isStructor = false
         dim as boolean isOperator = (cast( Tko.TokenKind, sp->op ) = Tko.KW_OPERATOR)
+        '' NOT A PROPERTY: a namespace's has no receiver (R11); a member's is found by the walk below.
         select case cast( Tko.TokenKind, sp->op )
-        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR, Tko.KW_PROPERTY
+        case Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR
             isStructor = true
         end select
 

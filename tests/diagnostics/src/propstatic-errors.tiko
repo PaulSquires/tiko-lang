@@ -1,0 +1,17 @@
+'' Static auto-properties (docs/tiko-properties R11): what is refused. See propstatic-errors.test.
+type Reg
+    declare static property Seed as long = 4 get
+    declare static property Hits as long get, private set
+    declare constructor( )
+    x as long
+end type
+constructor Reg( )
+    Seed = 5
+end constructor
+Reg.Seed = 6
+Reg.Hits = 1
+type Box( of T )
+    declare static property N as long get, set
+    v as T
+end type
+dim as Box( of long ) b

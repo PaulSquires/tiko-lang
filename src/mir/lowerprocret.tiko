@@ -76,6 +76,17 @@ function ProcIsStatic_ _
     return ((psp->extra and Tko.PF_STATIC) <> 0)
 end function
 
+'' A PROPERTY CALLED WITH NO RECEIVER: a static one, or one a NAMESPACE declares rather than a
+'' type (docs/tiko-properties R11) -- what PropertyAt_ and the member-call emitters ask.
+function ProcHasNoReceiver_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    if ProcIsStatic_( c, Tko.NODE_NONE, sid ) then return true
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = nullptr then return false
+    return (sc->kind <> cast( uint8, Tko.SCOPEK_TYPE ))
+end function
+
 '' cdecl / stdcall / pascal, off the proc's own flags. All three are one convention on
 '' x86-64 and the emitted IR is identical; it is carried because it is part of the
 '' signature, because win32 is a stated target, and because it is unrecoverable later.

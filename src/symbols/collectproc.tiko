@@ -315,6 +315,8 @@ private function ProcRedeclared_ _
     dim as boolean overloadable = isMember orelse isOperator
     '' ...or this one writes the keyword itself (the F4 divergence, above).
     if (sp->extra and Tko.PF_OVERLOAD) <> 0 then overloadable = true
+    '' A PROPERTY'S getter and setter share its name in a NAMESPACE too (R11, decision Q4).
+    if byResult andalso (isOperator = false) then overloadable = true
     dim as boolean sawFirst = false
 
     guard = 0

@@ -1,0 +1,8 @@
+#include once "propstatic.ti"
+sub Registry.Bump( )
+    Count += 1
+end sub
+sub Other( )
+    Registry.Bump( )
+    print "other"; Registry.Count; " "; Registry.Label
+end sub

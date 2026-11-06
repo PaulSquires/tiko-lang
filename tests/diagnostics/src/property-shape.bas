@@ -1,7 +1,7 @@
-'' A PROPERTY'S SHAPE -- fbc's errors 190, 191 and 213. A getter takes nothing or one
-'' index, a setter its value with at most one index before it, and a property is never
-'' STATIC. Each is refused on exactly the line fbc-modern 1.20 and 1.10.1 refuse it
-'' (2026-09-19); tiko-lang accepted them all.
+'' A PROPERTY'S SHAPE. fbc refuses lines 7, 8, 9, 10 and 19 (190, 191, 213; fbc-modern 1.20 and
+'' 1.10.1, 2026-09-19). tiko takes any number of indices and a STATIC property (R13, R11), so it
+'' refuses only line 8, a setter with no value, and line 19, a definition whose
+'' two indices no declaration has.
 type T
     x as long
     declare property g2( byval i as long, byval j as long ) as long

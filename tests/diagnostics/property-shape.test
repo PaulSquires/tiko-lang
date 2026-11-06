@@ -1,13 +1,10 @@
-'' A property's shape: 5 errors on fbc-modern 1.20 and 1.10.1 alike, on exactly these lines
-'' (2026-09-19) -- fbc's 190 for a getter with two parameters (a declaration, and a
-'' definition on line 19), 191 for a setter with none or three, 213 for STATIC. Lines
-'' 12 to 16 are the legal shapes and are accepted by both.
+'' A property's shape. fbc-modern 1.20 and 1.10.1 give 5 errors (2026-09-19): 190 for a getter
+'' with two parameters (7, and the definition on 19), 191 for a setter with none or three (8, 9),
+'' 213 for STATIC (10). tiko lifts the one-index limit and allows a static property
+'' (docs/tiko-properties R13, R11): 7, 9 and 10 are accepted, 8 still has no value, and 19
+'' matches no declaration of g1 (TKO0796).
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/property-shape.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-MAX-DIAG: 5
-'' EXPECT-OUT: property-shape.bas(7,13): error TKO0786: a property getter takes no parameter, or one index
-'' EXPECT-OUT: property-shape.bas(8,13): error TKO0787: a property setter takes its value, and at most one index before it
-'' EXPECT-OUT: property-shape.bas(9,13): error TKO0787: a property setter takes its value, and at most one index before it
-'' EXPECT-OUT: property-shape.bas(10,13): error TKO0788: a property cannot be static
-'' EXPECT-OUT: property-shape.bas(19,1): error TKO0786: a property getter takes no parameter, or one index
+'' EXPECT-OUT: property-shape.bas(8,13): error TKO0787: a property setter takes its value, after any indices
+'' EXPECT-OUT: property-shape.bas(19,1): error TKO0796

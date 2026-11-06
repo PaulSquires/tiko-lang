@@ -241,10 +241,9 @@ sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     if s->kind <> cast( uint8, SYM_PROC ) then return
     dim as boolean variadic = false
     dim as int32 nDef = DefParamCount_( c, sp, variadic )
-    '' A PROPERTY the parser already refused the shape of (TKO0786, TKO0787).
+    '' A PROPERTY the parser already refused the shape of (TKO0787: a setter with no value).
     if sp->op = cast( uint16, KW_PROPERTY ) then
-        if (sp->a <> NODE_NONE) andalso (nDef > 1) then return
-        if (sp->a = NODE_NONE) andalso ((nDef < 1) orelse (nDef > 2)) then return
+        if (sp->a = NODE_NONE) andalso (nDef < 1) then return     '' any index count: R13
     end if
 
     dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
@@ -255,6 +254,7 @@ sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean byResult = false
     if isOp then byResult = (Text.LowerAscii( c.names->Spelling( sp->name ) ) = "cast")
     dim as boolean overloadSet = isMember orelse isOp orelse ((sp->extra and PF_OVERLOAD) <> 0)
+    if sp->op = cast( uint16, KW_PROPERTY ) then overloadSet = true   '' a namespace's too (R11)
     '' '...' is judged only where it cannot be an overload: TKO0780 has the rest.
     if variadic andalso overloadSet then return
 

@@ -24,6 +24,7 @@ declare function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as 
           byref isConv as boolean ) as boolean
     declare function ProcIsStatic_ _
         ( byref c as Ctx, byval defn as Tko.NodeId, byval sid as Tko.SymbolId ) as boolean
+    declare function ProcHasNoReceiver_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
     declare function ProcCallConv_ _
         ( byref c as Ctx, byval pn as Tko.NodeId ) as uint8
     '' A call to a pascal procedure, named or through a pascal procedure type.

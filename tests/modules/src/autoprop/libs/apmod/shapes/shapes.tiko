@@ -4,9 +4,11 @@ public type Pt
     declare property X as long get, set
     declare property Label as string = "pt" get, private set
     declare sub Rename( byval s as string )
+    declare static property Made as long = 5 get, private set
 end type
 sub Pt.Rename( byval s as string )
     this.Label = s
+    Made += 1
 end sub
 public type Box( of T )
     declare property V as T get, set

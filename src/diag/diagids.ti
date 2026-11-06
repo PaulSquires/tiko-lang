@@ -647,8 +647,9 @@
     '' to BE a procedure.
     DIAG( TKO0785, SEV_ERROR,   "'%0' is not a procedure, so 'procptr' cannot take it" )
     '' fbc's errors 190, 191 and 213 -- the shapes a PROPERTY may have.
+    '' TKO0786 is no longer reported: a getter takes any number of indices (docs/tiko-properties R13).
     DIAG( TKO0786, SEV_ERROR,   "a property getter takes no parameter, or one index" )
-    DIAG( TKO0787, SEV_ERROR,   "a property setter takes its value, and at most one index before it" )
+    DIAG( TKO0787, SEV_ERROR,   "a property setter takes its value, after any indices" )
     DIAG( TKO0788, SEV_ERROR,   "a property cannot be static" )
     '' fbc's error 1, "Argument count mismatch", over an OPERATOR's own parameters.
     DIAG( TKO0789, SEV_ERROR,   "operator '%0' takes %1 parameter(s) here" )
@@ -1077,6 +1078,7 @@
     '' The property block (docs/tiko-properties R9) -- propblock.tiko: a 'byref' result, whose getter
     '' would return a reference to its local 'value', and 'property' in a section, which in a block
     '' names a backing field (decision Q6) that a property written by hand does not have.
+    DIAG( TKO0590, SEV_ERROR,   "static property '%0' is init-only: only its initialiser sets it" )
     '' fbc's error 215: a field's '= value' naming a field declared before it -- geninit.tiko (D11).
     DIAG( TKO0591, SEV_ERROR,   "field '%0' cannot be read in another field's initialiser: only static members can" )
     DIAG( TKO0592, SEV_ERROR,   "a property block's getter returns 'value', a local: it cannot return byref" )

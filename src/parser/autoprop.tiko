@@ -39,7 +39,8 @@
 
 namespace Tko.Parse
 
-const AP_STRIDE = 4      '' name token, type's first token, type's end token, field name
+'' name token, type's first and end tokens, field name, static (0/1), initialiser's first and end tokens
+const AP_STRIDE = 7
 
 private function TokKind_( byref p as ParserState, byval i as int32 ) as Tko.TokenKind
     if HasTok( p, i ) = false then return Tko.TK_EOF
@@ -76,6 +77,7 @@ end sub
 private function IsAutoProp_( byref p as ParserState, byref getAt as int32 ) as boolean
     if Peek( p ) <> Tko.KW_DECLARE then return false
     dim as int32 i = p.pos + 1
+    if TokKind_( p, i ) = Tko.KW_STATIC then i += 1     '' 'declare static property' -- R11
     if TokKind_( p, i ) <> Tko.KW_PROPERTY then return false
     dim as Tko.TokenKind nk = TokKind_( p, i + 1 )
     if (nk <> Tko.TK_IDENT) andalso (Tko.IsKeywordKind( nk ) = false) then return false   '' 'Name' is a keyword
@@ -103,6 +105,7 @@ function AutoPropMember _
     p.silent = false                               '' each member is a statement of its own
     dim as Tko.Token declTok = Cur( p )
     Advance( p )                                   '' declare
+    dim as boolean isStatic = Accept( p, Tko.KW_STATIC )
     Advance( p )                                   '' property
     dim as int32 nameAt = p.pos
     dim as Tko.Token nameTok = Cur( p )
@@ -125,7 +128,12 @@ function AutoPropMember _
     p.pos = ty1
 
     dim as Tko.NodeId init_ = Tko.NODE_NONE
-    if Accept( p, Tko.TK_EQ ) orelse Accept( p, Tko.TK_FATARROW ) then init_ = Expression( p )
+    dim as int32 init0 = -1, init1 = -1
+    if Accept( p, Tko.TK_EQ ) orelse Accept( p, Tko.TK_FATARROW ) then
+        init0 = p.pos
+        init_ = Expression( p )
+        init1 = p.pos
+    end if
 
     '' THE CLAUSE: 'get', 'get, set' or 'get, init', with an optional access word before the second.
     dim as boolean initOnly = true
@@ -168,12 +176,31 @@ function AutoPropMember _
 
     '' THE FIELD: private, named '<name>@prop' -- '@' never lexes into an identifier.
     dim as Tko.InternId fieldNm = p.names->GetString( Tko.Text.LowerAscii( spelled ) & "@prop" )
-    dim as Tko.StmtPayload fp
-    fp.name = fieldNm
-    fp.a = tyField
-    fp.c = init_
-    fp.extra = Tko.PF_MEMB_PRIVATE
-    members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, nameTok.loc, fp ) ) )
+    if isStatic then
+        '' ...A STATIC MEMBER for a static one (R11): 'static as T <name>@prop'. Its initialiser goes
+        '' on the 'dim' written after 'end type', and lowering emits that storage weak, so every
+        '' unit may write it (lowerglobal.tiko).
+        dim as Tko.StmtPayload ip
+        ip.name = fieldNm
+        ip.a = tyField
+        dim as Tko.NodeId itn = MakeStmt( p, Tko.N_VAR_ITEM, nameTok.loc, ip )
+        dim as Tko.StmtPayload vp0
+        vp0.op = cast( uint16, Tko.KW_STATIC )
+        vp0.first = p.ast->ChildPoolCount( )
+        vp0.count = 1
+        p.ast->PushChild( itn )
+        vp0.extra = Tko.PF_MEMB_PRIVATE
+        dim as Tko.NodeId svn = MakeStmt( p, Tko.N_VAR, nameTok.loc, vp0 )
+        p.ast->OrFlags( svn, Tko.NF_STATIC )           '' what Collect reads as a static member
+        members.Push( cast( uint32, svn ) )
+    else
+        dim as Tko.StmtPayload fp
+        fp.name = fieldNm
+        fp.a = tyField
+        fp.c = init_
+        fp.extra = Tko.PF_MEMB_PRIVATE
+        members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, nameTok.loc, fp ) ) )
+    end if
 
     '' THE GETTER: 'declare const property Name( ) as T'. CONST, so a const object can read it.
     dim as Tko.StmtPayload gp
@@ -182,7 +209,8 @@ function AutoPropMember _
     gp.a = tyGet
     gp.first = p.ast->ChildPoolCount( )
     gp.count = 0
-    gp.extra = vis or Tko.PF_CONST or Tko.PF_AUTOPROP
+    gp.extra = vis or Tko.PF_AUTOPROP
+    gp.extra or= iif( isStatic, Tko.PF_STATIC, Tko.PF_CONST )
     members.Push( cast( uint32, MakeStmt( p, Tko.N_PROC, nameTok.loc, gp ) ) )
 
     '' THE SETTER: 'declare property Name( byval value as T )'.
@@ -198,6 +226,7 @@ function AutoPropMember _
     sp.count = 1
     p.ast->PushChild( vn )
     sp.extra = setVis or Tko.PF_AUTOPROP
+    if isStatic then sp.extra or= Tko.PF_STATIC
     if initOnly then sp.extra or= Tko.PF_INIT_ONLY
     members.Push( cast( uint32, MakeStmt( p, Tko.N_PROC, nameTok.loc, sp ) ) )
     p.memberProcNames.Push( cast( uint32, nm ) )
@@ -211,6 +240,9 @@ function AutoPropMember _
         p.autoProps.Push( ty0 )
         p.autoProps.Push( ty1 )
         p.autoProps.Push( cast( int32, fieldNm ) )
+        p.autoProps.Push( iif( isStatic, 1, 0 ) )
+        p.autoProps.Push( init0 )
+        p.autoProps.Push( init1 )
     end if
     return true
 end function
@@ -256,12 +288,39 @@ sub AutoPropBodies( byref p as ParserState, byval own0 as int32, byval own1 as i
         dim as int32 ty0 = p.autoProps[e + 1]
         dim as int32 ty1 = p.autoProps[e + 2]
         dim as Tko.InternId fieldNm = cast( Tko.InternId, p.autoProps[e + 3] )
+        dim as boolean isStatic = (p.autoProps[e + 4] <> 0)
+        dim as int32 init0 = p.autoProps[e + 5], init1 = p.autoProps[e + 6]
         dim as Tko.SourceLoc at = p.toks->At( nameAt ).loc
 
-        '' const property Owner.Name( ) as T
+        if isStatic then
+            '' A GENERIC's static member has no storage to define (one per instance would be owed).
+            if own1 - own0 > 1 then
+                if p.silent = false then p.diags->Report( Tko.TKO0595, Tko.PointRange( at ), _
+                    p.names->Spelling( p.toks->At( nameAt ).ident ), "a static auto-property cannot be declared in a generic type" )
+                continue for
+            end if
+            '' dim as T Owner.<field> [= init]
+            Eol_( v, at )
+            Put_( v, Tko.KW_DIM, at ) : LineStart_( v )
+            Put_( v, Tko.KW_AS, at )
+            Copy_( p, v, ty0, ty1 )
+            Copy_( p, v, own0, own1 )
+            Put_( v, Tko.TK_DOT, at )
+            Put_( v, Tko.TK_IDENT, at, fieldNm )
+            if init0 >= 0 then
+                Put_( v, Tko.TK_EQ, at )
+                Copy_( p, v, init0, init1 )
+            end if
+        end if
+
+        '' [const] property Owner.Name( ) as T -- const for an instance, as a static has no 'this'
         Eol_( v, at )
-        Put_( v, Tko.KW_CONST, at ) : LineStart_( v )
-        Put_( v, Tko.KW_PROPERTY, at )
+        if isStatic then
+            Put_( v, Tko.KW_PROPERTY, at ) : LineStart_( v )
+        else
+            Put_( v, Tko.KW_CONST, at ) : LineStart_( v )
+            Put_( v, Tko.KW_PROPERTY, at )
+        end if
         Copy_( p, v, own0, own1 )
         Put_( v, Tko.TK_DOT, at )
         Copy_( p, v, nameAt, nameAt + 1 )
@@ -269,10 +328,9 @@ sub AutoPropBodies( byref p as ParserState, byval own0 as int32, byval own1 as i
         Put_( v, Tko.KW_AS, at )
         Copy_( p, v, ty0, ty1 )
         Eol_( v, at )
-        '' return this.<field>
+        '' return [this.]<field>
         Put_( v, Tko.KW_RETURN, at ) : LineStart_( v )
-        Put_( v, Tko.TK_IDENT, at, thisNm )
-        Put_( v, Tko.TK_DOT, at )
+        if isStatic = false then Put_( v, Tko.TK_IDENT, at, thisNm ) : Put_( v, Tko.TK_DOT, at )
         Put_( v, Tko.TK_IDENT, at, fieldNm )
         Eol_( v, at )
         Put_( v, Tko.KW_END, at ) : LineStart_( v )
@@ -291,10 +349,14 @@ sub AutoPropBodies( byref p as ParserState, byval own0 as int32, byval own1 as i
         Copy_( p, v, ty0, ty1 )
         Put_( v, Tko.TK_RPAREN, at )
         Eol_( v, at )
-        '' this.<field> = value
-        Put_( v, Tko.TK_IDENT, at, thisNm ) : LineStart_( v )
-        Put_( v, Tko.TK_DOT, at )
-        Put_( v, Tko.TK_IDENT, at, fieldNm )
+        '' [this.]<field> = value
+        if isStatic then
+            Put_( v, Tko.TK_IDENT, at, fieldNm ) : LineStart_( v )
+        else
+            Put_( v, Tko.TK_IDENT, at, thisNm ) : LineStart_( v )
+            Put_( v, Tko.TK_DOT, at )
+            Put_( v, Tko.TK_IDENT, at, fieldNm )
+        end if
         Put_( v, Tko.TK_EQ, at )
         Put_( v, Tko.TK_IDENT, at, valueNm )
         Eol_( v, at )

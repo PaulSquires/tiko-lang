@@ -603,6 +603,9 @@ namespace Tko.Mir
         '' this slot exists. 'common shared' is always tentative: it cannot be
         '' initialized at all (fbc error 135, TKO0656).
         as boolean  isTentative
+        '' WEAK AND FOLDABLE: an auto-property's static storage, which every unit reading the type
+        '' defines (parser/autoprop.tiko, lowerglobal.tiko).
+        as boolean  isWeak
         as boolean  isVar
         as uint8    ty             '' MirType, isVar only
         as Tko.TypeId frontendType

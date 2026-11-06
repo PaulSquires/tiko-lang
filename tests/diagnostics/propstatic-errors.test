@@ -1,0 +1,10 @@
+'' docs/tiko-properties R11: a static get-only auto-property is set only by its initialiser -- not
+'' in a constructor (9), not outside (11); a private static setter is refused outside (12); and a
+'' generic type cannot declare a static auto-property (14), whose storage would be per instance.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/propstatic-errors.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: propstatic-errors.tiko(9,5): error TKO0590
+'' EXPECT-OUT: propstatic-errors.tiko(11,4): error TKO0590
+'' EXPECT-OUT: propstatic-errors.tiko(12,4): error TKO0625
+'' EXPECT-OUT: propstatic-errors.tiko(14,29): error TKO0595

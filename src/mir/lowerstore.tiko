@@ -294,7 +294,8 @@ sub EmitStructorCall _
         self_.ty = cast( uint8, MT_PTR )
         self_.id = slot
     end if
-    if self_.kind = cast( uint8, MV_NONE ) then return
+    dim as boolean noRecv = ProcHasNoReceiver_( c, sym )   '' a static property's setter (R11)
+    if (self_.kind = cast( uint8, MV_NONE )) andalso (noRecv = false) then return
 
     '' THE DEFAULTED ARGUMENTS ARE LOWERED FIRST, before anything goes into the pool: a
     '' default that builds a temporary emits calls of its own, and those would land
@@ -360,14 +361,13 @@ sub EmitStructorCall _
     next
 
     dim as int32 first = c.m->argPool.Count \ 2
-    c.m->argPool.Push( cast( uint32, self_.kind ) )
-    c.m->argPool.Push( cast( uint32, self_.id ) )
+    if noRecv = false then c.m->argPool.Push( cast( uint32, self_.kind ) ) : c.m->argPool.Push( cast( uint32, self_.id ) )
     '' CONSTRUCTOR ARGUMENTS, after the receiver: 'new C( x )' is
     '' '_ZN1CC1Ei( TMP, X )'. Every existing caller passes none, and a structor
     '' with none is the overwhelming majority -- which is why they were not
     '' modelled at all, and 'new C( g )' emitted the call with its argument
     '' simply MISSING.
-    dim as int32 nargs = 1
+    dim as int32 nargs = iif( noRecv, 0, 1 )
     if args <> nullptr then
         for i as int32 = 0 to args->Count - 1
             c.m->argPool.Push( (*args)[i] )
@@ -410,7 +410,7 @@ sub EmitStructorCall _
         decl->isDefinition = false
         '' The receiver is parameter zero -- see this sub's own comment -- and the
         '' structor's declared parameters follow it.
-        SignatureFromProc( c, decl, pn, false, true )
+        SignatureFromProc( c, decl, pn, false, noRecv = false )
         fidx = c.m->functions.Count - 1
     end if
 

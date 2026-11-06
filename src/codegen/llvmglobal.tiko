@@ -74,12 +74,23 @@ end function
 '' The default -- neither word -- is external.
 private function VarLinkage( byref e as EmitCtx, byref g as MirGlobal ) as string
     if g.isInternal then return "internal "
+    if g.isWeak then return "linkonce_odr "
     if g.isTentative = false then return iif( g.isHidden, "hidden ", "" )
     dim as boolean valued = g.hasInit orelse (len( g.initBytes ) > 0)
     if valued = false then valued = (g.initReloc >= 0) orelse (g.initRelocFn <> 0)
     if valued = false then valued = (g.ptrCount > 0)
     if valued then return ""
     return "common "
+end function
+
+'' A WEAK GLOBAL'S COMDAT, as a weak function's (llvmemit.tiko): declared here, and ', comdat' returned
+'' for its definition. COFF needs it -- without it each unit's linkonce copy is a weak external and
+'' lld-link calls two of them a duplicate (measured, docs/tiko-properties R11). Mach-O has none.
+private function WeakComdat_( byref e as EmitCtx, byref g as MirGlobal, byref nm as string ) as string
+    if (g.isWeak = false) orelse g.isInternal then return ""
+    if e.tgt->objFormat = OBJ_MACHO then return ""
+    e.outp += "$" & mid( nm, 2 ) & " = comdat any" & chr( 10 )
+    return ", comdat"
 end function
 
 private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
@@ -160,9 +171,10 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
                 return
             end select
         next
+        dim as string pcd = WeakComdat_( e, g, nm )
         e.outp += nm & " = " & VarLinkage( e, g ) & "global [" & str( g.ptrCount ) & _
                   " x ptr] [" & body & _
-                  "], align " & str( e.tgt->layout.pointerBits \ 8 ) & chr( 10 )
+                  "]" & pcd & ", align " & str( e.tgt->layout.pointerBits \ 8 ) & chr( 10 )
         return
     end if
 
@@ -254,8 +266,9 @@ private sub EmitMixedGlobal_ _
     if (e.dbg <> nullptr) andalso (g.isExternal = false) then
         mdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
     end if
+    dim as string mcd = WeakComdat_( e, g, nm )
     e.outp += nm & " = " & VarLinkage( e, g ) & "global <{ " & mtys & " }> <{ " & mvals & _
-              " }>, align " & str( AlignOf( e, MT_AGG, g.size ) ) & mdbg & chr( 10 )
+              " }>" & mcd & ", align " & str( AlignOf( e, MT_AGG, g.size ) ) & mdbg & chr( 10 )
 end sub
 
 '' A DIM SHARED VARIABLE. The initialiser is part of the DEFINITION and not a store
@@ -313,8 +326,9 @@ sub EmitVarGlobal _
                     return
                 end select
             next
+            dim as string tcd = WeakComdat_( e, g, nm )
             e.outp += nm & " = " & VarLinkage( e, g ) & "global [" & str( g.ptrCount ) & _
-                      " x ptr] [" & tbody & "], align " & str( pw ) & chr( 10 )
+                      " x ptr] [" & tbody & "]" & tcd & ", align " & str( pw ) & chr( 10 )
             return
         end if
     end if
@@ -384,6 +398,7 @@ sub EmitVarGlobal _
 
     dim as string gdbg = ""
     if (e.dbg <> nullptr) andalso (g.isExternal = false) then gdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
+    dim as string vcd = WeakComdat_( e, g, nm )
     e.outp += nm & " = " & VarLinkage( e, g ) & iif( g.readOnly, "constant ", "global " ) & ty & " " & init_ & _
-              ", align " & str( AlignOf( e, vt, g.size ) ) & gdbg & chr( 10 )
+              vcd & ", align " & str( AlignOf( e, vt, g.size ) ) & gdbg & chr( 10 )
 end sub

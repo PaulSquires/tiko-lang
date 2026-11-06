@@ -117,7 +117,9 @@ function EmitMemberCallArgs_ _
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
-    if self_.kind = cast( uint8, MV_NONE ) then return none_
+    '' A STATIC PROPERTY'S GETTER has no receiver (docs/tiko-properties R11): PropertyAt_ hands none.
+    dim as boolean noRecv = ProcHasNoReceiver_( c, sym )
+    if (self_.kind = cast( uint8, MV_NONE )) andalso (noRecv = false) then return none_
     if vslot >= 0 then self_ = IfaceSelf_( c, sym, self_ )   '' an interface's property: loweritab.tiko
 
     '' A UDT RESULT THAT TRAVELS THROUGH A HIDDEN POINTER needs somewhere to land, and
@@ -176,9 +178,11 @@ function EmitMemberCallArgs_ _
         c.m->argPool.Push( cast( uint32, sretTmp.id ) )
         nargs += 1
     end if
-    c.m->argPool.Push( cast( uint32, self_.kind ) )
-    c.m->argPool.Push( cast( uint32, self_.id ) )
-    nargs += 1
+    if noRecv = false then
+        c.m->argPool.Push( cast( uint32, self_.kind ) )
+        c.m->argPool.Push( cast( uint32, self_.id ) )
+        nargs += 1
+    end if
     if args <> nullptr then
         for i as int32 = 0 to args->Count - 1
             c.m->argPool.Push( (*args)[i] )
@@ -195,7 +199,7 @@ function EmitMemberCallArgs_ _
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, callTy )
         decl->isDefinition = false
-        SignatureFromProc( c, decl, pn, useSret, true )
+        SignatureFromProc( c, decl, pn, useSret, noRecv = false )
         fidx = c.m->functions.Count - 1
     end if
 

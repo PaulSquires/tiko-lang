@@ -13,4 +13,4 @@ b.V = 7
 dim as Box( of string ) s
 s.V = "v"
 s.V &= "w"
-print b.V; " "; s.V
+print b.V; " "; s.V; Pt.Made

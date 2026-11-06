@@ -1,0 +1,85 @@
+'' Static and namespace properties (docs/tiko-properties R11). See propstatic-run.test.
+type Counter
+    static as long n
+    declare static property Count( ) as long
+    declare static property Count( byval value as long )
+    declare static property Twice( byval i as long ) as long
+    declare constructor( )
+    declare sub Show( )
+    x as long
+end type
+dim as long Counter.n
+property Counter.Count( ) as long
+    return n
+end property
+property Counter.Count( byval value as long )
+    n = value
+end property
+property Counter.Twice( byval i as long ) as long
+    return n * i
+end property
+constructor Counter( )
+    Count += 1
+end constructor
+sub Counter.Show( )
+    print "show"; Count
+end sub
+dim as Counter a, b
+print Counter.Count
+Counter.Count = 10
+Counter.Count += 5
+print Counter.Count; Counter.Twice( 2 )
+a.Show( )
+print a.Count
+namespace Cfg2
+    dim shared as long lv, arr( 3 )
+    declare property Level( ) as long
+    declare property Level( byval value as long )
+    declare property Slot( byval i as long ) as long
+    declare property Slot( byval i as long, byval value as long )
+end namespace
+property Cfg2.Level as long
+    get
+        value = lv
+    end get
+    set
+        lv = iif( value > 10, 10, value )
+    end set
+end property
+property Cfg2.Slot( byval i as long ) as long
+    return arr( i )
+end property
+property Cfg2.Slot( byval i as long, byval value as long )
+    arr( i ) = value
+end property
+dim shared as string gname2_
+declare property Title( ) as string
+declare property Title( byval value as string )
+property Title( ) as string
+    return gname2_
+end property
+property Title( byval value as string )
+    gname2_ = value
+end property
+Cfg2.Level = 50
+print Cfg2.Level
+Cfg2.Slot( 1 ) = 5 : Cfg2.Slot( 2 ) = 6
+swap Cfg2.Slot( 1 ), Cfg2.Slot( 2 )
+print Cfg2.Slot( 1 ); Cfg2.Slot( 2 )
+Title = "t"
+Title &= "u"
+print Title
+type Pool
+    declare static property Made as long = 10 get, private set
+    declare static property Name as string get, set
+    declare static property Seed as long = 7 get
+    declare constructor( )
+    y as long
+end type
+constructor Pool( )
+    Made += 1
+end constructor
+dim as Pool p1, p2
+Pool.Name = "pool"
+Pool.Name &= "!"
+print Pool.Made; Pool.Seed; " "; Pool.Name; p1.Made

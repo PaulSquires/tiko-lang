@@ -1,0 +1,8 @@
+#include once "propstatic.ti"
+Registry.Label = "reg"
+print Registry.Count; Registry.Seed
+Registry.Bump( )
+Registry.Label &= "!"
+Other( )
+dim as Registry r
+print r.Count

@@ -107,6 +107,12 @@ function IsInitOnlySetter_( byref c as Ctx, byval sid as SymbolId ) as boolean
     return ((c.ast->StmtOf( pn )->extra and PF_INIT_ONLY) <> 0)
 end function
 
+function IsStaticSetter_( byref c as Ctx, byval sid as SymbolId ) as boolean
+    dim as NodeId pn = PropProcNode_( c, sid )
+    if pn = NODE_NONE then return false
+    return ((c.ast->StmtOf( pn )->extra and PF_STATIC) <> 0)
+end function
+
 sub RecordPropertyStores_( byref c as Ctx )
     for i as int32 = 1 to c.ast->Count( )
         dim as NodeId n = cast( NodeId, i )

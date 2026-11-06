@@ -190,6 +190,11 @@ private sub CheckInitOnly_ _
     dim as TypeId owner = OwningType_( c, s )
     dim as boolean inCtor = (c.curProc <> NODE_NONE) andalso (here = owner)
     if inCtor then inCtor = (c.ast->StmtOf( c.curProc )->op = cast( uint16, KW_CONSTRUCTOR ))
+    '' A STATIC one has no constructor to belong to: only its initialiser sets it (R11).
+    if IsStaticSetter_( c, sid ) then
+        c.diags->Report( TKO0590, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+        return
+    end if
     if inCtor then return
     c.diags->Report( TKO0596, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ), _
                      iif( owner <> TYPE_NONE, c.names->Spelling( c.types->NameOf( owner ) ), "" ) )

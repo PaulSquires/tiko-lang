@@ -175,6 +175,9 @@ function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
         end if
     elseif sharedOut then
         c.m->globals[g].isTentative = true
+        '' AN AUTO-PROPERTY'S STATIC STORAGE ('<name>@prop' -- no source can spell it) is defined by
+        '' every unit that reads its type, so it folds as the accessors do (docs/tiko-properties R11).
+        if memberStatic andalso (right( c.names->Spelling( s->name ), 5 ) = "@prop") then c.m->globals[g].isWeak = true
     else
         c.m->globals[g].isInternal = true
     end if
