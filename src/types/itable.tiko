@@ -233,6 +233,33 @@ private function IsClassDecl_( byref ast as AstArena, byval s as Symbol ptr ) as
     return ast.StmtOf( dn )->b = NODE_NONE                             '' a generic template
 end function
 
+'' DO TWO DECLARATIONS' DEFAULT ARGUMENTS DIFFER (§6 Q9)? Not compared as values: a call through
+'' the interface takes the interface's, a direct call the method's, and TKO1018 says so when
+'' they visibly differ -- one has a default the other lacks, two literals differ, or two
+'' defaults are not the same kind of expression.
+private function DefaultsDiffer_( byref ast as AstArena, byval a as NodeId, byval b as NodeId ) as boolean
+    dim as StmtPayload ptr pa = ast.StmtOf( a ), pb = ast.StmtOf( b )
+    if pa->count <> pb->count then return false
+    for i as int32 = 0 to pa->count - 1
+        dim as NodeId x = ast.ChildAt( pa->first, i ), y = ast.ChildAt( pb->first, i )
+        if (ast.Kind( x ) <> N_PARAM) orelse (ast.Kind( y ) <> N_PARAM) then continue for
+        dim as NodeId dx = ast.StmtOf( x )->b, dy = ast.StmtOf( y )->b
+        if (dx = NODE_NONE) andalso (dy = NODE_NONE) then continue for
+        if (dx = NODE_NONE) orelse (dy = NODE_NONE) then return true
+        if ast.Kind( dx ) <> ast.Kind( dy ) then return true
+        select case ast.Kind( dx )
+        case N_INT_LIT, N_FLOAT_LIT
+            dim as LiteralPayload ptr lx = ast.LiteralOf( dx ), ly = ast.LiteralOf( dy )
+            if (lx->intValue <> ly->intValue) orelse (lx->fltValue <> ly->fltValue) then return true
+        case N_STRING_LIT
+            if ast.LiteralOf( dx )->strLength <> ast.LiteralOf( dy )->strLength then return true
+        case N_IDENT
+            if ast.IdentOf( dx )->name <> ast.IdentOf( dy )->name then return true
+        end select
+    next
+    return false
+end function
+
 '' Is slot 'sl' provided by the base type -- does the base implement the interface that
 '' DECLARES it?
 private function BaseHas_( byref types as TypeContext, byval baseT as TypeId, byval owner as TypeId ) as boolean
@@ -355,6 +382,9 @@ private sub ImplementOne_ _
             mapped.Put( cast( uint32, sl.decl ), mapProc.Count )
             mapProc.Push( cast( uint32, ProcSymOf_( syms, s, m ) ) )
             mapDecl.Push( cast( uint32, m ) )
+            if DefaultsDiffer_( ast, sl.decl, m ) then
+                diags.Report( TKO1018, PointRange( ast.Loc( mem ) ), implName, types.Name( sl.owner ), mshown )
+            end if
         next
     next
 
@@ -453,6 +483,45 @@ sub ComputeImplementations _
         next
     wend
 end sub
+
+function IfaceInheritedCount _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref info as SemanticInfo, byval iface as Symbol ptr, byval nm as InternId, _
+      byref first as TypeId, byref second as TypeId ) as int32
+
+    first = TYPE_NONE : second = TYPE_NONE
+    dim as int32 n = 0
+    dim as containers.Map( of uint32, int32 ) found, seen
+    dim as containers.Array( of uint32 ) todo
+    todo.Push( cast( uint32, iface->payload ) )
+    dim as int32 at = 0
+    while (at < todo.Count) andalso (at < 4096)
+        dim as NodeId dn = cast( NodeId, todo[at] )
+        at += 1
+        if (dn = NODE_NONE) orelse (ast.Kind( dn ) <> N_INTERFACE) then continue while
+        dim as NodeId bl = ast.StmtOf( dn )->c
+        if bl = NODE_NONE then continue while
+        dim as ListPayload ptr lp = ast.ListOf( bl )
+        for j as int32 = 0 to lp->count - 1
+            dim as TypeId bt = types.Unqualify( info.TypeOf_( ast.ChildAt( lp->first, j ) ) )
+            if (types.IsInterface( bt ) = false) orelse seen.Contains( cast( uint32, bt ) ) then continue for
+            seen.Put( cast( uint32, bt ), 1 )
+            dim as Symbol ptr b = syms.SymbolAt( syms.LookupTyped( cast( ScopeId, types.DeclScopeOf( bt ) ), types.NameOf( bt ), true ) )
+            if (b = nullptr) orelse (b->inner = SCOPE_NONE) then continue for
+            dim as SymbolId hit = syms.LookupLocal( b->inner, nm )
+            if hit <> SYMBOL_NONE then
+                if found.Contains( cast( uint32, hit ) ) = false then
+                    found.Put( cast( uint32, hit ), 1 )
+                    n += 1
+                    if n = 1 then first = bt else if n = 2 then second = bt
+                end if
+            else
+                todo.Push( cast( uint32, b->payload ) )
+            end if
+        next
+    wend
+    return n
+end function
 
 function IfaceInheritedMember _
     ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _

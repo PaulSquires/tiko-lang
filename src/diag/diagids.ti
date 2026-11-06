@@ -1092,8 +1092,19 @@
     '' %2: ": write 'trycast( %1, ... )'" when a run-time cast exists (from an interface).
     DIAG( TKO1009, SEV_ERROR,   "'%0' does not convert to '%1'%2" )
     '' Re-implementation (VB's BC42014) is deferred, §10.4.
+    DIAG( TKO1007, SEV_ERROR,   "interface '%0' cannot be created; create a type that implements it" )
+    DIAG( TKO1012, SEV_ERROR,   "an interface reference cannot refer to a temporary; store the object in a variable first" )
+    DIAG( TKO1013, SEV_ERROR,   "'delete' cannot destroy through interface '%0'; cast to the object's type first" )
+    '' The engine takes three arguments, so the design's "in '%1'" is left out.
+    DIAG( TKO1010, SEV_ERROR,   "'%0' is ambiguous: both '%1' and '%2' declare it; cast to one of them" )
+    DIAG( TKO1015, SEV_ERROR,   "interface type '%0' cannot appear in a foreign declaration" )
+    DIAG( TKO1018, SEV_WARNING, "'%0' implements '%1.%2' with different default arguments; calls through '%1' use the interface's" )
     DIAG( TKO1011, SEV_ERROR,   "'%1.%2' is already implemented by base type '%0'; override that method instead" )
     DIAG( TKO1014, SEV_ERROR,   "a static method cannot implement an interface member" )
+    '' %1: "true" / "false" for 'is', "null" / "the object itself" for 'trycast'.
+    DIAG( TKO1016, SEV_WARNING, "'%0' is decided at compile time: it is always %1" )
+    '' Not in §13.2, which reserves TKO1019/TKO1020 for a class's 'inherits'.
+    DIAG( TKO1021, SEV_ERROR,   "'trycast' converts to an interface or to a pointer to a type, not to '%0'" )
 
 #endmacro
 

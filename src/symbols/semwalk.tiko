@@ -1097,6 +1097,7 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
     '' the wrong line.
     if t = TYPE_NONE then return
     dim as TypeId u = c.types->Unqualify( t )
+    if IfaceDeleteRefused_( c, sp->a, u ) then return                 '' semiface.tiko
     if c.types->Kind( u ) <> TK_POINTER then
         c.diags->Report( TKO0629, PointRange( c.ast->Loc( sp->a ) ) )
         return

@@ -1,0 +1,11 @@
+'' AN INTERFACE AND A CLASS THROUGH A MODULE INTERFACE (docs/tiko-interfaces). Both are written
+'' into it as text -- 'interface' is contextual, so tkiemit.tiko goes by the node -- and the
+'' importer re-reads them: it inherits the interface into one of its own, extends the class
+'' and implements the imported interface on a type of its own.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/ifacemod/libs tests/modules/src/ifacemod/app/main.bas -o tests/modules/ifacemod.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/ifacemod.exe
+'' RUN: tests/modules/ifacemod.exe
+'' EXPECT-RUN-OUT: me             animal         16

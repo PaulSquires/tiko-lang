@@ -1436,6 +1436,7 @@ sub RunLateSweeps2_ ( byref c as Ctx )
     CheckAggregateInitVisibility_( c )
     CheckConstDeclTypes2_( c )
     CheckRedimDeclShape_( c )
+    CheckIfaceForeign_( c )     '' semiface.tiko
     CheckAggregateInitFields_( c )
     CheckTypeLiteralText_( c )  '' typelitstr.tiko
     CheckAnyPtrDeref_( c )      '' anyptrderef.tiko

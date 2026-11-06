@@ -88,6 +88,17 @@ function InterfaceHere( byref p as Tko.ParserState ) as boolean
     loop
 end function
 
+
+'' 'trycast' IS CONTEXTUAL, like 'interface': fbc takes it as an identifier, so a program's own
+'' procedure of that name keeps its meaning (§17 Q6) -- one declared above the call, as the
+'' label rule asks (KnownProc_). The '(' is checked by the caller, TypeArgCall's dispatch.
+function TryCastHere( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+    if k <> Tko.TK_IDENT then return false
+    if IdentSpelledAt( p, p.pos, "trycast" ) = false then return false
+    if KindAt_( p, p.pos + 1 ) <> Tko.TK_LPAREN then return false
+    return KnownProc_( p, false, cast( uint32, Cur( p ).literal ) ) = false
+end function
+
 function InheritsLineHere( byref p as Tko.ParserState ) as boolean
     if IdentSpelledAt( p, p.pos, "inherits" ) = false then return false
     select case KindAt_( p, p.pos + 1 )

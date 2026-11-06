@@ -18,6 +18,49 @@ namespace Tko.Sem
 #include once "symbols/visctx.ti"
 #include once "symbols/semcalls.ti"
 
+'' THE 'nullptr' CONSTANT (the prelude's 'const nullptr as any ptr = 0'), as opposed to any other
+'' 'any ptr': only it converts to an interface, as a null reference (§5.3).
+private function IsNullptr_( byref c as Ctx, byval n as NodeId ) as boolean
+    while (n <> NODE_NONE) andalso (c.ast->Kind( n ) = N_PAREN)
+        dim as ListPayload ptr pl = c.ast->ListOf( n )
+        if pl->count <> 1 then return false
+        n = cast( NodeId, c.ast->ChildSlot( pl->first ) )
+    wend
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_IDENT) then return false
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if (s = nullptr) orelse (s->kind <> cast( uint8, SYM_CONSTANT )) then return false
+    return c.names->Spelling( c.names->Fold( s->name ) ) = "nullptr"
+end function
+
+'' The VALUE a judged statement or argument converts: the node itself for an expression, else
+'' the 'b' of an assignment or an initialised declarator.
+private function ValueNode_( byref c as Ctx, byval at as NodeId ) as NodeId
+    if at = NODE_NONE then return NODE_NONE
+    dim as NodeCategory cat = NodeKindCategory( c.ast->Kind( at ) )
+    if cat = NCAT_EXPR then return at
+    if (cat = NCAT_STMT) orelse (cat = NCAT_DECL) then return c.ast->StmtOf( at )->b
+    return NODE_NONE
+end function
+
+'' A value with no address of its own: a call that is not an array index, a 'new', a literal.
+private function IsTemporary_( byref c as Ctx, byval n as NodeId ) as boolean
+    while (n <> NODE_NONE) andalso (c.ast->Kind( n ) = N_PAREN)
+        dim as ListPayload ptr pl = c.ast->ListOf( n )
+        if pl->count <> 1 then return false
+        n = cast( NodeId, c.ast->ChildSlot( pl->first ) )
+    wend
+    if n = NODE_NONE then return false
+    select case c.ast->Kind( n )
+    case N_CALL
+        dim as ListPayload ptr cp = c.ast->ListOf( n )
+        if cp->target = NODE_NONE then return true
+        return c.types->Kind( c.types->Unqualify( c.info->TypeOf_( cp->target ) ) ) <> TK_ARRAY
+    case N_TUPLE, N_NEW
+        return true
+    end select
+    return false
+end function
+
 '' True when one side is an interface: the conversion was judged here, and refused with
 '' TKO1009 if it does not hold. 'lt' and 'rt' are the value types, already unqualified.
 function IfaceConvJudged_ _
@@ -30,6 +73,16 @@ function IfaceConvJudged_ _
         if c.types->Kind( src ) = TK_POINTER then
             src = c.types->Unqualify( c.types->Inner( src ) )
             if c.types->IsInterface( src ) then src = TYPE_NONE      '' 'I ptr' is no reference
+        end if
+        '' A TEMPORARY -- a function's result, 'Dog( "Rex" )' -- would leave the reference
+        '' dangling after the statement (§5.3): only an lvalue lends its address.
+        if (c.types->Kind( rt ) = TK_UDT) andalso IsTemporary_( c, ValueNode_( c, at ) ) then
+            c.diags->Report( TKO1012, PointRange( c.ast->Loc( at ) ) )
+            return true
+        end if
+        if IsNullptr_( c, ValueNode_( c, at ) ) then
+            c.diags->Report( TKO0992, PointRange( c.ast->Loc( at ) ), "a null interface reference (docs/tiko-interfaces, Phase 3)" )
+            return true
         end if
         if (src <> TYPE_NONE) andalso (c.types->IfaceConvLinks( src, lt ) >= 0) then
             '' LEGAL, AND NOT YET COMPILED: the itable store is Phase 3. Refused rather than
@@ -58,6 +111,28 @@ function IfaceMemberRefused_( byref c as Ctx, byval id as NodeId ) as boolean
     if mp->lhs = NODE_NONE then return false
     dim as TypeId lt = ValueOf_( c, c.info->TypeOf_( mp->lhs ) )
     if c.types->IsInterface( lt ) = false then return false
+    '' 'IAnimal.Speak( )' -- the TYPE, not a value of it: there is no object to call on. The
+    '' existing TKO0999 ("not a static member") already says so; the design's TKO1017 would
+    '' be a second error on the same call, so it is not added.
+    dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    if ls <> nullptr then
+        if ls->kind = cast( uint8, SYM_UDT ) then return true
+    end if
+    '' A NAME TWO BASES DECLARE, and the interface does not (§7.3): ambiguous, as in VB.
+    if (mp->rhs <> NODE_NONE) andalso (c.ast->Kind( mp->rhs ) = N_IDENT) then
+        dim as InternId nm = c.ast->IdentOf( mp->rhs )->name
+        dim as Symbol ptr isym = c.syms->SymbolAt( c.syms->LookupTyped( cast( ScopeId, c.types->DeclScopeOf( lt ) ), c.types->NameOf( lt ), true ) )
+        if isym <> nullptr then
+            if c.syms->LookupLocal( isym->inner, nm ) = SYMBOL_NONE then
+                dim as TypeId f1, f2
+                if Tko.IfaceInheritedCount( *c.ast, *c.syms, *c.types, *c.info, isym, nm, f1, f2 ) > 1 then
+                    c.diags->Report( TKO1010, PointRange( c.ast->Loc( mp->rhs ) ), c.names->Spelling( nm ), _
+                                     c.types->Name( f1 ), c.types->Name( f2 ) )
+                    return true
+                end if
+            end if
+        end if
+    end if
     c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "a call through an interface (docs/tiko-interfaces, Phase 3)" )
     return true
 end function
@@ -70,5 +145,134 @@ function ArgIfaceJudged_ _
     if pu = au then return false
     return IfaceConvJudged_( c, arg, pu, au )
 end function
+
+'' 'trycast( T, x )' (docs/tiko-interfaces §5.5, §7.8). T is an interface or a pointer to a type;
+'' x is an interface value, or an object -- a pointer or an lvalue -- of a type that extends
+'' 'object'. Without a vptr there is nothing to ask at run time: the answer is the static one,
+'' TKO1016. The run-time search is Phase 4, so a legal one is TKO0992 until then.
+function TryCastJudged_( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if (lp->count <> 2) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return false
+    if c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) ) <> "trycast" then return false
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false     '' the program's own
+    dim as NodeId tn = c.ast->ChildAt( lp->first, 0 )
+    dim as NodeId xn = c.ast->ChildAt( lp->first, 1 )
+    if c.ast->Kind( tn ) <> N_TYPEREF then return false                '' a call, parsed as one
+    dim as TypeId tt = c.types->Unqualify( c.info->TypeOf_( tn ) )
+    dim as TypeId xt = ValueOf_( c, c.info->TypeOf_( xn ) )
+    if (tt = TYPE_NONE) orelse (xt = TYPE_NONE) then return true
+    dim as boolean toPtr = (c.types->Kind( tt ) = TK_POINTER)
+    if toPtr then toPtr = (c.types->Kind( c.types->Unqualify( c.types->Inner( tt ) ) ) = TK_UDT)
+    if (c.types->IsInterface( tt ) = false) andalso (toPtr = false) then
+        c.diags->Report( TKO1021, PointRange( c.ast->Loc( tn ) ), c.types->Name( tt ) )
+        return true
+    end if
+    if c.types->IsInterface( xt ) = false then
+        dim as TypeId ot = xt
+        if c.types->Kind( ot ) = TK_POINTER then ot = c.types->Unqualify( c.types->Inner( ot ) )
+        if (c.types->Kind( ot ) <> TK_UDT) orelse (ExtendsObject_( c, ot ) = false) then
+            dim as boolean yes
+            if c.types->IsInterface( tt ) then
+                yes = (c.types->IfaceConvLinks( ot, tt ) >= 0)
+            else
+                yes = (c.types->Unqualify( c.types->Inner( tt ) ) = ot)
+            end if
+            c.diags->Report( TKO1016, PointRange( c.ast->Loc( id ) ), "trycast( " & c.types->Name( tt ) & ", ... )", _
+                             iif( yes, "the object itself", "null" ) )
+        end if
+    end if
+    c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "trycast (docs/tiko-interfaces, Phase 4)" )
+    return true
+end function
+
+'' 'x is T' WITH AN INTERFACE ON EITHER SIDE (docs/tiko-interfaces §5.5, §7.8). 'ifc is T': T is any
+'' class or interface -- an interface has no class to be strictly derived from. 'obj is IFace':
+'' a type with no vptr, or one that already implements IFace, gives the static answer
+'' (TKO1016). The class-to-class rules (TKO0798-TKO0800) are CheckIsTest_'s, unchanged. The
+'' run-time search is Phase 4: TKO0992 until then.
+function IsTestIfaceJudged_ _
+    ( byref c as Ctx, byval id as NodeId, byval lt as TypeId, byval rt as TypeId ) as boolean
+    dim as boolean lI = c.types->IsInterface( lt ), rI = c.types->IsInterface( rt )
+    if (lI orelse rI) = false then return false
+    dim as SourceRange r = PointRange( c.ast->Loc( id ) )
+    if lI then
+        if c.types->Kind( rt ) <> TK_UDT then
+            c.diags->Report( TKO0800, r, c.types->Name( rt ) )
+            return true
+        end if
+    else
+        if c.types->Kind( lt ) <> TK_UDT then
+            c.diags->Report( TKO0800, r, c.types->Name( lt ) )
+            return true
+        end if
+        dim as boolean has = (c.types->IfaceConvLinks( lt, rt ) >= 0)
+        if has orelse (ExtendsObject_( c, lt ) = false) then
+            c.diags->Report( TKO1016, r, "is " & c.types->Name( rt ), iif( has, "true", "false" ) )
+        end if
+    end if
+    c.diags->Report( TKO0992, r, "'is' over an interface (docs/tiko-interfaces, Phase 4)" )
+    return true
+end function
+
+'' '=' AND '<>' COMPARE TWO REFERENCES BY THEIR OBJECT WORDS (§5.5, §8.2): two interface values of
+'' one family (either converts to the other), or one and 'nullptr'. No other operator, and
+'' nothing else. Compiled in Phase 3: TKO0992 until then.
+function IfaceCompareJudged_ _
+    ( byref c as Ctx, byval id as NodeId, byref opnm as string, byval lt as TypeId, byval rt as TypeId ) as boolean
+    dim as boolean lI = c.types->IsInterface( lt ), rI = c.types->IsInterface( rt )
+    if (lI orelse rI) = false then return false
+    dim as BinaryPayload ptr bp = c.ast->BinaryOf( id )
+    dim as boolean ok = (opnm = "=") orelse (opnm = "<>")
+    if ok then
+        if lI andalso rI then
+            ok = (lt = rt) orelse (c.types->IfaceConvLinks( lt, rt ) >= 0) orelse (c.types->IfaceConvLinks( rt, lt ) >= 0)
+        elseif lI then
+            ok = IsNullptr_( c, bp->rhs )
+        else
+            ok = IsNullptr_( c, bp->lhs )
+        end if
+    end if
+    if ok then
+        c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "comparing interface references (docs/tiko-interfaces, Phase 3)" )
+    else
+        c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
+    end if
+    return true
+end function
+
+'' 'delete' THROUGH AN INTERFACE (§17 Q7): the reference does not own the object, and nothing in it
+'' says how the object was allocated or which destructor runs. Cast to the object's type.
+function IfaceDeleteRefused_( byref c as Ctx, byval v as NodeId, byval u as TypeId ) as boolean
+    dim as TypeId it = u
+    if c.types->Kind( it ) = TK_POINTER then it = c.types->Unqualify( c.types->Inner( it ) )
+    if c.types->IsInterface( it ) = false then return false
+    c.diags->Report( TKO1013, PointRange( c.ast->Loc( v ) ), c.types->Name( it ) )
+    return true
+end function
+
+'' AN INTERFACE IN A FOREIGN DECLARATION (§13.2): C has no fat reference, so a parameter or result
+'' of interface type in an 'extern "C"' (or "Windows") procedure would pass two words the other
+'' side cannot read. A pointer to the object is the way across.
+sub CheckIfaceForeign_( byref c as Ctx )
+    for n as int32 = 1 to c.ast->Count( )
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_PROC then continue for
+        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+        if (sp->extra and PF_FOREIGN) = 0 then continue for
+        dim as NodeId tr = sp->a
+        for i as int32 = -1 to sp->count - 1
+            if i >= 0 then
+                dim as NodeId prm = c.ast->ChildAt( sp->first, i )
+                if c.ast->Kind( prm ) <> N_PARAM then continue for
+                tr = c.ast->StmtOf( prm )->a
+            end if
+            if tr = NODE_NONE then continue for
+            dim as TypeId t = ValueOf_( c, c.info->TypeOf_( tr ) )
+            if c.types->IsInterface( t ) then
+                c.diags->Report( TKO1015, PointRange( c.ast->Loc( tr ) ), c.types->Name( t ) )
+            end if
+        next
+    next
+end sub
 
 end namespace

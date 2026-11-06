@@ -788,6 +788,7 @@ private sub CheckIsTest_ ( byref c as Ctx, byval id as NodeId )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
     lt = c.types->Unqualify( lt )
     rt = c.types->Unqualify( rt )
+    if IsTestIfaceJudged_( c, id, lt, rt ) then return              '' semiface.tiko
     dim as SourceRange r = PointRange( c.ast->Loc( id ) )
     if c.types->Kind( lt ) <> TK_UDT then
         c.diags->Report( TKO0800, r, c.types->Name( lt ) )

@@ -1,0 +1,25 @@
+'' Using interface values (docs/tiko-interfaces §5.5, §7.8, §13.2): trycast and 'is' are
+'' typed and judged, with the static answer for a type with no vptr (TKO1016); '=' takes a
+'' reference of the family or nullptr; 'new' (TKO1007), 'delete' (TKO1013), a temporary
+'' (TKO1012), a name two bases declare (TKO1010), a foreign declaration (TKO1015) and
+'' differing defaults (TKO1018) are diagnosed. A type-qualified call is the existing
+'' TKO0999. What is legal is TKO0992 until Phases 3 and 4.
+'' TEST: cli
+'' ARGS: --frontend-only tests/diagnostics/src/iface-uses.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iface-uses.bas(23,69): warning TKO1018: 'animal.speak' implements 'ianimal.speak' with different default arguments; calls through 'ianimal' use the interface's
+'' EXPECT-OUT: iface-uses.bas(47,18): error TKO0992: not implemented in this build: trycast
+'' EXPECT-OUT: iface-uses.bas(48,21): warning TKO1016: 'trycast( ianimal, ... )' is decided at compile time: it is always the object itself
+'' EXPECT-OUT: iface-uses.bas(49,26): error TKO1021: 'trycast' converts to an interface or to a pointer to a type, not to 'long'
+'' EXPECT-OUT: iface-uses.bas(50,9): error TKO0992: not implemented in this build: 'is' over an interface
+'' EXPECT-OUT: iface-uses.bas(50,21): warning TKO1016: 'is ianimal' is decided at compile time: it is always true
+'' EXPECT-OUT: iface-uses.bas(51,6): error TKO0992: not implemented in this build: comparing interface references
+'' EXPECT-OUT: iface-uses.bas(52,6): error TKO0720
+'' EXPECT-OUT: iface-uses.bas(54,25): error TKO1007: interface 'ianimal' cannot be created
+'' EXPECT-OUT: iface-uses.bas(55,8): error TKO1013: 'delete' cannot destroy through interface 'ianimal'
+'' EXPECT-OUT: iface-uses.bas(56,4): error TKO1010: 'go' is ambiguous: both 'ia' and 'ib' declare it; cast to one of them
+'' EXPECT-OUT: iface-uses.bas(57,8): error TKO0999
+'' EXPECT-OUT: iface-uses.bas(45,16): error TKO0992: not implemented in this build: a null interface reference
+'' EXPECT-OUT: iface-uses.bas(53,16): error TKO1012: an interface reference cannot refer to a temporary
+'' EXPECT-OUT: iface-uses.bas(40,37): error TKO1015: interface type 'ianimal' cannot appear in a foreign declaration
+'' EXPECT-MAX-DIAG: 17

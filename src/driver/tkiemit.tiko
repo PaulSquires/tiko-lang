@@ -434,8 +434,15 @@ private sub Declaration_( byref w as TkiWriter_, byval s as int32, byval e as in
     case Tko.KW_DECLARE
         Chunk_( w, s, e )
 
-    case Tko.KW_TYPE, Tko.KW_UNION, Tko.KW_ENUM, Tko.KW_CONST
+    case Tko.KW_TYPE, Tko.KW_UNION, Tko.KW_ENUM, Tko.KW_CONST, Tko.KW_CLASS
         if AtLevel_( w, n, sc ) then Chunk_( w, s, e )
+
+    case Tko.TK_IDENT
+        '' 'interface I ... end interface' (docs/tiko-interfaces): a contextual word, so the
+        '' node says what the line is.
+        if w.ast->Kind( n ) = Tko.N_INTERFACE then
+            if AtLevel_( w, n, sc ) then Chunk_( w, s, e )
+        end if
 
     case Tko.KW_DIM, Tko.KW_STATIC, Tko.KW_REDIM
         '' ...AND 'public redim shared A( any )', which is a dim shared of a dynamic array: it was

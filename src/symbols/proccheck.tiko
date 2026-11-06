@@ -192,6 +192,10 @@ sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
     dim as TypeId t = c.info->TypeOf_( lp->target )
     if t = TYPE_NONE then return
     dim as TypeId u = c.types->Unqualify( t )
+    if c.types->IsInterface( u ) then                                 '' docs/tiko-interfaces
+        c.diags->Report( TKO1007, PointRange( c.ast->Loc( id ) ), c.types->Name( u ) )
+        return
+    end if
     '' 'new T' AND 'new T[n]' CONSTRUCT BY DEFAULT -- fbc's 183 over a type with
     '' constructors but none taking no argument, '{ any }' included. tiko built them
     '' and called nothing. The placement buffer is not a constructor argument.
@@ -1267,6 +1271,7 @@ sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
     if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
     if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if IfaceCompareJudged_( c, id, opnm, lt, rt ) then return       '' semiface.tiko
     '' A TUPLE COMPARES ELEMENTWISE and is not this question -- this suite's own
     '' tuple-compare test writes 'if a = b' over two '(long, long)'. Its kind, or its
     '' synthesized name, is what tells one apart from a declared UDT.

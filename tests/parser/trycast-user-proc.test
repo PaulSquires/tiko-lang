@@ -1,0 +1,10 @@
+'' A program's own 'trycast' is called, not read as 'trycast( T, x )' (docs/tiko-interfaces
+'' §5.5, §17 Q6): the parser checks KnownProc_, and Check keeps the user binding when the
+'' first argument is no type reference.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/parser/src/trycast-user-proc.bas -o tests/parser/trycastuser.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/parser/trycastuser.exe
+'' RUN: tests/parser/trycastuser.exe
+'' EXPECT-RUN-OUT:  3

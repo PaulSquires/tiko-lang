@@ -94,6 +94,14 @@ namespace Tko
         ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
           byref info as SemanticInfo, byval iface as Symbol ptr, byval nm as InternId ) as SymbolId
 
+    '' How many DIFFERENT members named 'nm' the interface's bases declare (a diamond's one
+    '' member counts once), with the interfaces that declare the first two -- TKO1010 when
+    '' it is more than one and the interface does not declare 'nm' itself.
+    declare function IfaceInheritedCount _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byval iface as Symbol ptr, byval nm as InternId, _
+          byref first as TypeId, byref second as TypeId ) as int32
+
     '' --dump-itable.
     declare function DumpInterfaces _
         ( byref ast as AstArena, byref store as Interfaces, byref types as TypeContext, _

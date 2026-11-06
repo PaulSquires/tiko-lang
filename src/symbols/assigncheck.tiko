@@ -515,6 +515,7 @@ sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
+    if TryCastJudged_( c, id ) then return                         '' semiface.tiko
     '' A BUILTIN'S NAME OVERLOADED BY THE PROGRAM IS NOT THE CALLEE FOR A BUILTIN ARGUMENT.
     '' AfxNova declares 'Left OVERLOAD( byref as DWSTRING, n )' and calls 'LEFT( w, 1 )' over
     '' a 'byref as const wstring'; measured, fbc runs the builtin (scratchpad afx/ov.bas), and

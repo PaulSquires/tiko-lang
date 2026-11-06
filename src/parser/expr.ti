@@ -250,6 +250,10 @@ declare function ArgOrElided _
         ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
           byval nameless as boolean = false ) as boolean
 
+    '' 'trycast( T, x )' at the cursor (docs/tiko-interfaces §5.5): the contextual word, a '(',
+    '' and no procedure of that name seen -- parser/declclass.tiko.
+    declare function TryCastHere( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
+
     declare function ErrorNode _
         ( byref p as Tko.ParserState, byval id as Tko.DiagId, _
           byval a0 as string = "" ) as Tko.NodeId
