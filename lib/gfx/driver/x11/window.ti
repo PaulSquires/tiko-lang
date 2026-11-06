@@ -49,6 +49,9 @@ extern "c"
         byval fn as function cdecl ( byval as any ptr ) as any ptr, byval arg as any ptr ) as long
     declare function TkoPthreadJoin alias "pthread_join" ( byval t as ulongint, byval ret as any ptr ptr ) as long
     declare function TkoMutexInit alias "pthread_mutex_init" ( byval m as any ptr, byval attr as any ptr ) as long
+    declare function TkoMutexAttrInit alias "pthread_mutexattr_init" ( byval a as any ptr ) as long
+    declare function TkoMutexAttrType alias "pthread_mutexattr_settype" ( byval a as any ptr, byval t as long ) as long
+    declare function TkoMutexAttrDestroy alias "pthread_mutexattr_destroy" ( byval a as any ptr ) as long
     declare function TkoMutexLock alias "pthread_mutex_lock" ( byval m as any ptr ) as long
     declare function TkoMutexUnlock alias "pthread_mutex_unlock" ( byval m as any ptr ) as long
     declare function TkoMutexDestroy alias "pthread_mutex_destroy" ( byval m as any ptr ) as long
@@ -118,6 +121,20 @@ type GfxWindow extends WindowBase
     lock_ready   as long
     ready        as long             '' 0 waiting, 1 open, -1 failed
 end type
+
+'' THE FRAME LOCK IS RECURSIVE, as the Windows driver's CRITICAL_SECTION is: the entry
+'' layer takes it again under itself -- under SCREENLOCK, a CLS or PRINT reaches a console
+'' hook that locks too. A default pthread mutex deadlocks the program against itself
+'' there (measured: tools/gfxcheck.bas hung on its first frame on Linux and macOS).
+'' PTHREAD_MUTEX_RECURSIVE is 1 here (lib/rt/src/inc/sysbind/linux-x86_64-posix.ti, generated
+'' from the C headers); the attribute object is at most 16 bytes on either system.
+private sub FrameLockInit( byval m as any ptr )
+    dim as ulongint attr( 0 to 7 )
+    TkoMutexAttrInit( @attr(0) )
+    TkoMutexAttrType( @attr(0), 1 )
+    TkoMutexInit( m, @attr(0) )
+    TkoMutexAttrDestroy( @attr(0) )
+end sub
 
 private sub WindowLock( byref w as GfxWindow )
     if w.lock_ready then
@@ -560,7 +577,7 @@ private function WindowOpen( _
     if headless then return 1
 
     if X11Load( ) = 0 then return 0
-    TkoMutexInit( @w.mtx(0), nullptr )
+    FrameLockInit( @w.mtx(0) )
     w.lock_ready = 1
 
     if TkoPthreadCreate( @w.thread, nullptr, @X11Thread, @w ) <> 0 then

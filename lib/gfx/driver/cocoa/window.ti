@@ -44,6 +44,9 @@ extern "c"
     declare function TkoAttrInit alias "pthread_attr_init" ( byval a as any ptr ) as long
     declare function TkoAttrStack alias "pthread_attr_setstacksize" ( byval a as any ptr, byval n as uinteger ) as long
     declare function TkoMutexInit alias "pthread_mutex_init" ( byval m as any ptr, byval attr as any ptr ) as long
+    declare function TkoMutexAttrInit alias "pthread_mutexattr_init" ( byval a as any ptr ) as long
+    declare function TkoMutexAttrType alias "pthread_mutexattr_settype" ( byval a as any ptr, byval t as long ) as long
+    declare function TkoMutexAttrDestroy alias "pthread_mutexattr_destroy" ( byval a as any ptr ) as long
     declare function TkoMutexLock alias "pthread_mutex_lock" ( byval m as any ptr ) as long
     declare function TkoMutexTryLock alias "pthread_mutex_trylock" ( byval m as any ptr ) as long
     declare function TkoMutexUnlock alias "pthread_mutex_unlock" ( byval m as any ptr ) as long
@@ -87,6 +90,20 @@ dim shared as GfxWindow ptr TheCoWin       '' the one window, for the AppKit cal
 dim shared as any ptr TheCoViewClass, TheCoDelegateClass, TheCoDelegate
 dim shared as long TheCoAppReady          '' NSApplication made, the main thread in [NSApp run]
 dim shared as long TheCoWantApp
+
+'' THE FRAME LOCK IS RECURSIVE, as the Windows driver's CRITICAL_SECTION is: the entry
+'' layer takes it again under itself -- under SCREENLOCK, a CLS or PRINT reaches a console
+'' hook that locks too. A default pthread mutex deadlocks the program against itself
+'' there (measured: tools/gfxcheck.bas hung on its first frame on Linux and macOS).
+'' PTHREAD_MUTEX_RECURSIVE is 2 here (lib/rt/src/inc/sysbind/macos-arm64-posix.ti, generated
+'' from the C headers); the attribute object is at most 16 bytes on either system.
+private sub FrameLockInit( byval m as any ptr )
+    dim as ulongint attr( 0 to 7 )
+    TkoMutexAttrInit( @attr(0) )
+    TkoMutexAttrType( @attr(0), 2 )
+    TkoMutexInit( m, @attr(0) )
+    TkoMutexAttrDestroy( @attr(0) )
+end sub
 
 private sub WindowLock( byref w as GfxWindow )
     if w.lock_ready then TkoMutexLock( @w.mtx(0) )
@@ -786,7 +803,7 @@ private function WindowOpen( _
     w.backing = callocate( cast( integer, cw ) * ch * 4 )
     if w.backing = nullptr then return 0
     w.lastx = &hFFFF : w.lasty = &hFFFF
-    TkoMutexInit( @w.mtx(0), nullptr )
+    FrameLockInit( @w.mtx(0) )
     w.lock_ready = 1
     if s.dirty <> nullptr then memset( s.dirty, 1, s.h )
 
