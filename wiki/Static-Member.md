@@ -27,6 +27,8 @@ Dim typename.variablename As DataType [= initializer] [, ...]
 
  For member procedures with a `Static` declaration, `Static` may also be specified on the corresponding procedure bodies, for improved code readability.
 
+ A [`Property`](Property) may be `Static` too: `Declare Static Property Count() As Long`, used as `typename.Count` or through any object. A `Static` auto-property, `Declare Static Property Count As Long Get, Private Set`, keeps its value in a hidden static member variable.
+
 - Static member variables
 
 `Static` member variables are created and initialized only once independently of any object construction, in contrast to non-static ("instance") member variables which are created again and again for each separate object. `Static` members are always [`Shared`](Shared), even if [`Shared`](Shared) was not specified in the declaration. Thus, `Static` member variables are similar to global variables, except that they are declared in a `Type` namespace.

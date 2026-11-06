@@ -6,6 +6,7 @@ Every language feature and library that ships with tiko, one row each, with the 
 
 | Feature | What it is |
 |---|---|
+| [Properties](Property) | **Auto-properties**, `Declare Property Age As Long = 18 Get, Private Set`: a hidden field and both accessors written by the compiler, with `Get, Init` for a value only the constructor sets. **Property blocks** hold `Get` and `Set` in one definition, with `value` as the value crossing the boundary. Any number of indices, `Static` properties, properties in a namespace, `+=` and `Swap` on a property, and a property passed `ByRef` is written back through its setter. |
 | [Generics](Category-Generics) | `type Box( of T )` and `function Max( of T )( … )`. One concrete type per distinct type-argument list, type-checked like any other type. Not a macro, not a separate template language. |
 | [Interfaces](Category-Interfaces) | `interface IShape … end interface`, `class Circle` with `implements IShape` lines. A contract any `type` or `class` can take on, as many as it needs, with each method mapped explicitly; an interface value is a 16-byte reference, and a plain `type` needs no vtable to implement one. Generic interfaces, and constraints: `function Largest( of T as IComparable( of T ) )`. |
 | [Iterator Protocol](Category-Iterators) | A *structural* contract: a type is iterable if it has `GetIterator( )` returning something with `IsValid( )`, `Value( )` and `MoveNext( )`. No base class, no interface, no registration, nothing to inherit. |
