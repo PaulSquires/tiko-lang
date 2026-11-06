@@ -2,9 +2,9 @@
 '' the program -- a font by its path, and 'lib/gammart', which has no extension, as the
 '' shared library a Windows target names gammart.dll.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrc/pkg
-'' ENV: TKO_MODCACHE=build/.vrc/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrc/pkg
+'' ENV: TIKO_MODCACHE=build/.vrc/mc
 '' CLEAN: build/.vrc
 '' COPY: tests/modules/src/vrt/pkg => build/.vrc/pkg
 '' WRITE: build/.vrc/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n

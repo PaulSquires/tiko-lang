@@ -2,7 +2,7 @@
 '' unsigned, small before large. tiko took the highest-ranked (double). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/bool-castpick.bas -o tests/codegen/boolcastpick.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/boolcastpick.exe
 '' EXPECT-RUN-EXIT: 0

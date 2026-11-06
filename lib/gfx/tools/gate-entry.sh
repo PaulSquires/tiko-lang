@@ -25,7 +25,7 @@
 #
 # Needs an interactive desktop session: the subject opens a real window.
 #
-# AN ORACLE SCRIPT: fbc builds only the reference, gfxlib2's half -- TKO_ORACLE_FBC, else
+# AN ORACLE SCRIPT: fbc builds only the reference, gfxlib2's half -- TIKO_ORACLE_FBC, else
 # fbc-modern's toolchain fbc -- and without one this SKIPS rather than fails. The subject
 # is built by the tree's bin/tiko since 2026-10-10, where it was fbc '-z msvc' and clang.
 #
@@ -47,12 +47,12 @@ esac
 # The oracle fbc for the reference (it links gfxlib2 itself); the tree's tiko for the
 # subject.
 if [ "$HOST" = linux ]; then
-    FBC_REF=${TKO_ORACLE_FBC:-$( command -v fbc 2>/dev/null )}
+    FBC_REF=${TIKO_ORACLE_FBC:-$( command -v fbc 2>/dev/null )}
     : "${TIKO:=$ROOTDIR/bin/tiko}"
     TARGET=linux-x86_64
     EXE=""
 else
-    FBC_REF=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+    FBC_REF=${TIKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
     : "${TIKO:=$ROOTDIR/bin/tiko.exe}"
     TARGET=windows-x86_64
     EXE=".exe"
@@ -72,7 +72,7 @@ LIBFB="$GFX/../rt/lib/$TARGET/libfb.a"
 KNOWN=""
 [ "$HOST" = linux ] && KNOWN="a wide character with no ascii"
 
-[ -n "$FBC_REF" ] && [ -x "$FBC_REF" ] || { echo "gate-entry: SKIPPED -- no oracle fbc at '$FBC_REF' (TKO_ORACLE_FBC)" ; exit 0 ; }
+[ -n "$FBC_REF" ] && [ -x "$FBC_REF" ] || { echo "gate-entry: SKIPPED -- no oracle fbc at '$FBC_REF' (TIKO_ORACLE_FBC)" ; exit 0 ; }
 [ -x "$TIKO" ] || { echo "gate-entry: no $TIKO -- run build/build.sh" >&2 ; exit 3 ; }
 for f in "$TKOGFX" "$LIBFB"; do
     [ -f "$f" ] || { echo "gate-entry: no $f -- run build/build.sh" >&2 ; exit 3 ; }

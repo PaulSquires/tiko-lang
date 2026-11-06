@@ -1,6 +1,6 @@
 '' The macros c2t writes for members.h's field reads work: '.', '->', a field of a field.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.c2t/members-run
 '' STEP-EXIT: 2
 '' STEP: c2t tests/c2t/src/members.h -o build/.c2t/members-run/members.ti

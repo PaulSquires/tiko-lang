@@ -3,7 +3,7 @@
 '' is tools/fmtdiff's, run separately: it needs clang++ with <format>.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/std/format/format.tiko -o tests/std/format/format.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/std/format/format.exe
 '' RUN: tests/std/format/format.exe

@@ -5,8 +5,8 @@
 '' them bare too. Linked and run: the importer names the symbols qo defined.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/main.tiko -o tests/modules/ovjoin-main.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ovjoin-main.exe
 '' EXPECT-RUN-EXIT: 0

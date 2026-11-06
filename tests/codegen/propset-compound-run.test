@@ -5,7 +5,7 @@
 '' 'p->Size = p->Size + 10', with the receiver and the index evaluated once into locals.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/propset-compound.tiko -o tests/codegen/propsetcompound.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/propsetcompound.exe
 '' EXPECT-RUN-EXIT: 0

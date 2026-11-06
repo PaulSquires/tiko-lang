@@ -1,8 +1,8 @@
 '' vendor/raylib6/raymath LINKS NOTHING ITSELF -- it brings vendor/raylib6, which links raylib -- so
 '' it declares no link modes, and 'link' on it is TKO0155: the mode is chosen on vendor/raylib6.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.vrls/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.vrls/mc
 '' ARGS: -target linux-x86_64 -c tests/modules/src/vraylib/satlink.tiko -o build/.vrls/satlink.o
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: satlink.tiko(1,1): error TKO0155

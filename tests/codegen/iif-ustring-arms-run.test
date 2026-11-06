@@ -6,7 +6,7 @@
 '' a narrow destination, a comparison and a subscript. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/iif-ustring-arms.bas -o tests/codegen/iifustringarms.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/iifustringarms.exe
 '' EXPECT-RUN-EXIT: 0

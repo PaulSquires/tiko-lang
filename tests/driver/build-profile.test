@@ -1,8 +1,8 @@
 '' A NAMED TARGET UNDER A USER PROFILE (PLAN B2): [profile.fast] inherits 'release' -- so clang
 '' runs at -O2 -- and adds '-d FAST=1'; the target writes out/fast/.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bpf/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bpf/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bpf
 '' COPY: tests/driver/src/build-pkg => build/.bpf/pkg
 '' ARGS: build tool -target windows-x86_64 --manifest build/.bpf/pkg --profile fast -v

@@ -3,7 +3,7 @@
 '' Floored, libm's tan from Tangent, each emitted into its own chunk.
 '' TEST: cli
 '' ARGS: --emit-ir -target windows-x86_64 tests/codegen/src/ir-spill.bas
-'' ENV: TKO_IR_SPILL=1
+'' ENV: TIKO_IR_SPILL=1
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT-SEQ: target triple
 '' EXPECT-OUT-SEQ: declare double @llvm.sqrt.double(double) nounwind

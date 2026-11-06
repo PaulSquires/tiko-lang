@@ -6,7 +6,7 @@
 '' The build still succeeds: the directive is dropped, not fatal.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/cmdline-first.bas tests/driver/src/cmdline-second.bas -o tests/driver/cmdlinelater.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: TKO0334
 '' EXPECT-OUT: #cmdline is ignored outside the first source file

@@ -4,7 +4,7 @@
 '' another thread replaces a subdirectory with a link to an outside sentinel (40 rounds).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt tests/codegen/src/fs-p8.tiko -o tests/codegen/fsp8.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsp8.exe
 '' RUN: tests/codegen/fsp8.exe

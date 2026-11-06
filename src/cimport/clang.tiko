@@ -41,13 +41,13 @@ end function
 
 '' Every place libclang is looked for, in order. The first that exists and opens wins.
 ''
-'' TKO_LIBCLANG FIRST, and ALONE when it is set: a path the user named that does not work is
+'' TIKO_LIBCLANG FIRST, and ALONE when it is set: a path the user named that does not work is
 '' an answer to report, not a reason to go and find a different library. Then beside the
 '' clang tiko compiles with, because a libclang from the same install matches its headers;
 '' then the places a distribution puts one.
 private sub Candidates_( byref clangExe as string, cand() as string, byref n as int32 )
     n = 0
-    dim as string env_ = environ( "TKO_LIBCLANG" )
+    dim as string env_ = environ( "TIKO_LIBCLANG" )
     if len( env_ ) then
         cand( n ) = env_ : n += 1
         return
@@ -151,13 +151,13 @@ function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
         end if
     next
     if api.handle = nullptr then
-        if len( environ( "TKO_LIBCLANG" ) ) then
-            api.why = "TKO_LIBCLANG names '" & cand( 0 ) & "', which is not a libclang that opens"
+        if len( environ( "TIKO_LIBCLANG" ) ) then
+            api.why = "TIKO_LIBCLANG names '" & cand( 0 ) & "', which is not a libclang that opens"
         elseif len( tried_ ) then
             api.why = "libclang was found but would not load:" & tried_
         else
             api.why = "libclang was not found beside '" & clangExe & "' or in the usual places; " & _
-                      "install LLVM " & CLANG_MIN_MAJOR & " or newer, or set TKO_LIBCLANG to its path"
+                      "install LLVM " & CLANG_MIN_MAJOR & " or newer, or set TIKO_LIBCLANG to its path"
         end if
         return false
     end if

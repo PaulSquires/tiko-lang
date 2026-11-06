@@ -5,7 +5,7 @@ rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runne
 rem   build\build.bat [Release^|MinSizeRel] --dll
 rem
 rem A compiler build also builds the editor's bin\parser.dll and copies it beside tkEdit
-rem (%TKO_EDITOR_DIR%, default tkedit\bin in this tree). '--no-dll' skips both.
+rem (%TIKO_EDITOR_DIR%, default tkedit\bin in this tree). '--no-dll' skips both.
 rem
 rem The Linux peer is build/build.sh and is kept line-for-line analogous.
 rem Configuration flags live here and nowhere else (docs/plan/02 section 3).
@@ -41,48 +41,51 @@ echo build: its source imports the std modules (2026-10-10); seed-3's V5 was the
 exit /b 2
 :oracleok
 
-rem THE SEED IS STAGE0: TKO_SEED, else defaultseed.bat's pick; '--oracle' builds with the fbc
-rem TKO_ORACLE_FBC names instead -- see the peer note in build.sh, which also says why that is
+rem THE SEED IS STAGE0: TIKO_SEED, else defaultseed.bat's pick; '--oracle' builds with the fbc
+rem TIKO_ORACLE_FBC names instead -- see the peer note in build.sh, which also says why that is
 rem a flag, why the seed's flags are its own and why TKO_STAGE0, fbc's old name, is ignored.
-if not "%TKO_STAGE0%"=="" echo build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TKO_ORACLE_FBC 1>&2
+if not "%TKO_STAGE0%"=="" echo build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TIKO_ORACLE_FBC 1>&2
 set "SEEDED=0"
 set "STAGE0="
-if "%ORACLE%"=="1" if "%TKO_ORACLE_FBC%"=="" (
-    echo build: --oracle builds with the fbc TKO_ORACLE_FBC names, and it names none 1>&2
+if "%ORACLE%"=="1" if "%TIKO_ORACLE_FBC%"=="" (
+    echo build: --oracle builds with the fbc TIKO_ORACLE_FBC names, and it names none 1>&2
     exit /b 3
 )
-if "%ORACLE%"=="1" set "STAGE0=%TKO_ORACLE_FBC%"
+if "%ORACLE%"=="1" set "STAGE0=%TIKO_ORACLE_FBC%"
 if "%ORACLE%"=="1" goto stage0set
-if not "%TKO_SEED%"=="" goto seedset
+if not "%TIKO_SEED%"=="" goto seedset
 call "%ROOT%\build\defaultseed.bat" "%ROOT%"
 if not defined DEFAULT_SEED (
     echo build: no seed compiler. Fetch the pinned one ^(seed/fetch-seed.sh^), package a 1>&2
-    echo build: toolchain ^(build/package.sh^), or set TKO_SEED to a tiko 1>&2
+    echo build: toolchain ^(build/package.sh^), or set TIKO_SEED to a tiko 1>&2
     exit /b 3
 )
-set "TKO_SEED=%DEFAULT_SEED%"
+set "TIKO_SEED=%DEFAULT_SEED%"
 :seedset
 set "SEEDED=1"
-set "STAGE0=%TKO_SEED%"
+set "STAGE0=%TIKO_SEED%"
 :stage0set
 
 if not exist "%STAGE0%" (
     echo build: stage0 compiler not found at %STAGE0% 1>&2
-    echo build: TKO_SEED must name a tiko, TKO_ORACLE_FBC an fbc 1>&2
+    echo build: TIKO_SEED must name a tiko, TIKO_ORACLE_FBC an fbc 1>&2
     exit /b 3
 )
 rem The output flag: fbc's is -x, tiko's -o.
 set "OUTOPT=-x"
 if "%SEEDED%"=="1" set "OUTOPT=-o"
 rem The tree's own headers, inc\: a seed's only default directory, fbc's first -i -- see
-rem build.sh, which says why an inherited TKO_INCLUDE is overridden.
+rem build.sh, which says why an inherited TIKO_INCLUDE is overridden.
 set "INCOPT="
 if exist "%ROOT%\inc\" (
-    if "%SEEDED%"=="1" ( set "TKO_INCLUDE=%ROOT%\inc" ) else ( set "INCOPT=-i inc" )
+    if "%SEEDED%"=="1" ( set "TIKO_INCLUDE=%ROOT%\inc" ) else ( set "INCOPT=-i inc" )
 )
 rem ...and its own packages, pkg\: the compiler imports std/containers and std/fs, the
 rem tree's and not the seed's copy -- see build.sh.
-set "TKO_PKG=%ROOT%\pkg"
+set "TIKO_PKG=%ROOT%\pkg"
+rem ...and the same again under the seed's old TKO_* names, which a seed built before the
+rem 2026-11-06 rename reads instead (build/defaultseed.sh, seed_env, says the rest).
+for %%v in (INCLUDE LIBPATH PKG MODCACHE PATH CLANG AR LIBCLANG SDKROOT JOBS) do set "TKO_%%v=!TIKO_%%v!"
 
 if /i "%CFG%"=="Debug"          set "FLAGS=-g -exx -w all"
 if /i "%CFG%"=="RelWithDebInfo" set "FLAGS=-g -w all"
@@ -102,7 +105,7 @@ if "%SEEDED%"=="1" (
     if /i "%CFG%"=="Release"        set "FLAGS=-O2"
     if /i "%CFG%"=="MinSizeRel" (
         echo build: MinSizeRel is fbc's gcc backend ^(-gen gcc^), which a tiko seed has not got; 1>&2
-        echo build: it is built only by an fbc ^('--oracle', TKO_ORACLE_FBC^), and never shipped 1>&2
+        echo build: it is built only by an fbc ^('--oracle', TIKO_ORACLE_FBC^), and never shipped 1>&2
         exit /b 2
     )
 )
@@ -141,13 +144,13 @@ goto :compiler
     "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.tiko -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\parser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
-    rem Beside the editor's exe (tkEdit's tkedit\bin, or TKO_EDITOR_DIR), which loads it from
+    rem Beside the editor's exe (tkEdit's tkedit\bin, or TIKO_EDITOR_DIR), which loads it from
     rem there. A failed copy (a running editor holds the DLL open) warns and does not fail the
     rem build -- see build.sh.
-    set "EDITOR=%TKO_EDITOR_DIR%"
+    set "EDITOR=%TIKO_EDITOR_DIR%"
     if "!EDITOR!"=="" set "EDITOR=%ROOT%\tkedit\bin"
     if not exist "!EDITOR!\" (
-        echo build: no editor at !EDITOR! -- parser.dll stays in bin\ ^(set TKO_EDITOR_DIR^)
+        echo build: no editor at !EDITOR! -- parser.dll stays in bin\ ^(set TIKO_EDITOR_DIR^)
         exit /b 0
     )
     copy /y "%ROOT%\bin\parser.dll" "!EDITOR!\parser.dll" >nul 2>&1

@@ -5,7 +5,7 @@
 '' namespace for that field and every later one, and prints 727 12 for the Pair half.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/fieldmod/main.tiko -o tests/modules/fieldmod.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/fieldmod.exe
 '' EXPECT-RUN-OUT:  0

@@ -5,7 +5,7 @@
 '' Output identical to fbc-modern's for the same program.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/base-call-vptr.bas -o tests/codegen/basecallvptr.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/basecallvptr.exe
 '' RUN: tests/codegen/basecallvptr.exe

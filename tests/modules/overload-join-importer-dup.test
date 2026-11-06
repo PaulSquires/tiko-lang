@@ -2,8 +2,8 @@
 '' importer's set for the name: TKO0677 (RFC-0001 F4).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/mine.tiko -o tests/modules/ovjoin-mine.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 1
 '' EXPECT-OUT: qo.tiko(11,16): error TKO0677: 'getwindowrect' is already declared with these parameter types

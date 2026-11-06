@@ -22,11 +22,11 @@ ROOT=$(pwd)
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         TARGETS="windows-x86_64 win64"; TKO=${TKO:-$ROOT/bin/tiko.exe}; EXE=.exe
-        INC=${TKO_E2E_INC:-$ROOT/toolchains/tiko-windows/inc}
+        INC=${TIKO_E2E_INC:-$ROOT/toolchains/tiko-windows/inc}
         SQL=${SQLITE_SRC:-/c/dev/sqlite/vendor/sqlite3} ;;
     *)
         TARGETS="linux-x86_64"; TKO=${TKO:-$ROOT/bin/tiko}; EXE=
-        INC=${TKO_E2E_INC:-/mnt/c/dev/fbc-modern/toolchains/fbc-modern-linux/include/freebasic}
+        INC=${TIKO_E2E_INC:-/mnt/c/dev/fbc-modern/toolchains/fbc-modern-linux/include/freebasic}
         SQL=${SQLITE_SRC:-$HOME/sqlite3} ;;
 esac
 case "$TKO" in /*) ;; *) TKO=$ROOT/$TKO ;; esac   # the script changes directory
@@ -34,8 +34,8 @@ CLANG=${CLANG:-clang}
 WK=${TMPDIR:-/tmp}/cimporte2e.$$
 mkdir -p "$WK"
 trap 'rm -rf "$WK"' EXIT
-unset TKO_LIBPATH
-export TKO_INCLUDE="$INC"
+unset TIKO_LIBPATH
+export TIKO_INCLUDE="$INC"
 
 libdirs() {
     case "$1" in

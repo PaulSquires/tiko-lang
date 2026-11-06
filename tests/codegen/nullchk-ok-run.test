@@ -3,7 +3,7 @@
 '' 'this.x' (fbc checks neither of those) all run. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/nullchk-ok.bas -o tests/codegen/nullchkok.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/nullchkok.exe
 '' RUN: tests/codegen/nullchkok.exe

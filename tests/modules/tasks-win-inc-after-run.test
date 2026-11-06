@@ -4,7 +4,7 @@
 '' windows.bi or sys/win after the import, the wrong result type silently with sys/win first.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/inc-after.tiko -o tests/modules/taskswinincafter.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0811
 '' EXPECT-FILE: tests/modules/taskswinincafter.exe

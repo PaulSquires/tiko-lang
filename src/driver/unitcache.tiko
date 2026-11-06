@@ -61,9 +61,9 @@ sub Open _
     '' compile but must store the root it was given.
     dim as boolean isChild = (ctx.options.buildOnlyUnit > 0)
     if ((ctx.build = nullptr) andalso (isChild = false)) orelse (eligible = false) orelse (restartDepth > 0) then return
-    '' TKO_TEST_CHILD_EXIT: a child that dies with this code before it compiles anything, so
+    '' TIKO_TEST_CHILD_EXIT: a child that dies with this code before it compiles anything, so
     '' a test can reach TKO0167 (tests/driver/build-parallel-crash). Read in a child only.
-    if isChild andalso (valint( environ( "TKO_TEST_CHILD_EXIT" ) ) <> 0) then end valint( environ( "TKO_TEST_CHILD_EXIT" ) )
+    if isChild andalso (valint( environ( "TIKO_TEST_CHILD_EXIT" ) ) <> 0) then end valint( environ( "TIKO_TEST_CHILD_EXIT" ) )
     if Tko.DiskCache.CompilerStamp( ) = "" then return
     s.root = Tko.Modules.ModuleCacheRoot( ctx )
     s.args = ArgsLine_( ctx, args )

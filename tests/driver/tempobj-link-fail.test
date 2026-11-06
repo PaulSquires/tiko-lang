@@ -3,7 +3,7 @@
 '' in src/driver (audit F-74).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/tempobj/a.bas tests/driver/src/tempobj/c.bas -o tests/driver/src/tempobj/tempobj.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 5
 '' EXPECT-NO-FILE: tests/driver/src/tempobj/tempobj.exe.1.o
 '' EXPECT-NO-FILE: tests/driver/src/tempobj/tempobj.exe.2.o

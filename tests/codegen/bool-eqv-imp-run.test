@@ -2,7 +2,7 @@
 '' true. Expected output is fbc-modern's (fbc's boolean/boolean_bop.bas asserts the whole table).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/bool-eqv-imp.bas -o tests/codegen/booleqvimp.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/booleqvimp.exe
 '' EXPECT-RUN-EXIT: 0

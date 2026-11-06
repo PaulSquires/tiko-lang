@@ -9,7 +9,7 @@
 '' The internal linkage itself is pinned in IR by vtable-internal.test.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/vtable-two-a.bas tests/driver/src/vtable-two-b.bas -o tests/driver/vtabletwo.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: duplicate symbol
 '' EXPECT-FILE: tests/driver/vtabletwo.exe

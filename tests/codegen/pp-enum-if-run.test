@@ -3,7 +3,7 @@
 '' fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-enum-if.bas -o tests/codegen/ppenumif.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppenumif.exe
 '' EXPECT-RUN-EXIT: 0

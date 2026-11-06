@@ -6,7 +6,7 @@
 '' fixed zstring and wstring. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/cast-string-numeric.bas -o tests/codegen/caststrnum.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: verify:
 '' EXPECT-FILE: tests/codegen/caststrnum.exe

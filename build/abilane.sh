@@ -15,7 +15,7 @@
 # F-02, F-19): a 3-byte argument was loaded past its slot, and an aggregate split across
 # xmm7 and the stack. Only a real System V caller and callee find that.
 #
-# Needs WSL with gcc, and a Linux tiko-rt: TKO_LINUX_LIB, else the tree's own
+# Needs WSL with gcc, and a Linux tiko-rt: TIKO_LINUX_LIB, else the tree's own
 # toolchains/tiko-linux/lib, else C:\dev\tiko-lang's. Exits 1 on any difference.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -27,10 +27,10 @@ TKO="$ROOT/bin/tiko$EXT"
 [ -x "$TKO" ] || { echo "abilane: build tiko first (build/build.sh)" >&2; exit 3; }
 command -v wsl > /dev/null 2>&1 || { echo "abilane: needs WSL" >&2; exit 3; }
 
-L=${TKO_LINUX_LIB:-}
+L=${TIKO_LINUX_LIB:-}
 [ -n "$L" ] || { [ -d "$ROOT/toolchains/tiko-linux/lib" ] && L="$ROOT/toolchains/tiko-linux/lib"; }
 [ -n "$L" ] || L=/c/dev/tiko-lang/toolchains/tiko-linux/lib
-[ -f "$L/linux-x86_64/libfb.a" ] || { echo "abilane: no Linux tiko-rt under $L (set TKO_LINUX_LIB)" >&2; exit 3; }
+[ -f "$L/linux-x86_64/libfb.a" ] || { echo "abilane: no Linux tiko-rt under $L (set TIKO_LINUX_LIB)" >&2; exit 3; }
 
 W="$ROOT/build/.abilane"
 mkdir -p "$W"

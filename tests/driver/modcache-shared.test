@@ -2,8 +2,8 @@
 '' std/strings from the toolchain's pkg/ with the same options, so the first builds it and
 '' the second takes the first's entry. Nothing is made beside either project.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-share/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-share/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-share
 '' STEP: -v -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/modshare/one/main.bas -o build/.mct-share/one.exe
 '' STEP-OUT: module std.strings: miss (new)

@@ -3,7 +3,7 @@
 '' and never allocates, since glibc may abort from inside malloc), not what it prints.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/signal-abort.bas -o tests/codegen/signalabort.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/signalabort.exe
 '' EXPECT-RUN-EXIT: 14

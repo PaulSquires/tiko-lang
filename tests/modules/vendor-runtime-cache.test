@@ -1,9 +1,9 @@
 '' A MODULE FROM THE CACHE BRINGS ITS RUNTIME FILES TOO: they are found from the module graph,
 '' not from the compile, so the second build -- vendor.gamma a cache hit -- still copies them.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrk/pkg
-'' ENV: TKO_MODCACHE=build/.vrk/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrk/pkg
+'' ENV: TIKO_MODCACHE=build/.vrk/mc
 '' CLEAN: build/.vrk
 '' COPY: tests/modules/src/vrt/pkg => build/.vrk/pkg
 '' WRITE: build/.vrk/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n

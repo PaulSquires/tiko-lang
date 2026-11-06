@@ -72,7 +72,7 @@ MAC_ROOT="$(yaml_get macos root)";    MAC_EXE="$(yaml_get macos exe)"
 # THE MAC (docs/tiko-macos M10, D-M10-2). macos-arm64 programs run on a Mac, so that target is
 # checked THERE, natively: on a Darwin host it is the local target, as windows-x86_64 is on
 # Windows. From Windows, '--target macos-arm64' alone sends this tree to the Mac over ssh
-# (TKO_MAC_HOST, default 'mac'; options in TKO_MAC_SSH_OPTS), runs this script there, and
+# (TIKO_MAC_HOST, default 'mac'; options in TIKO_MAC_SSH_OPTS), runs this script there, and
 # brings its out/ back -- reports and logs, not programs -- as out/macos-arm64/.
 # The pin's macos root is relative to the tree there, beside a toolchains/ that links to
 # ~/dev/tiko-lang/toolchains.
@@ -97,7 +97,7 @@ done
 # --target macos-arm64 FROM WINDOWS: the run happens on the Mac.
 if (( ! ON_MAC )) && [[ " ${targets[*]} " == *" macos-arm64 "* ]]; then
   [[ ${#targets[@]} -eq 1 ]] || { echo "check-listings: macos-arm64 runs on the Mac -- ask for it alone" >&2; exit 2; }
-  mh="${TKO_MAC_HOST:-mac}"; mo="${TKO_MAC_SSH_OPTS:-}"; here="$(basename "$root")"
+  mh="${TIKO_MAC_HOST:-mac}"; mo="${TIKO_MAC_SSH_OPTS:-}"; here="$(basename "$root")"
   # shellcheck disable=SC2086
   tar -cf - --exclude=./out -C "$root" . | ssh -o BatchMode=yes $mo "$mh" \
     "mkdir -p tkm/harness && ln -sfn ~/dev/tiko-lang/toolchains tkm/harness/toolchains && rm -rf tkm/harness/$here && mkdir -p tkm/harness/$here && tar -xf - -C tkm/harness/$here" \

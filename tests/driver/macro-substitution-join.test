@@ -2,6 +2,6 @@
 '' source's header for the output fbc prints; build/goldenrun.sh runs the result beside fbc's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/macro-substitution-join.bas -o tests/driver/macrosubstitutionjoin.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/macrosubstitutionjoin.exe

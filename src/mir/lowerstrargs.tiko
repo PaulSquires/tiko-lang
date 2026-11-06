@@ -218,7 +218,7 @@ end function
 '' This used to answer 'owns its descriptor' for every cross-flavour pair, calling
 '' that refusing to answer. It was not: the ustring's FBUSTRING went to the callee as
 '' an FBSTRING, which read its UTF-16 buffer as narrow text -- 'AB' arrived as 'A',
-'' NUL. The self-hosted compiler read TKO_LIBPATH that way into its library list and
+'' NUL. The self-hosted compiler read TIKO_LIBPATH that way into its library list and
 '' could not find libfb, and printed every file name it had been handed as mojibake.
 ''
 '' The OTHER direction -- a narrow argument against a ustring parameter -- is decided

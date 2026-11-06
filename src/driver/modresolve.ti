@@ -36,7 +36,7 @@ declare function AbsPath( byref p as string ) as string
 ''
 '' The search, first hit wins (RFC-0007 §3; sources 2 and 3, the manifest's, are phase P8):
 ''   1. './' or '../': relative to fromDir, and never outside pkgRoot (TKO0142)
-''   4. each -i directory, then each TKO_PATH entry, holding a directory named S
+''   4. each -i directory, then each TIKO_PATH entry, holding a directory named S
 ''   5. the toolchain's pkg/ directory
 '' 'std' skips 4: the standard library always comes from the toolchain.
 '' THE .bas FILES OF A MODULE DIRECTORY, sorted case-folded so the order is the same on

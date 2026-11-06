@@ -3,7 +3,7 @@
 '' stopped on TKO0994 (lvalue) or passed the wrong bytes (rvalue, len 3).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/new-ctor-ustring-wptr.bas -o tests/mir/newctorustrwptr.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/newctorustrwptr.exe
 '' RUN: tests/mir/newctorustrwptr.exe

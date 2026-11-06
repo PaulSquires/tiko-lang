@@ -67,7 +67,7 @@ bash tools/idiom.sh
 A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from `src/app`:
 
 ```bash
-TKO_MODCACHE=/c/dev/tiko-lang/tkedit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
+TIKO_MODCACHE=/c/dev/tiko-lang/tkedit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
 ```
 
 `bin/` is the run folder (`bin/tkedit.exe`, one file: SDL, SDL_ttf, SDL_image and scintk are linked

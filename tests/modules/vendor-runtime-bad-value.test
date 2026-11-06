@@ -1,9 +1,9 @@
 '' 'runtime' IS AN ARRAY OF PATHS RELATIVE TO THE MODULE: a string, or an absolute path, is
 '' TKO0144 at the line.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrb/pkg
-'' ENV: TKO_MODCACHE=build/.vrb/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrb/pkg
+'' ENV: TIKO_MODCACHE=build/.vrb/mc
 '' CLEAN: build/.vrb
 '' COPY: tests/modules/src/vrt/pkg => build/.vrb/pkg
 '' WRITE: build/.vrb/pkg/vendor/tiko.toml :: [package]\nname = "vendor"\n[vendor.gamma]\nruntime = "fonts/gamma.ttf"\n[vendor.delta]\nruntime = ["C:/fonts/x.ttf"]\n

@@ -2,7 +2,7 @@
 '' handler, and the program carries on after it.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -e tests/codegen/src/io-e-local.bas -o tests/codegen/ioelocal.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ioelocal.exe
 '' EXPECT-RUN-OUT: close: 1

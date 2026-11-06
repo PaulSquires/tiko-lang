@@ -4,8 +4,8 @@
 '' GFX_NULL screen.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/gfx-array-target.bas -o tests/codegen/gfxarraytarget.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxarraytarget.exe
 '' EXPECT-RUN-EXIT: 0

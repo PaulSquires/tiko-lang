@@ -7,7 +7,7 @@
 # parse with no crash and no unexplained diagnostic. Separate from build/test.sh
 # because it takes seconds rather than milliseconds; CI runs both.
 #
-# Set TKO_FB_INC to a FreeBASIC 'inc' directory so the corpus's system includes
+# Set TIKO_FB_INC to a FreeBASIC 'inc' directory so the corpus's system includes
 # (fbgfx.bi, fb/*.bi, win/*.bi) resolve.
 
 set -e
@@ -43,7 +43,7 @@ files_with( ) {
 }
 
 INC="-i $CORPUS -i $CORPUS/fbcunit/inc"
-[ -n "$TKO_FB_INC" ] && INC="$INC -i $TKO_FB_INC"
+[ -n "$TIKO_FB_INC" ] && INC="$INC -i $TIKO_FB_INC"
 
 # ---- pass 1: lexing only
 run_pass lex

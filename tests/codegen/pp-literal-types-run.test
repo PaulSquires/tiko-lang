@@ -3,7 +3,7 @@
 '' conversions, and single precision. Expected output is fbc-modern's; tiko refused 17 of these lines.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-literal-types.bas -o tests/codegen/ppliteraltypes.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppliteraltypes.exe
 '' EXPECT-RUN-EXIT: 0

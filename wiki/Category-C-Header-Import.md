@@ -48,7 +48,7 @@ The importer does **not** write Clang's offsets into the compiler's symbols. It 
 
 ## Requirements
 
-libclang **16 or newer** (`CLANG_MIN_MAJOR`, `src/cimport/clang.ti`). tiko loads it on first use through [`DyLibLoad`](Dylibload) and never links it, so tiko builds and runs without it, and only `#cinclude`, `-cimport` and `--cimport-probe` ask for it. It is looked for in `TKO_LIBCLANG` (alone, when that is set), then beside the clang tiko compiles with, then where the LLVM installer or a distribution puts it (`src/cimport/clang.tiko`). Every tiko build already needs an installed LLVM with clang 18 or newer, and that install ships libclang. When none opens, a `#cinclude` line is `TKO0335: #cinclude needs libclang: ...`, saying what was tried, and a program with no `#cinclude` still builds.
+libclang **16 or newer** (`CLANG_MIN_MAJOR`, `src/cimport/clang.ti`). tiko loads it on first use through [`DyLibLoad`](Dylibload) and never links it, so tiko builds and runs without it, and only `#cinclude`, `-cimport` and `--cimport-probe` ask for it. It is looked for in `TIKO_LIBCLANG` (alone, when that is set), then beside the clang tiko compiles with, then where the LLVM installer or a distribution puts it (`src/cimport/clang.tiko`). Every tiko build already needs an installed LLVM with clang 18 or newer, and that install ships libclang. When none opens, a `#cinclude` line is `TKO0335: #cinclude needs libclang: ...`, saying what was tried, and a program with no `#cinclude` still builds.
 
 Targets: **windows-x86_64** (tiko's default on Windows, imported against the installed MSVC and Windows SDK headers), **linux-x86_64**, and **macos-arm64** (imported against the macOS SDK from the Command Line Tools, on a Mac).
 

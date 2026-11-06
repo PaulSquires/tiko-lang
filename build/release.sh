@@ -26,12 +26,12 @@
 #      and checks the result is a zip;
 #   3. tars toolchains/tiko-linux under WSL from a copy in ~/tkrel-<sha>, 644 for files and
 #      755 for bin/tiko and tkedit, owner 0 (tarring from /mnt/c gives every file 777);
-#   3b. tars toolchains/tiko-macos ON THE MAC (docs/tiko-macos M9), over ssh to TKO_MAC_HOST
-#      (default 'mac', options in TKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
+#   3b. tars toolchains/tiko-macos ON THE MAC (docs/tiko-macos M9), over ssh to TIKO_MAC_HOST
+#      (default 'mac', options in TIKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
 #      or AppleDouble files, 644/755 as above; copied back here. It unpacks to tiko-lang/, as the
 #      others do, tkEdit.app in its bin/. --no-mac leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
-#   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
+#   5. smoke-tests each archive extracted into an empty directory with no TIKO_* variable:
 #      hello.tiko compiled and run, tiko-lang/ the archive's only folder, and tkedit in its
 #      root -- on macOS a tkEdit.app whose signature verifies (one file: docs/tkEdit/SINGLE-FILE.md);
 #      and tiko-lsp beside the compiler, answering --version;
@@ -78,8 +78,8 @@ mkdir -p "$OUT"
 LSPDIR=${LSPDIR:-../tiko-lsp/dist}
 LSPWIN=$LSPDIR/tiko-lsp-windows-x86_64.zip
 LSPLNX=$LSPDIR/tiko-lsp-linux-x86_64.tar.gz
-MACH=${TKO_MAC_HOST:-mac}
-MSSH=${TKO_MAC_SSH_OPTS:-}
+MACH=${TIKO_MAC_HOST:-mac}
+MSSH=${TIKO_MAC_SSH_OPTS:-}
 # A REMOTE STEP IS A FILE, run by a login zsh: a non-login ssh shell has no Homebrew on PATH,
 # and variables in an inline ssh command expand on the wrong side (build/aapcslane.sh).
 on_mac( ) {
@@ -214,12 +214,12 @@ fi
 { cat "$NOTES"; echo; echo "### SHA-256"; echo; echo '```text'; cat "$OUT/SHA256SUMS"; echo '```'; } > "$OUT/notes.md"
 note "SHA256SUMS and notes.md written"
 
-# 5. smoke tests: an empty directory, no TKO_*
+# 5. smoke tests: an empty directory, no TIKO_*
 SMOKE=$OUT/smoke
 rm -rf "$SMOKE" && mkdir -p "$SMOKE/win"
 printf 'print "hello from tiko"\n' > "$SMOKE/hello.tiko"
 ( cd "$SMOKE/win" && "$BSDTAR" -xf "$ROOT/$ZIP" ) || die "zip does not extract"
-got=$( cd "$SMOKE" && env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG \
+got=$( cd "$SMOKE" && env -u TIKO_INCLUDE -u TIKO_LIBPATH -u TIKO_PKG \
        win/tiko-lang/tiko.exe hello.tiko -o hello.exe && ./hello.exe ) || die "Windows smoke: $got"
 [ "$got" = "hello from tiko" ] || die "Windows smoke printed '$got'"
 [ "$(ls -A "$SMOKE/win")" = "tiko-lang" ] || die "Windows smoke: the zip holds more than tiko-lang/: $(ls -A "$SMOKE/win" | tr '\n' ' ')"
@@ -239,7 +239,7 @@ test "\$(ls -A)" = "tiko-lang"
 [ -z "$TKDIRS" ] || test -x tiko-lang/tkedit
 [ -z "$LSPGZ" ] || tiko-lang/bin/tiko-lsp --version 2>&1 | grep -q '^tiko-lsp '
 printf 'print "hello from tiko"\n' > hello.tiko
-env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-lang/bin/tiko hello.tiko -o hello
+env -u TIKO_INCLUDE -u TIKO_LIBPATH -u TIKO_PKG tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
 EOF
 got=$(MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$OUT/smoke-linux.sh" | tr -d '\r') || die "Linux smoke: $got"

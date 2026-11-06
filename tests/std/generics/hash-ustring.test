@@ -2,6 +2,6 @@
 '' Expected: what tests/std/baseline/generics/hash-ustring.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/hash-ustring.bas -o tests/std/generics/hash-ustring.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/generics/hash-ustring.exe

@@ -4,8 +4,8 @@
 '' The root imports nothing, so the module comes from the records alone (compile-mixed-link
 '' covers a root that imports it too).
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-2dir/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-2dir/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-2dir
 '' CLEAN: build/.mct-2dir/one
 '' CLEAN: build/.mct-2dir/two

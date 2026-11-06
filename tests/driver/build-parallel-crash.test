@@ -1,10 +1,10 @@
-'' A CHILD THAT DIES IS TKO0167, AND EXIT 6 (tiko-build B4, RFC §4.2): TKO_TEST_CHILD_EXIT makes
+'' A CHILD THAT DIES IS TKO0167, AND EXIT 6 (tiko-build B4, RFC §4.2): TIKO_TEST_CHILD_EXIT makes
 '' each child exit 99 before compiling -- any code a tiko does not exit with is a crash. The
 '' unit is not compiled again here, and nothing is linked.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bpc/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_TEST_CHILD_EXIT=99
+'' ENV: TIKO_MODCACHE=build/.bpc/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_TEST_CHILD_EXIT=99
 '' CLEAN: build/.bpc
 '' COPY: tests/driver/src/unitcache => build/.bpc/src
 '' ARGS: build -target windows-x86_64 build/.bpc/src/a.tiko build/.bpc/src/b.tiko -o build/.bpc/app.exe -j 4

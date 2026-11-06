@@ -23,7 +23,7 @@
 # a suite is the second module it is linked with.
 #
 # Every run is from a COPY of the test's directory (data files; and these suites write), with
-# a closed stdin and a timeout. Modules are cached in a private TKO_MODCACHE, emptied first.
+# a closed stdin and a timeout. Modules are cached in a private TIKO_MODCACHE, emptied first.
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -42,7 +42,7 @@ run_limited( ) {
     elif command -v gtimeout > /dev/null 2>&1; then gtimeout "$_t" "$@"
     else perl -e 'alarm shift; exec @ARGV' "$_t" "$@"; fi
 }
-export TKO_LIBPATH="$TC/lib/$LIBT"
+export TIKO_LIBPATH="$TC/lib/$LIBT"
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
 DRV=$CU/tests/tests.bas
 WK=${STDSUITE_WK:-${TMPDIR:-/tmp}/stdsuite}
@@ -53,7 +53,7 @@ if [ "${1:-}" = "--baseline" ]; then MODE=baseline; shift; fi
 PAT=${1:-}
 
 rm -rf "$WK"; mkdir -p "$WK/cache" "$WK/rd"
-export TKO_MODCACHE="$WK/cache"
+export TIKO_MODCACHE="$WK/cache"
 
 if [ "$MODE" = baseline ]; then
     # THE BASELINE WAS TAKEN ONCE, over inc/fb, which left the tree on 2026-10-10: it runs

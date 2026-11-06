@@ -70,7 +70,7 @@ toupper( 'a' ) is A
 
 `once` works as it does for `#include`: the header is read only the first time the directive is reached.
 
-If you see `TKO0335: #cinclude needs libclang`, tiko could not find libclang. Check that LLVM is installed, or set the `TKO_LIBCLANG` environment variable to the full path of the libclang library.
+If you see `TKO0335: #cinclude needs libclang`, tiko could not find libclang. Check that LLVM is installed, or set the `TIKO_LIBCLANG` environment variable to the full path of the libclang library.
 
 ## 4. A C library of your own
 
@@ -543,7 +543,7 @@ The names stay bare (`Shape`, not `shapes.Shape`), because a C header's names do
 
 | What you see | Cause | Fix |
 |---|---|---|
-| `TKO0335: #cinclude needs libclang` | libclang was not found | install LLVM, or set `TKO_LIBCLANG` |
+| `TKO0335: #cinclude needs libclang` | libclang was not found | install LLVM, or set `TIKO_LIBCLANG` |
 | `TKO0336: unable to import C header` + `file not found` | the header, or one it includes, is not where tiko looked | check the path; add `-cinclude` for `<...>` includes (section 7) |
 | the same + a note about the Windows SDK | Visual Studio Build Tools are not installed | install them, with the Windows SDK |
 | `TKO0743: '...' is not declared` for a name in the header | a function-like or string macro, a `static inline` function, or a renamed name | look at the binding with `-cimport` (sections 5 and 8) |

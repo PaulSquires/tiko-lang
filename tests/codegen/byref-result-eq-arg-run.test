@@ -8,7 +8,7 @@
 '' output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/byref-result-eq-arg.bas -o tests/codegen/byrefresulteqarg.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: byref-result-eq-arg.bas(28,1): warning TKO0931
 '' EXPECT-OUT: byref-result-eq-arg.bas(29,1): warning TKO0931

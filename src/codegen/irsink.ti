@@ -18,7 +18,7 @@
 '' THE THRESHOLD is 1 MB: on the 20,000-function probe, emission's rise over lowering went
 '' 93 MB -> 8 MB at 1 MB, 11 MB at 2 MB, 31 MB at 8 MB, at no cost in time; the literal's
 '' 129 MB -> 55 MB, which is the one 50 MB line itself. A unit under 1 MB of IR never
-'' touches the disk. TKO_IR_SPILL=<bytes> overrides it; TKO_IR_SPILL=1 spills at every
+'' touches the disk. TIKO_IR_SPILL=<bytes> overrides it; TIKO_IR_SPILL=1 spills at every
 '' boundary, which is how the byte-identity of the streamed path is tested.
 #pragma once
 #include once "tko.ti"

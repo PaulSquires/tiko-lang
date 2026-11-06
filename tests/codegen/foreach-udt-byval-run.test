@@ -4,7 +4,7 @@
 '' Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/foreach-udt-byval.bas -o tests/codegen/foreachudtbyval.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/foreachudtbyval.exe
 '' RUN: tests/codegen/foreachudtbyval.exe

@@ -15,11 +15,11 @@ rem   2. stage2 and stage3 are byte-identical files.
 rem   3. stage3 compiles a program and it prints what the seed's build of it prints.
 rem   4. with --gate, the suite against stage2 fails exactly what it fails against stage1.
 rem
-rem Headers: TKO_BOOT_INC, else the tree's inc\, else the seed's. Libraries: TKO_BOOT_LIBDIRS (separated
-rem by spaces), else per target below. The caller's TKO_LIBPATH and TKO_INCLUDE are not
+rem Headers: TIKO_BOOT_INC, else the tree's inc\, else the seed's. Libraries: TIKO_BOOT_LIBDIRS (separated
+rem by spaces), else per target below. The caller's TIKO_LIBPATH and TIKO_INCLUDE are not
 rem inherited. Everything lands in build\.bootstrap\, cleared first.
 rem
-rem STAGE0 IS A SEED: --seed ^<tiko.exe^> (or TKO_SEED), else defaultseed.bat's pick -- a
+rem STAGE0 IS A SEED: --seed ^<tiko.exe^> (or TIKO_SEED), else defaultseed.bat's pick -- a
 rem packaged tiko, where FBC-Modern was until 2026-10-10; nothing here runs or reads fbc.
 rem The seed builds stage1 with stage2's own command, so
 rem stage1 == stage2 is checked too; headers, libraries and hello's reference are the seed's.
@@ -42,31 +42,31 @@ if "!A:~0,2!"=="-O" ( set "OPT=%~1" & shift & goto argloop )
 if /i "%~1"=="--target" ( set "TARGET=%~2" & shift & shift & goto argloop )
 if /i "%~1"=="--stage1" ( set "STAGE1=%~2" & shift & shift & goto argloop )
 if /i "%~1"=="--gate" ( set "GATE=1" & shift & goto argloop )
-if /i "%~1"=="--seed" ( set "TKO_SEED=%~2" & shift & shift & goto argloop )
+if /i "%~1"=="--seed" ( set "TIKO_SEED=%~2" & shift & shift & goto argloop )
 echo bootstrap: unknown argument '%~1' 1>&2
 popd & exit /b 2
 :argsdone
 
-rem THE SEED IS STAGE0, as in build.bat: TKO_SEED or --seed, else defaultseed.bat's pick.
+rem THE SEED IS STAGE0, as in build.bat: TIKO_SEED or --seed, else defaultseed.bat's pick.
 rem TKO_STAGE0 -- fbc, until 2026-10-10 -- is ignored, and said so.
 if not "%TKO_STAGE0%"=="" echo bootstrap: TKO_STAGE0 is retired and ignored -- the seed is stage0 1>&2
-if "%TKO_SEED%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
-if "%TKO_SEED%"=="" set "TKO_SEED=%DEFAULT_SEED%"
-if "%TKO_SEED%"=="" (
+if "%TIKO_SEED%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
+if "%TIKO_SEED%"=="" set "TIKO_SEED=%DEFAULT_SEED%"
+if "%TIKO_SEED%"=="" (
     echo bootstrap: no seed compiler -- seed/fetch-seed.sh, or --seed ^<tiko.exe^> 1>&2
     popd & exit /b 3
 )
-if not exist "%TKO_SEED%" (
-    echo bootstrap: no seed compiler at %TKO_SEED% ^(a tiko executable^) 1>&2
+if not exist "%TIKO_SEED%" (
+    echo bootstrap: no seed compiler at %TIKO_SEED% ^(a tiko executable^) 1>&2
     popd & exit /b 3
 )
 set "SEEDDIR="
-for %%d in ("%TKO_SEED%") do set "SEEDDIR=%%~dpd"
+for %%d in ("%TIKO_SEED%") do set "SEEDDIR=%%~dpd"
 rem The tree's own headers first (phase H), as build.bat uses them.
-if "%TKO_BOOT_INC%"=="" if exist "%ROOT%\inc\" set "TKO_BOOT_INC=%ROOT%\inc"
-if "%TKO_BOOT_INC%"=="" set "TKO_BOOT_INC=%SEEDDIR%inc"
-if not exist "%TKO_BOOT_INC%\" (
-    echo bootstrap: no header directory %TKO_BOOT_INC% ^(set TKO_BOOT_INC^) 1>&2
+if "%TIKO_BOOT_INC%"=="" if exist "%ROOT%\inc\" set "TIKO_BOOT_INC=%ROOT%\inc"
+if "%TIKO_BOOT_INC%"=="" set "TIKO_BOOT_INC=%SEEDDIR%inc"
+if not exist "%TIKO_BOOT_INC%\" (
+    echo bootstrap: no header directory %TIKO_BOOT_INC% ^(set TIKO_BOOT_INC^) 1>&2
     popd & exit /b 3
 )
 
@@ -75,37 +75,40 @@ rem from before then knows only the old name -- for -target and for its lib\ dir
 rem The seed is asked: the second line of --version names its default target (bootstrap.sh).
 set "SEED_TARGET=%TARGET%"
 set "SEED_DEFAULT="
-for /f "tokens=2 delims=, " %%a in ('call "%TKO_SEED%" --version 2^>nul ^| findstr /b /c:"target "') do set "SEED_DEFAULT=%%a"
+for /f "tokens=2 delims=, " %%a in ('call "%TIKO_SEED%" --version 2^>nul ^| findstr /b /c:"target "') do set "SEED_DEFAULT=%%a"
 if /i "%TARGET%"=="windows-x86_64" if /i "%SEED_DEFAULT%"=="win64-msvc" set "SEED_TARGET=win64-msvc"
 
 rem The seed's runtime and import libraries, and for win64 the MinGW runtime where it has one.
-if "%TKO_BOOT_LIBDIRS%"=="" (
-    set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%SEED_TARGET%"
-    if exist "%SEEDDIR%lib\%SEED_TARGET%-fb\" set "TKO_BOOT_LIBDIRS=%SEEDDIR%lib\%SEED_TARGET% %SEEDDIR%lib\%SEED_TARGET%-fb"
+if "%TIKO_BOOT_LIBDIRS%"=="" (
+    set "TIKO_BOOT_LIBDIRS=%SEEDDIR%lib\%SEED_TARGET%"
+    if exist "%SEEDDIR%lib\%SEED_TARGET%-fb\" set "TIKO_BOOT_LIBDIRS=%SEEDDIR%lib\%SEED_TARGET% %SEEDDIR%lib\%SEED_TARGET%-fb"
 )
-if "%TKO_BOOT_LIBDIRS%"=="" (
-    if /i "%TARGET%"=="windows-x86_64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\windows-x86_64"
+if "%TIKO_BOOT_LIBDIRS%"=="" (
+    if /i "%TARGET%"=="windows-x86_64" set "TIKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\windows-x86_64"
     rem MinGW needs its CRT objects beside the runtime; see cmdline.tiko.
-    if /i "%TARGET%"=="win64" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64"
-    if /i "%TARGET%"=="win64" if exist "%ROOT%\toolchains\tiko-windows\lib\win64-fb\" set "TKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
+    if /i "%TARGET%"=="win64" set "TIKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64"
+    if /i "%TARGET%"=="win64" if exist "%ROOT%\toolchains\tiko-windows\lib\win64-fb\" set "TIKO_BOOT_LIBDIRS=%ROOT%\toolchains\tiko-windows\lib\win64 %ROOT%\toolchains\tiko-windows\lib\win64-fb"
 )
-if "%TKO_BOOT_LIBDIRS%"=="" (
+if "%TIKO_BOOT_LIBDIRS%"=="" (
     echo bootstrap: unknown target '%TARGET%' 1>&2
     popd & exit /b 2
 )
 set "LIBP="
-for %%d in (%TKO_BOOT_LIBDIRS%) do (
+for %%d in (%TIKO_BOOT_LIBDIRS%) do (
     if not exist "%%~d\" (
-        echo bootstrap: no library directory %%~d ^(set TKO_BOOT_LIBDIRS^) 1>&2
+        echo bootstrap: no library directory %%~d ^(set TIKO_BOOT_LIBDIRS^) 1>&2
         popd & exit /b 3
     )
     set "LIBP=!LIBP! -p "%%~d""
 )
 
-set "TKO_LIBPATH="
-set "TKO_INCLUDE=%TKO_BOOT_INC%"
+set "TIKO_LIBPATH="
+set "TIKO_INCLUDE=%TIKO_BOOT_INC%"
 rem The tree's std modules: the compiler's source imports std/containers and std/fs.
-set "TKO_PKG=%ROOT%\pkg"
+set "TIKO_PKG=%ROOT%\pkg"
+rem ...and the same again under the seed's old TKO_* names, which a seed built before the
+rem 2026-11-06 rename reads instead (build/defaultseed.sh, seed_env, says the rest).
+for %%v in (INCLUDE LIBPATH PKG MODCACHE PATH CLANG AR LIBCLANG SDKROOT JOBS) do set "TKO_%%v=!TIKO_%%v!"
 
 set "SOURCES="
 set "MAINMOD="
@@ -125,7 +128,7 @@ mkdir "%OUT%\stage1" "%OUT%\stage2" "%OUT%\stage3" "%OUT%\hello"
 
 set "SHOWOPT=%OPT%"
 if "%SHOWOPT%"=="" set "SHOWOPT=-O0"
-echo bootstrap: target %TARGET% %SHOWOPT%, %NMOD% modules, headers %TKO_BOOT_INC%
+echo bootstrap: target %TARGET% %SHOWOPT%, %NMOD% modules, headers %TIKO_BOOT_INC%
 
 rem ------------------------------------------------------------------ stage1
 if not "%STAGE1%"=="" (
@@ -135,7 +138,7 @@ if not "%STAGE1%"=="" (
     goto stage1done
 )
 rem stage1 BY THE SEED, with stage2's own command; --gate's runner is the seed's too.
-call :buildstage "%TKO_SEED%" stage1 %SEED_TARGET%
+call :buildstage "%TIKO_SEED%" stage1 %SEED_TARGET%
 if errorlevel 1 goto fail
 if not "%GATE%"=="1" goto stage1done
 call "%ROOT%\build\build.bat" Debug --test-runner --no-dll > "%OUT%\runner.log" 2>&1
@@ -144,7 +147,7 @@ if errorlevel 1 ( type "%OUT%\runner.log" 1>&2 & set "WHY=the seed could not bui
 set "S1=%OUT%\stage1\tiko.exe"
 
 rem -------------------------------------------- 1. every statement lowers
-set "TKO_MODCACHE=%OUT%\lowered.modcache"
+set "TIKO_MODCACHE=%OUT%\lowered.modcache"
 "%S1%" --dump-ir -target %TARGET% -i src %SOURCES% 2>&1 | findstr /b /c:"lowered:" /c:"verify:" > "%OUT%\lowered.txt"
 for /f %%n in ('findstr /b /c:"lowered:" "%OUT%\lowered.txt" ^| "%SystemRoot%\System32\find.exe" /c /v ""') do set "NLOW=%%n"
 for /f %%n in ('findstr /b /c:"verify: ok" "%OUT%\lowered.txt" ^| "%SystemRoot%\System32\find.exe" /c /v ""') do set "NVER=%%n"
@@ -188,7 +191,7 @@ if errorlevel 1 ( type "%OUT%\hello\build3.log" 1>&2 & set "WHY=stage3 could not
 "%OUT%\hello\hello3.exe" > "%OUT%\hello\out3.txt" 2>&1
 if errorlevel 1 ( set "WHY=stage3's hello did not run" & goto fail )
 pushd "%OUT%\hello"
-"%TKO_SEED%" hello.tiko -target %SEED_TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
+"%TIKO_SEED%" hello.tiko -target %SEED_TARGET% %LIBP% -o hello0.exe > build0.log 2>&1
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" ( set "WHY=the reference compiler could not build hello.tiko" & goto fail )
@@ -200,9 +203,9 @@ echo bootstrap: stage3  builds hello.tiko, and it prints what the seed's build p
 rem ------------------------------------------------- 4. the suite, both ways
 if not "%GATE%"=="1" goto done
 if not exist "%ROOT%\bin\tiko-test.exe" ( set "WHY=--gate needs bin\tiko-test.exe (build.bat Debug --test-runner)" & goto fail )
-set "TKO_INCLUDE="
+set "TIKO_INCLUDE="
 rem The package tree, named: a stage's default ^<exe-dir^>\..\pkg is none -- see bootstrap.sh.
-set "TKO_PKG=%ROOT%\pkg"
+set "TIKO_PKG=%ROOT%\pkg"
 call "%ROOT%\build\test.bat" --no-build --tiko-lang "%S1%" > "%OUT%\gate1.log" 2>&1
 call "%ROOT%\build\test.bat" --no-build --tiko-lang "%OUT%\stage2\tiko.exe" > "%OUT%\gate2.log" 2>&1
 findstr /b /c:"FAIL " "%OUT%\gate1.log" | "%SystemRoot%\System32\sort.exe" > "%OUT%\fail1.txt"
@@ -232,7 +235,8 @@ exit /b 1
 rem %1 = the compiler, %2 = the stage it builds, %3 = its name for the target
 :buildstage
 rem Each stage compiles the std modules itself, into a cache of its own (bootstrap.sh).
-set "TKO_MODCACHE=%OUT%\%~2.modcache"
+set "TIKO_MODCACHE=%OUT%\%~2.modcache"
+set "TIKO_MODCACHE=%TIKO_MODCACHE%"
 "%~1" %SOURCES% -m %MAINMOD% -i src -target %~3 %OPT% %LIBP% -o "%OUT%\%~2\tiko.exe" > "%OUT%\%~2.log" 2>&1
 if errorlevel 1 ( type "%OUT%\%~2.log" 1>&2 & set "WHY=%~2 did not build" & exit /b 1 )
 if not exist "%OUT%\%~2\tiko.exe" ( set "WHY=%~2 reported success and wrote no compiler" & exit /b 1 )

@@ -10,7 +10,7 @@
 '' IN UNIT ORDER: each object joins the link list when its job STARTS, so the link order is
 '' the order the units were compiled in, whichever clang finished first.
 ''
-'' TKO_JOBS=1 is the old behaviour exactly: clang runs inline and nothing is queued.
+'' TIKO_JOBS=1 is the old behaviour exactly: clang runs inline and nothing is queued.
 
 #pragma once
 

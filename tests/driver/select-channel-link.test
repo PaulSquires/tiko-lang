@@ -2,7 +2,7 @@
 '' not called as templates. See the source for the three causes.
 '' TEST: cli
 '' ARGS: -mt -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/select-channel-link.bas -o tests/driver/selchanlink.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/selchanlink.exe
 '' EXPECT-NOT: undefined symbol

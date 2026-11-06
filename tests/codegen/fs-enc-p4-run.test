@@ -5,7 +5,7 @@
 '' while an encoding given is believed.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fs-enc-p4.tiko -o tests/codegen/fsencp4.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsencp4.exe
 '' RUN: tests/codegen/fsencp4.exe

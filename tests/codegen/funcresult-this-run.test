@@ -3,7 +3,7 @@
 '' fbc-modern 1.20's, byte for byte.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/funcresult-this.tiko -o tests/codegen/funcresultthis.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/funcresultthis.exe
 '' RUN: tests/codegen/funcresultthis.exe

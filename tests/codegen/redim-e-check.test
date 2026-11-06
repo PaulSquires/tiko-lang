@@ -2,7 +2,7 @@
 '' illegal function call, at its line, exit 1, as fbc does. tiko carried on (audit F-71).
 '' TEST: cli
 '' ARGS: -e -target windows-x86_64 tests/codegen/src/redim-e-check.bas -o tests/codegen/redimecheck.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/redimecheck.exe
 '' EXPECT-RUN-EXIT: 1

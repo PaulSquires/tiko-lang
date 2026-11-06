@@ -5,7 +5,7 @@
 '' base COPY-CONSTRUCTED -- a memcpy of its string would leave two owners of one buffer.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/base-copy-from-derived.bas -o tests/codegen/basecopyfromderived.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/basecopyfromderived.exe
 '' RUN: tests/codegen/basecopyfromderived.exe

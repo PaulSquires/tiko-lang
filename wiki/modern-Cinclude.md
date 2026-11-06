@@ -84,7 +84,7 @@ so a program never reads a struct through a wrong layout. In the binding, the re
 
 **libclang 16 or newer.** tiko loads libclang the first time a program needs it and never links it, so tiko builds and runs without it. Only `#cinclude`, `-cimport` and `--cimport-probe` need it. It is looked for:
 
-1. in `TKO_LIBCLANG`, alone, when that variable is set;
+1. in `TIKO_LIBCLANG`, alone, when that variable is set;
 2. beside the clang that tiko compiles with;
 3. where the LLVM installer, a Linux distribution or Homebrew puts it (`/opt/homebrew/opt/llvm/lib` on macOS).
 

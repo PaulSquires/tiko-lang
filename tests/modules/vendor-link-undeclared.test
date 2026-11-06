@@ -1,8 +1,8 @@
 '' A MODE THE PACKAGE DOES NOT SHIP (RFC-0002 V7): beta lists only "static".
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vlu/pkg
-'' ENV: TKO_MODCACHE=build/.vlu/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vlu/pkg
+'' ENV: TIKO_MODCACHE=build/.vlu/mc
 '' CLEAN: build/.vlu
 '' COPY: tests/modules/src/vlink/pkg => build/.vlu/pkg
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlu/pkg/vendor/alpha/lib/alpha_windows_x86_64.a

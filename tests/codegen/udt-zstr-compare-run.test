@@ -2,7 +2,7 @@
 '' with icmp and clang refused the module. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-zstr-compare.bas -o tests/codegen/udtzstrcompare.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtzstrcompare.exe
 '' EXPECT-RUN-EXIT: 0

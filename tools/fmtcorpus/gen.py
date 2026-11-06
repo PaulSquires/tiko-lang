@@ -295,7 +295,7 @@ RUNTIME_TEST = """'' std/strings TryFormat over the shared format-string corpus 
 '' tools/fmtcorpus/gen.py.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/std/format/corpus.tiko -o tests/std/format/corpus.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TIKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/std/format/corpus.exe
 '' RUN: tests/std/format/corpus.exe

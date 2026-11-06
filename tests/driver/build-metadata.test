@@ -2,7 +2,7 @@
 '' target with an output per profile, the module graph and a unit per root -- one JSON
 '' object, nothing compiled.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bmd/cache
+'' ENV: TIKO_MODCACHE=build/.bmd/cache
 '' ARGS: metadata -target windows-x86_64 --manifest tests/driver/src/build-pkg
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: {"format":1,"package":{"name":"demo","manifest":"tests/driver/src/build-pkg/tiko.toml","root":"tests/driver/src/build-pkg"}

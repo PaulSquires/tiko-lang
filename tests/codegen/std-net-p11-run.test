@@ -6,7 +6,7 @@
 '' (C:\dev\docs\tiko-stdlib\RFC-0001 section 15).  Loopback only; the same source runs on Linux.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-net-p11.tiko -o tests/codegen/stdnetp11.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdnetp11.exe
 '' RUN: tests/codegen/stdnetp11.exe

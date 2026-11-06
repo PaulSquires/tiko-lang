@@ -3,7 +3,7 @@
 '' one variable, 'print N1.v, N2.v' giving '2 2'. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ns-extern-common.bas -o tests/codegen/nsexterncommon.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/nsexterncommon.exe
 '' EXPECT-RUN-EXIT: 0

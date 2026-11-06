@@ -3,6 +3,6 @@
 '' the link fails on WinHttpCheckPlatform -- ApexWealth's app build, in one line.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/objinfo-main.bas tests/driver/src/objinfo-winhttp.o -o tests/driver/objinfomain.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/objinfomain.exe

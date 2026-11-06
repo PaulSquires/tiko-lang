@@ -2,7 +2,7 @@
 '' array.bi and a plain overload set in string.bi; each facade's Contains reaches the right one.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/combined.bas -o tests/modules/stdcombined.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdcombined.exe
 '' EXPECT-RUN-OUT: true true false

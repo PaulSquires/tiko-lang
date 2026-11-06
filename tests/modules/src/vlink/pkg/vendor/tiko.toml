@@ -1,4 +1,4 @@
-# A stand-in for the toolchain's pkg/vendor (TKO_PKG points here): alpha ships both link
+# A stand-in for the toolchain's pkg/vendor (TIKO_PKG points here): alpha ships both link
 # modes, beta only a static one.
 [package]
 name = "vendor"

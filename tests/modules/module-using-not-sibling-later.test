@@ -2,6 +2,6 @@
 '' that order already refused b.tiko's Foo, and must go on doing so.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/usingfile/leakz.tiko -o tests/modules/usingfile-leakz.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: leakz/b.tiko(3,12): error TKO0743: 'foo' is not declared

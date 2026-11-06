@@ -3,8 +3,8 @@
 '' second build, says why under -v (TKO0169), and the warning is reported again; a clean
 '' root beside them hits.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.ucn/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.ucn/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.ucn
 '' COPY: tests/driver/src/unitcache => build/.ucn/src
 '' STEP: build -target windows-x86_64 build/.ucn/src/a.tiko build/.ucn/src/b.tiko build/.ucn/src/clock.tiko build/.ucn/src/warn.tiko -o build/.ucn/app.exe

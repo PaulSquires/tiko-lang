@@ -2,6 +2,6 @@
 '' from the build (LATER-PLAN D step 5).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 --allow-unlowered -Wno-TKO0995 tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredwno.exe
-'' ENV: TKO_TEST_DECLINE_LINE=5
+'' ENV: TIKO_TEST_DECLINE_LINE=5
 '' EXPECT-EXIT: 2
 '' EXPECT-OUT: error TKO0106: 'TKO0995' is not a recognised value for '-Wno'

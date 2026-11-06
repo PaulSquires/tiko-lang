@@ -325,7 +325,7 @@ For `#import "acme/text/pad"`, tiko tries these in order and takes the first tha
 | 1 | a relative path, from the importing file | `#import "./greet"` |
 | 2 | the current package, when the first segment is its name | inside acme: `#import "acme/config"` |
 | 3 | a dependency in the current package's `tiko.toml` | `acme = { path = "../acme" }` |
-| 4 | each `-i` directory, then each directory in `TKO_PATH` | `TKO_PATH=C:\tikolibs` |
+| 4 | each `-i` directory, then each directory in `TIKO_PATH` | `TIKO_PATH=C:\tikolibs` |
 | 5 | the toolchain's own `pkg/` directory | `std` |
 
 Nothing found is `TKO0140`, and the message lists every place it looked. `std` is special: it is
@@ -491,7 +491,7 @@ module acme.text.pad: miss (define ACME_COLUMNS=4)
 
 **The cache** is one directory shared by every project of yours: `%LOCALAPPDATA%\tiko\modcache`
 on Windows, `~/.cache/tiko/modcache` on Linux (or under `$XDG_CACHE_HOME`), and wherever
-`TKO_MODCACHE` names if you set it. Nothing is written into the project, so there is nothing to
+`TIKO_MODCACHE` names if you set it. Nothing is written into the project, so there is nothing to
 add to `.gitignore`, and a module two projects build the same way is compiled once for both. A
 build with different settings is a different entry, as the third build shows. The key is the
 module's content, not file dates, so touching a file changes nothing.

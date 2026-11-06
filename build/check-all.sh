@@ -94,18 +94,18 @@ fi
 # seven minutes.
 #
 # Reordering it earlier would move the exhaustion to whatever ran last instead, so the
-# honest fix is not to spend the fork table twice in one run. Set TKO_GATE_MSVC=1 to
+# honest fix is not to spend the fork table twice in one run. Set TIKO_GATE_MSVC=1 to
 # include it, or run it directly -- which is the way it is actually used:
 #
 #     bash lib/rt/build/gatemsvc.sh Release
 #
-if [ "${TKO_GATE_MSVC:-0}" = "1" ] ; then
+if [ "${TIKO_GATE_MSVC:-0}" = "1" ] ; then
     if ! TKORT_GATE_OPTIONAL=1 bash lib/rt/build/gatemsvc.sh Release ; then
         echo "check-all: GATE NONZERO: lib/rt/build/gatemsvc.sh"
         bad=$((bad + 1))
     fi
 else
-    echo "check-all: msvc gate not run (TKO_GATE_MSVC=1 to include it)"
+    echo "check-all: msvc gate not run (TIKO_GATE_MSVC=1 to include it)"
 fi
 if [ "$bad" -gt 0 ]; then
     echo "check-all: FAILED -- $bad step(s) beyond the baseline"

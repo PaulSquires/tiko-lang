@@ -2,7 +2,7 @@
 '' the same file prints. tiko reached clang with a 'void' receiver (TKO0113).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/lambda-capture-var.bas -o tests/codegen/lambdacapvar.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/lambdacapvar.exe
 '' EXPECT-RUN-OUT:  7

@@ -5,8 +5,8 @@
 '' for a one-file program importing std and tkl (2026-10-12). 80 is the module source's
 '' file id in this fixture; a fresh cache makes pass one miss, as a first build does.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-cmdline/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-cmdline/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-cmdline
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/cmdlinetemps/libs tests/modules/src/cmdlinetemps/app/main.bas -o build/.mct-cmdline/app.exe
 '' EXPECT-EXIT: 0

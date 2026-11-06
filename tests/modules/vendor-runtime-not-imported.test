@@ -1,9 +1,9 @@
 '' ONLY AN IMPORTED MODULE'S FILES ARE COPIED: the program imports vendor/delta, so delta.dat
 '' goes beside it and vendor/gamma's files -- in the same package -- do not.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrn/pkg
-'' ENV: TKO_MODCACHE=build/.vrn/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrn/pkg
+'' ENV: TIKO_MODCACHE=build/.vrn/mc
 '' CLEAN: build/.vrn
 '' COPY: tests/modules/src/vrt/pkg => build/.vrn/pkg
 '' WRITE: build/.vrn/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n

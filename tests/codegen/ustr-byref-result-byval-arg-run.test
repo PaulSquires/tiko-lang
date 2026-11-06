@@ -4,7 +4,7 @@
 '' Expected output is fbc-modern 1.20's, byte for byte.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ustr-byref-result-byval-arg.tiko -o tests/codegen/ustrbyrefres.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/ustrbyrefres.exe
 '' RUN: tests/codegen/ustrbyrefres.exe

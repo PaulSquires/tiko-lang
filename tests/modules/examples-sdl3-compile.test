@@ -2,8 +2,8 @@
 '' and loads its picture from Data/, compiles for linux-x86_64, where vendor/SDL3 links the
 '' system's SDL3 and so needs no lib/ in the tree.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.exsdl3/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.exsdl3/mc
 '' ARGS: -target linux-x86_64 -c examples/SDL3/renderer/06-textures/textures.tiko -o build/.exsdl3/textures.o
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: build/.exsdl3/textures.o

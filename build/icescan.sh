@@ -34,16 +34,16 @@ FBCUNIT=""
 [ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"
 
 # The packaged toolchain's headers -- the full set a user has -- not fbc-modern's.
-TKOINC=${TKO_INCLUDE:-$PWD/toolchains/tiko-windows/inc}
+TKOINC=${TIKO_INCLUDE:-$PWD/toolchains/tiko-windows/inc}
 if [ -d "$TKOINC" ]; then
-    TKO_INCLUDE="$TKOINC"
-    export TKO_INCLUDE
+    TIKO_INCLUDE="$TKOINC"
+    export TIKO_INCLUDE
 fi
 
-# TKO_ICESCAN_FLAGS: extra tiko flags for every compile -- "-g", "-O2" -- the same knob
+# TIKO_ICESCAN_FLAGS: extra tiko flags for every compile -- "-g", "-O2" -- the same knob
 # runscan.sh and suiterun.sh carry. Phase 14 asks whether the corpus still COMPILES with
 # '-g', which is one run of this with it set and one without, compared file for file.
-TKO_ICESCAN_FLAGS=${TKO_ICESCAN_FLAGS:-}
+TIKO_ICESCAN_FLAGS=${TIKO_ICESCAN_FLAGS:-}
 find "$CORPUS" -name '*.bas' | sort > build/.icecorpus.lst
 
 # Same reasoning as mirsweep's: one process per file, each writing its OWN part, six at a
@@ -64,7 +64,7 @@ xargs -a build/.icecorpus.lst -d '
     key=$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
     out=build/.iceobj/$key.o
     raw=build/.iceparts/$key.raw
-    timeout 120 ./bin/tiko.exe -c '"$TKO_ICESCAN_FLAGS"' '"$FBCUNIT"' "$1" -o "$out" > "$raw" 2>&1 || true
+    timeout 120 ./bin/tiko.exe -c '"$TIKO_ICESCAN_FLAGS"' '"$FBCUNIT"' "$1" -o "$out" > "$raw" 2>&1 || true
     # ONLY codegen-and-later faults. A TKO diagnostic is the frontend refusing the
     # program and belongs to mirsweep; an ICE or a clang failure belongs here.
     # A NEGATIVE TEST IS TAGGED, NOT SKIPPED. An ICE is wrong on invalid input

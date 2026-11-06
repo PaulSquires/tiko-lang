@@ -3,7 +3,7 @@
 '' output for the same program.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/strcat-assign-ustring.tiko -o tests/codegen/strcatassignustring.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/strcatassignustring.exe
 '' RUN: tests/codegen/strcatassignustring.exe

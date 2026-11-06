@@ -18,14 +18,14 @@ esac
 DLL=bin/parser.dll
 [ -f "$DLL" ] || { echo "apitest: $DLL not built -- build/build.sh --dll" >&2; exit 3; }
 
-# THE HARNESS IS BUILT BY THE STAGE0 build.sh USES: TKO_SEED, else build/defaultseed.sh's
+# THE HARNESS IS BUILT BY THE STAGE0 build.sh USES: TIKO_SEED, else build/defaultseed.sh's
 # pick -- the seed, against the tree's inc/, as the DLL it loads was built. It was fbc
 # until 2026-10-10 (bootstrap plan, phase T); seed-2 is the first seed whose runtime runs
 # a DLL's atexit handlers at DLL_PROCESS_DETACH, which the harness's unload checks need.
 . "$ROOT/build/defaultseed.sh"
-SEEDCC=${TKO_SEED:-$(default_seed "$ROOT" 1)} || {
-    echo "apitest: no seed compiler -- seed/fetch-seed.sh, or TKO_SEED" >&2; exit 3; }
-TKO_INCLUDE="$ROOT/inc" "$SEEDCC" tools/tkpdump/tkpdump.tiko -i src -o bin/tkpdump.exe
+SEEDCC=${TIKO_SEED:-$(default_seed "$ROOT" 1)} || {
+    echo "apitest: no seed compiler -- seed/fetch-seed.sh, or TIKO_SEED" >&2; exit 3; }
+TIKO_INCLUDE="$ROOT/inc" TIKO_INCLUDE="$ROOT/inc" "$SEEDCC" tools/tkpdump/tkpdump.tiko -i src -o bin/tkpdump.exe
 H=bin/tkpdump.exe
 FAIL=0
 check( ) {  # check <label> <expected-substring> <command...>
@@ -54,7 +54,7 @@ INC=$(cygpath -w "$ROOT/tests/driver/src/modcache/libs")
 # The pool a scan must not make: named, so the check below asks the place it would go.
 SCANCACHE="$ROOT/build/.apitest-scancache"
 rm -rf "$SCANCACHE"
-out=$(TKO_MODCACHE="$SCANCACHE" TKP_INCDIR="$INC" $H $DLL tests/driver/src/modcache/app/main.bas dump 2>&1)
+out=$(TIKO_MODCACHE="$SCANCACHE" TKP_INCDIR="$INC" $H $DLL tests/driver/src/modcache/app/main.bas dump 2>&1)
 # parent=1, the 'middle' namespace: the scan lists the two symbols main.bas can see, as
 # 'tiko --dump-scan' does over the same files. It said parent=2 when this was written, and
 # had gone stale unrun while the harness needed an fbc (found 2026-10-10).

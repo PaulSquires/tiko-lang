@@ -678,7 +678,7 @@ For `#import "a/b"`, tiko looks in these places in order and takes the first tha
 | 1 | relative to the importing file, for a path starting `./` or `../` | `#import "./textstats"` |
 | 2 | the current package, when the first part is its name | inside `wordkit`: `#import "wordkit/textstats"` |
 | 3 | a dependency in the current package's `tiko.toml` | `wordkit = { path = "../wordkit" }` |
-| 4 | each `-i` directory, then each directory in `TKO_PATH` | `TKO_PATH=C:\tikolibs` |
+| 4 | each `-i` directory, then each directory in `TIKO_PATH` | `TIKO_PATH=C:\tikolibs` |
 | 5 | the toolchain's own packages | `std`, `vendor` |
 
 `std` and `vendor` are always the toolchain's: a directory of yours called `std` or `vendor` cannot

@@ -490,10 +490,10 @@ function NativePath( byval p as string ) as string
 end function
 
 '' A TEST THAT HANGS IS A FAILURE, not a suite that never finishes (review BLD-09): every
-'' child is killed after TKO_TEST_TIMEOUT seconds, default 600, and reports exit 124 -- the
+'' child is killed after TIKO_TEST_TIMEOUT seconds, default 600, and reports exit 124 -- the
 '' code coreutils' 'timeout' uses. 0 turns it off.
 function TestTimeoutSecs_( ) as int32
-    dim as string v = environ( "TKO_TEST_TIMEOUT" )
+    dim as string v = environ( "TIKO_TEST_TIMEOUT" )
     if len( v ) = 0 then return 600
     return valint( v )
 end function
@@ -947,7 +947,7 @@ private sub SetEnv_( byref kv as string )
 end sub
 
 '' PUT BACK WHAT A TEST'S ENV REPLACED -- 'NAME=value' each, as captured before it was set.
-'' Clearing it instead lost a value the whole run depends on: TKO_MODCACHE, set below for
+'' Clearing it instead lost a value the whole run depends on: TIKO_MODCACHE, set below for
 '' every test, was gone after the first test that named its own.
 private sub RestoreEnv_( byref prev as Array( of string ) )
     for each p as string in prev
@@ -1382,7 +1382,7 @@ if opts.suites.IsEmpty( ) then opts.suites.Push( "tests" )
 
 '' THE MODULE CACHE THE SUITE BUILDS INTO, unless the caller named one. tiko's own default
 '' is the user's cache directory, one pool for every project, which a gate must not fill.
-if len( environ( "TKO_MODCACHE" ) ) = 0 then SetEnv_( "TKO_MODCACHE=build/.modcache" )
+if len( environ( "TIKO_MODCACHE" ) ) = 0 then SetEnv_( "TIKO_MODCACHE=build/.modcache" )
 
 dim as int32 nWorkers = opts.jobs
 if nWorkers <= 0 then nWorkers = DefaultJobs_( )

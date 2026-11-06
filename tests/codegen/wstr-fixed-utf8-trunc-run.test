@@ -3,7 +3,7 @@
 '' pattern). The packaged runtime before this commit overwrites 7 guard units.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/wstr-fixed-utf8-trunc.tiko -o tests/codegen/wstrfixtrunc.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/wstrfixtrunc.exe
 '' RUN: tests/codegen/wstrfixtrunc.exe

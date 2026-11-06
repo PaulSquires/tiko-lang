@@ -4,7 +4,7 @@
 '' callee read a narrow string as UTF-16. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ustring-concat-arg.bas -o tests/codegen/ustringconcatarg.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ustringconcatarg.exe
 '' EXPECT-RUN-EXIT: 0

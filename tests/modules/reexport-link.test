@@ -4,7 +4,7 @@
 '' change to it changes web's interface hash, and the cache keys of what imports web.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/reexp/libs tests/modules/src/reexp/app/main.bas -o tests/modules/reexport.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/reexport.exe
 '' EXPECT-RUN-OUT: <[x]>

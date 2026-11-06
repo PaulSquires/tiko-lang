@@ -1,8 +1,8 @@
 '' A HEADER EDIT REBUILDS ITS INCLUDER (RFC-0005 §4): the header is in acme.leaf's deps.txt,
 '' re-checked on every hit; the key itself did not change, so the reason is a file it read.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-hdr/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-hdr/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-hdr
 '' COPY: tests/driver/src/modcache => build/.mct-hdr
 '' STEP: -v -target windows-x86_64 -i build/.mct-hdr/libs build/.mct-hdr/app/main.bas -o build/.mct-hdr/app.exe

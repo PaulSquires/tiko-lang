@@ -3,7 +3,7 @@
 '' compare (C:\dev\docs\tiko-stdlib\RFC-0001 section 6). Expected values from Python's hashlib.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-hash-p3.tiko -o tests/codegen/stdhashp3.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdhashp3.exe
 '' RUN: tests/codegen/stdhashp3.exe

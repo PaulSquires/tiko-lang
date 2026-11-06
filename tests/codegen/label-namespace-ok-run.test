@@ -3,7 +3,7 @@
 '' test's '0 statements not lowered' until lowering stopped after an error (LATER-PLAN D step 2).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/label-namespace-ok.bas -o tests/codegen/labelnsok.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/labelnsok.exe
 '' RUN: tests/codegen/labelnsok.exe

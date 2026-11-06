@@ -1,8 +1,8 @@
 '' 'tiko clean' removes the artefact the same 'tiko build' wrote (PLAN B1), and the record of
 '' its link (B5): in the module cache, and none beside the exe.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bcl/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bcl/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bcl
 '' STEP: build -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe
 '' ARGS: clean -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bcl/app.exe --message-format json

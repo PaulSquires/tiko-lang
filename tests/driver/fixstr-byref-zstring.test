@@ -2,7 +2,7 @@
 '' source's header. RUN, because the failure was a wrong length read past the buffer.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/fixstr-byref-zstring.bas -o tests/driver/fixstrbyrefz.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/fixstrbyrefz.exe
 '' RUN: tests/driver/fixstrbyrefz.exe

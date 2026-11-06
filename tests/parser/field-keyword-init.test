@@ -7,7 +7,7 @@
 '' and this program prints the line below.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/parser/src/field-keyword-init.bas -o tests/parser/field-keyword-init.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/parser/field-keyword-init.exe
 '' EXPECT-RUN-OUT: true            7            nm             2             3

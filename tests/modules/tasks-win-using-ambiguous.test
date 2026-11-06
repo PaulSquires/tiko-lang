@@ -4,7 +4,7 @@
 '' money.Decimal. A program's own declaration or '#include' still wins (tasks-win-own-wins).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/using-ambiguous.tiko -o tests/modules/taskswinusingamb.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: using-ambiguous.tiko(8,10): error TKO0919: 'context' is ambiguous
 '' EXPECT-OUT: winnt.bi(1409,1): note TKO0866: 'context' is also declared here, in a header an '#import' reads

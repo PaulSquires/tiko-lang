@@ -66,7 +66,7 @@ end function
 ''   ALL of them: 'tiko --clean-module-cache'.
 ''
 '' Only a directory named like an entry -- sixteen hex digits -- holding a key.txt is ever
-'' removed, and never the pool itself: TKO_MODCACHE may name any directory.
+'' removed, and never the pool itself: TIKO_MODCACHE may name any directory.
 
 const TICKS_PER_DAY as int64 = 864000000000ll
 const UNUSED_DAYS as int32 = 7
@@ -163,9 +163,9 @@ private sub Trim_( byref root as string )
     DropLinkRecords_( root, now_ - UNUSED_DAYS * TICKS_PER_DAY )
 end sub
 
-'' The pool's directory, made or not: TKO_MODCACHE, else the user cache's.
+'' The pool's directory, made or not: TIKO_MODCACHE, else the user cache's.
 private function PoolPath_( ) as string
-    dim as string root = environ( "TKO_MODCACHE" )
+    dim as string root = environ( "TIKO_MODCACHE" )
     if len( root ) = 0 then root = Tko.DiskCache.UserCacheDir( "modcache" )
     return root
 end function
@@ -173,7 +173,7 @@ end function
 private function PoolDir_( byref ctx as Tko.CompilerContext ) as string
     dim as string root = PoolPath_( )
     if len( root ) = 0 then
-        ctx.diags.ReportGlobal( Tko.TKO0150, "no user cache directory; set TKO_MODCACHE" )
+        ctx.diags.ReportGlobal( Tko.TKO0150, "no user cache directory; set TIKO_MODCACHE" )
         return ""
     end if
     if fs.IsDir( root ) = false then fs.CreateDirAll( root )

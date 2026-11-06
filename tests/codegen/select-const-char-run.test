@@ -3,7 +3,7 @@
 '' Expected output is fbc-modern's (fbc's compound/select_const.bas, zstringDeref).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/select-const-char.bas -o tests/codegen/selectconstchar.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selectconstchar.exe
 '' EXPECT-RUN-EXIT: 0

@@ -3,7 +3,7 @@
 '' beside it. tiko kept the pragma's macro and ignored its meaning, so the two collided.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pragma-private/a.bas tests/codegen/src/pragma-private/b.bas -o tests/codegen/pragmapriv.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pragmapriv.exe
 '' EXPECT-RUN-EXIT: 0

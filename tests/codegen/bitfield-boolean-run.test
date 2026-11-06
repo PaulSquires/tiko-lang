@@ -3,7 +3,7 @@
 '' Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-boolean.bas -o tests/codegen/bitfieldboolean.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldboolean.exe
 '' EXPECT-RUN-EXIT: 0

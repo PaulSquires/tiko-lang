@@ -4,7 +4,7 @@
 '' runs exactly as fbc runs it. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/cleanup-trace.bas -o tests/codegen/cleanuptrace.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/cleanuptrace.exe
 '' EXPECT-RUN-EXIT: 0

@@ -3,7 +3,7 @@
 '' absolute there. std/path carried this coverage until it was folded into std/fs (RFC-0009).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/pertarget/libs tests/modules/src/pertarget/app/main.bas -o tests/modules/pertarget.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/pertarget.exe
 '' EXPECT-RUN-OUT: \ true true

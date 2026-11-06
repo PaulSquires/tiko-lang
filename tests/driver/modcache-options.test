@@ -1,8 +1,8 @@
 '' AN OPTION THAT CHANGES THE OBJECT IS IN THE KEY (RFC-0005 §4): the same program with -g
 '' misses on both modules, on the options line.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-opt/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-opt/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-opt
 '' COPY: tests/driver/src/modcache => build/.mct-opt
 '' STEP: -v -target windows-x86_64 -i build/.mct-opt/libs build/.mct-opt/app/main.bas -o build/.mct-opt/app.exe

@@ -3,8 +3,8 @@
 '' fbc-modern gives. It was TKO0770, and with that out of the way 0.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/query-symbol-reserved.bas -o tests/codegen/qsymres.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0770
 '' RUN: tests/codegen/qsymres.exe

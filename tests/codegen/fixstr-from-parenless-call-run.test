@@ -4,7 +4,7 @@
 '' violation (fbc-examples repro run01). Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fixstr-from-parenless-call.bas -o tests/codegen/fixstrfromparenlesscall.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fixstrfromparenlesscall.exe
 '' RUN: tests/codegen/fixstrfromparenlesscall.exe

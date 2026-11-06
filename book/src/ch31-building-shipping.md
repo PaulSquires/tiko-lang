@@ -18,9 +18,9 @@ tiko builds for three targets, chosen with `-target`:
 
 The compiler turns tiko into LLVM's intermediate form and hands it to **clang**, which produces
 machine code and drives the linker. tiko looks for clang in the place LLVM installs it, then on
-the `PATH`; the environment variable **`TKO_CLANG`** names a particular one instead. Its
+the `PATH`; the environment variable **`TIKO_CLANG`** names a particular one instead. Its
 runtime library, the code behind `print`, strings and files, comes with the compiler, under its
-`lib` directory; **`TKO_LIBPATH`** points it at another copy, and **`TKO_INCLUDE`** does the same
+`lib` directory; **`TIKO_LIBPATH`** points it at another copy, and **`TIKO_INCLUDE`** does the same
 for the headers.
 
 ```tiko
@@ -394,8 +394,8 @@ and that licence's conditions apply.
 
 ## Summary
 
-- `-target windows-x86_64` (Windows' default), `linux-x86_64` or `macos-arm64`. `TKO_CLANG`, `TKO_LIBPATH` and
-  `TKO_INCLUDE` point the compiler at other tools, runtimes and headers.
+- `-target windows-x86_64` (Windows' default), `linux-x86_64` or `macos-arm64`. `TIKO_CLANG`, `TIKO_LIBPATH` and
+  `TIKO_INCLUDE` point the compiler at other tools, runtimes and headers.
 - `-c` compiles to an object file; the first file named is main unless `-m` says otherwise; the
   other modules' top levels run first, as constructors.
 - `-lib` builds `libname.a`; `-dll` builds a DLL and `libname.dll.a`, or `libname.so`, or

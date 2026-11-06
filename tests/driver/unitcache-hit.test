@@ -2,8 +2,8 @@
 '' the unit cache, and the program linked from the cached objects runs as before. b's
 '' top-level code runs first: it is a module constructor, a is main.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.uch/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.uch/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.uch
 '' COPY: tests/driver/src/unitcache => build/.uch/src
 '' STEP: build -target windows-x86_64 build/.uch/src/a.tiko build/.uch/src/b.tiko -o build/.uch/app.exe

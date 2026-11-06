@@ -28,7 +28,7 @@ rem line-for-line peer of test.sh. cmd has no 'find -newer': forfiles compares w
 rem DAYS, and parsing 'dir' timestamps is locale-dependent. A file-mtime test has to
 rem be right or the guard is worse than no guard, so :newer shells out for it.
 rem
-rem TKO_TEST_REBUILD=1 forces the build; --no-build skips it even when stale.
+rem TIKO_TEST_REBUILD=1 forces the build; --no-build skips it even when stale.
 
 setlocal
 set "ROOT=%~dp0.."
@@ -50,7 +50,7 @@ goto argloop
 set "STAMPCFG="
 set "STAMPCC="
 
-if "%TKO_TEST_REBUILD%"=="1" goto stale
+if "%TIKO_TEST_REBUILD%"=="1" goto stale
 if not exist "%TIKO%" goto stale
 if not exist "%RUNNER%" goto stale
 if not exist "%STAMP%" goto stale
@@ -65,7 +65,7 @@ for /f "tokens=1,2 delims=|" %%a in ("%STAMPED%") do (
 if not "%STAMPCFG%"=="%CFG%" goto stale
 rem A different stage0 than bin\ was built with, chosen as build.bat chooses it.
 set "WANTCC="
-if not "%TKO_SEED%"=="" set "WANTCC=%TKO_SEED%"
+if not "%TIKO_SEED%"=="" set "WANTCC=%TIKO_SEED%"
 if "%WANTCC%"=="" call "%ROOT%\build\defaultseed.bat" "%ROOT%"
 if "%WANTCC%"=="" set "WANTCC=%DEFAULT_SEED%"
 if "%WANTCC%"=="" goto ccok

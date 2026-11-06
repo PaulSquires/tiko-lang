@@ -121,12 +121,12 @@ private function ChainOf_( byref pkgName as string, byref rel as string ) as str
 end function
 
 '' THE PACKAGE SEARCH ROOTS, in order: each -i the user gave (not the bundled header
-'' directory, which cmdline.tiko appends after them), then each TKO_PATH entry.
+'' directory, which cmdline.tiko appends after them), then each TIKO_PATH entry.
 private sub SearchRoots_( byref ctx as Tko.CompilerContext, byref roots as Tko.StrVec )
     for i as int32 = 0 to ctx.options.userIncludeCount - 1
         roots.Push( NormPath( ctx.options.includePaths[i] ) )
     next
-    dim as string env_ = environ( "TKO_PATH" )
+    dim as string env_ = environ( "TIKO_PATH" )
     #ifdef __FB_WIN32__
         const SEP = ";"
     #else
@@ -142,13 +142,13 @@ private sub SearchRoots_( byref ctx as Tko.CompilerContext, byref roots as Tko.S
     wend
 end sub
 
-'' THE TOOLCHAIN'S PACKAGE TREE: --pkg-dir, else TKO_PKG, else <exe-dir>/pkg, else
+'' THE TOOLCHAIN'S PACKAGE TREE: --pkg-dir, else TIKO_PKG, else <exe-dir>/pkg, else
 '' <exe-dir>/../pkg -- the same two layouts the default include directory is found in
 '' (cmdline.tiko). --pkg-dir is for a host whose executable is not tiko's: in the editor's
 '' parser.dll, <exe-dir> is the editor's folder.
 private function PkgDir_( byref ctx as Tko.CompilerContext ) as string
     if len( ctx.options.pkgDir ) > 0 then return NormPath( ctx.options.pkgDir )
-    dim as string env_ = environ( "TKO_PKG" )
+    dim as string env_ = environ( "TIKO_PKG" )
     if len( env_ ) > 0 then return NormPath( env_ )
     dim as string exeDir = exepath( )
     if len( exeDir ) = 0 then return ""
@@ -281,7 +281,7 @@ end function
 '' THE TOOLCHAIN'S OWN PACKAGES (RFC-0007 §3; tiko-vendor RFC-0002 V3): 'std'; 'vendor', the
 '' C libraries the toolchain ships; and 'sys', the operating-system support built on them
 '' (sys/win). An '#import' of any of them is looked for in the toolchain's pkg/ alone, so no
-'' project, -i directory, TKO_PATH entry or dependency can stand in for one. 'db' is an
+'' project, -i directory, TIKO_PATH entry or dependency can stand in for one. 'db' is an
 '' ordinary name.
 private function Reserved_( byref lname as string ) as boolean
     return (lname = "std") orelse (lname = "vendor") orelse (lname = "sys")
@@ -610,7 +610,7 @@ function ResolveImport _
         return true
     next
 
-    if len( tried ) = 0 then tried = "no -i, no TKO_PATH, and no toolchain pkg/ directory"
+    if len( tried ) = 0 then tried = "no -i, no TIKO_PATH, and no toolchain pkg/ directory"
     ctx.diags.Report( Tko.TKO0140, at, p, tried )
     return false
 end function

@@ -2,8 +2,8 @@
 '' module's deps.txt like an included file, so rewriting it rebuilds the module that embeds
 '' it, and the program sees the new bytes and the new bounds.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-embed/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-embed/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-embed
 '' COPY: tests/modules/src/embedmod => build/.mct-embed
 '' STEP: -v -target windows-x86_64 -i build/.mct-embed/libs build/.mct-embed/app/main.tiko -o build/.mct-embed/app.exe

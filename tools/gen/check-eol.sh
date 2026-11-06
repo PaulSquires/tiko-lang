@@ -20,7 +20,7 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "check-eol: corpus not vendored" >&2; exit 3; }
-N=${TKO_EOL_SAMPLE:-400}
+N=${TIKO_EOL_SAMPLE:-400}
 
 find "$CORPUS" -name '*.bas' | sort | head -"$N" > build/.eol.lst
 rm -rf build/.eolwork && mkdir -p build/.eolwork

@@ -5,7 +5,7 @@
 '' iface-link.test does.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/build/libs tests/modules/src/build/app/main.bas -o tests/modules/buildlink.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0992
 '' EXPECT-FILE: tests/modules/buildlink.exe

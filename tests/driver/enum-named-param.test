@@ -8,6 +8,6 @@
 '' goldenrun.sh differential -- built and run by fbc and by tiko, byte-identical.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/enum-named-param.bas -o tests/driver/enumnamedparam.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/enumnamedparam.exe

@@ -3,8 +3,8 @@
 '' beside the root's current one. Both builds must miss, and neither may store; the module
 '' with no clock beside it still stores and hits, so the cache itself is on.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-clock/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-clock/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-clock
 '' COPY: tests/modules/src/clock => build/.mct-clock
 '' STEP: -v -target windows-x86_64 -i build/.mct-clock/libs build/.mct-clock/app/main.bas -o build/.mct-clock/app.exe

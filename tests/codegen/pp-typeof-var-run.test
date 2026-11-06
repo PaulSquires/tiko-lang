@@ -4,7 +4,7 @@
 '' not print: 'long ptr' is not 'long', nor 'long' 'integer'.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-typeof-var.bas -o tests/codegen/pptypeof.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pptypeof.exe
 '' EXPECT-RUN-EXIT: 0

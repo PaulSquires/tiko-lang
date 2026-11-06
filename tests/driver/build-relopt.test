@@ -1,8 +1,8 @@
 '' A MANIFEST'S PATHS ARE RELATIVE TO tiko.toml (RFC-0001 §5), its options' too: the target's
 '' '-i lib' finds lib/ext with tiko run from the repository root, not from the package.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.brel/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.brel/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.brel
 '' COPY: tests/driver/src/build-relopt => build/.brel/pkg
 '' ARGS: build -target windows-x86_64 --manifest build/.brel/pkg

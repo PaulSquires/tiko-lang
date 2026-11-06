@@ -127,7 +127,7 @@ function VersionText( byref clangExe as string ) as string
     if len( clangExe ) > 0 then
         outp += "llvm " & clangExe & chr( 10 )
     else
-        outp += "llvm not found -- install LLVM 18 or newer, or set TKO_CLANG" & chr( 10 )
+        outp += "llvm not found -- install LLVM 18 or newer, or set TIKO_CLANG" & chr( 10 )
     end if
     return outp
 end function
@@ -214,10 +214,10 @@ end function
 ''     <exe-dir>/inc        fbc's shape
 ''     <exe-dir>/../inc     tiko-lang's, with the exe in bin/
 ''
-'' TKO_INCLUDE overrides both, which is how a build with no bundled headers -- the
+'' TIKO_INCLUDE overrides both, which is how a build with no bundled headers -- the
 '' corpus runs, today -- points at a header set without every caller repeating -i.
 private sub AppendDefaultIncludeDir( byref opts as Tko.DriverOptions )
-    dim as ustring env_ = environ( "TKO_INCLUDE" )
+    dim as ustring env_ = environ( "TIKO_INCLUDE" )
     if len( env_ ) > 0 then
         opts.includePaths.Push( env_ )
         return
@@ -261,17 +261,17 @@ end sub
 '' include rule gives: a -p the user typed still wins, and a path that does not exist
 '' buys a stat per library for nothing.
 ''
-'' TKO_LIBPATH overrides the bundled tree, exactly as TKO_INCLUDE overrides inc/. It
+'' TIKO_LIBPATH overrides the bundled tree, exactly as TIKO_INCLUDE overrides inc/. It
 '' used to be read in FindTools, and only when no -p was given at all; it is read here
 '' now because a default pushed into libPaths would have made that test true forever
 '' and dropped the variable on the floor without saying so.
 private sub AppendBundledLibDirs_( byref opts as Tko.DriverOptions )
-    dim as ustring env_ = environ( "TKO_LIBPATH" )
+    dim as ustring env_ = environ( "TIKO_LIBPATH" )
     if len( env_ ) > 0 then
         opts.defaultLibPaths.Push( env_ )
         '' ...AND ITS '-fb' SIBLING, as the bundled tree gets below (T70). That is
         '' where fbrt0.o lives, the runtime's constructor on every gnu target, and the
-        '' link names it only if a library path has it. TKO_LIBPATH=lib/linux-x86_64
+        '' link names it only if a library path has it. TIKO_LIBPATH=lib/linux-x86_64
         '' alone linked no fbrt0.o, so fb_hRtInit and fb_hRtExit never ran: no
         '' locale, no "Aborting due to runtime error" on stderr, and nothing said so.
         '' windows-x86_64 has no sibling and needs none -- msvcinit.c does that job.
@@ -316,7 +316,7 @@ end sub
 '' working directory must not win against the runtime that was shipped with the
 '' compiler -- that is how a build picks up something nobody meant it to.
 ''
-'' UNCONDITIONAL, including when TKO_LIBPATH replaced the bundled tree: fbc adds it
+'' UNCONDITIONAL, including when TIKO_LIBPATH replaced the bundled tree: fbc adds it
 '' whatever else it was told, and a variable that says where the RUNTIME lives is
 '' not a statement about the working directory.
 private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )

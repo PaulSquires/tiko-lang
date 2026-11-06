@@ -14,7 +14,7 @@ the same bytes. 'selfhost' compiles the tiko-lang tree given by --tree (all of b
 sources.txt, the large multi-unit project); 'pscal' a PsControls demo (AfxNova + windows.bi,
 a real GUI program) when --pscal names its directory. Both are skipped when not given.
 
-TKO_INCLUDE / TKO_LIBPATH must be set as for any build (see build/test.sh).
+TIKO_INCLUDE / TIKO_LIBPATH must be set as for any build (see build/test.sh).
 """
 import argparse, ctypes, ctypes.wintypes as wt, json, os, re, shutil, statistics, subprocess, sys, time
 
@@ -217,8 +217,8 @@ def main():
     def wipe_cold():
         if os.path.isdir(cold):
             shutil.rmtree(cold)
-    cases.append(("modules_cold", modroot, modargs, {"TKO_MODCACHE": cold}, wipe_cold))
-    cases.append(("modules_warm", modroot, modargs, {"TKO_MODCACHE": warm}, None))
+    cases.append(("modules_cold", modroot, modargs, {"TIKO_MODCACHE": cold}, wipe_cold))
+    cases.append(("modules_warm", modroot, modargs, {"TIKO_MODCACHE": warm}, None))
 
     if a.pscal:
         cases.append(("pscalendar", a.pscal, ["-i", "C:\\dev", "main.bas", "main.rc", "-o",

@@ -4,8 +4,8 @@
 '' winuser.h's values.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/win-dpi-messages.bas -o tests/codegen/windpimessages.exe
-'' ENV: TKO_INCLUDE=inc
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: verify:
 '' EXPECT-FILE: tests/codegen/windpimessages.exe

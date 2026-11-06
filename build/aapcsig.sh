@@ -14,7 +14,7 @@
 # of the ABI. The running half (a C library called and calling back) needs a Mac:
 # build/aapcslane.sh.
 #
-# Needs clang (TKO_CLANG, else on PATH) and python. Exits 1 on any difference.
+# Needs clang (TIKO_CLANG, else on PATH) and python. Exits 1 on any difference.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 case "$(uname -s)" in
@@ -23,8 +23,8 @@ case "$(uname -s)" in
 esac
 TKO="$ROOT/bin/tiko$EXT"
 [ -x "$TKO" ] || { echo "aapcsig: build tiko first (build/build.sh)" >&2; exit 3; }
-CLANG=${TKO_CLANG:-clang}
-command -v "$CLANG" > /dev/null 2>&1 || { echo "aapcsig: no clang (set TKO_CLANG)" >&2; exit 3; }
+CLANG=${TIKO_CLANG:-clang}
+command -v "$CLANG" > /dev/null 2>&1 || { echo "aapcsig: no clang (set TIKO_CLANG)" >&2; exit 3; }
 PY=${PYTHON:-python}
 command -v "$PY" > /dev/null 2>&1 || PY=python3
 

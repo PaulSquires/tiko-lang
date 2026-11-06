@@ -5,7 +5,7 @@
 '' 'wstr' constant a wchar at a time (937 is the omega).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/const-string-index.tiko -o tests/codegen/conststringindex.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0994
 '' RUN: tests/codegen/conststringindex.exe

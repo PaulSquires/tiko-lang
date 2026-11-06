@@ -5,7 +5,7 @@
 '' TKO0994: std/tui's 'var r = tui.TuiRun( app, opts ) : r.IsOk( )' (book Ch 34 tledger).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/ovinfer/main.tiko -o tests/modules/ovinfer.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ovinfer.exe
 '' EXPECT-RUN-OUT: true 42

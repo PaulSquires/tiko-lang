@@ -15,7 +15,7 @@
 set -e
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-REPO=${TKO_SEED_REPO:-PaulSquires/tiko-lang}
+REPO=${TIKO_SEED_REPO:-PaulSquires/tiko-lang}
 HOST=""
 DEST=""
 TOFU=0
@@ -103,4 +103,4 @@ else
 fi
 echo "fetch-seed: built from $COMMIT"
 echo "fetch-seed: ok -- seed at $OUTD/$TOP"
-echo "fetch-seed: build with it: TKO_SEED=$C build/build.sh  (or build/bootstrap.sh --seed $C)"
+echo "fetch-seed: build with it: TIKO_SEED=$C build/build.sh  (or build/bootstrap.sh --seed $C)"

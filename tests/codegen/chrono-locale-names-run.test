@@ -3,7 +3,7 @@
 '' LC_ALL=de_DE.UTF-8 gives "März" and LC_ALL=C "March" -- that half is run there by hand).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/chrono-locale-names.tiko -o tests/codegen/chronolocnames.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/chronolocnames.exe
 '' RUN: tests/codegen/chronolocnames.exe

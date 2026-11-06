@@ -31,10 +31,10 @@ jobs:
         shell: bash
     env:
       GH_TOKEN: ${{ github.token }}
-      TKO_EDITOR_DIR: /c/nonexistent
+      TIKO_EDITOR_DIR: /c/nonexistent
       # vendor-pscontrols-public-helpers compiles all of vendor/PsControls cold: 253 s on
       # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
-      TKO_TEST_TIMEOUT: "900"
+      TIKO_TEST_TIMEOUT: "900"
     steps:
       # THE BYTES AS COMMITTED, as tiko-lang's own checkouts have them (core.autocrlf false).
       # The runner's default, true, turned pkg/sys/posix/*.ti into CRLF while .gitattributes
@@ -66,19 +66,19 @@ jobs:
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
-      TKO_EDITOR_DIR: /nonexistent
+      TIKO_EDITOR_DIR: /nonexistent
       # vendor-pscontrols-public-helpers compiles all of vendor/PsControls cold: 253 s on
       # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
-      TKO_TEST_TIMEOUT: "900"
+      TIKO_TEST_TIMEOUT: "900"
     steps:
       - uses: actions/checkout@v4
       - name: LLVM 18
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-18 lld-18 llvm-18
-          echo "TKO_CLANG=/usr/bin/clang-18" >> "$GITHUB_ENV"
-          echo "TKO_AR=/usr/bin/llvm-ar-18" >> "$GITHUB_ENV"
-          echo "TKO_NM=/usr/bin/llvm-nm-18" >> "$GITHUB_ENV"
+          echo "TIKO_CLANG=/usr/bin/clang-18" >> "$GITHUB_ENV"
+          echo "TIKO_AR=/usr/bin/llvm-ar-18" >> "$GITHUB_ENV"
+          echo "TIKO_NM=/usr/bin/llvm-nm-18" >> "$GITHUB_ENV"
       - name: Fetch the pinned seed
         run: sh seed/fetch-seed.sh --host linux
       - name: Lay out the seed's toolchain where the tests link it

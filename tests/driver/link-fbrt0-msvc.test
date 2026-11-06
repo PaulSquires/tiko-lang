@@ -3,7 +3,7 @@
 '' /INCLUDE:tkort_msvc_init_. The gnu half of this rule is link-fbrt0.test.
 '' TEST: cli
 '' ARGS: -v -target windows-x86_64 -mt tests/driver/src/mt-startup.bas -o tests/driver/mtstartupmsvc.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: /INCLUDE:tkort_msvc_init_
 '' EXPECT-NOT: fbrt0

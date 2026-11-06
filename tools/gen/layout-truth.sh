@@ -18,9 +18,9 @@
 
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-. "$(dirname "$0")/../../build/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC64=$TKO_ORACLE_FBC
-FBC32=${TKO_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
+. "$(dirname "$0")/../../build/toolchain.sh"    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC64=$TIKO_ORACLE_FBC
+FBC32=${TIKO_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
 # IN THE REPO, not mktemp -d. Git Bash puts /tmp under the user's AppData, which
 # is not on the C: mount WSL sees -- so the Linux half below was handed a path
 # that did not exist inside WSL, fbc failed with its output discarded, and
@@ -87,7 +87,7 @@ else
 fi
 
 # ---------------------------------------------------------------- linux-x86_64
-LINUX_FBC=${TKO_LINUX_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-linux/bin/fbc}
+LINUX_FBC=${TIKO_LINUX_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-linux/bin/fbc}
 LINUX_OUT="$ROOT/tests/types/expected/fbc-layout-linux-x86_64.txt"
 
 if [ "$HOSTWIN" = "0" ]; then

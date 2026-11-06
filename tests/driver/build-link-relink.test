@@ -2,8 +2,8 @@
 '' directory was emptied links again. The exe's record outlives it, in the module cache, but
 '' names the exe as that link left it, so it cannot match.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.blrc/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.blrc/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.blrc
 '' CLEAN: build/.blr
 '' COPY: tests/driver/src/unitcache => build/.blrs

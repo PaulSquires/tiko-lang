@@ -3,7 +3,7 @@
 '' It was TKO0612, read as var-len. fbc-modern 1.20 prints the same five lines, 2026-10-16.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/diagnostics/src/const-bound-array-init.bas -o tests/diagnostics/constboundinit.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: error
 '' EXPECT-FILE: tests/diagnostics/constboundinit.exe

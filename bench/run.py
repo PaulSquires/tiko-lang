@@ -14,7 +14,7 @@ timed.
 
 Toolchains are found from environment variables, then a bench-tools directory
 ($BENCH_TOOLS, ~/bench-tools, or bench-tools beside the repository), then PATH.
-C is compiled by the clang tiko uses ($TKO_CLANG, else tiko's default path), so
+C is compiled by the clang tiko uses ($TIKO_CLANG, else tiko's default path), so
 both go through the same LLVM:
 
     BENCH_TIKO  BENCH_CC  BENCH_RUSTC  BENCH_CARGO  BENCH_GO  BENCH_ZIG
@@ -115,7 +115,7 @@ class Toolchains:
     @staticmethod
     def find_cc():
         """The clang tiko itself uses, so C and tiko share one LLVM."""
-        for env in ("BENCH_CC", "TKO_CLANG"):
+        for env in ("BENCH_CC", "TIKO_CLANG"):
             if os.environ.get(env):
                 return os.environ[env]
         default = (r"C:\Program Files\LLVM\bin\clang.exe" if WINDOWS else "/usr/bin/clang")

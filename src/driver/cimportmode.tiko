@@ -35,7 +35,7 @@ end function
 '' The one hint that fixes each target's commonest failure: a header clang could not find.
 #ifdef __FB_DARWIN__
 private function DarwinSdk_( ) as string
-    dim as string sdk = environ( "TKO_SDKROOT" )
+    dim as string sdk = environ( "TIKO_SDKROOT" )
     if len( sdk ) = 0 then sdk = environ( "SDKROOT" )
     if len( sdk ) then return sdk
     dim as string clt = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
@@ -82,7 +82,7 @@ sub FillOptions _
     io.csysroot = ctx.options.cSysroot
 #ifdef __FB_DARWIN__
     '' ON THE MAC, NO -csysroot MEANS THE SDK THE LINK USES (codegen/toolchain.tiko LinkExe):
-    '' TKO_SDKROOT, SDKROOT, then the Command Line Tools'. Homebrew's libclang would otherwise
+    '' TIKO_SDKROOT, SDKROOT, then the Command Line Tools'. Homebrew's libclang would otherwise
     '' read its own built-in SDK, an older one (measured: 15.4 against 26.5, docs/tiko-macos
     '' FACTS "Spikes"). Only on a Darwin host: the SDK never leaves the Mac.
     if (len( io.csysroot ) = 0) andalso (Tko.TargetOs( ctx.options.target ) = Tko.OS_DARWIN) then

@@ -1,9 +1,9 @@
 '' copy_to AND RUNTIME FILES: each file copied beside the artefact is a runtime-lib event, so
 '' 'tiko build' copies it into dist/ with the program.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrt/pkg
-'' ENV: TKO_MODCACHE=build/.vrt/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrt/pkg
+'' ENV: TIKO_MODCACHE=build/.vrt/mc
 '' CLEAN: build/.vrt
 '' COPY: tests/modules/src/vrt/pkg => build/.vrt/pkg
 '' WRITE: build/.vrt/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n

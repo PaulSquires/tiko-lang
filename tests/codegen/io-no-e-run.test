@@ -1,7 +1,7 @@
 '' T68, RUN: without -e the same statements stay silent, as in fbc: nothing is checked.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/io-e-check.bas -o tests/codegen/ionoe.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ionoe.exe
 '' EXPECT-RUN-OUT: not reached

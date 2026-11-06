@@ -23,15 +23,15 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) EXT=".exe" ;;
     *) echo "difflane: Windows only for now" >&2; exit 3 ;;
 esac
-. "$(dirname "$0")/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC=$TKO_ORACLE_FBC
+. "$(dirname "$0")/toolchain.sh"    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC=$TIKO_ORACLE_FBC
 TKO="$ROOT/bin/tiko$EXT"
-[ -x "$FBC" ] || { echo "difflane: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC)"; exit 0; }
+[ -x "$FBC" ] || { echo "difflane: SKIPPED -- no oracle fbc at $FBC (TIKO_ORACLE_FBC)"; exit 0; }
 [ -x "$TKO" ] || { echo "difflane: build tiko first (build/build.sh)" >&2; exit 3; }
 PY=$(command -v python || command -v python3)
 [ -n "$PY" ] || { echo "difflane: needs python" >&2; exit 3; }
 
-export TKO_LIBPATH=${TKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/windows-x86_64}
+export TIKO_LIBPATH=${TIKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/windows-x86_64}
 first=${1:-1}
 count=${2:-200}
 W="$ROOT/build/.difflane"

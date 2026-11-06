@@ -2,8 +2,8 @@
 '' stdout -- build-start, a unit event per module and root, the artefact, build-end. The
 '' cache is new, so the module and both roots miss; paths are as given on the command line.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bev/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bev/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bev
 '' ARGS: build -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bev/app.exe --message-format json
 '' EXPECT-EXIT: 0

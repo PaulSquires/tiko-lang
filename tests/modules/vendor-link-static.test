@@ -2,9 +2,9 @@
 '' TIKO_LINK_STATIC, so its static '#foreignlib' branch links alpha's archive (alpha_id 1),
 '' and the header it carries reads the same macro in the importer (V12). Nothing is copied.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vls/pkg
-'' ENV: TKO_MODCACHE=build/.vls/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vls/pkg
+'' ENV: TIKO_MODCACHE=build/.vls/mc
 '' CLEAN: build/.vls
 '' COPY: tests/modules/src/vlink/pkg => build/.vls/pkg
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vls/pkg/vendor/alpha/lib/alpha_windows_x86_64.a

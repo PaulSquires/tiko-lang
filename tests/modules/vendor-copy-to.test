@@ -2,9 +2,9 @@
 '' dist/ and, with it, the DLL the link step put beside the artefact -- reported as a
 '' runtime-lib event -- so the copy in dist/ starts.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vct/pkg
-'' ENV: TKO_MODCACHE=build/.vct/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vct/pkg
+'' ENV: TIKO_MODCACHE=build/.vct/mc
 '' CLEAN: build/.vct
 '' COPY: tests/modules/src/vlink/pkg => build/.vct/pkg
 '' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vct/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll

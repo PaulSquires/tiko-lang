@@ -24,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tests/types/expected/fbc-escape.txt"
 WORK = ROOT / "build/.esc"
-FBC = Path(os.environ.get("TKO_ORACLE_FBC", "C:/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"))
+FBC = Path(os.environ.get("TIKO_ORACLE_FBC", "C:/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"))
 
 BS = chr(92)
 Q = chr(34)

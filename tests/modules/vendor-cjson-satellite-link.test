@@ -2,8 +2,8 @@
 '' vendor/cJSON links -- so it declares no link modes, and 'link' on it is TKO0155: the mode is
 '' chosen on vendor/cJSON.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.vcjs/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.vcjs/mc
 '' ARGS: -target linux-x86_64 -c tests/modules/src/vcjson/satlink.tiko -o build/.vcjs/satlink.o
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: satlink.tiko(1,1): error TKO0155

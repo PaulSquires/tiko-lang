@@ -1,12 +1,12 @@
-'' WITHOUT TKO_MODCACHE THE POOL IS THE USER'S CACHE DIRECTORY (RFC-0005 §4):
+'' WITHOUT TIKO_MODCACHE THE POOL IS THE USER'S CACHE DIRECTORY (RFC-0005 §4):
 '' <LOCALAPPDATA>/tiko/modcache, or <XDG_CACHE_HOME>/tiko/modcache off Windows -- both
 '' pointed into build/ here. A build misses, the next hits, and once that directory's tiko/
 '' is removed the next misses again: so the entries were there, and not beside the project.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=
+'' ENV: TIKO_MODCACHE=
 '' ENV: LOCALAPPDATA=build/.mct-default/user
 '' ENV: XDG_CACHE_HOME=build/.mct-default/user
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-default
 '' COPY: tests/driver/src/modcache => build/.mct-default
 '' STEP: -v -target windows-x86_64 -i build/.mct-default/libs build/.mct-default/app/main.bas -o build/.mct-default/app.exe

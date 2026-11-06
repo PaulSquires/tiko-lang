@@ -17,7 +17,7 @@ const IR_COPY_CHUNK as int32 = 1024 * 1024
 
 sub IrSink.Start( )
     this.threshold = IR_SPILL_DEFAULT
-    dim as string ev = environ( "TKO_IR_SPILL" )
+    dim as string ev = environ( "TIKO_IR_SPILL" )
     if len( ev ) > 0 then
         dim as longint v = vallng( ev )
         if (v > 0) andalso (v < 2147483647) then this.threshold = cast( int32, v )

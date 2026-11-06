@@ -2,7 +2,7 @@
 '' SCALE 1 here (no argument); 'stdcstressalgo.exe 5' for a heavier run. Prints per-section timings.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-stress-algo.tiko -o tests/codegen/stdcstressalgo.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdcstressalgo.exe
 '' RUN: tests/codegen/stdcstressalgo.exe

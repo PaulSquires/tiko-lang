@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/logging/logrecord.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/logging/logrecord.bas -o tests/std/logging/logrecord.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/logging/logrecord.exe
 '' EXPECT-RUN-OUT: 93        93         0  fbc_tests.logging.logrecord_                  11

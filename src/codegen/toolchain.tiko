@@ -66,7 +66,7 @@ function FindTools _
         t.clangExe = clangOpt
     else
         '' 2. The environment.
-        t.clangExe = environ( "TKO_CLANG" )
+        t.clangExe = environ( "TIKO_CLANG" )
         if len( t.clangExe ) = 0 then
             '' 3. The conventional install, BEFORE PATH: on Windows 'clang' on PATH is
             ''    as often a stale one from another toolchain as the intended one, and a
@@ -113,7 +113,7 @@ function FindTools _
     next
     '' ...WITH CLANG'S VERSION SUFFIX. Debian and Ubuntu install 'clang-18' and 'llvm-ar-18' in
     '' /usr/bin, and the unsuffixed names only under /usr/lib/llvm-18/bin. CI sets
-    '' TKO_CLANG=/usr/bin/clang-18, so '/usr/bin/llvm-ar' was looked for, did not exist, and
+    '' TIKO_CLANG=/usr/bin/clang-18, so '/usr/bin/llvm-ar' was looked for, did not exist, and
     '' every '-lib' build was TKO0115 'archiving failed (exit -1)' (driver/output-kinds and
     '' staticlib-members, Linux CI only). The suffixed tool first, the plain one if it is absent.
     dim as string clangBase = lcase( mid( t.clangExe, cut_ + 1 ) )
@@ -139,22 +139,22 @@ function FindTools _
         if FileExists_( toolDir & "llvm-rc-" & ver & EXE_ ) then t.rcExe = toolDir & "llvm-rc-" & ver & EXE_
         if FileExists_( toolDir & "llvm-dlltool-" & ver & EXE_ ) then t.dlltoolExe = toolDir & "llvm-dlltool-" & ver & EXE_
     end if
-    '' TKO_AR, WHEN SET, IS THE ARCHIVER -- as it already is to build/toolchain.sh, vendorfetch.sh
-    '' and the runtime's build, which CI sets it for. Not second-guessed, as TKO_CLANG is not.
-    if len( environ( "TKO_AR" ) ) > 0 then t.arExe = environ( "TKO_AR" )
+    '' TIKO_AR, WHEN SET, IS THE ARCHIVER -- as it already is to build/toolchain.sh, vendorfetch.sh
+    '' and the runtime's build, which CI sets it for. Not second-guessed, as TIKO_CLANG is not.
+    if len( environ( "TIKO_AR" ) ) > 0 then t.arExe = environ( "TIKO_AR" )
 
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
-                iif( len( clangOpt ) + len( environ( "TKO_CLANG" ) ) = 0, " or on PATH", "" ) & _
-                " -- set TKO_CLANG to the clang to use"
+                iif( len( clangOpt ) + len( environ( "TIKO_CLANG" ) ) = 0, " or on PATH", "" ) & _
+                " -- set TIKO_CLANG to the clang to use"
         return t
     end if
 
     '' The search order arrives already decided: the -p paths the user typed, then
     '' the bundled <exe-dir>/lib/<target> and its '-fb' backing directory, or
-    '' TKO_LIBPATH in place of those. Cmdline settles all of it -- see
+    '' TIKO_LIBPATH in place of those. Cmdline settles all of it -- see
     '' AppendDefaultLibDir -- because only there is the target final, and because
-    '' TKO_LIBPATH read HERE could only ever have been reached when no -p was given,
+    '' TIKO_LIBPATH read HERE could only ever have been reached when no -p was given,
     '' which a bundled default would have made impossible.
     ''
     '' EACH DIRECTORY ONCE, the first time it is given. A second copy finds nothing the first
@@ -346,7 +346,7 @@ end function
 '' llvm-ar was indistinguishable from one that would not start.
 function ArchiverWhy( byref t as ToolPaths ) as string
     if FileExists_( t.arExe ) then return ""
-    return "llvm-ar not found at '" & t.arExe & "' -- set TKO_AR to the archiver to use"
+    return "llvm-ar not found at '" & t.arExe & "' -- set TIKO_AR to the archiver to use"
 end function
 
 '' 'rcs': replace members, create the archive, write an index. The index is what
@@ -511,10 +511,10 @@ function LinkExe _
         cmd = "-target " & target.triple
         viaLld = false
         dedupe = true
-        '' THE SDK, for libSystem's stubs and the crt startup. TKO_SDKROOT, then the SDKROOT
+        '' THE SDK, for libSystem's stubs and the crt startup. TIKO_SDKROOT, then the SDKROOT
         '' xcrun itself honours, then the Command Line Tools' and Xcode's fixed locations;
         '' none found leaves it to clang. PROVISIONAL until measured on the Mac (FACTS.md).
-        dim as string sdk = environ( "TKO_SDKROOT" )
+        dim as string sdk = environ( "TIKO_SDKROOT" )
         if len( sdk ) = 0 then sdk = environ( "SDKROOT" )
         if len( sdk ) = 0 then
             dim as string cltSdk = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"

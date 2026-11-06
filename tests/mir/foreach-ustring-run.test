@@ -3,7 +3,7 @@
 '' "ab", made three distinct keys of three words, and put "cafe" at length 5.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/foreach-ustring-run.bas -o tests/mir/foreachustringrun.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/foreachustringrun.exe
 '' RUN: tests/mir/foreachustringrun.exe

@@ -10,7 +10,7 @@
 '' below at lib/rt/lib/win64, and set TEST back to cli.
 '' TEST: skip
 '' ARGS: -target win64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o tests/modules/initdiamondgnu.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64
+'' ENV: TIKO_LIBPATH=toolchains/tiko-windows/lib/win64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/initdiamondgnu.exe
 '' EXPECT-RUN-OUT: B:101

@@ -87,7 +87,7 @@ IMPLIBS=${TKORT_MSVC_IMPLIBS:-$(cd "$(dirname "$0")/../../.." && pwd)/toolchains
 [ -f "$IMPLIBS/ucrtbase.lib" ] || rt_die "no ucrtbase.lib in $IMPLIBS -- run build/implibs.sh build --out <dir>"
 IMPLIBS=$(cygpath -m "$IMPLIBS")
 
-CLANGX=${CLANG:-${TKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}}
+CLANGX=${CLANG:-${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}}
 ARX=${TKORT_AR_MSVC:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}
 
 # ---------------------------------------------------------------- the archive

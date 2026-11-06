@@ -2,6 +2,6 @@
 '' the source's header.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/gfx-entry-links.bas -o tests/driver/gfxentrylinks.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/gfxentrylinks.exe

@@ -1,9 +1,9 @@
 '' A RUNTIME FILE THAT IS NOT THERE is TKO0176, naming the module, the entry and the path it
 '' was looked for at; nothing is built.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrm/pkg
-'' ENV: TKO_MODCACHE=build/.vrm/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrm/pkg
+'' ENV: TIKO_MODCACHE=build/.vrm/mc
 '' CLEAN: build/.vrm
 '' COPY: tests/modules/src/vrt/pkg => build/.vrm/pkg
 '' ARGS: -target windows-x86_64 tests/modules/src/vrt/app/lost.tiko -o build/.vrm/lost.exe

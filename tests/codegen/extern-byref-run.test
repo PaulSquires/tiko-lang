@@ -2,7 +2,7 @@
 '' binds it (fbc's dim/byref2.bas). tiko declined the declaration. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/extern-byref.bas -o tests/codegen/externbyref.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/externbyref.exe
 '' EXPECT-RUN-EXIT: 0

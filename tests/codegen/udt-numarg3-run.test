@@ -2,7 +2,7 @@
 '' numbers (color, width, locate). tiko dropped each statement. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-numarg3.bas -o tests/codegen/udtnumarg3.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtnumarg3.exe
 '' EXPECT-RUN-EXIT: 0

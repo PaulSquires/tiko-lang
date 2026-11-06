@@ -2,7 +2,7 @@
 '' on through the used namespace's own (namespace/ns-using2.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-typeof-using-chain.bas -o tests/codegen/pptypeofusingchain.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pptypeofusingchain.exe
 '' EXPECT-RUN-EXIT: 0

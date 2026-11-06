@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/finance/deprec.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/finance/deprec.bas -o tests/std/finance/deprec.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/finance/deprec.exe
 '' EXPECT-RUN-OUT: 2434      2434         0  fbc_tests.finance.deprec                      10

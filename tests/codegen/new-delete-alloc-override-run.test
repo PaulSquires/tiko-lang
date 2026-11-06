@@ -2,8 +2,8 @@
 '' them, as fbc does after fbc-int/memory.bi's #undef (fbc-int/memory.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/new-delete-alloc-override.bas -o tests/codegen/newdeleteallocoverride.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/newdeleteallocoverride.exe
 '' EXPECT-RUN-EXIT: 0

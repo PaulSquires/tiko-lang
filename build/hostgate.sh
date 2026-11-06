@@ -43,7 +43,7 @@ case "$EXT" in
 esac
 TKO=${TKO:-$ROOT/bin/tiko$EXT}
 TC=$ROOT/toolchains/tiko-$HOST
-export TKO_LIBPATH=${TKO_LIBPATH:-$TC/lib/$TGT}
+export TIKO_LIBPATH=${TIKO_LIBPATH:-$TC/lib/$TGT}
 INC=$TC/inc
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
 DRV=$CU/tests/tests.bas
@@ -125,10 +125,10 @@ if [ -z "$AGAINST" ] || [ ! -d "$OUT" ] || [ -n "${HOSTGATE_RERUN:-}" ]; then
     rm -rf "$WK"; mkdir -p "$WK/x" "$WK/rd" "$WK/cache"
     [ -z "$PAT" ] && rm -rf "$OUT"
     mkdir -p "$OUT"
-    export TKO_MODCACHE="$WK/cache"
+    export TIKO_MODCACHE="$WK/cache"
     # fbcunit, built by this compiler for this host, beside the runtime it is linked with.
-    if [ ! -f "$TKO_LIBPATH/libfbcunit.a" ]; then
-        echo "hostgate: no $TKO_LIBPATH/libfbcunit.a -- build fbcunit for $TGT first" >&2; exit 3
+    if [ ! -f "$TIKO_LIBPATH/libfbcunit.a" ]; then
+        echo "hostgate: no $TIKO_LIBPATH/libfbcunit.a -- build fbcunit for $TGT first" >&2; exit 3
     fi
     # N WORKERS, each taking every Nth file: the corpus is 2700 files, one at a time is an hour.
     export -f one norm run_limited

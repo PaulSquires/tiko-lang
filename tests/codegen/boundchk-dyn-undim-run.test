@@ -4,7 +4,7 @@
 '' that and crashed. fb_ArrayDimensionChk runs first and catches it.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/boundchk-dyn-undim.bas -o tests/codegen/boundchkdynundim.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/boundchkdynundim.exe
 '' RUN: tests/codegen/boundchkdynundim.exe

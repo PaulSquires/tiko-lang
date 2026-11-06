@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/generics/optional-empty-value.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/optional-empty-value.bas -o tests/std/generics/optional-empty-value.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/generics/optional-empty-value.exe
 '' EXPECT-RUN-EXIT: 1

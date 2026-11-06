@@ -1,12 +1,12 @@
-'' TKO_AR IS THE ARCHIVER, and a missing one is a missing toolchain, said with its path. The
-'' compiler derived llvm-ar from clang's directory and never read TKO_AR, which CI sets; under
-'' CI's TKO_CLANG=/usr/bin/clang-18 it looked for /usr/bin/llvm-ar, which Ubuntu installs as
+'' TIKO_AR IS THE ARCHIVER, and a missing one is a missing toolchain, said with its path. The
+'' compiler derived llvm-ar from clang's directory and never read TIKO_AR, which CI sets; under
+'' CI's TIKO_CLANG=/usr/bin/clang-18 it looked for /usr/bin/llvm-ar, which Ubuntu installs as
 '' llvm-ar-18, and every '-lib' build was TKO0115 'archiving failed (exit -1)', naming nothing
 '' (driver/output-kinds and staticlib-members, Linux CI only). The versioned name is now
 '' derived too; this pins the override and the message.
 '' TEST: cli
 '' ARGS: -lib tests/driver/src/thing.bas -o tests/driver/src/archiver-missing.a
-'' ENV: TKO_AR=tests/driver/src/no-such-llvm-ar
+'' ENV: TIKO_AR=tests/driver/src/no-such-llvm-ar
 '' EXPECT-EXIT: 3
 '' EXPECT-OUT: error TKO0111: no usable toolchain: llvm-ar not found at 'tests/driver/src/no-such-llvm-ar'
 '' EXPECT-NO-FILE: tests/driver/src/archiver-missing.a

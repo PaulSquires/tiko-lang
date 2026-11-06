@@ -281,7 +281,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.reportUnsupported = true
     cfg.sharedLits = @ctx.ppLits
     cfg.sharedLexed = @ctx.ppLexed
-    cfg.maxTokens = valint( environ( "TKO_PP_MAX_TOKENS" ) )
+    cfg.maxTokens = valint( environ( "TIKO_PP_MAX_TOKENS" ) )
     cfg.importsBuilt = ctx.importsBuilt
     Tko.CImportDriver.ConfigureHook( cfg, ctx )
     return cfg
@@ -576,12 +576,12 @@ function BuildFromIr _
     if wrote = false then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     ctx.timing.Add( Tko.PH_WRITEIR, tWrite )
 
-    '' A COMPILER THAT EXITS 0 AND WRITES NOTHING IS A FAILURE. With 'TKO_CLANG=where.exe'
+    '' A COMPILER THAT EXITS 0 AND WRITES NOTHING IS A FAILURE. With 'TIKO_CLANG=where.exe'
     '' the compile "succeeded", the .ll was deleted, and the missing object surfaced only as
     '' a link error -- or, with an object left from an earlier build, not at all (audit F-74,
     '' CG-17). So the old object goes first, and the new one must exist afterwards.
     dim as int32 okill = kill( objPath )
-    '' QUEUED, unless TKO_JOBS=1 asked for one at a time (driver/objqueue.ti).
+    '' QUEUED, unless TIKO_JOBS=1 asked for one at a time (driver/objqueue.ti).
     if ctx.objq.maxJobs = 0 then ctx.objq.maxJobs = Tko.Spawn.DefaultJobs( )
     if ctx.objq.maxJobs > 1 then return QueueObject_( ctx, tools, td, irPath, objPath )
     dim as float64 tClang = timer

@@ -5,7 +5,7 @@
 '' against sys/win/com's Guid function, and the toolchain's sys/win verify failed.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/own-after-import.tiko -o tests/modules/taskswinownafterimport.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0919
 '' EXPECT-FILE: tests/modules/taskswinownafterimport.exe

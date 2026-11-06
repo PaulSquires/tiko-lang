@@ -6,10 +6,10 @@
 '' location-less -- and the exit code is still 3, not the 1 that 'the engine holds an
 '' error' would have produced: ToolFail_ counts it as the toolchain's.
 ''
-'' TKO_CLANG names a file that cannot exist, so this needs no clang, no linker and no
+'' TIKO_CLANG names a file that cannot exist, so this needs no clang, no linker and no
 '' runtime on the machine running it (see toolchain-exit.test).
 '' TEST: cli
-'' ENV: TKO_CLANG=tests/driver/src/no-such-clang.exe
+'' ENV: TIKO_CLANG=tests/driver/src/no-such-clang.exe
 '' ARGS: -o build/.diagfile-tool.exe --diagnostics-file build/.diagfile-tool.tsv tests/source/plain.bas
 '' EXPECT-EXIT: 3
 '' EXPECT-OUT: error TKO0111: no usable toolchain: clang not found

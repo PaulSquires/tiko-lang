@@ -1,7 +1,7 @@
 '' strings: chr( 0 ) in a constant chain keeps its NUL (string/fbstr_pad.bas, string/instrrev_x.bas)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/string-chr-nul-kept.bas -o tests/codegen/stringchrnulkept.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/stringchrnulkept.exe
 '' EXPECT-RUN-EXIT: 0

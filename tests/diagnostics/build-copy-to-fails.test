@@ -1,8 +1,8 @@
 '' TKO0171: a copy_to that cannot be written -- here a directory name that is a FILE -- fails
 '' the build with exit 5, after the artefact itself was written.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bcf/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bcf/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bcf
 '' COPY: tests/driver/src/build-copyto => build/.bcf/pkg
 '' COPY: tests/diagnostics/src/build-copyto-bad.toml => build/.bcf/pkg/tiko.toml

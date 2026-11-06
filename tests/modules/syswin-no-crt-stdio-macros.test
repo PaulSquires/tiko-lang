@@ -1,8 +1,8 @@
 '' TE-002: with sys/win imported, std/process's Child.Stdin( ) / Stdout( ) / Stderr( ) compile --
 '' sys/win no longer leaks crt's object-like stdin / stdout / stderr macros to an importer.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.syswinstdio/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.syswinstdio/mc
 '' ARGS: -target windows-x86_64 -c tests/modules/src/syswinstdio/main.tiko -o build/.syswinstdio/main.o
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0

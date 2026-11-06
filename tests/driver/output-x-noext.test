@@ -1,7 +1,7 @@
 '' -x names the file EXACTLY: fbc adds no '.exe' ('fbc a.bas -x app' writes 'app'), and -x
 '' stands anywhere on the line, before the source included.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.xon
 '' ARGS: -target windows-x86_64 -x build/.xon/app tests/driver/src/build-run.tiko
 '' EXPECT-EXIT: 0

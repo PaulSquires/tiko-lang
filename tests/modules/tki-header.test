@@ -2,9 +2,9 @@
 '' its namespace (RFC-0004 §3).
 '' TEST: cli
 '' NEEDS: toolchains/tiko-windows/inc
-''     (named by TKO_INCLUDE below)
+''     (named by TIKO_INCLUDE below)
 '' ARGS: --emit-tki -i tests/modules/src/hdr/libs tests/modules/src/hdr/libs/acme/geo
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: windows.bi"
 '' EXPECT-OUT: public declare function Area( byref r as RECT ) as long

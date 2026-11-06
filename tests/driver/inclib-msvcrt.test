@@ -2,7 +2,7 @@
 '' linker. See the source's header. fbc-modern and tiko both print 4.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/inclib-msvcrt.bas -o tests/driver/inclibmsvcrt.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/inclibmsvcrt.exe
 '' EXPECT-FILE-HAS: tests/driver/inclibmsvcrt.exe :: ucrtbase.dll

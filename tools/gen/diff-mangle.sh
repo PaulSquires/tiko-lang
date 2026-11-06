@@ -13,8 +13,8 @@
 # and tiko-lang --dump-mangle emits procedures only.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-. "$(dirname "$0")/../../build/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC=${TKO_FBC:-$TKO_ORACLE_FBC}
+. "$(dirname "$0")/../../build/toolchain.sh"    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC=${TIKO_FBC:-$TIKO_ORACLE_FBC}
 # THE HOST'S BINARY, chosen by PLATFORM and not by which file happens to
 # exist. Preferring bin/tiko.exe and falling back only when it is absent
 # picks the WINDOWS build under WSL, where both binaries sit in bin/ after
@@ -30,7 +30,7 @@ LIST="$ROOT/build/.corpus.lst"
 WORK="$ROOT/build/.mg/d"
 LIMIT=${1:-400}
 
-[ -x "$FBC" ]  || { echo "diff-mangle: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC)"; exit 0; }
+[ -x "$FBC" ]  || { echo "diff-mangle: SKIPPED -- no oracle fbc at $FBC (TIKO_ORACLE_FBC)"; exit 0; }
 [ -f "$LIST" ] || { echo "diff-mangle: no corpus list; run build/sweep.sh" >&2; exit 3; }
 
 rm -rf "$WORK"

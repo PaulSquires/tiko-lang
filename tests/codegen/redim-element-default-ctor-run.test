@@ -2,7 +2,7 @@
 '' declared -- 'constructor( array() as integer )' first crashed udt-array-ops-1.bas.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/redim-element-default-ctor.bas -o tests/codegen/redimelementdefaultctor.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/redimelementdefaultctor.exe
 '' EXPECT-RUN-EXIT: 0

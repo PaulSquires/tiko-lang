@@ -13,11 +13,11 @@
 '' win against the runtime shipped with the compiler.
 ''
 '' This builds a static library into tests/driver and then links against it by NAME
-'' with no -p at all, so the only way it resolves is the cwd entry. TKO_LIBPATH names
+'' with no -p at all, so the only way it resolves is the cwd entry. TIKO_LIBPATH names
 '' the runtime because it REPLACES the bundled search -- and the '.' entry is added
 '' even then, which is the other half of what this pins.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -lib tests/codegen/src/export.bas -o tests/driver/libcwdprobe.a
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/libcwdprobe.a

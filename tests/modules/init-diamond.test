@@ -6,7 +6,7 @@
 '' 101' keeps its FreeBASIC meaning and runs before everything.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o tests/modules/initdiamond.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/initdiamond.exe
 '' EXPECT-RUN-OUT: B:101

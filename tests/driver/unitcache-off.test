@@ -1,8 +1,8 @@
 '' --no-cache (PLAN B3): nothing read or stored, roots and modules alike -- a second build
 '' still compiles every root.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.uco/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.uco/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.uco
 '' COPY: tests/driver/src/unitcache => build/.uco/src
 '' STEP: build -target windows-x86_64 build/.uco/src/a.tiko build/.uco/src/b.tiko -o build/.uco/app.exe --no-cache

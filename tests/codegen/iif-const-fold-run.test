@@ -3,7 +3,7 @@
 '' evaluated (audit F-70). Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/iif-const-fold.bas -o tests/codegen/iifconstfold.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/iifconstfold.exe
 '' EXPECT-RUN-EXIT: 0

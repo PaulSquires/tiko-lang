@@ -69,7 +69,7 @@ namespace Tko
     OPT( OPT_EXTENDED,  "-z",         OPTK_VALUE, OPTCAT_GENERAL, "option",   "fbc extended option; accepted and ignored" )
 
     OPT( OPT_INCLUDE,   "-i",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add an include search path" )
-    OPT( OPT_PKGDIR,    "--pkg-dir",  OPTK_VALUE, OPTCAT_INPUT,   "dir",      "the package tree for #import std/... is found in (else TKO_PKG, else <exe-dir>/pkg)" )
+    OPT( OPT_PKGDIR,    "--pkg-dir",  OPTK_VALUE, OPTCAT_INPUT,   "dir",      "the package tree for #import std/... is found in (else TIKO_PKG, else <exe-dir>/pkg)" )
     OPT( OPT_DEFINE,    "-d",         OPTK_VALUE, OPTCAT_INPUT,   "name=val", "define a preprocessor symbol" )
     OPT( OPT_LIBPATH,   "-p",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add a library search path" )
     OPT( OPT_LIB,       "-l",         OPTK_VALUE, OPTCAT_INPUT,   "name",     "link against a library" )
@@ -227,7 +227,7 @@ namespace Tko
         '' behind the bundled tree and resolved out of it instead.
         as StrVec  libPaths          '' -p, in the order given
         '' ('#libpath' is the second, and a unit's: ctx.link.pragmaLibPaths, driver.ti LinkState.)
-        as StrVec  defaultLibPaths   '' <exe-dir>/lib/<target>, or TKO_LIBPATH
+        as StrVec  defaultLibPaths   '' <exe-dir>/lib/<target>, or TIKO_LIBPATH
         '' The same split, and the same order, for the libraries themselves.
         as StrVec  libs              '' -l
         '' ('#inclib' and '#foreignlib' are ctx.link's too.)
@@ -297,7 +297,7 @@ namespace Tko
         as string  diagFile          '' --diagnostics-file; "" = none
         as int32    buildOnlyUnit     '' --build-only-unit: a 'tiko build' child's one root; 0 = all
         as boolean frontendOnly      '' --frontend-only: 'tiko check' -- every unit to the end of lowering, no code
-        as string  pkgDir            '' --pkg-dir; "" = TKO_PKG, else beside the executable
+        as string  pkgDir            '' --pkg-dir; "" = TIKO_PKG, else beside the executable
         as StrVec  ignoredDiags
 
         as boolean dumpSource

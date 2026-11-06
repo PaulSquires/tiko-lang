@@ -5,7 +5,7 @@
 '' '#define'; a stringised block, which spells back as one escaped line; a const; a ustring.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/block-strings.bas -o tests/driver/blockstrings.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/blockstrings.exe
 '' RUN: tests/driver/blockstrings.exe

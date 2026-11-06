@@ -2,7 +2,7 @@
 '' stderr, then run-time error 1 -- nothing after the call runs.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/std/format/fatal.tiko -o tests/std/format/fatal.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/std/format/fatal.exe
 '' RUN: tests/std/format/fatal.exe

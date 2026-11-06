@@ -2,7 +2,7 @@
 '' x87 pow at 53-bit precision, one ulp off the program's (optimizations/consteval.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pow-fold-matches-runtime.bas -o tests/codegen/powfoldmatchesruntime.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/powfoldmatchesruntime.exe
 '' EXPECT-RUN-EXIT: 0

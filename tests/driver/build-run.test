@@ -1,8 +1,8 @@
 '' 'tiko run' (tiko-build B5): builds the one exe target, then runs it with the arguments after
 '' '--' -- one with a space in it arrives whole -- and exits with the program's code.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.brn/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.brn/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.brn
 '' ARGS: run -target windows-x86_64 tests/driver/src/build-run.tiko -o build/.brn/r.exe -- hello "two words"
 '' EXPECT-EXIT: 7

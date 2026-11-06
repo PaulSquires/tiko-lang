@@ -3,7 +3,7 @@
 '' functions/return-byref.bas operators). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/for-next-byref.bas -o tests/codegen/fornextbyref.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fornextbyref.exe
 '' EXPECT-RUN-EXIT: 0

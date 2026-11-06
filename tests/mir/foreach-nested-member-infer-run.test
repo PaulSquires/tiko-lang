@@ -7,7 +7,7 @@
 '' array-member loop (and wants 'it.arr( )'); the other two are summed by hand.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/foreach-nested-member-infer.bas -o tests/mir/foreachnestedinfer.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/foreachnestedinfer.exe
 '' RUN: tests/mir/foreachnestedinfer.exe

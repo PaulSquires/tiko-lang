@@ -3,7 +3,7 @@
 '' Included from check.tiko below overload.tiko and above intrinsics.tiko, which asks it. Each function here makes a choice the MIR
 '' layer used to make again by itself, with its own copy of the rule; the answer goes on
 '' the node -- RefOf, or SemanticInfo.decision for a choice the node implies without
-'' naming it -- and lowering reads it (TKO_PICK_AUDIT=1 reports where the two differ).
+'' naming it -- and lowering reads it (TIKO_PICK_AUDIT=1 reports where the two differ).
 
 '' 'x[ i ]' OVER A UDT: WHICH 'operator []'. By conversion cost over the written index,
 '' uniquely; on a tie, or with nothing viable or no typed index, the chain HEAD. That is the

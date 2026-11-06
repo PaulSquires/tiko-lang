@@ -21,9 +21,9 @@
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-. build/toolchain.sh    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC=${FBC:-$TKO_ORACLE_FBC}
-# TKO_SUITERUN_FLAGS: extra tiko flags for every compile -- "-O2" -- for the Phase 11 runs
+. build/toolchain.sh    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC=${FBC:-$TIKO_ORACLE_FBC}
+# TIKO_SUITERUN_FLAGS: extra tiko flags for every compile -- "-O2" -- for the Phase 11 runs
 # at each optimisation level. Unset is the ordinary run.
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 AR=${AR:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/bin/win64/ar.exe}
@@ -46,8 +46,8 @@ WK=${SUITERUN_WK:-${TMPDIR:-/tmp}/suiterun}
 # only unoptimised code, which is what a differential harness has to compare.
 RUNTIMEOUT=${RUNTIMEOUT:-180}
 
-export TKO_INCLUDE="$ROOT/toolchains/tiko-windows/inc"
-export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/windows-x86_64"
+export TIKO_INCLUDE="$ROOT/toolchains/tiko-windows/inc"
+export TIKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/windows-x86_64"
 
 mkdir -p "$WK/fb" "$WK/tk" "$WK/o"
 if [ ! -f "$WK/fb/libfbcunit.a" ] ; then
@@ -60,7 +60,7 @@ fi
 if [ ! -f "$WK/tk/fbcunit.lib" ] ; then
     echo "suiterun: building fbcunit with tiko"
     for f in "$CU"/src/*.bas ; do
-        "$TKO" ${TKO_SUITERUN_FLAGS:-} -c "$f" -i "$CU/inc" -i "$CU/src" -o "$WK/o/$(basename "$f" .bas).tko.o" || exit 1
+        "$TKO" ${TIKO_SUITERUN_FLAGS:-} -c "$f" -i "$CU/inc" -i "$CU/src" -o "$WK/o/$(basename "$f" .bas).tko.o" || exit 1
     done
     "$AR" rcs "$WK/tk/fbcunit.lib" "$WK/o"/*.tko.o || exit 1
 fi
@@ -81,7 +81,7 @@ for f in $(grep -rl "END_SUITE" tests/vendor/fbc-tests --include='*.bas' | sort 
     fok=0; tok=0
     "$FBC"  "$DRV" "$f" -i "$CU/inc" -p "$WK/fb" -x "$WK/f_$n.exe" >/dev/null 2>&1 \
         && [ -f "$WK/f_$n.exe" ] && fok=1
-    "$TKO" ${TKO_SUITERUN_FLAGS:-} "$DRV" "$f" -i "$CU/inc" -p "$WK/tk" -o "$WK/t_$n.exe" >/dev/null 2>&1 \
+    "$TKO" ${TIKO_SUITERUN_FLAGS:-} "$DRV" "$f" -i "$CU/inc" -p "$WK/tk" -o "$WK/t_$n.exe" >/dev/null 2>&1 \
         && [ -f "$WK/t_$n.exe" ] && tok=1
     if [ $fok = 1 ] && [ $tok = 1 ] ; then
         nrun=$((nrun+1))

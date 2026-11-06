@@ -4,7 +4,7 @@
 '' Walk_a_directory and Globally_replace_text; fbc-examples repro ice21).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/dir-bare-continue.bas -o tests/codegen/dirbarecontinue.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/dirbarecontinue.exe
 '' RUN: tests/codegen/dirbarecontinue.exe

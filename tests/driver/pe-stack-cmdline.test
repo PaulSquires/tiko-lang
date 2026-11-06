@@ -2,7 +2,7 @@
 '' wins, as it does in fbc (fbc-modern 1.20, measured: '--stack 3072000,3072000').
 '' TEST: cli
 '' ARGS: -t 100 -target windows-x86_64 tests/driver/src/pe-stack-cmdline.bas -o tests/driver/pestackcl.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/pestackcl.exe
 '' RUN: tests/driver/pestackcl.exe

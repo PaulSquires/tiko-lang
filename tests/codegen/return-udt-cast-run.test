@@ -3,7 +3,7 @@
 '' module ('value doesn't match function result type'). Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/return-udt-cast.bas -o tests/codegen/returnudtcast.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/returnudtcast.exe
 '' EXPECT-RUN-EXIT: 0

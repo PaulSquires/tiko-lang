@@ -7,7 +7,7 @@
 '' is what made tiko-test's EXPECT-FILE-HAS fail intermittently on an executable.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/driver/src/array-index-unsigned.bas -o tests/driver/arrayindexunsigned.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/arrayindexunsigned.exe
 '' RUN: tests/driver/arrayindexunsigned.exe

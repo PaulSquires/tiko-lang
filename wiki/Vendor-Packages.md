@@ -31,7 +31,7 @@ hi!
 
 Every routine, type and constant of the library's C header is callable as the library documents it: `sqlite3_open`, `SQLITE_OK`, not `sqlite3.sqlite3_open`. No `#cinclude`, no `#foreignlib`, no `-i`, `-l` or `-p`, and no Clang at your end: the header was translated once, by [`tiko c2t`](C2t), and ships translated.
 
-`vendor/` is the toolchain's, as `std/` is. It is looked for in the toolchain's `pkg/` directory alone: a project directory, an `-i` directory, a `TKO_PATH` entry or a dependency called `vendor` cannot stand in for it, and a project whose `tiko.toml` names itself `vendor` is `TKO0148`.
+`vendor/` is the toolchain's, as `std/` is. It is looked for in the toolchain's `pkg/` directory alone: a project directory, an `-i` directory, a `TIKO_PATH` entry or a dependency called `vendor` cannot stand in for it, and a project whose `tiko.toml` names itself `vendor` is `TKO0148`.
 
 | Package | Library | Link modes |
 | --- | --- | --- |

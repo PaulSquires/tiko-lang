@@ -2,8 +2,8 @@
 '' without the statement, as every build did before.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 --allow-unlowered tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredallowed.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_TEST_DECLINE_LINE=5
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_TEST_DECLINE_LINE=5
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: unlowered-stops-build.bas(5,1): warning TKO0995
 '' EXPECT-OUT: this N_INTRINSIC was not compiled

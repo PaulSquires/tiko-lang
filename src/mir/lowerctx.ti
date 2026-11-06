@@ -87,7 +87,7 @@ type Ctx
     as int32                 curBlock, strCastTarget, castForce   '' strCastTarget, castForce: ScoredStrTerm_ (lowercastpick.tiko)
     '' -e/-ex/-exx. Only level 3 changes emission today: array bounds checks.
     as int32                 errFlags     '' Options.errFlags: which runtime checks to emit
-    '' TKO_TEST_DECLINE_LINE: the source line whose statements lowering declines ON PURPOSE, 0
+    '' TIKO_TEST_DECLINE_LINE: the source line whose statements lowering declines ON PURPOSE, 0
     '' for none -- the decline path's own tests need a statement nothing else declines now.
     as int32                 testDeclineLine
     '' The module name those checks report, filled once at entry.

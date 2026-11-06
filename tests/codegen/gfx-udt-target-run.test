@@ -3,8 +3,8 @@
 '' tiko loaded the aggregate and declined. Output identical to fbc-modern's, on a GFX_NULL screen.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/gfx-udt-target.bas -o tests/codegen/gfxudttarget.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxudttarget.exe
 '' EXPECT-RUN-EXIT: 0

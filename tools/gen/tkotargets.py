@@ -22,17 +22,17 @@ failing much later.
 import os
 from pathlib import Path
 
-# THE ORACLE, as build/toolchain.sh resolves it: TKO_ORACLE_ROOT / TKO_ORACLE_FBC win.
-TC = Path(os.environ.get("TKO_ORACLE_ROOT", r"C:\dev\fbc-modern\toolchains\fbc-modern-windows"))
+# THE ORACLE, as build/toolchain.sh resolves it: TIKO_ORACLE_ROOT / TIKO_ORACLE_FBC win.
+TC = Path(os.environ.get("TIKO_ORACLE_ROOT", r"C:\dev\fbc-modern\toolchains\fbc-modern-windows"))
 
-# TKO_CONTROL_FBC64 / _FBC32 point one half at a different compiler, which is how
+# TIKO_CONTROL_FBC64 / _FBC32 point one half at a different compiler, which is how
 # control.py measures whether two releases agree. Nothing else sets them.
-FBC64 = Path(os.environ.get("TKO_CONTROL_FBC64", os.environ.get("TKO_ORACLE_FBC", str(TC / "fbc64.exe"))))
+FBC64 = Path(os.environ.get("TIKO_CONTROL_FBC64", os.environ.get("TIKO_ORACLE_FBC", str(TC / "fbc64.exe"))))
 
 # THE SKIP CODE, build/toolchain.sh's: a truth script with no oracle to ask exits with it,
 # and check-all reports SKIPPED rather than a failure (review BLD-12).
 SKIP = 77
-FBC32 = Path(os.environ.get("TKO_CONTROL_FBC32", str(TC / "fbc32.exe")))
+FBC32 = Path(os.environ.get("TIKO_CONTROL_FBC32", str(TC / "fbc32.exe")))
 
 # The previous release, for control.py to compare against. Any fbc install would serve.
 TC_OLD = Path(r"C:\dev\tiko_editor\toolchains\FreeBASIC-1.10.1-winlibs-gcc-9.3.0")

@@ -8,7 +8,7 @@
 '' (src/symbols/resolve.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/aliasinst/main.bas -o tests/modules/aliasinst.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/aliasinst.exe
 '' EXPECT-RUN-OUT:  1 1 early

@@ -4,7 +4,7 @@
 '' AW-003). It now matches by mangled signature (driver/tkiemit.tiko).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/ovlexport/main.tiko -o tests/modules/ovlexport.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ovlexport.exe
 '' EXPECT-RUN-OUT:  2 5

@@ -5,7 +5,7 @@
 '' the comment. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/keyword-field-names.bas -o tests/codegen/keywordfields.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/keywordfields.exe
 '' RUN: tests/codegen/keywordfields.exe

@@ -5,7 +5,7 @@
 '' too: 'shapes.GREEN' was TKO0860. The modules are '.tiko' files.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/usingdecl/libs tests/modules/src/usingdecl/app/main.bas -o tests/modules/usingdecl.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/usingdecl.exe
 '' EXPECT-RUN-OUT:  45

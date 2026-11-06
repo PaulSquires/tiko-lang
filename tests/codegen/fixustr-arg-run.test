@@ -3,7 +3,7 @@
 '' and by implicit conversion -- each was empty. Expected output is fbc-modern 1.20's, byte for byte.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fixustr-arg.tiko -o tests/codegen/fixustrarg.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fixustrarg.exe
 '' RUN: tests/codegen/fixustrarg.exe

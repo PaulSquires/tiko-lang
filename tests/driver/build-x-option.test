@@ -1,8 +1,8 @@
 '' A '-x' in a target's options is where the program goes, relative to tiko.toml like every
 '' path there: the plan follows it, so the artifact event and the copy name the file written.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bxo/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bxo/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bxo
 '' COPY: tests/driver/src/build-copyto => build/.bxo/pkg
 '' COPY: tests/driver/src/build-x/tiko.toml => build/.bxo/pkg/tiko.toml

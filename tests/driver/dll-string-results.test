@@ -3,7 +3,7 @@
 '' it back: from the 257th call every result was "" (total 2196 = 1+...+256 with fbc too).
 '' tiko-rt grows a spent pool instead -- a deliberate divergence from fbc -- and says so once.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.dls
 '' COPY: tests/driver/src/dllstr => build/.dls/src
 '' STEP: -target windows-x86_64 -dll build/.dls/src/words.bas -o build/.dls/src/words.dll

@@ -4,7 +4,7 @@
 '' where fbc prints '1 5', silently, inside a procedure. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-list-init.bas -o tests/codegen/bitfieldlistinit.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldlistinit.exe
 '' EXPECT-RUN-EXIT: 0

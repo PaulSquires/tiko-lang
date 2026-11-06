@@ -14,13 +14,13 @@ if [ "$(uname -s)" = "Linux" ]; then
     [ -d "$W/examples/tkControls" ] || { echo "no Linux build in $W: run tools/run-linux.sh first"; exit 1; }
     LIB=${TK_LINUX_LIB:-}
     [ -d "$ROOT/linux-lib" ] && LIB=$ROOT/linux-lib
-    export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal TKO_PKG=$W/pkg
+    export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal TIKO_PKG=$W/pkg
     [ -n "$LIB" ] && export LD_LIBRARY_PATH=$LIB
     export SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-wayland}
     TESTS=$W/examples/tkControls ; PLAT=$SDL_VIDEO_DRIVER
     # run-linux.sh may have built only some suites: build any missing demo (no selftests)
     TIKO=${TIKO:-/mnt/c/dev/tiko-lang/toolchains/tiko-linux/bin/tiko}
-    export TKO_MODCACHE=$W/modcache
+    export TIKO_MODCACHE=$W/modcache
     for d in "$TESTS"/*/; do
         [ -f "$d/demo.tiko" ] || continue
         [ -x "$d/demo.exe" ] && continue

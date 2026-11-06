@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/generics/result-value-on-failure.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/result-value-on-failure.bas -o tests/std/generics/result-value-on-failure.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/generics/result-value-on-failure.exe
 '' EXPECT-RUN-EXIT: 1

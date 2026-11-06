@@ -4,7 +4,7 @@
 '' embeds relative to ITS folder. 'embed' stays a name and '#embed' mid-line a file number.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/driver/src/embed/inc tests/driver/src/embed/main.tiko -o tests/driver/embed-run.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/embed-run.exe
 '' RUN: tests/driver/embed-run.exe

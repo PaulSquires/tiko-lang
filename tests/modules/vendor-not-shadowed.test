@@ -1,15 +1,15 @@
-'' 'vendor' IS NOT SHADOWABLE (RFC-0002 V3): -i and TKO_PATH both name a directory holding a
+'' 'vendor' IS NOT SHADOWABLE (RFC-0002 V3): -i and TIKO_PATH both name a directory holding a
 '' package called vendor whose alpha says SHADOWED; the program still gets the toolchain's.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vlsh/pkg
-'' ENV: TKO_MODCACHE=build/.vlsh/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vlsh/pkg
+'' ENV: TIKO_MODCACHE=build/.vlsh/mc
 '' CLEAN: build/.vlsh
 '' COPY: tests/modules/src/vlink/pkg => build/.vlsh/pkg
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlsh/pkg/vendor/alpha/lib/alpha_windows_x86_64.a
 '' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vlsh/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/beta_static.tiko -o build/.vlsh/pkg/vendor/beta/lib/beta_windows_x86_64.a
-'' ENV: TKO_PATH=tests/modules/src/vlink/shadow
+'' ENV: TIKO_PATH=tests/modules/src/vlink/shadow
 '' ARGS: -target windows-x86_64 -i tests/modules/src/vlink/shadow tests/modules/src/vlink/app/static.tiko -o build/.vlsh/static.exe
 '' EXPECT-EXIT: 0
 '' RUN: build/.vlsh/static.exe

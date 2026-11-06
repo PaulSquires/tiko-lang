@@ -25,13 +25,13 @@ cp "$TREE/build/sources.txt" "$TREE/build/build.sh" "$MIRROR/build/" || exit 1
 # THE SEED IS build.sh's DEFAULT STAGE0, found relative to the tree by defaultseed.sh -- and
 # the mirror has no seed/ or toolchains/ of its own, so the TREE's choice is handed over.
 [ -f "$TREE/build/defaultseed.sh" ] && cp "$TREE/build/defaultseed.sh" "$MIRROR/build/"
-if [ -z "${TKO_SEED:-}" ] && [ -f "$TREE/build/defaultseed.sh" ]; then
+if [ -z "${TIKO_SEED:-}" ] && [ -f "$TREE/build/defaultseed.sh" ]; then
     . "$TREE/build/defaultseed.sh"
-    TKO_SEED=$(default_seed "$TREE" 1) && export TKO_SEED
+    TIKO_SEED=$(default_seed "$TREE" 1) && export TIKO_SEED
 fi
 cd "$MIRROR" || exit 1
 rm -f bin/tiko.exe "$OUT"
-TKO_EDITOR_DIR=/c/nonexistent bash build/build.sh Release --no-dll > "$MIRROR/release.log" 2>&1
+TIKO_EDITOR_DIR=/c/nonexistent bash build/build.sh Release --no-dll > "$MIRROR/release.log" 2>&1
 rc=$?
 if [ "$rc" != "0" ] || [ ! -f bin/tiko.exe ]; then
     grep -E " error |error [0-9]+:|did not compile" "$MIRROR/release.log" | head -5

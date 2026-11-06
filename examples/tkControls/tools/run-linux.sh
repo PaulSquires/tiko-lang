@@ -5,7 +5,7 @@
 # (from a worktree, give that worktree's /mnt/c/... path to the script instead)
 # Builds in $HOME/tkbuild/<hash of the checkout>: a copy of examples/tkControls, pkg/ and
 # build/vendorfetch.sh (/mnt/c is slow, and Linux and Windows builds must not share out/ or the
-# .exe names). TKO_PKG is the copy's pkg/, whose vendor/tkControls fonts and libscintk.so
+# .exe names). TIKO_PKG is the copy's pkg/, whose vendor/tkControls fonts and libscintk.so
 # vendorfetch.sh makes there. Needs SDL3 + SDL3_ttf + SDL3_image: the system's, or linux-lib/
 # (tools/build-linux-libs.sh), or TK_LINUX_LIB.
 # The examples folder this script lives in, and its tiko-lang checkout (main or a worktree).
@@ -32,19 +32,19 @@ mkdir -p "$W/examples/tkControls" "$W/build"
 ( cd "$TREE" && tar --exclude='pkg/vendor/*/lib' --exclude='pkg/vendor/tkControls/fonts' \
       --exclude='*/scintk/bin' --exclude='*/scintk/out' -cf - pkg ) | ( cd "$W" && tar -xf - )
 cp "$TREE/build/vendorfetch.sh" "$W/build/"
-TKO_VENDOR_CACHE=${TKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module tkControls \
+TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module tkControls \
     || { echo "vendorfetch.sh failed: no fonts or libscintk.so"; exit 1; }
 # tkStatic links SDL3 statically: vendor/SDL3's archives (static/build.sh; a finished build is
 # kept in the cache, so only the first run on a host pays for it).
 case " ${names[*]} " in
     *" tkStatic "*|"  ")
-        TKO_VENDOR_CACHE=${TKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module SDL3 \
+        TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module SDL3 \
             || { echo "vendorfetch.sh failed: no static SDL3"; exit 1; } ;;
 esac
 export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal
 [ -n "$LIB" ] && export LD_LIBRARY_PATH=$LIB
-export TKO_PKG=$W/pkg
-export TKO_MODCACHE=$W/modcache          # per checkout, like the build folder
+export TIKO_PKG=$W/pkg
+export TIKO_MODCACHE=$W/modcache          # per checkout, like the build folder
 if [ ${#names[@]} -eq 0 ]; then
     for d in "$W"/examples/tkControls/*/; do [ -f "$d/selftest.tiko" ] && names+=("$(basename "$d")"); done
 fi

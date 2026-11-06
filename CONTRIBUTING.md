@@ -22,7 +22,7 @@ You need:
 
 - **clang 18 or newer.** tiko assembles and links with it. It is looked for at
   `C:\Program Files\LLVM\bin\clang.exe`, `/usr/bin/clang`, or on macOS at Homebrew's
-  `/opt/homebrew/opt/llvm/bin/clang`; set `TKO_CLANG` to point anywhere else.
+  `/opt/homebrew/opt/llvm/bin/clang`; set `TIKO_CLANG` to point anywhere else.
 - **A POSIX shell.** On Windows that is Git Bash; every script under `build/` is run from it.
 - **macOS only:** Xcode's Command Line Tools (`xcode-select --install`).
 

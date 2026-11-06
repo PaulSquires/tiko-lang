@@ -2,7 +2,7 @@
 # Build vendor/SDL3's STATIC libraries -- SDL3, SDL3_ttf (with FreeType and HarfBuzz folded into
 # its archive) and SDL3_image (stb backend) -- for '#import "vendor/SDL3" link static' and its
 # satellites. Run by build/vendorfetch.sh ('script' entries in ../fetch.toml), which downloads
-# and verifies the pinned sources and passes them as TKO_VENDOR_INPUTS, in this order:
+# and verifies the pinned sources and passes them as TIKO_VENDOR_INPUTS, in this order:
 #
 #   SDL3  SDL3_ttf  SDL3_image  freetype  harfbuzz
 #
@@ -13,12 +13,12 @@
 #   linux    gcc/g++, position-independent; X11, Wayland, GL and audio stay dlopen'd by SDL
 #   macos    Apple clang, arm64, macOS 13.0
 # Output: bin/<host>/{SDL3,SDL3_ttf,SDL3_image}_<host>_<arch>.a beside this script. The build
-# trees live under TKO_VENDOR_CACHE. Incremental: a stamp of the inputs and this script.
+# trees live under TIKO_VENDOR_CACHE. Incremental: a stamp of the inputs and this script.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
-HOST=${TKO_VENDOR_HOST:?run me through build/vendorfetch.sh}
-CACHE=${TKO_VENDOR_CACHE:?run me through build/vendorfetch.sh}
-set -- $TKO_VENDOR_INPUTS
+HOST=${TIKO_VENDOR_HOST:?run me through build/vendorfetch.sh}
+CACHE=${TIKO_VENDOR_CACHE:?run me through build/vendorfetch.sh}
+set -- $TIKO_VENDOR_INPUTS
 [ $# -eq 5 ] || { echo "SDL3 static: expected 5 inputs, got $#" >&2; exit 1; }
 SRC_SDL=$1; SRC_TTF=$2; SRC_IMG=$3; SRC_FT=$4; SRC_HB=$5
 
@@ -60,7 +60,7 @@ C=(-G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
    -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
 case $HOST in
 windows)
-    CL=${TKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
+    CL=${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
     C+=(-DCMAKE_C_COMPILER="$CL" -DCMAKE_CXX_COMPILER="$(dirname "$CL")/clang++.exe"
         -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_POLICY_DEFAULT_CMP0091=NEW) ;;
     # CMP0091 NEW, or a project with an old cmake_minimum_required (HarfBuzz) ignores the runtime

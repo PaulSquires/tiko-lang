@@ -2,8 +2,8 @@
 '' found through -i, lists '../share/widgets.dat' for its module widgets/core -- a path that
 '' climbs out of the module's directory, as '#foreignlib "../lib/x"' may.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_MODCACHE=build/.vrp/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.vrp/mc
 '' CLEAN: build/.vrp
 '' COPY: tests/modules/src/vrt/libs => build/.vrp/libs
 '' WRITE: build/.vrp/libs/widgets/share/widgets.dat :: widgets' data\n

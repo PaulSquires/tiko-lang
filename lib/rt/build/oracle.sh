@@ -20,10 +20,10 @@
 # shipped archives and its test suite.
 FBC_TREE=${FBC_TREE:-/c/dev/fbc-modern}
 
-# THE fbc: TKO_ORACLE_FBC, the one variable every oracle script in tiko-lang reads, else
+# THE fbc: TIKO_ORACLE_FBC, the one variable every oracle script in tiko-lang reads, else
 # TKORT_FBC as before, else fbc-modern's toolchain fbc for this host.
-if [ -n "${TKO_ORACLE_FBC:-}" ]; then
-    TKORT_FBC=$TKO_ORACLE_FBC
+if [ -n "${TIKO_ORACLE_FBC:-}" ]; then
+    TKORT_FBC=$TIKO_ORACLE_FBC
 elif [ -z "${TKORT_FBC:-}" ]; then
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) TKORT_FBC="$FBC_TREE/toolchains/fbc-modern-windows/fbc64.exe" ;;
@@ -34,7 +34,7 @@ fi
 # Present, or this script has nothing to compare against and skips.
 rt_oracle_check( ) {
     if [ ! -x "$TKORT_FBC" ] || [ ! -d "$FBC_TREE" ]; then
-        echo "$1: SKIPPED -- no oracle: fbc $TKORT_FBC, tree $FBC_TREE (TKO_ORACLE_FBC, FBC_TREE)"
+        echo "$1: SKIPPED -- no oracle: fbc $TKORT_FBC, tree $FBC_TREE (TIKO_ORACLE_FBC, FBC_TREE)"
         exit 0
     fi
 }

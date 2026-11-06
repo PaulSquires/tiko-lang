@@ -3,8 +3,8 @@
 '' module cache says so, and -v says the link is up to date. Nothing is left beside the exe.
 '' The program still runs.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.blkc/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.blkc/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.blkc
 '' CLEAN: build/.blk
 '' COPY: tests/driver/src/unitcache => build/.blk/src

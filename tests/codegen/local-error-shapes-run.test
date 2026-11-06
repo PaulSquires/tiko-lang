@@ -2,7 +2,7 @@
 '' value, and as ON LOCAL ERROR GOTO 0; output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/local-error-shapes.bas -o tests/codegen/localerrshapes.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/localerrshapes.exe
 '' EXPECT-RUN-OUT: -1

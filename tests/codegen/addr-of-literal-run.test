@@ -4,7 +4,7 @@
 '' lowered '@("abc")' to a one-character string. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/addr-of-literal.bas -o tests/codegen/addrofliteral.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0833
 '' EXPECT-NOT: TKO0830

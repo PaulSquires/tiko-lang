@@ -2,9 +2,9 @@
 '' link step, not inside it -- which an unchanged program's build may skip -- so a second
 '' build of the same project puts the DLL back beside the program, and copy_to copies it again.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vcu/pkg
-'' ENV: TKO_MODCACHE=build/.vcu/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vcu/pkg
+'' ENV: TIKO_MODCACHE=build/.vcu/mc
 '' CLEAN: build/.vcu
 '' COPY: tests/modules/src/vlink/pkg => build/.vcu/pkg
 '' STEP: -target windows-x86_64 -dll tests/modules/src/vlink/libsrc/alpha_dynamic.tiko -o build/.vcu/pkg/vendor/alpha/lib/alpha_windows_x86_64.dll

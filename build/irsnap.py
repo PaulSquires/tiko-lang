@@ -15,8 +15,8 @@ nothing else.
   --keep D      also write each output to D (to diff a file the comparison names)
 
 Run the same tree path for both sides: the IR carries absolute source paths. Use a Release
-binary (build/relbuild.sh) and never beside the suite. TKO_IR_SPILL and the rest of the
-environment are passed through, so 'TKO_IR_SPILL=1' compares the emitter's streamed path.
+binary (build/relbuild.sh) and never beside the suite. TIKO_IR_SPILL and the rest of the
+environment are passed through, so 'TIKO_IR_SPILL=1' compares the emitter's streamed path.
 """
 import hashlib, json, os, re, shutil, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
@@ -36,12 +36,12 @@ if not lists and not selfhost:
     sys.exit("irsnap: no --list and no --self")
 
 env = dict(os.environ)
-env["TKO_INCLUDE"] = tree + "/toolchains/tiko-windows/inc"
-env.pop("TKO_LIBPATH", None)
+env["TIKO_INCLUDE"] = tree + "/toolchains/tiko-windows/inc"
+env.pop("TIKO_LIBPATH", None)
 files = []
 for lp in lists:
     files += [f for f in open(lp).read().split("\n") if f.strip()]
-afx = os.environ.get("TKO_AFXNOVA", "C:/dev/utils/AfxNova/src")
+afx = os.environ.get("TIKO_AFXNOVA", "C:/dev/utils/AfxNova/src")
 if keep: os.makedirs(keep, exist_ok=True)
 
 SKIPSITE = re.compile(rb"(skip-site )\S+")
@@ -71,14 +71,14 @@ with ThreadPoolExecutor(8) as ex:
 if selfhost:
     srcs = [l.strip() for l in open(os.path.join(selfhost, "build/sources.txt")) if l.strip() and not l.startswith("#")]
     e2 = dict(env)
-    e2["TKO_INCLUDE"] = selfhost + "/inc"; e2["TKO_PKG"] = selfhost + "/pkg"
+    e2["TIKO_INCLUDE"] = selfhost + "/inc"; e2["TIKO_PKG"] = selfhost + "/pkg"
     # A COLD module cache, every run: the dump of a unit that imports a module the cache already
     # holds differs from one that built it, so a cache warmed by the other side's run would turn
     # "same compiler output" into "same cache state" (measured: the base binary, twice, gave two
     # hashes until this).
     mc = os.path.join(os.path.dirname(os.path.abspath(save or against or exe)), "irsnap.modcache.%d" % os.getpid())
     shutil.rmtree(mc, ignore_errors=True)
-    e2["TKO_MODCACHE"] = mc
+    e2["TIKO_MODCACHE"] = mc
     snap["<self>"] = [run([exe, "--dump-ir", "-target", "windows-x86_64", "-i", "src"] + srcs, selfhost, "self.mir", e2)]
     shutil.rmtree(mc, ignore_errors=True)
 

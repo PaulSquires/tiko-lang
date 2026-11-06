@@ -2,7 +2,7 @@
 '' as string' returns its own copy, which fbc deletes at the end of the statement (temp-strings.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/byref-result-byval-str-arg.bas -o tests/codegen/byrefresultbyvalstrarg.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefresultbyvalstrarg.exe
 '' EXPECT-RUN-EXIT: 0

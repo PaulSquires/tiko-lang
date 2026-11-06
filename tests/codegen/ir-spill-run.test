@@ -1,10 +1,10 @@
 '' RUN: the emitter's spill path (codegen/irsink.ti) builds the program the in-memory path
-'' builds. TKO_IR_SPILL=1 spills at every top-level boundary, so the head -- the intrinsic
+'' builds. TIKO_IR_SPILL=1 spills at every top-level boundary, so the head -- the intrinsic
 '' and libm declarations -- is chosen from calls that were already on disk.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ir-spill.bas -o tests/codegen/irspill.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_IR_SPILL=1
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_IR_SPILL=1
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/irspill.exe
 '' RUN: tests/codegen/irspill.exe

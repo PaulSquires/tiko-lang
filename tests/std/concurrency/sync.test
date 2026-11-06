@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/concurrency/sync.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/concurrency/sync.bas -o tests/std/concurrency/sync.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/concurrency/sync.exe
 '' EXPECT-RUN-OUT: 51        51         0  fbc_tests.concurrency.sync                     9

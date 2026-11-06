@@ -65,7 +65,7 @@ a function returns one. `--dump-ir` shows MIR after this pass, so what will real
 visible without reading LLVM.
 
 **LLVM IR and clang**. The emitter writes LLVM IR as text, one `.ll` file per unit, and clang
-compiles it. clang is not bundled: tiko runs whatever `TKO_CLANG` names, else
+compiles it. clang is not bundled: tiko runs whatever `TIKO_CLANG` names, else
 `C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux or Homebrew's
 `/opt/homebrew/opt/llvm/bin/clang` on macOS, else the first
 clang on the `PATH`, and it needs clang 18 or newer. The link

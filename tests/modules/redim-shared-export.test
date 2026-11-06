@@ -3,7 +3,7 @@
 '' are run time, so it is exported as '( any )' and keeps the size the module gave it.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/redimexport/main.tiko -o tests/modules/redimexport.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/redimexport.exe
 '' EXPECT-RUN-OUT: -1 5 1-1

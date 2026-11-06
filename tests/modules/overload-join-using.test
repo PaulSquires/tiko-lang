@@ -2,8 +2,8 @@
 '' windows.bi's, chosen by signature.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/using.tiko -o tests/modules/ovjoin-using.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ovjoin-using.exe
 '' EXPECT-RUN-EXIT: 0

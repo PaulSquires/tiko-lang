@@ -14,12 +14,12 @@
 '' checked: 'tiko -target win64 -target windows-x86_64 --version' reports windows-x86_64.
 ''
 '' THIS IS A REAL LINK, not a dump: a DLL needs the runtime, and on windows-x86_64 it
-'' needs _DllMainCRTStartup out of lib/rt/src/c/msvccrtdll.c. TKO_LIBPATH names the
+'' needs _DllMainCRTStartup out of lib/rt/src/c/msvccrtdll.c. TIKO_LIBPATH names the
 '' packaged tree because it REPLACES the bundled search rather than adding to it,
 '' so the test says exactly which libraries it means.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -dll tests/codegen/src/export.bas -o tests/driver/tmpdll.dll
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 
 '' EXPECT-FILE: tests/driver/tmpdll.dll

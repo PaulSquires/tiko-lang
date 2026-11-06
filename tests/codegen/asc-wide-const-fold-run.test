@@ -2,7 +2,7 @@
 '' asc( wstr( !"A\000B" ), 3 ) is 66 (string/asc.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/asc-wide-const-fold.bas -o tests/codegen/ascwideconstfold.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ascwideconstfold.exe
 '' EXPECT-RUN-EXIT: 0

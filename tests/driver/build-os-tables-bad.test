@@ -1,7 +1,7 @@
 '' AN OS TABLE HOLDS ONLY THE ARRAY KEYS THAT ADD TO A TARGET (TK-003): 'copy_to' is the
 '' target's, not an OS's, and says which keys an OS table takes.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bob/cache
+'' ENV: TIKO_MODCACHE=build/.bob/cache
 '' CLEAN: build/.bob
 '' COPY: tests/driver/src/build-os => build/.bob/pkg
 '' WRITE: build/.bob/pkg/tiko.toml :: [package]\nname = "osdemo"\n[target.app]\nmain = "src/main.tiko"\n[target.app.linux]\ncopy_to = ["bin"]\n

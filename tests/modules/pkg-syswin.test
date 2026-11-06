@@ -1,11 +1,11 @@
-'' pkg/sys: the toolchain's sys/win library, imported. Headers come through TKO_INCLUDE, not -i:
+'' pkg/sys: the toolchain's sys/win library, imported. Headers come through TIKO_INCLUDE, not -i:
 '' an '-i' directory is also a package root.
 '' TEST: cli
 '' No --allow-unlowered: every statement of sys/win, gdiplus and gui lowers. gui's 25
 '' declines ('lpti->cbSize = 64' through TOOLINFOW) went with f74deb39.
 '' ARGS: -target windows-x86_64 tests/modules/src/pkgsyswin/main.tiko -o tests/modules/pkgsyswin.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/pkgsyswin.exe
 '' EXPECT-RUN-OUT: TIKO lang

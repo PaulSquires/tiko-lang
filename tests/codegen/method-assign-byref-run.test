@@ -5,7 +5,7 @@
 '' was R's code. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/method-assign-byref.bas -o tests/codegen/methodassignbyref.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/methodassignbyref.exe
 '' EXPECT-RUN-EXIT: 0

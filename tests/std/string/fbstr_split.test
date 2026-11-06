@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/string/fbstr_split.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/string/fbstr_split.bas tests/std/string/fbstr_split_mod2.bas -o tests/std/string/fbstr_split.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/string/fbstr_split.exe
 '' EXPECT-RUN-OUT: 151       151         0  fbc_tests.string_.fbstr_split                 14

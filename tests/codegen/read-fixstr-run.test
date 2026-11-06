@@ -4,7 +4,7 @@
 '' Measured, fbc: 'fb_DataReadStr( &E, <tagged 8>, -1 )'. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/read-fixstr.bas -o tests/codegen/readfixstr.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/readfixstr.exe
 '' RUN: tests/codegen/readfixstr.exe

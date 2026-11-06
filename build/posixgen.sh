@@ -12,7 +12,7 @@
 # private header (pkg/sys/posix/posix.ti). Two copies because the packaged toolchain ships pkg/
 # but not lib/rt/src; build/lint.sh fails if they differ.
 #
-# CLANG (or TKO_CLANG) names the compiler; else clang on PATH.
+# CLANG (or TIKO_CLANG) names the compiler; else clang on PATH.
 set -eu
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -25,7 +25,7 @@ case "$(uname -s)-$(uname -m)" in
     *) echo "posixgen: no tiko target for host $(uname -s)-$(uname -m)" >&2; exit 2 ;;
 esac
 
-CC=${CLANG:-${TKO_CLANG:-clang}}
+CC=${CLANG:-${TIKO_CLANG:-clang}}
 command -v "$CC" >/dev/null 2>&1 || { echo "posixgen: no C compiler '$CC' (set CLANG)" >&2; exit 2; }
 
 case "$TARGET" in

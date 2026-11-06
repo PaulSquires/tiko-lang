@@ -3,7 +3,7 @@
 '' but a numeric cast, the casts compared (tiko refused that one, TKO0720).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/tuple-udt-elem-compare.bas -o tests/codegen/tupleudtelemcompare.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/tupleudtelemcompare.exe
 '' EXPECT-RUN-EXIT: 0

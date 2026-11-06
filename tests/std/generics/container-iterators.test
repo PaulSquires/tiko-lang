@@ -2,6 +2,6 @@
 '' Expected: what tests/std/baseline/generics/container-iterators.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/container-iterators.bas -o tests/std/generics/container-iterators.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/generics/container-iterators.exe

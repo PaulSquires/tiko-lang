@@ -2,7 +2,7 @@
 '' bound's value at construction (structs/dynamic-array-fields.bas) -- it crashed.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/dim-field-nonconst-bounds.bas -o tests/codegen/dimfieldnonconstbounds.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/dimfieldnonconstbounds.exe
 '' EXPECT-RUN-EXIT: 0

@@ -26,7 +26,7 @@
 # compiler. The compiler ITSELF is a dependency too: a rebuilt stage0 changes what
 # every one of these binaries is.
 #
-# TKO_TEST_REBUILD=1 forces the build; --no-build skips it even when stale.
+# TIKO_TEST_REBUILD=1 forces the build; --no-build skips it even when stale.
 
 set -e
 
@@ -75,15 +75,15 @@ newer_than( ) {
     return 1
 }
 
-# The stage0 build.sh would use now: TKO_SEED, else the default seed.
+# The stage0 build.sh would use now: TIKO_SEED, else the default seed.
 . "$ROOT/build/defaultseed.sh"
-WANTCC=${TKO_SEED:-}
+WANTCC=${TIKO_SEED:-}
 if [ -z "$WANTCC" ]; then
     case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) _hw=1 ;; *) _hw=0 ;; esac
     WANTCC=$(default_seed "$ROOT" "$_hw" || true)
 fi
 STALE=0
-if [ "${TKO_TEST_REBUILD:-0}" = "1" ]; then
+if [ "${TIKO_TEST_REBUILD:-0}" = "1" ]; then
     STALE=1
 elif [ ! -x "$TIKO" ] || [ ! -x "$RUNNER" ] || [ ! -f "$STAMP" ]; then
     STALE=1
@@ -126,7 +126,7 @@ fi
 # until a repackage -- and nothing asserted the two were the same. The tests now name
 # build/obj/rtlib/<target>: the packaged directory (its import libraries, fbcunit, libtkogfx),
 # with libfb.a and libfbmt.a built from lib/rt over it. Rebuilt when lib/rt changes.
-# TKO_TEST_PACKAGED_RT=1 tests the packaged runtime instead, as before.
+# TIKO_TEST_PACKAGED_RT=1 tests the packaged runtime instead, as before.
 rt_overlay( ) {
     _t=$1 _host=$2
     _pkg="$ROOT/toolchains/tiko-$_host/lib/$_t"
@@ -135,9 +135,9 @@ rt_overlay( ) {
         echo "test: no packaged $_pkg -- RUN tests that link will fail (seed/fetch-seed.sh, then lay it out)" >&2
         return 0
     fi
-    if [ "${TKO_TEST_PACKAGED_RT:-0}" = "1" ]; then
+    if [ "${TIKO_TEST_PACKAGED_RT:-0}" = "1" ]; then
         rm -rf "$_ovl" && mkdir -p "$_ovl" && cp -r "$_pkg/." "$_ovl/"
-        echo "test: runtime -- the PACKAGED one (TKO_TEST_PACKAGED_RT=1)"
+        echo "test: runtime -- the PACKAGED one (TIKO_TEST_PACKAGED_RT=1)"
         return 0
     fi
     if [ -f "$_ovl/.tree-rt" ] && ! newer_than "$_ovl/.tree-rt" "$ROOT/lib/rt/src" "$ROOT/lib/rt/build" "$_pkg"; then

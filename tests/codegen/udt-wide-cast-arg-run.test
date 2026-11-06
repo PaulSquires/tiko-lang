@@ -3,7 +3,7 @@
 '' the UDT's own address, or a ustring widened as narrow (cut at its first NUL).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-wide-cast-arg.tiko -o tests/codegen/udtwidecast.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/udtwidecast.exe
 '' RUN: tests/codegen/udtwidecast.exe

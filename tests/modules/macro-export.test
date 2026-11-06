@@ -8,7 +8,7 @@
 '' importer's LIMIT, which reading the argument once expanded in its place.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/macros/libs tests/modules/src/macros/app/main.bas -o tests/modules/macroexport.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/macroexport.exe
 '' EXPECT-RUN-OUT: failed: 1 = 2

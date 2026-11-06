@@ -14,17 +14,17 @@
 # archive, copies that file. 'script' runs a build script committed in the package
 # (vendor/tkControls' scintk, vendor/SDL3's static libraries) and copies what it made; its
 # optional 'inputs' -- 'url sha256 url sha256 ...' -- are fetched and verified first, like any
-# download, and handed to the script as TKO_VENDOR_INPUTS (the local paths, in order), with
-# TKO_VENDOR_HOST (windows, linux, macos) and TKO_VENDOR_CACHE.
+# download, and handed to the script as TIKO_VENDOR_INPUTS (the local paths, in order), with
+# TIKO_VENDOR_HOST (windows, linux, macos) and TIKO_VENDOR_CACHE.
 #
-#   TKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
+#   TIKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
-#   TKO_VENDOR_MIRROR   a base URL tried first, by file name -- the tiko-lang release assets
+#   TIKO_VENDOR_MIRROR   a base URL tried first, by file name -- the tiko-lang release assets
 #                       the archives are mirrored as; upstream is the fallback
-#   TKO_CLANG, TKO_AR   the compiler and archiver ('cbuild'); default the LLVM install on
+#   TIKO_CLANG, TIKO_AR   the compiler and archiver ('cbuild'); default the LLVM install on
 #                       Windows, clang / llvm-ar (else ar) on Linux and macOS
 #   CXX                 the C++ compiler a 'script' entry's script uses; default clang++
-#                       beside TKO_CLANG on Windows, the script's own choice elsewhere
+#                       beside TIKO_CLANG on Windows, the script's own choice elsewhere
 #
 # An entry whose outputs are newer than its fetch.toml is skipped, so a rerun does nothing.
 set -e
@@ -44,21 +44,21 @@ done
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; TRIPLE=x86_64-pc-windows-msvc
-        CLANG=${TKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
-        AR=${TKO_AR:-"$(dirname "$CLANG")/llvm-ar.exe"}
+        CLANG=${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
+        AR=${TIKO_AR:-"$(dirname "$CLANG")/llvm-ar.exe"}
         [ -n "$CXX" ] || CXX="$(dirname "$CLANG")/clang++.exe"; export CXX ;;
     Linux)
         HOST=linux; TRIPLE=x86_64-pc-linux-gnu
-        CLANG=${TKO_CLANG:-${CLANG:-clang}}
-        AR=${TKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
+        CLANG=${TIKO_CLANG:-${CLANG:-clang}}
+        AR=${TIKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     Darwin)
         # The SDK is clang's own business here: Apple's clang (and Homebrew's) find it.
         HOST=macos; TRIPLE=arm64-apple-macosx13.0
-        CLANG=${TKO_CLANG:-${CLANG:-clang}}
-        AR=${TKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
+        CLANG=${TIKO_CLANG:-${CLANG:-clang}}
+        AR=${TIKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     *) die "unsupported host '$(uname -s)'" ;;
 esac
-CACHE=${TKO_VENDOR_CACHE:-$ROOT/build/.vendorfetch}
+CACHE=${TIKO_VENDOR_CACHE:-$ROOT/build/.vendorfetch}
 mkdir -p "$CACHE"
 
 # fetch.toml as 'table<TAB>key<TAB>value' lines: the subset this file's header describes --
@@ -92,8 +92,8 @@ fetch( ) {
     is_archive "$1" || _f="$CACHE/$(printf '%.12s' "$2")-${1##*/}"
     if [ ! -f "$_f" ] || [ "$(sha_of "$_f")" != "$2" ]; then
         rm -f "$_f"
-        if [ -n "$TKO_VENDOR_MIRROR" ]; then
-            curl -fsSL -o "$_f" "${TKO_VENDOR_MIRROR%/}/${1##*/}" || rm -f "$_f"
+        if [ -n "$TIKO_VENDOR_MIRROR" ]; then
+            curl -fsSL -o "$_f" "${TIKO_VENDOR_MIRROR%/}/${1##*/}" || rm -f "$_f"
         fi
         [ -f "$_f" ] || curl -fsSL -o "$_f" "$1" || die "cannot download $1"
     fi
@@ -122,14 +122,14 @@ entry( ) {
         # sees only fetch.toml, not the sources the script compiles.
         _scr="$ROOT/pkg/vendor/$_mod/$(_get script)"; _from="$ROOT/pkg/vendor/$_mod/$(_get from)"; _to=$(_get to)
         [ -f "$_scr" ] && [ -n "$_to" ] || die "$_mod [$_tab]: 'script' needs script, from and to"
-        TKO_VENDOR_INPUTS=
+        TIKO_VENDOR_INPUTS=
         set -- $(_get inputs)
         while [ $# -ge 2 ]; do
-            TKO_VENDOR_INPUTS="$TKO_VENDOR_INPUTS $(fetch "$1" "$2")"
+            TIKO_VENDOR_INPUTS="$TIKO_VENDOR_INPUTS $(fetch "$1" "$2")"
             shift 2
         done
         [ $# -eq 0 ] || die "$_mod [$_tab]: 'inputs' must be url sha256 pairs"
-        export TKO_VENDOR_INPUTS TKO_VENDOR_HOST=$HOST TKO_VENDOR_CACHE=$CACHE
+        export TIKO_VENDOR_INPUTS TIKO_VENDOR_HOST=$HOST TIKO_VENDOR_CACHE=$CACHE
         bash "$_scr" >/dev/null || die "$_mod [$_tab]: $(_get script) failed"
         [ -f "$_from" ] || die "$_mod [$_tab]: $(_get script) made no $(_get from)"
         mkdir -p "$(dirname "$_mdir/$_to")"

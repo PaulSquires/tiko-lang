@@ -3,7 +3,7 @@
 '' call), and a 'Node( of T ) ptr' parameter binds T through the pointer (tiko refused).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/generic-infer-shapes.bas -o tests/codegen/genericinfershapes.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/genericinfershapes.exe
 '' EXPECT-RUN-EXIT: 0

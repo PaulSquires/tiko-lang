@@ -1,6 +1,6 @@
 '' ...and it runs: the shared one holds an empty string, sizeof is one element, as fbc's.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bsa
 '' ARGS: -target windows-x86_64 tests/diagnostics/src/bare-str-alias-run.tiko -x build/.bsa/run.exe
 '' EXPECT-EXIT: 0

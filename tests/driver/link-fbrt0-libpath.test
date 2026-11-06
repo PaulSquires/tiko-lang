@@ -1,5 +1,5 @@
-'' T70: TKO_LIBPATH NAMING THE TARGET'S OWN DIRECTORY BRINGS ITS '-fb' SIBLING, as the
-'' bundled tree does, and so fbrt0.o. 'TKO_LIBPATH=lib/linux-x86_64' alone linked no
+'' T70: TIKO_LIBPATH NAMING THE TARGET'S OWN DIRECTORY BRINGS ITS '-fb' SIBLING, as the
+'' bundled tree does, and so fbrt0.o. 'TIKO_LIBPATH=lib/linux-x86_64' alone linked no
 '' fbrt0.o: fb_hRtInit and fb_hRtExit never ran, and a runtime error's "Aborting due
 '' to runtime error" never reached stderr -- measured on Linux, and silent.
 '' SINCE 2026-10-10 THE OBJECT IS TIKO-RT'S OWN (lib/rt/src/c/fbrt0.c), packaged beside
@@ -10,7 +10,7 @@
 '' below at lib/rt/lib/win64, and set TEST back to cli.
 '' TEST: skip
 '' ARGS: -v -target win64 tests/driver/src/mt-startup.bas -o tests/driver/libpathfb.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/win64
+'' ENV: TIKO_LIBPATH=toolchains/tiko-windows/lib/win64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: win64/fbrt0.o
 '' EXPECT-FILE: tests/driver/libpathfb.exe

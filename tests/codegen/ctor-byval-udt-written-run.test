@@ -4,7 +4,7 @@
 '' made/gone counts are fbc-modern's -- see CtorIndirectUdtArg_ in lowercallarg.tiko.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-byval-udt-written.tiko -o tests/codegen/ctorbyvaludtwritten.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctorbyvaludtwritten.exe
 '' EXPECT-RUN-EXIT: 0

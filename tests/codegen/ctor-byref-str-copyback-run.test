@@ -4,7 +4,7 @@
 '' temporary and printed [orig] (audit F-71, LOW-13).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-byref-str-copyback.bas -o tests/codegen/ctorbyrefstrcopyback.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctorbyrefstrcopyback.exe
 '' EXPECT-RUN-EXIT: 0

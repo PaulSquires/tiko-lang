@@ -11,7 +11,7 @@
 ''
 '' Windows only. Run it from the tree's root:
 ''
-''     TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64 bin/tiko.exe \
+''     TIKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64 bin/tiko.exe \
 ''         tools/gen/gencodepages.tiko -o build/gencodepages.exe
 ''     build/gencodepages.exe pkg/std/codec/codecpages.tiko
 ''

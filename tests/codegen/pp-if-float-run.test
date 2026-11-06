@@ -2,7 +2,7 @@
 '' fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-if-float.bas -o tests/codegen/ppiffloat.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppiffloat.exe
 '' EXPECT-RUN-EXIT: 0

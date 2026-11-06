@@ -2,7 +2,7 @@
 '' as under fbc-modern. Both were 'not declared' (TKO0743).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fb-argc.bas -o tests/codegen/fbargc.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fbargc.exe
 '' EXPECT-RUN-OUT:  1

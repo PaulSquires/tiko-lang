@@ -49,12 +49,12 @@
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-. build/toolchain.sh    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC=${FBC:-$TKO_ORACLE_FBC}
+. build/toolchain.sh    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC=${FBC:-$TIKO_ORACLE_FBC}
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 WK=${TMPDIR:-/tmp}/goldenrun.$$
 mkdir -p "$WK"
-export TKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/windows-x86_64"
+export TIKO_LIBPATH="$ROOT/toolchains/tiko-windows/lib/windows-x86_64"
 
 RUNTIMEOUT=${RUNTIMEOUT:-10}
 EXPLAINED=" errfuncname print-pointer any-init bsave-string-desc builtins byval-to-byref cva field-init-any noconv-lvalue on-error-setjmp peek print-using procptr-intrinsic static-addr-init static-init-reloc "

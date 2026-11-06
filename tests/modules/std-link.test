@@ -6,7 +6,7 @@
 '' 'C:\x' is.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stduse/main.bas -o tests/modules/stdlink.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdlink.exe
 '' EXPECT-RUN-OUT:  4 abc

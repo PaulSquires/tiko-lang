@@ -2,7 +2,7 @@
 '' address (functions/return-byref.bas properties). tiko printed the address itself.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/byref-property-getter.bas -o tests/codegen/byrefpropertygetter.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefpropertygetter.exe
 '' EXPECT-RUN-EXIT: 0

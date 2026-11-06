@@ -1,7 +1,7 @@
 '' AN OS TABLE IS READ ONLY FOR ITS OS (TK-003): a build for Windows takes [target.app.windows]'s
 '' resource and not [target.app.linux]'s define. The table adds to the target's own keys.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bow/cache
+'' ENV: TIKO_MODCACHE=build/.bow/cache
 '' CLEAN: build/.bow
 '' ARGS: metadata -target windows-x86_64 --manifest tests/driver/src/build-os
 '' EXPECT-EXIT: 0

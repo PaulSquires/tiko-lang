@@ -5,7 +5,7 @@
 '' And a stored string keeps its character buffer through every growth and backward shift.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers-backshift.bas -o tests/modules/stdcontainersbackshift.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdcontainersbackshift.exe
 '' EXPECT-RUN-EXIT: 0

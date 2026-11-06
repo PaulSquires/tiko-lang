@@ -4,7 +4,7 @@
 '' ice16). Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/implicit-this-property.bas -o tests/codegen/implicitthisproperty.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0994
 '' EXPECT-FILE: tests/codegen/implicitthisproperty.exe

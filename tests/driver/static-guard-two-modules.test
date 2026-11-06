@@ -8,7 +8,7 @@
 '' defines it -- and each module's static is its own object, counted by its own guard.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/static-guard-a.bas tests/driver/src/static-guard-b.bas -o tests/driver/staticguard.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: duplicate symbol
 '' EXPECT-FILE: tests/driver/staticguard.exe

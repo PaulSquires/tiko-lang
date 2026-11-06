@@ -28,10 +28,10 @@ FIRST=$1; COUNT=$2
 [ -n "$FIRST" ] && [ -n "$COUNT" ] || { echo "usage: tools/fuzz/run.sh <first-seed> <count> [tiko flags]" >&2; exit 2; }
 shift 2; FLAGS="$*"
 TKO=${TKO:-$ROOT/bin/tiko.exe}
-. "$(dirname "$0")/../../build/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC=${FBC:-$TKO_ORACLE_FBC}
-export TKO_INCLUDE=${TKO_INCLUDE:-$ROOT/toolchains/tiko-windows/inc}
-export TKO_LIBPATH=${TKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/windows-x86_64}
+. "$(dirname "$0")/../../build/toolchain.sh"    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC=${FBC:-$TIKO_ORACLE_FBC}
+export TIKO_INCLUDE=${TIKO_INCLUDE:-$ROOT/toolchains/tiko-windows/inc}
+export TIKO_LIBPATH=${TIKO_LIBPATH:-$ROOT/toolchains/tiko-windows/lib/windows-x86_64}
 TAG=$(printf %s "$FLAGS" | tr -c 'A-Za-z0-9' '_')
 W=${FUZZ_WORK:-$ROOT/build/obj/fuzz/$FIRST$TAG}
 rm -rf "$W"; mkdir -p "$W"; cd "$W" || exit 3

@@ -7,7 +7,7 @@
 '' commit, so it passes only once the toolchain is repackaged (it links the packaged libfb.a).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/unicode-paths.tiko -o tests/codegen/unicodepaths.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/unicodepaths.exe
 '' RUN: tests/codegen/unicodepaths.exe

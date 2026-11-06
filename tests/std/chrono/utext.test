@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/chrono/utext.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/utext.bas -o tests/std/chrono/utext.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/chrono/utext.exe
 '' EXPECT-RUN-OUT: 12150     12150         0  fbc_tests.chrono.utext                         7

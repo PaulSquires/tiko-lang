@@ -2,8 +2,8 @@
 '' the first owning main, one in-process Driver.Run -- so the program is the one
 '' 'tiko main.tiko other.tiko' makes, imported module included.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bim/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bim/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bim
 '' ARGS: build -target windows-x86_64 tests/driver/src/build-b1/main.tiko tests/driver/src/build-b1/other.tiko -o build/.bim/app.exe
 '' EXPECT-EXIT: 0

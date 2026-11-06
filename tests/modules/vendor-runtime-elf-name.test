@@ -2,9 +2,9 @@
 '' lib/libgammart.so, which the package does not hold (only gammart.dll is written), so the build
 '' stops before anything is compiled -- which is also what lets a Windows host test it.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vre/pkg
-'' ENV: TKO_MODCACHE=build/.vre/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vre/pkg
+'' ENV: TIKO_MODCACHE=build/.vre/mc
 '' CLEAN: build/.vre
 '' COPY: tests/modules/src/vrt/pkg => build/.vre/pkg
 '' WRITE: build/.vre/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n

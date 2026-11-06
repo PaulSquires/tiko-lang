@@ -17,8 +17,8 @@
 # The linux-x86_64 run of the same lane is the control: it passes, so a Mac failure is the
 # Apple ABI, not the lane.
 #
-# Needs: bin/tiko built; ssh to the Mac (TKO_MAC_HOST, default 'mac'; extra ssh options in
-# TKO_MAC_SSH_OPTS) with the Command Line Tools and Homebrew LLVM there; WSL with clang for
+# Needs: bin/tiko built; ssh to the Mac (TIKO_MAC_HOST, default 'mac'; extra ssh options in
+# TIKO_MAC_SSH_OPTS) with the Command Line Tools and Homebrew LLVM there; WSL with clang for
 # the control. Exits 1 on any failure.
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -28,8 +28,8 @@ case "$(uname -s)" in
 esac
 TKO="$ROOT/bin/tiko$EXT"
 [ -x "$TKO" ] || { echo "aapcslane: build tiko first (build/build.sh)" >&2; exit 3; }
-HOST=${TKO_MAC_HOST:-mac}
-SSHO=${TKO_MAC_SSH_OPTS:-}
+HOST=${TIKO_MAC_HOST:-mac}
+SSHO=${TIKO_MAC_SSH_OPTS:-}
 MACONLY=0
 [ "${1:-}" = "--mac-only" ] && MACONLY=1
 PY=${PYTHON:-python}

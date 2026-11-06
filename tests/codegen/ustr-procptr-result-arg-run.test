@@ -3,7 +3,7 @@
 '' as len 0. Expected output is fbc-modern 1.20's, byte for byte.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ustr-procptr-result-arg.tiko -o tests/codegen/ustrppres.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/ustrppres.exe
 '' RUN: tests/codegen/ustrppres.exe

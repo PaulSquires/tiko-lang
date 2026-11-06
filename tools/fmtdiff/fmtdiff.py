@@ -247,8 +247,8 @@ if r.returncode != 0:
     print("C++ COMPILE FAILED\n" + r.stdout[-2000:] + r.stderr[-2000:])
     sys.exit(2)
 env = dict(os.environ)
-env.setdefault("TKO_LIBPATH", os.path.join(TREE, "toolchains", "tiko-windows", "lib", "windows-x86_64"))
-env["TKO_PKG"] = os.path.join(TREE, "pkg")
+env.setdefault("TIKO_LIBPATH", os.path.join(TREE, "toolchains", "tiko-windows", "lib", "windows-x86_64"))
+env["TIKO_PKG"] = os.path.join(TREE, "pkg")
 r = run([tiko, tk_path, "-o", os.path.join(WORK, "tk.exe")], env=env)
 if r.returncode != 0:
     print("TIKO COMPILE FAILED\n" + (r.stdout + r.stderr)[-3000:])

@@ -4,7 +4,7 @@
 '' CRichEditCtx.TypographyOptions through a pointer (FINDINGS 5.8). fbc-modern 1.20 prints 127.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/propset-indexed-ptr-run.bas -o tests/mir/propsetidxptrrun.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/propsetidxptrrun.exe
 '' RUN: tests/mir/propsetidxptrrun.exe

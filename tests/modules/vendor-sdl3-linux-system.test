@@ -1,8 +1,8 @@
 '' vendor/SDL3 ON LINUX LINKS THE SYSTEM'S SDL3: SDL publishes no Linux binary, so the module's
 '' '#foreignlib' is "system:SDL3" there and an import compiles with no lib/ in the package.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.vsdl3s/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.vsdl3s/mc
 '' ARGS: -target linux-x86_64 -c tests/modules/src/vsdl3/imp.tiko -o build/.vsdl3s/imp.o
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: build/.vsdl3s/imp.o

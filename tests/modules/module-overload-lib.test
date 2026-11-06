@@ -7,7 +7,7 @@
 '' receiver and named v23len, where the module defined v13len.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/overlib/libs tests/modules/src/overlib/app/main.bas -o tests/modules/overlib.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/overlib.exe
 '' EXPECT-RUN-OUT:  1 2-1-1

@@ -3,7 +3,7 @@
 '' '+' was TKO0820 and a comparison went to clang as a pointer. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/byref-member-read.bas -o tests/codegen/byrefmemberread.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefmemberread.exe
 '' EXPECT-RUN-EXIT: 0

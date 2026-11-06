@@ -3,7 +3,7 @@
 '' both sides of the module boundary, which links once. Each call was TKO0994.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/genmeth/libs tests/modules/src/genmeth/app/main.tiko -o tests/modules/genmethlink.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: duplicate symbol
 '' EXPECT-FILE: tests/modules/genmethlink.exe

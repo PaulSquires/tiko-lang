@@ -1,4 +1,4 @@
-'' ir-spill.bas -- emitted with TKO_IR_SPILL=1: the module body goes to the spill file
+'' ir-spill.bas -- emitted with TIKO_IR_SPILL=1: the module body goes to the spill file
 '' after the globals and after every function (codegen/irsink.ti). The intrinsics and the
 '' libm declarations are chosen from the WHOLE body, so the calls sit in different chunks.
 type Shape extends object

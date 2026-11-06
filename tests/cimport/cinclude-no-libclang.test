@@ -1,6 +1,6 @@
 '' No libclang: TKO0335 at the directive; the rest of the unit is still compiled.
 '' TEST: cli
-'' ENV: TKO_LIBCLANG=tests/cimport/src/no-such-libclang.dll
+'' ENV: TIKO_LIBCLANG=tests/cimport/src/no-such-libclang.dll
 '' ARGS: --dump-ir -cnocache tests/cimport/src/cinclude-delta.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: cinclude-delta.bas(5,1): error TKO0335: #cinclude needs libclang: TKO_LIBCLANG names 'tests/cimport/src/no-such-libclang.dll'
+'' EXPECT-OUT: cinclude-delta.bas(5,1): error TKO0335: #cinclude needs libclang: TIKO_LIBCLANG names 'tests/cimport/src/no-such-libclang.dll'

@@ -2,7 +2,7 @@
 '' was 4, the CR kept in the literal (audit F-68). Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/crlf-unterminated.bas -o tests/codegen/crlfunterminated.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/crlfunterminated.exe
 '' EXPECT-RUN-EXIT: 0

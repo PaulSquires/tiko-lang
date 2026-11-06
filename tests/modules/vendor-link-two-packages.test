@@ -2,9 +2,9 @@
 '' program. Each carried header is re-read with ITS module's TIKO_LINK_* defined around it
 '' and undefined after, so neither sees the other's.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vlm/pkg
-'' ENV: TKO_MODCACHE=build/.vlm/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vlm/pkg
+'' ENV: TIKO_MODCACHE=build/.vlm/mc
 '' CLEAN: build/.vlm
 '' COPY: tests/modules/src/vlink/pkg => build/.vlm/pkg
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlm/pkg/vendor/alpha/lib/alpha_windows_x86_64.a

@@ -4,7 +4,7 @@
 '' (pp.bas BlockSpelling_).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/blockstr/libs tests/modules/src/blockstr/app/main.bas -o tests/modules/blockstr.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/modules/blockstr.exe
 '' RUN: tests/modules/blockstr.exe

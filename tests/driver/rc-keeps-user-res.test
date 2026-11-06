@@ -2,7 +2,7 @@
 '' was '<stem>.res' beside the '.rc', so a '.res' of the user's own of that name was
 '' overwritten and then deleted with the build's temporaries (audit F-74, CG-16).
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.rc-own
 '' COPY: tests/driver/src/res.rc => build/.rc-own/res.rc
 '' COPY: tests/driver/src/res.bas => build/.rc-own/res.bas

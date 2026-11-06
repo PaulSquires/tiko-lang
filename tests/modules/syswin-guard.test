@@ -3,6 +3,6 @@
 '' rather than somewhere inside windows.bi.
 '' TEST: cli
 '' ARGS: -target linux-x86_64 -c tests/modules/src/syswinguard/main.tiko -o build/.syswinguard.o
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: win.ti(3,1): error TKO0309: #error: "sys/win is Windows-only: build for -target windows-x86_64"

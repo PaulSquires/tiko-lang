@@ -4,7 +4,7 @@
 '' library path that lacks one.
 '' TEST: cli
 '' ARGS: -target linux-x86_64 tests/driver/src/no-fbrt0.bas -o tests/driver/nofbrt0.out
-'' ENV: TKO_LIBPATH=tests/driver
+'' ENV: TIKO_LIBPATH=tests/driver
 '' EXPECT-EXIT: 5
 '' EXPECT-OUT: error TKO0111: no usable toolchain: the runtime's startup object (fbrt0.o) is on no library path
 '' EXPECT-NO-FILE: tests/driver/nofbrt0.out

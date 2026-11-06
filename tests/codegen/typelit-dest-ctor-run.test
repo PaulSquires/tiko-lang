@@ -4,7 +4,7 @@
 '' structs/temp-var-dtors.bas). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/typelit-dest-ctor.bas -o tests/codegen/typelitdestctor.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/typelitdestctor.exe
 '' EXPECT-RUN-EXIT: 0

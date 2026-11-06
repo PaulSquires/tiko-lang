@@ -28,12 +28,12 @@ fi
 # target-prefixed <target>-clang.exe that does not exist: one clang serves every
 # target through --target. Absolute, and with .exe on Windows. This is the same
 # workaround gate-win.sh in fbc-modern uses, for the same reason.
-# TKO_CLANG FIRST, as build/toolchain.sh reads it: this was the one place it was ignored.
+# TIKO_CLANG FIRST, as build/toolchain.sh reads it: this was the one place it was ignored.
 # ON macOS, HOMEBREW'S LLVM, which tiko itself uses (codegen/toolchain.tiko): a bare 'clang'
 # there is Apple's, and llvm-ar and llvm-nm are not on PATH at all (docs/tiko-macos FACTS).
 [ "$(uname -s)" = "Darwin" ] && [ -d /opt/homebrew/opt/llvm/bin ] && TKORT_LLVMBIN=/opt/homebrew/opt/llvm/bin/
 if [ -z "${CLANG:-}" ]; then
-    CLANG=${TKO_CLANG:-${TKORT_LLVMBIN:+${TKORT_LLVMBIN}clang}}
+    CLANG=${TIKO_CLANG:-${TKORT_LLVMBIN:+${TKORT_LLVMBIN}clang}}
     [ -n "$CLANG" ] || CLANG=$(command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe")
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
@@ -44,11 +44,11 @@ export CLANG
 
 # llvm-ar. D13: the toolchain is 100% LLVM -- llvm-ar, not the MinGW ar.
 if [ -z "${TKORT_AR:-}" ]; then
-    TKORT_AR=${TKO_AR:-${TKORT_LLVMBIN:+${TKORT_LLVMBIN}llvm-ar}}
+    TKORT_AR=${TIKO_AR:-${TKORT_LLVMBIN:+${TKORT_LLVMBIN}llvm-ar}}
     [ -n "$TKORT_AR" ] || TKORT_AR=$(command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe")
 fi
 if [ -z "${TKORT_NM:-}" ]; then
-    TKORT_NM=${TKO_NM:-${TKORT_LLVMBIN:+${TKORT_LLVMBIN}llvm-nm}}
+    TKORT_NM=${TIKO_NM:-${TKORT_LLVMBIN:+${TKORT_LLVMBIN}llvm-nm}}
     [ -n "$TKORT_NM" ] || TKORT_NM=$(command -v llvm-nm 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-nm.exe")
 fi
 

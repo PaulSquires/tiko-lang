@@ -43,7 +43,7 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO0121` | error | cannot write the binding '‹arg1›' |
 | `TKO0122` | error | the binding generated for ‹arg1› does not compile; this is a bug in the C importer |
 | `TKO0123` | error | -pic makes position-independent code for a Unix shared library; target '‹arg1›' is not a Unix |
-| `TKO0124` | warning | LLVM is not installed: no clang was found, so this build cannot produce code -- install LLVM 18 or newer, or set TKO_CLANG |
+| `TKO0124` | warning | LLVM is not installed: no clang was found, so this build cannot produce code -- install LLVM 18 or newer, or set TIKO_CLANG |
 | `TKO0140` | error | cannot find module '‹arg1›' (searched: ‹arg2›) |
 | `TKO0141` | error | import cycle: ‹arg1› |
 | `TKO0142` | error | relative import '‹arg1›' leaves the package root '‹arg2›' |

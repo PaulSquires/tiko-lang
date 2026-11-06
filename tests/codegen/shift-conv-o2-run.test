@@ -3,7 +3,7 @@
 '' printed register contents. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -O2 tests/codegen/src/shift-conv-o2.bas -o tests/codegen/shiftconvo2.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/shiftconvo2.exe
 '' EXPECT-RUN-EXIT: 0

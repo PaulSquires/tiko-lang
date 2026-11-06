@@ -5,8 +5,8 @@
 '' object was added beside them -- and failed on duplicate symbols. One copy is linked now.
 '' This is tiko-editor-tiko's build: modules with '-c', then the main file and the objects.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-mix/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-mix/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-mix
 '' CLEAN: build/.mct-mix/one
 '' CLEAN: build/.mct-mix/two

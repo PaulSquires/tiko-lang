@@ -69,7 +69,7 @@ four places, and takes the first that exists:
 | | Where | Why it comes first |
 |---|---|---|
 | 1 | The path you pass on the command line | Someone who names a compiler has a reason, and it is never second-guessed |
-| 2 | The `TKO_CLANG` environment variable | Settles it for a whole shell or a CI job |
+| 2 | The `TIKO_CLANG` environment variable | Settles it for a whole shell or a CI job |
 | 3 | The conventional install: `C:\Program Files\LLVM\bin\clang.exe`, `/usr/bin/clang`, or Homebrew's `/opt/homebrew/opt/llvm/bin/clang` on macOS | See the pitfall below |
 | 4 | `PATH` | Catches a portable LLVM, a scoop install, or anything under `/usr/local` |
 
@@ -84,7 +84,7 @@ the one its data layout was measured against produces the kind of failure that t
 If you have several, name the one you want rather than reordering `PATH`:
 
 ```bash
-export TKO_CLANG=/home/you/.local/bin/clang
+export TIKO_CLANG=/home/you/.local/bin/clang
 ```
 
 `llvm-ar`, `llvm-rc` and libclang are then taken from that same directory, never searched for
@@ -273,7 +273,7 @@ toolchain from source, which this chapter does not.
 - A tiko installation is a directory you unpack anywhere; the compiler locates its own headers and
   libraries.
 - **LLVM 18+ must be installed.** tiko finds clang in four places, in order: an explicit path,
-  `TKO_CLANG`, the conventional install location, then `PATH`.
+  `TIKO_CLANG`, the conventional install location, then `PATH`.
 - Source files are `.tiko`; headers you write are `.ti`.
 - `tiko hello.tiko -o hello` compiles and links in one step; `-c` stops at the object file and `-v`
   shows every command.

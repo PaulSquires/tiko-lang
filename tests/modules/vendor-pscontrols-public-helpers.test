@@ -2,8 +2,8 @@
 '' GetListTreePointer -- both had become module-private in the port, so a host needed its own
 '' copies.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.vpsctl/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.vpsctl/mc
 '' ARGS: -target windows-x86_64 -c tests/modules/src/vpsctl/helpers.tiko -o build/.vpsctl/helpers.o
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0

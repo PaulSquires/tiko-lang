@@ -3,7 +3,7 @@
 '' '#if'. It answers for TKO_FBC_COMPAT (1.20.0), as __FB_VER_MAJOR__ and the rest do.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fb-min-version.bas -o tests/codegen/fbminversion.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fbminversion.exe
 '' EXPECT-RUN-EXIT: 0

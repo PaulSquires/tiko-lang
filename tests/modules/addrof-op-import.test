@@ -4,7 +4,7 @@
 '' Direct2D wrapper (FINDINGS 5.2). In one file the definition was found first and hid it.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/opat/libs tests/modules/src/opat/app/main.tiko -o tests/modules/addrofopimport.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/modules/addrofopimport.exe
 '' RUN: tests/modules/addrofopimport.exe

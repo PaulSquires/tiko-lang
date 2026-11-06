@@ -456,7 +456,7 @@ private sub LowerAssign _
         '' SkipHere, NOT a bare counter bump. This site incremented 'skipped'
         '' directly, so its declines had NO trace line, NO skip-site and NO source
         '' line: 14 corpus statements were counted and could not be located at all,
-        '' and TKO_TRACE_SKIP printed nothing for the files that carried them.
+        '' and TIKO_TRACE_SKIP printed nothing for the files that carried them.
         if LowerStringAssign( c, target, value ) = false then SkipHere( c )
         return
     end if

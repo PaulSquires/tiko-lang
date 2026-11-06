@@ -16,7 +16,7 @@ function IsHostTarget_( byval tgt as string ) as boolean
 end function
 
 '' THE RUNTIME A TEST NAMES, WHEN THIS HOST CANNOT HAVE IT (docs/tiko-macos M8, D-M8-1): its
-'' 'ENV: TKO_LIBPATH=' directory, if that directory is missing and is for a target whose
+'' 'ENV: TIKO_LIBPATH=' directory, if that directory is missing and is for a target whose
 '' programs this host cannot run. 781 tests link for windows-x86_64 against
 '' build/obj/rtlib/windows-x86_64, which build/test.sh makes on Windows alone. Such a test is
 '' still RUN -- a compile error or a '-c' passes without the runtime, 32 of them on Linux --
@@ -25,8 +25,8 @@ end function
 '' so a failure there is a failure. "" when the test can run.
 function MissingRuntime_( byref tc as TestCase ) as string
     for each e_ as string in tc.env
-        if left( e_, 12 ) <> "TKO_LIBPATH=" then continue for
-        dim as string d = mid( e_, 13 )
+        if left( e_, 13 ) <> "TIKO_LIBPATH=" then continue for
+        dim as string d = mid( e_, 14 )
         dim as string tgt = ""
         if (instr( d, "windows-x86_64" ) > 0) orelse (instr( d, "win64" ) > 0) then
             tgt = "windows-x86_64"

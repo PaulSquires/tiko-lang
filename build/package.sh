@@ -25,7 +25,7 @@
 #
 #   clang    src/codegen/toolchain.tiko runs clang for BOTH steps -- the .ll to .o
 #            compile and the link. It is found at C:\Program Files\LLVM\bin, or
-#            wherever TKO_CLANG points. Bundling LLVM is a gigabyte and a separate
+#            wherever TIKO_CLANG points. Bundling LLVM is a gigabyte and a separate
 #            decision, so a packaged toolchain depends on an installed one.
 #
 #   win64    -target win64, the MinGW ABI, is NOT PACKAGED (the author's order,
@@ -63,7 +63,7 @@ DO_CLEAN=0
 DO_VERIFY=0
 DO_TKEDIT=1
 T0=$(date +%s)
-TPINC=${TKO_THIRDPARTY_INC:-}
+TPINC=${TIKO_THIRDPARTY_INC:-}
 OUT=
 
 die( ) { echo "package: $*" >&2; exit 1; }
@@ -560,10 +560,10 @@ fi
 # NOT FATAL, as the graphics library is not: a user without fbcunit has lost the
 # test library, not the compiler. The manifest records each target either way.
 FBCU="$ROOT/tests/vendor/fbc-tests/fbcunit"
-FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
+FBCU_AR=${TIKO_AR:-$( command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
 # On macOS Homebrew's LLVM is deliberately not on PATH (docs/tiko-macos D6): its llvm-ar is named.
 # An 'if', not a '{ ...; }' inside the '$( )' above: macOS's /bin/sh (bash 3.2) cannot parse that.
-if [ -z "${TKO_AR:-}" ] && [ "$HOST" = "macos" ] && ! command -v llvm-ar > /dev/null 2>&1; then
+if [ -z "${TIKO_AR:-}" ] && [ "$HOST" = "macos" ] && ! command -v llvm-ar > /dev/null 2>&1; then
     FBCU_AR=/opt/homebrew/opt/llvm/bin/llvm-ar
 fi
 FBCU_STATE=""
@@ -768,7 +768,7 @@ verify_std_run( ) {
     echo "$_checks" | while IFS='|' read -r _m _code _want; do
         printf '%s\n' "$_code" >> "$_tmp/std.tiko"
     done
-    ( cd "$OUT" && TKO_MODCACHE=".verifystd.$_t.$_tag/cache" "./${BINSUB}tiko$EXT" $_flags -target "$_t" \
+    ( cd "$OUT" && TIKO_MODCACHE=".verifystd.$_t.$_tag/cache" "./${BINSUB}tiko$EXT" $_flags -target "$_t" \
         ".verifystd.$_t.$_tag/std.tiko" -o ".verifystd.$_t.$_tag/std$EXT" ) >"$_tmp/log" 2>&1 || true
     _why=""
     if [ -f "$_tmp/std$EXT" ]; then
@@ -821,7 +821,7 @@ dim as com.DVARIANT v
 dim as richedit.CTextRange2 ptr r
 print win.UpperCase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
 ' > "$_tmp/syswin.tiko"
-        ( cd "$OUT" && TKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
+        ( cd "$OUT" && TIKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
             ".verifysyswin.$_t/syswin.tiko" -o ".verifysyswin.$_t/syswin$EXT" ) >"$_tmp/log" 2>&1 || true
         if [ -f "$_tmp/syswin$EXT" ] && [ "$( "$_tmp/syswin$EXT" 2>/dev/null | tr -d '' )" = "TIKO FF010203" ]; then
             VERIFY_LINES="$VERIFY_LINES
@@ -836,7 +836,7 @@ print win.UpperCase( "tiko" ); " "; hex( gdiplus.GDIP_ARGB( &hFF, 1, 2, 3 ) )
     *)
         printf '#import "sys/win"\nprint 1\n' > "$_tmp/guard.tiko"
         _rc=0
-        ( cd "$OUT" && TKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" -c \
+        ( cd "$OUT" && TIKO_MODCACHE=".verifysyswin.$_t/cache" "./${BINSUB}tiko$EXT" -target "$_t" -c \
             ".verifysyswin.$_t/guard.tiko" -o ".verifysyswin.$_t/guard.o" ) >"$_tmp/log" 2>&1 || _rc=$?
         if [ "$_rc" -ne 0 ] && grep -q 'error TKO0309: #error: "sys/win is Windows-only' "$_tmp/log"; then
             VERIFY_LINES="$VERIFY_LINES
@@ -870,7 +870,7 @@ if sqlite3_step( st ) = SQLITE_ROW then print *cast( zstring ptr, sqlite3_column
 sqlite3_finalize( st )
 sqlite3_close( db )
 ' "$_mode" "'ok'" > "$_tmp/v.tiko"
-        ( cd "$OUT" && TKO_MODCACHE=".verifyvendor.$_t.$_mode/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
+        ( cd "$OUT" && TIKO_MODCACHE=".verifyvendor.$_t.$_mode/cache" "./${BINSUB}tiko$EXT" -target "$_t" \
             ".verifyvendor.$_t.$_mode/v.tiko" -o ".verifyvendor.$_t.$_mode/v$EXT" ) >"$_tmp/log" 2>&1 || true
         if [ -f "$_tmp/v$EXT" ] && [ "$( "$_tmp/v$EXT" 2>/dev/null | tr -d '\r' )" = "sqliteok" ]; then
             VERIFY_LINES="$VERIFY_LINES
@@ -930,7 +930,7 @@ if [ "$DO_TKEDIT" = "1" ]; then
     # bin/parser_<os>_<arch>.a with THE COMPILER JUST PACKAGED -- the one that builds tkedit below, so
     # each std module is one copy at tkedit's link (bin/ keeps the tree's compiler untouched)
     note "building tikoParser for tkedit"
-    if ! TKO_SEED="$OUT/${BINSUB}tiko$EXT" sh "$ROOT/build/build.sh" Release --lib >>"$_tklog" 2>&1; then
+    if ! TIKO_SEED="$OUT/${BINSUB}tiko$EXT" sh "$ROOT/build/build.sh" Release --lib >>"$_tklog" 2>&1; then
         _tkfail="tikoParser did not build"
     fi
     case $HOST in
@@ -941,7 +941,7 @@ if [ "$DO_TKEDIT" = "1" ]; then
     if [ -z "$_tkfail" ]; then
         note "building tkedit with the packaged compiler"
         rm -rf "$TKSRC/src/app/out/release"
-        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" \
+        if ! ( cd "$TKSRC/src/app" && TIKO_MODCACHE="$TKSRC/out/modcache-package" \
                  "$OUT/${BINSUB}tiko$EXT" build --profile release ) >>"$_tklog" 2>&1; then
             _tkfail="the build failed -- lib/rt/obj/package-tkedit.log"
         fi
@@ -1060,12 +1060,12 @@ if [ -n "$( git_in_root status --porcelain 2>/dev/null | head -1 )" ]; then
     REV="$REV+dirty"
 fi
 
-# The seed the lock pins -- what build/build.sh builds the compiler with unless TKO_SEED
-# or TKO_ORACLE_FBC says otherwise, in which case that is recorded instead.
+# The seed the lock pins -- what build/build.sh builds the compiler with unless TIKO_SEED
+# or TIKO_ORACLE_FBC says otherwise, in which case that is recorded instead.
 SEED_STATE=$( awk -v h="$HOST" '$1 == h { print $2 " (" $3 ", sha256 " $4 ")" }' "$ROOT/seed/seed.lock" 2>/dev/null )
 [ -n "$SEED_STATE" ] || SEED_STATE="none pinned for $HOST"
-[ -n "${TKO_SEED:-}" ] && SEED_STATE="TKO_SEED=$TKO_SEED (the lock pins $SEED_STATE)"
-[ -z "${TKO_SEED:-}" ] && [ -n "${TKO_ORACLE_FBC:-}" ] && SEED_STATE="TKO_ORACLE_FBC=$TKO_ORACLE_FBC -- NOT a release build (the lock pins $SEED_STATE)"
+[ -n "${TIKO_SEED:-}" ] && SEED_STATE="TIKO_SEED=$TIKO_SEED (the lock pins $SEED_STATE)"
+[ -z "${TIKO_SEED:-}" ] && [ -n "${TIKO_ORACLE_FBC:-}" ] && SEED_STATE="TIKO_ORACLE_FBC=$TIKO_ORACLE_FBC -- NOT a release build (the lock pins $SEED_STATE)"
 
 # tr: BSD wc and du pad their numbers (macOS), GNU's do not.
 NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l | tr -d ' ' )
@@ -1087,7 +1087,7 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
     say "-- what is NOT in here -------------------------------------------------"
     say "clang       REQUIRED, not bundled. The compiler runs it for both the"
     say "            .ll -> .o step and the link. Install LLVM, and point at it"
-    say "            by setting TKO_CLANG if it is not at the default"
+    say "            by setting TIKO_CLANG if it is not at the default"
     say "            $CLANG_DEFAULT."
     if [ "$HOST" = "macos" ]; then
         say "            On macOS: 'brew install llvm'. Homebrew's clang is not put on"
@@ -1164,7 +1164,7 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
     fi
     say
     say "A -p of your own is searched BEFORE both, so it can override either."
-    say "TKO_LIBPATH replaces them instead, as TKO_INCLUDE replaces inc/."
+    say "TIKO_LIBPATH replaces them instead, as TIKO_INCLUDE replaces inc/."
     say
     say "-- licences ------------------------------------------------------------"
     say "licences/ holds tiko's own notices -- the compiler under GPL-2.0+, pkg/"

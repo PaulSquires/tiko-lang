@@ -776,7 +776,7 @@ tiko-lang: error TKO0174: cannot read the C header 'nothere.h'
 
 The exit status is 1, and nothing was written.
 
-**`tiko c2t` cannot find libclang.** It says so and lists where it looked. Set `TKO_LIBCLANG` to the
+**`tiko c2t` cannot find libclang.** It says so and lists where it looked. Set `TIKO_LIBCLANG` to the
 full path of `libclang.dll` or `libclang.so`.
 
 ---

@@ -4,8 +4,8 @@
 '' -- although its object was already cached. The second build spells the include path and
 '' the source in upper case and must hit both modules.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-case/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-case/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-case
 '' COPY: tests/driver/src/modcache => build/.mct-case
 '' STEP: -v -target windows-x86_64 -i build/.mct-case/libs build/.mct-case/app/main.bas -o build/.mct-case/app.exe

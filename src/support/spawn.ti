@@ -40,7 +40,7 @@ namespace Tko.Spawn
     '' never started). Each Proc is waited for exactly once.
     declare function Wait( byval p as Proc ) as int32
 
-    '' How many to run at once: TKO_JOBS when set (1 = one at a time, as before), else the
+    '' How many to run at once: TIKO_JOBS when set (1 = one at a time, as before), else the
     '' machine's logical processors.
     declare function DefaultJobs( ) as int32
 

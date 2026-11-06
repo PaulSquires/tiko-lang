@@ -2,7 +2,7 @@
 '' (string/asc.bas); the runtime stopped at the NUL.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/asc-narrow-const-fold.bas -o tests/codegen/ascnarrowconstfold.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ascnarrowconstfold.exe
 '' EXPECT-RUN-EXIT: 0

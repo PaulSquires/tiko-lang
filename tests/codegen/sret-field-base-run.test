@@ -3,7 +3,7 @@
 '' It was invalid IR (the field offset applied to a loaded aggregate). Expected: fbc's output.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/sret-field-base.tiko -o tests/codegen/sretfieldbase.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/sretfieldbase.exe
 '' RUN: tests/codegen/sretfieldbase.exe

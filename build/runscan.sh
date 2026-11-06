@@ -29,7 +29,7 @@ cd "$(dirname "$0")/.."
 
 CORPUS_ROOT=tests/vendor/fbc-tests
 [ -d "$CORPUS_ROOT" ] || { echo "runscan: corpus not vendored" >&2; exit 3; }
-# TKO_RUNSCAN_FLAGS: extra tiko flags for every build -- "-O2", "-O3" -- for the Phase 11
+# TIKO_RUNSCAN_FLAGS: extra tiko flags for every build -- "-O2", "-O3" -- for the Phase 11
 # corpus runs at each optimisation level. Unset is the ordinary run.
 [ -x ./bin/tiko.exe ] || { echo "runscan: build bin/tiko.exe first" >&2; exit 3; }
 
@@ -46,24 +46,24 @@ FBC=${FBC:-/c/dev/tiko_editor/toolchains/FreeBASIC-1.10.1-winlibs-gcc-9.3.0/fbc6
 # written against the other compiler. So the reference is chosen PER FILE -- 1.10 first,
 # because it is the compatibility target, and fbc-modern only where 1.10 cannot see the
 # headers at all -- and every finding says which one answered.
-. build/toolchain.sh    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBCM=${FBCM:-$TKO_ORACLE_FBC}
+. build/toolchain.sh    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBCM=${FBCM:-$TIKO_ORACLE_FBC}
 
 FBCUNIT=""
 [ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"
 
-TKOINC=${TKO_INCLUDE:-$TKO_ORACLE_ROOT/inc}
+TKOINC=${TIKO_INCLUDE:-$TIKO_ORACLE_ROOT/inc}
 if [ -d "$TKOINC" ]; then
-    TKO_INCLUDE="$TKOINC"
-    export TKO_INCLUDE
+    TIKO_INCLUDE="$TKOINC"
+    export TIKO_INCLUDE
 fi
 
 # See linkscan.sh: the development tree has no lib/<target>, so the toolchain's own
 # directory has to be named.
-if [ -z "$TKO_LIBPATH" ]; then
+if [ -z "$TIKO_LIBPATH" ]; then
     if [ -d toolchains/tiko-windows/lib/windows-x86_64 ]; then
-        TKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/windows-x86_64"
-        export TKO_LIBPATH
+        TIKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/windows-x86_64"
+        export TIKO_LIBPATH
     fi
 fi
 
@@ -131,7 +131,7 @@ xargs -a build/.runcorpus.lst -d '
         exit 0
     fi
 
-    if ! timeout 120 ./bin/tiko.exe $TKO_RUNSCAN_FLAGS $FBCUNIT "$1" -o "$d/t.exe" > "$d/t.build" 2>&1 ; then
+    if ! timeout 120 ./bin/tiko.exe $TIKO_RUNSCAN_FLAGS $FBCUNIT "$1" -o "$d/t.exe" > "$d/t.build" 2>&1 ; then
         # THE FIRST LINE ONLY. A build failure here is already icescan or linkscan
         # material; what this census needs is that it happened and roughly why.
         # THE DIAGNOSTIC, not the first line. A build that reaches codegen prints the

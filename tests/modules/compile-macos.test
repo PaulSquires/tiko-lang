@@ -3,7 +3,7 @@
 '' llvm.global_ctors at 65534 rather than a numbered section. Compile only -- the link
 '' needs ld64 (docs/tiko-macos M2).
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-mac/cache
+'' ENV: TIKO_MODCACHE=build/.mct-mac/cache
 '' CLEAN: build/.mct-mac
 '' CLEAN: build/.mct-mac/obj
 '' ARGS: -c -m main -target macos-arm64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o build/.mct-mac/obj/main.o

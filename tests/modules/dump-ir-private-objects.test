@@ -5,7 +5,7 @@
 '' foreach-iterator-owner, never when run alone. The race cannot be staged here; its cause can:
 '' the module misses (a fresh cache), and its clang line must not name a relative '.N.o'.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.dpo/cache
+'' ENV: TIKO_MODCACHE=build/.dpo/cache
 '' CLEAN: build/.dpo
 '' ARGS: -v --dump-ir -target windows-x86_64 tests/modules/src/stdfacade/containers.bas
 '' EXPECT-EXIT: 0

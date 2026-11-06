@@ -4,8 +4,8 @@
 '' edit keeps every line where it was: the interface's '#line's say where each declaration
 '' is, so an edit that moves one changes the interface too.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-body/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-body/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-body
 '' COPY: tests/driver/src/modcache => build/.mct-body
 '' STEP: -v -target windows-x86_64 -i build/.mct-body/libs build/.mct-body/app/main.bas -o build/.mct-body/app.exe

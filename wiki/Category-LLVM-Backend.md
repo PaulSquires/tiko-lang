@@ -32,12 +32,12 @@ Each target has its own triple:
 
 **clang 18 or newer, installed by you.** Nothing is bundled.
 
-tiko runs whatever `TKO_CLANG` names. Without it, tiko runs `C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux and Homebrew's `/opt/homebrew/opt/llvm/bin/clang` on macOS, and searches `PATH` only when that file is absent. It takes `llvm-ar` and `llvm-rc` from the same directory. The link uses lld; on Linux it falls back to the system `ld` when there is no `ld.lld` beside clang or in `/usr/bin`. On macOS the link uses Apple's linker and the macOS SDK from Xcode's Command Line Tools, and it searches Homebrew's `/opt/homebrew/lib` after your own library paths.
+tiko runs whatever `TIKO_CLANG` names. Without it, tiko runs `C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux and Homebrew's `/opt/homebrew/opt/llvm/bin/clang` on macOS, and searches `PATH` only when that file is absent. It takes `llvm-ar` and `llvm-rc` from the same directory. The link uses lld; on Linux it falls back to the system `ld` when there is no `ld.lld` beside clang or in `/usr/bin`. On macOS the link uses Apple's linker and the macOS SDK from Xcode's Command Line Tools, and it searches Homebrew's `/opt/homebrew/lib` after your own library paths.
 
 If clang is not there, tiko says so and stops:
 
 ```
-tiko-lang: error TKO0111: no usable toolchain: clang not found at 'C:/nope/clang.exe' -- set TKO_CLANG to the clang to use
+tiko-lang: error TKO0111: no usable toolchain: clang not found at 'C:/nope/clang.exe' -- set TIKO_CLANG to the clang to use
 ```
 
 ## Inline ASM

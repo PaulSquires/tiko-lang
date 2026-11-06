@@ -1,5 +1,5 @@
 # defaultseed.sh -- sourced, not run: default_seed prints the seed stage0 builds with when
-# neither TKO_SEED nor TKO_ORACLE_FBC says otherwise, or returns 1 when there is none.
+# neither TIKO_SEED nor TIKO_ORACLE_FBC says otherwise, or returns 1 when there is none.
 #
 #   . "$ROOT/build/defaultseed.sh"; SEED=$(default_seed "$ROOT" "$HOSTWIN")
 #
@@ -25,4 +25,16 @@ default_seed( ) {
         if [ -x "$ds_c" ]; then echo "$ds_c"; return 0; fi
     done
     return 1
+}
+
+# seed_env -- THE PINNED SEED READS THE OLD NAMES. The compiler's environment variables were
+# renamed TKO_* -> TIKO_* on 2026-11-06, and a seed built before that reads only TKO_*. This
+# mirrors each variable the compiler reads into its old name -- set, or unset when the TIKO_
+# one is empty -- so the seed sees what a current compiler would. A compiler that reads TIKO_*
+# ignores the copies. Drop it, and its callers, once the pinned seed reads TIKO_*.
+seed_env( ) {
+    for se_v in INCLUDE LIBPATH PKG MODCACHE PATH CLANG AR LIBCLANG SDKROOT JOBS; do
+        eval "se_x=\${TIKO_$se_v:-}"
+        if [ -n "$se_x" ]; then eval "TKO_$se_v=\$se_x; export TKO_$se_v"; else unset "TKO_$se_v"; fi
+    done
 }

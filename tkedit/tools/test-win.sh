@@ -6,7 +6,7 @@
 TIKO=${TIKO:-/c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 # One tiko module cache PER CHECKOUT: parallel sessions must not share the per-user default.
-export TKO_MODCACHE=${TKO_MODCACHE:-$ROOT/out/modcache}
+export TIKO_MODCACHE=${TIKO_MODCACHE:-$ROOT/out/modcache}
 bad=0
 
 build() {    # build <package dir>
@@ -35,7 +35,7 @@ parserlib() {
     local lib=$ROOT/../bin/parser_windows_x86_64.a
     [ -f "$lib" ] && [ "$lib" -nt "$TIKO" ] && return 0
     mkdir -p "$ROOT/out"
-    ( cd "$ROOT/.." && TKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$ROOT/out/parserlib.log" 2>&1 \
+    ( cd "$ROOT/.." && TIKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$ROOT/out/parserlib.log" 2>&1 \
         || { echo "parser library: BUILD FAILED (out/parserlib.log)"; bad=$((bad+1)); return 1; }
 }
 

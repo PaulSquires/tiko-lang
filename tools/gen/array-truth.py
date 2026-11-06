@@ -39,7 +39,7 @@ CASES = [
 
 def one_target() -> int:
     if not FBC.exists():
-        print(f"array-truth: {LABEL}: SKIPPED -- no oracle fbc at {FBC} (set TKO_ORACLE_FBC)")
+        print(f"array-truth: {LABEL}: SKIPPED -- no oracle fbc at {FBC} (set TIKO_ORACLE_FBC)")
         return tkotargets.SKIP
     WORK.mkdir(parents=True, exist_ok=True)
     src = WORK / "arr.bas"

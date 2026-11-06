@@ -4,7 +4,7 @@
 '' (C:\dev\docs\tiko-stdlib\RFC-0001 section 15.4).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-net-p12.tiko -o tests/codegen/stdnetp12.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdnetp12.exe
 '' RUN: tests/codegen/stdnetp12.exe

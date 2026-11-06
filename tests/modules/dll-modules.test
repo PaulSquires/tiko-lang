@@ -3,7 +3,7 @@
 '' module's object, here the header code std/strings fronts.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -dll tests/modules/src/libout/api.bas -o tests/modules/dllmodules.dll
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE-HAS: tests/modules/dllmodules.dll :: SHOUT
 '' EXPECT-FILE-NOT-HAS: tests/modules/dllmodules.dll :: _ZN2FB6CSVROWC1Ev

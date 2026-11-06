@@ -39,10 +39,10 @@ WORK = ROOT / "build/.str"
 
 
 def stage0():
-    """(compiler, is_tiko): TKO_SEED, else build/defaultseed.sh's
+    """(compiler, is_tiko): TIKO_SEED, else build/defaultseed.sh's
     pick -- the order build/build.sh chooses in, so the probe and the compiler agree."""
-    if os.environ.get("TKO_SEED"):
-        return Path(os.environ["TKO_SEED"]), True
+    if os.environ.get("TIKO_SEED"):
+        return Path(os.environ["TIKO_SEED"]), True
     # ON WINDOWS THE ANSWER IS AN MSYS PATH, '/c/dev/...', which Python reads as '\c\dev\...'
     # on the current drive: cygpath -m turns it into one Windows can open.
     conv = ' | cygpath -m -f -' if os.name == "nt" else ''
@@ -71,7 +71,7 @@ def build():
         exe.unlink()
     cc, is_tiko = stage0()
     if cc is None:
-        print("check-str: no seed compiler (seed/fetch-seed.sh, or TKO_SEED)",
+        print("check-str: no seed compiler (seed/fetch-seed.sh, or TIKO_SEED)",
               file=sys.stderr)
         return None
     args = [str(cc), str(ROOT / "tools/gen/strfmt.bas"), str(ROOT / "src/support/fbstr.tiko"),
@@ -80,7 +80,8 @@ def build():
     if is_tiko:
         # The seed's own spelling, and the tree's headers -- as build.sh gives them.
         args += ["-o", str(exe)]
-        env["TKO_INCLUDE"] = str(ROOT / "inc")
+        env["TIKO_INCLUDE"] = str(ROOT / "inc")
+        env["TIKO_INCLUDE"] = env["TIKO_INCLUDE"]  # a seed from before the TIKO_ rename
     else:
         args += ["-i", str(ROOT / "inc"), "-w", "all", "-x", str(exe)]
     r = subprocess.run(args, capture_output=True, text=True, env=env)

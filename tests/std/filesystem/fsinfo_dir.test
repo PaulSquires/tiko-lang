@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/filesystem/fsinfo_dir.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/filesystem/fsinfo_dir.bas -o tests/std/filesystem/fsinfo_dir.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/filesystem/fsinfo_dir.exe
 '' EXPECT-RUN-OUT: 144       144         0  fbc_tests.filesystem.fsinfo_dir               25

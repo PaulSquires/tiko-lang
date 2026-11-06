@@ -4,8 +4,8 @@
 '' compiled by the build itself afterwards. clock.tiko comes FIRST, so a's and b's events,
 '' ready as soon as their children finish, must wait for it: clock, a, b, warn.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bse1/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bse1/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bse1
 '' COPY: tests/driver/src/unitcache => build/.bse1/src
 '' ARGS: build -target windows-x86_64 build/.bse1/src/clock.tiko build/.bse1/src/a.tiko build/.bse1/src/b.tiko build/.bse1/src/warn.tiko -o build/.bse1/app.exe -j 1 --message-format json

@@ -1,8 +1,8 @@
 '' 'tiko clean' removes the copies (copy_to) as well as the artefact, and nothing else in the
 '' directory: dist/app.ini stays.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bcc/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bcc/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bcc
 '' COPY: tests/driver/src/build-copyto => build/.bcc/pkg
 '' STEP: build -target windows-x86_64 --manifest build/.bcc/pkg

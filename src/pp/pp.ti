@@ -180,7 +180,7 @@ namespace Tko
         as containers.Array( of any ptr ) ptr sharedLexed
         as StrVec ptr defines        '' -d name[=value]
         as boolean    reportUnsupported
-        as int32      maxTokens      '' 0 = PP_MAX_TOKENS; TKO_PP_MAX_TOKENS lowers it for a test
+        as int32      maxTokens      '' 0 = PP_MAX_TOKENS; TIKO_PP_MAX_TOKENS lowers it for a test
         '' '#cmdline' IS ONLY HONOURED IN THE FIRST SOURCE FILE, and this says which
         '' module this is. fbc's rule, measured 2026-09-16: 'fbc a.bas b.bas' with the
         '' directive in a.bas restarts and never compiles b.bas on the first pass,

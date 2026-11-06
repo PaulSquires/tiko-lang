@@ -3,7 +3,7 @@
 '' fbc-modern's. See the N_ADDROF case of mir/lowerexpr.tiko.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/addr-call-noargs.bas -o tests/codegen/addrcallnoargs.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/addrcallnoargs.exe
 '' RUN: tests/codegen/addrcallnoargs.exe

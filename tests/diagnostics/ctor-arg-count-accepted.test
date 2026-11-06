@@ -4,7 +4,7 @@
 '' hold. fbc-modern 1.20 prints ' 3 6 6 7 6 12', 2026-10-03.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/diagnostics/src/ctor-arg-count-accepted.bas -o tests/diagnostics/ctorargcount.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: error
 '' EXPECT-FILE: tests/diagnostics/ctorargcount.exe

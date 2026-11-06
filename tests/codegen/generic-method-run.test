@@ -2,7 +2,7 @@
 '' It was TKO0994, "this statement was not compiled", at every call.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/generic-method.tiko -o tests/codegen/genericmethod.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/genericmethod.exe
 '' EXPECT-RUN-EXIT: 0

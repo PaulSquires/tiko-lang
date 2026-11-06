@@ -4,7 +4,7 @@
 '' fbc-examples repro ir02). Now renamed 'pow$', fbc's own spelling, on a clash only.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/global-named-like-function.bas -o tests/codegen/globalnamedlikefunction.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/globalnamedlikefunction.exe
 '' RUN: tests/codegen/globalnamedlikefunction.exe

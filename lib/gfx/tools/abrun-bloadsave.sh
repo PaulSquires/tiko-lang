@@ -8,7 +8,7 @@
 set -e
 HERE=$( cd "$( dirname "$0" )" && pwd )
 TL=$( cd "$HERE/../../.." && pwd )
-: "${FBC:=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}"
+: "${FBC:=${TIKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}"
 : "${TIKO:=$TL/bin/tiko.exe}"
 OUT=$( mktemp -d )
 cp "$HERE/abrun-bloadsave.bas" "$OUT/"

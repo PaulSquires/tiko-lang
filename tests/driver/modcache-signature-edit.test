@@ -1,8 +1,8 @@
 '' A SIGNATURE EDIT REBUILDS WHAT IMPORTS IT (RFC-0005 §4): acme.leaf's interface changed,
 '' so acme.middle's key -- which holds the interface hash of its closure -- changed too.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.mct-sig/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.mct-sig/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-sig
 '' COPY: tests/driver/src/modcache => build/.mct-sig
 '' STEP: -v -target windows-x86_64 -i build/.mct-sig/libs build/.mct-sig/app/main.bas -o build/.mct-sig/app.exe

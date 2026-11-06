@@ -10,12 +10,12 @@
 # line; the script exits 1 when anything is red.
 #
 #   1. Debug build of this tree, IN PARALLEL with a Release build from a mirror (relbuild.sh).
-#   2. Corpus: every diagnostic of build/gate-corpus.txt (plus $TKO_GATE_EXTRA, a list of
+#   2. Corpus: every diagnostic of build/gate-corpus.txt (plus $TIKO_GATE_EXTRA, a list of
 #      absolute paths) from the Release binary, diffed against snap-head.json.
 #   3. Suite (--no-build), then lint.
 #   4. Self-host lowering of tiko's own units with the Release binary.
 #
-# STATE lives in $TKO_GATE_DIR (default build/.gate, ignored): the snapshots, the mirror and
+# STATE lives in $TIKO_GATE_DIR (default build/.gate, ignored): the snapshots, the mirror and
 # the Release binary. With no snap-head.json the first run SAVES one and says so -- a corpus
 # baseline must come from HEAD's binary, so run it once on an unmodified tree.
 #
@@ -23,7 +23,7 @@
 # past 600s.
 set -o pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-G=${TKO_GATE_DIR:-$ROOT/build/.gate}
+G=${TIKO_GATE_DIR:-$ROOT/build/.gate}
 mkdir -p "$G"
 if [ "$1" = "--accept" ]; then
     cp "$G/snap-new.json" "$G/snap-head.json" && echo "gate: snap-head.json <- snap-new.json"
@@ -35,7 +35,7 @@ bad=0
 red( ) { echo "gate: RED -- $*"; bad=$((bad + 1)); }
 
 s=$(date +%s)
-( TKO_EDITOR_DIR=/c/nonexistent bash build/build.sh Debug --test-runner > "$G/debug.log" 2>&1 ) &
+( TIKO_EDITOR_DIR=/c/nonexistent bash build/build.sh Debug --test-runner > "$G/debug.log" 2>&1 ) &
 dpid=$!
 bash build/relbuild.sh "$ROOT" "$G/tiko-rel.exe" "$G/relmirror" || red "Release build (relbuild.sh)"
 wait $dpid || { grep -E " error |error [0-9]+:|FAILED" "$G/debug.log" | head -5; red "Debug build ($G/debug.log)"; }
@@ -44,16 +44,16 @@ echo "gate: builds $(( $(date +%s)-s ))s"
 
 if [ -f "$G/snap-head.json" ]; then
     python build/fastcorpus.py "$ROOT" "$G/tiko-rel.exe" --list build/gate-corpus.txt \
-        ${TKO_GATE_EXTRA:+--list "$TKO_GATE_EXTRA"} \
+        ${TIKO_GATE_EXTRA:+--list "$TIKO_GATE_EXTRA"} \
         --against "$G/snap-head.json" --save "$G/snap-new.json" || red "corpus differs from snap-head.json"
 else
     python build/fastcorpus.py "$ROOT" "$G/tiko-rel.exe" --list build/gate-corpus.txt \
-        ${TKO_GATE_EXTRA:+--list "$TKO_GATE_EXTRA"} --save "$G/snap-head.json" \
+        ${TIKO_GATE_EXTRA:+--list "$TIKO_GATE_EXTRA"} --save "$G/snap-head.json" \
         && echo "gate: corpus BASELINE SAVED to snap-head.json -- not a comparison"
 fi
 
 s=$(date +%s)
-env -u TKO_INCLUDE -u TKO_LIBPATH bash build/test.sh --no-build > "$G/suite.log" 2>&1
+env -u TIKO_INCLUDE -u TIKO_LIBPATH bash build/test.sh --no-build > "$G/suite.log" 2>&1
 src=$?
 grep -E "^FAIL|passed" "$G/suite.log" | tail -8
 grep -q "passed, .* failed" "$G/suite.log" || red "suite printed no summary line ($G/suite.log)"
@@ -62,7 +62,7 @@ echo "gate: suite $(( $(date +%s)-s ))s"
 bash build/lint.sh > "$G/lint.log" 2>&1 || { tail -3 "$G/lint.log"; red "lint"; }
 
 SOURCES=$(grep -v '^#' build/sources.txt | tr '\n' ' ')
-TKO_INCLUDE="$ROOT/inc" TKO_PKG="$ROOT/pkg" TKO_MODCACHE="$G/selfhost.modcache" \
+TIKO_INCLUDE="$ROOT/inc" TIKO_PKG="$ROOT/pkg" TIKO_MODCACHE="$G/selfhost.modcache" \
     "$G/tiko-rel.exe" --dump-ir -target windows-x86_64 -i src $SOURCES > "$G/selfhost.txt" 2>&1
 shrc=$?
 echo "gate: selfhost rc=$shrc diagnostics=$(grep -cE '(error|warning) TKO' "$G/selfhost.txt") modules-clean=$(grep -c ', 0 statements not lowered' "$G/selfhost.txt")"

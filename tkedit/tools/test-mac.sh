@@ -15,12 +15,12 @@ if [ -z "${TIKO:-}" ]; then
     TIKO=$TREE/bin/tiko
     [ -x "$TIKO" ] || TIKO=$TREE/toolchains/tiko-macos/bin/tiko
 fi
-export TKO_PKG=${TKO_PKG:-$TREE/pkg}
+export TIKO_PKG=${TIKO_PKG:-$TREE/pkg}
 # a tree-built compiler links against the toolchain's libraries, which it does not find alone
-if [ -z "${TKO_LIBPATH:-}" ] && [ -d "$TREE/toolchains/tiko-macos/lib/macos-arm64" ]; then
-    export TKO_LIBPATH=$TREE/toolchains/tiko-macos/lib/macos-arm64
+if [ -z "${TIKO_LIBPATH:-}" ] && [ -d "$TREE/toolchains/tiko-macos/lib/macos-arm64" ]; then
+    export TIKO_LIBPATH=$TREE/toolchains/tiko-macos/lib/macos-arm64
 fi
-export TKO_MODCACHE=${TKO_MODCACHE:-$SRC/out/modcache}
+export TIKO_MODCACHE=${TIKO_MODCACHE:-$SRC/out/modcache}
 bad=0
 
 build() {    # build <package dir>
@@ -52,7 +52,7 @@ parserlib() {
     local lib=$TREE/bin/parser_macos_arm64.a
     [ -f "$lib" ] && [ "$lib" -nt "$TIKO" ] && return 0
     mkdir -p "$SRC/out"
-    ( cd "$TREE" && TKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$SRC/out/parserlib.log" 2>&1 \
+    ( cd "$TREE" && TIKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$SRC/out/parserlib.log" 2>&1 \
         || { echo "parser library: BUILD FAILED (out/parserlib.log)"; bad=$((bad+1)); return 1; }
 }
 

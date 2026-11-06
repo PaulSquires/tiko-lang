@@ -4,8 +4,8 @@
 '' macros' names; each is '#ifndef' guarded (build/posixgen.c), so 'const SEEK_SET = 0' is not
 '' read as 'const 0 = 0' (TKO0406). Compile only.
 '' TEST: cli
-'' ENV: TKO_PKG=pkg
-'' ENV: TKO_MODCACHE=build/.crtfirst-linux/mc
+'' ENV: TIKO_PKG=pkg
+'' ENV: TIKO_MODCACHE=build/.crtfirst-linux/mc
 '' CLEAN: build/.crtfirst-linux
 '' ARGS: -target linux-x86_64 -c -i tests/modules/src/crtfirst/libs tests/modules/src/crtfirst/app/main.tiko -o build/.crtfirst-linux/main.o
 '' EXPECT-EXIT: 0

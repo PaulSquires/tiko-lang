@@ -11,7 +11,7 @@
 '' The source is also a goldenrun.sh differential -- byte-identical to fbc's build.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/enum-str-concat.bas -o tests/driver/enumstrconcat.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/enumstrconcat.exe
 '' RUN: tests/driver/enumstrconcat.exe

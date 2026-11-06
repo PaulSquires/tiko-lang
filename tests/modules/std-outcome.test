@@ -2,7 +2,7 @@
 '' fb/result.bi): Optional and Result, Some, None, Ok -- and Fail and Failure under 'using'.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/outcome.bas -o tests/modules/stdoutcome.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdoutcome.exe
 '' EXPECT-RUN-OUT: 5-1 true false

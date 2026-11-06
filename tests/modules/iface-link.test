@@ -10,7 +10,7 @@
 '' not the importer's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o tests/modules/ifacelink.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/modules/ifacelink.exe
 '' RUN: tests/modules/ifacelink.exe

@@ -2,7 +2,7 @@
 '' it -- 'print B' gave 6 where fbc gives 2 (namespace/enum-decls.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/enum-bare-member-own-value.bas -o tests/codegen/enumbarememberownvalue.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/enumbarememberownvalue.exe
 '' EXPECT-RUN-EXIT: 0

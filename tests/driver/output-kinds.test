@@ -12,7 +12,7 @@
 '' The import library follows the OUTPUT, not the source, which is why the second
 '' line is worth stating separately.
 ''
-'' TKO_LIBPATH points at the packaged runtime because a DLL still has to LINK --
+'' TIKO_LIBPATH points at the packaged runtime because a DLL still has to LINK --
 '' this is a real build, not a dump. It replaces the bundled search rather than
 '' adding to it, so the test says which libraries it means.
 '' TEST: cli

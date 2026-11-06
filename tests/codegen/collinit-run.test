@@ -5,7 +5,7 @@
 '' module initialiser, and locals whose elements are expressions.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/codegen/src/collinit.bas -o tests/codegen/collinit.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/collinit.exe
 '' RUN: tests/codegen/collinit.exe

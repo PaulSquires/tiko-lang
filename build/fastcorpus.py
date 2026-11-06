@@ -34,13 +34,13 @@ if not lists:
     sys.exit("fastcorpus: no --list given")
 
 env = dict(os.environ)
-env["TKO_INCLUDE"] = tree + "/toolchains/tiko-windows/inc"
-env.pop("TKO_LIBPATH", None)
+env["TIKO_INCLUDE"] = tree + "/toolchains/tiko-windows/inc"
+env.pop("TIKO_LIBPATH", None)
 files = []
 for lp in lists:
     files += [f for f in open(lp).read().split("\n") if f.strip()]
 diag = re.compile(r"\((\d+),(\d+)\): (error|warning) (TKO\d+)")
-afx = os.environ.get("TKO_AFXNOVA", "C:/dev/utils/AfxNova/src")
+afx = os.environ.get("TIKO_AFXNOVA", "C:/dev/utils/AfxNova/src")
 
 def one(f):
     p = f if os.path.isabs(f) or f[1:2] == ":" else os.path.join(tree, f)

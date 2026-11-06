@@ -1,7 +1,7 @@
 '' pp: an apostrophe inside macro arguments is argument text (optimizations/self_compare.bas)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-apostrophe-in-args.bas -o tests/codegen/ppapostropheinargs.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppapostropheinargs.exe
 '' EXPECT-RUN-EXIT: 0

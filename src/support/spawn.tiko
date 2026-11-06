@@ -194,7 +194,7 @@ function Wait( byval p as Proc ) as int32
 end function
 
 function DefaultJobs( ) as int32
-    dim as int32 j = valint( environ( "TKO_JOBS" ) )
+    dim as int32 j = valint( environ( "TIKO_JOBS" ) )
     if j > 0 then return j
 #ifdef __FB_WIN32__
     j = valint( environ( "NUMBER_OF_PROCESSORS" ) )

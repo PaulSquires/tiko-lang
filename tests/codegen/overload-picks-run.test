@@ -4,7 +4,7 @@
 '' D step 3, review SEM-08): any changed pick is a bug.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/overload-picks.bas -o tests/codegen/overloadpicks.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/overloadpicks.exe
 '' RUN: tests/codegen/overloadpicks.exe

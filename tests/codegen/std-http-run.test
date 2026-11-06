@@ -4,7 +4,7 @@
 '' https trusted and untrusted (C:\dev\docs\tiko-stdlib\RFC-0002).  Loopback only.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt tests/codegen/src/std-http.tiko -o tests/codegen/stdhttp.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdhttp.exe
 '' RUN: tests/codegen/stdhttp.exe

@@ -1222,7 +1222,7 @@ without handing the whole C interface to everyone who imports it. `public #inclu
 module file is `TKO0369`.
 
 To install a binding module for every program, put its folder in one directory and name that
-directory in **`TKO_PATH`**, the list of directories `#import` searches, separated by `;` on
+directory in **`TIKO_PATH`**, the list of directories `#import` searches, separated by `;` on
 Windows and `:` on Linux. Because a translated library's headers include one another by relative
 path, any library can be a module this way, SDL's fifty-nine headers included.
 
@@ -1286,7 +1286,7 @@ Every failure in this table happened while this chapter was being written.
   TODOs are Vulkan's and GLES's. **SDL3**: fifty-nine headers, translated by a loop in include
   order.
 - A **binding header** holds a library's `#include` and `#foreignlib`, relative to itself. A
-  **binding module** does the same with `public #include`, and is installed through `TKO_PATH` —
+  **binding module** does the same with `public #include`, and is installed through `TIKO_PATH` —
   which is exactly what a vendor package is.
 
 ## Exercises

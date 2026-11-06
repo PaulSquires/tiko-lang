@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/string/fbstr_search.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/string/fbstr_search.bas -o tests/std/string/fbstr_search.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/string/fbstr_search.exe
 '' EXPECT-RUN-OUT: 207       207         0  fbc_tests.string_.fbstr_search                24

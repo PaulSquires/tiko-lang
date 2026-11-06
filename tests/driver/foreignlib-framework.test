@@ -3,7 +3,7 @@
 '' other: this Windows link takes the spec's winmm, skips Cocoa, and runs.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/foreignlib-framework.bas -o tests/driver/foreignlibframework.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/foreignlibframework.exe
 '' EXPECT-FILE-HAS: tests/driver/foreignlibframework.exe :: WINMM.dll

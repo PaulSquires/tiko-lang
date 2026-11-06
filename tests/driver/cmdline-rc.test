@@ -6,7 +6,7 @@
 '' parallel would race for it.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/cmdline-rc.bas -o tests/driver/cmdlinerc.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/cmdlinerc.exe
 '' EXPECT-NO-FILE: tests/driver/src/cmdline-res.res

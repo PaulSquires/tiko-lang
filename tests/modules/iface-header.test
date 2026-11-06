@@ -5,8 +5,8 @@
 '' and main's own later '#include once "windows.bi"' is the same file, read once.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/hdr/libs tests/modules/src/hdr/app/main.bas -o tests/modules/ifaceheader.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ifaceheader.exe
 '' EXPECT-RUN-OUT:  15

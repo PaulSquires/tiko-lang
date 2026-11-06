@@ -3,9 +3,9 @@
 '' own declaration because windows.bi's has the same result type.
 '' TEST: cli
 '' NEEDS: toolchains/tiko-windows/inc
-''     (named by TKO_INCLUDE below)
+''     (named by TIKO_INCLUDE below)
 '' ARGS: --emit-tki -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/libs/acme/qo
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: '' joins getwindowtext
 '' EXPECT-OUT: '' joins getwindowrect

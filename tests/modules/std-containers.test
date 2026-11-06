@@ -4,7 +4,7 @@
 '' itself through containers.Hashable, the hook that replaced re-opening namespace FB.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers.bas -o tests/modules/stdcontainers.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdcontainers.exe
 '' EXPECT-RUN-OUT: 1 2 3 6

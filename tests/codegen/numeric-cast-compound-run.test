@@ -4,7 +4,7 @@
 '' always took DOUBLE: 'x + 1' was 4 and 'dim as long k = x' 3 (overload re-pick refactor).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/numeric-cast-compound.bas -o tests/codegen/numericcastcompound.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/numericcastcompound.exe
 '' EXPECT-RUN-EXIT: 0

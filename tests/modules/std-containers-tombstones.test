@@ -7,7 +7,7 @@
 '' churn stays at capacity 8 (6 of 8 live is the load factor) where the same-size rehash doubled.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers-tombstones.bas -o tests/modules/stdcontainerstomb.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdcontainerstomb.exe
 '' EXPECT-RUN-EXIT: 0

@@ -1,7 +1,7 @@
-'' No libclang: TKO0119, and the exit is 3, a missing tool. TKO_LIBCLANG naming a file
+'' No libclang: TKO0119, and the exit is 3, a missing tool. TIKO_LIBCLANG naming a file
 '' that is not there is the answer, not a reason to go and find a different libclang.
 '' TEST: cli
-'' ENV: TKO_LIBCLANG=tests/cimport/src/no-such-libclang.dll
+'' ENV: TIKO_LIBCLANG=tests/cimport/src/no-such-libclang.dll
 '' ARGS: -cimport tests/cimport/src/shapes.h -cimport-out -
 '' EXPECT-EXIT: 3
-'' EXPECT-OUT: error TKO0119: importing a C header needs libclang: TKO_LIBCLANG names 'tests/cimport/src/no-such-libclang.dll'
+'' EXPECT-OUT: error TKO0119: importing a C header needs libclang: TIKO_LIBCLANG names 'tests/cimport/src/no-such-libclang.dll'

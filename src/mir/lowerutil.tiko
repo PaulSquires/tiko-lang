@@ -678,7 +678,7 @@ end function
 
 '' THE SHADOW AUDIT (audit Phase 4, node-recorded overload decisions). A lowering site that
 '' still chooses an overload itself calls this with its own pick and the one Check recorded;
-'' under TKO_PICK_AUDIT=1 a disagreement goes to stderr -- or, when the variable names a FILE,
+'' under TIKO_PICK_AUDIT=1 a disagreement goes to stderr -- or, when the variable names a FILE,
 '' is appended there, which is how a whole suite or corpus is audited -- as
 ''     pick-audit: <file>:<line> <site> lowered=<name>@<decl line> recorded=<name>@<line>
 '' so the suite, the corpus and pkg/ say where the two differ before a site is switched over.
@@ -695,7 +695,7 @@ sub AuditPick( byref c as Ctx, byval n as Tko.NodeId, byref site as string, _
     byval lowered as Tko.SymbolId, byval recorded as Tko.SymbolId )
 
     if lowered = recorded then exit sub
-    dim as string dest = environ( "TKO_PICK_AUDIT" )
+    dim as string dest = environ( "TIKO_PICK_AUDIT" )
     if dest = "" then exit sub
     dim as string where_ = "?"
     if (c.srcMgr <> nullptr) andalso (n <> Tko.NODE_NONE) then

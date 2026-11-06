@@ -9,7 +9,7 @@
 '' outputs are byte-identical (measured 2026-10-10).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/let-same-type-cast.bas -o tests/driver/letsametypecast.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/letsametypecast.exe
 '' RUN: tests/driver/letsametypecast.exe

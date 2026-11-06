@@ -3,7 +3,7 @@
 '' committed only as deep as the recursion goes (audit Phase 5).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/long-concat-chain.bas -o tests/codegen/longconcatchain.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/longconcatchain.exe
 '' EXPECT-RUN-EXIT: 0

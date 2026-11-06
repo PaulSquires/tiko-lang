@@ -308,7 +308,7 @@ tiko build modgame
 drew 60 frames
 ```
 
-The names are bare (`InitWindow`, not `raylib.InitWindow`), as `#cinclude` makes them, because a C header's `#define`s and struct macros cannot live in a namespace. To install the module for every program, put its folder in a directory named by `TKO_PATH` (`set TKO_PATH=C:\tiko-modules` on Windows, `export TKO_PATH=~/tiko-modules` on Linux) and give the module's paths to its own library files.
+The names are bare (`InitWindow`, not `raylib.InitWindow`), as `#cinclude` makes them, because a C header's `#define`s and struct macros cannot live in a namespace. To install the module for every program, put its folder in a directory named by `TIKO_PATH` (`set TIKO_PATH=C:\tiko-modules` on Windows, `export TIKO_PATH=~/tiko-modules` on Linux) and give the module's paths to its own library files.
 
 ## 9. Linux: finding `libraylib.so.600` without `LD_LIBRARY_PATH`
 

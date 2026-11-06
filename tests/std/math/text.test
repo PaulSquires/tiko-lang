@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/math/text.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/math/text.bas -o tests/std/math/text.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/math/text.exe
 '' EXPECT-RUN-OUT: 905503    905503         0  fbc_tests.math.text                           10

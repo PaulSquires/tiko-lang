@@ -4,8 +4,8 @@
 '' compiled one.bi too and the link refused Counter.Bump, defined twice.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/onetu/libs tests/modules/src/onetu/app/main.bas -o tests/modules/ifaceunneeded.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ifaceunneeded.exe
 '' EXPECT-RUN-OUT:  2

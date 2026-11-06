@@ -3,7 +3,7 @@
 '' files -- the search paths, and each unit's defines and include directories. An editor's
 '' project is often half-written.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bmb/cache
+'' ENV: TIKO_MODCACHE=build/.bmb/cache
 '' CLEAN: build/.bmb
 '' ARGS: metadata -target windows-x86_64 --manifest tests/driver/src/build-metabroken
 '' EXPECT-EXIT: 1

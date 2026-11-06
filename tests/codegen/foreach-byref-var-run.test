@@ -2,7 +2,7 @@
 '' as fbc-modern does (100 200). tiko printed 1 2.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/foreach-byref-var.bas -o tests/codegen/eachbyrefvar.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/eachbyrefvar.exe
 '' EXPECT-RUN-OUT:  100 200

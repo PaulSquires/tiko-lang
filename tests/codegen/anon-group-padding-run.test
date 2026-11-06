@@ -2,7 +2,7 @@
 '' bytes, so the field after it sits at 4 (structs/anon-align.bas); tiko had 3.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/anon-group-padding.bas -o tests/codegen/anongrouppadding.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/anongrouppadding.exe
 '' EXPECT-RUN-EXIT: 0

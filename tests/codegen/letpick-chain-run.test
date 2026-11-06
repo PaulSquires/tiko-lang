@@ -3,7 +3,7 @@
 '' UDT, handing the let its bytes as an FBSTRING. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/letpick-chain.bas -o tests/codegen/letpickchain.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/letpickchain.exe
 '' EXPECT-RUN-EXIT: 0

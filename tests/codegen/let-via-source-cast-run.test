@@ -2,7 +2,7 @@
 '' LivingThing' calls the let with the cast's result (structs/obj_cast_ovl2.bas); tiko emitted nothing.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/let-via-source-cast.bas -o tests/codegen/letviasourcecast.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/letviasourcecast.exe
 '' EXPECT-RUN-EXIT: 0

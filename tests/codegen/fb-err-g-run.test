@@ -2,7 +2,7 @@
 '' 224 alone, and __FB_DEBUG__ is -1 -- fbc-modern 1.20's values. tiko gave 0.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -g tests/codegen/src/errparts/show.bas -o tests/codegen/errg.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/errg.exe
 '' EXPECT-RUN-OUT:  224-1

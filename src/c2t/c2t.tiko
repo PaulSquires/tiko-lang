@@ -604,7 +604,7 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
     if o.verify then
         dim as string od = Tko.Modules.DirOfFile( Tko.Modules.AbsPath( iif( outPath = "-", o.input_, outPath ) ) )
         if len( od ) then ctx.options.includePaths.Push( od )
-        dim as ustring envInc = environ( "TKO_INCLUDE" )
+        dim as ustring envInc = environ( "TIKO_INCLUDE" )
         if len( envInc ) > 0 then
             ctx.options.includePaths.Push( envInc )
         else

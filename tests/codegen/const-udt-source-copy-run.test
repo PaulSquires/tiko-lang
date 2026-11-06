@@ -2,7 +2,7 @@
 '' copy through the type's own copy and let -- they bit-copied, sharing a string (implicit-methods.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/const-udt-source-copy.bas -o tests/codegen/constudtsourcecopy.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/constudtsourcecopy.exe
 '' EXPECT-RUN-EXIT: 0

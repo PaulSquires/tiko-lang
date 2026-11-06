@@ -143,7 +143,7 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
     '' A DECLINE ON PURPOSE, for the tests of what a decline does (TKO0994, --allow-unlowered's
     '' TKO0995): no construct in the gate corpus or the fbc-examples corpus declines any more, and
     '' the last the tests used, 'cast( integer, t )' over a UDT, is Check's error now (LATER-PLAN D
-    '' step 5). TKO_TEST_DECLINE_LINE=n declines every statement that starts on line n.
+    '' step 5). TIKO_TEST_DECLINE_LINE=n declines every statement that starts on line n.
     dim as boolean testDecline = false
     if (c.testDeclineLine > 0) andalso (c.srcMgr <> nullptr) andalso (c.ast->Kind( id ) <> Tko.N_BLOCK) then
         testDecline = (c.srcMgr->Decode( c.ast->Loc( id ) ).lineNo = c.testDeclineLine)

@@ -18,8 +18,8 @@
 # code are compared (a hang shows as exit=124 on Linux, exit=142 -- SIGALRM -- on the Mac). A difference is either fixed or listed as platform-specific in
 # docs/tiko-macos FACTS. Exits 1 on any difference or failure.
 #
-# Needs: bin/tiko; ssh to the Mac (TKO_MAC_HOST, default 'mac'; extra options in
-# TKO_MAC_SSH_OPTS); WSL with clang.
+# Needs: bin/tiko; ssh to the Mac (TIKO_MAC_HOST, default 'mac'; extra options in
+# TIKO_MAC_SSH_OPTS); WSL with clang.
 
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 RT="$ROOT/lib/rt"
@@ -34,8 +34,8 @@ for t in macos-arm64 linux-x86_64; do
     [ -f "$RT/lib/$t/libfb.a" ] && [ -f "$RT/lib/$t/fbrt0.o" ] || \
         { echo "darwinlane: no $t runtime (lib/rt/build/build.sh $CFG macos-arm64 linux-x86_64)" >&2; exit 3; }
 done
-HOST=${TKO_MAC_HOST:-mac}
-SSHO=${TKO_MAC_SSH_OPTS:-}
+HOST=${TIKO_MAC_HOST:-mac}
+SSHO=${TIKO_MAC_SSH_OPTS:-}
 
 W="$ROOT/build/.darwinlane"
 rm -rf "$W"

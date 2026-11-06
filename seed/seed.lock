@@ -1,6 +1,6 @@
 # seed.lock -- the pinned SEED: the tiko that builds tiko-lang in fbc-modern's place.
 # Read by seed/fetch-seed.sh; used by build/build.sh and build/bootstrap.sh through
-# TKO_SEED=<path to its tiko executable>.
+# TIKO_SEED=<path to its tiko executable>.
 #
 # A seed is a packaged toolchain (build/package.sh) published as a GitHub Release asset
 # on PaulSquires/tiko-lang. One line per host, whitespace-separated:

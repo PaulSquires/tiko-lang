@@ -3,7 +3,7 @@
 '' tiko built nothing and the program faulted on g. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/shared-ctor-array-arg.bas -o tests/codegen/sharedctorarrayarg.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/sharedctorarrayarg.exe
 '' EXPECT-RUN-EXIT: 0

@@ -1,8 +1,8 @@
 '' '-nocopylibs' (RFC-0002 V13): the program links dynamically and nothing is copied.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vln/pkg
-'' ENV: TKO_MODCACHE=build/.vln/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vln/pkg
+'' ENV: TIKO_MODCACHE=build/.vln/mc
 '' CLEAN: build/.vln
 '' COPY: tests/modules/src/vlink/pkg => build/.vln/pkg
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vln/pkg/vendor/alpha/lib/alpha_windows_x86_64.a

@@ -3,7 +3,7 @@
 '' the line of the macro name (audit LEX16).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-line-multiline-call.bas -o tests/codegen/pplinemultilinecall.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pplinemultilinecall.exe
 '' EXPECT-RUN-EXIT: 0

@@ -5,7 +5,7 @@
 '' record is not 'extern "c"' and keeps fbc's zero extension (fbc-modern 1.20 prints 7 and 31).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-c-signed.bas -o tests/codegen/bitfieldcsigned.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldcsigned.exe
 '' EXPECT-RUN-EXIT: 0

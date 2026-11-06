@@ -3,7 +3,7 @@
 '' source does not reach the copy. Expected output measured with fbc-modern.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/agg-copy-apart.bas -o tests/codegen/aggcopyapart.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/aggcopyapart.exe
 '' RUN: tests/codegen/aggcopyapart.exe

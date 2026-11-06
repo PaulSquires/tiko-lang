@@ -83,7 +83,7 @@ namespace Tko.UnitCache
     declare sub Commit( byref ctx as Tko.CompilerContext, byref s as Store )
 
     '' THE ROOTS THAT MISS, COMPILED IN PARALLEL (tiko-build B4): when the cache is on, the
-    '' run links, and the job budget (Spawn.DefaultJobs: -j, TKO_JOBS, the processors) is
+    '' run links, and the job budget (Spawn.DefaultJobs: -j, TIKO_JOBS, the processors) is
     '' over one, every root is probed; two or more misses are handed to child tikos -- this
     '' run's own command line plus '--build-only-unit <i>', output discarded -- that compile
     '' one root each into the cache. The unit loop then runs as it always has: the children's

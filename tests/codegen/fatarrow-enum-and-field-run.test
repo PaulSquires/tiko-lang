@@ -2,7 +2,7 @@
 '' (quirk/assignment-token.bas): 'MYNUM2 => 123' read 0 and 'field => 1' was ignored.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fatarrow-enum-and-field.bas -o tests/codegen/fatarrowenumandfield.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fatarrowenumandfield.exe
 '' EXPECT-RUN-EXIT: 0

@@ -1,9 +1,9 @@
 '' '-nocopylibs' turns the runtime copy off with the library copy: the program builds and
 '' nothing goes beside it.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vrx/pkg
-'' ENV: TKO_MODCACHE=build/.vrx/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vrx/pkg
+'' ENV: TIKO_MODCACHE=build/.vrx/mc
 '' CLEAN: build/.vrx
 '' COPY: tests/modules/src/vrt/pkg => build/.vrx/pkg
 '' WRITE: build/.vrx/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n

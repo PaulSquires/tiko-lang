@@ -5,7 +5,7 @@
 '' declined (TKO0994). A copy constructor or a string field keeps the copy. See the source.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/cast-ctor-init.bas -o tests/codegen/castctorinit.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/castctorinit.exe
 '' EXPECT-RUN-EXIT: 0

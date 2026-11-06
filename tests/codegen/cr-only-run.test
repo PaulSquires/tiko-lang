@@ -2,7 +2,7 @@
 '' tiko refused it (audit F-54). Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/cr-only.bas -o tests/codegen/cronly.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/cronly.exe
 '' EXPECT-RUN-EXIT: 0

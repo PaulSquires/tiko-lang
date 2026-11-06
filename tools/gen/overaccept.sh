@@ -5,7 +5,7 @@
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT" || exit 1
 # The packaged toolchain's headers -- the full set a user has -- not fbc-modern's.
-export TKO_INCLUDE=${TKO_INCLUDE:-$(cd "$(dirname "$0")/../.." && pwd)/toolchains/tiko-windows/inc}
+export TIKO_INCLUDE=${TIKO_INCLUDE:-$(cd "$(dirname "$0")/../.." && pwd)/toolchains/tiko-windows/inc}
 n=0; bad=0
 for f in $(grep -rl "COMPILE_ONLY_FAIL" tests/vendor/fbc-tests --include='*.bas' | sort); do
     d=$(dirname "$f")

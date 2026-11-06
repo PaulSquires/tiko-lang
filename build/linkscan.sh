@@ -36,20 +36,20 @@ FBCUNIT=""
 [ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"
 
 # The packaged toolchain's headers -- the full set a user has -- not fbc-modern's.
-TKOINC=${TKO_INCLUDE:-$PWD/toolchains/tiko-windows/inc}
+TKOINC=${TIKO_INCLUDE:-$PWD/toolchains/tiko-windows/inc}
 if [ -d "$TKOINC" ]; then
-    TKO_INCLUDE="$TKOINC"
-    export TKO_INCLUDE
+    TIKO_INCLUDE="$TKOINC"
+    export TIKO_INCLUDE
 fi
 
 # THE DEVELOPMENT TREE HAS NO lib/<target>. AppendBundledLibDirs_ looks under
 # <exe-dir>/../lib, and lib/ there holds gfx and rt and no import libraries at all, so a
 # bare './bin/tiko.exe prog.bas -o prog.exe' fails on ucrtbase.lib. The toolchain's own
-# directory is where they are; TKO_LIBPATH is the supported way to say so.
-if [ -z "$TKO_LIBPATH" ]; then
+# directory is where they are; TIKO_LIBPATH is the supported way to say so.
+if [ -z "$TIKO_LIBPATH" ]; then
     if [ -d toolchains/tiko-windows/lib/windows-x86_64 ]; then
-        TKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/windows-x86_64"
-        export TKO_LIBPATH
+        TIKO_LIBPATH="$PWD/toolchains/tiko-windows/lib/windows-x86_64"
+        export TIKO_LIBPATH
     fi
 fi
 

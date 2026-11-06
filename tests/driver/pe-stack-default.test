@@ -5,7 +5,7 @@
 '' numbers out of its own PE header, which is what the loader sizes the stack from.
 '' TEST: cli
 '' ARGS: -v -target windows-x86_64 tests/driver/src/pe-stack.bas -o tests/driver/pestackdef.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: -Xlinker -stack:2097152,2097152
 '' EXPECT-FILE: tests/driver/pestackdef.exe

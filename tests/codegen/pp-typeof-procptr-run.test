@@ -1,7 +1,7 @@
 '' pp: typeof( procptr( T.m [, sig] ) ) in '#if'; procptr picks by result and the first declared (pointers/procptr-member.bas)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-typeof-procptr.bas -o tests/codegen/pptypeofprocptr.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pptypeofprocptr.exe
 '' EXPECT-RUN-EXIT: 0

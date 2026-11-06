@@ -34,7 +34,7 @@ The subcommand must be the first word. A later `build` is a file name.
 | `--manifest <path>` | `tiko.toml`, or the directory holding it. Without it, the nearest `tiko.toml` at or above the current directory, if any |
 | `--options "<flags>"` | compiler flags appended to every file of the build, relative to the current directory; they enter every cache key |
 | `-target <t>` | `windows-x86_64`, `linux-x86_64` or `macos-arm64`; the host's by default |
-| `-j <n>` | how many files compile at once; `TKO_JOBS` for this build and the processes it starts |
+| `-j <n>` | how many files compile at once; `TIKO_JOBS` for this build and the processes it starts |
 | `--no-cache` | nothing read from or written to the cache, modules or main files |
 | `--message-format json` | the [event stream](#the-json-event-stream) on standard output; `text`, the default, is the console rendering |
 | `--diagnostics-file <path>` | every diagnostic as tab-separated records too ([below](#diagnostics)) |
@@ -150,7 +150,7 @@ An unknown profile is `TKO0163`. Each profile writes to its own `out/<profile>/`
 
 ## What is not done twice
 
-- **Main files are cached** in the module cache (`TKO_MODCACHE`, else the user's cache directory), keyed by the compiler, the options, the file and everything it read: includes, and the interfaces of the modules it imports. A change inside a module's procedures recompiles the module, not its importers.
+- **Main files are cached** in the module cache (`TIKO_MODCACHE`, else the user's cache directory), keyed by the compiler, the options, the file and everything it read: includes, and the interfaces of the modules it imports. A change inside a module's procedures recompiles the module, not its importers.
 - **Not cached**: a file with an error or a warning (a cached object would not report it again), one that expands `__DATE__`, `__DATE_ISO__` or `__TIME__`, and one whose `#cmdline` restarted the compile. `-v` says why (`TKO0169`).
 - **Misses compile in parallel** when there are two or more: one quiet child `tiko` per file, `-j` at once. A child that crashes is `TKO0167`, exit 6.
 - **The link is skipped** when nothing it reads has changed. A record in the module cache (`links/` under the cache directory) holds the compiler, the options, and the size and time of every object and library, and of the artefact itself; deleting or touching the artefact relinks. Like a cache entry, a record unused for seven days is removed, and `tiko --clean-module-cache` removes them all.

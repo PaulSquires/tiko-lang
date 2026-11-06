@@ -4,7 +4,7 @@
 '' Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/init-nested-align.bas -o tests/codegen/initnestedalign.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/initnestedalign.exe
 '' EXPECT-RUN-EXIT: 0

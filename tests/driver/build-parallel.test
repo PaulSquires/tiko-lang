@@ -2,8 +2,8 @@
 '' cache, both roots go to child tikos, which store them; this build links the entries. -v
 '' says so; the program runs.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bpj/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bpj/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bpj
 '' COPY: tests/driver/src/unitcache => build/.bpj/src
 '' ARGS: build -target windows-x86_64 build/.bpj/src/a.tiko build/.bpj/src/b.tiko -o build/.bpj/app.exe -j 4 -v

@@ -43,7 +43,7 @@
 # declaration has to report what the call is about to push rather than assume it.
 # lowercall.tiko says so in its own comment and is the model.
 #
-# MEASURE IT THE WAY THIS SCRIPT DOES -- '-i <corpus>/fbcunit/inc' AND TKO_INCLUDE set.
+# MEASURE IT THE WAY THIS SCRIPT DOES -- '-i <corpus>/fbcunit/inc' AND TIKO_INCLUDE set.
 # Both matter and each was got wrong once while deriving the old family list: without
 # the first, fbcunit does not expand and six unrelated 'f4' collapse onto one name;
 # without the second, four files fail that do not fail here. A count taken with a
@@ -89,13 +89,13 @@ FBCUNIT=""
 # tiko-lang ships no headers, so its default include directory does not exist in a source
 # tree. 144 corpus files include a real FreeBASIC runtime header; without a header set
 # they fail at their first line and every number after that is measured against files
-# that could not open their own dependencies. TKO_INCLUDE is the driver's own override,
+# that could not open their own dependencies. TIKO_INCLUDE is the driver's own override,
 # so this is the same shape as the -i above: a HARNESS fact, not a compiler one.
 # The packaged toolchain's headers -- the full set a user has -- not fbc-modern's.
-TKOINC=${TKO_INCLUDE:-$ROOT/toolchains/tiko-windows/inc}
+TKOINC=${TIKO_INCLUDE:-$ROOT/toolchains/tiko-windows/inc}
 if [ -d "$TKOINC" ]; then
-    TKO_INCLUDE="$TKOINC"
-    export TKO_INCLUDE
+    TIKO_INCLUDE="$TKOINC"
+    export TIKO_INCLUDE
 else
     echo "mirsweep: no runtime headers at $TKOINC -- 144 files will fail on #include" >&2
 fi
@@ -178,7 +178,7 @@ xargs -a build/.corpus.lst -d '
 ' -P "$JOBS" -I{} sh -c '
     key=$(printf %s "$1" | tr -c "A-Za-z0-9._-" "_")
     raw=build/.mirparts/$key.raw
-    TKO_TRACE_SKIP=1 ./bin/tiko.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
+    TIKO_TRACE_SKIP=1 ./bin/tiko.exe --dump-ir '"$FBCUNIT"' "$1" > "$raw" 2>&1 || true
     grep -E "^(lowered|verify):|^  unlowered |^  inside |^  skip-site |^  amb|^  var " \
         "$raw" > "build/.mirparts/$key" || true
     grep -E "^SKIP " "$raw" | sed "s/.* at //" > "build/.skipparts/$key" || true

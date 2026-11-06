@@ -4,7 +4,7 @@
 '' only; the same source runs on Linux.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt tests/codegen/src/std-tls.tiko -o tests/codegen/stdtls.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdtls.exe
 '' RUN: tests/codegen/stdtls.exe

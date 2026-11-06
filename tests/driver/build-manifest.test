@@ -4,8 +4,8 @@
 '' which still returns 42 (a module never sees a root's defines). --manifest names the
 '' package: the fixture is copied under build/ so out/ lands there.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bmf/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.bmf/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bmf
 '' COPY: tests/driver/src/build-pkg => build/.bmf/pkg
 '' ARGS: build -target windows-x86_64 --manifest build/.bmf/pkg --message-format json

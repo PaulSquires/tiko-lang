@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/filesystem/fsvolume.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/filesystem/fsvolume.bas -o tests/std/filesystem/fsvolume.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/filesystem/fsvolume.exe
 '' Host-dependent: the assert count follows the machine's volumes (five per drive).

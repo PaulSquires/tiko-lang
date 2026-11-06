@@ -1,8 +1,8 @@
 '' 'tiko run' RUNS THE FIRST copy_to COPY: the program reads app.ini from its own directory, and
 '' only dist/ has one -- the original in out/debug/ would fail to open it.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.brc/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=build/.brc/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.brc
 '' COPY: tests/driver/src/build-copyto => build/.brc/pkg
 '' ARGS: run -target windows-x86_64 --manifest build/.brc/pkg --message-format json

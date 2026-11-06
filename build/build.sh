@@ -3,10 +3,10 @@
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 #   build/build.sh [Release|MinSizeRel] --dll
-#   TKO_SEED=<tkEdit's compiler> build/build.sh Release --lib
+#   TIKO_SEED=<tkEdit's compiler> build/build.sh Release --lib
 #
 # A compiler build also builds the editor's bin/parser.dll and copies it beside tkEdit
-# ($TKO_EDITOR_DIR, default tkedit/bin in this tree), which loads it from there. '--no-dll'
+# ($TIKO_EDITOR_DIR, default tkedit/bin in this tree), which loads it from there. '--no-dll'
 # skips both; '--dll' builds the DLL alone.
 #
 # The Windows peer is build/build.bat and is kept line-for-line analogous.
@@ -36,7 +36,7 @@ done
 # FBC CANNOT BUILD THIS TREE ANY MORE: tiko-lang's source imports std/containers and std/fs
 # (2026-10-10), and fbc has no modules. '--oracle' -- fbc building the compiler, for the
 # bootstrap plan's V5 -- ended with seed-3, whose V5 was the last; MinSizeRel was fbc's gcc
-# backend and went with it. fbc stays the ORACLE of the comparison scripts (TKO_ORACLE_FBC),
+# backend and went with it. fbc stays the ORACLE of the comparison scripts (TIKO_ORACLE_FBC),
 # which compile test programs, never this tree.
 if [ "$ORACLE" = "1" ] || [ "$CFG" = "MinSizeRel" ]; then
     echo "build: --oracle and MinSizeRel built the compiler with fbc, which cannot build it since" >&2
@@ -60,14 +60,14 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) DLLEXT=.dll ;; Darwin) DLLEXT=.dylib
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
 #
 # THE SEED IS STAGE0: a tiko -- seed/seed.lock pins the one releases are built from:
-#   TKO_SEED=<path to a tiko executable>   that tiko;
+#   TIKO_SEED=<path to a tiko executable>   that tiko;
 #   otherwise                              build/defaultseed.sh's default_seed: the
 #                                          fetched pinned seed, else a packaged toolchain.
 #
-# '--oracle' builds with the fbc TKO_ORACLE_FBC names instead, as the ORACLE and nothing
+# '--oracle' builds with the fbc TIKO_ORACLE_FBC names instead, as the ORACLE and nothing
 # else: diverse double-compiling (the bootstrap plan's V5) builds the tree with it and
 # compares, and MinSizeRel is fbc's gcc backend. A FLAG, not the variable alone: the
-# oracle scripts read TKO_ORACLE_FBC too, and a fence that points it nowhere must not
+# oracle scripts read TIKO_ORACLE_FBC too, and a fence that points it nowhere must not
 # turn every build into an fbc build. Nothing a package ships is built this way.
 # TKO_STAGE0 WAS fbc's name until 2026-10-10, when fbc left the build path. It is ignored,
 # and said so: an old environment builds with the seed, which is what it should do.
@@ -76,30 +76,30 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) DLLEXT=.dll ;; Darwin) DLLEXT=.dylib
 # compiles it.
 . "$ROOT/build/defaultseed.sh"
 if [ -n "${TKO_STAGE0:-}" ]; then
-    echo "build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TKO_ORACLE_FBC" >&2
+    echo "build: TKO_STAGE0 is retired and ignored -- the seed is stage0; an fbc for the oracle is TIKO_ORACLE_FBC" >&2
 fi
 SEEDED=0
 if [ "$ORACLE" = "1" ]; then
-    STAGE0=${TKO_ORACLE_FBC:-}
-    [ -n "$STAGE0" ] || { echo "build: --oracle builds with the fbc TKO_ORACLE_FBC names, and it names none" >&2; exit 3; }
+    STAGE0=${TIKO_ORACLE_FBC:-}
+    [ -n "$STAGE0" ] || { echo "build: --oracle builds with the fbc TIKO_ORACLE_FBC names, and it names none" >&2; exit 3; }
 else
-    if [ -z "${TKO_SEED:-}" ]; then
-        if ! TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN"); then
+    if [ -z "${TIKO_SEED:-}" ]; then
+        if ! TIKO_SEED=$(default_seed "$ROOT" "$HOSTWIN"); then
             echo "build: no seed compiler. Fetch the pinned one (seed/fetch-seed.sh), package a" >&2
-            echo "build: toolchain (build/package.sh), or set TKO_SEED to a tiko" >&2
+            echo "build: toolchain (build/package.sh), or set TIKO_SEED to a tiko" >&2
             exit 3
         fi
     fi
     SEEDED=1
-    STAGE0=$TKO_SEED
+    STAGE0=$TIKO_SEED
 fi
 
 if [ ! -x "$STAGE0" ]; then
     echo "build: stage0 compiler not found at $STAGE0" >&2
     if [ "$SEEDED" = "1" ]; then
-        echo "build: TKO_SEED must name a tiko executable" >&2
+        echo "build: TIKO_SEED must name a tiko executable" >&2
     else
-        echo "build: TKO_ORACLE_FBC must name an fbc executable" >&2
+        echo "build: TIKO_ORACLE_FBC must name an fbc executable" >&2
     fi
     exit 3
 fi
@@ -109,23 +109,25 @@ OUTOPT="-x"
 
 # THE TREE'S OWN HEADERS, inc/ (phase H of the bootstrap plan): every stage0 compile
 # reads fb/, crt/ and the rest from here, not from whatever stage0 brought. A seed gets
-# them as TKO_INCLUDE -- its ONLY default directory then, so a header missing from inc/
+# them as TIKO_INCLUDE -- its ONLY default directory then, so a header missing from inc/
 # fails here instead of being found in the seed's copy -- and fbc as '-i inc', ahead of
-# its own. An inherited TKO_INCLUDE is overridden on purpose: a variable left over from
+# its own. An inherited TIKO_INCLUDE is overridden on purpose: a variable left over from
 # a probe must not decide what the compiler is built against.
 INCOPT=""
 if [ -d "$ROOT/inc" ]; then
     if [ "$SEEDED" = "1" ]; then
-        TKO_INCLUDE="$ROOT/inc"; export TKO_INCLUDE
+        TIKO_INCLUDE="$ROOT/inc"; export TIKO_INCLUDE
     else
         INCOPT="-i inc"
     fi
 fi
 # ...AND THE TREE'S OWN PACKAGES, pkg/: the compiler's source imports std/containers and
 # std/fs (2026-10-10), and they are the tree's, not the copy in the seed's pkg/ -- the same
-# rule as inc/. TKO_PKG is searched before the compiler's own pkg/, and its module cache is
+# rule as inc/. TIKO_PKG is searched before the compiler's own pkg/, and its module cache is
 # keyed by the sources' content, so a change to pkg/std rebuilds what imports it.
-TKO_PKG="$ROOT/pkg"; export TKO_PKG
+TIKO_PKG="$ROOT/pkg"; export TIKO_PKG
+# ...and the same again under the seed's old TKO_* names (defaultseed.sh, seed_env).
+seed_env
 
 case "$CFG" in
     Debug)          FLAGS="-g -exx -w all" ;;
@@ -167,7 +169,7 @@ if [ "$SEEDED" = "1" ]; then
         Release)        FLAGS="-O2" ;;
         MinSizeRel)
             echo "build: MinSizeRel is fbc's gcc backend (-gen gcc), which a tiko seed has not got;" >&2
-            echo "build: it is built only by an fbc ('--oracle', TKO_ORACLE_FBC), and never shipped" >&2
+            echo "build: it is built only by an fbc ('--oracle', TIKO_ORACLE_FBC), and never shipped" >&2
             exit 2 ;;
     esac
 fi
@@ -182,7 +184,7 @@ mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 
 # THE UNITS IN PARALLEL, THEN ONE LINK. A single fbc call over every source compiles them one
 # after another: measured 2026-10-05 on 8 cores, 136 s for a Debug compiler, where one 'fbc
-# -c' per unit, TKO_JOBS at a time (default: one per processor), then a link of the objects
+# -c' per unit, TIKO_JOBS at a time (default: one per processor), then a link of the objects
 # takes about 35. The same flags reach every unit and the main module still gets '-m', so
 # the program is the one the single call built -- the suite passes against it unchanged.
 #
@@ -193,7 +195,7 @@ mkdir -p "$ROOT/bin" "$ROOT/build/obj/$CFG"
 # order once all have finished; a unit that left no object fails the build.
 #
 #   compile_units <objdir> <main module or ""> <flags> <sources...>   -> $OBJS
-JOBS=${TKO_JOBS:-$(nproc 2>/dev/null || echo 4)}
+JOBS=${TIKO_JOBS:-$(nproc 2>/dev/null || echo 4)}
 compile_units( ) {
     cu_dir=$1; cu_main=$2; cu_flags=$3; shift 3
     rm -rf "$cu_dir"; mkdir -p "$cu_dir"
@@ -226,7 +228,7 @@ compile_units( ) {
 # import library bin/libparser.dll.a beside it.
 #
 # THE EDITOR LOADS IT FROM BESIDE ITS EXE, so a Windows build copies it there: tkEdit's
-# tkedit/bin, or $TKO_EDITOR_DIR (another editor, or /nonexistent for none). A failed copy is
+# tkedit/bin, or $TIKO_EDITOR_DIR (another editor, or /nonexistent for none). A failed copy is
 # a WARNING, never a failed build: the usual cause is a running editor, which holds the DLL
 # open, and the compiler that was just built is still good.
 build_dll( ) {
@@ -246,14 +248,14 @@ build_dll( ) {
         ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$DLLEXT" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
-    EDITOR=${TKO_EDITOR_DIR:-$ROOT/tkedit/bin}
+    EDITOR=${TIKO_EDITOR_DIR:-$ROOT/tkedit/bin}
     # ONLY AN OPTIMISED DLL GOES INTO THE EDITOR. A Debug build is ~44 MB, runs -O 0 frames
     # in the editor's process and overflowed its stack on deep input (audit F-53); it stays
     # in bin/. 'build/build.sh Release --dll' is the one that updates the editor.
     if [ "$CFG" = "Debug" ]; then
         echo "build: Debug parser.dll stays in bin/ -- the editor takes a Release one (build.sh Release --dll)"
     elif [ ! -d "$EDITOR" ]; then
-        echo "build: no editor at $EDITOR -- parser.dll stays in bin/ (set TKO_EDITOR_DIR)"
+        echo "build: no editor at $EDITOR -- parser.dll stays in bin/ (set TIKO_EDITOR_DIR)"
     elif cp -f "$ROOT/bin/parser.dll" "$EDITOR/parser.dll"; then
         echo "build: parser.dll -> $EDITOR"
     else
@@ -263,7 +265,7 @@ build_dll( ) {
 
 # THE EDITOR'S SCANNER AS A STATIC ARCHIVE, bin/parser_<os>_<arch>.a -- what tkEdit links in
 # (tkedit/src/svc/parser; it is one file, docs/tkEdit/SINGLE-FILE.md). The same sources and
-# flags as the DLL. BUILD IT WITH THE COMPILER THAT BUILDS tkEdit (TKO_SEED): the archive holds
+# flags as the DLL. BUILD IT WITH THE COMPILER THAT BUILDS tkEdit (TIKO_SEED): the archive holds
 # that compiler's std module objects, and at tkEdit's link each std module is ONE copy -- one
 # from another compiler would be taken silently in place of tkEdit's own.
 build_lib( ) {

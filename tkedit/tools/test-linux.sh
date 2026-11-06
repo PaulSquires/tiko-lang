@@ -24,7 +24,7 @@ copy() {     # copy <from> <to>
 copy "$SRC" "$E"
 mkdir -p "$E/bin"
 export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal LD_LIBRARY_PATH=$LIB
-export TKO_MODCACHE=$W/modcache
+export TIKO_MODCACHE=$W/modcache
 bad=0
 
 build() {    # build <package dir>
@@ -56,7 +56,7 @@ fi
 parserlib() {
     local lib=$SRC/../bin/parser_linux_x86_64.a
     if ! { [ -f "$lib" ] && [ "$lib" -nt "$TIKO" ]; }; then
-        ( cd "$SRC/.." && TKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$W/parserlib.log" 2>&1 \
+        ( cd "$SRC/.." && TIKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$W/parserlib.log" 2>&1 \
             || { echo "parser library: BUILD FAILED ($W/parserlib.log)"; bad=$((bad+1)); return 1; }
     fi
     mkdir -p "$W/bin" && cp -f "$lib" "$W/bin/"

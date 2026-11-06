@@ -15,12 +15,12 @@ if [ -z "${TIKO:-}" ]; then
     TIKO=$TREE/bin/tiko
     [ -x "$TIKO" ] || TIKO=$TREE/toolchains/tiko-macos/bin/tiko
 fi
-export TKO_PKG=${TKO_PKG:-$TREE/pkg}
+export TIKO_PKG=${TIKO_PKG:-$TREE/pkg}
 # a tree-built compiler links against the toolchain's libraries, which it does not find alone
-if [ -z "${TKO_LIBPATH:-}" ] && [ -d "$TREE/toolchains/tiko-macos/lib/macos-arm64" ]; then
-    export TKO_LIBPATH=$TREE/toolchains/tiko-macos/lib/macos-arm64
+if [ -z "${TIKO_LIBPATH:-}" ] && [ -d "$TREE/toolchains/tiko-macos/lib/macos-arm64" ]; then
+    export TIKO_LIBPATH=$TREE/toolchains/tiko-macos/lib/macos-arm64
 fi
-export TKO_MODCACHE=${TKO_MODCACHE:-$ROOT/out/modcache}
+export TIKO_MODCACHE=${TIKO_MODCACHE:-$ROOT/out/modcache}
 names=("$@")
 if [ ${#names[@]} -eq 0 ]; then
     for d in "$ROOT"/*/; do [ -f "$d/selftest.tiko" ] && names+=("$(basename "$d")"); done

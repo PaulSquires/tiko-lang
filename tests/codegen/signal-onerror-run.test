@@ -3,7 +3,7 @@
 '' and lowers its re-entry guard first. (fbc-modern loops on "before" here until it crashes.)
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/signal-onerror.bas -o tests/codegen/signalonerror.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/signalonerror.exe
 '' EXPECT-RUN-EXIT: 3

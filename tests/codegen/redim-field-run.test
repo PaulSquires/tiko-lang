@@ -3,7 +3,7 @@
 '' variable of the type's scope with no storage, and indexing it faulted. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/redim-field.bas -o tests/codegen/redimfield.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/redimfield.exe
 '' EXPECT-RUN-EXIT: 0

@@ -3,7 +3,7 @@
 '' model checks.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-p1.tiko -o tests/codegen/stdcontp1.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdcontp1.exe
 '' RUN: tests/codegen/stdcontp1.exe

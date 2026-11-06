@@ -33,17 +33,17 @@
 # criterion is the fixpoint at -O0 AND -O2. --stage1 skips the stage0 build and
 # uses the given compiler. --target defaults to the host's default target.
 #
-# Headers: the tree's own inc/ (phase H), else the seed's, or TKO_BOOT_INC. Libraries: per target below, or TKO_BOOT_LIBDIRS (space-separated).
-# TKO_LIBPATH and TKO_INCLUDE from the caller are NOT inherited: a variable exported
+# Headers: the tree's own inc/ (phase H), else the seed's, or TIKO_BOOT_INC. Libraries: per target below, or TIKO_BOOT_LIBDIRS (space-separated).
+# TIKO_LIBPATH and TIKO_INCLUDE from the caller are NOT inherited: a variable exported
 # for some earlier probe would otherwise decide what this links (see Learnings).
 #
 # Everything lands in build/.bootstrap/, which is cleared first: a stage binary
 # left by an earlier run would compare equal to itself and prove nothing.
 #
-# STAGE0 IS A SEED: '--seed <tiko>' (or TKO_SEED), else build/defaultseed.sh's pick --
+# STAGE0 IS A SEED: '--seed <tiko>' (or TIKO_SEED), else build/defaultseed.sh's pick --
 # a packaged tiko, where FBC-Modern was until 2026-10-10; nothing here runs or reads fbc.
 # (Diverse double-compiling, which does build with fbc, is the bootstrap plan's
-# scripts/ddc.sh, through build.sh's TKO_ORACLE_FBC.) The seed builds stage1 with EXACTLY
+# scripts/ddc.sh, through build.sh's TIKO_ORACLE_FBC.) The seed builds stage1 with EXACTLY
 # the command stage1 builds stage2 with, so a fifth assertion holds and is checked:
 # stage1 == stage2 -- a correct tiko of commit X reproduces X's compiler on its first
 # step (measured, tiko-bootstrap VERIFICATION.md). Headers and libraries default to
@@ -68,36 +68,36 @@ while [ $# -gt 0 ]; do
         -O[0-3])  OPT="$1" ;;
         --target) shift; TARGET="$1" ;;
         --stage1) shift; STAGE1="$1" ;;
-        --seed)   shift; TKO_SEED="$1" ;;
+        --seed)   shift; TIKO_SEED="$1" ;;
         --gate)   GATE=1 ;;
         *) echo "bootstrap: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
 done
 
-# THE SEED IS STAGE0, as in build.sh: TKO_SEED or --seed, else build/defaultseed.sh's pick.
+# THE SEED IS STAGE0, as in build.sh: TIKO_SEED or --seed, else build/defaultseed.sh's pick.
 # TKO_STAGE0 -- fbc, until 2026-10-10 -- is ignored, and said so.
 . "$ROOT/build/defaultseed.sh"
 [ -z "${TKO_STAGE0:-}" ] || echo "bootstrap: TKO_STAGE0 is retired and ignored -- the seed is stage0" >&2
-if [ -z "${TKO_SEED:-}" ]; then
-    TKO_SEED=$(default_seed "$ROOT" "$HOSTWIN") || {
+if [ -z "${TIKO_SEED:-}" ]; then
+    TIKO_SEED=$(default_seed "$ROOT" "$HOSTWIN") || {
         echo "bootstrap: no seed compiler -- seed/fetch-seed.sh, or --seed <tiko>" >&2; exit 3; }
 fi
-[ -x "$TKO_SEED" ] || { echo "bootstrap: no seed compiler at $TKO_SEED (a tiko executable)" >&2; exit 3; }
-export TKO_SEED
+[ -x "$TIKO_SEED" ] || { echo "bootstrap: no seed compiler at $TIKO_SEED (a tiko executable)" >&2; exit 3; }
+export TIKO_SEED
 # The toolchain directory: tiko.exe sits at its top on Windows, bin/tiko below it on Linux.
-SEEDDIR=$(dirname "$TKO_SEED")
+SEEDDIR=$(dirname "$TIKO_SEED")
 [ -d "$SEEDDIR/inc" ] || SEEDDIR=$(dirname "$SEEDDIR")
 
-if [ -z "$TKO_BOOT_INC" ]; then
+if [ -z "$TIKO_BOOT_INC" ]; then
     # The tree's own headers first (phase H) -- what build.sh builds stage1 against too.
     if [ -d "$ROOT/inc" ]; then
-        TKO_BOOT_INC="$ROOT/inc"
+        TIKO_BOOT_INC="$ROOT/inc"
     else
-        TKO_BOOT_INC="$SEEDDIR/inc"
+        TIKO_BOOT_INC="$SEEDDIR/inc"
     fi
 fi
-[ -d "$TKO_BOOT_INC" ] || { echo "bootstrap: no header directory $TKO_BOOT_INC (set TKO_BOOT_INC)" >&2; exit 3; }
+[ -d "$TIKO_BOOT_INC" ] || { echo "bootstrap: no header directory $TIKO_BOOT_INC (set TIKO_BOOT_INC)" >&2; exit 3; }
 
 if [ -z "$TARGET" ]; then
     if [ "$HOSTWIN" = "1" ]; then TARGET="windows-x86_64"
@@ -111,39 +111,41 @@ fi
 # tree's compiler and is given $TARGET.
 SEED_TARGET=$TARGET
 if [ "$TARGET" = "windows-x86_64" ] && \
-   [ "$("$TKO_SEED" --version 2>/dev/null | sed -n 's/^target \([^,]*\),.*/\1/p')" = "win64-msvc" ]; then
+   [ "$("$TIKO_SEED" --version 2>/dev/null | sed -n 's/^target \([^,]*\),.*/\1/p')" = "win64-msvc" ]; then
     SEED_TARGET=win64-msvc
 fi
-if [ -z "$TKO_BOOT_LIBDIRS" ]; then
+if [ -z "$TIKO_BOOT_LIBDIRS" ]; then
     # The seed's runtime and import libraries, and for win64 the MinGW runtime beside
     # them where the seed ships one.
-    TKO_BOOT_LIBDIRS="$SEEDDIR/lib/$SEED_TARGET"
-    [ -d "$SEEDDIR/lib/$SEED_TARGET-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $SEEDDIR/lib/$SEED_TARGET-fb"
+    TIKO_BOOT_LIBDIRS="$SEEDDIR/lib/$SEED_TARGET"
+    [ -d "$SEEDDIR/lib/$SEED_TARGET-fb" ] && TIKO_BOOT_LIBDIRS="$TIKO_BOOT_LIBDIRS $SEEDDIR/lib/$SEED_TARGET-fb"
 fi
-if [ -z "$TKO_BOOT_LIBDIRS" ]; then
+if [ -z "$TIKO_BOOT_LIBDIRS" ]; then
     case "$TARGET" in
-        windows-x86_64) TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/windows-x86_64" ;;
+        windows-x86_64) TIKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/windows-x86_64" ;;
         # MinGW needs its CRT objects beside the runtime; see cmdline.tiko.
-        win64)        TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64"
-                      [ -d "$ROOT/toolchains/tiko-windows/lib/win64-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
-        linux-x86_64) TKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/linux-x86_64" ;;
-        macos-arm64)  TKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/macos-arm64" ;;
+        win64)        TIKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64"
+                      [ -d "$ROOT/toolchains/tiko-windows/lib/win64-fb" ] && TIKO_BOOT_LIBDIRS="$TIKO_BOOT_LIBDIRS $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
+        linux-x86_64) TIKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/linux-x86_64" ;;
+        macos-arm64)  TIKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/macos-arm64" ;;
         *) echo "bootstrap: unknown target '$TARGET'" >&2; exit 2 ;;
     esac
 fi
 LIBP=""
-for d in $TKO_BOOT_LIBDIRS; do
-    [ -d "$d" ] || { echo "bootstrap: no library directory $d (set TKO_BOOT_LIBDIRS)" >&2; exit 3; }
+for d in $TIKO_BOOT_LIBDIRS; do
+    [ -d "$d" ] || { echo "bootstrap: no library directory $d (set TIKO_BOOT_LIBDIRS)" >&2; exit 3; }
     LIBP="$LIBP -p $d"
 done
 
-unset TKO_LIBPATH
-TKO_INCLUDE="$TKO_BOOT_INC"
-export TKO_INCLUDE
+unset TIKO_LIBPATH
+TIKO_INCLUDE="$TIKO_BOOT_INC"
+export TIKO_INCLUDE
 # THE TREE'S std MODULES: the compiler's source imports std/containers and std/fs (2026-10-10),
 # and they are the tree's pkg/, as inc/ is -- never the seed's copy.
-TKO_PKG="$ROOT/pkg"
-export TKO_PKG
+TIKO_PKG="$ROOT/pkg"
+export TIKO_PKG
+# ...and the same again under the seed's old TKO_* names (defaultseed.sh, seed_env).
+seed_env
 
 SOURCES=$(grep -v '^[[:space:]]*#' build/sources.txt | grep -v '^[[:space:]]*$')
 NMOD=$(echo "$SOURCES" | wc -l | tr -d ' ')
@@ -158,7 +160,7 @@ say( ) { echo "bootstrap: $*"; }
 fail( ) { echo "bootstrap: FAILED -- $*" >&2; exit 1; }
 size_of( ) { wc -c < "$1" | tr -d ' '; }
 
-say "target $TARGET ${OPT:--O0}, $NMOD modules, headers $TKO_BOOT_INC"
+say "target $TARGET ${OPT:--O0}, $NMOD modules, headers $TIKO_BOOT_INC"
 
 # ------------------------------------------------------------------ stages
 build_stage( ) {
@@ -166,7 +168,7 @@ build_stage( ) {
     ts=$(now)
     # EACH STAGE COMPILES THE std MODULES ITSELF, into a cache of its own: one shared cache
     # would hand stage2 the objects stage1 made, and stage2 == stage3 would not cover them.
-    TKO_MODCACHE="$OUT/$2.modcache" "$1" $SOURCES -m "$MAINMOD" -i src -target "$3" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
+    TIKO_MODCACHE="$OUT/$2.modcache" TIKO_MODCACHE="$OUT/$2.modcache" "$1" $SOURCES -m "$MAINMOD" -i src -target "$3" $OPT $LIBP -o "$OUT/$2/tiko$EXT" \
         > "$OUT/$2.log" 2>&1 || { cat "$OUT/$2.log" >&2; fail "$2 did not build"; }
     [ -f "$OUT/$2/tiko$EXT" ] || fail "$2 reported success and wrote no compiler"
     # A build that says nothing is the only acceptable one: a warning in the
@@ -186,7 +188,7 @@ if [ -n "$STAGE1" ]; then
     say "stage1  $STAGE1"
 else
     # stage1 BY THE SEED, with stage2's own command -- see the header.
-    build_stage "$TKO_SEED" stage1 "$SEED_TARGET"
+    build_stage "$TIKO_SEED" stage1 "$SEED_TARGET"
     if [ "$GATE" = "1" ]; then
         # --gate runs the suite, which needs a runner: the seed builds that too.
         sh build/build.sh Debug --test-runner --no-dll > "$OUT/runner.log" 2>&1 || { cat "$OUT/runner.log" >&2; fail "the seed could not build the test runner"; }
@@ -197,7 +199,7 @@ S1="$OUT/stage1/tiko$EXT"
 # -------------------------------------------- 1. every statement lowers
 # One invocation over every module: 92 processes would re-read the shared headers
 # 92 times. Only the summary lines are kept; the IR itself is tens of megabytes.
-TKO_MODCACHE="$OUT/lowered.modcache" "$S1" --dump-ir -target "$TARGET" -i src $SOURCES 2>&1 | grep -E '^(lowered|verify):' > "$OUT/lowered.txt" || true
+TIKO_MODCACHE="$OUT/lowered.modcache" "$S1" --dump-ir -target "$TARGET" -i src $SOURCES 2>&1 | grep -E '^(lowered|verify):' > "$OUT/lowered.txt" || true
 NLOW=$(grep -c '^lowered:' "$OUT/lowered.txt" || true)
 NVER=$(grep -c '^verify: ok' "$OUT/lowered.txt" || true)
 NDEC=$(grep '^lowered:' "$OUT/lowered.txt" | grep -vc ' 0 statements not lowered' || true)
@@ -236,7 +238,7 @@ EOF
 "$OUT/stage3/tiko$EXT" "$OUT/hello/hello.tiko" -target "$TARGET" $LIBP -o "$OUT/hello/hello3$EXT" \
     > "$OUT/hello/build3.log" 2>&1 || { cat "$OUT/hello/build3.log" >&2; fail "stage3 could not build hello.tiko"; }
 "$OUT/hello/hello3$EXT" > "$OUT/hello/out3.txt" 2>&1 || fail "stage3's hello did not run"
-( cd "$OUT/hello" && "$TKO_SEED" hello.tiko -target "$SEED_TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.tiko"
+( cd "$OUT/hello" && "$TIKO_SEED" hello.tiko -target "$SEED_TARGET" $LIBP -o "hello0$EXT" > build0.log 2>&1 ) || fail "the seed could not build hello.tiko"
 "$OUT/hello/hello0$EXT" > "$OUT/hello/out0.txt" 2>&1 || fail "the seed's hello did not run"
 cmp -s "$OUT/hello/out0.txt" "$OUT/hello/out3.txt" || fail "stage3's hello prints '$(cat "$OUT/hello/out3.txt")', the seed's '$(cat "$OUT/hello/out0.txt")'"
 say "stage3  builds hello.tiko, and it prints what the seed's build prints"
@@ -244,12 +246,12 @@ say "stage3  builds hello.tiko, and it prints what the seed's build prints"
 # ------------------------------------------------- 4. the suite, both ways
 if [ "$GATE" = "1" ]; then
     [ -x "bin/tiko-test$EXT" ] || fail "--gate needs bin/tiko-test$EXT (build.sh Debug --test-runner)"
-    unset TKO_INCLUDE
+    unset TIKO_INCLUDE
     # THE PACKAGE TREE, NAMED: a stage lives in build/.bootstrap/stageN/, where its
     # default '<exe-dir>/../pkg' is no package tree, so every '#import "std/..."' test --
     # 23 of them -- failed on both sides alike and the comparison could see none of them.
     # Measured 2026-10-09: with it, stage2 passes the whole suite.
-    TKO_PKG="$ROOT/pkg"; export TKO_PKG
+    TIKO_PKG="$ROOT/pkg"; export TIKO_PKG
     sh build/test.sh --no-build --tiko-lang "$S1" > "$OUT/gate1.log" 2>&1 || true
     sh build/test.sh --no-build --tiko-lang "$OUT/stage2/tiko$EXT" > "$OUT/gate2.log" 2>&1 || true
     grep '^FAIL ' "$OUT/gate1.log" | sort > "$OUT/fail1.txt" || true

@@ -1,9 +1,9 @@
 '' NO 'link' (RFC-0002 V5): no TIKO_LINK_* anywhere, and the package's own '#else' decides --
 '' alpha's is dynamic. Its header, re-read by the importer, sees no mode either.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_PKG=build/.vlo/pkg
-'' ENV: TKO_MODCACHE=build/.vlo/mc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_PKG=build/.vlo/pkg
+'' ENV: TIKO_MODCACHE=build/.vlo/mc
 '' CLEAN: build/.vlo
 '' COPY: tests/modules/src/vlink/pkg => build/.vlo/pkg
 '' STEP: -target windows-x86_64 -lib tests/modules/src/vlink/libsrc/alpha_static.tiko -o build/.vlo/pkg/vendor/alpha/lib/alpha_windows_x86_64.a

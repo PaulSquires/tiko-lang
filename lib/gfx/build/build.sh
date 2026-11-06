@@ -23,7 +23,7 @@
 # THE COMPILER IS TIKO (bootstrap plan, phase G, 2026-10-10): the tree's bin/tiko, or
 # TKOGFX_TIKO, which targets windows-x86_64 itself -- one step, no clang retarget. Measured
 # when it changed: the same 368 functions and the same 83 public symbols as fbc's build.
-# An fbc builds it only as the ORACLE, when TKO_ORACLE_FBC names one -- to tell a
+# An fbc builds it only as the ORACLE, when TIKO_ORACLE_FBC names one -- to tell a
 # library difference from a compiler difference; nothing shipped is built that way. That
 # fbc must understand -z msvc (fbc-modern's working tree, 2026-09-05 or later): without it
 # fbc emits the gnu triple and builds the wrong ABI without saying so, so that path
@@ -57,25 +57,25 @@ case "$(uname -s)" in
 esac
 TARGETS=${*:-$HOSTTARGET}
 
-if [ -n "${TKO_ORACLE_FBC:-}" ]; then
-    FBC=$TKO_ORACLE_FBC
-    [ -x "$FBC" ] || die "no fbc at $FBC (TKO_ORACLE_FBC)"
-    CLANG=${CLANG:-${TKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}}
+if [ -n "${TIKO_ORACLE_FBC:-}" ]; then
+    FBC=$TIKO_ORACLE_FBC
+    [ -x "$FBC" ] || die "no fbc at $FBC (TIKO_ORACLE_FBC)"
+    CLANG=${CLANG:-${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}}
     [ -x "$CLANG" ] || die "no clang at $CLANG (set CLANG)"
 else
     TIKO=${TKOGFX_TIKO:-"$GFX_ROOT/../../bin/tiko$EXE"}
     [ -x "$TIKO" ] || die "no tiko at $TIKO -- build the compiler first (build/build.sh), or set TKOGFX_TIKO"
 fi
-AR=${TKOGFX_AR:-${TKO_AR:-${TKORT_AR:-${LLVMBIN:+${LLVMBIN}llvm-ar}}}}
+AR=${TKOGFX_AR:-${TIKO_AR:-${TKORT_AR:-${LLVMBIN:+${LLVMBIN}llvm-ar}}}}
 [ -n "$AR" ] || AR=$(command -v llvm-ar 2>/dev/null || echo "C:/Program Files/LLVM/bin/llvm-ar.exe")
 [ -x "$AR" ] || die "no llvm-ar at $AR (set TKOGFX_AR)"
-NM=${TKO_NM:-${TKORT_NM:-${LLVMBIN:+${LLVMBIN}llvm-nm}}}
+NM=${TIKO_NM:-${TKORT_NM:-${LLVMBIN:+${LLVMBIN}llvm-nm}}}
 [ -n "$NM" ] || NM=$(command -v llvm-nm 2>/dev/null || echo "C:/Program Files/LLVM/bin/llvm-nm.exe")
-[ -x "$NM" ] || die "no llvm-nm at $NM (set TKO_NM) -- the archive's entry points are counted with it"
+[ -x "$NM" ] || die "no llvm-nm at $NM (set TIKO_NM) -- the archive's entry points are counted with it"
 
 # -z msvc, or nothing -- the fbc path only. Probed rather than assumed.
 mkdir -p "$GFX_ROOT/obj"
-if [ -n "${TKO_ORACLE_FBC:-}" ]; then
+if [ -n "${TIKO_ORACLE_FBC:-}" ]; then
     printf 'end 0\n' > "$GFX_ROOT/obj/.zprobe.bas"
     if "$FBC" -c -gen llvm -z msvc -m zprobe "$GFX_ROOT/obj/.zprobe.bas" -o "$GFX_ROOT/obj/.zprobe.o" 2>&1 | grep -q 'Invalid command-line option'; then
         die "$FBC does not understand -z msvc -- it takes an fbc built from a working tree, 2026-09-05 or later"
@@ -96,7 +96,7 @@ for target in $TARGETS; do
         windows-x86_64|linux-x86_64|macos-arm64) ;;
         *) die "unsupported target '$target' (windows-x86_64, linux-x86_64, macos-arm64)" ;;
     esac
-    if [ -n "${TKO_ORACLE_FBC:-}" ] && [ "$target" != "windows-x86_64" ]; then
+    if [ -n "${TIKO_ORACLE_FBC:-}" ] && [ "$target" != "windows-x86_64" ]; then
         die "the fbc oracle builds windows-x86_64 only, not '$target'"
     fi
 
@@ -122,7 +122,7 @@ for target in $TARGETS; do
     # inc/, ahead of fbc's own. Without it they came from fbc-modern's src/inc.
     GFXINC=""
     [ -d "$GFX_ROOT/../../inc" ] && GFXINC="-i $(cd "$GFX_ROOT/../../inc" && pwd)"
-    if [ -z "${TKO_ORACLE_FBC:-}" ]; then
+    if [ -z "${TIKO_ORACLE_FBC:-}" ]; then
         # tiko: one step, for any of the three targets. '-O s' is not tiko's; MinSizeRel is -O2.
         TOPT=$OPT; [ "$TOPT" = "s" ] && TOPT=2
         # --keep-temps leaves all.o.ll, which the function count below reads, as fbc's

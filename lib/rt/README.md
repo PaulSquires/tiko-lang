@@ -58,7 +58,7 @@ to it.
 | tiko | the tree's `bin/tiko` (`build/build.sh`) — override with `TKORT_TIKO` |
 | clang 18+ | on `PATH`; tiko hands it the emitted IR, and the C residue is compiled with it |
 | llvm-ar, llvm-nm | on `PATH` (D13: the toolchain is 100% LLVM) |
-| FBC-Modern | the ORACLE scripts only (`gate.sh`, `diff.sh`, ...; `build/oracle.sh`): `C:\dev\fbc-modern`, or `TKO_ORACLE_FBC` / `FBC_TREE`. Without it they skip |
+| FBC-Modern | the ORACLE scripts only (`gate.sh`, `diff.sh`, ...; `build/oracle.sh`): `C:\dev\fbc-modern`, or `TIKO_ORACLE_FBC` / `FBC_TREE`. Without it they skip |
 | make | for `gate.sh` only |
 
 ## Layout

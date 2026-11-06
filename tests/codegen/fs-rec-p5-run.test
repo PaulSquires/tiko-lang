@@ -4,7 +4,7 @@
 '' the end grows with zeros, padded records, for each, and the failures.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fs-rec-p5.tiko -o tests/codegen/fsrecp5.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsrecp5.exe
 '' RUN: tests/codegen/fsrecp5.exe

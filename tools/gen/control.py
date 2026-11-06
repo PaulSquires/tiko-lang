@@ -48,10 +48,10 @@ def main() -> int:
     env = dict(os.environ)
     used = []
     if tkotargets.FBC64_OLD.exists():
-        env["TKO_CONTROL_FBC64"] = str(tkotargets.FBC64_OLD)
+        env["TIKO_CONTROL_FBC64"] = str(tkotargets.FBC64_OLD)
         used.append("win64")
     if tkotargets.FBC32_OLD.exists():
-        env["TKO_CONTROL_FBC32"] = str(tkotargets.FBC32_OLD)
+        env["TIKO_CONTROL_FBC32"] = str(tkotargets.FBC32_OLD)
         used.append("win32")
     if not used:
         print(f"control: no other fbc at {tkotargets.TC_OLD}", file=sys.stderr)

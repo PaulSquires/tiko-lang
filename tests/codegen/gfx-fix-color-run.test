@@ -2,8 +2,8 @@
 '' See the source's header.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/gfx-fix-color.bas -o tests/codegen/gfxfixcolor.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxfixcolor.exe
 '' EXPECT-RUN-EXIT: 0

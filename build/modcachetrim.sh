@@ -25,7 +25,7 @@ WK=${TMPDIR:-/tmp}/modcachetrim.$$
 mkdir -p "$WK/acme/m"
 trap 'rm -rf "$WK"' EXIT
 cd "$WK"
-export TKO_MODCACHE="$WK/pool"
+export TIKO_MODCACHE="$WK/pool"
 P="$WK/pool"
 
 nok=0; nbad=0

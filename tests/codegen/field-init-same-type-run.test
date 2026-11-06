@@ -3,7 +3,7 @@
 '' builds the field once, not default-constructed first. fbc-modern 1.20's output; see the source.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/field-init-same-type.bas -o tests/codegen/fieldinitsame.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fieldinitsame.exe
 '' EXPECT-RUN-EXIT: 0

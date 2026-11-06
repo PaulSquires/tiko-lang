@@ -23,8 +23,8 @@
 set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-. "$(dirname "$0")/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
-FBC=${FBC:-$TKO_ORACLE_FBC}
+. "$(dirname "$0")/toolchain.sh"    # TIKO_ORACLE_FBC, TIKO_ORACLE_ROOT, TIKO_CLANG (BLD-12)
+FBC=${FBC:-$TIKO_ORACLE_FBC}
 TIKO=${TIKO:-"$ROOT/bin/tiko.exe"}
 TC="$ROOT/toolchains/tiko-windows"
 LIBS="-p $TC/lib/win64 -p $TC/lib/win64-fb"
@@ -32,7 +32,7 @@ LIBS="-p $TC/lib/win64 -p $TC/lib/win64-fb"
 die( ) { echo "crosslink: $*" >&2; exit 1; }
 note( ) { echo "crosslink: $*"; }
 
-[ -x "$FBC" ]  || { echo "crosslink: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC, or FBC)"; exit 77; }
+[ -x "$FBC" ]  || { echo "crosslink: SKIPPED -- no oracle fbc at $FBC (TIKO_ORACLE_FBC, or FBC)"; exit 77; }
 [ -x "$TIKO" ] || die "no tiko at $TIKO (set TIKO)"
 # THE PACKAGED win64 TREE FIRST, THEN THE ONE THIS CHECKOUT BUILT. package.sh stopped
 # packaging win64 on 2026-10-10, and from then this script skipped on every run while

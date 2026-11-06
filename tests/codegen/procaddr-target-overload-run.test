@@ -3,7 +3,7 @@
 '' choice and types '@f' by it; lowering reads it (overload re-pick refactor, Phase 1).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/procaddr-target-overload.bas -o tests/codegen/procaddrtargetoverload.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/procaddrtargetoverload.exe
 '' EXPECT-RUN-EXIT: 0

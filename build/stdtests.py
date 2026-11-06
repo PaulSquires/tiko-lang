@@ -388,7 +388,7 @@ def test_for(rel, base, has_mod2):
                  % (DRIVER, src, extra, exe))
     else:
         t.append("'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc %s%s -o %s" % (src, extra, exe))
-    t.append("'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64")
+    t.append("'' ENV: TIKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64")
     t.append("'' EXPECT-EXIT: %s" % kv["build"])
     if mode == "COMPILE_ONLY_FAIL":
         for ln in body.split("\n"):

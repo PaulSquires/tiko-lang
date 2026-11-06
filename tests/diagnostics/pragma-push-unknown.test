@@ -2,7 +2,7 @@
 '' fbc's own options -- msbitfields here -- stay quiet.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/diagnostics/src/pragma-push-unknown.bas -o tests/diagnostics/pragmapush.exe
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: pragma-push-unknown.bas(1,1): warning TKO0312: unknown '#pragma push( fooey )'
 '' EXPECT-OUT: pragma-push-unknown.bas(2,1): warning TKO0312: unknown '#pragma pop( fooey )'

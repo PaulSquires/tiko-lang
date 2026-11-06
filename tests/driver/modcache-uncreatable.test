@@ -1,8 +1,8 @@
 '' TKO0150: A CACHE THAT CANNOT BE MADE is a warning, and the build goes on uncached
-'' (RFC-0005 §4) -- here TKO_MODCACHE names a directory under a file.
+'' (RFC-0005 §4) -- here TIKO_MODCACHE names a directory under a file.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=tests/driver/src/modcache/app/main.bas/cache
-'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TIKO_MODCACHE=tests/driver/src/modcache/app/main.bas/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ARGS: -v -target windows-x86_64 -i tests/driver/src/modcache/libs tests/driver/src/modcache/app/main.bas -o build/.mct-uncreatable.exe
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: warning TKO0150: module cache disabled: cannot create 'tests/driver/src/modcache/app/main.bas/cache'

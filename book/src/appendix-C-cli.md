@@ -8,9 +8,9 @@ Environment variables
 
 | Variable | What it does |
 |---|---|
-| `TKO_CLANG` | Full path to `clang`. Without it tiko looks at `C:\Program Files\LLVM\bin\clang.exe` on Windows or `/usr/bin/clang` on Linux, and searches `PATH` only when that file is absent. `llvm-ar` and `llvm-rc` are taken from the same directory. |
-| `TKO_INCLUDE` | Replaces the default include directory (`<exe>/inc`). `-i` paths are searched first either way. |
-| `TKO_LIBPATH` | Replaces the bundled library directory (`<exe>/lib/<target>`). `-p` paths and `#libpath` are searched first either way. |
+| `TIKO_CLANG` | Full path to `clang`. Without it tiko looks at `C:\Program Files\LLVM\bin\clang.exe` on Windows or `/usr/bin/clang` on Linux, and searches `PATH` only when that file is absent. `llvm-ar` and `llvm-rc` are taken from the same directory. |
+| `TIKO_INCLUDE` | Replaces the default include directory (`<exe>/inc`). `-i` paths are searched first either way. |
+| `TIKO_LIBPATH` | Replaces the bundled library directory (`<exe>/lib/<target>`). `-p` paths and `#libpath` are searched first either way. |
 
 Exit codes
 
@@ -66,7 +66,7 @@ A subcommand is the first word on the command line. It builds a project from its
 | Option | What it does |
 |---|---|
 | `-i ‹dir›` | add an include search path |
-| `--pkg-dir ‹dir›` | the package tree for #import std/... is found in (else TKO_PKG, else <exe-dir>/pkg) |
+| `--pkg-dir ‹dir›` | the package tree for #import std/... is found in (else TIKO_PKG, else <exe-dir>/pkg) |
 | `-d ‹name=val›` | define a preprocessor symbol |
 | `-p ‹dir›` | add a library search path |
 | `-l ‹name›` | link against a library |

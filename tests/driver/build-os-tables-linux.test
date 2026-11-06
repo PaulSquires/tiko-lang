@@ -1,7 +1,7 @@
 '' AN OS TABLE IS READ ONLY FOR ITS OS (TK-003): a build for Linux drops [target.app.windows]'s
 '' '.rc' -- which a Linux build refuses (TKO0108) -- and takes [target.app.linux]'s define.
 '' TEST: cli
-'' ENV: TKO_MODCACHE=build/.bol/cache
+'' ENV: TIKO_MODCACHE=build/.bol/cache
 '' CLEAN: build/.bol
 '' ARGS: metadata -target linux-x86_64 --manifest tests/driver/src/build-os
 '' EXPECT-EXIT: 0
