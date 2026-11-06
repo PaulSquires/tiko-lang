@@ -32,11 +32,13 @@ sub Run( byref u as FrontUnit )
     c.root = u.root
     RecordFirstRedims_( c )
     RecordChosenOverloads_( c )
+    RecordPropertyStores_( c )       '' after it: a plain store's setter replaces the getter
     Walk_( c, u.root, TYPE_NONE )
     WalkGenericInstances_( c )     '' not in the tree -- visinst.tiko
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.
     CheckStaticStringInits( c )
+    CheckPropertyUses_( c )          '' propaccess.tiko: swap, '@' and '()' over a property
     CheckQualifiedStringInits_( c )
     CheckImplicitStructors_( c )
     CheckFixLenParams_( c )

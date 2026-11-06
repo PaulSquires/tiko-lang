@@ -1,0 +1,324 @@
+'' propaccess.tiko -- the post-Check pass: WHICH ACCESSOR a property store is judged on.
+''
+'' VISIBILITY IS PER ACCESSOR, NOT PER NAME. A getter and a setter are two procedures that
+'' share one name, and each carries its own 'private:' / 'protected:'. Resolve binds a
+'' property's member node to one symbol of the chain -- the getter where there is one -- and
+'' CheckMember_ judged that symbol for every use, so with
+''
+''     public:  declare property V( ) as long
+''     private: declare property V( byval x as long )
+''
+'' 'a.V = 3' from outside was ACCEPTED (it judged the public getter), and with the sections
+'' the other way round the public setter was REFUSED. fbc-modern 1.20 checks the accessor the
+'' statement calls: error 202, 'Illegal member access, A.V.property.set' for the first and
+'' nothing for the second, measured 2026-11-06 (docs/tiko-properties D3, D4).
+''
+'' So, before the walk: for every assignment whose target is a property, the SETTER it calls.
+'' A plain '=' calls only the setter, so it REPLACES what CheckMember_ judges (chosenFor). A
+'' compound '+=' -- a tiko extension, lowered get, operate, set -- calls both, so the setter is
+'' judged IN ADDITION to the getter (propSetFor).
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+'' The PROPERTY procedure's statement node behind a symbol, or NODE_NONE.
+private function PropProcNode_( byref c as Ctx, byval sid as SymbolId ) as NodeId
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return NODE_NONE
+    if (s->kind <> cast( uint8, SYM_PROC )) orelse (s->payload = 0) then return NODE_NONE
+    dim as NodeId pn = cast( NodeId, s->payload )
+    if c.ast->Kind( pn ) <> N_PROC then return NODE_NONE
+    if c.ast->StmtOf( pn )->op <> cast( uint16, KW_PROPERTY ) then return NODE_NONE
+    return pn
+end function
+
+'' The setter a store of 'value' with 'nIdx' indices calls: the chain from its HEAD (a name
+'' maps to its first overload, and the bound symbol may be a later one), setters only -- no
+'' result -- of the right arity, scored on the value against the LAST parameter. A tie, or
+'' nothing scorable, answers the first candidate: the access check needs AN accessor, and
+'' which overload wins is Check's and lowering's question, not this one's.
+private function StoreSetter_ _
+    ( byref c as Ctx, byval sid as SymbolId, byval nIdx as int32, _
+      byval value as NodeId ) as SymbolId
+    dim as Symbol ptr s0 = c.syms->SymbolAt( sid )
+    if s0 = nullptr then return SYMBOL_NONE
+    dim as SymbolId cur = c.syms->LookupLocal( s0->parent, s0->name )
+    if cur = SYMBOL_NONE then cur = sid
+    dim as TypeId vt = TYPE_NONE
+    if value <> NODE_NONE then vt = c.types->Unqualify( c.info->TypeOf_( value ) )
+    dim as SymbolId first_ = SYMBOL_NONE, best = SYMBOL_NONE
+    dim as int32 bestCost = Check.CONV_NONE
+    while cur <> SYMBOL_NONE
+        dim as Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = nullptr then exit while
+        dim as NodeId pn = PropProcNode_( c, cur )
+        if pn <> NODE_NONE then
+            dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
+            if pp->a = NODE_NONE then
+                dim as int32 np = 0
+                dim as TypeId lastT = TYPE_NONE
+                for i as int32 = 0 to pp->count - 1
+                    dim as NodeId prm = c.ast->ChildAt( pp->first, i )
+                    if c.ast->Kind( prm ) <> N_PARAM then continue for
+                    np += 1
+                    lastT = c.info->TypeOf_( c.ast->StmtOf( prm )->a )
+                next
+                if np = nIdx + 1 then
+                    if first_ = SYMBOL_NONE then first_ = cur
+                    if (vt <> TYPE_NONE) andalso (lastT <> TYPE_NONE) then
+                        dim as TypeId pu = c.types->Unqualify( lastT )
+                        if c.types->Kind( pu ) = TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
+                        dim as int32 cost = Check.ConversionCost( vt, pu, *c.types )
+                        if cost < bestCost then
+                            bestCost = cost
+                            best = cur
+                        end if
+                    end if
+                end if
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+    if best <> SYMBOL_NONE then return best
+    return first_
+end function
+
+private sub PutAt_( byref v as NodeIdVec, byval at as NodeId, byval sid as SymbolId )
+    while v.Count <= cast( int32, at )
+        v.Push( 0 )
+    wend
+    v[cast( int32, at )] = cast( uint32, sid )
+end sub
+
+sub RecordPropertyStores_( byref c as Ctx )
+    for i as int32 = 1 to c.ast->Count( )
+        dim as NodeId n = cast( NodeId, i )
+        if c.ast->Kind( n ) <> N_AMBIGUOUS then continue for
+        dim as StmtPayload ptr sp = c.ast->StmtOf( n )
+        if (sp->op = 0) orelse (sp->a = NODE_NONE) then continue for
+        '' 'o.P( i ) = v' is a call whose TARGET is the member, and the call's arguments are
+        '' the indices.
+        dim as NodeId mem = sp->a
+        dim as int32 nIdx = 0
+        if c.ast->Kind( mem ) = N_CALL then
+            dim as ListPayload ptr lp = c.ast->ListOf( mem )
+            mem = lp->target
+            nIdx = lp->count
+        end if
+        if mem = NODE_NONE then continue for
+        select case c.ast->Kind( mem )
+        case N_MEMBER, N_IDENT
+        case else
+            continue for
+        end select
+        dim as SymbolId bound = c.info->RefOf( mem )
+        if PropProcNode_( c, bound ) = NODE_NONE then continue for
+        dim as SymbolId setter = StoreSetter_( c, bound, nIdx, sp->b )
+        if setter = SYMBOL_NONE then continue for
+        if sp->op = cast( uint16, TK_EQ ) then
+            PutAt_( c.chosenFor, mem, setter )
+        else
+            PutAt_( c.propSetFor, mem, setter )
+        end if
+    next
+end sub
+
+'' The property an operand names -- 'o.P', 'o.P( i )', a bare 'P' -- or SYMBOL_NONE; 'nIdx'
+'' answers how many indices it was written with.
+private function PropOperand_ _
+    ( byref c as Ctx, byval e as NodeId, byref nIdx as int32 ) as SymbolId
+    nIdx = 0
+    if e = NODE_NONE then return SYMBOL_NONE
+    dim as NodeId m = e
+    if c.ast->Kind( m ) = N_CALL then
+        dim as ListPayload ptr lp = c.ast->ListOf( m )
+        m = lp->target
+        nIdx = lp->count
+        if m = NODE_NONE then return SYMBOL_NONE
+    end if
+    select case c.ast->Kind( m )
+    case N_MEMBER, N_IDENT
+    case else
+        return SYMBOL_NONE
+    end select
+    dim as SymbolId sid = c.info->RefOf( m )
+    if PropProcNode_( c, sid ) = NODE_NONE then return SYMBOL_NONE
+    return sid
+end function
+
+'' What the chain behind a property offers at 'nIdx' indices: a getter, a BYREF getter, a setter.
+private sub PropAccessors_ _
+    ( byref c as Ctx, byval sid as SymbolId, byval nIdx as int32, _
+      byref hasGet as boolean, byref byrefGet as boolean, byref hasSet as boolean )
+    hasGet = false : byrefGet = false : hasSet = false
+    dim as Symbol ptr s0 = c.syms->SymbolAt( sid )
+    if s0 = nullptr then return
+    dim as SymbolId cur = c.syms->LookupLocal( s0->parent, s0->name )
+    if cur = SYMBOL_NONE then cur = sid
+    while cur <> SYMBOL_NONE
+        dim as Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = nullptr then exit while
+        dim as NodeId pn = PropProcNode_( c, cur )
+        if pn <> NODE_NONE then
+            dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
+            dim as int32 np = 0
+            for i as int32 = 0 to pp->count - 1
+                if c.ast->Kind( c.ast->ChildAt( pp->first, i ) ) = N_PARAM then np += 1
+            next
+            if (pp->a <> NODE_NONE) andalso (np = nIdx) then
+                hasGet = true
+                '' THE DEFINITION MAY NOT REPEAT 'byref'; the declaration carries it.
+                if (c.ast->Flags( pn ) and NF_BYREF) <> 0 then byrefGet = true
+            elseif (pp->a = NODE_NONE) andalso (np = nIdx + 1) then
+                hasSet = true
+            end if
+        end if
+        cur = s->nextOverload
+    wend
+end sub
+
+'' Whether a scope -- a type's own members, not its base's -- declares an INDEXED GETTER, of any
+'' name. See D6 below: it is what fbc keys 'o.P( )' on.
+private function ScopeHasIndexedGetter_( byref c as Ctx, byval sc as ScopeId ) as boolean
+    dim as SymScope ptr scp = c.syms->ScopeAt( sc )
+    if scp = nullptr then return false
+    dim as SymbolId h = scp->firstSym
+    while h <> SYMBOL_NONE
+        dim as Symbol ptr hs = c.syms->SymbolAt( h )
+        if hs = nullptr then exit while
+        dim as SymbolId cur = h
+        while cur <> SYMBOL_NONE
+            dim as Symbol ptr s = c.syms->SymbolAt( cur )
+            if s = nullptr then exit while
+            dim as NodeId pn = PropProcNode_( c, cur )
+            if pn <> NODE_NONE then
+                dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
+                if pp->a <> NODE_NONE then
+                    for i as int32 = 0 to pp->count - 1
+                        if c.ast->Kind( c.ast->ChildAt( pp->first, i ) ) = N_PARAM then return true
+                    next
+                end if
+            end if
+            cur = s->nextOverload
+        wend
+        h = hs->nextInScope
+    wend
+    return false
+end function
+
+'' "string" or "UDT" for a value no property swap can lower, or "" for a scalar.
+private function SwapKindWord_( byref c as Ctx, byval t as TypeId ) as string
+    if t = TYPE_NONE then return ""
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    select case c.types->Kind( u )
+    case TK_POINTER, TK_ENUM, TK_PROC
+        return ""
+    case TK_BUILTIN
+        select case BuiltinClass( c.types->BuiltinOf( u ) )
+        case TC_STRING, TC_ZSTRING, TC_WSTRING, TC_USTRING
+            return "string"
+        end select
+        return ""
+    end select
+    return "UDT"
+end function
+
+'' THREE USES OF A PROPERTY THAT HAVE NO STORAGE BEHIND THEM (docs/tiko-properties):
+''
+''   D1  'swap a.P, b.P'. A scalar property is lowered get, get, set, set (lowerpropset.tiko);
+''       a string or UDT one is refused here (TKO0597), and one with no setter -- a byref
+''       getter aside, whose referent IS storage -- is TKO0680, as 'a.P = v' would be. The
+''       address-first swap used to take the GETTER'S CODE for the address, and crashed.
+''   D2  '@o.P' over a by-value getter: the address of nothing. fbc's 24; tiko answered the
+''       getter's code address and a write through it crashed. A byref getter's referent is
+''       an address, and fbc takes it.
+''   D6  'print o.P( )' over a property: fbc's 196 -- UNLESS THE SAME TYPE declares an
+''       indexed getter, of any name, when fbc accepts it and calls P's getter. Measured
+''       2026-11-06 on fbc-modern 1.20: refused over a getter alone, a get/set pair, a pair plus
+''       an indexed SETTER, and with the indexed getter in a BASE type or another type;
+''       accepted with 'property Q( byval i as long ) as long' beside P in T itself
+''       (tests/diagnostics/property-empty-parens lines 36-38 are that case). The rule is
+''       copied, not improved on: code fbc compiles keeps compiling. A STATEMENT that opens with
+''       'o.P( )' is TKO0875's (valuestmt.tiko), so a call that is a statement's own target
+''       is left to it.
+sub CheckPropertyUses_( byref c as Ctx )
+    dim as NodeIdVec stmtTarget
+    for i as int32 = 1 to c.ast->Count( )
+        dim as NodeId n = cast( NodeId, i )
+        if c.ast->Kind( n ) <> N_AMBIGUOUS then continue for
+        dim as NodeId a = c.ast->StmtOf( n )->a
+        if a <> NODE_NONE then PutAt_( stmtTarget, a, cast( SymbolId, 1 ) )
+    next
+    for i as int32 = 1 to c.ast->Count( )
+        dim as NodeId n = cast( NodeId, i )
+        dim as int32 nIdx
+        dim as boolean hasGet, byrefGet, hasSet
+        select case c.ast->Kind( n )
+        case N_INTRINSIC
+            dim as StmtPayload ptr sp = c.ast->StmtOf( n )
+            if sp->op <> cast( uint16, KW_SWAP ) then continue for
+            dim as NodeId sides(0 to 1) = { sp->a, sp->b }
+            for k as int32 = 0 to 1
+                dim as SymbolId ps = PropOperand_( c, sides(k), nIdx )
+                if ps = SYMBOL_NONE then continue for
+                PropAccessors_( c, ps, nIdx, hasGet, byrefGet, hasSet )
+                dim as string pname = c.names->Spelling( c.syms->SymbolAt( ps )->name )
+                if hasSet = false then
+                    if byrefGet then continue for
+                    dim as string shape = "a value"
+                    if nIdx > 0 then shape = nIdx & " index and a value"
+                    c.diags->Report( TKO0680, PointRange( c.ast->Loc( sides(k) ) ), pname, shape )
+                    exit for
+                end if
+                dim as string kw = SwapKindWord_( c, c.info->TypeOf_( sides(k) ) )
+                if len( kw ) > 0 then
+                    c.diags->Report( TKO0597, PointRange( c.ast->Loc( sides(k) ) ), kw, pname )
+                    exit for
+                end if
+            next
+        case N_ADDROF
+            dim as UnaryPayload ptr up = c.ast->UnaryOf( n )
+            if (up->op <> cast( uint16, TK_AT )) andalso (up->op <> cast( uint16, KW_VARPTR )) then continue for
+            dim as SymbolId ps = PropOperand_( c, up->operand, nIdx )
+            if ps = SYMBOL_NONE then continue for
+            PropAccessors_( c, ps, nIdx, hasGet, byrefGet, hasSet )
+            if (hasGet = false) orelse byrefGet then continue for
+            c.diags->Report( TKO0599, PointRange( c.ast->Loc( n ) ), _
+                             c.names->Spelling( c.syms->SymbolAt( ps )->name ) )
+        case N_CALL
+            dim as ListPayload ptr lp = c.ast->ListOf( n )
+            '' 'varptr( o.P )' IS '@o.P': a builtin call with no symbol, not an N_ADDROF.
+            if (lp->count = 1) andalso (lp->target <> NODE_NONE) then
+                if c.ast->Kind( lp->target ) <> N_IDENT then continue for
+                if c.syms->SymbolAt( c.info->RefOf( lp->target ) ) <> nullptr then continue for
+                if Tko.Text.LowerAscii( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) <> "varptr" then continue for
+                dim as SymbolId vps = PropOperand_( c, cast( NodeId, c.ast->ChildSlot( lp->first ) ), nIdx )
+                if vps = SYMBOL_NONE then continue for
+                PropAccessors_( c, vps, nIdx, hasGet, byrefGet, hasSet )
+                if (hasGet = false) orelse byrefGet then continue for
+                c.diags->Report( TKO0599, PointRange( c.ast->Loc( n ) ), _
+                                 c.names->Spelling( c.syms->SymbolAt( vps )->name ) )
+                continue for
+            end if
+            if lp->count <> 0 then continue for
+            if (cast( int32, n ) < stmtTarget.Count) andalso (stmtTarget[cast( int32, n )] <> 0) then continue for
+            dim as SymbolId ps = PropOperand_( c, n, nIdx )
+            if ps = SYMBOL_NONE then continue for
+            if ScopeHasIndexedGetter_( c, c.syms->SymbolAt( ps )->parent ) then continue for
+            c.diags->Report( TKO0859, PointRange( c.ast->Loc( n ) ), _
+                             c.names->Spelling( c.syms->SymbolAt( ps )->name ) )
+        end select
+    next
+end sub
+
+end namespace

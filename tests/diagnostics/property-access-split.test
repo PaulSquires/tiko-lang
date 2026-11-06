@@ -1,0 +1,14 @@
+'' docs/tiko-properties D3, D4: visibility is judged on the ACCESSOR a statement calls. Lines 29, 31
+'' and 34 are fbc-modern 1.20's error 202 exactly; line 33, a public setter beside a private
+'' getter, is accepted by both. 30, 32 and 35 are compound stores -- fbc's error 9 -- judged on
+'' getter and setter alike. Nothing inside the type is refused.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/property-access-split.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: property-access-split.tiko(29,3): error TKO0625
+'' EXPECT-OUT: property-access-split.tiko(30,3): error TKO0625
+'' EXPECT-OUT: property-access-split.tiko(31,3): error TKO0625
+'' EXPECT-OUT: property-access-split.tiko(32,3): error TKO0625
+'' EXPECT-OUT: property-access-split.tiko(34,9): error TKO0625
+'' EXPECT-OUT: property-access-split.tiko(35,3): error TKO0625
+'' EXPECT-MAX-DIAG: 6

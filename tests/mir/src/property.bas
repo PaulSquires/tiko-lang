@@ -6,8 +6,9 @@
 '' A bare property read declined, and a property WRITE went to the ordinary store path,
 '' which looked for a field of that name, found a procedure and declined too.
 ''
-'' 'tv.V( )' WITH parentheses already worked, because that is an ordinary call. The whole
-'' gap was the spelling without them -- which is the one properties are actually used in.
+'' 'tv.V( )' WITH parentheses is not a spelling of either: fbc refuses it (error 196) unless T
+'' declares an indexed getter, and so does tiko (TKO0859, docs/tiko-properties D6). The whole gap
+'' was the spelling without them -- which is the one properties are actually used in.
 '' 'd1.Year', 'd1.Month' and 'd1.Day' appear on one line of the chrono header, and the
 '' finance headers are built on it.
 ''
@@ -30,5 +31,4 @@ sub P( )
     dim as T tv
     dim as long n = tv.V
     tv.V = 5
-    n = tv.V( )
 end sub

@@ -1,0 +1,40 @@
+'' docs/tiko-properties D1, D2, D6 -- uses of a property with no storage behind them.
+'' REFUSED: swap over a string property (TKO0597; a scalar one is lowered, propswap-run) and over
+'' a getter-only one (TKO0680); '@' and 'varptr' of a by-value getter (TKO0599; fbc's 24 -- tiko
+'' answered the getter's code address); 'o.P( )' read in an expression (TKO0859; fbc's 196).
+'' ACCEPTED: '@' and 'varptr' of a byref getter (its referent; fbc takes it), swap through one,
+'' and 'u.G( )' over a type that ALSO declares an indexed getter -- fbc-modern 1.20 accepts that
+'' one and calls G's getter (propaccess.tiko, D6). A statement opening 'o.P( )' stays TKO0875's.
+type T
+    n as string
+    v as long
+    declare property Name( ) as string
+    declare property Name( byref s as const string )
+    declare property G( ) as long
+    declare property R( ) byref as long
+end type
+property T.Name( ) as string : return n : end property
+property T.Name( byref s as const string ) : n = s : end property
+property T.G( ) as long : return v : end property
+property T.R( ) byref as long : return v : end property
+type U
+    v as long
+    declare property G( ) as long
+    declare property Item( byval i as long ) as long
+end type
+property U.G( ) as long : return v : end property
+property U.Item( byval i as long ) as long : return v + i : end property
+dim as T a, b
+dim as U u1
+dim as long z
+swap a.Name, b.Name
+swap a.G, z
+dim as long ptr p1 = @a.G
+dim as long ptr p2 = varptr( a.G )
+print a.G( )
+z = a.G( ) + 1
+dim as long ptr p3 = @a.R
+dim as long ptr p4 = varptr( a.R )
+swap a.R, z
+z = u1.G( ) + u1.Item( 0 )
+a.G( )

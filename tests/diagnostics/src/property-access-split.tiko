@@ -1,0 +1,35 @@
+'' docs/tiko-properties D3, D4: VISIBILITY IS PER ACCESSOR. A public getter with a private setter
+'' let 'a.V = 3' through from outside (it judged the getter), and a public setter with a private
+'' getter refused the legal store. fbc-modern 1.20 checks the accessor the statement calls -- 202,
+'' 'A.V.property.set' -- measured 2026-11-06. '+=' calls both and is judged on both. Inside the
+'' type every spelling is legal.
+type A
+    v_ as long
+    declare property V( ) as long
+    declare property Item( byval i as long ) as long
+    declare property W( byval x as long )
+    declare sub Inside( )
+    private:
+    declare property V( byval x as long )
+    declare property Item( byval i as long, byval x as long )
+    declare property W( ) as long
+end type
+property A.V( ) as long : return v_ : end property
+property A.V( byval x as long ) : v_ = x : end property
+property A.Item( byval i as long ) as long : return v_ : end property
+property A.Item( byval i as long, byval x as long ) : v_ = x : end property
+property A.W( byval x as long ) : v_ = x : end property
+property A.W( ) as long : return v_ : end property
+sub A.Inside( )
+    V = 1 : V += 1 : this.V = 3 : Item( 0 ) = 4 : Item( 0 ) += 1 : W = W + 1
+end sub
+dim aa as A
+aa.Inside( )
+print aa.V
+aa.V = 3
+aa.V += 1
+aa.Item( 0 ) = 9
+aa.Item( 0 ) += 9
+aa.W = 5
+print aa.W
+aa.W += 1

@@ -1047,6 +1047,11 @@
     '' of that shape -- a getter alone, or a setter taking another number of indexes --
     '' symbols/methodassign.tiko. %1 is "a value" or "N index(es) and a value".
     DIAG( TKO0680, SEV_ERROR,   "property '%0' has no setter taking %1, so it cannot be assigned this way" )
+    '' docs/tiko-properties D1, D2, D6 -- symbols/propaccess.tiko. fbc-modern 1.20 refuses all
+    '' three shapes (99, 24, 196); tiko lowers a SCALAR property swap as get, get, set, set.
+    DIAG( TKO0597, SEV_ERROR,   "'swap' over the %0 property '%1' is not supported; swap through a temporary" )
+    DIAG( TKO0599, SEV_ERROR,   "property '%0' has no address: its getter returns a value, not a reference" )
+    DIAG( TKO0859, SEV_ERROR,   "property '%0' is read without parentheses: '()' would be an index" )
 
 #endmacro
 

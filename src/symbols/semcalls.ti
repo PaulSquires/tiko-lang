@@ -230,6 +230,8 @@ declare sub ScanReturnStyles_ _
       byref sawAssign as boolean, byval valRet as NodeId ptr = nullptr )
 declare function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as ScopeId
 declare sub RecordChosenOverloads_( byref c as Ctx )
+declare sub RecordPropertyStores_( byref c as Ctx )
+declare sub CheckPropertyUses_( byref c as Ctx )
 declare sub RecordFirstRedims_( byref c as Ctx )
 declare sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _

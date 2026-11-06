@@ -1,0 +1,65 @@
+'' docs/tiko-properties D1 and D5, RUN. 'swap' over a property segfaulted: the address-first
+'' swap took LowerAddr of the property, which is the GETTER'S CODE. It is lowered get, get, set,
+'' set (lowerpropset.tiko PropertySwap_) with each receiver and index evaluated once -- plain,
+'' mixed with a variable, indexed with a byref setter, through a pointer with a side effect, a
+'' virtual setter, an implicit-this one in a method -- and a byref getter with no setter swaps
+'' its referent. fbc-modern 1.20 refuses property swap (error 99). D5: '+=' through a byref getter
+'' with no setter stopped on TKO0994; fbc-modern accepts it.
+type Bas extends Object
+    s as long
+    a(0 to 2) as double
+    declare virtual property Size( ) as long
+    declare virtual property Size( byval v as long )
+    declare property D( byval i as long ) as double
+    declare property D( byval i as long, byref v as double )
+    declare property R( ) byref as long
+    declare sub Flip( byref o as Bas )
+end type
+property Bas.Size( ) as long : return s : end property
+property Bas.Size( byval v as long ) : s = v : end property
+property Bas.D( byval i as long ) as double : return a(i) : end property
+property Bas.D( byval i as long, byref v as double ) : a(i) = v : end property
+property Bas.R( ) byref as long : return s : end property
+sub Bas.Flip( byref o as Bas )
+    swap Size, o.Size            '' implicit this
+end sub
+type Kid extends Bas
+    declare property Size( byval v as long ) override
+end type
+property Kid.Size( byval v as long ) : s = v * 10 : end property
+
+dim shared as Bas x, y
+dim as Kid k
+function Pick( ) as Bas ptr
+    print "pick";
+    return @x
+end function
+function Idx( ) as long
+    print "idx ";
+    return 2
+end function
+x.Size = 1 : y.Size = 2
+swap x.Size, y.Size
+print x.Size; y.Size
+dim as long plain = 50
+swap plain, x.Size
+print plain; x.Size
+swap y.Size, plain
+print plain; y.Size
+x.D( 0 ) = 1.5 : x.D( 2 ) = 2.5
+swap x.D( 0 ), x.D( Idx() )
+print x.D( 0 ); x.D( 2 )
+swap Pick()->Size, y.Size
+print : print x.Size; y.Size
+dim as Bas ptr pb = @k
+k.s = 3
+swap pb->Size, x.Size          '' virtual setter: Kid's *10
+print k.s; x.Size
+x.Flip( y )
+print x.Size; y.Size
+swap x.R, y.R
+print x.Size; y.Size
+dim as long ptr q = varptr( x.R )
+*q = 77 : print x.Size
+y.R = 5 : y.R += 2
+print y.Size

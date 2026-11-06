@@ -38,8 +38,6 @@ func void P() {
     %5 = const i64 5
     %6 = trunc %5
     call void _ZN1T8V__set__Ei(@tv, %6)
-    %7 = call i32 _ZN1T8V__get__Ev(@tv)
-    store @n, %7
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
@@ -59,4 +57,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 34 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 4 functions, 4 blocks, 32 insts, 0 statements not lowered, 0 scope imbalance

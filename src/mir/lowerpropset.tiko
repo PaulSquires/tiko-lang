@@ -262,7 +262,17 @@ function PropertyCompound_ _
     if IsStringType( c, pty ) then return 0
     '' The setter, chosen by the property's own type -- the value it will be handed.
     dim as Tko.SymbolId sset = PropertyAt_( c, target, 1, self_, sFirst, sCount, target )
-    if sset = Tko.SYMBOL_NONE then return 0
+    if sset = Tko.SYMBOL_NONE then
+        '' NO SETTER, BUT A BYREF GETTER: 'vv.X += 2' is the referent's own compound
+        '' assignment, as 'vv.X = 5' is its store -- LowerAddr answers the referent. Declining
+        '' here left the statement uncompiled (TKO0994, docs/tiko-properties D5); fbc-modern
+        '' 1.20 prints the sum.
+        dim as Tko.NodeId gdn = cast( Tko.NodeId, gs->payload )
+        if (gdn <> Tko.NODE_NONE) andalso (c.ast->Kind( gdn ) = Tko.N_PROC) then
+            if (c.ast->Flags( gdn ) and Tko.NF_BYREF) <> 0 then return -1
+        end if
+        return 0
+    end if
     if (sCount <> gCount) orelse (PropIndexTypesMatch_( c, g, sset, gCount ) = false) then return 0
     dim as boolean sByref = false
     dim as Tko.TypeId spt = SetterValueParam_( c, sset, sByref )
@@ -337,5 +347,146 @@ function PropertyCompound_ _
     end if
     sargs.Push( cast( uint32, sv.kind ) ) : sargs.Push( cast( uint32, sv.id ) )
     EmitPropSetCall_( c, target, sset, self_, sargs )
+    return 1
+end function
+
+'' Whether a SWAP operand is a property with a SETTER: 'o.P', 'o.P( i )', or a bare 'P'
+'' inside a method. A byref getter with no setter is not one -- LowerAddr already answers
+'' its referent, so the ordinary address-first swap is right for it.
+private function SwapPropOperand_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    dim as Tko.NodeId m = e
+    if c.ast->Kind( m ) = Tko.N_CALL then m = c.ast->ListOf( m )->target
+    if m = Tko.NODE_NONE then return false
+    if c.ast->Kind( m ) = Tko.N_IDENT then
+        if ImplicitThisProp_( c, m ) = false then return false
+    elseif c.ast->Kind( m ) <> Tko.N_MEMBER then
+        return false
+    end if
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( m ) )
+    if s = nullptr then return false
+    if (s->kind <> cast( uint8, Tko.SYM_PROC )) orelse (s->payload = 0) then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return false
+    if StmtOf( c, pn )->op <> cast( uint16, Tko.KW_PROPERTY ) then return false
+    dim as Tko.SymbolId h = c.syms->LookupLocal( s->parent, s->name )
+    if h = Tko.SYMBOL_NONE then h = c.info->RefOf( m )
+    while h <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr q = c.syms->SymbolAt( h )
+        if q = nullptr then exit while
+        if (q->kind = cast( uint8, Tko.SYM_PROC )) andalso (q->payload <> 0) then
+            dim as Tko.NodeId qn = cast( Tko.NodeId, q->payload )
+            if c.ast->Kind( qn ) = Tko.N_PROC then
+                dim as Tko.StmtPayload ptr qp = StmtOf( c, qn )
+                if (qp->op = cast( uint16, Tko.KW_PROPERTY )) andalso (qp->a = Tko.NODE_NONE) then return true
+            end if
+        end if
+        h = q->nextOverload
+    wend
+    return false
+end function
+
+'' One side of a property swap, opened: the receiver and the indices lowered ONCE for both
+'' its getter and its setter -- or, for an ordinary lvalue, its address.
+private function SwapSideOpen_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byref isProp as boolean, _
+      byref g as Tko.SymbolId, byref s as Tko.SymbolId, byref self_ as MirValue, _
+      byref idx as containers.Array( of uint32 ), byref addr as MirValue ) as boolean
+    isProp = SwapPropOperand_( c, e )
+    if isProp = false then
+        addr = LowerAddr( c, e )
+        return (addr.kind <> cast( uint8, MV_NONE ))
+    end if
+    dim as int32 sFirst, sCount, gFirst, gCount
+    s = PropertyAt_( c, e, 1, self_, sFirst, sCount, e )
+    if s = Tko.SYMBOL_NONE then return false
+    dim as MirValue unused
+    g = PropertyAt_( c, e, 0, unused, gFirst, gCount, Tko.NODE_NONE, true )
+    if g = Tko.SYMBOL_NONE then return false
+    if (sCount <> gCount) orelse (PropIndexTypesMatch_( c, g, s, gCount ) = false) then return false
+    return PushPropIndexArgs_( c, g, gFirst, gCount, idx )
+end function
+
+'' The side's value, in its own type: the getter (a byref one answers an address), or a load.
+private function SwapSideGet_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval isProp as boolean, byval g as Tko.SymbolId, _
+      byref self_ as MirValue, byref idx as containers.Array( of uint32 ), _
+      byref addr as MirValue, byval mt as MirType ) as MirValue
+    if isProp = false then return LowerExprLoad( c, addr, mt )
+    dim as containers.Array( of uint32 ) args
+    for i as int32 = 0 to idx.Count - 1
+        args.Push( idx[i] )
+    next
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( g )
+    dim as Tko.NodeId gpn = cast( Tko.NodeId, gs->payload )
+    if (c.ast->Flags( gpn ) and Tko.NF_BYREF) <> 0 then
+        dim as MirValue gp = EmitMemberCallArgs_( c, g, self_, MT_PTR, @args, PropertyVSlot_( c, e, g ) )
+        if gp.kind = cast( uint8, MV_NONE ) then return gp
+        return LowerExprLoad( c, gp, mt )
+    end if
+    return EmitMemberCallArgs_( c, g, self_, mt, @args, PropertyVSlot_( c, e, g ) )
+end function
+
+'' Write 'v' (of frontend type 'vt') into the side: its setter, or a store.
+private function SwapSideSet_ _
+    ( byref c as Ctx, byval e as Tko.NodeId, byval isProp as boolean, byval s as Tko.SymbolId, _
+      byref self_ as MirValue, byref idx as containers.Array( of uint32 ), _
+      byref addr as MirValue, byref v as MirValue, byval vt as Tko.TypeId ) as boolean
+    if isProp = false then
+        dim as Tko.TypeId et = c.info->TypeOf_( e )
+        dim as MirValue sv = CoerceTy( c, v, LowerType( et, *c.types ), vt, et )
+        if sv.kind = cast( uint8, MV_NONE ) then return false
+        StoreThrough( c, addr, sv )
+        return true
+    end if
+    dim as boolean sByref = false
+    dim as Tko.TypeId spt = SetterValueParam_( c, s, sByref )
+    if spt = Tko.TYPE_NONE then return false
+    dim as MirType smt = LowerType( c.types->Unqualify( spt ), *c.types )
+    if (smt = MT_VOID) orelse (smt = MT_AGG) then return false
+    dim as MirValue sv = CoerceTy( c, v, smt, vt, spt )
+    if sv.kind = cast( uint8, MV_NONE ) then return false
+    if sByref then
+        dim as int32 bslot = NewTempLocal( c, smt, SizeOfType( c, c.types->Unqualify( spt ) ) )
+        if bslot < 0 then return false
+        dim as MirValue ba
+        ba.kind = cast( uint8, MV_LOCAL ) : ba.ty = cast( uint8, MT_PTR ) : ba.id = bslot
+        StoreThrough( c, ba, sv )
+        sv = ba
+    end if
+    dim as containers.Array( of uint32 ) args
+    for i as int32 = 0 to idx.Count - 1
+        args.Push( idx[i] )
+    next
+    args.Push( cast( uint32, sv.kind ) ) : args.Push( cast( uint32, sv.id ) )
+    EmitPropSetCall_( c, e, s, self_, args )
+    return true
+end function
+
+'' 'swap a.P, b.P' OVER A PROPERTY: get A, get B, set A, set B -- each receiver and index
+'' lowered once. The address-first swap took LowerAddr of the property, which is the GETTER'S
+'' CODE, and the program crashed (docs/tiko-properties D1). fbc-modern 1.20 refuses the
+'' statement (error 99); tiko lowers it, as it lowers 'b.Size += 2' (PropertyCompound_). A
+'' scalar property only: a string or UDT one is refused by Check (TKO0681) and never gets here.
+'' -1: neither side is a property, the caller carries on. 0: decline. 1: done.
+function PropertySwap_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as int32
+    dim as boolean pa = SwapPropOperand_( c, a ), pb = SwapPropOperand_( c, b )
+    if (pa = false) andalso (pb = false) then return -1
+    dim as Tko.TypeId ta = c.info->TypeOf_( a ), tb = c.info->TypeOf_( b )
+    dim as MirType ma = LowerType( ta, *c.types ), mb = LowerType( tb, *c.types )
+    if (ma = MT_VOID) orelse (ma = MT_AGG) orelse (mb = MT_VOID) orelse (mb = MT_AGG) then return 0
+    if IsStringType( c, ta ) orelse IsStringType( c, tb ) then return 0
+    dim as boolean ia, ib
+    dim as Tko.SymbolId ga, sa, gb, sb
+    dim as MirValue selfA, selfB, addrA, addrB
+    dim as containers.Array( of uint32 ) idxA, idxB
+    if SwapSideOpen_( c, a, ia, ga, sa, selfA, idxA, addrA ) = false then return 0
+    if SwapSideOpen_( c, b, ib, gb, sb, selfB, idxB, addrB ) = false then return 0
+    dim as MirValue va = SwapSideGet_( c, a, ia, ga, selfA, idxA, addrA, ma )
+    if va.kind = cast( uint8, MV_NONE ) then return 0
+    dim as MirValue vb = SwapSideGet_( c, b, ib, gb, selfB, idxB, addrB, mb )
+    if vb.kind = cast( uint8, MV_NONE ) then return 0
+    if SwapSideSet_( c, a, ia, sa, selfA, idxA, addrA, vb, tb ) = false then return 0
+    if SwapSideSet_( c, b, ib, sb, selfB, idxB, addrB, va, ta ) = false then return 0
     return 1
 end function

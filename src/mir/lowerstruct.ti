@@ -114,6 +114,8 @@ declare function IsBaseOf_ _
     declare function PropertyCompound_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
           byval bop as Tko.TokenKind ) as int32
+    declare function PropertySwap_ _
+        ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as int32
     declare function CharPtrCtorInit_ _
         ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
           byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean

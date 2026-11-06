@@ -145,10 +145,9 @@ private function AccessSymOf_( byref c as Ctx, byval id as NodeId ) as SymbolId
     return c.info->RefOf( id )
 end function
 
-private sub CheckMember_ _
-    ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+private sub CheckMemberSym_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId, byval sid as SymbolId )
 
-    dim as SymbolId sid = AccessSymOf_( c, id )
     if sid = SYMBOL_NONE then return
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
     if s = nullptr then return
@@ -178,6 +177,17 @@ private sub CheckMember_ _
         c.diags->Report( TKO0625, PointRange( c.ast->Loc( id ) ), _
                          c.names->Spelling( s->name ) )
     end if
+end sub
+
+'' The accessor a node calls, and for a COMPOUND store to a property the setter as well
+'' (propaccess.tiko) -- reported once: a getter already refused says enough.
+private sub CheckMember_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+    dim as int32 before = c.diags->ErrorCount( )
+    CheckMemberSym_( c, id, here, AccessSymOf_( c, id ) )
+    if cast( int32, id ) >= c.propSetFor.Count then return
+    if c.diags->ErrorCount( ) <> before then return
+    CheckMemberSym_( c, id, here, cast( SymbolId, c.propSetFor[cast( int32, id )] ) )
 end sub
 
 '' '.' AND '->' ARE NOT INTERCHANGEABLE. Measured, over 'x as UDT', 'p as UDT ptr' and

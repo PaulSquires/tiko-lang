@@ -78,6 +78,8 @@ end function
 function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return false
+    '' A PROPERTY ON EITHER SIDE is get, get, set, set -- never its address (lowerpropset.tiko).
+    dim as int32 psw = PropertySwap_( c, sp->a, sp->b ) : if psw >= 0 then return (psw = 1)
 
     '' AN OPERAND WITH NO ADDRESS BUT A WIDE VALUE. 'swap wstr( u1 ), wstr( u2 )' over
     '' a UDT whose 'operator cast( ) byref as wstring' hands back a uint16* is

@@ -1,0 +1,23 @@
+'' docs/tiko-properties D1 + D5, RUN: 'swap' over get/set properties -- plain, mixed with a
+'' variable, indexed with a byref setter, a receiver and an index with side effects (each once),
+'' a virtual setter through a base pointer, implicit this in a method -- and over a byref getter
+'' with no setter (its referent), then '+=' through that getter. Each segfaulted or stopped on
+'' TKO0994. fbc-modern 1.20 refuses property swap (error 99), so there is no fbc output to match:
+'' each line was checked by hand against get A, get B, set A, set B.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propswap.tiko -o tests/codegen/propswap.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propswap.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2 1
+'' EXPECT-RUN-OUT:  2 50
+'' EXPECT-RUN-OUT:  1 2
+'' EXPECT-RUN-OUT: idx  2.5 1.5
+'' EXPECT-RUN-OUT: pick
+'' EXPECT-RUN-OUT:  2 50
+'' EXPECT-RUN-OUT:  20 3
+'' EXPECT-RUN-OUT:  50 3
+'' EXPECT-RUN-OUT:  3 50
+'' EXPECT-RUN-OUT:  77
+'' EXPECT-RUN-OUT:  7

@@ -1,0 +1,17 @@
+'' docs/tiko-properties D1, D2, D6: swap over a string or getter-only property, '@' / 'varptr' of a
+'' by-value getter, and 'o.P( )' in an expression are refused -- on exactly fbc-modern 1.20's lines
+'' (99, 14, 24, 24, 196, 196, 9). The byref-getter spellings on 36-38 and 'u1.G( )' beside an
+'' indexed getter on 39 are accepted by both. TKO0830 on line 32 is Check typing '@a.G' as the
+'' getter's function pointer, as it did before this test; TKO0599 is the error that matters.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/property-uses.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: property-uses.tiko(30,7): error TKO0597
+'' EXPECT-OUT: property-uses.tiko(31,7): error TKO0680
+'' EXPECT-OUT: property-uses.tiko(32,22): error TKO0599
+'' EXPECT-OUT: property-uses.tiko(33,28): error TKO0599
+'' EXPECT-OUT: property-uses.tiko(34,10): error TKO0859
+'' EXPECT-OUT: property-uses.tiko(35,8): error TKO0859
+'' EXPECT-OUT: property-uses.tiko(40,1): error TKO0875
+'' EXPECT-OUT: property-uses.tiko(32,17): warning TKO0830
+'' EXPECT-MAX-DIAG: 8

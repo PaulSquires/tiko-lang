@@ -48,6 +48,9 @@ type Ctx
     '' The overload each CALLEE node's call chose, indexed by node id -- see
     '' RecordChosenOverloads_. Local to this pass on purpose.
     as NodeIdVec             chosenFor
+    '' The SETTER a compound assignment to a property also calls, judged beside the getter --
+    '' see RecordPropertyStores_ (propaccess.tiko). A plain '=' rewrites chosenFor instead.
+    as NodeIdVec             propSetFor
     as NodeId                root
     '' THE SYMBOL TABLE BY FOLDED NAME, for the owner-path sweeps -- see OwnerIndex.
     as OwnerIndex            owners
