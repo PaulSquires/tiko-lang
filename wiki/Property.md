@@ -36,7 +36,13 @@ statements
 
  A hidden [`This`](This) parameter having the same type as `typename` is passed to the property procedure. [`This`](This) is used to access the fields of the [`Type`](Type-Udt) or [`Class`](Class).
 
- **Note:** A standard **Property** (get & set) does not work with combination operators (as "+="). But a result byref get-**Property** (as more generally any result byref function) works with combination operators.
+ **Note:** Combination operators (as "+=", "*=", "shl=") work on a **Property** that has both a get and a set accessor: `obj.Size += 2` calls the getter, applies the operator and calls the setter, and the object and any index expression are evaluated once. On a result byref get-**Property** with no setter, they operate on the referenced variable directly.
+
+ **Note:** [`Swap`](Swap) works on a numeric or pointer **Property** with both accessors, on either side or both: it calls the two getters, then the two setters. A string or UDT **Property** cannot be swapped; swap through a temporary variable instead. A result byref get-**Property** with no setter swaps the variable it references.
+
+ **Note:** The address of a **Property** (`@obj.Size`, `VarPtr( obj.Size )`) is only available from a result byref get-**Property**, where it is the address of the referenced variable. A get-**Property** that returns a value has no address.
+
+ **Note:** The get and set accessors of one **Property** may be declared under different access sections, for example a `Public` getter and a `Private` setter. Each use is checked against the accessor it calls: an assignment against the setter, a read against the getter, a combination operator against both.
 
  **Note:** When a get-**Property** is defined with one `index` parameter, the `fieldname=` syntax can not be used to return a value. For such a get-**Property**, the `property=` syntax (in addition to the [`Return`](Return-From-Procedure) syntax) is only the one allowed.
 
