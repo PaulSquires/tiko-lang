@@ -1,0 +1,15 @@
+'' ON ELF THE LIBRARIES ARE ONE LINKER GROUP, as fbc's are -- measured, 'fbc -v' on Linux links
+'' '"-(" -lfb -lfbgfx -lX11 ... -lc "-)"'. GNU ld searches an archive once, where it appears,
+'' so libtkogfx.a (which calls into libfb.a) after libfb.a failed every Linux graphics link
+'' with 'undefined reference to fb_StrLen' (docs/graphics RFC-0012 F3). The fixture holds
+'' empty stand-ins and no fbrt0.o, so the line is printed and the link stops: exit 5 either way.
+'' TEST: cli
+'' ARGS: -v -target linux-x86_64 tests/driver/src/elf-lib-group.bas -p tests/driver/src/elfgroup -o tests/driver/src/elfgroup/never.out
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT-SEQ: -Xlinker --start-group
+'' EXPECT-OUT-SEQ: -lzzzelfgroup
+'' EXPECT-OUT-SEQ: libfb.a
+'' EXPECT-OUT-SEQ: libtkogfx.a
+'' EXPECT-OUT-SEQ: -ltinfo
+'' EXPECT-OUT-SEQ: -Xlinker --end-group
+'' EXPECT-NO-FILE: tests/driver/src/elfgroup/never.out

@@ -772,6 +772,17 @@ function LinkExe _
         cmd += " " & Q( t.libFiles[i] )
     next
 
+    '' ON ELF EVERY LIBRARY GOES IN ONE GROUP, from the user's '-l's through the system
+    '' ones, because GNU ld searches an archive ONCE, where it appears, and only for what
+    '' is undefined at that point. fbc does exactly this -- measured, 'fbc -v' on Linux
+    '' links '"-(" -lfb -lfbgfx -lX11 ... -lc "-)"'. Without it libtkogfx.a, which calls
+    '' INTO libfb.a (fb_StrLen, fb_StrCompare, ...), failed every Linux graphics link with
+    '' 'undefined reference to fb_StrLen' (RFC-0012 F3, 2026-11-05). lld never showed it --
+    '' it resolves back into archives it has already passed, which is why a cross link
+    '' from Windows linked -- and ld64 and lld-link have no groups and need none.
+    dim as boolean elfGroup = (target.objFormat = OBJ_ELF)
+    if elfGroup then cmd += " -Xlinker --start-group"
+
     for i as int32 = 0 to t.libs.Count - 1
         '' A MACOS FRAMEWORK ('#foreignlib ... "framework:Cocoa"'), which no other object format
         '' has: '-framework Cocoa' on Mach-O, nothing elsewhere -- a package guards its own.
@@ -884,9 +895,10 @@ function LinkExe _
     '' the linker's own message naming the symbol -- 'unresolved external
     '' symbol fb_GfxScreen' -- which says more than anything this could.
     ''
-    '' AFTER libfb.a, because libtkogfx calls INTO the runtime -- it shares
-    '' __fb_ctx and calls fb_End -- and an archive is searched once, where it
-    '' appears.
+    '' AFTER libfb.a, which is fbc's order ('-lfb -lfbgfx'). libtkogfx calls INTO the
+    '' runtime -- it shares __fb_ctx and calls fb_End -- so on GNU ld this order
+    '' alone would leave those calls unresolved; the ELF group above is what makes it
+    '' link. lld-link and ld64 resolve it in either order.
     for i as int32 = 0 to t.libPaths.Count - 1
         dim as string gfxLib = t.libPaths[i] & "/libtkogfx.a"
         if FileExists_( gfxLib ) then cmd += " " & Q( gfxLib )
@@ -973,6 +985,7 @@ function LinkExe _
         '' are the ordinary companions of a runtime that does arithmetic and threads.
         cmd += " -lm -lpthread -ltinfo"
     end if
+    if elfGroup then cmd += " -Xlinker --end-group"
     '' $ORIGIN, ON AN ELF LINK THAT TAKES A SHARED OBJECT (tiko-vendor RFC-0001 D1, option B):
     '' measured, a program linked against a '.so' beside it exits 127 -- ld.so looks in its
     '' own path, never beside the program -- and fbc's links do the same. With RUNPATH $ORIGIN
