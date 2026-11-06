@@ -1491,4 +1491,9 @@ sub Run _
 end sub
 #include once "symbols/resolvedump.tiko"
 
+'' WalkExpr for another unit: a generic instance's field initialiser (geninit.tiko).
+sub BindExpr_( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+    WalkExpr( c, id, scope_ )
+end sub
+
 end namespace

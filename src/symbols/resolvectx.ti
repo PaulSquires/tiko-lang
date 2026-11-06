@@ -188,6 +188,9 @@ declare function IdentNameOf _
 '' A lone non-generic procedure's pointer type, read from its declaration -- genericinfer.tiko.
 declare function ProcPtrTypeOfName_ _
     ( byref c as Ctx, byval n as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
+declare sub BindExpr_( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+declare function InstTypeReparse_( byref c as Ctx, byval gn as Tko.NodeId ) as Tko.NodeId
+declare sub InstFieldInit_( byref c as Ctx, byval fs as Tko.Symbol ptr, byval m as Tko.NodeId, byval iin as Tko.ScopeId, byval fresh as Tko.NodeId )
 declare function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 declare sub InstantiatePendingProcs_( byref c as Ctx )

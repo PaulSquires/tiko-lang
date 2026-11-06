@@ -204,6 +204,7 @@ function InstantiateGeneric_ _
 
     dim as int32 tfr = InstFrameFor_( c, id, gname, argTypes, 0 ) : c.diags->EnterInst( tfr )
     c.instDepth += 1 : c.instChain += 1  '' a field's type is one deeper -- InstDepthOk_
+    dim as Tko.NodeId freshTy = InstTypeReparse_( c, gn )   '' this instance's own initialisers (geninit.tiko)
     for i as int32 = 0 to gpCount - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->ChildSlot( gpFirst + i ) )
         if c.ast->Kind( m ) <> Tko.N_FIELD then continue for
@@ -221,6 +222,7 @@ function InstantiateGeneric_ _
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
         if fs <> nullptr then
             fs->type_ = ft
+            InstFieldInit_( c, fs, m, iin, freshTy )     '' its node and its '= value' (D10)
             '' 'private:' / 'protected:' ON AN INSTANCE'S FIELD TOO, as Collect puts them on a
             '' plain type's: without them 'a.num = 50' compiled against every std container
             '' (fbc: error 202; review LIB-04).

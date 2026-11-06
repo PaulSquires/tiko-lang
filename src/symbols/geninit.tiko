@@ -1,0 +1,87 @@
+'' geninit.tiko -- A GENERIC TYPE'S FIELD INITIALISERS, per instance (docs/tiko-properties D10).
+''
+'' An instance's field symbols were declared without their N_FIELD node, so lowering -- which
+'' finds a declared '= value' through the node (FieldInitOf_) -- found none, synthesised no
+'' constructor, and every instance read 0 where fbc-modern 1.20 reads the value.
+''
+'' The node alone is not enough: the generic's own nodes are SHARED by every instance, and an
+'' initialiser may name the type parameter. 'as long z = sizeof( T )' resolved once gave
+'' 'Box( of long )' the 8 of the 'Box( of double )' instantiated beside it, where fbc gives 4. So
+'' a generic with any initialiser is RE-PARSED once per instance from its recorded tokens -- as
+'' its member bodies already are (InstantiateMembers_) -- while the instance's type arguments are
+'' bound, and each field takes its own fresh node. Re-reading the type writes no auto-property
+'' bodies a second time: their clause is marked (TF_AUTOPROP, parser/autoprop.tiko).
+
+#import "std/containers"
+#include once "symbols/resolvectx.ti"
+#include once "parser/parser.ti"
+
+namespace Tko.Resolve
+
+'' A fresh N_TYPE re-read from the generic's tokens, or NODE_NONE: no field has an initialiser,
+'' or there are no tokens to read.
+function InstTypeReparse_( byref c as Ctx, byval gn as Tko.NodeId ) as Tko.NodeId
+    if gn = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( gn ) <> Tko.N_TYPE then return Tko.NODE_NONE
+    dim as Tko.StmtPayload ptr gp = c.ast->StmtOf( gn )
+    dim as boolean any_ = false
+    for i as int32 = 0 to gp->count - 1
+        dim as Tko.NodeId m = c.ast->ChildAt( gp->first, i )
+        if c.ast->Kind( m ) <> Tko.N_FIELD then continue for
+        if c.ast->StmtOf( m )->c <> Tko.NODE_NONE then any_ = true : exit for
+    next
+    if any_ = false then return Tko.NODE_NONE
+    if c.parser = nullptr then return Tko.NODE_NONE
+    dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
+    if p0->toks = nullptr then return Tko.NODE_NONE
+    dim as int32 t0, t1
+    if c.ast->TokensOf( gn, t0, t1 ) = false then return Tko.NODE_NONE
+    if (t0 < 0) orelse (t0 >= p0->toks->Count) then return Tko.NODE_NONE
+
+    '' A PARSER OF ITS OWN over the same buffer, as InstantiateMembers_ builds one: the stream is
+    '' closed and the range already buffered.
+    dim as Tko.ParserState q
+    q.toks = p0->toks
+    q.stream = nullptr
+    q.litPool = p0->litPool
+    q.ast = c.ast
+    q.src = c.srcMgr
+    q.names = c.names
+    q.diags = c.diags
+    q.pos = t0
+    q.silent = true
+    q.lambdaSeq = p0->lambdaSeq
+    q.procNames = p0->procNames
+    q.memberProcNames = p0->memberProcNames
+    dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
+    p0->lambdaSeq = q.lambdaSeq
+    if fresh = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( fresh ) <> Tko.N_TYPE then return Tko.NODE_NONE
+    c.info->Resize( c.ast->Count( ) )      '' the new nodes' bindings have somewhere to go
+    return fresh
+end function
+
+'' An instance's field 'fs', declared from the generic's N_FIELD 'm': its node in 'payload' (a
+'' bitfield's payload is its width) and its '= value' bound in the instance's scope -- the node of
+'' the same name in 'fresh' when there is one.
+sub InstFieldInit_ _
+    ( byref c as Ctx, byval fs as Tko.Symbol ptr, byval m as Tko.NodeId, byval iin as Tko.ScopeId, _
+      byval fresh as Tko.NodeId )
+    if fs = nullptr then exit sub
+    dim as Tko.NodeId n = m
+    if fresh <> Tko.NODE_NONE then
+        dim as Tko.InternId nm = c.ast->StmtOf( m )->name
+        dim as Tko.StmtPayload ptr tp = c.ast->StmtOf( fresh )
+        for i as int32 = 0 to tp->count - 1
+            dim as Tko.NodeId ch = c.ast->ChildAt( tp->first, i )
+            if c.ast->Kind( ch ) <> Tko.N_FIELD then continue for
+            if c.ast->StmtOf( ch )->name = nm then n = ch : exit for
+        next
+    end if
+    dim as Tko.StmtPayload ptr fp = c.ast->StmtOf( n )
+    if fp->b <> Tko.NODE_NONE then exit sub
+    fs->payload = cast( int32, n )
+    if fp->c <> Tko.NODE_NONE then BindExpr_( c, fp->c, iin )
+end sub
+
+end namespace

@@ -28,6 +28,7 @@ end sub
 
 type Box( of T )
     declare property V as T get, set
+    declare property Count as long = 3 get, private set
 end type
 
 namespace NS
@@ -73,7 +74,7 @@ swap b1.V, b2.V
 dim as Box( of string ) bs
 bs.V = "hi"
 bs.V &= "!"
-print b1.V; b2.V; " "; bs.V
+print b1.V; b2.V; " "; bs.V; b1.Count; bs.Count
 
 dim as NS.Cell c
 c.W *= 2

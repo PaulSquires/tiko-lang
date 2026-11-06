@@ -33,6 +33,7 @@ src/symbols/resolve.tiko
 src/symbols/resolveacc.tiko
 src/symbols/generic.tiko
 src/symbols/genericiface.tiko
+src/symbols/geninit.tiko
 src/symbols/generictypedef.tiko
 src/symbols/mangle.tiko
 src/symbols/constfold.tiko

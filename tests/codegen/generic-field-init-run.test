@@ -1,0 +1,14 @@
+'' docs/tiko-properties D10, RUN: A GENERIC TYPE'S FIELD INITIALISERS. The instance's field symbols
+'' were declared without their N_FIELD node, so lowering found no '= value' and no constructor was
+'' synthesised: every field below read 0 (or "") in every instance -- a local, a 'new' one and a
+'' shared one alike. Expected output is fbc-modern 1.20's, measured 2026-11-06.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/generic-field-init.bas -o tests/codegen/genfieldinit.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/genfieldinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3 7 s 1.5 42 9 4
+'' EXPECT-RUN-OUT:  3 7 s 1.5 42 9 8
+'' EXPECT-RUN-OUT:  3 7
+'' EXPECT-RUN-OUT:  3 7
