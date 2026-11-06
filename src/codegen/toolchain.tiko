@@ -13,6 +13,22 @@ private function FileExists_( byref p as string ) as boolean
     return true
 end function
 
+'' Does the file hold these bytes anywhere? For a small object's symbol names; anything
+'' unreadable, empty or over 16 MB answers false.
+private function FileContains_( byref p as string, byref needle as string ) as boolean
+    dim as int32 fh = freefile
+    if open( p for binary access read as #fh ) <> 0 then return false
+    dim as longint n = lof( fh )
+    if (n <= 0) orelse (n > 16 * 1024 * 1024) then
+        close #fh
+        return false
+    end if
+    dim as string buf = space( n )
+    get #fh, , buf
+    close #fh
+    return instr( buf, needle ) > 0
+end function
+
 '' The first directory on PATH that holds 'exeName', or "" when none does. An entry
 '' written in quotes -- Windows allows one around a path with spaces -- is unquoted, and
 '' an empty one is skipped rather than read as the current directory.
@@ -632,11 +648,6 @@ function LinkExe _
     '' program's startup is msvccrt.c's mainCRTStartup, which calls main. The MinGW
     '' startup in crt2.o serves both subsystems and needs only the flag.
     dim as boolean wantGui = t.guiSubsystem andalso (t.buildDll = false)
-    '' AND ON MACH-O, FOR EVERY EXECUTABLE: fbrt0's tko_darwin_entry, which runs main( )
-    '' itself -- unless the program uses graphics, when libtkogfx's strong
-    '' tko_darwin_start puts main( ) on a thread of its own so AppKit keeps the main one
-    '' (lib/rt/src/c/fbrt0.c, docs/graphics RFC-0012 M1). Never a dylib's.
-    if macho andalso (t.buildDll = false) then cmd += " -Wl,-e,_tko_darwin_entry"
     if wantGui then
         if target.layout.isMsvc then
             cmd += " -Xlinker -subsystem:windows -Xlinker -entry:mainCRTStartup"
@@ -685,15 +696,31 @@ function LinkExe _
         dim as string rt0 = "fbrt0.o"
         if t.buildDll andalso (target.objFormat = OBJ_ELF) then rt0 = "fbrt0pic.o"
         dim as boolean rt0Found = false
+        dim as string rt0Used
         for i as int32 = 0 to t.libPaths.Count - 1
             dim as string rt0Path = t.libPaths[i] & "/" & rt0
             if FileExists_( rt0Path ) then
                 cmd += " " & Q( rt0Path )
                 rt0Found = true
+                rt0Used = rt0Path
                 exit for
             end if
         next
         if rt0Found = false then rt0Missing = true
+
+        '' A MACH-O EXECUTABLE ENTERS AT fbrt0's tko_darwin_entry, which runs main( ) itself
+        '' -- unless the program uses graphics, when libtkogfx's strong tko_darwin_start
+        '' puts main( ) on a thread of its own so AppKit keeps the main one
+        '' (lib/rt/src/c/fbrt0.c, docs/graphics RFC-0012 M1). Never a dylib's.
+        ''
+        '' ONLY WHEN THIS fbrt0.o DEFINES IT. A runtime from before the entry existed has
+        '' no such symbol, and naming it there fails every link -- measured: a bootstrap's
+        '' stage3, linked by the new compiler against the seed toolchain's runtime, died
+        '' with 'Undefined symbols: _tko_darwin_entry'. Such a runtime's libtkogfx has no
+        '' hand-off either, so its programs are exactly what they were.
+        if macho andalso (t.buildDll = false) andalso rt0Found then
+            if FileContains_( rt0Used, "_tko_darwin_entry" ) then cmd += " -Wl,-e,_tko_darwin_entry"
+        end if
     end if
     for i as int32 = 0 to objs.Count - 1
         cmd += " " & Q( objs[i] )

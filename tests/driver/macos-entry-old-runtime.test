@@ -1,0 +1,9 @@
+'' A RUNTIME FROM BEFORE THE ENTRY POINT gets no -e: its fbrt0.o has no tko_darwin_entry, and
+'' naming one failed every link -- measured, a bootstrap's stage3 (the new compiler, the seed's
+'' runtime) died with "Undefined symbols: _tko_darwin_entry". See macos-entry.test.
+'' TEST: cli
+'' ARGS: -v -target macos-arm64 tests/driver/src/no-fbrt0.bas -p tests/driver/src/darwinrt0/old -o tests/driver/macentryold
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: darwinrt0/old/fbrt0.o
+'' EXPECT-NOT: _tko_darwin_entry
+'' EXPECT-NO-FILE: tests/driver/macentryold
