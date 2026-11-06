@@ -1146,9 +1146,15 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
         say "GRAPHICS IS windows-x86_64 ONLY. libtkogfx is built for the Microsoft ABI"
         say "and there is no MinGW build of it, so a SCREEN or PSET program links"
         say "on the default target and nowhere else. That is why it is the default."
+    elif [ "$HOST" = "linux" ]; then
+        say "GRAPHICS USES X11, LOADED WHEN A WINDOW OPENS. libtkogfx dlopens libX11"
+        say "(and libXext, libXrandr if present), so a SCREEN program links with no X11"
+        say "library and needs an X display only to open its window. GFX_NULL, or"
+        say "FBGFX=null, draws with no display at all."
     else
-        say "NO GRAPHICS ON THIS HOST. libtkogfx is built for windows-x86_64 only, so a"
-        say "SCREEN or PSET program does not link here: fb_Gfx* are undefined."
+        say "NO GRAPHICS ON THIS HOST. libtkogfx ships for windows-x86_64 and"
+        say "linux-x86_64 only, so a SCREEN or PSET program does not link here:"
+        say "fb_Gfx* are undefined."
     fi
     say
     say "A -p of your own is searched BEFORE both, so it can override either."
