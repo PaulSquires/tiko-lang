@@ -1,0 +1,92 @@
+'' window.ti -- a platform with no display driver yet.
+''
+'' ORIGINAL WORK. Part of libtkogfx, LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' INCLUDED BY driver/window.ti, the platform seam, on every target that has no
+'' driver of its own -- today Linux and macOS (docs/graphics RFC-0012: X11 is
+'' phase L1, Cocoa M1). It keeps every promise the seam lists, and the one that
+'' matters is WindowOpen: it REFUSES. gfxlib2 does the same when no driver in its
+'' list loads, so SCREEN answers an error instead of drawing into a framebuffer
+'' nobody can see. Everything that does not need a window -- IMAGECREATE, PUT and
+'' GET on images, BLOAD/BSAVE of buffers -- works as on any other platform.
+
+#pragma once
+
+extern "c"
+    declare function PlatUsleep_ alias "usleep" ( byval us as ulong ) as long
+end extern
+
+'' Global, as on Windows: the entry layer calls it from outside the namespace.
+private sub PlatSleep( byval ms as ulong )
+    PlatUsleep_( ms * 1000 )
+end sub
+
+namespace TkoGfx
+
+type GfxWindow extends WindowBase
+    unused_     as long
+end type
+
+'' Nothing presents, so there is nothing to hold off.
+private sub WindowLock( byref w as GfxWindow )
+end sub
+
+private sub WindowUnlock( byref w as GfxWindow )
+end sub
+
+private function WindowOpen( _
+        byref w as GfxWindow, byref s as Surface, _
+        byval cw as long, byval ch as long, byref caption as string ) as long
+    return 0
+end function
+
+private sub WindowClose( byref w as GfxWindow )
+    w.running = 0
+    WindowBaseClose( w )
+end sub
+
+private sub WindowSetTitle( byref w as GfxWindow, byref title as string, _
+        byval held as long )
+    w.title = left( title, 255 )
+end sub
+
+private function WindowGetPosPacked( byref w as GfxWindow ) as long
+    return 0
+end function
+
+private sub WindowSetPos( byref w as GfxWindow, byval x as long, byval y as long )
+end sub
+
+private function WindowHandle( byref w as GfxWindow ) as any ptr
+    return nullptr
+end function
+
+private sub WindowSetMouse( byref w as GfxWindow, byval cw as long, byval ch as long, _
+        byval x as long, byval y as long, byval cursor as long, byval clip as long )
+end sub
+
+'' No display is known, so SCREENINFO's desktop is 0 x 0 and SCREENLIST is empty.
+private sub DesktopInfo( byref w as long, byref h as long, _
+        byref depth as long, byref refresh as long )
+    w = 0 : h = 0 : depth = 0 : refresh = 0
+end sub
+
+private function DesktopModeAt( byval i as long, byref w as long, byref h as long, _
+        byref bpp as long ) as long
+    return 0
+end function
+
+private function PlatExePath( ) as string
+    return command( 0 )
+end function
+
+private function JoystickRead( byval id as long, byval buttons as integer ptr, _
+        byval a1 as single ptr, byval a2 as single ptr, _
+        byval a3 as single ptr, byval a4 as single ptr, _
+        byval a5 as single ptr, byval a6 as single ptr, _
+        byval a7 as single ptr, byval a8 as single ptr ) as long
+    return 1
+end function
+
+end namespace

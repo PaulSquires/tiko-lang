@@ -43,32 +43,22 @@
 '' the reference and would break the drop-in claim. Improving this belongs with
 '' the modern surface API, not with parity.
 
+'' INCLUDED BY driver/window.ti, the platform seam, which defines WindowBase and
+'' lists what this file promises. Not included on its own.
+
 #pragma once
 
-#include once "driver.ti"
 #include once "gdi.ti"
 #include once "mouse.ti"
+#include once "joystick.ti"
 '' The runtime's key translation, which SCREENEVENT's key events are built with.
-'' Included here rather than left to src/all.tiko, because tools/probe-window.bas
-'' includes this file on its own.
-#include once "../abi/rtlseam.ti"
+#include once "../../abi/rtlseam.ti"
 
-'' SLEEP IS A KEYWORD, AND THAT IS A TRAP THIS LIBRARY WALKED INTO.
-''
-'' `Sleep( 10 )` in FreeBASIC source is the SLEEP STATEMENT, not the Win32 API,
-'' even with windows.bi included -- the keyword wins the parse. The statement
-'' compiles to fb_Sleep, which consults __fb_ctx.hooks.sleepproc, which since
-'' entry/console.ti installed one is THIS LIBRARY. Every internal wait became a
-'' call back into our own sleep hook, and the hook's own waits recursed.
-''
-'' It hung tools/smoke.sh outright the first time the hook was installed. So the
-'' API is bound under a name the parser cannot claim, and every internal wait
-'' uses it. A wait inside a graphics library must not depend on what the program
-'' installed as its sleep.
+'' The Win32 API under a name the parser cannot claim -- driver/window.ti says why
+'' an internal wait must never be the SLEEP statement.
 extern "windows"
-    declare sub WinSleep alias "Sleep" ( byval ms as ulong )
+    declare sub PlatSleep alias "Sleep" ( byval ms as ulong )
 end extern
-#include once "../core/keyboard.ti"   '' KeyRing / KeyTable, filled from WM_CHAR
 #include once "windows.bi"
 
 namespace TkoGfx
@@ -79,51 +69,17 @@ const WINDOW_CLASS_NAME = "TKOGFX_WINDOW"
 '' NOT vsync -- the GDI path never waits for one.
 const WINDOW_FRAME_MS = 10
 
-type GfxWindow
+'' The keyboard and SCREENEVENT state in WindowBase is filled on the WINDOW THREAD
+'' from WM_CHAR, WM_KEYDOWN and the rest, and read on the caller's thread, so both
+'' ends go through WindowLock. When surf is 8bpp it cannot go to GDI directly (see
+'' GdiExpand8), which is what WindowBase's mirror is for.
+type GfxWindow extends WindowBase
     hwnd        as HWND
     hinst       as HINSTANCE
     thread      as HANDLE
     ready       as HANDLE
-    running     as long           '' read by the thread every frame
-    active      as long           '' has focus
-    closed      as long           '' the user clicked the close box
-    started     as long           '' the pump reached its loop at least once
-    frames      as long           '' presented frames, for tests
-    w           as long
-    h           as long
-    surf        as Surface ptr
-
-    '' PALETTED PRESENTATION. When surf is 8bpp it cannot go to GDI directly
-    '' (see GdiExpand8), so it is expanded into `mirror` first and THAT is what
-    '' is blitted. Both are zero for a 32bpp surface and the whole path is
-    '' skipped. `lut` is 256 packed 0x00BBGGRR values owned by the caller --
-    '' this layer does not know what a palette is.
-    mirror      as Surface
-    mirrorpx    as any ptr
-    lut         as ulong ptr
     lock_       as CRITICAL_SECTION
     lock_ready  as long
-    mouse       as MouseState
-
-    '' KEYBOARD. Filled on the WINDOW THREAD from WM_CHAR and WM_KEYDOWN, read
-    '' on the caller's thread by the INKEY/GETKEY hooks, so both ends go through
-    '' WindowLock. core/keyboard.ti owns the ring's behaviour and
-    '' tools/abtest-keyboard.bas compares it against gfxlib2; what is new here is
-    '' only where the codes come from.
-    keys        as KeyRing
-    ktab        as KeyTable
-    title       as zstring * 256
-
-    '' SCREENEVENT. The ring and the state gfxlib2's window procedure keeps to
-    '' fill it -- is_active, has_focus, last_mouse_pos, mouse_buttons -- filled
-    '' on the WINDOW thread and drained on the caller's, both under WindowLock.
-    events      as EventQueue
-    ev_active   as long
-    ev_focus    as long
-    ev_lastx    as long           '' &hFFFF until the first move
-    ev_lasty    as long
-    ev_buttons  as long
-    scanline    as long           '' the mode's scanline_size; event y is divided by it
 end type
 
 private sub WindowLock( byref wnd as GfxWindow )
@@ -595,7 +551,7 @@ private function WindowThread cdecl ( byval param as any ptr ) as DWORD
         w->started = 1
 
         WindowUnlock( *w )
-        WinSleep( WINDOW_FRAME_MS )
+        PlatSleep( WINDOW_FRAME_MS )
     wend
 
     '' Destroy from the owning thread. DestroyWindow from another thread is
@@ -614,28 +570,7 @@ private function WindowOpen( _
         byval cw as long, byval ch as long, byref caption as string ) as long
 
     w.hwnd = nullptr : w.thread = nullptr : w.ready = nullptr
-    w.running = 1 : w.active = 0 : w.closed = 0 : w.started = 0 : w.frames = 0
-    w.w = cw : w.h = ch
-    w.surf = @s
-
-    '' A paletted surface needs a 32bpp mirror to present through. Allocated
-    '' here rather than lazily so a failure is reported by WindowOpen, which the
-    '' caller already checks, instead of by a silent blank window later.
-    w.mirrorpx = nullptr
-    w.lut = nullptr
-    if s.bpp = 1 then
-        w.mirrorpx = callocate( cast( integer, cw ) * 4 * ch )
-        if w.mirrorpx = nullptr then return 0
-        SurfaceInit( w.mirror, w.mirrorpx, cw, ch, cw * 4, 4 )
-    end if
-    w.title = left( caption, 255 )
-    MouseInit( w.mouse )
-    KeyRingInit( w.keys )
-    EventQueueInit( w.events )
-    w.ev_active = 0 : w.ev_focus = 0 : w.ev_buttons = 0
-    w.ev_lastx = &hFFFF : w.ev_lasty = &hFFFF
-    if w.scanline <= 0 then w.scanline = 1
-    KeyTableClear( w.ktab )
+    if WindowBaseOpen( w, s, cw, ch, caption ) = 0 then return 0
     w.hinst = GetModuleHandle( nullptr )
 
     InitializeCriticalSection( @w.lock_ )
@@ -689,18 +624,8 @@ private sub WindowClose( byref w as GfxWindow )
         w.lock_ready = 0
     end if
 
-    w.surf = nullptr
-    if w.mirrorpx <> nullptr then
-        deallocate( w.mirrorpx )
-        w.mirrorpx = nullptr
-    end if
+    WindowBaseClose( w )
 end sub
-
-'' Has the user closed the window? This is what SCREENEVENT and the WM_CLOSE
-'' half of INKEY are built on.
-private function WindowWasClosed( byref w as GfxWindow ) as long
-    return w.closed
-end function
 
 '' The desktop's mode, as SCREENINFO reports it with no screen open and as the
 '' refresh rate of one that is. win32/gfx_win32.c's fb_hScreenInfo: the CURRENT
@@ -748,5 +673,36 @@ private sub WindowSetPos( byref w as GfxWindow, byval x as long, byval y as long
     SetWindowPos( w.hwnd, HWND_TOP, x, y, 0, 0, _
         SWP_ASYNCWINDOWPOS or SWP_NOOWNERZORDER or SWP_NOSIZE or SWP_NOZORDER )
 end sub
+
+'' SCREENCONTROL GET_WINDOW_HANDLE: the HWND.
+private function WindowHandle( byref w as GfxWindow ) as any ptr
+    return w.hwnd
+end function
+
+'' SETMOUSE -- driver/mouse.ti's rules, applied to this window.
+private sub WindowSetMouse( byref w as GfxWindow, byval cw as long, byval ch as long, _
+        byval x as long, byval y as long, byval cursor as long, byval clip as long )
+    MouseSet( w.mouse, w.hwnd, cw, ch, x, y, cursor, clip )
+end sub
+
+'' SCREENLIST's source: the i-th mode EnumDisplaySettings knows. Returns 0 once
+'' there are no more -- entry/misc.ti decides which of them a depth lists.
+private function DesktopModeAt( byval i as long, byref w as long, byref h as long, _
+        byref bpp as long ) as long
+    dim as DEVMODE dm
+    dm.dmSize = sizeof( DEVMODE )
+    if EnumDisplaySettings( nullptr, i, @dm ) = 0 then return 0
+    w = dm.dmPelsWidth
+    h = dm.dmPelsHeight
+    bpp = dm.dmBitsPerPel
+    return 1
+end function
+
+'' The program's own path, for the title a window nothing named gets.
+private function PlatExePath( ) as string
+    dim as zstring * 260 path
+    if GetModuleFileName( nullptr, @path, 259 ) = 0 then return ""
+    return path
+end function
 
 end namespace

@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include once "driver.ti"
+#include once "../driver.ti"
 #include once "windows.bi"
 
 namespace TkoGfx

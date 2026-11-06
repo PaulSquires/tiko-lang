@@ -39,7 +39,11 @@ core/cells.ti             the character-cell plane behind SCREEN()
 core/lzw.ti               the 12-bit LZW codec (fb_hEncode / fb_hDecode)
 core/events.ti            the event ring behind SCREENEVENT
 core/keyboard.ti          the key ring behind INKEY/GETKEY/KEYHIT, and MULTIKEY
-driver/window.ti          the Win32 window, its thread and message pump
+driver/window.ti          the PLATFORM SEAM: WindowBase and what every platform provides
+driver/win32/window.ti    the Win32 window, its thread and message pump
+driver/win32/mouse.ti     the Win32 pointer: window messages in, SETMOUSE out
+driver/win32/joystick.ti  GETJOYSTICK's device half, WinMM
+driver/nodisplay/window.ti  a platform with no display driver yet: SCREEN refuses
 driver/mouse.ti           the pointer state behind GETMOUSE and SETMOUSE
 raster/text.ti            console text rendering on a graphics screen
 raster/blit.ti            the 21 device blitters and their dispatch
@@ -55,7 +59,7 @@ raster/color.ti           COLOR, default branch, all three depths
 raster/convert.ti         the row converters behind the blitter table
 driver/driver.ti          the presenter interface and its registry
 driver/mem.ti             NULL and MEM drivers (MEM records what it presents)
-driver/gdi.ti             the Win32 GDI blit path
+driver/win32/gdi.ti       the Win32 GDI blit path
 abi/offsets/win64.txt     checked-in golden layout, measured
 abi/offsets/win32.txt     "
 tools/probe-rtlabi.c      C probe -- measures the REAL runtime
@@ -422,7 +426,7 @@ three entries it will need.
 
 ## The GDI presenter
 
-`driver/gdi.ti` is split in two on purpose:
+`driver/win32/gdi.ti` is split in two on purpose:
 
 | | testable? |
 | --- | --- |

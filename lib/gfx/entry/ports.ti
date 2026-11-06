@@ -36,7 +36,7 @@ dim shared as VgaPortState ThePorts = ( 0, 2, 0 )
 '' program polling 3DA for a retrace would otherwise spin a core flat, and the
 '' reference's own answer to that is this sleep.
 ''
-'' WinSleep, not SLEEP: entry/console.ti installs a sleep hook, so the statement
+'' PlatSleep, not SLEEP: entry/console.ti installs a sleep hook, so the statement
 '' would call back into this library. See driver/window.ti.
 const PORT_VSYNC_MS = 1000 \ 60
 
@@ -55,7 +55,7 @@ function TkoGfxIn cdecl ( byval port as ushort ) as long
     dim as long vsynced = 0
     dim as long v = TkoGfx.VgaPortIn( TkoGfx.ThePorts, *p, _
                         TkoGfx.ScreenCtx.surf.bpp * 8, port, vsynced )
-    if vsynced <> 0 then WinSleep( TkoGfx.PORT_VSYNC_MS )
+    if vsynced <> 0 then PlatSleep( TkoGfx.PORT_VSYNC_MS )
     return v
 end function
 

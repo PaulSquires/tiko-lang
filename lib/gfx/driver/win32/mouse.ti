@@ -1,0 +1,193 @@
+'' mouse.ti -- the Win32 half of the pointer: window messages in, SETMOUSE out.
+''
+'' Derived from: win32/gfx_win32.c (fb_hWin32WinProc's mouse messages,
+'' fb_hWin32SetMouse).
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' The state and GETMOUSE's rules are driver/mouse.ti's, shared by every platform.
+'' What is here is where the state comes from on Windows, and two details that are
+'' easy to get wrong:
+''
+'' 1. THE COORDINATES ARE THE UNSIGNED LOW WORDS OF lParam.
+''    `mouse_x = lParam and &hFFFF`, with no sign extension. Windows' own
+''    GET_X_LPARAM sign-extends, because a captured drag reports NEGATIVE
+''    coordinates once the pointer leaves the window to the left or above. The
+''    reference does not, so those become ~65535 instead. Reproduced.
+''
+'' 2. mouse_on IS RECOMPUTED ON EVERY MESSAGE, not tracked by enter/leave. The
+''    window procedure calls GetCursorPos and PtInRect against the client
+''    rectangle mapped to screen coordinates, at the TOP, before the switch. So
+''    it is only as fresh as the last message of any kind.
+
+#pragma once
+
+#include once "../mouse.ti"
+#include once "windows.bi"
+
+namespace TkoGfx
+
+'' Recompute whether the pointer is inside the window, exactly as the reference
+'' does at the top of its window procedure: client rectangle mapped to SCREEN
+'' coordinates, tested against the live cursor position.
+private sub MouseUpdateOn( byref m as MouseState, byval hwnd as HWND )
+    if hwnd = nullptr then
+        m.on_ = 0
+        exit sub
+    end if
+    dim as RECT r
+    GetClientRect( hwnd, @r )
+    '' MapWindowPoints over the two corners -- the same call the reference makes.
+    MapWindowPoints( hwnd, nullptr, cast( LPPOINT, @r ), 2 )
+    dim as POINT p
+    GetCursorPos( @p )
+    m.on_ = iif( PtInRect( @r, p ) <> 0, 1, 0 )
+end sub
+
+'' Feed one window message. Returns 1 if it was a mouse message we consumed for
+'' state purposes (the caller still passes it on).
+private function MouseHandleMessage( _
+        byref m as MouseState, byval hwnd as HWND, _
+        byval msg as UINT, byval wp as WPARAM, byval lp as LPARAM ) as long
+
+    '' note 2: refreshed on EVERY message, not just mouse ones
+    MouseUpdateOn( m, hwnd )
+
+    select case msg
+    case WM_MOUSEMOVE
+        '' ARM THE LEAVE NOTIFICATION. Without it the window receives NO message
+        '' once the pointer leaves, so `on_` keeps whatever it had when the
+        '' pointer was last inside and GETMOUSE goes on reporting success from
+        '' outside the window. The reference arms it for the same reason.
+        ''
+        '' Measured: with this missing, moving the pointer far outside left our
+        '' side answering (0,199) and "ok" where the reference answered -1.
+        '' It is re-armed after every leave, because the notification is
+        '' one-shot.
+        if (m.tracking = 0) andalso (hwnd <> nullptr) then
+            dim as TRACKMOUSEEVENT tme
+            tme.cbSize      = sizeof( TRACKMOUSEEVENT )
+            tme.dwFlags     = TME_LEAVE
+            tme.hwndTrack   = hwnd
+            tme.dwHoverTime = 0
+            if TrackMouseEvent( @tme ) <> 0 then m.tracking = 1
+        end if
+        '' note 1: UNSIGNED low words, no sign extension
+        m.x = cast( long, lp ) and &hFFFF
+        m.y = (cast( long, lp ) shr 16) and &hFFFF
+        return 1
+
+    case WM_MOUSELEAVE
+        '' one-shot: it must be re-armed on the next move
+        m.tracking = 0
+        m.on_ = 0
+        return 1
+
+    case WM_LBUTTONDOWN
+        m.buttons or= MOUSE_BUTTON_LEFT   : return 1
+    case WM_LBUTTONUP
+        m.buttons and= not MOUSE_BUTTON_LEFT : return 1
+    case WM_RBUTTONDOWN
+        m.buttons or= MOUSE_BUTTON_RIGHT  : return 1
+    case WM_RBUTTONUP
+        m.buttons and= not MOUSE_BUTTON_RIGHT : return 1
+    case WM_MBUTTONDOWN
+        m.buttons or= MOUSE_BUTTON_MIDDLE : return 1
+    case WM_MBUTTONUP
+        m.buttons and= not MOUSE_BUTTON_MIDDLE : return 1
+
+    case WM_MOUSEWHEEL
+        '' driver/mouse.ti note 3: a running total, one step per notch, sign from
+        '' the high word
+        ''
+        '' THE LOW 32 BITS, AS A SIGNED LONG -- the C's `(signed)wParam`. WPARAM is
+        '' 64-bit and zero-extended, so read at full width a notch DOWN (delta
+        '' -120, &hFF880000) is a large positive number and counted up.
+        if cast( long, wp ) > 0 then
+            m.wheel += 1
+        else
+            m.wheel -= 1
+        end if
+        return 1
+    end select
+
+    return 0
+end function
+
+'' SETMOUSE x, y, cursor, clip.
+''
+'' THE TWO PAIRS OF ARGUMENTS USE DIFFERENT SENTINELS, and assuming one rule for
+'' all four is the mistake this used to make. Measured from what fbc emits:
+''
+''     setmouse 10, 20      ->  fb_SetMouse( 10, 20, -1, -1 )
+''     setmouse , , 0       ->  fb_SetMouse( &h80000000, &h80000000, 0, -1 )
+''     setmouse 5           ->  fb_SetMouse( 5, &h80000000, -1, -1 )
+''
+'' So an omitted COORDINATE is &h80000000 and an omitted cursor or clip flag is
+'' -1. A rule of "negative means leave alone" would refuse `setmouse -3, -4`,
+'' which is a legal call that clamps to the top-left corner.
+''
+'' AND THE REST IS MEASURED TOO, against gfxlib2 with a probe rather than read:
+''
+''     setmouse 100, 50  then setmouse 5     ->  x=5,   y=50   (y kept)
+''     setmouse , 7                          ->  x=5,   y=7    (x kept)
+''     setmouse 1000, 1000  on 320x200       ->  x=319, y=199  (clamped)
+''     setmouse -3, -4                       ->  x=0,   y=0    (clamped)
+''
+'' THE CACHED POSITION IS UPDATED HERE, not when the WM_MOUSEMOVE arrives:
+'' GETMOUSE reads the new position back immediately. That is the one place
+'' driver/mouse.ti's "GETMOUSE is a cache, not a query" note has an exception, and
+'' it is why the pointer also counts as inside the window from this point on.
+private sub MouseSet( _
+        byref m as MouseState, byval hwnd as HWND, _
+        byval cw as long, byval ch as long, _
+        byval x as long, byval y as long, _
+        byval cursor as long, byval clip as long )
+
+    if hwnd = nullptr then exit sub
+
+    if (x <> MOUSE_KEEP) orelse (y <> MOUSE_KEEP) then
+        dim as long nx = iif( x = MOUSE_KEEP, m.x, x )
+        dim as long ny = iif( y = MOUSE_KEEP, m.y, y )
+        if nx < 0 then nx = 0
+        if ny < 0 then ny = 0
+        if nx > cw - 1 then nx = cw - 1
+        if ny > ch - 1 then ny = ch - 1
+
+        m.on_ = 1
+        m.x = nx
+        m.y = ny
+
+        '' the arguments are CLIENT coordinates; SetCursorPos takes screen ones
+        dim as POINT p
+        p.x = nx
+        p.y = ny
+        ClientToScreen( hwnd, @p )
+        SetCursorPos( p.x, p.y )
+    end if
+
+    '' THE CURSOR IS HIDDEN BY THE WINDOW PROCEDURE, not from here. SetCursor is
+    '' per-thread state and this runs on the CALLER's thread, so calling it here
+    '' would set it for the wrong thread and the pointer would stay visible. The
+    '' flag is set and WM_SETCURSOR is posted, which is the reference's route for
+    '' the same reason.
+    if (cursor = 0) andalso (m.shown <> 0) then
+        m.shown = 0
+        PostMessage( hwnd, WM_SETCURSOR, 0, 0 )
+    elseif (cursor > 0) andalso (m.shown = 0) then
+        m.shown = 1
+        PostMessage( hwnd, WM_SETCURSOR, 0, 0 )
+    end if
+
+    if clip = 0 then
+        m.clip = 0
+        ClipCursor( nullptr )
+    elseif clip > 0 then
+        m.clip = 1
+        dim as RECT r
+        GetClientRect( hwnd, @r )
+        MapWindowPoints( hwnd, nullptr, cast( LPPOINT, @r ), 2 )
+        ClipCursor( @r )
+    end if
+end sub
+
+end namespace

@@ -1,0 +1,89 @@
+'' joystick.ti -- GETJOYSTICK's device half on Windows: WinMM's joyGetPosEx.
+''
+'' Derived from: win32/gfx_joystick.c.
+'' LGPL-2.1-or-later with the static-linking exception.
+''
+'' INCLUDED BY driver/win32/window.ti. entry/event.ti owns the entry point, the
+'' argument defaults and the error it sets; this file answers one question: what
+'' does device `id` read right now. Each of the sixteen ids is probed once with
+'' joyGetDevCaps and remembered: an id that was absent stays absent, as in gfxlib2.
+
+#pragma once
+
+#include once "win/mmsystem.bi"
+
+namespace TkoGfx
+
+type JoyData
+    detected  as long
+    available as long
+    caps      as JOYCAPS
+end type
+
+dim shared as JoyData TheJoy(0 to 15)
+
+private function JoyAxis( byval p as ulong, byval lo as ulong, byval hi as ulong ) as single
+    return csng( ((csng( p ) - csng( lo )) * 2.0) / (csng( hi ) - csng( lo ) + 1.0) - 1.0 )
+end function
+
+const JOY_POV_LAP = 2250
+
+'' Returns 0 with the outputs filled, or 1 when the device is absent or the read
+'' fails. Axes it does not have are left as the caller set them. `id` is 0..15,
+'' already range-checked.
+private function JoystickRead( byval id as long, byval buttons as integer ptr, _
+        byval a1 as single ptr, byval a2 as single ptr, _
+        byval a3 as single ptr, byval a4 as single ptr, _
+        byval a5 as single ptr, byval a6 as single ptr, _
+        byval a7 as single ptr, byval a8 as single ptr ) as long
+
+    dim as JoyData ptr j = @TheJoy(id)
+    if j->detected = 0 then
+        j->detected = 1
+        if joyGetDevCaps( id + JOYSTICKID1, @j->caps, sizeof( JOYCAPS ) ) <> JOYERR_NOERROR then
+            return 1
+        end if
+        j->available = 1
+    end if
+    if j->available = 0 then return 1
+
+    dim as JOYINFOEX info
+    info.dwSize = sizeof( JOYINFOEX )
+    info.dwFlags = JOY_RETURNALL
+    if joyGetPosEx( id + JOYSTICKID1, @info ) <> JOYERR_NOERROR then return 1
+
+    dim as JOYCAPS ptr c = @j->caps
+    *a1 = JoyAxis( info.dwXpos, c->wXmin, c->wXmax )
+    *a2 = JoyAxis( info.dwYpos, c->wYmin, c->wYmax )
+    if c->wCaps and JOYCAPS_HASZ then *a3 = JoyAxis( info.dwZpos, c->wZmin, c->wZmax )
+    if c->wCaps and JOYCAPS_HASR then *a4 = JoyAxis( info.dwRpos, c->wRmin, c->wRmax )
+    if c->wCaps and JOYCAPS_HASU then *a5 = JoyAxis( info.dwUpos, c->wUmin, c->wUmax )
+    if c->wCaps and JOYCAPS_HASV then *a6 = JoyAxis( info.dwVpos, c->wVmin, c->wVmax )
+
+    '' The hat, as two axes of -1, 0 or 1. dwPOV is hundredths of a degree
+    '' clockwise from up; each direction owns its quarter plus JOY_POV_LAP either
+    '' side, so a diagonal sets both.
+    if c->wCaps and JOYCAPS_HASPOV then
+        dim as ulong pov = info.dwPOV
+        const LAP = JOY_POV_LAP
+        *a7 = 0
+        *a8 = 0
+        if (pov > 4500 - LAP) andalso (pov < 13500 + LAP) then
+            *a7 = 1
+        elseif (pov > 22500 - LAP) andalso (pov < 31500 + LAP) then
+            *a7 = -1
+        end if
+        if (pov > 13500 - LAP) andalso (pov < 22500 + LAP) then
+            *a8 = 1
+        elseif pov < 4500 + LAP then
+            *a8 = -1
+        elseif (pov > 31500 - LAP) andalso (pov < 36000) then
+            *a8 = -1
+        end if
+    end if
+
+    *buttons = info.dwButtons
+    return 0
+end function
+
+end namespace

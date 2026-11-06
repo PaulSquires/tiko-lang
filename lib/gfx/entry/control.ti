@@ -97,7 +97,7 @@ private sub ControlAll( byval what as long, _
             r2 = packed shr 16
         end if
     case GET_WINDOW_HANDLE
-        if open_ then r1 = cast( integer, TheScreen.wnd.hwnd )
+        if open_ then r1 = cast( integer, WindowHandle( TheScreen.wnd ) )
     case GET_DESKTOP_SIZE
         dim as long dw, dh, dd, dr
         DesktopInfo( dw, dh, dd, dr )

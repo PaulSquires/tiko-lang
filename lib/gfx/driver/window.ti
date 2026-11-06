@@ -1,0 +1,133 @@
+'' window.ti -- the window a screen is presented in: the platform seam.
+''
+'' ORIGINAL WORK (the seam itself; each platform's body says where it derives from).
+'' Part of libtkogfx, LGPL-2.1-or-later with the static-linking exception.
+''
+'' THE ENTRY LAYER REACHES THE OPERATING SYSTEM ONLY THROUGH THIS FILE. Everything
+'' above it -- entry/, core/, raster/ -- is platform-neutral, and a new platform is a
+'' new directory under driver/ that keeps the promises below, not a change up there
+'' (docs/graphics RFC-0012, phase P0).
+''
+'' WHAT EVERY PLATFORM PROVIDES, in namespace TkoGfx:
+''
+''     type GfxWindow extends WindowBase       its own handles, locks, threads
+''     WindowOpen( w, s, cw, ch, caption )      1 = open, 0 = failed; WindowClose is safe after either
+''     WindowClose( w )                          joins whatever WindowOpen started
+''     WindowLock( w ) / WindowUnlock( w )       the frame lock -- SCREENLOCK's
+''     WindowSetTitle( w, title, held )
+''     WindowGetPosPacked( w ) / WindowSetPos( w, x, y )
+''     WindowHandle( w )                         SCREENCONTROL GET_WINDOW_HANDLE's answer
+''     WindowSetMouse( w, cw, ch, x, y, cursor, clip )   SETMOUSE
+''     DesktopInfo( w, h, depth, refresh )      the desktop's current mode
+''     DesktopModeAt( i, w, h, bpp )            SCREENLIST's i-th mode; 0 when there is none
+''     PlatExePath( )                                the program's own path, for the default title
+''     JoystickRead( id, buttons, axes )        GETJOYSTICK's device half; 0 = read
+''     PlatSleep( ms )                           an internal wait that is NOT the SLEEP statement
+''
+'' WHY PlatSleep IS NOT `sleep`. `Sleep( 10 )` in FreeBASIC source is the SLEEP
+'' STATEMENT, which consults __fb_ctx.hooks.sleepproc -- and entry/console.ti installs
+'' that hook, so every internal wait would call back into this library and the hook's
+'' own waits would recurse. It hung tools/smoke.sh the first time the hook went in.
+''
+'' A PLATFORM WITH NO DISPLAY DRIVER YET (driver/nodisplay) refuses to open a window,
+'' as gfxlib2 does when no driver in its list loads: SCREEN answers an error rather
+'' than drawing into a framebuffer nobody can see.
+
+#pragma once
+
+#include once "driver.ti"
+#include once "mouse.ti"
+#include once "../core/keyboard.ti"   '' KeyRing / KeyTable
+#include once "../core/events.ti"     '' EventQueue
+
+namespace TkoGfx
+
+'' WHAT THE ENTRY LAYER READS, and the state every platform keeps the same way.
+'' Filled on the platform's event side and read on the caller's, both under
+'' WindowLock.
+type WindowBase
+    running     as long           '' read by the presenter every frame
+    active      as long           '' has focus
+    closed      as long           '' the user clicked the close box
+    started     as long           '' the presenter reached its loop at least once
+    frames      as long           '' presented frames, for tests
+    w           as long
+    h           as long
+    surf        as Surface ptr
+
+    '' PALETTED PRESENTATION. An 8bpp surface is expanded into `mirror` and THAT
+    '' is presented. Both are zero for a 32bpp surface. `lut` is 256 packed
+    '' 0x00BBGGRR values owned by the caller -- this layer does not know what a
+    '' palette is.
+    mirror      as Surface
+    mirrorpx    as any ptr
+    lut         as ulong ptr
+    mouse       as MouseState
+
+    '' KEYBOARD. core/keyboard.ti owns the ring's behaviour and
+    '' tools/abtest-keyboard.bas compares it against gfxlib2; a platform only
+    '' decides where the codes come from.
+    keys        as KeyRing
+    ktab        as KeyTable
+    title       as zstring * 256
+
+    '' SCREENEVENT. The ring and the state gfxlib2's window procedure keeps to
+    '' fill it -- is_active, has_focus, last_mouse_pos, mouse_buttons.
+    events      as EventQueue
+    ev_active   as long
+    ev_focus    as long
+    ev_lastx    as long           '' &hFFFF until the first move
+    ev_lasty    as long
+    ev_buttons  as long
+    scanline    as long           '' the mode's scanline_size; event y is divided by it
+end type
+
+'' The part of opening a window every platform does the same way. Returns 0 only
+'' when the paletted mirror cannot be allocated -- reported here, by the call the
+'' caller already checks, rather than by a blank window later.
+private function WindowBaseOpen( _
+        byref w as WindowBase, byref s as Surface, _
+        byval cw as long, byval ch as long, byref caption as string ) as long
+    w.running = 1 : w.active = 0 : w.closed = 0 : w.started = 0 : w.frames = 0
+    w.w = cw : w.h = ch
+    w.surf = @s
+    w.mirrorpx = nullptr
+    w.lut = nullptr
+    if s.bpp = 1 then
+        w.mirrorpx = callocate( cast( integer, cw ) * 4 * ch )
+        if w.mirrorpx = nullptr then return 0
+        SurfaceInit( w.mirror, w.mirrorpx, cw, ch, cw * 4, 4 )
+    end if
+    w.title = left( caption, 255 )
+    MouseInit( w.mouse )
+    KeyRingInit( w.keys )
+    EventQueueInit( w.events )
+    w.ev_active = 0 : w.ev_focus = 0 : w.ev_buttons = 0
+    w.ev_lastx = &hFFFF : w.ev_lasty = &hFFFF
+    if w.scanline <= 0 then w.scanline = 1
+    KeyTableClear( w.ktab )
+    return 1
+end function
+
+'' ...and of closing it, once the platform has stopped presenting.
+private sub WindowBaseClose( byref w as WindowBase )
+    w.surf = nullptr
+    if w.mirrorpx <> nullptr then
+        deallocate( w.mirrorpx )
+        w.mirrorpx = nullptr
+    end if
+end sub
+
+'' Has the user closed the window? What SCREENEVENT and the close half of INKEY
+'' are built on.
+private function WindowWasClosed( byref w as WindowBase ) as long
+    return w.closed
+end function
+
+end namespace
+
+#if defined( __FB_WIN32__ )
+    #include once "win32/window.ti"
+#else
+    #include once "nodisplay/window.ti"
+#endif

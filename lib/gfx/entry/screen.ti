@@ -36,10 +36,9 @@ namespace TkoGfx
 '' The exe's file name without its directory or extension -- gfxlib2's title for
 '' a window nothing named (fb_hGetExeName, then the last '.' cut off).
 private function ExeTitle( ) as string
-    dim as zstring * 260 path
-    if GetModuleFileName( nullptr, @path, 259 ) = 0 then return ""
-    dim as string s = path
+    dim as string s = PlatExePath( )
     dim as long slash = instrrev( s, "\" )
+    if instrrev( s, "/" ) > slash then slash = instrrev( s, "/" )
     if slash > 0 then s = mid( s, slash + 1 )
     dim as long dot = instrrev( s, "." )
     if dot > 0 then s = left( s, dot - 1 )

@@ -48,7 +48,6 @@
 
 '' ---- driver
 #include once "../driver/driver.ti"
-#include once "../driver/gdi.ti"
 #include once "../driver/mem.ti"
 #include once "../driver/mouse.ti"
 #include once "../driver/window.ti"

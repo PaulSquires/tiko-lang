@@ -3,41 +3,17 @@
 '' Derived from: gfx_event.c (fb_GfxEvent), win32/gfx_joystick.c
 '' (fb_GfxGetJoystick). LGPL-2.1-or-later with the static-linking exception.
 ''
-'' The events themselves are posted by driver/window.ti's WindowEvents on the
-'' window thread; core/events.ti owns the ring, including its two surprises --
+'' The events themselves are posted by the platform's window (on Windows,
+'' driver/win32/window.ti's WindowEvents on the window thread); core/events.ti owns the ring, including its two surprises --
 '' a full ring drops the OLDEST event, and SCREENEVENT with no argument peeks
 '' without consuming.
 ''
-'' GETJOYSTICK IS WINMM'S joyGetPosEx, as in gfxlib2, and needs no screen. Each
-'' of the sixteen ids is probed once with joyGetDevCaps and remembered: an id
-'' with no device answers "illegal function call" from then on without asking
-'' Windows again, so a joystick plugged in after the first call is not seen --
-'' gfxlib2's behaviour, kept. On any failure the button mask reads -1 and every
-'' axis -1000.
+'' GETJOYSTICK needs no screen. The device is read by the platform's
+'' JoystickRead (on Windows WinMM's joyGetPosEx, as in gfxlib2, and an id found
+'' absent once stays absent -- gfxlib2's behaviour, kept). On any failure the
+'' button mask reads -1 and every axis -1000.
 
 #pragma once
-
-#include once "win/mmsystem.bi"
-
-namespace TkoGfx
-
-type JoyData
-    detected  as long
-    available as long
-    caps      as JOYCAPS
-end type
-
-dim shared as JoyData TheJoy(0 to 15)
-
-'' The C's CALCPOS: the device range mapped onto -1 .. just under 1.
-private function JoyAxis( byval p as ulong, byval lo as ulong, byval hi as ulong ) as single
-    return csng( ((csng( p ) - csng( lo )) * 2.0) / (csng( hi ) - csng( lo ) + 1.0) - 1.0 )
-end function
-
-'' POV_LAP in the C: how far either side of a diagonal still counts.
-const JOY_POV_LAP = 2250
-
-end namespace
 
 extern "c"
 
@@ -70,59 +46,11 @@ function TkoGfxGetJoystick alias "fb_GfxGetJoystick" ( byval id as long, _
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
-    dim as TkoGfx.JoyData ptr j = @TkoGfx.TheJoy(id)
-    if j->detected = 0 then
-        j->detected = 1
-        if joyGetDevCaps( id + JOYSTICKID1, @j->caps, sizeof( JOYCAPS ) ) <> JOYERR_NOERROR then
-            RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
-            return FB_RTERROR_ILLEGALFUNCTIONCALL
-        end if
-        j->available = 1
-    end if
-    if j->available = 0 then
+    if TkoGfx.JoystickRead( id, buttons, a1, a2, a3, a4, a5, a6, a7, a8 ) <> 0 then
         RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
         return FB_RTERROR_ILLEGALFUNCTIONCALL
     end if
 
-    dim as JOYINFOEX info
-    info.dwSize = sizeof( JOYINFOEX )
-    info.dwFlags = JOY_RETURNALL
-    if joyGetPosEx( id + JOYSTICKID1, @info ) <> JOYERR_NOERROR then
-        RtlErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
-        return FB_RTERROR_ILLEGALFUNCTIONCALL
-    end if
-
-    dim as JOYCAPS ptr c = @j->caps
-    *a1 = TkoGfx.JoyAxis( info.dwXpos, c->wXmin, c->wXmax )
-    *a2 = TkoGfx.JoyAxis( info.dwYpos, c->wYmin, c->wYmax )
-    if c->wCaps and JOYCAPS_HASZ then *a3 = TkoGfx.JoyAxis( info.dwZpos, c->wZmin, c->wZmax )
-    if c->wCaps and JOYCAPS_HASR then *a4 = TkoGfx.JoyAxis( info.dwRpos, c->wRmin, c->wRmax )
-    if c->wCaps and JOYCAPS_HASU then *a5 = TkoGfx.JoyAxis( info.dwUpos, c->wUmin, c->wUmax )
-    if c->wCaps and JOYCAPS_HASV then *a6 = TkoGfx.JoyAxis( info.dwVpos, c->wVmin, c->wVmax )
-
-    '' The hat, as two axes of -1, 0 or 1. dwPOV is hundredths of a degree
-    '' clockwise from up; each direction owns its quarter plus JOY_POV_LAP either
-    '' side, so a diagonal sets both.
-    if c->wCaps and JOYCAPS_HASPOV then
-        dim as ulong pov = info.dwPOV
-        const LAP = TkoGfx.JOY_POV_LAP
-        *a7 = 0
-        *a8 = 0
-        if (pov > 4500 - LAP) andalso (pov < 13500 + LAP) then
-            *a7 = 1
-        elseif (pov > 22500 - LAP) andalso (pov < 31500 + LAP) then
-            *a7 = -1
-        end if
-        if (pov > 13500 - LAP) andalso (pov < 22500 + LAP) then
-            *a8 = 1
-        elseif pov < 4500 + LAP then
-            *a8 = -1
-        elseif (pov > 31500 - LAP) andalso (pov < 36000) then
-            *a8 = -1
-        end if
-    end if
-
-    *buttons = info.dwButtons
     RtlErrorSetNum( 0 )
     return 0
 end function

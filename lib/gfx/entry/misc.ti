@@ -105,8 +105,9 @@ end function
 '' for the desktop's 32-BIT modes WHATEVER DEPTH WAS PASSED -- which is why fbc
 '' lists the same 27 modes here for depth 1, 8, 15, 16, 24 and 32. The GDI driver
 '' adds EnumDisplaySettings' modes of the depth itself, 15 and 16 interchangeable
-'' and 24 and 32. This takes both from EnumDisplaySettings: its 32-bit modes stand
-'' for DXGI's, and measured on this machine the two lists are identical.
+'' and 24 and 32. This takes both from the platform's DesktopModeAt (on Windows,
+'' EnumDisplaySettings): its 32-bit modes stand for DXGI's, and measured on this
+'' machine the two lists are identical.
 ''
 '' This replaced a walk over the legacy SCREEN mode table: `screenlist( 32 )` found
 '' nothing, and `screenlist( )` restarted the walk -- so the help's own
@@ -116,17 +117,15 @@ function TkoGfxScreenList alias "fb_GfxScreenList" ( byval depth as long ) as lo
         deallocate( TkoGfx.SlList )
         TkoGfx.SlList = nullptr
         TkoGfx.SlSize = 0
-        dim as DEVMODE dm
-        dm.dmSize = sizeof( DEVMODE )
         dim as long i = 0
-        while EnumDisplaySettings( nullptr, i, @dm )
-            dim as long b = dm.dmBitsPerPel
+        dim as long mw, mh, b
+        while TkoGfx.DesktopModeAt( i, mw, mh, b )
             dim as boolean d2d = (b = 32)
             dim as boolean same = (b = depth)
             dim as boolean hi = ((b = 15) andalso (depth = 16)) orelse ((b = 16) andalso (depth = 15))
             dim as boolean tc = ((b = 24) andalso (depth = 32)) orelse ((b = 32) andalso (depth = 24))
             if d2d orelse same orelse hi orelse tc then
-                TkoGfx.SlAdd( (dm.dmPelsWidth shl 16) or dm.dmPelsHeight )
+                TkoGfx.SlAdd( (mw shl 16) or mh )
             end if
             i += 1
         wend

@@ -61,7 +61,7 @@ function TkoGfxWaitVSync alias "fb_GfxWaitVSync" ( ) as long
     end if
     dim as long rate = TkoGfx.TheScreen.refresh
     if rate <= 0 then rate = 60
-    WinSleep( 1000 \ rate )
+    PlatSleep( 1000 \ rate )
     RtlErrorSetNum( 0 )
     return 0
 end function

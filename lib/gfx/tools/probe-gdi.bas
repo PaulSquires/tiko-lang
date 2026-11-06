@@ -22,7 +22,7 @@
 '' and resize handling, palette realisation. Those need the author's interactive
 '' pass and are listed as owed in the README.
 
-#include once "../driver/gdi.ti"
+#include once "../driver/win32/gdi.ti"
 #include once "../raster/box.ti"
 #include once "crt/string.bi"
 

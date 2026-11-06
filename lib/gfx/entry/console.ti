@@ -392,7 +392,7 @@ private function ConKeyWait( ) as long
         dim as long c = ConKeyGet( )
         if c <> 0 then return c
         if WindowWasClosed( TheScreen.wnd ) then return 0
-        WinSleep( 5 )
+        PlatSleep( 5 )
     loop
 end function
 
@@ -923,7 +923,7 @@ end function
 '' accident.
 sub TkoConSleep cdecl ( byval msecs as long )
     if TkoGfx.TheCon.live = 0 then
-        if msecs > 0 then WinSleep( msecs )
+        if msecs > 0 then PlatSleep( msecs )
         exit sub
     end if
 
@@ -931,7 +931,7 @@ sub TkoConSleep cdecl ( byval msecs as long )
         do
             if TkoGfx.ConKeyChanged( ) <> 0 then exit sub
             if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) then exit sub
-            WinSleep( 50 )
+            PlatSleep( 50 )
         loop
     end if
 
@@ -940,14 +940,14 @@ sub TkoConSleep cdecl ( byval msecs as long )
         while remaining > 50
             if TkoGfx.ConKeyChanged( ) <> 0 then exit sub
             if TkoGfx.WindowWasClosed( TkoGfx.TheScreen.wnd ) then exit sub
-            WinSleep( 50 )
+            PlatSleep( 50 )
             remaining -= 50
         wend
     end if
 
     '' The remainder, and the whole of a short sleep. A negative value that is
     '' not -1 falls through to here and sleeps for nothing, as both references do.
-    if remaining > 0 then WinSleep( remaining )
+    if remaining > 0 then PlatSleep( remaining )
 end sub
 
 '' INPUT's collector. The runtime asks for at most `length_` bytes and takes the

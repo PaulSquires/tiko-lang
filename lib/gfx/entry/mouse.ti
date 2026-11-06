@@ -92,9 +92,9 @@ function TkoGfxSetMouse cdecl ( byval x as long, byval y as long, _
     if (dy <> TkoGfx.MOUSE_KEEP) then dy = dy * TkoGfx.MouseScanlineSize( )
 
     TkoGfx.WindowLock( TkoGfx.TheScreen.wnd )
-    TkoGfx.MouseSet( TkoGfx.TheScreen.wnd.mouse, TkoGfx.TheScreen.wnd.hwnd, _
-                     TkoGfx.ScreenCtx.surf.w, TkoGfx.ScreenCtx.surf.h, _
-                     x, dy, cursor, clip )
+    TkoGfx.WindowSetMouse( TkoGfx.TheScreen.wnd, _
+                           TkoGfx.ScreenCtx.surf.w, TkoGfx.ScreenCtx.surf.h, _
+                           x, dy, cursor, clip )
     TkoGfx.WindowUnlock( TkoGfx.TheScreen.wnd )
 
     RtlErrorSetNum( 0 )
