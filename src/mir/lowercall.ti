@@ -33,6 +33,9 @@ declare function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as 
     '' TKO_PX_* for a parameter of this type -- see lowerstore.tiko.
     declare function ParamExtClass_ _
         ( byref c as Ctx, byval t as Tko.TypeId ) as uint8
+    '' ...and for a narrow result -- lowersig.tiko.
+    declare function RetExtClass_ _
+        ( byref c as Ctx, byval rt as Tko.TypeId, byval rmt as MirType ) as uint8
     '' Fills a function's signature from the procedure it declares -- see lowerproc.tiko.
     declare sub SignatureFromProc _
         ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _

@@ -154,6 +154,7 @@ sub LowerProc _
         end if
     end if
     dim as MirFunction ptr f = c.m->AddFunction( nm, declRet )
+    f->retExt = RetExtClass_( c, rt, declRet )
     '' AN AGGREGATE RETURN NEEDS ITS SIZE for the same reason a parameter does: the ABI
     '' classifier's whole question is how many bytes it is.
     if declRet = MT_AGG then

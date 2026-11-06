@@ -48,6 +48,20 @@ function ParamExtClass_ _
     return TKO_PX_SIGN
 end function
 
+'' ...AND A NARROW RESULT, by the same rule. Only macos-arm64 reads it: clang writes
+'' 'define zeroext i8 @f()' there, and a C caller then trusts the upper bits.
+function RetExtClass_ _
+    ( byref c as Ctx, byval rt as Tko.TypeId, byval rmt as MirType ) as uint8
+
+    if rt = Tko.TYPE_NONE then return TKO_PX_NONE
+    select case rmt
+    case MT_I8, MT_I16
+    case else
+        return TKO_PX_NONE
+    end select
+    return ParamExtClass_( c, rt )
+end function
+
 sub SignatureFromProc _
     ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
       byval withSret as boolean, byval withThis as boolean )
@@ -60,6 +74,8 @@ sub SignatureFromProc _
     if withThis then f->AddParam( MT_PTR )
     if pn = Tko.NODE_NONE then return
     if c.ast->Kind( pn ) <> Tko.N_PROC then return
+    dim as Tko.Symbol ptr xs = c.syms->SymbolAt( c.info->RefOf( pn ) )
+    if xs <> nullptr then f->retExt = RetExtClass_( c, xs->type_, cast( MirType, f->retTy ) )
     '' AN AGGREGATE RETURN NEEDS ITS SIZE HERE TOO. The DEFINITION path records it;
     '' this one -- every DECLARATION, so every callee this module only calls -- did
     '' not, and a retSize of zero is exactly what both halves of the ABI pass read as
@@ -180,6 +196,7 @@ function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as int32
     if sret then rmt = MT_PTR
     dim as MirFunction ptr f = c.m->AddFunction( nm, rmt )
     if f = nullptr then return -1
+    f->retExt = RetExtClass_( c, rt, rmt )
     c.m->procSigByType[tkey] = c.m->functions.Count
     f->isDefinition = false
     if sret then

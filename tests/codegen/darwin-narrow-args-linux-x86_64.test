@@ -1,0 +1,12 @@
+'' The control for darwin-narrow-args-macos-arm64.test: off Apple a narrow integer argument
+'' still widens to a plain i32 (fbc's rule, lowersig.tiko ParamExtClass_), and no parameter or
+'' result carries an extension attribute.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir tests/codegen/src/darwin-narrow-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare void @"c_take"(ptr, ptr, ptr, ptr, ptr, ptr, ptr, ptr, i32, i32, i32, i32, i32)
+'' EXPECT-OUT: declare i16 @"c_ret"()
+'' EXPECT-OUT: define i8 @"T_RET"(i64 %p0)
+'' EXPECT-OUT: define void @"T_TAKE"(i32 %p0, i32 %p1, i32 %p2)
+'' EXPECT-NOT: zeroext
+'' EXPECT-NOT: signext

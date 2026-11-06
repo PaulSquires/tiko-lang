@@ -363,6 +363,8 @@ private sub RewriteCallArgs _
             if callee->paramExt[i] <> TKO_PX_NONE then anyExt = true
         end if
     next
+    '' Apple arm64 passes it narrow, with an attribute -- see RewriteSignature.
+    if AbiIsAapcs_( *r.tgt ) then anyExt = false
     if (anyAgg = false) andalso (anyExt = false) then return
 
     dim as int32 oldFirst = ins.first
@@ -402,6 +404,7 @@ private sub RewriteCallArgs _
             '' generics/fail-container-nohash suites, which fbc rejects as well. It is
             '' passed through exactly as it was before the widening existed.
             if av.kind = cast( uint8, MV_NONE ) then ex = TKO_PX_NONE
+            if AbiIsAapcs_( *r.tgt ) then ex = TKO_PX_NONE
             if ex <> TKO_PX_NONE then
                 dim as MirInst xt
                 if ex = TKO_PX_SIGN then
@@ -659,6 +662,8 @@ private sub RewriteParamStore _
         if wj >= r.f->paramExt.Count then return
         if r.f->paramExt[wj] = TKO_PX_NONE then return
         dim as MirType narrow = cast( MirType, r.f->paramNarrow[wj] )
+        '' NOT WIDENED (Apple arm64): the store of the narrow parameter is already right.
+        if narrow = cast( MirType, r.f->paramTys[wj] ) then return
         dim as MirValue wp
         wp.kind = cast( uint8, MV_PARAM )
         wp.ty = r.f->paramTys[wj]
@@ -816,6 +821,13 @@ private sub RewriteSignature _
                 case else          : ex = TKO_PX_NONE
                 end select
             end if
+            '' EXCEPT ON APPLE ARM64, which packs a stack argument at its NATURAL size:
+            '' with x0-x7 used up a bool goes at sp+0 and a following short at sp+2,
+            '' where an i32 puts it at sp+4 and the callee reads 0. clang writes
+            '' 'i8 zeroext' / 'i16 signext' there, and LLVM then extends the register and
+            '' packs the stack by Darwin's rules; ExtAttr spells it. The parameter stays
+            '' narrow, so neither half below widens nor truncates.
+            if AbiIsAapcs_( target ) then wt = pt
             ptys.Push( cast( uint8, wt ) )
             paggs.Push( cast( uint32, sz ) )
             pcls.Push( packed )
@@ -980,6 +992,44 @@ private sub RewriteSignature _
     f->paramCount = f->paramTys.Count
     f->hasSretParam = true
 end sub
+
+'' THE EXTENSION ATTRIBUTE OF A NARROW INTEGER, on macos-arm64 only: ' zeroext' or
+'' ' signext' after an i8/i16 parameter (both the signature and the call) and before an
+'' i8/i16 result, which is where clang writes them for 'arm64-apple-macosx'. Measured,
+'' clang 23: '(ptr x 8, i1 zeroext, i16 zeroext, i8 signext, i16 signext)', and
+'' 'define zeroext i16 @rus()'. Every other target widens to i32 instead and gets "".
+private function ExtWord_ _
+    ( byref target as TargetDescription, byval ty as uint8, byval ex as uint8 ) as string
+
+    if AbiIsAapcs_( target ) = false then return ""
+    select case cast( MirType, ty )
+    case MT_I8, MT_I16
+    case else
+        return ""
+    end select
+    if ex = TKO_PX_SIGN then return " signext"
+    if ex = TKO_PX_ZERO then return " zeroext"
+    return ""
+end function
+
+function ExtAttr _
+    ( byref target as TargetDescription, byval f as MirFunction ptr, byval i as int32 ) as string
+
+    if f = nullptr then return ""
+    if (i < 0) orelse (i >= f->paramTys.Count) orelse (i >= f->paramExt.Count) then return ""
+    return ExtWord_( target, f->paramTys[i], f->paramExt[i] )
+end function
+
+'' ...and the result's, with its trailing space: 'define' & RetExtAttr & ' i8 @f'.
+function RetExtAttr _
+    ( byref target as TargetDescription, byval f as MirFunction ptr ) as string
+
+    if f = nullptr then return ""
+    if cast( MirType, f->retTy2 ) <> MT_VOID then return ""
+    dim as string w = ExtWord_( target, f->retTy, f->retExt )
+    if len( w ) = 0 then return ""
+    return mid( w, 2 ) & " "
+end function
 
 '' PASCAL REVERSES ITS PARAMETERS, on x86-64 as anywhere else. Measured on fbc-modern
 '' 1.20 -gen llvm, 2026-09-25:

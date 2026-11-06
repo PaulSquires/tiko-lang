@@ -454,7 +454,7 @@ private function CallArgs _
             '' ...and so does the CALL, because LLVM matches the two and lowers from
             '' what the call says.
             if i = 0 then attr = SretAttr( e, callee )
-            attr += ByvalAttr( e, callee, i )
+            attr += ByvalAttr( e, callee, i ) & ExtAttr( *e.tgt, callee, i )
             if i < callee->paramTys.Count then
                 pt = cast( MirType, callee->paramTys[i] )
             elseif v.kind = cast( uint8, MV_TEMP ) then
@@ -890,7 +890,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         if rt = MT_VOID then
             Line( e, "call " & sig & " " & target_ & "(" & args & ")" )
         else
-            Line( e, res & " = call " & sig & " " & target_ & "(" & args & ")" )
+            Line( e, res & " = call " & RetExtAttr( *e.tgt, cf ) & sig & " " & target_ & "(" & args & ")" )
         end if
 
     '' llvm.va_start takes ONLY the list pointer. MIR carries the last named parameter
@@ -1111,7 +1111,7 @@ private function ParamList _
         if q > 0 then r += ", "
         r += LlvmType( cast( MirType, f->paramTys[i] ) )
         if i = 0 then r += SretAttr( e, f )
-        r += ByvalAttr( e, f, i )
+        r += ByvalAttr( e, f, i ) & ExtAttr( *e.tgt, f, i )
         if named then r += " " & ParamName( cast( uint32, i ) )
     next
     if f->isVariadic then
@@ -1155,7 +1155,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         dim as string extra = ""
         dim as string dn = e.names->Spelling( f->name )
         if (dn = "_setjmp") orelse (dn = "__intrinsic_setjmp") then extra = " returns_twice"
-        e.outp += "declare " & ret & " " & GlobalName( e, f->name ) & _
+        e.outp += "declare " & RetExtAttr( *e.tgt, f ) & ret & " " & GlobalName( e, f->name ) & _
                   "(" & ParamList( e, f, false ) & ")" & extra & chr( 10 )
         return
     end if
@@ -1219,7 +1219,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         '' statement, where the parameters already hold their values, not the 'sub' line.
         e.dbgLine = 0
     end if
-    e.outp += "define " & linkage & iif( f->isHidden, "hidden ", "" ) & ret & " " & GlobalName( e, f->name ) & _
+    e.outp += "define " & linkage & iif( f->isHidden, "hidden ", "" ) & RetExtAttr( *e.tgt, f ) & ret & " " & GlobalName( e, f->name ) & _
               "(" & ParamList( e, f, true ) & ") nounwind uwtable(sync)" & FrameAttr_( e ) & cmdt & dbgAttr & " {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest

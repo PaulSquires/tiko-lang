@@ -389,6 +389,9 @@ namespace Tko.Mir
         '' SysV aggregate of nine to sixteen bytes comes back in two, and LLVM spells
         '' that '{ retTy, retTy2 }'. See codegen/abi.tiko.
         as uint8    retTy2
+        '' HOW A NARROW INTEGER RESULT IS EXTENDED, TKO_PX_*, set where the FB return type
+        '' is known. Only macos-arm64 reads it -- see RetExtAttr in codegen/abi.tiko.
+        as uint8    retExt
         '' Where the procedure is, for '-g': its file as FileId + 1 (0 for none) and
         '' the line it starts on. Instruction lines are only recorded in THAT file.
         as uint32    dbgFile

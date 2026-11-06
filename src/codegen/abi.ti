@@ -60,6 +60,13 @@ namespace Tko.Codegen
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
           byref target as TargetDescription, byref st as AbiStats )
 
+    '' ' zeroext' / ' signext' for a narrow integer parameter or result, macos-arm64 only.
+    declare function ExtAttr _
+        ( byref target as TargetDescription, byval f as Tko.Mir.MirFunction ptr, _
+          byval i as int32 ) as string
+    declare function RetExtAttr _
+        ( byref target as TargetDescription, byval f as Tko.Mir.MirFunction ptr ) as string
+
     '' The order n IR parameters or arguments of f are WRITTEN in: reversed for pascal.
     declare sub PascalParamOrder _
         ( byval f as Tko.Mir.MirFunction ptr, byval n as int32, byref order as containers.Array( of int32 ) )

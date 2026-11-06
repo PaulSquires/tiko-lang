@@ -521,6 +521,24 @@ declare sub c_mix( byval a0 as long, byval a1 as long, byval a2 as long, byval a
 declare sub c_seen_mix( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long, byval a4 as long, byval a5 as long, byval a6 as long, byval a7 as long, byval a8 as double, byval a9 as double, byval a10 as double, byval a11 as double, byval a12 as double, byval a13 as double, byval a14 as double, byval a15 as double, byval a16 as I3 ptr, byval a17 as D2 ptr, byval a18 as long, byval a19 as double )
 declare sub c_big( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long, byval a4 as long, byval a5 as long, byval a6 as long, byval a7 as B33, byval a8 as long, byval a9 as MIX24 )
 declare sub c_seen_big( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long, byval a4 as long, byval a5 as long, byval a6 as long, byval a7 as B33 ptr, byval a8 as long, byval a9 as MIX24 ptr )
+declare sub c_nreg( byval a0 as boolean, byval a1 as byte, byval a2 as ubyte, byval a3 as short, byval a4 as ushort, byval a5 as boolean )
+declare sub c_seen_nreg( byval a0 as boolean, byval a1 as byte, byval a2 as ubyte, byval a3 as short, byval a4 as ushort, byval a5 as boolean )
+declare sub c_p8bs( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as ushort )
+declare sub c_seen_p8bs( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as ushort )
+declare sub c_p8mix( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as byte, byval a10 as ubyte, byval a11 as short, byval a12 as ushort, byval a13 as boolean, byval a14 as byte, byval a15 as ushort )
+declare sub c_seen_p8mix( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as byte, byval a10 as ubyte, byval a11 as short, byval a12 as ushort, byval a13 as boolean, byval a14 as byte, byval a15 as ushort )
+declare sub c_p8int( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as byte, byval a9 as long, byval a10 as short, byval a11 as longint, byval a12 as ubyte, byval a13 as double, byval a14 as ushort, byval a15 as boolean )
+declare sub c_seen_p8int( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as byte, byval a9 as long, byval a10 as short, byval a11 as longint, byval a12 as ubyte, byval a13 as double, byval a14 as ushort, byval a15 as boolean )
+declare function c_ret_bool( byval x as longint ) as boolean
+declare sub c_chk_ret_bool( byval r as boolean )
+declare function c_ret_schar( byval x as longint ) as byte
+declare sub c_chk_ret_schar( byval r as byte )
+declare function c_ret_uchar( byval x as longint ) as ubyte
+declare sub c_chk_ret_uchar( byval r as ubyte )
+declare function c_ret_short( byval x as longint ) as short
+declare sub c_chk_ret_short( byval r as short )
+declare function c_ret_ushort( byval x as longint ) as ushort
+declare sub c_chk_ret_ushort( byval r as ushort )
 declare function c_va cdecl( byval n as long, ... ) as longint
 declare sub c_va_ret( byval r as longint )
 declare sub c_seen_va( byval n as long, byval a as long, byval b as longint, byval c as double, byval p as any ptr )
@@ -2430,6 +2448,69 @@ sub trun_big( )
     tfill_MIX24( s9, 1 )
     c_big( 1, 2, 3, 4, 5, 6, 7, s7, 9, s9 )
 end sub
+sub t_nreg( byval a0 as boolean, byval a1 as byte, byval a2 as ubyte, byval a3 as short, byval a4 as ushort, byval a5 as boolean )
+    c_seen_nreg( a0, a1, a2, a3, a4, a5 )
+end sub
+sub trun_nreg( )
+    c_nreg( true, -2, 202, -1003, 65004, false )
+    dim fp as sub( byval a0 as boolean, byval a1 as byte, byval a2 as ubyte, byval a3 as short, byval a4 as ushort, byval a5 as boolean ) = @c_nreg
+    fp( true, -2, 202, -1003, 65004, false )
+end sub
+sub t_p8bs( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as ushort )
+    c_seen_p8bs( a0, a1, a2, a3, a4, a5, a6, a7, a8, a9 )
+end sub
+sub trun_p8bs( )
+    c_p8bs( cast( any ptr, 1 ), cast( any ptr, 2 ), cast( any ptr, 3 ), cast( any ptr, 4 ), cast( any ptr, 5 ), cast( any ptr, 6 ), cast( any ptr, 7 ), cast( any ptr, 8 ), true, 65009 )
+    dim fp as sub( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as ushort ) = @c_p8bs
+    fp( cast( any ptr, 1 ), cast( any ptr, 2 ), cast( any ptr, 3 ), cast( any ptr, 4 ), cast( any ptr, 5 ), cast( any ptr, 6 ), cast( any ptr, 7 ), cast( any ptr, 8 ), true, 65009 )
+end sub
+sub t_p8mix( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as byte, byval a10 as ubyte, byval a11 as short, byval a12 as ushort, byval a13 as boolean, byval a14 as byte, byval a15 as ushort )
+    c_seen_p8mix( a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 )
+end sub
+sub trun_p8mix( )
+    c_p8mix( cast( any ptr, 1 ), cast( any ptr, 2 ), cast( any ptr, 3 ), cast( any ptr, 4 ), cast( any ptr, 5 ), cast( any ptr, 6 ), cast( any ptr, 7 ), cast( any ptr, 8 ), true, -10, 210, -1011, 65012, false, -15, 65015 )
+    dim fp as sub( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as boolean, byval a9 as byte, byval a10 as ubyte, byval a11 as short, byval a12 as ushort, byval a13 as boolean, byval a14 as byte, byval a15 as ushort ) = @c_p8mix
+    fp( cast( any ptr, 1 ), cast( any ptr, 2 ), cast( any ptr, 3 ), cast( any ptr, 4 ), cast( any ptr, 5 ), cast( any ptr, 6 ), cast( any ptr, 7 ), cast( any ptr, 8 ), true, -10, 210, -1011, 65012, false, -15, 65015 )
+end sub
+sub t_p8int( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as byte, byval a9 as long, byval a10 as short, byval a11 as longint, byval a12 as ubyte, byval a13 as double, byval a14 as ushort, byval a15 as boolean )
+    c_seen_p8int( a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 )
+end sub
+sub trun_p8int( )
+    c_p8int( cast( any ptr, 1 ), cast( any ptr, 2 ), cast( any ptr, 3 ), cast( any ptr, 4 ), cast( any ptr, 5 ), cast( any ptr, 6 ), cast( any ptr, 7 ), cast( any ptr, 8 ), -9, 10, -1010, 12, 212, 14, 65014, false )
+    dim fp as sub( byval a0 as any ptr, byval a1 as any ptr, byval a2 as any ptr, byval a3 as any ptr, byval a4 as any ptr, byval a5 as any ptr, byval a6 as any ptr, byval a7 as any ptr, byval a8 as byte, byval a9 as long, byval a10 as short, byval a11 as longint, byval a12 as ubyte, byval a13 as double, byval a14 as ushort, byval a15 as boolean ) = @c_p8int
+    fp( cast( any ptr, 1 ), cast( any ptr, 2 ), cast( any ptr, 3 ), cast( any ptr, 4 ), cast( any ptr, 5 ), cast( any ptr, 6 ), cast( any ptr, 7 ), cast( any ptr, 8 ), -9, 10, -1010, 12, 212, 14, 65014, false )
+end sub
+
+function t_ret_bool( byval x as longint ) as boolean
+    return cbool( x )
+end function
+sub trun_ret_bool( )
+    c_chk_ret_bool( c_ret_bool( 5 ) )
+end sub
+function t_ret_schar( byval x as longint ) as byte
+    return cbyte( x )
+end function
+sub trun_ret_schar( )
+    c_chk_ret_schar( c_ret_schar( 509 ) )
+end sub
+function t_ret_uchar( byval x as longint ) as ubyte
+    return cubyte( x )
+end function
+sub trun_ret_uchar( )
+    c_chk_ret_uchar( c_ret_uchar( 456 ) )
+end sub
+function t_ret_short( byval x as longint ) as short
+    return cshort( x )
+end function
+sub trun_ret_short( )
+    c_chk_ret_short( c_ret_short( 131056 ) )
+end sub
+function t_ret_ushort( byval x as longint ) as ushort
+    return cushort( x )
+end function
+sub trun_ret_ushort( )
+    c_chk_ret_ushort( c_ret_ushort( 131056 ) )
+end sub
 
 function t_va cdecl( byval n as long, ... ) as longint
     dim as cva_list ap
@@ -2515,6 +2596,15 @@ sub trun_all( )
     trun_gpr7( )
     trun_mix( )
     trun_big( )
+    trun_nreg( )
+    trun_p8bs( )
+    trun_p8mix( )
+    trun_p8int( )
+    trun_ret_bool( )
+    trun_ret_schar( )
+    trun_ret_uchar( )
+    trun_ret_short( )
+    trun_ret_ushort( )
     c_va_ret( c_va( 7, clng( 11 ), clngint( 12 ), 13.5, c_marker( ), csng( 14.5 ), cbyte( -15 ), cshort( -16 ), 17 ) )
 end sub
 end extern

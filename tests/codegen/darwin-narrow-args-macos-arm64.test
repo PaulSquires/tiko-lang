@@ -1,0 +1,17 @@
+'' macos-arm64: a byte / short / boolean argument or result keeps its width, with clang's
+'' 'zeroext' / 'signext' (boolean is zeroext). Apple packs a STACK argument at its natural
+'' size -- after x0-x7 a bool goes at sp+0 and a ushort at sp+2 -- so the i32 every other
+'' target widens to put the ushort at sp+4, and NSEvent's keyCode read back 0 (RFC-0012 F6,
+'' 2026-11-05). The running proof is build/aapcslane.sh (prefixes p8bs, p8mix, p8int, nreg,
+'' and the t_ret_* / c_ret_* results). See ExtAttr in src/codegen/abi.tiko.
+'' TEST: cli
+'' ARGS: -target macos-arm64 --emit-ir tests/codegen/src/darwin-narrow-args.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare void @"c_take"(ptr, ptr, ptr, ptr, ptr, ptr, ptr, ptr, i8 zeroext, i16 zeroext, i8 signext, i16 signext, i8 zeroext)
+'' EXPECT-OUT: declare zeroext i16 @"c_ret"()
+'' EXPECT-OUT: define signext i8 @"T_RET"(i64 %p0)
+'' EXPECT-OUT: define void @"T_TAKE"(i8 zeroext %p0, i16 zeroext %p1, i8 signext %p2)
+'' EXPECT-OUT: = call signext i8 @"T_RET"(i64 509)
+'' EXPECT-OUT: = call zeroext i16 @"c_ret"()
+'' EXPECT-OUT: i8 zeroext %t13, i16 zeroext %t10, i8 signext %t9, i16 signext %t8, i8 zeroext %t5)
+'' EXPECT-OUT: (i8 zeroext %t11, i16 zeroext %t8, i8 signext %t7)
