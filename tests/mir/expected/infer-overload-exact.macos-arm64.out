@@ -1,4 +1,4 @@
-func i8 _Z4PICKaa(i32 $0, i32 $1) {
+func i8 _Z4PICKaa(i8 $0, i8 $1) {
   local i8 $tmp0
   local i8 a
   local i8 b
@@ -7,11 +7,9 @@ func i8 _Z4PICKaa(i32 $0, i32 $1) {
     %2 = const i8 0
     store @$tmp0, %2
     %3 = alloca ptr a
-    %6 = trunc $0
-    store @a, %6
+    store @a, $0
     %4 = alloca ptr b
-    %7 = trunc $1
-    store @b, %7
+    store @b, $1
     %5 = load @a
     ret %5
 }
@@ -52,18 +50,17 @@ func f64 _Z4PICKdd(f64 $0, f64 $1) {
     %7 = mul %5, %6
     ret %7
 }
-func i16 _Z4SomeIaEa(i32 $0) {
+func i16 _Z4SomeIaEa(i8 $0) {
   local agg $tmp0 size 2
   local i8 x
   local agg r size 2
   local agg $abi3 size 8
   entry0:
-    %15 = alloca ptr $abi3
+    %14 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 2)
     %3 = alloca ptr x
-    %14 = trunc $0
-    store @x, %14
+    store @x, $0
     %4 = alloca ptr r
     %5 = call.rtl ptr memset(@r, 0, 2)
     %6 = field.addr @r, 0
@@ -78,8 +75,8 @@ func i16 _Z4SomeIaEa(i32 $0) {
     store @$tmp0, %12
     %13 = load @$tmp0
     store @$abi3, %13
-    %16 = load @$abi3
-    ret %16
+    %15 = load @$abi3
+    ret %15
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 _Z4SomeIiEi(i32 $0) {
@@ -150,9 +147,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg $abi8 size 8
   local agg $abi9 size 16
   entry0:
-    %38 = alloca ptr $abi7
-    %40 = alloca ptr $abi8
-    %42 = alloca ptr $abi9
+    %35 = alloca ptr $abi7
+    %37 = alloca ptr $abi8
+    %39 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -172,28 +169,25 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr ob
     %13 = load @bb
     %14 = load @bb
-    %35 = sext %14
-    %36 = sext %13
-    %15 = call i8 _Z4PICKaa(%35, %36)
-    %37 = sext %15
-    %39 = call i16 _Z4SomeIaEa(%37)
-    store @$abi7, %39
+    %15 = call i8 _Z4PICKaa(%14, %13)
+    %36 = call i16 _Z4SomeIaEa(%15)
+    store @$abi7, %36
     %16 = load @$abi7
     store @ob, %16
     %17 = alloca ptr ol
     %18 = load @ll
     %19 = load @ll
     %20 = call i32 _Z4PICKii(%19, %18)
-    %41 = call i64 _Z4SomeIiEi(%20)
-    store @$abi8, %41
+    %38 = call i64 _Z4SomeIiEi(%20)
+    store @$abi8, %38
     %21 = load @$abi8
     store @ol, %21
     %22 = alloca ptr od
     %23 = load @dd
     %24 = load @dd
     %25 = call f64 _Z4PICKdd(%24, %23)
-    %43 = call i64x2 _Z4SomeIdEd(%25)
-    store @$abi9, %43
+    %40 = call i64x2 _Z4SomeIdEd(%25)
+    store @$abi9, %40
     %26 = load @$abi9
     store @od, %26
     %27 = field.addr @ob, 1
