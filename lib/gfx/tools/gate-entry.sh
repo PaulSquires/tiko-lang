@@ -34,24 +34,62 @@
 HERE=$( cd "$( dirname "$0" )" && pwd )
 GFX=$( cd "$HERE/.." && pwd )
 
+# THE HOST PICKS THE TARGET. On Windows the subject is windows-x86_64 against the
+# reference's MinGW gfxlib2; on Linux it is linux-x86_64 against fbc-linux's gfxlib2
+# and its X11 driver (docs/graphics RFC-0012), which needs an X display -- under
+# WSL, WSLg's. Set FBGFX=null to compare the null driver instead.
+ROOTDIR=$( cd "$GFX/../.." && pwd )
+case "$(uname -s)" in
+    Linux) HOST=linux ;;
+    *)     HOST=windows ;;
+esac
+
 # The oracle fbc for the reference (it links gfxlib2 itself); the tree's tiko for the
 # subject.
-FBC_REF=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
-: "${TIKO:=$( cd "$GFX/../.." && pwd )/bin/tiko.exe}"
+if [ "$HOST" = linux ]; then
+    FBC_REF=${TKO_ORACLE_FBC:-$( command -v fbc 2>/dev/null )}
+    : "${TIKO:=$ROOTDIR/bin/tiko}"
+    TARGET=linux-x86_64
+    EXE=""
+else
+    FBC_REF=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+    : "${TIKO:=$ROOTDIR/bin/tiko.exe}"
+    TARGET=windows-x86_64
+    EXE=".exe"
+fi
 
-TKOGFX="$GFX/lib/windows-x86_64/libtkogfx.a"
-LIBFB="$GFX/../rt/lib/windows-x86_64/libfb.a"
+TKOGFX="$GFX/lib/$TARGET/libtkogfx.a"
+LIBFB="$GFX/../rt/lib/$TARGET/libfb.a"
 # The import libraries tiko's own windows-x86_64 link resolves the CRT and Win32
 # through (build/implibs.sh builds them). See the subject link below.
-: "${MSVC_IMPLIBS:=$( cd "$GFX/../.." && pwd )/toolchains/tiko-windows/lib/windows-x86_64}"
+: "${MSVC_IMPLIBS:=$ROOTDIR/toolchains/tiko-windows/lib/windows-x86_64}"
 
-[ -x "$FBC_REF" ] || { echo "gate-entry: SKIPPED -- no oracle fbc at $FBC_REF (TKO_ORACLE_FBC)" ; exit 0 ; }
+# KNOWN DIFFERENCES, by case name, each with its reason -- excused, never skipped: an
+# excused case that starts to AGREE fails the gate too, so the excuse cannot outlive it.
+#   linux: tiko-rt converts a wide character with no ASCII form to UTF-8 (3 bytes), and
+#          libfb to one byte -- the RUNTIME decides the string before either library
+#          draws it (RFC-0012 F3).
+KNOWN=""
+[ "$HOST" = linux ] && KNOWN="a wide character with no ascii"
+
+[ -n "$FBC_REF" ] && [ -x "$FBC_REF" ] || { echo "gate-entry: SKIPPED -- no oracle fbc at '$FBC_REF' (TKO_ORACLE_FBC)" ; exit 0 ; }
 [ -x "$TIKO" ] || { echo "gate-entry: no $TIKO -- run build/build.sh" >&2 ; exit 3 ; }
 for f in "$TKOGFX" "$LIBFB"; do
     [ -f "$f" ] || { echo "gate-entry: no $f -- run build/build.sh" >&2 ; exit 3 ; }
 done
-[ -f "$MSVC_IMPLIBS/ucrtbase.lib" ] || {
-    echo "gate-entry: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/implibs.sh build --out <dir>" >&2 ; exit 3 ; }
+if [ "$HOST" = windows ]; then
+    [ -f "$MSVC_IMPLIBS/ucrtbase.lib" ] || {
+        echo "gate-entry: no ucrtbase.lib in $MSVC_IMPLIBS -- run build/implibs.sh build --out <dir>" >&2 ; exit 3 ; }
+fi
+
+# WSLg DROPS THE FIRST X CLIENT after a pause ("X connection to :0 broken"), whichever
+# binary it is -- measured on both gfxlib2's and ours. One retry, on exactly that.
+run_case_file( ) {
+    timeout "$GATE_TIMEOUT" "$1" > "$2" 2>&1 && return 0
+    grep -q "X connection to .* broken" "$2" || return 1
+    sleep 2
+    timeout "$GATE_TIMEOUT" "$1" > "$2" 2>&1
+}
 
 TMP=$( mktemp -d )
 [ "$1" = "--keep" ] || trap 'rm -rf "$TMP"' EXIT
@@ -59,7 +97,9 @@ TMP=$( mktemp -d )
 src="$HERE/gate-entry.bas"
 
 # ---------------------------------------------------------------- reference
-if ! "$FBC_REF" -gen llvm "$src" -x "$TMP/ref.exe" > "$TMP/ref.log" 2>&1; then
+REFGEN="-gen llvm"
+[ "$HOST" = linux ] && REFGEN=""
+if ! "$FBC_REF" $REFGEN "$src" -x "$TMP/ref$EXE" > "$TMP/ref.log" 2>&1; then
     echo "gate-entry: the REFERENCE failed to build" >&2
     sed -n '1,10p' "$TMP/ref.log" >&2
     exit 1
@@ -70,7 +110,7 @@ fi
 # whole file takes and far below anyone's patience.
 : "${GATE_TIMEOUT:=120}"
 
-if ! timeout "$GATE_TIMEOUT" "$TMP/ref.exe" > "$TMP/ref.out" 2>&1; then
+if ! run_case_file "$TMP/ref$EXE" "$TMP/ref.out"; then
     echo "gate-entry: the REFERENCE failed to run (or timed out after ${GATE_TIMEOUT}s)" >&2
     sed -n '1,20p' "$TMP/ref.out" >&2
     exit 1
@@ -80,16 +120,22 @@ fi
 # An unresolved fb_Gfx* names an entry point a legitimate program needs and the
 # library does not export. The -p directories come first, so the tree's libtkogfx and
 # tiko-rt are the ones linked.
-if ! "$TIKO" "$src" -target windows-x86_64 -p "$( cygpath -m "$GFX/lib/windows-x86_64" )" \
+if [ "$HOST" = linux ]; then
+    "$TIKO" "$src" -target linux-x86_64 -p "$GFX/lib/linux-x86_64" -p "$GFX/../rt/lib/linux-x86_64" \
+        -o "$TMP/sub" > "$TMP/sub.log" 2>&1
+else
+    "$TIKO" "$src" -target windows-x86_64 -p "$( cygpath -m "$GFX/lib/windows-x86_64" )" \
          -p "$( cygpath -m "$GFX/../rt/lib/windows-x86_64" )" -p "$( cygpath -m "$MSVC_IMPLIBS" )" \
-         -o "$TMP/sub.exe" > "$TMP/sub.log" 2>&1 || [ ! -f "$TMP/sub.exe" ]; then
+         -o "$TMP/sub.exe" > "$TMP/sub.log" 2>&1
+fi
+if [ ! -f "$TMP/sub$EXE" ]; then
     echo "gate-entry: the SUBJECT does not build:" >&2
     sed -n '1,10p' "$TMP/sub.log" >&2
     grep -o 'undefined symbol: [A-Za-z0-9_@$]*' "$TMP/sub.log" \
         | sed 's/undefined symbol: /    /' | sort -u >&2
     exit 1
 fi
-if ! timeout "$GATE_TIMEOUT" "$TMP/sub.exe" > "$TMP/sub.out" 2>&1; then
+if ! run_case_file "$TMP/sub$EXE" "$TMP/sub.out"; then
     echo "gate-entry: the SUBJECT failed to run (or timed out after ${GATE_TIMEOUT}s)" >&2
     sed -n '1,20p' "$TMP/sub.out" >&2
     exit 1
@@ -109,6 +155,11 @@ fi
 
 differ=0
 skipped=0
+known=0
+is_known( ) {
+    case "|$KNOWN|" in *"|$1|"*) return 0 ;; esac
+    return 1
+}
 while IFS=$( printf '\t' ) read -r rdig rname; do
     IFS=$( printf '\t' ) read -r sdig sname <&3 || break
     if [ "$rname" != "$sname" ]; then
@@ -123,6 +174,14 @@ while IFS=$( printf '\t' ) read -r rdig rname; do
     if [ "$rdig" = "CAPTURE-FAILED" ] || [ "$sdig" = "CAPTURE-FAILED" ]; then
         echo "gate-entry: SKIP     $rname -- readback captured no frame" >&2
         skipped=$(( skipped + 1 ))
+    elif is_known "$rname"; then
+        if [ "$rdig" != "$sdig" ]; then
+            echo "gate-entry: KNOWN    $rname -- excused above, by reason" >&2
+            known=$(( known + 1 ))
+        else
+            echo "gate-entry: STALE    $rname -- excused, but now AGREES: drop the excuse" >&2
+            differ=$(( differ + 1 ))
+        fi
     elif [ "$rdig" != "$sdig" ]; then
         echo "gate-entry: DIFFERS  $rname  gfxlib2=$rdig  tko=$sdig" >&2
         differ=$(( differ + 1 ))
@@ -132,10 +191,10 @@ done < "$TMP/ref.out" 3< "$TMP/sub.out"
 [ "$1" = "--keep" ] && echo "gate-entry: build products left in $TMP"
 
 if [ "$differ" = 0 ]; then
-    if [ "$skipped" = 0 ]; then
+    if [ "$skipped" = 0 ] && [ "$known" = 0 ]; then
         echo "gate-entry: PASS -- $ref_n cases, every public entry point agrees with gfxlib2"
     else
-        echo "gate-entry: PASS -- $ref_n cases, $skipped skipped (see above), the rest agree"
+        echo "gate-entry: PASS -- $ref_n cases [$TARGET], $skipped skipped, $known known difference(s) (see above), the rest agree"
     fi
     exit 0
 fi

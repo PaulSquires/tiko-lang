@@ -161,12 +161,14 @@ case "$(uname -s)" in
     *)  die "unsupported host '$(uname -s)' -- this packages Windows, Linux or macOS" ;;
 esac
 
-# WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64 alone, and lib/gfx/build
-# says why: tiko emits the Microsoft ABI for it and there is no MSVC libfbgfx
-# anywhere to fall back on, so that is the target the library was written for.
-# Kept as a list rather than a test so that the day a second one appears, this
-# is the line that changes.
-GFX_TARGETS="windows-x86_64"
+# WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64, where tiko emits the
+# Microsoft ABI and there is no MSVC libfbgfx anywhere to fall back on; and
+# linux-x86_64 since the X11 driver landed (docs/graphics RFC-0012 L2), which loads
+# libX11 at run time, so the package gains no X11 dependency. macos-arm64 builds
+# (GFX_NULL only, no window) and is not shipped until its Cocoa driver exists.
+# Kept as a list rather than a test so that the day another appears, this is the
+# line that changes.
+GFX_TARGETS="windows-x86_64 linux-x86_64"
 
 gfx_has_target( ) {
     for __g in $GFX_TARGETS; do [ "$1" = "$__g" ] && return 0; done
@@ -704,6 +706,35 @@ if fbcu.dblIsInf( 1.0 ) = false then print "ok"
     rm -rf "$_tmp"
 }
 
+# THE GRAPHICS LIBRARY IS VERIFIED THE SAME WAY, where one is shipped: a SCREEN
+# program built from the package, linked against the shipped libtkogfx.a and RUN.
+# GFX_NULL -- the null driver, a framebuffer and no window -- so it needs no display
+# on any host, and still takes every path a windowed program's link does: the
+# archive's entry points, its calls into libfb (the GNU ld order the ELF link group
+# exists for), the runtime's console hooks. The pixel is read back through POINT.
+verify_gfx( ) {
+    _t=$1
+    _tmp="$OUT/.verifygfx.$_t"
+    rm -rf "$_tmp"; mkdir -p "$_tmp"
+    printf 'screenres 64, 48, 32, , -1
+pset ( 3, 4 ), &hFF8040
+dim as long c = point( 3, 4 )
+screen 0
+print hex( c and &hFFFFFF )
+' > "$_tmp/gfx.tiko"
+    ( cd "$OUT" && "./${BINSUB}tiko$EXT" -target "$_t" ".verifygfx.$_t/gfx.tiko" -o ".verifygfx.$_t/gfx$EXT" ) >"$_tmp/log" 2>&1 || true
+    if [ -f "$_tmp/gfx$EXT" ] && [ "$( "$_tmp/gfx$EXT" 2>/dev/null )" = "FF8040" ]; then
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  graphics PASS -- a GFX_NULL screen compiled, linked and ran"
+    else
+        _why=$( grep -m1 -iE 'error|undefined' "$_tmp/log" | cut -c1-160 )
+        [ -n "$_why" ] || _why="built, but did not read its pixel back"
+        VERIFY_LINES="$VERIFY_LINES
+  $_t  graphics FAIL -- $_why"
+    fi
+    rm -rf "$_tmp"
+}
+
 # THE STANDARD PACKAGE IS VERIFIED THE SAME WAY: programs importing every std facade
 # (RFC-0009 §7), found in the packaged pkg/ and nowhere else, their headers in the packaged
 # inc/, built with their modules and RUN. Each facade prints one value on a line of its
@@ -858,6 +889,7 @@ if [ "$DO_VERIFY" = "1" ]; then
         note "verifying $t: compile, link and run"
         verify_target "$t"
         verify_fbcunit "$t"
+        gfx_has_target "$t" && verify_gfx "$t"
         verify_std "$t"
         verify_syswin "$t"
         verify_vendor "$t"

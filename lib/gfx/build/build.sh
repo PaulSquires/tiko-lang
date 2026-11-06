@@ -45,6 +45,8 @@ shift 2>/dev/null || true
 # The host decides the default target, the compiler's name and where LLVM is. On
 # macOS that is Homebrew's LLVM: a bare clang there is Apple's, and llvm-ar and
 # llvm-nm are not on PATH at all -- lib/rt/build/common.sh, which this follows.
+# TKORT_AR and TKORT_NM are honoured too: package.sh's Linux recipe exports them for
+# the runtime, and a distribution's LLVM is often only llvm-ar-19 / llvm-nm-19.
 LLVMBIN=""
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOSTTARGET=windows-x86_64; EXE=.exe ;;
@@ -64,11 +66,12 @@ else
     TIKO=${TKOGFX_TIKO:-"$GFX_ROOT/../../bin/tiko$EXE"}
     [ -x "$TIKO" ] || die "no tiko at $TIKO -- build the compiler first (build/build.sh), or set TKOGFX_TIKO"
 fi
-AR=${TKOGFX_AR:-${TKO_AR:-${LLVMBIN:+${LLVMBIN}llvm-ar}}}
+AR=${TKOGFX_AR:-${TKO_AR:-${TKORT_AR:-${LLVMBIN:+${LLVMBIN}llvm-ar}}}}
 [ -n "$AR" ] || AR=$(command -v llvm-ar 2>/dev/null || echo "C:/Program Files/LLVM/bin/llvm-ar.exe")
 [ -x "$AR" ] || die "no llvm-ar at $AR (set TKOGFX_AR)"
-NM=${TKO_NM:-${LLVMBIN:+${LLVMBIN}llvm-nm}}
+NM=${TKO_NM:-${TKORT_NM:-${LLVMBIN:+${LLVMBIN}llvm-nm}}}
 [ -n "$NM" ] || NM=$(command -v llvm-nm 2>/dev/null || echo "C:/Program Files/LLVM/bin/llvm-nm.exe")
+[ -x "$NM" ] || die "no llvm-nm at $NM (set TKO_NM) -- the archive's entry points are counted with it"
 
 # -z msvc, or nothing -- the fbc path only. Probed rather than assumed.
 mkdir -p "$GFX_ROOT/obj"
