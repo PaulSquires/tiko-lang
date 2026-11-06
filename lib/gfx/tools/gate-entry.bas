@@ -3,11 +3,17 @@
 '' ORIGINAL WORK. Part of libtkogfx (LGPL-2.1-or-later with the static-linking
 '' exception).
 ''
-'' THE SOURCE IS ROLE-NEUTRAL. There is not one #ifdef in this file and there
+'' THE SOURCE IS ROLE-NEUTRAL. There is not one ROLE #ifdef in this file and there
 '' must never be one: it is compiled ONCE and LINKED TWICE -- against gfxlib2 to
 '' get the reference answers, against libtkogfx to get ours. The BASIC
 '' statements are identical, so what differs is only which library the names
 '' fb_GfxLine, fb_GfxPset and the rest resolve to.
+''
+'' The one #ifdef is the PLATFORM's, and both roles see the same side of it: the
+'' window readback (CaptureAndEmit) is BitBlt, so off Windows it reports
+'' CAPTURE-FAILED, which gate-entry.sh counts as a skip. Run off Windows with
+'' FBGFX=null on both sides, every other case compares a framebuffer with no
+'' window at all (docs/graphics RFC-0012).
 ''
 '' That is the substitution harness RFC-0001 section 6.1 wanted, reached by
 '' LINKING rather than by archive surgery -- and it is the only way this seam can
@@ -32,7 +38,9 @@
 '' different space than the one it drew in.
 
 #include once "fbgfx.bi"
+#ifdef __FB_WIN32__
 #include once "windows.bi"
+#endif
 using FB
 
 const W = 64
@@ -553,6 +561,7 @@ end scope
 '' shaped the way they are, and they are worth more than the duplication
 '' would have been.
 sub CaptureAndEmit( byref nm as string )
+#ifdef __FB_WIN32__
     dim as long winh
     screencontrol GET_WINDOW_HANDLE, winh
     dim as HWND hw = cast( HWND, cast( any ptr, cast( uinteger, winh ) ) )
@@ -641,6 +650,9 @@ sub CaptureAndEmit( byref nm as string )
             Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
         end if
     end if
+#else
+    Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
+#endif
 end sub
 
 '' ------------------------------------ 8bpp PRESENTATION, off the real window
