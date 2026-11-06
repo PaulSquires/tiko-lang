@@ -164,11 +164,12 @@ esac
 # WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64, where tiko emits the
 # Microsoft ABI and there is no MSVC libfbgfx anywhere to fall back on; and
 # linux-x86_64 since the X11 driver landed (docs/graphics RFC-0012 L2), which loads
-# libX11 at run time, so the package gains no X11 dependency. macos-arm64 builds
-# (GFX_NULL only, no window) and is not shipped until its Cocoa driver exists.
+# libX11 at run time, so the package gains no X11 dependency; and macos-arm64 since
+# its Cocoa driver (RFC-0012 M1), which reaches AppKit through the Objective-C
+# runtime and needs fbrt0's tko_darwin_entry -- built by this same package.
 # Kept as a list rather than a test so that the day another appears, this is the
 # line that changes.
-GFX_TARGETS="windows-x86_64 linux-x86_64"
+GFX_TARGETS="windows-x86_64 linux-x86_64 macos-arm64"
 
 gfx_has_target( ) {
     for __g in $GFX_TARGETS; do [ "$1" = "$__g" ] && return 0; done
@@ -1146,14 +1147,19 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
         say "GRAPHICS IS windows-x86_64 ONLY. libtkogfx is built for the Microsoft ABI"
         say "and there is no MinGW build of it, so a SCREEN or PSET program links"
         say "on the default target and nowhere else. That is why it is the default."
+    elif [ "$HOST" = "macos" ]; then
+        say "GRAPHICS IS COCOA, REACHED AT RUN TIME. A program that uses graphics runs"
+        say "its main( ) on a thread of its own and AppKit keeps the main one; one that"
+        say "never opens a window never touches AppKit. GFX_NULL, or FBGFX=null, draws"
+        say "with no window at all."
     elif [ "$HOST" = "linux" ]; then
         say "GRAPHICS USES X11, LOADED WHEN A WINDOW OPENS. libtkogfx dlopens libX11"
         say "(and libXext, libXrandr if present), so a SCREEN program links with no X11"
         say "library and needs an X display only to open its window. GFX_NULL, or"
         say "FBGFX=null, draws with no display at all."
     else
-        say "NO GRAPHICS ON THIS HOST. libtkogfx ships for windows-x86_64 and"
-        say "linux-x86_64 only, so a SCREEN or PSET program does not link here:"
+        say "NO GRAPHICS ON THIS HOST. libtkogfx ships for windows-x86_64,"
+        say "linux-x86_64 and macos-arm64 only, so a SCREEN or PSET program does not link here:"
         say "fb_Gfx* are undefined."
     fi
     say
