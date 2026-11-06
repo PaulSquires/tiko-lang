@@ -1,0 +1,923 @@
+'' window.ti -- the Cocoa window: model B, the presenter, and the input.
+''
+'' ORIGINAL WORK. Part of libtkogfx, LGPL-2.1-or-later with the static-linking
+'' exception. gfxlib2 has no macOS driver to derive from; the behaviour copied is the
+'' Windows driver's, so a program sees what it sees there.
+''
+'' INCLUDED BY driver/window.ti, the platform seam, on macOS (docs/graphics RFC-0012 M1).
+''
+'' MODEL B -- APPKIT KEEPS THE MAIN THREAD. An NSWindow made off the main thread is an
+'' uncaught exception (measured, spike F5), so gfxlib2's window-on-a-thread cannot exist
+'' here. Instead the PROGRAM moves: fbrt0's tko_darwin_entry calls tko_darwin_start, and a
+'' program that uses graphics links this one, which runs main( ) on a thread with the main
+'' thread's stack size and keeps the main thread for AppKit. Until a window is wanted the
+'' main thread only runs a CoreFoundation run loop that services dispatch -- a program that
+'' never opens one never touches AppKit and gets no Dock icon. The first WindowOpen makes
+'' NSApplication there, and the main thread then enters [NSApp run] for good.
+''
+'' EVERY APPKIT CALL HAPPENS ON THE MAIN THREAD. The program reaches it by dispatch_sync_f
+'' (open, close) or dispatch_async_f (title, position, pointer) on the main queue -- async
+'' wherever the caller may hold the frame lock, because the main thread takes that lock
+'' itself and a sync call under it would deadlock.
+''
+'' THE PRESENTER IS A TIMER ON THE MAIN RUN LOOP, every 10 ms as on Windows. It TRIES the
+'' frame lock: a program sitting in SCREENLOCK skips frames instead of beach-balling the
+'' window. Dirty rows go through gfxlib2's blitters into a 32bpp backing buffer, and
+'' drawRect: draws that as a CGImage, sRGB on both sides and unscaled -- the readback in
+'' spike F6 was pixel-exact at Retina 2x this way.
+''
+'' NOT HERE, said rather than half-done: GFX_FULLSCREEN (a window opens), SETMOUSE's clip
+'' (recorded, not enforced), GETJOYSTICK, and SCREENLIST beyond the current mode.
+
+#pragma once
+
+#include once "objc.ti"
+#include once "../../raster/blit.ti"
+#include once "../../abi/rtlseam.ti"
+
+extern "c"
+    declare function TkoPthreadCreate alias "pthread_create" ( byval t as ulongint ptr, byval attr as any ptr, _
+        byval fn as function cdecl ( byval as any ptr ) as any ptr, byval arg as any ptr ) as long
+    declare function TkoPthreadJoin alias "pthread_join" ( byval t as ulongint, byval ret as any ptr ptr ) as long
+    declare function TkoPthreadSelf alias "pthread_self" ( ) as any ptr
+    declare function TkoPthreadStackSize alias "pthread_get_stacksize_np" ( byval t as any ptr ) as uinteger
+    declare function TkoAttrInit alias "pthread_attr_init" ( byval a as any ptr ) as long
+    declare function TkoAttrStack alias "pthread_attr_setstacksize" ( byval a as any ptr, byval n as uinteger ) as long
+    declare function TkoMutexInit alias "pthread_mutex_init" ( byval m as any ptr, byval attr as any ptr ) as long
+    declare function TkoMutexLock alias "pthread_mutex_lock" ( byval m as any ptr ) as long
+    declare function TkoMutexTryLock alias "pthread_mutex_trylock" ( byval m as any ptr ) as long
+    declare function TkoMutexUnlock alias "pthread_mutex_unlock" ( byval m as any ptr ) as long
+    declare function TkoMutexDestroy alias "pthread_mutex_destroy" ( byval m as any ptr ) as long
+    declare function TkoUsleep alias "usleep" ( byval us as ulong ) as long
+    declare sub TkoExit alias "exit" ( byval rc as long )
+    declare function TkoExePath alias "_NSGetExecutablePath" ( byval buf as zstring ptr, byval n as ulong ptr ) as long
+    declare function TkoProgramMain alias "main" ( byval argc as long, byval argv as zstring ptr ptr, _
+        byval envp as zstring ptr ptr ) as long
+end extern
+
+'' Global, as on Windows: the entry layer calls it from outside the namespace.
+private sub PlatSleep( byval ms as ulong )
+    TkoUsleep( ms * 1000 )
+end sub
+
+namespace TkoGfx
+
+const PLATFORM_DRIVER_NAME = "Cocoa"
+const CO_FRAME_SECS = 0.010
+
+type GfxWindow extends WindowBase
+    nswin        as any ptr
+    view         as any ptr
+    timer        as any ptr
+    backing      as ulong ptr       '' w * h, 0x00RRGGBB -- what drawRect: draws
+    blitproc     as BlitRowProc
+    devpal( 0 to 255 ) as ulong
+    conv( 0 to 511 )   as ulong
+    lastx        as long
+    lasty        as long
+    posx         as long            '' the frame's top-left, screen coordinates, top-down
+    posy         as long
+    cursor_hidden as long
+    mtx( 0 to 7 ) as ulongint       '' pthread_mutex_t: 64 bytes on Darwin
+    lock_ready   as long
+    open_ok      as long
+end type
+
+dim shared as GfxWindow ptr TheCoWin       '' the one window, for the AppKit callbacks
+dim shared as any ptr TheCoViewClass, TheCoDelegateClass, TheCoDelegate
+dim shared as long TheCoAppReady          '' NSApplication made, the main thread in [NSApp run]
+dim shared as long TheCoWantApp
+
+private sub WindowLock( byref w as GfxWindow )
+    if w.lock_ready then TkoMutexLock( @w.mtx(0) )
+end sub
+
+private sub WindowUnlock( byref w as GfxWindow )
+    if w.lock_ready then TkoMutexUnlock( @w.mtx(0) )
+end sub
+
+private sub CoPost( byref w as GfxWindow, byref e as TkoAbi.EVENT )
+    WindowLock( w )
+    EventPost( w.events, e )
+    WindowUnlock( w )
+end sub
+
+'' ---------------------------------------------------------- keyboard
+
+'' NSEvent keyCode (the kVK_* virtual key numbers, which name physical keys and do not move
+'' with the layout) to the PC set-1 scancode fbgfx.bi's SC_* are. 0 = no scancode.
+private function CoScancode( byval kc as long ) as long
+    select case kc
+    case &h00 : return &h1E   '' A
+    case &h01 : return &h1F   '' S
+    case &h02 : return &h20   '' D
+    case &h03 : return &h21   '' F
+    case &h04 : return &h23   '' H
+    case &h05 : return &h22   '' G
+    case &h06 : return &h2C   '' Z
+    case &h07 : return &h2D   '' X
+    case &h08 : return &h2E   '' C
+    case &h09 : return &h2F   '' V
+    case &h0B : return &h30   '' B
+    case &h0C : return &h10   '' Q
+    case &h0D : return &h11   '' W
+    case &h0E : return &h12   '' E
+    case &h0F : return &h13   '' R
+    case &h10 : return &h15   '' Y
+    case &h11 : return &h14   '' T
+    case &h12 : return &h02   '' 1
+    case &h13 : return &h03   '' 2
+    case &h14 : return &h04   '' 3
+    case &h15 : return &h05   '' 4
+    case &h16 : return &h07   '' 6
+    case &h17 : return &h06   '' 5
+    case &h18 : return &h0D   '' =
+    case &h19 : return &h0A   '' 9
+    case &h1A : return &h08   '' 7
+    case &h1B : return &h0C   '' -
+    case &h1C : return &h09   '' 8
+    case &h1D : return &h0B   '' 0
+    case &h1E : return &h1B   '' ]
+    case &h1F : return &h18   '' O
+    case &h20 : return &h16   '' U
+    case &h21 : return &h1A   '' [
+    case &h22 : return &h17   '' I
+    case &h23 : return &h19   '' P
+    case &h24 : return &h1C   '' Return
+    case &h25 : return &h26   '' L
+    case &h26 : return &h24   '' J
+    case &h27 : return &h28   '' '
+    case &h28 : return &h25   '' K
+    case &h29 : return &h27   '' ;
+    case &h2A : return &h2B   '' \
+    case &h2B : return &h33   '' ,
+    case &h2C : return &h35   '' /
+    case &h2D : return &h31   '' N
+    case &h2E : return &h32   '' M
+    case &h2F : return &h34   '' .
+    case &h30 : return &h0F   '' Tab
+    case &h31 : return &h39   '' Space
+    case &h32 : return &h29   '' `
+    case &h33 : return &h0E   '' Delete (backspace)
+    case &h35 : return &h01   '' Escape
+    case &h37 : return &h5B   '' Command -> LWIN
+    case &h38 : return &h2A   '' Shift
+    case &h39 : return &h3A   '' Caps Lock
+    case &h3A : return &h38   '' Option -> ALT
+    case &h3B : return &h1D   '' Control
+    case &h3C : return &h36   '' right Shift
+    case &h3D : return &h38   '' right Option
+    case &h3E : return &h1D   '' right Control
+    case &h36 : return &h5C   '' right Command -> RWIN
+    case &h41 : return &h53   '' keypad .
+    case &h43 : return &h37   '' keypad *
+    case &h45 : return &h4E   '' keypad +
+    case &h47 : return &h45   '' keypad Clear -> NUMLOCK
+    case &h4B : return &h35   '' keypad /
+    case &h4C : return &h1C   '' keypad Enter
+    case &h4E : return &h4A   '' keypad -
+    case &h52 : return &h52   '' keypad 0
+    case &h53 : return &h4F   '' keypad 1
+    case &h54 : return &h50   '' keypad 2
+    case &h55 : return &h51   '' keypad 3
+    case &h56 : return &h4B   '' keypad 4
+    case &h57 : return &h4C   '' keypad 5
+    case &h58 : return &h4D   '' keypad 6
+    case &h59 : return &h47   '' keypad 7
+    case &h5B : return &h48   '' keypad 8
+    case &h5C : return &h49   '' keypad 9
+    case &h7A : return &h3B   '' F1
+    case &h78 : return &h3C   '' F2
+    case &h63 : return &h3D   '' F3
+    case &h76 : return &h3E   '' F4
+    case &h60 : return &h3F   '' F5
+    case &h61 : return &h40   '' F6
+    case &h62 : return &h41   '' F7
+    case &h64 : return &h42   '' F8
+    case &h65 : return &h43   '' F9
+    case &h6D : return &h44   '' F10
+    case &h67 : return &h57   '' F11
+    case &h6F : return &h58   '' F12
+    case &h72 : return &h52   '' Help -> INSERT
+    case &h73 : return &h47   '' Home
+    case &h74 : return &h49   '' Page Up
+    case &h75 : return &h53   '' Forward Delete -> DELETE
+    case &h77 : return &h4F   '' End
+    case &h79 : return &h51   '' Page Down
+    case &h7B : return &h4B   '' Left
+    case &h7C : return &h4D   '' Right
+    case &h7D : return &h50   '' Down
+    case &h7E : return &h48   '' Up
+    end select
+    return 0
+end function
+
+'' The keys that become a two-byte INKEY code rather than a character -- the same list the
+'' Windows driver posts from WM_KEYDOWN, as (scancode shl 8) or 255.
+private function CoIsExtended( byval sc as long ) as long
+    select case sc
+    case &h48, &h50, &h4B, &h4D, &h47, &h4F, &h49, &h51, &h52, &h53, _
+         &h3B to &h44, &h57, &h58
+        return 1
+    end select
+    return 0
+end function
+
+private sub CoKeyDown( byval ev as any ptr )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as long kc = cast( OcMsgRetU16, TheOc.msgSend )( ev, OcSel( "keyCode" ) )
+    dim as long sc = CoScancode( kc )
+    dim as long rep = OcRetB( ev, "isARepeat" )
+    dim as long ch = -1
+    dim as any ptr chars = Oc0( ev, "characters" )
+    if (chars <> nullptr) andalso (OcRetInt( chars, "length" ) > 0) then
+        ch = cast( OcMsgIdxU16, TheOc.msgSend )( chars, OcSel( "characterAtIndex:" ), 0 )
+    end if
+
+    dim as TkoAbi.EVENT e
+    WindowLock( *w )
+    if sc <> 0 then KeyTableSet( w->ktab, sc, 1 )
+    dim as long posted = 0
+    if (sc <> 0) andalso CoIsExtended( sc ) then
+        posted = (sc shl 8) or 255
+    elseif ch = &h7F then
+        posted = 8                         '' the Delete key sends DEL; INKEY wants backspace
+    elseif ch = 3 then
+        posted = iif( kc = &h4C, 13, 3 )   '' keypad Enter sends ETX
+    elseif (ch >= 0) andalso (ch < 256) then
+        posted = ch
+    end if
+    if posted <> 0 then KeyPost( w->keys, posted )
+    e.etype = iif( rep, EV_KEY_REPEAT, EV_KEY_PRESS )
+    e.scancode = sc
+    e.ascii = iif( (posted > 0) andalso (posted < 256), posted, 0 )
+    EventPost( w->events, e )
+    WindowUnlock( *w )
+end sub
+
+private sub CoKeyUp( byval ev as any ptr )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as long sc = CoScancode( cast( OcMsgRetU16, TheOc.msgSend )( ev, OcSel( "keyCode" ) ) )
+    dim as TkoAbi.EVENT e
+    e.etype = EV_KEY_RELEASE
+    e.scancode = sc
+    WindowLock( *w )
+    if sc <> 0 then KeyTableSet( w->ktab, sc, 0 )
+    EventPost( w->events, e )
+    WindowUnlock( *w )
+end sub
+
+'' A modifier arrives as flagsChanged:, not keyDown:. Whether it went down or up is the
+'' state of its own bit in modifierFlags.
+private sub CoFlags( byval ev as any ptr )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as long kc = cast( OcMsgRetU16, TheOc.msgSend )( ev, OcSel( "keyCode" ) )
+    dim as long sc = CoScancode( kc )
+    if sc = 0 then exit sub
+    dim as uinteger flags = cast( uinteger, Oc0( ev, "modifierFlags" ) )
+    dim as uinteger bit_
+    select case kc
+    case &h38, &h3C : bit_ = &h20000        '' shift
+    case &h3B, &h3E : bit_ = &h40000        '' control
+    case &h3A, &h3D : bit_ = &h80000        '' option
+    case &h37, &h36 : bit_ = &h100000       '' command
+    case &h39       : bit_ = &h10000        '' caps lock
+    case else       : exit sub
+    end select
+    dim as long down = iif( (flags and bit_) <> 0, 1, 0 )
+    dim as TkoAbi.EVENT e
+    e.etype = iif( down, EV_KEY_PRESS, EV_KEY_RELEASE )
+    e.scancode = sc
+    WindowLock( *w )
+    KeyTableSet( w->ktab, sc, down )
+    EventPost( w->events, e )
+    WindowUnlock( *w )
+end sub
+
+'' ---------------------------------------------------------- the pointer
+
+'' The event's position as a framebuffer pixel: the view is not flipped, so y counts up.
+private sub CoEventXY( byval ev as any ptr, byref x as long, byref y as long )
+    dim as GfxWindow ptr w = TheCoWin
+    dim as NSPointT p = cast( OcMsgRetPt, TheOc.msgSend )( ev, OcSel( "locationInWindow" ) )
+    p = cast( OcMsgPtId, TheOc.msgSend )( w->view, OcSel( "convertPoint:fromView:" ), p, nullptr )
+    x = int( p.x )
+    y = w->h - 1 - int( p.y )
+end sub
+
+private sub CoMouseMove( byval ev as any ptr )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as long x, y
+    CoEventXY( ev, x, y )
+    dim as TkoAbi.EVENT e
+    WindowLock( *w )
+    w->mouse.x = x
+    w->mouse.y = y
+    w->mouse.on_ = iif( (x >= 0) andalso (x < w->w) andalso (y >= 0) andalso (y < w->h), 1, 0 )
+    if w->active andalso ((x <> w->lastx) orelse (y <> w->lasty)) then
+        e.etype = EV_MOUSE_MOVE
+        e.x = x
+        e.y = y
+        e.dx = iif( w->lastx = &hFFFF, 0, x - w->lastx )
+        e.dy = iif( w->lasty = &hFFFF, 0, y - w->lasty )
+        if w->scanline <> 1 then
+            e.y = e.y \ w->scanline
+            e.dy = e.dy \ w->scanline
+        end if
+        EventPost( w->events, e )
+    end if
+    w->lastx = x
+    w->lasty = y
+    WindowUnlock( *w )
+end sub
+
+private sub CoButton( byval ev as any ptr, byval bit_ as long, byval down as long )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as TkoAbi.EVENT e
+    e.button = bit_
+    if down then
+        e.etype = iif( OcRetInt( ev, "clickCount" ) = 2, EV_MOUSE_DOUBLE_CLICK, EV_MOUSE_BUTTON_PRESS )
+    else
+        e.etype = EV_MOUSE_BUTTON_RELEASE
+    end if
+    WindowLock( *w )
+    if down then w->mouse.buttons or= bit_ else w->mouse.buttons and= not bit_
+    EventPost( w->events, e )
+    WindowUnlock( *w )
+end sub
+
+private function CoOtherBit( byval ev as any ptr ) as long
+    select case OcRetInt( ev, "buttonNumber" )
+    case 2 : return MOUSE_BUTTON_MIDDLE
+    case 3 : return MOUSE_BUTTON_X1
+    case 4 : return MOUSE_BUTTON_X2
+    end select
+    return 0
+end function
+
+private sub CoScroll( byval ev as any ptr )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as double dy = OcRetD( ev, "deltaY" )
+    dim as double dx = OcRetD( ev, "deltaX" )
+    dim as TkoAbi.EVENT e
+    WindowLock( *w )
+    if dy <> 0 then
+        w->mouse.wheel += iif( dy > 0, 1, -1 )
+        e.etype = EV_MOUSE_WHEEL
+        e.z = w->mouse.wheel
+        EventPost( w->events, e )
+    end if
+    if dx <> 0 then
+        w->mouse.hwheel += iif( dx > 0, -1, 1 )
+        dim as TkoAbi.EVENT h
+        h.etype = EV_MOUSE_HWHEEL
+        h.w = w->mouse.hwheel
+        EventPost( w->events, h )
+    end if
+    WindowUnlock( *w )
+end sub
+
+private sub CoEnterExit( byval inside as long )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as TkoAbi.EVENT e
+    WindowLock( *w )
+    w->mouse.on_ = inside
+    if w->active then
+        e.etype = iif( inside, EV_MOUSE_ENTER, EV_MOUSE_EXIT )
+        EventPost( w->events, e )
+    end if
+    WindowUnlock( *w )
+end sub
+
+'' ---------------------------------------------------------- the view's methods
+
+private sub CoImpKeyDown cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoKeyDown( ev )
+end sub
+private sub CoImpKeyUp cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoKeyUp( ev )
+end sub
+private sub CoImpFlags cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoFlags( ev )
+end sub
+private sub CoImpMove cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoMouseMove( ev )
+end sub
+private sub CoImpLDown cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoMouseMove( ev ) : CoButton( ev, MOUSE_BUTTON_LEFT, 1 )
+end sub
+private sub CoImpLUp cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoButton( ev, MOUSE_BUTTON_LEFT, 0 )
+end sub
+private sub CoImpRDown cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoMouseMove( ev ) : CoButton( ev, MOUSE_BUTTON_RIGHT, 1 )
+end sub
+private sub CoImpRUp cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoButton( ev, MOUSE_BUTTON_RIGHT, 0 )
+end sub
+private sub CoImpODown cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    dim as long b = CoOtherBit( ev )
+    if b then CoButton( ev, b, 1 )
+end sub
+private sub CoImpOUp cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    dim as long b = CoOtherBit( ev )
+    if b then CoButton( ev, b, 0 )
+end sub
+private sub CoImpScroll cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoScroll( ev )
+end sub
+private sub CoImpEntered cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoEnterExit( 1 )
+end sub
+private sub CoImpExited cdecl ( byval s as any ptr, byval c as any ptr, byval ev as any ptr )
+    CoEnterExit( 0 )
+end sub
+private function CoImpYes cdecl ( byval s as any ptr, byval c as any ptr ) as ubyte
+    return 1
+end function
+
+'' drawRect:. The backing buffer as a CGImage, unscaled pixels, interpolation off. Only the
+'' presenter writes the buffer, and it runs on this same thread.
+private sub CoImpDraw cdecl ( byval s as any ptr, byval c as any ptr, byval dirty as NSRectT )
+    dim as GfxWindow ptr w = TheCoWin
+    if (w = nullptr) orelse (w->backing = nullptr) then exit sub
+    dim as any ptr gctx = Oc0( OcClass( "NSGraphicsContext" ), "currentContext" )
+    dim as any ptr cg = Oc0( gctx, "CGContext" )
+    if cg = nullptr then exit sub
+    with TheOc
+        .CGContextSetInterpolationQuality( cg, 1 )             '' kCGInterpolationNone
+        dim as any ptr prov = .CGDataProviderCreateWithData( nullptr, w->backing, cast( uinteger, w->w ) * w->h * 4, nullptr )
+        '' 0x00RRGGBB little-endian: AlphaNoneSkipFirst (6) | ByteOrder32Little (2 shl 12)
+        dim as any ptr img = .CGImageCreate( w->w, w->h, 8, 32, w->w * 4, .srgb, 6 or (2 shl 12), prov, nullptr, 0, 0 )
+        dim as NSRectT r = type( 0, 0, w->w, w->h )
+        .CGContextDrawImage( cg, r, img )
+        .CGImageRelease( img )
+        .CGDataProviderRelease( prov )
+    end with
+end sub
+
+'' The presenter: the timer's tick. TRIES the lock -- see the file header.
+private sub CoImpTick cdecl ( byval s as any ptr, byval c as any ptr, byval t as any ptr )
+    dim as GfxWindow ptr w = TheCoWin
+    if (w = nullptr) orelse (w->lock_ready = 0) then exit sub
+    if TkoMutexTryLock( @w->mtx(0) ) <> 0 then exit sub
+    dim as long any_ = 0
+    dim as Surface ptr sf = w->surf
+    if (sf <> nullptr) andalso (sf->dirty <> nullptr) andalso (w->backing <> nullptr) then
+        for i as integer = 0 to sf->h - 1
+            if sf->dirty[i] then any_ = 1 : exit for
+        next
+        if any_ then
+            if (sf->bpp = 1) andalso (w->lut <> nullptr) then
+                for i as integer = 0 to 255
+                    dim as ulong v = w->lut[i]
+                    w->devpal(i) = ((v shr 16) and &hFF) or (v and &hFF00) or ((v and &hFF) shl 16)
+                next
+            end if
+            dim as BlitSrc src
+            src.pixels = sf->pixels
+            src.pitch = sf->pitch
+            src.w = sf->w
+            src.h = sf->h
+            src.scanline_size = 1
+            src.dirty = sf->dirty
+            src.palette = @w->devpal(0)
+            src.conv = @w->conv(0)
+            BlitFrame( src, cast( ubyte ptr, w->backing ), w->w * 4, w->blitproc )
+            memset( sf->dirty, 0, sf->h )
+            w->frames += 1
+        end if
+    end if
+    w->started = 1
+    TkoMutexUnlock( @w->mtx(0) )
+    if any_ then OcB( w->view, "setNeedsDisplay:", 1 )
+end sub
+
+'' ---------------------------------------------------------- the window delegate
+
+'' The close box: gfxlib2's KEY_QUIT and EVENT_WINDOW_CLOSE, and `closed` for an INPUT
+'' waiting on the window. The window stays -- the program decides, as on X11.
+private function CoImpShouldClose cdecl ( byval s as any ptr, byval c as any ptr, byval win as any ptr ) as ubyte
+    dim as GfxWindow ptr w = TheCoWin
+    if w <> nullptr then
+        dim as TkoAbi.EVENT e
+        e.etype = EV_WINDOW_CLOSE
+        WindowLock( *w )
+        KeyPost( w->keys, KEY_QUIT_CODE )
+        w->closed = 1
+        EventPost( w->events, e )
+        WindowUnlock( *w )
+    end if
+    return 0
+end function
+
+private sub CoFocus( byval got as long )
+    dim as GfxWindow ptr w = TheCoWin
+    if w = nullptr then exit sub
+    dim as TkoAbi.EVENT e
+    WindowLock( *w )
+    w->active = got
+    w->ev_active = got
+    if got = 0 then KeyTableClear( w->ktab )
+    e.etype = iif( got, EV_WINDOW_GOT_FOCUS, EV_WINDOW_LOST_FOCUS )
+    EventPost( w->events, e )
+    WindowUnlock( *w )
+end sub
+
+private sub CoImpBecameKey cdecl ( byval s as any ptr, byval c as any ptr, byval n as any ptr )
+    CoFocus( 1 )
+end sub
+private sub CoImpResignedKey cdecl ( byval s as any ptr, byval c as any ptr, byval n as any ptr )
+    CoFocus( 0 )
+end sub
+
+'' Where the frame is, top-left and top-down, as SCREENCONTROL GET_WINDOW_POS wants it --
+'' kept current here so the program never needs a synchronous call to read it.
+private sub CoUpdatePos( byref w as GfxWindow )
+    if w.nswin = nullptr then exit sub
+    dim as NSRectT f = OcRetRect( w.nswin, "frame" )
+    dim as NSRectT sr = OcRetRect( Oc0( w.nswin, "screen" ), "frame" )
+    w.posx = int( f.x )
+    w.posy = int( sr.h - (f.y + f.h) )
+end sub
+
+private sub CoImpMoved cdecl ( byval s as any ptr, byval c as any ptr, byval n as any ptr )
+    if TheCoWin <> nullptr then CoUpdatePos( *TheCoWin )
+end sub
+
+'' ---------------------------------------------------------- the classes, made once
+
+private sub CoMakeClasses( )
+    if TheCoViewClass <> nullptr then exit sub
+    dim as any ptr v = TheOc.allocClassPair( OcClass( "NSView" ), "TkoGfxView", 0 )
+    with TheOc
+        .addMethod( v, OcSel( "drawRect:" ), @CoImpDraw, "v@:{CGRect={CGPoint=dd}{CGSize=dd}}" )
+        .addMethod( v, OcSel( "acceptsFirstResponder" ), @CoImpYes, "B@:" )
+        .addMethod( v, OcSel( "acceptsFirstMouse:" ), @CoImpYes, "B@:@" )
+        .addMethod( v, OcSel( "keyDown:" ), @CoImpKeyDown, "v@:@" )
+        .addMethod( v, OcSel( "keyUp:" ), @CoImpKeyUp, "v@:@" )
+        .addMethod( v, OcSel( "flagsChanged:" ), @CoImpFlags, "v@:@" )
+        .addMethod( v, OcSel( "mouseMoved:" ), @CoImpMove, "v@:@" )
+        .addMethod( v, OcSel( "mouseDragged:" ), @CoImpMove, "v@:@" )
+        .addMethod( v, OcSel( "rightMouseDragged:" ), @CoImpMove, "v@:@" )
+        .addMethod( v, OcSel( "otherMouseDragged:" ), @CoImpMove, "v@:@" )
+        .addMethod( v, OcSel( "mouseDown:" ), @CoImpLDown, "v@:@" )
+        .addMethod( v, OcSel( "mouseUp:" ), @CoImpLUp, "v@:@" )
+        .addMethod( v, OcSel( "rightMouseDown:" ), @CoImpRDown, "v@:@" )
+        .addMethod( v, OcSel( "rightMouseUp:" ), @CoImpRUp, "v@:@" )
+        .addMethod( v, OcSel( "otherMouseDown:" ), @CoImpODown, "v@:@" )
+        .addMethod( v, OcSel( "otherMouseUp:" ), @CoImpOUp, "v@:@" )
+        .addMethod( v, OcSel( "scrollWheel:" ), @CoImpScroll, "v@:@" )
+        .addMethod( v, OcSel( "mouseEntered:" ), @CoImpEntered, "v@:@" )
+        .addMethod( v, OcSel( "mouseExited:" ), @CoImpExited, "v@:@" )
+        .addMethod( v, OcSel( "tkoTick:" ), @CoImpTick, "v@:@" )
+        .registerClassPair( v )
+    end with
+    TheCoViewClass = v
+
+    dim as any ptr d = TheOc.allocClassPair( OcClass( "NSObject" ), "TkoGfxWindowDelegate", 0 )
+    with TheOc
+        .addMethod( d, OcSel( "windowShouldClose:" ), @CoImpShouldClose, "B@:@" )
+        .addMethod( d, OcSel( "windowDidBecomeKey:" ), @CoImpBecameKey, "v@:@" )
+        .addMethod( d, OcSel( "windowDidResignKey:" ), @CoImpResignedKey, "v@:@" )
+        .addMethod( d, OcSel( "windowDidMove:" ), @CoImpMoved, "v@:@" )
+        .registerClassPair( d )
+    end with
+    TheCoDelegateClass = d
+    TheCoDelegate = Oc0( Oc0( d, "alloc" ), "init" )
+end sub
+
+'' ---------------------------------------------------------- on the main thread
+
+private sub CoOpenOnMain cdecl ( byval p as any ptr )
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, p )
+    w->open_ok = 0
+
+    '' The first window makes the application, here on the main thread, and asks the
+    '' CoreFoundation loop tko_darwin_start is in to give way to [NSApp run].
+    if TheCoAppReady = 0 then
+        dim as any ptr app = Oc0( OcClass( "NSApplication" ), "sharedApplication" )
+        OcI( app, "setActivationPolicy:", 0 )            '' Regular: a Dock icon, a menu bar
+        Oc0( app, "finishLaunching" )
+        TheCoWantApp = 1
+        TheOc.CFRunLoopStop( TheOc.CFRunLoopGetMain( ) )
+        TheCoAppReady = 1
+    end if
+    CoMakeClasses( )
+
+    dim as NSRectT r = type( 0, 0, w->w, w->h )
+    '' titled | closable | miniaturizable; not resizable -- the framebuffer is fixed
+    w->nswin = cast( OcMsgInitWin, TheOc.msgSend )( Oc0( OcClass( "NSWindow" ), "alloc" ), _
+        OcSel( "initWithContentRect:styleMask:backing:defer:" ), r, 1 or 2 or 4, 2, 0 )
+    if w->nswin = nullptr then exit sub
+    OcB( w->nswin, "setReleasedWhenClosed:", 0 )
+    Oc1( w->nswin, "setColorSpace:", Oc0( OcClass( "NSColorSpace" ), "sRGBColorSpace" ) )
+    Oc1( w->nswin, "setTitle:", OcNSString( w->title ) )
+    Oc1( w->nswin, "setDelegate:", TheCoDelegate )
+    OcB( w->nswin, "setAcceptsMouseMovedEvents:", 1 )
+
+    w->view = cast( OcMsgRect, TheOc.msgSend )( Oc0( TheCoViewClass, "alloc" ), OcSel( "initWithFrame:" ), r )
+    '' Enter, exit and every move inside, whether or not the window is key.
+    dim as any ptr ta = cast( OcMsgTracking, TheOc.msgSend )( Oc0( OcClass( "NSTrackingArea" ), "alloc" ), _
+        OcSel( "initWithRect:options:owner:userInfo:" ), r, &h01 or &h02 or &h80 or &h200, w->view, nullptr )
+    Oc1( w->view, "addTrackingArea:", ta )
+    Oc1( w->nswin, "setContentView:", w->view )
+    Oc0( w->nswin, "center" )
+    Oc1( w->nswin, "makeKeyAndOrderFront:", nullptr )
+    Oc1( w->nswin, "makeFirstResponder:", w->view )
+    OcB( Oc0( OcClass( "NSApplication" ), "sharedApplication" ), "activateIgnoringOtherApps:", 1 )
+    CoUpdatePos( *w )
+
+    '' The presenter, in the COMMON modes so it keeps presenting while a title bar is dragged.
+    w->timer = cast( OcMsgTimer, TheOc.msgSend )( OcClass( "NSTimer" ), _
+        OcSel( "timerWithTimeInterval:target:selector:userInfo:repeats:" ), _
+        CO_FRAME_SECS, w->view, OcSel( "tkoTick:" ), nullptr, 1 )
+    cast( OcMsg2, TheOc.msgSend )( Oc0( OcClass( "NSRunLoop" ), "mainRunLoop" ), _
+        OcSel( "addTimer:forMode:" ), w->timer, TheOc.commonModes )
+    w->open_ok = 1
+end sub
+
+private sub CoCloseOnMain cdecl ( byval p as any ptr )
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, p )
+    if w->timer <> nullptr then
+        Oc0( w->timer, "invalidate" )
+        w->timer = nullptr
+    end if
+    if w->nswin <> nullptr then
+        Oc1( w->nswin, "setDelegate:", nullptr )
+        Oc1( w->nswin, "orderOut:", nullptr )
+        Oc0( w->nswin, "close" )
+        Oc0( w->nswin, "release" )
+        w->nswin = nullptr
+    end if
+    if w->view <> nullptr then
+        Oc0( w->view, "release" )
+        w->view = nullptr
+    end if
+    if w->cursor_hidden then
+        Oc0( OcClass( "NSCursor" ), "unhide" )
+        w->cursor_hidden = 0
+    end if
+end sub
+
+private sub CoTitleOnMain cdecl ( byval p as any ptr )
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, p )
+    if w->nswin <> nullptr then Oc1( w->nswin, "setTitle:", OcNSString( w->title ) )
+end sub
+
+private sub CoPosOnMain cdecl ( byval p as any ptr )
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, p )
+    if w->nswin = nullptr then exit sub
+    dim as NSRectT sr = OcRetRect( Oc0( w->nswin, "screen" ), "frame" )
+    dim as NSPointT tl = type( w->posx, sr.h - w->posy )
+    cast( OcMsgPt, TheOc.msgSend )( w->nswin, OcSel( "setFrameTopLeftPoint:" ), tl )
+    CoUpdatePos( *w )
+end sub
+
+'' SETMOUSE's effects on the real pointer. The cached position was set by the caller.
+private sub CoMouseOnMain cdecl ( byval p as any ptr )
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, p )
+    if w->nswin = nullptr then exit sub
+    if w->mouse.shown = 0 andalso (w->cursor_hidden = 0) then
+        Oc0( OcClass( "NSCursor" ), "hide" )
+        w->cursor_hidden = 1
+    elseif (w->mouse.shown <> 0) andalso w->cursor_hidden then
+        Oc0( OcClass( "NSCursor" ), "unhide" )
+        w->cursor_hidden = 0
+    end if
+end sub
+
+private sub CoWarpOnMain cdecl ( byval p as any ptr )
+    dim as GfxWindow ptr w = cast( GfxWindow ptr, p )
+    if w->nswin = nullptr then exit sub
+    '' view point (y up) -> window -> screen (y up) -> CoreGraphics' display space (y down)
+    dim as NSPointT vp = type( w->mouse.x + 0.5, w->h - w->mouse.y - 0.5 )
+    vp = cast( OcMsgPtId, TheOc.msgSend )( w->view, OcSel( "convertPoint:toView:" ), vp, nullptr )
+    dim as NSPointT sp = cast( OcMsgPtRet, TheOc.msgSend )( w->nswin, OcSel( "convertPointToScreen:" ), vp )
+    dim as NSRectT primary = OcRetRect( Oc0( OcClass( "NSScreen" ), "mainScreen" ), "frame" )
+    dim as NSPointT cgp = type( sp.x, primary.h - sp.y )
+    TheOc.CGWarpMouseCursorPosition( cgp )
+    TheOc.CGAssociateMouseAndMouseCursorPosition( 1 )
+end sub
+
+'' ---------------------------------------------------------- model B: the hand-off
+
+type CoStart
+    argc as long
+    argv as zstring ptr ptr
+    envp as zstring ptr ptr
+end type
+dim shared as CoStart TheCoStart
+
+private function CoProgramThread cdecl ( byval p as any ptr ) as any ptr
+    TkoExit( TkoProgramMain( TheCoStart.argc, TheCoStart.argv, TheCoStart.envp ) )
+    return nullptr
+end function
+
+'' Keeps the CoreFoundation loop alive while it has nothing else to wait on: CFRunLoopRun
+'' returns at once from a loop with no sources.
+private sub CoKeepAlive cdecl ( byval t as any ptr, byval info as any ptr )
+end sub
+
+end namespace
+
+extern "c"
+
+'' THE STRONG tko_darwin_start, replacing fbrt0's weak one in any program that uses
+'' graphics. See the file header and lib/rt/src/c/fbrt0.c.
+function TkoDarwinStart alias "tko_darwin_start" ( byval argc as long, byval argv as zstring ptr ptr, _
+        byval envp as zstring ptr ptr ) as long
+    if TkoGfx.OcLoad( ) = 0 then return TkoProgramMain( argc, argv, envp )
+    TkoGfx.TheCoStart.argc = argc
+    TkoGfx.TheCoStart.argv = argv
+    TkoGfx.TheCoStart.envp = envp
+
+    '' The program's thread gets this thread's stack size -- 8 MB by default, and whatever
+    '' the link asked for otherwise.
+    dim as ulongint attr( 0 to 15 )
+    TkoAttrInit( @attr(0) )
+    TkoAttrStack( @attr(0), TkoPthreadStackSize( TkoPthreadSelf( ) ) )
+    dim as ulongint th
+    if TkoPthreadCreate( @th, @attr(0), @TkoGfx.CoProgramThread, nullptr ) <> 0 then
+        return TkoProgramMain( argc, argv, envp )
+    end if
+
+    with TkoGfx.TheOc
+        dim as any ptr keep = .CFRunLoopTimerCreate( nullptr, .CFAbsoluteTimeGetCurrent( ) + 1.0e9, 1.0e9, 0, 0, _
+                                                     @TkoGfx.CoKeepAlive, nullptr )
+        .CFRunLoopAddTimer( .CFRunLoopGetMain( ), keep, .commonModes )
+        do
+            .CFRunLoopRun( )
+        loop until TkoGfx.TheCoWantApp
+    end with
+    TkoGfx.Oc0( TkoGfx.Oc0( TkoGfx.OcClass( "NSApplication" ), "sharedApplication" ), "run" )
+    return 0
+end function
+
+end extern
+
+namespace TkoGfx
+
+'' ---------------------------------------------------------- the seam
+
+private function WindowOpen( _
+        byref w as GfxWindow, byref s as Surface, _
+        byval cw as long, byval ch as long, byref caption as string, _
+        byval headless as long = 0 ) as long
+    w.nswin = nullptr : w.view = nullptr : w.timer = nullptr : w.backing = nullptr
+    w.lock_ready = 0 : w.cursor_hidden = 0
+    if WindowBaseOpen( w, s, cw, ch, caption ) = 0 then return 0
+    if headless then return 1
+    '' A window needs the hand-off: without it this is not the program's thread and
+    '' AppKit's main thread is the program's own, blocked in this call.
+    if (OcLoad( ) = 0) orelse (TheCoStart.argv = nullptr) then return 0
+
+    dim as long sdepth = s.bpp * 8
+    w.blitproc = BlitSelect( sdepth, 32, 0 )
+    if w.blitproc = nullptr then return 0
+    if sdepth = 16 then BlitConvInit( @w.conv(0), 0 )
+    w.backing = callocate( cast( integer, cw ) * ch * 4 )
+    if w.backing = nullptr then return 0
+    w.lastx = &hFFFF : w.lasty = &hFFFF
+    TkoMutexInit( @w.mtx(0), nullptr )
+    w.lock_ready = 1
+    if s.dirty <> nullptr then memset( s.dirty, 1, s.h )
+
+    TheCoWin = @w
+    TkoDispatchSync( TheOc.mainQ, @w, @CoOpenOnMain )
+    if w.open_ok = 0 then
+        TheCoWin = nullptr
+        return 0
+    end if
+    w.running = 1
+    return 1
+end function
+
+private sub WindowClose( byref w as GfxWindow )
+    w.running = 0
+    if (w.nswin <> nullptr) orelse (w.timer <> nullptr) then
+        TkoDispatchSync( TheOc.mainQ, @w, @CoCloseOnMain )
+    end if
+    TheCoWin = nullptr
+    if w.lock_ready then
+        TkoMutexDestroy( @w.mtx(0) )
+        w.lock_ready = 0
+    end if
+    if w.backing <> nullptr then
+        deallocate( w.backing )
+        w.backing = nullptr
+    end if
+    WindowBaseClose( w )
+end sub
+
+private sub WindowSetTitle( byref w as GfxWindow, byref title as string, _
+        byval held as long )
+    w.title = left( title, 255 )
+    if w.nswin <> nullptr then TkoDispatchAsync( TheOc.mainQ, @w, @CoTitleOnMain )
+end sub
+
+private function WindowGetPosPacked( byref w as GfxWindow ) as long
+    if w.nswin = nullptr then return 0
+    return (w.posx and &hFFFF) or (w.posy shl 16)
+end function
+
+private sub WindowSetPos( byref w as GfxWindow, byval x as long, byval y as long )
+    if w.nswin = nullptr then exit sub
+    w.posx = x
+    w.posy = y
+    TkoDispatchAsync( TheOc.mainQ, @w, @CoPosOnMain )
+end sub
+
+private function WindowHandle( byref w as GfxWindow ) as any ptr
+    return w.nswin
+end function
+
+'' GETMOUSE: the cached state, as on Windows -- gfxlib2 has no macOS driver to follow.
+private function WindowGetMouse( byref w as GfxWindow, byref x as long, byref y as long, _
+        byref z as long, byref buttons as long, byref clip as long ) as long
+    return MouseGet( w.mouse, w.active, x, y, z, buttons, clip )
+end function
+
+'' SETMOUSE. Called with the frame lock held, so nothing here waits on the main thread.
+private sub WindowSetMouse( byref w as GfxWindow, byval cw as long, byval ch as long, _
+        byval x as long, byval y as long, byval cursor as long, byval clip as long )
+    if w.nswin = nullptr then exit sub
+    if (x <> MOUSE_KEEP) orelse (y <> MOUSE_KEEP) then
+        dim as long nx = iif( x = MOUSE_KEEP, w.mouse.x, x )
+        dim as long ny = iif( y = MOUSE_KEEP, w.mouse.y, y )
+        if nx < 0 then nx = 0
+        if ny < 0 then ny = 0
+        if nx > cw - 1 then nx = cw - 1
+        if ny > ch - 1 then ny = ch - 1
+        w.mouse.on_ = 1
+        w.mouse.x = nx
+        w.mouse.y = ny
+        TkoDispatchAsync( TheOc.mainQ, @w, @CoWarpOnMain )
+    end if
+    if cursor = 0 then
+        w.mouse.shown = 0
+    elseif cursor > 0 then
+        w.mouse.shown = 1
+    end if
+    if clip = 0 then
+        w.mouse.clip = 0
+    elseif clip > 0 then
+        w.mouse.clip = 1
+    end if
+    TkoDispatchAsync( TheOc.mainQ, @w, @CoMouseOnMain )
+end sub
+
+'' The main display's current mode. CoreGraphics' display calls need no main thread.
+private sub DesktopInfo( byref w as long, byref h as long, _
+        byref depth as long, byref refresh as long )
+    w = 0 : h = 0 : depth = 0 : refresh = 0
+    if OcLoad( ) = 0 then exit sub
+    with TheOc
+        dim as ulong d = .CGMainDisplayID( )
+        w = .CGDisplayPixelsWide( d )
+        h = .CGDisplayPixelsHigh( d )
+        depth = 32
+        dim as any ptr m = .CGDisplayCopyDisplayMode( d )
+        if m <> nullptr then
+            refresh = int( .CGDisplayModeGetRefreshRate( m ) )
+            .CGDisplayModeRelease( m )
+        end if
+    end with
+end sub
+
+'' SCREENLIST: the current mode only, for the depths a window here can show.
+private function DesktopModeAt( byval depth as long, byval i as long, _
+        byref w as long, byref h as long ) as long
+    if i <> 0 then return 0
+    select case depth
+    case 8, 15, 16, 24, 32
+    case else : return 0
+    end select
+    dim as long d, r
+    DesktopInfo( w, h, d, r )
+    return iif( w > 0, 1, 0 )
+end function
+
+private function PlatExePath( ) as string
+    dim as zstring * 4096 buf
+    dim as ulong n = 4095
+    if TkoExePath( @buf, @n ) <> 0 then return command( 0 )
+    return buf
+end function
+
+private function JoystickRead( byval id as long, byval buttons as integer ptr, _
+        byval a1 as single ptr, byval a2 as single ptr, _
+        byval a3 as single ptr, byval a4 as single ptr, _
+        byval a5 as single ptr, byval a6 as single ptr, _
+        byval a7 as single ptr, byval a8 as single ptr ) as long
+    return 1
+end function
+
+end namespace

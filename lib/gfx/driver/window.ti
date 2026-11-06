@@ -163,6 +163,8 @@ end namespace
     #include once "win32/window.ti"
 #elseif defined( __FB_LINUX__ )
     #include once "x11/window.ti"
+#elseif defined( __FB_DARWIN__ )
+    #include once "cocoa/window.ti"
 #else
     #include once "nodisplay/window.ti"
 #endif

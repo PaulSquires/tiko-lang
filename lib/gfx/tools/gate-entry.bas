@@ -10,9 +10,11 @@
 '' fb_GfxLine, fb_GfxPset and the rest resolve to.
 ''
 '' The one #ifdef is the PLATFORM's, and both roles see the same side of it: the
-'' window readback (CaptureAndEmit) is BitBlt on Windows and XGetImage on Linux,
-'' and anywhere else it reports CAPTURE-FAILED, which gate-entry.sh counts as a
-'' skip. Run with FBGFX=null on both sides, every case but the readback compares
+'' window readback (CaptureAndEmit) is BitBlt on Windows, XGetImage on Linux, and on
+'' macOS the view rendered into a bitmap on the main thread (cacheDisplayInRect:) --
+'' all three hash r shl 16 or g shl 8 or b, so a presentation digest is comparable
+'' ACROSS platforms too. Anywhere else it reports CAPTURE-FAILED, which
+'' gate-entry.sh counts as a skip. Run with FBGFX=null on both sides, every case but the readback compares
 '' a framebuffer with no window at all (docs/graphics RFC-0012).
 ''
 '' That is the substitution harness RFC-0001 section 6.1 wanted, reached by
@@ -56,6 +58,59 @@ function GxOnError cdecl ( byval d as GX.Display ptr, byval e as GX.XErrorEvent 
     GxErrors += 1
     return 0
 end function
+#elseif defined( __FB_DARWIN__ )
+'' The macOS readback goes through the Objective-C runtime, as libtkogfx's Cocoa driver
+'' does, and on the MAIN thread, where AppKit lives: GET_WINDOW_HANDLE is the NSWindow.
+extern "c"
+    declare function McDlopen alias "dlopen" ( byval nm as const zstring ptr, byval mode as long ) as any ptr
+    declare function McDlsym alias "dlsym" ( byval h as any ptr, byval nm as const zstring ptr ) as any ptr
+    declare sub McDispatchSync alias "dispatch_sync_f" ( byval q as any ptr, byval ctx as any ptr, _
+        byval fn as sub cdecl ( byval as any ptr ) )
+end extern
+type McRect
+    x as double
+    y as double
+    w as double
+    h as double
+end type
+type McMsg0 as function cdecl ( byval o as any ptr, byval s as any ptr ) as any ptr
+type McMsgRect as function cdecl ( byval o as any ptr, byval s as any ptr, byval r as McRect ) as any ptr
+type McMsgRectId as sub cdecl ( byval o as any ptr, byval s as any ptr, byval r as McRect, byval a as any ptr )
+dim shared as any ptr McSend, McMainQ, McWin
+dim shared as function cdecl ( byval as const zstring ptr ) as any ptr McSel
+dim shared as ulongint McDig
+dim shared as long McGot, McNonzero, McCW, McCH
+function Mc0( byval o as any ptr, byref s as string ) as any ptr
+    return cast( McMsg0, McSend )( o, McSel( strptr( s ) ) )
+end function
+sub McCapture cdecl ( byval unused as any ptr )
+    McGot = 0
+    dim as any ptr v = Mc0( McWin, "contentView" )
+    if v = 0 then exit sub
+    dim as McRect r = type( 0, 0, McCW, McCH )
+    dim as any ptr rep = cast( McMsgRect, McSend )( v, McSel( "bitmapImageRepForCachingDisplayInRect:" ), r )
+    if rep = 0 then exit sub
+    cast( McMsgRectId, McSend )( v, McSel( "cacheDisplayInRect:toBitmapImageRep:" ), r, rep )
+    dim as ubyte ptr px = Mc0( rep, "bitmapData" )
+    dim as integer bpr = cast( integer, Mc0( rep, "bytesPerRow" ) )
+    dim as integer bpx = cast( integer, Mc0( rep, "bitsPerPixel" ) ) \ 8
+    dim as integer sx = cast( integer, Mc0( rep, "pixelsWide" ) ) \ McCW
+    dim as integer sy = cast( integer, Mc0( rep, "pixelsHigh" ) ) \ McCH
+    dim as integer off = iif( (cast( integer, Mc0( rep, "bitmapFormat" ) ) and 1) <> 0, 1, 0 )
+    if (px = 0) orelse (sx < 1) orelse (sy < 1) then exit sub
+    dim as ulongint acc = 14695981039346656037ull
+    McNonzero = 0
+    for y as integer = 0 to McCH - 1
+        for x as integer = 0 to McCW - 1
+            dim as ubyte ptr q = px + (y * sy) * bpr + (x * sx) * bpx + off
+            dim as ulong c = (cast( ulong, q[0] ) shl 16) or (cast( ulong, q[1] ) shl 8) or q[2]
+            if c <> 0 then McNonzero += 1
+            acc = (acc xor c) * 1099511628211ull
+        next
+    next
+    McDig = acc
+    McGot = 1
+end sub
 #endif
 using FB
 
@@ -706,6 +761,39 @@ sub CaptureAndEmit( byref nm as string )
             end if
         next
         GX.XCloseDisplay( d )
+        if got then
+            Emit( nm, dig )
+        else
+            Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
+        end if
+    end if
+#elseif defined( __FB_DARWIN__ )
+    dim as integer winh
+    screencontrol GET_WINDOW_HANDLE, winh
+    if McSend = 0 then
+        dim as any ptr ho = McDlopen( "/usr/lib/libobjc.A.dylib", 10 )
+        if ho <> 0 then
+            McSend = McDlsym( ho, "objc_msgSend" )
+            McSel = McDlsym( ho, "sel_registerName" )
+        end if
+        McMainQ = McDlsym( cast( any ptr, -2 ), "_dispatch_main_q" )
+    end if
+    if (winh = 0) orelse (McSend = 0) orelse (McMainQ = 0) then
+        Log_ += "CAPTURE-FAILED" + chr( 9 ) + nm + chr( 10 )
+    else
+        McWin = cast( any ptr, winh )
+        McCW = W : McCH = H
+        dim as long got = 0
+        dim as ulongint dig = 0
+        for attempt as integer = 1 to 40
+            sleep 60
+            McDispatchSync( McMainQ, 0, @McCapture )
+            if McGot then
+                got = 1
+                dig = McDig
+                if McNonzero > 0 then exit for
+            end if
+        next
         if got then
             Emit( nm, dig )
         else

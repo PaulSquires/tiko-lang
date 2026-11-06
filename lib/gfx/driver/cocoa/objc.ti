@@ -1,0 +1,244 @@
+'' objc.ti -- AppKit, CoreGraphics and CoreFoundation, reached through the Objective-C
+'' runtime and loaded at run time.
+''
+'' ORIGINAL WORK. Part of libtkogfx, LGPL-2.1-or-later with the static-linking
+'' exception.
+''
+'' NO APPLE HEADER IS READ. The library cross-builds for macos-arm64 on Windows, where the
+'' SDK is not and may not be (docs/tiko-macos, "Apple SDK files never leave the Mac"), so
+'' every class is found by name, every message goes through objc_msgSend cast to its exact
+'' signature, and the frameworks are dlopen'd when a window is first wanted. Measured in
+'' spike F6 (docs/graphics RFC-0012): a window, a run-time NSView subclass, and a pixel-exact
+'' readback, all this way.
+''
+'' ONE objc_msgSend TYPE PER SHAPE. On arm64 objc_msgSend must be called through a pointer
+'' of the callee's exact type -- it is not variadic -- and every shape below is one that was
+'' used, with the HFAs (NSRect, NSPoint) by value as Apple passes them.
+
+#pragma once
+
+extern "c"
+    declare function TkoDlopen alias "dlopen" ( byval nm as const zstring ptr, byval mode as long ) as any ptr
+    declare function TkoDlsym alias "dlsym" ( byval h as any ptr, byval nm as const zstring ptr ) as any ptr
+    declare sub TkoDispatchSync alias "dispatch_sync_f" ( byval q as any ptr, byval ctx as any ptr, _
+        byval fn as sub cdecl ( byval as any ptr ) )
+    declare sub TkoDispatchAsync alias "dispatch_async_f" ( byval q as any ptr, byval ctx as any ptr, _
+        byval fn as sub cdecl ( byval as any ptr ) )
+end extern
+
+namespace TkoGfx
+
+const OC_RTLD_NOW_GLOBAL = 2 or 8
+#define OC_RTLD_DEFAULT cast( any ptr, -2 )
+
+type NSPointT
+    x as double
+    y as double
+end type
+
+type NSRectT
+    x as double
+    y as double
+    w as double
+    h as double
+end type
+
+'' ---- objc_msgSend, one type per shape
+type OcMsg0     as function cdecl ( byval self as any ptr, byval op as any ptr ) as any ptr
+type OcMsg1     as function cdecl ( byval self as any ptr, byval op as any ptr, byval a as any ptr ) as any ptr
+type OcMsg2     as function cdecl ( byval self as any ptr, byval op as any ptr, byval a as any ptr, byval b as any ptr ) as any ptr
+type OcMsgI     as function cdecl ( byval self as any ptr, byval op as any ptr, byval a as integer ) as any ptr
+type OcMsgB     as function cdecl ( byval self as any ptr, byval op as any ptr, byval a as ubyte ) as any ptr
+type OcMsgRetU16 as function cdecl ( byval self as any ptr, byval op as any ptr ) as ushort
+type OcMsgRetB  as function cdecl ( byval self as any ptr, byval op as any ptr ) as ubyte
+type OcMsgRetD  as function cdecl ( byval self as any ptr, byval op as any ptr ) as double
+type OcMsgRetPt as function cdecl ( byval self as any ptr, byval op as any ptr ) as NSPointT
+type OcMsgRetRc as function cdecl ( byval self as any ptr, byval op as any ptr ) as NSRectT
+type OcMsgIdxU16 as function cdecl ( byval self as any ptr, byval op as any ptr, byval i as uinteger ) as ushort
+type OcMsgPtId  as function cdecl ( byval self as any ptr, byval op as any ptr, byval p as NSPointT, byval v as any ptr ) as NSPointT
+type OcMsgPt    as function cdecl ( byval self as any ptr, byval op as any ptr, byval p as NSPointT ) as any ptr
+type OcMsgPtRet as function cdecl ( byval self as any ptr, byval op as any ptr, byval p as NSPointT ) as NSPointT
+type OcMsgRect  as function cdecl ( byval self as any ptr, byval op as any ptr, byval r as NSRectT ) as any ptr
+type OcMsgInitWin as function cdecl ( byval self as any ptr, byval op as any ptr, byval r as NSRectT, _
+    byval style as uinteger, byval backing as uinteger, byval defer_ as ubyte ) as any ptr
+type OcMsgTracking as function cdecl ( byval self as any ptr, byval op as any ptr, byval r as NSRectT, _
+    byval opts as uinteger, byval owner as any ptr, byval info as any ptr ) as any ptr
+type OcMsgTimer as function cdecl ( byval self as any ptr, byval op as any ptr, byval secs as double, _
+    byval target as any ptr, byval sel_ as any ptr, byval info as any ptr, byval repeats as ubyte ) as any ptr
+
+'' ---- CoreGraphics
+type CgPoint2 as NSPointT
+type FnCgCsWithName as function cdecl ( byval nm as any ptr ) as any ptr
+type FnCgProvider   as function cdecl ( byval info as any ptr, byval dat as any ptr, byval size as uinteger, byval rel as any ptr ) as any ptr
+type FnCgImage      as function cdecl ( byval w as uinteger, byval h as uinteger, byval bpc as uinteger, _
+    byval bpp as uinteger, byval bpr as uinteger, byval cs as any ptr, byval info as ulong, _
+    byval prov as any ptr, byval decode as any ptr, byval interp as ubyte, byval intent as long ) as any ptr
+type FnCgDraw       as sub cdecl ( byval ctx as any ptr, byval r as NSRectT, byval img as any ptr )
+type FnCgInterp     as sub cdecl ( byval ctx as any ptr, byval q as long )
+type FnCgRelease    as sub cdecl ( byval p as any ptr )
+type FnCgWarp       as function cdecl ( byval p as NSPointT ) as long
+type FnCgAssociate  as function cdecl ( byval connected as ubyte ) as long
+type FnCgMainDisplay as function cdecl ( ) as ulong
+type FnCgPixels     as function cdecl ( byval d as ulong ) as uinteger
+type FnCgCopyMode   as function cdecl ( byval d as ulong ) as any ptr
+type FnCgModeRate   as function cdecl ( byval m as any ptr ) as double
+
+'' ---- CoreFoundation
+type FnCfVoid       as function cdecl ( ) as any ptr
+type FnCfRun        as sub cdecl ( )
+type FnCfStop       as sub cdecl ( byval rl as any ptr )
+type FnCfNow        as function cdecl ( ) as double
+type FnCfTimerCreate as function cdecl ( byval alloc as any ptr, byval fire as double, byval interval as double, _
+    byval flags as uinteger, byval order as integer, byval callout as sub cdecl ( byval as any ptr, byval as any ptr ), _
+    byval ctx as any ptr ) as any ptr
+type FnCfAddTimer   as sub cdecl ( byval rl as any ptr, byval t as any ptr, byval mode as any ptr )
+
+type OcApi
+    loaded             as long
+    msgSend            as any ptr
+    getClass           as function cdecl ( byval as const zstring ptr ) as any ptr
+    selRegister        as function cdecl ( byval as const zstring ptr ) as any ptr
+    allocClassPair     as function cdecl ( byval super_ as any ptr, byval nm as const zstring ptr, byval extra as uinteger ) as any ptr
+    addMethod          as function cdecl ( byval cls as any ptr, byval sel_ as any ptr, byval imp as any ptr, byval types as const zstring ptr ) as ubyte
+    registerClassPair  as sub cdecl ( byval cls as any ptr )
+    poolPush           as function cdecl ( ) as any ptr
+    poolPop            as sub cdecl ( byval p as any ptr )
+
+    CGColorSpaceCreateWithName as FnCgCsWithName
+    CGDataProviderCreateWithData as FnCgProvider
+    CGImageCreate      as FnCgImage
+    CGContextDrawImage as FnCgDraw
+    CGContextSetInterpolationQuality as FnCgInterp
+    CGImageRelease     as FnCgRelease
+    CGDataProviderRelease as FnCgRelease
+    CGWarpMouseCursorPosition as FnCgWarp
+    CGAssociateMouseAndMouseCursorPosition as FnCgAssociate
+    CGMainDisplayID    as FnCgMainDisplay
+    CGDisplayPixelsWide as FnCgPixels
+    CGDisplayPixelsHigh as FnCgPixels
+    CGDisplayCopyDisplayMode as FnCgCopyMode
+    CGDisplayModeGetRefreshRate as FnCgModeRate
+    CGDisplayModeRelease as FnCgRelease
+    srgb               as any ptr          '' a CGColorSpaceRef, made once
+
+    CFRunLoopGetMain   as FnCfVoid
+    CFRunLoopRun       as FnCfRun
+    CFRunLoopStop      as FnCfStop
+    CFAbsoluteTimeGetCurrent as FnCfNow
+    CFRunLoopTimerCreate as FnCfTimerCreate
+    CFRunLoopAddTimer  as FnCfAddTimer
+    commonModes        as any ptr          '' kCFRunLoopCommonModes
+    defaultMode        as any ptr          '' NSDefaultRunLoopMode
+    mainQ              as any ptr          '' &_dispatch_main_q
+end type
+
+dim shared as OcApi TheOc
+dim shared as long TheOcTried
+
+private function OcSym( byval h as any ptr, byref nm as string, byref ok as long ) as any ptr
+    dim as any ptr p = TkoDlsym( h, strptr( nm ) )
+    if p = nullptr then ok = 0
+    return p
+end function
+
+'' Load once. Returns 1 when AppKit can be driven. CoreGraphics' display queries need
+'' only this; a window needs NSApplication too, which is made later, on the main thread.
+private function OcLoad( ) as long
+    if TheOcTried then return TheOc.loaded
+    TheOcTried = 1
+    dim as any ptr ho = TkoDlopen( "/usr/lib/libobjc.A.dylib", OC_RTLD_NOW_GLOBAL )
+    dim as any ptr hk = TkoDlopen( "/System/Library/Frameworks/AppKit.framework/AppKit", OC_RTLD_NOW_GLOBAL )
+    dim as any ptr hg = TkoDlopen( "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", OC_RTLD_NOW_GLOBAL )
+    dim as any ptr hf = TkoDlopen( "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", OC_RTLD_NOW_GLOBAL )
+    if (ho = nullptr) orelse (hk = nullptr) orelse (hg = nullptr) orelse (hf = nullptr) then return 0
+    dim as long ok = 1
+    with TheOc
+        .msgSend           = OcSym( ho, "objc_msgSend", ok )
+        .getClass          = OcSym( ho, "objc_getClass", ok )
+        .selRegister       = OcSym( ho, "sel_registerName", ok )
+        .allocClassPair    = OcSym( ho, "objc_allocateClassPair", ok )
+        .addMethod         = OcSym( ho, "class_addMethod", ok )
+        .registerClassPair = OcSym( ho, "objc_registerClassPair", ok )
+        .poolPush          = OcSym( ho, "objc_autoreleasePoolPush", ok )
+        .poolPop           = OcSym( ho, "objc_autoreleasePoolPop", ok )
+        .CGColorSpaceCreateWithName = OcSym( hg, "CGColorSpaceCreateWithName", ok )
+        .CGDataProviderCreateWithData = OcSym( hg, "CGDataProviderCreateWithData", ok )
+        .CGImageCreate     = OcSym( hg, "CGImageCreate", ok )
+        .CGContextDrawImage = OcSym( hg, "CGContextDrawImage", ok )
+        .CGContextSetInterpolationQuality = OcSym( hg, "CGContextSetInterpolationQuality", ok )
+        .CGImageRelease    = OcSym( hg, "CGImageRelease", ok )
+        .CGDataProviderRelease = OcSym( hg, "CGDataProviderRelease", ok )
+        .CGWarpMouseCursorPosition = OcSym( hg, "CGWarpMouseCursorPosition", ok )
+        .CGAssociateMouseAndMouseCursorPosition = OcSym( hg, "CGAssociateMouseAndMouseCursorPosition", ok )
+        .CGMainDisplayID   = OcSym( hg, "CGMainDisplayID", ok )
+        .CGDisplayPixelsWide = OcSym( hg, "CGDisplayPixelsWide", ok )
+        .CGDisplayPixelsHigh = OcSym( hg, "CGDisplayPixelsHigh", ok )
+        .CGDisplayCopyDisplayMode = OcSym( hg, "CGDisplayCopyDisplayMode", ok )
+        .CGDisplayModeGetRefreshRate = OcSym( hg, "CGDisplayModeGetRefreshRate", ok )
+        .CGDisplayModeRelease = OcSym( hg, "CGDisplayModeRelease", ok )
+        .CFRunLoopGetMain  = OcSym( hf, "CFRunLoopGetMain", ok )
+        .CFRunLoopRun      = OcSym( hf, "CFRunLoopRun", ok )
+        .CFRunLoopStop     = OcSym( hf, "CFRunLoopStop", ok )
+        .CFAbsoluteTimeGetCurrent = OcSym( hf, "CFAbsoluteTimeGetCurrent", ok )
+        .CFRunLoopTimerCreate = OcSym( hf, "CFRunLoopTimerCreate", ok )
+        .CFRunLoopAddTimer = OcSym( hf, "CFRunLoopAddTimer", ok )
+        dim as any ptr pmodes = OcSym( hf, "kCFRunLoopCommonModes", ok )
+        dim as any ptr pdef = OcSym( hk, "NSDefaultRunLoopMode", ok )
+        dim as any ptr psrgb = OcSym( hg, "kCGColorSpaceSRGB", ok )
+        '' The main queue is the OBJECT _dispatch_main_q; RTLD_DEFAULT is (void *)-2 here.
+        .mainQ             = OcSym( OC_RTLD_DEFAULT, "_dispatch_main_q", ok )
+        if ok = 0 then return 0
+        .commonModes = *cast( any ptr ptr, pmodes )
+        .defaultMode = *cast( any ptr ptr, pdef )
+        .srgb = .CGColorSpaceCreateWithName( *cast( any ptr ptr, psrgb ) )
+    end with
+    TheOc.loaded = 1
+    return 1
+end function
+
+'' ---- the messaging helpers
+private function OcClass( byref nm as string ) as any ptr
+    return TheOc.getClass( strptr( nm ) )
+end function
+
+private function OcSel( byref nm as string ) as any ptr
+    return TheOc.selRegister( strptr( nm ) )
+end function
+
+private function Oc0( byval o as any ptr, byref s as string ) as any ptr
+    return cast( OcMsg0, TheOc.msgSend )( o, OcSel( s ) )
+end function
+
+private function Oc1( byval o as any ptr, byref s as string, byval a as any ptr ) as any ptr
+    return cast( OcMsg1, TheOc.msgSend )( o, OcSel( s ), a )
+end function
+
+private function OcI( byval o as any ptr, byref s as string, byval a as integer ) as any ptr
+    return cast( OcMsgI, TheOc.msgSend )( o, OcSel( s ), a )
+end function
+
+private function OcB( byval o as any ptr, byref s as string, byval a as long ) as any ptr
+    return cast( OcMsgB, TheOc.msgSend )( o, OcSel( s ), cast( ubyte, iif( a <> 0, 1, 0 ) ) )
+end function
+
+private function OcRetB( byval o as any ptr, byref s as string ) as long
+    return cast( OcMsgRetB, TheOc.msgSend )( o, OcSel( s ) )
+end function
+
+private function OcRetInt( byval o as any ptr, byref s as string ) as integer
+    return cast( integer, cast( OcMsg0, TheOc.msgSend )( o, OcSel( s ) ) )
+end function
+
+private function OcRetD( byval o as any ptr, byref s as string ) as double
+    return cast( OcMsgRetD, TheOc.msgSend )( o, OcSel( s ) )
+end function
+
+private function OcRetRect( byval o as any ptr, byref s as string ) as NSRectT
+    return cast( OcMsgRetRc, TheOc.msgSend )( o, OcSel( s ) )
+end function
+
+private function OcNSString( byref s as string ) as any ptr
+    return Oc1( OcClass( "NSString" ), "stringWithUTF8String:", strptr( s ) )
+end function
+
+end namespace
