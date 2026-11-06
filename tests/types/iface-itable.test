@@ -1,0 +1,7 @@
+'' --dump-itable: flattened interface slots and each type's implementation map
+'' (docs/tiko-interfaces §7.3-§7.6).
+'' TEST: cli
+'' ARGS: --dump-itable tests/types/src/iface-itable.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0
+'' GOLDEN: expected/iface-itable.out

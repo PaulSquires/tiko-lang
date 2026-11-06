@@ -1,0 +1,104 @@
+'' itable.ti -- interfaces after Resolve: each one's FLATTENED member list, and (Phase 2c)
+'' which method of a type implements which member. docs/tiko-interfaces/
+'' TIKO_INTERFACE_OOP_DESIGN.md §7.3-§7.6 is the design.
+''
+'' SLOT ORDER (§7.3). Slots(I) = Slots(primary base) ++ the other bases' slots not already
+'' present ++ I's own members. A member is identified by the interface that DECLARES it and
+'' its declaration node, never by name: IA.Foo and IB.Foo are two slots even when their
+'' signatures agree, and a diamond (IA and IB both inheriting IBase) adds IBase.M once. The
+'' primary base's slots are a prefix, which is what makes the IC -> IA conversion free (§8.4).
+
+#ifndef __TKO_ITABLE_BI__
+#define __TKO_ITABLE_BI__
+
+#include once "tko.ti"
+#include once "ast/nodes.ti"
+#include once "types/type.ti"
+#include once "symbols/symbol.ti"
+#include once "symbols/resolve.ti"
+#include once "diag/engine.ti"
+
+namespace Tko
+
+    type IfSlot
+        as InternId name
+        as NodeId   decl          '' the member's N_PROC in its declaring interface
+        as TypeId   owner         '' the declaring interface
+    end type
+
+    type IfInfo                   '' one interface
+        as TypeId   type_
+        as SymbolId sym
+        as NodeId   decl          '' its N_INTERFACE
+        as int32    first, count  '' into Interfaces.slots, in the order above
+        as int32    basesFirst, basesCount   '' its DIRECT bases, as written, into Interfaces.bases
+        as boolean  done          '' flattened
+    end type
+
+    type ImplEntry                '' one interface slot, as a type implements it
+        as SymbolId proc_         '' the implementing method, or SYMBOL_NONE when not mapped
+        as NodeId   decl          '' its N_PROC (the declaration inside the type)
+    end type
+
+    '' One (type, interface) pair the type itself LISTS, directly or through an interface it
+    '' lists. A pair its BASE type provides is not stored again: ImplOf walks to the base,
+    '' whose object is at offset 0, so the base's itable serves the derived type (§7.6).
+    type ImplInfo
+        as TypeId   cls, iface
+        as int32    first, count  '' into Interfaces.entries, parallel to Slots(iface)
+    end type
+
+    type IfIndexMap as containers.Map( of uint32, int32 )
+
+    type Interfaces
+        as containers.Array( of IfInfo ) ifaces
+        as containers.Array( of IfSlot ) slots
+        as containers.Array( of uint32 ) bases       '' TypeIds
+        as IfIndexMap at_                            '' TypeId -> ifaces index
+        as containers.Array( of ImplInfo ) impls
+        as containers.Array( of ImplEntry ) entries
+        as containers.Map( of int64, int32 ) implAt_ '' (cls, iface) -> impls index
+        declare function Find( byval t as TypeId ) as int32
+        '' The primary base -- the first one written -- or TYPE_NONE.
+        declare function PrimaryOf( byval t as TypeId ) as TypeId
+        '' Does interface 'a' inherit 'b', directly or not? An interface does not inherit itself.
+        declare function Inherits( byval a as TypeId, byval b as TypeId ) as boolean
+        '' The pair 'cls' stores for 'iface', or -1 (it may still implement it through its base).
+        declare function ImplOf( byval cls as TypeId, byval iface as TypeId ) as int32
+    end type
+
+    '' Every non-generic interface: its bases checked (TKO1002 not one, TKO1006 listed twice)
+    '' and its slots flattened; an inheritance cycle is TKO1008. Returns how many.
+    declare function ComputeInterfaces _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byref names as Interner, byref diags as DiagnosticEngine, _
+          byref store as Interfaces ) as int32
+
+    '' Which method of each type implements each member of each interface it lists (§5.4,
+    '' §7.4-§7.6), with TKO1000-TKO1006, TKO1011 and TKO1014; then what converts to which
+    '' interface, recorded in the TypeContext for ConversionCost (§5.3). After
+    '' ComputeInterfaces.
+    declare sub ComputeImplementations _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byref names as Interner, byref diags as DiagnosticEngine, _
+          byref store as Interfaces )
+
+    '' Both of the above for a front unit, into u.ifaces or a store of its own: Check.Run's
+    '' first step, so every path through Check -- a build, 'tiko check', the editor scan -- has
+    '' the conversions before the first call is resolved.
+    declare sub ComputeFrontInterfaces( byref u as FrontUnit )
+
+    '' A member an interface INHERITS, by name, for Check's member lookup: its bases' own
+    '' scopes, primary first, breadth first. 'iface' is the interface's own SYM_UDT.
+    declare function IfaceInheritedMember _
+        ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+          byref info as SemanticInfo, byval iface as Symbol ptr, byval nm as InternId ) as SymbolId
+
+    '' --dump-itable.
+    declare function DumpInterfaces _
+        ( byref ast as AstArena, byref store as Interfaces, byref types as TypeContext, _
+          byref names as Interner ) as string
+
+end namespace
+
+#endif

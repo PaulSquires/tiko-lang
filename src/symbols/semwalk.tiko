@@ -183,6 +183,7 @@ end sub
 '' (propaccess.tiko) -- reported once: a getter already refused says enough.
 private sub CheckMember_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+    if IfaceMemberRefused_( c, id ) then return      '' semiface.tiko: Phase 3
     dim as int32 before = c.diags->ErrorCount( )
     CheckMemberSym_( c, id, here, AccessSymOf_( c, id ) )
     if cast( int32, id ) >= c.propSetFor.Count then return

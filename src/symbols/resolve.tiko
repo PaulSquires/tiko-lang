@@ -716,7 +716,6 @@ sub WalkStmt _
     c.syms->usePos = cast( uint32, id )    '' which side of an '#undef': see UndefSym
     dim as Tko.NodeKind k = c.ast->Kind( id )
     dim as Tko.NodeCategory cat = Tko.NodeKindCategory( k )
-    if k = Tko.N_INTERFACE then return    '' refused by Collect until docs/tiko-interfaces Phase 2
 
     '' Collect recorded the scope for anything that opened one; otherwise inherit.
     dim as Tko.ScopeId here = c.info->ScopeOf( id )
@@ -1429,6 +1428,7 @@ sub WalkStmt _
             c.pendResultProcScope.Push( cast( uint32, here ) )
         end if
         BindThis( c, here, sp->ownerName )
+        ResolveImplements_( c, id, here )      '' 'implements I.M': the I's -- resolvetype.tiko
         dim as int32 pCount = sp->count, pFirst = sp->first, pBody = sp->b
         for i as int32 = 0 to pCount - 1
             WalkStmt( c, cast( Tko.NodeId, c.ast->ChildSlot( pFirst + i ) ), here )
@@ -1446,7 +1446,8 @@ sub WalkStmt _
     '' knows: walked as expressions, each name bound to whatever the scope had -- a module's
     '' private 'function E' -- and std's Result( of T, E ) failed inside result.tiko with
     '' TKO0776 'argument 1 of e is left out' (tiko-studio TS-002).
-    if c.ast->Kind( id ) <> Tko.N_TYPE then WalkStmt( c, sp->b, here )
+    if (k <> Tko.N_TYPE) andalso (k <> Tko.N_INTERFACE) then WalkStmt( c, sp->b, here )
+    if k = Tko.N_TYPE then ResolveImplements_( c, id, here )    '' its 'implements' lines
     WalkStmt( c, sp->c, here )
     for i as int32 = 0 to sp->count - 1
         WalkStmt( c, c.ast->ChildAt( sp->first, i ), here )

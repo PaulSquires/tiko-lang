@@ -260,6 +260,12 @@ private function TupleConvBad_ _
         rn = cast( NodeId, c.ast->ChildSlot( pl->first ) )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return TupleValueBad_( c, t, rn )
+    '' AN INTERFACE IS NO RECORD TO FILL: its two hidden words are a reference only a conversion
+    '' builds (docs/tiko-interfaces §7.1). '( p, q )' and 'type<I>( p, q )' would forge one.
+    if c.types->IsInterface( t ) then
+        c.diags->Report( TKO1009, PointRange( c.ast->Loc( rn ) ), "( ... )", c.types->Name( c.types->Unqualify( t ) ), "" )
+        return true
+    end if
     if (c.ast->Flags( rn ) and NF_TYPE_LITERAL) <> 0 then return false
     t = c.types->Unqualify( t )
     if TcTuple_( c, t ) = false then return false

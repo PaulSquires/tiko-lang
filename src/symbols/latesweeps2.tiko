@@ -219,6 +219,7 @@ sub JudgeConversion_ _
     dim as boolean rUdt = (rk = TK_UDT)
     if (lUdt orelse rUdt) = false then return
     if lu = ru then return
+    if IfaceConvJudged_( c, at, lu, ru ) then return                 '' ifaceconv.tiko
     if lUdt andalso rUdt then
         if DerivesFrom_( c, ru, lu ) then return
         if Rescued_( c, lu, ru, byAssign ) andalso UdtPairConverts_( c, lu, ru, byAssign ) then return

@@ -88,6 +88,9 @@ namespace Tko
         as SourceManager ptr    src
         as SemanticInfo ptr     info
         as int32                errFlags
+        '' An Interfaces ptr (types/itable.ti) the driver keeps for lowering, or 0: Check.Run
+        '' then flattens and maps the unit's interfaces into a store of its own.
+        as any ptr              ifaces
     end type
 
 end namespace

@@ -1,0 +1,74 @@
+'' semiface.tiko -- the post-Check judgement of a conversion TO OR FROM AN INTERFACE
+'' (docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §5.3), called from JudgeConversion_.
+''
+'' What converts implicitly is a type that implements the interface, a pointer to one, and an
+'' interface that inherits it -- TypeContext.IfaceConvLinks, filled by ComputeImplementations.
+'' Nothing converts implicitly OUT of an interface: to a narrower interface or to a type
+'' pointer it takes a cast, so the message names 'trycast'.
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+'' True when one side is an interface: the conversion was judged here, and refused with
+'' TKO1009 if it does not hold. 'lt' and 'rt' are the value types, already unqualified.
+function IfaceConvJudged_ _
+    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId ) as boolean
+    dim as boolean lI = c.types->IsInterface( lt )
+    dim as boolean rI = c.types->IsInterface( rt )
+    if (lI orelse rI) = false then return false
+    if lI then
+        dim as TypeId src = rt
+        if c.types->Kind( src ) = TK_POINTER then
+            src = c.types->Unqualify( c.types->Inner( src ) )
+            if c.types->IsInterface( src ) then src = TYPE_NONE      '' 'I ptr' is no reference
+        end if
+        if (src <> TYPE_NONE) andalso (c.types->IfaceConvLinks( src, lt ) >= 0) then
+            '' LEGAL, AND NOT YET COMPILED: the itable store is Phase 3. Refused rather than
+            '' lowered as a plain copy, which would be a wrong program that runs.
+            c.diags->Report( TKO0992, PointRange( c.ast->Loc( at ) ), "a conversion to an interface (docs/tiko-interfaces, Phase 3)" )
+            return true
+        end if
+    end if
+    dim as string hint = ""
+    if rI then hint = ": write 'trycast( " & c.types->Name( lt ) & ", ... )'"
+    c.diags->Report( TKO1009, PointRange( c.ast->Loc( at ) ), c.types->Name( rt ), c.types->Name( lt ), hint )
+    return true
+end function
+
+private function ValueOf_( byref c as Ctx, byval t as TypeId ) as TypeId
+    dim as TypeId u = c.types->Unqualify( t )
+    if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    return u
+end function
+
+'' A MEMBER REACHED THROUGH AN INTERFACE VALUE -- 'a.Speak( )' -- is typed and checked, and not
+'' yet compiled: dispatch through the itable is Phase 3. TKO0992 until then.
+function IfaceMemberRefused_( byref c as Ctx, byval id as NodeId ) as boolean
+    if c.ast->Kind( id ) <> N_MEMBER then return false
+    dim as BinaryPayload ptr mp = c.ast->BinaryOf( id )
+    if mp->lhs = NODE_NONE then return false
+    dim as TypeId lt = ValueOf_( c, c.info->TypeOf_( mp->lhs ) )
+    if c.types->IsInterface( lt ) = false then return false
+    c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "a call through an interface (docs/tiko-interfaces, Phase 3)" )
+    return true
+end function
+
+
+'' An ARGUMENT: the same judgement, when the parameter or the argument is an interface.
+function ArgIfaceJudged_ _
+    ( byref c as Ctx, byval arg as NodeId, byval pt as TypeId, byval at as TypeId ) as boolean
+    dim as TypeId pu = ValueOf_( c, pt ), au = ValueOf_( c, at )
+    if pu = au then return false
+    return IfaceConvJudged_( c, arg, pu, au )
+end function
+
+end namespace

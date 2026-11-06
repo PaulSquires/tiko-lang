@@ -593,11 +593,10 @@ sub WalkNode _
             end if
         next
 
-    case Tko.N_TYPE
+    case Tko.N_TYPE, Tko.N_INTERFACE
+        '' AN INTERFACE IS DECLARED AS A TYPE IS (docs/tiko-interfaces §7.2): a SYM_UDT with a
+        '' scope holding its two hidden fields and its member SYM_PROCs, its type TF_INTERFACE.
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
-        if Tko.ImplementsOf( *w.ast, id ) <> Tko.NODE_NONE then     '' docs/tiko-interfaces Phase 2
-            w.diags->Report( Tko.TKO0992, Tko.PointRange( w.ast->Loc( Tko.ImplementsOf( *w.ast, id ) ) ), "'implements' (docs/tiko-interfaces, Phase 2)" )
-        end if
         '' An ANONYMOUS union or type declares nothing and opens no scope: its
         '' members are members of the ENCLOSING aggregate, which is the whole point
         '' of writing one.
@@ -630,6 +629,7 @@ sub WalkNode _
             end if
             s->type_ = w.types->NamedType( Tko.TK_UDT, sp->name, _
                                            cast( uint32, scope_ ), traw )
+            if k = Tko.N_INTERFACE then w.types->SetInterface( s->type_ )
             '' The DECLARATION NODE, so a generic can be instantiated later: Resolve
             '' needs the parameter names and the field list, and the symbol is the
             '' only handle it has on them.
@@ -1262,11 +1262,6 @@ sub WalkNode _
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
         '' A linkage block declares into the ENCLOSING scope; it is not a scope.
         WalkChildren( w, sp->first, sp->count, scope_ )
-
-    case Tko.N_INTERFACE
-        '' PARSED, NOT YET DECLARED: docs/tiko-interfaces Phase 2 gives an interface its symbol,
-        '' type and member set. Until then it is refused here, once, rather than half-compiled.
-        w.diags->Report( Tko.TKO0992, Tko.PointRange( w.ast->Loc( id ) ), "interfaces (docs/tiko-interfaces, Phase 2)" )
 
     case Tko.N_LABEL
         '' A LABEL IS IN A NAMESPACE OF ITS OWN -- see DeclareLabel_ in collectdecl.tiko.

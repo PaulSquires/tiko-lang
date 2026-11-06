@@ -1,0 +1,25 @@
+'' The semantic diagnostics of declaring and implementing an interface, TKO1000-TKO1014
+'' and the TKO0902 note (docs/tiko-interfaces §13.2, types/itable.tiko). A forward
+'' 'inherits' is the existing TKO0784, as an 'extends' would be.
+'' TEST: cli
+'' ARGS: --dump-itable tests/diagnostics/src/iface-semantic-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iface-semantic-errors.bas(20,14): error TKO0784
+'' EXPECT-OUT: iface-semantic-errors.bas(17,14): error TKO1002: 'noti' is not an interface
+'' EXPECT-OUT: iface-semantic-errors.bas(17,26): error TKO1006: interface 'ipet' is listed more than once
+'' EXPECT-OUT: iface-semantic-errors.bas(19,1): error TKO1008: interface 'icyc1' inherits itself
+'' EXPECT-OUT: iface-semantic-errors.bas(22,1): error TKO1008: interface 'icyc0' inherits itself
+'' EXPECT-OUT: iface-semantic-errors.bas(29,56): error TKO1001: 'bad.name' cannot implement 'ianimal.name': the return types differ
+'' EXPECT-OUT: iface-semantic-errors.bas(30,53): error TKO1001: 'bad.speak' cannot implement 'ianimal.speak': the parameters differ
+'' EXPECT-OUT: iface-semantic-errors.bas(31,13): error TKO1014: a static method cannot implement an interface member
+'' EXPECT-OUT: iface-semantic-errors.bas(32,34): error TKO1004: 'bad' implements 'iprintable.flush', but does not list 'iprintable' after 'implements'
+'' EXPECT-OUT: iface-semantic-errors.bas(33,34): error TKO1003: interface 'ipet' has no member named 'nope'
+'' EXPECT-OUT: iface-semantic-errors.bas(35,49): error TKO1005: 'ianimal.name' is implemented twice in 'bad'
+'' EXPECT-OUT: iface-semantic-errors.bas(34,13): note: declared here
+'' EXPECT-OUT: iface-semantic-errors.bas(27,16): error TKO1000: 'bad' does not implement 'ianimal.speak'; add 'implements ianimal.speak' to one of its methods
+'' EXPECT-OUT: iface-semantic-errors.bas(3,5): note: 'speak' is required by interface 'ianimal', declared here
+'' EXPECT-OUT: iface-semantic-errors.bas(27,16): error TKO1000: 'bad' does not implement 'ipet.owner'
+'' EXPECT-OUT: iface-semantic-errors.bas(48,28): error TKO1006: interface 'iprintable' is listed more than once
+'' EXPECT-OUT: iface-semantic-errors.bas(48,40): error TKO1002: 'noti' is not an interface
+'' EXPECT-OUT: iface-semantic-errors.bas(45,38): error TKO1011: 'ianimal.speak' is already implemented by base type 'basea'; override that method instead
+'' EXPECT-MAX-DIAG: 21

@@ -455,6 +455,7 @@ private function FieldOf_ _
     '' than it was, and the fields are right where they were not. Stated plainly
     '' because it IS wrong for two instantiations at different types, and the fix is
     '' instantiating the bodies, not widening this.
+    if c.types->IsInterface( t ) then return Tko.IfaceInheritedMember( *c.ast, *c.syms, *c.types, *c.info, s, nm )  '' itable.tiko
     dim as Tko.NodeId gnode = cast( Tko.NodeId, s->payload )
     if gnode = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gnode ) <> Tko.N_TYPE then return Tko.SYMBOL_NONE
@@ -1482,6 +1483,7 @@ function Run( byref u as Tko.FrontUnit, byref st as Stats ) as int32
     '' untyped, so 'str( n1v )' declined while 'str( n2v )' beside it worked. The
     '' second pass stays because a typeof whose operand needs the walk resolves then.
     RecordUdtBases_( c )
+    Tko.ComputeFrontInterfaces( u )     '' what converts to an interface -- types/itable.tiko
     InferUnusedVarTypes_( c )
     if CompleteClosureFields_( c ) > 0 then InferUnusedVarTypes_( c )
     while InferForEachVarTypes_( c ) > 0 : wend

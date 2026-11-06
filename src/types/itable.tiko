@@ -1,0 +1,530 @@
+'' itable.tiko -- see itable.ti.
+
+#import "std/containers"
+#include once "types/itable.ti"
+#include once "types/vtable.ti"
+#include once "diag/diagids.ti"
+#include once "support/irtext.ti"
+
+namespace Tko
+
+function Interfaces.Find( byval t as TypeId ) as int32
+    dim as int32 i = -1
+    if this.at_.TryGet( cast( uint32, t ), i ) then return i
+    return -1
+end function
+
+function Interfaces.PrimaryOf( byval t as TypeId ) as TypeId
+    dim as int32 i = this.Find( t )
+    if (i < 0) orelse (this.ifaces[i].basesCount = 0) then return TYPE_NONE
+    return cast( TypeId, this.bases[this.ifaces[i].basesFirst] )
+end function
+
+function Interfaces.Inherits( byval a as TypeId, byval b as TypeId ) as boolean
+    dim as int32 i = this.Find( a )
+    if i < 0 then return false
+    '' Bounded by the store's size: a cycle was reported (TKO1008) and must not loop here.
+    dim as containers.Array( of uint32 ) todo
+    dim as containers.Map( of uint32, int32 ) seen
+    todo.Push( cast( uint32, a ) )
+    dim as int32 at = 0
+    while at < todo.Count
+        dim as int32 k = this.Find( cast( TypeId, todo[at] ) )
+        at += 1
+        if k < 0 then continue while
+        for j as int32 = 0 to this.ifaces[k].basesCount - 1
+            dim as uint32 bt = this.bases[this.ifaces[k].basesFirst + j]
+            if bt = cast( uint32, b ) then return true
+            if seen.Contains( bt ) = false then
+                seen.Put( bt, 1 )
+                todo.Push( bt )
+            end if
+        next
+    wend
+    return false
+end function
+
+private function SlotPresent_( byref store as Interfaces, byval first as int32, byval decl as NodeId ) as boolean
+    for i as int32 = first to store.slots.Count - 1
+        if store.slots[i].decl = decl then return true
+    next
+    return false
+end function
+
+'' Flatten one interface whose bases are all flattened (§7.3). False while one is not.
+private function FlattenOne_ _
+    ( byref ast as AstArena, byref store as Interfaces, byval ix as int32 ) as boolean
+
+    dim as IfInfo it = store.ifaces[ix]
+    for j as int32 = 0 to it.basesCount - 1
+        dim as int32 bi = store.Find( cast( TypeId, store.bases[it.basesFirst + j] ) )
+        if (bi >= 0) andalso (store.ifaces[bi].done = false) then return false
+    next
+    dim as int32 first = store.slots.Count
+    '' The bases, primary first; a member already present (a diamond) is not added again.
+    for j as int32 = 0 to it.basesCount - 1
+        dim as int32 bi = store.Find( cast( TypeId, store.bases[it.basesFirst + j] ) )
+        if bi < 0 then continue for
+        dim as int32 bf = store.ifaces[bi].first, bc = store.ifaces[bi].count
+        for k as int32 = 0 to bc - 1
+            dim as IfSlot sl = store.slots[bf + k]
+            if SlotPresent_( store, first, sl.decl ) = false then store.slots.Push( sl )
+        next
+    next
+    '' Its own members, in declaration order. The hidden '$obj' and '$itab' are N_FIELDs.
+    dim as StmtPayload ptr sp = ast.StmtOf( it.decl )
+    for k as int32 = 0 to sp->count - 1
+        dim as NodeId m = ast.ChildAt( sp->first, k )
+        if ast.Kind( m ) <> N_PROC then continue for
+        dim as IfSlot sl
+        sl.name = ast.StmtOf( m )->name
+        sl.decl = m
+        sl.owner = it.type_
+        store.slots.Push( sl )
+    next
+    store.ifaces[ix].first = first
+    store.ifaces[ix].count = store.slots.Count - first
+    store.ifaces[ix].done = true
+    return true
+end function
+
+function ComputeInterfaces _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref info as SemanticInfo, byref names as Interner, byref diags as DiagnosticEngine, _
+      byref store as Interfaces ) as int32
+
+    '' Register each interface and read its 'inherits' list.
+    for i as int32 = 1 to syms.Count( )
+        dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+        if s = nullptr then continue for
+        if s->kind <> cast( uint8, SYM_UDT ) then continue for
+        if types.IsInterface( s->type_ ) = false then continue for
+        if store.Find( s->type_ ) >= 0 then continue for
+        dim as NodeId dn = cast( NodeId, s->payload )
+        if (dn = NODE_NONE) orelse (cast( int32, dn ) > ast.Count( )) then continue for
+        if ast.Kind( dn ) <> N_INTERFACE then continue for
+        dim as StmtPayload ptr sp = ast.StmtOf( dn )
+        if sp->b <> NODE_NONE then continue for              '' a generic: Phase 5
+        dim as IfInfo it
+        it.type_ = s->type_
+        it.sym = cast( SymbolId, i )
+        it.decl = dn
+        it.basesFirst = store.bases.Count
+        if sp->c <> NODE_NONE then
+            dim as ListPayload ptr lp = ast.ListOf( sp->c )
+            for j as int32 = 0 to lp->count - 1
+                dim as NodeId tr = ast.ChildAt( lp->first, j )
+                dim as TypeId bt = info.TypeOf_( tr )
+                if bt = TYPE_NONE then continue for          '' Resolve said why (TKO0808)
+                if types.IsInterface( bt ) = false then
+                    diags.Report( TKO1002, PointRange( ast.Loc( tr ) ), types.Name( bt ) )
+                    continue for
+                end if
+                bt = types.Unqualify( bt )
+                dim as boolean dup = false
+                for k as int32 = it.basesFirst to store.bases.Count - 1
+                    if store.bases[k] = cast( uint32, bt ) then dup = true
+                next
+                if dup then
+                    diags.Report( TKO1006, PointRange( ast.Loc( tr ) ), types.Name( bt ) )
+                    continue for
+                end if
+                store.bases.Push( cast( uint32, bt ) )
+            next
+        end if
+        it.basesCount = store.bases.Count - it.basesFirst
+        store.at_.Put( cast( uint32, it.type_ ), store.ifaces.Count )
+        store.ifaces.Push( it )
+    next
+
+    '' Flatten, bases first: the repeat-until-nothing-new shape ComputeVTables uses, so a
+    '' cycle stops making progress instead of recursing.
+    dim as boolean progress = true
+    while progress
+        progress = false
+        for ix as int32 = 0 to store.ifaces.Count - 1
+            if store.ifaces[ix].done then continue for
+            if FlattenOne_( ast, store, ix ) then progress = true
+        next
+    wend
+    '' What is left inherits itself, through some path. It is still given its own members,
+    '' so a later question about it is answered rather than crashing.
+    for ix as int32 = 0 to store.ifaces.Count - 1
+        if store.ifaces[ix].done then continue for
+        diags.Report( TKO1008, PointRange( ast.Loc( store.ifaces[ix].decl ) ), _
+                      types.Name( store.ifaces[ix].type_ ) )
+        store.ifaces[ix].basesCount = 0
+        FlattenOne_( ast, store, ix )
+    next
+    return store.ifaces.Count
+end function
+
+private function PairKey_( byval a as TypeId, byval b as TypeId ) as int64
+    return (cast( int64, a ) shl 32) or cast( int64, cast( uint32, b ) )
+end function
+
+function Interfaces.ImplOf( byval cls as TypeId, byval iface as TypeId ) as int32
+    dim as int32 i = -1
+    if this.implAt_.TryGet( PairKey_( cls, iface ), i ) then return i
+    return -1
+end function
+
+'' How many 'inherits' links from interface a up to b (1 for a direct base), or -1.
+private function IfaceDepth_( byref store as Interfaces, byval a as TypeId, byval b as TypeId ) as int32
+    dim as containers.Array( of uint32 ) lvl, nxt
+    dim as containers.Map( of uint32, int32 ) seen
+    lvl.Push( cast( uint32, a ) )
+    for depth as int32 = 1 to store.ifaces.Count
+        nxt.Clear( )
+        for i as int32 = 0 to lvl.Count - 1
+            dim as int32 k = store.Find( cast( TypeId, lvl[i] ) )
+            if k < 0 then continue for
+            for j as int32 = 0 to store.ifaces[k].basesCount - 1
+                dim as uint32 bt = store.bases[store.ifaces[k].basesFirst + j]
+                if bt = cast( uint32, b ) then return depth
+                if seen.Contains( bt ) = false then
+                    seen.Put( bt, 1 )
+                    nxt.Push( bt )
+                end if
+            next
+        next
+        if nxt.Count = 0 then exit for
+        lvl.Clear( )
+        for i as int32 = 0 to nxt.Count - 1
+            lvl.Push( nxt[i] )
+        next
+    next
+    return -1
+end function
+
+'' The type a UDT extends -- its 'base' field's type -- or TYPE_NONE.
+private function BaseOf_( byref syms as SymbolTable, byval s as Symbol ptr, byval baseNm as InternId ) as TypeId
+    dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+    if sc = nullptr then return TYPE_NONE
+    dim as SymbolId cur = sc->firstSym
+    while cur <> SYMBOL_NONE
+        dim as Symbol ptr f = syms.SymbolAt( cur )
+        if f = nullptr then exit while
+        if (f->kind = cast( uint8, SYM_FIELD )) andalso (f->name = baseNm) then return f->type_
+        cur = f->nextInScope
+    wend
+    return TYPE_NONE
+end function
+
+'' The SYM_PROC a member declaration made, found in its type's scope.
+private function ProcSymOf_( byref syms as SymbolTable, byval s as Symbol ptr, byval decl as NodeId ) as SymbolId
+    dim as SymScope ptr sc = syms.ScopeAt( s->inner )
+    if sc = nullptr then return SYMBOL_NONE
+    dim as SymbolId cur = sc->firstSym
+    while cur <> SYMBOL_NONE
+        dim as Symbol ptr f = syms.SymbolAt( cur )
+        if f = nullptr then exit while
+        if (f->kind = cast( uint8, SYM_PROC )) andalso (cast( NodeId, f->payload ) = decl) then return cur
+        cur = f->nextInScope
+    wend
+    return SYMBOL_NONE
+end function
+
+private function IsClassDecl_( byref ast as AstArena, byval s as Symbol ptr ) as boolean
+    if (s->flags and SYMF_GENERIC_INST) <> 0 then return false        '' Phase 5
+    dim as NodeId dn = cast( NodeId, s->payload )
+    if (dn = NODE_NONE) orelse (cast( int32, dn ) > ast.Count( )) then return false
+    if ast.Kind( dn ) <> N_TYPE then return false
+    return ast.StmtOf( dn )->b = NODE_NONE                             '' a generic template
+end function
+
+'' Is slot 'sl' provided by the base type -- does the base implement the interface that
+'' DECLARES it?
+private function BaseHas_( byref types as TypeContext, byval baseT as TypeId, byval owner as TypeId ) as boolean
+    if baseT = TYPE_NONE then return false
+    return types.IfaceConvLinks( baseT, owner ) >= 0
+end function
+
+'' One type's mapping. Its base, if it has one, is done: what that provides is in
+'' types.IfaceConvLinks( base, ... ).
+private sub ImplementOne_ _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref info as SemanticInfo, byref names as Interner, byref diags as DiagnosticEngine, _
+      byref store as Interfaces, byval sid as SymbolId, byval baseT as TypeId )
+
+    dim as Symbol ptr s = syms.SymbolAt( sid )
+    dim as TypeId cls = s->type_
+    dim as string cname = types.Name( cls )
+    dim as NodeId dn = cast( NodeId, s->payload )
+    dim as StmtPayload ptr sp = ast.StmtOf( dn )
+
+    '' The interfaces it lists (TKO1002, TKO1006), and everything they inherit.
+    dim as containers.Array( of uint32 ) listed, listedAt
+    dim as containers.Map( of uint32, int32 ) own                '' iface -> links (0 listed)
+    dim as NodeId lst = ImplementsOf( ast, dn )
+    if lst <> NODE_NONE then
+        dim as ListPayload ptr lp = ast.ListOf( lst )
+        for j as int32 = 0 to lp->count - 1
+            dim as NodeId tr = ast.ChildAt( lp->first, j )
+            dim as TypeId t = info.TypeOf_( tr )
+            if t = TYPE_NONE then continue for
+            if types.IsInterface( t ) = false then
+                diags.Report( TKO1002, PointRange( ast.Loc( tr ) ), types.Name( t ) )
+                continue for
+            end if
+            t = types.Unqualify( t )
+            dim as boolean twice = false
+            for q as int32 = 0 to listed.Count - 1
+                if listed[q] = cast( uint32, t ) then twice = true
+            next
+            if twice then
+                diags.Report( TKO1006, PointRange( ast.Loc( tr ) ), types.Name( t ) )
+                continue for
+            end if
+            listed.Push( cast( uint32, t ) )
+            listedAt.Push( cast( uint32, tr ) )
+            own.Put( cast( uint32, t ), 0 )
+            for k as int32 = 0 to store.ifaces.Count - 1
+                dim as TypeId j2 = store.ifaces[k].type_
+                if own.Contains( cast( uint32, j2 ) ) then continue for
+                dim as int32 d = IfaceDepth_( store, t, j2 )
+                if d > 0 then own.Put( cast( uint32, j2 ), d )
+            next
+        next
+    end if
+
+    '' The methods' 'implements I.M' entries: slot decl -> index into mapProc/mapDecl.
+    dim as containers.Map( of uint32, int32 ) mapped
+    dim as containers.Array( of uint32 ) mapProc, mapDecl
+    for k as int32 = 0 to sp->count - 1
+        dim as NodeId m = ast.ChildAt( sp->first, k )
+        if ast.Kind( m ) <> N_PROC then continue for
+        dim as NodeId ml = ImplementsOf( ast, m )
+        if ml = NODE_NONE then continue for
+        if (ast.StmtOf( m )->extra and PF_STATIC) <> 0 then
+            diags.Report( TKO1014, PointRange( ast.Loc( m ) ) )
+            continue for
+        end if
+        dim as ListPayload ptr mlp = ast.ListOf( ml )
+        for j as int32 = 0 to mlp->count - 2 step 2
+            dim as NodeId itr = ast.ChildAt( mlp->first, j )
+            dim as NodeId mem = ast.ChildAt( mlp->first, j + 1 )
+            dim as TypeId x = info.TypeOf_( itr )
+            if x = TYPE_NONE then continue for
+            if types.IsInterface( x ) = false then
+                diags.Report( TKO1002, PointRange( ast.Loc( itr ) ), types.Name( x ) )
+                continue for
+            end if
+            x = types.Unqualify( x )
+            dim as int32 xi = store.Find( x )
+            if xi < 0 then continue for
+            dim as InternId mname = ast.StmtOf( mem )->name
+            dim as int32 match = -1, cands = 0
+            dim as string firstDiff = ""
+            for q as int32 = 0 to store.ifaces[xi].count - 1
+                dim as int32 si = store.ifaces[xi].first + q
+                if store.slots[si].name <> mname then continue for
+                cands += 1
+                dim as string d = InterfaceSigDiff( ast, info, types, store.slots[si].decl, m )
+                if len( d ) = 0 then
+                    match = si
+                    exit for
+                end if
+                if len( firstDiff ) = 0 then firstDiff = d
+            next
+            dim as string mshown = names.Spelling( mname )
+            if cands = 0 then
+                diags.Report( TKO1003, PointRange( ast.Loc( mem ) ), types.Name( x ), mshown )
+                continue for
+            end if
+            dim as string implName = cname & "." & names.Spelling( ast.StmtOf( m )->name )
+            if match < 0 then
+                diags.Report( TKO1001, PointRange( ast.Loc( mem ) ), implName, types.Name( x ) & "." & mshown, firstDiff )
+                continue for
+            end if
+            dim as IfSlot sl = store.slots[match]
+            if BaseHas_( types, baseT, sl.owner ) then
+                diags.Report( TKO1011, PointRange( ast.Loc( mem ) ), types.Name( baseT ), types.Name( sl.owner ), mshown )
+                continue for
+            end if
+            if own.Contains( cast( uint32, x ) ) = false then
+                diags.Report( TKO1004, PointRange( ast.Loc( mem ) ), cname, types.Name( x ), mshown )
+                continue for
+            end if
+            dim as int32 prev = -1
+            if mapped.TryGet( cast( uint32, sl.decl ), prev ) then
+                diags.Report( TKO1005, PointRange( ast.Loc( mem ) ), cname, types.Name( sl.owner ), mshown )
+                diags.AddNote( TKO0901, PointRange( ast.Loc( cast( NodeId, mapDecl[prev] ) ) ) )
+                continue for
+            end if
+            mapped.Put( cast( uint32, sl.decl ), mapProc.Count )
+            mapProc.Push( cast( uint32, ProcSymOf_( syms, s, m ) ) )
+            mapDecl.Push( cast( uint32, m ) )
+        next
+    next
+
+    '' Every slot of every listed interface is mapped here or provided by the base (TKO1000).
+    dim as containers.Map( of uint32, int32 ) missing
+    for j as int32 = 0 to listed.Count - 1
+        dim as int32 li = store.Find( cast( TypeId, listed[j] ) )
+        if li < 0 then continue for
+        for q as int32 = 0 to store.ifaces[li].count - 1
+            dim as IfSlot sl = store.slots[store.ifaces[li].first + q]
+            if mapped.Contains( cast( uint32, sl.decl ) ) then continue for
+            if BaseHas_( types, baseT, sl.owner ) then continue for
+            if missing.Contains( cast( uint32, sl.decl ) ) then continue for
+            missing.Put( cast( uint32, sl.decl ), 1 )
+            dim as string on_ = types.Name( sl.owner )
+            dim as string mn = names.Spelling( sl.name )
+            diags.Report( TKO1000, PointRange( ast.Loc( cast( NodeId, listedAt[j] ) ) ), cname, on_, mn )
+            diags.AddNote( TKO0902, PointRange( ast.Loc( sl.decl ) ), mn, on_ )
+        next
+    next
+
+    '' The pairs it owns, and what it converts to.
+    for k as int32 = 0 to store.ifaces.Count - 1
+        dim as TypeId it = store.ifaces[k].type_
+        dim as int32 links = -1
+        if own.TryGet( cast( uint32, it ), links ) = false then continue for
+        dim as ImplInfo ii
+        ii.cls = cls
+        ii.iface = it
+        ii.first = store.entries.Count
+        ii.count = store.ifaces[k].count
+        for q as int32 = 0 to ii.count - 1
+            dim as ImplEntry e
+            dim as int32 at = -1
+            if mapped.TryGet( cast( uint32, store.slots[store.ifaces[k].first + q].decl ), at ) then
+                e.proc_ = cast( SymbolId, mapProc[at] )
+                e.decl = cast( NodeId, mapDecl[at] )
+            end if
+            store.entries.Push( e )
+        next
+        store.implAt_.Put( PairKey_( cls, it ), store.impls.Count )
+        store.impls.Push( ii )
+        types.NoteIfaceConv( cls, it, links )
+    next
+    if baseT <> TYPE_NONE then
+        for k as int32 = 0 to store.ifaces.Count - 1
+            dim as TypeId it = store.ifaces[k].type_
+            dim as int32 bl = types.IfaceConvLinks( baseT, it )
+            if bl >= 0 then types.NoteIfaceConv( cls, it, bl + 1 )
+        next
+    end if
+end sub
+
+sub ComputeImplementations _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref info as SemanticInfo, byref names as Interner, byref diags as DiagnosticEngine, _
+      byref store as Interfaces )
+
+    '' An interface converts to each interface it inherits.
+    for k as int32 = 0 to store.ifaces.Count - 1
+        for j as int32 = 0 to store.ifaces.Count - 1
+            if j = k then continue for
+            dim as int32 d = IfaceDepth_( store, store.ifaces[k].type_, store.ifaces[j].type_ )
+            if d > 0 then types.NoteIfaceConv( store.ifaces[k].type_, store.ifaces[j].type_, d )
+        next
+    next
+    if store.ifaces.Count = 0 then return                 '' nothing to implement
+
+    '' Bases first, by the same repeat-until-nothing-new shape: a type waits while its
+    '' base is a type still to be done.
+    dim as InternId baseNm = names.GetString( "base" )
+    dim as containers.Map( of uint32, int32 ) done, todo
+    for i as int32 = 1 to syms.Count( )
+        dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+        if s = nullptr then continue for
+        if s->kind <> cast( uint8, SYM_UDT ) then continue for
+        if (s->type_ = TYPE_NONE) orelse types.IsInterface( s->type_ ) then continue for
+        if IsClassDecl_( ast, s ) = false then continue for
+        todo.Put( cast( uint32, s->type_ ), i )
+    next
+    dim as boolean progress = true
+    while progress
+        progress = false
+        for i as int32 = 1 to syms.Count( )
+            dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
+            if s = nullptr then continue for
+            if s->kind <> cast( uint8, SYM_UDT ) then continue for
+            if todo.Contains( cast( uint32, s->type_ ) ) = false then continue for
+            if done.Contains( cast( uint32, s->type_ ) ) then continue for
+            dim as TypeId bt = types.Unqualify( BaseOf_( syms, s, baseNm ) )
+            dim as boolean waits = (bt <> TYPE_NONE) andalso todo.Contains( cast( uint32, bt ) )
+            if waits andalso (done.Contains( cast( uint32, bt ) ) = false) then continue for
+            ImplementOne_( ast, syms, types, info, names, diags, store, cast( SymbolId, i ), bt )
+            done.Put( cast( uint32, s->type_ ), 1 )
+            progress = true
+        next
+    wend
+end sub
+
+function IfaceInheritedMember _
+    ( byref ast as AstArena, byref syms as SymbolTable, byref types as TypeContext, _
+      byref info as SemanticInfo, byval iface as Symbol ptr, byval nm as InternId ) as SymbolId
+
+    dim as containers.Array( of uint32 ) todo        '' N_INTERFACE nodes
+    dim as containers.Map( of uint32, int32 ) seen
+    todo.Push( cast( uint32, iface->payload ) )
+    dim as int32 at = 0
+    while (at < todo.Count) andalso (at < 4096)
+        dim as NodeId dn = cast( NodeId, todo[at] )
+        at += 1
+        if (dn = NODE_NONE) orelse (ast.Kind( dn ) <> N_INTERFACE) then continue while
+        dim as NodeId bl = ast.StmtOf( dn )->c
+        if bl = NODE_NONE then continue while
+        dim as ListPayload ptr lp = ast.ListOf( bl )
+        for j as int32 = 0 to lp->count - 1
+            dim as TypeId bt = types.Unqualify( info.TypeOf_( ast.ChildAt( lp->first, j ) ) )
+            if types.IsInterface( bt ) = false then continue for
+            if seen.Contains( cast( uint32, bt ) ) then continue for
+            seen.Put( cast( uint32, bt ), 1 )
+            dim as ScopeId ds = cast( ScopeId, types.DeclScopeOf( bt ) )
+            dim as SymbolId bs = syms.LookupTyped( ds, types.NameOf( bt ), true )
+            dim as Symbol ptr b = syms.SymbolAt( bs )
+            if (b = nullptr) orelse (b->inner = SCOPE_NONE) then continue for
+            dim as SymbolId found = syms.LookupLocal( b->inner, nm )
+            if found <> SYMBOL_NONE then return found
+            todo.Push( cast( uint32, b->payload ) )
+        next
+    wend
+    return SYMBOL_NONE
+end function
+
+sub ComputeFrontInterfaces( byref u as FrontUnit )
+    dim as Interfaces own
+    dim as Interfaces ptr ifs = cast( Interfaces ptr, u.ifaces )
+    if ifs = nullptr then ifs = @own
+    ComputeInterfaces( *u.ast, *u.syms, *u.types, *u.info, *u.names, *u.diags, *ifs )
+    ComputeImplementations( *u.ast, *u.syms, *u.types, *u.info, *u.names, *u.diags, *ifs )
+end sub
+
+function DumpInterfaces _
+    ( byref ast as AstArena, byref store as Interfaces, byref types as TypeContext, _
+      byref names as Interner ) as string
+
+    dim as IrText outp
+    for i as int32 = 0 to store.ifaces.Count - 1
+        dim as IfInfo ptr it = @store.ifaces[i]
+        dim as string row = types.Name( it->type_ ) & " interface " & str( it->count ) & " slot(s)"
+        for j as int32 = 0 to it->basesCount - 1
+            row &= iif( j = 0, " inherits ", ", " ) & types.Name( cast( TypeId, store.bases[it->basesFirst + j] ) )
+        next
+        outp += row & chr( 10 )
+        for j as int32 = 0 to it->count - 1
+            dim as IfSlot ptr sl = @store.slots[it->first + j]
+            outp += "  slot " & str( j ) & " " & types.Name( sl->owner ) & "." & names.Spelling( sl->name ) & chr( 10 )
+        next
+    next
+    for i as int32 = 0 to store.impls.Count - 1
+        dim as ImplInfo ptr ii = @store.impls[i]
+        outp += types.Name( ii->cls ) & " implements " & types.Name( ii->iface ) & chr( 10 )
+        dim as int32 sf = store.ifaces[store.Find( ii->iface )].first
+        for j as int32 = 0 to ii->count - 1
+            dim as ImplEntry ptr e = @store.entries[ii->first + j]
+            dim as IfSlot ptr sl = @store.slots[sf + j]
+            dim as string who = "<from base>"
+            if e->decl <> NODE_NONE then who = types.Name( ii->cls ) & "." & names.Spelling( ast.StmtOf( e->decl )->name )
+            outp += "  " & types.Name( sl->owner ) & "." & names.Spelling( sl->name ) & " -> " & who & chr( 10 )
+        next
+    next
+    outp += "interfaces: " & str( store.ifaces.Count ) & chr( 10 )
+    return outp
+end function
+
+end namespace

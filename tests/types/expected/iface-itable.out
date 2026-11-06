@@ -1,0 +1,40 @@
+ibase interface 1 slot(s)
+  slot 0 ibase.m
+ia interface 2 slot(s) inherits ibase
+  slot 0 ibase.m
+  slot 1 ia.a1
+ib interface 2 slot(s) inherits ibase
+  slot 0 ibase.m
+  slot 1 ib.b1
+ic interface 4 slot(s) inherits ia, ib
+  slot 0 ibase.m
+  slot 1 ia.a1
+  slot 2 ib.b1
+  slot 3 ic.c1
+iprintable interface 1 slot(s)
+  slot 0 iprintable.flush
+isavable interface 1 slot(s)
+  slot 0 isavable.flush
+doc implements iprintable
+  iprintable.flush -> doc.flush
+doc implements isavable
+  isavable.flush -> doc.flush
+animal implements ibase
+  ibase.m -> animal.speak
+animal implements ia
+  ibase.m -> animal.speak
+  ia.a1 -> animal.walk
+dog implements ibase
+  ibase.m -> <from base>
+dog implements ia
+  ibase.m -> <from base>
+  ia.a1 -> <from base>
+dog implements ib
+  ibase.m -> <from base>
+  ib.b1 -> dog.bark
+dog implements ic
+  ibase.m -> <from base>
+  ia.a1 -> <from base>
+  ib.b1 -> dog.bark
+  ic.c1 -> dog.wag
+interfaces: 6

@@ -1102,3 +1102,18 @@ function ProcResultType_ _
     end if
     return t
 end function
+
+'' 'implements' LISTS (docs/tiko-interfaces §7.2): the side table AstArena.implementsLists, which
+'' no tree walk reaches. A type's list is one typeref per interface; a method's is PAIRS, the
+'' interface's typeref and then the member's name, which is not a type and is left alone. What
+'' each typeref names is checked later, by ComputeInterfaces (types/itable.tiko).
+sub ResolveImplements_( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
+    dim as Tko.NodeId lst = Tko.ImplementsOf( *c.ast, id )
+    if lst = Tko.NODE_NONE then return
+    dim as Tko.ListPayload ptr lp = c.ast->ListOf( lst )
+    dim as int32 stride = iif( c.ast->Kind( id ) = Tko.N_PROC, 2, 1 )
+    for i as int32 = 0 to lp->count - 1 step stride
+        dim as Tko.NodeId tr = c.ast->ChildAt( lp->first, i )
+        c.info->SetType( tr, ResolveTypeRef( c, tr, here ) )
+    next
+end sub

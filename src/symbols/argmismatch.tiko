@@ -497,6 +497,7 @@ private sub ReportArgMismatch_ _
         if c.types->Kind( au ) = Tko.TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
         if c.types->Kind( pu ) = Tko.TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
         dim as boolean byref_ = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
+        if c.types->IfaceConvLinks( au, pu ) >= 0 then continue for   '' to an interface it implements
         '' A UDT WITH A CAST, FOR ANOTHER UDT NOTHING CONVERTS IT TO -- fbc's 58: a constructor takes
         '' the cast's result only into a string (UdtPairConverts_, latesweeps2.tiko). A plain UDT is
         '' AmBadPair_'s; a tuple tupleconv.tiko's; an operator falls back to the intrinsic.

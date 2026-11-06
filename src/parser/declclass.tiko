@@ -188,12 +188,27 @@ sub ProcImplementsClause _
     ( byref p as Tko.ParserState, byval declareOnly as boolean, byval tok0 as int32 )
     dim as Tko.Token it = Cur( p )
     Advance( p )
-    dim as Tko.NodeIdVec items
-    TypeRefList_( p, items )
-    '' 'implements IFoo' with no member: the entry names one member, 'IFoo.Bar'.
-    for i as int32 = 0 to items.Count - 1
-        dim as Tko.NodeId tr = cast( Tko.NodeId, items[i] )
-        if p.ast->StmtOf( tr )->ownerName = 0 then Report_( p, Tko.TKO0430, p.ast->Loc( tr ) )
+    dim as Tko.NodeIdVec written, items
+    TypeRefList_( p, written )
+    '' EACH ENTRY BECOMES A PAIR: a typeref naming the interface, then one naming the member.
+    '' TypeRef read 'ns.IFoo.Bar' as the type 'Bar' qualified by 'ns.ifoo'; the qualifier is
+    '' split at its last dot so Resolve can bind the interface like any other typeref, and
+    '' never meets 'Bar', which is not a type. 'implements IFoo' alone names no member.
+    for i as int32 = 0 to written.Count - 1
+        dim as Tko.NodeId tr = cast( Tko.NodeId, written[i] )
+        dim as Tko.StmtPayload ptr mp = p.ast->StmtOf( tr )
+        if mp->ownerName = 0 then
+            Report_( p, Tko.TKO0430, p.ast->Loc( tr ) )
+            continue for
+        end if
+        dim as string q = p.names->Spelling( mp->ownerName )
+        dim as int32 dot = instrrev( q, "." )
+        dim as Tko.StmtPayload ip
+        ip.name = p.names->Fold( p.names->GetString( mid( q, dot + 1 ) ) )
+        if dot > 0 then ip.ownerName = p.names->GetString( left( q, dot - 1 ) )
+        mp->ownerName = 0
+        items.Push( cast( uint32, MakeStmt( p, Tko.N_TYPEREF, p.ast->Loc( tr ), ip ) ) )
+        items.Push( cast( uint32, tr ) )
     next
     p.pendingImpl = Tko.NODE_NONE
     if (declareOnly = false) orelse (p.aggDepth = 0) then

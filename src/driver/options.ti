@@ -156,6 +156,7 @@ namespace Tko
     '' ...and where each one's binding is, for a tool with its own parser (tiko-lsp).
     OPT( OPT_PRINTCINC, "--print-cincludes", OPTK_FLAG, OPTCAT_CIMPORT, "", "import each #cinclude the inputs reach, print where its binding is as JSON, and stop" )
     OPT( OPT_VTABLE,    "--dump-vtable",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print each UDT's virtual method table" )
+    OPT( OPT_ITABLE,    "--dump-itable",  OPTK_FLAG, OPTCAT_DEVEL, "",        "print each interface's flattened members (docs/tiko-interfaces)" )
     OPT( OPT_RTL,       "--dump-rtl",     OPTK_FLAG, OPTCAT_DEVEL, "",        "print the runtime inventory and stop" )
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
     OPT( OPT_PARSEONLY, "--parse-only",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse every input and report counts; the corpus gate" )
@@ -333,6 +334,7 @@ namespace Tko
         as boolean noCopyLibs     '' -nocopylibs
         as string  cCacheDir
         as boolean dumpVtable
+        as boolean dumpItable
         as boolean dumpRtl
         as boolean dumpIr
         as boolean dumpIrPreAbi     '' --dump-ir-pre-abi: the MIR the frontend made

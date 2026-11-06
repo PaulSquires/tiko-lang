@@ -909,7 +909,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         next
 
     case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
-         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM, _
+         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM, Tko.N_INTERFACE, _
          Tko.N_USING, Tko.N_ASSERT, Tko.N_UNDEF
         '' Declarations: handled by the module walk, not inside a body.
         ''

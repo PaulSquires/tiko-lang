@@ -22,6 +22,7 @@
 ''     0600-0899   semantic
 ''     0900-0989   notes
 ''     0990-0999   compiler-level (limits, internal)
+''     1000-1049   semantic, continued: interfaces (docs/tiko-interfaces)
 ''
 '' FORMAT STRINGS use %0, %1, %2 for the arguments passed to Report( ). A '%' that is
 '' not followed by a digit is literal.
@@ -1023,6 +1024,8 @@
     DIAG( TKO0900, SEV_NOTE,    "%0" )
     DIAG( TKO0901, SEV_NOTE,    "declared here" )
     DIAG( TKO0903, SEV_NOTE,    "in instantiation of '%0'" )
+    '' Beside TKO1000, at the member an interface requires (docs/tiko-interfaces).
+    DIAG( TKO0902, SEV_NOTE,    "'%0' is required by interface '%1', declared here" )
     '' Where a macro whose body holds the error was used (engine.tiko AppendMacroNotes_).
     DIAG( TKO0986, SEV_NOTE,    "in expansion of '%0' here" )
     DIAG( TKO0905, SEV_NOTE,    "unclosed '%0' opened here" )
@@ -1072,6 +1075,25 @@
     DIAG( TKO0597, SEV_ERROR,   "'swap' over the %0 property '%1' is not supported; swap through a temporary" )
     DIAG( TKO0599, SEV_ERROR,   "property '%0' has no address: its getter returns a value, not a reference" )
     DIAG( TKO0859, SEV_ERROR,   "property '%0' is read without parentheses: '()' would be an index" )
+
+    '' ---------------------------------------------------------- interfaces (semantic)
+    '' docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §13.2. The semantic range 0600-0899
+    '' is full, so interfaces open TKO1000-TKO1049 (NUMBERING above). types/itable.tiko.
+    DIAG( TKO1000, SEV_ERROR,   "'%0' does not implement '%1.%2'; add 'implements %1.%2' to one of its methods" )
+    '' %2: "the parameters", "the return types", "the const-ness", "the passing modes" ...
+    DIAG( TKO1001, SEV_ERROR,   "'%0' cannot implement '%1': %2 differ" )
+    DIAG( TKO1002, SEV_ERROR,   "'%0' is not an interface" )
+    DIAG( TKO1003, SEV_ERROR,   "interface '%0' has no member named '%1'" )
+    DIAG( TKO1004, SEV_ERROR,   "'%0' implements '%1.%2', but does not list '%1' after 'implements'" )
+    '' + TKO0901 at the first.
+    DIAG( TKO1005, SEV_ERROR,   "'%1.%2' is implemented twice in '%0'" )
+    DIAG( TKO1006, SEV_ERROR,   "interface '%0' is listed more than once" )
+    DIAG( TKO1008, SEV_ERROR,   "interface '%0' inherits itself" )
+    '' %2: ": write 'trycast( %1, ... )'" when a run-time cast exists (from an interface).
+    DIAG( TKO1009, SEV_ERROR,   "'%0' does not convert to '%1'%2" )
+    '' Re-implementation (VB's BC42014) is deferred, §10.4.
+    DIAG( TKO1011, SEV_ERROR,   "'%1.%2' is already implemented by base type '%0'; override that method instead" )
+    DIAG( TKO1014, SEV_ERROR,   "a static method cannot implement an interface member" )
 
 #endmacro
 

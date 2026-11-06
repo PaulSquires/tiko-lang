@@ -720,6 +720,36 @@ sub TypeContext.SetCLayout( byval t as TypeId )
     this.types[cast( int32, t )].flags or= TF_C_LAYOUT
 end sub
 
+private function IfaceKey_( byval a as TypeId, byval b as TypeId ) as int64
+    return (cast( int64, a ) shl 32) or cast( int64, cast( uint32, b ) )
+end function
+
+sub TypeContext.NoteIfaceConv( byval from as TypeId, byval iface as TypeId, byval links as int32 )
+    dim as int64 k = IfaceKey_( this.Unqualify( from ), this.Unqualify( iface ) )
+    dim as int32 old = -1
+    if this.ifaceConv.TryGet( k, old ) andalso (old <= links) then return
+    this.ifaceConv.Put( k, links )
+end sub
+
+function TypeContext.IfaceConvLinks( byval from as TypeId, byval iface as TypeId ) as int32
+    dim as int32 v = -1
+    if this.ifaceConv.TryGet( IfaceKey_( this.Unqualify( from ), this.Unqualify( iface ) ), v ) then return v
+    return -1
+end function
+
+'' A CONST interface is still one: the flag is read through the qualifier.
+function TypeContext.IsInterface( byval t as TypeId ) as boolean
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return false
+    dim as TypeId u = this.Unqualify( t )
+    if (u = TYPE_NONE) orelse (cast( int32, u ) >= this.types.Count) then return false
+    return (this.types[cast( int32, u )].flags and TF_INTERFACE) <> 0
+end function
+
+sub TypeContext.SetInterface( byval t as TypeId )
+    if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return
+    this.types[cast( int32, t )].flags or= TF_INTERFACE
+end sub
+
 function TypeContext.ElemCount( byval t as TypeId ) as int32
     if (t = TYPE_NONE) orelse (cast( int32, t ) >= this.types.Count) then return 0
     return this.types[cast( int32, t )].elems

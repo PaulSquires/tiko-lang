@@ -102,7 +102,7 @@ private sub MarkWords_ _
         dim as Tko.NodeKind k = ast.Kind( id )
         select case k
         case Tko.N_PROC, Tko.N_VAR, Tko.N_CONST, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
-             Tko.N_NAMESPACE
+             Tko.N_NAMESPACE, Tko.N_INTERFACE
         case else
             continue for
         end select

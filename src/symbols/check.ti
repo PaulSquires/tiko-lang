@@ -30,6 +30,7 @@
 #include once "symbols/redimrank.ti"
 #include once "types/type.ti"
 #include once "diag/engine.ti"
+#include once "types/itable.ti"
 
 namespace Tko.Check
 
@@ -120,6 +121,12 @@ namespace Tko.Check
     const CONV_PTR_ANY   as int32 = 200
     const CONV_PTR_NEAR  as int32 = 250
     const CONV_PTR_OTHER as int32 = 400
+    '' A TYPE, OR A POINTER TO ONE, TO AN INTERFACE IT IMPLEMENTS -- and an interface to one it
+    '' inherits -- plus CONV_UDT_LINK per link (docs/tiko-interfaces §5.3, §17 Q8). Dearer
+    '' than every derived-to-base pointer conversion, so 'f( byval p as Animal ptr )' beats
+    '' 'f( byval a as IAnimal )' for a 'Dog ptr', as in VB: the class relationship is the
+    '' more specific one.
+    const CONV_IFACE     as int32 = 300
 
     '' A string converts to a pointer of its OWN string kind more cheaply than to
     '' 'string' itself, and to the other kind more dearly: a literal (which is

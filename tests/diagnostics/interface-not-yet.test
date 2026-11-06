@@ -1,8 +1,0 @@
-'' Until docs/tiko-interfaces Phase 2 an interface and a type's 'implements' line are parsed
-'' and then refused, once each, with TKO0992 -- nothing else is said about them.
-'' TEST: cli
-'' ARGS: -c tests/diagnostics/src/interface-not-yet.bas -o tests/diagnostics/src/interface-not-yet.o
-'' EXPECT-EXIT: 1
-'' EXPECT-OUT: interface-not-yet.bas(3,1): error TKO0992: not implemented in this build: interfaces
-'' EXPECT-OUT: interface-not-yet.bas(8,5): error TKO0992: not implemented in this build: 'implements'
-'' EXPECT-MAX-DIAG: 2

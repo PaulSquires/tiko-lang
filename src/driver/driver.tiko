@@ -224,7 +224,7 @@ private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     if o.dumpSymbols orelse o.resolveOnly orelse o.dumpMangle orelse o.checkOnly then return true
     if o.dumpScan then return true
     if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
-    if o.dumpVtable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
+    if o.dumpVtable orelse o.dumpItable orelse o.ppOnly orelse o.dumpTokens orelse o.dumpAst then return true
     if o.parseExpr orelse o.parseOnly orelse o.printGraph orelse o.emitTki then return true
     if o.printCIncludes then return true
     return false
@@ -1051,7 +1051,7 @@ function Run _
            ctx.options.dumpIr orelse ctx.options.emitIr orelse ctx.options.emitAsm orelse _
            wantsOutput orelse _
            ctx.options.dumpUdt orelse ctx.options.emitTki orelse _
-           ctx.options.dumpVtable orelse scanning then
+           ctx.options.dumpVtable orelse ctx.options.dumpItable orelse scanning then
         '' ONE OBJECT PER SOURCE, and the link after all of them. Compiling AND
         '' LINKING inside this loop was the multi-module bug: every input overwrote
         '' the previous one's output and was then linked on its own, so a two-module
@@ -1258,7 +1258,7 @@ function Run _
         '' '--dump-udt' or '--dump-vtable', which stop at their dump and build no object (T29):
         '' with an '-o' they printed the layout and then failed the link, TKO0102.
         dim as boolean emitStops = ctx.options.emitIr orelse ctx.options.emitAsm orelse _
-                                   ctx.options.dumpUdt orelse ctx.options.dumpVtable
+                                   ctx.options.dumpUdt orelse ctx.options.dumpVtable orelse ctx.options.dumpItable
         '' A 'tiko build' child links nothing -- its root is in the cache for its parent's link --
         '' and neither does 'tiko check' (--frontend-only).
         dim as boolean childOnly = (ctx.options.buildOnlyUnit > 0) orelse ctx.options.frontendOnly

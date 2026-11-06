@@ -145,6 +145,10 @@ namespace Tko
     '' A UDT DECLARED 'extern "c"' -- laid out by the target's C rule, not fbc's. See
     '' PF_C_LAYOUT and PlaceGroupC in types/udtlayout.tiko.
     const TF_C_LAYOUT as uint16 = &h0020
+    '' A UDT DECLARED 'interface ... end interface' (docs/tiko-interfaces §7.1): its value is a
+    '' 16-byte reference -- the object's address and an itable -- laid out from two hidden
+    '' fields. IsInterface is the only question the rest of the compiler asks.
+    const TF_INTERFACE as uint16 = &h0040
 
     type TypeInfo
         as uint8    kind
@@ -317,6 +321,14 @@ namespace Tko
         '' which style the unit's own source writes (unit.tiko). Display only -- nothing that
         '' compares a name looks at a builtin's.
         as boolean spellSized
+        '' WHAT CONVERTS TO AN INTERFACE (docs/tiko-interfaces §5.3), for ConversionCost, which
+        '' is handed this context and nothing else -- the reason baseType is here too. Keyed
+        '' (from, interface); the value is the inheritance distance, 0 for a type that lists it
+        '' or an interface's direct base. Filled by ComputeImplementations (types/itable.tiko).
+        as containers.Map( of int64, int32 ) ifaceConv
+        declare sub NoteIfaceConv( byval from as TypeId, byval iface as TypeId, byval links as int32 )
+        '' -1 when 'from' (a UDT or an interface) does not convert to 'iface'.
+        declare function IfaceConvLinks( byval from as TypeId, byval iface as TypeId ) as int32
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr, byref tgt as TargetLayout )
@@ -361,6 +373,8 @@ namespace Tko
         '' 'type T extern "c"' -- see TF_C_LAYOUT.
         declare function IsCLayout( byval t as TypeId ) as boolean
         declare sub SetCLayout( byval t as TypeId )
+        declare function IsInterface( byval t as TypeId ) as boolean
+        declare sub SetInterface( byval t as TypeId )
         '' THE RESULT OF A PROCEDURE TYPE, set AFTER the fact. A procedure type whose
         '' result names a typedef declared later in the unit is built with no result at
         '' all, and everything already bound to it keeps that TypeId -- so the repair

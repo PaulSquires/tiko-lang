@@ -141,6 +141,11 @@ namespace Tko
     '' Slots are printed as the EMITTED SYMBOL NAME, not as 'Type.method': that is what
     '' fbc's own vtable initialiser holds, so the gate compares the two directly rather
     '' than through a spelling neither compiler uses.
+    '' types/itable.tiko's signature test -- the override comparison, shared (vtable.tiko).
+    declare function InterfaceSigDiff _
+        ( byref ast as AstArena, byref info as SemanticInfo, byref types as TypeContext, _
+          byval member as NodeId, byval impl as NodeId ) as string
+
     declare function DumpVTables _
         ( byref ast as AstArena, byref store as VTables, byref types as TypeContext, _
           byref names as Interner, byref syms as SymbolTable, _

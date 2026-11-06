@@ -895,4 +895,30 @@ function DumpVTables _
     return outp
 end function
 
+'' DOES 'impl' IMPLEMENT THE INTERFACE MEMBER 'member'? docs/tiko-interfaces §7.4: the OVERRIDE
+'' comparison, kept here so the two rules cannot drift -- the same parameter types, passing
+'' modes, bydesc ranks, const-ness and calling convention -- and one difference: the return
+'' type must be the SAME for every member, not only for an operator, with no covariance. ""
+'' when they match, else the first difference, worded for TKO1001's "%2 differ".
+function InterfaceSigDiff _
+    ( byref ast as AstArena, byref info as SemanticInfo, byref types as TypeContext, _
+      byval member as NodeId, byval impl as NodeId ) as string
+
+    if Overrides_( ast, info, member, impl ) = false then return "the parameters"
+    dim as VTables scratch
+    CheckOverrideBody_( ast, info, types, scratch, member, impl )
+    if scratch.mismatches.Count > 0 then
+        select case cast( VtMismatchKind, scratch.mismatches[0].kind )
+        case VTM_RETURN   : return "the return types"
+        case VTM_CONST    : return "the const-ness"
+        case VTM_BYREF    : return "the passing modes"
+        case VTM_RANK     : return "the array ranks"
+        case VTM_CALLCONV : return "the calling conventions"
+        end select
+        return "the signatures"
+    end if
+    if ReturnTypeOf_( ast, info, member ) <> ReturnTypeOf_( ast, info, impl ) then return "the return types"
+    return ""
+end function
+
 end namespace

@@ -32,6 +32,7 @@
 #include once "driver/modbuild.ti"
 #include once "types/udtlayout.ti"
 #include once "types/vtable.ti"
+#include once "types/itable.ti"
 #include once "driver/scan.ti"
 #include once "mir/rtl.ti"
 
@@ -361,6 +362,13 @@ function CompileUnit _
         dim as Tko.VTables vt
         Tko.ComputeVTables( ast, syms, ctx.types, info, vt )
         print Tko.DumpVTables( ast, vt, ctx.types, ctx.names, syms, info );
+    elseif ctx.options.dumpItable then
+        dim as Tko.Resolve.Stats rst
+        Tko.Resolve.Run( fu, rst, @p, ctx.options.maxInstDepth )
+        dim as Tko.Interfaces ift
+        Tko.ComputeInterfaces( ast, syms, ctx.types, info, ctx.names, ctx.diags, ift )
+        Tko.ComputeImplementations( ast, syms, ctx.types, info, ctx.names, ctx.diags, ift )
+        print Tko.DumpInterfaces( ast, ift, ctx.types, ctx.names );
     elseif ctx.options.dumpUdt then
         dim as Tko.Resolve.Stats rst
         Tko.Resolve.Run( fu, rst, @p, ctx.options.maxInstDepth )
@@ -376,6 +384,10 @@ function CompileUnit _
         Tko.Resolve.Run( fu, rst, @p, ctx.options.maxInstDepth )
         ctx.timing.Add( Tko.PH_RESOLVE, tPh )
         if ctx.diags.Stopped( ) then return false
+        '' INTERFACES, FLATTENED (docs/tiko-interfaces §7.9): only the resolved 'inherits' and
+        '' 'implements' lists are needed, and Check's conversions ask what they say.
+        dim as Tko.Interfaces ifs
+        fu.ifaces = @ifs                    '' Check.Run fills it (types/itable.tiko)
         dim as Tko.Check.Stats cst
         tPh = timer
         Tko.Check.Run( fu, cst )

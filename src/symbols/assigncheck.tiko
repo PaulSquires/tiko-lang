@@ -596,6 +596,7 @@ sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
             return
         end if
         dim as boolean bad = false
+        if ArgIfaceJudged_( c, arg, pt, at ) then return               '' an interface: semiface.tiko
         if c.types->Kind( c.types->Unqualify( pt ) ) = TK_POINTER then
             bad = PtrAssignBad_( c, pt, at )
         elseif (c.ast->Kind( arg ) = N_TUPLE) andalso ((c.ast->Flags( arg ) and NF_TYPE_LITERAL) = 0) then

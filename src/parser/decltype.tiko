@@ -392,6 +392,19 @@ private function ParseInterfaceDecl_( byref p as Tko.ParserState ) as Tko.NodeId
 
     dim as Tko.NodeIdVec inh, members
     dim as boolean sawMember = false
+    '' THE INTERFACE VALUE'S TWO WORDS (§7.1, §8.2): the object's address and the itable, as
+    '' fields under names no source can spell -- as 'base' is for 'extends' -- so layout,
+    '' copying and passing take the ordinary 16-byte POD-UDT path.
+    for w as int32 = 0 to 1
+        dim as Tko.StmtPayload ap, pp, fp
+        ap.name = p.names->GetString( "any" )
+        ap.op = cast( uint16, Tko.KW_ANY )
+        pp.a = MakeStmt( p, Tko.N_TYPEREF, t.loc, ap )
+        fp.a = MakeStmt( p, Tko.N_TYPEREF, t.loc, pp )
+        p.ast->OrFlags( fp.a, Tko.NF_PTR )
+        fp.name = p.names->GetString( iif( w = 0, "$obj", "$itab" ) )
+        members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, t.loc, fp ) ) )
+    next
     p.aggDepth += 1                                     '' members are members (memberProcNames)
     do
         SkipEols( p )

@@ -1391,7 +1391,7 @@ private function TopItemIsCode_( byref c as Ctx, byval id as Tko.NodeId ) as boo
     if id = Tko.NODE_NONE then return false
     select case c.ast->Kind( id )
     case Tko.N_PROC, Tko.N_TYPE, Tko.N_ENUM, Tko.N_TYPEDEF, _
-         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM
+         Tko.N_CONST, Tko.N_FIELD, Tko.N_PARAM, Tko.N_INTERFACE
         '' A declaration; it does not put anything in main.
         return false
     case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK

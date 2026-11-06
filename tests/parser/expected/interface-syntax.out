@@ -1,5 +1,11 @@
 N_MODULE (19) <1:81>
   N_INTERFACE 'ianimal' <3:1>
+    N_FIELD '$obj' <3:1>
+      N_TYPEREF ptr <3:1>
+        N_TYPEREF 'any' [ANY] <3:1>
+    N_FIELD '$itab' <3:1>
+      N_TYPEREF ptr <3:1>
+        N_TYPEREF 'any' [ANY] <3:1>
     N_PROC 'speak' [SUB] <4:5>
     N_PROC 'name' [FUNCTION] <5:13>
       N_TYPEREF 'string' [STRING] <5:33>
@@ -12,6 +18,12 @@ N_MODULE (19) <1:81>
   N_INTERFACE 'ipet' <10:1>
     N_BLOCK (1) <10:1>
       N_TYPEREF 'ianimal' <11:14>
+    N_FIELD '$obj' <10:1>
+      N_TYPEREF ptr <10:1>
+        N_TYPEREF 'any' [ANY] <10:1>
+    N_FIELD '$itab' <10:1>
+      N_TYPEREF ptr <10:1>
+        N_TYPEREF 'any' [ANY] <10:1>
     N_PROC 'owner' [FUNCTION] <12:5>
       N_TYPEREF 'string' [STRING] <12:26>
   N_INTERFACE 'iamphibian' <15:1>
@@ -19,9 +31,21 @@ N_MODULE (19) <1:81>
       N_TYPEREF 'ilandanimal' <16:14>
       N_TYPEREF 'iwateranimal' <16:27>
       N_TYPEREF 'ianimal' <17:14>
+    N_FIELD '$obj' <15:1>
+      N_TYPEREF ptr <15:1>
+        N_TYPEREF 'any' [ANY] <15:1>
+    N_FIELD '$itab' <15:1>
+      N_TYPEREF ptr <15:1>
+        N_TYPEREF 'any' [ANY] <15:1>
   N_INTERFACE 'ilist' <20:1>
     N_BLOCK (1) <20:21>
       N_IDENT 't' <20:21>
+    N_FIELD '$obj' <20:1>
+      N_TYPEREF ptr <20:1>
+        N_TYPEREF 'any' [ANY] <20:1>
+    N_FIELD '$itab' <20:1>
+      N_TYPEREF ptr <20:1>
+        N_TYPEREF 'any' [ANY] <20:1>
     N_PROC 'add' [SUB] <21:5>
       N_PARAM 'x' byref <21:14>
         N_TYPEREF 't' <21:25>

@@ -47,6 +47,9 @@ declare function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init
 declare function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
 declare function ExtendsObject_ ( byref c as Ctx, byval t as TypeId ) as boolean
 declare function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare function IfaceConvJudged_ ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId ) as boolean   '' semiface.tiko
+declare function ArgIfaceJudged_ ( byref c as Ctx, byval arg as NodeId, byval pt as TypeId, byval at as TypeId ) as boolean   '' semiface.tiko
+declare function IfaceMemberRefused_ ( byref c as Ctx, byval id as NodeId ) as boolean   '' semiface.tiko
 declare sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
       byval byAssign as boolean )

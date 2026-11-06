@@ -31,6 +31,27 @@ function ConversionCost _
         return CONV_EXACT
     end if
 
+    '' AN INTERFACE (docs/tiko-interfaces §5.3) is reached only from a type that implements it,
+    '' a pointer to one, or an interface that inherits it -- types.IfaceConvLinks, filled by
+    '' ComputeImplementations. Nothing converts implicitly OUT of one: 'cast' or 'trycast'.
+    dim as Tko.TypeId ifTo = types.Unqualify( to_ )
+    if types.Kind( ifTo ) = Tko.TK_REFERENCE then ifTo = types.Unqualify( types.Inner( ifTo ) )
+    if types.IsInterface( ifTo ) then
+        dim as Tko.TypeId src = types.Unqualify( from_ )
+        if types.Kind( src ) = Tko.TK_REFERENCE then src = types.Unqualify( types.Inner( src ) )
+        if src = ifTo then return CONV_EXACT
+        if types.Kind( src ) = Tko.TK_POINTER then
+            src = types.Unqualify( types.Inner( src ) )
+            if types.IsInterface( src ) then return CONV_NONE   '' 'I ptr' is not a reference
+        end if
+        dim as int32 links = types.IfaceConvLinks( src, ifTo )
+        if links < 0 then return CONV_NONE
+        return CONV_IFACE + CONV_UDT_LINK * links
+    end if
+    dim as Tko.TypeId ifFrom = types.Unqualify( from_ )
+    if types.Kind( ifFrom ) = Tko.TK_REFERENCE then ifFrom = types.Inner( ifFrom )
+    if types.IsInterface( ifFrom ) then return CONV_NONE
+
     '' A fixed-length string converts as the string type it is. Its LENGTH plays no
     '' part, and cannot: fbc refuses 'byval x as zstring * 4' outright -- error 59,
     '' "Illegal specification" -- so no parameter ever has one of these types and no

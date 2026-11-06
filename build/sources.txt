@@ -46,9 +46,11 @@ src/symbols/semproc.tiko
 src/symbols/methodassign.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko
+src/symbols/semiface.tiko
 src/symbols/redimrank.tiko
 src/types/udtlayout.tiko
 src/types/vtable.tiko
+src/types/itable.tiko
 src/types/abstractcheck.tiko
 src/mir/mir.tiko
 src/mir/rtl.tiko
