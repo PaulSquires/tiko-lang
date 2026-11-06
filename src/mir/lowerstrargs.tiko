@@ -1040,6 +1040,10 @@ private sub CopyBackUStrArgs_ _
 
     for k as int32 = nodes.Count - 1 to 0 step -1
         dim as Tko.NodeId an = cast( Tko.NodeId, nodes[k] )
+        if (slots[k] and PBACK_MARK) <> 0 then           '' a property's temporary: its setter (R12)
+            PropertyCopyBack_( c, an, cast( int32, slots[k] and (not PBACK_MARK) ) )
+            continue for
+        end if
         if (slots[k] and UBACK_MARK) <> 0 then
             CopyBackFromUTemp_( c, an, cast( int32, slots[k] and (not UBACK_MARK) ) )
             continue for

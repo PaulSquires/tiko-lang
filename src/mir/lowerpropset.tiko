@@ -512,3 +512,119 @@ function PropertySetValue_ _
     EmitPropSetCall_( c, target, sset, self_, args )
     return true
 end function
+
+'' How many parameters a procedure declares.
+private function PropParamCount_( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return 0
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return 0
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    dim as int32 n = 0
+    for i as int32 = 0 to pp->count - 1
+        if c.ast->Kind( c.ast->ChildAt( pp->first, i ) ) = Tko.N_PARAM then n += 1
+    next
+    return n
+end function
+
+'' The type that owns a member procedure's scope, or TYPE_NONE.
+private function OwnerTypeOf_( byref c as Ctx, byval sid as Tko.SymbolId ) as Tko.TypeId
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return Tko.TYPE_NONE
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = nullptr then return Tko.TYPE_NONE
+    if sc->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr ow = c.syms->SymbolAt( sc->owner )
+    if ow = nullptr then return Tko.TYPE_NONE
+    return ow->type_
+end function
+
+'' WHETHER THE PROCEDURE BEING LOWERED MAY CALL SETTER 'sset' -- the copy-back is the setter's call,
+'' so it obeys what an assignment would (Sem checked the getter only): a private or protected setter
+'' from a procedure of its own type, an init-only one (an auto-property's 'get', 'get, init') from
+'' its type's constructor only, a static init-only one never. A setter this cannot reach leaves the
+'' argument a temporary, as fbc does for every property -- not an error: FB passes strings byref
+'' to read them as often as to write them.
+private function SetterUsableHere_( byref c as Ctx, byval sset as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sset )
+    if s = nullptr then return false
+    dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+    dim as uint32 ex = 0
+    if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then ex = StmtOf( c, pn )->extra
+    dim as boolean restricted = ((s->flags and (Tko.SYMF_MEMB_PRIVATE or Tko.SYMF_MEMB_PROTECTED)) <> 0)
+    dim as boolean initOnly = ((ex and Tko.PF_INIT_ONLY) <> 0)
+    if (restricted = false) andalso (initOnly = false) then return true
+    if initOnly andalso ((ex and Tko.PF_STATIC) <> 0) then return false
+    dim as Tko.TypeId own = OwnerTypeOf_( c, sset )
+    if (own = Tko.TYPE_NONE) orelse (OwnerTypeOf_( c, c.curProcSym ) <> own) then return false
+    if initOnly = false then return true
+    dim as Tko.Symbol ptr me_ = c.syms->SymbolAt( c.curProcSym )
+    if me_ = nullptr then return false
+    dim as Tko.NodeId mpn = cast( Tko.NodeId, me_->payload )
+    if (mpn = Tko.NODE_NONE) orelse (c.ast->Kind( mpn ) <> Tko.N_PROC) then return false
+    return (StmtOf( c, mpn )->op = cast( uint16, Tko.KW_CONSTRUCTOR ))
+end function
+
+'' A PROPERTY PASSED TO A BYREF PARAMETER IS COPIED BACK (docs/tiko-properties R12, decision Q5): the
+'' getter's value goes into a temporary, the callee is given its address -- as before -- and its
+'' setter is called with the temporary after the call returns, as VB.NET and Swift do. The write was
+'' lost (fbc loses it too). Recorded in the call's copy-back list, flushed by CopyBackUStrArgs_.
+'' Not for a 'byref as const' parameter, nor a property with no setter.
+sub PropByrefBacks_ _
+    ( byref c as Ctx, byval callee as Tko.SymbolId, byval pbase as int32, byval argFirst as int32, _
+      byval argCount as int32, byref slotKind as containers.Array( of uint32 ), _
+      byref slotId as containers.Array( of uint32 ), byref backN as containers.Array( of uint32 ), _
+      byref backS as containers.Array( of uint32 ) )
+    if callee = Tko.SYMBOL_NONE then exit sub
+    for i as int32 = 0 to slotKind.Count - 1
+        if i >= argCount then exit for
+        if slotKind[i] <> cast( uint32, MV_LOCAL ) then continue for
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
+        if an = Tko.NODE_NONE then continue for
+        if ParamIsByref( c, callee, i + pbase ) = false then continue for
+        dim as Tko.TypeId pt = ParamTypeAt( c, callee, i + pbase )
+        if pt <> Tko.TYPE_NONE then
+            if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Inner( pt )
+            if c.types->IsConst( pt ) then continue for
+        end if
+        if IsSettableProperty_( c, an ) = false then continue for
+        dim as MirValue noSelf_
+        dim as int32 f0, n0
+        if SetterUsableHere_( c, PropertyAt_( c, an, 1, noSelf_, f0, n0, an, true ) ) = false then continue for
+        backN.Push( cast( uint32, an ) )
+        backS.Push( slotId[i] or PBACK_MARK )
+    next
+end sub
+
+'' The setter of 'node', given the temporary at 'slot' after the call: a string's descriptor or a
+'' byref value parameter by address, a scalar loaded and converted. The receiver and any index are
+'' evaluated again, as the string '+=' does (PropStrCatAssign_).
+sub PropertyCopyBack_( byref c as Ctx, byval node as Tko.NodeId, byval slot as int32 )
+    dim as MirValue self_
+    dim as int32 sFirst, sCount
+    dim as Tko.SymbolId sset = PropertyAt_( c, node, 1, self_, sFirst, sCount, node )
+    if sset = Tko.SYMBOL_NONE then exit sub
+    dim as boolean sByref = false
+    dim as Tko.TypeId spt = SetterValueParam_( c, sset, sByref )
+    if spt = Tko.TYPE_NONE then exit sub
+    dim as MirValue tp
+    tp.kind = cast( uint8, MV_LOCAL ) : tp.ty = cast( uint8, MT_PTR ) : tp.id = slot
+    dim as MirValue v = tp
+    dim as Tko.TypeId su = c.types->Unqualify( spt )
+    dim as MirType smt = LowerType( su, *c.types )
+    if (sByref = false) andalso (IsStringType( c, su ) = false) andalso (smt = MT_AGG) then
+        '' A UDT BY VALUE, when it is one the ABI passes in registers and nothing must construct or
+        '' destroy: the temporary loaded whole. Any other is not modelled, and keeps fbc's behaviour.
+        if TypeNeedsDtor_( c, su ) orelse ParamIsIndirectUdt_( c, sset, PropParamCount_( c, sset ) - 1 ) then exit sub
+        v = LowerExprLoad( c, tp, MT_AGG )
+    elseif (sByref = false) andalso (IsStringType( c, su ) = false) then
+        if smt = MT_VOID then exit sub
+        dim as Tko.TypeId pty = c.info->TypeOf_( node )
+        v = CoerceTy( c, LowerExprLoad( c, tp, LowerType( c.types->Unqualify( pty ), *c.types ) ), smt, pty, spt )
+        if v.kind = cast( uint8, MV_NONE ) then exit sub
+    end if
+    dim as containers.Array( of uint32 ) args
+    if PushPropIndexArgs_( c, sset, sFirst, sCount, args ) = false then exit sub
+    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
+    EmitPropSetCall_( c, node, sset, self_, args )
+end sub

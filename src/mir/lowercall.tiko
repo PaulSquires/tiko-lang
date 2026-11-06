@@ -995,7 +995,7 @@ private function LowerCallPartsBody_ _
         end if
         slotKind[i] = cast( uint32, a.kind )
         slotId[i] = cast( uint32, a.id )
-    next
+    next : PropByrefBacks_( c, callee, pbase, argFirst, argCount, slotKind, slotId, ustrBackNode, ustrBackSlot )   '' R12
 
     dim as int32 recvMark = c.udtTemps.Count
     if l2r = false then self_ = ReceiverOf( c, calleeNode, callee )

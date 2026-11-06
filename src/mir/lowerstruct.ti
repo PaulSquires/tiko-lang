@@ -117,6 +117,14 @@ declare function IsBaseOf_ _
     declare function PropertySwap_ _
         ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as int32
     declare function IsSettableProperty_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    '' A PROPERTY PASSED BYREF: copied back after the call (lowerpropset.tiko, R12).
+    const PBACK_MARK = &h20000000ul
+    declare sub PropByrefBacks_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval pbase as int32, byval argFirst as int32, _
+          byval argCount as int32, byref slotKind as containers.Array( of uint32 ), _
+          byref slotId as containers.Array( of uint32 ), byref backN as containers.Array( of uint32 ), _
+          byref backS as containers.Array( of uint32 ) )
+    declare sub PropertyCopyBack_( byref c as Ctx, byval node as Tko.NodeId, byval slot as int32 )
     declare function PropertySetValue_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byref v as MirValue ) as boolean
     declare function CharPtrCtorInit_ _

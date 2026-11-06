@@ -1,0 +1,90 @@
+'' A property passed byref is copied back (docs/tiko-properties R12). See propbyref-run.test.
+type Pt
+    as long x, y
+end type
+type G
+    cells( 3, 3 ) as long
+    declare property Cell( byval r as long, byval c as long ) as long
+    declare property Cell( byval r as long, byval c as long, byval value as long )
+    declare property RO as long = 7 get
+    declare property P as Pt get, set
+    declare static property Total as long get, set
+    declare sub Bump( byref n as long )
+    sets as long
+end type
+property G.Cell( byval r as long, byval c as long ) as long
+    return cells( r, c )
+end property
+property G.Cell( byval r as long, byval c as long, byval value as long )
+    cells( r, c ) = value : sets += 1
+end property
+sub G.Bump( byref n as long )
+    n += 100
+end sub
+namespace NS
+    dim shared as double dv = 1.5
+    declare property D( ) as double
+    declare property D( byval value as double )
+end namespace
+property NS.D( ) as double
+    return dv
+end property
+property NS.D( byval value as double )
+    dv = value
+end property
+sub Inc( byref n as long )
+    n += 1
+end sub
+sub Show( byref n as const long )
+    print "show"; n
+end sub
+sub Dbl( byref d as double )
+    d *= 2
+end sub
+sub MovePt( byref p as Pt )
+    p.x += 1
+end sub
+dim as G gg
+gg.Cell( 1, 2 ) = 5
+Inc( gg.Cell( 1, 2 ) )
+Show( gg.Cell( 1, 2 ) )
+print gg.Cell( 1, 2 ); gg.sets
+Inc( gg.RO )
+print gg.RO
+Inc( G.Total ) : Inc( G.Total )
+print G.Total
+Dbl( NS.D )
+print NS.D
+gg.Bump( gg.Cell( 0, 0 ) )
+print gg.Cell( 0, 0 )
+MovePt( gg.P )
+print gg.P.x
+type Bx
+    declare property Size as long get, set
+    declare property Name as string get, set
+end type
+sub Ext( byref s as string )
+    s &= "!"
+end sub
+function Twice( byref n as long ) as long
+    n *= 2
+    return n
+end function
+dim as Bx b
+b.Size = 5
+Inc( b.Size )
+b.Name = "a"
+Ext( b.Name )
+print b.Size; " "; b.Name
+print Twice( b.Size ); b.Size
+type Acct
+    declare property Bal as long get, private set
+    declare sub Deposit( byval n as long )
+end type
+sub Acct.Deposit( byval n as long )
+    Inc( this.Bal )                 '' its own method may write back through the private setter
+end sub
+dim as Acct ac
+ac.Deposit( 1 )
+Inc( ac.Bal )                       '' outside: a temporary, as fbc gives, and no write
+print ac.Bal

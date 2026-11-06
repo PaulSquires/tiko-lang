@@ -1,0 +1,22 @@
+'' docs/tiko-properties R12, RUN: A PROPERTY PASSED BYREF IS COPIED BACK -- get into a temporary,
+'' call, set from it, as VB.NET and Swift do (decision Q5: R12c). fbc passes the temporary and
+'' loses the write. Over an indexed property, a static one, a namespace's double, a method's
+'' parameter, a string, a function in an expression and a register-sized UDT. Not copied back:
+'' a 'byref as const' parameter, an init-only auto-property, and a private setter from outside its
+'' type -- each stays a temporary. tiko-only behaviour, so each line was checked by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propbyref.tiko -o tests/codegen/propbyref.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propbyref.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: show 6
+'' EXPECT-RUN-OUT:  6 2
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  2
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  100
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  6 a!
+'' EXPECT-RUN-OUT:  12 12
+'' EXPECT-RUN-OUT:  1
