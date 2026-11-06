@@ -31,6 +31,10 @@ function BinaryResult _
       byref types as Tko.TypeContext ) as Tko.TypeId
 
     if (lhs = Tko.TYPE_NONE) orelse (rhs = Tko.TYPE_NONE) then return Tko.TYPE_NONE
+    '' TWO INTERFACE REFERENCES, OR ONE AND 'nullptr', compare by their object words and answer
+    '' an INTEGER, as a pointer comparison does (docs/tiko-interfaces §8.2). Which pairs may is
+    '' Sem's question (semiface.tiko IfaceCompareJudged_).
+    if ((op = Tko.TK_EQ) orelse (op = Tko.TK_NE)) andalso (types.IsInterface( lhs ) orelse types.IsInterface( rhs )) then return types.Builtin( Tko.TY_INTEGER )
 
     '' '&' is FreeBASIC's concatenation operator and is ALWAYS a string, whatever it
     '' is handed -- 'long & long' is STRING. It converts rather than rejecting, so it

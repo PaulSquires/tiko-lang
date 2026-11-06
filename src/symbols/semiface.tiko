@@ -61,6 +61,49 @@ private function IsTemporary_( byref c as Ctx, byval n as NodeId ) as boolean
     return false
 end function
 
+'' THE CONVERSION, MADE EXPLICIT (docs/tiko-interfaces §8.6): the value node 'v' becomes 'cast( I, v )'
+'' IN PLACE -- its record moves to a new node, and 'v' turns into the call -- so every path
+'' that reads the value (an initialiser, an assignment, an argument, a return) reaches the
+'' one lowering that builds a reference, LowerIfaceConv_ in mir/loweritab.tiko.
+private sub WrapIfaceConv_( byref c as Ctx, byval v as NodeId, byval it as TypeId )
+    if v = NODE_NONE then return
+    dim as AstNode moved = *c.ast->NodeAt( v )
+    c.ast->PushNode( moved )
+    dim as NodeId cp = cast( NodeId, c.ast->NodePoolCount( ) - 1 )
+    dim as IdentPayload ip
+    ip.name = c.names->Fold( c.names->GetString( "cast" ) )
+    c.ast->PushIdent( ip )
+    dim as AstNode idRec
+    idRec.kind = cast( uint16, N_IDENT ) : idRec.loc = moved.loc : idRec.data = cast( uint32, c.ast->IdentPoolCount( ) - 1 )
+    c.ast->PushNode( idRec )
+    dim as NodeId calleeN = cast( NodeId, c.ast->NodePoolCount( ) - 1 )
+    dim as StmtPayload tp
+    c.ast->PushStmt( tp )
+    dim as AstNode trRec
+    trRec.kind = cast( uint16, N_TYPEREF ) : trRec.loc = moved.loc : trRec.data = cast( uint32, c.ast->StmtPoolCount( ) - 1 )
+    c.ast->PushNode( trRec )
+    dim as NodeId trNode = cast( NodeId, c.ast->NodePoolCount( ) - 1 )
+    dim as ListPayload lp
+    lp.target = calleeN
+    lp.first = c.ast->ChildPoolCount( )
+    lp.count = 2
+    c.ast->PushChild( cast( uint32, trNode ) )
+    c.ast->PushChild( cast( uint32, cp ) )
+    c.ast->PushList( lp )
+    dim as TypeId vt = c.info->TypeOf_( v )
+    dim as SymbolId vr = c.info->RefOf( v )
+    dim as ScopeId vs = c.info->ScopeOf( v )
+    c.ast->SetKind( v, cast( uint16, N_CALL ) )
+    c.ast->SetData( v, cast( uint32, c.ast->ListPoolCount( ) - 1 ) )
+    c.ast->NodeAt( v )->flags = 0
+    c.info->Resize( c.ast->NodePoolCount( ) )
+    c.info->SetType( cp, vt ) : c.info->SetRef( cp, vr ) : c.info->SetScope( cp, vs )
+    c.info->SetScope( calleeN, vs ) : c.info->SetScope( trNode, vs )
+    c.info->SetType( trNode, it )
+    c.info->SetType( v, it )
+    c.info->SetRef( v, SYMBOL_NONE )
+end sub
+
 '' True when one side is an interface: the conversion was judged here, and refused with
 '' TKO1009 if it does not hold. 'lt' and 'rt' are the value types, already unqualified.
 function IfaceConvJudged_ _
@@ -80,14 +123,10 @@ function IfaceConvJudged_ _
             c.diags->Report( TKO1012, PointRange( c.ast->Loc( at ) ) )
             return true
         end if
-        if IsNullptr_( c, ValueNode_( c, at ) ) then
-            c.diags->Report( TKO0992, PointRange( c.ast->Loc( at ) ), "a null interface reference (docs/tiko-interfaces, Phase 3)" )
-            return true
-        end if
-        if (src <> TYPE_NONE) andalso (c.types->IfaceConvLinks( src, lt ) >= 0) then
-            '' LEGAL, AND NOT YET COMPILED: the itable store is Phase 3. Refused rather than
-            '' lowered as a plain copy, which would be a wrong program that runs.
-            c.diags->Report( TKO0992, PointRange( c.ast->Loc( at ) ), "a conversion to an interface (docs/tiko-interfaces, Phase 3)" )
+        dim as boolean ok = IsNullptr_( c, ValueNode_( c, at ) )
+        if (ok = false) andalso (src <> TYPE_NONE) then ok = (c.types->IfaceConvLinks( src, lt ) >= 0)
+        if ok then
+            WrapIfaceConv_( c, ValueNode_( c, at ), lt )
             return true
         end if
     end if
@@ -133,7 +172,6 @@ function IfaceMemberRefused_( byref c as Ctx, byval id as NodeId ) as boolean
             end if
         end if
     end if
-    c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "a call through an interface (docs/tiko-interfaces, Phase 3)" )
     return true
 end function
 
@@ -146,6 +184,32 @@ function ArgIfaceJudged_ _
     return IfaceConvJudged_( c, arg, pu, au )
 end function
 
+'' 'cast( T, x )' WITH AN INTERFACE ON EITHER SIDE (§5.5, §8.6). One Sem wrote itself (WrapIfaceConv_:
+'' its typeref names nothing) is already judged. A written one that only spells an implicit
+'' conversion -- an upcast -- is lowered as that conversion; a down or cross cast, and a cast
+'' from an interface back to a type, need the run-time search: TKO0992 until Phase 4.
+private function CastIfaceJudged_( byref c as Ctx, byval id as NodeId, byval lp as ListPayload ptr ) as boolean
+    dim as NodeId tn = c.ast->ChildAt( lp->first, 0 )
+    dim as NodeId xn = c.ast->ChildAt( lp->first, 1 )
+    if c.ast->Kind( tn ) <> N_TYPEREF then return false
+    dim as TypeId tt = c.types->Unqualify( c.info->TypeOf_( tn ) )
+    dim as TypeId xt = ValueOf_( c, c.info->TypeOf_( xn ) )
+    dim as boolean tI = c.types->IsInterface( tt ), xI = c.types->IsInterface( xt )
+    if (tI orelse xI) = false then return false
+    if c.ast->StmtOf( tn )->name = 0 then return true                  '' Sem's own
+    if tI then
+        dim as TypeId src = xt
+        if c.types->Kind( src ) = TK_POINTER then src = c.types->Unqualify( c.types->Inner( src ) )
+        if (src = tt) orelse (c.types->IfaceConvLinks( src, tt ) >= 0) then return true
+        if xI = false then
+            c.diags->Report( TKO1009, PointRange( c.ast->Loc( id ) ), c.types->Name( xt ), c.types->Name( tt ), "" )
+            return true
+        end if
+    end if
+    c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "a cast out of an interface (docs/tiko-interfaces, Phase 4)" )
+    return true
+end function
+
 '' 'trycast( T, x )' (docs/tiko-interfaces §5.5, §7.8). T is an interface or a pointer to a type;
 '' x is an interface value, or an object -- a pointer or an lvalue -- of a type that extends
 '' 'object'. Without a vptr there is nothing to ask at run time: the answer is the static one,
@@ -153,7 +217,9 @@ end function
 function TryCastJudged_( byref c as Ctx, byval id as NodeId ) as boolean
     dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->count <> 2) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return false
-    if c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) ) <> "trycast" then return false
+    dim as string cn = c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) )
+    if (cn = "cast") orelse (cn = "cptr") then return CastIfaceJudged_( c, id, lp )
+    if cn <> "trycast" then return false
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false     '' the program's own
     dim as NodeId tn = c.ast->ChildAt( lp->first, 0 )
     dim as NodeId xn = c.ast->ChildAt( lp->first, 1 )
@@ -232,11 +298,7 @@ function IfaceCompareJudged_ _
             ok = IsNullptr_( c, bp->lhs )
         end if
     end if
-    if ok then
-        c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "comparing interface references (docs/tiko-interfaces, Phase 3)" )
-    else
-        c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
-    end if
+    if ok = false then c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
     return true
 end function
 

@@ -790,6 +790,7 @@ function LowerExpr _
         '' of two objects -- see LowerTupleCompare for the shape fbc emits.
         dim as MirValue tcv
         if LowerTupleCompare( c, id, bp, tk, tcv ) then return tcv
+        if LowerIfaceCompare_( c, id, bp, tk, mt, tcv ) then return tcv   '' two references: loweritab.tiko
 
 
         '' ANDALSO and ORELSE must not evaluate the right side unless they have to,

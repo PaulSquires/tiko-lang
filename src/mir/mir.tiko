@@ -288,6 +288,13 @@ sub MirModule.PushPtrGlobal( byval g as int32, byval which as int32, byval off a
     this.globals[g].ptrCount += 1
 end sub
 
+sub MirModule.PushPtrGlobalAt( byval g as int32, byval which as int32, byval bias as int32 )
+    this.ptrKinds.Push( 3 )
+    this.ptrRefs.Push( cast( uint32, which ) )
+    this.ptrOffs.Push( bias )                  '' a table's, not a mixed global's: never ptrMixed
+    this.globals[g].ptrCount += 1
+end sub
+
 sub MirModule.PushPtrFunc( byval g as int32, byval nm as InternId, byval off as int32 = -1 )
     this.ptrKinds.Push( 2 )
     this.ptrRefs.Push( cast( uint32, nm ) )

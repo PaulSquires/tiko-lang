@@ -1,0 +1,18 @@
+'' RUN: non-primary bases, thunks with a UDT result, interface results, arrays and fields
+'' (docs/tiko-interfaces Phase 3) -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-bases.bas -o tests/codegen/ifacebases.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifacebases.exe
+'' RUN: tests/codegen/ifacebases.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: croak 5
+'' EXPECT-RUN-OUT:  11           frog swims
+'' EXPECT-RUN-OUT: frog swims     5
+'' EXPECT-RUN-OUT:  13
+'' EXPECT-RUN-OUT:  400           9
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  9
+'' EXPECT-RUN-OUT: frog swims

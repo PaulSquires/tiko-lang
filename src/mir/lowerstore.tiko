@@ -513,7 +513,7 @@ function ReceiverOf _
     '' type, so the CALLEE was already right; the receiver was the HANDLE, so every
     '' method called through a smart pointer ran against the wrong object. It lowered,
     '' it verified, and the mangled name said the method was found.
-    dim as Tko.TypeId ubt = c.types->Unqualify( bt )
+    dim as Tko.TypeId ubt = c.types->Unqualify( bt ) : if c.types->IsInterface( ubt ) then return IfaceReceiver_( c, mb->lhs )   '' loweritab.tiko
     if ((c.ast->Flags( target ) and Tko.NF_ARROW) <> 0) andalso _
        (c.types->Kind( ubt ) = Tko.TK_UDT) then
         dim as Tko.SymbolId aop = Tko.Check.ArrowOperatorFor( _

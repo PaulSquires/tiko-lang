@@ -242,8 +242,11 @@ end function
 function VirtualSlotOf_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
 
-    if c.vts = nullptr then return -1
     if callee = Tko.SYMBOL_NONE then return -1
+    '' THROUGH AN INTERFACE VALUE: the slot is the callee's in Slots(I) -- loweritab.tiko.
+    dim as int32 islot = IfaceSlotOf_( c, target, callee )
+    if islot >= 0 then return islot
+    if c.vts = nullptr then return -1
 
     '' THE CALL SITE IS DECIDED BY THE 'virtual' KEYWORD ON THE BOUND DECLARATION, and
     '' that is NOT the same rule as slot occupancy. Measured, and neither half is
@@ -335,7 +338,9 @@ function VirtualCalleeOf_ _
     if self_.kind = cast( uint8, MV_NONE ) then return none_
     if slot < 0 then return none_
 
-    dim as MirValue vptr = LowerExprLoad( c, self_, MT_PTR )
+    '' ...OR THE ITABLE A RECEIVER CAME THROUGH AN INTERFACE WITH (loweritab.tiko): same index arithmetic.
+    dim as MirValue vptr
+    if ItabFor_( c, self_, vptr ) = false then vptr = LowerExprLoad( c, self_, MT_PTR )
     if vptr.kind = cast( uint8, MV_NONE ) then return none_
 
     dim as MirInst fa

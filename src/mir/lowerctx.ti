@@ -186,6 +186,11 @@ type Ctx
     as containers.Array( of uint32 ) modInitColl
     '' The virtual method tables, for emitting them and for dispatching through one.
     as Tko.VTables ptr      vts
+    '' THE UNIT'S INTERFACES (FrontUnit.ifaces), for itables and calls through one -- and the
+    '' itable each interface receiver came with, by its object word: (kind, id) -> (kind, id).
+    '' See mir/loweritab.tiko.
+    as Tko.Interfaces ptr   ifs
+    as containers.Map( of int64, int64 ) itabFor
     '' THE CLEANUP MODEL (docs/plan/08 section 6).
     ''
     '' One flat list of actions, plus a stack of marks giving where each open scope's

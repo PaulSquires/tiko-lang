@@ -1449,7 +1449,7 @@ function Lower _
     c.diags = inp.fe.diags : c.moduleFile = inp.moduleFile
     c.embedLocs = inp.embedLocs : c.embedPaths = inp.embedPaths : c.embedSizes = inp.embedSizes
     c.udts = inp.udts
-    c.vts = inp.vts
+    c.vts = inp.vts : c.ifs = cast( Tko.Interfaces ptr, inp.fe.ifaces )
     c.ast = inp.fe.ast
     c.syms = inp.fe.syms
     c.types = inp.fe.types

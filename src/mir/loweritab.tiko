@@ -1,0 +1,410 @@
+'' loweritab.tiko -- interface values (docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §8).
+''
+'' AN INTERFACE VALUE IS TWO WORDS, { object, itable }, laid out by the interface's two
+'' hidden fields. The ITABLE is one per (type, interface) pair, internal to the unit, and --
+'' as a vtable's -- the stored pointer points at SLOT 0 with a header behind it:
+''
+''     -(2+k) .. -3   the itables of the interface's non-primary bases, last base furthest out
+''     -2             the interface descriptor (Phase 4; null until then)
+''     -1             the class descriptor (Phase 4; null until then)
+''      0 ..          one function per slot, in Slots(I) order (types/itable.tiko)
+''
+'' A slot implemented by a VIRTUAL method holds a THUNK that dispatches through the
+'' receiver's own vptr, so an override in a further-derived type is what an interface call
+'' reaches (§7.5). Everything else is the implementing method itself.
+''
+'' Sem rewrites each conversion to an interface as 'cast( I, v )' (symbols/semiface.tiko), so
+'' LowerIfaceConv_ is the one place a reference is built. A call through one is the virtual
+'' call with the vptr load replaced: ReceiverOf passes the object word, and VirtualCalleeOf_
+'' finds the itable that came with it (Ctx.itabFor).
+
+#import "std/containers"
+#include once "mir/lowerctx.ti"
+#include once "mir/lowercall.ti"
+#include once "mir/lowerstruct.ti"
+#include once "mir/lowerexpr.ti"
+
+namespace Tko.Mir
+
+private function PtrBytes_( byref c as Ctx ) as int32
+    return c.types->target.pointerBits \ 8
+end function
+
+private function TypeCode_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    dim as Tko.Mangle.Substitutions subs
+    return Tko.Mangle.TypeCode( t, *c.types, *c.syms, *c.names, subs )
+end function
+
+private function ValKey_( byref v as MirValue ) as int64
+    return (cast( int64, v.kind ) shl 32) or cast( int64, v.id )
+end function
+
+private function MirVal_( byval kind as int32, byval ty as MirType, byval id as int32 ) as MirValue
+    dim as MirValue v
+    v.kind = cast( uint8, kind )
+    v.ty = cast( uint8, ty )
+    v.id = id
+    return v
+end function
+
+'' 'addr + off' as an address.
+private function AddrPlus_( byref c as Ctx, byref addr as MirValue, byval off as int32 ) as MirValue
+    if off = 0 then return addr
+    dim as MirInst fa
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
+    fa.a = addr
+    fa.imm = off
+    return Emit( c, fa )
+end function
+
+'' How many words sit in front of an itable's slot 0: the two descriptors and one per
+'' non-primary base.
+private function HeaderWords_( byref c as Ctx, byval iface as Tko.TypeId ) as int32
+    if c.ifs = nullptr then return 2
+    dim as int32 k = c.ifs->Find( iface )
+    if k < 0 then return 2
+    dim as int32 nb = c.ifs->ifaces[k].basesCount
+    return 2 + iif( nb > 1, nb - 1, 0 )
+end function
+
+'' The implementing method of slot 'sd' for type 't', whichever type along its base chain
+'' maps it (§7.6): the method's N_PROC, or NODE_NONE.
+private function ImplDeclOf_( byref c as Ctx, byval t as Tko.TypeId, byval sd as Tko.NodeId ) as Tko.NodeId
+    dim as Tko.TypeId cur = c.types->Unqualify( t )
+    for guard as int32 = 0 to 63
+        if cur = Tko.TYPE_NONE then exit for
+        for i as int32 = 0 to c.ifs->impls.Count - 1
+            dim as Tko.ImplInfo ptr ii = @c.ifs->impls[i]
+            if ii->cls <> cur then continue for
+            dim as int32 k = c.ifs->Find( ii->iface )
+            if k < 0 then continue for
+            for j as int32 = 0 to ii->count - 1
+                if c.ifs->slots[c.ifs->ifaces[k].first + j].decl <> sd then continue for
+                dim as Tko.NodeId d = c.ifs->entries[ii->first + j].decl
+                if d <> Tko.NODE_NONE then return d
+            next
+        next
+        cur = c.types->Unqualify( c.types->BaseOf( cur ) )
+    next
+    return Tko.NODE_NONE
+end function
+
+private function ProcNameOf_( byref c as Ctx, byval decl as Tko.NodeId ) as Tko.InternId
+    return c.names->GetString( Tko.Mangle.ProcName( *c.ast, decl, *c.syms, *c.names, *c.types, *c.info ) )
+end function
+
+'' The function a call to 'decl' names, declared here if this module has not seen it -- the
+'' same question EmitMemberCallArgs_ asks, with the same answer for the hidden result.
+private function DeclFunctionOf_( byref c as Ctx, byval decl as Tko.NodeId ) as int32
+    dim as Tko.InternId nm = ProcNameOf_( c, decl )
+    dim as int32 fidx = c.m->OldestFunctionNamed( nm )
+    if fidx >= 0 then return fidx
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( decl ) )
+    if s = nullptr then return -1
+    dim as boolean useSret = false
+    dim as MirType rt = MT_VOID
+    if s->type_ <> Tko.TYPE_NONE then
+        rt = LowerType( s->type_, *c.types )
+        if (rt = MT_AGG) andalso ((c.ast->Flags( decl ) and Tko.NF_BYREF) = 0) then useSret = UsesSretReturn( c, s->type_ )
+        if (c.ast->Flags( decl ) and Tko.NF_BYREF) <> 0 then rt = MT_PTR
+    end if
+    dim as MirFunction ptr f = c.m->AddFunction( nm, iif( useSret, MT_PTR, rt ) )
+    f->isDefinition = false
+    SignatureFromProc( c, f, decl, useSret, true )
+    return c.m->functions.Count - 1
+end function
+
+'' THE THUNK OF A VIRTUAL IMPLEMENTER (§8.5): the implementing method's own signature, a body
+'' that loads the function from the receiver's vptr at the method's slot, and an indirect
+'' call forwarding every parameter -- hidden result pointer included -- unchanged.
+private function ThunkFor_( byref c as Ctx, byval decl as Tko.NodeId, byval vslot as int32 ) as Tko.InternId
+    dim as Tko.InternId target = ProcNameOf_( c, decl )
+    dim as Tko.InternId nm = c.names->GetString( "__tko_ithunk_" & c.names->Spelling( target ) )
+    if c.m->OldestFunctionNamed( nm ) >= 0 then return nm
+    dim as int32 fidx = DeclFunctionOf_( c, decl )
+    if fidx < 0 then return 0
+    dim as MirFunction ptr df = c.m->functions[fidx]
+    dim as MirType retTy = cast( MirType, df->retTy )
+
+    dim as MirFunction ptr f = c.m->AddFunction( nm, retTy )
+    f->isDefinition = true
+    f->isPrivate = true
+    df = c.m->functions[fidx]
+    for i as int32 = 0 to df->paramTys.Count - 1
+        f->AddParam( cast( MirType, df->paramTys[i] ), df->paramAggs[i], df->paramClasses[i], _
+                     df->paramAttrs[i], df->paramExt[i] )
+    next
+    f->hasSretParam = df->hasSretParam
+    f->retSize = df->retSize
+    f->retClass = df->retClass
+    f->retExt = df->retExt
+    f->callConv = df->callConv
+
+    dim as MirFunction ptr savedF = c.f
+    dim as int32 savedB = c.curBlock
+    c.f = f
+    c.st->functions += 1
+    c.curBlock = NewBlock( c, "entry" )
+
+    dim as MirValue self_ = MirVal_( MV_PARAM, MT_PTR, iif( f->hasSretParam, 1, 0 ) )
+    dim as MirValue fp = VirtualCalleeOf_( c, self_, vslot )
+    dim as int32 first = c.m->argPool.Count \ 2
+    for i as int32 = 0 to f->paramTys.Count - 1
+        c.m->argPool.Push( cast( uint32, MV_PARAM ) )
+        c.m->argPool.Push( cast( uint32, i ) )
+    next
+    dim as MirInst ci
+    ci.op = cast( uint16, M_CALL_IND )
+    ci.ty = cast( uint8, retTy )
+    ci.a = fp
+    ci.first = first
+    ci.count = f->paramTys.Count
+    ci.callee = cast( uint32, fidx + 1 )
+    if retTy = MT_AGG then ci.imm = f->retSize
+    dim as MirValue r = Emit( c, ci )
+    if retTy = MT_VOID then
+        Terminate( c, MTERM_RET, -1, -1, NoVal( ) )
+    else
+        Terminate( c, MTERM_RET, -1, -1, r )
+    end if
+    c.f = savedF
+    c.curBlock = savedB
+    return nm
+end function
+
+'' THE ITABLE OF (cls, iface), built on demand: internal, one per unit, as a vtable is.
+function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as int32
+    if c.ifs = nullptr then return -1
+    cls = c.types->Unqualify( cls )
+    iface = c.types->Unqualify( iface )
+    dim as int32 k = c.ifs->Find( iface )
+    if k < 0 then return -1
+    dim as Tko.InternId id = c.names->GetString( "__tko_itab_" & TypeCode_( c, cls ) & "_" & TypeCode_( c, iface ) )
+    dim as int32 have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
+
+    '' WHAT THE TABLE NAMES, BUILT FIRST: the pointer pool is shared and a table's run is
+    '' contiguous (RttiGlobalOf_ says the same). The non-primary bases' itables, and the
+    '' thunks of virtual implementers.
+    dim as Tko.IfInfo it = c.ifs->ifaces[k]
+    dim as containers.Array( of int32 ) baseG
+    for j as int32 = 1 to it.basesCount - 1
+        baseG.Push( ItableGlobalOf_( c, cls, cast( Tko.TypeId, c.ifs->bases[it.basesFirst + j] ) ) )
+    next
+    dim as containers.Array( of uint32 ) fn
+    for q as int32 = 0 to it.count - 1
+        dim as Tko.NodeId d = ImplDeclOf_( c, cls, c.ifs->slots[it.first + q].decl )
+        dim as Tko.InternId nm = 0
+        if d <> Tko.NODE_NONE then
+            dim as int32 vslot = -1
+            if (StmtOf( c, d )->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)) <> 0 then
+                dim as Tko.SymbolId ps = c.info->RefOf( d )
+                dim as Tko.Symbol ptr psym = c.syms->SymbolAt( ps )
+                if (psym <> nullptr) andalso (c.vts <> nullptr) then
+                    dim as Tko.SymScope ptr os = c.syms->ScopeAt( psym->parent )
+                    if os <> nullptr then
+                        dim as Tko.Symbol ptr owner = c.syms->SymbolAt( os->owner )
+                        if owner <> nullptr then vslot = c.vts->SlotOf( owner->type_, ps, d )
+                    end if
+                end if
+            end if
+            if vslot >= 0 then
+                nm = ThunkFor_( c, d, vslot )
+            else
+                nm = ProcNameOf_( c, d )
+            end if
+        end if
+        fn.Push( cast( uint32, nm ) )
+    next
+
+    dim as int32 g = c.m->AddPtrTable( id )
+    c.m->globals[g].isInternal = true
+    for j as int32 = baseG.Count - 1 to 0 step -1
+        dim as Tko.TypeId bt = cast( Tko.TypeId, c.ifs->bases[it.basesFirst + 1 + j] )
+        if baseG[j] >= 0 then
+            c.m->PushPtrGlobalAt( g, baseG[j], HeaderWords_( c, bt ) * PtrBytes_( c ) )
+        else
+            c.m->PushPtrNull( g )
+        end if
+    next
+    c.m->PushPtrNull( g )               '' the interface descriptor: Phase 4
+    c.m->PushPtrNull( g )               '' the class descriptor: Phase 4
+    for q as int32 = 0 to fn.Count - 1
+        if fn[q] = 0 then
+            c.m->PushPtrNull( g )
+        else
+            c.m->PushPtrFunc( g, cast( Tko.InternId, fn[q] ) )
+        end if
+    next
+    return g
+end function
+
+'' The itable pointer a reference carries: the table's address plus its header.
+private function ItabValue_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as MirValue
+    dim as int32 g = ItableGlobalOf_( c, cls, iface )
+    if g < 0 then return NoVal( )
+    dim as MirValue ga = MirVal_( MV_GLOBAL, MT_PTR, g )
+    return AddrPlus_( c, ga, HeaderWords_( c, c.types->Unqualify( iface ) ) * PtrBytes_( c ) )
+end function
+
+'' { obj, itab } in a temporary of the interface's size, as the aggregate value.
+private function MakeRef_( byref c as Ctx, byref obj as MirValue, byref itab as MirValue ) as MirValue
+    dim as int32 slot = NewTempLocal( c, MT_AGG, 2 * PtrBytes_( c ) )
+    if slot < 0 then return NoVal( )
+    dim as MirValue addr = MirVal_( MV_LOCAL, MT_PTR, slot )
+    StoreThrough( c, addr, obj )
+    dim as MirValue a2 = AddrPlus_( c, addr, PtrBytes_( c ) )
+    StoreThrough( c, a2, itab )
+    return LowerExprLoad( c, addr, MT_AGG )
+end function
+
+'' The address of an interface value: its own, or a temporary's for one that has none.
+private function RefAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
+    dim as MirValue addr = LowerAddr( c, n )
+    if addr.kind <> cast( uint8, MV_NONE ) then return addr
+    dim as MirValue v = LowerExpr( c, n )
+    if v.kind = cast( uint8, MV_NONE ) then return v
+    dim as int32 slot = NewTempLocal( c, MT_AGG, 2 * PtrBytes_( c ) )
+    if slot < 0 then return NoVal( )
+    addr = MirVal_( MV_LOCAL, MT_PTR, slot )
+    StoreThrough( c, addr, v )
+    return addr
+end function
+
+'' THE CONVERSION (§8.6). 'arg' is the value Sem wrapped in 'cast( I, ... )'.
+function LowerIfaceConv_ _
+    ( byref c as Ctx, byval arg as Tko.NodeId, byval toT as Tko.TypeId, byref outv as MirValue ) as boolean
+    if c.ifs = nullptr then return false
+    dim as Tko.TypeId it = c.types->Unqualify( toT )
+    if c.types->IsInterface( it ) = false then return false
+    dim as Tko.TypeId st = c.types->Unqualify( c.info->TypeOf_( arg ) )
+    if c.types->Kind( st ) = Tko.TK_REFERENCE then st = c.types->Unqualify( c.types->Inner( st ) )
+    if st = it then return false
+    dim as MirValue obj, itab
+    if c.types->IsInterface( st ) then
+        '' ANOTHER INTERFACE, which inherits this one. A primary base keeps the itable --
+        '' its slots are a prefix -- and a non-primary one is a header word away (§8.4).
+        dim as MirValue addr = RefAddr_( c, arg )
+        if addr.kind = cast( uint8, MV_NONE ) then return false
+        obj = LowerExprLoad( c, addr, MT_PTR )
+        itab = LowerExprLoad( c, AddrPlus_( c, addr, PtrBytes_( c ) ), MT_PTR )
+        dim as Tko.TypeId cur = st
+        for guard as int32 = 0 to 63
+            if cur = it then exit for
+            dim as int32 k = c.ifs->Find( cur )
+            if k < 0 then return false
+            dim as int32 pick = -1
+            for j as int32 = 0 to c.ifs->ifaces[k].basesCount - 1
+                dim as Tko.TypeId bt = cast( Tko.TypeId, c.ifs->bases[c.ifs->ifaces[k].basesFirst + j] )
+                if (bt = it) orelse c.ifs->Inherits( bt, it ) then
+                    pick = j
+                    exit for
+                end if
+            next
+            if pick < 0 then return false
+            if pick > 0 then itab = LowerExprLoad( c, AddrPlus_( c, itab, -(2 + pick) * PtrBytes_( c ) ), MT_PTR )
+            cur = cast( Tko.TypeId, c.ifs->bases[c.ifs->ifaces[k].basesFirst + pick] )
+        next
+    elseif c.types->Kind( st ) = Tko.TK_POINTER then
+        dim as Tko.TypeId pt = c.types->Unqualify( c.types->Inner( st ) )
+        obj = LowerExpr( c, arg )
+        if c.types->Kind( pt ) = Tko.TK_UDT then
+            itab = ItabValue_( c, pt, it )
+        else
+            itab = ConstInt( c, 0, MT_PTR )                  '' nullptr: { null, null }
+        end if
+    elseif c.types->Kind( st ) = Tko.TK_UDT then
+        obj = LowerAddr( c, arg )
+        itab = ItabValue_( c, st, it )
+    else
+        return false
+    end if
+    if (obj.kind = cast( uint8, MV_NONE )) orelse (itab.kind = cast( uint8, MV_NONE )) then return false
+    outv = MakeRef_( c, obj, itab )
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+'' THE RECEIVER OF A CALL THROUGH AN INTERFACE VALUE: its object word, unadjusted. The itable
+'' rides beside it in Ctx.itabFor for VirtualCalleeOf_.
+function IfaceReceiver_( byref c as Ctx, byval lhs as Tko.NodeId ) as MirValue
+    dim as MirValue addr = RefAddr_( c, lhs )
+    if addr.kind = cast( uint8, MV_NONE ) then return addr
+    dim as MirValue obj = LowerExprLoad( c, addr, MT_PTR )
+    dim as MirValue itab = LowerExprLoad( c, AddrPlus_( c, addr, PtrBytes_( c ) ), MT_PTR )
+    if (obj.kind = cast( uint8, MV_NONE )) orelse (itab.kind = cast( uint8, MV_NONE )) then return NoVal( )
+    c.itabFor.Put( ValKey_( obj ), ValKey_( itab ) )
+    return obj
+end function
+
+'' The itable that came with a receiver, if it came through an interface.
+function ItabFor_( byref c as Ctx, byref self_ as MirValue, byref itab as MirValue ) as boolean
+    dim as int64 k = 0
+    if c.itabFor.TryGet( ValKey_( self_ ), k ) = false then return false
+    itab = MirVal_( cast( int32, k shr 32 ), MT_PTR, cast( int32, k and &hFFFFFFFFll ) )
+    return true
+end function
+
+'' The slot a call through an interface value reaches: the callee's position in Slots(I) of
+'' the RECEIVER's static interface, or -1 when the call is not through one.
+function IfaceSlotOf_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
+    if (c.ifs = nullptr) orelse (target = Tko.NODE_NONE) then return -1
+    if c.ast->Kind( target ) <> Tko.N_MEMBER then return -1
+    dim as Tko.TypeId rt = c.types->Unqualify( c.info->TypeOf_( c.ast->BinaryOf( target )->lhs ) )
+    if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if c.types->IsInterface( rt ) = false then return -1
+    dim as Tko.Symbol ptr cs = c.syms->SymbolAt( callee )
+    if cs = nullptr then return -1
+    dim as int32 k = c.ifs->Find( rt )
+    if k < 0 then return -1
+    for j as int32 = 0 to c.ifs->ifaces[k].count - 1
+        if c.ifs->slots[c.ifs->ifaces[k].first + j].decl = cast( Tko.NodeId, cs->payload ) then return j
+    next
+    return -1
+end function
+
+'' '=' AND '<>' OVER REFERENCES (§8.2): the object words, so two references to one object
+'' through different interfaces are equal. 'nullptr' is the other side's null word.
+function LowerIfaceCompare_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+      byval tk as Tko.TokenKind, byval mt as MirType, byref outv as MirValue ) as boolean
+    if (tk <> Tko.TK_EQ) andalso (tk <> Tko.TK_NE) then return false
+    dim as boolean lI = c.types->IsInterface( c.info->TypeOf_( bp->lhs ) )
+    dim as boolean rI = c.types->IsInterface( c.info->TypeOf_( bp->rhs ) )
+    if (lI orelse rI) = false then return false
+    dim as MirValue l, r
+    if lI then
+        dim as MirValue la = RefAddr_( c, bp->lhs )
+        if la.kind = cast( uint8, MV_NONE ) then return false
+        l = LowerExprLoad( c, la, MT_PTR )
+    else
+        l = LowerExpr( c, bp->lhs )
+    end if
+    if rI then
+        dim as MirValue ra = RefAddr_( c, bp->rhs )
+        if ra.kind = cast( uint8, MV_NONE ) then return false
+        r = LowerExprLoad( c, ra, MT_PTR )
+    else
+        r = LowerExpr( c, bp->rhs )
+    end if
+    if (l.kind = cast( uint8, MV_NONE )) orelse (r.kind = cast( uint8, MV_NONE )) then return false
+    dim as MirType rty = iif( (mt = MT_VOID) orelse (mt = MT_AGG), MT_I32, mt )
+    dim as MirInst ci
+    ci.op = cast( uint16, iif( tk = Tko.TK_EQ, M_ICMP_EQ, M_ICMP_NE ) )
+    ci.ty = cast( uint8, rty )
+    ci.a = l
+    ci.b = r
+    outv = Emit( c, ci )
+    if outv.kind = cast( uint8, MV_NONE ) then return false
+    if id <> c.rawCmpNode then
+        dim as MirInst ng
+        ng.op = cast( uint16, M_NEG )
+        ng.ty = cast( uint8, rty )
+        ng.a = outv
+        outv = Emit( c, ng )
+    end if
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+end namespace

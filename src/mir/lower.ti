@@ -22,6 +22,7 @@
 #include once "symbols/check.ti"
 #include once "types/udtlayout.ti"
 #include once "types/vtable.ti"
+#include once "types/itable.ti"
 #include once "mir/rtl.ti"
 #include once "diag/engine.ti"
 

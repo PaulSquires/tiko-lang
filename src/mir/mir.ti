@@ -749,6 +749,9 @@ namespace Tko.Mir
         declare sub PushPtrNull( byval g as int32, byval off as int32 = -1 )
         declare sub PushPtrGlobal( byval g as int32, byval which as int32, byval off as int32 = -1 )
         declare sub PushPtrFunc( byval g as int32, byval nm as InternId, byval off as int32 = -1 )
+        '' ANOTHER TABLE'S ADDRESS PLUS 'bias' BYTES (kind 3): an itable's header names its bases'
+        '' itables by the pointer a reference carries, which is past their headers (loweritab.tiko).
+        declare sub PushPtrGlobalAt( byval g as int32, byval which as int32, byval bias as int32 )
         declare function AddVarGlobal _
             ( byval nm as InternId, byval ty as MirType, byval ft as Tko.TypeId, _
               byval sizeBytes as int32 ) as int32

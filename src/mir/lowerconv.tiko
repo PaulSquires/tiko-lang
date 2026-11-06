@@ -243,6 +243,7 @@ function LowerConvIntrinsic _
     '' rule an initialiser and a plain argument need.
     if (nm = "cast") orelse (nm = "ctype") then
         dim as MirValue uv
+        if LowerIfaceConv_( c, arg, c.info->TypeOf_( id ), uv ) then return uv   '' to an interface: loweritab.tiko
         if UpcastAggInit_( c, arg, c.info->TypeOf_( id ), uv ) then return uv
         '' ...AND 'cast( <a UDT>, <another> )' IS THE SOURCE'S OWN 'operator cast',
         '' which is the one spelling that says so out loud. See UdtCastValue_.

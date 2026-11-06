@@ -282,6 +282,7 @@ function CheckCastPtrPair_ _
 
     dim as TypeId ot = c.info->TypeOf_( op )
     if ot = TYPE_NONE then return false
+    if c.types->IsInterface( tgt ) orelse c.types->IsInterface( ot ) then return false   '' semiface.tiko CastIfaceJudged_
     ot = c.types->Unqualify( ot )
     if c.types->Kind( ot ) = TK_REFERENCE then ot = c.types->Unqualify( c.types->Inner( ot ) )
     '' 'this' IS A POINTER IN THE SYMBOL TABLE AND THE OBJECT IN THE SOURCE, which is what

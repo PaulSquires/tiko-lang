@@ -148,6 +148,13 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
                 body += "ptr " & GlobalName( e, e.m->globals[cast( int32, ref )].name )
             case 2
                 body += "ptr @""" & e.names->Spelling( cast( Tko.InternId, ref ) ) & """"
+            case 3
+                if cast( int32, ref ) >= e.m->globals.Count then
+                    Ice( e, "a pointer table entry naming a global that does not exist" )
+                    return
+                end if
+                body += "ptr getelementptr (i8, ptr " & GlobalName( e, e.m->globals[cast( int32, ref )].name ) & _
+                        ", i64 " & str( e.m->ptrOffs[g.ptrFirst + i] ) & ")"
             case else
                 Ice( e, "a pointer table entry of an unknown kind" )
                 return

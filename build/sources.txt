@@ -90,6 +90,7 @@ src/mir/lowerusing.tiko
 src/mir/lowerio.tiko
 src/mir/lowerdesc.tiko
 src/mir/lowervtab.tiko
+src/mir/loweritab.tiko
 src/mir/lowerfieldinit.tiko
 src/mir/lowerimpl.tiko
 src/mir/lowerindirect.tiko

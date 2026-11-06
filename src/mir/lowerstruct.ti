@@ -204,6 +204,16 @@ declare function IsBaseOf_ _
         ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
     declare function VirtualCalleeOf_ _
         ( byref c as Ctx, byref self_ as MirValue, byval slot as int32 ) as MirValue
+    '' loweritab.tiko -- interface values (docs/tiko-interfaces).
+    declare function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as int32
+    declare function LowerIfaceConv_ _
+        ( byref c as Ctx, byval arg as Tko.NodeId, byval toT as Tko.TypeId, byref outv as MirValue ) as boolean
+    declare function IfaceReceiver_( byref c as Ctx, byval lhs as Tko.NodeId ) as MirValue
+    declare function ItabFor_( byref c as Ctx, byref self_ as MirValue, byref itab as MirValue ) as boolean
+    declare function IfaceSlotOf_( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
+    declare function LowerIfaceCompare_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval tk as Tko.TokenKind, byval mt as MirType, byref outv as MirValue ) as boolean
     declare sub WantVirtualImplicitDtors_( byref c as Ctx )
     declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as containers.Array( of uint32 ) ptr ) as boolean
     declare function EmitVirtualDtor_ _

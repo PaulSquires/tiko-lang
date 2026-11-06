@@ -1,17 +1,14 @@
 '' Conversions to and from an interface (docs/tiko-interfaces §5.3): a type or pointer that
-'' implements it, and an interface inheriting it, convert; nothing converts out of one
-'' (TKO1009, with the trycast hint). 'Over( @rex )' takes the 'Animal ptr' overload, the
-'' class relationship being the nearer: nothing on line 32. The legal conversions and the
-'' call -- line 31 reaches 'Speak' through IPet's base -- are TKO0992 until Phase 3.
+'' implements it, and an interface inheriting it, convert -- lines 28 and 30, and the call
+'' on line 31 that reaches 'Speak' through IPet's base, compile clean; nothing converts out
+'' of one (TKO1009, with the trycast hint). 'Over( @rex )' takes the 'Animal ptr' overload,
+'' the class relationship being the nearer. A tuple would forge the reference's two hidden
+'' words: refused (line 37).
 '' TEST: cli
 '' ARGS: --frontend-only tests/diagnostics/src/iface-conversions.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: iface-conversions.bas(28,13): error TKO0992: not implemented in this build: a conversion to an interface
-'' EXPECT-OUT: iface-conversions.bas(30,1): error TKO0992: not implemented in this build: a conversion to an interface
-'' EXPECT-OUT: iface-conversions.bas(31,2): error TKO0992: not implemented in this build: a call through an interface
 '' EXPECT-OUT: iface-conversions.bas(33,1): error TKO1009: 'ianimal' does not convert to 'ipet': write 'trycast( ipet, ... )'
 '' EXPECT-OUT: iface-conversions.bas(34,15): error TKO1009: 'dog ptr' does not convert to 'iother'
 '' EXPECT-OUT: iface-conversions.bas(35,16): error TKO1009: 'ianimal' does not convert to 'dog ptr': write 'trycast( dog ptr, ... )'
-'' A tuple would forge the reference's two hidden words: refused (line 37).
 '' EXPECT-OUT: iface-conversions.bas(37,20): error TKO1009: '( ... )' does not convert to 'ianimal'
-'' EXPECT-MAX-DIAG: 7
+'' EXPECT-MAX-DIAG: 4

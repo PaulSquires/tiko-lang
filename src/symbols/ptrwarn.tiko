@@ -392,6 +392,7 @@ sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as Ty
     if e = NODE_NONE then return
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.tiko (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.tiko
+    if ArgIfaceJudged_( c, e, resultType, c.info->TypeOf_( e ) ) then return   '' an interface result: semiface.tiko
     '' A UDT RESULT given a value no constructor or 'let' takes -- fbc's 181 (ctorargs.tiko).
     '' Not a BYREF one, which is never constructed: CheckByrefResultType_ judges it (318).
     if (byrefResult = false) andalso ResultValueRefused_( c, resultType, e, false ) then

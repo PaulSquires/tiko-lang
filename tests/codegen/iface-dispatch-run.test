@@ -1,0 +1,17 @@
+'' RUN: calls through interface values (docs/tiko-interfaces Phase 3) -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-dispatch.bas -o tests/codegen/ifacedispatch.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifacedispatch.exe
+'' RUN: tests/codegen/ifacedispatch.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: rock: ... 7
+'' EXPECT-RUN-OUT:   name: rock
+'' EXPECT-RUN-OUT: woof from Rex
+'' EXPECT-RUN-OUT:   name: Rex
+'' EXPECT-RUN-OUT: me            Rex
+'' EXPECT-RUN-OUT: -1             0            -1
+'' EXPECT-RUN-OUT: a set
+'' EXPECT-RUN-OUT: same object
