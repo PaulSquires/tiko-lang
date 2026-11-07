@@ -88,4 +88,18 @@ extern "rtlib"
 		wend
 		return nullptr
 	end function
+
+	'' 'trycast( C ptr, p )' over a pointer to an object with a vptr: the object when its dynamic
+	'' type is C or derives from it, else null -- 'is', answered with the pointer.
+	function tkort_ObjTypeCast( byval obj as any ptr, byval want as TKORT_RTTI ptr ) as any ptr
+		if( (obj = nullptr) orelse (want = nullptr) ) then return nullptr
+		dim as TKORT_BASEVT ptr vt = cast( TKORT_BASEVT ptr, _
+			cast( uint8 ptr, cast( TKORT_OBJECT ptr, obj )->pVT ) - sizeof( TKORT_BASEVT ) )
+		dim as TKORT_RTTI ptr r = vt->pRTTI
+		while( r <> nullptr )
+			if( strcmp( r->id, want->id ) = 0 ) then return obj
+			r = r->pRTTIBase
+		wend
+		return nullptr
+	end function
 end extern

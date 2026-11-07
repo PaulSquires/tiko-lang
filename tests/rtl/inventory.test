@@ -43,4 +43,4 @@
 '' tkort_ObjIfaceTryCast and tkort_IfaceTypeCast, interfaces' run-time search (lib/rt/src/oop/
 '' iface.tiko, tests/codegen/iface-dynamic-run).
 '' EXPECT-OUT: tkort_IfaceFind ptr (ptr, ptr, ptr)
-'' EXPECT-OUT: rtl: 542 entries
+'' EXPECT-OUT: rtl: 543 entries

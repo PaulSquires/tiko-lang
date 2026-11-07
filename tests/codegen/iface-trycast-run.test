@@ -1,0 +1,15 @@
+'' RUN: trycast to a type pointer from a class pointer, and from a cast (docs/tiko-interfaces
+'' §5.5) -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-trycast.bas -o tests/codegen/ifacetrycast.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifacetrycast.exe
+'' RUN: tests/codegen/ifacetrycast.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: true rex
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT:  6

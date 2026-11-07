@@ -343,7 +343,10 @@ end function
 
 '' The address of an interface value: its own, or a temporary's for one that has none.
 private function RefAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
-    dim as MirValue addr = LowerAddr( c, n )
+    '' A CALL IS NO STORED REFERENCE: 'cast( IShape, t )' has an "address", t's own, and
+    '' 'trycast( IScalable, cast( IShape, t ) )' read t's first field as the object.
+    dim as MirValue addr
+    if c.ast->Kind( n ) <> Tko.N_CALL then addr = LowerAddr( c, n )
     if addr.kind <> cast( uint8, MV_NONE ) then return addr
     dim as MirValue v = LowerExpr( c, n )
     if v.kind = cast( uint8, MV_NONE ) then return v
@@ -510,7 +513,23 @@ function LowerTryCast_( byref c as Ctx, byval id as Tko.NodeId, byref outv as Mi
         PushArg_( args, rv )
         outv = EmitRtl( c, RTL_IFACE_TYPECAST, args )
     else
-        return false                          '' trycast( C ptr, obj ): not a question for here
+        '' 'trycast( C ptr, p )' over a pointer to an object with a vptr: asked through its RTTI.
+        dim as Tko.TypeId ct = c.types->Unqualify( c.types->Inner( tt ) )
+        dim as Tko.TypeId ot = xt
+        if c.types->Kind( ot ) = Tko.TK_POINTER then ot = c.types->Unqualify( c.types->Inner( ot ) )
+        if (c.vts = nullptr) orelse (c.vts->Find( ot ) < 0) then
+            '' No vptr: the static answer Sem warned about (TKO1016).
+            outv = obj
+            if ot <> ct then outv = ConstInt( c, 0, MT_PTR )
+        else
+            dim as int32 rg = RttiGlobalOf_( c, ct )
+            if rg < 0 then return false
+            dim as containers.Array( of uint32 ) args
+            PushArg_( args, obj )
+            dim as MirValue rv = GlobalAddr_( rg )
+            PushArg_( args, rv )
+            outv = EmitRtl( c, RTL_OBJ_TYPECAST, args )
+        end if
     end if
     return (outv.kind <> cast( uint8, MV_NONE ))
 end function
