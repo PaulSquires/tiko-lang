@@ -1,0 +1,11 @@
+'' RUN: string slices under -exx (docs/tiko-slices RFC-0002 §7, RFC-0001 §5): a callee's '&=' through a byref parameter reallocates the string a slice views. The
+'' -earray check stops it with runtime error 6 and exit 6 where the slice is read; without -exx no
+'' check is emitted (the other string-slice run tests).
+'' TEST: cli
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/string-slice-exx-grow.tiko -o tests/codegen/stringsliceexxgrow.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stringsliceexxgrow.exe
+'' RUN: tests/codegen/stringsliceexxgrow.exe
+'' EXPECT-RUN-EXIT: 6
+'' EXPECT-RUN-OUT: runtime error 6 (out of bounds array access) at line 7 of

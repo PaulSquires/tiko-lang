@@ -771,6 +771,7 @@ private function LowerForEachSlice_ _
     dim as int32 ub = SliceUnitBytes( c, at )
     dim as MirValue sa = SliceStorage( c, seqE )
     if sa.kind = cast( uint8, MV_NONE ) then return false
+    EmitSliceChecks( c, seqE, sa, ub )   '' -earray: the anchor, once before the loop
     dim as MirInst fa
     fa.op = cast( uint16, M_FIELD_ADDR ) : fa.ty = cast( uint8, MT_PTR ) : fa.a = sa
     fa.imm = 0

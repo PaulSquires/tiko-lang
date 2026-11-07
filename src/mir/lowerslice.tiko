@@ -142,6 +142,7 @@ private function SourceParts_ _
     case Slices.SS_SLICE
         dim as MirValue sa = SliceStorage( c, u )
         if sa.kind = cast( uint8, MV_NONE ) then return false
+        EmitSliceChecks( c, src, sa, SliceUnitBytes( c, st ) )
         dataV = LowerExprLoad( c, Fld_( c, sa, 0 ), MT_PTR )
         lenV = LowerExprLoad( c, Fld_( c, sa, 8 ), MT_I64 )
         anchorV = LowerExprLoad( c, Fld_( c, sa, 16 ), MT_PTR )
@@ -204,6 +205,76 @@ private function SourceParts_ _
     return (dataV.kind <> cast( uint8, MV_NONE )) andalso (lenV.kind <> cast( uint8, MV_NONE ))
 end function
 
+'' RUNTIME ERROR 6 at a node's line, through fb_ErrorThrowEx as an ERROR statement throws: the
+'' block it is emitted in ends there.
+private sub ThrowSix_( byref c as Ctx, byval at as Tko.NodeId )
+    dim as int32 ln = 0
+    dim as string fname = ""
+    if (at <> Tko.NODE_NONE) andalso (c.srcMgr <> nullptr) then
+        dim as Tko.DecodedLoc d = c.srcMgr->Decode( c.ast->Loc( at ) )
+        ln = d.lineNo
+        dim as Tko.SourceFile ptr sf = c.srcMgr->FileAt( d.file )
+        if sf <> nullptr then fname = c.names->Spelling( sf->displayPath )
+    end if
+    dim as containers.Array( of uint32 ) args
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 6 )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( cast( uint32, ln ) )
+    args.Push( cast( uint32, MV_GLOBAL ) ) : args.Push( cast( uint32, c.m->AddStringLiteral( fname, *c.names ) ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+    dim as MirValue jr = EmitRtl( c, RTL_ERROR_THROW, args )
+    if jr.kind = cast( uint8, MV_NONE ) then
+        Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    else
+        c.errIndirectBlocks.Push( cast( uint32, c.curBlock ) )
+        Terminate( c, MTERM_INDIRECTBR, -1, -1, jr )
+    end if
+end sub
+
+sub EmitSliceChecks _
+    ( byref c as Ctx, byval at as Tko.NodeId, byref sa as MirValue, _
+      byval unitBytes as int32, byval idx as MirValue ptr = nullptr )
+
+    if (c.errFlags and 8) = 0 then return                      '' -earray, in -exx
+    if sa.kind = cast( uint8, MV_NONE ) then return
+    if at = Tko.NODE_NONE then at = cast( Tko.NodeId, c.stmt.curStmtNode )
+    dim as MirValue p = LowerExprLoad( c, Fld_( c, sa, 0 ), MT_PTR )
+    dim as MirValue n = LowerExprLoad( c, Fld_( c, sa, 8 ), MT_I64 )
+    dim as MirValue anc = LowerExprLoad( c, Fld_( c, sa, 16 ), MT_PTR )
+    dim as MirValue ub = ConstInt( c, unitBytes, MT_I64 )
+
+    '' THE INDEX FIRST: 0 <= i < len is one unsigned compare.
+    if idx <> nullptr then
+        dim as int32 badI = NewBlock( c, "slicebadidx" )
+        dim as int32 okI = NewBlock( c, "sliceokidx" )
+        Terminate( c, MTERM_CONDBR, okI, badI, Op2_( c, M_ICMP_ULT, MT_I8, *idx, n ) )
+        c.curBlock = badI
+        ThrowSix_( c, at )
+        c.curBlock = okI
+    end if
+
+    '' THE ANCHOR: a slice of a string variable must still lie inside that variable's buffer --
+    '' a callee's '&=' through a byref parameter moved or shortened it (RFC-0002 §7).
+    dim as MirValue z = ConstInt( c, 0, MT_PTR )
+    dim as int32 chkB = NewBlock( c, "sliceanchor" )
+    dim as int32 badB = NewBlock( c, "sliceanchorbad" )
+    dim as int32 okB = NewBlock( c, "sliceanchorok" )
+    Terminate( c, MTERM_CONDBR, okB, chkB, Op2_( c, M_ICMP_EQ, MT_I8, anc, z ) )
+    c.curBlock = chkB
+    dim as MirValue d = LowerExprLoad( c, Fld_( c, anc, 0 ), MT_PTR )
+    dim as MirValue rawL = LowerExprLoad( c, Fld_( c, anc, 8 ), MT_I64 )
+    dim as MirValue mask = ConstInt( c, &h7FFFFFFFFFFFFFFFll, MT_I64 )
+    dim as MirValue l = Op2_( c, M_AND, MT_I64, rawL, mask )
+    dim as MirValue dEnd = Op2_( c, M_PTR_ADD, MT_PTR, d, Op2_( c, M_MUL, MT_I64, l, ub ) )
+    dim as MirValue pEnd = Op2_( c, M_PTR_ADD, MT_PTR, p, Op2_( c, M_MUL, MT_I64, n, ub ) )
+    dim as MirValue lowOk = Op2_( c, M_ICMP_ULE, MT_I8, d, p )
+    dim as MirValue highOk = Op2_( c, M_ICMP_ULE, MT_I8, pEnd, dEnd )
+    Terminate( c, MTERM_CONDBR, okB, badB, Op2_( c, M_AND, MT_I8, lowOk, highOk ) )
+    c.curBlock = badB
+    ThrowSix_( c, at )
+    c.curBlock = okB
+end sub
+
 '' THE TYPE a member procedure belongs to, or TYPE_NONE -- MemberVSlot_'s walk.
 private function OwnerType_( byref c as Ctx, byval sym as Tko.SymbolId ) as Tko.TypeId
     dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
@@ -238,6 +309,7 @@ function LowerSliceCast _
     dim as Slices.SliceUnit su = Slices.SliceUnitOfType( *c.types, *c.names, ot )
     if su = Slices.SU_NONE then return false
     if self_.kind = cast( uint8, MV_NONE ) then return false
+    EmitSliceChecks( c, Tko.NODE_NONE, self_, SliceUnitBytes( c, ot ) )
 
     dim as MirValue dataV = LowerExprLoad( c, Fld_( c, self_, 0 ), MT_PTR )
     dim as MirValue lenV = LowerExprLoad( c, Fld_( c, self_, 8 ), MT_I64 )

@@ -1,0 +1,10 @@
+'' -exx (docs/tiko-slices RFC-0002 §7, RFC-0001 §5): a callee's assignment through a byref parameter shortens the string a slice views -- runtime error 6 at the slice's use.
+sub Shrink( byref s as string )
+    s = "a"
+end sub
+sub Peek2( byval v as const slice, byref s as string )
+    Shrink( s )
+    print len( v ); " "; v
+end sub
+dim as string s = "hello world"
+Peek2( s[0 to 8], s )

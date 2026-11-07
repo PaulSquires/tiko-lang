@@ -37,6 +37,13 @@ namespace Tko.Mir
     declare function LowerSliceCtor _
         ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, _
           byref outv as MirValue ) as boolean
+    '' -earray (in -exx): the RFC-0002 §7 ANCHOR CHECK over a slice's storage before its text is read
+    '' -- when it has an anchor, its view must lie inside the source descriptor's current
+    '' buffer -- and, given an index, 0 <= i < len (RFC-0001 §5). Either failing is runtime
+    '' error 6 through fb_ErrorThrowEx. Nothing is emitted without -earray.
+    declare sub EmitSliceChecks _
+        ( byref c as Ctx, byval at as Tko.NodeId, byref sa as MirValue, _
+          byval unitBytes as int32, byval idx as MirValue ptr = nullptr )
     declare function LowerSliceCall _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
