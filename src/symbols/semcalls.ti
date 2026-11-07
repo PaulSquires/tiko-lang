@@ -179,6 +179,7 @@ declare function ProcPtrDeclOf_ _
       byval depth as int32 = 0 ) as Tko.NodeId
 declare sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
 declare sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckBoundOperand_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckTypeLiteralText_ ( byref c as Ctx )
 declare sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )

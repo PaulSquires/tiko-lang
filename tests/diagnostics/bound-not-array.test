@@ -1,0 +1,18 @@
+'' TKO1023, fbc's 63 (58 over an element, 24 over a cast), for lbound / ubound over something
+'' that is not an array: a scalar, a field, a string, a 'zstring * N', a pointer, a UDT, an
+'' element and a cast. Typing gave each call no type and nothing said why, so every one was
+'' TKO0994 -- a 'const' too, once used. The arrays at the end -- a field array, a fixed-string
+'' array, an array parameter, through a pointer -- are fine. See symbols/staticdef.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bound-not-array.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bound-not-array.bas(14,15): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(15,17): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(16,28): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(17,15): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(18,15): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(19,15): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(20,17): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(21,15): error TKO1023
+'' EXPECT-OUT: bound-not-array.bas(22,21): error TKO1023
+'' EXPECT-MAX-DIAG: 9

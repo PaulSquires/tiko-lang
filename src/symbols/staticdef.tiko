@@ -305,6 +305,31 @@ private sub CheckUdtExactCast_ _
     c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( at ) )
 end sub
 
+'' LBOUND / UBOUND OF SOMETHING THAT IS NOT AN ARRAY -- fbc's error 63, "Expected array".
+'' Typing gives such a call no type (intrinsics.tiko, "lbound", "ubound"), and nothing said
+'' why: lowering then declined it, and 'print lbound( x )', 'dim y as integer = ubound( u.a )'
+'' and the use of 'const K = lbound( x )' were TKO0994. Measured on fbc-modern 1.20,
+'' 2026-11-07: a scalar, a string, a 'zstring * 10', a pointer and a UDT variable are 63, an
+'' element 'ar( 8 )' and a fixed string's element are 58, 'cast( integer, 1 )' is 24 -- one
+'' error here for all of them. fbc alone takes 'lbound( u.arr( 3 ) )' over a FIELD array,
+'' ignoring the index; that is refused too.
+sub CheckBoundOperand_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
+    if c.ast->Kind( lp->target ) <> N_IDENT then return
+    if (c.info->RefOf( lp->target ) <> SYMBOL_NONE) orelse (c.info->RefOf( id ) <> SYMBOL_NONE) then return
+    dim as string nm = lcase( SpellOf_( c, lp->target ) )
+    if (nm <> "lbound") andalso (nm <> "ubound") then return
+    dim as NodeId arg = cast( NodeId, c.ast->ChildSlot( lp->first ) )
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return
+    at = c.types->Unqualify( at )
+    if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+    '' THE SAME TEST AS THE TYPING'S: a 'zstring * N' is an array to the type table, not to fbc.
+    if (c.types->Kind( at ) = TK_ARRAY) andalso (Tko.Check.FixedStringElem( at, *c.types ) = TYPE_NONE) then return
+    c.diags->Report( TKO1023, PointRange( c.ast->Loc( arg ) ), nm, c.types->Name( at ) )
+end sub
+
 sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->target = NODE_NONE) orelse (lp->count < 1) then return

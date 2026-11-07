@@ -1120,6 +1120,7 @@
     '' Not in §13.2, which reserves TKO1019/TKO1020 for a class's 'inherits'.
     DIAG( TKO1021, SEV_ERROR,   "'trycast' converts to an interface or to a pointer to a type, not to '%0'" )
     DIAG( TKO1022, SEV_ERROR,   "type argument '%0' does not implement '%1', which '%2' requires" )
+    DIAG( TKO1023, SEV_ERROR,   "the argument of '%0' must be an array, not '%1'" )
 
 #endmacro
 

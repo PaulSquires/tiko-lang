@@ -1395,6 +1395,7 @@ sub WalkExtra_ _
     if (k = N_INTRINSIC) orelse (k = N_AMBIGUOUS) then CheckConstOutput_( c, id )
     if k = N_CALL then CheckIifUdt_( c, id )
     if k = N_CALL then CheckConvIntrinsic_( c, id )
+    if k = N_CALL then CheckBoundOperand_( c, id )
     if k = N_VAR then CheckStaticMemberDef_( c, id )
     if k = N_VAR then CheckDeclShape_( c, id )
     if k = N_FIELD then CheckFieldShape_( c, id )
