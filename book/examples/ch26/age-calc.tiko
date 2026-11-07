@@ -4,7 +4,7 @@
 '' come round yet this year.
 function AgeOn( byval born as chrono.LocalDate, _
                 byval today as chrono.LocalDate ) as int32
-    dim as int32 years = today.Year( ) - born.Year( )
+    dim as int32 years = today.Year - born.Year
     if born.AddYears( years ) > today then years -= 1
     return years
 end function
@@ -13,7 +13,7 @@ end function
 function NextBirthday( byval born as chrono.LocalDate, _
                        byval today as chrono.LocalDate ) _
                        as chrono.LocalDate
-    dim as int32 years = today.Year( ) - born.Year( )
+    dim as int32 years = today.Year - born.Year
     if born.AddYears( years ) < today then years += 1
     return born.AddYears( years )
 end function

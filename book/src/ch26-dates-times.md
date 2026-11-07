@@ -38,8 +38,8 @@ same at both ends of that range; a value does not lose precision by being far fr
 
 The values are **immutable**. No method changes a date in place: `day.AddDays( 1 )` returns a new
 date and leaves `day` alone, so a value can be passed around and stored without anyone changing it
-underneath. The parts are read with methods — `Year( )`, `Month( )`, `Day( )`, `Hour( )` and so
-on. `DayOfWeek( )` numbers the days the ISO 8601 way, **1 for Monday** through 7 for Sunday.
+underneath. The parts are read with properties — `Year`, `Month`, `Day`, `Hour` and so
+on. `DayOfWeek` numbers the days the ISO 8601 way, **1 for Monday** through 7 for Sunday.
 
 The constructors take their fields from largest to smallest: `LocalDate( y, mo, d )`,
 `LocalTime( h, mi, s, ms )`, `DateTime( y, mo, d )` or `DateTime( y, mo, d, h, mi, s, ms )`, and
@@ -62,14 +62,14 @@ arguments, where the constructors take three or five — is
 
 There is no 30 February, and chrono does not pretend there is. A constructor given an
 out-of-range part does not roll the extra days into March; it returns the **Invalid** value of
-its type, and `IsValid( )` says so. Rolling over would make a typo and a real date look the same
+its type, and `IsValid` says so. Rolling over would make a typo and a real date look the same
 one line later.
 
 Invalid behaves like a NaN in floating point:
 
 - **It absorbs arithmetic.** Adding days, months or a span to an Invalid value gives Invalid, so a
   chain of calculations can be checked once at the end.
-- **It equals nothing, not even itself.** `feb30 = feb30` is false. Test with `IsValid( )`, never
+- **It equals nothing, not even itself.** `feb30 = feb30` is false. Test with `IsValid`, never
   by comparing with `Invalid( )`.
 - **`CompareTo` returns -2** when either side is Invalid, which is not an ordering: -1, 0 and 1 are.
 - **It prints as an empty string.** `ToIsoString( )` never fails; for Invalid it has nothing to say.
@@ -95,7 +95,7 @@ A `DateTime` is a reading of a wall clock, and it is in one of three states:
 - **UTC**, offset 0, printed with a `Z`.
 - **An offset** from UTC, in minutes, up to 18 hours either way: `-300` is five hours behind UTC,
   printed `-05:00`.
-- **Unspecified**: the time on *some* clock, with nothing to say which. `HasOffset( )` is false
+- **Unspecified**: the time on *some* clock, with nothing to say which. `HasOffset` is false
   and the text has no suffix.
 
 An `Instant` is a single point in time, the same everywhere. An unspecified `DateTime` cannot
@@ -246,9 +246,9 @@ The period helpers keep the offset and set the time:
   a Tuesday is a week away.
 
 ```admonish danger title="Pitfall"
-**The ISO week belongs to the ISO week-year, not to `Year( )`.** 29 December 2025 is in week 1 of
-2026. A program that prints `Year( )` beside `IsoWeek( )` writes "week 1 of 2025" for it, a date a
-year off. Print `IsoWeekYear( )` with `IsoWeek( )`, always.
+**The ISO week belongs to the ISO week-year, not to `Year`.** 29 December 2025 is in week 1 of
+2026. A program that prints `Year` beside `IsoWeek` writes "week 1 of 2025" for it, a date a
+year off. Print `IsoWeekYear` with `IsoWeek`, always.
 ```
 
 ### Spans and differences
@@ -261,8 +261,8 @@ year off. Print `IsoWeekYear( )` with `IsoWeek( )`, always.
 {{#include ../examples/ch26/spans.out}}
 ```
 
-A `TimeSpan` has two families of readers. **`TotalHours( )`** and its siblings give the whole span
-in one unit, with a fraction: 26.05 hours. **`Hours( )`** and its siblings give the pieces: the 2 in
+A `TimeSpan` has two families of readers. **`TotalHours`** and its siblings give the whole span
+in one unit, with a fraction: 26.05 hours. **`Hours`** and its siblings give the pieces: the 2 in
 "1 day, 2 hours". Mixing them up gives numbers that look plausible and are wrong. The pieces of a
 negative span are all negative, so they always add back up to the whole.
 
@@ -342,7 +342,7 @@ Three clocks answer three questions:
   operating system corrects it, and users change it. `timer`, the classic function, reads the same
   clock, and neither should be used to measure how long something took.
 - **`Stopwatch`** — how long did it take? It reads a monotonic clock that only ever moves forward.
-  `StartNew( )` creates one running; `Elapsed( )` is a `TimeSpan` and `ElapsedMilliseconds( )` a
+  `StartNew( )` creates one running; `Elapsed` is a `TimeSpan` and `ElapsedMilliseconds` a
   number; `Restart( )` zeroes it and runs on. **`Stop_( )`** has a trailing underscore because
   `stop` is a statement. A stopwatch adds up the time it runs, so stopping and starting it again
   leaves the paused time out.
@@ -369,20 +369,20 @@ fraction is the time of day. `#include "datetime.bi"` provides the functions for
 `dateserial`, `timeserial`, `now`, `year`, `month`, `day`, `weekday` and the rest — and
 `vbcompat.bi` adds `format`. They still work, and both styles can be used in one program.
 
-`DateTime.FromSerial( serial )` and `.Serial( )` convert between the two. The conversion is exact
+`DateTime.FromSerial( serial )` and `.Serial` convert between the two. The conversion is exact
 to the millisecond; below that, a `float64` holding a present-day date has no digits left to keep.
 
 Three differences catch programs moving across:
 
-- **`weekday( )` counts from Sunday = 1; `DayOfWeek( )` from Monday = 1.**
+- **`weekday( )` counts from Sunday = 1; `DayOfWeek` from Monday = 1.**
 - **`dateserial` rolls over**: month 13, day 40 of 2025 is 9 February 2026. The chrono
   constructors refuse it.
 - **A serial has no offset.** `now` returns local time with nothing to say so; `WallClock.Now( )`
   records the offset.
 
-The other common epochs are one call away: `Instant.FromUnixSeconds` and `UnixSeconds( )` for Unix
-time, `FromFileTime` and `FileTime( )` for Windows `FILETIME`, `FromOleDate` and `OleDate( )` for
-COM, and `FromJulianDay` and `JulianDay( )`.
+The other common epochs are one call away: `Instant.FromUnixSeconds` and `UnixSeconds` for Unix
+time, `FromFileTime` and `FileTime` for Windows `FILETIME`, `FromOleDate` and `OleDate` for
+COM, and `FromJulianDay` and `JulianDay`.
 
 ## A worked example: merging logs
 
@@ -419,7 +419,7 @@ merged log.
 - `#import "std/chrono"`: `LocalDate`, `LocalTime`, `DateTime`, `Instant`, `TimeSpan`. Immutable,
   100 ns ticks, years 1 to 9999, `DayOfWeek` 1 = Monday.
 - Out-of-range parts give **Invalid**, which absorbs arithmetic, equals nothing and prints as `""`.
-  Test with `IsValid( )`. Arithmetic never wraps.
+  Test with `IsValid`. Arithmetic never wraps.
 - A `DateTime` is UTC, offset or unspecified. `WithOffset` relabels; `ToOffset` converts;
   `AssumeUtc` turns an unspecified reading into an `Instant`.
 - `ToIsoString` writes one canonical form. `TryParseIso` accepts the ISO 8601 variants and refuses

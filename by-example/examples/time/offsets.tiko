@@ -3,8 +3,8 @@
 '' A DateTime with no offset is a reading on an unnamed clock.
 var naive = chrono.DateTime( 2025, 3, 4, 9, 0, 0, 0 )
 print "naive:      "; naive.ToIsoString( ); _
-      "  has offset: "; naive.HasOffset( )
-print "as instant valid: "; naive.ToInstant( ).IsValid( )
+      "  has offset: "; naive.HasOffset
+print "as instant valid: "; naive.ToInstant( ).IsValid
 
 '' WithOffset says which clock it was read on (minutes from UTC).
 var toronto = naive.WithOffset( -300 )

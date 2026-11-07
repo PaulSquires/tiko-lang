@@ -6,7 +6,7 @@ function WorkingDays( byval first as chrono.LocalDate, _
     dim as int32 count = 0
     var d = first
     do while d < last
-        if d.DayOfWeek( ) <= 5 then count += 1
+        if d.DayOfWeek <= 5 then count += 1
         d = d.AddDays( 1 )
     loop
     return count

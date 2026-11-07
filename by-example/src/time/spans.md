@@ -16,8 +16,8 @@ mixing them up gives plausible numbers that are wrong.
 
 | Reader | Gives | For `span` |
 |---|---|---|
-| `TotalHours( )`, `TotalMinutes( )`, ... | the whole span in one unit, with a fraction | 26.5 |
-| `Hours( )`, `Minutes( )`, ... | one piece of it | 2 |
+| `TotalHours`, `TotalMinutes`, ... | the whole span in one unit, with a fraction | 26.5 |
+| `Hours`, `Minutes`, ... | one piece of it | 2 |
 
 `TimeSpan.FromSeconds`, `FromMinutes`, `FromHours`, `FromDays` and
 `FromMilliseconds` build a span from one unit. Spans add, subtract, multiply
@@ -34,4 +34,4 @@ There is no `FromMonths`: a month is not a fixed length. Use
 ### Activities
 
 1. Add up three lap times and print the total in minutes.
-2. Print `TotalSeconds( )` and `Seconds( )` for `TimeSpan( 0, 1, 1, 1, 0 )`.
+2. Print `TotalSeconds` and `Seconds` for `TimeSpan( 0, 1, 1, 1, 0 )`.

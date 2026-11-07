@@ -29,12 +29,12 @@ var sw = chrono.Stopwatch.StartNew( )
 for k as int32 = 0 to 999
     if FindLinear( sorted( ), k * 600 ) then hitsA += 1
 next
-var linearTime = sw.Elapsed( )
+var linearTime = sw.Elapsed
 sw.Restart( )
 for k as int32 = 0 to 999
     if FindBinary( sorted( ), k * 600 ) then hitsB += 1
 next
-var binaryTime = sw.Elapsed( )
+var binaryTime = sw.Elapsed
 print "same hits: "; cbool( hitsA = hitsB ); ","; hitsA
 print "binary faster: "; ( binaryTime < linearTime )
 
@@ -45,7 +45,7 @@ sleep 300, 1
 sw.Start( )
 sw.Stop_( )
 print "paused 300 ms, counted under 100 ms: "; _
-      cbool( sw.ElapsedMilliseconds( ) < 100 )
+      cbool( sw.ElapsedMilliseconds < 100 )
 
 '' CpuClock counts processor time, which sleeping does not use.
 var wall = chrono.Stopwatch.StartNew( )
@@ -53,6 +53,6 @@ var cpu0 = chrono.CpuClock.ProcessTime( )
 sleep 300, 1
 var cpuUsed = chrono.CpuClock.ProcessTime( ) - cpu0
 print "slept: wall >= 250 ms: "; _
-      cbool( wall.Elapsed( ).TotalMilliseconds( ) >= 250 )
+      cbool( wall.Elapsed.TotalMilliseconds >= 250 )
 print "slept: CPU < 100 ms: "; _
-      cbool( cpuUsed.TotalMilliseconds( ) < 100 )
+      cbool( cpuUsed.TotalMilliseconds < 100 )

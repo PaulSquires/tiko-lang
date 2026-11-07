@@ -248,7 +248,7 @@ if unreadable > 0 then
 end if
 if len( stopped ) > 0 then print "stopped early ("; stopped; ")"
 if opts.verbose then
-    lg.Info( ).AddInt( "ms", clock.ElapsedMilliseconds( ) ) _
+    lg.Info( ).AddInt( "ms", clock.ElapsedMilliseconds ) _
               .Msg( "done" )
 end if
 end iif( unreadable > 0 orelse len( stopped ) > 0, 1, 0 )

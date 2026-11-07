@@ -11,18 +11,18 @@ end function
 '' A Stopwatch reads a clock that only moves forward.
 var sw = chrono.Stopwatch.StartNew( )
 var total = SumTo( 1000000 )
-var taken = sw.Elapsed( )
+var taken = sw.Elapsed
 
 '' The time differs on every run; these facts do not.
 print "total:"; total
-print "running: "; sw.IsRunning( )
-print "elapsed >= 0: "; cbool( taken.Ticks( ) >= 0 )
-print "a later reading is not smaller: "; ( sw.Elapsed( ) >= taken )
+print "running: "; sw.IsRunning
+print "elapsed >= 0: "; cbool( taken.Ticks >= 0 )
+print "a later reading is not smaller: "; ( sw.Elapsed >= taken )
 
 '' Stop_ pauses it: time spent stopped is not counted.
 sw.Restart( )
 sw.Stop_( )
-var paused = sw.ElapsedTicks( )
+var paused = sw.ElapsedTicks
 sleep 200, 1
-print "stopped, so unchanged: "; cbool( sw.ElapsedTicks( ) = paused )
-print "running: "; sw.IsRunning( )
+print "stopped, so unchanged: "; cbool( sw.ElapsedTicks = paused )
+print "running: "; sw.IsRunning

@@ -14,8 +14,8 @@ backwards. A `Stopwatch` reads a clock that only moves forward.
 {{#include ../../examples/time/stopwatch.out}}
 ```
 
-`Stopwatch.StartNew( )` makes a running stopwatch. `Elapsed( )` is a
-[`TimeSpan`](spans.md); `ElapsedMilliseconds( )` and `ElapsedTicks( )` are
+`Stopwatch.StartNew( )` makes a running stopwatch. `Elapsed` is a
+[`TimeSpan`](spans.md); `ElapsedMilliseconds` and `ElapsedTicks` are
 numbers. `Restart( )` zeroes it and keeps it running, `Reset( )` zeroes and
 stops it, and `Start( )` resumes. `Stop_( )` has a trailing underscore because
 `stop` is a statement. A stopwatch adds up only the time it was running, so
@@ -30,6 +30,6 @@ processor time the program has used, which a `sleep` does not add to.
 
 ### Activities
 
-1. Time `SumTo( 10000000 )` and print the result with `TotalMilliseconds( )`.
-2. Stop the stopwatch, sleep, start it again, and check that `IsRunning( )` is
+1. Time `SumTo( 10000000 )` and print the result with `TotalMilliseconds`.
+2. Stop the stopwatch, sleep, start it again, and check that `IsRunning` is
    true and the paused time is still not counted.

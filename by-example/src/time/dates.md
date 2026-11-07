@@ -20,11 +20,11 @@ user's language, as a `ustring` (English on the machine that made this output).
 `DayOfYear`, `Quarter`, `IsoWeek` and `IsoWeekYear` complete the set.
 
 A date with an out-of-range part is not rolled into the next month. The
-constructor returns the **Invalid** value of its type, and `IsValid( )` says so:
+constructor returns the **Invalid** value of its type, and `IsValid` says so:
 
 - Invalid absorbs arithmetic: adding days to it gives Invalid again, so a chain
   of calculations can be checked once, at the end.
-- It equals nothing, not even itself. Test with `IsValid( )`.
+- It equals nothing, not even itself. Test with `IsValid`.
 - It prints as an empty string.
 
 A `LocalDate`, `DateTime` or `Instant` declared with no value is Invalid,
