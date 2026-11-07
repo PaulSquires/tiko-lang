@@ -4,6 +4,7 @@
 #import "std/containers"
 #include once "symbols/check.ti"
 #include once "symbols/mangle.ti"
+#include once "symbols/checkslice.ti"   '' __tko_slice, intrinsics.tiko (docs/tiko-slices)
 #include once "support/irtext.ti"
 
 namespace Tko.Check
@@ -1286,6 +1287,7 @@ private function TypeOfUncached_ _
         if xp->target <> Tko.NODE_NONE then
             dim as Tko.TypeId pt = TypeOf_( c, xp->target )
             if pt <> Tko.TYPE_NONE then
+                t = Tko.Slices.SliceElemType( *c.types, *c.names, pt )   '' a STRING SLICE's unit, const with it (checkslice.tiko)
                 if c.types->Kind( pt ) = Tko.TK_POINTER then
                     t = c.types->Inner( pt )
                 elseif IsVarLenStrBuiltin_( c, pt ) then

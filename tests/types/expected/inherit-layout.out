@@ -3,6 +3,18 @@ plain size 8 align 4
   plain off y 4
 object size 8 align 8
   object off vptr 0
+slice size 24 align 8
+  slice off __data 0
+  slice off __len 8
+  slice off __anchor 16
+uslice size 24 align 8
+  uslice off __data 0
+  uslice off __len 8
+  uslice off __anchor 16
+wslice size 24 align 8
+  wslice off __data 0
+  wslice off __len 8
+  wslice off __anchor 16
 a size 16 align 8
   a off base 0
   a off f1 8
@@ -12,4 +24,16 @@ b size 24 align 8
   b off g1 16
   b inherited f1 8
   b inherited vptr 0
-udts: 4
+slice size 24 align 8
+  slice off __data 0
+  slice off __len 8
+  slice off __anchor 16
+uslice size 24 align 8
+  uslice off __data 0
+  uslice off __len 8
+  uslice off __anchor 16
+wslice size 24 align 8
+  wslice off __data 0
+  wslice off __len 8
+  wslice off __anchor 16
+udts: 7

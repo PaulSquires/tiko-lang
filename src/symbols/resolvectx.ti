@@ -9,6 +9,7 @@
 
 #include once "symbols/resolve.ti"
 #include once "symbols/modsym.ti"
+#include once "symbols/checkslice.ti"   '' a const string slice is rebindable: resolveamb.tiko
 
 namespace Tko.Resolve
 

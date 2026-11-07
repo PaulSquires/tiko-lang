@@ -1003,6 +1003,9 @@ function TypeContext.Name( byval t as TypeId ) as string
             '' type ids (symbols/generic.tiko). Spelled as the source writes it, '( of long, long )',
             '' with '#' back to '.'; a key that is not all ids is shown as it is (BUG-iterators-1).
             dim as string ks = this.names->Spelling( nm )
+            '' THE STRING SLICES are prelude TYPEs under reserved names (parser/prelude.tiko); a
+            '' diagnostic says what the program wrote, 'slice' (docs/tiko-slices).
+            if (lcase( left( ks, 6 ) ) = "__tko_") andalso (lcase( right( ks, 8 ) ) = "strslice") then return prefix & lcase( mid( ks, 7, len( ks ) - 14 ) ) & "slice"   '' __tko_ustrslice -> uslice
             dim as integer lt = instr( ks, "<" )
             if (lt > 1) andalso (right( ks, 1 ) = ">") then
                 dim as string args = mid( ks, lt + 1, len( ks ) - lt - 1 ) & ","

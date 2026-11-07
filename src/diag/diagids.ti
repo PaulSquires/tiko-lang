@@ -23,6 +23,7 @@
 ''     0900-0989   notes
 ''     0990-0999   compiler-level (limits, internal)
 ''     1000-1049   semantic, continued: interfaces (docs/tiko-interfaces)
+''     1050-1099   semantic, continued: string slices (docs/tiko-slices)
 ''
 '' FORMAT STRINGS use %0, %1, %2 for the arguments passed to Report( ). A '%' that is
 '' not followed by a digit is literal.
@@ -1125,6 +1126,15 @@
     DIAG( TKO1021, SEV_ERROR,   "'trycast' converts to an interface or to a pointer to a type, not to '%0'" )
     DIAG( TKO1022, SEV_ERROR,   "type argument '%0' does not implement '%1', which '%2' requires" )
     DIAG( TKO1023, SEV_ERROR,   "the argument of '%0' must be an array, not '%1'" )
+
+    '' ---------------------------------------------- string slices (docs/tiko-slices)
+    '' RFC-0001 §3, §5 and §2. 1050: what 's[lo to hi]' may be written on. 1051: a slice
+    '' whose bounds and source length are all constants and do not fit 0 <= lo <= hi + 1 <= len.
+    '' 1052: a const slice -- of a literal, a const string or another const slice -- where a
+    '' mutable one is wanted, which would let a write land in storage that must not change.
+    DIAG( TKO1050, SEV_ERROR,   "'%0' cannot be sliced: it is not a string, a string slice or a zstring/wstring pointer" )
+    DIAG( TKO1051, SEV_ERROR,   "slice %0 is outside '%1' (0 to %2)" )
+    DIAG( TKO1052, SEV_ERROR,   "a const %0 cannot convert to a mutable %0" )
 
 #endmacro
 

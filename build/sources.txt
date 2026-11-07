@@ -17,6 +17,7 @@ src/lexer/lexer.tiko
 src/lexer/littype.tiko
 src/pp/pp.tiko
 src/parser/expr.tiko
+src/parser/sliceexpr.tiko
 src/ast/collinit.tiko
 src/ast/astimpl.tiko
 src/parser/parser.tiko
@@ -41,6 +42,7 @@ src/symbols/check.tiko
 src/symbols/structpick.tiko
 src/symbols/formatcheck.tiko
 src/symbols/castpick.tiko
+src/symbols/checkslice.tiko
 src/symbols/semwalk.tiko
 src/symbols/sem.tiko
 src/symbols/semsweep.tiko
@@ -48,6 +50,7 @@ src/symbols/semlate.tiko
 src/symbols/semdecl.tiko
 src/symbols/semproc.tiko
 src/symbols/methodassign.tiko
+src/symbols/semslice.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko
 src/symbols/semiface.tiko
@@ -90,6 +93,7 @@ src/mir/lowerintr.tiko
 src/mir/lowerselfop.tiko
 src/mir/lowerbf.tiko
 src/mir/lowerqsym.tiko
+src/mir/lowerslice.tiko
 src/mir/lowerusing.tiko
 src/mir/lowerio.tiko
 src/mir/lowerdesc.tiko

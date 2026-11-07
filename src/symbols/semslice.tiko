@@ -1,0 +1,142 @@
+'' semslice.tiko -- what 's[lo to hi]' may be written on, and a constant slice that cannot fit
+'' (docs/tiko-slices RFC-0001 §3, §5). Asked of every N_CALL by latesweeps2.tiko; only the
+'' '__tko_slice' calls parser/sliceexpr.tiko builds answer.
+''
+'' HERE AND NOT IN CHECK: Check types a node more than once, so a report made while typing it
+'' came out twice, and Check has no source manager to fold a constant bound with. The sweep
+'' visits a node once and has both.
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/checkslice.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+'' A bound folded to a constant, or not known.
+private function SliceBound_ _
+    ( byref c as Ctx, byval ix as NodeId, byval at as NodeId, byref v as int64 ) as boolean
+    if c.srcMgr = nullptr then return false
+    dim as ScopeId sc = c.info->ScopeOf( ix )
+    if sc = SCOPE_NONE then sc = c.info->ScopeOf( at )
+    if sc = SCOPE_NONE then sc = SCOPE_GLOBAL
+    dim as Check.ConstVal cv = Check.ConstOf( *c.ast, ix, *c.srcMgr, *c.names, 64, _
+        c.syms, sc, 0, c.types, c.info )
+    if cv.known = false then return false
+    v = cv.value
+    return true
+end function
+
+sub CheckSliceCall_ ( byref c as Ctx, byval id as NodeId )
+    if Slices.IsSliceCall( *c.ast, *c.names, id ) = false then return
+    dim as ListPayload ptr cp = c.ast->ListOf( id )
+    dim as NodeId src = c.ast->ChildAt( cp->first, 0 )
+    dim as TypeId st = c.info->TypeOf_( src )
+    if st = TYPE_NONE then return
+    dim as Slices.SliceSource ss
+    if Slices.SliceSourceOf( *c.types, *c.names, st, ss ) = Slices.SU_NONE then
+        c.diags->Report( TKO1050, PointRange( c.ast->Loc( cp->target ) ), c.types->Name( st ) )
+        return
+    end if
+
+    '' RFC-0001 §5: valid iff 0 <= lo <= hi + 1 <= len. Without the source's length only the
+    '' first two can be judged; 'string * N' has a constant one, and 'zstring * N' holds at
+    '' most N - 1 units whatever is in it.
+    dim as int64 lo, hi
+    dim as boolean loK = SliceBound_( c, c.ast->ChildAt( cp->first, 1 ), id, lo )
+    dim as boolean hiK = SliceBound_( c, c.ast->ChildAt( cp->first, 2 ), id, hi )
+    dim as int64 cap = -1
+    if (ss = Slices.SS_FIXED) orelse (ss = Slices.SS_ZFIXED) then
+        dim as TypeId bt = c.types->Unqualify( st )
+        if c.types->Kind( bt ) = TK_REFERENCE then bt = c.types->Unqualify( c.types->Inner( bt ) )
+        if c.types->Kind( bt ) = TK_ARRAY then
+            cap = c.types->ElemCount( bt )
+            if ss = Slices.SS_ZFIXED then cap -= 1
+        end if
+    end if
+    dim as boolean bad = false
+    if loK andalso (lo < 0) then bad = true
+    if loK andalso hiK andalso (lo > hi + 1) then bad = true
+    if hiK andalso (hi < -1) then bad = true
+    if hiK andalso (cap >= 0) andalso (hi + 1 > cap) then bad = true
+    if bad = false then return
+    dim as string nm = c.types->Name( st )
+    if c.ast->Kind( src ) = N_IDENT then nm = c.names->Spelling( c.ast->IdentOf( src )->name )
+    dim as string upper = "len - 1"
+    if cap >= 0 then upper = str( cap - 1 )
+    c.diags->Report( TKO1051, PointRange( c.ast->Loc( cp->target ) ), _
+        iif( loK, str( lo ), "lo" ) & " to " & iif( hiK, str( hi ), "hi" ), nm, upper )
+end sub
+
+'' CONST TEXT STAYS CONST (RFC-0001 §2, TKO1052). A slice of a literal, a const string or a
+'' temporary is a 'const slice', and handing it to a mutable one would let 'v[i] = x' write
+'' where nothing may. Judged wherever a slice value lands: an initialiser, an assignment, a
+'' 'return', an argument. The reverse, mutable into const, is the ordinary widening.
+private function ConstDropped_ ( byref c as Ctx, byval dst as TypeId, byval src as TypeId ) as boolean
+    if (dst = TYPE_NONE) orelse (src = TYPE_NONE) then return false
+    if Slices.SliceUnitOfType( *c.types, *c.names, dst ) = Slices.SU_NONE then return false
+    if Slices.SliceUnitOfType( *c.types, *c.names, src ) = Slices.SU_NONE then return false
+    '' Through 'v[i]': the element is const exactly when its slice is (SliceElemType).
+    dim as boolean dc = c.types->IsConst( Slices.SliceElemType( *c.types, *c.names, dst ) )
+    dim as boolean sc = c.types->IsConst( Slices.SliceElemType( *c.types, *c.names, src ) )
+    return sc andalso (dc = false)
+end function
+
+private sub ReportDropped_ ( byref c as Ctx, byval at as NodeId, byval dst as TypeId )
+    dim as string nm = "slice"
+    select case Slices.SliceUnitOfType( *c.types, *c.names, dst )
+    case Slices.SU_UTF16 : nm = "uslice"
+    case Slices.SU_WIDE : nm = "wslice"
+    end select
+    c.diags->Report( TKO1052, PointRange( c.ast->Loc( at ) ), nm )
+end sub
+
+sub CheckSliceConst_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
+    select case c.ast->Kind( id )
+    case N_VAR_ITEM
+        dim as StmtPayload ptr ip = c.ast->StmtOf( id )
+        if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
+        if ConstDropped_( c, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) ) then ReportDropped_( c, ip->b, c.info->TypeOf_( ip->a ) )
+    case N_AMBIGUOUS
+        if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
+        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+        if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
+        dim as TypeId lt = c.info->TypeOf_( sp->a )
+        if (lt = TYPE_NONE) andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then lt = resultType
+        if ConstDropped_( c, lt, c.info->TypeOf_( sp->b ) ) then ReportDropped_( c, sp->b, lt )
+    case N_RETURN
+        dim as NodeId e = c.ast->StmtOf( id )->a
+        if e = NODE_NONE then return
+        if ConstDropped_( c, resultType, c.info->TypeOf_( e ) ) then ReportDropped_( c, e, resultType )
+    case N_CALL
+        dim as ListPayload ptr lp = c.ast->ListOf( id )
+        if lp->target = NODE_NONE then return
+        dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
+        if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if callee = nullptr then return
+        if callee->kind <> cast( uint8, SYM_PROC ) then return
+        dim as NodeId decl = cast( NodeId, callee->payload )
+        if decl = NODE_NONE then return
+        if c.ast->Kind( decl ) <> N_PROC then return
+        dim as StmtPayload ptr pp = c.ast->StmtOf( decl )
+        dim as int32 ai = 0
+        for i as int32 = 0 to pp->count - 1
+            dim as NodeId prm = c.ast->ChildAt( pp->first, i )
+            if c.ast->Kind( prm ) <> N_PARAM then continue for
+            if ai >= lp->count then exit for
+            dim as NodeId arg = c.ast->ChildAt( lp->first, ai )
+            ai += 1
+            dim as StmtPayload ptr prp = c.ast->StmtOf( prm )
+            if prp->a = NODE_NONE then continue for
+            dim as TypeId pt = c.info->TypeOf_( prp->a )
+            if ConstDropped_( c, pt, c.info->TypeOf_( arg ) ) then ReportDropped_( c, arg, pt )
+        next
+    end select
+end sub
+
+end namespace

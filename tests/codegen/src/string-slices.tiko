@@ -1,0 +1,52 @@
+'' String slices, P1 (docs/tiko-slices RFC-0001): every source, re-slicing, writes through a
+'' mutable slice, an empty slice, a const slice rebound, a slice passed, returned and taken
+'' of a temporary, and the unit width of each flavour.
+
+function Mid3( byval v as const slice ) as const slice
+    return v[1 to 3]
+end function
+
+function Word( byref s as string, byval a as integer, byval b as integer ) as slice
+    return s[a to b]
+end function
+
+function Text( byval v as const slice ) as string
+    dim as string r = ""
+    for i as integer = 0 to len( v ) - 1
+        r &= chr( v[i] )
+    next
+    return r
+end function
+
+dim as string s = "abcdefgh"
+print "whole " & Text( s[0 to 7] ) & " " & len( s[0 to 7] )
+print "mid3 " & Text( Mid3( s[2 to 6] ) )
+print "word " & Text( Word( s, 4, 5 ) )
+dim as slice v = s[1 to 4]
+var w = v[1 to 2]
+print "reslice " & Text( w ) & " " & len( w )
+v[0] = asc( "B" )
+print "write " & s
+dim as slice e = s[3 to 2]
+print "empty " & len( e )
+dim as string z0 = ""
+print "empty source " & len( z0[0 to -1] )
+dim as const slice k = s[0 to 0]
+k = s[7 to 7]
+print "rebind " & Text( k )
+dim as string t = "QQ"
+print "temp " & Text( (s & t)[6 to 9] )
+dim as string * 6 f = "xyz"
+print "fixed [" & Text( f[0 to 5] ) & "]"
+dim as zstring * 16 zz = "zeta"
+print "zfixed " & Text( zz[1 to 3] ) & " " & len( zz[0 to 3] )
+dim as zstring ptr pz = @zz
+print "ptr " & Text( pz[0 to 2] )
+dim as ustring u = "uvwxyz"
+var us = u[2 to 4]
+print "ustring " & len( us ) & " " & us[0] & " " & us[2] & " " & sizeof( us[0] )
+dim as ustring * 10 uf = "hello"
+print "ufixed " & len( uf[0 to 4] ) & " " & uf[0 to 4][4]
+dim as wstring * 10 wf = "wide"
+var wfs = wf[1 to 3]
+print "wfixed " & len( wfs ) & " " & wfs[0]

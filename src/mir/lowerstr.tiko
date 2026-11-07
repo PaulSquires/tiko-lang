@@ -983,6 +983,7 @@ function LowerLen _
     end scope
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
+    if (isSizeof = false) andalso LowerSliceLen( c, a, outv ) then return true   '' a string slice, lowerslice.tiko
     '' 'sizeof' OF A WIDE CONSTANT is (chars + 1) * wchar -- lowerwstrof.tiko WideConstChars_.
     if isSizeof andalso (WideConstChars_( c, a ) >= 0) then
         outv = ConstInt( c, (WideConstChars_( c, a ) + 1) * c.types->target.wcharBytes, MT_I64 )

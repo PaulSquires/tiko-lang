@@ -9,6 +9,7 @@
 #include once "diag/diagids.ti"
 #include once "symbols/check.ti"
 #include once "symbols/modsym.ti"
+#include once "symbols/checkslice.ti"
 #include once "types/udtlayout.ti"
 
 namespace Tko.Sem

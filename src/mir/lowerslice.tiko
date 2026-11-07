@@ -1,0 +1,289 @@
+'' lowerslice.tiko -- STRING SLICES (docs/tiko-slices RFC-0001): building one from
+'' 's[lo to hi]', 'len( v )', and the unit size 'v[i]' indexes by.
+''
+'' A slice is a prelude TYPE of three words (parser/prelude.tiko):
+''
+''     +0   data     the first code unit
+''     +8   len      code units
+''     +16  anchor   the source's descriptor, or null (RFC-0002 §7)
+''
+'' so passing, returning and copying one is the ordinary aggregate path and only its
+'' CONSTRUCTION is new. The '__tko_slice( src, lo, hi )' call parser/sliceexpr.tiko builds
+'' is lowered here into a temporary filled field by field.
+''
+'' THE RANGE IS CHECKED IN EVERY BUILD (RFC-0001 §5): valid iff 0 <= lo <= hi + 1 <= len,
+'' two unsigned compares, so no slice is ever born out of range. A failure reports through
+'' the runtime's existing bound check -- 'hi' against -1 .. len - 1, else 'lo' against
+'' 0 .. hi + 1 -- runtime error 6, the source named as an array is. No new runtime entry,
+'' so nothing to repackage.
+
+#import "std/containers"
+#include once "mir/lowerall.ti"
+
+namespace Tko.Mir
+
+using Tko
+
+private function Fld_( byref c as Ctx, byref base_ as MirValue, byval off as int32 ) as MirValue
+    dim as MirInst fa
+    fa.op = cast( uint16, M_FIELD_ADDR )
+    fa.ty = cast( uint8, MT_PTR )
+    fa.a = base_
+    fa.imm = off
+    return Emit( c, fa )
+end function
+
+private function Op2_ _
+    ( byref c as Ctx, byval op as MirOp, byval ty as MirType, _
+      byref a as MirValue, byref b as MirValue ) as MirValue
+    dim as MirInst i
+    i.op = cast( uint16, op )
+    i.ty = cast( uint8, ty )
+    i.a = a
+    i.b = b
+    return Emit( c, i )
+end function
+
+private sub Store_( byref c as Ctx, byref addr as MirValue, byref v as MirValue )
+    dim as MirInst st_
+    st_.op = cast( uint16, M_STORE )
+    st_.ty = cast( uint8, MT_VOID )
+    st_.a = addr
+    st_.b = v
+    Emit( c, st_ )
+end sub
+
+private function Local_( byval slot as int32 ) as MirValue
+    dim as MirValue a
+    a.kind = cast( uint8, MV_LOCAL )
+    a.ty = cast( uint8, MT_PTR )
+    a.id = slot
+    return a
+end function
+
+'' THE BYTES OF ONE CODE UNIT of a slice type, or 0 when t is not a slice.
+function SliceUnitBytes( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    select case Slices.SliceUnitOfType( *c.types, *c.names, t )
+    case Slices.SU_NARROW : return 1
+    case Slices.SU_UTF16 : return 2
+    case Slices.SU_WIDE : return c.types->target.wcharBytes
+    end select
+    return 0
+end function
+
+'' THE STORAGE OF A SLICE-TYPED EXPRESSION: a variable's own address, or a value -- a call's
+'' result, another slice expression -- spilled to a temporary.
+function SliceStorage( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    dim as MirValue none_
+    dim as Tko.NodeId u = Unparen_( c, e )
+    if c.ast->Kind( u ) <> Tko.N_CALL then
+        dim as MirValue a = LowerAddr( c, u )
+        if a.kind <> cast( uint8, MV_NONE ) then return a
+    end if
+    dim as MirValue v = LowerExpr( c, u )
+    if v.kind = cast( uint8, MV_NONE ) then return none_
+    dim as int32 slot = NewTempLocal( c, MT_AGG, SizeOfType( c, c.info->TypeOf_( u ) ) )
+    if slot < 0 then return none_
+    dim as MirValue sa = Local_( slot )
+    StoreThrough( c, sa, v )
+    return sa
+end function
+
+'' 'len( v )' over a slice: its second word. False for anything else.
+function LowerSliceLen _
+    ( byref c as Ctx, byval a as Tko.NodeId, byref outv as MirValue ) as boolean
+    if SliceUnitBytes( c, c.info->TypeOf_( a ) ) = 0 then return false
+    dim as MirValue sa = SliceStorage( c, a )
+    if sa.kind = cast( uint8, MV_NONE ) then return false
+    outv = LowerExprLoad( c, Fld_( c, sa, 8 ), MT_I64 )
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+'' A failed range: reported through fb_ArrayBoundChkEx, which raises error 6 with a message
+'' naming the source. Called only once the bound is known to be out, so the call does not
+'' return unless an ON ERROR handler resumes -- the jump it hands back goes there.
+private sub RangeFail_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval src as Tko.NodeId, _
+      byref iv as MirValue, byref lov as MirValue, byref hiv as MirValue )
+    dim as Tko.DecodedLoc fd = c.srcMgr->Decode( c.ast->Loc( id ) )
+    dim as string nm = ""
+    dim as Tko.NodeId su = Unparen_( c, src )
+    if c.ast->Kind( su ) = Tko.N_IDENT then nm = ucase( c.names->Spelling( c.ast->IdentOf( su )->name ) )
+    dim as containers.Array( of uint32 ) ba
+    ba.Push( cast( uint32, iv.kind ) ) : ba.Push( cast( uint32, iv.id ) )
+    ba.Push( cast( uint32, lov.kind ) ) : ba.Push( cast( uint32, lov.id ) )
+    ba.Push( cast( uint32, hiv.kind ) ) : ba.Push( cast( uint32, hiv.id ) )
+    dim as MirValue lnv = ConstInt( c, fd.lineNo, MT_I32 )
+    ba.Push( cast( uint32, lnv.kind ) ) : ba.Push( cast( uint32, lnv.id ) )
+    dim as MirValue fv = LowerTextAddr( c, c.srcMgr->PathOf( fd.file ) )
+    ba.Push( cast( uint32, fv.kind ) ) : ba.Push( cast( uint32, fv.id ) )
+    dim as MirValue nv = LowerTextAddr( c, nm )
+    ba.Push( cast( uint32, nv.kind ) ) : ba.Push( cast( uint32, nv.id ) )
+    dim as MirValue r = EmitRtl( c, RTL_ARRAY_BOUND_CHK_EX, ba )
+    if r.kind = cast( uint8, MV_NONE ) then
+        Terminate( c, MTERM_UNREACHABLE, -1, -1, NoVal( ) )
+    else
+        c.errIndirectBlocks.Push( cast( uint32, c.curBlock ) )
+        Terminate( c, MTERM_INDIRECTBR, -1, -1, r )
+    end if
+end sub
+
+'' THE SOURCE'S (data, length, anchor). False when the source has no lowering here.
+private function SourceParts_ _
+    ( byref c as Ctx, byval src as Tko.NodeId, byval ss as Slices.SliceSource, _
+      byval su as Slices.SliceUnit, byref dataV as MirValue, byref lenV as MirValue, _
+      byref anchorV as MirValue, byref lenKnown as boolean ) as boolean
+
+    lenKnown = true
+    anchorV = ConstInt( c, 0, MT_PTR )
+    dim as Tko.TypeId st = c.info->TypeOf_( src )
+    dim as Tko.NodeId u = Unparen_( c, src )
+    select case ss
+    case Slices.SS_SLICE
+        dim as MirValue sa = SliceStorage( c, u )
+        if sa.kind = cast( uint8, MV_NONE ) then return false
+        dataV = LowerExprLoad( c, Fld_( c, sa, 0 ), MT_PTR )
+        lenV = LowerExprLoad( c, Fld_( c, sa, 8 ), MT_I64 )
+        anchorV = LowerExprLoad( c, Fld_( c, sa, 16 ), MT_PTR )
+    case Slices.SS_DESC
+        '' A VARIABLE'S DESCRIPTOR IS THE ANCHOR; a temporary's -- a call, a concatenation --
+        '' ends with the statement, so it anchors nothing (RFC-0002 §4).
+        dim as MirValue da
+        dim as boolean temp_ = false
+        dim as boolean computed = (c.ast->Kind( u ) = Tko.N_BINARY)
+        if c.ast->Kind( u ) = Tko.N_CALL then
+            '' AN ARRAY ELEMENT IS SPELLED LIKE A CALL until resolved; a real call is a result.
+            dim as Tko.Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( c.ast->ListOf( u )->target ) )
+            computed = (ts = nullptr) orelse (ts->kind = cast( uint8, Tko.SYM_PROC ))
+        end if
+        if computed = false then da = LowerAddr( c, u )
+        if da.kind = cast( uint8, MV_NONE ) then
+            if StrDescriptorOf_( c, u, da ) = false then return false
+            temp_ = true
+        end if
+        if da.kind = cast( uint8, MV_NONE ) then return false
+        dataV = LowerExprLoad( c, Fld_( c, da, 0 ), MT_PTR )
+        '' THE LENGTH'S SIGN BIT IS THE TEMPORARY FLAG (FB_TEMPSTRBIT): masked, as FB_STRSIZE does.
+        dim as MirValue rawLen = LowerExprLoad( c, Fld_( c, da, 8 ), MT_I64 )
+        dim as MirValue mask = ConstInt( c, &h7FFFFFFFFFFFFFFFll, MT_I64 )
+        lenV = Op2_( c, M_AND, MT_I64, rawLen, mask )
+        if temp_ = false then anchorV = da
+    case Slices.SS_FIXED
+        dataV = LowerAddr( c, u )
+        if dataV.kind = cast( uint8, MV_NONE ) then return false
+        dim as Tko.TypeId bt = c.types->Unqualify( st )
+        if c.types->Kind( bt ) = Tko.TK_REFERENCE then bt = c.types->Unqualify( c.types->Inner( bt ) )
+        lenV = ConstInt( c, c.types->ElemCount( bt ), MT_I64 )
+    case Slices.SS_ZFIXED
+        '' UP TO THE NUL, as LEN measures it (RFC-0001 §4) -- the same three runtime calls.
+        dataV = LowerAddr( c, u )
+        if dataV.kind = cast( uint8, MV_NONE ) then return false
+        dim as Tko.TypeId bt = c.types->Unqualify( st )
+        if c.types->Kind( bt ) = Tko.TK_REFERENCE then bt = c.types->Unqualify( c.types->Inner( bt ) )
+        dim as int64 n = c.types->ElemCount( bt )
+        dim as containers.Array( of uint32 ) la
+        la.Push( cast( uint32, dataV.kind ) ) : la.Push( cast( uint32, dataV.id ) )
+        select case su
+        case Slices.SU_NARROW
+            dim as MirValue nv = ConstInt( c, n, MT_I64 )
+            la.Push( cast( uint32, nv.kind ) ) : la.Push( cast( uint32, nv.id ) )
+            lenV = EmitRtl( c, RTL_STR_LEN, la )
+        case Slices.SU_UTF16
+            PushStrLen_( c, la, &h8000000000000000ll or (n - 1) )
+            lenV = EmitRtl( c, RTL_USTR_LEN, la )
+        case else
+            lenV = EmitRtl( c, RTL_WSTR_LEN, la )
+        end select
+    case Slices.SS_PTR
+        dataV = LowerExpr( c, u )
+        lenKnown = false
+        lenV = ConstInt( c, 0, MT_I64 )
+    case else
+        return false
+    end select
+    return (dataV.kind <> cast( uint8, MV_NONE )) andalso (lenV.kind <> cast( uint8, MV_NONE ))
+end function
+
+'' '__tko_slice( src, lo, hi )' -- the slice VALUE.
+function LowerSliceCall _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if Slices.IsSliceCall( *c.ast, *c.names, id ) = false then return false
+    dim as Tko.TypeId rt = c.info->TypeOf_( id )
+    dim as int32 ub = SliceUnitBytes( c, rt )
+    if ub = 0 then return false
+    dim as Tko.ListPayload ptr cp = c.ast->ListOf( id )
+    dim as Tko.NodeId src = c.ast->ChildAt( cp->first, 0 )
+    dim as Slices.SliceSource ss
+    dim as Slices.SliceUnit su = Slices.SliceSourceOf( *c.types, *c.names, c.info->TypeOf_( src ), ss )
+    if su = Slices.SU_NONE then return false
+
+    dim as MirValue dataV, lenV, anchorV
+    dim as boolean lenKnown
+    if SourceParts_( c, src, ss, su, dataV, lenV, anchorV, lenKnown ) = false then return false
+
+    dim as Tko.NodeId loN = c.ast->ChildAt( cp->first, 1 )
+    dim as Tko.NodeId hiN = c.ast->ChildAt( cp->first, 2 )
+    dim as MirValue lo = LowerExpr( c, loN )
+    dim as MirValue hi = LowerExpr( c, hiN )
+    if (lo.kind = cast( uint8, MV_NONE )) orelse (hi.kind = cast( uint8, MV_NONE )) then return false
+    lo = CoerceTy( c, lo, MT_I64, c.info->TypeOf_( loN ) )
+    hi = CoerceTy( c, hi, MT_I64, c.info->TypeOf_( hiN ) )
+    dim as MirValue one = ConstInt( c, 1, MT_I64 )
+    dim as MirValue hi1 = Op2_( c, M_ADD, MT_I64, hi, one )
+
+    '' 0 <= lo <= hi + 1 <= len, as two unsigned compares: a negative value is enormous
+    '' unsigned and fails whichever compare it is in. A pointer has no length, so only
+    '' lo <= hi + 1 and hi + 1 >= 0 are asked of one.
+    dim as MirValue okHi
+    if lenKnown then
+        okHi = Op2_( c, M_ICMP_ULE, MT_I8, hi1, lenV )
+    else
+        dim as MirValue z = ConstInt( c, 0, MT_I64 )
+        okHi = Op2_( c, M_ICMP_SGE, MT_I8, hi1, z )
+    end if
+    dim as MirValue okLo = Op2_( c, M_ICMP_ULE, MT_I8, lo, hi1 )
+    dim as MirValue ok = Op2_( c, M_AND, MT_I8, okHi, okLo )
+
+    '' ALL FOUR BLOCKS FIRST, then filled in that order -- see EmitErrorJump_
+    '' (lowerboundchk.tiko): a block is an extent over the function's one list.
+    dim as int32 failB = NewBlock( c, "slicebad" )
+    dim as int32 failHiB = NewBlock( c, "slicebadhi" )
+    dim as int32 failLoB = NewBlock( c, "slicebadlo" )
+    dim as int32 contB = NewBlock( c, "sliceok" )
+    Terminate( c, MTERM_CONDBR, contB, failB, ok )
+    c.curBlock = failB
+    Terminate( c, MTERM_CONDBR, failLoB, failHiB, okHi )
+    c.curBlock = failHiB
+    dim as MirValue mOne = ConstInt( c, -1, MT_I64 )
+    dim as MirValue lenM1
+    if lenKnown then
+        lenM1 = Op2_( c, M_SUB, MT_I64, lenV, one )
+    else
+        lenM1 = ConstInt( c, &h7FFFFFFFFFFFFFFFll, MT_I64 )
+    end if
+    RangeFail_( c, id, src, hi, mOne, lenM1 )
+    c.curBlock = failLoB
+    dim as MirValue zero = ConstInt( c, 0, MT_I64 )
+    RangeFail_( c, id, src, lo, zero, hi1 )
+    c.curBlock = contB
+
+    dim as MirValue off = lo
+    if ub <> 1 then
+        dim as MirValue ubv = ConstInt( c, ub, MT_I64 )
+        off = Op2_( c, M_MUL, MT_I64, lo, ubv )
+    end if
+    dim as MirValue p = Op2_( c, M_PTR_ADD, MT_PTR, dataV, off )
+    dim as MirValue n = Op2_( c, M_SUB, MT_I64, hi1, lo )
+
+    dim as int32 slot = NewTempLocal( c, MT_AGG, SizeOfType( c, rt ) )
+    if slot < 0 then return false
+    dim as MirValue sa = Local_( slot )
+    Store_( c, Fld_( c, sa, 0 ), p )
+    Store_( c, Fld_( c, sa, 8 ), n )
+    Store_( c, Fld_( c, sa, 16 ), anchorV )
+    outv = LowerExprLoad( c, sa, MT_AGG, SizeOfType( c, rt ) )
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+end namespace

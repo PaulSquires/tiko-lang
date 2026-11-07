@@ -1198,6 +1198,9 @@ private function IntrinsicTableType_ _
         end select
     end if
 
+    '' 's[lo to hi]' -- a STRING SLICE, typed by symbols/checkslice.tiko (docs/tiko-slices).
+    if nm = "__tko_slice" then return Tko.Slices.SliceCallType( *c.ast, *c.syms, *c.types, *c.names, *c.diags, *c.info, cp )
+
     '' '__FB_QUERY_SYMBOL__( query, symbol )' IS AN INTEGER, whatever it is asked --
     '' measured, '#print typeof' of one says INTEGER even for the text queries. Its
     '' SECOND argument is a symbol rather than a value, so nothing about it can be

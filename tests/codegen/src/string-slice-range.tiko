@@ -1,0 +1,6 @@
+'' A slice past its source's end is runtime error 6 in a build WITHOUT -exx
+'' (docs/tiko-slices RFC-0001 §5): no slice is ever born out of range.
+dim as string s = "abcdefgh"
+dim as integer hi = 20
+var v = s[2 to hi]
+print len( v )

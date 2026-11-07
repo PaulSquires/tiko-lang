@@ -1127,6 +1127,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         case Tko.TY_USTRING : dsz = 2
         end select
     end if
+    if dsz = 0 then dsz = SliceUnitBytes( c, pt )   '' a STRING SLICE: field 0 is its data pointer too (lowerslice.tiko)
 
     dim as int32 esz = CharElemSize_( c, pt )
     dim as MirValue base_
@@ -1184,7 +1185,8 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         '' the base is the literal's address, above
     elseif dsz > 0 then
         esz = dsz
-        dim as MirValue desc = LowerAddr( c, sp->target )
+        dim as MirValue desc   '' ...a slice that is a VALUE -- 'u[0 to 4][4]' -- is spilled first
+        if SliceUnitBytes( c, pt ) > 0 then desc = SliceStorage( c, sp->target ) else desc = LowerAddr( c, sp->target )
         if desc.kind = cast( uint8, MV_NONE ) then return none_
         '' Field 0 of the descriptor is its data pointer.
         dim as MirInst fa

@@ -110,6 +110,8 @@ declare function TupleLike_ ( byref c as Ctx, byval t as TypeId ) as boolean
 declare sub CheckRecursiveType_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckSetterOnlyReads_ ( byref c as Ctx )
 declare sub CheckMethodAssigns_ ( byref c as Ctx )
+declare sub CheckSliceCall_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckSliceConst_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
 declare sub CheckPropertyAssigns_ ( byref c as Ctx )
 declare sub CheckStaticCall_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
 declare sub CheckStaticThis_ ( byref c as Ctx )
