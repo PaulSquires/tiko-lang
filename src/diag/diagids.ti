@@ -1148,6 +1148,9 @@
     DIAG( TKO1059, SEV_ERROR,   "cannot return a slice of %0" )
     DIAG( TKO1060, SEV_ERROR,   "%0 cannot capture slice '%1'" )
     DIAG( TKO1061, SEV_ERROR,   "a slice stored through byref parameter '%0' must outlive the call" )
+    '' 1062: RFC-0002 §6, the source lock -- a write that may reallocate a string while a slice of it
+    '' is still to be used, in the same procedure (P4).
+    DIAG( TKO1062, SEV_ERROR,   "'%0' cannot be changed while slice '%1' borrows from it (last used at line %2)" )
 
 #endmacro
 

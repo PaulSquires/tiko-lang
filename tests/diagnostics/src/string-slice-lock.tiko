@@ -1,0 +1,37 @@
+sub Grow( byref s as string )
+    s &= "!"
+end sub
+sub Look( byref s as const string )
+end sub
+dim as string s = "hello world"
+dim as string t = "other"
+var v = s[0 to 4]
+s &= "x"
+print v
+var w = s[0 to 4]
+print w
+s &= "y"
+dim as slice r = s[0 to 1]
+r = t[0 to 1]
+s &= "z"
+print r
+var q = s[0 to 2]
+s[0] = 72
+mid( s, 2, 1 ) = "E"
+Look( s )
+print q
+Grow( s )
+print q
+for i as integer = 1 to 3
+    var a = s[0 to 1]
+    print a
+    s &= "."
+next
+var b = s[0 to 1]
+for i as integer = 1 to 3
+    print b
+    s = s & "."
+next
+dim as string u = "u"
+swap s, u
+print b

@@ -751,4 +751,358 @@ sub CheckSliceLife_ ( byref c as Ctx, byval id as NodeId, byval resultType as Ty
 end sub
 
 
+'' ============================================================ RFC-0002 §6: the source lock (P4)
+''
+'' A string is mutable in place and 's &= "x"' may move its buffer (fb_hStrRealloc), so a slice
+'' of s taken before is left pointing at freed memory. Between a slice's binding and its last
+'' use, a REALLOC-CAPABLE write to what it borrows from is TKO1062 -- within one procedure;
+'' through a callee's byref parameter is the -exx anchor's (P5).
+''
+'' One walk per procedure body (and the module's own code), in source order, keeping:
+''   what each slice or view variable borrows NOW -- string variables and parameters, rebinding
+''     replaces, a field assignment adds;
+''   WRITES that may reallocate -- assignment, '&=', 'let', swap, input, line input, a byref
+''     non-const argument -- over a var-length string or a UDT that may hold one; a write in
+''     place ('s[i] = x', the MID statement) is none;
+''   PENDING writes: a write to s while a slice v borrows s. A later use of v is the error; a
+''     rebinding of v ends it;
+''   per LOOP, the uses and rebindings seen in it: a write inside a loop is also an error when
+''     v was used earlier in the body and not rebound before that use -- the next iteration
+''     reads it.
+
+type LockState
+    as containers.Array( of uint32 ) bv, bs          '' v borrows s, now
+    as containers.Array( of uint32 ) pv, ps, pw      '' pending: v, s, the write's node
+    as containers.Array( of uint8 )  pdone            '' reported or ended
+    as containers.Array( of uint32 ) uv, un, urb      '' use log: v, node, rebind-log count then
+    as containers.Array( of uint32 ) rv               '' rebind log: v
+    as containers.Array( of uint32 ) lpU, lpR, lpP    '' open loops: use, rebind and pending marks
+    as containers.Array( of uint32 ) pq, uq           '' the walk's order of each write and use
+    as uint32 seq
+end type
+
+private function LockLine_( byref c as Ctx, byval n as NodeId ) as int32
+    if c.srcMgr = nullptr then return 0
+    return c.srcMgr->Decode( c.ast->Loc( n ) ).lineNo
+end function
+
+private sub LockReport_( byref c as Ctx, byref st as LockState, byval k as int32, byval useNode as NodeId )
+    if st.pdone[k] <> 0 then return
+    st.pdone[k] = 1
+    dim as Symbol ptr ss = c.syms->SymbolAt( cast( SymbolId, st.ps[k] ) )
+    dim as Symbol ptr vs = c.syms->SymbolAt( cast( SymbolId, st.pv[k] ) )
+    if (ss = nullptr) orelse (vs = nullptr) then return
+    c.diags->Report( TKO1062, PointRange( c.ast->Loc( cast( NodeId, st.pw[k] ) ) ), _
+        c.names->Spelling( ss->name ), c.names->Spelling( vs->name ), str( LockLine_( c, useNode ) ) )
+end sub
+
+'' The variable or parameter at the root of a string expression, for the borrow -- SYMBOL_NONE for
+'' a literal, a temporary or anything through a pointer.
+private function StringRoot_( byref c as Ctx, byval e as NodeId ) as SymbolId
+    e = LifeUnparen_( c, e )
+    select case c.ast->Kind( e )
+    case N_IDENT, N_MEMBER
+        dim as SymbolId r = TargetRoot_( c, e )
+        dim as Symbol ptr s = c.syms->SymbolAt( r )
+        if s = nullptr then return SYMBOL_NONE
+        if (s->kind = cast( uint8, SYM_VARIABLE )) orelse (s->kind = cast( uint8, SYM_PARAMETER )) then return r
+    case N_CALL
+        '' An array element: the array's variable.
+        dim as ListPayload ptr lp = c.ast->ListOf( e )
+        dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if ts <> nullptr then
+            if (ts->kind = cast( uint8, SYM_VARIABLE )) orelse (ts->kind = cast( uint8, SYM_PARAMETER )) then return StringRoot_( c, lp->target )
+        end if
+    end select
+    return SYMBOL_NONE
+end function
+
+'' THE STRINGS A SLICE OR VIEW VALUE BORROWS, appended to out_.
+private sub LockSources_( byref c as Ctx, byref st as LockState, byval e as NodeId, byref out_ as containers.Array( of uint32 ), byval depth as int32 = 0 )
+    if depth > 16 then return
+    e = LifeUnparen_( c, e )
+    if e = NODE_NONE then return
+    select case c.ast->Kind( e )
+    case N_IDENT, N_MEMBER
+        dim as SymbolId r = TargetRoot_( c, e )
+        if r = SYMBOL_NONE then return
+        for i as int32 = 0 to st.bv.Count - 1
+            if st.bv[i] = cast( uint32, r ) then out_.Push( st.bs[i] )
+        next
+    case N_CALL
+        dim as ListPayload ptr lp = c.ast->ListOf( e )
+        if Slices.IsSliceCall( *c.ast, *c.names, e ) then
+            dim as NodeId src = c.ast->ChildAt( lp->first, 0 )
+            if IsSliceT_( c, c.info->TypeOf_( src ) ) then
+                LockSources_( c, st, src, out_, depth + 1 )
+            else
+                dim as SymbolId r = StringRoot_( c, src )
+                if r <> SYMBOL_NONE then out_.Push( cast( uint32, r ) )
+            end if
+            return
+        end if
+        '' A call returning a slice, or iif: every slice argument, every string root argument.
+        for k as int32 = 0 to lp->count - 1
+            dim as NodeId a = c.ast->ChildAt( lp->first, k )
+            if IsSliceT_( c, c.info->TypeOf_( a ) ) then
+                LockSources_( c, st, a, out_, depth + 1 )
+            else
+                dim as SymbolId r = StringRoot_( c, a )
+                if r <> SYMBOL_NONE then out_.Push( cast( uint32, r ) )
+            end if
+        next
+    end select
+end sub
+
+'' MAY A WRITE OF THIS TYPE REALLOCATE: a var-length string, or a UDT, which may hold one.
+private function ReallocType_( byref c as Ctx, byval t as TypeId ) as boolean
+    if t = TYPE_NONE then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )
+    if IsSliceT_( c, t ) then return false
+    select case c.types->Kind( t )
+    case TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case TY_STRING, TY_USTRING : return true
+        end select
+    case TK_UDT
+        return true
+    end select
+    return false
+end function
+
+private sub LockWrite_( byref c as Ctx, byref st as LockState, byval s as SymbolId, byval w as NodeId )
+    if s = SYMBOL_NONE then return
+    for i as int32 = 0 to st.bv.Count - 1
+        if st.bs[i] = cast( uint32, s ) then
+            st.seq += 1
+            st.pv.Push( st.bv[i] ) : st.ps.Push( cast( uint32, s ) ) : st.pw.Push( cast( uint32, w ) ) : st.pdone.Push( 0 ) : st.pq.Push( st.seq )
+        end if
+    next
+end sub
+
+private sub LockUse_( byref c as Ctx, byref st as LockState, byval v as SymbolId, byval n as NodeId )
+    for k as int32 = 0 to st.pv.Count - 1
+        if (st.pv[k] = cast( uint32, v )) andalso (st.pdone[k] = 0) then LockReport_( c, st, k, n )
+    next
+    st.seq += 1
+    st.uv.Push( cast( uint32, v ) ) : st.un.Push( cast( uint32, n ) ) : st.urb.Push( cast( uint32, st.rv.Count ) ) : st.uq.Push( st.seq )
+end sub
+
+'' v is bound to a value borrowing srcs: a whole rebinding replaces what it borrowed and ends
+'' its pending writes; a field assignment adds.
+private sub LockBind_( byref c as Ctx, byref st as LockState, byval v as SymbolId, byref srcs as containers.Array( of uint32 ), byval whole as boolean )
+    if whole then
+        for i as int32 = st.bv.Count - 1 to 0 step -1
+            if st.bv[i] = cast( uint32, v ) then st.bs[i] = 0
+        next
+        for k as int32 = 0 to st.pv.Count - 1
+            if st.pv[k] = cast( uint32, v ) then st.pdone[k] = 1
+        next
+        st.rv.Push( cast( uint32, v ) )
+    end if
+    for j as int32 = 0 to srcs.Count - 1
+        st.bv.Push( cast( uint32, v ) ) : st.bs.Push( srcs[j] )
+    next
+end sub
+
+'' A slice or view variable a node names, or SYMBOL_NONE.
+private function SliceVar_( byref c as Ctx, byval e as NodeId ) as SymbolId
+    dim as SymbolId r = c.info->RefOf( e )
+    dim as Symbol ptr s = c.syms->SymbolAt( r )
+    if s = nullptr then return SYMBOL_NONE
+    if (s->kind <> cast( uint8, SYM_VARIABLE )) andalso (s->kind <> cast( uint8, SYM_PARAMETER )) then return SYMBOL_NONE
+    if IsSliceT_( c, s->type_ ) = false then return SYMBOL_NONE
+    return r
+end function
+
+declare sub LockWalk_( byref c as Ctx, byref st as LockState, byval id as NodeId, byval root as NodeId )
+
+'' A slice-typed dim item's symbol: its binding, a lookup where it was declared, or the symbol whose
+'' declaration it is (CheckSliceLife_ meets the same empty binding).
+private function ItemSym_( byref c as Ctx, byval id as NodeId ) as SymbolId
+    dim as StmtPayload ptr ip = c.ast->StmtOf( id )
+    '' 'var v = s[0 to 4]' WRITES NO TYPE: its value's type is the slice's.
+    dim as TypeId wt = TYPE_NONE
+    if ip->a <> NODE_NONE then wt = c.info->TypeOf_( ip->a ) else wt = c.info->TypeOf_( ip->b )
+    if IsSliceT_( c, wt ) = false then return SYMBOL_NONE
+    dim as SymbolId sid = c.info->RefOf( id )
+    if sid = SYMBOL_NONE then sid = c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false )
+    if sid = SYMBOL_NONE then
+        for si as int32 = 1 to c.syms->symbols.Count - 1
+            if (c.syms->symbols[si].payload = cast( uint32, id )) andalso (c.syms->symbols[si].kind = cast( uint8, SYM_VARIABLE )) then return cast( SymbolId, si )
+        next
+    end if
+    return sid
+end function
+
+private sub LockLoopEnd_( byref c as Ctx, byref st as LockState )
+    dim as int32 top = st.lpU.Count - 1
+    dim as int32 uStart = cast( int32, st.lpU[top] ), rStart = cast( int32, st.lpR[top] ), pStart = cast( int32, st.lpP[top] )
+    for k as int32 = pStart to st.pv.Count - 1
+        if st.pdone[k] <> 0 then continue for
+        '' A use of v in this loop BEFORE the write, with no rebinding of v in the loop before it.
+        for u as int32 = uStart to st.uv.Count - 1
+            if st.uv[u] <> st.pv[k] then continue for
+            if st.uq[u] >= st.pq[k] then continue for
+            dim as boolean rebound = false
+            for r as int32 = rStart to cast( int32, st.urb[u] ) - 1
+                if st.rv[r] = st.pv[k] then rebound = true : exit for
+            next
+            if rebound = false then LockReport_( c, st, k, cast( NodeId, st.un[u] ) ) : exit for
+        next
+    next
+    st.lpU.Pop( ) : st.lpR.Pop( ) : st.lpP.Pop( )
+end sub
+
+sub LockWalk_( byref c as Ctx, byref st as LockState, byval id as NodeId, byval root as NodeId )
+    if (id = NODE_NONE) orelse c.diags->Stopped( ) then return
+    dim as NodeKind k = c.ast->Kind( id )
+    '' A NESTED PROCEDURE or type is walked as its own body.
+    if (id <> root) andalso ((k = N_PROC) orelse (k = N_TYPE)) then return
+    select case k
+    case N_IDENT
+        dim as SymbolId v = SliceVar_( c, id )
+        if v <> SYMBOL_NONE then LockUse_( c, st, v, id )
+        return
+    case N_BINARY
+        LockWalk_( c, st, c.ast->BinaryOf( id )->lhs, root )
+        LockWalk_( c, st, c.ast->BinaryOf( id )->rhs, root )
+        return
+    case N_MEMBER
+        LockWalk_( c, st, c.ast->BinaryOf( id )->lhs, root )
+        return
+    case N_UNARY, N_ADDROF, N_DEREF
+        LockWalk_( c, st, c.ast->UnaryOf( id )->operand, root )
+        return
+    case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT, N_NEW
+        dim as ListPayload ptr lp = c.ast->ListOf( id )
+        if k <> N_NEW then LockWalk_( c, st, lp->target, root )
+        for i as int32 = 0 to lp->count - 1
+            LockWalk_( c, st, c.ast->ChildAt( lp->first, i ), root )
+        next
+        '' A STRING PASSED BYREF to a non-const parameter may be reassigned by the callee.
+        if k = N_CALL then
+            dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
+            if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+            if callee <> nullptr then
+                if (callee->kind = cast( uint8, SYM_PROC )) andalso (callee->payload <> 0) then
+                    dim as NodeId decl = cast( NodeId, callee->payload )
+                    if c.ast->Kind( decl ) = N_PROC then
+                        dim as StmtPayload ptr pp = c.ast->StmtOf( decl )
+                        dim as int32 ai = 0
+                        for i as int32 = 0 to pp->count - 1
+                            dim as NodeId prm = c.ast->ChildAt( pp->first, i )
+                            if c.ast->Kind( prm ) <> N_PARAM then continue for
+                            if ai >= lp->count then exit for
+                            dim as NodeId arg = c.ast->ChildAt( lp->first, ai )
+                            ai += 1
+                            if (c.ast->Flags( prm ) and NF_BYREF) = 0 then continue for
+                            dim as TypeId pt = c.info->TypeOf_( c.ast->StmtOf( prm )->a )
+                            if (pt = TYPE_NONE) orelse c.types->IsConst( pt ) then continue for
+                            if ReallocType_( c, pt ) then LockWrite_( c, st, StringRoot_( c, arg ), id )
+                        next
+                    end if
+                end if
+            end if
+        end if
+        return
+    end select
+    '' Any other expression -- a literal, a closure, an intrinsic-shaped one -- has nothing to walk.
+    if (NodeKindCategory( k ) <> NCAT_STMT) andalso (NodeKindCategory( k ) <> NCAT_DECL) then return
+
+    if (k = N_MODULE) orelse (k = N_BLOCK) then
+        dim as ListPayload ptr lp = c.ast->ListOf( id )
+        for i as int32 = 0 to lp->count - 1
+            LockWalk_( c, st, c.ast->ChildAt( lp->first, i ), root )
+        next
+        return
+    end if
+
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+    select case k
+    case N_VAR_ITEM
+        LockWalk_( c, st, sp->b, root )
+        dim as SymbolId v = ItemSym_( c, id )
+        if (v <> SYMBOL_NONE) andalso (sp->b <> NODE_NONE) andalso IsSliceT_( c, c.syms->SymbolAt( v )->type_ ) then
+            dim as containers.Array( of uint32 ) srcs
+            LockSources_( c, st, sp->b, srcs )
+            LockBind_( c, st, v, srcs, true )
+        end if
+        return
+    case N_AMBIGUOUS
+        if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then exit select
+        LockWalk_( c, st, sp->b, root )
+        dim as NodeId lhs = LifeUnparen_( c, sp->a )
+        dim as SymbolId tr = TargetRoot_( c, lhs )
+        if tr = SYMBOL_NONE then
+            '' 'a[i] = x', 'mid( a, ... ) = x', '*p = x': the target expression's own uses.
+            LockWalk_( c, st, sp->a, root )
+            return
+        end if
+        '' A field of a variable reads the variable's other fields: walk the base's uses.
+        if c.ast->Kind( lhs ) = N_MEMBER then LockWalk_( c, st, c.ast->BinaryOf( lhs )->lhs, root )
+        dim as Symbol ptr ts = c.syms->SymbolAt( tr )
+        if (ts <> nullptr) andalso IsSliceT_( c, ts->type_ ) andalso IsSliceT_( c, c.info->TypeOf_( lhs ) ) then
+            dim as containers.Array( of uint32 ) srcs
+            LockSources_( c, st, sp->b, srcs )
+            LockBind_( c, st, tr, srcs, c.ast->Kind( lhs ) = N_IDENT )
+        elseif ReallocType_( c, c.info->TypeOf_( lhs ) ) then
+            LockWrite_( c, st, tr, id )
+        end if
+        return
+    case N_INTRINSIC
+        select case cast( TokenKind, sp->op )
+        case KW_SWAP, KW_INPUT, KW_LINE
+            '' The operands: in 'a' / 'b' for some statements, in the child list for others.
+            dim as NodeId opnd( 1 ) = { sp->a, sp->b }
+            for i as int32 = 0 to 1
+                if opnd( i ) = NODE_NONE then continue for
+                if ReallocType_( c, c.info->TypeOf_( opnd( i ) ) ) then LockWrite_( c, st, StringRoot_( c, opnd( i ) ), id )
+            next
+            for i as int32 = 0 to sp->count - 1
+                dim as NodeId a = c.ast->ChildAt( sp->first, i )
+                if ReallocType_( c, c.info->TypeOf_( a ) ) then LockWrite_( c, st, StringRoot_( c, a ), id )
+            next
+        end select
+    case N_FOR, N_FOREACH, N_DO, N_WHILE
+        st.lpU.Push( cast( uint32, st.uv.Count ) ) : st.lpR.Push( cast( uint32, st.rv.Count ) ) : st.lpP.Push( cast( uint32, st.pv.Count ) )
+        LockWalk_( c, st, sp->a, root )
+        LockWalk_( c, st, sp->b, root )
+        LockWalk_( c, st, sp->c, root )
+        for i as int32 = 0 to sp->count - 1
+            LockWalk_( c, st, c.ast->ChildAt( sp->first, i ), root )
+        next
+        LockLoopEnd_( c, st )
+        return
+    end select
+    LockWalk_( c, st, sp->a, root )
+    LockWalk_( c, st, sp->b, root )
+    LockWalk_( c, st, sp->c, root )
+    for i as int32 = 0 to sp->count - 1
+        LockWalk_( c, st, c.ast->ChildAt( sp->first, i ), root )
+    next
+end sub
+
+'' One procedure body, or the module's own statements -- only in a unit that declares a slice or
+'' view variable or parameter at all, asked once (sliceGenSeen key 1: 1 none, 2 some), so a
+'' program without slices pays for no walk.
+sub CheckSliceLock_ ( byref c as Ctx, byval id as NodeId )
+    dim as int32 any_ = 0
+    if c.sliceGenSeen.TryGet( 1, any_ ) = false then
+        any_ = 1
+        for si as int32 = 1 to c.syms->symbols.Count - 1
+            dim as Symbol ptr s = @c.syms->symbols[si]
+            if (s->kind <> cast( uint8, SYM_VARIABLE )) andalso (s->kind <> cast( uint8, SYM_PARAMETER )) then continue for
+            if s->type_ = TYPE_NONE then continue for
+            if IsSliceT_( c, s->type_ ) then any_ = 2 : exit for
+        next
+        c.sliceGenSeen.Put( 1, any_ )
+    end if
+    if any_ <> 2 then return
+    dim as LockState st
+    LockWalk_( c, st, id, id )
+end sub
+
+
 end namespace
