@@ -1912,6 +1912,103 @@ public sub DebugVarsPass( byref t as Tally, byval sc as single )
     mw.Destroy( )
 end sub
 
+' ================================================================ the debugger: macOS says no
+
+' A stand-in lldb-dap (python3): it answers every request, and refuses the launch with the words
+' macOS's debugserver used when Developer Mode was off (measured over ssh, 2026-11-07).
+private function FakeDapScript( ) as ustring
+    dim as ustring nl = chr( 10 )
+    return "#!/usr/bin/env python3" & nl & _
+        "import sys, json" & nl & _
+        "inp = sys.stdin.buffer" & nl & _
+        "out = sys.stdout.buffer" & nl & _
+        "seq = [0]" & nl & _
+        "def send(m):" & nl & _
+        "    seq[0] += 1" & nl & _
+        "    m['seq'] = seq[0]" & nl & _
+        "    b = json.dumps(m).encode()" & nl & _
+        "    out.write(b'Content-Length: %d\r\n\r\n' % len(b) + b)" & nl & _
+        "    out.flush()" & nl & _
+        "def read():" & nl & _
+        "    n = 0" & nl & _
+        "    while True:" & nl & _
+        "        line = inp.readline()" & nl & _
+        "        if not line: return None" & nl & _
+        "        line = line.strip()" & nl & _
+        "        if not line: break" & nl & _
+        "        if line.lower().startswith(b'content-length:'): n = int(line.split(b':')[1])" & nl & _
+        "    return json.loads(inp.read(n))" & nl & _
+        "launch = None" & nl & _
+        "while True:" & nl & _
+        "    m = read()" & nl & _
+        "    if m is None: break" & nl & _
+        "    c = m.get('command')" & nl & _
+        "    r = {'type': 'response', 'request_seq': m['seq'], 'command': c, 'success': True, 'body': {}}" & nl & _
+        "    if c == 'launch':" & nl & _
+        "        launch = m['seq']" & nl & _
+        "        send({'type': 'event', 'event': 'initialized'})" & nl & _
+        "        continue" & nl & _
+        "    if c == 'setFunctionBreakpoints': r['body'] = {'breakpoints': [{'id': 1, 'verified': False}]}" & nl & _
+        "    send(r)" & nl & _
+        "    if c == 'configurationDone' and launch:" & nl & _
+        "        send({'type': 'response', 'request_seq': launch, 'command': 'launch', 'success': False, 'body': {'error': {'id': 3, " & _
+        "'format': 'process exited with status -1 (this is a non-interactive debug session, cannot get permission to debug processes.)', " & _
+        "'showUser': True}}})" & nl & _
+        "    if c == 'disconnect': break" & nl
+end function
+
+' Linux / macOS: the session refused as macOS refuses it -- the status line and the Debug tab say
+' what to do (Developer Mode), not debugserver's words, and the session is over. (Windows attaches
+' instead of launching: nothing there asks this permission.)
+public sub DebugFailPass( byref t as Tally, byval sc as single )
+    if platform.CurrentOs( ) = platform.Os.Windows then exit sub
+    dim as ustring tk = TestCompiler( )
+    if (len( tk ) = 0) orelse (len( platform.FindOnPath( "python3" ) ) = 0) then
+        print "debug fail: no tiko or no python3: skipped"
+        exit sub
+    end if
+    dim as ustring cfg = FreshConfig( )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "dbgfail" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = chr( 10 )
+    dim as ustring mainF = fs.PathJoin( dir_, "fail.tiko" )
+    fs.WriteAllText( mainF, "dim as long a = 1" & nl & "print a" & nl )
+    dim as ustring fake = fs.PathJoin( cfg, "fake-lldb-dap" )
+    fs.WriteAllText( fake, FakeDapScript( ) )
+    dim as ustring term = fs.PathJoin( cfg, "faketerm" )
+    fs.WriteAllText( term, "#!/bin/sh" & nl & "shift" & nl & "script -qfc ""$*"" /dev/null < /dev/null > /dev/null 2>&1 &" & nl )
+    dim as process.Command c = process.Command( "/bin/chmod" )
+    c.Arg( "+x" ).Arg( fake ).Arg( term )
+    dim as process.Child ch
+    if ch.Spawn( c ).IsOk( ) then ch.Wait( )
+    gDebugTermEnv = "TERMINAL=" & term
+    setenviron gDebugTermEnv
+
+    dim as mainwin.Window mw
+    mw.ConfigDir = cfg
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "debug fail: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    tkTest_PumpFor( tkForm_Host( mw.form ), 100 )
+    mw.Prefs.Tiko = tk
+    mw.Prefs.DebugAdapter = fake
+    mw.OpenFile( mainF )
+    mw.Execute( Cmd.StartDebugging )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "debug fail: built" ) )
+    t.Check( WaitDebug( mw, false ), P( sc, "debug fail: the session ended by itself" ) )
+    dim as ustring want = "macOS did not let the debugger control the program: turn on Developer Mode (sudo DevToolsSecurity -enable), or allow it when macOS asks"
+    t.Check( mw.DbgStatus = want, P( sc, "debug fail: the status line says to turn on Developer Mode: " & mw.DbgStatus ) )
+    t.Check( (mw.Out.Debug.status = want) andalso (mw.Out.current = outputpane.OutputTab.Debug), P( sc, "debug fail: and so does the Debug tab" ) )
+    t.Check( (mw.DebugActive( ) = false) andalso mw.CanRun( Cmd.StartDebugging ) andalso (mw.CanRun( Cmd.StopDebugging ) = false), _
+             P( sc, "debug fail: no session left: Start works again, Stop greyed" ) )
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
 public sub BuildPass( byref t as Tally, byval sc as single )
     dim as ustring tk = TestCompiler( )
     t.Check( len( tk ) > 0, "build: a tiko compiler to build with ($TKEDIT_TIKO)" )

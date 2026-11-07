@@ -177,3 +177,14 @@ public function ExprFromLine( byref text_ as const ustring, byval col as long ) 
     if (len( e ) > 0) andalso (asc( e ) >= 48) andalso (asc( e ) <= 57) then return ""
     return e
 end function
+
+' ---------------------------------------------------------------- why a session did not start
+
+' macOS refused to let the debugger control the program: debugserver says it cannot get permission
+' (measured 2026-11-07, lldb-dap from the Command Line Tools, Developer Mode off: "process exited with
+' status -1 (this is a non-interactive debug session, cannot get permission to debug processes.)").
+' Developer Mode (sudo DevToolsSecurity -enable) is what lets it, or the person allowing it when asked.
+public function IsMacPermission( byref why as const ustring ) as boolean
+    dim as ustring w = lcase( why )
+    return (instr( w, "permission to debug" ) > 0) orelse (instr( w, "not allowed to attach" ) > 0)
+end function

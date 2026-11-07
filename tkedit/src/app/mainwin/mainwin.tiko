@@ -4024,7 +4024,10 @@ sub Window.OnDebugEnded( byval failed as boolean, byval code as long )
     DbgPaused = false
     this.ClearExecLine( )
     Engine_Join( )
-    if failed then
+    if failed andalso debugview.IsMacPermission( gDbgE.lastError ) then
+        ' macOS said no (Developer Mode off): what to do, not debugserver's words (author 2026-11-07)
+        DbgStatus = i18n.Tr( "debug.mac_permission", "macOS did not let the debugger control the program: turn on Developer Mode (sudo DevToolsSecurity -enable), or allow it when macOS asks" )
+    elseif failed then
         DbgStatus = strings.Format( i18n.Tr( "debug.failed", "the debugger could not start the program: {}" ), gDbgE.lastError )
     elseif code = 0 then
         DbgStatus = i18n.Tr( "debug.exited_ok", "Debug target exited normally" )

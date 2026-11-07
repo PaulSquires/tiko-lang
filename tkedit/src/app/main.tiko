@@ -95,6 +95,7 @@ if command( 1 ) = "--selftest" then
     selftest.DebugTabPass( t, 1.75 )
     selftest.DebugPass( t, 1.0 )
     selftest.DebugVarsPass( t, 1.0 )
+    selftest.DebugFailPass( t, 1.0 )
     selftest.IntelPass( t, 1.0 )
     selftest.PolishPass( t, 1.0 )
     selftest.InboxPass( t, 1.0 )

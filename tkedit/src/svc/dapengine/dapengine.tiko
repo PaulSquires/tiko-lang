@@ -674,6 +674,8 @@ private function InitCommands_( ) as string
     return "[" & r & "]"
 end function
 
+' A session that never got going. 'why' is the CAUSE alone -- the host puts "the debugger could not
+' start the program: " in front -- and on macOS may be debugserver's refusal (debugview.IsMacPermission).
 private sub Fail_( byref why as const string )
     gDbgE.lastError = why
     ReleaseHolder_( -1 )
@@ -729,7 +731,7 @@ private function Launch_( ) as boolean
     dim as ulong launchErr = tkd_GetLastError( )
     if ok = 0 then
         Dap_Close( )
-        Fail_( "CreateProcess failed for " & gDbgE.exe & " (error " & launchErr & ")" )
+        Fail_( "CreateProcess failed (error " & launchErr & ")" )
         return false
     end if
     Dap_Adopt( gDbgE.pi.hProcess )
@@ -741,7 +743,7 @@ private function Launch_( ) as boolean
     if WaitInitialized_( ) = false then
         tkd_TerminateProcess( gDbgE.pi.hProcess, 1 )
         Dap_Close( )
-        Fail_( "the debug adapter did not attach to the program" )
+        Fail_( "lldb-dap did not attach to it" )
         return false
     end if
     Configure_( )
@@ -834,13 +836,13 @@ private function Launch_( ) as boolean
     dim as long launchSeq = Dap_Send( "launch", req & "}" )
     if WaitInitialized_( ) = false then
         Dap_Close( )
-        Fail_( "the debug adapter did not start the program" )
+        Fail_( "lldb-dap did not answer" )
         return false
     end if
     Configure_( )
     dim as string resp
     if Dap_Wait( launchSeq, resp, 15000 ) = false then
-        Dap_Close( ) : Fail_( "the debug adapter did not start the program" ) : return false
+        Dap_Close( ) : Fail_( "lldb-dap did not answer" ) : return false
     end if
     JParse( d, resp )
     if JBool( d, JGet( d, 0, "success" ) ) = false then
@@ -848,7 +850,7 @@ private function Launch_( ) as boolean
         dim as string why = JGetStr( d, JGet( d, JGet( d, 0, "body" ), "error" ), "format" )
         if len( why ) = 0 then why = JGetStr( d, 0, "message" )
         Dap_Close( )
-        Fail_( "the program could not be started under the debugger: " & why )
+        Fail_( why )                       ' lldb-dap's own words; the host says what they mean
         return false
     end if
     gDbgE.running = true
