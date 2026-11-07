@@ -151,6 +151,26 @@ private function PropStrCatAssign_ _
     return true
 end function
 
+'' ...AND OVER A USTRING PROPERTY, which is 'p.Name = p.Name & v': the getter's text and the terms
+'' folded into a temporary by the same LowerUStrChain a ustring '&' uses, the setter called with it.
+'' Declined before, and the statement was an internal error (TKO0994) -- ustring being tiko's default
+'' string, '&=' on most string properties. The temporary is a statement temporary, freed after.
+private function PropUStrCatAssign_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    dim as containers.Array( of uint32 ) chain
+    chain.Push( cast( uint32, target ) )
+    FlattenConcat( c, value, chain )
+    dim as int32 rslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if rslot < 0 then return false
+    dim as MirValue rdst
+    rdst.kind = cast( uint8, MV_LOCAL ) : rdst.ty = cast( uint8, MT_PTR ) : rdst.id = rslot
+    ZeroStrDescriptor( c, rdst )
+    if LowerUStrChain( c, rdst, true, chain, false ) = false then return false
+    c.f->locals[rslot].frontendType = c.types->Unqualify( c.info->TypeOf_( target ) )
+    c.strTemps.Push( cast( uint32, rslot ) )
+    return PropertySetValue_( c, target, rdst )
+end function
+
 function LowerConcatAssignStmt _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind ) as boolean
@@ -163,8 +183,9 @@ function LowerConcatAssignStmt _
     end if
 
     if IsStringType( c, tt ) andalso IsSettableProperty_( c, target ) then
-        '' A ustring or wide property is not modelled: declined, never written through the getter.
-        if IsUStringType( c, tt ) orelse (StrTermFlavour_( c, value ) = STF_WIDE) then return false
+        if IsUStringType( c, tt ) then return PropUStrCatAssign_( c, target, value )
+        '' A wide value appended to a narrow property is not modelled: declined, never written through the getter.
+        if StrTermFlavour_( c, value ) = STF_WIDE then return false
         return PropStrCatAssign_( c, target, value )
     end if
     if IsStringType( c, tt ) then

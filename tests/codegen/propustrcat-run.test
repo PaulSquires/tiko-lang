@@ -1,0 +1,15 @@
+'' docs/tiko-properties D8, RUN: '&=' AND '+=' ON A USTRING PROPERTY. The narrow string was fixed and
+'' the ustring declined: each statement was TKO0994. A type's auto-property, a chain reading the
+'' property itself, an indexed property (index evaluated by the get and by the set: 2 calls), a static
+'' one, a namespace's, a ustring and a narrow value appended. tiko-only, checked by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propustrcat.tiko -o tests/codegen/propustrcat.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propustrcat.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: abc-abc-42
+'' EXPECT-RUN-OUT: xy 2
+'' EXPECT-RUN-OUT: j1,j2
+'' EXPECT-RUN-OUT: ns
+'' EXPECT-RUN-OUT: abc-abc-42uN 12

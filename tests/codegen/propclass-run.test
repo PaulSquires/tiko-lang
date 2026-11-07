@@ -1,0 +1,13 @@
+'' docs/tiko-properties R8, RUN: AUTO-PROPERTIES IN A CLASS. 'class ... end class' is parsed apart from
+'' 'type' and wrote no accessor bodies: every auto-property in a class was an undefined symbol at link.
+'' get, set with an initialiser; get (init-only, from the constructor); get, private set; a static
+'' one; an interface property beside them; a generic class. tiko-only, checked by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propclass.tiko -o tests/codegen/propclass.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propclass.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: box! 3 noted 1
+'' EXPECT-RUN-OUT:  30
+'' EXPECT-RUN-OUT:  7 2 2.5 8

@@ -97,10 +97,17 @@ sub FieldInitWalk_( byref c as Ctx, byval init as Tko.NodeId, byval tscope as Tk
 end sub
 
 '' A name in that value which found a non-static field of the same type: an earlier one is refused
-'' (TKO0591), the field itself or a later one is looked up again outside the type.
+'' (TKO0591), the field itself or a later one is looked up again outside the type -- and in a
+'' generic instance, a name that is one of its type parameters is the parameter.
 function FieldInitName_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval nm as Tko.InternId ) as Tko.SymbolId
     if (c.fieldInitSym = Tko.SYMBOL_NONE) orelse (sid = Tko.SYMBOL_NONE) then return sid
+    '' A TYPE PARAMETER of the instance shadows every outer name: 'sizeof( T )' beside a module-level
+    '' 't' is the parameter's size (fbc-modern 1.20: 1 for 'Buf( of byte )', where tiko read the
+    '' variable's 8). Declined here, the name falls to TypeNamedInExpr_, as a method body's does.
+    for gi as int32 = c.gparamName.Count - 1 to 0 step -1
+        if cast( Tko.InternId, c.gparamName[gi] ) = nm then return Tko.SYMBOL_NONE
+    next
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     dim as Tko.Symbol ptr cur = c.syms->SymbolAt( c.fieldInitSym )
     if (s = nullptr) orelse (cur = nullptr) then return sid

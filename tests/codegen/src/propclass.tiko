@@ -1,0 +1,47 @@
+'' Auto-properties in a CLASS (docs/tiko-properties R8): 'class ... end class' is parsed apart from
+'' 'type', and its auto-properties got no accessor bodies -- every use was an undefined symbol at link.
+'' Each accessor kind, a static one, an interface property beside them, and a generic class.
+interface IHas
+    declare property Size( ) as long
+end interface
+
+class Box
+    implements IHas
+    declare property Label as ustring = "box" get, set
+    declare property Id as long get
+    declare property Note as ustring get, private set
+    declare static property Made as long get, private set
+    declare property Sz( ) as long implements IHas.Size
+    declare constructor( byval n as long )
+    declare sub Tag( byval s as ustring )
+end class
+
+constructor Box( byval n as long )
+    Id = n
+    Made += 1
+end constructor
+
+sub Box.Tag( byval s as ustring )
+    Note = s
+end sub
+
+property Box.Sz( ) as long
+    return Id * 10
+end property
+
+class Pair( of T )
+    declare property First as T get, set
+    declare property Width as long = sizeof( T ) get
+end class
+
+dim as Box b = Box( 3 )
+b.Label = b.Label & "!"
+b.Tag( "noted" )
+print b.Label; b.Id; " "; b.Note; Box.Made
+dim as IHas h = @b
+print h.Size
+dim as Pair( of short ) ps
+ps.First = 7
+dim as Pair( of double ) pd
+pd.First = 2.5
+print ps.First; ps.Width; pd.First; pd.Width

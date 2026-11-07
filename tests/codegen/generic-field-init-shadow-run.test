@@ -1,0 +1,10 @@
+'' docs/tiko-properties D10, RUN: A GENERIC'S FIELD INITIALISER NAMES ITS TYPE PARAMETER beside a
+'' module-level 't': the parameter wins, as in a method body. tiko read the variable's sizeof (8) in
+'' every instance. Expected output is fbc-modern 1.20's, measured 2026-11-06.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/generic-field-init-shadow.bas -o tests/codegen/genfieldshadow.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/genfieldshadow.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 2 1 2 4 2 8

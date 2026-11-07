@@ -1,0 +1,60 @@
+'' '&=' AND '+=' ON A USTRING PROPERTY (docs/tiko-properties D8): the narrow string was fixed, the
+'' ustring declined, and the statement was an internal error (TKO0994). A type's auto-property, a
+'' chain that reads the property itself, an indexed property whose index is evaluated by the get
+'' and again by the set, a static one, a namespace's, and a ustring or narrow value appended.
+type Doc
+    declare property Title as ustring = "a" get, set
+    declare property Row( byval i as long ) as ustring
+    declare property Row( byval i as long, byval v as ustring )
+    declare static property Journal as ustring get, set
+private:
+    as ustring rows( 0 to 2 )
+end type
+
+property Doc.Row( byval i as long ) as ustring
+    return rows( i )
+end property
+
+property Doc.Row( byval i as long, byval v as ustring )
+    rows( i ) = v
+end property
+
+namespace Ns
+    dim as ustring held
+    declare property Text( ) as ustring
+    declare property Text( byval v as ustring )
+end namespace
+
+property Ns.Text( ) as ustring
+    return held
+end property
+
+property Ns.Text( byval v as ustring )
+    held = v
+end property
+
+dim shared as long calls
+function Pick( byval i as long ) as long
+    calls += 1
+    return i
+end function
+
+dim as Doc d
+d.Title &= "b"
+d.Title += "c"
+d.Title &= "-" & d.Title & "-" & 42
+print d.Title
+d.Row( 1 ) = "x"
+d.Row( Pick( 1 ) ) &= "y"
+print d.Row( 1 ); calls
+Doc.Journal &= "j1"
+Doc.Journal &= ",j2"
+print Doc.Journal
+Ns.Text = "n"
+Ns.Text &= "s"
+print Ns.Text
+dim as ustring u = "u"
+d.Title &= u
+dim as string nar = "N"
+d.Title += nar
+print d.Title; len( d.Title )

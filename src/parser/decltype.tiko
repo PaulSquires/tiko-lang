@@ -308,12 +308,14 @@ private function ParseClassDecl_( byref p as Tko.ParserState ) as Tko.NodeId
     Advance( p )
     dim as Tko.StmtPayload sp
     sp.rawName = RawSpelling( p )
+    dim as int32 own0 = p.pos     '' the owner's name, which auto-property bodies repeat
     if DeclName( p, sp.name ) = false then return ErrorNode( p, Tko.TKO0406 )
     if (Peek( p ) = Tko.TK_LPAREN) andalso IdentSpelledAt( p, p.pos + 1, "of" ) then
         Advance( p )
         Advance( p )
         sp.b = ParseTypeParams( p )
     end if
+    dim as int32 own1 = iif( sp.b <> Tko.NODE_NONE, p.pos, own0 + 1 )
     dim as string shown = p.names->Spelling( iif( sp.rawName <> 0, sp.rawName, sp.name ) )
     do
         dim as Tko.Token ht = Cur( p )
@@ -352,6 +354,7 @@ private function ParseClassDecl_( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.NodeId tn = ParseAggregateBody( p, t, sp, false )
     p.aggUnion = outerUnion
     if sp.b <> Tko.NODE_NONE then p.ast->RecordTokens( tn, typeTok0, p.pos )
+    AutoPropBodies( p, own0, own1 )   '' a class's auto-properties too, as a type's
     return tn
 end function
 
