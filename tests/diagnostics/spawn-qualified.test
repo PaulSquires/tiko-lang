@@ -1,0 +1,12 @@
+'' TKO0943, fbc's 357: 'spawn' of a method, a pointer's method, a static method or a procedure
+'' inside a namespace. The parser desugars a plain name only; every other callee was left a
+'' bare N_SPAWN, and lowering declined it (TKO0994). See symbols/resolvesynth.tiko SpawnBare_.
+'' TEST: cli
+'' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/diagnostics/src/spawn-qualified.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: spawn-qualified.bas(20,1): error TKO0943: 'spawn' needs a sub or function declared at module level, and 'proc' is not one
+'' EXPECT-OUT: spawn-qualified.bas(21,1): error TKO0943: 'spawn' needs a sub or function declared at module level, and 'deep' is not one
+'' EXPECT-OUT: spawn-qualified.bas(22,1): error TKO0943: 'spawn' needs a sub or function declared at module level, and 'w1' is not one
+'' EXPECT-OUT: spawn-qualified.bas(23,1): error TKO0943: 'spawn' needs a sub or function declared at module level, and 'pw' is not one
+'' EXPECT-OUT: spawn-qualified.bas(24,1): error TKO0943: 'spawn' needs a sub or function declared at module level, and 'wk' is not one
+'' EXPECT-MAX-DIAG: 5

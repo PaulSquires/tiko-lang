@@ -116,15 +116,21 @@ function MakeSpawn_ _
       byval callNode as Tko.NodeId ) as Tko.NodeId
 
     if callNode = Tko.NODE_NONE then return Tko.NODE_NONE
-    if p.ast->Kind( callNode ) <> Tko.N_CALL then return Tko.NODE_NONE
-    dim as Tko.ListPayload ptr cp = _
-        p.ast->ListOf( callNode )
-    if cp->target = Tko.NODE_NONE then return Tko.NODE_NONE
-    '' A PLAIN NAME ONLY. The frame's field types are the CALLEE'S PARAMETER types,
-    '' which Resolve looks up by name from the spawn site's scope; a dotted or
-    '' computed callee has no name to look up and is left to decline rather than
-    '' be guessed at. Every 'spawn' in the corpus names a plain sub.
-    if p.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
+    '' 'spawn W' WITH NO PARENTHESES is a call of no arguments: fbc-modern compiles and runs
+    '' it (measured 2026-11-07; 'spawn W 5' is its error 6, "Expected '('"). Left bare, it
+    '' was TKO0994.
+    dim as boolean bareName = (p.ast->Kind( callNode ) = Tko.N_IDENT)
+    if (bareName = false) andalso (p.ast->Kind( callNode ) <> Tko.N_CALL) then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr cp = nullptr
+    if bareName = false then
+        cp = p.ast->ListOf( callNode )
+        if cp->target = Tko.NODE_NONE then return Tko.NODE_NONE
+        '' A PLAIN NAME ONLY. The frame's field types are the CALLEE'S PARAMETER types,
+        '' which Resolve looks up by name from the spawn site's scope. Any other callee --
+        '' 'obj.Method', 'NS.Proc' -- is fbc's error 357, which Resolve reports on the bare
+        '' N_SPAWN this leaves (resolvesynth.tiko SpawnBare_).
+        if p.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
+    end if
 
     dim as uint32 shash = 0
     dim as Tko.DecodedLoc sd = p.src->Decode( t.loc )
@@ -142,9 +148,15 @@ function MakeSpawn_ _
     '' READ OUT BEFORE ANYTHING ELSE IS BUILT. 'cp' points INTO the list pool, and
     '' every MakeList below appends to it -- one growth and the pointer is stale,
     '' which is a wrong callee and a wrong argument count with nothing to say so.
-    dim as int32 argc = cp->count
-    dim as int32 argFirst = cp->first
-    dim as Tko.NodeId calleeN = cp->target
+    dim as int32 argc = 0
+    dim as int32 argFirst = 0
+    dim as Tko.NodeId calleeN = callNode
+    if bareName = false then
+        argc = cp->count
+        argFirst = cp->first
+        calleeN = cp->target
+    end if
+    if bareName then MarkCallTarget_( p, calleeN )      '' a call now, not a paren-less read
 
     '' ---- the thunk's body
 

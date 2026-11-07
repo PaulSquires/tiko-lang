@@ -1,0 +1,7 @@
+'' 'spawn Hello' with no parentheses: desugared as a call of no arguments -- the thunk calls
+'' HELLO and the site hands it to fb_Spawn. It was TKO0994.
+'' TEST: cli
+'' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/spawn-no-parens.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: call void HELLO()
+'' EXPECT-OUT: call void fb_Spawn(

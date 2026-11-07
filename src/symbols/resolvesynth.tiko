@@ -51,9 +51,9 @@
 private function SpawnByrefParam_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
 
-    '' The callee's name: the desugared form keeps it in 'aliasName', and 'spawn W' with no
-    '' parentheses is not desugared at all -- its bare name is in 'a'. fbc asks for the '('
-    '' AFTER this check, so that form is 358 too.
+    '' The callee's name, which the desugared form keeps in 'aliasName' -- 'spawn W' with no
+    '' parentheses too, since 2026-11-07 (parser/spawn.tiko). fbc asks for the '(' AFTER this
+    '' check, so that form is 358 as well.
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     dim as Tko.InternId cnm = sp->aliasName
     if (cnm = 0) andalso (sp->a <> Tko.NODE_NONE) then cnm = IdentNameOf( c, sp->a )
@@ -98,9 +98,55 @@ private function SpawnNotAProc_ _
     return true
 end function
 
+'' 'spawn' OF A QUALIFIED CALLEE -- 'spawn obj.Method( )', 'spawn p->Method( )',
+'' 'spawn T.StaticMethod( )', 'spawn NS.Proc( )' -- is fbc's error 357 as well. The parser
+'' desugars a plain name only (parser/spawn.tiko) and left every other shape a bare N_SPAWN,
+'' which lowering declined: TKO0994. Measured on fbc-modern 1.20, 2026-11-07, with the name
+'' it reports: 'NS.Proc' -> 'Proc', 'NS.Inner.Deep' -> 'Deep', 'w1.Run' -> 'w1', 'pw->Run'
+'' -> 'pw', 'Wk.SRun' -> 'Wk' -- the first segment that is not a namespace.
+private sub SpawnBare_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+
+    dim as Tko.NodeId e = StmtOf( c, id )->a
+    dim as Tko.NodeId lastId = Tko.NODE_NONE
+    for guard as int32 = 0 to 255
+        if e = Tko.NODE_NONE then exit for
+        select case c.ast->Kind( e )
+        case Tko.N_CALL
+            e = c.ast->ListOf( e )->target
+        case Tko.N_MEMBER
+            dim as Tko.NodeId rhs = c.ast->BinaryOf( e )->rhs
+            if (lastId = Tko.NODE_NONE) andalso (c.ast->Kind( rhs ) = Tko.N_IDENT) then lastId = rhs
+            e = c.ast->BinaryOf( e )->lhs
+        case Tko.N_DEREF, Tko.N_UNARY
+            e = c.ast->UnaryOf( e )->operand
+        case Tko.N_PAREN
+            dim as Tko.ListPayload ptr pl = c.ast->ListOf( e )
+            if pl->count <> 1 then exit for
+            e = cast( Tko.NodeId, c.ast->ChildSlot( pl->first ) )
+        case else
+            exit for
+        end select
+    next
+    dim as string nm = "?"
+    if (e <> Tko.NODE_NONE) andalso (c.ast->Kind( e ) = Tko.N_IDENT) then
+        nm = c.names->Spelling( IdentNameOf( c, e ) )
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.syms->Lookup( scope_, IdentNameOf( c, e ) ) )
+        if (s <> nullptr) andalso (s->kind = cast( uint8, Tko.SYM_NAMESPACE )) andalso (lastId <> Tko.NODE_NONE) then
+            nm = c.names->Spelling( IdentNameOf( c, lastId ) )
+        end if
+    end if
+    c.diags->Report( Tko.TKO0943, Tko.PointRange( c.ast->Loc( id ) ), nm )
+end sub
+
 private sub BuildSpawnFrame_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
 
+    '' A BARE N_SPAWN has no rewritten statements under it: the parser could not desugar it.
+    if StmtOf( c, id )->b = Tko.NODE_NONE then
+        SpawnBare_( c, id, scope_ )
+        return
+    end if
     if SpawnNotAProc_( c, id, scope_ ) then return
     if SpawnByrefParam_( c, id, scope_ ) then return
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
