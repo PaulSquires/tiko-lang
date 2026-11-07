@@ -1,5 +1,5 @@
 '' The parser's interface and class diagnostics, TKO0428-TKO0438 (docs/tiko-interfaces
-'' §13.2), one per line. TKO0431 and TKO0434 are not used (see diagids.ti).
+'' §13.2), one per line. TKO0431 is not used (see diagids.ti); TKO0434 is Collect's (interface-member-body.test).
 '' TEST: cli
 '' ARGS: --dump-ast tests/diagnostics/src/interface-parse-errors.bas
 '' EXPECT-EXIT: 1

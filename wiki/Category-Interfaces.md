@@ -93,6 +93,7 @@ A **constraint**, `of T as I` or `of T as { I, J }`, requires the type argument 
 | TKO0429 | an interface member takes no `virtual`, `static` or access word |
 | TKO0430 | a method's `implements` names `IName.Member` |
 | TKO0432, TKO0433 | a class's base is an `inherits` line; a type's is `extends` on its header |
+| TKO0434 | a body for an interface member, `sub IFoo.Bar( ) ... end sub`: write it in a type that implements the interface |
 | TKO0435 | `inherits` and `implements` lines come first in the body |
 | TKO0436 | `implements` is a line in the body, not a word on the header |
 | TKO0437 | a class cannot be `extern` |

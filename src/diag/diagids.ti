@@ -295,6 +295,8 @@
     '' %0 'class' or 'interface': 'class C extends B' -- the base is a body line.
     DIAG( TKO0432, SEV_ERROR,   "a %0 names its base with an 'inherits' line in its body, not 'extends'" )
     DIAG( TKO0433, SEV_ERROR,   "a type names its base with 'extends' on its header; 'inherits' lines are for classes and interfaces" )
+    '' 'sub IFoo.Bar( ) ... end sub': a definition whose owner is an interface (collect.tiko).
+    DIAG( TKO0434, SEV_ERROR,   "an interface member has no body; write the body in a type that implements it" )
     '' %0 'inherits' or 'implements', written after a member (or 'inherits' after 'implements').
     DIAG( TKO0435, SEV_ERROR,   "'%0' lines come first in the body, before any member" )
     '' 'type T extends B implements I' -- the FreeBASIC header spelling is not taken.

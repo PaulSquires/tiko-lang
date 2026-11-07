@@ -1,0 +1,9 @@
+'' TKO0434: 'sub IGreet.Hi( )' -- a body for an interface member, which has none. It joined
+'' the abstract declaration in silence. The implementing type's own bodies are fine. See
+'' symbols/collect.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/interface-member-body.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: interface-member-body.bas(8,1): error TKO0434
+'' EXPECT-OUT: interface-member-body.bas(11,1): error TKO0434
+'' EXPECT-MAX-DIAG: 2

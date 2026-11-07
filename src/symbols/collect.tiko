@@ -1005,6 +1005,15 @@ sub WalkNode _
                 elseif haveOwner then
                     if os->inner <> Tko.SCOPE_NONE then parentScope = os->inner
                     if ownerIsUdt then CheckModCtorMember_( w, id, sp, os )
+                    '' 'sub IGreet.Bye( ) ... end sub' -- A BODY FOR AN INTERFACE MEMBER, which
+                    '' has none (docs/tiko-interfaces §4.2, its TKO0434). It joined the abstract
+                    '' declaration in silence and was never called: a type that does not
+                    '' implement 'Bye' is still TKO1000, and one that does calls its own.
+                    if ownerIsUdt andalso (sp->b <> Tko.NODE_NONE) then
+                        if w.types->IsInterface( os->type_ ) then
+                            w.diags->Report( Tko.TKO0434, Tko.PointRange( w.ast->Loc( id ) ) )
+                        end if
+                    end if
                 elseif isCtorDtor then
                     '' A STRUCTOR WHOSE OWNER IS NOT VISIBLE HERE. 'constructor UDT( )'
                     '' written outside the namespace that declares UDT is fbc error
