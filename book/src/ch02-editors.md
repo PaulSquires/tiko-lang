@@ -84,6 +84,79 @@ each with its `TKOnnnn` identifier, and are underlined in the source; `Alt+PgDn`
 one to the next. A console program runs in a terminal of its own, which waits for a key when the
 program ends, so its output stays on the screen.
 
+### Debugging
+
+tkEdit can stop your program on a line and show you its variables. It does this through
+**lldb-dap**, the LLVM debugger that editors talk to, reading the DWARF debug information that
+`-g` writes — the same information Chapter 19 reads with lldb from a terminal.
+
+| Key | What it does |
+|---|---|
+| `F9` | Set or remove a breakpoint on the cursor's line |
+| `F6` | Build for debugging and start; in a session, continue to the next stop |
+| `F10` | Step over: the next line, running any call on this one to its end |
+| `F11` | Step into: the next line, inside a procedure this one calls |
+| `Shift+F11` | Step out: run until the current procedure returns |
+| `Ctrl+F10` | Run to the cursor's line |
+| `Ctrl+F6` | Break: stop the running program where it is |
+| `Shift+F6` | Stop debugging; the program ends |
+| `Ctrl+Shift+F9` | Remove every breakpoint |
+
+The same commands are on the **Debug** menu, after **Build**.
+
+A breakpoint is a red circle in the margin. `F9` sets it; a click in the margin sets a bookmark
+instead, unless the setting `margin_click = "breakpoint"` is in the `[editor]` table of
+`settings.toml`. Breakpoints are kept with the session, so they are still there tomorrow.
+
+`F6` builds with your configuration's options, without its `-O` and with `-g -exx` added, because
+an optimised program has lost the variables you want to look at. Then it runs the program in its
+terminal, as `F5` does, and stops on the first breakpoint it reaches — or, with no breakpoint set,
+on the program's first statement. A yellow arrow in the margin marks the line about to run, and the
+output pane opens on its **Debug** tab:
+
+- The buttons along the top are the commands in the table: Continue, Break, Stop, Step, Step
+  Over, Step Out, Run to Cursor. The status line at the bottom of the window says why the
+  program stopped and where — `Stopped - breakpoint  rect.tiko:10  in Area`.
+- **Locals**, **Globals** and **Watch** share the left side, with their tabs along its bottom.
+  Each variable has a row: its name, its value and its type. A record opens to its fields and an
+  array to its elements, named the way the program names them — `rs(1)`, `rs(2)`, `rs(3)` for an
+  array declared `rs( 1 to 3 )`. A large array opens in groups of a hundred elements first. A value
+  that changed since the last stop is shown in red, and what you opened stays open as you step.
+  A click on a column heading sorts by it.
+- **Call Stack** and **Breakpoints** share the right side. A click on a frame of the call stack
+  shows that procedure's locals and goes to its line. The Breakpoints list has every breakpoint
+  in every open file, with the text of its line; a double click goes to it. Of the two buttons at
+  the end of its tab row, the first removes the selected breakpoint and the second removes them
+  all.
+
+On the Watch tab, the `+` button adds a row; type a name to watch, written as in the program —
+`r.w`, `rs(2).sensor`, in any case — and press `Enter`. Its value is read again at every stop.
+A double click on the row edits it, and emptying it removes it.
+A watch is a variable, a field or an element, not a calculation: `r.w * 2` shows
+`<not in scope>`, as does a name the stopped procedure cannot see.
+
+While the program is stopped, rest the mouse on a name in the source and its value appears
+beside it.
+
+````admonish info title="Before the first session"
+tkEdit looks for lldb-dap on your `PATH`, then where LLVM installs it. If it cannot find one, it
+says so in the status line; set its path as `adapter` in the `[debug]` table of `settings.toml`.
+
+- **Windows:** lldb-dap is in LLVM's `bin` folder, beside clang. It needs **Python 3.10** (64-bit)
+  on the `PATH`, because it loads `python310.dll`; tkEdit checks for it before it starts.
+- **Linux:** install your distribution's `lldb` package, which provides `lldb-dap` or a
+  numbered `lldb-dap-NN`; tkEdit takes the newest.
+- **macOS:** lldb-dap comes with Apple's Command Line Tools. macOS lets one program control
+  another only with **Developer Mode** on, or when you allow it in the dialog it shows. Turn it on
+  once with
+
+  ```
+  sudo DevToolsSecurity -enable
+  ```
+
+  Without it, the status line says so, and no session starts.
+````
+
 ### Finding your way
 
 | Key | What it does |
@@ -270,6 +343,9 @@ believe it — `F5` in tkEdit, `Ctrl+F5` in VS Code — and read the errors that
   `Ctrl+F5`, and puts the compiler's errors in **Problems**.
 - Every tiko release carries `tiko-lsp` beside the compiler, for every other editor; a newer tiko
   updates it.
+- `F9` sets a breakpoint and `F6` runs to it; `F10`, `F11` and `Shift+F11` step. The Debug tab shows
+  locals, globals and watches beside the call stack and the breakpoints. It needs lldb-dap, and on
+  macOS Developer Mode.
 - **No underline is not a successful build.** Build, and read what the compiler says.
 
 ## Exercises
@@ -284,3 +360,6 @@ believe it — `F5` in tkEdit, `Ctrl+F5` in VS Code — and read the errors that
    what happens after the third?
 4. Copy `typo.tiko` into your editor. Find out, without building, which tool would tell you about
    `totl`, then build and compare the identifier you get with the one in this chapter.
+5. In tkEdit, set a breakpoint on line 10 of `rect.tiko` (`return r.w * r.h`) and press `F6`.
+   Open `r` on the Locals tab. Then select the second row of the Call Stack: what does Locals
+   show now, and where is the editor's cursor? Step out with `Shift+F11` and watch the arrow.

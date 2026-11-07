@@ -218,6 +218,13 @@ records with their strings. Unlike lldb, gdb honours the declared lower bound: i
 the element the program calls `rs( 1 )`, `"north"`.
 ```
 
+The same session needs no commands in tkEdit (Chapter 2). Put the cursor on line 10, press `F9`
+for a breakpoint and `F6` to build with `-g` and run. The program stops in `Total`, and the
+Locals tab of the output pane lists `rs`, `sum` and `i`. There `rs` is `(1 to 3)` and opens to `rs(1)`, `rs(2)` and
+`rs(3)`, each element named by the subscript the program uses: tkEdit reads the array descriptor,
+so the zero-based pitfall above does not apply. A string shows its text, `u"north"`, without the
+bookkeeping, and a watch takes the program's spelling, `rs(2).sensor`.
+
 ## Warnings and the diagnostics workflow
 
 An error stops the build. A **warning** does not: the program is built, and it runs. That is
@@ -375,6 +382,8 @@ The full list, with the front end's own `--dump-*` options, is Appendix C.
 - `-g` writes DWARF with variables and types. lldb shows locals, records, strings and fixed
   arrays; **its `[ ]` counts from zero**. On Windows the DWARF is inside the `.exe`; there is no
   `.pdb`.
+- tkEdit's debugger (`F9`, `F6`) reads the same DWARF and names elements by the program's own
+  subscripts.
 - A warning can be a wrong answer: `-Werror` fails the build on one, `-Wno-TKOnnnn` silences one
   by id, `--diagnostics-file` gives tools the records.
 - `--dump-udt`, `--emit-ir`, `--emit-asm`, `--keep-temps` and `-v` show what the compiler made of
