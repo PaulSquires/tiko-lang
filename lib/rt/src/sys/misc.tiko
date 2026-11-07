@@ -56,7 +56,7 @@
 '' avoids the question entirely.
 const FB_EXT_CHAR_ = 255
 
-extern "c"   '' NON-FBCALL: the string lock, declared plain in fb_string.h, and
+extern "rtlib"   '' NON-FBCALL: the string lock, declared plain in fb_string.h, and
              '' libc's system().
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
@@ -110,11 +110,19 @@ end extern
 	''   pgHandleTb   16       8
 	''   active       48      24
 	''   visible      52      28
-	const TKORT_CON_INHANDLE  = 0
-	const TKORT_CON_OUTHANDLE = 8
-	const TKORT_CON_PGTB      = 16
-	const TKORT_CON_ACTIVE    = 48
-	const TKORT_CON_VISIBLE   = 52
+	#if defined( __FB_64BIT__ )
+		const TKORT_CON_INHANDLE  = 0
+		const TKORT_CON_OUTHANDLE = 8
+		const TKORT_CON_PGTB      = 16
+		const TKORT_CON_ACTIVE    = 48
+		const TKORT_CON_VISIBLE   = 52
+#else
+		const TKORT_CON_INHANDLE  = 0
+		const TKORT_CON_OUTHANDLE = 4
+		const TKORT_CON_PGTB      = 8
+		const TKORT_CON_ACTIVE    = 24
+		const TKORT_CON_VISIBLE   = 28
+#endif
 
 	#define TKORT_CON_IN()        (*cptr( any ptr ptr, @__fb_con + TKORT_CON_INHANDLE ))
 	#define TKORT_CON_OUT()       (*cptr( any ptr ptr, @__fb_con + TKORT_CON_OUTHANDLE ))

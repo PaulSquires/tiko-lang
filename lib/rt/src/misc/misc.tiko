@@ -109,7 +109,7 @@ end extern
 
 '' ------------------------------------------------------------------ ENVIRON
 
-extern "c"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
+extern "rtlib"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
 	declare function c_getenv alias "getenv" ( byval n as zstring ptr ) as zstring ptr
 	declare function c_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
 	#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
@@ -121,12 +121,12 @@ extern "c"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
 	#else
 		#error "misc/misc: no putenv for this target"
 	#endif
-	declare function tkrt_StrAllocTempNoLock alias "fb_hStrAllocTemp_NoLock" _
+	declare function tkrt_StrAllocTempNoLock TKORT_STDCALL alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval len_ as integer ) as FBSTRING ptr
-	declare sub tkrt_StrCopy alias "fb_hStrCopy" _
+	declare sub tkrt_StrCopy TKORT_STDCALL alias "fb_hStrCopy" _
 		( byval dst as zstring ptr, byval src as zstring ptr, byval len_ as integer )
-	declare sub tkrt_StrDelTempNoLock alias "fb_hStrDelTemp_NoLock" ( byval s as FBSTRING ptr )
-	declare sub tkrt_StrDelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )
+	declare sub tkrt_StrDelTempNoLock TKORT_STDCALL alias "fb_hStrDelTemp_NoLock" ( byval s as FBSTRING ptr )
+	declare sub tkrt_StrDelTemp TKORT_STDCALL alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr )
 	declare sub fb_StrLock alias "fb_StrLock" ( )
 	declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
 end extern

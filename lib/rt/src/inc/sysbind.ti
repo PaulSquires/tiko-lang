@@ -26,7 +26,12 @@
 ''                 its own copy to 16 (ctrl/gosub.tiko). longjmp is declared against it.
 
 #if defined( __FB_WIN32__ )
-	#include once "inc/sysbind/win64.ti"
+	#ifdef __FB_64BIT__
+		#include once "inc/sysbind/win64.ti"
+	#else
+		'' i686-w64-windows-gnu's own binding: same MinGW-w64 headers, 32-bit size_t.
+		#include once "inc/sysbind/win32.ti"
+	#endif
 #elseif defined( __FB_LINUX__ )
 	#include once "inc/sysbind/linux-x86_64.ti"
 	'' THE POSIX LAYER: every constant and struct layout the runtime's __FB_UNIX__ code names,

@@ -122,8 +122,8 @@ extern "rtlib"
 		  byval outattrib as int32 ptr ) as FBSTRING ptr
 end extern
 
-extern "c"   '' NON-FBCALL: the h-prefixed helper and the CRT.
-	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
+extern "rtlib"   '' NON-FBCALL: the h-prefixed helper and the CRT.
+	declare function tkrt_DelTemp TKORT_STDCALL alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function crt_remove alias "remove" ( byval p as zstring ptr ) as int32
 end extern
 

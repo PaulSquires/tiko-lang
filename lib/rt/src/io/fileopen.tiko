@@ -86,7 +86,7 @@ extern "rtlib"
 		( byval dst as zstring ptr, byval src as zstring ptr, byval bytes as integer )
 	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
 	declare function tkrt_DelTempNoLock alias "fb_hStrDelTemp_NoLock" ( byval s as FBSTRING ptr ) as int32
-	declare sub tkrt_DevScrnInit alias "fb_DevScrnInit" ( )
+	declare sub tkrt_DevScrnInit TKORT_CDECL alias "fb_DevScrnInit" ( )
 end extern
 
 extern "c"   '' NON-FBCALL: the device opens are hooks, and the *Ex forms take a
