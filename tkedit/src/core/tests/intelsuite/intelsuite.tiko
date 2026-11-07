@@ -170,4 +170,30 @@ public sub Run( byref c as tally.Checker )
     ls4.Push( "  x = 1" )
     p = autoinsert.Plan( ls4, 0, "    ", true, true )
     c.Same( p.NewIndent & "|" & p.EndLine, "  |", "a plain line keeps its indent" )
+    ' tiko's CLASS and INTERFACE: blocks, but `interface` is no reserved word, and an
+    ' interface's members are headers with no body
+    c.Check( (autoinsert.Classify( "class Dog", b ) = autoinsert.LineKind.Opener) andalso (autoinsert.EndText( b ) = "end class"), "class opens" )
+    c.Check( (autoinsert.Classify( "public interface IComparable( of T )", b ) = autoinsert.LineKind.Opener) andalso _
+             (autoinsert.EndText( b ) = "end interface"), "public interface opens" )
+    c.Check( autoinsert.Classify( "End Interface", b ) = autoinsert.LineKind.Closer, "end interface closes" )
+    c.Check( autoinsert.Classify( "interface = 3", b ) = autoinsert.LineKind.Plain, "interface = 3 is an assignment" )
+    c.Check( autoinsert.Classify( "    interface as long", b ) = autoinsert.LineKind.Plain, "interface as long is a field" )
+    c.Check( autoinsert.Classify( "interface.x = 1", b ) = autoinsert.LineKind.Plain, "interface.x is a member" )
+    c.Check( autoinsert.Classify( "interface", b ) = autoinsert.LineKind.Plain, "a bare interface opens nothing" )
+    dim as Array( of ustring ) ls5
+    ls5.Push( "interface IAnimal" )
+    p = autoinsert.Plan( ls5, 0, "    ", true, true )
+    c.Same( p.NewIndent & "|" & p.EndLine, "    |end interface", "Enter after interface: in, and its end" )
+    ls5.Push( "    sub Speak( )" ) : ls5.Push( "end interface" )
+    c.Check( autoinsert.InInterface( ls5, 1 ), "the member line is inside the interface" )
+    p = autoinsert.Plan( ls5, 1, "    ", true, true )
+    c.Same( p.NewIndent & "|" & p.EndLine, "    |", "Enter after a member: same indent, no end sub" )
+    dim as Array( of ustring ) ls6
+    ls6.Push( "interface IAnimal" ) : ls6.Push( "    sub Speak( )" ) : ls6.Push( "end interface" )
+    ls6.Push( "class Dog" ) : ls6.Push( "end class" ) : ls6.Push( "sub Main( )" )
+    c.Check( autoinsert.InInterface( ls6, 5 ) = false, "after end interface, not inside" )
+    p = autoinsert.Plan( ls6, 5, "    ", true, true )
+    c.Same( p.EndLine, "end sub", "a sub after the interface still gets its end" )
+    p = autoinsert.Plan( ls6, 0, "    ", true, true )
+    c.Same( p.EndLine, "", "an interface already closed gets none, past its member" )
 end sub

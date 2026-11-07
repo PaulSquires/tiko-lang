@@ -27,6 +27,12 @@ end function
 public sub Run( byref c as tally.Checker )
     c.Begin( "outline" )
     dim as ustring nl = chr( 10 )
+    ' tiko's CLASS and INTERFACE; an interface's members have no body, so they are not listed,
+    ' and `interface` used as a name is not a definition
+    c.Same( Listing( "interface IAnimal" & nl & "    sub Speak( )" & nl & "    function Name( ) as string" & nl & _
+                     "end interface" & nl & "public class Dog" & nl & "    interface as long" & nl & _
+                     "end class" & nl & "interface = 3" & nl & "sub Main( )" & nl & "end sub" ), _
+            "interface IAnimal@0|class Dog@4|sub Main@8", "class and interface, members skipped" )
     dim as ustring src = _
         "' a comment: sub NotMe( )" & nl & _
         "public sub Foo( byval x as long )" & nl & _

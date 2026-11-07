@@ -8,9 +8,11 @@
 ' outline -- the procedures and types a source file defines, found line by line: what the
 ' Functions list shows and Search Symbol searches until tikoParser's scans arrive (P8). A
 ' definition is a line that STARTS one: `[public|private|static ...] sub|function|property|
-' constructor|destructor|operator|type|union|enum|namespace name` or `#macro name`. Declarations
-' (`declare ...`), aliases (`type T as ...`), block ends and anonymous enums are not. Comments
-' (`'`, `rem`, `/' ... '/` across lines) and `"""` block strings are skipped.
+' constructor|destructor|operator|type|union|enum|namespace|class|interface name` or `#macro
+' name`. Declarations (`declare ...`), aliases (`type T as ...`), block ends and anonymous enums
+' are not, and nor are an INTERFACE's members: `sub Speak( )` there is a header with no body.
+' `interface` is no reserved word, so only `interface <Name>` counts. Comments (`'`, `rem`,
+' `/' ... '/` across lines) and `"""` block strings are skipped.
 #module "outline"
 
 #import "std/containers"
@@ -29,6 +31,8 @@ public enum SymbolKind explicit
     UnionDef
     EnumDef
     NamespaceDef
+    ClassDef
+    InterfaceDef
     MacroDef
 end enum
 
@@ -51,6 +55,8 @@ public function KindWord( byval k as SymbolKind ) as ustring
     case SymbolKind.UnionDef : return "union"
     case SymbolKind.EnumDef : return "enum"
     case SymbolKind.NamespaceDef : return "namespace"
+    case SymbolKind.ClassDef : return "class"
+    case SymbolKind.InterfaceDef : return "interface"
     case SymbolKind.MacroDef : return "#macro"
     end select
     return ""
@@ -128,6 +134,8 @@ private function LineSymbol( byref s as const ustring, byval ln as long, byref o
     case "union" : k = SymbolKind.UnionDef
     case "enum" : k = SymbolKind.EnumDef
     case "namespace" : k = SymbolKind.NamespaceDef
+    case "class" : k = SymbolKind.ClassDef
+    case "interface" : k = SymbolKind.InterfaceDef
     case else : return false
     end select
     dim as ustring name_ = DottedName( s, i )
@@ -140,6 +148,8 @@ private function LineSymbol( byref s as const ustring, byval ln as long, byref o
         return false                                         ' `enum explicit` with no name
     end if
     if len( name_ ) = 0 then return false                   ' anonymous enum, `type<...>`
+    ' `class as long`, `interface as long`: a field named by the word
+    if ((k = SymbolKind.ClassDef) orelse (k = SymbolKind.InterfaceDef)) andalso (lcase( name_ ) = "as") then return false
     ' `type Alias as Other`: an alias, not a block
     if (k = SymbolKind.TypeDef) orelse (k = SymbolKind.UnionDef) then
         dim as long j = i + len( name_ )
@@ -160,7 +170,7 @@ end function
 public function Scan( byref text as const ustring ) as Array( of Symbol )
     dim as Array( of Symbol ) syms
     dim as long n = len( text ), start = 0, ln = 0
-    dim as boolean inBlockComment = false, inBlockString = false
+    dim as boolean inBlockComment = false, inBlockString = false, inInterface = false
     while start <= n
         dim as long e = start
         while (e < n) andalso (text[e] <> 10) andalso (text[e] <> 13)
@@ -194,7 +204,14 @@ public function Scan( byref text as const ustring ) as Array( of Symbol )
         end if
         if len( s ) andalso (s[0] <> 39) andalso (lcase( left( s, 4 ) ) <> "rem ") then
             dim as Symbol sym
-            if LineSymbol( s, ln, sym ) then syms.Push( sym )
+            if LineSymbol( s, ln, sym ) then
+                if sym.Kind = SymbolKind.InterfaceDef then inInterface = true
+                ' an interface's members are headers with no body
+                if (inInterface = false) orelse (IsProcedure( sym.Kind ) = false) then syms.Push( sym )
+            elseif inInterface then
+                dim as long j = 0
+                if NextWord( s, j ) = "end" andalso NextWord( s, j ) = "interface" then inInterface = false
+            end if
             ' a block string opened (and not closed) on this line
             dim as long q = instr( s, TRIPLE )
             if q > 0 andalso instr( q + 3, s, TRIPLE ) = 0 then inBlockString = true

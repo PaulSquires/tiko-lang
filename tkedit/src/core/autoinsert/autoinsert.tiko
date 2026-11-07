@@ -10,6 +10,11 @@
 ' block, its END ("end sub", "next", "loop" ...) is put on the line after, at the opener's
 ' indent. ELSE / ELSEIF / CASE lines indent the line after them too. The app applies Plan's
 ' answer to the document; nothing here touches one.
+'
+' tiko's CLASS and INTERFACE are blocks too. `interface` is no reserved word, so only
+' `interface <Name>` opens one (not `interface = 3`, nor a field `interface as long`), and an
+' interface's members are bare headers -- `sub Speak( )` -- with no body: Enter after one
+' inside an interface is a plain line, with no END.
 #module "autoinsert"
 
 #import "std/containers"
@@ -33,7 +38,7 @@ end type
 
 private function Blocks( ) as Array( of BlockDef )
     dim as Array( of BlockDef ) a
-    dim as string t( 0 to 16, 0 to 3 ) = { _
+    dim as string t( 0 to 18, 0 to 3 ) = { _
         { "IF", "end if", "IF", "ENDIF" }, { "FOR", "next", "", "NEXT" }, _
         { "SELECT", "end select", "SELECT", "" }, { "WHILE", "wend", "", "WEND" }, _
         { "DO", "loop", "", "LOOP" }, { "FUNCTION", "end function", "FUNCTION", "" }, _
@@ -42,8 +47,9 @@ private function Blocks( ) as Array( of BlockDef )
         { "WITH", "end with", "WITH", "" }, { "ENUM", "end enum", "ENUM", "" }, _
         { "UNION", "end union", "UNION", "" }, { "CONSTRUCTOR", "end constructor", "CONSTRUCTOR", "" }, _
         { "DESTRUCTOR", "end destructor", "DESTRUCTOR", "" }, { "SCOPE", "end scope", "SCOPE", "" }, _
-        { "NAMESPACE", "end namespace", "NAMESPACE", "" } }
-    for i as long = 0 to 16
+        { "NAMESPACE", "end namespace", "NAMESPACE", "" }, { "CLASS", "end class", "CLASS", "" }, _
+        { "INTERFACE", "end interface", "INTERFACE", "" } }
+    for i as long = 0 to 18
         dim as BlockDef b
         b.Opener = t( i, 0 ) : b.EndText = t( i, 1 ) : b.CloseW2 = t( i, 2 ) : b.CloseW1 = t( i, 3 )
         a.Push( b )
@@ -115,7 +121,8 @@ public function Classify( byref lineText as const ustring, byref blockIndex as l
     select case w1
     case "PUBLIC", "PRIVATE", "STATIC"
         select case w2
-        case "SUB", "FUNCTION", "PROPERTY", "OPERATOR", "CONSTRUCTOR", "DESTRUCTOR", "TYPE", "ENUM", "UNION"
+        case "SUB", "FUNCTION", "PROPERTY", "OPERATOR", "CONSTRUCTOR", "DESTRUCTOR", "TYPE", "ENUM", "UNION", _
+             "CLASS", "INTERFACE"
             opener = w2
             third = ""
             if (w2 = "TYPE") orelse (w2 = "UNION") then
@@ -132,6 +139,15 @@ public function Classify( byref lineText as const ustring, byref blockIndex as l
             select case opener
             case "IF"
                 if wLast <> "THEN" then return LineKind.Plain     ' a one-line IF
+            case "CLASS", "INTERFACE"
+                ' a name must follow -- `class Dog`, not `class as long` (a field) or `interface = 3`
+                dim as string nm = iif( opener = w1, w2, w3 )
+                if len( nm ) = 0 then return LineKind.Plain
+                if (nm[0] >= 48) andalso (nm[0] <= 57) then return LineKind.Plain
+                if nm = "AS" then return LineKind.Plain
+                dim as long at_ = instr( stmt, opener ) + len( opener )
+                dim as string rest = ltrim( mid( stmt, at_ ), any !" \t" )
+                if left( rest, len( nm ) ) <> nm then return LineKind.Plain   ' `interface = x`, `interface.y`
             case "TYPE", "UNION"
                 if third = "AS" then return LineKind.Plain        ' type T as long
                 if instr( stmt, "<" ) > 0 andalso words <= 2 then return LineKind.Plain   ' type<T>( ... )
@@ -187,6 +203,50 @@ public function NeedsEnd( byref lines as const Array( of ustring ), byval openLi
     return true
 end function
 
+private function IndexOf( byref opener as const string ) as long
+    dim as Array( of BlockDef ) bs = Blocks( )
+    for k as long = 0 to bs.Count( ) - 1
+        if bs[k].Opener = opener then return k
+    next
+    return -1
+end function
+
+' A procedure's block: inside an interface its opener is a member with no body.
+private function IsProcedureBlock( byval b as long ) as boolean
+    dim as Array( of BlockDef ) bs = Blocks( )
+    if (b < 0) orelse (b >= bs.Count( )) then return false
+    select case bs[b].Opener
+    case "SUB", "FUNCTION", "PROPERTY", "OPERATOR", "CONSTRUCTOR", "DESTRUCTOR"
+        return true
+    end select
+    return false
+end function
+
+' Is line ln inside an INTERFACE body? The lines above it are walked with the same stack as
+' NeedsEnd, a member header pushing nothing while an interface is on top.
+public function InInterface( byref lines as const Array( of ustring ), byval ln as long ) as boolean
+    dim as long iface = IndexOf( "INTERFACE" )
+    dim as Array( of long ) stack
+    for i as long = 0 to ln - 1
+        dim as long b
+        dim as LineKind k = Classify( lines[i], b )
+        if k = LineKind.Opener then
+            if (stack.Count( ) > 0) andalso (stack[stack.Count( ) - 1] = iface) andalso IsProcedureBlock( b ) then continue for
+            stack.Push( b )
+        elseif k = LineKind.Closer then
+            for j as long = stack.Count( ) - 1 to 0 step -1
+                if stack[j] = b then
+                    while stack.Count( ) > j
+                        stack.Pop( )
+                    wend
+                    exit for
+                end if
+            next
+        end if
+    next
+    return (stack.Count( ) > 0) andalso (stack[stack.Count( ) - 1] = iface)
+end function
+
 ' A line's indent as text ("    ", a tab).
 public function IndentOf( byref lineText as const ustring ) as ustring
     dim as long i = 0
@@ -211,6 +271,7 @@ public function Plan( byref lines as const Array( of ustring ), byval ln as long
     dim as ustring outer = IndentOf( lines[ln] )
     dim as long b
     dim as LineKind k = Classify( lines[ln], b )
+    if (k = LineKind.Opener) andalso IsProcedureBlock( b ) andalso InInterface( lines, ln ) then k = LineKind.Plain
     if autoIndent then
         p.NewIndent = outer
         if (k = LineKind.Opener) orelse (k = LineKind.Middle) orelse (k = LineKind.CaseLine) then p.NewIndent = outer & oneLevel
