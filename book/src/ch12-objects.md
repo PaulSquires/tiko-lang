@@ -131,6 +131,51 @@ does, which reads like an array whose elements the type controls.
 
 A property with only a **setter** is write-only: reading it is refused, `TKO0934`.
 
+`t.Celsius += 2.5` works on a property with both accessors: it calls the getter, applies the
+operator and calls the setter. So does `swap`, and a property passed to a `byref` parameter is
+written back through its setter when the call returns.
+
+### Auto-properties
+
+Most properties only store a value. An **auto-property** says so in its declaration, by ending it
+with its accessors; the compiler writes both over a hidden field:
+
+```tiko
+{{#include ../examples/ch12/autoprops.tiko}}
+```
+
+```text
+{{#include ../examples/ch12/autoprops.out}}
+```
+
+`get, set` behaves like a plain field. `get, private set` can be read anywhere but written only by
+the type's own code — the setter may be less visible than the getter, never more. `get, init` (or
+`get` alone) can be assigned only by a constructor, which makes an identifier that never changes
+after the object is built. `= 18` gives the hidden field its first value. An auto-property has no
+code of its own: as soon as the setter has a rule to keep, write an ordinary property.
+
+### Property blocks
+
+A **property block** keeps the getter and setter together in one definition:
+
+```tiko
+{{#include ../examples/ch12/propblock.tiko}}
+```
+
+```text
+{{#include ../examples/ch12/propblock.out}}
+```
+
+Inside both sections, `value` is the value crossing the boundary: in `set` the value being assigned,
+which may be adjusted before it is stored; in `get` the result, which starts at the type's default
+and is returned at `end get`. `return` works too, and either section may be left out. `get` and
+`set` open a section only when they stand alone on their line, so `get #1, , buffer` in an ordinary
+getter is still the file statement.
+
+A property may also take more than one index, be `static` (`Grid.Created`, belonging to the type),
+or live in a namespace with no object at all. These forms, and the auto-property and block above,
+are tiko's own: FreeBASIC has none of them (Appendix D).
+
 ## Keeping fields private
 
 Everything after `private:` in a type is reachable only from the type's own methods:
@@ -276,7 +321,9 @@ and the type composed of them needs no management at all.
   `let` must survive self-assignment. **Rule of zero:** better still, build from fields that copy
   themselves.
 - Properties are methods that read like fields; the setter enforces the type's rules. A property
-  with only a setter cannot be read (`TKO0934`).
+  with only a setter cannot be read (`TKO0934`). An auto-property (`get, private set`, `get, init`)
+  writes both accessors; a property block keeps them in one definition, with `value` crossing
+  the boundary.
 - `private:` fields are reachable only from the type's own methods; access is enforced on the
   constructor and destructor calls the compiler makes too.
 - `static` fields are shared and defined once; `static` methods have no `this`.

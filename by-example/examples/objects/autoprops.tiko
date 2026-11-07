@@ -1,0 +1,20 @@
+type Person
+    declare property Name as ustring get, set           '' read and written like a field
+    declare property Age as int32 = 18 get, private set '' anyone reads, only Person writes
+    declare property Id as int32 get, init              '' set once, by the constructor
+    declare constructor( byval newId as int32 )
+    declare sub Birthday( )
+end type
+
+constructor Person( byval newId as int32 )
+    Id = newId
+end constructor
+
+sub Person.Birthday( )
+    Age += 1
+end sub
+
+dim as Person p = Person( 42 )
+p.Name = "Ann"
+p.Birthday( )
+print p.Name; ", age"; p.Age; ", id"; p.Id

@@ -1,0 +1,6 @@
+type Person
+    declare property Age as int32 = 18 get, private set
+end type
+
+dim as Person p
+p.Age = 30                          '' refused: the setter is private

@@ -37,7 +37,7 @@ dim as Thermostat t
 t.Celsius = 21.5                    '' calls the setter
 print "celsius"; t.Celsius; ", fahrenheit"; t.Fahrenheit
 
-t.Celsius = t.Celsius + 2.5         '' get, add, then set
+t.Celsius += 2.5                    '' get, add, then set
 print "warmer:"; t.Celsius
 
 t.Celsius = -500

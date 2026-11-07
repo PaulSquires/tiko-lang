@@ -44,11 +44,9 @@ The fields behind the properties are `private:`, which is what makes the
 setter's rule hold: nothing outside the type can write `celsius_` directly.
 [Access control](access.md) explains the sections.
 
-```admonish warning title="Status in this version"
-A compound assignment to a property, such as `t.Celsius += 2.5`, compiles but
-crashes the program when it runs. Write the read and the write out, as
-`t.Celsius = t.Celsius + 2.5`, as the example does.
-```
+When a property only stores a value, an [auto-property](autoproperties.md)
+writes both accessors for you, and a [property block](autoproperties.md#property-blocks)
+keeps a getter and setter together in one place.
 
 ### Activities
 

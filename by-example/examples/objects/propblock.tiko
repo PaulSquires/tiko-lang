@@ -1,0 +1,32 @@
+type Thermostat
+    declare property Celsius( ) as float64
+    declare property Celsius( byval value as float64 )
+    declare property Fahrenheit( ) as float64
+  private:
+    celsius_ as float64
+end type
+
+'' Both accessors in one block. In set, value is what was assigned;
+'' in get, value is what will be returned.
+property Thermostat.Celsius as float64
+    get
+        value = celsius_
+    end get
+    set
+        if value < -273.15 then value = -273.15
+        celsius_ = value
+    end set
+end property
+
+property Thermostat.Fahrenheit as float64
+    get
+        return celsius_ * 9 / 5 + 32
+    end get
+end property
+
+dim as Thermostat t
+t.Celsius = 21.5
+t.Celsius += 2.5                    '' get, add, set
+print "celsius"; t.Celsius; ", fahrenheit"; t.Fahrenheit
+t.Celsius = -500
+print "asked for -500, got "; t.Celsius

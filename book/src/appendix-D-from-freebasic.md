@@ -155,6 +155,10 @@ The usual mistakes, side by side:
   its closing quote, warning 12. `"""abc"""` and `""""` mean what they always meant, in both.
 - **`defer` is a contextual keyword**, and so are the other words in Appendix A's list. Where they
   are not in their statement's position they are ordinary names, as they are in fbc 1.20.
+- **Properties do more.** fbc allows at most one index, no `static` property, no property outside
+  a type, and refuses `swap` on a property. tiko allows any number of indices, `static` and
+  namespace properties, auto-properties (`get, private set`), property blocks (Chapter 12),
+  `swap`, and writes a property passed `byref` back through its setter, which fbc does not.
 - **The ten fixed-width type names**, `int8` to `float64`, are predeclared typedefs. A program's own
   declaration of one replaces tiko's.
 - **Graphics is Windows-only.** The Linux and macOS toolchains ship no graphics library, so a
@@ -166,7 +170,7 @@ The usual mistakes, side by side:
 ## What fbc 1.20 does not have
 
 Generics, `for each`, tuples, `defer`, lambdas, `ustring`, the fixed-width type names, `spawn` and
-channels, `#cinclude`, `#foreignlib`, `#import` and modules are tiko's. Code that uses them does
+channels, `#cinclude`, `#foreignlib`, `#import` and modules, auto-properties and property blocks are tiko's. Code that uses them does
 not compile under FreeBASIC's own fbc, and that is not a compatibility difference:
 it is the language this book teaches. A source tree that must build with both tests
 `#ifdef __TIKO_COMPILER__` and keeps the extensions on one side of it.

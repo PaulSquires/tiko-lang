@@ -78,6 +78,7 @@
   - [Constructors](objects/constructors.md)
   - [Destructors](objects/destructors.md)
   - [Properties](objects/properties.md)
+  - [Auto-properties and property blocks](objects/autoproperties.md)
   - [Access control](objects/access.md)
   - [Static members](objects/static.md)
   - [Const methods](objects/const.md)

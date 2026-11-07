@@ -1,0 +1,45 @@
+type Grid
+    declare property Cell( byval r as int32, byval c as int32 ) as int32
+    declare property Cell( byval r as int32, byval c as int32, byval value as int32 )
+    declare static property Created as int32 get, private set
+    declare constructor( )
+  private:
+    cells_( 0 to 2, 0 to 2 ) as int32
+end type
+
+constructor Grid( )
+    Created += 1                    '' one count for the whole type
+end constructor
+
+property Grid.Cell( byval r as int32, byval c as int32 ) as int32
+    return cells_( r, c )
+end property
+
+property Grid.Cell( byval r as int32, byval c as int32, byval value as int32 )
+    cells_( r, c ) = value
+end property
+
+namespace Settings
+    dim shared as int32 level_
+    declare property Level( ) as int32
+    declare property Level( byval value as int32 )
+end namespace
+
+property Settings.Level( ) as int32
+    return level_
+end property
+
+property Settings.Level( byval value as int32 )
+    level_ = iif( value > 10, 10, value )
+end property
+
+sub Bump( byref n as int32 )
+    n += 5
+end sub
+
+dim as Grid a, b
+a.Cell( 1, 2 ) = 7
+Bump( a.Cell( 1, 2 ) )              '' written back through the setter
+print "cell"; a.Cell( 1, 2 ); ", grids"; Grid.Created
+Settings.Level = 50
+print "level"; Settings.Level
