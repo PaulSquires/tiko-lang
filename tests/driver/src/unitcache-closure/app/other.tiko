@@ -1,0 +1,4 @@
+'' Imports nothing: an edit to m's interface must not rebuild it.
+public function Other( ) as long
+    return 7
+end function

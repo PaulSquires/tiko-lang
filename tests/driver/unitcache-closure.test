@@ -1,0 +1,16 @@
+'' A ROOT IS KEYED ON ITS OWN IMPORTS' INTERFACES, not every module the build imports
+'' (tiko-comparison A10): m's interface changed, so main.tiko, which imports m, misses on
+'' its 'iface' key line, and other.tiko, which imports nothing, hits.
+'' TEST: cli
+'' ENV: TIKO_MODCACHE=build/.ucc/cache
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' CLEAN: build/.ucc
+'' COPY: tests/driver/src/unitcache-closure => build/.ucc/src
+'' STEP: build -target windows-x86_64 build/.ucc/src/app/main.tiko build/.ucc/src/app/other.tiko -o build/.ucc/app.exe
+'' WRITE: build/.ucc/src/app/m/m.tiko :: '' The module main.tiko imports, with a second public function.\n#module "m"\npublic function Val( ) as long\n    return 3\nend function\npublic function Two( ) as long\n    return 2\nend function\n
+'' ARGS: build -target windows-x86_64 build/.ucc/src/app/main.tiko build/.ucc/src/app/other.tiko -o build/.ucc/app.exe -v
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unit build/.ucc/src/app/main.tiko: miss (iface
+'' EXPECT-OUT: unit build/.ucc/src/app/other.tiko: hit
+'' RUN: build/.ucc/app.exe
+'' EXPECT-RUN-OUT:  3              7

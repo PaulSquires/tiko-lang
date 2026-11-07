@@ -165,6 +165,14 @@ function BuildImports _
     for each o as uint32 in g.order
         ctx.ifaceOrder.Push( o )
     next
+    ctx.ifaceRootFirst.Clear( )
+    ctx.ifaceRootMods.Clear( )
+    for each v as uint32 in g.rootFirst
+        ctx.ifaceRootFirst.Push( v )
+    next
+    for each v as uint32 in g.rootMods
+        ctx.ifaceRootMods.Push( v )
+    next
     ctx.ifaceEdgeFrom.Clear( )
     ctx.ifaceEdgeTo.Clear( )
     for e as int32 = 0 to g.edgeFrom.Count - 1

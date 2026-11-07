@@ -42,6 +42,10 @@ type ModGraph
     as boolean    cycled
     '' Dependencies first, ties by chain.
     as Tko.IdVec  order
+    '' WHAT EACH ROOT IMPORTS ITSELF: root r's modules are rootMods[rootFirst[r - 1] ..
+    '' rootFirst[r] - 1]. A root has no node, so these are not edges (AddImports_).
+    as Tko.IdVec  rootFirst
+    as Tko.IdVec  rootMods
 end type
 
 '' THE GRAPH OF THE FIRST rootCount SOURCES: every module they reach, its files loaded, the

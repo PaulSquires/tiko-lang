@@ -1,0 +1,4 @@
+'' Imports m; other.tiko does not.
+#import "./m"
+declare function Other( ) as long
+print m.Val( ), Other( )

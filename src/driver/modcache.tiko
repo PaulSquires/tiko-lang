@@ -387,9 +387,11 @@ end function
 '' that applies to a root, and what only a root sees: the command line's '-d' defines and the
 '' rest of its arguments, the working directory ('#include' searches it), whether it owns
 '' main and whether it is the first unit (only the first may '#cmdline'). Then its source --
-'' the files it includes are deps.txt's -- and the interface of every module this build
-'' imports: more than its own closure, which costs a rebuild now and then and never a
-'' stale object.
+'' the files it includes are deps.txt's -- and the interfaces of the modules it imports and
+'' everything they import: its CLOSURE, as a module's key has. It was every module the build
+'' imports, because the graph kept no record of what a root imports (a root has no node), so
+'' an interface edit rebuilt roots that never import the module (tiko-comparison A10). The
+'' graph records it now (ModGraph.rootFirst); a root it has no record of keeps the old rule.
 function UnitKey _
     ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval isMain as boolean, _
       byval first as boolean, byref args as string ) as string
@@ -409,8 +411,24 @@ function UnitKey _
     dim as string text_
     Tko.DiskCache.ReadAll( p, text_ )
     k &= "source " & KeyPath_( p ) & " " & len( text_ ) & " " & Tko.DiskCache.Hash( text_ ) & nl
+    dim as containers.Array( of uint8 ) seen
+    dim as int32 r = cast( int32, id )
+    dim as boolean known = (r >= 1) andalso (r < ctx.ifaceRootFirst.Count)
+    for i as int32 = 0 to ctx.ifaceChains.Count - 1
+        seen.Push( iif( known, 0, 1 ) )
+    next
+    if known then
+        for a as int32 = cast( int32, ctx.ifaceRootFirst[r - 1] ) to cast( int32, ctx.ifaceRootFirst[r] ) - 1
+            dim as int32 m = cast( int32, ctx.ifaceRootMods[a] )
+            if (m < 0) orelse (m >= seen.Count) then continue for
+            if seen[m] <> 0 then continue for
+            seen[m] = 1
+            Closure_( ctx, m, seen )
+        next
+    end if
     dim as Tko.StrVec lines_
     for i as int32 = 0 to ctx.ifaceChains.Count - 1
+        if seen[i] = 0 then continue for
         lines_.Push( "iface " & ctx.ifaceChains[i] & " " & Tko.DiskCache.Hash( ctx.ifaceTexts[i] ) )
     next
     for i as int32 = 1 to lines_.Count - 1

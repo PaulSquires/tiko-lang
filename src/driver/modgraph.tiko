@@ -106,7 +106,10 @@ private sub AddImports_ _
         end if
         dim as int32 m = NodeFor_( g, w, pr.imports[k].loc )
         NoteLink_( ctx, g, pr.imports[k], w, m )
-        if from < 0 then continue for
+        if from < 0 then
+            g.rootMods.Push( cast( uint32, m ) )
+            continue for
+        end if
         g.edgeFrom.Push( cast( uint32, from ) )
         g.edgeTo.Push( cast( uint32, m ) )
         g.edgeLoc.Push( cast( uint32, pr.imports[k].loc ) )
@@ -271,8 +274,10 @@ function BuildGraph _
         dim as Tko.PpResult pr
         ScanFile_( ctx, id, true, pr, quiet )
         dim as string here = DirOfFile( ctx.sources.PathOf( id ) )
+        g.rootFirst.Push( cast( uint32, g.rootMods.Count ) )
         AddImports_( ctx, g, pr, -1, here, anon, rootDir )
     next
+    g.rootFirst.Push( cast( uint32, g.rootMods.Count ) )
 
     '' The worklist is the node list itself: expanding a node appends the new ones.
     dim as int32 i = 0

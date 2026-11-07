@@ -1,0 +1,5 @@
+'' The module main.tiko imports.
+#module "m"
+public function Val( ) as long
+    return 3
+end function
