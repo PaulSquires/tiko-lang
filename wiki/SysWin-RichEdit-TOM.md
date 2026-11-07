@@ -5,8 +5,6 @@ Lists the Text Object Model interfaces and constants, and the base of the TOM cl
 
 <!-- scope: CTextObjectBase -->
 
-Lists the Text Object Model interfaces and constants, and the base of the TOM classes.
-
 The **Text Object Model** (TOM) is the set of COM interfaces through which a rich edit control
 exposes its document. The model is a small tree:
 
