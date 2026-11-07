@@ -1414,6 +1414,8 @@ sub CodeView.ApplyLook( byref k as const Look )
 
     MarkerSet( w, MARKER_BOOKMARK, SC_MARK_VERTICALBOOKMARK, k.Bookmark, k.Bookmark )
     MarkerSet( w, MARKER_BREAKPOINT, SC_MARK_CIRCLE, k.Breakpoint, k.Breakpoint )
+    ' the debugger's data tips: Scintilla says when the mouse rests (SCN_DWELLSTART / END)
+    tkCodeEdit_Send( w, SCI_SETMOUSEDWELLTIME, 500 )
     MarkerSet( w, MARKER_EXECLINE, SC_MARK_SHORTARROW, k.ExecLine, k.ExecLine )
     MarkerSet( w, MARKER_EXECBACK, SC_MARK_BACKGROUND, k.ExecLineBack, k.ExecLineBack )
     tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_COMPILE_ERROR, INDIC_SQUIGGLEPIXMAP )

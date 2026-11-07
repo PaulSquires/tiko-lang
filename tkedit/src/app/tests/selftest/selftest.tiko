@@ -50,6 +50,7 @@
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkColumnHeader"
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkMenuBar"
 #import "std/containers"
@@ -67,6 +68,7 @@ using tkButton
 using tkMessageBox
 using tkStatusBar
 using tkTextBox
+using tkColumnHeader
 using tkListTree
 using tkMenuBar
 using tkTabBar
@@ -1773,6 +1775,135 @@ public sub DebugPass( byref t as Tally, byval sc as single )
         t.Check( mw.View( ).ExecLine( ) = -1, P( sc, "debug: and the stop line is gone" ) )
         t.Check( (tkListTree_GetCount( stk ) = 0) andalso (tkListTree_GetCount( loc ) = 0) andalso (tkListTree_GetCount( wl ) = 2), _
                  P( sc, "debug: the session over: no stack, no locals, the watches stay" ) )
+    end if
+    if mw.DebugActive( ) then mw.Execute( Cmd.StopDebugging ) : WaitDebug( mw, false )
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
+' ================================================================ the debugger (D4): trees, sort, data tips
+
+' The first row of a list at a level whose first cell is text, case-blind; -1 = none.
+private function FindRow( byval l as TK_WIDGET ptr, byref text_ as const ustring, byval level as long = 0 ) as long
+    for r as long = 0 to tkListTree_GetCount( l ) - 1
+        if (tkListTree_GetLevel( l, r ) = level) andalso (lcase( tkListTree_GetText( l, r ) ) = lcase( text_ )) then return r
+    next
+    return -1
+end function
+
+' A row expanded as a person does it: selected, then Right.
+private sub ExpandByKey( byval h as TK_HOST ptr, byval l as TK_WIDGET ptr, byval row as long )
+    tkListTree_SetCurSel( l, row )
+    tkHost_SetFocus( h, l )
+    Chord( h, SDLK_RIGHT, SDL_SCANCODE_RIGHT, 0 )
+end sub
+
+' The top-level rows' first cells, joined by spaces.
+private function TopNames( byval l as TK_WIDGET ptr ) as ustring
+    dim as ustring s
+    for r as long = 0 to tkListTree_GetCount( l ) - 1
+        if tkListTree_GetLevel( l, r ) = 0 then s &= iif( len( s ), " ", "" ) & lcase( tkListTree_GetText( l, r ) )
+    next
+    return s
+end function
+
+public sub DebugVarsPass( byref t as Tally, byval sc as single )
+    dim as ustring tk = TestCompiler( )
+    if (len( tk ) = 0) orelse (Engine_AdapterPath( ) = "") then exit sub     ' DebugPass says why
+    if (platform.CurrentOs( ) = platform.Os.MacOS) andalso (environ( "TKEDIT_SELFTEST_DEBUG" ) <> "1") then exit sub
+    dim as ustring cfg = FreshConfig( )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "dbgvars" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = chr( 10 )
+    dim as ustring mainF = fs.PathJoin( dir_, "vars.tiko" )
+    fs.WriteAllText( mainF, "type Point" & nl & "    x as long" & nl & "    y as long" & nl & "end type" & nl & _
+        "dim as Point pt" & nl & "dim as long big(0 to 249)" & nl & "dim as long zeta = 1, alpha = 2" & nl & _
+        "for i as long = 0 to 2" & nl & "    pt.x += 1" & nl & "    big(i) = i + 5" & nl & "next" & nl & "print pt.x" & nl )
+    if platform.CurrentOs( ) <> platform.Os.Windows then
+        dim as ustring fake = fs.PathJoin( cfg, "faketerm" )
+        fs.WriteAllText( fake, "#!/bin/sh" & nl & "shift" & nl & "script -qfc ""$*"" /dev/null < /dev/null > /dev/null 2>&1 &" & nl )
+        dim as process.Command c = process.Command( "/bin/chmod" )
+        c.Arg( "+x" ).Arg( fake )
+        dim as process.Child ch
+        if ch.Spawn( c ).IsOk( ) then ch.Wait( )
+        gDebugTermEnv = "TERMINAL=" & fake
+        setenviron gDebugTermEnv
+    end if
+    dim as mainwin.Window mw
+    mw.ConfigDir = cfg
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "debug vars: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 100 )
+    mw.Prefs.Tiko = tk
+    mw.OpenFile( mainF )
+    mw.View( ).ToggleBreakpoint( 8 )                       ' "    pt.x += 1"
+    mw.Execute( Cmd.StartDebugging )
+    dim as boolean stopped = WaitBuild( mw ) andalso WaitDebug( mw, true )
+    t.Check( stopped, P( sc, "debug vars: stopped at the breakpoint: " & mw.DbgStatus ) )
+    if stopped then
+        dim as debugpane.Pane ptr dp = @mw.Out.Debug
+        dim as TK_WIDGET ptr loc = dp->lists( debugpane.DebugList.Locals )
+        dp->ShowLeft( debugpane.DebugList.Locals )
+        tkTest_PumpFor( h, 30 )
+        t.Check( TopNames( loc ) = "pt big zeta alpha i", P( sc, "debug vars: Locals in declaration order: " & TopNames( loc ) ) )
+
+        ' ---- a UDT opens on Right: its fields
+        dim as long rPt = FindRow( loc, "pt" )
+        ExpandByKey( h, loc, rPt )
+        t.Check( (FindRow( loc, "x", 1 ) = rPt + 1) andalso (FindRow( loc, "y", 1 ) = rPt + 2) andalso _
+                 (tkListTree_GetCellText( loc, rPt + 1, 1 ) = "0"), P( sc, "debug vars: pt opened: x = 0, y" ) )
+        ' ---- 250 elements: three index groups; one opens to its 100 elements
+        dim as long rBig = FindRow( loc, "big" )
+        ExpandByKey( h, loc, rBig )
+        dim as long g0 = FindRow( loc, "[0 .. 99]", 1 ), g2 = FindRow( loc, "[200 .. 249]", 1 )
+        t.Check( (g0 = rBig + 1) andalso (FindRow( loc, "[100 .. 199]", 1 ) > g0) andalso (g2 > g0), _
+                 P( sc, "debug vars: big opened: [0 .. 99] [100 .. 199] [200 .. 249]" ) )
+        ExpandByKey( h, loc, g0 )
+        t.Check( (tkListTree_GetText( loc, g0 + 1 ) = "big(0)") andalso (tkListTree_GetText( loc, g0 + 100 ) = "big(99)") andalso _
+                 (tkListTree_GetText( loc, g0 + 101 ) = "[100 .. 199]") andalso (tkListTree_GetCellText( loc, g0 + 1, 1 ) = "0"), _
+                 P( sc, "debug vars: [0 .. 99] opened: big(0) = 0 .. big(99)" ) )
+
+        ' ---- a data tip: the mouse rests on "pt.x" (on its "x")
+        dim as long ln8 = 8
+        dim as longint posX = tkCodeEdit_Send( mw.View( ).Widget( ), SCI_POSITIONFROMLINE, ln8 ) + 7
+        mw.OnDwell( mw.View( ).Widget( ), posX, true )
+        t.Check( (mw.DbgTip = "pt.x = 0   (long)") andalso mw.View( ).CallTipShown( ), P( sc, "debug vars: a data tip on pt.x: " & mw.DbgTip ) )
+        mw.OnDwell( mw.View( ).Widget( ), -1, false )
+        t.Check( (mw.DbgTip = "") andalso (mw.View( ).CallTipShown( ) = false), P( sc, "debug vars: and it goes when the mouse moves on" ) )
+
+        ' ---- a step: what was open is open again, and what changed says so
+        Chord( h, SDLK_F10, SDL_SCANCODE_F10, 0 )
+        t.Check( WaitDebug( mw, true ), P( sc, "debug vars: F10 stepped" ) )
+        rPt = FindRow( loc, "pt" )
+        rBig = FindRow( loc, "big" )
+        dim as long k = -1
+        if FindRow( loc, "x", 1 ) = rPt + 1 then k = tkListTree_GetItemData( loc, rPt + 1 )
+        t.Check( (k >= 0) andalso (tkListTree_GetCellText( loc, rPt + 1, 1 ) = "1") andalso dp->rows[k].changed andalso _
+                 (dp->rows[tkListTree_GetItemData( loc, rPt + 2 )].changed = false), _
+                 P( sc, "debug vars: after the step pt is still open, x = 1 marked changed, y not" ) )
+        t.Check( (rBig > 0) andalso (tkListTree_GetText( loc, rBig + 2 ) = "big(0)") andalso (tkListTree_GetCellText( loc, rBig + 2, 1 ) = "0"), _
+                 P( sc, "debug vars: and big's [0 .. 99] still open" ) )
+
+        ' ---- a header click sorts by Name; again, the other way; the header says which
+        dim as TK_WIDGET ptr hdr = tkListTree_GetHeader( loc )
+        dim as TKRECT rc, a
+        tkColumnHeader_GetColumnRect( hdr, 0, rc )
+        tkWidget_AbsRect( hdr, a )
+        tkTest_Click( h, a.left + (rc.left + rc.right) / 2, a.top + (rc.top + rc.bottom) / 2 )
+        tkTest_PumpFor( h, 30 )
+        t.Check( TopNames( loc ) = "alpha big i pt zeta", P( sc, "debug vars: a click on Name sorts: " & TopNames( loc ) ) )
+        t.Check( instr( tkListTree_GetColumnText( loc, 0 ), wchr( &h2191 ) ) > 0, P( sc, "debug vars: the header marks it" ) )
+        tkTest_Click( h, a.left + (rc.left + rc.right) / 2, a.top + (rc.top + rc.bottom) / 2 )
+        tkTest_PumpFor( h, 30 )
+        t.Check( TopNames( loc ) = "zeta pt i big alpha", P( sc, "debug vars: again: the other way: " & TopNames( loc ) ) )
+        mw.Execute( Cmd.StopDebugging )
+        WaitDebug( mw, false )
     end if
     if mw.DebugActive( ) then mw.Execute( Cmd.StopDebugging ) : WaitDebug( mw, false )
     for each d as DocRef in mw.Docs

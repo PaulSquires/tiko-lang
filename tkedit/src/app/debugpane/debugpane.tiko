@@ -186,9 +186,14 @@ private function PaneOf( byval w as TK_WIDGET ptr ) as Pane ptr
     return 0
 end function
 
+' Which list a widget is or is inside: the frame's child it descends from. (A list's own parts --
+' its header, its scroll bar -- carry ids of their own, the list's + 1 and + 2.)
 private function ListIndex( byval w as TK_WIDGET ptr ) as long
     while w
-        if (w->ctrlId >= ID_LIST0) andalso (w->ctrlId <= ID_LIST0 + 4) then return w->ctrlId - ID_LIST0
+        if (w->pParent <> 0) andalso (w->pParent->ctrlId < 0) then
+            if (w->ctrlId >= ID_LIST0) andalso (w->ctrlId <= ID_LIST0 + 4) then return w->ctrlId - ID_LIST0
+            return -1
+        end if
         w = w->pParent
     wend
     return -1
@@ -716,7 +721,8 @@ end sub
 ' The open nodes' paths of one tree (0 Locals, 1 Globals, 2 Watch), before its rows go.
 sub Pane.Capture( byval slot as long )
     dim as TK_WIDGET ptr l = lists( slot )
-    if tkListTree_GetCount( l ) = 0 then exit sub
+    ' no rows, or their table already dropped (FillVariables captured first): keep what is kept
+    if (tkListTree_GetCount( l ) = 0) orelse (rows.Count( ) = 0) then exit sub
     expanded( slot ).Clear( )
     expanded( slot ).TopRow = tkListTree_GetTopIndex( l )
     for r as long = 0 to tkListTree_GetCount( l ) - 1

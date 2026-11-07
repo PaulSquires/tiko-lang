@@ -35,6 +35,7 @@
 #import "tkc/bundled"
 #import "tkc/build"
 #import "tkc/cmdids"
+#import "tkc/debugview"
 #import "tkc/docencoding"
 #import "tkc/i18n"
 #import "tkc/instance"
@@ -459,6 +460,7 @@ public type Window
     DbgFrame as long                    ' the call-stack frame the variables are read in
     DbgExecDoc as DocRef                ' the buffer showing the stop line
     DbgStatus as ustring                ' "Stopped - breakpoint  main.tiko:19  in main"
+    DbgTip as ustring                   ' the data tip shown now, "" = none
     LastExe as ustring
     PendingArgs as Array( of ustring )
     Cleaning as boolean
@@ -640,6 +642,7 @@ public type Window
     declare sub RefreshBreakpointList( )
     declare sub RemoveBreakpointRow( byval index as long )
     declare sub ShowDebugTab( )
+    declare sub OnDwell( byval hEdit as TK_WIDGET ptr, byval position as longint, byval start as boolean )
     declare sub ShowExecLine( byref path as const ustring, byval ln as long )
     declare sub ClearExecLine( )
     declare sub ShowOutput( byval visible as boolean )
@@ -2243,6 +2246,8 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
                 if (n->linesAdded <> 0) andalso (mw->Out.Debug.Bps.Count( ) > 0) then mw->RefreshBreakpointList( )
             end if
         case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
+        case SCN_DWELLSTART : mw->OnDwell( h, n->position, true )
+        case SCN_DWELLEND : mw->OnDwell( h, -1, false )
         case SCN_ZOOM : mw->SyncBars( )          ' the rows' height, so the page
         end select
     end sub )
@@ -4081,6 +4086,12 @@ sub Window.DebugCommand( byval id as Cmd )
     case else
         exit sub
     end select
+    if len( DbgTip ) then                 ' the value it showed is about to change
+        for each d as DocRef in Docs
+            if d->Main.CallTipShown( ) then d->Main.CancelCallTip( )
+        next
+        DbgTip = ""
+    end if
     DbgPaused = false
     DbgStatus = i18n.Tr( "debug.running", "Running..." )
     this.SetBuildMessage( DbgStatus )
@@ -4129,6 +4140,34 @@ sub Window.RemoveBreakpointRow( byval index as long )
     dim as debugpane.BreakpointRow r = Out.Debug.Bps[index]
     dim as DocRef d = this.FindOpen( r.Path )
     if (d <> 0) andalso d->Main.HasBreakpoint( r.Line - 1 ) then this.ToggleBreakpointAt( d, r.Line - 1 )
+end sub
+
+' A DATA TIP: the mouse rests on a name while the program is stopped -- the value of the dotted path
+' under it (debugview.ExprFromLine), evaluated in the frame the Debug tab shows, in a call tip. It
+' goes when the mouse moves on (SCN_DWELLEND). frmDebug's datatip, on Scintilla's own tip.
+sub Window.OnDwell( byval hEdit as TK_WIDGET ptr, byval position as longint, byval start as boolean )
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    if v->Widget( ) <> hEdit then exit sub
+    if start = false then
+        if len( DbgTip ) andalso v->CallTipShown( ) then v->CancelCallTip( )
+        DbgTip = ""
+        exit sub
+    end if
+    if (this.DebugStopped( ) = false) orelse (position < 0) then exit sub
+    dim as long ln = v->LineOf( position )
+    dim as longint lineStart = tkCodeEdit_Send( hEdit, SCI_POSITIONFROMLINE, ln )
+    dim as long col = tkCodeEdit_Send( hEdit, SCI_COUNTCHARACTERS, lineStart, position ) + 1
+    dim as ustring expr = debugview.ExprFromLine( v->LineTextAt( ln ), col )
+    if len( expr ) = 0 then exit sub
+    dim as string e8 = expr
+    dim as long ni = Engine_Evaluate( e8, Out.Debug.curFrame )
+    if ni < 0 then exit sub
+    dim as DBGE_NODE ptr n = Engine_Node( ni )
+    DbgTip = expr & " = " & n->value
+    if len( n->typ ) then DbgTip &= "   (" & n->typ & ")"
+    v->ShowCallTipAt( position, DbgTip )
 end sub
 
 ' The output pane, on its Debug tab.
