@@ -1,0 +1,10 @@
+'' TKO0320, fbc's 147: a 'function' -- a definition, a declaration, a lambda -- with no
+'' result type. tiko took each for a sub and reported TKO0952 at its 'return'. See
+'' symbols/latesweeps.tiko CheckSubReturnValue_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/function-no-result-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: function-no-result-type.bas(3,1): error TKO0320
+'' EXPECT-OUT: function-no-result-type.bas(6,9): error TKO0320
+'' EXPECT-OUT: function-no-result-type.bas(7,9): error TKO0320
+'' EXPECT-MAX-DIAG: 3

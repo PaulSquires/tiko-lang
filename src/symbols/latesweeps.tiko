@@ -524,10 +524,27 @@ end sub
 '' A PROCEDURE WITH NO RESULT RETURNS NO VALUE -- fbc's error 17 for 'return 5' in a sub,
 '' a constructor or a property setter. tiko emitted 'ret i64 5' in a void function and
 '' clang refused it (TKO0113).
+''
+'' ...BUT A 'function' WITH NO RESULT TYPE AT ALL is the default-type feature, fbc's error 147
+'' at the header (measured on fbc-modern 1.20, 2026-11-07: 'function g( byval a as long )' and
+'' the lambda 'function( byval a as long ) : return a * 2 : end function' alike). tiko treated
+'' it as a sub and said so at the 'return' (TKO0952), and at a lambda's call ('f' is a sub).
+'' Reported as TKO0320, the 147 of 'dim a', once per header: an instantiation's copy shares it.
 sub CheckSubReturnValue_( byref c as Ctx )
+    dim as containers.Map( of uint32, int32 ) noType
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = c.ast->StmtOf( n )
+        if (sp->a = NODE_NONE) andalso (sp->op = cast( uint16, KW_FUNCTION )) then
+            dim as uint32 at = cast( uint32, c.ast->Loc( cast( NodeId, n ) ) )
+            if noType.Contains( at ) = false then
+                noType.Put( at, 1 )
+                dim as string shown = c.names->Spelling( sp->name )
+                if left( shown, 13 ) = "__tko_lambda_" then shown = "function( ... )"
+                c.diags->Report( TKO0320, PointRange( c.ast->Loc( cast( NodeId, n ) ) ), shown )
+            end if
+            continue for
+        end if
         if (sp->a <> NODE_NONE) orelse (sp->b = NODE_NONE) then continue for
         dim as boolean sr = false, sa = false
         dim as NodeId vr = NODE_NONE
