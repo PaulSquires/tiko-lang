@@ -25,6 +25,10 @@ brings the window to the front) and exits; `[ui] single_instance = false` gives 
 - **Building:** a `.tkedit` project (Project menu) names the main file or a tiko.toml target.
   Ctrl+F5 compiles, F5 builds and runs, Shift+F5 runs, Ctrl+F7 checks the file, Ctrl+Shift+F5
   runs the buffer as it is. Errors open the output pane; Alt+PgDn walks them.
+- **Debugging:** the Debug menu (lldb-dap from LLVM; `docs/tkEdit/DEBUGGER.md`). F9 sets a
+  breakpoint, F6 builds with -g and runs to it; F10 / F11 / Shift+F11 step, Ctrl+F10 runs to the
+  caret, Shift+F6 stops. The Output pane's Debug tab shows Locals, Globals and Watch beside the
+  Call Stack and every Breakpoint; resting the mouse on a name shows its value.
 - **Configuring:** Ctrl+Comma opens settings.toml, Ctrl+K keybindings.toml, Ctrl+Shift+T the theme.
   Saving one applies it. Every key is listed in `docs/tkEdit/KEYS.md`.
 
@@ -34,7 +38,7 @@ brings the window to the front) and exits; `[ui] single_instance = false` gives 
 | --- | --- | --- |
 | `src/platform` | `tkp` | the only code that tests `TIKO_OS_*` |
 | `src/core` | `tkc` | GUI-free modules, console-tested by `tests/coreall`; `tests/keysdoc` writes KEYS.md |
-| `src/svc` | `tks` | background work: the tikoParser scanner, the build runner |
+| `src/svc` | `tks` | background work: the tikoParser scanner, the build runner, the debug engine (`dap*`, an lldb-dap client; `tests/dbgtest` drives it from a console) |
 | `src/app` | `tka` | the window, on tiko's `vendor/tkControls` (it comes with the toolchain) |
 | `fonts/`, `icons/`, `keywords/`, `lang/`, `themes/`, `licences/` | | data built INTO the program (`src/app/assets`, `#embed`); `lang/` = the es / fr / de / zh catalogs |
 | `src/app/res` | | `tkEdit.rc` + `tkedit.ico`: the exe's icon (Windows); `tools/make-icon.py` draws both icons |
