@@ -60,6 +60,7 @@ end enum
 
 public type DebugCommandSub as sub( byval owner as any ptr, byval id as long )                ' a Cmd
 public type DebugCanRunFunc as function( byval owner as any ptr, byval id as long ) as boolean
+public type DebugKeyTextFunc as function( byval owner as any ptr, byval id as long ) as ustring  ' "F6", "" = none
 public type DebugGoToSub as sub( byval owner as any ptr, byref path as const ustring, byval ln as long )  ' 1-based
 public type DebugRemoveSub as sub( byval owner as any ptr, byval index as long )              ' -1 = all
 
@@ -118,6 +119,7 @@ public type Pane
     owner as any ptr
     OnCommand as DebugCommandSub
     CanRun as DebugCanRunFunc
+    KeyText as DebugKeyTextFunc      ' a button's tooltip: the command's key now (author 2026-11-07)
     OnGoTo as DebugGoToSub
     OnRemoveBreakpoint as DebugRemoveSub
     frame as TK_WIDGET ptr
@@ -316,6 +318,12 @@ private function MakeList( byval parent as TK_WIDGET ptr, byval which as long ) 
     return l
 end function
 
+' No tooltip on a tab (author 2026-11-07): its caption says it all. tkTabBar shows the caption when
+' there is no callback; an empty text shows nothing.
+public function NoTabTip( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    return ""
+end function
+
 private function MakeTabs( byval parent as TK_WIDGET ptr, byval id as long, byval n as long ) as TK_WIDGET ptr
     dim as TK_WIDGET ptr t = tkTabBar_Create( parent, id )
     for i as long = 0 to n - 1
@@ -324,6 +332,7 @@ private function MakeTabs( byval parent as TK_WIDGET ptr, byval id as long, byva
     next
     tkTabBar_SetBorderWidth( t, 0 )
     tkTabBar_SetPaintCallback( t, @PaintBottomTab )
+    tkTabBar_SetTooltipCallback( t, @NoTabTip )
     return t
 end function
 
@@ -938,7 +947,10 @@ sub Pane.Relabel( )
         dim as ustring cap = i18n.Tr( "commands." & ci.Name, ci.Description )
         if id = clng( Cmd.StartDebugging ) then cap = i18n.Tr( "debug.continue", "Continue" )
         tkToolbar_SetText( tools, i, cap )
-        tkToolbar_SetTooltipText( tools, i, cap )
+        ' the tooltip is the key that runs it now, keybindings.toml included (author 2026-11-07)
+        dim as ustring tip
+        if KeyText then tip = KeyText( owner, id )
+        tkToolbar_SetTooltipText( tools, i, tip )
     next
     tkToolbar_SetTooltipText( ltools, 0, i18n.Tr( "debug.add_watch", "Add Watch" ) )
     tkToolbar_SetTooltipText( ltools, 1, i18n.Tr( "debug.delete_watch", "Delete Watch" ) )
