@@ -719,6 +719,12 @@ private function LinkAll _
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if
 
+    '' '-g' ON MACH-O: the DWARF is in the objects deleted below, so into '<out>.dSYM' first.
+    dim as int32 drc = 0
+    if ctx.options.debugInfo andalso (td.objFormat = Tko.Codegen.OBJ_MACHO) then drc = Tko.Codegen.MakeDsym( tools, ctx.options.outputPath )
+    if drc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0177, ctx.options.outputPath, _
+        iif( drc = -1, "there is no dsymutil (set TIKO_DSYMUTIL)", "dsymutil failed (exit " & drc & ")" ) )
+
     '' ONLY WHAT THIS BUILD MADE. An object the user named on the command line is
     '' theirs and is not deleted, however temporary it looks.
     if ctx.options.keepTemps = false then

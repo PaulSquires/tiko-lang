@@ -112,6 +112,8 @@
     DIAG( TKO0172, SEV_ERROR,   "cannot make an import library for '%0': %1" )
     '' [vendor.<module>] runtime names a file the module's directory does not hold.
     DIAG( TKO0176, SEV_ERROR,   "module '%0' needs '%1' at run time, and there is no '%2'" )
+    '' '-g' on macOS: the objects' DWARF could not be gathered into '<output>.dSYM'.
+    DIAG( TKO0177, SEV_ERROR,   "cannot write the debug symbols of '%0': %1" )
     '' 'tiko c2t' (src/c2t): a C header translated into a tiko header.
     DIAG( TKO0173, SEV_ERROR,   "'tiko c2t' translates one header per run; '%0' is a second" )
     DIAG( TKO0174, SEV_ERROR,   "cannot read the C header '%0'" )

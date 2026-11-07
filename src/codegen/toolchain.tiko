@@ -327,6 +327,22 @@ function MakeImportLib _
     return Exec_( t, t.dlltoolExe, "-m i386:x86-64 -d " & Q( defFile ) & " -l " & Q( outLib ) )
 end function
 
+'' A MACH-O PROGRAM'S DEBUG INFORMATION, gathered into '<out>.dSYM'. ld64 does not copy DWARF
+'' into the image: it records a debug map pointing at the objects, and the link deletes those
+'' (measured 2026-11-07: a '-g' exe's one N_OSO named the deleted '<name>.1.o', and lldb found no
+'' line, type or variable). clang's driver runs dsymutil for the same reason when it compiles and
+'' links in one step. TIKO_DSYMUTIL, then beside clang, then the CLT's /usr/bin shim; none = -1.
+function MakeDsym( byref t as ToolPaths, byref outPath as string ) as int32
+    dim as string exe = environ( "TIKO_DSYMUTIL" )
+    if len( exe ) = 0 then
+        dim as int32 sl = instrrev( t.clangExe, "/" )
+        if sl > 0 then exe = left( t.clangExe, sl ) & "dsymutil"
+        if FileExists_( exe ) = false then exe = "/usr/bin/dsymutil"
+    end if
+    if FileExists_( exe ) = false then return -1
+    return Exec_( t, exe, Q( outPath ) )
+end function
+
 '' A '.rc' TO A '.res', which lld-link consumes directly -- no separate cvtres
 '' step and no object in between. fbc goes the other way, asking GoRC for a COFF
 '' object; the outcome is the same .rsrc section.
