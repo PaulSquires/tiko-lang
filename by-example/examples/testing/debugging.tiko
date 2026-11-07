@@ -1,0 +1,19 @@
+'' A program to stop inside: in tkEdit, F9 on the "total +=" line, then F6.
+type Score
+    player as ustring
+    points as int32
+end type
+
+function Average( scores( ) as Score ) as float64
+    dim total as int32
+    for i as int32 = lbound( scores ) to ubound( scores )
+        total += scores( i ).points
+    next
+    return total / ( ubound( scores ) - lbound( scores ) + 1 )
+end function
+
+dim scores( 1 to 3 ) as Score
+scores( 1 ).player = "Ana"  : scores( 1 ).points = 12
+scores( 2 ).player = "Bo"   : scores( 2 ).points = 15
+scores( 3 ).player = "Cyd"  : scores( 3 ).points = 21
+print "average:"; Average( scores( ) )

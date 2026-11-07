@@ -229,6 +229,7 @@
   - [Testing a module](testing/modules.md)
   - [assert in tests](testing/assert.md)
   - [Tracing](testing/tracing.md)
+  - [Debugging in tkEdit](testing/debugging.md)
 - [Building](building/index.md)
   - [Options in the source](building/cmdline.md)
   - [Checked builds](building/checked.md)
