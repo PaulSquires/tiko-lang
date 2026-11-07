@@ -210,6 +210,14 @@ declare sub InstantiateIfaceMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval iin as Tko.ScopeId, _
       byval argFirst as int32, byval argCount as int32 )
 declare sub InstClassImplements_( byref c as Ctx, byval gnode as Tko.NodeId, byval iin as Tko.ScopeId )
+declare function IfaceInstArgs_ _
+    ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId, _
+      byref outv as containers.Array( of uint32 ) ) as boolean
+'' generic.tiko -- an instantiation's type arguments, and whether it is one of 'want'.
+declare function InstArgsOf_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of uint32 ) ) as boolean
+declare function SameGeneric_ _
+    ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
 declare sub NoteConstraints_ _
     ( byref c as Ctx, byval plist as Tko.NodeId, byval home as Tko.ScopeId, _
       byref argTypes as containers.Array( of uint32 ), byval at_ as Tko.NodeId, byval gname as Tko.InternId )

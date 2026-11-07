@@ -22,3 +22,8 @@ type Plain
     as long pad
     declare function Get( ) as string implements IGet( of long ).Get
 end type
+function UseGet( of T )( byval x as T, byval g as IGet( of T ) ) as T
+    return x
+end function
+dim as IGet( of long ) gl
+print UseGet( 21, gl )

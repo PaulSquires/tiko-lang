@@ -1,0 +1,14 @@
+'' RUN: inferring T through an implemented generic interface (docs/tiko-interfaces §11.5) --
+'' see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-infer.bas -o tests/codegen/ifaceinfer.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifaceinfer.exe
+'' RUN: tests/codegen/ifaceinfer.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  fig kiwi apple banana
+'' EXPECT-RUN-OUT:  9 4 2.5 0.5
+'' EXPECT-RUN-OUT:  1 2 3
+'' EXPECT-RUN-OUT:  1 2 3

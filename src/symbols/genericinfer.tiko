@@ -551,10 +551,6 @@ private function InferArgType_ _
     return Tko.TYPE_NONE
 end function
 
-declare function InstArgsOf_ _
-    ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of uint32 ) ) as boolean
-declare function SameGeneric_ _
-    ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
 declare function MergeInferred_ _
     ( byref c as Ctx, byref got as Tko.TypeId, byval cand as Tko.TypeId ) as boolean
 

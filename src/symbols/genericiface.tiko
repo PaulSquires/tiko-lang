@@ -285,4 +285,91 @@ sub NoteConstraints_ _
     wend
 end sub
 
+'' ---------------------------------------------------------------- inference (§11.5)
+'' 'sub SortWith( of T )( a( ) as T, byval cmp as IComparer( of T ) )' called with a ByLength
+'' that IMPLEMENTS IComparer( of string ): the argument is no instantiation of IComparer, so
+'' the ordinary match (an instance of the same generic) fails, and C# and VB infer T = string
+'' from the instance the argument implements. So does this -- from the type's 'implements'
+'' lines, its base type's, and the 'inherits' lines of the interfaces those name. Exactly ONE
+'' instance of the wanted generic must turn up; two would be a guess, and the call declines.
+private sub IfaceInstWalk_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.InternId, _
+      byref found as containers.Array( of uint32 ), byval depth as int32 )
+
+    if (t = Tko.TYPE_NONE) orelse (depth > 16) then return
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return
+    if c.types->IsInterface( t ) andalso SameGeneric_( c, t, want ) then
+        for i as int32 = 0 to found.Count - 1
+            if found[i] = cast( uint32, t ) then return
+        next
+        found.Push( cast( uint32, t ) )
+        return
+    end if
+    dim as Tko.InternId tn = c.types->NameOf( t )
+    if tn = 0 then return
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId sid = c.syms->LookupLocalTyped( ds, tn, true )
+    if sid = Tko.SYMBOL_NONE then sid = c.syms->LookupTyped( ds, tn, true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return
+    dim as Tko.ScopeId home = s->parent, inner = s->inner
+    dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
+    dim as int32 standIn = 0
+    if c.syms->instImplDecl.TryGet( cast( uint32, sid ), standIn ) then dn = cast( Tko.NodeId, standIn )
+    if (dn = Tko.NODE_NONE) orelse (cast( int32, dn ) > c.ast->Count( )) then return
+
+    '' The written lists: a type's 'implements', an interface's 'inherits'. A generic
+    '' template's name T and resolve to nothing useful; an instance has its stand-in above.
+    dim as Tko.NodeId lst = Tko.NODE_NONE
+    select case c.ast->Kind( dn )
+    case Tko.N_TYPE
+        if StmtOf( c, dn )->b <> Tko.NODE_NONE then return
+        lst = Tko.ImplementsOf( *c.ast, dn )
+    case Tko.N_INTERFACE
+        lst = StmtOf( c, dn )->c
+    case else
+        return
+    end select
+    if lst <> Tko.NODE_NONE then
+        dim as int32 lFirst = c.ast->ListOf( lst )->first, lCount = c.ast->ListOf( lst )->count
+        for i as int32 = 0 to lCount - 1
+            dim as Tko.NodeId tr = cast( Tko.NodeId, c.ast->ChildSlot( lFirst + i ) )
+            dim as Tko.TypeId it = c.info->TypeOf_( tr )
+            if it = Tko.TYPE_NONE then it = ResolveTypeRef( c, tr, home )
+            IfaceInstWalk_( c, it, want, found, depth + 1 )
+        next
+    end if
+
+    '' ...and what its base type implements: the 'base' field.
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( inner )
+    if sc = nullptr then return
+    dim as Tko.InternId baseNm = c.names->Fold( c.names->GetString( "base" ) )
+    dim as Tko.SymbolId cur = sc->firstSym
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = nullptr then exit while
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (f->name = baseNm) then
+            IfaceInstWalk_( c, f->type_, want, found, depth + 1 )
+            exit while
+        end if
+        cur = f->nextInScope
+    wend
+end sub
+
+function IfaceInstArgs_ _
+    ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId, _
+      byref outv as containers.Array( of uint32 ) ) as boolean
+
+    outv.Clear( )
+    if argT = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( argT )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) = Tko.TK_POINTER then u = c.types->Unqualify( c.types->Inner( u ) )   '' '@obj'
+    dim as containers.Array( of uint32 ) found
+    IfaceInstWalk_( c, u, want, found, 0 )
+    if found.Count <> 1 then return false
+    return InstArgsOf_( c, cast( Tko.TypeId, found[0] ), outv )
+end function
+
 end namespace

@@ -371,7 +371,7 @@ end function
 '' The name IS the key: InstantiateGeneric_ builds 'Box<6,9>' out of the generic's
 '' spelling and the TypeIds of its arguments, so this is a DECODE of that encoding
 '' rather than a guess -- the two belong together and must move together.
-private function InstArgsOf_ _
+function InstArgsOf_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref outv as containers.Array( of uint32 ) ) as boolean
 
     if t = Tko.TYPE_NONE then return false
@@ -405,7 +405,7 @@ end function
 '' link failed. 'select channel' over a RecvChan is that shape: SelectAddRecv takes a
 '' 'Channel( of T )'. fbc answers both with error 340 (measured, fbc-modern 1.20). Compared
 '' on the last component, case-folded: 'FB.Channel( of T )' and 'channel<6>'.
-private function SameGeneric_ _
+function SameGeneric_ _
     ( byref c as Ctx, byval argT as Tko.TypeId, byval want as Tko.InternId ) as boolean
     dim as string an = lcase( c.names->Spelling( c.types->NameOf( c.types->Unqualify( argT ) ) ) )
     dim as string wn = lcase( c.names->Spelling( want ) )
@@ -544,8 +544,9 @@ private function InferProcTypeArgs_ _
                 '' candidate cannot apply, and saying so is what lets the concrete
                 '' overloads be considered.
                 dim as containers.Array( of uint32 ) iargs
-                if InstArgsOf_( c, argT, iargs ) = false then return false
-                if SameGeneric_( c, argT, tp->name ) = false then return false
+                if (InstArgsOf_( c, argT, iargs ) = false) orelse (SameGeneric_( c, argT, tp->name ) = false) then
+                    if IfaceInstArgs_( c, argT, tp->name, iargs ) = false then return false     '' genericiface.tiko
+                end if
                 if at_ >= iargs.Count then return false
                 if MergeInferred_( c, got, cast( Tko.TypeId, iargs[at_] ) ) = false then return false
                 continue for

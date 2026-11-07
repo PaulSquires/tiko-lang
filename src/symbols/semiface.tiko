@@ -126,6 +126,16 @@ sub ApplyIfaceWraps_( byref c as Ctx )
     c.ifaceWrapAt.Clear( )
 end sub
 
+private function IfaceTemplate_( byref c as Ctx, byval t as TypeId ) as boolean
+    if c.types->IsInterface( t ) = false then return false
+    dim as Symbol ptr s = UdtSymbolOf_( c, c.types->Unqualify( t ) )
+    if s = nullptr then return false
+    dim as NodeId dn = cast( NodeId, s->payload )
+    if (dn = NODE_NONE) orelse (cast( int32, dn ) > c.ast->Count( )) then return false
+    if c.ast->Kind( dn ) <> N_INTERFACE then return false
+    return c.ast->StmtOf( dn )->b <> NODE_NONE
+end function
+
 '' True when one side is an interface: the conversion was judged here, and refused with
 '' TKO1009 if it does not hold. 'lt' and 'rt' are the value types, already unqualified.
 function IfaceConvJudged_ _
@@ -133,6 +143,9 @@ function IfaceConvJudged_ _
     dim as boolean lI = c.types->IsInterface( lt )
     dim as boolean rI = c.types->IsInterface( rt )
     if (lI orelse rI) = false then return false
+    '' A GENERIC INTERFACE'S TEMPLATE is no type a value has: a call left bound to a generic
+    '' procedure whose arguments could not be inferred meets it, and TKO0809 has said why.
+    if IfaceTemplate_( c, lt ) orelse IfaceTemplate_( c, rt ) then return true
     if lI then
         dim as TypeId src = rt
         if c.types->Kind( src ) = TK_POINTER then

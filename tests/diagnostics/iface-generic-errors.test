@@ -1,7 +1,9 @@
 '' Generic interfaces (docs/tiko-interfaces §11.5). A generic interface named with the wrong
 '' number of arguments, or none, is a generic used wrongly (TKO0816, TKO0815). A generic class
 '' is checked PER INSTANCE: Bad( of long ) maps 'Get' cleanly and Bad( of string ) does not,
-'' Miss( of double ) maps nothing; a plain type's mapping is checked against the instance.
+'' Miss( of double ) maps nothing; a plain type's mapping is checked against the instance. A
+'' call whose arguments disagree on T (an integer literal and an IGet( of long )) is TKO0809
+'' alone -- the argument is not judged against the generic interface's template too.
 '' TEST: cli
 '' ARGS: --frontend-only tests/diagnostics/src/iface-generic-errors.bas
 '' EXPECT-EXIT: 1
@@ -12,4 +14,5 @@
 '' EXPECT-OUT: iface-generic-errors.bas(7,61): error TKO1001: 'bad( of string ).get' cannot implement 'iget( of string ).get': the return types differ
 '' EXPECT-OUT: iface-generic-errors.bas(5,16): error TKO1000: 'bad( of string )' does not implement 'iget( of string ).get'
 '' EXPECT-OUT: iface-generic-errors.bas(13,16): error TKO1000: 'miss( of double )' does not implement 'iget( of double ).get'
-'' EXPECT-MAX-DIAG: 7
+'' EXPECT-OUT: iface-generic-errors.bas(29,13): error TKO0809: cannot infer the type arguments of 'useget'
+'' EXPECT-MAX-DIAG: 8
