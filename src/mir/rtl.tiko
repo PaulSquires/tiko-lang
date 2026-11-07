@@ -41,8 +41,8 @@ function RtlTypeOfLetter _
 
     select case c
     case "v" : return MT_VOID
-    case "b" : return MT_I8
-    case "s" : return MT_I16
+    case "b", "B" : return MT_I8
+    case "s", "S" : return MT_I16
     case "l" : return MT_I32
     case "L" : return MT_I32
     case "q" : return MT_I64
@@ -176,10 +176,35 @@ end function
 
 '' The MIR type a parameter letter names. Kept next to the table so the two cannot
 '' drift apart.
+'' A NARROW LETTER'S EXTENSION, TKO_PX_*: signext for b s (int8, int16, boolean),
+'' zeroext for B S (uint8, uint16) -- the runtime's own parameter types.
+private function RtlLetterExt_( byval ch as ubyte ) as uint8
+    select case ch
+    case asc( "b" ), asc( "s" ) : return TKO_PX_SIGN
+    case asc( "B" ), asc( "S" ) : return TKO_PX_ZERO
+    end select
+    return TKO_PX_NONE
+end function
+
+'' NARROWEXT IS MACOS-ARM64. Apple's ABI leaves a narrow argument's upper bits to the
+'' caller, and the runtime -- compiled by tiko, which writes 'i8 zeroext' on its
+'' definitions there -- reads them as they arrive: without the attribute on the call,
+'' 'print cast( uint8, 300 )' printed 300. Every other target leaves paramExt empty
+'' here, so the ABI pass does not widen a runtime call and its IR is as before.
 sub RtlSignature _
-    ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean )
+    ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean, _
+      byval narrowExt as boolean )
 
     if f = nullptr then return
+    if narrowExt then
+        dim as string rl = ""
+        select case r
+        #define RTL( r_id, r_sym, r_ret, r_args ) case r_id : rl = r_ret
+        TKO_RTL_LIST( RTL )
+        #undef RTL
+        end select
+        if len( rl ) = 1 then f->retExt = RtlLetterExt_( rl[0] )
+    end if
     '' THE '.' IS NOT A PARAMETER. RtlArity is the LENGTH of the parameter string and
     '' counts it, which is right for the fixed-prefix check it was written for and
     '' wrong here: it produced a fifth, void parameter on fb_ThreadCall, whose real
@@ -187,7 +212,7 @@ sub RtlSignature _
     dim as string ps = RtlParams( r )
     for i as int32 = 0 to len( ps ) - 1
         if ps[i] = asc( "." ) then exit for
-        f->AddParam( RtlParamType( r, i, is32 ) )
+        f->AddParam( RtlParamType( r, i, is32 ), 0, 0, 0, iif( narrowExt, RtlLetterExt_( ps[i] ), TKO_PX_NONE ) )
     next
     '' '.' marks a variadic tail -- a REDIM's bounds, PRINT's argument list -- and only
     '' the fixed prefix above is typed. LLVM needs to be TOLD, because a call to a

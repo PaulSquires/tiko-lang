@@ -1109,7 +1109,7 @@ function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     if idx < 0 then
         dim as MirFunction ptr d = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
         d->isDefinition = false
-        RtlSignature( d, r, is32 )
+        RtlSignature( d, r, is32, (c.types->target.osKind = Tko.OS_DARWIN) andalso (c.types->target.arch = Tko.ARCH_ARM64) )
         idx = c.m->functions.Count - 1
     end if
     dim as MirInst fa

@@ -1,0 +1,20 @@
+'' macos-arm64: a byte or short handed to the RUNTIME carries the extension the runtime's
+'' own definition was compiled with -- zeroext for its uint8 / uint16 parameters (RTL
+'' letters B S), signext for int8 / int16 / boolean (b s) -- on the declaration, the call
+'' and a narrow result. The runtime is tiko code, so on Apple it trusts a narrow
+'' argument's upper bits; without the attribute 'print cast( ubyte, 300 )' printed 300
+'' and 'cast( uint16, -1 )' 4294967295 (by-example types/casting, 2026-11-07).
+'' See RtlSignature in src/mir/rtl.tiko.
+'' TEST: cli
+'' ARGS: -target macos-arm64 --emit-ir tests/codegen/src/darwin-rt-narrow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare void @"fb_PrintUByte"(i32, i8 zeroext, i32)
+'' EXPECT-OUT: declare void @"fb_PrintByte"(i32, i8 signext, i32)
+'' EXPECT-OUT: declare void @"fb_PrintUShort"(i32, i16 zeroext, i32)
+'' EXPECT-OUT: declare void @"fb_PrintShort"(i32, i16 signext, i32)
+'' EXPECT-OUT: declare ptr @"fb_HEX_b"(i8 zeroext)
+'' EXPECT-OUT: declare ptr @"fb_BIN_s"(i16 zeroext)
+'' EXPECT-OUT: declare ptr @"fb_MKSHORT"(i16 signext)
+'' EXPECT-OUT: declare signext i16 @"fb_CVSHORT"(ptr)
+'' EXPECT-OUT: call void @"fb_PrintUByte"(i32 0, i8 zeroext
+'' EXPECT-OUT: = call signext i16 @"fb_CVSHORT"(ptr
