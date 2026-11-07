@@ -1,0 +1,6 @@
+#import "std/tasks"
+sub Work( byval v as slice )
+    print len( v )
+end sub
+dim as string s = "hello"
+spawn Work( s[0 to 2] )

@@ -84,6 +84,14 @@ namespace Tko.Slices
     declare function SliceArgCost _
         ( byref types as Tko.TypeContext, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as int32
 
+    '' WHETHER t IS A VIEW-KIND TYPE: 'type T as view' (RFC-0002 §3), found through the TYPE's own
+    '' declaration node, so a module's view type is one in its importer too (the interface
+    '' writes the declaration back verbatim).
+    declare function IsViewType _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+          byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId ) as boolean
+
     '' Whether call node id is a '__tko_slice' call.
     declare function IsSliceCall _
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _

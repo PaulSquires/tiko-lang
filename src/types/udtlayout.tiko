@@ -125,7 +125,8 @@ end function
 private function MemberAlign _
     ( byval t as TypeId, byref types as TypeContext, byref store as UdtLayouts ) as int32
 
-    dim as int32 ui = store.Find( t )
+    '' A CONST UDT MEMBER is laid out as the UDT: 'c as const A' (and a 'const slice' field).
+    dim as int32 ui = store.Find( types.Unqualify( t ) )
     if ui >= 0 then return store.udts[ui].align
     '' An array is aligned as its ELEMENT, and the element may itself be a UDT whose
     '' layout only this store knows -- TypeContext.Layout cannot see it.
@@ -160,7 +161,7 @@ end function
 private function MemberSize _
     ( byval t as TypeId, byref types as TypeContext, byref store as UdtLayouts ) as int32
 
-    dim as int32 ui = store.Find( t )
+    dim as int32 ui = store.Find( types.Unqualify( t ) )   '' a const UDT member: see MemberAlign
     if ui >= 0 then return store.udts[ui].size
     if types.IsDynArray( t ) then return DescBytes_( t, types )
     if types.Kind( t ) = TK_ARRAY then
@@ -700,8 +701,10 @@ private function LayOutOne _
             '' reaches this before its base exists, and 'a size 16' became 'a size 4'
             '' with no diagnostic anywhere.
             if notReady = false then
-                if types.Kind( f->type_ ) = TK_UDT then
-                    if store.Find( f->type_ ) < 0 then notReady = true
+                '' ...UNQUALIFIED: a 'const A' member waited forever for a layout keyed by 'A', so
+                '' its type was never laid out and every field access on it declined.
+                if types.Kind( types.Unqualify( f->type_ ) ) = TK_UDT then
+                    if store.Find( types.Unqualify( f->type_ ) ) < 0 then notReady = true
                 end if
             end if
             if notReady then

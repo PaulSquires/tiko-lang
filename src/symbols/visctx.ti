@@ -74,4 +74,7 @@ type Ctx
     '' payload pointers into the pools that would move under it.
     as containers.Array( of uint32 ) ifaceWraps
     as containers.Map( of uint32, int32 ) ifaceWrapAt
+    '' A SLICE OR VIEW VARIABLE'S ORIGIN, the shortest of everything bound into it (semslice.tiko
+    '' VarOrigin_): kind and scope by symbol, and the symbols being worked out, for a cycle.
+    as containers.Map( of uint32, int32 ) sliceOrgKind, sliceOrgScope, sliceOrgSym, sliceOrgBusy, sliceGenSeen
 end type

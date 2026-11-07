@@ -187,8 +187,21 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
         return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
     end if
 
+    '' 'type Foo as view' -- A VIEW-KIND TYPE (docs/tiko-slices RFC-0002 §3), not a typedef:
+    '' 'as view' and the end of the line, then an ordinary body. VIEW is a reserved word, so no
+    '' typedef could ever be spelled this way.
+    dim as boolean viewType = false
+    if (Peek( p ) = Tko.KW_AS) andalso HasTok( p, p.pos + 2 ) then
+        if (cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.KW_VIEW) andalso _
+           (cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) = Tko.TK_EOL) then
+            Advance( p ) : Advance( p )
+            sp.extra or= Tko.PF_VIEW_TYPE
+            viewType = true
+        end if
+    end if
+
     '' 'type Foo as long' -- also a typedef.
-    if Peek( p ) = Tko.KW_AS then
+    if (viewType = false) andalso (Peek( p ) = Tko.KW_AS) then
         Advance( p )
         sp.a = TypeRef( p )
         TypedefKeywordTarget_( p, sp.a )

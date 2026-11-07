@@ -1,0 +1,47 @@
+'' String slices, RFC-0002 P3b: a VIEW-KIND type ('type T as view') holding a const slice, a
+'' method reading this.src and returning a slice of it, a view returned from a function over a
+'' byref string. And the layout fix it needed: a TYPE with a CONST UDT member ('c as const A')
+'' was never laid out, so every field access on it declined (TKO0994) -- a pre-existing bug.
+
+type Lexer as view
+    src as const slice
+    pos as integer
+    declare function NextWord( ) as const slice
+end type
+
+function Lexer.NextWord( ) as const slice
+    while (this.pos < len( this.src )) andalso (this.src[this.pos] = 32)
+        this.pos += 1
+    wend
+    dim as integer st = this.pos
+    while (this.pos < len( this.src )) andalso (this.src[this.pos] <> 32)
+        this.pos += 1
+    wend
+    return this.src[st to this.pos - 1]
+end function
+
+function MakeLexer( byref s as string ) as Lexer
+    dim as Lexer lx
+    lx.src = s[0 to len( s ) - 1]
+    lx.pos = 0
+    return lx
+end function
+
+dim as string text = "alpha  beta gamma"
+dim as Lexer lx = MakeLexer( text )
+do
+    dim as const slice w = lx.NextWord( )
+    if len( w ) = 0 then exit do
+    print "[" & w & "]"
+loop
+
+type A
+    x as integer
+end type
+type B
+    c as const A
+    n as integer
+end type
+dim as B b
+b.n = 5
+print "const member " & b.n & " " & sizeof( B )

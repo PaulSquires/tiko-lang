@@ -375,6 +375,9 @@ namespace Tko
     '' ...and its SETTER when the clause is 'get' or 'get, init': only the type's own constructors
     '' may call it (propaccess.tiko, TKO0596).
     const PF_INIT_ONLY      as uint32 = &h10000000
+    '' N_TYPE: 'type T as view' (docs/tiko-slices RFC-0002 §3) -- a type that may hold string
+    '' slices, and lives only where a slice may: a local, a parameter or a result.
+    const PF_VIEW_TYPE      as uint32 = &h20000000
     '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
     '' a DLL exports, reached through its import pointer (T85). See llvmglobal.tiko.
     const VF_DLLIMPORT      as uint32 = &h00000001

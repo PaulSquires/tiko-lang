@@ -197,6 +197,23 @@ function SliceArgCost _
     return 159
 end function
 
+function IsViewType _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId ) as boolean
+
+    t = Bare_( types, t )
+    if (t = Tko.TYPE_NONE) orelse (types.Kind( t ) <> Tko.TK_UDT) then return false
+    dim as Tko.SymbolId sid = syms.LookupLocalTyped( cast( Tko.ScopeId, types.DeclScopeOf( t ) ), types.NameOf( t ), true )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, Tko.SYM_UDT ) then return false
+    dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
+    if (dn = Tko.NODE_NONE) orelse (cast( int32, dn ) > ast.Count( )) then return false
+    if ast.Kind( dn ) <> Tko.N_TYPE then return false
+    return (ast.StmtOf( dn )->extra and Tko.PF_VIEW_TYPE) <> 0
+end function
+
 function IsSliceCall _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byval id as Tko.NodeId ) as boolean

@@ -290,8 +290,39 @@ private function LifeUnparen_( byref c as Ctx, byval e as NodeId ) as NodeId
     return e
 end function
 
+'' A SLICE, OR A VIEW-KIND TYPE (RFC-0002 §3), which borrows as a slice does.
 private function IsSliceT_( byref c as Ctx, byval t as TypeId ) as boolean
-    return Slices.SliceUnitOfType( *c.types, *c.names, t ) <> Slices.SU_NONE
+    if Slices.SliceUnitOfType( *c.types, *c.names, t ) <> Slices.SU_NONE then return true
+    return Slices.IsViewType( *c.ast, *c.syms, *c.types, *c.names, t )
+end function
+
+'' A GENERIC INSTANCE WITH A SLICE OR VIEW TYPE ARGUMENT -- 'Array( of slice )' -- would keep slices
+'' where nothing tracks them. The instance is named by its key, 'array<41>', the argument type
+'' ids (symbols/generic.tiko); each is asked, and so is a nested instance.
+private function GenericHoldsSlice_( byref c as Ctx, byval t as TypeId, byval depth as int32 = 0 ) as boolean
+    if (t = TYPE_NONE) orelse (depth > 8) then return false
+    t = c.types->Unqualify( t )
+    if c.types->Kind( t ) <> TK_UDT then return false
+    dim as string ks = c.names->Spelling( c.types->NameOf( t ) )
+    dim as integer lt = instr( ks, "<" )
+    if (lt = 0) orelse (right( ks, 1 ) <> ">") then return false
+    dim as string args = mid( ks, lt + 1, len( ks ) - lt - 1 ) & ","
+    dim as integer at = 1
+    while at <= len( args )
+        dim as integer cm = instr( at, args, "," )
+        dim as string one = mid( args, at, cm - at )
+        at = cm + 1
+        if (len( one ) = 0) orelse (len( one ) > 9) then continue while
+        dim as boolean digits = true
+        for k as integer = 1 to len( one )
+            if (asc( one, k ) < 48) orelse (asc( one, k ) > 57) then digits = false
+        next
+        if digits = false then continue while
+        dim as TypeId a = cast( TypeId, valint( one ) )
+        if (cast( int32, a ) <= 0) orelse (cast( int32, a ) >= c.types->Count( )) then continue while
+        if IsSliceT_( c, a ) orelse GenericHoldsSlice_( c, a, depth + 1 ) then return true
+    wend
+    return false
 end function
 
 '' A variable or parameter as storage: where a string, or a slice, held in it lives.
@@ -358,7 +389,7 @@ declare function SliceOrigin_ ( byref c as Ctx, byval e as NodeId ) as SliceOrig
 '' A CALL RETURNING A SLICE borrows from every argument it could have taken one from: each
 '' slice argument, each string bound to a byref or slice parameter. No annotations, so the
 '' result's origin is the shortest of theirs (RFC-0002 §5); with none, nothing to borrow from.
-private function CallOrigin_( byref c as Ctx, byval e as NodeId ) as SliceOrigin
+function CallOrigin_( byref c as Ctx, byval e as NodeId ) as SliceOrigin
     dim as SliceOrigin o = Org_( ORG_FOREVER )
     dim as ListPayload ptr lp = c.ast->ListOf( e )
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( e ) )
@@ -401,16 +432,88 @@ private function CallOrigin_( byref c as Ctx, byval e as NodeId ) as SliceOrigin
     return o
 end function
 
+'' The variable an assignment target writes into: 'v', 'v.f', '(v).f.g' -- not through a pointer.
+private function TargetRoot_( byref c as Ctx, byval e as NodeId ) as SymbolId
+    dim as int32 guard = 0
+    while guard < 64
+        guard += 1
+        e = LifeUnparen_( c, e )
+        select case c.ast->Kind( e )
+        case N_IDENT
+            return c.info->RefOf( e )
+        case N_MEMBER
+            if (c.ast->Flags( e ) and NF_ARROW) <> 0 then return SYMBOL_NONE
+            dim as BinaryPayload ptr mp = c.ast->BinaryOf( e )
+            if cast( TokenKind, mp->op ) = TK_ARROW then return SYMBOL_NONE
+            e = mp->lhs
+        case else
+            return SYMBOL_NONE
+        end select
+    wend
+    return SYMBOL_NONE
+end function
+
+'' A SLICE OR VIEW VARIABLE'S ORIGIN: the shortest of everything ever bound into it -- its
+'' initialiser, each assignment to it or to a field of it, and each call that hands it to a
+'' byref slice or view parameter (which may store any of that call's other arguments in it).
+'' A variable nothing is bound into views nothing and lives FOREVER. Flow-insensitive, so sound
+'' whatever the order; 'dim v as slice = s[0 to 2] : return v' over a byref s is legal.
+private function VarOrigin_( byref c as Ctx, byval sid as SymbolId ) as SliceOrigin
+    dim as int32 ck, cs, cy
+    if c.sliceOrgKind.TryGet( cast( uint32, sid ), ck ) andalso c.sliceOrgScope.TryGet( cast( uint32, sid ), cs ) andalso c.sliceOrgSym.TryGet( cast( uint32, sid ), cy ) then
+        return Org_( ck, cast( ScopeId, cs ), cast( SymbolId, cy ) )
+    end if
+    if c.sliceOrgBusy.Contains( cast( uint32, sid ) ) then return Org_( ORG_UNKNOWN )
+    c.sliceOrgBusy.Put( cast( uint32, sid ), 1 )
+    dim as SliceOrigin o = Org_( ORG_FOREVER )
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as int32 first = 1
+    if s <> nullptr then
+        if (s->payload > 0) andalso (s->payload <= cast( uint32, c.ast->Count( ) )) then first = cast( int32, s->payload )
+    end if
+    for i as int32 = first to c.ast->Count( )
+        dim as NodeId n = cast( NodeId, i )
+        select case c.ast->Kind( n )
+        case N_VAR_ITEM
+            if (i = first) andalso (c.ast->StmtOf( n )->b <> NODE_NONE) then o = Shorter_( c, o, SliceOrigin_( c, c.ast->StmtOf( n )->b ) )
+        case N_AMBIGUOUS
+            if c.info->AmbiguousOf( n ) <> AMB_ASSIGN then continue for
+            dim as StmtPayload ptr sp = c.ast->StmtOf( n )
+            if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then continue for
+            if TargetRoot_( c, sp->a ) <> sid then continue for
+            o = Shorter_( c, o, SliceOrigin_( c, sp->b ) )
+        case N_CALL
+            dim as ListPayload ptr lp = c.ast->ListOf( n )
+            for k as int32 = 0 to lp->count - 1
+                dim as NodeId a = c.ast->ChildAt( lp->first, k )
+                if TargetRoot_( c, a ) = sid then
+                    dim as TypeId at = c.info->TypeOf_( a )
+                    if IsSliceT_( c, at ) orelse Slices.IsViewType( *c.ast, *c.syms, *c.types, *c.names, at ) then
+                        o = Shorter_( c, o, CallOrigin_( c, n ) )
+                        exit for
+                    end if
+                end if
+            next
+        end select
+    next
+    c.sliceOrgBusy.Remove( cast( uint32, sid ) )
+    c.sliceOrgKind.Put( cast( uint32, sid ), o.kind )
+    c.sliceOrgScope.Put( cast( uint32, sid ), cast( int32, o.scope_ ) )
+    c.sliceOrgSym.Put( cast( uint32, sid ), cast( int32, o.sym ) )
+    return o
+end function
+
 '' WHERE A SLICE-TYPED EXPRESSION'S TEXT LIVES.
 function SliceOrigin_ ( byref c as Ctx, byval e as NodeId ) as SliceOrigin
     e = LifeUnparen_( c, e )
     if e = NODE_NONE then return Org_( ORG_UNKNOWN )
     select case c.ast->Kind( e )
     case N_IDENT
-        '' A SLICE VARIABLE holds only what may live as long as the variable itself -- the
-        '' binding rule below sees to it -- so its own scope stands for its origin.
         dim as SymbolId sid = c.info->RefOf( e )
-        return SymOrigin_( c, c.syms->SymbolAt( sid ), sid )
+        dim as Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = nullptr then return Org_( ORG_UNKNOWN )
+        if (s->kind = cast( uint8, SYM_VARIABLE )) andalso ((s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_EXTERN or SYMF_COMMON)) = 0) then return VarOrigin_( c, sid )
+        return SymOrigin_( c, s, sid )
     case N_CALL
         if Slices.IsSliceCall( *c.ast, *c.names, e ) then
             dim as NodeId src = c.ast->ChildAt( c.ast->ListOf( e )->first, 0 )
@@ -464,10 +567,11 @@ end sub
 
 private function SliceName_( byref c as Ctx, byval t as TypeId ) as string
     select case Slices.SliceUnitOfType( *c.types, *c.names, t )
+    case Slices.SU_NARROW : return "slice"
     case Slices.SU_UTF16 : return "uslice"
     case Slices.SU_WIDE : return "wslice"
     end select
-    return "slice"
+    return "view '" & c.types->Name( c.types->Unqualify( t ) ) & "'"
 end function
 
 '' '@v' over a slice, stored rather than passed (RFC-0002 §2): TKO1056.
@@ -476,10 +580,9 @@ private sub JudgeAddrStore_( byref c as Ctx, byval value as NodeId )
     if value = NODE_NONE then return
     if c.ast->Kind( value ) <> N_ADDROF then return
     dim as NodeId op = LifeUnparen_( c, c.ast->UnaryOf( value )->operand )
+    if c.ast->Kind( op ) <> N_IDENT then return   '' a named slice; an element is the generic argument's error
     if IsSliceT_( c, c.info->TypeOf_( op ) ) = false then return
-    dim as string nm = "?"
-    if c.ast->Kind( op ) = N_IDENT then nm = c.names->Spelling( c.ast->IdentOf( op )->name )
-    c.diags->Report( TKO1056, PointRange( c.ast->Loc( value ) ), nm )
+    c.diags->Report( TKO1056, PointRange( c.ast->Loc( value ) ), c.names->Spelling( c.ast->IdentOf( op )->name ) )
 end sub
 
 private sub JudgeReturn_( byref c as Ctx, byval e as NodeId )
@@ -491,6 +594,15 @@ private sub JudgeReturn_( byref c as Ctx, byval e as NodeId )
     end if
 end sub
 
+'' ONCE: the user's declaration comes first in source order. The instance's own body -- and
+'' the instances it makes in turn, 'ArrayIterator( of slice )' inside 'Array( of slice )' -- are
+'' walked after it and would report the same mistake again inside the library's source.
+private sub GenericArgOnce_( byref c as Ctx, byval id as NodeId, byval t as TypeId )
+    if c.sliceGenSeen.Contains( 0 ) then return
+    c.sliceGenSeen.Put( 0, 1 )
+    c.diags->Report( TKO1054, PointRange( c.ast->Loc( id ) ), "slice", "a generic type argument" )
+end sub
+
 sub CheckSliceLife_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
     select case c.ast->Kind( id )
     case N_VAR_ITEM
@@ -500,6 +612,13 @@ sub CheckSliceLife_ ( byref c as Ctx, byval id as NodeId, byval resultType as Ty
         '' declshape.tiko does.
         if sid = SYMBOL_NONE then sid = c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false )
         if ip->b <> NODE_NONE then JudgeAddrStore_( c, ip->b )
+        if ip->a <> NODE_NONE then
+            dim as TypeId wt = c.info->TypeOf_( ip->a )
+            if (IsSliceT_( c, wt ) = false) andalso GenericHoldsSlice_( c, wt ) then
+                GenericArgOnce_( c, id, wt )
+                return
+            end if
+        end if
         '' ...AND WHEN NOTHING NAMES IT, the symbol whose declaration this item is -- asked only of a
         '' slice-typed item, so the walk is rare.
         if (sid = SYMBOL_NONE) andalso (ip->a <> NODE_NONE) andalso IsSliceT_( c, c.info->TypeOf_( ip->a ) ) then
@@ -545,15 +664,39 @@ sub CheckSliceLife_ ( byref c as Ctx, byval id as NodeId, byval resultType as Ty
             return
         end if
         if IsSliceT_( c, c.info->TypeOf_( sp->a ) ) = false then return
-        dim as NodeId dt = LifeUnparen_( c, sp->a )
-        if c.ast->Kind( dt ) <> N_IDENT then return
-        dim as SymbolId did = c.info->RefOf( dt )
+        '' A SPAWN'S FRAME, filled by the parser's '__tko_sf->__ARG_k = arg' (parser/spawn.tiko): the
+        '' frame is a heap object the new task reads after this frame may be gone.
+        scope
+            dim as NodeId fm = LifeUnparen_( c, sp->a )
+            if c.ast->Kind( fm ) = N_MEMBER then
+                dim as NodeId fr = c.ast->BinaryOf( fm )->rhs
+                if c.ast->Kind( fr ) = N_IDENT then
+                    if left( lcase( c.names->Spelling( c.ast->IdentOf( fr )->name ) ), 6 ) = "__arg_" then
+                        dim as NodeId av = LifeUnparen_( c, sp->b )
+                        dim as string an = SliceName_( c, c.info->TypeOf_( sp->a ) )
+                        if c.ast->Kind( av ) = N_IDENT then an = c.names->Spelling( c.ast->IdentOf( av )->name )
+                        c.diags->Report( TKO1060, PointRange( c.ast->Loc( sp->b ) ), "'spawn'", an )
+                        return
+                    end if
+                end if
+            end if
+        end scope
+        '' THE STORAGE WRITTEN: a variable, or a field of one -- 'lx.src = s[0 to 3]' binds into lx.
+        dim as SymbolId did = TargetRoot_( c, sp->a )
         dim as Symbol ptr dsym = c.syms->SymbolAt( did )
         if dsym = nullptr then return
         dim as boolean caller = false
-        if dsym->kind = cast( uint8, SYM_PARAMETER ) then
-            caller = (c.types->Kind( c.types->Unqualify( dsym->type_ ) ) = TK_REFERENCE)
-        end if
+        select case dsym->kind
+        case cast( uint8, SYM_PARAMETER )
+            '' A byref parameter, or 'this' -- the caller's object -- is storage the caller owns.
+            caller = (c.types->Kind( c.types->Unqualify( dsym->type_ ) ) = TK_REFERENCE) orelse _
+                     (c.types->Kind( c.types->Unqualify( dsym->type_ ) ) = TK_POINTER)
+        case cast( uint8, SYM_FIELD )
+            caller = true                                    '' a field through implicit 'this'
+        case cast( uint8, SYM_VARIABLE )
+        case else
+            return
+        end select
         JudgeBinding_( c, sp->b, did, dsym->parent, caller )
     case N_RETURN
         dim as NodeId e = c.ast->StmtOf( id )->a
@@ -571,14 +714,39 @@ sub CheckSliceLife_ ( byref c as Ctx, byval id as NodeId, byval resultType as Ty
     case N_FIELD
         dim as StmtPayload ptr fp = c.ast->StmtOf( id )
         if fp->a = NODE_NONE then return
-        if IsSliceT_( c, c.info->TypeOf_( fp->a ) ) = false then return
+        dim as TypeId ft = c.info->TypeOf_( fp->a )
+        if (IsSliceT_( c, ft ) = false) andalso GenericHoldsSlice_( c, ft ) then
+            GenericArgOnce_( c, id, ft )
+            return
+        end if
+        if IsSliceT_( c, ft ) = false then return
         dim as string tn = "?"
+        dim as Symbol ptr ow = nullptr
         dim as SymScope ptr fss = c.syms->ScopeAt( c.info->ScopeOf( id ) )
-        if fss <> nullptr then
-            dim as Symbol ptr ow = c.syms->SymbolAt( fss->owner )
-            if ow <> nullptr then tn = c.names->Spelling( ow->name )
+        if fss <> nullptr then ow = c.syms->SymbolAt( fss->owner )
+        if ow <> nullptr then
+            tn = c.names->Spelling( ow->name )
+            '' A VIEW-KIND TYPE MAY HOLD ONE (RFC-0002 §3); it obeys the same rules itself.
+            if Slices.IsViewType( *c.ast, *c.syms, *c.types, *c.names, ow->type_ ) then return
+        end if
+        '' A SPAWN'S FRAME copies the call's arguments into a heap object (parser/spawn.tiko).
+        if left( lcase( c.names->Spelling( fp->name ) ), 6 ) = "__arg_" then
+            c.diags->Report( TKO1060, PointRange( c.ast->Loc( id ) ), "'spawn'", SliceName_( c, ft ) )
+            return
         end if
         c.diags->Report( TKO1055, PointRange( c.ast->Loc( id ) ), tn, c.names->Spelling( fp->name ) )
+    case N_CLOSURE
+        '' A CAPTURING LAMBDA copies or references each capture into its closure object, which
+        '' outlives the frame (RFC-0002 §2). One child per capture.
+        dim as StmtPayload ptr cp = c.ast->StmtOf( id )   '' a statement payload (resolvesynth.tiko)
+        for k as int32 = 0 to cp->count - 1
+            dim as NodeId cap = c.ast->ChildAt( cp->first, k )
+            if IsSliceT_( c, c.info->TypeOf_( cap ) ) then
+                dim as string cn = "?"
+                if c.ast->Kind( cap ) = N_IDENT then cn = c.names->Spelling( c.ast->IdentOf( cap )->name )
+                c.diags->Report( TKO1060, PointRange( c.ast->Loc( cap ) ), "a lambda", cn )
+            end if
+        next
     end select
 end sub
 

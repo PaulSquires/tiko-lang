@@ -1,0 +1,15 @@
+'' String slices, RFC-0002 P3b: a TYPE holding a view needs 'as view' (TKO1055); a view cannot be
+'' shared (TKO1054); a slice cannot be a generic type argument (TKO1054, reported once); a lambda
+'' cannot capture one (TKO1060); returning a slice VARIABLE or a VIEW is judged by what was bound
+'' into it -- FirstWord and MakeLexer, over a byref string, are legal; BadVar and BadLexer, over a
+'' local, are TKO1059 naming the local.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/string-slice-views.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: string-slice-views.tiko(7,5): error TKO1055: type 'plain' holds slice field 'lx' and must be declared 'as view'
+'' EXPECT-OUT: string-slice-views.tiko(16,12): error TKO1059: cannot return a slice of local 'lc'
+'' EXPECT-OUT: string-slice-views.tiko(28,12): error TKO1059: cannot return a slice of local 'lc'
+'' EXPECT-OUT: string-slice-views.tiko(30,21): error TKO1054: a view 'lexer' cannot be shared
+'' EXPECT-OUT: string-slice-views.tiko(34,37): error TKO1054: a slice cannot be a generic type argument
+'' EXPECT-OUT: string-slice-views.tiko(35,25): error TKO1060: a lambda cannot capture slice 'l1'
+'' EXPECT-MAX-DIAG: 6
