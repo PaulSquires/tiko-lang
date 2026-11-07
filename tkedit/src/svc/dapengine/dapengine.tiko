@@ -1,0 +1,1438 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' dapengine -- one debug session over lldb-dap. From tiko-editor-tiko's
+' src/debugparser/dapengine (PROVENANCE.md), made cross-platform; the host API is tks/debugger.
+'
+' THE PROGRAM'S CONSOLE, per OS -- each measured before this was written (docs/tkEdit/DEBUGGER.md):
+'   Windows  lldb-dap's own 'launch' pipes the debuggee's stdio into 'output' events (no INPUT,
+'            no colour) and 'runInTerminal' is "Unimplemented". So the ENGINE creates the process
+'            -- CREATE_SUSPENDED | CREATE_NEW_CONSOLE, cwd its own folder -- and lldb-dap ATTACHES
+'            to it. Attaching delivers a breakpoint exception (0x80000003) in an injected thread,
+'            continued silently; PAUSE arrives the same way, recognised by having asked for one.
+'   Linux,   'runInTerminal' attaches lldb to the lldb-dap launcher image (libLLVM's DWARF: the
+'   macOS    launcher times out, 'main' resolves into z3). Instead a TERMINAL is opened, as Run
+'            opens one, running a holder script that writes its tty's name to a file and waits;
+'            DAP 'launch' then binds the program's stdin/stdout/stderr to that tty ('stdio'). A
+'            GUI program gets no terminal. The holder prints the exit code and waits for Enter.
+'   All      a function breakpoint on 'main' stops at the program's first statement, the first
+'            stop the Debug tab expects.
+'
+' VARIABLES are lldb's, PRESENTED AS FREEBASIC: a string shows its text, a fixed array is
+' indexed with its declared bounds (tiko names the type 'long(1 to 3)'), a dynamic array's
+' elements are read through its descriptor, a reference shows what it refers to.
+'
+' THE HOST is told through a channel of notes (Engine_NextNote) which its UI timer drains; the
+' session worker is an OS thread (threadcreate), for the reader's reason in dapclient.
+#module "dapengine"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/os"
+#import "std/outcome"
+#import "std/process"
+#import "std/tasks"
+#import "tkp/platform"
+#import "tks/dapjson"
+#import "tks/dapclient"
+
+using containers
+using dapjson
+using dapclient
+
+#if defined( TIKO_OS_WINDOWS )
+#inclib "kernel32"
+type TKD_STARTUPINFOW
+    cb as ulong
+    reserved1 as any ptr
+    desktop as any ptr
+    title as any ptr
+    dwX as ulong : dwY as ulong : dwXSize as ulong : dwYSize as ulong
+    dwXCountChars as ulong : dwYCountChars as ulong : dwFillAttribute as ulong
+    dwFlags as ulong
+    wShowWindow as ushort
+    cbReserved2 as ushort
+    lpReserved2 as any ptr
+    hStdInput as any ptr : hStdOutput as any ptr : hStdError as any ptr
+end type
+public type TKD_PROCINFO
+    hProcess as any ptr
+    hThread as any ptr
+    dwProcessId as ulong
+    dwThreadId as ulong
+end type
+extern "C"
+    declare function tkd_CreateProcessW stdcall alias "CreateProcessW" ( byval app as const wstring ptr, _
+        byval cmd as wstring ptr, byval pa as any ptr, byval ta as any ptr, byval inherit as long, _
+        byval flags as ulong, byval env as any ptr, byval dir_ as const wstring ptr, _
+        byval si as TKD_STARTUPINFOW ptr, byval pi as TKD_PROCINFO ptr ) as long
+    declare function tkd_ResumeThread stdcall alias "ResumeThread" ( byval h as any ptr ) as ulong
+    declare function tkd_TerminateProcess stdcall alias "TerminateProcess" ( byval h as any ptr, byval code as ulong ) as long
+    declare function tkd_WaitForSingleObject stdcall alias "WaitForSingleObject" ( byval h as any ptr, byval ms as ulong ) as ulong
+    declare function tkd_GetExitCodeProcess stdcall alias "GetExitCodeProcess" ( byval h as any ptr, byval code as ulong ptr ) as long
+    declare function tkd_CloseHandle stdcall alias "CloseHandle" ( byval h as any ptr ) as long
+    declare function tkd_GetLastError stdcall alias "GetLastError" ( ) as ulong
+end extern
+const TKD_CREATE_SUSPENDED = &h4
+const TKD_CREATE_NEW_CONSOLE = &h10
+const TKD_WAIT_OBJECT_0 = 0
+#endif
+
+' ---- the host's vocabulary (tiko-editor-tiko's dbgtypes) ----
+
+public const DBGP_OK               =  0
+public const DBGP_ERR_BADARG       = -1
+public const DBGP_ERR_NODEBUGINFO  = -3   ' the program carries no DWARF: built without -g
+public const DBGP_ERR_BADIMAGE     = -4   ' not a PE / ELF / Mach-O image
+public const DBGP_ERR_IOERROR      = -5
+public const DBGP_ERR_BUSY         = -6   ' a session is already running
+public const DBGP_ERR_NOSESSION    = -7
+public const DBGP_ERR_LAUNCH       = -8
+public const DBGP_ERR_NOTFOUND     = -9
+
+public enum DBGP_RUNMODE
+    DBGP_RUN_STEPINTO = 0   ' stop at the next executable line, wherever it is
+    DBGP_RUN_STEPOVER       ' as above, but do not descend into calls
+    DBGP_RUN_STEPOUT        ' run until the current frame returns
+    DBGP_RUN_CONTINUE       ' only user breakpoints are armed
+    DBGP_RUN_TOCURSOR       ' continue, plus one temporary breakpoint
+end enum
+
+public enum DBGP_STOPREASON
+    DBGP_STOP_NONE = 0
+    DBGP_STOP_ENTRY
+    DBGP_STOP_STEP
+    DBGP_STOP_BREAKPOINT
+    DBGP_STOP_TEMPBP        ' the run-to-cursor target
+    DBGP_STOP_USERBREAK     ' the host asked to pause
+    DBGP_STOP_EXCEPTION     ' the debuggee faulted
+end enum
+
+' What the worker tells the host (Engine_NextNote): the kind, and its detail.
+public enum DBGP_NOTE
+    DBGP_NOTE_STOPPED = 1   ' detail = DBGP_STOPREASON
+    DBGP_NOTE_EXITED        ' detail = the exit code
+    DBGP_NOTE_FAILED        ' see Engine_LastError
+end enum
+
+const DBGE_MAXFRAMES = 64
+
+public type DBGE_FRAME
+    id      as long
+    nm      as string
+    path    as string          ' "" when the frame has no source of the user's
+    ln      as long
+    pc      as ulongint
+end type
+
+public enum DBGE_KIND
+    NK_PLAIN = 0
+    NK_FIXARR
+    NK_DYNARR
+    NK_TEXT
+end enum
+
+public type DBGE_NODE
+    nm        as string        ' as displayed
+    evalName  as string        ' an lldb variable path to it
+    typ       as string        ' FreeBASIC spelling
+    rawType   as string        ' lldb's
+    value     as string
+    varRef    as long
+    kind      as long
+    dims      as long
+    lo(0 to 7) as longint
+    hi(0 to 7) as longint
+    total     as longint
+    frameId   as long
+    isPtr     as boolean
+    loaded    as boolean       ' NK_PLAIN children fetched
+    chFirst   as long
+    chCount   as long
+end type
+
+public type DBGENGINE
+    adapter    as string
+    exe        as string
+    args       as Array( of ustring )
+    useTerminal as boolean     ' Linux / macOS: a console program gets a terminal of its own
+    scriptDir  as string       ' where the holder script and its tty file go
+    lastError  as string
+    loaded     as boolean
+    active     as boolean
+    running    as boolean
+    stopReq    as boolean      ' the host ended the session (Stop)
+    worker     as any ptr
+#if defined( TIKO_OS_WINDOWS )
+    pi         as TKD_PROCINFO
+#endif
+    doneFile   as string       ' Linux / macOS: written at the end, releases the holder
+    notes      as tasks.Channel( of longint )
+    notesReady as boolean
+    pauseReq   as boolean
+    exitPosted as boolean
+    entryDone  as boolean
+    mainBpId   as long
+    exitCode   as long
+    ' sources and breakpoints
+    src(any)   as string
+    srcN       as long
+    bpSrc(any) as long
+    bpLine(any) as long
+    bpN        as long
+    bidId(any) as long         ' breakpoint ids lldb gave, and where they are
+    bidSrc(any) as long
+    bidLine(any) as long
+    bidN       as long
+    tempSrc    as long
+    tempLine   as long
+    tempPending as boolean
+    tempArmed  as boolean
+    ' the stop
+    reason     as long
+    thread_    as long
+    excepCode  as ulong
+    excepIsWrite as long
+    excepTarget as ulongint
+    excepText  as string
+    fr(any)    as DBGE_FRAME
+    frN        as long
+    ' the per-stop node table
+    gen        as long
+    nd(any)    as DBGE_NODE
+    ndN        as long
+    pool(any)  as long
+    poolN      as long
+    locLoaded(any) as boolean
+    locFirst(any) as long
+    locCount(any) as long
+    globLoaded as boolean
+    globFirst  as long
+    globCount  as long
+end type
+
+public dim shared gDbgE as DBGENGINE
+
+' ------------------------------------------------------------------------ small helpers
+
+private function Q_( byref s as const string ) as string
+    return JEsc( s )
+end function
+
+' Source paths compare case-blind on Windows and macOS (their file systems), exactly elsewhere.
+private function PathKey_( byref s as const string ) as string
+    if platform.CurrentOs( ) = platform.Os.Linux then return s
+    return lcase( s )
+end function
+
+private function HexVal_( byref s as const string ) as ulongint
+    dim as string t = lcase( trim( s ) )
+    dim as long p = instr( t, "0x" )
+    if p = 0 then return 0
+    dim as ulongint v = 0
+    for i as long = p + 1 to len( t ) - 1
+        dim as ubyte c = t[i]
+        select case c
+        case 48 to 57  : v = v * 16 + (c - 48)
+        case 97 to 102 : v = v * 16 + (c - 87)
+        case else      : exit for
+        end select
+    next
+    return v
+end function
+
+private sub Post_( byval kind as long, byval detail as long )
+    if gDbgE.notesReady = false then exit sub
+    gDbgE.notes.TrySend( (clngint( kind ) shl 32) or (clngint( detail ) and &hFFFFFFFFll) )
+end sub
+
+' The next note for the host, without waiting. FALSE = none.
+public function Engine_NextNote( byref kind as long, byref detail as long ) as boolean
+    if gDbgE.notesReady = false then return false
+    dim as longint v
+    if gDbgE.notes.TryReceive( v ) = false then return false
+    kind = clng( v shr 32 )
+    detail = clng( v and &hFFFFFFFFll )
+    return true
+end function
+
+' The adapter: the one set (settings), else platform.FindLldbDap's search.
+public function Engine_AdapterPath( ) as string
+    dim as ustring found = platform.FindLldbDap( gDbgE.adapter )
+    return found
+end function
+
+' ------------------------------------------------------------------------ the image check
+
+' Little-endian fields at byte offsets. A read past the end leaves the value 0, as GET did.
+private function PeU16_( byref f as fs.File, byval at_ as longint ) as ushort
+    dim as ushort v = 0
+    f.ReadAt( at_, cptr( ubyte ptr, @v ), 2 )
+    return v
+end function
+
+private function PeU32_( byref f as fs.File, byval at_ as longint ) as ulong
+    dim as ulong v = 0
+    f.ReadAt( at_, cptr( ubyte ptr, @v ), 4 )
+    return v
+end function
+
+' Up to 'n' bytes at 'at_' as a name, ending at the first NUL.
+private function PeName_( byref f as fs.File, byval at_ as longint, byval n as long ) as string
+    dim as ubyte b( 0 to 63 )
+    f.ReadAt( at_, @b( 0 ), n )
+    dim as string r = ""
+    for i as long = 0 to n - 1
+        if b( i ) = 0 then exit for
+        r += chr( b( i ) )
+    next
+    return r
+end function
+
+private function PeU64_( byref f as fs.File, byval at_ as longint ) as ulongint
+    dim as ulongint v = 0
+    f.ReadAt( at_, cptr( ubyte ptr, @v ), 8 )
+    return v
+end function
+
+' PE: lld-link writes a section name longer than eight bytes as '/NNN', an offset into the COFF
+' string table, so '.debug_info' is looked up there.
+private function PeHasDwarf_( byref f as fs.File ) as long
+    dim as long peOff = cast( long, PeU32_( f, &h3C ) )
+    if PeU32_( f, peOff ) <> &h4550 then return -1
+    dim as ushort nSect = PeU16_( f, peOff + 4 + 2 )
+    dim as ulong symPtr = PeU32_( f, peOff + 4 + 8 )
+    dim as ulong nSyms = PeU32_( f, peOff + 4 + 12 )
+    dim as ushort optSize = PeU16_( f, peOff + 4 + 16 )
+    dim as long secBase = peOff + 4 + 20 + optSize
+    dim as long strTab = symPtr + nSyms * 18
+    dim as long found = 0
+    for i as long = 0 to nSect - 1
+        dim as string nm = PeName_( f, secBase + i * 40, 8 )
+        if (left( nm, 1 ) = "/") andalso (symPtr <> 0) then
+            nm = PeName_( f, strTab + valint( mid( nm, 2 ) ), 63 )
+        end if
+        if (nm = ".debug_info") orelse (nm = ".debug_line") then found += 1
+    next
+    return found
+end function
+
+' ELF64 little-endian: the section names through e_shstrndx.
+private function ElfHasDwarf_( byref f as fs.File ) as long
+    dim as ulongint shoff = PeU64_( f, &h28 )
+    dim as ushort shentsize = PeU16_( f, &h3A )
+    dim as ushort shnum = PeU16_( f, &h3C )
+    dim as ushort shstrndx = PeU16_( f, &h3E )
+    if (shoff = 0) orelse (shentsize < 64) orelse (shstrndx >= shnum) then return -1
+    dim as ulongint strOff = PeU64_( f, shoff + shstrndx * shentsize + &h18 )
+    dim as long found = 0
+    for i as long = 0 to shnum - 1
+        dim as ulong nmOff = PeU32_( f, shoff + i * shentsize )
+        dim as string nm = PeName_( f, strOff + nmOff, 63 )
+        if (nm = ".debug_info") orelse (nm = ".debug_line") then found += 1
+    next
+    return found
+end function
+
+' Does the program carry DWARF? PE and ELF in their sections; a Mach-O program never does --
+' ld64 leaves it in the objects -- so in '<exe>.dSYM', which tiko -g writes (TKO0177).
+public function Engine_HasDwarf( byref exe as const string, byref why as string ) as long
+    dim as fs.File f
+    dim as ustring uexe = exe
+    if f.OpenRead( uexe ).IsOk( ) = false then why = "cannot open " & exe : return DBGP_ERR_IOERROR
+    dim as ulong magic = PeU32_( f, 0 )
+    dim as long found = -1
+    if (magic and &hFFFF) = &h5A4D then
+        found = PeHasDwarf_( f )
+    elseif magic = &h464C457F then
+        found = ElfHasDwarf_( f )
+    elseif magic = &hFEEDFACF then
+        found = iif( fs.IsDir( uexe & ".dSYM" ), 2, 0 )
+    end if
+    f.Close( )
+    if found < 0 then why = "not a program this debugger reads (PE, ELF or Mach-O)" : return DBGP_ERR_BADIMAGE
+    if found < 2 then why = "no debug information. Build with -g." : return DBGP_ERR_NODEBUGINFO
+    return DBGP_OK
+end function
+
+' ------------------------------------------------------------------------ sources
+
+public function Engine_SourceIndex( byref path as const string ) as long
+    dim as string k = PathKey_( path )
+    for i as long = 0 to gDbgE.srcN - 1
+        if PathKey_( gDbgE.src(i) ) = k then return i
+    next
+    if gDbgE.srcN > ubound( gDbgE.src ) then redim preserve gDbgE.src( gDbgE.srcN * 2 + 7 )
+    gDbgE.src( gDbgE.srcN ) = path
+    gDbgE.srcN += 1
+    return gDbgE.srcN - 1
+end function
+
+' ------------------------------------------------------------------------ breakpoints
+
+' Tell lldb every line of one source -- DAP replaces a source's whole set each time.
+sub Engine_SendBreakpoints( byval si as long )
+    if (gDbgE.active = false) orelse (si < 0) orelse (si >= gDbgE.srcN) then exit sub
+    dim as string arr = ""
+    for i as long = 0 to gDbgE.bpN - 1
+        if gDbgE.bpSrc(i) = si then arr += iif( len( arr ), ",", "" ) & "{""line"":" & gDbgE.bpLine(i) & "}"
+    next
+    if gDbgE.tempArmed andalso (gDbgE.tempSrc = si) then arr += iif( len( arr ), ",", "" ) & "{""line"":" & gDbgE.tempLine & "}"
+    dim as JDOC d
+    Dap_Request( "setBreakpoints", "{""source"":{""path"":" & Q_( gDbgE.src(si) ) & "},""breakpoints"":[" & arr & "]}", d )
+    ' Forget this source's old ids, then file the new ones by their REQUESTED line: lldb
+    ' may report the line it moved the breakpoint to.
+    dim as long w = 0
+    for i as long = 0 to gDbgE.bidN - 1
+        if gDbgE.bidSrc(i) <> si then
+            gDbgE.bidId(w) = gDbgE.bidId(i) : gDbgE.bidSrc(w) = gDbgE.bidSrc(i) : gDbgE.bidLine(w) = gDbgE.bidLine(i)
+            w += 1
+        end if
+    next
+    gDbgE.bidN = w
+    dim as long bs = JGet( d, JGet( d, 0, "body" ), "breakpoints" )
+    dim as long k = 0
+    for i as long = 0 to gDbgE.bpN + 1
+        dim as long lineReq = -1
+        if i < gDbgE.bpN then
+            if gDbgE.bpSrc(i) <> si then continue for
+            lineReq = gDbgE.bpLine(i)
+        elseif i = gDbgE.bpN then
+            if (gDbgE.tempArmed = false) orelse (gDbgE.tempSrc <> si) then continue for
+            lineReq = gDbgE.tempLine
+        else
+            continue for
+        end if
+        dim as long b = JItem( d, bs, k )
+        k += 1
+        if b < 0 then continue for
+        if gDbgE.bidN > ubound( gDbgE.bidId ) then
+            redim preserve gDbgE.bidId( gDbgE.bidN * 2 + 15 )
+            redim preserve gDbgE.bidSrc( gDbgE.bidN * 2 + 15 )
+            redim preserve gDbgE.bidLine( gDbgE.bidN * 2 + 15 )
+        end if
+        gDbgE.bidId( gDbgE.bidN ) = cint( JGetNum( d, b, "id" ) )
+        gDbgE.bidSrc( gDbgE.bidN ) = si
+        gDbgE.bidLine( gDbgE.bidN ) = lineReq
+        gDbgE.bidN += 1
+    next
+end sub
+
+public function Engine_AddBreakpoint( byval si as long, byval ln as long ) as long
+    if (si < 0) orelse (si >= gDbgE.srcN) orelse (ln <= 0) then return DBGP_ERR_BADARG
+    for i as long = 0 to gDbgE.bpN - 1
+        if (gDbgE.bpSrc(i) = si) andalso (gDbgE.bpLine(i) = ln) then return DBGP_OK
+    next
+    if gDbgE.bpN > ubound( gDbgE.bpSrc ) then
+        redim preserve gDbgE.bpSrc( gDbgE.bpN * 2 + 15 )
+        redim preserve gDbgE.bpLine( gDbgE.bpN * 2 + 15 )
+    end if
+    gDbgE.bpSrc( gDbgE.bpN ) = si
+    gDbgE.bpLine( gDbgE.bpN ) = ln
+    gDbgE.bpN += 1
+    if gDbgE.active then Engine_SendBreakpoints( si )
+    return DBGP_OK
+end function
+
+public function Engine_RemoveBreakpoint( byval si as long, byval ln as long ) as long
+    for i as long = 0 to gDbgE.bpN - 1
+        if (gDbgE.bpSrc(i) = si) andalso (gDbgE.bpLine(i) = ln) then
+            gDbgE.bpN -= 1
+            gDbgE.bpSrc(i) = gDbgE.bpSrc( gDbgE.bpN )
+            gDbgE.bpLine(i) = gDbgE.bpLine( gDbgE.bpN )
+            if gDbgE.active then Engine_SendBreakpoints( si )
+            return DBGP_OK
+        end if
+    next
+    return DBGP_ERR_NOTFOUND
+end function
+
+public sub Engine_ClearBreakpoints()
+    gDbgE.bpN = 0
+    if gDbgE.active then
+        for i as long = 0 to gDbgE.srcN - 1
+            Engine_SendBreakpoints( i )
+        next
+    end if
+end sub
+
+' The first line at or after 'ln' with code. Before a session there is no line table to
+' ask -- lldb moves a breakpoint forward itself -- so the line is answered as given.
+public function Engine_NextExecLine( byval si as long, byval ln as long ) as long
+    if (si < 0) orelse (si >= gDbgE.srcN) then return -1
+    if (gDbgE.active = false) orelse gDbgE.running then return ln
+    dim as JDOC d
+    if Dap_Request( "breakpointLocations", "{""source"":{""path"":" & Q_( gDbgE.src(si) ) & _
+                    "},""line"":" & ln & ",""endLine"":" & (ln + 2000) & "}", d, 3000 ) = false then return ln
+    dim as long bs = JGet( d, JGet( d, 0, "body" ), "breakpoints" )
+    dim as long best = -1
+    for i as long = 0 to JCount( d, bs ) - 1
+        dim as long l = cint( JGetNum( d, JItem( d, bs, i ), "line" ) )
+        if (l >= ln) andalso ((best < 0) orelse (l < best)) then best = l
+    next
+    if best < 0 then return ln
+    return best
+end function
+
+' ------------------------------------------------------------------------ the stop
+
+' A frame in the user's code: its source is a file that is there. lldb names the C runtime's
+' frames by relative build paths on Linux ('sysdeps/nptl/...') and by '`'-marked ones on Windows.
+private function IsUserPath_( byref p as const string ) as boolean
+    if (len( p ) = 0) orelse (instr( p, "`" ) > 0) then return false
+    dim as ustring u = p
+    return fs.IsFile( u )
+end function
+
+' The call stack of one thread into gDbgE.fr.
+private sub LoadFrames_( byval tid as long )
+    gDbgE.frN = 0
+    dim as JDOC d
+    if Dap_Request( "stackTrace", "{""threadId"":" & tid & ",""levels"":" & DBGE_MAXFRAMES & "}", d ) = false then exit sub
+    dim as long fs_ = JGet( d, JGet( d, 0, "body" ), "stackFrames" )
+    dim as long n = JCount( d, fs_ )
+    if n > 0 then redim gDbgE.fr( n - 1 )
+    for i as long = 0 to n - 1
+        dim as long f = JItem( d, fs_, i )
+        gDbgE.fr(i).id = cint( JGetNum( d, f, "id" ) )
+        gDbgE.fr(i).nm = JGetStr( d, f, "name" )
+        gDbgE.fr(i).path = JGetStr( d, JGet( d, f, "source" ), "path" )
+        if IsUserPath_( gDbgE.fr(i).path ) = false then gDbgE.fr(i).path = ""
+        gDbgE.fr(i).ln = cint( JGetNum( d, f, "line" ) )
+        if len( gDbgE.fr(i).path ) = 0 then gDbgE.fr(i).ln = 0
+        gDbgE.fr(i).pc = HexVal_( JGetStr( d, f, "instructionPointerReference" ) )
+    next
+    gDbgE.frN = n
+end sub
+
+' After a PAUSE: the thread whose stack reaches user code, its frames trimmed to start
+' there. The pause itself lands in a thread Windows injected, which has none.
+private sub PickUserThread_()
+    dim as JDOC d
+    if Dap_Request( "threads", "", d ) = false then exit sub
+    dim as long ts = JGet( d, JGet( d, 0, "body" ), "threads" )
+    for i as long = 0 to JCount( d, ts ) - 1
+        dim as long tid = cint( JGetNum( d, JItem( d, ts, i ), "id" ) )
+        LoadFrames_( tid )
+        for k as long = 0 to gDbgE.frN - 1
+            if len( gDbgE.fr(k).path ) then
+                for j as long = k to gDbgE.frN - 1
+                    gDbgE.fr( j - k ) = gDbgE.fr(j)
+                next
+                gDbgE.frN -= k
+                gDbgE.thread_ = tid
+                exit sub
+            end if
+        next
+    next
+end sub
+
+private sub ResetNodes_()
+    gDbgE.gen += 1
+    gDbgE.ndN = 0
+    gDbgE.poolN = 0
+    gDbgE.globLoaded = false
+    redim gDbgE.locLoaded( DBGE_MAXFRAMES )
+    redim gDbgE.locFirst( DBGE_MAXFRAMES )
+    redim gDbgE.locCount( DBGE_MAXFRAMES )
+end sub
+
+private function HasId_( byref d as JDOC, byval ids as long, byval id as long ) as boolean
+    for i as long = 0 to JCount( d, ids ) - 1
+        if cint( JNum( d, JItem( d, ids, i ) ) ) = id then return true
+    next
+    return false
+end function
+
+private sub DisarmTemp_()
+    if gDbgE.tempArmed then
+        gDbgE.tempArmed = false
+        Engine_SendBreakpoints( gDbgE.tempSrc )
+    end if
+end sub
+
+' One 'stopped' event: decide what it means, gather the stack, tell the host.
+private sub HandleStop_( byref d as JDOC, byval body as long )
+    dim as string why = JGetStr( d, body, "reason" )
+    dim as string desc = JGetStr( d, body, "description" )
+    dim as long tid = cint( JGetNum( d, body, "threadId" ) )
+    dim as long ids = JGet( d, body, "hitBreakpointIds" )
+    dim as long r = DBGP_STOP_STEP
+    gDbgE.excepCode = 0 : gDbgE.excepIsWrite = 0 : gDbgE.excepTarget = 0 : gDbgE.excepText = ""
+
+    dim as boolean isExc = (why = "exception")
+    dim as boolean isBrk = (instr( lcase( desc ), "0x80000003" ) > 0)
+    dim as boolean isBreakExc = isExc andalso isBrk
+    ' LINUX / macOS: a pause stops the process with SIGSTOP, which lldb-dap 22 reports as an
+    ' 'exception' "signal SIGSTOP" (measured), on whatever thread was running -- in a sleep, the C
+    ' runtime's select. Asked for, it is the pause; PickUserThread_ trims it to the user's code.
+    dim as boolean isStopSig = isExc andalso gDbgE.pauseReq andalso (instr( lcase( desc ), "sigstop" ) > 0)
+    if isStopSig then
+        gDbgE.pauseReq = false
+        r = DBGP_STOP_USERBREAK
+    elseif isBreakExc then
+        if gDbgE.pauseReq = false then
+            ' The attach break-in, or a DebugBreak the program made: not a stop to show.
+            dim as JDOC c
+            Dap_Request( "continue", "{""threadId"":" & tid & "}", c )
+            exit sub
+        end if
+        gDbgE.pauseReq = false
+        r = DBGP_STOP_USERBREAK
+    elseif (why = "breakpoint") orelse (why = "function breakpoint") then
+        r = DBGP_STOP_BREAKPOINT
+        if (gDbgE.entryDone = false) andalso HasId_( d, ids, gDbgE.mainBpId ) then
+            gDbgE.entryDone = true
+            r = DBGP_STOP_STEP
+        elseif gDbgE.tempArmed then
+            for i as long = 0 to gDbgE.bidN - 1
+                dim as boolean atTemp = (gDbgE.bidSrc(i) = gDbgE.tempSrc) andalso (gDbgE.bidLine(i) = gDbgE.tempLine)
+                if atTemp andalso HasId_( d, ids, gDbgE.bidId(i) ) then r = DBGP_STOP_TEMPBP
+            next
+        end if
+    elseif why = "pause" then
+        gDbgE.pauseReq = false
+        r = DBGP_STOP_USERBREAK
+    elseif why = "exception" then
+        r = DBGP_STOP_EXCEPTION
+        gDbgE.excepText = desc
+        dim as long p = instr( lcase( desc ), "exception 0x" )
+        if p then gDbgE.excepCode = cuint( HexVal_( mid( desc, p + 10, 12 ) ) )
+        dim as string ld = lcase( desc )
+        dim as long pw = instr( ld, "writing location" )
+        dim as long pr = instr( ld, "reading location" )
+        if pw then gDbgE.excepIsWrite = 1 : gDbgE.excepTarget = HexVal_( mid( desc, pw + 16 ) )
+        if pr then gDbgE.excepIsWrite = 0 : gDbgE.excepTarget = HexVal_( mid( desc, pr + 16 ) )
+    end if
+
+    gDbgE.thread_ = tid
+    LoadFrames_( tid )
+    ' A STEP THAT LANDS ON A BREAKPOINT IS THE BREAKPOINT, as the old engine reported it:
+    ' lldb calls it a step, and a host waiting for its breakpoint would never see it.
+    if (r = DBGP_STOP_STEP) andalso gDbgE.entryDone andalso (gDbgE.frN > 0) then
+        if len( gDbgE.fr(0).path ) then
+            dim as long fsi = Engine_SourceIndex( gDbgE.fr(0).path )
+            for i as long = 0 to gDbgE.bpN - 1
+                if (gDbgE.bpSrc(i) = fsi) andalso (gDbgE.bpLine(i) = gDbgE.fr(0).ln) then r = DBGP_STOP_BREAKPOINT
+            next
+        end if
+    end if
+    if (r = DBGP_STOP_USERBREAK) andalso ((gDbgE.frN = 0) orelse (len( gDbgE.fr(0).path ) = 0)) then PickUserThread_()
+    ' RUN TO CURSOR ENDS AT ANY STOP, as the old engine's temporary breakpoint did.
+    DisarmTemp_()
+    ResetNodes_()
+    gDbgE.reason = r
+    gDbgE.running = false
+    Post_( DBGP_NOTE_STOPPED, r )
+end sub
+
+private sub ReleaseHolder_( byval code as long )
+    if len( gDbgE.doneFile ) = 0 then exit sub
+    dim as ustring df = gDbgE.doneFile
+    fs.WriteAllText( df, str( code ) )
+    gDbgE.doneFile = ""
+end sub
+
+private sub PostExit_( )
+    if gDbgE.exitPosted then exit sub
+    gDbgE.exitPosted = true
+    dim as long code = gDbgE.exitCode
+#if defined( TIKO_OS_WINDOWS )
+    if gDbgE.pi.hProcess then
+        dim as ulong c = cast( ulong, code )
+        if tkd_WaitForSingleObject( gDbgE.pi.hProcess, 2000 ) = TKD_WAIT_OBJECT_0 then tkd_GetExitCodeProcess( gDbgE.pi.hProcess, @c )
+        code = cast( long, c )
+    end if
+#endif
+    ' Stopped by the host: lldb's own kill leaves an exit code of 0 (or 9), which would read as a
+    ' normal end.
+    if gDbgE.stopReq andalso (code = 0) then code = 1
+    ReleaseHolder_( code )
+    gDbgE.running = false
+    gDbgE.active = false
+    Post_( DBGP_NOTE_EXITED, code )
+end sub
+
+private function InitCommands_( ) as string
+    ' FreeBASIC DISPLAY, in lldb's own terms: a ubyte is a number, not a character; a string is
+    ' its text; a zstring stops at its NUL, a wstring likewise.
+    dim as string cmds(0 to 5) = { _
+        "type format add -f u ubyte", _
+        "type format add -f d byte", _
+        "type summary add -s ""${var.data%s}"" string", _
+        "type summary add -s ""${var.data%s}"" ustring", _
+        "type summary add -s ""${var%s}"" -x ""^zstring \* [0-9]+$""", _
+        "type summary add -s ""${var%S}"" -x ""^wstring \* [0-9]+$""" }
+    dim as string r = ""
+    for i as long = 0 to 5
+        r += iif( len( r ), ",", "" ) & Q_( cmds(i) )
+    next
+    return "[" & r & "]"
+end function
+
+private sub Fail_( byref why as const string )
+    gDbgE.lastError = why
+    ReleaseHolder_( -1 )
+    gDbgE.active = false
+    gDbgE.running = false
+    Post_( DBGP_NOTE_FAILED, 0 )
+end sub
+
+' Wait for the 'initialized' event, the configuration phase. FALSE = it never came.
+private function WaitInitialized_( ) as boolean
+    dim as string ev
+    for tries as long = 1 to 200
+        if Dap_NextEvent( ev, 100 ) then
+            dim as JDOC e
+            JParse( e, ev )
+            dim as string en = JGetStr( e, 0, "event" )
+            if en = "initialized" then return true
+            if en = "adapterExit" then return false
+        end if
+    next
+    return false
+end function
+
+' Breakpoints, the entry stop on 'main', configurationDone: the same on every OS.
+private sub Configure_( )
+    dim as JDOC d
+    for i as long = 0 to gDbgE.srcN - 1
+        Engine_SendBreakpoints( i )
+    next
+    Dap_Request( "setFunctionBreakpoints", "{""breakpoints"":[{""name"":""main""}]}", d )
+    gDbgE.mainBpId = cint( JGetNum( d, JItem( d, JGet( d, JGet( d, 0, "body" ), "breakpoints" ), 0 ), "id" ) )
+    Dap_Request( "configurationDone", "{}", d )
+end sub
+
+#if defined( TIKO_OS_WINDOWS )
+' WINDOWS: the program created suspended in a console of its own, lldb-dap attached, resumed.
+private function Launch_( ) as boolean
+    dim as string dirOf = left( gDbgE.exe, instrrev( gDbgE.exe, any "\/" ) )
+    ' the command line as Run's .cmd writes it: the program and each argument in quotes
+    dim as ustring q = chr( 34 )
+    dim as ustring wCmd = q & gDbgE.exe & q
+    for each a as ustring in gDbgE.args
+        wCmd &= " " & q & a & q
+    next
+    dim as TKD_STARTUPINFOW si
+    si.cb = sizeof( TKD_STARTUPINFOW )
+    dim as ustring wExe = gDbgE.exe
+    dim as ustring wDir = dirOf
+    dim as wstring ptr pDir = 0
+    if len( dirOf ) then pDir = strptr( wDir )
+    dim as long ok = tkd_CreateProcessW( strptr( wExe ), strptr( wCmd ), 0, 0, 0, _
+                                         TKD_CREATE_SUSPENDED or TKD_CREATE_NEW_CONSOLE, 0, pDir, @si, @gDbgE.pi )
+    dim as ulong launchErr = tkd_GetLastError( )
+    if ok = 0 then
+        Dap_Close( )
+        Fail_( "CreateProcess failed for " & gDbgE.exe & " (error " & launchErr & ")" )
+        return false
+    end if
+    Dap_Adopt( gDbgE.pi.hProcess )
+    dim as JDOC d
+    Dap_Request( "initialize", "{""clientID"":""tkedit"",""adapterID"":""lldb-dap"",""linesStartAt1"":true," & _
+                 """columnsStartAt1"":true,""pathFormat"":""path""}", d )
+    dim as long attachSeq = Dap_Send( "attach", "{""pid"":" & gDbgE.pi.dwProcessId & ",""program"":" & Q_( gDbgE.exe ) & _
+                                      ",""initCommands"":" & InitCommands_( ) & "}" )
+    if WaitInitialized_( ) = false then
+        tkd_TerminateProcess( gDbgE.pi.hProcess, 1 )
+        Dap_Close( )
+        Fail_( "the debug adapter did not attach to the program" )
+        return false
+    end if
+    Configure_( )
+    dim as string resp
+    Dap_Wait( attachSeq, resp, 15000 )
+    gDbgE.running = true
+    tkd_ResumeThread( gDbgE.pi.hThread )
+    return true
+end function
+#else
+' Single quotes for sh, a quote inside closed, escaped and reopened.
+private function ShQ_( byref s as const ustring ) as ustring
+    dim as ustring r = "'"
+    for i as long = 1 to len( s )
+        dim as ustring c = mid( s, i, 1 )
+        if c = "'" then r &= "'\''" else r &= c
+    next
+    return r & "'"
+end function
+
+' LINUX / macOS, a console program: a terminal running the holder script, which writes its tty's
+' name and waits for the done file. The tty's name, or "" (and lastError) when none came.
+private function OpenTerminal_( ) as string
+    dim as ustring dir_ = gDbgE.scriptDir
+    fs.CreateDirAll( dir_ )
+    dim as ustring ttyFile = fs.PathJoin( dir_, "tkEdit-debug.tty" )
+    dim as ustring doneFile = fs.PathJoin( dir_, "tkEdit-debug.done" )
+    fs.RemoveFile( ttyFile ) : fs.RemoveFile( ttyFile & ".tmp" ) : fs.RemoveFile( doneFile )
+    dim as ustring nl = chr( 10 )
+    dim as ustring body = "#!/bin/sh" & nl & _
+        "tty > " & ShQ_( ttyFile & ".tmp" ) & " && mv " & ShQ_( ttyFile & ".tmp" ) & " " & ShQ_( ttyFile ) & nl & _
+        "while [ ! -e " & ShQ_( doneFile ) & " ]; do sleep 0.2; done" & nl & _
+        "printf '\n[exit %s] press Enter ' " & chr( 34 ) & "$(cat " & ShQ_( doneFile ) & ")" & chr( 34 ) & nl & _
+        "read _" & nl
+    dim as Array( of ustring ) argv
+    if platform.CurrentOs( ) = platform.Os.MacOS then
+        dim as ustring script = fs.PathJoin( dir_, "tkEdit-debug.command" )
+        fs.WriteAllText( script, body )
+        argv.Push( "/bin/sh" ) : argv.Push( "-c" )
+        argv.Push( "chmod +x " & ShQ_( script ) & " && exec /usr/bin/open -a Terminal " & ShQ_( script ) )
+    else
+        dim as ustring script = fs.PathJoin( dir_, "tkEdit-debug.sh" )
+        fs.WriteAllText( script, body )
+        dim as ustring term = platform.LinuxTerminal( )
+        if len( term ) = 0 then gDbgE.lastError = "no terminal program was found to run it in: set $TERMINAL" : return ""
+        argv.Push( term )
+        argv.Push( iif( lcase( fs.PathFileName( term ) ) = "gnome-terminal", "--", "-e" ) )
+        argv.Push( "/bin/sh" ) : argv.Push( script )
+    end if
+    dim as process.Command c = process.Command( argv[0] )
+    for i as long = 1 to argv.Count( ) - 1
+        c.Arg( argv[i] )
+    next
+    dim as process.Child term_
+    if term_.Spawn( c ).IsOk( ) = false then gDbgE.lastError = "could not start " & argv[0] : return ""
+    gDbgE.doneFile = doneFile
+    ' up to 15 s for the window to open and its shell to start
+    for tries as long = 1 to 150
+        if fs.IsFile( ttyFile ) then
+            dim as string t = trim( fs.ReadAllText( ttyFile ).ValueOr( "" ), any chr( 9, 10, 13, 32 ) )
+            if left( t, 5 ) = "/dev/" then return t
+            exit for
+        end if
+        sleep 100, 1
+    next
+    ReleaseHolder_( -1 )
+    gDbgE.lastError = "the terminal did not start (no tty from " & argv[0] & ")"
+    return ""
+end function
+
+' LINUX / macOS: DAP 'launch', the program's stdio bound to the terminal's tty.
+private function Launch_( ) as boolean
+    dim as string tty
+    if gDbgE.useTerminal then
+        tty = OpenTerminal_( )
+        if len( tty ) = 0 then Dap_Close( ) : Fail_( gDbgE.lastError ) : return false
+    end if
+    dim as JDOC d
+    Dap_Request( "initialize", "{""clientID"":""tkedit"",""adapterID"":""lldb-dap"",""linesStartAt1"":true," & _
+                 """columnsStartAt1"":true,""pathFormat"":""path""}", d )
+    dim as string dirOf = left( gDbgE.exe, instrrev( gDbgE.exe, "/" ) - 1 )
+    dim as string argJ = ""
+    for each a as ustring in gDbgE.args
+        dim as string a8 = a
+        argJ &= iif( len( argJ ), ",", "" ) & Q_( a8 )
+    next
+    dim as string req = "{""program"":" & Q_( gDbgE.exe ) & ",""cwd"":" & Q_( dirOf ) & ",""args"":[" & argJ & "]" & _
+                        ",""initCommands"":" & InitCommands_( )
+    if len( tty ) then req &= ",""stdio"":[" & Q_( tty ) & "," & Q_( tty ) & "," & Q_( tty ) & "]"
+    dim as long launchSeq = Dap_Send( "launch", req & "}" )
+    if WaitInitialized_( ) = false then
+        Dap_Close( )
+        Fail_( "the debug adapter did not start the program" )
+        return false
+    end if
+    Configure_( )
+    dim as string resp
+    if Dap_Wait( launchSeq, resp, 15000 ) = false then
+        Dap_Close( ) : Fail_( "the debug adapter did not start the program" ) : return false
+    end if
+    JParse( d, resp )
+    if JBool( d, JGet( d, 0, "success" ) ) = false then
+        ' macOS without Developer Mode: "cannot get permission to debug processes"
+        dim as string why = JGetStr( d, JGet( d, JGet( d, 0, "body" ), "error" ), "format" )
+        if len( why ) = 0 then why = JGetStr( d, 0, "message" )
+        Dap_Close( )
+        Fail_( "the program could not be started under the debugger: " & why )
+        return false
+    end if
+    gDbgE.running = true
+    return true
+end function
+#endif
+
+private sub Engine_Worker( byval unused as any ptr )
+    dim as string adapter = Engine_AdapterPath( )
+    if len( adapter ) = 0 then Fail_( "lldb-dap was not found: install LLVM, or set [debug] adapter in settings.toml" ) : exit sub
+    if Dap_Start( adapter ) = false then Fail_( gDap.lastError ) : exit sub
+    if Launch_( ) = false then exit sub
+
+    dim as JDOC d
+    dim as string ev
+    do
+        if Dap_NextEvent( ev, 250 ) = false then
+            ' The process may be gone with no event, if the adapter died with it.
+            if gDap.alive = false then PostExit_( ) : exit do
+            continue do
+        end if
+        dim as JDOC e
+        if JParse( e, ev ) = false then continue do
+        dim as string en = JGetStr( e, 0, "event" )
+        dim as long body = JGet( e, 0, "body" )
+        select case en
+        case "stopped"
+            HandleStop_( e, body )
+        case "exited"
+            gDbgE.exitCode = cint( JGetNum( e, body, "exitCode" ) )
+            PostExit_( )
+        case "terminated", "adapterExit"
+            PostExit_( )
+            exit do
+        end select
+    loop
+    if gDap.alive then
+        Dap_Request( "disconnect", "{""terminateDebuggee"":true}", d, 3000 )
+    end if
+    Dap_Close( )
+#if defined( TIKO_OS_WINDOWS )
+    if gDbgE.pi.hProcess then
+        if tkd_WaitForSingleObject( gDbgE.pi.hProcess, 0 ) <> TKD_WAIT_OBJECT_0 then tkd_TerminateProcess( gDbgE.pi.hProcess, 1 )
+        tkd_CloseHandle( gDbgE.pi.hProcess ) : gDbgE.pi.hProcess = 0
+    end if
+    if gDbgE.pi.hThread then tkd_CloseHandle( gDbgE.pi.hThread ) : gDbgE.pi.hThread = 0
+#endif
+    PostExit_( )
+end sub
+
+' Start a session on 'exe' (built with -g). 'useTerminal': Linux / macOS give a console program a
+' terminal of its own, its holder script written into 'scriptDir'. Notes follow (Engine_NextNote).
+public function Engine_Start( byref exe as const string, byref args as const Array( of ustring ), _
+                              byval useTerminal as boolean, byref scriptDir as const string ) as long
+    if gDbgE.active then return DBGP_ERR_BUSY
+    if gDbgE.worker then threadwait( gDbgE.worker ) : gDbgE.worker = 0
+    if gDbgE.notesReady = false then
+        gDbgE.notes = tasks.Channel( of longint )( 256 )
+        gDbgE.notesReady = true
+    end if
+    dim as long k, dt
+    while Engine_NextNote( k, dt )
+    wend
+    gDbgE.exe = exe
+    gDbgE.args = args
+    gDbgE.useTerminal = useTerminal
+    gDbgE.scriptDir = scriptDir
+    gDbgE.doneFile = ""
+    gDbgE.lastError = ""
+    gDbgE.active = true
+    gDbgE.running = false
+    gDbgE.stopReq = false
+    gDbgE.pauseReq = false
+    gDbgE.exitPosted = false
+    gDbgE.entryDone = false
+    gDbgE.exitCode = 0
+    gDbgE.frN = 0
+    gDbgE.bidN = 0
+    gDbgE.tempArmed = false
+    gDbgE.tempPending = false
+    ResetNodes_( )
+    gDbgE.worker = threadcreate( @Engine_Worker, 0 )
+    if gDbgE.worker = 0 then gDbgE.active = false : gDbgE.lastError = "cannot start the session thread" : return DBGP_ERR_LAUNCH
+    return DBGP_OK
+end function
+
+public sub Engine_Stop( )
+    if gDbgE.active = false then exit sub
+    gDbgE.stopReq = true
+#if defined( TIKO_OS_WINDOWS )
+    ' TERMINATED HERE FIRST, with exit code 1: lldb's own kill leaves 0.
+    if gDbgE.pi.hProcess then tkd_TerminateProcess( gDbgE.pi.hProcess, 1 )
+#endif
+    dim as JDOC d
+    if gDap.alive then Dap_Request( "disconnect", "{""terminateDebuggee"":true}", d, 3000 )
+end sub
+
+' Wait for the session worker to end (after Stop, or at shutdown).
+public sub Engine_Join( )
+    if gDbgE.worker then threadwait( gDbgE.worker ) : gDbgE.worker = 0
+end sub
+
+public function Engine_Resume( byval mode as long ) as long
+    if gDbgE.active = false then return DBGP_ERR_NOSESSION
+    if gDbgE.running then return DBGP_OK
+    dim as string cmd
+    select case mode
+    case DBGP_RUN_STEPINTO : cmd = "stepIn"
+    case DBGP_RUN_STEPOVER : cmd = "next"
+    case DBGP_RUN_STEPOUT  : cmd = "stepOut"
+    case DBGP_RUN_CONTINUE : cmd = "continue"
+    case DBGP_RUN_TOCURSOR
+        cmd = "continue"
+        if gDbgE.tempPending then
+            gDbgE.tempPending = false
+            gDbgE.tempArmed = true
+            Engine_SendBreakpoints( gDbgE.tempSrc )
+        end if
+    case else
+        return DBGP_ERR_BADARG
+    end select
+    ' RUNNING BEFORE THE REQUEST: the stop it causes may be handled by the worker before
+    ' this call returns, and must not be overwritten afterwards.
+    gDbgE.running = true
+    gDbgE.gen += 1
+    dim as JDOC d
+    dim as string extra = ""
+    if cmd <> "continue" then extra = ",""granularity"":""line"""
+    Dap_Request( cmd, "{""threadId"":" & gDbgE.thread_ & extra & "}", d )
+    return DBGP_OK
+end function
+
+public sub Engine_Pause()
+    if (gDbgE.active = false) orelse (gDbgE.running = false) then exit sub
+    gDbgE.pauseReq = true
+    dim as JDOC d
+    Dap_Request( "pause", "{""threadId"":" & gDbgE.thread_ & "}", d, 3000 )
+end sub
+
+public function Engine_SetRunToCursor( byval si as long, byval ln as long ) as long
+    if (si < 0) orelse (si >= gDbgE.srcN) then return DBGP_ERR_BADARG
+    gDbgE.tempSrc = si
+    gDbgE.tempLine = ln
+    gDbgE.tempPending = true
+    return DBGP_OK
+end function
+
+' ------------------------------------------------------------------------ variables
+
+' A type as FreeBASIC writes it, from lldb's C spelling.
+private function FbType_( byval t as string ) as string
+    t = trim( t )
+    if right( t, 2 ) = " &" then t = rtrim( left( t, len( t ) - 2 ) )
+    if left( t, 8 ) = "FBARRAY(" then return mid( t, 9, len( t ) - 9 ) & "()"
+    if instr( t, "(*)" ) then return t
+    dim as long ptrs = 0
+    while right( t, 1 ) = "*"
+        ptrs += 1
+        t = rtrim( left( t, len( t ) - 1 ) )
+    wend
+    if ptrs > 0 then
+        select case t
+        case "char", "const char" : t = "zstring"
+        case "wchar_t", "const wchar_t" : t = "wstring"
+        case "char16_t" : t = "ustring"
+        case "void", "const void" : t = "any"
+        end select
+        for i as long = 1 to ptrs
+            t += " ptr"
+        next
+    end if
+    return t
+end function
+
+private function NewNode_() as long
+    if gDbgE.ndN > ubound( gDbgE.nd ) then redim preserve gDbgE.nd( gDbgE.ndN * 2 + 63 )
+    dim as long i = gDbgE.ndN
+    gDbgE.ndN += 1
+    dim as DBGE_NODE blank
+    gDbgE.nd(i) = blank
+    return i
+end function
+
+private function PoolPush_( byval v as long ) as long
+    if gDbgE.poolN > ubound( gDbgE.pool ) then redim preserve gDbgE.pool( gDbgE.poolN * 2 + 255 )
+    gDbgE.pool( gDbgE.poolN ) = v
+    gDbgE.poolN += 1
+    return gDbgE.poolN - 1
+end function
+
+' Evaluate an lldb variable path in a frame: 'result', 'type', 'variablesReference'.
+private function EvalPath_( byref path as const string, byval frameId as long, byref d as JDOC ) as boolean
+    return Dap_Request( "evaluate", "{""expression"":" & Q_( path ) & ",""frameId"":" & frameId & _
+                        ",""context"":""variables""}", d, 5000 )
+end function
+
+private function EvalInt_( byref path as const string, byval frameId as long, byref ok as boolean ) as longint
+    dim as JDOC d
+    ok = EvalPath_( path, frameId, d )
+    if ok = false then return 0
+    return vallng( JGetStr( d, JGet( d, 0, "body" ), "result" ) )
+end function
+
+' Parse 'long(1 to 3, 0 to 2)' -- the name tiko gives a fixed array -- into bounds.
+private function ParseBounds_( byref t as const string, byref nd as DBGE_NODE ) as boolean
+    if right( t, 1 ) <> ")" then return false
+    dim as long p = instr( t, "(" )
+    if (p <= 1) orelse (instr( t, " to " ) = 0) then return false
+    dim as string b = mid( t, p + 1, len( t ) - p - 1 ) & ","
+    nd.dims = 0
+    nd.total = 1
+    do while len( b ) > 0
+        dim as long c = instr( b, "," )
+        dim as string one = trim( left( b, c - 1 ) )
+        b = mid( b, c + 1 )
+        dim as long tp = instr( one, " to " )
+        if (tp = 0) orelse (nd.dims > 7) then return false
+        nd.lo( nd.dims ) = vallng( left( one, tp - 1 ) )
+        nd.hi( nd.dims ) = vallng( mid( one, tp + 4 ) )
+        nd.total *= (nd.hi( nd.dims ) - nd.lo( nd.dims ) + 1)
+        nd.dims += 1
+    loop
+    return nd.dims > 0
+end function
+
+private function BoundsText_( byref nd as DBGE_NODE ) as string
+    dim as string r = ""
+    for k as long = 0 to nd.dims - 1
+        r += iif( k, ", ", "" ) & nd.lo(k) & " to " & nd.hi(k)
+    next
+    return "(" & r & ")"
+end function
+
+' A node from what lldb says about one variable, PRESENTED AS FREEBASIC.
+private function MakeNode_( byref nm as const string, byref value as const string, byref rawType as const string, _
+                            byref evalName as const string, byval varRef as long, byval frameId as long ) as long
+    dim as long i = NewNode_()
+    gDbgE.nd(i).nm = nm
+    gDbgE.nd(i).evalName = evalName
+    gDbgE.nd(i).rawType = rawType
+    gDbgE.nd(i).value = value
+    gDbgE.nd(i).varRef = varRef
+    gDbgE.nd(i).frameId = frameId
+    dim as string rt = trim( rawType )
+
+    ' A REFERENCE (a byref parameter, 'dim byref') shows what it refers to.
+    if (right( rt, 2 ) = " &") andalso (varRef > 0) then
+        dim as JDOC d
+        if Dap_Request( "variables", "{""variablesReference"":" & varRef & "}", d ) then
+            dim as long vs = JGet( d, JGet( d, 0, "body" ), "variables" )
+            if JCount( d, vs ) = 1 then
+                dim as long v = JItem( d, vs, 0 )
+                gDbgE.nd(i).value = JGetStr( d, v, "value" )
+                gDbgE.nd(i).varRef = cint( JGetNum( d, v, "variablesReference" ) )
+                rt = trim( JGetStr( d, v, "type" ) )
+                if len( rt ) = 0 then rt = rtrim( left( trim( rawType ), len( trim( rawType ) ) - 2 ) )
+                gDbgE.nd(i).rawType = rt
+            end if
+        end if
+    end if
+    gDbgE.nd(i).typ = FbType_( rt )
+
+    if left( rt, 8 ) = "FBARRAY(" then
+        ' A DYNAMIC ARRAY: its bounds are live, in the descriptor.
+        gDbgE.nd(i).kind = NK_DYNARR
+        dim as boolean ok
+        dim as ulongint dataP = HexVal_( "" )
+        dim as JDOC dd
+        if EvalPath_( evalName & ".data", frameId, dd ) then dataP = HexVal_( JGetStr( dd, JGet( dd, 0, "body" ), "result" ) )
+        dim as long dims = cint( EvalInt_( evalName & ".dimensions", frameId, ok ) )
+        if (dataP = 0) orelse (ok = false) orelse (dims <= 0) orelse (dims > 8) then
+            gDbgE.nd(i).value = "<not allocated>"
+            gDbgE.nd(i).total = 0
+        else
+            gDbgE.nd(i).dims = dims
+            gDbgE.nd(i).total = 1
+            for k as long = 0 to dims - 1
+                gDbgE.nd(i).lo(k) = EvalInt_( evalName & ".dimtb[" & k & "].lbound", frameId, ok )
+                gDbgE.nd(i).hi(k) = EvalInt_( evalName & ".dimtb[" & k & "].ubound", frameId, ok )
+                gDbgE.nd(i).total *= (gDbgE.nd(i).hi(k) - gDbgE.nd(i).lo(k) + 1)
+            next
+            if gDbgE.nd(i).total < 0 then gDbgE.nd(i).total = 0
+            gDbgE.nd(i).value = BoundsText_( gDbgE.nd(i) )
+        end if
+    elseif ParseBounds_( rt, gDbgE.nd(i) ) then
+        gDbgE.nd(i).kind = NK_FIXARR
+        gDbgE.nd(i).value = BoundsText_( gDbgE.nd(i) )
+    elseif (rt = "string") orelse (rt = "ustring") orelse (left( rt, 10 ) = "zstring * ") _
+           orelse (left( rt, 10 ) = "wstring * ") orelse (left( rt, 9 ) = "string * ") _
+           orelse (left( rt, 10 ) = "ustring * ") then
+        gDbgE.nd(i).kind = NK_TEXT
+        ' AN EMPTY STRING HAS NO DATA: its descriptor's pointer is null, and lldb's summary
+        ' of '${var.data%s}' then answers "<no summary available>" / "Summary Unavailable".
+        dim as string lv = lcase( gDbgE.nd(i).value )
+        if (instr( lv, "summary" ) > 0) andalso ((rt = "string") orelse (rt = "ustring")) then
+            gDbgE.nd(i).value = chr( 34, 34 )
+        end if
+    else
+        gDbgE.nd(i).kind = NK_PLAIN
+        gDbgE.nd(i).isPtr = (right( rt, 1 ) = "*")
+        if (gDbgE.nd(i).varRef > 0) andalso (gDbgE.nd(i).isPtr = false) andalso (instr( rt, "(*)" ) = 0) then
+            gDbgE.nd(i).value = "{...}"
+        end if
+    end if
+    return i
+end function
+
+' A node built from one DAP variable object.
+private function NodeFromVar_( byref d as JDOC, byval v as long, byval frameId as long, byref parentEval as const string ) as long
+    dim as string nm = JGetStr( d, v, "name" )
+    dim as string ev = JGetStr( d, v, "evaluateName" )
+    if len( ev ) = 0 then ev = iif( len( parentEval ), parentEval & "." & nm, nm )
+    return MakeNode_( nm, JGetStr( d, v, "value" ), JGetStr( d, v, "type" ), ev, _
+                      cint( JGetNum( d, v, "variablesReference" ) ), frameId )
+end function
+
+' Every variable under a reference, as nodes pushed into the pool; answers the first.
+private function LoadVars_( byval varRef as long, byval frameId as long, byref parentEval as const string, _
+                            byref count as long ) as long
+    count = 0
+    dim as long first = gDbgE.poolN
+    if varRef <= 0 then return first
+    dim as JDOC d
+    if Dap_Request( "variables", "{""variablesReference"":" & varRef & "}", d ) = false then return first
+    dim as long vs = JGet( d, JGet( d, 0, "body" ), "variables" )
+    ' Nodes first, then their pool slots in one run: making a node can itself load
+    ' variables (a reference is resolved), which pushes into the pool.
+    dim as long n = JCount( d, vs )
+    if n = 0 then return first
+    dim as long tmp( n - 1 )
+    for k as long = 0 to n - 1
+        tmp(k) = NodeFromVar_( d, JItem( d, vs, k ), frameId, parentEval )
+    next
+    first = gDbgE.poolN
+    for k as long = 0 to n - 1
+        PoolPush_( tmp(k) )
+    next
+    count = n
+    return first
+end function
+
+private function FrameId_( byval fi as long ) as long
+    if (fi < 0) orelse (fi >= gDbgE.frN) then return -1
+    return gDbgE.fr(fi).id
+end function
+
+' The frame's Locals (and, for frame 0, the Globals) scopes.
+private sub EnsureScopes_( byval fi as long, byval wantGlobals as boolean )
+    dim as long fid = FrameId_( fi )
+    if fid < 0 then exit sub
+    if (wantGlobals = false) andalso gDbgE.locLoaded( fi ) then exit sub
+    if wantGlobals andalso gDbgE.globLoaded then exit sub
+    dim as JDOC d
+    if Dap_Request( "scopes", "{""frameId"":" & fid & "}", d ) = false then exit sub
+    dim as long ss = JGet( d, JGet( d, 0, "body" ), "scopes" )
+    for k as long = 0 to JCount( d, ss ) - 1
+        dim as long s = JItem( d, ss, k )
+        dim as string nm = lcase( JGetStr( d, s, "name" ) )
+        dim as long ref_ = cint( JGetNum( d, s, "variablesReference" ) )
+        if (nm = "locals") andalso (wantGlobals = false) then
+            gDbgE.locFirst( fi ) = LoadVars_( ref_, fid, "", gDbgE.locCount( fi ) )
+            gDbgE.locLoaded( fi ) = true
+        elseif (nm = "globals") andalso wantGlobals then
+            gDbgE.globFirst = LoadVars_( ref_, fid, "", gDbgE.globCount )
+            gDbgE.globLoaded = true
+        end if
+    next
+    if wantGlobals then gDbgE.globLoaded = true else gDbgE.locLoaded( fi ) = true
+end sub
+
+public function Engine_LocalCount( byval fi as long ) as long
+    if (gDbgE.active = false) orelse gDbgE.running then return 0
+    if (fi < 0) orelse (fi >= gDbgE.frN) orelse (fi > DBGE_MAXFRAMES) then return 0
+    EnsureScopes_( fi, false )
+    return gDbgE.locCount( fi )
+end function
+
+public function Engine_LocalNode( byval fi as long, byval index as long ) as long
+    if Engine_LocalCount( fi ) <= index then return -1
+    if index < 0 then return -1
+    return gDbgE.pool( gDbgE.locFirst( fi ) + index )
+end function
+
+public function Engine_GlobalCount() as long
+    if (gDbgE.active = false) orelse gDbgE.running orelse (gDbgE.frN = 0) then return 0
+    EnsureScopes_( 0, true )
+    return gDbgE.globCount
+end function
+
+public function Engine_GlobalNode( byval index as long ) as long
+    if (index < 0) orelse (Engine_GlobalCount() <= index) then return -1
+    return gDbgE.pool( gDbgE.globFirst + index )
+end function
+
+public function Engine_ChildCount( byval ni as long ) as long
+    if (ni < 0) orelse (ni >= gDbgE.ndN) then return 0
+    select case gDbgE.nd(ni).kind
+    case NK_FIXARR, NK_DYNARR
+        return cint( gDbgE.nd(ni).total )
+    case NK_TEXT
+        return 0
+    end select
+    if gDbgE.nd(ni).varRef <= 0 then return 0
+    ' A NULL POINTER HAS NOTHING UNDER IT; lldb would list its target's members as errors.
+    if gDbgE.nd(ni).isPtr andalso (HexVal_( gDbgE.nd(ni).value ) = 0) then return 0
+    if gDbgE.nd(ni).loaded = false then
+        dim as long cnt
+        dim as long first = LoadVars_( gDbgE.nd(ni).varRef, gDbgE.nd(ni).frameId, gDbgE.nd(ni).evalName, cnt )
+        gDbgE.nd(ni).chFirst = first
+        gDbgE.nd(ni).chCount = cnt
+        gDbgE.nd(ni).loaded = true
+    end if
+    return gDbgE.nd(ni).chCount
+end function
+
+' An array element by LINEAR index, row-major (the last subscript fastest).
+private function ElementNode_( byval ni as long, byval index as longint ) as long
+    dim as longint subs(0 to 7)
+    dim as longint rest = index
+    for k as long = gDbgE.nd(ni).dims - 1 to 0 step -1
+        dim as longint ext = gDbgE.nd(ni).hi(k) - gDbgE.nd(ni).lo(k) + 1
+        if ext <= 0 then return -1
+        subs(k) = gDbgE.nd(ni).lo(k) + (rest mod ext)
+        rest \= ext
+    next
+    dim as string subTxt = ""
+    for k as long = 0 to gDbgE.nd(ni).dims - 1
+        subTxt += iif( k, ", ", "" ) & subs(k)
+    next
+    dim as string path
+    if gDbgE.nd(ni).kind = NK_FIXARR then
+        path = gDbgE.nd(ni).evalName
+        for k as long = 0 to gDbgE.nd(ni).dims - 1
+            path += "[" & (subs(k) - gDbgE.nd(ni).lo(k)) & "]"
+        next
+    else
+        ' 'data' IS THE VIRTUAL ORIGIN -- the address of element (0, 0, ...) -- so the
+        ' offset is taken from the subscripts themselves, not from them minus the bounds.
+        dim as longint offs = 0, mult = 1
+        for k as long = gDbgE.nd(ni).dims - 1 to 0 step -1
+            offs += subs(k) * mult
+            mult *= (gDbgE.nd(ni).hi(k) - gDbgE.nd(ni).lo(k) + 1)
+        next
+        path = gDbgE.nd(ni).evalName & ".data[" & offs & "]"
+    end if
+    dim as JDOC d
+    dim as string nm = gDbgE.nd(ni).nm & "(" & subTxt & ")"
+    dim as long fid = gDbgE.nd(ni).frameId
+    if EvalPath_( path, fid, d ) = false then
+        dim as long bad = MakeNode_( nm, "<unreadable>", "", path, 0, fid )
+        return bad
+    end if
+    dim as long body = JGet( d, 0, "body" )
+    return MakeNode_( nm, JGetStr( d, body, "result" ), JGetStr( d, body, "type" ), path, _
+                      cint( JGetNum( d, body, "variablesReference" ) ), fid )
+end function
+
+public function Engine_ChildNode( byval ni as long, byval index as long ) as long
+    if (ni < 0) orelse (ni >= gDbgE.ndN) then return -1
+    if (index < 0) orelse (index >= Engine_ChildCount( ni )) then return -1
+    select case gDbgE.nd(ni).kind
+    case NK_FIXARR, NK_DYNARR
+        return ElementNode_( ni, index )
+    end select
+    return gDbgE.pool( gDbgE.nd(ni).chFirst + index )
+end function
+
+' ------------------------------------------------------------------------ evaluation
+
+' A child of 'ni' named 'nm', case-insensitively -- through a pointer's target when the
+' pointer itself has no such member.
+private function FindChild_( byval ni as long, byref nm as const string ) as long
+    dim as string want = lcase( nm )
+    dim as long n = Engine_ChildCount( ni )
+    for k as long = 0 to n - 1
+        dim as long c = Engine_ChildNode( ni, k )
+        if (c >= 0) andalso (lcase( gDbgE.nd(c).nm ) = want) then return c
+    next
+    ' Base-class members sit one level down, under the base's name.
+    for k as long = 0 to n - 1
+        dim as long c = Engine_ChildNode( ni, k )
+        if c < 0 then continue for
+        dim as boolean plain = (gDbgE.nd(c).kind = NK_PLAIN) andalso (gDbgE.nd(c).varRef > 0)
+        dim as boolean notPtr = (gDbgE.nd(c).isPtr = false)
+        dim as boolean baseLike = (n = 1) orelse (lcase( gDbgE.nd(c).typ ) = lcase( gDbgE.nd(c).nm ))
+        if plain andalso notPtr andalso baseLike then
+            dim as long g = FindChild_( c, nm )
+            if g >= 0 then return g
+        end if
+    next
+    return -1
+end function
+
+' Resolve a FreeBASIC path -- 'rec.inner.ix', 'p->next', 'grid(1, 2)' -- against the
+' frame's locals and then the globals, case-insensitively. lldb's own evaluator is C:
+' case-sensitive, and '(1, 2)' means something else there.
+public function Engine_Evaluate( byref expr as const string, byval fi as long ) as long
+    if (gDbgE.active = false) orelse gDbgE.running then return -1
+    dim as string s = trim( expr )
+    dim as long p = 1
+    dim as long cur = -1
+    ' The root identifier.
+    dim as long st = p
+    while p <= len( s )
+        dim as string ch = mid( s, p, 1 )
+        if instr( ".-([ ", ch ) > 0 then exit while
+        p += 1
+    wend
+    dim as string root = mid( s, st, p - st )
+    if len( root ) = 0 then return -1
+    dim as string want = lcase( root )
+    for k as long = 0 to Engine_LocalCount( fi ) - 1
+        dim as long c = Engine_LocalNode( fi, k )
+        if (c >= 0) andalso (lcase( gDbgE.nd(c).nm ) = want) then cur = c : exit for
+    next
+    if cur < 0 then
+        for k as long = 0 to Engine_GlobalCount() - 1
+            dim as long c = Engine_GlobalNode( k )
+            if (c >= 0) andalso (lcase( gDbgE.nd(c).nm ) = want) then cur = c : exit for
+        next
+    end if
+    if cur < 0 then return -1
+    ' The rest of the path.
+    do while (p <= len( s )) andalso (cur >= 0)
+        dim as string ch = mid( s, p, 1 )
+        if ch = " " then
+            p += 1
+        elseif (ch = ".") orelse (mid( s, p, 2 ) = "->") then
+            p += iif( ch = ".", 1, 2 )
+            st = p
+            while p <= len( s )
+                dim as string c2 = mid( s, p, 1 )
+                if instr( ".-([ ", c2 ) > 0 then exit while
+                p += 1
+            wend
+            cur = FindChild_( cur, mid( s, st, p - st ) )
+        elseif (ch = "(") orelse (ch = "[") then
+            dim as string closer = iif( ch = "(", ")", "]" )
+            dim as long q = instr( p, s, closer )
+            if q = 0 then return -1
+            dim as string argList = mid( s, p + 1, q - p - 1 ) & ","
+            p = q + 1
+            if (gDbgE.nd(cur).kind <> NK_FIXARR) andalso (gDbgE.nd(cur).kind <> NK_DYNARR) then return -1
+            dim as longint lin = 0
+            dim as long k = 0
+            do while len( argList ) > 0
+                dim as long cm = instr( argList, "," )
+                dim as longint sv = vallng( trim( left( argList, cm - 1 ) ) )
+                argList = mid( argList, cm + 1 )
+                if k >= gDbgE.nd(cur).dims then return -1
+                if (sv < gDbgE.nd(cur).lo(k)) orelse (sv > gDbgE.nd(cur).hi(k)) then return -1
+                lin = lin * (gDbgE.nd(cur).hi(k) - gDbgE.nd(cur).lo(k) + 1) + (sv - gDbgE.nd(cur).lo(k))
+                k += 1
+            loop
+            if k <> gDbgE.nd(cur).dims then return -1
+            cur = Engine_ChildNode( cur, cint( lin ) )
+        else
+            return -1
+        end if
+    loop
+    if cur < 0 then return -1
+    ' A copy, named as the user wrote it.
+    dim as long r = NewNode_()
+    gDbgE.nd(r) = gDbgE.nd(cur)
+    gDbgE.nd(r).nm = expr
+    return r
+end function
+
+' ------------------------------------------------------------------------ accessors
+
+public function Engine_Node( byval ni as long ) as DBGE_NODE ptr
+    if (ni < 0) orelse (ni >= gDbgE.ndN) then return 0
+    return @gDbgE.nd(ni)
+end function
+
+public function Engine_HasChildren( byval ni as long ) as boolean
+    if (ni < 0) orelse (ni >= gDbgE.ndN) then return false
+    select case gDbgE.nd(ni).kind
+    case NK_FIXARR, NK_DYNARR
+        return gDbgE.nd(ni).total > 0
+    case NK_TEXT
+        return false
+    end select
+    if gDbgE.nd(ni).varRef <= 0 then return false
+    if gDbgE.nd(ni).isPtr andalso (HexVal_( gDbgE.nd(ni).value ) = 0) then return false
+    return true
+end function

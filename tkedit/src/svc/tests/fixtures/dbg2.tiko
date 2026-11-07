@@ -1,0 +1,6 @@
+dim as long n
+for k as long = 1 to 400
+    n += k
+    sleep 10, 1
+next
+print n

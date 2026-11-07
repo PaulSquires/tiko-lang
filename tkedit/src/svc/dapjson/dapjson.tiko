@@ -1,0 +1,147 @@
+'    tiko editor - Programmer's Code Editor for the tiko Compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    dapjson: src/debugParser/dapjson.bas's API over pkg vendor/cJSON (linked static, so
+'    debugParser.dll stays one file).
+'
+'' The JSON the Debug Adapter Protocol needs, and nothing else: read a field, walk an array.
+'' The old parser's names and answers are kept, so dapclient and dapengine read exactly as
+'' before. A document's values are still addressed by a long index (0 = the root): each
+'' lookup files the cJSON node it found in the document's table and answers its index.
+'' Requests are still written as text, with JEsc for the strings.
+''
+'' WHERE cJSON'S ANSWER IS NOT THE OLD PARSER'S, the old one is given: a missing value is
+'' "" / 0 / false, a number read as text is its digits, true/false read as text spell
+'' themselves, and an object's count is its member count.
+
+#module "dapjson"
+
+#import "vendor/cJSON" link static
+
+public type JDOC
+    root   as cJSON ptr
+    n(any) as cJSON ptr        '' index -> node; 0 is the root
+    used   as long
+    declare constructor( )
+    declare destructor( )
+private:
+    declare constructor( byref other as const JDOC )
+    declare operator let( byref other as const JDOC )
+end type
+
+constructor JDOC( )
+    this.root = 0
+    this.used = 0
+end constructor
+
+destructor JDOC( )
+    if this.root then cJSON_Delete( this.root )
+end destructor
+
+private function JFile( byref d as JDOC, byval p as cJSON ptr ) as long
+    if p = 0 then return -1
+    if d.used > ubound( d.n ) then redim preserve d.n( (ubound( d.n ) + 1) * 2 + 15 )
+    d.n( d.used ) = p
+    d.used += 1
+    return d.used - 1
+end function
+
+private function JAt( byref d as JDOC, byval v as long ) as cJSON ptr
+    if (v < 0) orelse (v >= d.used) then return 0
+    return d.n(v)
+end function
+
+'' Parse 'text' into 'd'; the root is node 0. False on malformed input.
+public function JParse( byref d as JDOC, byref text as const string ) as boolean
+    if d.root then cJSON_Delete( d.root )
+    d.used = 0
+    d.root = cJSON_ParseWithLength( strptr( text ), len( text ) )
+    if d.root = 0 then return false
+    JFile( d, d.root )
+    return true
+end function
+
+'' A member of object 'o' by name, -1 when absent (or 'o' is not an object).
+public function JGet( byref d as JDOC, byval o as long, byref key as const string ) as long
+    dim as cJSON ptr p = JAt( d, o )
+    if (p = 0) orelse (cJSON_IsObject( p ) = 0) then return -1
+    return JFile( d, cJSON_GetObjectItemCaseSensitive( p, strptr( key ) ) )
+end function
+
+'' Element 'i' of array 'a', -1 when out of range.
+public function JItem( byref d as JDOC, byval a as long, byval i as long ) as long
+    dim as cJSON ptr p = JAt( d, a )
+    if p = 0 then return -1
+    dim as cJSON ptr k = p->child
+    while (k <> 0) andalso (i > 0)
+        k = k->next
+        i -= 1
+    wend
+    return JFile( d, k )
+end function
+
+public function JCount( byref d as JDOC, byval a as long ) as long
+    dim as cJSON ptr p = JAt( d, a )
+    if p = 0 then return 0
+    if (cJSON_IsArray( p ) = 0) andalso (cJSON_IsObject( p ) = 0) then return 0
+    return cJSON_GetArraySize( p )
+end function
+
+public function JStr( byref d as JDOC, byval v as long ) as string
+    dim as cJSON ptr p = JAt( d, v )
+    if p = 0 then return ""
+    if cJSON_IsString( p ) then return *p->valuestring
+    if cJSON_IsNumber( p ) then
+        if p->valuedouble = int( p->valuedouble ) then return str( clngint( p->valuedouble ) )
+        return str( p->valuedouble )
+    end if
+    if cJSON_IsTrue( p ) then return "true"
+    if cJSON_IsFalse( p ) then return "false"
+    return ""
+end function
+
+public function JNum( byref d as JDOC, byval v as long ) as double
+    dim as cJSON ptr p = JAt( d, v )
+    if p = 0 then return 0
+    if cJSON_IsNumber( p ) then return p->valuedouble
+    if cJSON_IsTrue( p ) then return 1
+    return 0
+end function
+
+public function JBool( byref d as JDOC, byval v as long ) as boolean
+    dim as cJSON ptr p = JAt( d, v )
+    if p = 0 then return false
+    return cJSON_IsTrue( p ) <> 0
+end function
+
+'' Convenience: a member's string / number in one call.
+public function JGetStr( byref d as JDOC, byval o as long, byref key as const string ) as string
+    return JStr( d, JGet( d, o, key ) )
+end function
+
+public function JGetNum( byref d as JDOC, byval o as long, byref key as const string ) as double
+    return JNum( d, JGet( d, o, key ) )
+end function
+
+'' A string as a JSON literal, quotes included. 's' is UTF-8.
+public function JEsc( byref s as const string ) as string
+    dim as string r = chr( 34 )
+    dim as long runStart = 0
+    for i as long = 0 to len( s ) - 1
+        dim as ubyte c = s[i]
+        if (c = 34) orelse (c = 92) orelse (c < 32) then
+            r += mid( s, runStart + 1, i - runStart )
+            select case c
+            case 34 : r += chr( 92, 34 )
+            case 92 : r += chr( 92, 92 )
+            case 10 : r += chr( 92 ) & "n"
+            case 13 : r += chr( 92 ) & "r"
+            case 9  : r += chr( 92 ) & "t"
+            case else : r += chr( 92 ) & "u" & hex( c, 4 )
+            end select
+            runStart = i + 1
+        end if
+    next
+    r += mid( s, runStart + 1 )
+    return r & chr( 34 )
+end function

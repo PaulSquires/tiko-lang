@@ -1,0 +1,4 @@
+dim as long ptr p = 0
+print "before"
+*p = 5
+print "after"

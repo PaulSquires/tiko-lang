@@ -10,3 +10,9 @@ tkc = { path = "../core" }
 
 [profile.debug]
 options = ["-w", "all"]
+
+# The debug engine's console harness (tks/dapengine without a window): tests/bin/dbgtest <exe> <src> <mode>
+[target.dbgtest]
+main = "tests/dbgtest.tiko"
+output = "tests/bin/dbgtest.exe"
+options = ["-mt"]

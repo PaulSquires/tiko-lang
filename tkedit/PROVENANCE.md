@@ -52,3 +52,7 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `keywords/tiko.txt`, `keywords/extra.txt` | `settings/keywords/freebasic_keywords.txt`, `extra_keywords.txt` | renamed |
 | `keywords/codetips.txt` | **tiko-editor-tiko `33172d82`** `settings/keywords/codetips.ini` | renamed, LF line ends; read by `symboldb.Intrinsics` (the old `LoadCodetipsFB` / `FindIntrinsicCalltip`) |
 | `.gitattributes`, `.gitignore` | same | — |
+| `src/svc/dapjson` | **tiko-editor-tiko `effa02fb`** `src/debugparser/dapjson` | `'` comments, LF |
+| `src/svc/dapclient` | **tiko-editor-tiko `effa02fb`** `src/debugparser/dapclient` | no `sys/win`: the job object by its own `extern`, Windows only; `Dap_Adopt` |
+| `src/svc/dapengine` | **tiko-editor-tiko `effa02fb`** `src/debugparser/dapengine` + `dbgtypes` | cross-platform: Windows keeps CreateProcess+attach, Linux/macOS a terminal's tty + DAP `launch`; notes on a channel (no PostMessage); ELF/Mach-O(.dSYM) checks; user frame = a file that exists; SIGSTOP pause |
+| `src/svc/tests/dbgtest.tiko` | **tiko-editor-tiko `effa02fb`** `src/debugparser/tests/dbgtest` | no window: polls `Engine_NextNote`; takes the source path |

@@ -1,0 +1,25 @@
+type Point
+    x as long
+    y as long
+end type
+
+dim shared as long gCount = 7
+dim shared as string gName
+
+sub Bump( byref p as Point, byval k as long )
+    p.x += k
+    p.y += k * 2
+    gCount += 1
+end sub
+
+dim as Point pt
+dim as long arr(1 to 3) = { 10, 20, 30 }
+dim as long dyn()
+redim dyn(0 to 4)
+dim as string s = "hello"
+gName = "world"
+for i as long = 1 to 3
+    Bump( pt, i )
+    dyn(i) = arr(i) * 2
+next
+print pt.x, pt.y, s, gName, gCount

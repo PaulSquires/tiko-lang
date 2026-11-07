@@ -1,0 +1,229 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' dbgtest -- the debug engine (tks/dapengine) driven from a console, no window: a real program,
+' a real lldb-dap, real stops. From tiko-editor-tiko's src/debugparser/tests/dbgtest.
+'
+'   dbgtest <exe> <src> step [n]          step n times from the first statement
+'   dbgtest <exe> <src> over <line> [n]   run to <line>, then step OVER n times
+'   dbgtest <exe> <src> bp <line> [n]     run to a breakpoint on <line>, then step into
+'   dbgtest <exe> <src> vars <line>       run to <line>, print locals + globals (2 levels)
+'   dbgtest <exe> <src> watch <line> <e>  run to <line>, evaluate <e>
+'   dbgtest <exe> <src> cursor <line>     run to cursor <line> from the first stop
+'   dbgtest <exe> <src> out <line>        break on <line>, then step out
+'   dbgtest <exe> <src> pause <ms>        run, pause after <ms>, report
+' No terminal is opened (the program's console output goes to lldb-dap) unless TKEDIT_DBG_TERMINAL=1
+' (Linux / macOS: the terminal Run would open, from $TERMINAL). Exit 0 = the session
+' ended as the mode expects; 1 = a failure, printed.
+
+#import "std/containers"
+#import "std/fs"
+#import "tks/dapengine"
+
+using containers
+using dapengine
+
+dim shared as long gMaxStops, gStopCount, gBpLine, gStepMode, gSrc, gPauseMs
+dim shared as string gMode, gWatchExpr
+dim shared as boolean gHitBp, gOutDone
+
+private function ReasonText( byval r as long ) as string
+    select case r
+    case DBGP_STOP_ENTRY      : return "entry"
+    case DBGP_STOP_STEP       : return "step"
+    case DBGP_STOP_BREAKPOINT : return "breakpoint"
+    case DBGP_STOP_TEMPBP     : return "run-to-cursor"
+    case DBGP_STOP_USERBREAK  : return "pause"
+    case DBGP_STOP_EXCEPTION  : return "EXCEPTION"
+    end select
+    return "?"
+end function
+
+private function BaseName( byref p as const string ) as string
+    dim as long i = instrrev( p, any "\/" )
+    if i > 0 then return mid( p, i + 1 )
+    return p
+end function
+
+private sub PrintNode( byval ni as long, byref indent as const string )
+    dim as DBGE_NODE ptr n = Engine_Node( ni )
+    if n = 0 then exit sub
+    print indent & n->nm & " : " & n->typ & " = " & n->value
+    if (n->kind = NK_FIXARR) orelse (n->kind = NK_DYNARR) then
+        dim as string s = indent & "  [array] dims=" & n->dims & iif( n->kind = NK_DYNARR, " dynamic", " fixed" ) & _
+                          " total=" & n->total & "  "
+        for d as long = 0 to n->dims - 1
+            s &= iif( d, ", ", "" ) & n->lo(d) & ".." & n->hi(d)
+        next
+        print s
+    end if
+end sub
+
+private sub PrintChildren( byval ni as long, byref indent as const string, byval depth as long )
+    if depth <= 0 then exit sub
+    dim as long n = Engine_ChildCount( ni )
+    if n > 8 then n = 8
+    for i as long = 0 to n - 1
+        dim as long c = Engine_ChildNode( ni, i )
+        if c < 0 then continue for
+        PrintNode( c, indent )
+        PrintChildren( c, indent & "  ", depth - 1 )
+    next
+end sub
+
+private sub DumpVars( )
+    print "    --- locals (frame 0) ---"
+    for i as long = 0 to Engine_LocalCount( 0 ) - 1
+        dim as long ni = Engine_LocalNode( 0, i )
+        PrintNode( ni, "      " )
+        PrintChildren( ni, "        ", 2 )
+    next
+    print "    --- globals ---"
+    for i as long = 0 to Engine_GlobalCount( ) - 1
+        dim as long ni = Engine_GlobalNode( i )
+        PrintNode( ni, "      " )
+        PrintChildren( ni, "        ", 1 )
+    next
+end sub
+
+' One stop: print it, then decide what the mode does next.
+private sub OnStopped( byval reason as long )
+    gStopCount += 1
+    dim as string where_ = "<no line>"
+    if gDbgE.frN > 0 andalso len( gDbgE.fr(0).path ) then where_ = BaseName( gDbgE.fr(0).path ) & ":" & gDbgE.fr(0).ln
+    dim as string proc_ = ""
+    if gDbgE.frN > 0 then proc_ = gDbgE.fr(0).nm
+    print "  stop " & gStopCount & ": " & ReasonText( reason ) & "  " & where_ & "  " & proc_ & _
+          iif( len( gDbgE.excepText ), "  " & gDbgE.excepText, "" )
+    if reason = DBGP_STOP_BREAKPOINT then gHitBp = true
+
+    select case gMode
+    case "cursor"
+        if gStopCount = 1 then
+            Engine_SetRunToCursor( gSrc, gBpLine )
+            Engine_Resume( DBGP_RUN_TOCURSOR )
+        else
+            Engine_Stop( )
+        end if
+        exit sub
+    case "out"
+        if gHitBp then
+            if gOutDone then Engine_Stop( ) : exit sub
+            gOutDone = true
+            Engine_Resume( DBGP_RUN_STEPOUT )
+            exit sub
+        end if
+    case "pause"
+        if gStopCount = 1 then Engine_Resume( DBGP_RUN_CONTINUE ) else Engine_Stop( )
+        exit sub
+    case "vars"
+        if gHitBp then DumpVars( ) : Engine_Stop( ) : exit sub
+    case "watch"
+        if gHitBp then
+            dim as long ni = Engine_Evaluate( gWatchExpr, 0 )
+            if ni >= 0 then
+                print "    " & gWatchExpr & " => " & Engine_Node( ni )->typ & " = " & Engine_Node( ni )->value
+                PrintChildren( ni, "        ", 2 )
+            else
+                print "    " & gWatchExpr & " => <not found>"
+            end if
+            Engine_Stop( )
+            exit sub
+        end if
+    end select
+
+    dim as boolean stepNow = true
+    if (gMode = "bp") orelse (gMode = "over") orelse (gMode = "vars") orelse (gMode = "watch") orelse (gMode = "out") then
+        stepNow = gHitBp
+    end if
+    if gStopCount >= gMaxStops then
+        print "  (limit reached)"
+        Engine_Stop( )
+    elseif stepNow then
+        Engine_Resume( gStepMode )
+    else
+        Engine_Resume( DBGP_RUN_CONTINUE )
+    end if
+end sub
+
+' ---------------------------------------------------------------------------
+dim as string target = command( 1 )
+dim as string srcPath = command( 2 )
+if (len( target ) = 0) orelse (len( srcPath ) = 0) then
+    print "usage: dbgtest <exe> <src> step|over|bp|vars|watch|cursor|out|pause [args]"
+    end 1
+end if
+gMode = lcase( command( 3 ) )
+gMaxStops = 8
+gStepMode = DBGP_RUN_STEPINTO
+select case gMode
+case "over"
+    gBpLine = valint( command( 4 ) )
+    gStepMode = DBGP_RUN_STEPOVER
+    if len( command( 5 ) ) then gMaxStops = valint( command( 5 ) )
+case "bp"
+    gBpLine = valint( command( 4 ) )
+    if len( command( 5 ) ) then gMaxStops = valint( command( 5 ) )
+case "vars", "watch"
+    gBpLine = valint( command( 4 ) )
+    gWatchExpr = command( 5 )
+    gMaxStops = 200
+case "cursor", "out"
+    gBpLine = valint( command( 4 ) )
+    gMaxStops = 50
+case "pause"
+    gPauseMs = valint( command( 4 ) )
+    gMaxStops = 50
+case else
+    gMode = "step"
+    if len( command( 4 ) ) then gMaxStops = valint( command( 4 ) )
+end select
+if len( environ( "TKEDIT_LLDB_DAP" ) ) then gDbgE.adapter = environ( "TKEDIT_LLDB_DAP" )
+
+dim as string why
+dim as long rc = Engine_HasDwarf( target, why )
+if rc <> DBGP_OK then print "load failed (" & rc & "): " & why : end 1
+print "adapter: " & Engine_AdapterPath( )
+
+gSrc = Engine_SourceIndex( srcPath )
+if (gBpLine > 0) andalso (gMode <> "cursor") then
+    Engine_AddBreakpoint( gSrc, gBpLine )
+    print "breakpoint at line " & gBpLine
+end if
+
+print "starting..."
+dim as Array( of ustring ) noArgs
+dim as ustring tmp = fs.PathParent( target )
+rc = Engine_Start( target, noArgs, environ( "TKEDIT_DBG_TERMINAL" ) = "1", tmp )
+if rc <> DBGP_OK then print "start failed (" & rc & "): " & gDbgE.lastError : end 1
+
+dim as long exitRc = 1
+dim as double t0 = timer, pauseAt = 0
+do
+    dim as long kind, detail
+    if Engine_NextNote( kind, detail ) then
+        select case kind
+        case DBGP_NOTE_STOPPED
+            OnStopped( detail )
+            if (gMode = "pause") andalso (gStopCount = 1) then pauseAt = timer + gPauseMs / 1000
+        case DBGP_NOTE_EXITED
+            print "  debuggee exited, code " & detail
+            exitRc = 0
+            exit do
+        case DBGP_NOTE_FAILED
+            print "  LAUNCH FAILED: " & gDbgE.lastError
+            exit do
+        end select
+    else
+        if (pauseAt > 0) andalso (timer >= pauseAt) then pauseAt = 0 : Engine_Pause( )
+        if timer - t0 > 120 then print "  TIMEOUT" : Engine_Stop( ) : exit do
+        sleep 10, 1
+    end if
+loop
+Engine_Join( )
+print "done."
+end exitRc

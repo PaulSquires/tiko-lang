@@ -279,6 +279,15 @@ public function FindLldbDap( byref configured as const ustring ) as ustring
     end if
     dim as ustring f = FindOnPath( "lldb-dap" )
     if len( f ) then return f
+    if CurrentOs( ) = Os.MacOS then
+        ' Apple's, from the Command Line Tools or Xcode (no /usr/bin shim; Homebrew's LLVM has none)
+        dim as ustring mac( 0 to 1 ) = { "/Library/Developer/CommandLineTools/usr/bin/lldb-dap", _
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/lldb-dap" }
+        for each m as ustring in mac
+            if fs.IsFile( m ) then return m
+        next
+        return ""
+    end if
     dim as ustring best
     dim as long bestN = -1
     for each r in fs.ReadDir( "/usr/bin" )

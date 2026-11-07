@@ -1,0 +1,263 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' dapclient -- the pipe to lldb-dap: spawn it, frame its messages, match responses. From
+' tiko-editor-tiko's src/debugparser/dapclient (PROVENANCE.md), made cross-platform.
+'
+' lldb-dap speaks the Debug Adapter Protocol on stdin/stdout, each message a 'Content-Length: N'
+' header and N bytes of JSON. A READER THREAD owns stdout: it files every message -- a RESPONSE by
+' its request_seq, where the thread that sent the request waits for it; an EVENT on a channel the
+' session worker drains. Two threads send requests (the UI and the session worker), so sending is
+' under a lock.
+'
+' WINDOWS ONLY: the JOB OBJECT (kill on close) -- an lldb-dap orphaned by a crashed tkEdit stays
+' attached to the debuggee for ever otherwise. On Linux and macOS lldb-dap ends when its stdin
+' closes, and the debuggee is its child (DAP 'launch'), so it goes with it.
+#module "dapclient"
+
+#import "std/process"
+#import "std/fs"
+#import "std/tasks"
+#import "tks/dapjson"
+
+using dapjson
+
+#if defined( TIKO_OS_WINDOWS )
+#inclib "kernel32"
+extern "C"
+    declare function tkd_CreateJobObjectW stdcall alias "CreateJobObjectW" ( byval a as any ptr, byval n as any ptr ) as any ptr
+    declare function tkd_SetInformationJobObject stdcall alias "SetInformationJobObject" ( byval h as any ptr, _
+        byval cls as long, byval info as any ptr, byval cb as ulong ) as long
+    declare function tkd_AssignProcessToJobObject stdcall alias "AssignProcessToJobObject" ( byval j as any ptr, byval p as any ptr ) as long
+end extern
+' JOBOBJECT_EXTENDED_LIMIT_INFORMATION, x64: 144 bytes; LimitFlags at offset 16.
+const JOBINFO_SIZE = 144
+const JOB_KILL_ON_CLOSE = &h2000
+const JOB_EXTENDED_LIMIT_CLASS = 9
+#endif
+
+' Events waiting for the worker. A full channel would block the reader -- and with it every
+' response -- so it is far larger than any session's backlog (a handful per stop).
+const DAP_EVENT_CAP = 4096
+
+public type DAPSTATE
+    child      as process.Child   ' lldb-dap, stdin and stdout piped
+    spawned    as boolean
+    stdinOpen  as boolean         ' guarded by mu
+    reader     as any ptr         ' the reader thread
+    mu         as any ptr         ' the send / response-table lock
+    inited     as boolean
+    hJob       as any ptr         ' Windows: kill-on-close job
+    seq        as long
+    alive      as boolean
+    respSeq(any)  as long
+    respText(any) as string
+    respUsed   as long
+    events     as tasks.Channel( of string )   ' every event, in arrival order
+    respBell   as tasks.Channel( of long )     ' rung (best effort) when a response is filed
+    lastError  as string
+end type
+
+public dim shared gDap as DAPSTATE
+
+private sub Dap_Lock( )
+    mutexlock( gDap.mu )
+end sub
+private sub Dap_Unlock( )
+    mutexunlock( gDap.mu )
+end sub
+
+' Put a process (the debuggee, on Windows) in the job, so it dies with tkEdit. Elsewhere nothing.
+public sub Dap_Adopt( byval hProcess as any ptr )
+#if defined( TIKO_OS_WINDOWS )
+    if (gDap.hJob <> 0) andalso (hProcess <> 0) then tkd_AssignProcessToJobObject( gDap.hJob, hProcess )
+#endif
+end sub
+
+private sub Dap_File( byref msg as const string )
+    dim as JDOC d
+    if JParse( d, msg ) = false then exit sub
+    dim as string ty = JGetStr( d, 0, "type" )
+    if ty = "response" then
+        dim as long rs = cint( JGetNum( d, 0, "request_seq" ) )
+        Dap_Lock( )
+        if gDap.respUsed > ubound( gDap.respSeq ) then
+            redim preserve gDap.respSeq( gDap.respUsed * 2 + 15 )
+            redim preserve gDap.respText( gDap.respUsed * 2 + 15 )
+        end if
+        gDap.respSeq( gDap.respUsed ) = rs
+        gDap.respText( gDap.respUsed ) = msg
+        gDap.respUsed += 1
+        Dap_Unlock( )
+        gDap.respBell.TrySend( rs )
+    elseif ty = "event" then
+        dim as string ev = msg
+        gDap.events.Send( ev )
+    end if
+    ' A REVERSE REQUEST (runInTerminal, startDebugging) is never answered: nothing here
+    ' advertises the capabilities that would make lldb-dap send one.
+end sub
+
+private sub Dap_Reader( byval unused as any ptr )
+    dim as string buf
+    dim as ubyte chunk( 0 to 8191 )
+    do
+        dim as fs.FsResultI64 rd = gDap.child.Stdout( ).Read( @chunk( 0 ), 8192 )
+        if rd.IsOk( ) = false then exit do
+        dim as long got = rd.Value( )
+        if got <= 0 then exit do
+        dim as string piece = space( got )
+        for i as long = 0 to got - 1
+            piece[i] = chunk( i )
+        next
+        buf += piece
+        do
+            dim as long hEnd = instr( buf, chr( 13, 10, 13, 10 ) )
+            if hEnd = 0 then exit do
+            dim as string hdr = lcase( left( buf, hEnd - 1 ) )
+            dim as long cl = instr( hdr, "content-length:" )
+            if cl = 0 then
+                buf = mid( buf, hEnd + 4 )
+                continue do
+            end if
+            dim as long n = valint( mid( hdr, cl + 15 ) )
+            if len( buf ) < hEnd + 3 + n then exit do
+            Dap_File( mid( buf, hEnd + 4, n ) )
+            buf = mid( buf, hEnd + 4 + n )
+        loop
+    loop
+    gDap.alive = false
+    ' A synthetic event, so the session worker learns the adapter is gone.
+    Dap_File( "{""type"":""event"",""event"":""adapterExit""}" )
+end sub
+
+' Start lldb-dap. False (and lastError) when it cannot be run.
+public function Dap_Start( byref adapterPath as const string ) as boolean
+    if gDap.inited = false then
+        gDap.mu = mutexcreate( )
+        gDap.events = tasks.Channel( of string )( DAP_EVENT_CAP )
+        gDap.respBell = tasks.Channel( of long )( 64 )
+        gDap.inited = true
+    end if
+    gDap.respUsed = 0
+    ' What the last session left unread is not this session's.
+    dim as string stale
+    while gDap.events.TryReceive( stale )
+    wend
+    dim as long bell
+    while gDap.respBell.TryReceive( bell )
+    wend
+    gDap.seq = 0
+    gDap.lastError = ""
+
+    dim as ustring prog = adapterPath
+    dim as process.Command c = process.Command( prog )
+    c.StdinFrom( process.STDIO_PIPE ).StdoutTo( process.STDIO_PIPE ).HideWindow( )
+    dim as process.ProcResultBool sp = gDap.child.Spawn( c )
+    if sp.IsOk( ) = false then
+        dim as process.ProcError f = sp.Failure( )
+        gDap.lastError = "cannot run the debug adapter: " & adapterPath & " (error " & f.OsCode( ) & ")"
+        return false
+    end if
+#if defined( TIKO_OS_WINDOWS )
+    if gDap.hJob = 0 then
+        gDap.hJob = tkd_CreateJobObjectW( 0, 0 )
+        if gDap.hJob then
+            dim as ubyte li( 0 to JOBINFO_SIZE - 1 )
+            *cptr( ulong ptr, @li( 16 ) ) = JOB_KILL_ON_CLOSE
+            tkd_SetInformationJobObject( gDap.hJob, JOB_EXTENDED_LIMIT_CLASS, @li( 0 ), JOBINFO_SIZE )
+        end if
+    end if
+    ' Child.hProc: std/process has no accessor for the handle, and a job needs it.
+    Dap_Adopt( gDap.child.hProc )
+#endif
+    gDap.spawned = true
+    gDap.stdinOpen = true
+    gDap.alive = true
+    gDap.reader = threadcreate( @Dap_Reader, 0 )
+    return true
+end function
+
+' Send a request; answers its seq, or 0 when the adapter is gone. 'argsJson' is an object's
+' text, "" for none.
+public function Dap_Send( byref cmd as const string, byref argsJson as const string ) as long
+    if gDap.alive = false then return 0
+    Dap_Lock( )
+    if gDap.stdinOpen = false then Dap_Unlock( ) : return 0
+    gDap.seq += 1
+    dim as long s = gDap.seq
+    dim as string body = "{""seq"":" & s & ",""type"":""request"",""command"":" & JEsc( cmd )
+    if len( argsJson ) then body += ",""arguments"":" & argsJson
+    body += "}"
+    dim as string pkt = "Content-Length: " & len( body ) & chr( 13, 10, 13, 10 ) & body
+    dim as fs.FsResultI64 wr = gDap.child.Stdin( ).Write( cptr( ubyte ptr, strptr( pkt ) ), len( pkt ) )
+    Dap_Unlock( )
+    if wr.IsOk( ) = false then return 0
+    return s
+end function
+
+' Wait for the response to 's'. False on a timeout or a dead adapter.
+public function Dap_Wait( byval s as long, byref resp as string, byval timeoutMs as long ) as boolean
+    if s = 0 then return false
+    dim as double t0 = timer
+    do
+        Dap_Lock( )
+        for i as long = 0 to gDap.respUsed - 1
+            if gDap.respSeq( i ) = s then
+                resp = gDap.respText( i )
+                gDap.respUsed -= 1
+                gDap.respSeq( i ) = gDap.respSeq( gDap.respUsed )
+                gDap.respText( i ) = gDap.respText( gDap.respUsed )
+                gDap.respText( gDap.respUsed ) = ""
+                Dap_Unlock( )
+                return true
+            end if
+        next
+        Dap_Unlock( )
+        if gDap.alive = false then return false
+        if (timer - t0) * 1000 > timeoutMs then return false
+        ' Two threads may wait at once and one bell wakes one of them; the other finds its
+        ' response on its next look, at most 10 ms on.
+        dim as long bell
+        gDap.respBell.ReceiveFor( bell, 10 )
+    loop
+end function
+
+' Request and response in one; false when it failed to arrive or 'success' is false.
+public function Dap_Request( byref cmd as const string, byref argsJson as const string, byref d as JDOC, _
+                             byval timeoutMs as long = 10000 ) as boolean
+    dim as string resp
+    if Dap_Wait( Dap_Send( cmd, argsJson ), resp, timeoutMs ) = false then
+        JParse( d, "{}" )
+        return false
+    end if
+    JParse( d, resp )
+    return JBool( d, JGet( d, 0, "success" ) )
+end function
+
+' The next event, in arrival order. False on a timeout.
+public function Dap_NextEvent( byref ev as string, byval timeoutMs as long ) as boolean
+    return gDap.events.ReceiveFor( ev, cast( ulong, timeoutMs ) )
+end function
+
+' Close the pipes and end the adapter, waiting briefly for it.
+public sub Dap_Close( )
+    if gDap.inited = false then exit sub
+    Dap_Lock( )
+    if gDap.stdinOpen then gDap.child.Stdin( ).Close( ) : gDap.stdinOpen = false
+    Dap_Unlock( )
+    if gDap.spawned then
+        dim as process.ProcResultMaybe w = gDap.child.WaitTimeout( 3000 )
+        dim as boolean ended = w.IsOk( ) andalso w.Value( ).HasValue( )
+        if ended = false then gDap.child.Kill( )
+        gDap.child.Wait( )
+    end if
+    if gDap.reader then threadwait( gDap.reader ) : gDap.reader = 0
+    if gDap.spawned then gDap.child.Stdout( ).Close( )
+    gDap.spawned = false
+    gDap.alive = false
+end sub
