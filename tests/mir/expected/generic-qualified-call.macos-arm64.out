@@ -38,7 +38,7 @@ func ptr _ZN3BoxIdE5VALUEEv(ptr $0) {
     %6 = load @$tmp0
     ret %6
 }
-func i32 _Z2MkIiERi(ptr $0) {
+func i32 _ZN2NS2MkIiEERi(ptr $0) {
   local agg $tmp0 size 4
   local ptr x
   local agg r size 4
@@ -63,7 +63,7 @@ func i32 _Z2MkIiERi(ptr $0) {
     ret %12
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func f64x1 _Z2MkIdERd(ptr $0) {
+func f64x1 _ZN2NS2MkIdEERd(ptr $0) {
   local agg $tmp0 size 8
   local ptr x
   local agg r size 8
@@ -115,7 +115,7 @@ func i32 main(i32 $0, ptr $1) {
     %5 = const i32 5
     %6 = alloca ptr $tmp2
     store @$tmp2, %5
-    %32 = call i32 _Z2MkIiERi(@$tmp2)
+    %32 = call i32 _ZN2NS2MkIiEERi(@$tmp2)
     store @$abi9, %32
     %7 = load @$abi9
     store @b, %7
@@ -127,7 +127,7 @@ func i32 main(i32 $0, ptr $1) {
     %12 = const i32 7
     %13 = alloca ptr $tmp4
     store @$tmp4, %12
-    %34 = call i32 _Z2MkIiERi(@$tmp4)
+    %34 = call i32 _ZN2NS2MkIiEERi(@$tmp4)
     store @$abi10, %34
     %14 = load @$abi10
     store @c, %14
@@ -138,7 +138,7 @@ func i32 main(i32 $0, ptr $1) {
     %18 = call i32 _ZN2NS4FIVEEv()
     %19 = alloca ptr $tmp6
     store @$tmp6, %18
-    %36 = call i32 _Z2MkIiERi(@$tmp6)
+    %36 = call i32 _ZN2NS2MkIiEERi(@$tmp6)
     store @$abi11, %36
     %20 = load @$abi11
     store @e, %20
@@ -149,7 +149,7 @@ func i32 main(i32 $0, ptr $1) {
     %24 = const f64 2.5
     %25 = alloca ptr $tmp8
     store @$tmp8, %24
-    %38 = call f64x1 _Z2MkIdERd(@$tmp8)
+    %38 = call f64x1 _ZN2NS2MkIdEERd(@$tmp8)
     store @$abi12, %38
     %26 = load @$abi12
     store @d, %26

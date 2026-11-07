@@ -1137,8 +1137,12 @@ private function ProcNameCore _
     dim as boolean chained = hasQuals
     if chained then chained = (qualTypes[0] = CHAIN_QUAL)
 
-    '' AN INSTANTIATED GENERIC PROCEDURE is a template name and never nested -- fbc
-    '' writes NS.Twice( of long ) as _Z5TwiceIiEi. An OPERATOR is not: fb/comptr.bi's
+    '' AN INSTANTIATED GENERIC PROCEDURE is a template name -- and NESTED in its namespace,
+    '' where fbc writes NS.Twice( of long ) as _Z5TwiceIiEi, unnested. That made 'NS.F( of
+    '' long )' and a module-level 'F( of long )' one symbol: clang refused the redefinition,
+    '' and fbc-modern 1.20 (measured 2026-11-07) emits the first and calls it for both, so
+    '' 'print NS.F( 1 ), F( 1 )' printed one number. fbc's instances are 'static', so no
+    '' object outside the unit links to its spelling. An OPERATOR is not: fb/comptr.bi's
     '' generic arrow is _ZptR8ComPtrI6IFAKEBE, the operator code and no argument list.
     ''
     '' NOR IS A CONSTRUCTOR OR DESTRUCTOR, whose NAME is the type's -- which for an
@@ -1151,11 +1155,11 @@ private function ProcNameCore _
         procInst = FindInst_( types, sp->name )
     end if
 
-    dim as boolean plainProc = (procInst < 0)
     '' ...EXCEPT A GENERIC METHOD, which is nested under its type like any method:
     '' 'Box.Put_( of Person )' is _ZN3BOX4Put_I6PERSONEE..., the template on the MEMBER.
     '' Not nested it was _Z4Put_I6PERSONE..., one name for that method of every type.
-    dim as boolean nested = hasQuals andalso (plainProc orelse chained orelse isMethod)
+    '' ...AND A GENERIC PROCEDURE IN A NAMESPACE, above: so every qualified one is nested.
+    dim as boolean nested = hasQuals
     dim as boolean overloaded = ((sp->extra and Tko.PF_OVERLOAD) <> 0)
 
     '' Rule 1: not nested and no OVERLOAD -- the uppercased spelling, nothing more.

@@ -1,0 +1,8 @@
+'' One generic name in a namespace and at module level: two symbols. Both were
+'' _Z1FIu7INTEGERES0_, and clang refused the redefinition. See symbols/mangle.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-namespace-mangle.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: func i32 _ZN2NS1FIu7INTEGEREES1_(
+'' EXPECT-OUT: func i32 _Z1FIu7INTEGERES0_(
+'' EXPECT-OUT: verify: ok
