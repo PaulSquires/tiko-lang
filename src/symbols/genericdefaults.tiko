@@ -1,7 +1,8 @@
 '' genericdefaults.tiko -- A DEFAULT WRITTEN ONLY ON A GENERIC MEMBER'S DECLARATION.
 ''
 '' Included from generic.tiko, above InstantiateMembers_, in the same namespace and over
-'' the same Ctx.
+'' the same Ctx. At the end, the two helpers InstantiateMembers_ picks and patches each member
+'' definition with: TypeBodyProcMods_ and DefHome_.
 ''
 '' 'declare function Open( byref p as const ustring, byval n as long = 0 ) as long' inside
 '' 'type G( of T )', defined out of line as 'function G( of T ).Open( ..., byval n as long )'
@@ -192,3 +193,45 @@ private sub GraftDeclDefaults_ _
         StmtOf( c, cast( Tko.NodeId, fpar[k] ) )->b = dv
     next
 end sub
+
+'' ---------------------------------------------------------------- picking a definition
+
+'' THE 'virtual' AND 'abstract' MODIFIERS OF A GENERIC'S MEMBER, which live on the
+'' DECLARATION INSIDE THE TYPE and nowhere else.
+''
+'' FreeBASIC spells them once -- 'declare virtual function nm( ) as string' -- and the
+'' out-of-line 'function Box( of T ).nm( ) as string' repeats neither. An instantiation
+'' re-parses only the DEFINITIONS, so every instantiated member came out with neither
+'' flag: the vtable pass gave the instantiation a table with no slots of its own, and
+'' the call site -- which decides virtualness from the bound declaration's own
+'' modifiers -- emitted 'call _ZN6BOX<8>2NMEv' where an IntBox was in hand and printed
+'' "Box". Both halves read the flags off the node this puts them on.
+private function TypeBodyProcMods_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval mname as Tko.InternId ) as uint32
+
+    if (gnode = Tko.NODE_NONE) orelse (mname = 0) then return 0
+    if c.ast->Kind( gnode ) <> Tko.N_TYPE then return 0
+    dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
+    for i as int32 = 0 to tp->count - 1
+        dim as Tko.NodeId m = c.ast->ChildAt( tp->first, i )
+        if c.ast->Kind( m ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
+        if mp->name <> mname then continue for
+        return mp->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)
+    next
+    return 0
+end function
+
+'' WHERE A MEMBER DEFINITION WAS WRITTEN: its scope, outward past procedure and type scopes,
+'' to the namespace (or module) it sits in -- SCOPE_NONE when Collect recorded none.
+private function DefHome_( byref c as Ctx, byval dn as Tko.NodeId ) as Tko.ScopeId
+    dim as Tko.ScopeId s = c.info->ScopeOf( dn )
+    for guard as int32 = 0 to 63
+        dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s )
+        if sc = nullptr then return Tko.SCOPE_NONE
+        if (sc->kind <> cast( uint8, Tko.SCOPEK_PROC )) andalso (sc->kind <> cast( uint8, Tko.SCOPEK_TYPE )) then return s
+        s = sc->parent
+    next
+    return Tko.SCOPE_NONE
+end function
+

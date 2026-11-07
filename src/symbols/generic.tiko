@@ -1277,31 +1277,6 @@ end sub
 '' The generic's own 'declare' lines are not instantiated at all. The DEFINITION carries
 '' the whole signature, and Collect declares a member it finds no declaration for, so
 '' one pass over the definitions is the complete job.
-'' THE 'virtual' AND 'abstract' MODIFIERS OF A GENERIC'S MEMBER, which live on the
-'' DECLARATION INSIDE THE TYPE and nowhere else.
-''
-'' FreeBASIC spells them once -- 'declare virtual function nm( ) as string' -- and the
-'' out-of-line 'function Box( of T ).nm( ) as string' repeats neither. An instantiation
-'' re-parses only the DEFINITIONS, so every instantiated member came out with neither
-'' flag: the vtable pass gave the instantiation a table with no slots of its own, and
-'' the call site -- which decides virtualness from the bound declaration's own
-'' modifiers -- emitted 'call _ZN6BOX<8>2NMEv' where an IntBox was in hand and printed
-'' "Box". Both halves read the flags off the node this puts them on.
-private function TypeBodyProcMods_ _
-    ( byref c as Ctx, byval gnode as Tko.NodeId, byval mname as Tko.InternId ) as uint32
-
-    if (gnode = Tko.NODE_NONE) orelse (mname = 0) then return 0
-    if c.ast->Kind( gnode ) <> Tko.N_TYPE then return 0
-    dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
-    for i as int32 = 0 to tp->count - 1
-        dim as Tko.NodeId m = c.ast->ChildAt( tp->first, i )
-        if c.ast->Kind( m ) <> Tko.N_PROC then continue for
-        dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
-        if mp->name <> mname then continue for
-        return mp->extra and (Tko.PF_VIRTUAL or Tko.PF_ABSTRACT)
-    next
-    return 0
-end function
 #include once "symbols/genericdefaults.tiko"
 private sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
@@ -1360,6 +1335,14 @@ private sub InstantiateMembers_ _
         dim as boolean mine = (dp->ownerName = gname)
         if mine = false then
             if isStructor then mine = (dp->name = gname)
+        end if
+        '' ...AND WRITTEN BESIDE THIS GENERIC. 'function Cell( of T ).Get( )' inside namespace
+        '' NS and the same line at module level are the members of two generics that share
+        '' a spelling; matched by name alone, each instantiation took both, and the second
+        '' 'Get' was TKO0677. A definition with no recorded scope keeps the name rule.
+        if mine then
+            dim as Tko.ScopeId dh = DefHome_( c, dn )
+            if (dh <> Tko.SCOPE_NONE) andalso (dh <> scope_) then mine = false
         end if
         if mine = false then continue for
         if dp->b = Tko.NODE_NONE then continue for

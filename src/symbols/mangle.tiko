@@ -392,8 +392,10 @@ private function EmitPrefix _
       byref subs as Substitutions, byval types as Tko.TypeContext ptr = nullptr, _
       byval syms as Tko.SymbolTable ptr = nullptr, byval names as Tko.Interner ptr = nullptr ) as string
 
-    '' AN INSTANTIATION OWNS NO NAMESPACE (see TemplateCode_): everything outside the
-    '' innermost one is dropped, so a member of FB.Array( of T ) starts at the template.
+    '' AN INSTANTIATION OWNS NO TYPE QUALIFIER (see TemplateCode_): a type component outside
+    '' the innermost one is dropped. A NAMESPACE is kept -- fbc drops it too, so a member of
+    '' NS.Cell( of long ) and of a module-level Cell( of long ) were one name, a redefinition
+    '' clang refused (fbc-modern 1.20 cannot compile the pair at all, error 265).
     dim as int32 start = 0
     dim as int32 instAt = -1
     dim as int32 instIx = -1
@@ -425,6 +427,7 @@ private function EmitPrefix _
     for i as int32 = 0 to quals.Count - 1
         dim as boolean dropped = (i >= chainLen)
         if dropped then dropped = (i < start)
+        if dropped then dropped = (qualTypes[i] <> 0)          '' a namespace is kept
         if dropped then continue for
         dim as Tko.TypeId qt = cast( Tko.TypeId, qualTypes[i] )
         if i < chainLen then qt = Tko.TYPE_NONE
@@ -499,7 +502,26 @@ function TypeCode _
         dim as int32 instIx = -1
         if ti <> nullptr then instIx = FindInst_( types, ti->name )
         if instIx >= 0 then
-            enc = TemplateCode_( instIx, types, syms, names, subs )
+            '' ...NESTED UNDER ITS NAMESPACES, as its members are (EmitPrefix): NS.Cell( of
+            '' long ) is N2NS4CellIlEE beside a module-level 4CellIlE. Plain namespaces only --
+            '' not the module chain, which a module and its importers spell differently here.
+            dim as containers.Array( of string ) iq
+            dim as containers.Array( of uint32 ) iqt
+            if ti <> nullptr then
+                dim as containers.Array( of string ) aq
+                dim as containers.Array( of uint32 ) aqt
+                QualifierChain( syms, cast( Tko.ScopeId, ti->declScope ), names, aq, aqt, @types )
+                for k as int32 = 0 to aq.Count - 1
+                    if aqt[k] <> 0 then continue for
+                    iq.Push( aq[k] )
+                    iqt.Push( 0 )
+                next
+            end if
+            if iq.Count = 0 then
+                enc = TemplateCode_( instIx, types, syms, names, subs )
+            else
+                enc = "N" & EmitPrefix( iq, iqt, subs ) & TemplateCode_( instIx, types, syms, names, subs ) & "E"
+            end if
             exit select
         end if
         dim as string nm = ""

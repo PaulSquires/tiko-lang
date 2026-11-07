@@ -1,4 +1,4 @@
-global var i32 _ZN2ItIiE5VALUEEv$z
+global var i32 _ZN1N2ItIiE5VALUEEv$z
 func void P() {
   local agg c size 4
   local agg i size 4
@@ -11,21 +11,21 @@ func void P() {
     %1 = alloca ptr c
     %2 = call.rtl ptr memset(@c, 0, 4)
     %3 = alloca ptr i
-    %8 = call i32 _ZN4CollIiE11GETITERATOREv(@c)
+    %8 = call i32 _ZN1N4CollIiE11GETITERATOREv(@c)
     store @$abi3, %8
     %4 = load @$abi3
     store @i, %4
     %5 = alloca ptr q
-    %10 = call i32 _ZN4CollIiE1AEv(@c)
+    %10 = call i32 _ZN1N4CollIiE1AEv(@c)
     store @$abi4, %10
     %6 = load @$abi4
     store @q, %6
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare i32 _ZN4CollIiE11GETITERATOREv(ptr $0)
-declare i32 _ZN4CollIiE1AEv(ptr $0)
-func i32 _ZN4CollIiE11GETITERATOREv(ptr $0) {
+declare i32 _ZN1N4CollIiE11GETITERATOREv(ptr $0)
+declare i32 _ZN1N4CollIiE1AEv(ptr $0)
+func i32 _ZN1N4CollIiE11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg it size 4
@@ -49,7 +49,7 @@ func i32 _ZN4CollIiE11GETITERATOREv(ptr $0) {
     %12 = load @$abi3
     ret %12
 }
-func i32 _ZN4CollIiE1AEv(ptr $0) {
+func i32 _ZN1N4CollIiE1AEv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg p size 4
@@ -69,7 +69,7 @@ func i32 _ZN4CollIiE1AEv(ptr $0) {
     %9 = load @$abi3
     ret %9
 }
-func i8 _ZN2ItIiE7ISVALIDEv(ptr $0) {
+func i8 _ZN1N2ItIiE7ISVALIDEv(ptr $0) {
   local i8 $tmp0
   local ptr this
   entry0:
@@ -89,7 +89,7 @@ func i8 _ZN2ItIiE7ISVALIDEv(ptr $0) {
     %12 = icmp.ne %10, %11
     ret %12
 }
-func ptr _ZN2ItIiE5VALUEEv(ptr $0) {
+func ptr _ZN1N2ItIiE5VALUEEv(ptr $0) {
   local ptr $tmp0
   local ptr this
   entry0:
@@ -98,11 +98,11 @@ func ptr _ZN2ItIiE5VALUEEv(ptr $0) {
     store @$tmp0, %2
     %3 = alloca ptr this
     store @this, $0
-    store @$tmp0, @@_ZN2ItIiE5VALUEEv$z
+    store @$tmp0, @@_ZN1N2ItIiE5VALUEEv$z
     %4 = load @$tmp0
     ret %4
 }
-func void _ZN2ItIiE8MOVENEXTEv(ptr $0) {
+func void _ZN1N2ItIiE8MOVENEXTEv(ptr $0) {
   local ptr this
   entry0:
     %1 = alloca ptr this

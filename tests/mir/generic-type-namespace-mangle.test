@@ -1,0 +1,11 @@
+'' One generic type name in a namespace and at module level: two sets of members, two
+'' names -- for the methods and for a parameter of each type. See symbols/generic.tiko
+'' DefHome_ and symbols/mangle.tiko EmitPrefix / TypeCode.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/generic-type-namespace-mangle.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: func void _Z4SHOWRN2NS4CellIiEE(
+'' EXPECT-OUT: func void _Z4SHOWR4CellIiE(
+'' EXPECT-OUT: func i32 _ZN2NS4CellIiE3GETEv(
+'' EXPECT-OUT: func i32 _ZN4CellIiE3GETEv(
+'' EXPECT-OUT: verify: ok
