@@ -239,6 +239,27 @@ Sci_Position SCI_METHOD LexerVB::WordListSet(int n, const char *wl) {
 	return firstModification;
 }
 
+// tiko's property sections: `set` ... `end set` (and `get` ... `end get`). `get` is a reserved
+// word and in the keyword list; `set` is not -- it names std's containers.Set -- so it is a
+// keyword only ALONE ON ITS LINE (blanks, then the line end or a comment) or AFTER `end`.
+static bool IsSetSection(StyleContext &sc, const char *s) {
+	if (strcmp(s, "set") != 0) return false;
+	const Sci_Position len = sc.LengthCurrent();
+	Sci_Position back = -len - 1;
+	while (sc.GetRelative(back) == ' ' || sc.GetRelative(back) == '\t') back--;
+	const int before = sc.GetRelative(back);
+	if (MakeLowerCase(before) == 'd' && MakeLowerCase(sc.GetRelative(back - 1)) == 'n' &&
+	    MakeLowerCase(sc.GetRelative(back - 2)) == 'e' && !IsAWordChar(sc.GetRelative(back - 3)) &&
+	    back < -len - 1) {
+		return true;                              // `end set`
+	}
+	if (before != '\n' && before != '\r' && before != '\0') return false;
+	Sci_Position ahead = 0;
+	while (sc.GetRelative(ahead) == ' ' || sc.GetRelative(ahead) == '\t') ahead++;
+	const int after = sc.GetRelative(ahead);
+	return after == '\n' || after == '\r' || after == '\0' || after == '\'';
+}
+
 void LexerVB::CheckIdentifier(StyleContext &sc) {
 	// In Basic (except VBScript), a variable name or a function name
 	// can end with a special character indicating the type of the value
@@ -256,7 +277,7 @@ void LexerVB::CheckIdentifier(StyleContext &sc) {
 	if (strcmp(s, "rem") == 0) {
 		sc.ChangeState(SCE_B_COMMENT);
 	} else {
-		if (keywords.InList(s)) {
+		if (keywords.InList(s) || IsSetSection(sc, s)) {
 			sc.ChangeState(SCE_B_KEYWORD);
 		} else if (keywords2.InList(s)) {
 			sc.ChangeState(SCE_B_KEYWORD2);

@@ -2141,6 +2141,21 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, "x = Fn( 1, " )
     tkTest_PumpFor( h, 60 )
     t.Check( cp.IsOpen( ) = false, P( sc, "a call's comma lists nothing" ) )
+    ' a property's `set` is a keyword alone on its line and after `end` (LexTiko), never as a
+    ' name: `Set( of long )`, `x = set`
+    scope
+        dim as ustring keep = v->Text( )
+        dim as TK_WIDGET ptr sw = v->Widget( )
+        dim as ustring lf = chr( 10 )
+        v->SetText( "set" & lf & "dim s as Set( of long )" & lf & "End Set" & lf & "x = set  ' set" & lf )
+        tkCodeEdit_Send( sw, SCI_COLOURISE, 0, -1 )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 0 ) = SCE_B_KEYWORD, P( sc, "set alone on its line is a keyword" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 13 ) <> SCE_B_KEYWORD, P( sc, "Set( of long ) is not" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 32 ) = SCE_B_KEYWORD, P( sc, "End Set is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 40 ) <> SCE_B_KEYWORD, P( sc, "x = set is not" ) )
+        v->SetText( keep )
+        tkCodeEdit_Send( sw, SCI_DOCUMENTEND )
+    end scope
     ' a long signature's calltip: one parameter per line (symboldb.FormatCallTip), so taller
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     tkTest_PushText( h, "LongSignature(" )
