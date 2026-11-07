@@ -46,6 +46,11 @@ namespace Tko.Codegen
         '' context, so a compilation asks once. nullptr: always the globals.
         as int32 ptr staticsForm
         as string triple
+        '' THE TYPEDEF A DECLARATION NAMED: variable, parameter or field symbol -> the
+        '' SYM_TYPEDEF its 'as' clause wrote ('as int64'), from the driver (DeclAliases_). A
+        '' typedef is resolved away by Resolve, so without this lldb named every 'int64' a
+        '' 'longint'. nullptr: none, every type as resolved.
+        as containers.Map( of uint32, uint32 ) ptr declAlias
     end type
 
     type DbgSpMap as containers.Map( of uint32, int32 )
@@ -78,6 +83,8 @@ namespace Tko.Codegen
         as DbgSpMap  spAt
         as string   globals         '' ', !N' for each DIGlobalVariableExpression
         as int32     intType         '' 'integer', for the descriptors' counts
+        '' A declared typedef's SYM_TYPEDEF -> its DW_TAG_typedef node (DeclType_).
+        as containers.Map( of uint32, int32 ) aliasMeta
     end type
 
     declare sub DbgBegin _

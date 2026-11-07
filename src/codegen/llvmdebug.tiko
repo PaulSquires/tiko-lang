@@ -220,7 +220,7 @@ function DbgDeclare _
     if s = nullptr then return ""
     dim as boolean isParam = (s->kind = cast( uint8, Tko.SYM_PARAMETER ))
     if (isParam = false) andalso (s->kind <> cast( uint8, Tko.SYM_VARIABLE )) then return ""
-    dim as int32 ty = DbgType( d, frontType )
+    dim as int32 ty = DeclType_( d, sym, frontType )    '' 'as int64' stays int64
     if ty < 0 then return ""
     '' PASSED BY ADDRESS: a UDT or a string taken by value lives in the caller, and the
     '' slot holds its address -- so the slot's type is a reference to the value's.
@@ -270,7 +270,7 @@ function DbgGlobal _
     if (d.fe = nullptr) orelse (sym = 0) then return ""
     dim as Tko.Symbol ptr s = d.fe->syms->SymbolAt( cast( Tko.SymbolId, sym ) )
     if s = nullptr then return ""
-    dim as int32 ty = DbgType( d, s->type_ )
+    dim as int32 ty = DeclType_( d, sym, s->type_ )
     if ty < 0 then return ""
     dim as int32 fl, ln
     DeclSite_( d, s, fl, ln )

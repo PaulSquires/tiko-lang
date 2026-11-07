@@ -1,0 +1,25 @@
+type Meters as long
+type Pt
+    x as int32
+    big as int64
+    m as Meters
+end type
+dim shared as int64 total = 7
+sub Show( byval n as int64, byref r as Meters, byval p as int32 ptr )
+    print n; r; *p
+end sub
+dim as int64 count = 5
+dim as Meters dist = 3
+dim as Pt pt
+dim as int32 k = 9
+dim as int32 ptr kp = @k
+dim as long plain = 1
+for i as int32 = 1 to 2
+    count += i
+next
+Show( count, dist, kp )
+print plain; pt.x; total
+dim as int32 fx( 1 to 3 )
+dim as int64 dy( )
+redim dy( 0 to 1 )
+print fx( 1 ) + dy( 0 )

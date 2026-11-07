@@ -136,6 +136,56 @@ private function ObjectFor_ _
     return StripExt_( src ) & ".o"
 end function
 
+private sub DeclAliasOf_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
+      byval sym as uint32, byval tr as Tko.NodeId, byref out_ as containers.Map( of uint32, uint32 ) )
+    if (tr = Tko.NODE_NONE) orelse (ast.Kind( tr ) <> Tko.N_TYPEREF) then exit sub
+    '' 'as int32 ptr' is a pointer level around the name's own N_TYPEREF
+    do while (ast.Flags( tr ) and Tko.NF_PTR) <> 0
+        tr = ast.StmtOf( tr )->a
+        if (tr = Tko.NODE_NONE) orelse (ast.Kind( tr ) <> Tko.N_TYPEREF) then exit sub
+    loop
+    dim as Tko.SymbolId ts = info.RefOf( tr )
+    if ts = Tko.SYMBOL_NONE then exit sub
+    dim as Tko.Symbol ptr t = syms.SymbolAt( ts )
+    if (t <> nullptr) andalso (t->kind = cast( uint8, Tko.SYM_TYPEDEF )) then out_.Put( sym, cast( uint32, ts ) )
+end sub
+
+'' '-g': EACH DECLARATION THAT NAMED A TYPEDEF -- 'dim as int64 n', 'byval m as Meters',
+'' 'x as int32' in a TYPE, 'for i as int32' -- as symbol -> the typedef's symbol, so the debug
+'' information can call the type what the source called it (codegen DeclType_). The 'as'
+'' clause's N_TYPEREF was bound to the typedef by Resolve (RefOf).
+private sub DeclAliases_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
+      byref out_ as containers.Map( of uint32, uint32 ) )
+    for sid as int32 = 1 to syms.Count( ) - 1
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, sid ) )
+        if (s = nullptr) orelse (s->payload <= 0) orelse (s->payload >= ast.Count( )) then continue for
+        dim as Tko.NodeId nd = cast( Tko.NodeId, s->payload )
+        dim as Tko.NodeKind want
+        select case s->kind
+        case cast( uint8, Tko.SYM_VARIABLE ) : want = Tko.N_VAR_ITEM
+        case cast( uint8, Tko.SYM_PARAMETER ) : want = Tko.N_PARAM
+        case cast( uint8, Tko.SYM_FIELD )
+            if (s->flags and Tko.SYMF_BITFIELD) <> 0 then continue for    '' payload is its width
+            want = Tko.N_FIELD
+        case else
+            continue for
+        end select
+        if ast.Kind( nd ) <> want then continue for
+        DeclAliasOf_( ast, syms, info, cast( uint32, sid ), ast.StmtOf( nd )->a, out_ )
+    next
+    '' A FOR's counter has no node of its own: the N_FOR holds it ('a') and its 'as' clause ('c').
+    for n as int32 = 1 to ast.Count( ) - 1
+        dim as Tko.NodeKind k = ast.Kind( cast( Tko.NodeId, n ) )
+        if (k <> Tko.N_FOR) andalso (k <> Tko.N_FOREACH) then continue for
+        dim as Tko.StmtPayload ptr sp = ast.StmtOf( cast( Tko.NodeId, n ) )
+        if (sp->a = Tko.NODE_NONE) orelse (sp->c = Tko.NODE_NONE) then continue for
+        dim as Tko.SymbolId vs = info.RefOf( sp->a )
+        if vs <> Tko.SYMBOL_NONE then DeclAliasOf_( ast, syms, info, cast( uint32, vs ), sp->c, out_ )
+    next
+end sub
+
 function CompileUnit _
     ( byref ctx as Tko.CompilerContext, byval i as int32, byval srcCount as int32, _
       byval restartDepth as int32, byval wantsOutput as boolean, _
@@ -592,6 +642,9 @@ function CompileUnit _
             dfe.types = @ctx.types : dfe.syms = @syms
             dfe.udts = @udts : dfe.names = @ctx.names
             dfe.triple = td.triple : dfe.staticsForm = @ctx.dbgStaticsForm
+            dim as containers.Map( of uint32, uint32 ) dalias
+            if ctx.options.debugInfo then DeclAliases_( ast, syms, info, dalias )
+            dfe.declAlias = @dalias
             tPh = timer
             dim as Tko.Codegen.EmitResult er = _
                 Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
