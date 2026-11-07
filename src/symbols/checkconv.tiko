@@ -11,6 +11,7 @@ function ConversionCost _
 
     if (from_ = Tko.TYPE_NONE) orelse (to_ = Tko.TYPE_NONE) then return CONV_NONE
     if from_ = to_ then return CONV_EXACT
+    if Tko.Slices.SliceArgCost( types, from_, to_ ) >= 0 then return Tko.Slices.SliceArgCost( types, from_, to_ )   '' a string into a slice (checkslice.tiko)
 
     '' CONST IS NOT A DIFFERENT TYPE HERE. 'byref lhs as const U' is the natural way to
     '' declare an operand a procedure will not write, and 'U' and 'const U' are distinct

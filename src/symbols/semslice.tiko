@@ -32,7 +32,45 @@ private function SliceBound_ _
     return true
 end function
 
+'' 'slice( p )' / 'slice( p, n )' (RFC-0001 §3): the slice type named as a constructor over a
+'' zstring or wstring POINTER of its width, and an optional count. The pointer's const is not
+'' in the call's type, so ConstPtrCtor_ answers it for TKO1052.
+private function SliceCtorType_ ( byref c as Ctx, byval id as NodeId ) as TypeId
+    if c.ast->Kind( id ) <> N_CALL then return TYPE_NONE
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if lp->target = NODE_NONE then return TYPE_NONE
+    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if ts = nullptr then return TYPE_NONE
+    if (ts->kind <> cast( uint8, SYM_UDT )) andalso (ts->kind <> cast( uint8, SYM_TYPEDEF )) then return TYPE_NONE
+    if Slices.SliceUnitOfType( *c.types, *c.names, ts->type_ ) = Slices.SU_NONE then return TYPE_NONE
+    return ts->type_
+end function
+
+private function ConstPtrCtor_ ( byref c as Ctx, byval id as NodeId ) as boolean
+    if SliceCtorType_( c, id ) = TYPE_NONE then return false
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if lp->count < 1 then return false
+    dim as TypeId at = c.types->Unqualify( c.info->TypeOf_( c.ast->ChildAt( lp->first, 0 ) ) )
+    if c.types->Kind( at ) <> TK_POINTER then return false
+    return c.types->IsConst( c.types->Inner( at ) )
+end function
+
+sub CheckSliceCtor_ ( byref c as Ctx, byval id as NodeId )
+    dim as TypeId st = SliceCtorType_( c, id )
+    if st = TYPE_NONE then return
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    dim as TypeId at = TYPE_NONE
+    if lp->count >= 1 then at = c.info->TypeOf_( c.ast->ChildAt( lp->first, 0 ) )
+    dim as Slices.SliceSource ss
+    dim as boolean ok = (lp->count = 1) orelse (lp->count = 2)
+    if ok andalso (at <> TYPE_NONE) then
+        ok = (Slices.SliceSourceOf( *c.types, *c.names, at, ss ) = Slices.SliceUnitOfType( *c.types, *c.names, st )) andalso (ss = Slices.SS_PTR)
+    end if
+    if ok = false then c.diags->Report( TKO1050, PointRange( c.ast->Loc( lp->target ) ), iif( at = TYPE_NONE, "( )", c.types->Name( at ) ) )
+end sub
+
 sub CheckSliceCall_ ( byref c as Ctx, byval id as NodeId )
+    CheckSliceCtor_( c, id )
     if Slices.IsSliceCall( *c.ast, *c.names, id ) = false then return
     dim as ListPayload ptr cp = c.ast->ListOf( id )
     dim as NodeId src = c.ast->ChildAt( cp->first, 0 )
@@ -87,6 +125,13 @@ private function ConstDropped_ ( byref c as Ctx, byval dst as TypeId, byval src 
     return sc andalso (dc = false)
 end function
 
+'' ...AND 'slice( p )' over a 'const zstring ptr' into a mutable slice.
+private function CtorDropped_ ( byref c as Ctx, byval dst as TypeId, byval src as NodeId ) as boolean
+    if Slices.SliceUnitOfType( *c.types, *c.names, dst ) = Slices.SU_NONE then return false
+    if c.types->IsConst( Slices.SliceElemType( *c.types, *c.names, dst ) ) then return false
+    return ConstPtrCtor_( c, src )
+end function
+
 private sub ReportDropped_ ( byref c as Ctx, byval at as NodeId, byval dst as TypeId )
     dim as string nm = "slice"
     select case Slices.SliceUnitOfType( *c.types, *c.names, dst )
@@ -96,23 +141,68 @@ private sub ReportDropped_ ( byref c as Ctx, byval at as NodeId, byval dst as Ty
     c.diags->Report( TKO1052, PointRange( c.ast->Loc( at ) ), nm )
 end sub
 
+'' A STRING FOR A MUTABLE SLICE PARAMETER (RFC-0001 §8): only a same-width variable -- or a
+'' pointer -- is viewed in place. A literal, a temporary or another width would be copied into
+'' a temporary first, and a write through the slice would land in the copy and be lost:
+'' TKO1053. A CONST string variable is TKO1052, as a const slice is.
+private sub MutableSliceArg_ ( byref c as Ctx, byval pt as TypeId, byval arg as NodeId )
+    dim as Slices.SliceUnit pu = Slices.SliceUnitOfType( *c.types, *c.names, pt )
+    if pu = Slices.SU_NONE then return
+    if c.types->IsConst( Slices.SliceElemType( *c.types, *c.names, pt ) ) then return
+    dim as TypeId at = c.info->TypeOf_( arg )
+    if at = TYPE_NONE then return
+    dim as Slices.SliceSource ss
+    dim as Slices.SliceUnit au = Slices.SliceSourceOf( *c.types, *c.names, at, ss )
+    if (au = Slices.SU_NONE) orelse (ss = Slices.SS_SLICE) then return
+    dim as NodeId u = arg
+    while (c.ast->Kind( u ) = N_PAREN) andalso (c.ast->ListOf( u )->count = 1)
+        u = c.ast->ChildAt( c.ast->ListOf( u )->first, 0 )
+    wend
+    dim as boolean own = (ss = Slices.SS_PTR)
+    select case c.ast->Kind( u )
+    case N_IDENT
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( u ) )
+        if s <> nullptr then own = (s->kind = cast( uint8, SYM_VARIABLE )) orelse (s->kind = cast( uint8, SYM_PARAMETER )) orelse (s->kind = cast( uint8, SYM_FIELD ))
+    case N_MEMBER, N_INDEX, N_DEREF
+        own = true
+    case N_CALL
+        dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( c.ast->ListOf( u )->target ) )
+        if ts <> nullptr then own = (ts->kind = cast( uint8, SYM_VARIABLE )) orelse (ts->kind = cast( uint8, SYM_PARAMETER )) orelse (ts->kind = cast( uint8, SYM_FIELD ))
+    case N_STRING_LIT, N_STRCAT, N_BINARY
+        own = false
+    end select
+    dim as string pn = c.types->Name( c.types->Unqualify( pt ) )
+    if c.types->Kind( c.types->Unqualify( pt ) ) = TK_TYPEDEF then pn = c.types->Name( c.types->Unqualify( c.types->Inner( c.types->Unqualify( pt ) ) ) )
+    if (au <> pu) orelse (own = false) then
+        dim as string sn = "string"
+        if pu = Slices.SU_UTF16 then sn = "ustring"
+        if pu = Slices.SU_WIDE then sn = "wstring"
+        c.diags->Report( TKO1053, PointRange( c.ast->Loc( arg ) ), pn, sn, c.types->Name( at ) )
+        return
+    end if
+    '' A const variable, or a pointer to const text.
+    dim as boolean cst = c.types->IsConst( at )
+    if (cst = false) andalso (c.types->Kind( c.types->Unqualify( at ) ) = TK_POINTER) then cst = c.types->IsConst( c.types->Inner( c.types->Unqualify( at ) ) )
+    if cst then c.diags->Report( TKO1052, PointRange( c.ast->Loc( arg ) ), pn )
+end sub
+
 sub CheckSliceConst_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
     select case c.ast->Kind( id )
     case N_VAR_ITEM
         dim as StmtPayload ptr ip = c.ast->StmtOf( id )
         if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
-        if ConstDropped_( c, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) ) then ReportDropped_( c, ip->b, c.info->TypeOf_( ip->a ) )
+        if ConstDropped_( c, c.info->TypeOf_( ip->a ), c.info->TypeOf_( ip->b ) ) orelse CtorDropped_( c, c.info->TypeOf_( ip->a ), ip->b ) then ReportDropped_( c, ip->b, c.info->TypeOf_( ip->a ) )
     case N_AMBIGUOUS
         if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
         dim as StmtPayload ptr sp = c.ast->StmtOf( id )
         if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
         dim as TypeId lt = c.info->TypeOf_( sp->a )
         if (lt = TYPE_NONE) andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then lt = resultType
-        if ConstDropped_( c, lt, c.info->TypeOf_( sp->b ) ) then ReportDropped_( c, sp->b, lt )
+        if ConstDropped_( c, lt, c.info->TypeOf_( sp->b ) ) orelse CtorDropped_( c, lt, sp->b ) then ReportDropped_( c, sp->b, lt )
     case N_RETURN
         dim as NodeId e = c.ast->StmtOf( id )->a
         if e = NODE_NONE then return
-        if ConstDropped_( c, resultType, c.info->TypeOf_( e ) ) then ReportDropped_( c, e, resultType )
+        if ConstDropped_( c, resultType, c.info->TypeOf_( e ) ) orelse CtorDropped_( c, resultType, e ) then ReportDropped_( c, e, resultType )
     case N_CALL
         dim as ListPayload ptr lp = c.ast->ListOf( id )
         if lp->target = NODE_NONE then return
@@ -134,7 +224,8 @@ sub CheckSliceConst_ ( byref c as Ctx, byval id as NodeId, byval resultType as T
             dim as StmtPayload ptr prp = c.ast->StmtOf( prm )
             if prp->a = NODE_NONE then continue for
             dim as TypeId pt = c.info->TypeOf_( prp->a )
-            if ConstDropped_( c, pt, c.info->TypeOf_( arg ) ) then ReportDropped_( c, arg, pt )
+            if ConstDropped_( c, pt, c.info->TypeOf_( arg ) ) orelse CtorDropped_( c, pt, arg ) then ReportDropped_( c, arg, pt )
+            MutableSliceArg_( c, pt, arg )
         next
     end select
 end sub

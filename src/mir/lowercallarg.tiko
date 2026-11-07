@@ -451,6 +451,7 @@ private function UdtConvTemp_ _
     if argNode = Tko.NODE_NONE then return false
     dim as int32 sz = SizeOfType( c, pt )
     if sz <= 0 then return false
+    if SliceUnitBytes( c, pt ) > 0 then return LowerSliceArg( c, argNode, pt, outa )   '' a string for a slice parameter: lowerslice.tiko
 
     '' A WIDE STRING FOR A TYPE WITH A 'wstring ptr' CONSTRUCTOR takes that one, as fbc does --
     '' see WideArgCharPtrCtor_. PickCtor has no single cheapest candidate to offer for it.

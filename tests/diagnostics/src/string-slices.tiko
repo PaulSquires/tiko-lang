@@ -19,3 +19,12 @@ var ok1 = s[3 to 2]
 dim as zstring * 8 z
 var ok2 = z[0 to 6]
 var bad2 = z[0 to 7]
+sub TakesM( byval v as slice )
+end sub
+dim as ustring u = "u"
+TakesM( "lit" )
+TakesM( u )
+TakesM( cs )
+dim as const zstring ptr cpz = strptr( s )
+dim as slice m3 = slice( cpz )
+var bad3 = slice( d )

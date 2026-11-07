@@ -2,7 +2,9 @@
 '' TKO1051, constant bounds outside 0 <= lo <= hi + 1 <= len (string*N is N, zstring*N holds
 '' at most N - 1); TKO1052, a const slice where a mutable one is wanted -- initialiser,
 '' assignment, argument. A write through a const slice is TKO0617; rebinding one is not, and
-'' an empty 's[3 to 2]' is legal.
+'' an empty 's[3 to 2]' is legal. P2b: TKO1053, a literal / another width / a
+'' temporary for a MUTABLE slice parameter; TKO1052 for a const string there and for slice( p ) over
+'' a const pointer; TKO1050 for slice( ) over a non-pointer.
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/string-slices.tiko
 '' EXPECT-EXIT: 1
@@ -15,4 +17,9 @@
 '' EXPECT-OUT: string-slices.tiko(15,10): error TKO1052
 '' EXPECT-OUT: string-slices.tiko(16,2): error TKO0617
 '' EXPECT-OUT: string-slices.tiko(21,13): error TKO1051: slice 0 to 7 is outside 'z' (0 to 6)
-'' EXPECT-MAX-DIAG: 9
+'' EXPECT-OUT: string-slices.tiko(25,9): error TKO1053: a mutable slice parameter needs a string variable, not 'string'
+'' EXPECT-OUT: string-slices.tiko(26,9): error TKO1053: a mutable slice parameter needs a string variable, not 'ustring'
+'' EXPECT-OUT: string-slices.tiko(27,9): error TKO1052
+'' EXPECT-OUT: string-slices.tiko(29,24): error TKO1052
+'' EXPECT-OUT: string-slices.tiko(30,12): error TKO1050: 'double' cannot be sliced
+'' EXPECT-MAX-DIAG: 14

@@ -25,6 +25,18 @@ namespace Tko.Mir
     '' result is an owned string (RFC-0001 §7).
     declare function SliceMeetsString _
         ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    '' A STRING ARGUMENT FOR A SLICE PARAMETER (RFC-0001 §8): the address of a temporary
+    '' slice over it. Same width and storage of its own: a view, no copy. Anything else -- a
+    '' literal of another width, a temporary, another width -- is first copied into a
+    '' statement temporary of the parameter's flavour, which outlives the call.
+    declare function LowerSliceArg _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
+    '' 'slice( p )' / 'slice( p, n )' over a zstring or wstring pointer: the slice VALUE --
+    '' up to the NUL, or n units.
+    declare function LowerSliceCtor _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
     declare function LowerSliceCall _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 

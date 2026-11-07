@@ -292,6 +292,145 @@ function SliceMeetsString _
     return (SliceUnitBytes( c, ta ) > 0) orelse (SliceUnitBytes( c, tb ) > 0)
 end function
 
+'' STORAGE OF ITS OWN: an expression a view may point into for the whole statement -- a
+'' variable, parameter, field, element or dereference. A call's result, a concatenation and
+'' a literal are not (the literal is taken separately).
+private function OwnStorage_( byref c as Ctx, byval u as Tko.NodeId ) as boolean
+    select case c.ast->Kind( u )
+    case Tko.N_IDENT
+        dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( u ) )
+        if s = nullptr then return false
+        select case s->kind
+        case cast( uint8, Tko.SYM_VARIABLE ), cast( uint8, Tko.SYM_PARAMETER ), cast( uint8, Tko.SYM_FIELD )
+            return true
+        end select
+        return false
+    case Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+        return true
+    case Tko.N_CALL
+        dim as Tko.Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( c.ast->ListOf( u )->target ) )
+        if ts = nullptr then return false
+        return (ts->kind = cast( uint8, Tko.SYM_VARIABLE )) orelse (ts->kind = cast( uint8, Tko.SYM_PARAMETER )) orelse (ts->kind = cast( uint8, Tko.SYM_FIELD ))
+    end select
+    return false
+end function
+
+function LowerSliceArg _
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue ) as boolean
+
+    dim as Slices.SliceUnit pu = Slices.SliceUnitOfType( *c.types, *c.names, pt )
+    if pu = Slices.SU_NONE then return false
+    dim as Tko.NodeId u = Unparen_( c, argNode )
+    dim as Slices.SliceSource ss
+    dim as Slices.SliceUnit au = Slices.SliceSourceOf( *c.types, *c.names, c.info->TypeOf_( u ), ss )
+    dim as MirValue dataV, lenV, anchorV
+    dim as boolean lenKnown = true
+    dim as boolean done = false
+    anchorV = ConstInt( c, 0, MT_PTR )
+
+    '' A VIEW: the same width over storage of its own (or a pointer, which is its own extent's
+    '' business, as 'p[lo to hi]' is).
+    if (au = pu) andalso (ss <> Slices.SS_NONE) andalso (ss <> Slices.SS_SLICE) andalso _
+       (OwnStorage_( c, u ) orelse (ss = Slices.SS_PTR)) then
+        if SourceParts_( c, u, ss, au, dataV, lenV, anchorV, lenKnown ) = false then return false
+        if lenKnown = false then
+            '' A bare pointer as a whole slice: up to its NUL.
+            dim as containers.Array( of uint32 ) la
+            la.Push( cast( uint32, dataV.kind ) ) : la.Push( cast( uint32, dataV.id ) )
+            if pu = Slices.SU_NARROW then
+                PushStrLen_( c, la, 0 )
+                lenV = EmitRtl( c, RTL_STR_LEN, la )
+            else
+                lenV = EmitRtl( c, RTL_WSTR_LEN, la )
+            end if
+        end if
+        done = true
+    end if
+    '' A NARROW LITERAL for a narrow slice: its own bytes, a module global -- no copy.
+    if (done = false) andalso (pu = Slices.SU_NARROW) then
+        select case c.ast->Kind( u )
+        case Tko.N_STRING_LIT, Tko.N_STRCAT
+            dim as containers.Array( of uint32 ) ta
+            if EmitStrTerm( c, ta, u, false ) andalso (ta.Count = 4) andalso (ta[2] = cast( uint32, MV_CONST_INT )) then
+                dataV.kind = cast( uint8, ta[0] ) : dataV.ty = cast( uint8, MT_PTR ) : dataV.id = ta[1]
+                lenV = ConstInt( c, cast( int64, ta[3] ) - 1, MT_I64 )   '' a literal's size counts its NUL (PushStrLiteralArg)
+                done = true
+            end if
+        end select
+    end if
+    '' EVERYTHING ELSE IS COPIED into a statement temporary of the parameter's flavour.
+    if done = false then
+        select case pu
+        case Slices.SU_NARROW, Slices.SU_UTF16
+            dim as Tko.TypeId flav = c.types->Builtin( iif( pu = Slices.SU_NARROW, Tko.TY_STRING, Tko.TY_USTRING ) )
+            dim as MirValue tdesc
+            dim as int32 tslot = -1
+            if ByvalStrTemp_( c, u, flav, tdesc, tslot ) = false then return false
+            if tslot >= 0 then c.strTemps.Push( cast( uint32, tslot ) )
+            dataV = LowerExprLoad( c, Fld_( c, tdesc, 0 ), MT_PTR )
+            dim as MirValue rawLen = LowerExprLoad( c, Fld_( c, tdesc, 8 ), MT_I64 )
+            dim as MirValue mask = ConstInt( c, &h7FFFFFFFFFFFFFFFll, MT_I64 )
+            lenV = Op2_( c, M_AND, MT_I64, rawLen, mask )
+        case else
+            dim as MirValue wp
+            if WideOperand_( c, u, wp ) = false then
+                if NarrowToWideTemp_( c, u, wp ) = false then return false
+            end if
+            dataV = wp
+            dim as containers.Array( of uint32 ) la
+            la.Push( cast( uint32, wp.kind ) ) : la.Push( cast( uint32, wp.id ) )
+            lenV = EmitRtl( c, RTL_WSTR_LEN, la )
+        end select
+    end if
+    if (dataV.kind = cast( uint8, MV_NONE )) orelse (lenV.kind = cast( uint8, MV_NONE )) then return false
+
+    dim as int32 slot = NewTempLocal( c, MT_AGG, SizeOfType( c, pt ) )
+    if slot < 0 then return false
+    dim as MirValue sa = Local_( slot )
+    Store_( c, Fld_( c, sa, 0 ), dataV )
+    Store_( c, Fld_( c, sa, 8 ), lenV )
+    Store_( c, Fld_( c, sa, 16 ), anchorV )
+    outa = sa
+    return true
+end function
+
+function LowerSliceCtor _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.ListPayload ptr cp = c.ast->ListOf( id )
+    if (cp->count < 1) orelse (cp->count > 2) then return false
+    dim as Tko.NodeId pe = c.ast->ChildAt( cp->first, 0 )
+    dim as MirValue p = LowerExpr( c, pe )
+    if p.kind = cast( uint8, MV_NONE ) then return false
+    dim as MirValue n
+    if cp->count = 2 then
+        dim as Tko.NodeId ne = c.ast->ChildAt( cp->first, 1 )
+        n = LowerExpr( c, ne )
+        if n.kind = cast( uint8, MV_NONE ) then return false
+        n = CoerceTy( c, n, MT_I64, c.info->TypeOf_( ne ) )
+    else
+        dim as containers.Array( of uint32 ) la
+        la.Push( cast( uint32, p.kind ) ) : la.Push( cast( uint32, p.id ) )
+        if Slices.SliceUnitOfType( *c.types, *c.names, t ) = Slices.SU_NARROW then
+            PushStrLen_( c, la, 0 )
+            n = EmitRtl( c, RTL_STR_LEN, la )
+        else
+            n = EmitRtl( c, RTL_WSTR_LEN, la )
+        end if
+    end if
+    if n.kind = cast( uint8, MV_NONE ) then return false
+    dim as int32 slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
+    if slot < 0 then return false
+    dim as MirValue sa = Local_( slot )
+    Store_( c, Fld_( c, sa, 0 ), p )
+    Store_( c, Fld_( c, sa, 8 ), n )
+    Store_( c, Fld_( c, sa, 16 ), ConstInt( c, 0, MT_PTR ) )
+    outv = LowerExprLoad( c, sa, MT_AGG, SizeOfType( c, t ) )
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
 '' '__tko_slice( src, lo, hi )' -- the slice VALUE.
 function LowerSliceCall _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean

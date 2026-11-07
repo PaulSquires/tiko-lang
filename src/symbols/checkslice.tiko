@@ -140,6 +140,63 @@ function SliceIifType _
     return iif( sla <> SU_NONE, tb, ta )
 end function
 
+'' The slice unit of a type by its shown name alone -- ConversionCost has no interner, and
+'' TypeContext.Name shows the three prelude TYPEs by their public names.
+private function UnitByName_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as SliceUnit
+    t = Bare_( types, t )
+    if (t = Tko.TYPE_NONE) orelse (types.Kind( t ) <> Tko.TK_UDT) then return SU_NONE
+    select case lcase( types.Name( t ) )
+    case "slice" : return SU_NARROW
+    case "uslice" : return SU_UTF16
+    case "wslice" : return SU_WIDE
+    end select
+    return SU_NONE
+end function
+
+function SliceArgCost _
+    ( byref types as Tko.TypeContext, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as int32
+
+    dim as SliceUnit pu = UnitByName_( types, to_ )
+    if pu = SU_NONE then return -1
+    if UnitByName_( types, from_ ) <> SU_NONE then return -1     '' slice to slice: the ordinary rules
+    dim as Tko.TypeId f = Bare_( types, from_ )
+    if f = Tko.TYPE_NONE then return -1
+    dim as SliceUnit au = SU_NONE
+    select case types.Kind( f )
+    case Tko.TK_BUILTIN
+        select case types.BuiltinOf( f )
+        case Tko.TY_STRING, Tko.TY_ZSTRING : au = SU_NARROW
+        case Tko.TY_USTRING : au = SU_UTF16
+        case Tko.TY_WSTRING : au = SU_WIDE
+        end select
+    case Tko.TK_ARRAY
+        if types.IsDynArray( f ) = false then
+            dim as Tko.TypeId et = types.Unqualify( types.Inner( f ) )
+            if types.Kind( et ) = Tko.TK_BUILTIN then
+                select case types.BuiltinOf( et )
+                case Tko.TY_FIXSTR, Tko.TY_ZSTRING : au = SU_NARROW
+                case Tko.TY_FIXUSTR : au = SU_UTF16
+                case Tko.TY_WSTRING : au = SU_WIDE
+                end select
+            end if
+        end if
+    case Tko.TK_POINTER
+        '' A zstring / wstring POINTER of the parameter's own width: the text up to its NUL.
+        dim as Tko.TypeId pi = Bare_( types, types.Inner( f ) )
+        if types.Kind( pi ) = Tko.TK_BUILTIN then
+            select case types.BuiltinOf( pi )
+            case Tko.TY_ZSTRING : if pu = SU_NARROW then au = SU_NARROW
+            case Tko.TY_WSTRING : if pu = SU_WIDE then au = SU_WIDE
+            end select
+        end if
+    end select
+    if au = SU_NONE then return -1
+    '' 152 and 159 against check.ti's string tiers: CONV_STRPTR_OTHER (150) + 2 sits below
+    '' CONV_STR_CONST_COPY (155); + 9 above CONV_STR_TO_WSTR (157).
+    if au = pu then return 152
+    return 159
+end function
+
 function IsSliceCall _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byval id as Tko.NodeId ) as boolean

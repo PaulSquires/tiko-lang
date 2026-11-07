@@ -77,6 +77,13 @@ namespace Tko.Slices
         ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
           byval ta as Tko.TypeId, byval tb as Tko.TypeId ) as Tko.TypeId
 
+    '' WHAT A STRING COSTS PASSED TO A SLICE PARAMETER (RFC-0001 §8), or -1 when to_ is not a
+    '' slice or from_ is not a string. Same width: just above the string-pointer tier, so a
+    '' string parameter still wins over a slice one. Any other string: above every string
+    '' tier. Mutable parameters cost the same; TKO1052/TKO1053 judge them after Check.
+    declare function SliceArgCost _
+        ( byref types as Tko.TypeContext, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as int32
+
     '' Whether call node id is a '__tko_slice' call.
     declare function IsSliceCall _
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _

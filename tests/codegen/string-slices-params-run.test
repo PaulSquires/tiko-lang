@@ -1,0 +1,28 @@
+'' RUN: string slices P2b (docs/tiko-slices RFC-0001 §8, §3) -- a string for a slice parameter:
+'' same width viewed in place (a write through a mutable one lands in the variable), a literal
+'' of its own width viewed in its global, a temporary or another width copied into a statement
+'' temporary; a zstring pointer viewed to its NUL; slice( p ) and slice( p, n ), wslice( pw, n ).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/string-slices-params.tiko -o tests/codegen/stringslicesparams.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-FILE: tests/codegen/stringslicesparams.exe
+'' RUN: tests/codegen/stringslicesparams.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: C 5 [hello]
+'' EXPECT-RUN-OUT: C 3 [lit]
+'' EXPECT-RUN-OUT: C 3 [zed]
+'' EXPECT-RUN-OUT: C 4 [fix ]
+'' EXPECT-RUN-OUT: C 6 [hello+]
+'' EXPECT-RUN-OUT: C 4 [wide]
+'' EXPECT-RUN-OUT: Xello Xed
+'' EXPECT-RUN-OUT: U 4 [wide]
+'' EXPECT-RUN-OUT: U 5 [Xello]
+'' EXPECT-RUN-OUT: U 3 [lit]
+'' EXPECT-RUN-OUT: U 5 [wide!]
+'' EXPECT-RUN-OUT: W 5 -1
+'' EXPECT-RUN-OUT: W 5 -1
+'' EXPECT-RUN-OUT: ptr 12 [pointer text] 7 [pointer]
+'' EXPECT-RUN-OUT: C 12 [pointer text]
+'' EXPECT-RUN-OUT: wptr 4 -1

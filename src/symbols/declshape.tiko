@@ -569,6 +569,7 @@ sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
     if instr( c.names->Spelling( tn ), "<" ) > 0 then return
     if StructorOf_( c, t, "__ctor" ) <> nullptr then return
     if TcNeedsCtor_( c, t, 0 ) orelse FieldHasInit_( c, t ) then return
+    if Tko.Slices.SliceUnitOfType( *c.types, *c.names, t ) <> Tko.Slices.SU_NONE then return   '' slice( p [, n] ): semslice.tiko
     c.diags->Report( TKO0917, PointRange( c.ast->Loc( lp->target ) ), c.names->Spelling( tn ) )
 end sub
 
