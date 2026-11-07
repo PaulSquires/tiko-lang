@@ -1,0 +1,24 @@
+'' String slices, RFC-0002 (lifetime) P3a: a slice cannot be shared, an array element or 'new'-ed
+'' (TKO1054), a field of a TYPE (TKO1055), or have its address stored (TKO1056); it cannot be
+'' bound where it outlives what it borrows (TKO1057) or to a temporary's text (TKO1058),
+'' returned over a local, a byval string or a temporary (TKO1059), or stored through a byref
+'' parameter from a local (TKO1061). The legal shapes in the same file -- a slice of a byref or
+'' slice parameter returned, a caller-owned slice stored through byref, an inner-scope binding,
+'' a rebinding to a longer-lived string -- report nothing (EXPECT-MAX-DIAG).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/string-slice-life.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: string-slice-life.tiko(1,21): error TKO1054
+'' EXPECT-OUT: string-slice-life.tiko(2,14): error TKO1054
+'' EXPECT-OUT: string-slice-life.tiko(4,5): error TKO1055
+'' EXPECT-OUT: string-slice-life.tiko(14,14): error TKO1059
+'' EXPECT-OUT: string-slice-life.tiko(17,13): error TKO1059
+'' EXPECT-OUT: string-slice-life.tiko(20,25): error TKO1059
+'' EXPECT-OUT: string-slice-life.tiko(24,14): error TKO1061
+'' EXPECT-OUT: string-slice-life.tiko(33,18): error TKO1057
+'' EXPECT-OUT: string-slice-life.tiko(37,29): error TKO1052
+'' EXPECT-OUT: string-slice-life.tiko(37,29): error TKO1058
+'' EXPECT-OUT: string-slice-life.tiko(39,28): error TKO1058
+'' EXPECT-OUT: string-slice-life.tiko(40,23): error TKO1056
+'' EXPECT-OUT: string-slice-life.tiko(41,10): error TKO1054
+'' EXPECT-MAX-DIAG: 13

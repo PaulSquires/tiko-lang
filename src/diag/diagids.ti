@@ -1138,6 +1138,15 @@
     '' 1053: a mutable slice parameter given what would have to be copied first -- another width,
     '' a literal, a temporary -- so a write through it would be lost (RFC-0001 §8).
     DIAG( TKO1053, SEV_ERROR,   "a mutable %0 parameter needs a %1 variable, not '%2'" )
+    '' RFC-0002 (lifetime). 1054-1059 and 1061: where a slice may live and what it may borrow from.
+    '' 1060 (a capture) is reserved for P3b with 'type X as view'.
+    DIAG( TKO1054, SEV_ERROR,   "a %0 cannot be %1" )
+    DIAG( TKO1055, SEV_ERROR,   "type '%0' holds slice field '%1'; a slice lives only in a local, a parameter or a result" )
+    DIAG( TKO1056, SEV_ERROR,   "cannot take the address of slice '%0' except to pass it" )
+    DIAG( TKO1057, SEV_ERROR,   "'%0' outlives '%1', which this slice borrows from" )
+    DIAG( TKO1058, SEV_ERROR,   "this slice borrows from a temporary that ends with the statement" )
+    DIAG( TKO1059, SEV_ERROR,   "cannot return a slice of %0" )
+    DIAG( TKO1061, SEV_ERROR,   "a slice stored through byref parameter '%0' must outlive the call" )
 
 #endmacro
 

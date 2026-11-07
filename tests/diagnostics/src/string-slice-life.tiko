@@ -1,0 +1,42 @@
+dim shared as slice gs
+dim as slice arr( 3 )
+type Holder
+    v as slice
+end type
+function OkByref( byref s as string ) as slice
+    return s[0 to 1]
+end function
+function OkParam( byval v as slice ) as slice
+    return v[0 to 0]
+end function
+function BadLocal( ) as slice
+    dim as string lc = "local"
+    return lc[0 to 1]
+end function
+function BadByval( byval s as string ) as slice
+    return s[0 to 1]
+end function
+function BadTemp( byref s as string ) as slice
+    function = (s & "x")[0 to 1]
+end function
+sub BadStore( byref out_ as slice )
+    dim as string lc = "local"
+    out_ = lc[0 to 1]
+end sub
+sub OkStore( byref out_ as slice, byref s as string )
+    out_ = s[0 to 0]
+end sub
+dim as string s = "hello"
+dim as slice outer
+scope
+    dim as string inner = "inner"
+    outer = inner[0 to 1]
+    dim as slice ok1 = inner[0 to 1]
+    ok1 = s[0 to 1]
+end scope
+dim as slice tmp = (s & "!")[0 to 2]
+dim as slice ok2 = OkByref( s )
+dim as slice bad2 = OkByref( s & "?" )
+dim as slice ptr pv = @ok2
+var pn = new slice
+print len( s[0 to 1] )
