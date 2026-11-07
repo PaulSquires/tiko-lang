@@ -1,0 +1,10 @@
+'' TKO0600, fbc-modern's 4: a second generic procedure of one name in one scope -- by arity,
+'' by type-parameter count, in a reopened namespace. Two namespaces, and a generic beside an
+'' ordinary procedure, are fine. See symbols/collectproc.tiko GenericRedefined_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-redefined.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-redefined.bas(7,1): error TKO0600
+'' EXPECT-OUT: generic-redefined.bas(13,1): error TKO0600
+'' EXPECT-OUT: generic-redefined.bas(22,5): error TKO0600
+'' EXPECT-MAX-DIAG: 3

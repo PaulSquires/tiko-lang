@@ -286,7 +286,7 @@ All measured, none blocking.
 
 - Constraints name interfaces, and nothing else. `of T as IComparable( of T )` can be required; an operator such as '=' cannot. A container member that needs '=' on T makes the whole type unusable for a T without one -- which is why Array's Sort, IndexOf and Contains are free procedures rather than members -- and that diagnostic lands inside the container module at the instantiation site.
 
-- Generic procedures cannot be overloaded. One name, one generic procedure. A second generic procedure of the same name, whether it differs in arity, in type-parameter count or in parameter type, is not reported, and it is not an overload either: every call still resolves to the first one. Do not write one. This is why the sort library spells its variants SortBy, StableSort and SortList rather than overloading Sort.
+- Generic procedures cannot be overloaded. One name, one generic procedure. A second generic procedure of the same name in the same scope, whether it differs in arity, in type-parameter count or in parameter type, is TKO0600 ("'f' is already declared in this scope"). The same name in two different namespaces is fine. This is why the sort library spells its variants SortBy, StableSort and SortList rather than overloading Sort.
 
 - typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is transparent to typeof; the one an instantiation binds is not, so a generic body cannot branch on what T is bound to. This is why the hash contract is an overloaded HashOf( ) rather than an #if dispatch.
 

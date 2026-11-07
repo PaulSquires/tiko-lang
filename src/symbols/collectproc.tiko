@@ -253,6 +253,48 @@ end function
 '' Collect.One, the only walk with no source manager, and may be collected more than once
 '' for one key; it is a copy of something already judged.
 ''
+'' ...EXCEPT TWO TEMPLATES. A generic procedure is not overloadable in fbc-modern -- one
+'' name, one generic -- and a second generic BODY of the name in the same scope is its
+'' error 4, "Duplicated definition", whatever its arity or type-parameter count. Measured on
+'' fbc-modern 1.20, 2026-11-07: 'F( of T )( a )' then 'F( of T )( a, b )', and 'K( of T )'
+'' then 'K( of T, U )', at module level and in a reopened namespace, are 4; the same name in
+'' two DIFFERENT namespaces is not. tiko chained the second one and every call reached the
+'' first. Only module and namespace scope: fbc-modern has no generic methods to measure.
+'' A generic beside an ORDINARY procedure is GenericOfSet_'s (genericset.tiko), and silent.
+private function GenericRedefined_ _
+    ( byref w as Walker, byval scope_ as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval sp as Tko.StmtPayload ptr ) as Tko.SymbolId
+
+    if sp->b = Tko.NODE_NONE then return Tko.SYMBOL_NONE
+    '' A SUB OR FUNCTION: generic OPERATORS of one spelling are a set -- fb/comptr.bi declares
+    '' two '+' over different generics (tests/mir/generic-op-distinct).
+    if (sp->op <> cast( uint16, Tko.KW_SUB )) andalso (sp->op <> cast( uint16, Tko.KW_FUNCTION )) then return Tko.SYMBOL_NONE
+    dim as Tko.SymScope ptr sc = w.syms->ScopeAt( scope_ )
+    if sc = nullptr then return Tko.SYMBOL_NONE
+    if sc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then return Tko.SYMBOL_NONE
+    dim as uint32 savePos = w.syms->usePos
+    w.syms->usePos = Tko.USEPOS_LATEST
+    dim as Tko.SymbolId cur = w.syms->LookupLocal( scope_, nm )
+    w.syms->usePos = savePos
+    dim as int32 guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr s = w.syms->SymbolAt( cur )
+        if s = nullptr then exit while
+        if s->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+        dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
+        dim as boolean live = (s->diedAt = 0) andalso (s->parent = scope_) andalso _
+                              (pn <> Tko.NODE_NONE) andalso (pn <> 0)
+        if live then live = (w.ast->Kind( pn ) = Tko.N_PROC) andalso (w.src->IsBuiltin( s->loc ) = false)
+        if live then
+            dim as Tko.StmtPayload ptr dp = StmtOf( w, pn )
+            if ((dp->extra and Tko.PF_GENERIC_PROC) <> 0) andalso (dp->b <> Tko.NODE_NONE) then return cur
+        end if
+        cur = s->nextOverload
+    wend
+    return Tko.SYMBOL_NONE
+end function
+
 '' The earlier symbol this collides with, or SYMBOL_NONE. 'asOverload' says whether the
 '' name was an overload set, which decides how the collision is worded.
 private function ProcRedeclared_ _
@@ -264,7 +306,7 @@ private function ProcRedeclared_ _
     if nm = Tko.INTERN_NONE then return Tko.SYMBOL_NONE
     if w.src = nullptr then return Tko.SYMBOL_NONE
     if w.src->IsBuiltin( loc ) then return Tko.SYMBOL_NONE
-    if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE
+    if (sp->extra and Tko.PF_GENERIC_PROC) <> 0 then return GenericRedefined_( w, scope_, nm, sp )
     '' ONLY A HEADER THAT PARSED. One the parser recovered from after a syntax error --
     '' 'declare virtual const sub b1( )' -- carries the stray modifier where the procedure
     '' keyword belongs and names itself 'sub', and fbc's syntax error is the message there:
