@@ -1,0 +1,960 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' debugpane -- the Output pane's Debug tab (docs/tkEdit/DEBUGGER.md G1, G6):
+'
+'   [Continue] [Break] [Stop] | [Step] [Step Over] [Step Out] | [Run to Cursor]
+'   Stopped - breakpoint  main.tiko:19  in main                               (painted)
+'   ---------------------------------------+-------------------------------------
+'   Name | Value | Type                    | Function | Line | File
+'   (Locals, Globals or Watch)              | (Call Stack)  or  File | Line | Text (Breakpoints)
+'   [Locals][Globals][Watch]        [+][x]  | [Call Stack][Breakpoints]   [x][xx]
+'
+' Tabs on the BOTTOM of each side: tkTabBar with no border chrome and its tabs painted here,
+' joined to the list above them. The small buttons at the end of a tab row belong to the tab shown:
+' Watch adds / deletes an expression, Breakpoints removes the selected one or all of them.
+'
+' The engine (tks/dapengine) is read directly; what a command or a jump means is the owner's
+' (OnCommand, OnGoTo, OnRemoveBreakpoint). The variables trees are built LAZILY: a row with
+' children gets one placeholder child (the twisty); the first expand replaces it with the real
+' children. An array is shown in index groups (tkc/debugview). From tiko-editor-tiko's frmDebug.
+#module "debugpane"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
+#import "tkc/i18n"
+#import "tkc/cmdids"
+#import "tkc/debugview"
+#import "tks/dapengine"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkColumnHeader"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkSplitter"
+#import "vendor/tkControls/tkToolbar"
+using containers
+using cmdids
+using dapengine
+using tkApp
+using tkHost
+using tkPaint
+using tkTheme
+using tkTabBar
+using tkColumnHeader
+using tkListTree
+using tkSplitter
+using tkToolbar
+
+' The lists, in order: the left side's three, then the right side's two.
+public enum DebugList explicit
+    Locals = 0
+    Globals = 1
+    Watch = 2
+    CallStack = 3
+    Breakpoints = 4
+end enum
+
+public type DebugCommandSub as sub( byval owner as any ptr, byval id as long )                ' a Cmd
+public type DebugCanRunFunc as function( byval owner as any ptr, byval id as long ) as boolean
+public type DebugGoToSub as sub( byval owner as any ptr, byref path as const ustring, byval ln as long )  ' 1-based
+public type DebugRemoveSub as sub( byval owner as any ptr, byval index as long )              ' -1 = all
+
+' One row of the Breakpoints tab, as the owner lists them.
+public type BreakpointRow
+    Path as ustring
+    Line as long                     ' 1-based
+    Text as ustring                  ' the line, trimmed
+end type
+
+' The icons (PsIcons, copied from Fluent by tools/add-psicons.py)
+public const ICON_CONTINUE = !""
+public const ICON_BREAK = !""
+public const ICON_STOP = !""
+public const ICON_STEP = !""
+public const ICON_STEPOVER = !""
+public const ICON_STEPOUT = !""
+public const ICON_CURSOR = !""
+public const ICON_ADD = !""
+public const ICON_DELETE = !""
+public const ICON_DELETEALL = !""
+
+public const TOOL_CY = 30            ' unscaled
+public const STATUS_CY = 22
+public const TABS_CY = 24
+public const SPLIT_CX = 5
+
+const ID_TOOLS = 1
+const ID_SPLIT = 2
+const ID_LTABS = 3
+const ID_RTABS = 4
+const ID_LTOOLS = 5
+const ID_RTOOLS = 6
+const ID_LIST0 = 10                  ' + DebugList
+const TB_ADDWATCH = 100
+const TB_DELWATCH = 101
+const TB_DELBP = 102
+const TB_DELALLBP = 103
+
+' A variables row: what its itemData indexes.
+const ROW_NODE = 0                   ' a variable, a field, an element
+const ROW_GROUP = 1                  ' an array index range [lo .. hi]
+const ROW_PLACEHOLDER = 2            ' the one child that makes a twisty before expanding
+
+type VarRow
+    kind as long
+    ni as long = -1                  ' the engine's node (a GROUP: its array)
+    idxLo as longint
+    idxHi as longint = -1
+    filled as boolean
+    changed as boolean
+    path as ustring                  ' identity: change detection, expansion across a stop
+    watchIx as long = -1             ' a Watch tab's top row: the expression's index
+end type
+
+public type Pane
+    owner as any ptr
+    OnCommand as DebugCommandSub
+    CanRun as DebugCanRunFunc
+    OnGoTo as DebugGoToSub
+    OnRemoveBreakpoint as DebugRemoveSub
+    frame as TK_WIDGET ptr
+    tools as TK_WIDGET ptr
+    split as TK_WIDGET ptr
+    ltabs as TK_WIDGET ptr
+    rtabs as TK_WIDGET ptr
+    ltools as TK_WIDGET ptr
+    rtools as TK_WIDGET ptr
+    lists( 0 to 4 ) as TK_WIDGET ptr
+    leftTab as long
+    rightTab as long = 3
+    splitRatio as single = 0.6
+    status as ustring
+    curFrame as long
+    rowsGen as long = -1             ' the engine's stop the rows were read in
+    rows as Array( of VarRow )
+    Watches as Array( of ustring )
+    Bps as Array( of BreakpointRow )
+    sorts( 0 to 1 ) as debugview.SortState     ' Locals, Globals
+    values as debugview.ValueMemory
+    expanded( 0 to 2 ) as debugview.ExpandMemory
+
+    declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    declare sub Layout( )
+    declare sub SetStatus( byref s as const ustring )
+    declare sub SyncButtons( )
+    declare sub ShowLeft( byval t as long )
+    declare sub ShowRight( byval t as long )
+    declare sub OnStop( )                   ' the program stopped: everything read again
+    declare sub OnRun( )                    ' it runs: the trees are stale, the lists say so
+    declare sub OnEnd( )                    ' the session is over
+    declare sub SelectFrame( byval fi as long )
+    declare sub FillStack( )
+    declare sub FillVariables( )
+    declare sub FillVars( byval which as long )
+    declare sub FillWatch( )
+    declare sub ExpandRow( byval hList as TK_WIDGET ptr, byval row as long )
+    declare sub SetBreakpoints( byref rows as const Array( of BreakpointRow ) )
+    declare sub AddWatch( byref expr as const ustring )
+    declare sub DeleteWatchAt( byval ix as long )
+    declare function WatchOfRow( byval row as long ) as long
+    declare sub ApplyColors( )
+    declare sub Relabel( )
+    declare sub Focus( )
+    declare function SplitPos( ) as long
+  private:
+    declare function NewRow( byval kind as long ) as long
+    declare function AddNodeRow( byval hList as TK_WIDGET ptr, byval parent as long, byval ni as long, _
+                                 byref path as const ustring ) as long
+    declare function AddGroupRow( byval hList as TK_WIDGET ptr, byval parent as long, byval ni as long, _
+                                  byref path as const ustring, byval lo as longint, byval hi as longint ) as long
+    declare sub AddPlaceholder( byval hList as TK_WIDGET ptr, byval parent as long )
+    declare sub Capture( byval slot as long )
+    declare sub Restore( byval slot as long )
+    declare sub SyncSideTools( )
+end type
+
+private function PaneOf( byval w as TK_WIDGET ptr ) as Pane ptr
+    while w
+        if w->ctrlId < 0 then return w->pData
+        w = w->pParent
+    wend
+    return 0
+end function
+
+private function ListIndex( byval w as TK_WIDGET ptr ) as long
+    while w
+        if (w->ctrlId >= ID_LIST0) andalso (w->ctrlId <= ID_LIST0 + 4) then return w->ctrlId - ID_LIST0
+        w = w->pParent
+    wend
+    return -1
+end function
+
+' ---------------------------------------------------------------- painting
+
+private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as Pane ptr p = w->pData
+    select case m->msg
+    case TKM_PAINT
+        dim as TKTHEME_COLORS t = tkTheme_Get( )
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( t.Surface )
+        m->pPaint->PaintRect( @rc )
+        ' the status line, under the buttons
+        dim as long y = tkHost_Scale( w->pHost, TOOL_CY )
+        dim as long pad = tkHost_Scale( w->pHost, 8 )
+        tkRect_Set( rc, pad, y, w->cw - pad, y + tkHost_Scale( w->pHost, STATUS_CY ) )
+        m->pPaint->SetForeColor( t.Text )
+        m->pPaint->PaintText( p->status, @rc, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
+        return true
+    case TKM_SIZE
+        p->Layout( )
+        return true
+    case TKM_THEMECHANGED
+        tkWidget_Invalidate( w )
+        return true
+    end select
+    return false
+end function
+
+' A bottom tab: the selected one is the list's own colour, joined to it above; the others the
+' strip's. No accent bar, no border (the strip's chrome is off: BorderWidth 0).
+private sub PaintBottomTab( byval pi as TKTABBAR_PAINTINFO ptr )
+    dim as TKTHEME_COLORS t = tkTheme_Get( )
+    dim as TK_PAINT ptr b = pi->b
+    b->SetBackColor( iif( pi->isSelected, t.Window, iif( pi->isHot, t.SurfaceHot, t.Surface ) ) )
+    b->PaintRect( @pi->rc )
+    if pi->isSelected then
+        ' a line along the bottom marks it, as the top accent does on a top strip
+        dim as TKRECT rl = pi->rc
+        rl.top = rl.bottom - tkHost_Scale( pi->hTabBar->pHost, 2 )
+        b->SetBackColor( t.Accent )
+        b->PaintRect( @rl )
+    end if
+    b->SetForeColor( iif( pi->isSelected, t.TextStrong, t.TextDim ) )
+    b->PaintText( pi->wszCaption, @pi->rc, TK_DT_CENTER or TK_DT_VCENTER or TK_DT_ELLIPSIS )
+end sub
+
+' A variables row: as tkListTree_PaintRowDefault, the Value cell in the error colour when it
+' changed since the previous stop (D4).
+private sub PaintVarRow( byval pi as TKLISTTREE_PAINTINFO ptr )
+    dim as Pane ptr p = PaneOf( pi->hList )
+    dim as boolean changed_ = false
+    if p then
+        dim as long k = tkListTree_GetItemData( pi->hList, pi->itemID )
+        if (k >= 0) andalso (k < p->rows.Count( )) then changed_ = p->rows[k].changed
+    end if
+    dim as TK_PAINT ptr b = pi->b
+    dim as TKTHEME_COLORS t = tkTheme_Get( )
+    dim as ulong back_ = t.Window, fore = t.Text
+    if pi->isSelected then
+        back_ = t.Selected : fore = t.SelectedText
+    elseif pi->isHot then
+        back_ = t.SurfaceHot : fore = t.TextHot
+    end if
+    if pi->isSelectable = false then fore = t.TextDim
+    b->SetBackColor( back_ )
+    b->PaintRect( @pi->rc )
+    dim as long pad = tkHost_Scale( pi->hList->pHost, 6 )
+    for c as integer = 0 to pi->columnCount - 1
+        dim as TKRECT rt = pi->cells[c].rc
+        rt.left += pad : rt.right -= pad
+        b->SetForeColor( iif( changed_ andalso (c = 1) andalso (pi->isSelected = false), t.Error, fore ) )
+        b->PaintText( pi->cells[c].wszText, @rt, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
+    next
+end sub
+
+' ---------------------------------------------------------------- creation
+
+private sub OnTool( byval h as TK_WIDGET ptr, byval idx as long, byval id as long )
+    dim as Pane ptr p = PaneOf( h )
+    if p = 0 then exit sub
+    select case id
+    case TB_ADDWATCH
+        p->AddWatch( "" )
+    case TB_DELWATCH
+        p->DeleteWatchAt( p->WatchOfRow( tkListTree_GetCurSel( p->lists( DebugList.Watch ) ) ) )
+    case TB_DELBP
+        dim as long r = tkListTree_GetCurSel( p->lists( DebugList.Breakpoints ) )
+        if (r >= 0) andalso (p->OnRemoveBreakpoint <> 0) then p->OnRemoveBreakpoint( p->owner, r )
+    case TB_DELALLBP
+        if p->OnRemoveBreakpoint then p->OnRemoveBreakpoint( p->owner, -1 )
+    case else
+        if p->OnCommand then p->OnCommand( p->owner, id )
+    end select
+end sub
+
+private function MakeList( byval parent as TK_WIDGET ptr, byval which as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr l = tkListTree_Create( parent, ID_LIST0 + which )
+    tkListTree_ShowHeader( l, true )
+    select case which
+    case DebugList.CallStack
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 220 ) )
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 60 ) )
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 160 ) )
+        tkListTree_SetFillColumn( l, 2 )
+        tkListTree_ShowTwisty( l, false )
+        tkListTree_SetPaintCallback( l, @tkListTree_PaintRowDefault )
+    case DebugList.Breakpoints
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 160 ) )
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 60 ) )
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 220 ) )
+        tkListTree_SetFillColumn( l, 2 )
+        tkListTree_ShowTwisty( l, false )
+        tkListTree_SetPaintCallback( l, @tkListTree_PaintRowDefault )
+    case else
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 180 ) )
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 220 ) )
+        tkListTree_AddColumn( l, "", tkHost_Scale( parent->pHost, 140 ) )
+        tkListTree_SetFillColumn( l, 1 )
+        tkListTree_ShowTwisty( l, true )
+        tkListTree_SetPaintCallback( l, @PaintVarRow )
+    end select
+    tkListTree_SetBorderWidth( l, 0 )
+    return l
+end function
+
+private function MakeTabs( byval parent as TK_WIDGET ptr, byval id as long, byval n as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr t = tkTabBar_Create( parent, id )
+    for i as long = 0 to n - 1
+        tkTabBar_AddTab( t, "" )
+        tkTabBar_SetClosable( t, i, false )
+    next
+    tkTabBar_SetBorderWidth( t, 0 )
+    tkTabBar_SetPaintCallback( t, @PaintBottomTab )
+    return t
+end function
+
+sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    owner = owner_
+    frame = tkWidget_CreateChild( parent, -id, @FrameProc, @this )
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+
+    tools = tkToolbar_Create( frame, ID_TOOLS )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_CONTINUE, "", clng( Cmd.StartDebugging ) )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_BREAK, "", clng( Cmd.DebugBreak ) )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_STOP, "", clng( Cmd.StopDebugging ) )
+    tkToolbar_AddSeparator( tools )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_STEP, "", clng( Cmd.StepInto ) )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_STEPOVER, "", clng( Cmd.StepOver ) )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_STEPOUT, "", clng( Cmd.StepOut ) )
+    tkToolbar_AddSeparator( tools )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, ICON_CURSOR, "", clng( Cmd.RunToCursor ) )
+    tkToolbar_SetClickCallback( tools, @OnTool )
+
+    split = tkSplitter_Create( frame, ID_SPLIT, TKSPLITTER_VERTICAL )
+    tkSplitter_SetPosChangedCallback( split, sub( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+        dim as Pane ptr p = PaneOf( h )
+        if p = 0 then exit sub
+        dim as long bar = tkHost_Scale( h->pHost, SPLIT_CX )
+        if p->frame->cw > bar then p->splitRatio = newPos / (p->frame->cw - bar)
+        p->Layout( )
+    end sub )
+
+    for i as long = 0 to 4
+        lists( i ) = MakeList( frame, i )
+    next
+    ltabs = MakeTabs( frame, ID_LTABS, 3 )
+    rtabs = MakeTabs( frame, ID_RTABS, 2 )
+    tkTabBar_SetSelChangeCallback( ltabs, sub( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+        dim as Pane ptr p = PaneOf( h )
+        if p then p->ShowLeft( idxNew )
+    end sub )
+    tkTabBar_SetSelChangeCallback( rtabs, sub( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+        dim as Pane ptr p = PaneOf( h )
+        if p then p->ShowRight( 3 + idxNew )
+    end sub )
+
+    ltools = tkToolbar_Create( frame, ID_LTOOLS )
+    tkToolbar_AddItem( ltools, TBR_KIND_COMMAND, ICON_ADD, "", TB_ADDWATCH )
+    tkToolbar_AddItem( ltools, TBR_KIND_COMMAND, ICON_DELETE, "", TB_DELWATCH )
+    tkToolbar_SetClickCallback( ltools, @OnTool )
+    rtools = tkToolbar_Create( frame, ID_RTOOLS )
+    tkToolbar_AddItem( rtools, TBR_KIND_COMMAND, ICON_DELETE, "", TB_DELBP )
+    tkToolbar_AddItem( rtools, TBR_KIND_COMMAND, ICON_DELETEALL, "", TB_DELALLBP )
+    tkToolbar_SetClickCallback( rtools, @OnTool )
+    if f then
+        dim as TTF_Font ptr g = tkForm_Font( f, TKFONT_GLYPH )
+        tkToolbar_SetGlyphFont( tools, g )
+        tkToolbar_SetGlyphFont( ltools, g )
+        tkToolbar_SetGlyphFont( rtools, g )
+    end if
+
+    ' ---- the lists' behaviour
+    dim as LT_ExpandCollapseCallbackSub exp_ = sub( byval h as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean )
+        dim as Pane ptr p = PaneOf( h )
+        if (p <> 0) andalso bExpanded then p->ExpandRow( h, row )
+    end sub
+    for i as long = 0 to 2
+        tkListTree_SetExpandCollapseCallback( lists( i ), exp_ )
+    next
+    ' a header click sorts Locals / Globals by that column; again reverses it
+    dim as HDR_ClickCallbackSub hdr = sub( byval hHeader as TK_WIDGET ptr, byval idx as integer )
+        dim as Pane ptr p = PaneOf( hHeader )
+        dim as long which = ListIndex( hHeader )
+        if (p = 0) orelse (which < 0) orelse (which > 1) then exit sub
+        p->sorts( which ).Click( idx )
+        p->Relabel( )
+        p->FillVars( which )
+    end sub
+    tkListTree_SetColumnClickCallback( lists( DebugList.Locals ), hdr )
+    tkListTree_SetColumnClickCallback( lists( DebugList.Globals ), hdr )
+    ' the call stack: a frame re-scopes Locals and Watch, and the editor goes to it
+    tkListTree_SetSelChangeCallback( lists( DebugList.CallStack ), sub( byval h as TK_WIDGET ptr, byval row as integer )
+        dim as Pane ptr p = PaneOf( h )
+        if (p <> 0) andalso (row >= 0) then p->SelectFrame( tkListTree_GetItemData( h, row ) )
+    end sub )
+    ' breakpoints: Enter or a double click goes to it
+    tkListTree_SetActivateCallback( lists( DebugList.Breakpoints ), sub( byval h as TK_WIDGET ptr, byval row as integer )
+        dim as Pane ptr p = PaneOf( h )
+        if (p = 0) orelse (row < 0) orelse (row >= p->Bps.Count( )) orelse (p->OnGoTo = 0) then exit sub
+        p->OnGoTo( p->owner, p->Bps[row].Path, p->Bps[row].Line )
+    end sub )
+    ' watch: typed in place; Enter or a double click edits a top row; empty deletes it
+    dim as TK_WIDGET ptr wl = lists( DebugList.Watch )
+    tkListTree_EnableLabelEdit( wl, true )
+    tkListTree_SetBeginLabelEditCallback( wl, function( byval h as TK_WIDGET ptr, byval row as integer ) as boolean
+        dim as Pane ptr p = PaneOf( h )
+        return (p <> 0) andalso (p->WatchOfRow( row ) >= 0)
+    end function )
+    tkListTree_SetEndLabelEditCallback( wl, function( byval h as TK_WIDGET ptr, byval row as integer, byval newText as ustring ) as boolean
+        dim as Pane ptr p = PaneOf( h )
+        if p = 0 then return false
+        dim as long ix = p->WatchOfRow( row )
+        if ix < 0 then return false
+        dim as ustring s = trim( newText )
+        if len( s ) = 0 then
+            p->DeleteWatchAt( ix )
+        else
+            p->Watches[ix] = s
+            p->FillWatch( )
+        end if
+        return true
+    end function )
+    tkListTree_SetActivateCallback( wl, sub( byval h as TK_WIDGET ptr, byval row as integer )
+        dim as Pane ptr p = PaneOf( h )
+        if (p <> 0) andalso (p->WatchOfRow( row ) >= 0) then tkListTree_BeginEdit( h, row, 0 )
+    end sub )
+    tkListTree_SetSelChangeCallback( wl, sub( byval h as TK_WIDGET ptr, byval row as integer )
+        dim as Pane ptr p = PaneOf( h )
+        if p then p->SyncButtons( )
+    end sub )
+    tkListTree_SetSelChangeCallback( lists( DebugList.Breakpoints ), sub( byval h as TK_WIDGET ptr, byval row as integer )
+        dim as Pane ptr p = PaneOf( h )
+        if p then p->SyncButtons( )
+    end sub )
+
+    this.Relabel( )
+    this.ApplyColors( )
+    this.ShowLeft( 0 )
+    this.ShowRight( 3 )
+    this.FillWatch( )
+    this.SyncButtons( )
+end sub
+
+' ---------------------------------------------------------------- layout
+
+function Pane.SplitPos( ) as long
+    dim as long bar = tkHost_Scale( frame->pHost, SPLIT_CX )
+    dim as long x = clng( splitRatio * (frame->cw - bar) )
+    dim as long lo = tkHost_Scale( frame->pHost, 120 )
+    if x > frame->cw - bar - lo then x = frame->cw - bar - lo
+    if x < lo then x = lo
+    return x
+end function
+
+sub Pane.Layout( )
+    if frame = 0 then exit sub
+    dim as TK_HOST ptr h = frame->pHost
+    dim as long cw = frame->cw, ch = frame->ch
+    dim as long th = tkHost_Scale( h, TOOL_CY ), sh = tkHost_Scale( h, STATUS_CY )
+    dim as long tb = tkHost_Scale( h, TABS_CY ), bar = tkHost_Scale( h, SPLIT_CX )
+    dim as long tw = tkToolbar_GetIdealWidth( tools )
+    tkWidget_SetPos( tools, 0, 0, iif( tw > cw, cw, tw ), th )
+    dim as long top = th + sh
+    dim as long bh = ch - top
+    if bh < tb then bh = tb
+    dim as long sx = this.SplitPos( )
+    tkSplitter_SetRange( split, tkHost_Scale( h, 120 ), cw - bar - tkHost_Scale( h, 120 ) )
+    tkWidget_SetPos( split, sx, top, bar, bh )
+    tkSplitter_SetPos( split, sx )
+    dim as long lh = bh - tb
+    for i as long = 0 to 2
+        tkWidget_SetPos( lists( i ), 0, top, sx, lh )
+    next
+    dim as long rx = sx + bar, rw = cw - rx
+    for i as long = 3 to 4
+        tkWidget_SetPos( lists( i ), rx, top, rw, lh )
+    next
+    dim as long lt = tkToolbar_GetIdealWidth( ltools ), rt = tkToolbar_GetIdealWidth( rtools )
+    tkWidget_SetPos( ltabs, 0, top + lh, sx - lt, tb )
+    tkWidget_SetPos( ltools, sx - lt, top + lh, lt, tb )
+    tkWidget_SetPos( rtabs, rx, top + lh, rw - rt, tb )
+    tkWidget_SetPos( rtools, cw - rt, top + lh, rt, tb )
+end sub
+
+sub Pane.SyncSideTools( )
+    tkWidget_Show( ltools, leftTab = DebugList.Watch )
+    tkWidget_Show( rtools, rightTab = DebugList.Breakpoints )
+end sub
+
+sub Pane.ShowLeft( byval t as long )
+    if (t < 0) orelse (t > 2) then exit sub
+    leftTab = t
+    for i as long = 0 to 2
+        tkWidget_Show( lists( i ), i = t )
+    next
+    if tkTabBar_GetCurSel( ltabs ) <> t then tkTabBar_SetCurSel( ltabs, t )
+    this.SyncSideTools( )
+    this.SyncButtons( )
+end sub
+
+sub Pane.ShowRight( byval t as long )
+    if (t < 3) orelse (t > 4) then exit sub
+    rightTab = t
+    for i as long = 3 to 4
+        tkWidget_Show( lists( i ), i = t )
+    next
+    if tkTabBar_GetCurSel( rtabs ) <> t - 3 then tkTabBar_SetCurSel( rtabs, t - 3 )
+    this.SyncSideTools( )
+    this.SyncButtons( )
+end sub
+
+sub Pane.SetStatus( byref s as const ustring )
+    status = s
+    if frame then tkWidget_Invalidate( frame )
+end sub
+
+' Every button as the owner's CanRun says (the menu's rule), the side buttons by selection.
+sub Pane.SyncButtons( )
+    if tools = 0 then exit sub
+    for i as long = 0 to tkToolbar_GetCount( tools ) - 1
+        dim as long id = tkToolbar_GetItemID( tools, i )
+        if id > 0 then tkToolbar_SetEnabled( tools, i, (CanRun <> 0) andalso CanRun( owner, id ) )
+    next
+    tkToolbar_SetEnabled( ltools, 1, this.WatchOfRow( tkListTree_GetCurSel( lists( DebugList.Watch ) ) ) >= 0 )
+    tkToolbar_SetEnabled( rtools, 0, tkListTree_GetCurSel( lists( DebugList.Breakpoints ) ) >= 0 )
+    tkToolbar_SetEnabled( rtools, 1, Bps.Count( ) > 0 )
+end sub
+
+' ---------------------------------------------------------------- the session
+
+sub Pane.OnStop( )
+    values.Roll( )
+    curFrame = 0
+    this.FillStack( )
+    this.FillVariables( )
+    this.SyncButtons( )
+end sub
+
+sub Pane.OnRun( )
+    this.SyncButtons( )
+end sub
+
+' The session is over: no stack, no variables; the watch expressions stay, without values.
+sub Pane.OnEnd( )
+    for i as long = 0 to 2
+        this.Capture( i )
+    next
+    tkListTree_Clear( lists( DebugList.CallStack ) )
+    tkListTree_Clear( lists( DebugList.Locals ) )
+    tkListTree_Clear( lists( DebugList.Globals ) )
+    rows.Clear( )
+    rowsGen = -1
+    this.FillWatch( )
+    this.SyncButtons( )
+end sub
+
+sub Pane.FillStack( )
+    dim as TK_WIDGET ptr l = lists( DebugList.CallStack )
+    tkListTree_BeginUpdate( l )
+    tkListTree_Clear( l )
+    for i as long = 0 to gDbgE.frN - 1
+        dim as ustring nm = gDbgE.fr(i).nm, path = gDbgE.fr(i).path
+        dim as long r = tkListTree_AddNode( l, -1, nm, i )
+        if r < 0 then exit for
+        if len( path ) then
+            tkListTree_SetCellText( l, r, 1, str( gDbgE.fr(i).ln ) )
+            tkListTree_SetCellText( l, r, 2, fs.PathFileName( path ) )
+        end if
+    next
+    tkListTree_EndUpdate( l )
+    if gDbgE.frN > 0 then tkListTree_SetCurSel( l, 0 )
+    tkListTree_Refresh( l )
+end sub
+
+' A frame chosen in the Call Stack: Locals and Watch read in it, the editor at its line.
+sub Pane.SelectFrame( byval fi as long )
+    if (fi < 0) orelse (fi >= gDbgE.frN) then exit sub
+    curFrame = fi
+    dim as ustring path = gDbgE.fr(fi).path
+    if len( path ) andalso (OnGoTo <> 0) then OnGoTo( owner, path, gDbgE.fr(fi).ln )
+    this.FillVars( DebugList.Locals )
+    this.FillWatch( )
+end sub
+
+' ---------------------------------------------------------------- the variables trees
+
+function Pane.NewRow( byval kind as long ) as long
+    dim as VarRow r
+    r.kind = kind
+    rows.Push( r )
+    return rows.Count( ) - 1
+end function
+
+sub Pane.AddPlaceholder( byval hList as TK_WIDGET ptr, byval parent as long )
+    dim as long k = this.NewRow( ROW_PLACEHOLDER )
+    dim as long r = tkListTree_AddNode( hList, parent, "", k )
+    if r >= 0 then tkListTree_SetRowSelectable( hList, r, false )
+end sub
+
+function Pane.AddNodeRow( byval hList as TK_WIDGET ptr, byval parent as long, byval ni as long, _
+                          byref path as const ustring ) as long
+    dim as DBGE_NODE ptr n = Engine_Node( ni )
+    if n = 0 then return -1
+    dim as long k = this.NewRow( ROW_NODE )
+    rows[k].ni = ni
+    rows[k].path = path
+    dim as ustring nm = n->nm, v = n->value, ty = n->typ
+    rows[k].changed = values.Changed( path, v )
+    dim as long r = tkListTree_AddNode( hList, parent, nm, k )
+    if r < 0 then return -1
+    tkListTree_SetCellText( hList, r, 1, v )
+    tkListTree_SetCellText( hList, r, 2, ty )
+    if Engine_HasChildren( ni ) then
+        this.AddPlaceholder( hList, r )
+        tkListTree_SetNodeCollapsed( hList, r, true )
+    end if
+    return r
+end function
+
+function Pane.AddGroupRow( byval hList as TK_WIDGET ptr, byval parent as long, byval ni as long, _
+                           byref path as const ustring, byval lo as longint, byval hi as longint ) as long
+    dim as long k = this.NewRow( ROW_GROUP )
+    rows[k].ni = ni
+    rows[k].idxLo = lo
+    rows[k].idxHi = hi
+    rows[k].path = path & "#" & lo & "-" & hi
+    dim as long r = tkListTree_AddNode( hList, parent, "[" & lo & " .. " & hi & "]", k )
+    if r < 0 then return -1
+    tkListTree_SetCellText( hList, r, 1, strings.Format( i18n.Tr( "debug.elements", "{} elements" ), hi - lo + 1 ) )
+    this.AddPlaceholder( hList, r )
+    tkListTree_SetNodeCollapsed( hList, r, true )
+    return r
+end function
+
+' One expanded row's children, read now: the placeholder goes, the real ones come.
+sub Pane.ExpandRow( byval hList as TK_WIDGET ptr, byval row as long )
+    dim as long k = tkListTree_GetItemData( hList, row )
+    if (k < 0) orelse (k >= rows.Count( )) then exit sub
+    if rows[k].filled then exit sub
+    ' a row of an earlier stop: its nodes are gone (the engine refuses them)
+    if (rowsGen <> gDbgE.gen) orelse gDbgE.running then exit sub
+    rows[k].filled = true
+    if tkListTree_GetChildCount( hList, row ) > 0 then
+        dim as long kc = tkListTree_GetItemData( hList, row + 1 )
+        if (kc >= 0) andalso (kc < rows.Count( )) then
+            if rows[kc].kind = ROW_PLACEHOLDER then tkListTree_DeleteString( hList, row + 1 )
+        end if
+    end if
+    dim as long ni = rows[k].ni
+    dim as ustring base_ = rows[k].path
+    tkListTree_BeginUpdate( hList )
+    if rows[k].kind = ROW_GROUP then
+        dim as longint lo = rows[k].idxLo, hi = rows[k].idxHi
+        dim as longint nSpan = hi - lo + 1
+        if nSpan > debugview.CHUNK then
+            dim as longint sub_ = debugview.GroupSpan( nSpan ), g = 0, gLo, gHi
+            dim as long at_ = row
+            do while debugview.GroupBounds( lo, nSpan, sub_, g, gLo, gHi )
+                this.AddGroupRow( hList, row, ni, base_, gLo, gHi )
+                g += 1
+            loop
+        else
+            for i as longint = lo to hi
+                dim as long c = Engine_ChildNode( ni, clng( i ) )
+                if c >= 0 then this.AddNodeRow( hList, row, c, base_ & "." & Engine_Node( c )->nm )
+            next
+        end if
+    else
+        dim as DBGE_NODE ptr n = Engine_Node( ni )
+        dim as longint span = 0
+        if (n <> 0) andalso ((n->kind = NK_FIXARR) orelse (n->kind = NK_DYNARR)) then span = debugview.GroupSpan( n->total )
+        if span > 0 then
+            dim as longint g = 0, gLo, gHi
+            do while debugview.GroupBounds( 0, n->total, span, g, gLo, gHi )
+                this.AddGroupRow( hList, row, ni, base_, gLo, gHi )
+                g += 1
+            loop
+        else
+            dim as long cnt = Engine_ChildCount( ni )
+            dim as long shown = cnt
+            if shown > debugview.MAX_CHILDREN then shown = debugview.MAX_CHILDREN
+            for i as long = 0 to shown - 1
+                dim as long c = Engine_ChildNode( ni, i )
+                if c >= 0 then this.AddNodeRow( hList, row, c, base_ & "." & Engine_Node( c )->nm )
+            next
+            if cnt > shown then
+                dim as long kk = this.NewRow( ROW_PLACEHOLDER )
+                dim as long r = tkListTree_AddNode( hList, row, "", kk )
+                if r >= 0 then
+                    tkListTree_SetCellText( hList, r, 1, strings.Format( i18n.Tr( "debug.more", "{} more not shown" ), cnt - shown ) )
+                    tkListTree_SetRowSelectable( hList, r, false )
+                end if
+            end if
+        end if
+    end if
+    tkListTree_EndUpdate( hList )
+    tkListTree_Refresh( hList )
+end sub
+
+' The open nodes' paths of one tree (0 Locals, 1 Globals, 2 Watch), before its rows go.
+sub Pane.Capture( byval slot as long )
+    dim as TK_WIDGET ptr l = lists( slot )
+    if tkListTree_GetCount( l ) = 0 then exit sub
+    expanded( slot ).Clear( )
+    expanded( slot ).TopRow = tkListTree_GetTopIndex( l )
+    for r as long = 0 to tkListTree_GetCount( l ) - 1
+        if tkListTree_HasChildren( l, r ) = false then continue for
+        if tkListTree_IsCollapsed( l, r ) then continue for
+        dim as long k = tkListTree_GetItemData( l, r )
+        if (k >= 0) andalso (k < rows.Count( )) then expanded( slot ).Add( rows[k].path )
+    next
+end sub
+
+' Opens again what was open. Forward, re-reading the count: an expand inserts its children right
+' after the row, so the same pass reaches nested ones.
+sub Pane.Restore( byval slot as long )
+    dim as TK_WIDGET ptr l = lists( slot )
+    if expanded( slot ).Paths.Count( ) = 0 then exit sub
+    dim as long r = 0
+    do while r < tkListTree_GetCount( l )
+        dim as long k = tkListTree_GetItemData( l, r )
+        if (k >= 0) andalso (k < rows.Count( )) then
+            if (rows[k].filled = false) andalso (rows[k].kind <> ROW_PLACEHOLDER) andalso expanded( slot ).Has( rows[k].path ) then
+                this.ExpandRow( l, r )
+                tkListTree_SetNodeCollapsed( l, r, false )        ' silent: no re-entry
+            end if
+        end if
+        r += 1
+    loop
+    if expanded( slot ).TopRow > 0 then tkListTree_SetTopIndex( l, expanded( slot ).TopRow )
+    tkListTree_Refresh( l )
+end sub
+
+' Every variables tree. The row table is dropped here, and only here, when every tree that holds
+' an index into it is about to be rebuilt.
+sub Pane.FillVariables( )
+    for i as long = 0 to 2
+        this.Capture( i )
+    next
+    rows.Clear( )
+    rowsGen = gDbgE.gen
+    this.FillVars( DebugList.Globals )
+    this.FillVars( DebugList.Locals )
+    this.FillWatch( )
+end sub
+
+' Locals (in the chosen frame) or Globals, sorted as their header says.
+sub Pane.FillVars( byval which as long )
+    dim as TK_WIDGET ptr l = lists( which )
+    this.Capture( which )
+    tkListTree_BeginUpdate( l )
+    tkListTree_Clear( l )
+    dim as Array( of long ) nis
+    if which = DebugList.Globals then
+        for i as long = 0 to Engine_GlobalCount( ) - 1
+            dim as long ni = Engine_GlobalNode( i )
+            if ni >= 0 then nis.Push( ni )
+        next
+    else
+        for i as long = 0 to Engine_LocalCount( curFrame ) - 1
+            dim as long ni = Engine_LocalNode( curFrame, i )
+            if ni >= 0 then nis.Push( ni )
+        next
+    end if
+    ' the sort: stable insertion, the engine's order among equal keys
+    dim as debugview.SortState s = sorts( which )
+    if s.Col >= 0 then
+        for i as long = 1 to nis.Count( ) - 1
+            dim as long cur = nis[i], j = i - 1
+            do while j >= 0
+                dim as DBGE_NODE ptr a = Engine_Node( cur ), b = Engine_Node( nis[j] )
+                dim as ustring ka, kb
+                select case s.Col
+                case 1 : ka = a->value : kb = b->value
+                case 2 : ka = a->typ : kb = b->typ
+                case else : ka = a->nm : kb = b->nm
+                end select
+                if debugview.SortLess( ka, kb, s.Desc ) = false then exit do
+                nis[j + 1] = nis[j]
+                j -= 1
+            loop
+            nis[j + 1] = cur
+        next
+    end if
+    dim as ustring scope_ = iif( which = DebugList.Globals, "G:", "L" & curFrame & ":" )
+    for each ni as long in nis
+        dim as ustring nm = Engine_Node( ni )->nm
+        this.AddNodeRow( l, -1, ni, scope_ & nm )
+    next
+    tkListTree_EndUpdate( l )
+    tkListTree_Refresh( l )
+    this.Restore( which )
+end sub
+
+' The watch expressions, each evaluated in the chosen frame; one out of scope says so.
+sub Pane.FillWatch( )
+    dim as TK_WIDGET ptr l = lists( DebugList.Watch )
+    this.Capture( DebugList.Watch )
+    tkListTree_BeginUpdate( l )
+    tkListTree_Clear( l )
+    dim as boolean stopped = gDbgE.active andalso (gDbgE.running = false) andalso (rowsGen = gDbgE.gen)
+    for i as long = 0 to Watches.Count( ) - 1
+        dim as ustring e = Watches[i]
+        dim as long ni = -1
+        if stopped andalso (len( e ) > 0) then
+            dim as string e8 = e
+            ni = Engine_Evaluate( e8, curFrame )
+        end if
+        dim as long r
+        if ni >= 0 then
+            r = this.AddNodeRow( l, -1, ni, "W:" & e )
+            if r >= 0 then tkListTree_SetText( l, r, e )          ' what the person typed
+        else
+            dim as long k = this.NewRow( ROW_NODE )
+            rows[k].path = "W:" & e
+            r = tkListTree_AddNode( l, -1, e, k )
+            if (r >= 0) andalso stopped andalso (len( e ) > 0) then
+                tkListTree_SetCellText( l, r, 1, i18n.Tr( "debug.not_in_scope", "<not in scope>" ) )
+            end if
+        end if
+        if r >= 0 then rows[tkListTree_GetItemData( l, r )].watchIx = i
+    next
+    tkListTree_EndUpdate( l )
+    tkListTree_Refresh( l )
+    this.Restore( DebugList.Watch )
+    this.SyncButtons( )
+end sub
+
+' The watch a Watch row is (a top row), or -1 (a field of one, or no row).
+function Pane.WatchOfRow( byval row as long ) as long
+    if row < 0 then return -1
+    dim as TK_WIDGET ptr l = lists( DebugList.Watch )
+    if tkListTree_GetLevel( l, row ) <> 0 then return -1
+    dim as long k = tkListTree_GetItemData( l, row )
+    if (k < 0) orelse (k >= rows.Count( )) then return -1
+    return rows[k].watchIx
+end function
+
+' A new watch; "" opens its row for typing (the + button).
+sub Pane.AddWatch( byref expr as const ustring )
+    dim as ustring e = expr
+    Watches.Push( e )
+    this.ShowLeft( DebugList.Watch )
+    this.FillWatch( )
+    if len( e ) = 0 then
+        dim as TK_WIDGET ptr l = lists( DebugList.Watch )
+        for r as long = 0 to tkListTree_GetCount( l ) - 1
+            if this.WatchOfRow( r ) = Watches.Count( ) - 1 then
+                tkListTree_SetCurSel( l, r )
+                tkHost_SetFocus( frame->pHost, l )
+                tkListTree_BeginEdit( l, r, 0 )
+                exit for
+            end if
+        next
+    end if
+end sub
+
+sub Pane.DeleteWatchAt( byval ix as long )
+    if (ix < 0) orelse (ix >= Watches.Count( )) then exit sub
+    Watches.Remove( ix )
+    this.FillWatch( )
+end sub
+
+' ---------------------------------------------------------------- breakpoints
+
+sub Pane.SetBreakpoints( byref rows_ as const Array( of BreakpointRow ) )
+    Bps = rows_
+    dim as TK_WIDGET ptr l = lists( DebugList.Breakpoints )
+    dim as long sel = tkListTree_GetCurSel( l )
+    tkListTree_BeginUpdate( l )
+    tkListTree_Clear( l )
+    for i as long = 0 to Bps.Count( ) - 1
+        dim as long r = tkListTree_AddNode( l, -1, fs.PathFileName( Bps[i].Path ), i )
+        if r < 0 then exit for
+        tkListTree_SetCellText( l, r, 1, str( Bps[i].Line ) )
+        tkListTree_SetCellText( l, r, 2, Bps[i].Text )
+    next
+    tkListTree_EndUpdate( l )
+    if sel >= Bps.Count( ) then sel = Bps.Count( ) - 1
+    if sel >= 0 then tkListTree_SetCurSel( l, sel )
+    tkListTree_Refresh( l )
+    this.SyncButtons( )
+end sub
+
+' ---------------------------------------------------------------- look and language
+
+sub Pane.ApplyColors( )
+    dim as TKTHEME_COLORS t = tkTheme_Get( )
+    dim as TKTOOLBAR_COLORS c = tkToolbar_ThemeColors( t )
+    tkToolbar_SetColors( tools, @c )
+    tkToolbar_SetColors( ltools, @c )
+    tkToolbar_SetColors( rtools, @c )
+    if frame then tkWidget_Invalidate( frame )
+end sub
+
+private function SortMark( byref s as const debugview.SortState, byval col as long ) as ustring
+    if s.Col <> col then return ""
+    if s.Desc then return " " & wchr( &h2193 )
+    return " " & wchr( &h2191 )
+end function
+
+sub Pane.Relabel( )
+    dim as ustring nm = i18n.Tr( "debug.col_name", "Name" ), va = i18n.Tr( "debug.col_value", "Value" )
+    dim as ustring ty = i18n.Tr( "debug.col_type", "Type" )
+    for i as long = 0 to 2
+        dim as debugview.SortState s
+        if i < 2 then s = sorts( i )
+        tkListTree_SetColumnText( lists( i ), 0, nm & SortMark( s, 0 ) )
+        tkListTree_SetColumnText( lists( i ), 1, va & SortMark( s, 1 ) )
+        tkListTree_SetColumnText( lists( i ), 2, ty & SortMark( s, 2 ) )
+    next
+    dim as TK_WIDGET ptr cs = lists( DebugList.CallStack ), bp = lists( DebugList.Breakpoints )
+    tkListTree_SetColumnText( cs, 0, i18n.Tr( "debug.col_function", "Function" ) )
+    tkListTree_SetColumnText( cs, 1, i18n.Tr( "debug.col_line", "Line" ) )
+    tkListTree_SetColumnText( cs, 2, i18n.Tr( "debug.col_file", "File" ) )
+    tkListTree_SetColumnText( bp, 0, i18n.Tr( "debug.col_file", "File" ) )
+    tkListTree_SetColumnText( bp, 1, i18n.Tr( "debug.col_line", "Line" ) )
+    tkListTree_SetColumnText( bp, 2, i18n.Tr( "debug.col_text", "Text" ) )
+    tkTabBar_SetText( ltabs, 0, i18n.Tr( "debug.tab_locals", "Locals" ) )
+    tkTabBar_SetText( ltabs, 1, i18n.Tr( "debug.tab_globals", "Globals" ) )
+    tkTabBar_SetText( ltabs, 2, i18n.Tr( "debug.tab_watch", "Watch" ) )
+    tkTabBar_SetText( rtabs, 0, i18n.Tr( "debug.tab_stack", "Call Stack" ) )
+    tkTabBar_SetText( rtabs, 1, i18n.Tr( "debug.tab_breakpoints", "Breakpoints" ) )
+    dim as cmdids.CommandTable ct
+    for i as long = 0 to tkToolbar_GetCount( tools ) - 1
+        dim as long id = tkToolbar_GetItemID( tools, i )
+        if id <= 0 then continue for
+        dim as cmdids.CommandInfo ci = ct.Info( cast( Cmd, id ) )
+        dim as ustring cap = i18n.Tr( "commands." & ci.Name, ci.Description )
+        if id = clng( Cmd.StartDebugging ) then cap = i18n.Tr( "debug.continue", "Continue" )
+        tkToolbar_SetText( tools, i, cap )
+        tkToolbar_SetTooltipText( tools, i, cap )
+    next
+    tkToolbar_SetTooltipText( ltools, 0, i18n.Tr( "debug.add_watch", "Add Watch" ) )
+    tkToolbar_SetTooltipText( ltools, 1, i18n.Tr( "debug.delete_watch", "Delete Watch" ) )
+    tkToolbar_SetTooltipText( rtools, 0, i18n.Tr( "debug.delete_breakpoint", "Remove Breakpoint" ) )
+    tkToolbar_SetTooltipText( rtools, 1, i18n.Tr( "commands.DeleteAllBreakpoints", "Delete All Breakpoints" ) )
+    this.Layout( )
+end sub
+
+sub Pane.Focus( )
+    dim as long t = leftTab
+    tkHost_SetFocus( frame->pHost, lists( t ) )
+end sub

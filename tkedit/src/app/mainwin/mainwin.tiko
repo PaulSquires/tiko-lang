@@ -53,6 +53,7 @@
 #import "tkc/themes"
 #import "tka/chrome"
 #import "tka/completion"
+#import "tka/debugpane"
 #import "tka/documents"
 #import "tka/editor"
 #import "tka/findstrip"
@@ -141,6 +142,8 @@ const ID_OUTPUT = 105
 const BUILD_POLL_MS = 40
 const ID_SCRATCH = 106
 const ID_START = 115
+const ID_OUTBAR = 116                     ' the output pane's top edge: drag it to resize the pane
+const OUTPUT_MIN_CY = 80                  ' unscaled
 const SEARCH_LIMIT = 5000              ' Find in Project stops counting there
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
@@ -431,6 +434,8 @@ public type Window
     ProjOpen as boolean
     Out as outputpane.Pane
     OutputShown as boolean
+    OutCY as long = outputpane.PANE_CY  ' its height, unscaled (session.toml [window] output_height)
+    outBar as TK_WIDGET ptr
     Job as runner.Job
     buildTimer as long
     compilerTimer as long
@@ -632,6 +637,9 @@ public type Window
     declare function DebugStopped( ) as boolean
     declare sub ToggleBreakpointAt( byval d as DocRef, byval ln as long )
     declare sub DeleteAllBreakpoints( )
+    declare sub RefreshBreakpointList( )
+    declare sub RemoveBreakpointRow( byval index as long )
+    declare sub ShowDebugTab( )
     declare sub ShowExecLine( byref path as const ustring, byval ln as long )
     declare sub ClearExecLine( )
     declare sub ShowOutput( byval visible as boolean )
@@ -881,6 +889,33 @@ function Window.Create( byval forcedScale as single ) as boolean
             mw->OpenDiagnostic( itemIndex )
         end if
     end sub
+    ' the Debug tab: its buttons run the Debug menu's commands, greyed as the menu greys them
+    Out.Debug.OnCommand = sub( byval owner as any ptr, byval id as long )
+        dim as Window ptr mw = owner
+        mw->Execute( cast( Cmd, id ) )
+        mw->Out.Debug.SyncButtons( )
+    end sub
+    Out.Debug.CanRun = function( byval owner as any ptr, byval id as long ) as boolean
+        return cast( Window ptr, owner )->CanRun( cast( Cmd, id ) )
+    end function
+    Out.Debug.OnGoTo = sub( byval owner as any ptr, byref path as const ustring, byval ln as long )
+        cast( Window ptr, owner )->JumpTo( path, ln - 1, 0, 0 )
+    end sub
+    Out.Debug.OnRemoveBreakpoint = sub( byval owner as any ptr, byval index as long )
+        cast( Window ptr, owner )->RemoveBreakpointRow( index )
+    end sub
+    Out.Debug.SyncButtons( )
+    outBar = tkSplitter_Create( root, ID_OUTBAR, TKSPLITTER_HORIZONTAL )
+    tkSplitter_SetPosChangedCallback( outBar, sub( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+        dim as Window ptr mw = WindowOfWidget( h )
+        if mw = 0 then exit sub
+        dim as TK_WIDGET ptr root = tkForm_Widget( mw->form )
+        dim as long oh = root->ch - mw->BottomHeight( ) - newPos
+        mw->OutCY = clng( oh / h->pHost->fScale )
+        if mw->OutCY < OUTPUT_MIN_CY then mw->OutCY = OUTPUT_MIN_CY
+        mw->Layout( )
+    end sub )
+    tkWidget_Show( outBar, false )
     Finder.Create( root, ID_FINDSTRIP, @this )
     Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
         cast( Window ptr, owner )->OnFind( a )
@@ -1022,7 +1057,14 @@ end function
 
 function Window.OutputHeight( ) as long
     if OutputShown = false then return 0
-    return tkForm_Scale( form, outputpane.PANE_CY )
+    dim as long oh = tkForm_Scale( form, OutCY )
+    ' never more than leaves the editor a little room
+    dim as TK_WIDGET ptr root = tkForm_Widget( form )
+    dim as long room = root->ch - this.BottomHeight( ) - this.MenuHeight( ) - this.TabsHeight( ) - tkForm_Scale( form, 60 )
+    if oh > room then oh = room
+    dim as long lo = tkForm_Scale( form, OUTPUT_MIN_CY )
+    if oh < lo then oh = lo
+    return oh
 end function
 
 ' The pane(s), the output pane, the find strip (while open), the status row at the bottom. Split
@@ -1041,10 +1083,17 @@ sub Window.Layout( )
     end if
     dim as long oh = 0
     if OutputShown then
-        oh = tkForm_Scale( form, outputpane.PANE_CY )
+        oh = this.OutputHeight( )
         tkWidget_SetPos( Out.frame, 0, bottom - fh - oh, cx, oh )
+        ' its top edge is a splitter laid over the tab strip's top pixels: drag to resize
+        dim as long ob = tkForm_Scale( form, 4 )
+        tkWidget_SetPos( outBar, 0, bottom - fh - oh, cx, ob )
+        tkSplitter_SetRange( outBar, this.MenuHeight( ) + this.TabsHeight( ) + tkForm_Scale( form, 60 ), _
+                             bottom - fh - tkForm_Scale( form, OUTPUT_MIN_CY ) )
+        tkSplitter_SetPos( outBar, bottom - fh - oh )
     end if
     tkWidget_Show( Out.frame, OutputShown )
+    tkWidget_Show( outBar, OutputShown )
     dim as long top = this.MenuHeight( ) + this.TabsHeight( )   ' the menu bar and the tab strip, above the panes
     tkWidget_Show( menuBar, this.MenuHeight( ) > 0 )
     if this.MenuHeight( ) > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, this.MenuHeight( ) )
@@ -2190,6 +2239,8 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
             if (n->modificationType and (SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT)) then
                 mw->scanDirty = true
                 mw->lastEditTicks = SDL_GetTicks( )
+                ' a breakpoint moves with its line: the Breakpoints tab's numbers follow
+                if (n->linesAdded <> 0) andalso (mw->Out.Debug.Bps.Count( ) > 0) then mw->RefreshBreakpointList( )
             end if
         case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
         case SCN_ZOOM : mw->SyncBars( )          ' the rows' height, so the page
@@ -2466,6 +2517,7 @@ function Window.CloseDoc( byval d as DocRef ) as boolean
             exit for
         end if
     next
+    if Out.Debug.Bps.Count( ) then this.RefreshBreakpointList( )    ' its breakpoints leave the list
     ' its pane shows the most recent buffer the other pane does not
     dim as DocRef keep = 0
     if this.IsSplit( ) then
@@ -2678,6 +2730,7 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
         dim as DocRef d = this.Active( )
         d->Main.SetBookmarks( f.Bookmarks )
         d->Main.SetBreakpoints( f.Breakpoints )
+        if f.Breakpoints.Count( ) then this.RefreshBreakpointList( )
         d->Main.SetPosition( f.Position )
         d->Main.SetFirstLine( f.FirstLine )
     next
@@ -2714,6 +2767,7 @@ sub Window.SaveSession( )
     st.WinW = NormalW
     st.WinH = NormalH
     st.WinMax = (SDL_GetWindowFlags( tkForm_Host( form )->win ) and SDL_WINDOW_MAXIMIZED) <> 0
+    if OutCY <> outputpane.PANE_CY then st.OutputCY = OutCY
     session.SaveSession( this.SessionFile( ), st )
 end sub
 
@@ -2759,6 +2813,7 @@ sub Window.RestoreSession( byval reopen as boolean )
         NormalX = st.WinX : NormalY = st.WinY : NormalW = st.WinW : NormalH = st.WinH
         StartMax = st.WinMax
     end if
+    if st.OutputCY > 0 then OutCY = st.OutputCY
     ' files named on the command line come instead of the last session's files or project
     ' (author 2026-10-27): the caller passes reopen = FALSE and opens them itself
     if reopen then
@@ -3894,6 +3949,9 @@ sub Window.StartDebugSession( byref exe as const ustring )
     DbgFrame = 0
     DbgStatus = i18n.Tr( "debug.running", "Running..." )
     this.SetBuildMessage( DbgStatus )
+    this.ShowDebugTab( )
+    Out.Debug.SetStatus( DbgStatus )
+    Out.Debug.OnRun( )
     dbgTimer = tkApp_SetTimer( DEBUG_POLL_MS, sub( byval id as long, byval payload as any ptr )
         cast( Window ptr, payload )->PollDebugger( )
     end sub, @this )
@@ -3950,6 +4008,8 @@ sub Window.OnDebugStopped( byval reason as long )
     end if
     if reason = DBGP_STOP_EXCEPTION then DbgStatus &= "  " & gDbgE.excepText
     this.SetBuildMessage( DbgStatus )
+    Out.Debug.SetStatus( DbgStatus )
+    Out.Debug.OnStop( )
 end sub
 
 sub Window.OnDebugEnded( byval failed as boolean, byval code as long )
@@ -3967,6 +4027,8 @@ sub Window.OnDebugEnded( byval failed as boolean, byval code as long )
         DbgStatus = strings.Format( i18n.Tr( "debug.exited_code", "Debug target ended (exit code {})" ), code )
     end if
     this.SetBuildMessage( DbgStatus )
+    Out.Debug.SetStatus( DbgStatus )
+    Out.Debug.OnEnd( )
 end sub
 
 ' Where the program stopped: that buffer opened and the line marked, in view.
@@ -4022,12 +4084,15 @@ sub Window.DebugCommand( byval id as Cmd )
     DbgPaused = false
     DbgStatus = i18n.Tr( "debug.running", "Running..." )
     this.SetBuildMessage( DbgStatus )
+    Out.Debug.SetStatus( DbgStatus )
+    Out.Debug.OnRun( )
 end sub
 
 ' A breakpoint on a buffer's line goes or comes, and a running session hears of it at once.
 sub Window.ToggleBreakpointAt( byval d as DocRef, byval ln as long )
     if d = 0 then exit sub
     d->Main.ToggleBreakpoint( ln )
+    this.RefreshBreakpointList( )
     if (DbgOn = false) orelse (len( d->Path ) = 0) then exit sub
     dim as string p8 = d->Path
     dim as long si = Engine_SourceIndex( p8 )
@@ -4038,12 +4103,48 @@ sub Window.ToggleBreakpointAt( byval d as DocRef, byval ln as long )
     end if
 end sub
 
+' The Breakpoints tab: every breakpoint of every open buffer, in open order, top to bottom.
+sub Window.RefreshBreakpointList( )
+    dim as Array( of debugpane.BreakpointRow ) rows
+    for each d as DocRef in Docs
+        if len( d->Path ) = 0 then continue for
+        for each ln as long in d->Main.Breakpoints( )
+            dim as debugpane.BreakpointRow r
+            r.Path = d->Path
+            r.Line = ln + 1
+            r.Text = trim( d->Main.LineTextAt( ln ), any chr( 9, 32 ) )
+            rows.Push( r )
+        next
+    next
+    Out.Debug.SetBreakpoints( rows )
+end sub
+
+' The Breakpoints tab's remove buttons: one row (its index), or -1 for all.
+sub Window.RemoveBreakpointRow( byval index as long )
+    if index < 0 then
+        this.DeleteAllBreakpoints( )
+        exit sub
+    end if
+    if index >= Out.Debug.Bps.Count( ) then exit sub
+    dim as debugpane.BreakpointRow r = Out.Debug.Bps[index]
+    dim as DocRef d = this.FindOpen( r.Path )
+    if (d <> 0) andalso d->Main.HasBreakpoint( r.Line - 1 ) then this.ToggleBreakpointAt( d, r.Line - 1 )
+end sub
+
+' The output pane, on its Debug tab.
+sub Window.ShowDebugTab( )
+    this.ShowOutput( true )
+    Out.ShowTab( outputpane.OutputTab.Debug )
+    Out.Debug.SyncButtons( )
+end sub
+
 ' Every breakpoint in every open buffer.
 sub Window.DeleteAllBreakpoints( )
     for each d as DocRef in Docs
         d->Main.ClearBreakpoints( )
     next
     if DbgOn then Engine_ClearBreakpoints( )
+    this.RefreshBreakpointList( )
 end sub
 
 sub Window.ShowOutput( byval visible as boolean )

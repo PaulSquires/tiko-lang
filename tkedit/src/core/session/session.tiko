@@ -64,6 +64,7 @@ public type SessionState
     WinW       as long                 ' 0 = none kept: the default size, centred
     WinH       as long
     WinMax     as boolean              ' it was maximized
+    OutputCY   as long                 ' the output pane's height, unscaled; 0 = the default
 end type
 
 public type SessionResult as Result( of SessionState, config.ConfigError )
@@ -134,6 +135,8 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
     st.WinH = tomlget.GetInt( w, "height", 0 )
     st.WinMax = tomlget.GetBool( w, "maximized", false )
     if (st.WinW < 200) orelse (st.WinH < 150) then st.WinW = 0 : st.WinH = 0
+    st.OutputCY = tomlget.GetInt( w, "output_height", 0 )
+    if (st.OutputCY < 60) orelse (st.OutputCY > 4000) then st.OutputCY = 0
     return st
 end function
 
@@ -159,6 +162,7 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         tomlget.SetInt( w, "width", st.WinW )
         tomlget.SetInt( w, "height", st.WinH )
         tomlget.SetBool( w, "maximized", st.WinMax )
+        if st.OutputCY > 0 then tomlget.SetInt( w, "output_height", st.OutputCY )
         root.SetKey( "window", w )
     end if
     if st.Files.Count( ) = 0 then exit sub

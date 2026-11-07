@@ -36,6 +36,7 @@
 #import "tka/chrome"
 #import "tka/completion"
 #import "tka/startpanel"
+#import "tka/debugpane"
 #import "tkc/symboldb"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
@@ -1549,6 +1550,120 @@ private function WaitBuild( byref mw as mainwin.Window ) as boolean
     return true
 end function
 
+' ================================================================ the Debug tab (D3): layout, tabs, lists
+
+' A tab of a tab strip, clicked where it is drawn.
+private sub ClickStripTab( byval h as TK_HOST ptr, byval bar as TK_WIDGET ptr, byval idx as long )
+    dim as TKRECT rc, a
+    tkTabBar_GetTabRect( bar, idx, rc )
+    tkWidget_AbsRect( bar, a )
+    tkTest_Click( h, a.left + (rc.left + rc.right) / 2, a.top + (rc.top + rc.bottom) / 2 )
+    tkTest_PumpFor( h, 30 )
+end sub
+
+public sub DebugTabPass( byref t as Tally, byval sc as single )
+    dim as ustring cfg = FreshConfig( )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "dbgtab" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = chr( 10 )
+    dim as ustring fileA = fs.PathJoin( dir_, "a.tiko" )
+    fs.WriteAllText( fileA, "dim as long n" & nl & "n = 1" & nl & "    n += 2" & nl & "print n" & nl )
+    dim as mainwin.Window mw
+    mw.ConfigDir = cfg
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "debug tab: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 100 )
+    mw.OpenFile( fileA )
+    dim as debugpane.Pane ptr dp = @mw.Out.Debug
+
+    ' ---- the tab, its layout: buttons, status, the two sides, their tab strips along the bottom
+    mw.ShowDebugTab( )
+    tkTest_PumpFor( h, 60 )
+    t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Debug) andalso tkWidget_IsVisible( dp->frame ) andalso _
+             (tkTabBar_GetCount( mw.Out.tabs ) = 4) andalso (tkTabBar_GetText( mw.Out.tabs, 3 ) = "Debug"), _
+             P( sc, "debug tab: the output pane's fourth tab, shown" ) )
+    dim as long th = tkHost_Scale( h, debugpane.TOOL_CY ), sh = tkHost_Scale( h, debugpane.STATUS_CY )
+    dim as long tb = tkHost_Scale( h, debugpane.TABS_CY )
+    dim as TK_WIDGET ptr loc = dp->lists( debugpane.DebugList.Locals ), stk = dp->lists( debugpane.DebugList.CallStack )
+    t.Check( (dp->tools->y = 0) andalso (dp->tools->ch = th) andalso (loc->y = th + sh) andalso (loc->x = 0), _
+             P( sc, strings.Format( "debug tab: buttons on top, the lists under the status line ({}, {})", loc->x, loc->y ) ) )
+    t.Check( (dp->ltabs->y = loc->y + loc->ch) andalso (dp->ltabs->y + dp->ltabs->ch = dp->frame->ch) andalso (dp->ltabs->ch = tb) andalso _
+             (dp->rtabs->y = dp->ltabs->y), P( sc, strings.Format( "debug tab: both tab strips along the bottom ({}, h {})", dp->ltabs->y, dp->ltabs->ch ) ) )
+    t.Check( (dp->split->x = loc->cw) andalso (stk->x = dp->split->x + dp->split->cw) andalso (stk->x + stk->cw = dp->frame->cw) andalso _
+             (stk->y = loc->y) andalso (stk->ch = loc->ch), P( sc, strings.Format( "debug tab: the splitter between, at x {}", dp->split->x ) ) )
+    t.Check( (tkTabBar_GetText( dp->ltabs, 0 ) = "Locals") andalso (tkTabBar_GetText( dp->ltabs, 2 ) = "Watch") andalso _
+             (tkTabBar_GetText( dp->rtabs, 0 ) = "Call Stack") andalso (tkTabBar_GetText( dp->rtabs, 1 ) = "Breakpoints"), _
+             P( sc, "debug tab: Locals | Globals | Watch, Call Stack | Breakpoints" ) )
+    t.Check( (tkToolbar_GetCount( dp->tools ) = 9) andalso (tkToolbar_GetText( dp->tools, 0 ) = "Continue") andalso _
+             (tkToolbar_GetEnabled( dp->tools, 0 )) andalso (tkToolbar_GetEnabled( dp->tools, 4 ) = false), _
+             P( sc, "debug tab: seven buttons; no session: Continue (starts) works, Step greyed" ) )
+
+    ' ---- a click on a bottom tab shows its list; the side buttons are the shown tab's
+    ClickStripTab( h, dp->ltabs, 2 )
+    t.Check( (dp->leftTab = debugpane.DebugList.Watch) andalso tkWidget_IsVisible( dp->lists( 2 ) ) andalso _
+             (tkWidget_IsVisible( loc ) = false) andalso tkWidget_IsVisible( dp->ltools ), P( sc, "debug tab: a click on Watch shows it, with its + and delete" ) )
+    ClickStripTab( h, dp->rtabs, 1 )
+    t.Check( (dp->rightTab = debugpane.DebugList.Breakpoints) andalso tkWidget_IsVisible( dp->lists( 4 ) ) andalso _
+             tkWidget_IsVisible( dp->rtools ) andalso (tkWidget_IsVisible( stk ) = false), P( sc, "debug tab: a click on Breakpoints shows it" ) )
+
+    ' ---- the Breakpoints tab lists them, follows the lines, removes one or all
+    mw.View( ).GoToLine( 1 )
+    Chord( h, SDLK_F9, SDL_SCANCODE_F9, 0 )
+    mw.View( ).GoToLine( 2 )
+    Chord( h, SDLK_F9, SDL_SCANCODE_F9, 0 )
+    dim as TK_WIDGET ptr bl = dp->lists( debugpane.DebugList.Breakpoints )
+    t.Check( (dp->Bps.Count( ) = 2) andalso (tkListTree_GetCount( bl ) = 2) andalso (dp->Bps[0].Line = 2) andalso (dp->Bps[1].Text = "n += 2") andalso _
+             (tkListTree_GetText( bl, 0 ) = "a.tiko"), P( sc, strings.Format( "breakpoints tab: two rows, a.tiko 2 and 3 ({})", tkListTree_GetCount( bl ) ) ) )
+    t.Check( RowsDrawn( h, bl ), P( sc, "breakpoints tab: drawn" ) )
+    mw.View( ).GoToLine( 0 )
+    mw.View( ).InsertLineAfter( 0, "' a new line" )
+    t.Check( (dp->Bps.Count( ) = 2) andalso (dp->Bps[0].Line = 3) andalso (dp->Bps[1].Line = 4), _
+             P( sc, strings.Format( "breakpoints tab: a line inserted above, they follow ({}, {})", dp->Bps[0].Line, dp->Bps[1].Line ) ) )
+    tkListTree_SetCurSel( bl, 0 )
+    dp->SyncButtons( )
+    t.Check( tkToolbar_Click( dp->rtools, 0 ) andalso (dp->Bps.Count( ) = 1) andalso (mw.View( ).HasBreakpoint( 2 ) = false) andalso _
+             mw.View( ).HasBreakpoint( 3 ), P( sc, "breakpoints tab: remove takes the selected one, from the editor too" ) )
+    t.Check( tkToolbar_Click( dp->rtools, 1 ) andalso (dp->Bps.Count( ) = 0) andalso (mw.View( ).Breakpoints( ).Count( ) = 0), _
+             P( sc, "breakpoints tab: remove all" ) )
+    t.Check( tkToolbar_GetEnabled( dp->rtools, 1 ) = false, P( sc, "breakpoints tab: nothing left: remove all greyed" ) )
+
+    ' ---- Watch: + adds a row being typed in; an expression; the delete button
+    tkToolbar_Click( dp->ltools, 0 )
+    dim as TK_WIDGET ptr wl = dp->lists( debugpane.DebugList.Watch )
+    t.Check( (dp->Watches.Count( ) = 1) andalso tkListTree_IsEditing( wl ), P( sc, "watch: + adds one, being typed in" ) )
+    tkListTree_EndEdit( wl, false )
+    dp->Watches[0] = "n"
+    dp->FillWatch( )
+    t.Check( (tkListTree_GetCount( wl ) = 1) andalso (tkListTree_GetText( wl, 0 ) = "n"), P( sc, "watch: the expression's row" ) )
+    tkListTree_SetCurSel( wl, 0 )
+    dp->SyncButtons( )
+    t.Check( tkToolbar_Click( dp->ltools, 1 ) andalso (dp->Watches.Count( ) = 0) andalso (tkListTree_GetCount( wl ) = 0), _
+             P( sc, "watch: delete takes it" ) )
+
+    ' ---- the pane's height: its top edge drags; session.toml keeps it
+    dim as long y0 = mw.Out.frame->y, h0 = mw.Out.frame->ch
+    dim as single bx = tkTest_CX( mw.outBar ), by = tkTest_CY( mw.outBar )
+    tkTest_PushButton( h, true, bx, by )
+    tkTest_PushMotion( h, bx, by - 60 )
+    tkTest_PushMotion( h, bx, by - 120 )
+    tkTest_PushButton( h, false, bx, by - 120 )
+    tkTest_PumpFor( h, 30 )
+    t.Check( (mw.Out.frame->ch > h0 + 100) andalso (mw.Out.frame->y < y0 - 100) andalso (dp->frame->ch = mw.Out.frame->ch - (dp->frame->y)), _
+             P( sc, strings.Format( "output pane: its top edge dragged up 120: {} -> {}", h0, mw.Out.frame->ch ) ) )
+    mw.SaveSession( )
+    dim as ustring sess = fs.ReadAllText( mw.SessionFile( ) ).ValueOr( "" )
+    t.Check( instr( sess, "output_height = " & mw.OutCY ) > 0, P( sc, strings.Format( "output pane: session.toml keeps output_height = {}", mw.OutCY ) ) )
+
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
 ' ================================================================ the debugger (D2): a real session
 
 dim shared as string gDebugTermEnv           ' putenv keeps the pointer
@@ -1621,13 +1736,43 @@ public sub DebugPass( byref t as Tally, byval sc as single )
         t.Check( mw.View( ).ExecLine( ) = 2, P( sc, strings.Format( "debug: the stop line marked ({})", mw.View( ).ExecLine( ) ) ) )
         t.Check( mw.CanRun( Cmd.StepOver ) andalso (mw.CanRun( Cmd.DebugBreak ) = false) andalso mw.CanRun( Cmd.StopDebugging ), _
                  P( sc, "debug: stopped: Step works, Break greyed" ) )
+        ' ---- the Debug tab (D3): it showed itself; the stack, the locals, a watch
+        dim as debugpane.Pane ptr dp = @mw.Out.Debug
+        dim as TK_WIDGET ptr stk = dp->lists( debugpane.DebugList.CallStack ), loc = dp->lists( debugpane.DebugList.Locals )
+        t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Debug) andalso (instr( dp->status, "breakpoint" ) > 0), _
+                 P( sc, "debug: the Debug tab shows itself, the status line says where: " & dp->status ) )
+        t.Check( (tkListTree_GetCount( stk ) >= 1) andalso (lcase( tkListTree_GetText( stk, 0 ) ) = "main") andalso _
+                 (tkListTree_GetCellText( stk, 0, 1 ) = "3"), P( sc, strings.Format( "debug: the call stack: main, line 3 ({})", tkListTree_GetCount( stk ) ) ) )
+        dim as long totalRow = -1
+        for r as long = 0 to tkListTree_GetCount( loc ) - 1
+            if lcase( tkListTree_GetText( loc, r ) ) = "total" then totalRow = r
+        next
+        t.Check( (totalRow >= 0) andalso (tkListTree_GetCellText( loc, totalRow, 1 ) = "0") andalso (tkListTree_GetCellText( loc, totalRow, 2 ) = "long"), _
+                 P( sc, "debug: Locals: total = 0, long" ) )
+        dp->AddWatch( "TOTAL + 0" )
+        dp->AddWatch( "Total" )
+        dim as TK_WIDGET ptr wl = dp->lists( debugpane.DebugList.Watch )
+        t.Check( (tkListTree_GetCount( wl ) = 2) andalso (tkListTree_GetCellText( wl, 1, 1 ) = "0") andalso _
+                 (tkListTree_GetCellText( wl, 0, 1 ) = "<not in scope>"), _
+                 P( sc, strings.Format( "debug: Watch: 'Total' is total (case-blind) = 0; an expression lldb's path cannot be is not in scope ({})", tkListTree_GetCellText( wl, 1, 1 ) ) ) )
         Chord( h, SDLK_F10, SDL_SCANCODE_F10, 0 )
         ' the loop's increment is the 'for' line's code: line 2 (or 'next', line 4)
         t.Check( WaitDebug( mw, true ) andalso ((mw.View( ).ExecLine( ) = 1) orelse (mw.View( ).ExecLine( ) = 3)), _
                  P( sc, strings.Format( "debug: F10 stepped over, to line {}", mw.View( ).ExecLine( ) + 1 ) ) )
+        totalRow = -1
+        for r as long = 0 to tkListTree_GetCount( loc ) - 1
+            if lcase( tkListTree_GetText( loc, r ) ) = "total" then totalRow = r
+        next
+        dim as long k = -1
+        if totalRow >= 0 then k = tkListTree_GetItemData( loc, totalRow )
+        t.Check( (k >= 0) andalso (tkListTree_GetCellText( loc, totalRow, 1 ) = "1") andalso dp->rows[k].changed, _
+                 P( sc, "debug: after the step total = 1, marked changed" ) )
+        t.Check( tkListTree_GetCellText( wl, 1, 1 ) = "1", P( sc, "debug: and the watch follows" ) )
         Chord( h, SDLK_F6, SDL_SCANCODE_F6, SDL_KMOD_SHIFT )
         t.Check( WaitDebug( mw, false ), P( sc, "debug: Shift+F6 ended the session: " & mw.DbgStatus ) )
         t.Check( mw.View( ).ExecLine( ) = -1, P( sc, "debug: and the stop line is gone" ) )
+        t.Check( (tkListTree_GetCount( stk ) = 0) andalso (tkListTree_GetCount( loc ) = 0) andalso (tkListTree_GetCount( wl ) = 2), _
+                 P( sc, "debug: the session over: no stack, no locals, the watches stay" ) )
     end if
     if mw.DebugActive( ) then mw.Execute( Cmd.StopDebugging ) : WaitDebug( mw, false )
     for each d as DocRef in mw.Docs

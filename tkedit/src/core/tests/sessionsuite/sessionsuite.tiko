@@ -36,6 +36,7 @@ public sub Run( byref c as tally.Checker )
     st.Files.Push( g )
     st.Recent.Push( "C:/a.tiko" )
     st.Recent.Push( "C:/b.tiko" )
+    st.WinW = 800 : st.WinH = 600 : st.OutputCY = 320
 
     dim as config.ConfigResultText t = session.SessionText( st )
     c.Check( t.IsOk( ), "SessionText" )
@@ -57,6 +58,7 @@ public sub Run( byref c as tally.Checker )
         c.Check( b.Files[1].Open = false, "a closed file stays closed" )
     end if
     c.Check( (b.Recent.Count( ) = 2) andalso (b.Recent[0] = "C:/a.tiko"), "the recent list, newest first" )
+    c.Check( (b.WinW = 800) andalso (b.OutputCY = 320), "the window and the output pane's height" )
 
     dim as ustring nl = wchr( 10 )
     dim as session.SessionResult odd = session.ParseSession( "[session]" & nl & "split = 'diagonal'" & nl & _

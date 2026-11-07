@@ -56,3 +56,6 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/svc/dapclient` | **tiko-editor-tiko `effa02fb`** `src/debugparser/dapclient` | no `sys/win`: the job object by its own `extern`, Windows only; `Dap_Adopt` |
 | `src/svc/dapengine` | **tiko-editor-tiko `effa02fb`** `src/debugparser/dapengine` + `dbgtypes` | cross-platform: Windows keeps CreateProcess+attach, Linux/macOS a terminal's tty + DAP `launch`; notes on a channel (no PostMessage); ELF/Mach-O(.dSYM) checks; user frame = a file that exists; SIGSTOP pause |
 | `src/svc/tests/dbgtest.tiko` | **tiko-editor-tiko `effa02fb`** `src/debugparser/tests/dbgtest` | no window: polls `Engine_NextNote`; takes the source path |
+| `src/core/debugview` | **tiko-editor-tiko `effa02fb`** `src/eda/frmDebug` (its pure functions) | GroupSpan/GroupBounds, SortLess + SortState, the value cache as `ValueMemory` (Maps), `ExpandMemory`, ExprFromLine (a number is no expression) |
+| `src/core/tests/debugviewsuite` | **tiko-editor-tiko `effa02fb`** `frmDebug_RunSelfTest` (its pure checks) | — |
+| `src/app/debugpane` | **tiko-editor-tiko `effa02fb`** `src/eda/frmDebug` | a tab, not a window: bottom tab strips (Locals/Globals/Watch, Call Stack/Breakpoints), a Breakpoints list, tkToolbar buttons; lazy trees, array groups, watch editing, sort, changed values, expansion across stops as frmDebug |

@@ -10,12 +10,14 @@
 '   Results   the build's diagnostics, a header row per file; Enter or a double click goes there
 '   Log       what tiko printed, less its JSON events
 '   Search    Find in Project's matches, a header row per file; Enter or a double click goes there
+'   Debug     the debugger (tka/debugpane): buttons, status, Locals/Globals/Watch | Call Stack/Breakpoints
 ' Rows carry an index the owner gives; what activating one means is the owner's (OnActivate).
 ' After tiko-studio's tsa/outputpane: its Results, Compiler Log and Search Results (PROVENANCE.md).
 #module "outputpane"
 
 #import "std/containers"
 #import "tkc/i18n"
+#import "tka/debugpane"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkListTree"
@@ -33,6 +35,7 @@ public enum OutputTab explicit
     Results = 0
     CompilerLog = 1
     Search = 2
+    Debug = 3
 end enum
 
 public type OutputActivateSub as sub( byval owner as any ptr, byval tab_ as OutputTab, byval itemIndex as long )
@@ -43,6 +46,7 @@ const ID_TABS = 1
 const ID_RESULTS = 10
 const ID_LOG = 11
 const ID_SEARCH = 12
+const ID_DEBUG = 13
 
 public type Pane
     owner as any ptr
@@ -52,6 +56,7 @@ public type Pane
     results as TK_WIDGET ptr
     logBox as TK_WIDGET ptr
     search as TK_WIDGET ptr
+    Debug as debugpane.Pane              ' the Debug tab's content
     searchPressed as boolean            ' the button went down on a Search row
     current as OutputTab
 
@@ -99,8 +104,8 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     tkTabBar_AddTab( tabs, "" )                 ' the tabs' text: Relabel
     tkTabBar_AddTab( tabs, "" )
     tkTabBar_AddTab( tabs, "" )
-    this.Relabel( )
-    for i as long = 0 to 2
+    tkTabBar_AddTab( tabs, "" )
+    for i as long = 0 to 3
         tkTabBar_SetClosable( tabs, i, false )
     next
     tkTabBar_SetSelChangeCallback( tabs, sub( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
@@ -141,6 +146,8 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
         return true
     end function )
     tkListTree_SetPaintCallback( search, @tkListTree_PaintRowDefault )
+    Debug.Create( frame, ID_DEBUG, owner_ )
+    this.Relabel( )
     this.ShowTab( OutputTab.Results )
     tkWidget_Show( frame, false )
 end sub
@@ -152,6 +159,7 @@ sub Pane.Layout( )
     tkWidget_SetPos( results, 0, th, frame->cw, frame->ch - th )
     tkWidget_SetPos( logBox, 0, th, frame->cw, frame->ch - th )
     tkWidget_SetPos( search, 0, th, frame->cw, frame->ch - th )
+    tkWidget_SetPos( Debug.frame, 0, th, frame->cw, frame->ch - th )
 end sub
 
 sub Pane.ShowTab( byval t as OutputTab )
@@ -159,12 +167,15 @@ sub Pane.ShowTab( byval t as OutputTab )
     tkWidget_Show( results, t = OutputTab.Results )
     tkWidget_Show( logBox, t = OutputTab.CompilerLog )
     tkWidget_Show( search, t = OutputTab.Search )
+    tkWidget_Show( Debug.frame, t = OutputTab.Debug )
+    if t = OutputTab.Debug then Debug.SyncButtons( )
     if tkTabBar_GetCurSel( tabs ) <> cast( long, t ) then tkTabBar_SetCurSel( tabs, t )
 end sub
 
 function Pane.Content( byval t as OutputTab ) as TK_WIDGET ptr
     if t = OutputTab.CompilerLog then return logBox
     if t = OutputTab.Search then return search
+    if t = OutputTab.Debug then return Debug.lists( Debug.leftTab )
     return results
 end function
 
@@ -194,10 +205,13 @@ sub Pane.ApplyColors( )
     dim as TKTABBAR_COLORS tbc = tkTabBar_ThemeColors( t )
     tbc.AccentColor = tbc.TabBackColorSelected
     tkTabBar_SetColors( tabs, @tbc )
+    if Debug.frame then Debug.ApplyColors( )
 end sub
 
 sub Pane.Relabel( )
     tkTabBar_SetText( tabs, OutputTab.Results, i18n.Tr( "output.tab_results", "Results" ) )
     tkTabBar_SetText( tabs, OutputTab.CompilerLog, i18n.Tr( "output.tab_log", "Log" ) )
     tkTabBar_SetText( tabs, OutputTab.Search, i18n.Tr( "output.tab_search", "Search" ) )
+    tkTabBar_SetText( tabs, OutputTab.Debug, i18n.Tr( "output.tab_debug", "Debug" ) )
+    if Debug.frame then Debug.Relabel( )
 end sub

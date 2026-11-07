@@ -1,0 +1,179 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' debugview -- the Debug tab's PURE half (docs/tkEdit/DEBUGGER.md): the array index groups, the
+' column sort's comparison, the changed-value memory, the expression under the mouse, the
+' expanded-node memory. No engine, no widget: console-testable (tests/debugviewsuite). From
+' tiko-editor-tiko's frmDebug (GroupSpan, GroupBounds, SortLess, the value cache, ExprFromLine,
+' Capture/WasExpanded), PROVENANCE.md.
+#module "debugview"
+
+#import "std/containers"
+using containers
+
+' ---------------------------------------------------------------- array index groups
+'
+' An array is shown in index groups, not flat: "[0 .. 99]", "[100 .. 199]", ... A level that would
+' make more than MAX_GROUPS groups gets another level above it, so a million elements is three
+' levels of a hundred, not ten thousand siblings. Groups address elements by the engine's LINEAR
+' child index (row-major), so a multi-dimensional array groups over the same index space.
+
+public const CHUNK = 100
+public const MAX_GROUPS = 100
+public const MAX_CHILDREN = 200       ' a UDT / pointer target lists at most this many, then says so
+
+' The span of one group for nTotal elements; 0 = few enough to list directly.
+public function GroupSpan( byval nTotal as longint ) as longint
+    if nTotal <= CHUNK then return 0
+    dim as longint span = CHUNK
+    do while ((nTotal + span - 1) \ span) > MAX_GROUPS
+        span *= CHUNK
+        if span <= 0 then exit do
+    loop
+    return span
+end function
+
+' Group nGroup of nCount elements starting at idxFrom, nSpan each: its first and last index.
+' FALSE past the last group.
+public function GroupBounds( byval idxFrom as longint, byval nCount as longint, byval nSpan as longint, _
+                             byval nGroup as longint, byref idxLo as longint, byref idxHi as longint ) as boolean
+    idxLo = 0 : idxHi = -1
+    if (nSpan <= 0) orelse (nCount <= 0) orelse (nGroup < 0) then return false
+    dim as longint start = nGroup * nSpan
+    if start >= nCount then return false
+    idxLo = idxFrom + start
+    dim as longint stop_ = start + nSpan - 1
+    if stop_ > nCount - 1 then stop_ = nCount - 1
+    idxHi = idxFrom + stop_
+    return true
+end function
+
+' ---------------------------------------------------------------- the column sort
+
+' A plain case-blind TEXT comparison: every column is text, and a numeric-aware one would order
+' "10" and "9" by number while "true" and "{...}" beside them were not.
+public function SortLess( byref a as const ustring, byref b as const ustring, byval desc as boolean ) as boolean
+    dim as ustring ua = ucase( a ), ub = ucase( b )
+    if ua = ub then return false
+    if desc then return ua > ub
+    return ua < ub
+end function
+
+' A list's sort: the column (-1 = the engine's order) and the direction. A header click on the
+' sorted column reverses it; on another, sorts by that one ascending.
+public type SortState
+    Col as long = -1
+    Desc as boolean
+    declare sub Click( byval c as long )
+end type
+
+sub SortState.Click( byval c as long )
+    if Col = c then
+        Desc = (Desc = false)
+    else
+        Col = c
+        Desc = false
+    end if
+end sub
+
+' ---------------------------------------------------------------- what changed since the last stop
+'
+' A row's identity is its PATH ("G:gRecs(1).x", "L0:count", "W:p->next") -- an address is not
+' stable (a REDIM moves the data). Prev is the picture of the previous stop, Next what this stop
+' has shown; Roll at the START of a stop makes Next the new Prev, so a fill within the stop
+' (clicking a frame, expanding a node) still compares against the previous stop.
+
+public type ValueMemory
+    declare function Changed( byref key as const ustring, byref value as const ustring ) as boolean
+    declare sub Roll( )
+    declare sub Reset( )
+  private:
+    m_prev as Map( of ustring, ustring )
+    m_next as Map( of ustring, ustring )
+end type
+
+' Did key's value change since the previous stop? A key never seen before has appeared, not
+' changed. Records the value for the next stop either way.
+function ValueMemory.Changed( byref key as const ustring, byref value as const ustring ) as boolean
+    if len( key ) = 0 then return false
+    dim as ustring k = key, v = value, was
+    dim as boolean changed_ = false
+    if m_prev.TryGet( k, was ) then changed_ = (was <> v)
+    m_next.Put( k, v )
+    return changed_
+end function
+
+sub ValueMemory.Roll( )
+    m_prev = m_next
+    m_next.Clear( )
+end sub
+
+sub ValueMemory.Reset( )
+    m_prev.Clear( )
+    m_next.Clear( )
+end sub
+
+' ---------------------------------------------------------------- expanded nodes across a stop
+'
+' Every stop rebuilds the trees; the PATHS of the open nodes (and the top row) are kept so the
+' same nodes open again. A path that no longer resolves simply never matches.
+
+public type ExpandMemory
+    Paths as Array( of ustring )
+    TopRow as long
+    declare sub Clear( )
+    declare sub Add( byref path as const ustring )
+    declare function Has( byref path as const ustring ) as boolean
+end type
+
+sub ExpandMemory.Clear( )
+    Paths.Clear( )
+    TopRow = 0
+end sub
+
+sub ExpandMemory.Add( byref path as const ustring )
+    dim as ustring p = path
+    if (len( p ) > 0) andalso (this.Has( p ) = false) then Paths.Push( p )
+end sub
+
+function ExpandMemory.Has( byref path as const ustring ) as boolean
+    for each p as ustring in Paths
+        if p = path then return true
+    next
+    return false
+end function
+
+' ---------------------------------------------------------------- the expression under the mouse
+
+private function IsIdChar( byval c as long ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95)
+end function
+
+' The identifier path at 1-based column col of a line: left through identifier characters and
+' dots (hovering "ix" in "rec.inner.ix" is "rec.inner.ix"), right through identifier characters
+' only. "" when col is not on an identifier.
+public function ExprFromLine( byref text_ as const ustring, byval col as long ) as ustring
+    if (col < 1) orelse (col > len( text_ )) then return ""
+    if IsIdChar( asc( mid( text_, col, 1 ) ) ) = false then return ""
+    dim as long lo = col
+    do while lo > 1
+        dim as long c = asc( mid( text_, lo - 1, 1 ) )
+        if IsIdChar( c ) orelse (c = 46) then lo -= 1 else exit do
+    loop
+    dim as long hi = col
+    do while hi < len( text_ )
+        if IsIdChar( asc( mid( text_, hi + 1, 1 ) ) ) then hi += 1 else exit do
+    loop
+    dim as ustring e = mid( text_, lo, hi - lo + 1 )
+    do while (len( e ) > 0) andalso (left( e, 1 ) = ".")
+        e = mid( e, 2 )
+    loop
+    ' a number is not an expression to evaluate
+    if (len( e ) > 0) andalso (asc( e ) >= 48) andalso (asc( e ) <= 57) then return ""
+    return e
+end function
