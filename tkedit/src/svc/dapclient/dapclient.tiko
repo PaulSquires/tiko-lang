@@ -178,7 +178,10 @@ public function Dap_Start( byref adapterPath as const string ) as boolean
     gDap.spawned = true
     gDap.stdinOpen = true
     gDap.alive = true
-    gDap.reader = threadcreate( @Dap_Reader, 0 )
+    ' A STACK OF ITS OWN SIZE: threadcreate's default is the OS minimum on Linux and macOS (16 KB,
+    ' measured: a thread overflows at 8-12 KB of locals there, fbc-modern's runtime alike), where
+    ' Windows gives 1 MB. The reader parses every message; 1 MB, as on Windows.
+    gDap.reader = threadcreate( @Dap_Reader, 0, 1024 * 1024 )
     return true
 end function
 

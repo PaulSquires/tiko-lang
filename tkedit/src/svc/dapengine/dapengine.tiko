@@ -932,7 +932,10 @@ public function Engine_Start( byref exe as const string, byref args as const Arr
     gDbgE.tempArmed = false
     gDbgE.tempPending = false
     ResetNodes_( )
-    gDbgE.worker = threadcreate( @Engine_Worker, 0 )
+    ' 1 MB, as on Windows: the default is 16 KB on Linux and macOS, and the session's launch --
+    ' a terminal spawned through std/process -- overflowed it there (the Release self-test's
+    ' SIGSEGV in fb_UStrFsAbsolutePath, under OpenTerminal_). See dapclient's reader.
+    gDbgE.worker = threadcreate( @Engine_Worker, 0, 1024 * 1024 )
     if gDbgE.worker = 0 then gDbgE.active = false : gDbgE.lastError = "cannot start the session thread" : return DBGP_ERR_LAUNCH
     return DBGP_OK
 end function
