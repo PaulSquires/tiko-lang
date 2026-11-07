@@ -1,0 +1,45 @@
+1. classic
+   20 C = 68 F
+   100 C = 212 F
+  clamped to-273.15
+2. auto-properties
+  Ada, id 7, age 18, Canada, ada@example.com
+  Ada, age 36, ada@engines.org
+3. static auto-properties
+  made 0 of 1000
+  made 3 of 1000, w3 is serial 3
+  through an object: 3
+4. property blocks
+   0 -> overdrawn
+   42.68 -> low
+  (refused a negative balance:-5)
+   250 -> healthy
+5. indices
+  X . . 
+  . O . 
+  . . X 
+6. static properties
+  [net 1] shown
+  level clamped to 3
+7. namespace properties
+  volume 8
+  volume 10
+8. combination operators and swap
+   21.5
+  Ada Lovelace
+  age 35
+  swapped: 5 21.5
+9. byref write-back
+  age doubled: 70
+  ADA LOVELACE!
+  id still 7
+  peeked at 70
+10. a UDT property
+  at 3, 4, visible: true
+  visible: false
+11. a generic type
+  byte buffer:   4 x 1 = 4 bytes
+  double buffer: 10 x 8 = 80 bytes
+12. through an interface
+  circle r=2 has area 12.5663706
+  square s=3 has area 9
