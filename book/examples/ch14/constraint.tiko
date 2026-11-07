@@ -1,0 +1,13 @@
+'' constraint.tiko -- a type argument that does not implement what the
+'' parameter requires is refused where the generic is used.
+
+interface IComparable( of T )
+    function CompareTo( byref other as T ) as int32
+end interface
+
+function Largest( of T as IComparable( of T ) )( a( ) as T ) as T
+    return a( lbound( a ) )
+end function
+
+dim as int32 counts( 0 to 2 ) = { 3, 1, 2 }
+print Largest( counts( ) )

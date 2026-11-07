@@ -1,0 +1,6 @@
+buy milk:
+  size 8
+  a note saying buy milk
+  is ISize: true
+label:
+  is ISize: false

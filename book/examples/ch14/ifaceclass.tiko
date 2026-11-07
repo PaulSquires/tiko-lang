@@ -1,0 +1,44 @@
+'' ifaceclass.tiko -- a class hierarchy behind an interface: the call
+'' through the interface reaches the most derived override.
+
+interface ISpeaker
+    sub Speak( )
+end interface
+
+class Animal
+    implements ISpeaker
+    declare virtual sub Speak( ) implements ISpeaker.Speak
+end class
+
+sub Animal.Speak( )
+    print "..."
+end sub
+
+class Dog
+    inherits Animal
+    declare virtual sub Speak( ) override
+end class
+
+sub Dog.Speak( )
+    print "woof"
+end sub
+
+class Puppy
+    inherits Dog
+    declare sub Speak( ) override
+end class
+
+sub Puppy.Speak( )
+    print "yip"
+end sub
+
+dim as Animal a
+dim as Dog d
+dim as Puppy p
+dim as ISpeaker speakers( 0 to 2 )
+speakers( 0 ) = a
+speakers( 1 ) = d
+speakers( 2 ) = p
+for i as int32 = 0 to 2
+    speakers( i ).Speak( )
+next

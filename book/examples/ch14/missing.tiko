@@ -1,0 +1,17 @@
+'' missing.tiko -- a member of the contract with no method mapped
+'' to it.
+
+interface IShape
+    function Area( ) as float64
+    function Kind( ) as ustring
+end interface
+
+class Circle
+    implements IShape
+    declare function Area( ) as float64 implements IShape.Area
+    r as float64
+end class
+
+function Circle.Area( ) as float64
+    return 3.14159 * r * r
+end function

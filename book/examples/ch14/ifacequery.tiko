@@ -1,0 +1,51 @@
+'' ifacequery.tiko -- asking what is behind an interface value.
+
+interface IShow
+    function Show( ) as ustring
+end interface
+
+interface ISize
+    function Size( ) as int32
+end interface
+
+class Note
+    implements IShow, ISize
+    declare function Show( ) as ustring implements IShow.Show
+    declare function Size( ) as int32 implements ISize.Size
+    text as ustring = "buy milk"
+end class
+
+function Note.Show( ) as ustring
+    return text
+end function
+
+function Note.Size( ) as int32
+    return len( text )
+end function
+
+class Label
+    implements IShow
+    declare function Show( ) as ustring implements IShow.Show
+end class
+
+function Label.Show( ) as ustring
+    return "label"
+end function
+
+sub Inspect( byval v as IShow )
+    print v.Show( ); ":"
+    '' A cross cast: does the same object ALSO implement ISize?
+    dim as ISize sz = trycast( ISize, v )
+    if sz <> nullptr then print "  size"; sz.Size( )
+    '' A downcast: is it a Note?
+    if v is Note then
+        dim as Note ptr np = cast( Note ptr, v )
+        print "  a note saying "; np->text
+    end if
+    print "  is ISize: "; cbool( v is ISize )
+end sub
+
+dim as Note n
+dim as Label l
+Inspect( n )
+Inspect( l )

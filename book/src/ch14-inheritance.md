@@ -7,11 +7,22 @@ editing that loop, and every other loop like it.
 
 **Inheritance** lets one type start as another and add to it. **Polymorphism** lets a single call
 reach the right code for whatever object is really there, so the loop asks "what is your area?"
-and never needs to know what it is talking to. This chapter builds both, then covers the three
-places they go wrong: an object deleted through the wrong pointer, an object passed by value, and
-a relationship that was never really "is a".
+and never needs to know what it is talking to.
 
-## Extending a type
+tiko gives you two ways to build them, and this chapter is in two parts. **Part 1** is the
+classic model, the one C++ and FreeBASIC share: a base type with virtual methods, extended by
+every shape, and the three places it goes wrong: an object deleted through the wrong pointer, an
+object passed by value, and a relationship that was never really "is a". **Part 2** is
+**interfaces**: a contract that any type can take on, as many as it needs, without spending its
+one base on it. The two mix freely, and the chapter ends with how to choose.
+
+## Part 1: The classic model
+
+A derived type starts as its base and adds to it, and a method the base marks `virtual` can be
+replaced by each derived type. Everything in this part works the same whether the type is
+declared with `type … extends` or, as Part 2 shows, with `class`.
+
+### Extending a type
 
 ```tiko
 {{#include ../examples/ch14/extends.tiko}}
@@ -72,7 +83,7 @@ Here it hands a label up, and the base's default value for it, `"unnamed"`, is w
 {{#include ../examples/ch14/basestring.out}}
 ```
 
-## Calling through the base
+### Calling through the base
 
 A `Bicycle` can be handed to anything that takes a `Vehicle`. What happens to its methods when it
 is?
@@ -93,7 +104,7 @@ changes nothing for code that sees the object as its base.
 That is the right behaviour for most methods, and it costs nothing. But it is exactly wrong for the
 drawing program's loop, which sees every shape as "a shape" and needs each one's own answer.
 
-## Virtual methods
+### Virtual methods
 
 ```tiko
 {{#include ../examples/ch14/shapes.tiko}}
@@ -191,7 +202,7 @@ The names are mangled the way C++ mangles them: `_ZN6SQUARE4KINDEv` is `SQUARE::
 The dump is the place to look when a call reaches the wrong method. It shows what the compiler
 built, and comparing it with what you meant is usually enough to find the mistake.
 
-## Virtual destructors
+### Virtual destructors
 
 An object created with `new` and deleted through a pointer to its base is destroyed by whichever
 destructor that pointer's type names:
@@ -233,7 +244,7 @@ own. `File` declared a destructor without `virtual`, and from there down nothing
 the middle type declares no destructor at all: the one the compiler writes for it is not virtual.
 **Every level that may be deleted through a base pointer declares `virtual destructor`.**
 
-## Asking what an object really is
+### Asking what an object really is
 
 Sometimes the code holding an `Animal` needs something only a `Dog` has:
 
@@ -258,7 +269,7 @@ Use `is` sparingly. A chain of `if a is Dog … elseif a is Cat …` is the `sel
 set out to remove, wearing different clothes. If the question is "what should this animal do", the
 answer is a virtual method.
 
-## Passing by value
+### Passing by value
 
 ```tiko
 {{#include ../examples/ch14/slicing.tiko}}
@@ -283,7 +294,7 @@ The last line of the output is the hidden field from the previous section made v
 is eight bytes, the table pointer and nothing else. `Animal` adds `legs` and rounds up to 16, and
 `Dog` adds `tricks` and rounds to 24.
 
-## Composition, and abstract types as contracts
+### Composition, and abstract types as contracts
 
 Inheritance says "is a". A `Bicycle` is a `Vehicle`, and a `Square` is a `Rect`. When the
 relationship is "has a" or "uses a", inheritance is the wrong tool, even when it would save typing:
@@ -300,28 +311,230 @@ expects a point, and none of them meant a circle. Give the `Circle` a `Point` fi
 
 `Plugin` is all contract: two abstract methods and a virtual destructor, with no data. Any type that
 extends it and fills in `Name` and `Apply` is a plugin, and `Host` can run it without knowing what
-it is. That is the role an **interface** plays in other languages. In tiko it is an abstract type.
+it is. Written this way, the contract is an abstract type.
 
 `Host` is the other half. It is not a plugin and does not extend one. It **has** plugins: it owns
 them, runs them in order, and deletes them in its destructor. The deletes go through `Plugin ptr`,
 which is why `Plugin`'s destructor is virtual. Adding a third plugin means writing one new type;
 `Host` does not change.
 
-`implements` is a reserved word, and it does nothing:
+A type extends exactly one base, and that is where this model runs out. A `Plugin` that must
+also be something else, a second contract on the same type, a small value that should follow the
+contract without carrying a table pointer: none of them fits in one chain. Part 2 is the answer.
+
+## Part 2: Interfaces
+
+Part 1's contracts are base types, and a type has one base. A `Drawing` that is both a shape and a
+document, a `Point` that should be printable without carrying a table pointer, a library type that
+already extends something else: none of them fits. An **interface** is a contract that is not a
+base. Any type can take on as many as it needs, and keep its own base if it has one.
+
+### A contract any type can take on
 
 ```tiko
-{{#include ../examples/ch14/implements.tiko}}
+{{#include ../examples/ch14/ifaceshapes.tiko}}
+```
+
+```text
+{{#include ../examples/ch14/ifaceshapes.out}}
+```
+
+**`interface IShape`** lists what a shape can do and nothing else: no fields, no code, no
+constructor. Every member is public and abstract, so there is nothing to write on one but its
+signature. An interface is never created by itself.
+
+**`class Circle`** is a type that always extends `Object`. It is the same as
+`type Circle extends Object`, written so that the object model is the default. Its body starts with
+the contracts it takes on, **`implements IShape`**, and then each method says which member of the
+contract it provides: `declare function Area( ) as float64 implements IShape.Area`. The mapping is
+explicit. A public method called `Area` does not become `IShape.Area` until it says so, and a
+member the class forgets is an error that names it:
+
+```tiko
+{{#include ../examples/ch14/missing.tiko}}
 ```
 
 ```
-implements.tiko(7,39): error TKO0420: expected the end of the statement
+missing.tiko(10,16): error TKO1000: 'circle' does not implement 'ishape.kind'; add 'implements ishape.kind' to one of its methods
      |
-   7 | type Report extends Object implements Printable
-     |                                       ^
+  10 |     implements IShape
+     |                ^
+missing.tiko(6,5): note: 'kind' is required by interface 'ishape', declared here
+     |
+   6 |     function Kind( ) as ustring
+     |     ^
 ```
 
-A type extends exactly one base. To be a plugin and something else at once, let it extend the
-contract and hold the something else as a field.
+**An interface value is a reference.** `dim as IShape shapes( 0 to 1 )` holds two of them, and each
+is the address of an object together with that object's table for `IShape`: sixteen bytes, as the
+last line says. A `Circle` converts to `IShape` implicitly, and so does a pointer to one. Members
+are called with `.`, never `->`, because the value is not a pointer you can follow. `Describe`
+is written against `IShape` alone, and runs unchanged for every type that implements it.
+
+### Two contracts at once
+
+```tiko
+{{#include ../examples/ch14/twocontracts.tiko}}
+```
+
+```text
+{{#include ../examples/ch14/twocontracts.out}}
+```
+
+`Drawing` takes on three interfaces on one `implements` line. Part 1 could not express any of this:
+
+- **Two contracts both have a `Name`, and they mean different things.** The shape's name is its
+  title, the document's is a file name. They are different members, so `Drawing` maps each to its
+  own method: `Title` implements `IShape.Name`, `FileName` implements `IDocument.Name`. A method's
+  name does not have to match the member's.
+- **One method can provide several members.** `Close` implements `IDocument.Close` and
+  `IResource.Close` at once, because closing the drawing means the same thing to both.
+- **A private method can implement a member.** `WriteOut` is under `private:`, so code outside
+  `Drawing` cannot call it directly (`TKO0625`), yet `doc.Save( )` reaches it. Saving is something
+  you do to a document, not to a drawing that happens to be one.
+
+### Small values
+
+A type that implements an interface does not need a table pointer of its own. The table travels in
+the interface value instead, so a plain `type` can implement one:
+
+```tiko
+{{#include ../examples/ch14/ifacevalue.tiko}}
+```
+
+```text
+{{#include ../examples/ch14/ifacevalue.out}}
+```
+
+`Point` is eight bytes, its two fields. `OldPoint` follows the same contract written as an abstract
+base type, and every one of them pays eight bytes more for its table pointer. An array of a million
+points is 8 MB one way and 16 MB the other. The interface's sixteen bytes are paid only where an
+interface value is actually held.
+
+### Asking an interface what it holds
+
+```tiko
+{{#include ../examples/ch14/ifacequery.tiko}}
+```
+
+```text
+{{#include ../examples/ch14/ifacequery.out}}
+```
+
+`is` works with an interface on either side. `v is Note` asks whether the object behind `v` is a
+`Note`, or derives from one; `v is ISize` asks whether it implements `ISize`. Neither needs the
+object's type to be related to `IShow`.
+
+**`trycast`** answers the same questions with a value. `trycast( ISize, v )` is a **cross cast**:
+the same object, seen through another interface it implements, or an empty interface value, equal
+to `nullptr`, when it implements no such thing. `trycast( Note ptr, v )` is the checked downcast.
+`cast( Note ptr, v )` is the unchecked one, which is why the listing asks `v is Note` first: a
+wrong `cast` is undefined behaviour, exactly as it is in Part 1.
+
+### Who owns the object
+
+An interface value refers to an object. It does not own it, copy it or keep it alive. The compiler
+refuses the one case it can see, a temporary that would be gone by the next statement:
+
+```tiko
+{{#include ../examples/ch14/temporary.tiko}}
+```
+
+```
+temporary.tiko(24,14): error TKO1012: an interface reference cannot refer to a temporary; store the object in a variable first
+     |
+  24 | dim as IShow v = MakeTag( )
+     |              ^
+```
+
+`delete` through an interface is refused too (`TKO1013`): the interface does not know how the
+object was made, or whether it was made with `new` at all.
+
+```admonish danger title="Pitfall"
+**An interface value can outlive its object.** Return an `IShape` that refers to a local `Circle`,
+or keep one in a list after the `Circle` it refers to has gone out of scope, and it compiles
+cleanly. The next call through it reads whatever is in that memory by then.
+
+Keep the owning variable, or the owning pointer, as the object's own type, and make sure it lives
+at least as long as every interface value that refers to it. A host that holds plugins as
+interfaces is given them by code that owns them; it does not own them itself.
+```
+
+### Classes and interfaces together
+
+Interfaces do not replace class inheritance. They sit beside it, and a call through an interface
+honours every override below the class that implements it:
+
+```tiko
+{{#include ../examples/ch14/ifaceclass.tiko}}
+```
+
+```text
+{{#include ../examples/ch14/ifaceclass.out}}
+```
+
+`class Dog` names its base with an **`inherits`** line, the class's spelling of `extends`, at the top
+of its body. `Animal` implements `ISpeaker.Speak` with a *virtual* method, so an `ISpeaker` that
+refers to a `Dog` or a `Puppy` reaches their overrides. The rule from Part 1 still holds: `Dog`
+writes `virtual … override` so that `Puppy` can override it in turn.
+
+Use this only when you want a base class that supplies code its subclasses replace. The default
+style is the one in the previous sections: each class implements the interfaces it needs, with no
+base class and no `virtual` anywhere, and shared code goes in a procedure that takes the interface.
+
+### Generic interfaces and constraints
+
+An interface can take type parameters. Each instance, `IComparable( of Money )` or
+`IComparable( of Date )`, is an interface of its own. And a generic procedure or type can require
+its type argument to implement one, with `as` in its parameter list:
+
+```tiko
+{{#include ../examples/ch14/ifacegeneric.tiko}}
+```
+
+```text
+{{#include ../examples/ch14/ifacegeneric.out}}
+```
+
+`of T as IComparable( of T )` is a **constraint**: whatever `T` is, it must implement
+`IComparable` of itself. Several are written in braces, `of K as { IComparable( of K ), IShow }`.
+The constraint is checked once, where `Largest` is used, and a type argument that falls short is
+refused there:
+
+```tiko
+{{#include ../examples/ch14/constraint.tiko}}
+```
+
+```
+constraint.tiko(13,14): error TKO1022: type argument 'int32' does not implement 'icomparable( of int32 )', which 'largest( of t )' requires
+     |
+  13 | print Largest( counts( ) )
+     |              ^
+```
+
+Without the constraint, `Largest( counts( ) )` would fail inside the body, at `a( i ).CompareTo`,
+with an error about a member that `int32` does not have, and the reader would have to work out why
+from there. A constraint moves the error to the call that caused it.
+
+**A constraint does not change how the body runs.** `Largest` is still compiled once for each type
+it is used with, and inside it `a( i ).CompareTo( … )` is an ordinary call to `Money.CompareTo`: no
+interface value and no table. Chapter 17 covers generics in full.
+
+### Choosing between them
+
+| You want | Use |
+|---|---|
+| A contract that unrelated types follow | an interface |
+| A type to follow two contracts, or to keep its own base while following one | interfaces |
+| A small value type that follows a contract | a plain `type` that implements an interface |
+| A base class that supplies code its subclasses replace | `extends` (or `inherits`) with `virtual` |
+| `is` and `delete` through the base, with the base owning nothing else | the classic model, with a virtual destructor |
+| Generic code that needs something of `T` | a constraint, `of T as IFoo` |
+| A layout that C or COM defines | the classic model: an abstract type that extends `Object` |
+
+The two mix freely. A class can inherit a base and implement interfaces, a `type` can extend a
+class, and a classic base can implement an interface with virtual methods that its descendants
+override.
 
 ## What it costs
 
@@ -334,6 +547,15 @@ contract and hold the something else as a field.
   derived type needs to replace them, not by default.
 - **`is` walks the chain of base types**, so it costs a little more the deeper the hierarchy.
 - **Abstract types and `override` are compile-time only.** They cost nothing at run time.
+- **An interface value is sixteen bytes**, the object's address and its table for that interface,
+  and a call through it is one indirect call, the same as a virtual call. A class whose
+  implementing method is virtual adds a short hop through its own table, so an override is reached.
+- **Implementing an interface adds nothing to an object.** A plain `type` stays the size of its
+  fields; the table is in the interface value.
+- **`trycast` and `is` with an interface search a small table** at run time. Converting an object
+  to an interface, or an interface to one it inherits, does not.
+- **Mappings and constraints are compile-time only.** A constrained generic calls `T`'s methods
+  directly.
 
 ## Summary
 
@@ -355,8 +577,22 @@ contract and hold the something else as a field.
 - `a is T` is true for `T` and anything derived from it; guard every `cast( T ptr, @a )` with it.
   Prefer a virtual method to a chain of `is` tests.
 - **Passing by value slices** an object to its base part. Pass objects with virtual methods `byref`.
-- Use inheritance for "is a" and composition for "has a". An abstract type with no data is
-  tiko's interface; `implements` is reserved and means nothing (`TKO0420`).
+- Use inheritance for "is a" and composition for "has a". A type extends one base, so an
+  abstract type as a contract uses that base up.
+- An `interface` lists methods and properties with no data or code. A `type` or `class` takes it on
+  with an `implements` line and maps each member with `implements IFoo.Member`, explicitly; a
+  missing one is `TKO1000`. `class` is a type that always extends `Object`, with its base on an
+  `inherits` line.
+- A type may implement any number of interfaces. Members of the same name in two interfaces are
+  different members; a method's name need not match its member's, one method may provide several,
+  and a private method may provide one.
+- An interface value is a 16-byte reference. It converts from any implementing object or pointer,
+  is called with `.`, and **does not own its object**: temporaries are refused (`TKO1012`),
+  `delete` through it is refused (`TKO1013`), and the object must outlive it.
+- `is` and `trycast` take interfaces on either side; `trycast` answers null instead of guessing.
+- A plain `type` can implement an interface without a table pointer of its own.
+- Generic interfaces are interfaces per instance. A constraint, `of T as IFoo`, is checked where
+  the generic is used (`TKO1022`) and costs nothing in the body.
 
 ## Exercises
 
@@ -370,3 +606,8 @@ contract and hold the something else as a field.
    and why?
 5. A `Stack` that extends `Array`, or a `Stack` that has an `Array` field: argue for one. What can a
    caller do to the first that a stack should not allow?
+6. Add a `Triangle` to `ifaceshapes.tiko`. Then give `Rect` a second interface, `IScalable`, with
+   `sub Scale( byval k as float64 )`, and scale a rectangle through it. Check with `is` that a
+   triangle is not scalable. Which existing code did you change? {solution="ex14-03"}
+7. Rewrite `pluginhost.tiko` with an `IPlugin` interface. Who deletes the plugins now, and why can
+   the host no longer do it through the interface?

@@ -1,0 +1,36 @@
+'' ifacegeneric.tiko -- a generic interface, and a generic procedure
+'' that requires one of its type argument.
+
+interface IComparable( of T )
+    function CompareTo( byref other as T ) as int32
+end interface
+
+class Money
+    implements IComparable( of Money )
+    declare constructor( byval cents as int32 = 0 )
+    declare function CompareTo( byref other as Money ) as int32 _
+        implements IComparable( of Money ).CompareTo
+    cents as int32
+end class
+
+constructor Money( byval cents as int32 )
+    this.cents = cents
+end constructor
+
+function Money.CompareTo( byref other as Money ) as int32
+    return sgn( cents - other.cents )
+end function
+
+'' T must implement IComparable( of T ); the body calls T's own
+'' CompareTo directly.
+function Largest( of T as IComparable( of T ) )( a( ) as T ) as T
+    dim as int32 best = lbound( a )
+    for i as int32 = lbound( a ) + 1 to ubound( a )
+        if a( i ).CompareTo( a( best ) ) > 0 then best = i
+    next
+    return a( best )
+end function
+
+dim as Money prices( 0 to 2 ) = _
+    { Money( 250 ), Money( 1999 ), Money( 75 ) }
+print "largest:"; Largest( prices( ) ).cents

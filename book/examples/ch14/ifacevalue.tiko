@@ -1,0 +1,38 @@
+'' ifacevalue.tiko -- a plain type implements an interface and stays
+'' the size of its fields.
+
+interface IShow
+    function Show( ) as ustring
+end interface
+
+type Point
+    implements IShow
+    x as int32
+    y as int32
+    declare function Show( ) as ustring implements IShow.Show
+end type
+
+function Point.Show( ) as ustring
+    return "(" & x & ", " & y & ")"
+end function
+
+'' The same contract written as an abstract base type.
+type Showable extends Object
+    declare abstract function Show( ) as ustring
+end type
+
+type OldPoint extends Showable
+    x as int32
+    y as int32
+    declare function Show( ) as ustring override
+end type
+
+function OldPoint.Show( ) as ustring
+    return "(" & x & ", " & y & ")"
+end function
+
+dim as Point p = ( 3, 4 )
+dim as IShow v = p
+print v.Show( )
+print "Point:"; sizeof( Point ); " bytes"
+print "OldPoint:"; sizeof( OldPoint ); " bytes"

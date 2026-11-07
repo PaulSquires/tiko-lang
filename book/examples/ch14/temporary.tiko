@@ -1,0 +1,25 @@
+'' temporary.tiko -- an interface value refers to an object, and a
+'' temporary would be gone before the reference was used.
+
+interface IShow
+    function Show( ) as ustring
+end interface
+
+type Tag
+    implements IShow
+    text as ustring
+    declare function Show( ) as ustring implements IShow.Show
+end type
+
+function Tag.Show( ) as ustring
+    return text
+end function
+
+function MakeTag( ) as Tag
+    dim as Tag t
+    t.text = "new"
+    return t
+end function
+
+dim as IShow v = MakeTag( )
+print v.Show( )

@@ -1,0 +1,71 @@
+'' ex14-03.tiko -- a Triangle joins the shapes, and Rect takes on a
+'' second contract that the others do not.
+
+interface IShape
+    function Area( ) as float64
+    function Kind( ) as ustring
+end interface
+
+interface IScalable
+    sub Scale( byval k as float64 )
+end interface
+
+class Rect
+    implements IShape, IScalable
+    declare constructor( byval w as float64, byval h as float64 )
+    declare function Area( ) as float64 implements IShape.Area
+    declare function Kind( ) as ustring implements IShape.Kind
+    declare sub Scale( byval k as float64 ) implements IScalable.Scale
+    w as float64
+    h as float64
+end class
+
+constructor Rect( byval w as float64, byval h as float64 )
+    this.w = w : this.h = h
+end constructor
+
+function Rect.Area( ) as float64
+    return w * h
+end function
+
+function Rect.Kind( ) as ustring
+    return "rectangle"
+end function
+
+sub Rect.Scale( byval k as float64 )
+    w *= k : h *= k
+end sub
+
+class Triangle
+    implements IShape
+    declare constructor( byval b as float64, byval h as float64 )
+    declare function Area( ) as float64 implements IShape.Area
+    declare function Kind( ) as ustring implements IShape.Kind
+    b as float64
+    h as float64
+end class
+
+constructor Triangle( byval b as float64, byval h as float64 )
+    this.b = b : this.h = h
+end constructor
+
+function Triangle.Area( ) as float64
+    return b * h / 2
+end function
+
+function Triangle.Kind( ) as ustring
+    return "triangle"
+end function
+
+sub Describe( byval s as IShape )
+    print s.Kind( ); ", area"; s.Area( )
+end sub
+
+dim as Rect r = Rect( 2, 3 )
+dim as Triangle t = Triangle( 4, 3 )
+dim as IScalable sc = r
+sc.Scale( 2 )
+Describe( r )
+Describe( t )
+dim as IShape s = t
+print "triangle is scalable: "; cbool( s is IScalable )
