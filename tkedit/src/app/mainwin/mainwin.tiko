@@ -59,6 +59,7 @@
 #import "tka/outputpane"
 #import "tka/popuplist"
 #import "tka/startpanel"
+#import "tks/dapengine"
 #import "tks/parser"
 #import "tks/runner"
 #import "vendor/tkControls/tkApp"
@@ -79,6 +80,7 @@
 using containers
 using outcome
 using cmdids
+using dapengine
 using tkApp
 using tkHost
 using tkCodeEdit
@@ -443,6 +445,15 @@ public type Window
     BuildRaw as ustring
     BuildTicks as ulongint                    ' SDL_GetTicks( ) when the build started (the log's compile time)
     LogText as ustring
+    ' the debugger (docs/tkEdit/DEBUGGER.md): one session at a time, run by tks/dapengine
+    dbgTimer as long                    ' drains the engine's notes while a session is on
+    DbgOn as boolean                    ' a session is starting or running
+    DbgFirstStop as boolean             ' the entry stop is still to come (skipped when a breakpoint is set)
+    DbgHaveBps as boolean
+    DbgPaused as boolean                ' a stop is shown (set as the UI takes it, not as the engine stops)
+    DbgFrame as long                    ' the call-stack frame the variables are read in
+    DbgExecDoc as DocRef                ' the buffer showing the stop line
+    DbgStatus as ustring                ' "Stopped - breakpoint  main.tiko:19  in main"
     LastExe as ustring
     PendingArgs as Array( of ustring )
     Cleaning as boolean
@@ -612,6 +623,17 @@ public type Window
     declare sub OpenDiagnostic( byval i as long )
     declare sub StepDiagnostic( byval forward as boolean )
     declare sub RunProgram( byref exe as const ustring )
+    declare sub StartDebugSession( byref exe as const ustring )
+    declare sub PollDebugger( )
+    declare sub OnDebugStopped( byval reason as long )
+    declare sub OnDebugEnded( byval failed as boolean, byval code as long )
+    declare sub DebugCommand( byval id as Cmd )
+    declare function DebugActive( ) as boolean
+    declare function DebugStopped( ) as boolean
+    declare sub ToggleBreakpointAt( byval d as DocRef, byval ln as long )
+    declare sub DeleteAllBreakpoints( )
+    declare sub ShowExecLine( byref path as const ustring, byval ln as long )
+    declare sub ClearExecLine( )
     declare sub ShowOutput( byval visible as boolean )
     declare sub CycleFocus( )
     declare function OutputHasFocus( ) as boolean
@@ -771,6 +793,12 @@ function Window.Create( byval forcedScale as single ) as boolean
         for each id as Cmd in t.InGroup( cast( MenuGroup, idx ) )
             tkPopupMenu_SetItemEnabled( hPopup, clng( id ), mw->CanRun( id ) )
         next
+        ' one row starts a session and continues a stopped one (tiko-editor-tiko's)
+        if idx = clng( MenuGroup.Debug ) then
+            dim as ustring cap = i18n.Tr( "commands.StartDebugging", "Start Debugging" )
+            if mw->DebugActive( ) then cap = i18n.Tr( "debug.continue_menu", "Continue Debugging" )
+            tkPopupMenu_SetItemText( hPopup, clng( Cmd.StartDebugging ), cap )
+        end if
     end sub )
     tkWidget_Show( menuBar, false )
 
@@ -955,6 +983,11 @@ sub Window.Destroy( )
     if buildTimer then tkApp_KillTimer( buildTimer )
     buildTimer = 0
     Job.Finish( )
+    if dbgTimer then tkApp_KillTimer( dbgTimer )
+    dbgTimer = 0
+    if DbgOn then Engine_Stop( )
+    Engine_Join( )
+    DbgOn = false
     if scanTimer then tkApp_KillTimer( scanTimer )
     scanTimer = 0
     Scanner.Stop( )
@@ -1335,6 +1368,9 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, _
          Cmd.ProjectClose, Cmd.RunArguments
         return true
+    case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, _
+         Cmd.RunToCursor, Cmd.ToggleBreakpoint, Cmd.DeleteAllBreakpoints
+        return true
     case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
          Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
         return true
@@ -1346,13 +1382,22 @@ end function
 ' buffer (Blank is not one). Execute does nothing for the rest; the menus grey them.
 function Window.CanRun( byval id as Cmd ) as boolean
     if this.IsImplemented( id ) = false then return false
+    ' the debugger's: what the session's state allows (frmDebug's buttons)
+    select case id
+    case Cmd.StartDebugging : if DbgOn andalso (this.DebugStopped( ) = false) then return false
+    case Cmd.DebugBreak : return DbgOn andalso gDbgE.running
+    case Cmd.StopDebugging : return DbgOn
+    case Cmd.StepInto, Cmd.StepOver, Cmd.StepOut : return this.DebugStopped( )
+    case Cmd.RunToCursor : if this.DebugStopped( ) = false then return false
+    end select
     if this.ShowsStart( ) = false then return true
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
          Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
          Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
          Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
-         Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu
+         Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu, Cmd.StartDebugging, Cmd.DebugBreak, _
+         Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.DeleteAllBreakpoints
         return true
     end select
     return false
@@ -1447,6 +1492,10 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ProjectNew : this.NewProject( )
     case Cmd.ProjectClose : this.CloseProject( )
     case Cmd.RunArguments : this.OpenStrip( findstrip.StripMode.Args )
+    case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.RunToCursor
+        this.DebugCommand( id )
+    case Cmd.ToggleBreakpoint : this.ToggleBreakpointAt( this.Active( ), v->LineOf( v->Position( ) ) )
+    case Cmd.DeleteAllBreakpoints : this.DeleteAllBreakpoints( )
     case Cmd.BuildConfig : this.OpenChooser( PickKind.Build )
     case Cmd.Find : this.OpenStrip( findstrip.StripMode.Find )
     case Cmd.Replace : this.OpenStrip( findstrip.StripMode.Replace )
@@ -1510,6 +1559,7 @@ private function MenuTitle( byval g as MenuGroup ) as ustring
     case MenuGroup.View : return i18n.Tr( "menubar.View", "View" )
     case MenuGroup.Project : return i18n.Tr( "menubar.Project", "Project" )
     case MenuGroup.Build : return i18n.Tr( "menubar.Build", "Build" )
+    case MenuGroup.Debug : return i18n.Tr( "menubar.Debug", "Debug" )
     end select
     return GroupName( g )
 end function
@@ -2603,6 +2653,7 @@ sub Window.CaptureState( byref st as session.SessionState, byref base_ as const 
         st.Files[at].FirstLine = d->Main.FirstLine( )
         st.Files[at].Position = d->Main.Position( )
         st.Files[at].Bookmarks = d->Main.Bookmarks( )
+        st.Files[at].Breakpoints = d->Main.Breakpoints( )
     next
     st.Active = ""
     st.Pane2 = ""
@@ -2626,6 +2677,7 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
         if this.OpenText( full ) = false then continue for
         dim as DocRef d = this.Active( )
         d->Main.SetBookmarks( f.Bookmarks )
+        d->Main.SetBreakpoints( f.Breakpoints )
         d->Main.SetPosition( f.Position )
         d->Main.SetFirstLine( f.FirstLine )
     next
@@ -3186,14 +3238,19 @@ sub Window.OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
     if len( pl.EndLine ) then v->InsertLineAfter( ln - 1, pl.EndLine )
 end sub
 
-' A click in the bookmark margin toggles the line's bookmark; one in the fold margin folds.
+' A click in the marker margin toggles the line's bookmark or breakpoint; one in the fold margin folds.
 sub Window.OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
     dim as DocRef d = this.DocOfWidget( hEdit )
     if d = 0 then exit sub
     dim as editor.CodeView ptr v = @d->Main
     dim as long ln = v->LineOf( position )
     if margin = 1 then
-        v->ToggleBookmark( ln )
+        ' bookmark or breakpoint: [editor] margin_click (author 2026-11-07)
+        if Prefs.MarginClick = settings.MarginAction.Breakpoint then
+            this.ToggleBreakpointAt( d, ln )
+        else
+            v->ToggleBookmark( ln )
+        end if
     elseif margin = 2 then
         v->FoldLineAt( ln )
         this.SyncBars( )
@@ -3645,6 +3702,8 @@ sub Window.FinishBuild( )
         end if
     elseif build.RunsAfterBuild( BuildAct ) then
         this.RunProgram( LastExe )
+    elseif BuildAct = build.BuildAction.StartDebugging then
+        this.StartDebugSession( LastExe )
     end if
 end sub
 
@@ -3763,6 +3822,228 @@ sub Window.RunProgram( byref exe as const ustring )
     end if
     ' started: the build's result stays in the status line (author 2026-10-27)
     if Launch( argv, dir_ ) = false then this.SetBuildMessage( strings.Format( i18n.Tr( "build.not_run", "could not start {}" ), fs.PathFileName( exe ) ) )
+end sub
+
+' ================================================================ the debugger
+
+const DEBUG_POLL_MS = 30
+
+function Window.DebugActive( ) as boolean
+    return DbgOn
+end function
+
+' A session is on and its program is stopped: stepping, variables and Run to Cursor act.
+function Window.DebugStopped( ) as boolean
+    return DbgOn andalso DbgPaused andalso gDbgE.active andalso (gDbgE.running = false)
+end function
+
+' Windows: lldb-dap 21 loads python310.dll and never answers without it, so it is looked for first
+' (tiko-editor-tiko's check): beside lldb-dap, then on the PATH. "" = found.
+private function DebugPythonMissing( byref adapter as const ustring ) as ustring
+    if platform.CurrentOs( ) <> platform.Os.Windows then return ""
+    if fs.IsFile( fs.PathJoin( fs.PathParent( adapter ), "python310.dll" ) ) then return ""
+    if len( platform.FindOnPath( "python310.dll" ) ) then return ""
+    return i18n.Tr( "debug.no_python", "the debugger needs Python 3.10 (64-bit) on the PATH: lldb-dap loads its python310.dll" )
+end function
+
+' Start Debugging's build succeeded: a session on its program. Every breakpoint of every open
+' buffer is handed over first; with none, the session stops at the program's first statement.
+sub Window.StartDebugSession( byref exe as const ustring )
+    if DbgOn then exit sub
+    if (len( exe ) = 0) orelse (fs.IsFile( exe ) = false) then
+        this.SetBuildMessage( strings.Format( i18n.Tr( "build.nothing_to_run", "nothing to run: build it first ({})" ), exe ) )
+        exit sub
+    end if
+    gDbgE.adapter = Prefs.DebugAdapter
+    dim as ustring adapter = Engine_AdapterPath( )
+    if len( adapter ) = 0 then
+        this.SetBuildMessage( i18n.Tr( "debug.no_adapter", "lldb-dap was not found: install LLVM, or set [debug] adapter in settings.toml" ) )
+        exit sub
+    end if
+    dim as ustring py = DebugPythonMissing( adapter )
+    if len( py ) then this.SetBuildMessage( py ) : exit sub
+    dim as string why
+    dim as string exe8 = exe
+    if Engine_HasDwarf( exe8, why ) <> DBGP_OK then
+        this.SetBuildMessage( strings.Format( i18n.Tr( "debug.no_dwarf", "{0} cannot be debugged: {1}" ), fs.PathFileName( exe ), why ) )
+        exit sub
+    end if
+    Engine_ClearBreakpoints( )
+    DbgHaveBps = false
+    for each d as DocRef in Docs
+        if len( d->Path ) = 0 then continue for
+        dim as Array( of long ) bps = d->Main.Breakpoints( )
+        if bps.Count( ) = 0 then continue for
+        dim as string p8 = d->Path
+        dim as long si = Engine_SourceIndex( p8 )
+        for each ln as long in bps
+            if Engine_AddBreakpoint( si, ln + 1 ) = DBGP_OK then DbgHaveBps = true     ' the engine's lines are 1-based
+        next
+    next
+    dim as Array( of ustring ) args = project.SplitArgs( this.RunArgsNow( ) )
+    dim as boolean gui = instr( " " & lcase( BuildFlags ) & " ", " -s gui " ) > 0
+    dim as boolean useTerm = (gui = false) orelse Prefs.RunInTerminal
+    dim as string runDir = fs.PathJoin( ConfigDir, "run" )
+    if Engine_Start( exe8, args, useTerm, runDir ) <> DBGP_OK then
+        this.SetBuildMessage( strings.Format( i18n.Tr( "debug.not_started", "the debugger could not start: {}" ), gDbgE.lastError ) )
+        exit sub
+    end if
+    DbgOn = true
+    DbgPaused = false
+    DbgFirstStop = true
+    DbgFrame = 0
+    DbgStatus = i18n.Tr( "debug.running", "Running..." )
+    this.SetBuildMessage( DbgStatus )
+    dbgTimer = tkApp_SetTimer( DEBUG_POLL_MS, sub( byval id as long, byval payload as any ptr )
+        cast( Window ptr, payload )->PollDebugger( )
+    end sub, @this )
+end sub
+
+sub Window.PollDebugger( )
+    dim as long kind, detail
+    while Engine_NextNote( kind, detail )
+        select case kind
+        case DBGP_NOTE_STOPPED : this.OnDebugStopped( detail )
+        case DBGP_NOTE_EXITED : this.OnDebugEnded( false, detail )
+        case DBGP_NOTE_FAILED : this.OnDebugEnded( true, 0 )
+        end select
+        if DbgOn = false then exit while
+    wend
+end sub
+
+private function DebugReasonText( byval reason as long ) as ustring
+    select case reason
+    case DBGP_STOP_BREAKPOINT : return i18n.Tr( "debug.stop_breakpoint", "Stopped - breakpoint" )
+    case DBGP_STOP_TEMPBP : return i18n.Tr( "debug.stop_cursor", "Stopped - run to cursor" )
+    case DBGP_STOP_USERBREAK : return i18n.Tr( "debug.stop_break", "Stopped - break" )
+    case DBGP_STOP_EXCEPTION : return i18n.Tr( "debug.stop_exception", "Stopped - exception" )
+    end select
+    return i18n.Tr( "debug.stop_step", "Stopped" )
+end function
+
+' A stop: the line shown, the status said. The first stop of a session with breakpoints is the
+' program's entry, which nobody asked to see: it runs on, leaving no trace (frmDebug's rule).
+sub Window.OnDebugStopped( byval reason as long )
+    if DbgFirstStop then
+        DbgFirstStop = false
+        if DbgHaveBps then
+            Engine_Resume( DBGP_RUN_CONTINUE )
+            exit sub
+        end if
+    end if
+    DbgFrame = 0
+    DbgPaused = true
+    dim as ustring where_ = ""
+    if gDbgE.frN > 0 then
+        dim as ustring p = gDbgE.fr(0).path
+        if len( p ) then
+            where_ = fs.PathFileName( p ) & ":" & gDbgE.fr(0).ln
+            this.ShowExecLine( p, gDbgE.fr(0).ln )
+        else
+            this.ClearExecLine( )
+            where_ = "&h" & hex( gDbgE.fr(0).pc )
+        end if
+    end if
+    DbgStatus = DebugReasonText( reason ) & "  " & where_
+    if gDbgE.frN > 0 andalso len( gDbgE.fr(0).nm ) then
+        DbgStatus &= "  " & strings.Format( i18n.Tr( "debug.in_proc", "in {}" ), gDbgE.fr(0).nm )
+    end if
+    if reason = DBGP_STOP_EXCEPTION then DbgStatus &= "  " & gDbgE.excepText
+    this.SetBuildMessage( DbgStatus )
+end sub
+
+sub Window.OnDebugEnded( byval failed as boolean, byval code as long )
+    if dbgTimer then tkApp_KillTimer( dbgTimer )
+    dbgTimer = 0
+    DbgOn = false
+    DbgPaused = false
+    this.ClearExecLine( )
+    Engine_Join( )
+    if failed then
+        DbgStatus = strings.Format( i18n.Tr( "debug.failed", "the debugger could not start the program: {}" ), gDbgE.lastError )
+    elseif code = 0 then
+        DbgStatus = i18n.Tr( "debug.exited_ok", "Debug target exited normally" )
+    else
+        DbgStatus = strings.Format( i18n.Tr( "debug.exited_code", "Debug target ended (exit code {})" ), code )
+    end if
+    this.SetBuildMessage( DbgStatus )
+end sub
+
+' Where the program stopped: that buffer opened and the line marked, in view.
+sub Window.ShowExecLine( byref path as const ustring, byval ln as long )
+    this.ClearExecLine( )
+    this.JumpTo( path, ln - 1, 0, 0 )
+    dim as DocRef d = this.FindOpen( path )
+    if d = 0 then exit sub
+    d->Main.SetExecLine( ln - 1 )
+    DbgExecDoc = d
+end sub
+
+sub Window.ClearExecLine( )
+    if DbgExecDoc = 0 then exit sub
+    for each d as DocRef in Docs                 ' it may have been closed since
+        if d = DbgExecDoc then d->Main.SetExecLine( -1 )
+    next
+    DbgExecDoc = 0
+end sub
+
+' The Debug menu's session commands, from the menu, the keys and the Debug tab's buttons alike.
+sub Window.DebugCommand( byval id as Cmd )
+    select case id
+    case Cmd.StartDebugging
+        if DbgOn = false then
+            this.StartBuild( build.BuildAction.StartDebugging )
+            exit sub
+        end if
+        if this.DebugStopped( ) = false then exit sub
+        Engine_Resume( DBGP_RUN_CONTINUE )
+    case Cmd.DebugBreak
+        if DbgOn andalso gDbgE.running then Engine_Pause( )
+        exit sub
+    case Cmd.StopDebugging
+        if DbgOn then Engine_Stop( )
+        exit sub
+    case Cmd.StepInto, Cmd.StepOver, Cmd.StepOut
+        if this.DebugStopped( ) = false then exit sub
+        dim as long mode = DBGP_RUN_STEPINTO
+        if id = Cmd.StepOver then mode = DBGP_RUN_STEPOVER
+        if id = Cmd.StepOut then mode = DBGP_RUN_STEPOUT
+        Engine_Resume( mode )
+    case Cmd.RunToCursor
+        if this.DebugStopped( ) = false then exit sub
+        dim as DocRef d = this.Active( )
+        if (d = 0) orelse (len( d->Path ) = 0) then exit sub
+        dim as string p8 = d->Path
+        Engine_SetRunToCursor( Engine_SourceIndex( p8 ), this.View( ).LineOf( this.View( ).Position( ) ) + 1 )
+        Engine_Resume( DBGP_RUN_TOCURSOR )
+    case else
+        exit sub
+    end select
+    DbgPaused = false
+    DbgStatus = i18n.Tr( "debug.running", "Running..." )
+    this.SetBuildMessage( DbgStatus )
+end sub
+
+' A breakpoint on a buffer's line goes or comes, and a running session hears of it at once.
+sub Window.ToggleBreakpointAt( byval d as DocRef, byval ln as long )
+    if d = 0 then exit sub
+    d->Main.ToggleBreakpoint( ln )
+    if (DbgOn = false) orelse (len( d->Path ) = 0) then exit sub
+    dim as string p8 = d->Path
+    dim as long si = Engine_SourceIndex( p8 )
+    if d->Main.HasBreakpoint( ln ) then
+        Engine_AddBreakpoint( si, ln + 1 )
+    else
+        Engine_RemoveBreakpoint( si, ln + 1 )
+    end if
+end sub
+
+' Every breakpoint in every open buffer.
+sub Window.DeleteAllBreakpoints( )
+    for each d as DocRef in Docs
+        d->Main.ClearBreakpoints( )
+    next
+    if DbgOn then Engine_ClearBreakpoints( )
 end sub
 
 sub Window.ShowOutput( byval visible as boolean )

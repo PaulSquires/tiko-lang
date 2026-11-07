@@ -28,6 +28,7 @@ public sub Run( byref c as tally.Checker )
     f.Position = 294
     f.Bookmarks.Push( 12 )
     f.Bookmarks.Push( 40 )
+    f.Breakpoints.Push( 21 )
     st.Files.Push( f )
     dim as session.FileState g
     g.Path = "C:/elsewhere/x.tiko"
@@ -52,6 +53,7 @@ public sub Run( byref c as tally.Checker )
     if b.Files.Count( ) = 2 then
         c.Check( b.Files[0].Open andalso (b.Files[0].FirstLine = 17) andalso (b.Files[0].Position = 294), "first line, position, open" )
         c.Check( (b.Files[0].Bookmarks.Count( ) = 2) andalso (b.Files[0].Bookmarks[1] = 40), "bookmarks" )
+        c.Check( (b.Files[0].Breakpoints.Count( ) = 1) andalso (b.Files[0].Breakpoints[0] = 21), "breakpoints" )
         c.Check( b.Files[1].Open = false, "a closed file stays closed" )
     end if
     c.Check( (b.Recent.Count( ) = 2) andalso (b.Recent[0] = "C:/a.tiko"), "the recent list, newest first" )

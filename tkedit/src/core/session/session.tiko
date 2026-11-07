@@ -15,7 +15,7 @@
 '     version = 1
 '     [session]   active, split (none | vertical | horizontal), split_ratio, pane2, build,
 '                 project (session.toml: the .tkedit that was open)
-'     [[files]]   path, open, first_line, position, bookmarks = [...], folds = [...]
+'     [[files]]   path, open, first_line, position, bookmarks = [...], breakpoints = [...], folds = [...]
 '     [recent]    files = [...]   newest first; session.toml only (a project keeps none)
 '
 ' A path inside the base folder is stored relative to it with "/" separators, else absolute.
@@ -46,6 +46,7 @@ public type FileState
     FirstLine as long
     Position  as longint
     Bookmarks as Array( of long )
+    Breakpoints as Array( of long )      ' 0-based lines, as bookmarks
     Folds     as Array( of long )      ' fold headers that are collapsed
 end type
 
@@ -121,6 +122,7 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
         f.FirstLine = tomlget.GetInt( t, "first_line", 0 )
         f.Position = tomlget.GetInt( t, "position", 0 )
         f.Bookmarks = tomlget.GetInts( t, "bookmarks" )
+        f.Breakpoints = tomlget.GetInts( t, "breakpoints" )
         f.Folds = tomlget.GetInts( t, "folds" )
         st.Files.Push( f )
     next
@@ -168,6 +170,7 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         tomlget.SetInt( t, "first_line", f.FirstLine )
         tomlget.SetInt( t, "position", f.Position )
         tomlget.SetInts( t, "bookmarks", f.Bookmarks )
+        tomlget.SetInts( t, "breakpoints", f.Breakpoints )
         tomlget.SetInts( t, "folds", f.Folds )
         a.Push( t )
     next

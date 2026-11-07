@@ -104,6 +104,16 @@ public enum Cmd explicit
     BuildConfig
     NextDiagnostic
     PrevDiagnostic
+    ' Debug
+    StartDebugging
+    DebugBreak
+    StopDebugging
+    StepInto
+    StepOver
+    StepOut
+    RunToCursor
+    ToggleBreakpoint
+    DeleteAllBreakpoints
     Last_                   ' not a command: the count
 end enum
 
@@ -115,6 +125,7 @@ public enum MenuGroup explicit
     View
     Project
     Build
+    Debug
     Count_                  ' not a menu
 end enum
 
@@ -126,6 +137,7 @@ public function GroupName( byval g as MenuGroup ) as ustring
     case MenuGroup.View : return "View"
     case MenuGroup.Project : return "Project"
     case MenuGroup.Build : return "Build"
+    case MenuGroup.Debug : return "Debug"
     end select
     return ""
 end function
@@ -301,4 +313,17 @@ constructor CommandTable( )
     this.Def( Cmd.BuildConfig, "BuildConfig", g, "Build Configuration...", "F7", true )
     this.Def( Cmd.NextDiagnostic, "NextDiagnostic", g, "Next Diagnostic", "Alt+PgDn" )
     this.Def( Cmd.PrevDiagnostic, "PrevDiagnostic", g, "Previous Diagnostic", "Alt+PgUp" )
+
+    ' tiko-editor-tiko's Debug menu and keys (docs/tkEdit/DEBUGGER.md G2); Start Debugging reads
+    ' "Continue" while a session is stopped
+    g = MenuGroup.Debug
+    this.Def( Cmd.StartDebugging, "StartDebugging", g, "Start Debugging", "F6" )
+    this.Def( Cmd.DebugBreak, "DebugBreak", g, "Break", "Primary+F6" )
+    this.Def( Cmd.StopDebugging, "StopDebugging", g, "Stop Debugging", "Shift+F6" )
+    this.Def( Cmd.StepInto, "StepInto", g, "Step", "F11", true )
+    this.Def( Cmd.StepOver, "StepOver", g, "Step Over", "F10" )
+    this.Def( Cmd.StepOut, "StepOut", g, "Step Out", "Shift+F11" )
+    this.Def( Cmd.RunToCursor, "RunToCursor", g, "Run to Cursor", "Primary+F10" )
+    this.Def( Cmd.ToggleBreakpoint, "ToggleBreakpoint", g, "Toggle Breakpoint", "F9", true )
+    this.Def( Cmd.DeleteAllBreakpoints, "DeleteAllBreakpoints", g, "Delete All Breakpoints", "Primary+Shift+F9" )
 end constructor

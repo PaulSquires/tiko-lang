@@ -21,6 +21,9 @@ using tkHost
 
 ' The marker and indicators every view defines (the old editor's numbers).
 public const MARKER_BOOKMARK = 0
+public const MARKER_BREAKPOINT = 1      ' the debugger's (tiko-editor-tiko's numbers too)
+public const MARKER_EXECLINE = 2        ' the arrow where the debugger stopped
+public const MARKER_EXECBACK = 3        ' and that line's background
 public const INDIC_COMPILE_ERROR = 10
 public const INDIC_COMPILE_WARNING = 11
 const INDIC_BRACE = 9
@@ -93,6 +96,9 @@ public type Look
     ErrorColor    as long
     WarningColor  as long
     Bookmark      as long
+    Breakpoint    as long
+    ExecLine      as long
+    ExecLineBack  as long
     ' the call tip: Scintilla's own colours are light, whatever the theme
     CallTipBack      as long = &h252526
     CallTipFore      as long = &hD4D4D4
@@ -175,6 +181,14 @@ public type CodeView
     declare sub SetBookmarks( byref lines as const Array( of long ) )
     declare sub ClearBookmarks( )
     declare function NextBookmark( byval forward as boolean ) as boolean   ' wraps; FALSE = none
+    ' ---- the debugger: breakpoints (they move with the text, as bookmarks do) and the stop line
+    declare sub ToggleBreakpoint( byval ln as long )
+    declare function HasBreakpoint( byval ln as long ) as boolean
+    declare function Breakpoints( ) as Array( of long )
+    declare sub SetBreakpoints( byref lines as const Array( of long ) )
+    declare sub ClearBreakpoints( )
+    declare sub SetExecLine( byval ln as long )                  ' -1 = none
+    declare function ExecLine( ) as long                         ' -1 = none
 
     ' ---- find and replace (Scintilla's search: plain, word, case, regex)
     declare function Find( byref phrase as const ustring, byref o as const FindOptions, byval forward as boolean ) as boolean
@@ -661,6 +675,58 @@ end sub
 sub CodeView.ClearBookmarks( )
     if w then tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_BOOKMARK )
 end sub
+
+sub CodeView.ToggleBreakpoint( byval ln as long )
+    if w = 0 then exit sub
+    if this.HasBreakpoint( ln ) then
+        tkCodeEdit_Send( w, SCI_MARKERDELETE, ln, MARKER_BREAKPOINT )
+    else
+        tkCodeEdit_Send( w, SCI_MARKERADD, ln, MARKER_BREAKPOINT )
+    end if
+end sub
+
+function CodeView.HasBreakpoint( byval ln as long ) as boolean
+    if w = 0 then return false
+    return (tkCodeEdit_Send( w, SCI_MARKERGET, ln ) and (1 shl MARKER_BREAKPOINT)) <> 0
+end function
+
+' The lines with a breakpoint, top to bottom (0-based).
+function CodeView.Breakpoints( ) as Array( of long )
+    dim as Array( of long ) a
+    if w = 0 then return a
+    dim as long ln = tkCodeEdit_Send( w, SCI_MARKERNEXT, 0, 1 shl MARKER_BREAKPOINT )
+    while ln >= 0
+        a.Push( ln )
+        ln = tkCodeEdit_Send( w, SCI_MARKERNEXT, ln + 1, 1 shl MARKER_BREAKPOINT )
+    wend
+    return a
+end function
+
+sub CodeView.SetBreakpoints( byref lines as const Array( of long ) )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_BREAKPOINT )
+    for each ln as long in lines
+        tkCodeEdit_Send( w, SCI_MARKERADD, ln, MARKER_BREAKPOINT )
+    next
+end sub
+
+sub CodeView.ClearBreakpoints( )
+    if w then tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_BREAKPOINT )
+end sub
+
+sub CodeView.SetExecLine( byval ln as long )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_EXECLINE )
+    tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_EXECBACK )
+    if ln < 0 then exit sub
+    tkCodeEdit_Send( w, SCI_MARKERADD, ln, MARKER_EXECLINE )
+    tkCodeEdit_Send( w, SCI_MARKERADD, ln, MARKER_EXECBACK )
+end sub
+
+function CodeView.ExecLine( ) as long
+    if w = 0 then return -1
+    return tkCodeEdit_Send( w, SCI_MARKERNEXT, 0, 1 shl MARKER_EXECLINE )
+end function
 
 ' To the next (previous) bookmark after the caret's line, wrapping. FALSE = there is none.
 function CodeView.NextBookmark( byval forward as boolean ) as boolean
@@ -1332,7 +1398,7 @@ sub CodeView.ApplyLook( byref k as const Look )
     if k.LineNumbers then numW = tkCodeEdit_SendText( w, SCI_TEXTWIDTH, STYLE_LINENUMBER, "_99999" )
     tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 0, numW )
     tkCodeEdit_Send( w, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL )
-    tkCodeEdit_Send( w, SCI_SETMARGINMASKN, 1, 1 shl MARKER_BOOKMARK )
+    tkCodeEdit_Send( w, SCI_SETMARGINMASKN, 1, (1 shl MARKER_BOOKMARK) or (1 shl MARKER_BREAKPOINT) or (1 shl MARKER_EXECLINE) )
     tkCodeEdit_Send( w, SCI_SETMARGINSENSITIVEN, 1, 1 )
     tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 1, cint( 12 * sc ) )
     tkCodeEdit_Send( w, SCI_SETMARGINTYPEN, 2, SC_MARGIN_SYMBOL )
@@ -1347,6 +1413,9 @@ sub CodeView.ApplyLook( byref k as const Look )
     tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 3, cint( 4 * sc ) )
 
     MarkerSet( w, MARKER_BOOKMARK, SC_MARK_VERTICALBOOKMARK, k.Bookmark, k.Bookmark )
+    MarkerSet( w, MARKER_BREAKPOINT, SC_MARK_CIRCLE, k.Breakpoint, k.Breakpoint )
+    MarkerSet( w, MARKER_EXECLINE, SC_MARK_SHORTARROW, k.ExecLine, k.ExecLine )
+    MarkerSet( w, MARKER_EXECBACK, SC_MARK_BACKGROUND, k.ExecLineBack, k.ExecLineBack )
     tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_COMPILE_ERROR, INDIC_SQUIGGLEPIXMAP )
     tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_COMPILE_ERROR, Bgr( k.ErrorColor ) )
     tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_COMPILE_WARNING, INDIC_SQUIGGLEPIXMAP )

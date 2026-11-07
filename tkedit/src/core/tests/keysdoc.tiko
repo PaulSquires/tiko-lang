@@ -68,10 +68,8 @@ s &= nl & "## Fixed keys (not rebindable)" & nl & nl & _
     "- Scintilla's own letter chords (Ctrl+Z/Y/X/C/V/A/L/T/D/U and their Shift forms) are cleared, so" & nl & _
     "  keybindings.toml is the only keymap: an unbound chord does nothing." & nl & _
     "- Two commands on one chord: the first in the table keeps it, and the status line says so." & nl & _
-    "- Exit is Alt+F4; on macOS the system's Cmd+Q." & nl & nl & _
-    "## Reserved" & nl & nl & _
-    "F6, F9, F10, F11, Ctrl+F6, Ctrl+F10, Shift+F6, Shift+F11 and Ctrl+Shift+F9 are left unbound for a" & nl & _
-    "later debugger (D6)." & nl
+    "- Exit is Alt+F4; on macOS the system's Cmd+Q." & nl & _
+    "- The Debug keys are tiko-editor-tiko's (docs/tkEdit/DEBUGGER.md G2)." & nl
 if fs.WriteAtomic( outPath, s ).IsOk( ) = false then
     print "keysdoc: cannot write " & outPath
     end 1

@@ -61,6 +61,9 @@ public type Theme
     ErrorColor as long
     WarningColor as long
     Bookmark as long
+    Breakpoint as long          ' the breakpoint marker (debugger)
+    ExecLine as long            ' the arrow on the line the debugger stopped at
+    ExecLineBack as long        ' and that line's background
     ' [syntax]
     Default_ as StyleSpec
     Comment as StyleSpec
@@ -100,6 +103,7 @@ public function DarkTheme( ) as Theme
     t.Gutter = &h1E1E1E : t.GutterFg = &h858585 : t.Fold = &h1E1E1E
     t.IndentGuide = &h404040 : t.Brace = &h515C6A : t.FindMatch = &h623315
     t.ErrorColor = &hF14C4C : t.WarningColor = &hCCA700 : t.Bookmark = &h0E639C
+    t.Breakpoint = &hE51400 : t.ExecLine = &hFFCC00 : t.ExecLineBack = &h4B4B18
     t.Default_ = Spec( &hD4D4D4 )
     t.Comment = Spec( &h6A9955, true )
     t.Number_ = Spec( &hB5CEA8 )
@@ -226,7 +230,11 @@ public function ParseTheme( byref text as const ustring, byref name_ as const us
     ReadColor( e, "error", t.ErrorColor, "editor", w )
     ReadColor( e, "warning", t.WarningColor, "editor", w )
     ReadColor( e, "bookmark", t.Bookmark, "editor", w )
-    WarnUnknown( e, "bg fg caret caret_line selection gutter gutter_fg fold indent_guide brace find_match error warning bookmark", "editor", w )
+    ReadColor( e, "breakpoint", t.Breakpoint, "editor", w )
+    ReadColor( e, "exec_line", t.ExecLine, "editor", w )
+    ReadColor( e, "exec_line_bg", t.ExecLineBack, "editor", w )
+    WarnUnknown( e, "bg fg caret caret_line selection gutter gutter_fg fold indent_guide brace find_match error warning bookmark " & _
+                 "breakpoint exec_line exec_line_bg", "editor", w )
     dim as config.TomlValue s = root.Get( "syntax" ).ValueOr( config.TomlValue.NewTable( ) )
     ReadStyle( s, "default", t.Default_, w )
     ReadStyle( s, "comment", t.Comment, w )

@@ -28,6 +28,9 @@ find_match = "#623315"
 error = "#f14c4c"
 warning = "#cca700"
 bookmark = "#0e639c"
+breakpoint = "#e51400"
+exec_line = "#ffcc00"
+exec_line_bg = "#4b4b18"
 
 [syntax]
 default = "#d4d4d4"

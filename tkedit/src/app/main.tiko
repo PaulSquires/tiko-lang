@@ -91,6 +91,7 @@ if command( 1 ) = "--selftest" then
     selftest.FindPass( t, 1.0 )
     selftest.FindPass( t, 1.75 )
     selftest.BuildPass( t, 1.0 )
+    selftest.DebugPass( t, 1.0 )
     selftest.IntelPass( t, 1.0 )
     selftest.PolishPass( t, 1.0 )
     selftest.InboxPass( t, 1.0 )

@@ -12,13 +12,14 @@
 '
 '     version = 1
 '     [editor]   font, font_size, extra_line_spacing, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
-'                indent_guides, fold_margin, auto_indent, auto_end, codetips, double_comment
+'                indent_guides, fold_margin, auto_indent, auto_end, codetips, double_comment, margin_click
 '     [ui]       theme, font_size, language (en | es | fr | de | zh; docs/tkEdit/I18N.md), show_menu, tab_strip,
 '                single_instance
 '     [statusbar] show_project, show_settings, show_keys
 '     [files]    new_eol (native | crlf | lf), new_encoding (utf8 | utf8bom | utf16 | ansi),
 '                save_before_build, trim_trailing
 '     [compiler] tiko, includes = [...], run_in_terminal
+'     [debug]    adapter
 '     [[builds]] name, options, default
 #module "settings"
 
@@ -49,6 +50,12 @@ public type BuildConfig
     IsDefault as boolean
 end type
 
+' What a click in the marker margin toggles (author 2026-11-07).
+public enum MarginAction explicit
+    Bookmark = 0
+    Breakpoint
+end enum
+
 public type EditorSettings
     ' [editor]
     Font         as ustring              ' "" = the bundled JetBrains Mono; else a .ttf path
@@ -66,6 +73,7 @@ public type EditorSettings
     AutoEnd      as boolean = true
     CodeTips     as boolean = true
     DoubleComment as boolean = true      ' Comment Block inserts '' (tiko's style guide), else '
+    MarginClick  as MarginAction         ' a click in the marker margin: bookmark (default) or breakpoint
     ' [ui]
     Theme        as ustring = "dark"
     UiFontSize   as long = 10
@@ -86,6 +94,8 @@ public type EditorSettings
     Tiko         as ustring              ' "" = tiko on PATH, else beside tkEdit (build.SiblingCompiler)
     Includes     as Array( of ustring )
     RunInTerminal as boolean = true
+    ' [debug]
+    DebugAdapter as ustring              ' "" = lldb-dap found by platform.FindLldbDap
     ' [[builds]]
     Builds       as Array( of BuildConfig )
     declare function DefaultBuild( ) as ustring   ' the default build's name, else the first's
@@ -163,6 +173,7 @@ public function FromToml( byref root as config.TomlValue ) as EditorSettings
     s.AutoEnd = tomlget.GetBool( e, "auto_end", s.AutoEnd )
     s.CodeTips = tomlget.GetBool( e, "codetips", s.CodeTips )
     s.DoubleComment = tomlget.GetBool( e, "double_comment", s.DoubleComment )
+    if lcase( trim( tomlget.GetStr( e, "margin_click", "bookmark" ) ) ) = "breakpoint" then s.MarginClick = MarginAction.Breakpoint
     dim as config.TomlValue u = tomlget.Table( root, "ui" )
     s.Theme = tomlget.GetStr( u, "theme", s.Theme )
     s.UiFontSize = Clamp( tomlget.GetInt( u, "font_size", s.UiFontSize ), 6, 32 )
@@ -184,6 +195,7 @@ public function FromToml( byref root as config.TomlValue ) as EditorSettings
     s.Tiko = tomlget.GetStr( c, "tiko", s.Tiko )
     s.Includes = tomlget.GetStrings( c, "includes" )
     s.RunInTerminal = tomlget.GetBool( c, "run_in_terminal", s.RunInTerminal )
+    s.DebugAdapter = tomlget.GetStr( tomlget.Table( root, "debug" ), "adapter", s.DebugAdapter )
     dim as Array( of config.TomlValue ) bs = tomlget.Tables( root, "builds" )
     if bs.Count( ) > 0 then
         s.Builds.Clear( )
@@ -276,6 +288,8 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         KeyLine( "auto_end", BoolText( s.AutoEnd ), "Enter after 'sub f()' inserts 'end sub'" ) & _
         KeyLine( "codetips", BoolText( s.CodeTips ), "completion and calltips" ) & _
         KeyLine( "double_comment", BoolText( s.DoubleComment ), "Comment Block inserts two comment marks (tiko style), false = one" ) & _
+        KeyLine( "margin_click", tomlget.Quoted( iif( s.MarginClick = MarginAction.Breakpoint, "breakpoint", "bookmark" ) ), _
+                 "a click beside a line toggles: bookmark | breakpoint" ) & _
         nl & _
         "[ui]" & nl & _
         KeyLine( "theme", tomlget.Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
@@ -299,7 +313,10 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         "[compiler]" & nl & _
         KeyLine( "tiko", tomlget.Quoted( s.Tiko ), "'' = tiko on PATH, else a toolchain beside tkEdit" ) & _
         KeyLine( "includes", "[" & incl & "]" ) & _
-        KeyLine( "run_in_terminal", BoolText( s.RunInTerminal ) )
+        KeyLine( "run_in_terminal", BoolText( s.RunInTerminal ) ) & _
+        nl & _
+        "[debug]" & nl & _
+        KeyLine( "adapter", tomlget.Quoted( s.DebugAdapter ), "'' = lldb-dap from LLVM (PATH, then its usual places)" )
     for each b as BuildConfig in s.Builds
         t &= nl & "[[builds]]" & nl & _
              KeyLine( "name", tomlget.Quoted( b.Name ) ) & _

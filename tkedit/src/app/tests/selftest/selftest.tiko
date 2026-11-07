@@ -30,6 +30,7 @@
 #import "tka/editor"
 #import "tka/findstrip"
 #import "tka/outputpane"
+#import "tks/dapengine"
 #import "tks/parser"
 #import "tka/mainwin"
 #import "tka/chrome"
@@ -54,6 +55,7 @@
 using containers
 using cmdids
 using tkCodeEdit
+using dapengine
 using tkApp
 using tkHost
 using tkTest
@@ -1276,6 +1278,7 @@ public sub SessionPass( byref t as Tally, byval sc as single )
         mw.Show( )
         mw.OpenFile( pathB )
         mw.OpenFile( pathA )
+        mw.View( ).ToggleBreakpoint( 1 )
         mw.View( ).GoToLine( 2 )
         mw.ToggleSplit( session.SplitMode.Vertical )
         mw.FocusPane( true )
@@ -1306,6 +1309,8 @@ public sub SessionPass( byref t as Tally, byval sc as single )
     t.Check( (mw2.Pane1 <> 0) andalso (lcase( mw2.Pane1->Path ) = lcase( pathA )), P( sc, "pane 1 shows a.tiko" ) )
     t.Check( (mw2.Split = session.SplitMode.Vertical) andalso (mw2.Pane2 <> 0) andalso (mw2.Pane2 = mw2.FindOpen( pathB )), P( sc, "split, b.tiko in pane 2" ) )
     t.Check( (mw2.Pane1 <> 0) andalso (mw2.Pane1->Main.CaretLine( ) = 3), P( sc, "the caret is back on line 3" ) )
+    t.Check( (mw2.Pane1 <> 0) andalso mw2.Pane1->Main.HasBreakpoint( 1 ) andalso (mw2.Pane1->Main.Breakpoints( ).Count( ) = 1), _
+             P( sc, "the breakpoint on a.tiko line 2 restored" ) )
     t.Check( mw2.CurrentBuild = "Release", P( sc, "the build configuration restored" ) )
     t.Check( mw2.Recent.Count( ) = 2, P( sc, strings.Format( "the recent files restored ({})", mw2.Recent.Count( ) ) ) )
     dim as long wx, wy, ww, wh
@@ -1543,6 +1548,93 @@ private function WaitBuild( byref mw as mainwin.Window ) as boolean
     loop
     return true
 end function
+
+' ================================================================ the debugger (D2): a real session
+
+dim shared as string gDebugTermEnv           ' putenv keeps the pointer
+
+' Pumps until the session is stopped (wantStop) or over; FALSE on a 60 s timeout.
+private function WaitDebug( byref mw as mainwin.Window, byval wantStop as boolean ) as boolean
+    dim as double t0 = timer
+    do
+        tkApp_Pump( )
+        SDL_Delay( 20 )
+        if wantStop andalso mw.DebugStopped( ) then return true
+        if mw.DebugActive( ) = false then return wantStop = false
+        if timer - t0 > 60 then return false
+    loop
+end function
+
+' Start Debugging builds with -g and stops at a breakpoint; Step Over steps; Stop ends it. Needs
+' a tiko ($TKEDIT_TIKO) and lldb-dap; macOS only with TKEDIT_SELFTEST_DEBUG=1 (Developer Mode).
+public sub DebugPass( byref t as Tally, byval sc as single )
+    dim as ustring tk = TestCompiler( )
+    if len( tk ) = 0 then exit sub                        ' BuildPass reports a missing compiler
+    if Engine_AdapterPath( ) = "" then
+        print "debug: no lldb-dap: the session checks are skipped"
+        exit sub
+    end if
+    if (platform.CurrentOs( ) = platform.Os.MacOS) andalso (environ( "TKEDIT_SELFTEST_DEBUG" ) <> "1") then
+        print "debug: macOS without TKEDIT_SELFTEST_DEBUG=1: the session checks are skipped"
+        exit sub
+    end if
+    dim as ustring cfg = FreshConfig( )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "dbg" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = chr( 10 )
+    dim as ustring mainF = fs.PathJoin( dir_, "dbg.tiko" )
+    fs.WriteAllText( mainF, "dim as long total = 0" & nl & "for i as long = 1 to 3" & nl & "    total += i" & nl & _
+                            "next" & nl & "print total" & nl )
+    if platform.CurrentOs( ) <> platform.Os.Windows then
+        ' a terminal that is a pty and nothing else (WSL has no terminal emulator): script(1)
+        dim as ustring fake = fs.PathJoin( cfg, "faketerm" )
+        fs.WriteAllText( fake, "#!/bin/sh" & nl & "shift" & nl & "script -qfc ""$*"" /dev/null < /dev/null > /dev/null 2>&1 &" & nl )
+        dim as process.Command c = process.Command( "/bin/chmod" )
+        c.Arg( "+x" ).Arg( fake )
+        dim as process.Child ch
+        if ch.Spawn( c ).IsOk( ) then ch.Wait( )
+        gDebugTermEnv = "TERMINAL=" & fake
+        setenviron gDebugTermEnv
+    end if
+
+    dim as mainwin.Window mw
+    mw.ConfigDir = cfg
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "debug: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 100 )
+    mw.Prefs.Tiko = tk
+    mw.OpenFile( mainF )
+    mw.View( ).ToggleBreakpoint( 2 )                       ' "    total += i"
+
+    Chord( h, SDLK_F6, SDL_SCANCODE_F6, 0 )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "debug: F6 built the program (-g)" ) )
+    t.Check( instr( " " & mw.BuildFlags & " ", " -g " ) > 0, P( sc, "debug: with -g: " & mw.BuildFlags ) )
+    dim as boolean stopped = WaitDebug( mw, true )
+    t.Check( stopped, P( sc, "debug: the session stopped: " & mw.DbgStatus ) )
+    if stopped then
+        t.Check( instr( mw.DbgStatus, "breakpoint" ) > 0 andalso (instr( mw.DbgStatus, "dbg.tiko:3" ) > 0), _
+                 P( sc, "debug: at the breakpoint, the entry stop skipped: " & mw.DbgStatus ) )
+        t.Check( mw.View( ).ExecLine( ) = 2, P( sc, strings.Format( "debug: the stop line marked ({})", mw.View( ).ExecLine( ) ) ) )
+        t.Check( mw.CanRun( Cmd.StepOver ) andalso (mw.CanRun( Cmd.DebugBreak ) = false) andalso mw.CanRun( Cmd.StopDebugging ), _
+                 P( sc, "debug: stopped: Step works, Break greyed" ) )
+        Chord( h, SDLK_F10, SDL_SCANCODE_F10, 0 )
+        ' the loop's increment is the 'for' line's code: line 2 (or 'next', line 4)
+        t.Check( WaitDebug( mw, true ) andalso ((mw.View( ).ExecLine( ) = 1) orelse (mw.View( ).ExecLine( ) = 3)), _
+                 P( sc, strings.Format( "debug: F10 stepped over, to line {}", mw.View( ).ExecLine( ) + 1 ) ) )
+        Chord( h, SDLK_F6, SDL_SCANCODE_F6, SDL_KMOD_SHIFT )
+        t.Check( WaitDebug( mw, false ), P( sc, "debug: Shift+F6 ended the session: " & mw.DbgStatus ) )
+        t.Check( mw.View( ).ExecLine( ) = -1, P( sc, "debug: and the stop line is gone" ) )
+    end if
+    if mw.DebugActive( ) then mw.Execute( Cmd.StopDebugging ) : WaitDebug( mw, false )
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
 
 public sub BuildPass( byref t as Tally, byval sc as single )
     dim as ustring tk = TestCompiler( )
@@ -2539,15 +2631,15 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     dim as long cx = h->root->cw, cy = h->root->ch, sh = mw.StatusHeight( )
     dim as long mh = tkForm_Scale( mw.form, 26 )
 
-    ' ---- on by default (a new settings.toml): along the top, six menus, the start panel below it
+    ' ---- on by default (a new settings.toml): along the top, seven menus, the start panel below it
     t.Check( instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "show_menu = true" ) > 0, _
              P( sc, "menu: a new settings.toml says show_menu = true" ) )
     t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (mw.menuBar->x = 0) andalso (mw.menuBar->y = 0) andalso _
              (mw.menuBar->cw = cx) andalso (mw.menuBar->ch = mh) andalso (mw.MenuHeight( ) = mh), _
              P( sc, strings.Format( "menu: the bar at {},{} {}x{}, want 0,0 {}x{}", mw.menuBar->x, mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
-    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 6) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
-             (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build"), _
-             P( sc, strings.Format( "menu: six menus, File .. Build ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 7) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
+             (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 6 ) = "Debug"), _
+             P( sc, strings.Format( "menu: seven menus, File .. Build, Debug ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     dim as cmdids.CommandTable ct
     dim as boolean rowsOk = true
     for g as long = 0 to clng( MenuGroup.Count_ ) - 1
@@ -2573,6 +2665,35 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     t.Check( tkPopupMenu_GetItemEnabled( fm, Cmd.FileSave ), P( sc, "menu: with a buffer, Save works" ) )
     tkMenuBar_CloseMenu( mw.menuBar )
     tkTest_PumpFor( h, 60 )
+
+    ' ---- Debug, no session: Start and the breakpoint rows work, the session's rows are greyed
+    ClickMenuTitle( mw, clng( MenuGroup.Debug ) )
+    dim as TK_MENU ptr dm = tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.Debug ) )
+    t.Check( tkPopupMenu_GetItemEnabled( dm, Cmd.StartDebugging ) andalso tkPopupMenu_GetItemEnabled( dm, Cmd.ToggleBreakpoint ) andalso _
+             tkPopupMenu_GetItemEnabled( dm, Cmd.DeleteAllBreakpoints ) andalso (tkPopupMenu_GetItemEnabled( dm, Cmd.StepOver ) = false) andalso _
+             (tkPopupMenu_GetItemEnabled( dm, Cmd.DebugBreak ) = false) andalso (tkPopupMenu_GetItemEnabled( dm, Cmd.StopDebugging ) = false) andalso _
+             (tkPopupMenu_GetItemEnabled( dm, Cmd.RunToCursor ) = false), _
+             P( sc, "menu: Debug, no session: Start and breakpoints work, Step/Break/Stop/Run to Cursor greyed" ) )
+    tkMenuBar_CloseMenu( mw.menuBar )
+    tkTest_PumpFor( h, 60 )
+
+    ' ---- breakpoints: F9 toggles one; a margin click is a bookmark or a breakpoint ([editor] margin_click)
+    mw.View( ).SetText( "dim as long a" & chr( 10 ) & "a = 1" & chr( 10 ) & "a += 2" & chr( 10 ) & "print a" & chr( 10 ) )
+    mw.View( ).GoToLine( 1 )
+    Chord( h, SDLK_F9, SDL_SCANCODE_F9, 0 )
+    t.Check( mw.View( ).HasBreakpoint( 1 ) andalso (mw.View( ).Bookmarks( ).Count( ) = 0), P( sc, "breakpoint: F9 set one, no bookmark" ) )
+    dim as long p3 = tkCodeEdit_Send( mw.View( ).Widget( ), SCI_POSITIONFROMLINE, 3 )
+    mw.OnMarginClick( mw.View( ).Widget( ), 1, p3 )
+    t.Check( mw.View( ).HasBookmark( 3 ) andalso (mw.View( ).HasBreakpoint( 3 ) = false), P( sc, "breakpoint: margin_click = bookmark (the default): a bookmark" ) )
+    mw.Prefs.MarginClick = settings.MarginAction.Breakpoint
+    mw.OnMarginClick( mw.View( ).Widget( ), 1, p3 )
+    t.Check( mw.View( ).HasBreakpoint( 3 ) andalso mw.View( ).HasBookmark( 3 ), P( sc, "breakpoint: margin_click = breakpoint: a breakpoint" ) )
+    dim as Array( of long ) bps = mw.View( ).Breakpoints( )
+    t.Check( (bps.Count( ) = 2) andalso (bps[0] = 1) andalso (bps[1] = 3), P( sc, strings.Format( "breakpoint: lines 1 and 3 ({})", bps.Count( ) ) ) )
+    Chord( h, SDLK_F9, SDL_SCANCODE_F9, KMOD_PRIMARY or SDL_KMOD_SHIFT )
+    t.Check( mw.View( ).Breakpoints( ).Count( ) = 0, P( sc, "breakpoint: Ctrl+Shift+F9 deleted them all" ) )
+    mw.View( ).ClearBookmarks( )
+    mw.Prefs.MarginClick = settings.MarginAction.Bookmark
 
     ' ---- under it the tab strip, then the editor
     dim as TK_WIDGET ptr v = mw.View( ).Widget( )
