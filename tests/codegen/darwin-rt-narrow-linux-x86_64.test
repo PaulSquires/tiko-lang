@@ -1,0 +1,10 @@
+'' The control for darwin-rt-narrow-macos-arm64.test: off Apple a runtime call's narrow
+'' argument is passed as before, plain i8 / i16, and nothing carries an extension attribute.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir tests/codegen/src/darwin-rt-narrow.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare void @"fb_PrintUByte"(i32, i8, i32)
+'' EXPECT-OUT: declare void @"fb_PrintShort"(i32, i16, i32)
+'' EXPECT-OUT: declare i16 @"fb_CVSHORT"(ptr)
+'' EXPECT-NOT: zeroext
+'' EXPECT-NOT: signext

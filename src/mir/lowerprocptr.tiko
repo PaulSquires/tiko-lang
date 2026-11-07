@@ -333,7 +333,7 @@ function LowerProcPtr _
                 dim as MirFunction ptr rdecl = _
                     c.m->AddFunction( rnm, RtlReturn( rr, is32 ) )
                 rdecl->isDefinition = false
-                RtlSignature( rdecl, rr, is32 )
+                RtlSignature( rdecl, rr, is32, (c.types->target.osKind = Tko.OS_DARWIN) andalso (c.types->target.arch = Tko.ARCH_ARM64) )
                 ridx = c.m->functions.Count - 1
             end if
             dim as MirInst rfa

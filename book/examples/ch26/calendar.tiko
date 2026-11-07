@@ -23,5 +23,5 @@ print "next Tuesday "; t.NextWeekday( 2 ).ToIsoString( )
 
 '' The ISO week belongs to the ISO week-year, not to Year.
 var dec29 = chrono.LocalDate( 2025, 12, 29 )
-print "2025-12-29: Year"; dec29.Year( ); ", week"; _
-      dec29.IsoWeek( ); " of"; dec29.IsoWeekYear( )
+print "2025-12-29: Year"; dec29.Year; ", week"; _
+      dec29.IsoWeek; " of"; dec29.IsoWeekYear

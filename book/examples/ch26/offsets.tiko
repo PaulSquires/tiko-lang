@@ -3,8 +3,8 @@
 '' No offset: a reading on some clock, nobody has said which.
 var naive = chrono.DateTime( 2025, 3, 4, 9, 0, 0, 0 )
 print "naive      "; naive.ToIsoString( ); _
-      "  has offset: "; naive.HasOffset( )
-print "ToInstant valid: "; naive.ToInstant( ).IsValid( )
+      "  has offset: "; naive.HasOffset
+print "ToInstant valid: "; naive.ToInstant( ).IsValid
 print "AssumeUtc  "; naive.AssumeUtc( ).ToIsoString( )
 
 '' WithOffset says which clock; ToOffset moves to another one.

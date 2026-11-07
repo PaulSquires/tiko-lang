@@ -5,9 +5,9 @@ var span = chrono.TimeSpan( 1, 2, 30, 0, 0 )
 print "span:        "; span.ToIsoString( )
 
 '' Total* is the whole span in one unit; the rest are its pieces.
-print "TotalHours:"; span.TotalHours( )
-print "Days"; span.Days( ); ", Hours"; span.Hours( ); _
-      ", Minutes"; span.Minutes( )
+print "TotalHours:"; span.TotalHours
+print "Days"; span.Days; ", Hours"; span.Hours; _
+      ", Minutes"; span.Minutes
 
 '' Built from one unit, and combined with operators.
 var lap = chrono.TimeSpan.FromSeconds( 95.5 )
@@ -18,12 +18,12 @@ print "lap < span:  "; ( lap < span )
 
 '' A negative span has negative pieces.
 var back = chrono.TimeSpan( 1, 30, 0 ).Negate( )
-print "negative:    "; back.ToIsoString( ); ", Hours "; back.Hours( ); _
-      ", Minutes "; back.Minutes( )
+print "negative:    "; back.ToIsoString( ); ", Hours "; back.Hours; _
+      ", Minutes "; back.Minutes
 
 '' Subtracting two moments gives a span.
 var leave = chrono.Instant.ParseIso( "2025-03-04T09:00:00-05:00" )
 var land  = chrono.Instant.ParseIso( "2025-03-04T21:40:00Z" )
 var flight = land - leave
 print "flight:      "; flight.ToIsoString( ); " ="; _
-      flight.TotalMinutes( ); " minutes"
+      flight.TotalMinutes; " minutes"

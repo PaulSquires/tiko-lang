@@ -127,7 +127,12 @@ static void fb_hDoInit( void )
 ** UNDEFINED symbol, so this never pulls libtkogfx in; but a program that uses graphics has
 ** already loaded its member for fb_Gfx*, and that member's strong definition replaces this
 ** one.  Not here in a dylib: -e is an executable's. */
-int main( int argc, char **argv, char **envp );
+/* MAIN IS A WEAK IMPORT, because a dylib links this object too and has no main of its
+** own: LinkExe passes it -Wl,-U,_main, and weak_import is what lets dyld load that
+** dylib into a host whose main is not exported -- measured, '-U' alone aborts there
+** with "symbol not found in flat namespace '_main'". An executable defines main, so
+** its reference binds as before. */
+int main( int argc, char **argv, char **envp ) __attribute__(( weak_import ));
 
 __attribute__(( weak ))
 int tko_darwin_start( int argc, char **argv, char **envp )

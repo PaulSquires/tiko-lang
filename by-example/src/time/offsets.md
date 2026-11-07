@@ -15,7 +15,7 @@ minutes, and an `Instant` is the moment itself.
 ```
 
 A `DateTime` is in one of three states: UTC (printed with `Z`), an offset
-(`-05:00` is five hours behind UTC), or unspecified, where `HasOffset( )` is
+(`-05:00` is five hours behind UTC), or unspecified, where `HasOffset` is
 false. An unspecified reading cannot become an `Instant` without a guess, so
 `ToInstant( )` gives Invalid; `AssumeUtc( )` makes the guess and makes it
 visible in the code.

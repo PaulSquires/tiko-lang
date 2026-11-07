@@ -82,4 +82,4 @@ A solution is one way to do the exercise, not the only one. Several build on a c
 | 36.1 | Capstone: a Notepad for Windows | Add Find Previous (Shift+F3) to `textfile` and to the Edit menu: the last match that ends at or before the start of the selection, wrapping around to the bottom. | `ch36/solutions/ex36-01.tiko` |
 | 36.2 | Capstone: a Notepad for Windows | Show a word count in a fourth status-bar panel. | `ch36/solutions/ex36-02.tiko` |
 
-<!-- 73 solutions of 194 exercises, generated 2026-11-06 -->
+<!-- 73 solutions of 194 exercises, generated 2026-11-07 -->

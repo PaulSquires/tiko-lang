@@ -386,7 +386,7 @@ function EmitRtl _
         if fidx < 0 then
             dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
             decl->isDefinition = false
-            RtlSignature( decl, r, is32 )
+            RtlSignature( decl, r, is32, (c.types->target.osKind = Tko.OS_DARWIN) andalso (c.types->target.arch = Tko.ARCH_ARM64) )
             fidx = c.m->functions.Count - 1
         end if
         if ri >= 0 then

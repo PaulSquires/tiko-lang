@@ -1,0 +1,8 @@
+'' A DYLIB BESIDE A RUNTIME FROM BEFORE THE ENTRY POINT gets no -U: that fbrt0.o names no
+'' main, so there is nothing to leave to dyld. See macos-entry-dylib.test.
+'' TEST: cli
+'' ARGS: -v -dll -target macos-arm64 tests/driver/src/no-fbrt0.bas -p tests/driver/src/darwinrt0/old -o tests/driver/macentryold.dylib
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: -dynamiclib
+'' EXPECT-NOT: _main
+'' EXPECT-NO-FILE: tests/driver/macentryold.dylib

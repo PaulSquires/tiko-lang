@@ -3,19 +3,19 @@
 '' Totals are the whole span; components are the pieces.
 var span = chrono.TimeSpan( 1, 2, 3, 4, 500 )
 print span.ToIsoString( )
-print "TotalHours"; span.TotalHours( ); ", Hours"; span.Hours( )
+print "TotalHours"; span.TotalHours; ", Hours"; span.Hours
 
 '' A negative span has negative pieces, which add back up.
 var back = chrono.TimeSpan( 1, 30, 0 ).Negate( )
-print back.ToIsoString( ); ": hours "; back.Hours( ); _
-      ", minutes "; back.Minutes( )
+print back.ToIsoString( ); ": hours "; back.Hours; _
+      ", minutes "; back.Minutes
 
 '' Subtracting two moments gives a span ...
 var dep = chrono.Instant.ParseIso( "2025-03-04T09:00:00-05:00" )
 var arr = chrono.Instant.ParseIso( "2025-03-04T21:40:00+00:00" )
 var flight = arr - dep
 print "flight "; flight.ToIsoString( ); " ="; _
-      flight.TotalMinutes( ); " minutes"
+      flight.TotalMinutes; " minutes"
 
 '' ... and subtracting two dates gives a count of days.
 var today = chrono.LocalDate( 2025, 3, 4 )

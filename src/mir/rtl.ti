@@ -25,6 +25,9 @@ namespace Tko.Mir
     '' The parameter spelling is the MIR type letters, so a mismatch at a call site is
     '' a build-time failure rather than a linker error:
     ''   v void   b i8   s i16   l i32   q i64   f f32   d f64   p ptr
+    ''   B i8, S i16 -- the runtime's uint8 / uint16: the same MIR type as b / s, but on
+    ''   macos-arm64 the caller extends a narrow argument (zeroext for B S, signext for
+    ''   b s), and the runtime, compiled by tiko, trusts the upper bits (RtlSignature)
     ''   z POINTER-WIDTH -- 'ssize_t', i64 on win64 and i32 on win32
     ''
     '' 'z' is the reason the return column is a letter too. fb_StrLen returns a length,
@@ -256,28 +259,28 @@ namespace Tko.Mir
         '' The digit-count form is a DIFFERENT ENTRY POINT, not a defaulted argument,
         '' and its name is mixed-case where the bare one is shouted: fb_HEX_i beside
         '' fb_HEXEx_i. Guessing either spelling from the other would have been wrong.
-        RTL( RTL_HEX_B,           "fb_HEX_b",         "p",   "b"     )
-        RTL( RTL_HEX_S,           "fb_HEX_s",         "p",   "s"     )
+        RTL( RTL_HEX_B,           "fb_HEX_b",         "p",   "B"     )
+        RTL( RTL_HEX_S,           "fb_HEX_s",         "p",   "S"     )
         RTL( RTL_HEX_I,           "fb_HEX_i",         "p",   "l"     )
         RTL( RTL_HEX_L,           "fb_HEX_l",         "p",   "q"     )
-        RTL( RTL_HEXEX_B,         "fb_HEXEx_b",       "p",   "bl"    )
-        RTL( RTL_HEXEX_S,         "fb_HEXEx_s",       "p",   "sl"    )
+        RTL( RTL_HEXEX_B,         "fb_HEXEx_b",       "p",   "Bl"    )
+        RTL( RTL_HEXEX_S,         "fb_HEXEx_s",       "p",   "Sl"    )
         RTL( RTL_HEXEX_I,         "fb_HEXEx_i",       "p",   "ll"    )
         RTL( RTL_HEXEX_L,         "fb_HEXEx_l",       "p",   "ql"    )
-        RTL( RTL_OCT_B,           "fb_OCT_b",         "p",   "b"     )
-        RTL( RTL_OCT_S,           "fb_OCT_s",         "p",   "s"     )
+        RTL( RTL_OCT_B,           "fb_OCT_b",         "p",   "B"     )
+        RTL( RTL_OCT_S,           "fb_OCT_s",         "p",   "S"     )
         RTL( RTL_OCT_I,           "fb_OCT_i",         "p",   "l"     )
         RTL( RTL_OCT_L,           "fb_OCT_l",         "p",   "q"     )
-        RTL( RTL_OCTEX_B,         "fb_OCTEx_b",       "p",   "bl"    )
-        RTL( RTL_OCTEX_S,         "fb_OCTEx_s",       "p",   "sl"    )
+        RTL( RTL_OCTEX_B,         "fb_OCTEx_b",       "p",   "Bl"    )
+        RTL( RTL_OCTEX_S,         "fb_OCTEx_s",       "p",   "Sl"    )
         RTL( RTL_OCTEX_I,         "fb_OCTEx_i",       "p",   "ll"    )
         RTL( RTL_OCTEX_L,         "fb_OCTEx_l",       "p",   "ql"    )
-        RTL( RTL_BIN_B,           "fb_BIN_b",         "p",   "b"     )
-        RTL( RTL_BIN_S,           "fb_BIN_s",         "p",   "s"     )
+        RTL( RTL_BIN_B,           "fb_BIN_b",         "p",   "B"     )
+        RTL( RTL_BIN_S,           "fb_BIN_s",         "p",   "S"     )
         RTL( RTL_BIN_I,           "fb_BIN_i",         "p",   "l"     )
         RTL( RTL_BIN_L,           "fb_BIN_l",         "p",   "q"     )
-        RTL( RTL_BINEX_B,         "fb_BINEx_b",       "p",   "bl"    )
-        RTL( RTL_BINEX_S,         "fb_BINEx_s",       "p",   "sl"    )
+        RTL( RTL_BINEX_B,         "fb_BINEx_b",       "p",   "Bl"    )
+        RTL( RTL_BINEX_S,         "fb_BINEx_s",       "p",   "Sl"    )
         RTL( RTL_BINEX_I,         "fb_BINEx_i",       "p",   "ll"    )
         RTL( RTL_BINEX_L,         "fb_BINEx_l",       "p",   "ql"    )
         '' AND A POINTER HAS ITS OWN SIX, which is not a width the table above can
@@ -293,33 +296,33 @@ namespace Tko.Mir
         '' the narrow name with a letter changed: the family is spelled WstrHex, in
         '' mixed case, where the narrow one is shouted HEX. Guessing either from the
         '' other would have been wrong, as it was for fb_HEXEx.
-        RTL( RTL_WHEX_B,       "fb_WstrHex_b",     "p",   "b"     )
-        RTL( RTL_WHEX_S,       "fb_WstrHex_s",     "p",   "s"     )
+        RTL( RTL_WHEX_B,       "fb_WstrHex_b",     "p",   "B"     )
+        RTL( RTL_WHEX_S,       "fb_WstrHex_s",     "p",   "S"     )
         RTL( RTL_WHEX_I,       "fb_WstrHex_i",     "p",   "l"     )
         RTL( RTL_WHEX_L,       "fb_WstrHex_l",     "p",   "q"     )
         RTL( RTL_WHEX_P,       "fb_WstrHex_p",     "p",   "p"     )
-        RTL( RTL_WHEXEX_B,     "fb_WstrHexEx_b",   "p",   "bl"    )
-        RTL( RTL_WHEXEX_S,     "fb_WstrHexEx_s",   "p",   "sl"    )
+        RTL( RTL_WHEXEX_B,     "fb_WstrHexEx_b",   "p",   "Bl"    )
+        RTL( RTL_WHEXEX_S,     "fb_WstrHexEx_s",   "p",   "Sl"    )
         RTL( RTL_WHEXEX_I,     "fb_WstrHexEx_i",   "p",   "ll"    )
         RTL( RTL_WHEXEX_L,     "fb_WstrHexEx_l",   "p",   "ql"    )
         RTL( RTL_WHEXEX_P,     "fb_WstrHexEx_p",   "p",   "pl"    )
-        RTL( RTL_WOCT_B,       "fb_WstrOct_b",     "p",   "b"     )
-        RTL( RTL_WOCT_S,       "fb_WstrOct_s",     "p",   "s"     )
+        RTL( RTL_WOCT_B,       "fb_WstrOct_b",     "p",   "B"     )
+        RTL( RTL_WOCT_S,       "fb_WstrOct_s",     "p",   "S"     )
         RTL( RTL_WOCT_I,       "fb_WstrOct_i",     "p",   "l"     )
         RTL( RTL_WOCT_L,       "fb_WstrOct_l",     "p",   "q"     )
         RTL( RTL_WOCT_P,       "fb_WstrOct_p",     "p",   "p"     )
-        RTL( RTL_WOCTEX_B,     "fb_WstrOctEx_b",   "p",   "bl"    )
-        RTL( RTL_WOCTEX_S,     "fb_WstrOctEx_s",   "p",   "sl"    )
+        RTL( RTL_WOCTEX_B,     "fb_WstrOctEx_b",   "p",   "Bl"    )
+        RTL( RTL_WOCTEX_S,     "fb_WstrOctEx_s",   "p",   "Sl"    )
         RTL( RTL_WOCTEX_I,     "fb_WstrOctEx_i",   "p",   "ll"    )
         RTL( RTL_WOCTEX_L,     "fb_WstrOctEx_l",   "p",   "ql"    )
         RTL( RTL_WOCTEX_P,     "fb_WstrOctEx_p",   "p",   "pl"    )
-        RTL( RTL_WBIN_B,       "fb_WstrBin_b",     "p",   "b"     )
-        RTL( RTL_WBIN_S,       "fb_WstrBin_s",     "p",   "s"     )
+        RTL( RTL_WBIN_B,       "fb_WstrBin_b",     "p",   "B"     )
+        RTL( RTL_WBIN_S,       "fb_WstrBin_s",     "p",   "S"     )
         RTL( RTL_WBIN_I,       "fb_WstrBin_i",     "p",   "l"     )
         RTL( RTL_WBIN_L,       "fb_WstrBin_l",     "p",   "q"     )
         RTL( RTL_WBIN_P,       "fb_WstrBin_p",     "p",   "p"     )
-        RTL( RTL_WBINEX_B,     "fb_WstrBinEx_b",   "p",   "bl"    )
-        RTL( RTL_WBINEX_S,     "fb_WstrBinEx_s",   "p",   "sl"    )
+        RTL( RTL_WBINEX_B,     "fb_WstrBinEx_b",   "p",   "Bl"    )
+        RTL( RTL_WBINEX_S,     "fb_WstrBinEx_s",   "p",   "Sl"    )
         RTL( RTL_WBINEX_I,     "fb_WstrBinEx_i",   "p",   "ll"    )
         RTL( RTL_WBINEX_L,     "fb_WstrBinEx_l",   "p",   "ql"    )
         RTL( RTL_WBINEX_P,     "fb_WstrBinEx_p",   "p",   "pl"    )
@@ -523,9 +526,9 @@ namespace Tko.Mir
         RTL( RTL_PRINT_STRING,      "fb_PrintString",      "v",   "lpl"   )
         RTL( RTL_PRINT_VOID,        "fb_PrintVoid",        "v",   "ll"    )
         RTL( RTL_PRINT_BYTE,        "fb_PrintByte",        "v",   "lbl"   )
-        RTL( RTL_PRINT_UBYTE,       "fb_PrintUByte",       "v",   "lbl"   )
+        RTL( RTL_PRINT_UBYTE,       "fb_PrintUByte",       "v",   "lBl"   )
         RTL( RTL_PRINT_SHORT,       "fb_PrintShort",       "v",   "lsl"   )
-        RTL( RTL_PRINT_USHORT,      "fb_PrintUShort",      "v",   "lsl"   )
+        RTL( RTL_PRINT_USHORT,      "fb_PrintUShort",      "v",   "lSl"   )
         RTL( RTL_PRINT_INT,         "fb_PrintInt",         "v",   "lll"   )
         RTL( RTL_PRINT_UINT,        "fb_PrintUInt",        "v",   "lll"   )
         RTL( RTL_PRINT_LONGINT,     "fb_PrintLongint",     "v",   "lql"   )
@@ -539,9 +542,9 @@ namespace Tko.Mir
         RTL( RTL_WRITE_VOID,        "fb_WriteVoid",        "v",   "ll"    )
         RTL( RTL_WRITE_BOOL,        "fb_WriteBool",        "v",   "lbl"   )
         RTL( RTL_WRITE_BYTE,        "fb_WriteByte",        "v",   "lbl"   )
-        RTL( RTL_WRITE_UBYTE,       "fb_WriteUByte",       "v",   "lbl"   )
+        RTL( RTL_WRITE_UBYTE,       "fb_WriteUByte",       "v",   "lBl"   )
         RTL( RTL_WRITE_SHORT,       "fb_WriteShort",       "v",   "lsl"   )
-        RTL( RTL_WRITE_USHORT,      "fb_WriteUShort",      "v",   "lsl"   )
+        RTL( RTL_WRITE_USHORT,      "fb_WriteUShort",      "v",   "lSl"   )
         RTL( RTL_WRITE_INT,         "fb_WriteInt",         "v",   "lll"   )
         RTL( RTL_WRITE_UINT,        "fb_WriteUInt",        "v",   "lll"   )
         RTL( RTL_WRITE_LONGINT,     "fb_WriteLongint",     "v",   "lql"   )
@@ -753,11 +756,11 @@ namespace Tko.Mir
         RTL( RTL_GETMOUSE,          "fb_GetMouse",         "l",   "ppppp" )
         RTL( RTL_SETMOUSE,          "fb_SetMouse",         "l",   "llll"  )
         '' The PORT pair take a 16-bit port number, and OUT an 8-bit datum.
-        RTL( RTL_INP,               "fb_In",               "l",   "s"     )
-        RTL( RTL_OUT,               "fb_Out",              "l",   "sb"    )
+        RTL( RTL_INP,               "fb_In",               "l",   "S"     )
+        RTL( RTL_OUT,               "fb_Out",              "l",   "SB"    )
         RTL( RTL_SETDATE,           "fb_SetDate",          "l",   "p"     )
         RTL( RTL_SETTIME,           "fb_SetTime",          "l",   "p"     )
-        RTL( RTL_WAIT,              "fb_Wait",             "l",   "sll"   )
+        RTL( RTL_WAIT,              "fb_Wait",             "l",   "Sll"   )
         RTL( RTL_RUN,               "fb_Run",              "l",   "pp"    )
         RTL( RTL_CHAIN,             "fb_Chain",            "l",   "p"     )
         RTL( RTL_DYLIB_LOAD,        "fb_DylibLoad",        "p",   "p"     )
@@ -908,10 +911,10 @@ namespace Tko.Mir
         RTL( RTL_LPRINT_SHORT,         "fb_LPrintShort",          "v",   "lsl"       )
         RTL( RTL_LPRINT_SINGLE,        "fb_LPrintSingle",         "v",   "lfl"       )
         RTL( RTL_LPRINT_STRING,        "fb_LPrintString",         "v",   "lpl"       )
-        RTL( RTL_LPRINT_UBYTE,        "fb_LPrintUByte",          "v",   "lbl"       )
+        RTL( RTL_LPRINT_UBYTE,        "fb_LPrintUByte",          "v",   "lBl"       )
         RTL( RTL_LPRINT_UINT,         "fb_LPrintUInt",           "v",   "lll"       )
         RTL( RTL_LPRINT_ULONGINT,     "fb_LPrintULongint",       "v",   "lql"       )
-        RTL( RTL_LPRINT_USHORT,       "fb_LPrintUShort",         "v",   "lsl"       )
+        RTL( RTL_LPRINT_USHORT,       "fb_LPrintUShort",         "v",   "lSl"       )
         RTL( RTL_LPRINT_USING_INIT,     "fb_LPrintUsingInit",      "l",   "p"         )
         RTL( RTL_LPRINT_VOID,          "fb_LPrintVoid",           "v",   "ll"        )
         RTL( RTL_LPRINT_WSTR,          "fb_LPrintWstr",           "v",   "lpl"       )
@@ -964,8 +967,10 @@ namespace Tko.Mir
     '' Fills a DECLARATION's signature from the runtime inventory. The arity alone used
     '' to be recorded, which is all MIR needed while nothing read a signature; an LLVM
     '' 'declare' needs the types, and the inventory is where they already are.
+    '' narrowExt: record each i8/i16 parameter's and result's extension (macos-arm64).
     declare sub RtlSignature _
-        ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean )
+        ( byval f as MirFunction ptr, byval r as RtlId, byval is32 as boolean, _
+          byval narrowExt as boolean )
     declare function RtlParamType _
         ( byval r as RtlId, byval i as int32, byval is32 as boolean ) as MirType
 

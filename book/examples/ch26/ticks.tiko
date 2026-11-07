@@ -14,9 +14,9 @@ print "Instant    "; at.ToIsoString( )
 print "TimeSpan   "; span.ToIsoString( )
 
 '' The parts are read with methods; 1 = Monday.
-print "year"; day.Year( ); ", month"; day.Month( ); ", day"; _
-      day.Day( ); ", weekday"; day.DayOfWeek( )
-print "one second ="; chrono.TimeSpan.FromSeconds( 1 ).Ticks( ); _
+print "year"; day.Year; ", month"; day.Month; ", day"; _
+      day.Day; ", weekday"; day.DayOfWeek
+print "one second ="; chrono.TimeSpan.FromSeconds( 1 ).Ticks; _
       " ticks"
 print "first: "; chrono.DateTime.MinValue( ).ToIsoString( )
 print "last:  "; chrono.DateTime.MaxValue( ).ToIsoString( )

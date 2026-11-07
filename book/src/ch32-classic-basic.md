@@ -115,7 +115,7 @@ one computer and *mardi* on another. Use the numeric patterns for anything writt
 Chapter 26's `std/chrono` is the modern replacement, and the differences are worth knowing when
 moving code across: a serial date has no time zone, `dateserial( 2025, 13, 40 )` rolls over into
 the next year instead of being refused, `weekday` counts from Sunday where chrono's `DayOfWeek`
-counts from Monday, and `DateTime.FromSerial` and `.Serial( )` convert between the two.
+counts from Monday, and `DateTime.FromSerial` and `.Serial` convert between the two.
 
 ## common and chain
 

@@ -16,7 +16,7 @@ print "round trip: "; ( localJul.ToInstant( ) = jul )
 
 '' Now, as a DateTime, carries the offset it was taken under.
 var now = chrono.WallClock.Now( )
-print "Now has an offset: "; now.HasOffset( )
+print "Now has an offset: "; now.HasOffset
 dim as int32 nowOff = _
     chrono.TimeZoneInfo.LocalOffsetAt( now.ToInstant( ) )
-print "Now matches the zone: "; cbool( now.OffsetMinutes( ) = nowOff )
+print "Now matches the zone: "; cbool( now.OffsetMinutes = nowOff )
