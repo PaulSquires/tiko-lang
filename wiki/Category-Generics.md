@@ -47,8 +47,8 @@ end type
 The name of a generic is not a type by itself. It must always be written with a type argument list:
 
 ```freebasic
-dim a as Box                    '' error 335
-type Bad extends Box            '' error 335
+dim a as Box                    '' TKO0815
+type Bad extends Box            '' TKO0815
 ```
 
 ## Instantiation AND Identity
@@ -65,7 +65,7 @@ Different argument lists are unrelated types with no conversion between them:
 
 ```freebasic
 dim c as Box( of float64 )
-c = b1                          '' error 181: Invalid assignment/conversion
+c = b1                          '' TKO0738: no conversion between these two types
 ```
 
 Type arguments may be anything a type can be: scalars, strings, UDTs, pointers, and other instantiations.
@@ -96,10 +96,10 @@ sub Stack( of T ).Push( byval x as T )
 end sub
 ```
 
-The list must match the declaration in arity and in NAME. Renaming a parameter in the out-of-line body is error 341, not an alias:
+The list must match the declaration in arity and in NAME. Renaming a parameter in the out-of-line body is TKO0817, not an alias:
 
 ```freebasic
-sub Stack( of U ).Push( byval x as U )      '' error 341
+sub Stack( of U ).Push( byval x as U )      '' TKO0817
 ```
 
 Constructors, destructors, copy constructors and LET all work, and run for fields of a generic exactly as for a plain UDT -- a Box( of string ) constructs and destroys its string.
@@ -144,7 +144,7 @@ function MakeZero( of T )( ) as T
 dim z as int32 = MakeZero( of int32 )( )
 ```
 
-When two arguments would bind the same parameter to different types, inference does not pick a winner -- it reports error 340 and asks for the arguments to be written out. An implicit promotion is not a match.
+When two arguments would bind the same parameter to different types, inference does not pick a winner -- it reports TKO0809 and asks for the arguments to be written out. An implicit promotion is not a match.
 
 A generic procedure may call another generic procedure, and a generic type's member may call a generic procedure.
 
@@ -163,7 +163,7 @@ There is nowhere in 'a + b' to write type arguments, so they are inferred from t
 Self-assignment operators (+=, -=, ...) must be members:
 
 ```freebasic
-operator += ( of T )( ... )     '' error 152: Operator must be a member function
+operator += ( of T )( ... )     '' TKO0697: operator '+=' must be a member of a type
 ```
 
 ## Inheritance, Virtual AND RTTI
@@ -286,51 +286,15 @@ All measured, none blocking.
 
 - Constraints name interfaces, and nothing else. `of T as IComparable( of T )` can be required; an operator such as '=' cannot. A container member that needs '=' on T makes the whole type unusable for a T without one -- which is why Array's Sort, IndexOf and Contains are free procedures rather than members -- and that diagnostic lands inside the container module at the instantiation site.
 
-- Generic procedures cannot be overloaded. One name, one generic procedure:
+- Generic procedures cannot be overloaded. One name, one generic procedure. A second generic procedure of the same name, whether it differs in arity, in type-parameter count or in parameter type, is not reported, and it is not an overload either: every call still resolves to the first one. Do not write one. This is why the sort library spells its variants SortBy, StableSort and SortList rather than overloading Sort.
 
-```freebasic
-a second one is error 4, Duplicated definition, whether it differs in
-arity, in type-parameter count or in parameter type. This is why the sort
-library spells its variants SortBy, StableSort and SortList rather than
-overloading Sort.
-```
+- typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is transparent to typeof; the one an instantiation binds is not, so a generic body cannot branch on what T is bound to. This is why the hash contract is an overloaded HashOf( ) rather than an #if dispatch.
 
-- typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is
+- Debug names. Under -g a debugger shows an instantiation's fields, parameters and locals with their types, but names the instantiated type by an internal number rather than by its argument list: `Box( of long )` appears as `box<6>`, and its method's frame as `box<6>.SetV`.
 
-```freebasic
-transparent to typeof; the one an instantiation binds is not, so a generic
-body cannot branch on what T is bound to. This is why the hash contract is
-an overloaded HashOf( ) rather than an #if dispatch.
-```
+- In a generic body, tiko reports the offending line and column itself. Where the error depends on the type argument, a note names the instantiation that produced it: `note: in instantiation of 'apply( of long )'`.
 
-- Debug names. tiko's -g describes no types at all -- its --emit-ir output
-
-```freebasic
-holds no DICompositeType -- and names each instantiated procedure by its
-mangled symbol, e.g. _ZN3BoxIiE4SETVEi.
-```
-
-- In a generic body, tiko reports the offending line and column itself,
-
-```freebasic
-without the instantiation chain -- and some errors inside a generic body it
-does not report at all (see DIAGNOSTICS).
-```
-
-- Function-template return types are not mangled: '\_Z3IncIiEi' where Itanium
-
-```freebasic
-wants the return type after the I...E list. Names are unique and stable,
-which is what is claimed.
-```
-
-- A type parameter cannot be named K. tiko rejects a
-
-```freebasic
-TYPEDEF named K used as a parameter type; this is not a generics rule, but
-it is met most often here. Names also collide case-insensitively, so a
-parameter T and a variable t are the same identifier.
-```
+- Function-template return types are not mangled: `_Z3IncIu7INTEGERES0_` where Itanium wants the return type after the I...E list. Names are unique and stable, which is what is claimed.
 
 ## Tests
 

@@ -22,7 +22,7 @@ tiko is honest about where it stops:
 
 - **No compile-time memory safety.** Runtime checks (bounds, null pointers) are available with `-exx`, but there is no borrow checker.
 - **Goroutines are not green threads.** `spawn` queues a call on a pool of operating-system threads.
-- **ARM64 on macOS only.** There is no Linux or Windows ARM64 target, and there is no graphics library on macOS or Linux.
+- **ARM64 on macOS only.** There is no Linux or Windows ARM64 target.
 - **No inline `ASM`.** It is refused with `TKO0407` rather than miscompiled.
 - **Not every dialect.** `#lang "qb"`, `"fblite"` and `"deprecated"` are refused (`TKO0317`), and so is `GOSUB` (`TKO0409`).
 - **`__FB_MIN_VERSION__`.** tiko does not define it. tiko identifies itself with `__TIKO_COMPILER__` instead. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
@@ -31,7 +31,7 @@ tiko is honest about where it stops:
 
 | Target | |
 | --- | --- |
-| `windows-x86_64` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
+| `windows-x86_64` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. |
 | `linux-x86_64` | The default on Linux. |
 | `macos-arm64` | The default on macOS (Apple Silicon, macOS 13 or newer). It links with Apple's linker and SDK, so on a Mac. |
 

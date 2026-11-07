@@ -204,8 +204,8 @@ namespace Tko
         '' strcasecmp. Mixing them links and then fails at runtime.
         TARGET_WINDOWS_X86_64
         '' APPLE SILICON, Mach-O, 'arm64-apple-macosx13.0' (macOS 13 is the minimum).
-        '' Its classifier (AAPCS64 with Apple's variations) is not written yet, so the
-        '' ABI pass refuses an aggregate by value for it rather than run SysV's.
+        '' Its classifier is AAPCS64 with Apple's variations, its own branch in
+        '' src/codegen/abi.tiko -- never SysV's.
         TARGET_MACOS_ARM64
     end enum
 

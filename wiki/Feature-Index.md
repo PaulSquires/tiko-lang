@@ -80,7 +80,7 @@ Libraries the toolchain ships in `vendor/`, each reached with one `#import` and 
 
 These are the limits of the language and library today, each one measured. The headline ones:
 
-- **No constraints on type parameters.** A member needing `=` on `T` makes the whole type unusable for a `T` without one — which is why `IndexOf`/`Contains` and everything in `std/containers`' `sort.tiko` are free procedures rather than `Array` members.
+- **Constraints name interfaces only.** `of T as IComparable( of T )` can be required; an operator such as `=` cannot. A member needing `=` on `T` makes the whole type unusable for a `T` without one — which is why `IndexOf`/`Contains` and everything in `std/containers`' `sort.tiko` are free procedures rather than `Array` members.
 - **Generic procedures cannot be overloaded.** One name, one generic procedure — which is why the sort library spells its variants `SortBy`, `StableSort` and `SortList`.
 - **A *capturing* lambda cannot name the enclosing generic's `T` in its own parameter list.** Non-capturing lambdas are unaffected, and so is a capturing lambda whose own parameters are concrete.
 - **`typeof( T )` does not see through a type parameter**, so a generic body cannot branch on what `T` is bound to. This is why the hash contract is an overloaded `HashOf`.

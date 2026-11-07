@@ -35,8 +35,8 @@ namespace Tko.Codegen
         ABI_WIN64 = 0
         ABI_SYSV_AMD64
         '' AAPCS64 with Apple's variations (HFAs as [N x float|double], >16 bytes by
-        '' pointer to a caller copy, sret in x8). A PLACEHOLDER: the classifier is not
-        '' written, and the ABI pass refuses a by-value aggregate for it (abi.tiko).
+        '' pointer to a caller copy, sret in x8). Its classifier is the AAPCS64 section
+        '' of abi.tiko, which models every size.
         ABI_AAPCS64_APPLE
     end enum
 

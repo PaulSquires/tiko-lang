@@ -131,7 +131,11 @@ Everything below is implemented and covered by tests (tests/ustring\_\*.bas and 
 
 Operators and intrinsics -- assignment, concatenation (+, &, +=), comparison, LEN, \[\] indexing, ASC, WCHR, LEFT, RIGHT, MID (function AND statement), INSTR, INSTRREV, TRIM/LTRIM/RTRIM (including the ANY and EX forms), UCASE, LCASE, SPACE, STRING, LSET, RSET, SWAP, VAL, STR, WSTR, HEX, FORMAT.
 
-Language -- VAR inference, SELECT CASE, IIF, BYREF/BYVAL parameters with copy-back, function results (including BYREF returns and fixed-length results), overload resolution, UDT fields, CAST/LET/property/operator overloads, arrays (multi-dimensional, SHARED, UDT-nested, REDIM PRESERVE, ERASE), unions, COMMON, WITH, type aliases, static locals, STRPTR, VARPTR, SIZEOF, ustring ptr, variadics.
+Language -- VAR inference, SELECT CASE, IIF, BYREF/BYVAL parameters with copy-back, function results (including BYREF returns and fixed-length results), overload resolution, UDT fields, LET/property/operator overloads (including `operator cast() as ustring`), arrays (multi-dimensional, SHARED, UDT-nested, REDIM PRESERVE, ERASE), COMMON, WITH, type aliases, static locals, STRPTR, VARPTR, SIZEOF, ustring ptr, variadics.
+
+Not supported: `cast( ustring, x )` is refused with TKO0756, since a cast names a sized string type such as `zstring * n`. Assign instead (`dim as ustring u = s`), or convert a number with `STR`.
+
+A ustring cannot be a member of a UNION (TKO0998): it has to be constructed and destroyed, and a union runs neither.
 
 I/O -- PRINT, WRITE, PRINT #, WRITE #, LINE INPUT, LINE INPUT #, INPUT, INPUT #, PRINT USING, PUT/GET, OPEN ... ENCODING, READ/DATA, DRAW STRING.
 

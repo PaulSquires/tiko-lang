@@ -34,7 +34,7 @@ for each v in jobs               ' ends when the producer closes and drains
 next
 ```
 
-**Requires `-mt`.** std/tasks refuses to compile without it (TKO0423) rather than link a single-threaded runtime and misbehave.
+**Requires `-mt`.** std/tasks refuses to compile without it (TKO0309, its `#error`) rather than link a single-threaded runtime and misbehave.
 
 ## Why It Exists
 
@@ -114,9 +114,9 @@ What can be spawned:
 | a sub | yes |
 | a function | yes -- **the result is discarded**, as in Go |
 | an overloaded procedure | yes, resolved from the argument types |
-| a method, `obj.Method( a )` | no -- diagnosed |
-| a procedure inside a namespace | no -- diagnosed |
-| a procedure pointer or a lambda | no -- diagnosed |
+| a method, `obj.Method( a )` | no -- the compiler stops with an internal error (TKO0994) |
+| a procedure inside a namespace | no -- the compiler stops with an internal error (TKO0994) |
+| a procedure pointer or a lambda | no -- TKO0943 |
 
 **A BYREF parameter is a compile error at a spawn site.** Copying defeats the BYREF; honouring it would hand the goroutine a reference into a frame that is about to die. Pass a pointer if sharing is what you mean. That includes a STRING or UDT parameter written with neither keyword, which is byref by default: `sub Worker( s as string )` cannot be spawned, and `sub Worker( byval s as string )` can. With overloads, the first-declared procedure of the name is the one judged.
 

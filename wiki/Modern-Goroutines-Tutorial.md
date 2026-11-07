@@ -13,7 +13,7 @@ of those you *shouldn't* write.
 * A tiko toolchain: `toolchains\tiko-windows\tiko.exe` on Windows,
   `toolchains/tiko-linux/bin/tiko` on Linux.
 * The `-mt` flag on **every** build. `std/tasks` refuses to compile without it
-  (TKO0423) rather than link a single-threaded runtime and misbehave quietly.
+  (TKO0309, its `#error`) rather than link a single-threaded runtime and misbehave quietly.
 
 ```bash
 toolchains\tiko-windows\tiko.exe -mt example.tiko
@@ -247,9 +247,9 @@ The practical consequences:
 | `sub` | yes |
 | `function` | yes — **the result is discarded**, as in Go |
 | overloaded procedure | yes, resolved from the argument types |
-| `obj.Method( a )` | **no** — diagnosed at compile time |
-| a procedure inside a `namespace` | **no** — diagnosed |
-| a procedure pointer or lambda | **no** — diagnosed |
+| `obj.Method( a )` | **no** — the compiler stops with an internal error (TKO0994) |
+| a procedure inside a `namespace` | **no** — the compiler stops with an internal error (TKO0994) |
+| a procedure pointer or lambda | **no** — TKO0943 |
 
 Two more rules the compiler enforces:
 
@@ -1751,7 +1751,8 @@ Print this. Almost every bug in a first concurrent program is on it.
       if sharing is what you mean.
 * [ ] **Every argument must be written out** — no omitted default arguments.
 * [ ] **No methods, no lambdas, no procedure pointers, no procedures inside a
-      namespace.** All diagnosed.
+      namespace.** Procedure pointers and lambdas are TKO0943; a method or a
+      namespace procedure stops the compiler with an internal error (TKO0994).
 * [ ] **A spawned `function`'s return value is discarded.**
 * [ ] **Thousands of goroutines, not millions.**
 * [ ] **`spawn` does not work inside a generic *member* body** (a generic

@@ -37,7 +37,7 @@ A CAPTURING lambda cannot be a procptr -- it has state and a procptr has nowhere
 
 ```freebasic
 dim f as Fn = function[ byval bias ]( byval x as int32 ) as int32 ...
-' error 355: A capturing lambda cannot convert to a procedure pointer
+' TKO0738: no conversion between these two types
 ```
 
 It reaches an API through a GENERIC parameter instead. That is what containers.ForEach is for, and why it takes 'of F' rather than a procedure pointer.

@@ -2,59 +2,101 @@
 
 # Debugging
 
-The debugger is in the `bin\win32` or `bin\dos` directories (the **GDB**.EXE file), for the Windows and DOS versions respectively. It usually comes already installed in most Linux distros.
+Compile with [`-g`](Compiler-Option-G) and tiko writes DWARF debug information into the program: line tables, every procedure, its parameters and locals, `shared` variables, and their types -- a `type`'s fields, a `string`'s or `ustring`'s text. Any DWARF debugger reads it. **lldb** comes with LLVM, which tiko already needs; **gdb** works as well.
 
- (Note: all commands should be typed without quotes and then `[return]` must be pressed.)
+```
+tiko -g prog.tiko
+```
 
-- Compile the source code for your program in debug mode
+`-edebuginfo` writes the same debug information without the rest of `-g` (asserts, `__FB_DEBUG__`).
 
-  - use the [`-g`](Compiler-Option-G) command-line option to add debugging support, e.g. `fbc -g myapp.bas`.
+## A session in lldb
 
-  Load your compiled program in GDB
+The program:
 
-  - For example, in Windows/DOS: `gdb myapp.exe`
-  Note: under windows if the GDB command prompt seems not to work well (like backspace not working), try `set TERM=#win32con` before launching GDB.
+```freebasic
+type Point
+    as long x, y
+end type
 
-  Set any arguments you want to send to your application
+dim shared as long counter = 7
 
-  - For example: `set args arg1 arg2 argn`.
-  You can also run GDB and pass the arguments directly to the application been debugged: `gdb --args myapp.exe arg1 arg2 arg3`.
+function Area( byval w as long, byval h as long ) as long
+    dim as long a = w * h
+    dim as Point p
+    p.x = w : p.y = h
+    dim as ustring label = "box"
+    dim as string s = "hello"
+    dim as double ratio = w / h
+    counter += 1
+    return a
+end function
 
-  Ensure GDB can see your program's source code directory
+print Area( 6, 4 )
+```
 
-  - If the executable isn't in the same directory of the source files where it was compiled, type: `dir path/to/my/application/sources`.
+Start lldb on the executable, set a breakpoint by file and line, and run:
 
-  Set a breakpoint in your program
+```
+lldb prog.exe
+(lldb) breakpoint set --file prog.tiko --line 14
+(lldb) run
+* thread #1, stop reason = breakpoint 1.1
+    frame #0: prog.exe`Area(w=6, h=4) at prog.tiko:14
+-> 14  	    counter += 1
+```
 
-  - Place a breakpoint in the first line using: `b main`.
-  To place a breakpoint in a function called `func` use: `b FUNC`.  
-  Note: the compiler exports variable/function names to UPPERCASE. GDB is case sensitive by default, but you can use the `set language pascal` command to change GDB to case-insensitive mode.
+`frame variable` lists the parameters and locals, with their types:
 
-  Use GDB shortcuts to run your code or to step through it
+```
+(lldb) frame variable
+(long) w = 6
+(long) h = 4
+(long) a = 24
+(Point) p = {
+  x = 6
+  y = 4
+}
+(ustring) label = (data = u"box", len = 3, size = 16)
+(string) s = (data = "hello", len = 5, size = 32)
+(double) ratio = 1.5
+```
 
-  - Type `r` to start running the application.
-  - Type `n` to step to the next line, stepping over function calls.
-  - Keep pressing `[return]` to step forward to the next line.
-  - Type `s` to step into function calls.
-  - As above, keep pressing `[return]` to step through.
-  - Type `c` to continue execution until the next breakpoint.
+`print` evaluates one name, a `shared` variable included, and `bt` shows the call stack in source terms:
 
-  Use GDB shortcuts to inspect variables
+```
+(lldb) print counter
+(long) 7
+(lldb) bt
+  * frame #0: prog.exe`Area(w=6, h=4) at prog.tiko:14
+    frame #1: prog.exe`main at prog.tiko:18
+```
 
-  - Use `print VAR_NAME` to show the contents of the variable called `var_name`.
+The commands used most:
 
-  - GDB supports pointer/pointer field dereferencing, indexing and arithmetics too, so `print *MYPOINTER` will also work.
-  - (note: undeclared variables or the ones with suffixes like `%` `&` `!` `#` `$` can't be printed).
+| lldb | gdb | |
+| --- | --- | --- |
+| `b prog.tiko:14` | `break prog.tiko:14` | breakpoint at a line |
+| `b Area` | `break Area` | breakpoint at a procedure |
+| `run` | `run` | start the program |
+| `next` | `next` | the next line, stepping over calls |
+| `step` | `step` | the next line, stepping into calls |
+| `finish` | `finish` | run until the current procedure returns |
+| `continue` | `continue` | run to the next breakpoint |
+| `frame variable` | `info locals` | the locals |
+| `print p` | `print p` | one variable |
+| `bt` | `bt` | the call stack |
 
-  Use `disp VAR_NAME` to display the contents of a variable called `var_name`.  
-  Use `watch VAR_NAME` to stop each time a variable called `var_name` is changed.
+## Names
 
-  Additional commands:
+A procedure, a variable and a type are named as they are written in the source, and the debugger matches names **case-sensitively**: with `function Area` declared, `b Area` sets a breakpoint and `b area` finds nothing.
 
-  - Use `r` again to restart the application when it finishes.
-  - Type `q` to quit.
-  - Type `help` to see a list of commands, there are many others.
+A `string` or `ustring` shows as its three parts: `data`, the text; `len`, its length in characters; and `size`, the bytes allocated.
 
----
+An instantiation of a generic type is named by an internal number rather than by its type arguments: `Box( of long )` appears as `box<6>`, and its method's frame as `box<6>.SetV`. Its fields, parameters and locals show with their types as usual.
 
-*Reproduced from the [FreeBASIC Wiki Manual](https://www.freebasic.net/wiki/) under the [GNU Free Documentation License 1.3](https://www.gnu.org/licenses/fdl-1.3.html) — with no Invariant Sections, no Front-Cover Texts and no Back-Cover Texts. Copyright © the FreeBASIC project and wiki contributors. See [License](License).*
+## See also
+
+- [Compiler Option: -g](Compiler-Option-G)
+- [Compiler Error Messages](Compiler-Error-Messages)
+- [`Assert`](Assert)
