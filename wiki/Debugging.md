@@ -87,6 +87,50 @@ The commands used most:
 | `print p` | `print p` | one variable |
 | `bt` | `bt` | the call stack |
 
+## In tkEdit
+
+tkEdit, the editor that comes with tiko, debugs a program without a command line. It drives **lldb-dap**, LLVM's debugger for editors, over the same DWARF.
+
+| Key | Command |
+| --- | --- |
+| `F9` | Toggle a breakpoint on the cursor's line |
+| `F6` | Start Debugging; in a session, Continue |
+| `F10` | Step Over |
+| `F11` | Step Into |
+| `Shift+F11` | Step Out |
+| `Ctrl+F10` | Run to Cursor |
+| `Ctrl+F6` | Break |
+| `Shift+F6` | Stop Debugging |
+| `Ctrl+Shift+F9` | Delete All Breakpoints |
+
+On macOS each `Ctrl` is `Cmd`. The commands are on the **Debug** menu, and every key can be moved in `keybindings.toml`.
+
+**Start Debugging** builds with the selected configuration's options, without `-O` and with `-g -exx`, runs the program in its terminal as Run does, and stops on the first breakpoint it reaches -- or, with none set, on the program's first statement. A yellow arrow in the margin marks the line about to run; the status line says why it stopped and where.
+
+The output pane's **Debug** tab holds the session:
+
+- A row of buttons: Continue, Break, Stop, Step, Step Over, Step Out, Run to Cursor.
+- On the left, tabs along the bottom: **Locals**, **Globals** and **Watch**, each a tree of Name, Value and Type. A record opens to its fields; an array shows its bounds, `(1 to 3)`, and opens to its elements, named by the program's own subscripts -- `rs(1)`, `rs(2)`, `rs(3)` -- in groups of a hundred when it is large. A string shows its text. A value that changed since the last stop is shown in the error colour, open rows stay open as you step, and a click on a column heading sorts.
+- On the right: **Call Stack**, where a click on a frame shows its locals and goes to its line, and **Breakpoints**, every breakpoint in every open file with the text of its line; its two buttons remove the selected one or all of them.
+
+A **watch** is a name written as in the program -- `rs(2).sensor`, `p->next`, `grid(1, 2)` -- matched case-insensitively against the stopped frame's locals, then the globals. It is a variable, a field or an element, not a calculation: `total / 3` shows `<not in scope>`. `+` adds a watch, a double click edits one, and an empty one is removed.
+
+While the program is stopped, resting the mouse on a name in the source shows its value.
+
+A click in the margin toggles a bookmark; `margin_click = "breakpoint"` in the `[editor]` table of `settings.toml` makes it toggle a breakpoint. Breakpoints are saved with the session.
+
+### lldb-dap
+
+tkEdit looks for lldb-dap on the `PATH`, then in LLVM's usual places; `adapter` in the `[debug]` table of `settings.toml` names it explicitly.
+
+| System | lldb-dap |
+| --- | --- |
+| Windows | LLVM's `bin` folder, beside clang. It loads `python310.dll`, so **Python 3.10 (64-bit)** must be on the `PATH`. |
+| Linux | The distribution's `lldb` package: `lldb-dap`, or a numbered `lldb-dap-NN` (the newest is taken). |
+| macOS | Apple's Command Line Tools. macOS lets it control a program only in **Developer Mode** -- `sudo DevToolsSecurity -enable` -- or when the dialog asking for it is allowed. |
+
+On macOS, `-g` also writes `<program>.dSYM` beside the executable: that is where the debugger finds the DWARF.
+
 ## Names
 
 A procedure, a variable and a type are named as they are written in the source, and the debugger matches names **case-sensitively**: with `function Area` declared, `b Area` sets a breakpoint and `b area` finds nothing.
