@@ -17,6 +17,7 @@
 ### tiko-lang features
 
 - [Generics](Category-Generics)
+- [Interfaces](Category-Interfaces)
 - [For Each](Category-For-Each)
 - [Iterators](Category-Iterators)
 - [Tuples](Category-Tuples)

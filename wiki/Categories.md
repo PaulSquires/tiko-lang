@@ -9,6 +9,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 ## The tiko language
 
 - [Generics](Category-Generics) — 1 pages
+- [Interfaces](Category-Interfaces) — 5 pages
 - [For Each](Category-For-Each) — 5 pages
 - [Iterators](Category-Iterators) — 1 pages
 - [Tuples](Category-Tuples) — 1 pages

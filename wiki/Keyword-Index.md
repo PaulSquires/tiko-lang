@@ -168,7 +168,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [CIsReal](Modern-Math-CIsReal) | Returns true if the imaginary part of a complex number is zero. | [Math Library](Category-Math-Library) |
 | [CIsZero](Modern-Math-CIsZero) | Returns true if both parts of a complex number are zero. | [Math Library](Category-Math-Library) |
 | [Clamp](Modern-Math-Clamp) | Limits a value to a range: below lo gives lo, above hi gives hi. | [Math Library](Category-Math-Library) |
-| [Class](Class) | Declares a class object. | [Operators](Category-Operators) |
+| [Class](Class) | Declares a type that always extends `object`: it has a vtable, run-time type information, and may implement interfaces. | [Interfaces](Category-Interfaces) |
 | [Classify](Modern-Math-Classify) | Returns whether a value is NaN, infinite, zero, subnormal or normal. | [Math Library](Category-Math-Library) |
 | [Clear](Clear) | Sets a number of bytes, starting at a variable, to zero or to a given value. | [Memory Functions](Category-Memory-Functions) |
 | [Clear](Modern-Array-Clear) | Removes every element but keeps the allocated room. | [Array](Category-Array) |
@@ -723,13 +723,14 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [ImageCreate](Imagecreate) | Creates an image of a given size filled with one colour; returns 0 on failure. | [2D Drawing Functions](Category-2D-Drawing-Functions) |
 | [ImageDestroy](Imagedestroy) | Frees an image made by ImageCreate. | [2D Drawing Functions](Category-2D-Drawing-Functions) |
 | [ImageInfo](Imageinfo) | Fills in an image's width, height, bytes per pixel, pitch and pixel pointer. | [2D Drawing Functions](Category-2D-Drawing-Functions) |
-| [Implements](Implements) |  | [User Defined Types](Category-User-Defined-Types) |
+| [Implements](Implements) | Lists the interfaces a type or class takes on, and says which interface member each method provides. | [Interfaces](Category-Interfaces) |
 | [Import](Import) | External linkage attribute for public data located in DLL's. | [Modularizing](Category-Modularizing) |
 | [Indexing Operators](Indexing-Operators) | Operators that return references based on an index. | [Operators](Category-Operators) |
 | [IndexOf](Modern-Array-IndexOf) | Returns the index of the first element equal to a value, or -1 if there is none. | [Array](Category-Array) |
 | [Infinity](Modern-Math-Infinity) | Returns positive infinity as a Double. | [Math Library](Category-Math-Library) |
 | [InfinityF](Modern-Math-InfinityF) | Returns positive infinity as a Single. | [Math Library](Category-Math-Library) |
 | [Info](Modern-Log-Info) | Logs a message at the info level, or returns a record to add fields to. | [Logging](Category-Logging) |
+| [Inherits](Inherits) | Names a class's base class, or the interfaces an interface includes. | [Interfaces](Category-Interfaces) |
 | [Inkey](Inkey) | Returns the next key waiting, or an empty string at once if there is none. | [User Input (Runtime Library)](Category-User-Input-Runtime-Library) |
 | [Inp](Inp) | Returns a value at a hardware port. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
 | [Input](procedures-Input) | Reads values the user types, up to Enter, after an optional prompt. | [User Input (Runtime Library)](Category-User-Input-Runtime-Library) |
@@ -767,6 +768,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Int64](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [Int8](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [Integer](Integer) | Standard data type: 32-bit or 64-bit signed, same size as SizeOf(Any Ptr) | [Standard Data Types](Category-Standard-Data-Types) |
+| [Interface](Interface) | Declares a contract: a list of methods and properties that a type promises to provide. | [Interfaces](Category-Interfaces) |
 | [IntersectWith](Modern-Set-IntersectWith) | Keeps only the values that are also in another set. | [Set](Category-Set) |
 | [Intrinsic Defines](Intrinsic-Defines) | Preprocessor symbols defined by the compiler. | [Intrinsic Defines](Category-Intrinsic-Defines) |
 | [IPow](Modern-Math-IPow) | Raises a whole number to a whole-number power exactly, with no trip through Double. | [Math Library](Category-Math-Library) |
@@ -1541,6 +1543,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Trim](Trim) | Removes spaces, or the given characters, from both ends. | [String Functions](Category-String-Functions) |
 | [True](True) | Intrinsic constant set by the compiler. | [Intrinsic Defines](Category-Intrinsic-Defines) |
 | [Truncate](Modern-Math-Truncate) | Drops the fraction, rounding towards zero, so Truncate(-2.7) is -2. | [Math Library](Category-Math-Library) |
+| [TryCast](TryCast) | Converts to an interface or a typed pointer if the object really is one, and answers null if it is not. | [Interfaces](Category-Interfaces) |
 | [TryGet](Modern-Map-TryGet) | Copies the value for a key into a variable; returns false, adding nothing, if absent. | [Map](Category-Map) |
 | [TryInverse](Modern-Math-TryInverse) | Writes the inverse of a matrix into a second one, or returns false if there is none. | [Math Library](Category-Math-Library) |
 | [TryParseDouble](Modern-Math-TryParseDouble) | Parses a whole string as a Double, returning an empty Optional if it is not one. | [Math Library](Category-Math-Library) |

@@ -182,6 +182,42 @@ VIRTUAL, ABSTRACT, overriding an override, and OBJECT-derived RTTI all behave as
 print ( *r is Der( of int32 ) )          '' from a Root( of long ) ptr
 ```
 
+## Interfaces AND Constraints
+
+A generic can be an interface, and a type parameter can be required to implement one:
+
+```freebasic
+interface IComparable( of T )
+    function CompareTo( byref other as T ) as int32
+end interface
+
+function Largest( of T as IComparable( of T ) )( a( ) as T ) as T
+    dim as int32 best = lbound( a )
+    for i as int32 = lbound( a ) + 1 to ubound( a )
+        if a( i ).CompareTo( a( best ) ) > 0 then best = i
+    next
+    return a( best )
+end function
+
+type SortedBag( of K as { IComparable( of K ), IShow }, V )
+    ' ...
+end type
+```
+
+`of T as I` requires the type argument to implement `I`; `of T as { I, J }` requires both. A constraint may name the parameter itself, as `IComparable( of T )` does. It is checked once, where the generic is used, and a type argument that falls short is refused there with one message instead of an error from inside the body:
+
+```freebasic
+dim as int32 counts( 0 to 2 ) = { 3, 1, 2 }
+print Largest( counts( ) )      '' TKO1022: type argument 'long' does not implement
+                                '' 'icomparable( of long )', which 'largest( of t )' requires
+```
+
+The argument may implement the interface itself, through its base class, or through an interface that inherits it, or be the interface. A constraint that names a type that is no interface is TKO1002.
+
+**A constraint does not change how the body calls.** `Largest` is still compiled once per T, and `a( i ).CompareTo( … )` is an ordinary call to T's own `CompareTo`: no interface value, no indirect call. The call is resolved by name on the concrete type, so a method that implements `IComparable.CompareTo` under a different name satisfies the constraint but is not reachable as `.CompareTo` inside the body.
+
+**A generic interface** is instantiated like a generic type, and each instance is an interface of its own: `IComparer( of ustring )` and `IComparer( of float64 )` are unrelated. A generic procedure that takes `byval cmp as IComparer( of T )` infers T from an argument that implements one instance of it -- a `ByLength` declared `implements IComparer( of ustring )` gives T = ustring. See [Interfaces](Category-Interfaces) and the [Interfaces Tutorial](Interfaces-Tutorial).
+
 ## SELF-REFERENCE, Nesting AND Depth
 
 A generic may refer to itself through a pointer, which is what makes linked structures expressible:
@@ -248,16 +284,7 @@ A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no
 
 All measured, none blocking.
 
-- No constraints on type parameters. A member that needs '=' on T makes the
-
-```freebasic
-whole type unusable for a T without one -- which is why Array's Sort,
-IndexOf and Contains are free procedures rather than members. The
-diagnostic lands inside the container module at the instantiation site,
-which is honest but not friendly. This is the strongest practical argument
-for adding constraints later; four fail-container-* tests pin the current
-behaviour.
-```
+- Constraints name interfaces, and nothing else. `of T as IComparable( of T )` can be required; an operator such as '=' cannot. A container member that needs '=' on T makes the whole type unusable for a T without one -- which is why Array's Sort, IndexOf and Contains are free procedures rather than members -- and that diagnostic lands inside the container module at the instantiation site.
 
 - Generic procedures cannot be overloaded. One name, one generic procedure:
 

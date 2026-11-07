@@ -1,8 +1,0 @@
-type Encoder extends Object
-    declare abstract function Name( ) as ustring
-end type
-
-'' implements is a reserved word that has no meaning yet.
-type IniEncoder extends Object implements Encoder
-    declare function Name( ) as ustring
-end type

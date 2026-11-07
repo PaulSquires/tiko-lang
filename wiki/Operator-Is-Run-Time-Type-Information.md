@@ -25,6 +25,8 @@ The `Is` operator must be used in conjunction with inheritance in order to check
 
  Extending the built-in [`Object`](Object) type allows to add an extra hidden vtable pointer field at the top of the [`Type`](Type-Udt). The vtable is used to access information for run-time type identification used by the `Is` operator.
 
+ **With an interface on either side** the question is about the object behind it. `ifc is Circle` asks whether the object an interface value refers to is a `Circle` or derives from one, whatever the interface's own type; `obj is IShape` and `ifc is IShape` ask whether the object implements `IShape`. Neither needs the type to be derived from the expression's type, and a type with no vtable gets its answer at compile time, with a warning that says so (TKO1016). [`TryCast`](TryCast) answers the same questions with the converted value.
+
  This operator cannot be overloaded.
 
 ## Return Value
@@ -45,6 +47,8 @@ Returns negative one (`-1`) if the expression is an object of real-type `typenam
 - [`Object`](Object)
 - [`Is (Select Case)`](Is)
 - [`TypeOf`](Typeof)
+- [`TryCast`](TryCast)
+- [`Interface`](Interface)
 
 ## Examples
 

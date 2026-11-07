@@ -132,7 +132,7 @@ A key type that is neither fails when Map is instantiated, naming HashOf inside 
 ...\pkg\std\containers\map.tiko(144,35): error TKO0632: no overload of 'hashof' matches these arguments
 ```
 
-That is what unconstrained generics can offer today, and it is the strongest single argument for adding constraints later.
+That is what a generic can say when its requirement is an overloaded procedure: a constraint names an interface, and `HashOf` is not one.
 
 Why an overloaded function rather than a HashCode( ) member: a member cannot be added to 'long' or 'string', and a generic body cannot branch on its type parameter -- 'typeof( T )' inside a generic sees the parameter, not what it is bound to. Ordinary overload resolution at the instantiation site is the mechanism that works. A USER type does carry a member, through Hashable, because a module's namespace cannot be re-opened and an overload declared in the importing program is invisible to Map's body, which belongs to the module.
 

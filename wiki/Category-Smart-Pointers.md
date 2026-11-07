@@ -191,7 +191,7 @@ declare constructor( of U )( byref rhs as SharedPtr( of U ) )
 
 -- and members cannot have their own type parameters. Both type arguments have to be written out because inference reads parameter positions only, and B appears nowhere in the parameter list.
 
-**The base must have a virtual destructor.** C++'s shared_ptr does not require one, because its control block type-erases the deleter at construction time; that needs the address of an instantiated generic procedure, which is not expressible here. The surviving handle destroys through **its own** T, so destroying a Circle through a SharedPtr( of Shape ) is correct only if Shape's destructor is virtual. There are no constraints on type parameters, so this cannot be checked -- it is a contract, and breaking it is silent.
+**The base must have a virtual destructor.** C++'s shared_ptr does not require one, because its control block type-erases the deleter at construction time; that needs the address of an instantiated generic procedure, which is not expressible here. The surviving handle destroys through **its own** T, so destroying a Circle through a SharedPtr( of Shape ) is correct only if Shape's destructor is virtual. A constraint can require an interface, not a virtual destructor, so this cannot be checked -- it is a contract, and breaking it is silent.
 
 The reinterpretation itself is safe: the control block is not generic, so there is one layout for every T, and tiko is single-inheritance, so a Circle pointer and its Shape subobject share an address with no adjustment to apply.
 

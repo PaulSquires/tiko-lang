@@ -7,6 +7,7 @@ Every language feature and library that ships with tiko, one row each, with the 
 | Feature | What it is |
 |---|---|
 | [Generics](Category-Generics) | `type Box( of T )` and `function Max( of T )( … )`. One concrete type per distinct type-argument list, type-checked like any other type. Not a macro, not a separate template language. |
+| [Interfaces](Category-Interfaces) | `interface IShape … end interface`, `class Circle` with `implements IShape` lines. A contract any `type` or `class` can take on, as many as it needs, with each method mapped explicitly; an interface value is a 16-byte reference, and a plain `type` needs no vtable to implement one. Generic interfaces, and constraints: `function Largest( of T as IComparable( of T ) )`. |
 | [Iterator Protocol](Category-Iterators) | A *structural* contract: a type is iterable if it has `GetIterator( )` returning something with `IsValid( )`, `Value( )` and `MoveNext( )`. No base class, no interface, no registration, nothing to inherit. |
 | [For Each](Category-For-Each) | Walks arrays (any `lbound`), var-len `STRING`, and any type satisfying the protocol. |
 | [Tuples](Category-Tuples) | `as (int32, ustring)` — an anonymous aggregate identified **structurally**, so `(int32, ustring)` is one type in every module. Gives tiko multiple return: `function MinMax( ) as (min as int32, max as int32)`, then `var (lo, hi) = MinMax( )`. |
