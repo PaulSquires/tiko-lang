@@ -1582,17 +1582,17 @@ public sub DebugTabPass( byref t as Tally, byval sc as single )
     mw.OpenFile( fileA )
     dim as debugpane.Pane ptr dp = @mw.Out.Debug
 
-    ' ---- the tab, its layout: buttons, status, the two sides, their tab strips along the bottom
+    ' ---- the tab, its layout: buttons, the two sides, their tab strips along the bottom
     mw.ShowDebugTab( )
     tkTest_PumpFor( h, 60 )
     t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Debug) andalso tkWidget_IsVisible( dp->frame ) andalso _
              (tkTabBar_GetCount( mw.Out.tabs ) = 4) andalso (tkTabBar_GetText( mw.Out.tabs, 3 ) = "Debug"), _
              P( sc, "debug tab: the output pane's fourth tab, shown" ) )
-    dim as long th = tkHost_Scale( h, debugpane.TOOL_CY ), sh = tkHost_Scale( h, debugpane.STATUS_CY )
+    dim as long th = tkHost_Scale( h, debugpane.TOOL_CY )
     dim as long tb = tkHost_Scale( h, debugpane.TABS_CY )
     dim as TK_WIDGET ptr loc = dp->lists( debugpane.DebugList.Locals ), stk = dp->lists( debugpane.DebugList.CallStack )
-    t.Check( (dp->tools->y = 0) andalso (dp->tools->ch = th) andalso (loc->y = th + sh) andalso (loc->x = 0), _
-             P( sc, strings.Format( "debug tab: buttons on top, the lists under the status line ({}, {})", loc->x, loc->y ) ) )
+    t.Check( (dp->tools->y = 0) andalso (dp->tools->ch = th) andalso (loc->y = th) andalso (loc->x = 0), _
+             P( sc, strings.Format( "debug tab: buttons on top, the lists right under them, no status line ({}, {})", loc->x, loc->y ) ) )
     t.Check( (dp->ltabs->y = loc->y + loc->ch) andalso (dp->ltabs->y + dp->ltabs->ch = dp->frame->ch) andalso (dp->ltabs->ch = tb) andalso _
              (dp->rtabs->y = dp->ltabs->y), P( sc, strings.Format( "debug tab: both tab strips along the bottom ({}, h {})", dp->ltabs->y, dp->ltabs->ch ) ) )
     t.Check( (dp->split->x = loc->cw) andalso (stk->x = dp->split->x + dp->split->cw) andalso (stk->x + stk->cw = dp->frame->cw) andalso _
@@ -1741,8 +1741,8 @@ public sub DebugPass( byref t as Tally, byval sc as single )
         ' ---- the Debug tab (D3): it showed itself; the stack, the locals, a watch
         dim as debugpane.Pane ptr dp = @mw.Out.Debug
         dim as TK_WIDGET ptr stk = dp->lists( debugpane.DebugList.CallStack ), loc = dp->lists( debugpane.DebugList.Locals )
-        t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Debug) andalso (instr( dp->status, "breakpoint" ) > 0), _
-                 P( sc, "debug: the Debug tab shows itself, the status line says where: " & dp->status ) )
+        t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Debug), _
+                 P( sc, "debug: the Debug tab shows itself" ) )
         t.Check( (tkListTree_GetCount( stk ) >= 1) andalso (lcase( tkListTree_GetText( stk, 0 ) ) = "main") andalso _
                  (tkListTree_GetCellText( stk, 0, 1 ) = "3"), P( sc, strings.Format( "debug: the call stack: main, line 3 ({})", tkListTree_GetCount( stk ) ) ) )
         dim as long totalRow = -1
@@ -2000,7 +2000,7 @@ public sub DebugFailPass( byref t as Tally, byval sc as single )
     t.Check( WaitDebug( mw, false ), P( sc, "debug fail: the session ended by itself" ) )
     dim as ustring want = "macOS did not let the debugger control the program: turn on Developer Mode (sudo DevToolsSecurity -enable), or allow it when macOS asks"
     t.Check( mw.DbgStatus = want, P( sc, "debug fail: the status line says to turn on Developer Mode: " & mw.DbgStatus ) )
-    t.Check( (mw.Out.Debug.status = want) andalso (mw.Out.current = outputpane.OutputTab.Debug), P( sc, "debug fail: and so does the Debug tab" ) )
+    t.Check( mw.Out.current = outputpane.OutputTab.Debug, P( sc, "debug fail: the Debug tab shown" ) )
     t.Check( (mw.DebugActive( ) = false) andalso mw.CanRun( Cmd.StartDebugging ) andalso (mw.CanRun( Cmd.StopDebugging ) = false), _
              P( sc, "debug fail: no session left: Start works again, Stop greyed" ) )
     for each d as DocRef in mw.Docs
@@ -3047,6 +3047,8 @@ public sub MenuPass( byref t as Tally, byval sc as single )
              (tkPopupMenu_GetItemEnabled( dm, Cmd.DebugBreak ) = false) andalso (tkPopupMenu_GetItemEnabled( dm, Cmd.StopDebugging ) = false) andalso _
              (tkPopupMenu_GetItemEnabled( dm, Cmd.RunToCursor ) = false), _
              P( sc, "menu: Debug, no session: Start and breakpoints work, Step/Break/Stop/Run to Cursor greyed" ) )
+    dim as long si = dm->FindItem( clng( Cmd.StartDebugging ) )
+    t.Check( (si >= 0) andalso (dm->items(si).wszAccel = "F6"), P( sc, "menu: Debug: Start Debugging shows F6 once the menu has opened" ) )
     tkMenuBar_CloseMenu( mw.menuBar )
     tkTest_PumpFor( h, 60 )
 

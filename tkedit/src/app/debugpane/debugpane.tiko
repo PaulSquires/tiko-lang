@@ -8,7 +8,6 @@
 ' debugpane -- the Output pane's Debug tab (docs/tkEdit/DEBUGGER.md G1, G6):
 '
 '   [Continue] [Break] [Stop] | [Step] [Step Over] [Step Out] | [Run to Cursor]
-'   Stopped - breakpoint  main.tiko:19  in main                               (painted)
 '   ---------------------------------------+-------------------------------------
 '   Name | Value | Type                    | Function | Line | File
 '   (Locals, Globals or Watch)              | (Call Stack)  or  File | Line | Text (Breakpoints)
@@ -84,7 +83,6 @@ public const ICON_DELETE = !""
 public const ICON_DELETEALL = !""
 
 public const TOOL_CY = 30            ' unscaled
-public const STATUS_CY = 22
 public const TABS_CY = 24
 public const SPLIT_CX = 5
 
@@ -133,7 +131,6 @@ public type Pane
     leftTab as long
     rightTab as long = 3
     splitRatio as single = 0.6
-    status as ustring
     curFrame as long
     rowsGen as long = -1             ' the engine's stop the rows were read in
     rows as Array( of VarRow )
@@ -145,7 +142,6 @@ public type Pane
 
     declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
     declare sub Layout( )
-    declare sub SetStatus( byref s as const ustring )
     declare sub SyncButtons( )
     declare sub ShowLeft( byval t as long )
     declare sub ShowRight( byval t as long )
@@ -208,14 +204,9 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         dim as TKTHEME_COLORS t = tkTheme_Get( )
         dim as TKRECT rc
         tkRect_Set( rc, 0, 0, w->cw, w->ch )
-        m->pPaint->SetBackColor( t.Surface )
+        ' the toolbar's own colour, so the strip beside the buttons is one with them
+        m->pPaint->SetBackColor( t.Window )
         m->pPaint->PaintRect( @rc )
-        ' the status line, under the buttons
-        dim as long y = tkHost_Scale( w->pHost, TOOL_CY )
-        dim as long pad = tkHost_Scale( w->pHost, 8 )
-        tkRect_Set( rc, pad, y, w->cw - pad, y + tkHost_Scale( w->pHost, STATUS_CY ) )
-        m->pPaint->SetForeColor( t.Text )
-        m->pPaint->PaintText( p->status, @rc, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
         return true
     case TKM_SIZE
         p->Layout( )
@@ -227,12 +218,13 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
     return false
 end function
 
-' A bottom tab: the selected one is the list's own colour, joined to it above; the others the
-' strip's. No accent bar, no border (the strip's chrome is off: BorderWidth 0).
+' A bottom tab: every tab the list's own colour (author 2026-11-07), the selected one marked by the
+' accent line along its bottom and the strong text, a hot one by the hot text. No border (the
+' strip's chrome is off: BorderWidth 0).
 private sub PaintBottomTab( byval pi as TKTABBAR_PAINTINFO ptr )
     dim as TKTHEME_COLORS t = tkTheme_Get( )
     dim as TK_PAINT ptr b = pi->b
-    b->SetBackColor( iif( pi->isSelected, t.Window, iif( pi->isHot, t.SurfaceHot, t.Surface ) ) )
+    b->SetBackColor( t.Window )
     b->PaintRect( @pi->rc )
     if pi->isSelected then
         ' a line along the bottom marks it, as the top accent does on a top strip
@@ -241,7 +233,7 @@ private sub PaintBottomTab( byval pi as TKTABBAR_PAINTINFO ptr )
         b->SetBackColor( t.Accent )
         b->PaintRect( @rl )
     end if
-    b->SetForeColor( iif( pi->isSelected, t.TextStrong, t.TextDim ) )
+    b->SetForeColor( iif( pi->isSelected, t.TextStrong, iif( pi->isHot, t.TextHot, t.TextDim ) ) )
     b->PaintText( pi->wszCaption, @pi->rc, TK_DT_CENTER or TK_DT_VCENTER or TK_DT_ELLIPSIS )
 end sub
 
@@ -477,11 +469,11 @@ sub Pane.Layout( )
     if frame = 0 then exit sub
     dim as TK_HOST ptr h = frame->pHost
     dim as long cw = frame->cw, ch = frame->ch
-    dim as long th = tkHost_Scale( h, TOOL_CY ), sh = tkHost_Scale( h, STATUS_CY )
+    dim as long th = tkHost_Scale( h, TOOL_CY )
     dim as long tb = tkHost_Scale( h, TABS_CY ), bar = tkHost_Scale( h, SPLIT_CX )
     dim as long tw = tkToolbar_GetIdealWidth( tools )
     tkWidget_SetPos( tools, 0, 0, iif( tw > cw, cw, tw ), th )
-    dim as long top = th + sh
+    dim as long top = th
     dim as long bh = ch - top
     if bh < tb then bh = tb
     dim as long sx = this.SplitPos( )
@@ -528,11 +520,6 @@ sub Pane.ShowRight( byval t as long )
     if tkTabBar_GetCurSel( rtabs ) <> t - 3 then tkTabBar_SetCurSel( rtabs, t - 3 )
     this.SyncSideTools( )
     this.SyncButtons( )
-end sub
-
-sub Pane.SetStatus( byref s as const ustring )
-    status = s
-    if frame then tkWidget_Invalidate( frame )
 end sub
 
 ' Every button as the owner's CanRun says (the menu's rule), the side buttons by selection.

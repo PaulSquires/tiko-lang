@@ -808,7 +808,8 @@ function Window.Create( byval forcedScale as single ) as boolean
         if idx = clng( MenuGroup.Debug ) then
             dim as ustring cap = i18n.Tr( "commands.StartDebugging", "Start Debugging" )
             if mw->DebugActive( ) then cap = i18n.Tr( "debug.continue_menu", "Continue Debugging" )
-            tkPopupMenu_SetItemText( hPopup, clng( Cmd.StartDebugging ), cap )
+            ' the key text again too: SetItemText without one clears it (vendor's contract)
+            tkPopupMenu_SetItemText( hPopup, clng( Cmd.StartDebugging ), cap, mw->ShortcutText( Cmd.StartDebugging ) )
         end if
     end sub )
     tkWidget_Show( menuBar, false )
@@ -3955,7 +3956,6 @@ sub Window.StartDebugSession( byref exe as const ustring )
     DbgStatus = i18n.Tr( "debug.running", "Running..." )
     this.SetBuildMessage( DbgStatus )
     this.ShowDebugTab( )
-    Out.Debug.SetStatus( DbgStatus )
     Out.Debug.OnRun( )
     dbgTimer = tkApp_SetTimer( DEBUG_POLL_MS, sub( byval id as long, byval payload as any ptr )
         cast( Window ptr, payload )->PollDebugger( )
@@ -4013,7 +4013,6 @@ sub Window.OnDebugStopped( byval reason as long )
     end if
     if reason = DBGP_STOP_EXCEPTION then DbgStatus &= "  " & gDbgE.excepText
     this.SetBuildMessage( DbgStatus )
-    Out.Debug.SetStatus( DbgStatus )
     Out.Debug.OnStop( )
 end sub
 
@@ -4035,7 +4034,6 @@ sub Window.OnDebugEnded( byval failed as boolean, byval code as long )
         DbgStatus = strings.Format( i18n.Tr( "debug.exited_code", "Debug target ended (exit code {})" ), code )
     end if
     this.SetBuildMessage( DbgStatus )
-    Out.Debug.SetStatus( DbgStatus )
     Out.Debug.OnEnd( )
 end sub
 
@@ -4098,7 +4096,6 @@ sub Window.DebugCommand( byval id as Cmd )
     DbgPaused = false
     DbgStatus = i18n.Tr( "debug.running", "Running..." )
     this.SetBuildMessage( DbgStatus )
-    Out.Debug.SetStatus( DbgStatus )
     Out.Debug.OnRun( )
 end sub
 
