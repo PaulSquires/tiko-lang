@@ -159,6 +159,10 @@ declare sub BindDeclType _
       byval t as Tko.TypeId, byval force as boolean = false )
 declare function InitCountAt _
     ( byref c as Ctx, byval init as Tko.NodeId, byval depth as int32 ) as int32
+'' A returned fixed local stays dynamic when its pended type is revisited -- resolvearr.tiko.
+declare function KeepReturnedDyn_ _
+    ( byref c as Ctx, byval here as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval t as Tko.TypeId ) as Tko.TypeId
 declare function ArrayFromPairs _
     ( byref c as Ctx, byval base_ as Tko.TypeId, _
       byref los as containers.Array( of uint32 ), byref his as containers.Array( of uint32 ), _

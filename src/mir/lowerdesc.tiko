@@ -308,24 +308,34 @@ private function EraseOne_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     dim as Tko.TypeId t = c.info->TypeOf_( it )
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
+    dim as MirValue desc
+    dim as Tko.TypeId et
     '' A DYNAMIC array already has a descriptor; erase it directly.
     if c.types->IsDynArray( t ) then
         dim as MirValue dv = LowerAddr( c, it )
         if dv.kind = cast( uint8, MV_NONE ) then return false
-        '' NOT ONLY A LOCAL. 'erase this.items' is a FIELD, so its address is a computed
-        '' value; requiring a slot declined every container that clears its own storage,
-        '' which is where ERASE actually appears.
-        EmitEraseDynAt_( c, dv, t )
-        return true
+        '' ...UNLESS IT WAS WRITTEN FIXED, and is dynamic only because its procedure returns it
+        '' (SYMF_RETURNED_FIXED): its own descriptor goes to the FIXED rows below, so the
+        '' elements are cleared and kept, as fbc's erase of a fixed array does.
+        dim as boolean wasFixed = false
+        dim as Tko.Symbol ptr es = c.syms->SymbolAt( c.info->RefOf( it ) )
+        if es <> nullptr then wasFixed = ((es->flags and Tko.SYMF_RETURNED_FIXED) <> 0)
+        if wasFixed = false then
+            '' NOT ONLY A LOCAL. 'erase this.items' is a FIELD, so its address is a computed
+            '' value; requiring a slot declined every container that clears its own storage,
+            '' which is where ERASE actually appears.
+            EmitEraseDynAt_( c, dv, t )
+            return true
+        end if
+        desc = dv
+        et = c.types->Inner( t )
+    else
+        if c.types->types[cast( int32, t )].dims < 1 then return false
+        dim as MirValue base_ = LowerAddr( c, it )
+        if base_.kind = cast( uint8, MV_NONE ) then return false
+        if SynthFixedArrayDesc( c, base_, t, desc ) = false then return false
+        et = c.types->types[cast( int32, t )].inner
     end if
-    if c.types->types[cast( int32, t )].dims < 1 then return false
-
-    dim as MirValue base_ = LowerAddr( c, it )
-    if base_.kind = cast( uint8, MV_NONE ) then return false
-    dim as MirValue desc
-    if SynthFixedArrayDesc( c, base_, t, desc ) = false then return false
-
-    dim as Tko.TypeId et = c.types->types[cast( int32, t )].inner
     dim as containers.Array( of uint32 ) args
     args.Push( cast( uint32, desc.kind ) ) : args.Push( cast( uint32, desc.id ) )
 

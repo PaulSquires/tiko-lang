@@ -81,3 +81,121 @@ function ArrayFromBounds _
     wend
     return ArrayFromPairs( c, base_, los, his, Tko.NODE_NONE, false, scope_ )
 end function
+
+'' A FIXED LOCAL ARRAY THAT IS RETURNED. A TIKO EXTENSION, beside the array result itself
+'' (arrresult.tiko):
+''
+''     function f( ) as integer( )
+''         dim as integer t( 100 )
+''         return t
+''     end function
+''
+'' A result is MOVED out -- its descriptor handed to the caller -- and a fixed array has no
+'' descriptor to hand over: its elements sit in this frame. So a fixed array that the body
+'' names in a 'return' or a 'function =' is given a DYNAMIC array type of the same rank here,
+'' and the declaration's bounds -- constants, folded -- size it at the 'dim', as they do any
+'' 'dim a( 1 to n )'. Its elements live on the heap from the start, and the return moves
+'' their descriptor: no element is ever copied. Only a plain local of an array-returning
+'' procedure is taken; SHARED, STATIC, BYREF and initialised items keep their fixed type. The
+'' symbol is marked SYMF_RETURNED_FIXED, so 'erase t' still clears it rather than freeing it.
+
+'' Does this statement, or one nested in it, return the array named 'nm'? Only statements are
+'' entered -- an expression holds no 'return' of this procedure.
+private function NamesReturned_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval nm as Tko.InternId, _
+      byval procName as Tko.InternId, byval depth as int32 ) as boolean
+
+    if (id = Tko.NODE_NONE) orelse (depth > 200) then return false
+    dim as Tko.NodeKind k = c.ast->Kind( id )
+    if k = Tko.N_BLOCK then
+        dim as Tko.ListPayload ptr lp = ListOf( c, id )
+        for i as int32 = 0 to lp->count - 1
+            if NamesReturned_( c, c.ast->ChildAt( lp->first, i ), nm, procName, depth + 1 ) then return true
+        next
+        return false
+    end if
+    if Tko.NodeKindCategory( k ) <> Tko.NCAT_STMT then return false
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
+    dim as Tko.NodeId v = Tko.NODE_NONE
+    if k = Tko.N_RETURN then v = sp->a
+    if (k = Tko.N_AMBIGUOUS) andalso (sp->op = cast( uint16, Tko.TK_EQ )) andalso (sp->a <> Tko.NODE_NONE) then
+        '' 'function = t', and 'f = t' with the procedure's own name.
+        if c.ast->Kind( sp->a ) = Tko.N_FUNCRESULT then v = sp->b
+        if IdentNameOf( c, sp->a ) = procName then v = sp->b
+    end if
+    for guard as int32 = 0 to 15
+        if v = Tko.NODE_NONE then exit for
+        dim as Tko.NodeKind vk = c.ast->Kind( v )
+        if vk = Tko.N_IDENT then return (IdentNameOf( c, v ) = nm)
+        if (vk <> Tko.N_PAREN) andalso (vk <> Tko.N_CALL) then exit for
+        '' '( t )', and 't( )' -- the array's name with an empty subscript.
+        dim as Tko.ListPayload ptr vl = ListOf( c, v )
+        if vk = Tko.N_CALL then
+            if vl->count <> 0 then exit for
+            v = vl->target
+        else
+            if vl->count <> 1 then exit for
+            v = cast( Tko.NodeId, c.ast->ChildSlot( vl->first ) )
+        end if
+    next
+    if NamesReturned_( c, sp->a, nm, procName, depth + 1 ) then return true
+    if NamesReturned_( c, sp->b, nm, procName, depth + 1 ) then return true
+    if NamesReturned_( c, sp->c, nm, procName, depth + 1 ) then return true
+    for i as int32 = 0 to sp->count - 1
+        if NamesReturned_( c, c.ast->ChildAt( sp->first, i ), nm, procName, depth + 1 ) then return true
+    next
+    return false
+end function
+
+'' A fixed array type 't' for the local 'nm' -- or, when that local is marked
+'' SYMF_RETURNED_FIXED, the dynamic array of the same element and rank. Also called by the
+'' revisit of an item whose element type was not complete yet (generictypedef.tiko), which
+'' would otherwise rebuild the fixed type over the promotion.
+function KeepReturnedDyn_ _
+    ( byref c as Ctx, byval here as Tko.ScopeId, byval nm as Tko.InternId, _
+      byval t as Tko.TypeId ) as Tko.TypeId
+
+    if t = Tko.TYPE_NONE then return t
+    if (c.types->Kind( t ) <> Tko.TK_ARRAY) orelse c.types->IsDynArray( t ) then return t
+    dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocalTyped( here, nm, false ) )
+    if vs = nullptr then return t
+    if (vs->flags and Tko.SYMF_RETURNED_FIXED) = 0 then return t
+    '' One fixed array type carries every dimension, over its element.
+    dim as int32 rank = c.types->types[cast( int32, t )].dims
+    dim as Tko.TypeId el = c.types->Inner( t )
+    if (rank < 1) orelse (el = Tko.TYPE_NONE) then return t
+    return c.types->DynArrayOf( el, rank )
+end function
+
+'' 't', the type Resolve built for a local item -- or, for a fixed array the procedure returns,
+'' the dynamic array of the same element and rank.
+function ReturnedLocalArray_ _
+    ( byref c as Ctx, byval declNode as Tko.NodeId, byval item as Tko.NodeId, _
+      byval t as Tko.TypeId, byval here as Tko.ScopeId ) as Tko.TypeId
+
+    if t = Tko.TYPE_NONE then return t
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return t
+    if c.types->IsDynArray( t ) then return t
+    if Tko.Check.FixedStringElem( t, *c.types ) <> Tko.TYPE_NONE then return t
+    if c.ast->Kind( declNode ) <> Tko.N_VAR then return t
+    dim as uint16 fl = c.ast->Flags( declNode ) or c.ast->Flags( item )
+    if (fl and (Tko.NF_SHARED or Tko.NF_STATIC or Tko.NF_BYREF)) <> 0 then return t
+    dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
+    if (ip->b <> Tko.NODE_NONE) orelse (ip->c = Tko.NODE_NONE) then return t
+    dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.currentProc )
+    if ps = nullptr then return t
+    if ps->kind <> cast( uint8, Tko.SYM_PROC ) then return t
+    dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
+    if pn = Tko.NODE_NONE then return t
+    if c.ast->Kind( pn ) <> Tko.N_PROC then return t
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+    if (pp->extra and Tko.PF_ARRAY_RESULT) = 0 then return t
+    if NamesReturned_( c, pp->b, ip->name, ps->name, 0 ) = false then return t
+    dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocalTyped( here, ip->name, false ) )
+    if vs = nullptr then return t
+    if vs->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return t
+    '' ...STILL A FIXED ARRAY TO 'erase', which clears its elements and keeps them. Without the
+    '' mark 'erase t' freed it, and the next 't( 3 )' read through a null pointer.
+    vs->flags or= Tko.SYMF_RETURNED_FIXED
+    return KeepReturnedDyn_( c, here, ip->name, t )
+end function

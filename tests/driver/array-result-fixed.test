@@ -1,0 +1,19 @@
+'' A FIXED LOCAL ARRAY RETURNED, and 'var p( ) = f( )' -- array results, a tiko extension. The
+'' local is given a dynamic type with its own bounds, so the return moves the descriptor and no
+'' element is copied (symbols/resolvearr.tiko ReturnedLocalArray_); 'var p( )' is read as
+'' 'var p' by the parser (parser/decl.tiko). RUN, for the same reason array-result.test is.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/array-result-fixed.tiko -o tests/driver/arrayresultfixed.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/arrayresultfixed.exe
+'' RUN: tests/driver/arrayresultfixed.exe
+'' EXPECT-RUN-OUT: fixed 0 100 0 100 200
+'' EXPECT-RUN-OUT: grid 1 2 0 3 23
+'' EXPECT-RUN-OUT: names alpha beta gamma7
+'' EXPECT-RUN-OUT: paren 1.5 9
+'' EXPECT-RUN-OUT: udt 4 5
+'' EXPECT-RUN-OUT: assign 100 14
+'' EXPECT-RUN-OUT: loop 16000
+'' EXPECT-RUN-OUT: erase 3 4 0
+'' EXPECT-RUN-OUT: erasestr 1 0 kept

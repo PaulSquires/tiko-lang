@@ -1,0 +1,12 @@
+'' What 'var p( ) = ...' and a returned fixed local still refuse. 'var p( )' takes only an array
+'' result -- anything else stays TKO0612, fbc's error 75 -- and only a plain, uninitialised local
+'' fixed array becomes dynamic to be returned: a STATIC one, or one with an initialiser, is still
+'' TKO0838. See symbols/resolvearr.tiko ReturnedLocalArray_ and symbols/arrresult.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/array-result-fixed-errors.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: array-result-fixed-errors.tiko(5,5): error TKO0612: var-len array 'b' cannot be initialized
+'' EXPECT-OUT: array-result-fixed-errors.tiko(4,5): error TKO0612: var-len array 'a' cannot be initialized
+'' EXPECT-OUT: array-result-fixed-errors.tiko(7,5): error TKO0612: var-len array 'c' cannot be initialized
+'' EXPECT-OUT: array-result-fixed-errors.tiko(10,5): error TKO0838: this function returns an array
+'' EXPECT-OUT: array-result-fixed-errors.tiko(14,5): error TKO0838: this function returns an array

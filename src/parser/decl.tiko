@@ -587,6 +587,18 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
             if p.ast->StmtAt( si )->a = Tko.NODE_NONE then p.ast->StmtAt( si )->a = sharedType
         end if
         if isItem = false then exit do
+        '' 'var p( ) = f( )' -- A TIKO EXTENSION: the array result moved in, as 'var p = f( )'.
+        '' Read as that, and marked KW_VAR so Check keeps TKO0612 for any other initialiser.
+        if (sp.op = cast( uint16, Tko.KW_VAR )) andalso ((p.ast->Flags( item ) and Tko.NF_ARRAY) <> 0) then
+            dim as Tko.StmtPayload ptr vip = p.ast->StmtOf( item )
+            dim as boolean emptyDims = (vip->b <> Tko.NODE_NONE) andalso (vip->c <> Tko.NODE_NONE)
+            if emptyDims then emptyDims = (p.ast->Kind( vip->c ) = Tko.N_BLOCK)
+            if emptyDims then emptyDims = (p.ast->ListOf( vip->c )->count = 0) andalso (p.ast->Kind( vip->b ) <> Tko.N_INITIALIZER)
+            if emptyDims then
+                vip->c = Tko.NODE_NONE : vip->extra = cast( uint16, Tko.KW_VAR )
+                p.ast->NodeAt( item )->flags and= not Tko.NF_ARRAY
+            end if
+        end if
         if p.pos = before then exit do
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop

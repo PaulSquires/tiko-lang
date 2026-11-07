@@ -1,0 +1,91 @@
+'' A FIXED LOCAL ARRAY RETURNED -- 'dim t( 100 ) : return t' in a 'function f( ) as T( )'. Resolve
+'' gives such a local a dynamic type with the same bounds (symbols/resolvearr.tiko), so its
+'' elements live on the heap from the 'dim' and the return MOVES the descriptor: nothing is copied.
+'' And 'var p( ) = f( )', which reads as 'var p = f( )'. The loop at the end shows a double free
+'' as a fault and a leak as growth.
+type MyArray as integer
+
+function ReturnArray( ) as MyArray( )
+    dim as integer tempArray( 100 )
+    for i as integer = 0 to 100
+        tempArray( i ) = i * 2
+    next
+    return tempArray
+end function
+
+function Grid( ) as integer( )
+    dim as integer g( 1 to 2, 0 to 3 )
+    for i as integer = 1 to 2
+        for j as integer = 0 to 3
+            g( i, j ) = i * 10 + j
+        next
+    next
+    function = g
+end function
+
+function Names( ) as ustring( )
+    dim as ustring s( 2 )
+    s( 0 ) = "alpha" : s( 1 ) = "beta" : s( 2 ) = "gamma" & str( 7 )
+    Names = s
+end function
+
+function Paren( ) as double( )
+    dim as double d( 1 )
+    dim as integer keep( 3 )          '' not returned: stays a fixed array
+    keep( 3 ) = 9
+    d( 0 ) = 1.5 : d( 1 ) = keep( 3 )
+    if d( 0 ) > 100 then return ( d )
+    return d( )
+end function
+
+type Pt
+    as integer x, y
+end type
+
+function Pts( ) as Pt( )
+    dim as Pt q( 1 )
+    q( 1 ).x = 4 : q( 1 ).y = 5
+    return q
+end function
+
+var p( ) = ReturnArray( )
+print "fixed"; lbound( p ); ubound( p ); p( 0 ); p( 50 ); p( 100 )
+var g = Grid( )
+print "grid"; lbound( g, 1 ); ubound( g, 1 ); lbound( g, 2 ); ubound( g, 2 ); g( 2, 3 )
+var s( ) = Names( )
+print "names "; s( 0 ); " "; s( 1 ); " "; s( 2 )
+var d( ) = Paren( )
+print "paren"; d( 0 ); d( 1 )
+var q( ) = Pts( )
+print "udt"; q( 1 ).x; q( 1 ).y
+dim r( ) as integer
+r = ReturnArray( )
+print "assign"; ubound( r ); r( 7 )
+dim as longint total
+for n as integer = 1 to 1000
+    var t( ) = Names( )
+    var u( ) = Grid( )
+    total += len( t( 2 ) ) + u( 1, 0 )
+next
+print "loop"; total
+
+function Cleared( ) as integer( )
+    dim as integer t( 3 )
+    t( 3 ) = 9
+    erase t                           '' a fixed array's erase: cleared, kept
+    t( 2 ) = 4
+    return t
+end function
+
+function ClearedStr( ) as ustring( )
+    dim as ustring w( 1 )
+    w( 0 ) = "gone"
+    erase w
+    w( 1 ) = "kept"
+    return w
+end function
+
+var cl( ) = Cleared( )
+print "erase"; ubound( cl ); cl( 2 ); cl( 3 )
+var cs( ) = ClearedStr( )
+print "erasestr"; ubound( cs ); len( cs( 0 ) ); " "; cs( 1 )

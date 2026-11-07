@@ -1081,9 +1081,9 @@ sub WalkStmt _
             dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
             dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
             '' 'dim as long a(0 to 9)' is an ARRAY of long, not a long. Without this a
-            '' local array reserved one ELEMENT -- four bytes where forty were needed --
-            '' which nothing noticed only because indexing was not lowered either.
+            '' local array reserved one ELEMENT. A RETURNED one is dynamic: resolvearr.tiko.
             t = ArrayFromBoundsNode( c, t, ip->c, ip->b, here )
+            t = ReturnedLocalArray_( c, id, item, t, here )
             ArrayTooBig_( c, t, item, ip->name )
             if c.ast->Kind( id ) = Tko.N_CONST then
                 ConstBoundCheck_( c, item, scope_ )

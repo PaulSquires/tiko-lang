@@ -174,8 +174,8 @@ sub BackpatchTypedefs( byref c as Ctx )
         dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
         dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
         if t = Tko.TYPE_NONE then continue for
-        BindDeclType( c, here, ip->name, _
-            ArrayFromBoundsNode( c, t, ip->c, ip->b, here ), true )
+        BindDeclType( c, here, ip->name, KeepReturnedDyn_( c, here, ip->name, _
+            ArrayFromBoundsNode( c, t, ip->c, ip->b, here ) ), true )
     next
 
     '' TYPE FIELDS, revisited the same way. Measured on fbc: 'type LP as LPTR' written

@@ -221,10 +221,18 @@ sub CheckArrayAssign_ ( byref c as Ctx, byval id as NodeId, byval resultType as 
 end sub
 
 '' 'dim x as integer = f( )' over an array result. A 'dim a( ) as T = f( )' is TKO0612, fbc's own
-'' error 75 for any initialised dynamic array, and a 'var' takes the array's type.
+'' error 75 for any initialised dynamic array, and a 'var' -- 'var p' or 'var p( )' -- takes the
+'' array's type.
 sub CheckArrayInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr ip = _
         c.ast->StmtOf( id )
+    '' 'var p( ) = ...', which the parser read as 'var p = ...' (decl.tiko): only an array result.
+    if (ip->extra = cast( uint16, KW_VAR )) andalso (ip->b <> NODE_NONE) then
+        if ArrIsResultCall_( c, ip->b ) = false then
+            c.diags->Report( TKO0612, PointRange( c.ast->Loc( id ) ), c.names->Spelling( ip->name ) )
+        end if
+        return
+    end if
     if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
     if ArrIsResultCall_( c, ip->b ) = false then return
     '' AN ARRAY DECLARATION IS TKO0612'S -- the item carries NF_ARRAY, its type node only the element.

@@ -187,6 +187,9 @@ namespace Tko
     '' SYM_ENUMCONST: the bare name of a member that ANOTHER NAMED ENUM declares too. The first
     '' keeps the bare spelling (collect.tiko); a bare use is fbc's 255, ambiguous (TKO0983).
     const SYMF_ENUM_AMBIG     as uint32 = &h20000000
+    '' SYM_VARIABLE: a FIXED local array its procedure returns, typed dynamic so the return can
+    '' move it (resolvearr.tiko ReturnedLocalArray_). ERASE still clears it as fixed (lowerdesc.tiko).
+    const SYMF_RETURNED_FIXED as uint32 = &h40000000
 
     type Symbol
         as uint8     kind
