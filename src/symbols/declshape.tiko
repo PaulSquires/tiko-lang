@@ -630,6 +630,73 @@ private function ConstStrInitBad_ ( byref c as Ctx, byval e as NodeId, byval dep
     return NODE_NONE
 end function
 
+'' ANY CONSTANT'S INITIALISER THAT READS A VARIABLE OR CALLS A PROCEDURE -- fbc's error 11 again,
+'' at the 'const'. Measured on fbc-modern 1.20, 2026-11-07, one 'const K = ...' each over
+'' 'function f', 'declare function ext', 'dim shared g as integer' and 'dim shared uu as U': fbc
+'' refuses 'f( 4 )', 'ext( 4 )', 'f( 4 ) + 1', 'g', '-g', 'not g', '( g )', '1 + g * 2', '@g',
+'' 'uu.a', 'cast( integer, g )', 'cint( g )', 'cbyte( g )', 'abs( g )' and 'iif( g, 2, 3 )', and
+'' folds 'sizeof( g )', 'len( g )', 'offsetof( U, a )', and 'abs', 'sgn', 'int', 'fix', 'sqr',
+'' 'sin', 'log', 'cint', 'cast', 'asc', 'len' and 'iif' over constants. tiko accepted every one
+'' and lowered the initialiser at each USE (lowerstr.tiko's unfolded-integer path), so
+'' 'const K = f( 4 )' called f once per read, and 'as int32 a( 0 to K )' in a TYPE became a
+'' dynamic array's descriptor. Only those shapes are asked: a builtin's arguments are walked,
+'' 'sizeof' / 'len' / 'offsetof' / 'lbound' / 'ubound' are not, and anything else is let be --
+'' a missing error is a gap, a false one a wrong compiler.
+private function ConstInitBad_ ( byref c as Ctx, byval e as NodeId, byval depth as int32 ) as NodeId
+    if (e = NODE_NONE) orelse (depth > 4096) then return NODE_NONE
+    select case c.ast->Kind( e )
+    case N_PAREN
+        dim as ListPayload ptr pl = c.ast->ListOf( e )
+        if pl->count <> 1 then return NODE_NONE
+        return ConstInitBad_( c, cast( NodeId, c.ast->ChildSlot( pl->first ) ), depth + 1 )
+    case N_BINARY
+        dim as BinaryPayload ptr bp = c.ast->BinaryOf( e )
+        dim as NodeId bad = ConstInitBad_( c, bp->lhs, depth + 1 )
+        if bad <> NODE_NONE then return bad
+        return ConstInitBad_( c, bp->rhs, depth + 1 )
+    case N_UNARY, N_ADDROF
+        return ConstInitBad_( c, c.ast->UnaryOf( e )->operand, depth + 1 )
+    case N_IDENT
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if s = nullptr then return NODE_NONE
+        select case cast( SymbolKind, s->kind )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+            return e
+        end select
+        return NODE_NONE
+    case N_MEMBER
+        dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if ms <> nullptr then
+            select case cast( SymbolKind, ms->kind )
+            case SYM_VARIABLE, SYM_PARAMETER
+                return e
+            end select
+        end if
+        return ConstInitBad_( c, c.ast->BinaryOf( e )->lhs, depth + 1 )
+    case N_CALL
+        dim as ListPayload ptr lp = c.ast->ListOf( e )
+        if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return NODE_NONE
+        dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if ps = nullptr then ps = c.syms->SymbolAt( c.info->RefOf( e ) )
+        if ps <> nullptr then
+            select case cast( SymbolKind, ps->kind )
+            case SYM_PROC, SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD    '' a call, or an array element
+                return e
+            end select
+            return NODE_NONE
+        end if
+        select case Text.LowerAscii( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) )
+        case "sizeof", "len", "offsetof", "lbound", "ubound"
+            return NODE_NONE
+        end select
+        for a as int32 = 0 to lp->count - 1
+            dim as NodeId bad = ConstInitBad_( c, cast( NodeId, c.ast->ChildSlot( lp->first + a ) ), depth + 1 )
+            if bad <> NODE_NONE then return bad
+        next
+    end select
+    return NODE_NONE
+end function
+
 sub CheckConstStrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     dim as int32 spFirst = sp->first, spCount = sp->count
@@ -638,8 +705,9 @@ sub CheckConstStrInit_ ( byref c as Ctx, byval id as NodeId )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as NodeId v = c.ast->StmtOf( item )->b
         if v = NODE_NONE then continue for
-        if IsStringyType_( c, c.info->TypeOf_( v ) ) = false then continue for
-        dim as NodeId bad = ConstStrInitBad_( c, v, 0 )
+        dim as NodeId bad = NODE_NONE
+        if IsStringyType_( c, c.info->TypeOf_( v ) ) then bad = ConstStrInitBad_( c, v, 0 )
+        if bad = NODE_NONE then bad = ConstInitBad_( c, v, 0 )
         if bad = NODE_NONE then continue for
         if c.ast->Kind( bad ) = N_CALL then bad = c.ast->ListOf( bad )->target
         c.diags->Report( TKO0605, PointRange( c.ast->Loc( bad ) ) )

@@ -1,0 +1,21 @@
+'' TKO0605, fbc's 11, for ANY constant initialised from a variable, a parameter, a field of a
+'' variable, an array element, or a call to a procedure -- the program's own or a declared one --
+'' however deep in the expression. tiko accepted each and lowered the initialiser at every use, so
+'' 'const K = f( 4 )' called f once per read and 'as long z( 0 to K )' in a TYPE became a dynamic
+'' array. The forms fbc folds -- sizeof, len, offsetof, and abs / sqr / cint / cast / asc / iif
+'' over constants -- are fine. See symbols/declshape.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-not-constant.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-not-constant.bas(13,12): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(14,12): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(15,16): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(16,15): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(17,13): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(18,12): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(19,27): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(20,17): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(21,17): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(22,12): error TKO0605
+'' EXPECT-OUT: const-not-constant.bas(24,16): error TKO0605
+'' EXPECT-MAX-DIAG: 11
