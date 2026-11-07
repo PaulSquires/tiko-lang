@@ -102,6 +102,10 @@ namespace Tko
         declare sub EnterInst( byval frame as int32 )     '' 0 is accepted and ignored
         declare sub LeaveInst( byval frame as int32 )     '' pairs with EnterInst( frame )
         declare function ActiveInst( ) as int32
+        '' Mutes every frame asked for at 'at_' whose text begins 'prefix' -- 'Total( of '.
+        declare sub MuteInstAt( byref prefix as string, byval at_ as SourceLoc )
+        '' TRUE when 'frame' or any frame it was asked from is muted.
+        declare function InstMuted( byval frame as int32 ) as boolean
 
         declare function ErrorCount( ) as int32
         '' A SNAPSHOT, and a return to it: everything reported since is forgotten,

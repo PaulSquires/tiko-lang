@@ -60,6 +60,10 @@ namespace Tko
         as string      text          '' 'Ranked( of opaque_ )'
         as SourceRange range         '' the line that asked for it
         as int32        parent
+        '' A REFUSED instantiation: its type argument broke the generic's constraint, which
+        '' TKO1022 already said. Anything reported from inside its body is dropped -- the
+        '' constraint is the one message (docs/tiko-interfaces section 11.6).
+        as boolean      muted
     end type
 
     type InstFrameVec as containers.Array( of InstFrame )

@@ -1,0 +1,8 @@
+'' TKO1022 ALONE for a type argument that breaks a constraint: the instantiated body's
+'' TKO0972 ('a' has no member 'area') followed it, though the interfaces design promises one
+'' message. The refused instantiation's frame is muted (diag/engine.tiko MuteInstAt).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/constraint-one-message.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: constraint-one-message.bas(26,12): error TKO1022
+'' EXPECT-MAX-DIAG: 1

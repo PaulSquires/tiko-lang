@@ -574,6 +574,10 @@ private sub CheckConstraints_ _
             continue for
         end if
         if (at = it) orelse (types.IfaceConvLinks( at, it ) >= 0) then continue for
+        '' ...AND ONLY THAT: what the instantiated body would say next -- 'a' has no member
+        '' 'area' -- follows from the same broken constraint and is dropped.
+        diags.MuteInstAt( names.Spelling( cast( InternId, syms.constraintChecks[i + 4] ) ) & "( of ", _
+                          cast( SourceLoc, syms.constraintChecks[i + 3] ) )
         diags.Report( TKO1022, PointRange( cast( SourceLoc, syms.constraintChecks[i + 3] ) ), types.Name( at ), _
                       types.Name( it ), names.Spelling( cast( InternId, syms.constraintChecks[i + 4] ) ) & _
                       "( of " & names.Spelling( cast( InternId, syms.constraintChecks[i + 5] ) ) & " )" )

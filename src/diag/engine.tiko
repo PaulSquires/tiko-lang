@@ -119,6 +119,8 @@ sub DiagnosticEngine.Push _
         this.suppressedCount += 1
         return
     end if
+    '' FROM INSIDE A REFUSED INSTANTIATION: its TKO1022 is the message (InstFrame.muted).
+    if this.InstMuted( this.ActiveInst( ) ) then return
 
     dim as Severity sev = this.EffectiveSeverity( id )
 
@@ -182,6 +184,25 @@ end sub
 function DiagnosticEngine.ActiveInst( ) as int32
     if this.instActive.IsEmpty( ) then return 0
     return this.instActive[this.instActive.Count - 1]
+end function
+
+sub DiagnosticEngine.MuteInstAt( byref prefix as string, byval at_ as SourceLoc )
+    dim as int32 pl = len( prefix )
+    for i as int32 = 0 to this.instFrames.Count - 1
+        if this.instFrames[i].range.first <> at_ then continue for
+        if lcase( left( this.instFrames[i].text, pl ) ) <> lcase( prefix ) then continue for
+        this.instFrames[i].muted = true
+    next
+end sub
+
+'' Walks outward: a parent is always an EARLIER frame (AddInstFrame), so this ends.
+function DiagnosticEngine.InstMuted( byval frame as int32 ) as boolean
+    for guard as int32 = 0 to 255
+        if (frame <= 0) orelse (frame > this.instFrames.Count) then return false
+        if this.instFrames[frame - 1].muted then return true
+        frame = this.instFrames[frame - 1].parent
+    next
+    return false
 end function
 
 '' The chain as notes, innermost first: the instantiation whose body holds the error,
