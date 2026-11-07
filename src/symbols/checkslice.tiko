@@ -126,6 +126,20 @@ function SliceTypeFor _
     return s->type_
 end function
 
+function SliceIifType _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval ta as Tko.TypeId, byval tb as Tko.TypeId ) as Tko.TypeId
+
+    dim as SliceUnit sla = SliceUnitOfType( types, names, ta )
+    dim as SliceUnit slb = SliceUnitOfType( types, names, tb )
+    if (sla <> SU_NONE) = (slb <> SU_NONE) then return Tko.TYPE_NONE
+    select case iif( sla <> SU_NONE, sla, slb )
+    case SU_NARROW : return types.Builtin( Tko.TY_STRING )
+    case SU_UTF16 : return types.Builtin( Tko.TY_USTRING )
+    end select
+    return iif( sla <> SU_NONE, tb, ta )
+end function
+
 function IsSliceCall _
     ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
       byval id as Tko.NodeId ) as boolean

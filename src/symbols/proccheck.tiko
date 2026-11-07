@@ -583,6 +583,7 @@ sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     '' and a type whose base chain ENDS IN A BUILTIN -- 'extends wstring', 'extends zstring' --
     '' is a string to fbc, whose own udt-wstring/select.bas selects on one.
     if (c.types->Kind( su ) = TK_UDT) andalso (TcTuple_( c, su ) = false) then
+        if Tko.Slices.SliceUnitOfType( *c.types, *c.names, su ) <> Tko.Slices.SU_NONE then return   '' a string slice selects as its text (docs/tiko-slices)
         dim as TypeId bb = c.types->BaseOf( su )
         for guard as int32 = 0 to 63
             if bb = TYPE_NONE then exit for

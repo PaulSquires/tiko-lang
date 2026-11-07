@@ -204,6 +204,94 @@ private function SourceParts_ _
     return (dataV.kind <> cast( uint8, MV_NONE )) andalso (lenV.kind <> cast( uint8, MV_NONE ))
 end function
 
+'' THE TYPE a member procedure belongs to, or TYPE_NONE -- MemberVSlot_'s walk.
+private function OwnerType_( byref c as Ctx, byval sym as Tko.SymbolId ) as Tko.TypeId
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
+    if ms = nullptr then return Tko.TYPE_NONE
+    dim as Tko.SymScope ptr os = c.syms->ScopeAt( ms->parent )
+    if (os = nullptr) orelse (os->kind <> cast( uint8, Tko.SCOPEK_TYPE )) then return Tko.TYPE_NONE
+    dim as Tko.Symbol ptr ow = c.syms->SymbolAt( os->owner )
+    if ow = nullptr then return Tko.TYPE_NONE
+    return ow->type_
+end function
+
+'' A SLICE IN A STRING CONTEXT (RFC-0001 §7). The prelude declares 'operator cast' on each
+'' slice TYPE and gives it no body, so Check's measured UDT-cast rules (castpick.tiko) decide
+'' where a slice may stand for a string -- print, '&', a comparison, a string variable or
+'' argument, 'cast( string, v )' -- and every one of those calls lands here instead:
+''
+''   slice    fb_StrAllocTempDescZEx( data, len ): a pool descriptor over the bytes, NO COPY;
+''            its temp bit is clear, so no consumer steals the buffer.
+''   uslice   a stack FBUSTRING over the units, size 0, handed to fb_UStrLeftD, which copies
+''            them into a temporary the consumer releases.
+''   wslice   fb_WstrAlloc( len + 1 ), memcpy, a NUL: a wide temporary, released at the end
+''            of the statement like every other (wstrTemps).
+function LowerSliceCast _
+    ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
+      byref outv as MirValue ) as boolean
+
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( sym )
+    if ms = nullptr then return false
+    if Tko.Text.LowerAscii( c.names->Spelling( ms->name ) ) <> "cast" then return false
+    dim as Tko.TypeId ot = OwnerType_( c, sym )
+    if ot = Tko.TYPE_NONE then return false
+    dim as Slices.SliceUnit su = Slices.SliceUnitOfType( *c.types, *c.names, ot )
+    if su = Slices.SU_NONE then return false
+    if self_.kind = cast( uint8, MV_NONE ) then return false
+
+    dim as MirValue dataV = LowerExprLoad( c, Fld_( c, self_, 0 ), MT_PTR )
+    dim as MirValue lenV = LowerExprLoad( c, Fld_( c, self_, 8 ), MT_I64 )
+    dim as containers.Array( of uint32 ) a
+    select case su
+    case Slices.SU_NARROW
+        a.Push( cast( uint32, dataV.kind ) ) : a.Push( cast( uint32, dataV.id ) )
+        a.Push( cast( uint32, lenV.kind ) ) : a.Push( cast( uint32, lenV.id ) )
+        outv = EmitRtl( c, RTL_STR_TEMPZ, a )
+    case Slices.SU_UTF16
+        dim as int32 vs = NewTempLocal( c, MT_AGG, 24 )
+        if vs < 0 then return false
+        dim as MirValue va = Local_( vs )
+        Store_( c, Fld_( c, va, 0 ), dataV )
+        Store_( c, Fld_( c, va, 8 ), lenV )
+        dim as MirValue z = ConstInt( c, 0, MT_I64 )
+        Store_( c, Fld_( c, va, 16 ), z )
+        a.Push( cast( uint32, va.kind ) ) : a.Push( cast( uint32, va.id ) )
+        a.Push( cast( uint32, lenV.kind ) ) : a.Push( cast( uint32, lenV.id ) )
+        outv = EmitRtl( c, RTL_USTR_LEFT, a )
+    case else
+        dim as int32 wb = c.types->target.wcharBytes
+        dim as MirValue one = ConstInt( c, 1, MT_I64 )
+        dim as MirValue n1 = Op2_( c, M_ADD, MT_I64, lenV, one )
+        a.Push( cast( uint32, n1.kind ) ) : a.Push( cast( uint32, n1.id ) )
+        dim as MirValue wp = EmitRtl( c, RTL_WSTR_ALLOC, a )
+        if wp.kind = cast( uint8, MV_NONE ) then return false
+        dim as MirValue wbv = ConstInt( c, wb, MT_I64 )
+        dim as MirValue nbytes = Op2_( c, M_MUL, MT_I64, lenV, wbv )
+        dim as containers.Array( of uint32 ) ma
+        ma.Push( cast( uint32, wp.kind ) ) : ma.Push( cast( uint32, wp.id ) )
+        ma.Push( cast( uint32, dataV.kind ) ) : ma.Push( cast( uint32, dataV.id ) )
+        ma.Push( cast( uint32, nbytes.kind ) ) : ma.Push( cast( uint32, nbytes.id ) )
+        EmitRtl( c, RTL_MEM_COPY, ma )
+        dim as MirValue endp = Op2_( c, M_PTR_ADD, MT_PTR, wp, nbytes )
+        Store_( c, endp, ConstInt( c, 0, iif( wb = 4, MT_I32, MT_I16 ) ) )
+        dim as int32 ws = NewTempLocal( c, MT_PTR, c.types->target.pointerBits \ 8 )
+        if ws < 0 then return false
+        dim as MirValue wsa = Local_( ws )
+        Store_( c, wsa, wp )
+        c.wstrTemps.Push( cast( uint32, ws ) )
+        outv = wp
+    end select
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+function SliceMeetsString _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    dim as Tko.TypeId ta = c.types->Unqualify( c.info->TypeOf_( a ) )
+    dim as Tko.TypeId tb = c.types->Unqualify( c.info->TypeOf_( b ) )
+    if ta = tb then return false
+    return (SliceUnitBytes( c, ta ) > 0) orelse (SliceUnitBytes( c, tb ) > 0)
+end function
+
 '' '__tko_slice( src, lo, hi )' -- the slice VALUE.
 function LowerSliceCall _
     ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean

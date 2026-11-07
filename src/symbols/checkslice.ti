@@ -70,6 +70,13 @@ namespace Tko.Slices
           byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo, _
           byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
+    '' 'iif( c, a, b )' with ONE slice arm: the owned string of the slice's width -- the arms
+    '' are built into a string temporary, so 'print iif( c, v, "x" ) & "y"' is text. A wslice
+    '' takes the other arm's type. TYPE_NONE when neither or both arms are slices.
+    declare function SliceIifType _
+        ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval ta as Tko.TypeId, byval tb as Tko.TypeId ) as Tko.TypeId
+
     '' Whether call node id is a '__tko_slice' call.
     declare function IsSliceCall _
         ( byref ast as Tko.AstArena, byref names as Tko.Interner, _

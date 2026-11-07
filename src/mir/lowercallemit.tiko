@@ -12,6 +12,7 @@
 #include once "mir/lowerstruct.ti"
 #include once "mir/lowerctl.ti"
 #include once "mir/lowerstore.ti"
+#include once "mir/lowerslice.ti"
 
 namespace Tko.Mir
 
@@ -112,6 +113,7 @@ function EmitMemberCallArgs_ _
       byval vslot as int32 ) as MirValue
 
     dim as MirValue none_
+    if LowerSliceCast( c, sym, self_, none_ ) then return none_   '' a string slice's 'operator cast': lowerslice.tiko
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
     if s = nullptr then return none_
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )

@@ -1,4 +1,4 @@
-resolved: 11 references, 0 builtins, 0 unresolved, 285 type refs, 2 calls, 2 assignments
+resolved: 11 references, 0 builtins, 0 unresolved, 288 type refs, 2 calls, 2 assignments
   typeref #1 -> long
   typeref #5 -> long
   typeref #8 -> long
@@ -261,16 +261,19 @@ resolved: 11 references, 0 builtins, 0 unresolved, 285 type refs, 2 calls, 2 ass
   typeref #632 -> integer
   typeref #634 -> any
   typeref #635 -> any ptr
-  typeref #638 -> ushort
-  typeref #639 -> ushort ptr
-  typeref #641 -> integer
-  typeref #643 -> any
-  typeref #644 -> any ptr
-  typeref #647 -> wstring
-  typeref #648 -> wstring ptr
-  typeref #650 -> integer
-  typeref #652 -> any
-  typeref #653 -> any ptr
-  typeref #656 -> slice
-  typeref #658 -> uslice
-  typeref #660 -> wslice
+  typeref #637 -> string
+  typeref #640 -> ushort
+  typeref #641 -> ushort ptr
+  typeref #643 -> integer
+  typeref #645 -> any
+  typeref #646 -> any ptr
+  typeref #648 -> ustring
+  typeref #651 -> wstring
+  typeref #652 -> wstring ptr
+  typeref #654 -> integer
+  typeref #656 -> any
+  typeref #657 -> any ptr
+  typeref #659 -> const wstring
+  typeref #662 -> slice
+  typeref #664 -> uslice
+  typeref #666 -> wslice

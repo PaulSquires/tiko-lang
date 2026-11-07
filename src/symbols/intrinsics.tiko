@@ -1199,7 +1199,7 @@ private function IntrinsicTableType_ _
     end if
 
     '' 's[lo to hi]' -- a STRING SLICE, typed by symbols/checkslice.tiko (docs/tiko-slices).
-    if nm = "__tko_slice" then return Tko.Slices.SliceCallType( *c.ast, *c.syms, *c.types, *c.names, *c.diags, *c.info, cp )
+    if (nm = "__tko_slice") andalso (cp->count = 3) then TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) : return Tko.Slices.SliceCallType( *c.ast, *c.syms, *c.types, *c.names, *c.diags, *c.info, cp )   '' the source typed first: a FOR EACH asks early
 
     '' '__FB_QUERY_SYMBOL__( query, symbol )' IS AN INTEGER, whatever it is asked --
     '' measured, '#print typeof' of one says INTEGER even for the text queries. Its
@@ -1347,6 +1347,7 @@ private function IntrinsicTableType_ _
         if ta = tb then return ta
         if ta = Tko.TYPE_NONE then return tb
         if tb = Tko.TYPE_NONE then return ta
+        if Tko.Slices.SliceIifType( *c.types, *c.names, ta, tb ) <> Tko.TYPE_NONE then return Tko.Slices.SliceIifType( *c.types, *c.names, ta, tb )   '' a slice arm: checkslice.tiko
         '' ONE BOOLEAN ARM AND ONE THAT IS NOT is the other arm's type, and the '+'
         '' table below cannot say so: ARITHMETIC rejects a boolean outright -- fbc's
         '' error 20 for '1 + FALSE', measured -- while IIF accepts the mixed pair.

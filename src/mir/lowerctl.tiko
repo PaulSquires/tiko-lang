@@ -392,7 +392,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     '' A USTRING CHAIN SUBJECT IS A USTRING, whatever Check says of '&' -- see IsUStrChain_.
     '' Typed STRING, 'select case u & "y"' copied the UTF-16 temporary with fb_StrAssign and
     '' compared it narrow, so no case matched. fbc: fb_UStrCompare per case value.
-    dim as boolean subjChainU = IsUStrChain_( c, sp->a )
+    dim as boolean subjChainU = IsUStrChain_( c, sp->a ) orelse UdtCastIsUStr_( c, sp->a )   '' ...or a uslice / ustring-casting UDT
     if subjChainU then subjT = c.types->Builtin( Tko.TY_USTRING )
     dim as MirType mt = LowerType( subjT, *c.types )
 

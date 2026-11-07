@@ -575,7 +575,7 @@ function LowerStringIif_ _
     '' A ustring CHAIN counts: Check types it STRING, fbc and the iif row in Check USTRING.
     dim as boolean isU = IsUStringType( c, c.info->TypeOf_( thenE ) ) orelse _
                          IsUStringType( c, c.info->TypeOf_( elseE ) ) orelse _
-                         IsUStrChain_( c, thenE ) orelse IsUStrChain_( c, elseE )
+                         IsUStrChain_( c, thenE ) orelse IsUStrChain_( c, elseE ) orelse UdtCastIsUStr_( c, thenE ) orelse UdtCastIsUStr_( c, elseE )
     dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
     if slot < 0 then return false
     '' The slot's TYPE is what ReleaseStrTemps_ picks fb_UStrDelete by, and what
@@ -889,7 +889,7 @@ function LowerIif _
     '' A STRING iif builds a DESCRIPTOR, not a value, so it takes a different shape:
     '' fb_StrInit into a temporary in each arm, and an fb_StrDelete once the
     '' consuming statement is done with it.
-    if IsStringType( c, ft ) then
+    if IsStringType( c, ft ) orelse SliceMeetsString( c, thenE, elseE ) then   '' ...or a slice arm beside a string one
         return LowerStringIif_( c, condE, thenE, elseE, outv )
     end if
 

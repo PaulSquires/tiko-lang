@@ -71,8 +71,10 @@ function LowerStrCompare _
     '' measured. Taken as a wide comparison it converted the ustring to a wstring
     '' instead, which reads a descriptor as a bare uint16*.
     '' ...OR A USTRING CHAIN, which Check types STRING: see IsUStrChain_.
-    dim as boolean lU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse IsUStrChain_( c, bp->lhs )
-    dim as boolean rU = IsUStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse IsUStrChain_( c, bp->rhs )
+    '' ...OR A UDT WHOSE PICKED CAST IS A USTRING (a uslice, or 'operator cast( ) as ustring'): it
+    '' compared through fb_StrCompare, reading the UTF-16 descriptor as narrow -- 'a = "x"' was 0.
+    dim as boolean lU = IsUStringType( c, c.info->TypeOf_( bp->lhs ) ) orelse IsUStrChain_( c, bp->lhs ) orelse UdtCastIsUStr_( c, bp->lhs )
+    dim as boolean rU = IsUStringType( c, c.info->TypeOf_( bp->rhs ) ) orelse IsUStrChain_( c, bp->rhs ) orelse UdtCastIsUStr_( c, bp->rhs )
     if lU orelse rU then isWide = false
     if isWide then
         '' EITHER SIDE MAY BE AN RVALUE. LowerAddr alone accepted only an addressable

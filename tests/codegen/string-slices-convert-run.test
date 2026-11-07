@@ -1,0 +1,34 @@
+'' RUN: string slices P2a (docs/tiko-slices RFC-0001 §7) -- a slice, uslice or wslice where a
+'' string is wanted: print, a string variable, '&', the six comparisons, byval and byref const
+'' string arguments, cast( ), select case, iif (with a string arm, and two slice arms) and for
+'' each. The prelude's bodiless 'operator cast' routes each through Check's UDT-cast rules, and
+'' lowering builds the text (lowerslice.tiko LowerSliceCast). The last two lines are the user-
+'' UDT fixes the slices exposed: a UDT whose cast is a ustring compares and selects UTF-16.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/string-slices-convert.tiko -o tests/codegen/stringslicesconvert.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-FILE: tests/codegen/stringslicesconvert.exe
+'' RUN: tests/codegen/stringslicesconvert.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: world
+'' EXPECT-RUN-OUT: world! world
+'' EXPECT-RUN-OUT: -1             0            -1             0            -1             0
+'' EXPECT-RUN-OUT: byval [world]
+'' EXPECT-RUN-OUT: byref {world}
+'' EXPECT-RUN-OUT: cast world
+'' EXPECT-RUN-OUT: sel hello
+'' EXPECT-RUN-OUT: sel world
+'' EXPECT-RUN-OUT: sel other [,]
+'' EXPECT-RUN-OUT: iif world lit
+'' EXPECT-RUN-OUT: iif2 world 5
+'' EXPECT-RUN-OUT: sum 552
+'' EXPECT-RUN-OUT: dos
+'' EXPECT-RUN-OUT: dos|dos|-1
+'' EXPECT-RUN-OUT: usel dos
+'' EXPECT-RUN-OUT: uiif dos
+'' EXPECT-RUN-OUT: 116114233115
+'' EXPECT-RUN-OUT:  3            -1            -1
+'' EXPECT-RUN-OUT: udt -1
+'' EXPECT-RUN-OUT: udt sel ok

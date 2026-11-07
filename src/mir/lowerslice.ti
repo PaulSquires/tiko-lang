@@ -16,6 +16,15 @@ namespace Tko.Mir
     declare function LowerSliceLen _
         ( byref c as Ctx, byval a as Tko.NodeId, byref outv as MirValue ) as boolean
     '' '__tko_slice( src, lo, hi )', the call 's[lo to hi]' parses as: the slice VALUE.
+    '' A slice's 'operator cast' (prelude declarations, no bodies): the text it views as a
+    '' string term -- narrow without a copy, UTF-16 and wide as a statement temporary.
+    declare function LowerSliceCast _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
+          byref outv as MirValue ) as boolean
+    '' 'iif( c, a, b )' with a slice arm and an arm of another type: the string iif, whose
+    '' result is an owned string (RFC-0001 §7).
+    declare function SliceMeetsString _
+        ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
     declare function LowerSliceCall _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
 
