@@ -91,6 +91,7 @@
   - [Calling the base](inheritance/base.md)
   - [Runtime type checks](inheritance/is.md)
   - [Interfaces](inheritance/interfaces.md)
+  - [Several interfaces](inheritance/multiple.md)
   - [Virtual destructors](inheritance/destructors.md)
   - [Slicing](inheritance/slicing.md)
 - [Generics](generics/index.md)

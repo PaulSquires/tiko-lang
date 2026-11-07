@@ -29,7 +29,8 @@ runs instead. [Calling the base](base.md) covers this further.
 after them. A `Bicycle` starts with a complete `Vehicle`, which is why
 `Report`, written for a `Vehicle`, accepts `bike` as it is.
 
-A type extends exactly one base.
+A type extends exactly one base. To be several things at once, it implements
+[interfaces](interfaces.md) instead: any number of them, beside its one base.
 
 The pages in this section:
 
@@ -40,7 +41,8 @@ The pages in this section:
 | [Abstract methods](abstract.md) | methods every derived type must supply |
 | [Calling the base](base.md) | `base( ... )` and `base.Method( )` |
 | [Runtime type checks](is.md) | `is` |
-| [Interfaces](interfaces.md) | abstract types as contracts |
+| [Interfaces](interfaces.md) | `interface`, `implements` and `class`: a contract any type can take on |
+| [Several interfaces](multiple.md) | one type, many contracts; renamed and private mappings; `trycast` |
 | [Virtual destructors](destructors.md) | deleting through a base pointer |
 | [Slicing](slicing.md) | what passing by value does to a derived object |
 

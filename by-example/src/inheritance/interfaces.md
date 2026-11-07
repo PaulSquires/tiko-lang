@@ -1,8 +1,9 @@
 # Interfaces
 
 An *interface* is a promise that a type can do certain things, with nothing
-said about how. In tiko it is an abstract type with no data: a list of
-[abstract methods](abstract.md) that any type can extend and fill in.
+said about how. It lists methods and properties, and has no fields and no
+code. Any type can take one on with an `implements` line, and a type can take
+on as many as it needs without giving up its one base.
 
 ```tiko
 {{#include ../../examples/inheritance/interfaces.tiko}}
@@ -14,47 +15,53 @@ said about how. In tiko it is an abstract type with no data: a list of
 {{#include ../../examples/inheritance/interfaces.out}}
 ```
 
-`Encoder` is all contract: two abstract methods, no fields and no code.
-`IniEncoder` and `JsonEncoder` each extend it and supply both methods, and
-neither knows the other exists.
+`IEncoder` is all contract: two members, every one public and abstract, so
+nothing else is written on them. `Save` is written against `IEncoder` alone. It
+runs unchanged for every encoder there is, including ones written after it.
 
-`Save` is written against `Encoder` alone. It runs unchanged for every
-encoder there is, including ones written after it, because all it relies on
-is the contract. Adding a third format means writing one new type; `Save`
-does not change.
+**`implements IEncoder`** at the top of a type's body takes the contract on.
+Then each method says which member it provides: `implements IEncoder.Name`.
+`IniEncoder` is a plain `type`, with no base and no table of virtual methods;
+`JsonEncoder` is a **`class`**, a type that always extends `Object`. Both can
+implement an interface, and `Save` cannot tell them apart.
 
-`implements`, the keyword some languages use for this, is reserved in tiko
-but has no meaning yet, so a type cannot declare that it implements a
-contract on top of extending a base:
+**An interface value is a reference**: the object's address and the table that
+type uses for this interface, 16 bytes. `Save( ini )` passes a reference to
+`ini`, not a copy of it, and `enc.Name( )` is called with `.`. Because it only
+refers to the object, the object must outlive it: a temporary, such as a
+function's result, cannot be converted to an interface (`TKO1012`), and
+`delete` through an interface is refused (`TKO1013`).
+
+The mapping is explicit. A public `Name` with the right signature does not
+implement `IEncoder.Name` until its declaration says so:
 
 ```tiko
-{{#include ../../examples/inheritance/implements.tiko}}
+{{#include ../../examples/inheritance/unmapped.tiko}}
 ```
 
 ```text
-implements.tiko(6,43): error TKO0420: expected the end of the statement
+unmapped.tiko(7,16): error TKO1000: 'iniencoder' does not implement 'iencoder.name'; add 'implements iencoder.name' to one of its methods
      |
-   6 | type IniEncoder extends Object implements Encoder
-     |                                           ^
+   7 |     implements IEncoder
+     |                ^
+unmapped.tiko(2,5): note: 'name' is required by interface 'iencoder', declared here
+     |
+   2 |     function Name( ) as ustring
+     |     ^
 ```
 
-A type extends exactly one base. When a type needs to be two things at once,
-let it extend the contract that callers use it through, and give it the
-other part as a field.
+Being explicit is what lets one type follow two contracts that use the same
+member name for different things: see [Several interfaces](multiple.md).
 
-```admonish warning title="Status in this version"
-A second base in the list, `type C extends A, B`, should be an error. In this
-version it is accepted silently, and everything after the first base is
-ignored: `C` gets `A`'s members and none of `B`'s.
-```
-
-An object that is used only through its contract is often created with `new`
-and kept as a pointer to the contract type. Give such a contract a
-[virtual destructor](destructors.md) so that deleting through that pointer
-runs the right one.
+An [abstract type](abstract.md) can serve as a contract too, and that is the
+right choice when the base should also supply code that derived types share.
+But a type extends exactly one base, so a contract written that way uses the
+base up.
 
 ### Activities
 
 1. Add a `CsvEncoder` that writes `width,640`, and pass one to `Save`.
-2. Give `Encoder` a third abstract method, `Footer( )`, and see which types
-   the compiler then refuses to create.
+2. Give `IEncoder` a third member, `function Footer( ) as ustring`, and read
+   what the compiler says about each encoder until both provide it.
+3. Rename `IniEncoder.Name` to `Label`, keeping `implements IEncoder.Name`.
+   What changes in the output?

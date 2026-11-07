@@ -1,0 +1,11 @@
+type Shape extends Object
+    declare abstract function Area( ) as float64
+end type
+
+type Saveable extends Object
+    declare abstract sub Save( )
+end type
+
+'' Two bases: a type has one.
+type Drawing extends Shape, Saveable
+end type

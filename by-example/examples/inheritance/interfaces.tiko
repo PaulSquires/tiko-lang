@@ -1,15 +1,18 @@
-'' A contract: abstract methods and no data. Any type that extends it
-'' and fills in the methods can be used wherever an Encoder is wanted.
-type Encoder extends Object
-    declare abstract function Name( ) as ustring
-    declare abstract function Encode( byref key as ustring, _
-                                      byval value as int32 ) as ustring
-end type
+'' A contract: what an encoder can do, with no data and no code. Any type
+'' can take it on with an 'implements' line.
+interface IEncoder
+    function Name( ) as ustring
+    function Encode( byref key as ustring, byval value as int32 ) as ustring
+end interface
 
-type IniEncoder extends Encoder
-    declare function Name( ) as ustring override
+'' A plain type: no base, no vtable.
+type IniEncoder
+    implements IEncoder
+    declare function Name( ) as ustring implements IEncoder.Name
     declare function Encode( byref key as ustring, _
-                             byval value as int32 ) as ustring override
+                             byval value as int32 ) as ustring _
+                             implements IEncoder.Encode
+    sep as ustring = "="
 end type
 
 function IniEncoder.Name( ) as ustring
@@ -18,14 +21,17 @@ end function
 
 function IniEncoder.Encode( byref key as ustring, _
                             byval value as int32 ) as ustring
-    return key & "=" & value
+    return key & sep & value
 end function
 
-type JsonEncoder extends Encoder
-    declare function Name( ) as ustring override
+'' A class: a type that always extends Object.
+class JsonEncoder
+    implements IEncoder
+    declare function Name( ) as ustring implements IEncoder.Name
     declare function Encode( byref key as ustring, _
-                             byval value as int32 ) as ustring override
-end type
+                             byval value as int32 ) as ustring _
+                             implements IEncoder.Encode
+end class
 
 function JsonEncoder.Name( ) as ustring
     return "json"
@@ -37,7 +43,7 @@ function JsonEncoder.Encode( byref key as ustring, _
 end function
 
 '' Written once, against the contract only.
-sub Save( byref enc as Encoder )
+sub Save( byval enc as IEncoder )
     print "as "; enc.Name( ); ":"
     print "  "; enc.Encode( "width", 640 )
     print "  "; enc.Encode( "height", 480 )
@@ -47,3 +53,4 @@ dim as IniEncoder ini
 dim as JsonEncoder json
 Save( ini )
 Save( json )
+print "an IEncoder value is"; sizeof( IEncoder ); " bytes"

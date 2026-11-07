@@ -4,3 +4,4 @@ as ini:
 as json:
   "width": 640
   "height": 480
+an IEncoder value is 16 bytes

@@ -1,0 +1,14 @@
+interface IEncoder
+    function Name( ) as ustring
+end interface
+
+'' Name is public and has the right signature, but nothing maps it.
+type IniEncoder
+    implements IEncoder
+    declare function Name( ) as ustring
+    sep as ustring = "="
+end type
+
+function IniEncoder.Name( ) as ustring
+    return "ini"
+end function

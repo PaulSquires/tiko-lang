@@ -24,7 +24,9 @@ whatever memory follows the base part, so always guard a cast like this with
 
 `is` reads the answer from the hidden table pointer, so the type must extend
 `Object`, and it asks only about types derived from the variable's own type.
-Both are checked when the program compiles:
+Both are checked when the program compiles. An interface value is the
+exception: `v is Note` and `v is ISize` ask about the object behind `v`,
+whatever its interface ([Several interfaces](multiple.md)).
 
 | Asking | Refused with |
 |---|---|

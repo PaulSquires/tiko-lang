@@ -1,0 +1,61 @@
+'' One type, three contracts. Two of them both have a member called Name,
+'' and they mean different things.
+interface IShape
+    function Area( ) as float64
+    function Name( ) as ustring            '' what the shape is called
+end interface
+
+interface IDocument
+    function Name( ) as ustring            '' the file it is saved in
+    sub Save( )
+    sub Close( )
+end interface
+
+interface IResource
+    sub Close( )
+end interface
+
+class Drawing
+    implements IShape, IDocument, IResource
+    declare function Area( ) as float64 implements IShape.Area
+    declare function Title( ) as ustring implements IShape.Name
+    declare function FileName( ) as ustring implements IDocument.Name
+    declare sub Close( ) implements IDocument.Close, IResource.Close
+    w as float64 = 4
+    h as float64 = 2
+private:
+    declare sub WriteOut( ) implements IDocument.Save
+end class
+
+function Drawing.Area( ) as float64
+    return w * h
+end function
+
+function Drawing.Title( ) as ustring
+    return "floor plan"
+end function
+
+function Drawing.FileName( ) as ustring
+    return "plan.txt"
+end function
+
+sub Drawing.Close( )
+    print "closed"
+end sub
+
+sub Drawing.WriteOut( )
+    print "saving "; FileName( )
+end sub
+
+dim as Drawing d
+dim as IShape s = d
+dim as IDocument doc = d
+dim as IResource res = d
+print s.Name( ); " / "; doc.Name( ); ", area"; s.Area( )
+doc.Save( )                    '' reaches the private WriteOut
+res.Close( )
+
+'' The same object, asked through one interface about another.
+dim as IResource r2 = trycast( IResource, s )
+print "the shape is a resource: "; cbool( r2 <> nullptr )
+print "the shape is a Drawing: "; cbool( s is Drawing )
