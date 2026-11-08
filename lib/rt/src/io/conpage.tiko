@@ -387,35 +387,9 @@ end extern
 	#error "io/conpage: no backend for this target"
 #endif
 
-'' ------------------------------------------------------------ the printer
-''
-'' PORTABLE, and one line of work: LPOS asks the printer device for the column it
-'' is at. The device name is built from the caller's INDEX -- LPOS(0) is "LPT1:"
-'' -- because the statement takes a printer number and the device layer takes a
-'' name.
-''
-'' Under the I/O lock, because fb_DevPrinterGetOffset walks the open-device list.
-
-extern "c"   '' NON-FBCALL: fbc's own printer device, in io_printer.o.
-	declare function tkrt_DevPrinterGetOffset alias "fb_DevPrinterGetOffset" ( byval dev as zstring ptr ) as int32
-	declare function tkrt_sprintf2 alias "sprintf" _
-		( byval buf as zstring ptr, byval fmt as zstring ptr, ... ) as int32
-end extern
-
-extern "rtlib"
-
-function tkort_LPos alias "fb_LPos" ( byval printer_index as int32 ) as int32
-	dim as zstring * 32 buffer = any
-	dim as int32 cur = any
-
-	TKORT_IOLOCK()
-
-	tkrt_sprintf2( @buffer, @"LPT%d:", printer_index + 1 )
-	cur = tkrt_DevPrinterGetOffset( @buffer )
-
-	TKORT_IOUNLOCK()
-
-	return cur
-end function
-
-end extern
+'' fb_LPos IS NOT HERE. It is the one console-side entry point that calls into
+'' the printer device layer -- fb_DevPrinterGetOffset -- and left in this member
+'' it dragged io_devlptopen and its WINSPOOL.DRV / GDI32.dll imports into every
+'' program that touches the console. It lives alone in io/lpos.tiko, the same
+'' file upstream gives it (io_lpos.o), so that only a program that actually
+'' asks LPOS pays for the printer layer.
