@@ -1,0 +1,162 @@
+#module "strings"
+'' std/strings over STRING SLICES (docs/tiko-slices RFC-0001 §9) -- zero-copy views of text.
+''
+''     #import "std/strings"
+''     dim as string line_ = "  key = value  "
+''     var t = strings.TrimSpace( line_[0 to len( line_ ) - 1] )   '' "key = value", no copy
+''     print strings.Find( t, "=" )                                 '' 4
+''     for each part as const slice in strings.SplitSlices( "a,b,c", "," )
+''         print part                                                '' a / b / c
+''     next
+''
+'' FREE FUNCTIONS, one overload per flavour -- slice (bytes), uslice (UTF-16), wslice (wchar_t) --
+'' and CODE UNITS throughout, 0-based like 's[i]': Find answers a unit index, or -1.
+'' Any string passes where a 'const' slice is wanted (RFC-0001 §8): a string of the slice's width
+'' is viewed in place, any other is converted once for the call. Results that are slices are
+'' slices OF THE ARGUMENT, so they live as long as it does -- the compiler holds you to that
+'' (RFC-0002): a result over a temporary cannot be kept in a variable.
+''
+'' Case folding, where asked, is ASCII only: A-Z against a-z. Nothing here allocates.
+
+#macro TKO_SLICE_FUNCS( SL, SPLIT )
+
+'' The first position at or after 'start' where 'pat' occurs in 'v', or -1. An empty 'pat' is
+'' found at 'start' (when start is within 0 .. len( v )).
+public function Find overload _
+    ( byval v as const SL, byval pat as const SL, byval start as integer = 0 ) as integer
+    dim as integer n = len( v ), m = len( pat )
+    if start < 0 then start = 0
+    if start > n then return -1
+    if m = 0 then return start
+    for i as integer = start to n - m
+        dim as integer k = 0
+        while (k < m) andalso (v[i + k] = pat[k])
+            k += 1
+        wend
+        if k = m then return i
+    next
+    return -1
+end function
+
+'' 'a' and 'b' hold the same code units -- with ignoreCase, A-Z matching a-z.
+public function Equals overload _
+    ( byval a as const SL, byval b as const SL, byval ignoreCase as boolean = false ) as boolean
+    if len( a ) <> len( b ) then return false
+    for i as integer = 0 to len( a ) - 1
+        dim as ulong x = a[i], y = b[i]
+        if ignoreCase then
+            if (x >= 65) andalso (x <= 90) then x += 32
+            if (y >= 65) andalso (y <= 90) then y += 32
+        end if
+        if x <> y then return false
+    next
+    return true
+end function
+
+public function StartsWith overload _
+    ( byval v as const SL, byval prefix as const SL, byval ignoreCase as boolean = false ) as boolean
+    if len( prefix ) > len( v ) then return false
+    if len( prefix ) = 0 then return true
+    return Equals( v[0 to len( prefix ) - 1], prefix, ignoreCase )
+end function
+
+public function EndsWith overload _
+    ( byval v as const SL, byval suffix as const SL, byval ignoreCase as boolean = false ) as boolean
+    if len( suffix ) > len( v ) then return false
+    if len( suffix ) = 0 then return true
+    return Equals( v[len( v ) - len( suffix ) to len( v ) - 1], suffix, ignoreCase )
+end function
+
+'' 'v' without its leading / trailing / both runs of space, tab, CR and LF -- a slice of 'v'.
+public function TrimStart overload ( byval v as const SL ) as const SL
+    dim as integer i = 0
+    while i < len( v )
+        select case v[i]
+        case 32, 9, 13, 10 : i += 1
+        case else : exit while
+        end select
+    wend
+    return v[i to len( v ) - 1]
+end function
+
+public function TrimEnd overload ( byval v as const SL ) as const SL
+    dim as integer j = len( v ) - 1
+    while j >= 0
+        select case v[j]
+        case 32, 9, 13, 10 : j -= 1
+        case else : exit while
+        end select
+    wend
+    return v[0 to j]
+end function
+
+public function TrimSpace overload ( byval v as const SL ) as const SL
+    return TrimEnd( TrimStart( v ) )
+end function
+
+'' SPLITTING WITHOUT AN ARRAY: an array of slices would keep them where nothing tracks them
+'' (RFC-0002 §2), so the parts are walked instead --
+''
+''     for each part as const slice in strings.SplitSlices( s, "," )
+''
+'' 'sep' must not be empty (an empty one yields 'v' whole, once). Between two separators, and
+'' before a leading or after a trailing one, the part is empty and is yielded.
+public type SPLIT as view
+    src as const SL
+    sep as const SL
+    cur as const SL
+    pos as integer
+    valid as boolean
+    declare function GetIterator( ) as SPLIT
+    declare function IsValid( ) as boolean
+    declare function Value( ) byref as const SL
+    declare sub MoveNext( )
+end type
+
+function SPLIT.GetIterator( ) as SPLIT
+    dim as SPLIT it
+    it.src = this.src
+    it.sep = this.sep
+    it.pos = 0
+    it.valid = true
+    it.MoveNext( )
+    return it
+end function
+
+function SPLIT.IsValid( ) as boolean
+    return this.valid
+end function
+
+function SPLIT.Value( ) byref as const SL
+    return this.cur
+end function
+
+sub SPLIT.MoveNext( )
+    if this.pos > len( this.src ) then this.valid = false : exit sub
+    if len( this.sep ) = 0 then
+        this.cur = this.src
+        this.pos = len( this.src ) + 1
+        exit sub
+    end if
+    dim as integer at = Find( this.src, this.sep, this.pos )
+    if at < 0 then
+        this.cur = this.src[this.pos to len( this.src ) - 1]
+        this.pos = len( this.src ) + 1
+    else
+        this.cur = this.src[this.pos to at - 1]
+        this.pos = at + len( this.sep )
+    end if
+end sub
+
+public function SplitSlices overload ( byval v as const SL, byval sep as const SL ) as SPLIT
+    dim as SPLIT r
+    r.src = v
+    r.sep = sep
+    return r
+end function
+
+#endmacro
+
+TKO_SLICE_FUNCS( slice, SliceSplit )
+TKO_SLICE_FUNCS( uslice, USliceSplit )
+TKO_SLICE_FUNCS( wslice, WSliceSplit )

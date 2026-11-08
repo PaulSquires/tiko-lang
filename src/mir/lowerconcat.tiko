@@ -309,8 +309,11 @@ function LowerConcatAssignStmt _
             FlattenConcat( c, value, nterms )
             if nterms.Count >= 2 then
                 dim as boolean anyU = false
+                '' A USLICE IS ONE TOO: its units are UTF-16 just the same (docs/tiko-slices).
                 for i as int32 = 0 to nterms.Count - 1
-                    if IsUStringType( c, c.info->TypeOf_( Unparen_( c, cast( Tko.NodeId, nterms[i] ) ) ) ) then anyU = true
+                    dim as Tko.TypeId ntt = c.info->TypeOf_( Unparen_( c, cast( Tko.NodeId, nterms[i] ) ) )
+                    if IsUStringType( c, ntt ) then anyU = true
+                    if Slices.SliceUnitOfType( *c.types, *c.names, ntt ) = Slices.SU_UTF16 then anyU = true
                 next
                 if anyU then
                     dim as containers.Array( of uint32 ) nchain

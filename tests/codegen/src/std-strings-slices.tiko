@@ -1,0 +1,88 @@
+'' std/strings over slices (docs/tiko-slices RFC-0001 §9): Find, Equals, StartsWith, EndsWith,
+'' TrimStart/TrimEnd/TrimSpace and the SplitSlices iterator, in all three widths; the existing
+'' string overloads still chosen for string arguments.
+#import "std/strings"
+
+dim shared as integer fails
+sub Check( byval ok as boolean, byref what as const string )
+    if not ok then fails += 1 : print "FAIL "; what
+end sub
+
+'' -- narrow
+dim as string s = "  key = value  "
+dim as const slice all_ = s[0 to len( s ) - 1]
+dim as const slice t = strings.TrimSpace( all_ )
+Check( t = "key = value", "TrimSpace" )
+Check( strings.TrimStart( all_ ) = "key = value  ", "TrimStart" )
+Check( strings.TrimEnd( all_ ) = "  key = value", "TrimEnd" )
+Check( len( strings.TrimSpace( s[0 to 1] ) ) = 0, "TrimSpace all blank" )
+Check( strings.Find( t, "=" ) = 4, "Find" )
+Check( strings.Find( t, "value" ) = 6, "Find word" )
+Check( strings.Find( t, "e", 2 ) = 10, "Find start" )
+Check( strings.Find( t, "zz" ) = -1, "Find none" )
+Check( strings.Find( t, "" , 3 ) = 3, "Find empty" )
+Check( strings.Find( t, "e", 99 ) = -1, "Find past end" )
+Check( strings.Equals( t, "KEY = VALUE", true ), "Equals ignoreCase" )
+Check( not strings.Equals( t, "KEY = VALUE" ), "Equals case" )
+Check( strings.StartsWith( t, "key" ), "StartsWith" )
+Check( strings.StartsWith( t, "KEY", true ), "StartsWith ignoreCase" )
+Check( not strings.StartsWith( t, "value" ), "StartsWith no" )
+Check( strings.EndsWith( t, "value" ), "EndsWith" )
+Check( not strings.EndsWith( t, "key = value!" ), "EndsWith longer" )
+
+'' -- the result is a view of the argument: a write through the source shows through it
+dim as string m = "abc"
+dim as const slice mv = strings.TrimSpace( m[0 to 2] )
+m[1] = asc( "X" )
+Check( mv = "aXc", "result views source" )
+
+'' -- split
+dim as string joined
+dim as integer n
+for each part as const slice in strings.SplitSlices( "a,,bc,", "," )
+    joined &= "[" & part & "]"
+    n += 1
+next
+Check( joined = "[a][][bc][]", "SplitSlices " & joined )
+Check( n = 4, "SplitSlices count" )
+joined = ""
+for each part as const slice in strings.SplitSlices( "one::two", "::" )
+    joined &= "[" & part & "]"
+next
+Check( joined = "[one][two]", "SplitSlices multi-unit sep " & joined )
+joined = ""
+for each part as const slice in strings.SplitSlices( "", "," )
+    joined &= "[" & part & "]"
+next
+Check( joined = "[]", "SplitSlices empty " & joined )
+
+'' -- utf16
+dim as ustring u = "  Grüße  "
+dim as const uslice ut = strings.TrimSpace( u[0 to len( u ) - 1] )
+Check( ut = "Grüße", "uslice TrimSpace" )
+Check( strings.Find( ut, "ß" ) = 3, "uslice Find" )
+Check( strings.EndsWith( ut, "ße" ), "uslice EndsWith" )
+joined = ""
+for each part as const uslice in strings.SplitSlices( u[2 to 6], "ü" )
+    joined &= "[" & part & "]"
+next
+Check( joined = "[Gr][ße]", "uslice SplitSlices " & joined )
+dim as ustring owned = ut   '' back to owned: a copy
+Check( owned = "Grüße", "uslice to ustring" )
+
+'' -- wide
+dim as wstring * 16 w = "x-y-z"
+dim as const wslice wv = w[0 to len( w ) - 1]
+Check( strings.Find( wv, "-", 2 ) = 3, "wslice Find" )
+Check( strings.StartsWith( wv, "X", true ), "wslice StartsWith" )
+n = 0
+for each part as const wslice in strings.SplitSlices( wv, "-" )
+    n += 1
+next
+Check( n = 3, "wslice SplitSlices" )
+
+'' -- the string overloads are still the ones a string argument gets
+Check( strings.StartsWith( "Hello", "he", true ), "string StartsWith" )
+Check( strings.EndsWith( u, "  " ), "ustring EndsWith" )
+
+if fails = 0 then print "ok"

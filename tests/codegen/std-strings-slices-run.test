@@ -1,0 +1,11 @@
+'' RUN: std/strings over string slices, P6 (docs/tiko-slices RFC-0001 §9) -- Find, Equals,
+'' StartsWith, EndsWith, TrimStart/TrimEnd/TrimSpace and the SplitSlices iterator in all three
+'' widths; results are views of the argument; a uslice appended to a string through a chain.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/std-strings-slices.tiko -o tests/codegen/stdstringsslices.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-FILE: tests/codegen/stdstringsslices.exe
+'' RUN: tests/codegen/stdstringsslices.exe
+'' EXPECT-RUN-OUT: ok
