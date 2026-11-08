@@ -49,10 +49,15 @@ private function FlattenInitValues_ _
 end function
 
 '' Defined below, and used above it: FreeBASIC needs the forward declaration.
+'' inBase: the walk is inside the CONSTRUCTOR-BUILT BASE CHAIN of the type being
+'' initialised -- the only place the base's leaves leave. A class reached as an
+'' ORDINARY FIELD's type keeps the original flatten, vptr leaf and all: its value
+'' is one whole object, and the whole-object copy locates it by that leaf.
 declare function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as int32, _
       byref offs as containers.Array( of uint32 ), byref tys as containers.Array( of uint32 ), _
-      byval depth as int32, byref fts as containers.Array( of uint32 ) ) as boolean
+      byval depth as int32, byref fts as containers.Array( of uint32 ), _
+      byval inBase as boolean = false ) as boolean
 
 '' Matching an initialiser's values to the fields they fill -- AlignInitValues_. Split out
 '' at the 1500-line cap, and INCLUDED here because it shares this unit's private helpers.
@@ -1012,7 +1017,8 @@ end function
 function FlattenUdtFields_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval base_ as int32, _
       byref offs as containers.Array( of uint32 ), byref tys as containers.Array( of uint32 ), _
-      byval depth as int32, byref fts as containers.Array( of uint32 ) ) as boolean
+      byval depth as int32, byref fts as containers.Array( of uint32 ), _
+      byval inBase as boolean = false ) as boolean
 
     if depth > 8 then return false
     dim as int32 ui = c.udts->Find( t )
@@ -1023,22 +1029,34 @@ function FlattenUdtFields_ _
     for i as int32 = 0 to n - 1
         dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         if fld->bitWidth <> 0 then return false
-        '' A BASE THE CONSTRUCTOR BUILDS CONTRIBUTES ITS FIELDS, NOT ITS VPTR. 'type C
-        '' extends P' over a P with no constructor of its own fills P's FIELDS from the
-        '' list -- measured, fbc-modern stores 1, 2, 3 at offsets 0, 4, 8 for 'as integer
-        '' a, b' in P and 'c' in C -- so a plain base flattens as it always did. But a
-        '' base WITH a constructor -- 'extends object', anything virtual -- was BUILT by
-        '' the synthesised constructor's prologue (EmitCtorPrologue_), which has already
-        '' run when the list is written: its vptr is stored there, and a leaf on it pairs
+        '' A BASE THE CONSTRUCTOR BUILDS CONTRIBUTES ITS FIELDS, NOT ITS VPTR -- BUT
+        '' ONLY ON THE BASE CHAIN OF THE TYPE BEING INITIALISED. 'type C extends P'
+        '' over a P with no constructor of its own fills P's FIELDS from the list --
+        '' measured, fbc-modern stores 1, 2, 3 at offsets 0, 4, 8 for 'as integer a, b'
+        '' in P and 'c' in C -- so a plain base flattens as it always did. But a base
+        '' WITH a constructor -- 'extends object', anything virtual -- was BUILT by the
+        '' synthesised constructor's prologue (EmitCtorPrologue_), which has already run
+        '' when the list is written: its vptr is stored there, and a leaf on it pairs
         '' the first value with the vptr. Measured: 'dim a as Animal = type( "generic" )'
         '' over Animal extends Object stored the literal at offset 0, and the first
         '' virtual call jumped to 0x656e6567 -- the bytes of "generic" -- on win32 and on
-        '' win64 alike. fbc refuses the form outright (error 99, no matching constructor);
-        '' tiko takes it as an extension, so this walks INTO the constructed base and
-        '' drops only the bytes the vptr occupies -- which is why Dog, with no field of
-        '' its own, still fills the name it inherited. An EXPLICIT constructor without a
-        '' vtable drops nothing: its fields' storage is ordinary and the list may fill it.
-        if (c.udts->baseName <> 0) andalso (fld->name = c.udts->baseName) then
+        '' win64 alike. fbc refuses the form outright (error 99, no matching
+        '' constructor); tiko takes it as an extension, so on the base chain this walks
+        '' INTO the constructed base and drops only the bytes the vptr occupies -- which
+        '' is why Dog, with no field of its own, still fills the name it inherited. An
+        '' EXPLICIT constructor without a vtable drops nothing: its fields' storage is
+        '' ordinary and the list may fill it.
+        ''
+        '' THE SCOPE IS THE CHAIN, and the flag is why. A class reached as an ORDINARY
+        '' FIELD's type -- Map's ( pairkey, long ) pair with pairkey extends hashable
+        '' extends object -- keeps the original flatten: its value is ONE WHOLE OBJECT,
+        '' the whole-object copy locates it by the vptr leaf at its offset, and walking
+        '' into it here emptied pairkey's leaves (it owns no fields of its own), so the
+        '' pair's two values paired against one and TKO0994 stopped the build --
+        '' measured, tests/std/generics/container-map. Hence inBase, true only down
+        '' this recursion and at the top level, false through every ordinary field.
+        if ((depth = 0) orelse inBase) andalso (c.udts->baseName <> 0) andalso _
+           (fld->name = c.udts->baseName) then
             dim as Tko.TypeId bt = c.types->Unqualify( fld->type_ )
             if (c.types->Kind( bt ) = Tko.TK_UDT) andalso _
                (TypeNeedsInit_( c, bt ) orelse _
@@ -1046,7 +1064,7 @@ function FlattenUdtFields_ _
                 dim as containers.Array( of uint32 ) bo
                 dim as containers.Array( of uint32 ) bty
                 dim as containers.Array( of uint32 ) bfts
-                if FlattenUdtFields_( c, bt, base_ + fld->offset, bo, bty, depth + 1, bfts ) = false then return false
+                if FlattenUdtFields_( c, bt, base_ + fld->offset, bo, bty, depth + 1, bfts, true ) = false then return false
                 dim as int32 skipB = 0
                 if c.vts <> nullptr then
                     if c.vts->Find( bt ) >= 0 then skipB = c.types->target.pointerBits \ 8
