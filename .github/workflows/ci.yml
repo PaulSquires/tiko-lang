@@ -57,7 +57,7 @@ jobs:
           path: seed/cache
           key: seed-windows-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
-        run: [ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows
+        run: "sh -c '[ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows'"
       - name: clang
         run: |
           command -v clang || echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
@@ -112,7 +112,7 @@ jobs:
           path: seed/cache
           key: seed-windows-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
-        run: [ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows
+        run: "sh -c '[ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows'"
       - name: Lay out the seed's toolchain where the tests link it
         run: |
           mkdir -p toolchains
@@ -151,7 +151,7 @@ jobs:
           path: seed/cache
           key: seed-linux-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
-        run: [ -d seed/cache/linux ] || sh seed/fetch-seed.sh --host linux
+        run: "sh -c '[ -d seed/cache/linux ] || sh seed/fetch-seed.sh --host linux'"
       - name: Lay out the seed's toolchain where the tests link it
         run: |
           mkdir -p toolchains
@@ -207,7 +207,7 @@ jobs:
           path: seed/cache
           key: seed-linux-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
-        run: [ -d seed/cache/linux ] || sh seed/fetch-seed.sh --host linux
+        run: "sh -c '[ -d seed/cache/linux ] || sh seed/fetch-seed.sh --host linux'"
       - name: Lay out the seed's toolchain where the tests link it
         run: |
           mkdir -p toolchains
@@ -262,7 +262,7 @@ jobs:
           path: seed/cache
           key: seed-windows-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
-        run: [ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows
+        run: "sh -c '[ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows'"
       - name: clang
         run: echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
       - name: Build (Release, no dll)
@@ -311,7 +311,7 @@ jobs:
           path: seed/cache
           key: seed-windows-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
-        run: [ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows
+        run: "sh -c '[ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows'"
       - name: clang
         run: echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
       - name: Build (Release, no dll)
