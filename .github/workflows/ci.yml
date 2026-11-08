@@ -14,8 +14,16 @@
 # compile-to-error (fast), std's RUN tests compile and execute (slow, one shard of their
 # own). The wall clock is the builders plus the slowest shard. Two mingw lanes -- win32
 # and win64 -- build and smoke their target in parallel with all of it: build/smoke.sh
-# compiles and runs seven programs against the target's own runtime archive, on runners
-# whose only mingw is the winlibs one the lane downloads and caches.
+# compiles and runs seven programs against the target's own runtime archive.
+#
+# THE RUNNER'S OWN MSYS2 IS THE MINGW TOOLCHAIN (2026-11-08). MINGW32 and MINGW64
+# are the i686/x86_64 MSVCRT environments lib/win32 and lib/win64 were built
+# against; the runner's LLVM clang drives the *-w64-windows-gnu triples and finds
+# its sysroot through the <arch>-w64-mingw32-gcc on PATH. pacman installs gcc from
+# mirror.msys2.org in ~50 MB packages and caches them -- no 274 MB winlibs zip off
+# a release CDN that answers 504 on roughly two requests in five. Both environments
+# are deprecated upstream (MINGW32 has no replacement), but their gcc 16.2.0-6
+# packages are still built and are the same version winlibs shipped.
 #
 # The full suite cannot go per-target yet (its cli tests name the target in the file);
 # that, and a win32 lane in these jobs proper, stay Phase 4.
@@ -234,28 +242,28 @@ jobs:
       - name: No line-ending conversion
         run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
-      # THE i686 MSVCRT-FLAVOR WINLIBS, the same build the win32 bring-up ran against
-      # (gcc 16.2.0-r2): clang finds the sysroot through the gcc this puts on PATH.
-      - name: Cache the mingw32 toolchain
-        id: mingw32
-        uses: actions/cache@v4
+      # MINGW32 IS THE i686 MSVCRT ENVIRONMENT lib/win32 was built against, and
+      # release:false reuses the runner's C:\msys64. setup-msys2 caches pacman's
+      # package downloads itself, so there is no toolchain cache to maintain here.
+      - name: Install the i686 MinGW toolchain (MSYS2)
+        uses: msys2/setup-msys2@v2
         with:
-          path: ~/mingw32
-          key: winlibs-i686-16.2.0-msvcrt-14.0.0-r2
-      - name: Fetch the mingw32 toolchain
-        if: steps.mingw32.outputs.cache-hit != 'true'
+          msystem: MINGW32
+          release: false
+          update: true
+          install: mingw-w64-i686-gcc
+          suppress-deprecation-warnings: msystem-mingw32
+      - name: mingw32 and clang on PATH
         run: |
-          # THE RELEASE CDN ANSWERS 504 SOMETIMES -- curl retries five times before
-          # this step gives up, and the size check catches a truncated archive: the
-          # zip is 274 MB and a silent half-download unzip-reports-nothing on.
-          curl -sL --retry 5 --retry-delay 5 --retry-all-errors \
-            -o winlibs32.zip "https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip"
-          [ "$(stat -c%s winlibs32.zip)" -gt 200000000 ] || { echo "winlibs32.zip truncated" >&2; exit 1; }
-          mkdir -p ~/mingw32
-          unzip -q winlibs32.zip -d ~/mingw32
-          ~/mingw32/mingw32/bin/gcc.exe --version | head -1
-      - name: mingw32 on PATH
-        run: echo "$HOME/mingw32/mingw32/bin" >> "$GITHUB_PATH"
+          # WINDOWS-STYLE PATHS ON PURPOSE: clang.exe is a native Windows program
+          # and searches PATH for i686-w64-mingw32-gcc to name its sysroot; it
+          # cannot see a /c/... entry. GITHUB_PATH applies from the next step on.
+          echo "C:/msys64/mingw32/bin" >> "$GITHUB_PATH"
+          echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
+      - name: Toolchain versions
+        run: |
+          i686-w64-mingw32-gcc.exe --version | head -1
+          clang.exe --version | head -1
       - name: Cache the pinned seed
         uses: actions/cache@v4
         with:
@@ -263,8 +271,6 @@ jobs:
           key: seed-windows-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
         run: "sh -c '[ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows'"
-      - name: clang
-        run: echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
       - name: Build (Release, no dll)
         run: bash build/build.sh Release --no-dll
       - name: lib/rt for win32
@@ -286,25 +292,26 @@ jobs:
       - name: No line-ending conversion
         run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
-      # THE x86_64 MSVCRT-FLAVOR WINLIBS -- lib/win64 is an msvcrt-flavor archive, and
-      # the ucrt-flavor mingw a runner might carry does not answer its imports.
-      - name: Cache the mingw64 toolchain
-        id: mingw64
-        uses: actions/cache@v4
+      # MINGW64 IS THE x86_64 MSVCRT ENVIRONMENT -- lib/win64 is an msvcrt-flavor
+      # archive, and the ucrt-flavor UCRT64/CLANG64 would not answer its imports.
+      - name: Install the x86_64 MinGW toolchain (MSYS2)
+        uses: msys2/setup-msys2@v2
         with:
-          path: ~/mingw64
-          key: winlibs-x86_64-16.2.0-msvcrt-14.0.0-r2
-      - name: Fetch the mingw64 toolchain
-        if: steps.mingw64.outputs.cache-hit != 'true'
+          msystem: MINGW64
+          release: false
+          update: true
+          install: mingw-w64-x86_64-gcc
+          suppress-deprecation-warnings: msystem-mingw64
+      - name: mingw64 and clang on PATH
         run: |
-          curl -sL --retry 5 --retry-delay 5 --retry-all-errors \
-            -o winlibs64.zip "https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-x86_64-posix-seh-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip"
-          [ "$(stat -c%s winlibs64.zip)" -gt 200000000 ] || { echo "winlibs64.zip truncated" >&2; exit 1; }
-          mkdir -p ~/mingw64
-          unzip -q winlibs64.zip -d ~/mingw64
-          ~/mingw64/mingw64/bin/gcc.exe --version | head -1
-      - name: mingw64 on PATH
-        run: echo "$HOME/mingw64/mingw64/bin" >> "$GITHUB_PATH"
+          # clang.exe finds its sysroot through x86_64-w64-mingw32-gcc on PATH;
+          # see the win32 lane for why these paths are Windows-style.
+          echo "C:/msys64/mingw64/bin" >> "$GITHUB_PATH"
+          echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
+      - name: Toolchain versions
+        run: |
+          x86_64-w64-mingw32-gcc.exe --version | head -1
+          clang.exe --version | head -1
       - name: Cache the pinned seed
         uses: actions/cache@v4
         with:
@@ -312,8 +319,6 @@ jobs:
           key: seed-windows-${{ hashFiles('seed/seed.lock') }}
       - name: Fetch the pinned seed
         run: "sh -c '[ -d seed/cache/windows ] || sh seed/fetch-seed.sh --host windows'"
-      - name: clang
-        run: echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
       - name: Build (Release, no dll)
         run: bash build/build.sh Release --no-dll
       - name: lib/rt for win64
