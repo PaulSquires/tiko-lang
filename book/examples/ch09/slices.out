@@ -1,0 +1,11 @@
+word           = [world]
+len( word )    = 5
+word[0]        = 119
+word[1 to 3]   = [orl]
+s[0 to 4]      = [hello]
+mid( s, 1, 5 ) = [hello]
+word = "world" is true
+<world>
+copy = [world!]  s = [hello, world]
+s is now [hello, World]
+s[3 to 2] has 0 units

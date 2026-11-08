@@ -1,0 +1,7 @@
+'' slicelock.tiko -- a string cannot grow while a slice reads it.
+
+dim as ustring s = "hello"
+dim as uslice first3 = s[0 to 2]
+
+s &= ", world"        '' error: may move the text first3 points into
+print first3

@@ -68,6 +68,8 @@
   - [Built-in functions](strings/intrinsics.md)
   - [The strings module](strings/library.md)
   - [Split and Join](strings/split.md)
+  - [Slices](strings/slices.md)
+  - [Slices and lifetime](strings/slicelife.md)
   - [Block strings](strings/block.md)
   - [Escape sequences](strings/escapes.md)
   - [Unicode](strings/unicode.md)

@@ -1,0 +1,7 @@
+dim as ustring name_ = "Ada"
+dim as const uslice initial = name_[0 to 0]
+
+'' Appending may move the text to a bigger block of memory, which
+'' would leave initial pointing at the old one.
+name_ &= " Lovelace"
+print initial

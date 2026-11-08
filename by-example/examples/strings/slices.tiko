@@ -1,0 +1,34 @@
+#import "std/strings"
+
+dim as ustring s = "red,green,blue"
+
+'' s[lo to hi] names units lo to hi of s, counted from 0 with both
+'' ends included. Nothing is copied: the slice points into s.
+dim as uslice first = s[0 to 2]
+print "first: ["; first; "] len"; len( first )
+
+'' A slice of a slice is a smaller view of the same text.
+print "s[4 to 8][1 to 3] = "; s[4 to 8][1 to 3]
+
+'' Indexing a slice gives a code unit, as indexing a ustring does.
+print "first[0] = "; first[0]
+
+'' A slice compares, prints and joins like a string.
+print cbool( first = "red" ); " [" & first & "]"
+
+'' Writing through a slice writes into s.
+first[0] = asc( "R" )
+print s
+
+'' Assigning to a ustring is how a slice becomes text you keep.
+dim as ustring kept = first
+kept &= "!"
+print kept; " "; s
+
+'' std/strings works on slices, with positions counted from 0.
+print "comma at"; strings.Find( s[0 to len( s ) - 1], "," )
+for each part as const uslice in _
+        strings.SplitSlices( s[0 to len( s ) - 1], "," )
+    print "  " & part & " (" & len( part ) & ")"
+next
+print "trimmed: ["; strings.TrimSpace( "  padded  " ); "]"

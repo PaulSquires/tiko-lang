@@ -270,6 +270,176 @@ asked for `.Count( )` and `[ i ]`, which is all you need to walk it.
 property is worth knowing, because it tells you what `Split` does with the awkward cases: `"a,,c"`
 is three fields with an empty one in the middle, and `"a,"` is two.
 
+## Part of a string, without a copy
+
+`mid`, `left`, `right` and `Split` all hand back new strings. Each one allocates and copies, and a
+program that takes a line apart word by word pays that once per word. Most of those words are
+looked at once and thrown away. A **slice** names part of a string where it already is:
+
+```tiko
+{{#include ../examples/ch09/slices.tiko}}
+```
+
+```text
+{{#include ../examples/ch09/slices.out}}
+```
+
+`s[7 to 11]` is the units from 7 to 11, **both ends included, counting from 0** — the same counting
+as `s[i]`, which reads one unit. That is the one place in this chapter where positions start at 0,
+and it is why the listing prints `mid( s, 1, 5 )` beside `s[0 to 4]`: the same five characters,
+one counted from 1 and copied, the other counted from 0 and not.
+
+There are three slice types, one for each width of text:
+
+| Type | Slices | Unit |
+|---|---|---|
+| `uslice` | `ustring` | a UTF-16 code unit |
+| `slice` | `string`, `zstring`, a `zstring ptr` | a byte |
+| `wslice` | `wstring`, a `wstring ptr` | the platform's wide character |
+
+A slice is small — a pointer, a length and one more word the runtime checks use — and it is never
+a copy. It prints, compares and joins with `&` as the text it names, and `len` on it is a single
+read. Indexing it gives a code unit, a number, as indexing a `ustring` does. Slicing a slice gives
+a smaller view of the same text.
+
+**A slice is as writable as the string it came from.** `word[0] = asc( "W" )` changed `s`, because
+`word` *is* part of `s`. A slice of a `const` string, a literal or a temporary is a `const uslice`,
+and writing through it is refused. Going the other way — from `const` back to writable — is error
+`TKO1052`.
+
+To keep the text, assign the slice to a `ustring`. That makes the copy, once, at the point where
+you decide the text is worth keeping.
+
+`s[3 to 2]` is empty: a slice whose end is one before its start has no units. So `s[0 to len( s )
+- 1]` is the whole of `s` even when `s` is empty. Anything else outside the string is runtime
+error 6 — checked whenever a slice is made, in every build — and a range the compiler can see is
+wrong, such as `5 to 2` or past the end of a `string * 4`, is `TKO1051` before the program runs.
+
+### Slices in the standard library
+
+`std/strings` has a set of functions that take and return slices, so a whole parse can run
+without a single copy:
+
+```tiko
+{{#include ../examples/ch09/slicestd.tiko}}
+```
+
+```text
+{{#include ../examples/ch09/slicestd.out}}
+```
+
+`TrimSpace`, `TrimStart` and `TrimEnd` return a slice of their argument with the spaces, tabs,
+carriage returns and line feeds removed from the ends. `Find` returns the position of the first
+match, **counting from 0, or -1 when there is none** — slice counting, not `instr`'s. `Equals`,
+`StartsWith` and `EndsWith` compare, with an optional `true` to ignore the case of A to Z.
+
+`SplitSlices` is `Split` without the array. It hands the parts to a `for each` one at a time, each
+a slice of the original. An empty part is still a part, so the blank line in `config` arrives as an
+empty slice — that is what the `len( t ) = 0` test is for.
+
+Every one of these takes a `const` slice, and any string can be passed for one. A string of the
+same width is viewed where it is; any other is converted once, for the call.
+
+```admonish tip title="Tip"
+`SplitSlices( config[0 to len( config ) - 1], !"\n" )` passes a `uslice`, not the `ustring`
+itself. A `ustring` and a plain literal together leave the compiler two equally good choices —
+view the first and convert the second, or the other way round — and it refuses to guess
+(`TKO0660`). Slicing the whole string first settles it.
+```
+
+### A slice cannot outlive its text
+
+A slice points into memory it does not own. If that memory is freed or moved while the slice is
+still in use, the slice reads whatever is there now. The compiler keeps track of where every slice
+came from and refuses each way that could happen:
+
+```tiko
+{{#include ../examples/ch09/sliceescape.tiko}}
+```
+
+```text
+sliceescape.tiko(4,13): error TKO1059: cannot return a slice of local 's'
+     |
+   4 |     return s[0 to 2]      '' error: s is this call's own copy
+     |             ^
+```
+
+`s` is passed `byval`, so it belongs to the call and is gone when the call returns. Make it
+`byref s as const ustring` and the function compiles: the text then belongs to the caller, which
+still has it after the call.
+
+The other rules follow from the same idea. A slice may be a local variable, a parameter or a
+result. It may not be `shared` or `static`, an array element, an element of a container, or
+allocated with `new` (`TKO1054`), because any of those can outlive the text with nothing to say
+when. A slice of a string declared in an inner block cannot be kept in a variable declared outside
+it (`TKO1057`). A slice of a temporary — `(a & b)[0 to 3]` — can be printed or passed in the same
+statement, and cannot be kept at all (`TKO1058`).
+
+The last rule is about the text changing underneath the slice:
+
+```tiko
+{{#include ../examples/ch09/slicelock.tiko}}
+```
+
+```text
+slicelock.tiko(6,1): error TKO1062: 's' cannot be changed while slice 'first3' borrows from it (last used at line 7)
+     |
+   6 | s &= ", world"        '' error: may move the text first3 points into
+     | ^
+```
+
+Appending to a `ustring` may move its text to a bigger block of memory, which would leave `first3`
+pointing at the old one. So from the moment a slice is made until the last line that reads it, the
+string it came from cannot be assigned, appended to, swapped, read into, or passed `byref` to a
+procedure that might do any of those. Move the `print` above the `&=` and the program compiles: the
+slice is finished with before the string grows. Writing single units in place — `s[i] = x`, the
+`mid` statement — never moves the text, and stays allowed.
+
+### Types that hold a slice
+
+A field of an ordinary type can outlive anything, so a slice field is refused there (`TKO1055`). A
+type declared `as view` may hold one, and is then held to the same rules as a slice:
+
+```tiko
+{{#include ../examples/ch09/lexer.tiko}}
+```
+
+```text
+{{#include ../examples/ch09/lexer.out}}
+```
+
+`Lexer` walks the text without copying any of it, and `NextWord` returns a slice of the text the
+lexer holds — which is the caller's, so it may. A `Lexer` cannot be `shared`, put in an array or
+stored in an ordinary type, exactly as a slice cannot, and a type that holds a `Lexer` must say
+`as view` too.
+
+### What the compiler cannot see
+
+The compiler follows a string through one procedure. It does not follow it into another, so it
+cannot know that `Note` appends to the same `logText` that `head` points into:
+
+```tiko
+{{#include ../examples/ch09/slicecheck.tiko}}
+```
+
+```text
+{{#include ../examples/ch09/slicecheck.out}}
+```
+
+Every slice of a `string` or `ustring` remembers which string it came from. Under `-exx`, each read
+of the slice first checks that its text is still inside that string, and stops the program with
+runtime error 6 when it is not. A `v[i]` past the end of a slice is caught the same way.
+
+````admonish danger title="Pitfall"
+**Without `-exx`, `slicecheck.tiko` does not stop.** It prints whatever is in the memory `head`
+points at. On a good day that is still `start`, because nothing has reused the freed block yet.
+That is the worst outcome: the program looks right, and the bug waits for a longer log.
+
+Build with `-exx` while you develop, as Chapter 1 recommends. It costs a few compares per read of a
+slice, which is the price of being told. A slice of a `zstring ptr` has no string to check against
+at all — the pointer is trusted as it is everywhere else.
+````
+
 ## Laying out a line
 
 `str`, `hex` and `print using` each do one job. A line that wants a name padded to a width, a
@@ -500,6 +670,9 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 13 — and it 
   That is the price of not having to think about encoding, and it is almost always worth paying.
 - **`&` builds a new string.** Appending in a loop copies what is there each time; for a large
   result, build into one string and overwrite with the `mid` statement, or let the library do it.
+- **A slice costs nothing to make** — no allocation, no copy — and `len` on it is O(1). Keeping
+  its text, by assigning it to a `ustring`, is the copy you skipped; under `-exx` each read of a
+  slice is also checked against its source.
 - **Converting between `string` and `ustring` is a re-encode**, not a cast. Do it at the boundary,
   once, not inside a loop.
 - **`instr` is a scan.** Finding *n* things in a long string costs *n* scans unless you carry the
@@ -535,6 +708,16 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 13 — and it 
 - **A literal format string is checked when the program compiles** (`TKO0847` to `TKO0858`). One held
   in a variable is checked when it runs, and a bad one stops the program; for format strings that
   are data, `TryFormat` returns a `Result` instead.
+- **`s[lo to hi]` is a slice**: part of `s`, counted from 0, both ends included, never copied.
+  `uslice`, `slice` and `wslice` match `ustring`, `string` and `wstring`. A slice is as writable as
+  its source; assigning it to a `ustring` keeps a copy.
+- `strings.TrimSpace`, `Find` (0-based, -1 for none), `Equals` and `SplitSlices` work on slices
+  without copying.
+- **A slice cannot outlive its text.** It cannot be returned from the function that owns the
+  text (`TKO1059`), stored where it could outlive it (`TKO1054`, `TKO1057`, `TKO1058`), or kept
+  while its string grows (`TKO1062`). A type that holds one is declared `as view`.
+- **`-exx` catches what crosses a procedure**: a slice read after its string moved stops with
+  runtime error 6. Without it, the slice reads freed memory.
 - **CSV is not a `Split` problem** — use `SplitCsv` or `SplitCsvRow`, which understand quoting.
 - `#import "std/codec"`: `HexEncode`, `Base64Encode` (standard or URL-safe) and `Base32Encode`
   spell bytes as text; `…Decode` and `…DecodeText` are **strict** and report the position of the
@@ -560,5 +743,9 @@ form`. Give the type an `operator cast( ) as ustring` — Chapter 13 — and it 
 6. Print a multiplication table for 1 to 12 with `strings.Format`, every column right-aligned.
    Then make the column width depend on the largest product, so the table still lines up for 1 to
    99.
-7. Encode the bytes 0 to 255 in base64, then decode the result with one character changed in
+7. Rewrite `lexer.tiko`'s `NextWord` so that it also returns `=`, `*` and the other punctuation
+   as words of their own, still without copying. Then move `print "<"; w; ">";` into a procedure
+   that takes `byval w as const uslice`, and call it with a `ustring` and with a literal as well
+   as with a slice.
+8. Encode the bytes 0 to 255 in base64, then decode the result with one character changed in
    each position in turn. Does every change get refused? Which ones decode, and to what?
