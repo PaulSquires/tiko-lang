@@ -1,0 +1,21 @@
+'' slicestd.tiko -- reading settings with no copies at all.
+#import "std/strings"
+
+dim as ustring config = !"  name = tiko \n\n version=0.1 \n  bad line"
+
+for each line_ as const uslice in _
+        strings.SplitSlices( config[0 to len( config ) - 1], !"\n" )
+    dim as const uslice t = strings.TrimSpace( line_ )
+    if len( t ) = 0 then continue for
+
+    dim as int32 eq = strings.Find( t, "=" )
+    if eq < 0 then
+        print "skipped: ["; t; "]"
+        continue for
+    end if
+
+    dim as const uslice key = strings.TrimSpace( t[0 to eq - 1] )
+    dim as const uslice value = _
+        strings.TrimSpace( t[eq + 1 to len( t ) - 1] )
+    print "["; key; "] -> ["; value; "]"
+next

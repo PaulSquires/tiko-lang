@@ -1,0 +1,31 @@
+'' A function may return a slice of text its caller owns: here s is
+'' byref, so the text outlives the call.
+function Before( byref s as const ustring, byval sep as int32 ) _
+        as const uslice
+    for i as int32 = 0 to len( s ) - 1
+        if s[i] = sep then return s[0 to i - 1]
+    next
+    return s[0 to len( s ) - 1]
+end function
+
+dim as ustring path = "docs/guide/intro.md"
+dim as const uslice top = Before( path, asc( "/" ) )
+print "top folder: "; top
+
+'' A type that holds a slice is declared "as view". It follows the
+'' same rules as a slice: no shared, no arrays, no new.
+type Cursor as view
+    text as const uslice
+    pos as int32
+end type
+
+function Take( byref c as Cursor, byval n as int32 ) as const uslice
+    dim as int32 start = c.pos
+    c.pos += n
+    if c.pos > len( c.text ) then c.pos = len( c.text )
+    return c.text[start to c.pos - 1]
+end function
+
+dim as Cursor c
+c.text = path[0 to len( path ) - 1]
+print Take( c, 4 ); " | "; Take( c, 6 ); " | "; Take( c, 99 )

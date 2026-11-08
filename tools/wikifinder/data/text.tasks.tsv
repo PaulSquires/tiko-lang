@@ -20,4 +20,5 @@ seealso	Category-String-Library	String Library guide
 seealso	Category-Format	Format guide
 seealso	Category-UString	UString
 seealso	Category-Block-Strings	Block strings
+seealso	Category-String-Slices	String slices
 seealso	Category-Codec	Base64, hex and percent-encoding

@@ -1,0 +1,29 @@
+'' lexer.tiko -- a type that holds a slice is a view.
+
+type Lexer as view
+    src as const uslice      '' the text being read, not a copy
+    pos as int32
+end type
+
+'' The next run of non-blank units, or an empty slice at the end.
+function NextWord( byref lx as Lexer ) as const uslice
+    while lx.pos < len( lx.src ) andalso lx.src[lx.pos] = 32
+        lx.pos += 1
+    wend
+    dim as int32 start = lx.pos
+    while lx.pos < len( lx.src ) andalso lx.src[lx.pos] <> 32
+        lx.pos += 1
+    wend
+    return lx.src[start to lx.pos - 1]
+end function
+
+dim as ustring text = "  let total = price * 3  "
+dim as Lexer lx
+lx.src = text[0 to len( text ) - 1]
+
+do
+    dim as const uslice w = NextWord( lx )
+    if len( w ) = 0 then exit do
+    print "<"; w; ">";
+loop
+print

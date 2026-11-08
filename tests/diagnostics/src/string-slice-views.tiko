@@ -1,0 +1,38 @@
+#import "std/containers"
+type Lexer as view
+    src as const slice
+    pos as integer
+end type
+type Plain
+    lx as Lexer
+end type
+function FirstWord( byref s as string ) as slice
+    dim as slice v = s[0 to 2]
+    return v
+end function
+function BadVar( ) as slice
+    dim as string lc = "abc"
+    dim as slice v = lc[0 to 1]
+    return v
+end function
+function MakeLexer( byref s as string ) as Lexer
+    dim as Lexer lx
+    lx.src = s[0 to 3]
+    lx.pos = 0
+    return lx
+end function
+function BadLexer( ) as Lexer
+    dim as string lc = "local"
+    dim as Lexer lx
+    lx.src = lc[0 to 3]
+    return lx
+end function
+dim shared as Lexer gl
+dim as string text = "hello world"
+dim as Lexer l1 = MakeLexer( text )
+print len( l1.src ); " "; l1.src
+dim as containers.Array( of slice ) arr
+var f = function[ byval l1 ]( ) as integer
+    return len( l1.src )
+end function
+print FirstWord( text )

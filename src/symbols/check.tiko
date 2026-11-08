@@ -4,6 +4,7 @@
 #import "std/containers"
 #include once "symbols/check.ti"
 #include once "symbols/mangle.ti"
+#include once "symbols/checkslice.ti"   '' __tko_slice, intrinsics.tiko (docs/tiko-slices)
 #include once "support/irtext.ti"
 
 namespace Tko.Check
@@ -891,8 +892,8 @@ private function TypeOfUncached_ _
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
             c.ast->BinaryOf( id )
-        dim as Tko.TypeId lt = TypeOf_( c, bp->lhs )
-        dim as Tko.TypeId rt = TypeOf_( c, bp->rhs )
+        dim as Tko.TypeId lt = StrCastOperandType( *c.ast, *c.info, *c.types, *c.names, bp->lhs, TypeOf_( c, bp->lhs ) )   '' 'cast( string, b ) = "ab"'
+        dim as Tko.TypeId rt = StrCastOperandType( *c.ast, *c.info, *c.types, *c.names, bp->rhs, TypeOf_( c, bp->rhs ) )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
 
         '' 'a IS T' -- the RTTI type test. Its right operand is a TYPE, so none of the
@@ -1286,6 +1287,7 @@ private function TypeOfUncached_ _
         if xp->target <> Tko.NODE_NONE then
             dim as Tko.TypeId pt = TypeOf_( c, xp->target )
             if pt <> Tko.TYPE_NONE then
+                t = Tko.Slices.SliceElemType( *c.types, *c.names, pt )   '' a STRING SLICE's unit, const with it (checkslice.tiko)
                 if c.types->Kind( pt ) = Tko.TK_POINTER then
                     t = c.types->Inner( pt )
                 elseif IsVarLenStrBuiltin_( c, pt ) then

@@ -684,18 +684,33 @@ private sub Fail_( byref why as const string )
     Post_( DBGP_NOTE_FAILED, 0 )
 end sub
 
-' Wait for the 'initialized' event, the configuration phase. FALSE = it never came.
-private function WaitInitialized_( ) as boolean
-    dim as string ev
+' Wait for the 'initialized' event, the configuration phase. FALSE = it never came, and 'why'
+' says what is known: lldb-dap REFUSED the launch / attach ('reqSeq', its response read in place
+' and left for the caller), lldb-dap exited, or nothing came in 20 s. lldb-dap sends no
+' 'initialized' after a refused launch, so the 20 s wait alone reported every refusal as
+' "did not answer" and threw lldb's own reason away.
+private function WaitInitialized_( byval reqSeq as long, byref why as string ) as boolean
+    dim as string ev, resp
     for tries as long = 1 to 200
         if Dap_NextEvent( ev, 100 ) then
             dim as JDOC e
             JParse( e, ev )
             dim as string en = JGetStr( e, 0, "event" )
             if en = "initialized" then return true
-            if en = "adapterExit" then return false
+            if en = "adapterExit" then why = "lldb-dap exited" : return false
+        end if
+        if Dap_Peek( reqSeq, resp ) then
+            dim as JDOC d
+            JParse( d, resp )
+            if JBool( d, JGet( d, 0, "success" ) ) = false then
+                why = JGetStr( d, JGet( d, JGet( d, 0, "body" ), "error" ), "format" )
+                if len( why ) = 0 then why = JGetStr( d, 0, "message" )
+                if len( why ) = 0 then why = "lldb-dap refused it"
+                return false
+            end if
         end if
     next
+    why = "lldb-dap did not answer"
     return false
 end function
 
@@ -740,10 +755,11 @@ private function Launch_( ) as boolean
                  """columnsStartAt1"":true,""pathFormat"":""path""}", d )
     dim as long attachSeq = Dap_Send( "attach", "{""pid"":" & gDbgE.pi.dwProcessId & ",""program"":" & Q_( gDbgE.exe ) & _
                                       ",""initCommands"":" & InitCommands_( ) & "}" )
-    if WaitInitialized_( ) = false then
+    dim as string whyNot
+    if WaitInitialized_( attachSeq, whyNot ) = false then
         tkd_TerminateProcess( gDbgE.pi.hProcess, 1 )
         Dap_Close( )
-        Fail_( "lldb-dap did not attach to it" )
+        Fail_( "lldb-dap did not attach to it: " & whyNot )
         return false
     end if
     Configure_( )
@@ -834,9 +850,10 @@ private function Launch_( ) as boolean
                         ",""initCommands"":" & InitCommands_( )
     if len( tty ) then req &= ",""stdio"":[" & Q_( tty ) & "," & Q_( tty ) & "," & Q_( tty ) & "]"
     dim as long launchSeq = Dap_Send( "launch", req & "}" )
-    if WaitInitialized_( ) = false then
+    dim as string whyNot
+    if WaitInitialized_( launchSeq, whyNot ) = false then
         Dap_Close( )
-        Fail_( "lldb-dap did not answer" )
+        Fail_( whyNot )                    ' lldb-dap's own words when it refused the launch
         return false
     end if
     Configure_( )

@@ -3,12 +3,14 @@ page	name	qualifier	task	from	rank	summary
 Instr	InStr	-	find	built-in	1	Returns the position of the first match, or 0 if there is none.
 Instrrev	InStrRev	-	find	built-in	-	Returns the position of the last match, or 0 if there is none.
 Modern-String-Contains	Contains	-	find	std/strings	-	Returns true if the text appears anywhere in the string.
+Modern-String-Find	Find	-	find	std/strings	-	Returns the position of the first match in a slice, counting from 0, or -1.
 Modern-String-StartsWith	StartsWith	-	find	std/strings	-	Returns true if the string begins with the given text.
 Modern-String-EndsWith	EndsWith	-	find	std/strings	-	Returns true if the string ends with the given text.
 Modern-String-Tally	Tally	-	find	std/strings	-	Counts how many times the text occurs, without overlaps.
 Modern-String-InstrChars	InstrChars	-	find	std/strings	-	Returns the position of the first character from a set, or 0.
 Modern-String-TallyChars	TallyChars	-	find	std/strings	-	Counts the characters that belong to a set.
 Len	Len	-	inspect	built-in	-	Returns the length of a string, or the size of a type.
+Modern-String-Equals	Equals	-	inspect	std/strings	-	Returns true if two slices hold the same code units, optionally ignoring case.
 Modern-String-IsBlank	IsBlank	-	inspect	std/strings	-	Returns true if the string is empty or holds only whitespace.
 Modern-String-IsNumeric	IsNumeric	-	inspect	std/strings	-	Returns true if the string is a valid number, with spaces allowed around it.
 Modern-String-VerifySet	VerifySet	-	inspect	std/strings	-	Returns the position of the first character not in a set, or 0 if all are.
@@ -28,6 +30,9 @@ Trim	Trim	-	trim	built-in	-	Removes spaces, or the given characters, from both e
 Ltrim	LTrim	-	trim	built-in	-	Removes spaces, or the given characters, from the start.
 Rtrim	RTrim	-	trim	built-in	-	Removes spaces, or the given characters, from the end.
 Modern-String-Shrink	Shrink	-	trim	std/strings	-	Trims both ends and collapses each inner run of spaces to one.
+Modern-String-TrimSpace	TrimSpace	-	trim	std/strings	-	Returns a slice of the text without the spaces, tabs, CRs and LFs at either end.
+Modern-String-TrimStart	TrimStart	-	trim	std/strings	-	Returns a slice of the text without its leading spaces, tabs, CRs and LFs.
+Modern-String-TrimEnd	TrimEnd	-	trim	std/strings	-	Returns a slice of the text without its trailing spaces, tabs, CRs and LFs.
 Modern-String-PadLeft	PadLeft	-	trim	std/strings	-	Pads on the left to a width, with spaces or a given character.
 Modern-String-PadRight	PadRight	-	trim	std/strings	-	Pads on the right to a width, with spaces or a given character.
 Modern-String-PadCenter	PadCenter	-	trim	std/strings	-	Centres the string in a width, padding both sides.
@@ -45,6 +50,7 @@ Modern-String-ClipLeft	ClipLeft	-	edit	std/strings	-	Removes a number of charact
 Modern-String-ClipRight	ClipRight	-	edit	std/strings	-	Removes a number of characters from the end.
 Mid-Statement	Mid	statement	edit	built-in	-	Overwrites part of a string in place with other text.
 Modern-String-Split	Split	-	split	std/strings	3	Breaks a string into an Array at each delimiter.
+Modern-String-SplitSlices	SplitSlices	-	split	std/strings	-	Walks the parts of a slice between separators, one at a time, in a for each loop.
 Modern-String-SplitChars	SplitChars	-	split	std/strings	-	Breaks a string into an Array wherever a character from a set appears.
 Modern-String-Join	Join	-	split	std/strings	-	Joins an Array of strings into one, with a separator between them.
 Modern-String-SplitCsv	SplitCsv	-	split	std/strings	-	Parses CSV text into rows and fields, quoted fields included.

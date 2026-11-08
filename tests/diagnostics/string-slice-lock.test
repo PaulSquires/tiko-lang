@@ -1,0 +1,14 @@
+'' String slices, RFC-0002 §6 (P4): the source lock. Between a slice's binding and its last use, a
+'' write that may reallocate what it borrows -- '&=', '=', swap, a byref non-const argument -- is
+'' TKO1062, and inside a loop a write is one when the slice was read earlier in the body without
+'' being rebound first (the next iteration reads it). Legal in the same file, reporting nothing:
+'' a write after the last use, after the slice is rebound to another string, in place ('s[0] =',
+'' the MID statement), through a 'byref as const' parameter, and a slice re-taken each iteration.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/string-slice-lock.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: string-slice-lock.tiko(9,1): error TKO1062: 's' cannot be changed while slice 'v' borrows from it (last used at line 10)
+'' EXPECT-OUT: string-slice-lock.tiko(23,5): error TKO1062: 's' cannot be changed while slice 'q' borrows from it (last used at line 24)
+'' EXPECT-OUT: string-slice-lock.tiko(33,5): error TKO1062: 's' cannot be changed while slice 'b' borrows from it (last used at line 32)
+'' EXPECT-OUT: string-slice-lock.tiko(36,1): error TKO1062: 's' cannot be changed while slice 'b' borrows from it (last used at line 37)
+'' EXPECT-MAX-DIAG: 4

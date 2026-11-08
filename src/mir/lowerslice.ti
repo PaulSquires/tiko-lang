@@ -1,0 +1,52 @@
+'' lowerslice.ti -- STRING SLICES in lowering: see lowerslice.tiko (docs/tiko-slices).
+
+#ifndef __TKO_LOWERSLICE_BI__
+#define __TKO_LOWERSLICE_BI__
+
+#include once "mir/lowerctx.ti"
+#include once "symbols/checkslice.ti"
+
+namespace Tko.Mir
+
+    '' The bytes of one code unit of a slice type: 1, 2, or wchar_t's; 0 when t is not one.
+    declare function SliceUnitBytes( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    '' A slice-typed expression's storage: its address, or its value spilled to a temporary.
+    declare function SliceStorage( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    '' 'len( v )' over a slice -- its length word. False for anything else.
+    declare function LowerSliceLen _
+        ( byref c as Ctx, byval a as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' '__tko_slice( src, lo, hi )', the call 's[lo to hi]' parses as: the slice VALUE.
+    '' A slice's 'operator cast' (prelude declarations, no bodies): the text it views as a
+    '' string term -- narrow without a copy, UTF-16 and wide as a statement temporary.
+    declare function LowerSliceCast _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
+          byref outv as MirValue ) as boolean
+    '' 'iif( c, a, b )' with a slice arm and an arm of another type: the string iif, whose
+    '' result is an owned string (RFC-0001 §7).
+    declare function SliceMeetsString _
+        ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    '' A STRING ARGUMENT FOR A SLICE PARAMETER (RFC-0001 §8): the address of a temporary
+    '' slice over it. Same width and storage of its own: a view, no copy. Anything else -- a
+    '' literal of another width, a temporary, another width -- is first copied into a
+    '' statement temporary of the parameter's flavour, which outlives the call.
+    declare function LowerSliceArg _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
+    '' 'slice( p )' / 'slice( p, n )' over a zstring or wstring pointer: the slice VALUE --
+    '' up to the NUL, or n units.
+    declare function LowerSliceCtor _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' -earray (in -exx): the RFC-0002 §7 ANCHOR CHECK over a slice's storage before its text is read
+    '' -- when it has an anchor, its view must lie inside the source descriptor's current
+    '' buffer -- and, given an index, 0 <= i < len (RFC-0001 §5). Either failing is runtime
+    '' error 6 through fb_ErrorThrowEx. Nothing is emitted without -earray.
+    declare sub EmitSliceChecks _
+        ( byref c as Ctx, byval at as Tko.NodeId, byref sa as MirValue, _
+          byval unitBytes as int32, byval idx as MirValue ptr = nullptr )
+    declare function LowerSliceCall _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+end namespace
+
+#endif

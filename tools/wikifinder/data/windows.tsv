@@ -55,7 +55,6 @@ SysWin-Gui-DTP	DTP	-	controls	sys/win/gui	-	Reads and sets the date and time, ra
 SysWin-Gui-Animate	Animate	-	controls	sys/win/gui	-	Opens, plays, stops and closes silent AVI clips in an animation control.
 SysWin-Gui-HotKey	HotKey	-	controls	sys/win/gui	-	Reads and sets the key combination in a hot key control, and the combinations it refuses.
 SysWin-Gui-IPAddress	IPAddress	-	controls	sys/win/gui	-	Reads, sets and clears the address in an IP address control, and limits its four fields.
-SysWin-Gui-PropSheet	PropSheet	-	controls	sys/win/gui	-	Creates an animation control, and names the wizard-button requests of a property sheet.
 SysWin-Gui-ScrollBar	ScrollBar	-	controls	sys/win/gui	-	Shows, hides, enables and positions a scroll bar control, and reads and sets its range.
 SysWin-Gui-SysLink	SysLink	-	controls	sys/win/gui	-	Measures a SysLink control, reads and sets its links, and finds the link at a point.
 DVARIANT	DVARIANT	-	com	sys/win/com	-	Holds a COM `VARIANT` and converts it to and from tiko numbers, strings, dates and arrays.

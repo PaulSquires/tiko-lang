@@ -1,0 +1,30 @@
+sub Takes( byval v as slice )
+end sub
+dim as string s = "abcdefgh"
+dim as const string cs = "constant"
+dim as double d = 1.5
+var a = d[0 to 1]
+dim as string * 8 f
+var b = f[0 to 8]
+var c = s[-1 to 2]
+var e = s[5 to 2]
+dim as slice m = cs[0 to 2]
+dim as const slice k = cs[0 to 2]
+dim as slice m2 = s[0 to 1]
+m2 = k
+Takes( cs[0 to 1] )
+k[0] = 65
+k = s[1 to 2]
+var ok1 = s[3 to 2]
+dim as zstring * 8 z
+var ok2 = z[0 to 6]
+var bad2 = z[0 to 7]
+sub TakesM( byval v as slice )
+end sub
+dim as ustring u = "u"
+TakesM( "lit" )
+TakesM( u )
+TakesM( cs )
+dim as const zstring ptr cpz = strptr( s )
+dim as slice m3 = slice( cpz )
+var bad3 = slice( d )

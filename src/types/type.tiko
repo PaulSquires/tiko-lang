@@ -126,7 +126,6 @@ function TargetName( byval t as TargetId ) as string
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
     case TARGET_WINDOWS_X86_64  : return "windows-x86_64"
     case TARGET_MACOS_ARM64     : return "macos-arm64"
-    case TARGET_WIN32           : return "win32"
     end select
     TargetIce( "TargetName", t )
     return ""
@@ -139,32 +138,23 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     if s = "windows-x86_64" then return TARGET_WINDOWS_X86_64
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
     if s = "macos-arm64" then return TARGET_MACOS_ARM64
-    '' win32's fbc spelling, as win64 is fbc's for TARGET_WIN64. 'windows-x86' is
-    '' accepted beside it so that the name parallels 'windows-x86_64' where a
-    '' script spells the whole thing out.
-    if s = "win32" then return TARGET_WIN32
-    if s = "windows-x86" then return TARGET_WIN32
     ok = false
     return HostTarget( )
 end function
 
-'' TRUE for every target but TARGET_WIN32, whose arrival on 2026-11-08 is the
-'' first time the answer has been anything else. It stays a function on purpose:
-'' it is a target FACT, and the callers that ask for it are asking a question
-'' that wants the assumption named in one place. Deleting it would scatter the
-'' assumption instead of naming it.
+'' ALWAYS TRUE since 2026-09-04, and kept as a function on purpose: it is a
+'' target FACT, and the callers that ask for it are asking a question that ARM64
+'' will not change the answer to but a future 32-bit target would. Deleting it
+'' would scatter the assumption instead of naming it.
 function TargetIs64( byval t as TargetId ) as boolean
-    select case t
-    case TARGET_WIN32 : return false
-    end select
     return true
 end function
 
 function TargetOs( byval t as TargetId ) as TargetOsKind
     select case t
-    case TARGET_WIN64, TARGET_WINDOWS_X86_64, TARGET_WIN32 : return OS_WINDOWS
-    case TARGET_LINUX_X86_64                               : return OS_LINUX
-    case TARGET_MACOS_ARM64                                : return OS_DARWIN
+    case TARGET_WIN64, TARGET_WINDOWS_X86_64 : return OS_WINDOWS
+    case TARGET_LINUX_X86_64                 : return OS_LINUX
+    case TARGET_MACOS_ARM64                  : return OS_DARWIN
     end select
     TargetIce( "TargetOs", t )
     return OS_WINDOWS
@@ -174,7 +164,6 @@ function TargetArch( byval t as TargetId ) as TargetArchKind
     select case t
     case TARGET_WIN64, TARGET_WINDOWS_X86_64, TARGET_LINUX_X86_64 : return ARCH_X86_64
     case TARGET_MACOS_ARM64                                       : return ARCH_ARM64
-    case TARGET_WIN32                                             : return ARCH_X86_32
     end select
     TargetIce( "TargetArch", t )
     return ARCH_X86_64
@@ -236,21 +225,6 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         r.cvaListBytes = 8
         r.cvaListAlign = 8
         r.cvaListIsPointer = true
-    case TARGET_WIN32
-        '' THE NUMBERS D14 RETIRED, RESTORED UNCHANGED. Measured against fbc's own win32
-        '' build before the removal and recorded here then (2026-09-04): the FBSTRING
-        '' descriptor is 12 bytes -- three pointer-sized words -- but ALIGNED TO 4, while
-        '' maxAlign stays 8 (a double or an int64 field still aligns to 8 in a UDT), so
-        '' neither number follows from the pointer width and neither is derived. cva_list
-        '' is a 'char *' on win32 as on win64: 4 bytes, a pointer.
-        r.pointerBits = 32
-        r.wcharBytes = 2
-        r.stringBytes = 12
-        r.stringAlign = 4
-        r.cvaListBytes = 4
-        r.cvaListAlign = 4
-        r.cvaListIsPointer = true
-        r.isMsvc = false     '' MinGW ABI, like TARGET_WIN64: msvcrt, not the UCRT
     case else
         TargetIce( "TargetLayoutFor", t )
     end select
@@ -1041,6 +1015,9 @@ function TypeContext.Name( byval t as TypeId ) as string
             '' type ids (symbols/generic.tiko). Spelled as the source writes it, '( of long, long )',
             '' with '#' back to '.'; a key that is not all ids is shown as it is (BUG-iterators-1).
             dim as string ks = this.names->Spelling( nm )
+            '' THE STRING SLICES are prelude TYPEs under reserved names (parser/prelude.tiko); a
+            '' diagnostic says what the program wrote, 'slice' (docs/tiko-slices).
+            if (lcase( left( ks, 6 ) ) = "__tko_") andalso (lcase( right( ks, 8 ) ) = "strslice") then return prefix & lcase( mid( ks, 7, len( ks ) - 14 ) ) & "slice"   '' __tko_ustrslice -> uslice
             dim as integer lt = instr( ks, "<" )
             if (lt > 1) andalso (right( ks, 1 ) = ">") then
                 dim as string args = mid( ks, lt + 1, len( ks ) - lt - 1 ) & ","

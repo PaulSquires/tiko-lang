@@ -195,7 +195,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Color](Color) | Sets the colours for text printed from now on, and returns the previous ones. | [Console Functions](Category-Console-Functions) |
 | [Command](Command) | Returns command-line argument n, the program's name for 0, or all of them if omitted. | [Operating System Functions](Category-Operating-System-Functions) |
 | [Common](Common) | Variable declaration and scope modifier. | [Modularizing](Category-Modularizing) |
-| [Compiler Error Messages](Compiler-Error-Messages) | During the program compilation three types of errors can arise:. | Using the FreeBASIC compiler |
+| [Compiler Error Messages](Compiler-Error-Messages) |  | Using the FreeBASIC compiler |
 | [Compiler Option: -a](Compiler-Option-a) | Add an object file to the linker's list. | Using the FreeBASIC compiler |
 | [Compiler Option: -arch](Compiler-Option-Arch) | Set target architecture for improved/restricted code generation or cross-compiling. | Using the FreeBASIC compiler |
 | [Compiler Option: -asm](Compiler-Option-Asm) | Set assembler format for inline assembly under -gen gcc. | Using the FreeBASIC compiler |
@@ -548,6 +548,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Enum](Enum) | Declares an enumerated type. | [User Defined Types](Category-User-Defined-Types) |
 | [Environ](Environ) | Returns the value of an environment variable, or an empty string if it is not set. | [Operating System Functions](Category-Operating-System-Functions) |
 | [EOF](Eof) | Returns true when an open file has nothing left to read. | [File I/O Functions](Category-File-I-O-Functions) |
+| [Equals](Modern-String-Equals) | Returns true if two slices hold the same code units, optionally ignoring case. | [String Slices](Category-String-Slices) |
 | [Erase](Erase) | Frees a variable-length array's elements, or resets those of a fixed-length array. | [Array Functions](Category-Array-Functions) |
 | [Erfn](Erfn) | Returns a pointer to the name of the failing procedure; null unless built with -exx. | [Error Handling Functions](Category-Error-Handling-Functions) |
 | [Erl](Erl) | Returns the source line of the last runtime error, or 0 if there was none. | [Error Handling Functions](Category-Error-Handling-Functions) |
@@ -625,6 +626,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [FileWatcher.Poll](Modern-Fs-FileWatcher-Poll) | Fills an Array with the changes seen since the last call, waiting up to a timeout. | [Filesystem](Category-Filesystem) |
 | [FileWatcher.Start](Modern-Fs-FileWatcher-Start) | Starts watching a folder for changes, subfolders too when recursive is true. | [Filesystem](Category-Filesystem) |
 | [FileWatcher.Stop](Modern-Fs-FileWatcher-Stop) | Stops watching; harmless when not watching. | [Filesystem](Category-Filesystem) |
+| [Find](Modern-String-Find) | Returns the position of the first match in a slice, counting from 0, or -1. | [String Slices](Category-String-Slices) |
 | [Fix](Fix) | Returns the whole-number part, rounding towards zero, so Fix(-4.9) is -4. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [Fixed-Width Types](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [Flip](Flip) | Shows the OpenGL back buffer, or copies a page as ScreenCopy does in other modes. | [Screen Functions](Category-Screen-Functions) |
@@ -1412,6 +1414,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [SplitChars](Modern-String-SplitChars) | Breaks a string into an Array wherever a character from a set appears. | [String Library](Category-String-Library) |
 | [SplitCsv](Modern-String-SplitCsv) | Parses CSV text into rows and fields, quoted fields included. | [String Library](Category-String-Library) |
 | [SplitCsvRow](Modern-String-SplitCsvRow) | Parses one CSV record into an Array of fields. | [String Library](Category-String-Library) |
+| [SplitSlices](Modern-String-SplitSlices) | Walks the parts of a slice between separators, one at a time, in a for each loop. | [String Slices](Category-String-Slices) |
 | [Sqr](Sqr) | Returns the square root of a number. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [StableSort](Modern-Array-StableSort) | Sorts an Array in ascending order, keeping equal elements in their original order. | [Array](Category-Array) |
 | [StableSort](Modern-Sorting-StableSort) | Sorts an Array in ascending order, keeping equal elements in their original order. | [Sorting](Category-Sorting) |
@@ -1541,6 +1544,9 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [TransformVector](Modern-Math-TransformVector) | Applies a matrix to a direction, leaving out the translation. | [Math Library](Category-Math-Library) |
 | [Transpose](Modern-Math-Transpose) | Returns a matrix with its rows and columns swapped. | [Math Library](Category-Math-Library) |
 | [Trim](Trim) | Removes spaces, or the given characters, from both ends. | [String Functions](Category-String-Functions) |
+| [TrimEnd](Modern-String-TrimEnd) | Returns a slice of the text without its trailing spaces, tabs, CRs and LFs. | [String Slices](Category-String-Slices) |
+| [TrimSpace](Modern-String-TrimSpace) | Returns a slice of the text without the spaces, tabs, CRs and LFs at either end. | [String Slices](Category-String-Slices) |
+| [TrimStart](Modern-String-TrimStart) | Returns a slice of the text without its leading spaces, tabs, CRs and LFs. | [String Slices](Category-String-Slices) |
 | [True](True) | Intrinsic constant set by the compiler. | [Intrinsic Defines](Category-Intrinsic-Defines) |
 | [Truncate](Modern-Math-Truncate) | Drops the fraction, rounding towards zero, so Truncate(-2.7) is -2. | [Math Library](Category-Math-Library) |
 | [TryCast](TryCast) | Converts to an interface or a typed pointer if the object really is one, and answers null if it is not. | [Interfaces](Category-Interfaces) |

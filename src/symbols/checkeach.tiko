@@ -88,7 +88,10 @@ private function InferForEachVarTypes_( byref c as Ctx ) as int32
         if c.types->Kind( seqT ) = Tko.TK_REFERENCE then
             seqT = c.types->Unqualify( c.types->Inner( seqT ) )
         end if
-        if c.types->Kind( seqT ) = Tko.TK_ARRAY then
+        if Tko.Slices.SliceElemType( *c.types, *c.names, seqT ) <> Tko.TYPE_NONE then
+            '' A STRING SLICE walks its code units (docs/tiko-slices): ubyte, ushort or wchar_t's.
+            vsym->type_ = c.types->Unqualify( Tko.Slices.SliceElemType( *c.types, *c.names, seqT ) )
+        elseif c.types->Kind( seqT ) = Tko.TK_ARRAY then
             vsym->type_ = c.types->Inner( seqT )
         elseif IsVarLenStringType_( c, seqT ) then
             '' 'for each ch in s' over a VAR-LENGTH STRING walks its CHARACTERS, and
@@ -326,7 +329,14 @@ sub CheckForEach_( byref c as Ctx )
         dim as Tko.TypeId elT = Tko.TYPE_NONE
         dim as boolean ok = true
 
-        if IsFixedStrTypeC_( c, seqT ) then
+        if Tko.Slices.SliceElemType( *c.types, *c.names, seqT ) <> Tko.TYPE_NONE then
+            '' A STRING SLICE's code units, every flavour; 'byref' binds nothing, as over a string.
+            elT = c.types->Unqualify( Tko.Slices.SliceElemType( *c.types, *c.names, seqT ) )
+            if sp->op = cast( uint16, Tko.KW_BYREF ) then
+                c.diags->Report( Tko.TKO0941, r )
+                ok = false
+            end if
+        elseif IsFixedStrTypeC_( c, seqT ) then
             c.diags->Report( Tko.TKO0609, r )
             ok = false
         elseif IsUStringTypeC_( c, seqT ) then

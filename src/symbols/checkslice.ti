@@ -1,0 +1,102 @@
+'' checkslice.ti -- STRING SLICES in the semantic layer (docs/tiko-slices RFC-0001).
+''
+'' 's[lo to hi]' parses as a call to the internal intrinsic '__tko_slice( s, lo, hi )'
+'' (parser/sliceexpr.tiko). This unit answers what Check and lowering both have to ask about
+'' it: which of the three slice TYPEs a type is, which one slicing a given source yields, and
+'' whether that slice is const. The types themselves are prelude TYPEs (parser/prelude.tiko),
+'' found by their reserved '__tko_' names so a program's own 'slice' cannot hide them.
+
+#ifndef __TKO_CHECKSLICE_BI__
+#define __TKO_CHECKSLICE_BI__
+
+#include once "tko.ti"
+#include once "ast/nodes.ti"
+#include once "symbols/symbol.ti"
+#include once "types/type.ti"
+#include once "diag/engine.ti"
+#include once "symbols/resolve.ti"
+
+namespace Tko.Slices
+
+    '' The code-unit flavour of a slice or of a slice SOURCE.
+    enum SliceUnit
+        SU_NONE = 0
+        SU_NARROW        '' slice: ubyte units -- string, string*N, zstring*N, zstring ptr
+        SU_UTF16         '' uslice: ushort units -- ustring, ustring*N
+        SU_WIDE          '' wslice: wchar_t units -- wstring*N, wstring ptr
+    end enum
+
+    '' WHAT A SLICE IS MADE FROM -- the shape lowering builds it from.
+    enum SliceSource
+        SS_NONE = 0
+        SS_DESC          '' a var-len string or ustring: a descriptor
+        SS_FIXED         '' 'string * N': N units, no terminator, a constant length
+        SS_ZFIXED        '' 'zstring * N', 'wstring * N', 'ustring * N': up to the NUL
+        SS_PTR           '' 'zstring ptr', 'wstring ptr': no known extent
+        SS_SLICE         '' another slice
+    end enum
+
+    '' t is one of the three slice types (qualifiers, a reference and typedefs looked
+    '' through): its unit, else SU_NONE.
+    declare function SliceUnitOfType _
+        ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId ) as SliceUnit
+
+    '' What slicing a value of type t gives: its unit and source shape. SU_NONE when t
+    '' cannot be sliced.
+    declare function SliceSourceOf _
+        ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId, byref outSrc as SliceSource ) as SliceUnit
+
+    '' 'v[i]' over a slice: its code unit -- ubyte, ushort, or wchar_t's width -- const when
+    '' the slice is (RFC-0001 §2). TYPE_NONE when t is not a slice.
+    declare function SliceElemType _
+        ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId ) as Tko.TypeId
+
+    '' The prelude's slice TYPE for a unit -- TYPE_NONE when the prelude's own declaration
+    '' is missing, which only a broken prelude can cause.
+    declare function SliceTypeFor _
+        ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byval u as SliceUnit ) as Tko.TypeId
+
+    '' THE TYPE OF '__tko_slice( s, lo, hi )', with TKO1050 for a source that cannot be
+    '' sliced. Const (RFC-0001 §2) when the source is: a literal, a const variable, a
+    '' temporary, or a const slice. TYPE_NONE when nothing can be said yet (an untyped
+    '' source has its own diagnostic) or after a report.
+    declare function SliceCallType _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+          byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo, _
+          byval cp as Tko.ListPayload ptr ) as Tko.TypeId
+
+    '' 'iif( c, a, b )' with ONE slice arm: the owned string of the slice's width -- the arms
+    '' are built into a string temporary, so 'print iif( c, v, "x" ) & "y"' is text. A wslice
+    '' takes the other arm's type. TYPE_NONE when neither or both arms are slices.
+    declare function SliceIifType _
+        ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval ta as Tko.TypeId, byval tb as Tko.TypeId ) as Tko.TypeId
+
+    '' WHAT A STRING COSTS PASSED TO A SLICE PARAMETER (RFC-0001 §8), or -1 when to_ is not a
+    '' slice or from_ is not a string. Same width: just above the string-pointer tier, so a
+    '' string parameter still wins over a slice one. Any other string: above every string
+    '' tier. Mutable parameters cost the same; TKO1052/TKO1053 judge them after Check.
+    declare function SliceArgCost _
+        ( byref types as Tko.TypeContext, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as int32
+
+    '' WHETHER t IS A VIEW-KIND TYPE: 'type T as view' (RFC-0002 §3), found through the TYPE's own
+    '' declaration node, so a module's view type is one in its importer too (the interface
+    '' writes the declaration back verbatim).
+    declare function IsViewType _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+          byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId ) as boolean
+
+    '' Whether call node id is a '__tko_slice' call.
+    declare function IsSliceCall _
+        ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
+          byval id as Tko.NodeId ) as boolean
+
+end namespace
+
+#endif

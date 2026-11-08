@@ -1,0 +1,7 @@
+'' String slices, RFC-0002 P3b: 'spawn' copies its arguments into a heap frame the new task reads
+'' later, so a slice argument is TKO1060 (judged on the parser's frame fill, parser/spawn.tiko).
+'' TEST: cli
+'' ARGS: -mt --dump-ir tests/diagnostics/src/string-slice-spawn.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: string-slice-spawn.tiko(6,14): error TKO1060: 'spawn' cannot capture slice
+'' EXPECT-MAX-DIAG: 1

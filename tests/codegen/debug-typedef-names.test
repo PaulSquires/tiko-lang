@@ -1,0 +1,20 @@
+'' '-g' NAMES A TYPE AS THE DECLARATION WROTE IT. 'int64' is a typedef of 'longint', and Resolve
+'' resolves every typedef away, so a debugger showed 'longint' for 'dim as int64 count' and 'long'
+'' for every 'as int32'. A variable, parameter, field, FOR counter or global declared with a
+'' typedef's name now has a DW_TAG_typedef of that name over the real type; a pointer, reference
+'' or const written around it stays around it, and an array of it is named for it. Checked under
+'' LLVM 21's lldb-dap on Windows: count : int64, dist : Meters, kp : int32 ptr, fx : int32(1 to 3),
+'' dy : int64(), i : int32, the fields x : int32 / big : int64 / m : Meters, total : int64.
+'' TEST: cli
+'' ARGS: -g --emit-ir tests/codegen/src/debug-typedef-names.tiko
+'' EXPECT-EXIT: 0
+
+'' One typedef node per name, over the real type.
+'' EXPECT-OUT: DW_TAG_typedef, name: "int64", baseType:
+'' EXPECT-OUT: DW_TAG_typedef, name: "Meters", baseType:
+'' EXPECT-OUT: DW_TAG_typedef, name: "int32", baseType:
+'' Arrays of it are named for it.
+'' EXPECT-OUT: DW_TAG_typedef, name: "int32(1 to 3)"
+'' EXPECT-OUT: name: "FBARRAY(int64)"
+'' A type written without a typedef keeps its own name.
+'' EXPECT-OUT: !DILocalVariable(name: "plain"

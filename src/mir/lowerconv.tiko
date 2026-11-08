@@ -151,11 +151,35 @@ function StrIdentityConvOperand_ _
     '' the spelling that says so: 'print cast( string, b )' and 'dim s as string = cast(
     '' string, b )' were dropped with nothing said, where fbc-modern prints the cast's
     '' result (measured 2026-09-19). A UDT with only a WIDE cast is left as it was.
-    if c.types->Kind( ot ) = Tko.TK_UDT then
+    '' A NARROW TARGET ONLY: 'cast( ustring, b )' is b's USTRING cast -- UStrUdtCastOperand_.
+    if (c.types->Kind( ot ) = Tko.TK_UDT) andalso (IsUStringType( c, c.types->Unqualify( rt2 ) ) = false) then
         if NarrowCastOverload_( c, ot ) <> Tko.SYMBOL_NONE then return op
     end if
     return Tko.NODE_NONE
 end function
+'' THE UDT OPERAND OF 'cast( ustring, x )' (or 'cptr'), or NODE_NONE: Check typed the cast
+'' USTRING because x's type casts to one -- a user TYPE or a uslice (binresult.tiko,
+'' UdtHasUStrCast_). Unlike the identity above it is NOT looked through: x alone would meet a
+'' narrow context with its NARROW cast ('print cast( ustring, b )' is "AB" in fbc-modern, 'print
+'' b' "ab"), so StrDescriptorOf_ builds the ustring 'dim u as ustring = x' would.
+function UStrUdtCastOperand_ _
+    ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+
+    if id = Tko.NODE_NONE then return Tko.NODE_NONE
+    if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
+    dim as Tko.ListPayload ptr cp = _
+        c.ast->ListOf( id )
+    dim as string nm = ConvName_( c, cp )
+    if (nm <> "cast") andalso (nm <> "cptr") then return Tko.NODE_NONE
+    if cp->count <> 2 then return Tko.NODE_NONE
+    if IsUStringType( c, c.types->Unqualify( c.info->TypeOf_( id ) ) ) = false then return Tko.NODE_NONE
+    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
+    dim as Tko.TypeId ot = c.types->Unqualify( c.info->TypeOf_( op ) )
+    if c.types->Kind( ot ) = Tko.TK_REFERENCE then ot = c.types->Unqualify( c.types->Inner( ot ) )
+    if c.types->Kind( ot ) <> Tko.TK_UDT then return Tko.NODE_NONE
+    return op
+end function
+
 '' THE 'operator cast' OVERLOAD WHOSE RESULT IS EXACTLY THE NAMED TYPE.
 ''
 '' UserCastToNum_ picks the BEST-RANKED numeric overload, which is right where the

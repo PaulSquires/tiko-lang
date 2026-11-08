@@ -1,0 +1,43 @@
+'' sliceexpr.tiko -- 's[lo to hi]', a STRING SLICE (docs/tiko-slices RFC-0001 §3).
+''
+'' 'to' is free inside '[ ]': the subscript loop in expr.tiko takes only ',' or ']' after an
+'' item, so no program that compiles today has a 'to' there and none changes meaning. No new
+'' token, and no new node kind either -- the slice is an N_CALL to the internal intrinsic
+'' '__tko_slice( target, lo, hi )', which Check types (symbols/checkslice.tiko) and lowering
+'' builds (mir/lowerslice.tiko). Some 34 files switch on N_INDEX, and every one of them would
+'' have to learn a new kind or mishandle it silently; a call they already pass along.
+
+#import "std/containers"
+#include once "parser/expr.ti"
+
+namespace Tko.Parse
+
+'' The cursor is on the 'to' of 's[lo to hi]', with 'lo' already in items[0]. Consumes 'to',
+'' the upper bound and the ']'.
+function SliceTail _
+    ( byref p as Tko.ParserState, byval target as Tko.NodeId, _
+      byref items as Tko.NodeIdVec, byval loc as Tko.SourceLoc ) as Tko.NodeId
+
+    Advance( p )                                 '' past 'to'
+    dim as Tko.NodeId hi = Expression( p )
+    Expect( p, Tko.TK_RBRACKET, "]" )
+
+    '' THE CALLEE IS A NAME NO PROGRAM CAN WRITE A DECLARATION FOR BY ACCIDENT: '__tko_' is
+    '' the prefix the prelude already reserves (__tko_assert). Spelled at the '[', so a
+    '' diagnostic about the slice points at the bracket.
+    dim as Tko.IdentPayload ip
+    ip.name = p.names->GetString( "__tko_slice" )
+    dim as Tko.FileId df
+    ip.spellOffset = p.src->LocOffset( loc, df )
+    ip.spellLength = 1
+    p.ast->PushIdent( ip )
+    dim as Tko.NodeId callee = NewNodeAt( p, Tko.N_IDENT, loc, p.ast->IdentPoolCount( ) - 1 )
+
+    dim as Tko.NodeIdVec args
+    args.Push( cast( uint32, target ) )
+    args.Push( items[0] )
+    args.Push( cast( uint32, hi ) )
+    return MakeList( p, Tko.N_CALL, loc, callee, args )
+end function
+
+end namespace

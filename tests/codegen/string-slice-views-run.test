@@ -1,0 +1,15 @@
+'' RUN: string slices P3b (docs/tiko-slices RFC-0002 §3) -- a view-kind type with a const slice
+'' field, a method returning a slice of this.src, and a view returned over a byref string; and a
+'' TYPE with a const UDT member, which was never laid out before (udtlayout.tiko).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/string-slice-views.tiko -o tests/codegen/stringsliceviews.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-FILE: tests/codegen/stringsliceviews.exe
+'' RUN: tests/codegen/stringsliceviews.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [alpha]
+'' EXPECT-RUN-OUT: [beta]
+'' EXPECT-RUN-OUT: [gamma]
+'' EXPECT-RUN-OUT: const member 5 16

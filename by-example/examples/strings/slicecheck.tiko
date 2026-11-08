@@ -1,0 +1,18 @@
+#cmdline "-exx"
+
+dim shared as ustring buffer
+
+sub AddText( byref more as const ustring )
+    buffer &= more & more & more & more
+end sub
+
+sub Show( )
+    buffer = "abc"
+    dim as const uslice view_ = buffer[0 to 2]
+    '' The compiler cannot see that AddText changes buffer.
+    AddText( "a line long enough to need a new block of memory" )
+    '' -exx checks view_ is still inside buffer: it is not.
+    print view_
+end sub
+
+Show( )

@@ -571,6 +571,7 @@ function LowerExpr _
 
                 '' 4 is a Linux wchar -- CharElemSize_ says why it matters.
                 dim as int32 cesz = CharElemSize_( c, xt )
+                if cesz = 0 then cesz = SliceUnitBytes( c, xt )   '' a string slice's unit, lowerslice.tiko
                 if cesz = 1 then
                     imt = MT_I8
                 elseif cesz = 2 then

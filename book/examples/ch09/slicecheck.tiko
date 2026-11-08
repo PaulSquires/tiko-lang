@@ -1,0 +1,17 @@
+'' slicecheck.tiko -- what -exx catches that the compiler cannot.
+#cmdline "-exx"
+
+dim shared as ustring logText
+
+sub Note( byref msg as const ustring )
+    logText &= msg & " -- long enough to move the text elsewhere"
+end sub
+
+sub Report( )
+    logText = "start"
+    dim as const uslice head = logText[0 to 4]
+    Note( "grown" )      '' grows logText behind head's back
+    print head           '' head now points at freed memory
+end sub
+
+Report( )

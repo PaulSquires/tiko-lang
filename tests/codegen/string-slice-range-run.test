@@ -1,0 +1,12 @@
+'' RUN: a string slice past its source's end stops with runtime error 6 and exit 6 in a build
+'' without -exx (docs/tiko-slices RFC-0001 §5); the source is named as an array is. Nothing is
+'' printed first: the abort goes to stderr unbuffered and a print would race it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/string-slice-range.tiko -o tests/codegen/stringslicerange.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stringslicerange.exe
+'' RUN: tests/codegen/stringslicerange.exe
+'' EXPECT-RUN-EXIT: 6
+'' EXPECT-RUN-OUT: runtime error 6 (out of bounds array access) at line 5 of
+'' EXPECT-RUN-OUT: 'S' accessed with invalid index = 20, must be between -1 and 7

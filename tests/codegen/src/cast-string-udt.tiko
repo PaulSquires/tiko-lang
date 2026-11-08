@@ -1,0 +1,72 @@
+'' cast( string, x ) in a comparison, and cast( ustring, x ) at all, over a UDT with string and
+'' ustring casts and over the slices -- each line measured against fbc-modern 1.20 (2026-11-07).
+type T
+    v as integer
+    declare operator cast( ) as string
+    declare operator cast( ) as ustring
+end type
+operator T.cast( ) as string
+    return "ab"
+end operator
+operator T.cast( ) as ustring
+    return "AB"
+end operator
+
+dim shared as integer fails
+sub Check( byval ok as boolean, byref what as const string )
+    if not ok then fails += 1 : print "FAIL "; what
+end sub
+function ByV( byval u as ustring ) as ustring
+    return "v" & u
+end function
+function ByR( byref u as const ustring ) as ustring
+    return "r" & u
+end function
+function ByS( byval s as string ) as string
+    return "s" & s
+end function
+
+dim as T q
+'' a comparison over cast( string, x ) is an INTEGER (it had no type: TKO0994)
+Check( str( cast( string, q ) = "ab" ) = "-1", "str( cast( string, q ) = ""ab"" )" )
+Check( str( (cast( string, q ) & "") = "ab" ) = "-1", "cast & chain compare" )
+dim as integer ci = cast( string, q ) <> "ab"
+Check( ci = 0, "integer from a cast compare" )
+
+'' cast( ustring, x ) is x's USTRING cast (it was TKO0756)
+Check( cast( ustring, q ) = "AB", "cast( ustring, q ) = ""AB""" )
+dim as ustring r = cast( ustring, q )
+Check( r = "AB", "dim from cast( ustring, q )" )
+Check( "x" & cast( ustring, q ) = "xAB", "concat" )
+Check( ByV( cast( ustring, q ) ) = "vAB", "byval ustring argument" )
+Check( ByR( cast( ustring, q ) ) = "rAB", "byref const ustring argument" )
+Check( ByS( cast( ustring, q ) ) = "sAB", "string argument" )
+Check( ucase( cast( ustring, q ) & "x" ) = "ABX", "ucase of a chain" )
+Check( len( cast( ustring, q ) ) = 2, "len" )
+dim as ustring a = "<"
+a &= cast( ustring, q )
+Check( a = "<AB", "&=" )
+dim as string sel
+select case cast( ustring, q )
+case "AB" : sel = "AB"
+case else : sel = "else"
+end select
+Check( sel = "AB", "select case" )
+
+'' the slices: RFC-0001 §7 promises cast( ustring, v ) and cast( string, v )
+dim as ustring u = "Grüße"
+dim as const uslice x = u[0 to 2]
+dim as uslice y = u[1 to 3]
+dim as string s = "abc"
+dim as const slice n = s[0 to 1]
+Check( cast( ustring, x ) = "Grü", "cast( ustring, const uslice )" )
+Check( cast( ustring, y ) = "rüß", "cast( ustring, uslice )" )
+Check( "[" & cast( ustring, x ) & "]" = "[Grü]", "uslice cast in a chain" )
+Check( str( cast( string, n ) = "ab" ) = "-1", "cast( string, slice ) compare" )
+dim as ustring ux = cast( ustring, x )
+Check( ux = "Grü", "dim from cast( ustring, uslice )" )
+dim as string j
+j &= cast( ustring, x )
+Check( j = "Grü", "string &= cast( ustring, uslice )" )
+
+if fails = 0 then print "ok"

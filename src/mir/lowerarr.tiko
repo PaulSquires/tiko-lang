@@ -1127,9 +1127,10 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         case Tko.TY_USTRING : dsz = 2
         end select
     end if
+    if dsz = 0 then dsz = SliceUnitBytes( c, pt )   '' a STRING SLICE: field 0 is its data pointer too (lowerslice.tiko)
 
     dim as int32 esz = CharElemSize_( c, pt )
-    dim as MirValue base_
+    dim as MirValue base_, slDesc   '' slDesc: a string slice's storage, for -earray (lowerslice.tiko)
 
     '' A STRING CONSTANT SUBSCRIPTED IS ITS CHARACTER TOO -- 'const L = "ACGT" : print
     '' L[ 1 ]' is 67. A tiko extension: fbc refuses it (error 3 after a bare name, 24 in
@@ -1184,7 +1185,8 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         '' the base is the literal's address, above
     elseif dsz > 0 then
         esz = dsz
-        dim as MirValue desc = LowerAddr( c, sp->target )
+        dim as MirValue desc   '' ...a slice that is a VALUE -- 'u[0 to 4][4]' -- is spilled first
+        if SliceUnitBytes( c, pt ) > 0 then desc = SliceStorage( c, sp->target ) : slDesc = desc else desc = LowerAddr( c, sp->target )
         if desc.kind = cast( uint8, MV_NONE ) then return none_
         '' Field 0 of the descriptor is its data pointer.
         dim as MirInst fa
@@ -1244,6 +1246,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )   '' a UDT through its cast
     if iv.kind = cast( uint8, MV_NONE ) then return none_
     if IsUdtValue_( c, ix ) = false then iv = CoerceTy( c, iv, offTy, c.info->TypeOf_( ix ))
+    if slDesc.kind <> cast( uint8, MV_NONE ) then EmitSliceChecks( c, id, slDesc, esz, @iv )   '' -earray: index and anchor
 
     dim as MirValue term = iv
     if esz <> 1 then

@@ -242,7 +242,38 @@ Sci_Position SCI_METHOD LexerVB::WordListSet(int n, const char *wl) {
 // tiko's property sections: `set` ... `end set` (and `get` ... `end get`). `get` is a reserved
 // word and in the keyword list; `set` is not -- it names std's containers.Set -- so it is a
 // keyword only ALONE ON ITS LINE (blanks, then the line end or a comment) or AFTER `end`.
+// An auto-property's accessor clause, `get, set` / `get, private set` / `get, init`, makes
+// `set` and `init` keywords too.
+static Sci_Position SkipBlanksBack(StyleContext &sc, Sci_Position p) {
+	while (sc.GetRelative(p) == ' ' || sc.GetRelative(p) == '\t') p--;
+	return p;
+}
+
+// The word `w` (lower case) ending at `p`, a whole word: `p` moves to the character before it.
+static bool WordEndsAt(StyleContext &sc, Sci_Position &p, const char *w) {
+	const Sci_Position n = static_cast<Sci_Position>(strlen(w));
+	for (Sci_Position i = 0; i < n; i++) {
+		if (MakeLowerCase(sc.GetRelative(p - i)) != w[n - 1 - i]) return false;
+	}
+	if (IsAWordChar(sc.GetRelative(p - n))) return false;
+	p -= n;
+	return true;
+}
+
+static bool IsAccessorClause(StyleContext &sc, const char *s) {
+	if (strcmp(s, "set") != 0 && strcmp(s, "init") != 0) return false;
+	Sci_Position p = SkipBlanksBack(sc, -sc.LengthCurrent() - 1);
+	Sci_Position q = p;
+	if (WordEndsAt(sc, q, "private") || WordEndsAt(sc, q, "protected") || WordEndsAt(sc, q, "public")) {
+		p = SkipBlanksBack(sc, q);
+	}
+	if (sc.GetRelative(p) != ',') return false;
+	p = SkipBlanksBack(sc, p - 1);
+	return WordEndsAt(sc, p, "get");
+}
+
 static bool IsSetSection(StyleContext &sc, const char *s) {
+	if (IsAccessorClause(sc, s)) return true;     // `get, set`
 	if (strcmp(s, "set") != 0) return false;
 	const Sci_Position len = sc.LengthCurrent();
 	Sci_Position back = -len - 1;

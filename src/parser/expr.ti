@@ -257,6 +257,12 @@ declare function ArgOrElided _
     '' and no procedure of that name seen -- parser/declclass.tiko.
     declare function TryCastHere( byref p as Tko.ParserState, byval k as Tko.TokenKind ) as boolean
 
+    '' 's[lo to hi]': the cursor on 'to', 'lo' in items[0]. Builds the '__tko_slice' call --
+    '' parser/sliceexpr.tiko (docs/tiko-slices RFC-0001 §3).
+    declare function SliceTail _
+        ( byref p as Tko.ParserState, byval target as Tko.NodeId, _
+          byref items as Tko.NodeIdVec, byval loc as Tko.SourceLoc ) as Tko.NodeId
+
     declare function ErrorNode _
         ( byref p as Tko.ParserState, byval id as Tko.DiagId, _
           byval a0 as string = "" ) as Tko.NodeId

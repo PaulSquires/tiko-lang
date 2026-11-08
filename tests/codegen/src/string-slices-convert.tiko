@@ -1,0 +1,80 @@
+'' String slices, P2a (docs/tiko-slices RFC-0001 §7): a slice where a string is wanted --
+'' print, a string variable, '&', the six comparisons, a string argument, cast( ), select
+'' case, iif and for each -- for slice, uslice and wslice. Plus the two user-UDT fixes the
+'' slices exposed: a UDT whose cast is a ustring compares and selects UTF-16.
+
+type U16
+    as ustring v
+    declare operator cast( ) as ustring
+end type
+operator U16.cast( ) as ustring
+    return v
+end operator
+
+sub TakesS( byval s as string )
+    print "byval [" & s & "]"
+end sub
+sub TakesR( byref s as const string )
+    print "byref {" & s & "}"
+end sub
+
+dim as string s = "hello, world"
+var v = s[7 to 11]
+print v
+dim as string t = v
+t &= "!"
+print t & " " & v
+print (v = "world"), (v <> "world"), (v < "x"), (v > "x"), (v <= "world"), (v >= "worle")
+TakesS( v )
+TakesR( v )
+print "cast " & cast( string, v )
+for i as integer = 0 to 2
+    dim as slice w
+    select case i
+    case 0 : w = s[0 to 4]
+    case 1 : w = s[7 to 11]
+    case else : w = s[5 to 5]
+    end select
+    select case w
+    case "hello" : print "sel hello"
+    case "world" : print "sel world"
+    case else : print "sel other [" & w & "]"
+    end select
+next
+dim as integer k = 1
+print "iif " & iif( k = 1, v, "lit" ) & " " & iif( k = 2, v, "lit" )
+var other = s[0 to 4]
+var pick = iif( k = 1, v, other )
+print "iif2 " & pick & " " & len( pick )
+dim as integer total = 0
+for each ch in v
+    total += ch
+next
+print "sum " & total
+
+dim as ustring u = "uno dos tr" & wchr( 233 ) & "s"
+var uv = u[4 to 6]
+print uv
+dim as ustring u2 = uv
+print u2 & "|" & uv & "|" & (uv = "dos")
+select case uv
+case "uno" : print "usel uno"
+case "dos" : print "usel dos"
+end select
+print "uiif " & iif( k = 1, uv, "x" )
+for each cu in u[8 to 11]
+    print cu;
+next
+print
+
+dim as wstring * 20 wf = "wide one"
+var wv = wf[5 to 7]
+dim as wstring * 20 w2 = wv
+print len( w2 ), (wv = "one"), (w2 = "one")
+
+dim as U16 a
+a.v = "UTF16"
+print "udt " & (a = "UTF16")
+select case a.v
+case "UTF16" : print "udt sel ok"
+end select

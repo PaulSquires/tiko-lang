@@ -44,6 +44,8 @@ function LowerStrRvalueB_ _
     '' and the test only in StrDescriptorOf_ missed EmitStrTerm, which calls this directly --
     '' so 's = hex( n )' declined. A program's own 'hex' is not it: CallsUserProcNamedLikeBuiltin.
     if CallsUserProcNamedLikeBuiltin( c, id ) then return false
+    '' 'cast( ustring, x )' over a UDT or a uslice: a USTRING temporary (StrDescriptorOf_).
+    if UStrUdtCastOperand_( c, id ) <> Tko.NODE_NONE then return StrDescriptorOf_( c, id, outv )
     if LowerRadixCall_( c, id, outv ) then return true
     if LowerStrOf_( c, id, outv ) then return true
 

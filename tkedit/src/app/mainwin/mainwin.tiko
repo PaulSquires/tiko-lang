@@ -902,6 +902,9 @@ function Window.Create( byval forcedScale as single ) as boolean
     Out.Debug.CanRun = function( byval owner as any ptr, byval id as long ) as boolean
         return cast( Window ptr, owner )->CanRun( cast( Cmd, id ) )
     end function
+    Out.Debug.KeyText = function( byval owner as any ptr, byval id as long ) as ustring
+        return cast( Window ptr, owner )->ShortcutText( cast( Cmd, id ) )
+    end function
     Out.Debug.OnGoTo = sub( byval owner as any ptr, byref path as const ustring, byval ln as long )
         cast( Window ptr, owner )->JumpTo( path, ln - 1, 0, 0 )
     end sub
@@ -1945,6 +1948,7 @@ sub Window.ReloadKeys( )
     next
     this.RebuildAccelerators( )
     this.BuildMenus( )                          ' the shortcuts beside the rows
+    if Out.Debug.frame then Out.Debug.Relabel( )    ' the Debug tab's buttons: their tooltips are the keys
     this.SyncStart( )                           ' its keycaps
     if notes.Count( ) = 0 then
         Message = ""

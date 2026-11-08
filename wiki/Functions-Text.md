@@ -18,6 +18,7 @@ Jump to: [Find text in a string](#find-text-in-a-string) · [Check what a string
 | [InStr](Instr) | Returns the position of the first match, or 0 if there is none. | built-in |
 | [InStrRev](Instrrev) | Returns the position of the last match, or 0 if there is none. | built-in |
 | [Contains](Modern-String-Contains) | Returns true if the text appears anywhere in the string. | `std/strings` |
+| [Find](Modern-String-Find) | Returns the position of the first match in a slice, counting from 0, or -1. | `std/strings` |
 | [StartsWith](Modern-String-StartsWith) | Returns true if the string begins with the given text. | `std/strings` |
 | [EndsWith](Modern-String-EndsWith) | Returns true if the string ends with the given text. | `std/strings` |
 | [Tally](Modern-String-Tally) | Counts how many times the text occurs, without overlaps. | `std/strings` |
@@ -29,6 +30,7 @@ Jump to: [Find text in a string](#find-text-in-a-string) · [Check what a string
 | Function | What it does | From |
 |---|---|---|
 | [Len](Len) | Returns the length of a string, or the size of a type. | built-in |
+| [Equals](Modern-String-Equals) | Returns true if two slices hold the same code units, optionally ignoring case. | `std/strings` |
 | [IsBlank](Modern-String-IsBlank) | Returns true if the string is empty or holds only whitespace. | `std/strings` |
 | [IsNumeric](Modern-String-IsNumeric) | Returns true if the string is a valid number, with spaces allowed around it. | `std/strings` |
 | [VerifySet](Modern-String-VerifySet) | Returns the position of the first character not in a set, or 0 if all are. | `std/strings` |
@@ -63,6 +65,9 @@ Jump to: [Find text in a string](#find-text-in-a-string) · [Check what a string
 | [LTrim](Ltrim) | Removes spaces, or the given characters, from the start. | built-in |
 | [RTrim](Rtrim) | Removes spaces, or the given characters, from the end. | built-in |
 | [Shrink](Modern-String-Shrink) | Trims both ends and collapses each inner run of spaces to one. | `std/strings` |
+| [TrimSpace](Modern-String-TrimSpace) | Returns a slice of the text without the spaces, tabs, CRs and LFs at either end. | `std/strings` |
+| [TrimStart](Modern-String-TrimStart) | Returns a slice of the text without its leading spaces, tabs, CRs and LFs. | `std/strings` |
+| [TrimEnd](Modern-String-TrimEnd) | Returns a slice of the text without its trailing spaces, tabs, CRs and LFs. | `std/strings` |
 | [PadLeft](Modern-String-PadLeft) | Pads on the left to a width, with spaces or a given character. | `std/strings` |
 | [PadRight](Modern-String-PadRight) | Pads on the right to a width, with spaces or a given character. | `std/strings` |
 | [PadCenter](Modern-String-PadCenter) | Centres the string in a width, padding both sides. | `std/strings` |
@@ -90,6 +95,7 @@ Jump to: [Find text in a string](#find-text-in-a-string) · [Check what a string
 | Function | What it does | From |
 |---|---|---|
 | [Split](Modern-String-Split) | Breaks a string into an Array at each delimiter. | `std/strings` |
+| [SplitSlices](Modern-String-SplitSlices) | Walks the parts of a slice between separators, one at a time, in a for each loop. | `std/strings` |
 | [SplitChars](Modern-String-SplitChars) | Breaks a string into an Array wherever a character from a set appears. | `std/strings` |
 | [Join](Modern-String-Join) | Joins an Array of strings into one, with a separator between them. | `std/strings` |
 | [SplitCsv](Modern-String-SplitCsv) | Parses CSV text into rows and fields, quoted fields included. | `std/strings` |
@@ -181,6 +187,7 @@ Jump to: [Find text in a string](#find-text-in-a-string) · [Check what a string
 - [Format guide](Category-Format)
 - [UString](Category-UString)
 - [Block strings](Category-Block-Strings)
+- [String slices](Category-String-Slices)
 - [Base64, hex and percent-encoding](Category-Codec)
 
 ---

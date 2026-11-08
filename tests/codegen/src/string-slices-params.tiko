@@ -1,0 +1,48 @@
+'' String slices, P2b (docs/tiko-slices RFC-0001 §8, §3): a string passed to a slice parameter
+'' -- the same width viewed in place, a literal of its own width viewed in its global, anything
+'' else copied into a statement temporary -- and slice( p ) / slice( p, n ) over a pointer.
+
+sub TakesC( byval v as const slice )
+    print "C " & len( v ) & " [" & v & "]"
+end sub
+sub TakesM( byval v as slice )
+    v[0] = 88
+end sub
+sub TakesU( byval v as const uslice )
+    print "U " & len( v ) & " [" & v & "]"
+end sub
+sub TakesW( byval v as const wslice )
+    dim as wstring * 40 w = v
+    print "W " & len( v ) & " " & (w = "wide!")
+end sub
+
+dim as string s = "hello"
+dim as ustring u = "wide"
+dim as zstring * 10 z = "zed"
+dim as string * 4 f = "fix"
+TakesC( s )
+TakesC( "lit" )
+TakesC( z )
+TakesC( f )
+TakesC( s & "+" )
+TakesC( u )
+TakesM( s )
+TakesM( z )
+print s & " " & z
+TakesU( u )
+TakesU( s )
+TakesU( "lit" )
+TakesU( u & "!" )
+TakesW( "wide!" )
+TakesW( u & "!" )
+
+dim as string t = "pointer text"
+dim as zstring ptr pz = strptr( t )
+var a = slice( pz )
+dim as slice b = slice( pz, 7 )
+print "ptr " & len( a ) & " [" & a & "] " & len( b ) & " [" & b & "]"
+TakesC( pz )
+dim as wstring * 20 w = "wide ptr"
+dim as wstring ptr pw = @w
+var c = wslice( pw, 4 )
+print "wptr " & len( c ) & " " & (c = "wide")

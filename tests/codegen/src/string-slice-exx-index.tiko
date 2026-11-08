@@ -1,0 +1,5 @@
+'' -exx (docs/tiko-slices RFC-0002 §7, RFC-0001 §5): 'v[i]' past the slice's length -- runtime error 6 at the slice's use.
+dim as string s = "hello"
+var v = s[0 to 2]
+dim as integer i = 7
+print v[i]

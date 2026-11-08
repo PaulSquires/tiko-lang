@@ -1,0 +1,302 @@
+'' checkslice.tiko -- see checkslice.ti (docs/tiko-slices RFC-0001).
+
+#import "std/containers"
+#include once "symbols/checkslice.ti"
+#include once "symbols/modsym.ti"
+#include once "support/text.ti"
+
+namespace Tko.Slices
+
+'' Qualifiers, one reference and any typedefs looked through: the type a slice question is
+'' about. A TYPEDEF is its own TypeId (so a diagnostic can say 'slice'); Inner is what it
+'' names.
+private function Bare_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as Tko.TypeId
+    dim as int32 guard = 0
+    while (t <> Tko.TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        t = types.Unqualify( t )
+        select case types.Kind( t )
+        case Tko.TK_REFERENCE, Tko.TK_TYPEDEF
+            t = types.Inner( t )
+        case else
+            exit while
+        end select
+    wend
+    return t
+end function
+
+'' Const anywhere on the way down -- 'const slice' is a const TYPEDEF over the UDT.
+private function AnyConst_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as boolean
+    dim as int32 guard = 0
+    while (t <> Tko.TYPE_NONE) andalso (guard < 64)
+        guard += 1
+        if types.IsConst( t ) then return true
+        select case types.Kind( types.Unqualify( t ) )
+        case Tko.TK_REFERENCE, Tko.TK_TYPEDEF
+            t = types.Inner( types.Unqualify( t ) )
+        case else
+            exit while
+        end select
+    wend
+    return false
+end function
+
+function SliceUnitOfType _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId ) as SliceUnit
+
+    t = Bare_( types, t )
+    if t = Tko.TYPE_NONE then return SU_NONE
+    if types.Kind( t ) <> Tko.TK_UDT then return SU_NONE
+    select case Tko.Text.LowerAscii( names.Spelling( types.NameOf( t ) ) )
+    case "__tko_strslice" : return SU_NARROW
+    case "__tko_ustrslice" : return SU_UTF16
+    case "__tko_wstrslice" : return SU_WIDE
+    end select
+    return SU_NONE
+end function
+
+function SliceElemType _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId ) as Tko.TypeId
+
+    dim as Tko.TypeId et = Tko.TYPE_NONE
+    select case SliceUnitOfType( types, names, t )
+    case SU_NARROW : et = types.Builtin( Tko.TY_UBYTE )
+    case SU_UTF16 : et = types.Builtin( Tko.TY_USHORT )
+    case SU_WIDE : et = types.Builtin( iif( types.target.wcharBytes = 4, Tko.TY_ULONG, Tko.TY_USHORT ) )
+    case else : return Tko.TYPE_NONE
+    end select
+    if AnyConst_( types, t ) then et = types.Qualify( et, Tko.TF_CONST )
+    return et
+end function
+
+function SliceSourceOf _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId, byref outSrc as SliceSource ) as SliceUnit
+
+    outSrc = SS_NONE
+    dim as SliceUnit su = SliceUnitOfType( types, names, t )
+    if su <> SU_NONE then outSrc = SS_SLICE : return su
+    t = Bare_( types, t )
+    if t = Tko.TYPE_NONE then return SU_NONE
+    select case types.Kind( t )
+    case Tko.TK_BUILTIN
+        select case types.BuiltinOf( t )
+        case Tko.TY_STRING : outSrc = SS_DESC : return SU_NARROW
+        case Tko.TY_USTRING : outSrc = SS_DESC : return SU_UTF16
+        end select
+    case Tko.TK_ARRAY
+        '' 'zstring * N' and its three siblings are ARRAYS of a string element type
+        '' (types/type.ti). A real array of strings is not: its element is a descriptor.
+        if types.IsDynArray( t ) then return SU_NONE
+        dim as Tko.TypeId et = types.Unqualify( types.Inner( t ) )
+        if types.Kind( et ) <> Tko.TK_BUILTIN then return SU_NONE
+        select case types.BuiltinOf( et )
+        case Tko.TY_FIXSTR : outSrc = SS_FIXED : return SU_NARROW
+        case Tko.TY_ZSTRING : outSrc = SS_ZFIXED : return SU_NARROW
+        case Tko.TY_FIXUSTR : outSrc = SS_ZFIXED : return SU_UTF16
+        case Tko.TY_WSTRING : outSrc = SS_ZFIXED : return SU_WIDE
+        end select
+    case Tko.TK_POINTER
+        dim as Tko.TypeId pt = Bare_( types, types.Inner( t ) )
+        if types.Kind( pt ) <> Tko.TK_BUILTIN then return SU_NONE
+        select case types.BuiltinOf( pt )
+        case Tko.TY_ZSTRING : outSrc = SS_PTR : return SU_NARROW
+        case Tko.TY_WSTRING : outSrc = SS_PTR : return SU_WIDE
+        end select
+    end select
+    return SU_NONE
+end function
+
+function SliceTypeFor _
+    ( byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byval u as SliceUnit ) as Tko.TypeId
+
+    dim as string nm
+    select case u
+    case SU_NARROW : nm = "__tko_strslice"
+    case SU_UTF16 : nm = "__tko_ustrslice"
+    case SU_WIDE : nm = "__tko_wstrslice"
+    case else : return Tko.TYPE_NONE
+    end select
+    dim as Tko.SymbolId sid = syms.Lookup( Tko.ModSym.ModuleScope( syms ), names.Fold( names.GetString( nm ) ) )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = nullptr then return Tko.TYPE_NONE
+    return s->type_
+end function
+
+function SliceIifType _
+    ( byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval ta as Tko.TypeId, byval tb as Tko.TypeId ) as Tko.TypeId
+
+    dim as SliceUnit sla = SliceUnitOfType( types, names, ta )
+    dim as SliceUnit slb = SliceUnitOfType( types, names, tb )
+    if (sla <> SU_NONE) = (slb <> SU_NONE) then return Tko.TYPE_NONE
+    select case iif( sla <> SU_NONE, sla, slb )
+    case SU_NARROW : return types.Builtin( Tko.TY_STRING )
+    case SU_UTF16 : return types.Builtin( Tko.TY_USTRING )
+    end select
+    return iif( sla <> SU_NONE, tb, ta )
+end function
+
+'' The slice unit of a type by its shown name alone -- ConversionCost has no interner, and
+'' TypeContext.Name shows the three prelude TYPEs by their public names.
+private function UnitByName_( byref types as Tko.TypeContext, byval t as Tko.TypeId ) as SliceUnit
+    t = Bare_( types, t )
+    if (t = Tko.TYPE_NONE) orelse (types.Kind( t ) <> Tko.TK_UDT) then return SU_NONE
+    select case lcase( types.Name( t ) )
+    case "slice" : return SU_NARROW
+    case "uslice" : return SU_UTF16
+    case "wslice" : return SU_WIDE
+    end select
+    return SU_NONE
+end function
+
+function SliceArgCost _
+    ( byref types as Tko.TypeContext, byval from_ as Tko.TypeId, byval to_ as Tko.TypeId ) as int32
+
+    dim as SliceUnit pu = UnitByName_( types, to_ )
+    if pu = SU_NONE then return -1
+    if UnitByName_( types, from_ ) <> SU_NONE then return -1     '' slice to slice: the ordinary rules
+    dim as Tko.TypeId f = Bare_( types, from_ )
+    if f = Tko.TYPE_NONE then return -1
+    dim as SliceUnit au = SU_NONE
+    select case types.Kind( f )
+    case Tko.TK_BUILTIN
+        select case types.BuiltinOf( f )
+        case Tko.TY_STRING, Tko.TY_ZSTRING : au = SU_NARROW
+        case Tko.TY_USTRING : au = SU_UTF16
+        case Tko.TY_WSTRING : au = SU_WIDE
+        end select
+    case Tko.TK_ARRAY
+        if types.IsDynArray( f ) = false then
+            dim as Tko.TypeId et = types.Unqualify( types.Inner( f ) )
+            if types.Kind( et ) = Tko.TK_BUILTIN then
+                select case types.BuiltinOf( et )
+                case Tko.TY_FIXSTR, Tko.TY_ZSTRING : au = SU_NARROW
+                case Tko.TY_FIXUSTR : au = SU_UTF16
+                case Tko.TY_WSTRING : au = SU_WIDE
+                end select
+            end if
+        end if
+    case Tko.TK_POINTER
+        '' A zstring / wstring POINTER of the parameter's own width: the text up to its NUL.
+        dim as Tko.TypeId pi = Bare_( types, types.Inner( f ) )
+        if types.Kind( pi ) = Tko.TK_BUILTIN then
+            select case types.BuiltinOf( pi )
+            case Tko.TY_ZSTRING : if pu = SU_NARROW then au = SU_NARROW
+            case Tko.TY_WSTRING : if pu = SU_WIDE then au = SU_WIDE
+            end select
+        end if
+    end select
+    if au = SU_NONE then return -1
+    '' 152 and 159 against check.ti's string tiers: CONV_STRPTR_OTHER (150) + 2 sits below
+    '' CONV_STR_CONST_COPY (155); + 9 above CONV_STR_TO_WSTR (157).
+    if au = pu then return 152
+    return 159
+end function
+
+function IsViewType _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byval t as Tko.TypeId ) as boolean
+
+    t = Bare_( types, t )
+    if (t = Tko.TYPE_NONE) orelse (types.Kind( t ) <> Tko.TK_UDT) then return false
+    dim as Tko.SymbolId sid = syms.LookupLocalTyped( cast( Tko.ScopeId, types.DeclScopeOf( t ) ), types.NameOf( t ), true )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, Tko.SYM_UDT ) then return false
+    dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
+    if (dn = Tko.NODE_NONE) orelse (cast( int32, dn ) > ast.Count( )) then return false
+    if ast.Kind( dn ) <> Tko.N_TYPE then return false
+    return (ast.StmtOf( dn )->extra and Tko.PF_VIEW_TYPE) <> 0
+end function
+
+function IsSliceCall _
+    ( byref ast as Tko.AstArena, byref names as Tko.Interner, _
+      byval id as Tko.NodeId ) as boolean
+
+    if id = Tko.NODE_NONE then return false
+    if ast.Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr cp = ast.ListOf( id )
+    if (cp->target = Tko.NODE_NONE) orelse (cp->count <> 3) then return false
+    if ast.Kind( cp->target ) <> Tko.N_IDENT then return false
+    return Tko.Text.LowerAscii( names.Spelling( ast.IdentOf( cp->target )->name ) ) = "__tko_slice"
+end function
+
+'' WHETHER THE SOURCE IS STORAGE THE PROGRAM MAY WRITE (RFC-0001 §2). A literal, a named
+'' constant and a temporary are not: a slice of one is const. A variable, parameter, field,
+'' element or dereference is, unless its own type is const.
+private function SourceIsConst_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref types as Tko.TypeContext, byref info as Tko.SemanticInfo, _
+      byval src as Tko.NodeId, byval st as Tko.TypeId ) as boolean
+
+    if AnyConst_( types, st ) then return true
+    dim as Tko.NodeId n = src
+    while ast.Kind( n ) = Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = ast.ListOf( n )
+        if pp->count <> 1 then exit while
+        n = cast( Tko.NodeId, ast.ChildSlot( pp->first ) )
+    wend
+    select case ast.Kind( n )
+    case Tko.N_STRING_LIT, Tko.N_STRCAT
+        return true
+    case Tko.N_IDENT
+        dim as Tko.Symbol ptr s = syms.SymbolAt( info.RefOf( n ) )
+        if s = nullptr then return true
+        select case s->kind
+        case cast( uint8, Tko.SYM_VARIABLE ), cast( uint8, Tko.SYM_PARAMETER ), cast( uint8, Tko.SYM_FIELD )
+            return false
+        end select
+        return true
+    case Tko.N_MEMBER, Tko.N_INDEX, Tko.N_DEREF
+        return false
+    case Tko.N_CALL
+        '' AN ARRAY ELEMENT IS SPELLED LIKE A CALL until it is resolved: 'a( 3 )[0 to 1]'
+        '' over an array of strings slices storage. A slice of a slice is the slice's own
+        '' constness, already in its type. Anything else is a call's result: a temporary.
+        dim as Tko.ListPayload ptr cp = ast.ListOf( n )
+        if cp->target <> Tko.NODE_NONE then
+            dim as Tko.Symbol ptr ts = syms.SymbolAt( info.RefOf( cp->target ) )
+            if ts <> nullptr then
+                select case ts->kind
+                case cast( uint8, Tko.SYM_VARIABLE ), cast( uint8, Tko.SYM_PARAMETER ), cast( uint8, Tko.SYM_FIELD )
+                    return false
+                end select
+            end if
+        end if
+        return true
+    end select
+    return true
+end function
+
+function SliceCallType _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref types as Tko.TypeContext, byref names as Tko.Interner, _
+      byref diags as Tko.DiagnosticEngine, byref info as Tko.SemanticInfo, _
+      byval cp as Tko.ListPayload ptr ) as Tko.TypeId
+
+    if cp->count <> 3 then return Tko.TYPE_NONE
+    dim as Tko.NodeId src = cast( Tko.NodeId, ast.ChildSlot( cp->first ) )
+    dim as Tko.TypeId st = info.TypeOf_( src )
+    if st = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    dim as SliceSource ss
+    dim as SliceUnit su = SliceSourceOf( types, names, st, ss )
+    '' NOT REPORTED HERE: Check types a node more than once. TKO1050 is semslice.tiko's.
+    if su = SU_NONE then return Tko.TYPE_NONE
+    dim as Tko.TypeId rt = SliceTypeFor( syms, names, su )
+    if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
+    '' A SLICE OF A SLICE IS ITS PARENT'S TYPE, const or not; anything else is const exactly
+    '' when its storage is.
+    if ss = SS_SLICE then
+        if AnyConst_( types, st ) then rt = types.Qualify( rt, Tko.TF_CONST )
+        return rt
+    end if
+    if SourceIsConst_( ast, syms, types, info, src, st ) then rt = types.Qualify( rt, Tko.TF_CONST )
+    return rt
+end function
+
+end namespace

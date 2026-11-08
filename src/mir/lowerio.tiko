@@ -345,6 +345,12 @@ private function PrintStrRtl_( byref c as Ctx, byval it as Tko.NodeId ) as RtlId
     if IsUStringType( c, c.info->TypeOf_( it ) ) then return RTL_PRINT_USTR
     '' ...AND A UDT WHOSE STRING CONVERSION IS A USTRING (T39) -- UdtCastIsUStr_.
     if UdtCastIsUStr_( c, it ) then return RTL_PRINT_USTR
+    '' ...AND A STRING IIF WITH SUCH AN ARM: 'iif( c, uv, "x" )' over a uslice is built UTF-16.
+    if IsStringIif_( c, it ) then
+        for k as int32 = 1 to 2
+            if UdtCastIsUStr_( c, c.ast->ChildAt( c.ast->ListOf( it )->first, k ) ) then return RTL_PRINT_USTR
+        next
+    end if
     '' ...AND A CONCATENATION WITH A USTRING TERM. Check types every '&' as STRING, but
     '' ConcatToTempDesc_ builds a USTRING temporary for one (ConcatTermsAreU_), so the
     '' type said narrow while the bytes were UTF-16: 'print "FAIL: " & what' printed

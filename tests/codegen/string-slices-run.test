@@ -1,0 +1,27 @@
+'' RUN: string slices, P1 (docs/tiko-slices RFC-0001) -- 's[lo to hi]' over a string,
+'' string*N, zstring*N, zstring ptr, ustring, ustring*N and wstring*N; re-slicing; len and
+'' v[i]; a write through a mutable slice; a const slice rebound; passed, returned, and taken
+'' of a concatenation. ustring units are 2 bytes on every target.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -w all tests/codegen/src/string-slices.tiko -o tests/codegen/stringslices.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: warning
+'' EXPECT-FILE: tests/codegen/stringslices.exe
+'' RUN: tests/codegen/stringslices.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: whole abcdefgh 8
+'' EXPECT-RUN-OUT: mid3 def
+'' EXPECT-RUN-OUT: word ef
+'' EXPECT-RUN-OUT: reslice cd 2
+'' EXPECT-RUN-OUT: write aBcdefgh
+'' EXPECT-RUN-OUT: empty 0
+'' EXPECT-RUN-OUT: empty source 0
+'' EXPECT-RUN-OUT: rebind h
+'' EXPECT-RUN-OUT: temp ghQQ
+'' EXPECT-RUN-OUT: fixed [xyz   ]
+'' EXPECT-RUN-OUT: zfixed eta 4
+'' EXPECT-RUN-OUT: ptr zet
+'' EXPECT-RUN-OUT: ustring 3 119 121 2
+'' EXPECT-RUN-OUT: ufixed 5 111
+'' EXPECT-RUN-OUT: wfixed 3 105

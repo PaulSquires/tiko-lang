@@ -50,6 +50,7 @@
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkTooltip"
 #import "vendor/tkControls/tkColumnHeader"
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkMenuBar"
@@ -73,6 +74,7 @@ using tkListTree
 using tkMenuBar
 using tkTabBar
 using tkToolbar
+using tkTooltip
 using tkTheme
 
 private type DocRef as documents.Document ptr
@@ -1555,6 +1557,22 @@ end function
 ' ================================================================ the Debug tab (D3): layout, tabs, lists
 
 ' A tab of a tab strip, clicked where it is drawn.
+' The mouse rests on tab idx long enough for a tooltip (500 ms); TRUE when one is showing.
+private function TabTipShows( byval h as TK_HOST ptr, byval bar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKRECT rc, a
+    tkTabBar_GetTabRect( bar, idx, rc )
+    tkWidget_AbsRect( bar, a )
+    tkTest_PushMotion( h, a.left + (rc.left + rc.right) / 2 - 3, a.top + (rc.top + rc.bottom) / 2 )
+    tkTest_PumpFor( h, 30 )
+    tkTest_PushMotion( h, a.left + (rc.left + rc.right) / 2, a.top + (rc.top + rc.bottom) / 2 )
+    tkTest_PumpFor( h, 900 )
+    dim as TK_TIP ptr tip = tkTabBar_GetTooltipHandle( bar )
+    dim as boolean shows = (tip <> 0) andalso tkTooltip_IsVisible( tip )
+    tkTest_PushMotion( h, 2, 2 )                    ' away again
+    tkTest_PumpFor( h, 30 )
+    return shows
+end function
+
 private sub ClickStripTab( byval h as TK_HOST ptr, byval bar as TK_WIDGET ptr, byval idx as long )
     dim as TKRECT rc, a
     tkTabBar_GetTabRect( bar, idx, rc )
@@ -1603,6 +1621,19 @@ public sub DebugTabPass( byref t as Tally, byval sc as single )
     t.Check( (tkToolbar_GetCount( dp->tools ) = 9) andalso (tkToolbar_GetText( dp->tools, 0 ) = "Continue") andalso _
              (tkToolbar_GetEnabled( dp->tools, 0 )) andalso (tkToolbar_GetEnabled( dp->tools, 4 ) = false), _
              P( sc, "debug tab: seven buttons; no session: Continue (starts) works, Step greyed" ) )
+    t.Check( (tkToolbar_GetTooltipText( dp->tools, 0 ) = "F6") andalso (tkToolbar_GetTooltipText( dp->tools, 4 ) = "F11") andalso _
+             (len( mw.ShortcutText( Cmd.RunToCursor ) ) > 0) andalso (tkToolbar_GetTooltipText( dp->tools, 8 ) = mw.ShortcutText( Cmd.RunToCursor )), _
+             P( sc, "debug tab: each button's tooltip is its key: " & tkToolbar_GetTooltipText( dp->tools, 0 ) & ", " & tkToolbar_GetTooltipText( dp->tools, 8 ) ) )
+    dim as ustring kt = fs.ReadAllText( mw.KeysFile( ) ).ValueOr( "" )
+    t.Check( instr( kt, "StepInto = 'F11'" ) > 0, P( sc, "debug tab: keybindings.toml binds StepInto" ) )
+    fs.WriteAtomic( mw.KeysFile( ), strings.Replace( kt, "StepInto = 'F11'", "StepInto = 'Primary+Alt+F11'" ) )
+    mw.ReloadKeys( )
+    t.Check( (mw.ShortcutText( Cmd.StepInto ) <> "F11") andalso (tkToolbar_GetTooltipText( dp->tools, 4 ) = mw.ShortcutText( Cmd.StepInto )), _
+             P( sc, "debug tab: a key moved in keybindings.toml moves the tooltip: " & tkToolbar_GetTooltipText( dp->tools, 4 ) ) )
+    fs.WriteAtomic( mw.KeysFile( ), kt )
+    mw.ReloadKeys( )
+    t.Check( (TabTipShows( h, mw.Out.tabs, 3 ) = false) andalso (TabTipShows( h, dp->ltabs, 1 ) = false) andalso (TabTipShows( h, dp->rtabs, 1 ) = false), _
+             P( sc, "debug tab: no tooltip on the Output pane's tabs, nor on the Debug tab's" ) )
 
     ' ---- a click on a bottom tab shows its list; the side buttons are the shown tab's
     ClickStripTab( h, dp->ltabs, 2 )
@@ -2618,6 +2649,17 @@ public sub IntelPass( byref t as Tally, byval sc as single )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 13 ) <> SCE_B_KEYWORD, P( sc, "Set( of long ) is not" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 32 ) = SCE_B_KEYWORD, P( sc, "End Set is" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 40 ) <> SCE_B_KEYWORD, P( sc, "x = set is not" ) )
+        ' an auto-property's accessor clause: `get, set`, `get, private set`, `get, init`; and
+        ' `ustring` is in keywords/tiko.txt
+        dim as ustring tx = "property P as long get, set" & lf & "property Q as long get, private set" & lf & _
+                            "property R as long get, init" & lf & "dim u as ustring" & lf & "f( a, set )" & lf
+        v->SetText( tx )
+        tkCodeEdit_Send( sw, SCI_COLOURISE, 0, -1 )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "get, set" ) + 4 ) = SCE_B_KEYWORD, P( sc, "get, set is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "private set" ) + 7 ) = SCE_B_KEYWORD, P( sc, "get, private set is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "init" ) - 1 ) = SCE_B_KEYWORD, P( sc, "get, init is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "ustring" ) - 1 ) = SCE_B_KEYWORD, P( sc, "ustring is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "a, set" ) + 2 ) <> SCE_B_KEYWORD, P( sc, "f( a, set ) is not" ) )
         v->SetText( keep )
         tkCodeEdit_Send( sw, SCI_DOCUMENTEND )
     end scope

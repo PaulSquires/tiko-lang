@@ -13,5 +13,6 @@
 #include once "mir/lowerexpr.ti"
 #include once "mir/lowerstore.ti"
 #include once "mir/lowerio.ti"
+#include once "mir/lowerslice.ti"
 
 #endif

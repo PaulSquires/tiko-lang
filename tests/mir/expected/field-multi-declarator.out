@@ -6,4 +6,28 @@ i size 16 align 8
   i off j 8
 object size 8 align 8
   object off vptr 0
-udts: 3
+slice size 24 align 8
+  slice off __data 0
+  slice off __len 8
+  slice off __anchor 16
+uslice size 24 align 8
+  uslice off __data 0
+  uslice off __len 8
+  uslice off __anchor 16
+wslice size 24 align 8
+  wslice off __data 0
+  wslice off __len 8
+  wslice off __anchor 16
+slice size 24 align 8
+  slice off __data 0
+  slice off __len 8
+  slice off __anchor 16
+uslice size 24 align 8
+  uslice off __data 0
+  uslice off __len 8
+  uslice off __anchor 16
+wslice size 24 align 8
+  wslice off __data 0
+  wslice off __len 8
+  wslice off __anchor 16
+udts: 6

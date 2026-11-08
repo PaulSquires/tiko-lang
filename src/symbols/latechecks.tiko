@@ -1146,6 +1146,9 @@ end function
 '' udt-zstring/iif.bas, udt-wstring/iif.bas). The literal types as a STRING here.
 function IifArmsMeet_ ( byref c as Ctx, byval id as NodeId, byval ua as TypeId, byval ub as TypeId ) as boolean
     if IifStringUdtArm_( c, ua, ub ) orelse IifStringUdtArm_( c, ub, ua ) then return true
+    '' A STRING SLICE MEETS A STRING: the result is the owned string (docs/tiko-slices RFC-0001 §7).
+    if (Tko.Slices.SliceUnitOfType( *c.types, *c.names, ua ) <> Tko.Slices.SU_NONE) andalso IsStringyType_( c, ub ) then return true
+    if (Tko.Slices.SliceUnitOfType( *c.types, *c.names, ub ) <> Tko.Slices.SU_NONE) andalso IsStringyType_( c, ua ) then return true
     dim as ListPayload ptr lp = c.ast->ListOf( id )
     for k as int32 = 1 to 2
         if c.ast->Kind( c.ast->ChildAt( lp->first, k ) ) <> N_STRING_LIT then continue for

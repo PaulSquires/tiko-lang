@@ -60,7 +60,6 @@ Jump to: [Start a Windows program](#start-a-windows-program) · [Measure, move a
 | [Animate](SysWin-Gui-Animate) | Opens, plays, stops and closes silent AVI clips in an animation control. | `sys/win/gui` |
 | [HotKey](SysWin-Gui-HotKey) | Reads and sets the key combination in a hot key control, and the combinations it refuses. | `sys/win/gui` |
 | [IPAddress](SysWin-Gui-IPAddress) | Reads, sets and clears the address in an IP address control, and limits its four fields. | `sys/win/gui` |
-| [PropSheet](SysWin-Gui-PropSheet) | Creates an animation control, and names the wizard-button requests of a property sheet. | `sys/win/gui` |
 | [ScrollBar](SysWin-Gui-ScrollBar) | Shows, hides, enables and positions a scroll bar control, and reads and sets its range. | `sys/win/gui` |
 | [SysLink](SysWin-Gui-SysLink) | Measures a SysLink control, reads and sets its links, and finds the link at a point. | `sys/win/gui` |
 

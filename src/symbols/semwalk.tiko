@@ -1228,6 +1228,9 @@ sub Walk_ _
     if (k = N_AMBIGUOUS) orelse (k = N_RETURN) then CheckStringNumberAssign_( c, id, innerResult ) : RetypeBareTypeLit_( c, id, innerResult )
     if k = N_VAR_ITEM then CheckPtrFloatInit_( c, id )
     if k = N_VAR_ITEM then CheckPtrInit_( c, id ) : CheckArrayInit_( c, id )   '' arrresult.tiko
+    if (k = N_VAR_ITEM) orelse (k = N_AMBIGUOUS) orelse (k = N_RETURN) orelse (k = N_CALL) then CheckSliceConst_( c, id, innerResult )   '' semslice.tiko
+    if (k = N_VAR_ITEM) orelse (k = N_AMBIGUOUS) orelse (k = N_RETURN) orelse (k = N_NEW) orelse (k = N_FIELD) orelse (k = N_CLOSURE) then CheckSliceLife_( c, id, innerResult )   '' semslice.tiko (RFC-0002)
+    if (k = N_PROC) orelse (k = N_MODULE) then CheckSliceLock_( c, id )   '' semslice.tiko (RFC-0002 §6)
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
     if k = N_CALL then CheckConstThisCall_( c, id, here, innerConst )
     if k = N_MEMBER then CheckExplicitStructor_( c, id )

@@ -1,0 +1,7 @@
+'' sliceescape.tiko -- a slice of a local cannot leave its function.
+
+function FirstWord( byval s as ustring ) as const uslice
+    return s[0 to 2]      '' error: s is this call's own copy
+end function
+
+print FirstWord( "the end" )

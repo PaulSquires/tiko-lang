@@ -10,7 +10,7 @@
 '   Results   the build's diagnostics, a header row per file; Enter or a double click goes there
 '   Log       what tiko printed, less its JSON events
 '   Search    Find in Project's matches, a header row per file; Enter or a double click goes there
-'   Debug     the debugger (tka/debugpane): buttons, status, Locals/Globals/Watch | Call Stack/Breakpoints
+'   Debug     the debugger (tka/debugpane): buttons, Locals/Globals/Watch | Call Stack/Breakpoints
 ' Rows carry an index the owner gives; what activating one means is the owner's (OnActivate).
 ' After tiko-studio's tsa/outputpane: its Results, Compiler Log and Search Results (PROVENANCE.md).
 #module "outputpane"
@@ -108,6 +108,7 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     for i as long = 0 to 3
         tkTabBar_SetClosable( tabs, i, false )
     next
+    tkTabBar_SetTooltipCallback( tabs, @debugpane.NoTabTip )     ' no tooltips on the tabs (author 2026-11-07)
     tkTabBar_SetSelChangeCallback( tabs, sub( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
         dim as Pane ptr p = PaneOf( h )
         if p then p->ShowTab( cast( OutputTab, idxNew ) )

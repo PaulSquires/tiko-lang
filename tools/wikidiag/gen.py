@@ -35,6 +35,7 @@ RANGES = [
     (900, 989, "Semantic analysis, continued, and notes"),
     (990, 999, "Compiler limits and internal errors"),
     (1000, 1049, "Interfaces"),
+    (1050, 1099, "String slices"),
 ]
 
 

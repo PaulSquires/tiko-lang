@@ -34,6 +34,8 @@ The pages in this section:
   rest that come with the language.
 - [The strings module](library.md) and [Split and Join](split.md): what
   `std/strings` adds.
+- [Slices](slices.md) and [Slices and lifetime](slicelife.md): naming part
+  of a string without copying it.
 - [Block strings](block.md) and [Escape sequences](escapes.md): writing text
   in the source.
 - [Unicode](unicode.md): what `len` counts.

@@ -96,6 +96,7 @@ private function TypeName_( byref d as DebugInfo, byval t as Tko.TypeId ) as str
 end function
 
 declare function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as int32
+private declare function DeclType_( byref d as DebugInfo, byval sym as uint32, byval t as Tko.TypeId ) as int32
 
 '' A type as FreeBASIC writes it -- 'long', 'Node ptr', 'zstring * 8' -- for the names
 '' a debugger shows: an array's element and a dynamic array's descriptor.
@@ -222,9 +223,12 @@ end function
 
 '' A FIXED ARRAY: one DISubrange per dimension, outermost first -- FreeBASIC is row-major,
 '' as C is. A 'zstring * N' is an array too, of N characters with no declared bounds.
-private function FixedArray_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
+'' 'et0' / 'enm': the element's node and name when the declaration named a typedef (DeclType_).
+private function FixedArray_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId, _
+                              byval et0 as int32 = -1, byval enm as string = "" ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
-    dim as int32 et = DbgType( d, tc->Inner( t ) )
+    dim as int32 et = et0
+    if et < 0 then et = DbgType( d, tc->Inner( t ) )
     if et < 0 then return -1
     dim as int32 rank = tc->types[cast( int32, t )].dims
     dim as string subs = ""
@@ -276,7 +280,7 @@ private function FixedArray_( byref d as DebugInfo, byval id as int32, byval t a
     elseif len( bounds ) > 0 then
         dim as int32 an = NewNode_( d, arr )
         DefineNode_( d, id, "!DIDerivedType(tag: DW_TAG_typedef, name: " & _
-                            MetaStr_( DisplayName_( d, tc->Inner( t ) ) & "(" & bounds & ")" ) & _
+                            MetaStr_( iif( len( enm ) > 0, enm, DisplayName_( d, tc->Inner( t ) ) ) & "(" & bounds & ")" ) & _
                             ", baseType: !" & str( an ) & ")" )
     else
         DefineNode_( d, id, arr )
@@ -287,9 +291,11 @@ end function
 '' A DYNAMIC ARRAY is its descriptor (lib/rt/src/inc/descriptors.ti, src/mir/lowerdesc.tiko):
 '' data, ptr, size, element_len, dimensions, flags, then dimtb[rank] { elements, lbound,
 '' ubound }. 'data' is typed, so a debugger can show the elements through it.
-private function DynArray_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId ) as int32
+private function DynArray_( byref d as DebugInfo, byval id as int32, byval t as Tko.TypeId, _
+                            byval et0 as int32 = -1, byval enm as string = "" ) as int32
     dim as Tko.TypeContext ptr tc = d.fe->types
-    dim as int32 et = DbgType( d, tc->Inner( t ) )
+    dim as int32 et = et0
+    if et < 0 then et = DbgType( d, tc->Inner( t ) )
     if et < 0 then return -1
     dim as int32 pb = PtrBits_( d )
     dim as int32 it = IntType_( d )
@@ -317,7 +323,7 @@ private function DynArray_( byref d as DebugInfo, byval id as int32, byval t as 
     ms += ", !" & str( Member_( d, id, "flags", it, pb, 5 * pb ) )
     ms += ", !" & str( Member_( d, id, "dimtb", dimsArr, 3 * pb * rk, 6 * pb ) )
     DefineNode_( d, id, "!DICompositeType(tag: DW_TAG_structure_type, name: " & _
-                        MetaStr_( "FBARRAY(" & DisplayName_( d, tc->Inner( t ) ) & ")" ) & _
+                        MetaStr_( "FBARRAY(" & iif( len( enm ) > 0, enm, DisplayName_( d, tc->Inner( t ) ) ) & ")" ) & _
                         ", size: " & str( (6 + 3 * rk) * pb ) & ", elements: !{" & ms & "})" )
     return id
 end function
@@ -380,6 +386,11 @@ private function Udt_( byref d as DebugInfo, byval id as int32, byval t as Tko.T
                 dim as Tko.SymbolId fsid = d.fe->syms->LookupLocal( us->inner, fd->name )
                 if fsid <> Tko.SYMBOL_NONE then
                     fnm = SpellingOf_( d, d.fe->syms->SymbolAt( fsid ) )
+                    '' 'x as int64' is an int64 field (DeclType_)
+                    if fd->bitWidth = 0 then
+                        dim as int32 dft = DeclType_( d, cast( uint32, fsid ), fd->type_ )
+                        if dft >= 0 then ft = dft
+                    end if
                 end if
             end if
             if fd->bitWidth > 0 then
@@ -514,5 +525,69 @@ function DbgType( byref d as DebugInfo, byval t as Tko.TypeId ) as int32
     else
         d.typeMeta[ti] = -1
     end if
+    return r
+end function
+
+'' THE TYPE AS THE DECLARATION WROTE IT. A variable, parameter or field declared with a
+'' typedef's name -- 'as int64', 'as Meters ptr' -- is described as that typedef over the real
+'' type, so a debugger names it as the source does; the typedef was resolved away long before
+'' this, and lldb showed 'longint' for every 'int64'. The pointer, reference and const levels
+'' written around the name stay around the typedef. Any other shape (an array of it) is
+'' DbgType's, unchanged.
+private function DeclType_( byref d as DebugInfo, byval sym as uint32, byval t as Tko.TypeId ) as int32
+    if (d.fe = nullptr) orelse (sym = 0) then return DbgType( d, t )
+    if d.fe->declAlias = nullptr then return DbgType( d, t )
+    dim as uint32 asid
+    if d.fe->declAlias->TryGet( sym, asid ) = false then return DbgType( d, t )
+    dim as Tko.Symbol ptr ts = d.fe->syms->SymbolAt( cast( Tko.SymbolId, asid ) )
+    if ts = nullptr then return DbgType( d, t )
+    dim as Tko.TypeContext ptr tc = d.fe->types
+    '' the levels between the declared type and the typedef's, outermost first
+    dim as containers.Array( of Tko.TypeId ) levels
+    dim as Tko.TypeId cur = t
+    '' AN ARRAY OF IT ('dim a( 1 to 3 ) as int32') is the array over the typedef, named for it
+    dim as boolean isArr = false
+    if (tc->IsConst( cur ) = false) andalso (tc->Kind( cur ) = Tko.TK_ARRAY) then
+        if tc->Inner( cur ) <> ts->type_ then return DbgType( d, t )
+        isArr = true
+        cur = ts->type_
+    end if
+    do while cur <> ts->type_
+        if (cur = Tko.TYPE_NONE) orelse (levels.Count >= 16) then return DbgType( d, t )
+        if tc->IsConst( cur ) then
+            levels.Push( cur )
+            cur = tc->Unqualify( cur )
+        elseif (tc->Kind( cur ) = Tko.TK_POINTER) orelse (tc->Kind( cur ) = Tko.TK_REFERENCE) then
+            levels.Push( cur )
+            cur = tc->Inner( cur )
+        else
+            return DbgType( d, t )
+        end if
+    loop
+    dim as int32 r
+    if d.aliasMeta.TryGet( asid, r ) = false then
+        dim as int32 bt = DbgType( d, ts->type_ )
+        if bt < 0 then return DbgType( d, t )
+        r = NewNode_( d, "!DIDerivedType(tag: DW_TAG_typedef, name: " & MetaStr_( SpellingOf_( d, ts ) ) & _
+                         ", baseType: " & TypeRef_( bt ) & ")" )
+        d.aliasMeta.Put( asid, r )
+    end if
+    if isArr then
+        dim as int32 an = ReserveNode_( d )
+        dim as string anm = SpellingOf_( d, ts )
+        if tc->IsDynArray( t ) then return DynArray_( d, an, t, r, anm )
+        return FixedArray_( d, an, t, r, anm )
+    end if
+    for i as int32 = levels.Count - 1 to 0 step -1
+        dim as Tko.TypeId lv = levels[i]
+        if tc->IsConst( lv ) then
+            r = NewNode_( d, "!DIDerivedType(tag: DW_TAG_const_type, baseType: " & TypeRef_( r ) & ")" )
+        else
+            dim as string tag = "DW_TAG_pointer_type"
+            if tc->Kind( lv ) = Tko.TK_REFERENCE then tag = "DW_TAG_reference_type"
+            r = NewNode_( d, "!DIDerivedType(tag: " & tag & ", baseType: " & TypeRef_( r ) & _
+                             ", size: " & str( PtrBits_( d ) ) & ")" )
+        end if
+    next
     return r
 end function
