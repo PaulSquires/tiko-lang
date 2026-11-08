@@ -264,6 +264,20 @@ jobs:
         run: |
           i686-w64-mingw32-gcc.exe --version | head -1
           clang.exe --version | head -1
+      - name: Probe the i686 sysroot
+        run: |
+          echo 'int main(void){return 0;}' > probe.c
+          echo "### clang -### (linker search paths)"
+          clang.exe -### -target i686-w64-windows-gnu -fuse-ld=lld probe.c -o probe.exe 2>&1 | tail -8 || true
+          echo "### plain link"
+          clang.exe -target i686-w64-windows-gnu -fuse-ld=lld probe.c -o probe.exe 2>&1 | head -12 || true
+          echo "### explicit --sysroot"
+          clang.exe --sysroot=C:/msys64/mingw32 -target i686-w64-windows-gnu -fuse-ld=lld probe.c -o probe2.exe 2>&1 | head -12 || true
+          echo "### LIBRARY_PATH"
+          LIBRARY_PATH='C:/msys64/mingw32/lib' clang.exe -target i686-w64-windows-gnu -fuse-ld=lld probe.c -o probe3.exe 2>&1 | head -12 || true
+          echo "### gcc search dirs"
+          i686-w64-mingw32-gcc.exe -print-search-dirs | head -3 || true
+          ls -l /c/msys64/mingw32/lib/libmingw32.a /c/msys64/mingw32/lib/libwinspool.a || true
       - name: Cache the pinned seed
         uses: actions/cache@v4
         with:
@@ -283,6 +297,9 @@ jobs:
           # the same override build/test.sh's overlay uses. Without it the first
           # smoke program dies TKO0111: fbrt0.o is on no library path.
           TIKO_LIBPATH: ${{ github.workspace }}/lib/rt/lib/win32
+          # lld needs the i686 CRT support libraries from the same place as
+          # crt2.o; clang 20 does not discover MSYS2's MINGW32 sysroot on its own.
+          LIBRARY_PATH: C:/msys64/mingw32/lib
         run: |
           bash build/smoke.sh win32
           bash build/smoke.sh win32 --mt
