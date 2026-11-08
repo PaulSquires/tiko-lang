@@ -98,7 +98,12 @@ jobs:
       - name: Fetch the mingw32 toolchain
         if: steps.mingw32.outputs.cache-hit != 'true'
         run: |
-          curl -sL -o winlibs32.zip "https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip"
+          # THE RELEASE CDN ANSWERS 504 SOMETIMES -- curl retries five times before
+          # this step gives up, and the size check catches a truncated archive: the
+          # zip is 274 MB and a silent half-download unzip-reports-nothing on.
+          curl -sL --retry 5 --retry-delay 5 --retry-all-errors \
+            -o winlibs32.zip "https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip"
+          [ "$(stat -c%s winlibs32.zip)" -gt 200000000 ] || { echo "winlibs32.zip truncated" >&2; exit 1; }
           mkdir -p ~/mingw32
           unzip -q winlibs32.zip -d ~/mingw32
           ~/mingw32/mingw32/bin/gcc.exe --version | head -1
@@ -140,7 +145,9 @@ jobs:
       - name: Fetch the mingw64 toolchain
         if: steps.mingw64.outputs.cache-hit != 'true'
         run: |
-          curl -sL -o winlibs64.zip "https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-x86_64-posix-seh-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip"
+          curl -sL --retry 5 --retry-delay 5 --retry-all-errors \
+            -o winlibs64.zip "https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-x86_64-posix-seh-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip"
+          [ "$(stat -c%s winlibs64.zip)" -gt 200000000 ] || { echo "winlibs64.zip truncated" >&2; exit 1; }
           mkdir -p ~/mingw64
           unzip -q winlibs64.zip -d ~/mingw64
           ~/mingw64/mingw64/bin/gcc.exe --version | head -1
