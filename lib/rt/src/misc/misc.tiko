@@ -109,7 +109,14 @@ end extern
 
 '' ------------------------------------------------------------------ ENVIRON
 
-extern "rtlib"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
+extern "c"   '' NON-FBCALL: libc. THIS WAS extern "rtlib", and on win32 that made the
+             '' block stdcall: the code called '_strlen@4', and lld -- which resolves a
+             '' decorated reference to the undecorated import with a warning -- linked
+             '' it to cdecl _strlen anyway. The callee then popped nothing the caller
+             '' believed popped: 'environ( "PATH" )' segfaulted after its first strlen,
+             '' on a 3-character value as much as on a long one (measured). The link
+             '' warning 'Resolving _<name>@N by linking to _<name>' is the fingerprint
+             '' of exactly this mistake anywhere else it appears.
 	declare function c_getenv alias "getenv" ( byval n as zstring ptr ) as zstring ptr
 	declare function c_strlen alias "strlen" ( byval s as zstring ptr ) as uinteger
 	#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
@@ -121,6 +128,11 @@ extern "rtlib"   '' NON-FBCALL: libc and the internal temp-descriptor helpers.
 	#else
 		#error "misc/misc: no putenv for this target"
 	#endif
+end extern
+
+extern "rtlib"   '' the runtime's own temp-descriptor helpers, FBCALL on win32. The
+                 '' TKORT_STDCALL markers say the same thing the block does on win32
+                 '' and nothing on the targets where the conventions collapse.
 	declare function tkrt_StrAllocTempNoLock TKORT_STDCALL alias "fb_hStrAllocTemp_NoLock" _
 		( byval s as FBSTRING ptr, byval len_ as integer ) as FBSTRING ptr
 	declare sub tkrt_StrCopy TKORT_STDCALL alias "fb_hStrCopy" _
