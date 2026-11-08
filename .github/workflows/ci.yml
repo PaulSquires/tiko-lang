@@ -278,11 +278,13 @@ jobs:
       - name: Stage the i686 CRT libraries beside libfb.a
         run: |
           # clang 20's MinGW driver searches C:\msys64\mingw32\i686-w64-mingw32\lib
-          # for -lmingw32/-lwinspool/-lgdi32 and crt2.o, but MSYS2 keeps all of
-          # them in /mingw32/lib (measured with clang -###). tiko emits -L and -B
-          # for every library path, so laying them beside the runtime it just
-          # built gives lld the directory it is missing. --sysroot would do it
-          # too, but the driver's link line has no way to name one today.
+          # for -lmingw32/-lmoldname/-lmingwex/-lmsvcrt/-lkernel32 and crt2.o, but
+          # MSYS2 keeps all of them in /mingw32/lib (measured with clang -###).
+          # tiko emits -L and -B for every library path, so laying them beside the
+          # runtime it just built gives lld the directory it is missing. --sysroot
+          # would do it too, but the driver's link line has no way to name one today.
+          # (-lwinspool/-lgdi32 are gone from this link line: printerwin.tiko loads
+          # the spooler and GDI at runtime now.)
           cp -f /c/msys64/mingw32/lib/*.a lib/rt/lib/win32/
           for f in /c/msys64/mingw32/lib/crt*.o; do
             [ -f "$f" ] && cp -f "$f" lib/rt/lib/win32/
@@ -298,6 +300,19 @@ jobs:
         run: |
           bash build/smoke.sh win32
           bash build/smoke.sh win32 --mt
+          # THE CONTRACT: io_openqb.o takes fb_DevLptOpen's address for every
+          # program that calls OPEN, so the printer driver IS in these binaries.
+          # It must not drag WINSPOOL.DRV / GDI32.dll into a console program's
+          # import table -- printerwin.tiko resolves those calls at runtime.
+          ro=$(command -v llvm-readobj || command -v llvm-readobj.exe || true)
+          if [ -z "$ro" ]; then echo "smoke: llvm-readobj unavailable, import check skipped"; exit 0; fi
+          for f in build/obj/smoke/win32/*.exe; do
+            if "$ro" --coff-imports "$f" | grep -qiE '^  Name: (WINSPOOL|GDI32)'; then
+              echo "smoke: FAIL $f still imports the print subsystem" >&2
+              exit 1
+            fi
+          done
+          echo "smoke: no WINSPOOL.DRV / GDI32.dll imports (win32)"
 
   win64-smoke:
     runs-on: windows-latest
@@ -349,3 +364,13 @@ jobs:
         run: |
           bash build/smoke.sh win64
           bash build/smoke.sh win64 --mt
+          # See the win32 lane -- the same assertion, on the 64-bit binaries.
+          ro=$(command -v llvm-readobj || command -v llvm-readobj.exe || true)
+          if [ -z "$ro" ]; then echo "smoke: llvm-readobj unavailable, import check skipped"; exit 0; fi
+          for f in build/obj/smoke/win64/*.exe; do
+            if "$ro" --coff-imports "$f" | grep -qiE '^  Name: (WINSPOOL|GDI32)'; then
+              echo "smoke: FAIL $f still imports the print subsystem" >&2
+              exit 1
+            fi
+          done
+          echo "smoke: no WINSPOOL.DRV / GDI32.dll imports (win64)"
