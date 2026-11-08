@@ -1453,6 +1453,15 @@ private sub ParsePrelude( byref p as Tko.ParserState, byref items as Tko.NodeIdV
     q.diags = p.diags
     q.kw = nullptr
     q.pos = 0
+    '' THE TARGET'S CONVENTION TRAVELS, too. The prelude's declares sit in an extern
+    '' "rtlib" block now, and decltype.tiko reads fbcallConv to decide what that block
+    '' means -- stdcall on Windows, cdecl elsewhere. With CC_NONE here every predeclared
+    '' call was cdecl while libfb.a's win32 exports are stdcall: 'freefile' and
+    '' 'environ' failed the link with an undefined '_fb_FileFree' the archive spells
+    '' '_fb_FileFree@0' -- measured, t6_env on win32. The '...' rule that CC_NONE used
+    '' to switch off reads nothing the prelude has (it declares no varargs), so nothing
+    '' else changes.
+    q.fbcallConv = p.fbcallConv
 
     dim as int32 guard = 0
     do
