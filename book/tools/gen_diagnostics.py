@@ -29,6 +29,8 @@ RANGES = [
     (600, 899, "Semantic analysis"),
     (900, 989, "Notes"),
     (990, 999, "Compiler limits and internal errors"),
+    (1000, 1049, "Interfaces"),
+    (1050, 1099, "String slices"),
 ]
 
 
@@ -86,6 +88,10 @@ def main() -> int:
         for ident, sev, msg in chunk:
             lines.append(f"| `{ident}` | {sev.lower()} | {render_message(msg)} |")
         lines.append("")
+
+    shown = sum(1 for (i, _, _) in rows if any(lo <= int(i[3:]) <= hi for lo, hi, _ in RANGES))
+    if shown != len(rows):
+        sys.exit(f"gen_diagnostics: {len(rows) - shown} rows fall outside every range -- add the new range to RANGES")
 
     lines += [
         f"<!-- {len(rows)} rows, generated {datetime.date.today().isoformat()} from "
