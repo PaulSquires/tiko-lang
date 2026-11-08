@@ -999,7 +999,8 @@ function LinkExe _
         ''
         '' THE IMPORT LIBRARIES, including winspool/gdi32 which the freshly built
         '' tiko-rt no longer asks for -- the suite links a prebuilt libfb.a from the
-        '' seed whose io_printerwin.o still imports them statically. Plus ws2_32:
+        '' seed whose io_printerwin.o still imports them statically. Regenerate
+        '' the seed and those two can go. Plus ws2_32:
         '' getaddrinfo and friends resolve under MSVC only when it is on the line, and
         '' that is a link-library question rather than an ABI one.
         '' NO VISUAL STUDIO. '-nostdlib' turns off clang's own defaults --

@@ -353,8 +353,10 @@ end extern
 '' name is a runtime string. So the imports move behind LoadLibrary, the pattern
 '' GetDefaultPrinterA below already had to use (a static import of that one would
 '' have stopped the runtime loading on NT4). LPRINT behaves exactly as before;
-'' a printer-free binary imports KERNEL32 and the CRT only, and the driver no
-'' longer needs -lwinspool/-lgdi32 on any Windows target.
+'' a printer-free binary imports KERNEL32 and the CRT only. A freshly built
+'' runtime needs no -lwinspool/-lgdi32 on any Windows target; the MSVC link
+'' line still names them, but only because the suite links the seed's older
+'' prebuilt libfb.a (src/codegen/toolchain.tiko).
 ''
 '' THE CALL SITES DO NOT CHANGE. A function-pointer variable is called exactly
 '' like a declared function, so every w_Xxx( ... ) below is untouched.
