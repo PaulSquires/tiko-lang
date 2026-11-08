@@ -981,9 +981,8 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
             if uot <> TYPE_NONE then
                 dim as TypeId uu = c.types->Unqualify( uot )
                 if c.types->Kind( uu ) = TK_REFERENCE then uu = c.types->Unqualify( c.types->Inner( uu ) )
-                if c.types->Kind( uu ) = TK_BUILTIN then
-                    if c.types->BuiltinOf( uu ) = TY_USTRING then return
-                end if
+                if (c.types->Kind( uu ) = TK_BUILTIN) andalso (c.types->BuiltinOf( uu ) = TY_USTRING) then return
+                if c.info->TypeOf_( id ) <> TYPE_NONE then return   '' Check typed it: a UDT / uslice casting to ustring
             end if
         end if
         c.diags->Report( TKO0756, PointRange( c.ast->Loc( id ) ) )

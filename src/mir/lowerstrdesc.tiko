@@ -50,6 +50,28 @@ function StrDescriptorOf_ _
     dim as Tko.NodeId sic = StrIdentityConvOperand_( c, id )
     if sic <> Tko.NODE_NONE then id = Unparen_( c, sic )
 
+    '' 'cast( ustring, x )' OVER A UDT OR A USLICE is x's USTRING conversion, in a temporary
+    '' initialised as 'dim u as ustring = x' is -- which picks the ustring cast -- and released
+    '' with the statement's other string temporaries. See UStrUdtCastOperand_.
+    dim as Tko.NodeId ucx = UStrUdtCastOperand_( c, id )
+    if ucx <> Tko.NODE_NONE then
+        dim as int32 ucs = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        if ucs < 0 then return false
+        c.f->locals[ucs].frontendType = c.types->Builtin( Tko.TY_USTRING )
+        '' THE USTRING CAST, whatever an enclosing statement chose: 'dim r as ustring = cast(
+        '' ustring, b )' had set CT_STRING (its value is no bare UDT) and b's NARROW cast ran.
+        dim as int32 uct = c.strCastTarget
+        c.strCastTarget = Tko.Check.CT_USTRING
+        dim as boolean ucOk = LowerStringInit( c, ucs, ucx, ucx )
+        c.strCastTarget = uct
+        if ucOk = false then return false
+        c.strTemps.Push( cast( uint32, ucs ) )
+        outv.kind = cast( uint8, MV_LOCAL )
+        outv.ty = cast( uint8, MT_PTR )
+        outv.id = ucs
+        return true
+    end if
+
     '' A STRING CONSTANT IS ITS TEXT. Recognised here rather than left to the type
     '' test below, which would claim it and then ask a constant for an address.
     '' ...and ADJACENT LITERALS, which are one literal: '"a" "1"' folds to "a1" before

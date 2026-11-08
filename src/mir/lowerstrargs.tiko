@@ -624,6 +624,9 @@ function UStrResultArgTemp_ _
                 intrin = IsUStringType( c, c.info->TypeOf_( ua0 ) ) orelse IsUStrChain_( c, ua0 )
             end select
         end if
+        '' ...AND 'cast( ustring, x )' over a UDT / uslice: LowerStrRvalue builds its USTRING
+        '' too. LowerExpr took it for x itself and passed the UDT's bytes as a descriptor.
+        if UStrUdtCastOperand_( c, an ) <> Tko.NODE_NONE then intrin = true
         if intrin then
             '' The intrinsic's descriptor comes from LowerStrRvalue; LowerExpr has no arm
             '' for it and answered nothing, so the argument declined back to vr itself.

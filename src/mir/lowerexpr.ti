@@ -123,6 +123,8 @@ declare function PtrArithElem_ _
     '' The operand of a string-to-string 'cast'/'cptr' -- see the definition.
     declare function StrIdentityConvOperand_ _
         ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    declare function UStrUdtCastOperand_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     declare function LowerConvIntrinsic _
         ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
     '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
