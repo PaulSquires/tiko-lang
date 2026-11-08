@@ -276,6 +276,13 @@ jobs:
       - name: lib/rt for win32
         run: TIKORT_TIKO="$PWD/bin/tiko.exe" bash lib/rt/build/build.sh Release win32
       - name: Smoke (win32)
+        env:
+          # A CLEAN CHECKOUT HAS NO lib/<target>/ -- its archives and startup
+          # object are gitignored build products. The lane builds the runtime into
+          # lib/rt/lib/win32, so name that tree for the driver; TIKO_LIBPATH is
+          # the same override build/test.sh's overlay uses. Without it the first
+          # smoke program dies TKO0111: fbrt0.o is on no library path.
+          TIKO_LIBPATH: ${{ github.workspace }}/lib/rt/lib/win32
         run: |
           bash build/smoke.sh win32
           bash build/smoke.sh win32 --mt
@@ -324,6 +331,9 @@ jobs:
       - name: lib/rt for win64
         run: TIKORT_TIKO="$PWD/bin/tiko.exe" bash lib/rt/build/build.sh Release win64
       - name: Smoke (win64)
+        env:
+          # See the win32 lane: the runtime this job just built is lib/rt/lib/win64.
+          TIKO_LIBPATH: ${{ github.workspace }}/lib/rt/lib/win64
         run: |
           bash build/smoke.sh win64
           bash build/smoke.sh win64 --mt
