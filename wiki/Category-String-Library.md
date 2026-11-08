@@ -55,7 +55,7 @@ The cost is that a pattern handed to the BYTE family is converted UTF-8 -> UTF-1
 
 Positions and lengths count CODE UNITS, matching LEN, \[\] and INSTR. On the wide family an astral character is a surrogate pair and counts as 2. A search can never land mid-character -- a surrogate half cannot equal a BMP unit -- though MID can split one.
 
-POSITIONS ARE 1-BASED, and 0 means "not found", matching INSTR. This is NOT the zero-based convention containers.Array uses. Strings and containers are different worlds and each keeps its own tradition.
+POSITIONS ARE 1-BASED, and 0 means "not found", matching INSTR. The functions over [string slices](Category-String-Slices) -- `Find`, `Equals`, `TrimSpace`, `SplitSlices` and the slice overloads of `StartsWith` and `EndsWith` -- are the exception: they count from 0, as `s[i]` and `s[lo to hi]` do, and `Find` answers -1. This is NOT the zero-based convention containers.Array uses. Strings and containers are different worlds and each keeps its own tradition.
 
 A start below 1 is invalid and answers 0 (or "" for a function returning text) rather than clamping, so a position fed back in from a call that returned "not found" cannot silently restart the scan.
 

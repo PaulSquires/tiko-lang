@@ -26,6 +26,7 @@
 - [Defer](Category-Defer)
 - [Lambdas](Category-Lambdas)
 - [Block Strings](Category-Block-Strings)
+- [String Slices](Category-String-Slices)
 - [Embed](Category-Embed)
 - [Typed Variadics](Category-Typed-Variadics)
 - [C Header Import](Category-C-Header-Import)
