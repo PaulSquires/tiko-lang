@@ -118,9 +118,9 @@ A slice has a fixed length. Nothing done through it can grow or shrink its sourc
 | `select case v` | compares at run time; `select case as const` is refused |
 | `iif( c, a, b )` | two slice arms give a slice; a slice and a string give an owned string |
 | `dim u as ustring = v`, a string parameter | an owned copy |
-| `cast( string, v )` | an owned copy |
+| `cast( string, v )` on a `slice`, `cast( ustring, v )` on a `uslice` | an owned copy; the other width is refused |
 
-`ustring( v )` and `string( v )` are not conversions; assignment is the way back to an owned string.
+`ustring( v )` and `string( v )` are not conversions; assignment or `cast` is the way back to an owned string.
 
 ## Parameters
 
@@ -192,8 +192,6 @@ Details, and what is checked only under `-exx`: [String Slice Lifetime](String-S
 
 ## Known Limits
 
-- **`cast( ustring, v )` is refused** (`TKO0756`). Assign instead: `dim as ustring u = v`.
-- **`cast( string, v )` inside a larger expression** — `cast( string, v ) & "!"`, `cast( string, v ) = "ab"` — stops the compiler with an internal error (`TKO0994`), as it does for any type with an `operator cast( ) as string`. Assign the cast to a variable first, or use the slice directly: `v & "!"`.
 - **A slice of a `zstring ptr` or `wstring ptr` is as valid as the pointer.** The storage rules still apply, but nothing checks that the memory is alive.
 - **There are no slices of arrays or of other types.** Slices are for strings.
 
