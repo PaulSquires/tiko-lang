@@ -117,6 +117,32 @@ function AlignUdt_ _
             end if
         wend
         if (fs = nullptr) orelse (fs->name <> fld->name) then return false
+        '' THE BASE THE CONSTRUCTOR BUILDS TAKES VALUES FOR ITS FIELDS, NOT FOR ITS
+        '' VPTR. 'extends object' -- and any base with a constructor -- was built by the
+        '' prologue before this list runs; its leaves left FlattenUdtFields_ with only
+        '' the vptr dropped (same measurement, same reason), so this field's entries of
+        '' lo[] belong to the base's own fields, and the values for them are paired by
+        '' walking INTO the base. Without the walk the entries stayed unconsumed and the
+        '' value fell through to the whole-object store that overwrote the vptr -- the
+        '' Dog half of t2_oop, on win32 and win64 alike. A plain base -- no ctor, no
+        '' vptr -- fills positionally here, as fbc does.
+        if (c.udts->baseName <> 0) andalso (fld->name = c.udts->baseName) then
+            dim as Tko.TypeId bt = c.types->Unqualify( fld->type_ )
+            if (c.types->Kind( bt ) = Tko.TK_UDT) andalso _
+               (TypeNeedsInit_( c, bt ) orelse _
+                (StructorWithArity( c, StructorOf( c, bt, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE)) then
+                dim as int32 a2 = li, b2 = li
+                while (b2 < lo.Count) andalso (cast( int32, lo[b2] ) < fld->offset + fsz)
+                    b2 += 1
+                wend
+                if b2 > a2 then
+                    if ci >= n then return true   '' the rest takes its defaults
+                    if AlignUdt_( c, bt, leaf0 + a2, lst, ci, vNode, vStart, depth + 1 ) = false then return false
+                end if
+                li = b2
+                continue for
+            end if
+        end if
         dim as int32 fd = fs->anonDepth
         if fd > 16 then return false
         dim as int32 firstNew = fd - fs->anonOpen + 1

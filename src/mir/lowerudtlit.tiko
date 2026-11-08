@@ -1023,6 +1023,44 @@ function FlattenUdtFields_ _
     for i as int32 = 0 to n - 1
         dim as Tko.UdtField ptr fld = @c.udts->fields[f0 + i]
         if fld->bitWidth <> 0 then return false
+        '' A BASE THE CONSTRUCTOR BUILDS CONTRIBUTES ITS FIELDS, NOT ITS VPTR. 'type C
+        '' extends P' over a P with no constructor of its own fills P's FIELDS from the
+        '' list -- measured, fbc-modern stores 1, 2, 3 at offsets 0, 4, 8 for 'as integer
+        '' a, b' in P and 'c' in C -- so a plain base flattens as it always did. But a
+        '' base WITH a constructor -- 'extends object', anything virtual -- was BUILT by
+        '' the synthesised constructor's prologue (EmitCtorPrologue_), which has already
+        '' run when the list is written: its vptr is stored there, and a leaf on it pairs
+        '' the first value with the vptr. Measured: 'dim a as Animal = type( "generic" )'
+        '' over Animal extends Object stored the literal at offset 0, and the first
+        '' virtual call jumped to 0x656e6567 -- the bytes of "generic" -- on win32 and on
+        '' win64 alike. fbc refuses the form outright (error 99, no matching constructor);
+        '' tiko takes it as an extension, so this walks INTO the constructed base and
+        '' drops only the bytes the vptr occupies -- which is why Dog, with no field of
+        '' its own, still fills the name it inherited. An EXPLICIT constructor without a
+        '' vtable drops nothing: its fields' storage is ordinary and the list may fill it.
+        if (c.udts->baseName <> 0) andalso (fld->name = c.udts->baseName) then
+            dim as Tko.TypeId bt = c.types->Unqualify( fld->type_ )
+            if (c.types->Kind( bt ) = Tko.TK_UDT) andalso _
+               (TypeNeedsInit_( c, bt ) orelse _
+                (StructorWithArity( c, StructorOf( c, bt, "__ctor" ), 0 ) <> Tko.SYMBOL_NONE)) then
+                dim as containers.Array( of uint32 ) bo
+                dim as containers.Array( of uint32 ) bty
+                dim as containers.Array( of uint32 ) bfts
+                if FlattenUdtFields_( c, bt, base_ + fld->offset, bo, bty, depth + 1, bfts ) = false then return false
+                dim as int32 skipB = 0
+                if c.vts <> nullptr then
+                    if c.vts->Find( bt ) >= 0 then skipB = c.types->target.pointerBits \ 8
+                end if
+                for k as int32 = 0 to bo.Count - 1
+                    if cast( int32, bo[k] ) >= base_ + fld->offset + skipB then
+                        offs.Push( bo[k] )
+                        tys.Push( bty[k] )
+                        fts.Push( bfts[k] )
+                    end if
+                next
+                continue for
+            end if
+        end if
         dim as MirType fmt = LowerType( fld->type_, *c.types )
         '' A BUILTIN STRING BASE IS NO LEAF. 'type DVARIANT extends wstring' has a BASE of
         '' the unsized builtin 'wstring', which takes no room in the layout (--dump-udt puts
