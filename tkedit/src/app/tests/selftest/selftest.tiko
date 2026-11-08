@@ -2649,6 +2649,17 @@ public sub IntelPass( byref t as Tally, byval sc as single )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 13 ) <> SCE_B_KEYWORD, P( sc, "Set( of long ) is not" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 32 ) = SCE_B_KEYWORD, P( sc, "End Set is" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, 40 ) <> SCE_B_KEYWORD, P( sc, "x = set is not" ) )
+        ' an auto-property's accessor clause: `get, set`, `get, private set`, `get, init`; and
+        ' `ustring` is in keywords/tiko.txt
+        dim as ustring tx = "property P as long get, set" & lf & "property Q as long get, private set" & lf & _
+                            "property R as long get, init" & lf & "dim u as ustring" & lf & "f( a, set )" & lf
+        v->SetText( tx )
+        tkCodeEdit_Send( sw, SCI_COLOURISE, 0, -1 )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "get, set" ) + 4 ) = SCE_B_KEYWORD, P( sc, "get, set is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "private set" ) + 7 ) = SCE_B_KEYWORD, P( sc, "get, private set is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "init" ) - 1 ) = SCE_B_KEYWORD, P( sc, "get, init is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "ustring" ) - 1 ) = SCE_B_KEYWORD, P( sc, "ustring is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "a, set" ) + 2 ) <> SCE_B_KEYWORD, P( sc, "f( a, set ) is not" ) )
         v->SetText( keep )
         tkCodeEdit_Send( sw, SCI_DOCUMENTEND )
     end scope
