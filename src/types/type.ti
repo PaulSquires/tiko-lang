@@ -451,6 +451,8 @@ namespace Tko
     declare function TargetIsWindows( byval t as TargetId ) as boolean
     declare function TargetOs( byval t as TargetId ) as TargetOsKind
     declare function TargetArch( byval t as TargetId ) as TargetArchKind
+    '' '-m32': the Windows x86 family's 32-bit member, or false for a family that has none.
+    declare function TargetNarrowTo32( byval t as TargetId, byref narrowable as boolean ) as TargetId
 
     '' --dump-types. Byte-stable: a golden artefact, and the thing the layout
     '' differential compares against fbc.

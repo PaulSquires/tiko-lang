@@ -33,7 +33,7 @@
 '' flag that makes fb_End close the channels: a program that never opened
 '' anything skips the whole file-reset path at exit.
 ''
-'' 
+''
 #include once "inc/descriptors.ti"
 #include once "inc/file.ti"
 #include once "inc/iolock.ti"

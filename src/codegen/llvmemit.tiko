@@ -1100,21 +1100,18 @@ function ByvalAttr _
     dim as int32 al = AlignOf( e, MT_AGG, sz )
     '' i386 HANDS EVERY STACK ARGUMENT A 4-ALIGNED SLOT: clang writes
     '' 'byval(%struct.B24) align 4' even for a struct whose own alignment is 8
-    '' (measured, clang 21.1.3, i686-w64-windows-gnu, {long long x 3}). Writing the
-    '' struct's own alignment would promise the backend an 8-aligned incoming area
-    '' that a C caller pushing flattened arguments does not provide.
+    '' (measured, clang 21.1.3, i686-w64-windows-gnu, {long long x 3}) -- the struct's
+    '' own alignment would promise an 8-aligned area a C caller does not provide.
     if e.tgt->layout.arch = ARCH_X86_32 then al = 4
     return " byval(" & AggType( sz ) & ") align " & str( al )
 end function
 
 '' THE CALLING CONVENTION IN THE IR, 'x86_stdcallcc' and nothing else. On x86-64
-'' stdcall collapsed into cdecl -- both caller-cleanup -- so no convention was ever
-'' spelled here and none was needed. i386 keeps them apart, and clang spells the
-'' stdcall one 'x86_stdcallcc' over the decorated name '_Name@N' that the mangler
-'' already writes (mangle.tiko). Measured, clang 21.1.3, i686-w64-windows-gnu:
-'' 'define x86_stdcallcc void @"\01_StdCall@8"(i32 %0, i32 %1)'. Like byval and
-'' sret it must read the same at the declare/define and at every call site, which
-'' is why all three go through this.
+'' stdcall collapsed into cdecl -- both caller-cleanup -- so none was ever spelled
+'' here; i386 keeps them apart, clang spelling the stdcall one over the decorated
+'' name the mangler already writes. Measured, clang 21.1.3, i686-w64-windows-gnu:
+'' 'define x86_stdcallcc void @"\01_StdCall@8"(i32, i32)'. Like byval and sret it
+'' must read the same at declare/define and every call.
 private function CallConvAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr ) as string
 

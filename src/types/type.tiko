@@ -184,6 +184,18 @@ function TargetIsWindows( byval t as TargetId ) as boolean
     return TargetOs( t ) = OS_WINDOWS
 end function
 
+'' '-m32' ON THE WINDOWS X86 FAMILY: both 64-bit members narrow to the family's
+'' 32-bit member, and on that member itself the statement is a restatement; any
+'' other family has no 32-bit member to name and answers false, which the caller
+'' reports. THE IDS ARE NAMED HERE AND NOWHERE ELSE -- lint's TARGETID rule wants
+'' the drivers to read layout properties, and this is the one place that speaks
+'' them, beside TargetOs and TargetArch which already do.
+function TargetNarrowTo32( byval t as TargetId, byref narrowable as boolean ) as TargetId
+    narrowable = (TargetOs( t ) = OS_WINDOWS)
+    if narrowable = false then return t
+    return TARGET_WIN32
+end function
+
 '' MEASURED PER TARGET rather than derived from the pointer width. That mattered
 '' most for win32, where two of the numbers did not follow from it -- the FBSTRING
 '' descriptor was 12 bytes but aligned to 4, while maxAlign stayed 8 -- and win32

@@ -323,13 +323,14 @@ end function
 '' names the DLL, so no -D: its LIBRARY line is the name the program will load.
 '' THE MACHINE IS THE TARGET'S: llvm-dlltool writes the machine field of the import
 '' records it synthesises, and a 32-bit program must import from 32-bit records --
-'' 'i386' for TARGET_WIN32, 'i386:x86-64' for every 64-bit Windows target.
+'' 'i386' for a 32-bit x86 target (the layout's arch says which), 'i386:x86-64' for
+'' every 64-bit Windows target.
 function MakeImportLib _
     ( byref t as ToolPaths, byref defFile as string, byref outLib as string, _
-      byval targetId as TargetId ) as int32
+      byval arch as TargetArchKind ) as int32
     if FileExists_( t.dlltoolExe ) = false then return -1
     dim as string machine = "i386:x86-64"
-    if targetId = TARGET_WIN32 then machine = "i386"
+    if arch = ARCH_X86_32 then machine = "i386"
     return Exec_( t, t.dlltoolExe, "-m " & machine & " -d " & Q( defFile ) & " -l " & Q( outLib ) )
 end function
 
