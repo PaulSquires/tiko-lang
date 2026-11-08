@@ -230,6 +230,21 @@ public function Dap_Wait( byval s as long, byref resp as string, byval timeoutMs
     loop
 end function
 
+' The response to 's' if it has come, LEFT for Dap_Wait to take. False when it has not.
+public function Dap_Peek( byval s as long, byref resp as string ) as boolean
+    if s = 0 then return false
+    Dap_Lock( )
+    for i as long = 0 to gDap.respUsed - 1
+        if gDap.respSeq( i ) = s then
+            resp = gDap.respText( i )
+            Dap_Unlock( )
+            return true
+        end if
+    next
+    Dap_Unlock( )
+    return false
+end function
+
 ' Request and response in one; false when it failed to arrive or 'success' is false.
 public function Dap_Request( byref cmd as const string, byref argsJson as const string, byref d as JDOC, _
                              byval timeoutMs as long = 10000 ) as boolean
