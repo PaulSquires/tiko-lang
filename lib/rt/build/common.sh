@@ -140,7 +140,7 @@ rt_target_triple( ) {
 # __mingw_sprintf at all. Same mechanism as -d ENABLE_MT.
 rt_abi_define( ) {
     case "$1" in
-        windows-x86_64) echo "-d TKORT_MSVC -d TKORT_STDCALL= -d TKORT_CDECL=" ;;
+        windows-x86_64) echo "-d TKORT_MSVC -d TKORT_FBCALL= -d TKORT_STDCALL= -d TKORT_CDECL=" ;;
         win64ucrt)      echo "-d TKORT_UCRT -d TKORT_FBCALL=cdecl -d TKORT_STDCALL= -d TKORT_CDECL=" ;;
         win32)          echo "-d TKORT_FBCALL=stdcall -d TKORT_STDCALL=stdcall -d TKORT_CDECL=cdecl" ;;
         *)      echo "-d TKORT_FBCALL=cdecl -d TKORT_STDCALL= -d TKORT_CDECL=" ;;
