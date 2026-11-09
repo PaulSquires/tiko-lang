@@ -18,6 +18,7 @@ declare sub CheckArraySwap_ ( byref c as Ctx, byval id as NodeId )
 declare function CharAccess_ _
     ( byref c as Ctx, byval n as NodeId, byval u as TypeId ) as boolean
 declare sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckCvaUse_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
 declare sub CheckBaseInitCount_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
 declare sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )

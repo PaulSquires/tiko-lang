@@ -381,9 +381,9 @@ private sub WalkExpr _
             '' keyword spellings are interned FIRST and so occupy ids 1..N
             '' contiguously (see lexer/token.ti).
             c.st->builtins += 1
-            '' ...EXCEPT VA_FIRST, which no 64-bit target has: reported with va_arg / va_next as
-            '' TKO0981 by the unbound-name pass (undeclared.tiko), not lowered into a TKO0994.
-            if lcase( c.names->Spelling( nm ) ) = "va_first" then NoteUnbound_( c, id, scope_ )
+            '' ...EXCEPT VA_FIRST (no 64-bit target has it: TKO0981) and the cva statements, which have
+            '' no value (TKO0987): both said by the unbound-name pass (undeclared.tiko), not as a TKO0994.
+            if instr( "|va_first|cva_start|cva_end|cva_copy|", "|" & lcase( c.names->Spelling( nm ) ) & "|" ) > 0 then NoteUnbound_( c, id, scope_ )
         else
             c.st->undefined_ += 1
             if c.st->unresolvedNames.Count < 200000 then
