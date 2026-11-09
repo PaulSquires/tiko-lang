@@ -440,7 +440,9 @@ private sub Declaration_( byref w as TkiWriter_, byval s as int32, byval e as in
     case Tko.TK_IDENT
         '' 'interface I ... end interface' (docs/tiko-interfaces): a contextual word, so the
         '' node says what the line is.
-        if w.ast->Kind( n ) = Tko.N_INTERFACE then
+        '' ...and so is 'partial type', EVERY part of it: the importer's parser pools them again.
+        if (w.ast->Kind( n ) = Tko.N_INTERFACE) orelse _
+           ((w.ast->Kind( n ) = Tko.N_TYPE) andalso ((w.ast->Flags( n ) and Tko.NF_PARTIAL_TYPE) <> 0)) then
             if AtLevel_( w, n, sc ) then Chunk_( w, s, e )
         end if
 

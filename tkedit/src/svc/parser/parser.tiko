@@ -24,7 +24,7 @@ using containers
 using outcome
 using tasks
 
-public const TKP_VERSION = 4
+public const TKP_VERSION = 5
 
 public type TKP_SYMBOL
     kind         as long
@@ -70,6 +70,9 @@ public type TKP_OPTIONS
     defineCount  as long
     defines      as ushort ptr ptr
     pkgDir       as ushort ptr
+    overlayCount as long
+    overlayPaths as ushort ptr ptr
+    overlayTexts as zstring ptr ptr
 end type
 
 public type TKP_VERSION_FN as function cdecl ( ) as long

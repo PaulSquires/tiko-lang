@@ -70,6 +70,8 @@ namespace Tko
         '' worth keeping, so the two cases are told apart by this rather than by
         '' silently accepting both.
         as int32                 aggDepth
+        as int32                 partialDepth     '' the aggDepth of a 'partial type' body being parsed; 0 = none
+        as boolean               sawPartial       '' the unit wrote 'partial type' (MergePartialTypes)
         '' Whether the innermost of those is a UNION. Anonymous ones must alternate -- see
         '' TKO0877 in decltype.tiko.
         as boolean              aggUnion

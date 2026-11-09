@@ -23,6 +23,7 @@ src/ast/astimpl.tiko
 src/parser/parser.tiko
 src/parser/parserend.tiko
 src/parser/declclass.tiko
+src/parser/partialtype.tiko
 src/parser/autoprop.tiko
 src/parser/propblock.tiko
 src/types/type.tiko
