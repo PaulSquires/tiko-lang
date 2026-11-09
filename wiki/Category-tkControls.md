@@ -113,7 +113,7 @@ Each control's page lists its own differences. The PsControls page of the same c
 
 ## Requirements
 
-- **Windows or Linux** (x86-64).
+- **Windows or Linux** (x86-64), or **macOS** on Apple Silicon.
 - **SDL3, SDL3_ttf and SDL3_image.** On Windows the toolchain ships them and copies them beside the program. On Linux the program links the system's libraries: install the distribution's SDL3 development packages. On macOS it links Homebrew's: `brew install sdl3 sdl3_ttf sdl3_image`. See [Vendor Packages](Vendor-Packages).
 
 ## Licence

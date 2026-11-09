@@ -496,7 +496,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Dim](Dim) | Declares a variable. | [Variable Declarations](Category-Variable-Declarations) |
 | [Dir](Dir) | Returns the first name matching a pattern, then the next one on each later call. | [Operating System Functions](Category-Operating-System-Functions) |
 | [DirEntry.Depth](Modern-Fs-DirEntry-Depth) | Returns how deep the entry is in a walk, 0 for the children of the folder walked. | [Filesystem](Category-Filesystem) |
-| [DirEntry.Info](Modern-Fs-DirEntry-Info) | Returns the entry's FileInfo: free on Windows, one extra system call on Linux. | [Filesystem](Category-Filesystem) |
+| [DirEntry.Info](Modern-Fs-DirEntry-Info) | Returns the entry's FileInfo: free on Windows, one extra system call on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsDirectory](Modern-Fs-DirEntry-IsDirectory) | Returns true if the entry is a folder; a link to a folder reports as a link. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsFile](Modern-Fs-DirEntry-IsFile) | Returns true if the entry is a file; a link reports as a link, not as its target. | [Filesystem](Category-Filesystem) |
 | [DirEntry.IsOther](Modern-Fs-DirEntry-IsOther) | Returns true if the entry is a device, pipe or socket rather than a file, folder or link. | [Filesystem](Category-Filesystem) |
@@ -608,13 +608,13 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [FileInfo.HasCreated](Modern-Fs-FileInfo-HasCreated) | Returns true if the platform records creation times, so Created means something. | [Filesystem](Category-Filesystem) |
 | [FileInfo.IsDirectory](Modern-Fs-FileInfo-IsDirectory) | Returns true if the path is a folder. | [Filesystem](Category-Filesystem) |
 | [FileInfo.IsFile](Modern-Fs-FileInfo-IsFile) | Returns true if the path is a regular file. | [Filesystem](Category-Filesystem) |
-| [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) | Returns true if the file is hidden: the hidden flag on Windows, a leading dot on Linux. | [Filesystem](Category-Filesystem) |
+| [FileInfo.IsHidden](Modern-Fs-FileInfo-IsHidden) | Returns true if hidden: the hidden flag on Windows, a leading dot on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [FileInfo.IsOther](Modern-Fs-FileInfo-IsOther) | Returns true if the path is a device, pipe or socket rather than a file, folder or link. | [Filesystem](Category-Filesystem) |
-| [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) | Returns true if the file cannot be written: the read-only flag, or no write bit on Linux. | [Filesystem](Category-Filesystem) |
+| [FileInfo.IsReadOnly](Modern-Fs-FileInfo-IsReadOnly) | Returns true if unwritable: the read-only flag, or no write bit on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [FileInfo.IsSymlink](Modern-Fs-FileInfo-IsSymlink) | Returns true if the path is a symbolic link; only ever true from LStat. | [Filesystem](Category-Filesystem) |
 | [FileInfo.ModifiedUtc](Modern-Fs-FileInfo-ModifiedUtc) | Returns the last-write time in ticks of 100 ns since 0001-01-01 UTC. | [Filesystem](Category-Filesystem) |
-| [FileInfo.NativeAttributes](Modern-Fs-FileInfo-NativeAttributes) | Returns the raw attribute word: file attributes on Windows, the mode bits on Linux. | [Filesystem](Category-Filesystem) |
-| [FileInfo.NativeAttributes](Modern-Fs-NativeAttributes) | Returns the raw attribute word: file attributes on Windows, the mode bits on Linux. | [Filesystem](Category-Filesystem) |
+| [FileInfo.NativeAttributes](Modern-Fs-FileInfo-NativeAttributes) | Returns the raw attribute word: attributes on Windows, mode bits on Linux and macOS. | [Filesystem](Category-Filesystem) |
+| [FileInfo.NativeAttributes](Modern-Fs-NativeAttributes) | Returns the raw attribute word: attributes on Windows, mode bits on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [FileInfo.Size](Modern-Fs-FileInfo-Size) | Returns the size in bytes. | [Filesystem](Category-Filesystem) |
 | [FileLen](Filelen) | Returns the size of a named file in bytes. | [Operating System Functions](Category-Operating-System-Functions) |
 | [FileLock.Acquire](Modern-Fs-FileLock-Acquire) | Takes a lock on a file that cooperating programs share, waiting up to a timeout. | [Filesystem](Category-Filesystem) |
@@ -684,11 +684,11 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [GetJoystick](Getjoystick) | Fills in a joystick's buttons and axis positions; returns 0 on success or 1. | [User Input Functions (Graphics Library)](Category-User-Input-Functions-Graphics-Library) |
 | [GetKey](Getkey) | Waits for a key and returns its code; the key is not shown on screen. | [User Input (Runtime Library)](Category-User-Input-Runtime-Library) |
 | [GetMouse](Getmouse) | Fills in the mouse position, wheel and buttons, or -1 in each if there is no mouse. | [User Input Functions (Graphics Library)](Category-User-Input-Functions-Graphics-Library) |
-| [GetPosixMode](Modern-Fs-GetPosixMode) | Returns a file's Linux permission bits; fails as unsupported on Windows. | [Filesystem](Category-Filesystem) |
+| [GetPosixMode](Modern-Fs-GetPosixMode) | Returns a file's permission bits on Linux and macOS; fails as unsupported on Windows. | [Filesystem](Category-Filesystem) |
 | [GetRoundingMode](Modern-Math-GetRoundingMode) | Returns the direction floating-point results are currently rounded in. | [Math Library](Category-Math-Library) |
 | [GetVolumeInfo](Modern-Fs-GetVolumeInfo) | Returns the VolumeInfo of the volume a path is on: its root, label and file system. | [Filesystem](Category-Filesystem) |
 | [GetVolumes](Modern-Fs-GetVolumes) | Fills an Array with a VolumeInfo for each drive or mounted disk; returns the count. | [Filesystem](Category-Filesystem) |
-| [GetWin32Attributes](Modern-Fs-GetWin32Attributes) | Returns a file's raw Windows attribute flags; fails as unsupported on Linux. | [Filesystem](Category-Filesystem) |
+| [GetWin32Attributes](Modern-Fs-GetWin32Attributes) | Returns a file's raw Windows attribute flags; fails as unsupported on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [GfxLib - FreeBASIC graphics library overview](Gfxlib-Freebasic-Graphics-Library-Overview) |  | [Graphics Library Reference](Category-Graphics-Library-Reference) |
 | [Glob](Modern-Fs-Glob) | Fills an Array with the paths that match a wildcard pattern; returns the count. | [Filesystem](Category-Filesystem) |
 | [GlobRoot](Modern-Fs-GlobRoot) | Returns the folder a pattern search starts from: the part before the first wildcard. | [Filesystem](Category-Filesystem) |
@@ -1209,7 +1209,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [PathFileName](Modern-Fs-PathFileName) | Returns the last part of a path, the file name, or an empty string for a root. | [Filesystem](Category-Filesystem) |
 | [PathHasExtension](Modern-Fs-PathHasExtension) | Returns true if the file name has an extension; a dotfile has none. | [Filesystem](Category-Filesystem) |
 | [PathIsAbsolute](Modern-Fs-PathIsAbsolute) | Returns true if a path needs no current folder; C:dev and \dev are not absolute. | [Filesystem](Category-Filesystem) |
-| [PathIsCaseSensitive](Modern-Fs-PathIsCaseSensitive) | Returns true if paths compare case-sensitively on this platform: on Linux, not Windows. | [Filesystem](Category-Filesystem) |
+| [PathIsCaseSensitive](Modern-Fs-PathIsCaseSensitive) | Returns true if paths compare case-sensitively here: on Linux and macOS, not Windows. | [Filesystem](Category-Filesystem) |
 | [PathIsRoot](Modern-Fs-PathIsRoot) | Returns true if the whole path is just a root, such as C:\ or /. | [Filesystem](Category-Filesystem) |
 | [PathJoin](Modern-Fs-PathJoin) | Joins two to four path parts with one separator; an absolute part drops those before it. | [Filesystem](Category-Filesystem) |
 | [PathNextComponent](Modern-Fs-PathNextComponent) | Finds the next part of a path from an offset; returns a negative number when none is left. | [Filesystem](Category-Filesystem) |
@@ -1218,7 +1218,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [PathRelativeTo](Modern-Fs-PathRelativeTo) | Returns a path relative to a base folder; fails if the two have different roots. | [Filesystem](Category-Filesystem) |
 | [PathRoot](Modern-Fs-PathRoot) | Returns the root of a path, such as C:\ or /, or an empty string for a relative path. | [Filesystem](Category-Filesystem) |
 | [PathRootLen](Modern-Fs-PathRootLen) | Returns the length of a path's root, in characters. | [Filesystem](Category-Filesystem) |
-| [PathSeparator](Modern-Fs-PathSeparator) | Returns the platform's path separator: a backslash on Windows, a slash on Linux. | [Filesystem](Category-Filesystem) |
+| [PathSeparator](Modern-Fs-PathSeparator) | Returns the platform's path separator: a backslash on Windows, a slash on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [PathSplit](Modern-Fs-PathSplit) | Splits a normalised path into its parts, without the root, in an Array; returns the count. | [Filesystem](Category-Filesystem) |
 | [PathStartsWith](Modern-Fs-PathStartsWith) | Returns true if a path begins with another, comparing whole parts, not characters. | [Filesystem](Category-Filesystem) |
 | [PathStem](Modern-Fs-PathStem) | Returns the file name without its extension; a dotfile such as .gitignore keeps its name. | [Filesystem](Category-Filesystem) |
@@ -1363,15 +1363,15 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [SetCurrentDir](Modern-Fs-FileInfo-SetCurrentDir) | Changes the program's current folder, for every thread at once. | [Filesystem](Category-Filesystem) |
 | [SetDate](Setdate) | Sets the system date from text like mm-dd-yyyy; needs admin rights, 0 means success. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [SetEnviron](Setenviron) | Sets an environment variable from "NAME=value" text; returns 0 on success. | [Operating System Functions](Category-Operating-System-Functions) |
-| [SetHidden](Modern-Fs-SetHidden) | Sets or clears a file's hidden flag on Windows; fails as unsupported on Linux. | [Filesystem](Category-Filesystem) |
+| [SetHidden](Modern-Fs-SetHidden) | Sets or clears a file's hidden flag on Windows; fails as unsupported on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [SetIterator](Modern-Set-SetIterator) | Holds a position in a Set; changing a value through it loses that value. | [Set](Category-Set) |
 | [SetMouse](Setmouse) | Moves the mouse pointer, shows or hides it, or keeps it inside the window. | [User Input Functions (Graphics Library)](Category-User-Input-Functions-Graphics-Library) |
-| [SetPosixMode](Modern-Fs-SetPosixMode) | Sets a file's Linux permission bits; fails as unsupported on Windows. | [Filesystem](Category-Filesystem) |
-| [SetReadOnly](Modern-Fs-SetReadOnly) | Sets or clears a file's read-only flag, or its write bits on Linux. | [Filesystem](Category-Filesystem) |
+| [SetPosixMode](Modern-Fs-SetPosixMode) | Sets a file's permission bits on Linux and macOS; fails as unsupported on Windows. | [Filesystem](Category-Filesystem) |
+| [SetReadOnly](Modern-Fs-SetReadOnly) | Sets or clears a file's read-only flag, or its write bits on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [SetRoundingMode](Modern-Math-SetRoundingMode) | Sets the direction floating-point results are rounded in; returns true on success. | [Math Library](Category-Math-Library) |
 | [SetTime](Settime) | Sets the system time from text like hh:mm:ss; needs admin rights, 0 means success. | [Date and Time Functions](Category-Date-and-Time-Functions) |
 | [SetTimes](Modern-Fs-SetTimes) | Sets a file's modified and accessed times; a time of 0 leaves that one alone. | [Filesystem](Category-Filesystem) |
-| [SetWin32Attributes](Modern-Fs-SetWin32Attributes) | Replaces a file's whole Windows attribute word; fails as unsupported on Linux. | [Filesystem](Category-Filesystem) |
+| [SetWin32Attributes](Modern-Fs-SetWin32Attributes) | Replaces a file's whole Windows attribute word; fails as unsupported on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [Sgn](Sgn) | Returns -1, 0 or 1 for the sign of a number, in the number's own type. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [Shared](Shared) | Variable declaration modifier specifying visibility throughout a module. | [Variable Declarations](Category-Variable-Declarations) |
 | [Shared Libraries - DOS](Shared-Libraries-Dos) | A shared library is compiled code that can be loaded and used later when running an executable. | Programmer's Guide |
@@ -1626,7 +1626,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [VolumeInfo.IsCaseSensitive](Modern-Fs-VolumeInfo-IsCaseSensitive) | Returns true if names on this volume are case-sensitive. | [Filesystem](Category-Filesystem) |
 | [VolumeInfo.IsReadOnly](Modern-Fs-VolumeInfo-IsReadOnly) | Returns true if the whole volume is read-only. | [Filesystem](Category-Filesystem) |
 | [VolumeInfo.MaxComponentLen](Modern-Fs-VolumeInfo-MaxComponentLen) | Returns the longest file or folder name the volume allows, not the longest path. | [Filesystem](Category-Filesystem) |
-| [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) | Returns the volume's label, which may be empty and always is on Linux. | [Filesystem](Category-Filesystem) |
+| [VolumeInfo.Name](Modern-Fs-VolumeInfo-Name) | Returns the volume's label, which may be empty and always is on Linux and macOS. | [Filesystem](Category-Filesystem) |
 | [VolumeInfo.RootPath](Modern-Fs-VolumeInfo-RootPath) | Returns where the volume is mounted, such as C:\ or /. | [Filesystem](Category-Filesystem) |
 | [VolumeInfo.SupportsLinks](Modern-Fs-VolumeInfo-SupportsLinks) | Returns true if the volume can hold symbolic links; false is certain, true a best guess. | [Filesystem](Category-Filesystem) |
 

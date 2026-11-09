@@ -9,7 +9,7 @@ By the end you will be able to use the standard library, use a C library the too
 (SQLite), split your own program into modules, and choose how a C library is linked into it.
 
 **What you need:** a tiko toolchain. The commands below write `tiko`; use the full path to
-`tiko.exe` (Windows) or `tiko` (Linux) if it is not on your `PATH`. Every program in this tutorial
+`tiko.exe` (Windows) or `tiko` (Linux and macOS) if it is not on your `PATH`. Every program in this tutorial
 was compiled and run on windows-x86_64, and the output shown is the real output.
 
 ---
@@ -468,7 +468,7 @@ A C library comes in two forms, and you choose one for your program:
 
 | | `link static` | `link dynamic` |
 |---|---|---|
-| The library's code | is copied **into** your program | stays in its own file: `sqlite3.dll` on Windows, a `.so` on Linux |
+| The library's code | is copied **into** your program | stays in its own file: `sqlite3.dll` on Windows, a `.so` on Linux, a `.dylib` on macOS |
 | What you ship | one file: your program | your program **and** the library file beside it |
 | Program size | larger | smaller |
 | Updating the library | rebuild your program | replace the library file |
@@ -716,7 +716,7 @@ module main.textstats: hit
 ```
 
 **The build cache** keeps every module once it is compiled, in one directory shared by all your
-projects — `%LOCALAPPDATA%\tiko\modcache` on Windows, `~/.cache/tiko/modcache` on Linux. A module
+projects — `%LOCALAPPDATA%\tiko\modcache` on Windows, `~/.cache/tiko/modcache` on Linux and macOS. A module
 is rebuilt only when its source, its settings or something it imports changes. Nothing is written
 into your project. If you ever doubt it, `tiko --clean-module-cache` empties it; nothing is lost
 but the time to compile again.

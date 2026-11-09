@@ -2,7 +2,7 @@
 
 # Graphics and windows
 
-The functions to draw on a graphics screen, read the mouse, build GUI controls for Windows and Linux, grouped by what you want to do. The **From** column says what a program needs before it can call one:
+The functions to draw on a graphics screen, read the mouse, build GUI controls for Windows, Linux and macOS, grouped by what you want to do. The **From** column says what a program needs before it can call one:
 
 - **built-in**: nothing; it is always available.
 - `vendor/PsControls/<Name>`: `#import "vendor/PsControls/<Name>"`, then `using <Name>` to call it by its bare name.

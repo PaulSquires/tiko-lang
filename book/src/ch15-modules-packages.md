@@ -124,11 +124,13 @@ never becomes part of your API, so you are free to change it later.
 The difference between the last two is what each one means to the linker. Measured on the object
 `tiko -c` writes for a module named `gen` with one procedure at each level:
 
-| Level | Name in the object | Linux (ELF) | Windows (COFF) |
-|---|---|---|---|
-| `public` | `_ZN4MAIN3GEN3APIEv` | global | external |
-| module-private | `_ZN4MAIN3GEN7SHARED_Ev` | global, **hidden** | external |
-| `private` | `_ZN4MAIN3GEN7SECRET_Ev` | local | local |
+| Level | Name in the object | Linux (ELF) | Windows (COFF) | macOS (Mach-O) |
+|---|---|---|---|---|
+| `public` | `_ZN4MAIN3GEN3APIEv` | global | external | external |
+| module-private | `_ZN4MAIN3GEN7SHARED_Ev` | global, **hidden** | external | **private external** |
+| `private` | `_ZN4MAIN3GEN7SECRET_Ev` | local | local | non-external |
+
+Mach-O puts one more `_` in front of each name.
 
 Every name is spelled from the chain, so two packages' `Parse` procedures can never collide in
 the linker either. A module-private procedure is still an external symbol, because code compiled
@@ -490,7 +492,7 @@ module acme.text.pad: miss (define ACME_COLUMNS=4)
 ```
 
 **The cache** is one directory shared by every project of yours: `%LOCALAPPDATA%\tiko\modcache`
-on Windows, `~/.cache/tiko/modcache` on Linux (or under `$XDG_CACHE_HOME`), and wherever
+on Windows, `~/.cache/tiko/modcache` on Linux and macOS (or under `$XDG_CACHE_HOME`), and wherever
 `TIKO_MODCACHE` names if you set it. Nothing is written into the project, so there is nothing to
 add to `.gitignore`, and a module two projects build the same way is compiled once for both. A
 build with different settings is a different entry, as the third build shows. The key is the
