@@ -1,0 +1,330 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' designall -- the Form Designer's core, with no window: the file's round trip, validation, the
+' generator's output against a golden, the folder walk.
+'   designall            run everything, from src/design
+'   designall --accept   rewrite the golden from the generator
+' exit code = failures; last line "designall selftest: N passed, M failed"
+#import "std/containers"
+#import "std/fs"
+#import "tkd/model"
+#import "tkd/formfile"
+#import "tkd/validate"
+#import "tkd/codegen"
+#import "tkd/formtree"
+#import "vendor/tkControls/tkLayout"
+using containers
+using model
+using tkLayout
+
+const as string LF = chr( 10 )
+const as string CRLF = chr( 13, 10 )
+
+dim shared as long gPass, gFail
+
+sub Check( byval ok as boolean, byref what as const ustring, byref detail as const ustring = "" )
+    if ok then
+        gPass += 1
+    else
+        gFail += 1
+        print "FAIL "; what;
+        if len( detail ) then print " -- "; detail else print
+    end if
+end sub
+
+function Header( ) as ustring
+    return "format = 1" & LF & LF & "[form]" & LF & "caption = ""F""" & LF & "width = 300" & LF & "height = 200" & LF
+end function
+
+function Ctl( byref name_ as const ustring, byref type_ as const ustring, byref rest as const ustring = "" ) as ustring
+    return LF & "[[control]]" & LF & "name = """ & name_ & """" & LF & "type = """ & type_ & """" & LF & rest
+end function
+
+function ReadForm( byref text as const ustring, byref doc as FormDoc ) as boolean
+    dim as ustring e
+    return formfile.Parse( text, doc, e )
+end function
+
+function ProblemsOf( byref text as const ustring, byref moduleName as const ustring = "frmTest" ) as Array( of ustring )
+    dim as FormDoc doc
+    dim as Array( of ustring ) out_
+    dim as ustring e
+    if formfile.Parse( text, doc, e ) = false then
+        out_.Push( "parse: " & e )
+        return out_
+    end if
+    validate.Check( doc, moduleName, out_ )
+    return out_
+end function
+
+' `text` must be refused with a problem containing `want`.
+sub Refused( byref text as const ustring, byref want as const ustring, byref moduleName as const ustring = "frmTest" )
+    dim as Array( of ustring ) p = ProblemsOf( text, moduleName )
+    dim as boolean found = false
+    for each s as ustring in p
+        if instr( s, want ) then found = true
+    next
+    dim as ustring got = "(none)"
+    if p.Count( ) then got = p[0]
+    Check( found, "refused: " & want, got )
+end sub
+
+sub Accepted( byref text as const ustring, byref what as const ustring )
+    dim as Array( of ustring ) p = ProblemsOf( text )
+    dim as ustring got
+    if p.Count( ) then got = p[0]
+    Check( p.Count( ) = 0, "accepted: " & what, got )
+end sub
+
+sub RoundTrip( byref golden as const ustring )
+    dim as FormDoc d1
+    Check( ReadForm( golden, d1 ), "the golden form parses" )
+    dim as ustring t1 = formfile.Render( d1 )
+    Check( t1 = golden, "canonical text comes back byte for byte", left( t1, 300 ) )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "and again" )
+
+    Check( d1.Caption = "Say ""hi""" & LF & "Two", "escapes in a string", d1.Caption )
+    Check( d1.Controls.Count( ) = 11, "every control read", str( d1.Controls.Count( ) ) )
+    dim as long i = FindControl( d1, "btnGo" )
+    Check( d1.Controls[i].Anchor = (TK_ANCHOR_RIGHT or TK_ANCHOR_BOTTOM), "anchor words" )
+    Check( FindControl( d1, "BTNGO" ) = i, "names found without regard to case" )
+    Check( d1.Controls[FindControl( d1, "lblNote" )].Anchor = TK_ANCHOR_NONE, "anchor none" )
+    Check( d1.Controls[FindControl( d1, "tabs" )].Dock = TK_DOCK_FILL, "dock word" )
+    Check( d1.Controls[FindControl( d1, "tabs" )].Pages.Count( ) = 3, "pages list" )
+    Check( d1.Orphans.Count( ) = 1, "orphan read" )
+
+    ' Key order, defaults, CRLF and quoting style in: one spelling out.
+    dim as ustring messy = "format = 1" & CRLF & "[form]" & CRLF & "height = 200" & CRLF & "width = 300" & CRLF _
+        & "caption = 'F'" & CRLF & "[[control]]" & CRLF & "type = ""Button""" & CRLF & "name = ""b""" & CRLF _
+        & "anchor = ""top left""" & CRLF & "dock = ""none""" & CRLF & "[control.props]" & CRLF _
+        & "Font = ""MONO""" & CRLF & "TextAlign = ""Left""" & CRLF & "Enabled = true" & CRLF & "Text = ""x""" & CRLF
+    dim as FormDoc d3
+    ReadForm( messy, d3 )
+    dim as ustring t3 = formfile.Render( d3 )
+    dim as ustring want3 = Header( ) & Ctl( "b", "Button", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 0" & LF & "h = 0" & LF ) _
+        & LF & "[control.props]" & LF & "Enabled = true" & LF & "Text = ""x""" & LF & "TextAlign = ""Left""" & LF & "Font = ""MONO""" & LF
+    Check( t3 = want3, "a messy file gets the one spelling", t3 )
+
+    ' Awkward values survive.
+    dim as FormDoc d4
+    d4.Caption = "back\slash ""q"" tab" & chr( 9 ) & "nl" & LF & "bell" & chr( 7 ) & " Ü"
+    dim as ustring t4 = formfile.Render( d4 )
+    dim as FormDoc d5
+    Check( ReadForm( t4, d5 ), "awkward text parses", t4 )
+    Check( d5.Caption = d4.Caption, "awkward text survives", d5.Caption )
+
+    ' A float stays a float.
+    dim as FormDoc d6
+    dim as FormControl onlyOne
+    d6.Controls.Push( onlyOne )
+    PutSetting( d6.Controls[0].Props, "Ratio", "2", VALUE_FLOAT )
+    Check( instr( formfile.Render( d6 ), "Ratio = 2.0" ) > 0, "a whole float keeps its point", formfile.Render( d6 ) )
+
+    dim as FormDoc d7
+    dim as ustring e
+    Check( formfile.Parse( "format = 2", d7, e ) = false, "a newer format is refused" )
+    Check( instr( e, "format 2" ) > 0, "and says so", e )
+    dim as FormDoc d8
+    Check( formfile.Parse( "not toml [", d8, e ) = false, "malformed text is refused" )
+    Check( instr( e, "line 1" ) > 0, "with a position", e )
+end sub
+
+sub Validation( )
+    dim as ustring b = Header( )
+    Accepted( b, "an empty form" )
+    Accepted( b & Ctl( "btnOK", "Button" ), "a button" )
+
+    Refused( b & Ctl( "1btn", "Button" ), "not an identifier" )
+    Refused( b & Ctl( "my btn", "Button" ), "not an identifier" )
+    Refused( b & Ctl( "", "Button" ), "not an identifier" )
+    Refused( b & Ctl( "Dim", "Button" ), "reserved word" )
+    Refused( b & Ctl( "print", "Button" ), "reserved word" )
+    Refused( b & Ctl( "Wnd", "Button" ), "member of every form" )
+    Refused( b & Ctl( "layout", "Button" ), "member of every form" )
+    Refused( b & Ctl( "BUILD", "Button" ), "member of every form" )
+    Refused( b & Ctl( "CheckBox", "Button" ), "control type or module" )
+    Refused( b & Ctl( "tkbutton", "Button" ), "control type or module" )
+    Refused( b & Ctl( "frmTest", "Button" ), "same name as its form" )
+    Refused( b & Ctl( "a", "Button" ) & Ctl( "A", "Label" ), "duplicate" )
+    Refused( b & Ctl( "a", "Sprocket" ), "unknown control type" )
+    Refused( b, "can't be a module name", "Form" )
+    Refused( b, "not an identifier", "my form" )
+
+    Refused( b & Ctl( "a", "Button", "w = -1" & LF ), "negative" )
+    Refused( "format = 1" & LF & "[form]" & LF & "width = 0" & LF, "must be positive" )
+    Refused( b & Ctl( "a", "Button", "anchor = ""sideways""" & LF ), "bad anchor" )
+    Refused( b & Ctl( "a", "Button", "dock = ""middle""" & LF ), "bad dock" )
+    Refused( b & Ctl( "a", "Button", "colour = 1" & LF ), "unknown key" )
+    Refused( "bogus = 1" & LF & b, "unknown key" )
+
+    Refused( b & Ctl( "a", "Button", "parent = ""x""" & LF ), "doesn't exist" )
+    Refused( b & Ctl( "a", "Button", "parent = ""p""" & LF ) & Ctl( "p", "Panel" ), "must come before" )
+    Refused( b & Ctl( "p", "Button" ) & Ctl( "a", "Button", "parent = ""p""" & LF ), "can't hold controls" )
+    Accepted( b & Ctl( "p", "Panel" ) & Ctl( "a", "Button", "parent = ""p""" & LF ), "a child of a panel" )
+    Refused( b & Ctl( "a", "Button", "page = 0" & LF ), "only applies inside" )
+    Refused( b & Ctl( "p", "Panel" ) & Ctl( "a", "Button", "parent = ""p""" & LF & "page = 0" & LF ), "only applies inside" )
+    Refused( b & Ctl( "c", "Button", "pages = [""x""]" & LF ), "only applies to a tab" )
+    dim as ustring tabbed = b & Ctl( "t", "TabControl", "pages = [""x""]" & LF )
+    Refused( tabbed & Ctl( "a", "Button", "parent = ""t""" & LF ), "doesn't exist on" )
+    Refused( tabbed & Ctl( "a", "Button", "parent = ""t""" & LF & "page = 1" & LF ), "doesn't exist on" )
+    Accepted( tabbed & Ctl( "a", "Button", "parent = ""t""" & LF & "page = 0" & LF ), "a child on a page" )
+
+    dim as ustring props = LF & "[control.props]" & LF
+    Refused( b & Ctl( "a", "Button" ) & props & "Nope = 1" & LF, "no property" )
+    Refused( b & Ctl( "a", "Button" ) & props & "Text = 1" & LF, "must be a string" )
+    Refused( b & Ctl( "a", "Button" ) & props & "Default = ""yes""" & LF, "true or false" )
+    Refused( b & Ctl( "a", "Button" ) & props & "Enabled = 1" & LF, "true or false" )
+    Refused( b & Ctl( "a", "Button" ) & props & "CornerCurvature = 1.5" & LF, "whole number" )
+    Refused( b & Ctl( "a", "Button" ) & props & "TextAlign = ""Middle""" & LF, "must be one of" )
+    Refused( b & Ctl( "a", "Button" ) & props & "Font = ""HUGE""" & LF, "font role" )
+    Refused( b & Ctl( "a", "Label" ) & props & "TextColor = ""red""" & LF, "colour" )
+    Accepted( b & Ctl( "a", "Label" ) & props & "TextColor = ""&hFF00FF00""" & LF, "a colour" )
+    Refused( b & Ctl( "a", "ProgressBar" ) & props & "Orientation = ""Up""" & LF, "must be one of" )
+    Accepted( b & Ctl( "a", "ProgressBar" ) & props & "Orientation = ""Vertical""" & LF, "a creation choice" )
+
+    dim as ustring ev = LF & "[control.events]" & LF
+    Refused( b & Ctl( "a", "Button" ) & ev & "Nope = ""a_x""" & LF, "no event" )
+    Refused( b & Ctl( "a", "Button" ) & ev & "Click = ""1x""" & LF, "not an identifier" )
+    Refused( b & Ctl( "a", "Button" ) & ev & "Click = ""Show""" & LF, "member of every form" )
+    Refused( b & Ctl( "a", "Button" ) & ev & "Click = ""a""" & LF, "same name as a control" )
+    Accepted( b & Ctl( "a", "Button" ) & ev & "Click = ""H""" & LF & Ctl( "c", "Button" ) & ev & "Click = ""H""" & LF, "a shared handler" )
+    Refused( b & Ctl( "a", "Button" ) & ev & "Click = ""H""" & LF & Ctl( "c", "CheckBox" ) & ev & "CheckChanged = ""H""" & LF, "different parameters" )
+    Refused( b & LF & "[form.events]" & LF & "Spin = ""S""" & LF, "no event" )
+end sub
+
+' From `a` to the end of its line.
+function LineWith( byref text as const ustring, byref a as const ustring ) as ustring
+    dim as long i = instr( text, a )
+    if i = 0 then return ""
+    return mid( text, i, instr( i, text, LF ) - i )
+end function
+
+' `line` must be the whole of the line starting with its first 24 characters.
+sub HasLine( byref text as const ustring, byref l as const ustring, byref what as const ustring )
+    Check( instr( text, "    " & l & LF ) > 0, what, LineWith( text, left( l, 24 ) ) )
+end sub
+
+sub Generator( byref source as const ustring, byval bAccept as boolean )
+    const as string goldenDir = "tests/golden/frmGolden/"
+    dim as FormDoc doc
+    ReadForm( source, doc )
+    dim as Array( of ustring ) p
+    validate.Check( doc, "frmGolden", p )
+    dim as ustring first_
+    if p.Count( ) then first_ = p[0]
+    Check( p.Count( ) = 0, "the golden form validates", first_ )
+    dim as ustring t = codegen.Generate( doc, "frmGolden", "frmGolden.tkform", source )
+    if bAccept then fs.WriteAllText( goldenDir & "frmGolden.design.tiko", t )
+    dim as ustring none
+    dim as ustring golden = fs.ReadAllText( goldenDir & "frmGolden.design.tiko" ).ValueOr( none )
+    Check( t = golden, "the generator matches its golden", len( t ) & " vs " & len( golden ) )
+    Check( codegen.Generate( doc, "frmGolden", "frmGolden.tkform", source ) = t, "the same form gives the same text" )
+
+    ' The rules the golden stands for, spelled out so a careless --accept still shows.
+    Check( instr( t, "public partial type Form extends FormBase" ) > 0, "the partial type" )
+    HasLine( t, "OpenWindow( ""Say """"hi"""""" & chr( 10 ) & ""Two"", 300, 200, owner )", "the caption is a tiko string" )
+    HasLine( t, "btnGo.TextAlign = BTN_ALIGN_RIGHT", "an enum becomes its constant" )
+    HasLine( t, "btnGo.Font = tkForm_Font( Wnd, TKFONT_UI_BOLD )", "a font role" )
+    HasLine( t, "lblNote.TextColor = &hFF336699ul", "a colour" )
+    HasLine( t, "txtBody.Create( tkTabControl_GetPage( tabs.Handle, 1 ), 5, true )", "created on a page, with its choice" )
+    HasLine( t, "pbFill.Create( grp.Handle, 7, PRG_VERTICAL )", "an enum creation choice" )
+    Check( instr( t, "Multiline =" ) = 0, "a creation choice is not assigned" )
+    HasLine( t, "tkLayout_Add( Layout, lblNote.Handle, 4, 32, 80, 24, TK_ANCHOR_NONE )", "anchor none" )
+    HasLine( t, "tkLayout_Add( Layout, tabs.Handle, 0, 0, 10, 10, TK_ANCHOR_LEFT or TK_ANCHOR_TOP, TK_DOCK_FILL )", "a dock" )
+    ' a docked panel's children are laid out against the docked size: its 100 by the form's 200
+    HasLine( t, "tkLayout_AddContainer( Layout, pnlSide.Handle, 100, 200 )", "a docked container's size" )
+    ' the tabs fill 200 by 200, less TabHeight's 24
+    HasLine( t, "tkLayout_AddContainer( Layout, tkTabControl_GetPage( tabs.Handle, 0 ), 200, 176 )", "a page's size" )
+    ' docked on a page: its 30 by the page's height, not the tab control's
+    HasLine( t, "tkLayout_AddContainer( Layout, pnlOnPage.Handle, 30, 176 )", "a container docked on a page" )
+    Check( instr( t, "tkTabControl_GetPage( tabs.Handle, 2 ), 200" ) = 0, "a page with no children isn't a container" )
+    HasLine( t, "tkLayout_AddContainer( Layout, grp.Handle, 100, 60, @tkGroupBox_GetClientRect )", "a group box gives its client area" )
+    HasLine( t, "tkLayout_AddContainer( Layout, tkScrollPanel_GetPanel( scp.Handle ), 50, 50 )", "a scroll panel's children are on its panel" )
+    dim as long nDecl = 0, at_ = 1
+    do
+        at_ = instr( at_, t, "declare sub Shared_Click" )
+        if at_ = 0 then exit do
+        nDecl += 1
+        at_ += 1
+    loop
+    Check( nDecl = 1, "a shared handler is declared once", str( nDecl ) )
+    Check( instr( t, "declare sub Gone_Click( byval x as long )" ) > 0, "an orphan keeps its declaration" )
+    Check( instr( t, "if f then f->Shared_Click( )" ) > 0, "the thunk calls the handler" )
+    Check( instr( t, "tkForms_ObjectOf( hButton )" ) > 0, "the thunk checks the form" )
+    Check( instr( t, chr( 13 ) ) = 0, "LF line ends" )
+
+    Check( codegen.SourceHash( "a" & CRLF & "b" ) = codegen.SourceHash( "a" & LF & "b" ), "line ends don't change the hash" )
+    Check( codegen.SourceHash( "a" ) <> codegen.SourceHash( "b" ), "content does" )
+    Check( len( codegen.SourceHash( "a" ) ) = 16, "a short hash" )
+end sub
+
+sub Tree( )
+    const as string root_ = "tests/bin/tree"
+    fs.RemoveDirAll( root_ )
+    fs.CreateDirAll( root_ & "/a/frmOne" )
+    fs.CreateDirAll( root_ & "/out/frmSkip" )
+    fs.CreateDirAll( root_ & "/bad" )
+    dim as ustring good = Header( ) & Ctl( "c", "Button" )
+    fs.WriteAllText( root_ & "/a/frmOne/frmOne.tkform", good )
+    fs.WriteAllText( root_ & "/out/frmSkip/frmSkip.tkform", good )
+
+    dim as Array( of ustring ) r1
+    Check( formtree.Process( root_, false, r1 ) = 1, "check: a missing file is stale" )
+    dim as ustring first_
+    if r1.Count( ) then first_ = r1[0]
+    Check( instr( first_, "frmOne.design.tiko: stale" ) > 0, "and it's named", first_ )
+    dim as Array( of ustring ) r2
+    Check( formtree.Process( root_, true, r2 ) = 0, "generate succeeds" )
+    Check( fs.IsFile( root_ & "/a/frmOne/frmOne.design.tiko" ), "the file is there" )
+    Check( fs.IsFile( root_ & "/out/frmSkip/frmSkip.design.tiko" ) = false, "out/ is skipped" )
+    dim as Array( of ustring ) r3
+    Check( formtree.Process( root_, false, r3 ) = 0, "check: now clean" )
+    dim as Array( of ustring ) r4
+    formtree.Process( root_, true, r4 )
+    Check( r4.Count( ) = 0, "generate again changes nothing" )
+
+    ' Line ends the checkout changed aren't drift.
+    dim as ustring none
+    dim as ustring asLf = fs.ReadAllText( root_ & "/a/frmOne/frmOne.design.tiko" ).ValueOr( none )
+    dim as ustring asCrlf
+    for i as long = 1 to len( asLf )
+        if mid( asLf, i, 1 ) = LF then asCrlf &= CRLF else asCrlf &= mid( asLf, i, 1 )
+    next
+    fs.WriteAllText( root_ & "/a/frmOne/frmOne.design.tiko", asCrlf )
+    dim as Array( of ustring ) r5
+    Check( formtree.Process( root_, false, r5 ) = 0, "CRLF in the checkout isn't drift" )
+
+    ' Any edit to the form makes the generated file stale.
+    fs.WriteAllText( root_ & "/a/frmOne/frmOne.tkform", good & "x = 5" & LF )
+    dim as Array( of ustring ) r6
+    Check( formtree.Process( root_, false, r6 ) = 1, "a changed form is stale" )
+
+    ' A form that doesn't validate is reported and leaves no file.
+    fs.WriteAllText( root_ & "/bad/frmBad.tkform", Header( ) & Ctl( "Dim", "Button" ) )
+    dim as Array( of ustring ) r7
+    Check( formtree.Process( root_, true, r7 ) = 1, "a bad form is one problem" )
+    dim as boolean named = false
+    for each s as ustring in r7
+        if instr( s, "reserved word" ) then named = true
+    next
+    Check( named, "which says why" )
+    Check( fs.IsFile( root_ & "/bad/frmBad.design.tiko" ) = false, "and writes nothing" )
+end sub
+
+dim as boolean bAccept = (command( 1 ) = "--accept")
+dim as ustring none
+dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
+Check( len( source ) > 0, "the golden form was found (run from src/design)" )
+RoundTrip( source )
+Validation( )
+Generator( source, bAccept )
+Tree( )
+print "designall selftest: "; gPass; " passed, "; gFail; " failed"
+end gFail
