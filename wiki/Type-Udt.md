@@ -88,6 +88,7 @@ The main structure (Type/Union) must be always named, the other (nested) structu
 
 - [`Type (Alias)`](Type-Alias)
 - [`Type (Temporary)`](Type-Temporary)
+- [`Partial`](Partial)
 - [`Union`](Union)
 - [`Enum`](Enum)
 - [`TypeOf`](Typeof)

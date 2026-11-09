@@ -110,6 +110,7 @@ FBC-Modern's extensions added these words without reserving them, so existing co
 | `in` | `for each x in …` |
 | `of` | type arguments: `Array( of int32 )` (Chapter 17) |
 | `override` | after a method's declaration: `declare sub M( ) override` (Chapter 14) |
+| `partial` | `partial type` and `partial class`, one type in several blocks (Chapter 15) |
 | `receive` | `case receive` in `select channel` |
 | `send` | `case send v to ch` in `select channel` |
 | `spawn` | `spawn Proc( args )` (Chapter 23) |

@@ -368,7 +368,8 @@ peek.tiko(3,17): error TKO0860: 'words_' is not public in module 'main.textstats
 
 - **A module can be several files.** Put more `.tiko` files in `textstats/`, each starting with
   `#module "textstats"`. They are compiled together and see each other's names, in any order,
-  with no `declare` lines between them.
+  with no `declare` lines between them. One [partial type](Category-Partial-Types) can even have a
+  part in each file.
 - **Imports belong to the file that writes them.** `textstats.tiko` imports `std/strings` for
   itself; `main.tiko` imports it again because it calls `strings.Format` too. A second file of the
   module that wants `strings` writes its own `#import`.

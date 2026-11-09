@@ -22,6 +22,8 @@ print p.Sum( )      ' 7
 
 `partial type` writes one type in several blocks, and `partial class` does the same for a [class](Category-Interfaces). The compiler pools the blocks into a single type before anything else looks at it, so every other part of the language sees one ordinary type.
 
+For the syntax on one page, see [`Partial`](Partial).
+
 ## Why It Exists
 
 Some types have two authors. A form designer writes a form's controls and event declarations, and a person writes the form's own data and helper methods. With one block, the tool has to edit text the person owns. With two blocks, each keeps to its own, and the tool can rewrite its half at any time.

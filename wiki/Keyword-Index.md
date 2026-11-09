@@ -1202,6 +1202,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Pairs](Modern-Map-Pairs) | Returns a view that lets for each (k, v) give each key and value as two variables. | [Map](Category-Map) |
 | [Palette](Palette) | Sets or reads the colours of a palette mode, or restores the default palette. | [2D Drawing Functions](Category-2D-Drawing-Functions) |
 | [Parity](Modern-Math-Parity) | Returns 1 if an odd number of bits are set, or 0 if an even number are. | [Math Library](Category-Math-Library) |
+| [Partial](Partial) | Writes one `type` or `class` in several blocks of one compilation unit. | [Partial Types](Category-Partial-Types) |
 | [pascal](Pascal) | Specifies a Pascal-style calling convention in a procedure declaration. | [Procedures](Category-Procedures) |
 | [PathChangeExtension](Modern-Fs-PathChangeExtension) | Replaces a path's extension, or removes it when the new one is empty. | [Filesystem](Category-Filesystem) |
 | [PathEquals](Modern-Fs-PathEquals) | Returns true if two paths match once normalised; case-insensitive on Windows. | [Filesystem](Category-Filesystem) |

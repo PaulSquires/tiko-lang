@@ -182,6 +182,78 @@ so each file says where its own names come from. A sibling file that writes `uti
 file that did import it: `'util' is imported by another file of this module; an import belongs to
 the file that writes it`.
 
+## One type across several files
+
+A module's files can share procedures, constants and types, but each type is still one block in
+one file. That stops working when a type has two authors. A form designer or a protocol compiler
+writes fields and method declarations; you write the data and methods of your own. If the two
+share a block, the tool has to edit text you own every time it runs, and one bad merge loses your
+work.
+
+`partial type` lets one type be written in several blocks. Here a tool owns one file of a module
+and you own the other:
+
+```tiko
+{{#include ../examples/ch15/orderform/orderform.gen.tiko}}
+```
+
+```tiko
+{{#include ../examples/ch15/orderform/orderform.tiko}}
+```
+
+```tiko
+{{#include ../examples/ch15/partialform.tiko}}
+```
+
+```text
+{{#include ../examples/ch15/partialform.out}}
+```
+
+The compiler combines the blocks into one `Form` before anything else reads them, so a program
+importing the module sees an ordinary type, and `sizeof` counts the fields of both parts.
+`Submit_Click` is declared by the tool's part and has its body in your file, where it uses `Total`
+from the tool's part and `Clicks` from yours. Because the tool writes only its own file, it can
+rewrite that file whenever it likes.
+
+The rules are short:
+
+- **Every block says `partial`.** A `partial type` and an ordinary `type` of one name are refused
+  with `TKO1063`.
+- **The parts live in one compilation unit**: one source file with its includes, or the files of
+  one module. They are at module or namespace level, in the same namespace.
+- **`public` on any part makes the type public.** The other parts need not repeat it, which is why
+  your file above says only `partial type`. `public` on one part and `private` on another is an
+  error.
+- **Each header clause is given once.** `extends`, `inherits`, `field` and `implements` may each
+  appear on one part, whichever part that is, and apply to the whole type.
+- **A part can be methods alone**, as long as the whole type has a field.
+- **A generic type cannot be partial.** A generic is re-read for each instantiation, from one place
+  in the source.
+
+`partial` is a keyword only directly before `type` or `class`. A variable or procedure can still be
+called `partial`.
+
+`partial class` does the same for a class. A class with no `inherits` line takes `object` as its
+base, so the parts that say nothing simply take whatever base another part names:
+
+```tiko
+{{#include ../examples/ch15/partialclass.tiko}}
+```
+
+```text
+{{#include ../examples/ch15/partialclass.out}}
+```
+
+The base's fields come first in the layout, wherever `inherits` was written.
+
+````admonish danger title="Pitfall"
+Fields are laid out part by part, and a module's files are read in sorted order of their names.
+`orderform.gen.tiko` sorts first, so its fields come first. Rename it `zform.gen.tiko` and `Clicks`
+moves to the front of `Form`. Nothing warns you, and every field still works by name. It matters
+only when something depends on the layout: a record you write to a file with `put`, or a `Form ptr`
+passed to C. When layout matters, keep every field in one part.
+````
+
 ## Importing
 
 `#import` has two optional parts, and the imported names can be brought into scope with `using`:
@@ -637,6 +709,8 @@ once.
   (`TKO0360`, `TKO0361`). `#import "./greet"` comes before any code (`TKO0362`) and binds `greet`.
 - **Module-private is the default.** `public` exports; `private` keeps a name inside the module's
   object. Names are spelled from the module's chain, so they never collide in the linker either.
+- **`partial type` and `partial class` write one type in several blocks**, usually two files of one
+  module, so a tool's half and yours never edit each other's text. Fields follow file-name order.
   Reaching a module-private name is `TKO0860`.
 - **Inside a module, declaration order does not matter**, across files or within one. Macros do
   not cross between its files.
