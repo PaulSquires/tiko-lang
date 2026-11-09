@@ -23,6 +23,7 @@ public type TKPICTURE_STATE
     hWin          as TK_WIDGET ptr
     id            as long
     pOwned        as tkImageFile ptr
+    sFile         as ustring
     pBorrowed     as tkImageFile ptr
     nFit          as long = TK_IMGFIT_ASPECT
     clrBack       as ulong
@@ -100,10 +101,18 @@ public function tkPicture_SetFile( byval h as TK_WIDGET ptr, byref path as const
     dim as TKPICTURE_STATE ptr p = GetPicturePointer( h )
     if p = 0 then return false
     p->pBorrowed = 0
+    p->sFile = path
     if p->pOwned = 0 then p->pOwned = new tkImageFile
     dim as boolean ok = (p->pOwned->Load( path ) <> 0)
     tkWidget_Invalidate( h )
     return ok
+end function
+
+' The last path given to tkPicture_SetFile, whether or not it loaded.
+public function tkPicture_GetFile( byval h as TK_WIDGET ptr ) as ustring
+    dim as TKPICTURE_STATE ptr p = GetPicturePointer( h )
+    if p = 0 then return ""
+    return p->sFile
 end function
 
 ' Borrowed: the image must outlive the picture, or be replaced first. 0 empties the picture.
