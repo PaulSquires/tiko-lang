@@ -125,6 +125,7 @@ choose_compiler = "接下来请选择编译器（{0}）。tkEdit 会将它保存
 
 [message]
 not_available = "{}：尚不可用"
+form_as_text = "无法显示为窗体，已作为文本打开"
 compiler_not_saved = "{} 无法解析：已使用该编译器，但未保存"
 build_not_saved = "{0} 无法解析：{1} 未保存为默认值"
 menu_not_saved = "{} 无法解析：show_menu 未保存"

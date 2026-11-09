@@ -123,6 +123,7 @@ choose_compiler = "Wählen Sie als Nächstes den Compiler ({0}). tkEdit speicher
 
 [message]
 not_available = "{}: noch nicht verfügbar"
+form_as_text = "kann nicht als Formular angezeigt werden; als Text geöffnet"
 compiler_not_saved = "{} ist nicht lesbar: der Compiler wird verwendet, aber nicht gespeichert"
 build_not_saved = "{0} ist nicht lesbar: {1} wird nicht als Standard gespeichert"
 menu_not_saved = "{} ist nicht lesbar: show_menu wird nicht gespeichert"

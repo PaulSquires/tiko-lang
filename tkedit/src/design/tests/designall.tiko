@@ -17,6 +17,8 @@
 #import "tkd/validate"
 #import "tkd/codegen"
 #import "tkd/formtree"
+#import "tkd/canvas"
+#import "tkd/edits"
 #import "vendor/tkControls/tkLayout"
 using containers
 using model
@@ -318,6 +320,174 @@ sub Tree( )
     Check( fs.IsFile( root_ & "/bad/frmBad.design.tiko" ) = false, "and writes nothing" )
 end sub
 
+function Names( byval a as ustring, byval b as ustring = "", byval c_ as ustring = "" ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    r.Push( a )
+    if len( b ) then r.Push( b )
+    if len( c_ ) then r.Push( c_ )
+    return r
+end function
+
+function Order( byref d as FormDoc ) as ustring
+    dim as ustring s
+    for i as long = 0 to d.Controls.Count( ) - 1
+        s &= d.Controls[i].Name & " "
+    next
+    return rtrim( s )
+end function
+
+sub EditsSuite( )
+    Check( edits.Snap( 13, 8 ) = 16, "snap up" )
+    Check( edits.Snap( 11, 8 ) = 8, "snap down" )
+    Check( edits.Snap( -13, 8 ) = -16, "snap negative" )
+    Check( edits.Snap( 13, 1 ) = 13, "a grid of 1 is no grid" )
+
+    dim as FormDoc d
+    d.ClientW = 300 : d.ClientH = 200
+    Check( edits.AddControl( d, "Sprocket", "", -1, 0, 0, 1, 1 ) = -1, "an unknown type isn't added" )
+    dim as long i = edits.AddControl( d, "Button", "", -1, 8, 8, 80, 24 )
+    Check( d.Controls[i].Name = "Button1", "named after its type", d.Controls[i].Name )
+    Check( SettingOr( d.Controls[i].Props, "Text" ) = "Button1", "its text is its name" )
+    edits.AddControl( d, "Button", "", -1, 8, 40, 80, 24 )
+    Check( d.Controls[1].Name = "Button2", "the next number" )
+    i = edits.AddControl( d, "TabControl", "", -1, 100, 8, 150, 150 )
+    Check( d.Controls[i].Pages.Count( ) = 1, "a tab control starts with a page" )
+    Check( SettingOr( d.Controls[i].Props, "Text", "none" ) = "none", "and has no Text" )
+
+    ' z-order: a block moves with its children, and parents stay ahead of them
+    dim as FormDoc z
+    z.ClientW = 300 : z.ClientH = 200
+    edits.AddControl( z, "Panel", "", -1, 0, 0, 100, 100 )    ' Panel1
+    edits.AddControl( z, "Label", "Panel1", -1, 0, 0, 10, 10 ) ' Label1 inside it
+    edits.AddControl( z, "Button", "", -1, 0, 0, 10, 10 )     ' Button1
+    edits.AddControl( z, "Panel", "", -1, 0, 0, 10, 10 )      ' Panel2
+    edits.BringToFront( z, Names( "Panel1" ) )
+    Check( Order( z ) = "Button1 Panel2 Panel1 Label1", "to the front, with its child", Order( z ) )
+    edits.SendToBack( z, Names( "Panel1" ) )
+    Check( Order( z ) = "Panel1 Label1 Button1 Panel2", "to the back, with its child", Order( z ) )
+    edits.BringToFront( z, Names( "Panel1", "Button1" ) )
+    Check( Order( z ) = "Panel2 Panel1 Label1 Button1", "several keep their order", Order( z ) )
+    edits.SendToBack( z, Names( "Panel1", "Button1" ) )
+    Check( Order( z ) = "Panel1 Label1 Button1 Panel2", "to the back, keeping their order", Order( z ) )
+    edits.BringToFront( z, Names( "Label1" ) )
+    Check( Order( z ) = "Panel1 Button1 Panel2 Label1", "front among its siblings stays after its parent", Order( z ) )
+
+    ' delete takes what's inside
+    dim as FormDoc dl = z
+    edits.DeleteControls( dl, Names( "Panel1" ) )
+    Check( Order( dl ) = "Button1 Panel2", "delete takes the children", Order( dl ) )
+
+    ' top level of a selection
+    dim as Array( of ustring ) tops = edits.TopLevelOf( z, Names( "Panel1", "Label1" ) )
+    Check( (tops.Count( ) = 1) andalso (tops[0] = "Panel1"), "a child selected with its parent isn't top level" )
+
+    ' align
+    dim as FormDoc a
+    a.ClientW = 300 : a.ClientH = 200
+    edits.AddControl( a, "Button", "", -1, 10, 20, 100, 30 )
+    edits.AddControl( a, "Button", "", -1, 50, 60, 40, 10 )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignRights )
+    Check( a.Controls[1].X = 70, "align rights", str( a.Controls[1].X ) )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignCenters )
+    Check( a.Controls[1].X = 40, "align centres", str( a.Controls[1].X ) )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignLefts )
+    Check( a.Controls[1].X = 10, "align lefts" )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignBottoms )
+    Check( a.Controls[1].Y = 40, "align bottoms", str( a.Controls[1].Y ) )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignMiddles )
+    Check( a.Controls[1].Y = 30, "align middles", str( a.Controls[1].Y ) )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignTops )
+    Check( a.Controls[1].Y = 20, "align tops" )
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.SameSize )
+    Check( (a.Controls[1].W = 100) andalso (a.Controls[1].H = 30), "same size" )
+    Check( (a.Controls[0].X = 10) andalso (a.Controls[0].W = 100), "the reference doesn't move" )
+    a.Controls[1].Dock = TK_DOCK_TOP
+    a.Controls[1].Y = 77
+    edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignTops )
+    Check( a.Controls[1].Y = 77, "a docked control isn't aligned" )
+
+    ' resizing moves what's anchored inside, at every depth
+    dim as FormDoc r
+    r.ClientW = 300 : r.ClientH = 200
+    edits.AddControl( r, "Panel", "", -1, 10, 10, 100, 100 )
+    r.Controls[0].Anchor = TK_ANCHOR_LEFT or TK_ANCHOR_TOP or TK_ANCHOR_RIGHT
+    edits.AddControl( r, "Button", "Panel1", -1, 60, 10, 30, 20 )
+    r.Controls[1].Anchor = TK_ANCHOR_RIGHT or TK_ANCHOR_TOP
+    edits.AddControl( r, "Label", "Panel1", -1, 5, 5, 20, 20 )
+    edits.AddControl( r, "Button", "", -1, 200, 170, 80, 24 )
+    r.Controls[3].Anchor = TK_ANCHOR_RIGHT or TK_ANCHOR_BOTTOM
+    edits.ResizeForm( r, 340, 220 )
+    Check( (r.ClientW = 340) andalso (r.ClientH = 220), "the form's size" )
+    Check( (r.Controls[3].X = 240) andalso (r.Controls[3].Y = 190), "right and bottom anchored follow the form", r.Controls[3].X & "," & r.Controls[3].Y )
+    Check( r.Controls[0].W = 140, "a stretching panel stretches", str( r.Controls[0].W ) )
+    Check( r.Controls[1].X = 100, "and what's right-anchored in it moves", str( r.Controls[1].X ) )
+    Check( r.Controls[2].X = 5, "and what's left-anchored in it doesn't" )
+    edits.ResizeControl( r, 0, 10, 10, 120, 100 )
+    Check( r.Controls[1].X = 80, "resizing a control takes its children too", str( r.Controls[1].X ) )
+    edits.ResizeControl( r, 3, 0, 0, 80, 24 )
+    Check( r.Controls[3].X = 0, "a plain control just goes there" )
+
+    ' a docked container's children follow what the dock gives it
+    dim as FormDoc dk
+    dk.ClientW = 300 : dk.ClientH = 200
+    edits.AddControl( dk, "Panel", "", -1, 0, 0, 50, 10 )
+    dk.Controls[0].Dock = TK_DOCK_LEFT
+    edits.AddControl( dk, "Button", "Panel1", -1, 10, 170, 30, 20 )
+    dk.Controls[1].Anchor = TK_ANCHOR_LEFT or TK_ANCHOR_BOTTOM
+    edits.ResizeForm( dk, 300, 260 )
+    Check( dk.Controls[1].Y = 230, "a child of a docked panel follows the form", str( dk.Controls[1].Y ) )
+
+    ' copy and paste: fresh names, parents mapped, no handlers
+    dim as FormDoc p
+    p.ClientW = 300 : p.ClientH = 200
+    edits.AddControl( p, "Panel", "", -1, 10, 10, 100, 100 )
+    edits.AddControl( p, "Button", "Panel1", -1, 8, 8, 40, 20 )
+    PutSetting( p.Controls[1].Events, "Click", "Button1_Click" )
+    PutSetting( p.Controls[1].Props, "Text", "Keep" )
+    edits.AddControl( p, "Label", "Panel1", -1, 8, 30, 40, 20 )
+    edits.AddControl( p, "Panel", "", -1, 200, 10, 50, 50 )
+    dim as ustring clip = edits.CopyText( p, Names( "Panel1", "Button1" ) )
+    Check( len( clip ) > 0, "copy gives text" )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( p, clip, "", -1, 8, 8, added ), "paste works" )
+    Check( (added.Count( ) = 1) andalso (added[0] = "Panel3"), "one top-level control, renamed" )
+    i = FindControl( p, "Panel3" )
+    Check( (p.Controls[i].X = 18) andalso (p.Controls[i].Y = 18), "offset" )
+    Check( FindControl( p, "Button2" ) > i, "its child came too, after it" )
+    Check( lcase( p.Controls[FindControl( p, "Button2" )].Parent ) = "panel3", "with its parent mapped" )
+    Check( FindControl( p, "Label2" ) > i, "every child" )
+    Check( SettingOr( p.Controls[FindControl( p, "Button2" )].Props, "Text" ) = "Keep", "properties came" )
+    Check( p.Controls[FindControl( p, "Button2" )].Events.Count( ) = 0, "handlers did not" )
+    Check( SettingOr( p.Controls[FindControl( p, "Label2" )].Props, "Text" ) = "Label2", "a Text that was its name follows the new name" )
+    dim as Array( of ustring ) a2
+    Check( edits.PasteText( p, "format = 1", "", -1, 0, 0, a2 ) = false, "paste refuses what isn't controls" )
+    Check( edits.PasteText( p, "hello", "", -1, 0, 0, a2 ) = false, "or plain text" )
+    dim as Array( of ustring ) a3
+    Check( edits.PasteText( p, clip, "Panel2", -1, 0, 0, a3 ), "paste into a container" )
+    Check( lcase( p.Controls[FindControl( p, a3[0] )].Parent ) = "panel2", "lands in it" )
+    dim as Array( of ustring ) problems
+    validate.Check( p, "frmP", problems )
+    dim as ustring first_
+    if problems.Count( ) then first_ = problems[0]
+    Check( problems.Count( ) = 0, "a pasted form validates", first_ )
+    dim as ustring noPick = edits.CopyText( p, Names( "NoSuch" ) )
+    Check( len( noPick ) = 0, "copying nothing gives nothing" )
+
+    ' the text edit
+    dim as edits.LineEdit e = edits.DiffLines( "a" & LF & "b" & LF & "c" & LF, "a" & LF & "b" & LF & "c" & LF, LF )
+    Check( e.IsNoOp, "no change is no edit" )
+    e = edits.DiffLines( "a" & LF & "b" & LF & "c" & LF, "a" & LF & "X" & LF & "c" & LF, LF )
+    Check( (e.First = 1) andalso (e.Last = 1) andalso (e.Text = "X" & LF), "one line changed", e.First & "," & e.Last )
+    e = edits.DiffLines( "a" & LF & "c" & LF, "a" & LF & "b" & LF & "c" & LF, LF )
+    Check( (e.First = 1) andalso (e.Last = 0) andalso (e.Text = "b" & LF), "an insert", e.First & "," & e.Last )
+    e = edits.DiffLines( "a" & LF & "b" & LF & "c" & LF, "a" & LF & "c" & LF, LF )
+    Check( (e.First = 1) andalso (e.Last = 1) andalso (len( e.Text ) = 0), "a delete", e.First & "," & e.Last )
+    e = edits.DiffLines( "a" & CRLF & "b" & CRLF, "a" & LF & "X" & LF, CRLF )
+    Check( (e.First = 1) andalso (e.Last = 1) andalso (e.Text = "X" & CRLF), "the buffer's line ends", e.First & "," & e.Last )
+    e = edits.DiffLines( "a" & LF & "b", "a" & LF & "b" & LF, LF )
+    Check( (e.First = 1) andalso (e.Text = "b" & LF), "a last line that had no break gets one" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -326,5 +496,6 @@ RoundTrip( source )
 Validation( )
 Generator( source, bAccept )
 Tree( )
+EditsSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

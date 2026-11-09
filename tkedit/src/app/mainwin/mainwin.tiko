@@ -538,6 +538,8 @@ public type Window
     declare function IsImplemented( byval id as Cmd ) as boolean
     declare function ShortcutText( byval id as Cmd ) as ustring  ' "Ctrl+S", "" = none
     declare function CanRun( byval id as Cmd ) as boolean        ' Execute would act: a menu row not greyed
+    declare function DesignerActs( byval id as Cmd ) as boolean  ' false: this command needs text, and a form is showing
+    declare function DesignerCommand( byval id as Cmd ) as boolean ' true: the design surface took it
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
 
@@ -986,6 +988,8 @@ function Window.Create( byval forcedScale as single ) as boolean
         ' the Edit group's keys belong to a text field when one has the focus (the find strip)
         if (mw->DocOfWidget( tkHost_GetFocus( h ) ) = 0) andalso _
            (mw->Keys.Commands( ).Info( id ).Group = MenuGroup.Edit) then return false
+        ' on a design surface, a chord of a text command is left for the surface's own keys
+        if (mw->DesignerActs( id ) = false) andalso (mw->DocOfWidget( tkHost_GetFocus( h ) ) <> 0) then return false
         mw->Execute( id )
         return true
     end function
@@ -1108,11 +1112,15 @@ sub Window.Layout( )
     dim as boolean split_ = this.IsSplit( )
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
     dim as boolean start_ = this.ShowsStart( )
-    if Pane1 andalso (start_ = false) then v1 = Pane1->Main.Widget( )
-    if split_ then v2 = Pane2->Main.Widget( )
+    if Pane1 andalso (start_ = false) then v1 = Pane1->ViewWidget( )
+    if split_ then v2 = Pane2->ViewWidget( )
     for each d as DocRef in Docs
         dim as TK_WIDGET ptr w = d->Main.Widget( )
         if (w <> 0) andalso (w <> v1) andalso (w <> v2) then tkWidget_Show( w, false )
+        if d->Designer then
+            w = d->Designer->Frame
+            if (w <> v1) andalso (w <> v2) then tkWidget_Show( w, false )
+        end if
     next
     tkWidget_Show( status2, split_ )
     if splitBar then tkWidget_Show( splitBar, split_ )
@@ -1437,6 +1445,7 @@ end function
 ' buffer (Blank is not one). Execute does nothing for the rest; the menus grey them.
 function Window.CanRun( byval id as Cmd ) as boolean
     if this.IsImplemented( id ) = false then return false
+    if this.DesignerActs( id ) = false then return false
     ' the debugger's: what the session's state allows (frmDebug's buttons)
     select case id
     case Cmd.StartDebugging : if DbgOn andalso (this.DebugStopped( ) = false) then return false
@@ -1458,6 +1467,52 @@ function Window.CanRun( byval id as Cmd ) as boolean
     return false
 end function
 
+' With a form on its design surface the hidden TOML is not what the person is editing: commands that
+' work on visible text have nothing to work on.
+function Window.DesignerActs( byval id as Cmd ) as boolean
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse this.ShowsStart( ) then return true
+    if d->Designer = 0 then return true
+    select case id
+    case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
+         Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
+        return true
+    case Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, Cmd.FoldBelow, Cmd.FoldAll
+        return false
+    end select
+    select case Keys.Commands( ).Info( id ).Group
+    case MenuGroup.Edit, MenuGroup.Search : return false
+    end select
+    return true
+end function
+
+function Window.DesignerCommand( byval id as Cmd ) as boolean
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse this.ShowsStart( ) then return false
+    if d->Designer = 0 then return false
+    select case id
+    case Cmd.Undo
+        if d->Main.CanUndo( ) then
+            d->Main.Undo( )
+            d->Designer->LoadText( d->Text( ) )
+        end if
+    case Cmd.Redo
+        if d->Main.CanRedo( ) then
+            d->Main.Redo( )
+            d->Designer->LoadText( d->Text( ) )
+        end if
+    case Cmd.Cut : d->Designer->Cut( )
+    case Cmd.Copy : d->Designer->Copy( )
+    case Cmd.Paste : d->Designer->Paste( )
+    case Cmd.SelectAll : d->Designer->SelectAll( )
+    case else
+        return false
+    end select
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
 function Window.Execute( byval id as Cmd ) as boolean
     if this.IsImplemented( id ) = false then
         dim as cmdids.CommandInfo ci = Keys.Commands( ).Info( id )
@@ -1467,6 +1522,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     end if
     if this.CanRun( id ) = false then return false   ' no buffer: what acts on one does nothing
     this.SyncFocus( )
+    if this.DesignerCommand( id ) then return true
     dim as editor.CodeView ptr v = @this.View( )
     select case id
     case Cmd.FileNew
@@ -2057,8 +2113,8 @@ sub Window.SyncFocus( )
     if form = 0 then exit sub
     dim as TK_WIDGET ptr f = tkHost_GetFocus( tkForm_Host( form ) )
     if f = 0 then exit sub
-    if Pane1 andalso (f = Pane1->Main.Widget( )) then InPane2 = false
-    if Pane2 andalso (f = Pane2->Main.Widget( )) then InPane2 = true
+    if Pane1 andalso Pane1->HasView( f ) then InPane2 = false
+    if Pane2 andalso Pane2->HasView( f ) then InPane2 = true
 end sub
 
 function Window.Active( ) as DocRef
@@ -2165,6 +2221,13 @@ end function
 sub Window.PlacePane( byval pane as long, byval x as long, byval y as long, byval cx as long, byval cy as long )
     dim as DocRef d = this.PaneDoc( pane )
     if d = 0 then exit sub
+    if d->Designer then
+        ' the design surface has its own scroll bars
+        tkWidget_SetPos( d->Designer->Frame, x, y, cx, cy )
+        tkWidget_Show( vbar( pane ), false )
+        tkWidget_Show( hbar( pane ), false )
+        exit sub
+    end if
     dim as long hh = tkForm_Scale( form, HBAR_CY )
     dim as long vw = 0
     if this.VBarWanted( pane, cy - hh ) then vw = tkForm_Scale( form, VBAR_CX )
@@ -2180,7 +2243,9 @@ sub Window.SyncBars( )
     if form = 0 then exit sub
     for pane as long = 0 to 1
         dim as DocRef d = this.PaneDoc( pane )
-        if d = 0 then
+        dim as boolean noBars = (d = 0)
+        if noBars = false then noBars = (d->Designer <> 0)
+        if noBars then
             tkWidget_Show( vbar( pane ), false )
             tkWidget_Show( hbar( pane ), false )
             continue for
@@ -2206,7 +2271,7 @@ sub Window.SyncHover( )
     for pane as long = 0 to 1
         dim as DocRef d = this.PaneDoc( pane )
         dim as boolean show_ = false
-        if d then
+        if (d <> 0) andalso (d->Designer = 0) then
             dim as boolean over = (hot <> 0) andalso ((hot = d->Main.Widget( )) orelse (hot = hbar( pane )))
             show_ = (over andalso tkScrollBar_NeedsThumb( hbar( pane ) )) orelse tkScrollBar_IsDragging( hbar( pane ) )
         end if
@@ -2354,6 +2419,8 @@ end sub
 sub Window.FocusEditor( )
     if this.ShowsStart( ) then
         tkHost_SetFocus( tkForm_Host( form ), Start.frame )
+    elseif (this.Active( ) <> 0) andalso (this.Active( )->Designer <> 0) then
+        tkHost_SetFocus( tkForm_Host( form ), this.Active( )->Designer->Glass )
     else
         this.View( ).Focus( )
     end if
@@ -2448,6 +2515,10 @@ function Window.OpenText( byref path as const ustring ) as boolean
         return false
     end if
     Recent.Add( path )
+    dim as boolean badForm = false
+    if documents.IsFormFile( path ) then
+        badForm = (d->AttachDesigner( tkForm_Widget( form ), 0 ) = false)
+    end if
     this.ShowDoc( d )
     this.QueueScan( d )
     if cur andalso cur->IsNew( ) andalso (cur->IsModified( ) = false) andalso (cur->Main.Length( ) = 0) _
@@ -2455,6 +2526,7 @@ function Window.OpenText( byref path as const ustring ) as boolean
         this.CloseDoc( cur )
     end if
     Message = ""
+    if badForm then Message = fs.PathFileName( path ) & ": " & i18n.Tr( "message.form_as_text", "can't be shown as a form; opened as text" )
     this.ShowStatus( )
     return true
 end function
@@ -2660,7 +2732,9 @@ sub Window.CheckDisk( )
     for each d as DocRef in Docs
         if d->ChangedOnDisk( ) = false then continue for
         if fs.IsFile( d->Path ) then
+            dim as boolean wasForm = (d->Designer <> 0)
             d->Reload( )
+            if wasForm andalso (d->Designer = 0) then this.Layout( )   ' it no longer reads as a form: its text shows
         else
             d->Ignored = documents.StampOf( d->Path )
         end if
@@ -4320,6 +4394,7 @@ end function
 ' A buffer's scan: its unsaved text when modified, else the file. Untitled buffers are not scanned.
 sub Window.QueueScan( byval d as DocRef )
     if (d = 0) orelse (Scanner.running = false) orelse (len( d->Path ) = 0) then exit sub
+    if documents.IsFormFile( d->Path ) then exit sub     ' TOML, not tiko
     dim as parser.ScanOptions o
     for each inc as ustring in Prefs.Includes
         o.Includes.Push( inc )
