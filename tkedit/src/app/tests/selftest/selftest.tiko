@@ -2652,13 +2652,17 @@ public sub IntelPass( byref t as Tally, byval sc as single )
         ' an auto-property's accessor clause: `get, set`, `get, private set`, `get, init`; and
         ' `ustring` is in keywords/tiko.txt
         dim as ustring tx = "property P as long get, set" & lf & "property Q as long get, private set" & lf & _
-                            "property R as long get, init" & lf & "dim u as ustring" & lf & "f( a, set )" & lf
+                            "property R as long get, init" & lf & "dim u as ustring" & lf & "f( a, set )" & lf & _
+                            "dim s as slice" & lf & "dim v as uslice" & lf & "dim w as wslice" & lf
         v->SetText( tx )
         tkCodeEdit_Send( sw, SCI_COLOURISE, 0, -1 )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "get, set" ) + 4 ) = SCE_B_KEYWORD, P( sc, "get, set is" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "private set" ) + 7 ) = SCE_B_KEYWORD, P( sc, "get, private set is" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "init" ) - 1 ) = SCE_B_KEYWORD, P( sc, "get, init is" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "ustring" ) - 1 ) = SCE_B_KEYWORD, P( sc, "ustring is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "as slice" ) + 2 ) = SCE_B_KEYWORD, P( sc, "slice is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "uslice" ) - 1 ) = SCE_B_KEYWORD, P( sc, "uslice is" ) )
+        t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "wslice" ) - 1 ) = SCE_B_KEYWORD, P( sc, "wslice is" ) )
         t.Check( tkCodeEdit_Send( sw, SCI_GETSTYLEAT, instr( tx, "a, set" ) + 2 ) <> SCE_B_KEYWORD, P( sc, "f( a, set ) is not" ) )
         v->SetText( keep )
         tkCodeEdit_Send( sw, SCI_DOCUMENTEND )
