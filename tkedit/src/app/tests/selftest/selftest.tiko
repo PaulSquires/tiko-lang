@@ -3115,9 +3115,9 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (mw.menuBar->x = 0) andalso (mw.menuBar->y = 0) andalso _
              (mw.menuBar->cw = cx) andalso (mw.menuBar->ch = mh) andalso (mw.MenuHeight( ) = mh), _
              P( sc, strings.Format( "menu: the bar at {},{} {}x{}, want 0,0 {}x{}", mw.menuBar->x, mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
-    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 7) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
+    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 8) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
              (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 6 ) = "Debug"), _
-             P( sc, strings.Format( "menu: seven menus, File .. Build, Debug ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+             P( sc, strings.Format( "menu: eight menus, File .. Debug, Form ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     dim as cmdids.CommandTable ct
     dim as boolean rowsOk = true
     for g as long = 0 to clng( MenuGroup.Count_ ) - 1

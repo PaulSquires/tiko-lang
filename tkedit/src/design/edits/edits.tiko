@@ -287,6 +287,106 @@ public sub ResizeForm( byref doc as FormDoc, byval w as long, byval h as long )
     Reflow_( doc, was, oldW, oldH )
 end sub
 
+' ---- one property ------------------------------------------------------------------------------
+
+' Renames a control and every child's reference to it. Handlers keep their names here.
+public sub RenameControl( byref doc as FormDoc, byref oldName as const ustring, byref newName as const ustring )
+    dim as ustring was = lcase( oldName )
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        if lcase( doc.Controls[i].Name ) = was then
+            doc.Controls[i].Name = newName
+        elseif lcase( doc.Controls[i].Parent ) = was then
+            doc.Controls[i].Parent = newName
+        end if
+    next
+end sub
+
+public sub SetDock( byref doc as FormDoc, byref names as Array( of ustring ), byval dock_ as long )
+    for each s as ustring in names
+        dim as long i = FindControl( doc, s )
+        if i >= 0 then doc.Controls[i].Dock = dock_
+    next
+end sub
+
+public sub SetAnchorBit( byref doc as FormDoc, byref names as Array( of ustring ), byval bit_ as long, byval onOff as boolean )
+    for each s as ustring in names
+        dim as long i = FindControl( doc, s )
+        if i >= 0 then
+            if onOff then
+                doc.Controls[i].Anchor or= bit_
+            else
+                doc.Controls[i].Anchor and= not bit_
+            end if
+        end if
+    next
+end sub
+
+private function IsWholeNumber_( byref t as const ustring ) as boolean
+    if len( t ) = 0 then return false
+    for i as long = 1 to len( t )
+        dim as long ch = asc( mid( t, i, 1 ) )
+        if (ch < 48) orelse (ch > 57) then
+            if (i > 1) orelse (ch <> 45) orelse (len( t ) = 1) then return false
+        end if
+    next
+    return true
+end function
+
+private function IsNumber_( byref t as const ustring ) as boolean
+    dim as long dots = 0
+    dim as ustring digits
+    for i as long = 1 to len( t )
+        dim as ustring ch = mid( t, i, 1 )
+        if ch = "." then
+            dots += 1
+        else
+            digits &= ch
+        end if
+    next
+    return (dots <= 1) andalso IsWholeNumber_( digits )
+end function
+
+' Sets property key on every named control from what the person typed. Nothing typed, or the
+' property's default, removes it: the file holds only what differs. "" = done, else why not.
+public function SetProperty( byref doc as FormDoc, byref names as Array( of ustring ), byref key_ as const ustring, byref text as const ustring ) as ustring
+    for each s as ustring in names
+        dim as long i = FindControl( doc, s )
+        if i < 0 then continue for
+        dim as TKMETA_CONTROL ptr m = tkMeta_Find( doc.Controls[i].TypeName )
+        dim as ustring kind_ = "text", dflt
+        if (key_ = "Enabled") orelse (key_ = "Visible") then
+            kind_ = "bool"
+            dflt = "true"
+        elseif key_ = m->CreateArg then
+            kind_ = m->CreateArgKind
+            dflt = m->CreateArgDflt
+        else
+            dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, key_ )
+            if p = 0 then return m->Name & " has no property " & key_
+            kind_ = p->Kind
+            dflt = p->DefaultValue
+        end if
+        dim as long at_ = FindSetting( doc.Controls[i].Props, key_ )
+        if (len( text ) = 0) orelse (text = dflt) then
+            if at_ >= 0 then doc.Controls[i].Props.Remove( at_ )
+            continue for
+        end if
+        dim as long vk = VALUE_TEXT
+        select case kind_
+        case "bool"
+            vk = VALUE_BOOL
+        case "int"
+            if IsWholeNumber_( text ) = false then return key_ & " must be a whole number"
+            vk = VALUE_INT
+        case "float"
+            if IsNumber_( text ) = false then return key_ & " must be a number"
+            vk = VALUE_FLOAT
+        end select
+        PutSetting( doc.Controls[i].Props, key_, text, vk )
+    next
+    return ""
+end function
+
 ' ---- the clipboard ----------------------------------------------------------------------------
 
 ' names and everything inside them, as the text of a form.

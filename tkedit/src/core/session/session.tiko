@@ -65,6 +65,16 @@ public type SessionState
     WinH       as long
     WinMax     as boolean              ' it was maximized
     OutputCY   as long                 ' the output pane's height, unscaled; 0 = the default
+    FloatToolbox as boolean            ' session.toml [designer]: the form designer's floating palettes
+    ToolX      as long
+    ToolY      as long
+    ToolW      as long
+    ToolH      as long
+    FloatProps as boolean
+    PropsX     as long
+    PropsY     as long
+    PropsW     as long
+    PropsH     as long
 end type
 
 public type SessionResult as Result( of SessionState, config.ConfigError )
@@ -128,6 +138,17 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
         st.Files.Push( f )
     next
     st.Recent = tomlget.GetStrings( tomlget.Table( root, "recent" ), "files" )
+    dim as config.TomlValue des = tomlget.Table( root, "designer" )
+    st.FloatToolbox = tomlget.GetBool( des, "toolbox_float", false )
+    st.ToolX = tomlget.GetInt( des, "toolbox_x", 0 )
+    st.ToolY = tomlget.GetInt( des, "toolbox_y", 0 )
+    st.ToolW = tomlget.GetInt( des, "toolbox_w", 0 )
+    st.ToolH = tomlget.GetInt( des, "toolbox_h", 0 )
+    st.FloatProps = tomlget.GetBool( des, "properties_float", false )
+    st.PropsX = tomlget.GetInt( des, "properties_x", 0 )
+    st.PropsY = tomlget.GetInt( des, "properties_y", 0 )
+    st.PropsW = tomlget.GetInt( des, "properties_w", 0 )
+    st.PropsH = tomlget.GetInt( des, "properties_h", 0 )
     dim as config.TomlValue w = tomlget.Table( root, "window" )
     st.WinX = tomlget.GetInt( w, "x", 0 )
     st.WinY = tomlget.GetInt( w, "y", 0 )
@@ -164,6 +185,20 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         tomlget.SetBool( w, "maximized", st.WinMax )
         if st.OutputCY > 0 then tomlget.SetInt( w, "output_height", st.OutputCY )
         root.SetKey( "window", w )
+    end if
+    if st.FloatToolbox orelse st.FloatProps orelse (st.ToolW > 0) orelse (st.PropsW > 0) then
+        dim as config.TomlValue des = config.TomlValue.NewTable( )
+        tomlget.SetBool( des, "toolbox_float", st.FloatToolbox )
+        tomlget.SetInt( des, "toolbox_x", st.ToolX )
+        tomlget.SetInt( des, "toolbox_y", st.ToolY )
+        tomlget.SetInt( des, "toolbox_w", st.ToolW )
+        tomlget.SetInt( des, "toolbox_h", st.ToolH )
+        tomlget.SetBool( des, "properties_float", st.FloatProps )
+        tomlget.SetInt( des, "properties_x", st.PropsX )
+        tomlget.SetInt( des, "properties_y", st.PropsY )
+        tomlget.SetInt( des, "properties_w", st.PropsW )
+        tomlget.SetInt( des, "properties_h", st.PropsH )
+        root.SetKey( "designer", des )
     end if
     if st.Files.Count( ) = 0 then exit sub
     dim as config.TomlValue a = config.TomlValue.NewArray( )

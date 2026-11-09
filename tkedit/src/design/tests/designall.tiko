@@ -473,6 +473,36 @@ sub EditsSuite( )
     dim as ustring noPick = edits.CopyText( p, Names( "NoSuch" ) )
     Check( len( noPick ) = 0, "copying nothing gives nothing" )
 
+    ' one property at a time
+    dim as FormDoc q
+    q.ClientW = 300 : q.ClientH = 200
+    edits.AddControl( q, "Panel", "", -1, 0, 0, 100, 100 )
+    edits.AddControl( q, "Button", "Panel1", -1, 0, 0, 40, 20 )
+    edits.AddControl( q, "CheckBox", "", -1, 0, 0, 40, 20 )
+    edits.RenameControl( q, "Panel1", "pnlMain" )
+    Check( (q.Controls[0].Name = "pnlMain") andalso (q.Controls[1].Parent = "pnlMain"), "a rename reaches the children" )
+    edits.SetDock( q, Names( "CheckBox1" ), TK_DOCK_TOP )
+    Check( q.Controls[2].Dock = TK_DOCK_TOP, "set dock" )
+    edits.SetAnchorBit( q, Names( "Button1", "CheckBox1" ), TK_ANCHOR_RIGHT, true )
+    Check( (q.Controls[1].Anchor and TK_ANCHOR_RIGHT) andalso (q.Controls[2].Anchor and TK_ANCHOR_LEFT), "an anchor bit, on several" )
+    edits.SetAnchorBit( q, Names( "Button1" ), TK_ANCHOR_LEFT, false )
+    Check( (q.Controls[1].Anchor and TK_ANCHOR_LEFT) = 0, "an anchor bit off" )
+    Check( edits.SetProperty( q, Names( "Button1" ), "Default", "true" ) = "", "a bool" )
+    Check( FindSetting( q.Controls[1].Props, "Default" ) >= 0, "is stored" )
+    Check( q.Controls[1].Props[FindSetting( q.Controls[1].Props, "Default" )].Kind = VALUE_BOOL, "as a bool" )
+    Check( edits.SetProperty( q, Names( "Button1" ), "Default", "false" ) = "", "its default" )
+    Check( FindSetting( q.Controls[1].Props, "Default" ) < 0, "removes the line" )
+    Check( edits.SetProperty( q, Names( "Button1" ), "CornerCurvature", "abc" ) <> "", "a non-number is refused" )
+    Check( edits.SetProperty( q, Names( "Button1" ), "CornerCurvature", "4" ) = "", "a number isn't" )
+    Check( q.Controls[1].Props[FindSetting( q.Controls[1].Props, "CornerCurvature" )].Kind = VALUE_INT, "and is a number in the file" )
+    Check( edits.SetProperty( q, Names( "Button1" ), "CornerCurvature", "" ) = "", "empty" )
+    Check( FindSetting( q.Controls[1].Props, "CornerCurvature" ) < 0, "removes it" )
+    Check( edits.SetProperty( q, Names( "Button1" ), "Nope", "1" ) <> "", "an unknown property is refused" )
+    dim as FormDoc qBad = q
+    edits.RenameControl( qBad, "Button1", "print" )
+    Check( instr( validate.FirstNewProblem( q, qBad ), "reserved" ) > 0, "the new problem is found" )
+    Check( len( validate.FirstNewProblem( q, q ) ) = 0, "no change, no new problem" )
+
     ' the text edit
     dim as edits.LineEdit e = edits.DiffLines( "a" & LF & "b" & LF & "c" & LF, "a" & LF & "b" & LF & "c" & LF, LF )
     Check( e.IsNoOp, "no change is no edit" )

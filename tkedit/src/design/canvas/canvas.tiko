@@ -26,6 +26,7 @@
 #import "../model"
 #import "../formfile"
 #import "../edits"
+#import "../validate"
 #import "../codegen"
 using containers
 using tkApp
@@ -42,6 +43,7 @@ using tkPaint
 using model
 
 public type CanvasCommitSub as sub( byval owner as any ptr, byref text as const ustring )
+public type CanvasChangedSub as sub( byval listener as any ptr )
 
 const as long MARGIN = 16         ' design units of empty surface around the form
 const as long GRIP_SIZE = 7       ' a grip's size
@@ -80,6 +82,8 @@ public type FormCanvas
 
     Owner as any ptr
     OnCommit as CanvasCommitSub
+    Listener as any ptr
+    OnChanged as CanvasChangedSub       ' the selection, the model or the tool changed
 
     Drag as long
     Grip as long                        ' DragResize: EDGE_* bits
@@ -97,6 +101,9 @@ public type FormCanvas
     ' False when the text isn't a form this version can show; the canvas is left as it was.
     declare function LoadText( byref text as const ustring ) as boolean
     declare sub Commit( )
+    declare sub Changed( )
+    declare function ApplyEdit( byref trial as FormDoc, byval rebuildAll as boolean, byref newName as const ustring ) as ustring
+    declare sub RevealAndSelect( byref name_ as const ustring )
 
     declare sub Clear_( )
     declare sub Rebuild( )
@@ -371,6 +378,7 @@ sub FormCanvas.Rebuild( )
         MakeInert_( w )
     next
     this.PlaceSurface( )
+    this.Changed( )
 end sub
 
 ' The real controls to where the model says, without rebuilding them: the feedback during a drag.
@@ -385,6 +393,8 @@ sub FormCanvas.SyncGeometry( )
         if w = 0 then continue for
         dim as FormControl c = Doc.Controls[i]
         tkLayout_SetDesignRect( Layout, w, c.X, c.Y, c.W, c.H )
+        tkLayout_SetAnchor( Layout, w, c.Anchor )
+        tkLayout_SetDock( Layout, w, c.Dock )
         dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
         select case m->ContainerKind
         case TKMETA_NOT_CONTAINER
@@ -607,10 +617,12 @@ sub FormCanvas.OnPress( byval x as long, byval y as long, byval mods as long )
                 end if
             next
             tkWidget_Invalidate( Glass )
+            this.Changed( )
             exit sub                    ' what was just dropped from the selection doesn't drag
         end if
         Selected.Push( nm )
         Pressed = ""
+        this.Changed( )
     else
         if this.IsSelected( nm ) = false then this.SelectOnly( nm )
         Pressed = nm
@@ -700,6 +712,7 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
                 end if
             end if
         next
+        this.Changed( )
     case DragDraw
         dim as TKMETA_CONTROL ptr m = tkMeta_Find( Tool )
         if m then
@@ -768,6 +781,7 @@ function FormCanvas.OnKey( byval key as long, byval mods as long ) as boolean
     case SDLK_ESCAPE
         if len( Tool ) then
             Tool = ""
+            this.Changed( )
         else
             this.SelectNone( )
         end if
@@ -782,6 +796,42 @@ end function
 
 sub FormCanvas.Commit( )
     if OnCommit then OnCommit( Owner, formfile.Render( Doc ) )
+    this.Changed( )
+end sub
+
+sub FormCanvas.Changed( )
+    if OnChanged then OnChanged( Listener )
+end sub
+
+' An edit from the inspector, on a copy of the model. It stands if it leaves the form no worse;
+' otherwise the answer says what's wrong and nothing changes. newName: the selected control's, on a rename.
+function FormCanvas.ApplyEdit( byref trial as FormDoc, byval rebuildAll as boolean, byref newName as const ustring ) as ustring
+    dim as ustring fault = validate.FirstNewProblem( Doc, trial )
+    if len( fault ) then return fault
+    Doc = trial
+    if len( newName ) then Selected[0] = newName
+    if rebuildAll then
+        this.Rebuild( )
+    else
+        this.SyncGeometry( )
+    end if
+    this.Commit( )
+    tkWidget_Invalidate( Glass )
+    return ""
+end function
+
+' Selects a control, turning any tab page it's on to the front first.
+sub FormCanvas.RevealAndSelect( byref name_ as const ustring )
+    dim as long i = FindControl( Doc, name_ )
+    while i >= 0
+        dim as ustring parent_ = Doc.Controls[i].Parent
+        if len( parent_ ) = 0 then exit while
+        dim as long p = FindControl( Doc, parent_ )
+        if p < 0 then exit while
+        if Doc.Controls[i].Page >= 0 then this.SetPageOf( Doc.Controls[p].Name, Doc.Controls[i].Page )
+        i = p
+    wend
+    this.SelectOnly( name_ )
 end sub
 
 sub FormCanvas.SelectOnly( byref name_ as const ustring )
@@ -789,11 +839,13 @@ sub FormCanvas.SelectOnly( byref name_ as const ustring )
     dim as ustring only_ = name_
     Selected.Push( only_ )
     tkWidget_Invalidate( Glass )
+    this.Changed( )
 end sub
 
 sub FormCanvas.SelectNone( )
     Selected.Clear( )
     tkWidget_Invalidate( Glass )
+    this.Changed( )
 end sub
 
 sub FormCanvas.SelectAll( )
@@ -802,6 +854,7 @@ sub FormCanvas.SelectAll( )
         if len( Doc.Controls[i].Parent ) = 0 then Selected.Push( Doc.Controls[i].Name )
     next
     tkWidget_Invalidate( Glass )
+    this.Changed( )
 end sub
 
 ' Tab order is list order.

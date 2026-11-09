@@ -56,6 +56,9 @@
 #import "tka/completion"
 #import "tka/debugpane"
 #import "tka/documents"
+#import "tkd/canvas"
+#import "tkd/edits"
+#import "tkd/panels"
 #import "tka/editor"
 #import "tka/findstrip"
 #import "tka/outputpane"
@@ -540,6 +543,8 @@ public type Window
     declare function CanRun( byval id as Cmd ) as boolean        ' Execute would act: a menu row not greyed
     declare function DesignerActs( byval id as Cmd ) as boolean  ' false: this command needs text, and a form is showing
     declare function DesignerCommand( byval id as Cmd ) as boolean ' true: the design surface took it
+    declare sub SyncPanels( )
+    Palettes as panels.DesignPanels
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
 
@@ -948,6 +953,26 @@ function Window.Create( byval forcedScale as single ) as boolean
     Blank = d                                   ' the start panel, until a file opens
     this.Touch( d )
 
+    Palettes.Init( form, @this )
+    Palettes.OnLayout = sub( byval o as any ptr )
+        cast( Window ptr, o )->Layout( )
+    end sub
+    Palettes.OnMessage = sub( byval o as any ptr, byref t as const ustring )
+        cast( Window ptr, o )->SetMessage( t )
+    end sub
+    Palettes.OnFloatMade = sub( byval o as any ptr, byval f as TK_FORM ptr )
+        dim as Window ptr mw = o
+        f->Tag = mw                              ' the shortcuts work from a floating palette too
+        tkForm_Host( f )->OnPreKey = tkForm_Host( mw->form )->OnPreKey
+        tkForm_OnClose( f, function( byval g as TK_FORM ptr ) as boolean
+            cast( Window ptr, g->Tag )->Palettes.CloseFloat( g )
+            return false                         ' it docks instead, once this event is done
+        end function )
+        tkForm_OnSize( f, sub( byval g as TK_FORM ptr, byval cx as long, byval cy as long )
+            cast( Window ptr, g->Tag )->Palettes.SizeFloat( g )
+        end sub )
+    end sub
+
     tkForm_OnSize( form, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
         cast( Window ptr, f->Tag )->KeepNormalPlace( )
         cast( Window ptr, f->Tag )->Layout( )
@@ -1018,6 +1043,7 @@ sub Window.Show( )
 end sub
 
 sub Window.Destroy( )
+    Palettes.Destroy( )
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
     if inboxTimer then tkApp_KillTimer( inboxTimer )
@@ -1112,6 +1138,7 @@ sub Window.Layout( )
     dim as boolean split_ = this.IsSplit( )
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
     dim as boolean start_ = this.ShowsStart( )
+    this.SyncPanels( )
     if Pane1 andalso (start_ = false) then v1 = Pane1->ViewWidget( )
     if split_ then v2 = Pane2->ViewWidget( )
     for each d as DocRef in Docs
@@ -1413,6 +1440,10 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileClose, Cmd.FileCloseAll, Cmd.FileSave, _
          Cmd.FileSaveAs, Cmd.FileSaveAll, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit
         return true
+    case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
+         Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
+         Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties
+        return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
          Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock, _
@@ -1467,12 +1498,22 @@ function Window.CanRun( byval id as Cmd ) as boolean
     return false
 end function
 
+' The palettes follow the active buffer: there while it's a form, gone while it isn't.
+sub Window.SyncPanels( )
+    dim as DocRef d = this.Active( )
+    dim as canvas.FormCanvas ptr c = 0
+    if (d <> 0) andalso (this.ShowsStart( ) = false) then c = d->Designer
+    Palettes.Bind( c )
+    if (c <> 0) <> Palettes.IsShown then Palettes.ShowAll( c <> 0 )
+end sub
+
 ' With a form on its design surface the hidden TOML is not what the person is editing: commands that
 ' work on visible text have nothing to work on.
 function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
-    if (d = 0) orelse this.ShowsStart( ) then return true
-    if d->Designer = 0 then return true
+    dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
+    if noForm = false then noForm = (d->Designer = 0)
+    if noForm then return Keys.Commands( ).Info( id ).Group <> MenuGroup.Form
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -1505,6 +1546,22 @@ function Window.DesignerCommand( byval id as Cmd ) as boolean
     case Cmd.Copy : d->Designer->Copy( )
     case Cmd.Paste : d->Designer->Paste( )
     case Cmd.SelectAll : d->Designer->SelectAll( )
+    case Cmd.FormAlignLefts : d->Designer->Align( edits.AlignMode.AlignLefts )
+    case Cmd.FormAlignCenters : d->Designer->Align( edits.AlignMode.AlignCenters )
+    case Cmd.FormAlignRights : d->Designer->Align( edits.AlignMode.AlignRights )
+    case Cmd.FormAlignTops : d->Designer->Align( edits.AlignMode.AlignTops )
+    case Cmd.FormAlignMiddles : d->Designer->Align( edits.AlignMode.AlignMiddles )
+    case Cmd.FormAlignBottoms : d->Designer->Align( edits.AlignMode.AlignBottoms )
+    case Cmd.FormSameWidth : d->Designer->Align( edits.AlignMode.SameWidth )
+    case Cmd.FormSameHeight : d->Designer->Align( edits.AlignMode.SameHeight )
+    case Cmd.FormSameSize : d->Designer->Align( edits.AlignMode.SameSize )
+    case Cmd.FormBringToFront : d->Designer->ToFront( )
+    case Cmd.FormSendToBack : d->Designer->ToBack( )
+    case Cmd.FormSnapToGrid
+        d->Designer->SnapToGrid = (d->Designer->SnapToGrid = false)
+        tkWidget_Invalidate( d->Designer->Frame )
+    case Cmd.FormFloatToolbox : Palettes.ToggleFloat( panels.PaletteId.PaletteToolbox )
+    case Cmd.FormFloatProperties : Palettes.ToggleFloat( panels.PaletteId.PaletteInspector )
     case else
         return false
     end select
@@ -1671,6 +1728,7 @@ private function MenuTitle( byval g as MenuGroup ) as ustring
     case MenuGroup.Project : return i18n.Tr( "menubar.Project", "Project" )
     case MenuGroup.Build : return i18n.Tr( "menubar.Build", "Build" )
     case MenuGroup.Debug : return i18n.Tr( "menubar.Debug", "Debug" )
+    case MenuGroup.Form : return i18n.Tr( "menubar.Form", "Form" )
     end select
     return GroupName( g )
 end function
@@ -2222,7 +2280,8 @@ sub Window.PlacePane( byval pane as long, byval x as long, byval y as long, byva
     dim as DocRef d = this.PaneDoc( pane )
     if d = 0 then exit sub
     if d->Designer then
-        ' the design surface has its own scroll bars
+        ' the palettes sit beside the surface of the form being worked on; it has its own scroll bars
+        if d = this.Active( ) then Palettes.PlaceDocked( x, y, cx, cy )
         tkWidget_SetPos( d->Designer->Frame, x, y, cx, cy )
         tkWidget_Show( vbar( pane ), false )
         tkWidget_Show( hbar( pane ), false )
@@ -2851,6 +2910,17 @@ sub Window.SaveSession( )
     st.WinH = NormalH
     st.WinMax = (SDL_GetWindowFlags( tkForm_Host( form )->win ) and SDL_WINDOW_MAXIMIZED) <> 0
     if OutCY <> outputpane.PANE_CY then st.OutputCY = OutCY
+    Palettes.KeepPlaces( )
+    st.FloatToolbox = Palettes.Pal( 0 ).Place.On_
+    st.ToolX = Palettes.Pal( 0 ).Place.X
+    st.ToolY = Palettes.Pal( 0 ).Place.Y
+    st.ToolW = Palettes.Pal( 0 ).Place.W
+    st.ToolH = Palettes.Pal( 0 ).Place.H
+    st.FloatProps = Palettes.Pal( 1 ).Place.On_
+    st.PropsX = Palettes.Pal( 1 ).Place.X
+    st.PropsY = Palettes.Pal( 1 ).Place.Y
+    st.PropsW = Palettes.Pal( 1 ).Place.W
+    st.PropsH = Palettes.Pal( 1 ).Place.H
     session.SaveSession( this.SessionFile( ), st )
 end sub
 
@@ -2889,6 +2959,10 @@ sub Window.RestoreSession( byval reopen as boolean )
     dim as session.SessionResult r = session.LoadSession( this.SessionFile( ) )
     if r.IsOk( ) = false then exit sub
     dim as session.SessionState st = r.Value( )
+    dim as panels.FloatPlace pTool, pProps
+    pTool.On_ = st.FloatToolbox : pTool.X = st.ToolX : pTool.Y = st.ToolY : pTool.W = st.ToolW : pTool.H = st.ToolH
+    pProps.On_ = st.FloatProps : pProps.X = st.PropsX : pProps.Y = st.PropsY : pProps.W = st.PropsW : pProps.H = st.PropsH
+    Palettes.Restore( pTool, pProps )
     if (st.WinW > 0) andalso (form <> 0) then
         dim as SDL_Window ptr win = tkForm_Host( form )->win
         SDL_SetWindowSize( win, st.WinW, st.WinH )

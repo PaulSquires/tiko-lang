@@ -145,6 +145,21 @@ private sub AddHandler_( byref handlers as Array( of Setting ), byref owner as c
     handlers.Push( s )
 end sub
 
+' The first problem `after` has that `before` didn't, or "".
+public function FirstNewProblem( byref before as FormDoc, byref after as FormDoc ) as ustring
+    dim as Array( of ustring ) a, b
+    Check( before, "frmForm", a )
+    Check( after, "frmForm", b )
+    for each s as ustring in b
+        dim as boolean known = false
+        for each o as ustring in a
+            if o = s then known = true
+        next
+        if known = false then return s
+    next
+    return ""
+end function
+
 ' Every problem in `doc`, as one line each, for a form in module `moduleName`. Includes what reading
 ' the file reported.
 public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref out_ as Array( of ustring ) )
