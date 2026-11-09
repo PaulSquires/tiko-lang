@@ -78,11 +78,7 @@ type TkiWriter_
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
-    dim as string s = "__tko_mod_" & chain
-    for i as int32 = 0 to len( s ) - 1
-        if s[i] = asc( "." ) then s[i] = asc( "_" )
-    next
-    return s
+    return "__tko_mod_" & Tko.PpModChainIdent( chain )
 end function
 
 private function Kind_( byref w as TkiWriter_, byval i as int32 ) as Tko.TokenKind
