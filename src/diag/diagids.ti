@@ -1166,6 +1166,7 @@
     DIAG( TKO1065, SEV_ERROR,   "only a type with a body can be 'partial'" )
     DIAG( TKO1066, SEV_ERROR,   "only one part of partial type '%0' may give '%1'" )
     DIAG( TKO1067, SEV_ERROR,   "the parts of partial type '%0' disagree: one is 'public', another 'private'" )
+    DIAG( TKO1068, SEV_ERROR,   "the parts of '%0' disagree: one is a 'partial type', another a 'partial class'" )
 
 #endmacro
 

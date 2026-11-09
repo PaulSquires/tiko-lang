@@ -1,4 +1,5 @@
-'' partialtype.tiko -- 'partial type': one TYPE written in several blocks of one compilation unit.
+'' partialtype.tiko -- 'partial type' and 'partial class': one type written in several blocks of
+'' one compilation unit.
 ''
 '' A tool's generated half and a person's half share a type without either editing the other's
 '' block. The parts are pooled AFTER the parse and BEFORE Collect, so every later pass sees one
@@ -19,6 +20,14 @@ private function PartialKey_( byref p as Tko.ParserState, byref ns as string, by
     return ns & "/" & str( cast( uint32, p.names->Fold( name_ ) ) )
 end function
 
+'' A CLASS WITH NO 'inherits' GOT 'object' FROM THE PARSER (AggPrologue), at the class's own
+'' location; a written base is on a later line. Only a written one counts as a part "giving" it.
+private function BaseIsImplicit_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
+    dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( n )
+    if (sp->extra and Tko.PF_CLASS) = 0 then return false
+    return p.ast->Loc( sp->c ) = p.ast->Loc( n )
+end function
+
 '' 'public' on either part makes the type public; only 'public' against 'private' is a conflict.
 private sub PartialAbsorb_( byref p as Tko.ParserState, byval f as Tko.NodeId, byval a as Tko.NodeId )
     dim as Tko.StmtPayload ptr pf = p.ast->StmtOf( f )
@@ -26,18 +35,21 @@ private sub PartialAbsorb_( byref p as Tko.ParserState, byval f as Tko.NodeId, b
     dim as Tko.SourceRange at_ = Tko.PointRange( p.ast->Loc( a ) )
     dim as string shown = p.names->Spelling( iif( pf->rawName <> 0, pf->rawName, pf->name ) )
 
-    '' 'extends' PUTS A HIDDEN 'base' FIELD FIRST IN ITS PART (ParseAggregateBody). The merged type's
-    '' base field must stay first, and a refused second 'extends' must not leave one behind.
-    dim as boolean baseFromA = false, dropBaseA = false
-    if pa->c <> Tko.NODE_NONE then
-        if pf->c <> Tko.NODE_NONE then
-            p.diags->Report( Tko.TKO1066, at_, shown, "extends" )
-            dropBaseA = true
-        else
-            pf->c = pa->c
-            baseFromA = true
-        end if
+    dim as boolean isClassF = (pf->extra and Tko.PF_CLASS) <> 0
+    if isClassF <> ((pa->extra and Tko.PF_CLASS) <> 0) then p.diags->Report( Tko.TKO1068, at_, shown )
+
+    '' A BASE PUTS A HIDDEN 'base' FIELD FIRST IN ITS PART (ParseAggregateBody). The merged type has
+    '' one, first: taken from the part that wrote a base, and every other part's left behind.
+    dim as boolean hasF = (pf->c <> Tko.NODE_NONE), hasA = (pa->c <> Tko.NODE_NONE)
+    dim as boolean autoBaseF = iif( hasF, BaseIsImplicit_( p, f ), false )
+    dim as boolean autoBaseA = iif( hasA, BaseIsImplicit_( p, a ), false )
+    if hasF andalso hasA andalso (autoBaseF = false) andalso (autoBaseA = false) then
+        p.diags->Report( Tko.TKO1066, at_, shown, iif( isClassF, "inherits", "extends" ) )
     end if
+    dim as boolean baseFromA = hasA andalso ((hasF = false) orelse (autoBaseF andalso (autoBaseA = false)))
+    dim as int32 skipF = iif( baseFromA andalso hasF, 1, 0 )
+    dim as int32 skipA = iif( hasA, 1, 0 )
+    if baseFromA then pf->c = pa->c
 
     dim as uint32 packA = pa->extra and &hFFFF
     if packA <> 0 then
@@ -74,15 +86,15 @@ private sub PartialAbsorb_( byref p as Tko.ParserState, byval f as Tko.NodeId, b
     end if
 
     dim as int32 first_ = p.ast->ChildPoolCount( )
-    dim as int32 total = pf->count + pa->count
+    dim as int32 total = pf->count - skipF + pa->count - skipA + iif( baseFromA, 1, 0 )
     if baseFromA then p.ast->PushChild( cast( uint32, p.ast->ChildAt( pa->first, 0 ) ) )
-    for c as int32 = 0 to pf->count - 1
+    for c as int32 = skipF to pf->count - 1
         p.ast->PushChild( cast( uint32, p.ast->ChildAt( pf->first, c ) ) )
     next
-    for c as int32 = iif( baseFromA orelse dropBaseA, 1, 0 ) to pa->count - 1
+    for c as int32 = skipA to pa->count - 1
         p.ast->PushChild( cast( uint32, p.ast->ChildAt( pa->first, c ) ) )
     next
-    pf->count = iif( dropBaseA, total - 1, total )
+    pf->count = total
     pf->first = first_
 end sub
 

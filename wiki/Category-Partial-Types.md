@@ -20,7 +20,7 @@ dim as Point p = type( 3, 4 )
 print p.Sum( )      ' 7
 ```
 
-`partial type` writes one type in several blocks. The compiler pools the blocks into a single type before anything else looks at it, so every other part of the language sees one ordinary type.
+`partial type` writes one type in several blocks, and `partial class` does the same for a [class](Category-Interfaces). The compiler pools the blocks into a single type before anything else looks at it, so every other part of the language sees one ordinary type.
 
 ## Why It Exists
 
@@ -57,13 +57,13 @@ A program importing this module sees the whole type. `sizeof( frmMain.Form )` co
 
 ## Rules
 
-**Every block says `partial`.** A `partial type` and an ordinary `type` of the same name are an error.
+**Every block says `partial`, and the same kind.** A `partial type` and an ordinary `type` of the same name are an error, as are a `partial type` and a `partial class`.
 
 **All parts are in one compilation unit**: one source file with its includes, or one module. They must be at module or namespace level, and in the same namespace.
 
 **Members combine in order.** Fields are laid out part by part, in the order the compiler reads them. In a module that is the sorted order of its file names, which puts `frmMain.design.tiko` before `frmMain.tiko`. Declaring the same member in two parts is the usual "already declared" error.
 
-**One part may give each header clause.** `extends`, `field`, `extern` layout and `implements` may each appear on one part, whichever part that is, and apply to the whole type. A base type's fields still come first.
+**One part may give each header clause.** `extends`, `field`, `extern` layout and `implements` may each appear on one part, whichever part that is, and apply to the whole type. So may a class's `inherits` line; parts that write none take the base from the part that does. A base type's fields still come first.
 
 **Visibility.** `public` on any part makes the type public, and the other parts need not repeat it. `public` on one part and `private` on another is an error.
 
@@ -71,7 +71,7 @@ A program importing this module sees the whole type. `sizeof( frmMain.Form )` co
 
 **Not generic.** A generic type cannot be `partial`.
 
-**`partial` is only a keyword directly before `type`.** It remains an ordinary name everywhere else: `dim as long partial` and a procedure named `partial` are both fine.
+**`partial` is only a keyword directly before `type` or `class`.** It remains an ordinary name everywhere else: `dim as long partial` and a procedure named `partial` are both fine.
 
 ## Errors
 
@@ -82,3 +82,4 @@ A program importing this module sees the whole type. `sizeof( frmMain.Form )` co
 | `TKO1065` | `partial` is on an alias such as `partial type T as long`, which has no body. |
 | `TKO1066` | Two parts give the same header clause. |
 | `TKO1067` | One part is `public` and another `private`. |
+| `TKO1068` | One part is a `partial type` and another a `partial class`. |
