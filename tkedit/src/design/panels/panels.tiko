@@ -25,6 +25,7 @@
 #import "vendor/tkControls/tkScrollPanel"
 #import "vendor/tkControls/tkTheme"
 #import "../model"
+#import "../catalog"
 #import "../edits"
 #import "../canvas"
 using containers
@@ -78,6 +79,7 @@ public type PanelRow
     Text as ustring    ' what the editor holds, as last applied
     Label as TK_WIDGET ptr
     Edit as TK_WIDGET ptr
+    Btn as TK_WIDGET ptr      ' an event row's "go to the code"
     CY as long
 end type
 
@@ -137,6 +139,7 @@ public type DesignPanels
     declare sub FillToolbox( )
     declare sub AddRow( byref key_ as const ustring, byref caption as const ustring, byval kind_ as long, byref items as const ustring = "" )
     declare sub AddPropRow( byval p as TKMETA_PROP ptr )
+    declare sub AddEventRow( byref event_ as const ustring )
     declare sub UpdateValues( )
     declare function ValueOf( byref key_ as const ustring ) as ustring
     declare function ControlValue( byval i as long, byref key_ as const ustring ) as ustring
@@ -190,7 +193,11 @@ private sub OnToolPicked( byval hList as TK_WIDGET ptr, byval row as integer )
     if (p = 0) orelse p->Updating orelse (p->C = 0) then exit sub
     dim as long i = tkListTree_GetItemData( hList, row )
     p->C->Tool = ""
-    if i > 0 then p->C->Tool = tkMeta_At( i - 1 )->Name
+    if i > tkMeta_Count( ) then
+        p->C->Tool = catalog.CUSTOM_TYPE
+    elseif i > 0 then
+        p->C->Tool = tkMeta_At( i - 1 )->Name
+    end if
     tkHost_SetFocus( p->C->Glass->pHost, p->C->Glass )
 end sub
 
@@ -224,6 +231,20 @@ end sub
 private sub OnCheckToggled( byval h as TK_WIDGET ptr, byval isChecked as boolean )
     dim as DesignPanels ptr p = PanelsOf( h )
     if p then p->CommitRow( p->RowOf( h ) )
+end sub
+
+' An event row's button: this event's handler, made if need be, and the code.
+private sub OnEventGo( byval h as TK_WIDGET ptr, byval id as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if (p = 0) orelse (p->C = 0) orelse (p->C->OnWire = 0) then exit sub
+    dim as long r = -1
+    for i as long = 0 to p->Rows.Count( ) - 1
+        if p->Rows[i].Btn = h then r = i
+    next
+    if r < 0 then exit sub
+    dim as ustring ctl
+    if p->C->Selected.Count( ) then ctl = p->C->Selected[0]
+    p->C->OnWire( p->C->Host, p->C, ctl, mid( p->Rows[r].Key, 3 ), true )
 end sub
 
 private sub OnFloatClicked( byval h as TK_WIDGET ptr, byval id as long )
@@ -471,7 +492,12 @@ sub DesignPanels.LayoutRows( )
     for each r as PanelRow in Rows
         dim as long rh = tkHost_Scale( h, r.CY )
         tkWidget_SetPos( r.Label, p_, y, lw - p_, rh - p_ )
-        tkWidget_SetPos( r.Edit, lw, y, w - lw - p_, rh - p_ )
+        dim as long bw = 0
+        if r.Btn then
+            bw = tkHost_Scale( h, 28 )
+            tkWidget_SetPos( r.Btn, w - p_ - bw, y, bw, rh - p_ )
+        end if
+        tkWidget_SetPos( r.Edit, lw, y, w - lw - p_ - bw, rh - p_ )
         y += rh
     next
     tkScrollPanel_SetContentHeight( Scroll, y + p_ )
@@ -484,6 +510,7 @@ sub DesignPanels.FillToolbox( )
     tkListTree_BeginUpdate( ToolList )
     tkListTree_Clear( ToolList )
     tkListTree_AddString( ToolList, i18n.Tr( "designer.pointer", "Pointer" ), 0 )
+    tkListTree_AddString( ToolList, catalog.CUSTOM_TYPE, tkMeta_Count( ) + 1 )
     dim as ustring seen = "|"
     for i as long = 0 to tkMeta_Count( ) - 1
         dim as ustring cat = tkMeta_At( i )->Category
@@ -611,6 +638,15 @@ private function EnumShown_( byref pairs as const ustring ) as ustring
     return o
 end function
 
+sub DesignPanels.AddEventRow( byref event_ as const ustring )
+    this.AddRow( "E:" & event_, event_, RowKind.RowText )
+    with Rows[Rows.Count( ) - 1]
+        .Btn = tkButton_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
+        tkButton_SetText( .Btn, "..." )
+        tkButton_SetClickCallback( .Btn, @OnEventGo )
+    end with
+end sub
+
 sub DesignPanels.AddPropRow( byval p as TKMETA_PROP ptr )
     select case p->Kind
     case "bool" : this.AddRow( p->Name, p->Name, RowKind.RowCheck )
@@ -625,6 +661,7 @@ sub DesignPanels.BuildRows( )
     for each r as PanelRow in Rows
         tkWidget_Destroy( r.Label )
         tkWidget_Destroy( r.Edit )
+        if r.Btn then tkWidget_Destroy( r.Btn )
     next
     Rows.Clear( )
     Updating = true
@@ -633,13 +670,15 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@Caption", i18n.Tr( "designer.caption", "Caption" ), RowKind.RowText )
         this.AddRow( "@FormW", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
         this.AddRow( "@FormH", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
+        this.AddEventRow( "Load" )
+        this.AddEventRow( "Close" )
     else
         dim as long i0 = FindControl( C->Doc, C->Selected[0] )
         if i0 < 0 then
             Updating = false
             exit sub
         end if
-        dim as TKMETA_CONTROL ptr m0 = tkMeta_Find( C->Doc.Controls[i0].TypeName )
+        dim as TKMETA_CONTROL ptr m0 = catalog.Find( C->Doc.Controls[i0].TypeName )
         if n = 1 then
             this.AddRow( "@Name", i18n.Tr( "designer.name", "Name" ), RowKind.RowText )
             this.AddRow( "@X", "X", RowKind.RowText )
@@ -652,8 +691,21 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@AR", i18n.Tr( "designer.anchor_right", "Anchor right" ), RowKind.RowCheck )
         this.AddRow( "@AB", i18n.Tr( "designer.anchor_bottom", "Anchor bottom" ), RowKind.RowCheck )
         this.AddRow( "@Dock", i18n.Tr( "designer.dock_mode", "Dock" ), RowKind.RowCombo, "none,top,bottom,left,right,fill" )
-        this.AddRow( "Enabled", "Enabled", RowKind.RowCheck )
-        this.AddRow( "Visible", "Visible", RowKind.RowCheck )
+        dim as boolean anyCustom = false
+        for k as long = 0 to n - 1
+            dim as long ik = FindControl( C->Doc, C->Selected[k] )
+            if ik >= 0 then
+                if C->Doc.Controls[ik].TypeName = catalog.CUSTOM_TYPE then anyCustom = true
+            end if
+        next
+        if anyCustom = false then
+            this.AddRow( "Enabled", "Enabled", RowKind.RowCheck )
+            this.AddRow( "Visible", "Visible", RowKind.RowCheck )
+        end if
+        if (n = 1) andalso (m0->Name = catalog.CUSTOM_TYPE) then
+            this.AddRow( "@CType", i18n.Tr( "designer.custom_type", "Type" ), RowKind.RowText )
+            this.AddRow( "@CModule", i18n.Tr( "designer.custom_module", "Module" ), RowKind.RowText )
+        end if
         ' properties every selected control has, with the same meaning
         if n = 1 andalso (len( m0->CreateArg ) > 0) then
             select case m0->CreateArgKind
@@ -666,7 +718,7 @@ sub DesignPanels.BuildRows( )
             for k as long = 1 to n - 1
                 dim as long ik = FindControl( C->Doc, C->Selected[k] )
                 if ik < 0 then continue for
-                dim as TKMETA_PROP ptr other = tkMeta_FindProp( tkMeta_Find( C->Doc.Controls[ik].TypeName ), m0->Props( p ).Name )
+                dim as TKMETA_PROP ptr other = tkMeta_FindProp( catalog.Find( C->Doc.Controls[ik].TypeName ), m0->Props( p ).Name )
                 if other = 0 then
                     common_ = false
                 elseif other->Kind <> m0->Props( p ).Kind then
@@ -675,6 +727,11 @@ sub DesignPanels.BuildRows( )
             next
             if common_ then this.AddPropRow( @m0->Props( p ) )
         next
+        if n = 1 then
+            for e as long = 0 to m0->NumEvents - 1
+                this.AddEventRow( m0->Events( e ).Name )
+            next
+        end if
     end if
     Updating = false
     this.LayoutRows( )
@@ -682,7 +739,7 @@ end sub
 
 function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring ) as ustring
     dim as FormControl c_ = C->Doc.Controls[i]
-    dim as TKMETA_CONTROL ptr m = tkMeta_Find( c_.TypeName )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( c_.TypeName )
     select case key_
     case "@Name" : return c_.Name
     case "@X"    : return str( c_.X )
@@ -690,6 +747,8 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@W"    : return str( c_.W )
     case "@H"    : return str( c_.H )
     case "@Dock" : return DockWord( c_.Dock )
+    case "@CType" : return c_.CustomType
+    case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
     case "@AR"   : if (c_.Anchor and TK_ANCHOR_RIGHT) then return "true" else return "false"
@@ -697,6 +756,7 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "Enabled", "Visible"
         return SettingOr( c_.Props, key_, "true" )
     end select
+    if left( key_, 2 ) = "E:" then return SettingOr( c_.Events, mid( key_, 3 ) )
     if key_ = m->CreateArg then return SettingOr( c_.Props, key_, m->CreateArgDflt )
     dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, key_ )
     if p then return SettingOr( c_.Props, key_, p->DefaultValue )
@@ -710,6 +770,7 @@ function DesignPanels.ValueOf( byref key_ as const ustring ) as ustring
     case "@FormW"   : return str( C->Doc.ClientW )
     case "@FormH"   : return str( C->Doc.ClientH )
     end select
+    if (left( key_, 2 ) = "E:") andalso (C->Selected.Count( ) = 0) then return SettingOr( C->Doc.Events, mid( key_, 3 ) )
     dim as ustring out_
     dim as boolean first_ = true
     for each n as ustring in C->Selected
@@ -827,6 +888,10 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
         end if
     case "@Name"
         edits.RenameControl( trial, C->Selected[0], text )
+    case "@CType"
+        trial.Controls[i].CustomType = text
+    case "@CModule"
+        trial.Controls[i].CustomModule = text
     case "@X", "@Y", "@W", "@H"
         if ParseLong_( text, v ) = false then return badNumber
         dim as long x = trial.Controls[i].X, y = trial.Controls[i].Y, w = trial.Controls[i].W, h = trial.Controls[i].H
@@ -848,10 +913,42 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     case "@AR" : edits.SetAnchorBit( trial, C->Selected, TK_ANCHOR_RIGHT, text = "true" ) : rebuild = false
     case "@AB" : edits.SetAnchorBit( trial, C->Selected, TK_ANCHOR_BOTTOM, text = "true" ) : rebuild = false
     case else
-        dim as ustring bad = edits.SetProperty( trial, C->Selected, key_, text )
-        if len( bad ) then return bad
+        if left( key_, 2 ) = "E:" then
+            dim as ustring ev = mid( key_, 3 )
+            if i >= 0 then
+                dim as long at_ = FindSetting( trial.Controls[i].Events, ev )
+                if len( text ) then
+                    PutSetting( trial.Controls[i].Events, ev, text )
+                elseif at_ >= 0 then
+                    trial.Controls[i].Events.Remove( at_ )
+                end if
+            else
+                dim as long at_ = FindSetting( trial.Events, ev )
+                if len( text ) then
+                    PutSetting( trial.Events, ev, text )
+                elseif at_ >= 0 then
+                    trial.Events.Remove( at_ )
+                end if
+            end if
+            rebuild = false
+        else
+            dim as ustring bad = edits.SetProperty( trial, C->Selected, key_, text )
+            if len( bad ) then return bad
+        end if
     end select
-    dim as ustring newName
-    if key_ = "@Name" then newName = text
-    return C->ApplyEdit( trial, rebuild, newName )
+    dim as ustring newName, oldName
+    if key_ = "@Name" then
+        newName = text
+        oldName = C->Selected[0]
+    end if
+    dim as ustring fault = C->ApplyEdit( trial, rebuild, newName )
+    if len( fault ) then return fault
+    if len( newName ) andalso (C->OnRenamed <> 0) then C->OnRenamed( C->Host, C, oldName, newName )
+    ' a handler named by hand gets a body
+    if (left( key_, 2 ) = "E:") andalso (len( text ) > 0) andalso (C->OnWire <> 0) then
+        dim as ustring ctl
+        if C->Selected.Count( ) then ctl = C->Selected[0]
+        C->OnWire( C->Host, C, ctl, mid( key_, 3 ), false )
+    end if
+    return ""
 end function

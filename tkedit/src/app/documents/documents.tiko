@@ -84,6 +84,11 @@ public function IsSourceFile( byref path as const ustring ) as boolean
     return false
 end function
 
+' Written by the Form Designer: it's shown, never edited.
+public function IsGeneratedFile( byref path as const ustring ) as boolean
+    return lcase( right( path, 12 ) ) = ".design.tiko"
+end function
+
 public function IsFormFile( byref path as const ustring ) as boolean
     return lcase( right( path, 7 ) ) = ".tkform"
 end function
@@ -115,8 +120,10 @@ function Document.Load( byref path as const ustring ) as TextResult
     Enc.Encoding = t.Encoding
     Enc.LossyAccepted = false
     Enc.LineEnding = docencoding.ChooseLineEnd( t.Text, false, Enc.LineEnding, Enc.LineEnding )
+    Main.SetReadOnly( false )
     Main.SetText( t.Text )
     Main.SetLineEnding( Enc.LineEnding, false )
+    Main.SetReadOnly( IsGeneratedFile( path ) )
     this.Path = path
     this.ApplyHighlight( )
     Stamp = StampOf( path )

@@ -544,6 +544,19 @@ public type Window
     declare function DesignerActs( byval id as Cmd ) as boolean  ' false: this command needs text, and a form is showing
     declare function DesignerCommand( byval id as Cmd ) as boolean ' true: the design surface took it
     declare sub SyncPanels( )
+    SaveNote as ustring
+    declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef
+    declare function OpenQuietly( byref path as const ustring ) as DocRef
+    declare function CodeDocOf( byval formDoc as DocRef ) as DocRef
+    declare sub PutCodeText( byval d as DocRef, byref newText as const ustring )
+    declare sub WireHandler( byval c as canvas.FormCanvas ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
+    declare function HandlerGone( byval c as canvas.FormCanvas ptr, byref handler as const ustring ) as boolean
+    declare sub ControlRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
+    declare sub ReconcileDesigner( byval d as DocRef )
+    declare function WriteGenerated( byval d as DocRef ) as boolean
+    declare function PrepareForms( ) as boolean
+    declare sub ToggleFormView( )
+    declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     Palettes as panels.DesignPanels
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
@@ -1442,7 +1455,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
         return true
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
-         Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties
+         Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1706,6 +1719,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ZoomIn : v->ZoomIn( )
     case Cmd.ZoomOut : v->ZoomOut( )
     case Cmd.ZoomReset : v->ZoomReset( )
+    case Cmd.FormToggleView : this.ToggleFormView( )
     case Cmd.FoldToggle : v->FoldToggle( false )
     case Cmd.FoldBelow : v->FoldToggle( true )
     case Cmd.FoldAll : v->FoldAll( true )
@@ -2138,7 +2152,9 @@ end function
 ' A saved config file is applied at once (D15).
 sub Window.AfterSave( byval d as DocRef )
     dim as ustring p = lcase( d->Path )
-    if p = lcase( this.SettingsFile( ) ) then
+    if d->Designer then
+        this.WriteGenerated( d )
+    elseif p = lcase( this.SettingsFile( ) ) then
         this.ReloadSettings( )
     elseif p = lcase( this.KeysFile( ) ) then
         this.ReloadKeys( )
@@ -2577,6 +2593,18 @@ function Window.OpenText( byref path as const ustring ) as boolean
     dim as boolean badForm = false
     if documents.IsFormFile( path ) then
         badForm = (d->AttachDesigner( tkForm_Widget( form ), 0 ) = false)
+        if d->Designer then
+            d->Designer->Host = @this
+            d->Designer->OnWire = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
+                cast( Window ptr, o )->WireHandler( c, n, e, jump )
+            end sub
+            d->Designer->OnRenamed = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref a as const ustring, byref b as const ustring )
+                cast( Window ptr, o )->ControlRenamed( c, a, b )
+            end sub
+            d->Designer->OnHandlerGone = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref h as const ustring ) as boolean
+                return cast( Window ptr, o )->HandlerGone( c, h )
+            end function
+        end if
     end if
     this.ShowDoc( d )
     this.QueueScan( d )
@@ -2600,6 +2628,7 @@ function Window.SaveDoc( byval d as DocRef, byval newName as boolean ) as boolea
         path = Pick( form, TKFD_SAVE, suggest )
         if len( path ) = 0 then return false
     end if
+    this.ReconcileDesigner( d )                 ' before the text is written: it may change it
     dim as boolean accept_ = false
     if d->MustConfirmLoss( ) then
         if Ask( form, strings.Format( i18n.Tr( "ask.save_lossy", "{0}: some characters cannot be written as {1} and will be replaced. Save anyway?" ), _
@@ -2613,7 +2642,8 @@ function Window.SaveDoc( byval d as DocRef, byval newName as boolean ) as boolea
         return false
     end if
     Recent.Add( path )
-    Message = ""
+    Message = SaveNote                          ' what reconciling a form had to say
+    SaveNote = ""
     this.AfterSave( d )
     this.QueueScan( d )
     this.ShowTitle( )
@@ -3770,6 +3800,7 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
             if this.SaveDoc( d, false ) = false then return false
         end if
     end if
+    if this.PrepareForms( ) = false then return false
     if Prefs.SaveBeforeBuild then
         for each x as DocRef in Docs
             ' source files only: saving settings.toml or keybindings.toml would apply them
@@ -4474,6 +4505,7 @@ sub Window.QueueScan( byval d as DocRef )
         o.Includes.Push( inc )
     next
     o.PkgDir = this.PkgDir( )
+    this.AddFormOverlay( d, o )
     scanGen += 1
     Scanner.Queue( d->Path, d->Text( ), d->IsModified( ), o, scanGen )
 end sub

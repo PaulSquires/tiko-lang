@@ -16,6 +16,7 @@
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkLayout"
 #import "../model"
+#import "../catalog"
 using containers
 using outcome
 using tkMeta
@@ -88,12 +89,14 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     c.TypeName = StrOf_( t, "type" )
     c.Parent = StrOf_( t, "parent" )
     c.Page = IntOf_( t, "page", -1 )
+    c.CustomType = StrOf_( t, "custom_type" )
+    c.CustomModule = StrOf_( t, "custom_module" )
     c.X = IntOf_( t, "x", 0 )
     c.Y = IntOf_( t, "y", 0 )
     c.W = IntOf_( t, "w", 0 )
     c.H = IntOf_( t, "h", 0 )
     dim as ustring where = "control '" & c.Name & "'"
-    OnlyKeys_( t, "name type parent page x y w h anchor dock pages props events", where, doc )
+    OnlyKeys_( t, "name type parent page x y w h anchor dock pages custom_type custom_module props events", where, doc )
     dim as config.TomlValue ptr p = t.Find( "anchor" )
     if p then
         if AnchorFromWords( Str_( *p ), c.Anchor ) = false then
@@ -293,6 +296,8 @@ public function Render( byref doc as FormDoc ) as ustring
         o &= "h = " & c.H & NL
         if c.Anchor <> TK_ANCHOR_DEFAULT then o &= "anchor = " & Quote_( AnchorWords( c.Anchor ) ) & NL
         if c.Dock <> TK_DOCK_NONE then o &= "dock = " & Quote_( DockWord( c.Dock ) ) & NL
+        if len( c.CustomType ) then o &= "custom_type = " & Quote_( c.CustomType ) & NL
+        if len( c.CustomModule ) then o &= "custom_module = " & Quote_( c.CustomModule ) & NL
         if c.Pages.Count( ) then
             o &= "pages = ["
             for p as long = 0 to c.Pages.Count( ) - 1
@@ -301,7 +306,7 @@ public function Render( byref doc as FormDoc ) as ustring
             next
             o &= "]" & NL
         end if
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         WriteProps_( o, c, m )
         WriteEvents_( o, c, m )
     next

@@ -19,6 +19,7 @@
 #import "tkd/formtree"
 #import "tkd/canvas"
 #import "tkd/edits"
+#import "tkd/reconcile"
 #import "vendor/tkControls/tkLayout"
 using containers
 using model
@@ -502,6 +503,9 @@ sub EditsSuite( )
     edits.RenameControl( qBad, "Button1", "print" )
     Check( instr( validate.FirstNewProblem( q, qBad ), "reserved" ) > 0, "the new problem is found" )
     Check( len( validate.FirstNewProblem( q, q ) ) = 0, "no change, no new problem" )
+    PutSetting( q.Controls[1].Events, "Click", "Button1_Click" )
+    edits.RenameControl( q, "Button1", "btnGo" )
+    Check( SettingOr( q.Controls[1].Events, "Click" ) = "btnGo_Click", "a rename takes its handler along" )
 
     ' the text edit
     dim as edits.LineEdit e = edits.DiffLines( "a" & LF & "b" & LF & "c" & LF, "a" & LF & "b" & LF & "c" & LF, LF )
@@ -518,6 +522,110 @@ sub EditsSuite( )
     Check( (e.First = 1) andalso (e.Text = "b" & LF), "a last line that had no break gets one" )
 end sub
 
+sub ReconcileSuite( )
+    dim as ustring src = "#module ""f""" & LF & LF & "sub Form.A_Click( )" & LF & "    ' a note" & LF & LF & "end sub" & LF & LF _
+        & "sub Form.B_Click( byval x as long )" & LF & "    print x" & LF & "end sub" & LF
+    dim as long a, b
+    Check( reconcile.FindBody( src, "A_Click", a, b ), "a handler is found" )
+    Check( (a = 2) andalso (b = 5), "its lines", a & "," & b )
+    Check( reconcile.FindBody( src, "a_click", a, b ), "whatever its case" )
+    Check( reconcile.IsEmptyBody( src, a, b ), "comments and blanks are empty" )
+    reconcile.FindBody( src, "B_Click", a, b )
+    Check( reconcile.IsEmptyBody( src, a, b ) = false, "code isn't" )
+    Check( reconcile.FindBody( src, "C_Click", a, b ) = false, "an absent one isn't found" )
+
+    reconcile.FindBody( src, "A_Click", a, b )
+    dim as ustring cut_ = reconcile.RemoveLines( src, a, b )
+    Check( cut_ = "#module ""f""" & LF & LF & "sub Form.B_Click( byval x as long )" & LF & "    print x" & LF & "end sub" & LF, "a handler removed, with its blank line", cut_ )
+
+    dim as long bodyLine
+    dim as ustring added = reconcile.AddStub( "#module ""f""" & LF, "H", "byval n as long", bodyLine )
+    Check( added = "#module ""f""" & LF & LF & "sub Form.H( byval n as long )" & LF & "    " & LF & "end sub" & LF, "a stub", added )
+    Check( bodyLine = 3, "and the line inside it", str( bodyLine ) )
+    added = reconcile.AddStub( "x", "H", "", bodyLine )
+    Check( instr( added, "x" & LF & LF & "sub Form.H( )" ) = 1, "a missing last line break is made up", added )
+    added = reconcile.AddStub( "", "H", "", bodyLine )
+    Check( (left( added, 11 ) = "sub Form.H(") andalso (bodyLine = 1), "into an empty file", added )
+    Check( len( reconcile.NewCodeFile( "frmX" ) ) > 0 andalso (instr( reconcile.NewCodeFile( "frmX" ), "#module ""frmX""" ) > 0), "a new file has the module" )
+
+    dim as ustring imported = reconcile.EnsureImport( "#module ""f""" & LF & "#import ""std/fs""" & LF & LF & "code" & LF, "tkDatePicker" )
+    Check( instr( imported, "#import ""std/fs""" & LF & "#import ""vendor/tkControls/tkDatePicker""" & LF & "using tkDatePicker" & LF ) > 0, "an import goes after the others", imported )
+    Check( reconcile.EnsureImport( imported, "tkDatePicker" ) = imported, "only once" )
+    imported = reconcile.EnsureImport( imported, "tkToolbar" )
+    Check( instr( imported, "#import ""vendor/tkControls/tkDatePicker""" & LF & "#import ""vendor/tkControls/tkToolbar""" & LF & "using tkDatePicker" & LF & "using tkToolbar" & LF ) > 0, "imports stay ahead of every using", imported )
+
+    dim as Array( of ustring ) needs = reconcile.ImportsFor( "byval hMenu as TK_MENU ptr, byval h as TK_HOST ptr", "tkToolbar" )
+    Check( (needs.Count( ) = 2) andalso (needs[0] = "tkHost") andalso (needs[1] = "tkPopupMenu"), "the modules a parameter list needs" )
+    needs = reconcile.ImportsFor( "byval p as TKDATE ptr", "tkCalendar" )
+    Check( (needs.Count( ) = 1) andalso (needs[0] = "tkCalendar"), "a date comes from its control's module" )
+    needs = reconcile.ImportsFor( "byval x as long", "tkButton" )
+    Check( needs.Count( ) = 0, "plain types need nothing" )
+
+    dim as FormDoc d
+    edits.AddControl( d, "Button", "", -1, 0, 0, 10, 10 )
+    d.Controls[0].Name = "btnNew"
+    PutSetting( d.Controls[0].Events, "Click", "btnNew_Click" )
+    dim as ustring code = "sub Form.btnOld_Click( )" & LF & "    btnOld.Text = ""btnOld"" ' btnOld" & LF & "    this.BTNOLD.Text = !""a\""btnOld""" & LF & "    x.btnOld = btnOld_Other" & LF & "    y = btnOldest" & LF & "    /' btnOld '/" & LF & "end sub" & LF
+    dim as ustring got = reconcile.RenameInCode( code, "btnOld", "btnNew", d )
+    Check( instr( got, "sub Form.btnNew_Click( )" ) > 0, "the handler's definition", got )
+    Check( instr( got, "    btnNew.Text = ""btnOld"" ' btnOld" ) > 0, "a use, not its string or comment", got )
+    Check( instr( got, "this.btnNew.Text = !""a\""btnOld""" ) > 0, "this., any case, an escaped string", got )
+    Check( instr( got, "x.btnOld" ) > 0, "another object's member stays", got )
+    Check( instr( got, "btnOld_Other" ) > 0, "a name that isn't a bound handler stays", got )
+    Check( instr( got, "btnOldest" ) > 0, "a longer name stays", got )
+    Check( instr( got, "/' btnOld '/" ) > 0, "a block comment stays", got )
+
+    dim as FormDoc r
+    edits.AddControl( r, "Button", "", -1, 0, 0, 10, 10 )
+    PutSetting( r.Controls[0].Events, "Click", "Has_Body" )
+    edits.AddControl( r, "Button", "", -1, 0, 0, 10, 10 )
+    PutSetting( r.Controls[1].Events, "Click", "No_Body" )
+    PutSetting( r.Events, "Load", "Form_Load" )
+    dim as FormOrphan o1, o2
+    o1.Handler = "Old_Has"
+    o2.Handler = "Old_None"
+    r.Orphans.Push( o1 )
+    r.Orphans.Push( o2 )
+    dim as Array( of ustring ) unbound
+    dim as ustring text = "sub Form.Has_Body( )" & LF & "end sub" & LF & "sub Form.Old_Has( )" & LF & "end sub" & LF
+    Check( reconcile.ReconcileForm( r, text, unbound ), "a missing body is a change" )
+    Check( FindSetting( r.Controls[0].Events, "Click" ) >= 0, "what has a body stays bound" )
+    Check( FindSetting( r.Controls[1].Events, "Click" ) < 0, "what hasn't is unbound" )
+    Check( FindSetting( r.Events, "Load" ) < 0, "a form event likewise" )
+    Check( unbound.Count( ) = 2, "and they're listed", str( unbound.Count( ) ) )
+    Check( (r.Orphans.Count( ) = 1) andalso (r.Orphans[0].Handler = "Old_Has"), "an orphan with no body is forgotten" )
+    dim as Array( of ustring ) u2
+    Check( reconcile.ReconcileForm( r, text, u2 ) = false, "nothing further" )
+
+    ' a custom control
+    dim as FormDoc cu
+    cu.ClientW = 100
+    cu.ClientH = 100
+    edits.AddControl( cu, "Custom", "", -1, 0, 0, 50, 50 )
+    Check( cu.Controls[0].Name = "Custom1", "a stand-in is named" )
+    dim as Array( of ustring ) p1
+    validate.Check( cu, "frmC", p1 )
+    Check( (p1.Count( ) = 1) andalso (instr( p1[0], "name of its type" ) > 0), "with no type it's a problem" )
+    cu.Controls[0].CustomType = "Gauge"
+    dim as Array( of ustring ) p2
+    validate.Check( cu, "frmC", p2 )
+    Check( (p2.Count( ) = 1) andalso (instr( p2[0], "module" ) > 0), "nor with no module" )
+    cu.Controls[0].CustomModule = "../widgets/gauge"
+    dim as Array( of ustring ) p3
+    validate.Check( cu, "frmC", p3 )
+    Check( p3.Count( ) = 0, "promoted, it's fine" )
+    dim as ustring tx = formfile.Render( cu )
+    dim as FormDoc cu2
+    Check( ReadForm( tx, cu2 ) andalso (formfile.Render( cu2 ) = tx), "and round-trips" )
+    Check( cu2.Controls[0].CustomModule = "../widgets/gauge", "with its module" )
+    dim as ustring g = codegen.Generate( cu, "frmC", "frmC.tkform", tx )
+    Check( instr( g, "    Custom1 as Gauge" & LF ) > 0, "generated as its type", g )
+    Check( instr( g, "#import ""../widgets/gauge""" & LF ) > 0, "imported", g )
+    Check( instr( g, "using gauge" & LF ) > 0, "by its last part" )
+    HasLine( g, "Custom1.Create( tkForm_Widget( Wnd ), 1 )", "created like any control" )
+    HasLine( g, "tkLayout_Add( Layout, Custom1.Handle, 0, 0, 50, 50 )", "and laid out" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -527,5 +635,6 @@ Validation( )
 Generator( source, bAccept )
 Tree( )
 EditsSuite( )
+ReconcileSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

@@ -23,7 +23,9 @@
 #import "vendor/tkControls/tkGroupBox"
 #import "vendor/tkControls/tkScrollBar"
 #import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkLabel"
 #import "../model"
+#import "../catalog"
 #import "../formfile"
 #import "../edits"
 #import "../validate"
@@ -38,12 +40,17 @@ using tkScrollPanel
 using tkGroupBox
 using tkScrollBar
 using tkTheme
+using tkLabel
 using tkHost
 using tkPaint
 using model
 
 public type CanvasCommitSub as sub( byval owner as any ptr, byref text as const ustring )
 public type CanvasChangedSub as sub( byval listener as any ptr )
+public type FormCanvas_ as FormCanvas
+public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
+public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
+public type CanvasGoneFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref handler as const ustring ) as boolean
 
 const as long MARGIN = 16         ' design units of empty surface around the form
 const as long GRIP_SIZE = 7       ' a grip's size
@@ -84,6 +91,10 @@ public type FormCanvas
     OnCommit as CanvasCommitSub
     Listener as any ptr
     OnChanged as CanvasChangedSub       ' the selection, the model or the tool changed
+    Host as any ptr                     ' for the joins to the code
+    OnWire as CanvasWireSub             ' give an event a handler; jump: and go to it
+    OnRenamed as CanvasRenameSub
+    OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
 
     Drag as long
     Grip as long                        ' DragResize: EDGE_* bits
@@ -128,6 +139,7 @@ public type FormCanvas
     declare sub OnDragTo( byval x as long, byval y as long, byval mods as long )
     declare sub OnRelease( byval x as long, byval y as long )
     declare sub OnHover( byval x as long, byval y as long )
+    declare sub OnDoubleClick( byval x as long, byval y as long )
     declare function OnKey( byval key as long, byval mods as long ) as boolean
     declare sub Paint( byval b as TK_PAINT ptr )
     declare sub PaintSurface( byval b as TK_PAINT ptr )
@@ -163,6 +175,10 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         return true
     case TKM_LBUTTONDOWN
         tkHost_SetFocus( w->pHost, w )
+        if (m->clicks >= 2) andalso (len( c->Tool ) = 0) then
+            c->OnDoubleClick( m->x, m->y )
+            return true
+        end if
         tkHost_SetCapture( w )
         c->OnPress( m->x, m->y, SDL_GetModState( ) )
         return true
@@ -290,7 +306,7 @@ function FormCanvas.LoadText( byref text as const ustring ) as boolean
     if formfile.Parse( text, d, e ) = false then return false
     if d.Problems.Count( ) then return false
     for each c as FormControl in d.Controls
-        if tkMeta_Find( c.TypeName ) = 0 then return false
+        if catalog.Find( c.TypeName ) = 0 then return false
         if (len( c.Parent ) > 0) andalso (FindControl( d, c.Parent ) < 0) then return false
     next
     Doc = d
@@ -314,7 +330,7 @@ end sub
 
 ' The widget a child of control i goes on.
 sub FormCanvas.ContainerClient( byval i as long, byval page as long, byref w as TK_WIDGET ptr )
-    dim as TKMETA_CONTROL ptr m = tkMeta_Find( Doc.Controls[i].TypeName )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
     w = Widgets[i]
     select case m->ContainerKind
     case TKMETA_CONTAINER_PAGES       : w = tkTabControl_GetPage( Widgets[i], page )
@@ -335,7 +351,7 @@ sub FormCanvas.Rebuild( )
     tkLayout_AddContainer( Layout, Surface, Doc.ClientW, Doc.ClientH )
     for i as long = 0 to Doc.Controls.Count( ) - 1
         dim as FormControl c = Doc.Controls[i]
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         dim as TK_WIDGET ptr parent_ = Surface
         if len( c.Parent ) then this.ContainerClient( FindControl( Doc, c.Parent ), c.Page, parent_ )
         dim as ustring arg = m->CreateArgDflt
@@ -343,6 +359,15 @@ sub FormCanvas.Rebuild( )
         dim as TK_WIDGET ptr w = m->Create( parent_, i + 1, arg )
         Widgets.Push( w )
         if w = 0 then continue for
+        if m->Name = catalog.CUSTOM_TYPE then
+            ' a stand-in: what it's called and what it will be
+            dim as ustring shown = c.CustomType
+            if len( shown ) = 0 then shown = "?"
+            tkLabel_SetText( w, c.Name & " : " & shown )
+            tkLabel_SetTransparent( w, false )
+            tkLabel_SetBackColor( w, tkTheme_Get( ).Selected )
+            tkLabel_SetTextColor( w, tkTheme_Get( ).SelectedText )
+        end if
         tkLayout_Add( Layout, w, c.X, c.Y, c.W, c.H, c.Anchor, c.Dock )
         if m->ContainerKind = TKMETA_CONTAINER_PAGES then
             for each t as ustring in c.Pages
@@ -395,7 +420,7 @@ sub FormCanvas.SyncGeometry( )
         tkLayout_SetDesignRect( Layout, w, c.X, c.Y, c.W, c.H )
         tkLayout_SetAnchor( Layout, w, c.Anchor )
         tkLayout_SetDock( Layout, w, c.Dock )
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         select case m->ContainerKind
         case TKMETA_NOT_CONTAINER
         case TKMETA_CONTAINER_PAGES
@@ -549,7 +574,7 @@ sub FormCanvas.PlaceAt( byval x as long, byval y as long, byref parent as ustrin
     dim as TKRECT base_ = this.SurfaceRect( )
     dim as long i = this.HitControl( x, y )
     while i >= 0
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( Doc.Controls[i].TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
         if m->ContainerKind <> TKMETA_NOT_CONTAINER then
             parent = Doc.Controls[i].Name
             dim as long pg = -1
@@ -598,7 +623,7 @@ sub FormCanvas.OnPress( byval x as long, byval y as long, byval mods as long )
         exit sub
     end if
     ' a click on another tab shows that page; the tab control is selected as well
-    dim as TKMETA_CONTROL ptr m = tkMeta_Find( Doc.Controls[i].TypeName )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then
         dim as TK_WIDGET ptr bar_ = tkTabControl_GetTabBar( Widgets[i] )
         dim as TKRECT rc = this.RectOf( bar_ )
@@ -714,7 +739,7 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
         next
         this.Changed( )
     case DragDraw
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( Tool )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( Tool )
         if m then
             dim as ustring parent_
             dim as long page_, px, py
@@ -748,6 +773,19 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
         end if
     end select
     tkWidget_Invalidate( Glass )
+end sub
+
+' A double click wires the default event: of the control under it, or of the form.
+sub FormCanvas.OnDoubleClick( byval x as long, byval y as long )
+    if OnWire = 0 then exit sub
+    dim as long i = this.HitControl( x, y )
+    if i >= 0 then
+        dim as ustring nm = Doc.Controls[i].Name
+        OnWire( Host, @this, nm, "", true )
+        exit sub
+    end if
+    dim as TKRECT rc = this.SurfaceRect( )
+    if (x >= rc.left) andalso (x < rc.right) andalso (y >= rc.top) andalso (y < rc.bottom) then OnWire( Host, @this, "", "", true )
 end sub
 
 sub FormCanvas.OnHover( byval x as long, byval y as long )
@@ -890,8 +928,49 @@ end sub
 
 sub FormCanvas.DeleteSelection( )
     if Selected.Count( ) = 0 then exit sub
+    ' what the deleted controls' events call, with the parameters they'd have passed
+    dim as Array( of Setting ) gone
+    for i as long = 0 to Doc.Controls.Count( ) - 1
+        dim as boolean going = this.IsSelected( Doc.Controls[i].Name )
+        if going = false then
+            dim as ustring up = Doc.Controls[i].Parent
+            while (len( up ) > 0) andalso (going = false)
+                if this.IsSelected( up ) then going = true
+                dim as long p = FindControl( Doc, up )
+                if p < 0 then exit while
+                up = Doc.Controls[p].Parent
+            wend
+        end if
+        if going then
+            dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
+            for each s as Setting in Doc.Controls[i].Events
+                dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( m, s.Key )
+                if e then PutSetting( gone, s.Value, e->Params )
+            next
+        end if
+    next
     edits.DeleteControls( Doc, Selected )
     Selected.Clear( )
+    for each s as Setting in gone
+        ' one a surviving control still calls isn't gone at all
+        dim as boolean inUse = false
+        for each ev as Setting in Doc.Events
+            if lcase( ev.Value ) = lcase( s.Key ) then inUse = true
+        next
+        for each k as FormControl in Doc.Controls
+            for each ev as Setting in k.Events
+                if lcase( ev.Value ) = lcase( s.Key ) then inUse = true
+            next
+        next
+        if (inUse = false) andalso (OnHandlerGone <> 0) then
+            if OnHandlerGone( Host, @this, s.Key ) then
+                dim as FormOrphan o
+                o.Handler = s.Key
+                o.Params = s.Value
+                Doc.Orphans.Push( o )
+            end if
+        end if
+    next
     this.Rebuild( )
     this.Commit( )
 end sub
@@ -912,7 +991,7 @@ sub FormCanvas.Paste( )
     dim as long page_ = -1
     if Selected.Count( ) = 1 then
         dim as long i = FindControl( Doc, Selected[0] )
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( Doc.Controls[i].TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
         if m->ContainerKind <> TKMETA_NOT_CONTAINER then
             parent_ = Doc.Controls[i].Name
             if m->ContainerKind = TKMETA_CONTAINER_PAGES then page_ = tkTabControl_GetCurSel( Widgets[i] )

@@ -15,6 +15,7 @@
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkLayout"
 #import "../model"
+#import "../catalog"
 #import "../formfile"
 #import "../codegen"
 using containers
@@ -96,7 +97,7 @@ end function
 ' does. The answer is its index, or -1 for an unknown type.
 public function AddControl( byref doc as FormDoc, byref typeName as const ustring, byref parent as const ustring, _
                             byval page as long, byval x as long, byval y as long, byval w as long, byval h as long ) as long
-    dim as TKMETA_CONTROL ptr m = tkMeta_Find( typeName )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( typeName )
     if m = 0 then return -1
     dim as FormControl c
     c.Name = UniqueName( doc, m->Name )
@@ -289,12 +290,17 @@ end sub
 
 ' ---- one property ------------------------------------------------------------------------------
 
-' Renames a control and every child's reference to it. Handlers keep their names here.
+' Renames a control, every child's reference to it, and the handlers named after it.
 public sub RenameControl( byref doc as FormDoc, byref oldName as const ustring, byref newName as const ustring )
     dim as ustring was = lcase( oldName )
+    dim as ustring prefix = was & "_"
     for i as long = 0 to doc.Controls.Count( ) - 1
         if lcase( doc.Controls[i].Name ) = was then
             doc.Controls[i].Name = newName
+            for e as long = 0 to doc.Controls[i].Events.Count( ) - 1
+                dim as ustring v = doc.Controls[i].Events[e].Value
+                if left( lcase( v ), len( prefix ) ) = prefix then doc.Controls[i].Events[e].Value = newName & mid( v, len( prefix ) )
+            next
         elseif lcase( doc.Controls[i].Parent ) = was then
             doc.Controls[i].Parent = newName
         end if
@@ -352,7 +358,7 @@ public function SetProperty( byref doc as FormDoc, byref names as Array( of ustr
     for each s as ustring in names
         dim as long i = FindControl( doc, s )
         if i < 0 then continue for
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( doc.Controls[i].TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[i].TypeName )
         dim as ustring kind_ = "text", dflt
         if (key_ = "Enabled") orelse (key_ = "Visible") then
             kind_ = "bool"
@@ -429,7 +435,7 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
     dim as Array( of Setting ) map_
     dim as FormDoc taken = doc
     for each c as FormControl in clip.Controls
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if m = 0 then return false
         dim as FormControl mark
         mark.Name = UniqueName( taken, m->Name )

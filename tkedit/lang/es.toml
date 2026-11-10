@@ -123,6 +123,10 @@ no_compiler = "No se encontró ningún compilador tiko: no hay ninguno fijado en
 choose_compiler = "A continuación, elija el compilador ({0}). tkEdit lo guarda en {1}."
 
 [message]
+cannot_create = "no se puede crear"
+no_default_event = "{} no tiene evento predeterminado"
+handler_unbound = "sin código para {}: desvinculado"
+no_form = "ningún formulario acompaña a este archivo"
 not_available = "{}: aún no disponible"
 form_as_text = "no se puede mostrar como formulario; abierto como texto"
 compiler_not_saved = "{} no se puede leer: se usa el compilador, pero no se guarda"
@@ -147,6 +151,7 @@ compiler = "el compilador tiko: {}"
 no_definition = "no se encontró la definición de {}"
 
 [commands]
+FormToggleView = "Alternar formulario / código"
 FormAlignLefts = "Alinear a la izquierda"
 FormAlignCenters = "Alinear al centro"
 FormAlignRights = "Alinear a la derecha"
@@ -292,6 +297,8 @@ delete_breakpoint = "Quitar punto de interrupción"
 mac_permission = "macOS no permitió que el depurador controlara el programa: active el modo de desarrollador (sudo DevToolsSecurity -enable) o permítalo cuando macOS lo pregunte"
 
 [designer]
+custom_type = "Tipo"
+custom_module = "Módulo"
 toolbox = "Herramientas"
 properties = "Propiedades"
 float = "Flotar"

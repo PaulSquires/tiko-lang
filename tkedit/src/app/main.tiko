@@ -119,6 +119,7 @@ if command( 1 ) = "--selftest" then
     selftest.DesignerPass( t, 1.75 )
     selftest.PanelsPass( t, 1.0 )
     selftest.PanelsPass( t, 1.75 )
+    selftest.WiringPass( t, 1.0 )
     tkApp_Shutdown( )
     print strings.Format( "tkEdit [{}] selftest: {} passed, {} failed", platform.OsName( ), t.passed, t.failed )
     end t.failed

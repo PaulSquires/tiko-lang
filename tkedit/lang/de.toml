@@ -123,6 +123,10 @@ no_compiler = "Kein tiko-Compiler gefunden: in {} ist keiner gesetzt, im PATH is
 choose_compiler = "Wählen Sie als Nächstes den Compiler ({0}). tkEdit speichert ihn in {1}."
 
 [message]
+cannot_create = "kann nicht erstellt werden"
+no_default_event = "{} hat kein Standardereignis"
+handler_unbound = "kein Code für {}: Bindung entfernt"
+no_form = "zu dieser Datei gehört kein Formular"
 not_available = "{}: noch nicht verfügbar"
 form_as_text = "kann nicht als Formular angezeigt werden; als Text geöffnet"
 compiler_not_saved = "{} ist nicht lesbar: der Compiler wird verwendet, aber nicht gespeichert"
@@ -147,6 +151,7 @@ compiler = "der tiko-Compiler: {}"
 no_definition = "keine Definition für {} gefunden"
 
 [commands]
+FormToggleView = "Formular / Code umschalten"
 FormAlignLefts = "Links ausrichten"
 FormAlignCenters = "Zentriert ausrichten"
 FormAlignRights = "Rechts ausrichten"
@@ -292,6 +297,8 @@ delete_breakpoint = "Haltepunkt entfernen"
 mac_permission = "macOS hat dem Debugger die Kontrolle über das Programm verweigert: den Entwicklermodus einschalten (sudo DevToolsSecurity -enable) oder es zulassen, wenn macOS fragt"
 
 [designer]
+custom_type = "Typ"
+custom_module = "Modul"
 toolbox = "Werkzeugkasten"
 properties = "Eigenschaften"
 float = "Lösen"

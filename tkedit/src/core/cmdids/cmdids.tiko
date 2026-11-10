@@ -105,6 +105,7 @@ public enum Cmd explicit
     FormSnapToGrid
     FormFloatToolbox
     FormFloatProperties
+    FormToggleView
     UnfoldAll
     ' Project
     ProjectNew
@@ -311,6 +312,7 @@ constructor CommandTable( )
     this.Def( Cmd.ZoomIn, "ZoomIn", g, "Zoom In", "Primary+Plus", true )
     this.Def( Cmd.ZoomOut, "ZoomOut", g, "Zoom Out", "Primary+Minus" )
     this.Def( Cmd.ZoomReset, "ZoomReset", g, "Reset Zoom", "Primary+0" )
+    this.Def( Cmd.FormToggleView, "FormToggleView", g, "Toggle Form / Code", "Shift+F7", true )
     this.Def( Cmd.FoldToggle, "FoldToggle", g, "Toggle Fold", "F8", true )
     this.Def( Cmd.FoldBelow, "FoldBelow", g, "Fold This and Below", "Primary+F8" )
     this.Def( Cmd.FoldAll, "FoldAll", g, "Fold All", "Shift+F8" )

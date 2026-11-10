@@ -15,6 +15,7 @@
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkLayout"
 #import "../model"
+#import "../catalog"
 using containers
 using tkMeta
 using tkLayout
@@ -129,7 +130,7 @@ private sub ClientOf_( byref doc as FormDoc, byref sz as Sizes, byval parent as 
         cw = sz.W[parent]
         ch = sz.H[parent]
         dim as FormControl c = doc.Controls[parent]
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if m->ContainerKind = TKMETA_CONTAINER_PAGES then ch -= TabHeight_( c )
         if m->ContainerKind = TKMETA_CONTAINER_GROUPBOX then
             tkRect_Set( rc, GROUP_PADDING, GROUP_PADDING + GROUP_CAPTION, cw - GROUP_PADDING, ch - GROUP_PADDING )
@@ -188,7 +189,7 @@ public sub EffectiveSizes( byref doc as FormDoc, byref sz as Sizes )
     ComputeChildren_( doc, sz, -1, -1 )
     ' parents come first in the list, so each size is settled before its children use it
     for i as long = 0 to n - 1
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( doc.Controls[i].TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[i].TypeName )
         if m->ContainerKind = TKMETA_CONTAINER_PAGES then
             for p as long = 0 to doc.Controls[i].Pages.Count( ) - 1
                 ComputeChildren_( doc, sz, i, p )
@@ -209,10 +210,32 @@ end function
 
 ' ---- the pieces of the file -------------------------------------------------------------------
 
+' A custom control's module path, once each, in list order.
+private function CustomModules_( byref doc as FormDoc ) as Array( of ustring )
+    dim as Array( of ustring ) mods
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        dim as ustring mo = doc.Controls[i].CustomModule
+        if len( mo ) = 0 then continue for
+        dim as boolean seen = false
+        for j as long = 0 to mods.Count( ) - 1
+            if mods[j] = mo then seen = true
+        next
+        if seen = false then mods.Push( mo )
+    next
+    return mods
+end function
+
+' "../widgets/gauge" -> "gauge": the module's own name.
+private function LastPart_( byref path as const ustring ) as ustring
+    dim as long k = instrrev( path, "/" )
+    return mid( path, k + 1 )
+end function
+
 private function UsedModules_( byref doc as FormDoc ) as Array( of ustring )
     dim as Array( of ustring ) mods
     for i as long = 0 to doc.Controls.Count( ) - 1
-        dim as ustring mo = tkMeta_Find( doc.Controls[i].TypeName )->Module_
+        dim as ustring mo = catalog.Find( doc.Controls[i].TypeName )->Module_
+        if len( mo ) = 0 then continue for          ' a custom control's own module is listed apart
         dim as boolean seen = false
         for j as long = 0 to mods.Count( ) - 1
             if mods[j] = mo then seen = true : exit for
@@ -239,7 +262,7 @@ private sub HandlerDecls_( byref doc as FormDoc, byref o as ustring )
     i = FindSetting( doc.Events, "Close" )
     if i >= 0 then PutSetting( all, doc.Events[i].Value, "byref Cancel as boolean" )
     for c as long = 0 to doc.Controls.Count( ) - 1
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( doc.Controls[c].TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[c].TypeName )
         for each s as Setting in doc.Controls[c].Events
             PutSetting( all, s.Value, tkMeta_FindEvent( m, s.Key )->Params )
         next
@@ -255,7 +278,7 @@ end sub
 private sub Thunks_( byref doc as FormDoc, byref o as ustring )
     for c as long = 0 to doc.Controls.Count( ) - 1
         dim as FormControl k = doc.Controls[c]
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( k.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( k.TypeName )
         for e as long = 0 to m->NumEvents - 1
             dim as long i = FindSetting( k.Events, m->Events( e ).Name )
             if i >= 0 then
@@ -280,12 +303,12 @@ end sub
 
 private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as Sizes, byref o as ustring )
     dim as FormControl c = doc.Controls[idx]
-    dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
 
     dim as ustring parent_ = "tkForm_Widget( Wnd )"
     if len( c.Parent ) then
         dim as FormControl pc = doc.Controls[FindControl( doc, c.Parent )]
-        parent_ = ChildParent_( pc, tkMeta_Find( pc.TypeName )->ContainerKind, c.Page )
+        parent_ = ChildParent_( pc, catalog.Find( pc.TypeName )->ContainerKind, c.Page )
     end if
 
     o &= "    " & c.Name & ".Create( " & parent_ & ", " & (idx + 1)
@@ -374,15 +397,37 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     for each mo as ustring in mods
         o &= "#import ""vendor/tkControls/" & mo & """" & NL
     next
+    ' a toolbar's drop-down event hands over a popup menu, whose type lives in its own module
+    dim as boolean needsMenu = false
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[i].TypeName )
+        for each s as Setting in doc.Controls[i].Events
+            dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( m, s.Key )
+            if e then
+                if instr( e->Sig, "TK_MENU" ) then needsMenu = true
+            end if
+        next
+    next
+    if needsMenu then o &= "#import " & Literal_( "vendor/tkControls/tkPopupMenu" ) & NL
+    dim as Array( of ustring ) customMods = CustomModules_( doc )
+    for each mo as ustring in customMods
+        o &= "#import """ & mo & """" & NL
+    next
     o &= NL & "using tkForms" & NL & "using tkApp" & NL & "using tkLayout" & NL
     for each mo as ustring in mods
         o &= "using " & mo & NL
     next
+    for each mo as ustring in customMods
+        o &= "using " & LastPart_( mo ) & NL
+    next
+    if needsMenu then o &= "using tkPopupMenu" & NL
     o &= "using tkHost" & NL & "using tkPaint" & NL & NL
 
     o &= "public partial type Form extends FormBase" & NL
     for i as long = 0 to doc.Controls.Count( ) - 1
-        o &= "    " & doc.Controls[i].Name & " as " & doc.Controls[i].TypeName & NL
+        dim as ustring typeName_ = doc.Controls[i].TypeName
+        if len( doc.Controls[i].CustomType ) then typeName_ = doc.Controls[i].CustomType
+        o &= "    " & doc.Controls[i].Name & " as " & typeName_ & NL
     next
     o &= "    declare sub Build( byval owner as TK_FORM ptr = 0 )" & NL
     HandlerDecls_( doc, o )

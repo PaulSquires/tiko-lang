@@ -44,6 +44,8 @@ public type FormControl
     Props as Array( of Setting )    ' Key = property, Value = its text form
     Events as Array( of Setting )   ' Key = event, Value = handler name
     Pages as Array( of ustring )    ' a tab control's page captions
+    CustomType as ustring           ' a Custom control: the program's own type
+    CustomModule as ustring         ' and the module to import it from
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

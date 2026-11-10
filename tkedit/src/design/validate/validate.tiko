@@ -12,6 +12,7 @@
 #import "std/containers"
 #import "vendor/tkControls/tkMeta"
 #import "../model"
+#import "../catalog"
 #import "../formfile"
 using containers
 using tkMeta
@@ -44,6 +45,7 @@ end function
 ' A wrapper type or a control module: a field named like one hides it from the rest of the form.
 private function IsControlWord_( byref s as const ustring ) as boolean
     dim as ustring want = lcase( s )
+    if want = "custom" then return true
     if (want = "tkforms") orelse (want = "tkapp") orelse (want = "tklayout") orelse (want = "tkhost") _
        orelse (want = "tkpaint") orelse (want = "tktheme") orelse (want = "formbase") then return true
     for i as long = 0 to tkMeta_Count( ) - 1
@@ -190,7 +192,7 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         if FindControl( doc, c.Name ) <> i then out_.Push( "control '" & c.Name & "' is a duplicate name (case doesn't count)" )
         if (c.W < 0) orelse (c.H < 0) then out_.Push( c.Name & ": width and height can't be negative" )
 
-        dim as TKMETA_CONTROL ptr m = tkMeta_Find( c.TypeName )
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if m = 0 then
             out_.Push( c.Name & ": unknown control type '" & c.TypeName & "'" )
             continue for
@@ -204,7 +206,7 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
                 out_.Push( c.Name & ": parent '" & c.Parent & "' must come before it in the list" )
             else
                 dim as FormControl pc = doc.Controls[pi_]
-                dim as TKMETA_CONTROL ptr pm = tkMeta_Find( pc.TypeName )
+                dim as TKMETA_CONTROL ptr pm = catalog.Find( pc.TypeName )
                 if pm then
                     if pm->ContainerKind = TKMETA_NOT_CONTAINER then
                         out_.Push( c.Name & ": parent '" & c.Parent & "' can't hold controls" )
@@ -222,6 +224,13 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         end if
         if (c.Pages.Count( ) > 0) andalso (m->ContainerKind <> TKMETA_CONTAINER_PAGES) then
             out_.Push( c.Name & ": 'pages' only applies to a tab control" )
+        end if
+
+        if m->Name = catalog.CUSTOM_TYPE then
+            ' one message for either: the two are filled in one at a time, and the first mustn't be refused
+            if (IsIdentifier( c.CustomType ) = false) orelse (len( c.CustomModule ) = 0) then
+                out_.Push( c.Name & ": a custom control needs the name of its type and the module it's in" )
+            end if
         end if
 
         CheckProps_( c, m, out_ )
