@@ -3307,26 +3307,26 @@ public sub TabMenuPass( byref t as Tally, byval sc as single )
     ' ---- a right click makes the tab active and opens the menu, greyed for where it is
     RightClickTab( mw, 0 )
     t.Check( tkPopupMenu_IsOpen( mw.tabMenu ) andalso (mw.Active( )->DisplayName( ) = "a.tiko"), P( sc, "tab menu: a right click opens it, and that tab is active" ) )
-    t.Check( tkPopupMenu_GetItemCount( mw.tabMenu ) = 11, P( sc, strings.Format( "tab menu: nine rows, two separators ({})", tkPopupMenu_GetItemCount( mw.tabMenu ) ) ) )
+    t.Check( tkPopupMenu_GetItemCount( mw.tabMenu ) = 12, P( sc, strings.Format( "tab menu: nine rows, three separators ({})", tkPopupMenu_GetItemCount( mw.tabMenu ) ) ) )
     t.Check( (tkPopupMenu_GetItemEnabled( mw.tabMenu, 9002 ) = false) andalso tkPopupMenu_GetItemEnabled( mw.tabMenu, 9003 ), P( sc, "tab menu: on the first tab, Left greyed, Right not" ) )
     tkPopupMenu_CloseChain( mw.tabMenu )
     tkTest_PumpFor( h, 60 )
 
     RightClickTab( mw, 3 )                       ' d: Close Tabs on the Right takes e
-    PickTabRow( mw, 10 )
+    PickTabRow( mw, 11 )
     t.Check( (TabNames( mw ) = "a.tiko,b.tiko,c.tiko,d.tiko,") andalso (mw.Active( )->DisplayName( ) = "d.tiko"), P( sc, "tab menu: Close Tabs on the Right: " & TabNames( mw ) ) )
     RightClickTab( mw, 1 )                       ' b: Close Tabs on the Left takes a
-    PickTabRow( mw, 9 )
+    PickTabRow( mw, 10 )
     t.Check( TabNames( mw ) = "b.tiko,c.tiko,d.tiko,", P( sc, "tab menu: Close Tabs on the Left: " & TabNames( mw ) ) )
     RightClickTab( mw, 1 )                       ' c: Close Others leaves it alone
-    PickTabRow( mw, 8 )
+    PickTabRow( mw, 9 )
     t.Check( TabNames( mw ) = "c.tiko,", P( sc, "tab menu: Close Others: " & TabNames( mw ) ) )
     RightClickTab( mw, 0 )
     t.Check( (tkPopupMenu_GetItemEnabled( mw.tabMenu, Cmd.FileCloseAll ) = false) andalso (tkPopupMenu_GetItemEnabled( mw.tabMenu, 9003 ) = false), P( sc, "tab menu: one tab: Close All and Right greyed" ) )
 
     ' ---- Rename, through the menu: the file moves, the buffer follows with its edits
     gPickPath = fs.PathJoin( dir_, "renamed.tiko" )
-    PickTabRow( mw, 4 )
+    PickTabRow( mw, 5 )
     t.Check( (mw.Active( )->DisplayName( ) = "renamed.tiko") andalso fs.IsFile( fs.PathJoin( dir_, "renamed.tiko" ) ) andalso (fs.IsFile( fs.PathJoin( dir_, "c.tiko" ) ) = false) andalso _
              (TabNames( mw ) = "renamed.tiko,"), P( sc, "rename: the file moved, the tab says so: " & TabNames( mw ) ) )
     mw.CheckDisk( )
