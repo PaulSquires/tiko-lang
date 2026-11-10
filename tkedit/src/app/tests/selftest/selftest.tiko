@@ -3201,6 +3201,7 @@ public sub ExplorerPass( byref t as Tally, byval sc as single )
     fs.CreateDirAll( fs.PathJoin( proj, ".hidden" ) )
     WriteBytes( fs.PathJoin( proj, "main.tiko" ), "print 1" & chr( 10 ) )
     WriteBytes( fs.PathJoin( proj, "notes.txt" ), "notes" & chr( 10 ) )
+    WriteBytes( fs.PathJoin( proj, "blob.dll" ), "MZ" & chr( 0 ) & "x" )    ' binary: not listed
     WriteBytes( fs.PathJoin( proj, "tiko.toml" ), "[package]" & chr( 10 ) & "name = ""demo""" & chr( 10 ) & "[target.demo]" & chr( 10 ) & "main = ""main.tiko""" & chr( 10 ) )
     WriteBytes( fs.PathJoin( proj, "src", "lib.tiko" ), "dim x as long" & chr( 10 ) )
     WriteBytes( fs.PathJoin( proj, "out", "skip.tiko" ), "dim y as long" & chr( 10 ) )

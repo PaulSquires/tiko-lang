@@ -7,12 +7,13 @@
 '
 ' explorer -- the side panel ([ui] explorer, explorer_side; author 2026-11-10): a header saying
 ' "Explorer" and the project's name, over one list. With no project the list is the open buffers;
-' with one, every file under the project's folder as a tree, but out/ and dot-folders. A click on a
+' with one, every text file under the project's folder as a tree, but out/ and dot-folders. A click on a
 ' row opens it, as the pickers' and the Search tab's do; a click on a folder folds it.
 #module "explorer"
 
 #import "std/containers"
 #import "std/fs"
+#import "tkc/docencoding"
 #import "tkc/i18n"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkListTree"
@@ -245,7 +246,7 @@ private sub Collect( byref dir_ as const ustring, byval level as long, byref out
         dim as ustring nm = e.Name( )
         if e.IsDirectory( ) then
             if (left( nm, 1 ) <> ".") andalso (lcase( nm ) <> "out") then dirs.Push( nm )
-        elseif e.IsFile( ) then
+        elseif e.IsFile( ) andalso docencoding.LooksLikeText( fs.PathJoin( dir_, nm ) ) then
             files.Push( nm )
         end if
     next
