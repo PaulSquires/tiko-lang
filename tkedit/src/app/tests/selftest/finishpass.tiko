@@ -216,6 +216,56 @@ public sub FinishPass( byref t as Tally, byval sc as single )
     t.Check( fs.IsFile( sessionFile ) andalso mw.ProjOpen andalso (mw.Proj.Path = savedAt) andalso (mw.Chooser.IsOpen( ) = false), P( sc, "Save As Project saves the open project, no list" ) )
     t.Check( instr( mw.Message, "saved" ) > 0, P( sc, "and says so: " & mw.Message ) )
 
+    ' ---- File > New: a picker of seven, Blank File first
+    mw.Execute( Cmd.FileNew )
+    tkTest_PumpFor( h, 40 )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.NewItem) andalso (mw.Chooser.ShownCount( ) = 7), _
+             P( sc, strings.Format( "New: a picker of seven ({})", mw.Chooser.ShownCount( ) ) ) )
+    mw.Chooser.Close( )
+    ' the starters: an untitled buffer with their text, nothing written
+    dim as long starterTags( 0 to 2 ) = { mainwin.NEWITEM_CONSOLE, mainwin.NEWITEM_MODULE, mainwin.NEWITEM_HEADER }
+    dim as ustring starterWant( 0 to 2 ) = { "print ", "#module ", "#pragma once" }
+    for i as long = 0 to 2
+        mw.Choosing = mainwin.PickKind.NewItem
+        mw.Chosen( starterTags( i ) )
+        tkTest_PumpFor( h, 30 )
+        t.Check( mw.Active( )->IsNew( ) andalso mw.Active( )->IsModified( ) andalso (instr( mw.View( ).Text( ), starterWant( i ) ) > 0), _
+                 P( sc, "New: a modified untitled buffer with " & starterWant( i ) ) )
+        mw.Active( )->Main.SetSavePoint( )
+        mw.CloseDoc( mw.Active( ) )
+    next
+    ' Form...: asks where, and makes it in a folder of its own
+    gPickPath = fs.PathJoin( dir_, "frmThree.tkform" )
+    mw.Choosing = mainwin.PickKind.NewItem
+    mw.Chosen( mainwin.NEWITEM_FORM )
+    tkTest_PumpFor( h, 60 )
+    t.Check( fs.IsFile( fs.PathJoin( dir_, "frmThree", "frmThree.tkform" ) ), P( sc, "New > Form: in a folder of its own" ) )
+
+    ' ---- New > Console Project: asks for a folder, and builds as it comes
+    dim as ustring projC = fs.PathJoin( dir_, "myconsole" )
+    gPickPath = projC
+    mw.Choosing = mainwin.PickKind.NewItem
+    mw.Chosen( mainwin.NEWITEM_CONSOLE_PROJECT )
+    tkTest_PumpFor( h, 150 )
+    t.Check( mw.ProjOpen andalso fs.IsFile( fs.PathJoin( projC, "tiko.toml" ) ) andalso (lcase( mw.ActivePath( ) ) = lcase( fs.PathJoin( projC, "main.tiko" ) )), _
+             P( sc, "New > Console Project: open, its main in front" ) )
+    mw.StartBuild( build.BuildAction.Compile, false )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "and it builds: " & right( mw.BuildRaw, 500 ) ) )
+
+    ' ---- New > GUI Application: a folder, a project, its form in front; builds as it comes
+    dim as ustring proj = fs.PathJoin( dir_, "myapp" )
+    gPickPath = proj
+    mw.Choosing = mainwin.PickKind.NewItem
+    mw.Chosen( mainwin.NEWITEM_GUI )
+    tkTest_PumpFor( h, 150 )
+    t.Check( fs.IsFile( fs.PathJoin( proj, "tiko.toml" ) ) andalso fs.IsFile( fs.PathJoin( proj, "main.tiko" ) ) andalso _
+             fs.IsFile( fs.PathJoin( proj, "frmMain", "frmMain.tkform" ) ) andalso (fs.Exists( fs.PathJoin( proj, "shared" ) ) = false), _
+             P( sc, "New > GUI Application: tiko.toml, main.tiko, frmMain/, no shared/" ) )
+    t.Check( mw.ProjOpen andalso (mw.Active( ) <> 0) andalso (mw.Active( )->Designer <> 0), P( sc, "the project open, its form in front" ) )
+    t.Check( mw.NewFormProject( proj ) = false, P( sc, "not over an existing project" ) )
+    mw.StartBuild( build.BuildAction.Compile, false )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "the new project builds: " & right( mw.BuildRaw, 500 ) ) )
+
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )
     next
@@ -233,7 +283,7 @@ public sub FinishPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 40 )
     t.Check( mw.ShowsStart( ) andalso (mw.SaveAsProject( ) = false) andalso (mw.ProjOpen = false), P( sc, "Save As Project on the start panel makes nothing" ) )
     t.Check( instr( mw.Message, "no source file" ) > 0, P( sc, "and says why: " & mw.Message ) )
-    mw.Execute( Cmd.FileNew )
+    mw.NewBlank( )
     tkTest_PumpFor( h, 40 )
     t.Check( (mw.CanRun( Cmd.ProjectClose ) = false) andalso mw.CanRun( Cmd.ProjectSaveAs ), P( sc, "a file open, no project: Close Project grey, Save As Project live" ) )
     mw.Destroy( )

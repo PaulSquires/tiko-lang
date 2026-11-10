@@ -229,8 +229,10 @@ public sub Pass( byref t as Tally, byval sc as single )
         tkTest_Click( h, mw.Start.frame->x + (nr.left + nr.right) \ 2, mw.Start.frame->y + (nr.top + nr.bottom) \ 2 )
         tkTest_PumpFor( h, 60 )
     end if
+    t.Check( mw.ShowsStart( ) andalso mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.NewItem), P( sc, "a click on New File opened the New picker" ) )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )     ' its first row: Blank File
     t.Check( (mw.ShowsStart( ) = false) andalso (tkWidget_IsVisible( mw.Start.frame ) = false) andalso (mw.Docs.Count( ) = 1), _
-             P( sc, "a click on New File put it away, one buffer" ) )
+             P( sc, "Blank File put the start panel away, one buffer" ) )
     title = *SDL_GetWindowTitle( h->win )
     t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
 
@@ -371,7 +373,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
-    mw.Execute( Cmd.FileNew )                   ' out of the start panel: a buffer to type in
+    mw.NewBlank( )                   ' out of the start panel: a buffer to type in
     dim as ustring nl = wchr( 10 )
 
     ' ---- first run: both files written, every key set
@@ -990,6 +992,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
 
     ' ---- new, save as, close with and without saving
     Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )     ' the New picker's first row: Blank File
     t.Check( (mw.Docs.Count( ) = 4) andalso mw.Active( )->IsNew( ), P( sc, "Ctrl+N: an untitled buffer" ) )
     tkTest_PushText( h, "print 1" )
     tkTest_PumpFor( h, 30 )
@@ -1161,6 +1164,7 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 30 )
     t.Check( tkTabBar_GetText( mw.tabs, 0 ) = "a.tiko *", P( sc, "an edit marks the tab: " & tkTabBar_GetText( mw.tabs, 0 ) ) )
     Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )     ' the New picker's first row: Blank File
     t.Check( (tkTabBar_GetCount( mw.tabs ) = 4) andalso (tkTabBar_GetCurSel( mw.tabs ) = 3), P( sc, "Ctrl+N adds a tab, selected" ) )
     mw.CloseDoc( mw.Active( ) )
     t.Check( tkTabBar_GetCount( mw.tabs ) = 3, P( sc, "closing it some other way takes its tab" ) )
@@ -1369,7 +1373,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
-    mw.Execute( Cmd.FileNew )                   ' out of the start panel: a buffer to type in
+    mw.NewBlank( )                   ' out of the start panel: a buffer to type in
     dim as ustring nl = chr( 10 )
     mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
     mw.View( ).SetText( "alpha beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl )
@@ -2958,7 +2962,7 @@ public sub ScrollPass( byref t as Tally, byval sc as single )
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
-    mw.Execute( Cmd.FileNew )                   ' out of the start panel: a buffer to type in
+    mw.NewBlank( )                   ' out of the start panel: a buffer to type in
     dim as long cx = tkForm_Widget( mw.form )->cw
     dim as long vw = tkForm_Scale( mw.form, mainwin.VBAR_CX ), hh = tkForm_Scale( mw.form, mainwin.HBAR_CY )
     dim as TK_WIDGET ptr vb = mw.vbar( 0 ), hb = mw.hbar( 0 )
@@ -3349,7 +3353,7 @@ public sub TabMenuPass( byref t as Tally, byval sc as single )
     gPickPath = fs.PathJoin( dir_, "again-1.txt" )
     mw.Execute( Cmd.FileRename )
     t.Check( (mw.Active( )->DisplayName( ) = "again-2.txt") andalso fs.IsFile( fs.PathJoin( dir_, "again-2.txt" ) ), P( sc, "rename: onto a file open elsewhere is refused" ) )
-    mw.Execute( Cmd.FileNew )
+    mw.NewBlank( )
     t.Check( (mw.CanRun( Cmd.FileRename ) = false) andalso (mw.CanRun( Cmd.FileDuplicate ) = false), P( sc, "rename, duplicate: greyed for an untitled buffer" ) )
 
     ' ---- a command that pumps, as a real file dialog does, leaves the popup it came from alone until
@@ -3449,7 +3453,10 @@ public sub MenuPass( byref t as Tally, byval sc as single )
              P( sc, "menu: start panel: New and Open work, Save and Close greyed" ) )
     ' a row runs its command: New, the start panel gives way to the buffer
     ClickMenuRow( mw, fm, Cmd.FileNew )
-    t.Check( (tkPopupMenu_IsOpen( fm ) = false) andalso (mw.ShowsStart( ) = false), P( sc, "menu: File > New ran and closed the menu" ) )
+    t.Check( (tkPopupMenu_IsOpen( fm ) = false) andalso mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.NewItem), _
+             P( sc, "menu: File > New closed the menu and opened its picker" ) )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (mw.ShowsStart( ) = false), P( sc, "menu: Enter: Blank File, the start panel gave way" ) )
     ClickMenuTitle( mw, 0 )
     t.Check( tkPopupMenu_GetItemEnabled( fm, Cmd.FileSave ), P( sc, "menu: with a buffer, Save works" ) )
     tkMenuBar_CloseMenu( mw.menuBar )
@@ -3651,6 +3658,7 @@ public sub StartPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+N: the blank buffer becomes a new one, in front, typed into
     Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )     ' the New picker's first row: Blank File
     t.Check( (mw.ShowsStart( ) = false) andalso (mw.Docs.Count( ) = 1) andalso mw.Active( )->IsNew( ) andalso _
              (tkHost_GetFocus( h ) = mw.View( ).Widget( )), P( sc, "start: Ctrl+N: one untitled buffer, focused" ) )
     tkTest_PushText( h, "y" )

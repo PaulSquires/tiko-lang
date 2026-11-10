@@ -461,7 +461,7 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( SettingOr( Ctl2( c, "lblB" ).Props, "Text" ) = "Floated", P( sc, "an edit in the float reaches the form" ) )
 
     ' another buffer hides the float; the form brings it back
-    mw.Execute( Cmd.FileNew )
+    mw.NewBlank( )
     tkTest_PumpFor( h, 60 )
     t.Check( ps->IsShown = false, P( sc, "a text buffer hides the palettes" ) )
     t.Check( tkWidget_IsVisible( ps->Pal( 0 ).Frame ) = false, P( sc, "the docked one" ) )

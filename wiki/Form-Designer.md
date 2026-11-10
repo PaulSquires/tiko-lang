@@ -10,8 +10,7 @@ result is ordinary tiko source that builds on Windows, Linux and macOS without t
 
 ## Getting started
 
-**Form > New Form** makes a form in a folder of its own and opens it. **File > Save As Project** then puts a project
-around it, one folder up, with everything a program needs:
+**File > New**, then **GUI Application**, makes a folder with everything a program needs, and opens its form:
 
 ```
 myapp/

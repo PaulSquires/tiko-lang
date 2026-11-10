@@ -186,6 +186,7 @@ public enum PickKind explicit
     Bookmarks
     Symbols             ' Ctrl+P: files and definitions
     Functions           ' F4: the procedures of the buffer, or of every open buffer
+    NewItem             ' File > New: a blank file, a starter, a form or a project
 end enum
 
 ' One Find in Project match.
@@ -398,6 +399,30 @@ private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref s
     return r
 end function
 
+' File > New's rows (PickKind.NewItem), in the order they are offered.
+public const as long NEWITEM_BLANK = 0, NEWITEM_CONSOLE = 1, NEWITEM_MODULE = 2, NEWITEM_HEADER = 3, _
+                     NEWITEM_FORM = 4, NEWITEM_GUI = 5, NEWITEM_CONSOLE_PROJECT = 6
+
+' What a starter row puts in its buffer; a console project's main.tiko is the console one.
+public function StarterText( byval tag as long ) as ustring
+    dim as ustring nl = wchr( 10 )
+    select case tag
+    case NEWITEM_CONSOLE
+        return "' A console program." & nl & nl & "print ""Hello from tiko""" & nl
+    case NEWITEM_MODULE
+        return "' A module: what it makes public, its importers see." & nl _
+             & "#module ""mymodule""" & nl & nl _
+             & "public sub Hello( )" & nl _
+             & "    print ""Hello from mymodule""" & nl _
+             & "end sub" & nl
+    case NEWITEM_HEADER
+        return "' A header: what #include brings in." & nl _
+             & "#pragma once" & nl & nl _
+             & "declare sub Hello( )" & nl
+    end select
+    return ""
+end function
+
 public type Window
     ' ---- set before Create (the self-test points them elsewhere)
     ConfigDir as ustring                ' settings.toml, keybindings.toml, session.toml, themes/
@@ -571,6 +596,9 @@ public type Window
     declare function IsFormFile( byref path as const ustring ) as boolean
     declare function FormInFront( ) as ustring
     declare function NewProjectForForm( byref formPath as const ustring ) as boolean
+    declare function NewProjectFolder( byref folder as const ustring, byref dir_ as ustring, byref manifest as ustring ) as boolean
+    declare function NewConsoleProject( byref folder as const ustring ) as boolean
+    declare function NewFormProject( byref folder as const ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
     ItemsOf as canvas.FormCanvas ptr
     ItemsName as ustring
@@ -628,6 +656,8 @@ public type Window
     declare function View( ) byref as editor.CodeView           ' the focused pane's view
     declare function ActivePath( ) as ustring
     declare function NewDocument( ) as DocRef
+    declare sub NewBlank( )                                      ' File > New's Blank File
+    declare sub NewStarter( byref text as const ustring )        ' an untitled buffer holding text
     declare function ShowsStart( ) as boolean                    ' no buffer open: the start panel
     declare sub SyncStart( )
     declare sub FocusEditor( )                                   ' the focused pane's view, or the start panel
@@ -1785,15 +1815,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     if this.DesignerCommand( id ) then return true
     dim as editor.CodeView ptr v = @this.View( )
     select case id
-    case Cmd.FileNew
-        if this.ShowsStart( ) then
-            Blank = 0                            ' the buffer under the start panel is the new one
-            this.Layout( )
-            this.FocusEditor( )
-        else
-            dim as DocRef d = this.NewDocument( )
-            if d then this.ShowDoc( d )
-        end if
+    case Cmd.FileNew : this.OpenChooser( PickKind.NewItem, true )
     case Cmd.FileOpen
         dim as ustring dir_ = ""
         if len( this.ActivePath( ) ) then dir_ = fs.PathParent( this.ActivePath( ) )
@@ -2663,6 +2685,32 @@ sub Window.Touch( byval d as DocRef )
 end sub
 
 ' An empty untitled buffer, not shown yet.
+' File > New's Blank File: on the start panel the buffer under it becomes the new one.
+sub Window.NewBlank( )
+    if this.ShowsStart( ) then
+        Blank = 0
+        this.Layout( )
+        this.FocusEditor( )
+    else
+        dim as DocRef d = this.NewDocument( )
+        if d then this.ShowDoc( d )
+    end if
+end sub
+
+' A new untitled buffer holding text (lines broken by LF), in the buffer's own line ending. It is
+' modified, so closing it asks; one undo empties it.
+sub Window.NewStarter( byref text as const ustring )
+    this.NewBlank( )
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse (d->IsNew( ) = false) then exit sub
+    dim as ustring nl = wchr( 10 )
+    select case d->Enc.LineEnding
+    case docencoding.LineEnd.CrLf : nl = wchr( 13, 10 )
+    case docencoding.LineEnd.Cr : nl = wchr( 13 )
+    end select
+    this.View( ).ReplaceAllText( strings.Replace( text, wchr( 10 ), nl ) )
+end sub
+
 function Window.NewDocument( ) as DocRef
     dim as DocRef d = new documents.Document
     if this.NewView( d->Main ) = false then
@@ -3568,6 +3616,22 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             end if
             rows.Push( Row( mark, Prefs.Builds[i].Name, Prefs.Builds[i].Options, i ) )
         next
+    case PickKind.NewItem
+        Chooser.Filter = false
+        Chooser.Columns.Clear( )
+        Chooser.Columns.Push( 18 )
+        Chooser.Columns.Push( 220 )
+        Chooser.Columns.Push( 400 )
+        popW = 640
+        rows.Push( Row( " ", i18n.Tr( "new_item.blank", "Blank File" ), i18n.Tr( "new_item.blank_detail", "an empty untitled buffer" ), NEWITEM_BLANK ) )
+        rows.Push( Row( " ", i18n.Tr( "new_item.console", "Console Program" ), i18n.Tr( "new_item.console_detail", "a main with Hello, in an untitled buffer" ), NEWITEM_CONSOLE ) )
+        rows.Push( Row( " ", i18n.Tr( "new_item.module", "Module" ), i18n.Tr( "new_item.module_detail", "#module and a public sub, in an untitled buffer" ), NEWITEM_MODULE ) )
+        rows.Push( Row( " ", i18n.Tr( "new_item.header", "Header (.ti)" ), i18n.Tr( "new_item.header_detail", "#pragma once and a declare, in an untitled buffer" ), NEWITEM_HEADER ) )
+        rows.Push( Row( " ", i18n.Tr( "new_item.form", "Form..." ), i18n.Tr( "new_item.form_detail", "a form in a folder of its own" ), NEWITEM_FORM ) )
+        rows.Push( Row( " ", i18n.Tr( "new_item.gui", "GUI Application..." ), _
+                        i18n.Tr( "new_item.gui_detail", "a new folder: tiko.toml, main.tiko and a form, opened as a project" ), NEWITEM_GUI ) )
+        rows.Push( Row( " ", i18n.Tr( "new_item.console_project", "Console Project..." ), _
+                        i18n.Tr( "new_item.console_project_detail", "a new folder: tiko.toml and main.tiko, opened as a project" ), NEWITEM_CONSOLE_PROJECT ) )
     end select
     if (rows.Count( ) = 0) andalso (kind <> PickKind.Functions) then
         this.SetMessage( i18n.Tr( "message.nothing_to_choose", "nothing to choose from" ) )
@@ -3629,6 +3693,14 @@ sub Window.Chosen( byval tag as long )
         if len( p ) then this.OpenFile( p )
     case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
     case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
+    case PickKind.NewItem
+        select case tag
+        case NEWITEM_BLANK : this.NewBlank( )
+        case NEWITEM_CONSOLE, NEWITEM_MODULE, NEWITEM_HEADER : this.NewStarter( StarterText( tag ) )
+        case NEWITEM_FORM : this.NewForm( "" )
+        case NEWITEM_GUI : this.NewFormProject( "" )
+        case NEWITEM_CONSOLE_PROJECT : this.NewConsoleProject( "" )
+        end select
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then this.SetDefaultBuild( Prefs.Builds[tag].Name )
     case PickKind.Symbols, PickKind.Functions

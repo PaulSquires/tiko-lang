@@ -247,7 +247,7 @@ end function
 ' The rows, in menu order. Def( id, name, menu, description, default keys, separator above )
 constructor CommandTable( )
     dim as MenuGroup g = MenuGroup.File
-    this.Def( Cmd.FileNew, "FileNew", g, "New", "Primary+N" )
+    this.Def( Cmd.FileNew, "FileNew", g, "New...", "Primary+N" )
     this.Def( Cmd.FileOpen, "FileOpen", g, "Open...", "Primary+O" )
     this.Def( Cmd.FileRecent, "FileRecent", g, "Open Recent...", "Primary+Shift+O" )
     this.Def( Cmd.FileClose, "FileClose", g, "Close", "Primary+W" )

@@ -350,7 +350,7 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     t.Check( documents.IsFormFile( path ) andalso (fs.ReadAllText( path ).ValueOr( none ) = d->Text( )), P( sc, "and the file is the text" ) )
 
     ' ---- another buffer, and back
-    mw.Execute( Cmd.FileNew )
+    mw.NewBlank( )
     tkTest_PumpFor( h, 50 )
     t.Check( tkWidget_IsVisible( c->Frame ) = false, P( sc, "another buffer hides the surface" ) )
     t.Check( mw.Active( )->Designer = 0, P( sc, "a text buffer has none" ) )
