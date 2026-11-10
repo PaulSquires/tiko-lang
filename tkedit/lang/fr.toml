@@ -155,7 +155,6 @@ no_definition = "aucune définition trouvée pour {}"
 [commands]
 FormTest = "Tester le formulaire"
 FormNewForm = "Nouveau formulaire..."
-FormNewProject = "Nouveau projet de formulaire..."
 FormToggleView = "Basculer formulaire / code"
 FormAlignLefts = "Aligner à gauche"
 FormAlignCenters = "Aligner au centre"
@@ -340,3 +339,10 @@ anchor_right = "Ancre droite"
 anchor_bottom = "Ancre bas"
 dock_mode = "Ancrage"
 need_number = "un nombre entier, s'il vous plaît"
+
+[new_project]
+from_file = "À partir du fichier actuel"
+windowed = "Application fenêtrée avec formulaire"
+windowed_detail = "main, un formulaire et un module partagé dans un nouveau dossier"
+console = "Application console"
+console_detail = "main.tiko dans un nouveau dossier"

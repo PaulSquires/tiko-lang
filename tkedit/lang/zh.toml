@@ -157,7 +157,6 @@ no_definition = "未找到 {} 的定义"
 [commands]
 FormTest = "测试窗体"
 FormNewForm = "新建窗体..."
-FormNewProject = "新建窗体项目..."
 FormToggleView = "切换窗体 / 代码"
 FormAlignLefts = "左对齐"
 FormAlignCenters = "居中对齐"
@@ -342,3 +341,10 @@ anchor_right = "右锚点"
 anchor_bottom = "底锚点"
 dock_mode = "停靠"
 need_number = "请输入整数"
+
+[new_project]
+from_file = "当前文件"
+windowed = "窗体应用"
+windowed_detail = "主程序 窗体 模块"
+console = "命令行应用"
+console_detail = "主程序"

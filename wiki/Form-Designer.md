@@ -10,7 +10,7 @@ result is ordinary tiko source that builds on Windows, Linux and macOS without t
 
 ## Getting started
 
-**Project > New Form Project** makes a folder with everything a program needs, and opens its form:
+**Project > New Project**, then **Windowed app with a form**, makes a folder with everything a program needs, and opens its form:
 
 ```
 myapp/
@@ -24,7 +24,7 @@ myapp/
     shared.tiko         for what several forms need to see
 ```
 
-**Project > New Form** adds another form to a program. Press **F5** to build and run.
+**Form > New Form** adds another form to a program. Press **F5** to build and run.
 
 From the designer, **Alt+F5** (Test Form) shows the form in its own window with working controls and no
 handlers, so you can try the layout without building. Esc closes it.

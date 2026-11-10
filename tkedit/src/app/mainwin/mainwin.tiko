@@ -179,6 +179,7 @@ public enum PickKind explicit
     Bookmarks
     Symbols             ' Ctrl+P: files and definitions
     Functions           ' F4: the procedures of the buffer, or of every open buffer
+    NewProject          ' how a new project starts
 end enum
 
 ' One Find in Project match.
@@ -552,6 +553,8 @@ public type Window
     declare sub TestFormGone( )
     declare function NewForm( byref wanted as const ustring ) as boolean
     declare function NewFormProject( byref folder as const ustring ) as boolean
+    declare function NewConsoleProject( byref folder as const ustring ) as boolean
+    declare function NewProjectFolder( byref folder as const ustring, byref dir_ as ustring, byref manifest as ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
     ItemsOf as canvas.FormCanvas ptr
     ItemsName as ustring
@@ -1471,7 +1474,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormNewProject
+         Cmd.FormTest, Cmd.FormNewForm
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1519,7 +1522,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
          Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
          Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
-         Cmd.FormNewForm, Cmd.FormNewProject, _
+         Cmd.FormNewForm, _
          Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
          Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu, Cmd.StartDebugging, Cmd.DebugBreak, _
          Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.DeleteAllBreakpoints
@@ -1543,7 +1546,7 @@ function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
     dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
     if noForm = false then noForm = (d->Designer = 0)
-    if noForm then return Keys.Commands( ).Info( id ).Group <> MenuGroup.Form
+    if noForm then return (id = Cmd.FormNewForm) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Form)   ' New Form makes one
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -1688,7 +1691,7 @@ function Window.Execute( byval id as Cmd ) as boolean
         this.RunProgram( LastExe )
     case Cmd.NextDiagnostic : this.StepDiagnostic( true )
     case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
-    case Cmd.ProjectNew : this.NewProject( )
+    case Cmd.ProjectNew : this.OpenChooser( PickKind.NewProject, true )
     case Cmd.ProjectClose : this.CloseProject( )
     case Cmd.RunArguments : this.OpenStrip( findstrip.StripMode.Args )
     case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.RunToCursor
@@ -1739,7 +1742,6 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ZoomReset : v->ZoomReset( )
     case Cmd.FormToggleView : this.ToggleFormView( )
     case Cmd.FormNewForm : this.NewForm( "" )
-    case Cmd.FormNewProject : this.NewFormProject( "" )
     case Cmd.FoldToggle : v->FoldToggle( false )
     case Cmd.FoldBelow : v->FoldToggle( true )
     case Cmd.FoldAll : v->FoldAll( true )
@@ -3060,6 +3062,8 @@ private function Row( byval a as ustring, byval b as ustring, byval c as ustring
 end function
 
 ' The short lists over the right-hand status panels: a name and a note, no wider than they need.
+const as long NEWPROJ_FROM_FILE = 0, NEWPROJ_WINDOWED = 1, NEWPROJ_CONSOLE = 2
+
 private sub Narrow( byref c as popuplist.Picker, byref popW as long )
     c.Columns.Clear( )
     c.Columns.Push( 18 )
@@ -3263,6 +3267,19 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             end if
             rows.Push( Row( mark, Prefs.Builds[i].Name, Prefs.Builds[i].Options, i ) )
         next
+    case PickKind.NewProject
+        Chooser.Filter = false
+        Chooser.Columns.Clear( )
+        Chooser.Columns.Push( 18 )
+        Chooser.Columns.Push( 240 )
+        Chooser.Columns.Push( 380 )
+        popW = 640
+        dim as DocRef src = this.SourceDoc( )
+        if src then rows.Push( Row( " ", i18n.Tr( "new_project.from_file", "From the current file" ), src->DisplayName( ), NEWPROJ_FROM_FILE ) )
+        rows.Push( Row( " ", i18n.Tr( "new_project.windowed", "Windowed app with a form" ), _
+                        i18n.Tr( "new_project.windowed_detail", "main, a form and a shared module in a new folder" ), NEWPROJ_WINDOWED ) )
+        rows.Push( Row( " ", i18n.Tr( "new_project.console", "Console app" ), _
+                        i18n.Tr( "new_project.console_detail", "main.tiko in a new folder" ), NEWPROJ_CONSOLE ) )
     end select
     if (rows.Count( ) = 0) andalso (kind <> PickKind.Functions) then
         this.SetMessage( i18n.Tr( "message.nothing_to_choose", "nothing to choose from" ) )
@@ -3324,6 +3341,12 @@ sub Window.Chosen( byval tag as long )
         if len( p ) then this.OpenFile( p )
     case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
     case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
+    case PickKind.NewProject
+        select case tag
+        case NEWPROJ_FROM_FILE : this.NewProject( )
+        case NEWPROJ_WINDOWED  : this.NewFormProject( "" )
+        case NEWPROJ_CONSOLE   : this.NewConsoleProject( "" )
+        end select
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then this.SetDefaultBuild( Prefs.Builds[tag].Name )
     case PickKind.Symbols, PickKind.Functions

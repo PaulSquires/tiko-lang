@@ -5,7 +5,7 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' finishpass -- Test Form, New Form, New Form Project and translatable captions, in the real window.
+' finishpass -- Test Form, New Form, New Project's starts and translatable captions, in the real window.
 #module "selftest"
 
 #import "std/containers"
@@ -185,9 +185,21 @@ public sub FinishPass( byref t as Tally, byval sc as single )
         tkTest_PumpFor( h, 40 )
     end if
 
-    ' ---- New Form Project: builds and runs as it comes
+    ' ---- New Project: asks how to start, and a console program builds as it comes
+    mw.Execute( Cmd.ProjectNew )
+    tkTest_PumpFor( h, 40 )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.NewProject) andalso (mw.Chooser.ShownCount( ) = iif( mw.SourceDoc( ) <> 0, 3, 2 )), P( sc, "New Project offers its starts: " & mw.Chooser.ShownCount( ) ) )
+    mw.Chooser.Close( )
+    dim as ustring projC = fs.PathJoin( dir_, "myconsole" )
+    t.Check( mw.NewConsoleProject( projC ), P( sc, "a console project" ) )
+    tkTest_PumpFor( h, 150 )
+    t.Check( mw.ProjOpen andalso fs.IsFile( fs.PathJoin( projC, "main.tiko" ) ), P( sc, "with its main, open" ) )
+    mw.StartBuild( build.BuildAction.Compile, false )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "and it builds: " & right( mw.BuildRaw, 500 ) ) )
+
+    ' ---- a windowed app: builds and runs as it comes
     dim as ustring proj = fs.PathJoin( dir_, "myapp" )
-    t.Check( mw.NewFormProject( proj ), P( sc, "New Form Project" ) )
+    t.Check( mw.NewFormProject( proj ), P( sc, "a windowed project" ) )
     tkTest_PumpFor( h, 150 )
     t.Check( fs.IsFile( fs.PathJoin( proj, "tiko.toml" ) ), P( sc, "tiko.toml" ) )
     t.Check( fs.IsFile( fs.PathJoin( proj, "main.tiko" ) ), P( sc, "main.tiko" ) )

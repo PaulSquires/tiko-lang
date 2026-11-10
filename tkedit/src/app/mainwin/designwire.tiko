@@ -339,20 +339,45 @@ function Window.NewForm( byref wanted as const ustring ) as boolean
     return this.OpenFile( formPath )
 end function
 
-' folder: the new project's folder, or "" to ask. A program with one form, ready to build and run.
-function Window.NewFormProject( byref folder as const ustring ) as boolean
-    dim as ustring dir_ = folder
+' The folder a new project goes in, made. folder: that folder, or "" to ask. False: cancelled, or
+' there's a project there already.
+function Window.NewProjectFolder( byref folder as const ustring, byref dir_ as ustring, byref manifest as ustring ) as boolean
+    dir_ = folder
     if len( dir_ ) = 0 then
         dir_ = Pick( form, TKFD_SAVE, "myapp" )
         if len( dir_ ) = 0 then return false
     end if
-    dim as ustring pkg = fs.PathFileName( dir_ )
-    dim as ustring manifest = fs.PathJoin( dir_, project.MANIFEST_FILE )
+    manifest = fs.PathJoin( dir_, project.MANIFEST_FILE )
     if fs.Exists( manifest ) then
         this.SetMessage( strings.Format( i18n.Tr( "message.form_exists", "{} already exists" ), manifest ) )
         return false
     end if
     fs.CreateDirAll( dir_ )
+    return true
+end function
+
+' A console program: a manifest and a main.
+function Window.NewConsoleProject( byref folder as const ustring ) as boolean
+    dim as ustring dir_, manifest
+    if this.NewProjectFolder( folder, dir_, manifest ) = false then return false
+    dim as ustring pkg = fs.PathFileName( dir_ )
+    dim as ustring nl = wchr( 10 )
+    dim as ustring mainPath = fs.PathJoin( dir_, "main.tiko" )
+    dim as boolean ok = WriteNew_( manifest, project.NewManifestText( pkg, pkg, "main.tiko" ) )
+    ok = ok andalso WriteNew_( mainPath, "' " & pkg & ": a console program." & nl & nl & "print ""Hello from " & pkg & chr( 34 ) & nl )
+    if ok = false then
+        this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    if this.OpenProject( manifest ) = false then return false
+    return this.OpenFile( mainPath )
+end function
+
+' folder: the new project's folder, or "" to ask. A program with one form, ready to build and run.
+function Window.NewFormProject( byref folder as const ustring ) as boolean
+    dim as ustring dir_, manifest
+    if this.NewProjectFolder( folder, dir_, manifest ) = false then return false
+    dim as ustring pkg = fs.PathFileName( dir_ )
     dim as ustring nl = wchr( 10 )
     dim as ustring tt = project.NewManifestText( pkg, pkg, "main.tiko" )
     tt = strings.Replace( tt, "# subsystem = 'console'", "subsystem = 'gui'     " )

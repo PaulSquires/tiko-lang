@@ -108,7 +108,6 @@ public enum Cmd explicit
     FormToggleView
     FormTest
     FormNewForm
-    FormNewProject
     UnfoldAll
     ' Project
     ProjectNew
@@ -322,7 +321,8 @@ constructor CommandTable( )
     this.Def( Cmd.UnfoldAll, "UnfoldAll", g, "Unfold All", "Primary+Shift+F8" )
 
     g = MenuGroup.Form
-    this.Def( Cmd.FormTest, "FormTest", g, "Test Form", "Alt+F5" )
+    this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "" )
+    this.Def( Cmd.FormTest, "FormTest", g, "Test Form", "Alt+F5", true )
     this.Def( Cmd.FormAlignLefts, "FormAlignLefts", g, "Align Lefts", "", true )
     this.Def( Cmd.FormAlignCenters, "FormAlignCenters", g, "Align Centers", "" )
     this.Def( Cmd.FormAlignRights, "FormAlignRights", g, "Align Rights", "" )
@@ -341,8 +341,6 @@ constructor CommandTable( )
     g = MenuGroup.Project
     this.Def( Cmd.ProjectNew, "ProjectNew", g, "New Project...", "Primary+Alt+N" )
     this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
-    this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "", true )
-    this.Def( Cmd.FormNewProject, "FormNewProject", g, "New Form Project...", "" )
 
     g = MenuGroup.Build
     this.Def( Cmd.BuildExecute, "BuildExecute", g, "Build and Run", "F5" )
