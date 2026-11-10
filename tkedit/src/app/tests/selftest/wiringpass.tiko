@@ -40,6 +40,18 @@ using tkTextBox
 using tkScrollPanel
 using model
 
+dim shared as string gLinkEnv
+
+' Packaging runs this with LD_LIBRARY_PATH cleared and the SDL libraries named by TK_LINUX_LIB. The
+' linker needs them on that path for what SDL3_ttf itself depends on, and so does a built program.
+private function LinkPathForBuilds( ) as ustring
+    dim as string dir_ = environ( "TK_LINUX_LIB" )
+    if len( dir_ ) = 0 then return ""
+    gLinkEnv = "LD_LIBRARY_PATH=" & dir_
+    setenviron gLinkEnv
+    return dir_
+end function
+
 private sub DoubleClick( byval h as TK_HOST ptr, byval x as long, byval y as long )
     tkTest_PushMotion( h, x, y )
     tkTest_PumpFor( h, 15 )
@@ -97,6 +109,7 @@ public sub WiringPass( byref t as Tally, byval sc as single )
     mw.Prefs.Tiko = tk
     ' Linux's SDL3 isn't in a system folder here: the program being built has to find it too
     dim as ustring ldPath = environ( "LD_LIBRARY_PATH" )
+    if len( ldPath ) = 0 then ldPath = LinkPathForBuilds( )
     if (platform.CurrentOs( ) = platform.Os.Linux) andalso (len( ldPath ) > 0) then
         for i as long = 0 to mw.Prefs.Builds.Count( ) - 1
             mw.Prefs.Builds[i].Options &= " -p " & ldPath

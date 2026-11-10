@@ -51,6 +51,7 @@ public sub FinishPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 150 )
     mw.Prefs.Tiko = tk
     dim as ustring ldPath = environ( "LD_LIBRARY_PATH" )
+    if len( ldPath ) = 0 then ldPath = LinkPathForBuilds( )
     if (platform.CurrentOs( ) = platform.Os.Linux) andalso (len( ldPath ) > 0) then
         for i as long = 0 to mw.Prefs.Builds.Count( ) - 1
             mw.Prefs.Builds[i].Options &= " -p " & ldPath
