@@ -4485,7 +4485,7 @@ private function AfterTypeIntro( byref before as const ustring ) as boolean
     return (i > 0) andalso (before[i - 1] = 40)                ' "("
 end function
 
-' "a.b.word" before the caret -> word "word", qualifier "b".
+' "a.b.word" or "a->b->word" before the caret -> word "word", qualifier "b".
 private sub SplitQualified( byref before as const ustring, byref word as ustring, byref qualifier as ustring )
     dim as long i = len( before )
     while (i > 0) andalso IsIdentCharU( before[i - 1] )
@@ -4493,12 +4493,18 @@ private sub SplitQualified( byref before as const ustring, byref word as ustring
     wend
     word = mid( before, i + 1 )
     qualifier = ""
-    if (i > 0) andalso (before[i - 1] = 46) then            ' "."
-        dim as long j = i - 1
+    dim as long sepAt = -1                                  ' how much stands before the "." or "->"
+    if (i > 0) andalso (before[i - 1] = 46) then
+        sepAt = i - 1
+    elseif (i > 1) andalso (before[i - 1] = 62) andalso (before[i - 2] = 45) then
+        sepAt = i - 2
+    end if
+    if sepAt >= 0 then
+        dim as long j = sepAt
         while (j > 0) andalso IsIdentCharU( before[j - 1] )
             j -= 1
         wend
-        qualifier = mid( before, j + 1, i - 1 - j )
+        qualifier = mid( before, j + 1, sepAt - j )
     end if
 end sub
 
@@ -4639,7 +4645,7 @@ function Window.ScannedFile( byref upper as const ustring ) as ustring
     return symboldb.RealPath( upper )
 end function
 
-' F12: the definition of the word under the caret (qualified by what stands before a ".").
+' F12: the definition of the word under the caret (qualified by what stands before a "." or "->").
 function Window.GoToDefinition( ) as boolean
     dim as editor.CodeView ptr v = @this.View( )
     dim as DocRef d = this.Active( )
@@ -4699,8 +4705,8 @@ sub Window.GoFunction( byval forward as boolean )
     this.ShowStatus( )
 end sub
 
-' Completion and calltips while typing (settings codetips): "(" the calltip, ")" gone, "." the
-' members, a third identifier character the names that start so (types after "as ").
+' Completion and calltips while typing (settings codetips): "(" the calltip, ")" gone, "." or "->"
+' the members, a third identifier character the names that start so (types after "as ").
 sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
     if Prefs.CodeTips = false then exit sub
     dim as DocRef d = this.DocOfWidget( hEdit )
@@ -4723,10 +4729,11 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
         v->CancelCallTip( )
         exit sub
     end if
-    if ch = 46 then
+    if (ch = 46) orelse (ch = 62) then
         dim as ustring before = v->TextBeforeCaret( )
+        if (ch = 62) andalso (right( before, 2 ) <> "->") then exit sub    ' a comparison's ">"
         dim as ustring word, qual
-        SplitQualified( left( before, len( before ) - 1 ), word, qual )
+        SplitQualified( left( before, len( before ) - iif( ch = 62, 2, 1 ) ), word, qual )
         if len( word ) then this.OpenCompletions( v, Db.MemberItems( word, d->Path, ln ), 0 )
         exit sub
     end if

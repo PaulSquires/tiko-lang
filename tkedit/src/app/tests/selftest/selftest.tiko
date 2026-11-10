@@ -2516,6 +2516,21 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     v = @mw.View( )
     v->SetPosition( v->Length( ) )
     dim byref as completion.Picker cp = mw.Completer
+    ' "->" lists members as "." does; a comparison's ">" lists nothing
+    scope
+        dim as ustring keepText = v->Text( )
+        tkTest_PushText( h, "pt >" )
+        tkTest_PumpFor( h, 40 )
+        t.Check( cp.IsOpen( ) = false, P( sc, "a comparison's '>' lists nothing" ) )
+        v->SetText( keepText )
+        v->SetPosition( v->Length( ) )
+        tkTest_PushText( h, "pt->" )
+        tkTest_PumpFor( h, 40 )
+        t.Check( cp.IsOpen( ) andalso (cp.Count( ) = 2), P( sc, strings.Format( "'pt->' lists Point's two members ({})", cp.Count( ) ) ) )
+        cp.Close( )
+        v->SetText( keepText )
+        v->SetPosition( v->Length( ) )
+    end scope
     tkTest_PushText( h, "pt." )
     tkTest_PumpFor( h, 40 )
     t.Check( cp.IsOpen( ) andalso (cp.Count( ) = 2), P( sc, strings.Format( "'pt.' lists Point's two members ({})", cp.Count( ) ) ) )
