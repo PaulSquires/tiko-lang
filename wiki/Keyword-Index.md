@@ -154,7 +154,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Channel.TryReceive](Modern-Chan-Channel-TryReceive) | Receives a value only if one is ready; returns false if empty or closed. | [Goroutines and Channels](Category-Goroutines-and-Channels) |
 | [Channel.TrySend](Modern-Chan-Channel-TrySend) | Sends a value only if it can go at once; returns false if it would have to wait. | [Goroutines and Channels](Category-Goroutines-and-Channels) |
 | [ChDir](Chdir) | Changes the current folder; returns 0 on success or -1 on failure. | [Operating System Functions](Category-Operating-System-Functions) |
-| [Choice](Modern-Math-Choice) | Returns one element of an array picked at random, by reference. | [Math Library](Category-Math-Library) |
+| [Choice](Modern-Math-Choice) | Returns one element of an array or container picked at random, by reference. | [Math Library](Category-Math-Library) |
 | [Chr](Chr) | Returns a string made from one or more character codes. | [String Functions](Category-String-Functions) |
 | [Chrono Date and Time](Category-Date-and-Time-Chrono) |  | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [CImag](Modern-Math-CImag) | Returns the imaginary part of a complex number, without the i. | [Math Library](Category-Math-Library) |
@@ -1383,7 +1383,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Short Circuit Operators](Short-Circuit-Operators) | Operators that perform a short circuit logical evaluation. | [Operators](Category-Operators) |
 | [Shrink](Modern-String-Shrink) | Trims both ends and collapses each inner run of spaces to one. | [String Library](Category-String-Library) |
 | [Shrink](Modern-Array-Shrink) | Releases unused room, cutting the capacity down to the count. | [Array](Category-Array) |
-| [Shuffle](Modern-Math-Shuffle) | Shuffles an array in place so that every order is equally likely. | [Math Library](Category-Math-Library) |
+| [Shuffle](Modern-Math-Shuffle) | Shuffles an array or container in place so that every order is equally likely. | [Math Library](Category-Math-Library) |
 | [Sign](Modern-Math-Sign) | Returns -1, 0 or 1 for the sign of a number, always as a Long. | [Math Library](Category-Math-Library) |
 | [Sin](Sin) | Returns the sine of an angle in radians. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [Single](Single) | Standard data type: 32 bit floating point. | [Standard Data Types](Category-Standard-Data-Types) |
