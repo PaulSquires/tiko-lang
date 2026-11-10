@@ -218,6 +218,7 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
             c->Drag = DragNone
             c->SyncGeometry( )
             tkWidget_Invalidate( w )
+            c->Changed( )
         end if
         return true
     case TKM_MOUSEWHEEL
@@ -769,6 +770,7 @@ sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
             end if
         next
         this.SyncGeometry( )
+        this.Changed( )                 ' the inspector's rows follow the mouse
     case DragResize
         Doc = DragBase
         dim as long i = FindControl( Doc, Selected[0] )
@@ -786,6 +788,7 @@ sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
         end if
         edits.ResizeControl( Doc, i, l, t, r - l, b - t )
         this.SyncGeometry( )
+        this.Changed( )
     case DragFormResize
         Doc = DragBase
         dim as long w = Doc.ClientW, h = Doc.ClientH
@@ -795,6 +798,7 @@ sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
         if h < 60 then h = 60
         edits.ResizeForm( Doc, w, h )
         this.SyncGeometry( )
+        this.Changed( )
     case DragRubber, DragDraw
         tkWidget_Invalidate( Glass )
     end select

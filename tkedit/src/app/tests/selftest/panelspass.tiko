@@ -213,6 +213,59 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( Ctl2( c, "btnA" ).W = 120, P( sc, "clicking away commits what was typed: " & Ctl2( c, "btnA" ).W ) )
     t.Check( tkTextBox_GetText( EditOf( *ps, "@Name" ) ) = "lblB", P( sc, "and the inspector moved on" ) )
 
+    ' ---- the geometry rows follow the mouse, before the button comes up; a gesture taken away puts them back
+    dim as long liveBy = tkHost_Scale( h, 40 ), liveX0 = Ctl2( c, "lblB" ).X
+    dim as TK_WIDGET ptr liveW = c->WidgetOf( "lblB" )
+    dim as long liveCX = tkTest_CX( liveW ), liveCY = tkTest_CY( liveW )
+    tkTest_PushMotion( h, liveCX, liveCY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, true, liveCX, liveCY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushMotion( h, liveCX - liveBy, liveCY + liveBy )
+    tkTest_PumpFor( h, 15 )
+    t.Check( (Ctl2( c, "lblB" ).X <> liveX0) andalso (tkTextBox_GetText( EditOf( *ps, "@X" ) ) = str( Ctl2( c, "lblB" ).X )) andalso _
+             (tkTextBox_GetText( EditOf( *ps, "@Y" ) ) = str( Ctl2( c, "lblB" ).Y )), P( sc, "X and Y follow a move: " & tkTextBox_GetText( EditOf( *ps, "@X" ) ) ) )
+    tkHost_ReleaseCapture( h )
+    tkTest_PumpFor( h, 15 )
+    t.Check( (Ctl2( c, "lblB" ).X = liveX0) andalso (tkTextBox_GetText( EditOf( *ps, "@X" ) ) = str( liveX0 )), P( sc, "a move taken away: the row goes back" ) )
+    tkTest_PushButton( h, false, liveCX - liveBy, liveCY + liveBy )
+    tkTest_PumpFor( h, 30 )
+
+    dim as TKRECT liveR
+    tkWidget_AbsRect( liveW, liveR )
+    dim as long liveW0 = Ctl2( c, "lblB" ).W
+    tkTest_PushMotion( h, liveR.right, liveR.bottom )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, true, liveR.right, liveR.bottom )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushMotion( h, liveR.right + liveBy, liveR.bottom + liveBy )
+    tkTest_PumpFor( h, 15 )
+    t.Check( (Ctl2( c, "lblB" ).W <> liveW0) andalso (tkTextBox_GetText( EditOf( *ps, "@W" ) ) = str( Ctl2( c, "lblB" ).W )) andalso _
+             (tkTextBox_GetText( EditOf( *ps, "@H" ) ) = str( Ctl2( c, "lblB" ).H )), P( sc, "width and height follow a resize: " & tkTextBox_GetText( EditOf( *ps, "@W" ) ) ) )
+    tkHost_ReleaseCapture( h )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, false, liveR.right + liveBy, liveR.bottom + liveBy )
+    tkTest_PumpFor( h, 30 )
+
+    c->SelectNone( )
+    tkTest_PumpFor( h, 50 )
+    dim as long liveFW0 = c->Doc.ClientW
+    dim as TKRECT liveS = c->SurfaceRect( ), liveG
+    tkWidget_AbsRect( c->Glass, liveG )
+    dim as long liveFX = liveG.left + liveS.right, liveFY = liveG.top + liveS.bottom
+    tkTest_PushMotion( h, liveFX, liveFY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, true, liveFX, liveFY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushMotion( h, liveFX + liveBy, liveFY + liveBy )
+    tkTest_PumpFor( h, 15 )
+    t.Check( (c->Doc.ClientW <> liveFW0) andalso (tkTextBox_GetText( EditOf( *ps, "@FormW" ) ) = str( c->Doc.ClientW )) andalso _
+             (tkTextBox_GetText( EditOf( *ps, "@FormH" ) ) = str( c->Doc.ClientH )), P( sc, "the form's size follows its grip: " & tkTextBox_GetText( EditOf( *ps, "@FormW" ) ) ) )
+    tkHost_ReleaseCapture( h )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, false, liveFX + liveBy, liveFY + liveBy )
+    tkTest_PumpFor( h, 30 )
+
     ' rename, and names that can't be
     ClickOn( h, c->WidgetOf( "btnA" ) )
     tkTest_PumpFor( h, 50 )
