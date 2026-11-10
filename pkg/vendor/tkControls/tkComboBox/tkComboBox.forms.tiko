@@ -22,6 +22,28 @@ public type ComboBox
     declare property ListMaxRows( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property ListItemHeight( ) as long
+    declare property ListItemHeight( byval v as long )
+    declare property TextMode( ) as long
+    declare property TextMode( byval v as long )
+    declare property ShowText( ) as boolean
+    declare property ShowText( byval v as boolean )
+    declare property AutoSize( ) as boolean
+    declare property AutoSize( byval v as boolean )
+    declare property TextGap( ) as long
+    declare property TextGap( byval v as long )
+    declare property ChevronGap( ) as long
+    declare property ChevronGap( byval v as long )
+    declare property ChevronThickness( ) as long
+    declare property ChevronThickness( byval v as long )
+    declare property CornerCurvature( ) as long
+    declare property CornerCurvature( byval v as long )
+    declare property BorderThickness( ) as long
+    declare property BorderThickness( byval v as long )
+    declare property EditText( byref v as const ustring )
+    declare sub Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
+    declare sub ChevronSize( byval a0 as long, byval a1 as long )
+    declare sub FocusRing( byval a0 as long, byval a1 as long )
 end type
 
 sub ComboBox.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -79,3 +101,91 @@ end property
 property ComboBox.Font( byval v as TTF_Font ptr )
     tkComboBox_SetFont( Handle, v )
 end property
+
+property ComboBox.ListItemHeight( ) as long
+    return tkComboBox_GetListItemHeight( Handle )
+end property
+
+property ComboBox.ListItemHeight( byval v as long )
+    tkComboBox_SetListItemHeight( Handle, v )
+end property
+
+property ComboBox.TextMode( ) as long
+    return tkComboBox_GetTextMode( Handle )
+end property
+
+property ComboBox.TextMode( byval v as long )
+    tkComboBox_SetTextMode( Handle, v )
+end property
+
+property ComboBox.ShowText( ) as boolean
+    return tkComboBox_GetShowText( Handle )
+end property
+
+property ComboBox.ShowText( byval v as boolean )
+    tkComboBox_SetShowText( Handle, v )
+end property
+
+property ComboBox.AutoSize( ) as boolean
+    return tkComboBox_GetAutoSize( Handle )
+end property
+
+property ComboBox.AutoSize( byval v as boolean )
+    tkComboBox_SetAutoSize( Handle, v )
+end property
+
+property ComboBox.TextGap( ) as long
+    return tkComboBox_GetTextGap( Handle )
+end property
+
+property ComboBox.TextGap( byval v as long )
+    tkComboBox_SetTextGap( Handle, v )
+end property
+
+property ComboBox.ChevronGap( ) as long
+    return tkComboBox_GetChevronGap( Handle )
+end property
+
+property ComboBox.ChevronGap( byval v as long )
+    tkComboBox_SetChevronGap( Handle, v )
+end property
+
+property ComboBox.ChevronThickness( ) as long
+    return tkComboBox_GetChevronThickness( Handle )
+end property
+
+property ComboBox.ChevronThickness( byval v as long )
+    tkComboBox_SetChevronThickness( Handle, v )
+end property
+
+property ComboBox.CornerCurvature( ) as long
+    return tkComboBox_GetCornerCurvature( Handle )
+end property
+
+property ComboBox.CornerCurvature( byval v as long )
+    tkComboBox_SetCornerCurvature( Handle, v )
+end property
+
+property ComboBox.BorderThickness( ) as long
+    return tkComboBox_GetBorderThickness( Handle )
+end property
+
+property ComboBox.BorderThickness( byval v as long )
+    tkComboBox_SetBorderThickness( Handle, v )
+end property
+
+property ComboBox.EditText( byref v as const ustring )
+    tkComboBox_SetEditText( Handle, v )
+end property
+
+sub ComboBox.Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
+    tkComboBox_SetPadding( Handle, a0, a1, a2, a3 )
+end sub
+
+sub ComboBox.ChevronSize( byval a0 as long, byval a1 as long )
+    tkComboBox_SetChevronSize( Handle, a0, a1 )
+end sub
+
+sub ComboBox.FocusRing( byval a0 as long, byval a1 as long )
+    tkComboBox_SetFocusRing( Handle, a0, a1 )
+end sub

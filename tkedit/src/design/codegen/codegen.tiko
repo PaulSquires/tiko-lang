@@ -75,6 +75,16 @@ private function ValueExpr_( byref v as const ustring, byref kind_ as const ustr
     return Literal_( v )
 end function
 
+' A "list" property's arguments.
+private function ListExpr_( byref v as const ustring, byref pairs as const ustring ) as ustring
+    dim as ustring o
+    for i as long = 0 to tkMeta_ListCount( pairs ) - 1
+        if i then o &= ", "
+        o &= ValueExpr_( tkMeta_ListItem( v, i ), tkMeta_ListSlot( pairs, i ), "" )
+    next
+    return o
+end function
+
 private function AnchorExpr_( byval mask as long ) as ustring
     if mask = TK_ANCHOR_NONE then return "TK_ANCHOR_NONE"
     dim as ustring s
@@ -507,7 +517,9 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
             o &= "    " & c.Name & "." & s.Key & " = " & s.Value & NL
         elseif s.Key <> m->CreateArg then
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
-            if p->Kind = "text" then
+            if p->Kind = "list" then
+                o &= "    " & c.Name & "." & s.Key & "( " & ListExpr_( s.Value, p->EnumPairs ) & " )" & NL
+            elseif p->Kind = "text" then
                 o &= "    " & c.Name & "." & s.Key & " = " & TextExpr_( doc, c.Name & "." & s.Key, s.Value ) & NL
             else
                 o &= "    " & c.Name & "." & s.Key & " = " & ValueExpr_( s.Value, p->Kind, p->EnumPairs ) & NL

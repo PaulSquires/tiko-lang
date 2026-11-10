@@ -59,7 +59,7 @@ const as long MIN_PANE_CY = 60
 const as long TOOLBOX_SPLIT = 600         ' where a palette's own bar starts, in thousandths of its height
 const as long PROPS_SPLIT = 500
 const as long ROW_CY = 28
-const as long LABEL_CX = 100
+const as long LABEL_CX = 140
 const as long PAD = 4
 
 public enum PaletteId
@@ -189,6 +189,12 @@ private sub ColorFloatBar( byval bar as TK_WIDGET ptr )
     tkToolbar_SetColors( bar, @c )
 end sub
 
+' A list row's hint: halfway between the theme's dim text and its disabled text.
+private function HintColor_( ) as ulong
+    dim as TKTHEME_COLORS t = tkTheme_Get( )
+    return &hFF000000ul or (((t.TextDim and &hFEFEFEul) shr 1) + ((t.TextDisabled and &hFEFEFEul) shr 1))
+end function
+
 private function PaletteProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     dim as DesignPanels ptr p = w->pData
     select case m->msg
@@ -200,6 +206,11 @@ private function PaletteProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) 
         return true
     case TKM_THEMECHANGED
         if p->Pal( w->ctrlId ).FloatBtn then ColorFloatBar( p->Pal( w->ctrlId ).FloatBtn )
+        ' the rows' hints are coloured when they're made
+        if w->ctrlId = PaletteId.PaletteInspector then
+            p->RowSig = "?"
+            tkWidget_SetTimer( p->Ticker, TIMER_ROWS, 1 )
+        end if
     case TKM_SIZE
         p->LayoutPalette( w->ctrlId )
         return true
@@ -837,6 +848,10 @@ sub DesignPanels.AddPropRow( byval p as TKMETA_PROP ptr )
     case "bool" : this.AddRow( p->Name, p->Name, RowKind.RowCheck )
     case "enum" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, EnumShown_( p->EnumPairs ) )
     case "font" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, ",UI,UI_SMALL,UI_BOLD,UI_LARGE,GLYPH,GLYPH_LARGE,MONO" )
+    case "list"
+        this.AddRow( p->Name, p->Name, RowKind.RowText )
+        tkTextBox_SetCueBannerText( Rows[Rows.Count( ) - 1].Edit, tkMeta_ListCue( p->EnumPairs ) )
+        tkTextBox_SetCueBannerColor( Rows[Rows.Count( ) - 1].Edit, HintColor_( ) )
     case else   : this.AddRow( p->Name, p->Name, RowKind.RowText )
     end select
 end sub
@@ -947,8 +962,14 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     if left( key_, 2 ) = "E:" then return SettingOr( c_.Events, mid( key_, 3 ) )
     if key_ = m->CreateArg then return SettingOr( c_.Props, key_, m->CreateArgDflt )
     dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, key_ )
-    if p then return SettingOr( c_.Props, key_, p->DefaultValue )
-    return ""
+    if p = 0 then return ""
+    dim as ustring dflt = p->DefaultValue
+    ' no default on record: for what shows a state rather than a blank, the control itself says
+    if (len( dflt ) = 0) andalso (p->Read_ <> 0) andalso ((p->Kind = "bool") orelse (p->Kind = "enum")) then
+        dim as TK_WIDGET ptr w_ = C->WidgetOf( c_.Name )
+        if w_ then dflt = p->Read_( w_ )
+    end if
+    return SettingOr( c_.Props, key_, dflt )
 end function
 
 ' What a row should show: the value, or "" when the selected controls differ.

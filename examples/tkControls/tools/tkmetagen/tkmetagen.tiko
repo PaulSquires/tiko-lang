@@ -83,6 +83,69 @@ function Quote_( byref s as const ustring ) as ustring
     return o & """"
 end function
 
+' A "list" property's slots: "Left:int,Top:int" entry i's name and kind. FALSE past the end.
+function SlotAt_( byref e as const ustring, byval i as long, byref kind as ustring ) as boolean
+    dim as long at = 1, n = 0
+    do
+        dim as long comma = instr( at, e, "," )
+        dim as ustring item = iif( comma > 0, mid( e, at, comma - at ), mid( e, at ) )
+        if n = i then
+            kind = mid( item, instr( item, ":" ) + 1 )
+            return true
+        end if
+        if comma = 0 then return false
+        at = comma + 1
+        n += 1
+    loop
+end function
+
+' "byval a0 as long, byref a1 as const ustring"
+function ListParams_( byref e as const ustring ) as ustring
+    dim as ustring o, k
+    dim as long i = 0
+    do while SlotAt_( e, i, k )
+        if i then o &= ", "
+        if TypeOf_( k ) = "ustring" then
+            o &= "byref a" & i & " as const ustring"
+        else
+            o &= "byval a" & i & " as " & TypeOf_( k )
+        end if
+        i += 1
+    loop
+    return o
+end function
+
+' "a0, a1"
+function ListArgs_( byref e as const ustring ) as ustring
+    dim as ustring o, k
+    dim as long i = 0
+    do while SlotAt_( e, i, k )
+        if i then o &= ", "
+        o &= "a" & i
+        i += 1
+    loop
+    return o
+end function
+
+' The setter's arguments, each read from the text v.
+function ListConverted_( byref e as const ustring ) as ustring
+    dim as ustring o, k
+    dim as long i = 0
+    do while SlotAt_( e, i, k )
+        if i then o &= ", "
+        dim as ustring item = "tkMeta_ListItem( v, " & i & " )"
+        select case k
+        case "int"   : o &= "clng( val( " & item & " ) )"
+        case "float" : o &= "val( " & item & " )"
+        case "color" : o &= "cast( ulong, valulng( " & item & " ) )"
+        case "bool"  : o &= "cbool( " & item & " = ""true"" )"
+        case else    : o &= item
+        end select
+        i += 1
+    loop
+    return o
+end function
+
 function SetterParam_( byref kind as const ustring ) as ustring
     if TypeOf_( kind ) = "ustring" then return "byref v as const ustring"
     return "byval v as " & TypeOf_( kind )
@@ -121,6 +184,10 @@ sub GenWrapper( byref ctl as TomlValue, byref root as const ustring )
     for i as long = 0 to props->Count( ) - 1
         dim as TomlValue ptr p = @props->Item( i )
         dim as ustring pn = Str_( *p, "name" ), kind = Str_( *p, "kind" )
+        if kind = "list" then
+            o &= "    declare sub " & pn & "( " & ListParams_( Str_( *p, "enum" ) ) & " )" & NL
+            continue for
+        end if
         if len( Str_( *p, "get" ) ) then o &= "    declare property " & pn & "( ) as " & TypeOf_( kind ) & NL
         o &= "    declare property " & pn & "( " & SetterParam_( kind ) & " )" & NL
     next
@@ -136,6 +203,11 @@ sub GenWrapper( byref ctl as TomlValue, byref root as const ustring )
     for i as long = 0 to props->Count( ) - 1
         dim as TomlValue ptr p = @props->Item( i )
         dim as ustring pn = Str_( *p, "name" ), kind = Str_( *p, "kind" ), g = Str_( *p, "get" )
+        if kind = "list" then
+            o &= NL & "sub " & name_ & "." & pn & "( " & ListParams_( Str_( *p, "enum" ) ) & " )" & NL
+            o &= "    " & Str_( *p, "set" ) & "( Handle, " & ListArgs_( Str_( *p, "enum" ) ) & " )" & NL & "end sub" & NL
+            continue for
+        end if
         if len( g ) then
             o &= NL & "property " & name_ & "." & pn & "( ) as " & TypeOf_( kind ) & NL
             o &= "    return " & g & "( Handle )" & NL & "end property" & NL
@@ -211,6 +283,9 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
             if kind = "font" then
                 thunks &= "private sub F_" & id_ & "( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )" & NL & "    " & s_ & "( w, f )" & NL & "end sub" & NL & NL
                 fontRef = "@F_" & id_
+            elseif kind = "list" then
+                thunks &= "private sub A_" & id_ & "( byval w as TK_WIDGET ptr, byref v as const ustring )" & NL & "    " & s_ & "( w, " & ListConverted_( en ) & " )" & NL & "end sub" & NL & NL
+                applyRef = "@A_" & id_
             elseif kind = "enum" then
                 thunks &= "private sub A_" & id_ & "( byval w as TK_WIDGET ptr, byref v as const ustring )" & NL & "    select case v" & NL
                 dim as long e = 0

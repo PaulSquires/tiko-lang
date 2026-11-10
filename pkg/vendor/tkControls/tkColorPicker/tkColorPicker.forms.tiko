@@ -16,6 +16,12 @@ public type ColorPicker
     declare sub SetFocus( )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property OKText( byref v as const ustring )
+    declare sub Color( byval a0 as ulong, byval a1 as long, byval a2 as boolean )
+    declare sub Initial( byval a0 as ulong, byval a1 as long )
+    declare sub PreviewText( byref a0 as const ustring, byref a1 as const ustring )
+    declare sub MatrixSize( byval a0 as long, byval a1 as long )
+    declare sub CellSize( byval a0 as long, byval a1 as long )
 end type
 
 sub ColorPicker.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -49,3 +55,27 @@ end property
 property ColorPicker.Font( byval v as TTF_Font ptr )
     tkColorPicker_SetFont( Handle, v )
 end property
+
+property ColorPicker.OKText( byref v as const ustring )
+    tkColorPicker_SetOKText( Handle, v )
+end property
+
+sub ColorPicker.Color( byval a0 as ulong, byval a1 as long, byval a2 as boolean )
+    tkColorPicker_SetColor( Handle, a0, a1, a2 )
+end sub
+
+sub ColorPicker.Initial( byval a0 as ulong, byval a1 as long )
+    tkColorPicker_SetInitial( Handle, a0, a1 )
+end sub
+
+sub ColorPicker.PreviewText( byref a0 as const ustring, byref a1 as const ustring )
+    tkColorPicker_SetPreviewText( Handle, a0, a1 )
+end sub
+
+sub ColorPicker.MatrixSize( byval a0 as long, byval a1 as long )
+    tkColorPicker_SetMatrixSize( Handle, a0, a1 )
+end sub
+
+sub ColorPicker.CellSize( byval a0 as long, byval a1 as long )
+    tkColorPicker_SetCellSize( Handle, a0, a1 )
+end sub

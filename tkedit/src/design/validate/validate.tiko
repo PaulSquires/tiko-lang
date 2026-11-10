@@ -103,6 +103,9 @@ private function ValueFault_( byref s as Setting, byref kind_ as const ustring, 
         if (s.Kind <> VALUE_TEXT) orelse (IsColor_( s.Value ) = false) then return "must be a colour such as &hFF336699"
     case "font"
         if (s.Kind <> VALUE_TEXT) orelse (IsFontRole( s.Value ) = false) then return "must be a font role (UI, UI_BOLD, MONO, ...)"
+    case "list"
+        if s.Kind <> VALUE_TEXT then return "must be a string"
+        return tkMeta_ListFault( s.Value, pairs )
     case else
         if s.Kind <> VALUE_TEXT then return "must be a string"
     end select

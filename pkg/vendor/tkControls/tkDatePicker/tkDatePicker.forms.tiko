@@ -22,6 +22,20 @@ public type DatePicker
     declare property WeekStart( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property MonthCount( ) as long
+    declare property MonthCount( byval v as long )
+    declare property ShowTodayFooter( ) as boolean
+    declare property ShowTodayFooter( byval v as boolean )
+    declare property IconFont( ) as TTF_Font ptr
+    declare property IconFont( byval v as TTF_Font ptr )
+    declare property IconGlyph( ) as ustring
+    declare property IconGlyph( byref v as const ustring )
+    declare property IconWidth( ) as long
+    declare property IconWidth( byval v as long )
+    declare property CornerRadius( ) as long
+    declare property CornerRadius( byval v as long )
+    declare property BorderThickness( ) as long
+    declare property BorderThickness( byval v as long )
 end type
 
 sub DatePicker.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -78,4 +92,60 @@ end property
 
 property DatePicker.Font( byval v as TTF_Font ptr )
     tkDatePicker_SetFont( Handle, v )
+end property
+
+property DatePicker.MonthCount( ) as long
+    return tkDatePicker_GetMonthCount( Handle )
+end property
+
+property DatePicker.MonthCount( byval v as long )
+    tkDatePicker_SetMonthCount( Handle, v )
+end property
+
+property DatePicker.ShowTodayFooter( ) as boolean
+    return tkDatePicker_GetShowTodayFooter( Handle )
+end property
+
+property DatePicker.ShowTodayFooter( byval v as boolean )
+    tkDatePicker_SetShowTodayFooter( Handle, v )
+end property
+
+property DatePicker.IconFont( ) as TTF_Font ptr
+    return tkDatePicker_GetIconFont( Handle )
+end property
+
+property DatePicker.IconFont( byval v as TTF_Font ptr )
+    tkDatePicker_SetIconFont( Handle, v )
+end property
+
+property DatePicker.IconGlyph( ) as ustring
+    return tkDatePicker_GetIconGlyph( Handle )
+end property
+
+property DatePicker.IconGlyph( byref v as const ustring )
+    tkDatePicker_SetIconGlyph( Handle, v )
+end property
+
+property DatePicker.IconWidth( ) as long
+    return tkDatePicker_GetIconWidth( Handle )
+end property
+
+property DatePicker.IconWidth( byval v as long )
+    tkDatePicker_SetIconWidth( Handle, v )
+end property
+
+property DatePicker.CornerRadius( ) as long
+    return tkDatePicker_GetCornerRadius( Handle )
+end property
+
+property DatePicker.CornerRadius( byval v as long )
+    tkDatePicker_SetCornerRadius( Handle, v )
+end property
+
+property DatePicker.BorderThickness( ) as long
+    return tkDatePicker_GetBorderThickness( Handle )
+end property
+
+property DatePicker.BorderThickness( byval v as long )
+    tkDatePicker_SetBorderThickness( Handle, v )
 end property

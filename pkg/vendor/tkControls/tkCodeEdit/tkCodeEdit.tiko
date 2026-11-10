@@ -1821,7 +1821,7 @@ public sub tkCodeEdit_SetFont( byval hEdit as TK_WIDGET ptr, byref sFile as cons
 end sub
 
 ' A lexer by name ("tiko"). FALSE when scintk has no such lexer.
-public function tkCodeEdit_SetLexer( byval hEdit as TK_WIDGET ptr, byref sName as string ) as boolean
+public function tkCodeEdit_SetLexer( byval hEdit as TK_WIDGET ptr, byval sName as string ) as boolean
     dim as TKCE_STATE ptr t = CE( hEdit )
     if t = 0 then return false
     dim as any ptr lx = gLib.CreateLexer( strptr( sName ) )

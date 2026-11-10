@@ -26,6 +26,18 @@ public type NumericUpDown
     declare property ReadOnly( byval v as boolean )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property ButtonWidth( ) as long
+    declare property ButtonWidth( byval v as long )
+    declare property CornerRadius( ) as long
+    declare property CornerRadius( byval v as long )
+    declare property BorderThickness( ) as long
+    declare property BorderThickness( byval v as long )
+    declare property DividerThickness( ) as long
+    declare property DividerThickness( byval v as long )
+    declare sub Range( byval a0 as double, byval a1 as double )
+    declare sub AutoRepeat( byval a0 as long, byval a1 as long )
+    declare sub ValuePadding( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub GlyphSize( byval a0 as long, byval a1 as long )
 end type
 
 sub NumericUpDown.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -99,3 +111,51 @@ end property
 property NumericUpDown.Font( byval v as TTF_Font ptr )
     tkNumericUpDown_SetFont( Handle, v )
 end property
+
+property NumericUpDown.ButtonWidth( ) as long
+    return tkNumericUpDown_GetButtonWidth( Handle )
+end property
+
+property NumericUpDown.ButtonWidth( byval v as long )
+    tkNumericUpDown_SetButtonWidth( Handle, v )
+end property
+
+property NumericUpDown.CornerRadius( ) as long
+    return tkNumericUpDown_GetCornerRadius( Handle )
+end property
+
+property NumericUpDown.CornerRadius( byval v as long )
+    tkNumericUpDown_SetCornerRadius( Handle, v )
+end property
+
+property NumericUpDown.BorderThickness( ) as long
+    return tkNumericUpDown_GetBorderThickness( Handle )
+end property
+
+property NumericUpDown.BorderThickness( byval v as long )
+    tkNumericUpDown_SetBorderThickness( Handle, v )
+end property
+
+property NumericUpDown.DividerThickness( ) as long
+    return tkNumericUpDown_GetDividerThickness( Handle )
+end property
+
+property NumericUpDown.DividerThickness( byval v as long )
+    tkNumericUpDown_SetDividerThickness( Handle, v )
+end property
+
+sub NumericUpDown.Range( byval a0 as double, byval a1 as double )
+    tkNumericUpDown_SetRange( Handle, a0, a1 )
+end sub
+
+sub NumericUpDown.AutoRepeat( byval a0 as long, byval a1 as long )
+    tkNumericUpDown_SetAutoRepeat( Handle, a0, a1 )
+end sub
+
+sub NumericUpDown.ValuePadding( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkNumericUpDown_SetValuePadding( Handle, a0, a1, a2 )
+end sub
+
+sub NumericUpDown.GlyphSize( byval a0 as long, byval a1 as long )
+    tkNumericUpDown_SetGlyphSize( Handle, a0, a1 )
+end sub

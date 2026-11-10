@@ -20,6 +20,11 @@ public type StatusBar
     declare property BackColor( byval v as ulong )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property Padding( ) as long
+    declare property Padding( byval v as long )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
 end type
 
 sub StatusBar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -68,4 +73,24 @@ end property
 
 property StatusBar.Font( byval v as TTF_Font ptr )
     tkStatusBar_SetFont( Handle, v )
+end property
+
+property StatusBar.Padding( ) as long
+    return tkStatusBar_GetPadding( Handle )
+end property
+
+property StatusBar.Padding( byval v as long )
+    tkStatusBar_SetPadding( Handle, v )
+end property
+
+property StatusBar.HoverTime( byval v as long )
+    tkStatusBar_SetHoverTime( Handle, v )
+end property
+
+property StatusBar.AutoPopTime( byval v as long )
+    tkStatusBar_SetAutoPopTime( Handle, v )
+end property
+
+property StatusBar.ReshowTime( byval v as long )
+    tkStatusBar_SetReshowTime( Handle, v )
 end property

@@ -20,6 +20,9 @@ public type ScrollPanel
     declare property ContentHeight( byval v as long )
     declare property LineHeight( ) as long
     declare property LineHeight( byval v as long )
+    declare property ScrollBarWidth( byval v as long )
+    declare sub Colors( byval a0 as ulong, byval a1 as ulong )
+    declare sub ScrollBarColors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
 end type
 
 sub ScrollPanel.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -69,3 +72,15 @@ end property
 property ScrollPanel.LineHeight( byval v as long )
     tkScrollPanel_SetLineHeight( Handle, v )
 end property
+
+property ScrollPanel.ScrollBarWidth( byval v as long )
+    tkScrollPanel_SetScrollBarWidth( Handle, v )
+end property
+
+sub ScrollPanel.Colors( byval a0 as ulong, byval a1 as ulong )
+    tkScrollPanel_SetColors( Handle, a0, a1 )
+end sub
+
+sub ScrollPanel.ScrollBarColors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
+    tkScrollPanel_SetScrollBarColors( Handle, a0, a1, a2 )
+end sub

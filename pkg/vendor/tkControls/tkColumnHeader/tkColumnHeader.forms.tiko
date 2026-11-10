@@ -18,6 +18,12 @@ public type ColumnHeader
     declare property FillColumn( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property Padding( byval v as long )
+    declare property BackColor( ) as ulong
+    declare property BackColor( byval v as ulong )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
 end type
 
 sub ColumnHeader.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -58,4 +64,28 @@ end property
 
 property ColumnHeader.Font( byval v as TTF_Font ptr )
     tkColumnHeader_SetFont( Handle, v )
+end property
+
+property ColumnHeader.Padding( byval v as long )
+    tkColumnHeader_SetPadding( Handle, v )
+end property
+
+property ColumnHeader.BackColor( ) as ulong
+    return tkColumnHeader_GetBackColor( Handle )
+end property
+
+property ColumnHeader.BackColor( byval v as ulong )
+    tkColumnHeader_SetBackColor( Handle, v )
+end property
+
+property ColumnHeader.HoverTime( byval v as long )
+    tkColumnHeader_SetHoverTime( Handle, v )
+end property
+
+property ColumnHeader.AutoPopTime( byval v as long )
+    tkColumnHeader_SetAutoPopTime( Handle, v )
+end property
+
+property ColumnHeader.ReshowTime( byval v as long )
+    tkColumnHeader_SetReshowTime( Handle, v )
 end property

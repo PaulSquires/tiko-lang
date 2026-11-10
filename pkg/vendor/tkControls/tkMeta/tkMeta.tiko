@@ -140,6 +140,104 @@ public function tkMeta_Find( byref name_ as const ustring ) as TKMETA_CONTROL pt
     return 0
 end function
 
+' ---- a "list" property: several values in one, "1,2,3"; EnumPairs names them, "Left:int,Top:int" ----
+
+public function tkMeta_ListCount( byref v as const ustring ) as long
+    if len( trim( v ) ) = 0 then return 0
+    dim as long n = 1
+    for i as long = 1 to len( v )
+        if mid( v, i, 1 ) = "," then n += 1
+    next
+    return n
+end function
+
+' Item i of "a,b,c", trimmed; "" past the end.
+public function tkMeta_ListItem( byref v as const ustring, byval i as long ) as ustring
+    dim as long at = 1, n = 0
+    do
+        dim as long comma = instr( at, v, "," )
+        if n = i then
+            if comma > 0 then return trim( mid( v, at, comma - at ) )
+            return trim( mid( v, at ) )
+        end if
+        if comma = 0 then return ""
+        at = comma + 1
+        n += 1
+    loop
+end function
+
+' "Left, Top, Right, Bottom": what the row asks for.
+public function tkMeta_ListCue( byref pairs as const ustring ) as ustring
+    dim as ustring o
+    for i as long = 0 to tkMeta_ListCount( pairs ) - 1
+        dim as ustring s = tkMeta_ListItem( pairs, i )
+        if i then o &= ", "
+        o &= left( s, instr( s, ":" ) - 1 )
+    next
+    return o
+end function
+
+' The kind of slot i: int float color bool text.
+public function tkMeta_ListSlot( byref pairs as const ustring, byval i as long ) as ustring
+    dim as ustring s = tkMeta_ListItem( pairs, i )
+    return mid( s, instr( s, ":" ) + 1 )
+end function
+
+private function IsDigits_( byref s as const ustring ) as boolean
+    if len( s ) = 0 then return false
+    for i as long = 1 to len( s )
+        dim as long c = asc( mid( s, i, 1 ) )
+        if (c < 48) orelse (c > 57) then return false
+    next
+    return true
+end function
+
+private function SlotFits_( byref v as const ustring, byref kind as const ustring ) as boolean
+    dim as ustring t = v
+    select case kind
+    case "int"
+        if left( t, 1 ) = "-" then t = mid( t, 2 )
+        return IsDigits_( t )
+    case "float"
+        if left( t, 1 ) = "-" then t = mid( t, 2 )
+        dim as long dot = instr( t, "." )
+        if dot = 0 then return IsDigits_( t )
+        return IsDigits_( left( t, dot - 1 ) & mid( t, dot + 1 ) )
+    case "color"
+        if lcase( left( t, 2 ) ) <> "&h" then return false
+        if (len( t ) < 3) orelse (len( t ) > 10) then return false
+        for i as long = 3 to len( t )
+            if instr( "0123456789abcdefABCDEF", mid( t, i, 1 ) ) = 0 then return false
+        next
+        return true
+    case "bool"
+        return (t = "true") orelse (t = "false")
+    end select
+    return true
+end function
+
+' "" when text suits the list, or what's wrong with it.
+public function tkMeta_ListFault( byref text as const ustring, byref pairs as const ustring ) as ustring
+    dim as long n = tkMeta_ListCount( pairs )
+    if tkMeta_ListCount( text ) <> n then return "needs " & n & " values: " & tkMeta_ListCue( pairs )
+    for i as long = 0 to n - 1
+        if SlotFits_( tkMeta_ListItem( text, i ), tkMeta_ListSlot( pairs, i ) ) = false then
+            return "needs " & tkMeta_ListSlot( pairs, i ) & " for " & left( tkMeta_ListItem( pairs, i ), instr( tkMeta_ListItem( pairs, i ), ":" ) - 1 )
+        end if
+    next
+    return ""
+end function
+
+' "1, 2 ,3" as "1,2,3".
+public function tkMeta_ListTidy( byref text as const ustring ) as ustring
+    dim as ustring o
+    for i as long = 0 to tkMeta_ListCount( text ) - 1
+        if i then o &= ","
+        o &= tkMeta_ListItem( text, i )
+    next
+    return o
+end function
+
 public function tkMeta_FindProp( byval c as TKMETA_CONTROL ptr, byref name_ as const ustring ) as TKMETA_PROP ptr
     if c = 0 then return 0
     for i as long = 0 to c->NumProps - 1

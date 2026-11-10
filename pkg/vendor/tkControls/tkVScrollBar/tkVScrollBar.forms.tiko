@@ -18,6 +18,9 @@ public type VScrollBar
     declare property Position( byval v as long )
     declare property WheelStep( ) as long
     declare property WheelStep( byval v as long )
+    declare sub Range( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub Colors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
+    declare sub DividerColor( byval a0 as ulong, byval a1 as boolean )
 end type
 
 sub VScrollBar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -59,3 +62,15 @@ end property
 property VScrollBar.WheelStep( byval v as long )
     tkVScrollBar_SetWheelStep( Handle, v )
 end property
+
+sub VScrollBar.Range( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkVScrollBar_SetRange( Handle, a0, a1, a2 )
+end sub
+
+sub VScrollBar.Colors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
+    tkVScrollBar_SetColors( Handle, a0, a1, a2 )
+end sub
+
+sub VScrollBar.DividerColor( byval a0 as ulong, byval a1 as boolean )
+    tkVScrollBar_SetDividerColor( Handle, a0, a1 )
+end sub

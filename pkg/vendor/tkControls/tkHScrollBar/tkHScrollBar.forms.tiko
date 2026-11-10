@@ -18,6 +18,8 @@ public type HScrollBar
     declare property Position( byval v as long )
     declare property WheelStep( ) as long
     declare property WheelStep( byval v as long )
+    declare sub Range( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub Colors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
 end type
 
 sub HScrollBar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -59,3 +61,11 @@ end property
 property HScrollBar.WheelStep( byval v as long )
     tkHScrollBar_SetWheelStep( Handle, v )
 end property
+
+sub HScrollBar.Range( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkHScrollBar_SetRange( Handle, a0, a1, a2 )
+end sub
+
+sub HScrollBar.Colors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
+    tkHScrollBar_SetColors( Handle, a0, a1, a2 )
+end sub

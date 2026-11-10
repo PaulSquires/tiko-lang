@@ -32,6 +32,28 @@ public type ProgressBar
     declare property TooltipText( byref v as const ustring )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property StepSize( ) as long
+    declare property StepSize( byval v as long )
+    declare property MarqueeStyle( ) as long
+    declare property MarqueeStyle( byval v as long )
+    declare property MarqueeChunkPercent( ) as long
+    declare property MarqueeChunkPercent( byval v as long )
+    declare property GradientMode( ) as long
+    declare property GradientMode( byval v as long )
+    declare property Thickness( ) as long
+    declare property Thickness( byval v as long )
+    declare property BarInset( ) as long
+    declare property BarInset( byval v as long )
+    declare property BorderThickness( ) as long
+    declare property BorderThickness( byval v as long )
+    declare property Curvature( ) as long
+    declare property Curvature( byval v as long )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
+    declare sub Range( byval a0 as long, byval a1 as long )
+    declare sub MarqueeSpeed( byval a0 as long, byval a1 as long )
+    declare sub BlockMetrics( byval a0 as long, byval a1 as long )
 end type
 
 sub ProgressBar.Create( byval hParent as TK_WIDGET ptr, byval id as long, byval Orientation as long = PRG_HORIZONTAL )
@@ -129,3 +151,91 @@ end property
 property ProgressBar.Font( byval v as TTF_Font ptr )
     tkProgressBar_SetFont( Handle, v )
 end property
+
+property ProgressBar.StepSize( ) as long
+    return tkProgressBar_GetStep( Handle )
+end property
+
+property ProgressBar.StepSize( byval v as long )
+    tkProgressBar_SetStep( Handle, v )
+end property
+
+property ProgressBar.MarqueeStyle( ) as long
+    return tkProgressBar_GetMarqueeStyle( Handle )
+end property
+
+property ProgressBar.MarqueeStyle( byval v as long )
+    tkProgressBar_SetMarqueeStyle( Handle, v )
+end property
+
+property ProgressBar.MarqueeChunkPercent( ) as long
+    return tkProgressBar_GetMarqueeChunkPercent( Handle )
+end property
+
+property ProgressBar.MarqueeChunkPercent( byval v as long )
+    tkProgressBar_SetMarqueeChunkPercent( Handle, v )
+end property
+
+property ProgressBar.GradientMode( ) as long
+    return tkProgressBar_GetGradientMode( Handle )
+end property
+
+property ProgressBar.GradientMode( byval v as long )
+    tkProgressBar_SetGradientMode( Handle, v )
+end property
+
+property ProgressBar.Thickness( ) as long
+    return tkProgressBar_GetThickness( Handle )
+end property
+
+property ProgressBar.Thickness( byval v as long )
+    tkProgressBar_SetThickness( Handle, v )
+end property
+
+property ProgressBar.BarInset( ) as long
+    return tkProgressBar_GetBarInset( Handle )
+end property
+
+property ProgressBar.BarInset( byval v as long )
+    tkProgressBar_SetBarInset( Handle, v )
+end property
+
+property ProgressBar.BorderThickness( ) as long
+    return tkProgressBar_GetBorderThickness( Handle )
+end property
+
+property ProgressBar.BorderThickness( byval v as long )
+    tkProgressBar_SetBorderThickness( Handle, v )
+end property
+
+property ProgressBar.Curvature( ) as long
+    return tkProgressBar_GetCurvature( Handle )
+end property
+
+property ProgressBar.Curvature( byval v as long )
+    tkProgressBar_SetCurvature( Handle, v )
+end property
+
+property ProgressBar.HoverTime( byval v as long )
+    tkProgressBar_SetHoverTime( Handle, v )
+end property
+
+property ProgressBar.AutoPopTime( byval v as long )
+    tkProgressBar_SetAutoPopTime( Handle, v )
+end property
+
+property ProgressBar.ReshowTime( byval v as long )
+    tkProgressBar_SetReshowTime( Handle, v )
+end property
+
+sub ProgressBar.Range( byval a0 as long, byval a1 as long )
+    tkProgressBar_SetRange( Handle, a0, a1 )
+end sub
+
+sub ProgressBar.MarqueeSpeed( byval a0 as long, byval a1 as long )
+    tkProgressBar_SetMarqueeSpeed( Handle, a0, a1 )
+end sub
+
+sub ProgressBar.BlockMetrics( byval a0 as long, byval a1 as long )
+    tkProgressBar_SetBlockMetrics( Handle, a0, a1 )
+end sub

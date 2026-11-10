@@ -28,6 +28,24 @@ public type CheckBox
     declare property TooltipText( byref v as const ustring )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property GlyphUnchecked( ) as ustring
+    declare property GlyphUnchecked( byref v as const ustring )
+    declare property GlyphChecked( ) as ustring
+    declare property GlyphChecked( byref v as const ustring )
+    declare property BoxStyle( ) as long
+    declare property BoxStyle( byval v as long )
+    declare property BoxGap( ) as long
+    declare property BoxGap( byval v as long )
+    declare property FocusCurvature( ) as long
+    declare property FocusCurvature( byval v as long )
+    declare property GlyphFont( ) as TTF_Font ptr
+    declare property GlyphFont( byval v as TTF_Font ptr )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
+    declare sub Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
+    declare sub BoxSize( byval a0 as long, byval a1 as long )
+    declare sub FocusRing( byval a0 as long, byval a1 as long )
 end type
 
 sub CheckBox.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -109,3 +127,75 @@ end property
 property CheckBox.Font( byval v as TTF_Font ptr )
     tkCheckBox_SetFont( Handle, v )
 end property
+
+property CheckBox.GlyphUnchecked( ) as ustring
+    return tkCheckBox_GetGlyphUnchecked( Handle )
+end property
+
+property CheckBox.GlyphUnchecked( byref v as const ustring )
+    tkCheckBox_SetGlyphUnchecked( Handle, v )
+end property
+
+property CheckBox.GlyphChecked( ) as ustring
+    return tkCheckBox_GetGlyphChecked( Handle )
+end property
+
+property CheckBox.GlyphChecked( byref v as const ustring )
+    tkCheckBox_SetGlyphChecked( Handle, v )
+end property
+
+property CheckBox.BoxStyle( ) as long
+    return tkCheckBox_GetBoxStyle( Handle )
+end property
+
+property CheckBox.BoxStyle( byval v as long )
+    tkCheckBox_SetBoxStyle( Handle, v )
+end property
+
+property CheckBox.BoxGap( ) as long
+    return tkCheckBox_GetBoxGap( Handle )
+end property
+
+property CheckBox.BoxGap( byval v as long )
+    tkCheckBox_SetBoxGap( Handle, v )
+end property
+
+property CheckBox.FocusCurvature( ) as long
+    return tkCheckBox_GetFocusCurvature( Handle )
+end property
+
+property CheckBox.FocusCurvature( byval v as long )
+    tkCheckBox_SetFocusCurvature( Handle, v )
+end property
+
+property CheckBox.GlyphFont( ) as TTF_Font ptr
+    return tkCheckBox_GetGlyphFont( Handle )
+end property
+
+property CheckBox.GlyphFont( byval v as TTF_Font ptr )
+    tkCheckBox_SetGlyphFont( Handle, v )
+end property
+
+property CheckBox.HoverTime( byval v as long )
+    tkCheckBox_SetHoverTime( Handle, v )
+end property
+
+property CheckBox.AutoPopTime( byval v as long )
+    tkCheckBox_SetAutoPopTime( Handle, v )
+end property
+
+property CheckBox.ReshowTime( byval v as long )
+    tkCheckBox_SetReshowTime( Handle, v )
+end property
+
+sub CheckBox.Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
+    tkCheckBox_SetPadding( Handle, a0, a1, a2, a3 )
+end sub
+
+sub CheckBox.BoxSize( byval a0 as long, byval a1 as long )
+    tkCheckBox_SetBoxSize( Handle, a0, a1 )
+end sub
+
+sub CheckBox.FocusRing( byval a0 as long, byval a1 as long )
+    tkCheckBox_SetFocusRing( Handle, a0, a1 )
+end sub

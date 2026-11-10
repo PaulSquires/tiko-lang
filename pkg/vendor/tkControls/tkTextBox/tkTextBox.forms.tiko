@@ -40,6 +40,27 @@ public type TextBox
     declare property BorderWidth( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property SelectOnFocus( ) as boolean
+    declare property SelectOnFocus( byval v as boolean )
+    declare property Value( ) as double
+    declare property Value( byval v as double )
+    declare property ZeroWhenEmpty( ) as boolean
+    declare property ZeroWhenEmpty( byval v as boolean )
+    declare property ScrollBarVisible( byval v as boolean )
+    declare property CaretBlink( ) as long
+    declare property CaretBlink( byval v as long )
+    declare property CueBannerColor( ) as ulong
+    declare property CueBannerColor( byval v as ulong )
+    declare property FocusBorderColor( ) as ulong
+    declare property FocusBorderColor( byval v as ulong )
+    declare property OuterBackColor( ) as ulong
+    declare property OuterBackColor( byval v as ulong )
+    declare property CueBannerFont( ) as TTF_Font ptr
+    declare property CueBannerFont( byval v as TTF_Font ptr )
+    declare property CornerRadius( byval v as long )
+    declare sub Sel( byval a0 as long, byval a1 as long )
+    declare sub Margins( byval a0 as long, byval a1 as long )
+    declare sub MenuText( byref a0 as const ustring, byref a1 as const ustring, byref a2 as const ustring, byref a3 as const ustring )
 end type
 
 sub TextBox.Create( byval hParent as TK_WIDGET ptr, byval id as long, byval Multiline as boolean = false )
@@ -169,3 +190,87 @@ end property
 property TextBox.Font( byval v as TTF_Font ptr )
     tkTextBox_SetFont( Handle, v )
 end property
+
+property TextBox.SelectOnFocus( ) as boolean
+    return tkTextBox_GetSelectOnFocus( Handle )
+end property
+
+property TextBox.SelectOnFocus( byval v as boolean )
+    tkTextBox_SetSelectOnFocus( Handle, v )
+end property
+
+property TextBox.Value( ) as double
+    return tkTextBox_GetValue( Handle )
+end property
+
+property TextBox.Value( byval v as double )
+    tkTextBox_SetValue( Handle, v )
+end property
+
+property TextBox.ZeroWhenEmpty( ) as boolean
+    return tkTextBox_GetZeroWhenEmpty( Handle )
+end property
+
+property TextBox.ZeroWhenEmpty( byval v as boolean )
+    tkTextBox_SetZeroWhenEmpty( Handle, v )
+end property
+
+property TextBox.ScrollBarVisible( byval v as boolean )
+    tkTextBox_SetScrollBarVisible( Handle, v )
+end property
+
+property TextBox.CaretBlink( ) as long
+    return tkTextBox_GetCaretBlink( Handle )
+end property
+
+property TextBox.CaretBlink( byval v as long )
+    tkTextBox_SetCaretBlink( Handle, v )
+end property
+
+property TextBox.CueBannerColor( ) as ulong
+    return tkTextBox_GetCueBannerColor( Handle )
+end property
+
+property TextBox.CueBannerColor( byval v as ulong )
+    tkTextBox_SetCueBannerColor( Handle, v )
+end property
+
+property TextBox.FocusBorderColor( ) as ulong
+    return tkTextBox_GetFocusBorderColor( Handle )
+end property
+
+property TextBox.FocusBorderColor( byval v as ulong )
+    tkTextBox_SetFocusBorderColor( Handle, v )
+end property
+
+property TextBox.OuterBackColor( ) as ulong
+    return tkTextBox_GetOuterBackColor( Handle )
+end property
+
+property TextBox.OuterBackColor( byval v as ulong )
+    tkTextBox_SetOuterBackColor( Handle, v )
+end property
+
+property TextBox.CueBannerFont( ) as TTF_Font ptr
+    return tkTextBox_GetCueBannerFont( Handle )
+end property
+
+property TextBox.CueBannerFont( byval v as TTF_Font ptr )
+    tkTextBox_SetCueBannerFont( Handle, v )
+end property
+
+property TextBox.CornerRadius( byval v as long )
+    tkTextBox_SetCornerRadius( Handle, v )
+end property
+
+sub TextBox.Sel( byval a0 as long, byval a1 as long )
+    tkTextBox_SetSel( Handle, a0, a1 )
+end sub
+
+sub TextBox.Margins( byval a0 as long, byval a1 as long )
+    tkTextBox_SetMargins( Handle, a0, a1 )
+end sub
+
+sub TextBox.MenuText( byref a0 as const ustring, byref a1 as const ustring, byref a2 as const ustring, byref a3 as const ustring )
+    tkTextBox_SetMenuText( Handle, a0, a1, a2, a3 )
+end sub

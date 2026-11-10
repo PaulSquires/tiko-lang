@@ -236,6 +236,34 @@ private sub F_Button_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkButton_SetFont( w, f )
 end sub
 
+private sub A_Button_ImageLeft( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkButton_SetImageLeft( w, v )
+end sub
+
+private sub A_Button_ImageRight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkButton_SetImageRight( w, v )
+end sub
+
+private sub F_Button_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkButton_SetGlyphFont( w, f )
+end sub
+
+private sub A_Button_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkButton_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Button_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkButton_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Button_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkButton_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Button_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkButton_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
 private function C_CheckBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCheckBox_Create( hParent, id )
 end function
@@ -306,6 +334,81 @@ end function
 
 private sub F_CheckBox_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkCheckBox_SetFont( w, f )
+end sub
+
+private sub A_CheckBox_GlyphUnchecked( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetGlyphUnchecked( w, v )
+end sub
+
+private function R_CheckBox_GlyphUnchecked( byval w as TK_WIDGET ptr ) as ustring
+    return tkCheckBox_GetGlyphUnchecked( w )
+end function
+
+private sub A_CheckBox_GlyphChecked( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetGlyphChecked( w, v )
+end sub
+
+private function R_CheckBox_GlyphChecked( byval w as TK_WIDGET ptr ) as ustring
+    return tkCheckBox_GetGlyphChecked( w )
+end function
+
+private sub A_CheckBox_BoxStyle( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Vector" : tkCheckBox_SetBoxStyle( w, CHK_BOXSTYLE_VECTOR )
+    case "Glyph" : tkCheckBox_SetBoxStyle( w, CHK_BOXSTYLE_GLYPH )
+    end select
+end sub
+
+private function R_CheckBox_BoxStyle( byval w as TK_WIDGET ptr ) as ustring
+    select case tkCheckBox_GetBoxStyle( w )
+    case CHK_BOXSTYLE_VECTOR : return "Vector"
+    case CHK_BOXSTYLE_GLYPH : return "Glyph"
+    end select
+    return ""
+end function
+
+private sub A_CheckBox_BoxGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetBoxGap( w, clng( val( v ) ) )
+end sub
+
+private function R_CheckBox_BoxGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCheckBox_GetBoxGap( w ) )
+end function
+
+private sub A_CheckBox_FocusCurvature( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetFocusCurvature( w, clng( val( v ) ) )
+end sub
+
+private function R_CheckBox_FocusCurvature( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCheckBox_GetFocusCurvature( w ) )
+end function
+
+private sub F_CheckBox_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkCheckBox_SetGlyphFont( w, f )
+end sub
+
+private sub A_CheckBox_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_CheckBox_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_CheckBox_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_CheckBox_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
+private sub A_CheckBox_BoxSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetBoxSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_CheckBox_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCheckBox_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private function C_OptionButton( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -388,6 +491,62 @@ private sub F_OptionButton_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font p
     tkOptionButton_SetFont( w, f )
 end sub
 
+private sub A_OptionButton_BoxGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetBoxGap( w, clng( val( v ) ) )
+end sub
+
+private function R_OptionButton_BoxGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkOptionButton_GetBoxGap( w ) )
+end function
+
+private sub A_OptionButton_RingThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetRingThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_OptionButton_RingThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkOptionButton_GetRingThickness( w ) )
+end function
+
+private sub A_OptionButton_DotSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetDotSize( w, clng( val( v ) ) )
+end sub
+
+private function R_OptionButton_DotSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkOptionButton_GetDotSize( w ) )
+end function
+
+private sub A_OptionButton_FocusCurvature( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetFocusCurvature( w, clng( val( v ) ) )
+end sub
+
+private function R_OptionButton_FocusCurvature( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkOptionButton_GetFocusCurvature( w ) )
+end function
+
+private sub A_OptionButton_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_OptionButton_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_OptionButton_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_OptionButton_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
+private sub A_OptionButton_BoxSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetBoxSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_OptionButton_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkOptionButton_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
 private function C_Toggle( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkToggle_Create( hParent, id )
 end function
@@ -416,6 +575,30 @@ private function R_Toggle_Justify( byval w as TK_WIDGET ptr ) as ustring
     end select
     return ""
 end function
+
+private sub A_Toggle_KnobInset( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetKnobInset( w, clng( val( v ) ) )
+end sub
+
+private function R_Toggle_KnobInset( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToggle_GetKnobInset( w ) )
+end function
+
+private sub A_Toggle_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_Toggle_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToggle_GetBorderThickness( w ) )
+end function
+
+private sub A_Toggle_TrackSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetTrackSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Toggle_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
 
 private function C_TextBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTextBox_Create( hParent, id, cbool( arg = "true" ) )
@@ -530,6 +713,86 @@ private sub F_TextBox_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkTextBox_SetFont( w, f )
 end sub
 
+private sub A_TextBox_SelectOnFocus( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetSelectOnFocus( w, cbool( v = "true" ) )
+end sub
+
+private function R_TextBox_SelectOnFocus( byval w as TK_WIDGET ptr ) as ustring
+    if tkTextBox_GetSelectOnFocus( w ) then return "true" else return "false"
+end function
+
+private sub A_TextBox_Value( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetValue( w, val( v ) )
+end sub
+
+private function R_TextBox_Value( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTextBox_GetValue( w ) )
+end function
+
+private sub A_TextBox_ZeroWhenEmpty( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetZeroWhenEmpty( w, cbool( v = "true" ) )
+end sub
+
+private function R_TextBox_ZeroWhenEmpty( byval w as TK_WIDGET ptr ) as ustring
+    if tkTextBox_GetZeroWhenEmpty( w ) then return "true" else return "false"
+end function
+
+private sub A_TextBox_ScrollBarVisible( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetScrollBarVisible( w, cbool( v = "true" ) )
+end sub
+
+private sub A_TextBox_CaretBlink( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetCaretBlink( w, clng( val( v ) ) )
+end sub
+
+private function R_TextBox_CaretBlink( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTextBox_GetCaretBlink( w ) )
+end function
+
+private sub A_TextBox_CueBannerColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetCueBannerColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_TextBox_CueBannerColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkTextBox_GetCueBannerColor( w ), 8 )
+end function
+
+private sub A_TextBox_FocusBorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetFocusBorderColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_TextBox_FocusBorderColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkTextBox_GetFocusBorderColor( w ), 8 )
+end function
+
+private sub A_TextBox_OuterBackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetOuterBackColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_TextBox_OuterBackColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkTextBox_GetOuterBackColor( w ), 8 )
+end function
+
+private sub F_TextBox_CueBannerFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTextBox_SetCueBannerFont( w, f )
+end sub
+
+private sub A_TextBox_CornerRadius( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetCornerRadius( w, clng( val( v ) ) )
+end sub
+
+private sub A_TextBox_Sel( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetSel( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_TextBox_Margins( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetMargins( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_TextBox_MenuText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetMenuText( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ), tkMeta_ListItem( v, 2 ), tkMeta_ListItem( v, 3 ) )
+end sub
+
 private function C_NumericUpDown( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkNumericUpDown_Create( hParent, id )
 end function
@@ -578,6 +841,54 @@ private sub F_NumericUpDown_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font 
     tkNumericUpDown_SetFont( w, f )
 end sub
 
+private sub A_NumericUpDown_ButtonWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetButtonWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_NumericUpDown_ButtonWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkNumericUpDown_GetButtonWidth( w ) )
+end function
+
+private sub A_NumericUpDown_CornerRadius( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetCornerRadius( w, clng( val( v ) ) )
+end sub
+
+private function R_NumericUpDown_CornerRadius( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkNumericUpDown_GetCornerRadius( w ) )
+end function
+
+private sub A_NumericUpDown_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_NumericUpDown_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkNumericUpDown_GetBorderThickness( w ) )
+end function
+
+private sub A_NumericUpDown_DividerThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetDividerThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_NumericUpDown_DividerThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkNumericUpDown_GetDividerThickness( w ) )
+end function
+
+private sub A_NumericUpDown_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_NumericUpDown_AutoRepeat( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetAutoRepeat( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_NumericUpDown_ValuePadding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetValuePadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_NumericUpDown_GlyphSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetGlyphSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
 private function C_ComboBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkComboBox_Create( hParent, id )
 end function
@@ -608,6 +919,103 @@ end function
 
 private sub F_ComboBox_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkComboBox_SetFont( w, f )
+end sub
+
+private sub A_ComboBox_ListItemHeight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetListItemHeight( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_ListItemHeight( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetListItemHeight( w ) )
+end function
+
+private sub A_ComboBox_TextMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Always" : tkComboBox_SetTextMode( w, CBO_TEXT_ALWAYS )
+    case "Never" : tkComboBox_SetTextMode( w, CBO_TEXT_NEVER )
+    case "WhenSelected" : tkComboBox_SetTextMode( w, CBO_TEXT_WHENSELECTED )
+    end select
+end sub
+
+private function R_ComboBox_TextMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkComboBox_GetTextMode( w )
+    case CBO_TEXT_ALWAYS : return "Always"
+    case CBO_TEXT_NEVER : return "Never"
+    case CBO_TEXT_WHENSELECTED : return "WhenSelected"
+    end select
+    return ""
+end function
+
+private sub A_ComboBox_ShowText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetShowText( w, cbool( v = "true" ) )
+end sub
+
+private function R_ComboBox_ShowText( byval w as TK_WIDGET ptr ) as ustring
+    if tkComboBox_GetShowText( w ) then return "true" else return "false"
+end function
+
+private sub A_ComboBox_AutoSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetAutoSize( w, cbool( v = "true" ) )
+end sub
+
+private function R_ComboBox_AutoSize( byval w as TK_WIDGET ptr ) as ustring
+    if tkComboBox_GetAutoSize( w ) then return "true" else return "false"
+end function
+
+private sub A_ComboBox_TextGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetTextGap( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_TextGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetTextGap( w ) )
+end function
+
+private sub A_ComboBox_ChevronGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetChevronGap( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_ChevronGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetChevronGap( w ) )
+end function
+
+private sub A_ComboBox_ChevronThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetChevronThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_ChevronThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetChevronThickness( w ) )
+end function
+
+private sub A_ComboBox_CornerCurvature( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetCornerCurvature( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_CornerCurvature( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetCornerCurvature( w ) )
+end function
+
+private sub A_ComboBox_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetBorderThickness( w ) )
+end function
+
+private sub A_ComboBox_EditText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetEditText( w, v )
+end sub
+
+private sub A_ComboBox_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
+private sub A_ComboBox_ChevronSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetChevronSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ComboBox_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private function C_DatePicker( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -649,6 +1057,58 @@ private sub F_DatePicker_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr
     tkDatePicker_SetFont( w, f )
 end sub
 
+private sub A_DatePicker_MonthCount( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetMonthCount( w, clng( val( v ) ) )
+end sub
+
+private function R_DatePicker_MonthCount( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDatePicker_GetMonthCount( w ) )
+end function
+
+private sub A_DatePicker_ShowTodayFooter( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetShowTodayFooter( w, cbool( v = "true" ) )
+end sub
+
+private function R_DatePicker_ShowTodayFooter( byval w as TK_WIDGET ptr ) as ustring
+    if tkDatePicker_GetShowTodayFooter( w ) then return "true" else return "false"
+end function
+
+private sub F_DatePicker_IconFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkDatePicker_SetIconFont( w, f )
+end sub
+
+private sub A_DatePicker_IconGlyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetIconGlyph( w, v )
+end sub
+
+private function R_DatePicker_IconGlyph( byval w as TK_WIDGET ptr ) as ustring
+    return tkDatePicker_GetIconGlyph( w )
+end function
+
+private sub A_DatePicker_IconWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetIconWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_DatePicker_IconWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDatePicker_GetIconWidth( w ) )
+end function
+
+private sub A_DatePicker_CornerRadius( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetCornerRadius( w, clng( val( v ) ) )
+end sub
+
+private function R_DatePicker_CornerRadius( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDatePicker_GetCornerRadius( w ) )
+end function
+
+private sub A_DatePicker_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_DatePicker_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDatePicker_GetBorderThickness( w ) )
+end function
+
 private function C_Calendar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCalendar_Create( hParent, id )
 end function
@@ -678,6 +1138,75 @@ end function
 
 private sub F_Calendar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkCalendar_SetFont( w, f )
+end sub
+
+private sub A_Calendar_View( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Days" : tkCalendar_SetView( w, CAL_VIEW_DAYS )
+    case "Months" : tkCalendar_SetView( w, CAL_VIEW_MONTHS )
+    case "Years" : tkCalendar_SetView( w, CAL_VIEW_YEARS )
+    end select
+end sub
+
+private function R_Calendar_View( byval w as TK_WIDGET ptr ) as ustring
+    select case tkCalendar_GetView( w )
+    case CAL_VIEW_DAYS : return "Days"
+    case CAL_VIEW_MONTHS : return "Months"
+    case CAL_VIEW_YEARS : return "Years"
+    end select
+    return ""
+end function
+
+private sub A_Calendar_NavStep( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetNavStep( w, clng( val( v ) ) )
+end sub
+
+private function R_Calendar_NavStep( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCalendar_GetNavStep( w ) )
+end function
+
+private sub F_Calendar_TitleFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkCalendar_SetTitleFont( w, f )
+end sub
+
+private sub F_Calendar_WeekdayFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkCalendar_SetWeekdayFont( w, f )
+end sub
+
+private sub A_Calendar_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_Calendar_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCalendar_GetBorderThickness( w ) )
+end function
+
+private sub A_Calendar_ChevronThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetChevronThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_Calendar_ChevronThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCalendar_GetChevronThickness( w ) )
+end function
+
+private sub A_Calendar_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetPadding( w, clng( val( v ) ) )
+end sub
+
+private function R_Calendar_Padding( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCalendar_GetPadding( w ) )
+end function
+
+private sub A_Calendar_PanelGrid( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetPanelGrid( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Calendar_Gutters( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetGutters( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Calendar_CellMinSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetCellMinSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private function C_ProgressBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -788,12 +1317,142 @@ private sub F_ProgressBar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font pt
     tkProgressBar_SetFont( w, f )
 end sub
 
+private sub A_ProgressBar_StepSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetStep( w, clng( val( v ) ) )
+end sub
+
+private function R_ProgressBar_StepSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkProgressBar_GetStep( w ) )
+end function
+
+private sub A_ProgressBar_MarqueeStyle( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Bounce" : tkProgressBar_SetMarqueeStyle( w, PRG_MARQUEE_BOUNCE )
+    case "Wrap" : tkProgressBar_SetMarqueeStyle( w, PRG_MARQUEE_WRAP )
+    end select
+end sub
+
+private function R_ProgressBar_MarqueeStyle( byval w as TK_WIDGET ptr ) as ustring
+    select case tkProgressBar_GetMarqueeStyle( w )
+    case PRG_MARQUEE_BOUNCE : return "Bounce"
+    case PRG_MARQUEE_WRAP : return "Wrap"
+    end select
+    return ""
+end function
+
+private sub A_ProgressBar_MarqueeChunkPercent( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetMarqueeChunkPercent( w, clng( val( v ) ) )
+end sub
+
+private function R_ProgressBar_MarqueeChunkPercent( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkProgressBar_GetMarqueeChunkPercent( w ) )
+end function
+
+private sub A_ProgressBar_GradientMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Horizontal" : tkProgressBar_SetGradientMode( w, TK_GRADIENT_HORIZONTAL )
+    case "Vertical" : tkProgressBar_SetGradientMode( w, TK_GRADIENT_VERTICAL )
+    case "Fdiagonal" : tkProgressBar_SetGradientMode( w, TK_GRADIENT_FDIAGONAL )
+    case "Bdiagonal" : tkProgressBar_SetGradientMode( w, TK_GRADIENT_BDIAGONAL )
+    end select
+end sub
+
+private function R_ProgressBar_GradientMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkProgressBar_GetGradientMode( w )
+    case TK_GRADIENT_HORIZONTAL : return "Horizontal"
+    case TK_GRADIENT_VERTICAL : return "Vertical"
+    case TK_GRADIENT_FDIAGONAL : return "Fdiagonal"
+    case TK_GRADIENT_BDIAGONAL : return "Bdiagonal"
+    end select
+    return ""
+end function
+
+private sub A_ProgressBar_Thickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_ProgressBar_Thickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkProgressBar_GetThickness( w ) )
+end function
+
+private sub A_ProgressBar_BarInset( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetBarInset( w, clng( val( v ) ) )
+end sub
+
+private function R_ProgressBar_BarInset( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkProgressBar_GetBarInset( w ) )
+end function
+
+private sub A_ProgressBar_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_ProgressBar_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkProgressBar_GetBorderThickness( w ) )
+end function
+
+private sub A_ProgressBar_Curvature( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetCurvature( w, clng( val( v ) ) )
+end sub
+
+private function R_ProgressBar_Curvature( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkProgressBar_GetCurvature( w ) )
+end function
+
+private sub A_ProgressBar_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ProgressBar_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ProgressBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ProgressBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ProgressBar_MarqueeSpeed( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetMarqueeSpeed( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ProgressBar_BlockMetrics( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetBlockMetrics( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
 private function C_ColorPicker( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkColorPicker_Create( hParent, id )
 end function
 
 private sub F_ColorPicker_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkColorPicker_SetFont( w, f )
+end sub
+
+private sub A_ColorPicker_OKText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_SetOKText( w, v )
+end sub
+
+private sub A_ColorPicker_Color( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_SetColor( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), cbool( tkMeta_ListItem( v, 2 ) = "true" ) )
+end sub
+
+private sub A_ColorPicker_Initial( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_SetInitial( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ColorPicker_PreviewText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_SetPreviewText( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ) )
+end sub
+
+private sub A_ColorPicker_MatrixSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_SetMatrixSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ColorPicker_CellSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_SetCellSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private function C_Picture( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -940,6 +1599,18 @@ private function R_ScrollPanel_LineHeight( byval w as TK_WIDGET ptr ) as ustring
     return str( tkScrollPanel_GetLineHeight( w ) )
 end function
 
+private sub A_ScrollPanel_ScrollBarWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkScrollPanel_SetScrollBarWidth( w, clng( val( v ) ) )
+end sub
+
+private sub A_ScrollPanel_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkScrollPanel_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ScrollPanel_ScrollBarColors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkScrollPanel_SetScrollBarColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
 private function C_Splitter( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
     case "Vertical" : return tkSplitter_Create( hParent, id, TKSPLITTER_VERTICAL )
@@ -955,6 +1626,14 @@ end sub
 private function R_Splitter_Position( byval w as TK_WIDGET ptr ) as ustring
     return str( tkSplitter_GetPos( w ) )
 end function
+
+private sub A_Splitter_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSplitter_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Splitter_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSplitter_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
 
 private function C_ListTree( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkListTree_Create( hParent, id )
@@ -1036,12 +1715,124 @@ private sub F_ListTree_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkListTree_SetFont( w, f )
 end sub
 
+private sub A_ListTree_DragIndicatorColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetDragIndicatorColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_ListTree_DragIndicatorColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkListTree_GetDragIndicatorColor( w ), 8 )
+end function
+
+private sub A_ListTree_TreeIndent( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetTreeIndent( w, cbool( v = "true" ) )
+end sub
+
+private function R_ListTree_TreeIndent( byval w as TK_WIDGET ptr ) as ustring
+    if tkListTree_GetTreeIndent( w ) then return "true" else return "false"
+end function
+
+private sub A_ListTree_IndentWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetIndentWidth( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_TwistyWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetTwistyWidth( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_TwistyColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetTwistyColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private sub F_ListTree_TwistyFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkListTree_SetTwistyFont( w, f )
+end sub
+
+private sub A_ListTree_ClickToEdit( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetClickToEdit( w, cbool( v = "true" ) )
+end sub
+
+private sub A_ListTree_EditColumn( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetEditColumn( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_EnterEdits( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetEnterEdits( w, cbool( v = "true" ) )
+end sub
+
+private sub A_ListTree_EditSelectAll( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetEditSelectAll( w, cbool( v = "true" ) )
+end sub
+
+private sub A_ListTree_EditTextInset( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetEditTextInset( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_ScrollBarWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetScrollBarWidth( w, clng( val( v ) ) )
+end sub
+
+private sub A_ListTree_HeaderBackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetHeaderBackColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private sub F_ListTree_HeaderFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkListTree_SetHeaderFont( w, f )
+end sub
+
+private sub A_ListTree_TwistyGlyphs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetTwistyGlyphs( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ) )
+end sub
+
+private sub A_ListTree_EditColors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetEditColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
+private sub A_ListTree_ScrollBarColors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetScrollBarColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_ListTree_ScrollBarDividerColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_SetScrollBarDividerColor( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+end sub
+
 private function C_SelectBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkSelectBar_Create( hParent, id )
 end function
 
 private sub F_SelectBar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkSelectBar_SetFont( w, f )
+end sub
+
+private sub A_SelectBar_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSelectBar_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_SelectBar_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSelectBar_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_SelectBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSelectBar_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_SelectBar_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSelectBar_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_SelectBar_Indicator( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSelectBar_SetIndicator( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private function C_TabBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -1076,6 +1867,46 @@ private sub F_TabBar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkTabBar_SetFont( w, f )
 end sub
 
+private sub A_TabBar_BorderWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetBorderWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_TabBar_BorderWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTabBar_GetBorderWidth( w ) )
+end function
+
+private sub A_TabBar_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetBackColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_TabBar_BackColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkTabBar_GetBackColor( w ), 8 )
+end function
+
+private sub A_TabBar_BorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetBorderColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_TabBar_BorderColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkTabBar_GetBorderColor( w ), 8 )
+end function
+
+private sub F_TabBar_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTabBar_SetGlyphFont( w, f )
+end sub
+
+private sub A_TabBar_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_TabBar_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_TabBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
 private function C_ColumnHeader( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkColumnHeader_Create( hParent, id )
 end function
@@ -1090,6 +1921,30 @@ end function
 
 private sub F_ColumnHeader_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkColumnHeader_SetFont( w, f )
+end sub
+
+private sub A_ColumnHeader_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColumnHeader_SetPadding( w, clng( val( v ) ) )
+end sub
+
+private sub A_ColumnHeader_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColumnHeader_SetBackColor( w, cast( ulong, valulng( v ) ) )
+end sub
+
+private function R_ColumnHeader_BackColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkColumnHeader_GetBackColor( w ), 8 )
+end function
+
+private sub A_ColumnHeader_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColumnHeader_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ColumnHeader_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColumnHeader_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ColumnHeader_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColumnHeader_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
 private function C_MenuBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -1128,6 +1983,66 @@ private function R_Toolbar_DividerThickness( byval w as TK_WIDGET ptr ) as ustri
     return str( tkToolbar_GetDividerThickness( w ) )
 end function
 
+private sub A_Toolbar_TextGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetTextGap( w, clng( val( v ) ) )
+end sub
+
+private function R_Toolbar_TextGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToolbar_GetTextGap( w ) )
+end function
+
+private sub A_Toolbar_SeparatorWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetSeparatorWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_Toolbar_SeparatorWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToolbar_GetSeparatorWidth( w ) )
+end function
+
+private sub A_Toolbar_SeparatorHeight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetSeparatorHeight( w, clng( val( v ) ) )
+end sub
+
+private function R_Toolbar_SeparatorHeight( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToolbar_GetSeparatorHeight( w ) )
+end function
+
+private sub F_Toolbar_TextFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkToolbar_SetTextFont( w, f )
+end sub
+
+private sub F_Toolbar_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkToolbar_SetGlyphFont( w, f )
+end sub
+
+private sub A_Toolbar_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Toolbar_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Toolbar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Toolbar_IconSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetIconSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Toolbar_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
+private sub A_Toolbar_ChevronSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetChevronSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Toolbar_Glyphs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToolbar_SetGlyphs( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ) )
+end sub
+
 private function C_IconPanel( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkIconPanel_Create( hParent, id )
 end function
@@ -1161,6 +2076,38 @@ private sub F_IconPanel_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr 
     tkIconPanel_SetFont( w, f )
 end sub
 
+private sub A_IconPanel_SeparatorWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetSeparatorWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_IconPanel_SeparatorWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkIconPanel_GetSeparatorWidth( w ) )
+end function
+
+private sub A_IconPanel_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_IconPanel_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_IconPanel_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_IconPanel_Marker( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetMarker( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+end sub
+
+private sub A_IconPanel_IconSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetIconSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_IconPanel_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkIconPanel_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
 private function C_StatusBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkStatusBar_Create( hParent, id )
 end function
@@ -1185,6 +2132,26 @@ private sub F_StatusBar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr 
     tkStatusBar_SetFont( w, f )
 end sub
 
+private sub A_StatusBar_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkStatusBar_SetPadding( w, clng( val( v ) ) )
+end sub
+
+private function R_StatusBar_Padding( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkStatusBar_GetPadding( w ) )
+end function
+
+private sub A_StatusBar_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkStatusBar_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_StatusBar_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkStatusBar_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_StatusBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkStatusBar_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
 private function C_VScrollBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkVScrollBar_Create( hParent, id )
 end function
@@ -1205,6 +2172,18 @@ private function R_VScrollBar_WheelStep( byval w as TK_WIDGET ptr ) as ustring
     return str( tkVScrollBar_GetWheelStep( w ) )
 end function
 
+private sub A_VScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkVScrollBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_VScrollBar_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkVScrollBar_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_VScrollBar_DividerColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkVScrollBar_SetDividerColor( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+end sub
+
 private function C_HScrollBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkHScrollBar_Create( hParent, id )
 end function
@@ -1224,6 +2203,14 @@ end sub
 private function R_HScrollBar_WheelStep( byval w as TK_WIDGET ptr ) as ustring
     return str( tkHScrollBar_GetWheelStep( w ) )
 end function
+
+private sub A_HScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkHScrollBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_HScrollBar_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkHScrollBar_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
 
 private function C_Chart( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
@@ -1291,6 +2278,100 @@ private sub F_Chart_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkChart_SetFont( w, f )
 end sub
 
+private sub A_Chart_TickCountHint( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetTickCountHint( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chart_AxisLabelSkip( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetAxisLabelSkip( w, clng( val( v ) ) )
+end sub
+
+private function R_Chart_AxisLabelSkip( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkChart_GetAxisLabelSkip( w ) )
+end function
+
+private sub A_Chart_Padding( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetPadding( w, clng( val( v ) ) )
+end sub
+
+private sub F_Chart_TitleFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkChart_SetTitleFont( w, f )
+end sub
+
+private sub F_Chart_SubtitleFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkChart_SetSubtitleFont( w, f )
+end sub
+
+private sub A_Chart_BarGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetBarGap( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chart_GroupGapPercent( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetGroupGapPercent( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chart_HlocTickWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetHlocTickWidth( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chart_HlocUpDownColors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetHlocUpDownColors( w, cbool( v = "true" ) )
+end sub
+
+private sub A_Chart_DoughnutRatio( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetDoughnutRatio( w, val( v ) )
+end sub
+
+private sub A_Chart_PieLabelMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkChart_SetPieLabelMode( w, CHT_PIELABEL_NONE )
+    case "Value" : tkChart_SetPieLabelMode( w, CHT_PIELABEL_VALUE )
+    case "Percent" : tkChart_SetPieLabelMode( w, CHT_PIELABEL_PERCENT )
+    case "Name" : tkChart_SetPieLabelMode( w, CHT_PIELABEL_NAME )
+    case "NamePercent" : tkChart_SetPieLabelMode( w, CHT_PIELABEL_NAME_PERCENT )
+    end select
+end sub
+
+private sub A_Chart_PieLabelPlacement( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Inside" : tkChart_SetPieLabelPlacement( w, CHT_PIEPLACE_INSIDE )
+    case "Outside" : tkChart_SetPieLabelPlacement( w, CHT_PIEPLACE_OUTSIDE )
+    case "Auto" : tkChart_SetPieLabelPlacement( w, CHT_PIEPLACE_AUTO )
+    end select
+end sub
+
+private sub A_Chart_PieStartAngle( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetPieStartAngle( w, val( v ) )
+end sub
+
+private sub A_Chart_PieSliceGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetPieSliceGap( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chart_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetTooltipText( w, v )
+end sub
+
+private function R_Chart_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkChart_GetTooltipText( w )
+end function
+
+private sub A_Chart_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chart_ValueRange( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetValueRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Chart_GridLines( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetGridLines( w, cbool( tkMeta_ListItem( v, 0 ) = "true" ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+end sub
+
+private sub A_Chart_ValueFormat( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetValueFormat( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+end sub
+
 private function C_CodeEdit( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCodeEdit_Create( hParent, id )
 end function
@@ -1302,6 +2383,14 @@ end sub
 private function R_CodeEdit_Text( byval w as TK_WIDGET ptr ) as ustring
     return tkCodeEdit_GetText( w )
 end function
+
+private sub A_CodeEdit_Lexer( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetLexer( w, v )
+end sub
+
+private sub A_CodeEdit_Font( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetFont( w, tkMeta_ListItem( v, 0 ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
 
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
@@ -1326,6 +2415,13 @@ sub Fill_( )
     Prop_( "GlyphLeft", "glyph", "", "", "tkButton_SetGlyphLeft", "", @A_Button_GlyphLeft, 0, 0, true )
     Prop_( "GlyphRight", "glyph", "", "", "tkButton_SetGlyphRight", "", @A_Button_GlyphRight, 0, 0, true )
     Prop_( "Font", "font", "", "", "tkButton_SetFont", "tkButton_GetFont", 0, 0, @F_Button_Font, true )
+    Prop_( "ImageLeft", "file", "", "", "tkButton_SetImageLeft", "", @A_Button_ImageLeft, 0, 0, true )
+    Prop_( "ImageRight", "file", "", "", "tkButton_SetImageRight", "", @A_Button_ImageRight, 0, 0, true )
+    Prop_( "GlyphFont", "font", "", "", "tkButton_SetGlyphFont", "", 0, 0, @F_Button_GlyphFont, true )
+    Prop_( "HoverTime", "int", "", "", "tkButton_SetHoverTime", "", @A_Button_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkButton_SetAutoPopTime", "", @A_Button_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkButton_SetReshowTime", "", @A_Button_ReshowTime, 0, 0, true )
+    Prop_( "Padding", "list", "", "Left:int,Top:int,Right:int,Bottom:int", "tkButton_SetPadding", "", @A_Button_Padding, 0, 0, true )
     Event_( "Click", "tkButton_SetClickCallback", "BTN_ClickCallbackSub", "byval hButton as TK_WIDGET ptr, byval id as long", "", "" )
     Add_( "CheckBox", "tkCheckBox", "Common", 120, 24, "CheckChanged", "", @C_CheckBox, "", "", "", "" )
     Prop_( "Text", "text", "CheckBox", "", "tkCheckBox_SetText", "tkCheckBox_GetText", @A_CheckBox_Text, @R_CheckBox_Text, 0, true )
@@ -1335,6 +2431,18 @@ sub Fill_( )
     Prop_( "TextAlign", "enum", "Left", "Left=CHK_TEXTALIGN_LEFT,Center=CHK_TEXTALIGN_CENTER,Right=CHK_TEXTALIGN_RIGHT", "tkCheckBox_SetTextAlign", "tkCheckBox_GetTextAlign", @A_CheckBox_TextAlign, @R_CheckBox_TextAlign, 0, true )
     Prop_( "TooltipText", "text", "", "", "tkCheckBox_SetTooltipText", "tkCheckBox_GetTooltipText", @A_CheckBox_TooltipText, @R_CheckBox_TooltipText, 0, true )
     Prop_( "Font", "font", "", "", "tkCheckBox_SetFont", "tkCheckBox_GetFont", 0, 0, @F_CheckBox_Font, true )
+    Prop_( "GlyphUnchecked", "glyph", "", "", "tkCheckBox_SetGlyphUnchecked", "tkCheckBox_GetGlyphUnchecked", @A_CheckBox_GlyphUnchecked, @R_CheckBox_GlyphUnchecked, 0, true )
+    Prop_( "GlyphChecked", "glyph", "", "", "tkCheckBox_SetGlyphChecked", "tkCheckBox_GetGlyphChecked", @A_CheckBox_GlyphChecked, @R_CheckBox_GlyphChecked, 0, true )
+    Prop_( "BoxStyle", "enum", "", "Vector=CHK_BOXSTYLE_VECTOR,Glyph=CHK_BOXSTYLE_GLYPH", "tkCheckBox_SetBoxStyle", "tkCheckBox_GetBoxStyle", @A_CheckBox_BoxStyle, @R_CheckBox_BoxStyle, 0, true )
+    Prop_( "BoxGap", "int", "", "", "tkCheckBox_SetBoxGap", "tkCheckBox_GetBoxGap", @A_CheckBox_BoxGap, @R_CheckBox_BoxGap, 0, true )
+    Prop_( "FocusCurvature", "int", "", "", "tkCheckBox_SetFocusCurvature", "tkCheckBox_GetFocusCurvature", @A_CheckBox_FocusCurvature, @R_CheckBox_FocusCurvature, 0, true )
+    Prop_( "GlyphFont", "font", "", "", "tkCheckBox_SetGlyphFont", "tkCheckBox_GetGlyphFont", 0, 0, @F_CheckBox_GlyphFont, true )
+    Prop_( "HoverTime", "int", "", "", "tkCheckBox_SetHoverTime", "", @A_CheckBox_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkCheckBox_SetAutoPopTime", "", @A_CheckBox_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkCheckBox_SetReshowTime", "", @A_CheckBox_ReshowTime, 0, 0, true )
+    Prop_( "Padding", "list", "", "Left:int,Top:int,Right:int,Bottom:int", "tkCheckBox_SetPadding", "", @A_CheckBox_Padding, 0, 0, true )
+    Prop_( "BoxSize", "list", "", "BoxWidth:int,BoxHeight:int", "tkCheckBox_SetBoxSize", "", @A_CheckBox_BoxSize, 0, 0, true )
+    Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkCheckBox_SetFocusRing", "", @A_CheckBox_FocusRing, 0, 0, true )
     Event_( "CheckChanged", "tkCheckBox_SetCheckChangedCallback", "CHK_CheckChangedCallbackSub", "byval hCheckBox as TK_WIDGET ptr, byval isChecked as boolean", "byval isChecked as boolean", "isChecked" )
     Add_( "OptionButton", "tkOptionButton", "Common", 120, 24, "CheckChanged", "", @C_OptionButton, "", "", "", "" )
     Prop_( "Text", "text", "Option", "", "tkOptionButton_SetText", "tkOptionButton_GetText", @A_OptionButton_Text, @R_OptionButton_Text, 0, true )
@@ -1345,10 +2453,24 @@ sub Fill_( )
     Prop_( "TextAlign", "enum", "Left", "Left=OPT_TEXTALIGN_LEFT,Center=OPT_TEXTALIGN_CENTER,Right=OPT_TEXTALIGN_RIGHT", "tkOptionButton_SetTextAlign", "tkOptionButton_GetTextAlign", @A_OptionButton_TextAlign, @R_OptionButton_TextAlign, 0, true )
     Prop_( "TooltipText", "text", "", "", "tkOptionButton_SetTooltipText", "tkOptionButton_GetTooltipText", @A_OptionButton_TooltipText, @R_OptionButton_TooltipText, 0, true )
     Prop_( "Font", "font", "", "", "tkOptionButton_SetFont", "tkOptionButton_GetFont", 0, 0, @F_OptionButton_Font, true )
+    Prop_( "BoxGap", "int", "", "", "tkOptionButton_SetBoxGap", "tkOptionButton_GetBoxGap", @A_OptionButton_BoxGap, @R_OptionButton_BoxGap, 0, true )
+    Prop_( "RingThickness", "int", "", "", "tkOptionButton_SetRingThickness", "tkOptionButton_GetRingThickness", @A_OptionButton_RingThickness, @R_OptionButton_RingThickness, 0, true )
+    Prop_( "DotSize", "int", "", "", "tkOptionButton_SetDotSize", "tkOptionButton_GetDotSize", @A_OptionButton_DotSize, @R_OptionButton_DotSize, 0, true )
+    Prop_( "FocusCurvature", "int", "", "", "tkOptionButton_SetFocusCurvature", "tkOptionButton_GetFocusCurvature", @A_OptionButton_FocusCurvature, @R_OptionButton_FocusCurvature, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkOptionButton_SetHoverTime", "", @A_OptionButton_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkOptionButton_SetAutoPopTime", "", @A_OptionButton_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkOptionButton_SetReshowTime", "", @A_OptionButton_ReshowTime, 0, 0, true )
+    Prop_( "Padding", "list", "", "Left:int,Top:int,Right:int,Bottom:int", "tkOptionButton_SetPadding", "", @A_OptionButton_Padding, 0, 0, true )
+    Prop_( "BoxSize", "list", "", "BoxWidth:int,BoxHeight:int", "tkOptionButton_SetBoxSize", "", @A_OptionButton_BoxSize, 0, 0, true )
+    Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkOptionButton_SetFocusRing", "", @A_OptionButton_FocusRing, 0, 0, true )
     Event_( "CheckChanged", "tkOptionButton_SetCheckChangedCallback", "OPT_CheckChangedCallbackSub", "byval hOptionButton as TK_WIDGET ptr, byval isChecked as boolean", "byval isChecked as boolean", "isChecked" )
     Add_( "Toggle", "tkToggle", "Common", 60, 28, "CheckChanged", "", @C_Toggle, "", "", "", "" )
     Prop_( "Checked", "bool", "false", "", "tkToggle_SetChecked", "tkToggle_GetChecked", @A_Toggle_Checked, @R_Toggle_Checked, 0, true )
     Prop_( "Justify", "enum", "Center", "Left=TOG_JUSTIFY_LEFT,Center=TOG_JUSTIFY_CENTER,Right=TOG_JUSTIFY_RIGHT", "tkToggle_SetJustify", "tkToggle_GetJustify", @A_Toggle_Justify, @R_Toggle_Justify, 0, true )
+    Prop_( "KnobInset", "int", "", "", "tkToggle_SetKnobInset", "tkToggle_GetKnobInset", @A_Toggle_KnobInset, @R_Toggle_KnobInset, 0, true )
+    Prop_( "BorderThickness", "int", "", "", "tkToggle_SetBorderThickness", "tkToggle_GetBorderThickness", @A_Toggle_BorderThickness, @R_Toggle_BorderThickness, 0, true )
+    Prop_( "TrackSize", "list", "", "TrackWidth:int,TrackHeight:int", "tkToggle_SetTrackSize", "", @A_Toggle_TrackSize, 0, 0, true )
+    Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkToggle_SetFocusRing", "", @A_Toggle_FocusRing, 0, 0, true )
     Event_( "CheckChanged", "tkToggle_SetCheckChangedCallback", "TOG_CheckChangedCallbackSub", "byval hToggle as TK_WIDGET ptr, byval isChecked as boolean", "byval isChecked as boolean", "isChecked" )
     Add_( "TextBox", "tkTextBox", "Common", 160, 28, "Change", "", @C_TextBox, "Multiline", "bool", "", "false" )
     Prop_( "Text", "text", "", "", "tkTextBox_SetText", "tkTextBox_GetText", @A_TextBox_Text, @R_TextBox_Text, 0, true )
@@ -1364,6 +2486,19 @@ sub Fill_( )
     Prop_( "BorderColor", "color", "", "", "tkTextBox_SetBorderColor", "tkTextBox_GetBorderColor", @A_TextBox_BorderColor, @R_TextBox_BorderColor, 0, true )
     Prop_( "BorderWidth", "int", "", "", "tkTextBox_SetBorderWidth", "tkTextBox_GetBorderWidth", @A_TextBox_BorderWidth, @R_TextBox_BorderWidth, 0, true )
     Prop_( "Font", "font", "", "", "tkTextBox_SetFont", "tkTextBox_GetFont", 0, 0, @F_TextBox_Font, true )
+    Prop_( "SelectOnFocus", "bool", "", "", "tkTextBox_SetSelectOnFocus", "tkTextBox_GetSelectOnFocus", @A_TextBox_SelectOnFocus, @R_TextBox_SelectOnFocus, 0, true )
+    Prop_( "Value", "float", "", "", "tkTextBox_SetValue", "tkTextBox_GetValue", @A_TextBox_Value, @R_TextBox_Value, 0, true )
+    Prop_( "ZeroWhenEmpty", "bool", "", "", "tkTextBox_SetZeroWhenEmpty", "tkTextBox_GetZeroWhenEmpty", @A_TextBox_ZeroWhenEmpty, @R_TextBox_ZeroWhenEmpty, 0, true )
+    Prop_( "ScrollBarVisible", "bool", "false", "", "tkTextBox_SetScrollBarVisible", "", @A_TextBox_ScrollBarVisible, 0, 0, true )
+    Prop_( "CaretBlink", "int", "", "", "tkTextBox_SetCaretBlink", "tkTextBox_GetCaretBlink", @A_TextBox_CaretBlink, @R_TextBox_CaretBlink, 0, true )
+    Prop_( "CueBannerColor", "color", "", "", "tkTextBox_SetCueBannerColor", "tkTextBox_GetCueBannerColor", @A_TextBox_CueBannerColor, @R_TextBox_CueBannerColor, 0, true )
+    Prop_( "FocusBorderColor", "color", "", "", "tkTextBox_SetFocusBorderColor", "tkTextBox_GetFocusBorderColor", @A_TextBox_FocusBorderColor, @R_TextBox_FocusBorderColor, 0, true )
+    Prop_( "OuterBackColor", "color", "", "", "tkTextBox_SetOuterBackColor", "tkTextBox_GetOuterBackColor", @A_TextBox_OuterBackColor, @R_TextBox_OuterBackColor, 0, true )
+    Prop_( "CueBannerFont", "font", "", "", "tkTextBox_SetCueBannerFont", "tkTextBox_GetCueBannerFont", 0, 0, @F_TextBox_CueBannerFont, true )
+    Prop_( "CornerRadius", "int", "", "", "tkTextBox_SetCornerRadius", "", @A_TextBox_CornerRadius, 0, 0, true )
+    Prop_( "Sel", "list", "", "Start:int,End:int", "tkTextBox_SetSel", "", @A_TextBox_Sel, 0, 0, true )
+    Prop_( "Margins", "list", "", "Left:int,Right:int", "tkTextBox_SetMargins", "", @A_TextBox_Margins, 0, 0, true )
+    Prop_( "MenuText", "list", "", "CutText:text,CopyText:text,PasteText:text,SelectAllText:text", "tkTextBox_SetMenuText", "", @A_TextBox_MenuText, 0, 0, true )
     Event_( "Change", "tkTextBox_SetChangeCallback", "TXT_ChangeCallbackSub", "byval hTextBox as TK_WIDGET ptr", "", "" )
     Event_( "EnterPressed", "tkTextBox_SetEnterPressedCallback", "TXT_EnterPressedCallbackSub", "byval hTextBox as TK_WIDGET ptr", "", "" )
     Add_( "NumericUpDown", "tkNumericUpDown", "Common", 100, 28, "ValueChanged", "", @C_NumericUpDown, "", "", "", "" )
@@ -1373,12 +2508,33 @@ sub Fill_( )
     Prop_( "DecimalPlaces", "int", "", "", "tkNumericUpDown_SetDecimalPlaces", "tkNumericUpDown_GetDecimalPlaces", @A_NumericUpDown_DecimalPlaces, @R_NumericUpDown_DecimalPlaces, 0, true )
     Prop_( "ReadOnly", "bool", "false", "", "tkNumericUpDown_SetReadOnly", "tkNumericUpDown_GetReadOnly", @A_NumericUpDown_ReadOnly, @R_NumericUpDown_ReadOnly, 0, true )
     Prop_( "Font", "font", "", "", "tkNumericUpDown_SetFont", "tkNumericUpDown_GetFont", 0, 0, @F_NumericUpDown_Font, true )
+    Prop_( "ButtonWidth", "int", "", "", "tkNumericUpDown_SetButtonWidth", "tkNumericUpDown_GetButtonWidth", @A_NumericUpDown_ButtonWidth, @R_NumericUpDown_ButtonWidth, 0, true )
+    Prop_( "CornerRadius", "int", "", "", "tkNumericUpDown_SetCornerRadius", "tkNumericUpDown_GetCornerRadius", @A_NumericUpDown_CornerRadius, @R_NumericUpDown_CornerRadius, 0, true )
+    Prop_( "BorderThickness", "int", "", "", "tkNumericUpDown_SetBorderThickness", "tkNumericUpDown_GetBorderThickness", @A_NumericUpDown_BorderThickness, @R_NumericUpDown_BorderThickness, 0, true )
+    Prop_( "DividerThickness", "int", "", "", "tkNumericUpDown_SetDividerThickness", "tkNumericUpDown_GetDividerThickness", @A_NumericUpDown_DividerThickness, @R_NumericUpDown_DividerThickness, 0, true )
+    Prop_( "Range", "list", "", "Min:float,Max:float", "tkNumericUpDown_SetRange", "", @A_NumericUpDown_Range, 0, 0, true )
+    Prop_( "AutoRepeat", "list", "", "DelayMs:int,IntervalMs:int", "tkNumericUpDown_SetAutoRepeat", "", @A_NumericUpDown_AutoRepeat, 0, 0, true )
+    Prop_( "ValuePadding", "list", "", "Left:int,Right:int,Vert:int", "tkNumericUpDown_SetValuePadding", "", @A_NumericUpDown_ValuePadding, 0, 0, true )
+    Prop_( "GlyphSize", "list", "", "Length:int,Thickness:int", "tkNumericUpDown_SetGlyphSize", "", @A_NumericUpDown_GlyphSize, 0, 0, true )
     Event_( "ValueChanged", "tkNumericUpDown_SetValueChangedCallback", "NUD_ValueChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval nValue as double", "byval nValue as double", "nValue" )
     Add_( "ComboBox", "tkComboBox", "Common", 160, 28, "SelChange", "", @C_ComboBox, "", "", "", "" )
     Prop_( "Editable", "bool", "false", "", "tkComboBox_SetEditable", "tkComboBox_GetEditable", @A_ComboBox_Editable, @R_ComboBox_Editable, 0, true )
     Prop_( "PlaceholderText", "text", "", "", "tkComboBox_SetPlaceholderText", "tkComboBox_GetPlaceholderText", @A_ComboBox_PlaceholderText, @R_ComboBox_PlaceholderText, 0, true )
     Prop_( "ListMaxRows", "int", "", "", "tkComboBox_SetListMaxRows", "tkComboBox_GetListMaxRows", @A_ComboBox_ListMaxRows, @R_ComboBox_ListMaxRows, 0, true )
     Prop_( "Font", "font", "", "", "tkComboBox_SetFont", "tkComboBox_GetFont", 0, 0, @F_ComboBox_Font, true )
+    Prop_( "ListItemHeight", "int", "", "", "tkComboBox_SetListItemHeight", "tkComboBox_GetListItemHeight", @A_ComboBox_ListItemHeight, @R_ComboBox_ListItemHeight, 0, true )
+    Prop_( "TextMode", "enum", "", "Always=CBO_TEXT_ALWAYS,Never=CBO_TEXT_NEVER,WhenSelected=CBO_TEXT_WHENSELECTED", "tkComboBox_SetTextMode", "tkComboBox_GetTextMode", @A_ComboBox_TextMode, @R_ComboBox_TextMode, 0, true )
+    Prop_( "ShowText", "bool", "", "", "tkComboBox_SetShowText", "tkComboBox_GetShowText", @A_ComboBox_ShowText, @R_ComboBox_ShowText, 0, true )
+    Prop_( "AutoSize", "bool", "", "", "tkComboBox_SetAutoSize", "tkComboBox_GetAutoSize", @A_ComboBox_AutoSize, @R_ComboBox_AutoSize, 0, true )
+    Prop_( "TextGap", "int", "", "", "tkComboBox_SetTextGap", "tkComboBox_GetTextGap", @A_ComboBox_TextGap, @R_ComboBox_TextGap, 0, true )
+    Prop_( "ChevronGap", "int", "", "", "tkComboBox_SetChevronGap", "tkComboBox_GetChevronGap", @A_ComboBox_ChevronGap, @R_ComboBox_ChevronGap, 0, true )
+    Prop_( "ChevronThickness", "int", "", "", "tkComboBox_SetChevronThickness", "tkComboBox_GetChevronThickness", @A_ComboBox_ChevronThickness, @R_ComboBox_ChevronThickness, 0, true )
+    Prop_( "CornerCurvature", "int", "", "", "tkComboBox_SetCornerCurvature", "tkComboBox_GetCornerCurvature", @A_ComboBox_CornerCurvature, @R_ComboBox_CornerCurvature, 0, true )
+    Prop_( "BorderThickness", "int", "", "", "tkComboBox_SetBorderThickness", "tkComboBox_GetBorderThickness", @A_ComboBox_BorderThickness, @R_ComboBox_BorderThickness, 0, true )
+    Prop_( "EditText", "text", "", "", "tkComboBox_SetEditText", "", @A_ComboBox_EditText, 0, 0, true )
+    Prop_( "Padding", "list", "", "Left:int,Top:int,Right:int,Bottom:int", "tkComboBox_SetPadding", "", @A_ComboBox_Padding, 0, 0, true )
+    Prop_( "ChevronSize", "list", "", "Width:int,Height:int", "tkComboBox_SetChevronSize", "", @A_ComboBox_ChevronSize, 0, 0, true )
+    Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkComboBox_SetFocusRing", "", @A_ComboBox_FocusRing, 0, 0, true )
     Event_( "DropDown", "tkComboBox_SetDropDownCallback", "CBO_DropDownCallbackSub", "byval hCombo as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
     Event_( "EditChange", "tkComboBox_SetEditChangeCallback", "CBO_EditCallbackSub", "byval hCombo as TK_WIDGET ptr", "", "" )
     Event_( "EditEnter", "tkComboBox_SetEditEnterCallback", "CBO_EditCallbackSub", "byval hCombo as TK_WIDGET ptr", "", "" )
@@ -1388,12 +2544,29 @@ sub Fill_( )
     Prop_( "ShowToday", "bool", "true", "", "tkDatePicker_SetShowToday", "tkDatePicker_GetShowToday", @A_DatePicker_ShowToday, @R_DatePicker_ShowToday, 0, true )
     Prop_( "WeekStart", "enum", "Sunday", "Sunday=DTP_SUNDAY,Monday=DTP_MONDAY", "tkDatePicker_SetWeekStart", "tkDatePicker_GetWeekStart", @A_DatePicker_WeekStart, @R_DatePicker_WeekStart, 0, true )
     Prop_( "Font", "font", "", "", "tkDatePicker_SetFont", "tkDatePicker_GetFont", 0, 0, @F_DatePicker_Font, true )
+    Prop_( "MonthCount", "int", "", "", "tkDatePicker_SetMonthCount", "tkDatePicker_GetMonthCount", @A_DatePicker_MonthCount, @R_DatePicker_MonthCount, 0, true )
+    Prop_( "ShowTodayFooter", "bool", "", "", "tkDatePicker_SetShowTodayFooter", "tkDatePicker_GetShowTodayFooter", @A_DatePicker_ShowTodayFooter, @R_DatePicker_ShowTodayFooter, 0, true )
+    Prop_( "IconFont", "font", "", "", "tkDatePicker_SetIconFont", "tkDatePicker_GetIconFont", 0, 0, @F_DatePicker_IconFont, true )
+    Prop_( "IconGlyph", "glyph", "", "", "tkDatePicker_SetIconGlyph", "tkDatePicker_GetIconGlyph", @A_DatePicker_IconGlyph, @R_DatePicker_IconGlyph, 0, true )
+    Prop_( "IconWidth", "int", "", "", "tkDatePicker_SetIconWidth", "tkDatePicker_GetIconWidth", @A_DatePicker_IconWidth, @R_DatePicker_IconWidth, 0, true )
+    Prop_( "CornerRadius", "int", "", "", "tkDatePicker_SetCornerRadius", "tkDatePicker_GetCornerRadius", @A_DatePicker_CornerRadius, @R_DatePicker_CornerRadius, 0, true )
+    Prop_( "BorderThickness", "int", "", "", "tkDatePicker_SetBorderThickness", "tkDatePicker_GetBorderThickness", @A_DatePicker_BorderThickness, @R_DatePicker_BorderThickness, 0, true )
     Event_( "DateChanged", "tkDatePicker_SetDateChangedCallback", "DTP_DateChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", "byval pDate as TKDATE ptr, byval bHasDate as boolean", "pDate, bHasDate" )
     Event_( "DropDown", "tkDatePicker_SetDropDownCallback", "DTP_DropDownCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
     Add_( "Calendar", "tkCalendar", "Common", 250, 220, "SelChange", "", @C_Calendar, "", "", "", "" )
     Prop_( "ShowTodayRing", "bool", "true", "", "tkCalendar_SetShowTodayRing", "tkCalendar_GetShowTodayRing", @A_Calendar_ShowTodayRing, @R_Calendar_ShowTodayRing, 0, true )
     Prop_( "WeekStart", "enum", "Sunday", "Sunday=CAL_SUNDAY,Monday=CAL_MONDAY", "tkCalendar_SetWeekStart", "tkCalendar_GetWeekStart", @A_Calendar_WeekStart, @R_Calendar_WeekStart, 0, true )
     Prop_( "Font", "font", "", "", "tkCalendar_SetFont", "tkCalendar_GetFont", 0, 0, @F_Calendar_Font, true )
+    Prop_( "View", "enum", "", "Days=CAL_VIEW_DAYS,Months=CAL_VIEW_MONTHS,Years=CAL_VIEW_YEARS", "tkCalendar_SetView", "tkCalendar_GetView", @A_Calendar_View, @R_Calendar_View, 0, true )
+    Prop_( "NavStep", "int", "", "", "tkCalendar_SetNavStep", "tkCalendar_GetNavStep", @A_Calendar_NavStep, @R_Calendar_NavStep, 0, true )
+    Prop_( "TitleFont", "font", "", "", "tkCalendar_SetTitleFont", "tkCalendar_GetTitleFont", 0, 0, @F_Calendar_TitleFont, true )
+    Prop_( "WeekdayFont", "font", "", "", "tkCalendar_SetWeekdayFont", "tkCalendar_GetWeekdayFont", 0, 0, @F_Calendar_WeekdayFont, true )
+    Prop_( "BorderThickness", "int", "", "", "tkCalendar_SetBorderThickness", "tkCalendar_GetBorderThickness", @A_Calendar_BorderThickness, @R_Calendar_BorderThickness, 0, true )
+    Prop_( "ChevronThickness", "int", "", "", "tkCalendar_SetChevronThickness", "tkCalendar_GetChevronThickness", @A_Calendar_ChevronThickness, @R_Calendar_ChevronThickness, 0, true )
+    Prop_( "Padding", "int", "", "", "tkCalendar_SetPadding", "tkCalendar_GetPadding", @A_Calendar_Padding, @R_Calendar_Padding, 0, true )
+    Prop_( "PanelGrid", "list", "", "Cols:int,Rows:int", "tkCalendar_SetPanelGrid", "", @A_Calendar_PanelGrid, 0, 0, true )
+    Prop_( "Gutters", "list", "", "GutterX:int,GutterY:int", "tkCalendar_SetGutters", "", @A_Calendar_Gutters, 0, 0, true )
+    Prop_( "CellMinSize", "list", "", "W:int,H:int", "tkCalendar_SetCellMinSize", "", @A_Calendar_CellMinSize, 0, 0, true )
     Event_( "DateActivated", "tkCalendar_SetDateActivatedCallback", "CAL_DateActivatedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr", "byval pDate as TKDATE ptr", "pDate" )
     Event_( "SelChange", "tkCalendar_SetSelChangeCallback", "CAL_SelChangeCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", "byval pDate as TKDATE ptr, byval bHasDate as boolean", "pDate, bHasDate" )
     Event_( "ViewChange", "tkCalendar_SetViewChangeCallback", "CAL_ViewChangeCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval eView as long, byval pAnchor as TKDATE ptr", "byval eView as long, byval pAnchor as TKDATE ptr", "eView, pAnchor" )
@@ -1407,8 +2580,28 @@ sub Fill_( )
     Prop_( "Segmented", "bool", "false", "", "tkProgressBar_SetSegmented", "tkProgressBar_GetSegmented", @A_ProgressBar_Segmented, @R_ProgressBar_Segmented, 0, true )
     Prop_( "TooltipText", "text", "", "", "tkProgressBar_SetTooltipText", "tkProgressBar_GetTooltipText", @A_ProgressBar_TooltipText, @R_ProgressBar_TooltipText, 0, true )
     Prop_( "Font", "font", "", "", "tkProgressBar_SetFont", "tkProgressBar_GetFont", 0, 0, @F_ProgressBar_Font, true )
+    Prop_( "StepSize", "int", "", "", "tkProgressBar_SetStep", "tkProgressBar_GetStep", @A_ProgressBar_StepSize, @R_ProgressBar_StepSize, 0, true )
+    Prop_( "MarqueeStyle", "enum", "", "Bounce=PRG_MARQUEE_BOUNCE,Wrap=PRG_MARQUEE_WRAP", "tkProgressBar_SetMarqueeStyle", "tkProgressBar_GetMarqueeStyle", @A_ProgressBar_MarqueeStyle, @R_ProgressBar_MarqueeStyle, 0, true )
+    Prop_( "MarqueeChunkPercent", "int", "", "", "tkProgressBar_SetMarqueeChunkPercent", "tkProgressBar_GetMarqueeChunkPercent", @A_ProgressBar_MarqueeChunkPercent, @R_ProgressBar_MarqueeChunkPercent, 0, true )
+    Prop_( "GradientMode", "enum", "", "Horizontal=TK_GRADIENT_HORIZONTAL,Vertical=TK_GRADIENT_VERTICAL,Fdiagonal=TK_GRADIENT_FDIAGONAL,Bdiagonal=TK_GRADIENT_BDIAGONAL", "tkProgressBar_SetGradientMode", "tkProgressBar_GetGradientMode", @A_ProgressBar_GradientMode, @R_ProgressBar_GradientMode, 0, true )
+    Prop_( "Thickness", "int", "", "", "tkProgressBar_SetThickness", "tkProgressBar_GetThickness", @A_ProgressBar_Thickness, @R_ProgressBar_Thickness, 0, true )
+    Prop_( "BarInset", "int", "", "", "tkProgressBar_SetBarInset", "tkProgressBar_GetBarInset", @A_ProgressBar_BarInset, @R_ProgressBar_BarInset, 0, true )
+    Prop_( "BorderThickness", "int", "", "", "tkProgressBar_SetBorderThickness", "tkProgressBar_GetBorderThickness", @A_ProgressBar_BorderThickness, @R_ProgressBar_BorderThickness, 0, true )
+    Prop_( "Curvature", "int", "", "", "tkProgressBar_SetCurvature", "tkProgressBar_GetCurvature", @A_ProgressBar_Curvature, @R_ProgressBar_Curvature, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkProgressBar_SetHoverTime", "", @A_ProgressBar_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkProgressBar_SetAutoPopTime", "", @A_ProgressBar_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkProgressBar_SetReshowTime", "", @A_ProgressBar_ReshowTime, 0, 0, true )
+    Prop_( "Range", "list", "", "Min:int,Max:int", "tkProgressBar_SetRange", "", @A_ProgressBar_Range, 0, 0, true )
+    Prop_( "MarqueeSpeed", "list", "", "IntervalMs:int,StepPx:int", "tkProgressBar_SetMarqueeSpeed", "", @A_ProgressBar_MarqueeSpeed, 0, 0, true )
+    Prop_( "BlockMetrics", "list", "", "BlockLen:int,BlockGap:int", "tkProgressBar_SetBlockMetrics", "", @A_ProgressBar_BlockMetrics, 0, 0, true )
     Add_( "ColorPicker", "tkColorPicker", "Common", 120, 28, "ColorChanged", "", @C_ColorPicker, "", "", "", "" )
     Prop_( "Font", "font", "", "", "tkColorPicker_SetFont", "tkColorPicker_GetFont", 0, 0, @F_ColorPicker_Font, true )
+    Prop_( "OKText", "text", "", "", "tkColorPicker_SetOKText", "", @A_ColorPicker_OKText, 0, 0, true )
+    Prop_( "Color", "list", "", "Color:color,Alpha:int,KeepInitial:bool", "tkColorPicker_SetColor", "", @A_ColorPicker_Color, 0, 0, true )
+    Prop_( "Initial", "list", "", "Color:color,Alpha:int", "tkColorPicker_SetInitial", "", @A_ColorPicker_Initial, 0, 0, true )
+    Prop_( "PreviewText", "list", "", "TextInitial:text,TextCurrent:text", "tkColorPicker_SetPreviewText", "", @A_ColorPicker_PreviewText, 0, 0, true )
+    Prop_( "MatrixSize", "list", "", "Cols:int,Rows:int", "tkColorPicker_SetMatrixSize", "", @A_ColorPicker_MatrixSize, 0, 0, true )
+    Prop_( "CellSize", "list", "", "Cx:int,Cy:int", "tkColorPicker_SetCellSize", "", @A_ColorPicker_CellSize, 0, 0, true )
     Event_( "ColorChanged", "tkColorPicker_SetColorChangedCallback", "CLR_ColorChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", "byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", "clr, nAlpha, nPhase" )
     Event_( "Open", "tkColorPicker_SetOpenCallback", "CLR_OpenCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pSurface as TK_HOST ptr", "byval pSurface as TK_HOST ptr", "pSurface" )
     Event_( "TabChanged", "tkColorPicker_SetTabChangedCallback", "CLR_TabChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval nTab as long", "byval nTab as long", "nTab" )
@@ -1433,9 +2626,14 @@ sub Fill_( )
     Prop_( "AutoScrollToFocus", "bool", "true", "", "tkScrollPanel_SetAutoScrollToFocus", "tkScrollPanel_GetAutoScrollToFocus", @A_ScrollPanel_AutoScrollToFocus, @R_ScrollPanel_AutoScrollToFocus, 0, true )
     Prop_( "ContentHeight", "int", "", "", "tkScrollPanel_SetContentHeight", "tkScrollPanel_GetContentHeight", @A_ScrollPanel_ContentHeight, @R_ScrollPanel_ContentHeight, 0, true )
     Prop_( "LineHeight", "int", "", "", "tkScrollPanel_SetLineHeight", "tkScrollPanel_GetLineHeight", @A_ScrollPanel_LineHeight, @R_ScrollPanel_LineHeight, 0, true )
+    Prop_( "ScrollBarWidth", "int", "", "", "tkScrollPanel_SetScrollBarWidth", "", @A_ScrollPanel_ScrollBarWidth, 0, 0, true )
+    Prop_( "Colors", "list", "", "Back:color,Fore:color", "tkScrollPanel_SetColors", "", @A_ScrollPanel_Colors, 0, 0, true )
+    Prop_( "ScrollBarColors", "list", "", "Back:color,Fore:color,ForeHot:color", "tkScrollPanel_SetScrollBarColors", "", @A_ScrollPanel_ScrollBarColors, 0, 0, true )
     Event_( "Scroll", "tkScrollPanel_SetScrollCallback", "SCP_ScrollCallbackSub", "byval hScrollPanel as TK_WIDGET ptr, byval newPos as long", "byval newPos as long", "newPos" )
     Add_( "Splitter", "tkSplitter", "Containers", 6, 120, "PosChanged", "", @C_Splitter, "Orientation", "enum", "Vertical=TKSPLITTER_VERTICAL,Horizontal=TKSPLITTER_HORIZONTAL", "Vertical" )
     Prop_( "Position", "int", "", "", "tkSplitter_SetPos", "tkSplitter_GetPos", @A_Splitter_Position, @R_Splitter_Position, 0, true )
+    Prop_( "Range", "list", "", "Min:int,Max:int", "tkSplitter_SetRange", "", @A_Splitter_Range, 0, 0, true )
+    Prop_( "Colors", "list", "", "Back:color,Hot:color", "tkSplitter_SetColors", "", @A_Splitter_Colors, 0, 0, true )
     Event_( "PosChanged", "tkSplitter_SetPosChangedCallback", "SPL_PosChangedCallbackSub", "byval hSplitter as TK_WIDGET ptr, byval newPos as long, byval nPhase as long", "byval newPos as long, byval nPhase as long", "newPos, nPhase" )
     Add_( "ListTree", "tkListTree", "Lists", 240, 160, "SelChange", "", @C_ListTree, "", "", "", "" )
     Prop_( "RowHeight", "int", "", "", "tkListTree_SetRowHeight", "tkListTree_GetRowHeight", @A_ListTree_RowHeight, @R_ListTree_RowHeight, 0, true )
@@ -1448,6 +2646,27 @@ sub Fill_( )
     Prop_( "BorderColor", "color", "", "", "tkListTree_SetBorderColor", "tkListTree_GetBorderColor", @A_ListTree_BorderColor, @R_ListTree_BorderColor, 0, true )
     Prop_( "BorderWidth", "int", "", "", "tkListTree_SetBorderWidth", "tkListTree_GetBorderWidth", @A_ListTree_BorderWidth, @R_ListTree_BorderWidth, 0, true )
     Prop_( "Font", "font", "", "", "tkListTree_SetFont", "tkListTree_GetFont", 0, 0, @F_ListTree_Font, true )
+    Prop_( "DragIndicatorColor", "color", "", "", "tkListTree_SetDragIndicatorColor", "tkListTree_GetDragIndicatorColor", @A_ListTree_DragIndicatorColor, @R_ListTree_DragIndicatorColor, 0, true )
+    Prop_( "TreeIndent", "bool", "", "", "tkListTree_SetTreeIndent", "tkListTree_GetTreeIndent", @A_ListTree_TreeIndent, @R_ListTree_TreeIndent, 0, true )
+    Prop_( "IndentWidth", "int", "", "", "tkListTree_SetIndentWidth", "", @A_ListTree_IndentWidth, 0, 0, true )
+    Prop_( "TwistyWidth", "int", "", "", "tkListTree_SetTwistyWidth", "", @A_ListTree_TwistyWidth, 0, 0, true )
+    Prop_( "TwistyColor", "color", "", "", "tkListTree_SetTwistyColor", "", @A_ListTree_TwistyColor, 0, 0, true )
+    Prop_( "TwistyFont", "font", "", "", "tkListTree_SetTwistyFont", "", 0, 0, @F_ListTree_TwistyFont, true )
+    Prop_( "ClickToEdit", "bool", "false", "", "tkListTree_SetClickToEdit", "", @A_ListTree_ClickToEdit, 0, 0, true )
+    Prop_( "EditColumn", "int", "", "", "tkListTree_SetEditColumn", "", @A_ListTree_EditColumn, 0, 0, true )
+    Prop_( "EnterEdits", "bool", "false", "", "tkListTree_SetEnterEdits", "", @A_ListTree_EnterEdits, 0, 0, true )
+    Prop_( "EditSelectAll", "bool", "true", "", "tkListTree_SetEditSelectAll", "", @A_ListTree_EditSelectAll, 0, 0, true )
+    Prop_( "EditTextInset", "int", "", "", "tkListTree_SetEditTextInset", "", @A_ListTree_EditTextInset, 0, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkListTree_SetHoverTime", "", @A_ListTree_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkListTree_SetAutoPopTime", "", @A_ListTree_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkListTree_SetReshowTime", "", @A_ListTree_ReshowTime, 0, 0, true )
+    Prop_( "ScrollBarWidth", "int", "", "", "tkListTree_SetScrollBarWidth", "", @A_ListTree_ScrollBarWidth, 0, 0, true )
+    Prop_( "HeaderBackColor", "color", "", "", "tkListTree_SetHeaderBackColor", "", @A_ListTree_HeaderBackColor, 0, 0, true )
+    Prop_( "HeaderFont", "font", "", "", "tkListTree_SetHeaderFont", "", 0, 0, @F_ListTree_HeaderFont, true )
+    Prop_( "TwistyGlyphs", "list", "", "Expanded:text,Collapsed:text", "tkListTree_SetTwistyGlyphs", "", @A_ListTree_TwistyGlyphs, 0, 0, true )
+    Prop_( "EditColors", "list", "", "Back:color,Fore:color,Border:color,FocusBorder:color", "tkListTree_SetEditColors", "", @A_ListTree_EditColors, 0, 0, true )
+    Prop_( "ScrollBarColors", "list", "", "Back:color,Fore:color,ForeHot:color", "tkListTree_SetScrollBarColors", "", @A_ListTree_ScrollBarColors, 0, 0, true )
+    Prop_( "ScrollBarDividerColor", "list", "", "Color:color,Show:bool", "tkListTree_SetScrollBarDividerColor", "", @A_ListTree_ScrollBarDividerColor, 0, 0, true )
     Event_( "Activate", "tkListTree_SetActivateCallback", "LT_ActivateCallbackSub", "byval hList as TK_WIDGET ptr, byval row as integer", "byval row as integer", "row" )
     Event_( "ColumnClick", "tkListTree_SetColumnClickCallback", "HDR_ClickCallbackSub", "byval hHeader as TK_WIDGET ptr, byval idx as integer", "byval idx as integer", "idx" )
     Event_( "ColumnResize", "tkListTree_SetColumnResizeCallback", "HDR_WidthChangedCallbackSub", "byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean", "byval idx as integer, byval nWidth as integer, byval bLive as boolean", "idx, nWidth, bLive" )
@@ -1456,18 +2675,35 @@ sub Fill_( )
     Event_( "SelChange", "tkListTree_SetSelChangeCallback", "LT_SelChangeCallbackSub", "byval hList as TK_WIDGET ptr, byval row as integer", "byval row as integer", "row" )
     Add_( "SelectBar", "tkSelectBar", "Lists", 240, 32, "SelChange", "", @C_SelectBar, "", "", "", "" )
     Prop_( "Font", "font", "", "", "tkSelectBar_SetFont", "tkSelectBar_GetFont", 0, 0, @F_SelectBar_Font, true )
+    Prop_( "HoverTime", "int", "", "", "tkSelectBar_SetHoverTime", "", @A_SelectBar_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkSelectBar_SetAutoPopTime", "", @A_SelectBar_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkSelectBar_SetReshowTime", "", @A_SelectBar_ReshowTime, 0, 0, true )
+    Prop_( "Padding", "list", "", "PadLeft:int,PadRight:int", "tkSelectBar_SetPadding", "", @A_SelectBar_Padding, 0, 0, true )
+    Prop_( "Indicator", "list", "", "Thickness:int,Gap:int", "tkSelectBar_SetIndicator", "", @A_SelectBar_Indicator, 0, 0, true )
     Event_( "SelChange", "tkSelectBar_SetSelChangeCallback", "SEL_SelChangeCallbackSub", "byval hSelectBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", "byval idxOld as long, byval idxNew as long", "idxOld, idxNew" )
     Add_( "TabBar", "tkTabBar", "Lists", 300, 32, "SelChange", "", @C_TabBar, "", "", "", "" )
     Prop_( "Keyboard", "bool", "true", "", "tkTabBar_SetKeyboard", "tkTabBar_GetKeyboard", @A_TabBar_Keyboard, @R_TabBar_Keyboard, 0, true )
     Prop_( "Padding", "int", "", "", "tkTabBar_SetPadding", "tkTabBar_GetPadding", @A_TabBar_Padding, @R_TabBar_Padding, 0, true )
     Prop_( "IconWidth", "int", "", "", "tkTabBar_SetIconWidth", "tkTabBar_GetIconWidth", @A_TabBar_IconWidth, @R_TabBar_IconWidth, 0, true )
     Prop_( "Font", "font", "", "", "tkTabBar_SetFont", "tkTabBar_GetFont", 0, 0, @F_TabBar_Font, true )
+    Prop_( "BorderWidth", "int", "", "", "tkTabBar_SetBorderWidth", "tkTabBar_GetBorderWidth", @A_TabBar_BorderWidth, @R_TabBar_BorderWidth, 0, true )
+    Prop_( "BackColor", "color", "", "", "tkTabBar_SetBackColor", "tkTabBar_GetBackColor", @A_TabBar_BackColor, @R_TabBar_BackColor, 0, true )
+    Prop_( "BorderColor", "color", "", "", "tkTabBar_SetBorderColor", "tkTabBar_GetBorderColor", @A_TabBar_BorderColor, @R_TabBar_BorderColor, 0, true )
+    Prop_( "GlyphFont", "font", "", "", "tkTabBar_SetGlyphFont", "", 0, 0, @F_TabBar_GlyphFont, true )
+    Prop_( "HoverTime", "int", "", "", "tkTabBar_SetHoverTime", "", @A_TabBar_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkTabBar_SetAutoPopTime", "", @A_TabBar_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkTabBar_SetReshowTime", "", @A_TabBar_ReshowTime, 0, 0, true )
     Event_( "Close", "tkTabBar_SetCloseCallback", "TB_CloseCallbackSub", "byval hTabBar as TK_WIDGET ptr, byval idx as long", "byval idx as long", "idx" )
     Event_( "Reorder", "tkTabBar_SetReorderCallback", "TB_ReorderCallbackSub", "byval hTabBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long", "byval idxFrom as long, byval idxTo as long", "idxFrom, idxTo" )
     Event_( "SelChange", "tkTabBar_SetSelChangeCallback", "TB_SelChangeCallbackSub", "byval hTabBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", "byval idxOld as long, byval idxNew as long", "idxOld, idxNew" )
     Add_( "ColumnHeader", "tkColumnHeader", "Lists", 300, 28, "Click", "", @C_ColumnHeader, "", "", "", "" )
     Prop_( "FillColumn", "int", "", "", "tkColumnHeader_SetFillColumn", "tkColumnHeader_GetFillColumn", @A_ColumnHeader_FillColumn, @R_ColumnHeader_FillColumn, 0, true )
     Prop_( "Font", "font", "", "", "tkColumnHeader_SetFont", "tkColumnHeader_GetFont", 0, 0, @F_ColumnHeader_Font, true )
+    Prop_( "Padding", "int", "", "", "tkColumnHeader_SetPadding", "", @A_ColumnHeader_Padding, 0, 0, true )
+    Prop_( "BackColor", "color", "", "", "tkColumnHeader_SetBackColor", "tkColumnHeader_GetBackColor", @A_ColumnHeader_BackColor, @R_ColumnHeader_BackColor, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkColumnHeader_SetHoverTime", "", @A_ColumnHeader_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkColumnHeader_SetAutoPopTime", "", @A_ColumnHeader_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkColumnHeader_SetReshowTime", "", @A_ColumnHeader_ReshowTime, 0, 0, true )
     Event_( "Click", "tkColumnHeader_SetClickCallback", "HDR_ClickCallbackSub", "byval hHeader as TK_WIDGET ptr, byval idx as integer", "byval idx as integer", "idx" )
     Event_( "WidthChanged", "tkColumnHeader_SetWidthChangedCallback", "HDR_WidthChangedCallbackSub", "byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean", "byval idx as integer, byval nWidth as integer, byval bLive as boolean", "idx, nWidth, bLive" )
     Add_( "MenuBar", "tkMenuBar", "Commands", 400, 28, "Command", "", @C_MenuBar, "", "", "", "" )
@@ -1477,6 +2713,18 @@ sub Fill_( )
     Add_( "Toolbar", "tkToolbar", "Commands", 400, 34, "Click", "", @C_Toolbar, "", "", "", "" )
     Prop_( "CornerCurvature", "int", "", "", "tkToolbar_SetCornerCurvature", "tkToolbar_GetCornerCurvature", @A_Toolbar_CornerCurvature, @R_Toolbar_CornerCurvature, 0, true )
     Prop_( "DividerThickness", "int", "", "", "tkToolbar_SetDividerThickness", "tkToolbar_GetDividerThickness", @A_Toolbar_DividerThickness, @R_Toolbar_DividerThickness, 0, true )
+    Prop_( "TextGap", "int", "", "", "tkToolbar_SetTextGap", "tkToolbar_GetTextGap", @A_Toolbar_TextGap, @R_Toolbar_TextGap, 0, true )
+    Prop_( "SeparatorWidth", "int", "", "", "tkToolbar_SetSeparatorWidth", "tkToolbar_GetSeparatorWidth", @A_Toolbar_SeparatorWidth, @R_Toolbar_SeparatorWidth, 0, true )
+    Prop_( "SeparatorHeight", "int", "", "", "tkToolbar_SetSeparatorHeight", "tkToolbar_GetSeparatorHeight", @A_Toolbar_SeparatorHeight, @R_Toolbar_SeparatorHeight, 0, true )
+    Prop_( "TextFont", "font", "", "", "tkToolbar_SetTextFont", "tkToolbar_GetTextFont", 0, 0, @F_Toolbar_TextFont, true )
+    Prop_( "GlyphFont", "font", "", "", "tkToolbar_SetGlyphFont", "tkToolbar_GetGlyphFont", 0, 0, @F_Toolbar_GlyphFont, true )
+    Prop_( "HoverTime", "int", "", "", "tkToolbar_SetHoverTime", "", @A_Toolbar_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkToolbar_SetAutoPopTime", "", @A_Toolbar_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkToolbar_SetReshowTime", "", @A_Toolbar_ReshowTime, 0, 0, true )
+    Prop_( "IconSize", "list", "", "IconWidth:int,IconHeight:int", "tkToolbar_SetIconSize", "", @A_Toolbar_IconSize, 0, 0, true )
+    Prop_( "Padding", "list", "", "PadBefore:int,PadAfter:int,PadTop:int,PadBottom:int", "tkToolbar_SetPadding", "", @A_Toolbar_Padding, 0, 0, true )
+    Prop_( "ChevronSize", "list", "", "ChevronWidth:int,ChevronGap:int", "tkToolbar_SetChevronSize", "", @A_Toolbar_ChevronSize, 0, 0, true )
+    Prop_( "Glyphs", "list", "", "Chevron:text,Overflow:text", "tkToolbar_SetGlyphs", "", @A_Toolbar_Glyphs, 0, 0, true )
     Event_( "Click", "tkToolbar_SetClickCallback", "TBR_ClickCallbackSub", "byval hToolbar as TK_WIDGET ptr, byval idx as long, byval id as long", "byval idx as long", "idx" )
     Event_( "DropDown", "tkToolbar_SetDropDownCallback", "TBR_DropDownCallbackSub", "byval hToolbar as TK_WIDGET ptr, byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean", "byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean", "idx, hMenu, isOpen" )
     Event_( "SelChange", "tkToolbar_SetSelChangeCallback", "TBR_SelChangeCallbackSub", "byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", "byval idx as long, byval isSelected as boolean", "idx, isSelected" )
@@ -1484,20 +2732,36 @@ sub Fill_( )
     Prop_( "Vertical", "bool", "false", "", "tkIconPanel_SetVertical", "tkIconPanel_GetVertical", @A_IconPanel_Vertical, @R_IconPanel_Vertical, 0, true )
     Prop_( "Justify", "enum", "Left", "Left=IP_JUSTIFY_LEFT,Center=IP_JUSTIFY_CENTER,Right=IP_JUSTIFY_RIGHT", "tkIconPanel_SetJustify", "tkIconPanel_GetJustify", @A_IconPanel_Justify, @R_IconPanel_Justify, 0, true )
     Prop_( "Font", "font", "", "", "tkIconPanel_SetFont", "tkIconPanel_GetFont", 0, 0, @F_IconPanel_Font, true )
+    Prop_( "SeparatorWidth", "int", "", "", "tkIconPanel_SetSeparatorWidth", "tkIconPanel_GetSeparatorWidth", @A_IconPanel_SeparatorWidth, @R_IconPanel_SeparatorWidth, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkIconPanel_SetHoverTime", "", @A_IconPanel_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkIconPanel_SetAutoPopTime", "", @A_IconPanel_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkIconPanel_SetReshowTime", "", @A_IconPanel_ReshowTime, 0, 0, true )
+    Prop_( "Marker", "list", "", "Size:int,FillSelected:bool", "tkIconPanel_SetMarker", "", @A_IconPanel_Marker, 0, 0, true )
+    Prop_( "IconSize", "list", "", "IconWidth:int,IconHeight:int", "tkIconPanel_SetIconSize", "", @A_IconPanel_IconSize, 0, 0, true )
+    Prop_( "Padding", "list", "", "PadBefore:int,PadAfter:int", "tkIconPanel_SetPadding", "", @A_IconPanel_Padding, 0, 0, true )
     Event_( "Click", "tkIconPanel_SetClickCallback", "IP_ClickCallbackSub", "byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval id as long", "byval idx as long", "idx" )
     Event_( "SelChange", "tkIconPanel_SetSelChangeCallback", "IP_SelChangeCallbackSub", "byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", "byval idx as long, byval isSelected as boolean", "idx, isSelected" )
     Add_( "StatusBar", "tkStatusBar", "Commands", 400, 26, "Click", "", @C_StatusBar, "", "", "", "" )
     Prop_( "ExpandPanel", "int", "", "", "tkStatusBar_SetExpandPanel", "tkStatusBar_GetExpandPanel", @A_StatusBar_ExpandPanel, @R_StatusBar_ExpandPanel, 0, true )
     Prop_( "BackColor", "color", "", "", "tkStatusBar_SetBackColor", "tkStatusBar_GetBackColor", @A_StatusBar_BackColor, @R_StatusBar_BackColor, 0, true )
     Prop_( "Font", "font", "", "", "tkStatusBar_SetFont", "tkStatusBar_GetFont", 0, 0, @F_StatusBar_Font, true )
+    Prop_( "Padding", "int", "", "", "tkStatusBar_SetPadding", "tkStatusBar_GetPadding", @A_StatusBar_Padding, @R_StatusBar_Padding, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkStatusBar_SetHoverTime", "", @A_StatusBar_HoverTime, 0, 0, true )
+    Prop_( "AutoPopTime", "int", "", "", "tkStatusBar_SetAutoPopTime", "", @A_StatusBar_AutoPopTime, 0, 0, true )
+    Prop_( "ReshowTime", "int", "", "", "tkStatusBar_SetReshowTime", "", @A_StatusBar_ReshowTime, 0, 0, true )
     Event_( "Click", "tkStatusBar_SetClickCallback", "SB_ClickCallbackSub", "byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval clicks as long", "byval idx as long, byval clicks as long", "idx, clicks" )
     Add_( "VScrollBar", "tkVScrollBar", "Other", 16, 160, "Scroll", "", @C_VScrollBar, "", "", "", "" )
     Prop_( "Position", "int", "", "", "tkVScrollBar_SetPos", "tkVScrollBar_GetPos", @A_VScrollBar_Position, @R_VScrollBar_Position, 0, true )
     Prop_( "WheelStep", "int", "", "", "tkVScrollBar_SetWheelStep", "tkVScrollBar_GetWheelStep", @A_VScrollBar_WheelStep, @R_VScrollBar_WheelStep, 0, true )
+    Prop_( "Range", "list", "", "Total:int,Page:int,Position:int", "tkVScrollBar_SetRange", "", @A_VScrollBar_Range, 0, 0, true )
+    Prop_( "Colors", "list", "", "Back:color,Fore:color,ForeHot:color", "tkVScrollBar_SetColors", "", @A_VScrollBar_Colors, 0, 0, true )
+    Prop_( "DividerColor", "list", "", "Color:color,Show:bool", "tkVScrollBar_SetDividerColor", "", @A_VScrollBar_DividerColor, 0, 0, true )
     Event_( "Scroll", "tkVScrollBar_SetScrollCallback", "VScrollCallbackSub", "byval hSB as TK_WIDGET ptr, byval newPos as integer", "byval newPos as integer", "newPos" )
     Add_( "HScrollBar", "tkHScrollBar", "Other", 160, 16, "Scroll", "", @C_HScrollBar, "", "", "", "" )
     Prop_( "Position", "int", "", "", "tkHScrollBar_SetPos", "tkHScrollBar_GetPos", @A_HScrollBar_Position, @R_HScrollBar_Position, 0, true )
     Prop_( "WheelStep", "int", "", "", "tkHScrollBar_SetWheelStep", "tkHScrollBar_GetWheelStep", @A_HScrollBar_WheelStep, @R_HScrollBar_WheelStep, 0, true )
+    Prop_( "Range", "list", "", "Total:int,Page:int,Position:int", "tkHScrollBar_SetRange", "", @A_HScrollBar_Range, 0, 0, true )
+    Prop_( "Colors", "list", "", "Back:color,Fore:color,ForeHot:color", "tkHScrollBar_SetColors", "", @A_HScrollBar_Colors, 0, 0, true )
     Event_( "Scroll", "tkHScrollBar_SetScrollCallback", "HScrollCallbackSub", "byval hSB as TK_WIDGET ptr, byval newPos as integer", "byval newPos as integer", "newPos" )
     Add_( "Chart", "tkChart", "Other", 320, 220, "", "", @C_Chart, "ChartType", "enum", "Line=TKCHART_TYPE_LINE,Column=TKCHART_TYPE_COLUMN,Hloc=TKCHART_TYPE_HLOC,Pie=TKCHART_TYPE_PIE", "Line" )
     Prop_( "Title", "text", "", "", "tkChart_SetTitle", "tkChart_GetTitle", @A_Chart_Title, @R_Chart_Title, 0, true )
@@ -1507,7 +2771,28 @@ sub Fill_( )
     Prop_( "ColumnMode", "enum", "Grouped", "Grouped=CHT_COL_GROUPED,Stacked=CHT_COL_STACKED", "tkChart_SetColumnMode", "tkChart_GetColumnMode", @A_Chart_ColumnMode, @R_Chart_ColumnMode, 0, true )
     Prop_( "AutoScale", "bool", "true", "", "tkChart_SetAutoScale", "tkChart_GetAutoScale", @A_Chart_AutoScale, @R_Chart_AutoScale, 0, true )
     Prop_( "Font", "font", "", "", "tkChart_SetFont", "tkChart_GetFont", 0, 0, @F_Chart_Font, true )
+    Prop_( "TickCountHint", "int", "", "", "tkChart_SetTickCountHint", "", @A_Chart_TickCountHint, 0, 0, true )
+    Prop_( "AxisLabelSkip", "int", "", "", "tkChart_SetAxisLabelSkip", "tkChart_GetAxisLabelSkip", @A_Chart_AxisLabelSkip, @R_Chart_AxisLabelSkip, 0, true )
+    Prop_( "Padding", "int", "", "", "tkChart_SetPadding", "", @A_Chart_Padding, 0, 0, true )
+    Prop_( "TitleFont", "font", "", "", "tkChart_SetTitleFont", "", 0, 0, @F_Chart_TitleFont, true )
+    Prop_( "SubtitleFont", "font", "", "", "tkChart_SetSubtitleFont", "", 0, 0, @F_Chart_SubtitleFont, true )
+    Prop_( "BarGap", "int", "", "", "tkChart_SetBarGap", "", @A_Chart_BarGap, 0, 0, true )
+    Prop_( "GroupGapPercent", "int", "", "", "tkChart_SetGroupGapPercent", "", @A_Chart_GroupGapPercent, 0, 0, true )
+    Prop_( "HlocTickWidth", "int", "", "", "tkChart_SetHlocTickWidth", "", @A_Chart_HlocTickWidth, 0, 0, true )
+    Prop_( "HlocUpDownColors", "bool", "false", "", "tkChart_SetHlocUpDownColors", "", @A_Chart_HlocUpDownColors, 0, 0, true )
+    Prop_( "DoughnutRatio", "float", "", "", "tkChart_SetDoughnutRatio", "", @A_Chart_DoughnutRatio, 0, 0, true )
+    Prop_( "PieLabelMode", "enum", "", "None=CHT_PIELABEL_NONE,Value=CHT_PIELABEL_VALUE,Percent=CHT_PIELABEL_PERCENT,Name=CHT_PIELABEL_NAME,NamePercent=CHT_PIELABEL_NAME_PERCENT", "tkChart_SetPieLabelMode", "", @A_Chart_PieLabelMode, 0, 0, true )
+    Prop_( "PieLabelPlacement", "enum", "", "Inside=CHT_PIEPLACE_INSIDE,Outside=CHT_PIEPLACE_OUTSIDE,Auto=CHT_PIEPLACE_AUTO", "tkChart_SetPieLabelPlacement", "", @A_Chart_PieLabelPlacement, 0, 0, true )
+    Prop_( "PieStartAngle", "float", "", "", "tkChart_SetPieStartAngle", "", @A_Chart_PieStartAngle, 0, 0, true )
+    Prop_( "PieSliceGap", "int", "", "", "tkChart_SetPieSliceGap", "", @A_Chart_PieSliceGap, 0, 0, true )
+    Prop_( "TooltipText", "text", "", "", "tkChart_SetTooltipText", "tkChart_GetTooltipText", @A_Chart_TooltipText, @R_Chart_TooltipText, 0, true )
+    Prop_( "HoverTime", "int", "", "", "tkChart_SetHoverTime", "", @A_Chart_HoverTime, 0, 0, true )
+    Prop_( "ValueRange", "list", "", "Lo:float,Hi:float", "tkChart_SetValueRange", "", @A_Chart_ValueRange, 0, 0, true )
+    Prop_( "GridLines", "list", "", "Horz:bool,Vert:bool", "tkChart_SetGridLines", "", @A_Chart_GridLines, 0, 0, true )
+    Prop_( "ValueFormat", "list", "", "Decimals:int,Thousands:bool", "tkChart_SetValueFormat", "", @A_Chart_ValueFormat, 0, 0, true )
     Event_( "HotChange", "tkChart_SetHotChangeCallback", "CHT_HotChangeCallbackSub", "byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long", "byval iSeries as long, byval iPoint as long", "iSeries, iPoint" )
     Add_( "CodeEdit", "tkCodeEdit", "Other", 320, 200, "", "", @C_CodeEdit, "", "", "", "" )
     Prop_( "Text", "text", "", "", "tkCodeEdit_SetText", "tkCodeEdit_GetText", @A_CodeEdit_Text, @R_CodeEdit_Text, 0, true )
+    Prop_( "Lexer", "text", "", "", "tkCodeEdit_SetLexer", "", @A_CodeEdit_Lexer, 0, 0, true )
+    Prop_( "Font", "list", "", "File:text,Points:int", "tkCodeEdit_SetFont", "", @A_CodeEdit_Font, 0, 0, true )
 end sub

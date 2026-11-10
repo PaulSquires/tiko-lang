@@ -16,6 +16,11 @@ public type SelectBar
     declare sub SetFocus( )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
+    declare sub Padding( byval a0 as long, byval a1 as long )
+    declare sub Indicator( byval a0 as long, byval a1 as long )
 end type
 
 sub SelectBar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -49,3 +54,23 @@ end property
 property SelectBar.Font( byval v as TTF_Font ptr )
     tkSelectBar_SetFont( Handle, v )
 end property
+
+property SelectBar.HoverTime( byval v as long )
+    tkSelectBar_SetHoverTime( Handle, v )
+end property
+
+property SelectBar.AutoPopTime( byval v as long )
+    tkSelectBar_SetAutoPopTime( Handle, v )
+end property
+
+property SelectBar.ReshowTime( byval v as long )
+    tkSelectBar_SetReshowTime( Handle, v )
+end property
+
+sub SelectBar.Padding( byval a0 as long, byval a1 as long )
+    tkSelectBar_SetPadding( Handle, a0, a1 )
+end sub
+
+sub SelectBar.Indicator( byval a0 as long, byval a1 as long )
+    tkSelectBar_SetIndicator( Handle, a0, a1 )
+end sub

@@ -30,6 +30,13 @@ public type Button
     declare property GlyphRight( byref v as const ustring )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property ImageLeft( byref v as const ustring )
+    declare property ImageRight( byref v as const ustring )
+    declare property GlyphFont( byval v as TTF_Font ptr )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
+    declare sub Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
 end type
 
 sub Button.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -119,3 +126,31 @@ end property
 property Button.Font( byval v as TTF_Font ptr )
     tkButton_SetFont( Handle, v )
 end property
+
+property Button.ImageLeft( byref v as const ustring )
+    tkButton_SetImageLeft( Handle, v )
+end property
+
+property Button.ImageRight( byref v as const ustring )
+    tkButton_SetImageRight( Handle, v )
+end property
+
+property Button.GlyphFont( byval v as TTF_Font ptr )
+    tkButton_SetGlyphFont( Handle, v )
+end property
+
+property Button.HoverTime( byval v as long )
+    tkButton_SetHoverTime( Handle, v )
+end property
+
+property Button.AutoPopTime( byval v as long )
+    tkButton_SetAutoPopTime( Handle, v )
+end property
+
+property Button.ReshowTime( byval v as long )
+    tkButton_SetReshowTime( Handle, v )
+end property
+
+sub Button.Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
+    tkButton_SetPadding( Handle, a0, a1, a2, a3 )
+end sub

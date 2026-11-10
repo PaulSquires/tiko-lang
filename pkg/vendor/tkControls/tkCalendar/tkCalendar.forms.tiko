@@ -20,6 +20,23 @@ public type Calendar
     declare property WeekStart( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property View( ) as long
+    declare property View( byval v as long )
+    declare property NavStep( ) as long
+    declare property NavStep( byval v as long )
+    declare property TitleFont( ) as TTF_Font ptr
+    declare property TitleFont( byval v as TTF_Font ptr )
+    declare property WeekdayFont( ) as TTF_Font ptr
+    declare property WeekdayFont( byval v as TTF_Font ptr )
+    declare property BorderThickness( ) as long
+    declare property BorderThickness( byval v as long )
+    declare property ChevronThickness( ) as long
+    declare property ChevronThickness( byval v as long )
+    declare property Padding( ) as long
+    declare property Padding( byval v as long )
+    declare sub PanelGrid( byval a0 as long, byval a1 as long )
+    declare sub Gutters( byval a0 as long, byval a1 as long )
+    declare sub CellMinSize( byval a0 as long, byval a1 as long )
 end type
 
 sub Calendar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -69,3 +86,71 @@ end property
 property Calendar.Font( byval v as TTF_Font ptr )
     tkCalendar_SetFont( Handle, v )
 end property
+
+property Calendar.View( ) as long
+    return tkCalendar_GetView( Handle )
+end property
+
+property Calendar.View( byval v as long )
+    tkCalendar_SetView( Handle, v )
+end property
+
+property Calendar.NavStep( ) as long
+    return tkCalendar_GetNavStep( Handle )
+end property
+
+property Calendar.NavStep( byval v as long )
+    tkCalendar_SetNavStep( Handle, v )
+end property
+
+property Calendar.TitleFont( ) as TTF_Font ptr
+    return tkCalendar_GetTitleFont( Handle )
+end property
+
+property Calendar.TitleFont( byval v as TTF_Font ptr )
+    tkCalendar_SetTitleFont( Handle, v )
+end property
+
+property Calendar.WeekdayFont( ) as TTF_Font ptr
+    return tkCalendar_GetWeekdayFont( Handle )
+end property
+
+property Calendar.WeekdayFont( byval v as TTF_Font ptr )
+    tkCalendar_SetWeekdayFont( Handle, v )
+end property
+
+property Calendar.BorderThickness( ) as long
+    return tkCalendar_GetBorderThickness( Handle )
+end property
+
+property Calendar.BorderThickness( byval v as long )
+    tkCalendar_SetBorderThickness( Handle, v )
+end property
+
+property Calendar.ChevronThickness( ) as long
+    return tkCalendar_GetChevronThickness( Handle )
+end property
+
+property Calendar.ChevronThickness( byval v as long )
+    tkCalendar_SetChevronThickness( Handle, v )
+end property
+
+property Calendar.Padding( ) as long
+    return tkCalendar_GetPadding( Handle )
+end property
+
+property Calendar.Padding( byval v as long )
+    tkCalendar_SetPadding( Handle, v )
+end property
+
+sub Calendar.PanelGrid( byval a0 as long, byval a1 as long )
+    tkCalendar_SetPanelGrid( Handle, a0, a1 )
+end sub
+
+sub Calendar.Gutters( byval a0 as long, byval a1 as long )
+    tkCalendar_SetGutters( Handle, a0, a1 )
+end sub
+
+sub Calendar.CellMinSize( byval a0 as long, byval a1 as long )
+    tkCalendar_SetCellMinSize( Handle, a0, a1 )
+end sub

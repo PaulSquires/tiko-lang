@@ -16,6 +16,8 @@ public type CodeEdit
     declare sub SetFocus( )
     declare property Text( ) as ustring
     declare property Text( byref v as const ustring )
+    declare property Lexer( byref v as const ustring )
+    declare sub Font( byref a0 as const ustring, byval a1 as long )
 end type
 
 sub CodeEdit.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -49,3 +51,11 @@ end property
 property CodeEdit.Text( byref v as const ustring )
     tkCodeEdit_SetText( Handle, v )
 end property
+
+property CodeEdit.Lexer( byref v as const ustring )
+    tkCodeEdit_SetLexer( Handle, v )
+end property
+
+sub CodeEdit.Font( byref a0 as const ustring, byval a1 as long )
+    tkCodeEdit_SetFont( Handle, a0, a1 )
+end sub

@@ -22,6 +22,16 @@ public type TabBar
     declare property IconWidth( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property BorderWidth( ) as long
+    declare property BorderWidth( byval v as long )
+    declare property BackColor( ) as ulong
+    declare property BackColor( byval v as ulong )
+    declare property BorderColor( ) as ulong
+    declare property BorderColor( byval v as ulong )
+    declare property GlyphFont( byval v as TTF_Font ptr )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
 end type
 
 sub TabBar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -78,4 +88,44 @@ end property
 
 property TabBar.Font( byval v as TTF_Font ptr )
     tkTabBar_SetFont( Handle, v )
+end property
+
+property TabBar.BorderWidth( ) as long
+    return tkTabBar_GetBorderWidth( Handle )
+end property
+
+property TabBar.BorderWidth( byval v as long )
+    tkTabBar_SetBorderWidth( Handle, v )
+end property
+
+property TabBar.BackColor( ) as ulong
+    return tkTabBar_GetBackColor( Handle )
+end property
+
+property TabBar.BackColor( byval v as ulong )
+    tkTabBar_SetBackColor( Handle, v )
+end property
+
+property TabBar.BorderColor( ) as ulong
+    return tkTabBar_GetBorderColor( Handle )
+end property
+
+property TabBar.BorderColor( byval v as ulong )
+    tkTabBar_SetBorderColor( Handle, v )
+end property
+
+property TabBar.GlyphFont( byval v as TTF_Font ptr )
+    tkTabBar_SetGlyphFont( Handle, v )
+end property
+
+property TabBar.HoverTime( byval v as long )
+    tkTabBar_SetHoverTime( Handle, v )
+end property
+
+property TabBar.AutoPopTime( byval v as long )
+    tkTabBar_SetAutoPopTime( Handle, v )
+end property
+
+property TabBar.ReshowTime( byval v as long )
+    tkTabBar_SetReshowTime( Handle, v )
 end property

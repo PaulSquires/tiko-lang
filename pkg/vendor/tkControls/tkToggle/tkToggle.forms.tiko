@@ -18,6 +18,12 @@ public type Toggle
     declare property Checked( byval v as boolean )
     declare property Justify( ) as long
     declare property Justify( byval v as long )
+    declare property KnobInset( ) as long
+    declare property KnobInset( byval v as long )
+    declare property BorderThickness( ) as long
+    declare property BorderThickness( byval v as long )
+    declare sub TrackSize( byval a0 as long, byval a1 as long )
+    declare sub FocusRing( byval a0 as long, byval a1 as long )
 end type
 
 sub Toggle.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -59,3 +65,27 @@ end property
 property Toggle.Justify( byval v as long )
     tkToggle_SetJustify( Handle, v )
 end property
+
+property Toggle.KnobInset( ) as long
+    return tkToggle_GetKnobInset( Handle )
+end property
+
+property Toggle.KnobInset( byval v as long )
+    tkToggle_SetKnobInset( Handle, v )
+end property
+
+property Toggle.BorderThickness( ) as long
+    return tkToggle_GetBorderThickness( Handle )
+end property
+
+property Toggle.BorderThickness( byval v as long )
+    tkToggle_SetBorderThickness( Handle, v )
+end property
+
+sub Toggle.TrackSize( byval a0 as long, byval a1 as long )
+    tkToggle_SetTrackSize( Handle, a0, a1 )
+end sub
+
+sub Toggle.FocusRing( byval a0 as long, byval a1 as long )
+    tkToggle_SetFocusRing( Handle, a0, a1 )
+end sub

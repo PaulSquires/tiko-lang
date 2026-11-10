@@ -34,6 +34,29 @@ public type ListTree
     declare property BorderWidth( byval v as long )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property DragIndicatorColor( ) as ulong
+    declare property DragIndicatorColor( byval v as ulong )
+    declare property TreeIndent( ) as boolean
+    declare property TreeIndent( byval v as boolean )
+    declare property IndentWidth( byval v as long )
+    declare property TwistyWidth( byval v as long )
+    declare property TwistyColor( byval v as ulong )
+    declare property TwistyFont( byval v as TTF_Font ptr )
+    declare property ClickToEdit( byval v as boolean )
+    declare property EditColumn( byval v as long )
+    declare property EnterEdits( byval v as boolean )
+    declare property EditSelectAll( byval v as boolean )
+    declare property EditTextInset( byval v as long )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
+    declare property ScrollBarWidth( byval v as long )
+    declare property HeaderBackColor( byval v as ulong )
+    declare property HeaderFont( byval v as TTF_Font ptr )
+    declare sub TwistyGlyphs( byref a0 as const ustring, byref a1 as const ustring )
+    declare sub EditColors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong, byval a3 as ulong )
+    declare sub ScrollBarColors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
+    declare sub ScrollBarDividerColor( byval a0 as ulong, byval a1 as boolean )
 end type
 
 sub ListTree.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -139,3 +162,95 @@ end property
 property ListTree.Font( byval v as TTF_Font ptr )
     tkListTree_SetFont( Handle, v )
 end property
+
+property ListTree.DragIndicatorColor( ) as ulong
+    return tkListTree_GetDragIndicatorColor( Handle )
+end property
+
+property ListTree.DragIndicatorColor( byval v as ulong )
+    tkListTree_SetDragIndicatorColor( Handle, v )
+end property
+
+property ListTree.TreeIndent( ) as boolean
+    return tkListTree_GetTreeIndent( Handle )
+end property
+
+property ListTree.TreeIndent( byval v as boolean )
+    tkListTree_SetTreeIndent( Handle, v )
+end property
+
+property ListTree.IndentWidth( byval v as long )
+    tkListTree_SetIndentWidth( Handle, v )
+end property
+
+property ListTree.TwistyWidth( byval v as long )
+    tkListTree_SetTwistyWidth( Handle, v )
+end property
+
+property ListTree.TwistyColor( byval v as ulong )
+    tkListTree_SetTwistyColor( Handle, v )
+end property
+
+property ListTree.TwistyFont( byval v as TTF_Font ptr )
+    tkListTree_SetTwistyFont( Handle, v )
+end property
+
+property ListTree.ClickToEdit( byval v as boolean )
+    tkListTree_SetClickToEdit( Handle, v )
+end property
+
+property ListTree.EditColumn( byval v as long )
+    tkListTree_SetEditColumn( Handle, v )
+end property
+
+property ListTree.EnterEdits( byval v as boolean )
+    tkListTree_SetEnterEdits( Handle, v )
+end property
+
+property ListTree.EditSelectAll( byval v as boolean )
+    tkListTree_SetEditSelectAll( Handle, v )
+end property
+
+property ListTree.EditTextInset( byval v as long )
+    tkListTree_SetEditTextInset( Handle, v )
+end property
+
+property ListTree.HoverTime( byval v as long )
+    tkListTree_SetHoverTime( Handle, v )
+end property
+
+property ListTree.AutoPopTime( byval v as long )
+    tkListTree_SetAutoPopTime( Handle, v )
+end property
+
+property ListTree.ReshowTime( byval v as long )
+    tkListTree_SetReshowTime( Handle, v )
+end property
+
+property ListTree.ScrollBarWidth( byval v as long )
+    tkListTree_SetScrollBarWidth( Handle, v )
+end property
+
+property ListTree.HeaderBackColor( byval v as ulong )
+    tkListTree_SetHeaderBackColor( Handle, v )
+end property
+
+property ListTree.HeaderFont( byval v as TTF_Font ptr )
+    tkListTree_SetHeaderFont( Handle, v )
+end property
+
+sub ListTree.TwistyGlyphs( byref a0 as const ustring, byref a1 as const ustring )
+    tkListTree_SetTwistyGlyphs( Handle, a0, a1 )
+end sub
+
+sub ListTree.EditColors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong, byval a3 as ulong )
+    tkListTree_SetEditColors( Handle, a0, a1, a2, a3 )
+end sub
+
+sub ListTree.ScrollBarColors( byval a0 as ulong, byval a1 as ulong, byval a2 as ulong )
+    tkListTree_SetScrollBarColors( Handle, a0, a1, a2 )
+end sub
+
+sub ListTree.ScrollBarDividerColor( byval a0 as ulong, byval a1 as boolean )
+    tkListTree_SetScrollBarDividerColor( Handle, a0, a1 )
+end sub

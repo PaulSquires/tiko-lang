@@ -368,7 +368,7 @@ public function SetProperty( byref doc as FormDoc, byref names as Array( of ustr
         dim as long i = FindControl( doc, s )
         if i < 0 then continue for
         dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[i].TypeName )
-        dim as ustring kind_ = "text", dflt
+        dim as ustring kind_ = "text", dflt, pairs_, stored = text
         if (key_ = "Enabled") orelse (key_ = "Visible") then
             kind_ = "bool"
             dflt = "true"
@@ -380,6 +380,7 @@ public function SetProperty( byref doc as FormDoc, byref names as Array( of ustr
             if p = 0 then return m->Name & " has no property " & key_
             kind_ = p->Kind
             dflt = p->DefaultValue
+            pairs_ = p->EnumPairs
         end if
         dim as long at_ = FindSetting( doc.Controls[i].Props, key_ )
         if (len( text ) = 0) orelse (text = dflt) then
@@ -396,8 +397,12 @@ public function SetProperty( byref doc as FormDoc, byref names as Array( of ustr
         case "float"
             if IsNumber_( text ) = false then return key_ & " must be a number"
             vk = VALUE_FLOAT
+        case "list"
+            dim as ustring bad = tkMeta_ListFault( text, pairs_ )
+            if len( bad ) then return key_ & " " & bad
+            stored = tkMeta_ListTidy( text )
         end select
-        PutSetting( doc.Controls[i].Props, key_, text, vk )
+        PutSetting( doc.Controls[i].Props, key_, stored, vk )
     next
     return ""
 end function

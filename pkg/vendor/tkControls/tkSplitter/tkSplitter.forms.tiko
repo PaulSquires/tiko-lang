@@ -16,6 +16,8 @@ public type Splitter
     declare sub SetFocus( )
     declare property Position( ) as long
     declare property Position( byval v as long )
+    declare sub Range( byval a0 as long, byval a1 as long )
+    declare sub Colors( byval a0 as ulong, byval a1 as ulong )
 end type
 
 sub Splitter.Create( byval hParent as TK_WIDGET ptr, byval id as long, byval Orientation as long = TKSPLITTER_VERTICAL )
@@ -49,3 +51,11 @@ end property
 property Splitter.Position( byval v as long )
     tkSplitter_SetPos( Handle, v )
 end property
+
+sub Splitter.Range( byval a0 as long, byval a1 as long )
+    tkSplitter_SetRange( Handle, a0, a1 )
+end sub
+
+sub Splitter.Colors( byval a0 as ulong, byval a1 as ulong )
+    tkSplitter_SetColors( Handle, a0, a1 )
+end sub
