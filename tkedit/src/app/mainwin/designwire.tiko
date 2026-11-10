@@ -339,6 +339,92 @@ function Window.NewForm( byref wanted as const ustring ) as boolean
     return this.OpenFile( formPath )
 end function
 
+' The form itself, its code or its generated half: none of them is a program of its own.
+function Window.IsFormFile( byref path as const ustring ) as boolean
+    dim as ustring lp = lcase( path )
+    if (right( lp, 7 ) = ".tkform") orelse (right( lp, 12 ) = ".design.tiko") then return true
+    if right( lp, 5 ) <> ".tiko" then return false
+    return fs.IsFile( left( path, len( path ) - 5 ) & ".tkform" )
+end function
+
+' The .tkform of the form in front, by way of its code too; "" when what's in front isn't one.
+function Window.FormInFront( ) as ustring
+    dim as ustring p = this.ActivePath( )
+    if this.IsFormFile( p ) = false then
+        dim as DocRef d = this.SourceDoc( )
+        if d = 0 then return ""
+        p = d->Path
+        if this.IsFormFile( p ) = false then return ""
+    end if
+    dim as ustring lp = lcase( p )
+    if right( lp, 12 ) = ".design.tiko" then
+        p = left( p, len( p ) - 12 ) & ".tkform"
+    elseif right( lp, 5 ) = ".tiko" then
+        p = left( p, len( p ) - 5 ) & ".tkform"
+    end if
+    if fs.IsFile( p ) then return p
+    return ""
+end function
+
+' A package name that works for local modules: letters, digits and _ only.
+private function PackageName_( byref s as const ustring ) as ustring
+    dim as ustring o
+    for i as long = 1 to len( s )
+        dim as ustring c = mid( s, i, 1 )
+        dim as long a = asc( c )
+        if ((a >= 48) andalso (a <= 57)) orelse ((a >= 65) andalso (a <= 90)) orelse ((a >= 97) andalso (a <= 122)) orelse (a = 95) then
+            o &= c
+        else
+            o &= "_"
+        end if
+    next
+    return o
+end function
+
+private function GuiManifest_( byref pkg as const ustring ) as ustring
+    return strings.Replace( project.NewManifestText( pkg, pkg, "main.tiko" ), "# subsystem = 'console'", "subsystem = 'gui'     " )
+end function
+
+' The main that shows one form.
+private function FormMain_( byref pkg as const ustring, byref formName as const ustring ) as ustring
+    dim as ustring nl = wchr( 10 )
+    return "' " & pkg & ": starts the program and shows its first form." & nl _
+        & "#import ""vendor/tkControls/tkApp""" & nl _
+        & "#import ""./" & formName & """" & nl _
+        & "using tkApp" & nl & nl _
+        & "dim as TKAPP_OPTIONS options" & nl _
+        & "if tkApp_Init( options ) = false then end 1" & nl _
+        & "dim as " & formName & ".Form mainForm" & nl _
+        & "mainForm.Build( )" & nl _
+        & "end tkApp_Run( mainForm.Wnd )" & nl
+end function
+
+' A project around a form that has none: tiko.toml and a main beside the form's folder, because that
+' folder is a module. A tiko.toml already there is opened as it stands.
+function Window.NewProjectForForm( byref formPath as const ustring ) as boolean
+    dim as ustring formDir = fs.PathParent( formPath ), formName = fs.PathStem( formPath )
+    if lcase( fs.PathFileName( formDir ) ) <> lcase( formName ) then
+        this.SetMessage( formName & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    dim as ustring dir_ = fs.PathParent( formDir )
+    dim as ustring manifest = fs.PathJoin( dir_, project.MANIFEST_FILE )
+    dim as ustring mainPath = fs.PathJoin( dir_, "main.tiko" )
+    if fs.IsFile( manifest ) = false then
+        if fs.Exists( mainPath ) then
+            this.SetMessage( strings.Format( i18n.Tr( "message.form_exists", "{} already exists" ), mainPath ) )
+            return false
+        end if
+        dim as ustring pkg = PackageName_( fs.PathFileName( dir_ ) )
+        if (WriteNew_( manifest, GuiManifest_( pkg ) ) = false) orelse (WriteNew_( mainPath, FormMain_( pkg, formName ) ) = false) then
+            this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+            return false
+        end if
+    end if
+    if this.OpenProject( manifest ) = false then return false
+    return this.OpenFile( formPath )
+end function
+
 ' The folder a new project goes in, made. folder: that folder, or "" to ask. False: cancelled, or
 ' there's a project there already.
 function Window.NewProjectFolder( byref folder as const ustring, byref dir_ as ustring, byref manifest as ustring ) as boolean
@@ -379,19 +465,8 @@ function Window.NewFormProject( byref folder as const ustring ) as boolean
     if this.NewProjectFolder( folder, dir_, manifest ) = false then return false
     dim as ustring pkg = fs.PathFileName( dir_ )
     dim as ustring nl = wchr( 10 )
-    dim as ustring tt = project.NewManifestText( pkg, pkg, "main.tiko" )
-    tt = strings.Replace( tt, "# subsystem = 'console'", "subsystem = 'gui'     " )
-    dim as boolean ok = WriteNew_( manifest, tt )
-    ok = ok andalso WriteNew_( fs.PathJoin( dir_, "main.tiko" ), _
-        "' " & pkg & ": starts the program and shows its first form." & nl _
-        & "#import ""vendor/tkControls/tkApp""" & nl _
-        & "#import ""./frmMain""" & nl _
-        & "using tkApp" & nl & nl _
-        & "dim as TKAPP_OPTIONS options" & nl _
-        & "if tkApp_Init( options ) = false then end 1" & nl _
-        & "dim as frmMain.Form mainForm" & nl _
-        & "mainForm.Build( )" & nl _
-        & "end tkApp_Run( mainForm.Wnd )" & nl )
+    dim as boolean ok = WriteNew_( manifest, GuiManifest_( pkg ) )
+    ok = ok andalso WriteNew_( fs.PathJoin( dir_, "main.tiko" ), FormMain_( pkg, "frmMain" ) )
     fs.CreateDirAll( fs.PathJoin( dir_, "shared" ) )
     ok = ok andalso WriteNew_( fs.PathJoin( dir_, "shared", "shared.tiko" ), _
         "' What several forms need to see. Forms can't import each other in a circle, but each can import" & nl _

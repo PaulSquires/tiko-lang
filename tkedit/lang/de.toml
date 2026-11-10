@@ -77,6 +77,7 @@ tab_search = "Suche"
 tab_debug = "Debuggen"
 
 [build]
+form_needs_project = "{} ist ein Formular: Es wird als Teil eines Projekts gebaut (Projekt > Neues Projekt)"
 running = "ein Build läuft bereits"
 no_tiko = "tiko nicht gefunden: [compiler] tiko in settings.toml setzen oder tiko in den PATH legen"
 no_target = "tiko.toml hat kein [target.*] zum Bauen"
@@ -341,6 +342,8 @@ dock_mode = "Andocken"
 need_number = "eine ganze Zahl, bitte"
 
 [new_project]
+from_form = "Aus diesem Formular"
+from_form_detail = "{}: main.tiko und tiko.toml im übergeordneten Ordner"
 from_file = "Aus der aktuellen Datei"
 windowed = "Fensteranwendung mit Formular"
 windowed_detail = "main, Formular und gemeinsames Modul im neuen Ordner"

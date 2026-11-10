@@ -77,6 +77,7 @@ tab_search = "Búsqueda"
 tab_debug = "Depurar"
 
 [build]
+form_needs_project = "{} es un formulario: se compila como parte de un proyecto (Proyecto > Nuevo proyecto)"
 running = "ya hay una compilación en curso"
 no_tiko = "no se encuentra tiko: fije [compiler] tiko en settings.toml o póngalo en el PATH"
 no_target = "tiko.toml no tiene ningún [target.*] que compilar"
@@ -341,6 +342,8 @@ dock_mode = "Acoplar"
 need_number = "un número entero, por favor"
 
 [new_project]
+from_form = "Desde este formulario"
+from_form_detail = "{}: main.tiko y tiko.toml en la carpeta superior"
 from_file = "Desde el archivo actual"
 windowed = "Aplicación con ventana y formulario"
 windowed_detail = "main, un formulario y un módulo compartido en una carpeta nueva"

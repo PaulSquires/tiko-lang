@@ -79,6 +79,7 @@ tab_search = "搜索"
 tab_debug = "调试"
 
 [build]
+form_needs_project = "{}：窗体必须在项目中生成，请新建项目"
 running = "正在生成"
 no_tiko = "未找到 tiko：请在 settings.toml 中设置 [compiler] tiko，或将其加入 PATH"
 no_target = "tiko.toml 中没有可生成的 [target.*]"
@@ -343,6 +344,8 @@ dock_mode = "停靠"
 need_number = "请输入整数"
 
 [new_project]
+from_form = "当前窗体"
+from_form_detail = "{}：主程序"
 from_file = "当前文件"
 windowed = "窗体应用"
 windowed_detail = "主程序 窗体 模块"

@@ -554,6 +554,9 @@ public type Window
     declare function NewForm( byref wanted as const ustring ) as boolean
     declare function NewFormProject( byref folder as const ustring ) as boolean
     declare function NewConsoleProject( byref folder as const ustring ) as boolean
+    declare function IsFormFile( byref path as const ustring ) as boolean
+    declare function FormInFront( ) as ustring
+    declare function NewProjectForForm( byref formPath as const ustring ) as boolean
     declare function NewProjectFolder( byref folder as const ustring, byref dir_ as ustring, byref manifest as ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
     ItemsOf as canvas.FormCanvas ptr
@@ -3275,7 +3278,13 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
         Chooser.Columns.Push( 380 )
         popW = 640
         dim as DocRef src = this.SourceDoc( )
-        if src then rows.Push( Row( " ", i18n.Tr( "new_project.from_file", "From the current file" ), src->DisplayName( ), NEWPROJ_FROM_FILE ) )
+        dim as ustring frontForm = this.FormInFront( )
+        if len( frontForm ) then
+            rows.Push( Row( " ", i18n.Tr( "new_project.from_form", "From this form" ), _
+                            strings.Format( i18n.Tr( "new_project.from_form_detail", "{}: main.tiko and tiko.toml one folder up" ), fs.PathStem( frontForm ) ), NEWPROJ_FROM_FILE ) )
+        elseif src then
+            rows.Push( Row( " ", i18n.Tr( "new_project.from_file", "From the current file" ), src->DisplayName( ), NEWPROJ_FROM_FILE ) )
+        end if
         rows.Push( Row( " ", i18n.Tr( "new_project.windowed", "Windowed app with a form" ), _
                         i18n.Tr( "new_project.windowed_detail", "main, a form and a shared module in a new folder" ), NEWPROJ_WINDOWED ) )
         rows.Push( Row( " ", i18n.Tr( "new_project.console", "Console app" ), _
@@ -3598,6 +3607,9 @@ end function
 ' when there is none -- a package named for the folder, one target whose main is that file -- and
 ' the project opens (author 2026-10-27).
 function Window.NewProject( ) as boolean
+    ' a form can't be a program's main: it gets a project around it instead
+    dim as ustring frontForm = this.FormInFront( )
+    if len( frontForm ) then return this.NewProjectForForm( frontForm )
     dim as DocRef d = this.SourceDoc( )
     if d = 0 then
         this.SetMessage( i18n.Tr( "message.no_project_source", "no source file to make a project of" ) )
@@ -3842,6 +3854,19 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     dim as ustring target = this.ProjectTarget( )
     if useTarget andalso (len( target ) = 0) then
         this.SetBuildMessage( i18n.Tr( "build.no_target", "tiko.toml has no [target.*] to build" ) )
+        return false
+    end if
+    ' a form is half a module with no main: compiled alone it only gives confusing errors
+    if useTarget = false then
+        dim as ustring formFile = this.ActivePath( )
+        if (this.IsFormFile( formFile ) = false) andalso (d <> 0) then formFile = d->Path
+        if this.IsFormFile( formFile ) then
+            this.SetBuildMessage( strings.Format( i18n.Tr( "build.form_needs_project", "{} is a form: it builds as part of a project (Project > New Project)" ), fs.PathFileName( formFile ) ) )
+            return false
+        end if
+    elseif this.IsFormFile( Proj.MainOf( target ) ) then
+        ' a project made around a form's own file: the form can't be the program
+        this.SetBuildMessage( strings.Format( i18n.Tr( "build.form_needs_project", "{} is a form: it builds as part of a project (Project > New Project)" ), fs.PathFileName( Proj.MainOf( target ) ) ) )
         return false
     end if
     if (d = 0) andalso (useTarget = false) then

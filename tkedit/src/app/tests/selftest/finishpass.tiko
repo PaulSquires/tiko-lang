@@ -15,6 +15,7 @@
 #import "tkp/platform"
 #import "tkc/build"
 #import "tkc/cmdids"
+#import "tkc/project"
 #import "tka/documents"
 #import "tka/mainwin"
 #import "tkd/canvas"
@@ -185,10 +186,31 @@ public sub FinishPass( byref t as Tally, byval sc as single )
         tkTest_PumpFor( h, 40 )
     end if
 
+    ' ---- a form with no project says what it needs rather than failing to compile
+    t.Check( mw.StartBuild( build.BuildAction.Compile, false ) = false, P( sc, "a form alone isn't built" ) )
+    t.Check( mw.IsBuilding( ) = false, P( sc, "and nothing started" ) )
+
+    ' a project made around a form's own file says the same
+    dim as ustring wrongToml = fs.PathJoin( dir_, "frmTwo", "tiko.toml" )
+    fs.WriteAllText( wrongToml, project.NewManifestText( "frmTwo", "frmTwo", "frmTwo.tiko" ) )
+    t.Check( mw.OpenProject( wrongToml ), P( sc, "a project whose main is a form opens" ) )
+    t.Check( mw.StartBuild( build.BuildAction.Compile, false ) = false, P( sc, "but isn't built" ) )
+    mw.OpenFile( formPath )            ' opening a project closed what was open, d with it
+    tkTest_PumpFor( h, 40 )
+
+    ' New Project on a form: a project around it, one folder up, that builds
+    t.Check( mw.NewProject( ), P( sc, "New Project on a form" ) )
+    tkTest_PumpFor( h, 150 )
+    t.Check( fs.IsFile( fs.PathJoin( dir_, "tiko.toml" ) ) andalso fs.IsFile( fs.PathJoin( dir_, "main.tiko" ) ), P( sc, "its files are beside the form's folder" ) )
+    t.Check( fs.IsFile( fs.PathJoin( dir_, "frmOne", "tiko.toml" ) ) = false, P( sc, "not inside it" ) )
+    t.Check( mw.ProjOpen andalso (mw.Active( ) <> 0) andalso (mw.Active( )->Designer <> 0), P( sc, "the project is open, the form in front" ) )
+    mw.StartBuild( build.BuildAction.Compile, false )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "and it builds: " & right( mw.BuildRaw, 500 ) ) )
+
     ' ---- New Project: asks how to start, and a console program builds as it comes
     mw.Execute( Cmd.ProjectNew )
     tkTest_PumpFor( h, 40 )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.NewProject) andalso (mw.Chooser.ShownCount( ) = iif( mw.SourceDoc( ) <> 0, 3, 2 )), P( sc, "New Project offers its starts: " & mw.Chooser.ShownCount( ) ) )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.NewProject) andalso (mw.Chooser.ShownCount( ) = iif( (len( mw.FormInFront( ) ) > 0) orelse (mw.SourceDoc( ) <> 0), 3, 2 )), P( sc, "New Project offers its starts: " & mw.Chooser.ShownCount( ) ) )
     mw.Chooser.Close( )
     dim as ustring projC = fs.PathJoin( dir_, "myconsole" )
     t.Check( mw.NewConsoleProject( projC ), P( sc, "a console project" ) )
