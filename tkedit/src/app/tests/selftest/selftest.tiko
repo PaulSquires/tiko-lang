@@ -3273,6 +3273,18 @@ private function TabNames( byref mw as mainwin.Window ) as ustring
     return s
 end function
 
+dim shared as TK_HOST ptr gPumpHost
+dim shared as SDL_WindowID gPumpWin
+dim shared as boolean gPumpAlive
+
+private sub PumpingSelect( byval m as TK_MENU ptr, byval id as long )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_USER
+    SDL_PushEvent( @e )
+    tkHost_Pump( gPumpHost )
+    gPumpAlive = (SDL_GetWindowFromID( gPumpWin ) <> 0)
+end sub
+
 public sub TabMenuPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
     mw.ConfigDir = FreshConfig( )
@@ -3338,6 +3350,26 @@ public sub TabMenuPass( byref t as Tally, byval sc as single )
     t.Check( (mw.Active( )->DisplayName( ) = "again-2.txt") andalso fs.IsFile( fs.PathJoin( dir_, "again-2.txt" ) ), P( sc, "rename: onto a file open elsewhere is refused" ) )
     mw.Execute( Cmd.FileNew )
     t.Check( (mw.CanRun( Cmd.FileRename ) = false) andalso (mw.CanRun( Cmd.FileDuplicate ) = false), P( sc, "rename, duplicate: greyed for an untitled buffer" ) )
+
+    ' ---- a command that pumps, as a real file dialog does, leaves the popup it came from alone until
+    ' that click is over: the host is still on the stack (Rename is only ever run from a menu)
+    gPumpHost = h
+    gPumpAlive = false
+    dim as TK_MENU ptr pm = tkPopupMenu_Create( h )
+    tkPopupMenu_AddItem( pm, 1, "Pump" )
+    tkPopupMenu_SetSelectCallback( pm, @PumpingSelect )
+    tkPopupMenu_Show( pm, 40, 40 )
+    tkTest_PumpFor( h, 60 )
+    dim as TK_HOST ptr ps = tkPopupMenu_Surface( pm )
+    dim as TKRECT pr
+    if (ps <> 0) andalso tkPopupMenu_GetItemRect( pm, 0, pr ) then
+        gPumpWin = ps->winId
+        tkTest_Click( ps, (pr.left + pr.right) \ 2, (pr.top + pr.bottom) \ 2 )
+        tkTest_PumpFor( h, 60 )
+    end if
+    t.Check( gPumpAlive, P( sc, "menu: a command's nested pump does not free the menu's surface" ) )
+    t.Check( SDL_GetWindowFromID( gPumpWin ) = 0, P( sc, "menu: the surface goes once the click is over" ) )
+    tkPopupMenu_Destroy( pm )
     mw.Destroy( )
 end sub
 
