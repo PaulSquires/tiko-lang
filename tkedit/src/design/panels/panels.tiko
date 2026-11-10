@@ -687,16 +687,19 @@ sub DesignPanels.FillToolbox( )
     tkListTree_Clear( ToolList )
     tkListTree_AddString( ToolList, i18n.Tr( "designer.pointer", "Pointer" ), 0 )
     tkListTree_AddString( ToolList, catalog.CUSTOM_TYPE, tkMeta_Count( ) + 1 )
-    dim as ustring seen = "|"
+    ' one flat list, by name
+    dim as Array( of long ) order
     for i as long = 0 to tkMeta_Count( ) - 1
-        dim as ustring cat = tkMeta_At( i )->Category
-        if instr( seen, "|" & cat & "|" ) = 0 then
-            seen &= cat & "|"
-            tkListTree_AddHeader( ToolList, cat )
-            for k as long = i to tkMeta_Count( ) - 1
-                if tkMeta_At( k )->Category = cat then tkListTree_AddString( ToolList, tkMeta_At( k )->Name, k + 1 )
-            next
-        end if
+        order.Push( i )
+        dim as long k = order.Count( ) - 1
+        while (k > 0) andalso (lcase( tkMeta_At( order[k - 1] )->Name ) > lcase( tkMeta_At( i )->Name ))
+            order[k] = order[k - 1]
+            k -= 1
+        wend
+        order[k] = i
+    next
+    for each i as long in order
+        tkListTree_AddString( ToolList, tkMeta_At( i )->Name, i + 1 )
     next
     tkListTree_EndUpdate( ToolList )
     tkListTree_SetCurSel( ToolList, 0 )

@@ -341,8 +341,9 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( ps->Pal( 0 ).Frame->pHost = fh, P( sc, "its widgets live on the float" ) )
     t.Check( ps->Pal( 0 ).Frame->cw = tkForm_Widget( ft )->cw, P( sc, "and fill it" ) )
     ' the float's list works as the docked one did
-    ClickRow( fh, ps->ToolList, ListRow( ps->ToolList, "Label" ) )
-    t.Check( c->Tool = "Label", P( sc, "a click in the float picks the tool: " & c->Tool ) )
+    dim as ustring floatTool = tkListTree_GetText( ps->ToolList, 2 )
+    ClickRow( fh, ps->ToolList, 2 )
+    t.Check( c->Tool = floatTool, P( sc, "a click in the float picks the tool: " & c->Tool ) )
     c->Tool = ""
     tkListTree_SetCurSel( ps->ToolList, 0 )
     ' a shortcut pressed in the float reaches the main window's commands
