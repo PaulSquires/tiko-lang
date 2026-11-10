@@ -8,13 +8,13 @@
 ' session -- what was open and where (docs/tkEdit/CONFIG.md): the buffers, each one's caret,
 ' first line, bookmarks and folds, the active buffer, the split and the build configuration; in
 ' session.toml also the main window's place ([window], in SDL's window coordinates).
-' session.toml (in the config folder) holds it when no project is open; a .tkedit project file
-' (P4) holds the same tables beside its [project]. The app writes this file; nobody edits it, so
-' it is written through std/config (which drops comments).
+' session.toml (in the config folder) holds it when no project is open; a project's own session
+' file (in the config folder's projects/) holds the same tables. The app writes these files; nobody
+' edits them, so they are written through std/config (which drops comments).
 '
 '     version = 1
 '     [session]   active, split (none | vertical | horizontal), split_ratio, pane2, build,
-'                 project (session.toml: the .tkedit that was open)
+'                 project (session.toml: the tiko.toml that was open)
 '     [[files]]   path, open, first_line, position, bookmarks = [...], breakpoints = [...], folds = [...]
 '     [recent]    files = [...]   newest first; session.toml only (a project keeps none)
 '
@@ -116,7 +116,7 @@ public function FullPath( byref base_ as const ustring, byref stored as const us
     return fs.PathToNative( fs.PathJoin( base_, stored ) )
 end function
 
-' The [session] and [[files]] tables of root (a session.toml or a .tkedit file).
+' The [session] and [[files]] tables of root (a session.toml or a project's session file).
 public function FromToml( byref root as config.TomlValue ) as SessionState
     dim as SessionState st
     dim as config.TomlValue s = tomlget.Table( root, "session" )

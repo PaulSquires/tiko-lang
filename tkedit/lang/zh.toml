@@ -105,7 +105,6 @@ untitled = "未命名"
 [dialog]
 filter_sources_projects = "tiko 源文件和项目"
 filter_sources = "tiko 源文件"
-filter_projects = "tkEdit 项目"
 filter_all = "所有文件"
 filter_compiler = "tiko 编译器"
 

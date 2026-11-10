@@ -103,7 +103,6 @@ untitled = "unbenannt"
 [dialog]
 filter_sources_projects = "tiko-Quellen und -Projekte"
 filter_sources = "tiko-Quellen"
-filter_projects = "tkEdit-Projekte"
 filter_all = "Alle Dateien"
 filter_compiler = "tiko-Compiler"
 

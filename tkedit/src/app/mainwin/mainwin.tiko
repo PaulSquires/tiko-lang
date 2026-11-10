@@ -167,7 +167,7 @@ public enum StatusPanel explicit
     Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
     Message             ' stretches: build results, config errors; a click shows or hides the output pane
     Position            ' Ln, Col; a click opens Go to Line, or closes it
-    Project             ' "Project": a click opens the project's .tkedit as text (no project: makes one first)
+    Project             ' "Project": a click opens the project's options file as text (no project: makes one first)
     Settings            ' "Settings": a click opens settings.toml
     Keys                ' "Keys": a click opens keybindings.toml
     Build               ' the build configuration; a click picks one, and makes it settings.toml's default
@@ -365,9 +365,9 @@ private function LaunchProgram( byref argv as const Array( of ustring ), byref w
 end function
 
 private function PickNow( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
-    dim as string filters = i18n.Tr( "dialog.filter_sources_projects", "tiko sources and projects" ) & "|tiko;ti;bas;bi;inc;tkform;tkedit|" & _
+    dim as string filters = i18n.Tr( "dialog.filter_sources_projects", "tiko sources and projects" ) & "|tiko;ti;bas;bi;inc;tkform;toml|" & _
                             i18n.Tr( "dialog.filter_sources", "tiko sources" ) & "|tiko;ti;bas;bi;inc;tkform|" & _
-                            i18n.Tr( "dialog.filter_projects", "tkEdit projects" ) & "|tkedit|TOML|toml|" & _
+                            "TOML|toml|" & _
                             i18n.Tr( "dialog.filter_all", "All files" ) & "|*"
     dim as ustring where = suggest
     if kind = TKFD_SAVE then return tkFileDialog_SaveFile( tkForm_Host( f ), filters, where )
@@ -3855,7 +3855,7 @@ end sub
 
 ' ================================================================ projects
 
-' Opens a .tkedit project: the buffers open now are closed first (asking for unsaved ones), then
+' Opens a project, given its tiko.toml: the buffers open now are closed first (asking for unsaved ones), then
 ' the project's open files come back where they were.
 function Window.OpenProject( byref path as const ustring ) as boolean
     dim as project.ManifestResult r = project.LoadManifest( path )

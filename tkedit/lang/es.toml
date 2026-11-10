@@ -103,7 +103,6 @@ untitled = "sin título"
 [dialog]
 filter_sources_projects = "Fuentes y proyectos de tiko"
 filter_sources = "Fuentes de tiko"
-filter_projects = "Proyectos de tkEdit"
 filter_all = "Todos los archivos"
 filter_compiler = "Compilador tiko"
 
