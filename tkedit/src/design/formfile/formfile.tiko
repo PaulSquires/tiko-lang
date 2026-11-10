@@ -155,8 +155,13 @@ public function Parse( byref text as const ustring, byref doc as FormDoc, byref 
     OnlyKeys_( root, "format form control orphan", "file", doc )
     dim as config.TomlValue ptr f = root.Find( "form" )
     if f then
-        OnlyKeys_( *f, "caption width height events", "form", doc )
+        OnlyKeys_( *f, "caption width height translate events", "form", doc )
         doc.Caption = StrOf_( *f, "caption" )
+        dim as config.TomlValue ptr tr_ = f->Find( "translate" )
+        if tr_ then
+            dim as boolean noFlag = false
+            doc.Translate = tr_->AsBool( ).ValueOr( noFlag )
+        end if
         doc.ClientW = IntOf_( *f, "width", doc.ClientW )
         doc.ClientH = IntOf_( *f, "height", doc.ClientH )
         dim as config.TomlValue ptr e = f->Find( "events" )
@@ -289,6 +294,7 @@ public function Render( byref doc as FormDoc ) as ustring
     o &= "caption = " & Quote_( doc.Caption ) & NL
     o &= "width = " & doc.ClientW & NL
     o &= "height = " & doc.ClientH & NL
+    if doc.Translate then o &= "translate = true" & NL
     if doc.Events.Count( ) then
         o &= NL & "[form.events]" & NL
         dim as long i = FindSetting( doc.Events, "Load" )

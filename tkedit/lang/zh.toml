@@ -125,6 +125,8 @@ no_compiler = "未找到 tiko 编译器：{} 中未设置，PATH 中没有，tkE
 choose_compiler = "接下来请选择编译器（{0}）。tkEdit 会将它保存在 {1} 中。"
 
 [message]
+bad_form_name = "{}：窗体名称必须是标识符"
+form_exists = "{} 已存在"
 cannot_create = "无法创建"
 no_default_event = "{} 没有默认事件"
 handler_unbound = "{} 没有代码：已解除绑定"
@@ -153,6 +155,9 @@ compiler = "tiko 编译器：{}"
 no_definition = "未找到 {} 的定义"
 
 [commands]
+FormTest = "测试窗体"
+FormNewForm = "新建窗体..."
+FormNewProject = "新建窗体项目..."
 FormToggleView = "切换窗体 / 代码"
 FormAlignLefts = "左对齐"
 FormAlignCenters = "居中对齐"
@@ -299,6 +304,7 @@ delete_breakpoint = "移除断点"
 mac_permission = "macOS 不允许调试器控制该程序：请开启开发者模式（sudo DevToolsSecurity -enable），或在 macOS 询问时允许"
 
 [designer]
+translate = "可翻译"
 edit_items = "编辑项目"
 item_add = "添加"
 item_remove = "移除"

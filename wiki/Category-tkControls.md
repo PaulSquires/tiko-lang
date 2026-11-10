@@ -8,6 +8,8 @@ tkControls is the cross-platform twin of [PsControls](Category-PsControls): the 
 
 Every control draws itself. There is no system control underneath, so a window looks the same on every machine and can be themed to any palette, dark ones included.
 
+To draw a window instead of coding it, see the [Form Designer](Form-Designer).
+
 ## Importing a control
 
 Each control is one module, `vendor/tkControls/<name>`:
@@ -78,14 +80,18 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Buttons and switches | [tkButton](tkButton), [tkCheckBox](tkCheckBox), [tkOptionButton](tkOptionButton), [tkToggle](tkToggle) |
 | Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar) |
 | Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar) |
-| Layout and scrolling | [tkSplitter](tkSplitter), [tkScrollPanel](tkScrollPanel), [tkVScrollBar](tkVScrollBar), [tkHScrollBar](tkHScrollBar) |
+| Containers and layout | [tkPanel](tkPanel), [tkGroupBox](tkGroupBox), [tkTabControl](tkTabControl), [tkSplitter](tkSplitter) |
+| Scrolling | [tkScrollPanel](tkScrollPanel), [tkVScrollBar](tkVScrollBar), [tkHScrollBar](tkHScrollBar) |
 | Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar) |
+| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture) |
 | Data display | [tkChart](tkChart) |
 
 ## Support modules
 
 | Module | What it is |
 |---|---|
+| [tkLayout](tkLayout) | Automatic placement by anchor and dock, in design units, shared with the form designer |
+| [tkForms](tkForms) | `FormBase`, the base a designed form extends: a window, a layout, modal and modeless show, caption translation |
 | [tkImage](tkImage) | Image files (`.png`, `.bmp`, `.jpg`, `.gif`, `.ico`, ...) for icon slots, through SDL_image |
 | [tkPopupMenu](tkPopupMenu) | The dropdown behind menus, combo boxes and toolbars |
 | [tkColumnHeader](tkColumnHeader) | The column header band; tkListTree places one above its rows |

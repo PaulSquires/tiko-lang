@@ -683,6 +683,7 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@Caption", i18n.Tr( "designer.caption", "Caption" ), RowKind.RowText )
         this.AddRow( "@FormW", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
         this.AddRow( "@FormH", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
+        this.AddRow( "@Translate", i18n.Tr( "designer.translate", "Translatable" ), RowKind.RowCheck )
         this.AddEventRow( "Load" )
         this.AddEventRow( "Close" )
     else
@@ -785,6 +786,8 @@ function DesignPanels.ValueOf( byref key_ as const ustring ) as ustring
     case "@Caption" : return C->Doc.Caption
     case "@FormW"   : return str( C->Doc.ClientW )
     case "@FormH"   : return str( C->Doc.ClientH )
+    case "@Translate"
+        if C->Doc.Translate then return "true" else return "false"
     end select
     if (left( key_, 2 ) = "E:") andalso (C->Selected.Count( ) = 0) then return SettingOr( C->Doc.Events, mid( key_, 3 ) )
     dim as ustring out_
@@ -897,6 +900,9 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     select case key_
     case "@Caption"
         trial.Caption = text
+    case "@Translate"
+        trial.Translate = (text = "true")
+        rebuild = false
     case "@FormW", "@FormH"
         if ParseLong_( text, v ) = false then return badNumber
         if key_ = "@FormW" then

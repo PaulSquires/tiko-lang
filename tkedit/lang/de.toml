@@ -123,6 +123,8 @@ no_compiler = "Kein tiko-Compiler gefunden: in {} ist keiner gesetzt, im PATH is
 choose_compiler = "Wählen Sie als Nächstes den Compiler ({0}). tkEdit speichert ihn in {1}."
 
 [message]
+bad_form_name = "{}: ein Formularname muss ein Bezeichner sein"
+form_exists = "{} existiert bereits"
 cannot_create = "kann nicht erstellt werden"
 no_default_event = "{} hat kein Standardereignis"
 handler_unbound = "kein Code für {}: Bindung entfernt"
@@ -151,6 +153,9 @@ compiler = "der tiko-Compiler: {}"
 no_definition = "keine Definition für {} gefunden"
 
 [commands]
+FormTest = "Formular testen"
+FormNewForm = "Neues Formular..."
+FormNewProject = "Neues Formularprojekt..."
 FormToggleView = "Formular / Code umschalten"
 FormAlignLefts = "Links ausrichten"
 FormAlignCenters = "Zentriert ausrichten"
@@ -297,6 +302,7 @@ delete_breakpoint = "Haltepunkt entfernen"
 mac_permission = "macOS hat dem Debugger die Kontrolle über das Programm verweigert: den Entwicklermodus einschalten (sudo DevToolsSecurity -enable) oder es zulassen, wenn macOS fragt"
 
 [designer]
+translate = "Übersetzbar"
 edit_items = "Einträge bearbeiten"
 item_add = "Neu"
 item_remove = "Entfernen"

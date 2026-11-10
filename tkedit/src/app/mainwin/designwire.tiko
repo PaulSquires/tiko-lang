@@ -15,6 +15,7 @@
 #import "std/strings"
 #import "tkc/i18n"
 #import "tkc/docencoding"
+#import "tkc/project"
 #import "tka/documents"
 #import "tks/parser"
 #import "tkd/canvas"
@@ -22,13 +23,20 @@
 #import "tkd/model"
 #import "tkd/edits"
 #import "tkd/validate"
+#import "tkd/formfile"
 #import "tkd/codegen"
 #import "tkd/reconcile"
 #import "tkd/itemsdlg"
 #import "vendor/tkControls/tkMeta"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkLayout"
+#import "vendor/tkControls/tkFileDialog"
 using containers
 using tkMeta
+using tkApp
 using tkHost
+using tkLayout
+using tkFileDialog
 using model
 
 private function CodePathOf_( byref formPath as const ustring ) as ustring
@@ -227,6 +235,158 @@ sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
     this.OpenItems( c, name_ )
     if ItemsDlg then this.FinishItems( ItemsDlg->RunModal( ) )
 end sub
+
+' ---- Test Form: the form as it is now, in a window of its own, working but wired to nothing ----
+
+sub Window.CloseTestForm( )
+    if PreviewForm then tkForm_Destroy( PreviewForm )   ' TestFormGone runs from its OnDestroy
+end sub
+
+sub Window.TestFormGone( )
+    if Preview then
+        ' its widgets went with the window
+        if Preview->Layout then tkLayout_Destroy( Preview->Layout )
+        Preview->Layout = 0
+        Preview->Frame = 0
+        delete Preview
+    end if
+    Preview = 0
+    PreviewForm = 0
+end sub
+
+sub Window.TestForm( )
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse (d->Designer = 0) then exit sub
+    this.CloseTestForm( )
+    dim as FormDoc ref_ = d->Designer->Doc
+    dim as ustring title = ref_.Caption
+    PreviewForm = tkApp_NewForm( title, ref_.ClientW, ref_.ClientH, form, tkForm_Host( form )->fScaleForced )
+    if PreviewForm = 0 then exit sub
+    PreviewForm->Tag = @this
+    Preview = new canvas.FormCanvas
+    Preview->Live = true
+    Preview->Create( tkForm_Widget( PreviewForm ), 1 )
+    dim as TK_WIDGET ptr r = tkForm_Widget( PreviewForm )
+    tkWidget_SetPos( Preview->Frame, 0, 0, r->cw, r->ch )
+    Preview->LoadText( d->Text( ) )
+    tkForm_OnSize( PreviewForm, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+        dim as Window ptr mw = f->Tag
+        if mw->Preview then tkWidget_SetPos( mw->Preview->Frame, 0, 0, cx, cy )
+    end sub )
+    tkForm_OnDestroy( PreviewForm, sub( byval f as TK_FORM ptr )
+        cast( Window ptr, f->Tag )->TestFormGone( )
+    end sub )
+    tkForm_Host( PreviewForm )->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+        if m->key <> SDLK_ESCAPE then return false
+        tkForm_Close( tkForm_FromHost( h ) )
+        return true
+    end function
+    tkForm_Show( PreviewForm )
+end sub
+
+' ---- new forms and projects ---------------------------------------------------------------------
+
+private function IsFormName_( byref s as const ustring ) as boolean
+    return validate.IsIdentifier( s ) andalso (validate.IsReserved( s ) = false) andalso (lcase( s ) <> "form")
+end function
+
+private function WriteNew_( byref path as const ustring, byref text as const ustring ) as boolean
+    return fs.WriteAllText( path, text ).IsOk( )
+end function
+
+' A form's three files in their own folder: <folder>/<name>/<name>.tkform and the rest.
+private function CreateFormFiles_( byref folder as const ustring, byref name_ as const ustring ) as ustring
+    dim as ustring dir_ = fs.PathJoin( folder, name_ )
+    fs.CreateDirAll( dir_ )
+    dim as ustring formPath = fs.PathJoin( dir_, name_ & ".tkform" )
+    dim as FormDoc doc
+    doc.Caption = name_
+    doc.ClientW = 480
+    doc.ClientH = 320
+    dim as ustring text = formfile.Render( doc )
+    if WriteNew_( formPath, text ) = false then return ""
+    if WriteNew_( fs.PathJoin( dir_, name_ & ".tiko" ), reconcile.NewCodeFile( name_ ) ) = false then return ""
+    if WriteNew_( fs.PathJoin( dir_, name_ & ".design.tiko" ), codegen.Generate( doc, name_, name_ & ".tkform", text ) ) = false then return ""
+    return formPath
+end function
+
+' wanted: the new form's .tkform path, or "" to ask. The form gets a folder of its own, named for it.
+function Window.NewForm( byref wanted as const ustring ) as boolean
+    dim as ustring picked = wanted
+    if len( picked ) = 0 then
+        dim as ustring where = "frmNew.tkform"
+        if len( this.ActivePath( ) ) then where = fs.PathJoin( fs.PathParent( this.ActivePath( ) ), "frmNew.tkform" )
+        picked = Pick( form, TKFD_SAVE, where )
+        if len( picked ) = 0 then return false
+    end if
+    dim as ustring name_ = fs.PathStem( picked )
+    if IsFormName_( name_ ) = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.bad_form_name", "{}: a form's name has to be an identifier" ), name_ ) )
+        return false
+    end if
+    dim as ustring folder = fs.PathParent( picked )
+    ' already being saved into a folder of that name: use it
+    if lcase( fs.PathFileName( folder ) ) = lcase( name_ ) then folder = fs.PathParent( folder )
+    if fs.IsFile( fs.PathJoin( folder, name_, name_ & ".tkform" ) ) then
+        this.SetMessage( strings.Format( i18n.Tr( "message.form_exists", "{} already exists" ), name_ ) )
+        return false
+    end if
+    dim as ustring formPath = CreateFormFiles_( folder, name_ )
+    if len( formPath ) = 0 then
+        this.SetMessage( name_ & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    return this.OpenFile( formPath )
+end function
+
+' folder: the new project's folder, or "" to ask. A program with one form, ready to build and run.
+function Window.NewFormProject( byref folder as const ustring ) as boolean
+    dim as ustring dir_ = folder
+    if len( dir_ ) = 0 then
+        dir_ = Pick( form, TKFD_SAVE, "myapp" )
+        if len( dir_ ) = 0 then return false
+    end if
+    dim as ustring pkg = fs.PathFileName( dir_ )
+    dim as ustring manifest = fs.PathJoin( dir_, project.MANIFEST_FILE )
+    if fs.Exists( manifest ) then
+        this.SetMessage( strings.Format( i18n.Tr( "message.form_exists", "{} already exists" ), manifest ) )
+        return false
+    end if
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = wchr( 10 )
+    dim as ustring tt = project.NewManifestText( pkg, pkg, "main.tiko" )
+    tt = strings.Replace( tt, "# subsystem = 'console'", "subsystem = 'gui'     " )
+    dim as boolean ok = WriteNew_( manifest, tt )
+    ok = ok andalso WriteNew_( fs.PathJoin( dir_, "main.tiko" ), _
+        "' " & pkg & ": starts the program and shows its first form." & nl _
+        & "#import ""vendor/tkControls/tkApp""" & nl _
+        & "#import ""./frmMain""" & nl _
+        & "using tkApp" & nl & nl _
+        & "dim as TKAPP_OPTIONS options" & nl _
+        & "if tkApp_Init( options ) = false then end 1" & nl _
+        & "dim as frmMain.Form mainForm" & nl _
+        & "mainForm.Build( )" & nl _
+        & "end tkApp_Run( mainForm.Wnd )" & nl )
+    fs.CreateDirAll( fs.PathJoin( dir_, "shared" ) )
+    ok = ok andalso WriteNew_( fs.PathJoin( dir_, "shared", "shared.tiko" ), _
+        "' What several forms need to see. Forms can't import each other in a circle, but each can import" & nl _
+        & "' this: add `#import ""../shared""` to a form's .tiko file." & nl _
+        & "#module ""shared""" & nl & nl _
+        & "public type AppState" & nl _
+        & "    Title as ustring" & nl _
+        & "end type" & nl & nl _
+        & "public function State( ) byref as AppState" & nl _
+        & "    static as AppState s" & nl _
+        & "    return s" & nl _
+        & "end function" & nl )
+    dim as ustring formPath = CreateFormFiles_( dir_, "frmMain" )
+    if (ok = false) orelse (len( formPath ) = 0) then
+        this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    if this.OpenProject( manifest ) = false then return false
+    return this.OpenFile( formPath )
+end function
 
 ' A control went and took these handlers with it. An empty body goes too; one with code in it stays,
 ' and the answer true keeps its declaration so that the file still compiles.

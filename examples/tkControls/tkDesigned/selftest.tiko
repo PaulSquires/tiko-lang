@@ -11,6 +11,7 @@
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkPopupMenu"
+#import "vendor/tkControls/tkForms"
 #import "./frmSample"
 #import "./frmItems"
 using tkApp
@@ -23,6 +24,7 @@ using tkStatusBar
 using tkListTree
 using tkComboBox
 using tkPopupMenu
+using tkForms
 using tkHost
 using tkPaint
 using tkTest
@@ -106,6 +108,10 @@ sub Designed( byval owner as TK_FORM ptr )
     tkTest_Check( "no Cancel and it closes", f.IsOpen( ) = false )
 end sub
 
+function Tagged( byref key as const ustring, byref text as const ustring ) as ustring
+    return "[" & key & "]" & text
+end function
+
 sub ClickMenuRow( byval m as TK_MENU ptr, byval idx as long )
     dim as TKRECT rc
     tkPopupMenu_GetItemRect( m, idx, rc )
@@ -115,11 +121,14 @@ end sub
 sub Items( byval owner as TK_FORM ptr )
     tkTest_Begin( "menus, toolbar, status bar, columns, combo items" )
     dim as frmItems.Form f
+    tkForms_SetTranslator( @Tagged )
     f.Build( owner )
+    tkForms_SetTranslator( 0 )
     dim as TK_HOST ptr h = tkForm_Host( f.Wnd )
     f.Show( )
     tkTest_PumpFor( h, 100 )
 
+    tkTest_Check( "a translated caption", tkMenuBar_GetItemText( f.mnuMain.Handle, 0 ) = "[frmItems.mnuMain.0]File", tkMenuBar_GetItemText( f.mnuMain.Handle, 0 ) )
     tkTest_Check( "two menus on the bar", tkMenuBar_GetItemCount( f.mnuMain.Handle ) = 2, str( tkMenuBar_GetItemCount( f.mnuMain.Handle ) ) )
     dim as TK_MENU ptr mFile = tkMenuBar_GetDropDown( f.mnuMain.Handle, 0 )
     tkTest_Check( "File has its drop-down", mFile <> 0 )

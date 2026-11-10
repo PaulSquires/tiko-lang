@@ -25,6 +25,7 @@
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkLabel"
 #import "vendor/tkControls/tkMenuBar"
+#import "vendor/tkControls/tkPopupMenu"
 #import "vendor/tkControls/tkToolbar"
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkListTree"
@@ -47,6 +48,7 @@ using tkScrollBar
 using tkTheme
 using tkLabel
 using tkMenuBar
+using tkPopupMenu
 using tkToolbar
 using tkStatusBar
 using tkListTree
@@ -87,6 +89,7 @@ public type FormCanvas
     Tool as ustring                     ' the control type being placed, "" for the pointer
     GridSize as long = 8
     SnapToGrid as boolean = true
+    Live as boolean                     ' Test Form: the controls work, nothing is being designed
 
     Frame as TK_WIDGET ptr              ' fills the pane
     Glass as TK_WIDGET ptr              ' over everything in Frame
@@ -413,20 +416,40 @@ sub FormCanvas.Rebuild( )
         case else
             tkLayout_AddContainer( Layout, w, sz.W[i], sz.H[i] )
         end select
-        MakeInert_( w )
+        if Live = false then MakeInert_( w )
     next
     this.PlaceSurface( )
     this.Changed( )
 end sub
 
-' A control's entries on the real control. Drop-downs aren't built: a menu bar only shows its bar here.
+' A control's entries on the real control. While designing, a menu bar only shows its bar.
 sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
     select case catalog.ItemsKindOf( c.TypeName )
     case catalog.ItemsKind.ItemsMenu
         dim as long n = 0
-        for each it as FormItem in c.Items
+        dim as TK_MENU ptr menus( 0 to 2 )
+        for i as long = 0 to c.Items.Count( ) - 1
+            dim as FormItem it = c.Items[i]
             n += 1
-            if it.Level = 0 then tkMenuBar_AddItem( w, it.Text, n )
+            dim as boolean hasKids = false
+            if i < c.Items.Count( ) - 1 then hasKids = (c.Items[i + 1].Level > it.Level)
+            if it.Level = 0 then
+                dim as long at_ = tkMenuBar_AddItem( w, it.Text, n )
+                if hasKids andalso Live then
+                    menus( 0 ) = tkPopupMenu_Create( w->pHost )
+                    tkMenuBar_SetDropDown( w, at_, menus( 0 ) )
+                end if
+            elseif Live then
+                if it.Text = "-" then
+                    tkPopupMenu_AddSeparator( menus( it.Level - 1 ) )
+                else
+                    tkPopupMenu_AddItem( menus( it.Level - 1 ), n, it.Text, it.Key )
+                    if hasKids then
+                        menus( it.Level ) = tkPopupMenu_Create( w->pHost )
+                        tkPopupMenu_SetItemSubMenu( menus( it.Level - 1 ), n, menus( it.Level ) )
+                    end if
+                end if
+            end if
         next
     case catalog.ItemsKind.ItemsToolbar
         dim as long n = 0
@@ -488,6 +511,14 @@ end sub
 ' The form in the frame, the scroll bars for what doesn't fit, the glass over it all.
 sub FormCanvas.PlaceSurface( )
     if (Frame = 0) orelse (Surface = 0) then exit sub
+    if Live then
+        tkWidget_Show( HBar, false )
+        tkWidget_Show( VBar, false )
+        tkWidget_Show( Glass, false )
+        tkWidget_SetPos( Surface, 0, 0, Frame->cw, Frame->ch )
+        tkLayout_Apply( Layout )
+        exit sub
+    end if
     dim as long fw = this.ToPixels( Doc.ClientW ), fh = this.ToPixels( Doc.ClientH )
     dim as long m = this.ToPixels( MARGIN ), bar_ = this.ToPixels( BAR )
     dim as long needW = fw + 2 * m, needH = fh + 2 * m
@@ -1096,7 +1127,7 @@ sub FormCanvas.PaintSurface( byval b as TK_PAINT ptr )
     b->SetBackColor( tkTheme_Get( ).Window )
     b->PaintRect( @rc )
     dim as long stp = this.ToPixels( GridSize )
-    if (SnapToGrid = false) orelse (stp < 4) then exit sub
+    if Live orelse (SnapToGrid = false) orelse (stp < 4) then exit sub
     b->SetBackColor( tkTheme_Get( ).Divider )
     dim as long y = stp
     while y < Surface->ch

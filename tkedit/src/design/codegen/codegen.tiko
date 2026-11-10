@@ -50,6 +50,12 @@ private function Literal_( byref s as const ustring ) as ustring
     return o & """"
 end function
 
+' A text the program shows: through the translator when the form asks for that. The key says where it's from.
+private function TextExpr_( byref doc as FormDoc, byref key_ as const ustring, byref s as const ustring ) as ustring
+    if doc.Translate then return "tkForms_Tr( " & Literal_( doc.ModuleName & "." & key_ ) & ", " & Literal_( s ) & " )"
+    return Literal_( s )
+end function
+
 ' The CONSTANT for a Shown name in a "Shown=CONSTANT,..." list.
 private function EnumConst_( byref pairs as const ustring, byref shown as const ustring ) as ustring
     dim as ustring t = "," & pairs & ","
@@ -426,16 +432,16 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             if it.Level = 0 then
                 if hasKids then
                     o &= "        menus( 0 ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
-                    o &= "        tkMenuBar_SetDropDown( " & h & ", tkMenuBar_AddItem( " & h & ", " & Literal_( it.Text ) & ", " & (base_ + i) & " ), menus( 0 ) )" & NL
+                    o &= "        tkMenuBar_SetDropDown( " & h & ", tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", " & (base_ + i) & " ), menus( 0 ) )" & NL
                 else
-                    o &= "        tkMenuBar_AddItem( " & h & ", " & Literal_( it.Text ) & ", " & (base_ + i) & " )" & NL
+                    o &= "        tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", " & (base_ + i) & " )" & NL
                 end if
             elseif it.Text = "-" then
                 o &= "        tkPopupMenu_AddSeparator( menus( " & (it.Level - 1) & " ) )" & NL
             else
                 dim as ustring accel
                 if len( it.Key ) then accel = ", KeyLabel( " & Literal_( it.Key ) & " )"
-                o &= "        tkPopupMenu_AddItem( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", " & Literal_( it.Text ) & accel & " )" & NL
+                o &= "        tkPopupMenu_AddItem( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & accel & " )" & NL
                 if hasKids then
                     o &= "        menus( " & it.Level & " ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
                     o &= "        tkPopupMenu_SetItemSubMenu( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", menus( " & it.Level & " ) )" & NL
@@ -445,22 +451,23 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         o &= "    end scope" & NL
     case catalog.ItemsKind.ItemsToolbar
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & Literal_( c.Items[i].Glyph ) & ", " & Literal_( c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
+            o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & Literal_( c.Items[i].Glyph ) & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
         next
     case catalog.ItemsKind.ItemsStatus
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkStatusBar_AddPanel( " & h & ", " & Literal_( c.Items[i].Text ) & " )" & NL
+            o &= "    tkStatusBar_AddPanel( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
             if c.Items[i].Width then o &= "    tkStatusBar_SetPanelMinWidth( " & h & ", " & i & ", " & c.Items[i].Width & " )" & NL
         next
     case catalog.ItemsKind.ItemsColumns
-        for each it as FormItem in c.Items
-            o &= "    tkListTree_AddColumn( " & h & ", " & Literal_( it.Text ) & ", "
+        for i as long = 0 to c.Items.Count( ) - 1
+            dim as FormItem it = c.Items[i]
+            o &= "    tkListTree_AddColumn( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", "
             if it.Width > 0 then o &= it.Width else o &= "100"
             o &= " )" & NL
         next
     case catalog.ItemsKind.ItemsList
-        for each it as FormItem in c.Items
-            o &= "    tkComboBox_AddItem( " & h & ", " & Literal_( it.Text ) & " )" & NL
+        for i as long = 0 to c.Items.Count( ) - 1
+            o &= "    tkComboBox_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
         next
     end select
 end sub
@@ -489,7 +496,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     ' A tab control's pages exist before its properties are set, and before its children.
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then
         for p as long = 0 to c.Pages.Count( ) - 1
-            o &= "    tkTabControl_AddPage( " & c.Name & ".Handle, " & Literal_( c.Pages[p] ) & " )" & NL
+            o &= "    tkTabControl_AddPage( " & c.Name & ".Handle, " & TextExpr_( doc, c.Name & ".Page" & p, c.Pages[p] ) & " )" & NL
         next
     end if
 
@@ -500,7 +507,11 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
             o &= "    " & c.Name & "." & s.Key & " = " & s.Value & NL
         elseif s.Key <> m->CreateArg then
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
-            o &= "    " & c.Name & "." & s.Key & " = " & ValueExpr_( s.Value, p->Kind, p->EnumPairs ) & NL
+            if p->Kind = "text" then
+                o &= "    " & c.Name & "." & s.Key & " = " & TextExpr_( doc, c.Name & "." & s.Key, s.Value ) & NL
+            else
+                o &= "    " & c.Name & "." & s.Key & " = " & ValueExpr_( s.Value, p->Kind, p->EnumPairs ) & NL
+            end if
         end if
     next
 
@@ -559,6 +570,7 @@ end function
 public function Generate( byref doc as FormDoc, byref moduleName as const ustring, byref sourceName as const ustring, byref sourceText as const ustring ) as ustring
     dim as Sizes sz
     EffectiveSizes( doc, sz )
+    doc.ModuleName = moduleName
 
     dim as ustring o = "' GENERATED by the tkEdit Form Designer from " & sourceName & ". Do not edit." & NL
     o &= "' source-hash: " & SourceHash( sourceText ) & NL
@@ -614,7 +626,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     Thunks_( doc, o )
 
     o &= "sub Form.Build( byval owner as TK_FORM ptr = 0 )" & NL
-    o &= "    OpenWindow( " & Literal_( doc.Caption ) & ", " & doc.ClientW & ", " & doc.ClientH & ", owner )" & NL
+    o &= "    OpenWindow( " & TextExpr_( doc, "Caption", doc.Caption ) & ", " & doc.ClientW & ", " & doc.ClientH & ", owner )" & NL
     o &= "    if Wnd = 0 then exit sub" & NL
     o &= "    tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), " & doc.ClientW & ", " & doc.ClientH & " )" & NL
     for i as long = 0 to doc.Controls.Count( ) - 1

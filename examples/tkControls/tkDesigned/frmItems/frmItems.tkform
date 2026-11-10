@@ -4,6 +4,7 @@ format = 1
 caption = "Items"
 width = 480
 height = 320
+translate = true
 
 [[control]]
 name = "mnuMain"

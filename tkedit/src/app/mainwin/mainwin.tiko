@@ -545,6 +545,13 @@ public type Window
     declare function DesignerActs( byval id as Cmd ) as boolean  ' false: this command needs text, and a form is showing
     declare function DesignerCommand( byval id as Cmd ) as boolean ' true: the design surface took it
     declare sub SyncPanels( )
+    Preview as canvas.FormCanvas ptr
+    PreviewForm as TK_FORM ptr
+    declare sub TestForm( )
+    declare sub CloseTestForm( )
+    declare sub TestFormGone( )
+    declare function NewForm( byref wanted as const ustring ) as boolean
+    declare function NewFormProject( byref folder as const ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
     ItemsOf as canvas.FormCanvas ptr
     ItemsName as ustring
@@ -1063,6 +1070,7 @@ sub Window.Show( )
 end sub
 
 sub Window.Destroy( )
+    this.CloseTestForm( )
     Palettes.Destroy( )
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
@@ -1462,7 +1470,8 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
         return true
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
-         Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView
+         Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormNewProject
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1510,6 +1519,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
          Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
          Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
+         Cmd.FormNewForm, Cmd.FormNewProject, _
          Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
          Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu, Cmd.StartDebugging, Cmd.DebugBreak, _
          Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.DeleteAllBreakpoints
@@ -1580,6 +1590,7 @@ function Window.DesignerCommand( byval id as Cmd ) as boolean
     case Cmd.FormSnapToGrid
         d->Designer->SnapToGrid = (d->Designer->SnapToGrid = false)
         tkWidget_Invalidate( d->Designer->Frame )
+    case Cmd.FormTest : this.TestForm( )
     case Cmd.FormFloatToolbox : Palettes.ToggleFloat( panels.PaletteId.PaletteToolbox )
     case Cmd.FormFloatProperties : Palettes.ToggleFloat( panels.PaletteId.PaletteInspector )
     case else
@@ -1727,6 +1738,8 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ZoomOut : v->ZoomOut( )
     case Cmd.ZoomReset : v->ZoomReset( )
     case Cmd.FormToggleView : this.ToggleFormView( )
+    case Cmd.FormNewForm : this.NewForm( "" )
+    case Cmd.FormNewProject : this.NewFormProject( "" )
     case Cmd.FoldToggle : v->FoldToggle( false )
     case Cmd.FoldBelow : v->FoldToggle( true )
     case Cmd.FoldAll : v->FoldAll( true )

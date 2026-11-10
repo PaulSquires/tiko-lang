@@ -70,6 +70,8 @@ end type
 
 public type FormDoc
     Caption as ustring
+    Translate as boolean                ' texts go through tkForms_Tr
+    ModuleName as ustring               ' set while generating; not in the file
     ClientW as long = 400
     ClientH as long = 300
     Events as Array( of Setting )       ' Load, Close

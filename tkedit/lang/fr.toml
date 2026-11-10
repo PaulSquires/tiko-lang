@@ -123,6 +123,8 @@ no_compiler = "Aucun compilateur tiko trouvé : aucun n'est défini dans {}, auc
 choose_compiler = "Choisissez ensuite le compilateur ({0}). tkEdit le conserve dans {1}."
 
 [message]
+bad_form_name = "{} : le nom d'un formulaire doit être un identificateur"
+form_exists = "{} existe déjà"
 cannot_create = "ne peut pas être créé"
 no_default_event = "{} n'a pas d'événement par défaut"
 handler_unbound = "pas de code pour {} : détaché"
@@ -151,6 +153,9 @@ compiler = "le compilateur tiko : {}"
 no_definition = "aucune définition trouvée pour {}"
 
 [commands]
+FormTest = "Tester le formulaire"
+FormNewForm = "Nouveau formulaire..."
+FormNewProject = "Nouveau projet de formulaire..."
 FormToggleView = "Basculer formulaire / code"
 FormAlignLefts = "Aligner à gauche"
 FormAlignCenters = "Aligner au centre"
@@ -297,6 +302,7 @@ delete_breakpoint = "Retirer le point d'arrêt"
 mac_permission = "macOS n'a pas laissé le débogueur contrôler le programme : activez le mode développeur (sudo DevToolsSecurity -enable), ou autorisez-le quand macOS le demande"
 
 [designer]
+translate = "Traduisible"
 edit_items = "Modifier les éléments"
 item_add = "Ajouter"
 item_remove = "Retirer"

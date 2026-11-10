@@ -742,6 +742,29 @@ sub ItemsSuite( )
     Check( len( edits.ApplyPages( tp, 0, e3 ) ) > 0, "nor all of them" )
 end sub
 
+sub TranslateSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""Cap""" & LF & "width = 300" & LF & "height = 200" & LF & "translate = true" & LF _
+        & Ctl( "b", "Button" ) & LF & "[control.props]" & LF & "Text = ""Go""" & LF & "TooltipText = ""Tip""" & LF & "Font = ""MONO""" & LF _
+        & Ctl( "c", "ComboBox" ) & item & "text = ""One""" & LF _
+        & Ctl( "t", "TabControl", "pages = [""P""]" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "a translated form parses" )
+    Check( d.Translate, "the flag" )
+    dim as FormDoc d2
+    ReadForm( formfile.Render( d ), d2 )
+    Check( d2.Translate andalso (formfile.Render( d2 ) = formfile.Render( d )), "and round-trips", formfile.Render( d ) )
+    dim as ustring g = codegen.Generate( d, "frmT", "frmT.tkform", src )
+    Check( instr( g, "OpenWindow( tkForms_Tr( ""frmT.Caption"", ""Cap"" )," ) > 0, "the caption goes through the translator", g )
+    Check( instr( g, "b.Text = tkForms_Tr( ""frmT.b.Text"", ""Go"" )" ) > 0, "a text property" )
+    Check( instr( g, "b.TooltipText = tkForms_Tr( ""frmT.b.TooltipText"", ""Tip"" )" ) > 0, "every text property" )
+    Check( instr( g, "tkComboBox_AddItem( c.Handle, tkForms_Tr( ""frmT.c.0"", ""One"" ) )" ) > 0, "an entry" )
+    Check( instr( g, "tkTabControl_AddPage( t.Handle, tkForms_Tr( ""frmT.t.Page0"", ""P"" ) )" ) > 0, "a page" )
+    Check( instr( g, "tkForm_Font( Wnd, TKFONT_MONO )" ) > 0, "a font isn't text" )
+    d.Translate = false
+    Check( instr( codegen.Generate( d, "frmT", "frmT.tkform", src ), "tkForms_Tr" ) = 0, "not unless asked" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -753,5 +776,6 @@ Tree( )
 EditsSuite( )
 ReconcileSuite( )
 ItemsSuite( )
+TranslateSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail
