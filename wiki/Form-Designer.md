@@ -10,7 +10,8 @@ result is ordinary tiko source that builds on Windows, Linux and macOS without t
 
 ## Getting started
 
-**Project > New Project**, then **Windowed app with a form**, makes a folder with everything a program needs, and opens its form:
+**Form > New Form** makes a form in a folder of its own and opens it. **File > Save As Project** then puts a project
+around it, one folder up, with everything a program needs:
 
 ```
 myapp/
@@ -20,8 +21,6 @@ myapp/
     frmMain.tkform      the form: the designer owns this
     frmMain.design.tiko generated from it: don't edit, do commit
     frmMain.tiko        your code
-  shared/
-    shared.tiko         for what several forms need to see
 ```
 
 **Form > New Form** adds another form to a program. Press **F5** to build and run.

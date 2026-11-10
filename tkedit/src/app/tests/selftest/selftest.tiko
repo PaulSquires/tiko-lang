@@ -2819,7 +2819,7 @@ public sub PolishPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+Shift+F: every project file, unopened ones and unsaved edits too
     mw.OpenFile( mainF )
-    mw.NewProject( )                              ' a tiko.toml there: its folder's files are the project's
+    mw.Execute( Cmd.ProjectSaveAs )               ' a tiko.toml there: its folder's files are the project's
     mw.View( ).ReplaceAllText( "#include ""lib.ti""" & nl & "print Needle( ) + Needle( )" & nl )   ' unsaved
     Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Project), P( sc, "Ctrl+Shift+F: the strip, In files" ) )
@@ -3426,9 +3426,9 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (mw.menuBar->x = 0) andalso (mw.menuBar->y = 0) andalso _
              (mw.menuBar->cw = cx) andalso (mw.menuBar->ch = mh) andalso (mw.MenuHeight( ) = mh), _
              P( sc, strings.Format( "menu: the bar at {},{} {}x{}, want 0,0 {}x{}", mw.menuBar->x, mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
-    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 8) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
-             (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 6 ) = "Debug"), _
-             P( sc, strings.Format( "menu: eight menus, File .. Debug, Form ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 7) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
+             (tkMenuBar_GetItemText( mw.menuBar, 4 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Debug"), _
+             P( sc, strings.Format( "menu: seven menus, File .. Debug, Form ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     dim as cmdids.CommandTable ct
     dim as boolean rowsOk = true
     for g as long = 0 to clng( MenuGroup.Count_ ) - 1
@@ -3554,6 +3554,28 @@ public sub StartPass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "start: at {},{} {}x{}, want 0,{} {}x{}", sp->x, sp->y, sp->cw, sp->ch, mh, cx, cy - sh - mh ) ) )
     t.Check( (tkWidget_IsVisible( mw.Pane1->Main.Widget( ) ) = false) andalso (tkWidget_IsVisible( mw.vbar( 0 ) ) = false) andalso _
              (tkWidget_IsVisible( mw.hbar( 0 ) ) = false), P( sc, "start: the blank buffer's view and its bars hidden" ) )
+
+    ' ---- nothing open, no project: a row is live only if it would do something
+    dim as Cmd liveIds( 0 to 10 ) = { Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
+                                      Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.FormNewForm, Cmd.BuildConfig }
+    dim as Cmd deadIds( 0 to 18 ) = { Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.FileRecent, Cmd.ProjectSaveAs, Cmd.ProjectClose, Cmd.SearchSymbol, Cmd.FindInProject, _
+                                      Cmd.GoBack, Cmd.GoForward, Cmd.CycleFocus, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, _
+                                      Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.StartDebugging, Cmd.DeleteAllBreakpoints }
+    dim as cmdids.CommandTable startTable
+    dim as ustring wrongLive = "", wrongDead = ""
+    for i as long = 0 to 10
+        if mw.CanRun( liveIds( i ) ) = false then wrongLive &= startTable.Info( liveIds( i ) ).Name & " "
+    next
+    for i as long = 0 to 18
+        if mw.CanRun( deadIds( i ) ) then wrongDead &= startTable.Info( deadIds( i ) ).Name & " "
+    next
+    t.Check( len( wrongLive ) = 0, P( sc, "start: what still acts is enabled; not: " & wrongLive ) )
+    t.Check( len( wrongDead ) = 0, P( sc, "start: what has nothing to act on is greyed; live: " & wrongDead ) )
+    t.Check( mw.SourceDoc( ) = 0, P( sc, "start: the hidden buffer is no source file" ) )
+    mw.ShowOutput( true )
+    t.Check( mw.CanRun( Cmd.CycleFocus ), P( sc, "start: with the output pane up, Next Pane works" ) )
+    mw.ShowOutput( false )
+    tkTest_PumpFor( h, 30 )
     t.Check( tkHost_GetFocus( h ) = sp, P( sc, "start: the panel has the focus" ) )
     t.Check( (mw.StatusText( mainwin.StatusPanel.Buffer ) = "") andalso (mw.StatusText( mainwin.StatusPanel.Position ) = "") andalso _
              (mw.StatusText( mainwin.StatusPanel.Encoding ) = "") andalso (mw.StatusText( mainwin.StatusPanel.LineEnding ) = "") andalso _

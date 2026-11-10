@@ -186,7 +186,6 @@ public enum PickKind explicit
     Bookmarks
     Symbols             ' Ctrl+P: files and definitions
     Functions           ' F4: the procedures of the buffer, or of every open buffer
-    NewProject          ' how a new project starts
 end enum
 
 ' One Find in Project match.
@@ -569,12 +568,9 @@ public type Window
     declare sub CloseTestForm( )
     declare sub TestFormGone( )
     declare function NewForm( byref wanted as const ustring ) as boolean
-    declare function NewFormProject( byref folder as const ustring ) as boolean
-    declare function NewConsoleProject( byref folder as const ustring ) as boolean
     declare function IsFormFile( byref path as const ustring ) as boolean
     declare function FormInFront( ) as ustring
     declare function NewProjectForForm( byref formPath as const ustring ) as boolean
-    declare function NewProjectFolder( byref folder as const ustring, byref dir_ as ustring, byref manifest as ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
     ItemsOf as canvas.FormCanvas ptr
     ItemsName as ustring
@@ -673,6 +669,7 @@ public type Window
     ' ---- projects and builds
     declare function OpenProject( byref path as const ustring ) as boolean
     declare function NewProject( ) as boolean
+    declare function SaveAsProject( ) as boolean
     declare function SaveProject( ) as boolean
     declare function CloseProject( ) as boolean
     declare function ProjectTarget( ) as ustring
@@ -1040,7 +1037,13 @@ function Window.Create( byval forcedScale as single ) as boolean
     StartIcon = tkHost_OpenFont( tkForm_Host( form ), "mem:" & FONT_GLYPH, START_ICON_PT )
     Start.IconFont = StartIcon
     Start.OnRun = sub( byval owner as any ptr, byval tag as long )
-        cast( Window ptr, owner )->Execute( cast( Cmd, tag ) )
+        dim as Window ptr mw = owner
+        ' its rows don't grey: an empty Open Recent says so
+        if (cast( Cmd, tag ) = Cmd.FileRecent) andalso (mw->CanRun( Cmd.FileRecent ) = false) then
+            mw->SetMessage( i18n.Tr( "message.nothing_to_choose", "nothing to choose from" ) )
+            exit sub
+        end if
+        mw->Execute( cast( Cmd, tag ) )
     end sub
 
     this.ReloadSettings( )                      ' the theme and the look with it
@@ -1643,7 +1646,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
         return true
     case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, _
-         Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, _
+         Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectSaveAs, _
          Cmd.ProjectClose, Cmd.RunArguments
         return true
     case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, _
@@ -1675,17 +1678,24 @@ function Window.CanRun( byval id as Cmd ) as boolean
         ' the open project's tiko.toml is what the project is
         if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
         return true
+    case Cmd.ProjectClose : return ProjOpen
     end select
     if this.ShowsStart( ) = false then return true
+    ' no file open: only what would still do something
     select case id
-    case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
-         Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
-         Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
-         Cmd.FormNewForm, _
-         Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
-         Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.StartDebugging, Cmd.DebugBreak, _
-         Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.DeleteAllBreakpoints
+    case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
+         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.FormNewForm, Cmd.BuildConfig
         return true
+    case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
+        return ProjOpen
+    case Cmd.StartDebugging : return ProjOpen orelse DbgOn
+    case Cmd.FileRecent : return Recent.Count( ) > 0
+    case Cmd.GoBack : return Nav.CanBack( )
+    case Cmd.GoForward : return Nav.CanForward( )
+    case Cmd.CycleFocus : return OutputShown
+    case Cmd.RunExe : return len( LastExe ) > 0
+    case Cmd.NextDiagnostic, Cmd.PrevDiagnostic : return Diags.Count( ) > 0
+    case Cmd.DeleteAllBreakpoints : return DbgOn orelse (Out.Debug.Bps.Count( ) > 0)
     end select
     return false
 end function
@@ -1853,7 +1863,7 @@ function Window.Execute( byval id as Cmd ) as boolean
         this.RunProgram( LastExe )
     case Cmd.NextDiagnostic : this.StepDiagnostic( true )
     case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
-    case Cmd.ProjectNew : this.OpenChooser( PickKind.NewProject, true )
+    case Cmd.ProjectSaveAs : this.SaveAsProject( )
     case Cmd.ProjectClose : this.CloseProject( )
     case Cmd.RunArguments : this.OpenStrip( findstrip.StripMode.Args )
     case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.RunToCursor
@@ -1923,7 +1933,6 @@ private function MenuTitle( byval g as MenuGroup ) as ustring
     case MenuGroup.Edit : return i18n.Tr( "menubar.Edit", "Edit" )
     case MenuGroup.Search : return i18n.Tr( "menubar.Search", "Search" )
     case MenuGroup.View : return i18n.Tr( "menubar.View", "View" )
-    case MenuGroup.Project : return i18n.Tr( "menubar.Project", "Project" )
     case MenuGroup.Build : return i18n.Tr( "menubar.Build", "Build" )
     case MenuGroup.Debug : return i18n.Tr( "menubar.Debug", "Debug" )
     case MenuGroup.Form : return i18n.Tr( "menubar.Form", "Form" )
@@ -3356,8 +3365,6 @@ private function Row( byval a as ustring, byval b as ustring, byval c as ustring
 end function
 
 ' The short lists over the right-hand status panels: a name and a note, no wider than they need.
-const as long NEWPROJ_FROM_FILE = 0, NEWPROJ_WINDOWED = 1, NEWPROJ_CONSOLE = 2
-
 private sub Narrow( byref c as popuplist.Picker, byref popW as long )
     c.Columns.Clear( )
     c.Columns.Push( 18 )
@@ -3561,25 +3568,6 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             end if
             rows.Push( Row( mark, Prefs.Builds[i].Name, Prefs.Builds[i].Options, i ) )
         next
-    case PickKind.NewProject
-        Chooser.Filter = false
-        Chooser.Columns.Clear( )
-        Chooser.Columns.Push( 18 )
-        Chooser.Columns.Push( 240 )
-        Chooser.Columns.Push( 380 )
-        popW = 640
-        dim as DocRef src = this.SourceDoc( )
-        dim as ustring frontForm = this.FormInFront( )
-        if len( frontForm ) then
-            rows.Push( Row( " ", i18n.Tr( "new_project.from_form", "From this form" ), _
-                            strings.Format( i18n.Tr( "new_project.from_form_detail", "{}: main.tiko and tiko.toml one folder up" ), fs.PathStem( frontForm ) ), NEWPROJ_FROM_FILE ) )
-        elseif src then
-            rows.Push( Row( " ", i18n.Tr( "new_project.from_file", "From the current file" ), src->DisplayName( ), NEWPROJ_FROM_FILE ) )
-        end if
-        rows.Push( Row( " ", i18n.Tr( "new_project.windowed", "Windowed app with a form" ), _
-                        i18n.Tr( "new_project.windowed_detail", "main, a form and a shared module in a new folder" ), NEWPROJ_WINDOWED ) )
-        rows.Push( Row( " ", i18n.Tr( "new_project.console", "Console app" ), _
-                        i18n.Tr( "new_project.console_detail", "main.tiko in a new folder" ), NEWPROJ_CONSOLE ) )
     end select
     if (rows.Count( ) = 0) andalso (kind <> PickKind.Functions) then
         this.SetMessage( i18n.Tr( "message.nothing_to_choose", "nothing to choose from" ) )
@@ -3641,12 +3629,6 @@ sub Window.Chosen( byval tag as long )
         if len( p ) then this.OpenFile( p )
     case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
     case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
-    case PickKind.NewProject
-        select case tag
-        case NEWPROJ_FROM_FILE : this.NewProject( )
-        case NEWPROJ_WINDOWED  : this.NewFormProject( "" )
-        case NEWPROJ_CONSOLE   : this.NewConsoleProject( "" )
-        end select
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then this.SetDefaultBuild( Prefs.Builds[tag].Name )
     case PickKind.Symbols, PickKind.Functions
@@ -3921,6 +3903,14 @@ function Window.NewProject( ) as boolean
     return this.OpenProject( mf )
 end function
 
+' Save As Project: the open project is saved; with none, one is made around the file in front.
+function Window.SaveAsProject( ) as boolean
+    if ProjOpen = false then return this.NewProject( )
+    if this.SaveProject( ) = false then return false
+    this.SetMessage( strings.Format( i18n.Tr( "message.project_saved", "project {} saved" ), Proj.Name( ) ) )
+    return true
+end function
+
 ' The project file, with what is open now.
 function Window.SaveProject( ) as boolean
     if ProjOpen = false then
@@ -4044,7 +4034,7 @@ end function
 ' source buffer with a file; 0 when there is none.
 function Window.SourceDoc( ) as DocRef
     dim as DocRef d = this.Active( )
-    if (d <> 0) andalso documents.IsSourceFile( d->Path ) then return d
+    if (d <> 0) andalso (d <> Blank) andalso documents.IsSourceFile( d->Path ) then return d   ' Blank: the start panel's hidden buffer
     for each x as DocRef in Mru
         if (len( x->Path ) > 0) andalso documents.IsSourceFile( x->Path ) then return x
     next
@@ -4152,12 +4142,12 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         dim as ustring formFile = this.ActivePath( )
         if (this.IsFormFile( formFile ) = false) andalso (d <> 0) then formFile = d->Path
         if this.IsFormFile( formFile ) then
-            this.SetBuildMessage( strings.Format( i18n.Tr( "build.form_needs_project", "{} is a form: it builds as part of a project (Project > New Project)" ), fs.PathFileName( formFile ) ) )
+            this.SetBuildMessage( strings.Format( i18n.Tr( "build.form_needs_project", "{} is a form: it builds as part of a project (File > Save As Project)" ), fs.PathFileName( formFile ) ) )
             return false
         end if
     elseif this.IsFormFile( Proj.MainOf( target ) ) then
         ' a project made around a form's own file: the form can't be the program
-        this.SetBuildMessage( strings.Format( i18n.Tr( "build.form_needs_project", "{} is a form: it builds as part of a project (Project > New Project)" ), fs.PathFileName( Proj.MainOf( target ) ) ) )
+        this.SetBuildMessage( strings.Format( i18n.Tr( "build.form_needs_project", "{} is a form: it builds as part of a project (File > Save As Project)" ), fs.PathFileName( Proj.MainOf( target ) ) ) )
         return false
     end if
     if (d = 0) andalso (useTarget = false) then

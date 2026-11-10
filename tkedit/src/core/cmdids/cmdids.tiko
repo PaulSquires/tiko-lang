@@ -113,7 +113,7 @@ public enum Cmd explicit
     FormNewForm
     UnfoldAll
     ' Project
-    ProjectNew
+    ProjectSaveAs
     ProjectClose
     ' Build
     BuildExecute
@@ -143,7 +143,6 @@ public enum MenuGroup explicit
     Edit
     Search
     View
-    Project
     Build
     Debug
     Form
@@ -157,7 +156,6 @@ public function GroupName( byval g as MenuGroup ) as ustring
     case MenuGroup.Form : return "Form"
     case MenuGroup.Search : return "Search"
     case MenuGroup.View : return "View"
-    case MenuGroup.Project : return "Project"
     case MenuGroup.Build : return "Build"
     case MenuGroup.Debug : return "Debug"
     end select
@@ -257,6 +255,8 @@ constructor CommandTable( )
     this.Def( Cmd.FileSave, "FileSave", g, "Save", "Primary+S", true )
     this.Def( Cmd.FileSaveAs, "FileSaveAs", g, "Save As...", "Primary+Alt+S" )
     this.Def( Cmd.FileSaveAll, "FileSaveAll", g, "Save All", "Primary+Shift+S" )
+    this.Def( Cmd.ProjectSaveAs, "ProjectSaveAs", g, "Save As Project", "Primary+Alt+N", true )
+    this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
     this.Def( Cmd.FileRename, "FileRename", g, "Rename...", "", true )
     this.Def( Cmd.FileDuplicate, "FileDuplicate", g, "Duplicate", "" )
     this.Def( Cmd.Settings, "Settings", g, "Settings (settings.toml)", "Primary+Comma", true )
@@ -309,11 +309,11 @@ constructor CommandTable( )
     g = MenuGroup.View
     this.Def( Cmd.ShowMenu, "ShowMenu", g, "Menu Bar", "Primary+Shift+M" )
     this.Def( Cmd.ShowExplorer, "ShowExplorer", g, "Explorer", "Primary+B" )
+    this.Def( Cmd.OutputPane, "OutputPane", g, "Output", "Primary+F9" )
     this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "Primary+Shift+P", true )
     this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
     this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )
     this.Def( Cmd.BufferPrev, "BufferPrev", g, "Previous Buffer", "Primary+Shift+Tab" )
-    this.Def( Cmd.OutputPane, "OutputPane", g, "Output", "Primary+F9" )
     this.Def( Cmd.SplitLeftRight, "SplitLeftRight", g, "Split Left/Right", "Primary+\", true )
     this.Def( Cmd.SplitTopBottom, "SplitTopBottom", g, "Split Top/Bottom", "Primary+Shift+\" )
     this.Def( Cmd.CycleFocus, "CycleFocus", g, "Next Pane", "Primary+Tilde" )
@@ -343,10 +343,6 @@ constructor CommandTable( )
     this.Def( Cmd.FormSnapToGrid, "FormSnapToGrid", g, "Snap to Grid", "", true )
     this.Def( Cmd.FormFloatToolbox, "FormFloatToolbox", g, "Float Toolbox", "", true )
     this.Def( Cmd.FormFloatProperties, "FormFloatProperties", g, "Float Properties", "" )
-
-    g = MenuGroup.Project
-    this.Def( Cmd.ProjectNew, "ProjectNew", g, "New Project...", "Primary+Alt+N" )
-    this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
 
     g = MenuGroup.Build
     this.Def( Cmd.BuildExecute, "BuildExecute", g, "Build and Run", "F5" )
