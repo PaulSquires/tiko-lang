@@ -11,11 +11,13 @@
 
 #import "std/containers"
 #import "vendor/tkControls/tkMeta"
+#import "vendor/tkControls/tkKeys"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
 using containers
 using tkMeta
+using tkKeys
 using model
 
 public function IsIdentifier( byref s as const ustring ) as boolean
@@ -242,6 +244,36 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
             else
                 AddHandler_( handlers, c.Name, s.Value, e->Params, doc, out_ )
             end if
+        next
+    next
+
+    for each c as FormControl in doc.Controls
+        dim as long kind_ = catalog.ItemsKindOf( c.TypeName )
+        if (c.Items.Count( ) > 0) andalso ((kind_ = catalog.ItemsKind.ItemsNone) orelse (kind_ = catalog.ItemsKind.ItemsPages)) then
+            out_.Push( c.Name & ": can't have items" )
+            continue for
+        end if
+        dim as long prev = -1
+        for each it as FormItem in c.Items
+            if kind_ = catalog.ItemsKind.ItemsMenu then
+                if (prev < 0) andalso (it.Level <> 0) then out_.Push( c.Name & ": the first menu item must be on the bar" )
+                if (it.Level > prev + 1) orelse (it.Level > 2) then out_.Push( c.Name & ": '" & it.Text & "' is indented too far" )
+                if (it.Level = 0) andalso (it.Text = "-") then out_.Push( c.Name & ": a separator can't be on the bar" )
+                prev = it.Level
+                if len( it.Key ) then
+                    dim as TK_CHORD ch
+                    dim as string k8 = it.Key
+                    if tkKeys_Parse( k8, ch ) = false then out_.Push( c.Name & ": '" & it.Key & "' isn't a shortcut" )
+                end if
+            end if
+            if kind_ = catalog.ItemsKind.ItemsToolbar then
+                select case it.Kind
+                case "", "command", "toggle", "separator", "split", "dropdown"
+                case else
+                    out_.Push( c.Name & ": no toolbar item kind '" & it.Kind & "'" )
+                end select
+            end if
+            if len( it.Handler ) then AddHandler_( handlers, c.Name, it.Handler, "", doc, out_ )
         next
     next
 

@@ -5,11 +5,24 @@
 #import "vendor/tkControls/tkButton"
 #import "vendor/tkControls/tkTabControl"
 #import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkMenuBar"
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkStatusBar"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkPopupMenu"
 #import "./frmSample"
+#import "./frmItems"
 using tkApp
 using tkButton
 using tkTabControl
 using tkScrollPanel
+using tkMenuBar
+using tkToolbar
+using tkStatusBar
+using tkListTree
+using tkComboBox
+using tkPopupMenu
 using tkHost
 using tkPaint
 using tkTest
@@ -93,6 +106,63 @@ sub Designed( byval owner as TK_FORM ptr )
     tkTest_Check( "no Cancel and it closes", f.IsOpen( ) = false )
 end sub
 
+sub ClickMenuRow( byval m as TK_MENU ptr, byval idx as long )
+    dim as TKRECT rc
+    tkPopupMenu_GetItemRect( m, idx, rc )
+    tkTest_Click( tkPopupMenu_Surface( m ), (rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2 )
+end sub
+
+sub Items( byval owner as TK_FORM ptr )
+    tkTest_Begin( "menus, toolbar, status bar, columns, combo items" )
+    dim as frmItems.Form f
+    f.Build( owner )
+    dim as TK_HOST ptr h = tkForm_Host( f.Wnd )
+    f.Show( )
+    tkTest_PumpFor( h, 100 )
+
+    tkTest_Check( "two menus on the bar", tkMenuBar_GetItemCount( f.mnuMain.Handle ) = 2, str( tkMenuBar_GetItemCount( f.mnuMain.Handle ) ) )
+    dim as TK_MENU ptr mFile = tkMenuBar_GetDropDown( f.mnuMain.Handle, 0 )
+    tkTest_Check( "File has its drop-down", mFile <> 0 )
+    tkTest_Check( "Help has none", tkMenuBar_GetDropDown( f.mnuMain.Handle, 1 ) = 0 )
+    tkTest_Check( "three rows, the separator too", tkPopupMenu_GetItemCount( mFile ) = 3, str( tkPopupMenu_GetItemCount( mFile ) ) )
+    tkTest_Check( "a submenu", tkPopupMenu_GetItemSubMenu( mFile, 1003 ) <> 0 )
+    tkTest_Check( "three toolbar items", tkToolbar_GetCount( f.tbMain.Handle ) = 3 )
+    tkTest_Check( "two status panels", tkStatusBar_GetCount( f.sbMain.Handle ) = 2 )
+    tkTest_Check( "two columns", tkListTree_GetColumnCount( f.lstMain.Handle ) = 2 )
+    tkTest_Check( "three combo items", tkComboBox_GetCount( f.cboMain.Handle ) = 3 )
+    tkTest_Check( "the menu bar docked top", f.mnuMain.Handle->y = 0 )
+    tkTest_Check( "the toolbar below it", f.tbMain.Handle->y = f.mnuMain.Handle->ch, str( f.tbMain.Handle->y ) )
+    tkTest_Check( "the status bar at the bottom", f.sbMain.Handle->y + f.sbMain.Handle->ch = h->root->ch )
+
+    ' a toolbar button, clicked
+    dim as TKRECT rc
+    tkToolbar_GetItemRect( f.tbMain.Handle, 0, rc )
+    dim as single x = f.tbMain.Handle->x + (rc.left + rc.right) / 2, y = f.tbMain.Handle->y + (rc.top + rc.bottom) / 2
+    tkTest_PushMotion( h, x, y )
+    tkTest_PumpFor( h, 30 )
+    tkTest_Click( h, x, y )
+    tkTest_PumpFor( h, 40 )
+    tkTest_Check( "a toolbar button reaches its handler", f.Went = 1, str( f.Went ) )
+
+    ' the menu, opened and clicked
+    dim as TKRECT mr
+    tkMenuBar_GetItemRect( f.mnuMain.Handle, 0, mr )
+    tkTest_Click( h, f.mnuMain.Handle->x + (mr.left + mr.right) / 2, f.mnuMain.Handle->y + f.mnuMain.Handle->ch / 2 )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "the menu opens", tkPopupMenu_IsOpen( mFile ) )
+    if tkPopupMenu_IsOpen( mFile ) then
+        ClickMenuRow( mFile, 0 )
+        tkTest_PumpFor( h, 100 )
+    end if
+    tkTest_Check( "a menu item reaches its handler", f.Opened = 1, str( f.Opened ) )
+
+    ' its shortcut, through the real key path
+    tkTest_PushKey( h, SDLK_O, TK_KMOD_PRIMARY, true, SDL_SCANCODE_O )
+    tkTest_PushKey( h, SDLK_O, TK_KMOD_PRIMARY, false, SDL_SCANCODE_O )
+    tkTest_PumpFor( h, 40 )
+    tkTest_Check( "its shortcut does too", f.Opened = 2, str( f.Opened ) )
+end sub
+
 dim as TKAPP_OPTIONS opts
 if tkApp_Init( opts ) = false then
     print "tkApp_Init failed"
@@ -102,6 +172,7 @@ dim as TK_FORM ptr mainForm = tkApp_NewForm( "owner", 200, 120, 0, 1.0 )
 tkForm_Show( mainForm )
 tkTest_PumpFor( tkForm_Host( mainForm ), 50 )
 Designed( mainForm )
+Items( mainForm )
 dim as long nFail = tkTest_Report( "tkDesigned" )
 tkApp_Shutdown( )
 end nFail

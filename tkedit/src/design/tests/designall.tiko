@@ -626,6 +626,122 @@ sub ReconcileSuite( )
     HasLine( g, "tkLayout_Add( Layout, Custom1.Handle, 0, 0, 50, 50 )", "and laid out" )
 end sub
 
+sub ItemsSuite( )
+    dim as ustring src = Header( ) _
+        & Ctl( "mnu", "MenuBar", "dock = ""top""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""File""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Open""" & LF & "level = 1" & LF & "key = ""Primary+O""" & LF & "handler = ""OnOpen""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""-""" & LF & "level = 1" & LF _
+        & Ctl( "tb", "Toolbar" ) & LF & "[[control.items]]" & LF & "text = ""Go""" & LF & "kind = ""toggle""" & LF & "handler = ""OnGo""" & LF _
+        & Ctl( "sb", "StatusBar" ) & LF & "[[control.items]]" & LF & "text = ""Ready""" & LF & "width = 80" & LF _
+        & Ctl( "lst", "ListTree" ) & LF & "[[control.items]]" & LF & "text = ""Name""" & LF & "width = 150" & LF _
+        & Ctl( "cbo", "ComboBox" ) & LF & "[[control.items]]" & LF & "text = ""A""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "items parse" )
+    Check( d.Controls[0].Items.Count( ) = 3, "a menu's entries", str( d.Controls[0].Items.Count( ) ) )
+    Check( d.Controls[0].Items[1].Level = 1, "a level" )
+    Check( d.Controls[0].Items[1].Key = "Primary+O", "a shortcut" )
+    Check( d.Controls[3].Items[0].Width = 150, "a width" )
+    dim as ustring t1 = formfile.Render( d )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "items round-trip", t1 )
+    dim as Array( of ustring ) p
+    validate.Check( d, "frmI", p )
+    dim as ustring first_
+    if p.Count( ) then first_ = p[0]
+    Check( p.Count( ) = 0, "items validate", first_ )
+
+    dim as ustring g = codegen.Generate( d, "frmI", "frmI.tkform", src )
+    Check( instr( g, "#import ""vendor/tkControls/tkPopupMenu""" ) > 0, "the popup module is imported", g )
+    Check( instr( g, "#import ""vendor/tkControls/tkKeys""" ) > 0, "and the keys" )
+    Check( instr( g, "using tkKeys" & LF ) > 0, "and used" )
+    Check( instr( g, "tkMenuBar_SetDropDown( mnu.Handle, tkMenuBar_AddItem( mnu.Handle, ""File"", 1000 ), menus( 0 ) )" ) > 0, "a menu with a drop-down", g )
+    Check( instr( g, "tkPopupMenu_AddItem( menus( 0 ), 1001, ""Open"", KeyLabel( ""Primary+O"" ) )" ) > 0, "an item with a shortcut", g )
+    Check( instr( g, "tkPopupMenu_AddSeparator( menus( 0 ) )" ) > 0, "a separator" )
+    Check( instr( g, "declare sub OnOpen( )" ) > 0, "a handler is declared" )
+    Check( instr( g, "case 1001 : f->OnOpen( )" ) > 0, "and dispatched" )
+    Check( instr( g, "tkMenuBar_SetCommandCallback( mnu.Handle, @Thunk_mnu_Command )" ) > 0, "the dispatcher is installed", g )
+    Check( instr( g, "tkKeys_BindText( keys, ""Primary+O"", 1001 )" ) > 0, "the shortcut is bound" )
+    Check( instr( g, "tkKeys_Attach( tkForm_Host( Wnd ), keys, @Thunk_Keys )" ) > 0, "the key table is attached" )
+    Check( instr( g, "tkToolbar_AddItem( tb.Handle, TBR_KIND_TOGGLE, """", ""Go"", 1003 )" ) > 0, "a toolbar item, numbered after the menu's", g )
+    Check( instr( g, "case 1003 : f->OnGo( )" ) > 0, "dispatched too" )
+    Check( instr( g, "tkStatusBar_AddPanel( sb.Handle, ""Ready"" )" ) > 0, "a panel" )
+    Check( instr( g, "tkStatusBar_SetPanelMinWidth( sb.Handle, 0, 80 )" ) > 0, "its width" )
+    Check( instr( g, "tkListTree_AddColumn( lst.Handle, ""Name"", 150 )" ) > 0, "a column" )
+    Check( instr( g, "tkComboBox_AddItem( cbo.Handle, ""A"" )" ) > 0, "a combo item" )
+
+    ' with no entries, none of that is generated
+    dim as FormDoc empty_
+    empty_.ClientW = 300
+    empty_.ClientH = 200
+    edits.AddControl( empty_, "Toolbar", "", -1, 0, 0, 10, 10 )
+    Check( empty_.Controls[0].Dock = TK_DOCK_TOP, "a new toolbar docks top" )
+    dim as ustring g2 = codegen.Generate( empty_, "frmE", "frmE.tkform", "x" )
+    Check( instr( g2, "tkKeys" ) = 0, "no keys when no shortcut" )
+    Check( instr( g2, "SetClickCallback" ) = 0, "no dispatcher with nothing to dispatch" )
+
+    ' what's refused
+    dim as ustring item = LF & "[[control.items]]" & LF
+    Refused( Header( ) & Ctl( "a", "Button" ) & item & "text = ""x""" & LF, "can't have items" )
+    Refused( Header( ) & Ctl( "t", "TabControl" ) & item & "text = ""x""" & LF, "can't have items" )
+    Refused( Header( ) & Ctl( "m", "MenuBar" ) & item & "text = ""x""" & LF & "level = 1" & LF, "first menu item" )
+    Refused( Header( ) & Ctl( "m", "MenuBar" ) & item & "text = ""x""" & LF & item & "text = ""y""" & LF & "level = 2" & LF, "indented too far" )
+    Refused( Header( ) & Ctl( "m", "MenuBar" ) & item & "text = ""-""" & LF, "separator can't be on the bar" )
+    Refused( Header( ) & Ctl( "m", "MenuBar" ) & item & "text = ""x""" & LF & item & "text = ""y""" & LF & "level = 1" & LF & "key = ""Banana+Q""" & LF, "isn't a shortcut" )
+    Refused( Header( ) & Ctl( "t", "Toolbar" ) & item & "text = ""x""" & LF & "kind = ""spinner""" & LF, "no toolbar item kind" )
+    Refused( Header( ) & Ctl( "m", "MenuBar" ) & item & "text = ""x""" & LF & "handler = ""1bad""" & LF, "not an identifier" )
+    Refused( Header( ) & Ctl( "m", "MenuBar" ) & item & "text = ""x""" & LF & "bogus = 1" & LF, "unknown key" )
+
+    ' rename, delete, paste, reconcile
+    dim as FormDoc r
+    ReadForm( src, r )
+    PutSetting( r.Controls[0].Events, "Command", "mnu_Command" )
+    r.Controls[0].Items[1].Handler = "mnu_Open"
+    edits.RenameControl( r, "mnu", "menuMain" )
+    Check( r.Controls[0].Items[1].Handler = "menuMain_Open", "a rename takes an entry's handler along" )
+    dim as ustring clip = edits.CopyText( r, Names( "menuMain" ) )
+    dim as FormDoc pasted
+    pasted.ClientW = 300
+    pasted.ClientH = 200
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( pasted, clip, "", -1, 0, 0, added ), "a menu pastes" )
+    Check( pasted.Controls[0].Items.Count( ) = 3, "with its entries" )
+    Check( len( pasted.Controls[0].Items[1].Handler ) = 0, "and without their handlers" )
+
+    dim as FormDoc rc2
+    ReadForm( src, rc2 )
+    dim as Array( of ustring ) un
+    Check( reconcile.ReconcileForm( rc2, "sub Form.OnOpen( )" & LF & "end sub" & LF, un ), "an entry's missing body is a change" )
+    Check( rc2.Controls[0].Items[1].Handler = "OnOpen", "what has a body stays" )
+    Check( len( rc2.Controls[1].Items[0].Handler ) = 0, "what hasn't is unbound" )
+    Check( rc2.Controls[1].Items.Count( ) = 1, "and the entry stays" )
+
+    ' tab pages
+    dim as FormDoc tp
+    tp.ClientW = 300
+    tp.ClientH = 200
+    edits.AddControl( tp, "TabControl", "", -1, 0, 0, 200, 100 )
+    tp.Controls[0].Pages.Push( "Two" )
+    edits.AddControl( tp, "Button", "TabControl1", 1, 0, 0, 10, 10 )
+    dim as Array( of FormItem ) e1
+    dim as FormItem a_, b_
+    a_.Text = "Two"
+    a_.Origin = 1
+    b_.Text = "One"
+    b_.Origin = 0
+    e1.Push( a_ )
+    e1.Push( b_ )
+    Check( edits.ApplyPages( tp, 0, e1 ) = "", "pages reordered" )
+    Check( tp.Controls[1].Page = 0, "a control goes with its page", str( tp.Controls[1].Page ) )
+    dim as Array( of FormItem ) e2
+    e2.Push( b_ )
+    e2[0].Origin = 1
+    Check( instr( edits.ApplyPages( tp, 0, e2 ), "still holds" ) > 0, "a page in use can't go" )
+    dim as Array( of FormItem ) e3
+    Check( len( edits.ApplyPages( tp, 0, e3 ) ) > 0, "nor all of them" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -636,5 +752,6 @@ Generator( source, bAccept )
 Tree( )
 EditsSuite( )
 ReconcileSuite( )
+ItemsSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

@@ -24,6 +24,11 @@
 #import "vendor/tkControls/tkScrollBar"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkLabel"
+#import "vendor/tkControls/tkMenuBar"
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkStatusBar"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkComboBox"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
@@ -41,6 +46,11 @@ using tkGroupBox
 using tkScrollBar
 using tkTheme
 using tkLabel
+using tkMenuBar
+using tkToolbar
+using tkStatusBar
+using tkListTree
+using tkComboBox
 using tkHost
 using tkPaint
 using model
@@ -94,6 +104,7 @@ public type FormCanvas
     Host as any ptr                     ' for the joins to the code
     OnWire as CanvasWireSub             ' give an event a handler; jump: and go to it
     OnRenamed as CanvasRenameSub
+    OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
 
     Drag as long
@@ -117,6 +128,7 @@ public type FormCanvas
     declare sub RevealAndSelect( byref name_ as const ustring )
 
     declare sub Clear_( )
+    declare sub ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
     declare sub Rebuild( )
     declare sub SyncGeometry( )
     declare sub PlaceSurface( )
@@ -374,6 +386,7 @@ sub FormCanvas.Rebuild( )
                 tkTabControl_AddPage( w, t )
             next
         end if
+        this.ApplyItems( c, w )
         for each s as Setting in c.Props
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p then
@@ -404,6 +417,39 @@ sub FormCanvas.Rebuild( )
     next
     this.PlaceSurface( )
     this.Changed( )
+end sub
+
+' A control's entries on the real control. Drop-downs aren't built: a menu bar only shows its bar here.
+sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
+    select case catalog.ItemsKindOf( c.TypeName )
+    case catalog.ItemsKind.ItemsMenu
+        dim as long n = 0
+        for each it as FormItem in c.Items
+            n += 1
+            if it.Level = 0 then tkMenuBar_AddItem( w, it.Text, n )
+        next
+    case catalog.ItemsKind.ItemsToolbar
+        dim as long n = 0
+        for each it as FormItem in c.Items
+            n += 1
+            tkToolbar_AddItem( w, codegen.ToolbarKindValue( it.Kind ), it.Glyph, it.Text, n )
+        next
+    case catalog.ItemsKind.ItemsStatus
+        dim as long n = 0
+        for each it as FormItem in c.Items
+            tkStatusBar_AddPanel( w, it.Text )
+            if it.Width then tkStatusBar_SetPanelMinWidth( w, n, it.Width )
+            n += 1
+        next
+    case catalog.ItemsKind.ItemsColumns
+        for each it as FormItem in c.Items
+            tkListTree_AddColumn( w, it.Text, iif( it.Width > 0, it.Width, 100 ) )
+        next
+    case catalog.ItemsKind.ItemsList
+        for each it as FormItem in c.Items
+            tkComboBox_AddItem( w, it.Text )
+        next
+    end select
 end sub
 
 ' The real controls to where the model says, without rebuilding them: the feedback during a drag.
@@ -947,6 +993,9 @@ sub FormCanvas.DeleteSelection( )
                 dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( m, s.Key )
                 if e then PutSetting( gone, s.Value, e->Params )
             next
+            for each it as FormItem in Doc.Controls[i].Items
+                if len( it.Handler ) then PutSetting( gone, it.Handler, "" )
+            next
         end if
     next
     edits.DeleteControls( Doc, Selected )
@@ -960,6 +1009,9 @@ sub FormCanvas.DeleteSelection( )
         for each k as FormControl in Doc.Controls
             for each ev as Setting in k.Events
                 if lcase( ev.Value ) = lcase( s.Key ) then inUse = true
+            next
+            for each it as FormItem in k.Items
+                if lcase( it.Handler ) = lcase( s.Key ) then inUse = true
             next
         next
         if (inUse = false) andalso (OnHandlerGone <> 0) then

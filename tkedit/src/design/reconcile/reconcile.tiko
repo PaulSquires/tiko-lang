@@ -141,6 +141,9 @@ private function IsBound_( byref doc as FormDoc, byref handler as const ustring 
         for each s as Setting in c.Events
             if lcase( s.Value ) = want then return true
         next
+        for each it as FormItem in c.Items
+            if lcase( it.Handler ) = want then return true
+        next
     next
     return false
 end function
@@ -241,6 +244,18 @@ public function ReconcileForm( byref doc as FormDoc, byref codeText as const ust
             end if
             i -= 1
         wend
+    next
+    for c as long = 0 to doc.Controls.Count( ) - 1
+        for k as long = 0 to doc.Controls[c].Items.Count( ) - 1
+            dim as ustring h = doc.Controls[c].Items[k].Handler
+            if len( h ) then
+                if FindBody( codeText, h, a, b ) = false then
+                    unbound.Push( h )
+                    doc.Controls[c].Items[k].Handler = ""
+                    changed = true
+                end if
+            end if
+        next
     next
     i = doc.Orphans.Count( ) - 1
     while i >= 0

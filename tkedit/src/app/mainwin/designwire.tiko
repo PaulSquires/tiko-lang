@@ -24,9 +24,11 @@
 #import "tkd/validate"
 #import "tkd/codegen"
 #import "tkd/reconcile"
+#import "tkd/itemsdlg"
 #import "vendor/tkControls/tkMeta"
 using containers
 using tkMeta
+using tkHost
 using model
 
 private function CodePathOf_( byref formPath as const ustring ) as ustring
@@ -152,6 +154,78 @@ sub Window.WireHandler( byval c as canvas.FormCanvas ptr, byref name_ as const u
         code->Main.GoToLine( bodyLine, 4 )
         code->Main.Focus( )
     end if
+end sub
+
+' The editor for control name_'s entries, in its window. It's the caller's to run or drive.
+sub Window.OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    dim as long i = FindControl( c->Doc, name_ )
+    if i < 0 then exit sub
+    dim as long kind_ = catalog.ItemsKindOf( c->Doc.Controls[i].TypeName )
+    if kind_ = catalog.ItemsKind.ItemsNone then exit sub
+    dim as Array( of FormItem ) items
+    if kind_ = catalog.ItemsKind.ItemsPages then
+        for p as long = 0 to c->Doc.Controls[i].Pages.Count( ) - 1
+            dim as FormItem it
+            it.Text = c->Doc.Controls[i].Pages[p]
+            it.Origin = p
+            items.Push( it )
+        next
+    else
+        items = c->Doc.Controls[i].Items
+    end if
+    ItemsDlg = new itemsdlg.ItemsEditor
+    ItemsOf = c
+    ItemsName = name_
+    ItemsDlg->Open( form, kind_, items, name_ )
+end sub
+
+' The editor's OK or Cancel: its entries into the form, as one change, and bodies for new handlers.
+sub Window.FinishItems( byval apply_ as boolean )
+    if ItemsDlg = 0 then exit sub
+    dim as itemsdlg.ItemsEditor ptr dlg = ItemsDlg
+    dim as canvas.FormCanvas ptr c = ItemsOf
+    ItemsDlg = 0
+    dim as Array( of FormItem ) items = dlg->Items
+    dim as long kind_ = dlg->Kind
+    dlg->Close( )
+    delete dlg
+    ' the keyboard goes back to the form: Undo from here undoes this
+    if c->Glass then tkHost_SetFocus( c->Glass->pHost, c->Glass )
+    if apply_ = false then exit sub
+    dim as long i = FindControl( c->Doc, ItemsName )
+    if i < 0 then exit sub
+    dim as FormDoc trial = c->Doc
+    if kind_ = catalog.ItemsKind.ItemsPages then
+        dim as ustring why = edits.ApplyPages( trial, i, items )
+        if len( why ) then
+            this.SetMessage( ItemsName & ": " & why )
+            exit sub
+        end if
+    else
+        trial.Controls[i].Items = items
+    end if
+    dim as ustring fault = c->ApplyEdit( trial, true, "" )
+    if len( fault ) then
+        this.SetMessage( fault )
+        exit sub
+    end if
+    dim as DocRef d = this.DocOfCanvas( c )
+    if (d = 0) orelse (kind_ = catalog.ItemsKind.ItemsPages) then exit sub
+    for each it as FormItem in items
+        if len( it.Handler ) then
+            dim as DocRef code = this.CodeDocOf( d )
+            if code = 0 then exit for
+            dim as long a, b, bodyLine
+            if reconcile.FindBody( code->Text( ), it.Handler, a, b ) = false then
+                this.PutCodeText( code, reconcile.AddStub( code->Text( ), it.Handler, "", bodyLine ) )
+            end if
+        end if
+    next
+end sub
+
+sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    this.OpenItems( c, name_ )
+    if ItemsDlg then this.FinishItems( ItemsDlg->RunModal( ) )
 end sub
 
 ' A control went and took these handlers with it. An empty body goes too; one with code in it stays,

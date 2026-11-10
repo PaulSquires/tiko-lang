@@ -30,6 +30,18 @@ public type Setting
     Kind as long
 end type
 
+' One entry of a menu, toolbar, status bar, column list or combo box.
+public type FormItem
+    Text as ustring
+    Key as ustring          ' a menu item's shortcut
+    Glyph as ustring
+    Handler as ustring
+    Kind as ustring         ' a toolbar item: command toggle separator split dropdown
+    Level as long           ' a menu item's depth: 0 is on the bar
+    Width as long
+    Origin as long = -1     ' editing tab pages: which page this was, -1 for a new one
+end type
+
 public type FormControl
     Name as ustring
     TypeName as ustring
@@ -44,6 +56,7 @@ public type FormControl
     Props as Array( of Setting )    ' Key = property, Value = its text form
     Events as Array( of Setting )   ' Key = event, Value = handler name
     Pages as Array( of ustring )    ' a tab control's page captions
+    Items as Array( of FormItem )
     CustomType as ustring           ' a Custom control: the program's own type
     CustomModule as ustring         ' and the module to import it from
 end type

@@ -96,7 +96,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     c.W = IntOf_( t, "w", 0 )
     c.H = IntOf_( t, "h", 0 )
     dim as ustring where = "control '" & c.Name & "'"
-    OnlyKeys_( t, "name type parent page x y w h anchor dock pages custom_type custom_module props events", where, doc )
+    OnlyKeys_( t, "name type parent page x y w h anchor dock pages custom_type custom_module props events items", where, doc )
     dim as config.TomlValue ptr p = t.Find( "anchor" )
     if p then
         if AnchorFromWords( Str_( *p ), c.Anchor ) = false then
@@ -113,6 +113,22 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     if p then
         for i as long = 0 to p->Count( ) - 1
             c.Pages.Push( Str_( p->Item( i ) ) )
+        next
+    end if
+    p = t.Find( "items" )
+    if p then
+        for i as long = 0 to p->Count( ) - 1
+            dim byref as config.TomlValue it = p->Item( i )
+            OnlyKeys_( it, "text key glyph handler kind level width", where & " item", doc )
+            dim as FormItem x
+            x.Text = StrOf_( it, "text" )
+            x.Key = StrOf_( it, "key" )
+            x.Glyph = StrOf_( it, "glyph" )
+            x.Handler = StrOf_( it, "handler" )
+            x.Kind = StrOf_( it, "kind" )
+            x.Level = IntOf_( it, "level", 0 )
+            x.Width = IntOf_( it, "width", 0 )
+            c.Items.Push( x )
         next
     end if
     p = t.Find( "props" )
@@ -309,6 +325,16 @@ public function Render( byref doc as FormDoc ) as ustring
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         WriteProps_( o, c, m )
         WriteEvents_( o, c, m )
+        for each it as FormItem in c.Items
+            o &= NL & "[[control.items]]" & NL
+            o &= "text = " & Quote_( it.Text ) & NL
+            if len( it.Kind ) then o &= "kind = " & Quote_( it.Kind ) & NL
+            if it.Level then o &= "level = " & it.Level & NL
+            if len( it.Key ) then o &= "key = " & Quote_( it.Key ) & NL
+            if len( it.Glyph ) then o &= "glyph = " & Quote_( it.Glyph ) & NL
+            if it.Width then o &= "width = " & it.Width & NL
+            if len( it.Handler ) then o &= "handler = " & Quote_( it.Handler ) & NL
+        next
     next
     for i as long = 0 to doc.Orphans.Count( ) - 1
         o &= NL & "[[orphan]]" & NL

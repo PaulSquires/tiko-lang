@@ -109,6 +109,11 @@ public function AddControl( byref doc as FormDoc, byref typeName as const ustrin
     c.W = w
     c.H = h
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then c.Pages.Push( "Page1" )
+    ' these belong along an edge
+    select case m->Name
+    case "MenuBar", "Toolbar" : c.Dock = TK_DOCK_TOP
+    case "StatusBar"          : c.Dock = TK_DOCK_BOTTOM
+    end select
     dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, "Text" )
     if (p <> 0) andalso (p->Kind = "text") then PutSetting( c.Props, "Text", c.Name )
     doc.Controls.Push( c )
@@ -301,6 +306,10 @@ public sub RenameControl( byref doc as FormDoc, byref oldName as const ustring, 
                 dim as ustring v = doc.Controls[i].Events[e].Value
                 if left( lcase( v ), len( prefix ) ) = prefix then doc.Controls[i].Events[e].Value = newName & mid( v, len( prefix ) )
             next
+            for e as long = 0 to doc.Controls[i].Items.Count( ) - 1
+                dim as ustring v = doc.Controls[i].Items[e].Handler
+                if left( lcase( v ), len( prefix ) ) = prefix then doc.Controls[i].Items[e].Handler = newName & mid( v, len( prefix ) )
+            next
         elseif lcase( doc.Controls[i].Parent ) = was then
             doc.Controls[i].Parent = newName
         end if
@@ -393,6 +402,42 @@ public function SetProperty( byref doc as FormDoc, byref names as Array( of ustr
     return ""
 end function
 
+' A tab control's pages after editing: each carries the page it was. Controls move with their page.
+' A page that goes must be empty. "" = done, else why not.
+public function ApplyPages( byref doc as FormDoc, byval i as long, byref edited as Array( of FormItem ) ) as ustring
+    dim as ustring me_ = lcase( doc.Controls[i].Name )
+    dim as long oldCount = doc.Controls[i].Pages.Count( )
+    for p as long = 0 to oldCount - 1
+        dim as boolean kept = false
+        for each it as FormItem in edited
+            if it.Origin = p then kept = true
+        next
+        if kept = false then
+            for each k as FormControl in doc.Controls
+                if (lcase( k.Parent ) = me_) andalso (k.Page = p) then
+                    return "page '" & doc.Controls[i].Pages[p] & "' still holds controls"
+                end if
+            next
+        end if
+    next
+    if edited.Count( ) = 0 then return "a tab control needs a page"
+    doc.Controls[i].Pages.Clear( )
+    for each it as FormItem in edited
+        doc.Controls[i].Pages.Push( it.Text )
+    next
+    for k as long = 0 to doc.Controls.Count( ) - 1
+        if lcase( doc.Controls[k].Parent ) = me_ then
+            for n as long = 0 to edited.Count( ) - 1
+                if edited[n].Origin = doc.Controls[k].Page then
+                    doc.Controls[k].Page = n
+                    exit for
+                end if
+            next
+        end if
+    next
+    return ""
+end function
+
 ' ---- the clipboard ----------------------------------------------------------------------------
 
 ' names and everything inside them, as the text of a form.
@@ -411,6 +456,9 @@ public function CopyText( byref doc as FormDoc, byref names as Array( of ustring
             ' A pasted control has no handlers: two controls calling one body by accident is worse
             ' than wiring the copy up again.
             c.Events.Clear( )
+            for n as long = 0 to c.Items.Count( ) - 1
+                c.Items[n].Handler = ""
+            next
             if isTop then
                 c.Parent = ""
                 c.Page = -1

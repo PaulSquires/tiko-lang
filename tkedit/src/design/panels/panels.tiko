@@ -63,6 +63,7 @@ enum RowKind
     RowText = 0
     RowCombo
     RowCheck
+    RowButton
 end enum
 
 public type FloatPlace
@@ -245,6 +246,14 @@ private sub OnEventGo( byval h as TK_WIDGET ptr, byval id as long )
     dim as ustring ctl
     if p->C->Selected.Count( ) then ctl = p->C->Selected[0]
     p->C->OnWire( p->C->Host, p->C, ctl, mid( p->Rows[r].Key, 3 ), true )
+end sub
+
+' The row that opens a control's menu, column, item or page editor.
+private sub OnItemsClicked( byval h as TK_WIDGET ptr, byval id as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if (p = 0) orelse (p->C = 0) orelse (p->C->OnEditItems = 0) then exit sub
+    if p->C->Selected.Count( ) <> 1 then exit sub
+    p->C->OnEditItems( p->C->Host, p->C, p->C->Selected[0], "", true )
 end sub
 
 private sub OnFloatClicked( byval h as TK_WIDGET ptr, byval id as long )
@@ -614,6 +623,10 @@ sub DesignPanels.AddRow( byref key_ as const ustring, byref caption as const ust
             b = instr( a, t, "," )
         wend
         tkComboBox_SetSelChangeCallback( r.Edit, @OnComboPicked )
+    case RowKind.RowButton
+        r.Edit = tkButton_Create( panel_, Rows.Count( ) + 10 )
+        tkButton_SetText( r.Edit, "..." )
+        tkButton_SetClickCallback( r.Edit, @OnItemsClicked )
     case RowKind.RowCheck
         r.Edit = tkCheckBox_Create( panel_, Rows.Count( ) + 10 )
         tkCheckBox_SetCheckChangedCallback( r.Edit, @OnCheckToggled )
@@ -681,6 +694,9 @@ sub DesignPanels.BuildRows( )
         dim as TKMETA_CONTROL ptr m0 = catalog.Find( C->Doc.Controls[i0].TypeName )
         if n = 1 then
             this.AddRow( "@Name", i18n.Tr( "designer.name", "Name" ), RowKind.RowText )
+            if catalog.ItemsKindOf( m0->Name ) <> catalog.ItemsKind.ItemsNone then
+                this.AddRow( "@Items", i18n.Tr( "designer.edit_items", "Edit items" ), RowKind.RowButton )
+            end if
             this.AddRow( "@X", "X", RowKind.RowText )
             this.AddRow( "@Y", "Y", RowKind.RowText )
             this.AddRow( "@W", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
@@ -795,6 +811,7 @@ sub DesignPanels.UpdateValues( )
         dim as ustring v = this.ValueOf( Rows[r].Key )
         dim as TK_WIDGET ptr ed = Rows[r].Edit
         select case Rows[r].Kind
+        case RowKind.RowButton
         case RowKind.RowText
             if (tkHost_GetFocus( ed->pHost ) <> ed) andalso (tkTextBox_GetText( ed ) <> v) then tkTextBox_SetText( ed, v )
         case RowKind.RowCombo
@@ -838,6 +855,7 @@ sub DesignPanels.CommitRow( byval r as long )
     case RowKind.RowCombo : v = tkComboBox_GetText( ed )
     case RowKind.RowCheck : if tkCheckBox_GetChecked( ed ) then v = "true" else v = "false"
     end select
+    if Rows[r].Kind = RowKind.RowButton then exit sub
     if v = Rows[r].Text then exit sub
     dim as ustring key_ = Rows[r].Key
     dim as ustring fault = this.Apply( key_, v )
