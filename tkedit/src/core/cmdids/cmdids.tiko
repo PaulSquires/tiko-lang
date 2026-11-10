@@ -31,6 +31,8 @@ public enum Cmd explicit
     FileSave
     FileSaveAs
     FileSaveAll
+    FileRename
+    FileDuplicate
     Settings
     KeyboardShortcuts
     ThemeFile
@@ -77,6 +79,7 @@ public enum Cmd explicit
     BookmarksList
     ' View
     ShowMenu
+    ShowExplorer
     FunctionList
     BufferList
     BufferNext
@@ -254,6 +257,8 @@ constructor CommandTable( )
     this.Def( Cmd.FileSave, "FileSave", g, "Save", "Primary+S", true )
     this.Def( Cmd.FileSaveAs, "FileSaveAs", g, "Save As...", "Primary+Alt+S" )
     this.Def( Cmd.FileSaveAll, "FileSaveAll", g, "Save All", "Primary+Shift+S" )
+    this.Def( Cmd.FileRename, "FileRename", g, "Rename...", "", true )
+    this.Def( Cmd.FileDuplicate, "FileDuplicate", g, "Duplicate", "" )
     this.Def( Cmd.Settings, "Settings", g, "Settings (settings.toml)", "Primary+Comma", true )
     this.Def( Cmd.KeyboardShortcuts, "KeyboardShortcuts", g, "Keyboard Shortcuts (keybindings.toml)", "Primary+K" )
     this.Def( Cmd.ThemeFile, "ThemeFile", g, "Theme File", "Primary+Shift+T" )
@@ -303,6 +308,7 @@ constructor CommandTable( )
 
     g = MenuGroup.View
     this.Def( Cmd.ShowMenu, "ShowMenu", g, "Menu Bar", "Primary+Shift+M" )
+    this.Def( Cmd.ShowExplorer, "ShowExplorer", g, "Explorer", "Primary+B" )
     this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "Primary+Shift+P", true )
     this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
     this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )

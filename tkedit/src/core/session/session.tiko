@@ -65,6 +65,7 @@ public type SessionState
     WinH       as long
     WinMax     as boolean              ' it was maximized
     OutputCY   as long                 ' the output pane's height, unscaled; 0 = the default
+    ExplorerCX as long                 ' the explorer's width, unscaled; 0 = the default
     FloatToolbox as boolean            ' session.toml [designer]: the form designer's floating palettes
     ToolX      as long
     ToolY      as long
@@ -166,6 +167,8 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
     if (st.WinW < 200) orelse (st.WinH < 150) then st.WinW = 0 : st.WinH = 0
     st.OutputCY = tomlget.GetInt( w, "output_height", 0 )
     if (st.OutputCY < 60) orelse (st.OutputCY > 4000) then st.OutputCY = 0
+    st.ExplorerCX = tomlget.GetInt( w, "explorer_width", 0 )
+    if (st.ExplorerCX < 60) orelse (st.ExplorerCX > 4000) then st.ExplorerCX = 0
     return st
 end function
 
@@ -192,6 +195,7 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         tomlget.SetInt( w, "height", st.WinH )
         tomlget.SetBool( w, "maximized", st.WinMax )
         if st.OutputCY > 0 then tomlget.SetInt( w, "output_height", st.OutputCY )
+        if st.ExplorerCX > 0 then tomlget.SetInt( w, "explorer_width", st.ExplorerCX )
         root.SetKey( "window", w )
     end if
     if st.FloatToolbox orelse st.FloatProps orelse (st.ToolW > 0) orelse (st.PropsW > 0) orelse _

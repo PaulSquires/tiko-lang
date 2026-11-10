@@ -61,6 +61,7 @@
 #import "tkd/panels"
 #import "tkd/itemsdlg"
 #import "tka/editor"
+#import "tka/explorer"
 #import "tka/findstrip"
 #import "tka/outputpane"
 #import "tka/popuplist"
@@ -149,6 +150,12 @@ const ID_SCRATCH = 106
 const ID_START = 115
 const ID_OUTBAR = 116                     ' the output pane's top edge: drag it to resize the pane
 const OUTPUT_MIN_CY = 80                  ' unscaled
+const TABMENU_OTHERS = 9001               ' the tab menu's rows that are no command of the table
+const TABMENU_LEFT = 9002
+const TABMENU_RIGHT = 9003
+const ID_SIDE = 117                       ' the explorer ([ui] explorer)
+const ID_SIDEBAR = 118                    ' the bar between it and everything else
+const SIDE_MIN_PANES_CX = 200             ' what the explorer leaves the editors, unscaled
 const SEARCH_LIMIT = 5000              ' Find in Project stops counting there
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
@@ -442,6 +449,10 @@ public type Window
     OutputShown as boolean
     OutCY as long = outputpane.PANE_CY  ' its height, unscaled (session.toml [window] output_height)
     outBar as TK_WIDGET ptr
+    Side as explorer.Panel              ' [ui] explorer: the open buffers, or the project's files
+    SideCX as long = explorer.PANEL_CX  ' its width, unscaled (session.toml [window] explorer_width)
+    sideBar as TK_WIDGET ptr
+    hadFocus as boolean                 ' at the last disk check: the window had the keyboard
     Job as runner.Job
     buildTimer as long
     compilerTimer as long
@@ -510,6 +521,7 @@ public type Window
     NormalH as long
     StartMax as boolean                 ' Show maximizes it (session.toml said so)
     editMenu as TK_MENU ptr             ' a view's right-click menu
+    tabMenu as TK_MENU ptr              ' a tab's right-click menu
     accel as TK_KEYMAP ptr
     diskTimer as long
     inboxTimer as long                  ' reads <config>/inbox while this window is the first tkEdit
@@ -529,6 +541,11 @@ public type Window
     declare function StatusHeight( ) as long
     declare function MenuHeight( ) as long                     ' 0 when [ui] show_menu is off
     declare function TabsHeight( ) as long                     ' 0 when [ui] tab_strip is off, or the start panel shows
+    declare function SideWidth( ) as long                      ' 0 when [ui] explorer is off
+    declare function PanesX( ) as long                         ' where all but the explorer and the menu bar start
+    declare function PanesWidth( ) as long                     ' and how wide they are
+    declare sub LayoutSide( )
+    declare sub SyncSide( )
     declare sub SyncTabs( )
     declare sub TabsReordered( )
     declare sub LayoutTabs( )
@@ -580,6 +597,7 @@ public type Window
     Palettes as panels.DesignPanels
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
+    declare sub SetShowExplorer( byval onOff as boolean )        ' likewise
 
     ' ---- configuration
     declare function SettingsFile( ) as ustring
@@ -596,6 +614,7 @@ public type Window
     declare sub OpenCompletions( byval v as editor.CodeView ptr, byref items as const Array( of symboldb.Completion ), _
                                  byval lenTyped as long )
     declare sub LabelEditMenu( )
+    declare sub LabelTabMenu( )
     declare sub SyncSettingsFile( )
     declare sub ApplyStatusPanels( )
     declare sub SyncKeysFile( )
@@ -626,6 +645,10 @@ public type Window
     declare function SaveDoc( byval d as DocRef, byval newName as boolean ) as boolean
     declare function CloseDoc( byval d as DocRef ) as boolean   ' FALSE = the person cancelled
     declare function CloseAll( ) as boolean
+    declare sub CloseTabs( byval which as long )                 ' TABMENU_OTHERS, _LEFT, _RIGHT of the active tab
+    declare sub RenameActive( )
+    declare sub DuplicateActive( )
+    declare sub ShowTabMenu( byval idx as long, byval x as long, byval y as long )
     declare function SaveAll( ) as boolean
     declare sub ToggleSplit( byval mode as session.SplitMode )
     declare sub FocusPane( byval second as boolean )
@@ -882,9 +905,13 @@ function Window.Create( byval forcedScale as single ) as boolean
     end function )
     ' the wheel scrolls the tabs, as the bar would itself, and the < > buttons follow
     tkTabBar_SetMessageCallback( tabs, function( byval m as TKTABBAR_MESSAGEINFO ptr ) as boolean
-        if (m->msg <> TKM_MOUSEWHEEL) orelse (m->wheelY = 0) then return false
         dim as Window ptr mw = WindowOfWidget( m->hTabBar )
         if mw = 0 then return false
+        if m->msg = TKM_RBUTTONDOWN then
+            mw->ShowTabMenu( m->idx, m->x, m->y )
+            return true
+        end if
+        if (m->msg <> TKM_MOUSEWHEEL) orelse (m->wheelY = 0) then return false
         if m->wheelY > 0 then mw->ScrollTabs( -1 ) else mw->ScrollTabs( 1 )   ' wheel up = left
         return true
     end function )
@@ -921,6 +948,30 @@ function Window.Create( byval forcedScale as single ) as boolean
     tkPopupMenu_SetSelectCallback( editMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
         dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
         if mw then mw->Execute( cast( Cmd, id ) )
+    end sub )
+
+    ' a tab's right-click menu (tiko-editor's): rows of the command table through Execute, the
+    ' closes that are not commands by their own ids
+    tabMenu = tkPopupMenu_Create( tkForm_Host( form ) )
+    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileClose ), "" )
+    tkPopupMenu_AddSeparator( tabMenu )
+    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileSave ), "" )
+    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileSaveAs ), "" )
+    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileRename ), "" )
+    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileDuplicate ), "" )
+    tkPopupMenu_AddSeparator( tabMenu )
+    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileCloseAll ), "" )
+    tkPopupMenu_AddItem( tabMenu, TABMENU_OTHERS, "" )
+    tkPopupMenu_AddItem( tabMenu, TABMENU_LEFT, "" )
+    tkPopupMenu_AddItem( tabMenu, TABMENU_RIGHT, "" )
+    tkPopupMenu_SetSelectCallback( tabMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
+        dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
+        if mw = 0 then exit sub
+        select case id
+        case TABMENU_OTHERS, TABMENU_LEFT, TABMENU_RIGHT : mw->CloseTabs( id )
+        case else : mw->Execute( cast( Cmd, id ) )
+        end select
+        mw->FocusEditor( )
     end sub )
 
     Out.Create( root, ID_OUTPUT, @this )
@@ -962,6 +1013,24 @@ function Window.Create( byval forcedScale as single ) as boolean
         mw->Layout( )
     end sub )
     tkWidget_Show( outBar, false )
+    ' the explorer ([ui] explorer, explorer_side): a click shows that buffer or opens that file
+    Side.Create( root, ID_SIDE, @this )
+    Side.OnOpenFile = sub( byval owner as any ptr, byref path as const ustring )
+        cast( Window ptr, owner )->OpenText( path )
+    end sub
+    Side.OnShowBuffer = sub( byval owner as any ptr, byval doc as any ptr )
+        cast( Window ptr, owner )->ShowDoc( cast( DocRef, doc ) )
+    end sub
+    sideBar = tkSplitter_Create( root, ID_SIDEBAR, TKSPLITTER_VERTICAL )
+    tkSplitter_SetPosChangedCallback( sideBar, sub( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+        dim as Window ptr mw = WindowOfWidget( h )
+        if mw = 0 then exit sub
+        dim as long w = newPos
+        if mw->Prefs.ExplorerRight then w = tkForm_Widget( mw->form )->cw - newPos - h->cw
+        mw->SideCX = clng( w / h->pHost->fScale )
+        mw->Layout( )
+    end sub )
+    tkWidget_Show( sideBar, false )
     Finder.Create( root, ID_FINDSTRIP, @this )
     Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
         cast( Window ptr, owner )->OnFind( a )
@@ -1109,6 +1178,8 @@ sub Window.Destroy( )
     accel = 0
     if editMenu then tkPopupMenu_Destroy( editMenu )
     editMenu = 0
+    if tabMenu then tkPopupMenu_Destroy( tabMenu )
+    tabMenu = 0
     for pane as long = 0 to 1                    ' unwrapped: HoverProc finds its Window through the form
         if hbar( pane ) then hbar( pane )->proc = hbarProc
     next
@@ -1143,21 +1214,24 @@ end function
 sub Window.Layout( )
     if form = 0 then exit sub
     dim as TK_WIDGET ptr root = tkForm_Widget( form )
-    dim as long cx = root->cw, cy = root->ch
+    ' the explorer takes one side, from under the menu bar to the status row; the rest shares what is
+    ' left, but the status row, which is as wide as the window
+    this.LayoutSide( )
+    dim as long x0 = this.PanesX( ), cx = this.PanesWidth( ), cy = root->ch, winCx = root->cw
     dim as long sh = this.StatusHeight( )
     dim as long bottom = cy - sh
     dim as long fh = 0
     if Finder.isOpen then
         fh = Finder.Height( )                    ' the strip sits on top of the status row (D10)
-        tkWidget_SetPos( Finder.frame, 0, bottom - fh, cx, fh )
+        tkWidget_SetPos( Finder.frame, x0, bottom - fh, cx, fh )
     end if
     dim as long oh = 0
     if OutputShown then
         oh = this.OutputHeight( )
-        tkWidget_SetPos( Out.frame, 0, bottom - fh - oh, cx, oh )
+        tkWidget_SetPos( Out.frame, x0, bottom - fh - oh, cx, oh )
         ' its top edge is a splitter laid over the tab strip's top pixels: drag to resize
         dim as long ob = tkForm_Scale( form, 4 )
-        tkWidget_SetPos( outBar, 0, bottom - fh - oh, cx, ob )
+        tkWidget_SetPos( outBar, x0, bottom - fh - oh, cx, ob )
         tkSplitter_SetRange( outBar, this.MenuHeight( ) + this.TabsHeight( ) + tkForm_Scale( form, 60 ), _
                              bottom - fh - tkForm_Scale( form, OUTPUT_MIN_CY ) )
         tkSplitter_SetPos( outBar, bottom - fh - oh )
@@ -1166,7 +1240,7 @@ sub Window.Layout( )
     tkWidget_Show( outBar, OutputShown )
     dim as long top = this.MenuHeight( ) + this.TabsHeight( )   ' the menu bar and the tab strip, above the panes
     tkWidget_Show( menuBar, this.MenuHeight( ) > 0 )
-    if this.MenuHeight( ) > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, this.MenuHeight( ) )
+    if this.MenuHeight( ) > 0 then tkWidget_SetPos( menuBar, 0, 0, root->cw, this.MenuHeight( ) )
     this.LayoutTabs( )
     dim as long ah = bottom - fh - oh - top      ' the panes' area, from y = top
     dim as boolean split_ = this.IsSplit( )
@@ -1188,8 +1262,8 @@ sub Window.Layout( )
     if splitFoot then tkWidget_Show( splitFoot, split_ andalso (Split = session.SplitMode.Vertical) )
     tkWidget_Show( Start.frame, start_ )
     if start_ then
-        tkWidget_SetPos( Start.frame, 0, top, cx, ah )   ' the panes' place: never split (ToggleSplit)
-        tkWidget_SetPos( status, 0, bottom, cx, sh )
+        tkWidget_SetPos( Start.frame, x0, top, cx, ah )   ' the panes' place: never split (ToggleSplit)
+        tkWidget_SetPos( status, 0, bottom, winCx, sh )
     end if
     if v1 = 0 then
         this.SyncBars( )                         ' no pane: no bars
@@ -1197,8 +1271,8 @@ sub Window.Layout( )
     end if
     tkWidget_Show( v1, true )
     if split_ = false then
-        this.PlacePane( 0, 0, top, cx, ah )
-        tkWidget_SetPos( status, 0, bottom, cx, sh )
+        this.PlacePane( 0, x0, top, cx, ah )
+        tkWidget_SetPos( status, 0, bottom, winCx, sh )
         this.SyncBars( )
         exit sub
     end if
@@ -1206,24 +1280,24 @@ sub Window.Layout( )
     tkWidget_Show( v2, true )
     if Split = session.SplitMode.Vertical then
         dim as long w1 = cint( (cx - bar) * SplitRatio )
-        this.PlacePane( 0, 0, top, w1, ah )
-        tkWidget_SetPos( splitBar, w1, top, bar, ah )
-        this.PlacePane( 1, w1 + bar, top, cx - w1 - bar, ah )
+        this.PlacePane( 0, x0, top, w1, ah )
+        tkWidget_SetPos( splitBar, x0 + w1, top, bar, ah )
+        this.PlacePane( 1, x0 + w1 + bar, top, cx - w1 - bar, ah )
         ' the bar goes on through the status row, between the two status lines (author 2026-10-27);
         ' the output pane and the find strip, full width, sit over it
-        tkWidget_SetPos( status, 0, bottom, w1, sh )
-        tkWidget_SetPos( splitFoot, w1, bottom, bar, sh )
-        tkWidget_SetPos( status2, w1 + bar, bottom, cx - w1 - bar, sh )
-        if (fh = 0) andalso (oh = 0) then tkWidget_SetPos( splitBar, w1, top, bar, cy - top )   ' one piece, to the bottom
-        tkSplitter_SetRange( splitBar, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
-        tkSplitter_SetRange( splitFoot, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
+        tkWidget_SetPos( status, 0, bottom, x0 + w1, sh )
+        tkWidget_SetPos( splitFoot, x0 + w1, bottom, bar, sh )
+        tkWidget_SetPos( status2, x0 + w1 + bar, bottom, winCx - x0 - w1 - bar, sh )
+        if (fh = 0) andalso (oh = 0) then tkWidget_SetPos( splitBar, x0 + w1, top, bar, cy - top )   ' one piece, to the bottom
+        tkSplitter_SetRange( splitBar, x0 + tkForm_Scale( form, 60 ), x0 + cx - bar - tkForm_Scale( form, 60 ) )
+        tkSplitter_SetRange( splitFoot, x0 + tkForm_Scale( form, 60 ), x0 + cx - bar - tkForm_Scale( form, 60 ) )
     else
         dim as long h1 = cint( (ah - sh - bar) * SplitRatio )
-        this.PlacePane( 0, 0, top, cx, h1 )
-        tkWidget_SetPos( status, 0, top + h1, cx, sh )
-        tkWidget_SetPos( splitBar, 0, top + h1 + sh, cx, bar )
-        this.PlacePane( 1, 0, top + h1 + sh + bar, cx, ah - h1 - sh - bar )
-        tkWidget_SetPos( status2, 0, bottom, cx, sh )
+        this.PlacePane( 0, x0, top, cx, h1 )
+        tkWidget_SetPos( status, x0, top + h1, cx, sh )
+        tkWidget_SetPos( splitBar, x0, top + h1 + sh, cx, bar )
+        this.PlacePane( 1, x0, top + h1 + sh + bar, cx, ah - h1 - sh - bar )
+        tkWidget_SetPos( status2, 0, bottom, winCx, sh )
         tkSplitter_SetRange( splitBar, top + sh + tkForm_Scale( form, 40 ), top + ah - bar - tkForm_Scale( form, 40 ) )
     end if
     this.SyncBars( )
@@ -1250,6 +1324,79 @@ sub Window.ShowStatus( )
     if split_ then this.FillStatus( status2, Pane2, InPane2 )
     this.ShowTitle( )                            ' the caption names the focused pane's buffer
     this.SyncTabs( )
+    this.SyncSide( )
+end sub
+
+' The explorer's width: what was asked for, leaving the editors a little room.
+function Window.SideWidth( ) as long
+    if (Side.frame = 0) orelse (Prefs.ShowExplorer = false) then return 0
+    dim as long w = tkForm_Scale( form, SideCX )
+    dim as long hi = tkForm_Widget( form )->cw - tkForm_Scale( form, SPLIT_BAR ) - tkForm_Scale( form, SIDE_MIN_PANES_CX )
+    if w > hi then w = hi
+    dim as long lo = tkForm_Scale( form, explorer.MIN_CX )
+    if w < lo then w = lo
+    return w
+end function
+
+function Window.PanesX( ) as long
+    dim as long sw = this.SideWidth( )
+    if (sw = 0) orelse Prefs.ExplorerRight then return 0
+    return sw + tkForm_Scale( form, SPLIT_BAR )
+end function
+
+function Window.PanesWidth( ) as long
+    dim as long cx = tkForm_Widget( form )->cw
+    dim as long sw = this.SideWidth( )
+    if sw = 0 then return cx
+    cx -= sw + tkForm_Scale( form, SPLIT_BAR )
+    if cx < 0 then cx = 0
+    return cx
+end function
+
+' The explorer and its bar down the left or right edge, from under the menu bar to the status row.
+sub Window.LayoutSide( )
+    dim as long sw = this.SideWidth( )
+    tkWidget_Show( Side.frame, sw > 0 )
+    tkWidget_Show( sideBar, sw > 0 )
+    if sw = 0 then exit sub
+    dim as long winCx = tkForm_Widget( form )->cw, winCy = tkForm_Widget( form )->ch
+    dim as long top = this.MenuHeight( ), bar = tkForm_Scale( form, SPLIT_BAR ), ch = winCy - this.StatusHeight( ) - top
+    dim as long lo = tkForm_Scale( form, explorer.MIN_CX ), hi = winCx - bar - tkForm_Scale( form, SIDE_MIN_PANES_CX )
+    if Prefs.ExplorerRight then
+        tkWidget_SetPos( Side.frame, winCx - sw, top, sw, ch )
+        tkWidget_SetPos( sideBar, winCx - sw - bar, top, bar, ch )
+        tkSplitter_SetRange( sideBar, winCx - hi - bar, winCx - lo - bar )
+    else
+        tkWidget_SetPos( Side.frame, 0, top, sw, ch )
+        tkWidget_SetPos( sideBar, sw, top, bar, ch )
+        tkSplitter_SetRange( sideBar, lo, hi )
+    end if
+end sub
+
+' The explorer's rows as things are: a project's files, else the open buffers in open order.
+sub Window.SyncSide( )
+    if this.SideWidth( ) = 0 then
+        Side.Forget( )
+        exit sub
+    end if
+    if ProjOpen then
+        Side.SetProject( Proj.Name( ) )
+        Side.ShowFolder( Proj.Dir_( ) )
+        Side.SelectFile( this.ActivePath( ) )
+        exit sub
+    end if
+    Side.SetProject( "" )
+    dim as Array( of explorer.Entry ) wanted
+    for each d as DocRef in Docs
+        if d = Blank then continue for           ' no list shows it
+        dim as explorer.Entry e
+        e.Name = d->DisplayName( )
+        if d->IsModified( ) then e.Name &= " *"
+        e.Path = d->Path
+        e.Doc = d
+        wanted.Push( e )
+    next
+    Side.ShowBuffers( wanted, this.Active( ) )
 end sub
 
 function Window.MenuHeight( ) as long
@@ -1304,13 +1451,13 @@ sub Window.LayoutTabs( )
         tkWidget_Show( tabNav, false )
         exit sub
     end if
-    dim as long cx = tkForm_Widget( form )->cw
-    tkWidget_SetPos( tabs, 0, y, cx, top )
+    dim as long x0 = this.PanesX( ), cx = this.PanesWidth( )
+    tkWidget_SetPos( tabs, x0, y, cx, top )
     dim as boolean over = tkTabBar_CanNavigate( tabs, -1 ) orelse tkTabBar_CanNavigate( tabs, 1 )
     if over then
         dim as long nw = tkToolbar_GetIdealWidth( tabNav )
-        tkWidget_SetPos( tabs, 0, y, cx - nw, top )
-        tkWidget_SetPos( tabNav, cx - nw, y, nw, top )
+        tkWidget_SetPos( tabs, x0, y, cx - nw, top )
+        tkWidget_SetPos( tabNav, x0 + cx - nw, y, nw, top )
         tkToolbar_SetEnabled( tabNav, 0, tkTabBar_CanNavigate( tabs, -1 ) )
         tkToolbar_SetEnabled( tabNav, 1, tkTabBar_CanNavigate( tabs, 1 ) )
     end if
@@ -1472,7 +1619,8 @@ end function
 function Window.IsImplemented( byval id as Cmd ) as boolean
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileClose, Cmd.FileCloseAll, Cmd.FileSave, _
-         Cmd.FileSaveAs, Cmd.FileSaveAll, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit
+         Cmd.FileSaveAs, Cmd.FileSaveAll, Cmd.FileRename, Cmd.FileDuplicate, Cmd.Settings, Cmd.KeyboardShortcuts, _
+         Cmd.ThemeFile, Cmd.AppExit
         return true
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
@@ -1484,7 +1632,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock, _
          Cmd.ToUpperCase, Cmd.ToLowerCase, Cmd.ToMixedCase
         return true
-    case Cmd.ShowMenu, Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
+    case Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
@@ -1519,6 +1667,13 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.StopDebugging : return DbgOn
     case Cmd.StepInto, Cmd.StepOver, Cmd.StepOut : return this.DebugStopped( )
     case Cmd.RunToCursor : if this.DebugStopped( ) = false then return false
+    case Cmd.FileRename, Cmd.FileDuplicate
+        ' a buffer with a file. Not a form: its .tiko and generated file are named after it
+        dim as DocRef d = this.Active( )
+        if (d = 0) orelse (len( d->Path ) = 0) orelse (d->Designer <> 0) then return false
+        ' the open project's tiko.toml is what the project is
+        if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
+        return true
     end select
     if this.ShowsStart( ) = false then return true
     select case id
@@ -1527,7 +1682,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
          Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
          Cmd.FormNewForm, _
          Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
-         Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu, Cmd.StartDebugging, Cmd.DebugBreak, _
+         Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.StartDebugging, Cmd.DebugBreak, _
          Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.DeleteAllBreakpoints
         return true
     end select
@@ -1646,6 +1801,8 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.FileSave : this.SaveDoc( this.Active( ), false )
     case Cmd.FileSaveAs : this.SaveDoc( this.Active( ), true )
     case Cmd.FileSaveAll : this.SaveAll( )
+    case Cmd.FileRename : this.RenameActive( )
+    case Cmd.FileDuplicate : this.DuplicateActive( )
     case Cmd.Settings
         if this.FindOpen( this.SettingsFile( ) ) = 0 then this.SyncSettingsFile( )   ' never under an open buffer
         this.OpenFile( this.SettingsFile( ) )
@@ -1657,6 +1814,7 @@ function Window.Execute( byval id as Cmd ) as boolean
         if len( f ) then this.OpenFile( f )
     case Cmd.AppExit : tkForm_Close( form )
     case Cmd.ShowMenu : this.SetShowMenu( Prefs.ShowMenu = false )
+    case Cmd.ShowExplorer : this.SetShowExplorer( Prefs.ShowExplorer = false )
     case Cmd.BufferList : this.OpenChooser( PickKind.Buffers, true )   ' Ctrl+E: where Ctrl+P opens (author)
     case Cmd.BufferNext : this.CycleBuffer( true )
     case Cmd.BufferPrev : this.CycleBuffer( false )
@@ -1820,6 +1978,26 @@ sub Window.SetShowMenu( byval onOff as boolean )
     end if
 end sub
 
+' Ctrl+B: the explorer comes or goes now, and settings.toml's [ui] explorer says so from now on, as
+' SetShowMenu does for the menu bar.
+sub Window.SetShowExplorer( byval onOff as boolean )
+    Prefs.ShowExplorer = onOff
+    this.Layout( )
+    this.ShowStatus( )                          ' its rows, when it has just come
+    if onOff = false then this.FocusEditor( )   ' it may have had the focus
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.explorer_not_saved", "{} does not parse: explorer is not saved" ), settings.SETTINGS_FILE ) )
+        exit sub
+    end if
+    dim as settings.EditorSettings st = r.Value( )
+    st.ShowExplorer = onOff
+    if settings.WriteFile( this.SettingsFile( ), st ) then
+        dim as DocRef d = this.FindOpen( this.SettingsFile( ) )
+        if d then d->Reload( )
+    end if
+end sub
+
 ' ================================================================ accelerators
 
 sub Window.RebuildAccelerators( )
@@ -1962,9 +2140,11 @@ sub Window.ReloadLanguage( )
     i18n.Use( cat )
     if (len( note ) > 0) andalso (len( Message ) = 0) then Message = note
     this.LabelEditMenu( )
+    this.LabelTabMenu( )
     this.BuildMenus( )
     Finder.Relabel( )
     Out.Relabel( )
+    Side.Relabel( )
     this.SyncStart( )
 end sub
 
@@ -2006,6 +2186,19 @@ sub Window.LabelEditMenu( )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.CommentBlock ), i18n.Tr( "menu.CommentBlock", "Comment Block" ) )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.UncommentBlock ), i18n.Tr( "menu.UncommentBlock", "UnComment Block" ) )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.SelectAll ), i18n.Tr( "menu.SelectAll", "Select All" ) )
+end sub
+
+sub Window.LabelTabMenu( )
+    if tabMenu = 0 then exit sub
+    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileClose ), i18n.Tr( "tabmenu.close_file", "Close File" ) )
+    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileSave ), i18n.Tr( "tabmenu.save", "Save" ) )
+    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileSaveAs ), i18n.Tr( "tabmenu.save_as", "Save As" ) )
+    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileRename ), i18n.Tr( "tabmenu.rename", "Rename" ) )
+    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileDuplicate ), i18n.Tr( "tabmenu.duplicate", "Duplicate" ) )
+    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileCloseAll ), i18n.Tr( "tabmenu.close_all", "Close All Files" ) )
+    tkPopupMenu_SetItemText( tabMenu, TABMENU_OTHERS, i18n.Tr( "tabmenu.close_others", "Close Others" ) )
+    tkPopupMenu_SetItemText( tabMenu, TABMENU_LEFT, i18n.Tr( "tabmenu.close_left", "Close Tabs on the Left" ) )
+    tkPopupMenu_SetItemText( tabMenu, TABMENU_RIGHT, i18n.Tr( "tabmenu.close_right", "Close Tabs on the Right" ) )
 end sub
 
 ' settings.toml's [statusbar] switches: the Project, Settings and Keys panels on both status lines.
@@ -2203,6 +2396,7 @@ sub Window.AfterSave( byval d as DocRef )
             this.SetMessage( fs.PathFileName( d->Path ) & ": " & r.Failure( ) )
         end if
     end if
+    Side.Rescan( )                              ' a Save As, or a form's generated file, may be new
 end sub
 
 ' ================================================================ buffers and panes
@@ -2768,6 +2962,95 @@ function Window.CloseAll( ) as boolean
     return true
 end function
 
+' The buffers beside the active one, in open order, each closed as its X closes it; a Cancel stops there.
+sub Window.CloseTabs( byval which as long )
+    dim as long at = -1
+    for i as long = 0 to Docs.Count( ) - 1
+        if Docs[i] = this.Active( ) then at = i
+    next
+    dim as Array( of DocRef ) doomed
+    for i as long = 0 to Docs.Count( ) - 1
+        if ((which = TABMENU_OTHERS) andalso (i <> at)) orelse ((which = TABMENU_LEFT) andalso (i < at)) orelse _
+           ((which = TABMENU_RIGHT) andalso (i > at)) then doomed.Push( Docs[i] )
+    next
+    for each d as DocRef in doomed
+        if this.CloseDoc( d ) = false then exit for
+    next
+end sub
+
+' Rename (tiko-editor's): the Save dialog names the new file, the file on disk moves, and its buffer
+' follows, unsaved edits and all. A file the dialog was told to replace is replaced; one that is open
+' in another buffer is not.
+sub Window.RenameActive( )
+    dim as DocRef d = this.Active( )
+    dim as ustring was = d->Path
+    dim as ustring path = Pick( form, TKFD_SAVE, was )
+    if (len( path ) = 0) orelse (path = was) then exit sub
+    dim as DocRef other = this.FindOpen( path )
+    if (other <> 0) andalso (other <> d) then
+        this.SetMessage( strings.Format( i18n.Tr( "message.already_open", "{} is open: close it first" ), fs.PathFileName( path ) ) )
+        exit sub
+    end if
+    if fs.MoveFile( was, path, true ).IsOk( ) = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.could_not_rename", "could not rename {}" ), fs.PathFileName( was ) ) )
+        exit sub
+    end if
+    d->Path = path
+    d->ApplyHighlight( )                         ' the extension may have changed
+    d->Stamp = documents.StampOf( path )
+    d->Ignored = d->Stamp
+    Recent.Remove( was )
+    Recent.Add( path )
+    if Out.Debug.Bps.Count( ) then this.RefreshBreakpointList( )
+    this.QueueScan( d )
+    Side.Rescan( )
+    this.ShowTitle( )
+    this.ShowStatus( )
+end sub
+
+' Duplicate (tiko-editor's): the buffer's text as it stands, in its encoding, written beside the file
+' as name-1.ext (the first number free), and opened.
+sub Window.DuplicateActive( )
+    dim as DocRef d = this.Active( )
+    dim as ustring path
+    dim as long n = 0
+    do
+        n += 1
+        path = fs.PathJoin( fs.PathParent( d->Path ), fs.PathStem( d->Path ) & "-" & n & fs.PathExtension( d->Path ) )
+    loop while fs.Exists( path )
+    dim as boolean accept_ = false
+    if d->MustConfirmLoss( ) then
+        if Ask( form, strings.Format( i18n.Tr( "ask.save_lossy", "{0}: some characters cannot be written as {1} and will be replaced. Save anyway?" ), _
+                d->DisplayName( ), docencoding.EncodingName( d->Enc.Encoding ) ), _
+                MBX_BTN_OKCANCEL ) <> MBX_IDOK then exit sub
+        accept_ = true
+    end if
+    dim as documents.TextResult r = d->WriteCopy( path, accept_ )
+    if r.IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( path ) & ": " & r.Failure( ) )
+        exit sub
+    end if
+    this.OpenText( path )
+    Side.Rescan( )
+end sub
+
+' A right click on a tab makes it the active buffer, as tiko-editor's does, and every row then acts
+' on it. Close All and Close Others grey with one tab, Left and Right at either end.
+sub Window.ShowTabMenu( byval idx as long, byval x as long, byval y as long )
+    if (tabMenu = 0) orelse (idx < 0) orelse (idx >= tkTabBar_GetCount( tabs )) then exit sub
+    this.ShowDoc( cast( DocRef, tkTabBar_GetItemData( tabs, idx ) ) )
+    dim as long n = tkTabBar_GetCount( tabs )
+    tkPopupMenu_SetItemEnabled( tabMenu, clng( Cmd.FileRename ), this.CanRun( Cmd.FileRename ) )
+    tkPopupMenu_SetItemEnabled( tabMenu, clng( Cmd.FileDuplicate ), this.CanRun( Cmd.FileDuplicate ) )
+    tkPopupMenu_SetItemEnabled( tabMenu, clng( Cmd.FileCloseAll ), n > 1 )
+    tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_OTHERS, n > 1 )
+    tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_LEFT, idx > 0 )
+    tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_RIGHT, idx < n - 1 )
+    dim as TKRECT a
+    tkWidget_AbsRect( tabs, a )
+    tkPopupMenu_Show( tabMenu, a.left + x, a.top + y )
+end sub
+
 ' The same mode again unsplits (the focused pane's buffer stays); the other mode switches. A new
 ' split shows, in pane 2, the most recent buffer other than the active one -- a new untitled one
 ' when there is none -- and pane 2 has the focus (author 2026-10-27).
@@ -2809,7 +3092,8 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             dim as TK_WIDGET ptr root = tkForm_Widget( mw->form )
             dim as long bar = tkForm_Scale( mw->form, SPLIT_BAR )
             if mw->Split = session.SplitMode.Vertical then
-                if root->cw > bar then mw->SplitRatio = newPos / (root->cw - bar)
+                dim as long w = mw->PanesWidth( )
+                if w > bar then mw->SplitRatio = (newPos - mw->PanesX( )) / (w - bar)
             else
                 ' pane 1's status line sits between pane 1 and the bar
                 dim as long sh = mw->StatusHeight( )
@@ -2856,6 +3140,10 @@ sub Window.CheckDisk( )
             d->Ignored = documents.StampOf( d->Path )
         end if
     next
+    ' back from another program: the project's files may have changed
+    dim as boolean focused = (SDL_GetWindowFlags( tkForm_Host( form )->win ) and SDL_WINDOW_INPUT_FOCUS) <> 0
+    if focused andalso (hadFocus = false) then Side.Rescan( )
+    hadFocus = focused
     this.ShowStatus( )
 end sub
 
@@ -2968,6 +3256,7 @@ sub Window.SaveSession( )
     st.WinH = NormalH
     st.WinMax = (SDL_GetWindowFlags( tkForm_Host( form )->win ) and SDL_WINDOW_MAXIMIZED) <> 0
     if OutCY <> outputpane.PANE_CY then st.OutputCY = OutCY
+    if SideCX <> explorer.PANEL_CX then st.ExplorerCX = SideCX
     Palettes.KeepPlaces( )
     st.FloatToolbox = Palettes.Pal( 0 ).Place.On_
     st.ToolX = Palettes.Pal( 0 ).Place.X
@@ -3037,6 +3326,7 @@ sub Window.RestoreSession( byval reopen as boolean )
         StartMax = st.WinMax
     end if
     if st.OutputCY > 0 then OutCY = st.OutputCY
+    if st.ExplorerCX > 0 then SideCX = st.ExplorerCX
     ' files named on the command line come instead of the last session's files or project
     ' (author 2026-10-27): the caller passes reopen = FALSE and opens them itself
     if reopen then

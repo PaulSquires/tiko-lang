@@ -61,6 +61,7 @@ public type Document
     declare function Load( byref path as const ustring ) as TextResult    ' into Main
     declare function Reload( ) as TextResult
     declare function Save( byref path as const ustring, byval acceptLoss as boolean ) as TextResult
+    declare function WriteCopy( byref path as const ustring, byval acceptLoss as boolean ) as TextResult   ' this buffer stays as it is
     declare function MustConfirmLoss( ) as boolean
     declare function ChangedOnDisk( ) as boolean
     declare function HasView( byval w as TK_WIDGET ptr ) as boolean
@@ -155,16 +156,22 @@ end function
 ' Writes the text, encoded as the document was found (or chosen); acceptLoss = the user agreed
 ' to characters the encoding cannot hold becoming its default character.
 function Document.Save( byref path as const ustring, byval acceptLoss as boolean ) as TextResult
-    if acceptLoss then Enc.AcceptLossy( )
-    dim as docencoding.SavePlan p = Enc.PlanSave( Main.Text( ) )
-    if p.MustConfirm then return Fail( of boolean, ustring )( "lossy" )
-    dim as fs.FsResultBool w = docencoding.WriteFile( path, p.Bytes )
-    if w.IsOk( ) = false then return Fail( of boolean, ustring )( w.Failure( ).Message( ) )
+    dim as TextResult r = this.WriteCopy( path, acceptLoss )
+    if r.IsOk( ) = false then return r
     this.Path = path
     this.ApplyHighlight( )
     Main.SetSavePoint( )
     Stamp = StampOf( path )
     Ignored = Stamp
+    return Ok( of boolean, ustring )( true )
+end function
+
+function Document.WriteCopy( byref path as const ustring, byval acceptLoss as boolean ) as TextResult
+    if acceptLoss then Enc.AcceptLossy( )
+    dim as docencoding.SavePlan p = Enc.PlanSave( Main.Text( ) )
+    if p.MustConfirm then return Fail( of boolean, ustring )( "lossy" )
+    dim as fs.FsResultBool w = docencoding.WriteFile( path, p.Bytes )
+    if w.IsOk( ) = false then return Fail( of boolean, ustring )( w.Failure( ).Message( ) )
     return Ok( of boolean, ustring )( true )
 end function
 
