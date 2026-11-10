@@ -62,6 +62,7 @@ public type Panel
     declare sub Paint( byval b as TK_PAINT ptr )
     declare sub Relabel( )                                ' the caption in the interface's language
     declare sub SetProject( byref name_ as const ustring )
+    declare function HeaderProject( ) as ustring
     declare sub ShowBuffers( byref wanted as const Array( of Entry ), byval active as any ptr )
     declare sub ShowFolder( byref dir_ as const ustring )  ' walks it only when it is a new one
     declare sub Rescan( )                                  ' the folder's files may have changed
@@ -157,8 +158,13 @@ sub Panel.Paint( byval b as TK_PAINT ptr )
     rc.left += tkText_Width( bold, Caption ) + pad
     b->SetFont( tkForm_Font( f, TKFONT_UI ) )
     b->SetForeColor( t.Text )
-    b->PaintText( ProjectName, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    b->PaintText( this.HeaderProject( ), @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
 end sub
+
+' The project's name as the header shows it: "[subfolder]".
+function Panel.HeaderProject( ) as ustring
+    return "[" & ProjectName & "]"
+end function
 
 sub Panel.Relabel( )
     Caption = i18n.Tr( "explorer.caption", "Explorer" )

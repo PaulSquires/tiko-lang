@@ -3214,7 +3214,7 @@ public sub ExplorerPass( byref t as Tally, byval sc as single )
     next
     t.Check( got = "src,lib.tiko,main.tiko,notes.txt,tiko.toml,", P( sc, "explorer: the project's files, no out/ or dot-folders: " & got ) )
     t.Check( (tkListTree_GetLevel( mw.Side.rows, 1 ) = 1) andalso (tkListTree_GetLevel( mw.Side.rows, 2 ) = 0), P( sc, "explorer: lib.tiko under src" ) )
-    t.Check( mw.Side.ProjectName = "demo", P( sc, "explorer: the header names the project: " & mw.Side.ProjectName ) )
+    t.Check( (mw.Side.ProjectName = "demo") andalso (mw.Side.HeaderProject( ) = "[demo]"), P( sc, "explorer: the header names the project, in brackets: " & mw.Side.HeaderProject( ) ) )
     t.Check( tkListTree_GetCurSel( mw.Side.rows ) = 2, P( sc, strings.Format( "explorer: main.tiko, the active buffer, selected ({})", tkListTree_GetCurSel( mw.Side.rows ) ) ) )
     ClickSideRow( mw, 3 )
     t.Check( fs.PathFileName( mw.ActivePath( ) ) = "notes.txt", P( sc, "explorer: one click opens a file that is not source: " & mw.ActivePath( ) ) )
