@@ -2974,6 +2974,10 @@ sub Window.SaveSession( )
     st.PropsY = Palettes.Pal( 1 ).Place.Y
     st.PropsW = Palettes.Pal( 1 ).Place.W
     st.PropsH = Palettes.Pal( 1 ).Place.H
+    st.ToolCX = Palettes.ToolCX
+    st.PropsCX = Palettes.InspCX
+    st.ToolSplit = Palettes.Pal( 0 ).SplitPm
+    st.PropsSplit = Palettes.Pal( 1 ).SplitPm
     session.SaveSession( this.SessionFile( ), st )
 end sub
 
@@ -3016,6 +3020,10 @@ sub Window.RestoreSession( byval reopen as boolean )
     pTool.On_ = st.FloatToolbox : pTool.X = st.ToolX : pTool.Y = st.ToolY : pTool.W = st.ToolW : pTool.H = st.ToolH
     pProps.On_ = st.FloatProps : pProps.X = st.PropsX : pProps.Y = st.PropsY : pProps.W = st.PropsW : pProps.H = st.PropsH
     Palettes.Restore( pTool, pProps )
+    Palettes.ToolCX = st.ToolCX
+    Palettes.InspCX = st.PropsCX
+    Palettes.Pal( 0 ).SplitPm = st.ToolSplit
+    Palettes.Pal( 1 ).SplitPm = st.PropsSplit
     if (st.WinW > 0) andalso (form <> 0) then
         dim as SDL_Window ptr win = tkForm_Host( form )->win
         SDL_SetWindowSize( win, st.WinW, st.WinH )

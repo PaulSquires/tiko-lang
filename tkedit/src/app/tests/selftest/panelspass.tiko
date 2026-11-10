@@ -17,6 +17,7 @@
 #import "tka/documents"
 #import "tka/mainwin"
 #import "tkd/canvas"
+#import "tkd/catalog"
 #import "tkd/model"
 #import "tkd/panels"
 #import "vendor/tkControls/tkApp"
@@ -29,6 +30,8 @@
 #import "vendor/tkControls/tkMenuBar"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkTheme"
 using containers
 using cmdids
 using tkApp
@@ -41,6 +44,8 @@ using tkComboBox
 using tkCheckBox
 using tkLayout
 using tkScrollPanel
+using tkToolbar
+using tkTheme
 using model
 
 ' The Toolbox row showing `name_`.
@@ -51,14 +56,14 @@ private function ListRow( byval list as TK_WIDGET ptr, byref name_ as const ustr
     return -1
 end function
 
-private sub ClickRow( byval h as TK_HOST ptr, byval list as TK_WIDGET ptr, byval row as long )
+private sub ClickRow( byval h as TK_HOST ptr, byval list as TK_WIDGET ptr, byval row as long, byval clicks as long = 1 )
     dim as TKRECT rc
     tkWidget_AbsRect( list, rc )
     dim as long rh = tkHost_Scale( list->pHost, tkListTree_GetRowHeight( list ) )
     dim as long x = rc.left + list->cw \ 2, y = rc.top + rh * (row - tkListTree_GetTopIndex( list )) + rh \ 2
     tkTest_PushMotion( h, x, y )
     tkTest_PumpFor( h, 15 )
-    tkTest_Click( h, x, y )
+    tkTest_Click( h, x, y, SDL_BUTTON_LEFT, clicks )
     tkTest_PumpFor( h, 40 )
 end sub
 
@@ -123,8 +128,8 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( tkWidget_IsVisible( left_ ) andalso tkWidget_IsVisible( right_ ), P( sc, "and show" ) )
     t.Check( left_->cw = tkHost_Scale( h, panels.TOOLBOX_CX ), P( sc, "the toolbox's width" ) )
     t.Check( right_->cw = tkHost_Scale( h, panels.INSPECTOR_CX ), P( sc, "the inspector's width" ) )
-    t.Check( c->Frame->x = left_->x + left_->cw, P( sc, "the surface starts after the toolbox" ) )
-    t.Check( c->Frame->x + c->Frame->cw = right_->x, P( sc, strings.Format( "and ends at the inspector: {} {}", c->Frame->x + c->Frame->cw, right_->x ) ) )
+    t.Check( c->Frame->x = left_->x + left_->cw + tkHost_Scale( h, panels.SPLIT_CX ), P( sc, "the surface starts after the toolbox and its bar" ) )
+    t.Check( c->Frame->x + c->Frame->cw + tkHost_Scale( h, panels.SPLIT_CX ) = right_->x, P( sc, strings.Format( "and ends at the inspector's bar: {} {}", c->Frame->x + c->Frame->cw, right_->x ) ) )
     t.Check( right_->x + right_->cw = tkForm_Widget( mw.form )->cw, P( sc, "the inspector reaches the window's edge" ) )
 
     ' ---- the toolbox
@@ -253,6 +258,8 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     ClickOn( h, c->WidgetOf( "lblB" ) )
     tkTest_PumpFor( h, 50 )
     dim as TK_WIDGET ptr en = EditOf( *ps, "Enabled" )
+    tkScrollPanel_SetPos( ps->Scroll, en->y - tkHost_Scale( h, 8 ) )
+    tkTest_PumpFor( h, 20 )
     t.Check( tkCheckBox_GetChecked( en ), P( sc, "Enabled by default" ) )
     ClickOn( h, en )
     t.Check( SettingOr( Ctl2( c, "lblB" ).Props, "Enabled" ) = "false", P( sc, "unticking stores it" ) )
@@ -281,12 +288,53 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( c->SnapToGrid = false, P( sc, "Snap to Grid toggles" ) )
     mw.Execute( Cmd.FormSnapToGrid )
 
+    ' ---- the layout: rows really drawn, properties right under the header, a bar that drags
+    tkTest_PumpFor( h, 30 )
+    tkHost_RenderTo( h, false )
+    dim as TKRECT rcTools
+    tkWidget_AbsRect( ps->ToolList, rcTools )
+    dim as long toolRow = tkHost_Scale( h, tkListTree_GetRowHeight( ps->ToolList ) )
+    dim as ulong toolBg
+    t.Check( tkTest_TonesIn( h, rcTools.left, rcTools.top + toolRow, tkHost_Scale( h, 120 ), toolRow, toolBg ) > 2, P( sc, "the toolbox draws its rows" ) )
+    t.Check( ps->Scroll->y = tkHost_Scale( h, panels.HEADER_CY ), P( sc, "the properties start right under the header" ) )
+    dim as long tool0 = ps->Pal( 0 ).Frame->cw, surf0 = c->Frame->cw, dragBy = tkHost_Scale( h, 40 )
+    dim as single barX = tkTest_CX( ps->BarL ), barY = tkTest_CY( ps->BarL )
+    tkTest_PushMotion( h, barX, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, true, barX, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushMotion( h, barX + dragBy, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, false, barX + dragBy, barY )
+    tkTest_PumpFor( h, 30 )
+    t.Check( abs( ps->Pal( 0 ).Frame->cw - (tool0 + dragBy) ) <= 1, P( sc, "the bar widens the toolbox" ) )
+    t.Check( abs( c->Frame->cw - (surf0 - dragBy) ) <= 1, P( sc, "and the surface gives way" ) )
+    ps->ToolCX = 0
+    ps->OnLayout( ps->Owner )
+    tkTest_PumpFor( h, 30 )
+    t.Check( ps->Tree->y >= ps->TreeTitle->y + tkHost_Scale( h, panels.HEADER_CY ), P( sc, "the object tree sits under its header" ) )
+
+    ' a double click on a tool: one of its default size, the pointer back
+    dim as long nBefore = c->Doc.Controls.Count( )
+    dim as ustring dblTool = tkListTree_GetText( ps->ToolList, 3 )
+    ClickRow( h, ps->ToolList, 3, 1 )
+    ClickRow( h, ps->ToolList, 3, 2 )
+    t.Check( c->Doc.Controls.Count( ) = nBefore + 1, P( sc, "a double click places one " & dblTool ) )
+    if c->Doc.Controls.Count( ) = nBefore + 1 then
+        with c->Doc.Controls[nBefore]
+            t.Check( (.TypeName = dblTool) andalso (.W = catalog.Find( dblTool )->Width_) andalso (.H = catalog.Find( dblTool )->Height_), P( sc, "of its default size" ) )
+        end with
+        t.Check( len( c->Tool ) = 0, P( sc, "and the pointer is back" ) )
+        c->DeleteSelection( )
+        tkTest_PumpFor( h, 40 )
+    end if
+
     ' ---- float the toolbox: its window, a wider surface
     dim as long wide0 = c->Frame->cw
     mw.Execute( Cmd.FormFloatToolbox )
     tkTest_PumpFor( h, 120 )
     t.Check( ps->IsFloating( 0 ), P( sc, "the toolbox floats" ) )
-    t.Check( c->Frame->cw = wide0 + tkHost_Scale( h, panels.TOOLBOX_CX ), P( sc, "the surface takes its place" ) )
+    t.Check( c->Frame->cw = wide0 + tkHost_Scale( h, panels.TOOLBOX_CX ) + tkHost_Scale( h, panels.SPLIT_CX ), P( sc, "the surface takes its place" ) )
     dim as TK_FORM ptr ft = ps->Pal( 0 ).Float
     dim as TK_HOST ptr fh = tkForm_Host( ft )
     t.Check( tkHost_GetCapture( fh ) = 0, P( sc, "no stray capture on the float" ) )
@@ -319,10 +367,30 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( ps->Pal( 0 ).Frame->pHost = h, P( sc, "the toolbox is on the main window" ) )
     t.Check( tkListTree_GetCount( ps->ToolList ) > 20, P( sc, "with its rows" ) )
 
-    ' ---- float the inspector, by its own button
+    ' ---- float the inspector, by its own button: an icon the bundled glyph font really holds
+    for i as long = 0 to 1
+        dim as TK_WIDGET ptr bar = ps->Pal( i ).FloatBtn, pf = ps->Pal( i ).Frame
+        dim as TTF_Font ptr gf = tkToolbar_GetGlyphFont( bar )
+        t.Check( tkToolbar_GetGlyph( bar, 0 ) = wchr( panels.GLYPH_FLOAT ), P( sc, "the float icon" ) )
+        t.Check( (gf <> 0) andalso TTF_FontHasGlyph( gf, panels.GLYPH_FLOAT ) andalso TTF_FontHasGlyph( gf, panels.GLYPH_DOCK ), P( sc, "in the glyph font" ) )
+        t.Check( len( tkToolbar_GetTooltipText( bar, 0 ) ) > 0, P( sc, "with a tooltip" ) )
+        t.Check( (bar->cw > 0) andalso (bar->cw <= tkHost_Scale( h, 40 )) andalso (bar->x + bar->cw < pf->cw) andalso (bar->y >= 0) andalso (bar->y + bar->ch <= tkHost_Scale( h, panels.HEADER_CY )), _
+                 P( sc, "icon-sized, in the header: x=" & bar->x & " y=" & bar->y & " w=" & bar->cw & " h=" & bar->ch ) )
+    next
+    ' its bar is the header's colour, through a theme change too
+    dim as TKTHEME_COLORS keptTheme = tkTheme_Get( )
+    dim as TKTOOLBAR_COLORS barColors
+    tkToolbar_GetColors( ps->Pal( 1 ).FloatBtn, @barColors )
+    t.Check( barColors.BackColor = tkTheme_Get( ).Surface, P( sc, "the float icon's bar is the header's colour" ) )
+    tkApp_SetTheme( tkTheme_Light( ) )
+    tkToolbar_GetColors( ps->Pal( 1 ).FloatBtn, @barColors )
+    t.Check( barColors.BackColor = tkTheme_Light( ).Surface, P( sc, "and follows a theme change" ) )
+    tkApp_SetTheme( keptTheme )
+    tkTest_PumpFor( h, 20 )
     tkTest_Click( h, tkTest_CX( ps->Pal( 1 ).FloatBtn ), tkTest_CY( ps->Pal( 1 ).FloatBtn ) )
     tkTest_PumpFor( h, 150 )
     t.Check( ps->IsFloating( 1 ), P( sc, "the inspector's Float button floats it" ) )
+    t.Check( tkToolbar_GetGlyph( ps->Pal( 1 ).FloatBtn, 0 ) = wchr( panels.GLYPH_DOCK ), P( sc, "and it turns into the dock icon" ) )
     dim as TK_HOST ptr fi = tkForm_Host( ps->Pal( 1 ).Float )
     t.Check( tkTextBox_GetText( EditOf( *ps, "@Name" ) ) = "lblB", P( sc, "with the selection's rows" ) )
     dim as TK_WIDGET ptr eName = EditOf( *ps, "Text" )

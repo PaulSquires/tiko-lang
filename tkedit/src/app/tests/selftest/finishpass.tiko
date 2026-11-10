@@ -110,6 +110,19 @@ public sub FinishPass( byref t as Tally, byval sc as single )
     if mw.PreviewForm then
         dim as TK_HOST ptr ph = tkForm_Host( mw.PreviewForm )
         dim as canvas.FormCanvas ptr pv = mw.Preview
+        ' a corner clear of grid dots and grips: the form as designed is the form as run; around it, the backdrop
+        tkTest_PumpFor( h, 30 )
+        tkTest_PumpFor( ph, 30 )
+        tkHost_RenderTo( h, false )        ' the back buffer is undefined after a present
+        tkHost_RenderTo( ph, false )
+        dim as TKRECT rcDes, rcRun, rcBack
+        tkWidget_AbsRect( c->Surface, rcDes )
+        tkWidget_AbsRect( pv->Surface, rcRun )
+        tkWidget_AbsRect( c->Frame, rcBack )
+        dim as ulong pxDes = tkTest_PixelAt( h, rcDes.left + 2, rcDes.top + 2 ), pxRun = tkTest_PixelAt( ph, rcRun.left + 2, rcRun.top + 2 )
+        t.Check( pxDes = tkApp_Theme( ).Window, P( sc, "the designer's form is the theme's window colour: " & hex( pxDes ) ) )
+        t.Check( pxDes = pxRun, P( sc, "and Test Form's: " & hex( pxDes ) & " " & hex( pxRun ) ) )
+        t.Check( tkTest_PixelAt( h, rcBack.left + 2, rcBack.top + 2 ) = canvas.BackdropColor( ), P( sc, "the canvas around it is the backdrop" ) )
         tkTest_PumpFor( ph, 80 )
         t.Check( *SDL_GetWindowTitle( ph->win ) = "frmOne", P( sc, "with the form's caption" ) )
         t.Check( ph->root->cw = tkHost_Scale( ph, 480 ), P( sc, "at the form's size" ) )

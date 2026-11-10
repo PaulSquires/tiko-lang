@@ -157,6 +157,7 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
     Win->Tag = @this
     dim as TK_WIDGET ptr root_ = tkForm_Widget( Win )
     List = tkListTree_Create( root_, 1 )
+    tkListTree_SetPaintCallback( List, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
     tkListTree_SetSelChangeCallback( List, @OnPick )
     BtnAdd = MakeButton_( root_, i18n.Tr( "designer.item_add", "Add" ) )
     BtnDel = MakeButton_( root_, i18n.Tr( "designer.item_remove", "Remove" ) )

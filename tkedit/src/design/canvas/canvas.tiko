@@ -69,6 +69,7 @@ const as long GRIP_SIZE = 7       ' a grip's size
 const as long BAR = 12            ' a scroll bar's thickness
 const as long DRAG_START = 4      ' pixels of travel before a press becomes a drag
 const as long MIN_SIZE = 4        ' the smallest a control can be dragged to
+const as long PLACE_STEP = 16     ' a Toolbox double click: the first control's offset, and each next one's
 
 enum DragKind
     DragNone = 0
@@ -155,6 +156,7 @@ public type FormCanvas
     declare sub OnRelease( byval x as long, byval y as long )
     declare sub OnHover( byval x as long, byval y as long )
     declare sub OnDoubleClick( byval x as long, byval y as long )
+    declare function PlaceDefault( byref typeName as const ustring ) as boolean
     declare function OnKey( byval key as long, byval mods as long ) as boolean
     declare sub Paint( byval b as TK_PAINT ptr )
     declare sub PaintSurface( byval b as TK_PAINT ptr )
@@ -239,13 +241,19 @@ private sub OnBarScroll( byval hSB as TK_WIDGET ptr, byval newPos as integer )
     cast( FormCanvas ptr, tkWidget_Parent( hSB )->pData )->PlaceSurface( )
 end sub
 
+' What the form sits on: almost black, or almost white. The form itself keeps the theme's own colour.
+public function BackdropColor( ) as ulong
+    if tkTheme_Get( ).IsDark then return tkRGB( 18, 18, 20 )
+    return tkRGB( 250, 249, 246 )
+end function
+
 private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     dim as FormCanvas ptr c = w->pData
     select case m->msg
     case TKM_PAINT
         dim as TKRECT rc
         tkRect_Set( rc, 0, 0, w->cw, w->ch )
-        m->pPaint->SetBackColor( tkTheme_Get( ).Surface )
+        m->pPaint->SetBackColor( BackdropColor( ) )
         m->pPaint->PaintRect( @rc )
         return true
     case TKM_SIZE
@@ -852,6 +860,38 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
     tkWidget_Invalidate( Glass )
 end sub
 
+' A tool double-clicked in the Toolbox: one of its default size on the form, clear of any already
+' at the same spot. Each next one steps down and right, back to the corner once it would leave the form.
+function FormCanvas.PlaceDefault( byref typeName as const ustring ) as boolean
+    dim as TKMETA_CONTROL ptr m = catalog.Find( typeName )
+    if m = 0 then return false
+    dim as long stp = edits.Snap( PLACE_STEP, iif( SnapToGrid, GridSize, 1 ) )
+    dim as long px = stp, py = stp
+    dim as boolean taken = true
+    while taken
+        taken = false
+        for k as long = 0 to Doc.Controls.Count( ) - 1
+            if (len( Doc.Controls[k].Parent ) = 0) andalso (Doc.Controls[k].X = px) andalso (Doc.Controls[k].Y = py) then taken = true
+        next
+        if taken then
+            px += stp
+            py += stp
+            if (px + m->Width_ > Doc.ClientW) orelse (py + m->Height_ > Doc.ClientH) then
+                px = stp
+                py = stp
+                exit while
+            end if
+        end if
+    wend
+    dim as long i = edits.AddControl( Doc, typeName, "", -1, px, py, m->Width_, m->Height_ )
+    if i < 0 then return false
+    Tool = ""
+    this.SelectOnly( Doc.Controls[i].Name )
+    this.Rebuild( )
+    this.Commit( )
+    return true
+end function
+
 ' A double click wires the default event: of the control under it, or of the form.
 sub FormCanvas.OnDoubleClick( byval x as long, byval y as long )
     if OnWire = 0 then exit sub
@@ -1159,7 +1199,7 @@ sub FormCanvas.Paint( byval b as TK_PAINT ptr )
     ' the form's grips, and a line around it
     dim as TKRECT sr = this.SurfaceRect( )
     b->SetPenColor( t.Border )
-    b->PaintBorderRect( @sr )
+    b->PaintRoundOutline( @sr, 0, 1 )     ' an outline: PaintBorderRect would fill the form
     PaintGrip_( b, sr.right, (sr.top + sr.bottom) \ 2, sz, t.Surface, t.Border )
     PaintGrip_( b, (sr.left + sr.right) \ 2, sr.bottom, sz, t.Surface, t.Border )
     PaintGrip_( b, sr.right, sr.bottom, sz, t.Surface, t.Border )
@@ -1172,7 +1212,7 @@ sub FormCanvas.Paint( byval b as TK_PAINT ptr )
         ' the control others line up against is the solid one
         dim as ulong fill_ = iif( k = 0, t.Accent, t.Window )
         b->SetPenColor( t.Accent )
-        b->PaintBorderRect( @rc )
+        b->PaintRoundOutline( @rc, 0, 1 )
         dim as long allowed = this.GripsOf( i )
         dim as long mx = (rc.left + rc.right) \ 2, my = (rc.top + rc.bottom) \ 2
         if (allowed and EDGE_L) andalso (allowed and EDGE_T) then PaintGrip_( b, rc.left, rc.top, sz, fill_, t.Accent )
@@ -1190,6 +1230,6 @@ sub FormCanvas.Paint( byval b as TK_PAINT ptr )
         tkRect_Set( band, iif( NowX < StartX, NowX, StartX ), iif( NowY < StartY, NowY, StartY ), _
                     iif( NowX < StartX, StartX, NowX ), iif( NowY < StartY, StartY, NowY ) )
         b->SetPenColor( t.Accent )
-        b->PaintBorderRect( @band )
+        b->PaintRoundOutline( @band, 0, 1 )
     end if
 end sub

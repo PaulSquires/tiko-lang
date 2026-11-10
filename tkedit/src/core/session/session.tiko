@@ -75,6 +75,10 @@ public type SessionState
     PropsY     as long
     PropsW     as long
     PropsH     as long
+    ToolCX     as long                 ' the docked palettes' widths, unscaled; 0 = the default
+    PropsCX    as long
+    ToolSplit  as long                 ' where each palette's own bar sits, in thousandths; 0 = the default
+    PropsSplit as long
 end type
 
 public type SessionResult as Result( of SessionState, config.ConfigError )
@@ -149,6 +153,10 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
     st.PropsY = tomlget.GetInt( des, "properties_y", 0 )
     st.PropsW = tomlget.GetInt( des, "properties_w", 0 )
     st.PropsH = tomlget.GetInt( des, "properties_h", 0 )
+    st.ToolCX = tomlget.GetInt( des, "toolbox_cx", 0 )
+    st.PropsCX = tomlget.GetInt( des, "properties_cx", 0 )
+    st.ToolSplit = tomlget.GetInt( des, "toolbox_split", 0 )
+    st.PropsSplit = tomlget.GetInt( des, "properties_split", 0 )
     dim as config.TomlValue w = tomlget.Table( root, "window" )
     st.WinX = tomlget.GetInt( w, "x", 0 )
     st.WinY = tomlget.GetInt( w, "y", 0 )
@@ -186,7 +194,8 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         if st.OutputCY > 0 then tomlget.SetInt( w, "output_height", st.OutputCY )
         root.SetKey( "window", w )
     end if
-    if st.FloatToolbox orelse st.FloatProps orelse (st.ToolW > 0) orelse (st.PropsW > 0) then
+    if st.FloatToolbox orelse st.FloatProps orelse (st.ToolW > 0) orelse (st.PropsW > 0) orelse _
+       (st.ToolCX > 0) orelse (st.PropsCX > 0) orelse (st.ToolSplit > 0) orelse (st.PropsSplit > 0) then
         dim as config.TomlValue des = config.TomlValue.NewTable( )
         tomlget.SetBool( des, "toolbox_float", st.FloatToolbox )
         tomlget.SetInt( des, "toolbox_x", st.ToolX )
@@ -198,6 +207,10 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         tomlget.SetInt( des, "properties_y", st.PropsY )
         tomlget.SetInt( des, "properties_w", st.PropsW )
         tomlget.SetInt( des, "properties_h", st.PropsH )
+        tomlget.SetInt( des, "toolbox_cx", st.ToolCX )
+        tomlget.SetInt( des, "properties_cx", st.PropsCX )
+        tomlget.SetInt( des, "toolbox_split", st.ToolSplit )
+        tomlget.SetInt( des, "properties_split", st.PropsSplit )
         root.SetKey( "designer", des )
     end if
     if st.Files.Count( ) = 0 then exit sub
