@@ -365,8 +365,8 @@ private function LaunchProgram( byref argv as const Array( of ustring ), byref w
 end function
 
 private function PickNow( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
-    dim as string filters = i18n.Tr( "dialog.filter_sources_projects", "tiko sources and projects" ) & "|tiko;ti;bas;bi;inc;tkedit|" & _
-                            i18n.Tr( "dialog.filter_sources", "tiko sources" ) & "|tiko;ti;bas;bi;inc|" & _
+    dim as string filters = i18n.Tr( "dialog.filter_sources_projects", "tiko sources and projects" ) & "|tiko;ti;bas;bi;inc;tkform;tkedit|" & _
+                            i18n.Tr( "dialog.filter_sources", "tiko sources" ) & "|tiko;ti;bas;bi;inc;tkform|" & _
                             i18n.Tr( "dialog.filter_projects", "tkEdit projects" ) & "|tkedit|TOML|toml|" & _
                             i18n.Tr( "dialog.filter_all", "All files" ) & "|*"
     dim as ustring where = suggest
