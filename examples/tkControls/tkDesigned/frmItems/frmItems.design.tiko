@@ -30,7 +30,7 @@ public partial type Form extends FormBase
     sbMain as StatusBar
     lstMain as ListTree
     cboMain as ComboBox
-    declare sub Build( byval owner as TK_FORM ptr = 0 )
+    declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub OnOpen( )
     declare sub OnRecent( )
     declare sub OnGo( )
@@ -69,7 +69,7 @@ private sub Thunk_Keys( byval h as TK_HOST ptr, byval cmd as long )
     end select
 end sub
 
-sub Form.Build( byval owner as TK_FORM ptr = 0 )
+sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     OpenWindow( tkForms_Tr( "frmItems.Caption", "Items" ), 480, 320, owner )
     if Wnd = 0 then exit sub
     tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), 480, 320 )

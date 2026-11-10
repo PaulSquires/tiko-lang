@@ -631,13 +631,13 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         if len( doc.Controls[i].CustomType ) then typeName_ = doc.Controls[i].CustomType
         o &= "    " & doc.Controls[i].Name & " as " & typeName_ & NL
     next
-    o &= "    declare sub Build( byval owner as TK_FORM ptr = 0 )" & NL
+    o &= "    declare sub Build( byval owner as TK_FORM ptr = nullptr )" & NL
     HandlerDecls_( doc, o )
     o &= "end type" & NL & NL
 
     Thunks_( doc, o )
 
-    o &= "sub Form.Build( byval owner as TK_FORM ptr = 0 )" & NL
+    o &= "sub Form.Build( byval owner as TK_FORM ptr = nullptr )" & NL
     o &= "    OpenWindow( " & TextExpr_( doc, "Caption", doc.Caption ) & ", " & doc.ClientW & ", " & doc.ClientH & ", owner )" & NL
     o &= "    if Wnd = 0 then exit sub" & NL
     o &= "    tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), " & doc.ClientW & ", " & doc.ClientH & " )" & NL

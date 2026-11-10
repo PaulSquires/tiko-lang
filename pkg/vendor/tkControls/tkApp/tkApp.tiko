@@ -481,7 +481,7 @@ end function
 ' A form, hidden. cx / cy are DIPs (scaled by the form's scale). With an owner it is a dialog
 ' surface owned by it (ShowModal it); without, a top-level window.
 public function tkApp_NewForm( byref title as ustring, byval cx as long, byval cy as long, _
-                               byval pOwner as TK_FORM ptr = 0, byval forcedScale as single = 0 ) as TK_FORM ptr
+                               byval pOwner as TK_FORM ptr = nullptr, byval forcedScale as single = 0 ) as TK_FORM ptr
     if (gInit = false) orelse (gnForms > ubound( gForms )) then return 0
     dim as TK_HOST ptr h
     if pOwner then

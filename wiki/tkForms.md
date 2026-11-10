@@ -45,7 +45,7 @@ type Form extends FormBase
     btnOK as Button
     lblInfo as Label
     Clicks as long
-    declare sub Build( byval owner as TK_FORM ptr = 0 )
+    declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub btnOK_Click( )
 end type
 
@@ -54,7 +54,7 @@ private sub Thunk_btnOK_Click( byval h as TK_WIDGET ptr, byval id as long )
     if f then f->btnOK_Click( )
 end sub
 
-sub Form.Build( byval owner as TK_FORM ptr = 0 )
+sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     OpenWindow( "Form", 400, 300, owner )              ' design units
     dim as TK_WIDGET ptr root_ = tkForm_Widget( Wnd )
     tkLayout_AddContainer( Layout, root_, 400, 300 )
@@ -114,7 +114,7 @@ type FormBase extends object
     declare constructor( )
     declare destructor( )
 
-    declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = 0 )
+    declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
     declare sub Show( )
     declare function ShowModal( ) as long
     declare sub EndModal( byval code as long )
@@ -156,7 +156,7 @@ type FormBase extends object
     Layout as TK_LAYOUT ptr
     declare constructor( )
     declare destructor( )
-    declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = 0 )
+    declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
     declare sub Show( )
     declare function ShowModal( ) as long
     declare sub EndModal( byval code as long )

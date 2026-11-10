@@ -38,7 +38,7 @@ public partial type Form extends FormBase
     lblIn as Label
     pnlOnPage as Panel
     lblDeep as Label
-    declare sub Build( byval owner as TK_FORM ptr = 0 )
+    declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub Form_Load( )
     declare sub Form_Close( byref Cancel as boolean )
     declare sub Shared_Click( )
@@ -63,7 +63,7 @@ private function Thunk_Form_Close( byval w as TK_FORM ptr ) as boolean
     return Cancel = false
 end function
 
-sub Form.Build( byval owner as TK_FORM ptr = 0 )
+sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     OpenWindow( "Say ""hi""" & chr( 10 ) & "Two", 300, 200, owner )
     if Wnd = 0 then exit sub
     tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), 300, 200 )

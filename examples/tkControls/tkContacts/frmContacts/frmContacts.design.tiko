@@ -30,7 +30,7 @@ public partial type Form extends FormBase
     txtName as TextBox
     btnAdd as Button
     lstPeople as ListTree
-    declare sub Build( byval owner as TK_FORM ptr = 0 )
+    declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub btnAdd_Click( )
     declare sub Clear_Click( )
     declare sub Exit_Click( )
@@ -66,7 +66,7 @@ private sub Thunk_Keys( byval h as TK_HOST ptr, byval cmd as long )
     end select
 end sub
 
-sub Form.Build( byval owner as TK_FORM ptr = 0 )
+sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     OpenWindow( "Contacts", 520, 360, owner )
     if Wnd = 0 then exit sub
     tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), 520, 360 )

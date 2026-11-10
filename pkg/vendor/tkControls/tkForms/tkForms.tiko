@@ -69,7 +69,7 @@ public type FormBase extends object
     declare destructor( )
 
     ' Creates the window, hidden. cx and cy are design units. owner = 0 makes a top-level window.
-    declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = 0 )
+    declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
     declare sub Show( )
     ' Runs until the form is closed. The window is then hidden, not destroyed: controls can still
     ' be read, and the form can be shown again.
@@ -91,7 +91,7 @@ destructor FormBase( )
     if Wnd then tkForm_Destroy( Wnd )
 end destructor
 
-sub FormBase.OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = 0 )
+sub FormBase.OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
     if Wnd then exit sub
     dim as ustring t = title
     Wnd = tkApp_NewForm( t, cx, cy, owner )

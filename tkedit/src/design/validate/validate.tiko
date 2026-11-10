@@ -61,6 +61,8 @@ end function
 private function NameFault_( byref s as const ustring ) as ustring
     if IsIdentifier( s ) = false then return "is not an identifier"
     if IsReserved( s ) then return "is a reserved word"
+    ' Not a keyword: a field by this name would hide the prelude constant the generated Build uses.
+    if lcase( s ) = "nullptr" then return "is tiko's null pointer constant"
     if IsFormMember_( s ) then return "is already a member of every form"
     if IsControlWord_( s ) then return "is the name of a control type or module"
     return ""
