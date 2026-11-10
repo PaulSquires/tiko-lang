@@ -1273,7 +1273,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
             n = ParseAmbiguous( p )
         elseif Tko.IsStatementIntrinsic( k ) then
             dim as int32 intrTok0 = p.pos
-            n = ParseIntrinsic( p )
+            n = IntrinsicOrCall( p )
             '' THE TOKENS ARE KEPT so Resolve can read the statement again as a CALL. A
             '' statement keyword is not reserved from procedure names: fbc accepts
             '' 'private sub Line( byref e as EmitCtx, byref t as string )' inside a

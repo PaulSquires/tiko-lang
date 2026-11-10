@@ -216,6 +216,10 @@ declare function GetPutHasComma( byref p as Tko.ParserState ) as boolean
 '' Defined in parserend.tiko: is nm in procNames (member: memberProcNames)?
 declare function KnownProc_( byref p as Tko.ParserState, byval member as boolean, byval nm as uint32 ) as boolean
 declare function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
+'' Defined in intrinsics.tiko -- see there.
+declare function IntrinsicOrCall( byref p as Tko.ParserState ) as Tko.NodeId
+declare function KeepIntrinsicTokens _
+    ( byref p as Tko.ParserState, byval n as Tko.NodeId, byval tok0 as int32 ) as Tko.NodeId
 
 '' Defined in decl.tiko: an ANONYMOUS procedure used as a value --
 ''   dim as function( byref as T, byref as T ) as boolean less = _

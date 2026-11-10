@@ -199,6 +199,7 @@ declare sub CheckCopyStructor_ _
     ( byref c as Ctx, byval udt as TypeId, byval here as TypeId, _
       byval at as SourceLoc, byval vnm as InternId )
 declare sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckStmtCallArgs_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
 declare sub CheckFixLenParams_( byref c as Ctx )
 declare sub CheckImplicitStructors_( byref c as Ctx )

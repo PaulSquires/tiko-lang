@@ -270,7 +270,7 @@ sub ReportUndeclared _
         if isReserved then continue for
         dim as string nm = IdentSpelled_( ast, names, id )
         if len( nm ) = 0 then continue for
-        if IsTypedIntrinsicName( nm ) orelse BuiltinProcName_( nm ) then continue for
+        if ((ast.Flags( id ) and Tko.NF_KW_CALLEE) = 0) andalso (IsTypedIntrinsicName( nm ) orelse BuiltinProcName_( nm )) then continue for
         '' ...BUT ONLY A RUNTIME PROCEDURE THAT EXISTS. Every fb_ name was let through, so
         '' 'u = fb_StrRemove( u, "_" )' -- the ALIAS of fb/string.bi's FB.Remove, not a
         '' name anything declares -- bound nothing, and lowering declined the statement
