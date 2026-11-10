@@ -954,9 +954,8 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
             end if
         end select
 
-        '' 'color( )' IS 'color', measured: fb_Color( 0, 0, 3 ) for both. The cva statements have
-        '' their own report for a wrong count (TKO0988, semcva.tiko), so they get no operands here.
-        '' Every other generic intrinsic refuses the empty parentheses: '( )' reports itself in Primary.
+        '' 'color( )' IS 'color', measured: fb_Color( 0, 0, 3 ) for both, and the cva statements report
+        '' a wrong count themselves (TKO0988). For the rest '( )' reports itself in Primary.
         dim as boolean emptyOk = (k = Tko.KW_COLOR) orelse (k = Tko.KW_CVA_START) orelse (k = Tko.KW_CVA_END) orelse (k = Tko.KW_CVA_COPY)
         if emptyOk andalso (Peek( p ) = Tko.TK_LPAREN) andalso NextIsRParen_( p ) then
             Advance( p ) : Advance( p )
