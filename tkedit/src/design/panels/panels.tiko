@@ -928,7 +928,8 @@ sub DesignPanels.BuildRows( )
                     common_ = false
                 end if
             next
-            if common_ then this.AddPropRow( @m0->Props( p ) )
+            ' a colour the Colors dialog edits stays out (THEMES.md TD8); old forms still apply it
+            if common_ andalso m0->Props( p ).bInspector then this.AddPropRow( @m0->Props( p ) )
         next
         if n = 1 then
             for e as long = 0 to m0->NumEvents - 1
