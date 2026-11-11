@@ -33,6 +33,22 @@
 '' and the conversions (ToInstant gives Instant.Invalid). Asking an Invalid one
 '' for a field, or making one from an Invalid instant or zone, is runtime error 1.
 
+'' When text carries BOTH an offset and a zone and they disagree for that wall
+'' reading -- the zone's rules changed after it was written, or it is wrong --
+'' what TryParseIso does (Temporal's "offset" option):
+''     opReject   refuse it (the default)
+''     opUse      the offset decides the instant; the zone gives its reading
+''     opPrefer   the offset when the zone allows it there, else the wall reading
+''     opIgnore   the wall reading, resolved in the zone
+'' A "Z" names the instant whatever the policy: RFC 9557 reads it as "the
+'' instant is known, the local offset is not".
+public enum OffsetPolicy
+    opReject
+    opUse
+    opPrefer
+    opIgnore
+end enum
+
 public type ZonedDateTime
     declare static function FromInstant( byref i as chrono.Instant, byref z as TimeZone ) as ZonedDateTime
     '' False when the policy refuses the reading or it is out of range.
@@ -87,6 +103,40 @@ public type ZonedDateTime
     '' By instant: -1, 0, 1. Two values naming one instant in two zones compare 0
     '' but are not equal (=), which also asks for the same zone.
     declare function CompareTo( byref o as ZonedDateTime ) as long
+
+    '' TEXT (RFC 9557). "2025-03-04T14:30:00+01:00[Europe/Paris]": chrono's ISO
+    '' reading, the offset -- with seconds only when they are not zero, as
+    '' +00:19:32 -- and the zone id in brackets. A zone with no id (Local on a
+    '' machine whose IANA id is unknown) writes no brackets, and that text does not
+    '' parse back as a ZonedDateTime.
+    declare function ToIsoString( ) as ustring
+    declare function ToString   ( ) as ustring           '' ToIsoString
+    '' std/chrono's patterns plus VV (the zone id) and v (the abbreviation then).
+    '' The fields are the wall reading; z, zz, zzz and K are the offset rounded to
+    '' whole minutes, as in ToDateTime.
+    declare function TryFormat( byref pattern as const ustring, byref result as ustring ) as boolean
+    declare function ToString ( byref pattern as const ustring ) as ustring    '' runtime error 1 on a bad pattern
+
+    '' A zone annotation is required: "2025-03-04T14:30[Europe/Paris]", with an
+    '' offset or "Z" optional before it, and "[+05:30]" for a fixed zone. A date
+    '' alone is the start of that day. "[!...]" (critical) is accepted for the
+    '' zone; any other annotation is ignored unless critical, and "u-ca" may only
+    '' be gregory or iso8601. OFFSETS says what to do when offset and zone
+    '' disagree; POLICY resolves a wall reading that names two instants or none.
+    declare static function TryParseIso( byref s as const ustring, byref result as ZonedDateTime, _
+                                         byval offsets as OffsetPolicy = opReject, _
+                                         byval policy as Disambiguation = dzCompatible ) as boolean
+    declare static function ParseIso   ( byref s as const ustring, byval offsets as OffsetPolicy = opReject, _
+                                         byval policy as Disambiguation = dzCompatible ) as ZonedDateTime
+    '' A pattern that ENDS in VV, with no v: the zone id is matched at the end of
+    '' the text and the rest parsed with std/chrono's TryParseExact.
+    declare static function TryParseExact( byref s as const ustring, byref pattern as const ustring, _
+                                           byref result as ZonedDateTime, _
+                                           byval offsets as OffsetPolicy = opReject, _
+                                           byval policy as Disambiguation = dzCompatible ) as boolean
+    declare static function ParseExact   ( byref s as const ustring, byref pattern as const ustring, _
+                                           byval offsets as OffsetPolicy = opReject, _
+                                           byval policy as Disambiguation = dzCompatible ) as ZonedDateTime
 
 private:
     as longint m_ticks              '' the UTC instant
