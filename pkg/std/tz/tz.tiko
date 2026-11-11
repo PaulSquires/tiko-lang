@@ -75,6 +75,10 @@ public type TzRules
     declare function OffsetSecondsAt( byval t as longint ) as long
     declare function IsDstAt        ( byval t as longint ) as boolean
     declare function AbbreviationAt ( byval t as longint ) as ustring
+    '' The standard offset in force at t: the offset itself outside daylight
+    '' time; inside it, the offset of the nearest standard-time stretch -- the
+    '' one before, else the one after. Past the table, the footer's.
+    declare function StandardOffsetSecondsAt( byval t as longint ) as long
 
     '' Transitions are CHANGES OF OFFSET: an entry that changes only the
     '' abbreviation or the DST flag is not one, because nothing on the clock
@@ -232,6 +236,29 @@ function TzRules.AbbreviationAt( byval t as longint ) as ustring
     if k = -1 then return this.m_footer.stdAbbr
     if k = -2 then return this.m_footer.dstAbbr
     return this.m_types( k ).abbr
+end function
+
+function TzRules.StandardOffsetSecondsAt( byval t as longint ) as long
+    if this.m_valid = false then return 0
+    dim as long k = this.TypeAt_( t )
+    if k < 0 then return this.m_footer.stdOff
+    if this.m_types( k ).isDst = false then return this.m_types( k ).offset
+    '' the last transition at or before t; -1 when t is before them all
+    dim as long n = ubound( this.m_trans ) + 1
+    dim as long lo = -1, hi = n - 1
+    while lo < hi
+        dim as long md = ( lo + hi + 1 ) \ 2
+        if this.m_trans( md ) <= t then lo = md else hi = md - 1
+    wend
+    for i as long = lo to 0 step -1
+        if this.m_types( this.m_idx( i ) ).isDst = false then return this.m_types( this.m_idx( i ) ).offset
+    next
+    if this.m_types( 0 ).isDst = false then return this.m_types( 0 ).offset
+    for i as long = lo + 1 to n - 1
+        if this.m_types( this.m_idx( i ) ).isDst = false then return this.m_types( this.m_idx( i ) ).offset
+    next
+    if this.m_hasFooter then return this.m_footer.stdOff
+    return this.m_types( k ).offset
 end function
 
 function tzChangesAt( byref r as TzRules, byval c as longint ) as boolean

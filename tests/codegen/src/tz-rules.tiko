@@ -1,6 +1,7 @@
 '' std/tz phase Z1: the TZif reader and POSIX TZ rules. Prints "ok", or the first
 '' failed check. Reads the fixtures in tests/codegen/tzdata -- tzdata 2026e, copied
-'' unchanged from a Linux /usr/share/zoneinfo -- so every value is exact.
+'' unchanged from a Linux /usr/share/zoneinfo, laid out as one -- and the slim files in
+'' tests/codegen/tzdata-slim, so every value is exact.
 ''   1. anchors: one per hard case (half-hour zones, 30-minute DST, a skipped day,
 ''      negative DST, a Ramadan suspension, +14, sub-minute LMT, a midnight gap,
 ''      the footer past the table, both ends of the range)
@@ -60,11 +61,7 @@ function zoneIds( byval i as long ) as string
 end function
 
 function fileOf( byref id as string ) as string
-    dim as string f = id
-    for i as long = 0 to len( f ) - 1
-        if f[i] = 47 then f[i] = 95
-    next
-    return DIR_ & f
+    return DIR_ & id
 end function
 
 function load( byref id as string ) as TzRules
@@ -297,8 +294,7 @@ for z as long = 0 to 4
     case else : id = "Pacific/Apia"
     end select
     dim as TzRules fat = load( id ), slim
-    dim as string sf = fileOf( id )
-    sf = left( sf, len( DIR_ ) ) & "slim_" & mid( sf, len( DIR_ ) + 1 )
+    dim as string sf = "tests/codegen/tzdata-slim/" & id
     check( TzRules.TryParse( readFile( sf ), slim ), "slim parse " & id )
     check( slim.TransitionCount < fat.TransitionCount, "slim is slim: " & id )
     check( slim.PosixRule = fat.PosixRule, "slim footer " & id )
