@@ -27,6 +27,7 @@
 #import "tkd/codegen"
 #import "tkd/reconcile"
 #import "tkd/itemsdlg"
+#import "tkd/themefile"
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkLayout"
@@ -385,18 +386,62 @@ private function GuiManifest_( byref pkg as const ustring ) as ustring
     return strings.Replace( project.NewManifestText( pkg, pkg, "main.tiko" ), "# subsystem = 'console'", "subsystem = 'gui'     " )
 end function
 
-' The main that shows one form.
+' The main that shows one form, in the project's theme (appTheme: its fonts before Init, the rest after).
 private function FormMain_( byref pkg as const ustring, byref formName as const ustring ) as ustring
     dim as ustring nl = wchr( 10 )
     return "' " & pkg & ": starts the program and shows its first form." & nl _
         & "#import ""vendor/tkControls/tkApp""" & nl _
+        & "#import ""./appTheme""" & nl _
         & "#import ""./" & formName & """" & nl _
         & "using tkApp" & nl & nl _
         & "dim as TKAPP_OPTIONS options" & nl _
+        & "appTheme.ApplyOptions( options )" & nl _
         & "if tkApp_Init( options ) = false then end 1" & nl _
+        & "appTheme.Install( )" & nl _
         & "dim as " & formName & ".Form mainForm" & nl _
         & "mainForm.Build( )" & nl _
         & "end tkApp_Run( mainForm.Wnd )" & nl
+end function
+
+' The project's theme: appTheme/appTheme.tktheme, the presets named "Default", and its module.
+private function CreateThemeFiles_( byref dir_ as const ustring ) as boolean
+    dim as ustring folder = fs.PathJoin( dir_, "appTheme" )
+    dim as ustring path = fs.PathJoin( folder, "appTheme.tktheme" )
+    if fs.IsFile( path ) then return true
+    fs.CreateDirAll( folder )
+    dim as ustring text = themefile.DefaultText( "Default" )
+    dim as themefile.ThemeDoc doc
+    dim as ustring e
+    if themefile.Parse( text, doc, e ) = false then return false
+    if WriteNew_( path, text ) = false then return false
+    return WriteNew_( fs.PathJoin( folder, "appTheme.design.tiko" ), themefile.Generate( doc, "appTheme", "appTheme.tktheme", text ) )
+end function
+
+' appTheme.design.tiko (or any X.design.tiko) from a .tktheme's text. False, with a message, when the
+' theme has a problem.
+function Window.WriteThemeGenerated( byref path as const ustring, byref text as const ustring ) as boolean
+    dim as themefile.ThemeDoc doc
+    dim as ustring e
+    dim as Array( of ustring ) problems
+    if themefile.Parse( text, doc, e ) = false then
+        problems.Push( e )
+    else
+        themefile.Check( doc, problems )
+    end if
+    if problems.Count( ) then
+        this.SetMessage( fs.PathFileName( path ) & ": " & problems[0] )
+        return false
+    end if
+    dim as ustring generated = themefile.Generate( doc, fs.PathStem( path ), fs.PathFileName( path ), text )
+    dim as ustring target = left( path, instrrev( path, "." ) - 1 ) & ".design.tiko", none
+    if fs.IsFile( target ) then
+        if codegen.WithoutCr( fs.ReadAllText( target ).ValueOr( none ) ) = generated then return true
+    end if
+    if fs.WriteAtomic( target, generated ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( target ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    return true
 end function
 
 ' A project around a form that has none: tiko.toml and a main beside the form's folder, because that
@@ -416,7 +461,8 @@ function Window.NewProjectForForm( byref formPath as const ustring ) as boolean
             return false
         end if
         dim as ustring pkg = PackageName_( fs.PathFileName( dir_ ) )
-        if (WriteNew_( manifest, GuiManifest_( pkg ) ) = false) orelse (WriteNew_( mainPath, FormMain_( pkg, formName ) ) = false) then
+        if (WriteNew_( manifest, GuiManifest_( pkg ) ) = false) orelse (WriteNew_( mainPath, FormMain_( pkg, formName ) ) = false) _
+           orelse (CreateThemeFiles_( dir_ ) = false) then
             this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
             return false
         end if
@@ -466,6 +512,7 @@ function Window.NewFormProject( byref folder as const ustring ) as boolean
     dim as ustring pkg = fs.PathFileName( dir_ )
     dim as boolean ok = WriteNew_( manifest, GuiManifest_( pkg ) )
     ok = ok andalso WriteNew_( fs.PathJoin( dir_, "main.tiko" ), FormMain_( pkg, "frmMain" ) )
+    ok = ok andalso CreateThemeFiles_( dir_ )
     dim as ustring formPath = CreateFormFiles_( dir_, "frmMain" )
     if (ok = false) orelse (len( formPath ) = 0) then
         this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
@@ -558,6 +605,13 @@ function Window.PrepareForms( ) as boolean
             if Prefs.SaveBeforeBuild andalso d->IsModified( ) then
                 if this.SaveDoc( d, false ) = false then ok = false
             elseif this.WriteGenerated( d ) = false then
+                ok = false
+            end if
+        elseif lcase( right( d->Path, 8 ) ) = ".tktheme" then
+            ' an open theme: saved first when the user wants that (AfterSave generates), else generated
+            if Prefs.SaveBeforeBuild andalso d->IsModified( ) then
+                if this.SaveDoc( d, false ) = false then ok = false
+            elseif this.WriteThemeGenerated( d->Path, d->Text( ) ) = false then
                 ok = false
             end if
         end if

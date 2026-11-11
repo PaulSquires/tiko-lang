@@ -1,0 +1,575 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' themefile -- the .tktheme file (docs/tkDesigner/THEMES.md): TOML in, one canonical text out, and
+' the generated module that installs it in a program. Colours are colorval's spellings.
+'
+'   format = 1
+'   name = "Ocean"
+'   accent = "#1E88E5"            quick theme: both variants derived from the presets + this
+'   [dark] / [light]              accent = a variant's own; Role = "#RRGGBB[AA]" overrides one role;
+'                                 [dark.editor], [dark.syntax] ... are tkEdit's, kept as found
+'   [fonts]                       ui = { file, bold, size }, glyph = { file }, mono = { file }
+'   [shape]                       CornerRadius, BorderWidth (-1 = each control's own)
+'   [controls.Button]             Field = colour: every Button
+'   [styles.Primary]              Role = colour: a role remap any control can wear by name
+'   [styles.Primary.Button]       Field = colour: Buttons wearing Primary
+#module "themefile"
+
+#import "std/config"
+#import "std/containers"
+#import "vendor/tkControls/tkMeta"
+#import "../model"
+#import "../catalog"
+#import "../colorval"
+#import "../validate"
+#import "../codegen"
+using containers
+using tkMeta
+using tkTheme
+using model
+
+public const as long THEME_FORMAT = 1
+const as string NL = chr( 10 )
+
+' Fields of one control type: [controls.Button], or [styles.X.Button].
+public type ThemeTypeBlock
+    TypeName as ustring
+    Fields as Array( of Setting )
+end type
+
+public type ThemeStyle
+    Name as ustring
+    Roles as Array( of Setting )
+    Types as Array( of ThemeTypeBlock )
+end type
+
+' A table the designer doesn't read ([dark.editor]): its lines as TOML text, kept for tkEdit.
+public type ThemeRaw
+    Table as ustring
+    Lines as Array( of Setting )       ' Key = key, Value = the value's TOML text
+end type
+
+public type ThemeVariant
+    Accent as ustring                  ' "" = the file's
+    Roles as Array( of Setting )       ' Role = "#RRGGBB[AA]"
+    Extra as Array( of ThemeRaw )
+end type
+
+public type ThemeDoc
+    Name as ustring
+    Accent as ustring
+    Dark as ThemeVariant
+    Light as ThemeVariant
+    UIFile as ustring
+    UIBold as ustring
+    UISize as long                     ' 0 = tkApp's
+    GlyphFile as ustring
+    MonoFile as ustring
+    CornerRadius as long = -1
+    BorderWidth as long = -1
+    Controls as Array( of ThemeTypeBlock )
+    Styles as Array( of ThemeStyle )
+    Problems as Array( of ustring )
+end type
+
+' ---- reading ------------------------------------------------------------------------------------
+
+private function Str_( byref t as config.TomlValue ) as ustring
+    dim as ustring none = ""
+    return t.AsString( ).ValueOr( none )
+end function
+
+private function StrOf_( byref t as config.TomlValue, byref k as const ustring ) as ustring
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return ""
+    return Str_( *p )
+end function
+
+private function IntOf_( byref t as config.TomlValue, byref k as const ustring, byval dflt as long ) as long
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return dflt
+    dim as longint d = dflt
+    return clng( p->AsInt( ).ValueOr( d ) )
+end function
+
+private function IsTable_( byref t as config.TomlValue ) as boolean
+    return t.Kind( ) = config.TOML_TABLE
+end function
+
+private sub OnlyKeys_( byref t as config.TomlValue, byref allowed as const ustring, byref where as const ustring, byref doc as ThemeDoc )
+    for i as long = 0 to t.Count( ) - 1
+        dim as ustring k = t.KeyAt( i )
+        if instr( " " & allowed & " ", " " & k & " " ) = 0 then doc.Problems.Push( where & ": unknown key '" & k & "'" )
+    next
+end sub
+
+' Always the basic string form, as formfile writes it.
+private function Quote_( byref s as const ustring ) as ustring
+    dim as ustring o = """"
+    for i as long = 1 to len( s )
+        dim as ustring ch = mid( s, i, 1 )
+        select case asc( ch )
+        case 34 : o &= "\"""
+        case 92 : o &= "\\"
+        case 9  : o &= "\t"
+        case 10 : o &= "\n"
+        case 13 : o &= "\r"
+        case 0 to 31, 127 : o &= "\u" & hex( asc( ch ), 4 )
+        case else : o &= ch
+        end select
+    next
+    return o & """"
+end function
+
+' Any TOML value as canonical text: tkEdit's own tables go back out as they came in.
+private function RawText_( byref v as config.TomlValue ) as ustring
+    dim as boolean nb = false
+    dim as longint ni = 0
+    dim as double nf = 0
+    select case v.Kind( )
+    case config.TOML_STRING : return Quote_( Str_( v ) )
+    case config.TOML_BOOL   : return iif( v.AsBool( ).ValueOr( nb ), "true", "false" )
+    case config.TOML_INT    : return str( v.AsInt( ).ValueOr( ni ) )
+    case config.TOML_FLOAT
+        dim as ustring f = str( v.AsFloat( ).ValueOr( nf ) )
+        if (instr( f, "." ) = 0) andalso (instr( lcase( f ), "e" ) = 0) then f &= ".0"
+        return f
+    case config.TOML_TABLE
+        dim as ustring o = "{ "
+        for i as long = 0 to v.Count( ) - 1
+            if i then o &= ", "
+            o &= v.KeyAt( i ) & " = " & RawText_( v.Item( i ) )
+        next
+        return o & " }"
+    case else
+        dim as ustring o = "["
+        for i as long = 0 to v.Count( ) - 1
+            if i then o &= ", "
+            o &= RawText_( v.Item( i ) )
+        next
+        return o & "]"
+    end select
+end function
+
+' A colour value: a string, or { dark, light }. "" (and a problem) when it isn't one.
+private function ColorOf_( byref v as config.TomlValue, byref where as const ustring, byval allowRole as boolean, _
+                           byval allowPair as boolean, byref doc as ThemeDoc ) as ustring
+    dim as ustring raw
+    if IsTable_( v ) then
+        OnlyKeys_( v, "dark light", where, doc )
+        raw = StrOf_( v, "dark" ) & "|" & StrOf_( v, "light" )
+    elseif v.Kind( ) = config.TOML_STRING then
+        raw = Str_( v )
+    else
+        doc.Problems.Push( where & ": not a colour" )
+        return ""
+    end if
+    dim as ustring c = colorval.Canonical( raw, allowRole, allowPair )
+    if len( c ) = 0 then doc.Problems.Push( where & ": " & colorval.Explain( raw ) )
+    return c
+end function
+
+private sub ReadFields_( byref t as config.TomlValue, byref b as ThemeTypeBlock, byref where as const ustring, byref doc as ThemeDoc )
+    for i as long = 0 to t.Count( ) - 1
+        dim as ustring c = ColorOf_( t.Item( i ), where & "." & t.KeyAt( i ), true, true, doc )
+        if len( c ) then PutSetting( b.Fields, t.KeyAt( i ), c )
+    next
+end sub
+
+private sub ReadVariant_( byref t as config.TomlValue, byref v as ThemeVariant, byref where as const ustring, byref doc as ThemeDoc )
+    for i as long = 0 to t.Count( ) - 1
+        dim as ustring k = t.KeyAt( i )
+        dim byref as config.TomlValue x = t.Item( i )
+        if k = "accent" then
+            v.Accent = ColorOf_( x, where & ".accent", false, false, doc )
+        elseif IsTable_( x ) then
+            dim as ThemeRaw r
+            r.Table = k
+            for j as long = 0 to x.Count( ) - 1
+                PutSetting( r.Lines, x.KeyAt( j ), RawText_( x.Item( j ) ) )
+            next
+            v.Extra.Push( r )
+        elseif tkTheme_RoleByName( k ) < 0 then
+            doc.Problems.Push( where & ": '" & k & "' is not a theme role" )
+        else
+            dim as ustring c = ColorOf_( x, where & "." & k, false, false, doc )
+            ' Window is always opaque: a see-through form needs a transparent OS window
+            if (k = "Window") andalso (len( c ) = 9) then c = left( c, 7 )
+            if len( c ) then PutSetting( v.Roles, k, c )
+        end if
+    next
+end sub
+
+' False when the text isn't TOML or is a newer format; errText says why. Content faults go to Problems.
+public function Parse( byref text as const ustring, byref doc as ThemeDoc, byref errText as ustring ) as boolean
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then
+        errText = r.Failure( ).Message( )
+        return false
+    end if
+    dim as config.TomlValue root = r.Value( )
+    dim as long fmt = IntOf_( root, "format", 0 )
+    if fmt <> THEME_FORMAT then
+        errText = "format " & fmt & " is not one this version reads (expected " & THEME_FORMAT & ")"
+        return false
+    end if
+    OnlyKeys_( root, "format name accent dark light fonts shape controls styles", "file", doc )
+    doc.Name = StrOf_( root, "name" )
+    dim as config.TomlValue ptr p = root.Find( "accent" )
+    if p then doc.Accent = ColorOf_( *p, "accent", false, false, doc )
+    p = root.Find( "dark" )
+    if p then ReadVariant_( *p, doc.Dark, "dark", doc )
+    p = root.Find( "light" )
+    if p then ReadVariant_( *p, doc.Light, "light", doc )
+    p = root.Find( "fonts" )
+    if p then
+        OnlyKeys_( *p, "ui glyph mono", "fonts", doc )
+        dim as config.TomlValue ptr f = p->Find( "ui" )
+        if f then
+            OnlyKeys_( *f, "file bold size", "fonts.ui", doc )
+            doc.UIFile = StrOf_( *f, "file" )
+            doc.UIBold = StrOf_( *f, "bold" )
+            doc.UISize = IntOf_( *f, "size", 0 )
+        end if
+        f = p->Find( "glyph" )
+        if f then
+            OnlyKeys_( *f, "file", "fonts.glyph", doc )
+            doc.GlyphFile = StrOf_( *f, "file" )
+        end if
+        f = p->Find( "mono" )
+        if f then
+            OnlyKeys_( *f, "file", "fonts.mono", doc )
+            doc.MonoFile = StrOf_( *f, "file" )
+        end if
+    end if
+    p = root.Find( "shape" )
+    if p then
+        OnlyKeys_( *p, "CornerRadius BorderWidth", "shape", doc )
+        doc.CornerRadius = IntOf_( *p, "CornerRadius", -1 )
+        doc.BorderWidth = IntOf_( *p, "BorderWidth", -1 )
+    end if
+    p = root.Find( "controls" )
+    if p then
+        for i as long = 0 to p->Count( ) - 1
+            dim as ThemeTypeBlock b
+            b.TypeName = p->KeyAt( i )
+            if IsTable_( p->Item( i ) ) = false then
+                doc.Problems.Push( "controls." & b.TypeName & ": not a table" )
+                continue for
+            end if
+            ReadFields_( p->Item( i ), b, "controls." & b.TypeName, doc )
+            doc.Controls.Push( b )
+        next
+    end if
+    p = root.Find( "styles" )
+    if p then
+        for i as long = 0 to p->Count( ) - 1
+            dim as ThemeStyle st
+            st.Name = p->KeyAt( i )
+            dim byref as config.TomlValue body = p->Item( i )
+            if IsTable_( body ) = false then
+                doc.Problems.Push( "styles." & st.Name & ": not a table" )
+                continue for
+            end if
+            for j as long = 0 to body.Count( ) - 1
+                dim as ustring k = body.KeyAt( j )
+                dim as ustring where = "styles." & st.Name & "." & k
+                if tkTheme_RoleByName( k ) >= 0 then
+                    dim as ustring c = ColorOf_( body.Item( j ), where, true, true, doc )
+                    if len( c ) then PutSetting( st.Roles, k, c )
+                elseif IsTable_( body.Item( j ) ) then
+                    dim as ThemeTypeBlock b
+                    b.TypeName = k
+                    ReadFields_( body.Item( j ), b, where, doc )
+                    st.Types.Push( b )
+                else
+                    doc.Problems.Push( where & ": '" & k & "' is not a theme role" )
+                end if
+            next
+            doc.Styles.Push( st )
+        next
+    end if
+    return true
+end function
+
+' ---- checking ------------------------------------------------------------------------------------
+
+private sub CheckBlock_( byref b as ThemeTypeBlock, byref where as const ustring, byref out_ as Array( of ustring ) )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( b.TypeName )
+    if (m = 0) orelse (m->NumColorSlots = 0) then
+        out_.Push( where & ": '" & b.TypeName & "' is not a control with theme colours" )
+        exit sub
+    end if
+    for each s as Setting in b.Fields
+        if tkMeta_ColorSlot( m, s.Key ) < 0 then out_.Push( where & ": " & b.TypeName & " has no colour '" & s.Key & "'" )
+    next
+end sub
+
+' Everything a program would build wrong from: reading problems first, then names and types.
+public sub Check( byref doc as ThemeDoc, byref out_ as Array( of ustring ) )
+    for each s as ustring in doc.Problems
+        out_.Push( s )
+    next
+    if len( trim( doc.Name ) ) = 0 then out_.Push( "the theme has no name" )
+    if doc.UISize < 0 then out_.Push( "fonts.ui: size can't be negative" )
+    if doc.CornerRadius < -1 then out_.Push( "shape: CornerRadius is -1 (the control's own) or more" )
+    if doc.BorderWidth < -1 then out_.Push( "shape: BorderWidth is -1 (the control's own) or more" )
+    for each b as ThemeTypeBlock in doc.Controls
+        CheckBlock_( b, "controls." & b.TypeName, out_ )
+    next
+    for i as long = 0 to doc.Styles.Count( ) - 1
+        dim as ustring nm = doc.Styles[i].Name
+        if (validate.IsIdentifier( nm ) = false) orelse (len( nm ) > 31) then out_.Push( "styles: '" & nm & "' is not a style name" )
+        for j as long = 0 to i - 1
+            if lcase( doc.Styles[j].Name ) = lcase( nm ) then out_.Push( "styles: '" & nm & "' is there twice" )
+        next
+        for each b as ThemeTypeBlock in doc.Styles[i].Types
+            CheckBlock_( b, "styles." & nm & "." & b.TypeName, out_ )
+        next
+    next
+end sub
+
+' ---- writing ------------------------------------------------------------------------------------
+
+private function ColorLine_( byref s as Setting ) as ustring
+    dim as long bar = instr( s.Value, "|" )
+    if bar then return s.Key & " = { dark = " & Quote_( left( s.Value, bar - 1 ) ) & ", light = " & Quote_( mid( s.Value, bar + 1 ) ) & " }" & NL
+    return s.Key & " = " & Quote_( s.Value ) & NL
+end function
+
+' Roles in the theme's order.
+private sub RoleLines_( byref o as ustring, byref roles as Array( of Setting ) )
+    for r as long = 0 to TKROLE_COUNT - 1
+        dim as long i = FindSetting( roles, tkTheme_RoleName( r ) )
+        if i >= 0 then o &= ColorLine_( roles[i] )
+    next
+end sub
+
+' Fields in the struct's order.
+private sub FieldLines_( byref o as ustring, byref b as ThemeTypeBlock )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( b.TypeName )
+    if m = 0 then
+        for each s as Setting in b.Fields
+            o &= ColorLine_( s )
+        next
+        exit sub
+    end if
+    for slot as long = 0 to m->NumColorSlots - 1
+        dim as long i = FindSetting( b.Fields, m->Colors( slot ).Name )
+        if i >= 0 then o &= ColorLine_( b.Fields[i] )
+    next
+end sub
+
+private sub VariantText_( byref o as ustring, byref v as ThemeVariant, byref nm as const ustring )
+    o &= NL & "[" & nm & "]" & NL
+    if len( v.Accent ) then o &= "accent = " & Quote_( v.Accent ) & NL
+    RoleLines_( o, v.Roles )
+    for each r as ThemeRaw in v.Extra
+        o &= NL & "[" & nm & "." & r.Table & "]" & NL
+        for each s as Setting in r.Lines
+            o &= s.Key & " = " & s.Value & NL
+        next
+    next
+end sub
+
+' The one canonical text of this theme.
+public function Render( byref doc as ThemeDoc ) as ustring
+    dim as ustring o = "format = " & THEME_FORMAT & NL
+    o &= "name = " & Quote_( doc.Name ) & NL
+    if len( doc.Accent ) then o &= "accent = " & Quote_( doc.Accent ) & NL
+    VariantText_( o, doc.Dark, "dark" )
+    VariantText_( o, doc.Light, "light" )
+    if len( doc.UIFile ) orelse len( doc.UIBold ) orelse doc.UISize orelse len( doc.GlyphFile ) orelse len( doc.MonoFile ) then
+        o &= NL & "[fonts]" & NL
+        if len( doc.UIFile ) orelse len( doc.UIBold ) orelse doc.UISize then
+            dim as ustring parts
+            if len( doc.UIFile ) then parts &= ", file = " & Quote_( doc.UIFile )
+            if len( doc.UIBold ) then parts &= ", bold = " & Quote_( doc.UIBold )
+            if doc.UISize then parts &= ", size = " & doc.UISize
+            o &= "ui = { " & mid( parts, 3 ) & " }" & NL
+        end if
+        if len( doc.GlyphFile ) then o &= "glyph = { file = " & Quote_( doc.GlyphFile ) & " }" & NL
+        if len( doc.MonoFile ) then o &= "mono = { file = " & Quote_( doc.MonoFile ) & " }" & NL
+    end if
+    if (doc.CornerRadius <> -1) orelse (doc.BorderWidth <> -1) then
+        o &= NL & "[shape]" & NL
+        if doc.CornerRadius <> -1 then o &= "CornerRadius = " & doc.CornerRadius & NL
+        if doc.BorderWidth <> -1 then o &= "BorderWidth = " & doc.BorderWidth & NL
+    end if
+    ' types in the toolbox's order, so the file reads like the toolbox
+    for t as long = 0 to tkMeta_Count( ) - 1
+        dim as ustring tn = tkMeta_At( t )->Name
+        for each b as ThemeTypeBlock in doc.Controls
+            if b.TypeName = tn then
+                o &= NL & "[controls." & b.TypeName & "]" & NL
+                FieldLines_( o, b )
+            end if
+        next
+    next
+    for each b as ThemeTypeBlock in doc.Controls
+        if catalog.Find( b.TypeName ) = 0 then
+            o &= NL & "[controls." & b.TypeName & "]" & NL
+            FieldLines_( o, b )
+        end if
+    next
+    for each st as ThemeStyle in doc.Styles
+        o &= NL & "[styles." & st.Name & "]" & NL
+        RoleLines_( o, st.Roles )
+        for each b as ThemeTypeBlock in st.Types
+            o &= NL & "[styles." & st.Name & "." & b.TypeName & "]" & NL
+            FieldLines_( o, b )
+        next
+    next
+    return o
+end function
+
+' ---- the generated module ------------------------------------------------------------------------
+
+private function U_( byval c as ulong ) as ustring
+    return "&h" & hex( c, 8 ) & "ul"
+end function
+
+private sub VariantCode_( byref o as ustring, byref doc as ThemeDoc, byref v as ThemeVariant, byref fn as const ustring, byref presetFn as const ustring )
+    o &= "' The " & lcase( fn ) & " variant: tkTheme's preset, then the accent and the roles the file sets." & NL
+    o &= "public function " & fn & "( ) as TKTHEME_COLORS" & NL
+    o &= "    dim as TKTHEME_COLORS t = " & presetFn & "( )" & NL
+    dim as ustring acc = v.Accent
+    if len( acc ) = 0 then acc = doc.Accent
+    dim as ulong c
+    if len( acc ) andalso colorval.ParseHex( acc, c ) then o &= "    t = tkTheme_Derive( t, " & U_( c ) & " )" & NL
+    for r as long = 0 to TKROLE_COUNT - 1
+        dim as long i = FindSetting( v.Roles, tkTheme_RoleName( r ) )
+        if (i >= 0) andalso colorval.ParseHex( v.Roles[i].Value, c ) then o &= "    t." & tkTheme_RoleName( r ) & " = " & U_( c ) & NL
+    next
+    o &= "    return t" & NL & "end function" & NL & NL
+end sub
+
+' Simple mode for roles, entry k: the role a style sets, the one that follows it, and how.
+private sub Family_( byval k as long, byref src_ as ustring, byref dst as ustring, byref rule as ustring )
+    select case k
+    case 0 : src_ = "Surface" : dst = "SurfaceHot" : rule = "HOT"
+    case 1 : src_ = "Surface" : dst = "SurfaceDisabled" : rule = "DISABLED"
+    case 2 : src_ = "Text" : dst = "TextHot" : rule = "SAME"
+    case 3 : src_ = "Text" : dst = "TextDisabled" : rule = "DISABLED"
+    case 4 : src_ = "Accent" : dst = "AccentHot" : rule = "HOT"
+    case 5 : src_ = "Border" : dst = "BorderDisabled" : rule = "DISABLED"
+    end select
+end sub
+
+' A style's role remap, with simple mode for roles: a face set, its hot and disabled shades follow it.
+private sub StyleCode_( byref o as ustring, byref st as ThemeStyle, byval idx as long )
+    dim as ustring at = "        gStyles_( " & idx & " )"
+    o &= at & ".Name = " & Quote_( st.Name ) & NL
+    for r as long = 0 to TKROLE_COUNT - 1
+        dim as long i = FindSetting( st.Roles, tkTheme_RoleName( r ) )
+        if i < 0 then continue for
+        dim as TKCOLOR_SRC s
+        if colorval.ToSrc( st.Roles[i].Value, 0, s ) then o &= at & ".remap( " & colorval.RoleConst( r ) & " ) = " & colorval.SrcExpr( s, "0" ) & NL
+    next
+    ' Surface -> SurfaceHot / SurfaceDisabled, Text -> TextHot / TextDisabled, Accent -> AccentHot,
+    ' Border -> BorderDisabled, each only when the style leaves it unset
+    for k as long = 0 to 5
+        dim as ustring src_, dst, rule
+        Family_( k, src_, dst, rule )
+        if (FindSetting( st.Roles, src_ ) >= 0) andalso (FindSetting( st.Roles, dst ) < 0) then
+            o &= at & ".remap( TKROLE_" & ucase( dst ) & " ) = tkTheme_SrcDerive( 0, TKDERIVE_" & rule & ", TKROLE_" & ucase( src_ ) & " )" & NL
+        end if
+    next
+end sub
+
+' The whole generated module for a theme that passed Check. Install() makes it the program's theme.
+public function Generate( byref doc as ThemeDoc, byref moduleName as const ustring, byref sourceName as const ustring, _
+                          byref sourceText as const ustring ) as ustring
+    ' every [controls.X] and [styles.S.X] block as one type recipe, entries in one table
+    dim as Array( of TKCOLOR_SRC ) all
+    dim as Array( of ustring ) recType, recStyle
+    dim as Array( of long ) recAt, recN
+    for each b as ThemeTypeBlock in doc.Controls
+        dim as long at0 = all.Count( )
+        colorval.Entries( b.Fields, catalog.Find( b.TypeName ), all )
+        recType.Push( b.TypeName ) : recStyle.Push( "" ) : recAt.Push( at0 ) : recN.Push( all.Count( ) - at0 )
+    next
+    for each st as ThemeStyle in doc.Styles
+        for each b as ThemeTypeBlock in st.Types
+            dim as long at0 = all.Count( )
+            colorval.Entries( b.Fields, catalog.Find( b.TypeName ), all )
+            recType.Push( b.TypeName ) : recStyle.Push( st.Name ) : recAt.Push( at0 ) : recN.Push( all.Count( ) - at0 )
+        next
+    next
+
+    dim as ustring o = "' GENERATED by the tkEdit Form Designer from " & sourceName & ". Do not edit." & NL
+    o &= "' source-hash: " & codegen.SourceHash( sourceText ) & NL
+    o &= "#module """ & moduleName & """" & NL & NL
+    o &= "#import ""vendor/tkControls/tkApp""" & NL & NL
+    o &= "using tkApp" & NL & "using tkTheme" & NL & "using tkHost" & NL & "using tkPaint" & NL & NL
+    if doc.Styles.Count( ) then o &= "dim shared as TKTHEME_STYLE gStyles_( 0 to " & (doc.Styles.Count( ) - 1) & " )" & NL
+    if all.Count( ) then o &= "dim shared as TKCOLOR_SRC gSrc_( 0 to " & (all.Count( ) - 1) & " )" & NL
+    if recType.Count( ) then o &= "dim shared as TKTHEME_TYPERECIPE gTypes_( 0 to " & (recType.Count( ) - 1) & " )" & NL
+    o &= "dim shared as boolean gFilled_" & NL & NL
+
+    VariantCode_( o, doc, doc.Dark, "Dark", "tkTheme_Dark" )
+    VariantCode_( o, doc, doc.Light, "Light", "tkTheme_Light" )
+
+    o &= "' Corner radius and border width in design units; -1 leaves each control's own." & NL
+    o &= "public function Shape( ) as TKTHEME_SHAPE" & NL & "    dim as TKTHEME_SHAPE s" & NL
+    if doc.CornerRadius <> -1 then o &= "    s.CornerRadius = " & doc.CornerRadius & NL
+    if doc.BorderWidth <> -1 then o &= "    s.BorderWidth = " & doc.BorderWidth & NL
+    o &= "    return s" & NL & "end function" & NL & NL
+
+    o &= "' The theme's fonts, into the options before tkApp_Init (fonts are opened there)." & NL
+    o &= "public sub ApplyOptions( byref o as TKAPP_OPTIONS )" & NL
+    if len( doc.UIFile ) then o &= "    o.FontUIFile = " & Quote_( doc.UIFile ) & NL
+    if len( doc.UIBold ) then o &= "    o.FontUIBoldFile = " & Quote_( doc.UIBold ) & NL
+    if doc.UISize then o &= "    o.FontUISize = " & doc.UISize & NL
+    if len( doc.GlyphFile ) then o &= "    o.GlyphFontFile = " & Quote_( doc.GlyphFile ) & NL
+    if len( doc.MonoFile ) then o &= "    o.FontMonoFile = " & Quote_( doc.MonoFile ) & NL
+    o &= "end sub" & NL & NL
+
+    o &= "private sub Fill_( )" & NL & "    if gFilled_ then exit sub" & NL & "    gFilled_ = true" & NL
+    if doc.Styles.Count( ) orelse all.Count( ) then
+        o &= "    scope" & NL
+        for i as long = 0 to doc.Styles.Count( ) - 1
+            StyleCode_( o, doc.Styles[i], i )
+        next
+        for i as long = 0 to all.Count( ) - 1
+            o &= "        gSrc_( " & i & " ) = " & colorval.SrcExpr( all[i], str( all[i].slot ) ) & NL
+        next
+        for i as long = 0 to recType.Count( ) - 1
+            dim as ustring at = "        gTypes_( " & i & " )"
+            o &= at & ".TypeName = " & Quote_( recType[i] ) & " : " & "gTypes_( " & i & " ).StyleName = " & Quote_( recStyle[i] ) & NL
+            if recN[i] then o &= at & ".pSrc = @gSrc_( " & recAt[i] & " ) : gTypes_( " & i & " ).n = " & recN[i] & NL
+        next
+        o &= "    end scope" & NL
+    end if
+    o &= "end sub" & NL & NL
+
+    o &= "' Makes this the program's theme, after tkApp_Init: both variants (the theme mode picks one), the" & NL
+    o &= "' shape, the styles and the per-type colours." & NL
+    o &= "public sub Install( )" & NL & "    Fill_( )" & NL
+    o &= "    tkTheme_SetShape( Shape( ) )" & NL
+    if doc.Styles.Count( ) then
+        o &= "    tkTheme_SetStyles( @gStyles_( 0 ), " & doc.Styles.Count( ) & " )" & NL
+    else
+        o &= "    tkTheme_SetStyles( 0, 0 )" & NL
+    end if
+    if recType.Count( ) then
+        o &= "    tkTheme_SetTypeRecipes( @gTypes_( 0 ), " & recType.Count( ) & " )" & NL
+    else
+        o &= "    tkTheme_SetTypeRecipes( 0, 0 )" & NL
+    end if
+    o &= "    tkApp_SetThemePair( Dark( ), Light( ) )" & NL
+    o &= "end sub" & NL
+    return o
+end function
+
+' The canonical new theme: the presets, named.
+public function DefaultText( byref nm as const ustring ) as ustring
+    dim as ThemeDoc d
+    d.Name = nm
+    return Render( d )
+end function

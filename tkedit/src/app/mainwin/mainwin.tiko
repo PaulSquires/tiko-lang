@@ -615,6 +615,7 @@ public type Window
     declare sub ControlRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
     declare sub ReconcileDesigner( byval d as DocRef )
     declare function WriteGenerated( byval d as DocRef ) as boolean
+    declare function WriteThemeGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare function PrepareForms( ) as boolean
     declare sub ToggleFormView( )
     declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
@@ -2404,6 +2405,8 @@ sub Window.AfterSave( byval d as DocRef )
     dim as ustring p = lcase( d->Path )
     if d->Designer then
         this.WriteGenerated( d )
+    elseif right( p, 8 ) = ".tktheme" then
+        this.WriteThemeGenerated( d->Path, d->Text( ) )
     elseif p = lcase( this.SettingsFile( ) ) then
         this.ReloadSettings( )
     elseif p = lcase( this.KeysFile( ) ) then
