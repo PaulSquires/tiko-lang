@@ -3,6 +3,7 @@
 '
 '   <module>/<module>.forms.tiko   the typed wrapper for that control: Text, Checked, ...
 '   tkMeta/tkMeta.gen.tiko         the table a form designer reads: names, kinds, apply thunks
+'   tkThemeFile/tkThemeFile.gen.tiko   each control type's colour fields, for loading a .tktheme at run time
 '
 '   tkmetagen <path to pkg/vendor/tkControls>
 '
@@ -323,7 +324,7 @@ end function
 
 sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
     dim as TomlValue ptr ctls = root_.Find( "control" )
-    dim as ustring imports, usings, thunks, fill
+    dim as ustring imports, usings, thunks, fill, fields
     dim as ustring o = GENERATED & NL & "#module ""tkMeta""" & NL & NL
     for c as long = 0 to ctls->Count( ) - 1
         dim as TomlValue ptr ctl = @ctls->Item( c )
@@ -368,10 +369,13 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
             thunks &= "    *cast( " & st & " ptr, pSlots ) = " & ct & "( t )" & NL & "end sub" & NL & NL
             fill &= "    Colors_( " & Quote_( st ) & ", " & Quote_( cg ) & ", " & Quote_( ct ) & ", @G_" & name_ & ", @T_" & name_ & " )" & NL
             dim as TomlValue ptr flds = ctl->Find( "color_fields" )
+            fields &= "    Type_( " & Quote_( name_ ) & " )" & NL
             for i as long = 0 to flds->Count( ) - 1
                 dim as TomlValue ptr f = @flds->Item( i )
-                fill &= "    Color_( " & Quote_( Str_( *f, "field" ) ) & ", " & Quote_( Str_( *f, "part" ) ) & ", " & Quote_( Str_( *f, "state" ) ) & ", " _
+                dim as ustring args = Quote_( Str_( *f, "field" ) ) & ", " & Quote_( Str_( *f, "part" ) ) & ", " & Quote_( Str_( *f, "state" ) ) & ", " _
                         & Quote_( Str_( *f, "group" ) ) & ", " & iif( Flag_( *f, "ink", false ), "true", "false" ) & " )" & NL
+                fill &= "    Color_( " & args
+                fields &= "    Field_( " & args
             next
         end if
 
@@ -439,6 +443,9 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
     o &= "#import ""../tkHost""" & NL & imports & "using tkHost" & NL & "using tkPaint" & NL & usings & "using tkTheme" & NL & NL & thunks
     o &= "sub Fill_( )" & NL & fill & "end sub" & NL
     Save_( root & "/tkMeta/tkMeta.gen.tiko", o )
+    ' the same colour fields for tkThemeFile, which must not link every control as tkMeta does
+    Save_( root & "/tkThemeFile/tkThemeFile.gen.tiko", GENERATED & NL & "#module ""tkThemeFile""" & NL & NL _
+           & "#import ""../tkTheme""" & NL & NL & "sub Fields_( )" & NL & fields & "end sub" & NL )
 end sub
 
 dim as ustring root = command( 1 )

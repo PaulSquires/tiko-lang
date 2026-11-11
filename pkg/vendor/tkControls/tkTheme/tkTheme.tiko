@@ -472,6 +472,17 @@ public sub tkTheme_SetTypeRecipes( byval pTypes as TKTHEME_TYPERECIPE ptr, byval
     tkHost_BroadcastAll( TKM_THEMECHANGED )
 end sub
 
+' The tables tkTheme_SetStyles / tkTheme_SetTypeRecipes were given (0 and n = 0: none).
+public function tkTheme_GetStyles( byref n as long ) as TKTHEME_STYLE ptr
+    n = gnStyles
+    return gpStyles
+end function
+
+public function tkTheme_GetTypeRecipes( byref n as long ) as TKTHEME_TYPERECIPE ptr
+    n = gnTypes
+    return gpTypes
+end function
+
 
 ' ---- scopes: a theme for one subtree -------------------------------------------------------------
 private type TKTHEME_SCOPE

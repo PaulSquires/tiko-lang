@@ -1002,6 +1002,43 @@ sub ColorSources( )
     Check( themefile.SourceOf( g, m, "Primary", own, sBack, true ) = themefile.FROM_CONTROL, "the control's own beats its style" )
 end sub
 
+' TH8: the fixtures examples/tkControls/tkThemeFile compares tkTheme_Load against -- every shipped
+' theme, the golden, the sample's and a Mixed one -- each a copy of its .tktheme plus the module this
+' generator makes from it. --accept rewrites them; otherwise they must be current.
+sub ThemeLoadFixtures( byval bAccept as boolean )
+    const as string fx = "../../../examples/tkControls/tkThemeFile/fixtures/"
+    dim as ustring fixNames( 0 to 8 ) = { "Default", "HighContrast", "Ocean", "Forest", "Ember", "Violet", "Golden", "Sample", "Mixed" }
+    dim as ustring srcs( 0 to 8 ) = { "../../themes/Default.tktheme", "../../themes/HighContrast.tktheme", "../../themes/Ocean.tktheme", _
+        "../../themes/Forest.tktheme", "../../themes/Ember.tktheme", "../../themes/Violet.tktheme", "tests/golden/appTheme/appTheme.tktheme", _
+        "../../../examples/tkControls/tkDesigned/appTheme/appTheme.tktheme", "" }
+    for i as long = 0 to 8
+        dim as ustring none, e
+        dim as ustring md = "th" & fixNames( i ), dir_ = fx & md & "/"
+        dim as ustring themePath = dir_ & md & ".tktheme"
+        dim as ustring text
+        if len( srcs( i ) ) then
+            text = fs.ReadAllText( srcs( i ) ).ValueOr( none )
+            if bAccept then
+                fs.CreateDirAll( dir_ )
+                fs.WriteAllText( themePath, text )
+            end if
+            Check( fs.ReadAllText( themePath ).ValueOr( none ) = text, "load fixture " & md & ": the theme is current", srcs( i ) )
+        else
+            text = fs.ReadAllText( themePath ).ValueOr( none )
+        end if
+        dim as themefile.ThemeDoc d
+        dim as Array( of ustring ) p
+        dim as boolean ok = (len( text ) > 0) andalso themefile.Parse( text, d, e )
+        if ok then themefile.Check( d, p )
+        dim as ustring first_ = e
+        if p.Count( ) then first_ = p[0]
+        Check( ok andalso (p.Count( ) = 0), "load fixture " & md & ": parses and checks clean", first_ )
+        dim as ustring g = themefile.Generate( d, md, md & ".tktheme", text )
+        if bAccept then fs.WriteAllText( dir_ & md & ".design.tiko", g )
+        Check( fs.ReadAllText( dir_ & md & ".design.tiko" ).ValueOr( none ) = g, "load fixture " & md & ": the generated module is current" )
+    next
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -1018,5 +1055,6 @@ ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
 ColorSources( )
+ThemeLoadFixtures( bAccept )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail
