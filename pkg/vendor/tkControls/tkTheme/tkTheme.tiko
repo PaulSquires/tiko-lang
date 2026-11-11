@@ -522,25 +522,27 @@ public function tkTheme_RecipeCount( byval w as TK_WIDGET ptr ) as long
     return cast( TKRECIPE ptr, w->pColorRecipe )->n
 end function
 
-' The roles w's colours are built from: its scope's theme (else the app's), remapped by its
-' recipe's style when it names one that exists. A control passes this to its ThemeColors.
-public function tkTheme_RolesFor( byval w as TK_WIDGET ptr ) as TKTHEME_COLORS
+' t remapped by w's recipe style, when it names one of the styles in force for w (its scope's,
+' else the app's). A control's ApplyTheme( w, t ) passes its t through this.
+public function tkTheme_Styled( byval w as TK_WIDGET ptr, byref t as TKTHEME_COLORS ) as TKTHEME_COLORS
+    if (w = 0) orelse (w->pColorRecipe = 0) then return t
+    dim as long id = cast( TKRECIPE ptr, w->pColorRecipe )->styleId
+    if id < 1 then return t
     dim as TKTHEME_SCOPE ptr s = ScopeOf( w )
-    dim as TKTHEME_COLORS t
     dim as TKTHEME_STYLE ptr ps = gpStyles
     dim as long ns = gnStyles
     if s then
-        t = s->colors
         ps = s->pStyles
         ns = s->nStyles
-    else
-        t = tkTheme_Get()
     end if
-    if (w <> 0) andalso (w->pColorRecipe <> 0) andalso (ps <> 0) then
-        dim as long id = cast( TKRECIPE ptr, w->pColorRecipe )->styleId
-        if (id >= 1) andalso (id <= ns) then return tkTheme_Remap( t, ps[id - 1] )
-    end if
+    if (ps <> 0) andalso (id <= ns) then return tkTheme_Remap( t, ps[id - 1] )
     return t
+end function
+
+' The roles w's colours are built from: its scope's theme (else the app's), remapped by its
+' recipe's style when it names one that exists.
+public function tkTheme_RolesFor( byval w as TK_WIDGET ptr ) as TKTHEME_COLORS
+    return tkTheme_Styled( w, tkTheme_Of( w ) )
 end function
 
 ' Lays w's recipe entries over its colour struct (nSlots ulongs from pColors), resolving roles
