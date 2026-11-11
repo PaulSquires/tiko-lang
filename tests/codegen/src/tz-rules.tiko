@@ -12,8 +12,9 @@
 ''   4. hostile input: every truncation and every single-byte mutation of every
 ''      fixture parses or is refused, and never crashes; leap-second files and v1
 ''      files; slim files (zic -b slim) give exactly what the fat ones give
-''   5. Linux only: 2000 instants per zone against glibc's localtime_r under
-''      TZ=<zone> -- offset, DST flag and abbreviation
+''   5. Linux and macOS: 2000 instants per zone, each zone read from the system's
+''      own file, against the C library's localtime_r under TZ=<zone> -- offset, DST
+''      flag and abbreviation
 #import "std/tz"
 #import "std/chrono"
 using tz
@@ -313,7 +314,7 @@ for z as long = 0 to 4
     wend
 next
 
-'' ---------------------------------------------------------------- 5. Linux oracle
+'' ---------------------------------------------------------------- 5. the libc oracle
 #ifdef __FB_UNIX__
 type OracleTm
     as long tm_sec, tm_min, tm_hour, tm_mday, tm_mon, tm_year, tm_wday, tm_yday, tm_isdst
@@ -330,7 +331,13 @@ scope
     dim as ulongint seed = 88172645463325252ull
     dim as longint lo = u( 1900, 1, 1 ), span = u( 2100, 1, 1 ) - u( 1900, 1, 1 )
     for z as long = 0 to NZONES - 1
-        dim as TzRules r = load( zoneIds( z ) )
+        '' THE SYSTEM'S OWN FILE, the one localtime_r reads: a system tzdata built
+        '' without backzone (macOS) differs from these fixtures for merged zones before
+        '' 1970 -- Europe/Amsterdam is Brussels there until 1946 -- and comparing the
+        '' fixture with it would test the data, not the reader. The fixtures' own
+        '' values are pinned by the anchors above.
+        dim as TzRules r
+        check( TzRules.TryParse( readFile( "/usr/share/zoneinfo/" & zoneIds( z ) ), r ), "system file " & zoneIds( z ) )
         dim as string spec = ":" & zoneIds( z )
         oSetenv( "TZ", strptr( spec ), 1 )
         oTzset( )
