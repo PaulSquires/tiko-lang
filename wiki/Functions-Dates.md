@@ -277,6 +277,7 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 | [DateTime.IsUtc](Modern-Chrono-DateTime-IsUtc) | Returns true if the offset is zero; a date-time with no offset is not UTC. | `std/chrono` |
 | [DateTime.ToInstant](Modern-Chrono-DateTime-ToInstant) | Returns the moment the date-time names, or Invalid if it has no offset. | `std/chrono` |
 | [DateTime.AssumeUtc](Modern-Chrono-DateTime-AssumeUtc) | Returns the moment the date-time names if its clock reading is taken as UTC. | `std/chrono` |
+| [DateTime.AssumeLocal](Modern-Chrono-DateTime-AssumeLocal) | Returns the moment the date-time names if its clock reading is taken as local time. | `std/chrono` |
 | [DateTime.ToLocal](Modern-Chrono-DateTime-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | `std/chrono` |
 | [DateTime.FromInstant](Modern-Chrono-DateTime-FromInstant) | Returns the date-time a moment shows on a clock with the given UTC offset. | `std/chrono` |
 | [TimeZoneInfo.LocalOffsetAt](Modern-Chrono-TimeZoneInfo-LocalOffsetAt) | Returns the local zone's UTC offset in minutes at a given moment, DST included. | `std/chrono` |

@@ -270,7 +270,8 @@ components
 offsets and instants
 
 .WithOffset( offMin )   reinterpret   .ToOffset( offMin )   convert
-.AssumeUtc -> Instant   .ToInstant -> Instant   .ToLocal -> DateTime
+.AssumeUtc -> Instant   .AssumeLocal -> Instant
+.ToInstant -> Instant   .ToLocal -> DateTime
 
 exact arithmetic -- ticks, no calendar
 
@@ -379,12 +380,16 @@ Three families, and the names say which is which.
 ```freebasic
 AddDays( 1 )            exactly 86400 seconds. Does NOT keep the wall-clock
                         time across a DST boundary.
-AddCalendarDays( 1 )    same wall-clock time tomorrow. Re-resolves the
-                        offset, so across a DST boundary it is 23 or 25
-                        hours of real time.
+AddCalendarDays( 1 )    same wall-clock time tomorrow. Re-resolves a local
+                        reading's offset, so across a DST boundary it is
+                        23 or 25 hours of real time.
 AddMonths( 1 )          calendar months, offset untouched.
 AddCalendarMonths( 1 )  calendar months, offset re-resolved.
 ```
+
+ONLY A LOCAL READING FOLLOWS THE OS ZONE: one whose offset is the zone's at its own instant, as WallClock.Now and ToLocal give. A UTC or other fixed-offset value keeps its offset, so AddCalendarDays( 1 ) on 2025-07-01T12:00Z is 2025-07-02T12:00Z on every machine. A DateTime carries no zone, so a fixed offset that happens to equal the zone's at that instant -- UTC on a London machine in winter -- is taken as local.
+
+A wall reading that falls in a fall-back overlap keeps the offset it started with; one that falls in a spring-forward gap does not exist and moves forward by the gap, so 02:30 in a 02:00 -> 03:00 gap becomes 03:30.
 
 "24 hours from now" is AddDays( 1 ). "Same time tomorrow" is AddCalendarDays( 1 ). They differ twice a year, and a program that means one and writes the other is correct in testing and wrong in October.
 
@@ -668,7 +673,7 @@ ToString( "d" )                  the named int16-date format, not a field
 ToLocaleString                   not reproducible; never write it to a file
 ```
 
-TIME ZONES ARE THE OS's. There is no IANA tzdb, no named zones and no DST-ambiguity policy. Programs that care about an exact point in time should carry an Instant and never round-trip through a naive DateTime.
+TIME ZONES ARE THE OS's. There is no IANA tzdb and no named zones. AssumeLocal reads a wall reading in the OS zone: in a fall-back overlap it names the EARLIER instant, and in a spring-forward gap the reading moves forward by the gap. Programs that care about an exact point in time should carry an Instant and never round-trip through a naive DateTime.
 
 ## WHERE THIS DIFFERS FROM datetime.bi
 
@@ -738,12 +743,6 @@ calendar abstraction to make room for others.
 
 A LENIENT PARSER. There is no equivalent of DateValue's guessing. If the
 input is not ISO 8601, name the pattern.
-
-AssumeLocal. The shipped module has AssumeUtc, ToInstant and ToLocal but
-not AssumeLocal. Compose it as
-d.WithOffset( TimeZoneInfo.LocalOffset ).ToInstant( ) when the value is
-known to be present-day; a fall-back hour makes the general case
-ambiguous.
 ```
 
 ## Implementation

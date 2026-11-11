@@ -178,6 +178,7 @@ Modern-Chrono-DateTime-HasOffset	DateTime.HasOffset	-	offset	std/chrono	-	Return
 Modern-Chrono-DateTime-IsUtc	DateTime.IsUtc	-	offset	std/chrono	-	Returns true if the offset is zero; a date-time with no offset is not UTC.
 Modern-Chrono-DateTime-ToInstant	DateTime.ToInstant	-	offset	std/chrono	-	Returns the moment the date-time names, or Invalid if it has no offset.
 Modern-Chrono-DateTime-AssumeUtc	DateTime.AssumeUtc	-	offset	std/chrono	-	Returns the moment the date-time names if its clock reading is taken as UTC.
+Modern-Chrono-DateTime-AssumeLocal	DateTime.AssumeLocal	-	offset	std/chrono	-	Returns the moment the date-time names if its clock reading is taken as local time.
 Modern-Chrono-DateTime-ToLocal	DateTime.ToLocal	-	offset	std/chrono	-	Returns the same moment shown at the machine's local UTC offset.
 Modern-Chrono-DateTime-FromInstant	DateTime.FromInstant	-	offset	std/chrono	-	Returns the date-time a moment shows on a clock with the given UTC offset.
 Modern-Chrono-DateTime-ToLocaleDateString	DateTime.ToLocaleDateString	-	locale	std/chrono	-	Returns the date as the machine's locale writes it, for display only.
