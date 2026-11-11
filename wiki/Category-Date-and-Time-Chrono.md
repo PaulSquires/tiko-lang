@@ -675,7 +675,7 @@ ToString( "d" )                  the named int16-date format, not a field
 ToLocaleString                   not reproducible; never write it to a file
 ```
 
-TIME ZONES ARE THE OS's. There is no IANA tzdb and no named zones. AssumeLocal reads a wall reading in the OS zone: in a fall-back overlap it names the EARLIER instant, and in a spring-forward gap the reading moves forward by the gap. Programs that care about an exact point in time should carry an Instant and never round-trip through a naive DateTime.
+TIME ZONES HERE ARE THE OS's: the machine's own zone. Every other zone, by its IANA name, is [Time Zones](Category-Time-Zones) (std/tz). AssumeLocal reads a wall reading in the OS zone: in a fall-back overlap it names the EARLIER instant, and in a spring-forward gap the reading moves forward by the gap. Programs that care about an exact point in time should carry an Instant and never round-trip through a naive DateTime.
 
 ## WHERE THIS DIFFERS FROM datetime.bi
 
@@ -735,10 +735,9 @@ that needs a table which must be updated by hand and which no OS exposes
 reliably. UTC-SLS and the smeared clocks are what production systems
 actually run.
 
-THE IANA TZ DATABASE, NAMED ZONES, AND DST-AMBIGUITY POLICIES. The OS
-already knows the user's zone and keeps its rules current; shipping and
-maintaining a copy of the tzdb is a project of its own. Nothing here
-forecloses a future ZonedDateTime -- DateTime already carries an offset.
+NAMED ZONES. They are std/tz: TimeZone, ZonedDateTime, the policies for a
+reading that happens twice or never, and std/tzdata for the database itself.
+See [Time Zones](Category-Time-Zones).
 
 NON-GREGORIAN CALENDARS. Proleptic Gregorian, year 1 to 9999, and no
 calendar abstraction to make room for others.
