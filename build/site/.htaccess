@@ -1,0 +1,3 @@
+# tiko-lang.net web root. Published by build/publish-site.sh from build/site/.htaccess.
+# Plain-text files are UTF-8; without this, browsers read ai-cheatsheet.md and llms.txt as windows-1252.
+AddCharset UTF-8 .md .txt
