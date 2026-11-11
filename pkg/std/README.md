@@ -16,6 +16,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 | `std/fs` | paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
 | `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `PriorityQueue`, `Deque`, `BitSet`, `Sort`, `BinarySearch` and the other searches, `HashOf`, `Hashable` | |
 | `std/chrono` | `DateTime`, `LocalDate`, `TimeSpan`, `Instant`, `Stopwatch`, `WallClock`, the `DT_` constants | |
+| `std/tz` | `TzRules`: one zone's rules read from a TZif file or a POSIX TZ string -- offset, DST flag and abbreviation at any instant, transitions both ways. Named-zone lookup and `ZonedDateTime` are still to come | |
 | `std/tasks` | `Channel`, `WaitGroup`, `Context`, `Spawn` -- and what `spawn` and `select channel` lower to | `-mt` |
 | `std/outcome` | `Optional`, `Result`, `Some`, `None`, `Ok`, `Fail` | |
 | `std/numeric` | math, checked integers, complex, text formatting, random, statistics, fenv, vectors | |
