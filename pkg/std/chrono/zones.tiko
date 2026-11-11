@@ -100,9 +100,19 @@ namespace TimeZoneInfo
     '' The offset AT A GIVEN INSTANT, not "right now".  Converting a July
     '' timestamp with January's offset is the commonest timezone bug there is,
     '' and an API offering only "the current offset" makes it the default.
+    '' An Invalid instant answers 0, which is also UTC's offset -- kept for the
+    '' tests this module was ported with.  TryLocalOffsetAt says which it was.
     public function LocalOffsetAt( byref i as Instant ) as short
         if i.IsValid = false then return 0
         return dtZoneOffsetAt( i.Ticks )
+    end function
+
+    '' False, with result left alone, for an Invalid instant.  An OS lookup
+    '' that fails still answers 0: the runtime has no way to say so yet.
+    public function TryLocalOffsetAt( byref i as Instant, byref result as short ) as boolean
+        if i.IsValid = false then return false
+        result = dtZoneOffsetAt( i.Ticks )
+        return true
     end function
 
     public function LocalOffset( ) as short
@@ -118,6 +128,11 @@ namespace TimeZoneInfo
         return fb_DtZoneSupportsDst( ) <> 0
     end function
 
+    '' StandardName and DaylightName are OS DISPLAY TEXT, not portable values:
+    '' Windows gives display names ("Newfoundland Standard Time"), Linux and
+    '' macOS abbreviations ("NST").  Both are this year's names, not the ones
+    '' in force at any other time.  A zone with no DST gives Windows' own
+    '' daylight name on Windows and the standard name elsewhere.
     public function StandardName( ) as ustring
         dim as zstring * 160 buf
         dim as long n = fb_DtZoneStandardName( @buf, 160 )

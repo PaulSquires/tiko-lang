@@ -224,6 +224,7 @@ Modern-Chrono-WallClock-Today	WallClock.Today	-	now	std/chrono	-	Returns today's
 Modern-Chrono-WallClock-TimeOfDay	WallClock.TimeOfDay	-	now	std/chrono	-	Returns the current local time of day as a LocalTime.
 Modern-Chrono-WallClock-Resolution	WallClock.Resolution	-	now	std/chrono	-	Returns the smallest step the wall clock reports, as a TimeSpan.
 Modern-Chrono-TimeZoneInfo-LocalOffsetAt	TimeZoneInfo.LocalOffsetAt	-	offset	std/chrono	-	Returns the local zone's UTC offset in minutes at a given moment, DST included.
+Modern-Chrono-TimeZoneInfo-TryLocalOffsetAt	TimeZoneInfo.TryLocalOffsetAt	-	offset	std/chrono	-	Gets the local zone's UTC offset at a given moment, returning false for an Invalid moment.
 Modern-Chrono-TimeZoneInfo-LocalOffset	TimeZoneInfo.LocalOffset	-	offset	std/chrono	-	Returns the local zone's UTC offset in minutes right now.
 Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime	TimeZoneInfo.IsDaylightSavingTime	-	offset	std/chrono	-	Returns true if daylight saving time is in force in the local zone at a given moment.
 Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime	TimeZoneInfo.SupportsDaylightSavingTime	-	offset	std/chrono	-	Returns true if the local zone observes daylight saving time at all.

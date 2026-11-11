@@ -11,6 +11,8 @@
 ''   3. AssumeLocal: a wall reading taken from an instant names that wall reading
 ''      again; in an overlap it is the earlier instant; in a gap it moves forward.
 ''   4. Windows: before 1601 the offset is the zone's standard one, not 0.
+''   5. TryLocalOffsetAt is false for an Invalid instant.
+''   6. Zone names: from tm_zone on Unix, not the process-global tzname.
 #import "std/chrono"
 using chrono
 
@@ -21,6 +23,22 @@ sub check( byval ok as boolean, byref what as string )
         failures += 1
     end if
 end sub
+
+'' 6. zone names: always a standard name; a DST zone's two names differ; on Unix a
+'' zone with no DST names its standard time for both (it read tzname[1], which is
+'' the zone's last DST name, however old). FIRST, before any lookup: glibc's
+'' localtime_r rewrites tzname for the instant it converts, so after one the old
+'' answer depended on which instants came before.
+dim as ustring sn = TimeZoneInfo.StandardName( ), dn = TimeZoneInfo.DaylightName( )
+check( len( sn ) > 0, "StandardName non-empty" )
+check( len( dn ) > 0, "DaylightName non-empty" )
+if TimeZoneInfo.SupportsDaylightSavingTime( ) then
+    check( sn <> dn, "DST zone: names differ" )
+#ifndef __FB_WIN32__
+else
+    check( sn = dn, "no-DST zone: daylight name is the standard one" )
+#endif
+end if
 
 '' 1. a fixed offset no zone has keeps its offset and steps exact days
 dim as DateTime f = DateTime( 2025, 3, 8, 2, 30, 0, 0 ).WithOffset( 797 )
@@ -115,5 +133,12 @@ dim as short std_ = iif( TimeZoneInfo.IsDaylightSavingTime( jan ), _
                          TimeZoneInfo.LocalOffsetAt( jul ), TimeZoneInfo.LocalOffsetAt( jan ) )
 check( TimeZoneInfo.LocalOffsetAt( y1500 ) = std_, "pre-1601 standard offset" )
 #endif
+
+'' 5. TryLocalOffsetAt says when there was no offset to give
+dim as short tryOff = 12345
+check( TimeZoneInfo.TryLocalOffsetAt( Instant.Invalid( ), tryOff ) = false, "Try on Invalid is false" )
+check( tryOff = 12345, "Try on Invalid leaves the result alone" )
+check( TimeZoneInfo.TryLocalOffsetAt( t0, tryOff ), "Try on a valid instant" )
+check( tryOff = TimeZoneInfo.LocalOffsetAt( t0 ), "Try agrees with LocalOffsetAt" )
 
 if failures = 0 then print "ok" else print failures; " failures"

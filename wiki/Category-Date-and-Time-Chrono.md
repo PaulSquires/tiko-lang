@@ -361,17 +361,19 @@ TimeZoneInfo -- the OS zone
 
 ```freebasic
 TimeZoneInfo.LocalOffsetAt( instant )      the offset AT THAT INSTANT
+TimeZoneInfo.TryLocalOffsetAt( instant, off )   false for an Invalid instant
 TimeZoneInfo.LocalOffset                   the offset right now
 TimeZoneInfo.IsDaylightSavingTime( instant )
 TimeZoneInfo.SupportsDaylightSavingTime
-TimeZoneInfo.StandardName / .DaylightName
+TimeZoneInfo.StandardName / .DaylightName  display text: "Newfoundland Standard
+                                           Time" on Windows, "NST" elsewhere
 
 LocalOffsetAt EXISTS BECAUSE "the current offset" IS THE WRONG DEFAULT.
 Converting a July timestamp with January's offset is the commonest timezone
 bug there is, and an API offering only LocalOffset makes it the easy path.
 ```
 
-Pages: [LocalOffsetAt](Modern-Chrono-TimeZoneInfo-LocalOffsetAt) · [LocalOffset](Modern-Chrono-TimeZoneInfo-LocalOffset) · [IsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime) · [SupportsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime) · [StandardName](Modern-Chrono-TimeZoneInfo-StandardName) · [DaylightName](Modern-Chrono-TimeZoneInfo-DaylightName)
+Pages: [LocalOffsetAt](Modern-Chrono-TimeZoneInfo-LocalOffsetAt) · [TryLocalOffsetAt](Modern-Chrono-TimeZoneInfo-TryLocalOffsetAt) · [LocalOffset](Modern-Chrono-TimeZoneInfo-LocalOffset) · [IsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime) · [SupportsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime) · [StandardName](Modern-Chrono-TimeZoneInfo-StandardName) · [DaylightName](Modern-Chrono-TimeZoneInfo-DaylightName)
 
 ## EXACT ARITHMETIC vs CALENDAR ARITHMETIC
 
@@ -1041,6 +1043,7 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [DateTime.ToLocal](Modern-Chrono-DateTime-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | `std/chrono` |
 | [DateTime.FromInstant](Modern-Chrono-DateTime-FromInstant) | Returns the date-time a moment shows on a clock with the given UTC offset. | `std/chrono` |
 | [TimeZoneInfo.LocalOffsetAt](Modern-Chrono-TimeZoneInfo-LocalOffsetAt) | Returns the local zone's UTC offset in minutes at a given moment, DST included. | `std/chrono` |
+| [TimeZoneInfo.TryLocalOffsetAt](Modern-Chrono-TimeZoneInfo-TryLocalOffsetAt) | Gets the local zone's UTC offset at a given moment, returning false for an Invalid moment. | `std/chrono` |
 | [TimeZoneInfo.LocalOffset](Modern-Chrono-TimeZoneInfo-LocalOffset) | Returns the local zone's UTC offset in minutes right now. | `std/chrono` |
 | [TimeZoneInfo.IsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-IsDaylightSavingTime) | Returns true if daylight saving time is in force in the local zone at a given moment. | `std/chrono` |
 | [TimeZoneInfo.SupportsDaylightSavingTime](Modern-Chrono-TimeZoneInfo-SupportsDaylightSavingTime) | Returns true if the local zone observes daylight saving time at all. | `std/chrono` |
