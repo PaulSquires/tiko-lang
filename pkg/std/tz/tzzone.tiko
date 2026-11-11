@@ -15,9 +15,13 @@
 '' WHERE ZONES COME FROM, in order -- the first that has the id wins:
 ''     $TZDIR                        when set
 ''     /usr/share/zoneinfo           Linux and macOS (macOS links it to /var/db/timezone)
-''     the embedded database         when std/tzdata is linked (phase Z6; not yet)
-'' Windows has no zone files of its own, so until std/tzdata exists a named zone
-'' is found there only through $TZDIR. "UTC" is built in everywhere.
+''     the embedded database         when the program imports std/tzdata
+'' Windows has no zone files of its own: there a named zone needs std/tzdata
+'' (or $TZDIR). "UTC" is built in everywhere.
+''
+'' THE EMBEDDED DATABASE is registered by std/tzdata when that module starts, through
+'' RegisterDatabase; a program may register one of its own built by tools/tzdb
+'' instead. The first registration is kept; later ones answer false.
 ''
 '' IDS are checked BEFORE anything touches the filesystem: segments of letters,
 '' digits, "_", "+" and "-" joined by "/", at most 255 characters. No "." at all,
@@ -77,6 +81,10 @@ public type TimeZone
     declare static function AvailableIds( ) as containers.Array( of ustring )
     '' The tz database release the first source holds ("2026e"), or "".
     declare static function DataVersion ( ) as ustring
+    '' A zone database (tools/tzdb/pack.py's .tzdb format) for lookups to fall
+    '' back on. The bytes are read in place and must outlive the program -- an
+    '' #embed does. False when they are not a database, or one is registered.
+    declare static function RegisterDatabase( byval p as const ubyte ptr, byval n as longint ) as boolean
 
     declare property IsValid( ) as boolean
     declare property Id     ( ) as ustring
@@ -132,6 +140,15 @@ type TzRegistry_
     as any ptr lock
     as TzEntry_ ptr ents( any )
     as TzEntry_ ptr localEnt
+    '' the registered database, if any: its ids, their lower-cased keys, and each
+    '' one's TZif bytes as an offset and length into dbData
+    as boolean dbSet
+    as const ubyte ptr dbData
+    as ustring dbVersion
+    as ustring dbIds( any )
+    as ustring dbKeys( any )
+    as long dbOff( any )
+    as long dbLen( any )
     declare constructor( )
 end type
 
@@ -140,6 +157,8 @@ constructor TzRegistry_( )
 end constructor
 
 dim shared tzReg as TzRegistry_
+
+declare function tzDbFind( byref key as const ustring, byref canon as ustring, byref r as TzRules ) as boolean
 
 '' The entry under KEY, or nullptr. Takes the lock.
 function tzRegFind( byref key as const ustring ) as TzEntry_ ptr
@@ -372,11 +391,110 @@ function TimeZone.TryFindById( byref zoneId as const ustring, byref result as Ti
                 exit for
             end if
         next
-        if e = nullptr then return false
+        if e = nullptr then
+            '' the embedded database last
+            dim as ustring canon
+            dim as TzRules r
+            if tzDbFind( key, canon, r ) = false then return false
+            e = new TzEntry_
+            e->id = canon
+            e->key = key
+            e->kind = TZK_RULES
+            e->rules = r
+        end if
         e = tzRegAdd( e )
     end if
     result.m_e = e
     return true
+end function
+
+'' The database at P, N bytes long, read into the registry's index. Defensive
+'' like the TZif reader: every length is checked before it is read.
+function tzDbBe32( byval p as const ubyte ptr ) as longint
+    return ( clngint( p[0] ) shl 24 ) or ( clngint( p[1] ) shl 16 ) or ( clngint( p[2] ) shl 8 ) or clngint( p[3] )
+end function
+
+function TimeZone.RegisterDatabase( byval p as const ubyte ptr, byval n as longint ) as boolean
+    if p = nullptr orelse n < 13 then return false
+    if p[0] <> 84 orelse p[1] <> 90 orelse p[2] <> 68 orelse p[3] <> 66 then return false   '' TZDB
+    if tzDbBe32( p + 4 ) <> 1 then return false
+    dim as longint pos_ = 8
+    dim as long vl = p[pos_]
+    pos_ += 1
+    if vl = 0 orelse pos_ + vl + 4 > n then return false
+    dim as string ver = space( vl )
+    for i as long = 0 to vl - 1
+        ver[i] = p[pos_ + i]
+    next
+    pos_ += vl
+    dim as longint cnt = tzDbBe32( p + pos_ )
+    pos_ += 4
+    if cnt < 1 orelse cnt > 65536 then return false
+    dim as ustring ids( 0 to cnt - 1 ), keys( 0 to cnt - 1 )
+    dim as long offs( 0 to cnt - 1 ), lens( 0 to cnt - 1 )
+    for k as long = 0 to cnt - 1
+        if pos_ >= n then return false
+        dim as long il = p[pos_]
+        pos_ += 1
+        if il = 0 orelse pos_ + il + 8 > n then return false
+        dim as string idText = space( il )
+        for i as long = 0 to il - 1
+            idText[i] = p[pos_ + i]
+        next
+        pos_ += il
+        if tzIdValid( idText ) = false then return false
+        ids( k ) = idText
+        keys( k ) = lcase( idText )
+        offs( k ) = clng( tzDbBe32( p + pos_ ) )
+        lens( k ) = clng( tzDbBe32( p + pos_ + 4 ) )
+        pos_ += 8
+    next
+    '' every file must lie inside the data that follows the index
+    dim as longint dataLen = n - pos_
+    for k as long = 0 to cnt - 1
+        if offs( k ) < 0 orelse lens( k ) < 44 orelse clngint( offs( k ) ) + lens( k ) > dataLen then return false
+    next
+
+    dim as boolean ok = false
+    mutexlock( tzReg.lock )
+    if tzReg.dbSet = false then
+        redim tzReg.dbIds( 0 to cnt - 1 )
+        redim tzReg.dbKeys( 0 to cnt - 1 )
+        redim tzReg.dbOff( 0 to cnt - 1 )
+        redim tzReg.dbLen( 0 to cnt - 1 )
+        for k as long = 0 to cnt - 1
+            tzReg.dbIds( k ) = ids( k )
+            tzReg.dbKeys( k ) = keys( k )
+            tzReg.dbOff( k ) = offs( k )
+            tzReg.dbLen( k ) = lens( k )
+        next
+        tzReg.dbData = p + pos_
+        tzReg.dbVersion = ver
+        tzReg.dbSet = true
+        ok = true
+    end if
+    mutexunlock( tzReg.lock )
+    return ok
+end function
+
+'' KEY (a lower-cased id) in the registered database: its spelling and its rules.
+function tzDbFind( byref key as const ustring, byref canon as ustring, byref r as TzRules ) as boolean
+    dim as const ubyte ptr q = nullptr
+    dim as long ln = 0
+    mutexlock( tzReg.lock )
+    if tzReg.dbSet then
+        for k as long = 0 to ubound( tzReg.dbKeys )
+            if tzReg.dbKeys( k ) = key then
+                canon = tzReg.dbIds( k )
+                q = tzReg.dbData + tzReg.dbOff( k )
+                ln = tzReg.dbLen( k )
+                exit for
+            end if
+        next
+    end if
+    mutexunlock( tzReg.lock )
+    if q = nullptr then return false
+    return TzRules.TryParse( q, ln, r )
 end function
 
 function TimeZone.FindById( byref zoneId as const ustring ) as TimeZone
@@ -388,7 +506,14 @@ end function
 '' The machine's IANA id, or "".
 function tzLocalId( ) as ustring
 #ifdef __FB_WIN32__
-    '' Phase Z6: TimeZoneKeyName through CLDR's windowsZones table.
+    '' TimeZoneKeyName through CLDR's windowsZones table, and only if that zone can
+    '' be loaded -- with std/tzdata imported, or through $TZDIR
+    dim as ustring winKey = tzWindowsLocalKey( )
+    if len( winKey ) = 0 then return ""
+    dim as ustring mapped = tzWindowsToIana( winKey )
+    if len( mapped ) = 0 then return ""
+    dim as TimeZone z
+    if TimeZone.TryFindById( mapped, z ) then return z.Id
     return ""
 #else
     dim as TimeZone z
@@ -450,7 +575,18 @@ end function
 function TimeZone.AvailableIds( ) as containers.Array( of ustring )
     dim as containers.Array( of ustring ) ids, dirs
     tzSourceDirs( dirs )
-    if dirs.Count( ) = 0 then return ids
+    if dirs.Count( ) = 0 then
+        '' no directory: the embedded database, if there is one
+        mutexlock( tzReg.lock )
+        if tzReg.dbSet then
+            for k as long = 0 to ubound( tzReg.dbIds )
+                if tzReg.dbIds( k ) <> "Factory" then ids.Push( tzReg.dbIds( k ) )
+            next
+        end if
+        mutexunlock( tzReg.lock )
+        containers.Sort( ids )
+        return ids
+    end if
     dim as ustring root = dirs[0]
     dim as fs.WalkOptions opts
     opts.YieldDirectories = false
@@ -475,7 +611,13 @@ end function
 function TimeZone.DataVersion( ) as ustring
     dim as containers.Array( of ustring ) dirs
     tzSourceDirs( dirs )
-    if dirs.Count( ) = 0 then return ""
+    if dirs.Count( ) = 0 then
+        dim as ustring v
+        mutexlock( tzReg.lock )
+        if tzReg.dbSet then v = tzReg.dbVersion
+        mutexunlock( tzReg.lock )
+        return v
+    end if
     dim as string s = tzFirstLine( dirs[0] & "/tzdata.zi" )
     if left( s, 10 ) = "# version " then return trim( mid( s, 11 ) )
     return tzFirstLine( dirs[0] & "/+VERSION" )

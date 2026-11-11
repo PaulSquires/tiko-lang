@@ -196,7 +196,16 @@ scope
         check( l.TryPreviousTransition( tr.Add( chrono.TimeSpan.FromDays( 2 ) ), back ) andalso back = tr, "Local previous finds it again" )
     end if
 #ifdef __FB_WIN32__
-    check( l.Id = "", "Local id is empty on Windows until Z6" )
+    '' the OS zone's key through CLDR's map -- "" unless that zone loads (here from
+    '' $TZDIR's fixtures), and when it does it agrees with the OS
+    if len( l.Id ) > 0 then
+        dim as TimeZone want
+        check( TimeZone.TryFindById( l.Id, want ), "Local id loads: " & l.Id )
+        for k as long = 0 to 99
+            dim as chrono.Instant i = at( 2015, 1, 1 ).Add( chrono.TimeSpan.FromHours( k * 877 ) )
+            check( want.OffsetSecondsAt( i ) = l.OffsetSecondsAt( i ), "Local id agrees with the OS: " & l.Id )
+        next
+    end if
 #else
     dim as outcome.Optional( of ustring ) tzv = os.GetEnv( "TZ" )
     dim as TimeZone want

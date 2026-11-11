@@ -71,3 +71,4 @@ tests/**/embedmod/** -text
 # Zone files copied unchanged from a tzdata release: binary, never converted.
 tests/codegen/tzdata/** binary
 tests/codegen/tzdata-slim/** binary
+pkg/std/tzdata/*.tzdb binary
