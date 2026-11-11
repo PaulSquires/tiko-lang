@@ -1,5 +1,5 @@
 '' std/tz phase Z5: ZonedDateTime as text -- RFC 9557 and the VV / v pattern letters.
-'' Prints "ok", or the first failed check. $TZDIR is tests/codegen/tzdata (tzdata 2026e).
+'' Prints "ok", or the first failed check. $TZDIR is tests/codegen/tzdata (tzdata 2026f).
 ''   1. ToIsoString: offsets with seconds only when non-zero, fractions, UTC, fixed zones
 ''   2. TryParseIso: every offset form, Z, no offset, a date alone, [+05:30], critical
 ''      and elective annotations, and the refusals

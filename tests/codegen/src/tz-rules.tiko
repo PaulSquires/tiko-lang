@@ -1,5 +1,5 @@
 '' std/tz phase Z1: the TZif reader and POSIX TZ rules. Prints "ok", or the first
-'' failed check. Reads the fixtures in tests/codegen/tzdata -- tzdata 2026e, copied
+'' failed check. Reads the fixtures in tests/codegen/tzdata -- tzdata 2026f, copied
 '' unchanged from a Linux /usr/share/zoneinfo, laid out as one -- and the slim files in
 '' tests/codegen/tzdata-slim, so every value is exact.
 ''   1. anchors: one per hard case (half-hour zones, 30-minute DST, a skipped day,
@@ -282,7 +282,7 @@ scope
 end scope
 
 '' ---------------------------------------------------------------- 4b. slim files
-'' zic -b slim from the same tzdata 2026e source: almost no 32-bit data, no
+'' zic -b slim from the same tzdata 2026f source: almost no 32-bit data, no
 '' transitions past the last rule change, everything else from the footer. They
 '' must give exactly what the fat files give.
 for z as long = 0 to 4

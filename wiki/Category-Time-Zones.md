@@ -28,7 +28,7 @@ $TZDIR                   when set: a directory of compiled zone files
 std/tzdata               the database inside the program, when it is imported
 ```
 
-The first source that has an id wins. Windows has no zone files of its own, so a program that names zones there imports **std/tzdata**: about 250 KB holding tzdata 2026e, every zone and link. On Linux and macOS the system's files come first because the operating system keeps them current, and std/tzdata fills in what they lack -- Ubuntu, for one, does not install the old link names such as `US/Eastern`. "UTC" needs no database at all.
+The first source that has an id wins. Windows has no zone files of its own, so a program that names zones there imports **std/tzdata**: about 250 KB holding tzdata 2026f, every zone and link. On Linux and macOS the system's files come first because the operating system keeps them current, and std/tzdata fills in what they lack -- Ubuntu, for one, does not install the old link names such as `US/Eastern`. "UTC" needs no database at all.
 
 `TimeZone.DataVersion` says which release the program is reading, and `tzdata.Version` which one std/tzdata holds.
 
@@ -126,7 +126,7 @@ The engine under `TimeZone`: one zone's rules from the bytes of a compiled zone 
 
 ```freebasic
 #import "std/tzdata"     ' nothing to call: the database is registered when the program starts
-tzdata.Version( )        ' 2026e
+tzdata.Version( )        ' 2026f
 ```
 
 ## The Rules That Are Easy To Get Wrong
@@ -269,7 +269,7 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [TimeZone.FixedOffset](Modern-Tz-TimeZone-FixedOffset) | Returns a time zone that is always a fixed number of seconds ahead of UTC. | `std/tz` |
 | [TimeZone.Local](Modern-Tz-TimeZone-Local) | Returns the machine's own time zone, answered by the operating system. | `std/tz` |
 | [TimeZone.AvailableIds](Modern-Tz-TimeZone-AvailableIds) | Returns every zone id the first zone source holds, sorted. | `std/tz` |
-| [TimeZone.DataVersion](Modern-Tz-TimeZone-DataVersion) | Returns the tz database release the first zone source holds, such as 2026e. | `std/tz` |
+| [TimeZone.DataVersion](Modern-Tz-TimeZone-DataVersion) | Returns the tz database release the first zone source holds, such as 2026f. | `std/tz` |
 | [TimeZone.RegisterDatabase](Modern-Tz-TimeZone-RegisterDatabase) | Gives std/tz a zone database to fall back on, in the .tzdb format tools/tzdb makes. | `std/tz` |
 | [TimeZone.Id](Modern-Tz-TimeZone-Id) | Returns the zone's id: its IANA name, UTC, or a fixed offset such as +05:30. | `std/tz` |
 | [TimeZone.IsFixed](Modern-Tz-TimeZone-IsFixed) | Returns true if the zone is UTC or a fixed offset, with no rules that change. | `std/tz` |
@@ -289,7 +289,7 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [TzRules.PosixRule](Modern-Tz-TzRules-PosixRule) | Returns the POSIX TZ rule that covers the years after the file's last transition. | `std/tz` |
 | [TzRules.TryNextTransition](Modern-Tz-TzRules-TryNextTransition) | Finds the next change of offset after a moment, in Unix seconds. | `std/tz` |
 | [TzRules.TryPreviousTransition](Modern-Tz-TzRules-TryPreviousTransition) | Finds the last change of offset before a moment, in Unix seconds. | `std/tz` |
-| [tzdata.Version](Modern-Tz-Tzdata-Version) | Returns the release of the zone database std/tzdata puts in the program, such as 2026e. | `std/tzdata` |
+| [tzdata.Version](Modern-Tz-Tzdata-Version) | Returns the release of the zone database std/tzdata puts in the program, such as 2026f. | `std/tzdata` |
 
 ### Convert to Unix time, FILETIME and other numbers
 

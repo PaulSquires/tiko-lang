@@ -241,7 +241,7 @@ Modern-Tz-TimeZone-Utc	TimeZone.Utc	-	zones	std/tz	-	Returns the UTC time zone, 
 Modern-Tz-TimeZone-FixedOffset	TimeZone.FixedOffset	-	zones	std/tz	-	Returns a time zone that is always a fixed number of seconds ahead of UTC.
 Modern-Tz-TimeZone-Local	TimeZone.Local	-	zones	std/tz	-	Returns the machine's own time zone, answered by the operating system.
 Modern-Tz-TimeZone-AvailableIds	TimeZone.AvailableIds	-	zones	std/tz	-	Returns every zone id the first zone source holds, sorted.
-Modern-Tz-TimeZone-DataVersion	TimeZone.DataVersion	-	zones	std/tz	-	Returns the tz database release the first zone source holds, such as 2026e.
+Modern-Tz-TimeZone-DataVersion	TimeZone.DataVersion	-	zones	std/tz	-	Returns the tz database release the first zone source holds, such as 2026f.
 Modern-Tz-TimeZone-RegisterDatabase	TimeZone.RegisterDatabase	-	zones	std/tz	-	Gives std/tz a zone database to fall back on, in the .tzdb format tools/tzdb makes.
 Modern-Tz-TimeZone-IsValid	TimeZone.IsValid	-	valid	std/tz	-	Returns true if the time zone refers to a zone; a dim'd TimeZone does not.
 Modern-Tz-TimeZone-Id	TimeZone.Id	-	zones	std/tz	-	Returns the zone's id: its IANA name, UTC, or a fixed offset such as +05:30.
@@ -312,4 +312,4 @@ Modern-Tz-TzRules-AbbreviationAt	TzRules.AbbreviationAt	-	names	std/tz	-	Returns
 Modern-Tz-TzRules-TryNextTransition	TzRules.TryNextTransition	-	zones	std/tz	-	Finds the next change of offset after a moment, in Unix seconds.
 Modern-Tz-TzRules-TryPreviousTransition	TzRules.TryPreviousTransition	-	zones	std/tz	-	Finds the last change of offset before a moment, in Unix seconds.
 Modern-Tz-Constants	TZ_MIN_UNIX and TZ_MAX_UNIX	-	valid	std/tz	-	Gives the range std/tz works in, 0001-01-01 to 9999-12-31, in Unix seconds.
-Modern-Tz-Tzdata-Version	tzdata.Version	-	zones	std/tzdata	-	Returns the release of the zone database std/tzdata puts in the program, such as 2026e.
+Modern-Tz-Tzdata-Version	tzdata.Version	-	zones	std/tzdata	-	Returns the release of the zone database std/tzdata puts in the program, such as 2026f.

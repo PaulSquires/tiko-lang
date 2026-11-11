@@ -13,7 +13,7 @@
 '' It costs about 250 KB in the executable, which is why it is a module of its own:
 '' a program that names no zones does not carry it.
 ''
-'' WHAT IS INSIDE: tzdata 2026e, as Ubuntu 24.04 builds it -- with backzone, so the
+'' WHAT IS INSIDE: tzdata 2026f, as Ubuntu 24.04 builds it -- with backzone, so the
 '' pre-1970 history of zones tzdata has merged is kept (Europe/Amsterdam's
 '' +00:19:32) -- compiled with zic -b slim. 598 ids, links included. Regenerate it
 '' with tools/tzdb/build.sh. The tz database is in the public domain.
@@ -36,7 +36,7 @@ end constructor
 
 dim shared hTzdataStart as TzdataInit_
 
-'' The tz database release inside this module ("2026e").
+'' The tz database release inside this module ("2026f").
 public function Version( ) as ustring
     '' the header's own field: "TZDB", a 4-byte format, then a length-prefixed version
     dim as long n = TzdbBytes_( 8 )

@@ -12,7 +12,7 @@ FORMAT, all integers big-endian like TZif itself:
 
     "TZDB"                      magic
     u32   1                     format
-    u8    n, n bytes            tzdata version, ASCII ("2026e")
+    u8    n, n bytes            tzdata version, ASCII ("2026f")
     u32   count
     count x { u8 n, n bytes id (ASCII), u32 offset, u32 length }   ids sorted bytewise
     data                        the TZif files; offset is from the start of data
@@ -32,7 +32,7 @@ def main():
         sys.exit(__doc__)
     root, version, out = sys.argv[1], sys.argv[2], sys.argv[3]
     if not re.fullmatch(r'[0-9]{4}[a-z]', version):
-        sys.exit('pack.py: version must look like 2026e, got %r' % version)
+        sys.exit('pack.py: version must look like 2026f, got %r' % version)
     entries = {}
     for dirpath, dirnames, filenames in os.walk(root):
         rel = os.path.relpath(dirpath, root).replace(os.sep, '/')

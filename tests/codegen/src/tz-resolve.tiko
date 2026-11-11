@@ -1,5 +1,5 @@
 '' std/tz phase Z3: local -> instant. MapLocal and the four Disambiguation policies.
-'' Prints "ok", or the first failed check. $TZDIR is tests/codegen/tzdata (tzdata 2026e).
+'' Prints "ok", or the first failed check. $TZDIR is tests/codegen/tzdata (tzdata 2026f).
 ''   1. anchors: St_Johns' spring gap and fall overlap, Lord_Howe's 30-minute ones,
 ''      Pacific/Apia's skipped day, a plain reading, UTC and a fixed offset, a
 ''      reading's fraction of a second, the ends of the range

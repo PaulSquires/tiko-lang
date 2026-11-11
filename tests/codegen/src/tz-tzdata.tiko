@@ -2,7 +2,7 @@
 '' first failed check. $TZDIR is emptied, so on Windows the embedded database is the
 '' only source; on Linux and macOS the system's files still come first.
 ''   1. the database: its version, its ids, every one loads
-''   2. Windows: the embedded zones against the tzdata 2026e fixtures (the same build,
+''   2. Windows: the embedded zones against the tzdata 2026f fixtures (the same build,
 ''      fat files) at 2000 instants each and every transition 1900..2100
 ''   3. Windows: Local's IANA id comes from CLDR's map of the OS zone's key, and that
 ''      zone agrees with the OS on 2010..2030
@@ -34,10 +34,10 @@ end function
 os.SetEnv( "TZDIR", "" )
 
 '' ---------------------------------------------------------------- 1. the database
-check( tzdata.Version( ) = "2026e", "tzdata.Version " & tzdata.Version( ) )
+check( tzdata.Version( ) = "2026f", "tzdata.Version " & tzdata.Version( ) )
 dim as containers.Array( of ustring ) ids = TimeZone.AvailableIds( )
 #ifdef __FB_WIN32__
-check( TimeZone.DataVersion( ) = "2026e", "DataVersion is the embedded one" )
+check( TimeZone.DataVersion( ) = "2026f", "DataVersion is the embedded one" )
 check( ids.Count( ) = 597, "597 ids (598 less Factory): " & ids.Count( ) )
 #else
 check( ids.Count( ) > 300, "system ids: " & ids.Count( ) )

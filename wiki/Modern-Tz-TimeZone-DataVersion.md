@@ -2,7 +2,7 @@
 
 # TimeZone.DataVersion
 
-Returns the tz database release the first zone source holds, such as 2026e.
+Returns the tz database release the first zone source holds, such as 2026f.
 
 ## Syntax
 

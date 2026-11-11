@@ -79,7 +79,7 @@ public type TimeZone
     declare static function Local      ( ) as TimeZone
     '' Every id the first zone source holds, sorted; empty when there is none.
     declare static function AvailableIds( ) as containers.Array( of ustring )
-    '' The tz database release the first source holds ("2026e"), or "".
+    '' The tz database release the first source holds ("2026f"), or "".
     declare static function DataVersion ( ) as ustring
     '' A zone database (tools/tzdb/pack.py's .tzdb format) for lookups to fall
     '' back on. The bytes are read in place and must outlive the program -- an

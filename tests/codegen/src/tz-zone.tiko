@@ -1,6 +1,6 @@
 '' std/tz phase Z2: TimeZone -- ids, the zone cache, $TZDIR, the Local zone, UTC and
 '' fixed offsets. Prints "ok", or the first failed check. $TZDIR is pointed at
-'' tests/codegen/tzdata (tzdata 2026e laid out as a zoneinfo tree, with an alias, a
+'' tests/codegen/tzdata (tzdata 2026f laid out as a zoneinfo tree, with an alias, a
 '' posix/ and right/ copy, localtime, posixrules, tzdata.zi and a .tab file).
 ''   1. threads: 8 threads find the same zones at once, on an empty cache
 ''   2. every fixture zone found by id, and in agreement with its file read directly
@@ -167,7 +167,7 @@ scope
     for i as long = 0 to NZONES - 1
         if i < ids.Count( ) then check( ids[i] = zoneIds( i ), "AvailableIds[" & i & "] = " & ids[i] )
     next
-    check( TimeZone.DataVersion( ) = "2026e", "DataVersion " & TimeZone.DataVersion( ) )
+    check( TimeZone.DataVersion( ) = "2026f", "DataVersion " & TimeZone.DataVersion( ) )
 
     dim as TimeZone sj = TimeZone.FindById( "America/St_Johns" ), db = TimeZone.FindById( "Europe/Dublin" )
     dim as TimeZone lh = TimeZone.FindById( "Australia/Lord_Howe" )

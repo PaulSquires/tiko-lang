@@ -2,7 +2,7 @@
 
 # tzdata.Version
 
-Returns the release of the zone database std/tzdata puts in the program, such as 2026e.
+Returns the release of the zone database std/tzdata puts in the program, such as 2026f.
 
 ## Syntax
 
@@ -22,7 +22,7 @@ tzdata.Version( ) as ustring
 #import "std/tzdata"
 #import "std/chrono"
 using tz
-print tzdata.Version( )      '' 2026e
+print tzdata.Version( )      '' 2026f
 ```
 
 ---

@@ -341,7 +341,7 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 | [TimeZone.FixedOffset](Modern-Tz-TimeZone-FixedOffset) | Returns a time zone that is always a fixed number of seconds ahead of UTC. | `std/tz` |
 | [TimeZone.Local](Modern-Tz-TimeZone-Local) | Returns the machine's own time zone, answered by the operating system. | `std/tz` |
 | [TimeZone.AvailableIds](Modern-Tz-TimeZone-AvailableIds) | Returns every zone id the first zone source holds, sorted. | `std/tz` |
-| [TimeZone.DataVersion](Modern-Tz-TimeZone-DataVersion) | Returns the tz database release the first zone source holds, such as 2026e. | `std/tz` |
+| [TimeZone.DataVersion](Modern-Tz-TimeZone-DataVersion) | Returns the tz database release the first zone source holds, such as 2026f. | `std/tz` |
 | [TimeZone.RegisterDatabase](Modern-Tz-TimeZone-RegisterDatabase) | Gives std/tz a zone database to fall back on, in the .tzdb format tools/tzdb makes. | `std/tz` |
 | [TimeZone.Id](Modern-Tz-TimeZone-Id) | Returns the zone's id: its IANA name, UTC, or a fixed offset such as +05:30. | `std/tz` |
 | [TimeZone.IsFixed](Modern-Tz-TimeZone-IsFixed) | Returns true if the zone is UTC or a fixed offset, with no rules that change. | `std/tz` |
@@ -361,7 +361,7 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 | [TzRules.PosixRule](Modern-Tz-TzRules-PosixRule) | Returns the POSIX TZ rule that covers the years after the file's last transition. | `std/tz` |
 | [TzRules.TryNextTransition](Modern-Tz-TzRules-TryNextTransition) | Finds the next change of offset after a moment, in Unix seconds. | `std/tz` |
 | [TzRules.TryPreviousTransition](Modern-Tz-TzRules-TryPreviousTransition) | Finds the last change of offset before a moment, in Unix seconds. | `std/tz` |
-| [tzdata.Version](Modern-Tz-Tzdata-Version) | Returns the release of the zone database std/tzdata puts in the program, such as 2026e. | `std/tzdata` |
+| [tzdata.Version](Modern-Tz-Tzdata-Version) | Returns the release of the zone database std/tzdata puts in the program, such as 2026f. | `std/tzdata` |
 
 ## Show a date the way the user's machine writes it
 

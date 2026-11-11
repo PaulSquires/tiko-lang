@@ -1,5 +1,5 @@
 '' std/tz phase Z4: ZonedDateTime. Prints "ok", or the first failed check. $TZDIR is
-'' tests/codegen/tzdata (tzdata 2026e).
+'' tests/codegen/tzdata (tzdata 2026f).
 ''   1. construction: FromInstant, FromLocal under each policy, TryFromLocal, Now, Invalid
 ''   2. fields, offset, abbreviation, DST flag; ToDateTime rounding a sub-minute offset
 ''      and keeping the instant (Amsterdam +00:19:32 -> +00:20)
