@@ -669,4 +669,4 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO1067` | error | the parts of partial type '‹arg1›' disagree: one is 'public', another 'private' |
 | `TKO1068` | error | the parts of '‹arg1›' disagree: one is a 'partial type', another a 'partial class' |
 
-<!-- 611 rows, generated 2026-11-11 from src/diag/diagids.ti at c80742526 -->
+<!-- 611 rows, generated 2026-11-11 from src/diag/diagids.ti at 3ca5ef67d -->
