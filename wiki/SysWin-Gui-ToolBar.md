@@ -1432,17 +1432,16 @@ Microsoft Learn: [TB_HITTEST](https://learn.microsoft.com/en-us/windows/win32/co
 ### GetHotItem
 
 ```freebasic
-function GetHotItem( byval hToolbar as HWND ) as DWORD
+function GetHotItem( byval hToolbar as HWND ) as LONG
 ```
 
 **Returns** the index of the hot button: the one under the mouse, or picked with the arrow keys.
-When no button is hot the message's -1 arrives as a `DWORD`, &hFFFFFFFF (4294967295): test for
-that, or convert with `cast( long, ... )` and test for -1.
+When no button is hot the result is -1.
 
 **Example**
 
 ```freebasic
-dim i as long = cast( long, ToolBar.GetHotItem( hCtrl ) )
+dim i as long = ToolBar.GetHotItem( hCtrl )
 if i <> -1 then print "hot button:"; i
 ```
 

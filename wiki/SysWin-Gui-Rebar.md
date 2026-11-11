@@ -673,11 +673,9 @@ function GetColorScheme overload( byval hRebar as HWND ) as COLORSCHEME
 ```
 
 Reads the colours the rebar draws highlights and shadows with (`clrBtnHighlight`,
-`clrBtnShadow`); `dwSize` is set for you. `CLR_DEFAULT` means the system colour. The second
-form, taking the structure by reference, returns `false` at once and sends nothing: the
-structure is left as it was. Use the first form with `@cs`, or the third.
+`clrBtnShadow`); `dwSize` is set for you. `CLR_DEFAULT` means the system colour.
 
-**Returns** `true` on success (first form; the second always returns `false`); the colours (third
+**Returns** `true` on success (first form); the colours (third
 form).
 
 **Example**
@@ -697,9 +695,7 @@ sub SetColorScheme overload( byval hRebar as HWND, byval pcs as COLORSCHEME ptr 
 sub SetColorScheme overload( byval hRebar as HWND, byref cs as COLORSCHEME )
 ```
 
-Sets the highlight and shadow colours; `dwSize` is set for you. The second form, taking the
-structure by reference, returns at once and sends nothing, so the colours do not change; pass
-`@cs` to the first form.
+Sets the highlight and shadow colours; `dwSize` is set for you.
 
 **Example**
 

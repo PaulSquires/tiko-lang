@@ -2913,24 +2913,17 @@ Microsoft Learn: [WM_SIZE](https://learn.microsoft.com/en-us/windows/win32/winms
 
 | Function | Does |
 | --- | --- |
-| [CDialogPtr](#cdialogptr) | Returns the `CDialog` of a dialog, from its handle or a control's. |
+| [CDialogPtr](#cdialogptr) | Returns the `CDialog` of a dialog, from its handle. |
 | [DialogInputBox](#dialoginputbox) | Asks the user for a line of text in a modal dialog. |
 | [DialogInputBoxWindowProc](#dialoginputboxwindowproc) | The dialog procedure of the input box. |
 
 ### CDialogPtr
 
 ```freebasic
-function CDialogPtr( byval hwnd as HWND ) as CDialog ptr
+function CDialogPtr( byval hDlg as HWND ) as CDialog ptr
 ```
 
-Returns the `CDialog` object behind a dialog, given the dialog's handle or that of any control in
-it, so a dialog procedure needs no global or `static` pointer. It goes up to the root owner of
-`hwnd` and reads the pointer the dialog keeps.
-
-For a dialog that has an owner, the root owner is the **owner**, not the dialog: there,
-`CDialogPtr` returns the owner's `CDialog`, or whatever the owner window keeps in that slot if it
-is not a dialog. In an owned dialog, read the pointer from `WM_INITDIALOG`'s `lParam`, or with
-`GetWindowLongPtrW( hDlg, DWLP_USER )`.
+Returns the `CDialog` object behind a dialog, given the dialog's handle, so a dialog procedure needs no global or `static` pointer.
 
 **Returns** the object, or `NULL` for a `NULL` handle.
 

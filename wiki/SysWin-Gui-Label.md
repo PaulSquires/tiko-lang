@@ -187,8 +187,7 @@ function Disable( byval hStatic as HWND ) as boolean
 
 Disables the label: its text is greyed out and it sends no notifications.
 
-**Returns** `true` when the label was enabled before the call, `false` when it was already
-disabled (the opposite of what `Button.Disable` returns).
+**Returns** `true` or `false`.
 
 **Example**
 
