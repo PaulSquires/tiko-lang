@@ -237,11 +237,25 @@ end sub
 
 ' ---- a control's [control.colors]: the Colors dialog ----------------------------------------------------
 
-' The project's theme for a form's previews; "" (the presets) outside a project.
-private function ProjectThemePath_( byval mw as Window ptr ) as ustring
-    if mw->ProjOpen = false then return ""
-    return fs.PathJoin( fs.PathParent( mw->Proj.Path ), "appTheme", "appTheme.tktheme" )
+' The project's theme for a form's previews and its surface; "" (the presets) outside a project.
+function Window.ProjectThemePath( ) as ustring
+    if ProjOpen = false then return ""
+    return fs.PathJoin( fs.PathParent( Proj.Path ), "appTheme", "appTheme.tktheme" )
 end function
+
+' Every open form (and Test Form) in the project's theme as it is now.
+sub Window.RefreshFormThemes( )
+    for each d as DocRef in Docs
+        if d->Designer then
+            d->Designer->ThemePath = this.ProjectThemePath( )
+            d->Designer->ApplyProjectTheme( )
+        end if
+    next
+    if Preview then
+        Preview->ThemePath = this.ProjectThemePath( )
+        Preview->ApplyProjectTheme( )
+    end if
+end sub
 
 sub Window.OpenColors( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
     if ColorsDlg then exit sub
@@ -251,7 +265,7 @@ sub Window.OpenColors( byval c as canvas.FormCanvas ptr, byref name_ as const us
     ColorsDlg = new colorsdlg.ColorsDialog
     ColorsOf = c
     ColorsName = name_
-    ColorsDlg->Open( form, ctl.TypeName, ctl.StyleName, ctl.Colors, ProjectThemePath_( @this ), _
+    ColorsDlg->Open( form, ctl.TypeName, ctl.StyleName, ctl.Colors, this.ProjectThemePath( ), _
                      name_ & " - " & i18n.Tr( "designer.colors", "Colours" ) )
     if ColorsDlg->Win = 0 then
         delete ColorsDlg
@@ -319,6 +333,10 @@ sub Window.TestForm( )
     PreviewForm->Tag = @this
     Preview = new canvas.FormCanvas
     Preview->Live = true
+    ' in the project's theme, the variant the design surface shows
+    Preview->ThemePath = this.ProjectThemePath( )
+    Preview->PreviewSet = true
+    Preview->PreviewDark = d->Designer->ShowsDark( )
     Preview->Create( tkForm_Widget( PreviewForm ), 1 )
     dim as TK_WIDGET ptr r = tkForm_Widget( PreviewForm )
     tkWidget_SetPos( Preview->Frame, 0, 0, r->cw, r->ch )
@@ -740,17 +758,25 @@ end sub
 ' Form > Project Theme...: the project's appTheme/appTheme.tktheme in the Theme Center (the
 ' presets, named "Default", when the project has none yet).
 sub Window.OpenThemeCenter( )
+    if ProjOpen = false then exit sub
+    this.OpenThemeCenterOn( this.ProjectThemePath( ), false )
+end sub
+
+' The Theme Center on a theme: the project's appTheme, or (forEditor) tkEdit's own -- whose Save
+' writes the file and applies it, no module and no main.
+sub Window.OpenThemeCenterOn( byref path as const ustring, byval forEditor as boolean )
     if ThemeDlg then
         if ThemeDlg->Win then tkForm_Show( ThemeDlg->Win )
         exit sub
     end if
-    if ProjOpen = false then exit sub
-    dim as ustring path = fs.PathJoin( fs.PathParent( Proj.Path ), "appTheme", "appTheme.tktheme" )
     ThemeDlg = new themecenter.ThemeDialog
     ThemeDlg->Host = @this
+    ThemeDlg->ForEditor = forEditor
     ThemeDlg->OnSave = @ThemeSaved_
     ThemeDlg->OnClose = @ThemeClosed_
-    ThemeDlg->Open( form, path, fs.PathJoin( ConfigDir, themes.THEME_DIR ) )
+    dim as ustring title
+    if forEditor then title = i18n.Tr( "designer.theme_editor_title", "tkEdit Theme" )
+    ThemeDlg->Open( form, path, fs.PathJoin( ConfigDir, themes.THEME_DIR ), title )
 end sub
 
 sub Window.CloseThemeCenter( )
@@ -788,6 +814,11 @@ function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
         this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
         return true
     end if
+    if tc->ForEditor then
+        this.ReloadTheme( )
+        this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
+        return true
+    end if
     if this.WriteThemeGenerated( tc->Path, text ) = false then return false
     ' the project's main installs the theme, as a new project's does
     if ProjOpen then
@@ -812,6 +843,7 @@ function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
             end select
         end if
     end if
+    this.RefreshFormThemes( )
     this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
     return true
 end function

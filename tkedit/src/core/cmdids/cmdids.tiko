@@ -112,6 +112,7 @@ public enum Cmd explicit
     FormTest
     FormNewForm
     FormTheme
+    FormPreviewVariant
     UnfoldAll
     ' Project
     ProjectSaveAs
@@ -330,6 +331,7 @@ constructor CommandTable( )
     g = MenuGroup.Form
     this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "" )
     this.Def( Cmd.FormTheme, "FormTheme", g, "Project Theme...", "" )
+    this.Def( Cmd.FormPreviewVariant, "FormPreviewVariant", g, "Preview Light / Dark", "" )
     this.Def( Cmd.FormTest, "FormTest", g, "Test Form", "Alt+F5", true )
     this.Def( Cmd.FormAlignLefts, "FormAlignLefts", g, "Align Lefts", "", true )
     this.Def( Cmd.FormAlignCenters, "FormAlignCenters", g, "Align Centers", "" )

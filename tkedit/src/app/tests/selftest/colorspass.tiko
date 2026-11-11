@@ -188,6 +188,40 @@ public sub ColorsPass( byref t as Tally, byval sc as single )
     dim as ustring said
     if row >= 0 then said = tkButton_GetText( ps->Rows[row].Edit )
     t.Check( said = "Primary + 3 colours", P( sc, "the row says so: " & said ) )
+
+    ' ---- the canvas wears the project theme (TH7): the form's scope, the control's recipe in it
+    mw.RefreshFormThemes( )                     ' the theme file was written behind tkEdit's back above
+    tkTest_PumpFor( h, 40 )
+    dim as boolean dk = c->ShowsDark( ), edDark = tkApp_Theme( ).IsDark
+    dim as TK_WIDGET ptr cb = c->WidgetOf( "Button1" )
+    tkButton_GetColors( cb, @bc )
+    dim as TKTHEME_COLORS sk = tkTheme_Of( c->Surface )
+    t.Check( (sk.IsDark = dk) andalso (bc.BackColor = &hFFC62828ul) andalso (bc.BackColorHot = sk.Accent), _
+             P( sc, "the canvas Button: its Back, and Hot = the form theme's @Accent: " & hex( bc.BackColorHot ) & " " & hex( sk.Accent ) ) )
+    t.Check( (bc.ForeColor = &hFFFFFFFFul) = dk, P( sc, "and its Fore pair's half for the variant shown: " & hex( bc.ForeColor ) ) )
+    mw.Execute( Cmd.FormPreviewVariant )
+    tkTest_PumpFor( h, 40 )
+    tkButton_GetColors( cb, @bc )
+    sk = tkTheme_Of( c->Surface )
+    t.Check( (c->ShowsDark( ) = (dk = false)) andalso (sk.IsDark = (dk = false)), P( sc, "Preview Light / Dark: the other variant" ) )
+    t.Check( (bc.BackColorHot = sk.Accent) andalso ((bc.ForeColor = &hFFFFFFFFul) = (dk = false)), _
+             P( sc, "and the Button follows: " & hex( bc.BackColorHot ) & " " & hex( bc.ForeColor ) ) )
+    t.Check( tkApp_Theme( ).IsDark = edDark, P( sc, "tkEdit's own theme is untouched" ) )
+    ' Test Form shows the variant the surface does
+    mw.Execute( Cmd.FormTest )
+    tkTest_PumpFor( h, 80 )
+    t.Check( (mw.Preview <> 0) andalso (mw.Preview->ShowsDark( ) = (dk = false)) _
+             andalso (tkTheme_Of( mw.Preview->Surface ).IsDark = (dk = false)), P( sc, "Test Form wears it in that variant" ) )
+    if mw.Preview then
+        tkButton_GetColors( mw.Preview->WidgetOf( "Button1" ), @bc )
+        t.Check( bc.BackColorHot = sk.Accent, P( sc, "its Button too: " & hex( bc.BackColorHot ) ) )
+        tkTest_PushKey( tkForm_Host( mw.PreviewForm ), SDLK_ESCAPE, 0, true, SDL_SCANCODE_ESCAPE )
+        tkTest_PumpFor( h, 60 )
+        tkApp_Pump( )
+        tkTest_PumpFor( h, 40 )
+    end if
+    mw.Execute( Cmd.FormPreviewVariant )        ' back to the variant the checks below expect
+    tkTest_PumpFor( h, 30 )
     tkHost_SetFocus( h, c->Glass )
     Chord( h, SDLK_Z, SDL_SCANCODE_Z, TK_KMOD_PRIMARY )
     tkTest_PumpFor( h, 60 )

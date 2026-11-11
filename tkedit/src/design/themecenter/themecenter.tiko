@@ -83,6 +83,7 @@ public type ThemeDialog_
     SavingToLibrary as boolean          ' while OnSave writes the library copy (Path is the library's)
     OnSave as ThemeDialogSub
     Host as any ptr                     ' the host's, for its callbacks
+    ForEditor as boolean                ' the host's: tkEdit's own theme, not a project's
     OnClose as ThemeDialogSub
     GalleryPaths as Array( of ustring )
 
@@ -136,7 +137,8 @@ public type ThemeDialog_
     BtnSave as TK_WIDGET ptr
     BtnClose as TK_WIDGET ptr
 
-    declare sub Open( byval owner as TK_FORM ptr, byref themePath as const ustring, byref libraryDir_ as const ustring )
+    declare sub Open( byval owner as TK_FORM ptr, byref themePath as const ustring, byref libraryDir_ as const ustring, _
+                      byref caption as const ustring = "" )
     declare sub Close( )
     declare sub Layout( )
     declare sub FillGallery( )
@@ -266,7 +268,8 @@ private function MakeList_( byval parent as TK_WIDGET ptr ) as TK_WIDGET ptr
     return l
 end function
 
-sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustring, byref libraryDir_ as const ustring )
+sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustring, byref libraryDir_ as const ustring, _
+                       byref caption as const ustring = "" )
     Path = themePath
     LibraryDir = libraryDir_
     dim as ustring none, e
@@ -277,7 +280,8 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
         Doc = fresh
     end if
 
-    dim as ustring title = i18n.Tr( "designer.theme_title", "Project Theme" )
+    dim as ustring title = caption
+    if len( title ) = 0 then title = i18n.Tr( "designer.theme_title", "Project Theme" )
     dim as single sc = 0
     if owner then sc = tkForm_Host( owner )->fScaleForced
     Win = tkApp_NewForm( title, WIN_CX, WIN_CY, owner, sc )
