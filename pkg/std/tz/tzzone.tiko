@@ -49,6 +49,21 @@ type TzEntry_
     as TzRules rules
 end type
 
+'' What to do with a wall-clock reading that names two instants (an OVERLAP,
+'' when the clock falls back) or none (a GAP, when it springs forward).
+'' Temporal's four, under Temporal's meanings:
+''     overlap        gap
+''     dzCompatible   earlier        forward by the gap's width     (the default)
+''     dzEarlier      earlier        backward by the gap's width
+''     dzLater        later          forward by the gap's width
+''     dzReject       refused        refused
+public enum Disambiguation
+    dzCompatible
+    dzEarlier
+    dzLater
+    dzReject
+end enum
+
 public type TimeZone
     declare static function TryFindById( byref zoneId as const ustring, byref result as TimeZone ) as boolean
     declare static function FindById   ( byref zoneId as const ustring ) as TimeZone
@@ -83,9 +98,28 @@ public type TimeZone
     declare function TryNextTransition    ( byref after  as chrono.Instant, byref result as chrono.Instant ) as boolean
     declare function TryPreviousTransition( byref before as chrono.Instant, byref result as chrono.Instant ) as boolean
 
+    '' LOCAL -> INSTANT. WALL is read as a wall-clock reading in this zone; its
+    '' offset, if it carries one, is ignored, as DateTime.AssumeLocal ignores it.
+    '' MapLocal answers how many instants the reading names -- 1 normally, 2 in
+    '' an overlap, 0 in a gap -- with them in A and B, earlier first (B = A when
+    '' there is one). A reading whose instants fall outside years 1..9999 names
+    '' none and is no gap: MapLocal 0, and every policy fails.
+    declare function MapLocal( byref wall as chrono.DateTime, byref a as chrono.Instant, _
+                               byref b as chrono.Instant ) as long
+    '' False, with result left alone, when the policy refuses the reading
+    '' (dzReject on an overlap or a gap) or it cannot be placed in range.
+    declare function TryResolve( byref wall as chrono.DateTime, byval policy as Disambiguation, _
+                                 byref result as chrono.Instant ) as boolean
+    '' TryResolve's plain form: runtime error 1 where TryResolve is false.
+    declare function Resolve( byref wall as chrono.DateTime, _
+                              byval policy as Disambiguation = dzCompatible ) as chrono.Instant
+
 private:
     as TzEntry_ ptr m_e
     declare function Entry_( byref i as chrono.Instant ) as TzEntry_ ptr
+    declare function OffSec_( byval t as longint ) as long
+    declare function Map_( byval w as longint, byref a as longint, byref b as longint, _
+                           byref gapBefore as long, byref gapAfter as long ) as long
 end type
 
 '' Same zone: the same id, so "US/Eastern" and "America/New_York" are not equal.
