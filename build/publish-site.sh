@@ -98,7 +98,7 @@ verify_live() {
     ctype=$(curl -fsSL -m 60 -A 'Mozilla/5.0' -o "$tmp/live.bin" -w '%{content_type}' "$url" || echo FETCH-FAILED)
     got=""
     [[ -f "$tmp/live.bin" ]] && got=$(sha_of "$tmp/live.bin")
-    if [[ "$got" == "$want" && ( -z "$want_type" || "$ctype" == "$want_type"* ) ]]; then
+    if [[ "$got" == "$want" && ( -z "$want_type" || "${ctype,,}" == "${want_type,,}"* ) ]]; then
       say "live OK: $url"
       return 0
     fi
