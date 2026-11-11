@@ -15,6 +15,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [Feature Index](Feature-Index) | Every language feature and library, one line each, with its reference page |
 | [Function Finder](Function-Finder) | Every function, grouped by what you want to do, with one line on what each one does |
 | [FAQ](tiko-lang-FAQ) | Short answers to the questions that come up first |
+| [AI Cheatsheet](AI-Cheatsheet) | The whole language and standard library on one page, for AI coding agents: syntax, idioms and the mistakes that break builds |
 
 ## Tutorials
 
