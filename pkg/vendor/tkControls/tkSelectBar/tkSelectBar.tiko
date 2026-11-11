@@ -556,6 +556,8 @@ public function tkSelectBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID
     w->isFocusable = true                 ' ADDED (PsPlatform): a Tab stop
     pSel->hWin = w
     pSel->colors = tkSelectBar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pSel->colors ), sizeof( TKSELECTBAR_COLORS ) \ 4, "SelectBar" )
     tkTipHost_Ensure( @pSel->tip, w, @TipText )
     tkTipHost_SetDelay( @pSel->tip, TK_TIPDELAY_INITIAL, pSel->HoverTime )
     return w
@@ -815,7 +817,7 @@ public sub tkSelectBar_ApplyTheme( byval hSelectBar as TK_WIDGET ptr, byref t as
     if (pSel = 0) orelse pSel->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hSelectBar, t )
     pSel->colors = tkSelectBar_ThemeColors( tr )
-    tkTheme_ResolveInto( hSelectBar, tr, cast( ulong ptr, @pSel->colors ), sizeof( TKSELECTBAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hSelectBar, tr, cast( ulong ptr, @pSel->colors ), sizeof( TKSELECTBAR_COLORS ) \ 4, "SelectBar" )
     tkWidget_Invalidate( hSelectBar )
 end sub
 

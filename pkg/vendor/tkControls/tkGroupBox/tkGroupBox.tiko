@@ -117,6 +117,8 @@ public function tkGroupBox_Create( byval hParent as TK_WIDGET ptr, byval ctrlId 
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkGroupBox_Proc, p )
     p->hWin = w
     p->colors = tkGroupBox_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKGROUPBOX_COLORS ) \ 4, "GroupBox" )
     return w
 end function
 
@@ -187,7 +189,7 @@ public sub tkGroupBox_ApplyTheme( byval h as TK_WIDGET ptr, byref t as TKTHEME_C
     if (p = 0) orelse p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( h, t )
     p->colors = tkGroupBox_ThemeColors( tr )
-    tkTheme_ResolveInto( h, tr, cast( ulong ptr, @p->colors ), sizeof( TKGROUPBOX_COLORS ) \ 4 )
+    tkTheme_ResolveInto( h, tr, cast( ulong ptr, @p->colors ), sizeof( TKGROUPBOX_COLORS ) \ 4, "GroupBox" )
     tkWidget_Invalidate( h )
 end sub
 

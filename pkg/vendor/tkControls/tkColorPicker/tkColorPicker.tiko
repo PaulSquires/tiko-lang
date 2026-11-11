@@ -1688,6 +1688,8 @@ public function tkColorPicker_Create( byval hParent as TK_WIDGET ptr, byval id a
     w->isVisible = false
     pClr->hWin = w
     pClr->colors = tkColorPicker_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pClr->colors ), sizeof( TKCOLORPICKER_COLORS ) \ 4, "ColorPicker" )
     CLR_SyncBodySel( pClr )
     return w
 end function
@@ -1991,7 +1993,7 @@ public sub tkColorPicker_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TK
     if (pClr = 0) orelse pClr->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCtrl, t )
     pClr->colors = tkColorPicker_ThemeColors( tr )
-    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @pClr->colors ), sizeof( TKCOLORPICKER_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @pClr->colors ), sizeof( TKCOLORPICKER_COLORS ) \ 4, "ColorPicker" )
     if pClr->pSurf then pClr->pSurf->clrBack = pClr->colors.BackColor
     tkWidget_Invalidate( pClr->hContent )
 end sub

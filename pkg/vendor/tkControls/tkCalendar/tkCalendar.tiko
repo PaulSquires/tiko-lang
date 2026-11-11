@@ -1654,6 +1654,8 @@ public function tkCalendar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId 
     w->isFocusable = true
     pCal->hWin = w
     pCal->colors = tkCalendar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pCal->colors ), sizeof( TKCALENDAR_COLORS ) \ 4, "Calendar" )
     return w
 end function
 
@@ -2272,7 +2274,7 @@ public sub tkCalendar_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHE
     if (pCal = 0) orelse pCal->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCtrl, t )
     pCal->colors = tkCalendar_ThemeColors( tr )
-    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @pCal->colors ), sizeof( TKCALENDAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @pCal->colors ), sizeof( TKCALENDAR_COLORS ) \ 4, "Calendar" )
     tkWidget_Invalidate( hCtrl )
 end sub
 

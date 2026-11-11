@@ -821,6 +821,8 @@ public function tkOptionButton_Create( byval hParent as TK_WIDGET ptr, byval ctr
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkOptionButton_Proc, pOpt )
     pOpt->hWin = w
     pOpt->colors = tkOptionButton_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pOpt->colors ), sizeof( TKOPTIONBUTTON_COLORS ) \ 4, "OptionButton" )
     tkTipHost_Ensure( @pOpt->tip, w, @tkOptionButton_TipText )
     ' Join the registry BEFORE the tab-stop sync, or the sync cannot see us.
     RegistryAdd( pOpt )
@@ -1245,7 +1247,7 @@ public sub tkOptionButton_ApplyTheme( byval hOptionButton as TK_WIDGET ptr, byre
     if pOpt->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hOptionButton, t )
     pOpt->colors = tkOptionButton_ThemeColors( tr )
-    tkTheme_ResolveInto( hOptionButton, tr, cast( ulong ptr, @pOpt->colors ), sizeof( TKOPTIONBUTTON_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hOptionButton, tr, cast( ulong ptr, @pOpt->colors ), sizeof( TKOPTIONBUTTON_COLORS ) \ 4, "OptionButton" )
     tkWidget_Invalidate( hOptionButton )
 end sub
 

@@ -475,6 +475,8 @@ public function tkStatusBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID
     w->isFocusable = false                 ' never a tabstop, never takes focus
     pStatus->hWin = w
     pStatus->colors = tkStatusBar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pStatus->colors ), sizeof( TKSTATUSBAR_COLORS ) \ 4, "StatusBar" )
     tkTipHost_Ensure( @pStatus->tip, w, @TipText )
     return w
 end function
@@ -708,7 +710,7 @@ public sub tkStatusBar_ApplyTheme( byval hStatusBar as TK_WIDGET ptr, byref t as
     if (pStatus = 0) orelse pStatus->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hStatusBar, t )
     pStatus->colors = tkStatusBar_ThemeColors( tr )
-    tkTheme_ResolveInto( hStatusBar, tr, cast( ulong ptr, @pStatus->colors ), sizeof( TKSTATUSBAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hStatusBar, tr, cast( ulong ptr, @pStatus->colors ), sizeof( TKSTATUSBAR_COLORS ) \ 4, "StatusBar" )
     tkWidget_Invalidate( hStatusBar )
 end sub
 

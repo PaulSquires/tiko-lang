@@ -1306,6 +1306,8 @@ public function tkToolbar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID a
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkToolbar_Proc, pTB )
     pTB->hWin = w
     pTB->colors = tkToolbar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pTB->colors ), sizeof( TKTOOLBAR_COLORS ) \ 4, "Toolbar" )
     tkTipHost_Ensure( @pTB->tip, w, @TipText )
     ApplyThemeShape( w )
     return w
@@ -1883,7 +1885,7 @@ public sub tkToolbar_ApplyTheme( byval hToolbar as TK_WIDGET ptr, byref t as TKT
     if pTB->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hToolbar, t )
     pTB->colors = tkToolbar_ThemeColors( tr )
-    tkTheme_ResolveInto( hToolbar, tr, cast( ulong ptr, @pTB->colors ), sizeof( TKTOOLBAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hToolbar, tr, cast( ulong ptr, @pTB->colors ), sizeof( TKTOOLBAR_COLORS ) \ 4, "Toolbar" )
     ReapplyAllMenuColors( pTB )
     tkWidget_Invalidate( hToolbar )
 end sub

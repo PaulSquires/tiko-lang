@@ -375,6 +375,8 @@ public function tkSplitter_Create( byval hParent as TK_WIDGET ptr, byval ctrlId 
     ' The resize cursor: the host shows it over the bar and, under capture, for the whole drag.
     tkWidget_SetCursor( w, iif( nOrientation = TKSPLITTER_VERTICAL, TK_CURSOR_SIZEWE, TK_CURSOR_SIZENS ) )
     pSpl->colors = tkSplitter_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pSpl->colors ), sizeof( TKSPLITTER_COLORS ) \ 4, "Splitter" )
     return w
 end function
 
@@ -485,7 +487,7 @@ public sub tkSplitter_ApplyTheme( byval hSplit as TK_WIDGET ptr, byref t as TKTH
     if (pSpl = 0) orelse pSpl->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hSplit, t )
     pSpl->colors = tkSplitter_ThemeColors( tr )
-    tkTheme_ResolveInto( hSplit, tr, cast( ulong ptr, @pSpl->colors ), sizeof( TKSPLITTER_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hSplit, tr, cast( ulong ptr, @pSpl->colors ), sizeof( TKSPLITTER_COLORS ) \ 4, "Splitter" )
     tkWidget_Invalidate( hSplit )
 end sub
 

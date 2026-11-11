@@ -928,6 +928,8 @@ public function tkComboBox_Create( byval hParent as TK_WIDGET ptr, byval CtrlID 
     w->isFocusable = true
     p->hWin = w
     p->colors = tkComboBox_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKCOMBOBOX_COLORS ) \ 4, "ComboBox" )
     CbDeriveListColors( p )
     ApplyThemeShape( w )
     return w
@@ -1475,7 +1477,7 @@ public sub tkComboBox_ApplyTheme( byval hCombo as TK_WIDGET ptr, byref t as TKTH
     if p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCombo, t )
     p->colors = tkComboBox_ThemeColors( tr )
-    tkTheme_ResolveInto( hCombo, tr, cast( ulong ptr, @p->colors ), sizeof( TKCOMBOBOX_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hCombo, tr, cast( ulong ptr, @p->colors ), sizeof( TKCOMBOBOX_COLORS ) \ 4, "ComboBox" )
     CbDeriveListColors( p )
     tkWidget_Invalidate( hCombo )
 end sub

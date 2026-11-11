@@ -952,6 +952,7 @@ public function tkDatePicker_Create( byval hParent as TK_WIDGET ptr, byval CtrlI
     p->colors = tkDatePicker_ThemeColors( tkTheme_Of( hParent ) )      ' the scope it is created in
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkDatePicker_Proc, p )
     p->hWin = w
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKDATEPICKER_COLORS ) \ 4, "DatePicker" )
     ' the editable field: borderless, plain text (dates are free-form)
     p->wText = tkTextBox_Create( w, CtrlID )
     if p->wText then
@@ -1402,7 +1403,7 @@ public sub tkDatePicker_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKT
     if p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCtrl, t )
     dim as TKDATEPICKER_COLORS c = tkDatePicker_ThemeColors( tr )
-    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @c ), sizeof( TKDATEPICKER_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @c ), sizeof( TKDATEPICKER_COLORS ) \ 4, "DatePicker" )
     tkDatePicker_SetColors( hCtrl, @c )
     p->bColorsPinned = false
 end sub

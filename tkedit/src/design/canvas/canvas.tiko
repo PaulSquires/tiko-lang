@@ -36,6 +36,7 @@
 #import "../edits"
 #import "../validate"
 #import "../codegen"
+#import "../colorval"
 using containers
 using tkApp
 using tkMeta
@@ -409,6 +410,17 @@ sub FormCanvas.Rebuild( )
                 end if
             end if
         next
+        ' [control.colors]: the recipe the generated code gives it (the style takes effect once the
+        ' canvas wears the project theme)
+        if (len( c.StyleName ) > 0) orelse (c.Colors.Count( ) > 0) then
+            dim as Array( of TKCOLOR_SRC ) recipe
+            colorval.Entries( c.Colors, m, recipe )
+            if recipe.Count( ) then
+                tkTheme_SetRecipeNamed( w, c.StyleName, @recipe[0], recipe.Count( ) )
+            else
+                tkTheme_SetRecipeNamed( w, c.StyleName, 0, 0 )
+            end if
+        end if
         select case m->ContainerKind
         case TKMETA_NOT_CONTAINER
         case TKMETA_CONTAINER_PAGES

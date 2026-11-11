@@ -514,6 +514,8 @@ public function tkMenuBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID a
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkMenuBar_Proc, pBar )
     pBar->hWin = w
     pBar->colors = tkMenuBar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pBar->colors ), sizeof( TKMENUBAR_COLORS ) \ 4, "MenuBar" )
     return w
 end function
 
@@ -693,7 +695,7 @@ public sub tkMenuBar_ApplyTheme( byval hMenuBar as TK_WIDGET ptr, byref t as TKT
     if (pBar = 0) orelse pBar->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hMenuBar, t )
     pBar->colors = tkMenuBar_ThemeColors( tr )
-    tkTheme_ResolveInto( hMenuBar, tr, cast( ulong ptr, @pBar->colors ), sizeof( TKMENUBAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hMenuBar, tr, cast( ulong ptr, @pBar->colors ), sizeof( TKMENUBAR_COLORS ) \ 4, "MenuBar" )
     tkWidget_Invalidate( hMenuBar )
 end sub
 

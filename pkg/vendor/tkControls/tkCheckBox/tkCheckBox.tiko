@@ -663,6 +663,8 @@ public function tkCheckBox_Create( byval hParent as TK_WIDGET ptr, byval ctrlId 
     w->isFocusable = true
     pChk->hWin = w
     pChk->colors = tkCheckBox_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pChk->colors ), sizeof( TKCHECKBOX_COLORS ) \ 4, "CheckBox" )
     tkTipHost_Ensure( @pChk->tip, w, @tkCheckBox_TipText )
     ApplyThemeShape( w )
     return w
@@ -1021,7 +1023,7 @@ public sub tkCheckBox_ApplyTheme( byval hCheckBox as TK_WIDGET ptr, byref t as T
     if pChk->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCheckBox, t )
     pChk->colors = tkCheckBox_ThemeColors( tr )
-    tkTheme_ResolveInto( hCheckBox, tr, cast( ulong ptr, @pChk->colors ), sizeof( TKCHECKBOX_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hCheckBox, tr, cast( ulong ptr, @pChk->colors ), sizeof( TKCHECKBOX_COLORS ) \ 4, "CheckBox" )
     tkWidget_Invalidate( hCheckBox )
 end sub
 

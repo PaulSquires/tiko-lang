@@ -760,6 +760,8 @@ public function tkTabBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkTabBar_Proc, pBar )
     pBar->hWin = w
     pBar->colors = tkTabBar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pBar->colors ), sizeof( TKTABBAR_COLORS ) \ 4, "TabBar" )
     tkTipHost_Ensure( @pBar->tip, w, @TipText )
     ApplyThemeShape( w )
     return w
@@ -1118,7 +1120,7 @@ public sub tkTabBar_ApplyTheme( byval hTabBar as TK_WIDGET ptr, byref t as TKTHE
     if pBar->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hTabBar, t )
     pBar->colors = tkTabBar_ThemeColors( tr )
-    tkTheme_ResolveInto( hTabBar, tr, cast( ulong ptr, @pBar->colors ), sizeof( TKTABBAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hTabBar, tr, cast( ulong ptr, @pBar->colors ), sizeof( TKTABBAR_COLORS ) \ 4, "TabBar" )
     tkWidget_Invalidate( hTabBar )
 end sub
 

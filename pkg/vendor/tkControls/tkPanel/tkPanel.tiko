@@ -91,6 +91,8 @@ public function tkPanel_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as 
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkPanel_Proc, p )
     p->hWin = w
     p->colors = tkPanel_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKPANEL_COLORS ) \ 4, "Panel" )
     return w
 end function
 
@@ -164,7 +166,7 @@ public sub tkPanel_ApplyTheme( byval h as TK_WIDGET ptr, byref t as TKTHEME_COLO
     if (p = 0) orelse p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( h, t )
     p->colors = tkPanel_ThemeColors( tr )
-    tkTheme_ResolveInto( h, tr, cast( ulong ptr, @p->colors ), sizeof( TKPANEL_COLORS ) \ 4 )
+    tkTheme_ResolveInto( h, tr, cast( ulong ptr, @p->colors ), sizeof( TKPANEL_COLORS ) \ 4, "Panel" )
     tkWidget_Invalidate( h )
 end sub
 

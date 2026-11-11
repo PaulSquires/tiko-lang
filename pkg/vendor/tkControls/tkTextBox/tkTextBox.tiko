@@ -1463,6 +1463,8 @@ public function tkTextBox_Create( byval hParent as TK_WIDGET ptr, byval CtrlID a
     t->hWin = w
     t->nScrollW = tkHost_Scale( w->pHost, TKVSCROLL_DEFAULT_WIDTH )
     t->colors = tkTextBox_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @t->colors ), sizeof( TKTEXTBOX_COLORS ) \ 4, "TextBox" )
     t->pMenu = tkPopupMenu_Create( w->pHost, CtrlID )
     ApplyThemeShape( w )
     return w
@@ -2046,7 +2048,7 @@ public sub tkTextBox_ApplyTheme( byval hTextBox as TK_WIDGET ptr, byref t as TKT
     if p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hTextBox, t )
     p->colors = tkTextBox_ThemeColors( tr )
-    tkTheme_ResolveInto( hTextBox, tr, cast( ulong ptr, @p->colors ), sizeof( TKTEXTBOX_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hTextBox, tr, cast( ulong ptr, @p->colors ), sizeof( TKTEXTBOX_COLORS ) \ 4, "TextBox" )
     tkWidget_Invalidate( hTextBox )
 end sub
 

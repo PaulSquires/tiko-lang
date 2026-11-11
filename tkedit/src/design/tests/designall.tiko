@@ -236,7 +236,12 @@ sub Generator( byref source as const ustring, byval bAccept as boolean )
     HasLine( t, "OpenWindow( ""Say """"hi"""""" & chr( 10 ) & ""Two"", 300, 200, owner )", "the caption is a tiko string" )
     HasLine( t, "btnGo.TextAlign = BTN_ALIGN_RIGHT", "an enum becomes its constant" )
     HasLine( t, "btnGo.Font = tkForm_Font( Wnd, TKFONT_UI_BOLD )", "a font role" )
-    HasLine( t, "lblNote.TextColor = &hFF336699ul", "a colour" )
+    HasLine( t, "r( 0 ) = tkTheme_SrcFixed( 0, &hFF336699ul )    ' TextColor", "a colour" )
+    HasLine( t, "tkTheme_SetRecipeNamed( btnGo.Handle, ""Danger"", @r( 0 ), 12 )", "a style by name, with its fields" )
+    HasLine( t, "r( 1 ) = tkTheme_SrcFixed2( 1, &hFFFFFFFFul, &hFFFFF8F8ul )    ' ForeColor", "a colour per variant" )
+    HasLine( t, "r( 2 ) = tkTheme_SrcRole( 2, TKROLE_BORDER )    ' BorderColor", "a role" )
+    HasLine( t, "r( 3 ) = tkTheme_SrcDerive( 4, TKDERIVE_HOT, 0 )    ' BackColorHot", "simple mode shades a face's Hot" )
+    HasLine( t, "r( 6 ) = tkTheme_SrcDerive( 5, TKDERIVE_SAME, 1 )    ' ForeColorHot", "and copies ink's" )
     HasLine( t, "txtBody.Create( tkTabControl_GetPage( tabs.Handle, 1 ), 5, true )", "created on a page, with its choice" )
     HasLine( t, "pbFill.Create( grp.Handle, 7, PRG_VERTICAL )", "an enum creation choice" )
     Check( instr( t, "Multiline =" ) = 0, "a creation choice is not assigned" )
@@ -772,6 +777,51 @@ sub TranslateSuite( )
     Check( instr( codegen.Generate( d, "frmT", "frmT.tkform", src ), "tkForms_Tr" ) = 0, "not unless asked" )
 end sub
 
+' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
+sub ColorsSuite( )
+    dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
+        & LF & "[control.props]" & LF & "Text = ""a""" & LF & "BackColor = ""&h80102030""" & LF & "TextColor = ""&hFF336699""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "an old form with colour properties reads" )
+    dim as FormControl c = d.Controls[0]
+    Check( (FindSetting( c.Props, "TextColor" ) < 0) andalso (FindSetting( c.Props, "BackColor" ) < 0) andalso (FindSetting( c.Props, "Text" ) >= 0), _
+        "its colour properties leave [control.props]" )
+    Check( SettingOr( c.Colors, "TextColor" ) = "#336699" andalso SettingOr( c.Colors, "BackColor" ) = "#10203080", _
+        "and become fields, alpha last", SettingOr( c.Colors, "BackColor" ) )
+    dim as ustring t = formfile.Render( d )
+    Check( instr( t, "[control.colors]" & LF & "TextColor = ""#336699""" & LF & "BackColor = ""#10203080""" & LF ) > 0, _
+        "written in struct order on the next save", t )
+    dim as FormDoc d2
+    ReadForm( t, d2 )
+    Check( formfile.Render( d2 ) = t, "and that round-trips" )
+
+    dim as ustring tb = Header( ) & Ctl( "t", "TextBox", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
+        & LF & "[control.props]" & LF & "CueBannerColor = ""&hFF808080""" & LF
+    dim as FormDoc d3
+    ReadForm( tb, d3 )
+    Check( SettingOr( d3.Controls[0].Colors, "CueColor" ) = "#808080", "TextBox's CueBannerColor is its CueColor" )
+    dim as ustring pic = Header( ) & Ctl( "p", "Picture", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
+        & LF & "[control.props]" & LF & "BackColor = ""&hFF808080""" & LF
+    dim as FormDoc d4
+    ReadForm( pic, d4 )
+    Check( (FindSetting( d4.Controls[0].Props, "BackColor" ) >= 0) andalso (d4.Controls[0].Colors.Count( ) = 0), _
+        "a control with no colour struct keeps its property" )
+
+    dim as ustring base_ = Header( ) & Ctl( "b", "Button", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) & LF & "[control.colors]" & LF
+    Accepted( base_ & "style = ""Primary""" & LF & "BackColor = ""#c62828""" & LF & "ForeColor = ""@SelectedText""" & LF, "a style, a colour, a role" )
+    dim as FormDoc d5
+    ReadForm( base_ & "BackColor = ""#c62828ff""" & LF, d5 )
+    Check( SettingOr( d5.Controls[0].Colors, "BackColor" ) = "#C62828", "upper case, an alpha of FF dropped" )
+    Refused( base_ & "BackColor = ""red""" & LF, "is not a colour" )
+    Refused( base_ & "BackColor = ""@Surfce""" & LF, "'Surfce' is not a theme role" )
+    Refused( base_ & "BackColor = { dark = ""#000000"" }" & LF, "is not a colour" )
+    Refused( base_ & "BackColor = { dark = ""#000000"", light = ""#FFFFFF"", other = ""#FFFFFF"" }" & LF, "unknown key 'other'" )
+    Refused( base_ & "TextColour = ""#000000""" & LF, "Button has no colour 'TextColour'" )
+    Refused( base_ & "style = ""2 bad""" & LF, "is not a style name" )
+    Refused( Header( ) & Ctl( "p", "Picture", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
+        & LF & "[control.colors]" & LF & "BackColor = ""#000000""" & LF, "Picture has no colours a theme sets" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -784,5 +834,6 @@ EditsSuite( )
 ReconcileSuite( )
 ItemsSuite( )
 TranslateSuite( )
+ColorsSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

@@ -528,6 +528,8 @@ public function tkColumnHeader_Create( byval hParent as TK_WIDGET ptr, byval Ctr
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @HdProc, p )
     p->hWin = w
     p->colors = tkColumnHeader_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKCOLUMNHEADER_COLORS ) \ 4, "ColumnHeader" )
     tkTipHost_Ensure( @p->tip, w, @HdTipText )
     tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_INITIAL, 250 )      ' vendor's HoverTime default
     tkTipHost_SetToolIndex( @p->tip, -1 )
@@ -873,7 +875,7 @@ public sub tkColumnHeader_ApplyTheme( byval hHeader as TK_WIDGET ptr, byref t as
     if (p = 0) orelse p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hHeader, t )
     p->colors = tkColumnHeader_ThemeColors( tr )
-    tkTheme_ResolveInto( hHeader, tr, cast( ulong ptr, @p->colors ), sizeof( TKCOLUMNHEADER_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hHeader, tr, cast( ulong ptr, @p->colors ), sizeof( TKCOLUMNHEADER_COLORS ) \ 4, "ColumnHeader" )
     tkWidget_Invalidate( hHeader )
 end sub
 

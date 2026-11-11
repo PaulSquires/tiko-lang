@@ -635,6 +635,8 @@ public function tkButton_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as
     ' The current theme, as a PsApp program's PsRegistry applied it at create (the dark preset
     ' gives exactly the struct defaults).
     pBtn->colors = tkButton_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pBtn->colors ), sizeof( TKBUTTON_COLORS ) \ 4, "Button" )
     tkTipHost_Ensure( @pBtn->tip, w, @tkButton_TipText )
     ApplyThemeShape( w )
     return w
@@ -930,7 +932,7 @@ public sub tkButton_ApplyTheme( byval hButton as TK_WIDGET ptr, byref t as TKTHE
     if pBtn->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hButton, t )
     pBtn->colors = tkButton_ThemeColors( tr )
-    tkTheme_ResolveInto( hButton, tr, cast( ulong ptr, @pBtn->colors ), sizeof( TKBUTTON_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hButton, tr, cast( ulong ptr, @pBtn->colors ), sizeof( TKBUTTON_COLORS ) \ 4, "Button" )
     tkWidget_Invalidate( hButton )
 end sub
 

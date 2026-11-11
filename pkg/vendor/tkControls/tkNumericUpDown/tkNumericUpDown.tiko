@@ -665,6 +665,8 @@ public function tkNumericUpDown_Create( byval hParent as TK_WIDGET ptr, byval Ct
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @NudProc, p )
     p->hWin = w
     p->colors = tkNumericUpDown_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKNUMERICUPDOWN_COLORS ) \ 4, "NumericUpDown" )
     p->hTextBox = tkTextBox_Create( w, CtrlID )
     tkTextBox_SetBorderWidth( p->hTextBox, 0 )
     tkTextBox_SetNumericMode( p->hTextBox, true )
@@ -1041,7 +1043,7 @@ public sub tkNumericUpDown_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as 
     if p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCtrl, t )
     p->colors = tkNumericUpDown_ThemeColors( tr )
-    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @p->colors ), sizeof( TKNUMERICUPDOWN_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hCtrl, tr, cast( ulong ptr, @p->colors ), sizeof( TKNUMERICUPDOWN_COLORS ) \ 4, "NumericUpDown" )
     NudApplyStateColors( p )
     tkWidget_Invalidate( hCtrl )
 end sub

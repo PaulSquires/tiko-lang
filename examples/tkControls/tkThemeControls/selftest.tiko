@@ -68,6 +68,8 @@ dim shared as TKTHEME_COLORS gDark, gLight
 dim shared as TKTHEME_SHAPE gShape1, gShape2
 dim shared as TKCOLOR_SRC gRecipe(0 to 1)
 dim shared as TKTHEME_STYLE gStyle
+dim shared as TKCOLOR_SRC gTypeSrc(0 to 1)
+dim shared as TKTHEME_TYPERECIPE gTypes(0 to 1)
 
 ' -1 when the two structs match, else the first ulong slot that differs.
 function FirstDiff( byval a as any ptr, byval b as any ptr, byval nBytes as long ) as long
@@ -226,6 +228,61 @@ scope
     Rescope( gDark, @none )
     tkTest_Check( "and returns to it when the theme's shape goes", tkButton_GetCornerCurvature( b ) = TKBUTTON_DEFAULT_CURVATURE )
     tkWidget_Destroy( b )
+end scope
+
+' Per-type recipes and named styles (TH4): a theme's [controls.Button] reaches every Button,
+' [styles.Danger.Button] the ones wearing Danger, and a control's own recipe beats both.
+tkTest_Begin( "types" )
+scope
+    gStyle.Name = "Danger"
+    gTypeSrc(0) = tkTheme_SrcFixed( 2, &hFF0C0C0Cul )          ' Button.BorderColor, every Button
+    gTypeSrc(1) = tkTheme_SrcFixed( 0, &hFF0D0D0Dul )          ' Button.BackColor, Danger Buttons
+    gTypes(0).TypeName = "Button" : gTypes(0).pSrc = @gTypeSrc(0) : gTypes(0).n = 1
+    gTypes(1).TypeName = "Button" : gTypes(1).StyleName = "Danger" : gTypes(1).pSrc = @gTypeSrc(1) : gTypes(1).n = 1
+    tkTheme_ApplyTo( gRoot, gDark, @gShape1, @gStyle, 1, @gTypes(0), 2 )
+    dim as TK_WIDGET ptr b = tkButton_Create( gRoot, 70 )
+    dim as TKBUTTON_COLORS got, want
+    tkButton_GetColors( b, @got )
+    want = tkButton_ThemeColors( gDark )
+    want.BorderColor = &hFF0C0C0Cul
+    dim as long d = FirstDiff( @got, @want, sizeof( TKBUTTON_COLORS ) )
+    tkTest_Check( "the type's defaults reach a Button with no recipe", d = -1, "slot " & d )
+
+    tkTheme_SetRecipeNamed( b, "Danger", 0, 0 )
+    tkButton_GetColors( b, @got )
+    want = tkButton_ThemeColors( tkTheme_Remap( gDark, gStyle ) )
+    want.BorderColor = &hFF0C0C0Cul
+    want.BackColor = &hFF0D0D0Dul
+    d = FirstDiff( @got, @want, sizeof( TKBUTTON_COLORS ) )
+    tkTest_Check( "a style named, and the type's exception inside it", d = -1, "slot " & d )
+    tkTest_Check( "StyleNameOf", tkTheme_StyleNameOf( b ) = "Danger" )
+
+    dim as TKCOLOR_SRC own = tkTheme_SrcFixed( 2, &hFF0E0E0Eul )
+    tkTheme_SetRecipeNamed( b, "Danger", @own, 1 )
+    tkButton_GetColors( b, @got )
+    tkTest_Check( "the control's own entry beats the type's", got.BorderColor = &hFF0E0E0Eul andalso got.BackColor = &hFF0D0D0Dul )
+
+    tkTheme_SetRecipeNamed( b, "NoSuchStyle", 0, 0 )
+    tkButton_GetColors( b, @got )
+    tkTest_Check( "an unknown style name is no style", got.BackColor = tkButton_ThemeColors( gDark ).BackColor _
+        andalso got.BorderColor = &hFF0C0C0Cul andalso len( tkTheme_StyleNameOf( b ) ) = 0 )
+
+    dim as TK_WIDGET ptr lb = tkLabel_Create( gRoot, 71 )
+    dim as TKLABEL_COLORS lgot, lwant
+    tkLabel_GetColors( lb, @lgot )
+    lwant = tkLabel_ThemeColors( gDark )
+    tkTest_Check( "another type is untouched", FirstDiff( @lgot, @lwant, sizeof( TKLABEL_COLORS ) ) = -1 )
+
+    ' app-wide: a Button outside every scope
+    dim as TK_WIDGET ptr b2 = tkButton_Create( tkHost_Root( h ), 72 )
+    tkTheme_SetTypeRecipes( @gTypes(0), 2 )
+    tkButton_GetColors( b2, @got )
+    tkTest_Check( "the app's type recipes reach an unscoped Button", got.BorderColor = &hFF0C0C0Cul _
+        andalso got.BackColor = tkButton_ThemeColors( tkTheme_Light() ).BackColor )
+    tkTheme_SetTypeRecipes( 0, 0 )
+    tkButton_GetColors( b2, @got )
+    tkTest_Check( "and leave when the app drops them", got.BorderColor = tkButton_ThemeColors( tkTheme_Light() ).BorderColor )
+    tkWidget_Destroy( b ) : tkWidget_Destroy( lb ) : tkWidget_Destroy( b2 )
 end scope
 
 tkHost_Destroy( h )

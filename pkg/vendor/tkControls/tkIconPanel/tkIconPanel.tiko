@@ -586,6 +586,8 @@ public function tkIconPanel_Create( byval hParent as TK_WIDGET ptr, byval CtrlID
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkIconPanel_Proc, pIcon )
     pIcon->hWin = w
     pIcon->colors = tkIconPanel_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pIcon->colors ), sizeof( TKICONPANEL_COLORS ) \ 4, "IconPanel" )
     tkTipHost_Ensure( @pIcon->tip, w, @TipText )
     return w
 end function
@@ -950,7 +952,7 @@ public sub tkIconPanel_ApplyTheme( byval hIconPanel as TK_WIDGET ptr, byref t as
     if (pIcon = 0) orelse pIcon->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hIconPanel, t )
     pIcon->colors = tkIconPanel_ThemeColors( tr )
-    tkTheme_ResolveInto( hIconPanel, tr, cast( ulong ptr, @pIcon->colors ), sizeof( TKICONPANEL_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hIconPanel, tr, cast( ulong ptr, @pIcon->colors ), sizeof( TKICONPANEL_COLORS ) \ 4, "IconPanel" )
     tkWidget_Invalidate( hIconPanel )
 end sub
 

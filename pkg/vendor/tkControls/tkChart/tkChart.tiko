@@ -1701,6 +1701,8 @@ public function tkChart_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as 
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkChart_Proc, pChart )
     pChart->hWin = w
     pChart->colors = tkChart_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pChart->colors ), sizeof( TKCHART_COLORS ) \ 4, "Chart" )
     tkTipHost_Ensure( @pChart->tip, w, @CHT_TipText )
     return w
 end function
@@ -2415,7 +2417,7 @@ public sub tkChart_ApplyTheme( byval hChart as TK_WIDGET ptr, byref t as TKTHEME
     if (pChart = 0) orelse pChart->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hChart, t )
     pChart->colors = tkChart_ThemeColors( tr )
-    tkTheme_ResolveInto( hChart, tr, cast( ulong ptr, @pChart->colors ), sizeof( TKCHART_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hChart, tr, cast( ulong ptr, @pChart->colors ), sizeof( TKCHART_COLORS ) \ 4, "Chart" )
     tkWidget_Invalidate( hChart )
 end sub
 

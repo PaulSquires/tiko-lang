@@ -802,6 +802,8 @@ public function tkProgressBar_Create( byval hParent as TK_WIDGET ptr, byval Ctrl
     w->isFocusable = false                 ' not a tab stop: nothing here can be acted on
     pBar->hWin = w
     pBar->colors = tkProgressBar_ThemeColors( tkTheme_Of( w ) )
+    ' the theme's recipes for this type apply from the start, not just after a theme change
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pBar->colors ), sizeof( TKPROGRESSBAR_COLORS ) \ 4, "ProgressBar" )
     tkTipHost_Ensure( @pBar->tip, w, @tkProgressBar_TipText )
     ApplyThemeShape( w )
     return w
@@ -1261,7 +1263,7 @@ public sub tkProgressBar_ApplyTheme( byval hProgressBar as TK_WIDGET ptr, byref 
     if pBar->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hProgressBar, t )
     pBar->colors = tkProgressBar_ThemeColors( tr )
-    tkTheme_ResolveInto( hProgressBar, tr, cast( ulong ptr, @pBar->colors ), sizeof( TKPROGRESSBAR_COLORS ) \ 4 )
+    tkTheme_ResolveInto( hProgressBar, tr, cast( ulong ptr, @pBar->colors ), sizeof( TKPROGRESSBAR_COLORS ) \ 4, "ProgressBar" )
     tkWidget_Invalidate( hProgressBar )
 end sub
 
