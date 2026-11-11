@@ -30,6 +30,7 @@
 #import "tkd/itemsdlg"
 #import "tkd/themefile"
 #import "tkd/themecenter"
+#import "tkd/colorsdlg"
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkLayout"
@@ -232,6 +233,56 @@ sub Window.FinishItems( byval apply_ as boolean )
             end if
         end if
     next
+end sub
+
+' ---- a control's [control.colors]: the Colors dialog ----------------------------------------------------
+
+' The project's theme for a form's previews; "" (the presets) outside a project.
+private function ProjectThemePath_( byval mw as Window ptr ) as ustring
+    if mw->ProjOpen = false then return ""
+    return fs.PathJoin( fs.PathParent( mw->Proj.Path ), "appTheme", "appTheme.tktheme" )
+end function
+
+sub Window.OpenColors( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    if ColorsDlg then exit sub
+    dim as long i = FindControl( c->Doc, name_ )
+    if i < 0 then exit sub
+    dim as FormControl ctl = c->Doc.Controls[i]
+    ColorsDlg = new colorsdlg.ColorsDialog
+    ColorsOf = c
+    ColorsName = name_
+    ColorsDlg->Open( form, ctl.TypeName, ctl.StyleName, ctl.Colors, ProjectThemePath_( @this ), _
+                     name_ & " - " & i18n.Tr( "designer.colors", "Colours" ) )
+    if ColorsDlg->Win = 0 then
+        delete ColorsDlg
+        ColorsDlg = 0
+    end if
+end sub
+
+' OK: the dialog's style and colours into the control, as one change (one undo step).
+sub Window.FinishColors( byval apply_ as boolean )
+    if ColorsDlg = 0 then exit sub
+    dim as colorsdlg.ColorsDialog ptr dlg = ColorsDlg
+    dim as canvas.FormCanvas ptr c = ColorsOf
+    ColorsDlg = 0
+    dim as ustring style_ = dlg->StyleName
+    dim as Array( of Setting ) colors = dlg->Colors
+    dlg->Close( )
+    delete dlg
+    if c->Glass then tkHost_SetFocus( c->Glass->pHost, c->Glass )
+    if apply_ = false then exit sub
+    dim as long i = FindControl( c->Doc, ColorsName )
+    if i < 0 then exit sub
+    dim as FormDoc trial = c->Doc
+    trial.Controls[i].StyleName = style_
+    trial.Controls[i].Colors = colors
+    dim as ustring fault = c->ApplyEdit( trial, true, "" )
+    if len( fault ) then this.SetMessage( fault )
+end sub
+
+sub Window.EditColors( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    this.OpenColors( c, name_ )
+    if ColorsDlg then this.FinishColors( ColorsDlg->RunModal( ) )
 end sub
 
 sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )

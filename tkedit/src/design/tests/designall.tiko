@@ -23,10 +23,12 @@
 #import "tkd/reconcile"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkMeta"
 using containers
 using model
 using tkLayout
 using tkTheme
+using tkMeta
 
 const as string LF = chr( 10 )
 const as string CRLF = chr( 13, 10 )
@@ -976,6 +978,30 @@ sub ThemeCenterCore( )
     Check( themefile.InstallIntoMain( "print 1" & LF, o ) = -1, "a main with no tkApp_Init is left to the user" )
 end sub
 
+' The Colors dialog's core (TH6): where a control's colour comes from.
+sub ColorSources( )
+    dim as ustring none, e
+    dim as themefile.ThemeDoc g
+    themefile.Parse( fs.ReadAllText( "tests/golden/appTheme/appTheme.tktheme" ).ValueOr( none ), g, e )
+    dim as TKMETA_CONTROL ptr m = tkMeta_Find( "Button" )
+    dim as Array( of Setting ) own
+    PutSetting( own, "BackColor", "#C62828" )
+    dim as long sBack = tkMeta_ColorSlot( m, "BackColor" ), sBackHot = tkMeta_ColorSlot( m, "BackColorHot" )
+    dim as long sBorder = tkMeta_ColorSlot( m, "BorderColor" ), sBorderHot = tkMeta_ColorSlot( m, "BorderColorHot" )
+    dim as long sFore = tkMeta_ColorSlot( m, "ForeColor" ), sRing = tkMeta_ColorSlot( m, "FocusRingColor" )
+    Check( themefile.SourceOf( g, m, "", own, sBack, true ) = themefile.FROM_CONTROL, "a field set on the control" )
+    Check( themefile.SourceOf( g, m, "", own, sBackHot, true ) = themefile.FROM_DERIVED, "its part's Hot follows it" )
+    dim as Array( of Setting ) none_
+    Check( themefile.SourceOf( g, m, "", none_, sBorder, true ) = themefile.FROM_TYPE, "[controls.Button] gives every Button its border" )
+    Check( themefile.SourceOf( g, m, "", none_, sBorderHot, true ) = themefile.FROM_TYPE, "and the border's states, by simple mode" )
+    Check( themefile.SourceOf( g, m, "Danger", none_, sBorder, true ) = themefile.FROM_STYLE, "a style's block for the type beats the type's" )
+    Check( themefile.SourceOf( g, m, "Primary", none_, sBack, true ) = themefile.FROM_STYLE, "a style's remap reaches the face" )
+    Check( themefile.SourceOf( g, m, "Primary", none_, sFore, true ) = themefile.FROM_STYLE, "and the text" )
+    Check( themefile.SourceOf( g, m, "Primary", none_, sRing, true ) = themefile.FROM_THEME, "a role the style leaves is the theme's" )
+    Check( themefile.SourceOf( g, m, "NoSuchStyle", none_, sBack, true ) = themefile.FROM_THEME, "an unknown style is no style" )
+    Check( themefile.SourceOf( g, m, "Primary", own, sBack, true ) = themefile.FROM_CONTROL, "the control's own beats its style" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -991,5 +1017,6 @@ TranslateSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
+ColorSources( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

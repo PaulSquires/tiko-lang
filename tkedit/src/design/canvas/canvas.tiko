@@ -110,6 +110,7 @@ public type FormCanvas
     OnWire as CanvasWireSub             ' give an event a handler; jump: and go to it
     OnRenamed as CanvasRenameSub
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
+    OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
 
     Drag as long

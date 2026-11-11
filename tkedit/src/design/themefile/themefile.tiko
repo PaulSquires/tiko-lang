@@ -742,3 +742,59 @@ public function InstallIntoMain( byref text as const ustring, byref outText as u
     outText = o
     return 1
 end function
+
+
+' ---- for the Colors dialog: where a control's colour comes from ----------------------------------------
+public const as long FROM_THEME = 0      ' the theme's roles, through the control's mapping
+public const as long FROM_STYLE = 1      ' the style it wears (its remap, or its block for this type)
+public const as long FROM_TYPE = 2       ' the theme's [controls.<Type>]
+public const as long FROM_DERIVED = 3    ' simple mode: from this control's own Normal colour
+public const as long FROM_CONTROL = 4    ' set on this control
+
+private function FindStyle_( byref theme as ThemeDoc, byref nm as const ustring ) as long
+    for i as long = 0 to theme.Styles.Count( ) - 1
+        if theme.Styles[i].Name = nm then return i
+    next
+    return -1
+end function
+
+private function BlockSets_( byref blocks as Array( of ThemeTypeBlock ), byref typeName as const ustring, byval m as TKMETA_CONTROL ptr, _
+                             byval slot as long ) as boolean
+    for each b as ThemeTypeBlock in blocks
+        if b.TypeName <> typeName then continue for
+        if FindSetting( b.Fields, m->Colors( slot ).Name ) >= 0 then return true
+        ' a Normal set in the block brings the part's other states (simple mode)
+        with m->Colors( slot )
+            if (len( .Part ) > 0) andalso (.State <> "Normal") then
+                dim as long nrm = tkMeta_ColorCell( m, .Group, .Part, "Normal" )
+                if (nrm >= 0) andalso (FindSetting( b.Fields, m->Colors( nrm ).Name ) >= 0) then return true
+            end if
+        end with
+    next
+    return false
+end function
+
+' Which layer gives a control's colour slot: the cascade of THEMES.md, from the top.
+public function SourceOf( byref theme as ThemeDoc, byval m as TKMETA_CONTROL ptr, byref styleName as const ustring, _
+                          byref colors as Array( of Setting ), byval slot as long, byval isDark as boolean ) as long
+    if (m = 0) orelse (slot < 0) orelse (slot >= m->NumColorSlots) then return FROM_THEME
+    if FindSetting( colors, m->Colors( slot ).Name ) >= 0 then return FROM_CONTROL
+    with m->Colors( slot )
+        if (len( .Part ) > 0) andalso ((.State = "Hot") orelse (.State = "Pressed") orelse (.State = "Disabled")) then
+            dim as long nrm = tkMeta_ColorCell( m, .Group, .Part, "Normal" )
+            if (nrm >= 0) andalso (FindSetting( colors, m->Colors( nrm ).Name ) >= 0) then return FROM_DERIVED
+        end if
+    end with
+    dim as long si = -1
+    if len( styleName ) then si = FindStyle_( theme, styleName )
+    if (si >= 0) andalso BlockSets_( theme.Styles[si].Types, m->Name, m, slot ) then return FROM_STYLE
+    if BlockSets_( theme.Controls, m->Name, m, slot ) then return FROM_TYPE
+    if (si >= 0) andalso (m->ThemeColors <> 0) then
+        dim as TKTHEME_COLORS t = Resolve( theme, isDark )
+        dim as ulong a( 0 to m->NumColorSlots - 1 ), b( 0 to m->NumColorSlots - 1 )
+        m->ThemeColors( t, @a( 0 ) )
+        m->ThemeColors( tkTheme_Remap( t, StyleData( theme.Styles[si] ) ), @b( 0 ) )
+        if a( slot ) <> b( slot ) then return FROM_STYLE
+    end if
+    return FROM_THEME
+end function
