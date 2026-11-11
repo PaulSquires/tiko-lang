@@ -60,6 +60,7 @@
 #import "tkd/edits"
 #import "tkd/panels"
 #import "tkd/itemsdlg"
+#import "tkd/themecenter"
 #import "tka/editor"
 #import "tka/explorer"
 #import "tka/findstrip"
@@ -600,6 +601,10 @@ public type Window
     declare function NewConsoleProject( byref folder as const ustring ) as boolean
     declare function NewFormProject( byref folder as const ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
+    ThemeDlg as themecenter.ThemeDialog ptr
+    declare sub OpenThemeCenter( )
+    declare function SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
+    declare sub CloseThemeCenter( )
     ItemsOf as canvas.FormCanvas ptr
     ItemsName as ustring
     declare sub OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
@@ -1660,7 +1665,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1710,6 +1715,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
         if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
         return true
     case Cmd.ProjectClose : return ProjOpen
+    case Cmd.FormTheme : return ProjOpen
     end select
     if this.ShowsStart( ) = false then return true
     ' no file open: only what would still do something
@@ -1717,6 +1723,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
          Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.FormNewForm, Cmd.BuildConfig
         return true
+    case Cmd.FormTheme : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
         return ProjOpen
     case Cmd.StartDebugging : return ProjOpen orelse DbgOn
@@ -1746,7 +1753,7 @@ function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
     dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
     if noForm = false then noForm = (d->Designer = 0)
-    if noForm then return (id = Cmd.FormNewForm) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Form)   ' New Form makes one
+    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Form)   ' New Form makes one; the theme is the project's
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -1937,6 +1944,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ZoomReset : v->ZoomReset( )
     case Cmd.FormToggleView : this.ToggleFormView( )
     case Cmd.FormNewForm : this.NewForm( "" )
+    case Cmd.FormTheme : this.OpenThemeCenter( )
     case Cmd.FoldToggle : v->FoldToggle( false )
     case Cmd.FoldBelow : v->FoldToggle( true )
     case Cmd.FoldAll : v->FoldAll( true )

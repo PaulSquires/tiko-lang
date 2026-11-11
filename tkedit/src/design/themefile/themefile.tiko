@@ -449,46 +449,69 @@ private sub VariantCode_( byref o as ustring, byref doc as ThemeDoc, byref v as 
     o &= "    return t" & NL & "end function" & NL & NL
 end sub
 
-' Simple mode for roles, entry k: the role a style sets, the one that follows it, and how.
-private sub Family_( byval k as long, byref src_ as ustring, byref dst as ustring, byref rule as ustring )
+' Simple mode for roles, entry k: the role a style sets, the one that follows it, and the rule.
+private sub Family_( byval k as long, byref src_ as long, byref dst as long, byref rule as long )
     select case k
-    case 0 : src_ = "Surface" : dst = "SurfaceHot" : rule = "HOT"
-    case 1 : src_ = "Surface" : dst = "SurfaceDisabled" : rule = "DISABLED"
-    case 2 : src_ = "Text" : dst = "TextHot" : rule = "SAME"
-    case 3 : src_ = "Text" : dst = "TextDisabled" : rule = "DISABLED"
-    case 4 : src_ = "Accent" : dst = "AccentHot" : rule = "HOT"
-    case 5 : src_ = "Border" : dst = "BorderDisabled" : rule = "DISABLED"
+    case 0 : src_ = TKROLE_SURFACE : dst = TKROLE_SURFACEHOT : rule = TKDERIVE_HOT
+    case 1 : src_ = TKROLE_SURFACE : dst = TKROLE_SURFACEDISABLED : rule = TKDERIVE_DISABLED
+    case 2 : src_ = TKROLE_TEXT : dst = TKROLE_TEXTHOT : rule = TKDERIVE_SAME
+    case 3 : src_ = TKROLE_TEXT : dst = TKROLE_TEXTDISABLED : rule = TKDERIVE_DISABLED
+    case 4 : src_ = TKROLE_ACCENT : dst = TKROLE_ACCENTHOT : rule = TKDERIVE_HOT
+    case 5 : src_ = TKROLE_BORDER : dst = TKROLE_BORDERDISABLED : rule = TKDERIVE_DISABLED
     end select
 end sub
 
-' A style's role remap, with simple mode for roles: a face set, its hot and disabled shades follow it.
-private sub StyleCode_( byref o as ustring, byref st as ThemeStyle, byval idx as long )
-    dim as ustring at = "        gStyles_( " & idx & " )"
-    o &= at & ".Name = " & Quote_( st.Name ) & NL
+' A style as the runtime wears it: its roles, then simple mode for roles -- a face set, its hot and
+' disabled shades follow it (Surface -> SurfaceHot / SurfaceDisabled, Text -> TextHot /
+' TextDisabled, Accent -> AccentHot, Border -> BorderDisabled), each only when the style leaves it
+' unset. The generated module and the Theme Center's preview both come from this.
+public function StyleData( byref st as ThemeStyle ) as TKTHEME_STYLE
+    dim as TKTHEME_STYLE o
+    o.Name = left( st.Name, 31 )
     for r as long = 0 to TKROLE_COUNT - 1
         dim as long i = FindSetting( st.Roles, tkTheme_RoleName( r ) )
-        if i < 0 then continue for
-        dim as TKCOLOR_SRC s
-        if colorval.ToSrc( st.Roles[i].Value, 0, s ) then o &= at & ".remap( " & colorval.RoleConst( r ) & " ) = " & colorval.SrcExpr( s, "0" ) & NL
+        if i >= 0 then colorval.ToSrc( st.Roles[i].Value, 0, o.remap( r ) )
     next
-    ' Surface -> SurfaceHot / SurfaceDisabled, Text -> TextHot / TextDisabled, Accent -> AccentHot,
-    ' Border -> BorderDisabled, each only when the style leaves it unset
     for k as long = 0 to 5
-        dim as ustring src_, dst, rule
+        dim as long src_, dst, rule
         Family_( k, src_, dst, rule )
-        if (FindSetting( st.Roles, src_ ) >= 0) andalso (FindSetting( st.Roles, dst ) < 0) then
-            o &= at & ".remap( TKROLE_" & ucase( dst ) & " ) = tkTheme_SrcDerive( 0, TKDERIVE_" & rule & ", TKROLE_" & ucase( src_ ) & " )" & NL
+        if (FindSetting( st.Roles, tkTheme_RoleName( src_ ) ) >= 0) andalso (FindSetting( st.Roles, tkTheme_RoleName( dst ) ) < 0) then
+            o.remap( dst ) = tkTheme_SrcDerive( 0, rule, src_ )
         end if
+    next
+    return o
+end function
+
+private function RuleName_( byval rule as long ) as ustring
+    select case rule
+    case TKDERIVE_HOT      : return "TKDERIVE_HOT"
+    case TKDERIVE_PRESSED  : return "TKDERIVE_PRESSED"
+    case TKDERIVE_DISABLED : return "TKDERIVE_DISABLED"
+    end select
+    return "TKDERIVE_SAME"
+end function
+
+private sub StyleCode_( byref o as ustring, byref st as ThemeStyle, byval idx as long )
+    dim as ustring at = "        gStyles_( " & idx & " )"
+    dim as TKTHEME_STYLE d = StyleData( st )
+    o &= at & ".Name = " & Quote_( st.Name ) & NL
+    for r as long = 0 to TKROLE_COUNT - 1
+        dim as TKCOLOR_SRC x = d.remap( r )
+        if x.kind = TKSRC_NONE then continue for
+        dim as ustring rhs
+        if x.kind = TKSRC_DERIVE then
+            rhs = "tkTheme_SrcDerive( 0, " & RuleName_( x.arg ) & ", " & colorval.RoleConst( x.value ) & " )"
+        else
+            rhs = colorval.SrcExpr( x, "0" )
+        end if
+        o &= at & ".remap( " & colorval.RoleConst( r ) & " ) = " & rhs & NL
     next
 end sub
 
-' The whole generated module for a theme that passed Check. Install() makes it the program's theme.
-public function Generate( byref doc as ThemeDoc, byref moduleName as const ustring, byref sourceName as const ustring, _
-                          byref sourceText as const ustring ) as ustring
-    ' every [controls.X] and [styles.S.X] block as one type recipe, entries in one table
-    dim as Array( of TKCOLOR_SRC ) all
-    dim as Array( of ustring ) recType, recStyle
-    dim as Array( of long ) recAt, recN
+' Every [controls.X] and [styles.S.X] block as one type recipe: its type, style, and where its
+' entries start in all (and how many). Shared by the generated module and the preview.
+private sub CollectTypes_( byref doc as ThemeDoc, all as Array( of TKCOLOR_SRC ), recType as Array( of ustring ), _
+                           recStyle as Array( of ustring ), recAt as Array( of long ), recN as Array( of long ) )
     for each b as ThemeTypeBlock in doc.Controls
         dim as long at0 = all.Count( )
         colorval.Entries( b.Fields, catalog.Find( b.TypeName ), all )
@@ -501,6 +524,16 @@ public function Generate( byref doc as ThemeDoc, byref moduleName as const ustri
             recType.Push( b.TypeName ) : recStyle.Push( st.Name ) : recAt.Push( at0 ) : recN.Push( all.Count( ) - at0 )
         next
     next
+end sub
+
+' The whole generated module for a theme that passed Check. Install() makes it the program's theme.
+public function Generate( byref doc as ThemeDoc, byref moduleName as const ustring, byref sourceName as const ustring, _
+                          byref sourceText as const ustring ) as ustring
+    ' every [controls.X] and [styles.S.X] block as one type recipe, entries in one table
+    dim as Array( of TKCOLOR_SRC ) all
+    dim as Array( of ustring ) recType, recStyle
+    dim as Array( of long ) recAt, recN
+    CollectTypes_( doc, all, recType, recStyle, recAt, recN )
 
     dim as ustring o = "' GENERATED by the tkEdit Form Designer from " & sourceName & ". Do not edit." & NL
     o &= "' source-hash: " & codegen.SourceHash( sourceText ) & NL
@@ -572,4 +605,140 @@ public function DefaultText( byref nm as const ustring ) as ustring
     dim as ThemeDoc d
     d.Name = nm
     return Render( d )
+end function
+
+
+' ---- for the Theme Center: the theme as a program wears it ------------------------------------------
+
+' A variant as appTheme's Dark( ) / Light( ) builds it: the preset, the accent derived in, then the
+' roles the file sets.
+public function Resolve( byref doc as ThemeDoc, byval isDark as boolean ) as TKTHEME_COLORS
+    dim as TKTHEME_COLORS t
+    if isDark then t = tkTheme_Dark( ) else t = tkTheme_Light( )
+    dim as ThemeVariant v
+    if isDark then v = doc.Dark else v = doc.Light
+    dim as ustring acc = v.Accent
+    if len( acc ) = 0 then acc = doc.Accent
+    dim as ulong c
+    if (len( acc ) > 0) andalso colorval.ParseHex( acc, c ) then t = tkTheme_Derive( t, c )
+    for each s as Setting in v.Roles
+        dim as long r = tkTheme_RoleByName( s.Key )
+        if (r >= 0) andalso colorval.ParseHex( s.Value, c ) then tkTheme_SetRole( t, r, c )
+    next
+    t.Window or= &hFF000000ul                  ' always opaque
+    return t
+end function
+
+public function ShapeOf( byref doc as ThemeDoc ) as TKTHEME_SHAPE
+    dim as TKTHEME_SHAPE s
+    s.CornerRadius = doc.CornerRadius
+    s.BorderWidth = doc.BorderWidth
+    return s
+end function
+
+' The styles and per-type recipes as runtime tables, for a scope (tkTheme_ApplyTo). The type
+' recipes point into Src, so the tables stay valid until the next Build.
+public type ThemeTables
+    Styles as Array( of TKTHEME_STYLE )
+    Src as Array( of TKCOLOR_SRC )
+    Types as Array( of TKTHEME_TYPERECIPE )
+    declare sub Build( byref doc as ThemeDoc )
+    declare function StylePtr( ) as TKTHEME_STYLE ptr
+    declare function TypePtr( ) as TKTHEME_TYPERECIPE ptr
+end type
+
+sub ThemeTables.Build( byref doc as ThemeDoc )
+    Styles.Clear( )
+    Src.Clear( )
+    Types.Clear( )
+    for each st as ThemeStyle in doc.Styles
+        Styles.Push( StyleData( st ) )
+    next
+    dim as Array( of ustring ) recType, recStyle
+    dim as Array( of long ) recAt, recN
+    CollectTypes_( doc, Src, recType, recStyle, recAt, recN )
+    for i as long = 0 to recType.Count( ) - 1
+        dim as TKTHEME_TYPERECIPE r
+        r.TypeName = left( recType[i], 31 )
+        r.StyleName = left( recStyle[i], 31 )
+        r.n = recN[i]
+        if recN[i] > 0 then r.pSrc = @Src[recAt[i]]
+        Types.Push( r )
+    next
+end sub
+
+function ThemeTables.StylePtr( ) as TKTHEME_STYLE ptr
+    if Styles.Count( ) = 0 then return 0
+    return @Styles[0]
+end function
+
+function ThemeTables.TypePtr( ) as TKTHEME_TYPERECIPE ptr
+    if Types.Count( ) = 0 then return 0
+    return @Types[0]
+end function
+
+' The pairs a reader must be able to tell apart, below WCAG AA: text 4.5:1, a focus ring or accent
+' against the window 3:1 (a UI part). One line each: "Text on Surface: 3.2:1 (needs 4.5)".
+public sub ContrastFaults( byref t as TKTHEME_COLORS, byref out_ as Array( of ustring ) )
+    for k as long = 0 to 6
+        dim as long fg, bg
+        dim as double need
+        select case k
+        case 0 : fg = TKROLE_TEXT : bg = TKROLE_SURFACE : need = 4.5
+        case 1 : fg = TKROLE_TEXT : bg = TKROLE_WINDOW : need = 4.5
+        case 2 : fg = TKROLE_SELECTEDTEXT : bg = TKROLE_SELECTED : need = 4.5
+        case 3 : fg = TKROLE_POPUPTEXT : bg = TKROLE_POPUP : need = 4.5
+        case 4 : fg = TKROLE_TEXTDIM : bg = TKROLE_WINDOW : need = 4.5
+        case 5 : fg = TKROLE_ACCENT : bg = TKROLE_WINDOW : need = 3
+        case 6 : fg = TKROLE_FOCUSRING : bg = TKROLE_SURFACE : need = 3
+        end select
+        dim as double c = tkTheme_Contrast( tkTheme_Role( t, fg ), tkTheme_Role( t, bg ) )
+        if c < need then
+            dim as long t10 = cint( c * 10 )
+            out_.Push( tkTheme_RoleName( fg ) & " on " & tkTheme_RoleName( bg ) & ": " & (t10 \ 10) & "." & (t10 mod 10) & ":1 (needs " & need & ")" )
+        end if
+    next
+end sub
+
+' main.tiko made to install the project's theme, as a new project's main does: the import beside
+' tkApp's, ApplyOptions before tkApp_Init, Install after. 1 = done (outText has it), 0 = it already
+' does, -1 = no "if tkApp_Init( x ) = false then" line to hang it on (left to the user).
+public function InstallIntoMain( byref text as const ustring, byref outText as ustring ) as long
+    if instr( text, "appTheme.Install" ) then return 0
+    dim as Array( of ustring ) lines
+    dim as long at = 1
+    do
+        dim as long e = instr( at, text, chr( 10 ) )
+        if e = 0 then
+            lines.Push( mid( text, at ) )
+            exit do
+        end if
+        lines.Push( mid( text, at, e - at ) )
+        at = e + 1
+    loop
+    dim as long initLine = -1, importLine = -1
+    dim as ustring optsName
+    for i as long = 0 to lines.Count( ) - 1
+        dim as ustring l = trim( lines[i], any !" \t\r" )
+        if (importLine < 0) andalso (left( l, 7 ) = "#import") then importLine = i
+        if lcase( left( l, 3 ) ) = "#im" andalso (instr( l, """vendor/tkControls/tkApp""" ) > 0) then importLine = i
+        dim as long p = instr( lcase( l ), "if tkapp_init(" )
+        if (initLine < 0) andalso (p = 1) andalso (instr( lcase( l ), ") = false then" ) > 0) then
+            optsName = trim( mid( l, 15, instr( l, ")" ) - 15 ) )
+            initLine = i
+        end if
+    next
+    if (initLine < 0) orelse (len( optsName ) = 0) then return -1
+    dim as ustring indent = left( lines[initLine], len( lines[initLine] ) - len( ltrim( lines[initLine], any !" \t" ) ) )
+    dim as ustring o
+    for i as long = 0 to lines.Count( ) - 1
+        if i = initLine then o &= indent & "appTheme.ApplyOptions( " & optsName & " )" & chr( 10 )
+        o &= lines[i]
+        if i < lines.Count( ) - 1 then o &= chr( 10 )
+        if (i = importLine) then o &= "#import ""./appTheme""" & chr( 10 )
+        if i = initLine then o &= indent & "appTheme.Install( )" & chr( 10 )
+    next
+    if importLine < 0 then o = "#import ""./appTheme""" & chr( 10 ) & o
+    outText = o
+    return 1
 end function

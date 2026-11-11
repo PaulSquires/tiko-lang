@@ -1,0 +1,58 @@
+format = 1
+name = "High Contrast"
+
+[dark]
+Window = "#000000"
+Surface = "#000000"
+SurfaceHot = "#303030"
+SurfaceDisabled = "#000000"
+Text = "#FFFFFF"
+TextHot = "#FFFFFF"
+TextStrong = "#FFFFFF"
+TextDim = "#E6E6E6"
+TextDisabled = "#A0A0A0"
+Accent = "#FFD400"
+AccentHot = "#FFE866"
+FocusRing = "#FFD400"
+Border = "#FFFFFF"
+BorderDisabled = "#808080"
+Divider = "#FFFFFF"
+Selected = "#1AEBFF"
+SelectedText = "#000000"
+Popup = "#000000"
+PopupText = "#FFFFFF"
+Track = "#404040"
+Success = "#3FF23F"
+Warning = "#FFD400"
+Error = "#FF6B6B"
+
+[light]
+Window = "#FFFFFF"
+Surface = "#FFFFFF"
+SurfaceHot = "#E0E0E0"
+SurfaceDisabled = "#FFFFFF"
+Text = "#000000"
+TextHot = "#000000"
+TextStrong = "#000000"
+TextDim = "#1A1A1A"
+TextDisabled = "#6B6B6B"
+Accent = "#0000C0"
+AccentHot = "#000080"
+FocusRing = "#0000C0"
+Border = "#000000"
+BorderDisabled = "#808080"
+Divider = "#000000"
+Selected = "#0000C0"
+SelectedText = "#FFFFFF"
+Popup = "#FFFFFF"
+PopupText = "#000000"
+Track = "#C0C0C0"
+Success = "#006400"
+Warning = "#8A5A00"
+Error = "#B00000"
+
+[shape]
+BorderWidth = 2
+
+[controls.Button]
+BorderColor = "@Border"

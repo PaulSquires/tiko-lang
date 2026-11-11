@@ -22,9 +22,11 @@
 #import "tkd/edits"
 #import "tkd/reconcile"
 #import "vendor/tkControls/tkLayout"
+#import "vendor/tkControls/tkTheme"
 using containers
 using model
 using tkLayout
+using tkTheme
 
 const as string LF = chr( 10 )
 const as string CRLF = chr( 13, 10 )
@@ -904,6 +906,76 @@ sub ThemeSuite( byval bAccept as boolean )
     ThemeRefused( "format = 1" & LF & "[dark]" & LF, "the theme has no name" )
 end sub
 
+' The Theme Center's core (TH5): shipped themes, Resolve, contrast, main.tiko made to install a theme.
+sub ThemeCenterCore( )
+    ' every shipped theme is canonical, clean, and resolves; High Contrast passes AA in both variants
+    for each nm as ustring in Names( "Default", "HighContrast", "Ocean" )
+        dim as ustring none
+        dim as ustring text = fs.ReadAllText( "../../themes/" & nm & ".tktheme" ).ValueOr( none )
+        dim as themefile.ThemeDoc d
+        dim as ustring e
+        dim as Array( of ustring ) p
+        dim as boolean ok = themefile.Parse( text, d, e )
+        if ok then themefile.Check( d, p )
+        Check( ok andalso (p.Count( ) = 0) andalso (themefile.Render( d ) = text), "shipped theme " & nm & ": canonical and clean", e )
+    next
+    for each nm as ustring in Names( "Forest", "Ember", "Violet" )
+        dim as ustring none
+        dim as ustring text = fs.ReadAllText( "../../themes/" & nm & ".tktheme" ).ValueOr( none )
+        dim as themefile.ThemeDoc d
+        dim as ustring e
+        Check( themefile.Parse( text, d, e ) andalso (themefile.Render( d ) = text), "shipped theme " & nm & ": canonical", e )
+    next
+    dim as ustring none
+    dim as themefile.ThemeDoc hc
+    dim as ustring e
+    themefile.Parse( fs.ReadAllText( "../../themes/HighContrast.tktheme" ).ValueOr( none ), hc, e )
+    for v as long = 0 to 1
+        dim as Array( of ustring ) faults
+        themefile.ContrastFaults( themefile.Resolve( hc, v = 0 ), faults )
+        dim as ustring first_
+        if faults.Count( ) then first_ = faults[0]
+        Check( faults.Count( ) = 0, "High Contrast passes its own AA check, " & iif( v = 0, "dark", "light" ), first_ )
+    next
+
+    ' Resolve is what the generated Dark( ) / Light( ) build
+    dim as themefile.ThemeDoc d
+    Check( tkTheme_Equal( themefile.Resolve( d, true ), tkTheme_Dark( ) ) andalso tkTheme_Equal( themefile.Resolve( d, false ), tkTheme_Light( ) ), _
+        "an empty theme resolves to the presets" )
+    d.Accent = "#E65100"
+    PutSetting( d.Dark.Roles, "Surface", "#123456" )
+    dim as TKTHEME_COLORS r = themefile.Resolve( d, true )
+    Check( (r.Accent = tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).Accent) andalso (r.Surface = &hFF123456ul), "the accent derived, then the roles" )
+    dim as Array( of ustring ) faults
+    dim as TKTHEME_COLORS bad = tkTheme_Dark( )
+    bad.Text = bad.Surface
+    themefile.ContrastFaults( bad, faults )
+    dim as ustring f0
+    if faults.Count( ) then f0 = faults[0]
+    Check( instr( f0, "Text on Surface: 1.0:1 (needs 4.5)" ) = 1, "a contrast fault says which pair and how far", f0 )
+
+    ' the preview's tables agree with what the generated module installs
+    dim as themefile.ThemeDoc g
+    themefile.Parse( fs.ReadAllText( "tests/golden/appTheme/appTheme.tktheme" ).ValueOr( none ), g, e )
+    dim as themefile.ThemeTables tb
+    tb.Build( g )
+    Check( (tb.Styles.Count( ) = 2) andalso (tb.Styles[1].Name = "Danger") andalso (tb.Styles[1].remap( TKROLE_SURFACE ).arg = TKROLE_ERROR), "styles as tables" )
+    Check( tb.Styles[1].remap( TKROLE_SURFACEHOT ).kind = TKSRC_DERIVE, "with simple mode for roles" )
+    Check( (tb.Types.Count( ) = 2) andalso (tb.Types[1].StyleName = "Danger") andalso (tb.Types[1].n = 4) andalso (tb.Types[1].pSrc->value = &hFFB71C1Cul), _
+        "type recipes as tables, pointing at their entries" )
+
+    ' main.tiko made to install the theme
+    dim as ustring m = "' app" & LF & "#import ""vendor/tkControls/tkApp""" & LF & "#import ""./frmMain""" & LF & "using tkApp" & LF & LF _
+        & "dim as TKAPP_OPTIONS opts" & LF & "if tkApp_Init( opts ) = false then end 1" & LF & "dim as frmMain.Form f" & LF
+    dim as ustring o
+    Check( themefile.InstallIntoMain( m, o ) = 1, "a new-project main takes the theme" )
+    Check( o = "' app" & LF & "#import ""vendor/tkControls/tkApp""" & LF & "#import ""./appTheme""" & LF & "#import ""./frmMain""" & LF & "using tkApp" & LF & LF _
+        & "dim as TKAPP_OPTIONS opts" & LF & "appTheme.ApplyOptions( opts )" & LF & "if tkApp_Init( opts ) = false then end 1" & LF & "appTheme.Install( )" & LF _
+        & "dim as frmMain.Form f" & LF, "import, ApplyOptions before Init, Install after", o )
+    Check( themefile.InstallIntoMain( o, m ) = 0, "and only once" )
+    Check( themefile.InstallIntoMain( "print 1" & LF, o ) = -1, "a main with no tkApp_Init is left to the user" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -918,5 +990,6 @@ ItemsSuite( )
 TranslateSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
+ThemeCenterCore( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

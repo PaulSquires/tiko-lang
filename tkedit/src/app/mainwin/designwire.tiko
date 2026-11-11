@@ -16,6 +16,7 @@
 #import "tkc/i18n"
 #import "tkc/docencoding"
 #import "tkc/project"
+#import "tkc/themes"
 #import "tka/documents"
 #import "tks/parser"
 #import "tkd/canvas"
@@ -28,6 +29,7 @@
 #import "tkd/reconcile"
 #import "tkd/itemsdlg"
 #import "tkd/themefile"
+#import "tkd/themecenter"
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkLayout"
@@ -671,3 +673,94 @@ sub Window.AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     o.OverlayPaths.Push( base_ & ".design.tiko" )
     o.OverlayTexts.Push( codegen.Generate( f->Designer->Doc, moduleName, fs.PathFileName( formPath ), f->Text( ) ) )
 end sub
+
+' ---- the Theme Center: the project's appTheme --------------------------------------------------------
+
+private sub ThemeSaved_( byval tc as themecenter.ThemeDialog ptr )
+    dim as Window ptr mw = tc->Host
+    if mw then mw->SaveTheme( tc )
+end sub
+
+private sub ThemeClosed_( byval tc as themecenter.ThemeDialog ptr )
+    dim as Window ptr mw = tc->Host
+    if mw then mw->CloseThemeCenter( )
+end sub
+
+' Form > Project Theme...: the project's appTheme/appTheme.tktheme in the Theme Center (the
+' presets, named "Default", when the project has none yet).
+sub Window.OpenThemeCenter( )
+    if ThemeDlg then
+        if ThemeDlg->Win then tkForm_Show( ThemeDlg->Win )
+        exit sub
+    end if
+    if ProjOpen = false then exit sub
+    dim as ustring path = fs.PathJoin( fs.PathParent( Proj.Path ), "appTheme", "appTheme.tktheme" )
+    ThemeDlg = new themecenter.ThemeDialog
+    ThemeDlg->Host = @this
+    ThemeDlg->OnSave = @ThemeSaved_
+    ThemeDlg->OnClose = @ThemeClosed_
+    ThemeDlg->Open( form, path, fs.PathJoin( ConfigDir, themes.THEME_DIR ) )
+end sub
+
+sub Window.CloseThemeCenter( )
+    if ThemeDlg = 0 then exit sub
+    dim as themecenter.ThemeDialog ptr d = ThemeDlg
+    ThemeDlg = 0
+    d->Close( )
+    delete d
+end sub
+
+' The Theme Center's Save: the theme where it came from, and -- in the project -- its generated
+' module, and main.tiko made to install it (through its buffer when it is open). Save to Library
+' writes the file only. False, with a message, when the theme can't be built.
+function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
+    dim as Array( of ustring ) problems = tc->Problems( )
+    if problems.Count( ) then
+        this.SetMessage( fs.PathFileName( tc->Path ) & ": " & problems[0] )
+        return false
+    end if
+    dim as ustring text = themefile.Render( tc->Doc )
+    fs.CreateDirAll( fs.PathParent( tc->Path ) )
+    ' an open buffer of the file takes the text, so its undo and the disk agree
+    dim as DocRef open_ = 0
+    for each d as DocRef in Docs
+        if (len( d->Path ) > 0) andalso fs.PathEquals( d->Path, tc->Path ) then open_ = d
+    next
+    if open_ then
+        open_->Main.ReplaceAllText( text )
+        if this.SaveDoc( open_, false ) = false then return false
+    elseif fs.WriteAtomic( tc->Path, text ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( tc->Path ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    if tc->SavingToLibrary then
+        this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
+        return true
+    end if
+    if this.WriteThemeGenerated( tc->Path, text ) = false then return false
+    ' the project's main installs the theme, as a new project's does
+    if ProjOpen then
+        dim as ustring mainPath = fs.PathJoin( fs.PathParent( Proj.Path ), "main.tiko" ), none, outText
+        dim as DocRef mainDoc = 0
+        for each d as DocRef in Docs
+            if (len( d->Path ) > 0) andalso fs.PathEquals( d->Path, mainPath ) then mainDoc = d
+        next
+        dim as ustring mainText
+        if mainDoc then mainText = mainDoc->Text( ) else mainText = fs.ReadAllText( mainPath ).ValueOr( none )
+        if len( mainText ) then
+            select case themefile.InstallIntoMain( codegen.WithoutCr( mainText ), outText )
+            case 1
+                if mainDoc then
+                    mainDoc->Main.ReplaceAllText( outText )
+                else
+                    fs.WriteAtomic( mainPath, outText )
+                end if
+            case -1
+                this.SetMessage( i18n.Tr( "designer.theme_main_by_hand", "main.tiko: add appTheme.ApplyOptions and appTheme.Install around tkApp_Init" ) )
+                return true
+            end select
+        end if
+    end if
+    this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
+    return true
+end function
