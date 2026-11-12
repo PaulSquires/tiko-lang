@@ -310,6 +310,7 @@ delete_breakpoint = "Quitar punto de interrupción"
 mac_permission = "macOS no permitió que el depurador controlara el programa: active el modo de desarrollador (sudo DevToolsSecurity -enable) o permítalo cuando macOS lo pregunte"
 
 [designer]
+delete = "Eliminar"
 translate = "Traducible"
 edit_items = "Editar elementos"
 item_add = "Añadir"

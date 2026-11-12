@@ -66,6 +66,7 @@ public type FormCanvas_ as FormCanvas
 public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
 public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
 public type CanvasGoneFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref handler as const ustring ) as boolean
+public type CanvasMenuSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byval x as long, byval y as long )
 
 const as long MARGIN = 16         ' design units of empty surface around the form
 const as long GRIP_SIZE = 7       ' a grip's size
@@ -120,6 +121,7 @@ public type FormCanvas
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
+    OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set
 
     Drag as long
     Grip as long                        ' DragResize: EDGE_* bits
@@ -168,6 +170,8 @@ public type FormCanvas
     declare sub OnRelease( byval x as long, byval y as long )
     declare sub OnHover( byval x as long, byval y as long )
     declare sub OnDoubleClick( byval x as long, byval y as long )
+    declare sub OnRightPress( byval x as long, byval y as long )
+    declare function CanPaste( ) as boolean
     declare function PlaceDefault( byref typeName as const ustring ) as boolean
     declare function OnKey( byval key as long, byval mods as long ) as boolean
     declare sub Paint( byval b as TK_PAINT ptr )
@@ -210,6 +214,12 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         end if
         tkHost_SetCapture( w )
         c->OnPress( m->x, m->y, SDL_GetModState( ) )
+        return true
+    case TKM_RBUTTONDOWN
+        tkHost_SetFocus( w->pHost, w )
+        c->OnRightPress( m->x, m->y )
+        return true
+    case TKM_RBUTTONUP
         return true
     case TKM_MOUSEMOVE
         if c->Drag <> DragNone then
@@ -765,6 +775,30 @@ sub FormCanvas.OnPress( byval x as long, byval y as long, byval mods as long )
     Drag = DragPressed
     tkWidget_Invalidate( Glass )
 end sub
+
+' A right click acts on what it lands on: an unselected control becomes the selection (a selected
+' one keeps the whole selection), the bare form selects nothing so Paste lands on the form.
+sub FormCanvas.OnRightPress( byval x as long, byval y as long )
+    if Drag <> DragNone then exit sub
+    if len( Tool ) then
+        Tool = ""
+        this.Changed( )
+    end if
+    dim as long i = this.HitControl( x, y )
+    if i >= 0 then
+        if this.IsSelected( Doc.Controls[i].Name ) = false then this.SelectOnly( Doc.Controls[i].Name )
+    elseif Selected.Count( ) > 0 then
+        this.SelectNone( )
+    end if
+    tkWidget_Invalidate( Glass )
+    if OnContextMenu then OnContextMenu( Host, @this, x, y )
+end sub
+
+' The clipboard holds controls Copy put there.
+function FormCanvas.CanPaste( ) as boolean
+    if tkHost_HasClipboardText( ) = false then return false
+    return edits.IsClipText( tkHost_GetClipboardText( ) )
+end function
 
 sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
     NowX = x : NowY = y

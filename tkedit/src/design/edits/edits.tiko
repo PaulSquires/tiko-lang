@@ -475,6 +475,11 @@ public function CopyText( byref doc as FormDoc, byref names as Array( of ustring
     return formfile.Render( clip )
 end function
 
+' Is text what CopyText made (so Paste has something to add)?
+public function IsClipText( byref text as const ustring ) as boolean
+    return instr( text, CLIP_CAPTION ) > 0
+end function
+
 ' Adds what CopyText made under parent, offset by dx, dy, each with a fresh name. newNames gets the
 ' top-level ones, in order. False when the text isn't controls.
 public function PasteText( byref doc as FormDoc, byref text as const ustring, byref parent as const ustring, byval page as long, _

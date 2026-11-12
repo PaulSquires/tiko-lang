@@ -310,6 +310,7 @@ delete_breakpoint = "Retirer le point d'arrêt"
 mac_permission = "macOS n'a pas laissé le débogueur contrôler le programme : activez le mode développeur (sudo DevToolsSecurity -enable), ou autorisez-le quand macOS le demande"
 
 [designer]
+delete = "Supprimer"
 translate = "Traduisible"
 edit_items = "Modifier les éléments"
 item_add = "Ajouter"

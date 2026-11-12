@@ -156,6 +156,7 @@ const OUTPUT_MIN_CY = 80                  ' unscaled
 const TABMENU_OTHERS = 9001               ' the tab menu's rows that are no command of the table
 const TABMENU_LEFT = 9002
 const TABMENU_RIGHT = 9003
+const DESIGNMENU_DELETE = 9010            ' the designer menu's row that is no command of the table
 const ID_SIDE = 117                       ' the explorer ([ui] explorer)
 const ID_SIDEBAR = 118                    ' the bar between it and everything else
 const SIDE_MIN_PANES_CX = 200             ' what the explorer leaves the editors, unscaled
@@ -550,6 +551,7 @@ public type Window
     StartMax as boolean                 ' Show maximizes it (session.toml said so)
     editMenu as TK_MENU ptr             ' a view's right-click menu
     tabMenu as TK_MENU ptr              ' a tab's right-click menu
+    designMenu as TK_MENU ptr           ' the form designer's right-click menu
     accel as TK_KEYMAP ptr
     diskTimer as long
     inboxTimer as long                  ' reads <config>/inbox while this window is the first tkEdit
@@ -657,6 +659,7 @@ public type Window
                                  byval lenTyped as long )
     declare sub LabelEditMenu( )
     declare sub LabelTabMenu( )
+    declare sub LabelDesignMenu( )
     declare sub SyncSettingsFile( )
     declare sub ApplyStatusPanels( )
     declare sub SyncKeysFile( )
@@ -693,6 +696,7 @@ public type Window
     declare sub RenameActive( )
     declare sub DuplicateActive( )
     declare sub ShowTabMenu( byval idx as long, byval x as long, byval y as long )
+    declare sub ShowDesignMenu( byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
     declare function SaveAll( ) as boolean
     declare sub ToggleSplit( byval mode as session.SplitMode )
     declare sub FocusPane( byval second as boolean )
@@ -1020,6 +1024,28 @@ function Window.Create( byval forcedScale as single ) as boolean
         mw->FocusEditor( )
     end sub )
 
+    ' the form designer's right-click menu: the selection's commands through Execute
+    designMenu = tkPopupMenu_Create( tkForm_Host( form ) )
+    tkPopupMenu_AddItem( designMenu, clng( Cmd.Cut ), "" )
+    tkPopupMenu_AddItem( designMenu, clng( Cmd.Copy ), "" )
+    tkPopupMenu_AddItem( designMenu, clng( Cmd.Paste ), "" )
+    tkPopupMenu_AddItem( designMenu, DESIGNMENU_DELETE, "" )
+    tkPopupMenu_AddSeparator( designMenu )
+    tkPopupMenu_AddItem( designMenu, clng( Cmd.SelectAll ), "" )
+    tkPopupMenu_AddSeparator( designMenu )
+    tkPopupMenu_AddItem( designMenu, clng( Cmd.FormBringToFront ), "" )
+    tkPopupMenu_AddItem( designMenu, clng( Cmd.FormSendToBack ), "" )
+    tkPopupMenu_SetSelectCallback( designMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
+        dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
+        if mw = 0 then exit sub
+        if id = DESIGNMENU_DELETE then
+            dim as DocRef d = mw->Active( )
+            if (d <> 0) andalso (d->Designer <> 0) then d->Designer->DeleteSelection( )
+        else
+            mw->Execute( cast( Cmd, id ) )
+        end if
+    end sub )
+
     Out.Create( root, ID_OUTPUT, @this )
     Out.OnActivate = sub( byval owner as any ptr, byval tab_ as outputpane.OutputTab, byval itemIndex as long )
         dim as Window ptr mw = owner
@@ -1238,6 +1264,8 @@ sub Window.Destroy( )
     editMenu = 0
     if tabMenu then tkPopupMenu_Destroy( tabMenu )
     tabMenu = 0
+    if designMenu then tkPopupMenu_Destroy( designMenu )
+    designMenu = 0
     for pane as long = 0 to 1                    ' unwrapped: HoverProc finds its Window through the form
         if hbar( pane ) then hbar( pane )->proc = hbarProc
     next
@@ -2206,6 +2234,7 @@ sub Window.ReloadLanguage( )
     if (len( note ) > 0) andalso (len( Message ) = 0) then Message = note
     this.LabelEditMenu( )
     this.LabelTabMenu( )
+    this.LabelDesignMenu( )
     this.BuildMenus( )
     Finder.Relabel( )
     Out.Relabel( )
@@ -2251,6 +2280,17 @@ sub Window.LabelEditMenu( )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.CommentBlock ), i18n.Tr( "menu.CommentBlock", "Comment Block" ) )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.UncommentBlock ), i18n.Tr( "menu.UncommentBlock", "UnComment Block" ) )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.SelectAll ), i18n.Tr( "menu.SelectAll", "Select All" ) )
+end sub
+
+sub Window.LabelDesignMenu( )
+    if designMenu = 0 then exit sub
+    tkPopupMenu_SetItemText( designMenu, clng( Cmd.Cut ), i18n.Tr( "menu.Cut", "Cut" ) )
+    tkPopupMenu_SetItemText( designMenu, clng( Cmd.Copy ), i18n.Tr( "menu.Copy", "Copy" ) )
+    tkPopupMenu_SetItemText( designMenu, clng( Cmd.Paste ), i18n.Tr( "menu.Paste", "Paste" ) )
+    tkPopupMenu_SetItemText( designMenu, DESIGNMENU_DELETE, i18n.Tr( "designer.delete", "Delete" ) )
+    tkPopupMenu_SetItemText( designMenu, clng( Cmd.SelectAll ), i18n.Tr( "menu.SelectAll", "Select All" ) )
+    tkPopupMenu_SetItemText( designMenu, clng( Cmd.FormBringToFront ), i18n.Tr( "commands.FormBringToFront", "Bring to Front" ) )
+    tkPopupMenu_SetItemText( designMenu, clng( Cmd.FormSendToBack ), i18n.Tr( "commands.FormSendToBack", "Send to Back" ) )
 end sub
 
 sub Window.LabelTabMenu( )
@@ -2969,6 +3009,9 @@ function Window.OpenText( byref path as const ustring ) as boolean
             d->Designer->OnEditColors = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
                 cast( Window ptr, o )->EditColors( c, n )
             end sub
+            d->Designer->OnContextMenu = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
+                cast( Window ptr, o )->ShowDesignMenu( c, x, y )
+            end sub
             d->Designer->OnRenamed = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref a as const ustring, byref b as const ustring )
                 cast( Window ptr, o )->ControlRenamed( c, a, b )
             end sub
@@ -3181,6 +3224,23 @@ sub Window.DuplicateActive( )
     end if
     this.OpenText( path )
     Side.Rescan( )
+end sub
+
+' A right click on the design surface (the canvas has already selected what it landed on): rows
+' that need a selection grey without one, Paste greys unless the clipboard holds copied controls.
+sub Window.ShowDesignMenu( byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
+    if (designMenu = 0) orelse (c = 0) then exit sub
+    dim as boolean sel = c->Selected.Count( ) > 0
+    tkPopupMenu_SetItemEnabled( designMenu, clng( Cmd.Cut ), sel )
+    tkPopupMenu_SetItemEnabled( designMenu, clng( Cmd.Copy ), sel )
+    tkPopupMenu_SetItemEnabled( designMenu, clng( Cmd.Paste ), c->CanPaste( ) )
+    tkPopupMenu_SetItemEnabled( designMenu, DESIGNMENU_DELETE, sel )
+    tkPopupMenu_SetItemEnabled( designMenu, clng( Cmd.SelectAll ), c->Doc.Controls.Count( ) > 0 )
+    tkPopupMenu_SetItemEnabled( designMenu, clng( Cmd.FormBringToFront ), sel )
+    tkPopupMenu_SetItemEnabled( designMenu, clng( Cmd.FormSendToBack ), sel )
+    dim as TKRECT a
+    tkWidget_AbsRect( c->Glass, a )
+    tkPopupMenu_Show( designMenu, a.left + x, a.top + y )
 end sub
 
 ' A right click on a tab makes it the active buffer, as tiko-editor's does, and every row then acts
