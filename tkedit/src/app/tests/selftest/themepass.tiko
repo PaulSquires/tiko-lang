@@ -147,27 +147,19 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).FocusRing, P( sc, "the preview's focus ring is the derived accent: " & hex( bc.FocusRingColor ) ) )
     t.Check( tkTheme_Get( ).Accent <> tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).Accent, P( sc, "tkEdit's own theme is untouched" ) )
 
-    ' ---- moving through the gallery previews; the theme being edited stays
+    ' ---- moving through the gallery takes each theme: the name, the accent and the preview follow
     dim as long row = GalleryRow( dlg->Gallery, "Ocean" )
     ClickRow( th, dlg->Gallery, row )
+    t.Check( (dlg->Doc.Name = "Ocean") andalso (tkTextBox_GetText( dlg->TxtName ) = "Ocean"), P( sc, "Ocean selected: the Name box says so: " & tkTextBox_GetText( dlg->TxtName ) ) )
+    t.Check( tkTextBox_GetText( dlg->TxtAccent ) = dlg->Doc.Accent, P( sc, "and the Accent box has its accent: " & tkTextBox_GetText( dlg->TxtAccent ) ) )
     tkButton_GetColors( dlg->PvButton, @bc )
-    t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFF0277BDul ).FocusRing, P( sc, "Ocean selected: the preview wears it: " & hex( bc.FocusRingColor ) ) )
-    t.Check( (dlg->Doc.Name = "Default") andalso (dlg->Doc.Accent = "#E65100"), P( sc, "and the theme being edited is unchanged: " & dlg->Doc.Name ) )
-    tkTabControl_SetCurSel( dlg->Tabs, 1 )
-    dlg->EndPreview( )      ' what a click on another page does (SetCurSel is silent)
-    tkButton_GetColors( dlg->PvButton, @bc )
-    t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).FocusRing, P( sc, "another page: the preview is back on it" ) )
-    tkTabControl_SetCurSel( dlg->Tabs, 0 )
-    tkTest_PumpFor( th, 40 )
+    t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFF0277BDul ).FocusRing, P( sc, "and the preview wears it: " & hex( bc.FocusRingColor ) ) )
 
     ' ---- High Contrast from the gallery: its own AA check passes, in both variants
     row = GalleryRow( dlg->Gallery, "High Contrast" )
     t.Check( row >= 0, P( sc, "High Contrast is in the gallery" ) )
     ClickRow( th, dlg->Gallery, row )
-    tkButton_GetColors( dlg->PvButton, @bc )
-    t.Check( (bc.BackColor = &hFF000000ul) andalso (dlg->Doc.Name = "Default"), P( sc, "High Contrast previewed, not taken: " & hex( bc.BackColor ) ) )
-    PressIn( th, dlg->BtnUse )
-    t.Check( dlg->Doc.Name = "High Contrast", P( sc, "Use This Theme: " & dlg->Doc.Name ) )
+    t.Check( dlg->Doc.Name = "High Contrast", P( sc, "High Contrast selected: " & dlg->Doc.Name ) )
     t.Check( tkLabel_GetText( dlg->LblContrast ) = "Contrast: every pair passes AA", P( sc, "dark: " & tkLabel_GetText( dlg->LblContrast ) ) )
     tkButton_GetColors( dlg->PvButton, @bc )
     t.Check( (bc.BackColor = &hFF000000ul) andalso (bc.BorderColor = &hFFFFFFFFul), _

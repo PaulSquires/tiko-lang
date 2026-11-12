@@ -80,11 +80,10 @@ myapp/
 | **High Contrast** | Strong colours and thicker borders; every text passes the accessibility check. |
 | **Ocean**, **Forest**, **Ember**, **Violet** | Default with a blue, green, orange or purple accent. |
 
-3. Click **Ocean**, or move to it with the arrow keys. The **Preview** on the right shows it at once:
-   a label, buttons, a check box, an option button, a toggle, a text box, a combo box and a progress
-   bar, all in Ocean. Try a few; only the preview changes.
-4. Press **Use This Theme** to take the one you like.
-5. Press **Save**.
+3. Click **Ocean**, or move to it with the arrow keys. It becomes your theme at once: the **Name**
+   box says Ocean, and the **Preview** on the right shows a label, buttons, a group of options, a
+   text box, a combo box and a progress bar, all in Ocean. Try a few.
+4. Press **Save** to keep the one you like. Nothing is written until you do.
 
 That's it. Your form on the design surface now wears Ocean too. Press **F5** to see the program in it.
 
@@ -483,7 +482,7 @@ See [tkTheme](tkTheme) and [tkApp](tkApp) for the full API.
 
 | Problem | Fix |
 | --- | --- |
-| My form doesn't change when I pick a theme. | Press **Save** in the Theme Center. Picking only previews. |
+| My form doesn't change when I pick a theme. | Press **Save** in the Theme Center. Picking a theme changes the dialog only. |
 | The program runs in the old theme. | Check `main.tiko` has `appTheme.ApplyOptions( options )` before `tkApp_Init` and `appTheme.Install( )` after it. If it has no `if tkApp_Init( ... ) = false then` line, tkEdit can't add them and asks you to by hand. |
 | One button ignores the theme. | It has its own colours. Open its **Colours** row and clear the boxes (or **Reset** on All States). In hand-written code, a `Set...Color` call pins a control; `UnpinColors` hands it back. |
 | One button ignores my corner radius. | You set its corners in the Properties panel, which beats the theme. |

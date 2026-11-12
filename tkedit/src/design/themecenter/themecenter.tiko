@@ -9,7 +9,8 @@
 ' its Dark and Light variants side by side through a switch, and a live preview of the controls
 ' wearing it (a theme scope, tkTheme_ApplyTo, so the rest of tkEdit keeps its own theme).
 '
-'   Start            a gallery of themes (shipped with tkEdit, and the user's library); one accent
+'   Theme            a gallery of themes (shipped with tkEdit, and the user's library): selecting one
+'                    makes it the theme being edited; one accent
 '   Colours          the 23 roles of the variant shown, each from the theme or set here
 '   Fonts and Shape  the font files and sizes, corner radius and border width
 '   Styles           named role remaps ("Primary": Surface = @Accent), one "Role = colour" a line
@@ -91,8 +92,6 @@ public type ThemeDialog_
     OnClose as ThemeDialogSub
     GalleryPaths as Array( of ustring )
     GalleryShipped as Array( of boolean ) ' per gallery row: one tkEdit ships, not the user's library
-    Previewing as boolean               ' the preview shows PvDoc, the gallery's selected theme, not Doc
-    PvDoc as themefile.ThemeDoc
 
     TxtName as TK_WIDGET ptr
     LblName as TK_WIDGET ptr
@@ -100,7 +99,6 @@ public type ThemeDialog_
     Tabs as TK_WIDGET ptr
     ' Start
     Gallery as TK_WIDGET ptr
-    BtnUse as TK_WIDGET ptr
     LblAccent as TK_WIDGET ptr
     TxtAccent as TK_WIDGET ptr
     BtnAccentPick as TK_WIDGET ptr
@@ -151,8 +149,6 @@ public type ThemeDialog_
     declare sub Layout( )
     declare sub FillGallery( )
     declare sub UseGallery( byval row as long )
-    declare sub PreviewGallery( byval row as long )
-    declare sub EndPreview( )
     declare sub LoadFields( )
     declare sub LoadRole( )
     declare sub LoadStyle( )
@@ -202,16 +198,10 @@ private sub OnRolePick( byval h as TK_WIDGET ptr, byval row as integer )
     if (d <> 0) andalso (d->Loading = false) then d->LoadRole( )
 end sub
 
-' Moving through the gallery previews the theme under the selection; Use This Theme takes it.
+' Moving through the gallery takes the theme under the selection: it becomes the one being edited.
 private sub OnGalleryPick( byval h as TK_WIDGET ptr, byval row as integer )
     dim as ThemeDialog ptr d = DlgOf( h )
-    if (d <> 0) andalso (d->Loading = false) then d->PreviewGallery( row )
-end sub
-
-' Leaving the Theme page puts the preview back on the theme being edited.
-private sub OnTabPick( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
-    dim as ThemeDialog ptr d = DlgOf( h )
-    if (d <> 0) andalso (d->Loading = false) andalso (idxNew <> 0) then d->EndPreview( )
+    if (d <> 0) andalso (d->Loading = false) then d->UseGallery( row )
 end sub
 
 ' The dialog's lists show no tooltip: an empty tip is never shown.
@@ -222,7 +212,6 @@ end function
 private sub OnStylePick( byval h as TK_WIDGET ptr, byval row as integer )
     dim as ThemeDialog ptr d = DlgOf( h )
     if (d <> 0) andalso (d->Loading = false) then
-        d->Previewing = false
         d->LoadStyle( )
         d->Refresh( )
     end if
@@ -232,7 +221,6 @@ private sub OnButton( byval h as TK_WIDGET ptr, byval id as long )
     dim as ThemeDialog ptr d = DlgOf( h )
     if d = 0 then exit sub
     select case h
-    case d->BtnUse        : d->UseGallery( tkListTree_GetCurSel( d->Gallery ) )
     case d->BtnAccentPick : d->PickInto( d->TxtAccent )
     case d->BtnRolePick   : d->PickInto( d->TxtRole )
     case d->BtnRoleReset  : d->SetRoleText( "" )
@@ -336,11 +324,9 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     for k as long = 0 to 3
         tkTabBar_SetClosable( tkTabControl_GetTabBar( Tabs ), k, false )      ' pages, not documents: no X
     next
-    tkTabControl_SetSelChangeCallback( Tabs, @OnTabPick )
 
     Gallery = MakeList_( pStart )
     tkListTree_SetSelChangeCallback( Gallery, @OnGalleryPick )
-    BtnUse = MakeButton_( pStart, i18n.Tr( "designer.theme_use", "Use This Theme" ) )
     LblAccent = MakeLabel_( pStart, i18n.Tr( "designer.theme_accent", "Accent" ) )
     TxtAccent = MakeText_( pStart )
     BtnAccentPick = MakeButton_( pStart, i18n.Tr( "designer.theme_pick", "Pick..." ) )
@@ -446,8 +432,7 @@ sub ThemeDialog_.Layout( )
     ' the pages: their own coordinates, the tab control's size less its tabs
     dim as long pw = tabsW, ph = tabsH - tkTabControl_GetTabHeight( Tabs )
     dim as long sw = tkForm_Scale( Win, 100 )
-    tkWidget_SetPos( Gallery, g, g, pw - 2 * g, ph - 4 * g - 2 * rh )
-    tkWidget_SetPos( BtnUse, g, ph - 2 * g - 2 * rh - g \ 2, tkForm_Scale( Win, 160 ), rh )
+    tkWidget_SetPos( Gallery, g, g, pw - 2 * g, ph - 3 * g - rh )
     tkWidget_SetPos( LblAccent, g, ph - g - rh, sw, rh )
     tkWidget_SetPos( TxtAccent, g + sw, ph - g - rh, tkForm_Scale( Win, 120 ), rh )
     tkWidget_SetPos( BtnAccentPick, 2 * g + sw + tkForm_Scale( Win, 120 ), ph - g - rh, sw, rh )
@@ -549,25 +534,6 @@ sub ThemeDialog_.FillGallery( )
     if tkListTree_GetCount( Gallery ) then tkListTree_SetCurSel( Gallery, sel )
 end sub
 
-' The gallery's theme in the preview only: Doc, the fields and what Save writes stay as they are.
-sub ThemeDialog_.PreviewGallery( byval row as long )
-    if (row < 0) orelse (row >= GalleryPaths.Count( )) then exit sub
-    dim as ustring none, e
-    dim as ustring text = bundled.ReadAllText( GalleryPaths[row] ).ValueOr( none )
-    dim as themefile.ThemeDoc d
-    if themefile.Parse( text, d, e ) = false then exit sub
-    PvDoc = d
-    Previewing = true
-    this.Refresh( )
-end sub
-
-' The preview back on the theme being edited.
-sub ThemeDialog_.EndPreview( )
-    if Previewing = false then exit sub
-    Previewing = false
-    this.Refresh( )
-end sub
-
 ' The gallery's theme becomes the one being edited (the file it is saved to stays the same).
 sub ThemeDialog_.UseGallery( byval row as long )
     if (row < 0) orelse (row >= GalleryPaths.Count( )) then exit sub
@@ -576,7 +542,6 @@ sub ThemeDialog_.UseGallery( byval row as long )
     dim as themefile.ThemeDoc d
     if themefile.Parse( text, d, e ) = false then exit sub
     Doc = d
-    Previewing = false
     this.LoadFields( )
     this.Refresh( )
 end sub
@@ -660,7 +625,6 @@ end sub
 
 ' The role text box's value into the variant shown: a colour sets the role, "" gives it back.
 sub ThemeDialog_.SetRoleText( byref text as const ustring )
-    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long r = this.RoleOfRow( tkListTree_GetCurSel( Roles ) )
     if r < 0 then exit sub
     dim as ustring nm = tkTheme_RoleName( r )
@@ -693,7 +657,6 @@ private function FieldText_( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 sub ThemeDialog_.FieldChanged( byval w as TK_WIDGET ptr )
-    Previewing = false                  ' an edit: the preview shows the theme being edited
     select case w
     case TxtName : Doc.Name = FieldText_( TxtName )
     case TxtAccent
@@ -725,7 +688,6 @@ end sub
 
 ' "Role = colour" lines into the selected style. A line that isn't one is reported, not kept.
 sub ThemeDialog_.StyleLinesChanged( )
-    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long si = tkListTree_GetCurSel( StyleList )
     if (si < 0) orelse (si >= Doc.Styles.Count( )) then exit sub
     dim as ustring text = tkTextBox_GetText( TxtStyleLines ) & chr( 10 )
@@ -760,7 +722,6 @@ sub ThemeDialog_.StyleLinesChanged( )
 end sub
 
 sub ThemeDialog_.AddStyle( )
-    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long k = Doc.Styles.Count( ) + 1
     dim as ustring nm
     do
@@ -784,7 +745,6 @@ sub ThemeDialog_.AddStyle( )
 end sub
 
 sub ThemeDialog_.DeleteStyle( )
-    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long i = tkListTree_GetCurSel( StyleList )
     if (i < 0) orelse (i >= Doc.Styles.Count( )) then exit sub
     Doc.Styles.Remove( i )
@@ -812,17 +772,14 @@ end function
 ' What a program would see: Doc through a scope on the preview, the selected style on PvStyled.
 sub ThemeDialog_.Refresh( )
     if Win = 0 then exit sub
-    ' the gallery's selection while previewing it, else the theme being edited
-    dim as themefile.ThemeDoc ptr shown = iif( Previewing, @PvDoc, @Doc )
-    dim as TKTHEME_COLORS t = themefile.Resolve( *shown, IsDark )
-    dim as TKTHEME_SHAPE sh = themefile.ShapeOf( *shown )
-    Tables.Build( *shown )
+    dim as TKTHEME_COLORS t = this.Theme( )
+    dim as TKTHEME_SHAPE sh = themefile.ShapeOf( Doc )
+    Tables.Build( Doc )
     tkTheme_ApplyTo( Preview, t, @sh, Tables.StylePtr( ), Tables.Styles.Count( ), Tables.TypePtr( ), Tables.Types.Count( ) )
     dim as long si = tkListTree_GetCurSel( StyleList )
-    if Previewing then si = iif( PvDoc.Styles.Count( ) > 0, 0, -1 )       ' its first style, if it has one
-    if (si >= 0) andalso (si < shown->Styles.Count( )) then
-        tkButton_SetText( PvStyled, shown->Styles[si].Name )
-        tkTheme_SetRecipeNamed( PvStyled, shown->Styles[si].Name, 0, 0 )
+    if (si >= 0) andalso (si < Doc.Styles.Count( )) then
+        tkButton_SetText( PvStyled, Doc.Styles[si].Name )
+        tkTheme_SetRecipeNamed( PvStyled, Doc.Styles[si].Name, 0, 0 )
         tkWidget_Show( PvStyled, true )
     else
         tkTheme_ClearRecipe( PvStyled )

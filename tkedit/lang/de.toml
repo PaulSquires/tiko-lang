@@ -355,7 +355,6 @@ theme_name_taken = "Es gibt bereits ein Design namens '{}': bitte einen anderen 
 theme_colours = "Farben"
 theme_fonts = "Schriften und Form"
 theme_styles = "Stile"
-theme_use = "Dieses Design verwenden"
 theme_accent = "Akzent"
 theme_pick = "Wählen..."
 theme_reset = "Zurücksetzen"

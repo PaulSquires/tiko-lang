@@ -355,7 +355,6 @@ theme_name_taken = "Un thème nommé '{}' existe déjà : donnez-lui un autre no
 theme_colours = "Couleurs"
 theme_fonts = "Polices et forme"
 theme_styles = "Styles"
-theme_use = "Utiliser ce thème"
 theme_accent = "Accent"
 theme_pick = "Choisir..."
 theme_reset = "Réinitialiser"
