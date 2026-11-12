@@ -204,6 +204,17 @@ private sub OnGalleryPick( byval h as TK_WIDGET ptr, byval row as integer )
     if (d <> 0) andalso (d->Loading = false) then d->UseGallery( row )
 end sub
 
+' The form is going, by Close or by the window's own close button (tkApp destroys an owned modeless
+' form between events): the dialog forgets it, its controls' late callbacks find no dialog, and the
+' host hears OnClose -- which may delete the dialog, so nothing touches d after it.
+private sub OnFormGone( byval f as TK_FORM ptr )
+    dim as ThemeDialog ptr d = f->Tag
+    f->Tag = 0
+    if d = 0 then exit sub
+    d->Win = 0
+    if d->OnClose then d->OnClose( d )
+end sub
+
 ' The dialog's lists show no tooltip: an empty tip is never shown.
 private function NoTip( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
     return ""
@@ -396,8 +407,9 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     BtnSave = MakeButton_( root_, i18n.Tr( "designer.theme_save", "Save" ) )
     BtnClose = MakeButton_( root_, i18n.Tr( "designer.theme_close", "Close" ) )
 
+    tkForm_OnDestroy( Win, @OnFormGone )
     tkForm_OnSize( Win, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
-        cast( ThemeDialog ptr, f->Tag )->Layout( )
+        if f->Tag then cast( ThemeDialog ptr, f->Tag )->Layout( )      ' 0 while the form goes
     end sub )
     this.FillGallery( )
     Loading = false

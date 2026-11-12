@@ -258,6 +258,27 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     PressIn( th, dlg->BtnClose )
     tkTest_PumpFor( h, 40 )
     t.Check( mw.ThemeDlg = 0, P( sc, "Close" ) )
+
+    ' ---- again: Close, then the window's own close button, then a third open (a freed form was
+    ' shown on the second open when the close button had been used)
+    mw.Execute( Cmd.FormTheme )
+    tkTest_PumpFor( h, 80 )
+    t.Check( (mw.ThemeDlg <> 0) andalso (mw.ThemeDlg->Win <> 0), P( sc, "the Theme Center opens a second time" ) )
+    if (mw.ThemeDlg <> 0) andalso (mw.ThemeDlg->Win <> 0) then
+        tkForm_Close( mw.ThemeDlg->Win )       ' what the title bar's X does
+        for k as long = 1 to 5
+            tkApp_Pump( )
+        next
+        t.Check( mw.ThemeDlg = 0, P( sc, "the window's close button closes it, and tkEdit hears so" ) )
+    end if
+    mw.Execute( Cmd.FormTheme )
+    tkTest_PumpFor( h, 80 )
+    t.Check( (mw.ThemeDlg <> 0) andalso (mw.ThemeDlg->Win <> 0), P( sc, "and it opens a third time" ) )
+    if mw.ThemeDlg then
+        PressIn( tkForm_Host( mw.ThemeDlg->Win ), mw.ThemeDlg->BtnClose )
+        tkTest_PumpFor( h, 40 )
+    end if
+    t.Check( mw.ThemeDlg = 0, P( sc, "closed again" ) )
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )
     next
