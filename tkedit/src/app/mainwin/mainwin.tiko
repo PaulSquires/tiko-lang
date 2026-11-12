@@ -631,6 +631,7 @@ public type Window
     declare sub PutCodeText( byval d as DocRef, byref newText as const ustring )
     declare sub WireHandler( byval c as canvas.FormCanvas ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
     declare function HandlerGone( byval c as canvas.FormCanvas ptr, byref handler as const ustring ) as boolean
+    declare function HandlerRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
     declare sub ControlRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
     declare sub ReconcileDesigner( byval d as DocRef )
     declare function WriteGenerated( byval d as DocRef ) as boolean
@@ -3019,6 +3020,9 @@ function Window.OpenText( byref path as const ustring ) as boolean
             end sub
             d->Designer->OnHandlerGone = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref h as const ustring ) as boolean
                 return cast( Window ptr, o )->HandlerGone( c, h )
+            end function
+            d->Designer->OnHandlerRenamed = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref a as const ustring, byref b as const ustring ) as boolean
+                return cast( Window ptr, o )->HandlerRenamed( c, a, b )
             end function
         end if
     end if

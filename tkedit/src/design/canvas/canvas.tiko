@@ -66,6 +66,7 @@ public type FormCanvas_ as FormCanvas
 public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
 public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
 public type CanvasGoneFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref handler as const ustring ) as boolean
+public type CanvasHandlerRenameFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
 public type CanvasMenuSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byval x as long, byval y as long )
 
 const as long MARGIN = 16         ' design units of empty surface around the form
@@ -121,6 +122,7 @@ public type FormCanvas
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
+    OnHandlerRenamed as CanvasHandlerRenameFunc ' true: the code's body (and its uses) now go by the new name
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set
     MouseX as long                      ' the mouse's last place in Glass pixels, while MouseIn
     MouseY as long

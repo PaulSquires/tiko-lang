@@ -610,6 +610,25 @@ function Window.HandlerGone( byval c as canvas.FormCanvas ptr, byref handler as 
     return false
 end function
 
+' An Events row now calls newName instead of oldName, which nothing else on the form calls: the
+' body and its uses in the code take the new name -- not when newName already has a body of its own
+' (the row was pointed at another handler), and not when oldName has none. True: renamed.
+function Window.HandlerRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
+    dim as DocRef d = this.DocOfCanvas( c )
+    if d = 0 then return false
+    dim as ustring path = CodePathOf_( d->Path )
+    if (this.FindOpen( path ) = 0) andalso (fs.IsFile( path ) = false) then return false
+    dim as DocRef code = this.OpenQuietly( path )
+    if code = 0 then return false
+    dim as ustring text = code->Text( )
+    dim as long a, b
+    if (lcase( oldName ) <> lcase( newName )) andalso reconcile.FindBody( text, newName, a, b ) then return false
+    if reconcile.FindBody( text, oldName, a, b ) = false then return false
+    dim as FormDoc noForm                        ' a handler's name alone: no control-prefixed names follow it
+    this.PutCodeText( code, reconcile.RenameInCode( text, oldName, newName, noForm ) )
+    return true
+end function
+
 sub Window.ControlRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
     dim as DocRef d = this.DocOfCanvas( c )
     if d = 0 then exit sub

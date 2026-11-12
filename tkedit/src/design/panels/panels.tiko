@@ -32,6 +32,7 @@
 #import "../catalog"
 #import "../edits"
 #import "../canvas"
+#import "../validate"
 using containers
 using tkApp
 using tkMeta
@@ -342,9 +343,13 @@ private sub OnEventGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as
         if p->Rows[i].Btn = h then r = i
     next
     if r < 0 then exit sub
+    ' a name typed but not yet entered is what the button means: the button takes no focus, so
+    ' the box hasn't let it go
+    dim as ustring ev = mid( p->Rows[r].Key, 3 )
+    p->CommitRow( r )
     dim as ustring ctl
     if p->C->Selected.Count( ) then ctl = p->C->Selected[0]
-    p->C->OnWire( p->C->Host, p->C, ctl, mid( p->Rows[r].Key, 3 ), true )
+    p->C->OnWire( p->C->Host, p->C, ctl, ev, true )
 end sub
 
 ' The row that opens a control's menu, column, item or page editor -- or its Colors dialog.
@@ -1132,8 +1137,26 @@ private function ParseLong_( byref s as const ustring, byref v as long ) as bool
 end function
 
 ' One change, on a copy of the model: the canvas takes it if it leaves the form valid. "" = done.
+' Does anything on the form still call handler?
+private function HandlerUsed_( byref doc as FormDoc, byref handler as const ustring ) as boolean
+    dim as ustring want = lcase( handler )
+    for each s as Setting in doc.Events
+        if lcase( s.Value ) = want then return true
+    next
+    for each c as FormControl in doc.Controls
+        for each s as Setting in c.Events
+            if lcase( s.Value ) = want then return true
+        next
+        for each it as FormItem in c.Items
+            if lcase( it.Handler ) = want then return true
+        next
+    next
+    return false
+end function
+
 function DesignPanels.Apply( byref key_ as const ustring, byref text as const ustring ) as ustring
     dim as FormDoc trial = C->Doc
+    dim as ustring oldHandler, evParams          ' an Events row: what it called before, and with what
     dim as long v
     dim as boolean rebuild = true
     dim as long i = -1
@@ -1183,6 +1206,9 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
             dim as ustring ev = mid( key_, 3 )
             if i >= 0 then
                 dim as long at_ = FindSetting( trial.Controls[i].Events, ev )
+                if at_ >= 0 then oldHandler = trial.Controls[i].Events[at_].Value
+                dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( catalog.Find( trial.Controls[i].TypeName ), ev )
+                if e then evParams = e->Params
                 if len( text ) then
                     PutSetting( trial.Controls[i].Events, ev, text )
                 elseif at_ >= 0 then
@@ -1190,6 +1216,8 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
                 end if
             else
                 dim as long at_ = FindSetting( trial.Events, ev )
+                if at_ >= 0 then oldHandler = trial.Events[at_].Value
+                if ev = "Close" then evParams = "byref Cancel as boolean"
                 if len( text ) then
                     PutSetting( trial.Events, ev, text )
                 elseif at_ >= 0 then
@@ -1202,6 +1230,29 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
             if len( bad ) then return bad
         end if
     end select
+    ' A handler the row no longer calls, and nothing else on the form does: its body in the code takes
+    ' the new name (when that has no body yet), else it goes as a deleted control's would -- an empty
+    ' body is removed, one with code keeps its declaration (an orphan) so the file still compiles.
+    ' a kept (orphaned) handler named again is called again: no longer an orphan
+    if (left( key_, 2 ) = "E:") andalso (len( text ) > 0) then
+        for k as long = trial.Orphans.Count( ) - 1 to 0 step -1
+            if lcase( trial.Orphans[k].Handler ) = lcase( text ) then trial.Orphans.Remove( k )
+        next
+    end if
+    if (len( oldHandler ) > 0) andalso (oldHandler <> text) andalso (HandlerUsed_( trial, oldHandler ) = false) then
+        dim as ustring bad = validate.FirstNewProblem( C->Doc, trial )
+        if len( bad ) then return bad                ' refused before the code is touched
+        dim as boolean renamed = false
+        if (len( text ) > 0) andalso (C->OnHandlerRenamed <> 0) then renamed = C->OnHandlerRenamed( C->Host, C, oldHandler, text )
+        if (renamed = false) andalso (C->OnHandlerGone <> 0) then
+            if C->OnHandlerGone( C->Host, C, oldHandler ) then
+                dim as FormOrphan o
+                o.Handler = oldHandler
+                o.Params = evParams
+                trial.Orphans.Push( o )
+            end if
+        end if
+    end if
     dim as ustring newName, oldName
     if key_ = "@Name" then
         newName = text
