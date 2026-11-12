@@ -99,6 +99,7 @@ public type PanelRow
     Edit as TK_WIDGET ptr
     Btn as TK_WIDGET ptr      ' an event row's "go to the code"
     CY as long
+    Inline as boolean         ' on the row before's line, sharing its editor's width (no label of its own)
 end type
 
 public type Palette
@@ -691,18 +692,31 @@ sub DesignPanels.LayoutPane( byval sc as TK_WIDGET ptr, byval events as boolean 
     dim as long w = tkScrollPanel_GetPanelWidth( sc )
     if w <= 0 then w = sc->cw
     dim as long y = p_
-    for each r as PanelRow in Rows
-        if (left( r.Key, 2 ) = "E:") <> events then continue for
-        dim as long rh = tkHost_Scale( h, r.CY )
-        tkWidget_SetPos( r.Label, p_, y, lw - p_, rh - p_ )
+    dim as long n = Rows.Count( )
+    for i as long = 0 to n - 1
+        dim as PanelRow ptr r = @Rows[i]
+        if (left( r->Key, 2 ) = "E:") <> events then continue for
+        if r->Inline then continue for                 ' placed with the row it follows
+        dim as long rh = tkHost_Scale( h, r->CY )
+        tkWidget_SetPos( r->Label, p_, y, lw - p_, rh - p_ )
         dim as long bw = 0
-        if r.Btn then
+        if r->Btn then
             dim as long bh
-            tkToolbar_GetIdealSize( r.Btn, bw, bh )
+            tkToolbar_GetIdealSize( r->Btn, bw, bh )
             if bh > rh - p_ then bh = rh - p_
-            tkWidget_SetPos( r.Btn, w - p_ - bw, y + ((rh - p_ - bh) \ 2), bw, bh )
+            tkWidget_SetPos( r->Btn, w - p_ - bw, y + ((rh - p_ - bh) \ 2), bw, bh )
         end if
-        tkWidget_SetPos( r.Edit, lw, y, w - lw - p_ - bw, rh - p_ )
+        ' the rows inline after this one share its editor's width, a cell each
+        dim as long k = 0
+        while (i + k + 1 < n) andalso Rows[i + k + 1].Inline
+            k += 1
+        wend
+        dim as long ew = w - lw - p_ - bw, cell = ew \ (k + 1)
+        tkWidget_SetPos( r->Edit, lw, y, iif( k > 0, cell, ew ), rh - p_ )
+        for j as long = 1 to k
+            tkWidget_SetPos( Rows[i + j].Edit, lw + j * cell, y, cell, rh - p_ )
+            tkWidget_Show( Rows[i + j].Label, false )
+        next
         y += rh
     next
     tkScrollPanel_SetContentHeight( sc, y + p_ )
@@ -911,10 +925,18 @@ sub DesignPanels.BuildRows( )
             this.AddRow( "@W", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
             this.AddRow( "@H", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
         end if
-        this.AddRow( "@AL", i18n.Tr( "designer.anchor_left", "Anchor left" ), RowKind.RowCheck )
-        this.AddRow( "@AT", i18n.Tr( "designer.anchor_top", "Anchor top" ), RowKind.RowCheck )
-        this.AddRow( "@AR", i18n.Tr( "designer.anchor_right", "Anchor right" ), RowKind.RowCheck )
-        this.AddRow( "@AB", i18n.Tr( "designer.anchor_bottom", "Anchor bottom" ), RowKind.RowCheck )
+        ' one Anchors line: L T R B, a row (and a key) each underneath
+        this.AddRow( "@AL", i18n.Tr( "designer.anchors", "Anchors (L,T,R,B)" ), RowKind.RowCheck )
+        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "L" )
+        this.AddRow( "@AT", "", RowKind.RowCheck )
+        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "T" )
+        Rows[Rows.Count( ) - 1].Inline = true
+        this.AddRow( "@AR", "", RowKind.RowCheck )
+        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "R" )
+        Rows[Rows.Count( ) - 1].Inline = true
+        this.AddRow( "@AB", "", RowKind.RowCheck )
+        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "B" )
+        Rows[Rows.Count( ) - 1].Inline = true
         this.AddRow( "@Dock", i18n.Tr( "designer.dock_mode", "Dock" ), RowKind.RowCombo, "none,top,bottom,left,right,fill" )
         dim as boolean anyCustom = false
         for k as long = 0 to n - 1
