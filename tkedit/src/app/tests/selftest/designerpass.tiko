@@ -68,6 +68,15 @@ private sub ClickOn( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
     ClickPx( h, tkTest_CX( w ), tkTest_CY( w ) )
 end sub
 
+' Is w's top-left corner within a grid step of the mouse at mx, my (host pixels)?
+private function NearMouse( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval mx as long, byval my as long, byval grid as long ) as boolean
+    if w = 0 then return false
+    dim as TKRECT rc
+    tkWidget_AbsRect( w, rc )
+    dim as long tol = tkHost_Scale( h, grid )
+    return (abs( rc.left - mx ) <= tol) andalso (abs( rc.top - my ) <= tol)
+end function
+
 ' Picks row idx of an open popup menu with a click on its own surface.
 private sub PickRow( byval h as TK_HOST ptr, byval m as TK_MENU ptr, byval idx as long )
     dim as TKRECT ir
@@ -292,6 +301,8 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     Primary( h, SDLK_V, SDL_SCANCODE_V )
     tkTest_PumpFor( h, 30 )
     t.Check( SelText( c ) = "Panel1", P( sc, "Paste selects the copy under a new name: " & SelText( c ) ) )
+    t.Check( NearMouse( h, c->WidgetOf( "Panel1" ), ox + tkHost_Scale( h, 300 ), oy + tkHost_Scale( h, 200 ), c->GridSize ), _
+             P( sc, "Ctrl+V puts its top-left corner at the mouse" ) )
     t.Check( FindControl( c->Doc, "Button1" ) >= 0, P( sc, "its child came" ) )
     t.Check( c->WidgetOf( "Button1" )->pParent = c->WidgetOf( "Panel1" ), P( sc, "on the copy" ) )
     Primary( h, SDLK_Z, SDL_SCANCODE_Z )
@@ -327,6 +338,8 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     t.Check( (tkPopupMenu_GetItemEnabled( mw.designMenu, Cmd.Cut ) = false) andalso tkPopupMenu_GetItemEnabled( mw.designMenu, Cmd.Paste ), _
              P( sc, "Cut greyed, Paste on" ) )
     PickRow( h, mw.designMenu, 2 )                  ' Paste
+    t.Check( NearMouse( h, c->WidgetOf( SelText( c ) ), ox + tkHost_Scale( h, 300 ), oy + tkHost_Scale( h, 200 ), c->GridSize ), _
+             P( sc, "the menu's Paste puts it where the right click was" ) )
     t.Check( (c->Selected.Count( ) = 1) andalso (lcase( SelText( c ) ) <> "btna") andalso (FindControl( c->Doc, SelText( c ) ) >= 0), _
              P( sc, "Paste from the menu selects the copy: " & SelText( c ) ) )
     Primary( h, SDLK_Z, SDL_SCANCODE_Z )
@@ -337,6 +350,17 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 60 )
     PickRow( h, mw.designMenu, 3 )                  ' Delete
     t.Check( FindControl( c->Doc, "btnA" ) < 0, P( sc, "Delete from the menu" ) )
+    Primary( h, SDLK_Z, SDL_SCANCODE_Z )
+    tkTest_PumpFor( h, 30 )
+    t.Check( d->Text( ) = text0, P( sc, "undone" ) )
+    ' Ctrl+V with the mouse over a container pastes into it, at the mouse
+    tkTest_PushMotion( h, ox + tkHost_Scale( h, 136 ), oy + tkHost_Scale( h, 128 ) )
+    tkTest_PumpFor( h, 30 )
+    Primary( h, SDLK_V, SDL_SCANCODE_V )
+    tkTest_PumpFor( h, 30 )
+    t.Check( (c->Selected.Count( ) = 1) andalso (lcase( Ctl( c, SelText( c ) ).Parent ) = "pnl"), P( sc, "Ctrl+V over the panel pastes into it" ) )
+    t.Check( NearMouse( h, c->WidgetOf( SelText( c ) ), ox + tkHost_Scale( h, 136 ), oy + tkHost_Scale( h, 128 ), c->GridSize ), _
+             P( sc, "at the mouse" ) )
     Primary( h, SDLK_Z, SDL_SCANCODE_Z )
     tkTest_PumpFor( h, 30 )
     t.Check( d->Text( ) = text0, P( sc, "undone" ) )

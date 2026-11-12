@@ -477,6 +477,10 @@ sub EditsSuite( )
     dim as Array( of ustring ) a3
     Check( edits.PasteText( p, clip, "Panel2", -1, 0, 0, a3 ), "paste into a container" )
     Check( lcase( p.Controls[FindControl( p, a3[0] )].Parent ) = "panel2", "lands in it" )
+    dim as Array( of ustring ) a4
+    Check( edits.PasteText( p, clip, "", -1, 40, 48, a4, true ), "paste at a point" )
+    Check( (p.Controls[FindControl( p, a4[0] )].X = 40) andalso (p.Controls[FindControl( p, a4[0] )].Y = 48), _
+           "the copied controls' top-left corner lands on it" )
     dim as Array( of ustring ) problems
     validate.Check( p, "frmP", problems )
     dim as ustring first_

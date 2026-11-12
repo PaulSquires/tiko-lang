@@ -122,6 +122,11 @@ public type FormCanvas
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set
+    MouseX as long                      ' the mouse's last place in Glass pixels, while MouseIn
+    MouseY as long
+    MouseIn as boolean
+    MenuX as long                       ' where the last right click was, in Glass pixels
+    MenuY as long
 
     Drag as long
     Grip as long                        ' DragResize: EDGE_* bits
@@ -186,6 +191,8 @@ public type FormCanvas
     declare sub Copy( )
     declare sub Cut( )
     declare sub Paste( )
+    declare sub PasteAt( byval x as long, byval y as long )
+    declare sub PasteBeside( )
     declare sub Align( byval mode as edits.AlignMode )
     declare sub ToFront( )
     declare sub ToBack( )
@@ -221,7 +228,13 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         return true
     case TKM_RBUTTONUP
         return true
+    case TKM_MOUSELEAVE
+        c->MouseIn = false
+        return true
     case TKM_MOUSEMOVE
+        c->MouseX = m->x
+        c->MouseY = m->y
+        c->MouseIn = true
         if c->Drag <> DragNone then
             c->OnDragTo( m->x, m->y, SDL_GetModState( ) )
         else
@@ -780,6 +793,8 @@ end sub
 ' one keeps the whole selection), the bare form selects nothing so Paste lands on the form.
 sub FormCanvas.OnRightPress( byval x as long, byval y as long )
     if Drag <> DragNone then exit sub
+    MenuX = x
+    MenuY = y
     if len( Tool ) then
         Tool = ""
         this.Changed( )
@@ -1170,8 +1185,41 @@ sub FormCanvas.Cut( )
     this.DeleteSelection( )
 end sub
 
-' Into the one selected container, else beside what's selected on the form, a grid step along.
+' At the mouse while it's over the form, else beside what's selected.
 sub FormCanvas.Paste( )
+    if MouseIn then
+        this.PasteAt( MouseX, MouseY )
+    else
+        this.PasteBeside( )
+    end if
+end sub
+
+' The copied controls' top-left corner at x, y in Glass pixels, in the container under that point
+' (snapped to the grid). A point off the form pastes beside what's selected.
+sub FormCanvas.PasteAt( byval x as long, byval y as long )
+    dim as TKRECT rc = this.SurfaceRect( )
+    if (x < rc.left) orelse (x >= rc.right) orelse (y < rc.top) orelse (y >= rc.bottom) then
+        this.PasteBeside( )
+        exit sub
+    end if
+    dim as ustring parent_
+    dim as long page_ = -1, dx, dy
+    this.PlaceAt( x, y, parent_, page_, dx, dy )
+    if SnapToGrid then
+        dx = edits.Snap( dx, GridSize )
+        dy = edits.Snap( dy, GridSize )
+    end if
+    if dx < 0 then dx = 0
+    if dy < 0 then dy = 0
+    dim as Array( of ustring ) added
+    if edits.PasteText( Doc, tkHost_GetClipboardText( ), parent_, page_, dx, dy, added, true ) = false then exit sub
+    Selected = added
+    this.Rebuild( )
+    this.Commit( )
+end sub
+
+' Into the one selected container, else beside what's selected on the form, a grid step along.
+sub FormCanvas.PasteBeside( )
     dim as ustring parent_
     dim as long page_ = -1
     if Selected.Count( ) = 1 then

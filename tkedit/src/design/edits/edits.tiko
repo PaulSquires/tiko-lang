@@ -480,15 +480,30 @@ public function IsClipText( byref text as const ustring ) as boolean
     return instr( text, CLIP_CAPTION ) > 0
 end function
 
-' Adds what CopyText made under parent, offset by dx, dy, each with a fresh name. newNames gets the
-' top-level ones, in order. False when the text isn't controls.
+' Adds what CopyText made under parent, offset by dx, dy, each with a fresh name. atPoint: dx, dy is
+' where the top-left corner of the copied controls goes instead. newNames gets the top-level ones, in
+' order. False when the text isn't controls.
 public function PasteText( byref doc as FormDoc, byref text as const ustring, byref parent as const ustring, byval page as long, _
-                           byval dx as long, byval dy as long, byref newNames as Array( of ustring ) ) as boolean
+                           byval dx as long, byval dy as long, byref newNames as Array( of ustring ), _
+                           byval atPoint as boolean = false ) as boolean
     if instr( text, CLIP_CAPTION ) = 0 then return false
     dim as FormDoc clip
     dim as ustring e
     if formfile.Parse( text, clip, e ) = false then return false
     if clip.Caption <> CLIP_CAPTION then return false
+    if atPoint then
+        dim as boolean any_ = false
+        dim as long minX, minY
+        for each c as FormControl in clip.Controls
+            if len( c.Parent ) = 0 then
+                if (any_ = false) orelse (c.X < minX) then minX = c.X
+                if (any_ = false) orelse (c.Y < minY) then minY = c.Y
+                any_ = true
+            end if
+        next
+        dx -= minX
+        dy -= minY
+    end if
     ' first every new name, so a child's parent can be mapped wherever it sits
     dim as Array( of Setting ) map_
     dim as FormDoc taken = doc

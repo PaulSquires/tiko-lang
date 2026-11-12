@@ -1038,9 +1038,11 @@ function Window.Create( byval forcedScale as single ) as boolean
     tkPopupMenu_SetSelectCallback( designMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
         dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
         if mw = 0 then exit sub
+        dim as DocRef d = mw->Active( )
         if id = DESIGNMENU_DELETE then
-            dim as DocRef d = mw->Active( )
             if (d <> 0) andalso (d->Designer <> 0) then d->Designer->DeleteSelection( )
+        elseif (id = clng( Cmd.Paste )) andalso (d <> 0) andalso (d->Designer <> 0) then
+            d->Designer->PasteAt( d->Designer->MenuX, d->Designer->MenuY )     ' where the right click was
         else
             mw->Execute( cast( Cmd, id ) )
         end if
