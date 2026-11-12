@@ -16,6 +16,9 @@ result is ordinary tiko source that builds on Windows, Linux and macOS without t
 myapp/
   tiko.toml
   main.tiko             starts the program and shows the first form
+  appTheme/
+    appTheme.tktheme    the project's theme: colours, fonts, shape, styles
+    appTheme.design.tiko generated from it: don't edit, do commit
   frmMain/
     frmMain.tkform      the form: the designer owns this
     frmMain.design.tiko generated from it: don't edit, do commit
@@ -127,11 +130,14 @@ can't have the same name as its module.
 
 ```freebasic
 #import "vendor/tkControls/tkApp"
+#import "./appTheme"
 #import "./frmMain"
 using tkApp
 
 dim as TKAPP_OPTIONS options
+appTheme.ApplyOptions( options )        ' the theme's fonts, read by tkApp_Init
 if tkApp_Init( options ) = false then end 1
+appTheme.Install( )                     ' the theme's colours, shape and styles
 dim as frmMain.Form mainForm
 mainForm.Build( )
 end tkApp_Run( mainForm.Wnd )
@@ -139,6 +145,12 @@ end tkApp_Run( mainForm.Wnd )
 
 `Build` makes the window, hidden. A second form can be shown beside the first with `Show`, or as a dialog
 with `ShowModal`, after which its controls can still be read. [tkForms](tkForms) has the details.
+
+## Colours and themes
+
+A project's look lives in `appTheme/appTheme.tktheme`: **Form > Project Theme...** picks or edits it,
+and each control's **Colours** row gives it a style or its own colours. The
+[Themes Tutorial](Themes-Tutorial) walks through it step by step.
 
 ## Other languages
 
@@ -157,6 +169,7 @@ lists any that are stale and exits with the count, which suits a build check.
 
 - [tkForms](tkForms): the form base
 - [tkLayout](tkLayout): anchors and docks
+- [Themes Tutorial](Themes-Tutorial): themes, styles and colours, in tkEdit and in code
 - [tkControls](Category-tkControls): every control
 - [partial type](Partial)
 - The toolchain's `examples/tkControls/tkContacts`: a small program built this way

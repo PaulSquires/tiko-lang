@@ -8,7 +8,8 @@ tkControls is the cross-platform twin of [PsControls](Category-PsControls): the 
 
 Every control draws itself. There is no system control underneath, so a window looks the same on every machine and can be themed to any palette, dark ones included.
 
-To draw a window instead of coding it, see the [Form Designer](Form-Designer).
+To draw a window instead of coding it, see the [Form Designer](Form-Designer). To give a program a
+colour scheme, styles and light/dark switching, see the [Themes Tutorial](Themes-Tutorial).
 
 ## Importing a control
 
