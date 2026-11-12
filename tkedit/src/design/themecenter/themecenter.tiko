@@ -88,6 +88,9 @@ public type ThemeDialog_
     ForEditor as boolean                ' the host's: tkEdit's own theme, not a project's
     OnClose as ThemeDialogSub
     GalleryPaths as Array( of ustring )
+    GalleryShipped as Array( of boolean ) ' per gallery row: one tkEdit ships, not the user's library
+    Previewing as boolean               ' the preview shows PvDoc, the gallery's selected theme, not Doc
+    PvDoc as themefile.ThemeDoc
 
     TxtName as TK_WIDGET ptr
     LblName as TK_WIDGET ptr
@@ -145,6 +148,8 @@ public type ThemeDialog_
     declare sub Layout( )
     declare sub FillGallery( )
     declare sub UseGallery( byval row as long )
+    declare sub PreviewGallery( byval row as long )
+    declare sub EndPreview( )
     declare sub LoadFields( )
     declare sub LoadRole( )
     declare sub LoadStyle( )
@@ -160,6 +165,7 @@ public type ThemeDialog_
     declare function Problems( ) as Array( of ustring )
     declare function LibraryPath( ) as ustring
     declare sub SaveToLibrary( )
+    declare function NameTaken( byref nm as const ustring, byref libPath as const ustring ) as boolean
 end type
 
 ' ---- callbacks: the dialog is the form's Tag --------------------------------------------------------
@@ -193,9 +199,27 @@ private sub OnRolePick( byval h as TK_WIDGET ptr, byval row as integer )
     if (d <> 0) andalso (d->Loading = false) then d->LoadRole( )
 end sub
 
+' Moving through the gallery previews the theme under the selection; Use This Theme takes it.
+private sub OnGalleryPick( byval h as TK_WIDGET ptr, byval row as integer )
+    dim as ThemeDialog ptr d = DlgOf( h )
+    if (d <> 0) andalso (d->Loading = false) then d->PreviewGallery( row )
+end sub
+
+' Leaving the Theme page puts the preview back on the theme being edited.
+private sub OnTabPick( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    dim as ThemeDialog ptr d = DlgOf( h )
+    if (d <> 0) andalso (d->Loading = false) andalso (idxNew <> 0) then d->EndPreview( )
+end sub
+
+' The dialog's lists show no tooltip: an empty tip is never shown.
+private function NoTip( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+    return ""
+end function
+
 private sub OnStylePick( byval h as TK_WIDGET ptr, byval row as integer )
     dim as ThemeDialog ptr d = DlgOf( h )
     if (d <> 0) andalso (d->Loading = false) then
+        d->Previewing = false
         d->LoadStyle( )
         d->Refresh( )
     end if
@@ -267,6 +291,7 @@ end function
 private function MakeList_( byval parent as TK_WIDGET ptr ) as TK_WIDGET ptr
     dim as TK_WIDGET ptr l = tkListTree_Create( parent, 1 )
     tkListTree_SetPaintCallback( l, @tkListTree_PaintRowDefault )
+    tkListTree_SetTooltipCallback( l, @NoTip )
     return l
 end function
 
@@ -301,15 +326,17 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     tkSelectBar_SetSelChangeCallback( SelVariant, @OnVariant )
 
     Tabs = tkTabControl_Create( root_, 1 )
-    dim as TK_WIDGET ptr pStart = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_start", "Start" ) ) )
+    dim as TK_WIDGET ptr pStart = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_page", "Theme" ) ) )
     dim as TK_WIDGET ptr pColours = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_colours", "Colours" ) ) )
     dim as TK_WIDGET ptr pFonts = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_fonts", "Fonts and Shape" ) ) )
     dim as TK_WIDGET ptr pStyles = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_styles", "Styles" ) ) )
     for k as long = 0 to 3
         tkTabBar_SetClosable( tkTabControl_GetTabBar( Tabs ), k, false )      ' pages, not documents: no X
     next
+    tkTabControl_SetSelChangeCallback( Tabs, @OnTabPick )
 
     Gallery = MakeList_( pStart )
+    tkListTree_SetSelChangeCallback( Gallery, @OnGalleryPick )
     BtnUse = MakeButton_( pStart, i18n.Tr( "designer.theme_use", "Use This Theme" ) )
     LblAccent = MakeLabel_( pStart, i18n.Tr( "designer.theme_accent", "Accent" ) )
     TxtAccent = MakeText_( pStart )
@@ -317,6 +344,7 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
 
     Roles = tkListTree_Create( pColours, 1 )
     tkListTree_SetPaintCallback( Roles, @PaintRole )
+    tkListTree_SetTooltipCallback( Roles, @NoTip )
     tkListTree_SetSelChangeCallback( Roles, @OnRolePick )
     for r as long = 0 to TKROLE_COUNT - 1
         tkListTree_AddString( Roles, tkTheme_RoleName( r ), r )
@@ -459,24 +487,62 @@ end sub
 sub ThemeDialog_.FillGallery( )
     tkListTree_Clear( Gallery )
     GalleryPaths.Clear( )
+    GalleryShipped.Clear( )
+    dim as long nShipped = 0
     dim as Array( of ustring ) paths
     for each nm as ustring in bundled.Names( "themes" )
         if lcase( right( nm, 8 ) ) = ".tktheme" then paths.Push( bundled.PREFIX & nm )
     next
+    nShipped = paths.Count( )
     if len( LibraryDir ) andalso fs.IsDir( LibraryDir ) then
         for each r as fs.DirEntryResult in fs.ReadDir( LibraryDir )
             if r.IsOk( ) andalso r.Value( ).IsFile( ) andalso (lcase( right( r.Value( ).Name( ), 8 ) ) = ".tktheme") then paths.Push( r.Value( ).Path( ) )
         next
     end if
-    for each p as ustring in paths
+    for k as long = 0 to paths.Count( ) - 1
         dim as ustring none, e
-        dim as ustring text = bundled.ReadAllText( p ).ValueOr( none )
+        dim as ustring text = bundled.ReadAllText( paths[k] ).ValueOr( none )
         dim as themefile.ThemeDoc d
         if (len( text ) = 0) orelse (themefile.Parse( text, d, e ) = false) then continue for
+        ' one row a name: a library file named like a theme already listed (tkEdit's own copy of a
+        ' shipped theme, made when its theme is edited) is not listed again
+        dim as boolean dup = false
+        for r as long = 0 to tkListTree_GetCount( Gallery ) - 1
+            if lcase( tkListTree_GetText( Gallery, r ) ) = lcase( d.Name ) then dup = true
+        next
+        if dup then continue for
         tkListTree_AddString( Gallery, d.Name, GalleryPaths.Count( ) )
-        GalleryPaths.Push( p )
+        GalleryPaths.Push( paths[k] )
+        GalleryShipped.Push( k < nShipped )
     next
-    if tkListTree_GetCount( Gallery ) then tkListTree_SetCurSel( Gallery, 0 )
+    ' the theme being edited, when the gallery has one of its name; else the first
+    dim as long sel = 0
+    for r as long = 0 to tkListTree_GetCount( Gallery ) - 1
+        if tkListTree_GetText( Gallery, r ) = Doc.Name then
+            sel = r
+            exit for
+        end if
+    next
+    if tkListTree_GetCount( Gallery ) then tkListTree_SetCurSel( Gallery, sel )
+end sub
+
+' The gallery's theme in the preview only: Doc, the fields and what Save writes stay as they are.
+sub ThemeDialog_.PreviewGallery( byval row as long )
+    if (row < 0) orelse (row >= GalleryPaths.Count( )) then exit sub
+    dim as ustring none, e
+    dim as ustring text = bundled.ReadAllText( GalleryPaths[row] ).ValueOr( none )
+    dim as themefile.ThemeDoc d
+    if themefile.Parse( text, d, e ) = false then exit sub
+    PvDoc = d
+    Previewing = true
+    this.Refresh( )
+end sub
+
+' The preview back on the theme being edited.
+sub ThemeDialog_.EndPreview( )
+    if Previewing = false then exit sub
+    Previewing = false
+    this.Refresh( )
 end sub
 
 ' The gallery's theme becomes the one being edited (the file it is saved to stays the same).
@@ -487,6 +553,7 @@ sub ThemeDialog_.UseGallery( byval row as long )
     dim as themefile.ThemeDoc d
     if themefile.Parse( text, d, e ) = false then exit sub
     Doc = d
+    Previewing = false
     this.LoadFields( )
     this.Refresh( )
 end sub
@@ -570,6 +637,7 @@ end sub
 
 ' The role text box's value into the variant shown: a colour sets the role, "" gives it back.
 sub ThemeDialog_.SetRoleText( byref text as const ustring )
+    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long r = this.RoleOfRow( tkListTree_GetCurSel( Roles ) )
     if r < 0 then exit sub
     dim as ustring nm = tkTheme_RoleName( r )
@@ -602,6 +670,7 @@ private function FieldText_( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 sub ThemeDialog_.FieldChanged( byval w as TK_WIDGET ptr )
+    Previewing = false                  ' an edit: the preview shows the theme being edited
     select case w
     case TxtName : Doc.Name = FieldText_( TxtName )
     case TxtAccent
@@ -633,6 +702,7 @@ end sub
 
 ' "Role = colour" lines into the selected style. A line that isn't one is reported, not kept.
 sub ThemeDialog_.StyleLinesChanged( )
+    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long si = tkListTree_GetCurSel( StyleList )
     if (si < 0) orelse (si >= Doc.Styles.Count( )) then exit sub
     dim as ustring text = tkTextBox_GetText( TxtStyleLines ) & chr( 10 )
@@ -667,6 +737,7 @@ sub ThemeDialog_.StyleLinesChanged( )
 end sub
 
 sub ThemeDialog_.AddStyle( )
+    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long k = Doc.Styles.Count( ) + 1
     dim as ustring nm
     do
@@ -690,6 +761,7 @@ sub ThemeDialog_.AddStyle( )
 end sub
 
 sub ThemeDialog_.DeleteStyle( )
+    Previewing = false                  ' an edit: the preview shows the theme being edited
     dim as long i = tkListTree_GetCurSel( StyleList )
     if (i < 0) orelse (i >= Doc.Styles.Count( )) then exit sub
     Doc.Styles.Remove( i )
@@ -717,14 +789,17 @@ end function
 ' What a program would see: Doc through a scope on the preview, the selected style on PvStyled.
 sub ThemeDialog_.Refresh( )
     if Win = 0 then exit sub
-    dim as TKTHEME_COLORS t = this.Theme( )
-    dim as TKTHEME_SHAPE sh = themefile.ShapeOf( Doc )
-    Tables.Build( Doc )
+    ' the gallery's selection while previewing it, else the theme being edited
+    dim as themefile.ThemeDoc ptr shown = iif( Previewing, @PvDoc, @Doc )
+    dim as TKTHEME_COLORS t = themefile.Resolve( *shown, IsDark )
+    dim as TKTHEME_SHAPE sh = themefile.ShapeOf( *shown )
+    Tables.Build( *shown )
     tkTheme_ApplyTo( Preview, t, @sh, Tables.StylePtr( ), Tables.Styles.Count( ), Tables.TypePtr( ), Tables.Types.Count( ) )
     dim as long si = tkListTree_GetCurSel( StyleList )
-    if (si >= 0) andalso (si < Doc.Styles.Count( )) then
-        tkButton_SetText( PvStyled, Doc.Styles[si].Name )
-        tkTheme_SetRecipeNamed( PvStyled, Doc.Styles[si].Name, 0, 0 )
+    if Previewing then si = iif( PvDoc.Styles.Count( ) > 0, 0, -1 )       ' its first style, if it has one
+    if (si >= 0) andalso (si < shown->Styles.Count( )) then
+        tkButton_SetText( PvStyled, shown->Styles[si].Name )
+        tkTheme_SetRecipeNamed( PvStyled, shown->Styles[si].Name, 0, 0 )
         tkWidget_Show( PvStyled, true )
     else
         tkTheme_ClearRecipe( PvStyled )
@@ -765,8 +840,14 @@ end function
 ' gallery then lists it. The theme being edited is still saved where it came from.
 sub ThemeDialog_.SaveToLibrary( )
     if (OnSave = 0) orelse (len( LibraryDir ) = 0) then exit sub
+    dim as ustring lib_ = this.LibraryPath( )
+    if this.NameTaken( Doc.Name, lib_ ) then
+        dim as ustring msg = i18n.Tr( "designer.theme_name_taken", "There is already a theme named '{}': give this one another name" )
+        tkLabel_SetText( LblContrast, strings.Format( msg, trim( Doc.Name ) ) )
+        exit sub
+    end if
     dim as ustring keep = Path
-    Path = this.LibraryPath( )
+    Path = lib_
     SavingToLibrary = true
     OnSave( @this )
     SavingToLibrary = false
@@ -775,3 +856,17 @@ sub ThemeDialog_.SaveToLibrary( )
     this.FillGallery( )
     if sel >= 0 then tkListTree_SetCurSel( Gallery, sel )
 end sub
+
+' Whether nm is the name of a theme in the gallery that libPath would not simply replace: a shipped
+' theme, or a library theme kept in another file. Saving over the same library file is an update.
+function ThemeDialog_.NameTaken( byref nm as const ustring, byref libPath as const ustring ) as boolean
+    dim as ustring want = lcase( trim( nm ) )
+    for r as long = 0 to tkListTree_GetCount( Gallery ) - 1
+        if lcase( trim( tkListTree_GetText( Gallery, r ) ) ) <> want then continue for
+        dim as long i = tkListTree_GetItemData( Gallery, r )
+        if (i < 0) orelse (i >= GalleryPaths.Count( )) then return true
+        if GalleryShipped[i] then return true
+        if lcase( fs.PathNormalize( GalleryPaths[i] ) ) <> lcase( fs.PathNormalize( libPath ) ) then return true
+    next
+    return false
+end function

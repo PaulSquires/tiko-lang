@@ -72,7 +72,7 @@ myapp/
 ## 3. Pick a ready-made theme
 
 1. **Form > Project Theme...** opens the **Theme Center**.
-2. You are on the **Start** page. It shows a gallery of themes:
+2. You are on the **Theme** page. It shows a gallery of themes:
 
 | Theme | What it is |
 | --- | --- |
@@ -80,9 +80,10 @@ myapp/
 | **High Contrast** | Strong colours and thicker borders; every text passes the accessibility check. |
 | **Ocean**, **Forest**, **Ember**, **Violet** | Default with a blue, green, orange or purple accent. |
 
-3. Click **Ocean**, then **Use This Theme**.
-4. Look at the **Preview** on the right: a label, buttons, a check box, an option button, a toggle, a
-   text box, a combo box and a progress bar, all in Ocean.
+3. Click **Ocean**, or move to it with the arrow keys. The **Preview** on the right shows it at once:
+   a label, buttons, a check box, an option button, a toggle, a text box, a combo box and a progress
+   bar, all in Ocean. Try a few; only the preview changes.
+4. Press **Use This Theme** to take the one you like.
 5. Press **Save**.
 
 That's it. Your form on the design surface now wears Ocean too. Press **F5** to see the program in it.
@@ -97,7 +98,7 @@ That's it. Your form on the design surface now wears Ocean too. Press **F5** to 
 Ocean is nice, but maybe your app should be teal.
 
 1. **Form > Project Theme...** again.
-2. On the **Start** page, find **Accent**. Type a colour as `#RRGGBB`, for example `#00897B`, or
+2. On the **Theme** page, find **Accent**. Type a colour as `#RRGGBB`, for example `#00897B`, or
    press **Pick...** to choose one in a colour picker.
 3. Watch the preview: the check box tick, the progress bar, the toggle and the focus ring all turn
    teal. tkEdit worked out the hover shade, the selection colour and the text that sits on top of
@@ -429,7 +430,9 @@ Any key you leave out keeps Default's value. A syntax entry is a colour, or
 once. The full key list is in tkEdit's configuration notes.
 
 > **Share it:** **Save to Library** in the Theme Center puts a copy in your themes folder. It then
-> shows in the gallery of every project, and tkEdit can use it by name.
+> shows in the gallery of every project, and tkEdit can use it by name. Give it a name of its own
+> first: a name the gallery already has (such as `Default` or `Ocean`) is refused. Saving your own
+> library theme again under the same name updates it.
 
 ---
 

@@ -30,6 +30,7 @@
 #import "vendor/tkControls/tkLabel"
 #import "vendor/tkControls/tkSelectBar"
 #import "vendor/tkControls/tkTabControl"
+#import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkTheme"
 using containers
 using cmdids
@@ -40,6 +41,7 @@ using tkButton
 using tkLabel
 using tkSelectBar
 using tkTabControl
+using tkTabBar
 using tkTheme
 using tkHost
 using tkTest
@@ -117,6 +119,9 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( th, 80 )
     t.Check( dlg->Doc.Name = "Default", P( sc, "on the project's appTheme: " & dlg->Doc.Name ) )
     t.Check( tkListTree_GetCount( dlg->Gallery ) = 6, P( sc, "the gallery: six shipped themes, " & tkListTree_GetCount( dlg->Gallery ) ) )
+    t.Check( tkTabBar_GetText( tkTabControl_GetTabBar( dlg->Tabs ), 0 ) = "Theme", _
+             P( sc, "the first page is Theme: " & tkTabBar_GetText( tkTabControl_GetTabBar( dlg->Tabs ), 0 ) ) )
+    t.Check( tkListTree_GetText( dlg->Gallery, tkListTree_GetCurSel( dlg->Gallery ) ) = "Default", P( sc, "the gallery selects the theme being edited" ) )
     dim as TKBUTTON_COLORS bc
 
     ' ---- an accent: the preview follows, derived as the program will
@@ -126,10 +131,25 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).FocusRing, P( sc, "the preview's focus ring is the derived accent: " & hex( bc.FocusRingColor ) ) )
     t.Check( tkTheme_Get( ).Accent <> tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).Accent, P( sc, "tkEdit's own theme is untouched" ) )
 
+    ' ---- moving through the gallery previews; the theme being edited stays
+    dim as long row = GalleryRow( dlg->Gallery, "Ocean" )
+    ClickRow( th, dlg->Gallery, row )
+    tkButton_GetColors( dlg->PvButton, @bc )
+    t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFF0277BDul ).FocusRing, P( sc, "Ocean selected: the preview wears it: " & hex( bc.FocusRingColor ) ) )
+    t.Check( (dlg->Doc.Name = "Default") andalso (dlg->Doc.Accent = "#E65100"), P( sc, "and the theme being edited is unchanged: " & dlg->Doc.Name ) )
+    tkTabControl_SetCurSel( dlg->Tabs, 1 )
+    dlg->EndPreview( )      ' what a click on another page does (SetCurSel is silent)
+    tkButton_GetColors( dlg->PvButton, @bc )
+    t.Check( bc.FocusRingColor = tkTheme_Derive( tkTheme_Dark( ), &hFFE65100ul ).FocusRing, P( sc, "another page: the preview is back on it" ) )
+    tkTabControl_SetCurSel( dlg->Tabs, 0 )
+    tkTest_PumpFor( th, 40 )
+
     ' ---- High Contrast from the gallery: its own AA check passes, in both variants
-    dim as long row = GalleryRow( dlg->Gallery, "High Contrast" )
+    row = GalleryRow( dlg->Gallery, "High Contrast" )
     t.Check( row >= 0, P( sc, "High Contrast is in the gallery" ) )
     ClickRow( th, dlg->Gallery, row )
+    tkButton_GetColors( dlg->PvButton, @bc )
+    t.Check( (bc.BackColor = &hFF000000ul) andalso (dlg->Doc.Name = "Default"), P( sc, "High Contrast previewed, not taken: " & hex( bc.BackColor ) ) )
     PressIn( th, dlg->BtnUse )
     t.Check( dlg->Doc.Name = "High Contrast", P( sc, "Use This Theme: " & dlg->Doc.Name ) )
     t.Check( tkLabel_GetText( dlg->LblContrast ) = "Contrast: every pair passes AA", P( sc, "dark: " & tkLabel_GetText( dlg->LblContrast ) ) )
@@ -206,11 +226,24 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     dim as boolean waited = WaitBuild( mw )
     t.Check( waited andalso mw.BuildSucceeded, P( sc, "the project builds with it: " & right( mw.BuildRaw, 400 ) ) )
 
-    ' ---- Save to Library: a copy by the theme's name, and the gallery lists it
+    ' ---- Save to Library: a shipped theme's name is refused; a new name makes a copy the gallery lists
     PressIn( th, dlg->BtnLibrary )
     tkTest_PumpFor( th, 40 )
-    t.Check( fs.IsFile( fs.PathJoin( mw.ConfigDir, "themes", "High Contrast.tktheme" ) ), P( sc, "Save to Library" ) )
+    t.Check( fs.IsFile( fs.PathJoin( mw.ConfigDir, "themes", "High Contrast.tktheme" ) ) = false, P( sc, "Save to Library refuses a shipped theme's name" ) )
+    t.Check( instr( tkLabel_GetText( dlg->LblContrast ), "already a theme named 'High Contrast'" ) > 0, P( sc, "and says so: " & tkLabel_GetText( dlg->LblContrast ) ) )
+    t.Check( tkListTree_GetCount( dlg->Gallery ) = 6, P( sc, "the gallery is unchanged: " & tkListTree_GetCount( dlg->Gallery ) ) )
+    TypeInto( th, dlg->TxtName, "My Contrast" )
+    PressIn( th, dlg->BtnLibrary )
+    tkTest_PumpFor( th, 40 )
+    t.Check( fs.IsFile( fs.PathJoin( mw.ConfigDir, "themes", "My Contrast.tktheme" ) ), P( sc, "Save to Library" ) )
     t.Check( tkListTree_GetCount( dlg->Gallery ) = 7, P( sc, "and the gallery has it: " & tkListTree_GetCount( dlg->Gallery ) ) )
+    PressIn( th, dlg->BtnLibrary )
+    tkTest_PumpFor( th, 40 )
+    t.Check( tkListTree_GetCount( dlg->Gallery ) = 7, P( sc, "saving it again updates its copy: " & tkListTree_GetCount( dlg->Gallery ) ) )
+    ' a library file named like a shipped theme (tkEdit's own copy of one) is not listed twice
+    fs.WriteAllText( fs.PathJoin( mw.ConfigDir, "themes", "Default.tktheme" ), "format = 1" & wchr( 10 ) & "name = ""Default""" & wchr( 10 ) )
+    dlg->FillGallery( )
+    t.Check( tkListTree_GetCount( dlg->Gallery ) = 7, P( sc, "a library Default isn't listed beside the shipped one: " & tkListTree_GetCount( dlg->Gallery ) ) )
     t.Check( fs.ReadAllText( themePath ).ValueOr( none ) = saved, P( sc, "the project's file is where it was" ) )
 
     ' ---- Close
