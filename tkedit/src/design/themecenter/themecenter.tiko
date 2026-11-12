@@ -33,6 +33,7 @@
 #import "vendor/tkControls/tkSelectBar"
 #import "vendor/tkControls/tkNumericUpDown"
 #import "vendor/tkControls/tkPanel"
+#import "vendor/tkControls/tkGroupBox"
 #import "vendor/tkControls/tkCheckBox"
 #import "vendor/tkControls/tkOptionButton"
 #import "vendor/tkControls/tkToggle"
@@ -54,6 +55,7 @@ using tkTabBar
 using tkSelectBar
 using tkNumericUpDown
 using tkPanel
+using tkGroupBox
 using tkCheckBox
 using tkOptionButton
 using tkToggle
@@ -130,6 +132,7 @@ public type ThemeDialog_
     PvLabel as TK_WIDGET ptr
     PvButton as TK_WIDGET ptr
     PvStyled as TK_WIDGET ptr
+    PvGroup as TK_WIDGET ptr            ' frames the check box, option and toggle
     PvCheck as TK_WIDGET ptr
     PvOption as TK_WIDGET ptr
     PvToggle as TK_WIDGET ptr
@@ -383,13 +386,15 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     PvButton = tkButton_Create( Preview, 1 )
     tkButton_SetText( PvButton, i18n.Tr( "designer.theme_button", "Button" ) )
     PvStyled = tkButton_Create( Preview, 1 )
-    PvCheck = tkCheckBox_Create( Preview, 1 )
+    PvGroup = tkGroupBox_Create( Preview, 1 )
+    tkGroupBox_SetText( PvGroup, i18n.Tr( "designer.theme_group", "Options" ) )
+    PvCheck = tkCheckBox_Create( PvGroup, 1 )
     tkCheckBox_SetText( PvCheck, i18n.Tr( "designer.theme_check", "Check box" ) )
     tkCheckBox_SetChecked( PvCheck, true )
-    PvOption = tkOptionButton_Create( Preview, 1 )
+    PvOption = tkOptionButton_Create( PvGroup, 1 )
     tkOptionButton_SetText( PvOption, i18n.Tr( "designer.theme_option", "Option" ) )
     tkOptionButton_SetChecked( PvOption, true )
-    PvToggle = tkToggle_Create( Preview, 1 )
+    PvToggle = tkToggle_Create( PvGroup, 1 )
     tkToggle_SetChecked( PvToggle, true )
     PvText = tkTextBox_Create( Preview, 1 )
     tkTextBox_SetText( PvText, i18n.Tr( "designer.theme_text", "Text" ) )
@@ -471,13 +476,31 @@ sub ThemeDialog_.Layout( )
     tkWidget_SetPos( TxtStyleLines, rx, 3 * g + 2 * rh, rw, ph - 6 * g - 3 * rh )
     tkWidget_SetPos( LblStyleProblem, rx, ph - g - rh, rw, rh )
 
-    ' the preview: one control a row
-    dim as TK_WIDGET ptr pv( 0 to 8 ) = { PvLabel, PvButton, PvStyled, PvCheck, PvOption, PvToggle, PvText, PvCombo, PvProgress }
-    dim as long px = 2 * g, pwid = pvW - 4 * g
-    for i as long = 0 to 8
-        dim as long w_ = pwid
-        if pv( i ) = PvToggle then w_ = tkForm_Scale( Win, 48 )
-        tkWidget_SetPos( pv( i ), px, 2 * g + i * (rh + g + g \ 2), w_, rh )
+    ' the preview: one control a row; the check box, option and toggle in a group box, one a row
+    dim as long px = 2 * g, pwid = pvW - 4 * g, stepY = rh + g + g \ 2, y = 2 * g
+    dim as TK_WIDGET ptr above( 0 to 2 ) = { PvLabel, PvButton, PvStyled }
+    for i as long = 0 to 2
+        tkWidget_SetPos( above( i ), px, y, pwid, rh )
+        y += stepY
+    next
+    ' the box: its frame and caption first (sized once to read them), then three rows inside
+    tkWidget_SetPos( PvGroup, px, y, pwid, 3 * stepY )
+    dim as TKRECT inner
+    tkGroupBox_GetClientRect( PvGroup, inner )
+    dim as long frameH = 3 * stepY - (inner.bottom - inner.top)       ' caption above + frame below
+    tkWidget_SetPos( PvGroup, px, y, pwid, frameH + 3 * rh + 2 * g )
+    tkGroupBox_GetClientRect( PvGroup, inner )
+    dim as TK_WIDGET ptr inside( 0 to 2 ) = { PvCheck, PvOption, PvToggle }
+    for i as long = 0 to 2
+        dim as long w_ = inner.right - inner.left
+        if inside( i ) = PvToggle then w_ = tkForm_Scale( Win, 48 )
+        tkWidget_SetPos( inside( i ), inner.left, inner.top + i * (rh + g), w_, rh )
+    next
+    y += PvGroup->ch + g
+    dim as TK_WIDGET ptr below( 0 to 2 ) = { PvText, PvCombo, PvProgress }
+    for i as long = 0 to 2
+        tkWidget_SetPos( below( i ), px, y, pwid, rh )
+        y += stepY
     next
 end sub
 

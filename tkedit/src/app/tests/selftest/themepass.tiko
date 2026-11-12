@@ -31,6 +31,7 @@
 #import "vendor/tkControls/tkSelectBar"
 #import "vendor/tkControls/tkTabControl"
 #import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkGroupBox"
 #import "vendor/tkControls/tkTheme"
 using containers
 using cmdids
@@ -42,6 +43,7 @@ using tkLabel
 using tkSelectBar
 using tkTabControl
 using tkTabBar
+using tkGroupBox
 using tkTheme
 using tkHost
 using tkTest
@@ -122,6 +124,20 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     t.Check( tkTabBar_GetText( tkTabControl_GetTabBar( dlg->Tabs ), 0 ) = "Theme", _
              P( sc, "the first page is Theme: " & tkTabBar_GetText( tkTabControl_GetTabBar( dlg->Tabs ), 0 ) ) )
     t.Check( tkListTree_GetText( dlg->Gallery, tkListTree_GetCurSel( dlg->Gallery ) ) = "Default", P( sc, "the gallery selects the theme being edited" ) )
+    ' the check box, option and toggle sit in a group box, inside its frame, between the buttons and the text box
+    dim as TKRECT inner
+    tkGroupBox_GetClientRect( dlg->PvGroup, inner )
+    dim as boolean inBox = true
+    dim as TK_WIDGET ptr boxed( 0 to 2 ) = { dlg->PvCheck, dlg->PvOption, dlg->PvToggle }
+    for i as long = 0 to 2
+        dim as TK_WIDGET ptr w = boxed( i )
+        if (w->pParent <> dlg->PvGroup) orelse (w->x < inner.left) orelse (w->y < inner.top) _
+           orelse (w->x + w->cw > inner.right) orelse (w->y + w->ch > inner.bottom) then inBox = false
+    next
+    t.Check( inBox, P( sc, "the preview's check box, option and toggle are inside its group box" ) )
+    t.Check( (dlg->PvGroup->y > dlg->PvStyled->y + dlg->PvStyled->ch) andalso (dlg->PvText->y > dlg->PvGroup->y + dlg->PvGroup->ch), _
+             P( sc, "the group box sits between the buttons and the text box: " & dlg->PvGroup->y & " " & dlg->PvGroup->ch & " " & dlg->PvText->y ) )
+    t.Check( tkGroupBox_GetText( dlg->PvGroup ) = "Options", P( sc, "the group box's caption: " & tkGroupBox_GetText( dlg->PvGroup ) ) )
     dim as TKBUTTON_COLORS bc
 
     ' ---- an accent: the preview follows, derived as the program will
