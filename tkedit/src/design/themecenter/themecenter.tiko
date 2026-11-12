@@ -29,6 +29,7 @@
 #import "vendor/tkControls/tkLabel"
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkTabControl"
+#import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkSelectBar"
 #import "vendor/tkControls/tkNumericUpDown"
 #import "vendor/tkControls/tkPanel"
@@ -49,6 +50,7 @@ using tkButton
 using tkLabel
 using tkTextBox
 using tkTabControl
+using tkTabBar
 using tkSelectBar
 using tkNumericUpDown
 using tkPanel
@@ -303,6 +305,9 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     dim as TK_WIDGET ptr pColours = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_colours", "Colours" ) ) )
     dim as TK_WIDGET ptr pFonts = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_fonts", "Fonts and Shape" ) ) )
     dim as TK_WIDGET ptr pStyles = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_styles", "Styles" ) ) )
+    for k as long = 0 to 3
+        tkTabBar_SetClosable( tkTabControl_GetTabBar( Tabs ), k, false )      ' pages, not documents: no X
+    next
 
     Gallery = MakeList_( pStart )
     BtnUse = MakeButton_( pStart, i18n.Tr( "designer.theme_use", "Use This Theme" ) )
