@@ -503,6 +503,14 @@ function Window.WriteThemeGenerated( byref path as const ustring, byref text as 
         this.SetMessage( fs.PathFileName( path ) & ": " & problems[0] )
         return false
     end if
+    ' [fonts] embed: the fonts copied beside the module first, where its #embed lines read them at build time
+    if doc.EmbedFonts then
+        themefile.CopyEmbeddedFonts( doc, fs.PathParent( path ), this.PkgDir( ), problems )
+        if problems.Count( ) then
+            this.SetMessage( fs.PathFileName( path ) & ": " & problems[0] )
+            return false
+        end if
+    end if
     dim as ustring generated = themefile.Generate( doc, fs.PathStem( path ), fs.PathFileName( path ), text )
     dim as ustring target = left( path, instrrev( path, "." ) - 1 ) & ".design.tiko", none
     if fs.IsFile( target ) then
@@ -766,7 +774,7 @@ end sub
 
 private sub ThemeSaved_( byval tc as themecenter.ThemeDialog ptr )
     dim as Window ptr mw = tc->Host
-    if mw then mw->SaveTheme( tc )
+    if mw then tc->Saved = mw->SaveTheme( tc )
 end sub
 
 private sub ThemeClosed_( byval tc as themecenter.ThemeDialog ptr )
@@ -802,6 +810,9 @@ sub Window.CloseThemeCenter( )
     if ThemeDlg = 0 then exit sub
     dim as themecenter.ThemeDialog ptr d = ThemeDlg
     ThemeDlg = 0
+    ' tkEdit active BEFORE the dialog's window goes: destroying the active window let Windows activate
+    ' some other program's window now and then
+    this.Raise( )
     d->Close( )
     delete d
 end sub

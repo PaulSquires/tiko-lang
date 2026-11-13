@@ -83,7 +83,8 @@ myapp/
 3. Click **Ocean**, or move to it with the arrow keys. It becomes your theme at once: the **Name**
    box says Ocean, and the **Preview** on the right shows a label, buttons, a group of options, a
    text box, a combo box and a progress bar, all in Ocean. Try a few.
-4. Press **Save** to keep the one you like. Nothing is written until you do.
+4. Press **Save** to keep the one you like: it writes the theme and closes the Theme Center.
+   **Cancel** closes it without writing anything.
 
 That's it. Your form on the design surface now wears Ocean too. Press **F5** to see the program in it.
 
@@ -166,6 +167,13 @@ Fonts are **file names**, such as `Inter-Regular.ttf`, found in your program's f
 bundled fonts, or font files you ship beside the program). Leave a box empty to keep the bundled
 default. Fonts are loaded once when the program starts, so they're the same in Dark and Light.
 
+**Build the fonts into the program** puts all four fonts inside your program's `.exe`, so it needs
+no font files beside it. When you Save, tkEdit copies them into `appTheme/fonts/` (from that folder
+if a font is already there, else your project folder, else the bundled fonts) and the program is
+built with them inside. To use a font of your own, put its file in `appTheme/fonts/` or your project
+folder and type its name in the box. The build still copies the bundled font files beside the
+program, but the program doesn't use them.
+
 **Save** when you like it.
 
 ---
@@ -178,34 +186,35 @@ one ("Delete") should look risky. That's what **styles** are for.
 ### Make the style
 
 1. **Form > Project Theme...**, then the **Styles** page.
-2. Press **Add**. A new style appears. Name it `Danger`.
-3. A style is a list of roles to swap, one a line. Type:
+2. Press **Add**. A new style appears, and its **Name** box is ready: call it `Danger`.
+3. Under the list of styles are four rows: **Face**, **Text**, **Border** and **Accent**. Each row has a drop-down,
+   a swatch showing the colour you get, **Pick...** and **Reset**. A new style starts with Face set
+   to `@Accent` and Text to `@SelectedText`.
+4. In the **Face** row's drop-down choose `@Error`. Read it as: "a control wearing Danger uses the
+   *Error* colour for its face." The `@` means "the colour of that role", so it stays right in both
+   Dark and Light.
+5. Look at the preview: under the plain button there's one wearing the selected style, with a check
+   box and a toggle beside it. They're red now.
+6. Add another style, `Primary`. Its Face is already `@Accent`, so there's nothing more to do.
+7. **Save**.
 
-```
-Surface = @Error
-Text = @SelectedText
-```
+What the drop-down offers:
 
-   Read it as: "a control wearing Danger uses the *Error* colour for its face, and the
-   *selected-text* colour for its text." The `@` means "the colour of that role", so it stays right
-   in both Dark and Light.
+| Choice | It means |
+| --- | --- |
+| `(theme)` | Leave this colour as the theme has it. |
+| `Colour...` | A fixed colour. It starts as the colour shown; press **Pick...** to choose another. |
+| `@Accent`, `@Error`, ... | The colour of another role. |
 
-4. The preview's second button wears the selected style. It's red now.
-5. Add another style, `Primary`, the same way:
-
-```
-Surface = @Accent
-Text = @SelectedText
-```
-
-6. **Save**.
+**Reset** puts a row back to `(theme)`. The four rows are what most styles need; tick **Show all
+roles** to set any of the 23.
 
 > **You only set the Normal look.** Hover, pressed and disabled shades are worked out from it. A
 > style that sets `Surface` also gets a matching `SurfaceHot` and `SurfaceDisabled`.
 
 ### Use the style
 
-1. Close the Theme Center and select your **Delete** button on the form.
+1. With the Theme Center saved and closed, select your **Delete** button on the form.
 2. In the Properties panel, find the **Colours** row. Its button says **Theme**: the button follows
    the theme and nothing else.
 3. Click it. The **Colours** dialog opens.
@@ -333,6 +342,7 @@ Surface = "#2A2F3A"
 accent = "#00695C"            # a variant may have its own accent
 
 [fonts]
+embed = true                  # build the fonts into the program (from appTheme/fonts/)
 ui = { file = "Inter-Regular.ttf", bold = "Inter-Bold.ttf", size = 10 }
 
 [shape]
@@ -399,7 +409,8 @@ Save `settings.toml` and tkEdit changes at once.
 
 **File > Theme File** (**Ctrl+Shift+T**) opens the Theme Center titled **tkEdit Theme**. The first
 time, it copies the theme into your own config folder (`themes/<name>.tktheme`), so the shipped
-one stays untouched. **Save** applies your changes immediately.
+one stays untouched. **Save** applies your changes immediately and closes the Theme Center;
+**Cancel** closes it and keeps your theme as it was.
 
 ### The editor's colours
 

@@ -1043,6 +1043,63 @@ sub ThemeLoadFixtures( byval bAccept as boolean )
     next
 end sub
 
+' [fonts] embed: the four fonts inside the program -- the file round trip, the generated #embed and
+' "mem:" registrations (defaults for empty slots, each file once), where a font is found, the copy.
+sub EmbedFontsSuite( )
+    dim as ustring none
+    dim as ustring text = "format = 1" & LF & "name = ""E""" & LF & LF & "[dark]" & LF & LF & "[light]" & LF & LF _
+        & "[fonts]" & LF & "embed = true" & LF & "ui = { file = ""My.ttf"", size = 11 }" & LF
+    dim as themefile.ThemeDoc d
+    dim as ustring e
+    Check( themefile.Parse( text, d, e ), "embed: parses", e )
+    Check( d.EmbedFonts andalso (d.Problems.Count( ) = 0), "embed: read as true, no problem" )
+    Check( themefile.Render( d ) = text, "embed: one canonical text", themefile.Render( d ) )
+    dim as Array( of ustring ) files = themefile.EmbeddedFonts( d )
+    Check( (files.Count( ) = 4) andalso (files[0] = "My.ttf") andalso (files[1] = "Inter-Bold.ttf"), "embed: the theme's UI font, then the defaults" )
+    dim as ustring g = themefile.Generate( d, "appTheme", "appTheme.tktheme", text )
+    Check( instr( g, "#embed gFont0_ ""fonts/My.ttf""" ) > 0, "embed: #embed from fonts/", g )
+    Check( instr( g, "#embed gFont3_ ""fonts/CascadiaMono-Regular.ttf""" ) > 0, "embed: a default slot embedded too" )
+    Check( instr( g, "tkHost_AddFontData( ""mem:My.ttf"", @gFont0_( 0 ), ubound( gFont0_ ) + 1 )" ) > 0, "embed: registered as mem:" )
+    Check( (instr( g, "o.FontDir = ""mem:""" ) > 0) andalso (instr( g, "o.FontUIFile = ""My.ttf""" ) > 0) _
+           andalso (instr( g, "o.FontUISize = 11" ) > 0), "embed: the options look there" )
+    ' off: no #embed, as before
+    d.EmbedFonts = false
+    Check( instr( themefile.Generate( d, "appTheme", "appTheme.tktheme", text ), "#embed" ) = 0, "embed off: nothing embedded" )
+    d.EmbedFonts = true
+    ' the same file in two slots is embedded once
+    d.UIBold = "My.ttf"
+    Check( themefile.EmbeddedFonts( d ).Count( ) = 3, "embed: one file in two slots, once" )
+    d.UIBold = ""
+
+    ' where a font comes from, and the copy into appTheme/fonts
+    const as string root_ = "tests/bin/embed"
+    fs.RemoveDirAll( root_ )
+    fs.CreateDirAll( root_ & "/proj/appTheme" )
+    fs.CreateDirAll( root_ & "/pkg/vendor/tkControls/fonts" )
+    dim as ustring themeDir = root_ & "/proj/appTheme", pkgDir = root_ & "/pkg"
+    fs.WriteAllText( root_ & "/proj/My.ttf", "my font" )
+    dim as ustring bundledFonts( 0 to 2 ) = { "Inter-Bold.ttf", "FluentSystemIcons-Regular.ttf", "CascadiaMono-Regular.ttf" }
+    for i as long = 0 to 2
+        fs.WriteAllText( pkgDir & "/vendor/tkControls/fonts/" & bundledFonts( i ), "bundled " & bundledFonts( i ) )
+    next
+    Check( instr( themefile.FontSource( "My.ttf", themeDir, pkgDir ), "proj" ) > 0, "embed: a project font is found in the project folder" )
+    Check( instr( themefile.FontSource( "Inter-Bold.ttf", themeDir, pkgDir ), "pkg" ) > 0, "embed: a bundled one in the toolchain" )
+    Check( themefile.FontSource( "Nope.ttf", themeDir, pkgDir ) = "", "embed: an unknown one nowhere" )
+    dim as Array( of ustring ) problems
+    themefile.CopyEmbeddedFonts( d, themeDir, pkgDir, problems )
+    Check( problems.Count( ) = 0, "embed: the copy has no problem" )
+    Check( fs.ReadAllText( themeDir & "/fonts/My.ttf" ).ValueOr( none ) = "my font", "embed: the project font copied into fonts/" )
+    Check( fs.IsFile( themeDir & "/fonts/CascadiaMono-Regular.ttf" ), "embed: and the defaults" )
+    ' a file already in fonts/ is kept (it may be the user's own)
+    fs.WriteAllText( themeDir & "/fonts/My.ttf", "edited" )
+    themefile.CopyEmbeddedFonts( d, themeDir, pkgDir, problems )
+    Check( fs.ReadAllText( themeDir & "/fonts/My.ttf" ).ValueOr( none ) = "edited", "embed: a font already in fonts/ is kept" )
+    d.MonoFile = "Missing.ttf"
+    dim as Array( of ustring ) p2
+    themefile.CopyEmbeddedFonts( d, themeDir, pkgDir, p2 )
+    Check( (p2.Count( ) = 1) andalso (instr( p2[0], "Missing.ttf" ) > 0), "embed: a font not found is named" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -1060,5 +1117,6 @@ ThemeSuite( bAccept )
 ThemeCenterCore( )
 ColorSources( )
 ThemeLoadFixtures( bAccept )
+EmbedFontsSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

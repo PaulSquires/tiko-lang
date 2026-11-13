@@ -704,12 +704,10 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
         tkTest_PumpFor( th, 40 )
         ClickRow( th, tdlg->Roles, TKROLE_SURFACE )
         TypeInto( th, tdlg->TxtRole, "#123456" )
-        PressIn( th, tdlg->BtnSave )
+        PressIn( th, tdlg->BtnSave )         ' Save writes, applies and closes the dialog
         tkTest_PumpFor( h, 40 )
         t.Check( tkApp_Theme( ).Surface = &hFF123456ul, P( sc, "Save applied it to tkEdit at once: &h" & hex( tkApp_Theme( ).Surface ) ) )
         t.Check( lcase( mw.Theme.Path ) = lcase( tf ), P( sc, "the user's copy wins" ) )
-        PressIn( th, tdlg->BtnClose )
-        tkTest_PumpFor( h, 30 )
     end if
     t.Check( mw.ThemeDlg = 0, P( sc, "the Theme Center closed" ) )
     ' the file as text: its [light.editor] applies on save
