@@ -64,6 +64,7 @@ public type FormControl
     ' Values as colorval spells them: "#RRGGBB[AA]", "@Role", "#dark|#light".
     StyleName as ustring
     Colors as Array( of Setting )
+    ContextMenu as ustring          ' a PopupMenu of the form that a right-click on it opens, "" = none
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept
@@ -89,6 +90,7 @@ public type FormDoc
     MaxH as long
     AlwaysOnTop as boolean
     Icon as ustring                     ' an image file
+    ContextMenu as ustring              ' a PopupMenu a right-click on the form's own surface opens
     Events as Array( of Setting )       ' catalog.FormEventName's
     Controls as Array( of FormControl )
     Orphans as Array( of FormOrphan )

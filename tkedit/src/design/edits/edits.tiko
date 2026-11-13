@@ -140,6 +140,11 @@ public sub DeleteControls( byref doc as FormDoc, byref names as Array( of ustrin
         if gone then doc.Controls.Remove( i )
         i -= 1
     wend
+    ' a ContextMenu naming a PopupMenu that went names nothing
+    for k as long = 0 to doc.Controls.Count( ) - 1
+        if len( doc.Controls[k].ContextMenu ) andalso (FindControl( doc, doc.Controls[k].ContextMenu ) < 0) then doc.Controls[k].ContextMenu = ""
+    next
+    if len( doc.ContextMenu ) andalso (FindControl( doc, doc.ContextMenu ) < 0) then doc.ContextMenu = ""
 end sub
 
 ' ---- z-order ----------------------------------------------------------------------------------
@@ -323,7 +328,10 @@ public sub RenameControl( byref doc as FormDoc, byref oldName as const ustring, 
         elseif lcase( doc.Controls[i].Parent ) = was then
             doc.Controls[i].Parent = newName
         end if
+        ' a PopupMenu's name, wherever a ContextMenu names it
+        if lcase( doc.Controls[i].ContextMenu ) = was then doc.Controls[i].ContextMenu = newName
     next
+    if lcase( doc.ContextMenu ) = was then doc.ContextMenu = newName
 end sub
 
 public sub SetDock( byref doc as FormDoc, byref names as Array( of ustring ), byval dock_ as long )
@@ -543,6 +551,15 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
             newNames.Push( n.Name )
         else
             n.Parent = SettingOr( map_, lcase( c.Parent ) )
+        end if
+        ' a ContextMenu follows a PopupMenu pasted along, keeps one already on the form, else goes
+        if len( c.ContextMenu ) then
+            dim as ustring mapped = SettingOr( map_, lcase( c.ContextMenu ) )
+            if len( mapped ) then
+                n.ContextMenu = mapped
+            elseif FindControl( doc, c.ContextMenu ) < 0 then
+                n.ContextMenu = ""
+            end if
         end if
         ' a Text left at its own name follows the new one
         dim as long t = FindSetting( n.Props, "Text" )

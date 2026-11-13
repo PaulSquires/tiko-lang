@@ -103,12 +103,14 @@ The proc gets `TK_MSG` messages shaped like the Win32 ones they replace. Return 
 | `TKM_TIMER` | `timerId` |
 | `TKM_SCALECHANGED`, `TKM_THEMECHANGED`, `TKM_DESTROY` | `fOld`, `fNew` for the scale |
 | `TKM_DROPFILES`, `TKM_DROPTEXT` | `text` (paths LF-separated, `nStart` = how many), `x`, `y`; **bubble** if refused |
+| `TKM_CONTEXTMENU` | to a context-menu component: `pOther` = the widget it opens for, `x`, `y` = where, in window pixels; `bFlag` = from the keyboard |
 
 Rules a widget author relies on:
 
 - **Focus is the widget's to take.** A click focuses nothing by itself: call `tkHost_SetFocus( w->pHost, w )` in `TKM_LBUTTONDOWN`. Tab and Shift+Tab walk the focusable widgets in tree order when no widget claims the key.
 - **Capture** with `tkHost_SetCapture( w )` and `tkHost_ReleaseCapture( h )`: moves and the release keep coming to `w` while the mouse is outside it or the window. While a widget holds the capture it hears Esc first.
 - **Timers** with `tkWidget_SetTimer( w, id, ms )`, delivered as `TKM_TIMER` on the UI thread. Ids below `TK_TIMER_APP` are reserved.
+- **Context menus** with `tkWidget_SetContextMenu( w, hMenu )`: the right button's release over `w` or anything inside it, and the Menu key or Shift+F10 when the focus is there, go to `hMenu` as `TKM_CONTEXTMENU` instead of to the control. [tkContextMenu](tkContextMenu) is the component that answers it; it calls `tkWidget_ClearContextMenuRefs` as it goes.
 - **Theme.** On `TKM_THEMECHANGED`, re-read [tkTheme](tkTheme)'s `tkTheme_Get()` unless your widget's colours are pinned.
 - **Notify like the controls do**: callbacks for user actions only; setters are silent.
 - `tkHost_SetTextInputArea` tells the IME where to put its candidate window; `tkHost_SetClipboardText`, `GetClipboardText` and `HasClipboardText` reach the clipboard.
@@ -221,6 +223,9 @@ enum
     TKM_DROPFILES            ' files dropped from the OS: m->text = their paths, LF-separated (UTF-8),
     ' m->nStart = how many, m->x / y = the drop point; BUBBLES if refused
     TKM_DROPTEXT             ' text dropped from the OS: m->text, m->x / y; BUBBLES if refused
+    TKM_CONTEXTMENU          ' to a CONTEXT-MENU COMPONENT (tkWidget_SetContextMenu): m->pOther = the widget
+                             ' it opens for, m->x / y = where, in the surface's window pixels; m->bFlag =
+                             ' from the keyboard (the Menu key, Shift+F10)
 end enum
 
 enum
@@ -352,6 +357,9 @@ function tkWidget_IsAncestorOf( byval w as TK_WIDGET ptr, byval p as TK_WIDGET p
 sub tkWidget_Reparent( byval w as TK_WIDGET ptr, byval newParent as TK_WIDGET ptr )
 sub tkWidget_Enable( byval w as TK_WIDGET ptr, byval bEnable as boolean )
 sub tkWidget_Show( byval w as TK_WIDGET ptr, byval bShow as boolean )
+sub tkWidget_SetContextMenu( byval w as TK_WIDGET ptr, byval hMenu as TK_WIDGET ptr )
+function tkWidget_GetContextMenu( byval w as TK_WIDGET ptr ) as TK_WIDGET ptr
+sub tkWidget_ClearContextMenuRefs( byval hMenu as TK_WIDGET ptr )
 sub tkWidget_SetCursor( byval w as TK_WIDGET ptr, byval cursor as long )
 sub tkWidget_KillTimer( byval w as TK_WIDGET ptr, byval id as long )
 sub tkWidget_SetTimer( byval w as TK_WIDGET ptr, byval id as long, byval ms as long )

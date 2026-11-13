@@ -1463,6 +1463,57 @@ sub TimerSuite( )
     Refused( Header( ) & Ctl( "t4", "Timer", "anchor = ""left right""" & LF ), "has no anchors" )
 end sub
 
+' A PopupMenu, the second component: its items as a right-click menu (level 0 the menu that opens),
+' Command dispatching them, and the ContextMenu property of a control and of the form.
+sub PopupSuite( )
+    Check( catalog.ItemsKindOf( "PopupMenu" ) = catalog.ItemsKind.ItemsPopup, "popup: its items are a popup menu's" )
+    Check( catalog.IsMenuKind( catalog.ItemsKind.ItemsPopup ) andalso catalog.IsMenuKind( catalog.ItemsKind.ItemsMenu ) andalso (catalog.IsMenuKind( catalog.ItemsKind.ItemsToolbar ) = false), "popup: a menu kind, as a menu bar's" )
+    Check( catalog.IsComponent( "PopupMenu" ), "popup: a component" )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""P""" & LF & "width = 300" & LF & "height = 200" & LF & "context_menu = ""pm""" & LF _
+        & Ctl( "pm", "PopupMenu", "parent = """"" & LF & "x = 8" & LF & "y = 8" & LF & "w = 72" & LF & "h = 24" & LF ) _
+        & "[control.events]" & LF & "Popup = ""pm_Popup""" & LF _
+        & item & "text = ""Cut""" & LF & "key = ""Primary+X""" & LF & "handler = ""pm_Cut""" & LF _
+        & item & "text = ""-""" & LF _
+        & item & "text = ""More""" & LF _
+        & item & "text = ""Deep""" & LF & "level = 1" & LF & "handler = ""pm_Deep""" & LF _
+        & Ctl( "btn", "Button", "parent = """"" & LF & "x = 8" & LF & "y = 40" & LF & "w = 80" & LF & "h = 28" & LF & "context_menu = ""pm""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "popup: the form parses" )
+    Check( (d.ContextMenu = "pm") andalso (d.Controls[1].ContextMenu = "pm"), "popup: context_menu read, the form's and a control's" )
+    Accepted( src, "popup: items, Popup, ContextMenu" )
+    dim as ustring t = formfile.Render( d )
+    Check( (instr( t, "context_menu = ""pm""" ) > 0) andalso (instr( instr( t, "context_menu = ""pm""" ) + 1, t, "context_menu = ""pm""" ) > 0), "popup: context_menu written back, both", t )
+
+    dim as ustring g = codegen.Generate( d, "frmP", "frmP.tkform", src )
+    Check( instr( g, "menus( 0 ) = tkContextMenu_GetMenu( pm.Handle )" ) > 0, "popup: built into its own menu", g )
+    Check( instr( g, "tkPopupMenu_AddItem( menus( 0 ), 1000, ""Cut"", KeyLabel( ""Primary+X"" ) )" ) > 0, "popup: an item with its shortcut" )
+    Check( instr( g, "tkPopupMenu_AddSeparator( menus( 0 ) )" ) > 0, "popup: a separator on the menu itself" )
+    Check( instr( g, "tkPopupMenu_SetItemSubMenu( menus( 0 ), 1002, menus( 1 ) )" ) > 0, "popup: a submenu" )
+    Check( instr( g, "tkPopupMenu_AddItem( menus( 1 ), 1003, ""Deep"" )" ) > 0, "popup: an item in it" )
+    HasLine( g, "case 1003 : f->pm_Deep( )", "popup: an item's handler dispatched" )
+    HasLine( g, "tkContextMenu_SetCommandCallback( pm.Handle, @Thunk_pm_Command )", "popup: through Command" )
+    HasLine( g, "declare sub pm_Popup( byval hSource as TK_WIDGET ptr )", "popup: Popup declared" )
+    HasLine( g, "tkKeys_BindText( keys, ""Primary+X"", 1000 )", "popup: its shortcut bound" )
+    Check( instr( g, "#import ""vendor/tkControls/tkPopupMenu""" ) > 0, "popup: the menu module imported" )
+    HasLine( g, "tkContextMenu_Attach( pm.Handle, btn.Handle )", "popup: attached to the button" )
+    HasLine( g, "tkContextMenu_Attach( pm.Handle, tkForm_Widget( Wnd ) )", "popup: and to the form" )
+    Check( instr( g, "tkContextMenu_Attach( pm.Handle, btn.Handle )" ) > instr( g, "btn.Create(" ), "popup: attached once the button exists" )
+
+    ' rename follows the references; deleting the menu clears them
+    edits.RenameControl( d, "pm", "mnuCtx" )
+    Check( (d.ContextMenu = "mnuCtx") andalso (d.Controls[1].ContextMenu = "mnuCtx"), "popup: a rename follows the ContextMenus" )
+    edits.DeleteControls( d, Names( "mnuCtx" ) )
+    Check( (len( d.ContextMenu ) = 0) andalso (len( d.Controls[0].ContextMenu ) = 0), "popup: deleting it clears them" )
+
+    ' refused
+    dim as ustring pm2 = Ctl( "pm", "PopupMenu" )
+    Refused( Header( ) & pm2 & item & "text = ""x""" & LF & "level = 1" & LF, "first item must be on the menu itself" )
+    Refused( Header( ) & Ctl( "b", "Button", "context_menu = ""nope""" & LF ), "context menu 'nope' doesn't exist" )
+    Refused( Header( ) & Ctl( "b", "Button" ) & Ctl( "c", "Button", "context_menu = ""b""" & LF ), "isn't a PopupMenu" )
+    Refused( Header( ) & pm2 & Ctl( "tm", "Timer", "context_menu = ""pm""" & LF ), "has no context menu" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1816,6 +1867,7 @@ ColorPickerSuite( )
 ProgressBarSuite( )
 ChartSuite( )
 TimerSuite( )
+PopupSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

@@ -188,10 +188,21 @@ end function
 
 ' Every problem in `doc`, as one line each, for a form in module `moduleName`. Includes what reading
 ' the file reported.
+' A ContextMenu has to name a PopupMenu of this form.
+private sub ContextMenuProblem_( byref doc as FormDoc, byref who as const ustring, byref menuName as const ustring, byref out_ as Array( of ustring ) )
+    dim as long k = FindControl( doc, menuName )
+    if k < 0 then
+        out_.Push( who & ": context menu '" & menuName & "' doesn't exist" )
+    elseif doc.Controls[k].TypeName <> catalog.POPUP_TYPE then
+        out_.Push( who & ": context menu '" & menuName & "' isn't a " & catalog.POPUP_TYPE )
+    end if
+end sub
+
 public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref out_ as Array( of ustring ) )
     for each s as ustring in doc.Problems
         out_.Push( s )
     next
+    if len( doc.ContextMenu ) then ContextMenuProblem_( doc, "form", doc.ContextMenu, out_ )
     if IsIdentifier( moduleName ) = false then
         out_.Push( "form file name '" & moduleName & "' is not an identifier" )
     elseif IsReserved( moduleName ) orelse (lcase( moduleName ) = "form") then
@@ -234,6 +245,15 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         if m = 0 then
             out_.Push( c.Name & ": unknown control type '" & c.TypeName & "'" )
             continue for
+        end if
+
+        ' a ContextMenu names a PopupMenu of this form; a component has none
+        if len( c.ContextMenu ) then
+            if catalog.IsComponent( c.TypeName ) then
+                out_.Push( c.Name & ": a " & m->Name & " has no context menu" )
+            else
+                ContextMenuProblem_( doc, c.Name, c.ContextMenu, out_ )
+            end if
         end if
 
         ' a component (a Timer) is never shown: it belongs to the form, with nothing to lay out
@@ -299,10 +319,14 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         end if
         dim as long prev = -1
         for each it as FormItem in c.Items
-            if kind_ = catalog.ItemsKind.ItemsMenu then
-                if (prev < 0) andalso (it.Level <> 0) then out_.Push( c.Name & ": the first menu item must be on the bar" )
+            if catalog.IsMenuKind( kind_ ) then
+                if kind_ = catalog.ItemsKind.ItemsMenu then
+                    if (prev < 0) andalso (it.Level <> 0) then out_.Push( c.Name & ": the first menu item must be on the bar" )
+                    if (it.Level = 0) andalso (it.Text = "-") then out_.Push( c.Name & ": a separator can't be on the bar" )
+                else
+                    if (prev < 0) andalso (it.Level <> 0) then out_.Push( c.Name & ": the first item must be on the menu itself, not indented" )
+                end if
                 if (it.Level > prev + 1) orelse (it.Level > 2) then out_.Push( c.Name & ": '" & it.Text & "' is indented too far" )
-                if (it.Level = 0) andalso (it.Text = "-") then out_.Push( c.Name & ": a separator can't be on the bar" )
                 prev = it.Level
                 if len( it.Key ) then
                     dim as TK_CHORD ch

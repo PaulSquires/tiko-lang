@@ -86,7 +86,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar) |
 | Static display | [tkLabel](tkLabel), [tkPicture](tkPicture) |
 | Data display | [tkChart](tkChart) |
-| Components | [tkTimer](tkTimer) |
+| Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
 
 ## Support modules
 

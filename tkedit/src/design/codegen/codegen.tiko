@@ -167,7 +167,7 @@ end function
 
 private function AnyShortcut_( byref doc as FormDoc ) as boolean
     for each c as FormControl in doc.Controls
-        if catalog.ItemsKindOf( c.TypeName ) = catalog.ItemsKind.ItemsMenu then
+        if catalog.IsMenuKind( catalog.ItemsKindOf( c.TypeName ) ) then
             for each it as FormItem in c.Items
                 if len( it.Key ) then return true
             next
@@ -468,7 +468,7 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
         ' since tiko refuses one without a case (TKO0418)
         dim as ustring cases
         for c as long = 0 to doc.Controls.Count( ) - 1
-            if catalog.ItemsKindOf( doc.Controls[c].TypeName ) = catalog.ItemsKind.ItemsMenu then
+            if catalog.IsMenuKind( catalog.ItemsKindOf( doc.Controls[c].TypeName ) ) then
                 dim as long b = ItemBase_( doc, c )
                 for i as long = 0 to doc.Controls[c].Items.Count( ) - 1
                     if (len( doc.Controls[c].Items[i].Key ) > 0) andalso (len( doc.Controls[c].Items[i].Handler ) > 0) then
@@ -588,6 +588,29 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
                 if hasKids then
                     o &= "        menus( " & it.Level & " ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
                     o &= "        tkPopupMenu_SetItemSubMenu( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", menus( " & it.Level & " ) )" & NL
+                end if
+            end if
+        next
+        o &= "    end scope" & NL
+    case catalog.ItemsKind.ItemsPopup
+        ' a right-click menu: level 0 is the menu that opens, each deeper level a submenu of the item above
+        if c.Items.Count( ) = 0 then exit sub
+        o &= "    scope" & NL
+        o &= "        dim as TK_MENU ptr menus( 0 to 2 )" & NL
+        o &= "        menus( 0 ) = tkContextMenu_GetMenu( " & h & " )" & NL
+        for i as long = 0 to c.Items.Count( ) - 1
+            dim as FormItem it = c.Items[i]
+            dim as boolean hasKids = false
+            if i < c.Items.Count( ) - 1 then hasKids = (c.Items[i + 1].Level > it.Level)
+            if it.Text = "-" then
+                o &= "        tkPopupMenu_AddSeparator( menus( " & it.Level & " ) )" & NL
+            else
+                dim as ustring accel
+                if len( it.Key ) then accel = ", KeyLabel( " & Literal_( it.Key ) & " )"
+                o &= "        tkPopupMenu_AddItem( menus( " & it.Level & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & accel & " )" & NL
+                if hasKids andalso (it.Level < 2) then
+                    o &= "        menus( " & (it.Level + 1) & " ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
+                    o &= "        tkPopupMenu_SetItemSubMenu( menus( " & it.Level & " ), " & (base_ + i) & ", menus( " & (it.Level + 1) & " ) )" & NL
                 end if
             end if
         next
@@ -763,7 +786,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     dim as boolean needsMenu = false
     dim as boolean needsKeys = AnyShortcut_( doc )
     for i as long = 0 to doc.Controls.Count( ) - 1
-        if (catalog.ItemsKindOf( doc.Controls[i].TypeName ) = catalog.ItemsKind.ItemsMenu) andalso (doc.Controls[i].Items.Count( ) > 0) then needsMenu = true
+        if catalog.IsMenuKind( catalog.ItemsKindOf( doc.Controls[i].TypeName ) ) andalso (doc.Controls[i].Items.Count( ) > 0) then needsMenu = true
     next
     for i as long = 0 to doc.Controls.Count( ) - 1
         dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[i].TypeName )
@@ -826,7 +849,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         o &= "    scope" & NL
         o &= "        dim as TK_KEYMAP ptr keys = tkKeys_MapCreate( )" & NL
         for c as long = 0 to doc.Controls.Count( ) - 1
-            if catalog.ItemsKindOf( doc.Controls[c].TypeName ) = catalog.ItemsKind.ItemsMenu then
+            if catalog.IsMenuKind( catalog.ItemsKindOf( doc.Controls[c].TypeName ) ) then
                 dim as long b = ItemBase_( doc, c )
                 for k as long = 0 to doc.Controls[c].Items.Count( ) - 1
                     if len( doc.Controls[c].Items[k].Key ) then
@@ -838,6 +861,11 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         o &= "        tkKeys_Attach( tkForm_Host( Wnd ), keys, @Thunk_Keys )" & NL
         o &= "    end scope" & NL
     end if
+    ' context menus, once every control and every PopupMenu exists
+    for each c as FormControl in doc.Controls
+        if len( c.ContextMenu ) then o &= "    tkContextMenu_Attach( " & c.ContextMenu & ".Handle, " & c.Name & ".Handle )" & NL
+    next
+    if len( doc.ContextMenu ) then o &= "    tkContextMenu_Attach( " & doc.ContextMenu & ".Handle, tkForm_Widget( Wnd ) )" & NL
     o &= "    tkLayout_Apply( Layout )" & NL
     dim as long i = FindSetting( doc.Events, "Load" )
     if i >= 0 then o &= "    " & doc.Events[i].Value & "( )" & NL

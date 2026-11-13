@@ -124,6 +124,9 @@ public enum
     TKM_DROPFILES            ' files dropped from the OS: m->text = their paths, LF-separated (UTF-8),
                              ' m->nStart = how many, m->x / y = the drop point; BUBBLES if refused
     TKM_DROPTEXT             ' text dropped from the OS: m->text, m->x / y; BUBBLES if refused
+    TKM_CONTEXTMENU          ' to a CONTEXT-MENU COMPONENT (tkWidget_SetContextMenu): m->pOther = the widget
+                             ' it opens for, m->x / y = where, in the surface's window pixels; m->bFlag =
+                             ' from the keyboard (the Menu key, Shift+F10)
 end enum
 
 public enum
@@ -215,6 +218,7 @@ public type TK_WIDGET_
     ' tkTheme's, opaque here: one plain (callocate'd) block each, freed by tkWidget_Destroy.
     pThemeScope   as any ptr            ' a theme for this subtree (tkTheme_ApplyTo); 0 = inherit
     pColorRecipe  as any ptr            ' per-field colour overrides (tkTheme_SetRecipe)
+    pContextMenu  as TK_WIDGET ptr      ' the component that is this widget's right-click menu, 0 = none
 end type
 
 public type TK_FONT
@@ -948,6 +952,57 @@ public sub tkWidget_Show( byval w as TK_WIDGET ptr, byval bShow as boolean )
     tkWidget_Invalidate( w )
 end sub
 
+' ---- context menus: a component (tkContextMenu) a right-click or the Menu key opens. The
+' ---- release of the right button over w, or over anything inside it, goes to the component as
+' ---- TKM_CONTEXTMENU INSTEAD of to the control, so it replaces a control's own menu. --------
+public sub tkWidget_SetContextMenu( byval w as TK_WIDGET ptr, byval hMenu as TK_WIDGET ptr )
+    if w = 0 then exit sub
+    if (hMenu <> 0) andalso (hMenu->pHost <> w->pHost) then exit sub   ' one surface: it shows there
+    w->pContextMenu = hMenu
+end sub
+
+public function tkWidget_GetContextMenu( byval w as TK_WIDGET ptr ) as TK_WIDGET ptr
+    return iif( w <> 0, w->pContextMenu, cast( TK_WIDGET ptr, 0 ) )
+end function
+
+private sub ClearMenuRefs_( byval w as TK_WIDGET ptr, byval hMenu as TK_WIDGET ptr )
+    if w->pContextMenu = hMenu then w->pContextMenu = 0
+    dim as TK_WIDGET ptr k = w->pFirst
+    while k
+        ClearMenuRefs_( k, hMenu )
+        k = k->pNext
+    wend
+end sub
+
+' Every widget of hMenu's surface that has it as its context menu has none: a component calls this
+' as it goes, so nothing is left pointing at it.
+public sub tkWidget_ClearContextMenuRefs( byval hMenu as TK_WIDGET ptr )
+    if (hMenu = 0) orelse (hMenu->pHost = 0) then exit sub
+    dim as TK_WIDGET ptr r = tkHost_Root( hMenu->pHost )
+    if r then ClearMenuRefs_( r, hMenu )
+end sub
+
+' The first widget from w up its parents with a context menu, 0 for none. A disabled one on the way
+' stops the search, as it would have swallowed the click.
+private function ContextOwner_( byval w as TK_WIDGET ptr ) as TK_WIDGET ptr
+    while w
+        if tkWidget_IsEnabled( w ) = false then return 0
+        if w->pContextMenu then return w
+        w = w->pParent
+    wend
+    return 0
+end function
+
+private sub SendContextMenu_( byval owner as TK_WIDGET ptr, byval x as single, byval y as single, byval bKeyboard as boolean )
+    dim as TK_MSG m
+    m.msg = TKM_CONTEXTMENU
+    m.pOther = owner
+    m.x = x
+    m.y = y
+    m.bFlag = bKeyboard
+    tkWidget_Send( owner->pContextMenu, @m )
+end sub
+
 public sub tkWidget_SetCursor( byval w as TK_WIDGET ptr, byval cursor as long )
     if w then w->cursor = cursor
 end sub
@@ -1422,6 +1477,17 @@ private sub DispatchKey( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
     if (m.msg = TKM_KEYDOWN) andalso (h->OnPreKey <> 0) then
         if h->OnPreKey( h, @m ) then exit sub
     end if
+    ' the Menu key or Shift+F10 opens the focused widget's context menu (its own or a parent's),
+    ' below it, before the control itself would open one
+    if (m.msg = TKM_KEYDOWN) andalso ((m.key = SDLK_APPLICATION) orelse ((m.key = SDLK_F10) andalso ((m.mods and SDL_KMOD_SHIFT) <> 0))) then
+        dim as TK_WIDGET ptr owner = ContextOwner_( h->pFocus )
+        if owner then
+            dim as TKRECT a
+            tkWidget_AbsRect( h->pFocus, a )
+            SendContextMenu_( owner, a.left, a.bottom, true )
+            exit sub
+        end if
+    end if
     ' to the focused widget, bubbling up the parents while refused
     dim as TK_WIDGET ptr w = h->pFocus
     while w
@@ -1556,7 +1622,17 @@ private sub DispatchTo( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
             h->pLastDown = w
         end if
         ' A disabled widget swallows the click: it reaches neither it nor anything beneath.
-        if w andalso tkWidget_IsEnabled( w ) then SendMouse( w, msg, px, py, clicks )
+        if w andalso tkWidget_IsEnabled( w ) then
+            ' the right button's release over a widget with a context menu (its own or a parent's)
+            ' opens that menu instead of reaching the control
+            dim as TK_WIDGET ptr owner = 0
+            if (msg = TKM_RBUTTONUP) andalso (h->pCapture = 0) then owner = ContextOwner_( w )
+            if owner then
+                SendContextMenu_( owner, px, py, false )
+            else
+                SendMouse( w, msg, px, py, clicks )
+            end if
+        end if
         SyncCursor( h )
 
     case SDL_EVENT_MOUSE_WHEEL

@@ -37,6 +37,15 @@ public function CreateComponentBox( byval hParent as TK_WIDGET ptr, byval id as 
     return CreateStandIn( hParent, id, "" )
 end function
 
+' Menu items, a bar's drop-downs or a right-click menu's: text, shortcut, handler, indented levels.
+' A MenuBar's level 0 is the bar itself; a PopupMenu's level 0 is the menu that opens.
+public function IsMenuKind( byval kind_ as long ) as boolean
+    return (kind_ = ItemsKind.ItemsMenu) orelse (kind_ = ItemsKind.ItemsPopup)
+end function
+
+' The type whose components a ContextMenu property names.
+public const as string POPUP_TYPE = "PopupMenu"
+
 ' Which list of entries a control type has, if any.
 public enum ItemsKind explicit
     ItemsNone = 0
@@ -47,6 +56,7 @@ public enum ItemsKind explicit
     ItemsList
     ItemsPages
     ItemsIcons
+    ItemsPopup
 end enum
 
 ' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
@@ -60,7 +70,7 @@ end function
 ' toolbar's, an icon panel's or a status bar's Click.
 public function ItemDispatchEvent( byval kind_ as ItemsKind ) as ustring
     select case kind_
-    case ItemsKind.ItemsMenu : return "Command"
+    case ItemsKind.ItemsMenu, ItemsKind.ItemsPopup : return "Command"
     case ItemsKind.ItemsToolbar, ItemsKind.ItemsIcons, ItemsKind.ItemsStatus : return "Click"
     end select
     return ""
@@ -141,6 +151,7 @@ end function
 public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     select case typeName
     case "MenuBar"    : return ItemsKind.ItemsMenu
+    case "PopupMenu"  : return ItemsKind.ItemsPopup
     case "Toolbar"    : return ItemsKind.ItemsToolbar
     case "IconPanel"  : return ItemsKind.ItemsIcons
     case "StatusBar"  : return ItemsKind.ItemsStatus

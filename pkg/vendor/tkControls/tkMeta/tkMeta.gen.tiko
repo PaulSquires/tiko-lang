@@ -33,6 +33,7 @@
 #import "../tkChart"
 #import "../tkCodeEdit"
 #import "../tkTimer"
+#import "../tkContextMenu"
 using tkHost
 using tkPaint
 using tkLabel
@@ -66,6 +67,7 @@ using tkHScrollBar
 using tkChart
 using tkCodeEdit
 using tkTimer
+using tkContextMenu
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
@@ -2938,6 +2940,10 @@ private function R_Timer_Interval( byval w as TK_WIDGET ptr ) as ustring
     return str( tkTimer_GetInterval( w ) )
 end function
 
+private function C_PopupMenu( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkContextMenu_Create( hParent, id )
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Colors_( "TKLABEL_COLORS", "tkLabel_GetColors", "tkLabel_ThemeColors", @G_Label, @T_Label )
@@ -3793,4 +3799,7 @@ sub Fill_( )
     Add_( "Timer", "tkTimer", "Components", 72, 24, "Tick", "", @C_Timer, "", "", "", "", false )
     Prop_( "Interval", "int", "0", "", "tkTimer_SetInterval", "tkTimer_GetInterval", @A_Timer_Interval, @R_Timer_Interval, 0, true, true, "", 0 )
     Event_( "Tick", "tkTimer_SetTickCallback", "TMR_TickCallbackSub", "byval hTimer as TK_WIDGET ptr", "", "" )
+    Add_( "PopupMenu", "tkContextMenu", "Components", 72, 24, "Command", "", @C_PopupMenu, "", "", "", "", false )
+    Event_( "Command", "tkContextMenu_SetCommandCallback", "CTX_CommandCallbackSub", "byval hCtx as TK_WIDGET ptr, byval id as long", "byval id as long", "id" )
+    Event_( "Popup", "tkContextMenu_SetPopupCallback", "CTX_PopupCallbackSub", "byval hCtx as TK_WIDGET ptr, byval hSource as TK_WIDGET ptr", "byval hSource as TK_WIDGET ptr", "hSource" )
 end sub

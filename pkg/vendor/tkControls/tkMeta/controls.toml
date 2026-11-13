@@ -1281,3 +1281,18 @@ props = [
 events = [
   { name="Tick", set="tkTimer_SetTickCallback", type="TMR_TickCallbackSub", sig="byval hTimer as TK_WIDGET ptr", params="", args="" },
 ]
+
+[[control]]
+name = "PopupMenu"
+module = "tkContextMenu"
+category = "Components"
+width = 72
+height = 24
+default_event = "Command"
+visual = false
+props = [
+]
+events = [
+  { name="Command", set="tkContextMenu_SetCommandCallback", type="CTX_CommandCallbackSub", sig="byval hCtx as TK_WIDGET ptr, byval id as long", params="byval id as long", args="id" },
+  { name="Popup", set="tkContextMenu_SetPopupCallback", type="CTX_PopupCallbackSub", sig="byval hCtx as TK_WIDGET ptr, byval hSource as TK_WIDGET ptr", params="byval hSource as TK_WIDGET ptr", args="hSource" },
+]

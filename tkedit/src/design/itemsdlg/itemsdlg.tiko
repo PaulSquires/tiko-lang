@@ -230,7 +230,7 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
     dim as ustring handlerLabel = i18n.Tr( "designer.item_handler", "Handler" )
     dim as ustring widthLabel = i18n.Tr( "designer.width", "Width" )
     select case kind_
-    case catalog.ItemsKind.ItemsMenu
+    case catalog.ItemsKind.ItemsMenu, catalog.ItemsKind.ItemsPopup
         BtnIn = MakeGlyphButton_( root_, GLYPH_RIGHT, i18n.Tr( "designer.item_in", "Indent" ) )
         BtnOut = MakeGlyphButton_( root_, GLYPH_LEFT, i18n.Tr( "designer.item_out", "Outdent" ) )
         this.AddField( "Text", textLabel )
@@ -469,7 +469,7 @@ end sub
 ' A menu separator (text "-") is a line, not a command: its Shortcut and Handler boxes are off and
 ' empty, and the item keeps neither.
 sub ItemsEditor.SyncSeparator( )
-    if Kind <> catalog.ItemsKind.ItemsMenu then exit sub
+    if catalog.IsMenuKind( Kind ) = false then exit sub
     dim as boolean has = (Current >= 0) andalso (Current < Items.Count( ))
     dim as boolean sep = has andalso (trim( Items[Current].Text ) = "-")
     if sep then

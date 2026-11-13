@@ -853,6 +853,15 @@ sub DesignPanels.AddRow( byref key_ as const ustring, byref caption as const ust
 end sub
 
 ' The Shown names of a "Shown=CONSTANT,..." list.
+' A ContextMenu row's choices: none, then each PopupMenu on the form.
+private function PopupNames_( byref doc as FormDoc ) as ustring
+    dim as ustring o
+    for each c as FormControl in doc.Controls
+        if c.TypeName = catalog.POPUP_TYPE then o &= "," & c.Name
+    next
+    return o
+end function
+
 private function EnumShown_( byref pairs as const ustring ) as ustring
     dim as ustring o, t = pairs & ","
     dim as long a = 1
@@ -917,6 +926,7 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@MaxHeight", "MaxHeight", RowKind.RowText )
         this.AddRow( "@AlwaysOnTop", "AlwaysOnTop", RowKind.RowCheck )
         this.AddRow( "@Icon", "Icon", RowKind.RowText )
+        this.AddRow( "@FormCtx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
         for e as long = 0 to catalog.FormEventCount( ) - 1
             this.AddEventRow( catalog.FormEventName( e ) )
         next
@@ -977,6 +987,8 @@ sub DesignPanels.BuildRows( )
             this.AddRow( "Enabled", "Enabled", RowKind.RowCheck )
             if anyComponent = false then this.AddRow( "Visible", "Visible", RowKind.RowCheck )
         end if
+        ' the PopupMenu a right-click on it opens
+        if anyComponent = false then this.AddRow( "@Ctx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
         if (n = 1) andalso (m0->Name = catalog.CUSTOM_TYPE) then
             this.AddRow( "@CType", i18n.Tr( "designer.custom_type", "Type" ), RowKind.RowText )
             this.AddRow( "@CModule", i18n.Tr( "designer.custom_module", "Module" ), RowKind.RowText )
@@ -1024,6 +1036,7 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@H"    : return str( c_.H )
     case "@Dock" : return DockWord( c_.Dock )
     case "@CType" : return c_.CustomType
+    case "@Ctx"   : return c_.ContextMenu
     case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
@@ -1073,6 +1086,7 @@ function DesignPanels.ValueOf( byref key_ as const ustring ) as ustring
     case "@AlwaysOnTop"
         if C->Doc.AlwaysOnTop then return "true" else return "false"
     case "@Icon" : return C->Doc.Icon
+    case "@FormCtx" : return C->Doc.ContextMenu
     end select
     if (left( key_, 2 ) = "E:") andalso (C->Selected.Count( ) = 0) then return SettingOr( C->Doc.Events, mid( key_, 3 ) )
     dim as ustring out_
@@ -1238,6 +1252,15 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
         rebuild = false
     case "@Icon"
         trial.Icon = trim( text )
+        rebuild = false
+    case "@FormCtx"
+        trial.ContextMenu = text
+        rebuild = false
+    case "@Ctx"
+        for each s_ as ustring in C->Selected
+            dim as long k = FindControl( trial, s_ )
+            if k >= 0 then trial.Controls[k].ContextMenu = text
+        next
         rebuild = false
     case "@FormW", "@FormH"
         if ParseLong_( text, v ) = false then return badNumber

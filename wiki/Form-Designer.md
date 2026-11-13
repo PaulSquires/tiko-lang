@@ -179,6 +179,14 @@ anchor or dock it. Its **Interval** is in milliseconds (0, the default, means st
 and stops it, and its **Tick** handler (`sub Form.OnTick( )`) runs every Interval while it is enabled. A
 Test Form leaves it out. See [tkTimer](tkTimer).
 
+A **PopupMenu** is a right-click menu. Its **Edit items** are a menu's -- text, shortcut, handler, indented
+for a submenu -- but the first level is the menu that opens, not a bar. Give a control (or the form)
+that menu in its **ContextMenu** property: a right-click on it, or the Menu key or Shift+F10 when it has
+the focus, opens the menu instead of whatever menu the control has itself, and anything inside it
+opens it too. An item's handler runs when it is chosen; the menu's **Popup** handler runs just before
+it opens and is told which control it opens for (`sub Form.OnPopup( byval hSource as TK_WIDGET ptr )`),
+the moment to enable or check its items. See [tkContextMenu](tkContextMenu).
+
 ## Your own controls
 
 The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel, give it the name of

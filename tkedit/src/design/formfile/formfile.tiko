@@ -144,12 +144,13 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     c.Page = IntOf_( t, "page", -1 )
     c.CustomType = StrOf_( t, "custom_type" )
     c.CustomModule = StrOf_( t, "custom_module" )
+    c.ContextMenu = StrOf_( t, "context_menu" )
     c.X = IntOf_( t, "x", 0 )
     c.Y = IntOf_( t, "y", 0 )
     c.W = IntOf_( t, "w", 0 )
     c.H = IntOf_( t, "h", 0 )
     dim as ustring where = "control '" & c.Name & "'"
-    OnlyKeys_( t, "name type parent page x y w h anchor dock pages custom_type custom_module props events items colors", where, doc )
+    OnlyKeys_( t, "name type parent page x y w h anchor dock pages custom_type custom_module context_menu props events items colors", where, doc )
     dim as config.TomlValue ptr p = t.Find( "anchor" )
     if p then
         if AnchorFromWords( Str_( *p ), c.Anchor ) = false then
@@ -216,7 +217,7 @@ public function Parse( byref text as const ustring, byref doc as FormDoc, byref 
     OnlyKeys_( root, "format form control orphan", "file", doc )
     dim as config.TomlValue ptr f = root.Find( "form" )
     if f then
-        OnlyKeys_( *f, "caption width height translate start_position window_state resizable min_width min_height max_width max_height always_on_top icon events", "form", doc )
+        OnlyKeys_( *f, "caption width height translate start_position window_state resizable min_width min_height max_width max_height always_on_top icon context_menu events", "form", doc )
         doc.Caption = StrOf_( *f, "caption" )
         dim as config.TomlValue ptr tr_ = f->Find( "translate" )
         if tr_ then
@@ -242,6 +243,7 @@ public function Parse( byref text as const ustring, byref doc as FormDoc, byref 
             doc.AlwaysOnTop = ot->AsBool( ).ValueOr( noFlag )
         end if
         doc.Icon = StrOf_( *f, "icon" )
+        doc.ContextMenu = StrOf_( *f, "context_menu" )
         dim as config.TomlValue ptr e = f->Find( "events" )
         if e then ReadSettings_( *e, doc.Events, "form", doc )
     end if
@@ -410,6 +412,7 @@ public function Render( byref doc as FormDoc ) as ustring
     if doc.MaxH then o &= "max_height = " & doc.MaxH & NL
     if doc.AlwaysOnTop then o &= "always_on_top = true" & NL
     if len( doc.Icon ) then o &= "icon = " & Quote_( doc.Icon ) & NL
+    if len( doc.ContextMenu ) then o &= "context_menu = " & Quote_( doc.ContextMenu ) & NL
     if doc.Events.Count( ) then
         o &= NL & "[form.events]" & NL
         ' the catalog's order, then any it doesn't know (validate reports those)
@@ -436,6 +439,7 @@ public function Render( byref doc as FormDoc ) as ustring
         if c.Dock <> TK_DOCK_NONE then o &= "dock = " & Quote_( DockWord( c.Dock ) ) & NL
         if len( c.CustomType ) then o &= "custom_type = " & Quote_( c.CustomType ) & NL
         if len( c.CustomModule ) then o &= "custom_module = " & Quote_( c.CustomModule ) & NL
+        if len( c.ContextMenu ) then o &= "context_menu = " & Quote_( c.ContextMenu ) & NL
         if c.Pages.Count( ) then
             o &= "pages = ["
             for p as long = 0 to c.Pages.Count( ) - 1

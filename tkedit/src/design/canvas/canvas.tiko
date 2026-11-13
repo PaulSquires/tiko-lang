@@ -1007,11 +1007,11 @@ function FormCanvas.PlaceDefault( byref typeName as const ustring ) as boolean
     return true
 end function
 
-' A control just placed from the Toolbox: a menu bar with nothing in it asks for its editor at once,
-' marked "new" so the host fills it with the standard menu first.
+' A control just placed from the Toolbox: a menu bar or a popup menu with nothing in it asks for its
+' editor at once, marked "new" so the host fills a menu bar with the standard menu first.
 sub FormCanvas.Placed( byval i as long )
     if (i < 0) orelse (i >= Doc.Controls.Count( )) then exit sub
-    if catalog.ItemsKindOf( Doc.Controls[i].TypeName ) <> catalog.ItemsKind.ItemsMenu then exit sub
+    if catalog.IsMenuKind( catalog.ItemsKindOf( Doc.Controls[i].TypeName ) ) = false then exit sub
     if Doc.Controls[i].Items.Count( ) then exit sub
     if OnEditItems then OnEditItems( Host, @this, Doc.Controls[i].Name, "new", false )
 end sub
