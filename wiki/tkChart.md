@@ -381,6 +381,7 @@ function tkChart_GetTooltipText( byval hChart as TK_WIDGET ptr ) as ustring
 function tkChart_ResolveTooltipText( byval hChart as TK_WIDGET ptr ) as ustring
 function tkChart_GetTooltipHandle( byval hChart as TK_WIDGET ptr ) as TK_TIP ptr
 sub tkChart_SetHoverTime( byval hChart as TK_WIDGET ptr, byval ms as long )
+sub tkChart_PaintDefault( byval p as TKCHART_PAINTINFO ptr )
 sub tkChart_SetPaintCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_PaintCallbackSub )
 sub tkChart_SetMessageCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_MessageCallbackFunc )
 sub tkChart_SetTooltipCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_TooltipCallbackFunc )

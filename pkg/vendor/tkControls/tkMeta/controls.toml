@@ -1221,6 +1221,10 @@ props = [
 ]
 events = [
   { name="HotChange", set="tkChart_SetHotChangeCallback", type="CHT_HotChangeCallbackSub", sig="byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long", params="byval iSeries as long, byval iPoint as long", args="iSeries, iPoint" },
+  { name="Paint", set="tkChart_SetPaintCallback", type="CHT_PaintCallbackSub", sig="byval p as TKCHART_PAINTINFO ptr", params="byval p as TKCHART_PAINTINFO ptr", args="p", widget="p->hChart" },
+  { name="Message", set="tkChart_SetMessageCallback", type="CHT_MessageCallbackFunc", sig="byval m as TKCHART_MESSAGEINFO ptr", params="byval m as TKCHART_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hChart", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkChart_SetTooltipCallback", type="CHT_TooltipCallbackFunc", sig="byval hChart as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
+  { name="ValueLabel", set="tkChart_SetValueLabelCallback", type="CHT_ValueLabelCallbackFunc", sig="byval hChart as TK_WIDGET ptr, byval fValue as double, byval nContext as long", params="byval fValue as double, byval nContext as long, byref Text as ustring", args="fValue, nContext, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]
