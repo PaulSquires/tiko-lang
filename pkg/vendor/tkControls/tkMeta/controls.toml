@@ -711,6 +711,7 @@ props = [
   { name="Transparent", kind="bool", set="tkPanel_SetTransparent", get="tkPanel_GetTransparent", default="false" },
 ]
 events = [
+  { name="Paint", set="tkPanel_SetPaintCallback", type="PNL_PaintCallbackSub", sig="byval p as TKPANEL_PAINTINFO ptr", params="byval p as TKPANEL_PAINTINFO ptr", args="p", widget="p->hPanel" },
 ]
 
 [[control]]
