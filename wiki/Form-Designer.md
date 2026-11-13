@@ -154,7 +154,9 @@ A MenuBar dropped on a form opens this editor straight away, filled with a stand
 (New, Open, Save, Save As, Exit), **Edit** (Undo, Redo, Cut, Copy, Paste, Select All) and **Help**
 (About), with the usual shortcuts. Change what you like; **Cancel** leaves the bar empty. In the editor
 the arrow buttons move the selected item up or down and out or in a level, **+** adds one and the bin
-removes it.
+removes it. The pencil beside **Handler** closes the editor as **OK** does and shows that handler in
+the code; an item with no handler is first given one from its menu path -- **File** > **Save As...** is
+`File_SaveAs` (a toolbar's or status bar's from the control's name and the item's text, `tbr_Go`).
 
 A menu item's handler runs when it is chosen. The bar's own **Command** handler runs after it for
 every item and is told which (`sub Form.OnCommand( byval id as long )`); **InitPopup** runs before a

@@ -24,6 +24,7 @@
 #import "vendor/tkControls/tkTheme"
 #import "../model"
 #import "../catalog"
+#import "../validate"
 using containers
 using tkApp
 using tkListTree
@@ -50,6 +51,7 @@ public const as ulong GLYPH_UP = &hF19B        ' arrow up
 public const as ulong GLYPH_DOWN = &hF148      ' arrow down
 public const as ulong GLYPH_LEFT = &hF15B      ' arrow left: outdent
 public const as ulong GLYPH_RIGHT = &hF181     ' arrow right: indent
+public const as ulong GLYPH_EDIT = &hF3DD      ' edit (a pencil): the item's handler, in the code
 
 public type ItemField
     Key as ustring          ' Text, Key, Glyph, Handler, Kind, Width, Stretch
@@ -73,7 +75,10 @@ public type ItemsEditor
     BtnOut as TK_WIDGET ptr
     BtnOk as TK_WIDGET ptr
     BtnCancel as TK_WIDGET ptr
+    BtnHandler as TK_WIDGET ptr ' beside the Handler box: OK, then the handler in the code
     Fields as Array( of ItemField )
+    ControlName as ustring      ' whose entries these are
+    GoToHandler as ustring      ' set by the pencil: the handler to show once the entries are in
     Current as long = -1
     Accepted as boolean
     IsModal as boolean
@@ -97,6 +102,8 @@ public type ItemsEditor
     declare sub ShowCaption( )
     declare sub SyncSeparator( )
     declare sub SeedDefaults( )
+    declare function DefaultHandler( byval i as long ) as ustring
+    declare sub EditHandler( )
 end type
 
 ' The owner (tkEdit) to the front BEFORE a modal dialog's window is hidden: hiding the active window
@@ -143,6 +150,7 @@ private sub OnButton( byval h as TK_WIDGET ptr, byval id as long )
     case d->BtnOut    : d->Indent( -1 )
     case d->BtnOk     : d->Finish( true )
     case d->BtnCancel : d->Finish( false )
+    case d->BtnHandler : d->EditHandler( )
     end select
 end sub
 
@@ -204,6 +212,7 @@ end sub
 sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref items_ as Array( of FormItem ), byref title as const ustring )
     Kind = kind_
     Items = items_
+    ControlName = title
     dim as ustring t = title
     Win = tkApp_NewForm( t, 560, 420, owner, tkForm_Host( owner )->fScaleForced )
     if Win = 0 then exit sub
@@ -258,6 +267,10 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
     case else
         this.AddField( "Text", textLabel )
     end select
+    ' a pencil beside the Handler box, as an event row has in the Properties panel
+    for each f as ItemField in Fields
+        if f.Key = "Handler" then BtnHandler = MakeGlyphButton_( Group, GLYPH_EDIT, i18n.Tr( "designer.open_code", "Open code" ) )
+    next
 
     tkForm_OnSize( Win, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
         if f->Tag then cast( ItemsEditor ptr, f->Tag )->Layout( )
@@ -324,7 +337,12 @@ sub ItemsEditor.Layout( )
     dim as long lw = tkForm_Scale( Win, LABEL_CX ), fy = inner.top
     for each f as ItemField in Fields
         tkWidget_SetPos( f.Label, inner.left, fy, lw, bh )
-        tkWidget_SetPos( f.Edit, inner.left + lw, fy, inner.right - inner.left - lw, bh )
+        dim as long ew = inner.right - inner.left - lw
+        if (f.Key = "Handler") andalso (BtnHandler <> 0) then
+            ew -= gw + gap
+            tkWidget_SetPos( BtnHandler, inner.right - gw, fy, gw, bh )
+        end if
+        tkWidget_SetPos( f.Edit, inner.left + lw, fy, ew, bh )
         fy += rh
     next
 
@@ -485,7 +503,77 @@ sub ItemsEditor.SyncSeparator( )
             tkWidget_Enable( f.Label, sep = false )
         end if
     next
+    if BtnHandler then tkWidget_Enable( BtnHandler, sep = false )
     Loading = was
+end sub
+
+' A word of an item's text as part of a name: its letters, digits and underscores ("Save As..." is
+' "SaveAs", "&Open" is "Open").
+private function NamePart_( byref s as const ustring ) as ustring
+    dim as ustring o
+    for k as long = 1 to len( s )
+        dim as ustring ch = mid( s, k, 1 )
+        if ((ch >= "a") andalso (ch <= "z")) orelse ((ch >= "A") andalso (ch <= "Z")) orelse ((ch >= "0") andalso (ch <= "9")) orelse (ch = "_") then o &= ch
+    next
+    return o
+end function
+
+' The name the pencil gives an item with no handler. A menu's is its path, File > Save As... being
+' File_SaveAs; any other entry's is the control's name and its text (tbr_Go). Never a name another
+' entry here already calls, nor one tiko keeps for itself.
+function ItemsEditor.DefaultHandler( byval i as long ) as ustring
+    dim as ustring n
+    if catalog.IsMenuKind( Kind ) then
+        n = NamePart_( Items[i].Text )
+        dim as long lvl = Items[i].Level
+        for j as long = i - 1 to 0 step -1
+            if lvl = 0 then exit for
+            if Items[j].Level < lvl then
+                dim as ustring part = NamePart_( Items[j].Text )
+                if len( part ) then n = iif( len( n ), part & "_" & n, part )
+                lvl = Items[j].Level
+            end if
+        next
+        if len( n ) = 0 then n = ControlName & "_Item" & (i + 1)
+    else
+        dim as ustring part = NamePart_( Items[i].Text )
+        if len( part ) = 0 then part = "Item" & (i + 1)
+        n = ControlName & "_" & part
+    end if
+    if (validate.IsIdentifier( n ) = false) orelse validate.IsReserved( n ) then n = ControlName & "_" & n
+    ' one of its own: a number after it while another entry already calls that name
+    dim as ustring want = n
+    dim as long k = 2
+    dim as boolean taken = true
+    while taken
+        taken = false
+        for j as long = 0 to Items.Count( ) - 1
+            if (j <> i) andalso (lcase( Items[j].Handler ) = lcase( n )) then taken = true
+        next
+        if taken then
+            n = want & k
+            k += 1
+        end if
+    wend
+    return n
+end function
+
+' The pencil: an entry with no handler is given one (DefaultHandler), then the editor closes as OK
+' does and the host shows that handler in the code.
+sub ItemsEditor.EditHandler( )
+    if (Current < 0) orelse (Current >= Items.Count( )) then exit sub
+    if catalog.IsMenuKind( Kind ) andalso (trim( Items[Current].Text ) = "-") then exit sub
+    if len( trim( Items[Current].Handler ) ) = 0 then
+        Items[Current].Handler = this.DefaultHandler( Current )
+        dim as boolean was = Loading
+        Loading = true
+        for each f as ItemField in Fields
+            if f.Key = "Handler" then tkTextBox_SetText( f.Edit, Items[Current].Handler )
+        next
+        Loading = was
+    end if
+    GoToHandler = trim( Items[Current].Handler )
+    this.Finish( true )
 end sub
 
 sub ItemsEditor.AddItem( )

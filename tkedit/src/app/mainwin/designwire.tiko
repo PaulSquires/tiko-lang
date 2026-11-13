@@ -212,6 +212,7 @@ sub Window.FinishItems( byval apply_ as boolean )
     ItemsDlg = 0
     dim as Array( of FormItem ) items = dlg->Items
     dim as long kind_ = dlg->Kind
+    dim as ustring wanted = dlg->GoToHandler      ' the pencil: that handler, once the entries are in
     dlg->Close( )
     delete dlg
     ' the keyboard goes back to the form: Undo from here undoes this
@@ -282,6 +283,15 @@ sub Window.FinishItems( byval apply_ as boolean )
             end if
         end if
     next
+    if len( wanted ) then
+        dim as DocRef code = this.CodeDocOf( d )
+        dim as long a, b
+        if (code <> 0) andalso reconcile.FindBody( code->Text( ), wanted, a, b ) then
+            this.ShowDoc( code )
+            code->Main.GoToLine( a + 1, 4 )
+            code->Main.Focus( )
+        end if
+    end if
 end sub
 
 ' ---- a control's [control.colors]: the Colors dialog ----------------------------------------------------

@@ -20,6 +20,7 @@
 #import "tkd/itemsdlg"
 #import "tkd/model"
 #import "tkd/panels"
+#import "tkd/reconcile"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkPaint"
@@ -298,6 +299,22 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 50 )
     t.Check( d->Text( ) = text1, P( sc, "a bad shortcut is refused" ) )
     t.Check( instr( mw.Message, "shortcut" ) > 0, P( sc, "with a message: " & mw.Message ) )
+
+    ' ---- the pencil beside Handler: a name from the menu path, OK, then that handler in the code
+    mw.OpenItems( c, "MenuBar2" )
+    tkTest_PumpFor( h, 60 )
+    dim as itemsdlg.ItemsEditor ptr pd = mw.ItemsDlg
+    pd->ShowItem( 4 )
+    PressIn( tkForm_Host( pd->Win ), pd->BtnHandler )
+    t.Check( pd->Accepted andalso (pd->Items[4].Handler = "File_SaveAs"), P( sc, "the pencil names File > Save As... and accepts: " & pd->Items[4].Handler ) )
+    mw.FinishItems( true )
+    tkTest_PumpFor( h, 80 )
+    dim as DocRef pcode = mw.FindOpen( fs.PathJoin( dir_, "frmI.tiko" ) )
+    dim as long pa, pb
+    t.Check( (pcode <> 0) andalso (mw.Active( ) = pcode) andalso reconcile.FindBody( pcode->Text( ), "File_SaveAs", pa, pb ) _
+             andalso (mw.View( ).CaretLine( ) = pa + 2), P( sc, "and the code shows its new body, the caret in it" ) )
+    mw.ShowDoc( d )
+    tkTest_PumpFor( h, 40 )
 
     ' ---- a combo's items, a status bar's panels: each with its own fields
     c->Tool = "ComboBox"
