@@ -854,6 +854,10 @@ private sub A_TextBox_CornerRadius( byval w as TK_WIDGET ptr, byref v as const u
     tkTextBox_SetCornerRadius( w, clng( val( v ) ) )
 end sub
 
+private function R_TextBox_CornerRadius( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTextBox_GetCornerRadius( w ) )
+end function
+
 private sub A_TextBox_Sel( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkTextBox_SetSel( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
@@ -2805,12 +2809,15 @@ sub Fill_( )
     Prop_( "FocusBorderColor", "color", "", "", "tkTextBox_SetFocusBorderColor", "tkTextBox_GetFocusBorderColor", @A_TextBox_FocusBorderColor, @R_TextBox_FocusBorderColor, 0, true, false, "", 0 )
     Prop_( "OuterBackColor", "color", "", "", "tkTextBox_SetOuterBackColor", "tkTextBox_GetOuterBackColor", @A_TextBox_OuterBackColor, @R_TextBox_OuterBackColor, 0, true, false, "", 0 )
     Prop_( "CueBannerFont", "font", "", "", "tkTextBox_SetCueBannerFont", "tkTextBox_GetCueBannerFont", 0, 0, @F_TextBox_CueBannerFont, true, true, "", 0 )
-    Prop_( "CornerRadius", "int", "", "", "tkTextBox_SetCornerRadius", "", @A_TextBox_CornerRadius, 0, 0, true, true, "CornerRadius", 1 )
+    Prop_( "CornerRadius", "int", "", "", "tkTextBox_SetCornerRadius", "tkTextBox_GetCornerRadius", @A_TextBox_CornerRadius, @R_TextBox_CornerRadius, 0, true, true, "CornerRadius", 1 )
     Prop_( "Sel", "list", "", "Start:int,End:int", "tkTextBox_SetSel", "", @A_TextBox_Sel, 0, 0, true, true, "", 0 )
     Prop_( "Margins", "list", "", "Left:int,Right:int", "tkTextBox_SetMargins", "", @A_TextBox_Margins, 0, 0, true, true, "", 0 )
     Prop_( "MenuText", "list", "", "CutText:text,CopyText:text,PasteText:text,SelectAllText:text", "tkTextBox_SetMenuText", "", @A_TextBox_MenuText, 0, 0, true, true, "", 0 )
     Event_( "Change", "tkTextBox_SetChangeCallback", "TXT_ChangeCallbackSub", "byval hTextBox as TK_WIDGET ptr", "", "" )
     Event_( "EnterPressed", "tkTextBox_SetEnterPressedCallback", "TXT_EnterPressedCallbackSub", "byval hTextBox as TK_WIDGET ptr", "", "" )
+    Event_( "FocusChanged", "tkTextBox_SetFocusCallback", "TXT_FocusCallbackSub", "byval hTextBox as TK_WIDGET ptr, byval bGotFocus as boolean", "byval bGotFocus as boolean", "bGotFocus" )
+    Event_( "ScrollChanged", "tkTextBox_SetScrollChangedCallback", "TXT_ScrollChangedCallbackSub", "byval hTextBox as TK_WIDGET ptr", "", "" )
+    Event_( "Message", "tkTextBox_SetMessageCallback", "TXT_MessageCallbackFunc", "byval m as TKTEXTBOX_MESSAGEINFO ptr", "byval m as TKTEXTBOX_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hTextBox", "boolean", "Handled" )
     Add_( "NumericUpDown", "tkNumericUpDown", "Common", 100, 28, "ValueChanged", "", @C_NumericUpDown, "", "", "", "" )
     Colors_( "TKNUMERICUPDOWN_COLORS", "tkNumericUpDown_GetColors", "tkNumericUpDown_ThemeColors", @G_NumericUpDown, @T_NumericUpDown )
     Color_( "BackColor", "Back", "Normal", "", false )

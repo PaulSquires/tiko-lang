@@ -57,6 +57,7 @@ public type TextBox
     declare property OuterBackColor( byval v as ulong )
     declare property CueBannerFont( ) as TTF_Font ptr
     declare property CueBannerFont( byval v as TTF_Font ptr )
+    declare property CornerRadius( ) as long
     declare property CornerRadius( byval v as long )
     declare sub Sel( byval a0 as long, byval a1 as long )
     declare sub Margins( byval a0 as long, byval a1 as long )
@@ -257,6 +258,10 @@ end property
 
 property TextBox.CueBannerFont( byval v as TTF_Font ptr )
     tkTextBox_SetCueBannerFont( Handle, v )
+end property
+
+property TextBox.CornerRadius( ) as long
+    return tkTextBox_GetCornerRadius( Handle )
 end property
 
 property TextBox.CornerRadius( byval v as long )

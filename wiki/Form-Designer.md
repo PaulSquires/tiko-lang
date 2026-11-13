@@ -94,8 +94,8 @@ Each control is a typed value. `.Text`, `.Enabled` and the rest are properties, 
 the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
-a Button's **Tooltip** handler sets `Text` to the tip it should show, and its **Message** handler sets
-`Handled` to keep a mouse or key message from the button. A Button's **Paint** handler draws it
+a Button's **Tooltip** handler sets `Text` to the tip it should show, and a Button's or TextBox's
+**Message** handler sets `Handled` to keep a mouse or key message from the control. A Button's **Paint** handler draws it
 instead; call `tkButton_PaintDefault( p )` first to draw the stock button and add to it.
 
 Your file and the generated one are the same module, joined by a [partial type](Partial). A file's own

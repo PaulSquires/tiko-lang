@@ -301,7 +301,7 @@ props = [
   { name="FocusBorderColor", kind="color", set="tkTextBox_SetFocusBorderColor", get="tkTextBox_GetFocusBorderColor", inspector=false },
   { name="OuterBackColor", kind="color", set="tkTextBox_SetOuterBackColor", get="tkTextBox_GetOuterBackColor", inspector=false },
   { name="CueBannerFont", kind="font", set="tkTextBox_SetCueBannerFont", get="tkTextBox_GetCueBannerFont" },
-  { name="CornerRadius", kind="int", set="tkTextBox_SetCornerRadius", get="", theme="CornerRadius", scale=1 },
+  { name="CornerRadius", kind="int", set="tkTextBox_SetCornerRadius", get="tkTextBox_GetCornerRadius", theme="CornerRadius", scale=1 },
   { name="Sel", kind="list", enum="Start:int,End:int", set="tkTextBox_SetSel", get="" },
   { name="Margins", kind="list", enum="Left:int,Right:int", set="tkTextBox_SetMargins", get="" },
   { name="MenuText", kind="list", enum="CutText:text,CopyText:text,PasteText:text,SelectAllText:text", set="tkTextBox_SetMenuText", get="" },
@@ -309,6 +309,9 @@ props = [
 events = [
   { name="Change", set="tkTextBox_SetChangeCallback", type="TXT_ChangeCallbackSub", sig="byval hTextBox as TK_WIDGET ptr", params="", args="" },
   { name="EnterPressed", set="tkTextBox_SetEnterPressedCallback", type="TXT_EnterPressedCallbackSub", sig="byval hTextBox as TK_WIDGET ptr", params="", args="" },
+  { name="FocusChanged", set="tkTextBox_SetFocusCallback", type="TXT_FocusCallbackSub", sig="byval hTextBox as TK_WIDGET ptr, byval bGotFocus as boolean", params="byval bGotFocus as boolean", args="bGotFocus" },
+  { name="ScrollChanged", set="tkTextBox_SetScrollChangedCallback", type="TXT_ScrollChangedCallbackSub", sig="byval hTextBox as TK_WIDGET ptr", params="", args="" },
+  { name="Message", set="tkTextBox_SetMessageCallback", type="TXT_MessageCallbackFunc", sig="byval m as TKTEXTBOX_MESSAGEINFO ptr", params="byval m as TKTEXTBOX_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hTextBox", returns="boolean", result="Handled" },
 ]
 
 [[control]]
