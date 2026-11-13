@@ -13,6 +13,7 @@
 #import "../tkDatePicker"
 #import "../tkCalendar"
 #import "../tkProgressBar"
+#import "../tkSpinner"
 #import "../tkColorPicker"
 #import "../tkPicture"
 #import "../tkPanel"
@@ -47,6 +48,7 @@ using tkComboBox
 using tkDatePicker
 using tkCalendar
 using tkProgressBar
+using tkSpinner
 using tkColorPicker
 using tkPicture
 using tkPanel
@@ -1653,6 +1655,82 @@ end sub
 private sub A_ProgressBar_BlockMetrics( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkProgressBar_SetBlockMetrics( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
+
+private function C_Spinner( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+    select case arg
+    case "Ring" : return tkSpinner_Create( hParent, id, SPN_STYLE_RING )
+    case "Arc" : return tkSpinner_Create( hParent, id, SPN_STYLE_ARC )
+    case "Dots" : return tkSpinner_Create( hParent, id, SPN_STYLE_DOTS )
+    case "Spokes" : return tkSpinner_Create( hParent, id, SPN_STYLE_SPOKES )
+    case "Pulse" : return tkSpinner_Create( hParent, id, SPN_STYLE_PULSE )
+    case "Bounce" : return tkSpinner_Create( hParent, id, SPN_STYLE_BOUNCE )
+    end select
+    return tkSpinner_Create( hParent, id )
+end function
+
+private sub G_Spinner( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+    tkSpinner_GetColors( w, cast( TKSPINNER_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Spinner( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+    *cast( TKSPINNER_COLORS ptr, pSlots ) = tkSpinner_ThemeColors( t )
+end sub
+
+private sub A_Spinner_Running( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetRunning( w, cbool( v = "true" ) )
+end sub
+
+private function R_Spinner_Running( byval w as TK_WIDGET ptr ) as ustring
+    if tkSpinner_IsRunning( w ) then return "true" else return "false"
+end function
+
+private sub A_Spinner_Period( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetPeriod( w, clng( val( v ) ) )
+end sub
+
+private function R_Spinner_Period( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSpinner_GetPeriod( w ) )
+end function
+
+private sub A_Spinner_FrameMs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetFrameMs( w, clng( val( v ) ) )
+end sub
+
+private function R_Spinner_FrameMs( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSpinner_GetFrameMs( w ) )
+end function
+
+private sub A_Spinner_Count( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetCount( w, clng( val( v ) ) )
+end sub
+
+private function R_Spinner_Count( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSpinner_GetCount( w ) )
+end function
+
+private sub A_Spinner_Thickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_Spinner_Thickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSpinner_GetThickness( w ) )
+end function
+
+private sub A_Spinner_HideWhenStopped( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetHideWhenStopped( w, cbool( v = "true" ) )
+end sub
+
+private function R_Spinner_HideWhenStopped( byval w as TK_WIDGET ptr ) as ustring
+    if tkSpinner_GetHideWhenStopped( w ) then return "true" else return "false"
+end function
+
+private sub A_Spinner_Transparent( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSpinner_SetTransparent( w, cbool( v = "true" ) )
+end sub
+
+private function R_Spinner_Transparent( byval w as TK_WIDGET ptr ) as ustring
+    if tkSpinner_GetTransparent( w ) then return "true" else return "false"
+end function
 
 private function C_ColorPicker( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkColorPicker_Create( hParent, id )
@@ -3409,6 +3487,21 @@ sub Fill_( )
     Event_( "Message", "tkProgressBar_SetMessageCallback", "PRG_MessageCallbackFunc", "byval m as TKPROGRESSBAR_MESSAGEINFO ptr", "byval m as TKPROGRESSBAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hProgressBar", "boolean", "Handled" )
     Event_( "Tooltip", "tkProgressBar_SetTooltipCallback", "PRG_TooltipCallbackFunc", "byval hProgressBar as TK_WIDGET ptr", "byref Text as ustring", "Text", "", "ustring", "Text" )
     Event_( "Text", "tkProgressBar_SetTextCallback", "PRG_TextCallbackFunc", "byval hProgressBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long", "byval nPos as long, byval nMin as long, byval nMax as long, byref Text as ustring", "nPos, nMin, nMax, Text", "", "ustring", "Text" )
+    Add_( "Spinner", "tkSpinner", "Common", 32, 32, "", "", @C_Spinner, "Style", "enum", "Ring=SPN_STYLE_RING,Arc=SPN_STYLE_ARC,Dots=SPN_STYLE_DOTS,Spokes=SPN_STYLE_SPOKES,Pulse=SPN_STYLE_PULSE,Bounce=SPN_STYLE_BOUNCE", "Ring" )
+    Colors_( "TKSPINNER_COLORS", "tkSpinner_GetColors", "tkSpinner_ThemeColors", @G_Spinner, @T_Spinner )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "ForeColor", "Fore", "Normal", "", true )
+    Color_( "TrackColor", "", "", "", false )
+    Color_( "ForeColorDisabled", "Fore", "Disabled", "", true )
+    Prop_( "Running", "bool", "false", "", "tkSpinner_SetRunning", "tkSpinner_IsRunning", @A_Spinner_Running, @R_Spinner_Running, 0, false, true, "", 0 )
+    Prop_( "Period", "int", "1000", "", "tkSpinner_SetPeriod", "tkSpinner_GetPeriod", @A_Spinner_Period, @R_Spinner_Period, 0, true, true, "", 0 )
+    Prop_( "FrameMs", "int", "16", "", "tkSpinner_SetFrameMs", "tkSpinner_GetFrameMs", @A_Spinner_FrameMs, @R_Spinner_FrameMs, 0, true, true, "", 0 )
+    Prop_( "Count", "int", "8", "", "tkSpinner_SetCount", "tkSpinner_GetCount", @A_Spinner_Count, @R_Spinner_Count, 0, true, true, "", 0 )
+    Prop_( "Thickness", "int", "0", "", "tkSpinner_SetThickness", "tkSpinner_GetThickness", @A_Spinner_Thickness, @R_Spinner_Thickness, 0, true, true, "", 0 )
+    Prop_( "HideWhenStopped", "bool", "false", "", "tkSpinner_SetHideWhenStopped", "tkSpinner_GetHideWhenStopped", @A_Spinner_HideWhenStopped, @R_Spinner_HideWhenStopped, 0, true, true, "", 0 )
+    Prop_( "Transparent", "bool", "true", "", "tkSpinner_SetTransparent", "tkSpinner_GetTransparent", @A_Spinner_Transparent, @R_Spinner_Transparent, 0, true, true, "", 0 )
+    Event_( "Paint", "tkSpinner_SetPaintCallback", "SPN_PaintCallbackSub", "byval p as TKSPINNER_PAINTINFO ptr", "byval p as TKSPINNER_PAINTINFO ptr", "p", "p->hSpinner", "", "" )
+    Event_( "Message", "tkSpinner_SetMessageCallback", "SPN_MessageCallbackFunc", "byval m as TKSPINNER_MESSAGEINFO ptr", "byval m as TKSPINNER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hSpinner", "boolean", "Handled" )
     Add_( "ColorPicker", "tkColorPicker", "Common", 120, 28, "ColorChanged", "", @C_ColorPicker, "", "", "", "" )
     Colors_( "TKCOLORPICKER_COLORS", "tkColorPicker_GetColors", "tkColorPicker_ThemeColors", @G_ColorPicker, @T_ColorPicker )
     Color_( "BackColor", "Back", "Normal", "", false )

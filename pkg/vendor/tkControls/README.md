@@ -51,7 +51,7 @@ from the PsControls control it ports.
 | `tkLayout` | automatic position and size: Anchor and Dock, in design units |
 | `tkLabel`, `tkPanel`, `tkGroupBox`, `tkPicture`, `tkTabControl` | text, containers, images and tabbed pages |
 | `tkSplitter`, `tkScrollPanel`, `tkScrollBar`, `tkVScrollBar`, `tkHScrollBar` | layout and scrolling |
-| `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkFileDialog` | popups and feedback |
+| `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkSpinner`, `tkFileDialog` | popups and feedback |
 | `tkChart` | line, column, HLOC and pie charts |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |

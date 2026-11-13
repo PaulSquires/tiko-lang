@@ -639,6 +639,37 @@ events = [
 ]
 
 [[control]]
+name = "Spinner"
+module = "tkSpinner"
+category = "Common"
+width = 32
+height = 32
+create_arg = "Style"
+create_arg_kind = "enum"
+create_arg_enum = "Ring=SPN_STYLE_RING,Arc=SPN_STYLE_ARC,Dots=SPN_STYLE_DOTS,Spokes=SPN_STYLE_SPOKES,Pulse=SPN_STYLE_PULSE,Bounce=SPN_STYLE_BOUNCE"
+create_arg_default = "Ring"
+colors = { struct="TKSPINNER_COLORS", get="tkSpinner_GetColors", theme="tkSpinner_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="ForeColor", part="Fore", state="Normal", ink=true },
+  { field="TrackColor" },
+  { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+]
+props = [
+  { name="Running", kind="bool", set="tkSpinner_SetRunning", get="tkSpinner_IsRunning", default="false", design=false },
+  { name="Period", kind="int", set="tkSpinner_SetPeriod", get="tkSpinner_GetPeriod", default="1000" },
+  { name="FrameMs", kind="int", set="tkSpinner_SetFrameMs", get="tkSpinner_GetFrameMs", default="16" },
+  { name="Count", kind="int", set="tkSpinner_SetCount", get="tkSpinner_GetCount", default="8" },
+  { name="Thickness", kind="int", set="tkSpinner_SetThickness", get="tkSpinner_GetThickness", default="0" },
+  { name="HideWhenStopped", kind="bool", set="tkSpinner_SetHideWhenStopped", get="tkSpinner_GetHideWhenStopped", default="false" },
+  { name="Transparent", kind="bool", set="tkSpinner_SetTransparent", get="tkSpinner_GetTransparent", default="true" },
+]
+events = [
+  { name="Paint", set="tkSpinner_SetPaintCallback", type="SPN_PaintCallbackSub", sig="byval p as TKSPINNER_PAINTINFO ptr", params="byval p as TKSPINNER_PAINTINFO ptr", args="p", widget="p->hSpinner" },
+  { name="Message", set="tkSpinner_SetMessageCallback", type="SPN_MessageCallbackFunc", sig="byval m as TKSPINNER_MESSAGEINFO ptr", params="byval m as TKSPINNER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSpinner", returns="boolean", result="Handled" },
+]
+
+[[control]]
 name = "ColorPicker"
 module = "tkColorPicker"
 category = "Common"

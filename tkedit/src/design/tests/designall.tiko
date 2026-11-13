@@ -1514,6 +1514,25 @@ sub PopupSuite( )
     Refused( Header( ) & pm2 & Ctl( "tm", "Timer", "context_menu = ""pm""" & LF ), "has no context menu" )
 end sub
 
+' A Spinner: its style is a create argument; Running is set like any property (never on the canvas).
+sub SpinnerSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "spn", "Spinner", "parent = """"" & LF & "x = 8" & LF & "y = 8" & LF & "w = 32" & LF & "h = 32" & LF ) _
+        & "[control.props]" & LF & "Style = ""Dots""" & LF & "Running = true" & LF & "Period = 800" & LF _
+        & LF & "[control.events]" & LF & "Paint = ""spn_Paint""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "spinner: the form parses" )
+    Accepted( src, "spinner: Style, Running, Period, Paint" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    HasLine( g, "spn.Create( tkForm_Widget( Wnd ), 1, SPN_STYLE_DOTS )", "spinner: created with its style" )
+    HasLine( g, "spn.Running = true", "spinner: started" )
+    HasLine( g, "spn.Period = 800", "spinner: its period" )
+    Check( instr( g, "tkForms_ObjectOf( p->hSpinner )" ) > 0, "spinner: Paint finds its form through the paint info" )
+    Refused( Header( ) & Ctl( "s2", "Spinner" ) & "[control.props]" & LF & "Style = ""Wobble""" & LF, "Style" )
+    dim as TKMETA_CONTROL ptr m = tkMeta_Find( "Spinner" )
+    Check( (m <> 0) andalso (tkMeta_FindProp( m, "Running" ) <> 0) andalso (tkMeta_FindProp( m, "Running" )->bDesign = false), "spinner: Running never runs on the canvas" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1868,6 +1887,7 @@ ProgressBarSuite( )
 ChartSuite( )
 TimerSuite( )
 PopupSuite( )
+SpinnerSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
