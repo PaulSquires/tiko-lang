@@ -67,6 +67,7 @@ public type TKMETA_EVENT
     Widget   as ustring        ' the control, as an expression of Sig's parameters ("" = the first one)
     Returns  as ustring        ' a callback that answers: its result type ("" = a sub)
     Result   as ustring        ' and the handler's byref parameter (in Params) that holds the answer
+    ResultInit as ustring      ' its starting value ("" = the type's default)
 end type
 
 public type TKMETA_CONTROL
@@ -138,12 +139,14 @@ end sub
 
 private sub Event_( byref name_ as const ustring, byref s_ as const ustring, byref t as const ustring, _
                     byref sig as const ustring, byref params as const ustring, byref args as const ustring, _
-                    byref widget as const ustring = "", byref returns as const ustring = "", byref result as const ustring = "" )
+                    byref widget as const ustring = "", byref returns as const ustring = "", byref result as const ustring = "", _
+                    byref resultInit as const ustring = "" )
     with gControls( gnControls - 1 )
         redim preserve .Events( 0 to .NumEvents )
         .Events( .NumEvents ).Name = name_ : .Events( .NumEvents ).SetName = s_ : .Events( .NumEvents ).TypeName = t
         .Events( .NumEvents ).Sig = sig : .Events( .NumEvents ).Params = params : .Events( .NumEvents ).Args = args
         .Events( .NumEvents ).Widget = widget : .Events( .NumEvents ).Returns = returns : .Events( .NumEvents ).Result = result
+        .Events( .NumEvents ).ResultInit = resultInit
         .NumEvents += 1
     end with
 end sub

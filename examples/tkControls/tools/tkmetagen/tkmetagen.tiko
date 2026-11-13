@@ -441,6 +441,7 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
             ' widget / returns / result only when the event has them, so the other rows stay as they were
             if len( Str_( *e, "widget" ) ) orelse len( Str_( *e, "returns" ) ) then
                 fill &= ", " & Quote_( Str_( *e, "widget" ) ) & ", " & Quote_( Str_( *e, "returns" ) ) & ", " & Quote_( Str_( *e, "result" ) )
+                if len( Str_( *e, "result_init" ) ) then fill &= ", " & Quote_( Str_( *e, "result_init" ) )
             end if
             fill &= " )" & NL
         next

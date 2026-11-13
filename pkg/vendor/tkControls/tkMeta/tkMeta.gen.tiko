@@ -1230,6 +1230,18 @@ private function R_DatePicker_BorderThickness( byval w as TK_WIDGET ptr ) as ust
     return str( tkDatePicker_GetBorderThickness( w ) )
 end function
 
+private sub A_DatePicker_MinDate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetMinDate( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_DatePicker_MaxDate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetMaxDate( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_DatePicker_Date( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDatePicker_SetDateParts( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
 private function C_Calendar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCalendar_Create( hParent, id )
 end function
@@ -2967,9 +2979,18 @@ sub Fill_( )
     Prop_( "IconGlyph", "glyph", "", "", "tkDatePicker_SetIconGlyph", "tkDatePicker_GetIconGlyph", @A_DatePicker_IconGlyph, @R_DatePicker_IconGlyph, 0, true, true, "", 0 )
     Prop_( "IconWidth", "int", "", "", "tkDatePicker_SetIconWidth", "tkDatePicker_GetIconWidth", @A_DatePicker_IconWidth, @R_DatePicker_IconWidth, 0, true, true, "", 0 )
     Prop_( "CornerRadius", "int", "", "", "tkDatePicker_SetCornerRadius", "tkDatePicker_GetCornerRadius", @A_DatePicker_CornerRadius, @R_DatePicker_CornerRadius, 0, true, true, "CornerRadius", 1 )
-    Prop_( "BorderThickness", "int", "", "", "tkDatePicker_SetBorderThickness", "tkDatePicker_GetBorderThickness", @A_DatePicker_BorderThickness, @R_DatePicker_BorderThickness, 0, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkDatePicker_SetBorderThickness", "tkDatePicker_GetBorderThickness", @A_DatePicker_BorderThickness, @R_DatePicker_BorderThickness, 0, true, true, "BorderWidth", 1 )
+    Prop_( "MinDate", "list", "", "Year:int,Month:int,Day:int", "tkDatePicker_SetMinDate", "", @A_DatePicker_MinDate, 0, 0, true, true, "", 0 )
+    Prop_( "MaxDate", "list", "", "Year:int,Month:int,Day:int", "tkDatePicker_SetMaxDate", "", @A_DatePicker_MaxDate, 0, 0, true, true, "", 0 )
+    Prop_( "Date", "list", "", "Year:int,Month:int,Day:int", "tkDatePicker_SetDateParts", "", @A_DatePicker_Date, 0, 0, true, true, "", 0 )
     Event_( "DateChanged", "tkDatePicker_SetDateChangedCallback", "DTP_DateChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", "byval pDate as TKDATE ptr, byval bHasDate as boolean", "pDate, bHasDate" )
     Event_( "DropDown", "tkDatePicker_SetDropDownCallback", "DTP_DropDownCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
+    Event_( "Parse", "tkDatePicker_SetParseCallback", "DTP_ParseCallbackFunc", "byval hCtrl as TK_WIDGET ptr, byval sText as ustring, byval pDate as TKDATE ptr", "byval sText as ustring, byval pDate as TKDATE ptr, byref Accepted as boolean", "sText, pDate, Accepted", "", "boolean", "Accepted" )
+    Event_( "Format", "tkDatePicker_SetFormatCallback", "DTP_FormatCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byref sOut as ustring", "byval pDate as TKDATE ptr, byref sOut as ustring", "pDate, sOut" )
+    Event_( "Paint", "tkDatePicker_SetPaintCallback", "DTP_PaintCallbackSub", "byval p as TKDATEPICKER_PAINTINFO ptr", "byval p as TKDATEPICKER_PAINTINFO ptr", "p", "p->hCtrl", "", "" )
+    Event_( "DayPaint", "tkDatePicker_SetDayPaintCallback", "DTP_DayPaintCallbackSub", "byval d as TKDATEPICKER_DAYPAINTINFO ptr", "byval d as TKDATEPICKER_DAYPAINTINFO ptr", "d", "d->hCtrl", "", "" )
+    Event_( "Message", "tkDatePicker_SetMessageCallback", "DTP_MessageCallbackFunc", "byval m as TKDATEPICKER_MESSAGEINFO ptr", "byval m as TKDATEPICKER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
+    Event_( "Tooltip", "tkDatePicker_SetTooltipCallback", "DTP_TooltipCallbackFunc", "byval t as TKDATEPICKER_TOOLTIPINFO ptr", "byval t as TKDATEPICKER_TOOLTIPINFO ptr, byref Show as boolean", "t, Show", "t->hCtrl", "boolean", "Show", "true" )
     Add_( "Calendar", "tkCalendar", "Common", 250, 220, "SelChange", "", @C_Calendar, "", "", "", "" )
     Colors_( "TKCALENDAR_COLORS", "tkCalendar_GetColors", "tkCalendar_ThemeColors", @G_Calendar, @T_Calendar )
     Color_( "BackColor", "Back", "Normal", "", false )

@@ -19,7 +19,7 @@
 # events: sig is the callback's parameter list, params / args what the handler receives. widget = the
 # control as an expression of sig's parameters when it isn't the first one ("p->hButton"). returns =
 # the callback's result type when it answers; result = the handler's byref parameter (listed in
-# params) whose value the thunk returns, starting from that type's default.
+# params) whose value the thunk returns, starting from that type's default or from result_init.
 
 [[control]]
 name = "Label"
@@ -478,11 +478,20 @@ props = [
   { name="IconGlyph", kind="glyph", set="tkDatePicker_SetIconGlyph", get="tkDatePicker_GetIconGlyph" },
   { name="IconWidth", kind="int", set="tkDatePicker_SetIconWidth", get="tkDatePicker_GetIconWidth" },
   { name="CornerRadius", kind="int", set="tkDatePicker_SetCornerRadius", get="tkDatePicker_GetCornerRadius", theme="CornerRadius", scale=1 },
-  { name="BorderThickness", kind="int", set="tkDatePicker_SetBorderThickness", get="tkDatePicker_GetBorderThickness" },
+  { name="BorderThickness", kind="int", set="tkDatePicker_SetBorderThickness", get="tkDatePicker_GetBorderThickness", theme="BorderWidth", scale=1 },
+  { name="MinDate", kind="list", enum="Year:int,Month:int,Day:int", set="tkDatePicker_SetMinDate", get="" },
+  { name="MaxDate", kind="list", enum="Year:int,Month:int,Day:int", set="tkDatePicker_SetMaxDate", get="" },
+  { name="Date", kind="list", enum="Year:int,Month:int,Day:int", set="tkDatePicker_SetDateParts", get="" },
 ]
 events = [
   { name="DateChanged", set="tkDatePicker_SetDateChangedCallback", type="DTP_DateChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", params="byval pDate as TKDATE ptr, byval bHasDate as boolean", args="pDate, bHasDate" },
   { name="DropDown", set="tkDatePicker_SetDropDownCallback", type="DTP_DropDownCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
+  { name="Parse", set="tkDatePicker_SetParseCallback", type="DTP_ParseCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval sText as ustring, byval pDate as TKDATE ptr", params="byval sText as ustring, byval pDate as TKDATE ptr, byref Accepted as boolean", args="sText, pDate, Accepted", returns="boolean", result="Accepted" },
+  { name="Format", set="tkDatePicker_SetFormatCallback", type="DTP_FormatCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byref sOut as ustring", params="byval pDate as TKDATE ptr, byref sOut as ustring", args="pDate, sOut" },
+  { name="Paint", set="tkDatePicker_SetPaintCallback", type="DTP_PaintCallbackSub", sig="byval p as TKDATEPICKER_PAINTINFO ptr", params="byval p as TKDATEPICKER_PAINTINFO ptr", args="p", widget="p->hCtrl" },
+  { name="DayPaint", set="tkDatePicker_SetDayPaintCallback", type="DTP_DayPaintCallbackSub", sig="byval d as TKDATEPICKER_DAYPAINTINFO ptr", params="byval d as TKDATEPICKER_DAYPAINTINFO ptr", args="d", widget="d->hCtrl" },
+  { name="Message", set="tkDatePicker_SetMessageCallback", type="DTP_MessageCallbackFunc", sig="byval m as TKDATEPICKER_MESSAGEINFO ptr", params="byval m as TKDATEPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkDatePicker_SetTooltipCallback", type="DTP_TooltipCallbackFunc", sig="byval t as TKDATEPICKER_TOOLTIPINFO ptr", params="byval t as TKDATEPICKER_TOOLTIPINFO ptr, byref Show as boolean", args="t, Show", widget="t->hCtrl", returns="boolean", result="Show", result_init="true" },
 ]
 
 [[control]]

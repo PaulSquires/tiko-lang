@@ -343,6 +343,24 @@ private function UsedModules_( byref doc as FormDoc ) as Array( of ustring )
         next
         if seen = false then mods.Push( mo )
     next
+    ' TKDATE is tkCalendar's: a DatePicker's date events name it too, and the type needs its module in scope
+    dim as boolean needCal = false
+    for each c as FormControl in doc.Controls
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        for each s as Setting in c.Events
+            dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( m, s.Key )
+            if e then
+                if instr( e->Sig, " TKDATE " ) then needCal = true
+            end if
+        next
+    next
+    if needCal then
+        dim as boolean seen = false
+        for each mo as ustring in mods
+            if mo = "tkCalendar" then seen = true
+        next
+        if seen = false then mods.Push( "tkCalendar" )
+    end if
     for i as long = 1 to mods.Count( ) - 1
         dim as ustring v = mods[i]
         dim as long j = i - 1
@@ -405,7 +423,9 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
                 ' a callback that answers: the handler sets its byref result, which starts at the default
                 dim as TKMETA_EVENT ptr ev = @m->Events( e )
                 o &= "private function Thunk_" & k.Name & "_" & ev->Name & Parens_( ev->Sig ) & " as " & ev->Returns & NL
-                o &= "    dim as " & ev->Returns & " " & ev->Result & NL
+                o &= "    dim as " & ev->Returns & " " & ev->Result
+                if len( ev->ResultInit ) then o &= " = " & ev->ResultInit
+                o &= NL
                 o &= "    dim as Form ptr f = tkForms_ObjectOf( " & WidgetOf_( *ev ) & " )" & NL
                 o &= "    if f then f->" & k.Events[i].Value & Parens_( ev->Args ) & NL
                 o &= "    return " & ev->Result & NL

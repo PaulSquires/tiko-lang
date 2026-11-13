@@ -36,6 +36,9 @@ public type DatePicker
     declare property CornerRadius( byval v as long )
     declare property BorderThickness( ) as long
     declare property BorderThickness( byval v as long )
+    declare sub MinDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub MaxDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub Date( byval a0 as long, byval a1 as long, byval a2 as long )
 end type
 
 sub DatePicker.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -149,3 +152,15 @@ end property
 property DatePicker.BorderThickness( byval v as long )
     tkDatePicker_SetBorderThickness( Handle, v )
 end property
+
+sub DatePicker.MinDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkDatePicker_SetMinDate( Handle, a0, a1, a2 )
+end sub
+
+sub DatePicker.MaxDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkDatePicker_SetMaxDate( Handle, a0, a1, a2 )
+end sub
+
+sub DatePicker.Date( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkDatePicker_SetDateParts( Handle, a0, a1, a2 )
+end sub

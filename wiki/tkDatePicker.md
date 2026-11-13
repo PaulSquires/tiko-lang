@@ -11,9 +11,18 @@ are the text box's; the drop-down is a [tkCalendar](tkCalendar) in a popup, with
 "Today: ..." band underneath.
 
 Your program owns the text format: a format callback turns a date into text and a parse callback
-turns text back into a date. Without them the field uses ISO `yyyy-MM-dd`. Typed text commits on
-Enter or when focus leaves the field; text that does not parse silently reverts. The
-date-changed callback runs only for a real change by the user. The setters are silent.
+turns text back into a date. Without a format callback the field writes ISO `yyyy-MM-dd`; without
+a parse callback typed text is never accepted, so only the calendar sets the date.
+`tkDatePicker_FormatIso` and `tkDatePicker_ParseIso` are the ISO pair, for callbacks to use or fall
+back on. Typed text commits on Enter or when focus leaves the field; text that does not parse
+silently reverts. The date-changed callback runs only for a real change by the user. The setters
+are silent.
+
+For a form designer, whose rows hold numbers, `tkDatePicker_SetDateParts( h, y, m, d )` sets the
+date and `tkDatePicker_SetMinDate` / `SetMaxDate` set one end of the range (a year of 0 removes
+it). The border follows the theme's `BorderWidth` until `SetBorderThickness`. A paint callback
+replaces the editing box's drawing and a day-paint callback a calendar day's;
+`tkDatePicker_PaintDefault( p )` and `tkDatePicker_PaintDayDefault( d )` draw the stock ones first.
 
 F4, Down or Alt+Down opens the calendar. While it is open its own keys work (arrows, Page
 Up/Page Down, Home/End, Enter picks), one click on a day picks it, and Escape or a click outside
@@ -295,6 +304,13 @@ sub tkDatePicker_SetDayPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersu
 sub tkDatePicker_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as DTP_MessageCallbackFunc )
 sub tkDatePicker_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as DTP_TooltipCallbackFunc )
 function tkDatePicker_GetTooltipHandle( byval hCtrl as TK_WIDGET ptr ) as TK_TIP ptr
+function tkDatePicker_FormatIso( byval pDate as TKDATE ptr ) as ustring
+function tkDatePicker_ParseIso( byval sText as ustring, byval pDate as TKDATE ptr ) as boolean
+sub tkDatePicker_SetDateParts( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long, byval d as long )
+sub tkDatePicker_SetMinDate( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long, byval d as long )
+sub tkDatePicker_SetMaxDate( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long, byval d as long )
+sub tkDatePicker_PaintDefault( byval pi as TKDATEPICKER_PAINTINFO ptr )
+sub tkDatePicker_PaintDayDefault( byval d as TKDATEPICKER_DAYPAINTINFO ptr )
 function tkDatePicker_TestCalendarTones( byval hCtrl as TK_WIDGET ptr ) as long
 function tkDatePicker_TestPartBrightness( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as long
 function tkDatePicker_TestFooterTones( byval hCtrl as TK_WIDGET ptr ) as long

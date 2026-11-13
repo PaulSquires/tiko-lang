@@ -981,6 +981,36 @@ sub NumericUpDownSuite( )
         & "    dim as boolean Handled" & LF & "    dim as Form ptr f = tkForms_ObjectOf( m->hCtrl )" & LF ) > 0, "numericupdown: Message's thunk answers Handled" )
 end sub
 
+' A DatePicker's date rows and its six new events, one answering from a starting value.
+sub DatePickerSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "dtp", "DatePicker" ) & LF & "[control.props]" & LF & "MinDate = ""2026,1,1""" & LF & "Date = ""2026,3,9""" & LF _
+        & LF & "[control.events]" & LF & "Parse = ""dtp_Parse""" & LF & "Format = ""dtp_Format""" & LF & "Paint = ""dtp_Paint""" & LF _
+        & "DayPaint = ""dtp_DayPaint""" & LF & "Message = ""dtp_Message""" & LF & "Tooltip = ""dtp_Tooltip""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "datepicker: the form parses" )
+    Accepted( src, "datepicker: the date rows and new events" )
+    dim as ustring g = codegen.Generate( d, "frmD", "frmD.tkform", src )
+    HasLine( g, "dtp.MinDate( 2026, 1, 1 )", "datepicker: MinDate" )
+    HasLine( g, "dtp.Date( 2026, 3, 9 )", "datepicker: Date" )
+    HasLine( g, "declare sub dtp_Parse( byval sText as ustring, byval pDate as TKDATE ptr, byref Accepted as boolean )", "datepicker: Parse declared" )
+    HasLine( g, "declare sub dtp_Format( byval pDate as TKDATE ptr, byref sOut as ustring )", "datepicker: Format declared" )
+    HasLine( g, "declare sub dtp_Tooltip( byval t as TKDATEPICKER_TOOLTIPINFO ptr, byref Show as boolean )", "datepicker: Tooltip declared" )
+    Check( instr( g, "private function Thunk_dtp_Parse( byval hCtrl as TK_WIDGET ptr, byval sText as ustring, byval pDate as TKDATE ptr ) as boolean" & LF _
+        & "    dim as boolean Accepted" & LF ) > 0, "datepicker: Parse answers Accepted" )
+    Check( instr( g, "    dim as boolean Show = true" & LF & "    dim as Form ptr f = tkForms_ObjectOf( t->hCtrl )" & LF ) > 0, "datepicker: Tooltip's Show starts true" )
+    Check( instr( g, "tkForms_ObjectOf( d->hCtrl )" ) > 0, "datepicker: DayPaint finds its form through the day info" )
+    HasLine( g, "tkDatePicker_SetFormatCallback( dtp.Handle, @Thunk_dtp_Format )", "datepicker: Format installed" )
+    Check( (instr( g, "#import ""vendor/tkControls/tkCalendar""" ) > 0) andalso (instr( g, LF & "using tkCalendar" & LF ) > 0), "datepicker: TKDATE's module is in scope" )
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval pDate as TKDATE ptr, byref sOut as ustring", "tkDatePicker" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkCalendar"), "datepicker: a TKDATE handler's file imports tkCalendar", str( im.Count( ) ) )
+    im = reconcile.ImportsFor( "byval d as TKDATEPICKER_DAYPAINTINFO ptr", "tkDatePicker" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkDatePicker"), "datepicker: its own types import tkDatePicker" )
+    dim as FormDoc plainDtp
+    ReadForm( "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF & Ctl( "dtp", "DatePicker" ), plainDtp )
+    Check( instr( codegen.Generate( plainDtp, "frmD", "frmD.tkform", "" ), "tkCalendar" ) = 0, "datepicker: no date event, no tkCalendar" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1311,6 +1341,7 @@ WindowSuite( )
 ButtonEventsSuite( )
 TextBoxEventsSuite( )
 NumericUpDownSuite( )
+DatePickerSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

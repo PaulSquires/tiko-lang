@@ -364,6 +364,7 @@ sub tkCalendar_SetSelChangeCallback( byval hCtrl as TK_WIDGET ptr, byval usersub
 sub tkCalendar_SetDateActivatedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_DateActivatedCallbackSub )
 sub tkCalendar_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_PaintCallbackSub )
 sub tkCalendar_SetDayPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_DayPaintCallbackSub )
+sub tkCalendar_PaintDayDefault( byval p as TKCALENDAR_DAYPAINTINFO ptr )
 sub tkCalendar_SetMonthYearPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_MonthYearPaintCallbackSub )
 sub tkCalendar_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CAL_MessageCallbackFunc )
 sub tkCalendar_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CAL_TooltipCallbackFunc )

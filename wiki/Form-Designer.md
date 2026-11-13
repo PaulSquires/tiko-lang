@@ -95,9 +95,15 @@ the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, TextBox, NumericUpDown) sets `Handled` to keep a mouse or key message from the control. A
-**Paint** handler (Button, NumericUpDown) draws the control instead; call its `PaintDefault( p )`
-(`tkButton_PaintDefault`, `tkNumericUpDown_PaintDefault`) first to draw the stock one and add to it.
+(Button, TextBox, NumericUpDown, DatePicker) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, NumericUpDown, DatePicker) draws the control instead; call its
+`PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
+
+A DatePicker needs a **Parse** handler before anyone can type a date: without one, typed text is
+never accepted. `Accepted = tkDatePicker_ParseIso( sText, pDate )` takes ISO dates; **Format** sets
+`sOut` (`tkDatePicker_FormatIso` is the default). Its **Tooltip** handler sets `t->outText` for the
+day under the pointer (`Show` starts true), and **DayPaint** draws a calendar day, with
+`tkDatePicker_PaintDayDefault( d )` for the stock cell.
 
 Your file and the generated one are the same module, joined by a [partial type](Partial). A file's own
 `#import` and `using` lines apply only to it, so add those your code needs.

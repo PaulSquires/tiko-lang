@@ -1489,6 +1489,13 @@ private function GetCalendarPointer( byval hCtrl as TK_WIDGET ptr ) as TKCALENDA
     return cast( TKCALENDAR_STATE ptr, hCtrl->pData )
 end function
 
+' A day-paint callback's way to draw the cell as it would have been drawn, then add to it.
+public sub tkCalendar_PaintDayDefault( byval p as TKCALENDAR_DAYPAINTINFO ptr )
+    if p = 0 then exit sub
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( p->hCtrl )
+    if pCal then CAL_PaintDayDefault( p->b, @pCal->colors, p, pCal->bShowTodayRing )
+end sub
+
 private function CAL_CallMessage( byval pCal as TKCALENDAR_STATE ptr, byval m as TK_MSG ptr ) as boolean
     if (pCal = 0) orelse (pCal->MessageCallback = 0) then return false
     dim as TKCALENDAR_MESSAGEINFO mi
