@@ -710,6 +710,8 @@ private function LinkAll _
     end if
 
     tools.noRpath = ctx.options.noRpath
+    dim as string mwhy = Tko.WinManifest.AddToLink( objs, keep, ctx.options.outputPath, ctx.options.target, ctx.options.outKind )
+    if len( mwhy ) then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, mwhy )
     dim as int32 rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
     if rc = Tko.Codegen.LINK_NO_RT0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, _

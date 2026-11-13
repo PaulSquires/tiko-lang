@@ -132,6 +132,7 @@ src/codegen/dllimplib.tiko
 src/driver/cmdline.tiko
 src/driver/driver.tiko
 src/driver/phasetime.tiko
+src/driver/winmanifest.tiko
 src/driver/unit.tiko
 src/driver/scan.tiko
 src/driver/modresolve.tiko

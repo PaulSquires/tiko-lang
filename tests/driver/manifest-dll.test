@@ -1,0 +1,7 @@
+'' NOT FOR A DLL: its manifest is resource 2 and optional, and the program that loads it has its own.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -dll tests/driver/src/manifest-dll.bas -o tests/driver/manifestdll.dll
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/manifestdll.dll
+'' EXPECT-FILE-NOT-HAS: tests/driver/manifestdll.dll :: PerMonitorV2

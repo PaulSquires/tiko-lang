@@ -1,0 +1,12 @@
+'' THE PROGRAM'S OWN MANIFEST WINS. A '.rc' with '1 24 "file"' already gives the executable an
+'' RT_MANIFEST; a second would be a duplicate resource at the link, so none is added. That
+'' manifest says nothing about DPI, so the program is DPI-unaware (0): it is the one in force.
+'' HOSTS: windows
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/manifest-dpi.bas tests/driver/src/manifest-own.rc -o tests/driver/manifestown.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: tests/driver/manifestown.exe :: MANIFEST-OF-ITS-OWN
+'' EXPECT-FILE-NOT-HAS: tests/driver/manifestown.exe :: PerMonitorV2
+'' RUN: tests/driver/manifestown.exe
+'' EXPECT-RUN-OUT: awareness 0
