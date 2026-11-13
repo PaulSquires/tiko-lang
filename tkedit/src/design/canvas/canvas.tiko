@@ -31,6 +31,7 @@
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkSelectBar"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
@@ -56,6 +57,7 @@ using tkToolbar
 using tkStatusBar
 using tkListTree
 using tkComboBox
+using tkSelectBar
 using tkHost
 using tkPaint
 using model
@@ -531,7 +533,7 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         next
     case catalog.ItemsKind.ItemsList
         for each it as FormItem in c.Items
-            tkComboBox_AddItem( w, it.Text )
+            if c.TypeName = "SelectBar" then tkSelectBar_AddPanel( w, it.Text ) else tkComboBox_AddItem( w, it.Text )
         next
     end select
 end sub

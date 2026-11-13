@@ -592,7 +592,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         next
     case catalog.ItemsKind.ItemsList
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkComboBox_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
+            o &= "    " & catalog.ItemsAddProc( c.TypeName ) & "( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
         next
     end select
 end sub

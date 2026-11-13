@@ -6,7 +6,7 @@ Draws a strip of text panels where exactly one is current, marked by a line bene
 
 tkSelectBar is a flat, tab-like row of text labels: one panel is always the current one and carries an indicator line under its label. It suits switching the view of a panel underneath, such as an output pane's Results / Log / Notes, without the weight of a tab control. The panel set is static: add panels with `tkSelectBar_AddPanel` and remove them all with `tkSelectBar_Clear`; there is no insert or delete.
 
-Exactly one panel is current. The first panel added becomes current silently, `tkSelectBar_SetCurSel` refuses -1 and disabled panels, and the current panel cannot be disabled. Panels can carry their own padding and tooltip text, and a paint callback can draw each panel yourself.
+Exactly one panel is current. The first panel added becomes current silently, `tkSelectBar_SetCurSel` refuses -1 and disabled panels, and the current panel cannot be disabled. Panels can carry their own padding and tooltip text, and a paint callback can draw each panel yourself; `tkSelectBar_PaintPanelDefault( p )` in it draws the stock panel first.
 
 Setters are silent; the SelChange callback fires only for a user's click or key. A click never takes the keyboard focus, so the bar does not pull the caret out of an editor, but the bar is a Tab stop.
 
@@ -183,6 +183,7 @@ sub tkSelectBar_SetAutoPopTime( byval hSelectBar as TK_WIDGET ptr, byval millise
 sub tkSelectBar_SetReshowTime( byval hSelectBar as TK_WIDGET ptr, byval milliseconds as long )
 function tkSelectBar_GetTooltipText( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as ustring
 function tkSelectBar_SetTooltipText( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+sub tkSelectBar_PaintPanelDefault( byval p as TKSELECTBAR_PAINTINFO ptr )
 sub tkSelectBar_SetPaintPanelCallback( byval hSelectBar as TK_WIDGET ptr, byval usersub as SEL_PaintPanelCallbackSub )
 sub tkSelectBar_SetMessageCallback( byval hSelectBar as TK_WIDGET ptr, byval userfunc as SEL_MessageCallbackFunc )
 sub tkSelectBar_SetTooltipCallback( byval hSelectBar as TK_WIDGET ptr, byval userfunc as SEL_TooltipCallbackFunc )

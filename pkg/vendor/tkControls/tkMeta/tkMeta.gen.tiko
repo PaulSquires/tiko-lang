@@ -2128,6 +2128,14 @@ private sub A_SelectBar_Indicator( byval w as TK_WIDGET ptr, byref v as const us
     tkSelectBar_SetIndicator( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_SelectBar_SelectedIndex( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSelectBar_SetCurSel( w, clng( val( v ) ) )
+end sub
+
+private function R_SelectBar_SelectedIndex( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSelectBar_GetCurSel( w ) )
+end function
+
 private function C_TabBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTabBar_Create( hParent, id )
 end function
@@ -3462,7 +3470,11 @@ sub Fill_( )
     Prop_( "ReshowTime", "int", "", "", "tkSelectBar_SetReshowTime", "", @A_SelectBar_ReshowTime, 0, 0, true, true, "", 0 )
     Prop_( "Padding", "list", "", "PadLeft:int,PadRight:int", "tkSelectBar_SetPadding", "", @A_SelectBar_Padding, 0, 0, true, true, "", 0 )
     Prop_( "Indicator", "list", "", "Thickness:int,Gap:int", "tkSelectBar_SetIndicator", "", @A_SelectBar_Indicator, 0, 0, true, true, "", 0 )
+    Prop_( "SelectedIndex", "int", "0", "", "tkSelectBar_SetCurSel", "tkSelectBar_GetCurSel", @A_SelectBar_SelectedIndex, @R_SelectBar_SelectedIndex, 0, true, true, "", 0 )
     Event_( "SelChange", "tkSelectBar_SetSelChangeCallback", "SEL_SelChangeCallbackSub", "byval hSelectBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", "byval idxOld as long, byval idxNew as long", "idxOld, idxNew" )
+    Event_( "Paint", "tkSelectBar_SetPaintPanelCallback", "SEL_PaintPanelCallbackSub", "byval p as TKSELECTBAR_PAINTINFO ptr", "byval p as TKSELECTBAR_PAINTINFO ptr", "p", "p->hSelectBar", "", "" )
+    Event_( "Message", "tkSelectBar_SetMessageCallback", "SEL_MessageCallbackFunc", "byval m as TKSELECTBAR_MESSAGEINFO ptr", "byval m as TKSELECTBAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hSelectBar", "boolean", "Handled" )
+    Event_( "Tooltip", "tkSelectBar_SetTooltipCallback", "SEL_TooltipCallbackFunc", "byval hSelectBar as TK_WIDGET ptr, byval idx as long", "byval idx as long, byref Text as ustring", "idx, Text", "", "ustring", "Text" )
     Add_( "TabBar", "tkTabBar", "Lists", 300, 32, "SelChange", "", @C_TabBar, "", "", "", "" )
     Colors_( "TKTABBAR_COLORS", "tkTabBar_GetColors", "tkTabBar_ThemeColors", @G_TabBar, @T_TabBar )
     Color_( "BackColor", "Back", "Normal", "", false )

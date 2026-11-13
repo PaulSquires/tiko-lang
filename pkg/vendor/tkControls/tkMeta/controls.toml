@@ -882,9 +882,13 @@ props = [
   { name="ReshowTime", kind="int", set="tkSelectBar_SetReshowTime", get="" },
   { name="Padding", kind="list", enum="PadLeft:int,PadRight:int", set="tkSelectBar_SetPadding", get="" },
   { name="Indicator", kind="list", enum="Thickness:int,Gap:int", set="tkSelectBar_SetIndicator", get="" },
+  { name="SelectedIndex", kind="int", set="tkSelectBar_SetCurSel", get="tkSelectBar_GetCurSel", default="0" },
 ]
 events = [
   { name="SelChange", set="tkSelectBar_SetSelChangeCallback", type="SEL_SelChangeCallbackSub", sig="byval hSelectBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
+  { name="Paint", set="tkSelectBar_SetPaintPanelCallback", type="SEL_PaintPanelCallbackSub", sig="byval p as TKSELECTBAR_PAINTINFO ptr", params="byval p as TKSELECTBAR_PAINTINFO ptr", args="p", widget="p->hSelectBar" },
+  { name="Message", set="tkSelectBar_SetMessageCallback", type="SEL_MessageCallbackFunc", sig="byval m as TKSELECTBAR_MESSAGEINFO ptr", params="byval m as TKSELECTBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSelectBar", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkSelectBar_SetTooltipCallback", type="SEL_TooltipCallbackFunc", sig="byval hSelectBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]

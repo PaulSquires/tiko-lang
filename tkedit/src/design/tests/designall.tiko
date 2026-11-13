@@ -21,6 +21,7 @@
 #import "tkd/canvas"
 #import "tkd/edits"
 #import "tkd/reconcile"
+#import "tkd/catalog"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkMeta"
@@ -1153,6 +1154,26 @@ sub ComboBoxSuite( )
     Check( instr( g, "tkForms_ObjectOf( m->hCombo )" ) > 0, "combobox: Message finds its form through the message info" )
 end sub
 
+' A SelectBar's panels (the Items editor's text list), its selected panel, and its three new events.
+sub SelectBarSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "sb", "SelectBar" ) & LF & "[control.props]" & LF & "SelectedIndex = 1" & LF _
+        & LF & "[control.events]" & LF & "Paint = ""sb_Paint""" & LF & "Message = ""sb_Message""" & LF & "Tooltip = ""sb_Tip""" & LF _
+        & item & "text = ""Day""" & LF & item & "text = ""Week""" & LF
+    Check( catalog.ItemsKindOf( "SelectBar" ) = catalog.ItemsKind.ItemsList, "selectbar: its panels are a text list" )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "selectbar: the form parses" )
+    Accepted( src, "selectbar: panels, selection and events" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    HasLine( g, "tkSelectBar_AddPanel( sb.Handle, ""Week"" )", "selectbar: a panel per entry" )
+    Check( instr( g, "tkComboBox_AddItem" ) = 0, "selectbar: not a combo's items" )
+    Check( instr( g, "sb.SelectedIndex = 1" ) > instr( g, "tkSelectBar_AddPanel( sb.Handle, ""Week"" )" ), "selectbar: SelectedIndex after its panels" )
+    HasLine( g, "declare sub sb_Tip( byval idx as long, byref Text as ustring )", "selectbar: Tooltip declared" )
+    Check( instr( g, "tkForms_ObjectOf( p->hSelectBar )" ) > 0, "selectbar: Paint finds its form through the paint info" )
+    HasLine( g, "tkSelectBar_SetPaintPanelCallback( sb.Handle, @Thunk_sb_Paint )", "selectbar: Paint installed" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1491,6 +1512,7 @@ OptionButtonSuite( )
 ToggleSuite( )
 ListTreeSuite( )
 ComboBoxSuite( )
+SelectBarSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

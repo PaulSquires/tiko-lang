@@ -95,8 +95,8 @@ the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's, CheckBox's or OptionButton's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead; call its
+(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`); call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
 
 A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter
@@ -135,8 +135,9 @@ Handlers follow what you do on the form:
 
 ## Menus, toolbars and lists
 
-Select a MenuBar, Toolbar, StatusBar, ListTree, ComboBox or TabControl and press **Edit items** in the
-Properties panel. Menu items are indented to make drop-downs and submenus. A menu item can have a
+Select a MenuBar, Toolbar, StatusBar, ListTree, ComboBox, SelectBar or TabControl and press **Edit
+items** in the Properties panel. A SelectBar's items are its panels, and its **SelectedIndex** (like a
+ComboBox's) picks one of them once they're added. Menu items are indented to make drop-downs and submenus. A menu item can have a
 shortcut such as `Primary+O`, and a handler. Set the text of a menu item to `-` for a separator.
 
 A MenuBar dropped on a form opens this editor straight away, filled with a standard menu -- **File**
