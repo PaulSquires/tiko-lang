@@ -49,7 +49,8 @@ bar of either kind; every bar handle is accepted by the `tkScrollBar_*` procedur
   scroll callback, and `tkScrollBar_StepBy` (a step that behaves as the user's) does too.
 - Colours follow the current theme until `SetColors` pins them; `UnpinColors` hands them back.
   A paint callback replaces the built-in painter, and receives the thumb rectangle and the
-  hot and dragging states in `TKSCROLLBAR_PAINTINFO`.
+  hot and dragging states in `TKSCROLLBAR_PAINTINFO`, and the bar itself in `hScrollBar`;
+  `tkScrollBar_PaintDefault( p )` in it draws the stock bar first.
 
 ## Coming from PsVScrollBar and PsHScrollBar
 
@@ -92,6 +93,7 @@ type TKSCROLLBAR_PAINTINFO
     rcThumb    as TKRECT              ' empty when no thumb is needed
     isHot      as boolean             ' the mouse is over the thumb
     isDragging as boolean
+    hScrollBar as TK_WIDGET ptr       ' the bar, so the callback can find its owner
 end type
 
 type TKSCROLLBAR_STATE   ' per-instance state; reach it through the procedures
@@ -117,6 +119,7 @@ sub tkScrollBar_SetColors( byval hSB as TK_WIDGET ptr, byval backclr as ulong, b
 sub tkScrollBar_SetDividerColor( byval hSB as TK_WIDGET ptr, byval clr as ulong, byval bShow as boolean = true )
 sub tkScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
 sub tkScrollBar_UnpinColors( byval hSB as TK_WIDGET ptr )
+sub tkScrollBar_PaintDefault( byval p as TKSCROLLBAR_PAINTINFO ptr )
 sub tkScrollBar_SetPaintCallback( byval hSB as TK_WIDGET ptr, byval usersub as tkScrollPaintSub )
 sub tkScrollBar_SetScrollCallback( byval hSB as TK_WIDGET ptr, byval usersub as tkScrollNotifySub )
 sub tkScrollBar_SetWheelStep( byval hSB as TK_WIDGET ptr, byval nUnitsPerNotch as integer )

@@ -1134,6 +1134,7 @@ props = [
 ]
 events = [
   { name="Scroll", set="tkVScrollBar_SetScrollCallback", type="VScrollCallbackSub", sig="byval hSB as TK_WIDGET ptr, byval newPos as integer", params="byval newPos as integer", args="newPos" },
+  { name="Paint", set="tkVScrollBar_SetPaintCallback", type="VScrollPaintCallbackSub", sig="byval p as TKVSCROLLBAR_PAINTINFO ptr", params="byval p as TKVSCROLLBAR_PAINTINFO ptr", args="p", widget="p->hScrollBar" },
 ]
 
 [[control]]
@@ -1151,6 +1152,7 @@ props = [
 ]
 events = [
   { name="Scroll", set="tkHScrollBar_SetScrollCallback", type="HScrollCallbackSub", sig="byval hSB as TK_WIDGET ptr, byval newPos as integer", params="byval newPos as integer", args="newPos" },
+  { name="Paint", set="tkHScrollBar_SetPaintCallback", type="HScrollPaintCallbackSub", sig="byval p as TKHSCROLLBAR_PAINTINFO ptr", params="byval p as TKHSCROLLBAR_PAINTINFO ptr", args="p", widget="p->hScrollBar" },
 ]
 
 [[control]]

@@ -100,6 +100,7 @@ sub tkVScrollBar_SetDividerColor( byval hSB as TK_WIDGET ptr, byval clr as ulong
 function tkVScrollBar_GetDividerColor( byval hSB as TK_WIDGET ptr ) as ulong
 sub tkVScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
 sub tkVScrollBar_UnpinColors( byval hSB as TK_WIDGET ptr )
+sub tkVScrollBar_PaintDefault( byval p as TKVSCROLLBAR_PAINTINFO ptr )
 sub tkVScrollBar_SetPaintCallback( byval hSB as TK_WIDGET ptr, byval usersub as VScrollPaintCallbackSub )
 sub tkVScrollBar_SetScrollCallback( byval hSB as TK_WIDGET ptr, byval usersub as VScrollCallbackSub )
 ```

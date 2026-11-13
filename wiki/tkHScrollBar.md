@@ -89,6 +89,7 @@ function tkHScrollBar_GetThumbRect( byval hSB as TK_WIDGET ptr ) as TKRECT
 sub tkHScrollBar_SetColors( byval hSB as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong, byval foreclrhot as ulong )
 sub tkHScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
 sub tkHScrollBar_UnpinColors( byval hSB as TK_WIDGET ptr )
+sub tkHScrollBar_PaintDefault( byval p as TKHSCROLLBAR_PAINTINFO ptr )
 sub tkHScrollBar_SetPaintCallback( byval hSB as TK_WIDGET ptr, byval usersub as HScrollPaintCallbackSub )
 sub tkHScrollBar_SetScrollCallback( byval hSB as TK_WIDGET ptr, byval usersub as HScrollCallbackSub )
 ```
