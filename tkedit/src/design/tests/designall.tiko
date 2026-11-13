@@ -1221,6 +1221,25 @@ sub MenuBarSuite( )
     Check( instr( codegen.Generate( d2, "frmM", "frmM.tkform", src2 ), "#import ""vendor/tkControls/tkPopupMenu""" ) > 0, "menubar: InitPopup imports the popup module" )
 end sub
 
+' A Toolbar's three new events: Paint, Message and Tooltip, beside an item's own handler.
+sub ToolbarSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""B""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "tbr", "Toolbar" ) _
+        & LF & "[control.events]" & LF & "Paint = ""tbr_Paint""" & LF & "Message = ""tbr_Message""" & LF & "Tooltip = ""tbr_Tip""" & LF _
+        & item & "text = ""Go""" & LF & "handler = ""tbr_Go""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "toolbar: the form parses" )
+    Accepted( src, "toolbar: Paint, Message and Tooltip" )
+    dim as ustring g = codegen.Generate( d, "frmB", "frmB.tkform", src )
+    HasLine( g, "declare sub tbr_Tip( byval idx as long, byref Text as ustring )", "toolbar: Tooltip declared" )
+    HasLine( g, "tkToolbar_SetTooltipCallback( tbr.Handle, @Thunk_tbr_Tooltip )", "toolbar: Tooltip installed" )
+    Check( instr( g, "tkForms_ObjectOf( p->hToolbar )" ) > 0, "toolbar: Paint finds its form through the paint info" )
+    HasLine( g, "tkToolbar_SetPaintItemCallback( tbr.Handle, @Thunk_tbr_Paint )", "toolbar: Paint installed" )
+    Check( instr( g, "tkForms_ObjectOf( m->hToolbar )" ) > 0, "toolbar: Message finds its form through the message info" )
+    HasLine( g, "case 1000 : f->tbr_Go( )", "toolbar: an item's handler still dispatched" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1562,6 +1581,7 @@ ComboBoxSuite( )
 SelectBarSuite( )
 TabBarSuite( )
 MenuBarSuite( )
+ToolbarSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

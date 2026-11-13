@@ -8,7 +8,7 @@ tkToolbar is a strip of buttons along the top of a window or panel. Each item is
 
 Items run from the left, or with `TBR_GRAVITY_RIGHT` hug the right edge. When the bar is too narrow, items move into an overflow menu behind a chevron: the left run's tail goes first, then the front of the right run; CONTROL items never overflow and are hidden instead.
 
-A click reports the item's index and id through the Click callback; a toggle's change goes to the SelChange callback. The menus of split and dropdown items are [tkPopupMenu](tkPopupMenu) menus, and the DropDown callback fires as one opens, so you can fill it just in time. Setters are silent.
+A click reports the item's index and id through the Click callback; a toggle's change goes to the SelChange callback. The menus of split and dropdown items are [tkPopupMenu](tkPopupMenu) menus, and the DropDown callback fires as one opens, so you can fill it just in time. A paint callback draws each item yourself; `tkToolbar_PaintItemDefault( p )` in it draws the stock item first. Setters are silent.
 
 ## Importing
 
@@ -325,6 +325,7 @@ sub tkToolbar_SetAutoPopTime( byval hToolbar as TK_WIDGET ptr, byval millisecond
 sub tkToolbar_SetReshowTime( byval hToolbar as TK_WIDGET ptr, byval milliseconds as long )
 function tkToolbar_GetHotItem( byval hToolbar as TK_WIDGET ptr, byref nZone as long ) as long
 function tkToolbar_GetPressedItem( byval hToolbar as TK_WIDGET ptr ) as long
+sub tkToolbar_PaintItemDefault( byval p as TKTOOLBAR_PAINTINFO ptr )
 sub tkToolbar_SetPaintItemCallback( byval hToolbar as TK_WIDGET ptr, byval usersub as TBR_PaintItemCallbackSub )
 sub tkToolbar_SetMessageCallback( byval hToolbar as TK_WIDGET ptr, byval userfunc as TBR_MessageCallbackFunc )
 sub tkToolbar_SetTooltipCallback( byval hToolbar as TK_WIDGET ptr, byval userfunc as TBR_TooltipCallbackFunc )

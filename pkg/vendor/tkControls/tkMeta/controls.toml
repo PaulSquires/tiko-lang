@@ -1032,6 +1032,9 @@ props = [
 events = [
   { name="Click", set="tkToolbar_SetClickCallback", type="TBR_ClickCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long, byval id as long", params="byval idx as long", args="idx" },
   { name="DropDown", set="tkToolbar_SetDropDownCallback", type="TBR_DropDownCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean", params="byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean", args="idx, hMenu, isOpen" },
+  { name="Paint", set="tkToolbar_SetPaintItemCallback", type="TBR_PaintItemCallbackSub", sig="byval p as TKTOOLBAR_PAINTINFO ptr", params="byval p as TKTOOLBAR_PAINTINFO ptr", args="p", widget="p->hToolbar" },
+  { name="Message", set="tkToolbar_SetMessageCallback", type="TBR_MessageCallbackFunc", sig="byval m as TKTOOLBAR_MESSAGEINFO ptr", params="byval m as TKTOOLBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hToolbar", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkToolbar_SetTooltipCallback", type="TBR_TooltipCallbackFunc", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
   { name="SelChange", set="tkToolbar_SetSelChangeCallback", type="TBR_SelChangeCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", params="byval idx as long, byval isSelected as boolean", args="idx, isSelected" },
 ]
 
