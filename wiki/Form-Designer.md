@@ -94,9 +94,9 @@ Each control is a typed value. `.Text`, `.Enabled` and the rest are properties, 
 the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
-a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's or Toolbar's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's or Toolbar's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`); call its
+a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's, Toolbar's or IconPanel's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
+(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`); call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
 
 A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter
@@ -135,7 +135,7 @@ Handlers follow what you do on the form:
 
 ## Menus, toolbars and lists
 
-Select a MenuBar, Toolbar, StatusBar, ListTree, ComboBox, SelectBar, TabBar or TabControl and press **Edit
+Select a MenuBar, Toolbar, IconPanel, StatusBar, ListTree, ComboBox, SelectBar, TabBar or TabControl and press **Edit
 items** in the Properties panel. A SelectBar's items are its panels and a TabBar's its tabs; the
 **SelectedIndex** of either (like a ComboBox's) picks one of them once they're added. Menu items are indented to make drop-downs and submenus. A menu item can have a
 shortcut such as `Primary+O`, and a handler. Set the text of a menu item to `-` for a separator.
@@ -150,6 +150,10 @@ A menu item's handler runs when it is chosen. The bar's own **Command** handler 
 every item and is told which (`sub Form.OnCommand( byval id as long )`); **InitPopup** runs before a
 drop-down opens (`byval idx as long, byval hPopup as TK_MENU ptr`), the moment to check or disable its
 items.
+
+An IconPanel's items are its icons: each has a **Kind** (toggle, command or separator), a **Glyph** and
+a **Handler**, which runs when the icon is clicked. An icon has no caption; give it a tip from the
+panel's **Tooltip** handler.
 
 A StatusBar panel has a text, a width, a **Handler** and **Stretch**. The handler runs when the panel is
 clicked and is told how many clicks (`sub Form.OnPanel( byval clicks as long )`, 2 for a double click).

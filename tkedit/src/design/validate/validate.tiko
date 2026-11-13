@@ -308,6 +308,13 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
                     out_.Push( c.Name & ": no toolbar item kind '" & it.Kind & "'" )
                 end select
             end if
+            if kind_ = catalog.ItemsKind.ItemsIcons then
+                select case it.Kind
+                case "", "toggle", "command", "separator"
+                case else
+                    out_.Push( c.Name & ": no icon panel item kind '" & it.Kind & "'" )
+                end select
+            end if
             if len( it.Handler ) then AddHandler_( handlers, c.Name, it.Handler, "", doc, out_ )
         next
     next

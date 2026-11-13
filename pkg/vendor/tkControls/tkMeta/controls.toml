@@ -1071,6 +1071,9 @@ props = [
 ]
 events = [
   { name="Click", set="tkIconPanel_SetClickCallback", type="IP_ClickCallbackSub", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval id as long", params="byval idx as long", args="idx" },
+  { name="Paint", set="tkIconPanel_SetPaintItemCallback", type="IP_PaintItemCallbackSub", sig="byval p as TKICONPANEL_PAINTINFO ptr", params="byval p as TKICONPANEL_PAINTINFO ptr", args="p", widget="p->hIconPanel" },
+  { name="Message", set="tkIconPanel_SetMessageCallback", type="IP_MessageCallbackFunc", sig="byval m as TKICONPANEL_MESSAGEINFO ptr", params="byval m as TKICONPANEL_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hIconPanel", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkIconPanel_SetTooltipCallback", type="IP_TooltipCallbackFunc", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
   { name="SelChange", set="tkIconPanel_SetSelChangeCallback", type="IP_SelChangeCallbackSub", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", params="byval idx as long, byval isSelected as boolean", args="idx, isSelected" },
 ]
 

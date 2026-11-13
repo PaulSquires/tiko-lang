@@ -33,6 +33,7 @@ public enum ItemsKind explicit
     ItemsColumns
     ItemsList
     ItemsPages
+    ItemsIcons
 end enum
 
 ' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
@@ -43,11 +44,11 @@ public function ItemHandlerParams( byval kind_ as ItemsKind ) as ustring
 end function
 
 ' The event of the control that reaches its entries' handlers, "" for none: a menu's Command, a
-' toolbar's or a status bar's Click.
+' toolbar's, an icon panel's or a status bar's Click.
 public function ItemDispatchEvent( byval kind_ as ItemsKind ) as ustring
     select case kind_
     case ItemsKind.ItemsMenu : return "Command"
-    case ItemsKind.ItemsToolbar, ItemsKind.ItemsStatus : return "Click"
+    case ItemsKind.ItemsToolbar, ItemsKind.ItemsIcons, ItemsKind.ItemsStatus : return "Click"
     end select
     return ""
 end function
@@ -125,6 +126,7 @@ public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     select case typeName
     case "MenuBar"    : return ItemsKind.ItemsMenu
     case "Toolbar"    : return ItemsKind.ItemsToolbar
+    case "IconPanel"  : return ItemsKind.ItemsIcons
     case "StatusBar"  : return ItemsKind.ItemsStatus
     case "ListTree"   : return ItemsKind.ItemsColumns
     case "ComboBox"   : return ItemsKind.ItemsList

@@ -25,11 +25,13 @@
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkMeta"
+#import "vendor/tkControls/tkIconPanel"
 using containers
 using model
 using tkLayout
 using tkTheme
 using tkMeta
+using tkIconPanel
 
 const as string LF = chr( 10 )
 const as string CRLF = chr( 13, 10 )
@@ -1240,6 +1242,35 @@ sub ToolbarSuite( )
     HasLine( g, "case 1000 : f->tbr_Go( )", "toolbar: an item's handler still dispatched" )
 end sub
 
+' An IconPanel's icons (kind, glyph, handler: reached through Click) and its three new events.
+sub IconPanelSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""I""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "ip", "IconPanel" ) _
+        & LF & "[control.events]" & LF & "Paint = ""ip_Paint""" & LF & "Message = ""ip_Message""" & LF & "Tooltip = ""ip_Tip""" & LF _
+        & item & "kind = ""toggle""" & LF & "glyph = ""A""" & LF & "handler = ""ip_Files""" & LF _
+        & item & "kind = ""separator""" & LF _
+        & item & "kind = ""command""" & LF & "glyph = ""B""" & LF
+    Check( catalog.ItemsKindOf( "IconPanel" ) = catalog.ItemsKind.ItemsIcons, "iconpanel: its icons are an items list" )
+    Check( catalog.ItemDispatchEvent( catalog.ItemsKind.ItemsIcons ) = "Click", "iconpanel: an icon's handler runs through Click" )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "iconpanel: the form parses" )
+    Accepted( src, "iconpanel: icons and events" )
+    Check( d.Controls[0].Items.Count( ) = 3, "iconpanel: three icons read" )
+    dim as ustring g = codegen.Generate( d, "frmI", "frmI.tkform", src )
+    HasLine( g, "tkIconPanel_AddItem( ip.Handle, IP_KIND_TOGGLE, ""A"", 1000 )", "iconpanel: a toggle icon" )
+    HasLine( g, "tkIconPanel_AddItem( ip.Handle, IP_KIND_SEPARATOR, """", 1001 )", "iconpanel: a separator" )
+    HasLine( g, "tkIconPanel_AddItem( ip.Handle, IP_KIND_COMMAND, ""B"", 1002 )", "iconpanel: a command icon" )
+    HasLine( g, "case 1000 : f->ip_Files( )", "iconpanel: an icon's handler dispatched" )
+    HasLine( g, "tkIconPanel_SetClickCallback( ip.Handle, @Thunk_ip_Click )", "iconpanel: the dispatcher is installed" )
+    HasLine( g, "declare sub ip_Tip( byval idx as long, byref Text as ustring )", "iconpanel: Tooltip declared" )
+    Check( instr( g, "tkForms_ObjectOf( p->hIconPanel )" ) > 0, "iconpanel: Paint finds its form through the paint info" )
+    HasLine( g, "tkIconPanel_SetPaintItemCallback( ip.Handle, @Thunk_ip_Paint )", "iconpanel: Paint installed" )
+    Check( instr( g, "tkForms_ObjectOf( m->hIconPanel )" ) > 0, "iconpanel: Message finds its form through the message info" )
+    Refused( Header( ) & Ctl( "ip", "IconPanel" ) & item & "kind = ""split""" & LF, "no icon panel item kind" )
+    Check( codegen.IconKindValue( "" ) = IP_KIND_TOGGLE andalso codegen.IconKindValue( "command" ) = IP_KIND_COMMAND, "iconpanel: a kind's value (toggle by default)" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1582,6 +1613,7 @@ SelectBarSuite( )
 TabBarSuite( )
 MenuBarSuite( )
 ToolbarSuite( )
+IconPanelSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

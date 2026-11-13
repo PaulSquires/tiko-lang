@@ -241,6 +241,11 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         this.AddField( "Text", textLabel )
         this.AddField( "Glyph", i18n.Tr( "designer.item_glyph", "Glyph" ) )
         this.AddField( "Handler", handlerLabel )
+    case catalog.ItemsKind.ItemsIcons
+        ' an icon: no caption (its tip comes from the Tooltip event)
+        this.AddField( "Kind", i18n.Tr( "designer.item_kind", "Kind" ), "toggle,command,separator" )
+        this.AddField( "Glyph", i18n.Tr( "designer.item_glyph", "Glyph" ) )
+        this.AddField( "Handler", handlerLabel )
     case catalog.ItemsKind.ItemsStatus
         ' a panel: its text and width, a handler for its clicks, and whether it takes the spare width
         this.AddField( "Text", textLabel )
@@ -386,6 +391,11 @@ function ItemsEditor.RowText( byval i as long ) as ustring
         s &= "    "
     next
     if Items[i].Kind = "separator" then return s & "---"
+    ' an icon has no caption: its kind, and its handler once it has one
+    if Kind = catalog.ItemsKind.ItemsIcons then
+        if len( Items[i].Handler ) then return s & Items[i].Kind & "  " & Items[i].Handler
+        return s & Items[i].Kind
+    end if
     if len( Items[i].Text ) = 0 then return s & "(" & i18n.Tr( "designer.item_empty", "empty" ) & ")"
     return s & Items[i].Text
 end function
@@ -483,6 +493,7 @@ sub ItemsEditor.AddItem( )
     it.Text = i18n.Tr( "designer.item_new", "New" )
     it.Origin = -1
     if Kind = catalog.ItemsKind.ItemsToolbar then it.Kind = "command"
+    if Kind = catalog.ItemsKind.ItemsIcons then it.Kind = "toggle" : it.Text = ""
     dim as long at_ = Items.Count( )
     if (Current >= 0) andalso (Current < Items.Count( )) then
         at_ = Current + 1

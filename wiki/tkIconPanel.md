@@ -8,7 +8,7 @@ tkIconPanel is a compact strip of icon buttons with no captions: the small tool 
 
 Each cell is its declared icon size plus padding, whatever the glyph, and `tkIconPanel_SetJustify` places the run left, centred or right. The item set is static once built. Selection is a set of latched toggles; a radio-style group is one call, `tkIconPanel_SelectExclusive`, from the SelChange callback.
 
-`tkIconPanel_SetVertical` turns the row into a column, and `tkIconPanel_SetMarker` draws a selection marker: a slab down a column's left edge, or a rule under a row's cell. Both are off by default. A click never takes the keyboard focus. Setters are silent; Click and SelChange fire only for what the user does.
+`tkIconPanel_SetVertical` turns the row into a column, and `tkIconPanel_SetMarker` draws a selection marker: a slab down a column's left edge, or a rule under a row's cell. Both are off by default. A paint callback draws each item yourself; `tkIconPanel_PaintItemDefault( p )` in it draws the stock item first. A click never takes the keyboard focus. Setters are silent; Click and SelChange fire only for what the user does.
 
 ## Importing
 
@@ -223,6 +223,7 @@ function tkIconPanel_GetTooltipText( byval hIconPanel as TK_WIDGET ptr, byval id
 function tkIconPanel_SetTooltipText( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
 function tkIconPanel_GetHotItem( byval hIconPanel as TK_WIDGET ptr ) as long
 function tkIconPanel_GetPressedItem( byval hIconPanel as TK_WIDGET ptr ) as long
+sub tkIconPanel_PaintItemDefault( byval p as TKICONPANEL_PAINTINFO ptr )
 sub tkIconPanel_SetPaintItemCallback( byval hIconPanel as TK_WIDGET ptr, byval usersub as IP_PaintItemCallbackSub )
 sub tkIconPanel_SetMessageCallback( byval hIconPanel as TK_WIDGET ptr, byval userfunc as IP_MessageCallbackFunc )
 sub tkIconPanel_SetTooltipCallback( byval hIconPanel as TK_WIDGET ptr, byval userfunc as IP_TooltipCallbackFunc )

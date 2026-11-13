@@ -15,6 +15,7 @@
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkIconPanel"
 #import "../model"
 #import "../catalog"
 #import "../colorval"
@@ -22,6 +23,7 @@ using containers
 using tkMeta
 using tkLayout
 using tkToolbar
+using tkIconPanel
 using tkTheme
 using tkHost
 using tkPaint
@@ -133,6 +135,23 @@ private function ToolbarKindName_( byref kind_ as const ustring ) as ustring
     case "dropdown"  : return "TBR_KIND_DROPDOWN"
     end select
     return "TBR_KIND_COMMAND"
+end function
+
+' The value an icon panel item's kind stands for (a toggle when none is given, as the vendor's is).
+public function IconKindValue( byref kind_ as const ustring ) as long
+    select case kind_
+    case "command"   : return IP_KIND_COMMAND
+    case "separator" : return IP_KIND_SEPARATOR
+    end select
+    return IP_KIND_TOGGLE
+end function
+
+private function IconKindName_( byref kind_ as const ustring ) as ustring
+    select case kind_
+    case "command"   : return "IP_KIND_COMMAND"
+    case "separator" : return "IP_KIND_SEPARATOR"
+    end select
+    return "IP_KIND_TOGGLE"
 end function
 
 ' Entries are given ids from here, so a dispatcher can tell them from a control's own.
@@ -576,6 +595,10 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
     case catalog.ItemsKind.ItemsToolbar
         for i as long = 0 to c.Items.Count( ) - 1
             o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & Literal_( c.Items[i].Glyph ) & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
+        next
+    case catalog.ItemsKind.ItemsIcons
+        for i as long = 0 to c.Items.Count( ) - 1
+            o &= "    tkIconPanel_AddItem( " & h & ", " & IconKindName_( c.Items[i].Kind ) & ", " & Literal_( c.Items[i].Glyph ) & ", " & (base_ + i) & " )" & NL
         next
     case catalog.ItemsKind.ItemsStatus
         for i as long = 0 to c.Items.Count( ) - 1

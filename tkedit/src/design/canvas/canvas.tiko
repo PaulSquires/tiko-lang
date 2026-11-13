@@ -32,6 +32,7 @@
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkSelectBar"
+#import "vendor/tkControls/tkIconPanel"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
@@ -58,6 +59,7 @@ using tkStatusBar
 using tkListTree
 using tkComboBox
 using tkSelectBar
+using tkIconPanel
 using tkHost
 using tkPaint
 using model
@@ -518,6 +520,12 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         for each it as FormItem in c.Items
             n += 1
             tkToolbar_AddItem( w, codegen.ToolbarKindValue( it.Kind ), it.Glyph, it.Text, n )
+        next
+    case catalog.ItemsKind.ItemsIcons
+        dim as long n = 0
+        for each it as FormItem in c.Items
+            n += 1
+            tkIconPanel_AddItem( w, codegen.IconKindValue( it.Kind ), it.Glyph, n )
         next
     case catalog.ItemsKind.ItemsStatus
         dim as long n = 0
