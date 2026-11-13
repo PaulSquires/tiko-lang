@@ -65,7 +65,8 @@ tkWidget_SetPos( gScp, x, y, cx, cy )
 Without a layout callback, place the widgets yourself and call `tkScrollPanel_SetContentHeight`,
 or let `tkScrollPanel_AutoSizeContent` measure the visible children. `tkScrollPanel_SetPos`,
 `tkScrollPanel_SetContentHeight` and the other setters are silent; the wheel, the thumb and the
-focus scroll call the scroll callback.
+focus scroll call the scroll callback. A paint callback draws the page; `tkScrollPanel_PaintDefault( p )` in it fills
+the stock background first.
 
 ## Coming from PsScrollPanel
 
@@ -161,6 +162,7 @@ sub tkScrollPanel_SetScrollBarColors( byval hScp as TK_WIDGET ptr, byval backclr
 sub tkScrollPanel_ApplyTheme( byval hScp as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
 sub tkScrollPanel_UnpinColors( byval hScp as TK_WIDGET ptr )
 sub tkScrollPanel_SetScrollBarWidth( byval hScp as TK_WIDGET ptr, byval nWidth as long )
+sub tkScrollPanel_PaintDefault( byval p as SCP_PAINTINFO ptr )
 sub tkScrollPanel_SetPaintCallback( byval hScp as TK_WIDGET ptr, byval usersub as SCP_PaintCallbackSub )
 sub tkScrollPanel_SetMessageCallback( byval hScp as TK_WIDGET ptr, byval userfunc as SCP_MessageCallbackFunc )
 sub tkScrollPanel_SetLayoutCallback( byval hScp as TK_WIDGET ptr, byval userfunc as SCP_LayoutCallbackFunc )

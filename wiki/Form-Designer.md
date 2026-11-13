@@ -95,10 +95,12 @@ the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's, Toolbar's, IconPanel's or StatusBar's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, StatusBar, Splitter, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker, Splitter) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`; a StatusBar's one panel: `tkStatusBar_PaintPanelDefault`); call its
+(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, StatusBar, Splitter, ScrollPanel, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker, Splitter, ScrollPanel) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`; a StatusBar's one panel: `tkStatusBar_PaintPanelDefault`); call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it. A Panel's **Paint**
 handler draws over its background and border, under its children, so there is nothing to call first.
+A ScrollPanel's **Layout** handler runs on every layout pass with the page's width (`cxPanel`): place
+the children against it and set `ContentHeight` to the height they take (0 keeps the one set).
 
 A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter
 (`tkListTree_PaintRowDefault`), and a Paint handler can call that and add to it. Its header shows

@@ -772,6 +772,9 @@ props = [
 ]
 events = [
   { name="Scroll", set="tkScrollPanel_SetScrollCallback", type="SCP_ScrollCallbackSub", sig="byval hScrollPanel as TK_WIDGET ptr, byval newPos as long", params="byval newPos as long", args="newPos" },
+  { name="Paint", set="tkScrollPanel_SetPaintCallback", type="SCP_PaintCallbackSub", sig="byval p as SCP_PAINTINFO ptr", params="byval p as SCP_PAINTINFO ptr", args="p", widget="p->hScrollPanel" },
+  { name="Message", set="tkScrollPanel_SetMessageCallback", type="SCP_MessageCallbackFunc", sig="byval m as SCP_MESSAGEINFO ptr", params="byval m as SCP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hScrollPanel", returns="boolean", result="Handled" },
+  { name="Layout", set="tkScrollPanel_SetLayoutCallback", type="SCP_LayoutCallbackFunc", sig="byval hPanel as TK_WIDGET ptr, byval cxPanel as long", params="byval cxPanel as long, byref ContentHeight as long", args="cxPanel, ContentHeight", returns="long", result="ContentHeight" },
 ]
 
 [[control]]

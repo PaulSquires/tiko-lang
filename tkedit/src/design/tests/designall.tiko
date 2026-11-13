@@ -1335,6 +1335,25 @@ sub SplitterSuite( )
     Check( instr( g, "tkForms_ObjectOf( m->hSplitter )" ) > 0, "splitter: Message finds its form through the message info" )
 end sub
 
+' A ScrollPanel's three new events: Paint, Message and Layout (which answers the content height).
+sub ScrollPanelSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "scp", "ScrollPanel" ) & LF & "[control.events]" & LF & "Paint = ""scp_Paint""" & LF & "Message = ""scp_Message""" & LF & "Layout = ""scp_Layout""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "scrollpanel: the form parses" )
+    Accepted( src, "scrollpanel: Paint, Message and Layout" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    Check( instr( g, "tkForms_ObjectOf( p->hScrollPanel )" ) > 0, "scrollpanel: Paint finds its form through the paint info" )
+    HasLine( g, "tkScrollPanel_SetPaintCallback( scp.Handle, @Thunk_scp_Paint )", "scrollpanel: Paint installed" )
+    Check( instr( g, "tkForms_ObjectOf( m->hScrollPanel )" ) > 0, "scrollpanel: Message finds its form through the message info" )
+    HasLine( g, "declare sub scp_Layout( byval cxPanel as long, byref ContentHeight as long )", "scrollpanel: Layout declared" )
+    Check( instr( g, "private function Thunk_scp_Layout( byval hPanel as TK_WIDGET ptr, byval cxPanel as long ) as long" ) > 0, "scrollpanel: Layout answers the height", g )
+    HasLine( g, "tkScrollPanel_SetLayoutCallback( scp.Handle, @Thunk_scp_Layout )", "scrollpanel: Layout installed" )
+    ' SCP_PAINTINFO is the ScrollPanel's own type, though not spelled TK*: a handler file imports it
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval p as SCP_PAINTINFO ptr", "tkScrollPanel" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkScrollPanel"), "scrollpanel: a Paint handler's file imports tkScrollPanel" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1682,6 +1701,7 @@ StatusBarSuite( )
 PanelSuite( )
 TabControlSuite( )
 SplitterSuite( )
+ScrollPanelSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
