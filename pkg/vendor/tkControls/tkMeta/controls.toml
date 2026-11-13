@@ -989,7 +989,9 @@ props = [
   { name="Font", kind="font", set="tkMenuBar_SetFont", get="" },
 ]
 events = [
-  { name="Command", set="tkMenuBar_SetCommandCallback", type="MB_CommandCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval id as long", params="", args="" },
+  { name="Command", set="tkMenuBar_SetCommandCallback", type="MB_CommandCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval id as long", params="byval id as long", args="id" },
+  { name="InitPopup", set="tkMenuBar_SetInitPopupCallback", type="MB_InitPopupCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr", params="byval idx as long, byval hPopup as TK_MENU ptr", args="idx, hPopup" },
+  { name="Paint", set="tkMenuBar_SetPaintItemCallback", type="MB_PaintItemCallbackSub", sig="byval p as TKMENUBAR_PAINTINFO ptr", params="byval p as TKMENUBAR_PAINTINFO ptr", args="p", widget="p->hMenuBar" },
 ]
 
 [[control]]

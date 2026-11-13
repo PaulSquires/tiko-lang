@@ -8,7 +8,7 @@ tkMenuBar is the strip of top-level menu names (File, Edit, View, Help) along th
 
 It behaves like a desktop menu bar. A click opens an item's dropdown, moving the mouse along the bar switches dropdowns while one is open, and clicking the bar again closes it. Left and Right step between dropdowns. `tkMenuBar_SetActiveIndex` starts the keyboard highlight mode (bind it to a key such as F10): Left / Right move the highlight, Down or Enter open, Escape clears.
 
-A chosen command arrives at the bar's Command callback with its id, after the whole menu has closed. The InitPopup callback runs before every dropdown opens, the moment to update check marks and enabled states. Setters are silent.
+A chosen command arrives at the bar's Command callback with its id, after the whole menu has closed. The InitPopup callback runs before every dropdown opens, the moment to update check marks and enabled states. A paint callback draws each bar item yourself; `tkMenuBar_PaintItemDefault( p )` in it draws the stock item first. Setters are silent.
 
 ## Importing
 
@@ -148,6 +148,7 @@ sub tkMenuBar_ApplyFonts( byval hMenuBar as TK_WIDGET ptr, byval fText as TTF_Fo
 sub tkMenuBar_SetFont( byval hMenuBar as TK_WIDGET ptr, byval f as TTF_Font ptr )
 sub tkMenuBar_SetCommandCallback( byval hMenuBar as TK_WIDGET ptr, byval usersub as MB_CommandCallbackSub )
 sub tkMenuBar_SetInitPopupCallback( byval hMenuBar as TK_WIDGET ptr, byval usersub as MB_InitPopupCallbackSub )
+sub tkMenuBar_PaintItemDefault( byval p as TKMENUBAR_PAINTINFO ptr )
 sub tkMenuBar_SetPaintItemCallback( byval hMenuBar as TK_WIDGET ptr, byval usersub as MB_PaintItemCallbackSub )
 ```
 

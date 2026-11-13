@@ -96,7 +96,7 @@ the whole control API.
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's, CheckBox's or OptionButton's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
 (Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`); call its
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's one item: `tkMenuBar_PaintItemDefault`); call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
 
 A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter
@@ -145,6 +145,11 @@ A MenuBar dropped on a form opens this editor straight away, filled with a stand
 (About), with the usual shortcuts. Change what you like; **Cancel** leaves the bar empty. In the editor
 the arrow buttons move the selected item up or down and out or in a level, **+** adds one and the bin
 removes it.
+
+A menu item's handler runs when it is chosen. The bar's own **Command** handler runs after it for
+every item and is told which (`sub Form.OnCommand( byval id as long )`); **InitPopup** runs before a
+drop-down opens (`byval idx as long, byval hPopup as TK_MENU ptr`), the moment to check or disable its
+items.
 
 A StatusBar panel has a text, a width, a **Handler** and **Stretch**. The handler runs when the panel is
 clicked and is told how many clicks (`sub Form.OnPanel( byval clicks as long )`, 2 for a double click).

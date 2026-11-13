@@ -1195,6 +1195,32 @@ sub TabBarSuite( )
     HasLine( g, "tkTabBar_SetPaintCallback( tb.Handle, @Thunk_tb_Paint )", "tabbar: Paint installed" )
 end sub
 
+' A MenuBar's Command handler is told the id, and its two new events: InitPopup and Paint.
+sub MenuBarSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""M""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "mb", "MenuBar" ) _
+        & LF & "[control.events]" & LF & "Command = ""mb_Command""" & LF & "InitPopup = ""mb_InitPopup""" & LF & "Paint = ""mb_Paint""" & LF _
+        & item & "text = ""File""" & LF & item & "text = ""Open""" & LF & "level = 1" & LF & "handler = ""mb_Open""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "menubar: the form parses" )
+    Accepted( src, "menubar: Command, InitPopup and Paint" )
+    dim as ustring g = codegen.Generate( d, "frmM", "frmM.tkform", src )
+    HasLine( g, "declare sub mb_Command( byval id as long )", "menubar: Command is told the id" )
+    HasLine( g, "f->mb_Command( id )", "menubar: and called with it, after the entry's own" )
+    HasLine( g, "case 1001 : f->mb_Open( )", "menubar: an entry's handler still dispatched" )
+    HasLine( g, "declare sub mb_InitPopup( byval idx as long, byval hPopup as TK_MENU ptr )", "menubar: InitPopup declared" )
+    HasLine( g, "tkMenuBar_SetInitPopupCallback( mb.Handle, @Thunk_mb_InitPopup )", "menubar: InitPopup installed" )
+    Check( instr( g, "tkForms_ObjectOf( p->hMenuBar )" ) > 0, "menubar: Paint finds its form through the paint info" )
+    HasLine( g, "tkMenuBar_SetPaintItemCallback( mb.Handle, @Thunk_mb_Paint )", "menubar: Paint installed" )
+    ' InitPopup alone hands over a TK_MENU: the popup module comes in even with no entries
+    dim as ustring src2 = "format = 1" & LF & LF & "[form]" & LF & "caption = ""M""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "mb", "MenuBar" ) & LF & "[control.events]" & LF & "InitPopup = ""mb_InitPopup""" & LF
+    dim as FormDoc d2
+    Check( ReadForm( src2, d2 ), "menubar: the second form parses" )
+    Check( instr( codegen.Generate( d2, "frmM", "frmM.tkform", src2 ), "#import ""vendor/tkControls/tkPopupMenu""" ) > 0, "menubar: InitPopup imports the popup module" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1535,6 +1561,7 @@ ListTreeSuite( )
 ComboBoxSuite( )
 SelectBarSuite( )
 TabBarSuite( )
+MenuBarSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
