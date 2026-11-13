@@ -13,6 +13,12 @@ the mouse wheel step too, and a button at its limit draws as disabled.
 The value-changed callback runs at once for buttons, keys and the wheel, and on commit (Enter or
 focus loss) for typed text. Every setter is silent. Read-only blocks typing but not stepping.
 
+`tkNumericUpDown_SetTooltipText` gives the control a tooltip, shown while the pointer rests on any
+part of it, the value field included; `SetHoverTime`, `SetAutoPopTime` and `SetReshowTime` set its
+delays, and `GetTooltipHandle` reaches the tkTooltip itself. The border follows the theme's
+`BorderWidth` until `SetBorderThickness` is called. A paint callback replaces the drawing; call
+`tkNumericUpDown_PaintDefault( p )` in it to draw the stock control first and add to it.
+
 ## Importing
 
 ```freebasic
@@ -224,6 +230,13 @@ sub tkNumericUpDown_ApplyFonts( byval hCtrl as TK_WIDGET ptr, byval fText as TTF
 sub tkNumericUpDown_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as NUD_PaintCallbackSub )
 sub tkNumericUpDown_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as NUD_MessageCallbackFunc )
 sub tkNumericUpDown_SetValueChangedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as NUD_ValueChangedCallbackSub )
+sub tkNumericUpDown_PaintDefault( byval pi as TKNUMERICUPDOWN_PAINTINFO ptr )
+sub tkNumericUpDown_SetTooltipText( byval hCtrl as TK_WIDGET ptr, byval Text as ustring )
+function tkNumericUpDown_GetTooltipText( byval hCtrl as TK_WIDGET ptr ) as ustring
+function tkNumericUpDown_GetTooltipHandle( byval hCtrl as TK_WIDGET ptr ) as TK_TIP ptr
+sub tkNumericUpDown_SetHoverTime( byval hCtrl as TK_WIDGET ptr, byval ms as long )
+sub tkNumericUpDown_SetAutoPopTime( byval hCtrl as TK_WIDGET ptr, byval ms as long )
+sub tkNumericUpDown_SetReshowTime( byval hCtrl as TK_WIDGET ptr, byval ms as long )
 ```
 
 ### See also

@@ -351,15 +351,21 @@ props = [
   { name="Font", kind="font", set="tkNumericUpDown_SetFont", get="tkNumericUpDown_GetFont" },
   { name="ButtonWidth", kind="int", set="tkNumericUpDown_SetButtonWidth", get="tkNumericUpDown_GetButtonWidth" },
   { name="CornerRadius", kind="int", set="tkNumericUpDown_SetCornerRadius", get="tkNumericUpDown_GetCornerRadius", theme="CornerRadius", scale=1 },
-  { name="BorderThickness", kind="int", set="tkNumericUpDown_SetBorderThickness", get="tkNumericUpDown_GetBorderThickness" },
+  { name="BorderThickness", kind="int", set="tkNumericUpDown_SetBorderThickness", get="tkNumericUpDown_GetBorderThickness", theme="BorderWidth", scale=1 },
   { name="DividerThickness", kind="int", set="tkNumericUpDown_SetDividerThickness", get="tkNumericUpDown_GetDividerThickness" },
   { name="Range", kind="list", enum="Min:float,Max:float", set="tkNumericUpDown_SetRange", get="" },
   { name="AutoRepeat", kind="list", enum="DelayMs:int,IntervalMs:int", set="tkNumericUpDown_SetAutoRepeat", get="" },
   { name="ValuePadding", kind="list", enum="Left:int,Right:int,Vert:int", set="tkNumericUpDown_SetValuePadding", get="" },
   { name="GlyphSize", kind="list", enum="Length:int,Thickness:int", set="tkNumericUpDown_SetGlyphSize", get="" },
+  { name="TooltipText", kind="text", set="tkNumericUpDown_SetTooltipText", get="tkNumericUpDown_GetTooltipText" },
+  { name="HoverTime", kind="int", set="tkNumericUpDown_SetHoverTime", get="" },
+  { name="AutoPopTime", kind="int", set="tkNumericUpDown_SetAutoPopTime", get="" },
+  { name="ReshowTime", kind="int", set="tkNumericUpDown_SetReshowTime", get="" },
 ]
 events = [
   { name="ValueChanged", set="tkNumericUpDown_SetValueChangedCallback", type="NUD_ValueChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nValue as double", params="byval nValue as double", args="nValue" },
+  { name="Paint", set="tkNumericUpDown_SetPaintCallback", type="NUD_PaintCallbackSub", sig="byval p as TKNUMERICUPDOWN_PAINTINFO ptr", params="byval p as TKNUMERICUPDOWN_PAINTINFO ptr", args="p", widget="p->hCtrl" },
+  { name="Message", set="tkNumericUpDown_SetMessageCallback", type="NUD_MessageCallbackFunc", sig="byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr", params="byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
 ]
 
 [[control]]

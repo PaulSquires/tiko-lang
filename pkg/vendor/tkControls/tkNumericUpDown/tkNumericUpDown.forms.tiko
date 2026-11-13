@@ -38,6 +38,11 @@ public type NumericUpDown
     declare sub AutoRepeat( byval a0 as long, byval a1 as long )
     declare sub ValuePadding( byval a0 as long, byval a1 as long, byval a2 as long )
     declare sub GlyphSize( byval a0 as long, byval a1 as long )
+    declare property TooltipText( ) as ustring
+    declare property TooltipText( byref v as const ustring )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
 end type
 
 sub NumericUpDown.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -159,3 +164,23 @@ end sub
 sub NumericUpDown.GlyphSize( byval a0 as long, byval a1 as long )
     tkNumericUpDown_SetGlyphSize( Handle, a0, a1 )
 end sub
+
+property NumericUpDown.TooltipText( ) as ustring
+    return tkNumericUpDown_GetTooltipText( Handle )
+end property
+
+property NumericUpDown.TooltipText( byref v as const ustring )
+    tkNumericUpDown_SetTooltipText( Handle, v )
+end property
+
+property NumericUpDown.HoverTime( byval v as long )
+    tkNumericUpDown_SetHoverTime( Handle, v )
+end property
+
+property NumericUpDown.AutoPopTime( byval v as long )
+    tkNumericUpDown_SetAutoPopTime( Handle, v )
+end property
+
+property NumericUpDown.ReshowTime( byval v as long )
+    tkNumericUpDown_SetReshowTime( Handle, v )
+end property

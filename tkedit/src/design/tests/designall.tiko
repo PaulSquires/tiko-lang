@@ -965,6 +965,22 @@ sub TextBoxEventsSuite( )
     HasLine( g, "tkTextBox_SetScrollChangedCallback( txt.Handle, @Thunk_txt_ScrollChanged )", "textbox: ScrollChanged installed" )
 end sub
 
+' A NumericUpDown's tooltip rows and its Paint and Message events.
+sub NumericUpDownSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""N""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "nud", "NumericUpDown" ) & LF & "[control.props]" & LF & "TooltipText = ""Qty""" & LF & "HoverTime = 300" & LF _
+        & LF & "[control.events]" & LF & "Paint = ""nud_Paint""" & LF & "Message = ""nud_Message""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "numericupdown: the form parses" )
+    Accepted( src, "numericupdown: the new rows and events" )
+    dim as ustring g = codegen.Generate( d, "frmN", "frmN.tkform", src )
+    HasLine( g, "nud.TooltipText = ""Qty""", "numericupdown: TooltipText" )
+    HasLine( g, "nud.HoverTime = 300", "numericupdown: HoverTime" )
+    Check( instr( g, "dim as Form ptr f = tkForms_ObjectOf( p->hCtrl )" ) > 0, "numericupdown: Paint finds its form through the paint info" )
+    Check( instr( g, "private function Thunk_nud_Message( byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr ) as boolean" & LF _
+        & "    dim as boolean Handled" & LF & "    dim as Form ptr f = tkForms_ObjectOf( m->hCtrl )" & LF ) > 0, "numericupdown: Message's thunk answers Handled" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1294,6 +1310,7 @@ TranslateSuite( )
 WindowSuite( )
 ButtonEventsSuite( )
 TextBoxEventsSuite( )
+NumericUpDownSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

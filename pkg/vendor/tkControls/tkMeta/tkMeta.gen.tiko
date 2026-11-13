@@ -974,6 +974,26 @@ private sub A_NumericUpDown_GlyphSize( byval w as TK_WIDGET ptr, byref v as cons
     tkNumericUpDown_SetGlyphSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_NumericUpDown_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetTooltipText( w, v )
+end sub
+
+private function R_NumericUpDown_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkNumericUpDown_GetTooltipText( w )
+end function
+
+private sub A_NumericUpDown_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_NumericUpDown_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_NumericUpDown_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
 private function C_ComboBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkComboBox_Create( hParent, id )
 end function
@@ -2846,13 +2866,19 @@ sub Fill_( )
     Prop_( "Font", "font", "", "", "tkNumericUpDown_SetFont", "tkNumericUpDown_GetFont", 0, 0, @F_NumericUpDown_Font, true, true, "", 0 )
     Prop_( "ButtonWidth", "int", "", "", "tkNumericUpDown_SetButtonWidth", "tkNumericUpDown_GetButtonWidth", @A_NumericUpDown_ButtonWidth, @R_NumericUpDown_ButtonWidth, 0, true, true, "", 0 )
     Prop_( "CornerRadius", "int", "", "", "tkNumericUpDown_SetCornerRadius", "tkNumericUpDown_GetCornerRadius", @A_NumericUpDown_CornerRadius, @R_NumericUpDown_CornerRadius, 0, true, true, "CornerRadius", 1 )
-    Prop_( "BorderThickness", "int", "", "", "tkNumericUpDown_SetBorderThickness", "tkNumericUpDown_GetBorderThickness", @A_NumericUpDown_BorderThickness, @R_NumericUpDown_BorderThickness, 0, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkNumericUpDown_SetBorderThickness", "tkNumericUpDown_GetBorderThickness", @A_NumericUpDown_BorderThickness, @R_NumericUpDown_BorderThickness, 0, true, true, "BorderWidth", 1 )
     Prop_( "DividerThickness", "int", "", "", "tkNumericUpDown_SetDividerThickness", "tkNumericUpDown_GetDividerThickness", @A_NumericUpDown_DividerThickness, @R_NumericUpDown_DividerThickness, 0, true, true, "", 0 )
     Prop_( "Range", "list", "", "Min:float,Max:float", "tkNumericUpDown_SetRange", "", @A_NumericUpDown_Range, 0, 0, true, true, "", 0 )
     Prop_( "AutoRepeat", "list", "", "DelayMs:int,IntervalMs:int", "tkNumericUpDown_SetAutoRepeat", "", @A_NumericUpDown_AutoRepeat, 0, 0, true, true, "", 0 )
     Prop_( "ValuePadding", "list", "", "Left:int,Right:int,Vert:int", "tkNumericUpDown_SetValuePadding", "", @A_NumericUpDown_ValuePadding, 0, 0, true, true, "", 0 )
     Prop_( "GlyphSize", "list", "", "Length:int,Thickness:int", "tkNumericUpDown_SetGlyphSize", "", @A_NumericUpDown_GlyphSize, 0, 0, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkNumericUpDown_SetTooltipText", "tkNumericUpDown_GetTooltipText", @A_NumericUpDown_TooltipText, @R_NumericUpDown_TooltipText, 0, true, true, "", 0 )
+    Prop_( "HoverTime", "int", "", "", "tkNumericUpDown_SetHoverTime", "", @A_NumericUpDown_HoverTime, 0, 0, true, true, "", 0 )
+    Prop_( "AutoPopTime", "int", "", "", "tkNumericUpDown_SetAutoPopTime", "", @A_NumericUpDown_AutoPopTime, 0, 0, true, true, "", 0 )
+    Prop_( "ReshowTime", "int", "", "", "tkNumericUpDown_SetReshowTime", "", @A_NumericUpDown_ReshowTime, 0, 0, true, true, "", 0 )
     Event_( "ValueChanged", "tkNumericUpDown_SetValueChangedCallback", "NUD_ValueChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval nValue as double", "byval nValue as double", "nValue" )
+    Event_( "Paint", "tkNumericUpDown_SetPaintCallback", "NUD_PaintCallbackSub", "byval p as TKNUMERICUPDOWN_PAINTINFO ptr", "byval p as TKNUMERICUPDOWN_PAINTINFO ptr", "p", "p->hCtrl", "", "" )
+    Event_( "Message", "tkNumericUpDown_SetMessageCallback", "NUD_MessageCallbackFunc", "byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr", "byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
     Add_( "ComboBox", "tkComboBox", "Common", 160, 28, "SelChange", "", @C_ComboBox, "", "", "", "" )
     Colors_( "TKCOMBOBOX_COLORS", "tkComboBox_GetColors", "tkComboBox_ThemeColors", @G_ComboBox, @T_ComboBox )
     Color_( "BackColor", "Back", "Normal", "", false )
