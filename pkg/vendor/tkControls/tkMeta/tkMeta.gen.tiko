@@ -1688,6 +1688,31 @@ private sub A_ColorPicker_CellSize( byval w as TK_WIDGET ptr, byref v as const u
     tkColorPicker_SetCellSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_ColorPicker_ShowAlpha( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkColorPicker_ShowAlpha( w, cbool( v = "true" ) )
+end sub
+
+private function R_ColorPicker_ShowAlpha( byval w as TK_WIDGET ptr ) as ustring
+    if tkColorPicker_IsAlphaShown( w ) then return "true" else return "false"
+end function
+
+private sub A_ColorPicker_ActiveTab( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Web" : tkColorPicker_SetTab( w, CLR_TAB_WEB )
+    case "System" : tkColorPicker_SetTab( w, CLR_TAB_SYSTEM )
+    case "Custom" : tkColorPicker_SetTab( w, CLR_TAB_CUSTOM )
+    end select
+end sub
+
+private function R_ColorPicker_ActiveTab( byval w as TK_WIDGET ptr ) as ustring
+    select case tkColorPicker_GetTab( w )
+    case CLR_TAB_WEB : return "Web"
+    case CLR_TAB_SYSTEM : return "System"
+    case CLR_TAB_CUSTOM : return "Custom"
+    end select
+    return ""
+end function
+
 private function C_Picture( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkPicture_Create( hParent, id )
 end function
@@ -3386,9 +3411,13 @@ sub Fill_( )
     Prop_( "PreviewText", "list", "", "TextInitial:text,TextCurrent:text", "tkColorPicker_SetPreviewText", "", @A_ColorPicker_PreviewText, 0, 0, true, true, "", 0 )
     Prop_( "MatrixSize", "list", "", "Cols:int,Rows:int", "tkColorPicker_SetMatrixSize", "", @A_ColorPicker_MatrixSize, 0, 0, true, true, "", 0 )
     Prop_( "CellSize", "list", "", "Cx:int,Cy:int", "tkColorPicker_SetCellSize", "", @A_ColorPicker_CellSize, 0, 0, true, true, "", 0 )
+    Prop_( "ShowAlpha", "bool", "true", "", "tkColorPicker_ShowAlpha", "tkColorPicker_IsAlphaShown", @A_ColorPicker_ShowAlpha, @R_ColorPicker_ShowAlpha, 0, true, true, "", 0 )
+    Prop_( "ActiveTab", "enum", "Custom", "Web=CLR_TAB_WEB,System=CLR_TAB_SYSTEM,Custom=CLR_TAB_CUSTOM", "tkColorPicker_SetTab", "tkColorPicker_GetTab", @A_ColorPicker_ActiveTab, @R_ColorPicker_ActiveTab, 0, true, true, "", 0 )
     Event_( "ColorChanged", "tkColorPicker_SetColorChangedCallback", "CLR_ColorChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", "byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", "clr, nAlpha, nPhase" )
     Event_( "Open", "tkColorPicker_SetOpenCallback", "CLR_OpenCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pSurface as TK_HOST ptr", "byval pSurface as TK_HOST ptr", "pSurface" )
     Event_( "TabChanged", "tkColorPicker_SetTabChangedCallback", "CLR_TabChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval nTab as long", "byval nTab as long", "nTab" )
+    Event_( "Paint", "tkColorPicker_SetPaintCallback", "CLR_PaintCallbackSub", "byval p as any ptr", "byval p as TKCOLORPICKER_PAINTINFO ptr", "cast( TKCOLORPICKER_PAINTINFO ptr, p )", "cast( TKCOLORPICKER_PAINTINFO ptr, p )->hColorPicker", "", "" )
+    Event_( "Message", "tkColorPicker_SetMessageCallback", "CLR_MessageCallbackFunc", "byval m as TKCOLORPICKER_MESSAGEINFO ptr", "byval m as TKCOLORPICKER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hColorPicker", "boolean", "Handled" )
     Add_( "Picture", "tkPicture", "Common", 120, 90, "Click", "", @C_Picture, "", "", "", "" )
     Prop_( "File", "file", "", "", "tkPicture_SetFile", "tkPicture_GetFile", @A_Picture_File, @R_Picture_File, 0, true, true, "", 0 )
     Prop_( "Fit", "enum", "Aspect", "Aspect=TK_IMGFIT_ASPECT,Stretch=TK_IMGFIT_STRETCH,Center=TK_IMGFIT_CENTER", "tkPicture_SetFit", "tkPicture_GetFit", @A_Picture_Fit, @R_Picture_Fit, 0, true, true, "", 0 )

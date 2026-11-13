@@ -22,6 +22,10 @@ public type ColorPicker
     declare sub PreviewText( byref a0 as const ustring, byref a1 as const ustring )
     declare sub MatrixSize( byval a0 as long, byval a1 as long )
     declare sub CellSize( byval a0 as long, byval a1 as long )
+    declare property ShowAlpha( ) as boolean
+    declare property ShowAlpha( byval v as boolean )
+    declare property ActiveTab( ) as long
+    declare property ActiveTab( byval v as long )
 end type
 
 sub ColorPicker.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -79,3 +83,19 @@ end sub
 sub ColorPicker.CellSize( byval a0 as long, byval a1 as long )
     tkColorPicker_SetCellSize( Handle, a0, a1 )
 end sub
+
+property ColorPicker.ShowAlpha( ) as boolean
+    return tkColorPicker_IsAlphaShown( Handle )
+end property
+
+property ColorPicker.ShowAlpha( byval v as boolean )
+    tkColorPicker_ShowAlpha( Handle, v )
+end property
+
+property ColorPicker.ActiveTab( ) as long
+    return tkColorPicker_GetTab( Handle )
+end property
+
+property ColorPicker.ActiveTab( byval v as long )
+    tkColorPicker_SetTab( Handle, v )
+end property

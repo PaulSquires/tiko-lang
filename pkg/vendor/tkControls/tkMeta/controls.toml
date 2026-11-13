@@ -668,11 +668,15 @@ props = [
   { name="PreviewText", kind="list", enum="TextInitial:text,TextCurrent:text", set="tkColorPicker_SetPreviewText", get="" },
   { name="MatrixSize", kind="list", enum="Cols:int,Rows:int", set="tkColorPicker_SetMatrixSize", get="" },
   { name="CellSize", kind="list", enum="Cx:int,Cy:int", set="tkColorPicker_SetCellSize", get="" },
+  { name="ShowAlpha", kind="bool", set="tkColorPicker_ShowAlpha", get="tkColorPicker_IsAlphaShown", default="true" },
+  { name="ActiveTab", kind="enum", enum="Web=CLR_TAB_WEB,System=CLR_TAB_SYSTEM,Custom=CLR_TAB_CUSTOM", set="tkColorPicker_SetTab", get="tkColorPicker_GetTab", default="Custom" },
 ]
 events = [
   { name="ColorChanged", set="tkColorPicker_SetColorChangedCallback", type="CLR_ColorChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", params="byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", args="clr, nAlpha, nPhase" },
   { name="Open", set="tkColorPicker_SetOpenCallback", type="CLR_OpenCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pSurface as TK_HOST ptr", params="byval pSurface as TK_HOST ptr", args="pSurface" },
   { name="TabChanged", set="tkColorPicker_SetTabChangedCallback", type="CLR_TabChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nTab as long", params="byval nTab as long", args="nTab" },
+  { name="Paint", set="tkColorPicker_SetPaintCallback", type="CLR_PaintCallbackSub", sig="byval p as any ptr", params="byval p as TKCOLORPICKER_PAINTINFO ptr", args="cast( TKCOLORPICKER_PAINTINFO ptr, p )", widget="cast( TKCOLORPICKER_PAINTINFO ptr, p )->hColorPicker" },
+  { name="Message", set="tkColorPicker_SetMessageCallback", type="CLR_MessageCallbackFunc", sig="byval m as TKCOLORPICKER_MESSAGEINFO ptr", params="byval m as TKCOLORPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hColorPicker", returns="boolean", result="Handled" },
 ]
 
 [[control]]
