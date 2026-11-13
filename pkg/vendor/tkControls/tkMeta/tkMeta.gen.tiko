@@ -665,6 +665,26 @@ private sub A_Toggle_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustri
     tkToggle_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_Toggle_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetTooltipText( w, v )
+end sub
+
+private function R_Toggle_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkToggle_GetTooltipText( w )
+end function
+
+private sub A_Toggle_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Toggle_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Toggle_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToggle_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
 private function C_TextBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTextBox_Create( hParent, id, cbool( arg = "true" ) )
 end function
@@ -2958,10 +2978,16 @@ sub Fill_( )
     Prop_( "Checked", "bool", "false", "", "tkToggle_SetChecked", "tkToggle_GetChecked", @A_Toggle_Checked, @R_Toggle_Checked, 0, true, true, "", 0 )
     Prop_( "Justify", "enum", "Center", "Left=TOG_JUSTIFY_LEFT,Center=TOG_JUSTIFY_CENTER,Right=TOG_JUSTIFY_RIGHT", "tkToggle_SetJustify", "tkToggle_GetJustify", @A_Toggle_Justify, @R_Toggle_Justify, 0, true, true, "", 0 )
     Prop_( "KnobInset", "int", "", "", "tkToggle_SetKnobInset", "tkToggle_GetKnobInset", @A_Toggle_KnobInset, @R_Toggle_KnobInset, 0, true, true, "", 0 )
-    Prop_( "BorderThickness", "int", "", "", "tkToggle_SetBorderThickness", "tkToggle_GetBorderThickness", @A_Toggle_BorderThickness, @R_Toggle_BorderThickness, 0, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkToggle_SetBorderThickness", "tkToggle_GetBorderThickness", @A_Toggle_BorderThickness, @R_Toggle_BorderThickness, 0, true, true, "BorderWidth", 1 )
     Prop_( "TrackSize", "list", "", "TrackWidth:int,TrackHeight:int", "tkToggle_SetTrackSize", "", @A_Toggle_TrackSize, 0, 0, true, true, "", 0 )
     Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkToggle_SetFocusRing", "", @A_Toggle_FocusRing, 0, 0, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkToggle_SetTooltipText", "tkToggle_GetTooltipText", @A_Toggle_TooltipText, @R_Toggle_TooltipText, 0, true, true, "", 0 )
+    Prop_( "HoverTime", "int", "", "", "tkToggle_SetHoverTime", "", @A_Toggle_HoverTime, 0, 0, true, true, "", 0 )
+    Prop_( "AutoPopTime", "int", "", "", "tkToggle_SetAutoPopTime", "", @A_Toggle_AutoPopTime, 0, 0, true, true, "", 0 )
+    Prop_( "ReshowTime", "int", "", "", "tkToggle_SetReshowTime", "", @A_Toggle_ReshowTime, 0, 0, true, true, "", 0 )
     Event_( "CheckChanged", "tkToggle_SetCheckChangedCallback", "TOG_CheckChangedCallbackSub", "byval hToggle as TK_WIDGET ptr, byval isChecked as boolean", "byval isChecked as boolean", "isChecked" )
+    Event_( "Paint", "tkToggle_SetPaintCallback", "TOG_PaintCallbackSub", "byval p as TKTOGGLE_PAINTINFO ptr", "byval p as TKTOGGLE_PAINTINFO ptr", "p", "p->hToggle", "", "" )
+    Event_( "Message", "tkToggle_SetMessageCallback", "TOG_MessageCallbackFunc", "byval m as TKTOGGLE_MESSAGEINFO ptr", "byval m as TKTOGGLE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hToggle", "boolean", "Handled" )
     Add_( "TextBox", "tkTextBox", "Common", 160, 28, "Change", "", @C_TextBox, "Multiline", "bool", "", "false" )
     Colors_( "TKTEXTBOX_COLORS", "tkTextBox_GetColors", "tkTextBox_ThemeColors", @G_TextBox, @T_TextBox )
     Color_( "ForeColor", "Fore", "Normal", "", true )

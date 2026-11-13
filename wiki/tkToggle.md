@@ -5,13 +5,17 @@
 Draws an on/off switch: a rounded track and a knob that marks the state.
 
 `tkToggle` is the [tkControls](Category-tkControls) switch for a single setting that takes
-effect at once. It is a track and a knob and nothing else: no caption, no font, no tooltip and no
-animation, so put a label beside it. A click, Space or Enter flips it; a held key does not
+effect at once. It is a track and a knob and nothing else: no caption, no font and no animation,
+so put a label beside it. It can carry a tooltip (`tkToggle_SetTooltipText`, with the usual
+`SetHoverTime` / `SetAutoPopTime` / `SetReshowTime` and `GetTooltipHandle`). A click, Space or Enter flips it; a held key does not
 re-flip it. The arrow keys are not claimed.
 
 `tkToggle_SetChecked` is silent; the check-changed callback runs only when the user flips the
 switch. The switch sits left, centred or right inside its client area (`TOG_JUSTIFY_*`), and a
 client too short for the track clips it rather than squeezing it.
+
+The track's border follows the theme's `BorderWidth` until `tkToggle_SetBorderThickness` sets it.
+A paint callback replaces the drawing; `tkToggle_PaintDefault( p )` draws the stock toggle first.
 
 ## Importing
 
@@ -173,6 +177,13 @@ function tkToggle_ThemeColors( byref t as TKTHEME_COLORS ) as TKTOGGLE_COLORS
 sub tkToggle_ApplyTheme( byval hToggle as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
 sub tkToggle_UnpinColors( byval hToggle as TK_WIDGET ptr )
 sub tkToggle_SetPaintCallback( byval hToggle as TK_WIDGET ptr, byval usersub as TOG_PaintCallbackSub )
+sub tkToggle_PaintDefault( byval p as TKTOGGLE_PAINTINFO ptr )
+sub tkToggle_SetTooltipText( byval hToggle as TK_WIDGET ptr, byval Text as ustring )
+function tkToggle_GetTooltipText( byval hToggle as TK_WIDGET ptr ) as ustring
+function tkToggle_GetTooltipHandle( byval hToggle as TK_WIDGET ptr ) as TK_TIP ptr
+sub tkToggle_SetHoverTime( byval hToggle as TK_WIDGET ptr, byval ms as long )
+sub tkToggle_SetAutoPopTime( byval hToggle as TK_WIDGET ptr, byval ms as long )
+sub tkToggle_SetReshowTime( byval hToggle as TK_WIDGET ptr, byval ms as long )
 sub tkToggle_SetMessageCallback( byval hToggle as TK_WIDGET ptr, byval userfunc as TOG_MessageCallbackFunc )
 sub tkToggle_SetCheckChangedCallback( byval hToggle as TK_WIDGET ptr, byval usersub as TOG_CheckChangedCallbackSub )
 ```

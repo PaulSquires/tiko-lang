@@ -24,6 +24,11 @@ public type Toggle
     declare property BorderThickness( byval v as long )
     declare sub TrackSize( byval a0 as long, byval a1 as long )
     declare sub FocusRing( byval a0 as long, byval a1 as long )
+    declare property TooltipText( ) as ustring
+    declare property TooltipText( byref v as const ustring )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
 end type
 
 sub Toggle.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -89,3 +94,23 @@ end sub
 sub Toggle.FocusRing( byval a0 as long, byval a1 as long )
     tkToggle_SetFocusRing( Handle, a0, a1 )
 end sub
+
+property Toggle.TooltipText( ) as ustring
+    return tkToggle_GetTooltipText( Handle )
+end property
+
+property Toggle.TooltipText( byref v as const ustring )
+    tkToggle_SetTooltipText( Handle, v )
+end property
+
+property Toggle.HoverTime( byval v as long )
+    tkToggle_SetHoverTime( Handle, v )
+end property
+
+property Toggle.AutoPopTime( byval v as long )
+    tkToggle_SetAutoPopTime( Handle, v )
+end property
+
+property Toggle.ReshowTime( byval v as long )
+    tkToggle_SetReshowTime( Handle, v )
+end property

@@ -254,12 +254,18 @@ props = [
   { name="Checked", kind="bool", set="tkToggle_SetChecked", get="tkToggle_GetChecked", default="false" },
   { name="Justify", kind="enum", enum="Left=TOG_JUSTIFY_LEFT,Center=TOG_JUSTIFY_CENTER,Right=TOG_JUSTIFY_RIGHT", set="tkToggle_SetJustify", get="tkToggle_GetJustify", default="Center" },
   { name="KnobInset", kind="int", set="tkToggle_SetKnobInset", get="tkToggle_GetKnobInset" },
-  { name="BorderThickness", kind="int", set="tkToggle_SetBorderThickness", get="tkToggle_GetBorderThickness" },
+  { name="BorderThickness", kind="int", set="tkToggle_SetBorderThickness", get="tkToggle_GetBorderThickness", theme="BorderWidth", scale=1 },
   { name="TrackSize", kind="list", enum="TrackWidth:int,TrackHeight:int", set="tkToggle_SetTrackSize", get="" },
   { name="FocusRing", kind="list", enum="Gap:int,Thickness:int", set="tkToggle_SetFocusRing", get="" },
+  { name="TooltipText", kind="text", set="tkToggle_SetTooltipText", get="tkToggle_GetTooltipText" },
+  { name="HoverTime", kind="int", set="tkToggle_SetHoverTime", get="" },
+  { name="AutoPopTime", kind="int", set="tkToggle_SetAutoPopTime", get="" },
+  { name="ReshowTime", kind="int", set="tkToggle_SetReshowTime", get="" },
 ]
 events = [
   { name="CheckChanged", set="tkToggle_SetCheckChangedCallback", type="TOG_CheckChangedCallbackSub", sig="byval hToggle as TK_WIDGET ptr, byval isChecked as boolean", params="byval isChecked as boolean", args="isChecked" },
+  { name="Paint", set="tkToggle_SetPaintCallback", type="TOG_PaintCallbackSub", sig="byval p as TKTOGGLE_PAINTINFO ptr", params="byval p as TKTOGGLE_PAINTINFO ptr", args="p", widget="p->hToggle" },
+  { name="Message", set="tkToggle_SetMessageCallback", type="TOG_MessageCallbackFunc", sig="byval m as TKTOGGLE_MESSAGEINFO ptr", params="byval m as TKTOGGLE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hToggle", returns="boolean", result="Handled" },
 ]
 
 [[control]]

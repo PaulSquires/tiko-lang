@@ -1083,6 +1083,21 @@ sub OptionButtonSuite( )
     HasLine( g, "tkOptionButton_SetMessageCallback( opt.Handle, @Thunk_opt_Message )", "optionbutton: Message installed" )
 end sub
 
+' A Toggle's tooltip rows and its Paint and Message events.
+sub ToggleSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""T""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "tg", "Toggle" ) & LF & "[control.props]" & LF & "TooltipText = ""Wi-Fi""" & LF & "BorderThickness = 2" & LF _
+        & LF & "[control.events]" & LF & "Paint = ""tg_Paint""" & LF & "Message = ""tg_Message""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "toggle: the form parses" )
+    Accepted( src, "toggle: the new rows and events" )
+    dim as ustring g = codegen.Generate( d, "frmT", "frmT.tkform", src )
+    HasLine( g, "tg.TooltipText = ""Wi-Fi""", "toggle: TooltipText" )
+    Check( instr( g, "tkForms_ObjectOf( p->hToggle )" ) > 0, "toggle: Paint finds its form through the paint info" )
+    Check( instr( g, "tkForms_ObjectOf( m->hToggle )" ) > 0, "toggle: Message finds its form through the message info" )
+    HasLine( g, "tkToggle_SetMessageCallback( tg.Handle, @Thunk_tg_Message )", "toggle: Message installed" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1418,6 +1433,7 @@ CalendarSuite( )
 CodeEditSuite( )
 CheckBoxSuite( )
 OptionButtonSuite( )
+ToggleSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
