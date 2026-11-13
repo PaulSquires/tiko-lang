@@ -420,6 +420,21 @@ sub FormCanvas.Rebuild( )
     for i as long = 0 to Doc.Controls.Count( ) - 1
         dim as FormControl c = Doc.Controls[i]
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        if catalog.IsComponent( c.TypeName ) then
+            ' a component (a Timer): its name in a box on the form, never the real thing, which would
+            ' run while being designed; nothing at all on a Test Form
+            dim as TK_WIDGET ptr wc = catalog.CreateComponentBox( Surface, i + 1 )
+            Widgets.Push( wc )
+            if wc = 0 then continue for
+            tkLabel_SetText( wc, c.Name )
+            tkLabel_SetEllipsis( wc, true )
+            tkLabel_SetTransparent( wc, false )
+            tkLabel_SetBackColor( wc, tkTheme_Get( ).Selected )
+            tkLabel_SetTextColor( wc, tkTheme_Get( ).SelectedText )
+            tkLayout_Add( Layout, wc, c.X, c.Y, c.W, c.H )
+            if Live then tkWidget_Show( wc, false ) else MakeInert_( wc )
+            continue for
+        end if
         dim as TK_WIDGET ptr parent_ = Surface
         if len( c.Parent ) then this.ContainerClient( FindControl( Doc, c.Parent ), c.Page, parent_ )
         dim as ustring arg = m->CreateArgDflt
@@ -669,6 +684,7 @@ end function
 
 ' Which edges control i's grips may move. A docked control can only change its thickness.
 function FormCanvas.GripsOf( byval i as long ) as long
+    if catalog.IsComponent( Doc.Controls[i].TypeName ) then return 0     ' a component's box only moves
     select case Doc.Controls[i].Dock
     case TK_DOCK_TOP    : return EDGE_B
     case TK_DOCK_BOTTOM : return EDGE_T

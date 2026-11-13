@@ -927,6 +927,14 @@ sub DesignPanels.BuildRows( )
             exit sub
         end if
         dim as TKMETA_CONTROL ptr m0 = catalog.Find( C->Doc.Controls[i0].TypeName )
+        ' a component (a Timer) only has a place on the design surface: no size, anchors, dock or Visible
+        dim as boolean anyComponent = false
+        for k as long = 0 to n - 1
+            dim as long ik = FindControl( C->Doc, C->Selected[k] )
+            if ik >= 0 then
+                if catalog.IsComponent( C->Doc.Controls[ik].TypeName ) then anyComponent = true
+            end if
+        next
         if n = 1 then
             this.AddRow( "@Name", i18n.Tr( "designer.name", "Name" ), RowKind.RowText )
             if catalog.ItemsKindOf( m0->Name ) <> catalog.ItemsKind.ItemsNone then
@@ -938,22 +946,26 @@ sub DesignPanels.BuildRows( )
             end if
             this.AddRow( "@X", "X", RowKind.RowText )
             this.AddRow( "@Y", "Y", RowKind.RowText )
-            this.AddRow( "@W", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
-            this.AddRow( "@H", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
+            if anyComponent = false then
+                this.AddRow( "@W", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
+                this.AddRow( "@H", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
+            end if
         end if
-        ' one Anchors line: L T R B, a row (and a key) each underneath
-        this.AddRow( "@AL", i18n.Tr( "designer.anchors", "Anchors (L,T,R,B)" ), RowKind.RowCheck )
-        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "L" )
-        this.AddRow( "@AT", "", RowKind.RowCheck )
-        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "T" )
-        Rows[Rows.Count( ) - 1].Inline = true
-        this.AddRow( "@AR", "", RowKind.RowCheck )
-        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "R" )
-        Rows[Rows.Count( ) - 1].Inline = true
-        this.AddRow( "@AB", "", RowKind.RowCheck )
-        tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "B" )
-        Rows[Rows.Count( ) - 1].Inline = true
-        this.AddRow( "@Dock", i18n.Tr( "designer.dock_mode", "Dock" ), RowKind.RowCombo, "none,top,bottom,left,right,fill" )
+        if anyComponent = false then
+            ' one Anchors line: L T R B, a row (and a key) each underneath
+            this.AddRow( "@AL", i18n.Tr( "designer.anchors", "Anchors (L,T,R,B)" ), RowKind.RowCheck )
+            tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "L" )
+            this.AddRow( "@AT", "", RowKind.RowCheck )
+            tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "T" )
+            Rows[Rows.Count( ) - 1].Inline = true
+            this.AddRow( "@AR", "", RowKind.RowCheck )
+            tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "R" )
+            Rows[Rows.Count( ) - 1].Inline = true
+            this.AddRow( "@AB", "", RowKind.RowCheck )
+            tkCheckBox_SetText( Rows[Rows.Count( ) - 1].Edit, "B" )
+            Rows[Rows.Count( ) - 1].Inline = true
+            this.AddRow( "@Dock", i18n.Tr( "designer.dock_mode", "Dock" ), RowKind.RowCombo, "none,top,bottom,left,right,fill" )
+        end if
         dim as boolean anyCustom = false
         for k as long = 0 to n - 1
             dim as long ik = FindControl( C->Doc, C->Selected[k] )
@@ -963,7 +975,7 @@ sub DesignPanels.BuildRows( )
         next
         if anyCustom = false then
             this.AddRow( "Enabled", "Enabled", RowKind.RowCheck )
-            this.AddRow( "Visible", "Visible", RowKind.RowCheck )
+            if anyComponent = false then this.AddRow( "Visible", "Visible", RowKind.RowCheck )
         end if
         if (n = 1) andalso (m0->Name = catalog.CUSTOM_TYPE) then
             this.AddRow( "@CType", i18n.Tr( "designer.custom_type", "Type" ), RowKind.RowText )

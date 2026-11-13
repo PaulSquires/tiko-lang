@@ -171,6 +171,14 @@ clicked and is told how many clicks (`sub Form.OnPanel( byval clicks as long )`,
 it evenly. It is saved per panel (`stretch = true`). A form from before this keeps its bar's `ExpandPanel`
 property until the panels are next edited, when it becomes that panel's Stretch.
 
+## Components
+
+A **Timer** is a component, not a control: the form has one, but it is never shown. On the surface it is
+a small box with its name, on the form itself whatever you drop it on; you can move it, not resize,
+anchor or dock it. Its **Interval** is in milliseconds (0, the default, means stopped), **Enabled** starts
+and stops it, and its **Tick** handler (`sub Form.OnTick( )`) runs every Interval while it is enabled. A
+Test Form leaves it out. See [tkTimer](tkTimer).
+
 ## Your own controls
 
 The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel, give it the name of

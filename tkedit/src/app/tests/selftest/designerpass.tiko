@@ -423,6 +423,23 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     Primary( h, SDLK_Y, SDL_SCANCODE_Y )
     t.Check( d->Text( ) = keepText, P( sc, "Primary+Y doesn't delete a hidden line" ) )
 
+    ' ---- a component (a Timer): a named box on the form itself, moved but never resized
+    dim as ustring beforeTimer = d->Text( )
+    t.Check( c->PlaceDefault( "Timer" ), P( sc, "a Timer is placed" ) )
+    tkTest_PumpFor( h, 30 )
+    dim as long iTmr = FindControl( c->Doc, "Timer1" )
+    t.Check( iTmr >= 0, P( sc, "named Timer1" ) )
+    if iTmr >= 0 then
+        dim as TK_WIDGET ptr wt = c->WidgetOf( "Timer1" )
+        t.Check( (wt <> 0) andalso tkWidget_IsVisible( wt ) andalso (wt->pParent = c->Surface) andalso (wt->cw = tkHost_Scale( h, 72 )), P( sc, "drawn as a box on the form" ) )
+        t.Check( c->GripsOf( iTmr ) = 0, P( sc, "a component's box has no grips" ) )
+        t.Check( (Ctl( c, "Timer1" ).W = 72) andalso (Ctl( c, "Timer1" ).H = 24) andalso (len( Ctl( c, "Timer1" ).Parent ) = 0), P( sc, "at its own size, on the form" ) )
+        t.Check( instr( d->Text( ), "type = ""Timer""" ) > 0, P( sc, "and in the file" ) )
+    end if
+    Primary( h, SDLK_Z, SDL_SCANCODE_Z )
+    tkTest_PumpFor( h, 30 )
+    t.Check( d->Text( ) = beforeTimer, P( sc, "placing a Timer is one undoable step" ) )
+
     ' ---- save
     Primary( h, SDLK_S, SDL_SCANCODE_S )
     tkTest_PumpFor( h, 30 )

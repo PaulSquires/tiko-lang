@@ -85,6 +85,9 @@ public type TKMETA_CONTROL
     CreateArgKind as ustring
     CreateArgEnum as ustring
     CreateArgDflt as ustring
+    ' FALSE: a component (a Timer): created and set up like a control, but never shown or laid out.
+    ' A designer draws it as a small box of its own.
+    Visual        as boolean = true
     Props( any )  as TKMETA_PROP
     NumProps      as long
     Events( any ) as TKMETA_EVENT
@@ -106,7 +109,7 @@ dim shared as boolean gFilled
 private sub Add_( byref name_ as const ustring, byref mod_ as const ustring, byref cat as const ustring, _
                   byval w as long, byval h as long, byref dev as const ustring, byref cont as const ustring, _
                   byval create as TKMETA_CreateFunc, byref argName as const ustring, byref argKind as const ustring, _
-                  byref argEnum as const ustring, byref argDflt as const ustring )
+                  byref argEnum as const ustring, byref argDflt as const ustring, byval bVisual as boolean = true )
     redim preserve gControls( 0 to gnControls )
     with gControls( gnControls )
         .Name = name_ : .Module_ = mod_ : .Category = cat : .Width_ = w : .Height_ = h
@@ -118,6 +121,7 @@ private sub Add_( byref name_ as const ustring, byref mod_ as const ustring, byr
         case "scrollpanel" : .ContainerKind = TKMETA_CONTAINER_SCROLLPANEL
         end select
         .CreateArg = argName : .CreateArgKind = argKind : .CreateArgEnum = argEnum : .CreateArgDflt = argDflt
+        .Visual = bVisual
     end with
     gnControls += 1
 end sub

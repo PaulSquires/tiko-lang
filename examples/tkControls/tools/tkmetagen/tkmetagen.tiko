@@ -245,6 +245,8 @@ sub GenWrapper( byref ctl as TomlValue, byref root as const ustring )
     dim as ustring argName = Str_( ctl, "create_arg" ), argKind = Str_( ctl, "create_arg_kind" )
     dim as ustring argDflt = Str_( ctl, "create_arg_default" ), argEnum = Str_( ctl, "create_arg_enum" )
     dim as ustring argParam, argCall
+    ' a component (visual = false) is never shown and never focused: no Visible, no SetFocus
+    dim as boolean visual = Flag_( ctl, "visual", true )
     if len( argName ) then
         dim as ustring dv = argDflt
         if argKind = "enum" then dv = KonstOf_( argEnum, argDflt )
@@ -259,8 +261,10 @@ sub GenWrapper( byref ctl as TomlValue, byref root as const ustring )
     o &= "    Handle as TK_WIDGET ptr" & NL
     o &= "    declare sub Create( byval hParent as TK_WIDGET ptr, byval id as long" & argParam & " )" & NL
     o &= "    declare property Enabled( ) as boolean" & NL & "    declare property Enabled( byval v as boolean )" & NL
-    o &= "    declare property Visible( ) as boolean" & NL & "    declare property Visible( byval v as boolean )" & NL
-    o &= "    declare sub SetFocus( )" & NL
+    if visual then
+        o &= "    declare property Visible( ) as boolean" & NL & "    declare property Visible( byval v as boolean )" & NL
+        o &= "    declare sub SetFocus( )" & NL
+    end if
     dim as TomlValue ptr props = ctl.Find( "props" )
     for i as long = 0 to props->Count( ) - 1
         dim as TomlValue ptr p = @props->Item( i )
@@ -278,9 +282,11 @@ sub GenWrapper( byref ctl as TomlValue, byref root as const ustring )
     o &= "    Handle = " & mod_ & "_Create( hParent, id" & argCall & " )" & NL & "end sub" & NL & NL
     o &= "property " & name_ & ".Enabled( ) as boolean" & NL & "    return tkWidget_IsEnabled( Handle )" & NL & "end property" & NL & NL
     o &= "property " & name_ & ".Enabled( byval v as boolean )" & NL & "    tkWidget_Enable( Handle, v )" & NL & "end property" & NL & NL
-    o &= "property " & name_ & ".Visible( ) as boolean" & NL & "    return Handle->isVisible" & NL & "end property" & NL & NL
-    o &= "property " & name_ & ".Visible( byval v as boolean )" & NL & "    tkWidget_Show( Handle, v )" & NL & "end property" & NL & NL
-    o &= "sub " & name_ & ".SetFocus( )" & NL & "    tkHost_SetFocus( Handle->pHost, Handle )" & NL & "end sub" & NL
+    if visual then
+        o &= "property " & name_ & ".Visible( ) as boolean" & NL & "    return Handle->isVisible" & NL & "end property" & NL & NL
+        o &= "property " & name_ & ".Visible( byval v as boolean )" & NL & "    tkWidget_Show( Handle, v )" & NL & "end property" & NL & NL
+        o &= "sub " & name_ & ".SetFocus( )" & NL & "    tkHost_SetFocus( Handle->pHost, Handle )" & NL & "end sub" & NL
+    end if
     for i as long = 0 to props->Count( ) - 1
         dim as TomlValue ptr p = @props->Item( i )
         dim as ustring pn = Str_( *p, "name" ), kind = Str_( *p, "kind" ), g = Str_( *p, "get" )
@@ -353,7 +359,8 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
 
         fill &= "    Add_( " & Quote_( name_ ) & ", " & Quote_( mod_ ) & ", " & Quote_( Str_( *ctl, "category" ) ) & ", " & Int_( *ctl, "width" ) & ", " & Int_( *ctl, "height" ) & ", " _
                 & Quote_( Str_( *ctl, "default_event" ) ) & ", " & Quote_( Str_( *ctl, "container" ) ) & ", @C_" & name_ & ", " _
-                & Quote_( Str_( *ctl, "create_arg" ) ) & ", " & Quote_( argKind ) & ", " & Quote_( argEnum ) & ", " & Quote_( Str_( *ctl, "create_arg_default" ) ) & " )" & NL
+                & Quote_( Str_( *ctl, "create_arg" ) ) & ", " & Quote_( argKind ) & ", " & Quote_( argEnum ) & ", " & Quote_( Str_( *ctl, "create_arg_default" ) ) _
+                & iif( Flag_( *ctl, "visual", true ), "", ", false" ) & " )" & NL
 
         dim as TomlValue ptr col = ctl->Find( "colors" )
         if col then

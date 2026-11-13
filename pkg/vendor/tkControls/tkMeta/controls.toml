@@ -21,6 +21,9 @@
 # the callback's result type when it answers; result = the handler's byref parameter (listed in
 # params) whose value the thunk returns, starting from that type's default or from result_init.
 # fallback = a procedure the generated code installs when no handler is bound (a ListTree's rows).
+#
+# visual = false: a component, not a control (a Timer). It is created on the form and set up like a
+# control, but never shown or laid out; a designer draws it as a width x height box of its own.
 
 [[control]]
 name = "Label"
@@ -1262,4 +1265,19 @@ events = [
   { name="Notify", set="tkCodeEdit_SetNotifyCallback", type="TKCODEEDIT_NotifySub", sig="byval hEdit as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr", params="byval n as const TKCE_NOTIFICATION ptr", args="n" },
   { name="ContextMenu", set="tkCodeEdit_SetContextMenuCallback", type="TKCODEEDIT_ContextMenuSub", sig="byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long", params="byval x as long, byval y as long", args="x, y" },
   { name="ScaleChanged", set="tkCodeEdit_SetScaleCallback", type="TKCODEEDIT_ScaleSub", sig="byval hEdit as TK_WIDGET ptr, byval fOld as single, byval fNew as single", params="byval fOld as single, byval fNew as single", args="fOld, fNew" },
+]
+
+[[control]]
+name = "Timer"
+module = "tkTimer"
+category = "Components"
+width = 72
+height = 24
+default_event = "Tick"
+visual = false
+props = [
+  { name="Interval", kind="int", set="tkTimer_SetInterval", get="tkTimer_GetInterval", default="0" },
+]
+events = [
+  { name="Tick", set="tkTimer_SetTickCallback", type="TMR_TickCallbackSub", sig="byval hTimer as TK_WIDGET ptr", params="", args="" },
 ]

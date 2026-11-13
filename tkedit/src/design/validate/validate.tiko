@@ -12,12 +12,14 @@
 #import "std/containers"
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkKeys"
+#import "vendor/tkControls/tkLayout"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
 using containers
 using tkMeta
 using tkKeys
+using tkLayout
 using model
 
 public function IsIdentifier( byref s as const ustring ) as boolean
@@ -232,6 +234,13 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         if m = 0 then
             out_.Push( c.Name & ": unknown control type '" & c.TypeName & "'" )
             continue for
+        end if
+
+        ' a component (a Timer) is never shown: it belongs to the form, with nothing to lay out
+        if catalog.IsComponent( c.TypeName ) then
+            if len( c.Parent ) then out_.Push( c.Name & ": a " & m->Name & " belongs to the form, not inside '" & c.Parent & "'" )
+            if c.Dock <> TK_DOCK_NONE then out_.Push( c.Name & ": a " & m->Name & " is never shown, so it can't be docked" )
+            if c.Anchor <> TK_ANCHOR_DEFAULT then out_.Push( c.Name & ": a " & m->Name & " is never shown, so it has no anchors" )
         end if
 
         if len( c.Parent ) then

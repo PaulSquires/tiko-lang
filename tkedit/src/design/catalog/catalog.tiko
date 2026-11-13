@@ -24,6 +24,19 @@ private function CreateStandIn( byval hParent as TK_WIDGET ptr, byval id as long
     return w
 end function
 
+' A component (tkMeta's visual = false, a Timer): created on the form but never shown or laid out.
+' The designer draws it as a fixed box with its name, on the form itself, never inside a container.
+public function IsComponent( byref typeName as const ustring ) as boolean
+    if typeName = CUSTOM_TYPE then return false
+    dim as TKMETA_CONTROL ptr m = tkMeta_Find( typeName )
+    return (m <> 0) andalso (m->Visual = false)
+end function
+
+' The box that stands for a component on the design surface: a label the canvas names.
+public function CreateComponentBox( byval hParent as TK_WIDGET ptr, byval id as long ) as TK_WIDGET ptr
+    return CreateStandIn( hParent, id, "" )
+end function
+
 ' Which list of entries a control type has, if any.
 public enum ItemsKind explicit
     ItemsNone = 0

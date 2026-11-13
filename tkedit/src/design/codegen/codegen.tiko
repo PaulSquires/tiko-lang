@@ -659,10 +659,13 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     end if
     o &= " )" & NL
 
-    o &= "    tkLayout_Add( Layout, " & c.Name & ".Handle, " & c.X & ", " & c.Y & ", " & c.W & ", " & c.H
-    if (c.Anchor <> TK_ANCHOR_DEFAULT) orelse (c.Dock <> TK_DOCK_NONE) then o &= ", " & AnchorExpr_( c.Anchor )
-    if c.Dock <> TK_DOCK_NONE then o &= ", " & DockExpr_( c.Dock )
-    o &= " )" & NL
+    ' a component (a Timer) is never shown: nothing to lay out
+    if m->Visual then
+        o &= "    tkLayout_Add( Layout, " & c.Name & ".Handle, " & c.X & ", " & c.Y & ", " & c.W & ", " & c.H
+        if (c.Anchor <> TK_ANCHOR_DEFAULT) orelse (c.Dock <> TK_DOCK_NONE) then o &= ", " & AnchorExpr_( c.Anchor )
+        if c.Dock <> TK_DOCK_NONE then o &= ", " & DockExpr_( c.Dock )
+        o &= " )" & NL
+    end if
 
     ' A tab control's pages exist before its properties are set, and before its children.
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then

@@ -53,6 +53,7 @@ from the PsControls control it ports.
 | `tkSplitter`, `tkScrollPanel`, `tkScrollBar`, `tkVScrollBar`, `tkHScrollBar` | layout and scrolling |
 | `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkFileDialog` | popups and feedback |
 | `tkChart` | line, column, HLOC and pie charts |
+| `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own

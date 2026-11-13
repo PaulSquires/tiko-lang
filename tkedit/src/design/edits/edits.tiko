@@ -108,6 +108,13 @@ public function AddControl( byref doc as FormDoc, byref typeName as const ustrin
     c.Y = y
     c.W = w
     c.H = h
+    ' a component sits on the form itself, at its own size, wherever it was dropped
+    if catalog.IsComponent( m->Name ) then
+        c.Parent = ""
+        c.Page = -1
+        c.W = m->Width_
+        c.H = m->Height_
+    end if
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then c.Pages.Push( "Page1" )
     ' these belong along an edge
     select case m->Name
@@ -279,8 +286,11 @@ public sub ResizeControl( byref doc as FormDoc, byval i as long, byval x as long
     codegen.EffectiveSizes( doc, was )
     doc.Controls[i].X = x
     doc.Controls[i].Y = y
-    doc.Controls[i].W = w
-    doc.Controls[i].H = h
+    ' a component's box keeps its size: it moves, nothing more
+    if catalog.IsComponent( doc.Controls[i].TypeName ) = false then
+        doc.Controls[i].W = w
+        doc.Controls[i].H = h
+    end if
     Reflow_( doc, was, doc.ClientW, doc.ClientH )
 end sub
 
@@ -319,13 +329,16 @@ end sub
 public sub SetDock( byref doc as FormDoc, byref names as Array( of ustring ), byval dock_ as long )
     for each s as ustring in names
         dim as long i = FindControl( doc, s )
-        if i >= 0 then doc.Controls[i].Dock = dock_
+        if i >= 0 then
+            if catalog.IsComponent( doc.Controls[i].TypeName ) = false then doc.Controls[i].Dock = dock_
+        end if
     next
 end sub
 
 public sub SetAnchorBit( byref doc as FormDoc, byref names as Array( of ustring ), byval bit_ as long, byval onOff as boolean )
     for each s as ustring in names
         dim as long i = FindControl( doc, s )
+        if (i >= 0) andalso catalog.IsComponent( doc.Controls[i].TypeName ) then i = -1
         if i >= 0 then
             if onOff then
                 doc.Controls[i].Anchor or= bit_
@@ -521,6 +534,10 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
         if len( c.Parent ) = 0 then
             n.Parent = parent
             n.Page = page
+            if catalog.IsComponent( c.TypeName ) then
+                n.Parent = ""
+                n.Page = -1
+            end if
             n.X += dx
             n.Y += dy
             newNames.Push( n.Name )
