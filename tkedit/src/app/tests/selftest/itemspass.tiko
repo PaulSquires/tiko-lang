@@ -144,8 +144,8 @@ public sub PencilPass( byref t as Tally, byval sc as single )
     tkTest_Click( h, tx, ty, SDL_BUTTON_LEFT, 2 )
     tkTest_PumpFor( h, 100 )
     dim as long i = FindControl( c->Doc, "MenuBar1" )
-    t.Check( (tr >= 0) andalso (i >= 0) andalso (c->Doc.Controls[i].Items[0].Handler = "File"), P( sc, "pencil at once after a Toolbox double click: no crash, File named" ) )
-    t.Check( (mw.Active( ) <> d) andalso (instr( mw.Active( )->Text( ), "sub Form.File( )" ) > 0), P( sc, "and its body in front" ) )
+    t.Check( (tr >= 0) andalso (i >= 0) andalso (c->Doc.Controls[i].Items[0].Handler = "MenuBar1_File"), P( sc, "pencil at once after a Toolbox double click: no crash, MenuBar1_File named" ) )
+    t.Check( (mw.Active( ) <> d) andalso (instr( mw.Active( )->Text( ), "sub Form.MenuBar1_File( )" ) > 0), P( sc, "and its body in front" ) )
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )
     next
@@ -369,12 +369,12 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     dim as itemsdlg.ItemsEditor ptr pd = mw.ItemsDlg
     pd->ShowItem( 4 )
     PressIn( tkForm_Host( pd->Win ), pd->BtnHandler )
-    t.Check( pd->Accepted andalso (pd->Items[4].Handler = "File_SaveAs"), P( sc, "the pencil names File > Save As... and accepts: " & pd->Items[4].Handler ) )
+    t.Check( pd->Accepted andalso (pd->Items[4].Handler = "MenuBar2_File_SaveAs"), P( sc, "the pencil names MenuBar2's File > Save As... and accepts: " & pd->Items[4].Handler ) )
     mw.FinishItems( true )
     tkTest_PumpFor( h, 80 )
     dim as DocRef pcode = mw.FindOpen( fs.PathJoin( dir_, "frmI.tiko" ) )
     dim as long pa, pb
-    t.Check( (pcode <> 0) andalso (mw.Active( ) = pcode) andalso reconcile.FindBody( pcode->Text( ), "File_SaveAs", pa, pb ) _
+    t.Check( (pcode <> 0) andalso (mw.Active( ) = pcode) andalso reconcile.FindBody( pcode->Text( ), "MenuBar2_File_SaveAs", pa, pb ) _
              andalso (mw.View( ).CaretLine( ) = pa + 2), P( sc, "and the code shows its new body, the caret in it" ) )
     mw.ShowDoc( d )
     tkTest_PumpFor( h, 40 )

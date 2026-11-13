@@ -518,9 +518,9 @@ private function NamePart_( byref s as const ustring ) as ustring
     return o
 end function
 
-' The name the pencil gives an item with no handler. A menu's is its path, File > Save As... being
-' File_SaveAs; any other entry's is the control's name and its text (tbr_Go). Never a name another
-' entry here already calls, nor one tiko keeps for itself.
+' The name the pencil gives an item with no handler: the control's name, then for a menu the item's
+' path (MenuBar1's File > Save As... is MenuBar1_File_SaveAs), for any other entry its text (tbr_Go).
+' Never a name another entry here already calls, nor one tiko keeps for itself.
 function ItemsEditor.DefaultHandler( byval i as long ) as ustring
     dim as ustring n
     if catalog.IsMenuKind( Kind ) then
@@ -534,7 +534,8 @@ function ItemsEditor.DefaultHandler( byval i as long ) as ustring
                 lvl = Items[j].Level
             end if
         next
-        if len( n ) = 0 then n = ControlName & "_Item" & (i + 1)
+        if len( n ) = 0 then n = "Item" & (i + 1)
+        n = ControlName & "_" & n
     else
         dim as ustring part = NamePart_( Items[i].Text )
         if len( part ) = 0 then part = "Item" & (i + 1)
