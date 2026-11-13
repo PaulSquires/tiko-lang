@@ -35,6 +35,23 @@ public enum ItemsKind explicit
     ItemsPages
 end enum
 
+' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
+' (2 for a double click); a menu or toolbar entry's takes none.
+public function ItemHandlerParams( byval kind_ as ItemsKind ) as ustring
+    if kind_ = ItemsKind.ItemsStatus then return "byval clicks as long"
+    return ""
+end function
+
+' The event of the control that reaches its entries' handlers, "" for none: a menu's Command, a
+' toolbar's or a status bar's Click.
+public function ItemDispatchEvent( byval kind_ as ItemsKind ) as ustring
+    select case kind_
+    case ItemsKind.ItemsMenu : return "Command"
+    case ItemsKind.ItemsToolbar, ItemsKind.ItemsStatus : return "Click"
+    end select
+    return ""
+end function
+
 public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     select case typeName
     case "MenuBar"    : return ItemsKind.ItemsMenu

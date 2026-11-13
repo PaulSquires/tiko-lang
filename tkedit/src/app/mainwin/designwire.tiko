@@ -185,6 +185,14 @@ sub Window.OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
     else
         items = c->Doc.Controls[i].Items
     end if
+    ' a status bar's spring is its ExpandPanel property; the editor shows it as that panel's Stretch
+    if kind_ = catalog.ItemsKind.ItemsStatus then
+        dim as long ep = FindSetting( c->Doc.Controls[i].Props, "ExpandPanel" )
+        if ep >= 0 then
+            dim as long k = valint( c->Doc.Controls[i].Props[ep].Value )
+            if (k >= 0) andalso (k < items.Count( )) then items[k].Stretch = true
+        end if
+    end if
     ItemsDlg = new itemsdlg.ItemsEditor
     ItemsOf = c
     ItemsName = name_
@@ -216,6 +224,20 @@ sub Window.FinishItems( byval apply_ as boolean )
     else
         trial.Controls[i].Items = items
     end if
+    ' the panel ticked Stretch becomes the status bar's ExpandPanel; none ticked, no spring
+    if kind_ = catalog.ItemsKind.ItemsStatus then
+        dim as long spring = -1
+        for k as long = 0 to items.Count( ) - 1
+            if items[k].Stretch then spring = k
+            trial.Controls[i].Items[k].Stretch = false      ' the editor's flag, not the form's
+        next
+        dim as long ep = FindSetting( trial.Controls[i].Props, "ExpandPanel" )
+        if spring >= 0 then
+            PutSetting( trial.Controls[i].Props, "ExpandPanel", str( spring ), VALUE_INT )
+        elseif ep >= 0 then
+            trial.Controls[i].Props.Remove( ep )
+        end if
+    end if
     dim as ustring fault = c->ApplyEdit( trial, true, "" )
     if len( fault ) then
         this.SetMessage( fault )
@@ -229,7 +251,7 @@ sub Window.FinishItems( byval apply_ as boolean )
             if code = 0 then exit for
             dim as long a, b, bodyLine
             if reconcile.FindBody( code->Text( ), it.Handler, a, b ) = false then
-                this.PutCodeText( code, reconcile.AddStub( code->Text( ), it.Handler, "", bodyLine ) )
+                this.PutCodeText( code, reconcile.AddStub( code->Text( ), it.Handler, catalog.ItemHandlerParams( kind_ ), bodyLine ) )
             end if
         end if
     next

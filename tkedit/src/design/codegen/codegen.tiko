@@ -158,14 +158,27 @@ private function AnyShortcut_( byref doc as FormDoc ) as boolean
 end function
 
 ' The select cases that call each entry's handler. The menu ids are the entry's place in the whole
-' form, so one key table can reach every menu.
+' form, so one key table can reach every menu; a status bar's Click says which panel by its index,
+' and its handlers are told the clicks.
 private sub ItemCases_( byref c as FormControl, byval baseId as long, byref o as ustring )
+    dim as boolean status_ = (catalog.ItemsKindOf( c.TypeName ) = catalog.ItemsKind.ItemsStatus)
     for i as long = 0 to c.Items.Count( ) - 1
         if len( c.Items[i].Handler ) then
-            o &= "    case " & (baseId + i) & " : f->" & c.Items[i].Handler & "( )" & NL
+            if status_ then
+                o &= "    case " & i & " : f->" & c.Items[i].Handler & "( clicks )" & NL
+            else
+                o &= "    case " & (baseId + i) & " : f->" & c.Items[i].Handler & "( )" & NL
+            end if
         end if
     next
 end sub
+
+' Does event ev of control c reach its entries' handlers?
+private function Dispatches_( byref c as FormControl, byref ev as const ustring ) as boolean
+    if HasItemHandlers_( c ) = false then return false
+    dim as ustring want = catalog.ItemDispatchEvent( catalog.ItemsKindOf( c.TypeName ) )
+    return (len( want ) > 0) andalso (want = ev)
+end function
 
 ' Where a control's entries start numbering.
 private function ItemBase_( byref doc as FormDoc, byval idx as long ) as long
@@ -350,8 +363,9 @@ private sub HandlerDecls_( byref doc as FormDoc, byref o as ustring )
         next
     next
     for c as long = 0 to doc.Controls.Count( ) - 1
+        dim as ustring itemParams = catalog.ItemHandlerParams( catalog.ItemsKindOf( doc.Controls[c].TypeName ) )
         for each it as FormItem in doc.Controls[c].Items
-            if len( it.Handler ) then PutSetting( all, it.Handler, "" )
+            if len( it.Handler ) then PutSetting( all, it.Handler, itemParams )
         next
     next
     for each or_ as FormOrphan in doc.Orphans
@@ -369,15 +383,14 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
         dim as long kindIt = catalog.ItemsKindOf( k.TypeName )
         for e as long = 0 to m->NumEvents - 1
             dim as long i = FindSetting( k.Events, m->Events( e ).Name )
-            ' a menu's Command and a toolbar's Click also reach the handler of the entry that fired
-            dim as boolean dispatches = HasItemHandlers_( k ) andalso _
-                (((kindIt = catalog.ItemsKind.ItemsMenu) andalso (m->Events( e ).Name = "Command")) orelse _
-                 ((kindIt = catalog.ItemsKind.ItemsToolbar) andalso (m->Events( e ).Name = "Click")))
+            ' a menu's Command, a toolbar's and a status bar's Click also reach the handler of the
+            ' entry that fired (a status bar names its panel by index)
+            dim as boolean dispatches = Dispatches_( k, m->Events( e ).Name )
             if dispatches then
                 o &= "private sub Thunk_" & k.Name & "_" & m->Events( e ).Name & Parens_( m->Events( e ).Sig ) & NL
                 o &= "    dim as Form ptr f = tkForms_ObjectOf( " & FirstParam_( m->Events( e ).Sig ) & " )" & NL
                 o &= "    if f = 0 then exit sub" & NL
-                o &= "    select case id" & NL
+                o &= "    select case " & iif( kindIt = catalog.ItemsKind.ItemsStatus, "idx", "id" ) & NL
                 ItemCases_( k, ItemBase_( doc, c ), o )
                 o &= "    end select" & NL
                 if i >= 0 then o &= "    f->" & k.Events[i].Value & Parens_( m->Events( e ).Args ) & NL
@@ -556,10 +569,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
 
     for e as long = 0 to m->NumEvents - 1
         dim as boolean wired = (FindSetting( c.Events, m->Events( e ).Name ) >= 0)
-        if HasItemHandlers_( c ) then
-            if ((catalog.ItemsKindOf( c.TypeName ) = catalog.ItemsKind.ItemsMenu) andalso (m->Events( e ).Name = "Command")) orelse _
-               ((catalog.ItemsKindOf( c.TypeName ) = catalog.ItemsKind.ItemsToolbar) andalso (m->Events( e ).Name = "Click")) then wired = true
-        end if
+        if Dispatches_( c, m->Events( e ).Name ) then wired = true
         if wired then
             o &= "    " & m->Events( e ).SetName & "( " & c.Name & ".Handle, @Thunk_" & c.Name & "_" & m->Events( e ).Name & " )" & NL
         end if

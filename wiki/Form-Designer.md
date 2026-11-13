@@ -117,6 +117,11 @@ A MenuBar dropped on a form opens this editor straight away, filled with a stand
 the arrow buttons move the selected item up or down and out or in a level, **+** adds one and the bin
 removes it.
 
+A StatusBar panel has a text, a width, a **Handler** and **Stretch**. The handler runs when the panel is
+clicked and is told how many clicks (`sub Form.OnPanel( byval clicks as long )`, 2 for a double click).
+**Stretch** gives that panel the space the others leave; one panel per bar can have it, so ticking it on
+one clears it on the rest. It is the bar's `ExpandPanel` property.
+
 ## Your own controls
 
 The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel, give it the name of

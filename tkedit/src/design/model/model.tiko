@@ -40,6 +40,8 @@ public type FormItem
     Level as long           ' a menu item's depth: 0 is on the bar
     Width as long
     Origin as long = -1     ' editing tab pages: which page this was, -1 for a new one
+    Stretch as boolean      ' editing a status bar: the panel that takes the spare width (the bar's
+                            ' ExpandPanel property); not saved with the items
 end type
 
 public type FormControl

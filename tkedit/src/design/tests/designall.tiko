@@ -692,6 +692,25 @@ sub ItemsSuite( )
     Check( instr( g, "tkListTree_AddColumn( lst.Handle, ""Name"", 150 )" ) > 0, "a column" )
     Check( instr( g, "tkComboBox_AddItem( cbo.Handle, ""A"" )" ) > 0, "a combo item" )
 
+    ' a status panel's handler: reached through the bar's Click by the panel's index, told the clicks;
+    ' the spring is the bar's ExpandPanel property
+    dim as ustring sbSrc = Header( ) _
+        & Ctl( "sb2", "StatusBar", "" ) & "[control.props]" & LF & "ExpandPanel = 1" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Ready""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Line""" & LF & "handler = ""OnLine""" & LF
+    dim as FormDoc ds
+    Check( ReadForm( sbSrc, ds ), "status handlers parse" )
+    dim as Array( of ustring ) ps2
+    validate.Check( ds, "frmS", ps2 )
+    Check( ps2.Count( ) = 0, "and validate" )
+    dim as ustring gs = codegen.Generate( ds, "frmS", "frmS.tkform", sbSrc )
+    Check( instr( gs, "declare sub OnLine( byval clicks as long )" ) > 0, "a panel handler is told the clicks", gs )
+    Check( instr( gs, "select case idx" ) > 0, "the bar's Click picks the panel by index" )
+    Check( instr( gs, "case 1 : f->OnLine( clicks )" ) > 0, "and calls its handler" )
+    Check( instr( gs, "tkStatusBar_SetClickCallback( sb2.Handle, @Thunk_sb2_Click )" ) > 0, "the dispatcher is installed" )
+    ' set after the panels exist: the bar refuses a spring index it has no panel for
+    Check( instr( gs, "sb2.ExpandPanel = 1" ) > instr( gs, "tkStatusBar_AddPanel( sb2.Handle, ""Line"" )" ), "and the spring set, after the panels", gs )
+
     ' with no entries, none of that is generated
     dim as FormDoc empty_
     empty_.ClientW = 300

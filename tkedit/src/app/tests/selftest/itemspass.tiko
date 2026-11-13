@@ -32,6 +32,7 @@
 #import "vendor/tkControls/tkTabControl"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkGroupBox"
+#import "vendor/tkControls/tkCheckBox"
 #import "vendor/tkControls/tkButton"
 using containers
 using cmdids
@@ -41,6 +42,7 @@ using tkTest
 using tkPaint
 using tkListTree
 using tkGroupBox
+using tkCheckBox
 using tkButton
 using tkTextBox
 using tkMenuBar
@@ -77,6 +79,14 @@ private sub TypeField( byval h as TK_HOST ptr, byval d as itemsdlg.ItemsEditor p
         end if
     next
 end sub
+
+' The Stretch check box of an items editor (status bars only).
+private function stretchBoxOf( byval d as itemsdlg.ItemsEditor ptr ) as TK_WIDGET ptr
+    for each f as itemsdlg.ItemField in d->Fields
+        if f.Key = "Stretch" then return f.Edit
+    next
+    return 0
+end function
 
 public sub ItemsPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
@@ -304,13 +314,43 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     t.Check( tkComboBox_GetCount( c->WidgetOf( "ComboBox1" ) ) = 1, P( sc, "the real combo has it" ) )
     mw.OpenItems( c, "StatusBar1" )
     tkTest_PumpFor( h, 60 )
-    t.Check( mw.ItemsDlg->Fields.Count( ) = 2, P( sc, "a status panel has text and a width" ) )
-    it1.Text = "Ready"
-    it1.Width = 80
-    mw.ItemsDlg->Items.Push( it1 )
+    ' a panel: Text, Width, a Handler for its clicks, and Stretch (one panel takes the spare width)
+    dim as itemsdlg.ItemsEditor ptr sbd = mw.ItemsDlg
+    t.Check( sbd->Fields.Count( ) = 4, P( sc, "a status panel has text, width, handler and Stretch: " & sbd->Fields.Count( ) ) )
+    dim as TK_HOST ptr sh = tkForm_Host( sbd->Win )
+    dim as TK_WIDGET ptr stretchBox = 0
+    for each f as itemsdlg.ItemField in sbd->Fields
+        if f.Key = "Stretch" then stretchBox = f.Edit
+    next
+    PressIn( sh, sbd->BtnAdd )
+    dim as ustring sv = "Ready"
+    TypeField( sh, sbd, "Text", sv )
+    PressIn( sh, sbd->BtnAdd )
+    sv = "Line 1"
+    TypeField( sh, sbd, "Text", sv )
+    sv = "OnLinePanel"
+    TypeField( sh, sbd, "Handler", sv )
+    PressIn( sh, stretchBox )
+    t.Check( sbd->Items[1].Stretch andalso (sbd->Items[0].Stretch = false), P( sc, "Stretch ticked on the second panel" ) )
+    sbd->ShowItem( 0 )
+    PressIn( sh, stretchBox )
+    t.Check( sbd->Items[0].Stretch andalso (sbd->Items[1].Stretch = false), P( sc, "ticked on the first: the second's goes" ) )
+    PressIn( sh, sbd->BtnOk )
     mw.FinishItems( true )
     tkTest_PumpFor( h, 60 )
-    t.Check( tkStatusBar_GetCount( c->WidgetOf( "StatusBar1" ) ) = 1, P( sc, "the real status bar has it" ) )
+    dim as long sbi = FindControl( c->Doc, "StatusBar1" )
+    t.Check( tkStatusBar_GetCount( c->WidgetOf( "StatusBar1" ) ) = 2, P( sc, "the real status bar has them" ) )
+    t.Check( SettingOr( c->Doc.Controls[sbi].Props, "ExpandPanel" ) = "0", P( sc, "Stretch is the bar's ExpandPanel: " & SettingOr( c->Doc.Controls[sbi].Props, "ExpandPanel" ) ) )
+    t.Check( (c->Doc.Controls[sbi].Items.Count( ) = 2) andalso (c->Doc.Controls[sbi].Items[0].Stretch = false) andalso (c->Doc.Controls[sbi].Items[1].Handler = "OnLinePanel"), P( sc, "the form keeps the handler, not the editor's flag" ) )
+    dim as DocRef sbCode = mw.FindOpen( fs.PathJoin( dir_, "frmI.tiko" ) )
+    t.Check( (sbCode <> 0) andalso (instr( sbCode->Text( ), "sub Form.OnLinePanel( byval clicks as long )" ) > 0), P( sc, "the panel's handler gets a body that is told the clicks" ) )
+    ' opened again, the first panel shows Stretch
+    mw.OpenItems( c, "StatusBar1" )
+    tkTest_PumpFor( h, 40 )
+    mw.ItemsDlg->ShowItem( 0 )
+    t.Check( tkCheckBox_GetChecked( stretchBoxOf( mw.ItemsDlg ) ), P( sc, "reopened: the first panel's Stretch is ticked" ) )
+    mw.FinishItems( false )
+    tkTest_PumpFor( h, 40 )
 
     ' ---- tab pages: controls go with their page, and a page in use can't go
     c->Tool = "TabControl"

@@ -20,6 +20,7 @@
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkGroupBox"
+#import "vendor/tkControls/tkCheckBox"
 #import "vendor/tkControls/tkTheme"
 #import "../model"
 #import "../catalog"
@@ -31,6 +32,7 @@ using tkLabel
 using tkTextBox
 using tkComboBox
 using tkGroupBox
+using tkCheckBox
 using tkTheme
 using tkHost
 using tkPaint
@@ -50,10 +52,11 @@ public const as ulong GLYPH_LEFT = &hF15B      ' arrow left: outdent
 public const as ulong GLYPH_RIGHT = &hF181     ' arrow right: indent
 
 public type ItemField
-    Key as ustring          ' Text, Key, Glyph, Handler, Kind, Width
+    Key as ustring          ' Text, Key, Glyph, Handler, Kind, Width, Stretch
     Label as TK_WIDGET ptr
     Edit as TK_WIDGET ptr
     IsCombo as boolean
+    IsCheck as boolean      ' a check box (Stretch); its label is empty, the box carries the words
 end type
 
 public type ItemsEditor
@@ -80,6 +83,7 @@ public type ItemsEditor
     declare function RunModal( ) as boolean
     declare sub Close( )
     declare sub AddField( byref key_ as const ustring, byref caption as const ustring, byref options as const ustring = "" )
+    declare sub AddCheck( byref key_ as const ustring, byref caption as const ustring )
     declare sub Layout( )
     declare sub FillList( )
     declare function RowText( byval i as long ) as ustring
@@ -113,6 +117,11 @@ private sub OnPick( byval h as TK_WIDGET ptr, byval row as integer )
 end sub
 
 private sub OnTextChanged( byval h as TK_WIDGET ptr )
+    dim as ItemsEditor ptr d = DlgOf( h )
+    if d then d->FieldChanged( h )
+end sub
+
+private sub OnCheckChanged( byval h as TK_WIDGET ptr, byval isChecked as boolean )
     dim as ItemsEditor ptr d = DlgOf( h )
     if d then d->FieldChanged( h )
 end sub
@@ -179,6 +188,18 @@ sub ItemsEditor.AddField( byref key_ as const ustring, byref caption as const us
     Fields.Push( f )
 end sub
 
+' A check box field: an empty label beside it keeps the column, the box carries the words.
+sub ItemsEditor.AddCheck( byref key_ as const ustring, byref caption as const ustring )
+    dim as ItemField f
+    f.Key = key_
+    f.IsCheck = true
+    f.Label = tkLabel_Create( Group, 1 )
+    f.Edit = tkCheckBox_Create( Group, Fields.Count( ) + 20 )
+    tkCheckBox_SetText( f.Edit, caption )
+    tkCheckBox_SetCheckChangedCallback( f.Edit, @OnCheckChanged )
+    Fields.Push( f )
+end sub
+
 ' A window of its own, not yet modal: the tests drive it this way, and RunModal adds the loop.
 sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref items_ as Array( of FormItem ), byref title as const ustring )
     Kind = kind_
@@ -220,7 +241,13 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         this.AddField( "Text", textLabel )
         this.AddField( "Glyph", i18n.Tr( "designer.item_glyph", "Glyph" ) )
         this.AddField( "Handler", handlerLabel )
-    case catalog.ItemsKind.ItemsStatus, catalog.ItemsKind.ItemsColumns
+    case catalog.ItemsKind.ItemsStatus
+        ' a panel: its text and width, a handler for its clicks, and whether it takes the spare width
+        this.AddField( "Text", textLabel )
+        this.AddField( "Width", widthLabel )
+        this.AddField( "Handler", handlerLabel )
+        this.AddCheck( "Stretch", i18n.Tr( "designer.item_stretch", "Stretch" ) )
+    case catalog.ItemsKind.ItemsColumns
         this.AddField( "Text", textLabel )
         this.AddField( "Width", widthLabel )
     case else
@@ -391,7 +418,9 @@ sub ItemsEditor.ShowItem( byval i as long )
                 if Items[i].Width then v = str( Items[i].Width )
             end select
         end if
-        if f.IsCombo then
+        if f.IsCheck then
+            tkCheckBox_SetChecked( f.Edit, (i >= 0) andalso (i < Items.Count( )) andalso Items[i].Stretch )
+        elseif f.IsCombo then
             tkComboBox_SetCurSel( f.Edit, tkComboBox_FindItemByText( f.Edit, v ) )
         else
             tkTextBox_SetText( f.Edit, v )
@@ -406,7 +435,16 @@ end sub
 sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
     if Loading orelse (Current < 0) orelse (Current >= Items.Count( )) then exit sub
     for each f as ItemField in Fields
-        if f.Edit = w then
+        if (f.Edit = w) andalso f.IsCheck then
+            ' Stretch: one panel takes the spare width, so ticking one clears the others
+            dim as boolean on_ = tkCheckBox_GetChecked( f.Edit )
+            if on_ then
+                for k as long = 0 to Items.Count( ) - 1
+                    Items[k].Stretch = false
+                next
+            end if
+            Items[Current].Stretch = on_
+        elseif f.Edit = w then
             dim as ustring v
             if f.IsCombo then v = tkComboBox_GetText( f.Edit ) else v = tkTextBox_GetText( f.Edit )
             select case f.Key
