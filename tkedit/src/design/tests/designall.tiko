@@ -821,6 +821,102 @@ sub TranslateSuite( )
     Check( instr( codegen.Generate( d, "frmT", "frmT.tkform", src ), "tkForms_Tr" ) = 0, "not unless asked" )
 end sub
 
+' The form's window settings and its own events: file, refusals, generated code.
+sub WindowSuite( )
+    dim as ustring head = "format = 1" & LF & LF & "[form]" & LF & "caption = ""W""" & LF & "width = 300" & LF & "height = 200" & LF
+    dim as ustring win = "start_position = ""CenterScreen""" & LF & "window_state = ""Maximized""" & LF & "resizable = true" & LF _
+        & "min_width = 200" & LF & "min_height = 150" & LF & "max_width = 800" & LF & "max_height = 600" & LF _
+        & "always_on_top = true" & LF & "icon = ""app.png""" & LF
+    dim as ustring evs = LF & "[form.events]" & LF & "Load = ""Form_Load""" & LF & "Close = ""Form_Close""" & LF _
+        & "Resize = ""Form_Resize""" & LF & "KeyDown = ""Form_KeyDown""" & LF & "Paint = ""Form_Paint""" & LF _
+        & "Destroy = ""Form_Destroy""" & LF & "ThemeChanged = ""Form_ThemeChanged""" & LF
+    dim as ustring src = head & win & evs
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "window: the form parses" )
+    Check( (d.StartPosition = "CenterScreen") andalso (d.WindowState = "Maximized") andalso (d.Resizable = "true") _
+        andalso (d.MinW = 200) andalso (d.MinH = 150) andalso (d.MaxW = 800) andalso (d.MaxH = 600) _
+        andalso d.AlwaysOnTop andalso (d.Icon = "app.png"), "window: every setting read" )
+    Check( formfile.Render( d ) = src, "window: canonical text comes back byte for byte", formfile.Render( d ) )
+    Accepted( src, "window: every setting and event" )
+    dim as FormDoc plain
+    ReadForm( head, plain )
+    Check( formfile.Render( plain ) = head, "window: defaults write nothing", formfile.Render( plain ) )
+    ' out of order in, catalog order out
+    dim as FormDoc d2
+    ReadForm( head & LF & "[form.events]" & LF & "Paint = ""P""" & LF & "Load = ""L""" & LF, d2 )
+    Check( instr( formfile.Render( d2 ), "Load = ""L""" & LF & "Paint = ""P""" ) > 0, "window: events in the catalog's order" )
+
+    Refused( head & "start_position = ""Middle""" & LF, "no start position" )
+    Refused( head & "window_state = ""Huge""" & LF, "no window state" )
+    Refused( head & "window_state = ""Maximized""" & LF & "resizable = false" & LF, "has to be resizable" )
+    Refused( head & "min_width = -1" & LF, "can't be negative" )
+    Refused( head & "min_width = 300" & LF & "max_width = 200" & LF, "below its minimum" )
+    Accepted( head & "min_height = 300" & LF, "window: a minimum with no maximum" )
+    Refused( head & LF & "[form.events]" & LF & "Paint = ""H""" & LF & "Resize = ""H""" & LF, "different parameters" )
+
+    dim as ustring g = codegen.Generate( d, "frmW", "frmW.tkform", src )
+    HasLine( g, "tkForm_SetStartPosition( Wnd, TKFORM_POS_CENTER_SCREEN )", "window: start position" )
+    HasLine( g, "tkForm_SetResizable( Wnd, true )", "window: resizable" )
+    HasLine( g, "tkForm_SetMinSize( Wnd, 200, 150 )", "window: minimum" )
+    HasLine( g, "tkForm_SetMaxSize( Wnd, 800, 600 )", "window: maximum" )
+    HasLine( g, "tkForm_SetWindowState( Wnd, TKFORM_STATE_MAXIMIZED )", "window: state" )
+    HasLine( g, "tkForm_SetAlwaysOnTop( Wnd, true )", "window: on top" )
+    HasLine( g, "tkForm_SetIcon( Wnd, ""app.png"" )", "window: icon" )
+    HasLine( g, "declare sub Form_Resize( byval cx as long, byval cy as long )", "window: Resize declared" )
+    HasLine( g, "declare sub Form_KeyDown( byval keyCode as long, byval mods as long, byref Handled as boolean )", "window: KeyDown declared" )
+    HasLine( g, "declare sub Form_Paint( byval pPaint as TK_PAINT ptr )", "window: Paint declared" )
+    HasLine( g, "declare sub Form_Destroy( )", "window: Destroy declared" )
+    HasLine( g, "declare sub Form_ThemeChanged( )", "window: ThemeChanged declared" )
+    HasLine( g, "ResizeHook = @Thunk_Form_Resize", "window: Resize hooked after the layout" )
+    HasLine( g, "tkForm_OnKeyDown( Wnd, @Thunk_Form_KeyDown )", "window: KeyDown hooked" )
+    HasLine( g, "tkForm_OnPaint( Wnd, @Thunk_Form_Paint )", "window: Paint hooked" )
+    HasLine( g, "DestroyHook = @Thunk_Form_Destroy", "window: Destroy hooked" )
+    HasLine( g, "tkForm_OnThemeChanged( Wnd, @Thunk_Form_ThemeChanged )", "window: ThemeChanged hooked" )
+    HasLine( g, "return Handled", "window: KeyDown says whether it took the key" )
+    dim as ustring g0 = codegen.Generate( plain, "frmW", "frmW.tkform", head )
+    Check( (instr( g0, "tkForm_Set" ) = 0) andalso (instr( g0, "Hook" ) = 0) andalso (instr( g0, "Thunk_Form" ) = 0), "window: nothing unless asked" )
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval pPaint as TK_PAINT ptr", "" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkPaint"), "window: a Paint handler's file imports tkPaint" )
+
+    ' a shortcut on an entry with no handler yet: no empty select (tiko refuses one, TKO0418)
+    dim as FormDoc mk
+    mk.ClientW = 300 : mk.ClientH = 200
+    edits.AddControl( mk, "MenuBar", "", -1, 0, 0, 300, 24 )
+    dim as FormItem top_, sub_
+    top_.Text = "&File"
+    sub_.Text = "&Open"
+    sub_.Key = "Ctrl+O"
+    sub_.Level = 1
+    mk.Controls[0].Items.Push( top_ )
+    mk.Controls[0].Items.Push( sub_ )
+    dim as ustring gk = codegen.Generate( mk, "frmK", "frmK.tkform", formfile.Render( mk ) )
+    Check( (instr( gk, "Thunk_Keys" ) > 0) andalso (instr( gk, "select case cmd" ) = 0), "keys: no handler, no select", gk )
+    mk.Controls[0].Items[1].Handler = "mnuOpen_Click"
+    gk = codegen.Generate( mk, "frmK", "frmK.tkform", formfile.Render( mk ) )
+    Check( instr( gk, "select case cmd" & LF & "    case " ) > 0, "keys: a handler gets its case" )
+
+    ' an entries edit: which handlers nothing calls any more, and what each entry calls now
+    dim as Array( of FormItem ) olds = mk.Controls[0].Items     ' File, Open (mnuOpen_Click)
+    olds[0].Handler = "FileHandler"
+    dim as Array( of FormItem ) news = olds
+    news[0].Handler = "File_Handler"                             ' renamed
+    news[1].Handler = ""                                         ' cleared
+    dim as FormDoc after_ = mk
+    after_.Controls[0].Items = news
+    dim as Array( of Setting ) dr = reconcile.DroppedItemHandlers( olds, news, after_ )
+    Check( (dr.Count( ) = 2) andalso (dr[0].Key = "FileHandler") andalso (dr[0].Value = "File_Handler") _
+        andalso (dr[1].Key = "mnuOpen_Click") andalso (dr[1].Value = ""), "items: a renamed and a cleared handler", str( dr.Count( ) ) )
+    dim as Array( of FormItem ) moved
+    moved.Push( news[1] )
+    moved.Push( news[0] )                                        ' File moved down, same text
+    after_.Controls[0].Items = moved
+    dr = reconcile.DroppedItemHandlers( olds, moved, after_ )
+    Check( (dr.Count( ) >= 1) andalso (dr[0].Value = "File_Handler"), "items: an entry that moved is found by its text" )
+    PutSetting( after_.Events, "Load", "FileHandler" )
+    dr = reconcile.DroppedItemHandlers( olds, moved, after_ )
+    Check( (dr.Count( ) = 1) andalso (dr[0].Key = "mnuOpen_Click"), "items: a handler still called elsewhere isn't dropped" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1147,6 +1243,7 @@ EditsSuite( )
 ReconcileSuite( )
 ItemsSuite( )
 TranslateSuite( )
+WindowSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

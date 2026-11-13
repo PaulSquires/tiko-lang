@@ -52,7 +52,44 @@ public function ItemDispatchEvent( byval kind_ as ItemsKind ) as ustring
     return ""
 end function
 
-public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
+' ---- the form's own events, in the order the inspector lists them ----
+public function FormEventCount( ) as long
+    return 7
+end function
+
+public function FormEventName( byval i as long ) as ustring
+    select case i
+    case 0 : return "Load"
+    case 1 : return "Close"
+    case 2 : return "Resize"
+    case 3 : return "KeyDown"
+    case 4 : return "Paint"
+    case 5 : return "Destroy"
+    case 6 : return "ThemeChanged"
+    end select
+    return ""
+end function
+
+public function IsFormEvent( byref ev as const ustring ) as boolean
+    for i as long = 0 to FormEventCount( ) - 1
+        if FormEventName( i ) = ev then return true
+    next
+    return false
+end function
+
+' A form event handler's parameters. Resize: the client in pixels, after the layout. KeyDown: a key
+' no control claimed. Paint: the form's background, under its controls.
+public function FormEventParams( byref ev as const ustring ) as ustring
+    select case ev
+    case "Close"   : return "byref Cancel as boolean"
+    case "Resize"  : return "byval cx as long, byval cy as long"
+    case "KeyDown" : return "byval keyCode as long, byval mods as long, byref Handled as boolean"
+    case "Paint"   : return "byval pPaint as TK_PAINT ptr"
+    end select
+    return ""
+end function
+
+public function ItemsKindOf(byref typeName as const ustring ) as ItemsKind
     select case typeName
     case "MenuBar"    : return ItemsKind.ItemsMenu
     case "Toolbar"    : return ItemsKind.ItemsToolbar

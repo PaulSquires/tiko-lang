@@ -164,6 +164,27 @@ A project's look lives in `appTheme/appTheme.tktheme`: **Form > Project Theme...
 and each control's **Colors** row gives it a style or its own colours. The
 [Themes Tutorial](Themes-Tutorial) walks through it step by step.
 
+## The form's own properties and events
+
+Click the empty form and the Properties panel shows the window's settings. **StartPosition** is where
+it first appears (Default, CenterScreen, CenterOwner), **WindowState** how (Normal, Maximized,
+Minimized; a maximized window must be resizable), **Resizable** blank for the default (a top-level
+form resizes, an owned one doesn't), true or false. **MinWidth**, **MinHeight**, **MaxWidth** and
+**MaxHeight** limit the client the user can size it to, in design units; blank is no limit.
+**AlwaysOnTop** keeps it above other windows, and **Icon** names an image file for its title bar.
+
+Its events:
+
+| Event | Handler | When |
+|---|---|---|
+| Load | `( )` | At the end of `Build`, the controls made |
+| Close | `( byref Cancel as boolean )` | The close button or `Close`; set `Cancel` to keep the form open |
+| Resize | `( byval cx as long, byval cy as long )` | After every resize and the first show, the layout applied; pixels |
+| KeyDown | `( byval keyCode as long, byval mods as long, byref Handled as boolean )` | A key no control claimed; set `Handled` to consume it |
+| Paint | `( byval pPaint as TK_PAINT ptr )` | The form's background, under its controls |
+| Destroy | `( )` | The window is going, its controls still there |
+| ThemeChanged | `( )` | The application's theme changed |
+
 ## Other languages
 
 Tick **Translatable** on the form and its captions go through `tkForms_Tr`, with keys like

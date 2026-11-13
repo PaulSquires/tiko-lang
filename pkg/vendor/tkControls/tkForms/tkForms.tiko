@@ -42,7 +42,9 @@ end function
 
 private sub OnSizeForm_( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
     dim as any ptr p = f->Tag
-    if p then tkLayout_Apply( cast( FormBase ptr, p )->Layout )
+    if p = 0 then exit sub
+    tkLayout_Apply( cast( FormBase ptr, p )->Layout )
+    if cast( FormBase ptr, p )->ResizeHook then cast( FormBase ptr, p )->ResizeHook( f, cx, cy )
 end sub
 
 private sub OnScaleForm_( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
@@ -54,6 +56,7 @@ end sub
 private sub OnDestroyForm_( byval f as TK_FORM ptr )
     dim as FormBase ptr p = cast( FormBase ptr, f->Tag )
     if p then
+        if p->DestroyHook then p->DestroyHook( f )
         p->Wnd = 0
         tkLayout_Destroy( p->Layout )
         p->Layout = 0
@@ -64,6 +67,11 @@ end sub
 public type FormBase extends object
     Wnd as TK_FORM ptr
     Layout as TK_LAYOUT ptr
+    ' A designed form's own handlers, run after the base's: on a resize (cx, cy in pixels, after the
+    ' layout), and as the window goes (its controls still there). Not run when the form object itself
+    ' is destroyed: by then the derived part is gone.
+    ResizeHook as TKFORM_SizeSub
+    DestroyHook as TKFORM_Sub
 
     declare constructor( )
     declare destructor( )
@@ -88,6 +96,7 @@ constructor FormBase( )
 end constructor
 
 destructor FormBase( )
+    DestroyHook = 0
     if Wnd then tkForm_Destroy( Wnd )
 end destructor
 

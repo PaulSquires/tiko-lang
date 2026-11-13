@@ -196,14 +196,28 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         out_.Push( "form file name '" & moduleName & "' can't be a module name" )
     end if
     if (doc.ClientW <= 0) orelse (doc.ClientH <= 0) then out_.Push( "form: width and height must be positive" )
+    select case doc.StartPosition
+    case "", "CenterScreen", "CenterOwner"
+    case else : out_.Push( "form: no start position '" & doc.StartPosition & "'" )
+    end select
+    select case doc.WindowState
+    case "", "Maximized", "Minimized"
+    case else : out_.Push( "form: no window state '" & doc.WindowState & "'" )
+    end select
+    if (doc.WindowState = "Maximized") andalso (doc.Resizable = "false") then out_.Push( "form: a maximized window has to be resizable" )
+    if (doc.MinW < 0) orelse (doc.MinH < 0) orelse (doc.MaxW < 0) orelse (doc.MaxH < 0) then
+        out_.Push( "form: a size limit can't be negative" )
+    elseif ((doc.MaxW > 0) andalso (doc.MaxW < doc.MinW)) orelse ((doc.MaxH > 0) andalso (doc.MaxH < doc.MinH)) then
+        out_.Push( "form: a maximum size is below its minimum" )
+    end if
 
     dim as Array( of Setting ) handlers
     for each s as Setting in doc.Events
-        select case s.Key
-        case "Load"  : AddHandler_( handlers, "form", s.Value, "", doc, out_ )
-        case "Close" : AddHandler_( handlers, "form", s.Value, "byref Cancel as boolean", doc, out_ )
-        case else    : out_.Push( "form: no event '" & s.Key & "'" )
-        end select
+        if catalog.IsFormEvent( s.Key ) then
+            AddHandler_( handlers, "form", s.Value, catalog.FormEventParams( s.Key ), doc, out_ )
+        else
+            out_.Push( "form: no event '" & s.Key & "'" )
+        end if
     next
 
     for i as long = 0 to doc.Controls.Count( ) - 1

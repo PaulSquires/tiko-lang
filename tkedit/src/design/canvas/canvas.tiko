@@ -1174,7 +1174,7 @@ sub FormCanvas.DeleteSelection( )
                 if e then PutSetting( gone, s.Value, e->Params )
             next
             for each it as FormItem in Doc.Controls[i].Items
-                if len( it.Handler ) then PutSetting( gone, it.Handler, "" )
+                if len( it.Handler ) then PutSetting( gone, it.Handler, catalog.ItemHandlerParams( catalog.ItemsKindOf( Doc.Controls[i].TypeName ) ) )
             next
         end if
     next

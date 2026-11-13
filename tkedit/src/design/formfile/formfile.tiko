@@ -216,7 +216,7 @@ public function Parse( byref text as const ustring, byref doc as FormDoc, byref 
     OnlyKeys_( root, "format form control orphan", "file", doc )
     dim as config.TomlValue ptr f = root.Find( "form" )
     if f then
-        OnlyKeys_( *f, "caption width height translate events", "form", doc )
+        OnlyKeys_( *f, "caption width height translate start_position window_state resizable min_width min_height max_width max_height always_on_top icon events", "form", doc )
         doc.Caption = StrOf_( *f, "caption" )
         dim as config.TomlValue ptr tr_ = f->Find( "translate" )
         if tr_ then
@@ -225,6 +225,23 @@ public function Parse( byref text as const ustring, byref doc as FormDoc, byref 
         end if
         doc.ClientW = IntOf_( *f, "width", doc.ClientW )
         doc.ClientH = IntOf_( *f, "height", doc.ClientH )
+        doc.StartPosition = StrOf_( *f, "start_position" )
+        doc.WindowState = StrOf_( *f, "window_state" )
+        dim as config.TomlValue ptr rs = f->Find( "resizable" )
+        if rs then
+            dim as boolean noFlag = false
+            if rs->AsBool( ).ValueOr( noFlag ) then doc.Resizable = "true" else doc.Resizable = "false"
+        end if
+        doc.MinW = IntOf_( *f, "min_width", 0 )
+        doc.MinH = IntOf_( *f, "min_height", 0 )
+        doc.MaxW = IntOf_( *f, "max_width", 0 )
+        doc.MaxH = IntOf_( *f, "max_height", 0 )
+        dim as config.TomlValue ptr ot = f->Find( "always_on_top" )
+        if ot then
+            dim as boolean noFlag = false
+            doc.AlwaysOnTop = ot->AsBool( ).ValueOr( noFlag )
+        end if
+        doc.Icon = StrOf_( *f, "icon" )
         dim as config.TomlValue ptr e = f->Find( "events" )
         if e then ReadSettings_( *e, doc.Events, "form", doc )
     end if
@@ -384,14 +401,24 @@ public function Render( byref doc as FormDoc ) as ustring
     o &= "width = " & doc.ClientW & NL
     o &= "height = " & doc.ClientH & NL
     if doc.Translate then o &= "translate = true" & NL
+    if len( doc.StartPosition ) then o &= "start_position = " & Quote_( doc.StartPosition ) & NL
+    if len( doc.WindowState ) then o &= "window_state = " & Quote_( doc.WindowState ) & NL
+    if len( doc.Resizable ) then o &= "resizable = " & doc.Resizable & NL
+    if doc.MinW then o &= "min_width = " & doc.MinW & NL
+    if doc.MinH then o &= "min_height = " & doc.MinH & NL
+    if doc.MaxW then o &= "max_width = " & doc.MaxW & NL
+    if doc.MaxH then o &= "max_height = " & doc.MaxH & NL
+    if doc.AlwaysOnTop then o &= "always_on_top = true" & NL
+    if len( doc.Icon ) then o &= "icon = " & Quote_( doc.Icon ) & NL
     if doc.Events.Count( ) then
         o &= NL & "[form.events]" & NL
-        dim as long i = FindSetting( doc.Events, "Load" )
-        if i >= 0 then o &= SettingLine_( doc.Events[i] )
-        i = FindSetting( doc.Events, "Close" )
-        if i >= 0 then o &= SettingLine_( doc.Events[i] )
+        ' the catalog's order, then any it doesn't know (validate reports those)
+        for e as long = 0 to catalog.FormEventCount( ) - 1
+            dim as long i = FindSetting( doc.Events, catalog.FormEventName( e ) )
+            if i >= 0 then o &= SettingLine_( doc.Events[i] )
+        next
         for j as long = 0 to doc.Events.Count( ) - 1
-            if (doc.Events[j].Key <> "Load") andalso (doc.Events[j].Key <> "Close") then o &= SettingLine_( doc.Events[j] )
+            if catalog.IsFormEvent( doc.Events[j].Key ) = false then o &= SettingLine_( doc.Events[j] )
         next
     end if
     for i as long = 0 to doc.Controls.Count( ) - 1

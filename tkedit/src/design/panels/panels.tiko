@@ -907,8 +907,19 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@FormW", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
         this.AddRow( "@FormH", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
         this.AddRow( "@Translate", i18n.Tr( "designer.translate", "Translatable" ), RowKind.RowCheck )
-        this.AddEventRow( "Load" )
-        this.AddEventRow( "Close" )
+        ' the window: named as in code, as a control's properties are
+        this.AddRow( "@StartPosition", "StartPosition", RowKind.RowCombo, "Default,CenterScreen,CenterOwner" )
+        this.AddRow( "@WindowState", "WindowState", RowKind.RowCombo, "Normal,Maximized,Minimized" )
+        this.AddRow( "@Resizable", "Resizable", RowKind.RowCombo, ",true,false" )
+        this.AddRow( "@MinWidth", "MinWidth", RowKind.RowText )
+        this.AddRow( "@MinHeight", "MinHeight", RowKind.RowText )
+        this.AddRow( "@MaxWidth", "MaxWidth", RowKind.RowText )
+        this.AddRow( "@MaxHeight", "MaxHeight", RowKind.RowText )
+        this.AddRow( "@AlwaysOnTop", "AlwaysOnTop", RowKind.RowCheck )
+        this.AddRow( "@Icon", "Icon", RowKind.RowText )
+        for e as long = 0 to catalog.FormEventCount( ) - 1
+            this.AddEventRow( catalog.FormEventName( e ) )
+        next
     else
         dim as long i0 = FindControl( C->Doc, C->Selected[0] )
         if i0 < 0 then
@@ -1022,6 +1033,12 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     return SettingOr( c_.Props, key_, dflt )
 end function
 
+' A form's size limit as its row shows it: blank for none.
+private function LimitText_( byval v as long ) as ustring
+    if v = 0 then return ""
+    return str( v )
+end function
+
 ' What a row should show: the value, or "" when the selected controls differ.
 function DesignPanels.ValueOf( byref key_ as const ustring ) as ustring
     select case key_
@@ -1030,6 +1047,20 @@ function DesignPanels.ValueOf( byref key_ as const ustring ) as ustring
     case "@FormH"   : return str( C->Doc.ClientH )
     case "@Translate"
         if C->Doc.Translate then return "true" else return "false"
+    case "@StartPosition"
+        if len( C->Doc.StartPosition ) = 0 then return "Default"
+        return C->Doc.StartPosition
+    case "@WindowState"
+        if len( C->Doc.WindowState ) = 0 then return "Normal"
+        return C->Doc.WindowState
+    case "@Resizable" : return C->Doc.Resizable
+    case "@MinWidth"  : return LimitText_( C->Doc.MinW )
+    case "@MinHeight" : return LimitText_( C->Doc.MinH )
+    case "@MaxWidth"  : return LimitText_( C->Doc.MaxW )
+    case "@MaxHeight" : return LimitText_( C->Doc.MaxH )
+    case "@AlwaysOnTop"
+        if C->Doc.AlwaysOnTop then return "true" else return "false"
+    case "@Icon" : return C->Doc.Icon
     end select
     if (left( key_, 2 ) = "E:") andalso (C->Selected.Count( ) = 0) then return SettingOr( C->Doc.Events, mid( key_, 3 ) )
     dim as ustring out_
@@ -1168,6 +1199,34 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     case "@Translate"
         trial.Translate = (text = "true")
         rebuild = false
+    case "@StartPosition"
+        if text = "Default" then trial.StartPosition = "" else trial.StartPosition = text
+        rebuild = false
+    case "@WindowState"
+        if text = "Normal" then trial.WindowState = "" else trial.WindowState = text
+        rebuild = false
+    case "@Resizable"
+        trial.Resizable = text
+        rebuild = false
+    case "@MinWidth", "@MinHeight", "@MaxWidth", "@MaxHeight"
+        ' blank is no limit
+        v = 0
+        if len( trim( text ) ) then
+            if ParseLong_( trim( text ), v ) = false then return badNumber
+        end if
+        select case key_
+        case "@MinWidth"  : trial.MinW = v
+        case "@MinHeight" : trial.MinH = v
+        case "@MaxWidth"  : trial.MaxW = v
+        case "@MaxHeight" : trial.MaxH = v
+        end select
+        rebuild = false
+    case "@AlwaysOnTop"
+        trial.AlwaysOnTop = (text = "true")
+        rebuild = false
+    case "@Icon"
+        trial.Icon = trim( text )
+        rebuild = false
     case "@FormW", "@FormH"
         if ParseLong_( text, v ) = false then return badNumber
         if key_ = "@FormW" then
@@ -1217,7 +1276,7 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
             else
                 dim as long at_ = FindSetting( trial.Events, ev )
                 if at_ >= 0 then oldHandler = trial.Events[at_].Value
-                if ev = "Close" then evParams = "byref Cancel as boolean"
+                evParams = catalog.FormEventParams( ev )
                 if len( text ) then
                     PutSetting( trial.Events, ev, text )
                 elseif at_ >= 0 then

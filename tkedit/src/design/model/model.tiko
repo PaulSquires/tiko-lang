@@ -79,7 +79,17 @@ public type FormDoc
     ModuleName as ustring               ' set while generating; not in the file
     ClientW as long = 400
     ClientH as long = 300
-    Events as Array( of Setting )       ' Load, Close
+    ' the window; each "" / 0 / false leaves the run-time default
+    StartPosition as ustring            ' "", "CenterScreen", "CenterOwner"
+    WindowState as ustring              ' "", "Maximized", "Minimized"
+    Resizable as ustring                ' "" (a top-level form resizes, an owned one doesn't), "true", "false"
+    MinW as long                        ' size limits of the client, design units
+    MinH as long
+    MaxW as long
+    MaxH as long
+    AlwaysOnTop as boolean
+    Icon as ustring                     ' an image file
+    Events as Array( of Setting )       ' catalog.FormEventName's
     Controls as Array( of FormControl )
     Orphans as Array( of FormOrphan )
     Problems as Array( of ustring )     ' what reading the file could not accept

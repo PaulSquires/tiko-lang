@@ -120,7 +120,7 @@ sub Window.WireHandler( byval c as canvas.FormCanvas ptr, byref name_ as const u
         if len( handler ) = 0 then handler = c->Doc.Controls[i].Name & "_" & ev
     else
         if len( ev ) = 0 then ev = "Load"
-        if ev = "Close" then params = "byref Cancel as boolean"
+        params = catalog.FormEventParams( ev )
         handler = SettingOr( c->Doc.Events, ev )
         if len( handler ) = 0 then handler = "Form_" & ev
     end if
@@ -233,6 +233,37 @@ sub Window.FinishItems( byval apply_ as boolean )
     if kind_ = catalog.ItemsKind.ItemsStatus then
         dim as long ep = FindSetting( trial.Controls[i].Props, "ExpandPanel" )
         if ep >= 0 then trial.Controls[i].Props.Remove( ep )
+    end if
+    if kind_ <> catalog.ItemsKind.ItemsPages then
+        ' a kept (orphaned) handler named again is called again: no longer an orphan
+        for each it as FormItem in items
+            for k as long = trial.Orphans.Count( ) - 1 to 0 step -1
+                if (len( it.Handler ) > 0) andalso (lcase( trial.Orphans[k].Handler ) = lcase( it.Handler )) then trial.Orphans.Remove( k )
+            next
+        next
+        ' handlers the entries no longer call, as an Events row's: a renamed entry's body takes the new
+        ' name (when that has no body yet); any other empty body goes, one with code keeps its
+        ' declaration (an orphan) so the file still compiles
+        dim as Array( of Setting ) dropped = reconcile.DroppedItemHandlers( c->Doc.Controls[i].Items, items, trial )
+        if dropped.Count( ) then
+            dim as ustring bad = validate.FirstNewProblem( c->Doc, trial )
+            if len( bad ) then
+                this.SetMessage( bad )
+                exit sub
+            end if
+            for each s as Setting in dropped
+                dim as boolean renamed = false
+                if len( s.Value ) then renamed = this.HandlerRenamed( c, s.Key, s.Value )
+                if renamed = false then
+                    if this.HandlerGone( c, s.Key ) then
+                        dim as FormOrphan o
+                        o.Handler = s.Key
+                        o.Params = catalog.ItemHandlerParams( kind_ )
+                        trial.Orphans.Push( o )
+                    end if
+                end if
+            next
+        end if
     end if
     dim as ustring fault = c->ApplyEdit( trial, true, "" )
     if len( fault ) then

@@ -59,6 +59,7 @@ Each form opens the **role** fonts (`TKFONT_UI`, `_UI_SMALL` one point smaller, 
 
 - **Theme.** `ThemeMode` (or `tkApp_SetThemeMode`) is `TKAPP_THEME_SYSTEM` (follows the OS light/dark setting live), `_LIGHT`, `_DARK` or `_NONE` (controls keep their built-in colours). `tkApp_SetTheme( t )` restyles every control whose colours are not pinned, gives every form the theme's `Window` colour and fires `OnThemeChanged`. See [tkTheme](tkTheme).
 - **Modal forms.** `tkApp_NewForm( title, cx, cy, ownerForm )` makes a dialog owned by `ownerForm`. `tkForm_ShowModal` runs it until `tkForm_EndModal( f, code )`, Esc (`TKAPP_IDCANCEL`) or the close button (which asks `OnClose` first), then destroys the form and returns the code. The owner gets no input meanwhile.
+- **The window.** `tkForm_SetStartPosition( f, TKFORM_POS_CENTER_SCREEN )` (or `_CENTER_OWNER`, or `_DEFAULT`) says where the form goes when it is first shown; on Linux the window manager may override it, and Wayland always places windows itself. Wayland has no always-on-top, and `tkForm_SetIcon` returns false where the compositor offers no window icons. `tkForm_SetResizable`, `tkForm_SetMinSize` / `tkForm_SetMaxSize` (the client, in design units, 0 for no limit; scaled with the form), `tkForm_SetWindowState` (`TKFORM_STATE_NORMAL`, `_MAXIMIZED`, `_MINIMIZED`; before the first show it is how the window first appears, and maximized needs a resizable window), `tkForm_SetAlwaysOnTop` and `tkForm_SetIcon( f, file )` (any image SDL_image reads) each have a getter. A top-level form starts resizable, an owned one fixed.
 - **Keys.** `OnKeyDown` receives the keys no control claimed; return TRUE to consume one. Tab is the host's focus walk. For shortcuts that work whichever control has the focus, attach a [tkKeys](tkKeys) map to `tkForm_Host( f )`.
 - **Background work.** `tkApp_RunOnUI( proc, payload )` may be called from any thread: `proc( payload )` runs on the UI thread, in call order, wherever the loop is pumping (inside a modal form too). Only the payload pointer is copied. Work still queued when `tkApp_Run` returns is dropped.
 - **Timers.** `tkApp_SetTimer( ms, proc, payload )` needs no form and returns an id (0 on failure); `tkApp_KillTimer` is safe from inside the timer's own proc.
@@ -94,6 +95,18 @@ Every public name the module declares, as the source declares it. Signatures are
 ```freebasic
 const TKAPP_IDOK = 1
 const TKAPP_IDCANCEL = 2
+
+enum
+    TKFORM_POS_DEFAULT = 0          ' the system's; an owned form starts centred over its owner
+    TKFORM_POS_CENTER_SCREEN
+    TKFORM_POS_CENTER_OWNER         ' a form with no owner: as CENTER_SCREEN
+end enum
+
+enum
+    TKFORM_STATE_NORMAL = 0
+    TKFORM_STATE_MAXIMIZED
+    TKFORM_STATE_MINIMIZED
+end enum
 
 enum
     TKAPP_THEME_SYSTEM = 0
@@ -177,6 +190,19 @@ function tkForm_IsModal( byval f as TK_FORM ptr ) as boolean
 sub tkForm_Close( byval f as TK_FORM ptr )
 sub tkForm_FocusFirst( byval f as TK_FORM ptr )
 sub tkForm_Invalidate( byval f as TK_FORM ptr )
+sub tkForm_SetStartPosition( byval f as TK_FORM ptr, byval where as long )
+function tkForm_GetStartPosition( byval f as TK_FORM ptr ) as long
+sub tkForm_SetResizable( byval f as TK_FORM ptr, byval bResizable as boolean )
+function tkForm_GetResizable( byval f as TK_FORM ptr ) as boolean
+sub tkForm_SetMinSize( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+sub tkForm_SetMaxSize( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+sub tkForm_GetMinSize( byval f as TK_FORM ptr, byref cx as long, byref cy as long )
+sub tkForm_GetMaxSize( byval f as TK_FORM ptr, byref cx as long, byref cy as long )
+sub tkForm_SetWindowState( byval f as TK_FORM ptr, byval nState as long )
+function tkForm_GetWindowState( byval f as TK_FORM ptr ) as long
+sub tkForm_SetAlwaysOnTop( byval f as TK_FORM ptr, byval bOnTop as boolean )
+function tkForm_GetAlwaysOnTop( byval f as TK_FORM ptr ) as boolean
+function tkForm_SetIcon( byval f as TK_FORM ptr, byref file as ustring ) as boolean
 sub tkForm_Destroy( byval f as TK_FORM ptr )
 sub tkForm_OnSize( byval f as TK_FORM ptr, byval p as TKFORM_SizeSub )
 sub tkForm_OnPaint( byval f as TK_FORM ptr, byval p as TKFORM_PaintSub )

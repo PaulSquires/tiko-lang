@@ -352,10 +352,10 @@ end function
 ' Each handler once, in the order of first use: one handler may serve several events.
 private sub HandlerDecls_( byref doc as FormDoc, byref o as ustring )
     dim as Array( of Setting ) all
-    dim as long i = FindSetting( doc.Events, "Load" )
-    if i >= 0 then PutSetting( all, doc.Events[i].Value, "" )
-    i = FindSetting( doc.Events, "Close" )
-    if i >= 0 then PutSetting( all, doc.Events[i].Value, "byref Cancel as boolean" )
+    for e as long = 0 to catalog.FormEventCount( ) - 1
+        dim as long i = FindSetting( doc.Events, catalog.FormEventName( e ) )
+        if i >= 0 then PutSetting( all, doc.Events[i].Value, catalog.FormEventParams( catalog.FormEventName( e ) ) )
+    next
     for c as long = 0 to doc.Controls.Count( ) - 1
         dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[c].TypeName )
         for each s as Setting in doc.Controls[c].Events
@@ -409,23 +409,31 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
         o &= "    if tkKeys_Parse( s, c ) then return tkKeys_Format( c )" & NL
         o &= "    return s" & NL
         o &= "end function" & NL & NL
-        o &= "private sub Thunk_Keys( byval h as TK_HOST ptr, byval cmd as long )" & NL
-        o &= "    dim as TK_FORM ptr fm = tkForm_FromHost( h )" & NL
-        o &= "    if fm = 0 then exit sub" & NL
-        o &= "    dim as Form ptr f = fm->Tag" & NL
-        o &= "    if f = 0 then exit sub" & NL
-        o &= "    select case cmd" & NL
+        ' a shortcut whose entry has no handler yet gets no case; with none at all there is no select,
+        ' since tiko refuses one without a case (TKO0418)
+        dim as ustring cases
         for c as long = 0 to doc.Controls.Count( ) - 1
             if catalog.ItemsKindOf( doc.Controls[c].TypeName ) = catalog.ItemsKind.ItemsMenu then
                 dim as long b = ItemBase_( doc, c )
                 for i as long = 0 to doc.Controls[c].Items.Count( ) - 1
                     if (len( doc.Controls[c].Items[i].Key ) > 0) andalso (len( doc.Controls[c].Items[i].Handler ) > 0) then
-                        o &= "    case " & (b + i) & " : f->" & doc.Controls[c].Items[i].Handler & "( )" & NL
+                        cases &= "    case " & (b + i) & " : f->" & doc.Controls[c].Items[i].Handler & "( )" & NL
                     end if
                 next
             end if
         next
-        o &= "    end select" & NL
+        o &= "private sub Thunk_Keys( byval h as TK_HOST ptr, byval cmd as long )" & NL
+        if len( cases ) then
+            o &= "    dim as TK_FORM ptr fm = tkForm_FromHost( h )" & NL
+            o &= "    if fm = 0 then exit sub" & NL
+            o &= "    dim as Form ptr f = fm->Tag" & NL
+            o &= "    if f = 0 then exit sub" & NL
+            o &= "    select case cmd" & NL
+            o &= cases
+            o &= "    end select" & NL
+        else
+            o &= "    ' no shortcut's entry has a handler yet" & NL
+        end if
         o &= "end sub" & NL & NL
     end if
     dim as long i = FindSetting( doc.Events, "Close" )
@@ -438,6 +446,61 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
         o &= "    return Cancel = false" & NL
         o &= "end function" & NL & NL
     end if
+    i = FindSetting( doc.Events, "Resize" )
+    if i >= 0 then
+        o &= "private sub Thunk_Form_Resize( byval w as TK_FORM ptr, byval cx as long, byval cy as long )" & NL
+        o &= "    dim as Form ptr f = w->Tag" & NL
+        o &= "    if f then f->" & doc.Events[i].Value & "( cx, cy )" & NL
+        o &= "end sub" & NL & NL
+    end if
+    i = FindSetting( doc.Events, "KeyDown" )
+    if i >= 0 then
+        o &= "private function Thunk_Form_KeyDown( byval w as TK_FORM ptr, byval keyCode as long, byval mods as long ) as boolean" & NL
+        o &= "    dim as Form ptr f = w->Tag" & NL
+        o &= "    if f = 0 then return false" & NL
+        o &= "    dim as boolean Handled = false" & NL
+        o &= "    f->" & doc.Events[i].Value & "( keyCode, mods, Handled )" & NL
+        o &= "    return Handled" & NL
+        o &= "end function" & NL & NL
+    end if
+    i = FindSetting( doc.Events, "Paint" )
+    if i >= 0 then
+        o &= "private sub Thunk_Form_Paint( byval w as TK_FORM ptr, byval pPaint as TK_PAINT ptr )" & NL
+        o &= "    dim as Form ptr f = w->Tag" & NL
+        o &= "    if f then f->" & doc.Events[i].Value & "( pPaint )" & NL
+        o &= "end sub" & NL & NL
+    end if
+    i = FindSetting( doc.Events, "Destroy" )
+    if i >= 0 then
+        o &= "private sub Thunk_Form_Destroy( byval w as TK_FORM ptr )" & NL
+        o &= "    dim as Form ptr f = w->Tag" & NL
+        o &= "    if f then f->" & doc.Events[i].Value & "( )" & NL
+        o &= "end sub" & NL & NL
+    end if
+    i = FindSetting( doc.Events, "ThemeChanged" )
+    if i >= 0 then
+        o &= "private sub Thunk_Form_ThemeChanged( byval w as TK_FORM ptr )" & NL
+        o &= "    dim as Form ptr f = w->Tag" & NL
+        o &= "    if f then f->" & doc.Events[i].Value & "( )" & NL
+        o &= "end sub" & NL & NL
+    end if
+end sub
+
+' The window's settings the form gives, each only when it isn't the run-time default.
+private sub WindowCode_( byref doc as FormDoc, byref o as ustring )
+    select case doc.StartPosition
+    case "CenterScreen" : o &= "    tkForm_SetStartPosition( Wnd, TKFORM_POS_CENTER_SCREEN )" & NL
+    case "CenterOwner"  : o &= "    tkForm_SetStartPosition( Wnd, TKFORM_POS_CENTER_OWNER )" & NL
+    end select
+    if len( doc.Resizable ) then o &= "    tkForm_SetResizable( Wnd, " & doc.Resizable & " )" & NL
+    if (doc.MinW <> 0) orelse (doc.MinH <> 0) then o &= "    tkForm_SetMinSize( Wnd, " & doc.MinW & ", " & doc.MinH & " )" & NL
+    if (doc.MaxW <> 0) orelse (doc.MaxH <> 0) then o &= "    tkForm_SetMaxSize( Wnd, " & doc.MaxW & ", " & doc.MaxH & " )" & NL
+    select case doc.WindowState
+    case "Maximized" : o &= "    tkForm_SetWindowState( Wnd, TKFORM_STATE_MAXIMIZED )" & NL
+    case "Minimized" : o &= "    tkForm_SetWindowState( Wnd, TKFORM_STATE_MINIMIZED )" & NL
+    end select
+    if doc.AlwaysOnTop then o &= "    tkForm_SetAlwaysOnTop( Wnd, true )" & NL
+    if len( doc.Icon ) then o &= "    tkForm_SetIcon( Wnd, " & Literal_( doc.Icon ) & " )" & NL
 end sub
 
 ' The statements that fill a control with its entries.
@@ -683,11 +746,17 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     o &= "sub Form.Build( byval owner as TK_FORM ptr = nullptr )" & NL
     o &= "    OpenWindow( " & TextExpr_( doc, "Caption", doc.Caption ) & ", " & doc.ClientW & ", " & doc.ClientH & ", owner )" & NL
     o &= "    if Wnd = 0 then exit sub" & NL
+    WindowCode_( doc, o )
     o &= "    tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), " & doc.ClientW & ", " & doc.ClientH & " )" & NL
     for i as long = 0 to doc.Controls.Count( ) - 1
         CreateControl_( doc, i, sz, o )
     next
     if FindSetting( doc.Events, "Close" ) >= 0 then o &= "    tkForm_OnClose( Wnd, @Thunk_Form_Close )" & NL
+    if FindSetting( doc.Events, "Resize" ) >= 0 then o &= "    ResizeHook = @Thunk_Form_Resize" & NL
+    if FindSetting( doc.Events, "KeyDown" ) >= 0 then o &= "    tkForm_OnKeyDown( Wnd, @Thunk_Form_KeyDown )" & NL
+    if FindSetting( doc.Events, "Paint" ) >= 0 then o &= "    tkForm_OnPaint( Wnd, @Thunk_Form_Paint )" & NL
+    if FindSetting( doc.Events, "Destroy" ) >= 0 then o &= "    DestroyHook = @Thunk_Form_Destroy" & NL
+    if FindSetting( doc.Events, "ThemeChanged" ) >= 0 then o &= "    tkForm_OnThemeChanged( Wnd, @Thunk_Form_ThemeChanged )" & NL
     if AnyShortcut_( doc ) then
         o &= "    scope" & NL
         o &= "        dim as TK_KEYMAP ptr keys = tkKeys_MapCreate( )" & NL

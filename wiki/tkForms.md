@@ -110,6 +110,8 @@ With no translator installed, `tkForms_Tr` returns the text it was given. `tkFor
 type FormBase extends object
     Wnd as TK_FORM ptr
     Layout as TK_LAYOUT ptr
+    ResizeHook as TKFORM_SizeSub
+    DestroyHook as TKFORM_Sub
 
     declare constructor( )
     declare destructor( )
@@ -127,6 +129,8 @@ end type
 |---|---|
 | `Wnd` | The form's window. 0 until `OpenWindow`, and 0 again once the window is gone. Pass it to `tkForm_Widget`, `tkApp_Run` and the other [tkApp](tkApp) form calls. |
 | `Layout` | The form's [tkLayout](tkLayout), created by `OpenWindow`. Add containers and controls to it; `FormBase` calls `tkLayout_Apply` on every size and scale change. 0 once the window is gone. |
+| `ResizeHook` | Called on every resize after the layout has been applied, with the client size in pixels. The window's own `OnSize` belongs to `FormBase`, so a form hooks here. |
+| `DestroyHook` | Called as the window goes, while its controls are still there. Not called when the form object itself is destroyed: by then the derived form is gone. |
 | `OpenWindow( title, cx, cy [, owner] )` | Creates the window, hidden, `cx` by `cy` in design units, and its layout. `owner = 0` makes a top-level window. Does nothing if the window already exists. |
 | `Show( )` | Shows the window. Does nothing when there is no window. |
 | `ShowModal( ) as long` | Shows the form modally and runs until it is closed. The result is the code given to `EndModal`. Afterwards the window is hidden, not destroyed: the controls can still be read, and the form can be shown again. Returns 0 when there is no window. |
@@ -154,6 +158,8 @@ type tkForms_TranslateFunc as function( byref key as const ustring, byref text a
 type FormBase extends object
     Wnd as TK_FORM ptr
     Layout as TK_LAYOUT ptr
+    ResizeHook as TKFORM_SizeSub
+    DestroyHook as TKFORM_Sub
     declare constructor( )
     declare destructor( )
     declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
