@@ -4,7 +4,7 @@
 
 Draws a status bar of text panels, one of which stretches to fill the leftover width.
 
-tkStatusBar is the strip along the bottom of a window: "Ready", the caret position, the line ending, the encoding. Each panel holds text and item data, and is as wide as its text plus padding, or its minimum width if that is larger. One panel, set with `tkStatusBar_SetExpandPanel`, is the **spring** that takes the leftover width. When the bar is too narrow nothing shrinks; panels run past the right edge.
+tkStatusBar is the strip along the bottom of a window: "Ready", the caret position, the line ending, the encoding. Each panel holds text and item data, and is as wide as its text plus padding, or its minimum width if that is larger. A panel set to stretch with `tkStatusBar_SetPanelStretch` is a **spring**: the springs share the leftover width evenly (the first ones take a pixel each of any remainder), and a hidden spring takes none. `tkStatusBar_SetExpandPanel( sb, i )` makes panel `i` the only spring (`-1`: none), and `tkStatusBar_GetExpandPanel` answers the first one. When the bar is too narrow nothing shrinks; panels run past the right edge.
 
 Without a paint callback the bar draws its panels itself: the text inset by the padding and a divider between panels. Set a click callback and a panel under the mouse gets a hover fill, since it can now be clicked. A paint callback replaces the built-in painter and draws every panel pixel itself.
 
@@ -50,7 +50,7 @@ tkStatusBar_SetText( sb, 2, "Ln 12, Col 5" )
 
 ## Coming from PsStatusBar
 
-The [PsStatusBar](PsStatusBar) page remains the behaviour reference for everything not listed here: the panel model, the width law, the spring, the index fix-ups, hover and the tooltips are the same.
+The [PsStatusBar](PsStatusBar) page remains the behaviour reference for everything not listed here: the panel model, the width law, the index fix-ups, hover and the tooltips are the same. Added here: several springs (`tkStatusBar_SetPanelStretch`); PsStatusBar has one.
 
 - `PsStatusBar_*` → `tkStatusBar_*`; `PSSTATUSBAR_*` → `TKSTATUSBAR_*` (`_PANELINFO`, `_PAINTINFO`, `_MESSAGEINFO`, `_DEFAULT_PADDING`). The `SB_*` callback types keep their names. Indices are `long`.
 - `tkStatusBar_Create( parent, id )` takes a `TK_WIDGET ptr` parent; for a window's top level pass `tkHost_Root( h )`. It is created zero-sized, so it shows nothing until you size it. The font is a `TTF_Font ptr` the bar borrows; with none set, the host's default font is used.
@@ -140,6 +140,8 @@ function tkStatusBar_GetPanelVisible( byval hStatusBar as TK_WIDGET ptr, byval i
 function tkStatusBar_SetPanelMinWidth( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval nMinWidth as long ) as boolean
 function tkStatusBar_GetExpandPanel( byval hStatusBar as TK_WIDGET ptr ) as long
 function tkStatusBar_SetExpandPanel( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as boolean
+function tkStatusBar_SetPanelStretch( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval bStretch as boolean ) as boolean
+function tkStatusBar_GetPanelStretch( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as boolean
 function tkStatusBar_GetPadding( byval hStatusBar as TK_WIDGET ptr ) as long
 sub tkStatusBar_SetPadding( byval hStatusBar as TK_WIDGET ptr, byval nPadding as long )
 function tkStatusBar_GetPanelRect( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean

@@ -119,8 +119,9 @@ removes it.
 
 A StatusBar panel has a text, a width, a **Handler** and **Stretch**. The handler runs when the panel is
 clicked and is told how many clicks (`sub Form.OnPanel( byval clicks as long )`, 2 for a double click).
-**Stretch** gives that panel the space the others leave; one panel per bar can have it, so ticking it on
-one clears it on the rest. It is the bar's `ExpandPanel` property.
+**Stretch** gives that panel a share of the space the others leave; when several panels stretch they share
+it evenly. It is saved per panel (`stretch = true`). A form from before this keeps its bar's `ExpandPanel`
+property until the panels are next edited, when it becomes that panel's Stretch.
 
 ## Your own controls
 

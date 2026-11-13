@@ -482,6 +482,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         for i as long = 0 to c.Items.Count( ) - 1
             o &= "    tkStatusBar_AddPanel( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
             if c.Items[i].Width then o &= "    tkStatusBar_SetPanelMinWidth( " & h & ", " & i & ", " & c.Items[i].Width & " )" & NL
+            if c.Items[i].Stretch then o &= "    tkStatusBar_SetPanelStretch( " & h & ", " & i & ", true )" & NL
         next
     case catalog.ItemsKind.ItemsColumns
         for i as long = 0 to c.Items.Count( ) - 1

@@ -522,6 +522,7 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         for each it as FormItem in c.Items
             tkStatusBar_AddPanel( w, it.Text )
             if it.Width then tkStatusBar_SetPanelMinWidth( w, n, it.Width )
+            if it.Stretch then tkStatusBar_SetPanelStretch( w, n, true )
             n += 1
         next
     case catalog.ItemsKind.ItemsColumns

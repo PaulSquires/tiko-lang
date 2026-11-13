@@ -172,7 +172,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     if p then
         for i as long = 0 to p->Count( ) - 1
             dim byref as config.TomlValue it = p->Item( i )
-            OnlyKeys_( it, "text key glyph handler kind level width", where & " item", doc )
+            OnlyKeys_( it, "text key glyph handler kind level width stretch", where & " item", doc )
             dim as FormItem x
             x.Text = StrOf_( it, "text" )
             x.Key = StrOf_( it, "key" )
@@ -181,6 +181,11 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
             x.Kind = StrOf_( it, "kind" )
             x.Level = IntOf_( it, "level", 0 )
             x.Width = IntOf_( it, "width", 0 )
+            dim as config.TomlValue ptr st = it.Find( "stretch" )
+            if st then
+                dim as boolean no = false
+                x.Stretch = st->AsBool( ).ValueOr( no )
+            end if
             c.Items.Push( x )
         next
     end if
@@ -424,6 +429,7 @@ public function Render( byref doc as FormDoc ) as ustring
             if len( it.Key ) then o &= "key = " & Quote_( it.Key ) & NL
             if len( it.Glyph ) then o &= "glyph = " & Quote_( it.Glyph ) & NL
             if it.Width then o &= "width = " & it.Width & NL
+            if it.Stretch then o &= "stretch = true" & NL
             if len( it.Handler ) then o &= "handler = " & Quote_( it.Handler ) & NL
         next
     next

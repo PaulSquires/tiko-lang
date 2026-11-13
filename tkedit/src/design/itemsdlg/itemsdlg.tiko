@@ -436,14 +436,8 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
     if Loading orelse (Current < 0) orelse (Current >= Items.Count( )) then exit sub
     for each f as ItemField in Fields
         if (f.Edit = w) andalso f.IsCheck then
-            ' Stretch: one panel takes the spare width, so ticking one clears the others
-            dim as boolean on_ = tkCheckBox_GetChecked( f.Edit )
-            if on_ then
-                for k as long = 0 to Items.Count( ) - 1
-                    Items[k].Stretch = false
-                next
-            end if
-            Items[Current].Stretch = on_
+            ' Stretch: several panels may share the spare width
+            Items[Current].Stretch = tkCheckBox_GetChecked( f.Edit )
         elseif f.Edit = w then
             dim as ustring v
             if f.IsCombo then v = tkComboBox_GetText( f.Edit ) else v = tkTextBox_GetText( f.Edit )

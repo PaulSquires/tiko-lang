@@ -710,6 +710,22 @@ sub ItemsSuite( )
     Check( instr( gs, "tkStatusBar_SetClickCallback( sb2.Handle, @Thunk_sb2_Click )" ) > 0, "the dispatcher is installed" )
     ' set after the panels exist: the bar refuses a spring index it has no panel for
     Check( instr( gs, "sb2.ExpandPanel = 1" ) > instr( gs, "tkStatusBar_AddPanel( sb2.Handle, ""Line"" )" ), "and the spring set, after the panels", gs )
+    ' several panels stretch: saved per panel, and set on each after it is added
+    dim as ustring stSrc = Header( ) _
+        & Ctl( "sb3", "StatusBar", "" ) _
+        & LF & "[[control.items]]" & LF & "text = ""A""" & LF & "stretch = true" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""B""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""C""" & LF & "stretch = true" & LF
+    dim as FormDoc dst
+    Check( ReadForm( stSrc, dst ) andalso dst.Controls[0].Items[0].Stretch andalso (dst.Controls[0].Items[1].Stretch = false) _
+           andalso dst.Controls[0].Items[2].Stretch, "stretch read per panel" )
+    dim as FormDoc dst2
+    ReadForm( formfile.Render( dst ), dst2 )
+    Check( formfile.Render( dst2 ) = formfile.Render( dst ) andalso (instr( formfile.Render( dst ), "stretch = true" ) > 0), "and round-trips", formfile.Render( dst ) )
+    dim as ustring gst = codegen.Generate( dst, "frmT", "frmT.tkform", stSrc )
+    Check( (instr( gst, "tkStatusBar_SetPanelStretch( sb3.Handle, 0, true )" ) > instr( gst, "tkStatusBar_AddPanel( sb3.Handle, ""A"" )" )) _
+           andalso (instr( gst, "tkStatusBar_SetPanelStretch( sb3.Handle, 2, true )" ) > 0) andalso (instr( gst, "SetPanelStretch( sb3.Handle, 1" ) = 0), _
+           "each stretching panel set, after it is added", gst )
 
     ' with no entries, none of that is generated
     dim as FormDoc empty_

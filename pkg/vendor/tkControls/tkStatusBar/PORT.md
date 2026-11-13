@@ -8,7 +8,11 @@ unchanged. The handle is `TK_WIDGET ptr`; indices are `long` where vendor used `
 - the panel model (text, itemData, nMinWidth; rects derived, read-only);
 - the width law `max( textWidth + 2*padding, nMinWidth )` — the minimum is a floor, not a fixed
   width;
-- one spring that absorbs the leftover; on overflow nothing shrinks and panels run past the edge;
+- the leftover absorbed by the spring(s); on overflow nothing shrinks and panels run past the edge.
+  **Changed in tk:** several springs, a flag per panel (`SetPanelStretch` / `GetPanelStretch`), sharing
+  the leftover evenly (the first ones take a pixel each of the remainder; a hidden one takes none).
+  `SetExpandPanel` / `GetExpandPanel` remain as the one-spring view: set makes that panel the only
+  spring, get answers the first;
 - the stored-index fix-ups (insert at or before the spring shifts it; deleting it clears it;
   deleting before it shifts it down; `Clear` resets it); `InsertPanel` clamps to `[0, count]`;
   `SetExpandPanel` refuses an index that is neither valid nor -1 and keeps the old spring;
