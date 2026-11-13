@@ -525,6 +525,12 @@ public function tkHost_Create( byref title as ustring, byval w as long, byval hg
     return h
 end function
 
+' Is h's window always on top? A window that belongs to one has to be too, or it opens BEHIND it
+' (Windows: a menu's drop-down under an always-on-top form, a message box under its owner).
+private function OnTop_( byval h as TK_HOST ptr ) as boolean
+    return (h <> 0) andalso (h->win <> 0) andalso ((SDL_GetWindowFlags( h->win ) and SDL_WINDOW_ALWAYS_ON_TOP) <> 0)
+end function
+
 ' A popup (TK_SURF_POPUP) or tooltip (TK_SURF_TOOLTIP) window of `owner`. x, y, w, h are OWNER
 ' window pixels; see tkHost_PlacePopup to compute them against an anchor. It is created
 ' hidden and EMPTY: add widgets to it, then tkHost_Show. Wayland cannot re-show an unmapped
@@ -540,6 +546,7 @@ public function tkHost_CreatePopup( byval owner as TK_HOST ptr, byval x as long,
     h->clrBack = owner->clrBack
     dim as Uint64 fl = SDL_WINDOW_HIGH_PIXEL_DENSITY or SDL_WINDOW_HIDDEN or extraFlags
     fl or= iif( kind = TK_SURF_TOOLTIP, SDL_WINDOW_TOOLTIP, SDL_WINDOW_POPUP_MENU )
+    if OnTop_( owner ) then fl or= SDL_WINDOW_ALWAYS_ON_TOP
     dim as single d = owner->fDensity
     h->win = SDL_CreatePopupWindow( owner->win, cint( x / d ), cint( y / d ), cint( w / d ), cint( hgt / d ), fl )
     if h->win = 0 then
@@ -571,6 +578,7 @@ public function tkHost_CreateDialog( byval owner as TK_HOST ptr, byref title as 
     if h->win = 0 then delete h : return 0
     if owner then
         SDL_SetWindowParent( h->win, owner->win )
+        if OnTop_( owner ) then SDL_SetWindowAlwaysOnTop( h->win, true )
         ' centre over the owner
         dim as long ox, oy, ow, oh
         SDL_GetWindowPosition( owner->win, @ox, @oy )
