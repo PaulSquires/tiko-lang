@@ -157,6 +157,9 @@ props = [
 ]
 events = [
   { name="CheckChanged", set="tkCheckBox_SetCheckChangedCallback", type="CHK_CheckChangedCallbackSub", sig="byval hCheckBox as TK_WIDGET ptr, byval isChecked as boolean", params="byval isChecked as boolean", args="isChecked" },
+  { name="Paint", set="tkCheckBox_SetPaintCallback", type="CHK_PaintCallbackSub", sig="byval p as TKCHECKBOX_PAINTINFO ptr", params="byval p as TKCHECKBOX_PAINTINFO ptr", args="p", widget="p->hCheckBox" },
+  { name="Tooltip", set="tkCheckBox_SetTooltipCallback", type="CHK_TooltipCallbackFunc", sig="byval hCheckBox as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
+  { name="Message", set="tkCheckBox_SetMessageCallback", type="CHK_MessageCallbackFunc", sig="byval m as TKCHECKBOX_MESSAGEINFO ptr", params="byval m as TKCHECKBOX_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCheckBox", returns="boolean", result="Handled" },
 ]
 
 [[control]]

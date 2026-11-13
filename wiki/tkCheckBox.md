@@ -49,7 +49,8 @@ tkWidget_SetPos( chk, tkHost_Scale( host, 20 ), tkHost_Scale( host, 60 ), w, h )
 
 - `CHK_BOXSTYLE_VECTOR` (default) paints the box in the mood's box colour. A paint callback can
   draw the same box with `tkCheckBox_DrawVectorBox`; `tkCheckBox_VectorSquare` and
-  `tkCheckBox_VectorPen` give its square and pen width.
+  `tkCheckBox_VectorPen` give its square and pen width. `tkCheckBox_PaintDefault( p )` draws the
+  whole check box as it would have been drawn, for a callback that only adds to it.
 - `CHK_BOXSTYLE_GLYPH` draws `TKCHECKBOX_GLYPH_UNCHECKED` / `TKCHECKBOX_GLYPH_CHECKED` from the
   glyph font. Set that font with `tkCheckBox_SetGlyphFont` (the bundled `TK_FONT_ICONS`), and
   change the glyphs with `tkCheckBox_SetGlyphUnchecked` / `SetGlyphChecked`.
@@ -255,6 +256,7 @@ function tkCheckBox_GetTooltipHandle( byval hCheckBox as TK_WIDGET ptr ) as TK_T
 sub tkCheckBox_SetHoverTime( byval hCheckBox as TK_WIDGET ptr, byval ms as long )
 sub tkCheckBox_SetAutoPopTime( byval hCheckBox as TK_WIDGET ptr, byval ms as long )
 sub tkCheckBox_SetReshowTime( byval hCheckBox as TK_WIDGET ptr, byval ms as long )
+sub tkCheckBox_PaintDefault( byval p as TKCHECKBOX_PAINTINFO ptr )
 sub tkCheckBox_SetPaintCallback( byval hCheckBox as TK_WIDGET ptr, byval usersub as CHK_PaintCallbackSub )
 sub tkCheckBox_SetMessageCallback( byval hCheckBox as TK_WIDGET ptr, byval userfunc as CHK_MessageCallbackFunc )
 sub tkCheckBox_SetTooltipCallback( byval hCheckBox as TK_WIDGET ptr, byval userfunc as CHK_TooltipCallbackFunc )
