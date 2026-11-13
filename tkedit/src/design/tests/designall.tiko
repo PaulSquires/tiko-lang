@@ -1321,6 +1321,20 @@ sub TabControlSuite( )
     Check( tkMeta_FindProp( m, "Font" ) <> 0, "tabcontrol: a Font property" )
 end sub
 
+' A Splitter's two new events: Paint and Message.
+sub SplitterSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "spl", "Splitter" ) & LF & "[control.events]" & LF & "Paint = ""spl_Paint""" & LF & "Message = ""spl_Message""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "splitter: the form parses" )
+    Accepted( src, "splitter: Paint and Message" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    Check( instr( g, "tkForms_ObjectOf( p->hSplitter )" ) > 0, "splitter: Paint finds its form through the paint info" )
+    HasLine( g, "tkSplitter_SetPaintCallback( spl.Handle, @Thunk_spl_Paint )", "splitter: Paint installed" )
+    HasLine( g, "declare sub spl_Message( byval m as TKSPLITTER_MESSAGEINFO ptr, byref Handled as boolean )", "splitter: Message declared" )
+    Check( instr( g, "tkForms_ObjectOf( m->hSplitter )" ) > 0, "splitter: Message finds its form through the message info" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1667,6 +1681,7 @@ IconPanelSuite( )
 StatusBarSuite( )
 PanelSuite( )
 TabControlSuite( )
+SplitterSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

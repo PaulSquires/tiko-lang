@@ -76,7 +76,8 @@ The behaviour reference is [PsSplitter](PsSplitter); everything not listed here 
 - Colours start from the current theme and follow it. `tkSplitter_SetColors` pins them;
   `tkSplitter_UnpinColors` hands them back. `tkSplitter_ThemeColors` and
   `TKSPLITTER_COLORS` give the theme mapping as a value.
-- Added: `tkSplitter_GetHotColor` and the constant `TKSPLITTER_MAX_UNBOUNDED`.
+- Added: `tkSplitter_GetHotColor`, the constant `TKSPLITTER_MAX_UNBOUNDED`, and
+  `tkSplitter_PaintDefault( p )`, which draws the stock bar from inside a paint callback.
 - A disabled widget (`tkWidget_Enable`) ends any drag and drops its hover.
 - DPI changes rescale the position and range automatically; there is no `Rescale` call.
 - Gone: the hover-poll timer and its constants, `CS_DBLCLKS`, and PsRegistry. The control still
@@ -153,6 +154,7 @@ sub tkSplitter_SetColors( byval hSplit as TK_WIDGET ptr, byval backclr as ulong,
 function tkSplitter_ThemeColors( byref t as TKTHEME_COLORS ) as TKSPLITTER_COLORS
 sub tkSplitter_ApplyTheme( byval hSplit as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
 sub tkSplitter_UnpinColors( byval hSplit as TK_WIDGET ptr )
+sub tkSplitter_PaintDefault( byval p as TKSPLITTER_PAINTINFO ptr )
 sub tkSplitter_SetPaintCallback( byval hSplit as TK_WIDGET ptr, byval usersub as SPL_PaintCallbackSub )
 sub tkSplitter_SetMessageCallback( byval hSplit as TK_WIDGET ptr, byval userfunc as SPL_MessageCallbackFunc )
 sub tkSplitter_SetPosChangedCallback( byval hSplit as TK_WIDGET ptr, byval usersub as SPL_PosChangedCallbackSub )

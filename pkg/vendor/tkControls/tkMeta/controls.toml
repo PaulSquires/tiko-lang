@@ -797,6 +797,8 @@ props = [
 ]
 events = [
   { name="PosChanged", set="tkSplitter_SetPosChangedCallback", type="SPL_PosChangedCallbackSub", sig="byval hSplitter as TK_WIDGET ptr, byval newPos as long, byval nPhase as long", params="byval newPos as long, byval nPhase as long", args="newPos, nPhase" },
+  { name="Paint", set="tkSplitter_SetPaintCallback", type="SPL_PaintCallbackSub", sig="byval p as TKSPLITTER_PAINTINFO ptr", params="byval p as TKSPLITTER_PAINTINFO ptr", args="p", widget="p->hSplitter" },
+  { name="Message", set="tkSplitter_SetMessageCallback", type="SPL_MessageCallbackFunc", sig="byval m as TKSPLITTER_MESSAGEINFO ptr", params="byval m as TKSPLITTER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSplitter", returns="boolean", result="Handled" },
 ]
 
 [[control]]
