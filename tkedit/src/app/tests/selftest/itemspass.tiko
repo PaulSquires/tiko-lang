@@ -89,6 +89,69 @@ private function stretchBoxOf( byval d as itemsdlg.ItemsEditor ptr ) as TK_WIDGE
     return 0
 end function
 
+' Posted to the UI thread before a menu bar is placed: once its editor runs modally, the pencil is
+' pressed from within that modal loop.
+dim shared as long gPencilTries
+private sub PressPencilWhenModal( byval payload as any ptr )
+    dim as mainwin.Window ptr w = payload
+    gPencilTries += 1
+    if (w->ItemsDlg <> 0) andalso w->ItemsDlg->IsModal then
+        w->ItemsDlg->EditHandler( )
+    elseif gPencilTries < 100000 then
+        tkApp_RunOnUI( @PressPencilWhenModal, payload )
+    end if
+end sub
+
+' The author's GPF: a new form, a MenuBar double-clicked in the Toolbox (its editor opens, seeded),
+' the pencil pressed at once. The jump to the code unbinds the panels from the form, and the
+' Toolbox's handler went on to use the form it no longer had.
+public sub PencilPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "pencil: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "pencil" & cint( sc * 100 ) )
+    fs.RemoveDirAll( dir_ )
+    fs.CreateDirAll( dir_ )
+    mw.NewForm( fs.PathJoin( dir_, "frmNew.tkform" ) )
+    tkTest_PumpFor( h, 100 )
+    dim as DocRef d = mw.Active( )
+    dim as canvas.FormCanvas ptr c = iif( d <> 0, d->Designer, cast( canvas.FormCanvas ptr, 0 ) )
+    if c = 0 then
+        t.Check( false, P( sc, "pencil: a new form on its surface" ) )
+        mw.Destroy( )
+        exit sub
+    end if
+    dim as TK_WIDGET ptr tl = mw.Palettes.ToolList
+    dim as long tr = -1
+    for r as long = 0 to tkListTree_GetCount( tl ) - 1
+        if tkListTree_GetText( tl, r ) = "MenuBar" then tr = r
+    next
+    tkListTree_SetTopIndex( tl, tr )
+    tkTest_PumpFor( h, 30 )
+    dim as TKRECT rl
+    tkWidget_AbsRect( tl, rl )
+    dim as single tx = rl.left + tkHost_Scale( h, 20 ), ty = rl.top + tkListTree_GetRowHeight( tl ) \ 2
+    gPencilTries = 0
+    tkApp_RunOnUI( @PressPencilWhenModal, @mw )
+    tkTest_PushMotion( h, tx, ty )
+    tkTest_Click( h, tx, ty )
+    tkTest_Click( h, tx, ty, SDL_BUTTON_LEFT, 2 )
+    tkTest_PumpFor( h, 100 )
+    dim as long i = FindControl( c->Doc, "MenuBar1" )
+    t.Check( (tr >= 0) andalso (i >= 0) andalso (c->Doc.Controls[i].Items[0].Handler = "File"), P( sc, "pencil at once after a Toolbox double click: no crash, File named" ) )
+    t.Check( (mw.Active( ) <> d) andalso (instr( mw.Active( )->Text( ), "sub Form.File( )" ) > 0), P( sc, "and its body in front" ) )
+    for each dd as DocRef in mw.Docs
+        dd->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
 public sub ItemsPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
     mw.ConfigDir = FreshConfig( )

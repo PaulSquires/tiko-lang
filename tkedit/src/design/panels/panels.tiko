@@ -299,7 +299,10 @@ private sub OnToolActivated( byval hList as TK_WIDGET ptr, byval row as integer 
     if (p = 0) orelse (p->C = 0) then exit sub
     dim as ustring tool_ = ToolAt_( hList, row )
     if len( tool_ ) = 0 then exit sub
-    if p->C->PlaceDefault( tool_ ) then tkHost_SetFocus( p->C->Glass->pHost, p->C->Glass )
+    ' placing a menu bar runs its editor, whose pencil may leave for the code: the panels are then
+    ' bound to no form (p->C = 0), and the keyboard stays with the code
+    dim as canvas.FormCanvas ptr c = p->C
+    if c->PlaceDefault( tool_ ) andalso (p->C = c) then tkHost_SetFocus( c->Glass->pHost, c->Glass )
 end sub
 
 private sub OnTreePicked( byval hList as TK_WIDGET ptr, byval row as integer )
