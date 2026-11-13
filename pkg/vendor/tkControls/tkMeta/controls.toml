@@ -608,7 +608,7 @@ props = [
   { name="Mode", kind="enum", enum="Determinate=PRG_MODE_DETERMINATE,Indeterminate=PRG_MODE_INDETERMINATE", set="tkProgressBar_SetMode", get="tkProgressBar_GetMode", default="Determinate", design=false },
   { name="FillStyle", kind="enum", enum="Solid=PRG_FILL_SOLID,Gradient=PRG_FILL_GRADIENT", set="tkProgressBar_SetFillStyle", get="tkProgressBar_GetFillStyle", default="Solid" },
   { name="State", kind="enum", enum="Normal=PRG_STATE_NORMAL,Paused=PRG_STATE_PAUSED,Error=PRG_STATE_ERROR", set="tkProgressBar_SetState", get="tkProgressBar_GetState", default="Normal" },
-  { name="TextMode", kind="enum", enum="None=PRG_TEXT_NONE,Percent=PRG_TEXT_PERCENT,Value=PRG_TEXT_VALUE", set="tkProgressBar_SetTextMode", get="tkProgressBar_GetTextMode", default="None" },
+  { name="TextMode", kind="enum", enum="None=PRG_TEXT_NONE,Percent=PRG_TEXT_PERCENT,Value=PRG_TEXT_VALUE,Callback=PRG_TEXT_CALLBACK", set="tkProgressBar_SetTextMode", get="tkProgressBar_GetTextMode", default="None" },
   { name="Reverse", kind="bool", set="tkProgressBar_SetReverse", get="tkProgressBar_GetReverse", default="false" },
   { name="Segmented", kind="bool", set="tkProgressBar_SetSegmented", get="tkProgressBar_GetSegmented", default="false" },
   { name="TooltipText", kind="text", set="tkProgressBar_SetTooltipText", get="tkProgressBar_GetTooltipText" },
@@ -629,6 +629,10 @@ props = [
   { name="BlockMetrics", kind="list", enum="BlockLen:int,BlockGap:int", set="tkProgressBar_SetBlockMetrics", get="" },
 ]
 events = [
+  { name="Paint", set="tkProgressBar_SetPaintCallback", type="PRG_PaintCallbackSub", sig="byval p as TKPROGRESSBAR_PAINTINFO ptr", params="byval p as TKPROGRESSBAR_PAINTINFO ptr", args="p", widget="p->hProgressBar" },
+  { name="Message", set="tkProgressBar_SetMessageCallback", type="PRG_MessageCallbackFunc", sig="byval m as TKPROGRESSBAR_MESSAGEINFO ptr", params="byval m as TKPROGRESSBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hProgressBar", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkProgressBar_SetTooltipCallback", type="PRG_TooltipCallbackFunc", sig="byval hProgressBar as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
+  { name="Text", set="tkProgressBar_SetTextCallback", type="PRG_TextCallbackFunc", sig="byval hProgressBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long", params="byval nPos as long, byval nMin as long, byval nMax as long, byref Text as ustring", args="nPos, nMin, nMax, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]

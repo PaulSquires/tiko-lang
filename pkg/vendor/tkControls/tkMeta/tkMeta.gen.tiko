@@ -1502,6 +1502,7 @@ private sub A_ProgressBar_TextMode( byval w as TK_WIDGET ptr, byref v as const u
     case "None" : tkProgressBar_SetTextMode( w, PRG_TEXT_NONE )
     case "Percent" : tkProgressBar_SetTextMode( w, PRG_TEXT_PERCENT )
     case "Value" : tkProgressBar_SetTextMode( w, PRG_TEXT_VALUE )
+    case "Callback" : tkProgressBar_SetTextMode( w, PRG_TEXT_CALLBACK )
     end select
 end sub
 
@@ -1510,6 +1511,7 @@ private function R_ProgressBar_TextMode( byval w as TK_WIDGET ptr ) as ustring
     case PRG_TEXT_NONE : return "None"
     case PRG_TEXT_PERCENT : return "Percent"
     case PRG_TEXT_VALUE : return "Value"
+    case PRG_TEXT_CALLBACK : return "Callback"
     end select
     return ""
 end function
@@ -3364,7 +3366,7 @@ sub Fill_( )
     Prop_( "Mode", "enum", "Determinate", "Determinate=PRG_MODE_DETERMINATE,Indeterminate=PRG_MODE_INDETERMINATE", "tkProgressBar_SetMode", "tkProgressBar_GetMode", @A_ProgressBar_Mode, @R_ProgressBar_Mode, 0, false, true, "", 0 )
     Prop_( "FillStyle", "enum", "Solid", "Solid=PRG_FILL_SOLID,Gradient=PRG_FILL_GRADIENT", "tkProgressBar_SetFillStyle", "tkProgressBar_GetFillStyle", @A_ProgressBar_FillStyle, @R_ProgressBar_FillStyle, 0, true, true, "", 0 )
     Prop_( "State", "enum", "Normal", "Normal=PRG_STATE_NORMAL,Paused=PRG_STATE_PAUSED,Error=PRG_STATE_ERROR", "tkProgressBar_SetState", "tkProgressBar_GetState", @A_ProgressBar_State, @R_ProgressBar_State, 0, true, true, "", 0 )
-    Prop_( "TextMode", "enum", "None", "None=PRG_TEXT_NONE,Percent=PRG_TEXT_PERCENT,Value=PRG_TEXT_VALUE", "tkProgressBar_SetTextMode", "tkProgressBar_GetTextMode", @A_ProgressBar_TextMode, @R_ProgressBar_TextMode, 0, true, true, "", 0 )
+    Prop_( "TextMode", "enum", "None", "None=PRG_TEXT_NONE,Percent=PRG_TEXT_PERCENT,Value=PRG_TEXT_VALUE,Callback=PRG_TEXT_CALLBACK", "tkProgressBar_SetTextMode", "tkProgressBar_GetTextMode", @A_ProgressBar_TextMode, @R_ProgressBar_TextMode, 0, true, true, "", 0 )
     Prop_( "Reverse", "bool", "false", "", "tkProgressBar_SetReverse", "tkProgressBar_GetReverse", @A_ProgressBar_Reverse, @R_ProgressBar_Reverse, 0, true, true, "", 0 )
     Prop_( "Segmented", "bool", "false", "", "tkProgressBar_SetSegmented", "tkProgressBar_GetSegmented", @A_ProgressBar_Segmented, @R_ProgressBar_Segmented, 0, true, true, "", 0 )
     Prop_( "TooltipText", "text", "", "", "tkProgressBar_SetTooltipText", "tkProgressBar_GetTooltipText", @A_ProgressBar_TooltipText, @R_ProgressBar_TooltipText, 0, true, true, "", 0 )
@@ -3383,6 +3385,10 @@ sub Fill_( )
     Prop_( "Range", "list", "", "Min:int,Max:int", "tkProgressBar_SetRange", "", @A_ProgressBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "MarqueeSpeed", "list", "", "IntervalMs:int,StepPx:int", "tkProgressBar_SetMarqueeSpeed", "", @A_ProgressBar_MarqueeSpeed, 0, 0, true, true, "", 0 )
     Prop_( "BlockMetrics", "list", "", "BlockLen:int,BlockGap:int", "tkProgressBar_SetBlockMetrics", "", @A_ProgressBar_BlockMetrics, 0, 0, true, true, "", 0 )
+    Event_( "Paint", "tkProgressBar_SetPaintCallback", "PRG_PaintCallbackSub", "byval p as TKPROGRESSBAR_PAINTINFO ptr", "byval p as TKPROGRESSBAR_PAINTINFO ptr", "p", "p->hProgressBar", "", "" )
+    Event_( "Message", "tkProgressBar_SetMessageCallback", "PRG_MessageCallbackFunc", "byval m as TKPROGRESSBAR_MESSAGEINFO ptr", "byval m as TKPROGRESSBAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hProgressBar", "boolean", "Handled" )
+    Event_( "Tooltip", "tkProgressBar_SetTooltipCallback", "PRG_TooltipCallbackFunc", "byval hProgressBar as TK_WIDGET ptr", "byref Text as ustring", "Text", "", "ustring", "Text" )
+    Event_( "Text", "tkProgressBar_SetTextCallback", "PRG_TextCallbackFunc", "byval hProgressBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long", "byval nPos as long, byval nMin as long, byval nMax as long, byref Text as ustring", "nPos, nMin, nMax, Text", "", "ustring", "Text" )
     Add_( "ColorPicker", "tkColorPicker", "Common", 120, 28, "ColorChanged", "", @C_ColorPicker, "", "", "", "" )
     Colors_( "TKCOLORPICKER_COLORS", "tkColorPicker_GetColors", "tkColorPicker_ThemeColors", @G_ColorPicker, @T_ColorPicker )
     Color_( "BackColor", "Back", "Normal", "", false )

@@ -94,9 +94,9 @@ Each control is a typed value. `.Text`, `.Enabled` and the rest are properties, 
 the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
-a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's, Toolbar's, IconPanel's or StatusBar's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, StatusBar, Splitter, ScrollPanel, ColorPicker, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker, Splitter, ScrollPanel, VScrollBar, HScrollBar) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`; a StatusBar's one panel: `tkStatusBar_PaintPanelDefault`; a ColorPicker's popup: `tkColorPicker_RenderInfo`); call its
+a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's, Toolbar's, IconPanel's, StatusBar's or ProgressBar's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
+(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, StatusBar, Splitter, ScrollPanel, ColorPicker, ProgressBar, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker, Splitter, ScrollPanel, VScrollBar, HScrollBar, ProgressBar) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`; a StatusBar's one panel: `tkStatusBar_PaintPanelDefault`; a ColorPicker's popup: `tkColorPicker_RenderInfo`); call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it. A Panel's **Paint**
 handler draws over its background and border, under its children, so there is nothing to call first.
 A ScrollPanel's **Layout** handler runs on every layout pass with the page's width (`cxPanel`): place
@@ -142,7 +142,10 @@ Select a MenuBar, Toolbar, IconPanel, StatusBar, ListTree, ComboBox, SelectBar, 
 items** in the Properties panel. A SelectBar's items are its panels, a TabBar's its tabs and a TabControl's its
 pages; the **SelectedIndex** of each (like a ComboBox's) picks one of them once they're added. A TabControl's
 tabs have no close X unless **Closable** is on; its **Close** handler is then told which tab, and closing it
-(`tkTabControl_DeletePage`) is up to you. Menu items are indented to make drop-downs and submenus. A menu item can have a
+(`tkTabControl_DeletePage`) is up to you.
+
+A ProgressBar whose **TextMode** is Callback shows what its **Text** handler sets `Text` to; the handler
+is told the position and the range. Menu items are indented to make drop-downs and submenus. A menu item can have a
 shortcut such as `Primary+O`, and a handler. Set the text of a menu item to `-` for a separator.
 
 A MenuBar dropped on a form opens this editor straight away, filled with a standard menu -- **File**

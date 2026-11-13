@@ -25,7 +25,8 @@ using tkHost
 
 The module brings in [tkHost](tkHost) (and through it [tkPaint](tkPaint), SDL3, SDL_ttf and
 SDL_image), [tkTheme](tkTheme) and [tkTooltip](tkTooltip). Add `using tkPaint` to name the
-`TK_GRADIENT_*` modes or to write a paint callback.
+`TK_GRADIENT_*` modes or to write a paint callback; `tkProgressBar_PaintDefault( p )` in one draws
+the stock bar first.
 
 ## Example
 
@@ -276,6 +277,7 @@ function tkProgressBar_GetTooltipHandle( byval hProgressBar as TK_WIDGET ptr ) a
 sub tkProgressBar_SetHoverTime( byval hProgressBar as TK_WIDGET ptr, byval ms as long )
 sub tkProgressBar_SetAutoPopTime( byval hProgressBar as TK_WIDGET ptr, byval ms as long )
 sub tkProgressBar_SetReshowTime( byval hProgressBar as TK_WIDGET ptr, byval ms as long )
+sub tkProgressBar_PaintDefault( byval p as TKPROGRESSBAR_PAINTINFO ptr )
 sub tkProgressBar_SetPaintCallback( byval hProgressBar as TK_WIDGET ptr, byval usersub as PRG_PaintCallbackSub )
 sub tkProgressBar_SetMessageCallback( byval hProgressBar as TK_WIDGET ptr, byval userfunc as PRG_MessageCallbackFunc )
 sub tkProgressBar_SetTooltipCallback( byval hProgressBar as TK_WIDGET ptr, byval userfunc as PRG_TooltipCallbackFunc )
