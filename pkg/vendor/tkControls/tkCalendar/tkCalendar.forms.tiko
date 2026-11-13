@@ -37,6 +37,13 @@ public type Calendar
     declare sub PanelGrid( byval a0 as long, byval a1 as long )
     declare sub Gutters( byval a0 as long, byval a1 as long )
     declare sub CellMinSize( byval a0 as long, byval a1 as long )
+    declare sub MinDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub MaxDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare sub AnchorMonth( byval a0 as long, byval a1 as long )
+    declare sub SelDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    declare property MonthNames( byref v as const ustring )
+    declare property MonthAbbrevs( byref v as const ustring )
+    declare property WeekdayAbbrevs( byref v as const ustring )
 end type
 
 sub Calendar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -154,3 +161,31 @@ end sub
 sub Calendar.CellMinSize( byval a0 as long, byval a1 as long )
     tkCalendar_SetCellMinSize( Handle, a0, a1 )
 end sub
+
+sub Calendar.MinDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkCalendar_SetMinDate( Handle, a0, a1, a2 )
+end sub
+
+sub Calendar.MaxDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkCalendar_SetMaxDate( Handle, a0, a1, a2 )
+end sub
+
+sub Calendar.AnchorMonth( byval a0 as long, byval a1 as long )
+    tkCalendar_SetAnchorMonth( Handle, a0, a1 )
+end sub
+
+sub Calendar.SelDate( byval a0 as long, byval a1 as long, byval a2 as long )
+    tkCalendar_SetSelDateParts( Handle, a0, a1, a2 )
+end sub
+
+property Calendar.MonthNames( byref v as const ustring )
+    tkCalendar_SetMonthNamesText( Handle, v )
+end property
+
+property Calendar.MonthAbbrevs( byref v as const ustring )
+    tkCalendar_SetMonthAbbrevsText( Handle, v )
+end property
+
+property Calendar.WeekdayAbbrevs( byref v as const ustring )
+    tkCalendar_SetWeekdayAbbrevsText( Handle, v )
+end property

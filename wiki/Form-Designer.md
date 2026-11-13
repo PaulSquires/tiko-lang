@@ -95,9 +95,13 @@ the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, TextBox, NumericUpDown, DatePicker) sets `Handled` to keep a mouse or key message from the
+(Button, TextBox, NumericUpDown, DatePicker, Calendar) sets `Handled` to keep a mouse or key message from the
 control. A **Paint** handler (Button, NumericUpDown, DatePicker) draws the control instead; call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
+
+A Calendar's **Paint**, **DayPaint** and **MonthYearPaint** handlers draw the whole control, a day,
+or a month or year cell (`tkCalendar_PaintDefault`, `PaintDayDefault`, `PaintMonthYearDefault` draw
+the stock ones), and its **Tooltip** handler sets `t->outText` for the day under the pointer.
 
 A DatePicker needs a **Parse** handler before anyone can type a date: without one, typed text is
 never accepted. `Accepted = tkDatePicker_ParseIso( sText, pDate )` takes ISO dates; **Format** sets

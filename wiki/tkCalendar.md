@@ -17,6 +17,15 @@ date arithmetic to go with them (`tkCalendar_MakeDate`, `AddDays`, `AddMonths`, 
 localisation, individual day cells can be painted by a callback, and the whole renderer can be
 replaced.
 
+For a form designer, whose rows hold numbers and text rather than `TKDATE` values and arrays:
+`tkCalendar_SetSelDateParts`, `SetMinDate` / `SetMaxDate` (a year of 0 removes that end),
+`SetAnchorMonth` (the month shown), and `SetMonthNamesText` / `SetMonthAbbrevsText` /
+`SetWeekdayAbbrevsText` (comma lists, Sunday first for the weekdays; an empty entry keeps that
+name). The border follows the theme's `BorderWidth` until `SetBorderThickness` (a calendar starts
+with none). In a paint callback, `tkCalendar_PaintDefault( p )` draws the stock content (the frame
+is drawn either way); `PaintDayDefault` and `PaintMonthYearDefault` do the same for a day cell and a
+month or year cell.
+
 ## Importing
 
 ```freebasic
@@ -365,6 +374,15 @@ sub tkCalendar_SetDateActivatedCallback( byval hCtrl as TK_WIDGET ptr, byval use
 sub tkCalendar_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_PaintCallbackSub )
 sub tkCalendar_SetDayPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_DayPaintCallbackSub )
 sub tkCalendar_PaintDayDefault( byval p as TKCALENDAR_DAYPAINTINFO ptr )
+sub tkCalendar_PaintDefault( byval p as TKCALENDAR_PAINTINFO ptr )
+sub tkCalendar_PaintMonthYearDefault( byval p as TKCALENDAR_MYPAINTINFO ptr )
+sub tkCalendar_SetSelDateParts( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long, byval d as long )
+sub tkCalendar_SetMinDate( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long, byval d as long )
+sub tkCalendar_SetMaxDate( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long, byval d as long )
+sub tkCalendar_SetAnchorMonth( byval hCtrl as TK_WIDGET ptr, byval y as long, byval m as long )
+sub tkCalendar_SetMonthNamesText( byval hCtrl as TK_WIDGET ptr, byval sNames as ustring )
+sub tkCalendar_SetMonthAbbrevsText( byval hCtrl as TK_WIDGET ptr, byval sNames as ustring )
+sub tkCalendar_SetWeekdayAbbrevsText( byval hCtrl as TK_WIDGET ptr, byval sNames as ustring )
 sub tkCalendar_SetMonthYearPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_MonthYearPaintCallbackSub )
 sub tkCalendar_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CAL_MessageCallbackFunc )
 sub tkCalendar_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CAL_TooltipCallbackFunc )

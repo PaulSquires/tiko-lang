@@ -1011,6 +1011,28 @@ sub DatePickerSuite( )
     Check( instr( codegen.Generate( plainDtp, "frmD", "frmD.tkform", "" ), "tkCalendar" ) = 0, "datepicker: no date event, no tkCalendar" )
 end sub
 
+' A Calendar's date and name rows and its five new events.
+sub CalendarSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""C""" & LF & "width = 300" & LF & "height = 260" & LF _
+        & Ctl( "cal", "Calendar" ) & LF & "[control.props]" & LF & "AnchorMonth = ""2026,3""" & LF & "SelDate = ""2026,3,9""" & LF _
+        & "MonthNames = ""Enero,Febrero""" & LF _
+        & LF & "[control.events]" & LF & "Paint = ""cal_Paint""" & LF & "DayPaint = ""cal_DayPaint""" & LF & "MonthYearPaint = ""cal_MyPaint""" & LF _
+        & "Message = ""cal_Message""" & LF & "Tooltip = ""cal_Tooltip""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "calendar: the form parses" )
+    Accepted( src, "calendar: the new rows and events" )
+    dim as ustring g = codegen.Generate( d, "frmC", "frmC.tkform", src )
+    HasLine( g, "cal.AnchorMonth( 2026, 3 )", "calendar: AnchorMonth" )
+    HasLine( g, "cal.SelDate( 2026, 3, 9 )", "calendar: SelDate" )
+    HasLine( g, "cal.MonthNames = ""Enero,Febrero""", "calendar: MonthNames" )
+    HasLine( g, "declare sub cal_MyPaint( byval c as TKCALENDAR_MYPAINTINFO ptr )", "calendar: MonthYearPaint declared" )
+    Check( instr( g, "tkForms_ObjectOf( c->hCtrl )" ) > 0, "calendar: MonthYearPaint finds its form through the cell info" )
+    Check( instr( g, "    dim as boolean Show = true" & LF & "    dim as Form ptr f = tkForms_ObjectOf( t->hCtrl )" & LF ) > 0, "calendar: Tooltip's Show starts true" )
+    HasLine( g, "tkCalendar_SetMonthYearPaintCallback( cal.Handle, @Thunk_cal_MonthYearPaint )", "calendar: MonthYearPaint installed" )
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval c as TKCALENDAR_MYPAINTINFO ptr", "tkCalendar" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkCalendar"), "calendar: its own types import tkCalendar once" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1342,6 +1364,7 @@ ButtonEventsSuite( )
 TextBoxEventsSuite( )
 NumericUpDownSuite( )
 DatePickerSuite( )
+CalendarSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

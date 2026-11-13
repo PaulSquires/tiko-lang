@@ -531,17 +531,29 @@ props = [
   { name="NavStep", kind="int", set="tkCalendar_SetNavStep", get="tkCalendar_GetNavStep" },
   { name="TitleFont", kind="font", set="tkCalendar_SetTitleFont", get="tkCalendar_GetTitleFont" },
   { name="WeekdayFont", kind="font", set="tkCalendar_SetWeekdayFont", get="tkCalendar_GetWeekdayFont" },
-  { name="BorderThickness", kind="int", set="tkCalendar_SetBorderThickness", get="tkCalendar_GetBorderThickness" },
+  { name="BorderThickness", kind="int", set="tkCalendar_SetBorderThickness", get="tkCalendar_GetBorderThickness", theme="BorderWidth", scale=1 },
   { name="ChevronThickness", kind="int", set="tkCalendar_SetChevronThickness", get="tkCalendar_GetChevronThickness" },
   { name="Padding", kind="int", set="tkCalendar_SetPadding", get="tkCalendar_GetPadding" },
   { name="PanelGrid", kind="list", enum="Cols:int,Rows:int", set="tkCalendar_SetPanelGrid", get="" },
   { name="Gutters", kind="list", enum="GutterX:int,GutterY:int", set="tkCalendar_SetGutters", get="" },
   { name="CellMinSize", kind="list", enum="W:int,H:int", set="tkCalendar_SetCellMinSize", get="" },
+  { name="MinDate", kind="list", enum="Year:int,Month:int,Day:int", set="tkCalendar_SetMinDate", get="" },
+  { name="MaxDate", kind="list", enum="Year:int,Month:int,Day:int", set="tkCalendar_SetMaxDate", get="" },
+  { name="AnchorMonth", kind="list", enum="Year:int,Month:int", set="tkCalendar_SetAnchorMonth", get="" },
+  { name="SelDate", kind="list", enum="Year:int,Month:int,Day:int", set="tkCalendar_SetSelDateParts", get="" },
+  { name="MonthNames", kind="text", set="tkCalendar_SetMonthNamesText", get="" },
+  { name="MonthAbbrevs", kind="text", set="tkCalendar_SetMonthAbbrevsText", get="" },
+  { name="WeekdayAbbrevs", kind="text", set="tkCalendar_SetWeekdayAbbrevsText", get="" },
 ]
 events = [
   { name="DateActivated", set="tkCalendar_SetDateActivatedCallback", type="CAL_DateActivatedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr", params="byval pDate as TKDATE ptr", args="pDate" },
   { name="SelChange", set="tkCalendar_SetSelChangeCallback", type="CAL_SelChangeCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", params="byval pDate as TKDATE ptr, byval bHasDate as boolean", args="pDate, bHasDate" },
   { name="ViewChange", set="tkCalendar_SetViewChangeCallback", type="CAL_ViewChangeCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval eView as long, byval pAnchor as TKDATE ptr", params="byval eView as long, byval pAnchor as TKDATE ptr", args="eView, pAnchor" },
+  { name="Paint", set="tkCalendar_SetPaintCallback", type="CAL_PaintCallbackSub", sig="byval p as TKCALENDAR_PAINTINFO ptr", params="byval p as TKCALENDAR_PAINTINFO ptr", args="p", widget="p->hCtrl" },
+  { name="DayPaint", set="tkCalendar_SetDayPaintCallback", type="CAL_DayPaintCallbackSub", sig="byval d as TKCALENDAR_DAYPAINTINFO ptr", params="byval d as TKCALENDAR_DAYPAINTINFO ptr", args="d", widget="d->hCtrl" },
+  { name="MonthYearPaint", set="tkCalendar_SetMonthYearPaintCallback", type="CAL_MonthYearPaintCallbackSub", sig="byval c as TKCALENDAR_MYPAINTINFO ptr", params="byval c as TKCALENDAR_MYPAINTINFO ptr", args="c", widget="c->hCtrl" },
+  { name="Message", set="tkCalendar_SetMessageCallback", type="CAL_MessageCallbackFunc", sig="byval m as TKCALENDAR_MESSAGEINFO ptr", params="byval m as TKCALENDAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkCalendar_SetTooltipCallback", type="CAL_TooltipCallbackFunc", sig="byval t as TKCALENDAR_TOOLTIPINFO ptr", params="byval t as TKCALENDAR_TOOLTIPINFO ptr, byref Show as boolean", args="t, Show", widget="t->hCtrl", returns="boolean", result="Show", result_init="true" },
 ]
 
 [[control]]

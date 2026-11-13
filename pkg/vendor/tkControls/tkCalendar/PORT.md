@@ -42,6 +42,10 @@ after any day painter; the five callbacks plus messages and tooltips; silent set
 - `tkCalendar_LocalToday` (the clock's date, via `SDL_GetCurrentTime`), `tkCalendar_GetMyFocus`
   (the drill-down cursor) and `tkCalendar_GetHot` (the hot part), for hosts and tests.
 - `tkCalendar_PaintDayDefault` (the stock day cell, for a day-paint callback; tkDatePicker's uses it).
+- For the form designer: `PaintDefault` and `PaintMonthYearDefault` (the renderer split out of the
+  paint so a callback can call it), `SetSelDateParts`, `SetMinDate` / `SetMaxDate`, `SetAnchorMonth`,
+  the `Set...Text` name lists, and theme shape support: the border follows the theme's BorderWidth
+  until `SetBorderThickness`, which now pins it (tkDatePicker's drop-down sets 0, so keeps none).
 
 **Dropped (Win32-only):** `WM_GETDLGCODE` and the `WM_CHAR` swallow (SDL never beeps), the 100 ms
 hot-poll timer (the host guarantees the leave), `CS_DBLCLKS` (SDL counts clicks),

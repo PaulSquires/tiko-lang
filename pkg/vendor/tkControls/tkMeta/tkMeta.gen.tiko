@@ -1350,6 +1350,34 @@ private sub A_Calendar_CellMinSize( byval w as TK_WIDGET ptr, byref v as const u
     tkCalendar_SetCellMinSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_Calendar_MinDate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetMinDate( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_Calendar_MaxDate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetMaxDate( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_Calendar_AnchorMonth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetAnchorMonth( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Calendar_SelDate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetSelDateParts( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_Calendar_MonthNames( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetMonthNamesText( w, v )
+end sub
+
+private sub A_Calendar_MonthAbbrevs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetMonthAbbrevsText( w, v )
+end sub
+
+private sub A_Calendar_WeekdayAbbrevs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCalendar_SetWeekdayAbbrevsText( w, v )
+end sub
+
 private function C_ProgressBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
     case "Horizontal" : return tkProgressBar_Create( hParent, id, PRG_HORIZONTAL )
@@ -3019,15 +3047,27 @@ sub Fill_( )
     Prop_( "NavStep", "int", "", "", "tkCalendar_SetNavStep", "tkCalendar_GetNavStep", @A_Calendar_NavStep, @R_Calendar_NavStep, 0, true, true, "", 0 )
     Prop_( "TitleFont", "font", "", "", "tkCalendar_SetTitleFont", "tkCalendar_GetTitleFont", 0, 0, @F_Calendar_TitleFont, true, true, "", 0 )
     Prop_( "WeekdayFont", "font", "", "", "tkCalendar_SetWeekdayFont", "tkCalendar_GetWeekdayFont", 0, 0, @F_Calendar_WeekdayFont, true, true, "", 0 )
-    Prop_( "BorderThickness", "int", "", "", "tkCalendar_SetBorderThickness", "tkCalendar_GetBorderThickness", @A_Calendar_BorderThickness, @R_Calendar_BorderThickness, 0, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkCalendar_SetBorderThickness", "tkCalendar_GetBorderThickness", @A_Calendar_BorderThickness, @R_Calendar_BorderThickness, 0, true, true, "BorderWidth", 1 )
     Prop_( "ChevronThickness", "int", "", "", "tkCalendar_SetChevronThickness", "tkCalendar_GetChevronThickness", @A_Calendar_ChevronThickness, @R_Calendar_ChevronThickness, 0, true, true, "", 0 )
     Prop_( "Padding", "int", "", "", "tkCalendar_SetPadding", "tkCalendar_GetPadding", @A_Calendar_Padding, @R_Calendar_Padding, 0, true, true, "", 0 )
     Prop_( "PanelGrid", "list", "", "Cols:int,Rows:int", "tkCalendar_SetPanelGrid", "", @A_Calendar_PanelGrid, 0, 0, true, true, "", 0 )
     Prop_( "Gutters", "list", "", "GutterX:int,GutterY:int", "tkCalendar_SetGutters", "", @A_Calendar_Gutters, 0, 0, true, true, "", 0 )
     Prop_( "CellMinSize", "list", "", "W:int,H:int", "tkCalendar_SetCellMinSize", "", @A_Calendar_CellMinSize, 0, 0, true, true, "", 0 )
+    Prop_( "MinDate", "list", "", "Year:int,Month:int,Day:int", "tkCalendar_SetMinDate", "", @A_Calendar_MinDate, 0, 0, true, true, "", 0 )
+    Prop_( "MaxDate", "list", "", "Year:int,Month:int,Day:int", "tkCalendar_SetMaxDate", "", @A_Calendar_MaxDate, 0, 0, true, true, "", 0 )
+    Prop_( "AnchorMonth", "list", "", "Year:int,Month:int", "tkCalendar_SetAnchorMonth", "", @A_Calendar_AnchorMonth, 0, 0, true, true, "", 0 )
+    Prop_( "SelDate", "list", "", "Year:int,Month:int,Day:int", "tkCalendar_SetSelDateParts", "", @A_Calendar_SelDate, 0, 0, true, true, "", 0 )
+    Prop_( "MonthNames", "text", "", "", "tkCalendar_SetMonthNamesText", "", @A_Calendar_MonthNames, 0, 0, true, true, "", 0 )
+    Prop_( "MonthAbbrevs", "text", "", "", "tkCalendar_SetMonthAbbrevsText", "", @A_Calendar_MonthAbbrevs, 0, 0, true, true, "", 0 )
+    Prop_( "WeekdayAbbrevs", "text", "", "", "tkCalendar_SetWeekdayAbbrevsText", "", @A_Calendar_WeekdayAbbrevs, 0, 0, true, true, "", 0 )
     Event_( "DateActivated", "tkCalendar_SetDateActivatedCallback", "CAL_DateActivatedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr", "byval pDate as TKDATE ptr", "pDate" )
     Event_( "SelChange", "tkCalendar_SetSelChangeCallback", "CAL_SelChangeCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", "byval pDate as TKDATE ptr, byval bHasDate as boolean", "pDate, bHasDate" )
     Event_( "ViewChange", "tkCalendar_SetViewChangeCallback", "CAL_ViewChangeCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval eView as long, byval pAnchor as TKDATE ptr", "byval eView as long, byval pAnchor as TKDATE ptr", "eView, pAnchor" )
+    Event_( "Paint", "tkCalendar_SetPaintCallback", "CAL_PaintCallbackSub", "byval p as TKCALENDAR_PAINTINFO ptr", "byval p as TKCALENDAR_PAINTINFO ptr", "p", "p->hCtrl", "", "" )
+    Event_( "DayPaint", "tkCalendar_SetDayPaintCallback", "CAL_DayPaintCallbackSub", "byval d as TKCALENDAR_DAYPAINTINFO ptr", "byval d as TKCALENDAR_DAYPAINTINFO ptr", "d", "d->hCtrl", "", "" )
+    Event_( "MonthYearPaint", "tkCalendar_SetMonthYearPaintCallback", "CAL_MonthYearPaintCallbackSub", "byval c as TKCALENDAR_MYPAINTINFO ptr", "byval c as TKCALENDAR_MYPAINTINFO ptr", "c", "c->hCtrl", "", "" )
+    Event_( "Message", "tkCalendar_SetMessageCallback", "CAL_MessageCallbackFunc", "byval m as TKCALENDAR_MESSAGEINFO ptr", "byval m as TKCALENDAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
+    Event_( "Tooltip", "tkCalendar_SetTooltipCallback", "CAL_TooltipCallbackFunc", "byval t as TKCALENDAR_TOOLTIPINFO ptr", "byval t as TKCALENDAR_TOOLTIPINFO ptr, byref Show as boolean", "t, Show", "t->hCtrl", "boolean", "Show", "true" )
     Add_( "ProgressBar", "tkProgressBar", "Common", 200, 22, "", "", @C_ProgressBar, "Orientation", "enum", "Horizontal=PRG_HORIZONTAL,Vertical=PRG_VERTICAL", "Horizontal" )
     Colors_( "TKPROGRESSBAR_COLORS", "tkProgressBar_GetColors", "tkProgressBar_ThemeColors", @G_ProgressBar, @T_ProgressBar )
     Color_( "BackColor", "Back", "Normal", "", false )

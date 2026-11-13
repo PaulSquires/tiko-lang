@@ -482,6 +482,11 @@ sub RunPass( byval fScale as single )
     sh.BorderWidth = 4
     tkTheme_SetShape( sh )
     tkTest_Check( "SetBorderThickness pins it against the theme", tkDatePicker_GetBorderThickness( c ) = 2 )
+    tkDatePicker_DropDown( c )
+    tkTest_PumpFor( h, 100 )
+    dim as TK_WIDGET ptr calB = tkDatePicker_GetCalendarHandle( c )
+    tkTest_Check( "the drop-down calendar keeps no border under the theme's", (calB <> 0) andalso (tkCalendar_GetBorderThickness( calB ) = 0) )
+    tkDatePicker_CloseUp( c )
     dim as TKTHEME_SHAPE sh0
     tkTheme_SetShape( sh0 )
     ' PaintDefault: the editing box's frame as the stock paint draws it
