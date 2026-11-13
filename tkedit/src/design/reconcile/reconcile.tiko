@@ -117,6 +117,8 @@ public function ImportsFor( byref params as const ustring, byref controlModule a
     if instr( p, " AS TKDATE " ) then out_.Push( "tkCalendar" )
     ' a type of the control's own (TKBUTTON_PAINTINFO): "TK" then a letter, where tkHost's are TK_
     if len( controlModule ) then
+        ' "as const TKCE_NOTIFICATION ptr" counts as well
+        p = strings.Replace( p, " AS CONST TK", " AS TK" )
         dim as long at_ = instr( p, " AS TK" )
         while at_ > 0
             dim as long c_ = asc( mid( p, at_ + 6, 1 ) )

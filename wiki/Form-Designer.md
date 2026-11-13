@@ -103,6 +103,11 @@ A Calendar's **Paint**, **DayPaint** and **MonthYearPaint** handlers draw the wh
 or a month or year cell (`tkCalendar_PaintDefault`, `PaintDayDefault`, `PaintMonthYearDefault` draw
 the stock ones), and its **Tooltip** handler sets `t->outText` for the day under the pointer.
 
+A CodeEdit's **Change** fires for every insert or delete, by the user or by code; **DirtyChanged**
+follows the save point (`tkCodeEdit_Send( ed.Handle, SCI_SETSAVEPOINT )` after loading or saving),
+and **Notify** gets every Scintilla notification raw. A **ContextMenu** handler replaces the
+editor's own right-click menu.
+
 A DatePicker needs a **Parse** handler before anyone can type a date: without one, typed text is
 never accepted. `Accepted = tkDatePicker_ParseIso( sText, pDate )` takes ISO dates; **Format** sets
 `sOut` (`tkDatePicker_FormatIso` is the default). Its **Tooltip** handler sets `t->outText` for the

@@ -1157,10 +1157,33 @@ module = "tkCodeEdit"
 category = "Other"
 width = 320
 height = 200
+default_event = "Change"
 props = [
   { name="Text", kind="text", set="tkCodeEdit_SetText", get="tkCodeEdit_GetText" },
   { name="Lexer", kind="text", set="tkCodeEdit_SetLexer", get="" },
   { name="Font", kind="list", enum="File:text,Points:int", set="tkCodeEdit_SetFont", get="" },
+  { name="Keywords", kind="text", set="tkCodeEdit_SetKeywords", get="" },
+  { name="ReadOnly", kind="bool", set="tkCodeEdit_SetReadOnly", get="tkCodeEdit_GetReadOnly", default="false" },
+  { name="TabWidth", kind="int", set="tkCodeEdit_SetTabWidth", get="tkCodeEdit_GetTabWidth" },
+  { name="IndentWidth", kind="int", set="tkCodeEdit_SetIndentWidth", get="tkCodeEdit_GetIndentWidth" },
+  { name="UseTabs", kind="bool", set="tkCodeEdit_SetUseTabs", get="tkCodeEdit_GetUseTabs" },
+  { name="EOLMode", kind="enum", enum="CRLF=TKCE_EOL_CRLF,CR=TKCE_EOL_CR,LF=TKCE_EOL_LF", set="tkCodeEdit_SetEOLMode", get="tkCodeEdit_GetEOLMode" },
+  { name="WrapMode", kind="enum", enum="None=TKCE_WRAP_NONE,Word=TKCE_WRAP_WORD,Char=TKCE_WRAP_CHAR,Whitespace=TKCE_WRAP_WHITESPACE", set="tkCodeEdit_SetWrapMode", get="tkCodeEdit_GetWrapMode", default="None" },
+  { name="LineNumbers", kind="bool", set="tkCodeEdit_SetLineNumbers", get="tkCodeEdit_GetLineNumbers", default="false" },
+  { name="IndentGuides", kind="bool", set="tkCodeEdit_SetIndentGuides", get="tkCodeEdit_GetIndentGuides", default="false" },
+  { name="HighlightCurrentLine", kind="bool", set="tkCodeEdit_SetHighlightCurrentLine", get="tkCodeEdit_GetHighlightCurrentLine", default="false" },
+  { name="ViewWhitespace", kind="bool", set="tkCodeEdit_SetViewWhitespace", get="tkCodeEdit_GetViewWhitespace", default="false" },
+  { name="ViewEOL", kind="bool", set="tkCodeEdit_SetViewEOL", get="tkCodeEdit_GetViewEOL", default="false" },
+  { name="Zoom", kind="int", set="tkCodeEdit_SetZoom", get="tkCodeEdit_GetZoom" },
 ]
 events = [
+  { name="Change", set="tkCodeEdit_SetChangeCallback", type="TKCODEEDIT_ChangeSub", sig="byval hEdit as TK_WIDGET ptr", params="", args="" },
+  { name="CharAdded", set="tkCodeEdit_SetCharAddedCallback", type="TKCODEEDIT_CharAddedSub", sig="byval hEdit as TK_WIDGET ptr, byval ch as long", params="byval ch as long", args="ch" },
+  { name="UpdateUI", set="tkCodeEdit_SetUpdateUICallback", type="TKCODEEDIT_UpdateUISub", sig="byval hEdit as TK_WIDGET ptr, byval updated as long", params="byval updated as long", args="updated" },
+  { name="DirtyChanged", set="tkCodeEdit_SetDirtyCallback", type="TKCODEEDIT_DirtySub", sig="byval hEdit as TK_WIDGET ptr, byval isDirty as boolean", params="byval isDirty as boolean", args="isDirty" },
+  { name="MarginClick", set="tkCodeEdit_SetMarginClickCallback", type="TKCODEEDIT_MarginClickSub", sig="byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint, byval modifiers as long", params="byval margin as long, byval position as longint, byval modifiers as long", args="margin, position, modifiers" },
+  { name="DoubleClick", set="tkCodeEdit_SetDoubleClickCallback", type="TKCODEEDIT_DoubleClickSub", sig="byval hEdit as TK_WIDGET ptr, byval position as longint, byval nLine as longint", params="byval position as longint, byval nLine as longint", args="position, nLine" },
+  { name="Notify", set="tkCodeEdit_SetNotifyCallback", type="TKCODEEDIT_NotifySub", sig="byval hEdit as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr", params="byval n as const TKCE_NOTIFICATION ptr", args="n" },
+  { name="ContextMenu", set="tkCodeEdit_SetContextMenuCallback", type="TKCODEEDIT_ContextMenuSub", sig="byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long", params="byval x as long, byval y as long", args="x, y" },
+  { name="ScaleChanged", set="tkCodeEdit_SetScaleCallback", type="TKCODEEDIT_ScaleSub", sig="byval hEdit as TK_WIDGET ptr, byval fOld as single, byval fNew as single", params="byval fOld as single, byval fNew as single", args="fOld, fNew" },
 ]

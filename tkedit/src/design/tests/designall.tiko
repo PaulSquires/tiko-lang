@@ -1033,6 +1033,26 @@ sub CalendarSuite( )
     Check( (im.Count( ) = 1) andalso (im[0] = "tkCalendar"), "calendar: its own types import tkCalendar once" )
 end sub
 
+' A CodeEdit's settings and its events, the raw Notify among them.
+sub CodeEditSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""E""" & LF & "width = 400" & LF & "height = 300" & LF _
+        & Ctl( "ed", "CodeEdit" ) & LF & "[control.props]" & LF & "WrapMode = ""Word""" & LF & "LineNumbers = true" & LF & "TabWidth = 4" & LF _
+        & LF & "[control.events]" & LF & "Change = ""ed_Change""" & LF & "MarginClick = ""ed_Margin""" & LF & "Notify = ""ed_Notify""" & LF _
+        & "ContextMenu = ""ed_Menu""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "codeedit: the form parses" )
+    Accepted( src, "codeedit: the new rows and events" )
+    dim as ustring g = codegen.Generate( d, "frmE", "frmE.tkform", src )
+    HasLine( g, "ed.WrapMode = TKCE_WRAP_WORD", "codeedit: WrapMode" )
+    HasLine( g, "ed.LineNumbers = true", "codeedit: LineNumbers" )
+    HasLine( g, "declare sub ed_Margin( byval margin as long, byval position as longint, byval modifiers as long )", "codeedit: MarginClick declared" )
+    HasLine( g, "declare sub ed_Notify( byval n as const TKCE_NOTIFICATION ptr )", "codeedit: Notify declared" )
+    HasLine( g, "tkCodeEdit_SetChangeCallback( ed.Handle, @Thunk_ed_Change )", "codeedit: Change installed" )
+    Check( tkMeta_Find( "CodeEdit" )->DefaultEvent = "Change", "codeedit: Change is the default event" )
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval n as const TKCE_NOTIFICATION ptr", "tkCodeEdit" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkCodeEdit"), "codeedit: a const pointer to its type imports tkCodeEdit" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1365,6 +1385,7 @@ TextBoxEventsSuite( )
 NumericUpDownSuite( )
 DatePickerSuite( )
 CalendarSuite( )
+CodeEditSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

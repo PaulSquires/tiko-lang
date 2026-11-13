@@ -2665,6 +2665,126 @@ private sub A_CodeEdit_Font( byval w as TK_WIDGET ptr, byref v as const ustring 
     tkCodeEdit_SetFont( w, tkMeta_ListItem( v, 0 ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_CodeEdit_Keywords( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetKeywords( w, v )
+end sub
+
+private sub A_CodeEdit_ReadOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetReadOnly( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_ReadOnly( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetReadOnly( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_TabWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetTabWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_CodeEdit_TabWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCodeEdit_GetTabWidth( w ) )
+end function
+
+private sub A_CodeEdit_IndentWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetIndentWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_CodeEdit_IndentWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCodeEdit_GetIndentWidth( w ) )
+end function
+
+private sub A_CodeEdit_UseTabs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetUseTabs( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_UseTabs( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetUseTabs( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_EOLMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "CRLF" : tkCodeEdit_SetEOLMode( w, TKCE_EOL_CRLF )
+    case "CR" : tkCodeEdit_SetEOLMode( w, TKCE_EOL_CR )
+    case "LF" : tkCodeEdit_SetEOLMode( w, TKCE_EOL_LF )
+    end select
+end sub
+
+private function R_CodeEdit_EOLMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkCodeEdit_GetEOLMode( w )
+    case TKCE_EOL_CRLF : return "CRLF"
+    case TKCE_EOL_CR : return "CR"
+    case TKCE_EOL_LF : return "LF"
+    end select
+    return ""
+end function
+
+private sub A_CodeEdit_WrapMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkCodeEdit_SetWrapMode( w, TKCE_WRAP_NONE )
+    case "Word" : tkCodeEdit_SetWrapMode( w, TKCE_WRAP_WORD )
+    case "Char" : tkCodeEdit_SetWrapMode( w, TKCE_WRAP_CHAR )
+    case "Whitespace" : tkCodeEdit_SetWrapMode( w, TKCE_WRAP_WHITESPACE )
+    end select
+end sub
+
+private function R_CodeEdit_WrapMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkCodeEdit_GetWrapMode( w )
+    case TKCE_WRAP_NONE : return "None"
+    case TKCE_WRAP_WORD : return "Word"
+    case TKCE_WRAP_CHAR : return "Char"
+    case TKCE_WRAP_WHITESPACE : return "Whitespace"
+    end select
+    return ""
+end function
+
+private sub A_CodeEdit_LineNumbers( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetLineNumbers( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_LineNumbers( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetLineNumbers( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_IndentGuides( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetIndentGuides( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_IndentGuides( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetIndentGuides( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_HighlightCurrentLine( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetHighlightCurrentLine( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_HighlightCurrentLine( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetHighlightCurrentLine( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_ViewWhitespace( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetViewWhitespace( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_ViewWhitespace( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetViewWhitespace( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_ViewEOL( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetViewEOL( w, cbool( v = "true" ) )
+end sub
+
+private function R_CodeEdit_ViewEOL( byval w as TK_WIDGET ptr ) as ustring
+    if tkCodeEdit_GetViewEOL( w ) then return "true" else return "false"
+end function
+
+private sub A_CodeEdit_Zoom( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkCodeEdit_SetZoom( w, clng( val( v ) ) )
+end sub
+
+private function R_CodeEdit_Zoom( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkCodeEdit_GetZoom( w ) )
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Colors_( "TKLABEL_COLORS", "tkLabel_GetColors", "tkLabel_ThemeColors", @G_Label, @T_Label )
@@ -3416,8 +3536,30 @@ sub Fill_( )
     Prop_( "GridLines", "list", "", "Horz:bool,Vert:bool", "tkChart_SetGridLines", "", @A_Chart_GridLines, 0, 0, true, true, "", 0 )
     Prop_( "ValueFormat", "list", "", "Decimals:int,Thousands:bool", "tkChart_SetValueFormat", "", @A_Chart_ValueFormat, 0, 0, true, true, "", 0 )
     Event_( "HotChange", "tkChart_SetHotChangeCallback", "CHT_HotChangeCallbackSub", "byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long", "byval iSeries as long, byval iPoint as long", "iSeries, iPoint" )
-    Add_( "CodeEdit", "tkCodeEdit", "Other", 320, 200, "", "", @C_CodeEdit, "", "", "", "" )
+    Add_( "CodeEdit", "tkCodeEdit", "Other", 320, 200, "Change", "", @C_CodeEdit, "", "", "", "" )
     Prop_( "Text", "text", "", "", "tkCodeEdit_SetText", "tkCodeEdit_GetText", @A_CodeEdit_Text, @R_CodeEdit_Text, 0, true, true, "", 0 )
     Prop_( "Lexer", "text", "", "", "tkCodeEdit_SetLexer", "", @A_CodeEdit_Lexer, 0, 0, true, true, "", 0 )
     Prop_( "Font", "list", "", "File:text,Points:int", "tkCodeEdit_SetFont", "", @A_CodeEdit_Font, 0, 0, true, true, "", 0 )
+    Prop_( "Keywords", "text", "", "", "tkCodeEdit_SetKeywords", "", @A_CodeEdit_Keywords, 0, 0, true, true, "", 0 )
+    Prop_( "ReadOnly", "bool", "false", "", "tkCodeEdit_SetReadOnly", "tkCodeEdit_GetReadOnly", @A_CodeEdit_ReadOnly, @R_CodeEdit_ReadOnly, 0, true, true, "", 0 )
+    Prop_( "TabWidth", "int", "", "", "tkCodeEdit_SetTabWidth", "tkCodeEdit_GetTabWidth", @A_CodeEdit_TabWidth, @R_CodeEdit_TabWidth, 0, true, true, "", 0 )
+    Prop_( "IndentWidth", "int", "", "", "tkCodeEdit_SetIndentWidth", "tkCodeEdit_GetIndentWidth", @A_CodeEdit_IndentWidth, @R_CodeEdit_IndentWidth, 0, true, true, "", 0 )
+    Prop_( "UseTabs", "bool", "", "", "tkCodeEdit_SetUseTabs", "tkCodeEdit_GetUseTabs", @A_CodeEdit_UseTabs, @R_CodeEdit_UseTabs, 0, true, true, "", 0 )
+    Prop_( "EOLMode", "enum", "", "CRLF=TKCE_EOL_CRLF,CR=TKCE_EOL_CR,LF=TKCE_EOL_LF", "tkCodeEdit_SetEOLMode", "tkCodeEdit_GetEOLMode", @A_CodeEdit_EOLMode, @R_CodeEdit_EOLMode, 0, true, true, "", 0 )
+    Prop_( "WrapMode", "enum", "None", "None=TKCE_WRAP_NONE,Word=TKCE_WRAP_WORD,Char=TKCE_WRAP_CHAR,Whitespace=TKCE_WRAP_WHITESPACE", "tkCodeEdit_SetWrapMode", "tkCodeEdit_GetWrapMode", @A_CodeEdit_WrapMode, @R_CodeEdit_WrapMode, 0, true, true, "", 0 )
+    Prop_( "LineNumbers", "bool", "false", "", "tkCodeEdit_SetLineNumbers", "tkCodeEdit_GetLineNumbers", @A_CodeEdit_LineNumbers, @R_CodeEdit_LineNumbers, 0, true, true, "", 0 )
+    Prop_( "IndentGuides", "bool", "false", "", "tkCodeEdit_SetIndentGuides", "tkCodeEdit_GetIndentGuides", @A_CodeEdit_IndentGuides, @R_CodeEdit_IndentGuides, 0, true, true, "", 0 )
+    Prop_( "HighlightCurrentLine", "bool", "false", "", "tkCodeEdit_SetHighlightCurrentLine", "tkCodeEdit_GetHighlightCurrentLine", @A_CodeEdit_HighlightCurrentLine, @R_CodeEdit_HighlightCurrentLine, 0, true, true, "", 0 )
+    Prop_( "ViewWhitespace", "bool", "false", "", "tkCodeEdit_SetViewWhitespace", "tkCodeEdit_GetViewWhitespace", @A_CodeEdit_ViewWhitespace, @R_CodeEdit_ViewWhitespace, 0, true, true, "", 0 )
+    Prop_( "ViewEOL", "bool", "false", "", "tkCodeEdit_SetViewEOL", "tkCodeEdit_GetViewEOL", @A_CodeEdit_ViewEOL, @R_CodeEdit_ViewEOL, 0, true, true, "", 0 )
+    Prop_( "Zoom", "int", "", "", "tkCodeEdit_SetZoom", "tkCodeEdit_GetZoom", @A_CodeEdit_Zoom, @R_CodeEdit_Zoom, 0, true, true, "", 0 )
+    Event_( "Change", "tkCodeEdit_SetChangeCallback", "TKCODEEDIT_ChangeSub", "byval hEdit as TK_WIDGET ptr", "", "" )
+    Event_( "CharAdded", "tkCodeEdit_SetCharAddedCallback", "TKCODEEDIT_CharAddedSub", "byval hEdit as TK_WIDGET ptr, byval ch as long", "byval ch as long", "ch" )
+    Event_( "UpdateUI", "tkCodeEdit_SetUpdateUICallback", "TKCODEEDIT_UpdateUISub", "byval hEdit as TK_WIDGET ptr, byval updated as long", "byval updated as long", "updated" )
+    Event_( "DirtyChanged", "tkCodeEdit_SetDirtyCallback", "TKCODEEDIT_DirtySub", "byval hEdit as TK_WIDGET ptr, byval isDirty as boolean", "byval isDirty as boolean", "isDirty" )
+    Event_( "MarginClick", "tkCodeEdit_SetMarginClickCallback", "TKCODEEDIT_MarginClickSub", "byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint, byval modifiers as long", "byval margin as long, byval position as longint, byval modifiers as long", "margin, position, modifiers" )
+    Event_( "DoubleClick", "tkCodeEdit_SetDoubleClickCallback", "TKCODEEDIT_DoubleClickSub", "byval hEdit as TK_WIDGET ptr, byval position as longint, byval nLine as longint", "byval position as longint, byval nLine as longint", "position, nLine" )
+    Event_( "Notify", "tkCodeEdit_SetNotifyCallback", "TKCODEEDIT_NotifySub", "byval hEdit as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr", "byval n as const TKCE_NOTIFICATION ptr", "n" )
+    Event_( "ContextMenu", "tkCodeEdit_SetContextMenuCallback", "TKCODEEDIT_ContextMenuSub", "byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long", "byval x as long, byval y as long", "x, y" )
+    Event_( "ScaleChanged", "tkCodeEdit_SetScaleCallback", "TKCODEEDIT_ScaleSub", "byval hEdit as TK_WIDGET ptr, byval fOld as single, byval fNew as single", "byval fOld as single, byval fNew as single", "fOld, fNew" )
 end sub
