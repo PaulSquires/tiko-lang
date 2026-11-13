@@ -2366,7 +2366,7 @@ PUBLIC OPERATOR \ (BYREF dv1 AS DVARIANT, BYREF dv2 AS DVARIANT) AS DVARIANT
 END OPERATOR
 ' ========================================================================================
 ' ========================================================================================
-PRIVATE OPERATOR = (BYREF dv1 AS DVARIANT, BYREF dv2 AS DVARIANT) AS BOOLEAN
+PUBLIC OPERATOR = (BYREF dv1 AS DVARIANT, BYREF dv2 AS DVARIANT) AS BOOLEAN
    ' // Equality
    RETURN (VarCmp(@dv1.vd, @dv2.vd, GetThreadLocale(), 0) = VARCMP_EQ)
 END OPERATOR
