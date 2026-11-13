@@ -437,7 +437,12 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
         for i as long = 0 to evs->Count( ) - 1
             dim as TomlValue ptr e = @evs->Item( i )
             fill &= "    Event_( " & Quote_( Str_( *e, "name" ) ) & ", " & Quote_( Str_( *e, "set" ) ) & ", " & Quote_( Str_( *e, "type" ) ) & ", " _
-                    & Quote_( Str_( *e, "sig" ) ) & ", " & Quote_( Str_( *e, "params" ) ) & ", " & Quote_( Str_( *e, "args" ) ) & " )" & NL
+                    & Quote_( Str_( *e, "sig" ) ) & ", " & Quote_( Str_( *e, "params" ) ) & ", " & Quote_( Str_( *e, "args" ) )
+            ' widget / returns / result only when the event has them, so the other rows stay as they were
+            if len( Str_( *e, "widget" ) ) orelse len( Str_( *e, "returns" ) ) then
+                fill &= ", " & Quote_( Str_( *e, "widget" ) ) & ", " & Quote_( Str_( *e, "returns" ) ) & ", " & Quote_( Str_( *e, "result" ) )
+            end if
+            fill &= " )" & NL
         next
     next
     o &= "#import ""../tkHost""" & NL & imports & "using tkHost" & NL & "using tkPaint" & NL & usings & "using tkTheme" & NL & NL & thunks

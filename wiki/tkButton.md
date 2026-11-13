@@ -13,6 +13,12 @@ Either icon slot holds a glyph from a font (the bundled icon font's `TK_ICON_*` 
 font's) or an image file loaded through SDL_image. Setters are silent; the click callback runs
 only for a real click or for `tkButton_Click`.
 
+The shape setters take pixels: `tkButton_SetIconGap`, `tkButton_SetIconSize`, `tkButton_SetFocusRing`
+(gap and thickness; 0 thickness hides it) and `tkButton_SetBorderWidth`. The border follows the
+theme's `BorderWidth` until you set it, as the corner curvature follows its `CornerRadius`. A paint
+callback replaces the drawing; call `tkButton_PaintDefault( p )` in it to draw the stock button
+first and add to it.
+
 ## Importing
 
 ```freebasic
@@ -219,6 +225,11 @@ sub tkButton_GetPadding( byval hButton as TK_WIDGET ptr, byref l as long, byref 
 function tkButton_GetIconGap( byval hButton as TK_WIDGET ptr ) as long
 sub tkButton_GetIconSize( byval hButton as TK_WIDGET ptr, byref iw as long, byref ih as long )
 sub tkButton_GetFocusRing( byval hButton as TK_WIDGET ptr, byref nGap as long, byref nThick as long )
+sub tkButton_SetIconGap( byval hButton as TK_WIDGET ptr, byval nGap as long )
+sub tkButton_SetIconSize( byval hButton as TK_WIDGET ptr, byval iw as long, byval ih as long )
+sub tkButton_SetFocusRing( byval hButton as TK_WIDGET ptr, byval nGap as long, byval nThick as long )
+function tkButton_GetBorderWidth( byval hButton as TK_WIDGET ptr ) as long
+sub tkButton_SetBorderWidth( byval hButton as TK_WIDGET ptr, byval nWidth as long )
 sub tkButton_SetCornerCurvature( byval hButton as TK_WIDGET ptr, byval nCurvature as long )
 sub tkButton_SetAutoSize( byval hButton as TK_WIDGET ptr, byval bAutoSize as boolean )
 sub tkButton_GetIdealSize( byval hButton as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
@@ -247,6 +258,7 @@ sub tkButton_SetMessageCallback( byval hButton as TK_WIDGET ptr, byval userfunc 
 sub tkButton_SetTooltipCallback( byval hButton as TK_WIDGET ptr, byval userfunc as BTN_TooltipCallbackFunc )
 sub tkButton_SetClickCallback( byval hButton as TK_WIDGET ptr, byval usersub as BTN_ClickCallbackSub )
 function tkButton_CountRenderedTones( byval hButton as TK_WIDGET ptr, byval nPart as long ) as long
+sub tkButton_PaintDefault( byval p as TKBUTTON_PAINTINFO ptr )
 ```
 
 ### See also

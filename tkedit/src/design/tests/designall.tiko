@@ -917,6 +917,36 @@ sub WindowSuite( )
     Check( (dr.Count( ) = 1) andalso (dr[0].Key = "mnuOpen_Click"), "items: a handler still called elsewhere isn't dropped" )
 end sub
 
+' A Button's events beyond Click: one about a paint info, two that answer.
+sub ButtonEventsSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""B""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "btn", "Button" ) & LF & "[control.props]" & LF & "IconGap = 6" & LF & "IconSize = ""20,20""" & LF _
+        & "FocusRing = ""3,2""" & LF & "BorderWidth = 2" & LF _
+        & LF & "[control.events]" & LF & "Paint = ""btn_Paint""" & LF & "Tooltip = ""btn_Tooltip""" & LF & "Message = ""btn_Message""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "button: the form parses" )
+    Accepted( src, "button: the new properties and events" )
+    dim as ustring g = codegen.Generate( d, "frmB", "frmB.tkform", src )
+    HasLine( g, "btn.IconGap = 6", "button: IconGap" )
+    HasLine( g, "btn.IconSize( 20, 20 )", "button: IconSize" )
+    HasLine( g, "btn.FocusRing( 3, 2 )", "button: FocusRing" )
+    HasLine( g, "btn.BorderWidth = 2", "button: BorderWidth" )
+    HasLine( g, "declare sub btn_Paint( byval p as TKBUTTON_PAINTINFO ptr )", "button: Paint declared" )
+    HasLine( g, "declare sub btn_Tooltip( byref Text as ustring )", "button: Tooltip declared" )
+    HasLine( g, "declare sub btn_Message( byval m as TKBUTTON_MESSAGEINFO ptr, byref Handled as boolean )", "button: Message declared" )
+    Check( instr( g, "dim as Form ptr f = tkForms_ObjectOf( p->hButton )" ) > 0, "button: Paint finds its form through the paint info" )
+    Check( instr( g, "private function Thunk_btn_Tooltip( byval hButton as TK_WIDGET ptr ) as ustring" & LF _
+        & "    dim as ustring Text" & LF & "    dim as Form ptr f = tkForms_ObjectOf( hButton )" & LF _
+        & "    if f then f->btn_Tooltip( Text )" & LF & "    return Text" & LF ) > 0, "button: Tooltip's thunk answers the handler's Text", g )
+    Check( instr( g, "private function Thunk_btn_Message( byval m as TKBUTTON_MESSAGEINFO ptr ) as boolean" & LF _
+        & "    dim as boolean Handled" & LF & "    dim as Form ptr f = tkForms_ObjectOf( m->hButton )" & LF ) > 0, "button: Message's thunk answers Handled" )
+    HasLine( g, "tkButton_SetTooltipCallback( btn.Handle, @Thunk_btn_Tooltip )", "button: Tooltip installed" )
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval p as TKBUTTON_PAINTINFO ptr", "tkButton" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkButton"), "button: a handler of a button type imports tkButton" )
+    im = reconcile.ImportsFor( "byval h as TK_HOST ptr", "tkButton" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkHost"), "button: TK_ types aren't the control's" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1244,6 +1274,7 @@ ReconcileSuite( )
 ItemsSuite( )
 TranslateSuite( )
 WindowSuite( )
+ButtonEventsSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

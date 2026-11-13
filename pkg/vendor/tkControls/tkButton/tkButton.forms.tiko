@@ -37,6 +37,12 @@ public type Button
     declare property AutoPopTime( byval v as long )
     declare property ReshowTime( byval v as long )
     declare sub Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
+    declare property IconGap( ) as long
+    declare property IconGap( byval v as long )
+    declare sub IconSize( byval a0 as long, byval a1 as long )
+    declare sub FocusRing( byval a0 as long, byval a1 as long )
+    declare property BorderWidth( ) as long
+    declare property BorderWidth( byval v as long )
 end type
 
 sub Button.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -154,3 +160,27 @@ end property
 sub Button.Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
     tkButton_SetPadding( Handle, a0, a1, a2, a3 )
 end sub
+
+property Button.IconGap( ) as long
+    return tkButton_GetIconGap( Handle )
+end property
+
+property Button.IconGap( byval v as long )
+    tkButton_SetIconGap( Handle, v )
+end property
+
+sub Button.IconSize( byval a0 as long, byval a1 as long )
+    tkButton_SetIconSize( Handle, a0, a1 )
+end sub
+
+sub Button.FocusRing( byval a0 as long, byval a1 as long )
+    tkButton_SetFocusRing( Handle, a0, a1 )
+end sub
+
+property Button.BorderWidth( ) as long
+    return tkButton_GetBorderWidth( Handle )
+end property
+
+property Button.BorderWidth( byval v as long )
+    tkButton_SetBorderWidth( Handle, v )
+end property

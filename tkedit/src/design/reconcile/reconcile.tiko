@@ -113,9 +113,18 @@ public function ImportsFor( byref params as const ustring, byref controlModule a
     if instr( p, "TK_HOST" ) orelse instr( p, "TK_WIDGET" ) then out_.Push( "tkHost" )
     if instr( p, "TK_MENU" ) then out_.Push( "tkPopupMenu" )
     if instr( p, "TK_PAINT" ) then out_.Push( "tkPaint" )
-    if instr( p, " AS TKDATE" ) andalso (len( controlModule ) > 0) then
-        dim as ustring m = controlModule
-        out_.Push( m )
+    ' a type of the control's own (TKDATE, TKBUTTON_PAINTINFO): "TK" then a letter, where tkHost's are TK_
+    if len( controlModule ) then
+        dim as long at_ = instr( p, " AS TK" )
+        while at_ > 0
+            dim as long c_ = asc( mid( p, at_ + 6, 1 ) )
+            if (c_ >= 65) andalso (c_ <= 90) then
+                dim as ustring m = controlModule
+                out_.Push( m )
+                exit while
+            end if
+            at_ = instr( at_ + 1, p, " AS TK" )
+        wend
     end if
     return out_
 end function

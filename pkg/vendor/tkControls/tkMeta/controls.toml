@@ -15,6 +15,11 @@
 #   group         a second grid of the same parts: Checked (CheckBox), On / Off (Toggle).
 #   ink = true    text-like: simple mode copies Normal to Hot and Pressed instead of shading it.
 #   no part       an "other" colour, edited on its own (focus rings, dividers, chart series ...).
+#
+# events: sig is the callback's parameter list, params / args what the handler receives. widget = the
+# control as an expression of sig's parameters when it isn't the first one ("p->hButton"). returns =
+# the callback's result type when it answers; result = the handler's byref parameter (listed in
+# params) whose value the thunk returns, starting from that type's default.
 
 [[control]]
 name = "Label"
@@ -90,9 +95,16 @@ props = [
   { name="AutoPopTime", kind="int", set="tkButton_SetAutoPopTime", get="" },
   { name="ReshowTime", kind="int", set="tkButton_SetReshowTime", get="" },
   { name="Padding", kind="list", enum="Left:int,Top:int,Right:int,Bottom:int", set="tkButton_SetPadding", get="" },
+  { name="IconGap", kind="int", set="tkButton_SetIconGap", get="tkButton_GetIconGap" },
+  { name="IconSize", kind="list", enum="Width:int,Height:int", set="tkButton_SetIconSize", get="" },
+  { name="FocusRing", kind="list", enum="Gap:int,Thickness:int", set="tkButton_SetFocusRing", get="" },
+  { name="BorderWidth", kind="int", set="tkButton_SetBorderWidth", get="tkButton_GetBorderWidth", theme="BorderWidth", scale=1 },
 ]
 events = [
   { name="Click", set="tkButton_SetClickCallback", type="BTN_ClickCallbackSub", sig="byval hButton as TK_WIDGET ptr, byval id as long", params="", args="" },
+  { name="Paint", set="tkButton_SetPaintCallback", type="BTN_PaintCallbackSub", sig="byval p as TKBUTTON_PAINTINFO ptr", params="byval p as TKBUTTON_PAINTINFO ptr", args="p", widget="p->hButton" },
+  { name="Tooltip", set="tkButton_SetTooltipCallback", type="BTN_TooltipCallbackFunc", sig="byval hButton as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
+  { name="Message", set="tkButton_SetMessageCallback", type="BTN_MessageCallbackFunc", sig="byval m as TKBUTTON_MESSAGEINFO ptr", params="byval m as TKBUTTON_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hButton", returns="boolean", result="Handled" },
 ]
 
 [[control]]
