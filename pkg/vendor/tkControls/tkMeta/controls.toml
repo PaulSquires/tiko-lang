@@ -745,9 +745,13 @@ default_event = "SelChange"
 container = "pages"
 props = [
   { name="TabHeight", kind="int", set="tkTabControl_SetTabHeight", get="tkTabControl_GetTabHeight" },
+  { name="Font", kind="font", set="tkTabControl_SetFont", get="tkTabControl_GetFont" },
+  { name="Closable", kind="bool", set="tkTabControl_SetClosable", get="tkTabControl_GetClosable", default="false" },
+  { name="SelectedIndex", kind="int", set="tkTabControl_SetCurSel", get="tkTabControl_GetCurSel", default="0" },
 ]
 events = [
   { name="SelChange", set="tkTabControl_SetSelChangeCallback", type="TC_SelChangeCallbackSub", sig="byval hTabControl as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
+  { name="Close", set="tkTabControl_SetCloseCallback", type="TC_CloseCallbackSub", sig="byval hTabControl as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
 ]
 
 [[control]]

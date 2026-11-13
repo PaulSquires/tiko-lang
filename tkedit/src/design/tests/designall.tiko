@@ -1304,6 +1304,23 @@ sub PanelSuite( )
     HasLine( g, "tkPanel_SetPaintCallback( pnl.Handle, @Thunk_pnl_Paint )", "panel: Paint installed" )
 end sub
 
+' A TabControl's Closable, SelectedIndex and Font, and its Close event.
+sub TabControlSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""T""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "tc", "TabControl", "pages = [""A"", ""B""]" & LF ) & "[control.props]" & LF & "Closable = true" & LF & "SelectedIndex = 1" & LF _
+        & LF & "[control.events]" & LF & "Close = ""tc_Close""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "tabcontrol: the form parses" )
+    Accepted( src, "tabcontrol: Closable, SelectedIndex and Close" )
+    dim as ustring g = codegen.Generate( d, "frmT", "frmT.tkform", src )
+    HasLine( g, "tc.Closable = true", "tabcontrol: Closable set" )
+    Check( instr( g, "tc.SelectedIndex = 1" ) > instr( g, "tkTabControl_AddPage( tc.Handle, ""B"" )" ), "tabcontrol: SelectedIndex after its pages", g )
+    HasLine( g, "declare sub tc_Close( byval idx as long )", "tabcontrol: Close declared" )
+    HasLine( g, "tkTabControl_SetCloseCallback( tc.Handle, @Thunk_tc_Close )", "tabcontrol: Close installed" )
+    dim as TKMETA_CONTROL ptr m = tkMeta_Find( "TabControl" )
+    Check( tkMeta_FindProp( m, "Font" ) <> 0, "tabcontrol: a Font property" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1649,6 +1666,7 @@ ToolbarSuite( )
 IconPanelSuite( )
 StatusBarSuite( )
 PanelSuite( )
+TabControlSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

@@ -7,6 +7,8 @@
 ' tkTabControl -- a tkTabBar and one page per tab, of which one shows. A page is a tkPanel: parent a
 ' tab's controls to tkTabControl_GetPage( h, i ). The control is never a tab stop itself; its bar is.
 ' tkTabControl_SetCurSel is silent, and the callback runs only when the user changes the tab.
+' Its tabs are pages, not documents, so they have no close X unless tkTabControl_SetClosable asks
+' for one; the Close callback then says which tab's X was used, and the program decides.
 #module "tkTabControl"
 
 #import "../tkHost" public
@@ -23,6 +25,7 @@ using tkPanel
 public const as long TKTABCONTROL_DEFAULT_TABHEIGHT = 30
 
 public type TC_SelChangeCallbackSub as sub( byval hTabControl as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+public type TC_CloseCallbackSub as sub( byval hTabControl as TK_WIDGET ptr, byval idx as long )
 
 public type TKTABCONTROL_STATE
     hWin          as TK_WIDGET ptr
@@ -31,6 +34,8 @@ public type TKTABCONTROL_STATE
     nPages        as long
     nTabHeight    as long = TKTABCONTROL_DEFAULT_TABHEIGHT
     SelChange     as TC_SelChangeCallbackSub
+    Close         as TC_CloseCallbackSub
+    bClosable     as boolean = false
     declare function BarHeight() as long
     declare sub Layout()
     declare sub ShowOnly( byval idx as long )
@@ -70,6 +75,12 @@ private sub OnBarSelChange( byval hBar as TK_WIDGET ptr, byval idxOld as long, b
     if p->SelChange then p->SelChange( p->hWin, idxOld, idxNew )
 end sub
 
+' The bar's close gesture (only a closable tab has one): the program decides what closing means.
+private sub OnBarClose( byval hBar as TK_WIDGET ptr, byval idx as long )
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( tkWidget_Parent( hBar ) )
+    if (p <> 0) andalso (p->Close <> 0) then p->Close( p->hWin, idx )
+end sub
+
 private function tkTabControl_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( w )
     if p = 0 then return false
@@ -106,6 +117,7 @@ public function tkTabControl_Create( byval hParent as TK_WIDGET ptr, byval ctrlI
     p->hWin = w
     p->hBar = tkTabBar_Create( w, 1 )
     tkTabBar_SetSelChangeCallback( p->hBar, @OnBarSelChange )
+    tkTabBar_SetCloseCallback( p->hBar, @OnBarClose )
     return w
 end function
 
@@ -124,6 +136,7 @@ public function tkTabControl_InsertPage( byval h as TK_WIDGET ptr, byval idx as 
     dim as long sel = tkTabBar_GetCurSel( p->hBar )
     dim as long got = tkTabBar_InsertTab( p->hBar, idx, text )
     if got < 0 then return -1
+    tkTabBar_SetClosable( p->hBar, got, p->bClosable )
     redim preserve p->pages( 0 to p->nPages )
     for i as long = p->nPages to got + 1 step -1
         p->pages(i) = p->pages(i - 1)
@@ -209,6 +222,39 @@ public sub tkTabControl_SetTabHeight( byval h as TK_WIDGET ptr, byval nHeight as
     p->nTabHeight = nHeight
     p->Layout( )
     tkWidget_Invalidate( h )
+end sub
+
+' Whether every tab, and every one added later, shows a close X. FALSE by default.
+public function tkTabControl_GetClosable( byval h as TK_WIDGET ptr ) as boolean
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    return iif( p <> 0, p->bClosable, false )
+end function
+
+public sub tkTabControl_SetClosable( byval h as TK_WIDGET ptr, byval bClosable as boolean )
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    if p = 0 then exit sub
+    p->bClosable = bClosable
+    for i as long = 0 to p->nPages - 1
+        tkTabBar_SetClosable( p->hBar, i, bClosable )
+    next
+end sub
+
+' The tab strip's font (borrowed); 0 is the host's default.
+public function tkTabControl_GetFont( byval h as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    return iif( p <> 0, tkTabBar_GetFont( p->hBar ), cast( TTF_Font ptr, 0 ) )
+end function
+
+public function tkTabControl_SetFont( byval h as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    if p = 0 then return false
+    return tkTabBar_SetFont( p->hBar, f )
+end function
+
+' The user used a tab's close X (a closable tab's): the tab is not removed -- DeletePage does that.
+public sub tkTabControl_SetCloseCallback( byval h as TK_WIDGET ptr, byval usersub as TC_CloseCallbackSub )
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    if p then p->Close = usersub
 end sub
 
 public sub tkTabControl_SetSelChangeCallback( byval h as TK_WIDGET ptr, byval usersub as TC_SelChangeCallbackSub )

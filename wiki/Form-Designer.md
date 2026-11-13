@@ -137,8 +137,10 @@ Handlers follow what you do on the form:
 ## Menus, toolbars and lists
 
 Select a MenuBar, Toolbar, IconPanel, StatusBar, ListTree, ComboBox, SelectBar, TabBar or TabControl and press **Edit
-items** in the Properties panel. A SelectBar's items are its panels and a TabBar's its tabs; the
-**SelectedIndex** of either (like a ComboBox's) picks one of them once they're added. Menu items are indented to make drop-downs and submenus. A menu item can have a
+items** in the Properties panel. A SelectBar's items are its panels, a TabBar's its tabs and a TabControl's its
+pages; the **SelectedIndex** of each (like a ComboBox's) picks one of them once they're added. A TabControl's
+tabs have no close X unless **Closable** is on; its **Close** handler is then told which tab, and closing it
+(`tkTabControl_DeletePage`) is up to you. Menu items are indented to make drop-downs and submenus. A menu item can have a
 shortcut such as `Primary+O`, and a handler. Set the text of a menu item to `-` for a separator.
 
 A MenuBar dropped on a form opens this editor straight away, filled with a standard menu -- **File**

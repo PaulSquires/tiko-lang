@@ -1820,6 +1820,26 @@ private function R_TabControl_TabHeight( byval w as TK_WIDGET ptr ) as ustring
     return str( tkTabControl_GetTabHeight( w ) )
 end function
 
+private sub F_TabControl_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTabControl_SetFont( w, f )
+end sub
+
+private sub A_TabControl_Closable( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabControl_SetClosable( w, cbool( v = "true" ) )
+end sub
+
+private function R_TabControl_Closable( byval w as TK_WIDGET ptr ) as ustring
+    if tkTabControl_GetClosable( w ) then return "true" else return "false"
+end function
+
+private sub A_TabControl_SelectedIndex( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabControl_SetCurSel( w, clng( val( v ) ) )
+end sub
+
+private function R_TabControl_SelectedIndex( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTabControl_GetCurSel( w ) )
+end function
+
 private function C_ScrollPanel( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkScrollPanel_Create( hParent, id )
 end function
@@ -3394,7 +3414,11 @@ sub Fill_( )
     Prop_( "Font", "font", "", "", "tkGroupBox_SetFont", "tkGroupBox_GetFont", 0, 0, @F_GroupBox_Font, true, true, "", 0 )
     Add_( "TabControl", "tkTabControl", "Containers", 300, 200, "SelChange", "pages", @C_TabControl, "", "", "", "" )
     Prop_( "TabHeight", "int", "", "", "tkTabControl_SetTabHeight", "tkTabControl_GetTabHeight", @A_TabControl_TabHeight, @R_TabControl_TabHeight, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkTabControl_SetFont", "tkTabControl_GetFont", 0, 0, @F_TabControl_Font, true, true, "", 0 )
+    Prop_( "Closable", "bool", "false", "", "tkTabControl_SetClosable", "tkTabControl_GetClosable", @A_TabControl_Closable, @R_TabControl_Closable, 0, true, true, "", 0 )
+    Prop_( "SelectedIndex", "int", "0", "", "tkTabControl_SetCurSel", "tkTabControl_GetCurSel", @A_TabControl_SelectedIndex, @R_TabControl_SelectedIndex, 0, true, true, "", 0 )
     Event_( "SelChange", "tkTabControl_SetSelChangeCallback", "TC_SelChangeCallbackSub", "byval hTabControl as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", "byval idxOld as long, byval idxNew as long", "idxOld, idxNew" )
+    Event_( "Close", "tkTabControl_SetCloseCallback", "TC_CloseCallbackSub", "byval hTabControl as TK_WIDGET ptr, byval idx as long", "byval idx as long", "idx" )
     Add_( "ScrollPanel", "tkScrollPanel", "Containers", 200, 160, "Scroll", "scrollpanel", @C_ScrollPanel, "", "", "", "" )
     Prop_( "AutoScrollToFocus", "bool", "true", "", "tkScrollPanel_SetAutoScrollToFocus", "tkScrollPanel_GetAutoScrollToFocus", @A_ScrollPanel_AutoScrollToFocus, @R_ScrollPanel_AutoScrollToFocus, 0, true, true, "", 0 )
     Prop_( "ContentHeight", "int", "", "", "tkScrollPanel_SetContentHeight", "tkScrollPanel_GetContentHeight", @A_ScrollPanel_ContentHeight, @R_ScrollPanel_ContentHeight, 0, true, true, "", 0 )

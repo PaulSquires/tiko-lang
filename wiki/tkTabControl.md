@@ -10,7 +10,7 @@ The control itself is never a tab stop; its bar is. The bar takes a fixed height
 
 `tkTabControl_AddPage` appends a tab and its empty page. The first page added is selected; adding later ones leaves the selection where it is. `tkTabControl_SetCurSel` is silent: the selection callback runs only when the user changes the tab.
 
-For the strip's own styling (fonts, colours, glyphs, closable tabs) use the bar that `tkTabControl_GetTabBar` returns, with the [tkTabBar](tkTabBar) functions.
+Its tabs are pages, not documents, so they have no close X. `tkTabControl_SetClosable( tab, true )` gives every tab one, including tabs added later; the Close callback then says which tab's X was used, and the program decides what closing means (`tkTabControl_DeletePage`, or nothing). `tkTabControl_SetFont` sets the strip's font. For the rest of the strip's styling (colours, glyphs, one tab's X) use the bar that `tkTabControl_GetTabBar` returns, with the [tkTabBar](tkTabBar) functions.
 
 ## Importing
 
@@ -55,7 +55,7 @@ tkWidget_SetPos( tabs, tkHost_Scale( host, 20 ), tkHost_Scale( host, 20 ), _
 
 The module also provides `TabControl`, a typed value for designed forms (see [tkForms](tkForms) and the [Form Designer](Form-Designer)). `TabControl.Handle` is the `TK_WIDGET ptr`. It has `Create( hParent, id )`, `SetFocus( )`, and these properties, each read and write:
 
-`Enabled`, `Visible`, `TabHeight`.
+`Enabled`, `Visible`, `TabHeight`, `Font`, `Closable`, `SelectedIndex`.
 
 Pages are added through the procedures, with `TabControl.Handle`.
 
@@ -85,6 +85,7 @@ const as long TKTABCONTROL_DEFAULT_TABHEIGHT = 30
 type TKTABCONTROL_STATE   ' per-instance state; reach it through the procedures
 
 type TC_SelChangeCallbackSub as sub( byval hTabControl as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+type TC_CloseCallbackSub as sub( byval hTabControl as TK_WIDGET ptr, byval idx as long )
 ```
 
 ### Procedures
@@ -103,6 +104,11 @@ function tkTabControl_GetCurSel( byval h as TK_WIDGET ptr ) as long
 function tkTabControl_SetCurSel( byval h as TK_WIDGET ptr, byval idx as long ) as boolean
 function tkTabControl_GetTabHeight( byval h as TK_WIDGET ptr ) as long
 sub tkTabControl_SetTabHeight( byval h as TK_WIDGET ptr, byval nHeight as long )
+function tkTabControl_GetClosable( byval h as TK_WIDGET ptr ) as boolean
+sub tkTabControl_SetClosable( byval h as TK_WIDGET ptr, byval bClosable as boolean )
+function tkTabControl_GetFont( byval h as TK_WIDGET ptr ) as TTF_Font ptr
+function tkTabControl_SetFont( byval h as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+sub tkTabControl_SetCloseCallback( byval h as TK_WIDGET ptr, byval usersub as TC_CloseCallbackSub )
 sub tkTabControl_SetSelChangeCallback( byval h as TK_WIDGET ptr, byval usersub as TC_SelChangeCallbackSub )
 ```
 

@@ -16,6 +16,12 @@ public type TabControl
     declare sub SetFocus( )
     declare property TabHeight( ) as long
     declare property TabHeight( byval v as long )
+    declare property Font( ) as TTF_Font ptr
+    declare property Font( byval v as TTF_Font ptr )
+    declare property Closable( ) as boolean
+    declare property Closable( byval v as boolean )
+    declare property SelectedIndex( ) as long
+    declare property SelectedIndex( byval v as long )
 end type
 
 sub TabControl.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -48,4 +54,28 @@ end property
 
 property TabControl.TabHeight( byval v as long )
     tkTabControl_SetTabHeight( Handle, v )
+end property
+
+property TabControl.Font( ) as TTF_Font ptr
+    return tkTabControl_GetFont( Handle )
+end property
+
+property TabControl.Font( byval v as TTF_Font ptr )
+    tkTabControl_SetFont( Handle, v )
+end property
+
+property TabControl.Closable( ) as boolean
+    return tkTabControl_GetClosable( Handle )
+end property
+
+property TabControl.Closable( byval v as boolean )
+    tkTabControl_SetClosable( Handle, v )
+end property
+
+property TabControl.SelectedIndex( ) as long
+    return tkTabControl_GetCurSel( Handle )
+end property
+
+property TabControl.SelectedIndex( byval v as long )
+    tkTabControl_SetCurSel( Handle, v )
 end property
