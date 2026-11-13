@@ -95,8 +95,8 @@ the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's, CheckBox's or OptionButton's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, NumericUpDown, DatePicker) draws the control instead; call its
+(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead; call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
 
 A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter

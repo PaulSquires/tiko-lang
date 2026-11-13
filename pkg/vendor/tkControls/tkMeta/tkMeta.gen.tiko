@@ -1151,6 +1151,34 @@ private sub A_ComboBox_FocusRing( byval w as TK_WIDGET ptr, byref v as const ust
     tkComboBox_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
+private sub A_ComboBox_SelectedIndex( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetCurSel( w, clng( val( v ) ) )
+end sub
+
+private function R_ComboBox_SelectedIndex( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkComboBox_GetCurSel( w ) )
+end function
+
+private sub A_ComboBox_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetTooltipText( w, v )
+end sub
+
+private function R_ComboBox_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkComboBox_GetTooltipText( w )
+end function
+
+private sub A_ComboBox_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ComboBox_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_ComboBox_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkComboBox_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
 private function C_DatePicker( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkDatePicker_Create( hParent, id )
 end function
@@ -3131,14 +3159,21 @@ sub Fill_( )
     Prop_( "ChevronGap", "int", "", "", "tkComboBox_SetChevronGap", "tkComboBox_GetChevronGap", @A_ComboBox_ChevronGap, @R_ComboBox_ChevronGap, 0, true, true, "", 0 )
     Prop_( "ChevronThickness", "int", "", "", "tkComboBox_SetChevronThickness", "tkComboBox_GetChevronThickness", @A_ComboBox_ChevronThickness, @R_ComboBox_ChevronThickness, 0, true, true, "", 0 )
     Prop_( "CornerCurvature", "int", "", "", "tkComboBox_SetCornerCurvature", "tkComboBox_GetCornerCurvature", @A_ComboBox_CornerCurvature, @R_ComboBox_CornerCurvature, 0, true, true, "CornerRadius", 2 )
-    Prop_( "BorderThickness", "int", "", "", "tkComboBox_SetBorderThickness", "tkComboBox_GetBorderThickness", @A_ComboBox_BorderThickness, @R_ComboBox_BorderThickness, 0, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkComboBox_SetBorderThickness", "tkComboBox_GetBorderThickness", @A_ComboBox_BorderThickness, @R_ComboBox_BorderThickness, 0, true, true, "BorderWidth", 1 )
     Prop_( "EditText", "text", "", "", "tkComboBox_SetEditText", "", @A_ComboBox_EditText, 0, 0, true, true, "", 0 )
     Prop_( "Padding", "list", "", "Left:int,Top:int,Right:int,Bottom:int", "tkComboBox_SetPadding", "", @A_ComboBox_Padding, 0, 0, true, true, "", 0 )
     Prop_( "ChevronSize", "list", "", "Width:int,Height:int", "tkComboBox_SetChevronSize", "", @A_ComboBox_ChevronSize, 0, 0, true, true, "", 0 )
     Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkComboBox_SetFocusRing", "", @A_ComboBox_FocusRing, 0, 0, true, true, "", 0 )
+    Prop_( "SelectedIndex", "int", "-1", "", "tkComboBox_SetCurSel", "tkComboBox_GetCurSel", @A_ComboBox_SelectedIndex, @R_ComboBox_SelectedIndex, 0, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkComboBox_SetTooltipText", "tkComboBox_GetTooltipText", @A_ComboBox_TooltipText, @R_ComboBox_TooltipText, 0, true, true, "", 0 )
+    Prop_( "HoverTime", "int", "", "", "tkComboBox_SetHoverTime", "", @A_ComboBox_HoverTime, 0, 0, true, true, "", 0 )
+    Prop_( "AutoPopTime", "int", "", "", "tkComboBox_SetAutoPopTime", "", @A_ComboBox_AutoPopTime, 0, 0, true, true, "", 0 )
+    Prop_( "ReshowTime", "int", "", "", "tkComboBox_SetReshowTime", "", @A_ComboBox_ReshowTime, 0, 0, true, true, "", 0 )
     Event_( "DropDown", "tkComboBox_SetDropDownCallback", "CBO_DropDownCallbackSub", "byval hCombo as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
     Event_( "EditChange", "tkComboBox_SetEditChangeCallback", "CBO_EditCallbackSub", "byval hCombo as TK_WIDGET ptr", "", "" )
     Event_( "EditEnter", "tkComboBox_SetEditEnterCallback", "CBO_EditCallbackSub", "byval hCombo as TK_WIDGET ptr", "", "" )
+    Event_( "Paint", "tkComboBox_SetPaintCallback", "CBO_PaintCallbackSub", "byval p as TKCOMBOBOX_PAINTINFO ptr", "byval p as TKCOMBOBOX_PAINTINFO ptr", "p", "p->hCombo", "", "" )
+    Event_( "Message", "tkComboBox_SetMessageCallback", "CBO_MessageCallbackFunc", "byval m as TKCOMBOBOX_MESSAGEINFO ptr", "byval m as TKCOMBOBOX_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCombo", "boolean", "Handled" )
     Event_( "SelChange", "tkComboBox_SetSelChangeCallback", "CBO_SelChangeCallbackSub", "byval hCombo as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", "byval idxOld as long, byval idxNew as long", "idxOld, idxNew" )
     Add_( "DatePicker", "tkDatePicker", "Common", 140, 28, "DateChanged", "", @C_DatePicker, "", "", "", "" )
     Colors_( "TKDATEPICKER_COLORS", "tkDatePicker_GetColors", "tkDatePicker_ThemeColors", @G_DatePicker, @T_DatePicker )

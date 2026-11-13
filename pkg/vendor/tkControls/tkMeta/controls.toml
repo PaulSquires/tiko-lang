@@ -422,16 +422,23 @@ props = [
   { name="ChevronGap", kind="int", set="tkComboBox_SetChevronGap", get="tkComboBox_GetChevronGap" },
   { name="ChevronThickness", kind="int", set="tkComboBox_SetChevronThickness", get="tkComboBox_GetChevronThickness" },
   { name="CornerCurvature", kind="int", set="tkComboBox_SetCornerCurvature", get="tkComboBox_GetCornerCurvature", theme="CornerRadius", scale=2 },
-  { name="BorderThickness", kind="int", set="tkComboBox_SetBorderThickness", get="tkComboBox_GetBorderThickness" },
+  { name="BorderThickness", kind="int", set="tkComboBox_SetBorderThickness", get="tkComboBox_GetBorderThickness", theme="BorderWidth", scale=1 },
   { name="EditText", kind="text", set="tkComboBox_SetEditText", get="" },
   { name="Padding", kind="list", enum="Left:int,Top:int,Right:int,Bottom:int", set="tkComboBox_SetPadding", get="" },
   { name="ChevronSize", kind="list", enum="Width:int,Height:int", set="tkComboBox_SetChevronSize", get="" },
   { name="FocusRing", kind="list", enum="Gap:int,Thickness:int", set="tkComboBox_SetFocusRing", get="" },
+  { name="SelectedIndex", kind="int", set="tkComboBox_SetCurSel", get="tkComboBox_GetCurSel", default="-1" },
+  { name="TooltipText", kind="text", set="tkComboBox_SetTooltipText", get="tkComboBox_GetTooltipText" },
+  { name="HoverTime", kind="int", set="tkComboBox_SetHoverTime", get="" },
+  { name="AutoPopTime", kind="int", set="tkComboBox_SetAutoPopTime", get="" },
+  { name="ReshowTime", kind="int", set="tkComboBox_SetReshowTime", get="" },
 ]
 events = [
   { name="DropDown", set="tkComboBox_SetDropDownCallback", type="CBO_DropDownCallbackSub", sig="byval hCombo as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
   { name="EditChange", set="tkComboBox_SetEditChangeCallback", type="CBO_EditCallbackSub", sig="byval hCombo as TK_WIDGET ptr", params="", args="" },
   { name="EditEnter", set="tkComboBox_SetEditEnterCallback", type="CBO_EditCallbackSub", sig="byval hCombo as TK_WIDGET ptr", params="", args="" },
+  { name="Paint", set="tkComboBox_SetPaintCallback", type="CBO_PaintCallbackSub", sig="byval p as TKCOMBOBOX_PAINTINFO ptr", params="byval p as TKCOMBOBOX_PAINTINFO ptr", args="p", widget="p->hCombo" },
+  { name="Message", set="tkComboBox_SetMessageCallback", type="CBO_MessageCallbackFunc", sig="byval m as TKCOMBOBOX_MESSAGEINFO ptr", params="byval m as TKCOMBOBOX_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCombo", returns="boolean", result="Handled" },
   { name="SelChange", set="tkComboBox_SetSelChangeCallback", type="CBO_SelChangeCallbackSub", sig="byval hCombo as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
 ]
 

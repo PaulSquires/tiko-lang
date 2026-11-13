@@ -10,6 +10,8 @@ Use it where a choice from a short-to-medium list must take little room. Three t
 
 Setters are silent. The SelChange callback fires only for a user's pick; the DropDown callback fires for every open and close, programmatic ones included.
 
+`tkComboBox_SetTooltipText` gives the combo a tooltip (the edit box of an editable one included), with `SetHoverTime` / `SetAutoPopTime` / `SetReshowTime` and `GetTooltipHandle`; opening the list hides it. The border follows the theme's `BorderWidth` until `SetBorderThickness`. A paint callback replaces the button's drawing; `tkComboBox_PaintDefault( p )` draws the stock one first.
+
 ## Importing
 
 ```freebasic
@@ -255,6 +257,13 @@ sub tkComboBox_ApplyFonts( byval hCombo as TK_WIDGET ptr, byval fText as TTF_Fon
 function tkComboBox_GetPlaceholderText( byval hCombo as TK_WIDGET ptr ) as ustring
 sub tkComboBox_SetPlaceholderText( byval hCombo as TK_WIDGET ptr, byval Text as ustring )
 sub tkComboBox_SetPaintCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_PaintCallbackSub )
+sub tkComboBox_PaintDefault( byval pi as TKCOMBOBOX_PAINTINFO ptr )
+sub tkComboBox_SetTooltipText( byval hCombo as TK_WIDGET ptr, byval Text as ustring )
+function tkComboBox_GetTooltipText( byval hCombo as TK_WIDGET ptr ) as ustring
+function tkComboBox_GetTooltipHandle( byval hCombo as TK_WIDGET ptr ) as TK_TIP ptr
+sub tkComboBox_SetHoverTime( byval hCombo as TK_WIDGET ptr, byval ms as long )
+sub tkComboBox_SetAutoPopTime( byval hCombo as TK_WIDGET ptr, byval ms as long )
+sub tkComboBox_SetReshowTime( byval hCombo as TK_WIDGET ptr, byval ms as long )
 sub tkComboBox_SetMessageCallback( byval hCombo as TK_WIDGET ptr, byval userfunc as CBO_MessageCallbackFunc )
 sub tkComboBox_SetSelChangeCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_SelChangeCallbackSub )
 sub tkComboBox_SetDropDownCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_DropDownCallbackSub )

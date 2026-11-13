@@ -44,6 +44,13 @@ public type ComboBox
     declare sub Padding( byval a0 as long, byval a1 as long, byval a2 as long, byval a3 as long )
     declare sub ChevronSize( byval a0 as long, byval a1 as long )
     declare sub FocusRing( byval a0 as long, byval a1 as long )
+    declare property SelectedIndex( ) as long
+    declare property SelectedIndex( byval v as long )
+    declare property TooltipText( ) as ustring
+    declare property TooltipText( byref v as const ustring )
+    declare property HoverTime( byval v as long )
+    declare property AutoPopTime( byval v as long )
+    declare property ReshowTime( byval v as long )
 end type
 
 sub ComboBox.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -189,3 +196,31 @@ end sub
 sub ComboBox.FocusRing( byval a0 as long, byval a1 as long )
     tkComboBox_SetFocusRing( Handle, a0, a1 )
 end sub
+
+property ComboBox.SelectedIndex( ) as long
+    return tkComboBox_GetCurSel( Handle )
+end property
+
+property ComboBox.SelectedIndex( byval v as long )
+    tkComboBox_SetCurSel( Handle, v )
+end property
+
+property ComboBox.TooltipText( ) as ustring
+    return tkComboBox_GetTooltipText( Handle )
+end property
+
+property ComboBox.TooltipText( byref v as const ustring )
+    tkComboBox_SetTooltipText( Handle, v )
+end property
+
+property ComboBox.HoverTime( byval v as long )
+    tkComboBox_SetHoverTime( Handle, v )
+end property
+
+property ComboBox.AutoPopTime( byval v as long )
+    tkComboBox_SetAutoPopTime( Handle, v )
+end property
+
+property ComboBox.ReshowTime( byval v as long )
+    tkComboBox_SetReshowTime( Handle, v )
+end property
