@@ -2216,6 +2216,14 @@ private sub A_TabBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustr
     tkTabBar_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
+private sub A_TabBar_SelectedIndex( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTabBar_SetCurSel( w, clng( val( v ) ) )
+end sub
+
+private function R_TabBar_SelectedIndex( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTabBar_GetCurSel( w ) )
+end function
+
 private function C_ColumnHeader( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
     return tkColumnHeader_Create( hParent, id )
 end function
@@ -3501,6 +3509,10 @@ sub Fill_( )
     Prop_( "HoverTime", "int", "", "", "tkTabBar_SetHoverTime", "", @A_TabBar_HoverTime, 0, 0, true, true, "", 0 )
     Prop_( "AutoPopTime", "int", "", "", "tkTabBar_SetAutoPopTime", "", @A_TabBar_AutoPopTime, 0, 0, true, true, "", 0 )
     Prop_( "ReshowTime", "int", "", "", "tkTabBar_SetReshowTime", "", @A_TabBar_ReshowTime, 0, 0, true, true, "", 0 )
+    Prop_( "SelectedIndex", "int", "0", "", "tkTabBar_SetCurSel", "tkTabBar_GetCurSel", @A_TabBar_SelectedIndex, @R_TabBar_SelectedIndex, 0, true, true, "", 0 )
+    Event_( "Paint", "tkTabBar_SetPaintCallback", "TB_PaintCallbackSub", "byval p as TKTABBAR_PAINTINFO ptr", "byval p as TKTABBAR_PAINTINFO ptr", "p", "p->hTabBar", "", "" )
+    Event_( "Message", "tkTabBar_SetMessageCallback", "TB_MessageCallbackFunc", "byval m as TKTABBAR_MESSAGEINFO ptr", "byval m as TKTABBAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hTabBar", "boolean", "Handled" )
+    Event_( "Tooltip", "tkTabBar_SetTooltipCallback", "TB_TooltipCallbackFunc", "byval hTabBar as TK_WIDGET ptr, byval idx as long", "byval idx as long, byref Text as ustring", "idx, Text", "", "ustring", "Text" )
     Event_( "Close", "tkTabBar_SetCloseCallback", "TB_CloseCallbackSub", "byval hTabBar as TK_WIDGET ptr, byval idx as long", "byval idx as long", "idx" )
     Event_( "Reorder", "tkTabBar_SetReorderCallback", "TB_ReorderCallbackSub", "byval hTabBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long", "byval idxFrom as long, byval idxTo as long", "idxFrom, idxTo" )
     Event_( "SelChange", "tkTabBar_SetSelChangeCallback", "TB_SelChangeCallbackSub", "byval hTabBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", "byval idxOld as long, byval idxNew as long", "idxOld, idxNew" )

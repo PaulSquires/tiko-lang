@@ -8,7 +8,7 @@ tkTabBar is a tab **bar**, not a tab container: it shows the tabs and reports wh
 
 A tab is selected on the mouse press, unless the press is on its X. A close gesture does not delete the tab; it calls the Close callback, and your program decides whether to call `tkTabBar_DeleteTab`. `tkTabBar_CanNavigate` and `tkTabBar_Navigate` scroll the strip one tab left or right, for arrow buttons beside it.
 
-Without a paint callback the bar draws its tabs itself, with an optional icon per tab (`tkTabBar_SetGlyph`, drawn with the font from `tkTabBar_SetGlyphFont`) and an accent on the active tab. Set a paint callback to draw the tabs yourself; the bottom rule and the active tab's border are drawn after it. Setters are silent; SelChange, Close and Reorder fire only for what the user does.
+Without a paint callback the bar draws its tabs itself, with an optional icon per tab (`tkTabBar_SetGlyph`, drawn with the font from `tkTabBar_SetGlyphFont`) and an accent on the active tab. Set a paint callback to draw the tabs yourself (`tkTabBar_PaintTabDefault( p )` in it draws the stock tab first); the bottom rule and the active tab's border are drawn after it. Setters are silent; SelChange, Close and Reorder fire only for what the user does.
 
 ## Importing
 
@@ -205,6 +205,7 @@ function tkTabBar_GetTooltipHandle( byval hTabBar as TK_WIDGET ptr ) as TK_TIP p
 sub tkTabBar_SetHoverTime( byval hTabBar as TK_WIDGET ptr, byval milliseconds as long )
 sub tkTabBar_SetAutoPopTime( byval hTabBar as TK_WIDGET ptr, byval milliseconds as long )
 sub tkTabBar_SetReshowTime( byval hTabBar as TK_WIDGET ptr, byval milliseconds as long )
+sub tkTabBar_PaintTabDefault( byval p as TKTABBAR_PAINTINFO ptr )
 sub tkTabBar_SetPaintCallback( byval hTabBar as TK_WIDGET ptr, byval usersub as TB_PaintCallbackSub )
 sub tkTabBar_SetMessageCallback( byval hTabBar as TK_WIDGET ptr, byval userfunc as TB_MessageCallbackFunc )
 sub tkTabBar_SetTooltipCallback( byval hTabBar as TK_WIDGET ptr, byval userfunc as TB_TooltipCallbackFunc )

@@ -32,6 +32,8 @@ public type TabBar
     declare property HoverTime( byval v as long )
     declare property AutoPopTime( byval v as long )
     declare property ReshowTime( byval v as long )
+    declare property SelectedIndex( ) as long
+    declare property SelectedIndex( byval v as long )
 end type
 
 sub TabBar.Create( byval hParent as TK_WIDGET ptr, byval id as long )
@@ -128,4 +130,12 @@ end property
 
 property TabBar.ReshowTime( byval v as long )
     tkTabBar_SetReshowTime( Handle, v )
+end property
+
+property TabBar.SelectedIndex( ) as long
+    return tkTabBar_GetCurSel( Handle )
+end property
+
+property TabBar.SelectedIndex( byval v as long )
+    tkTabBar_SetCurSel( Handle, v )
 end property

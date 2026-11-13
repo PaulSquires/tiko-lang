@@ -533,7 +533,11 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         next
     case catalog.ItemsKind.ItemsList
         for each it as FormItem in c.Items
-            if c.TypeName = "SelectBar" then tkSelectBar_AddPanel( w, it.Text ) else tkComboBox_AddItem( w, it.Text )
+            select case c.TypeName
+            case "SelectBar" : tkSelectBar_AddPanel( w, it.Text )
+            case "TabBar"    : tkTabBar_AddTab( w, it.Text )
+            case else        : tkComboBox_AddItem( w, it.Text )
+            end select
         next
     end select
 end sub

@@ -926,8 +926,12 @@ props = [
   { name="HoverTime", kind="int", set="tkTabBar_SetHoverTime", get="" },
   { name="AutoPopTime", kind="int", set="tkTabBar_SetAutoPopTime", get="" },
   { name="ReshowTime", kind="int", set="tkTabBar_SetReshowTime", get="" },
+  { name="SelectedIndex", kind="int", set="tkTabBar_SetCurSel", get="tkTabBar_GetCurSel", default="0" },
 ]
 events = [
+  { name="Paint", set="tkTabBar_SetPaintCallback", type="TB_PaintCallbackSub", sig="byval p as TKTABBAR_PAINTINFO ptr", params="byval p as TKTABBAR_PAINTINFO ptr", args="p", widget="p->hTabBar" },
+  { name="Message", set="tkTabBar_SetMessageCallback", type="TB_MessageCallbackFunc", sig="byval m as TKTABBAR_MESSAGEINFO ptr", params="byval m as TKTABBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hTabBar", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkTabBar_SetTooltipCallback", type="TB_TooltipCallbackFunc", sig="byval hTabBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
   { name="Close", set="tkTabBar_SetCloseCallback", type="TB_CloseCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
   { name="Reorder", set="tkTabBar_SetReorderCallback", type="TB_ReorderCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long", params="byval idxFrom as long, byval idxTo as long", args="idxFrom, idxTo" },
   { name="SelChange", set="tkTabBar_SetSelChangeCallback", type="TB_SelChangeCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
