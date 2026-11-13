@@ -215,6 +215,9 @@ props = [
 ]
 events = [
   { name="CheckChanged", set="tkOptionButton_SetCheckChangedCallback", type="OPT_CheckChangedCallbackSub", sig="byval hOptionButton as TK_WIDGET ptr, byval isChecked as boolean", params="byval isChecked as boolean", args="isChecked" },
+  { name="Paint", set="tkOptionButton_SetPaintCallback", type="OPT_PaintCallbackSub", sig="byval p as TKOPTIONBUTTON_PAINTINFO ptr", params="byval p as TKOPTIONBUTTON_PAINTINFO ptr", args="p", widget="p->hOptionButton" },
+  { name="Tooltip", set="tkOptionButton_SetTooltipCallback", type="OPT_TooltipCallbackFunc", sig="byval hOptionButton as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
+  { name="Message", set="tkOptionButton_SetMessageCallback", type="OPT_MessageCallbackFunc", sig="byval m as TKOPTIONBUTTON_MESSAGEINFO ptr", params="byval m as TKOPTIONBUTTON_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hOptionButton", returns="boolean", result="Handled" },
 ]
 
 [[control]]
