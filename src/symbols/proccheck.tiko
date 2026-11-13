@@ -1317,6 +1317,27 @@ sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
                 return
             end if
         end if
+        '' ...AND AGAINST A POINTER by its pointer cast, PtrCastPick's (lowering calls the same one).
+        '' Measured, same day: over 'long ptr' alone 'x = pd' (a double ptr) is 20 and 'x = pa' (any
+        '' ptr) compares; over [long ptr, double ptr] 'x = pa' is 98; with no pointer cast a numeric
+        '' one compares and a string one alone is 20.
+        if (c.types->Kind( ot ) = TK_POINTER) andalso PlainUdtOperand_( c, ut ) then
+            select case Tko.Check.PtrCastFit( *c.ast, *c.syms, *c.types, *c.names, ut, ot )
+            case 1
+                Report0820_( c, id, opnm )
+                return
+            case 2
+                c.diags->Report( TKO0660, PointRange( c.ast->Loc( id ) ), "operator cast" )
+                return
+            case -1
+                dim as boolean pN, pS, pC
+                UdtCastKinds_( c, ut, pN, pS, pC )
+                if (pN orelse pC) = false then
+                    Report0820_( c, id, opnm )
+                    return
+                end if
+            end select
+        end if
     end if
     '' A conversion operator on the UDT may turn it into something comparable.
     if lUdt then
