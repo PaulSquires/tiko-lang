@@ -14,6 +14,7 @@
 #import "tkc/outline"
 #import "../model"
 #import "../codegen"
+#import "../catalog"
 using containers
 using model
 
@@ -113,8 +114,11 @@ public function ImportsFor( byref params as const ustring, byref controlModule a
     if instr( p, "TK_HOST" ) orelse instr( p, "TK_WIDGET" ) then out_.Push( "tkHost" )
     if instr( p, "TK_MENU" ) then out_.Push( "tkPopupMenu" )
     if instr( p, "TK_PAINT" ) then out_.Push( "tkPaint" )
-    ' TKDATE is tkCalendar's, whichever date control names it
-    if instr( p, " AS TKDATE " ) then out_.Push( "tkCalendar" )
+    ' a type another module owns (TKDATE is tkCalendar's, TKCOLUMNHEADER_* tkColumnHeader's)
+    dim as ustring pp = strings.Replace( p, " AS CONST TK", " AS TK" ) & " "
+    for t as long = 0 to catalog.ForeignTypeCount( ) - 1
+        if instr( pp, " AS " & catalog.ForeignTypePrefix( t ) ) then out_.Push( catalog.ForeignTypeModule( t ) )
+    next
     ' a type of the control's own (TKBUTTON_PAINTINFO): "TK" then a letter, where tkHost's are TK_
     if len( controlModule ) then
         ' "as const TKCE_NOTIFICATION ptr" counts as well
@@ -122,7 +126,12 @@ public function ImportsFor( byref params as const ustring, byref controlModule a
         dim as long at_ = instr( p, " AS TK" )
         while at_ > 0
             dim as long c_ = asc( mid( p, at_ + 6, 1 ) )
-            if (c_ >= 65) andalso (c_ <= 90) andalso (mid( p, at_ + 4, 7 ) <> "TKDATE ") then
+            dim as boolean foreign = false
+            for t as long = 0 to catalog.ForeignTypeCount( ) - 1
+                dim as ustring fp = catalog.ForeignTypePrefix( t )
+                if mid( p & " ", at_ + 4, len( fp ) ) = fp then foreign = true
+            next
+            if (c_ >= 65) andalso (c_ <= 90) andalso (foreign = false) then
                 dim as ustring m = controlModule
                 out_.Push( m )
                 exit while

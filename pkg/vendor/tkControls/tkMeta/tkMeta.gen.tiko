@@ -1884,6 +1884,34 @@ private function R_ListTree_HeaderHeight( byval w as TK_WIDGET ptr ) as ustring
     return str( tkListTree_GetHeaderHeight( w ) )
 end function
 
+private sub A_ListTree_ShowHeader( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_ShowHeader( w, cbool( v = "true" ) )
+end sub
+
+private function R_ListTree_ShowHeader( byval w as TK_WIDGET ptr ) as ustring
+    if tkListTree_IsHeaderVisible( w ) then return "true" else return "false"
+end function
+
+private sub A_ListTree_ShowTwisty( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_ShowTwisty( w, cbool( v = "true" ) )
+end sub
+
+private function R_ListTree_ShowTwisty( byval w as TK_WIDGET ptr ) as ustring
+    if tkListTree_IsTwistyShown( w ) then return "true" else return "false"
+end function
+
+private sub A_ListTree_LabelEdit( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_EnableLabelEdit( w, cbool( v = "true" ) )
+end sub
+
+private function R_ListTree_LabelEdit( byval w as TK_WIDGET ptr ) as ustring
+    if tkListTree_IsLabelEditEnabled( w ) then return "true" else return "false"
+end function
+
+private sub A_ListTree_PreventDoubleClick( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkListTree_PreventDoubleClick( w, cbool( v = "true" ) )
+end sub
+
 private sub A_ListTree_FillColumn( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkListTree_SetFillColumn( w, clng( val( v ) ) )
 end sub
@@ -3334,6 +3362,10 @@ sub Fill_( )
     Add_( "ListTree", "tkListTree", "Lists", 240, 160, "SelChange", "", @C_ListTree, "", "", "", "" )
     Prop_( "RowHeight", "int", "", "", "tkListTree_SetRowHeight", "tkListTree_GetRowHeight", @A_ListTree_RowHeight, @R_ListTree_RowHeight, 0, true, true, "", 0 )
     Prop_( "HeaderHeight", "int", "", "", "tkListTree_SetHeaderHeight", "tkListTree_GetHeaderHeight", @A_ListTree_HeaderHeight, @R_ListTree_HeaderHeight, 0, true, true, "", 0 )
+    Prop_( "ShowHeader", "bool", "false", "", "tkListTree_ShowHeader", "tkListTree_IsHeaderVisible", @A_ListTree_ShowHeader, @R_ListTree_ShowHeader, 0, true, true, "", 0 )
+    Prop_( "ShowTwisty", "bool", "", "", "tkListTree_ShowTwisty", "tkListTree_IsTwistyShown", @A_ListTree_ShowTwisty, @R_ListTree_ShowTwisty, 0, true, true, "", 0 )
+    Prop_( "LabelEdit", "bool", "false", "", "tkListTree_EnableLabelEdit", "tkListTree_IsLabelEditEnabled", @A_ListTree_LabelEdit, @R_ListTree_LabelEdit, 0, true, true, "", 0 )
+    Prop_( "PreventDoubleClick", "bool", "false", "", "tkListTree_PreventDoubleClick", "", @A_ListTree_PreventDoubleClick, 0, 0, true, true, "", 0 )
     Prop_( "FillColumn", "int", "", "", "tkListTree_SetFillColumn", "tkListTree_GetFillColumn", @A_ListTree_FillColumn, @R_ListTree_FillColumn, 0, true, true, "", 0 )
     Prop_( "MultiSelect", "bool", "false", "", "tkListTree_SetMultiSelect", "tkListTree_GetMultiSelect", @A_ListTree_MultiSelect, @R_ListTree_MultiSelect, 0, true, true, "", 0 )
     Prop_( "ExtendedSelect", "bool", "false", "", "tkListTree_SetExtendedSelect", "tkListTree_GetExtendedSelect", @A_ListTree_ExtendedSelect, @R_ListTree_ExtendedSelect, 0, true, true, "", 0 )
@@ -3369,6 +3401,15 @@ sub Fill_( )
     Event_( "DragDrop", "tkListTree_SetDragDropCallback", "LT_DragDropCallbackSub", "byval hList as TK_WIDGET ptr, byval newFirstRow as integer, byval count as integer", "byval newFirstRow as integer, byval count as integer", "newFirstRow, count" )
     Event_( "ExpandCollapse", "tkListTree_SetExpandCollapseCallback", "LT_ExpandCollapseCallbackSub", "byval hList as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean", "byval row as integer, byval bExpanded as boolean", "row, bExpanded" )
     Event_( "SelChange", "tkListTree_SetSelChangeCallback", "LT_SelChangeCallbackSub", "byval hList as TK_WIDGET ptr, byval row as integer", "byval row as integer", "row" )
+    Event_( "Paint", "tkListTree_SetPaintCallback", "LT_PaintCallbackSub", "byval p as TKLISTTREE_PAINTINFO ptr", "byval p as TKLISTTREE_PAINTINFO ptr", "p", "p->hList", "", "", "", "tkListTree_PaintRowDefault" )
+    Event_( "Message", "tkListTree_SetMessageCallback", "LT_MessageCallbackFunc", "byval m as TKLISTTREE_MESSAGEINFO ptr", "byval m as TKLISTTREE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hList", "boolean", "Handled" )
+    Event_( "Tooltip", "tkListTree_SetTooltipCallback", "LT_TooltipCallbackFunc", "byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer, byref Text as ustring", "row, col, Text", "", "ustring", "Text" )
+    Event_( "CanDrop", "tkListTree_SetCanDropCallback", "LT_CanDropCallbackFunc", "byval d as TKLISTTREE_DROPINFO ptr", "byval d as TKLISTTREE_DROPINFO ptr, byref Allow as boolean", "d, Allow", "d->hList", "boolean", "Allow", "true" )
+    Event_( "BeginLabelEdit", "tkListTree_SetBeginLabelEditCallback", "LT_BeginLabelEditCallbackFunc", "byval hList as TK_WIDGET ptr, byval row as integer", "byval row as integer, byref Allow as boolean", "row, Allow", "", "boolean", "Allow", "true" )
+    Event_( "EndLabelEdit", "tkListTree_SetEndLabelEditCallback", "LT_EndLabelEditCallbackFunc", "byval hList as TK_WIDGET ptr, byval row as integer, byval newText as ustring", "byval row as integer, byval newText as ustring, byref Accept as boolean", "row, newText, Accept", "", "boolean", "Accept", "true" )
+    Event_( "HeaderPaint", "tkListTree_SetHeaderPaintCallback", "HDR_PaintCallbackSub", "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "p", "p->hHeader", "", "" )
+    Event_( "HeaderTooltip", "tkListTree_SetHeaderTooltipCallback", "HDR_TooltipCallbackFunc", "byval hHeader as TK_WIDGET ptr, byval idx as integer", "byval idx as integer, byref Text as ustring", "idx, Text", "", "ustring", "Text" )
+    Event_( "ColumnAutoSize", "tkListTree_SetColumnAutoSizeCallback", "HDR_AutoSizeCallbackFunc", "byval hHeader as TK_WIDGET ptr, byval idx as integer", "byval idx as integer, byref BestWidth as integer", "idx, BestWidth", "", "integer", "BestWidth" )
     Add_( "SelectBar", "tkSelectBar", "Lists", 240, 32, "SelChange", "", @C_SelectBar, "", "", "", "" )
     Colors_( "TKSELECTBAR_COLORS", "tkSelectBar_GetColors", "tkSelectBar_ThemeColors", @G_SelectBar, @T_SelectBar )
     Color_( "BackColor", "Back", "Normal", "", false )

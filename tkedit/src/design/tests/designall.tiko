@@ -1098,6 +1098,43 @@ sub ToggleSuite( )
     HasLine( g, "tkToggle_SetMessageCallback( tg.Handle, @Thunk_tg_Message )", "toggle: Message installed" )
 end sub
 
+' A ListTree's row painter (a fallback when unbound), its answering events and its header's.
+sub ListTreeSuite( )
+    dim as ustring head_ = "format = 1" & LF & LF & "[form]" & LF & "caption = ""L""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "lst", "ListTree" )
+    dim as FormDoc d0
+    ReadForm( head_, d0 )
+    dim as ustring g0 = codegen.Generate( d0, "frmL", "frmL.tkform", head_ )
+    HasLine( g0, "tkListTree_SetPaintCallback( lst.Handle, @tkListTree_PaintRowDefault )", "listtree: unbound, the rows still get a painter" )
+    Check( instr( g0, "tkColumnHeader" ) = 0, "listtree: no header event, no tkColumnHeader" )
+    dim as FormDoc dp
+    ReadForm( head_ & LF & "[control.props]" & LF & "ShowHeader = true" & LF & "ShowTwisty = true" & LF & "LabelEdit = true" & LF & "PreventDoubleClick = true" & LF, dp )
+    dim as ustring gp = codegen.Generate( dp, "frmL", "frmL.tkform", "" )
+    HasLine( gp, "lst.ShowHeader = true", "listtree: ShowHeader" )
+    HasLine( gp, "lst.LabelEdit = true", "listtree: LabelEdit" )
+    Check( (instr( gp, "lst.ShowTwisty = true" ) > 0) andalso (instr( gp, "lst.PreventDoubleClick = true" ) > 0), "listtree: ShowTwisty and PreventDoubleClick" )
+    dim as ustring src = head_ & LF & "[control.events]" & LF & "Paint = ""lst_Paint""" & LF & "Tooltip = ""lst_Tip""" & LF _
+        & "CanDrop = ""lst_CanDrop""" & LF & "BeginLabelEdit = ""lst_Begin""" & LF & "EndLabelEdit = ""lst_End""" & LF _
+        & "HeaderPaint = ""lst_HeaderPaint""" & LF & "HeaderTooltip = ""lst_HeaderTip""" & LF & "ColumnAutoSize = ""lst_AutoSize""" & LF _
+        & "Message = ""lst_Message""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "listtree: the form parses" )
+    Accepted( src, "listtree: the new events" )
+    dim as ustring g = codegen.Generate( d, "frmL", "frmL.tkform", src )
+    HasLine( g, "tkListTree_SetPaintCallback( lst.Handle, @Thunk_lst_Paint )", "listtree: a bound Paint replaces the fallback" )
+    Check( instr( g, "@tkListTree_PaintRowDefault" ) = 0, "listtree: and the fallback isn't installed too" )
+    HasLine( g, "declare sub lst_Tip( byval row as integer, byval col as integer, byref Text as ustring )", "listtree: Tooltip declared" )
+    Check( instr( g, "    dim as boolean Allow = true" & LF & "    dim as Form ptr f = tkForms_ObjectOf( d->hList )" & LF ) > 0, "listtree: CanDrop allows unless told" )
+    Check( instr( g, "private function Thunk_lst_EndLabelEdit( byval hList as TK_WIDGET ptr, byval row as integer, byval newText as ustring ) as boolean" & LF _
+        & "    dim as boolean Accept = true" & LF ) > 0, "listtree: EndLabelEdit accepts unless told" )
+    Check( instr( g, "    dim as integer BestWidth" & LF & "    dim as Form ptr f = tkForms_ObjectOf( hHeader )" & LF ) > 0, "listtree: ColumnAutoSize answers BestWidth, found through the header" )
+    Check( (instr( g, "#import ""vendor/tkControls/tkColumnHeader""" ) > 0) andalso (instr( g, LF & "using tkColumnHeader" & LF ) > 0), "listtree: a header type's module is in scope" )
+    dim as Array( of ustring ) im = reconcile.ImportsFor( "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "tkListTree" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkColumnHeader"), "listtree: a header handler's file imports tkColumnHeader", str( im.Count( ) ) )
+    im = reconcile.ImportsFor( "byval d as TKLISTTREE_DROPINFO ptr, byref Allow as boolean", "tkListTree" )
+    Check( (im.Count( ) = 1) andalso (im[0] = "tkListTree"), "listtree: its own types import tkListTree" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1434,6 +1471,7 @@ CodeEditSuite( )
 CheckBoxSuite( )
 OptionButtonSuite( )
 ToggleSuite( )
+ListTreeSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

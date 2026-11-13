@@ -95,9 +95,16 @@ the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
 a Button's, CheckBox's or OptionButton's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, NumericUpDown, DatePicker, Calendar) sets `Handled` to keep a mouse or key message from the
+(Button, CheckBox, OptionButton, Toggle, TextBox, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
 control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, NumericUpDown, DatePicker) draws the control instead; call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
+
+A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter
+(`tkListTree_PaintRowDefault`), and a Paint handler can call that and add to it. Its header shows
+only with **ShowHeader** on; **HeaderPaint** draws a column heading (`tkColumnHeader_PaintColumnDefault`
+for the stock one). **CanDrop**, **BeginLabelEdit** and **EndLabelEdit** answer through `Allow` or
+`Accept`, which start true, and editing a cell needs **LabelEdit** on. **ColumnAutoSize** answers the
+width a double-clicked divider should take (`BestWidth`; 0 leaves it).
 
 A Calendar's **Paint**, **DayPaint** and **MonthYearPaint** handlers draw the whole control, a day,
 or a month or year cell (`tkCalendar_PaintDefault`, `PaintDayDefault`, `PaintMonthYearDefault` draw

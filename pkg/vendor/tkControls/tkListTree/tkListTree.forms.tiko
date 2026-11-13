@@ -18,6 +18,13 @@ public type ListTree
     declare property RowHeight( byval v as long )
     declare property HeaderHeight( ) as long
     declare property HeaderHeight( byval v as long )
+    declare property ShowHeader( ) as boolean
+    declare property ShowHeader( byval v as boolean )
+    declare property ShowTwisty( ) as boolean
+    declare property ShowTwisty( byval v as boolean )
+    declare property LabelEdit( ) as boolean
+    declare property LabelEdit( byval v as boolean )
+    declare property PreventDoubleClick( byval v as boolean )
     declare property FillColumn( ) as long
     declare property FillColumn( byval v as long )
     declare property MultiSelect( ) as boolean
@@ -97,6 +104,34 @@ end property
 
 property ListTree.HeaderHeight( byval v as long )
     tkListTree_SetHeaderHeight( Handle, v )
+end property
+
+property ListTree.ShowHeader( ) as boolean
+    return tkListTree_IsHeaderVisible( Handle )
+end property
+
+property ListTree.ShowHeader( byval v as boolean )
+    tkListTree_ShowHeader( Handle, v )
+end property
+
+property ListTree.ShowTwisty( ) as boolean
+    return tkListTree_IsTwistyShown( Handle )
+end property
+
+property ListTree.ShowTwisty( byval v as boolean )
+    tkListTree_ShowTwisty( Handle, v )
+end property
+
+property ListTree.LabelEdit( ) as boolean
+    return tkListTree_IsLabelEditEnabled( Handle )
+end property
+
+property ListTree.LabelEdit( byval v as boolean )
+    tkListTree_EnableLabelEdit( Handle, v )
+end property
+
+property ListTree.PreventDoubleClick( byval v as boolean )
+    tkListTree_PreventDoubleClick( Handle, v )
 end property
 
 property ListTree.FillColumn( ) as long

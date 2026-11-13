@@ -20,6 +20,7 @@
 # control as an expression of sig's parameters when it isn't the first one ("p->hButton"). returns =
 # the callback's result type when it answers; result = the handler's byref parameter (listed in
 # params) whose value the thunk returns, starting from that type's default or from result_init.
+# fallback = a procedure the generated code installs when no handler is bound (a ListTree's rows).
 
 [[control]]
 name = "Label"
@@ -796,6 +797,10 @@ default_event = "SelChange"
 props = [
   { name="RowHeight", kind="int", set="tkListTree_SetRowHeight", get="tkListTree_GetRowHeight" },
   { name="HeaderHeight", kind="int", set="tkListTree_SetHeaderHeight", get="tkListTree_GetHeaderHeight" },
+  { name="ShowHeader", kind="bool", set="tkListTree_ShowHeader", get="tkListTree_IsHeaderVisible", default="false" },
+  { name="ShowTwisty", kind="bool", set="tkListTree_ShowTwisty", get="tkListTree_IsTwistyShown" },
+  { name="LabelEdit", kind="bool", set="tkListTree_EnableLabelEdit", get="tkListTree_IsLabelEditEnabled", default="false" },
+  { name="PreventDoubleClick", kind="bool", set="tkListTree_PreventDoubleClick", get="", default="false" },
   { name="FillColumn", kind="int", set="tkListTree_SetFillColumn", get="tkListTree_GetFillColumn" },
   { name="MultiSelect", kind="bool", set="tkListTree_SetMultiSelect", get="tkListTree_GetMultiSelect", default="false" },
   { name="ExtendedSelect", kind="bool", set="tkListTree_SetExtendedSelect", get="tkListTree_GetExtendedSelect", default="false" },
@@ -833,6 +838,15 @@ events = [
   { name="DragDrop", set="tkListTree_SetDragDropCallback", type="LT_DragDropCallbackSub", sig="byval hList as TK_WIDGET ptr, byval newFirstRow as integer, byval count as integer", params="byval newFirstRow as integer, byval count as integer", args="newFirstRow, count" },
   { name="ExpandCollapse", set="tkListTree_SetExpandCollapseCallback", type="LT_ExpandCollapseCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean", params="byval row as integer, byval bExpanded as boolean", args="row, bExpanded" },
   { name="SelChange", set="tkListTree_SetSelChangeCallback", type="LT_SelChangeCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer", params="byval row as integer", args="row" },
+  { name="Paint", set="tkListTree_SetPaintCallback", type="LT_PaintCallbackSub", sig="byval p as TKLISTTREE_PAINTINFO ptr", params="byval p as TKLISTTREE_PAINTINFO ptr", args="p", widget="p->hList", fallback="tkListTree_PaintRowDefault" },
+  { name="Message", set="tkListTree_SetMessageCallback", type="LT_MessageCallbackFunc", sig="byval m as TKLISTTREE_MESSAGEINFO ptr", params="byval m as TKLISTTREE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hList", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkListTree_SetTooltipCallback", type="LT_TooltipCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer, byref Text as ustring", args="row, col, Text", returns="ustring", result="Text" },
+  { name="CanDrop", set="tkListTree_SetCanDropCallback", type="LT_CanDropCallbackFunc", sig="byval d as TKLISTTREE_DROPINFO ptr", params="byval d as TKLISTTREE_DROPINFO ptr, byref Allow as boolean", args="d, Allow", widget="d->hList", returns="boolean", result="Allow", result_init="true" },
+  { name="BeginLabelEdit", set="tkListTree_SetBeginLabelEditCallback", type="LT_BeginLabelEditCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval row as integer", params="byval row as integer, byref Allow as boolean", args="row, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="EndLabelEdit", set="tkListTree_SetEndLabelEditCallback", type="LT_EndLabelEditCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval newText as ustring", params="byval row as integer, byval newText as ustring, byref Accept as boolean", args="row, newText, Accept", returns="boolean", result="Accept", result_init="true" },
+  { name="HeaderPaint", set="tkListTree_SetHeaderPaintCallback", type="HDR_PaintCallbackSub", sig="byval p as TKCOLUMNHEADER_PAINTINFO ptr", params="byval p as TKCOLUMNHEADER_PAINTINFO ptr", args="p", widget="p->hHeader" },
+  { name="HeaderTooltip", set="tkListTree_SetHeaderTooltipCallback", type="HDR_TooltipCallbackFunc", sig="byval hHeader as TK_WIDGET ptr, byval idx as integer", params="byval idx as integer, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+  { name="ColumnAutoSize", set="tkListTree_SetColumnAutoSizeCallback", type="HDR_AutoSizeCallbackFunc", sig="byval hHeader as TK_WIDGET ptr, byval idx as integer", params="byval idx as integer, byref BestWidth as integer", args="idx, BestWidth", returns="integer", result="BestWidth" },
 ]
 
 [[control]]

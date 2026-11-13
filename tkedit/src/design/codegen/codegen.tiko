@@ -343,24 +343,25 @@ private function UsedModules_( byref doc as FormDoc ) as Array( of ustring )
         next
         if seen = false then mods.Push( mo )
     next
-    ' TKDATE is tkCalendar's: a DatePicker's date events name it too, and the type needs its module in scope
-    dim as boolean needCal = false
+    ' a type another module owns (catalog.ForeignType*): its module in scope too
     for each c as FormControl in doc.Controls
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         for each s as Setting in c.Events
             dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( m, s.Key )
-            if e then
-                if instr( e->Sig, " TKDATE " ) then needCal = true
-            end if
+            if e = 0 then continue for
+            dim as ustring sig = ucase( e->Sig ) & " "
+            for t as long = 0 to catalog.ForeignTypeCount( ) - 1
+                if instr( sig, " " & catalog.ForeignTypePrefix( t ) ) then
+                    dim as ustring fm = catalog.ForeignTypeModule( t )
+                    dim as boolean seen = false
+                    for each mo as ustring in mods
+                        if mo = fm then seen = true
+                    next
+                    if seen = false then mods.Push( fm )
+                end if
+            next
         next
     next
-    if needCal then
-        dim as boolean seen = false
-        for each mo as ustring in mods
-            if mo = "tkCalendar" then seen = true
-        next
-        if seen = false then mods.Push( "tkCalendar" )
-    end if
     for i as long = 1 to mods.Count( ) - 1
         dim as ustring v = mods[i]
         dim as long j = i - 1
@@ -671,6 +672,9 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
         if Dispatches_( c, m->Events( e ).Name ) then wired = true
         if wired then
             o &= "    " & m->Events( e ).SetName & "( " & c.Name & ".Handle, @Thunk_" & c.Name & "_" & m->Events( e ).Name & " )" & NL
+        elseif len( m->Events( e ).Fallback ) then
+            ' unbound, the control still needs one (a ListTree draws no row by itself)
+            o &= "    " & m->Events( e ).SetName & "( " & c.Name & ".Handle, @" & m->Events( e ).Fallback & " )" & NL
         end if
     next
 

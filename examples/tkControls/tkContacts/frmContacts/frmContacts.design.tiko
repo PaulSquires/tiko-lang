@@ -93,6 +93,7 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     lstPeople.Create( tkForm_Widget( Wnd ), 5 )
     tkLayout_Add( Layout, lstPeople.Handle, 16, 84, 488, 236, TK_ANCHOR_LEFT or TK_ANCHOR_TOP or TK_ANCHOR_RIGHT or TK_ANCHOR_BOTTOM )
     tkListTree_AddColumn( lstPeople.Handle, "Name", 300 )
+    tkListTree_SetPaintCallback( lstPeople.Handle, @tkListTree_PaintRowDefault )
     scope
         dim as TK_KEYMAP ptr keys = tkKeys_MapCreate( )
         tkKeys_BindText( keys, "Primary+L", 1001 )

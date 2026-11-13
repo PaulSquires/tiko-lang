@@ -439,9 +439,10 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
             fill &= "    Event_( " & Quote_( Str_( *e, "name" ) ) & ", " & Quote_( Str_( *e, "set" ) ) & ", " & Quote_( Str_( *e, "type" ) ) & ", " _
                     & Quote_( Str_( *e, "sig" ) ) & ", " & Quote_( Str_( *e, "params" ) ) & ", " & Quote_( Str_( *e, "args" ) )
             ' widget / returns / result only when the event has them, so the other rows stay as they were
-            if len( Str_( *e, "widget" ) ) orelse len( Str_( *e, "returns" ) ) then
+            if len( Str_( *e, "widget" ) ) orelse len( Str_( *e, "returns" ) ) orelse len( Str_( *e, "fallback" ) ) then
                 fill &= ", " & Quote_( Str_( *e, "widget" ) ) & ", " & Quote_( Str_( *e, "returns" ) ) & ", " & Quote_( Str_( *e, "result" ) )
-                if len( Str_( *e, "result_init" ) ) then fill &= ", " & Quote_( Str_( *e, "result_init" ) )
+                if len( Str_( *e, "result_init" ) ) orelse len( Str_( *e, "fallback" ) ) then fill &= ", " & Quote_( Str_( *e, "result_init" ) )
+                if len( Str_( *e, "fallback" ) ) then fill &= ", " & Quote_( Str_( *e, "fallback" ) )
             end if
             fill &= " )" & NL
         next
