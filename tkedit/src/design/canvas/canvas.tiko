@@ -185,6 +185,8 @@ public type FormCanvas
     declare sub PaintSurface( byval b as TK_PAINT ptr )
 
     declare sub SelectOnly( byref name_ as const ustring )
+    declare sub MakeActive( byref name_ as const ustring )
+    declare sub Placed( byval i as long )
     declare sub SelectNone( )
     declare sub SelectAll( )
     declare sub SelectNext( byval forward as boolean )
@@ -884,8 +886,9 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
     Drag = DragNone
     select case d_
     case DragPressed
-        ' pressed on one of several without dragging: the click was for that one
-        if (len( Pressed ) > 0) andalso (Selected.Count( ) > 1) then this.SelectOnly( Pressed )
+        ' pressed on one of several without dragging: that one becomes the active control (the
+        ' solid one Align lines the others up against) and the others stay selected
+        if (len( Pressed ) > 0) andalso (Selected.Count( ) > 1) then this.MakeActive( Pressed )
     case DragMove, DragResize, DragFormResize
         this.Commit( )
     case DragRubber
@@ -933,6 +936,7 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
                 this.SelectOnly( Doc.Controls[i].Name )
                 this.Rebuild( )
                 this.Commit( )
+                this.Placed( i )
             end if
         end if
     end select
@@ -968,8 +972,18 @@ function FormCanvas.PlaceDefault( byref typeName as const ustring ) as boolean
     this.SelectOnly( Doc.Controls[i].Name )
     this.Rebuild( )
     this.Commit( )
+    this.Placed( i )
     return true
 end function
+
+' A control just placed from the Toolbox: a menu bar with nothing in it asks for its editor at once,
+' marked "new" so the host fills it with the standard menu first.
+sub FormCanvas.Placed( byval i as long )
+    if (i < 0) orelse (i >= Doc.Controls.Count( )) then exit sub
+    if catalog.ItemsKindOf( Doc.Controls[i].TypeName ) <> catalog.ItemsKind.ItemsMenu then exit sub
+    if Doc.Controls[i].Items.Count( ) then exit sub
+    if OnEditItems then OnEditItems( Host, @this, Doc.Controls[i].Name, "new", false )
+end sub
 
 ' A double click wires the default event: of the control under it, or of the form.
 sub FormCanvas.OnDoubleClick( byval x as long, byval y as long )
@@ -1074,6 +1088,21 @@ sub FormCanvas.SelectOnly( byref name_ as const ustring )
     Selected.Push( only_ )
     tkWidget_Invalidate( Glass )
     this.Changed( )
+end sub
+
+' name_, already selected, first in the selection: the active control. The rest stay as they are.
+sub FormCanvas.MakeActive( byref name_ as const ustring )
+    for k as long = 0 to Selected.Count( ) - 1
+        if lcase( Selected[k] ) = lcase( name_ ) then
+            if k = 0 then exit sub
+            dim as ustring nm = Selected[k]
+            Selected.Remove( k )
+            Selected.Insert( 0, nm )
+            tkWidget_Invalidate( Glass )
+            this.Changed( )
+            exit sub
+        end if
+    next
 end sub
 
 sub FormCanvas.SelectNone( )

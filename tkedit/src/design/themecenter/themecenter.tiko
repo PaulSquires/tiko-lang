@@ -399,7 +399,7 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
 
     Tabs = tkTabControl_Create( root_, 1 )
     dim as TK_WIDGET ptr pStart = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_page", "Theme" ) ) )
-    dim as TK_WIDGET ptr pColours = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_colours", "Colours" ) ) )
+    dim as TK_WIDGET ptr pColours = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_colours", "Colors" ) ) )
     dim as TK_WIDGET ptr pFonts = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_fonts", "Fonts and Shape" ) ) )
     dim as TK_WIDGET ptr pStyles = tkTabControl_GetPage( Tabs, tkTabControl_AddPage( Tabs, i18n.Tr( "designer.theme_styles", "Styles" ) ) )
     for k as long = 0 to 3
@@ -485,7 +485,7 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
         SrLabel( k ) = MakeLabel_( rows_, rowName )
         SrCombo( k ) = tkComboBox_Create( rows_, k )
         tkComboBox_AddItem( SrCombo( k ), i18n.Tr( "designer.theme_from_theme", "(theme)" ) )
-        tkComboBox_AddItem( SrCombo( k ), i18n.Tr( "designer.theme_fixed", "Colour..." ) )
+        tkComboBox_AddItem( SrCombo( k ), i18n.Tr( "designer.theme_fixed", "Color..." ) )
         for r as long = 0 to TKROLE_COUNT - 1
             tkComboBox_AddItem( SrCombo( k ), "@" & tkTheme_RoleName( r ) )
         next
@@ -908,7 +908,7 @@ sub ThemeDialog_.LoadStyleRows( )
     for k as long = 0 to TKROLE_COUNT - 1
         dim as ustring v = this.StyleValue( k )
         dim as long sel = STYLE_ITEM_THEME
-        dim as ustring fixedText = i18n.Tr( "designer.theme_fixed", "Colour..." )
+        dim as ustring fixedText = i18n.Tr( "designer.theme_fixed", "Color..." )
         if len( v ) = 0 then
             sel = STYLE_ITEM_THEME
         elseif left( v, 1 ) = "@" then

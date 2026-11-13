@@ -167,7 +167,7 @@ public sub ColorsPass( byref t as Tally, byval sc as single )
     tkTabControl_SetCurSel( dlg->Tabs, 1 )
     tkTest_PumpFor( dh, 40 )
     ClickRow( dh, dlg->Fields, 4 )
-    t.Check( tkLabel_GetText( dlg->LblFieldSource ) = "follows this control's Normal colour", P( sc, "BackColorHot follows: " & tkLabel_GetText( dlg->LblFieldSource ) ) )
+    t.Check( tkLabel_GetText( dlg->LblFieldSource ) = "follows this control's Normal color", P( sc, "BackColorHot follows: " & tkLabel_GetText( dlg->LblFieldSource ) ) )
     PressIn( dh, dlg->TxtField )
     Chord( dh, SDLK_A, SDL_SCANCODE_A, TK_KMOD_PRIMARY )
     dim as ustring acc = "@Accent"
@@ -202,7 +202,7 @@ public sub ColorsPass( byref t as Tally, byval sc as single )
     row = RowOf( ps, "@Colors" )
     dim as ustring said
     if row >= 0 then said = tkButton_GetText( ps->Rows[row].Edit )
-    t.Check( said = "Primary + 3 colours", P( sc, "the row says so: " & said ) )
+    t.Check( said = "Primary + 3 colors", P( sc, "the row says so: " & said ) )
 
     ' ---- the canvas wears the project theme (TH7): the form's scope, the control's recipe in it
     mw.RefreshFormThemes( )                     ' the theme file was written behind tkEdit's back above

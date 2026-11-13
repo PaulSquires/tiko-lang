@@ -347,6 +347,8 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     t.Check( mw.CanRun( Cmd.FormAlignTops ), P( sc, "the Form menu acts on a form" ) )
     mw.Execute( Cmd.FormAlignTops )
     t.Check( Ctl2( c, "lblB" ).Y = Ctl2( c, "btnGo" ).Y, P( sc, "Align Tops" ) )
+    ' btnGo alone: a click inside the selection would only make it the active one
+    c->SelectNone( )
     ClickOn( h, c->WidgetOf( "btnGo" ) )
     tkTest_PumpFor( h, 30 )
     mw.Execute( Cmd.FormBringToFront )

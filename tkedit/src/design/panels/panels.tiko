@@ -373,8 +373,8 @@ public function ColorsSummary( byref c as FormControl ) as ustring
     dim as long n = c.Colors.Count( )
     if (len( c.StyleName ) = 0) andalso (n = 0) then return i18n.Tr( "designer.colors_theme", "Theme" )
     if n = 0 then return c.StyleName
-    if len( c.StyleName ) = 0 then return strings.Format( i18n.Tr( "designer.colors_count", "{} colours" ), n )
-    return strings.Format( i18n.Tr( "designer.colors_summary", "{} + {} colours" ), c.StyleName, n )
+    if len( c.StyleName ) = 0 then return strings.Format( i18n.Tr( "designer.colors_count", "{} colors" ), n )
+    return strings.Format( i18n.Tr( "designer.colors_summary", "{} + {} colors" ), c.StyleName, n )
 end function
 
 private sub OnFloatClicked( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
@@ -922,7 +922,7 @@ sub DesignPanels.BuildRows( )
                 this.AddRow( "@Items", i18n.Tr( "designer.edit_items", "Edit items" ), RowKind.RowButton )
             end if
             if m0->NumColorSlots > 0 then
-                this.AddRow( "@Colors", i18n.Tr( "designer.colors", "Colours" ), RowKind.RowButton )
+                this.AddRow( "@Colors", i18n.Tr( "designer.colors", "Colors" ), RowKind.RowButton )
                 tkButton_SetText( Rows[Rows.Count( ) - 1].Edit, ColorsSummary( C->Doc.Controls[i0] ) )
             end if
             this.AddRow( "@X", "X", RowKind.RowText )

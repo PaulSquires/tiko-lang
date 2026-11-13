@@ -31,6 +31,8 @@
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkTabControl"
 #import "vendor/tkControls/tkLayout"
+#import "vendor/tkControls/tkGroupBox"
+#import "vendor/tkControls/tkButton"
 using containers
 using cmdids
 using tkApp
@@ -38,6 +40,8 @@ using tkHost
 using tkTest
 using tkPaint
 using tkListTree
+using tkGroupBox
+using tkButton
 using tkTextBox
 using tkMenuBar
 using tkToolbar
@@ -48,9 +52,11 @@ using tkLayout
 using model
 
 dim shared as ustring gItemsAsked
+dim shared as ustring gItemsEvent
 
 private sub RecordItems( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
     gItemsAsked = n
+    gItemsEvent = e
 end sub
 
 private sub PressIn( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
@@ -103,16 +109,26 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     dim as TKRECT rs = c->SurfaceRect( ), rg
     tkWidget_AbsRect( c->Glass, rg )
     dim as long ox = rg.left + rs.left, oy = rg.top + rs.top
+    ' a menu bar just placed asks for its editor at once, marked "new" (the host seeds it with the
+    ' standard menu and runs it modally -- recorded here instead)
+    dim as canvas.CanvasWireSub keepPlace = c->OnEditItems
+    c->OnEditItems = @RecordItems
+    gItemsAsked = ""
+    gItemsEvent = ""
     c->Tool = "MenuBar"
     ClickPx( h, ox + tkHost_Scale( h, 100 ), oy + tkHost_Scale( h, 100 ) )
     tkTest_PumpFor( h, 60 )
     dim as long i = FindControl( c->Doc, "MenuBar1" )
     t.Check( i >= 0, P( sc, "a menu bar placed" ) )
     t.Check( c->Doc.Controls[i].Dock = TK_DOCK_TOP, P( sc, "docked top by itself" ) )
+    t.Check( (gItemsAsked = "MenuBar1") andalso (gItemsEvent = "new"), P( sc, "and its editor asked for, new: " & gItemsAsked & " " & gItemsEvent ) )
+    gItemsAsked = ""
     c->Tool = "StatusBar"
     ClickPx( h, ox + tkHost_Scale( h, 100 ), oy + tkHost_Scale( h, 150 ) )
     tkTest_PumpFor( h, 60 )
     t.Check( c->Doc.Controls[FindControl( c->Doc, "StatusBar1" )].Dock = TK_DOCK_BOTTOM, P( sc, "a status bar docked bottom" ) )
+    t.Check( gItemsAsked = "", P( sc, "a status bar opens no editor by itself" ) )
+    c->OnEditItems = keepPlace
 
     ' the inspector's row asks to edit the selected control's entries
     c->SelectOnly( "MenuBar1" )
@@ -142,12 +158,33 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     end if
     dim as TK_HOST ptr dh = tkForm_Host( dlg->Win )
     t.Check( dlg->BtnIn <> 0, P( sc, "a menu can be indented" ) )
+    ' the layout: a bordered list with Up, Down, Outdent, Indent under it; Add and Remove above the
+    ' group box of fields; the buttons are glyphs the glyph font holds, their words as tooltips
+    t.Check( tkListTree_GetBorderWidth( dlg->List ) = 1, P( sc, "the list has a border" ) )
+    dim as long ly = dlg->List->y + dlg->List->ch
+    t.Check( (dlg->BtnUp->y > ly) andalso (dlg->BtnDown->y = dlg->BtnUp->y) andalso (dlg->BtnOut->y = dlg->BtnUp->y) andalso (dlg->BtnIn->y = dlg->BtnUp->y) _
+             andalso (dlg->BtnUp->x < dlg->BtnDown->x) andalso (dlg->BtnDown->x < dlg->BtnOut->x) andalso (dlg->BtnOut->x < dlg->BtnIn->x), _
+             P( sc, "Up, Down, Outdent, Indent in a row under the list" ) )
+    t.Check( (dlg->BtnAdd->y + dlg->BtnAdd->ch <= dlg->Group->y) andalso (dlg->BtnDel->y = dlg->BtnAdd->y) andalso (dlg->BtnAdd->x >= dlg->List->x + dlg->List->cw), _
+             P( sc, "Add and Remove above the group box, right of the list" ) )
+    dim as boolean inGroup = true
+    for each f as itemsdlg.ItemField in dlg->Fields
+        if (f.Edit->pParent <> dlg->Group) orelse (f.Label->pParent <> dlg->Group) then inGroup = false
+    next
+    t.Check( inGroup, P( sc, "the fields are in the group box" ) )
+    dim as TTF_Font ptr gf = tkForm_Font( dlg->Win, TKFONT_GLYPH_LARGE )
+    t.Check( (gf <> 0) andalso TTF_FontHasGlyph( gf, itemsdlg.GLYPH_ADD ) andalso TTF_FontHasGlyph( gf, itemsdlg.GLYPH_DELETE ) _
+             andalso TTF_FontHasGlyph( gf, itemsdlg.GLYPH_UP ) andalso TTF_FontHasGlyph( gf, itemsdlg.GLYPH_DOWN ) _
+             andalso TTF_FontHasGlyph( gf, itemsdlg.GLYPH_LEFT ) andalso TTF_FontHasGlyph( gf, itemsdlg.GLYPH_RIGHT ), _
+             P( sc, "the six glyphs are in the glyph font" ) )
+    t.Check( (tkButton_GetTooltipText( dlg->BtnAdd ) = "Add") andalso (tkButton_GetTooltipText( dlg->BtnIn ) = "Indent"), P( sc, "with their words as tooltips" ) )
     PressIn( dh, dlg->BtnAdd )
     t.Check( dlg->Items.Count( ) = 1, P( sc, "Add adds" ) )
     dim as ustring s = "File"
     TypeField( dh, dlg, "Text", s )
     t.Check( dlg->Items[0].Text = "File", P( sc, "the field edits the item: " & dlg->Items[0].Text ) )
     t.Check( tkListTree_GetText( dlg->List, 0 ) = "File", P( sc, "and the list shows it" ) )
+    t.Check( tkGroupBox_GetText( dlg->Group ) = "File", P( sc, "and the group box is titled with it: " & tkGroupBox_GetText( dlg->Group ) ) )
     PressIn( dh, dlg->BtnAdd )
     s = "Open"
     TypeField( dh, dlg, "Text", s )
@@ -198,7 +235,52 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 50 )
     t.Check( d->Text( ) = text1, P( sc, "changes nothing" ) )
 
+    ' ---- a second menu bar: its editor seeded with the standard menu (what placing one opens), then OK
+    c->OnEditItems = @RecordItems
+    c->Tool = "MenuBar"
+    ClickPx( h, ox + tkHost_Scale( h, 100 ), oy + tkHost_Scale( h, 120 ) )
+    tkTest_PumpFor( h, 60 )
+    c->OnEditItems = keepPlace
+    t.Check( gItemsAsked = "MenuBar2", P( sc, "a second menu bar asks too: " & gItemsAsked ) )
+    mw.OpenItems( c, "MenuBar2" )
+    tkTest_PumpFor( h, 60 )
+    mw.ItemsDlg->SeedDefaults( )
+    dim as itemsdlg.ItemsEditor ptr sd = mw.ItemsDlg
+    t.Check( (sd->Items.Count( ) = 18) andalso (sd->Items[0].Text = "File") andalso (sd->Items[0].Level = 0), P( sc, "seeded: File first, " & sd->Items.Count( ) & " entries" ) )
+    t.Check( (sd->Items[1].Text = "New") andalso (sd->Items[1].Level = 1) andalso (sd->Items[1].Key = "Primary+N"), P( sc, "File > New, Primary+N" ) )
+    t.Check( (sd->Items[5].Text = "-") andalso (sd->Items[7].Text = "Edit") andalso (sd->Items[16].Text = "Help"), P( sc, "a separator, then Edit, then Help" ) )
+    t.Check( tkGroupBox_GetText( sd->Group ) = "File", P( sc, "the first entry selected: " & tkGroupBox_GetText( sd->Group ) ) )
+    ' a separator has no Shortcut or Handler: both boxes off and empty; a command's are on
+    dim as TK_WIDGET ptr keyBox = 0, handlerBox = 0
+    for each f as itemsdlg.ItemField in sd->Fields
+        if f.Key = "Key" then keyBox = f.Edit
+        if f.Key = "Handler" then handlerBox = f.Edit
+    next
+    sd->ShowItem( 5 )
+    t.Check( (keyBox->isEnabled = false) andalso (handlerBox->isEnabled = false), P( sc, "a separator's Shortcut and Handler are off" ) )
+    sd->ShowItem( 1 )
+    t.Check( keyBox->isEnabled andalso handlerBox->isEnabled andalso (tkTextBox_GetText( keyBox ) = "Primary+N"), P( sc, "a command's are on" ) )
+    ' New typed into a separator: its shortcut goes, and the boxes turn off
+    dim as ustring sepText = "-"
+    TypeField( tkForm_Host( sd->Win ), sd, "Text", sepText )
+    t.Check( (sd->Items[1].Text = "-") andalso (sd->Items[1].Key = "") andalso (sd->Items[1].Handler = ""), P( sc, "made a separator: its shortcut is dropped: " & sd->Items[1].Key ) )
+    t.Check( (tkTextBox_GetText( keyBox ) = "") andalso (keyBox->isEnabled = false), P( sc, "and its Shortcut box is empty and off" ) )
+    PressIn( tkForm_Host( sd->Win ), sd->BtnOk )
+    mw.FinishItems( true )
+    tkTest_PumpFor( h, 80 )
+    t.Check( c->Doc.Controls[FindControl( c->Doc, "MenuBar2" )].Items.Count( ) = 18, P( sc, "OK puts them in the form" ) )
+    t.Check( tkMenuBar_GetItemCount( c->WidgetOf( "MenuBar2" ) ) = 3, P( sc, "and the bar shows File, Edit, Help: " & tkMenuBar_GetItemCount( c->WidgetOf( "MenuBar2" ) ) ) )
+    ' seeding never replaces entries a menu already has
+    mw.OpenItems( c, "MenuBar1" )
+    tkTest_PumpFor( h, 40 )
+    dim as long had = mw.ItemsDlg->Items.Count( )
+    mw.ItemsDlg->SeedDefaults( )
+    t.Check( mw.ItemsDlg->Items.Count( ) = had, P( sc, "a menu with entries isn't seeded" ) )
+    mw.FinishItems( false )
+    tkTest_PumpFor( h, 40 )
+
     ' ---- a bad shortcut is refused
+    text1 = d->Text( )                 ' the form as it now stands, MenuBar2 included
     mw.OpenItems( c, "MenuBar1" )
     tkTest_PumpFor( h, 60 )
     mw.ItemsDlg->Items[1].Key = "Banana+Q"

@@ -111,6 +111,12 @@ Select a MenuBar, Toolbar, StatusBar, ListTree, ComboBox or TabControl and press
 Properties panel. Menu items are indented to make drop-downs and submenus. A menu item can have a
 shortcut such as `Primary+O`, and a handler. Set the text of a menu item to `-` for a separator.
 
+A MenuBar dropped on a form opens this editor straight away, filled with a standard menu -- **File**
+(New, Open, Save, Save As, Exit), **Edit** (Undo, Redo, Cut, Copy, Paste, Select All) and **Help**
+(About), with the usual shortcuts. Change what you like; **Cancel** leaves the bar empty. In the editor
+the arrow buttons move the selected item up or down and out or in a level, **+** adds one and the bin
+removes it.
+
 ## Your own controls
 
 The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel, give it the name of
@@ -149,7 +155,7 @@ with `ShowModal`, after which its controls can still be read. [tkForms](tkForms)
 ## Colours and themes
 
 A project's look lives in `appTheme/appTheme.tktheme`: **Form > Project Theme...** picks or edits it,
-and each control's **Colours** row gives it a style or its own colours. The
+and each control's **Colors** row gives it a style or its own colours. The
 [Themes Tutorial](Themes-Tutorial) walks through it step by step.
 
 ## Other languages

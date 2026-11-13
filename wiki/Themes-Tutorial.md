@@ -203,7 +203,7 @@ What the drop-down offers:
 | Choice | It means |
 | --- | --- |
 | `(theme)` | Leave this colour as the theme has it. |
-| `Colour...` | A fixed colour. It starts as the colour shown; press **Pick...** to choose another. |
+| `Color...` | A fixed colour. It starts as the colour shown; press **Pick...** to choose another. |
 | `@Accent`, `@Error`, ... | The colour of another role. |
 
 **Reset** puts a row back to `(theme)`. The four rows are what most styles need; tick **Show all
@@ -215,9 +215,9 @@ roles** to set any of the 23.
 ### Use the style
 
 1. With the Theme Center saved and closed, select your **Delete** button on the form.
-2. In the Properties panel, find the **Colours** row. Its button says **Theme**: the button follows
+2. In the Properties panel, find the **Colors** row. Its button says **Theme**: the button follows
    the theme and nothing else.
-3. Click it. The **Colours** dialog opens.
+3. Click it. The **Colors** dialog opens.
 4. At the top, set **Style** to `Danger`. The preview turns red.
 5. **OK**. The row now says **Danger**.
 
@@ -231,8 +231,8 @@ button too.
 
 ## 8. Colour one control by hand
 
-Sometimes one control needs its own colour. Select it, click its **Colours** row, and you're in the
-**Colours** dialog again.
+Sometimes one control needs its own colour. Select it, click its **Colors** row, and you're in the
+**Colors** dialog again.
 
 ### The Simple page
 
@@ -252,7 +252,7 @@ In the box you can type:
 When the box is empty it shows the colour in force, so you can see what you'd be changing.
 
 Set **Back** to `#2E7D32` and press **OK**. The hover, pressed and disabled faces follow
-automatically. The Colours row now says `1 colours` (or `Danger + 1 colours` if it also wears a style).
+automatically. The Colors row now says `1 colours` (or `Danger + 1 colours` if it also wears a style).
 
 ### The All States page
 
@@ -312,7 +312,7 @@ Every control, every style and every colour you set by hand switches with it.
 
 ### Styles from code
 
-The Colours dialog is the easy way. From code (with the same `using tkTheme`), give any control a
+The Colors dialog is the easy way. From code (with the same `using tkTheme`), give any control a
 style by name:
 
 ```freebasic
@@ -366,7 +366,7 @@ BorderColor = "@Error"
 
 Rules to remember:
 
-- **Colours** are `"#RRGGBB"`, or `"#RRGGBBAA"` with opacity. The `Window` role is never see-through.
+- **Colors** are `"#RRGGBB"`, or `"#RRGGBBAA"` with opacity. The `Window` role is never see-through.
 - **`[dark]` and `[light]` take fixed colours only.** `@Role` links belong in styles and
   `[controls.X]` blocks.
 - **Lower-case keys are the file's own** (`name`, `accent`, `fonts`). **Capitalised keys are tiko
@@ -385,7 +385,7 @@ Rules to remember:
 | Popups | `Popup`, `PopupText` (menus, drop-downs, tooltips) |
 | Status | `Success`, `Warning`, `Error` |
 
-The Theme Center's **Colours** page lists them all with a swatch each. Select one, type a colour or
+The Theme Center's **Colors** page lists them all with a swatch each. Select one, type a colour or
 **Pick...** one, and **Reset** gives it back to the theme.
 
 ---
@@ -495,7 +495,7 @@ See [tkTheme](tkTheme) and [tkApp](tkApp) for the full API.
 | --- | --- |
 | My form doesn't change when I pick a theme. | Press **Save** in the Theme Center. Picking a theme changes the dialog only. |
 | The program runs in the old theme. | Check `main.tiko` has `appTheme.ApplyOptions( options )` before `tkApp_Init` and `appTheme.Install( )` after it. If it has no `if tkApp_Init( ... ) = false then` line, tkEdit can't add them and asks you to by hand. |
-| One button ignores the theme. | It has its own colours. Open its **Colours** row and clear the boxes (or **Reset** on All States). In hand-written code, a `Set...Color` call pins a control; `UnpinColors` hands it back. |
+| One button ignores the theme. | It has its own colours. Open its **Colors** row and clear the boxes (or **Reset** on All States). In hand-written code, a `Set...Color` call pins a control; `UnpinColors` hands it back. |
 | One button ignores my corner radius. | You set its corners in the Properties panel, which beats the theme. |
 | A style does nothing. | The name on the control must match a style in the theme exactly. A style the theme no longer has still shows in the dialog's list, but does nothing. |
 | Drop-down lists and menus don't follow my theme on the design surface. | Pop-ups always use tkEdit's theme in the designer. In your running program they follow your theme. |

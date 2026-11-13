@@ -266,7 +266,7 @@ sub Window.OpenColors( byval c as canvas.FormCanvas ptr, byref name_ as const us
     ColorsOf = c
     ColorsName = name_
     ColorsDlg->Open( form, ctl.TypeName, ctl.StyleName, ctl.Colors, this.ProjectThemePath( ), _
-                     name_ & " - " & i18n.Tr( "designer.colors", "Colours" ) )
+                     name_ & " - " & i18n.Tr( "designer.colors", "Colors" ) )
     if ColorsDlg->Win = 0 then
         delete ColorsDlg
         ColorsDlg = 0
@@ -299,9 +299,12 @@ sub Window.EditColors( byval c as canvas.FormCanvas ptr, byref name_ as const us
     if ColorsDlg then this.FinishColors( ColorsDlg->RunModal( ) )
 end sub
 
-sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+' seed: a menu bar just placed -- the editor opens on the standard menu (File, Edit, Help).
+sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring, byval seed as boolean = false )
     this.OpenItems( c, name_ )
-    if ItemsDlg then this.FinishItems( ItemsDlg->RunModal( ) )
+    if ItemsDlg = 0 then exit sub
+    if seed then ItemsDlg->SeedDefaults( )
+    this.FinishItems( ItemsDlg->RunModal( ) )
 end sub
 
 ' ---- Test Form: the form as it is now, in a window of its own, working but wired to nothing ----
