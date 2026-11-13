@@ -1774,7 +1774,15 @@ public function tkHost_RunModal( byval dlg as TK_HOST ptr ) as long
         RenderDirty()
     wend
     dim as long r = dlg->nModalResult
-    if dlg->pOwner then dlg->pOwner->bDirty = true
+    ' Hand activation back to the owner WHILE the dialog is still shown, as EndDialog does:
+    ' re-enable it, then activate it. Hiding the active dialog first lets the OS activate the
+    ' next window in z-order -- often another application's -- and the owner, still disabled
+    ' or merely behind, never gets it back.
+    if dlg->pOwner then
+        SDL_SetWindowModal( dlg->win, false )
+        if (SDL_GetWindowFlags( dlg->pOwner->win ) and SDL_WINDOW_HIDDEN) = 0 then SDL_RaiseWindow( dlg->pOwner->win )
+        dlg->pOwner->bDirty = true
+    end if
     return r
 end function
 

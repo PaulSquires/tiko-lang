@@ -692,7 +692,6 @@ end function
 public function tkForm_ShowModalKeep( byval f as TK_FORM ptr ) as long
     if f = 0 then return 0
     dim as long r = RunFormModal_( f )
-    if f->host->pOwner then SDL_SetWindowModal( f->host->win, false )
     tkHost_Hide( f->host )
     f->bModal = false
     return r
