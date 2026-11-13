@@ -94,9 +94,9 @@ Each control is a typed value. `.Text`, `.Enabled` and the rest are properties, 
 the whole control API.
 
 Some events ask your handler for an answer through a `byref` parameter, which starts at its default:
-a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's, Toolbar's or IconPanel's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
-(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
-control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`); call its
+a Button's, CheckBox's, OptionButton's, SelectBar's, TabBar's, Toolbar's, IconPanel's or StatusBar's **Tooltip** handler sets `Text` to the tip it should show, and a **Message** handler
+(Button, CheckBox, OptionButton, Toggle, TextBox, ComboBox, SelectBar, TabBar, Toolbar, IconPanel, StatusBar, NumericUpDown, DatePicker, Calendar, ListTree) sets `Handled` to keep a mouse or key message from the
+control. A **Paint** handler (Button, CheckBox, OptionButton, Toggle, ComboBox, NumericUpDown, DatePicker) draws the control instead (a SelectBar's draws one panel: `tkSelectBar_PaintPanelDefault`; a TabBar's one tab: `tkTabBar_PaintTabDefault`; a MenuBar's, Toolbar's or IconPanel's one item: `tkMenuBar_PaintItemDefault`, `tkToolbar_PaintItemDefault`, `tkIconPanel_PaintItemDefault`; a StatusBar's one panel: `tkStatusBar_PaintPanelDefault`); call its
 `PaintDefault( p )` (`tkButton_PaintDefault` and the rest) first to draw the stock one and add to it.
 
 A ListTree draws no row by itself: with no **Paint** handler the form gives it the stock row painter

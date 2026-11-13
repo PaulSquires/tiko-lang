@@ -6,7 +6,7 @@ Draws a status bar of text panels, one of which stretches to fill the leftover w
 
 tkStatusBar is the strip along the bottom of a window: "Ready", the caret position, the line ending, the encoding. Each panel holds text and item data, and is as wide as its text plus padding, or its minimum width if that is larger. A panel set to stretch with `tkStatusBar_SetPanelStretch` is a **spring**: the springs share the leftover width evenly (the first ones take a pixel each of any remainder), and a hidden spring takes none. `tkStatusBar_SetExpandPanel( sb, i )` makes panel `i` the only spring (`-1`: none), and `tkStatusBar_GetExpandPanel` answers the first one. When the bar is too narrow nothing shrinks; panels run past the right edge.
 
-Without a paint callback the bar draws its panels itself: the text inset by the padding and a divider between panels. Set a click callback and a panel under the mouse gets a hover fill, since it can now be clicked. A paint callback replaces the built-in painter and draws every panel pixel itself.
+Without a paint callback the bar draws its panels itself: the text inset by the padding and a divider between panels. Set a click callback and a panel under the mouse gets a hover fill, since it can now be clicked. A paint callback replaces the built-in painter and draws every panel pixel itself; `tkStatusBar_PaintPanelDefault( p )` in it draws the built-in panel first.
 
 The bar takes no focus and no keyboard, and has no size grip; your program places it, usually from the window's size handler. Each panel can show a tooltip, from the tooltip callback or else its own text. Setters are silent.
 
@@ -162,6 +162,7 @@ function tkStatusBar_GetTooltipHandle( byval hStatusBar as TK_WIDGET ptr ) as TK
 sub tkStatusBar_SetHoverTime( byval hStatusBar as TK_WIDGET ptr, byval milliseconds as long )
 sub tkStatusBar_SetAutoPopTime( byval hStatusBar as TK_WIDGET ptr, byval milliseconds as long )
 sub tkStatusBar_SetReshowTime( byval hStatusBar as TK_WIDGET ptr, byval milliseconds as long )
+sub tkStatusBar_PaintPanelDefault( byval p as TKSTATUSBAR_PAINTINFO ptr )
 sub tkStatusBar_SetPaintCallback( byval hStatusBar as TK_WIDGET ptr, byval usersub as SB_PaintCallbackSub )
 sub tkStatusBar_SetMessageCallback( byval hStatusBar as TK_WIDGET ptr, byval userfunc as SB_MessageCallbackFunc )
 sub tkStatusBar_SetTooltipCallback( byval hStatusBar as TK_WIDGET ptr, byval userfunc as SB_TooltipCallbackFunc )

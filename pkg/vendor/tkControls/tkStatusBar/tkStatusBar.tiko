@@ -811,6 +811,13 @@ end sub
 
 ' ---- callbacks ---------------------------------------------------------------------------
 ' Does not itself repaint (vendor); call tkStatusBar_Refresh on a visible bar.
+' A paint callback's way to draw the panel as the built-in painter would have, then add to it.
+public sub tkStatusBar_PaintPanelDefault( byval p as TKSTATUSBAR_PAINTINFO ptr )
+    if p = 0 then exit sub
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( p->hStatusBar )
+    if pStatus then RenderPanelDefault( pStatus, p )
+end sub
+
 public sub tkStatusBar_SetPaintCallback( byval hStatusBar as TK_WIDGET ptr, byval usersub as SB_PaintCallbackSub )
     dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
     if pStatus then pStatus->PaintCallback = usersub

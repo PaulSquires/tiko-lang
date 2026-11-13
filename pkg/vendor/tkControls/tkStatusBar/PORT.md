@@ -66,6 +66,8 @@ unchanged. The handle is `TK_WIDGET ptr`; indices are `long` where vendor used `
 - `tkStatusBar_SetClickCallback( h, sub( hBar, idx, clicks ) )` (PsPlatform `OnClick`): fired on
   the left-button UP over a panel — vendor's documented click convention — `clicks = 2` on the
   second click of a double click; a message callback returning TRUE for that up suppresses it.
+- `tkStatusBar_PaintPanelDefault( p )`: the built-in panel, for a paint callback (the form
+  designer's Paint event).
 - `tkStatusBar_GetColors` / `SetColors` (pins) / `ThemeColors`; `tkStatusBar_HitTest`
   (PsPlatform `HitTestIndex`); `tkStatusBar_GetHot` (test probe).
 - `tkStatusBar_SetPanelVisible( h, idx, bVisible )` / `GetPanelVisible` (2026-10-27, for tkEdit's

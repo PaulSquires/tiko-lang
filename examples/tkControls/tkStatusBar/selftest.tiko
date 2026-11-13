@@ -51,6 +51,14 @@ function OnTip( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
     return "Panel " & idx & " -> " & s
 end function
 
+' a panel painter that draws the built-in panel (as a designer Paint handler may), and one that doesn't
+sub PaintStock( byval p as TKSTATUSBAR_PAINTINFO ptr )
+    tkStatusBar_PaintPanelDefault( p )
+end sub
+
+sub PaintNothing( byval p as TKSTATUSBAR_PAINTINFO ptr )
+end sub
+
 function PanelColor( byval i as long ) as ulong
     return tkRGB( 40 + 40 * i, 200 - 30 * i, 90 )
 end function
@@ -507,6 +515,24 @@ sub RunPass( byval fScale as single )
     tkStatusBar_ApplyFonts( b2, fBig, 0 )
     tkTest_Check( "ApplyFonts re-measures", PanelW( b2, 0 ) > wSmall andalso LayoutMatches( b2, fBig, d ), wSmall & " -> " & PanelW( b2, 0 ) )
     tkTest_Check( "the tooltip handle is the bar's", tkTooltip_GetAttached( tp ) = bar )
+
+    ' PaintPanelDefault inside a panel painter draws exactly the built-in panel: caption and divider
+    PanelAbs( b2, 0, a0 )
+    midY = (a0.top + a0.bottom) \ 2
+    tkHost_RenderTo( h, false )
+    dim as long tStock = tkTest_TonesIn( h, a0.left, a0.top, a0.right - a0.left, a0.bottom - a0.top, c0 )
+    dim as ulong cDivStock = tkTest_PixelAt( h, a0.right - 1, midY )
+    tkStatusBar_GetColors( b2, @cc )
+    tkStatusBar_SetPaintCallback( b2, @PaintStock )
+    tkHost_RenderTo( h, false )
+    dim as long tVia = tkTest_TonesIn( h, a0.left, a0.top, a0.right - a0.left, a0.bottom - a0.top, c0 )
+    dim as ulong cDivVia = tkTest_PixelAt( h, a0.right - 1, midY )
+    tkStatusBar_SetPaintCallback( b2, @PaintNothing )
+    tkHost_RenderTo( h, false )
+    dim as long tBare = tkTest_TonesIn( h, a0.left, a0.top, a0.right - a0.left, a0.bottom - a0.top, c0 )
+    tkStatusBar_SetPaintCallback( b2, 0 )
+    tkTest_Check( "PaintPanelDefault inside a painter = the built-in panel", (tVia = tStock) andalso (cDivVia = cDivStock) andalso (cDivStock = cc.DividerColor), tStock & " / " & tVia & " " & hex( cDivVia ) )
+    tkTest_Check( "and a painter that draws nothing leaves the bare bar", tBare = 1, str( tBare ) )
 
     tkHost_Destroy( h )
 end sub

@@ -1103,6 +1103,9 @@ props = [
 ]
 events = [
   { name="Click", set="tkStatusBar_SetClickCallback", type="SB_ClickCallbackSub", sig="byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval clicks as long", params="byval idx as long, byval clicks as long", args="idx, clicks" },
+  { name="Paint", set="tkStatusBar_SetPaintCallback", type="SB_PaintCallbackSub", sig="byval p as TKSTATUSBAR_PAINTINFO ptr", params="byval p as TKSTATUSBAR_PAINTINFO ptr", args="p", widget="p->hStatusBar" },
+  { name="Message", set="tkStatusBar_SetMessageCallback", type="SB_MessageCallbackFunc", sig="byval m as TKSTATUSBAR_MESSAGEINFO ptr", params="byval m as TKSTATUSBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hStatusBar", returns="boolean", result="Handled" },
+  { name="Tooltip", set="tkStatusBar_SetTooltipCallback", type="SB_TooltipCallbackFunc", sig="byval hStatusBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]

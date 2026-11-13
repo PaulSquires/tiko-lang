@@ -1271,6 +1271,25 @@ sub IconPanelSuite( )
     Check( codegen.IconKindValue( "" ) = IP_KIND_TOGGLE andalso codegen.IconKindValue( "command" ) = IP_KIND_COMMAND, "iconpanel: a kind's value (toggle by default)" )
 end sub
 
+' A StatusBar's three new events: Paint, Message and Tooltip, beside a panel's own handler.
+sub StatusBarSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "sbr", "StatusBar" ) _
+        & LF & "[control.events]" & LF & "Paint = ""sbr_Paint""" & LF & "Message = ""sbr_Message""" & LF & "Tooltip = ""sbr_Tip""" & LF _
+        & item & "text = ""Ready""" & LF & "handler = ""sbr_Ready""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "statusbar: the form parses" )
+    Accepted( src, "statusbar: Paint, Message and Tooltip" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    HasLine( g, "declare sub sbr_Tip( byval idx as long, byref Text as ustring )", "statusbar: Tooltip declared" )
+    HasLine( g, "tkStatusBar_SetTooltipCallback( sbr.Handle, @Thunk_sbr_Tooltip )", "statusbar: Tooltip installed" )
+    Check( instr( g, "tkForms_ObjectOf( p->hStatusBar )" ) > 0, "statusbar: Paint finds its form through the paint info" )
+    HasLine( g, "tkStatusBar_SetPaintCallback( sbr.Handle, @Thunk_sbr_Paint )", "statusbar: Paint installed" )
+    Check( instr( g, "tkForms_ObjectOf( m->hStatusBar )" ) > 0, "statusbar: Message finds its form through the message info" )
+    HasLine( g, "case 0 : f->sbr_Ready( clicks )", "statusbar: a panel's handler still dispatched" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1614,6 +1633,7 @@ TabBarSuite( )
 MenuBarSuite( )
 ToolbarSuite( )
 IconPanelSuite( )
+StatusBarSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
