@@ -20,7 +20,6 @@
 #include once "types/type.ti"
 #include once "driver/phasetime.ti"
 #include once "driver/objqueue.ti"
-#include once "driver/winmanifest.ti"
 
 namespace Tko
 

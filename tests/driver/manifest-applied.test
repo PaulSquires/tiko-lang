@@ -1,9 +1,0 @@
-'' WINDOWS READS THE DEFAULT MANIFEST: the program asks its own DPI awareness and is per-monitor
-'' aware (2). Built by the same compiler without the manifest it was 0 (measured 2026-11-13).
-'' HOSTS: windows
-'' TEST: cli
-'' ARGS: -target windows-x86_64 tests/driver/src/manifest-dpi.bas -o tests/driver/manifestapplied.exe
-'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
-'' EXPECT-EXIT: 0
-'' RUN: tests/driver/manifestapplied.exe
-'' EXPECT-RUN-OUT: awareness 2

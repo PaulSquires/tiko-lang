@@ -148,16 +148,6 @@ A profile is a named set of compiler options, and part of every cache key.
 
 An unknown profile is `TKO0163`. Each profile writes to its own `out/<profile>/`, so a debug and a release build of one project sit side by side.
 
-## The Windows application manifest
-
-Every Windows **executable** tiko links carries an application manifest, with or without `tiko.toml`. Without one Windows runs a program in compatibility mode: it reports an older Windows version, may take a program named like `setup` or `update` for an installer and ask for elevation, and scales its windows as bitmaps on a high-DPI display. The default manifest says:
-
-- run as the invoker (`asInvoker`), never elevated;
-- supported on Windows 7, 8, 8.1, 10 and 11;
-- per-monitor DPI aware: `PerMonitorV2`, with `true/pm` for systems before it.
-
-**A program's own manifest wins.** A `.rc` with an `RT_MANIFEST` resource — `1 24 "app.manifest"` — gets no default, so a program that needs the common controls v6, elevation or another DPI mode writes its own. A DLL, a static library and every non-Windows target get none. A manifest that cannot be written is `TKO0112`.
-
 ## What is not done twice
 
 - **Main files are cached** in the module cache (`TIKO_MODCACHE`, else the user's cache directory), keyed by the compiler, the options, the file and everything it read: includes, and the interfaces of the modules it imports. A change inside a module's procedures recompiles the module, not its importers.
