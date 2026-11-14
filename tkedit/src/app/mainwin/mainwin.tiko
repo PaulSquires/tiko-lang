@@ -63,6 +63,7 @@
 #import "tkd/itemsdlg"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
+#import "tkd/resdlg"
 #import "tkd/themefile"
 #import "tka/editor"
 #import "tka/explorer"
@@ -223,6 +224,7 @@ end type
 public type AskProc as function( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
 public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
 public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
+public const PICK_RESOURCES = 101        ' a Pick kind: images and fonts for the Resource Center, one per line
 public const PICK_COMPILER = 101         ' a Pick kind: the tiko compiler (tiko.exe on Windows)
 public type DocRef as documents.Document ptr
 ' Starting a program (Run): argv[0] is the program. The self-test records instead.
@@ -383,7 +385,11 @@ private function PickNow( byval f as TK_FORM ptr, byval kind as long, byref sugg
         if platform.CurrentOs( ) = platform.Os.Windows then cf = i18n.Tr( "dialog.filter_compiler", "tiko compiler" ) & "|exe"
         return tkFileDialog_OpenFile( tkForm_Host( f ), cf, where )
     end if
-    if kind = PICK_OPEN_MANY then
+    if kind = PICK_RESOURCES then
+        filters = i18n.Tr( "dialog.filter_resources", "Images and fonts" ) & "|png;jpg;jpeg;bmp;ico;gif;webp;tga;svg;ttf;otf|" & _
+                  i18n.Tr( "dialog.filter_all", "All files" ) & "|*"
+    end if
+    if (kind = PICK_OPEN_MANY) orelse (kind = PICK_RESOURCES) then
         dim as Array( of ustring ) paths
         if tkFileDialog_Wait( TKFD_OPEN, tkForm_Host( f ), filters, where, true, paths ) = false then return ""
         dim as ustring all_ = ""
@@ -629,6 +635,13 @@ public type Window
     declare sub OpenColors( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
     declare sub FinishColors( byval apply_ as boolean )
     declare sub EditColors( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    ResDlg as resdlg.ResourceDialog ptr
+    ResRegistered as Array( of ustring )        ' the "res:" names this process has given tkHost
+    declare function EditResources( byref kind_ as const ustring, byref current as const ustring, byref picked as ustring, _
+                                    byval owner_ as TK_FORM ptr = 0 ) as boolean
+    declare sub ApplyResources( byref dlg as resdlg.ResourceDialog )
+    declare function ResourceUsers( byref nm as const ustring ) as ustring
+    declare sub RegisterProjectResources( )
     SaveNote as ustring
     declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef
     declare function OpenQuietly( byref path as const ustring ) as DocRef
@@ -641,6 +654,9 @@ public type Window
     declare sub ReconcileDesigner( byval d as DocRef )
     declare function WriteGenerated( byval d as DocRef ) as boolean
     declare function WriteThemeGenerated( byref path as const ustring, byref text as const ustring ) as boolean
+    declare function ResourcesPath( ) as ustring
+    declare function WriteResourcesGenerated( byref path as const ustring, byref text as const ustring ) as boolean
+    declare sub CopyResourceFiles( byref exePath as const ustring )
     declare function PrepareForms( ) as boolean
     declare sub ToggleFormView( )
     declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
@@ -1720,7 +1736,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormPreviewVariant
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormPreviewVariant
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1770,7 +1786,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
         if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
         return true
     case Cmd.ProjectClose : return ProjOpen
-    case Cmd.FormTheme : return ProjOpen
+    case Cmd.FormTheme, Cmd.FormResources : return ProjOpen
     end select
     if this.ShowsStart( ) = false then return true
     ' no file open: only what would still do something
@@ -1778,7 +1794,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
          Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.FormNewForm, Cmd.BuildConfig
         return true
-    case Cmd.FormTheme : return ProjOpen
+    case Cmd.FormTheme, Cmd.FormResources : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
         return ProjOpen
     case Cmd.StartDebugging : return ProjOpen orelse DbgOn
@@ -1808,7 +1824,7 @@ function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
     dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
     if noForm = false then noForm = (d->Designer = 0)
-    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Form)   ' New Form makes one; the theme is the project's
+    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Form)   ' New Form makes one; the theme is the project's
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -2006,6 +2022,9 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.FormToggleView : this.ToggleFormView( )
     case Cmd.FormNewForm : this.NewForm( "" )
     case Cmd.FormTheme : this.OpenThemeCenter( )
+    case Cmd.FormResources
+        dim as ustring none
+        this.EditResources( "", "", none )
     case Cmd.FoldToggle : v->FoldToggle( false )
     case Cmd.FoldBelow : v->FoldToggle( true )
     case Cmd.FoldAll : v->FoldAll( true )
@@ -2576,6 +2595,8 @@ sub Window.AfterSave( byval d as DocRef )
     elseif right( p, 8 ) = ".tktheme" then
         this.WriteThemeGenerated( d->Path, d->Text( ) )
         this.RefreshFormThemes( )               ' the project's: the forms wear it as saved
+    elseif right( p, 6 ) = ".tkres" then
+        this.WriteResourcesGenerated( d->Path, d->Text( ) )
     elseif p = lcase( this.SettingsFile( ) ) then
         this.ReloadSettings( )
     elseif p = lcase( this.KeysFile( ) ) then
@@ -3052,6 +3073,9 @@ function Window.OpenText( byref path as const ustring ) as boolean
             d->Designer->OnEditColors = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
                 cast( Window ptr, o )->EditColors( c, n )
             end sub
+            d->Designer->OnPickResource = function( byval o as any ptr, byref k as const ustring, byref cur as const ustring, byref picked as ustring ) as boolean
+                return cast( Window ptr, o )->EditResources( k, cur, picked )
+            end function
             d->Designer->OnContextMenu = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
                 cast( Window ptr, o )->ShowDesignMenu( c, x, y )
             end sub
@@ -4123,6 +4147,7 @@ function Window.OpenProject( byref path as const ustring ) as boolean
     Proj = r.Value( )
     Proj.Path = fs.AbsolutePath( Proj.Path ).ValueOr( Proj.Path )
     ProjOpen = true
+    this.RegisterProjectResources( )             ' "res:<name>" on the canvas, as in the program
     ' the editor's options for it: kept from before, else new ones (the current build)
     dim as project.OptionsResult o = project.LoadOptions( project.OptionsPath( ConfigDir, Proj.Path ) )
     dim as project.ProjectOptions none_
@@ -4288,6 +4313,7 @@ function Window.CloseProject( ) as boolean
     this.SaveProject( )
     if this.CloseAll( ) = false then return false
     ProjOpen = false
+    this.RegisterProjectResources( )             ' its names taken back
     dim as project.Manifest none_
     Proj = none_
     dim as project.ProjectOptions noOpts
@@ -4549,6 +4575,7 @@ sub Window.FinishBuild( )
     if len( LastExe ) then LastExe = fs.PathToNative( LastExe )          ' tiko's events write /
     dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
     BuildSucceeded = ok
+    if ok then this.CopyResourceFiles( LastExe )            ' the resources not built in, beside it
     ' the program's size, for the log's summary and the message (a successful build's only)
     dim as longint exeBytes = -1
     if ok andalso (len( LastExe ) > 0) then

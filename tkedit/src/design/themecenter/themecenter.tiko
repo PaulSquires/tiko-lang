@@ -85,6 +85,9 @@ const as long ID_STYLE_RESET = 300     ' + row: a row's Reset button
 
 public type ThemeDialog as ThemeDialog_
 public type ThemeDialogSub as sub( byval tc as ThemeDialog ptr )
+' A font slot's "...": the Resource Center picks a font (a project's theme only). True on Select,
+' picked then "res:<name>" (or "" for none).
+public type ThemePickFunc as function( byval tc as ThemeDialog ptr, byref current as const ustring, byref picked as ustring ) as boolean
 
 public type ThemeDialog_
     Win as TK_FORM ptr
@@ -100,6 +103,7 @@ public type ThemeDialog_
     Host as any ptr                     ' the host's, for its callbacks
     ForEditor as boolean                ' the host's: tkEdit's own theme, not a project's
     OnClose as ThemeDialogSub
+    OnPickFont as ThemePickFunc
     GalleryPaths as Array( of ustring )
     GalleryShipped as Array( of boolean ) ' per gallery row: one tkEdit ships, not the user's library
 
@@ -129,6 +133,7 @@ public type ThemeDialog_
     NudRadius as TK_WIDGET ptr
     NudBorder as TK_WIDGET ptr
     ChkEmbed as TK_WIDGET ptr           ' [fonts] embed: the fonts inside the program (a project's theme only)
+    BtnFontPick( 0 to 3 ) as TK_WIDGET ptr  ' "..." by the UI, Bold, Glyph and Mono files: the Resource Center
     ' Styles
     StyleList as TK_WIDGET ptr
     BtnStyleAdd as TK_WIDGET ptr
@@ -180,6 +185,7 @@ public type ThemeDialog_
     declare function RoleOfRow( byval row as long ) as long
     declare sub SetRoleText( byref text as const ustring )
     declare sub FieldChanged( byval w as TK_WIDGET ptr )
+    declare sub PickFont( byval slot as long )
     declare function StyleValue( byval k as long ) as ustring
     declare sub SetStyleValue( byval k as long, byref v as const ustring )
     declare function StyleRowColour( byval k as long ) as ulong
@@ -292,6 +298,10 @@ private sub OnButton( byval h as TK_WIDGET ptr, byval id as long )
         d->SetRoleText( "" )
         d->LoadRole( )                  ' the box shows the theme's colour again
     case d->BtnStyleAdd   : d->AddStyle( )
+    case d->BtnFontPick( 0 ) : d->PickFont( 0 )
+    case d->BtnFontPick( 1 ) : d->PickFont( 1 )
+    case d->BtnFontPick( 2 ) : d->PickFont( 2 )
+    case d->BtnFontPick( 3 ) : d->PickFont( 3 )
     case d->BtnStyleDel   : d->DeleteStyle( )
     case d->BtnSave
         ' Save writes the theme, then closes the dialog -- unless the host said it couldn't (its
@@ -442,6 +452,9 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     TxtMono = MakeText_( pFonts )
     NudRadius = MakeNumber_( pFonts, -1, 40 )
     NudBorder = MakeNumber_( pFonts, -1, 10 )
+    for i as long = 0 to 3
+        BtnFontPick( i ) = MakeButton_( pFonts, "..." )
+    next
     ChkEmbed = tkCheckBox_Create( pFonts, 1 )
     tkCheckBox_SetText( ChkEmbed, i18n.Tr( "designer.theme_embed_fonts", "Build the fonts into the program" ) )
     tkCheckBox_SetCheckChangedCallback( ChkEmbed, @OnEmbed )
@@ -612,7 +625,20 @@ sub ThemeDialog_.Layout( )
         if i >= 5 then y += rh + g
         tkWidget_SetPos( FontLabels( i ), g, y, lw, rh )
         dim as boolean isNumber = (i = 2) orelse (i = 5) orelse (i = 6)
-        tkWidget_SetPos( fields( i ), 2 * g + lw, y, iif( isNumber, nw, fw ), rh )
+        ' a font file's row: its box, then "..." (the Resource Center)
+        dim as long slot = -1
+        select case i
+        case 0 : slot = 0
+        case 1 : slot = 1
+        case 3 : slot = 2
+        case 4 : slot = 3
+        end select
+        if slot >= 0 then
+            tkWidget_SetPos( fields( i ), 2 * g + lw, y, fw - g - rh, rh )
+            tkWidget_SetPos( BtnFontPick( slot ), g + lw + fw - rh + g, y, rh, rh )
+        else
+            tkWidget_SetPos( fields( i ), 2 * g + lw, y, iif( isNumber, nw, fw ), rh )
+        end if
     next
     tkWidget_SetPos( ChkEmbed, 2 * g + lw, g + 5 * (rh + g), fw, rh )
 
@@ -783,6 +809,9 @@ sub ThemeDialog_.LoadFields( )
     tkNumericUpDown_SetValue( NudBorder, Doc.BorderWidth )
     tkCheckBox_SetChecked( ChkEmbed, Doc.EmbedFonts )
     tkWidget_Show( ChkEmbed, ForEditor = false )        ' tkEdit's own theme builds into nothing
+    for i as long = 0 to 3
+        tkWidget_Show( BtnFontPick( i ), (ForEditor = false) andalso (OnPickFont <> 0) )   ' resources are a project's
+    next
     tkListTree_Clear( StyleList )
     for i as long = 0 to Doc.Styles.Count( ) - 1
         tkListTree_AddString( StyleList, Doc.Styles[i].Name, i )
@@ -975,6 +1004,22 @@ sub ThemeDialog_.SetRoleText( byref text as const ustring )
         if IsDark then PutSetting( Doc.Dark.Roles, nm, c ) else PutSetting( Doc.Light.Roles, nm, c )
     end if
     this.Refresh( )
+end sub
+
+' A font slot's "...": the Resource Center's pick in its box, and in the theme as if typed.
+sub ThemeDialog_.PickFont( byval slot as long )
+    if OnPickFont = 0 then exit sub
+    dim as TK_WIDGET ptr box
+    select case slot
+    case 0 : box = TxtUIFile
+    case 1 : box = TxtUIBold
+    case 2 : box = TxtGlyph
+    case else : box = TxtMono
+    end select
+    dim as ustring picked
+    if OnPickFont( @this, tkTextBox_GetText( box ), picked ) = false then exit sub
+    tkTextBox_SetText( box, picked )
+    this.FieldChanged( box )
 end sub
 
 private function FieldText_( byval w as TK_WIDGET ptr ) as ustring

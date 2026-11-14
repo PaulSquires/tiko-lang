@@ -12,12 +12,14 @@
 ' exit code = failures; last line "designall selftest: N passed, M failed"
 #import "std/containers"
 #import "std/fs"
+#import "std/strings"
 #import "tkd/model"
 #import "tkd/formfile"
 #import "tkd/validate"
 #import "tkd/codegen"
 #import "tkd/formtree"
 #import "tkd/themefile"
+#import "tkd/resfile"
 #import "tkd/canvas"
 #import "tkd/edits"
 #import "tkd/reconcile"
@@ -1547,6 +1549,71 @@ sub OptionGroupSuite( )
     Check( FindSetting( e.Controls[i3].Props, "GroupID" ) < 0, "option group: not across parents" )
 end sub
 
+' The Resource Center's file (appResources.tkres): text, refusals, AddFile, the generated module,
+' references renamed, main made to register them.
+sub ResourceSuite( )
+    dim as ustring e, none
+    dim as resfile.ResourceDoc d
+    dim as ustring t = "format = 1" & LF & LF & "[[resource]]" & LF & "name = ""logo""" & LF & "kind = ""image""" & LF & "file = ""logo.png""" & LF _
+        & LF & "[[resource]]" & LF & "name = ""Body""" & LF & "kind = ""font""" & LF & "file = ""Body.ttf""" & LF & "embed = false" & LF
+    Check( resfile.Parse( t, d, e ) andalso (d.Items.Count( ) = 2), "resources: parsed", e )
+    Check( d.Items[0].Embed andalso (d.Items[1].Embed = false), "resources: embed on unless written off" )
+    Check( resfile.ToText( d ) = t, "resources: the canonical text round-trips", resfile.ToText( d ) )
+    dim as Array( of ustring ) probs
+    resfile.Check( d, "", probs )
+    Check( probs.Count( ) = 0, "resources: a good file has no problems" )
+
+    dim as resfile.ResourceDoc bad
+    Check( resfile.Parse( "format = 1" & LF & "[[resource]]" & LF & "name = ""2x""" & LF & "kind = ""sound""" & LF & "file = ""a/b.png""" & LF _
+        & "[[resource]]" & LF & "name = ""LOGO""" & LF & "kind = ""image""" & LF & "file = ""x.png""" & LF _
+        & "[[resource]]" & LF & "name = ""logo""" & LF & "kind = ""image""" & LF & "file = ""y.png""" & LF & "colour = 1" & LF, bad, e ), "resources: a faulty file still parses" )
+    resfile.Check( bad, "", probs )
+    Check( probs.Count( ) = 5, "resources: bad name, bad kind, a path for a file, a name taken, an unknown key", strings.Join( probs, " | " ) )
+    Check( resfile.Parse( "format = 2" & LF, bad, e ) = false, "resources: a newer format is refused" )
+
+    ' AddFile copies into files/, numbers a clash, names from the stem
+    dim as ustring dir_ = fs.PathJoin( fs.TempDir( ).ValueOr( none ), "designall-res" )
+    fs.RemoveDirAll( dir_ )
+    fs.CreateDirAll( dir_ )
+    dim as ustring src = fs.PathJoin( dir_, "my logo.png" )
+    fs.WriteAllText( src, "not really a png" )
+    dim as resfile.ResourceDoc a
+    dim as ustring problem
+    dim as long i1 = resfile.AddFile( a, dir_, src, problem )
+    dim as long i2 = resfile.AddFile( a, dir_, src, problem )
+    Check( (i1 = 0) andalso (i2 = 1) andalso (a.Items[0].Name = "my_logo") andalso (a.Items[1].Name = "my_logo2"), _
+        "resources: added under free names from the stem", a.Items[0].Name & " " & a.Items[1].Name )
+    Check( (a.Items[0].File = "my logo.png") andalso (a.Items[1].File = "my logo2.png") andalso _
+        fs.IsFile( fs.PathJoin( dir_, "files", "my logo2.png" ) ), "resources: copied into files/, a clash numbered", a.Items[1].File )
+    Check( a.Items[0].Kind = "image", "resources: the kind from the extension" )
+    Check( resfile.AddFile( a, dir_, fs.PathJoin( dir_, "notes.txt" ), problem ) = -1, "resources: not an image or a font is refused", problem )
+    resfile.Check( a, dir_, probs )
+    fs.RemoveDirAll( dir_ )
+
+    ' the generated module
+    dim as ustring g = resfile.Generate( d, "appResources", "appResources.tkres", t )
+    Check( instr( g, "#embed gRes0_ ""files/logo.png""" ) > 0, "resources: an embedded one is #embedded", g )
+    Check( instr( g, "tkHost_AddResourceData( ""res:logo"", @gRes0_( 0 ), ubound( gRes0_ ) + 1 )" ) > 0, "resources: and registered as bytes" )
+    Check( (instr( g, "tkHost_AddResourceFile( ""res:Body"", Where_( ""Body.ttf"" ) )" ) > 0) andalso (instr( g, "gRes1_" ) = 0), _
+        "resources: one not built in is registered as a file" )
+
+    ' references
+    dim as long n
+    Check( resfile.RenameRefs( "a = ""res:Logo""" & LF & "b = ""res:logo2""" & LF & "c = ""res:logo""", "logo", "brand", n ) _
+        = "a = ""res:brand""" & LF & "b = ""res:logo2""" & LF & "c = ""res:brand""", "resources: a rename rewrites whole references only" )
+    Check( n = 2, "resources: and counts them", str( n ) )
+    Check( resfile.Refers( "x = ""res:LOGO""", "logo" ) andalso (resfile.Refers( "x = ""res:logo2""", "logo" ) = false), "resources: Refers" )
+
+    ' main.tiko made to register them, before the theme's options
+    dim as ustring m = "#import ""vendor/tkControls/tkApp""" & LF & "#import ""./appTheme""" & LF & "dim as TKAPP_OPTIONS o" & LF _
+        & "appTheme.ApplyOptions( o )" & LF & "if tkApp_Init( o ) = false then end 1" & LF, outText
+    Check( resfile.InstallIntoMain( m, outText ) = 1, "resources: main takes Register" )
+    Check( outText = "#import ""vendor/tkControls/tkApp""" & LF & "#import ""./appResources""" & LF & "#import ""./appTheme""" & LF & "dim as TKAPP_OPTIONS o" & LF _
+        & "appResources.Register( )" & LF & "appTheme.ApplyOptions( o )" & LF & "if tkApp_Init( o ) = false then end 1" & LF, _
+        "resources: imported, Register before ApplyOptions", outText )
+    Check( resfile.InstallIntoMain( outText, m ) = 0, "resources: and only once" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1903,6 +1970,7 @@ TimerSuite( )
 PopupSuite( )
 SpinnerSuite( )
 OptionGroupSuite( )
+ResourceSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

@@ -1,0 +1,181 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' resourcepass -- the Resource Center in a new GUI project, through Form > Resource Center... and its
+' modal loop: an image added (the file picker scripted), OK writes appResources and its module and
+' names it to this process; a Button's ImageLeft set to it; renamed in the Center, the form follows.
+#module "selftest"
+
+#import "std/containers"
+#import "std/fs"
+#import "tkc/cmdids"
+#import "tka/documents"
+#import "tka/mainwin"
+#import "tkd/canvas"
+#import "tkd/resdlg"
+#import "tkd/edits"
+#import "tkd/model"
+#import "tkd/panels"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkTest"
+using containers
+using cmdids
+using tkApp
+using tkHost
+using tkTest
+using tkPaint
+using model
+using tkListTree
+using tkScrollPanel
+
+dim shared as long gResStep, gResTries
+dim shared as ustring gResRename
+
+private function resfile_Find_( byval dlg as resdlg.ResourceDialog ptr, byref nm as const ustring ) as long
+    for i as long = 0 to dlg->Doc.Items.Count( ) - 1
+        if dlg->Doc.Items[i].Name = nm then return i
+    next
+    return -1
+end function
+
+' Posted before the Center opens: once its modal loop runs, the step's work is done from inside it.
+private sub DriveResources( byval payload as any ptr )
+    dim as mainwin.Window ptr w = payload
+    gResTries += 1
+    if (w->ResDlg = 0) orelse (w->ResDlg->IsModal = false) then
+        if gResTries < 100000 then tkApp_RunOnUI( @DriveResources, payload )
+        exit sub
+    end if
+    dim as resdlg.ResourceDialog ptr dlg = w->ResDlg
+    select case gResStep
+    case 1 : dlg->AddPressed( )                  ' the picker is scripted (gPickPath)
+    case 2 : dlg->RenameSelected( gResRename )
+    case 3
+        ' Pick: the row of that name, then Select
+        dim as long want = resfile_Find_( dlg, gResRename )
+        for r as long = 0 to tkListTree_GetCount( dlg->List ) - 1
+            if tkListTree_GetItemData( dlg->List, r ) = want then tkListTree_SetCurSel( dlg->List, r )
+        next
+    end select
+    dlg->Finish( true )
+end sub
+
+private function OpenCenter( byref mw as mainwin.Window, byval stepNo as long ) as boolean
+    gResStep = stepNo
+    gResTries = 0
+    tkApp_RunOnUI( @DriveResources, @mw )
+    return mw.Execute( Cmd.FormResources )
+end function
+
+public sub ResourcePass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "resources: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as ustring dir_ = Files( )
+    dim as ustring proj = fs.PathJoin( dir_, "resproj" & cint( sc * 100 ) )
+    fs.RemoveDirAll( proj )
+    t.Check( mw.NewFormProject( proj ), P( sc, "resources: a new GUI project" ) )
+    tkTest_PumpFor( h, 100 )
+    dim as ustring resDir = fs.PathJoin( proj, "appResources" ), none
+    t.Check( fs.IsFile( fs.PathJoin( resDir, "appResources.tkres" ) ) andalso fs.IsFile( fs.PathJoin( resDir, "appResources.design.tiko" ) ), _
+        P( sc, "a new project has appResources" ) )
+    t.Check( instr( fs.ReadAllText( fs.PathJoin( proj, "main.tiko" ) ).ValueOr( none ), "appResources.Register( )" ) > 0, P( sc, "and its main registers them" ) )
+    t.Check( mw.CanRun( Cmd.FormResources ), P( sc, "Form > Resource Center... with a project open" ) )
+
+    ' ---- an image added
+    dim as SDL_Surface ptr red = SDL_CreateSurface( 6, 4, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_FillSurfaceRect( red, 0, &hFFFF0000ul )
+    dim as string bmp = fs.PathJoin( dir_, "red.bmp" )
+    SDL_SaveBMP( red, strptr( bmp ) )
+    SDL_DestroySurface( red )
+    gPickPath = bmp
+    t.Check( OpenCenter( mw, 1 ), P( sc, "the Center opened, an image added, OK" ) )
+    dim as ustring tkres = fs.ReadAllText( fs.PathJoin( resDir, "appResources.tkres" ) ).ValueOr( none )
+    t.Check( instr( tkres, "name = ""red""" ) > 0, P( sc, "the .tkres has it, named from the file: " & tkres ) )
+    t.Check( fs.IsFile( fs.PathJoin( resDir, "files", "red.bmp" ) ), P( sc, "the file copied into files/" ) )
+    dim as ustring gen = fs.ReadAllText( fs.PathJoin( resDir, "appResources.design.tiko" ) ).ValueOr( none )
+    t.Check( instr( gen, "tkHost_AddResourceData( ""res:red""" ) > 0, P( sc, "the module builds it in" ) )
+    t.Check( tkHost_HasResource( "res:red" ), P( sc, "and this process knows it by name" ) )
+
+    ' ---- a Button wearing it
+    dim as DocRef d = mw.Active( )
+    dim as canvas.FormCanvas ptr c = 0
+    if d then c = d->Designer
+    t.Check( c <> 0, P( sc, "resources: the form on its surface" ) )
+    if c = 0 then
+        mw.Destroy( )
+        exit sub
+    end if
+    dim as FormDoc trial = c->Doc
+    edits.AddControl( trial, "Button", "", -1, 20, 20, 120, 32 )
+    dim as Array( of ustring ) names
+    names.Push( "Button1" )
+    edits.SetProperty( trial, names, "ImageLeft", "res:red" )
+    t.Check( len( c->ApplyEdit( trial, true, "" ) ) = 0, P( sc, "a Button with ImageLeft = res:red" ) )
+
+    ' ---- renamed in the Center: the form follows
+    gResRename = "brand"
+    t.Check( OpenCenter( mw, 2 ), P( sc, "the Center opened again, renamed, OK" ) )
+    dim as long bi = FindControl( c->Doc, "Button1" )
+    dim as ustring img
+    if bi >= 0 then img = SettingOr( c->Doc.Controls[bi].Props, "ImageLeft" )
+    t.Check( img = "res:brand", P( sc, "the Button's ImageLeft follows the rename: " & img ) )
+    t.Check( tkHost_HasResource( "res:brand" ) andalso (tkHost_HasResource( "res:red" ) = false), P( sc, "this process knows the new name, not the old" ) )
+
+    ' ---- the inspector's "..." on ImageLeft: the Center in Pick, the row takes res:brand
+    trial = c->Doc
+    edits.SetProperty( trial, names, "ImageLeft", "" )
+    c->ApplyEdit( trial, true, "" )
+    c->SelectOnly( "Button1" )
+    tkTest_PumpFor( h, 60 )
+    dim as panels.DesignPanels ptr ps = @mw.Palettes
+    dim as long fr = -1
+    for i as long = 0 to ps->Rows.Count( ) - 1
+        if ps->Rows[i].Key = "ImageLeft" then fr = i
+    next
+    t.Check( (fr >= 0) andalso (ps->Rows[fr].Btn <> 0), P( sc, "the ImageLeft row has a ""..."" button" ) )
+    if (fr >= 0) andalso (ps->Rows[fr].Btn <> 0) then
+        tkScrollPanel_EnsureVisible( ps->Scroll, ps->Rows[fr].Btn )
+        tkTest_PumpFor( h, 30 )
+        gResStep = 3
+        gResTries = 0
+        tkApp_RunOnUI( @DriveResources, @mw )
+        tkTest_Click( h, tkTest_CX( ps->Rows[fr].Btn ), tkTest_CY( ps->Rows[fr].Btn ) )
+        tkTest_PumpFor( h, 100 )
+    end if
+    bi = FindControl( c->Doc, "Button1" )
+    img = ""
+    if bi >= 0 then img = SettingOr( c->Doc.Controls[bi].Props, "ImageLeft" )
+    t.Check( img = "res:brand", P( sc, "the ""..."" picks it into ImageLeft: " & img ) )
+    ' and the canvas's Button shows the image: red inside it
+    dim as long reds = 0
+    if (bi >= 0) andalso (bi < c->Widgets.Count( )) then
+        dim as TK_WIDGET ptr bw = c->Widgets[bi]
+        tkHost_RenderTo( bw->pHost, false )
+        dim as TKRECT rb
+        tkWidget_AbsRect( bw, rb )
+        for y as long = rb.top to rb.bottom - 1
+            for x as long = rb.left to rb.right - 1
+                if (tkTest_PixelAt( bw->pHost, x, y ) and &hFFFFFFul) = &hFF0000ul then reds += 1
+            next
+        next
+    end if
+    t.Check( reds > 0, P( sc, "the canvas's Button shows the image: " & reds & " red pixels" ) )
+
+    for each dd as DocRef in mw.Docs
+        dd->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub

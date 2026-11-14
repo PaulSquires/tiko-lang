@@ -98,7 +98,7 @@ public type PanelRow
     Text as ustring    ' what the editor holds, as last applied
     Label as TK_WIDGET ptr
     Edit as TK_WIDGET ptr
-    Btn as TK_WIDGET ptr      ' an event row's "go to the code"
+    Btn as TK_WIDGET ptr      ' an event row's "go to the code"; a file row's "..." (the Resource Center)
     CY as long
     Inline as boolean         ' on the row before's line, sharing its editor's width (no label of its own)
 end type
@@ -171,6 +171,7 @@ public type DesignPanels
     declare sub BuildTree( )
     declare sub FillToolbox( )
     declare sub AddRow( byref key_ as const ustring, byref caption as const ustring, byval kind_ as long, byref items as const ustring = "" )
+    declare sub AddFileButton( )
     declare sub AddPropRow( byval p as TKMETA_PROP ptr )
     declare sub AddEventRow( byref event_ as const ustring )
     declare sub UpdateValues( )
@@ -353,6 +354,29 @@ private sub OnEventGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as
     dim as ustring ctl
     if p->C->Selected.Count( ) then ctl = p->C->Selected[0]
     p->C->OnWire( p->C->Host, p->C, ctl, ev, true )
+end sub
+
+' A file row's "...": the Resource Center picks an image, and the row takes "res:<name>" as if typed.
+private sub OnFileGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if (p = 0) orelse (p->C = 0) orelse (p->C->OnPickResource = 0) then exit sub
+    dim as long r = -1
+    for i as long = 0 to p->Rows.Count( ) - 1
+        if p->Rows[i].Btn = h then r = i
+    next
+    if r < 0 then exit sub
+    dim as canvas.FormCanvas ptr c = p->C
+    dim as ustring key_ = p->Rows[r].Key, picked
+    if c->OnPickResource( c->Host, "image", tkTextBox_GetText( p->Rows[r].Edit ), picked ) = false then exit sub
+    ' the Center's OK rebuilt the forms: the panels may be bound elsewhere, their rows made again
+    if p->C <> c then exit sub
+    r = -1
+    for i as long = 0 to p->Rows.Count( ) - 1
+        if p->Rows[i].Key = key_ then r = i
+    next
+    if r < 0 then exit sub
+    tkTextBox_SetText( p->Rows[r].Edit, picked )
+    p->CommitRow( r )
 end sub
 
 ' The row that opens a control's menu, column, item or page editor -- or its Colors dialog.
@@ -892,8 +916,22 @@ sub DesignPanels.AddEventRow( byref event_ as const ustring )
     end with
 end sub
 
+' The last row added gets a "..." that opens the Resource Center (a file property, the form's Icon).
+sub DesignPanels.AddFileButton( )
+    with Rows[Rows.Count( ) - 1]
+        .Btn = tkToolbar_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
+        tkToolbar_SetGlyphFont( .Btn, tkForm_Font( tkForm_FromWidget( Scroll ), TKFONT_GLYPH ) )
+        tkToolbar_AddItem( .Btn, TBR_KIND_COMMAND, wchr( TK_ICON_MORE ), "", 0 )
+        tkToolbar_SetTooltipText( .Btn, 0, i18n.Tr( "designer.res_center", "Resource Center" ) )
+        tkToolbar_SetClickCallback( .Btn, @OnFileGo )
+    end with
+end sub
+
 sub DesignPanels.AddPropRow( byval p as TKMETA_PROP ptr )
     select case p->Kind
+    case "file"
+        this.AddRow( p->Name, p->Name, RowKind.RowText )
+        this.AddFileButton( )
     case "bool" : this.AddRow( p->Name, p->Name, RowKind.RowCheck )
     case "enum" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, EnumShown_( p->EnumPairs ) )
     case "font" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, ",UI,UI_SMALL,UI_BOLD,UI_LARGE,GLYPH,GLYPH_LARGE,MONO" )
@@ -929,6 +967,7 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@MaxHeight", "MaxHeight", RowKind.RowText )
         this.AddRow( "@AlwaysOnTop", "AlwaysOnTop", RowKind.RowCheck )
         this.AddRow( "@Icon", "Icon", RowKind.RowText )
+        this.AddFileButton( )
         this.AddRow( "@FormCtx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
         for e as long = 0 to catalog.FormEventCount( ) - 1
             this.AddEventRow( catalog.FormEventName( e ) )

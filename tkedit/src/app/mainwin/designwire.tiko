@@ -29,18 +29,22 @@
 #import "tkd/reconcile"
 #import "tkd/itemsdlg"
 #import "tkd/themefile"
+#import "tkd/resfile"
+#import "tkd/resdlg"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkFileDialog"
+#import "vendor/tkControls/tkMessageBox"
 using containers
 using tkMeta
 using tkApp
 using tkHost
 using tkLayout
 using tkFileDialog
+using tkMessageBox
 using model
 
 private function CodePathOf_( byref formPath as const ustring ) as ustring
@@ -519,15 +523,18 @@ private function GuiManifest_( byref pkg as const ustring ) as ustring
     return strings.Replace( project.NewManifestText( pkg, pkg, "main.tiko" ), "# subsystem = 'console'", "subsystem = 'gui'     " )
 end function
 
-' The main that shows one form, in the project's theme (appTheme: its fonts before Init, the rest after).
+' The main that shows one form, in the project's theme (appTheme: its fonts before Init, the rest after),
+' with the project's resources (appResources) named before either.
 private function FormMain_( byref pkg as const ustring, byref formName as const ustring ) as ustring
     dim as ustring nl = wchr( 10 )
     return "' " & pkg & ": starts the program and shows its first form." & nl _
         & "#import ""vendor/tkControls/tkApp""" & nl _
+        & "#import ""./appResources""" & nl _
         & "#import ""./appTheme""" & nl _
         & "#import ""./" & formName & """" & nl _
         & "using tkApp" & nl & nl _
         & "dim as TKAPP_OPTIONS options" & nl _
+        & "appResources.Register( )" & nl _
         & "appTheme.ApplyOptions( options )" & nl _
         & "if tkApp_Init( options ) = false then end 1" & nl _
         & "appTheme.Install( )" & nl _
@@ -535,6 +542,271 @@ private function FormMain_( byref pkg as const ustring, byref formName as const 
         & "mainForm.Build( )" & nl _
         & "end tkApp_Run( mainForm.Wnd )" & nl
 end function
+
+' The project's resources: appResources/appResources.tkres, none yet, and its module. One already
+' there is kept.
+private function CreateResourceFiles_( byref dir_ as const ustring ) as boolean
+    dim as ustring folder = fs.PathJoin( dir_, resfile.RES_MODULE )
+    dim as ustring path = fs.PathJoin( folder, resfile.RES_MODULE & ".tkres" )
+    if fs.IsFile( path ) then return true
+    fs.CreateDirAll( folder )
+    dim as ustring text = resfile.DefaultText( )
+    dim as resfile.ResourceDoc doc
+    dim as ustring e
+    if resfile.Parse( text, doc, e ) = false then return false
+    if WriteNew_( path, text ) = false then return false
+    return WriteNew_( fs.PathJoin( folder, resfile.RES_MODULE & ".design.tiko" ), _
+                      resfile.Generate( doc, resfile.RES_MODULE, resfile.RES_MODULE & ".tkres", text ) )
+end function
+
+' The open project's appResources/appResources.tkres ("" with no project open).
+function Window.ResourcesPath( ) as ustring
+    if ProjOpen = false then return ""
+    return fs.PathJoin( fs.PathParent( Proj.Path ), resfile.RES_MODULE, resfile.RES_MODULE & ".tkres" )
+end function
+
+' appResources.design.tiko from a .tkres's text. False, with a message, when it has a problem.
+function Window.WriteResourcesGenerated( byref path as const ustring, byref text as const ustring ) as boolean
+    dim as resfile.ResourceDoc doc
+    dim as ustring e
+    dim as Array( of ustring ) problems
+    if resfile.Parse( text, doc, e ) = false then
+        problems.Push( e )
+    else
+        resfile.Check( doc, fs.PathParent( path ), problems )
+    end if
+    if problems.Count( ) then
+        this.SetMessage( fs.PathFileName( path ) & ": " & problems[0] )
+        return false
+    end if
+    dim as ustring generated = resfile.Generate( doc, fs.PathStem( path ), fs.PathFileName( path ), text )
+    dim as ustring target = left( path, instrrev( path, "." ) - 1 ) & ".design.tiko", none
+    if fs.IsFile( target ) then
+        if codegen.WithoutCr( fs.ReadAllText( target ).ValueOr( none ) ) = generated then return true
+    end if
+    if fs.WriteAtomic( target, generated ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( target ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    return true
+end function
+
+' After a build: the resources not built in, copied beside the program (resources/), where its
+' Register looks first. A copy already there and as new is kept.
+sub Window.CopyResourceFiles( byref exePath as const ustring )
+    dim as ustring path = this.ResourcesPath( ), none
+    if (len( path ) = 0) orelse (len( exePath ) = 0) orelse (fs.IsFile( path ) = false) then exit sub
+    dim as resfile.ResourceDoc doc
+    dim as ustring e
+    if resfile.Parse( fs.ReadAllText( path ).ValueOr( none ), doc, e ) = false then exit sub
+    dim as ustring dst = fs.PathJoin( fs.PathParent( exePath ), resfile.BESIDE_DIR )
+    for each x as resfile.Resource in doc.Items
+        if x.Embed then continue for
+        dim as ustring src = fs.PathJoin( fs.PathParent( path ), resfile.FILES_DIR, x.File )
+        if fs.IsFile( src ) = false then continue for
+        fs.CreateDirAll( dst )
+        fs.CopyFile( src, fs.PathJoin( dst, x.File ), true )
+    next
+end sub
+
+' ---- the Resource Center ---------------------------------------------------------------------------
+
+private function ResAsk_( byval owner as any ptr, byref text as const ustring ) as boolean
+    dim as Window ptr w = owner
+    return w->Ask( w->form, text, MBX_BTN_YESNO ) = MBX_IDYES
+end function
+
+private function ResPick_( byval owner as any ptr ) as ustring
+    dim as Window ptr w = owner
+    return w->Pick( w->form, PICK_RESOURCES, "" )
+end function
+
+private function ResUsed_( byval owner as any ptr, byref nm as const ustring ) as ustring
+    return cast( Window ptr, owner )->ResourceUsers( nm )
+end function
+
+' The project's forms and theme files on disk (not under out/, files/ or a dot folder).
+private sub ProjectRefFiles_( byref dir_ as const ustring, byref out_ as Array( of ustring ), byval depth as long )
+    if depth > 8 then exit sub
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        dim as ustring nm = e.Name( ), l = lcase( e.Name( ) )
+        if e.IsDirectory( ) then
+            if (left( nm, 1 ) <> ".") andalso (l <> "out") andalso (l <> resfile.FILES_DIR) then ProjectRefFiles_( fs.PathJoin( dir_, nm ), out_, depth + 1 )
+        elseif (right( l, 7 ) = ".tkform") orelse (right( l, 8 ) = ".tktheme") then
+            out_.Push( fs.PathJoin( dir_, nm ) )
+        end if
+    next
+end sub
+
+private function OpenDocAt_( byref docs as Array( of DocRef ), byref path as const ustring ) as DocRef
+    for each d as DocRef in docs
+        if (len( d->Path ) > 0) andalso fs.PathEquals( d->Path, path ) then return d
+    next
+    return 0
+end function
+
+' The form and theme files that refer to "res:nm", by file name, comma-separated ("" = none). An
+' open one is read as it stands in its buffer.
+function Window.ResourceUsers( byref nm as const ustring ) as ustring
+    if ProjOpen = false then return ""
+    dim as Array( of ustring ) files
+    ProjectRefFiles_( fs.PathParent( Proj.Path ), files, 0 )
+    dim as ustring o, none
+    for each p as ustring in files
+        dim as DocRef d = OpenDocAt_( Docs, p )
+        dim as ustring text
+        if d then text = d->Text( ) else text = fs.ReadAllText( p ).ValueOr( none )
+        if resfile.Refers( text, nm ) then
+            if len( o ) then o &= ", "
+            o &= fs.PathFileName( p )
+        end if
+    next
+    return o
+end function
+
+' Every resource of the open project known to this process by its name, as a file: the canvas and
+' the Test Form show "res:<name>" as the program will. Names from before are taken back first.
+sub Window.RegisterProjectResources( )
+    for each n as ustring in ResRegistered
+        tkHost_RemoveResource( n )
+    next
+    ResRegistered.Clear( )
+    dim as ustring path = this.ResourcesPath( ), none, e
+    if (len( path ) = 0) orelse (fs.IsFile( path ) = false) then exit sub
+    dim as resfile.ResourceDoc doc
+    if resfile.Parse( fs.ReadAllText( path ).ValueOr( none ), doc, e ) = false then exit sub
+    for each x as resfile.Resource in doc.Items
+        dim as string nm = resfile.RefOf( x.Name )
+        tkHost_AddResourceFile( nm, fs.PathJoin( fs.PathParent( path ), resfile.FILES_DIR, x.File ) )
+        ResRegistered.Push( nm )
+    next
+end sub
+
+' The Resource Center. kind_: "" to manage; "image" / "font" to pick one (current: the value the
+' property has). True on OK / Select; picked is then "res:<name>", or "" for (none).
+function Window.EditResources( byref kind_ as const ustring, byref current as const ustring, byref picked as ustring, _
+                               byval owner_ as TK_FORM ptr = 0 ) as boolean
+    picked = ""
+    if (ProjOpen = false) orelse (ResDlg <> 0) then
+        if ProjOpen = false then this.SetMessage( i18n.Tr( "designer.res_needs_project", "Resources belong to a project: open or make one first" ) )
+        return false
+    end if
+    dim as ustring projDir = fs.PathParent( Proj.Path )
+    if CreateResourceFiles_( projDir ) = false then
+        this.SetMessage( resfile.RES_MODULE & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    ResDlg = new resdlg.ResourceDialog
+    ResDlg->Owner = @this
+    ResDlg->Ask = @ResAsk_
+    ResDlg->PickFiles = @ResPick_
+    ResDlg->UsedBy = @ResUsed_
+    ResDlg->Open( iif( owner_ <> 0, owner_, form ), fs.PathParent( this.ResourcesPath( ) ), kind_, current )
+    if ResDlg->Win = 0 then
+        delete ResDlg
+        ResDlg = 0
+        return false
+    end if
+    dim as boolean ok = ResDlg->RunModal( )
+    dim as resdlg.ResourceDialog ptr dlg = ResDlg
+    ResDlg = 0
+    if ok then this.ApplyResources( *dlg )
+    picked = dlg->Picked
+    dlg->Close( )
+    delete dlg
+    return ok
+end function
+
+' OK: the .tkres and its module written, renames carried into the project's forms and theme,
+' removed files deleted, main made to register them, and this process told the new names.
+sub Window.ApplyResources( byref dlg as resdlg.ResourceDialog )
+    dim as ustring path = this.ResourcesPath( ), none
+    dim as ustring text = resfile.ToText( dlg.Doc )
+    dim as DocRef open_ = OpenDocAt_( Docs, path )
+    if open_ then
+        open_->Main.ReplaceAllText( text )
+        this.SaveDoc( open_, false )
+    elseif fs.WriteAtomic( path, text ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( path ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        exit sub
+    end if
+    this.WriteResourcesGenerated( path, text )
+    for each f as ustring in dlg.Removed
+        fs.RemoveFile( fs.PathJoin( fs.PathParent( path ), resfile.FILES_DIR, f ) )
+    next
+    this.RegisterProjectResources( )
+
+    ' renames: open forms through their canvas (one undo step each), others in their text
+    dim as long changed = 0
+    if dlg.Renames.Count( ) then
+        dim as Array( of ustring ) files
+        ProjectRefFiles_( fs.PathParent( Proj.Path ), files, 0 )
+        for each p as ustring in files
+            dim as DocRef d = OpenDocAt_( Docs, p )
+            if (d <> 0) andalso (d->Designer <> 0) then
+                dim as canvas.FormCanvas ptr c = d->Designer
+                dim as FormDoc trial = c->Doc
+                dim as long n = 0
+                for each s as Setting in dlg.Renames
+                    dim as ustring was = lcase( resfile.RefOf( s.Key ) ), now_ = resfile.RefOf( s.Value )
+                    if lcase( trial.Icon ) = was then trial.Icon = now_ : n += 1
+                    for k as long = 0 to trial.Controls.Count( ) - 1
+                        for j as long = 0 to trial.Controls[k].Props.Count( ) - 1
+                            if lcase( trial.Controls[k].Props[j].Value ) = was then trial.Controls[k].Props[j].Value = now_ : n += 1
+                        next
+                    next
+                next
+                if n then
+                    dim as ustring fault = c->ApplyEdit( trial, true, "" )
+                    if len( fault ) then this.SetMessage( fault ) else changed += n
+                end if
+            else
+                dim as ustring t0
+                if d then t0 = d->Text( ) else t0 = fs.ReadAllText( p ).ValueOr( none )
+                dim as ustring t1 = t0
+                for each s as Setting in dlg.Renames
+                    dim as long n
+                    t1 = resfile.RenameRefs( t1, s.Key, s.Value, n )
+                    changed += n
+                next
+                if t1 <> t0 then
+                    if d then
+                        d->Main.ReplaceAllText( t1 )
+                    else
+                        fs.WriteAtomic( p, t1 )
+                    end if
+                end if
+            end if
+        next
+    end if
+
+    ' the project's main registers them, as a new project's does
+    dim as ustring mainPath = fs.PathJoin( fs.PathParent( Proj.Path ), "main.tiko" ), outText
+    dim as DocRef mainDoc = OpenDocAt_( Docs, mainPath )
+    dim as ustring mainText
+    if mainDoc then mainText = mainDoc->Text( ) else mainText = fs.ReadAllText( mainPath ).ValueOr( none )
+    dim as boolean byHand = false
+    if len( mainText ) then
+        select case resfile.InstallIntoMain( codegen.WithoutCr( mainText ), outText )
+        case 1
+            if mainDoc then mainDoc->Main.ReplaceAllText( outText ) else fs.WriteAtomic( mainPath, outText )
+        case -1
+            byHand = true
+        end select
+    end if
+    for each d as DocRef in Docs
+        if d->Designer then d->Designer->Rebuild( )
+    next
+    if byHand then
+        this.SetMessage( i18n.Tr( "designer.res_main_by_hand", "main.tiko: add appResources.Register( ) before tkApp_Init" ) )
+    elseif changed then
+        this.SetMessage( strings.Format( i18n.Tr( "designer.res_renamed", "Resources saved; {} references renamed" ), changed ) )
+    else
+        this.SetMessage( i18n.Tr( "designer.res_saved", "Resources saved" ) )
+    end if
+end sub
 
 ' The project's theme: appTheme/appTheme.tktheme, the presets named "Default", and its module.
 private function CreateThemeFiles_( byref dir_ as const ustring ) as boolean
@@ -603,7 +875,7 @@ function Window.NewProjectForForm( byref formPath as const ustring ) as boolean
         end if
         dim as ustring pkg = PackageName_( fs.PathFileName( dir_ ) )
         if (WriteNew_( manifest, GuiManifest_( pkg ) ) = false) orelse (WriteNew_( mainPath, FormMain_( pkg, formName ) ) = false) _
-           orelse (CreateThemeFiles_( dir_ ) = false) then
+           orelse (CreateThemeFiles_( dir_ ) = false) orelse (CreateResourceFiles_( dir_ ) = false) then
             this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
             return false
         end if
@@ -654,6 +926,7 @@ function Window.NewFormProject( byref folder as const ustring ) as boolean
     dim as boolean ok = WriteNew_( manifest, GuiManifest_( pkg ) )
     ok = ok andalso WriteNew_( fs.PathJoin( dir_, "main.tiko" ), FormMain_( pkg, "frmMain" ) )
     ok = ok andalso CreateThemeFiles_( dir_ )
+    ok = ok andalso CreateResourceFiles_( dir_ )
     dim as ustring formPath = CreateFormFiles_( dir_, "frmMain" )
     if (ok = false) orelse (len( formPath ) = 0) then
         this.SetMessage( pkg & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
@@ -774,8 +1047,25 @@ function Window.PrepareForms( ) as boolean
             elseif this.WriteThemeGenerated( d->Path, d->Text( ) ) = false then
                 ok = false
             end if
+        elseif lcase( right( d->Path, 6 ) ) = ".tkres" then
+            if Prefs.SaveBeforeBuild andalso d->IsModified( ) then
+                if this.SaveDoc( d, false ) = false then ok = false
+            elseif this.WriteResourcesGenerated( d->Path, d->Text( ) ) = false then
+                ok = false
+            end if
         end if
     next
+    ' the project's resources, when no buffer has them: from the disk
+    dim as ustring resPath = this.ResourcesPath( ), none
+    if len( resPath ) andalso fs.IsFile( resPath ) then
+        dim as boolean isOpen = false
+        for each d as DocRef in Docs
+            if (len( d->Path ) > 0) andalso fs.PathEquals( d->Path, resPath ) then isOpen = true
+        next
+        if isOpen = false then
+            if this.WriteResourcesGenerated( resPath, fs.ReadAllText( resPath ).ValueOr( none ) ) = false then ok = false
+        end if
+    end if
     if len( SaveNote ) then
         this.SetMessage( SaveNote )
         SaveNote = ""
@@ -839,6 +1129,11 @@ private sub ThemeSaved_( byval tc as themecenter.ThemeDialog ptr )
     if mw then tc->Saved = mw->SaveTheme( tc )
 end sub
 
+' A project theme's font slot "...": the Resource Center over the Theme Center, picking a font.
+private function ThemePickFont_( byval tc as themecenter.ThemeDialog ptr, byref current as const ustring, byref picked as ustring ) as boolean
+    return cast( Window ptr, tc->Host )->EditResources( "font", current, picked, tc->Win )
+end function
+
 private sub ThemeClosed_( byval tc as themecenter.ThemeDialog ptr )
     dim as Window ptr mw = tc->Host
     if mw then mw->CloseThemeCenter( )
@@ -863,6 +1158,7 @@ sub Window.OpenThemeCenterOn( byref path as const ustring, byval forEditor as bo
     ThemeDlg->ForEditor = forEditor
     ThemeDlg->OnSave = @ThemeSaved_
     ThemeDlg->OnClose = @ThemeClosed_
+    if forEditor = false then ThemeDlg->OnPickFont = @ThemePickFont_
     dim as ustring title
     if forEditor then title = i18n.Tr( "designer.theme_editor_title", "tkEdit Theme" )
     ThemeDlg->Open( form, path, fs.PathJoin( ConfigDir, themes.THEME_DIR ), title )

@@ -212,15 +212,34 @@ end type
 The module is imported as written, so a path like `../gauges` is relative to the form's folder. The type
 can't have the same name as its module.
 
+## Resources: images and fonts
+
+A project keeps its images and fonts in one place, **Form > Resource Center...**, each under a name.
+A property that takes a file (a Button's **ImageLeft** and **ImageRight**, a Picture's **File**, the
+form's **Icon**) has a **...** button that opens the Center to pick one, and then holds `res:` and the
+name, `res:logo`. The Theme Center's font files have the same button, for a font of your own.
+
+- **+** adds files (several at once), copied into the project's `appResources/files/`, each named from
+  its file name. The bin removes one, asking first when a form or the theme uses it.
+- Rename one in its **Name** box, and every form and the theme that use it follow.
+- **Build into the program** (on by default) puts the file inside the program. Off, the file is
+  copied beside the program into `resources/` after each build, and read from there.
+
+The Center writes `appResources/appResources.tkres`, and from it `appResources.design.tiko`, whose
+`Register` names every resource before `tkApp_Init`. A typed path still works where a `res:` name
+does.
+
 ## Using a form
 
 ```freebasic
 #import "vendor/tkControls/tkApp"
+#import "./appResources"
 #import "./appTheme"
 #import "./frmMain"
 using tkApp
 
 dim as TKAPP_OPTIONS options
+appResources.Register( )                ' the project's images and fonts, by name
 appTheme.ApplyOptions( options )        ' the theme's fonts, read by tkApp_Init
 if tkApp_Init( options ) = false then end 1
 appTheme.Install( )                     ' the theme's colours, shape and styles
@@ -245,7 +264,8 @@ it first appears (Default, CenterScreen, CenterOwner), **WindowState** how (Norm
 Minimized; a maximized window must be resizable), **Resizable** blank for the default (a top-level
 form resizes, an owned one doesn't), true or false. **MinWidth**, **MinHeight**, **MaxWidth** and
 **MaxHeight** limit the client the user can size it to, in design units; blank is no limit.
-**AlwaysOnTop** keeps it above other windows, and **Icon** names an image file for its title bar.
+**AlwaysOnTop** keeps it above other windows, and **Icon** is an image for its title bar (its **...**
+picks one from the Resource Center).
 
 Its events:
 

@@ -68,6 +68,9 @@ public type CanvasCommitSub as sub( byval owner as any ptr, byref text as const 
 public type CanvasChangedSub as sub( byval listener as any ptr )
 public type FormCanvas_ as FormCanvas
 public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
+' The Resource Center in Pick: kind_ "image" / "font", current the value now. True on Select, picked
+' then "res:<name>" (or "" for none).
+public type CanvasPickFunc as function( byval host_ as any ptr, byref kind_ as const ustring, byref current as const ustring, byref picked as ustring ) as boolean
 public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
 public type CanvasGoneFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref handler as const ustring ) as boolean
 public type CanvasHandlerRenameFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
@@ -125,6 +128,7 @@ public type FormCanvas
     OnRenamed as CanvasRenameSub
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
+    OnPickResource as CanvasPickFunc    ' a file property's "...": the Resource Center
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
     OnHandlerRenamed as CanvasHandlerRenameFunc ' true: the code's body (and its uses) now go by the new name
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set

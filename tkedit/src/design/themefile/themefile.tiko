@@ -543,8 +543,14 @@ end sub
 public const EMBED_DIR = "fonts"
 
 ' A font slot's file as embedded: the name the theme gives (its file name only), else tkApp's default.
+' A font slot that names one of the project's resources ("res:<name>", the Resource Center).
+private function IsResource_( byref f as const ustring ) as boolean
+    return lcase( left( f, 4 ) ) = "res:"
+end function
+
 private function EmbedName_( byref f as const ustring, byref dflt as const ustring ) as ustring
     if len( f ) = 0 then return dflt
+    if IsResource_( f ) then return f            ' appResources has it: tkHost knows it by this name
     return fs.PathFileName( f )
 end function
 
@@ -564,6 +570,7 @@ public function EmbeddedFonts( byref doc as ThemeDoc ) as Array( of ustring )
     slots( 2 ) = EmbedName_( doc.GlyphFile, TK_FONT_ICONS )
     slots( 3 ) = EmbedName_( doc.MonoFile, TK_FONT_MONO )
     for i as long = 0 to 3
+        if IsResource_( slots( i ) ) then continue for
         dim as boolean seen = false
         for each s as ustring in out_
             if lcase( s ) = lcase( slots( i ) ) then seen = true
@@ -605,6 +612,7 @@ public sub CopyEmbeddedFonts( byref doc as ThemeDoc, byref themeDir as const ust
     given( 3 ) = OrDefault_( doc.MonoFile, TK_FONT_MONO )
     dim as ustring dir_ = fs.PathJoin( themeDir, EMBED_DIR )
     for i as long = 0 to 3
+        if IsResource_( given( i ) ) then continue for     ' appResources builds it in, or not
         dim as ustring dst = fs.PathJoin( dir_, fs.PathFileName( given( i ) ) )
         if fs.IsFile( dst ) then continue for
         dim as ustring src = FontSource( given( i ), themeDir, pkgDir )
