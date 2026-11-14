@@ -146,6 +146,7 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
         if ps->Rows[i].Key = "ImageLeft" then fr = i
     next
     t.Check( (fr >= 0) andalso (ps->Rows[fr].Btn <> 0), P( sc, "the ImageLeft row has a ""..."" button" ) )
+    t.Check( TTF_FontHasGlyph( tkForm_Font( mw.form, TKFONT_GLYPH ), TK_ICON_MORE ), P( sc, "the ""..."" glyph is in the glyph font" ) )
     if (fr >= 0) andalso (ps->Rows[fr].Btn <> 0) then
         tkScrollPanel_EnsureVisible( ps->Scroll, ps->Rows[fr].Btn )
         tkTest_PumpFor( h, 30 )
