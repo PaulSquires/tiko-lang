@@ -199,3 +199,65 @@ public function DockWord( byval dock_ as long ) as ustring
     end select
     return "none"
 end function
+
+' ---- glyph values (docs/tkDesigner/GLYPHS.md, GV7) ----------------------------------------------
+' A glyph property holds "<font>:<hex code>", the code as the source font has it: "Fluent:E824".
+' Anything else (a plain character from before) is a character in the GLYPH font, as typed.
+public const GLYPH_FONT_FLUENT = "Fluent"       ' the bundled Fluent UI System Icons
+
+private function HexCode_( byref t as const ustring ) as ulong
+    dim as ustring h = ucase( t )
+    if (len( h ) < 2) orelse (len( h ) > 6) then return 0
+    for i as long = 1 to len( h )
+        dim as long a = asc( mid( h, i, 1 ) )
+        if ((a < 48) orelse (a > 57)) andalso ((a < 65) orelse (a > 70)) then return 0
+    next
+    return culng( valuint( "&h" & h ) )
+end function
+
+' The code of a "<font>:<hex>" value; 0 for anything else.
+public function GlyphCode( byref v as const ustring ) as ulong
+    dim as long c = instr( v, ":" )
+    if c < 2 then return 0
+    return HexCode_( mid( v, c + 1 ) )
+end function
+
+' The font of a "<font>:<hex>" value; "" for anything else.
+public function GlyphFontKey( byref v as const ustring ) as ustring
+    if GlyphCode( v ) = 0 then return ""
+    return left( v, instr( v, ":" ) - 1 )
+end function
+
+' "<font>:<hex>", the code upper case, four digits at least.
+public function GlyphRef( byref fontKey as const ustring, byval cp as ulong ) as ustring
+    dim as ustring h = hex( cp )
+    if len( h ) < 4 then h = right( "000" & h, 4 )
+    return fontKey & ":" & h
+end function
+
+' What a control draws for a glyph value: the code's character, or the value as it is.
+public function GlyphChar( byref v as const ustring ) as ustring
+    dim as ulong cp = GlyphCode( v )
+    if cp then return wchr( cp )
+    return v
+end function
+
+' What the inspector's code box shows: the hex code of a "<font>:<hex>" value, else the value.
+public function GlyphShown( byref v as const ustring ) as ustring
+    if GlyphCode( v ) then return mid( v, instr( v, ":" ) + 1 )
+    return v
+end function
+
+' What the code box's text means, the value it had giving the font: "E824" / "U+E824" in that font
+' (the bundled icons when it had none), "<font>:<hex>" as it is, "" none, anything else as typed.
+public function GlyphTyped( byref t as const ustring, byref had as const ustring ) as ustring
+    dim as ustring s = trim( t )
+    if len( s ) = 0 then return ""
+    if GlyphCode( s ) andalso (ucase( left( s, 2 ) ) <> "U+") then return GlyphRef( GlyphFontKey( s ), GlyphCode( s ) )
+    if ucase( left( s, 2 ) ) = "U+" then s = mid( s, 3 )
+    dim as ulong cp = HexCode_( s )
+    if cp = 0 then return t
+    dim as ustring k = GlyphFontKey( had )
+    if len( k ) = 0 then k = GLYPH_FONT_FLUENT
+    return GlyphRef( k, cp )
+end function

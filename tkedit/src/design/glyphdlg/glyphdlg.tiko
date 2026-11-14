@@ -40,7 +40,7 @@ const as single BIG_PT = 40         ' the selected one, under the grid
 
 public type GlyphFontEntry
     Label as ustring                ' what the list shows
-    Value as ustring                ' what the theme's [fonts] glyph takes: a file name, a path or "res:<name>"
+    Value as ustring                ' its key in a glyph value, "<key>:<hex>" (GLYPHS.md): "Fluent"
     Path as ustring                 ' where it is opened from
 end type
 

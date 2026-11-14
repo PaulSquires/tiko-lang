@@ -75,6 +75,10 @@ private function ValueExpr_( byref v as const ustring, byref kind_ as const ustr
     case "enum"                 : return EnumConst_( pairs, v )
     case "color"                : return v & "ul"
     case "font"                 : return "tkForm_Font( Wnd, TKFONT_" & v & " )"
+    case "glyph"
+        ' "<font>:<hex>": its character -- the source font's code until appGlyphs renumbers (GLYPHS.md V4)
+        dim as ulong cp = GlyphCode( v )
+        if cp then return "wchr( &h" & hex( cp ) & " )"
     end select
     return Literal_( v )
 end function

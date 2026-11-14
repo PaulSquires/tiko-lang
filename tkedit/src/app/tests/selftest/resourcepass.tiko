@@ -24,6 +24,7 @@
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkScrollPanel"
 #import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkLabel"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
 using containers
@@ -36,6 +37,7 @@ using model
 using tkListTree
 using tkScrollPanel
 using tkTextBox
+using tkLabel
 
 dim shared as long gResStep, gResTries, gResTones
 dim shared as ustring gResFaults
@@ -223,11 +225,14 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
         if ps->Rows[i].Key = "GlyphLeft" then gr = i
     next
     bi = FindControl( c->Doc, "Button1" )
-    dim as ustring gl, gf, shown
+    dim as ustring gl, gf, shown, drawn
     if bi >= 0 then gl = SettingOr( c->Doc.Controls[bi].Props, "GlyphLeft" ) : gf = SettingOr( c->Doc.Controls[bi].Props, "GlyphFont" )
-    if gr >= 0 then shown = tkTextBox_GetText( ps->Rows[gr].Edit )
-    t.Check( (gl = wchr( &hE824 )) andalso (gf = "GLYPH") andalso (shown = "U+E824"), _
-             P( sc, "the Glyph Picker sets GlyphLeft, shown " & shown & ", GlyphFont " & gf ) )
+    if gr >= 0 then
+        shown = tkTextBox_GetText( ps->Rows[gr].Edit )
+        if ps->Rows[gr].Preview then drawn = tkLabel_GetText( ps->Rows[gr].Preview )
+    end if
+    t.Check( (gl = "Fluent:E824") andalso (gf = "GLYPH") andalso (shown = "E824") andalso (drawn = wchr( &hE824 )), _
+             P( sc, "the Glyph Picker sets GlyphLeft " & gl & ", the box " & shown & ", the preview drawn, GlyphFont " & gf ) )
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

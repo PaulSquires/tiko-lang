@@ -725,26 +725,32 @@ private function GlyphFontLabel_( byref value as const ustring ) as ustring
     return fs.PathFileName( value )
 end function
 
-' A glyph property's "...": the Glyph Picker on the bundled icons, the font every glyph draws in until
-' appGlyphs (GLYPHS.md V1; V3 brings the project's list). True with picked (the character, "" for
-' none) on Select.
+' A glyph property's "...": the Glyph Picker on the bundled icons (GLYPHS.md V2; V3 brings the
+' project's list), opened on the value the property has. True on Select, picked then
+' "<font>:<hex>" (GV7), or "" for none.
 function Window.PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
     picked = ""
     dim as glyphdlg.GlyphDialog dlg
-    AddGlyphFont_( dlg, GlyphFontLabel_( TK_FONT_ICONS ), TK_FONT_ICONS, themefile.GlyphFontPath( this.PkgDir( ) ) )
+    AddGlyphFont_( dlg, GlyphFontLabel_( TK_FONT_ICONS ), GLYPH_FONT_FLUENT, themefile.GlyphFontPath( this.PkgDir( ) ) )
     if dlg.Fonts.Count( ) = 0 then return false
     dlg.ThemeIdx = 0
+    dim as long fi = -1
+    dim as ustring ch
+    dim as boolean ok
     if GlyphPick then
         ' a self-test answers for the person: the font and the character it would click
-        dim as long fi = 0
-        GlyphPick( @this, dlg, fi, picked )
-        return true
+        fi = 0
+        GlyphPick( @this, dlg, fi, ch )
+        ok = true
+    else
+        dlg.Open( form, GlyphChar( current ) )
+        if dlg.Win = 0 then return false
+        ok = dlg.RunModal( )
+        ch = dlg.Picked
+        fi = dlg.PickedFont
+        dlg.Close( )
     end if
-    dlg.Open( form, current )
-    if dlg.Win = 0 then return false
-    dim as boolean ok = dlg.RunModal( )
-    picked = dlg.Picked
-    dlg.Close( )
+    if ok andalso (len( ch ) > 0) andalso (fi >= 0) andalso (fi < dlg.Fonts.Count( )) then picked = GlyphRef( dlg.Fonts[fi].Value, asc( ch ) )
     return ok
 end function
 

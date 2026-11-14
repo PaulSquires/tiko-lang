@@ -1892,6 +1892,24 @@ end sub
 
 ' [fonts] embed: the four fonts inside the program -- the file round trip, the generated #embed and
 ' "mem:" registrations (defaults for empty slots, each file once), where a font is found, the copy.
+' GLYPHS.md GV7: a glyph value is "<font>:<hex>"; the code box's text read in the value's font; the
+' generated code writes the character.
+sub GlyphValueSuite( )
+    Check( (GlyphCode( "Fluent:E824" ) = &hE824) andalso (GlyphFontKey( "Fluent:E824" ) = "Fluent") andalso (GlyphCode( wchr( &h25B6 ) ) = 0), _
+           "glyph: Font:Code reads; a plain character is no code" )
+    Check( (GlyphTyped( "f0a", "Material:E8B8" ) = "Material:0F0A") andalso (GlyphTyped( "U+E824", "" ) = "Fluent:E824") _
+           andalso (GlyphTyped( "", "Fluent:E824" ) = "") andalso (GlyphTyped( "x", "" ) = "x"), "glyph: the code box typed" )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "width = 300" & LF & "height = 200" & LF & LF _
+        & "[[control]]" & LF & "name = ""B""" & LF & "type = ""Button""" & LF & "parent = """"" & LF _
+        & "x = 0" & LF & "y = 0" & LF & "w = 80" & LF & "h = 24" & LF & LF _
+        & "[control.props]" & LF & "GlyphLeft = ""Fluent:E824""" & LF
+    dim as FormDoc d
+    dim as ustring e
+    Check( formfile.Parse( src, d, e ), "glyph: the form parses", e )
+    dim as ustring g = codegen.Generate( d, "frmG", "frmG.tkform", src )
+    Check( instr( g, "B.GlyphLeft = wchr( &hE824 )" ) > 0, "glyph: generated as its character", g )
+end sub
+
 sub EmbedFontsSuite( )
     dim as ustring none
     dim as ustring text = "format = 1" & LF & "name = ""E""" & LF & LF & "[dark]" & LF & LF & "[light]" & LF & LF _
@@ -2003,5 +2021,6 @@ ThemeCenterCore( )
 ColorSources( )
 ThemeLoadFixtures( bAccept )
 EmbedFontsSuite( )
+GlyphValueSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

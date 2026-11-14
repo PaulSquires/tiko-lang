@@ -494,7 +494,8 @@ sub FormCanvas.Rebuild( )
                 if p->Kind = "font" then
                     if p->ApplyFont then p->ApplyFont( w, this.RoleFont( f, FontRole_( s.Value ) ) )
                 elseif p->bDesign andalso (p->Apply <> 0) then
-                    p->Apply( w, s.Value )
+                    ' a glyph's "<font>:<hex>" is drawn as its character (GLYPHS.md GV7)
+                    if p->Kind = "glyph" then p->Apply( w, GlyphChar( s.Value ) ) else p->Apply( w, s.Value )
                 end if
             end if
         next
