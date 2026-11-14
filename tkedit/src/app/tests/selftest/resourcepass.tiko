@@ -18,6 +18,7 @@
 #import "tkd/canvas"
 #import "tkd/resdlg"
 #import "tkd/glyphdlg"
+#import "tkd/fontwriter"
 #import "tkd/edits"
 #import "tkd/model"
 #import "tkd/panels"
@@ -237,6 +238,30 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     dim as ustring tkg = fs.ReadAllText( fs.PathJoin( proj, "appGlyphs", "appGlyphs.tkglyphs" ) ).ValueOr( "" )
     t.Check( (instr( tkg, "Fluent = { bundled = ""FluentSystemIcons-Regular.ttf"" }" ) > 0) andalso (instr( tkg, "Tabler = " ) > 0), _
              P( sc, "appGlyphs.tkglyphs holds the project's glyph fonts" ) )
+    ' V4: the glyphs built -- numbered, one font, its module, main using it, the licence beside it, and
+    ' the form's code at the new number
+    mw.BuildGlyphs( )
+    dim as ustring gdir = fs.PathJoin( proj, "appGlyphs" )
+    tkg = fs.ReadAllText( fs.PathJoin( gdir, "appGlyphs.tkglyphs" ) ).ValueOr( "" )
+    t.Check( (instr( tkg, """Fluent:E824"" = ""E000""" ) > 0) andalso fontwriter.HasGlyph( fs.PathJoin( gdir, "glyphs.ttf" ), &hE000 ), _
+             P( sc, "glyphs: Fluent:E824 numbered E000, in glyphs.ttf" ) )
+    ' main.tiko as tkEdit has it: an open buffer takes the change (saved with it), else the file
+    dim as ustring mainText = fs.ReadAllText( fs.PathJoin( proj, "main.tiko" ) ).ValueOr( "" )
+    for each dd as DocRef in mw.Docs
+        if (len( dd->Path ) > 0) andalso fs.PathEquals( dd->Path, fs.PathJoin( proj, "main.tiko" ) ) then mainText = dd->Text( )
+    next
+    t.Check( (instr( fs.ReadAllText( fs.PathJoin( gdir, "appGlyphs.design.tiko" ) ).ValueOr( "" ), "#embed gGlyphs_ ""glyphs.ttf""" ) > 0) _
+             andalso (instr( mainText, "appGlyphs.ApplyOptions( options )" ) > 0) _
+             andalso fs.IsFile( fs.PathJoin( gdir, "licenses", "FluentSystemIcons-LICENSE.txt" ) ), _
+             P( sc, "glyphs: the module, main.tiko using it, Fluent's licence" ) )
+    dim as ustring formGen
+    for each dd as DocRef in mw.Docs
+        if dd->Designer then
+            mw.WriteGenerated( dd )
+            formGen &= fs.ReadAllText( left( dd->Path, len( dd->Path ) - 7 ) & ".design.tiko" ).ValueOr( "" )
+        end if
+    next
+    t.Check( instr( formGen, "Button1.GlyphLeft = wchr( &hE000 )" ) > 0, P( sc, "glyphs: the form's code writes the new number" ) )
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

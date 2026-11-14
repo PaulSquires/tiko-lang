@@ -454,6 +454,7 @@ public type Window
     GlyphPick as GlyphPickProc          ' 0 = the Glyph Picker dialog; a self-test answers in its place
     GlyphList as glyphfile.GlyphDoc     ' while the Glyph Picker is up: the project's list it edits
     GlyphListChanged as boolean
+    GlyphsReady as boolean              ' PrepareForms built the glyphs: its WriteGenerated calls need not
     Launch as LaunchProc
 
     ' ---- the App state
@@ -662,6 +663,7 @@ public type Window
     declare function GlyphFontPaths( ) as Array( of model.Setting )
     declare function GlyphUsers( byref key_ as const ustring ) as ustring
     declare sub SaveGlyphList( )
+    declare sub BuildGlyphs( )
     declare sub RegisterProjectResources( )
     SaveNote as ustring
     declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef

@@ -69,6 +69,15 @@ private function EnumConst_( byref pairs as const ustring, byref shown as const 
     return mid( t, a, instr( a, t, "," ) - a )
 end function
 
+' The project's glyph numbering for the Generate that follows (appGlyphs.tkglyphs [codes], GLYPHS.md
+' V4): Key "<font>:<hex>", Value its code in the merged glyphs.ttf. Empty: a glyph is written at its
+' source font's code.
+dim shared as Array( of Setting ) gGlyphCodes_
+
+public sub SetGlyphCodes( byref codes as Array( of Setting ) )
+    gGlyphCodes_ = codes
+end sub
+
 private function ValueExpr_( byref v as const ustring, byref kind_ as const ustring, byref pairs as const ustring ) as ustring
     select case kind_
     case "bool", "int", "float" : return v
@@ -76,9 +85,15 @@ private function ValueExpr_( byref v as const ustring, byref kind_ as const ustr
     case "color"                : return v & "ul"
     case "font"                 : return "tkForm_Font( Wnd, TKFONT_" & v & " )"
     case "glyph"
-        ' "<font>:<hex>": its character -- the source font's code until appGlyphs renumbers (GLYPHS.md V4)
+        ' "<font>:<hex>": its character in the project's merged font (appGlyphs), else the source font's
         dim as ulong cp = GlyphCode( v )
-        if cp then return "wchr( &h" & hex( cp ) & " )"
+        if cp then
+            dim as ustring want = ucase( GlyphRef( GlyphFontKey( v ), cp ) )
+            for each s as Setting in gGlyphCodes_
+                if ucase( s.Key ) = want then return "wchr( &h" & ucase( s.Value ) & " )"
+            next
+            return "wchr( &h" & hex( cp ) & " )"
+        end if
     end select
     return Literal_( v )
 end function

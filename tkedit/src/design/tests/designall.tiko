@@ -21,6 +21,7 @@
 #import "tkd/themefile"
 #import "tkd/resfile"
 #import "tkd/glyphfile"
+#import "tkd/fontwriter"
 #import "tkd/canvas"
 #import "tkd/edits"
 #import "tkd/reconcile"
@@ -1935,6 +1936,35 @@ sub GlyphFileSuite( )
            andalso (len( glyphfile.FontPath( d.Fonts[i], dir_ & "/appGlyphs", "" ) ) > 0), "glyphs: Add copies it in under a key", problem )
 end sub
 
+' GLYPHS.md V4: one font of glyphs from five, each at its new code (the tree's fonts: vendorfetch.sh)
+sub FontWriterSuite( )
+    const as string tk = "../../../pkg/vendor/tkControls/"
+    dim as fontwriter.GlyphTake takes( 0 to 5 )
+    dim as string srcs( 0 to 5 ) = { "fonts/FluentSystemIcons-Regular.ttf", "fonts/FluentSystemIcons-Regular.ttf", _
+        "glyphfonts/MaterialIcons-Regular.ttf", "glyphfonts/Phosphor.ttf", "glyphfonts/lucide.ttf", "glyphfonts/tabler-icons.ttf" }
+    dim as ulong cps( 0 to 5 ) = { &hE824, &hF369, &hE8ED, &hE610, &hE44F, &hF0F7 }
+    dim as Array( of fontwriter.GlyphTake ) list
+    for i as long = 0 to 5
+        takes( i ).Path = tk & srcs( i ) : takes( i ).Code = cps( i ) : takes( i ).Target = &hE000 + i
+        list.Push( takes( i ) )
+    next
+    if fs.IsFile( tk & "glyphfonts/tabler-icons.ttf" ) = false then
+        print "  (skipped: the glyph fonts are not fetched -- sh build/vendorfetch.sh --module tkControls)"
+        exit sub
+    end if
+    dim as Array( of ubyte ) bytes
+    dim as ustring problem
+    Check( fontwriter.Build( list, "Test Glyphs", bytes, problem ) andalso (len( problem ) = 0), "fontwriter: built", problem )
+    const as string out_ = "tests/bin/glyphs/glyphs.ttf"
+    fs.CreateDirAll( "tests/bin/glyphs" )
+    fs.WriteAllBytes( out_, bytes )
+    dim as boolean all_ = true
+    for i as long = 0 to 5
+        if fontwriter.HasGlyph( out_, &hE000 + i ) = false then all_ = false
+    next
+    Check( all_ andalso (fontwriter.HasGlyph( out_, &hE824 ) = false), "fontwriter: every glyph at its new code, none at its old", str( bytes.Count( ) ) )
+end sub
+
 sub EmbedFontsSuite( )
     dim as ustring none
     dim as ustring text = "format = 1" & LF & "name = ""E""" & LF & LF & "[dark]" & LF & LF & "[light]" & LF & LF _
@@ -2048,5 +2078,6 @@ ThemeLoadFixtures( bAccept )
 EmbedFontsSuite( )
 GlyphValueSuite( )
 GlyphFileSuite( )
+FontWriterSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

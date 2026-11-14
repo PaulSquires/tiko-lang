@@ -33,6 +33,7 @@
 #import "tkd/resdlg"
 #import "tkd/glyphdlg"
 #import "tkd/glyphfile"
+#import "tkd/fontwriter"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "vendor/tkControls/tkMeta"
@@ -863,6 +864,104 @@ function Window.PickGlyph( byref current as const ustring, byref picked as ustri
     return ok
 end function
 
+' The project's glyphs (GLYPHS.md V4): every "<font>:<hex>" its forms use (open ones as they stand),
+' numbered in appGlyphs.tkglyphs [codes], built into appGlyphs/glyphs.ttf with the generated module
+' beside it and the source fonts' licences in licenses/; main.tiko made to use it; codegen told the
+' numbering. Nothing is written while no form uses a glyph.
+sub Window.BuildGlyphs( )
+    dim as Array( of Setting ) noCodes
+    codegen.SetGlyphCodes( noCodes )
+    dim as ustring gp = this.GlyphsPath( ), none, e
+    if len( gp ) = 0 then exit sub
+    dim as Array( of ustring ) used, files
+    ProjectRefFiles_( fs.PathParent( Proj.Path ), files, 0 )
+    for each p as ustring in files
+        if lcase( right( p, 7 ) ) <> ".tkform" then continue for
+        dim as DocRef d = OpenDocAt_( Docs, p )
+        dim as ustring text
+        if d then text = d->Text( ) else text = fs.ReadAllText( p ).ValueOr( none )
+        dim as FormDoc fd
+        if formfile.Parse( text, fd, e ) = false then continue for
+        for each fc as FormControl in fd.Controls
+            dim as TKMETA_CONTROL ptr m = catalog.Find( fc.TypeName )
+            for each s as Setting in fc.Props
+                dim as TKMETA_PROP ptr pr = tkMeta_FindProp( m, s.Key )
+                if (pr = 0) orelse (pr->Kind <> "glyph") orelse (GlyphCode( s.Value ) = 0) then continue for
+                dim as ustring u = GlyphRef( GlyphFontKey( s.Value ), GlyphCode( s.Value ) )
+                dim as boolean seen = false
+                for each x as ustring in used
+                    if ucase( x ) = ucase( u ) then seen = true
+                next
+                if seen = false then used.Push( u )
+            next
+        next
+    next
+    if used.Count( ) = 0 then exit sub
+    dim as glyphfile.GlyphDoc gd
+    glyphfile.Load( gp, gd )
+    dim as boolean numbered = glyphfile.AssignCodes( gd, used )
+    dim as ustring gdir = fs.PathParent( gp ), tkg = glyphfile.Render( gd )
+    fs.CreateDirAll( gdir )
+    if numbered orelse (fs.IsFile( gp ) = false) then fs.WriteAtomic( gp, tkg )
+    ' the font: each glyph used, at its number
+    dim as Array( of fontwriter.GlyphTake ) takes
+    dim as Array( of ustring ) licenses
+    for each u as ustring in used
+        dim as long k = glyphfile.Find( gd, GlyphFontKey( u ) )
+        if k < 0 then continue for
+        dim as ustring path = glyphfile.FontPath( gd.Fonts[k], gdir, this.PkgDir( ) )
+        if len( path ) = 0 then continue for
+        dim as fontwriter.GlyphTake t
+        t.Path = path : t.Code = GlyphCode( u ) : t.Target = glyphfile.CodeOf( gd, u )
+        if t.Target = 0 then continue for
+        takes.Push( t )
+        dim as ustring lic = glyphfile.LicenseOf( path )
+        dim as boolean have = (len( lic ) = 0)
+        for each l as ustring in licenses
+            if l = lic then have = true
+        next
+        if have = false then licenses.Push( lic )
+    next
+    dim as Array( of ubyte ) bytes, old
+    dim as ustring problem, fontPath = fs.PathJoin( gdir, glyphfile.GLYPHS_FONT )
+    if fontwriter.Build( takes, fs.PathFileName( fs.PathParent( Proj.Path ) ) & " Glyphs", bytes, problem ) then
+        dim as boolean same = false
+        if fs.IsFile( fontPath ) andalso fs.ReadAllBytes( fontPath, old ).IsOk( ) andalso (old.Count( ) = bytes.Count( )) then
+            same = true
+            for i as long = 0 to bytes.Count( ) - 1
+                if old[i] <> bytes[i] then same = false : exit for
+            next
+        end if
+        if same = false then fs.WriteAtomic( fontPath, bytes )
+    end if
+    if len( problem ) then this.SetMessage( glyphfile.GLYPHS_FONT & ": " & problem )
+    ' the module, and the licences beside the font
+    dim as ustring gen = glyphfile.Generate( tkg ), target = fs.PathJoin( gdir, glyphfile.GLYPHS_MODULE & ".design.tiko" )
+    if (fs.IsFile( target ) = false) orelse (codegen.WithoutCr( fs.ReadAllText( target ).ValueOr( none ) ) <> gen) then fs.WriteAtomic( target, gen )
+    if licenses.Count( ) then
+        dim as ustring ld = fs.PathJoin( gdir, glyphfile.LICENSES_DIR )
+        fs.CreateDirAll( ld )
+        for each l as ustring in licenses
+            dim as ustring dst = fs.PathJoin( ld, fs.PathFileName( l ) )
+            if fs.IsFile( dst ) = false then fs.CopyFile( l, dst, false )
+        next
+    end if
+    ' main.tiko uses it, as a new project's would
+    dim as ustring mainPath = fs.PathJoin( fs.PathParent( Proj.Path ), "main.tiko" ), outText
+    dim as DocRef mainDoc = OpenDocAt_( Docs, mainPath )
+    dim as ustring mainText
+    if mainDoc then mainText = mainDoc->Text( ) else mainText = fs.ReadAllText( mainPath ).ValueOr( none )
+    if len( mainText ) then
+        select case glyphfile.InstallIntoMain( codegen.WithoutCr( mainText ), outText )
+        case 1
+            if mainDoc then mainDoc->Main.ReplaceAllText( outText ) else fs.WriteAtomic( mainPath, outText )
+        case -1
+            this.SetMessage( i18n.Tr( "designer.glyph_main_by_hand", "main.tiko: add appGlyphs.ApplyOptions( options ) just before tkApp_Init" ) )
+        end select
+    end if
+    codegen.SetGlyphCodes( gd.Codes )
+end sub
+
 ' Every resource of the open project known to this process by its name, as a file: the canvas and
 ' the Test Form show "res:<name>" as the program will. Names from before are taken back first.
 sub Window.RegisterProjectResources( )
@@ -1225,6 +1324,7 @@ function Window.WriteGenerated( byval d as DocRef ) as boolean
         this.SetMessage( fs.PathFileName( d->Path ) & ": " & problems[0] )
         return false
     end if
+    if GlyphsReady = false then this.BuildGlyphs( )        ' the numbering its glyphs are written at
     dim as ustring generated = codegen.Generate( d->Designer->Doc, moduleName, fs.PathFileName( d->Path ), d->Text( ) )
     dim as ustring target = DesignPathOf_( d->Path ), none
     if fs.IsFile( target ) then
@@ -1241,6 +1341,9 @@ end function
 ' Before a build: every open form's code matches, and its generated file is current.
 function Window.PrepareForms( ) as boolean
     dim as boolean ok = true
+    ' the project's glyphs first, once: every form's code is written at their numbering
+    this.BuildGlyphs( )
+    GlyphsReady = true
     for each d as DocRef in Docs
         if d->Designer then
             this.ReconcileDesigner( d )
@@ -1275,6 +1378,7 @@ function Window.PrepareForms( ) as boolean
             if this.WriteResourcesGenerated( resPath, fs.ReadAllText( resPath ).ValueOr( none ) ) = false then ok = false
         end if
     end if
+    GlyphsReady = false
     if len( SaveNote ) then
         this.SetMessage( SaveNote )
         SaveNote = ""
