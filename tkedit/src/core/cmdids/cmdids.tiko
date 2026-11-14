@@ -114,6 +114,17 @@ public enum Cmd explicit
     FormTheme
     FormResources
     FormPreviewVariant
+    FormHSpaceEqual
+    FormHSpaceIncrease
+    FormHSpaceDecrease
+    FormHSpaceRemove
+    FormVSpaceEqual
+    FormVSpaceIncrease
+    FormVSpaceDecrease
+    FormVSpaceRemove
+    FormCenterHorz
+    FormCenterVert
+    FormLockControls
     UnfoldAll
     ' Project
     ProjectSaveAs
@@ -344,8 +355,19 @@ constructor CommandTable( )
     this.Def( Cmd.FormSameWidth, "FormSameWidth", g, "Same Width", "" )
     this.Def( Cmd.FormSameHeight, "FormSameHeight", g, "Same Height", "" )
     this.Def( Cmd.FormSameSize, "FormSameSize", g, "Same Size", "" )
+    this.Def( Cmd.FormHSpaceEqual, "FormHSpaceEqual", g, "Horizontal Spacing: Make Equal", "", true )
+    this.Def( Cmd.FormHSpaceIncrease, "FormHSpaceIncrease", g, "Horizontal Spacing: Increase", "" )
+    this.Def( Cmd.FormHSpaceDecrease, "FormHSpaceDecrease", g, "Horizontal Spacing: Decrease", "" )
+    this.Def( Cmd.FormHSpaceRemove, "FormHSpaceRemove", g, "Horizontal Spacing: Remove", "" )
+    this.Def( Cmd.FormVSpaceEqual, "FormVSpaceEqual", g, "Vertical Spacing: Make Equal", "" )
+    this.Def( Cmd.FormVSpaceIncrease, "FormVSpaceIncrease", g, "Vertical Spacing: Increase", "" )
+    this.Def( Cmd.FormVSpaceDecrease, "FormVSpaceDecrease", g, "Vertical Spacing: Decrease", "" )
+    this.Def( Cmd.FormVSpaceRemove, "FormVSpaceRemove", g, "Vertical Spacing: Remove", "" )
+    this.Def( Cmd.FormCenterHorz, "FormCenterHorz", g, "Center Horizontally in Form", "", true )
+    this.Def( Cmd.FormCenterVert, "FormCenterVert", g, "Center Vertically in Form", "" )
     this.Def( Cmd.FormBringToFront, "FormBringToFront", g, "Bring to Front", "", true )
     this.Def( Cmd.FormSendToBack, "FormSendToBack", g, "Send to Back", "" )
+    this.Def( Cmd.FormLockControls, "FormLockControls", g, "Lock Controls", "", true )
     this.Def( Cmd.FormSnapToGrid, "FormSnapToGrid", g, "Snap to Grid", "", true )
     this.Def( Cmd.FormFloatToolbox, "FormFloatToolbox", g, "Float Toolbox", "", true )
     this.Def( Cmd.FormFloatProperties, "FormFloatProperties", g, "Float Properties", "" )

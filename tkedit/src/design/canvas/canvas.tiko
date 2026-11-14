@@ -220,6 +220,9 @@ public type FormCanvas
     declare sub PasteAt( byval x as long, byval y as long )
     declare sub PasteBeside( )
     declare sub Align( byval mode as edits.AlignMode )
+    declare sub Space( byval down_ as boolean, byval mode as edits.SpaceMode )
+    declare sub Center( byval down_ as boolean )
+    declare sub ToggleLock( )
     declare sub ToFront( )
     declare sub ToBack( )
     declare sub SetPageOf( byref name_ as const ustring, byval page as long )
@@ -736,6 +739,7 @@ function FormCanvas.HitGrip( byval x as long, byval y as long ) as long
     if (gx = -1) andalso (gy = -1) then return 0        ' the centre is no grip
     if gx = -1 then gx = 0
     if gy = -1 then gy = 0
+    if Doc.Controls[i].Locked then return 0             ' a locked control's grips only show it's locked
     dim as long allowed = this.GripsOf( i )
     ' every edge this grip wants has to be free to move, or it's no grip at all
     if ((gx or gy) and allowed) <> (gx or gy) then return 0
@@ -892,7 +896,7 @@ sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
         end if
         for each s as ustring in tops
             dim as long i = FindControl( Doc, s )
-            if Doc.Controls[i].Dock = TK_DOCK_NONE then
+            if (Doc.Controls[i].Dock = TK_DOCK_NONE) andalso (Doc.Controls[i].Locked = false) then
                 Doc.Controls[i].X += ax
                 Doc.Controls[i].Y += ay
             end if
@@ -1185,6 +1189,7 @@ sub FormCanvas.Nudge( byval dx as long, byval dy as long, byval resize_ as boole
     if Selected.Count( ) = 0 then exit sub
     for each s as ustring in edits.TopLevelOf( Doc, Selected )
         dim as long i = FindControl( Doc, s )
+        if Doc.Controls[i].Locked then continue for
         if resize_ then
             dim as long allowed = this.GripsOf( i )
             dim as long w = Doc.Controls[i].W, h = Doc.Controls[i].H
@@ -1328,6 +1333,56 @@ sub FormCanvas.Align( byval mode as edits.AlignMode )
     this.Commit( )
 end sub
 
+sub FormCanvas.Space( byval down_ as boolean, byval mode as edits.SpaceMode )
+    edits.SpaceControls( Doc, Selected, down_, mode, GridSize )
+    this.SyncGeometry( )
+    this.Commit( )
+end sub
+
+' Centred in what the parent's docked controls leave free of it, as one block.
+sub FormCanvas.Center( byval down_ as boolean )
+    if Selected.Count( ) = 0 then exit sub
+    dim as long i = FindControl( Doc, Selected[0] )
+    if i < 0 then exit sub
+    dim as ustring parent_ = lcase( Doc.Controls[i].Parent )
+    dim as long page_ = Doc.Controls[i].Page
+    dim as TKRECT base_ = this.SurfaceRect( )
+    dim as long p = FindControl( Doc, parent_ )
+    if p >= 0 then
+        dim as TK_WIDGET ptr cw_
+        this.ContainerClient( p, iif( page_ < 0, 0, page_ ), cw_ )
+        base_ = this.RectOf( cw_ )
+    end if
+    dim as TKRECT a = base_
+    for k as long = 0 to Doc.Controls.Count( ) - 1
+        if (lcase( Doc.Controls[k].Parent ) <> parent_) orelse (Doc.Controls[k].Page <> page_) then continue for
+        if (k >= Widgets.Count( )) orelse (Doc.Controls[k].Dock = TK_DOCK_NONE) then continue for
+        if (Widgets[k] = 0) orelse (this.Shows( Widgets[k] ) = false) then continue for
+        dim as TKRECT rc = this.RectOf( Widgets[k] )
+        select case Doc.Controls[k].Dock
+        case TK_DOCK_TOP    : if rc.bottom > a.top then a.top = rc.bottom
+        case TK_DOCK_BOTTOM : if rc.top < a.bottom then a.bottom = rc.top
+        case TK_DOCK_LEFT   : if rc.right > a.left then a.left = rc.right
+        case TK_DOCK_RIGHT  : if rc.left < a.right then a.right = rc.left
+        end select
+    next
+    if down_ then
+        edits.CenterControls( Doc, Selected, true, this.ToDesign( a.top - base_.top ), this.ToDesign( a.bottom - base_.top ) )
+    else
+        edits.CenterControls( Doc, Selected, false, this.ToDesign( a.left - base_.left ), this.ToDesign( a.right - base_.left ) )
+    end if
+    this.SyncGeometry( )
+    this.Commit( )
+end sub
+
+' Design > Lock Controls: the selection (nothing selected: every control) locked, or unlocked when it all is.
+sub FormCanvas.ToggleLock( )
+    if Doc.Controls.Count( ) = 0 then exit sub
+    edits.ToggleLock( Doc, Selected )
+    tkWidget_Invalidate( Glass )
+    this.Commit( )
+end sub
+
 sub FormCanvas.ToFront( )
     if Selected.Count( ) = 0 then exit sub
     edits.BringToFront( Doc, Selected )
@@ -1402,20 +1457,21 @@ sub FormCanvas.Paint( byval b as TK_PAINT ptr )
         if (i < 0) orelse (i >= Widgets.Count( )) then continue for
         if (Widgets[i] = 0) orelse (this.Shows( Widgets[i] ) = false) then continue for
         dim as TKRECT rc = this.RectOf( Widgets[i] )
-        ' the control others line up against is the solid one
-        dim as ulong fill_ = iif( k = 0, t.Accent, t.Window )
-        b->SetPenColor( t.Accent )
+        ' the control others line up against is the solid one; a locked one's grips are the warning colour
+        dim as ulong ink = iif( Doc.Controls[i].Locked, t.Warning, t.Accent )
+        dim as ulong fill_ = iif( k = 0, ink, t.Window )
+        b->SetPenColor( ink )
         b->PaintRoundOutline( @rc, 0, 1 )
         dim as long allowed = this.GripsOf( i )
         dim as long mx = (rc.left + rc.right) \ 2, my = (rc.top + rc.bottom) \ 2
-        if (allowed and EDGE_L) andalso (allowed and EDGE_T) then PaintGrip_( b, rc.left, rc.top, sz, fill_, t.Accent )
-        if allowed and EDGE_T then PaintGrip_( b, mx, rc.top, sz, fill_, t.Accent )
-        if (allowed and EDGE_R) andalso (allowed and EDGE_T) then PaintGrip_( b, rc.right, rc.top, sz, fill_, t.Accent )
-        if allowed and EDGE_L then PaintGrip_( b, rc.left, my, sz, fill_, t.Accent )
-        if allowed and EDGE_R then PaintGrip_( b, rc.right, my, sz, fill_, t.Accent )
-        if (allowed and EDGE_L) andalso (allowed and EDGE_B) then PaintGrip_( b, rc.left, rc.bottom, sz, fill_, t.Accent )
-        if allowed and EDGE_B then PaintGrip_( b, mx, rc.bottom, sz, fill_, t.Accent )
-        if (allowed and EDGE_R) andalso (allowed and EDGE_B) then PaintGrip_( b, rc.right, rc.bottom, sz, fill_, t.Accent )
+        if (allowed and EDGE_L) andalso (allowed and EDGE_T) then PaintGrip_( b, rc.left, rc.top, sz, fill_, ink )
+        if allowed and EDGE_T then PaintGrip_( b, mx, rc.top, sz, fill_, ink )
+        if (allowed and EDGE_R) andalso (allowed and EDGE_T) then PaintGrip_( b, rc.right, rc.top, sz, fill_, ink )
+        if allowed and EDGE_L then PaintGrip_( b, rc.left, my, sz, fill_, ink )
+        if allowed and EDGE_R then PaintGrip_( b, rc.right, my, sz, fill_, ink )
+        if (allowed and EDGE_L) andalso (allowed and EDGE_B) then PaintGrip_( b, rc.left, rc.bottom, sz, fill_, ink )
+        if allowed and EDGE_B then PaintGrip_( b, mx, rc.bottom, sz, fill_, ink )
+        if (allowed and EDGE_R) andalso (allowed and EDGE_B) then PaintGrip_( b, rc.right, rc.bottom, sz, fill_, ink )
     next
 
     if (Drag = DragRubber) orelse (Drag = DragDraw) then

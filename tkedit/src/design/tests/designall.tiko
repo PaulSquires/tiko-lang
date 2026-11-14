@@ -423,6 +423,25 @@ sub EditsSuite( )
     edits.AlignControls( a, Names( "Button1", "Button2" ), edits.AlignMode.AlignTops )
     Check( a.Controls[1].Y = 77, "a docked control isn't aligned" )
 
+    ' spacing, centring, locking (Design menu)
+    dim as FormDoc sp
+    sp.ClientW = 300 : sp.ClientH = 200
+    edits.AddControl( sp, "Button", "", -1, 10, 10, 40, 20 )
+    edits.AddControl( sp, "Button", "", -1, 60, 10, 40, 20 )
+    edits.AddControl( sp, "Button", "", -1, 200, 10, 40, 20 )
+    edits.SpaceControls( sp, Names( "Button2", "Button1", "Button3" ), false, edits.SpaceMode.SpaceEqual, 8 )
+    Check( (sp.Controls[0].X = 10) andalso (sp.Controls[1].X = 105) andalso (sp.Controls[2].X = 200), "make equal: 10 105 200", str( sp.Controls[1].X ) )
+    sp.Controls[2].Locked = true
+    edits.SpaceControls( sp, Names( "Button1", "Button2", "Button3" ), false, edits.SpaceMode.SpaceRemove, 8 )
+    Check( (sp.Controls[0].X = 10) andalso (sp.Controls[1].X = 50) andalso (sp.Controls[2].X = 200), "remove from the active one; the locked one stays", str( sp.Controls[1].X ) )
+    edits.CenterControls( sp, Names( "Button1", "Button2" ), false, 0, 300 )
+    Check( (sp.Controls[0].X = 110) andalso (sp.Controls[1].X = 150), "centred across as one block", str( sp.Controls[0].X ) )
+    edits.ToggleLock( sp, Names( "Button1" ) )
+    dim as FormDoc sp2
+    dim as ustring spe
+    Check( edits.AllLocked( sp, Names( "Button1", "Button3" ) ) andalso formfile.Parse( formfile.Render( sp ), sp2, spe ) andalso _
+           sp2.Controls[0].Locked andalso (sp2.Controls[1].Locked = false), "locked, and saved", spe )
+
     ' resizing moves what's anchored inside, at every depth
     dim as FormDoc r
     r.ClientW = 300 : r.ClientH = 200

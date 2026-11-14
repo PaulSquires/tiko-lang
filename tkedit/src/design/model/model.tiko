@@ -65,6 +65,7 @@ public type FormControl
     StyleName as ustring
     Colors as Array( of Setting )
     ContextMenu as ustring          ' a PopupMenu of the form that a right-click on it opens, "" = none
+    Locked as boolean               ' Design > Lock Controls: the designer won't move or resize it
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

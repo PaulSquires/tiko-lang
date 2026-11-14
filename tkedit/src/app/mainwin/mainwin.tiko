@@ -946,6 +946,15 @@ function Window.Create( byval forcedScale as single ) as boolean
         for each id as Cmd in t.InGroup( cast( MenuGroup, idx ) )
             tkPopupMenu_SetItemEnabled( hPopup, clng( id ), mw->CanRun( id ) )
         next
+        ' Lock Controls is checked while everything it acts on is locked
+        if idx = clng( MenuGroup.Design ) then
+            dim as DocRef d = mw->Active( )
+            dim as boolean locked_ = false
+            if (d <> 0) andalso (mw->ShowsStart( ) = false) andalso (d->Designer <> 0) then
+                locked_ = edits.AllLocked( d->Designer->Doc, d->Designer->Selected )
+            end if
+            tkPopupMenu_SetItemChecked( hPopup, clng( Cmd.FormLockControls ), locked_ )
+        end if
         ' one row starts a session and continues a stopped one (tiko-editor-tiko's)
         if idx = clng( MenuGroup.Debug ) then
             dim as ustring cap = i18n.Tr( "commands.StartDebugging", "Start Debugging" )
@@ -1745,7 +1754,10 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormPreviewVariant
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormPreviewVariant, _
+         Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove, _
+         Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove, _
+         Cmd.FormCenterHorz, Cmd.FormCenterVert, Cmd.FormLockControls
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1882,6 +1894,17 @@ function Window.DesignerCommand( byval id as Cmd ) as boolean
     case Cmd.FormSameSize : d->Designer->Align( edits.AlignMode.SameSize )
     case Cmd.FormBringToFront : d->Designer->ToFront( )
     case Cmd.FormSendToBack : d->Designer->ToBack( )
+    case Cmd.FormHSpaceEqual : d->Designer->Space( false, edits.SpaceMode.SpaceEqual )
+    case Cmd.FormHSpaceIncrease : d->Designer->Space( false, edits.SpaceMode.SpaceIncrease )
+    case Cmd.FormHSpaceDecrease : d->Designer->Space( false, edits.SpaceMode.SpaceDecrease )
+    case Cmd.FormHSpaceRemove : d->Designer->Space( false, edits.SpaceMode.SpaceRemove )
+    case Cmd.FormVSpaceEqual : d->Designer->Space( true, edits.SpaceMode.SpaceEqual )
+    case Cmd.FormVSpaceIncrease : d->Designer->Space( true, edits.SpaceMode.SpaceIncrease )
+    case Cmd.FormVSpaceDecrease : d->Designer->Space( true, edits.SpaceMode.SpaceDecrease )
+    case Cmd.FormVSpaceRemove : d->Designer->Space( true, edits.SpaceMode.SpaceRemove )
+    case Cmd.FormCenterHorz : d->Designer->Center( false )
+    case Cmd.FormCenterVert : d->Designer->Center( true )
+    case Cmd.FormLockControls : d->Designer->ToggleLock( )
     case Cmd.FormSnapToGrid
         d->Designer->SnapToGrid = (d->Designer->SnapToGrid = false)
         tkWidget_Invalidate( d->Designer->Frame )
@@ -2070,6 +2093,9 @@ public function DesignSub( byval id as Cmd ) as long
          Cmd.FormAlignTops, Cmd.FormAlignMiddles, Cmd.FormAlignBottoms : return 1
     case Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize : return 2
     case Cmd.FormBringToFront, Cmd.FormSendToBack : return 3
+    case Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove : return 4
+    case Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove : return 5
+    case Cmd.FormCenterHorz, Cmd.FormCenterVert : return 6
     end select
     return 0
 end function
@@ -2079,6 +2105,9 @@ private function DesignSubTitle( byval n as long ) as ustring
     case 1 : return i18n.Tr( "menubar.align", "Align" )
     case 2 : return i18n.Tr( "menubar.same_size", "Make Same Size" )
     case 3 : return i18n.Tr( "menubar.order", "Order" )
+    case 4 : return i18n.Tr( "menubar.h_spacing", "Horizontal Spacing" )
+    case 5 : return i18n.Tr( "menubar.v_spacing", "Vertical Spacing" )
+    case 6 : return i18n.Tr( "menubar.center_form", "Center in Form" )
     end select
     return ""
 end function
@@ -2096,6 +2125,12 @@ private function DesignSubRow( byval id as Cmd ) as ustring
     case Cmd.FormSameSize : return i18n.Tr( "menubar.both", "Both" )
     case Cmd.FormBringToFront : return i18n.Tr( "menubar.to_front", "Bring to Front" )
     case Cmd.FormSendToBack : return i18n.Tr( "menubar.to_back", "Send to Back" )
+    case Cmd.FormHSpaceEqual, Cmd.FormVSpaceEqual : return i18n.Tr( "menubar.make_equal", "Make Equal" )
+    case Cmd.FormHSpaceIncrease, Cmd.FormVSpaceIncrease : return i18n.Tr( "menubar.increase", "Increase" )
+    case Cmd.FormHSpaceDecrease, Cmd.FormVSpaceDecrease : return i18n.Tr( "menubar.decrease", "Decrease" )
+    case Cmd.FormHSpaceRemove, Cmd.FormVSpaceRemove : return i18n.Tr( "menubar.remove", "Remove" )
+    case Cmd.FormCenterHorz : return i18n.Tr( "menubar.horizontally", "Horizontally" )
+    case Cmd.FormCenterVert : return i18n.Tr( "menubar.vertically", "Vertically" )
     end select
     return ""
 end function

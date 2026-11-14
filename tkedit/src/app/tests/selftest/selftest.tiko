@@ -3508,6 +3508,11 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     dim as TK_MENU ptr alm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormAlignLefts ) )
     t.Check( (tkMenuBar_GetItemText( mw.menuBar, clng( MenuGroup.Design ) ) = "Design") andalso (alm <> 0) andalso _
              (tkPopupMenu_GetItemCount( alm ) = 7), P( sc, "menu: Design > Align holds Lefts .. Bottoms, a separator between" ) )
+    dim as TK_MENU ptr hsm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormHSpaceEqual ) )
+    dim as TK_MENU ptr cfm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormCenterHorz ) )
+    t.Check( (hsm <> 0) andalso (tkPopupMenu_GetItemCount( hsm ) = 4) andalso (cfm <> 0) andalso (tkPopupMenu_GetItemCount( cfm ) = 2) andalso _
+             tkPopupMenu_GetItemEnabled( dsm, clng( Cmd.FormLockControls ) ), _
+             P( sc, "menu: Design > Horizontal Spacing (4 rows), Center in Form (2), Lock Controls" ) )
     t.Check( mw.Start.frame->y = mh, P( sc, strings.Format( "menu: the start panel under it ({})", mw.Start.frame->y ) ) )
 
     ' ---- File opens on a click; with no buffer what acts on one is greyed
