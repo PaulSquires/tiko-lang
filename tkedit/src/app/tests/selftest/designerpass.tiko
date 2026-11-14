@@ -24,6 +24,7 @@
 #import "vendor/tkControls/tkPopupMenu"
 #import "vendor/tkControls/tkTabControl"
 #import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkScrollBar"
 using containers
 using cmdids
 using tkApp
@@ -33,6 +34,7 @@ using tkPaint
 using tkPopupMenu
 using tkTabControl
 using tkTabBar
+using tkScrollBar
 using model
 
 const as string FORM_TEXT = _
@@ -366,6 +368,18 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     Primary( h, SDLK_Z, SDL_SCANCODE_Z )
     tkTest_PumpFor( h, 30 )
     t.Check( d->Text( ) = text0, P( sc, "undone" ) )
+
+    ' ---- the surface scrolls over room the size of the screen, both ways
+    dim as TKRECT sr0 = c->SurfaceRect( )
+    tkScrollBar_SetPos( c->HBar, 40 )
+    tkScrollBar_SetPos( c->VBar, 40 )
+    c->PlaceSurface( )
+    dim as TKRECT sr1 = c->SurfaceRect( )
+    t.Check( c->HBar->isVisible andalso c->VBar->isVisible andalso (sr1.left = sr0.left - 40) andalso (sr1.top = sr0.top - 40), _
+             P( sc, strings.Format( "the canvas scrolls across and down (form at {},{}, was {},{})", sr1.left, sr1.top, sr0.left, sr0.top ) ) )
+    tkScrollBar_SetPos( c->HBar, 0 )
+    tkScrollBar_SetPos( c->VBar, 0 )
+    c->PlaceSurface( )
 
     ' ---- align and z-order
     ClickOn( h, c->WidgetOf( "btnA" ) )

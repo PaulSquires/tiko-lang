@@ -179,6 +179,7 @@ public type FormCanvas
     declare sub Rebuild( )
     declare sub SyncGeometry( )
     declare sub PlaceSurface( )
+    declare sub ScreenPixels( byref w as long, byref h as long )
     declare sub ContainerClient( byval i as long, byval page as long, byref w as TK_WIDGET ptr )
 
     declare function ToDesign( byval px as long ) as long
@@ -286,10 +287,16 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         end if
         return true
     case TKM_MOUSEWHEEL
-        if c->VBar->isVisible then
-            tkScrollBar_SetPos( c->VBar, tkScrollBar_GetPos( c->VBar ) - cint( m->wheelY * c->ToPixels( 24 ) ) )
-            c->PlaceSurface( )
+        ' the wheel scrolls down; Shift+wheel, or a sideways wheel, across
+        dim as single wx = m->wheelX, wy = m->wheelY
+        if ((SDL_GetModState( ) and SDL_KMOD_SHIFT) <> 0) andalso (wx = 0) then
+            wx = -wy
+            wy = 0
         end if
+        dim as long stp = c->ToPixels( 24 )
+        if (wy <> 0) andalso c->VBar->isVisible then tkScrollBar_SetPos( c->VBar, tkScrollBar_GetPos( c->VBar ) - cint( wy * stp ) )
+        if (wx <> 0) andalso c->HBar->isVisible then tkScrollBar_SetPos( c->HBar, tkScrollBar_GetPos( c->HBar ) + cint( wx * stp ) )
+        c->PlaceSurface( )
         return true
     case TKM_KEYDOWN
         return c->OnKey( m->key, m->mods )
@@ -621,7 +628,21 @@ sub FormCanvas.SyncGeometry( )
     this.PlaceSurface( )
 end sub
 
-' The form in the frame, the scroll bars for what doesn't fit, the glass over it all.
+' The usable area of the display tkEdit is on, in pixels: how far the design surface scrolls, and
+' the largest the form may be dragged (author 2026-11-14). 1920 x 1080 when the display won't say.
+sub FormCanvas.ScreenPixels( byref w as long, byref h as long )
+    w = this.ToPixels( 1920 )
+    h = this.ToPixels( 1080 )
+    dim as TK_HOST ptr hs = Frame->pHost
+    dim as SDL_Rect rd
+    if SDL_GetDisplayUsableBounds( SDL_GetDisplayForWindow( hs->win ), @rd ) = false then exit sub
+    if (rd.w <= 0) orelse (rd.h <= 0) then exit sub
+    w = cint( rd.w * hs->fDensity )
+    h = cint( rd.h * hs->fDensity )
+end sub
+
+' The form in the frame, the glass over it all, and scroll bars over room the size of the screen
+' (or the form, if larger): there is always somewhere to drag the form's grips out to.
 sub FormCanvas.PlaceSurface( )
     if (Frame = 0) orelse (Surface = 0) then exit sub
     if Live then
@@ -634,7 +655,9 @@ sub FormCanvas.PlaceSurface( )
     end if
     dim as long fw = this.ToPixels( Doc.ClientW ), fh = this.ToPixels( Doc.ClientH )
     dim as long m = this.ToPixels( MARGIN ), bar_ = this.ToPixels( BAR )
-    dim as long needW = fw + 2 * m, needH = fh + 2 * m
+    dim as long sw, sh
+    this.ScreenPixels( sw, sh )
+    dim as long needW = iif( fw > sw, fw, sw ) + 2 * m, needH = iif( fh > sh, fh, sh ) + 2 * m
     dim as long cw = Frame->cw, ch = Frame->ch
     dim as boolean showV = needH > ch
     dim as boolean showH = needW > (cw - iif( showV, bar_, 0 ))
@@ -926,6 +949,10 @@ sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
         dim as long w = Doc.ClientW, h = Doc.ClientH
         if Grip and EDGE_R then w = edits.Snap( w + dx, g )
         if Grip and EDGE_B then h = edits.Snap( h + dy, g )
+        dim as long sw, sh
+        this.ScreenPixels( sw, sh )
+        if w > this.ToDesign( sw ) then w = this.ToDesign( sw )
+        if h > this.ToDesign( sh ) then h = this.ToDesign( sh )
         if w < 80 then w = 80
         if h < 60 then h = 60
         edits.ResizeForm( Doc, w, h )
