@@ -410,33 +410,102 @@ private sub SizeFont( byval h as TK_HOST ptr, byval f as TTF_Font ptr, byval pt 
     TTF_SetFontSizeDPI( f, pt, dpi, dpi )
 end sub
 
-' FONTS FROM MEMORY. A program that carries its fonts inside itself ('#embed') registers each under
-' a name, and every font tkHost, tkApp and tkCodeEdit open takes that name where it takes a file
-' path -- exactly that name, nothing derived from it. The convention is "mem:<file name>", so
-' tkApp's FontDir = "mem:" finds them by their usual file names. The bytes stay the caller's: they
-' must outlive every font opened from them (an '#embed' array lives as long as the program).
-dim shared as string gMemFontName()
-dim shared as const any ptr gMemFontData()
-dim shared as integer gMemFontSize()
+' RESOURCES: fonts and images known by a name. A program that carries them inside itself ('#embed')
+' registers each one's bytes; one that ships them beside itself registers each one's file. Every font
+' tkHost, tkApp and tkCodeEdit open, and every image tkImage, tkButton and tkForm_SetIcon load
+' (tkHost_LoadSurface), takes a registered name where it takes a file path -- exactly that name,
+' nothing derived from it. The conventions: "mem:<file name>" for a theme's fonts (tkApp's
+' FontDir = "mem:" finds them by their usual file names), "res:<Name>" for a project's resources
+' (the Form Designer's Resource Center). Bytes stay the caller's: they must outlive every font
+' opened from them (an '#embed' array lives as long as the program).
+dim shared as string gResName()
+dim shared as const any ptr gResData()
+dim shared as integer gResSize()
+dim shared as string gResFile()
 
-public sub tkHost_AddFontData( byref name_ as string, byval pData as const any ptr, byval nBytes as integer )
-    dim as long n = ubound( gMemFontName ) + 1
-    for i as long = 0 to n - 1
-        if gMemFontName(i) = name_ then
-            gMemFontData(i) = pData : gMemFontSize(i) = nBytes
-            return
-        end if
+private function ResIndex_( byref name_ as string ) as long
+    for i as long = 0 to ubound( gResName )
+        if gResName(i) = name_ then return i
     next
-    redim preserve gMemFontName( 0 to n ) : redim preserve gMemFontData( 0 to n ) : redim preserve gMemFontSize( 0 to n )
-    gMemFontName(n) = name_ : gMemFontData(n) = pData : gMemFontSize(n) = nBytes
+    return -1
+end function
+
+private function ResSlot_( byref name_ as string ) as long
+    dim as long k = ResIndex_( name_ )
+    if k >= 0 then return k
+    k = ubound( gResName ) + 1
+    redim preserve gResName( 0 to k ) : redim preserve gResData( 0 to k )
+    redim preserve gResSize( 0 to k ) : redim preserve gResFile( 0 to k )
+    gResName(k) = name_
+    return k
+end function
+
+' 'name_' stands for these bytes (registered again, it is replaced).
+public sub tkHost_AddResourceData( byref name_ as string, byval pData as const any ptr, byval nBytes as integer )
+    dim as long k = ResSlot_( name_ )
+    gResData(k) = pData : gResSize(k) = nBytes : gResFile(k) = ""
 end sub
 
-' TRUE when 'name_' was registered: a font open takes it as a font that is there.
+' 'name_' stands for this file (registered again, it is replaced).
+public sub tkHost_AddResourceFile( byref name_ as string, byref file as ustring )
+    dim as long k = ResSlot_( name_ )
+    gResData(k) = 0 : gResSize(k) = 0 : gResFile(k) = file
+end sub
+
+' 'name_' no longer stands for anything. A font already opened from it stays as it is.
+public sub tkHost_RemoveResource( byref name_ as string )
+    dim as long k = ResIndex_( name_ ), n = ubound( gResName )
+    if k < 0 then exit sub
+    if k < n then
+        gResName(k) = gResName(n) : gResData(k) = gResData(n)
+        gResSize(k) = gResSize(n) : gResFile(k) = gResFile(n)
+    end if
+    if n = 0 then
+        erase gResName, gResData, gResSize, gResFile
+    else
+        redim preserve gResName( 0 to n - 1 ) : redim preserve gResData( 0 to n - 1 )
+        redim preserve gResSize( 0 to n - 1 ) : redim preserve gResFile( 0 to n - 1 )
+    end if
+end sub
+
+' TRUE when 'name_' stands for something there: bytes, or a file that exists.
+public function tkHost_HasResource( byref name_ as string ) as boolean
+    dim as long k = ResIndex_( name_ )
+    if k < 0 then return false
+    if gResData(k) then return true
+    if len( gResFile(k) ) = 0 then return false
+    return SDL_GetPathInfo( strptr( gResFile(k) ), 0 )
+end function
+
+' The file a registered name stands for ("" for bytes, or a name not registered).
+public function tkHost_ResourceFile( byref name_ as string ) as string
+    dim as long k = ResIndex_( name_ )
+    if k < 0 then return ""
+    return gResFile(k)
+end function
+
+' A font's bytes under a name (tkHost_AddResourceData, by its older name).
+public sub tkHost_AddFontData( byref name_ as string, byval pData as const any ptr, byval nBytes as integer )
+    tkHost_AddResourceData( name_, pData, nBytes )
+end sub
+
+' TRUE when 'name_' was registered and is there: a font open takes it as a font that is there.
 public function tkHost_HasFontData( byref name_ as string ) as boolean
-    for i as long = 0 to ubound( gMemFontName )
-        if gMemFontName(i) = name_ then return true
-    next
-    return false
+    return tkHost_HasResource( name_ )
+end function
+
+' An image as a surface, from a registered name's bytes or file, or else from 'path' as a file:
+' every format SDL_image reads. 0 when there is nothing to read, or it is not an image.
+public function tkHost_LoadSurface( byref path as ustring ) as SDL_Surface ptr
+    if len( path ) = 0 then return 0
+    dim as string p8 = path
+    dim as long k = ResIndex_( p8 )
+    if k >= 0 then
+        if gResData(k) then return IMG_Load_IO( SDL_IOFromConstMem( gResData(k), gResSize(k) ), true )
+        p8 = gResFile(k)
+        if len( p8 ) = 0 then return 0
+    end if
+    return IMG_Load( strptr( p8 ) )
 end function
 
 ' A font file or a registered name, at 'pt' points (unscaled) and face 'face' of a collection.
@@ -444,13 +513,12 @@ end function
 public function tkHost_OpenFontFace( byref path as string, byval pt as single, byval face as long ) as TTF_Font ptr
     dim as SDL_PropertiesID props = SDL_CreateProperties()
     if props = 0 then return 0
-    dim as long k = -1
-    for i as long = 0 to ubound( gMemFontName )
-        if gMemFontName(i) = path then k = i : exit for
-    next
-    if k >= 0 then
-        SDL_SetPointerProperty( props, TTF_PROP_FONT_CREATE_IOSTREAM_POINTER, SDL_IOFromConstMem( gMemFontData(k), gMemFontSize(k) ) )
+    dim as long k = ResIndex_( path )
+    if (k >= 0) andalso (gResData(k) <> 0) then
+        SDL_SetPointerProperty( props, TTF_PROP_FONT_CREATE_IOSTREAM_POINTER, SDL_IOFromConstMem( gResData(k), gResSize(k) ) )
         SDL_SetBooleanProperty( props, TTF_PROP_FONT_CREATE_IOSTREAM_AUTOCLOSE_BOOLEAN, true )
+    elseif k >= 0 then
+        SDL_SetStringProperty( props, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( gResFile(k) ) )
     else
         SDL_SetStringProperty( props, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( path ) )
     end if

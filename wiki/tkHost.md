@@ -127,9 +127,9 @@ tkControls ships its own fonts, copied beside every program that imports tkHost,
 
 `tkHost_FontDir()` is the folder they are in (the program's own, ending in a separator), so `tkHost_FontDir() & TK_FONT_UI` is always a file that is there. `tkHost_OpenFont( h, path, pt )` opens a font in points at the surface's scale; the surface owns it, re-sizes it when the scale changes and closes it when the surface goes. `h->pDefaultFont` is the font every control falls back to.
 
-### Fonts from memory
+### Fonts and images by name
 
-A program can carry its fonts inside itself instead of beside it. Register each one's bytes under a name, and every font tkHost, [tkApp](tkApp) and [tkCodeEdit](tkCodeEdit) open takes that name where it takes a file path:
+A program can carry its fonts and images inside itself instead of beside it. Register each one's bytes under a name, and every font tkHost, [tkApp](tkApp) and [tkCodeEdit](tkCodeEdit) open, and every image [tkImage](tkImage), [tkPicture](tkPicture), [tkButton](tkButton) and `tkForm_SetIcon` load, takes that name where it takes a file path:
 
 ```freebasic
 #embed InterRegular "fonts/Inter-Regular.ttf"
@@ -141,6 +141,9 @@ dim as TK_HOST ptr h = tkHost_Create( "app", 400, 240, "mem:Inter-Regular.ttf" )
 - The name must match exactly; nothing is derived from it. `mem:` plus the file name is the convention: with tkApp's `FontDir` set to `"mem:"`, its role fonts are found under their usual file names.
 - The bytes stay the program's and must outlive every font opened from them. An [`#embed`](Category-Embed) array lives as long as the program.
 - Registering a name again replaces it. `tkHost_HasFontData( name )` says whether a name is registered.
+- `tkHost_AddResourceData( name, p, n )` is the same registry for any font or image; `tkHost_AddFontData` is its older name. `tkHost_AddResourceFile( name, path )` makes a name stand for a file instead, `tkHost_RemoveResource( name )` takes one back, `tkHost_HasResource( name )` says whether it stands for something there (bytes, or a file that exists) and `tkHost_ResourceFile( name )` is the file it stands for.
+- The [Form Designer](Form-Designer)'s Resource Center names a project's resources `res:<name>`.
+- `tkHost_LoadSurface( path )` loads an image as an `SDL_Surface` from a registered name or a file, through SDL_image; the caller destroys it. The image loads above go through it.
 - `tkHost_OpenFontFace( path, pt, face )` opens face `face` of a font file or registered name, unscaled and owned by the caller. The other font opens go through it.
 
 The `TK_ICON_*` constants are code points in `TK_FONT_ICONS` (`TK_ICON_SAVE`, `TK_ICON_FOLDER_OPEN`, `TK_ICON_SEARCH`, `TK_ICON_SETTINGS`, `TK_ICON_CLOSE` and more). Draw one with that font set: `p->PaintChar( wchr( TK_ICON_SAVE ), @rc, clr )`; controls with a glyph slot take the same string.
@@ -324,8 +327,14 @@ sub tkHost_RemoveEventHook( byval f as tkEventHookFunc )
 function tkHost_PressSerial() as ulong
 function tkHost_Count() as long
 function tkHost_Scale( byval h as TK_HOST ptr, byval v as long ) as long
+sub tkHost_AddResourceData( byref name_ as string, byval pData as const any ptr, byval nBytes as integer )
+sub tkHost_AddResourceFile( byref name_ as string, byref file as ustring )
+sub tkHost_RemoveResource( byref name_ as string )
+function tkHost_HasResource( byref name_ as string ) as boolean
+function tkHost_ResourceFile( byref name_ as string ) as string
 sub tkHost_AddFontData( byref name_ as string, byval pData as const any ptr, byval nBytes as integer )
 function tkHost_HasFontData( byref name_ as string ) as boolean
+function tkHost_LoadSurface( byref path as ustring ) as SDL_Surface ptr
 function tkHost_OpenFontFace( byref path as string, byval pt as single, byval face as long ) as TTF_Font ptr
 function tkHost_OpenFont( byval h as TK_HOST ptr, byref path as ustring, byval pt as single ) as TTF_Font ptr
 function tkHost_Create( byref title as ustring, byval w as long, byval hgt as long, byref defaultFont as ustring, byval forcedScale as single = 0 ) as TK_HOST ptr

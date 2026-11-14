@@ -184,9 +184,12 @@ private function FileThere( byref path as ustring ) as boolean
     return SDL_GetPathInfo( strptr( p8 ), 0 )
 end function
 
-' A bare file name is looked up in the font directory; anything with a separator is a path.
+' A bare file name is looked up in the font directory; anything with a separator is a path, and a
+' registered resource name ("res:Body", tkHost_AddResourceData / File) is itself.
 private function Resolve( byref f as ustring ) as ustring
     if len( f ) = 0 then return ""
+    dim as string f8 = f
+    if tkHost_HasResource( f8 ) then return f
     if (instr( f, "/" ) > 0) orelse (instr( f, "\" ) > 0) then return f
     return FontDir() & f
 end function
@@ -800,11 +803,11 @@ public function tkForm_GetAlwaysOnTop( byval f as TK_FORM ptr ) as boolean
     return (SDL_GetWindowFlags( f->host->win ) and SDL_WINDOW_ALWAYS_ON_TOP) <> 0
 end function
 
-' The window's icon from an image file (any format SDL_image reads). FALSE when it can't be read.
+' The window's icon from an image file (any format SDL_image reads) or a registered resource name
+' (tkHost_AddResourceData / tkHost_AddResourceFile). FALSE when it can't be read.
 public function tkForm_SetIcon( byval f as TK_FORM ptr, byref file as ustring ) as boolean
     if (f = 0) orelse (len( file ) = 0) then return false
-    dim as string p8 = file
-    dim as SDL_Surface ptr s = IMG_Load( strptr( p8 ) )
+    dim as SDL_Surface ptr s = tkHost_LoadSurface( file )
     if s = 0 then return false
     dim as boolean ok = SDL_SetWindowIcon( f->host->win, s )
     SDL_DestroySurface( s )

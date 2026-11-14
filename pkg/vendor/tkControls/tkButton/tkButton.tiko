@@ -684,7 +684,8 @@ public sub tkButton_SetGlyphRight( byval hButton as TK_WIDGET ptr, byval Glyph a
     tkButton_ApplyAutoSize( pBtn )
 end sub
 
-' IMG_LoadTexture: .png / .bmp / .jpg / .ico through SDL_image. The texture belongs to the
+' tkHost_LoadSurface (a file, or a registered resource name): .png / .bmp / .jpg / .ico through
+' SDL_image, made a texture. The texture belongs to the
 ' host's renderer, which is a constraint the GDI+ image never had: it cannot be drawn into the
 ' tooltip window, or any other window, without being loaded again there.
 private function LoadImageSlot( byval pBtn as TKBUTTON_STATE ptr, byref slot as SDL_Texture ptr, _
@@ -695,8 +696,11 @@ private function LoadImageSlot( byval pBtn as TKBUTTON_STATE ptr, byref slot as 
         tkButton_ApplyAutoSize( pBtn )
         return 0
     end if
-    dim as string p8 = Path
-    slot = IMG_LoadTexture( pBtn->hWin->pHost->renderer, strptr( p8 ) )
+    dim as SDL_Surface ptr s = tkHost_LoadSurface( Path )
+    if s then
+        slot = SDL_CreateTextureFromSurface( pBtn->hWin->pHost->renderer, s )
+        SDL_DestroySurface( s )
+    end if
     if slot then
         SDL_SetTextureScaleMode( slot, SDL_SCALEMODE_LINEAR )
         glyph = ""

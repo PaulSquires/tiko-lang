@@ -45,7 +45,7 @@ tkForm_OnPaint( f, @Main_Paint )
 end tkApp_Run( f )
 ```
 
-- `Load( path )`, `LoadFromSurface( s )` (copies an `SDL_Surface`; you keep yours) and `LoadFromPixels( w, h, argb )` (rows of `&hAARRGGBB`) return non-zero on success. A failed load clears the image held before.
+- `Load( path )` takes a file or a name registered with [tkHost](tkHost) (`tkHost_AddResourceData` / `tkHost_AddResourceFile`, such as a Form Designer project's `res:logo`). `Load( path )`, `LoadFromSurface( s )` (copies an `SDL_Surface`; you keep yours) and `LoadFromPixels( w, h, argb )` (rows of `&hAARRGGBB`) return non-zero on success. A failed load clears the image held before.
 - `NaturalWidth` / `NaturalHeight` give the size in pixels; `IsValid` says whether an image is held; `Dispose` frees it early.
 - `TK_IMGFIT_ASPECT` fits the image inside the rect with its proportions kept, `_STRETCH` fills the rect, `_CENTER` draws it at its natural size, centred and clipped.
 - `Surface()` and `Texture( renderer )` hand out what the object owns: never destroy them.
