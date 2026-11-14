@@ -117,6 +117,7 @@ tests/vendor/**/*.o
 # vendor/tkControls: its bundled fonts (fetched, like lib/) and scintk's build output; the
 # examples' module cache, screenshots and link records
 /pkg/vendor/tkControls/fonts/
+/pkg/vendor/tkControls/glyphfonts/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/bin/
 /pkg/vendor/SDL3/static/bin/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/out/

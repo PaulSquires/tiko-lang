@@ -1,0 +1,251 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' glyphfile -- the project's glyph fonts (docs/tkDesigner/GLYPHS.md, V3): appGlyphs/appGlyphs.tkglyphs,
+' the Glyph Picker's font list. A glyph value "<key>:<hex>" names its font by the key here.
+'   format = 1
+'   [fonts]                                                   the list, in its order
+'   Fluent = { bundled = "FluentSystemIcons-Regular.ttf" }    shipped with the toolchain
+'   myicons = { file = "fonts/myicons.ttf" }                  added: a copy under appGlyphs/
+'   [codes]                                                   V4: "<key>:<hex>" -> its code in glyphs.ttf
+'   "Fluent:E824" = "E000"
+' The bundled fonts are the toolchain's: Fluent in vendor/tkControls/fonts (it is also the GLYPH
+' role's own), the rest in vendor/tkControls/glyphfonts (the picker's alone, never beside a program).
+#module "glyphfile"
+
+#import "std/config"
+#import "std/fs"
+#import "std/containers"
+#import "vendor/tkControls/tkHost"
+#import "../model"
+using containers
+using tkHost
+using model
+
+public const as long GLYPHS_FORMAT = 1
+public const as string GLYPHS_MODULE = "appGlyphs"
+public const as string GLYPHS_FONTS_DIR = "fonts"         ' beside the .tkglyphs: the fonts added
+const as string NL = chr( 10 )
+
+public type GlyphFontRef
+    Key as ustring                     ' what a glyph value names it by: "Fluent", "myicons"
+    Bundled as ustring                 ' a bundled font's file name, or
+    File as ustring                    ' an added one's path under appGlyphs/ ("fonts/myicons.ttf")
+end type
+
+public type GlyphDoc
+    Fonts as Array( of GlyphFontRef )
+    Codes as Array( of Setting )       ' V4: "<key>:<hex>" = its code in glyphs.ttf
+    Problems as Array( of ustring )
+end type
+
+' ---- the list -------------------------------------------------------------------------------------
+
+private sub AddBundled_( byref doc as GlyphDoc, byref key_ as const ustring, byref file_ as const ustring )
+    dim as GlyphFontRef x
+    x.Key = key_ : x.Bundled = file_
+    doc.Fonts.Push( x )
+end sub
+
+' A new project's list: the bundled fonts (GLYPHS.md GV5), Fluent first.
+public sub Defaults( byref doc as GlyphDoc )
+    doc.Fonts.Clear( )
+    AddBundled_( doc, GLYPH_FONT_FLUENT, TK_FONT_ICONS )
+    AddBundled_( doc, "Material", "MaterialIcons-Regular.ttf" )
+    AddBundled_( doc, "Phosphor", "Phosphor.ttf" )
+    AddBundled_( doc, "Lucide", "lucide.ttf" )
+    AddBundled_( doc, "Tabler", "tabler-icons.ttf" )
+end sub
+
+' The font of key, any case; -1 when there is none.
+public function Find( byref doc as GlyphDoc, byref key_ as const ustring ) as long
+    dim as ustring want = lcase( key_ )
+    for i as long = 0 to doc.Fonts.Count( ) - 1
+        if lcase( doc.Fonts[i].Key ) = want then return i
+    next
+    return -1
+end function
+
+' A key: a letter, then letters and digits (it sits before the ':' of a glyph value).
+public function IsKey( byref s as const ustring ) as boolean
+    if len( s ) = 0 then return false
+    for i as long = 1 to len( s )
+        dim as long a = asc( mid( s, i, 1 ) )
+        dim as boolean letter = ((a >= 65) andalso (a <= 90)) orelse ((a >= 97) andalso (a <= 122))
+        if (i = 1) andalso (letter = false) then return false
+        if (letter = false) andalso ((a < 48) orelse (a > 57)) then return false
+    next
+    return true
+end function
+
+' A key not yet in the list, from a file's stem: its letters and digits, a number after when taken.
+public function UniqueKey( byref doc as GlyphDoc, byref stem as const ustring ) as ustring
+    dim as ustring k
+    for i as long = 1 to len( stem )
+        dim as ustring ch = mid( stem, i, 1 )
+        dim as long a = asc( ch )
+        if ((a >= 48) andalso (a <= 57)) orelse ((a >= 65) andalso (a <= 90)) orelse ((a >= 97) andalso (a <= 122)) then k &= ch
+    next
+    if (len( k ) = 0) orelse (IsKey( k ) = false) then k = "Font" & k
+    if Find( doc, k ) < 0 then return k
+    dim as long n = 2
+    while Find( doc, k & n ) >= 0
+        n += 1
+    wend
+    return k & n
+end function
+
+' ---- where a font is ---------------------------------------------------------------------------
+
+' The file of f: a bundled one from the toolchain (pkgDir), else beside tkEdit; an added one under
+' glyphsDir (the appGlyphs folder). "" when it is not there.
+public function FontPath( byref f as GlyphFontRef, byref glyphsDir as const ustring, byref pkgDir as const ustring ) as ustring
+    dim as ustring p
+    if len( f.Bundled ) then
+        if len( pkgDir ) then
+            dim as ustring tk = fs.PathJoin( pkgDir, "vendor", "tkControls" )
+            p = fs.PathJoin( tk, "glyphfonts", f.Bundled )
+            if fs.IsFile( p ) then return p
+            p = fs.PathJoin( tk, "fonts", f.Bundled )
+            if fs.IsFile( p ) then return p
+        end if
+        p = tkHost_FontDir( ) & f.Bundled
+        if fs.IsFile( p ) then return p
+        return ""
+    end if
+    if (len( f.File ) = 0) orelse (len( glyphsDir ) = 0) then return ""
+    p = fs.PathJoin( glyphsDir, f.File )
+    if fs.IsFile( p ) then return p
+    return ""
+end function
+
+' A font file into the list: copied into glyphsDir/fonts/ (a name taken there gets a number) under a
+' key from its name. The index, or -1 with problem saying why.
+public function AddFont( byref doc as GlyphDoc, byref glyphsDir as const ustring, byref src as const ustring, _
+                         byref problem as ustring ) as long
+    dim as ustring l = lcase( src )
+    if (right( l, 4 ) <> ".ttf") andalso (right( l, 4 ) <> ".otf") then
+        problem = fs.PathFileName( src ) & ": not a .ttf or .otf font"
+        return -1
+    end if
+    if fs.IsFile( src ) = false then
+        problem = fs.PathFileName( src ) & ": not found"
+        return -1
+    end if
+    dim as ustring folder = fs.PathJoin( glyphsDir, GLYPHS_FONTS_DIR )
+    fs.CreateDirAll( folder )
+    dim as ustring fileName = fs.PathFileName( src ), dst = fs.PathJoin( folder, fileName )
+    if fs.PathEquals( fs.PathNormalize( src ), fs.PathNormalize( dst ) ) = false then
+        dim as ustring stem = fs.PathStem( fileName ), ext = mid( fileName, len( stem ) + 1 )
+        dim as long n = 2
+        while fs.Exists( dst )
+            fileName = stem & n & ext
+            dst = fs.PathJoin( folder, fileName )
+            n += 1
+        wend
+        if fs.CopyFile( src, dst, false ).IsOk( ) = false then
+            problem = fs.PathFileName( src ) & ": can't be copied"
+            return -1
+        end if
+    end if
+    dim as GlyphFontRef x
+    x.Key = UniqueKey( doc, fs.PathStem( fileName ) )
+    x.File = GLYPHS_FONTS_DIR & "/" & fileName
+    doc.Fonts.Push( x )
+    return doc.Fonts.Count( ) - 1
+end function
+
+' ---- the file -------------------------------------------------------------------------------------
+
+private function StrOf_( byref t as config.TomlValue, byref k as const ustring ) as ustring
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return ""
+    dim as ustring none = ""
+    return p->AsString( ).ValueOr( none )
+end function
+
+' Always the basic string form.
+private function Quote_( byref s as const ustring ) as ustring
+    dim as ustring o = """"
+    for i as long = 1 to len( s )
+        dim as ustring ch = mid( s, i, 1 )
+        select case asc( ch )
+        case 34 : o &= "\"""
+        case 92 : o &= "\\"
+        case 0 to 31, 127 : o &= "\u" & hex( asc( ch ), 4 )
+        case else : o &= ch
+        end select
+    next
+    return o & """"
+end function
+
+' False when the text isn't TOML or is a newer format; errText says why. Content faults go to Problems.
+public function Parse( byref text as const ustring, byref doc as GlyphDoc, byref errText as ustring ) as boolean
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then
+        errText = r.Failure( ).Message( )
+        return false
+    end if
+    dim as config.TomlValue root = r.Value( )
+    dim as longint fmt = 0
+    dim as config.TomlValue ptr f = root.Find( "format" )
+    if f then fmt = f->AsInt( ).ValueOr( fmt )
+    if fmt <> GLYPHS_FORMAT then
+        errText = "format " & fmt & " is not one this version reads (expected " & GLYPHS_FORMAT & ")"
+        return false
+    end if
+    doc.Fonts.Clear( )
+    doc.Codes.Clear( )
+    dim as config.TomlValue ptr fonts = root.Find( "fonts" )
+    if fonts then
+        for i as long = 0 to fonts->Count( ) - 1
+            dim as GlyphFontRef x
+            x.Key = fonts->KeyAt( i )
+            dim byref as config.TomlValue t = fonts->Item( i )
+            x.Bundled = StrOf_( t, "bundled" )
+            x.File = StrOf_( t, "file" )
+            if IsKey( x.Key ) = false then doc.Problems.Push( "fonts." & x.Key & ": a key is a letter, then letters and digits" )
+            if (len( x.Bundled ) = 0) = (len( x.File ) = 0) then doc.Problems.Push( "fonts." & x.Key & ": bundled or file, one of them" )
+            doc.Fonts.Push( x )
+        next
+    end if
+    dim as config.TomlValue ptr codes = root.Find( "codes" )
+    if codes then
+        for i as long = 0 to codes->Count( ) - 1
+            dim as ustring none = ""
+            PutSetting( doc.Codes, codes->KeyAt( i ), codes->Item( i ).AsString( ).ValueOr( none ) )
+        next
+    end if
+    return true
+end function
+
+' The canonical text: the fonts in their order, then the codes.
+public function Render( byref doc as GlyphDoc ) as ustring
+    dim as ustring o = "format = " & GLYPHS_FORMAT & NL & NL & "[fonts]" & NL
+    for each x as GlyphFontRef in doc.Fonts
+        if len( x.Bundled ) then
+            o &= x.Key & " = { bundled = " & Quote_( x.Bundled ) & " }" & NL
+        else
+            o &= x.Key & " = { file = " & Quote_( x.File ) & " }" & NL
+        end if
+    next
+    if doc.Codes.Count( ) then
+        o &= NL & "[codes]" & NL
+        for each s as Setting in doc.Codes
+            o &= Quote_( s.Key ) & " = " & Quote_( s.Value ) & NL
+        next
+    end if
+    return o
+end function
+
+' The project's list: path read, else the defaults (a project from before V3 has no file).
+public sub Load( byref path as const ustring, byref doc as GlyphDoc )
+    dim as ustring none, e
+    dim as ustring text
+    if (len( path ) > 0) andalso fs.IsFile( path ) then text = fs.ReadAllText( path ).ValueOr( none )
+    if (len( text ) = 0) orelse (Parse( text, doc, e ) = false) then Defaults( doc )
+end sub

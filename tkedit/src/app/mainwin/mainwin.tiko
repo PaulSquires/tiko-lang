@@ -65,6 +65,8 @@
 #import "tkd/colorsdlg"
 #import "tkd/resdlg"
 #import "tkd/glyphdlg"
+#import "tkd/glyphfile"
+#import "tkd/model"
 #import "tkd/themefile"
 #import "tka/editor"
 #import "tka/explorer"
@@ -229,6 +231,7 @@ public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, by
 public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
 public const PICK_RESOURCES = 101        ' a Pick kind: images and fonts for the Resource Center, one per line
 public const PICK_COMPILER = 102        ' a Pick kind: the tiko compiler (tiko.exe on Windows)
+public const PICK_FONT = 103            ' a Pick kind: a font file (the Glyph Picker's Add)
 public type DocRef as documents.Document ptr
 ' Starting a program (Run): argv[0] is the program. The self-test records instead.
 public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
@@ -388,6 +391,10 @@ private function PickNow( byval f as TK_FORM ptr, byval kind as long, byref sugg
         if platform.CurrentOs( ) = platform.Os.Windows then cf = i18n.Tr( "dialog.filter_compiler", "tiko compiler" ) & "|exe"
         return tkFileDialog_OpenFile( tkForm_Host( f ), cf, where )
     end if
+    if kind = PICK_FONT then
+        filters = i18n.Tr( "dialog.filter_fonts", "Fonts" ) & "|ttf;otf|" & i18n.Tr( "dialog.filter_all", "All files" ) & "|*"
+        return tkFileDialog_OpenFile( tkForm_Host( f ), filters, where )
+    end if
     if kind = PICK_RESOURCES then
         ' All files first (author): the Center takes any file a program may ship
         filters = i18n.Tr( "dialog.filter_all", "All files" ) & "|*|" & _
@@ -445,6 +452,8 @@ public type Window
     Ask as AskProc
     Pick as PickProc
     GlyphPick as GlyphPickProc          ' 0 = the Glyph Picker dialog; a self-test answers in its place
+    GlyphList as glyphfile.GlyphDoc     ' while the Glyph Picker is up: the project's list it edits
+    GlyphListChanged as boolean
     Launch as LaunchProc
 
     ' ---- the App state
@@ -649,6 +658,10 @@ public type Window
     declare sub ApplyResources( byref dlg as resdlg.ResourceDialog )
     declare function ResourceUsers( byref nm as const ustring ) as ustring
     declare function PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
+    declare function GlyphsPath( ) as ustring
+    declare function GlyphFontPaths( ) as Array( of model.Setting )
+    declare function GlyphUsers( byref key_ as const ustring ) as ustring
+    declare sub SaveGlyphList( )
     declare sub RegisterProjectResources( )
     SaveNote as ustring
     declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef
@@ -3165,6 +3178,7 @@ function Window.OpenText( byref path as const ustring ) as boolean
             d->Designer->Host = @this
             d->Designer->ThemePath = this.ProjectThemePath( )
             d->Designer->PkgDir = this.PkgDir( )
+            d->Designer->GlyphPaths = this.GlyphFontPaths( )
             d->Designer->ApplyProjectTheme( )
             d->Designer->OnWire = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
                 cast( Window ptr, o )->WireHandler( c, n, e, jump )

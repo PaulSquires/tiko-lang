@@ -233,6 +233,10 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     end if
     t.Check( (gl = "Fluent:E824") andalso (gf = "GLYPH") andalso (shown = "E824") andalso (drawn = wchr( &hE824 )), _
              P( sc, "the Glyph Picker sets GlyphLeft " & gl & ", the box " & shown & ", the preview drawn, GlyphFont " & gf ) )
+    ' the project's first glyph writes its font list (GLYPHS.md V3), the bundled fonts
+    dim as ustring tkg = fs.ReadAllText( fs.PathJoin( proj, "appGlyphs", "appGlyphs.tkglyphs" ) ).ValueOr( "" )
+    t.Check( (instr( tkg, "Fluent = { bundled = ""FluentSystemIcons-Regular.ttf"" }" ) > 0) andalso (instr( tkg, "Tabler = " ) > 0), _
+             P( sc, "appGlyphs.tkglyphs holds the project's glyph fonts" ) )
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

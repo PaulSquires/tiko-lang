@@ -32,6 +32,7 @@
 #import "tkd/resfile"
 #import "tkd/resdlg"
 #import "tkd/glyphdlg"
+#import "tkd/glyphfile"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "vendor/tkControls/tkMeta"
@@ -313,12 +314,14 @@ sub Window.RefreshFormThemes( )
         if d->Designer then
             d->Designer->ThemePath = this.ProjectThemePath( )
             d->Designer->PkgDir = this.PkgDir( )
+            d->Designer->GlyphPaths = this.GlyphFontPaths( )
             d->Designer->ApplyProjectTheme( )
         end if
     next
     if Preview then
         Preview->ThemePath = this.ProjectThemePath( )
         Preview->PkgDir = this.PkgDir( )
+        Preview->GlyphPaths = this.GlyphFontPaths( )
         Preview->ApplyProjectTheme( )
     end if
 end sub
@@ -405,6 +408,7 @@ sub Window.TestForm( )
     ' in the project's theme, the variant the design surface shows
     Preview->ThemePath = this.ProjectThemePath( )
     Preview->PkgDir = this.PkgDir( )
+    Preview->GlyphPaths = this.GlyphFontPaths( )
     Preview->PreviewSet = true
     Preview->PreviewDark = d->Designer->ShowsDark( )
     Preview->Create( tkForm_Widget( PreviewForm ), 1 )
@@ -719,21 +723,122 @@ private sub AddGlyphFont_( byref dlg as glyphdlg.GlyphDialog, byref label as con
     dlg.Fonts.Push( x )
 end sub
 
-private function GlyphFontLabel_( byref value as const ustring ) as ustring
-    if lcase( fs.PathFileName( value ) ) = lcase( TK_FONT_ICONS ) then return "Fluent UI System Icons"
-    if lcase( left( value, len( resfile.RES_PREFIX ) ) ) = resfile.RES_PREFIX then return value
-    return fs.PathFileName( value )
+' The project's glyph fonts (GLYPHS.md V3): appGlyphs/appGlyphs.tkglyphs; "" outside a project.
+function Window.GlyphsPath( ) as ustring
+    if ProjOpen = false then return ""
+    return fs.PathJoin( fs.PathParent( Proj.Path ), glyphfile.GLYPHS_MODULE, glyphfile.GLYPHS_MODULE & ".tkglyphs" )
 end function
 
-' A glyph property's "...": the Glyph Picker on the bundled icons (GLYPHS.md V2; V3 brings the
-' project's list), opened on the value the property has. True on Select, picked then
-' "<font>:<hex>" (GV7), or "" for none.
+' Each font of the project's list (the defaults outside a project) and its file, for the canvas.
+function Window.GlyphFontPaths( ) as Array( of Setting )
+    dim as Array( of Setting ) out_
+    dim as glyphfile.GlyphDoc gd
+    dim as ustring gp = this.GlyphsPath( ), gdir
+    glyphfile.Load( gp, gd )
+    if len( gp ) then gdir = fs.PathParent( gp )
+    for each x as glyphfile.GlyphFontRef in gd.Fonts
+        dim as ustring path = glyphfile.FontPath( x, gdir, this.PkgDir( ) )
+        if len( path ) then PutSetting( out_, x.Key, path )
+    next
+    return out_
+end function
+
+' The project's forms that hold a glyph of font key, by file name, comma-separated ("" = none).
+function Window.GlyphUsers( byref key_ as const ustring ) as ustring
+    if ProjOpen = false then return ""
+    dim as Array( of ustring ) files
+    ProjectRefFiles_( fs.PathParent( Proj.Path ), files, 0 )
+    dim as ustring o, none, want = lcase( """" & key_ & ":" )
+    for each p as ustring in files
+        dim as DocRef d = OpenDocAt_( Docs, p )
+        dim as ustring text
+        if d then text = d->Text( ) else text = fs.ReadAllText( p ).ValueOr( none )
+        if instr( lcase( text ), want ) then UsersAdd_( o, fs.PathFileName( p ) )
+    next
+    return o
+end function
+
+' The list as the picker left it, into appGlyphs/appGlyphs.tkglyphs; every open form then draws from it.
+sub Window.SaveGlyphList( )
+    dim as ustring gp = this.GlyphsPath( )
+    if len( gp ) = 0 then exit sub
+    fs.CreateDirAll( fs.PathParent( gp ) )
+    if fs.WriteAtomic( gp, glyphfile.Render( GlyphList ) ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( gp ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+    end if
+    this.RefreshFormThemes( )
+end sub
+
+private function GlyphFontLabel_( byref x as glyphfile.GlyphFontRef ) as ustring
+    select case lcase( x.Bundled )
+    case lcase( TK_FONT_ICONS ) : return "Fluent UI System Icons"
+    case "materialicons-regular.ttf" : return "Material Icons"
+    end select
+    if len( x.File ) then return x.Key & " (" & fs.PathFileName( x.File ) & ")"
+    return x.Key
+end function
+
+' The picker's Add: a font file chosen, copied into appGlyphs/fonts and put on the list.
+private function GlyphAddFont_( byval owner as any ptr, byval d as glyphdlg.GlyphDialog ptr ) as long
+    dim as Window ptr w = owner
+    dim as ustring src = w->Pick( d->Win, PICK_FONT, "" )
+    if len( src ) = 0 then return -1
+    dim as ustring problem, gdir = fs.PathParent( w->GlyphsPath( ) )
+    dim as long i = glyphfile.AddFont( w->GlyphList, gdir, src, problem )
+    if i < 0 then
+        w->SetMessage( problem )
+        return -1
+    end if
+    dim byref as glyphfile.GlyphFontRef x = w->GlyphList.Fonts[i]
+    AddGlyphFont_( *d, GlyphFontLabel_( x ), x.Key, glyphfile.FontPath( x, gdir, w->PkgDir( ) ) )
+    w->GlyphListChanged = true
+    return d->Fonts.Count( ) - 1
+end function
+
+' The picker's Remove: asked first when the project's forms hold glyphs of it (they would show
+' nothing); an added font's copy goes too.
+private function GlyphRemoveFont_( byval owner as any ptr, byval d as glyphdlg.GlyphDialog ptr, byval i as long ) as boolean
+    dim as Window ptr w = owner
+    dim as ustring key_ = d->Fonts[i].Value
+    dim as ustring users = w->GlyphUsers( key_ )
+    if len( users ) then
+        if w->Ask( d->Win, strings.Format( i18n.Tr( "designer.glyph_font_used", "{0} is used in {1}. Remove it anyway? Those glyphs will show nothing." ), _
+                                           key_, users ), MBX_BTN_YESNO ) <> MBX_IDYES then return false
+    end if
+    dim as long k = glyphfile.Find( w->GlyphList, key_ )
+    if k >= 0 then
+        dim as ustring f = w->GlyphList.Fonts[k].File
+        if len( f ) then fs.RemoveFile( fs.PathJoin( fs.PathParent( w->GlyphsPath( ) ), f ) )
+        w->GlyphList.Fonts.Remove( k )
+    end if
+    d->Fonts.Remove( i )
+    w->GlyphListChanged = true
+    return true
+end function
+
+' A glyph property's "...": the Glyph Picker on the project's glyph fonts (the bundled ones outside a
+' project), opened on the value the property has, its font shown first; Add and Remove edit the
+' project's list. True on Select, picked then "<font>:<hex>" (GV7), or "" for none.
 function Window.PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
     picked = ""
     dim as glyphdlg.GlyphDialog dlg
-    AddGlyphFont_( dlg, GlyphFontLabel_( TK_FONT_ICONS ), GLYPH_FONT_FLUENT, themefile.GlyphFontPath( this.PkgDir( ) ) )
-    if dlg.Fonts.Count( ) = 0 then return false
+    dim as ustring gp = this.GlyphsPath( ), gdir
+    glyphfile.Load( gp, GlyphList )
+    GlyphListChanged = false
+    if len( gp ) then gdir = fs.PathParent( gp )
+    for each x as glyphfile.GlyphFontRef in GlyphList.Fonts
+        AddGlyphFont_( dlg, GlyphFontLabel_( x ), x.Key, glyphfile.FontPath( x, gdir, this.PkgDir( ) ) )
+    next
     dlg.ThemeIdx = 0
+    dim as ustring want = lcase( GlyphFontKey( current ) )
+    for k as long = 0 to dlg.Fonts.Count( ) - 1
+        if lcase( dlg.Fonts[k].Value ) = want then dlg.ThemeIdx = k
+    next
+    if len( gp ) then
+        dlg.Owner = @this
+        dlg.OnAddFont = @GlyphAddFont_
+        dlg.OnRemoveFont = @GlyphRemoveFont_
+    end if
     dim as long fi = -1
     dim as ustring ch
     dim as boolean ok
@@ -742,6 +847,8 @@ function Window.PickGlyph( byref current as const ustring, byref picked as ustri
         fi = 0
         GlyphPick( @this, dlg, fi, ch )
         ok = true
+    elseif dlg.Fonts.Count( ) = 0 then
+        return false
     else
         dlg.Open( form, GlyphChar( current ) )
         if dlg.Win = 0 then return false
@@ -751,6 +858,8 @@ function Window.PickGlyph( byref current as const ustring, byref picked as ustri
         dlg.Close( )
     end if
     if ok andalso (len( ch ) > 0) andalso (fi >= 0) andalso (fi < dlg.Fonts.Count( )) then picked = GlyphRef( dlg.Fonts[fi].Value, asc( ch ) )
+    ' the list as left, kept: changed, or a project's first glyph (its list starts as the defaults)
+    if (len( gp ) > 0) andalso (GlyphListChanged orelse ((len( picked ) > 0) andalso (fs.IsFile( gp ) = false))) then this.SaveGlyphList( )
     return ok
 end function
 

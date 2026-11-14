@@ -66,6 +66,12 @@ using model
 
 public type CanvasCommitSub as sub( byval owner as any ptr, byref text as const ustring )
 public type CanvasChangedSub as sub( byval listener as any ptr )
+' A project glyph font the canvas opened (GLYPHS.md V3), at the GLYPH and GLYPH_LARGE sizes.
+public type CanvasGlyphFont
+    Key as ustring
+    Normal as TTF_Font ptr
+    Large as TTF_Font ptr
+end type
 public type FormCanvas_ as FormCanvas
 public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
 ' The Resource Center in Pick: kind_ "image" / "font", current the value now, prop the property of
@@ -119,6 +125,8 @@ public type FormCanvas
     ' font holds only the glyphs tkEdit uses. GlyphSrc: what they were opened from.
     GlyphSrc as ustring
     PkgDir as ustring                   ' the toolchain's pkg/: where the bundled icon font is
+    GlyphPaths as Array( of Setting )   ' the project's glyph fonts (GLYPHS.md V3): Key = its key, Value = its file
+    GlyphOpen as Array( of CanvasGlyphFont )   ' those opened so far
     GlyphFont as TTF_Font ptr
     GlyphFontLarge as TTF_Font ptr
     Building as boolean
@@ -165,7 +173,8 @@ public type FormCanvas
 
     declare function Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
     declare sub ApplyProjectTheme( )
-    declare function RoleFont( byval f as TK_FORM ptr, byval role as long ) as TTF_Font ptr
+    declare function RoleFont( byval f as TK_FORM ptr, byval role as long, byref glyphKey as const ustring = "" ) as TTF_Font ptr
+    declare function GlyphFontFor( byref key_ as const ustring, byval large as boolean ) as TTF_Font ptr
     declare function ShowsDark( ) as boolean
     declare sub Destroy( )
     ' False when the text isn't a form this version can show; the canvas is left as it was.
@@ -488,11 +497,20 @@ sub FormCanvas.Rebuild( )
             next
         end if
         this.ApplyItems( c, w )
+        ' the font its glyphs come from (its first "<font>:<hex>" glyph): its GLYPH roles draw in that one
+        dim as ustring gk
+        for each s as Setting in c.Props
+            dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
+            if (p <> 0) andalso (p->Kind = "glyph") andalso (GlyphCode( s.Value ) <> 0) then
+                gk = GlyphFontKey( s.Value )
+                exit for
+            end if
+        next
         for each s as Setting in c.Props
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p then
                 if p->Kind = "font" then
-                    if p->ApplyFont then p->ApplyFont( w, this.RoleFont( f, FontRole_( s.Value ) ) )
+                    if p->ApplyFont then p->ApplyFont( w, this.RoleFont( f, FontRole_( s.Value ), gk ) )
                 elseif p->bDesign andalso (p->Apply <> 0) then
                     ' a glyph's "<font>:<hex>" is drawn as its character (GLYPHS.md GV7)
                     if p->Kind = "glyph" then p->Apply( w, GlyphChar( s.Value ) ) else p->Apply( w, s.Value )
@@ -1524,7 +1542,33 @@ end function
 ' styles and per-type colours -- as the program will; tkEdit's own theme stays on the rest. No
 ' theme file, or one that doesn't read: the presets of the variant shown.
 ' A font role for a control here: GLYPH and GLYPH_LARGE in the theme's glyph font, the rest tkEdit's.
-function FormCanvas.RoleFont( byval f as TK_FORM ptr, byval role as long ) as TTF_Font ptr
+' A project glyph font by its key, opened on first use (the surface owns it); the bundled icons for
+' "" or Fluent. 0 when the key has no file.
+function FormCanvas.GlyphFontFor( byref key_ as const ustring, byval large as boolean ) as TTF_Font ptr
+    if (len( key_ ) = 0) orelse (lcase( key_ ) = lcase( GLYPH_FONT_FLUENT )) then return iif( large, GlyphFontLarge, GlyphFont )
+    for each o as CanvasGlyphFont in GlyphOpen
+        if lcase( o.Key ) = lcase( key_ ) then return iif( large, o.Large, o.Normal )
+    next
+    if Surface = 0 then return 0
+    dim as ustring path
+    for each s as Setting in GlyphPaths
+        if lcase( s.Key ) = lcase( key_ ) then path = s.Value
+    next
+    if len( path ) = 0 then return 0
+    dim as CanvasGlyphFont o
+    o.Key = key_
+    dim as single pt = tkApp_Options( ).FontUISize
+    o.Normal = tkHost_OpenFont( Surface->pHost, path, pt )
+    o.Large = tkHost_OpenFont( Surface->pHost, path, pt + 2 )
+    GlyphOpen.Push( o )
+    return iif( large, o.Large, o.Normal )
+end function
+
+function FormCanvas.RoleFont( byval f as TK_FORM ptr, byval role as long, byref glyphKey as const ustring ) as TTF_Font ptr
+    if (role = TKFONT_GLYPH) orelse (role = TKFONT_GLYPH_LARGE) then
+        dim as TTF_Font ptr gf = this.GlyphFontFor( glyphKey, role = TKFONT_GLYPH_LARGE )
+        if gf then return gf
+    end if
     if (role = TKFONT_GLYPH) andalso (GlyphFont <> 0) then return GlyphFont
     if (role = TKFONT_GLYPH_LARGE) andalso (GlyphFontLarge <> 0) then return GlyphFontLarge
     return tkForm_Font( f, role )
@@ -1540,9 +1584,15 @@ sub FormCanvas.ApplyProjectTheme( )
     end if
     ' the glyph font: a new one rebuilds the controls (they take their fonts as they are made)
     dim as ustring src = themefile.GlyphFontPath( PkgDir )
-    if src <> GlyphSrc then
-        GlyphSrc = src
+    ' the project's glyph fonts are part of what was opened from: a list changed rebuilds too
+    dim as ustring sig = src
+    for each gp as Setting in GlyphPaths
+        sig &= "|" & gp.Key & "=" & gp.Value
+    next
+    if sig <> GlyphSrc then
+        GlyphSrc = sig
         GlyphFont = 0 : GlyphFontLarge = 0
+        GlyphOpen.Clear( )
         if len( src ) then
             dim as single pt = tkApp_Options( ).FontUISize
             GlyphFont = tkHost_OpenFont( Surface->pHost, src, pt )      ' the surface owns them

@@ -20,6 +20,7 @@
 #import "tkd/formtree"
 #import "tkd/themefile"
 #import "tkd/resfile"
+#import "tkd/glyphfile"
 #import "tkd/canvas"
 #import "tkd/edits"
 #import "tkd/reconcile"
@@ -1910,6 +1911,30 @@ sub GlyphValueSuite( )
     Check( instr( g, "B.GlyphLeft = wchr( &hE824 )" ) > 0, "glyph: generated as its character", g )
 end sub
 
+' GLYPHS.md V3: appGlyphs.tkglyphs -- the defaults, one canonical text, a key from a file name, Add
+' copying the file in under a fresh key.
+sub GlyphFileSuite( )
+    dim as glyphfile.GlyphDoc d
+    glyphfile.Defaults( d )
+    Check( (d.Fonts.Count( ) = 5) andalso (d.Fonts[0].Key = GLYPH_FONT_FLUENT) andalso (glyphfile.Find( d, "material" ) = 1), _
+           "glyphs: the bundled five, Fluent first" )
+    PutSetting( d.Codes, "Fluent:E824", "E000" )
+    dim as ustring t = glyphfile.Render( d ), e
+    dim as glyphfile.GlyphDoc d2
+    Check( glyphfile.Parse( t, d2, e ) andalso (d2.Problems.Count( ) = 0) andalso (glyphfile.Render( d2 ) = t), "glyphs: one canonical text", t & e )
+    Check( (glyphfile.UniqueKey( d, "my-icons 2" ) = "myicons2") andalso (glyphfile.UniqueKey( d, "Phosphor" ) = "Phosphor2") _
+           andalso (glyphfile.UniqueKey( d, "3d" ) = "Font3d"), "glyphs: a key from a file name" )
+    const as string dir_ = "tests/bin/glyphs"
+    fs.RemoveDirAll( dir_ )
+    fs.CreateDirAll( dir_ )
+    dim as ustring src = dir_ & "/My Icons.ttf"
+    fs.CopyFile( "../../fonts/PsIcons.ttf", src, true )
+    dim as ustring problem
+    dim as long i = glyphfile.AddFont( d, dir_ & "/appGlyphs", src, problem )
+    Check( (i = 5) andalso (d.Fonts[i].Key = "MyIcons") andalso (d.Fonts[i].File = "fonts/My Icons.ttf") _
+           andalso (len( glyphfile.FontPath( d.Fonts[i], dir_ & "/appGlyphs", "" ) ) > 0), "glyphs: Add copies it in under a key", problem )
+end sub
+
 sub EmbedFontsSuite( )
     dim as ustring none
     dim as ustring text = "format = 1" & LF & "name = ""E""" & LF & LF & "[dark]" & LF & LF & "[light]" & LF & LF _
@@ -2022,5 +2047,6 @@ ColorSources( )
 ThemeLoadFixtures( bAccept )
 EmbedFontsSuite( )
 GlyphValueSuite( )
+GlyphFileSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

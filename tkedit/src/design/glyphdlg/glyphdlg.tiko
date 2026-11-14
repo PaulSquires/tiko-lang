@@ -37,6 +37,9 @@ const as long GAP = 10, ROW_CY = 32, BTN_CX = 100, LIST_CX = 200
 const as long CELL = 40             ' a grid cell, design units
 const as single GRID_PT = 18        ' the grid's glyphs
 const as single BIG_PT = 40         ' the selected one, under the grid
+const as long GLYPH_CX = 40         ' a glyph button's width (design units)
+const as ulong GLYPH_ADD = &hF109   ' add (a plus)
+const as ulong GLYPH_DELETE = &hF34C ' remove (a bin)
 
 public type GlyphFontEntry
     Label as ustring                ' what the list shows
@@ -44,8 +47,17 @@ public type GlyphFontEntry
     Path as ustring                 ' where it is opened from
 end type
 
+public type GlyphDialog_ as GlyphDialog
+' The project's list (GLYPHS.md V3): Add appends a font to d->Fonts and returns its index (-1 for
+' none); Remove takes d->Fonts[i] out, true when it went (the caller asks first when it is in use).
+public type GlyphAddFunc as function( byval owner as any ptr, byval d as GlyphDialog_ ptr ) as long
+public type GlyphRemoveFunc as function( byval owner as any ptr, byval d as GlyphDialog_ ptr, byval i as long ) as boolean
+
 public type GlyphDialog
     Win as TK_FORM ptr
+    Owner as any ptr
+    OnAddFont as GlyphAddFunc       ' 0: no Add / Remove (outside a project)
+    OnRemoveFont as GlyphRemoveFunc
     Fonts as Array( of GlyphFontEntry )
     ThemeIdx as long                ' the font shown first
     Picked as ustring               ' Select: the character, "" for (none)
@@ -69,6 +81,8 @@ public type GlyphDialog
     VBar as TK_WIDGET ptr
     Big as TK_WIDGET ptr
     LblCode as TK_WIDGET ptr
+    BtnAdd as TK_WIDGET ptr
+    BtnRemove as TK_WIDGET ptr
     BtnNone as TK_WIDGET ptr
     BtnSelect as TK_WIDGET ptr
     BtnClose as TK_WIDGET ptr
@@ -79,6 +93,7 @@ public type GlyphDialog
     declare sub Finish( byval ok as boolean )
     declare sub Layout( )
     declare sub ShowFont( byval i as long, byval want as ulong )
+    declare sub FillFonts( byval selectIdx as long )
     declare sub SelectCode( byval i as long )
     declare function Cols( ) as long
     declare function CellPx( ) as long
@@ -298,6 +313,25 @@ sub GlyphDialog.ShowFont( byval i as long, byval want as ulong )
     this.SelectCode( s )
 end sub
 
+' The list again (after Add or Remove), font selectIdx shown, no glyph selected.
+sub GlyphDialog.FillFonts( byval selectIdx as long )
+    Loading = true
+    tkListTree_Clear( List )
+    for i as long = 0 to Fonts.Count( ) - 1
+        tkListTree_AddString( List, Fonts[i].Label, i )
+    next
+    if (selectIdx >= 0) andalso (selectIdx < Fonts.Count( )) then tkListTree_SetCurSel( List, selectIdx )
+    Loading = false
+    tkWidget_Enable( BtnRemove, Fonts.Count( ) > 0 )
+    if (selectIdx >= 0) andalso (selectIdx < Fonts.Count( )) then
+        this.ShowFont( selectIdx, 0 )
+    else
+        FontIdx = -1
+        Codes.Clear( )
+        this.SelectCode( -1 )
+    end if
+end sub
+
 ' The search box: the code typed, selected when the font has it.
 sub GlyphDialog.Search( byref text as const ustring )
     dim as ulong cp = ParseCode( text )
@@ -316,6 +350,14 @@ private sub OnButton_( byval h as TK_WIDGET ptr, byval id as long )
     dim as GlyphDialog ptr d = DlgOf( h )
     if d = 0 then exit sub
     select case h
+    case d->BtnAdd
+        if d->OnAddFont = 0 then exit sub
+        dim as long i = d->OnAddFont( d->Owner, d )
+        if i >= 0 then d->FillFonts( i )
+    case d->BtnRemove
+        dim as long j = d->FontIdx
+        if (d->OnRemoveFont = 0) orelse (j < 0) orelse (j >= d->Fonts.Count( )) then exit sub
+        if d->OnRemoveFont( d->Owner, d, j ) then d->FillFonts( iif( j < d->Fonts.Count( ), j, d->Fonts.Count( ) - 1 ) )
     case d->BtnSelect : d->Finish( true )
     case d->BtnClose : d->Finish( false )
     case d->BtnNone
@@ -327,6 +369,16 @@ private sub OnButton_( byval h as TK_WIDGET ptr, byval id as long )
         end if
     end select
 end sub
+
+' A small button that is one glyph; tip is its word, shown on hover.
+private function MakeGlyphButton_( byval parent as TK_WIDGET ptr, byval cp as ulong, byref tip as const ustring ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr b = tkButton_Create( parent, 1 )
+    tkButton_SetGlyphFont( b, tkForm_Font( tkForm_FromWidget( parent ), TKFONT_GLYPH_LARGE ) )   ' else it draws in the text font
+    tkButton_SetGlyphLeft( b, wchr( cp ) )
+    tkButton_SetTooltipText( b, tip )
+    tkButton_SetClickCallback( b, @OnButton_ )
+    return b
+end function
 
 private sub OnFontSel_( byval h as TK_WIDGET ptr, byval row as integer )
     dim as GlyphDialog ptr d = DlgOf( h )
@@ -375,6 +427,11 @@ sub GlyphDialog.Open( byval owner_ as TK_FORM ptr, byref current as const ustrin
         tkListTree_AddString( List, Fonts[i].Label, i )
     next
     tkListTree_SetSelChangeCallback( List, @OnFontSel_ )
+    ' the project's list: Add... a font file, Remove the selected font (GLYPHS.md GV6)
+    BtnAdd = MakeGlyphButton_( root_, GLYPH_ADD, i18n.Tr( "designer.glyph_add_font", "Add a font..." ) )
+    BtnRemove = MakeGlyphButton_( root_, GLYPH_DELETE, i18n.Tr( "designer.glyph_remove_font", "Remove the font" ) )
+    tkWidget_Show( BtnAdd, OnAddFont <> 0 )
+    tkWidget_Show( BtnRemove, OnRemoveFont <> 0 )
     LblSearch = tkLabel_Create( root_, 1 )
     tkLabel_SetText( LblSearch, i18n.Tr( "designer.glyph_search", "Code" ) )
     TxtSearch = tkTextBox_Create( root_, 1 )
@@ -440,7 +497,14 @@ sub GlyphDialog.Layout( )
     dim as long sbw = tkForm_Scale( Win, 12 ), bigH = tkForm_Scale( Win, 64 )
     dim as long bottomY = ch - g - rh
     dim as long gx = 2 * g + lw, gw = cw - gx - g - sbw
-    tkWidget_SetPos( List, g, g, lw, bottomY - 2 * g )
+    ' the list, Add and Remove under it (when the list is the project's)
+    dim as long gw2 = tkForm_Scale( Win, GLYPH_CX ), listH = bottomY - 2 * g
+    if OnAddFont then
+        listH -= rh + g
+        tkWidget_SetPos( BtnAdd, g, g + listH + g, gw2, rh )
+        tkWidget_SetPos( BtnRemove, 2 * g + gw2, g + listH + g, gw2, rh )
+    end if
+    tkWidget_SetPos( List, g, g, lw, listH )
     tkWidget_SetPos( LblSearch, gx, g, tkForm_Scale( Win, 50 ), rh )
     tkWidget_SetPos( TxtSearch, gx + tkForm_Scale( Win, 50 ) + g, g, tkForm_Scale( Win, 140 ), rh )
     dim as long gy = 2 * g + rh, gh = bottomY - g - bigH - g - gy

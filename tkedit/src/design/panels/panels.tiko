@@ -1233,8 +1233,8 @@ sub DesignPanels.UpdateValues( )
             end if
         case RowKind.RowText
             if Rows[r].Glyph then
-                ' the glyph in the font the canvas draws it in (the bundled icons until appGlyphs)
-                dim as TTF_Font ptr gf = C->GlyphFont
+                ' the glyph in the font the canvas draws it in: its own (the bundled icons for a plain one)
+                dim as TTF_Font ptr gf = C->GlyphFontFor( GlyphFontKey( v ), false )
                 if gf = 0 then gf = tkForm_Font( tkForm_FromWidget( ed ), TKFONT_GLYPH )
                 if Rows[r].Preview then
                     tkLabel_SetFont( Rows[r].Preview, gf )

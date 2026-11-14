@@ -212,3 +212,152 @@ kind = "script"
 script = "tkCodeEdit/scintk/build.sh"
 from = "tkCodeEdit/scintk/bin/macos/scintk_macos_arm64.a"
 to = "lib/scintk_macos_arm64.a"
+
+# THE GLYPH FONTS (glyphfonts/): open-licence icon fonts the Form Designer's Glyph Picker lists beside
+# Fluent (tkEdit's docs/tkDesigner/GLYPHS.md, GV5). Never copied beside a program: a program gets the
+# glyphs it uses, built into one font (GLYPHS.md V4). Material Icons Apache 2.0, Phosphor MIT,
+# Lucide ISC, Tabler MIT; all TrueType outlines.
+
+[windows.11]
+kind = "copy"
+url = "https://raw.githubusercontent.com/google/material-design-icons/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/font/MaterialIcons-Regular.ttf"
+sha256 = "ef149f08bdd2ff09a4e2c8573476b7b0f3fbb15b623954ade59899e7175bedda"
+to = "glyphfonts/MaterialIcons-Regular.ttf"
+
+[windows.12]
+kind = "copy"
+url = "https://raw.githubusercontent.com/google/material-design-icons/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/LICENSE"
+sha256 = "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+to = "glyphfonts/MaterialIcons-LICENSE.txt"
+
+[windows.13]
+kind = "copy"
+url = "https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/Phosphor.ttf"
+sha256 = "06b91e022b7ee899a63efced879392a74f0bacbda54e4467e9f663220d173a10"
+to = "glyphfonts/Phosphor.ttf"
+
+[windows.14]
+kind = "copy"
+url = "https://unpkg.com/@phosphor-icons/web@2.1.2/LICENSE"
+sha256 = "687fbe52d0eb5c2353eca27a4037e889145ee0b584d3b1abf67581c4a4a4e47c"
+to = "glyphfonts/Phosphor-LICENSE.txt"
+
+[windows.15]
+kind = "copy"
+url = "https://unpkg.com/lucide-static@1.73.0/font/lucide.ttf"
+sha256 = "20213142b8e0c59a2d359be11eadc5c266ce331b682463dafe7b4f2e33432805"
+to = "glyphfonts/lucide.ttf"
+
+[windows.16]
+kind = "copy"
+url = "https://unpkg.com/lucide-static@1.73.0/LICENSE"
+sha256 = "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+to = "glyphfonts/Lucide-LICENSE.txt"
+
+[windows.17]
+kind = "copy"
+url = "https://unpkg.com/@tabler/icons-webfont@3.52.0/dist/fonts/tabler-icons.ttf"
+sha256 = "cd4af77212fd4a83679362fb12c7e585078c2498719799d646e50518a5397cc6"
+to = "glyphfonts/tabler-icons.ttf"
+
+[windows.18]
+kind = "copy"
+url = "https://unpkg.com/@tabler/icons-webfont@3.52.0/LICENSE"
+sha256 = "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db"
+to = "glyphfonts/Tabler-LICENSE.txt"
+
+[linux.11]
+kind = "copy"
+url = "https://raw.githubusercontent.com/google/material-design-icons/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/font/MaterialIcons-Regular.ttf"
+sha256 = "ef149f08bdd2ff09a4e2c8573476b7b0f3fbb15b623954ade59899e7175bedda"
+to = "glyphfonts/MaterialIcons-Regular.ttf"
+
+[linux.12]
+kind = "copy"
+url = "https://raw.githubusercontent.com/google/material-design-icons/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/LICENSE"
+sha256 = "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+to = "glyphfonts/MaterialIcons-LICENSE.txt"
+
+[linux.13]
+kind = "copy"
+url = "https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/Phosphor.ttf"
+sha256 = "06b91e022b7ee899a63efced879392a74f0bacbda54e4467e9f663220d173a10"
+to = "glyphfonts/Phosphor.ttf"
+
+[linux.14]
+kind = "copy"
+url = "https://unpkg.com/@phosphor-icons/web@2.1.2/LICENSE"
+sha256 = "687fbe52d0eb5c2353eca27a4037e889145ee0b584d3b1abf67581c4a4a4e47c"
+to = "glyphfonts/Phosphor-LICENSE.txt"
+
+[linux.15]
+kind = "copy"
+url = "https://unpkg.com/lucide-static@1.73.0/font/lucide.ttf"
+sha256 = "20213142b8e0c59a2d359be11eadc5c266ce331b682463dafe7b4f2e33432805"
+to = "glyphfonts/lucide.ttf"
+
+[linux.16]
+kind = "copy"
+url = "https://unpkg.com/lucide-static@1.73.0/LICENSE"
+sha256 = "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+to = "glyphfonts/Lucide-LICENSE.txt"
+
+[linux.17]
+kind = "copy"
+url = "https://unpkg.com/@tabler/icons-webfont@3.52.0/dist/fonts/tabler-icons.ttf"
+sha256 = "cd4af77212fd4a83679362fb12c7e585078c2498719799d646e50518a5397cc6"
+to = "glyphfonts/tabler-icons.ttf"
+
+[linux.18]
+kind = "copy"
+url = "https://unpkg.com/@tabler/icons-webfont@3.52.0/LICENSE"
+sha256 = "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db"
+to = "glyphfonts/Tabler-LICENSE.txt"
+
+[macos.11]
+kind = "copy"
+url = "https://raw.githubusercontent.com/google/material-design-icons/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/font/MaterialIcons-Regular.ttf"
+sha256 = "ef149f08bdd2ff09a4e2c8573476b7b0f3fbb15b623954ade59899e7175bedda"
+to = "glyphfonts/MaterialIcons-Regular.ttf"
+
+[macos.12]
+kind = "copy"
+url = "https://raw.githubusercontent.com/google/material-design-icons/10ecc14790612ca8fd164e3f4ffe9c16fc50d5b7/LICENSE"
+sha256 = "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+to = "glyphfonts/MaterialIcons-LICENSE.txt"
+
+[macos.13]
+kind = "copy"
+url = "https://unpkg.com/@phosphor-icons/web@2.1.2/src/regular/Phosphor.ttf"
+sha256 = "06b91e022b7ee899a63efced879392a74f0bacbda54e4467e9f663220d173a10"
+to = "glyphfonts/Phosphor.ttf"
+
+[macos.14]
+kind = "copy"
+url = "https://unpkg.com/@phosphor-icons/web@2.1.2/LICENSE"
+sha256 = "687fbe52d0eb5c2353eca27a4037e889145ee0b584d3b1abf67581c4a4a4e47c"
+to = "glyphfonts/Phosphor-LICENSE.txt"
+
+[macos.15]
+kind = "copy"
+url = "https://unpkg.com/lucide-static@1.73.0/font/lucide.ttf"
+sha256 = "20213142b8e0c59a2d359be11eadc5c266ce331b682463dafe7b4f2e33432805"
+to = "glyphfonts/lucide.ttf"
+
+[macos.16]
+kind = "copy"
+url = "https://unpkg.com/lucide-static@1.73.0/LICENSE"
+sha256 = "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+to = "glyphfonts/Lucide-LICENSE.txt"
+
+[macos.17]
+kind = "copy"
+url = "https://unpkg.com/@tabler/icons-webfont@3.52.0/dist/fonts/tabler-icons.ttf"
+sha256 = "cd4af77212fd4a83679362fb12c7e585078c2498719799d646e50518a5397cc6"
+to = "glyphfonts/tabler-icons.ttf"
+
+[macos.18]
+kind = "copy"
+url = "https://unpkg.com/@tabler/icons-webfont@3.52.0/LICENSE"
+sha256 = "b740a1d46122672da62833e97f7e7c8a13fa85cbc7445b584b297cc00dde93db"
+to = "glyphfonts/Tabler-LICENSE.txt"
