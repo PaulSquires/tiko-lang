@@ -751,15 +751,11 @@ function Window.EditResources( byref kind_ as const ustring, byref current as co
     dim as boolean ok = ResDlg->RunModal( )
     dim as resdlg.ResourceDialog ptr dlg = ResDlg
     ResDlg = 0
-    if ok then
-        this.ApplyResources( *dlg )
-    elseif (len( kind_ ) > 0) andalso dlg->Changed( ) then
-        ' Pick's Cancel declines the pick only: the Center's changes stay (author)
-        this.ApplyResources( *dlg )
-    end if
+    ' Close picks nothing, but the Center's changes stay (author)
+    if ok orelse dlg->Changed( ) then this.ApplyResources( *dlg )
     picked = dlg->Picked
     if (ok = false) andalso (len( kind_ ) > 0) then
-        ' ...and a property whose resource was removed there is left at (none), not an orphan
+        ' a property whose resource was removed there is left at (none), not an orphan
         dim as ustring nm = resfile.NameOfRef( current )
         for each s as Setting in dlg->Renames
             if lcase( s.Key ) = lcase( nm ) then nm = s.Value

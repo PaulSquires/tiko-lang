@@ -35,6 +35,7 @@ using tkListTree
 using tkScrollPanel
 
 dim shared as long gResStep, gResTries, gResTones
+dim shared as ustring gResFaults
 dim shared as ustring gResRename
 
 private function resfile_Find_( byval dlg as resdlg.ResourceDialog ptr, byref nm as const ustring ) as long
@@ -64,6 +65,7 @@ private sub DriveResources( byval payload as any ptr )
         dim as ulong c0
         dim as long hh = tkListTree_GetHeaderHeight( dlg->List )   ' below the header: only the rows
         gResTones = tkTest_TonesIn( dh, a.left, a.top + hh, a.right - a.left, a.bottom - a.top - hh, c0 )
+        gResFaults = dlg->NameFault( "a b" ) & "|" & dlg->NameFault( "1a" ) & "|" & dlg->NameFault( "ok_1" )
         dlg->RenameSelected( gResRename )
     case 3
         ' Pick: the row of that name, then Select
@@ -137,6 +139,7 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     ' ---- renamed in the Center: the form follows
     gResRename = "brand"
     t.Check( OpenCenter( mw, 2 ), P( sc, "the Center opened again, renamed, OK" ) )
+    t.Check( gResFaults = "Letters, digits and _ only|Start with a letter|", P( sc, "a bad name says what is wrong, briefly: " & gResFaults ) )
     t.Check( gResTones > 2, P( sc, "the Center's list draws its rows: " & gResTones & " tones" ) )
     dim as long bi = FindControl( c->Doc, "Button1" )
     dim as ustring img

@@ -8,13 +8,13 @@
 ' resdlg -- the Resource Center: the project's images and fonts (appResources, resfile), each under a
 ' name a property takes as "res:<name>".
 '
-'   Manage      opened from Form > Resource Center...: Add, Remove, rename, built in or not.
+'   Manage      opened from Design > Resource Center...: Add, Remove, rename, built in or not.
 '   Pick        opened from a property's "...": only the kind it takes, a "(none)" row first, and the
-'               OK button reads Select. Picked is "res:<name>", or "" for (none).
+'               Select button. Picked is "res:<name>", or "" for (none).
 '
-' Nothing is written here. Added files are copied into files/ at once (they are previewed from there)
-' and deleted again on Cancel; the caller writes the .tkres on OK, carries Renames into the project's
-' forms and theme, and deletes Removed's files.
+' Nothing is written here. Added files are copied into files/ at once (they are previewed from there);
+' on Select or Close the caller writes the .tkres (when Changed), carries Renames into the
+' project's forms and theme, and deletes Removed's files. Close picks nothing (author 2026-11-14).
 #module "resdlg"
 
 #import "std/containers"
@@ -67,7 +67,7 @@ public type ResourceDialog
     Picked as ustring                   ' Pick: "res:<name>" on Select, "" for (none)
     Renames as Array( of Setting )      ' Key = the name as the project has it, Value = the new one
     Removed as Array( of ustring )      ' files/ names of resources removed (deleted by the caller on OK)
-    Added as Array( of ustring )        ' files/ names copied in here (deleted again on Cancel)
+    Added as Array( of ustring )        ' files/ names copied in here
     OrigText as ustring                 ' the .tkres as opened: Changed( ) compares against it
     Accepted as boolean
     IsModal as boolean
@@ -106,6 +106,7 @@ public type ResourceDialog
     declare sub AddPressed( )
     declare function RemoveSelected( ) as boolean
     declare function RenameSelected( byref newName as const ustring ) as ustring
+    declare function NameFault( byref nm as const ustring ) as ustring
     declare sub EmbedToggled( byval on_ as boolean )
     declare function Changed( ) as boolean
 end type
@@ -148,6 +149,15 @@ private sub OnNameEnter( byval h as TK_WIDGET ptr )
     if d = 0 then exit sub
     dim as ustring fault = d->RenameSelected( tkTextBox_GetText( h ) )
     if len( fault ) then tkLabel_SetText( d->LblInfo, fault )
+end sub
+
+' As the name is typed: what is wrong with it, or the name it will go by -- so a fault clears once fixed.
+private sub OnNameTyped( byval h as TK_WIDGET ptr )
+    dim as ResourceDialog ptr d = DlgOf( h )
+    if (d = 0) orelse d->Loading orelse (d->SelIndex( ) < 0) then exit sub
+    dim as ustring nm = trim( tkTextBox_GetText( h ) )
+    dim as ustring fault = d->NameFault( nm )
+    tkLabel_SetText( d->LblInfo, iif( len( fault ) > 0, fault, resfile.RefOf( nm ) ) )
 end sub
 
 private sub OnEmbed( byval h as TK_WIDGET ptr, byval isChecked as boolean )
@@ -239,6 +249,7 @@ sub ResourceDialog.Open( byval owner_ as TK_FORM ptr, byref dir__ as const ustri
     tkLabel_SetText( LblName, i18n.Tr( "designer.res_name", "Name" ) )
     TxtName = tkTextBox_Create( root_, 1 )
     tkTextBox_SetEnterPressedCallback( TxtName, @OnNameEnter )
+    tkTextBox_SetChangeCallback( TxtName, @OnNameTyped )
     ChkEmbed = tkCheckBox_Create( root_, 1 )
     tkCheckBox_SetText( ChkEmbed, i18n.Tr( "designer.res_embed", "Build into the program" ) )
     tkCheckBox_SetCheckChangedCallback( ChkEmbed, @OnEmbed )
@@ -253,9 +264,10 @@ sub ResourceDialog.Open( byval owner_ as TK_FORM ptr, byref dir__ as const ustri
 
     BtnAdd = MakeGlyphButton_( root_, GLYPH_ADD, i18n.Tr( "designer.res_add", "Add..." ) )
     BtnRemove = MakeGlyphButton_( root_, GLYPH_DELETE, i18n.Tr( "designer.res_remove", "Remove" ) )
-    BtnOk = MakeButton_( root_, iif( len( PickKind ) > 0, i18n.Tr( "designer.res_select", "Select" ), i18n.Tr( "designer.ok", "OK" ) ) )
-    ' in Pick it only declines the pick (the changes made here stay): Close (author)
-    BtnCancel = MakeButton_( root_, iif( len( PickKind ) > 0, i18n.Tr( "designer.res_close", "Close" ), i18n.Tr( "designer.cancel", "Cancel" ) ) )
+    BtnOk = MakeButton_( root_, i18n.Tr( "designer.res_select", "Select" ) )
+    if len( PickKind ) = 0 then tkWidget_Show( BtnOk, false )    ' Manage: Close is the one way out (author)
+    ' Close keeps the changes made here and picks nothing (author)
+    BtnCancel = MakeButton_( root_, i18n.Tr( "designer.res_close", "Close" ) )
 
     tkForm_OnSize( Win, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
         cast( ResourceDialog ptr, f->Tag )->Layout( )
@@ -284,29 +296,22 @@ function ResourceDialog.Changed( ) as boolean
     return resfile.ToText( Doc ) <> OrigText
 end function
 
-' OK / Select / Cancel. Cancel takes back the files Add copied in -- but not in Pick, whose Cancel
-' only declines the pick: the caller keeps the Center's changes (author).
+' Select (Pick only) / Close. Close picks nothing; the caller keeps the Center's changes either way (author).
 sub ResourceDialog.Finish( byval ok as boolean )
-    if ok then
-        ' a name still being typed is taken as if Enter had been pressed (the box's own resource only)
-        dim as long i = this.SelIndex( )
-        if (i >= 0) andalso (i = ShownIdx) andalso (tkTextBox_GetText( TxtName ) <> Doc.Items[i].Name) then
-            dim as ustring fault = this.RenameSelected( tkTextBox_GetText( TxtName ) )
-            if len( fault ) then
-                tkLabel_SetText( LblInfo, fault )
-                exit sub
-            end if
+    ' a name still being typed is taken as if Enter had been pressed (the box's own resource only);
+    ' one that can't be taken keeps the Center open, saying why
+    dim as long i = this.SelIndex( )
+    if (i >= 0) andalso (i = ShownIdx) andalso (tkTextBox_GetText( TxtName ) <> Doc.Items[i].Name) then
+        dim as ustring fault = this.RenameSelected( tkTextBox_GetText( TxtName ) )
+        if len( fault ) then
+            tkLabel_SetText( LblInfo, fault )
+            exit sub
         end if
-        if len( PickKind ) then
-            i = this.SelIndex( )
-            Picked = ""
-            if i >= 0 then Picked = resfile.RefOf( Doc.Items[i].Name )
-        end if
-    elseif len( PickKind ) = 0 then
-        for each f as ustring in Added
-            fs.RemoveFile( fs.PathJoin( Dir_, resfile.FILES_DIR, f ) )
-        next
-        Added.Clear( )
+    end if
+    if ok andalso (len( PickKind ) > 0) then
+        i = this.SelIndex( )
+        Picked = ""
+        if i >= 0 then Picked = resfile.RefOf( Doc.Items[i].Name )
     end if
     Accepted = ok
     if IsModal then
@@ -475,14 +480,27 @@ function ResourceDialog.RemoveSelected( ) as boolean
 end function
 
 ' The selected resource renamed. "" when done (or nothing changed), else why not.
+' What is wrong with nm as the selected resource's name; "" when nothing is.
+function ResourceDialog.NameFault( byref nm as const ustring ) as ustring
+    if resfile.IsName( nm ) = false then
+        dim as long a = asc( nm )
+        if ((a >= 65) andalso (a <= 90)) orelse ((a >= 97) andalso (a <= 122)) then
+            return i18n.Tr( "designer.res_name_chars", "Letters, digits and _ only" )
+        end if
+        return i18n.Tr( "designer.res_name_start", "Start with a letter" )
+    end if
+    dim as long j = resfile.Find( Doc, nm )
+    if (j >= 0) andalso (j <> this.SelIndex( )) then return strings.Format( i18n.Tr( "designer.res_name_taken", "{} is taken" ), nm )
+    return ""
+end function
+
 function ResourceDialog.RenameSelected( byref newName as const ustring ) as ustring
     dim as long i = this.SelIndex( )
     if i < 0 then return ""
     dim as ustring old = Doc.Items[i].Name, nm = trim( newName )
     if nm = old then return ""
-    if resfile.IsName( nm ) = false then return i18n.Tr( "designer.res_bad_name", "A name is a letter, then letters, digits and _" )
-    dim as long j = resfile.Find( Doc, nm )
-    if (j >= 0) andalso (j <> i) then return strings.Format( i18n.Tr( "designer.res_name_taken", "{} is taken" ), nm )
+    dim as ustring fault = this.NameFault( nm )
+    if len( fault ) then return fault
     Doc.Items[i].Name = nm
     ' one entry per resource the project already knows: old -> newest; one added here needs none
     dim as boolean isNew = false
