@@ -8,14 +8,12 @@
 ' glyphdlg -- the Glyph Picker (docs/tkDesigner/GLYPHS.md): the fonts on the left, every character the
 ' selected one has in a grid on the right, a hex search above it. Opened from a glyph property's "...".
 '
-' The caller fills Fonts (the theme's glyph font first: ThemeIdx) and opens it on the value the
-' property has. On Select, Picked is the character and PickedFont the font it came from; the
-' caller makes that font the theme's when it is another one (GQ1 = A). "(none)" picks "".
+' The caller fills Fonts (ThemeIdx: the one shown first) and opens it on the value the property has.
+' On Select, Picked is the character and PickedFont the font it came from. "(none)" picks "".
 ' Close picks nothing. Nothing is written here.
 #module "glyphdlg"
 
 #import "std/containers"
-#import "std/strings"
 #import "tkc/i18n"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkListTree"
@@ -49,7 +47,7 @@ end type
 public type GlyphDialog
     Win as TK_FORM ptr
     Fonts as Array( of GlyphFontEntry )
-    ThemeIdx as long                ' the theme's glyph font among Fonts
+    ThemeIdx as long                ' the font shown first
     Picked as ustring               ' Select: the character, "" for (none)
     PickedFont as long = -1         ' Select: the font it is from; -1 for (none)
     Accepted as boolean
@@ -374,9 +372,7 @@ sub GlyphDialog.Open( byval owner_ as TK_FORM ptr, byref current as const ustrin
     List = tkListTree_Create( root_, 1 )
     tkListTree_SetPaintCallback( List, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
     for i as long = 0 to Fonts.Count( ) - 1
-        dim as ustring l = Fonts[i].Label
-        if i = ThemeIdx then l = strings.Format( i18n.Tr( "designer.glyph_theme_font", "{} (theme)" ), l )
-        tkListTree_AddString( List, l, i )
+        tkListTree_AddString( List, Fonts[i].Label, i )
     next
     tkListTree_SetSelChangeCallback( List, @OnFontSel_ )
     LblSearch = tkLabel_Create( root_, 1 )

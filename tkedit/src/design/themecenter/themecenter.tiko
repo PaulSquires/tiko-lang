@@ -124,16 +124,15 @@ public type ThemeDialog_
     BtnRolePick as TK_WIDGET ptr
     BtnRoleReset as TK_WIDGET ptr
     ' Fonts and Shape: labels and fields, in rows
-    FontLabels( 0 to 6 ) as TK_WIDGET ptr
+    FontLabels( 0 to 5 ) as TK_WIDGET ptr
     TxtUIFile as TK_WIDGET ptr
     TxtUIBold as TK_WIDGET ptr
-    NudUISize as TK_WIDGET ptr
-    TxtGlyph as TK_WIDGET ptr
+    TxtUISize as TK_WIDGET ptr          ' blank = "System": the OS's normal size at run time
     TxtMono as TK_WIDGET ptr
     NudRadius as TK_WIDGET ptr
     NudBorder as TK_WIDGET ptr
     ChkEmbed as TK_WIDGET ptr           ' [fonts] embed: the fonts inside the program (a project's theme only)
-    BtnFontPick( 0 to 3 ) as TK_WIDGET ptr  ' "..." by the UI, Bold, Glyph and Mono files: the Resource Center
+    BtnFontPick( 0 to 2 ) as TK_WIDGET ptr  ' "..." by the UI, Bold and Mono files: the Resource Center
     ' Styles
     StyleList as TK_WIDGET ptr
     BtnStyleAdd as TK_WIDGET ptr
@@ -301,7 +300,6 @@ private sub OnButton( byval h as TK_WIDGET ptr, byval id as long )
     case d->BtnFontPick( 0 ) : d->PickFont( 0 )
     case d->BtnFontPick( 1 ) : d->PickFont( 1 )
     case d->BtnFontPick( 2 ) : d->PickFont( 2 )
-    case d->BtnFontPick( 3 ) : d->PickFont( 3 )
     case d->BtnStyleDel   : d->DeleteStyle( )
     case d->BtnSave
         ' Save writes the theme, then closes the dialog -- unless the host said it couldn't (its
@@ -441,18 +439,22 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     FontLabels( 0 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_ui_font", "UI font" ) )
     FontLabels( 1 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_bold_font", "Bold font" ) )
     FontLabels( 2 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_size", "Size" ) )
-    FontLabels( 3 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_glyph_font", "Glyph font" ) )
-    FontLabels( 4 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_mono_font", "Mono font" ) )
-    FontLabels( 5 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_corner", "Corner radius" ) )
-    FontLabels( 6 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_border", "Border width" ) )
+    FontLabels( 3 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_mono_font", "Mono font" ) )
+    FontLabels( 4 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_corner", "Corner radius" ) )
+    FontLabels( 5 ) = MakeLabel_( pFonts, i18n.Tr( "designer.theme_border", "Border width" ) )
+    ' an empty slot is the bundled font, shown greyed in it (GLYPHS.md GV1); an empty size the OS's (GV2).
+    ' Glyph fonts are the Glyph Picker's, not the theme's (GV3).
     TxtUIFile = MakeText_( pFonts )
+    tkTextBox_SetCueBannerText( TxtUIFile, TK_FONT_UI )
     TxtUIBold = MakeText_( pFonts )
-    NudUISize = MakeNumber_( pFonts, 0, 72 )
-    TxtGlyph = MakeText_( pFonts )
+    tkTextBox_SetCueBannerText( TxtUIBold, TK_FONT_UI_BOLD )
+    TxtUISize = MakeText_( pFonts )
+    tkTextBox_SetCueBannerText( TxtUISize, i18n.Tr( "designer.theme_size_system", "System" ) )
     TxtMono = MakeText_( pFonts )
+    tkTextBox_SetCueBannerText( TxtMono, TK_FONT_MONO )
     NudRadius = MakeNumber_( pFonts, -1, 40 )
     NudBorder = MakeNumber_( pFonts, -1, 10 )
-    for i as long = 0 to 3
+    for i as long = 0 to 2
         BtnFontPick( i ) = MakeButton_( pFonts, "..." )
     next
     ChkEmbed = tkCheckBox_Create( pFonts, 1 )
@@ -618,20 +620,19 @@ sub ThemeDialog_.Layout( )
     tkWidget_SetPos( BtnRoleReset, 4 * g + boxW + rh + sw, roleY, sw, rh )
 
     dim as long lw = tkForm_Scale( Win, 120 ), fw = pw - lw - 3 * g, nw = tkForm_Scale( Win, 90 )
-    dim as TK_WIDGET ptr fields( 0 to 6 ) = { TxtUIFile, TxtUIBold, NudUISize, TxtGlyph, TxtMono, NudRadius, NudBorder }
-    ' the five font rows, Build the fonts into the program under them, then the two shape rows
-    for i as long = 0 to 6
+    dim as TK_WIDGET ptr fields( 0 to 5 ) = { TxtUIFile, TxtUIBold, TxtUISize, TxtMono, NudRadius, NudBorder }
+    ' the four font rows, Build the fonts into the program under them, then the two shape rows
+    for i as long = 0 to 5
         dim as long y = g + i * (rh + g)
-        if i >= 5 then y += rh + g
+        if i >= 4 then y += rh + g
         tkWidget_SetPos( FontLabels( i ), g, y, lw, rh )
-        dim as boolean isNumber = (i = 2) orelse (i = 5) orelse (i = 6)
+        dim as boolean isNumber = (i = 2) orelse (i = 4) orelse (i = 5)
         ' a font file's row: its box, then "..." (the Resource Center)
         dim as long slot = -1
         select case i
         case 0 : slot = 0
         case 1 : slot = 1
         case 3 : slot = 2
-        case 4 : slot = 3
         end select
         if slot >= 0 then
             tkWidget_SetPos( fields( i ), 2 * g + lw, y, fw - g - rh, rh )
@@ -640,7 +641,7 @@ sub ThemeDialog_.Layout( )
             tkWidget_SetPos( fields( i ), 2 * g + lw, y, iif( isNumber, nw, fw ), rh )
         end if
     next
-    tkWidget_SetPos( ChkEmbed, 2 * g + lw, g + 5 * (rh + g), fw, rh )
+    tkWidget_SetPos( ChkEmbed, 2 * g + lw, g + 4 * (rh + g), fw, rh )
 
     ' Styles, master over detail. Master: Add, Remove and the selected style's Name on one line, the
     ' styles' names in a short list under it. Detail: the role rows, full width, and Show all roles.
@@ -802,14 +803,13 @@ sub ThemeDialog_.LoadFields( )
     this.LoadAccent( )
     tkTextBox_SetText( TxtUIFile, Doc.UIFile )
     tkTextBox_SetText( TxtUIBold, Doc.UIBold )
-    tkNumericUpDown_SetValue( NudUISize, Doc.UISize )
-    tkTextBox_SetText( TxtGlyph, Doc.GlyphFile )
+    tkTextBox_SetText( TxtUISize, iif( Doc.UISize > 0, str( Doc.UISize ), "" ) )
     tkTextBox_SetText( TxtMono, Doc.MonoFile )
     tkNumericUpDown_SetValue( NudRadius, Doc.CornerRadius )
     tkNumericUpDown_SetValue( NudBorder, Doc.BorderWidth )
     tkCheckBox_SetChecked( ChkEmbed, Doc.EmbedFonts )
     tkWidget_Show( ChkEmbed, ForEditor = false )        ' tkEdit's own theme builds into nothing
-    for i as long = 0 to 3
+    for i as long = 0 to 2
         tkWidget_Show( BtnFontPick( i ), (ForEditor = false) andalso (OnPickFont <> 0) )   ' resources are a project's
     next
     tkListTree_Clear( StyleList )
@@ -1013,7 +1013,6 @@ sub ThemeDialog_.PickFont( byval slot as long )
     select case slot
     case 0 : box = TxtUIFile
     case 1 : box = TxtUIBold
-    case 2 : box = TxtGlyph
     case else : box = TxtMono
     end select
     dim as ustring picked
@@ -1041,9 +1040,19 @@ sub ThemeDialog_.FieldChanged( byval w as TK_WIDGET ptr )
     case TxtRole : this.SetRoleText( tkTextBox_GetText( TxtRole ) ) : exit sub
     case TxtUIFile : Doc.UIFile = FieldText_( TxtUIFile )
     case TxtUIBold : Doc.UIBold = FieldText_( TxtUIBold )
-    case TxtGlyph : Doc.GlyphFile = FieldText_( TxtGlyph )
     case TxtMono : Doc.MonoFile = FieldText_( TxtMono )
-    case NudUISize : Doc.UISize = clng( tkNumericUpDown_GetValue( NudUISize ) )
+    case TxtUISize
+        ' blank is "System"; anything but a whole number leaves the size as it was
+        dim as ustring t = FieldText_( TxtUISize )
+        if len( t ) = 0 then
+            Doc.UISize = 0
+        else
+            for k as long = 1 to len( t )
+                dim as long a = asc( mid( t, k, 1 ) )
+                if (a < 48) orelse (a > 57) then exit sub
+            next
+            Doc.UISize = valint( t )
+        end if
     case NudRadius : Doc.CornerRadius = clng( tkNumericUpDown_GetValue( NudRadius ) )
     case NudBorder : Doc.BorderWidth = clng( tkNumericUpDown_GetValue( NudBorder ) )
     case TxtStyleName

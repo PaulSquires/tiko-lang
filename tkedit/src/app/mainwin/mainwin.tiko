@@ -649,7 +649,6 @@ public type Window
     declare sub ApplyResources( byref dlg as resdlg.ResourceDialog )
     declare function ResourceUsers( byref nm as const ustring ) as ustring
     declare function PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
-    declare function SetThemeGlyphFont( byref value as const ustring ) as boolean
     declare sub RegisterProjectResources( )
     SaveNote as ustring
     declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef

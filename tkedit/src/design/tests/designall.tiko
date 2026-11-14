@@ -1909,6 +1909,13 @@ sub EmbedFontsSuite( )
     Check( instr( g, "tkHost_AddFontData( ""mem:My.ttf"", @gFont0_( 0 ), ubound( gFont0_ ) + 1 )" ) > 0, "embed: registered as mem:" )
     Check( (instr( g, "o.FontDir = ""mem:""" ) > 0) andalso (instr( g, "o.FontUIFile = ""My.ttf""" ) > 0) _
            andalso (instr( g, "o.FontUISize = 11" ) > 0), "embed: the options look there" )
+    ' no size of its own: the OS's normal size at run time (GLYPHS.md GV2); an old glyph slot is ignored
+    d.UISize = 0
+    Check( instr( themefile.Generate( d, "appTheme", "appTheme.tktheme", text ), "o.FontUISize = tkApp_SystemFontSize( )" ) > 0, "no size: the OS's" )
+    d.UISize = 11
+    dim as themefile.ThemeDoc dg
+    Check( themefile.Parse( "format = 1" & LF & "name = ""G""" & LF & LF & "[fonts]" & LF & "glyph = { file = ""x.ttf"" }" & LF, dg, e ) _
+           andalso (dg.Problems.Count( ) = 0) andalso (instr( themefile.Render( dg ), "glyph" ) = 0), "an old [fonts] glyph reads and goes", e )
     ' off: no #embed, as before
     d.EmbedFonts = false
     Check( instr( themefile.Generate( d, "appTheme", "appTheme.tktheme", text ), "#embed" ) = 0, "embed off: nothing embedded" )

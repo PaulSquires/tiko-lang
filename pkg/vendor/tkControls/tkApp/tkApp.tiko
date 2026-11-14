@@ -236,6 +236,67 @@ public function tkApp_GlyphFace() as ustring
     return gGlyphFile
 end function
 
+#ifdef __FB_WIN32__
+' Win32 reached through GetProcAddress (as std/fs does): kernel32 is the one library every link has.
+extern "C"
+    declare function tka_LoadLibraryW stdcall alias "LoadLibraryW" ( byval name_ as const any ptr ) as any ptr
+    declare function tka_GetProcAddress stdcall alias "GetProcAddress" ( byval m as any ptr, byval name_ as const zstring ptr ) as any ptr
+end extern
+type TkaSpiFn as function stdcall ( byval action as ulong, byval param as ulong, byval pv as any ptr, byval winIni as ulong ) as long
+type TkaDpiFn as function stdcall ( ) as ulong
+type TkaLogFontW
+    lfHeight as long
+    lfWidth as long
+    lfEscapement as long
+    lfOrientation as long
+    lfWeight as long
+    lfFlags( 0 to 7 ) as ubyte          ' italic .. pitch and family
+    lfFaceName( 0 to 31 ) as ushort
+end type
+type TkaNcMetricsW                      ' NONCLIENTMETRICSW
+    cbSize as ulong
+    iMetrics( 0 to 4 ) as long          ' border, scroll width / height, caption width / height
+    lfCaptionFont as TkaLogFontW
+    iSmCaption( 0 to 1 ) as long
+    lfSmCaptionFont as TkaLogFontW
+    iMenu( 0 to 1 ) as long
+    lfMenuFont as TkaLogFontW
+    lfStatusFont as TkaLogFontW
+    lfMessageFont as TkaLogFontW
+    iPaddedBorderWidth as long
+end type
+#endif
+
+' The OS's normal UI font size in points (tkControls sizes fonts in points at 96 DPI, as Win32
+' does): Windows' message font (usually 9), macOS 13, elsewhere 10. A designer theme with no size
+' of its own asks this (docs/tkDesigner/GLYPHS.md, GV2).
+public function tkApp_SystemFontSize() as single
+#ifdef __FB_WIN32__
+    static as single cached = 0
+    if cached > 0 then return cached
+    cached = 9
+    dim as ustring u32 = "user32.dll"
+    dim as any ptr hu = tka_LoadLibraryW( strptr( u32 ) )
+    if hu = 0 then return cached
+    dim as TkaSpiFn pSpi = cast( TkaSpiFn, tka_GetProcAddress( hu, @"SystemParametersInfoW" ) )
+    dim as TkaDpiFn pDpi = cast( TkaDpiFn, tka_GetProcAddress( hu, @"GetDpiForSystem" ) )
+    if pSpi = 0 then return cached
+    dim as TkaNcMetricsW m
+    m.cbSize = sizeof( TkaNcMetricsW )
+    if pSpi( &h29, m.cbSize, @m, 0 ) = 0 then return cached       ' SPI_GETNONCLIENTMETRICS
+    dim as long dpi = 96
+    if pDpi then dpi = clng( pDpi( ) )
+    if dpi <= 0 then dpi = 96
+    dim as long hgt = abs( m.lfMessageFont.lfHeight )
+    if hgt > 0 then cached = csng( hgt ) * 72 / dpi
+    return cached
+#elseif defined( __FB_DARWIN__ )
+    return 13
+#else
+    return 10                            ' GLYPHS.md OQ2: the Linux desktop's own size, later
+#endif
+end function
+
 public function tkApp_Options() as TKAPP_OPTIONS
     return gOpts
 end function

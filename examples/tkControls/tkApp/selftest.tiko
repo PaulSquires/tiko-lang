@@ -350,6 +350,18 @@ end scope
 RunPass( 1.0 )
 RunPass( 1.75 )
 
+' ---- the OS's normal UI font size (Windows: the message font; macOS 13; else 10)
+tkTest_Begin( "systemfont" )
+scope
+    dim as single sz = tkApp_SystemFontSize( )
+    print "  system font size: " & sz & " pt"
+#ifdef __FB_WIN32__
+    tkTest_Check( "Windows' message font size, in points", (sz >= 6) andalso (sz <= 24) )
+#else
+    tkTest_Check( "the OS's normal size", (sz >= 6) andalso (sz <= 24) )
+#endif
+end scope
+
 ' ---- Run / Quit: the last thing, Run shuts the application down -------------------------
 tkTest_Begin( "run" )
 dim as TK_FORM ptr fm = tkApp_NewForm( "run", 200, 120 )

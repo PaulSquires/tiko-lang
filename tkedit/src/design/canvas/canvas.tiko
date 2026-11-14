@@ -115,8 +115,8 @@ public type FormCanvas
     PreviewSet as boolean
     PreviewDark as boolean
     ThemeTables as themefile.ThemeTables
-    ' The theme's glyph font (GLYPHS.md): glyph properties draw in it, as in the program; tkEdit's own
-    ' icon font holds only the glyphs tkEdit uses. GlyphSrc: what they were opened from.
+    ' The glyph font (GLYPHS.md): glyph properties draw in it, as in the program; tkEdit's own icon
+    ' font holds only the glyphs tkEdit uses. GlyphSrc: what they were opened from.
     GlyphSrc as ustring
     GlyphFont as TTF_Font ptr
     GlyphFontLarge as TTF_Font ptr
@@ -1537,9 +1537,7 @@ sub FormCanvas.ApplyProjectTheme( )
         if len( text ) then themefile.Parse( text, d, e )
     end if
     ' the glyph font: a new one rebuilds the controls (they take their fonts as they are made)
-    dim as ustring themeDir
-    if len( ThemePath ) then themeDir = fs.PathParent( ThemePath )
-    dim as ustring src = themefile.GlyphFontPath( d, themeDir )
+    dim as ustring src = themefile.GlyphFontPath( )
     if src <> GlyphSrc then
         GlyphSrc = src
         GlyphFont = 0 : GlyphFontLarge = 0
