@@ -685,7 +685,7 @@ private sub WalkExpr _
             '' unresolved left every cast untyped -- the type argument IS the result.
             if c.ast->Kind( arg ) = Tko.N_TYPEREF then
                 if ResolveTypeRef( c, arg, scope_ ) = Tko.TYPE_NONE then PendExprTypeRef_( c, arg, scope_ )
-            else
+            elseif OffsetofFieldArg_( c, lp, i ) = false then   '' a FIELD's name -- resolveintr.tiko
                 WalkExpr( c, arg, scope_ )
             end if
         next
