@@ -596,9 +596,16 @@ public function FontSource( byref given as const ustring, byref themeDir as cons
 end function
 
 ' Where the glyph font is, for tkEdit to open (the designer's canvas, the Glyph Picker): the bundled
-' icons beside tkEdit until appGlyphs (GLYPHS.md V4). "" = not there.
-public function GlyphFontPath( ) as ustring
-    dim as ustring p = tkHost_FontDir( ) & TK_FONT_ICONS
+' icons, from the toolchain the project builds with (pkgDir/vendor/tkControls/fonts) -- a shipped
+' tkEdit is one file, with no fonts beside it -- else beside tkEdit (a tree build). Until appGlyphs
+' (GLYPHS.md V4). "" = neither.
+public function GlyphFontPath( byref pkgDir as const ustring ) as ustring
+    dim as ustring p
+    if len( pkgDir ) then
+        p = fs.PathJoin( fs.PathJoin( pkgDir, "vendor", "tkControls" ), "fonts", TK_FONT_ICONS )
+        if fs.IsFile( p ) then return p
+    end if
+    p = tkHost_FontDir( ) & TK_FONT_ICONS
     if fs.IsFile( p ) then return p
     return ""
 end function

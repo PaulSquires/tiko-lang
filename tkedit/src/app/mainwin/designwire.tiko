@@ -312,11 +312,13 @@ sub Window.RefreshFormThemes( )
     for each d as DocRef in Docs
         if d->Designer then
             d->Designer->ThemePath = this.ProjectThemePath( )
+            d->Designer->PkgDir = this.PkgDir( )
             d->Designer->ApplyProjectTheme( )
         end if
     next
     if Preview then
         Preview->ThemePath = this.ProjectThemePath( )
+        Preview->PkgDir = this.PkgDir( )
         Preview->ApplyProjectTheme( )
     end if
 end sub
@@ -402,6 +404,7 @@ sub Window.TestForm( )
     Preview->Live = true
     ' in the project's theme, the variant the design surface shows
     Preview->ThemePath = this.ProjectThemePath( )
+    Preview->PkgDir = this.PkgDir( )
     Preview->PreviewSet = true
     Preview->PreviewDark = d->Designer->ShowsDark( )
     Preview->Create( tkForm_Widget( PreviewForm ), 1 )
@@ -728,7 +731,7 @@ end function
 function Window.PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
     picked = ""
     dim as glyphdlg.GlyphDialog dlg
-    AddGlyphFont_( dlg, GlyphFontLabel_( TK_FONT_ICONS ), TK_FONT_ICONS, themefile.GlyphFontPath( ) )
+    AddGlyphFont_( dlg, GlyphFontLabel_( TK_FONT_ICONS ), TK_FONT_ICONS, themefile.GlyphFontPath( this.PkgDir( ) ) )
     if dlg.Fonts.Count( ) = 0 then return false
     dlg.ThemeIdx = 0
     if GlyphPick then

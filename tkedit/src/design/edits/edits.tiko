@@ -265,7 +265,9 @@ private function Pos_( byref c as FormControl, byval down_ as boolean ) as long
     return iif( down_, c.Y, c.X )
 end function
 
-private function Len_( byref c as FormControl, byval down_ as boolean ) as long
+' (Not Len_: on Linux that private name reached std/fs's posix header, whose struct has a len_
+' field -- TKO0776 there; a compiler bug, 2026-11-14.)
+private function SpanOf_( byref c as FormControl, byval down_ as boolean ) as long
     return iif( down_, c.H, c.W )
 end function
 
@@ -315,10 +317,10 @@ public sub SpaceControls( byref doc as FormDoc, byref names as Array( of ustring
     if mode = SpaceMode.SpaceEqual then
         dim as long used = 0
         for each i as long in o
-            used += Len_( doc.Controls[i], down_ )
+            used += SpanOf_( doc.Controls[i], down_ )
         next
         dim as long first_ = Pos_( doc.Controls[o[0]], down_ )
-        dim as long free_ = Pos_( doc.Controls[o[n - 1]], down_ ) + Len_( doc.Controls[o[n - 1]], down_ ) - first_ - used
+        dim as long free_ = Pos_( doc.Controls[o[n - 1]], down_ ) + SpanOf_( doc.Controls[o[n - 1]], down_ ) - first_ - used
         ' each gap its share, the remainder spread so the last ends where it did
         for j as long = 0 to n - 2
             gap.Push( (free_ * (j + 1)) \ (n - 1) - (free_ * j) \ (n - 1) )
@@ -328,7 +330,7 @@ public sub SpaceControls( byref doc as FormDoc, byref names as Array( of ustring
             if o[j] = set_[0] then fixed_ = j
         next
         for j as long = 0 to n - 2
-            dim as long g = Pos_( doc.Controls[o[j + 1]], down_ ) - Pos_( doc.Controls[o[j]], down_ ) - Len_( doc.Controls[o[j]], down_ )
+            dim as long g = Pos_( doc.Controls[o[j + 1]], down_ ) - Pos_( doc.Controls[o[j]], down_ ) - SpanOf_( doc.Controls[o[j]], down_ )
             select case mode
             case SpaceMode.SpaceIncrease : g += grid
             case SpaceMode.SpaceDecrease : if g > 0 then g = iif( g > grid, g - grid, 0 )
@@ -338,10 +340,10 @@ public sub SpaceControls( byref doc as FormDoc, byref names as Array( of ustring
         next
     end if
     for j as long = fixed_ + 1 to n - 1
-        MoveTo_( doc.Controls[o[j]], down_, Pos_( doc.Controls[o[j - 1]], down_ ) + Len_( doc.Controls[o[j - 1]], down_ ) + gap[j - 1] )
+        MoveTo_( doc.Controls[o[j]], down_, Pos_( doc.Controls[o[j - 1]], down_ ) + SpanOf_( doc.Controls[o[j - 1]], down_ ) + gap[j - 1] )
     next
     for j as long = fixed_ - 1 to 0 step -1
-        MoveTo_( doc.Controls[o[j]], down_, Pos_( doc.Controls[o[j + 1]], down_ ) - gap[j] - Len_( doc.Controls[o[j]], down_ ) )
+        MoveTo_( doc.Controls[o[j]], down_, Pos_( doc.Controls[o[j + 1]], down_ ) - gap[j] - SpanOf_( doc.Controls[o[j]], down_ ) )
     next
 end sub
 
@@ -351,11 +353,11 @@ public sub CenterControls( byref doc as FormDoc, byref names as Array( of ustrin
                            byval lo as long, byval hi as long )
     dim as Array( of long ) set_ = Movable_( doc, names, false )
     if set_.Count( ) = 0 then exit sub
-    dim as long a = Pos_( doc.Controls[set_[0]], down_ ), b = a + Len_( doc.Controls[set_[0]], down_ )
+    dim as long a = Pos_( doc.Controls[set_[0]], down_ ), b = a + SpanOf_( doc.Controls[set_[0]], down_ )
     for each i as long in set_
         dim as long p = Pos_( doc.Controls[i], down_ )
         if p < a then a = p
-        if p + Len_( doc.Controls[i], down_ ) > b then b = p + Len_( doc.Controls[i], down_ )
+        if p + SpanOf_( doc.Controls[i], down_ ) > b then b = p + SpanOf_( doc.Controls[i], down_ )
     next
     dim as long d = lo + (hi - lo - (b - a)) \ 2 - a
     for each i as long in set_

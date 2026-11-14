@@ -3164,6 +3164,7 @@ function Window.OpenText( byref path as const ustring ) as boolean
         if d->Designer then
             d->Designer->Host = @this
             d->Designer->ThemePath = this.ProjectThemePath( )
+            d->Designer->PkgDir = this.PkgDir( )
             d->Designer->ApplyProjectTheme( )
             d->Designer->OnWire = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
                 cast( Window ptr, o )->WireHandler( c, n, e, jump )

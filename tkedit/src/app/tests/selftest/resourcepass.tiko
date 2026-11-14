@@ -201,6 +201,8 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
 
     ' ---- the Glyph Picker on GlyphLeft (answered for the person): the character goes in, shown as
     ' U+E824, and the Button's empty GlyphFont becomes GLYPH so the glyph draws in the glyph font
+    ' the bundled icons come from the compiler's toolchain (a shipped tkEdit has no fonts beside it)
+    mw.Prefs.Tiko = TestCompiler( )
     mw.GlyphPick = sub( byval w as any ptr, byref dlg as glyphdlg.GlyphDialog, byref fi as long, byref picked as ustring )
         fi = dlg.ThemeIdx
         picked = wchr( &hE824 )
