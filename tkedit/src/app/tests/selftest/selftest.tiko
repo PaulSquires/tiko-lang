@@ -3493,16 +3493,21 @@ public sub MenuPass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "menu: the bar at {},{} {}x{}, want 0,0 {}x{}", mw.menuBar->x, mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
     t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 7) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
              (tkMenuBar_GetItemText( mw.menuBar, 4 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Debug"), _
-             P( sc, strings.Format( "menu: seven menus, File .. Debug, Form ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+             P( sc, strings.Format( "menu: seven menus, File .. Debug, Design ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     dim as cmdids.CommandTable ct
     dim as boolean rowsOk = true
     for g as long = 0 to clng( MenuGroup.Count_ ) - 1
+        if g = clng( MenuGroup.Design ) then continue for          ' its submenus: checked below
         dim as Array( of Cmd ) ids = ct.InGroup( cast( MenuGroup, g ) )
         dim as TK_MENU ptr m = tkMenuBar_GetDropDown( mw.menuBar, g )
         dim as long last_ = MenuRow( ids[ids.Count( ) - 1] )
         if (m = 0) orelse (tkPopupMenu_GetItemCount( m ) <> last_ + 1) then rowsOk = false
     next
     t.Check( rowsOk, P( sc, "menu: every command a row of its group's menu, the separators between" ) )
+    dim as TK_MENU ptr dsm = tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.Design ) )
+    dim as TK_MENU ptr alm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormAlignLefts ) )
+    t.Check( (tkMenuBar_GetItemText( mw.menuBar, clng( MenuGroup.Design ) ) = "Design") andalso (alm <> 0) andalso _
+             (tkPopupMenu_GetItemCount( alm ) = 7), P( sc, "menu: Design > Align holds Lefts .. Bottoms, a separator between" ) )
     t.Check( mw.Start.frame->y = mh, P( sc, strings.Format( "menu: the start panel under it ({})", mw.Start.frame->y ) ) )
 
     ' ---- File opens on a click; with no buffer what acts on one is greyed

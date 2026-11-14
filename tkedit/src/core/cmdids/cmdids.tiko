@@ -148,7 +148,7 @@ public enum MenuGroup explicit
     View
     Build
     Debug
-    Form
+    Design                  ' the Form Designer's (was Form; author 2026-11-14)
     Count_                  ' not a menu
 end enum
 
@@ -156,7 +156,7 @@ public function GroupName( byval g as MenuGroup ) as ustring
     select case g
     case MenuGroup.File : return "File"
     case MenuGroup.Edit : return "Edit"
-    case MenuGroup.Form : return "Form"
+    case MenuGroup.Design : return "Design"
     case MenuGroup.Search : return "Search"
     case MenuGroup.View : return "View"
     case MenuGroup.Build : return "Build"
@@ -329,7 +329,7 @@ constructor CommandTable( )
     this.Def( Cmd.FoldAll, "FoldAll", g, "Fold All", "Shift+F8" )
     this.Def( Cmd.UnfoldAll, "UnfoldAll", g, "Unfold All", "Primary+Shift+F8" )
 
-    g = MenuGroup.Form
+    g = MenuGroup.Design
     this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "" )
     this.Def( Cmd.FormTheme, "FormTheme", g, "Project Theme...", "" )
     this.Def( Cmd.FormResources, "FormResources", g, "Resource Center...", "" )
@@ -341,7 +341,7 @@ constructor CommandTable( )
     this.Def( Cmd.FormAlignTops, "FormAlignTops", g, "Align Tops", "", true )
     this.Def( Cmd.FormAlignMiddles, "FormAlignMiddles", g, "Align Middles", "" )
     this.Def( Cmd.FormAlignBottoms, "FormAlignBottoms", g, "Align Bottoms", "" )
-    this.Def( Cmd.FormSameWidth, "FormSameWidth", g, "Same Width", "", true )
+    this.Def( Cmd.FormSameWidth, "FormSameWidth", g, "Same Width", "" )
     this.Def( Cmd.FormSameHeight, "FormSameHeight", g, "Same Height", "" )
     this.Def( Cmd.FormSameSize, "FormSameSize", g, "Same Size", "" )
     this.Def( Cmd.FormBringToFront, "FormBringToFront", g, "Bring to Front", "", true )

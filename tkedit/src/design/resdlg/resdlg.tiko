@@ -68,6 +68,7 @@ public type ResourceDialog
     Renames as Array( of Setting )      ' Key = the name as the project has it, Value = the new one
     Removed as Array( of ustring )      ' files/ names of resources removed (deleted by the caller on OK)
     Added as Array( of ustring )        ' files/ names copied in here (deleted again on Cancel)
+    OrigText as ustring                 ' the .tkres as opened: Changed( ) compares against it
     Accepted as boolean
     IsModal as boolean
     Loading as boolean
@@ -86,6 +87,7 @@ public type ResourceDialog
     Preview as TK_WIDGET ptr
     Picture as TK_WIDGET ptr
     Sample as TK_WIDGET ptr
+    LblSize as TK_WIDGET ptr            ' the file's size, under the preview
     BtnAdd as TK_WIDGET ptr
     BtnRemove as TK_WIDGET ptr
     BtnOk as TK_WIDGET ptr
@@ -105,6 +107,7 @@ public type ResourceDialog
     declare function RemoveSelected( ) as boolean
     declare function RenameSelected( byref newName as const ustring ) as ustring
     declare sub EmbedToggled( byval on_ as boolean )
+    declare function Changed( ) as boolean
 end type
 
 private sub RaiseOwner_( byval f as TK_FORM ptr )
@@ -179,6 +182,15 @@ private function RowTip_( byval h as TK_WIDGET ptr, byval row as integer, byval 
     return fs.PathJoin( d->Dir_, resfile.FILES_DIR, d->Doc.Items[i].File )
 end function
 
+' A file's size: bytes under 1 K, else K (rounded); "" when it can't be read.
+private function SizeText_( byref file as const ustring ) as ustring
+    dim as fs.FsResultInfo r = fs.Stat( file )
+    if (r.IsOk( ) = false) orelse (r.Value( ).Exists( ) = false) then return ""
+    dim as longint n = r.Value( ).Size( )
+    if n < 1024 then return strings.Format( i18n.Tr( "designer.res_bytes", "{} bytes" ), n )
+    return strings.Format( i18n.Tr( "designer.res_kbytes", "{} K" ), (n + 512) \ 1024 )
+end function
+
 ' The column header shows its whole text: no tooltip.
 private function NoHeaderTip_( byval h as TK_WIDGET ptr, byval idx as integer ) as ustring
     return ""
@@ -196,6 +208,7 @@ sub ResourceDialog.Open( byval owner_ as TK_FORM ptr, byref dir__ as const ustri
     dim as ustring none, e
     dim as ustring path = fs.PathJoin( Dir_, resfile.RES_MODULE & ".tkres" )
     resfile.Parse( fs.ReadAllText( path ).ValueOr( none ), Doc, e )
+    OrigText = resfile.ToText( Doc )
 
     dim as ustring t = i18n.Tr( "designer.res_center", "Resource Center" )
     dim as single sc = 0
@@ -235,11 +248,14 @@ sub ResourceDialog.Open( byval owner_ as TK_FORM ptr, byref dir__ as const ustri
     tkPicture_SetFit( Picture, TK_IMGFIT_ASPECT )
     Sample = tkLabel_Create( Preview, 1 )
     tkLabel_SetText( Sample, "AaBbCc 123" )
+    LblSize = tkLabel_Create( Preview, 1 )
+    tkLabel_SetAlign( LblSize, LBL_ALIGN_CENTER )
 
     BtnAdd = MakeGlyphButton_( root_, GLYPH_ADD, i18n.Tr( "designer.res_add", "Add..." ) )
     BtnRemove = MakeGlyphButton_( root_, GLYPH_DELETE, i18n.Tr( "designer.res_remove", "Remove" ) )
     BtnOk = MakeButton_( root_, iif( len( PickKind ) > 0, i18n.Tr( "designer.res_select", "Select" ), i18n.Tr( "designer.ok", "OK" ) ) )
-    BtnCancel = MakeButton_( root_, i18n.Tr( "designer.cancel", "Cancel" ) )
+    ' in Pick it only declines the pick (the changes made here stay): Close (author)
+    BtnCancel = MakeButton_( root_, iif( len( PickKind ) > 0, i18n.Tr( "designer.res_close", "Close" ), i18n.Tr( "designer.cancel", "Cancel" ) ) )
 
     tkForm_OnSize( Win, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
         cast( ResourceDialog ptr, f->Tag )->Layout( )
@@ -263,7 +279,13 @@ sub ResourceDialog.Close( )
     Win = 0
 end sub
 
-' OK / Select / Cancel. Cancel takes back the files Add copied in.
+' Anything added, removed, renamed or built in differently since it opened.
+function ResourceDialog.Changed( ) as boolean
+    return resfile.ToText( Doc ) <> OrigText
+end function
+
+' OK / Select / Cancel. Cancel takes back the files Add copied in -- but not in Pick, whose Cancel
+' only declines the pick: the caller keeps the Center's changes (author).
 sub ResourceDialog.Finish( byval ok as boolean )
     if ok then
         ' a name still being typed is taken as if Enter had been pressed (the box's own resource only)
@@ -280,7 +302,7 @@ sub ResourceDialog.Finish( byval ok as boolean )
             Picked = ""
             if i >= 0 then Picked = resfile.RefOf( Doc.Items[i].Name )
         end if
-    else
+    elseif len( PickKind ) = 0 then
         for each f as ustring in Added
             fs.RemoveFile( fs.PathJoin( Dir_, resfile.FILES_DIR, f ) )
         next
@@ -308,8 +330,11 @@ sub ResourceDialog.Layout( )
     tkWidget_SetPos( ChkEmbed, 3 * g + lw + tkForm_Scale( Win, 180 ), fieldsY, lstW - (2 * g + lw + tkForm_Scale( Win, 180 )), rh )
     tkWidget_SetPos( LblInfo, g, fieldsY + rh + g, lstW, rh )
     tkWidget_SetPos( Preview, cw - pvW - g, g, pvW, fieldsY - 2 * g )
-    tkWidget_SetPos( Picture, g, g, pvW - 2 * g, fieldsY - 4 * g )
-    tkWidget_SetPos( Sample, g, g, pvW - 2 * g, fieldsY - 4 * g )
+    ' the picture (or the font's sample), its file's size centred under it
+    dim as long picH = fieldsY - 5 * g - rh
+    tkWidget_SetPos( Picture, g, g, pvW - 2 * g, picH )
+    tkWidget_SetPos( Sample, g, g, pvW - 2 * g, picH )
+    tkWidget_SetPos( LblSize, g, 2 * g + picH, pvW - 2 * g, rh )
     dim as long gw = tkForm_Scale( Win, GLYPH_CX )
     tkWidget_SetPos( BtnAdd, g, bottomY, gw, rh )
     tkWidget_SetPos( BtnRemove, 2 * g + gw, bottomY, gw, rh )
@@ -357,6 +382,7 @@ sub ResourceDialog.ShowSelected( )
     tkLabel_SetText( LblInfo, "" )
     tkWidget_Show( Picture, false )
     tkWidget_Show( Sample, false )
+    tkLabel_SetText( LblSize, "" )
     if i < 0 then
         tkTextBox_SetText( TxtName, "" )
         tkCheckBox_SetChecked( ChkEmbed, false )
@@ -366,6 +392,7 @@ sub ResourceDialog.ShowSelected( )
         tkCheckBox_SetChecked( ChkEmbed, x.Embed )
         tkLabel_SetText( LblInfo, resfile.RefOf( x.Name ) )
         dim as ustring file = fs.PathJoin( Dir_, resfile.FILES_DIR, x.File )
+        tkLabel_SetText( LblSize, SizeText_( file ) )
         if x.Kind = "image" then
             tkPicture_SetFile( Picture, file )
             tkWidget_Show( Picture, true )
