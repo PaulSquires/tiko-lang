@@ -1262,14 +1262,18 @@ sub Window.OpenThemeCenterOn( byref path as const ustring, byval forEditor as bo
     dim as ustring title
     if forEditor then title = i18n.Tr( "designer.theme_editor_title", "tkEdit Theme" )
     ThemeDlg->Open( form, path, fs.PathJoin( ConfigDir, themes.THEME_DIR ), title )
+    ' modal to tkEdit, as the OS sees it (tkHost_RunModal's SDL_SetWindowModal): tkEdit's window takes
+    ' no input until it closes. The dialog keeps running in tkEdit's own loop.
+    if ThemeDlg->Win then SDL_SetWindowModal( tkForm_Host( ThemeDlg->Win )->win, true )
 end sub
 
 sub Window.CloseThemeCenter( )
     if ThemeDlg = 0 then exit sub
     dim as themecenter.ThemeDialog ptr d = ThemeDlg
     ThemeDlg = 0
-    ' tkEdit active BEFORE the dialog's window goes: destroying the active window let Windows activate
-    ' some other program's window now and then
+    ' tkEdit enabled again, then active, BEFORE the dialog's window goes: destroying the active window
+    ' let Windows activate some other program's window now and then
+    if d->Win then SDL_SetWindowModal( tkForm_Host( d->Win )->win, false )
     this.Raise( )
     d->Close( )
     delete d

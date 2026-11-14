@@ -121,6 +121,8 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 120 )
     dim as themecenter.ThemeDialog ptr dlg = mw.ThemeDlg
     t.Check( (dlg <> 0) andalso (dlg->Win <> 0), P( sc, "the Theme Center opens" ) )
+    t.Check( (dlg <> 0) andalso (dlg->Win <> 0) andalso ((SDL_GetWindowFlags( tkForm_Host( dlg->Win )->win ) and SDL_WINDOW_MODAL) <> 0), _
+             P( sc, "modal to tkEdit's window: tkEdit takes no input while it is up" ) )
     if (dlg = 0) orelse (dlg->Win = 0) then
         mw.Destroy( )
         exit sub
