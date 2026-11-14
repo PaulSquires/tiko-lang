@@ -174,6 +174,13 @@ clicked and is told how many clicks (`sub Form.OnPanel( byval clicks as long )`,
 it evenly. It is saved per panel (`stretch = true`). A form from before this keeps its bar's `ExpandPanel`
 property until the panels are next edited, when it becomes that panel's Stretch.
 
+## Option buttons
+
+Option buttons with the same parent and the same **GroupID** are one group: one of them is checked, the
+arrow keys move through them and Tab stops at the group once. An option button you place takes the
+GroupID of the last one placed on the same parent, so a column drawn one after another is one group;
+give a new group its own GroupID on its first button.
+
 ## Components
 
 A **Timer** is a component, not a control: the form has one, but it is never shown. On the surface it is

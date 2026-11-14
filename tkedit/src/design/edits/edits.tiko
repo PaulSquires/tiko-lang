@@ -123,6 +123,18 @@ public function AddControl( byref doc as FormDoc, byref typeName as const ustrin
     end select
     dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, "Text" )
     if (p <> 0) andalso (p->Kind = "text") then PutSetting( c.Props, "Text", c.Name )
+    ' an option button joins the group of the last one placed beside it (same parent, same page):
+    ' a column of them drawn one after another is one group without setting each one's GroupID
+    if m->Name = "OptionButton" then
+        for k as long = doc.Controls.Count( ) - 1 to 0 step -1
+            if (doc.Controls[k].TypeName = "OptionButton") andalso (lcase( doc.Controls[k].Parent ) = lcase( c.Parent )) _
+               andalso (doc.Controls[k].Page = c.Page) then
+                dim as long g = FindSetting( doc.Controls[k].Props, "GroupID" )
+                if g >= 0 then c.Props.Push( doc.Controls[k].Props[g] )
+                exit for
+            end if
+        next
+    end if
     doc.Controls.Push( c )
     return doc.Controls.Count( ) - 1
 end function

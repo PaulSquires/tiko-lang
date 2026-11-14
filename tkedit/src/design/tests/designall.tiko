@@ -1533,6 +1533,20 @@ sub SpinnerSuite( )
     Check( (m <> 0) andalso (tkMeta_FindProp( m, "Running" ) <> 0) andalso (tkMeta_FindProp( m, "Running" )->bDesign = false), "spinner: Running never runs on the canvas" )
 end sub
 
+' An option button placed takes the GroupID of the last one on the same parent.
+sub OptionGroupSuite( )
+    dim as FormDoc e
+    e.ClientW = 300
+    e.ClientH = 200
+    edits.AddControl( e, "OptionButton", "", -1, 8, 8, 100, 24 )
+    edits.SetProperty( e, Names( "OptionButton1" ), "GroupID", "2" )
+    dim as long i2 = edits.AddControl( e, "OptionButton", "", -1, 8, 40, 100, 24 )
+    Check( SettingOr( e.Controls[i2].Props, "GroupID" ) = "2", "option group: the next one placed joins the last one's group" )
+    edits.AddControl( e, "Panel", "", -1, 150, 8, 100, 100 )
+    dim as long i3 = edits.AddControl( e, "OptionButton", "Panel1", -1, 8, 8, 80, 24 )
+    Check( FindSetting( e.Controls[i3].Props, "GroupID" ) < 0, "option group: not across parents" )
+end sub
+
 ' [control.colors] (THEMES.md, TH4): values, migration of the old colour properties, refusals.
 sub ColorsSuite( )
     dim as ustring src = Header( ) & Ctl( "l", "Label", "parent = """"" & LF & "x = 0" & LF & "y = 0" & LF & "w = 10" & LF & "h = 10" & LF ) _
@@ -1888,6 +1902,7 @@ ChartSuite( )
 TimerSuite( )
 PopupSuite( )
 SpinnerSuite( )
+OptionGroupSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )
