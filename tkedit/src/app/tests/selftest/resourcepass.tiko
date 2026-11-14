@@ -139,7 +139,7 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     ' ---- renamed in the Center: the form follows
     gResRename = "brand"
     t.Check( OpenCenter( mw, 2 ), P( sc, "the Center opened again, renamed, OK" ) )
-    t.Check( gResFaults = "Letters, digits and _ only|Start with a letter|", P( sc, "a bad name says what is wrong, briefly: " & gResFaults ) )
+    t.Check( gResFaults = "Letters, digits and underscores only|Start with a letter|", P( sc, "a bad name says what is wrong, briefly: " & gResFaults ) )
     t.Check( gResTones > 2, P( sc, "the Center's list draws its rows: " & gResTones & " tones" ) )
     dim as long bi = FindControl( c->Doc, "Button1" )
     dim as ustring img

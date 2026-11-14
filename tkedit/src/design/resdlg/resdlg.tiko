@@ -485,7 +485,7 @@ function ResourceDialog.NameFault( byref nm as const ustring ) as ustring
     if resfile.IsName( nm ) = false then
         dim as long a = asc( nm )
         if ((a >= 65) andalso (a <= 90)) orelse ((a >= 97) andalso (a <= 122)) then
-            return i18n.Tr( "designer.res_name_chars", "Letters, digits and _ only" )
+            return i18n.Tr( "designer.res_name_chars", "Letters, digits and underscores only" )
         end if
         return i18n.Tr( "designer.res_name_start", "Start with a letter" )
     end if
