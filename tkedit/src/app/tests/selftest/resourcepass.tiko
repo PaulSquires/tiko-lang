@@ -143,6 +143,14 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     if bi >= 0 then img = SettingOr( c->Doc.Controls[bi].Props, "ImageLeft" )
     t.Check( img = "res:brand", P( sc, "the Button's ImageLeft follows the rename: " & img ) )
     t.Check( tkHost_HasResource( "res:brand" ) andalso (tkHost_HasResource( "res:red" ) = false), P( sc, "this process knows the new name, not the old" ) )
+    ' a Remove's warning names the control's property -- but not the one a "..." is picking for
+    c->SelectOnly( "Button1" )
+    dim as ustring users = mw.ResourceUsers( "brand" )
+    t.Check( instr( users, ": Button1.ImageLeft" ) > 0, P( sc, "brand's users: " & users ) )
+    mw.ResPickCanvas = c : mw.ResPickProp = "ImageLeft"
+    users = mw.ResourceUsers( "brand" )
+    mw.ResPickCanvas = 0 : mw.ResPickProp = ""
+    t.Check( len( users ) = 0, P( sc, "picking for Button1.ImageLeft, none other: " & users ) )
 
     ' ---- the inspector's "..." on ImageLeft: the Center in Pick, the row takes res:brand
     trial = c->Doc

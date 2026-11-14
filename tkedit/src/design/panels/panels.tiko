@@ -367,7 +367,7 @@ private sub OnFileGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as 
     if r < 0 then exit sub
     dim as canvas.FormCanvas ptr c = p->C
     dim as ustring key_ = p->Rows[r].Key, picked
-    if c->OnPickResource( c->Host, "image", tkTextBox_GetText( p->Rows[r].Edit ), picked ) = false then exit sub
+    if c->OnPickResource( c->Host, c, "image", tkTextBox_GetText( p->Rows[r].Edit ), key_, picked ) = false then exit sub
     ' the Center's OK rebuilt the forms: the panels may be bound elsewhere, their rows made again
     if p->C <> c then exit sub
     r = -1

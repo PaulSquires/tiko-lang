@@ -638,6 +638,8 @@ public type Window
     declare sub EditColors( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
     ResDlg as resdlg.ResourceDialog ptr
     ResRegistered as Array( of ustring )        ' the "res:" names this process has given tkHost
+    ResPickCanvas as canvas.FormCanvas ptr      ' while a "..." has the Center up: its form, and the
+    ResPickProp as ustring                      ' property of its selection (or the form) picked for
     declare function EditResources( byref kind_ as const ustring, byref current as const ustring, byref picked as ustring, _
                                     byval owner_ as TK_FORM ptr = 0 ) as boolean
     declare sub ApplyResources( byref dlg as resdlg.ResourceDialog )
@@ -3074,8 +3076,14 @@ function Window.OpenText( byref path as const ustring ) as boolean
             d->Designer->OnEditColors = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
                 cast( Window ptr, o )->EditColors( c, n )
             end sub
-            d->Designer->OnPickResource = function( byval o as any ptr, byref k as const ustring, byref cur as const ustring, byref picked as ustring ) as boolean
-                return cast( Window ptr, o )->EditResources( k, cur, picked )
+            d->Designer->OnPickResource = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref k as const ustring, _
+                                                    byref cur as const ustring, byref prop as const ustring, byref picked as ustring ) as boolean
+                dim as Window ptr w = o
+                ' a Remove in the Center leaves out the property being picked for: Select replaces it
+                w->ResPickCanvas = c : w->ResPickProp = prop
+                dim as boolean ok = w->EditResources( k, cur, picked )
+                w->ResPickCanvas = 0 : w->ResPickProp = ""
+                return ok
             end function
             d->Designer->OnContextMenu = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
                 cast( Window ptr, o )->ShowDesignMenu( c, x, y )

@@ -647,8 +647,25 @@ private function OpenDocAt_( byref docs as Array( of DocRef ), byref path as con
     return 0
 end function
 
-' The form and theme files that refer to "res:nm", by file name, comma-separated ("" = none). An
-' open one is read as it stands in its buffer.
+private sub UsersAdd_( byref o as ustring, byref one as const ustring )
+    if len( o ) then o &= ", "
+    o &= one
+end sub
+
+' How many times text has "res:nm" in quotes.
+private function CountRefs_( byref text as const ustring, byref nm as const ustring ) as long
+    dim as ustring t = lcase( text ), q = lcase( """" & resfile.RefOf( nm ) & """" )
+    dim as long n = 0, at = instr( t, q )
+    while at > 0
+        n += 1
+        at = instr( at + len( q ), t, q )
+    wend
+    return n
+end function
+
+' What refers to "res:nm", comma-separated ("" = none): a form's control as "Form1.tkform: Button1.ImageLeft"
+' (its icon as "Form1.tkform: Icon"), a theme or any other use by file name. An open file is read as
+' it stands in its buffer. The property a "..." is picking for now is left out: Select replaces it.
 function Window.ResourceUsers( byref nm as const ustring ) as ustring
     if ProjOpen = false then return ""
     dim as Array( of ustring ) files
@@ -658,10 +675,32 @@ function Window.ResourceUsers( byref nm as const ustring ) as ustring
         dim as DocRef d = OpenDocAt_( Docs, p )
         dim as ustring text
         if d then text = d->Text( ) else text = fs.ReadAllText( p ).ValueOr( none )
-        if resfile.Refers( text, nm ) then
-            if len( o ) then o &= ", "
-            o &= fs.PathFileName( p )
+        if resfile.Refers( text, nm ) = false then continue for
+        dim as ustring fname = fs.PathFileName( p )
+        dim as long found = 0
+        dim as FormDoc fd
+        dim as ustring e
+        if (lcase( right( p, 7 ) ) = ".tkform") andalso formfile.Parse( text, fd, e ) then
+            ' by control and property; the "..." picking now (ResPickCanvas, ResPickProp) is not one
+            dim as boolean picking = (d <> 0) andalso (ResPickCanvas <> 0) andalso (d->Designer = ResPickCanvas)
+            dim as ustring ref_ = lcase( resfile.RefOf( nm ) )
+            if lcase( fd.Icon ) = ref_ then
+                found += 1
+                if (picking andalso (ResPickCanvas->Selected.Count( ) = 0) andalso (ResPickProp = "@Icon")) = false then
+                    UsersAdd_( o, fname & ": Icon" )
+                end if
+            end if
+            for each fc as FormControl in fd.Controls
+                for each s as Setting in fc.Props
+                    if lcase( s.Value ) <> ref_ then continue for
+                    found += 1
+                    if picking andalso (s.Key = ResPickProp) andalso ResPickCanvas->IsSelected( fc.Name ) then continue for
+                    UsersAdd_( o, fname & ": " & fc.Name & "." & s.Key )
+                next
+            next
         end if
+        ' a use not found above (a theme, a place this doesn't look): the file by name
+        if CountRefs_( text, nm ) > found then UsersAdd_( o, fname )
     next
     return o
 end function
