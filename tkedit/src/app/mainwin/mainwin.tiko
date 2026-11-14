@@ -17,11 +17,12 @@
 ' an empty untitled one (Blank) that no tab, list or status line shows -- the start panel stands
 ' in its pane's place instead, a few commands with their keys (tka/startpanel, author 2026-11-02).
 '
-' Configuration is files only (D15): settings.toml, keybindings.toml and the theme are opened as
+' Configuration is files (D15): settings.toml, keybindings.toml and the theme are opened as
 ' buffers like any text, and saving one re-applies it at once. A file that does not parse leaves
 ' the previous values in force and says why in the status line's message panel. settings.toml is
 ' rewritten to list every key at its value in force when tkEdit starts and before it is opened;
-' keybindings.toml every command at its chord, the same way.
+' keybindings.toml every command at its chord, the same way. Ctrl+K edits the shortcuts in a
+' dialog (tka/keysdlg) whose OK writes keybindings.toml and applies it.
 #module "mainwin"
 
 #import "std/containers"
@@ -66,6 +67,7 @@
 #import "tka/editor"
 #import "tka/explorer"
 #import "tka/findstrip"
+#import "tka/keysdlg"
 #import "tka/outputpane"
 #import "tka/popuplist"
 #import "tka/startpanel"
@@ -173,7 +175,7 @@ public enum StatusPanel explicit
     Position            ' Ln, Col; a click opens Go to Line, or closes it
     Project             ' "Project": a click opens the project's options file as text (no project: makes one first)
     Settings            ' "Settings": a click opens settings.toml
-    Keys                ' "Keys": a click opens keybindings.toml
+    Keys                ' "Keys": a click opens the Keyboard Shortcuts dialog
     Build               ' the build configuration; a click picks one, and makes it settings.toml's default
     Encoding            ' a click picks one
     LineEnding          ' a click converts
@@ -606,6 +608,9 @@ public type Window
     declare function NewConsoleProject( byref folder as const ustring ) as boolean
     declare function NewFormProject( byref folder as const ustring ) as boolean
     ItemsDlg as itemsdlg.ItemsEditor ptr
+    KeysDlg as keysdlg.KeysDialog ptr
+    declare sub OpenKeys( )                                      ' the Keyboard Shortcuts dialog, not yet modal
+    declare sub FinishKeys( byval apply_ as boolean )
     ThemeDlg as themecenter.ThemeDialog ptr
     declare sub OpenThemeCenter( )
     declare sub OpenThemeCenterOn( byref path as const ustring, byval forEditor as boolean )
@@ -1233,6 +1238,7 @@ end sub
 
 sub Window.Destroy( )
     this.CloseTestForm( )
+    if KeysDlg then this.FinishKeys( false )
     Palettes.Destroy( )
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
@@ -1902,8 +1908,8 @@ function Window.Execute( byval id as Cmd ) as boolean
         if this.FindOpen( this.SettingsFile( ) ) = 0 then this.SyncSettingsFile( )   ' never under an open buffer
         this.OpenFile( this.SettingsFile( ) )
     case Cmd.KeyboardShortcuts
-        if this.FindOpen( this.KeysFile( ) ) = 0 then this.SyncKeysFile( )           ' never under an open buffer
-        this.OpenFile( this.KeysFile( ) )
+        this.OpenKeys( )
+        if KeysDlg then this.FinishKeys( KeysDlg->RunModal( ) )
     case Cmd.ThemeFile
         ' tkEdit's own theme in the Theme Center, a copy in the config folder (made the first time)
         dim as ustring f = this.EditableThemeFile( )
@@ -2379,6 +2385,40 @@ sub Window.SyncKeysFile( )
     if t.IsOk( ) = false then exit sub
     if fs.IsFile( this.KeysFile( ) ) andalso (fs.ReadAllText( this.KeysFile( ) ).ValueOr( "" ) = t.Value( )) then exit sub
     k.Save( this.KeysFile( ) )
+end sub
+
+' Ctrl+K: the Keyboard Shortcuts dialog on a copy of the key map. It's the caller's to run or drive.
+sub Window.OpenKeys( )
+    if KeysDlg then exit sub
+    KeysDlg = new keysdlg.KeysDialog
+    KeysDlg->Open( form, Keys )
+    if KeysDlg->Win = 0 then
+        delete KeysDlg
+        KeysDlg = 0
+    end if
+end sub
+
+' OK: the dialog's key map written to keybindings.toml (every command at its chord, as SyncKeysFile
+' writes it) and applied at once; an open copy of the file reloads. Cancel: nothing changes.
+sub Window.FinishKeys( byval apply_ as boolean )
+    if KeysDlg = 0 then exit sub
+    dim as keysdlg.KeysDialog ptr dlg = KeysDlg
+    KeysDlg = 0
+    dim as ustring fault
+    if apply_ then
+        dim as keybind.TextResult r = dlg->Work.Save( this.KeysFile( ) )
+        if r.IsOk( ) = false then fault = r.Failure( )
+    end if
+    dlg->Close( )
+    delete dlg
+    if apply_ andalso (len( fault ) = 0) then
+        this.ReloadKeys( )
+        dim as DocRef d = this.FindOpen( this.KeysFile( ) )
+        if d then d->Reload( )
+    elseif len( fault ) then
+        this.SetMessage( keybind.KEYBINDINGS_FILE & ": " & fault )
+    end if
+    this.FocusEditor( )
 end sub
 
 ' keybindings.toml: the key map and the accelerators; warnings and chords

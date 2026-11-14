@@ -262,7 +262,7 @@ constructor CommandTable( )
     this.Def( Cmd.FileRename, "FileRename", g, "Rename...", "", true )
     this.Def( Cmd.FileDuplicate, "FileDuplicate", g, "Duplicate", "" )
     this.Def( Cmd.Settings, "Settings", g, "Settings (settings.toml)", "Primary+Comma", true )
-    this.Def( Cmd.KeyboardShortcuts, "KeyboardShortcuts", g, "Keyboard Shortcuts (keybindings.toml)", "Primary+K" )
+    this.Def( Cmd.KeyboardShortcuts, "KeyboardShortcuts", g, "Keyboard Shortcuts...", "Primary+K" )
     this.Def( Cmd.ThemeFile, "ThemeFile", g, "Theme File", "Primary+Shift+T" )
     this.Def( Cmd.AppExit, "AppExit", g, "Exit", "Alt+F4", true )
 
