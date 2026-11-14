@@ -34,6 +34,7 @@
 #import "vendor/tkControls/tkGroupBox"
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkCheckBox"
+#import "vendor/tkControls/tkNumericUpDown"
 #import "vendor/tkControls/tkPanel"
 #import "vendor/tkControls/tkTheme"
 using containers
@@ -49,6 +50,7 @@ using tkTabBar
 using tkGroupBox
 using tkComboBox
 using tkCheckBox
+using tkNumericUpDown
 using tkPanel
 using tkTheme
 using tkHost
@@ -221,6 +223,13 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( th, 40 )
     t.Check( dlg->Doc.CornerRadius = 2, P( sc, "corner radius -1 + 3: " & dlg->Doc.CornerRadius ) )
     t.Check( tkButton_GetCornerCurvature( dlg->PvButton ) = tkHost_Scale( th, 4 ), P( sc, "the preview's corners follow: " & tkButton_GetCornerCurvature( dlg->PvButton ) ) )
+    ' Size: System ticked greys the up-down; unticked, the theme takes the up-down's size (GLYPHS.md GV2)
+    t.Check( tkCheckBox_GetChecked( dlg->ChkSizeSystem ) andalso (dlg->NudUISize->isEnabled = false) andalso (dlg->Doc.UISize = 0), _
+             P( sc, "size: System, the up-down greyed" ) )
+    PressIn( th, dlg->ChkSizeSystem )
+    t.Check( dlg->NudUISize->isEnabled andalso (dlg->Doc.UISize = clng( tkNumericUpDown_GetValue( dlg->NudUISize ) )) andalso (dlg->Doc.UISize > 0), _
+             P( sc, "size: unticked, the up-down's " & dlg->Doc.UISize ) )
+    PressIn( th, dlg->ChkSizeSystem )
     ' Build the fonts into the program: on for this project, so the build below embeds them
     t.Check( dlg->ChkEmbed->isVisible, P( sc, "a project's theme offers to build its fonts in" ) )
     PressIn( th, dlg->ChkEmbed )
