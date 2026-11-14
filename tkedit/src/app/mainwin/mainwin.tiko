@@ -225,7 +225,7 @@ public type AskProc as function( byval f as TK_FORM ptr, byref text as const ust
 public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
 public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
 public const PICK_RESOURCES = 101        ' a Pick kind: images and fonts for the Resource Center, one per line
-public const PICK_COMPILER = 101         ' a Pick kind: the tiko compiler (tiko.exe on Windows)
+public const PICK_COMPILER = 102        ' a Pick kind: the tiko compiler (tiko.exe on Windows)
 public type DocRef as documents.Document ptr
 ' Starting a program (Run): argv[0] is the program. The self-test records instead.
 public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
@@ -386,8 +386,9 @@ private function PickNow( byval f as TK_FORM ptr, byval kind as long, byref sugg
         return tkFileDialog_OpenFile( tkForm_Host( f ), cf, where )
     end if
     if kind = PICK_RESOURCES then
-        filters = i18n.Tr( "dialog.filter_resources", "Images and fonts" ) & "|png;jpg;jpeg;bmp;ico;gif;webp;tga;svg;ttf;otf|" & _
-                  i18n.Tr( "dialog.filter_all", "All files" ) & "|*"
+        ' All files first (author): the Center takes any file a program may ship
+        filters = i18n.Tr( "dialog.filter_all", "All files" ) & "|*|" & _
+                  i18n.Tr( "dialog.filter_resources", "Images and fonts" ) & "|png;jpg;jpeg;bmp;ico;gif;webp;tga;svg;ttf;otf"
     end if
     if (kind = PICK_OPEN_MANY) orelse (kind = PICK_RESOURCES) then
         dim as Array( of ustring ) paths

@@ -34,7 +34,7 @@ using model
 using tkListTree
 using tkScrollPanel
 
-dim shared as long gResStep, gResTries
+dim shared as long gResStep, gResTries, gResTones
 dim shared as ustring gResRename
 
 private function resfile_Find_( byval dlg as resdlg.ResourceDialog ptr, byref nm as const ustring ) as long
@@ -55,7 +55,16 @@ private sub DriveResources( byval payload as any ptr )
     dim as resdlg.ResourceDialog ptr dlg = w->ResDlg
     select case gResStep
     case 1 : dlg->AddPressed( )                  ' the picker is scripted (gPickPath)
-    case 2 : dlg->RenameSelected( gResRename )
+    case 2
+        ' its row is drawn (a tkListTree with no paint callback shows a blank list)
+        dim as TK_HOST ptr dh = tkForm_Host( dlg->Win )
+        tkHost_RenderTo( dh, false )
+        dim as TKRECT a
+        tkWidget_AbsRect( dlg->List, a )
+        dim as ulong c0
+        dim as long hh = tkListTree_GetHeaderHeight( dlg->List )   ' below the header: only the rows
+        gResTones = tkTest_TonesIn( dh, a.left, a.top + hh, a.right - a.left, a.bottom - a.top - hh, c0 )
+        dlg->RenameSelected( gResRename )
     case 3
         ' Pick: the row of that name, then Select
         dim as long want = resfile_Find_( dlg, gResRename )
@@ -128,6 +137,7 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     ' ---- renamed in the Center: the form follows
     gResRename = "brand"
     t.Check( OpenCenter( mw, 2 ), P( sc, "the Center opened again, renamed, OK" ) )
+    t.Check( gResTones > 2, P( sc, "the Center's list draws its rows: " & gResTones & " tones" ) )
     dim as long bi = FindControl( c->Doc, "Button1" )
     dim as ustring img
     if bi >= 0 then img = SettingOr( c->Doc.Controls[bi].Props, "ImageLeft" )

@@ -170,6 +170,11 @@ private function MakeGlyphButton_( byval parent as TK_WIDGET ptr, byval cp as ul
     return b
 end function
 
+' The column header shows its whole text: no tooltip.
+private function NoHeaderTip_( byval h as TK_WIDGET ptr, byval idx as integer ) as ustring
+    return ""
+end function
+
 private function KindText_( byref k as const ustring ) as ustring
     if k = "font" then return i18n.Tr( "designer.res_kind_font", "Font" )
     return i18n.Tr( "designer.res_kind_image", "Image" )
@@ -202,6 +207,8 @@ sub ResourceDialog.Open( byval owner_ as TK_FORM ptr, byref dir__ as const ustri
     tkListTree_AddColumn( List, i18n.Tr( "designer.res_col_embed", "Built in" ), tkForm_Scale( Win, 70 ) )
     tkListTree_AddColumn( List, i18n.Tr( "designer.res_col_file", "File" ), tkForm_Scale( Win, 160 ) )
     tkListTree_ShowHeader( List, true )
+    tkListTree_SetPaintCallback( List, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+    tkListTree_SetHeaderTooltipCallback( List, @NoHeaderTip_ )
     tkListTree_SetSelChangeCallback( List, @OnSel )
     tkListTree_SetActivateCallback( List, @OnActivate )
 
