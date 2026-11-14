@@ -34,6 +34,7 @@
 #import "tks/dapengine"
 #import "tks/parser"
 #import "tka/mainwin"
+#import "tka/keysdlg"
 #import "tka/chrome"
 #import "tka/completion"
 #import "tka/startpanel"
@@ -371,6 +372,19 @@ public sub Pass( byref t as Tally, byval sc as single )
     mw.Destroy( )
 end sub
 
+' Posted before a step that opens the Keyboard Shortcuts dialog modally: once its loop runs, Cancel --
+' so the step comes back by itself, with no one at the keyboard.
+dim shared as long gKeysCancelTries
+private sub CancelKeysWhenModal( byval payload as any ptr )
+    dim as mainwin.Window ptr w = payload
+    gKeysCancelTries += 1
+    if (w->KeysDlg <> 0) andalso w->KeysDlg->IsModal then
+        w->KeysDlg->Finish( false )
+    elseif gKeysCancelTries < 100000 then
+        tkApp_RunOnUI( @CancelKeysWhenModal, payload )
+    end if
+end sub
+
 ' P1: the command table, key dispatch, first-run files, live reload of settings.toml,
 ' keybindings.toml and the theme file, a broken file changing nothing, settings.toml rewritten.
 public sub ConfigPass( byref t as Tally, byval sc as single )
@@ -689,8 +703,10 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     ClickPanel( mw, mainwin.StatusPanel.Settings )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "the Settings panel opened settings.toml: " & mw.ActivePath( ) ) )
     ' the Keys panel runs Ctrl+K: the dialog comes and goes (Cancel), the buffers untouched
+    gKeysCancelTries = 0
+    tkApp_RunOnUI( @CancelKeysWhenModal, @mw )
     ClickPanel( mw, mainwin.StatusPanel.Keys )
-    t.Check( (mw.KeysDlg = 0) andalso (lcase( mw.ActivePath( ) ) = lcase( sf )), P( sc, "the Keys panel's dialog left the buffers alone: " & mw.ActivePath( ) ) )
+    t.Check( (gKeysCancelTries > 0) andalso (mw.KeysDlg = 0) andalso (lcase( mw.ActivePath( ) ) = lcase( sf )), P( sc, "the Keys panel's dialog left the buffers alone: " & mw.ActivePath( ) ) )
 
     ' ---- tkEdit's own theme (THEMES.md TH7): Ctrl+Shift+T opens the Theme Center on a copy of the
     ' shipped Default.tktheme in the config folder; its Save applies it. 'light' is Default, light.
