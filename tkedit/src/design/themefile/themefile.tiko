@@ -600,6 +600,21 @@ public function FontSource( byref given as const ustring, byref themeDir as cons
     return ""
 end function
 
+' Where the theme's glyph font is, for tkEdit to open (the designer's canvas, the Glyph Picker): a
+' "res:" name as it is, else FontSource's search, else beside tkEdit, which ships the bundled fonts.
+' "" = nowhere.
+public function GlyphFontPath( byref doc as ThemeDoc, byref themeDir as const ustring ) as ustring
+    dim as ustring given = OrDefault_( doc.GlyphFile, TK_FONT_ICONS )
+    if IsResource_( given ) then return given
+    dim as ustring p
+    if len( themeDir ) then p = FontSource( given, themeDir, "" )
+    if len( p ) = 0 then
+        p = tkHost_FontDir( ) & fs.PathFileName( given )
+        if fs.IsFile( p ) = false then p = ""
+    end if
+    return p
+end function
+
 ' The embedding theme's fonts copied into themeDir/fonts, where the generated module embeds them from.
 ' A file already there is kept (it may be the user's own). Problems name each font not found.
 public sub CopyEmbeddedFonts( byref doc as ThemeDoc, byref themeDir as const ustring, byref pkgDir as const ustring, _

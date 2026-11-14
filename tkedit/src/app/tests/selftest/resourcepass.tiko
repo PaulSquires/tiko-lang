@@ -17,11 +17,13 @@
 #import "tka/mainwin"
 #import "tkd/canvas"
 #import "tkd/resdlg"
+#import "tkd/glyphdlg"
 #import "tkd/edits"
 #import "tkd/model"
 #import "tkd/panels"
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
 using containers
@@ -33,6 +35,7 @@ using tkPaint
 using model
 using tkListTree
 using tkScrollPanel
+using tkTextBox
 
 dim shared as long gResStep, gResTries, gResTones
 dim shared as ustring gResFaults
@@ -195,6 +198,34 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
         next
     end if
     t.Check( reds > 0, P( sc, "the canvas's Button shows the image: " & reds & " red pixels" ) )
+
+    ' ---- the Glyph Picker on GlyphLeft (answered for the person): the character goes in, shown as
+    ' U+E824, and the Button's empty GlyphFont becomes GLYPH so the glyph draws in the glyph font
+    mw.GlyphPick = sub( byval w as any ptr, byref dlg as glyphdlg.GlyphDialog, byref fi as long, byref picked as ustring )
+        fi = dlg.ThemeIdx
+        picked = wchr( &hE824 )
+    end sub
+    dim as long gr = -1
+    for i as long = 0 to ps->Rows.Count( ) - 1
+        if ps->Rows[i].Key = "GlyphLeft" then gr = i
+    next
+    if (gr >= 0) andalso (ps->Rows[gr].Btn <> 0) then
+        tkScrollPanel_EnsureVisible( ps->Scroll, ps->Rows[gr].Btn )
+        tkTest_PumpFor( h, 30 )
+        tkTest_Click( h, tkTest_CX( ps->Rows[gr].Btn ), tkTest_CY( ps->Rows[gr].Btn ) )
+        tkTest_PumpFor( h, 100 )
+    end if
+    mw.GlyphPick = 0
+    gr = -1
+    for i as long = 0 to ps->Rows.Count( ) - 1
+        if ps->Rows[i].Key = "GlyphLeft" then gr = i
+    next
+    bi = FindControl( c->Doc, "Button1" )
+    dim as ustring gl, gf, shown
+    if bi >= 0 then gl = SettingOr( c->Doc.Controls[bi].Props, "GlyphLeft" ) : gf = SettingOr( c->Doc.Controls[bi].Props, "GlyphFont" )
+    if gr >= 0 then shown = tkTextBox_GetText( ps->Rows[gr].Edit )
+    t.Check( (gl = wchr( &hE824 )) andalso (gf = "GLYPH") andalso (shown = "U+E824"), _
+             P( sc, "the Glyph Picker sets GlyphLeft, shown " & shown & ", GlyphFont " & gf ) )
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

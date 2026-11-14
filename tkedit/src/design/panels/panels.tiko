@@ -101,6 +101,7 @@ public type PanelRow
     Btn as TK_WIDGET ptr      ' an event row's "go to the code"; a file row's "..." (the Resource Center)
     CY as long
     Inline as boolean         ' on the row before's line, sharing its editor's width (no label of its own)
+    Glyph as boolean          ' a glyph property: shown as U+xxxx, its "..." the Glyph Picker
 end type
 
 public type Palette
@@ -172,6 +173,7 @@ public type DesignPanels
     declare sub FillToolbox( )
     declare sub AddRow( byref key_ as const ustring, byref caption as const ustring, byval kind_ as long, byref items as const ustring = "" )
     declare sub AddFileButton( )
+    declare sub AddGlyphButton( )
     declare sub AddPropRow( byval p as TKMETA_PROP ptr )
     declare sub AddEventRow( byref event_ as const ustring )
     declare sub UpdateValues( )
@@ -377,6 +379,60 @@ private sub OnFileGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as 
     if r < 0 then exit sub
     tkTextBox_SetText( p->Rows[r].Edit, picked )
     p->CommitRow( r )
+end sub
+
+' A glyph as the inspector shows it: one character past ASCII as "U+E824", anything else as it is.
+public function GlyphShown( byref v as const ustring ) as ustring
+    if (len( v ) = 1) andalso (asc( v ) > 126) then return "U+" & right( "000" & hex( asc( v ) ), iif( asc( v ) > &hFFFF, 6, 4 ) )
+    return v
+end function
+
+' What a glyph row typed means: "U+xxxx" that character, anything else itself.
+public function GlyphValue( byref t as const ustring ) as ustring
+    dim as ustring s = trim( t )
+    if ucase( left( s, 2 ) ) <> "U+" then return t
+    dim as ustring h = ucase( mid( s, 3 ) )
+    if (len( h ) = 0) orelse (len( h ) > 6) then return t
+    for i as long = 1 to len( h )
+        dim as long a = asc( mid( h, i, 1 ) )
+        if ((a < 48) orelse (a > 57)) andalso ((a < 65) orelse (a > 70)) then return t
+    next
+    return wchr( culng( valuint( "&h" & h ) ) )
+end function
+
+' A glyph property's "...": the Glyph Picker on the value it has; the pick goes in as if typed. A
+' control whose GlyphFont is empty gets GLYPH, or its glyph would draw in the text font.
+private sub OnGlyphGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if (p = 0) orelse (p->C = 0) orelse (p->C->OnPickGlyph = 0) then exit sub
+    dim as long r = -1
+    for i as long = 0 to p->Rows.Count( ) - 1
+        if p->Rows[i].Btn = h then r = i
+    next
+    if r < 0 then exit sub
+    dim as canvas.FormCanvas ptr c = p->C
+    dim as ustring key_ = p->Rows[r].Key, picked
+    if c->OnPickGlyph( c->Host, c, p->ValueOf( key_ ), picked ) = false then exit sub
+    if p->C <> c then exit sub
+    r = -1
+    for i as long = 0 to p->Rows.Count( ) - 1
+        if p->Rows[i].Key = key_ then r = i
+    next
+    if r < 0 then exit sub
+    tkTextBox_SetText( p->Rows[r].Edit, GlyphShown( picked ) )
+    p->CommitRow( r )
+    if len( picked ) = 0 then exit sub
+    dim as boolean noFont = false
+    for each nm as ustring in c->Selected
+        dim as long ic = FindControl( c->Doc, nm )
+        if ic < 0 then continue for
+        dim byref as FormControl fc = c->Doc.Controls[ic]
+        if (tkMeta_FindProp( catalog.Find( fc.TypeName ), "GlyphFont" ) <> 0) andalso (len( SettingOr( fc.Props, "GlyphFont" ) ) = 0) then noFont = true
+    next
+    if noFont then
+        dim as ustring fault = p->Apply( "GlyphFont", "GLYPH" )
+        if (len( fault ) > 0) andalso (p->OnMessage <> 0) then p->OnMessage( p->Owner, fault )
+    end if
 end sub
 
 ' The row that opens a control's menu, column, item or page editor -- or its Colors dialog.
@@ -916,6 +972,18 @@ sub DesignPanels.AddEventRow( byref event_ as const ustring )
     end with
 end sub
 
+' The last row added is a glyph's: shown as U+xxxx, with a "..." that opens the Glyph Picker.
+sub DesignPanels.AddGlyphButton( )
+    with Rows[Rows.Count( ) - 1]
+        .Glyph = true
+        .Btn = tkToolbar_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
+        tkToolbar_SetGlyphFont( .Btn, tkForm_Font( tkForm_FromWidget( Scroll ), TKFONT_GLYPH ) )
+        tkToolbar_AddItem( .Btn, TBR_KIND_COMMAND, wchr( TK_ICON_MORE ), "", 0 )
+        tkToolbar_SetTooltipText( .Btn, 0, i18n.Tr( "designer.glyph_pick", "Pick a glyph" ) )
+        tkToolbar_SetClickCallback( .Btn, @OnGlyphGo )
+    end with
+end sub
+
 ' The last row added gets a "..." that opens the Resource Center (a file property, the form's Icon).
 sub DesignPanels.AddFileButton( )
     with Rows[Rows.Count( ) - 1]
@@ -932,6 +1000,9 @@ sub DesignPanels.AddPropRow( byval p as TKMETA_PROP ptr )
     case "file"
         this.AddRow( p->Name, p->Name, RowKind.RowText )
         this.AddFileButton( )
+    case "glyph"
+        this.AddRow( p->Name, p->Name, RowKind.RowText )
+        this.AddGlyphButton( )
     case "bool" : this.AddRow( p->Name, p->Name, RowKind.RowCheck )
     case "enum" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, EnumShown_( p->EnumPairs ) )
     case "font" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, ",UI,UI_SMALL,UI_BOLD,UI_LARGE,GLYPH,GLYPH_LARGE,MONO" )
@@ -1162,6 +1233,7 @@ sub DesignPanels.UpdateValues( )
                 if ic >= 0 then tkButton_SetText( ed, ColorsSummary( C->Doc.Controls[ic] ) )
             end if
         case RowKind.RowText
+            if Rows[r].Glyph then v = GlyphShown( v )
             if (tkHost_GetFocus( ed->pHost ) <> ed) andalso (tkTextBox_GetText( ed ) <> v) then tkTextBox_SetText( ed, v )
         case RowKind.RowCombo
             tkComboBox_SetCurSel( ed, tkComboBox_FindItemByText( ed, v ) )
@@ -1207,7 +1279,7 @@ sub DesignPanels.CommitRow( byval r as long )
     if Rows[r].Kind = RowKind.RowButton then exit sub
     if v = Rows[r].Text then exit sub
     dim as ustring key_ = Rows[r].Key
-    dim as ustring fault = this.Apply( key_, v )
+    dim as ustring fault = this.Apply( key_, iif( Rows[r].Glyph, GlyphValue( v ), v ) )
     if len( fault ) then
         if OnMessage then OnMessage( Owner, fault )
         Updating = true

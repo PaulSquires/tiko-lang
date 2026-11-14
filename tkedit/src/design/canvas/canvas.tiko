@@ -73,6 +73,10 @@ public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_
 ' (or "" for none).
 public type CanvasPickFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref kind_ as const ustring, _
                                         byref current as const ustring, byref prop as const ustring, byref picked as ustring ) as boolean
+' The Glyph Picker: current the character a glyph property has now. True on Select, picked then the
+' character ("" for none); the theme's glyph font may have changed by then (GLYPHS.md, GQ1 = A).
+public type CanvasGlyphFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref current as const ustring, _
+                                         byref picked as ustring ) as boolean
 public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
 public type CanvasGoneFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref handler as const ustring ) as boolean
 public type CanvasHandlerRenameFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
@@ -111,6 +115,12 @@ public type FormCanvas
     PreviewSet as boolean
     PreviewDark as boolean
     ThemeTables as themefile.ThemeTables
+    ' The theme's glyph font (GLYPHS.md): glyph properties draw in it, as in the program; tkEdit's own
+    ' icon font holds only the glyphs tkEdit uses. GlyphSrc: what they were opened from.
+    GlyphSrc as ustring
+    GlyphFont as TTF_Font ptr
+    GlyphFontLarge as TTF_Font ptr
+    Building as boolean
 
     Frame as TK_WIDGET ptr              ' fills the pane
     Glass as TK_WIDGET ptr              ' over everything in Frame
@@ -131,6 +141,7 @@ public type FormCanvas
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
     OnPickResource as CanvasPickFunc    ' a file property's "...": the Resource Center
+    OnPickGlyph as CanvasGlyphFunc      ' a glyph property's "...": the Glyph Picker
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
     OnHandlerRenamed as CanvasHandlerRenameFunc ' true: the code's body (and its uses) now go by the new name
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set
@@ -153,6 +164,7 @@ public type FormCanvas
 
     declare function Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
     declare sub ApplyProjectTheme( )
+    declare function RoleFont( byval f as TK_FORM ptr, byval role as long ) as TTF_Font ptr
     declare function ShowsDark( ) as boolean
     declare sub Destroy( )
     ' False when the text isn't a form this version can show; the canvas is left as it was.
@@ -414,6 +426,7 @@ end sub
 ' Every control again, from the model. The tab each tab control was showing survives.
 sub FormCanvas.Rebuild( )
     if Frame = 0 then exit sub
+    Building = true
     this.Clear_( )
     Surface = tkWidget_CreateChild( Frame, 4, @SurfaceProc, @this )
     tkWidget_SendToBack( Surface )
@@ -468,7 +481,7 @@ sub FormCanvas.Rebuild( )
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p then
                 if p->Kind = "font" then
-                    if p->ApplyFont then p->ApplyFont( w, tkForm_Font( f, FontRole_( s.Value ) ) )
+                    if p->ApplyFont then p->ApplyFont( w, this.RoleFont( f, FontRole_( s.Value ) ) )
                 elseif p->bDesign andalso (p->Apply <> 0) then
                     p->Apply( w, s.Value )
                 end if
@@ -503,6 +516,7 @@ sub FormCanvas.Rebuild( )
         end select
         if Live = false then MakeInert_( w )
     next
+    Building = false
     this.PlaceSurface( )
     this.Changed( )
 end sub
@@ -1424,6 +1438,13 @@ end function
 ' The form (Surface and every control on it) wears the project's theme -- its variant, shape,
 ' styles and per-type colours -- as the program will; tkEdit's own theme stays on the rest. No
 ' theme file, or one that doesn't read: the presets of the variant shown.
+' A font role for a control here: GLYPH and GLYPH_LARGE in the theme's glyph font, the rest tkEdit's.
+function FormCanvas.RoleFont( byval f as TK_FORM ptr, byval role as long ) as TTF_Font ptr
+    if (role = TKFONT_GLYPH) andalso (GlyphFont <> 0) then return GlyphFont
+    if (role = TKFONT_GLYPH_LARGE) andalso (GlyphFontLarge <> 0) then return GlyphFontLarge
+    return tkForm_Font( f, role )
+end function
+
 sub FormCanvas.ApplyProjectTheme( )
     if Surface = 0 then exit sub
     dim as themefile.ThemeDoc d
@@ -1431,6 +1452,23 @@ sub FormCanvas.ApplyProjectTheme( )
         dim as ustring none, e
         dim as ustring text = fs.ReadAllText( ThemePath ).ValueOr( none )
         if len( text ) then themefile.Parse( text, d, e )
+    end if
+    ' the glyph font: a new one rebuilds the controls (they take their fonts as they are made)
+    dim as ustring themeDir
+    if len( ThemePath ) then themeDir = fs.PathParent( ThemePath )
+    dim as ustring src = themefile.GlyphFontPath( d, themeDir )
+    if src <> GlyphSrc then
+        GlyphSrc = src
+        GlyphFont = 0 : GlyphFontLarge = 0
+        if len( src ) then
+            dim as single pt = tkApp_Options( ).FontUISize
+            GlyphFont = tkHost_OpenFont( Surface->pHost, src, pt )      ' the surface owns them
+            GlyphFontLarge = tkHost_OpenFont( Surface->pHost, src, pt + 2 )
+        end if
+        if Building = false then
+            this.Rebuild( )
+            exit sub
+        end if
     end if
     dim as TKTHEME_COLORS t = themefile.Resolve( d, this.ShowsDark( ) )
     dim as TKTHEME_SHAPE sh = themefile.ShapeOf( d )

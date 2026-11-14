@@ -64,6 +64,7 @@
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "tkd/resdlg"
+#import "tkd/glyphdlg"
 #import "tkd/themefile"
 #import "tka/editor"
 #import "tka/explorer"
@@ -222,6 +223,8 @@ end type
 ' The person, as the window asks them things: a message box, a file dialog. The self-test
 ' answers from a script instead.
 public type AskProc as function( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+' A self-test's Glyph Picker: given the dialog's fonts, says which one (fi) and which character.
+public type GlyphPickProc as sub( byval w as any ptr, byref dlg as glyphdlg.GlyphDialog, byref fi as long, byref picked as ustring )
 public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
 public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
 public const PICK_RESOURCES = 101        ' a Pick kind: images and fonts for the Resource Center, one per line
@@ -441,6 +444,7 @@ public type Window
     ConfigDir as ustring                ' settings.toml, keybindings.toml, session.toml, themes/
     Ask as AskProc
     Pick as PickProc
+    GlyphPick as GlyphPickProc          ' 0 = the Glyph Picker dialog; a self-test answers in its place
     Launch as LaunchProc
 
     ' ---- the App state
@@ -644,6 +648,8 @@ public type Window
                                     byval owner_ as TK_FORM ptr = 0 ) as boolean
     declare sub ApplyResources( byref dlg as resdlg.ResourceDialog )
     declare function ResourceUsers( byref nm as const ustring ) as ustring
+    declare function PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
+    declare function SetThemeGlyphFont( byref value as const ustring ) as boolean
     declare sub RegisterProjectResources( )
     SaveNote as ustring
     declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef
@@ -3142,6 +3148,9 @@ function Window.OpenText( byref path as const ustring ) as boolean
                 dim as boolean ok = w->EditResources( k, cur, picked )
                 w->ResPickCanvas = 0 : w->ResPickProp = ""
                 return ok
+            end function
+            d->Designer->OnPickGlyph = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref cur as const ustring, byref picked as ustring ) as boolean
+                return cast( Window ptr, o )->PickGlyph( cur, picked )
             end function
             d->Designer->OnContextMenu = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
                 cast( Window ptr, o )->ShowDesignMenu( c, x, y )

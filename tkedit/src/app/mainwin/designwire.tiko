@@ -31,6 +31,7 @@
 #import "tkd/themefile"
 #import "tkd/resfile"
 #import "tkd/resdlg"
+#import "tkd/glyphdlg"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "vendor/tkControls/tkMeta"
@@ -703,6 +704,114 @@ function Window.ResourceUsers( byref nm as const ustring ) as ustring
         if CountRefs_( text, nm ) > found then UsersAdd_( o, fname )
     next
     return o
+end function
+
+' ---- the Glyph Picker (docs/tkDesigner/GLYPHS.md) ----------------------------------------------------
+
+private sub AddGlyphFont_( byref dlg as glyphdlg.GlyphDialog, byref label as const ustring, byref value as const ustring, _
+                           byref path as const ustring )
+    if len( path ) = 0 then exit sub
+    dim as glyphdlg.GlyphFontEntry x
+    x.Label = label : x.Value = value : x.Path = path
+    dlg.Fonts.Push( x )
+end sub
+
+private function GlyphFontLabel_( byref value as const ustring ) as ustring
+    if lcase( fs.PathFileName( value ) ) = lcase( TK_FONT_ICONS ) then return "Fluent UI System Icons"
+    if lcase( left( value, len( resfile.RES_PREFIX ) ) ) = resfile.RES_PREFIX then return value
+    return fs.PathFileName( value )
+end function
+
+' A glyph property's "...": the theme's glyph font first, the bundled icons, the project's font
+' resources. Picked from another font, it becomes the theme's when the person says so (GQ1 = A); no
+' keeps the picker up. True with picked (the character, "" for none) on Select.
+function Window.PickGlyph( byref current as const ustring, byref picked as ustring ) as boolean
+    picked = ""
+    dim as glyphdlg.GlyphDialog dlg
+    dim as themefile.ThemeDoc td
+    dim as ustring tp = this.ProjectThemePath( ), none, e, themeDir
+    if (len( tp ) > 0) andalso fs.IsFile( tp ) then
+        themefile.Parse( fs.ReadAllText( tp ).ValueOr( none ), td, e )
+        themeDir = fs.PathParent( tp )
+    end if
+    dim as ustring themeVal = td.GlyphFile
+    if len( themeVal ) = 0 then themeVal = TK_FONT_ICONS
+    AddGlyphFont_( dlg, GlyphFontLabel_( themeVal ), themeVal, themefile.GlyphFontPath( td, themeDir ) )
+    dlg.ThemeIdx = 0
+    if lcase( fs.PathFileName( themeVal ) ) <> lcase( TK_FONT_ICONS ) then
+        dim as ustring b = tkHost_FontDir( ) & TK_FONT_ICONS
+        if fs.IsFile( b ) then AddGlyphFont_( dlg, GlyphFontLabel_( TK_FONT_ICONS ), TK_FONT_ICONS, b )
+    end if
+    dim as ustring rp = this.ResourcesPath( )
+    if (len( rp ) > 0) andalso fs.IsFile( rp ) then
+        dim as resfile.ResourceDoc rd
+        if resfile.Parse( fs.ReadAllText( rp ).ValueOr( none ), rd, e ) then
+            for each x as resfile.Resource in rd.Items
+                if x.Kind <> "font" then continue for
+                dim as ustring v = resfile.RefOf( x.Name )
+                if lcase( v ) = lcase( themeVal ) then continue for
+                AddGlyphFont_( dlg, v, v, fs.PathJoin( fs.PathParent( rp ), resfile.FILES_DIR, x.File ) )
+            next
+        end if
+    end if
+    if dlg.Fonts.Count( ) = 0 then return false
+    if GlyphPick then
+        ' a self-test answers for the person: the font and the character it would click
+        dim as long fi = 0
+        GlyphPick( @this, dlg, fi, picked )
+        if (fi <> dlg.ThemeIdx) andalso (len( picked ) > 0) then
+            if this.Ask( form, strings.Format( i18n.Tr( "designer.glyph_make_theme", "Make {} the theme's glyph font? Every control's glyphs will use it." ), _
+                         dlg.Fonts[fi].Label ), MBX_BTN_YESNO ) <> MBX_IDYES then return false
+            if this.SetThemeGlyphFont( dlg.Fonts[fi].Value ) = false then return false
+        end if
+        return true
+    end if
+    dlg.Open( form, current )
+    if dlg.Win = 0 then return false
+    dim as boolean ok
+    do
+        ok = dlg.RunModal( )
+        if (ok = false) orelse (dlg.PickedFont < 0) orelse (dlg.PickedFont = dlg.ThemeIdx) then exit do
+        if this.Ask( dlg.Win, strings.Format( i18n.Tr( "designer.glyph_make_theme", "Make {} the theme's glyph font? Every control's glyphs will use it." ), _
+                     dlg.Fonts[dlg.PickedFont].Label ), MBX_BTN_YESNO ) = MBX_IDYES then
+            if this.SetThemeGlyphFont( dlg.Fonts[dlg.PickedFont].Value ) = false then ok = false
+            exit do
+        end if
+        dlg.Accepted = false
+    loop
+    picked = dlg.Picked
+    dlg.Close( )
+    return ok
+end function
+
+' The project theme's [fonts] glyph = value (the bundled icons: left empty), written as the Theme
+' Center writes it; every open form then draws its glyphs in it.
+function Window.SetThemeGlyphFont( byref value as const ustring ) as boolean
+    dim as ustring path = this.ProjectThemePath( ), none, e
+    if (len( path ) = 0) orelse (fs.IsFile( path ) = false) then
+        this.SetMessage( i18n.Tr( "designer.glyph_needs_theme", "The glyph font is the project theme's, and there is no appTheme" ) )
+        return false
+    end if
+    dim as DocRef open_ = OpenDocAt_( Docs, path )
+    dim as ustring text
+    if open_ then text = open_->Text( ) else text = fs.ReadAllText( path ).ValueOr( none )
+    dim as themefile.ThemeDoc td
+    if themefile.Parse( text, td, e ) = false then
+        this.SetMessage( fs.PathFileName( path ) & ": " & e )
+        return false
+    end if
+    if lcase( fs.PathFileName( value ) ) = lcase( TK_FONT_ICONS ) then td.GlyphFile = "" else td.GlyphFile = value
+    text = themefile.Render( td )
+    if open_ then
+        open_->Main.ReplaceAllText( text )
+        if this.SaveDoc( open_, false ) = false then return false
+    elseif fs.WriteAtomic( path, text ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( path ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    if this.WriteThemeGenerated( path, text ) = false then return false
+    this.RefreshFormThemes( )
+    return true
 end function
 
 ' Every resource of the open project known to this process by its name, as a file: the canvas and
