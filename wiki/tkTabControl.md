@@ -10,7 +10,7 @@ The control itself is never a tab stop; its bar is. The bar takes a fixed height
 
 `tkTabControl_AddPage` appends a tab and its empty page. The first page added is selected; adding later ones leaves the selection where it is. `tkTabControl_SetCurSel` is silent: the selection callback runs only when the user changes the tab.
 
-Its tabs are pages, not documents, so they have no close X. `tkTabControl_SetClosable( tab, true )` gives every tab one, including tabs added later; the Close callback then says which tab's X was used, and the program decides what closing means (`tkTabControl_DeletePage`, or nothing). `tkTabControl_SetFont` sets the strip's font. For the rest of the strip's styling (colours, glyphs, one tab's X) use the bar that `tkTabControl_GetTabBar` returns, with the [tkTabBar](tkTabBar) functions.
+Its tabs are pages, not documents, so they have no close X. `tkTabControl_SetClosable( tab, true )` gives every tab one, including tabs added later; the Close callback then says which tab's X was used, and the program decides what closing means (`tkTabControl_DeletePage`, or nothing). `tkTabControl_SetFont` sets the strip's font. `tkTabControl_SetPageGlyph( tab, index, glyph )` draws a glyph before a page's caption, in the font `tkTabControl_SetGlyphFont` gives (with none, no glyph is drawn and the close X is a multiplication sign). The glyph box grows to fit a glyph font taller than the default one. For the rest of the strip's styling (colours, glyphs, one tab's X) use the bar that `tkTabControl_GetTabBar` returns, with the [tkTabBar](tkTabBar) functions.
 
 `tkTabControl_SetPageVisible( tab, index, false )` hides a page: its tab leaves the strip, but the page, its controls and its caption stay, and `true` brings the tab back in its place among the others. So closing can mean hiding:
 
@@ -65,7 +65,7 @@ tkWidget_SetPos( tabs, tkHost_Scale( host, 20 ), tkHost_Scale( host, 20 ), _
 
 The module also provides `TabControl`, a typed value for designed forms (see [tkForms](tkForms) and the [Form Designer](Form-Designer)). `TabControl.Handle` is the `TK_WIDGET ptr`. It has `Create( hParent, id )`, `SetFocus( )`, and these properties, each read and write:
 
-`Enabled`, `Visible`, `TabHeight`, `Font`, `Closable`, `SelectedIndex`.
+`Enabled`, `Visible`, `TabHeight`, `Font`, `Closable`, `GlyphFont`, `SelectedIndex`.
 
 Pages are added through the procedures, with `TabControl.Handle`.
 
@@ -74,7 +74,8 @@ Pages are added through the procedures, with `TabControl.Handle`.
 - `tkTabControl_InsertPage( h, idx, text )` inserts at `idx`; `-1`, or an index past the end, appends. It returns the new index, or -1 on failure. Inserting before the selected tab keeps the same page selected.
 - `tkTabControl_DeletePage` destroys the tab, its page and everything on the page. Do not call it from inside an event callback of a control on that page; the Close callback is fine. It returns false for a bad index. Deleting the selected page selects its neighbour (the tab that takes its place in the strip, else the one before), silently.
 - `tkTabControl_SetPageVisible` hiding the selected page selects its neighbour the same way, silently; showing one leaves the selection alone unless nothing was selected. It returns false for a bad index; hiding a hidden page, or showing a shown one, does nothing and returns true. `tkTabControl_GetPageVisible` says which.
-- `tkTabControl_GetPageCount` counts every page, the hidden ones too. `tkTabControl_GetPageText` and `tkTabControl_SetPageText` work on a hidden page; the tab has the new caption when it comes back.
+- `tkTabControl_GetPageCount` counts every page, the hidden ones too. `tkTabControl_GetPageText`, `tkTabControl_SetPageText`, `tkTabControl_GetPageGlyph` and `tkTabControl_SetPageGlyph` work on a hidden page; the tab has the new caption and glyph when it comes back.
+- `tkTabControl_SetGlyphFont` sets the glyph box to the font's height when that is taller than the default (`TKTABBAR_DEFAULT_ICONWIDTH`, scaled), else to the default. Setting the bar's icon width after it overrides that.
 - `tkTabControl_SetCurSel` returns false for an index outside the pages or a hidden page, and changes nothing.
 - `tkTabControl_GetCurSel` is -1 while no page is showing: no pages, or every one hidden.
 - `tkTabControl_GetPage` returns 0 for an index outside the pages.
@@ -120,6 +121,10 @@ function tkTabControl_GetTabHeight( byval h as TK_WIDGET ptr ) as long
 sub tkTabControl_SetTabHeight( byval h as TK_WIDGET ptr, byval nHeight as long )
 function tkTabControl_GetClosable( byval h as TK_WIDGET ptr ) as boolean
 sub tkTabControl_SetClosable( byval h as TK_WIDGET ptr, byval bClosable as boolean )
+function tkTabControl_SetPageGlyph( byval h as TK_WIDGET ptr, byval idx as long, byref glyph as const ustring ) as boolean
+function tkTabControl_GetPageGlyph( byval h as TK_WIDGET ptr, byval idx as long ) as ustring
+sub tkTabControl_SetGlyphFont( byval h as TK_WIDGET ptr, byval f as TTF_Font ptr )
+function tkTabControl_GetGlyphFont( byval h as TK_WIDGET ptr ) as TTF_Font ptr
 function tkTabControl_GetFont( byval h as TK_WIDGET ptr ) as TTF_Font ptr
 function tkTabControl_SetFont( byval h as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
 sub tkTabControl_SetCloseCallback( byval h as TK_WIDGET ptr, byval usersub as TC_CloseCallbackSub )

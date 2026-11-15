@@ -36,12 +36,14 @@ public type TKTABCONTROL_STATE
     hBar          as TK_WIDGET ptr
     pages( any )  as TK_WIDGET ptr
     texts( any )  as ustring          ' every page's caption, a hidden one's too
+    glyphs( any ) as ustring          ' and its glyph, drawn before the caption ("" for none)
     hidden( any ) as boolean
     nPages        as long
     nTabHeight    as long = TKTABCONTROL_DEFAULT_TABHEIGHT
     SelChange     as TC_SelChangeCallbackSub
     Close         as TC_CloseCallbackSub
     bClosable     as boolean = false
+    pGlyphFont    as TTF_Font ptr     ' borrowed: the tabs' glyphs and X, as last set here
     declare function BarHeight() as long
     declare sub Layout()
     declare sub ShowOnly( byval idx as long )
@@ -197,14 +199,17 @@ public function tkTabControl_InsertPage( byval h as TK_WIDGET ptr, byval idx as 
     tkTabBar_SetClosable( p->hBar, got, p->bClosable )
     redim preserve p->pages( 0 to p->nPages )
     redim preserve p->texts( 0 to p->nPages )
+    redim preserve p->glyphs( 0 to p->nPages )
     redim preserve p->hidden( 0 to p->nPages )
     for i as long = p->nPages to idx + 1 step -1
         p->pages(i) = p->pages(i - 1)
         p->texts(i) = p->texts(i - 1)
+        p->glyphs(i) = p->glyphs(i - 1)
         p->hidden(i) = p->hidden(i - 1)
     next
     p->pages(idx) = tkPanel_Create( h, 100 + p->nPages )
     p->texts(idx) = text
+    p->glyphs(idx) = ""
     p->hidden(idx) = false
     p->nPages += 1
     if tkTabBar_GetCurSel( p->hBar ) < 0 then tkTabBar_SetCurSel( p->hBar, got )
@@ -229,10 +234,12 @@ public function tkTabControl_DeletePage( byval h as TK_WIDGET ptr, byval idx as 
     for i as long = idx to p->nPages - 2
         p->pages(i) = p->pages(i + 1)
         p->texts(i) = p->texts(i + 1)
+        p->glyphs(i) = p->glyphs(i + 1)
         p->hidden(i) = p->hidden(i + 1)
     next
     p->nPages -= 1
     p->texts(p->nPages) = ""
+    p->glyphs(p->nPages) = ""
     p->ShowOnly( p->CurPage( ) )
     return true
 end function
@@ -252,6 +259,7 @@ public function tkTabControl_SetPageVisible( byval h as TK_WIDGET ptr, byval idx
         dim as long got = tkTabBar_InsertTab( p->hBar, at_, p->texts(idx), idx )
         if got < 0 then return false
         tkTabBar_SetClosable( p->hBar, got, p->bClosable )
+        tkTabBar_SetGlyph( p->hBar, got, p->glyphs(idx) )
         p->hidden(idx) = false
         if tkTabBar_GetCurSel( p->hBar ) < 0 then tkTabBar_SetCurSel( p->hBar, got )
     else
@@ -342,6 +350,45 @@ public sub tkTabControl_SetClosable( byval h as TK_WIDGET ptr, byval bClosable a
         tkTabBar_SetClosable( p->hBar, t, bClosable )
     next
 end sub
+
+' A page's glyph, drawn in the glyph font before its caption; "" for none. Kept while the page is
+' hidden, as its caption is.
+public function tkTabControl_SetPageGlyph( byval h as TK_WIDGET ptr, byval idx as long, byref glyph as const ustring ) as boolean
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    if (p = 0) orelse (idx < 0) orelse (idx >= p->nPages) then return false
+    p->glyphs(idx) = glyph
+    dim as long t = p->TabOf( idx )
+    if t >= 0 then tkTabBar_SetGlyph( p->hBar, t, glyph )
+    return true
+end function
+
+public function tkTabControl_GetPageGlyph( byval h as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    if (p = 0) orelse (idx < 0) orelse (idx >= p->nPages) then return ""
+    return p->glyphs(idx)
+end function
+
+' The font the tabs' glyphs and the close X are drawn in (borrowed). With none (0, the start), a tab
+' draws no glyph and its X is a multiplication sign in the caption font. The glyph
+' box before each caption grows to the font's height when that is taller than the default one, and
+' goes back to the default for a smaller font -- setting the bar's IconWidth after this overrides it.
+public sub tkTabControl_SetGlyphFont( byval h as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    if p = 0 then exit sub
+    p->pGlyphFont = f
+    tkTabBar_SetGlyphFont( p->hBar, f )
+    dim as long w = tkHost_Scale( h->pHost, TKTABBAR_DEFAULT_ICONWIDTH )
+    if f then
+        dim as long fh = TTF_GetFontHeight( f )
+        if fh > w then w = fh
+    end if
+    tkTabBar_SetIconWidth( p->hBar, w )
+end sub
+
+public function tkTabControl_GetGlyphFont( byval h as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTABCONTROL_STATE ptr p = GetTabControlPointer( h )
+    return iif( p <> 0, p->pGlyphFont, cast( TTF_Font ptr, 0 ) )
+end function
 
 ' The tab strip's font (borrowed); 0 is the host's default.
 public function tkTabControl_GetFont( byval h as TK_WIDGET ptr ) as TTF_Font ptr

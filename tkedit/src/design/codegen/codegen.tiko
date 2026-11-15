@@ -748,6 +748,9 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then
         for p as long = 0 to c.Pages.Count( ) - 1
             o &= "    tkTabControl_AddPage( " & c.Name & ".Handle, " & TextExpr_( doc, c.Name & ".Page" & p, c.Pages[p] ) & " )" & NL
+            if len( PageGlyph( c, p ) ) then
+                o &= "    tkTabControl_SetPageGlyph( " & c.Name & ".Handle, " & p & ", " & ValueExpr_( PageGlyph( c, p ), "glyph", "" ) & " )" & NL
+            end if
         next
     end if
 

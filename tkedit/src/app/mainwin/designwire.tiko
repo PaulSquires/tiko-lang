@@ -186,6 +186,7 @@ sub Window.OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
         for p as long = 0 to c->Doc.Controls[i].Pages.Count( ) - 1
             dim as FormItem it
             it.Text = c->Doc.Controls[i].Pages[p]
+            it.Glyph = PageGlyph( c->Doc.Controls[i], p )
             it.Origin = p
             items.Push( it )
         next
@@ -893,6 +894,9 @@ sub Window.BuildGlyphs( )
             next
             for each it as FormItem in fc.Items
                 vals.Push( it.Glyph )
+            next
+            for each pg as ustring in fc.PageGlyphs
+                vals.Push( pg )
             next
             for each gv as ustring in vals
                 if GlyphCode( gv ) = 0 then continue for

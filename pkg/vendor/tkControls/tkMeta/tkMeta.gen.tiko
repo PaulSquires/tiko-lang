@@ -1941,6 +1941,10 @@ private function R_TabControl_Closable( byval w as TK_WIDGET ptr ) as ustring
     if tkTabControl_GetClosable( w ) then return "true" else return "false"
 end function
 
+private sub F_TabControl_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTabControl_SetGlyphFont( w, f )
+end sub
+
 private sub A_TabControl_SelectedIndex( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkTabControl_SetCurSel( w, clng( val( v ) ) )
 end sub
@@ -3580,6 +3584,7 @@ sub Fill_( )
     Prop_( "TabHeight", "int", "", "", "tkTabControl_SetTabHeight", "tkTabControl_GetTabHeight", @A_TabControl_TabHeight, @R_TabControl_TabHeight, 0, true, true, "", 0 )
     Prop_( "Font", "font", "", "", "tkTabControl_SetFont", "tkTabControl_GetFont", 0, 0, @F_TabControl_Font, true, true, "", 0 )
     Prop_( "Closable", "bool", "false", "", "tkTabControl_SetClosable", "tkTabControl_GetClosable", @A_TabControl_Closable, @R_TabControl_Closable, 0, true, true, "", 0 )
+    Prop_( "GlyphFont", "font", "", "", "tkTabControl_SetGlyphFont", "tkTabControl_GetGlyphFont", 0, 0, @F_TabControl_GlyphFont, true, true, "", 0 )
     Prop_( "SelectedIndex", "int", "0", "", "tkTabControl_SetCurSel", "tkTabControl_GetCurSel", @A_TabControl_SelectedIndex, @R_TabControl_SelectedIndex, 0, true, true, "", 0 )
     Event_( "SelChange", "tkTabControl_SetSelChangeCallback", "TC_SelChangeCallbackSub", "byval hTabControl as TK_WIDGET ptr, byval idxOld as int32, byval idxNew as int32", "byval idxOld as int32, byval idxNew as int32", "idxOld, idxNew" )
     Event_( "Close", "tkTabControl_SetCloseCallback", "TC_CloseCallbackSub", "byval hTabControl as TK_WIDGET ptr, byval idx as int32", "byval idx as int32", "idx" )

@@ -499,6 +499,19 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     mw.FinishItems( true )
     tkTest_PumpFor( h, 60 )
     t.Check( c->Doc.Controls[FindControl( c->Doc, "Button1" )].Page = 1, P( sc, "swapping pages moves the button with its page" ) )
+    ' a page's glyph: a Glyph row in the editor, kept in the file, drawn on the real tab
+    mw.OpenItems( c, "TabControl1" )
+    tkTest_PumpFor( h, 60 )
+    dim as boolean hasGlyphRow = false
+    for each f as itemsdlg.ItemField in mw.ItemsDlg->Fields
+        if f.Key = "Glyph" then hasGlyphRow = true
+    next
+    t.Check( hasGlyphRow, P( sc, "the page editor has a Glyph row" ) )
+    mw.ItemsDlg->Items[1].Glyph = "Fluent:E824"
+    mw.FinishItems( true )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (PageGlyph( c->Doc.Controls[FindControl( c->Doc, "TabControl1" )], 1 ) = "Fluent:E824") andalso (instr( d->Text( ), "page_glyphs = [" ) > 0) _
+             andalso (tkTabControl_GetPageGlyph( c->WidgetOf( "TabControl1" ), 1 ) = wchr( &hE824 )), P( sc, "a page's glyph in the file and on its tab" ) )
     dim as ustring text2 = d->Text( )
     mw.OpenItems( c, "TabControl1" )
     tkTest_PumpFor( h, 60 )

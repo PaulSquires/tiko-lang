@@ -57,6 +57,7 @@ public type FormControl
     Props as Array( of Setting )    ' Key = property, Value = its text form
     Events as Array( of Setting )   ' Key = event, Value = handler name
     Pages as Array( of ustring )    ' a tab control's page captions
+    PageGlyphs as Array( of ustring )   ' and their glyphs ("<font>:<hex>"), by page; may be shorter
     Items as Array( of FormItem )
     CustomType as ustring           ' a Custom control: the program's own type
     CustomModule as ustring         ' and the module to import it from
@@ -106,6 +107,12 @@ public function FindControl( byref doc as FormDoc, byref name_ as const ustring 
         if lcase( doc.Controls[i].Name ) = want then return i
     next
     return -1
+end function
+
+' A tab control's page p's glyph ("<font>:<hex>"); "" for none.
+public function PageGlyph( byref c as FormControl, byval p as long ) as ustring
+    if (p < 0) orelse (p >= c.PageGlyphs.Count( )) then return ""
+    return c.PageGlyphs[p]
 end function
 
 public function FindSetting( byref list as Array( of Setting ), byref key_ as const ustring ) as long

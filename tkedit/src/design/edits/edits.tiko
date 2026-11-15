@@ -598,8 +598,10 @@ public function ApplyPages( byref doc as FormDoc, byval i as long, byref edited 
     next
     if edited.Count( ) = 0 then return "a tab control needs a page"
     doc.Controls[i].Pages.Clear( )
+    doc.Controls[i].PageGlyphs.Clear( )
     for each it as FormItem in edited
         doc.Controls[i].Pages.Push( it.Text )
+        doc.Controls[i].PageGlyphs.Push( it.Glyph )
     next
     for k as long = 0 to doc.Controls.Count( ) - 1
         if lcase( doc.Controls[k].Parent ) = me_ then

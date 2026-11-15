@@ -796,6 +796,7 @@ props = [
   { name="TabHeight", kind="int", set="tkTabControl_SetTabHeight", get="tkTabControl_GetTabHeight" },
   { name="Font", kind="font", set="tkTabControl_SetFont", get="tkTabControl_GetFont" },
   { name="Closable", kind="bool", set="tkTabControl_SetClosable", get="tkTabControl_GetClosable", default="false" },
+  { name="GlyphFont", kind="font", set="tkTabControl_SetGlyphFont", get="tkTabControl_GetGlyphFont" },
   { name="SelectedIndex", kind="int", set="tkTabControl_SetCurSel", get="tkTabControl_GetCurSel", default="0" },
 ]
 events = [

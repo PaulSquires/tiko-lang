@@ -141,7 +141,7 @@ Handlers follow what you do on the form:
 
 Select a MenuBar, Toolbar, IconPanel, StatusBar, ListTree, ComboBox, SelectBar, TabBar or TabControl and press **Edit
 items** in the Properties panel. A SelectBar's items are its panels, a TabBar's its tabs and a TabControl's its
-pages; the **SelectedIndex** of each (like a ComboBox's) picks one of them once they're added. A TabControl's
+pages, each with a caption and a **Glyph** drawn before it (the tab control's **GlyphSize** sizes them all); the **SelectedIndex** of each (like a ComboBox's) picks one of them once they're added. A TabControl's
 tabs have no close X unless **Closable** is on; its **Close** handler is then told which tab, and closing it
 (`tkTabControl_DeletePage`) is up to you.
 

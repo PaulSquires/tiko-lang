@@ -573,8 +573,9 @@ sub FormCanvas.Rebuild( )
         end if
         tkLayout_Add( Layout, w, c.X, c.Y, c.W, c.H, c.Anchor, c.Dock )
         if m->ContainerKind = TKMETA_CONTAINER_PAGES then
-            for each t as ustring in c.Pages
-                tkTabControl_AddPage( w, t )
+            for p as long = 0 to c.Pages.Count( ) - 1
+                tkTabControl_AddPage( w, c.Pages[p] )
+                if len( PageGlyph( c, p ) ) then tkTabControl_SetPageGlyph( w, p, GlyphChar( PageGlyph( c, p ) ) )
             next
         end if
         this.ApplyItems( c, w )
@@ -592,6 +593,15 @@ sub FormCanvas.Rebuild( )
             for each it as FormItem in c.Items
                 if GlyphCode( it.Glyph ) then
                     gk = GlyphFontKey( it.Glyph )
+                    exit for
+                end if
+            next
+        end if
+        if len( gk ) = 0 then
+            ' none: its tab pages'
+            for each pg as ustring in c.PageGlyphs
+                if GlyphCode( pg ) then
+                    gk = GlyphFontKey( pg )
                     exit for
                 end if
             next

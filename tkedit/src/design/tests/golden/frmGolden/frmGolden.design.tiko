@@ -110,6 +110,7 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     tkTabControl_AddPage( tabs.Handle, "Two" )
     tkTabControl_AddPage( tabs.Handle, "Three" )
     tabs.TabHeight = 24
+    tabs.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )
     tkLayout_AddContainer( Layout, tkTabControl_GetPage( tabs.Handle, 0 ), 200, 176 )
     tkLayout_AddContainer( Layout, tkTabControl_GetPage( tabs.Handle, 1 ), 200, 176 )
     txtBody.Create( tkTabControl_GetPage( tabs.Handle, 1 ), 5, true )

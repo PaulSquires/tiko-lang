@@ -1360,6 +1360,16 @@ sub TabControlSuite( )
     HasLine( g, "tkTabControl_SetCloseCallback( tc.Handle, @Thunk_tc_Close )", "tabcontrol: Close installed" )
     dim as TKMETA_CONTROL ptr m = tkMeta_Find( "TabControl" )
     Check( tkMeta_FindProp( m, "Font" ) <> 0, "tabcontrol: a Font property" )
+    HasLine( g, "tc.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )", "tabcontrol: its glyphs in the GLYPH role" )
+
+    ' a glyph per page: read, written back the same, and set after its page
+    dim as ustring src2 = Header( ) & Ctl( "tg", "TabControl", "pages = [""A"", ""B""]" & LF & "page_glyphs = ["""", ""Fluent:E824""]" & LF )
+    dim as FormDoc d2
+    Check( ReadForm( src2, d2 ) andalso (PageGlyph( d2.Controls[0], 0 ) = "") andalso (PageGlyph( d2.Controls[0], 1 ) = "Fluent:E824"), "tabcontrol: page glyphs read" )
+    Check( instr( formfile.Render( d2 ), "page_glyphs = ["""", ""Fluent:E824""]" ) > 0, "tabcontrol: page glyphs written", formfile.Render( d2 ) )
+    g = codegen.Generate( d2, "frmT", "frmT.tkform", src2 )
+    Check( (instr( g, "tkTabControl_SetPageGlyph( tg.Handle, 1, wchr( &hE824 ) )" ) > instr( g, "tkTabControl_AddPage( tg.Handle, ""B"" )" )) _
+           andalso (instr( g, "tkTabControl_SetPageGlyph( tg.Handle, 0" ) = 0), "tabcontrol: a page's glyph set after it, none for a page without", g )
 end sub
 
 ' A Splitter's two new events: Paint and Message.

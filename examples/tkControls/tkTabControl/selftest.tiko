@@ -138,6 +138,18 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "show it again", tkTabControl_SetPageVisible( T, 1, true ) andalso tkTabControl_GetPageVisible( T, 1 ) )
     tkTest_Check( "...back in its place, with the new caption", (tkTabBar_GetCount( bar ) = 3) andalso (tkTabBar_GetText( bar, 1 ) = "Trois"), tkTabBar_GetText( bar, 1 ) )
     tkTest_Check( "...leaving the selection", (tkTabControl_GetCurSel( T ) = 0) andalso tkWidget_IsVisible( p0 ) andalso (tkWidget_IsVisible( p2 ) = false) )
+    ' a page's glyph stays with it while hidden
+    tkTest_Check( "page glyph", tkTabControl_SetPageGlyph( T, 1, wchr( TK_ICON_CLOSE ) ) andalso (tkTabBar_GetGlyph( bar, 1 ) = wchr( TK_ICON_CLOSE )) )
+    tkTabControl_SetPageVisible( T, 1, false )
+    tkTabControl_SetPageVisible( T, 1, true )
+    tkTest_Check( "...back with its tab", (tkTabControl_GetPageGlyph( T, 1 ) = wchr( TK_ICON_CLOSE )) andalso (tkTabBar_GetGlyph( bar, 1 ) = wchr( TK_ICON_CLOSE )) )
+    ' a big glyph font widens the glyph box; the default font gives it back the default
+    dim as TTF_Font ptr fGl = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 40 )
+    dim as long defW = tkHost_Scale( h, TKTABBAR_DEFAULT_ICONWIDTH )
+    tkTabControl_SetGlyphFont( T, fGl )
+    tkTest_Check( "a big glyph font fits its box", (tkTabControl_GetGlyphFont( T ) = fGl) andalso (tkTabBar_GetIconWidth( bar ) = TTF_GetFontHeight( fGl )) andalso (TTF_GetFontHeight( fGl ) > defW), tkTabBar_GetIconWidth( bar ) & " " & defW )
+    tkTabControl_SetGlyphFont( T, 0 )
+    tkTest_Check( "...and none gives the default box", tkTabBar_GetIconWidth( bar ) = defW, str( tkTabBar_GetIconWidth( bar ) ) )
     ' deleting the current page selects its neighbour
     tkTabControl_SetCurSel( T, 1 )
     tkTest_Check( "delete the current page", tkTabControl_DeletePage( T, 1 ) andalso (tkTabControl_GetCurSel( T ) = 1) andalso tkWidget_IsVisible( pLater ), str( tkTabControl_GetCurSel( T ) ) )
