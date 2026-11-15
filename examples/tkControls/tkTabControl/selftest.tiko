@@ -117,6 +117,31 @@ sub RunPass( byval fScale as single )
     tkTabControl_SetClosable( T, false )
     tkTest_Check( "SetClosable false: none", (tkTabBar_GetClosable( bar, 0 ) = false) andalso (tkTabBar_GetClosable( bar, iNew ) = false) )
 
+    ' Hiding a page: its tab leaves the strip; the page, its controls, caption and index stay.
+    ' Pages now: 0 One (p0), 1 Three (p2, current), 2 Later.
+    dim as TK_WIDGET ptr pLater = tkTabControl_GetPage( T, 2 )
+    tkTest_Check( "hide the current page", tkTabControl_SetPageVisible( T, 1, false ) andalso (tkTabControl_GetPageVisible( T, 1 ) = false) )
+    tkTest_Check( "...its tab leaves the strip", (tkTabBar_GetCount( bar ) = 2) andalso (tkTabControl_GetPageCount( T ) = 3), str( tkTabBar_GetCount( bar ) ) )
+    tkTest_Check( "...its neighbour shows, by page index", (tkTabControl_GetCurSel( T ) = 2) andalso tkWidget_IsVisible( pLater ) andalso (tkWidget_IsVisible( p2 ) = false), str( tkTabControl_GetCurSel( T ) ) )
+    tkTest_Check( "...the page and caption stay", (tkTabControl_GetPage( T, 1 ) = p2) andalso (tkTabControl_GetPageText( T, 1 ) = "Three") )
+    tkTest_Check( "a hidden page can't be selected", tkTabControl_SetCurSel( T, 1 ) = false )
+    tkTest_Check( "renamed while hidden", tkTabControl_SetPageText( T, 1, "Trois" ) andalso (tkTabBar_GetText( bar, 1 ) = "Later") )
+    ' a real click on the first tab: the callback gets page indices, not strip places
+    tkTest_Check( "tab rect", tkTabBar_GetTabRect( bar, 0, rcTab ) )
+    tx = T->x + bar->x + (rcTab.left + rcTab.right) / 2 : ty = T->y + bar->y + (rcTab.top + rcTab.bottom) / 2
+    gChanges = 0
+    tkTest_PushMotion( h, tx, ty )
+    tkTest_PumpFor( h, 20 )
+    tkTest_Click( h, tx, ty )
+    tkTest_PumpFor( h, 30 )
+    tkTest_Check( "a click past a hidden page reports pages", (gChanges = 1) andalso (gOld = 2) andalso (gNew = 0), gChanges & " " & gOld & "->" & gNew )
+    tkTest_Check( "show it again", tkTabControl_SetPageVisible( T, 1, true ) andalso tkTabControl_GetPageVisible( T, 1 ) )
+    tkTest_Check( "...back in its place, with the new caption", (tkTabBar_GetCount( bar ) = 3) andalso (tkTabBar_GetText( bar, 1 ) = "Trois"), tkTabBar_GetText( bar, 1 ) )
+    tkTest_Check( "...leaving the selection", (tkTabControl_GetCurSel( T ) = 0) andalso tkWidget_IsVisible( p0 ) andalso (tkWidget_IsVisible( p2 ) = false) )
+    ' deleting the current page selects its neighbour
+    tkTabControl_SetCurSel( T, 1 )
+    tkTest_Check( "delete the current page", tkTabControl_DeletePage( T, 1 ) andalso (tkTabControl_GetCurSel( T ) = 1) andalso tkWidget_IsVisible( pLater ), str( tkTabControl_GetCurSel( T ) ) )
+
     ' the strip's font
     dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
     tkTest_Check( "SetFont reaches the strip", tkTabControl_SetFont( T, fBig ) andalso (tkTabControl_GetFont( T ) = fBig) andalso (tkTabBar_GetFont( bar ) = fBig) )
