@@ -1910,6 +1910,20 @@ sub GlyphValueSuite( )
     Check( formfile.Parse( src, d, e ), "glyph: the form parses", e )
     dim as ustring g = codegen.Generate( d, "frmG", "frmG.tkform", src )
     Check( instr( g, "B.GlyphLeft = wchr( &hE824 )" ) > 0, "glyph: generated as its character", g )
+    ' V5: a toolbar button's glyph, at the project's number for it
+    dim as ustring tsrc = "format = 1" & LF & LF & "[form]" & LF & "width = 300" & LF & "height = 200" & LF & LF _
+        & "[[control]]" & LF & "name = ""T""" & LF & "type = ""Toolbar""" & LF & "parent = """"" & LF _
+        & "x = 0" & LF & "y = 0" & LF & "w = 200" & LF & "h = 32" & LF & LF _
+        & "[[control.items]]" & LF & "kind = ""command""" & LF & "glyph = ""Fluent:E824""" & LF & "text = ""Go""" & LF
+    dim as FormDoc td
+    Check( formfile.Parse( tsrc, td, e ) andalso (td.Controls.Count( ) = 1) andalso (td.Controls[0].Items.Count( ) = 1), "glyph: a toolbar's item parses", e )
+    dim as Array( of Setting ) codes
+    PutSetting( codes, "Fluent:E824", "E000" )
+    codegen.SetGlyphCodes( codes )
+    g = codegen.Generate( td, "frmT", "frmT.tkform", tsrc )
+    dim as Array( of Setting ) none_
+    codegen.SetGlyphCodes( none_ )
+    Check( instr( g, ", wchr( &hE000 ), " ) > 0, "glyph: a toolbar button's glyph at its merged number", g )
 end sub
 
 ' GLYPHS.md V3: appGlyphs.tkglyphs -- the defaults, one canonical text, a key from a file name, Add

@@ -208,6 +208,7 @@ sub Window.OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
     ItemsDlg = new itemsdlg.ItemsEditor
     ItemsOf = c
     ItemsName = name_
+    ItemsDlg->C = c                             ' its Glyph row's picker and fonts
     ItemsDlg->Open( form, kind_, items, name_ )
 end sub
 
@@ -883,11 +884,19 @@ sub Window.BuildGlyphs( )
         dim as FormDoc fd
         if formfile.Parse( text, fd, e ) = false then continue for
         for each fc as FormControl in fd.Controls
+            ' its glyph properties, then its items' glyphs (toolbar buttons, icons: V5)
+            dim as Array( of ustring ) vals
             dim as TKMETA_CONTROL ptr m = catalog.Find( fc.TypeName )
             for each s as Setting in fc.Props
                 dim as TKMETA_PROP ptr pr = tkMeta_FindProp( m, s.Key )
-                if (pr = 0) orelse (pr->Kind <> "glyph") orelse (GlyphCode( s.Value ) = 0) then continue for
-                dim as ustring u = GlyphRef( GlyphFontKey( s.Value ), GlyphCode( s.Value ) )
+                if (pr <> 0) andalso (pr->Kind = "glyph") then vals.Push( s.Value )
+            next
+            for each it as FormItem in fc.Items
+                vals.Push( it.Glyph )
+            next
+            for each gv as ustring in vals
+                if GlyphCode( gv ) = 0 then continue for
+                dim as ustring u = GlyphRef( GlyphFontKey( gv ), GlyphCode( gv ) )
                 dim as boolean seen = false
                 for each x as ustring in used
                     if ucase( x ) = ucase( u ) then seen = true

@@ -506,6 +506,15 @@ sub FormCanvas.Rebuild( )
                 exit for
             end if
         next
+        if len( gk ) = 0 then
+            ' none: its items' (a toolbar's buttons, an icon panel's icons)
+            for each it as FormItem in c.Items
+                if GlyphCode( it.Glyph ) then
+                    gk = GlyphFontKey( it.Glyph )
+                    exit for
+                end if
+            next
+        end if
         for each s as Setting in c.Props
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p then
@@ -584,13 +593,13 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         dim as long n = 0
         for each it as FormItem in c.Items
             n += 1
-            tkToolbar_AddItem( w, codegen.ToolbarKindValue( it.Kind ), it.Glyph, it.Text, n )
+            tkToolbar_AddItem( w, codegen.ToolbarKindValue( it.Kind ), GlyphChar( it.Glyph ), it.Text, n )
         next
     case catalog.ItemsKind.ItemsIcons
         dim as long n = 0
         for each it as FormItem in c.Items
             n += 1
-            tkIconPanel_AddItem( w, codegen.IconKindValue( it.Kind ), it.Glyph, n )
+            tkIconPanel_AddItem( w, codegen.IconKindValue( it.Kind ), GlyphChar( it.Glyph ), n )
         next
     case catalog.ItemsKind.ItemsStatus
         dim as long n = 0

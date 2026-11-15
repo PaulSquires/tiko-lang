@@ -25,6 +25,7 @@
 #import "../model"
 #import "../catalog"
 #import "../validate"
+#import "../canvas"
 using containers
 using tkApp
 using tkListTree
@@ -76,6 +77,11 @@ public type ItemsEditor
     BtnOk as TK_WIDGET ptr
     BtnCancel as TK_WIDGET ptr
     BtnHandler as TK_WIDGET ptr ' beside the Handler box: OK, then the handler in the code
+    ' the Glyph row (GLYPHS.md V5): the glyph drawn before its code box, "..." after it -- the Glyph
+    ' Picker through the form's canvas (C->OnPickGlyph), as the Properties panel's glyph rows
+    C as canvas.FormCanvas ptr
+    GlyphPreview as TK_WIDGET ptr
+    BtnGlyph as TK_WIDGET ptr
     Fields as Array( of ItemField )
     ControlName as ustring      ' whose entries these are
     GoToHandler as ustring      ' set by the pencil: the handler to show once the entries are in
@@ -104,6 +110,8 @@ public type ItemsEditor
     declare sub SeedDefaults( )
     declare function DefaultHandler( byval i as long ) as ustring
     declare sub EditHandler( )
+    declare sub PickGlyph( )
+    declare sub ShowGlyph( )
 end type
 
 ' The owner (tkEdit) to the front BEFORE a modal dialog's window is hidden: hiding the active window
@@ -151,6 +159,7 @@ private sub OnButton( byval h as TK_WIDGET ptr, byval id as long )
     case d->BtnOk     : d->Finish( true )
     case d->BtnCancel : d->Finish( false )
     case d->BtnHandler : d->EditHandler( )
+    case d->BtnGlyph   : d->PickGlyph( )
     end select
 end sub
 
@@ -270,6 +279,11 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
     ' a pencil beside the Handler box, as an event row has in the Properties panel
     for each f as ItemField in Fields
         if f.Key = "Handler" then BtnHandler = MakeGlyphButton_( Group, GLYPH_EDIT, i18n.Tr( "designer.open_code", "Open code" ) )
+        if f.Key = "Glyph" then
+            GlyphPreview = tkLabel_Create( Group, 1 )
+            tkLabel_SetAlign( GlyphPreview, LBL_ALIGN_CENTER )
+            BtnGlyph = MakeGlyphButton_( Group, TK_ICON_MORE, i18n.Tr( "designer.glyph_pick", "Pick a glyph" ) )
+        end if
     next
 
     tkForm_OnSize( Win, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
@@ -342,7 +356,15 @@ sub ItemsEditor.Layout( )
             ew -= gw + gap
             tkWidget_SetPos( BtnHandler, inner.right - gw, fy, gw, bh )
         end if
-        tkWidget_SetPos( f.Edit, inner.left + lw, fy, ew, bh )
+        dim as long ex = inner.left + lw
+        if (f.Key = "Glyph") andalso (BtnGlyph <> 0) then
+            ' the glyph, a square before the box; "..." after it
+            tkWidget_SetPos( GlyphPreview, ex, fy, bh, bh )
+            ex += bh + gap
+            ew -= bh + gap + gw + gap
+            tkWidget_SetPos( BtnGlyph, inner.right - gw, fy, gw, bh )
+        end if
+        tkWidget_SetPos( f.Edit, ex, fy, ew, bh )
         fy += rh
     next
 
@@ -439,7 +461,7 @@ sub ItemsEditor.ShowItem( byval i as long )
             select case f.Key
             case "Text"    : v = Items[i].Text
             case "Key"     : v = Items[i].Key
-            case "Glyph"   : v = Items[i].Glyph
+            case "Glyph"   : v = GlyphShown( Items[i].Glyph )
             case "Handler" : v = Items[i].Handler
             case "Kind"    : v = Items[i].Kind
             case "Width"
@@ -455,9 +477,37 @@ sub ItemsEditor.ShowItem( byval i as long )
         end if
     next
     if (i >= 0) andalso (i < Items.Count( )) then tkListTree_SetCurSel( List, i )
+    this.ShowGlyph( )
     this.ShowCaption( )
     Loading = false
     this.SyncSeparator( )
+end sub
+
+' The Glyph row's preview: the item's glyph in its own font (the canvas opened them).
+sub ItemsEditor.ShowGlyph( )
+    if GlyphPreview = 0 then exit sub
+    dim as ustring v
+    if (Current >= 0) andalso (Current < Items.Count( )) then v = Items[Current].Glyph
+    dim as TTF_Font ptr gf = 0
+    if C then gf = C->GlyphFontFor( GlyphFontKey( v ), false )
+    if gf = 0 then gf = tkForm_Font( Win, TKFONT_GLYPH )
+    tkLabel_SetFont( GlyphPreview, gf )
+    tkLabel_SetText( GlyphPreview, GlyphChar( v ) )
+end sub
+
+' The Glyph row's "...": the Glyph Picker on the item's glyph; Select puts "<font>:<hex>" in.
+sub ItemsEditor.PickGlyph( )
+    if (C = 0) orelse (C->OnPickGlyph = 0) orelse (Current < 0) orelse (Current >= Items.Count( )) then exit sub
+    dim as ustring picked
+    if C->OnPickGlyph( C->Host, C, Items[Current].Glyph, picked ) = false then exit sub
+    Items[Current].Glyph = picked
+    Loading = true
+    for each f as ItemField in Fields
+        if f.Key = "Glyph" then tkTextBox_SetText( f.Edit, GlyphShown( picked ) )
+    next
+    Loading = false
+    this.ShowGlyph( )
+    tkListTree_SetText( List, Current, this.RowText( Current ) )
 end sub
 
 sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
@@ -472,7 +522,10 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
             select case f.Key
             case "Text"    : Items[Current].Text = v
             case "Key"     : Items[Current].Key = v
-            case "Glyph"   : Items[Current].Glyph = v
+            case "Glyph"
+                ' the code box: "E824" in the glyph's font, "Material:E8B8", or a character as typed
+                Items[Current].Glyph = GlyphTyped( v, Items[Current].Glyph )
+                this.ShowGlyph( )
             case "Handler" : Items[Current].Handler = v
             case "Kind"    : Items[Current].Kind = v
             case "Width"   : Items[Current].Width = valint( v )

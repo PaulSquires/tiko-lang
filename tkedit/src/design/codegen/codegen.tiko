@@ -636,11 +636,11 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         o &= "    end scope" & NL
     case catalog.ItemsKind.ItemsToolbar
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & Literal_( c.Items[i].Glyph ) & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
+            o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & ValueExpr_( c.Items[i].Glyph, "glyph", "" ) & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
         next
     case catalog.ItemsKind.ItemsIcons
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkIconPanel_AddItem( " & h & ", " & IconKindName_( c.Items[i].Kind ) & ", " & Literal_( c.Items[i].Glyph ) & ", " & (base_ + i) & " )" & NL
+            o &= "    tkIconPanel_AddItem( " & h & ", " & IconKindName_( c.Items[i].Kind ) & ", " & ValueExpr_( c.Items[i].Glyph, "glyph", "" ) & ", " & (base_ + i) & " )" & NL
         next
     case catalog.ItemsKind.ItemsStatus
         for i as long = 0 to c.Items.Count( ) - 1

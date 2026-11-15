@@ -26,6 +26,8 @@
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkLabel"
+#import "tkd/glyphdlg"
 #import "vendor/tkControls/tkMenuBar"
 #import "vendor/tkControls/tkToolbar"
 #import "vendor/tkControls/tkStatusBar"
@@ -46,6 +48,7 @@ using tkGroupBox
 using tkCheckBox
 using tkButton
 using tkTextBox
+using tkLabel
 using tkMenuBar
 using tkToolbar
 using tkStatusBar
@@ -418,6 +421,38 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     PressIn( sh, sbd->BtnOk )
     mw.FinishItems( true )
     tkTest_PumpFor( h, 60 )
+
+    ' ---- a toolbar button's Glyph row (GLYPHS.md V5): "..." picks into it (answered for the person),
+    ' the box shows the code and the row the glyph
+    c->Tool = "Toolbar"
+    ClickPx( h, ox + tkHost_Scale( h, 40 ), oy + tkHost_Scale( h, 160 ) )
+    tkTest_PumpFor( h, 60 )
+    mw.OpenItems( c, "Toolbar1" )
+    tkTest_PumpFor( h, 60 )
+    dim as itemsdlg.ItemsEditor ptr tbd = mw.ItemsDlg
+    if (tbd <> 0) andalso (tbd->BtnGlyph <> 0) then
+        dim as TK_HOST ptr tbh = tkForm_Host( tbd->Win )
+        PressIn( tbh, tbd->BtnAdd )
+        mw.GlyphPick = sub( byval w as any ptr, byref gdlg as glyphdlg.GlyphDialog, byref fi as long, byref picked as ustring )
+            fi = 0
+            picked = wchr( &hE824 )
+        end sub
+        PressIn( tbh, tbd->BtnGlyph )
+        mw.GlyphPick = 0
+        dim as ustring box_
+        for each f as itemsdlg.ItemField in tbd->Fields
+            if f.Key = "Glyph" then box_ = tkTextBox_GetText( f.Edit )
+        next
+        dim as ustring g0
+        if tbd->Current >= 0 then g0 = tbd->Items[tbd->Current].Glyph
+        t.Check( (g0 = "Fluent:E824") andalso (box_ = "E824") andalso (tkLabel_GetText( tbd->GlyphPreview ) = wchr( &hE824 )), _
+                 P( sc, "a toolbar button's glyph picked: " & g0 & ", the box " & box_ ) )
+        PressIn( tbh, tbd->BtnCancel )
+        mw.FinishItems( false )
+        tkTest_PumpFor( h, 60 )
+    else
+        t.Check( false, P( sc, "a toolbar's items have a Glyph row with ""...""" ) )
+    end if
     dim as long sbi = FindControl( c->Doc, "StatusBar1" )
     t.Check( tkStatusBar_GetCount( c->WidgetOf( "StatusBar1" ) ) = 2, P( sc, "the real status bar has them" ) )
     t.Check( FindSetting( c->Doc.Controls[sbi].Props, "ExpandPanel" ) < 0, P( sc, "no ExpandPanel property: Stretch is the panels' own" ) )
