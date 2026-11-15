@@ -2492,19 +2492,6 @@ END OPERATOR
 ' ########################################################################################
 
 ' ========================================================================================
-' Helper procedure to display messages
-' ========================================================================================
-PUBLIC FUNCTION MsgBox OVERLOAD (BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
-   RETURN MessageBoxW(GetActiveWindow, dv.ToStr, pwszCaption, MB_APPLMODAL OR uType)
-END FUNCTION
-' ========================================================================================
-' ========================================================================================
-PUBLIC FUNCTION MsgBox OVERLOAD (BYVAL hWin AS HWND, BYREF dv AS DVARIANT, BYVAL pwszCaption AS CONST WSTRING PTR = NULL, BYVAL uType AS DWORD = 0) AS LONG
-   RETURN MessageBoxW(hWin, dv.ToStr, pwszCaption, MB_APPLMODAL OR uType)
-END FUNCTION
-' ========================================================================================
-
-' ========================================================================================
 ' To pass optional parameters.
 ' ========================================================================================
 PUBLIC FUNCTION VtError () AS VARIANT
