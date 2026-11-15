@@ -262,6 +262,31 @@ private function HexOf_( byref s as const ustring ) as ulong
     return culng( valuint( "&h" & s ) )
 end function
 
+' tkControls' own icons -- TK_ICON_* and the popup menu's check and chevron -- which a control draws
+' through its glyph font: the merged font carries them at their own codes (from the bundled Fluent),
+' so a tab's close X or a combo's chevron still draws, and the numbering steps round them.
+public function BuiltinCodes( ) as Array( of ulong )
+    dim as Array( of ulong ) o
+    dim as ulong c( 0 to 37 ) = { TK_ICON_CHEVRON_DOWN, TK_ICON_CHEVRON_RIGHT, TK_ICON_MORE, TK_ICON_CALENDAR, _
+        TK_ICON_INFO, TK_ICON_WARNING, TK_ICON_ERROR, TK_ICON_QUESTION, TK_ICON_CLOSE, TK_ICON_CHECKBOX, _
+        TK_ICON_CHECKBOX_CHECKED, TK_ICON_CHECKMARK, TK_ICON_SAVE, TK_ICON_REFRESH, TK_ICON_SETTINGS, TK_ICON_FOLDER, _
+        TK_ICON_FOLDER_OPEN, TK_ICON_OPEN, TK_ICON_DOCUMENT, TK_ICON_PAGE, TK_ICON_PLAY, TK_ICON_STOP, TK_ICON_DELETE, _
+        TK_ICON_STAR, TK_ICON_LOCK, TK_ICON_SEARCH, TK_ICON_BUG, TK_ICON_CONSOLE, TK_ICON_WRENCH, TK_ICON_WRAP, _
+        TK_ICON_HELP, TK_ICON_ALIGN_LEFT, TK_ICON_ALIGN_CENTER, TK_ICON_ALIGN_RIGHT, TK_ICON_BOLD, TK_ICON_LIKE, _
+        &h2713, &h203A }
+    for i as long = 0 to 37
+        o.Push( c( i ) )
+    next
+    return o
+end function
+
+private function IsBuiltin_( byref b as Array( of ulong ), byval cp as ulong ) as boolean
+    for each x as ulong in b
+        if x = cp then return true
+    next
+    return false
+end function
+
 ' The merged font's code of a "<key>:<hex>" glyph; 0 when it has none yet.
 public function CodeOf( byref doc as GlyphDoc, byref ref_ as const ustring ) as ulong
     dim as ustring want = ucase( ref_ )
@@ -276,12 +301,16 @@ end function
 public function AssignCodes( byref doc as GlyphDoc, byref used as Array( of ustring ) ) as boolean
     dim as boolean added = false
     dim as ulong next_ = &hE000
+    dim as Array( of ulong ) builtin = BuiltinCodes( )
     for each s as Setting in doc.Codes
         dim as ulong c = HexOf_( s.Value )
         if c >= next_ then next_ = c + 1
     next
     for each u as ustring in used
         if (GlyphCode( u ) = 0) orelse (CodeOf( doc, u ) <> 0) then continue for
+        while IsBuiltin_( builtin, next_ )                       ' tkControls' own: kept at their codes
+            next_ += 1
+        wend
         if next_ > &hF8FF then exit for                       ' the Private Use Area is full
         PutSetting( doc.Codes, GlyphRef( GlyphFontKey( u ), GlyphCode( u ) ), hex( next_ ) )
         next_ += 1

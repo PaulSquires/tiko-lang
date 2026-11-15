@@ -518,7 +518,9 @@ sub FormCanvas.Rebuild( )
         for each s as Setting in c.Props
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p then
-                if p->Kind = "font" then
+                if s.Key = "GlyphFont" then
+                    ' below, as the generated code does
+                elseif p->Kind = "font" then
                     if p->ApplyFont then p->ApplyFont( w, this.RoleFont( f, FontRole_( s.Value ), gk ) )
                 elseif p->bDesign andalso (p->Apply <> 0) then
                     ' a glyph's "<font>:<hex>" is drawn as its character (GLYPHS.md GV7)
@@ -526,6 +528,9 @@ sub FormCanvas.Rebuild( )
                 end if
             end if
         next
+        ' its glyphs in the GLYPH font (Large: GLYPH_LARGE), as the generated code gives every control with one
+        dim as TKMETA_PROP ptr gfp = tkMeta_FindProp( m, "GlyphFont" )
+        if (gfp <> 0) andalso (gfp->ApplyFont <> 0) then gfp->ApplyFont( w, this.RoleFont( f, FontRole_( codegen.GlyphRole( c ) ), gk ) )
         ' [control.colors]: the recipe the generated code gives it (the style takes effect once the
         ' canvas wears the project theme)
         if (len( c.StyleName ) > 0) orelse (c.Colors.Count( ) > 0) then

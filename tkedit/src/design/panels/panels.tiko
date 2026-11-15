@@ -103,6 +103,7 @@ public type PanelRow
     Inline as boolean         ' on the row before's line, sharing its editor's width (no label of its own)
     Glyph as boolean          ' a glyph property: its code in the box, its "..." the Glyph Picker
     Preview as TK_WIDGET ptr  ' a glyph row's: the glyph, drawn in its font, before the box
+    GlyphSize as boolean      ' the GlyphFont property shown as Glyph size: Normal / Large
 end type
 
 public type Palette
@@ -382,8 +383,8 @@ private sub OnFileGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as 
     p->CommitRow( r )
 end sub
 
-' A glyph property's "...": the Glyph Picker on the value it has; the pick goes in as if typed. A
-' control whose GlyphFont is empty gets GLYPH, or its glyph would draw in the text font.
+' A glyph property's "...": the Glyph Picker on the value it has; the pick goes in as it is. (Every
+' control with a glyph font draws its glyphs in the GLYPH one: codegen.GlyphRole.)
 private sub OnGlyphGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
     dim as DesignPanels ptr p = PanelsOf( h )
     if (p = 0) orelse (p->C = 0) orelse (p->C->OnPickGlyph = 0) then exit sub
@@ -409,18 +410,6 @@ private sub OnGlyphGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as
         exit sub
     end if
     if r < p->Rows.Count( ) then p->Rows[r].Text = GlyphShown( picked )
-    if len( picked ) = 0 then exit sub
-    dim as boolean noFont = false
-    for each nm as ustring in c->Selected
-        dim as long ic = FindControl( c->Doc, nm )
-        if ic < 0 then continue for
-        dim byref as FormControl fc = c->Doc.Controls[ic]
-        if (tkMeta_FindProp( catalog.Find( fc.TypeName ), "GlyphFont" ) <> 0) andalso (len( SettingOr( fc.Props, "GlyphFont" ) ) = 0) then noFont = true
-    next
-    if noFont then
-        dim as ustring fault = p->Apply( "GlyphFont", "GLYPH" )
-        if (len( fault ) > 0) andalso (p->OnMessage <> 0) then p->OnMessage( p->Owner, fault )
-    end if
 end sub
 
 ' The row that opens a control's menu, column, item or page editor -- or its Colors dialog.
@@ -1003,7 +992,16 @@ sub DesignPanels.AddPropRow( byval p as TKMETA_PROP ptr )
         this.AddGlyphButton( )
     case "bool" : this.AddRow( p->Name, p->Name, RowKind.RowCheck )
     case "enum" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, EnumShown_( p->EnumPairs ) )
-    case "font" : this.AddRow( p->Name, p->Name, RowKind.RowCombo, ",UI,UI_SMALL,UI_BOLD,UI_LARGE,GLYPH,GLYPH_LARGE,MONO" )
+    case "font"
+        if p->Name = "GlyphFont" then
+            ' the glyph font is the project's GLYPH one; all that is left to choose is its size
+            this.AddRow( p->Name, i18n.Tr( "designer.glyph_size", "Glyph size" ), RowKind.RowCombo, _
+                         i18n.Tr( "designer.glyph_size_normal", "Normal" ) & "," & i18n.Tr( "designer.glyph_size_large", "Large" ) )
+            Rows[Rows.Count( ) - 1].GlyphSize = true
+        else
+            ' text roles only: the GLYPH font is the project's merged icons (GLYPHS.md V4), no letters
+            this.AddRow( p->Name, p->Name, RowKind.RowCombo, ",UI,UI_SMALL,UI_BOLD,UI_LARGE,MONO" )
+        end if
     case "list"
         this.AddRow( p->Name, p->Name, RowKind.RowText )
         tkTextBox_SetCueBannerText( Rows[Rows.Count( ) - 1].Edit, tkMeta_ListCue( p->EnumPairs ) )
@@ -1244,6 +1242,9 @@ sub DesignPanels.UpdateValues( )
             end if
             if (tkHost_GetFocus( ed->pHost ) <> ed) andalso (tkTextBox_GetText( ed ) <> v) then tkTextBox_SetText( ed, v )
         case RowKind.RowCombo
+            if Rows[r].GlyphSize then
+                v = iif( v = "GLYPH_LARGE", i18n.Tr( "designer.glyph_size_large", "Large" ), i18n.Tr( "designer.glyph_size_normal", "Normal" ) )
+            end if
             tkComboBox_SetCurSel( ed, tkComboBox_FindItemByText( ed, v ) )
         case RowKind.RowCheck
             tkCheckBox_SetChecked( ed, v = "true" )
@@ -1287,7 +1288,10 @@ sub DesignPanels.CommitRow( byval r as long )
     if Rows[r].Kind = RowKind.RowButton then exit sub
     if v = Rows[r].Text then exit sub
     dim as ustring key_ = Rows[r].Key
-    dim as ustring fault = this.Apply( key_, iif( Rows[r].Glyph, GlyphTyped( v, this.ValueOf( key_ ) ), v ) )
+    dim as ustring nv = v
+    if Rows[r].Glyph then nv = GlyphTyped( v, this.ValueOf( key_ ) )
+    if Rows[r].GlyphSize then nv = iif( v = i18n.Tr( "designer.glyph_size_large", "Large" ), "GLYPH_LARGE", "" )
+    dim as ustring fault = this.Apply( key_, nv )
     if len( fault ) then
         if OnMessage then OnMessage( Owner, fault )
         Updating = true

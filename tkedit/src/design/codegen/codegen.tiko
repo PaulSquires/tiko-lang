@@ -69,6 +69,13 @@ private function EnumConst_( byref pairs as const ustring, byref shown as const 
     return mid( t, a, instr( a, t, "," ) - a )
 end function
 
+' A control's glyph font role: GLYPH, or GLYPH_LARGE when its Glyph size is Large (an older file's
+' other roles read as GLYPH).
+public function GlyphRole( byref c as FormControl ) as ustring
+    if SettingOr( c.Props, "GlyphFont" ) = "GLYPH_LARGE" then return "GLYPH_LARGE"
+    return "GLYPH"
+end function
+
 ' The project's glyph numbering for the Generate that follows (appGlyphs.tkglyphs [codes], GLYPHS.md
 ' V4): Key "<font>:<hex>", Value its code in the merged glyphs.ttf. Empty: a glyph is written at its
 ' source font's code.
@@ -721,6 +728,8 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     for each s as Setting in c.Props
         if (s.Key = "Enabled") orelse (s.Key = "Visible") then
             o &= "    " & c.Name & "." & s.Key & " = " & s.Value & NL
+        elseif s.Key = "GlyphFont" then
+            ' below: every control with a glyph font gets the GLYPH role (GLYPHS.md, Glyph size)
         elseif s.Key <> m->CreateArg then
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p->Kind = "list" then
@@ -732,6 +741,11 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
             end if
         end if
     next
+
+    ' its glyphs (and tkControls' own icons it draws) in the GLYPH font: Glyph size Large is GLYPH_LARGE
+    if tkMeta_FindProp( m, "GlyphFont" ) then
+        o &= "    " & c.Name & ".GlyphFont = tkForm_Font( Wnd, TKFONT_" & GlyphRole( c ) & " )" & NL
+    end if
 
     ColorsCode_( c, m, o )
 

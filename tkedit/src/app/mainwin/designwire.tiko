@@ -931,6 +931,23 @@ sub Window.BuildGlyphs( )
         next
         if have = false then licenses.Push( lic )
     next
+    ' tkControls' own icons at their own codes, from the bundled Fluent (its licence with them)
+    dim as glyphfile.GlyphFontRef fluent
+    fluent.Key = GLYPH_FONT_FLUENT : fluent.Bundled = TK_FONT_ICONS
+    dim as ustring fluentPath = glyphfile.FontPath( fluent, gdir, this.PkgDir( ) )
+    if len( fluentPath ) then
+        for each cp as ulong in glyphfile.BuiltinCodes( )
+            dim as fontwriter.GlyphTake t
+            t.Path = fluentPath : t.Code = cp : t.Target = cp : t.Optional = true
+            takes.Push( t )
+        next
+        dim as ustring lic = glyphfile.LicenseOf( fluentPath )
+        dim as boolean have = (len( lic ) = 0)
+        for each l as ustring in licenses
+            if l = lic then have = true
+        next
+        if have = false then licenses.Push( lic )
+    end if
     dim as Array( of ubyte ) bytes, old
     dim as ustring problem, fontPath = fs.PathJoin( gdir, glyphfile.GLYPHS_FONT )
     if fontwriter.Build( takes, fs.PathFileName( fs.PathParent( Proj.Path ) ) & " Glyphs", bytes, problem ) then

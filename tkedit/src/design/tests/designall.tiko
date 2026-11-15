@@ -1910,6 +1910,7 @@ sub GlyphValueSuite( )
     Check( formfile.Parse( src, d, e ), "glyph: the form parses", e )
     dim as ustring g = codegen.Generate( d, "frmG", "frmG.tkform", src )
     Check( instr( g, "B.GlyphLeft = wchr( &hE824 )" ) > 0, "glyph: generated as its character", g )
+    Check( instr( g, "B.GlyphFont = tkForm_Font( Wnd, TKFONT_GLYPH )" ) > 0, "glyph: no Glyph size set is the GLYPH role", g )
     ' V5: a toolbar button's glyph, at the project's number for it
     dim as ustring tsrc = "format = 1" & LF & LF & "[form]" & LF & "width = 300" & LF & "height = 200" & LF & LF _
         & "[[control]]" & LF & "name = ""T""" & LF & "type = ""Toolbar""" & LF & "parent = """"" & LF _

@@ -77,6 +77,7 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     btnGo.Text = "Go"
     btnGo.TextAlign = BTN_ALIGN_RIGHT
     btnGo.Font = tkForm_Font( Wnd, TKFONT_UI_BOLD )
+    btnGo.GlyphFont = tkForm_Font( Wnd, TKFONT_GLYPH )
     scope
         dim as TKCOLOR_SRC r( 0 to 11 )
         r( 0 ) = tkTheme_SrcFixed( 0, &hFFC62828ul )    ' BackColor

@@ -25,6 +25,7 @@ public type GlyphTake
     Path as ustring                    ' the font it comes from
     Code as ulong                      ' its code point there
     Target as ulong                    ' its code in the new font
+    Optional as boolean                ' left out without a word when the font has no such glyph
 end type
 
 ' ---- reading -------------------------------------------------------------------------------------
@@ -901,7 +902,7 @@ public function Build( byref takes as Array( of GlyphTake ), byref family as con
         dim byref as SrcFont_ f = fonts[fi]
         dim as long gid = GlyphOf_( f, takes[i].Code )
         if gid = 0 then
-            if len( problem ) = 0 then problem = fs.PathFileName( f.Path ) & ": no glyph at U+" & hex( takes[i].Code )
+            if (len( problem ) = 0) andalso (takes[i].Optional = false) then problem = fs.PathFileName( f.Path ) & ": no glyph at U+" & hex( takes[i].Code )
             continue for
         end if
         dim as double s = upem / f.Upem

@@ -232,8 +232,8 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
         shown = tkTextBox_GetText( ps->Rows[gr].Edit )
         if ps->Rows[gr].Preview then drawn = tkLabel_GetText( ps->Rows[gr].Preview )
     end if
-    t.Check( (gl = "Fluent:E824") andalso (gf = "GLYPH") andalso (shown = "E824") andalso (drawn = wchr( &hE824 )), _
-             P( sc, "the Glyph Picker sets GlyphLeft " & gl & ", the box " & shown & ", the preview drawn, GlyphFont " & gf ) )
+    t.Check( (gl = "Fluent:E824") andalso (len( gf ) = 0) andalso (shown = "E824") andalso (drawn = wchr( &hE824 )), _
+             P( sc, "the Glyph Picker sets GlyphLeft " & gl & ", the box " & shown & ", the preview drawn; GlyphFont left alone " & gf ) )
     ' the project's first glyph writes its font list (GLYPHS.md V3), the bundled fonts
     dim as ustring tkg = fs.ReadAllText( fs.PathJoin( proj, "appGlyphs", "appGlyphs.tkglyphs" ) ).ValueOr( "" )
     t.Check( (instr( tkg, "Fluent = { bundled = ""FluentSystemIcons-Regular.ttf"" }" ) > 0) andalso (instr( tkg, "Tabler = " ) > 0), _
@@ -243,8 +243,9 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     mw.BuildGlyphs( )
     dim as ustring gdir = fs.PathJoin( proj, "appGlyphs" )
     tkg = fs.ReadAllText( fs.PathJoin( gdir, "appGlyphs.tkglyphs" ) ).ValueOr( "" )
-    t.Check( (instr( tkg, """Fluent:E824"" = ""E000""" ) > 0) andalso fontwriter.HasGlyph( fs.PathJoin( gdir, "glyphs.ttf" ), &hE000 ), _
-             P( sc, "glyphs: Fluent:E824 numbered E000, in glyphs.ttf" ) )
+    t.Check( (instr( tkg, """Fluent:E824"" = ""E000""" ) > 0) andalso fontwriter.HasGlyph( fs.PathJoin( gdir, "glyphs.ttf" ), &hE000 ) _
+             andalso fontwriter.HasGlyph( fs.PathJoin( gdir, "glyphs.ttf" ), TK_ICON_CLOSE ), _
+             P( sc, "glyphs: Fluent:E824 numbered E000, in glyphs.ttf with tkControls' own icons (the close X)" ) )
     ' main.tiko as tkEdit has it: an open buffer takes the change (saved with it), else the file
     dim as ustring mainText = fs.ReadAllText( fs.PathJoin( proj, "main.tiko" ) ).ValueOr( "" )
     for each dd as DocRef in mw.Docs
