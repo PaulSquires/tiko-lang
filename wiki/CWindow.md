@@ -1658,8 +1658,7 @@ function Stabilize() as boolean
 
 Stops the user from closing the window: removes **Close** and the separator above it from the
 system menu, which also disables the close button, and ignores the close command that Alt+F4 and
-the button send. The program can still close the window with `WM_CLOSE` or `DestroyWindow`. Call
-it once: each call removes the last two items of the menu.
+the button send. The program can still close the window with `WM_CLOSE` or `DestroyWindow`.
 
 **Returns** `true`; `false` when the window has no system menu.
 

@@ -189,10 +189,6 @@ Creates a device context for the printer named `wszPrinterName`, with that print
 settings, and makes it the attached printer; an empty name means the default printer. On success
 the previous device context is deleted.
 
-The name is stored before the device context is created, so after a failure
-[GetPrinterName](#getprintername) returns the name that failed while [GetDC](#getdc) still
-returns the previous printer's device context.
-
 | Parameter | Meaning |
 | --- | --- |
 | `wszPrinterName` | The printer's name as Windows shows it under Printers & scanners, such as `"Microsoft Print to PDF"`, or `""` for the default printer. |
