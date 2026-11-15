@@ -245,7 +245,7 @@ if tkApp_Init( options ) = false then end 1
 appTheme.Install( )                     ' the theme's colours, shape and styles
 dim as frmMain.Form mainForm
 mainForm.Build( )
-end tkApp_Run( mainForm.Wnd )
+end tkApp_Run( mainForm.Handle )
 ```
 
 `Build` makes the window, hidden. A second form can be shown beside the first with `Show`, or as a dialog
@@ -257,7 +257,7 @@ window, the first time or after the user closed it, so another form's handler ne
 dim shared as frmOther.Form other
 
 sub Form.btnOther_Click( )
-    other.Show( Wnd )                 ' owned by this form; its controls are other.txtName and so on
+    other.Show( Handle )              ' owned by this form; its controls are other.txtName and so on
 end sub
 ```
 

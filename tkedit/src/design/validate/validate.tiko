@@ -42,7 +42,7 @@ end function
 
 ' What FormBase and the generated Form already use, and the names a field must not hide.
 private function IsFormMember_( byref s as const ustring ) as boolean
-    const as string MEMBERS = " wnd layout build show showmodal endmodal close isopen openwindow form this base "
+    const as string MEMBERS = " handle layout build show showmodal endmodal close isopen openwindow form this base "
     return instr( MEMBERS, " " & lcase( s ) & " " ) > 0
 end function
 

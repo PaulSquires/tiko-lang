@@ -101,7 +101,7 @@ private function ValueExpr_( byref v as const ustring, byref kind_ as const ustr
     case "bool", "int", "float" : return v
     case "enum"                 : return EnumConst_( pairs, v )
     case "color"                : return v & "ul"
-    case "font"                 : return "tkForm_Font( Wnd, TKFONT_" & v & " )"
+    case "font"                 : return "tkForm_Font( Handle, TKFONT_" & v & " )"
     case "glyph"
         ' "<font>:<hex>": its character in the project's merged font (appGlyphs), else the source font's
         dim as ulong cp = GlyphCode( v )
@@ -589,18 +589,18 @@ end sub
 ' The window's settings the form gives, each only when it isn't the run-time default.
 private sub WindowCode_( byref doc as FormDoc, byref o as ustring )
     select case doc.StartPosition
-    case "CenterScreen" : o &= "    tkForm_SetStartPosition( Wnd, TKFORM_POS_CENTER_SCREEN )" & NL
-    case "CenterOwner"  : o &= "    tkForm_SetStartPosition( Wnd, TKFORM_POS_CENTER_OWNER )" & NL
+    case "CenterScreen" : o &= "    tkForm_SetStartPosition( Handle, TKFORM_POS_CENTER_SCREEN )" & NL
+    case "CenterOwner"  : o &= "    tkForm_SetStartPosition( Handle, TKFORM_POS_CENTER_OWNER )" & NL
     end select
-    if len( doc.Resizable ) then o &= "    tkForm_SetResizable( Wnd, " & doc.Resizable & " )" & NL
-    if (doc.MinW <> 0) orelse (doc.MinH <> 0) then o &= "    tkForm_SetMinSize( Wnd, " & doc.MinW & ", " & doc.MinH & " )" & NL
-    if (doc.MaxW <> 0) orelse (doc.MaxH <> 0) then o &= "    tkForm_SetMaxSize( Wnd, " & doc.MaxW & ", " & doc.MaxH & " )" & NL
+    if len( doc.Resizable ) then o &= "    tkForm_SetResizable( Handle, " & doc.Resizable & " )" & NL
+    if (doc.MinW <> 0) orelse (doc.MinH <> 0) then o &= "    tkForm_SetMinSize( Handle, " & doc.MinW & ", " & doc.MinH & " )" & NL
+    if (doc.MaxW <> 0) orelse (doc.MaxH <> 0) then o &= "    tkForm_SetMaxSize( Handle, " & doc.MaxW & ", " & doc.MaxH & " )" & NL
     select case doc.WindowState
-    case "Maximized" : o &= "    tkForm_SetWindowState( Wnd, TKFORM_STATE_MAXIMIZED )" & NL
-    case "Minimized" : o &= "    tkForm_SetWindowState( Wnd, TKFORM_STATE_MINIMIZED )" & NL
+    case "Maximized" : o &= "    tkForm_SetWindowState( Handle, TKFORM_STATE_MAXIMIZED )" & NL
+    case "Minimized" : o &= "    tkForm_SetWindowState( Handle, TKFORM_STATE_MINIMIZED )" & NL
     end select
-    if doc.AlwaysOnTop then o &= "    tkForm_SetAlwaysOnTop( Wnd, true )" & NL
-    if len( doc.Icon ) then o &= "    tkForm_SetIcon( Wnd, " & Literal_( doc.Icon ) & " )" & NL
+    if doc.AlwaysOnTop then o &= "    tkForm_SetAlwaysOnTop( Handle, true )" & NL
+    if len( doc.Icon ) then o &= "    tkForm_SetIcon( Handle, " & Literal_( doc.Icon ) & " )" & NL
 end sub
 
 ' The statements that fill a control with its entries.
@@ -619,7 +619,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             if i < c.Items.Count( ) - 1 then hasKids = (c.Items[i + 1].Level > it.Level)
             if it.Level = 0 then
                 if hasKids then
-                    o &= "        menus( 0 ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
+                    o &= "        menus( 0 ) = tkPopupMenu_Create( tkForm_Host( Handle ) )" & NL
                     o &= "        tkMenuBar_SetDropDown( " & h & ", tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", " & (base_ + i) & " ), menus( 0 ) )" & NL
                 else
                     o &= "        tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", " & (base_ + i) & " )" & NL
@@ -631,7 +631,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
                 if len( it.Key ) then accel = ", KeyLabel( " & Literal_( it.Key ) & " )"
                 o &= "        tkPopupMenu_AddItem( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & accel & " )" & NL
                 if hasKids then
-                    o &= "        menus( " & it.Level & " ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
+                    o &= "        menus( " & it.Level & " ) = tkPopupMenu_Create( tkForm_Host( Handle ) )" & NL
                     o &= "        tkPopupMenu_SetItemSubMenu( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", menus( " & it.Level & " ) )" & NL
                 end if
             end if
@@ -654,7 +654,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
                 if len( it.Key ) then accel = ", KeyLabel( " & Literal_( it.Key ) & " )"
                 o &= "        tkPopupMenu_AddItem( menus( " & it.Level & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & accel & " )" & NL
                 if hasKids andalso (it.Level < 2) then
-                    o &= "        menus( " & (it.Level + 1) & " ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )" & NL
+                    o &= "        menus( " & (it.Level + 1) & " ) = tkPopupMenu_Create( tkForm_Host( Handle ) )" & NL
                     o &= "        tkPopupMenu_SetItemSubMenu( menus( " & it.Level & " ), " & (base_ + i) & ", menus( " & (it.Level + 1) & " ) )" & NL
                 end if
             end if
@@ -715,7 +715,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     dim as FormControl c = doc.Controls[idx]
     dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
 
-    dim as ustring parent_ = "tkForm_Widget( Wnd )"
+    dim as ustring parent_ = "tkForm_Widget( Handle )"
     if len( c.Parent ) then
         dim as FormControl pc = doc.Controls[FindControl( doc, c.Parent )]
         parent_ = ChildParent_( pc, catalog.Find( pc.TypeName )->ContainerKind, c.Page )
@@ -777,12 +777,12 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
             ' and the icon box as tall as the font, so the glyph isn't clipped -- unless it has its own size
             dim as boolean fit = (tkMeta_FindProp( m, "IconSize" ) <> 0) andalso (FindSetting( c.Props, "IconSize" ) < 0)
             o &= "    scope" & NL
-            o &= "        dim as TTF_Font ptr gf_ = tkHost.tkHost_OpenFont( tkForm_Host( Wnd ), tkApp_GlyphFace( ), " & GlyphPoints( c ) & " )" & NL
+            o &= "        dim as TTF_Font ptr gf_ = tkHost.tkHost_OpenFont( tkForm_Host( Handle ), tkApp_GlyphFace( ), " & GlyphPoints( c ) & " )" & NL
             o &= "        " & c.Name & ".GlyphFont = gf_" & NL
             if fit then o &= "        " & c.Name & ".IconSize( TTF_GetFontHeight( gf_ ), TTF_GetFontHeight( gf_ ) )" & NL
             o &= "    end scope" & NL
         else
-            o &= "    " & c.Name & ".GlyphFont = tkForm_Font( Wnd, TKFONT_" & GlyphRole( c ) & " )" & NL
+            o &= "    " & c.Name & ".GlyphFont = tkForm_Font( Handle, TKFONT_" & GlyphRole( c ) & " )" & NL
         end if
     end if
 
@@ -905,19 +905,19 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
 
     o &= "sub Form.Build( byval owner as TK_FORM ptr = nullptr )" & NL
     o &= "    OpenWindow( " & TextExpr_( doc, "Caption", doc.Caption ) & ", " & doc.ClientW & ", " & doc.ClientH & ", owner )" & NL
-    o &= "    if Wnd = 0 then exit sub" & NL
+    o &= "    if Handle = 0 then exit sub" & NL
     WindowCode_( doc, o )
-    o &= "    tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), " & doc.ClientW & ", " & doc.ClientH & " )" & NL
+    o &= "    tkLayout_AddContainer( Layout, tkForm_Widget( Handle ), " & doc.ClientW & ", " & doc.ClientH & " )" & NL
     for i as long = 0 to doc.Controls.Count( ) - 1
         CreateControl_( doc, i, sz, o )
     next
-    if FindSetting( doc.Events, "Close" ) >= 0 then o &= "    tkForm_OnClose( Wnd, @Thunk_Form_Close )" & NL
+    if FindSetting( doc.Events, "Close" ) >= 0 then o &= "    tkForm_OnClose( Handle, @Thunk_Form_Close )" & NL
     if FindSetting( doc.Events, "Resize" ) >= 0 then o &= "    ResizeHook = @Thunk_Form_Resize" & NL
-    if FindSetting( doc.Events, "KeyDown" ) >= 0 then o &= "    tkForm_OnKeyDown( Wnd, @Thunk_Form_KeyDown )" & NL
-    if FindSetting( doc.Events, "Paint" ) >= 0 then o &= "    tkForm_OnPaint( Wnd, @Thunk_Form_Paint )" & NL
+    if FindSetting( doc.Events, "KeyDown" ) >= 0 then o &= "    tkForm_OnKeyDown( Handle, @Thunk_Form_KeyDown )" & NL
+    if FindSetting( doc.Events, "Paint" ) >= 0 then o &= "    tkForm_OnPaint( Handle, @Thunk_Form_Paint )" & NL
     if FindSetting( doc.Events, "Destroy" ) >= 0 then o &= "    DestroyHook = @Thunk_Form_Destroy" & NL
-    if FindSetting( doc.Events, "ThemeChanged" ) >= 0 then o &= "    tkForm_OnThemeChanged( Wnd, @Thunk_Form_ThemeChanged )" & NL
-    if FindSetting( doc.Events, "MouseMove" ) >= 0 then o &= "    tkWidget_SetMouseMoveCallback( tkForm_Widget( Wnd ), @Thunk_Form_MouseMove )" & NL
+    if FindSetting( doc.Events, "ThemeChanged" ) >= 0 then o &= "    tkForm_OnThemeChanged( Handle, @Thunk_Form_ThemeChanged )" & NL
+    if FindSetting( doc.Events, "MouseMove" ) >= 0 then o &= "    tkWidget_SetMouseMoveCallback( tkForm_Widget( Handle ), @Thunk_Form_MouseMove )" & NL
     if AnyShortcut_( doc ) then
         o &= "    scope" & NL
         o &= "        dim as TK_KEYMAP ptr keys = tkKeys_MapCreate( )" & NL
@@ -931,14 +931,14 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
                 next
             end if
         next
-        o &= "        tkKeys_Attach( tkForm_Host( Wnd ), keys, @Thunk_Keys )" & NL
+        o &= "        tkKeys_Attach( tkForm_Host( Handle ), keys, @Thunk_Keys )" & NL
         o &= "    end scope" & NL
     end if
     ' context menus, once every control and every PopupMenu exists
     for each c as FormControl in doc.Controls
         if len( c.ContextMenu ) then o &= "    tkContextMenu_Attach( " & c.ContextMenu & ".Handle, " & c.Name & ".Handle )" & NL
     next
-    if len( doc.ContextMenu ) then o &= "    tkContextMenu_Attach( " & doc.ContextMenu & ".Handle, tkForm_Widget( Wnd ) )" & NL
+    if len( doc.ContextMenu ) then o &= "    tkContextMenu_Attach( " & doc.ContextMenu & ".Handle, tkForm_Widget( Handle ) )" & NL
     o &= "    tkLayout_Apply( Layout )" & NL
     dim as long i = FindSetting( doc.Events, "Load" )
     if i >= 0 then o &= "    " & doc.Events[i].Value & "( )" & NL

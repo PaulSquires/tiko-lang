@@ -66,9 +66,9 @@ end function
 
 sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     OpenWindow( "Say ""hi""" & chr( 10 ) & "Two", 300, 200, owner )
-    if Wnd = 0 then exit sub
-    tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), 300, 200 )
-    pnlSide.Create( tkForm_Widget( Wnd ), 1 )
+    if Handle = 0 then exit sub
+    tkLayout_AddContainer( Layout, tkForm_Widget( Handle ), 300, 200 )
+    pnlSide.Create( tkForm_Widget( Handle ), 1 )
     tkLayout_Add( Layout, pnlSide.Handle, 0, 0, 100, 50, TK_ANCHOR_LEFT or TK_ANCHOR_TOP, TK_DOCK_LEFT )
     tkLayout_AddContainer( Layout, pnlSide.Handle, 100, 200 )
     btnGo.Create( pnlSide.Handle, 2 )
@@ -76,8 +76,8 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     btnGo.Enabled = false
     btnGo.Text = "Go"
     btnGo.TextAlign = BTN_ALIGN_RIGHT
-    btnGo.Font = tkForm_Font( Wnd, TKFONT_UI_BOLD )
-    btnGo.GlyphFont = tkForm_Font( Wnd, TKFONT_GLYPH )
+    btnGo.Font = tkForm_Font( Handle, TKFONT_UI_BOLD )
+    btnGo.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )
     scope
         dim as TKCOLOR_SRC r( 0 to 11 )
         r( 0 ) = tkTheme_SrcFixed( 0, &hFFC62828ul )    ' BackColor
@@ -104,7 +104,7 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
         tkTheme_SetRecipeNamed( lblNote.Handle, "", @r( 0 ), 2 )
     end scope
     tkLabel_SetClickCallback( lblNote.Handle, @Thunk_lblNote_Click )
-    tabs.Create( tkForm_Widget( Wnd ), 4 )
+    tabs.Create( tkForm_Widget( Handle ), 4 )
     tkLayout_Add( Layout, tabs.Handle, 0, 0, 10, 10, TK_ANCHOR_LEFT or TK_ANCHOR_TOP, TK_DOCK_FILL )
     tkTabControl_AddPage( tabs.Handle, "One" )
     tkTabControl_AddPage( tabs.Handle, "Two" )
@@ -130,7 +130,7 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     tkLayout_AddContainer( Layout, pnlOnPage.Handle, 30, 176 )
     lblDeep.Create( pnlOnPage.Handle, 11 )
     tkLayout_Add( Layout, lblDeep.Handle, 0, 0, 10, 10 )
-    tkForm_OnClose( Wnd, @Thunk_Form_Close )
+    tkForm_OnClose( Handle, @Thunk_Form_Close )
     tkLayout_Apply( Layout )
     Form_Load( )
 end sub

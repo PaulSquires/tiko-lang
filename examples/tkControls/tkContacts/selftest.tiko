@@ -30,7 +30,7 @@ tkTest_Begin( "contacts" )
 scope
     dim as frmContacts.Form f
     f.Build( owner )
-    dim as TK_HOST ptr h = tkForm_Host( f.Wnd )
+    dim as TK_HOST ptr h = tkForm_Host( f.Handle )
     f.Show( )
     tkTest_PumpFor( h, 100 )
     tkTest_Check( "starts empty", tkListTree_GetCount( f.lstPeople.Handle ) = 0 )

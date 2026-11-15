@@ -550,7 +550,7 @@ private function FormMain_( byref pkg as const ustring, byref formName as const 
         & "appTheme.Install( )" & nl _
         & "dim as " & formName & ".Form mainForm" & nl _
         & "mainForm.Build( )" & nl _
-        & "end tkApp_Run( mainForm.Wnd )" & nl
+        & "end tkApp_Run( mainForm.Handle )" & nl
 end function
 
 ' The project's resources: appResources/appResources.tkres, none yet, and its module. One already

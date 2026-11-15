@@ -57,7 +57,7 @@ private sub OnDestroyForm_( byval f as TK_FORM ptr )
     dim as FormBase ptr p = cast( FormBase ptr, f->Tag )
     if p then
         if p->DestroyHook then p->DestroyHook( f )
-        p->Wnd = 0
+        p->Handle = 0
         tkLayout_Destroy( p->Layout )
         p->Layout = 0
     end if
@@ -65,7 +65,7 @@ private sub OnDestroyForm_( byval f as TK_FORM ptr )
 end sub
 
 public type FormBase extends object
-    Wnd as TK_FORM ptr
+    Handle as TK_FORM ptr
     Layout as TK_LAYOUT ptr
     ' A designed form's own handlers, run after the base's: on a resize (cx, cy in pixels, after the
     ' layout), and as the window goes (its controls still there). Not run when the form object itself
@@ -101,19 +101,19 @@ end constructor
 
 destructor FormBase( )
     DestroyHook = 0
-    if Wnd then tkForm_Destroy( Wnd )
+    if Handle then tkForm_Destroy( Handle )
 end destructor
 
 sub FormBase.OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
-    if Wnd then exit sub
+    if Handle then exit sub
     dim as ustring t = title
-    Wnd = tkApp_NewForm( t, cx, cy, owner )
-    if Wnd = 0 then exit sub
-    Wnd->Tag = @this
+    Handle = tkApp_NewForm( t, cx, cy, owner )
+    if Handle = 0 then exit sub
+    Handle->Tag = @this
     Layout = tkLayout_Create( )
-    tkForm_OnSize( Wnd, @OnSizeForm_ )
-    tkForm_OnScaleChanged( Wnd, @OnScaleForm_ )
-    tkForm_OnDestroy( Wnd, @OnDestroyForm_ )
+    tkForm_OnSize( Handle, @OnSizeForm_ )
+    tkForm_OnScaleChanged( Handle, @OnScaleForm_ )
+    tkForm_OnDestroy( Handle, @OnDestroyForm_ )
 end sub
 
 ' A form with nothing designed has nothing to build.
@@ -121,24 +121,24 @@ sub FormBase.Build( byval owner as TK_FORM ptr = nullptr )
 end sub
 
 sub FormBase.Show( byval owner as TK_FORM ptr = nullptr )
-    if Wnd = 0 then this.Build( owner )
-    if Wnd then tkForm_Show( Wnd )
+    if Handle = 0 then this.Build( owner )
+    if Handle then tkForm_Show( Handle )
 end sub
 
 function FormBase.ShowModal( byval owner as TK_FORM ptr = nullptr ) as long
-    if Wnd = 0 then this.Build( owner )
-    if Wnd = 0 then return 0
-    return tkForm_ShowModalKeep( Wnd )
+    if Handle = 0 then this.Build( owner )
+    if Handle = 0 then return 0
+    return tkForm_ShowModalKeep( Handle )
 end function
 
 sub FormBase.EndModal( byval code as long )
-    if Wnd then tkForm_EndModal( Wnd, code )
+    if Handle then tkForm_EndModal( Handle, code )
 end sub
 
 sub FormBase.Close( )
-    if Wnd then tkForm_Close( Wnd )
+    if Handle then tkForm_Close( Handle )
 end sub
 
 function FormBase.IsOpen( ) as boolean
-    return Wnd <> 0
+    return Handle <> 0
 end function

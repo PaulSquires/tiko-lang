@@ -7,4 +7,4 @@ dim as TKAPP_OPTIONS options
 if tkApp_Init( options ) = false then end 1
 dim as frmContacts.Form mainForm
 mainForm.Build( )
-end tkApp_Run( mainForm.Wnd )
+end tkApp_Run( mainForm.Handle )

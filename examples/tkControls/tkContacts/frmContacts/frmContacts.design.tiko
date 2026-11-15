@@ -68,37 +68,37 @@ end sub
 
 sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     OpenWindow( "Contacts", 520, 360, owner )
-    if Wnd = 0 then exit sub
-    tkLayout_AddContainer( Layout, tkForm_Widget( Wnd ), 520, 360 )
-    mnuMain.Create( tkForm_Widget( Wnd ), 1 )
+    if Handle = 0 then exit sub
+    tkLayout_AddContainer( Layout, tkForm_Widget( Handle ), 520, 360 )
+    mnuMain.Create( tkForm_Widget( Handle ), 1 )
     tkLayout_Add( Layout, mnuMain.Handle, 0, 0, 520, 28, TK_ANCHOR_LEFT or TK_ANCHOR_TOP, TK_DOCK_TOP )
     scope
         dim as TK_MENU ptr menus( 0 to 2 )
-        menus( 0 ) = tkPopupMenu_Create( tkForm_Host( Wnd ) )
+        menus( 0 ) = tkPopupMenu_Create( tkForm_Host( Handle ) )
         tkMenuBar_SetDropDown( mnuMain.Handle, tkMenuBar_AddItem( mnuMain.Handle, "File", 1000 ), menus( 0 ) )
         tkPopupMenu_AddItem( menus( 0 ), 1001, "Clear", KeyLabel( "Primary+L" ) )
         tkPopupMenu_AddSeparator( menus( 0 ) )
         tkPopupMenu_AddItem( menus( 0 ), 1003, "Exit" )
     end scope
     tkMenuBar_SetCommandCallback( mnuMain.Handle, @Thunk_mnuMain_Command )
-    sbMain.Create( tkForm_Widget( Wnd ), 2 )
+    sbMain.Create( tkForm_Widget( Handle ), 2 )
     tkLayout_Add( Layout, sbMain.Handle, 0, 0, 520, 26, TK_ANCHOR_LEFT or TK_ANCHOR_TOP, TK_DOCK_BOTTOM )
     tkStatusBar_AddPanel( sbMain.Handle, "Type a name and press Add" )
-    txtName.Create( tkForm_Widget( Wnd ), 3, false )
+    txtName.Create( tkForm_Widget( Handle ), 3, false )
     tkLayout_Add( Layout, txtName.Handle, 16, 44, 392, 28, TK_ANCHOR_LEFT or TK_ANCHOR_TOP or TK_ANCHOR_RIGHT )
-    btnAdd.Create( tkForm_Widget( Wnd ), 4 )
+    btnAdd.Create( tkForm_Widget( Handle ), 4 )
     tkLayout_Add( Layout, btnAdd.Handle, 416, 44, 88, 28, TK_ANCHOR_TOP or TK_ANCHOR_RIGHT )
     btnAdd.Text = "Add"
-    btnAdd.GlyphFont = tkForm_Font( Wnd, TKFONT_GLYPH )
+    btnAdd.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )
     tkButton_SetClickCallback( btnAdd.Handle, @Thunk_btnAdd_Click )
-    lstPeople.Create( tkForm_Widget( Wnd ), 5 )
+    lstPeople.Create( tkForm_Widget( Handle ), 5 )
     tkLayout_Add( Layout, lstPeople.Handle, 16, 84, 488, 236, TK_ANCHOR_LEFT or TK_ANCHOR_TOP or TK_ANCHOR_RIGHT or TK_ANCHOR_BOTTOM )
     tkListTree_AddColumn( lstPeople.Handle, "Name", 300 )
     tkListTree_SetPaintCallback( lstPeople.Handle, @tkListTree_PaintRowDefault )
     scope
         dim as TK_KEYMAP ptr keys = tkKeys_MapCreate( )
         tkKeys_BindText( keys, "Primary+L", 1001 )
-        tkKeys_Attach( tkForm_Host( Wnd ), keys, @Thunk_Keys )
+        tkKeys_Attach( tkForm_Host( Handle ), keys, @Thunk_Keys )
     end scope
     tkLayout_Apply( Layout )
 end sub

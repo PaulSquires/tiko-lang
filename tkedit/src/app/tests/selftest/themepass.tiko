@@ -342,7 +342,7 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     end if
     fs.WriteAllText( mainPath, "#import ""vendor/tkControls/tkApp""" & nl & "#import ""./frmMain""" & nl & "using tkApp" & nl & nl _
         & "dim as TKAPP_OPTIONS options" & nl & "if tkApp_Init( options ) = false then end 1" & nl & "dim as frmMain.Form mainForm" & nl _
-        & "mainForm.Build( )" & nl & "end tkApp_Run( mainForm.Wnd )" & nl )
+        & "mainForm.Build( )" & nl & "end tkApp_Run( mainForm.Handle )" & nl )
     dim as ustring docText = themefile.Render( dlg->Doc )
     PressIn( th, dlg->BtnSave )
     tkTest_PumpFor( h, 60 )
