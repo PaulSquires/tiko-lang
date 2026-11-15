@@ -1500,6 +1500,10 @@ sub PopupSuite( )
     Check( catalog.ItemsKindOf( "PopupMenu" ) = catalog.ItemsKind.ItemsPopup, "popup: its items are a popup menu's" )
     Check( catalog.IsMenuKind( catalog.ItemsKind.ItemsPopup ) andalso catalog.IsMenuKind( catalog.ItemsKind.ItemsMenu ) andalso (catalog.IsMenuKind( catalog.ItemsKind.ItemsToolbar ) = false), "popup: a menu kind, as a menu bar's" )
     Check( catalog.IsComponent( "PopupMenu" ), "popup: a component" )
+    dim as FormDoc dn
+    dim as long ni = edits.AddControl( dn, "PopupMenu", "", -1, 0, 0, 0, 0 )
+    Check( (dn.Controls[ni].Items.Count( ) = 5) andalso (dn.Controls[ni].Items[0].Text = "Cut") andalso (dn.Controls[ni].Items[3].Text = "-") _
+           andalso (dn.Controls[ni].Items[4].Text = "Select All"), "popup: a new one has Cut, Copy, Paste, -, Select All" )
     dim as ustring item = LF & "[[control.items]]" & LF
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""P""" & LF & "width = 300" & LF & "height = 200" & LF & "context_menu = ""pm""" & LF _
         & Ctl( "pm", "PopupMenu", "parent = """"" & LF & "x = 8" & LF & "y = 8" & LF & "w = 72" & LF & "h = 24" & LF ) _
