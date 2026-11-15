@@ -370,7 +370,7 @@ sub Window.EditColors( byval c as canvas.FormCanvas ptr, byref name_ as const us
     if ColorsDlg then this.FinishColors( ColorsDlg->RunModal( ) )
 end sub
 
-' seed: a menu bar just placed -- the editor opens on the standard menu (File, Edit, Help).
+' seed: a menu bar or popup menu just placed -- the editor opens on its default entries.
 sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring, byval seed as boolean = false )
     this.OpenItems( c, name_ )
     if ItemsDlg = 0 then exit sub

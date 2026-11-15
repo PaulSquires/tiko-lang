@@ -129,15 +129,6 @@ public function AddControl( byref doc as FormDoc, byref typeName as const ustrin
     case "MenuBar", "Toolbar" : c.Dock = TK_DOCK_TOP
     case "StatusBar"          : c.Dock = TK_DOCK_BOTTOM
     end select
-    ' a new right-click menu starts with the usual edit entries, for the items editor to change
-    if m->Name = "PopupMenu" then
-        dim as Array( of ustring ) entries = { "Cut", "Copy", "Paste", "-", "Select All" }
-        for each s as ustring in entries
-            dim as FormItem it
-            it.Text = s
-            c.Items.Push( it )
-        next
-    end if
     dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, "Text" )
     if (p <> 0) andalso (p->Kind = "text") then PutSetting( c.Props, "Text", c.Name )
     ' an option button joins the group of the last one placed beside it (same parent, same page):

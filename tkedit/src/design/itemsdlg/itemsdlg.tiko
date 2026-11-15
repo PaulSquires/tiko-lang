@@ -406,10 +406,26 @@ public function DefaultMenu( ) as Array( of FormItem )
     return a
 end function
 
+' A new popup menu's starting point: the usual edit commands. No shortcuts: a menu bar's Edit menu
+' may already bind them on the same form.
+public function DefaultPopup( ) as Array( of FormItem )
+    dim as Array( of FormItem ) a
+    MenuItem_( a, i18n.Tr( "designer.menu_cut", "Cut" ), 0 )
+    MenuItem_( a, i18n.Tr( "designer.menu_copy", "Copy" ), 0 )
+    MenuItem_( a, i18n.Tr( "designer.menu_paste", "Paste" ), 0 )
+    MenuItem_( a, "-", 0 )
+    MenuItem_( a, i18n.Tr( "designer.menu_select_all", "Select All" ), 0 )
+    return a
+end function
+
 ' An empty menu editor filled with DefaultMenu, the first entry selected.
 sub ItemsEditor.SeedDefaults( )
-    if (Kind <> catalog.ItemsKind.ItemsMenu) orelse (Items.Count( ) > 0) then exit sub
-    Items = DefaultMenu( )
+    if Items.Count( ) > 0 then exit sub
+    select case Kind
+    case catalog.ItemsKind.ItemsMenu  : Items = DefaultMenu( )
+    case catalog.ItemsKind.ItemsPopup : Items = DefaultPopup( )
+    case else : exit sub
+    end select
     Current = 0
     this.FillList( )
     this.ShowItem( 0 )

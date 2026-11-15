@@ -103,6 +103,9 @@ public type CanvasMenuSub as sub( byval host_ as any ptr, byval c as FormCanvas_
 const as long MARGIN = 16         ' design units of empty surface around the form
 const as long GRIP_SIZE = 7       ' a grip's size
 const as long BAR = 12            ' a scroll bar's thickness
+const as long TRAY_BOX = 20       ' the component tray: a box's height
+const as long TRAY_GAP = 8        ' the room around and between its boxes
+const as long TRAY_PAD = 8        ' a box's room either side of its name
 const as long DRAG_START = 4      ' pixels of travel before a press becomes a drag
 const as long MIN_SIZE = 4        ' the smallest a control can be dragged to
 const as long PLACE_STEP = 16     ' a Toolbox double click: the first control's offset, and each next one's
@@ -147,6 +150,8 @@ public type FormCanvas
     Frame as TK_WIDGET ptr              ' fills the pane
     Glass as TK_WIDGET ptr              ' over everything in Frame
     Surface as TK_WIDGET ptr            ' the form itself; its children are the real controls
+    Tray as TK_WIDGET ptr               ' under the form while it has components: a box for each
+    TrayGlass as TK_WIDGET ptr          ' over the tray's boxes, so the mouse reaches the canvas, not them
     HBar as TK_WIDGET ptr
     VBar as TK_WIDGET ptr
     Layout as TK_LAYOUT ptr
@@ -207,6 +212,7 @@ public type FormCanvas
     declare sub Rebuild( )
     declare sub SyncGeometry( )
     declare sub PlaceSurface( )
+    declare function PlaceTray( ) as long
     declare sub ScreenPixels( byref w as long, byref h as long )
     declare sub ContainerClient( byval i as long, byval page as long, byref w as TK_WIDGET ptr )
 
@@ -339,6 +345,55 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
     return false
 end function
 
+' The component tray: its background, and a ring around each selected box (just outside it, where
+' the box doesn't paint over).
+private function TrayProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as FormCanvas ptr c = w->pData
+    select case m->msg
+    case TKM_PAINT
+        dim as TKTHEME_COLORS t = tkTheme_Get( )
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( t.Window )
+        m->pPaint->PaintRect( @rc )
+        tkRect_Set( rc, 0, 0, w->cw, 1 )
+        m->pPaint->SetBackColor( t.Border )
+        m->pPaint->PaintRect( @rc )
+        ' a ring around each selected box, the first one thicker as on the form
+        dim as long pad = c->ToPixels( 2 )
+        for k as long = 0 to c->Selected.Count( ) - 1
+            dim as TK_WIDGET ptr b = c->WidgetOf( c->Selected[k] )
+            if (b = 0) orelse (b->pParent <> w) then continue for
+            tkRect_Set( rc, b->x - pad, b->y - pad, b->x + b->cw + pad, b->y + b->ch + pad )
+            m->pPaint->SetPenColor( t.Accent )
+            m->pPaint->PaintRoundOutline( @rc, 0, iif( k = 0, 2, 1 ) )
+        next
+        return true
+    end select
+    return false
+end function
+
+' Over the tray's boxes: they are picked, opened and right-clicked as controls on the form are, so
+' the mouse goes on to the glass, in the glass's own pixels.
+private function TrayGlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as FormCanvas ptr c = w->pData
+    select case m->msg
+    case TKM_PAINT
+        return true
+    case TKM_LBUTTONDOWN, TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP, TKM_MOUSEMOVE, TKM_MOUSEWHEEL
+        dim as TKRECT a, g
+        tkWidget_AbsRect( w, a )
+        tkWidget_AbsRect( c->Glass, g )
+        dim as TK_MSG mm = *m
+        mm.x += a.left - g.left
+        mm.y += a.top - g.top
+        return GlassProc( c->Glass, @mm )
+    case TKM_MOUSELEAVE
+        return GlassProc( c->Glass, m )
+    end select
+    return false
+end function
+
 private sub OnBarScroll( byval hSB as TK_WIDGET ptr, byval newPos as integer )
     cast( FormCanvas ptr, tkWidget_Parent( hSB )->pData )->PlaceSurface( )
 end sub
@@ -414,6 +469,8 @@ sub FormCanvas.Destroy( )
     Frame = 0
     Glass = 0
     Surface = 0
+    Tray = 0
+    TrayGlass = 0
 end sub
 
 function FormCanvas.ToPixels( byval v as long ) as long
@@ -448,6 +505,9 @@ end function
 sub FormCanvas.Clear_( )
     if Surface then tkWidget_Destroy( Surface )
     Surface = 0
+    if Tray then tkWidget_Destroy( Tray )      ' TrayGlass with it
+    Tray = 0
+    TrayGlass = 0
     Widgets.Clear( )
     if Layout then tkLayout_Destroy( Layout )
     Layout = tkLayout_Create( )
@@ -470,6 +530,8 @@ sub FormCanvas.Rebuild( )
     this.Clear_( )
     Surface = tkWidget_CreateChild( Frame, 4, @SurfaceProc, @this )
     tkWidget_SendToBack( Surface )
+    Tray = tkWidget_CreateChild( Frame, 5, @TrayProc, @this )
+    tkWidget_Show( Tray, false )
     this.ApplyProjectTheme( )               ' before the controls: they read their scope at create
 
     dim as TK_FORM ptr f = tkForm_FromWidget( Frame )
@@ -480,9 +542,9 @@ sub FormCanvas.Rebuild( )
         dim as FormControl c = Doc.Controls[i]
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if catalog.IsComponent( c.TypeName ) then
-            ' a component (a Timer): its name in a box on the form, never the real thing, which would
-            ' run while being designed; nothing at all on a Test Form
-            dim as TK_WIDGET ptr wc = catalog.CreateComponentBox( Surface, i + 1 )
+            ' a component (a Timer): its name in a box in the tray under the form, never the real
+            ' thing, which would run while being designed; nothing at all on a Test Form
+            dim as TK_WIDGET ptr wc = catalog.CreateComponentBox( Tray, i + 1 )
             Widgets.Push( wc )
             if wc = 0 then continue for
             tkLabel_SetText( wc, c.Name )
@@ -490,7 +552,6 @@ sub FormCanvas.Rebuild( )
             tkLabel_SetTransparent( wc, false )
             tkLabel_SetBackColor( wc, tkTheme_Get( ).Selected )
             tkLabel_SetTextColor( wc, tkTheme_Get( ).SelectedText )
-            tkLayout_Add( Layout, wc, c.X, c.Y, c.W, c.H )
             if Live then tkWidget_Show( wc, false ) else MakeInert_( wc )
             continue for
         end if
@@ -614,6 +675,7 @@ sub FormCanvas.Rebuild( )
         end select
         if Live = false then MakeInert_( w )
     next
+    TrayGlass = tkWidget_CreateChild( Tray, 6, @TrayGlassProc, @this )     ' last: on top of the boxes
     Building = false
     this.PlaceSurface( )
     this.Changed( )
@@ -692,7 +754,7 @@ sub FormCanvas.SyncGeometry( )
     for i as long = 0 to Doc.Controls.Count( ) - 1
         if i >= Widgets.Count( ) then exit for
         dim as TK_WIDGET ptr w = Widgets[i]
-        if w = 0 then continue for
+        if (w = 0) orelse (w->pParent = Tray) then continue for     ' the tray places its own
         dim as FormControl c = Doc.Controls[i]
         tkLayout_SetDesignRect( Layout, w, c.X, c.Y, c.W, c.H )
         tkLayout_SetAnchor( Layout, w, c.Anchor )
@@ -737,6 +799,7 @@ sub FormCanvas.PlaceSurface( )
         tkWidget_Show( HBar, false )
         tkWidget_Show( VBar, false )
         tkWidget_Show( Glass, false )
+        if Tray then tkWidget_Show( Tray, false )
         tkWidget_SetPos( Surface, 0, 0, Frame->cw, Frame->ch )
         tkLayout_Apply( Layout )
         exit sub
@@ -746,7 +809,7 @@ sub FormCanvas.PlaceSurface( )
     dim as long sw, sh
     this.ScreenPixels( sw, sh )
     dim as long needW = iif( fw > sw, fw, sw ) + 2 * m, needH = iif( fh > sh, fh, sh ) + 2 * m
-    dim as long cw = Frame->cw, ch = Frame->ch
+    dim as long cw = Frame->cw, ch = Frame->ch - this.PlaceTray( )
     dim as boolean showV = needH > ch
     dim as boolean showH = needW > (cw - iif( showV, bar_, 0 ))
     if showH andalso (needH > ch - bar_) then showV = true
@@ -764,6 +827,42 @@ sub FormCanvas.PlaceSurface( )
     tkLayout_Apply( Layout )
     tkWidget_Invalidate( Frame )
 end sub
+
+' The tray along the frame's foot: its boxes in the order the components were added, each as wide as
+' its name, wrapping onto more rows when the frame is too narrow (the tray grows, up to half the frame).
+' The answer is its height, 0 while the form has none.
+function FormCanvas.PlaceTray( ) as long
+    if Tray = 0 then return 0
+    dim as long gap = this.ToPixels( TRAY_GAP ), bh = this.ToPixels( TRAY_BOX ), pad = this.ToPixels( TRAY_PAD )
+    dim as long room = Frame->cw - 2 * gap
+    dim as long x = gap, y = gap, n = 0
+    for i as long = 0 to Doc.Controls.Count( ) - 1
+        if i >= Widgets.Count( ) then exit for
+        dim as TK_WIDGET ptr w = Widgets[i]
+        if (w = 0) orelse (w->pParent <> Tray) then continue for
+        dim as TTF_Font ptr f = tkLabel_GetFont( w )
+        if f = 0 then f = Frame->pHost->pDefaultFont
+        dim as long bw = tkText_Width( f, Doc.Controls[i].Name ) + 2 * pad
+        if bw > room then bw = room
+        if (x > gap) andalso (x + bw > gap + room) then
+            x = gap
+            y += bh + gap
+        end if
+        tkWidget_SetPos( w, x, y, bw, bh )
+        x += bw + gap
+        n += 1
+    next
+    dim as long h = 0
+    if n then
+        h = y + bh + gap
+        if h > Frame->ch \ 2 then h = Frame->ch \ 2
+    end if
+    tkWidget_Show( Tray, n > 0 )
+    tkWidget_SetPos( Tray, 0, Frame->ch - h, Frame->cw, h )
+    if TrayGlass then tkWidget_SetPos( TrayGlass, 0, 0, Frame->cw, h )
+    tkWidget_Invalidate( Tray )
+    return h
+end function
 
 function FormCanvas.IsSelected( byref name_ as const ustring ) as boolean
     dim as ustring want = lcase( name_ )
@@ -794,6 +893,7 @@ end function
 
 ' Is w really on screen, not on a hidden tab page?
 function FormCanvas.Shows( byval w as TK_WIDGET ptr ) as boolean
+    if (w <> 0) andalso (w->pParent = Tray) then return Tray->isVisible
     while (w <> 0) andalso (w <> Surface)
         if w->isVisible = false then return false
         w = w->pParent
@@ -1011,7 +1111,8 @@ sub FormCanvas.OnDragTo( byval x as long, byval y as long, byval mods as long )
         end if
         for each s as ustring in tops
             dim as long i = FindControl( Doc, s )
-            if (Doc.Controls[i].Dock = TK_DOCK_NONE) andalso (Doc.Controls[i].Locked = false) then
+            if (Doc.Controls[i].Dock = TK_DOCK_NONE) andalso (Doc.Controls[i].Locked = false) _
+               andalso (catalog.IsComponent( Doc.Controls[i].TypeName ) = false) then
                 Doc.Controls[i].X += ax
                 Doc.Controls[i].Y += ay
             end if
@@ -1072,7 +1173,7 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
         Selected.Clear( )
         for i as long = 0 to Doc.Controls.Count( ) - 1
             if (len( Doc.Controls[i].Parent ) = 0) andalso (i < Widgets.Count( )) then
-                if Widgets[i] then
+                if (Widgets[i] <> 0) andalso (Widgets[i]->pParent <> Tray) then
                     dim as TKRECT rc = this.RectOf( Widgets[i] )
                     if (rc.left < r) andalso (rc.right > l) andalso (rc.top < b) andalso (rc.bottom > t) then Selected.Push( Doc.Controls[i].Name )
                 end if
@@ -1151,7 +1252,7 @@ function FormCanvas.PlaceDefault( byref typeName as const ustring ) as boolean
 end function
 
 ' A control just placed from the Toolbox: a menu bar or a popup menu with nothing in it asks for its
-' editor at once, marked "new" so the host fills a menu bar with the standard menu first.
+' editor at once, marked "new" so the host fills it with its default entries first.
 sub FormCanvas.Placed( byval i as long )
     if (i < 0) orelse (i >= Doc.Controls.Count( )) then exit sub
     if catalog.IsMenuKind( catalog.ItemsKindOf( Doc.Controls[i].TypeName ) ) = false then exit sub
@@ -1224,6 +1325,7 @@ sub FormCanvas.Commit( )
 end sub
 
 sub FormCanvas.Changed( )
+    if Tray then tkWidget_Invalidate( Tray )        ' its rings follow the selection
     if OnChanged then OnChanged( Listener )
 end sub
 
