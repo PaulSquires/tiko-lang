@@ -8,7 +8,7 @@ using tkPaint
 ' The Spinner control as a typed value. Handle reaches the whole tkSpinner API.
 public type Spinner
     Handle as TK_WIDGET ptr
-    declare sub Create( byval hParent as TK_WIDGET ptr, byval id as long, byval Style as long = SPN_STYLE_RING )
+    declare sub Create( byval hParent as TK_WIDGET ptr, byval id as int32, byval Style as int32 = SPN_STYLE_RING )
     declare property Enabled( ) as boolean
     declare property Enabled( byval v as boolean )
     declare property Visible( ) as boolean
@@ -16,21 +16,21 @@ public type Spinner
     declare sub SetFocus( )
     declare property Running( ) as boolean
     declare property Running( byval v as boolean )
-    declare property Period( ) as long
-    declare property Period( byval v as long )
-    declare property FrameMs( ) as long
-    declare property FrameMs( byval v as long )
-    declare property Count( ) as long
-    declare property Count( byval v as long )
-    declare property Thickness( ) as long
-    declare property Thickness( byval v as long )
+    declare property Period( ) as int32
+    declare property Period( byval v as int32 )
+    declare property FrameMs( ) as int32
+    declare property FrameMs( byval v as int32 )
+    declare property Count( ) as int32
+    declare property Count( byval v as int32 )
+    declare property Thickness( ) as int32
+    declare property Thickness( byval v as int32 )
     declare property HideWhenStopped( ) as boolean
     declare property HideWhenStopped( byval v as boolean )
     declare property Transparent( ) as boolean
     declare property Transparent( byval v as boolean )
 end type
 
-sub Spinner.Create( byval hParent as TK_WIDGET ptr, byval id as long, byval Style as long = SPN_STYLE_RING )
+sub Spinner.Create( byval hParent as TK_WIDGET ptr, byval id as int32, byval Style as int32 = SPN_STYLE_RING )
     Handle = tkSpinner_Create( hParent, id, Style )
 end sub
 
@@ -62,35 +62,35 @@ property Spinner.Running( byval v as boolean )
     tkSpinner_SetRunning( Handle, v )
 end property
 
-property Spinner.Period( ) as long
+property Spinner.Period( ) as int32
     return tkSpinner_GetPeriod( Handle )
 end property
 
-property Spinner.Period( byval v as long )
+property Spinner.Period( byval v as int32 )
     tkSpinner_SetPeriod( Handle, v )
 end property
 
-property Spinner.FrameMs( ) as long
+property Spinner.FrameMs( ) as int32
     return tkSpinner_GetFrameMs( Handle )
 end property
 
-property Spinner.FrameMs( byval v as long )
+property Spinner.FrameMs( byval v as int32 )
     tkSpinner_SetFrameMs( Handle, v )
 end property
 
-property Spinner.Count( ) as long
+property Spinner.Count( ) as int32
     return tkSpinner_GetCount( Handle )
 end property
 
-property Spinner.Count( byval v as long )
+property Spinner.Count( byval v as int32 )
     tkSpinner_SetCount( Handle, v )
 end property
 
-property Spinner.Thickness( ) as long
+property Spinner.Thickness( ) as int32
     return tkSpinner_GetThickness( Handle )
 end property
 
-property Spinner.Thickness( byval v as long )
+property Spinner.Thickness( byval v as int32 )
     tkSpinner_SetThickness( Handle, v )
 end property
 

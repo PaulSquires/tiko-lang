@@ -72,15 +72,15 @@ using tkTimer
 using tkContextMenu
 using tkTheme
 
-private function C_Label( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkLabel_Create( hParent, id )
 end function
 
-private sub G_Label( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Label( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkLabel_GetColors( w, cast( TKLABEL_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Label( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Label( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKLABEL_COLORS ptr, pSlots ) = tkLabel_ThemeColors( t )
 end sub
 
@@ -151,7 +151,7 @@ private function R_Label_AutoSize( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_Label_TextColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkLabel_SetTextColor( w, cast( ulong, valulng( v ) ) )
+    tkLabel_SetTextColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_Label_TextColor( byval w as TK_WIDGET ptr ) as ustring
@@ -159,7 +159,7 @@ private function R_Label_TextColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_Label_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkLabel_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkLabel_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_Label_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -178,15 +178,15 @@ private sub F_Label_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkLabel_SetFont( w, f )
 end sub
 
-private function C_Button( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Button( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkButton_Create( hParent, id )
 end function
 
-private sub G_Button( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Button( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkButton_GetColors( w, cast( TKBUTTON_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Button( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Button( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKBUTTON_COLORS ptr, pSlots ) = tkButton_ThemeColors( t )
 end sub
 
@@ -311,15 +311,15 @@ private function R_Button_BorderWidth( byval w as TK_WIDGET ptr ) as ustring
     return str( tkButton_GetBorderWidth( w ) )
 end function
 
-private function C_CheckBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_CheckBox( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCheckBox_Create( hParent, id )
 end function
 
-private sub G_CheckBox( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_CheckBox( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkCheckBox_GetColors( w, cast( TKCHECKBOX_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_CheckBox( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_CheckBox( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKCHECKBOX_COLORS ptr, pSlots ) = tkCheckBox_ThemeColors( t )
 end sub
 
@@ -466,15 +466,15 @@ private sub A_CheckBox_FocusRing( byval w as TK_WIDGET ptr, byref v as const ust
     tkCheckBox_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
-private function C_OptionButton( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_OptionButton( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkOptionButton_Create( hParent, id )
 end function
 
-private sub G_OptionButton( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_OptionButton( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkOptionButton_GetColors( w, cast( TKOPTIONBUTTON_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_OptionButton( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_OptionButton( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKOPTIONBUTTON_COLORS ptr, pSlots ) = tkOptionButton_ThemeColors( t )
 end sub
 
@@ -610,15 +610,15 @@ private sub A_OptionButton_FocusRing( byval w as TK_WIDGET ptr, byref v as const
     tkOptionButton_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
-private function C_Toggle( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Toggle( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkToggle_Create( hParent, id )
 end function
 
-private sub G_Toggle( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Toggle( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkToggle_GetColors( w, cast( TKTOGGLE_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Toggle( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Toggle( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKTOGGLE_COLORS ptr, pSlots ) = tkToggle_ThemeColors( t )
 end sub
 
@@ -691,15 +691,15 @@ private sub A_Toggle_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustr
     tkToggle_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
-private function C_TextBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_TextBox( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTextBox_Create( hParent, id, cbool( arg = "true" ) )
 end function
 
-private sub G_TextBox( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_TextBox( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkTextBox_GetColors( w, cast( TKTEXTBOX_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_TextBox( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_TextBox( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKTEXTBOX_COLORS ptr, pSlots ) = tkTextBox_ThemeColors( t )
 end sub
 
@@ -777,7 +777,7 @@ private function R_TextBox_DecimalPlaces( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TextBox_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTextBox_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkTextBox_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TextBox_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -785,7 +785,7 @@ private function R_TextBox_BackColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TextBox_ForeColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTextBox_SetForeColor( w, cast( ulong, valulng( v ) ) )
+    tkTextBox_SetForeColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TextBox_ForeColor( byval w as TK_WIDGET ptr ) as ustring
@@ -793,7 +793,7 @@ private function R_TextBox_ForeColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TextBox_BorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTextBox_SetBorderColor( w, cast( ulong, valulng( v ) ) )
+    tkTextBox_SetBorderColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TextBox_BorderColor( byval w as TK_WIDGET ptr ) as ustring
@@ -849,7 +849,7 @@ private function R_TextBox_CaretBlink( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TextBox_CueBannerColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTextBox_SetCueBannerColor( w, cast( ulong, valulng( v ) ) )
+    tkTextBox_SetCueBannerColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TextBox_CueBannerColor( byval w as TK_WIDGET ptr ) as ustring
@@ -857,7 +857,7 @@ private function R_TextBox_CueBannerColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TextBox_FocusBorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTextBox_SetFocusBorderColor( w, cast( ulong, valulng( v ) ) )
+    tkTextBox_SetFocusBorderColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TextBox_FocusBorderColor( byval w as TK_WIDGET ptr ) as ustring
@@ -865,7 +865,7 @@ private function R_TextBox_FocusBorderColor( byval w as TK_WIDGET ptr ) as ustri
 end function
 
 private sub A_TextBox_OuterBackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTextBox_SetOuterBackColor( w, cast( ulong, valulng( v ) ) )
+    tkTextBox_SetOuterBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TextBox_OuterBackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -896,15 +896,15 @@ private sub A_TextBox_MenuText( byval w as TK_WIDGET ptr, byref v as const ustri
     tkTextBox_SetMenuText( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ), tkMeta_ListItem( v, 2 ), tkMeta_ListItem( v, 3 ) )
 end sub
 
-private function C_NumericUpDown( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_NumericUpDown( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkNumericUpDown_Create( hParent, id )
 end function
 
-private sub G_NumericUpDown( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_NumericUpDown( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkNumericUpDown_GetColors( w, cast( TKNUMERICUPDOWN_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_NumericUpDown( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_NumericUpDown( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKNUMERICUPDOWN_COLORS ptr, pSlots ) = tkNumericUpDown_ThemeColors( t )
 end sub
 
@@ -1020,15 +1020,15 @@ private sub A_NumericUpDown_ReshowTime( byval w as TK_WIDGET ptr, byref v as con
     tkNumericUpDown_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
-private function C_ComboBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_ComboBox( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkComboBox_Create( hParent, id )
 end function
 
-private sub G_ComboBox( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_ComboBox( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkComboBox_GetColors( w, cast( TKCOMBOBOX_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_ComboBox( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_ComboBox( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKCOMBOBOX_COLORS ptr, pSlots ) = tkComboBox_ThemeColors( t )
 end sub
 
@@ -1185,15 +1185,15 @@ private sub A_ComboBox_ReshowTime( byval w as TK_WIDGET ptr, byref v as const us
     tkComboBox_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
-private function C_DatePicker( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_DatePicker( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkDatePicker_Create( hParent, id )
 end function
 
-private sub G_DatePicker( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_DatePicker( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkDatePicker_GetColors( w, cast( TKDATEPICKER_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_DatePicker( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_DatePicker( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKDATEPICKER_COLORS ptr, pSlots ) = tkDatePicker_ThemeColors( t )
 end sub
 
@@ -1296,15 +1296,15 @@ private sub A_DatePicker_Date( byval w as TK_WIDGET ptr, byref v as const ustrin
     tkDatePicker_SetDateParts( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
 end sub
 
-private function C_Calendar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Calendar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCalendar_Create( hParent, id )
 end function
 
-private sub G_Calendar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Calendar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkCalendar_GetColors( w, cast( TKCALENDAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Calendar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Calendar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKCALENDAR_COLORS ptr, pSlots ) = tkCalendar_ThemeColors( t )
 end sub
 
@@ -1432,7 +1432,7 @@ private sub A_Calendar_WeekdayAbbrevs( byval w as TK_WIDGET ptr, byref v as cons
     tkCalendar_SetWeekdayAbbrevsText( w, v )
 end sub
 
-private function C_ProgressBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_ProgressBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
     case "Horizontal" : return tkProgressBar_Create( hParent, id, PRG_HORIZONTAL )
     case "Vertical" : return tkProgressBar_Create( hParent, id, PRG_VERTICAL )
@@ -1440,11 +1440,11 @@ private function C_ProgressBar( byval hParent as TK_WIDGET ptr, byval id as long
     return tkProgressBar_Create( hParent, id )
 end function
 
-private sub G_ProgressBar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_ProgressBar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkProgressBar_GetColors( w, cast( TKPROGRESSBAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_ProgressBar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_ProgressBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKPROGRESSBAR_COLORS ptr, pSlots ) = tkProgressBar_ThemeColors( t )
 end sub
 
@@ -1656,7 +1656,7 @@ private sub A_ProgressBar_BlockMetrics( byval w as TK_WIDGET ptr, byref v as con
     tkProgressBar_SetBlockMetrics( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
-private function C_Spinner( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Spinner( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
     case "Ring" : return tkSpinner_Create( hParent, id, SPN_STYLE_RING )
     case "Arc" : return tkSpinner_Create( hParent, id, SPN_STYLE_ARC )
@@ -1668,11 +1668,11 @@ private function C_Spinner( byval hParent as TK_WIDGET ptr, byval id as long, by
     return tkSpinner_Create( hParent, id )
 end function
 
-private sub G_Spinner( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Spinner( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkSpinner_GetColors( w, cast( TKSPINNER_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Spinner( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Spinner( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKSPINNER_COLORS ptr, pSlots ) = tkSpinner_ThemeColors( t )
 end sub
 
@@ -1732,15 +1732,15 @@ private function R_Spinner_Transparent( byval w as TK_WIDGET ptr ) as ustring
     if tkSpinner_GetTransparent( w ) then return "true" else return "false"
 end function
 
-private function C_ColorPicker( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_ColorPicker( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkColorPicker_Create( hParent, id )
 end function
 
-private sub G_ColorPicker( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_ColorPicker( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkColorPicker_GetColors( w, cast( TKCOLORPICKER_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_ColorPicker( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_ColorPicker( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKCOLORPICKER_COLORS ptr, pSlots ) = tkColorPicker_ThemeColors( t )
 end sub
 
@@ -1753,11 +1753,11 @@ private sub A_ColorPicker_OKText( byval w as TK_WIDGET ptr, byref v as const ust
 end sub
 
 private sub A_ColorPicker_Color( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkColorPicker_SetColor( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), cbool( tkMeta_ListItem( v, 2 ) = "true" ) )
+    tkColorPicker_SetColor( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), cbool( tkMeta_ListItem( v, 2 ) = "true" ) )
 end sub
 
 private sub A_ColorPicker_Initial( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkColorPicker_SetInitial( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+    tkColorPicker_SetInitial( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private sub A_ColorPicker_PreviewText( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -1797,7 +1797,7 @@ private function R_ColorPicker_ActiveTab( byval w as TK_WIDGET ptr ) as ustring
     return ""
 end function
 
-private function C_Picture( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Picture( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkPicture_Create( hParent, id )
 end function
 
@@ -1827,7 +1827,7 @@ private function R_Picture_Fit( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_Picture_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkPicture_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkPicture_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_Picture_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -1842,20 +1842,20 @@ private function R_Picture_Transparent( byval w as TK_WIDGET ptr ) as ustring
     if tkPicture_GetTransparent( w ) then return "true" else return "false"
 end function
 
-private function C_Panel( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Panel( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkPanel_Create( hParent, id )
 end function
 
-private sub G_Panel( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Panel( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkPanel_GetColors( w, cast( TKPANEL_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Panel( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Panel( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKPANEL_COLORS ptr, pSlots ) = tkPanel_ThemeColors( t )
 end sub
 
 private sub A_Panel_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkPanel_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkPanel_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_Panel_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -1863,7 +1863,7 @@ private function R_Panel_BackColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_Panel_BorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkPanel_SetBorderColor( w, cast( ulong, valulng( v ) ) )
+    tkPanel_SetBorderColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_Panel_BorderColor( byval w as TK_WIDGET ptr ) as ustring
@@ -1893,15 +1893,15 @@ private function R_Panel_Transparent( byval w as TK_WIDGET ptr ) as ustring
     if tkPanel_GetTransparent( w ) then return "true" else return "false"
 end function
 
-private function C_GroupBox( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_GroupBox( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkGroupBox_Create( hParent, id )
 end function
 
-private sub G_GroupBox( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_GroupBox( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     *cast( TKGROUPBOX_COLORS ptr, pSlots ) = tkGroupBox_GetColors( w )
 end sub
 
-private sub T_GroupBox( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_GroupBox( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKGROUPBOX_COLORS ptr, pSlots ) = tkGroupBox_ThemeColors( t )
 end sub
 
@@ -1917,7 +1917,7 @@ private sub F_GroupBox_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkGroupBox_SetFont( w, f )
 end sub
 
-private function C_TabControl( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_TabControl( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTabControl_Create( hParent, id )
 end function
 
@@ -1949,7 +1949,7 @@ private function R_TabControl_SelectedIndex( byval w as TK_WIDGET ptr ) as ustri
     return str( tkTabControl_GetCurSel( w ) )
 end function
 
-private function C_ScrollPanel( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_ScrollPanel( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkScrollPanel_Create( hParent, id )
 end function
 
@@ -1982,14 +1982,14 @@ private sub A_ScrollPanel_ScrollBarWidth( byval w as TK_WIDGET ptr, byref v as c
 end sub
 
 private sub A_ScrollPanel_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkScrollPanel_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ) )
+    tkScrollPanel_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private sub A_ScrollPanel_ScrollBarColors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkScrollPanel_SetScrollBarColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+    tkScrollPanel_SetScrollBarColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ) )
 end sub
 
-private function C_Splitter( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Splitter( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
     case "Vertical" : return tkSplitter_Create( hParent, id, TKSPLITTER_VERTICAL )
     case "Horizontal" : return tkSplitter_Create( hParent, id, TKSPLITTER_HORIZONTAL )
@@ -1997,11 +1997,11 @@ private function C_Splitter( byval hParent as TK_WIDGET ptr, byval id as long, b
     return tkSplitter_Create( hParent, id )
 end function
 
-private sub G_Splitter( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Splitter( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkSplitter_GetColors( w, cast( TKSPLITTER_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Splitter( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Splitter( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKSPLITTER_COLORS ptr, pSlots ) = tkSplitter_ThemeColors( t )
 end sub
 
@@ -2018,10 +2018,10 @@ private sub A_Splitter_Range( byval w as TK_WIDGET ptr, byref v as const ustring
 end sub
 
 private sub A_Splitter_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkSplitter_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ) )
+    tkSplitter_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
-private function C_ListTree( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_ListTree( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkListTree_Create( hParent, id )
 end function
 
@@ -2102,7 +2102,7 @@ private function R_ListTree_DragReorder( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_ListTree_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkListTree_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_ListTree_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2110,7 +2110,7 @@ private function R_ListTree_BackColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_ListTree_BorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetBorderColor( w, cast( ulong, valulng( v ) ) )
+    tkListTree_SetBorderColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_ListTree_BorderColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2130,7 +2130,7 @@ private sub F_ListTree_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
 end sub
 
 private sub A_ListTree_DragIndicatorColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetDragIndicatorColor( w, cast( ulong, valulng( v ) ) )
+    tkListTree_SetDragIndicatorColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_ListTree_DragIndicatorColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2154,7 +2154,7 @@ private sub A_ListTree_TwistyWidth( byval w as TK_WIDGET ptr, byref v as const u
 end sub
 
 private sub A_ListTree_TwistyColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetTwistyColor( w, cast( ulong, valulng( v ) ) )
+    tkListTree_SetTwistyColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private sub F_ListTree_TwistyFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
@@ -2198,7 +2198,7 @@ private sub A_ListTree_ScrollBarWidth( byval w as TK_WIDGET ptr, byref v as cons
 end sub
 
 private sub A_ListTree_HeaderBackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetHeaderBackColor( w, cast( ulong, valulng( v ) ) )
+    tkListTree_SetHeaderBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private sub F_ListTree_HeaderFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
@@ -2210,26 +2210,26 @@ private sub A_ListTree_TwistyGlyphs( byval w as TK_WIDGET ptr, byref v as const 
 end sub
 
 private sub A_ListTree_EditColors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetEditColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 3 ) ) ) )
+    tkListTree_SetEditColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 3 ) ) ) )
 end sub
 
 private sub A_ListTree_ScrollBarColors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetScrollBarColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+    tkListTree_SetScrollBarColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ) )
 end sub
 
 private sub A_ListTree_ScrollBarDividerColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkListTree_SetScrollBarDividerColor( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+    tkListTree_SetScrollBarDividerColor( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
 end sub
 
-private function C_SelectBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_SelectBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkSelectBar_Create( hParent, id )
 end function
 
-private sub G_SelectBar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_SelectBar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkSelectBar_GetColors( w, cast( TKSELECTBAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_SelectBar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_SelectBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKSELECTBAR_COLORS ptr, pSlots ) = tkSelectBar_ThemeColors( t )
 end sub
 
@@ -2265,15 +2265,15 @@ private function R_SelectBar_SelectedIndex( byval w as TK_WIDGET ptr ) as ustrin
     return str( tkSelectBar_GetCurSel( w ) )
 end function
 
-private function C_TabBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_TabBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTabBar_Create( hParent, id )
 end function
 
-private sub G_TabBar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_TabBar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkTabBar_GetColors( w, cast( TKTABBAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_TabBar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_TabBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKTABBAR_COLORS ptr, pSlots ) = tkTabBar_ThemeColors( t )
 end sub
 
@@ -2314,7 +2314,7 @@ private function R_TabBar_BorderWidth( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TabBar_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTabBar_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkTabBar_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TabBar_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2322,7 +2322,7 @@ private function R_TabBar_BackColor( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_TabBar_BorderColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkTabBar_SetBorderColor( w, cast( ulong, valulng( v ) ) )
+    tkTabBar_SetBorderColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_TabBar_BorderColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2353,15 +2353,15 @@ private function R_TabBar_SelectedIndex( byval w as TK_WIDGET ptr ) as ustring
     return str( tkTabBar_GetCurSel( w ) )
 end function
 
-private function C_ColumnHeader( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_ColumnHeader( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkColumnHeader_Create( hParent, id )
 end function
 
-private sub G_ColumnHeader( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_ColumnHeader( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkColumnHeader_GetColors( w, cast( TKCOLUMNHEADER_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_ColumnHeader( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_ColumnHeader( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKCOLUMNHEADER_COLORS ptr, pSlots ) = tkColumnHeader_ThemeColors( t )
 end sub
 
@@ -2382,7 +2382,7 @@ private sub A_ColumnHeader_Padding( byval w as TK_WIDGET ptr, byref v as const u
 end sub
 
 private sub A_ColumnHeader_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkColumnHeader_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkColumnHeader_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_ColumnHeader_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2401,15 +2401,15 @@ private sub A_ColumnHeader_ReshowTime( byval w as TK_WIDGET ptr, byref v as cons
     tkColumnHeader_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
-private function C_MenuBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_MenuBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkMenuBar_Create( hParent, id )
 end function
 
-private sub G_MenuBar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_MenuBar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkMenuBar_GetColors( w, cast( TKMENUBAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_MenuBar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_MenuBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKMENUBAR_COLORS ptr, pSlots ) = tkMenuBar_ThemeColors( t )
 end sub
 
@@ -2425,15 +2425,15 @@ private sub F_MenuBar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkMenuBar_SetFont( w, f )
 end sub
 
-private function C_Toolbar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Toolbar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkToolbar_Create( hParent, id )
 end function
 
-private sub G_Toolbar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Toolbar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkToolbar_GetColors( w, cast( TKTOOLBAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Toolbar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Toolbar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKTOOLBAR_COLORS ptr, pSlots ) = tkToolbar_ThemeColors( t )
 end sub
 
@@ -2513,15 +2513,15 @@ private sub A_Toolbar_Glyphs( byval w as TK_WIDGET ptr, byref v as const ustring
     tkToolbar_SetGlyphs( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ) )
 end sub
 
-private function C_IconPanel( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_IconPanel( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkIconPanel_Create( hParent, id )
 end function
 
-private sub G_IconPanel( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_IconPanel( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkIconPanel_GetColors( w, cast( TKICONPANEL_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_IconPanel( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_IconPanel( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKICONPANEL_COLORS ptr, pSlots ) = tkIconPanel_ThemeColors( t )
 end sub
 
@@ -2586,15 +2586,15 @@ private sub A_IconPanel_Padding( byval w as TK_WIDGET ptr, byref v as const ustr
     tkIconPanel_SetPadding( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
-private function C_StatusBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_StatusBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkStatusBar_Create( hParent, id )
 end function
 
-private sub G_StatusBar( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_StatusBar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkStatusBar_GetColors( w, cast( TKSTATUSBAR_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_StatusBar( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_StatusBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKSTATUSBAR_COLORS ptr, pSlots ) = tkStatusBar_ThemeColors( t )
 end sub
 
@@ -2607,7 +2607,7 @@ private function R_StatusBar_ExpandPanel( byval w as TK_WIDGET ptr ) as ustring
 end function
 
 private sub A_StatusBar_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkStatusBar_SetBackColor( w, cast( ulong, valulng( v ) ) )
+    tkStatusBar_SetBackColor( w, cast( uint32, valulng( v ) ) )
 end sub
 
 private function R_StatusBar_BackColor( byval w as TK_WIDGET ptr ) as ustring
@@ -2638,7 +2638,7 @@ private sub A_StatusBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const u
     tkStatusBar_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
-private function C_VScrollBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_VScrollBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkVScrollBar_Create( hParent, id )
 end function
 
@@ -2663,14 +2663,14 @@ private sub A_VScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustri
 end sub
 
 private sub A_VScrollBar_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkVScrollBar_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+    tkVScrollBar_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ) )
 end sub
 
 private sub A_VScrollBar_DividerColor( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkVScrollBar_SetDividerColor( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
+    tkVScrollBar_SetDividerColor( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
 end sub
 
-private function C_HScrollBar( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_HScrollBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkHScrollBar_Create( hParent, id )
 end function
 
@@ -2695,10 +2695,10 @@ private sub A_HScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustri
 end sub
 
 private sub A_HScrollBar_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkHScrollBar_SetColors( w, cast( ulong, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( ulong, valulng( tkMeta_ListItem( v, 2 ) ) ) )
+    tkHScrollBar_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ) )
 end sub
 
-private function C_Chart( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Chart( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
     case "Line" : return tkChart_Create( hParent, id, TKCHART_TYPE_LINE )
     case "Column" : return tkChart_Create( hParent, id, TKCHART_TYPE_COLUMN )
@@ -2708,11 +2708,11 @@ private function C_Chart( byval hParent as TK_WIDGET ptr, byval id as long, byre
     return tkChart_Create( hParent, id )
 end function
 
-private sub G_Chart( byval w as TK_WIDGET ptr, byval pSlots as ulong ptr )
+private sub G_Chart( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
     tkChart_GetColors( w, cast( TKCHART_COLORS ptr, pSlots ) )
 end sub
 
-private sub T_Chart( byref t as TKTHEME_COLORS, byval pSlots as ulong ptr )
+private sub T_Chart( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKCHART_COLORS ptr, pSlots ) = tkChart_ThemeColors( t )
 end sub
 
@@ -2866,7 +2866,7 @@ private sub A_Chart_ValueFormat( byval w as TK_WIDGET ptr, byref v as const ustr
     tkChart_SetValueFormat( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
 end sub
 
-private function C_CodeEdit( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_CodeEdit( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkCodeEdit_Create( hParent, id )
 end function
 
@@ -3006,7 +3006,7 @@ private function R_CodeEdit_Zoom( byval w as TK_WIDGET ptr ) as ustring
     return str( tkCodeEdit_GetZoom( w ) )
 end function
 
-private function C_Timer( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_Timer( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTimer_Create( hParent, id )
 end function
 
@@ -3018,7 +3018,7 @@ private function R_Timer_Interval( byval w as TK_WIDGET ptr ) as ustring
     return str( tkTimer_GetInterval( w ) )
 end function
 
-private function C_PopupMenu( byval hParent as TK_WIDGET ptr, byval id as long, byref arg as const ustring ) as TK_WIDGET ptr
+private function C_PopupMenu( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkContextMenu_Create( hParent, id )
 end function
 
