@@ -109,4 +109,3 @@ A larger program, with files of each encoding, images, RTF and printing, is in t
 
 - [Category: sys/win](Category-Sys-Win)
 - [CWindow](CWindow) for the window the control lives in
-- [CPrint](CPrint) for printing the contents of a rich edit control

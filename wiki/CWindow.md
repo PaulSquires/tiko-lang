@@ -1329,7 +1329,7 @@ function SetCtlColors( byval cID as long, byval foreColor as COLORREF, byval bac
 Gives a control a text colour and a background colour, and redraws it. CWindow applies them by
 answering the `WM_CTLCOLOREDIT`, `WM_CTLCOLORLISTBOX` and `WM_CTLCOLORSTATIC` messages that edit,
 list box and static controls send to their parent, so the control must be a child of the object's
-window. Push buttons are not coloured this way ([CXpButton](CXpButton) is a button that can be).
+window. Push buttons are not coloured this way.
 The identifier form looks among the window's children. Calling again replaces the colours.
 
 **Returns** `true`; `false` when the control does not exist.

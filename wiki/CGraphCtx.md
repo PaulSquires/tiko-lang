@@ -774,5 +774,4 @@ Microsoft Learn: [GetWindowLongPtrW](https://learn.microsoft.com/en-us/windows/w
 - [CGpGraphics](CGpGraphics) for drawing on the memory device context with GDI+
 - [Direct2D render targets](SysWin-Direct2D-Render-Targets) for drawing on it with a Direct2D DC render target
 - [GDI+ images](SysWin-GdiPlus-Images) for `BitmapFromFile` and the image helpers the loaders use
-- [CPrint](CPrint) for printing with a printer of your choice
 - [sys/win/gui](SysWin-Gui)

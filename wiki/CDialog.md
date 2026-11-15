@@ -1998,7 +1998,7 @@ Gives a control its own text colour and background, given by handle or identifie
 the dialog. Setting a control again replaces its colours.
 
 The colours are applied when Windows asks the dialog how to paint a control, so they work for
-labels, edit controls and list boxes. Push buttons are not coloured this way: use [CXpButton](CXpButton). Your dialog procedure
+labels, edit controls and list boxes. Push buttons are not coloured this way. Your dialog procedure
 does not receive the `WM_CTLCOLOR…` messages of a coloured control.
 
 **Returns** `true`, or `false` when the window does not exist.
@@ -3080,7 +3080,6 @@ ud.Values(0) = 42
 
 - [sys/win/gui](SysWin-Gui) for the module and its other classes
 - [CWindow](CWindow), the window class for programs that are not dialog-based
-- [CXpButton](CXpButton) for buttons with colours and images
 - [Units](SysWin-Units) for dialog units, pixels and 96-DPI units
 - [Display, screen and DPI](SysWin-Display-and-DPI) for `SetProcessDpiAwareness` and the scaling ratios
 - [Window size and position](SysWin-Window-Size-and-Position) for the same measurements on any window
