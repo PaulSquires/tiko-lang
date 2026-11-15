@@ -249,7 +249,19 @@ end tkApp_Run( mainForm.Wnd )
 ```
 
 `Build` makes the window, hidden. A second form can be shown beside the first with `Show`, or as a dialog
-with `ShowModal`, after which its controls can still be read. [tkForms](tkForms) has the details.
+with `ShowModal`, after which its controls can still be read. Both build the form first when it has no
+window, the first time or after the user closed it, so another form's handler needs only this:
+
+```freebasic
+#import "../frmOther"
+dim shared as frmOther.Form other
+
+sub Form.btnOther_Click( )
+    other.Show( Wnd )                 ' owned by this form; its controls are other.txtName and so on
+end sub
+```
+
+[tkForms](tkForms) has the details.
 
 ## Colours and themes
 

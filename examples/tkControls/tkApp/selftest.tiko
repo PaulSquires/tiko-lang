@@ -207,6 +207,17 @@ sub RunPass( byval fScale as single )
     tkForm_Destroy( owned )
     gAllowClose = true
 
+    ' An owner destroyed while its owned form is open takes that form with it, first (SDL destroys
+    ' a parent's child windows along with it: the owned form's own destroy would come too late).
+    dim as long nOwnerBefore = tkApp_FormCount()
+    dim as TK_FORM ptr top = tkApp_NewForm( "Owner", 300, 200, 0, fScale )
+    dim as TK_FORM ptr child = tkApp_NewForm( "Owned by it", 200, 120, top )
+    tkForm_Show( top )
+    tkForm_Show( child )
+    tkTest_PumpFor( tkForm_Host( child ), 30 )
+    tkForm_Destroy( top )
+    tkTest_Check( "destroying an owner destroys its open owned form too", tkApp_FormCount() = nOwnerBefore, str( tkApp_FormCount() ) )
+
     ' ShowModalKeep: the controls survive the modal loop, the window is hidden, it can be reused.
     dim as TK_FORM ptr kept = tkApp_NewForm( "Kept", 300, 160, f )
     dim as TK_WIDGET ptr keptBox = tkTextBox_Create( tkForm_Widget( kept ), 1 )

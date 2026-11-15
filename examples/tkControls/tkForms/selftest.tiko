@@ -190,9 +190,11 @@ sub Lifetime( byval owner as TK_FORM ptr )
     tkTest_Check( "the object knows", g.IsOpen( ) = false )
     tkTest_Check( "the Destroy hook ran once, its controls still there", (gDestroyHooks = hooks0 + 1) andalso (g.TextAtDestroy = "closing"), gDestroyHooks & " " & g.TextAtDestroy )
     tkTest_Check( "and its layout is gone", g.Layout = 0 )
-    g.Show( )
+    ' Show on a closed form builds it again: the same object, a new window, its controls fresh
+    g.Show( owner )
+    tkTest_Check( "Show builds a closed form again", g.IsOpen( ) andalso (tkApp_FormCount( ) = n0 + 1) andalso (g.txtName.Handle <> 0), str( tkApp_FormCount( ) ) )
+    tkTest_Check( "the new window points at the same object", g.Wnd->Tag = @g )
     g.Close( )
-    tkTest_Check( "using a closed form is harmless", true )
 end sub
 
 sub Translation( )

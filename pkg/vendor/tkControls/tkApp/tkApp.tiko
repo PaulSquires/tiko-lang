@@ -879,6 +879,19 @@ end function
 public sub tkForm_Destroy( byval f as TK_FORM ptr )
     if (f = 0) orelse f->bDestroyed then exit sub
     f->bDestroyed = true
+    ' the forms it owns go first: SDL destroys a parent's child windows along with it, which would
+    ' leave theirs dangling for whoever destroys them next (tkApp_Shutdown, after the main form closed)
+    dim as boolean again = true
+    while again
+        again = false
+        for i as long = gnForms - 1 to 0 step -1
+            if (gForms(i)->pOwner = f) andalso (gForms(i)->bDestroyed = false) then
+                tkForm_Destroy( gForms(i) )
+                again = true
+                exit for
+            end if
+        next
+    wend
     if f->OnDestroy_ then f->OnDestroy_( f )
     ' THE HOST GOES FIRST, while the form is still listed: a control's callback during teardown
     ' can still find its form through tkForm_FromWidget.

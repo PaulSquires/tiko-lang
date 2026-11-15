@@ -78,10 +78,14 @@ public type FormBase extends object
 
     ' Creates the window, hidden. cx and cy are design units. owner = 0 makes a top-level window.
     declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
-    declare sub Show( )
+    ' Makes the window and its controls, hidden: a designed form's generated Build. Show and
+    ' ShowModal call it when there is no window -- the first time, or after the form was closed.
+    declare virtual sub Build( byval owner as TK_FORM ptr = nullptr )
+    ' owner: the window that owns it, if Show has to build it first; otherwise unused.
+    declare sub Show( byval owner as TK_FORM ptr = nullptr )
     ' Runs until the form is closed. The window is then hidden, not destroyed: controls can still
-    ' be read, and the form can be shown again.
-    declare function ShowModal( ) as long
+    ' be read, and the form can be shown again. owner as for Show.
+    declare function ShowModal( byval owner as TK_FORM ptr = nullptr ) as long
     declare sub EndModal( byval code as long )
     declare sub Close( )
     declare function IsOpen( ) as boolean
@@ -112,11 +116,17 @@ sub FormBase.OpenWindow( byref title as const ustring, byval cx as long, byval c
     tkForm_OnDestroy( Wnd, @OnDestroyForm_ )
 end sub
 
-sub FormBase.Show( )
+' A form with nothing designed has nothing to build.
+sub FormBase.Build( byval owner as TK_FORM ptr = nullptr )
+end sub
+
+sub FormBase.Show( byval owner as TK_FORM ptr = nullptr )
+    if Wnd = 0 then this.Build( owner )
     if Wnd then tkForm_Show( Wnd )
 end sub
 
-function FormBase.ShowModal( ) as long
+function FormBase.ShowModal( byval owner as TK_FORM ptr = nullptr ) as long
+    if Wnd = 0 then this.Build( owner )
     if Wnd = 0 then return 0
     return tkForm_ShowModalKeep( Wnd )
 end function

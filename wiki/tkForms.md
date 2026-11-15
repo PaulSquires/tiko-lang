@@ -86,9 +86,20 @@ A modal form, read after it closes:
 
 ```freebasic
 dim as Form dlg
-dlg.Build( mainWnd )                  ' mainWnd is the owner's TK_FORM ptr
-dim as long code = dlg.ShowModal( )   ' runs until dlg.EndModal( code ) or the window closes
+dim as long code = dlg.ShowModal( mainWnd )   ' builds it, owned by mainWnd; runs until EndModal or the window closes
 print "closed with " & code
+```
+
+A second form kept as a value and shown from a handler of the first. `Show` builds it when it has no
+window: the first time, and again after the user closed it.
+
+```freebasic
+dim shared as frmOther.Form other
+
+sub Form.btnOther_Click( )
+    other.Show( Wnd )                 ' Wnd: this form's window, the owner
+    other.lblInfo.Text = "from the first form"
+end sub
 ```
 
 ## Translating captions
@@ -117,8 +128,9 @@ type FormBase extends object
     declare destructor( )
 
     declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
-    declare sub Show( )
-    declare function ShowModal( ) as long
+    declare virtual sub Build( byval owner as TK_FORM ptr = nullptr )
+    declare sub Show( byval owner as TK_FORM ptr = nullptr )
+    declare function ShowModal( byval owner as TK_FORM ptr = nullptr ) as long
     declare sub EndModal( byval code as long )
     declare sub Close( )
     declare function IsOpen( ) as boolean
@@ -132,8 +144,9 @@ end type
 | `ResizeHook` | Called on every resize after the layout has been applied, with the client size in pixels. The window's own `OnSize` belongs to `FormBase`, so a form hooks here. |
 | `DestroyHook` | Called as the window goes, while its controls are still there. Not called when the form object itself is destroyed: by then the derived form is gone. |
 | `OpenWindow( title, cx, cy [, owner] )` | Creates the window, hidden, `cx` by `cy` in design units, and its layout. `owner = 0` makes a top-level window. Does nothing if the window already exists. |
-| `Show( )` | Shows the window. Does nothing when there is no window. |
-| `ShowModal( ) as long` | Shows the form modally and runs until it is closed. The result is the code given to `EndModal`. Afterwards the window is hidden, not destroyed: the controls can still be read, and the form can be shown again. Returns 0 when there is no window. |
+| `Build( [owner] )` | Makes the window and its controls, hidden. A designed form's generated `Build` replaces it; `FormBase`'s own does nothing. |
+| `Show( [owner] )` | Shows the window, calling `Build( owner )` first when there is none: the first time, or after the form was closed. `owner` is used only then. |
+| `ShowModal( [owner] ) as long` | Shows the form modally and runs until it is closed, calling `Build( owner )` first when there is no window. The result is the code given to `EndModal`. Afterwards the window is hidden, not destroyed: the controls can still be read, and the form can be shown again. Returns 0 when no window could be made. |
 | `EndModal( code )` | Ends a running `ShowModal`, which then returns `code`. |
 | `Close( )` | Closes the window as the close button does: the form's close callback is asked first. When the window closes it is destroyed. |
 | `IsOpen( ) as boolean` | True while the window exists. |
@@ -163,8 +176,9 @@ type FormBase extends object
     declare constructor( )
     declare destructor( )
     declare sub OpenWindow( byref title as const ustring, byval cx as long, byval cy as long, byval owner as TK_FORM ptr = nullptr )
-    declare sub Show( )
-    declare function ShowModal( ) as long
+    declare virtual sub Build( byval owner as TK_FORM ptr = nullptr )
+    declare sub Show( byval owner as TK_FORM ptr = nullptr )
+    declare function ShowModal( byval owner as TK_FORM ptr = nullptr ) as long
     declare sub EndModal( byval code as long )
     declare sub Close( )
     declare function IsOpen( ) as boolean
