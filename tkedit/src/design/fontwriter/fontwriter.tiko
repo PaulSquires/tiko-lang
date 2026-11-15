@@ -9,9 +9,10 @@
 ' the project's glyphs.ttf, every glyph its forms use and nothing else, each at the code the
 ' project numbered it (appGlyphs.tkglyphs [codes]).
 '
-' Reads TrueType-outline fonts ('glyf'; a CFF font is refused, V6). A glyph is taken as its
-' outline: a composite one is flattened into the points of its parts, so the new font has simple
-' glyphs only. Every glyph is scaled to the FIRST font's units-per-em, about the baseline, so a
+' Reads TrueType-outline fonts ('glyf') and CFF ones ('CFF ', an .otf: name-keyed or CID-keyed;
+' CFF2 is refused). A glyph is taken as its outline: a composite one is flattened into the points of
+' its parts, a CFF one's cubic curves turned into quadratic ones within a thousandth of the em, so
+' the new font has simple TrueType glyphs only. Every glyph is scaled to the FIRST font's units-per-em, about the baseline, so a
 ' glyph from that font is the same shape it was; its advance scales with it. No hinting.
 ' Writes head, hhea, maxp, OS/2, hmtx, cmap (formats 4 and 12), loca (long), glyf, name, post 3.0.
 #module "fontwriter"
@@ -28,6 +29,14 @@ end type
 
 ' ---- reading -------------------------------------------------------------------------------------
 
+' A CFF INDEX: Count elements, offsets of OffSize bytes at OffAt, the data from DataAt (offsets 1-based).
+type CffIndex_
+    Count as long
+    OffSize as long
+    OffAt as long
+    DataAt as long
+end type
+
 type SrcFont_
     Path as ustring
     D as Array( of ubyte )
@@ -41,6 +50,13 @@ type SrcFont_
     OffLoca as long
     OffHmtx as long
     OffCmap as long
+    ' CFF (V6): where its parts are in D
+    IsCff as boolean
+    IsCid as boolean
+    CharStrings as CffIndex_
+    GSubrs as CffIndex_
+    LSubrs as Array( of CffIndex_ )    ' per Font DICT (one for a name-keyed font)
+    FDSelectAt as long                 ' CID: its FDSelect; -1 = every glyph in Font DICT 0
 end type
 
 private function U8_( byref d as Array( of ubyte ), byval o as long ) as long
@@ -76,7 +92,9 @@ private function LoadFont_( byref path as const ustring, byref f as SrcFont_, by
         return false
     end if
     dim as long n = U16_( f.D, 4 )
-    dim as long offHead = -1, offHhea = -1, offMaxp = -1
+    dim as long offHead = -1, offHhea = -1, offMaxp = -1, offCff = -1
+    dim as boolean isCff2 = false
+    f.IsCff = false
     f.OffGlyf = -1 : f.OffLoca = -1 : f.OffHmtx = -1 : f.OffCmap = -1
     for i as long = 0 to n - 1
         dim as long rec = 12 + 16 * i
@@ -90,11 +108,19 @@ private function LoadFont_( byref path as const ustring, byref f as SrcFont_, by
         case "loca" : f.OffLoca = off
         case "hmtx" : f.OffHmtx = off
         case "cmap" : f.OffCmap = off
+        case "CFF " : offCff = off
+        case "CFF2" : isCff2 = true
         end select
     next
     if (f.OffGlyf < 0) orelse (f.OffLoca < 0) then
-        problem = fs.PathFileName( path ) & ": not TrueType outlines (a CFF font is not taken yet)"
-        return false
+        if offCff < 0 then
+            problem = fs.PathFileName( path ) & iif( isCff2, ": CFF2 (variable) outlines are not taken", ": no glyph outlines" )
+            return false
+        end if
+        if CffLoad_( f, offCff ) = false then
+            problem = fs.PathFileName( path ) & ": its CFF table makes no sense"
+            return false
+        end if
     end if
     if (offHead < 0) orelse (offHhea < 0) orelse (offMaxp < 0) orelse (f.OffHmtx < 0) orelse (f.OffCmap < 0) then
         problem = fs.PathFileName( path ) & ": a table is missing"
@@ -171,6 +197,463 @@ private function Advance_( byref f as SrcFont_, byval gid as long ) as long
     if i >= f.NumHMetrics then i = f.NumHMetrics - 1
     return U16_( f.D, f.OffHmtx + 4 * i )
 end function
+
+' ---- CFF (V6) ----------------------------------------------------------------------------------------
+
+' The INDEX at at into ix; where the INDEX ends.
+private function CffIndexAt_( byref d as Array( of ubyte ), byval at as long, byref ix as CffIndex_ ) as long
+    ix.Count = U16_( d, at )
+    if ix.Count = 0 then
+        ix.OffSize = 0 : ix.OffAt = at + 2 : ix.DataAt = at + 2
+        return at + 2
+    end if
+    ix.OffSize = U8_( d, at + 2 )
+    ix.OffAt = at + 3
+    ix.DataAt = ix.OffAt + (ix.Count + 1) * ix.OffSize - 1
+    return ix.DataAt + CffOff_( d, ix, ix.Count )
+end function
+
+' Offset i of an INDEX (1-based, as stored).
+private function CffOff_( byref d as Array( of ubyte ), byref ix as CffIndex_, byval i as long ) as long
+    dim as long v = 0, at = ix.OffAt + i * ix.OffSize
+    for k as long = 0 to ix.OffSize - 1
+        v = (v shl 8) or U8_( d, at + k )
+    next
+    return v
+end function
+
+' Element i of an INDEX: where it starts and how long it is.
+private sub CffElem_( byref d as Array( of ubyte ), byref ix as CffIndex_, byval i as long, byref at as long, byref size as long )
+    at = 0 : size = 0
+    if (i < 0) orelse (i >= ix.Count) then exit sub
+    dim as long a = CffOff_( d, ix, i ), b = CffOff_( d, ix, i + 1 )
+    at = ix.DataAt + a
+    size = b - a
+end sub
+
+' A DICT from at to at + size: each operator's operands in vals, its code in ops (12 x = 1200 + x),
+' the operands of op k from starts[k] to starts[k + 1] - 1.
+private sub CffDict_( byref d as Array( of ubyte ), byval at as long, byval size as long, byref ops as Array( of long ), _
+                      byref starts as Array( of long ), byref vals as Array( of double ) )
+    ops.Clear( ) : starts.Clear( ) : vals.Clear( )
+    dim as long p = at, e = at + size
+    starts.Push( 0 )
+    while p < e
+        dim as long b0 = U8_( d, p )
+        if b0 <= 21 then
+            dim as long op = b0
+            p += 1
+            if b0 = 12 then op = 1200 + U8_( d, p ) : p += 1
+            ops.Push( op )
+            starts.Push( vals.Count( ) )
+        elseif b0 = 28 then
+            vals.Push( S16_( d, p + 1 ) ) : p += 3
+        elseif b0 = 29 then
+            vals.Push( cast( long, U32_( d, p + 1 ) ) ) : p += 5
+        elseif b0 = 30 then
+            ' a real: nibbles to the end nibble (f); not needed for what is read here, kept as 0
+            p += 1
+            do
+                dim as long b = U8_( d, p )
+                p += 1
+                if ((b and 15) = 15) orelse ((b shr 4) = 15) orelse (p >= e) then exit do
+            loop
+            vals.Push( 0 )
+        elseif (b0 >= 32) andalso (b0 <= 246) then
+            vals.Push( b0 - 139 ) : p += 1
+        elseif (b0 >= 247) andalso (b0 <= 250) then
+            vals.Push( (b0 - 247) * 256 + U8_( d, p + 1 ) + 108 ) : p += 2
+        elseif (b0 >= 251) andalso (b0 <= 254) then
+            vals.Push( -(b0 - 251) * 256 - U8_( d, p + 1 ) - 108 ) : p += 2
+        else
+            p += 1
+        end if
+    wend
+end sub
+
+' The operands of op in a DICT read by CffDict_ (the first one at k0); false when it isn't there.
+private function CffDictGet_( byref ops as Array( of long ), byref starts as Array( of long ), byref vals as Array( of double ), _
+                              byval op as long, byref v0 as double, byref v1 as double ) as boolean
+    for k as long = 0 to ops.Count( ) - 1
+        if ops[k] = op then
+            dim as long a = starts[k], n = starts[k + 1] - a
+            v0 = 0 : v1 = 0
+            if n >= 1 then v0 = vals[a]
+            if n >= 2 then v1 = vals[a + 1]
+            return true
+        end if
+    next
+    return false
+end function
+
+' A Private DICT's local subrs into ix (an empty INDEX when it has none).
+private sub CffPrivate_( byref f as SrcFont_, byval cffAt as long, byval privSize as long, byval privOff as long, byref ix as CffIndex_ )
+    ix.Count = 0 : ix.OffSize = 0 : ix.OffAt = 0 : ix.DataAt = 0
+    dim as Array( of long ) ops, starts
+    dim as Array( of double ) vals
+    CffDict_( f.D, cffAt + privOff, privSize, ops, starts, vals )
+    dim as double subrs, unused_
+    if CffDictGet_( ops, starts, vals, 19, subrs, unused_ ) then CffIndexAt_( f.D, cffAt + privOff + clng( subrs ), ix )
+end sub
+
+' The CFF table's parts: CharStrings, global and local subrs, and for a CID font its Font DICTs
+' and FDSelect. False when it isn't a CFF this reads.
+private function CffLoad_( byref f as SrcFont_, byval cffAt as long ) as boolean
+    dim byref as Array( of ubyte ) d = f.D
+    if U8_( d, cffAt ) <> 1 then return false             ' CFF version 1
+    dim as CffIndex_ names, tops, strs
+    dim as long p = cffAt + U8_( d, cffAt + 2 )
+    p = CffIndexAt_( d, p, names )
+    p = CffIndexAt_( d, p, tops )
+    p = CffIndexAt_( d, p, strs )
+    CffIndexAt_( d, p, f.GSubrs )
+    if tops.Count < 1 then return false
+    dim as long ta, tn
+    CffElem_( d, tops, 0, ta, tn )
+    dim as Array( of long ) ops, starts
+    dim as Array( of double ) vals
+    CffDict_( d, ta, tn, ops, starts, vals )
+    dim as double cs, v1
+    if CffDictGet_( ops, starts, vals, 17, cs, v1 ) = false then return false
+    CffIndexAt_( d, cffAt + clng( cs ), f.CharStrings )
+    f.IsCff = true
+    f.LSubrs.Clear( )
+    f.FDSelectAt = -1
+    dim as double ros0, ros1
+    f.IsCid = CffDictGet_( ops, starts, vals, 1230, ros0, ros1 )
+    if f.IsCid then
+        dim as double fda, fds, unused_
+        if CffDictGet_( ops, starts, vals, 1236, fda, unused_ ) = false then return false
+        if CffDictGet_( ops, starts, vals, 1237, fds, unused_ ) then f.FDSelectAt = cffAt + clng( fds )
+        dim as CffIndex_ fdArray
+        CffIndexAt_( d, cffAt + clng( fda ), fdArray )
+        for i as long = 0 to fdArray.Count - 1
+            dim as long fa, fn
+            CffElem_( d, fdArray, i, fa, fn )
+            dim as Array( of long ) o2, s2
+            dim as Array( of double ) v2
+            CffDict_( d, fa, fn, o2, s2, v2 )
+            dim as double psz, poff
+            dim as CffIndex_ ls
+            if CffDictGet_( o2, s2, v2, 18, psz, poff ) then CffPrivate_( f, cffAt, clng( psz ), clng( poff ), ls )
+            f.LSubrs.Push( ls )
+        next
+    else
+        dim as double psz, poff
+        dim as CffIndex_ ls
+        if CffDictGet_( ops, starts, vals, 18, psz, poff ) then CffPrivate_( f, cffAt, clng( psz ), clng( poff ), ls )
+        f.LSubrs.Push( ls )
+    end if
+    return f.CharStrings.Count > 0
+end function
+
+' The Font DICT a CID glyph uses (FDSelect formats 0 and 3); 0 for a name-keyed font.
+private function CffFD_( byref f as SrcFont_, byval gid as long ) as long
+    if (f.IsCid = false) orelse (f.FDSelectAt < 0) then return 0
+    dim byref as Array( of ubyte ) d = f.D
+    dim as long at = f.FDSelectAt, fmt = U8_( d, at )
+    if fmt = 0 then return U8_( d, at + 1 + gid )
+    if fmt = 3 then
+        dim as long n = U16_( d, at + 1 )
+        for r as long = 0 to n - 1
+            dim as long first_ = U16_( d, at + 3 + 3 * r ), next_ = U16_( d, at + 3 + 3 * (r + 1) )
+            if (gid >= first_) andalso (gid < next_) then return U8_( d, at + 5 + 3 * r )
+        next
+    end if
+    return 0
+end function
+
+private function CffBias_( byval n as long ) as long
+    if n < 1240 then return 107
+    if n < 33900 then return 1131
+    return 32768
+end function
+
+' The Type 2 interpreter's state: the operand stack, the pen, the stems seen, the contour being drawn.
+type Cs2_
+    St( 0 to 47 ) as double
+    N as long
+    X as double
+    Y as double
+    Stems as long
+    WidthSeen as boolean
+    Open as boolean
+    Done as boolean
+    Scale as double
+    Tol as double
+end type
+
+' A point of the outline being made (scaled).
+private sub CsPoint_( byref o as Outline_, byref s as Cs2_, byval x as double, byval y as double, byval on_ as boolean )
+    o.X.Push( x * s.Scale ) : o.Y.Push( y * s.Scale ) : o.OnCurve.Push( on_ )
+end sub
+
+private sub CsClose_( byref o as Outline_, byref s as Cs2_ )
+    if s.Open then
+        ' a contour of one point (a moveto alone) is dropped
+        dim as long first_ = 0
+        if o.Ends.Count( ) then first_ = o.Ends[o.Ends.Count( ) - 1] + 1
+        if o.X.Count( ) - first_ <= 1 then
+            while o.X.Count( ) > first_
+                o.X.Remove( o.X.Count( ) - 1 ) : o.Y.Remove( o.Y.Count( ) - 1 ) : o.OnCurve.Remove( o.OnCurve.Count( ) - 1 )
+            wend
+        else
+            o.Ends.Push( o.X.Count( ) - 1 )
+        end if
+    end if
+    s.Open = false
+end sub
+
+private sub CsMove_( byref o as Outline_, byref s as Cs2_, byval dx as double, byval dy as double )
+    CsClose_( o, s )
+    s.X += dx : s.Y += dy
+    CsPoint_( o, s, s.X, s.Y, true )
+    s.Open = true
+end sub
+
+private sub CsLine_( byref o as Outline_, byref s as Cs2_, byval dx as double, byval dy as double )
+    s.X += dx : s.Y += dy
+    CsPoint_( o, s, s.X, s.Y, true )
+end sub
+
+' A cubic from the pen through (relative) control points: quadratic pieces, as many as keep within
+' the tolerance (the cubic-minus-quadratic error falls as the cube of the pieces).
+private sub CsCurve_( byref o as Outline_, byref s as Cs2_, byval dxa as double, byval dya as double, byval dxb as double, _
+                      byval dyb as double, byval dxc as double, byval dyc as double )
+    dim as double x0 = s.X, y0 = s.Y
+    dim as double x1 = x0 + dxa, y1 = y0 + dya
+    dim as double x2 = x1 + dxb, y2 = y1 + dyb
+    dim as double x3 = x2 + dxc, y3 = y2 + dyc
+    s.X = x3 : s.Y = y3
+    dim as double ex = x3 - 3 * x2 + 3 * x1 - x0, ey = y3 - 3 * y2 + 3 * y1 - y0
+    dim as double err0 = sqr( 3.0 ) / 36 * sqr( ex * ex + ey * ey ) * s.Scale
+    dim as long n = 1
+    while (n < 16) andalso (err0 / (n * n * n) > s.Tol)
+        n += 1
+    wend
+    for k as long = 0 to n - 1
+        ' the piece from t0 to t1, by de Casteljau, then its quadratic control
+        dim as double t0 = k / n, t1 = (k + 1) / n
+        dim as double ax, ay, bx, by_, cx, cy, ddx, ddy
+        CubicAt_( x0, y0, x1, y1, x2, y2, x3, y3, t0, ax, ay )
+        CubicAt_( x0, y0, x1, y1, x2, y2, x3, y3, t1, ddx, ddy )
+        ' the piece's own control points, from the derivative at its ends
+        dim as double h = t1 - t0, d0x, d0y, d1x, d1y
+        CubicD_( x0, y0, x1, y1, x2, y2, x3, y3, t0, d0x, d0y )
+        CubicD_( x0, y0, x1, y1, x2, y2, x3, y3, t1, d1x, d1y )
+        bx = ax + d0x * h / 3 : by_ = ay + d0y * h / 3
+        cx = ddx - d1x * h / 3 : cy = ddy - d1y * h / 3
+        dim as double qx = (3 * (bx + cx) - (ax + ddx)) / 4, qy = (3 * (by_ + cy) - (ay + ddy)) / 4
+        CsPoint_( o, s, qx, qy, false )
+        CsPoint_( o, s, ddx, ddy, true )
+    next
+end sub
+
+private sub CubicAt_( byval x0 as double, byval y0 as double, byval x1 as double, byval y1 as double, byval x2 as double, _
+                      byval y2 as double, byval x3 as double, byval y3 as double, byval t as double, byref x as double, byref y as double )
+    dim as double u = 1 - t
+    x = u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3
+    y = u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3
+end sub
+
+private sub CubicD_( byval x0 as double, byval y0 as double, byval x1 as double, byval y1 as double, byval x2 as double, _
+                     byval y2 as double, byval x3 as double, byval y3 as double, byval t as double, byref x as double, byref y as double )
+    dim as double u = 1 - t
+    x = 3 * u * u * (x1 - x0) + 6 * u * t * (x2 - x1) + 3 * t * t * (x3 - x2)
+    y = 3 * u * u * (y1 - y0) + 6 * u * t * (y2 - y1) + 3 * t * t * (y3 - y2)
+end sub
+
+' The width, when the first stack-clearing operator has one argument more than it takes.
+private sub CsWidth_( byref s as Cs2_, byval extra as boolean )
+    if s.WidthSeen then exit sub
+    s.WidthSeen = true
+    if extra andalso (s.N > 0) then
+        for i as long = 1 to s.N - 1
+            s.St( i - 1 ) = s.St( i )
+        next
+        s.N -= 1
+    end if
+end sub
+
+' Charstring bytes from at to at + size, through subrs (depth): the outline into o.
+private sub CsRun_( byref f as SrcFont_, byval at as long, byval size as long, byref o as Outline_, byref s as Cs2_, _
+                    byref lsubrs as CffIndex_, byval depth as long )
+    if (depth > 10) orelse s.Done then exit sub
+    dim byref as Array( of ubyte ) d = f.D
+    dim as long p = at, e = at + size
+    while (p < e) andalso (s.Done = false)
+        dim as long b0 = U8_( d, p )
+        if b0 >= 32 then
+            dim as double v
+            if b0 <= 246 then
+                v = b0 - 139 : p += 1
+            elseif b0 <= 250 then
+                v = (b0 - 247) * 256 + U8_( d, p + 1 ) + 108 : p += 2
+            elseif b0 <= 254 then
+                v = -(b0 - 251) * 256 - U8_( d, p + 1 ) - 108 : p += 2
+            else
+                v = cast( long, U32_( d, p + 1 ) ) / 65536.0 : p += 5
+            end if
+            if s.N < 48 then s.St( s.N ) = v : s.N += 1
+            continue while
+        end if
+        if b0 = 28 then
+            if s.N < 48 then s.St( s.N ) = S16_( d, p + 1 ) : s.N += 1
+            p += 3
+            continue while
+        end if
+        p += 1
+        dim as long i = 0
+        select case b0
+        case 1, 3, 18, 23                                  ' hstem vstem hstemhm vstemhm
+            CsWidth_( s, (s.N mod 2) = 1 )
+            s.Stems += s.N \ 2
+            s.N = 0
+        case 19, 20                                        ' hintmask cntrmask: an implied vstem first
+            CsWidth_( s, (s.N mod 2) = 1 )
+            s.Stems += s.N \ 2
+            s.N = 0
+            p += (s.Stems + 7) \ 8
+        case 21                                            ' rmoveto
+            CsWidth_( s, s.N > 2 )
+            if s.N >= 2 then CsMove_( o, s, s.St( 0 ), s.St( 1 ) )
+            s.N = 0
+        case 22                                            ' hmoveto
+            CsWidth_( s, s.N > 1 )
+            if s.N >= 1 then CsMove_( o, s, s.St( 0 ), 0 )
+            s.N = 0
+        case 4                                             ' vmoveto
+            CsWidth_( s, s.N > 1 )
+            if s.N >= 1 then CsMove_( o, s, 0, s.St( 0 ) )
+            s.N = 0
+        case 5                                             ' rlineto
+            while i + 1 < s.N
+                CsLine_( o, s, s.St( i ), s.St( i + 1 ) ) : i += 2
+            wend
+            s.N = 0
+        case 6, 7                                          ' hlineto vlineto: alternating
+            dim as boolean horiz = (b0 = 6)
+            while i < s.N
+                if horiz then CsLine_( o, s, s.St( i ), 0 ) else CsLine_( o, s, 0, s.St( i ) )
+                horiz = (horiz = false) : i += 1
+            wend
+            s.N = 0
+        case 8                                             ' rrcurveto
+            while i + 5 < s.N
+                CsCurve_( o, s, s.St( i ), s.St( i + 1 ), s.St( i + 2 ), s.St( i + 3 ), s.St( i + 4 ), s.St( i + 5 ) ) : i += 6
+            wend
+            s.N = 0
+        case 24                                            ' rcurveline
+            while i + 5 < s.N - 2
+                CsCurve_( o, s, s.St( i ), s.St( i + 1 ), s.St( i + 2 ), s.St( i + 3 ), s.St( i + 4 ), s.St( i + 5 ) ) : i += 6
+            wend
+            if i + 1 < s.N then CsLine_( o, s, s.St( i ), s.St( i + 1 ) )
+            s.N = 0
+        case 25                                            ' rlinecurve
+            while i + 1 < s.N - 6
+                CsLine_( o, s, s.St( i ), s.St( i + 1 ) ) : i += 2
+            wend
+            if i + 5 < s.N then CsCurve_( o, s, s.St( i ), s.St( i + 1 ), s.St( i + 2 ), s.St( i + 3 ), s.St( i + 4 ), s.St( i + 5 ) )
+            s.N = 0
+        case 26                                            ' vvcurveto
+            dim as double dx1 = 0
+            if (s.N mod 4) = 1 then dx1 = s.St( 0 ) : i = 1
+            while i + 3 < s.N
+                CsCurve_( o, s, dx1, s.St( i ), s.St( i + 1 ), s.St( i + 2 ), 0, s.St( i + 3 ) ) : i += 4 : dx1 = 0
+            wend
+            s.N = 0
+        case 27                                            ' hhcurveto
+            dim as double dy1 = 0
+            if (s.N mod 4) = 1 then dy1 = s.St( 0 ) : i = 1
+            while i + 3 < s.N
+                CsCurve_( o, s, s.St( i ), dy1, s.St( i + 1 ), s.St( i + 2 ), s.St( i + 3 ), 0 ) : i += 4 : dy1 = 0
+            wend
+            s.N = 0
+        case 30, 31                                        ' vhcurveto hvcurveto: alternating, a last extra
+            dim as boolean horiz = (b0 = 31)
+            while i + 3 < s.N
+                dim as double last_ = 0
+                if s.N - i = 5 then last_ = s.St( i + 4 )
+                if horiz then
+                    CsCurve_( o, s, s.St( i ), 0, s.St( i + 1 ), s.St( i + 2 ), last_, s.St( i + 3 ) )
+                else
+                    CsCurve_( o, s, 0, s.St( i ), s.St( i + 1 ), s.St( i + 2 ), s.St( i + 3 ), last_ )
+                end if
+                horiz = (horiz = false) : i += 4
+            wend
+            s.N = 0
+        case 10, 29                                        ' callsubr callgsubr
+            if s.N > 0 then
+                s.N -= 1
+                dim as CffIndex_ ptr ix = iif( b0 = 10, @lsubrs, @f.GSubrs )
+                dim as long k = clng( s.St( s.N ) ) + CffBias_( ix->Count ), sa, sn
+                CffElem_( d, *ix, k, sa, sn )
+                if sn > 0 then CsRun_( f, sa, sn, o, s, lsubrs, depth + 1 )
+            end if
+        case 11                                            ' return
+            exit sub
+        case 14                                            ' endchar (a seac accent is not built)
+            CsWidth_( s, (s.N = 1) orelse (s.N = 5) )
+            CsClose_( o, s )
+            s.Done = true
+            s.N = 0
+        case 12
+            dim as long b1 = U8_( d, p )
+            p += 1
+            dim as double a( 0 to 47 )
+            for k as long = 0 to s.N - 1 : a( k ) = s.St( k ) : next
+            select case b1
+            case 35                                        ' flex: two curves (and fd)
+                if s.N >= 12 then
+                    CsCurve_( o, s, a( 0 ), a( 1 ), a( 2 ), a( 3 ), a( 4 ), a( 5 ) )
+                    CsCurve_( o, s, a( 6 ), a( 7 ), a( 8 ), a( 9 ), a( 10 ), a( 11 ) )
+                end if
+            case 34                                        ' hflex
+                if s.N >= 7 then
+                    CsCurve_( o, s, a( 0 ), 0, a( 1 ), a( 2 ), a( 3 ), 0 )
+                    CsCurve_( o, s, a( 4 ), 0, a( 5 ), -a( 2 ), a( 6 ), 0 )
+                end if
+            case 36                                        ' hflex1
+                if s.N >= 9 then
+                    CsCurve_( o, s, a( 0 ), a( 1 ), a( 2 ), a( 3 ), a( 4 ), 0 )
+                    CsCurve_( o, s, a( 5 ), 0, a( 6 ), a( 7 ), a( 8 ), -(a( 1 ) + a( 3 ) + a( 7 )) )
+                end if
+            case 37                                        ' flex1: the last point by the larger delta
+                if s.N >= 11 then
+                    dim as double sx = a( 0 ) + a( 2 ) + a( 4 ) + a( 6 ) + a( 8 ), sy = a( 1 ) + a( 3 ) + a( 5 ) + a( 7 ) + a( 9 )
+                    CsCurve_( o, s, a( 0 ), a( 1 ), a( 2 ), a( 3 ), a( 4 ), a( 5 ) )
+                    if abs( sx ) > abs( sy ) then
+                        CsCurve_( o, s, a( 6 ), a( 7 ), a( 8 ), a( 9 ), a( 10 ), -sy )
+                    else
+                        CsCurve_( o, s, a( 6 ), a( 7 ), a( 8 ), a( 9 ), -sx, a( 10 ) )
+                    end if
+                end if
+            end select
+            s.N = 0
+        case else
+            s.N = 0
+        end select
+    wend
+end sub
+
+' A CFF glyph's outline into o, scaled; its cubic curves within tol (scaled units) as quadratic ones.
+private sub CffDecode_( byref f as SrcFont_, byval gid as long, byref o as Outline_, byval scale as double )
+    dim as long at, size
+    CffElem_( f.D, f.CharStrings, gid, at, size )
+    if size <= 0 then exit sub
+    dim as long fd = CffFD_( f, gid )
+    if (fd < 0) orelse (fd >= f.LSubrs.Count( )) then fd = 0
+    dim as Cs2_ s
+    s.Scale = scale
+    s.Tol = f.Upem * scale / 1000.0
+    if f.LSubrs.Count( ) = 0 then
+        dim as CffIndex_ none_
+        CsRun_( f, at, size, o, s, none_, 0 )
+    else
+        CsRun_( f, at, size, o, s, f.LSubrs[fd], 0 )
+    end if
+    CsClose_( o, s )
+end sub
 
 ' ---- outlines --------------------------------------------------------------------------------------
 
@@ -423,7 +906,7 @@ public function Build( byref takes as Array( of GlyphTake ), byref family as con
         end if
         dim as double s = upem / f.Upem
         dim as Outline_ o
-        Decode_( f, gid, o, s, 0, 0, s, 0, 0, 0 )
+        if f.IsCff then CffDecode_( f, gid, o, s ) else Decode_( f, gid, o, s, 0, 0, s, 0, 0, 0 )
         dim as long x0 = 0, y0 = 0, x1 = 0, y1 = 0
         Encode_( o, one, x0, y0, x1, y1 )
         for each byt as ubyte in one

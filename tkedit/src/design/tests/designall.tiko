@@ -1977,6 +1977,25 @@ sub FontWriterSuite( )
         if fontwriter.HasGlyph( out_, &hE000 + i ) = false then all_ = false
     next
     Check( all_ andalso (fontwriter.HasGlyph( out_, &hE824 ) = false), "fontwriter: every glyph at its new code, none at its old", str( bytes.Count( ) ) )
+    ' V6: CFF outlines -- a name-keyed font (made from PsIcons by fontTools) and a CID-keyed one
+    ' (tkEdit's Noto Sans SC subset: subroutines, FDSelect)
+    dim as Array( of fontwriter.GlyphTake ) cff
+    dim as string cffSrc( 0 to 3 ) = { "tests/golden/fonts/test-namekeyed-cff.otf", "tests/golden/fonts/test-namekeyed-cff.otf", _
+        "../../fonts/NotoSansSC-tkEdit.otf", "../../fonts/NotoSansSC-tkEdit.otf" }
+    dim as ulong cffCp( 0 to 3 ) = { &hE824, &hF3DD, &h8D44, &h7CFB }
+    for i as long = 0 to 3
+        dim as fontwriter.GlyphTake tk2
+        tk2.Path = cffSrc( i ) : tk2.Code = cffCp( i ) : tk2.Target = &hE100 + i
+        cff.Push( tk2 )
+    next
+    Check( fontwriter.Build( cff, "CFF Glyphs", bytes, problem ) andalso (len( problem ) = 0), "fontwriter: CFF taken", problem )
+    const as string outCff = "tests/bin/glyphs/glyphs-cff.ttf"
+    fs.WriteAllBytes( outCff, bytes )
+    all_ = true
+    for i as long = 0 to 3
+        if fontwriter.HasGlyph( outCff, &hE100 + i ) = false then all_ = false
+    next
+    Check( all_, "fontwriter: CFF glyphs at their new codes" )
 end sub
 
 sub EmbedFontsSuite( )
