@@ -32,8 +32,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TIKO_EDITOR_DIR: /c/nonexistent
-      # vendor-pscontrols-public-helpers compiles all of vendor/PsControls cold: 253 s on
-      # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
       TIKO_TEST_TIMEOUT: "900"
     steps:
       # THE BYTES AS COMMITTED, as tiko-lang's own checkouts have them (core.autocrlf false).
@@ -67,8 +65,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TIKO_EDITOR_DIR: /nonexistent
-      # vendor-pscontrols-public-helpers compiles all of vendor/PsControls cold: 253 s on
-      # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
       TIKO_TEST_TIMEOUT: "900"
     steps:
       - uses: actions/checkout@v4

@@ -683,7 +683,7 @@ Import with `#import "std/<name>"` and call as `<name>.Function( )`.
 | `std/tui` | terminal UI toolkit |
 | `vendor/sqlite3`, `vendor/cJSON` | C libraries shipped with the toolchain, used through their C API |
 | `vendor/tkControls`, `vendor/SDL3`, `vendor/raylib6` | cross-platform GUI and graphics |
-| `vendor/PsControls`, `sys/win` | Windows-only GUI and the Windows API |
+| `sys/win` | the Windows API |
 
 Each feature has a reference page in the [Feature Index](Feature-Index).
 

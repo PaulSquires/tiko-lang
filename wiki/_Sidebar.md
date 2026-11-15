@@ -64,7 +64,6 @@
 - [Finance](Category-Finance)
 - [Logging](Category-Logging)
 - [Terminal TUI Library](Category-Terminal-TUI-Library)
-- [PsControls](Category-PsControls)
 - [tkControls](Category-tkControls)
 - [sys/win](Category-Sys-Win)
 - [Goroutines and Channels](Category-Goroutines-and-Channels)

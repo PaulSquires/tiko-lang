@@ -1,10 +1,8 @@
 # tkControls
 
-Owner-drawn controls for tiko on **SDL3 + SDL_ttf**, for Windows and Linux. They are the
-cross-platform twin of [PsControls](../PsControls/README.md): the same controls, the same
-callbacks and the same silent setters, drawn by tkControls itself into SDL windows instead of
-Win32 ones. The two families are separate packages and never share names: `tkButton_SetText`
-here, `PsButton_SetText` there.
+Owner-drawn controls for tiko on **SDL3 + SDL_ttf**, for Windows, Linux and macOS. Every
+control draws itself into SDL windows; setters change a control silently, and only what the
+user does fires a callback.
 
 Each control is a module of the `vendor` package, reached with one `#import`:
 
@@ -32,14 +30,13 @@ with the porting notes (`FINDINGS.md`, `PORTING.md`).
 
 ## The modules
 
-Each directory is one module, `vendor/tkControls/<name>`; its `PORT.md` records what changed
-from the PsControls control it ports.
+Each directory is one module, `vendor/tkControls/<name>`.
 
 | Module | What it is |
 | --- | --- |
-| `tkApp` | the application framework (PsApp): start-up, loop, forms, fonts, theme |
+| `tkApp` | the application framework: start-up, loop, forms, fonts, theme |
 | `tkHost` | the widget core: surfaces, widget tree, focus, capture, timers, popups, bundled fonts |
-| `tkPaint` | the drawing surface (PsBufferPaint) on SDL_Renderer + SDL_ttf |
+| `tkPaint` | the drawing surface on SDL_Renderer + SDL_ttf |
 | `tkTheme` | the shared light / dark theme |
 | `tkThemeFile` | a `.tktheme` read at run time: `tkTheme_Load( path )` installs a theme a user picks |
 | `tkKeys` | keyboard shortcuts and key maps |

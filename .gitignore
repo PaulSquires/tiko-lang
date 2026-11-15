@@ -108,12 +108,6 @@ tests/vendor/**/*.o
 # ...except the WebView2 loader the WebView2 examples need to start, which is not built
 !/examples/win64/WebView2 Examples/WebView2Loader.dll
 
-# the PsControls demos: the images two demos write at run time; tiko build's link record
-/examples/PsControls/*/sample_icon.png
-/examples/PsControls/*/sample.png
-/examples/PsControls/*/sample.bmp
-/examples/PsControls/**/*.link
-
 # vendor/tkControls: its bundled fonts (fetched, like lib/) and scintk's build output; the
 # examples' module cache, screenshots and link records
 /pkg/vendor/tkControls/fonts/

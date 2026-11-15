@@ -50,20 +50,34 @@ end tkApp_Run( f )
 - `TK_IMGFIT_ASPECT` fits the image inside the rect with its proportions kept, `_STRETCH` fills the rect, `_CENTER` draws it at its natural size, centred and clipped.
 - `Surface()` and `Texture( renderer )` hand out what the object owns: never destroy them.
 
-## Coming from PsImage
+## API
 
-| [PsImage](PsImage) | tkImage |
+| Member | Returns | Description |
+| --- | --- | --- |
+| `Load( path as ustring )` | `long` | Decode a file, or a name registered with [tkHost](tkHost). Non-zero on success; 0 on failure (bad path, unsupported or corrupt file). |
+| `LoadFromSurface( s as SDL_Surface ptr )` | `long` | Copy an existing surface; you keep ownership of `s`. Non-zero on success. |
+| `LoadFromPixels( w, h, argb as ulong ptr )` | `long` | Copy `w` x `h` pixels, `&hAARRGGBB`, row after row. 0 when `w` or `h` is not positive or `argb` is null. |
+| `IsValid()` | `long` | Non-zero while an image is held. |
+| `NaturalWidth()` / `NaturalHeight()` | `long` | Decoded size in pixels, or 0 when nothing is held. |
+| `Dispose()` | | Free the image and its textures now; the destructor does the same. |
+| `Surface()` | `SDL_Surface ptr` | The decoded pixels (ARGB8888), or null. Owned by the object. |
+| `Texture( r as SDL_Renderer ptr )` | `SDL_Texture ptr` | The texture for that renderer, made on first use and cached. Owned by the object. |
+
+Every load starts by freeing what was held, so a failed load leaves the object empty.
+
+## Drawing
+
+`tkImage_Paint( b, @img, @rc, nFit )` draws into the paint context `b`, clipped to `rc`. It draws nothing when the image is not valid.
+
+| `nFit` | Placement |
 | --- | --- |
-| `PsImageFile` | `tkImageFile` |
-| `PS_IMGFIT_*` | `TK_IMGFIT_*` (in [tkPaint](tkPaint)) |
-| `buffer.PaintImage( img.Image( ), rc, fit )` | `tkImage_Paint( b, @img, @rc, fit )` |
-| `Image( )` | `Surface( )`, `Texture( renderer )` |
-| `LoadFromBitmap` (`HBITMAP`), `LoadFromIcon` (`HICON`) | `LoadFromSurface`, `LoadFromPixels` |
+| `TK_IMGFIT_ASPECT` (default) | Scale to fit inside `rc`, proportions kept, then centre. |
+| `TK_IMGFIT_STRETCH` | Fill `rc` exactly, proportions ignored. |
+| `TK_IMGFIT_CENTER` | Natural size, centred, clipped by `rc` when larger. No scaling. |
 
-- Decoding is SDL_image's, so the formats are SDL_image's rather than GDI+'s.
-- One object draws in every window; there is nothing to reload per window or per scale.
-
-The [PsImage](PsImage) page remains the behaviour reference for everything not listed here.
+- **Decode happens once, at natural size.** Scaling is done at draw time with linear filtering, so one `tkImageFile` can be drawn into rects of different sizes without reloading.
+- **Alpha is kept.** A transparent image composites over whatever is already painted in the rect, so fill the background first if you want one.
+- **One object draws in every window.** Each window's texture is made the first time the image is drawn there; when that window's renderer goes, its cached texture is forgotten, so a stale texture is never drawn.
 
 ## Public declarations
 
@@ -107,5 +121,4 @@ sub tkImage_Paint( byval p as TK_PAINT ptr, byval img as tkImageFile ptr, byval 
 ### See also
 
 - [tkControls](Category-tkControls)
-- [tkApp](tkApp), [tkHost](tkHost)
-- [PsImage](PsImage), the PsControls module
+- [tkApp](tkApp), [tkHost](tkHost), [tkPaint](tkPaint)
