@@ -684,7 +684,9 @@ imports may not form a cycle (`TKO0141`, which names the cycle); merge them into
 move what they share into a third. And **a system header your public signatures mention** — a
 Windows handle type, say — stays an `#include` in the module. The module's interface records that
 it needs the header, and including it again in the importer is harmless: it is the same file, read
-once.
+once. A plain constant from such a header that a signature names, such as `NULL` or `MAX_PATH` as a
+default, is written into the interface as its value. An importer that read the C runtime's headers
+first holds those names as macros, and the Windows headers then never declare them.
 
 ## What it costs
 
