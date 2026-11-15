@@ -335,6 +335,10 @@ namespace Tko
         as IdVec       modConsRoot
         as StrVec      modConsName
         as StrVec      modConsText
+        '' ...and for one consulted UNDEFINED, the file whose '#define' or '#undef' then made it
+        '' the header's own, lower case with forward slashes, else "": an include guard's own
+        '' header. An importer holding the name from that same file read that same header.
+        as StrVec      modConsOwn
         '' THE FILES THE UNIT READ THROUGH AN IMPORTED MODULE'S PUBLIC HEADERS -- its
         '' '<chain>.pub.tki' and what that includes -- each beside the module's chain. A name
         '' the interface spells from one makes it say '' uses <chain>, so an importer reads

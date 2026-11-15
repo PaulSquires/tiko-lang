@@ -961,7 +961,10 @@ private function RequiredHeaders_ _
             for c as int32 = 0 to pr->modConsRoot.Count - 1
                 if cast( int32, pr->modConsRoot[c] ) <> k then continue for
                 if len( pr->modConsText[c] ) = 0 then
-                    req &= "#tki undef " & pr->modConsName[c] & !"\n"
+                    req &= "#tki undef " & pr->modConsName[c]
+                    '' ...and the file that then made it the header's own (ppmodhdr.tiko).
+                    if len( pr->modConsOwn[c] ) > 0 then req &= " """ & pr->modConsOwn[c] & """"
+                    req &= !"\n"
                 else
                     req &= "#tki define " & pr->modConsText[c] & !"\n"
                 end if
