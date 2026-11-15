@@ -1910,7 +1910,20 @@ sub GlyphValueSuite( )
     Check( formfile.Parse( src, d, e ), "glyph: the form parses", e )
     dim as ustring g = codegen.Generate( d, "frmG", "frmG.tkform", src )
     Check( instr( g, "B.GlyphLeft = wchr( &hE824 )" ) > 0, "glyph: generated as its character", g )
-    Check( instr( g, "B.GlyphFont = tkForm_Font( Wnd, TKFONT_GLYPH )" ) > 0, "glyph: no Glyph size set is the GLYPH role", g )
+    Check( instr( g, "B.GlyphFont = tkForm_Font( Wnd, TKFONT_GLYPH )" ) > 0, "glyph: no GlyphSize set is the GLYPH role", g )
+    PutSetting( d.Controls[0].Props, "GlyphFont", "32" )
+    dim as Array( of ustring ) vp
+    validate.Check( d, "frmG", vp )
+    dim as ustring vp0
+    if vp.Count( ) then vp0 = vp[0]
+    Check( vp.Count( ) = 0, "glyph: GlyphSize 32 passes the checks", vp0 )
+    g = codegen.Generate( d, "frmG", "frmG.tkform", src )
+    Check( (instr( g, "dim as TTF_Font ptr gf_ = tkHost.tkHost_OpenFont( tkForm_Host( Wnd ), tkApp_GlyphFace( ), 32 )" ) > 0) _
+           andalso (instr( g, "B.GlyphFont = gf_" ) > 0) andalso (instr( g, "B.IconSize( TTF_GetFontHeight( gf_ ), TTF_GetFontHeight( gf_ ) )" ) > 0), _
+           "glyph: GlyphSize 32 opens the glyph font at 32 points, the icon box fitted to it", g )
+    PutSetting( d.Controls[0].Props, "IconSize", "20,20" )
+    g = codegen.Generate( d, "frmG", "frmG.tkform", src )
+    Check( instr( g, "B.IconSize( TTF_GetFontHeight" ) = 0, "glyph: an ImageSize of its own is left alone", g )
     ' V5: a toolbar button's glyph, at the project's number for it
     dim as ustring tsrc = "format = 1" & LF & LF & "[form]" & LF & "width = 300" & LF & "height = 200" & LF & LF _
         & "[[control]]" & LF & "name = ""T""" & LF & "type = ""Toolbar""" & LF & "parent = """"" & LF _

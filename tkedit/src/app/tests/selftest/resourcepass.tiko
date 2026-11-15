@@ -26,6 +26,8 @@
 #import "vendor/tkControls/tkScrollPanel"
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkLabel"
+#import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkButton"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
 using containers
@@ -39,6 +41,8 @@ using tkListTree
 using tkScrollPanel
 using tkTextBox
 using tkLabel
+using tkComboBox
+using tkButton
 
 dim shared as long gResStep, gResTries, gResTones
 dim shared as ustring gResFaults
@@ -234,6 +238,54 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     end if
     t.Check( (gl = "Fluent:E824") andalso (len( gf ) = 0) andalso (shown = "E824") andalso (drawn = wchr( &hE824 )), _
              P( sc, "the Glyph Picker sets GlyphLeft " & gl & ", the box " & shown & ", the preview drawn; GlyphFont left alone " & gf ) )
+    ' the inspector's order and names: GlyphSize right after GlyphRight, ImageSize right after
+    ' ImageRight, TextGap for IconGap
+    dim as long iGR = -1, iGS = -1, iIR = -1, iIS = -1, iTG = -1
+    for i as long = 0 to ps->Rows.Count( ) - 1
+        select case ps->Rows[i].Key
+        case "GlyphRight" : iGR = i
+        case "GlyphFont" : if tkLabel_GetText( ps->Rows[i].Label ) = "GlyphSize" then iGS = i
+        case "ImageRight" : iIR = i
+        case "IconSize" : if tkLabel_GetText( ps->Rows[i].Label ) = "ImageSize" then iIS = i
+        case "IconGap" : if tkLabel_GetText( ps->Rows[i].Label ) = "TextGap" then iTG = i
+        end select
+    next
+    t.Check( (iGR >= 0) andalso (iGS = iGR + 1) andalso (iIR >= 0) andalso (iIS = iIR + 1) andalso (iTG >= 0), _
+             P( sc, "inspector: GlyphSize after GlyphRight, ImageSize after ImageRight, TextGap: " & iGR & " " & iGS & " " & iIR & " " & iIS & " " & iTG ) )
+    ' GlyphSize: a size in points chosen in the inspector is taken (stored as GlyphFont = "32")
+    dim as long sr = -1
+    for i as long = 0 to ps->Rows.Count( ) - 1
+        if ps->Rows[i].Key = "GlyphFont" then sr = i
+    next
+    if sr >= 0 then
+        tkComboBox_SetCurSel( ps->Rows[sr].Edit, tkComboBox_FindItemByText( ps->Rows[sr].Edit, "32" ) )
+        ps->CommitRow( sr )
+        tkTest_PumpFor( h, 30 )
+    end if
+    bi = FindControl( c->Doc, "Button1" )
+    dim as ustring gs32
+    if bi >= 0 then gs32 = SettingOr( c->Doc.Controls[bi].Props, "GlyphFont" )
+    t.Check( gs32 = "32", P( sc, "GlyphSize 32 taken from the inspector: " & gs32 ) )
+    ' AutoSize: a long caption with AutoSize on makes the Button its ideal size (its design W and H)
+    bi = FindControl( c->Doc, "Button1" )
+    dim as long w0 = 0, w1 = 0, iw = 0, ih = 0
+    if bi >= 0 then
+        w0 = c->Doc.Controls[bi].W
+        trial = c->Doc
+        edits.SetProperty( trial, names, "Text", "A much longer caption than this button had" )
+        edits.SetProperty( trial, names, "AutoSize", "true" )
+        c->ApplyEdit( trial, true, "" )
+        tkTest_PumpFor( h, 30 )
+        bi = FindControl( c->Doc, "Button1" )
+        w1 = c->Doc.Controls[bi].W
+        tkButton_GetIdealSize( c->WidgetOf( "Button1" ), iw, ih )
+    end if
+    ' its pixels at least the ideal width (a pixel short cuts the caption to "..."), and no more than
+    ' the next design unit up
+    dim as long cw1 = 0
+    if c->WidgetOf( "Button1" ) then cw1 = c->WidgetOf( "Button1" )->cw
+    t.Check( (w1 > w0) andalso (cw1 >= iw) andalso (c->ToPixels( w1 - 1 ) < iw), _
+             P( sc, "AutoSize: the Button grew to its ideal width: " & w0 & " -> " & w1 & ", " & cw1 & "px for an ideal " & iw & "px" ) )
     ' the project's first glyph writes its font list (GLYPHS.md V3), the bundled fonts
     dim as ustring tkg = fs.ReadAllText( fs.PathJoin( proj, "appGlyphs", "appGlyphs.tkglyphs" ) ).ValueOr( "" )
     t.Check( (instr( tkg, "Fluent = { bundled = ""FluentSystemIcons-Regular.ttf"" }" ) > 0) andalso (instr( tkg, "Tabler = " ) > 0), _

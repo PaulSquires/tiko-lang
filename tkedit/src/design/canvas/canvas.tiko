@@ -31,6 +31,9 @@
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkListTree"
 #import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkCheckBox"
+#import "vendor/tkControls/tkOptionButton"
 #import "vendor/tkControls/tkSelectBar"
 #import "vendor/tkControls/tkIconPanel"
 #import "../model"
@@ -58,6 +61,9 @@ using tkToolbar
 using tkStatusBar
 using tkListTree
 using tkComboBox
+using tkButton
+using tkCheckBox
+using tkOptionButton
 using tkSelectBar
 using tkIconPanel
 using tkHost
@@ -71,6 +77,12 @@ public type CanvasGlyphFont
     Key as ustring
     Normal as TTF_Font ptr
     Large as TTF_Font ptr
+end type
+' A glyph font the canvas opened at a GlyphSize in points.
+public type CanvasSizedFont
+    Key as ustring
+    Pt as long
+    F as TTF_Font ptr
 end type
 public type FormCanvas_ as FormCanvas
 public type CanvasWireSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref name_ as const ustring, byref event_ as const ustring, byval jump as boolean )
@@ -127,6 +139,7 @@ public type FormCanvas
     PkgDir as ustring                   ' the toolchain's pkg/: where the bundled icon font is
     GlyphPaths as Array( of Setting )   ' the project's glyph fonts (GLYPHS.md V3): Key = its key, Value = its file
     GlyphOpen as Array( of CanvasGlyphFont )   ' those opened so far
+    GlyphSized as Array( of CanvasSizedFont )  ' those opened at a GlyphSize in points
     GlyphFont as TTF_Font ptr
     GlyphFontLarge as TTF_Font ptr
     Building as boolean
@@ -175,6 +188,7 @@ public type FormCanvas
     declare sub ApplyProjectTheme( )
     declare function RoleFont( byval f as TK_FORM ptr, byval role as long, byref glyphKey as const ustring = "" ) as TTF_Font ptr
     declare function GlyphFontFor( byref key_ as const ustring, byval large as boolean ) as TTF_Font ptr
+    declare function GlyphFontAt( byref key_ as const ustring, byval pt as long ) as TTF_Font ptr
     declare function ShowsDark( ) as boolean
     declare sub Destroy( )
     ' False when the text isn't a form this version can show; the canvas is left as it was.
@@ -530,7 +544,41 @@ sub FormCanvas.Rebuild( )
         next
         ' its glyphs in the GLYPH font (Large: GLYPH_LARGE), as the generated code gives every control with one
         dim as TKMETA_PROP ptr gfp = tkMeta_FindProp( m, "GlyphFont" )
-        if (gfp <> 0) andalso (gfp->ApplyFont <> 0) then gfp->ApplyFont( w, this.RoleFont( f, FontRole_( codegen.GlyphRole( c ) ), gk ) )
+        if (gfp <> 0) andalso (gfp->ApplyFont <> 0) then
+            dim as TTF_Font ptr gsf = 0
+            if codegen.GlyphPoints( c ) > 0 then gsf = this.GlyphFontAt( gk, codegen.GlyphPoints( c ) )
+            if gsf = 0 then gsf = this.RoleFont( f, FontRole_( codegen.GlyphRole( c ) ), gk )
+            gfp->ApplyFont( w, gsf )
+            ' a size in points: the icon box as tall as the font, unless the control sets its own
+            dim as TKMETA_PROP ptr isp = tkMeta_FindProp( m, "IconSize" )
+            if (codegen.GlyphPoints( c ) > 0) andalso (gsf <> 0) andalso (isp <> 0) andalso (isp->Apply <> 0) _
+               andalso (FindSetting( c.Props, "IconSize" ) < 0) then
+                dim as long fh = TTF_GetFontHeight( gsf )
+                isp->Apply( w, fh & "," & fh )
+            end if
+        end if
+        ' AutoSize: the size the control asks for becomes its design size. The layout places every
+        ' control at its design W and H, in the designer and in the program, so the control's own
+        ' resize would not last; this is part of the edit that turned it on or changed its text.
+        if SettingOr( c.Props, "AutoSize" ) = "true" then
+            dim as long iw = 0, ih = 0
+            IdealSize_( c.TypeName, w, iw, ih )
+            if (iw > 0) andalso (ih > 0) then
+                ' rounded UP: on a scaled screen a design size a pixel short of the ideal one cuts the
+                ' caption to "..." (its text must fit whole)
+                dim as long dw = this.ToDesign( iw ), dh = this.ToDesign( ih )
+                while this.ToPixels( dw ) < iw
+                    dw += 1
+                wend
+                while this.ToPixels( dh ) < ih
+                    dh += 1
+                wend
+                if (dw <> c.W) orelse (dh <> c.H) then
+                    Doc.Controls[i].W = dw : Doc.Controls[i].H = dh
+                    tkLayout_SetDesignRect( Layout, w, c.X, c.Y, dw, dh )
+                end if
+            end if
+        end if
         ' [control.colors]: the recipe the generated code gives it (the style takes effect once the
         ' canvas wears the project theme)
         if (len( c.StyleName ) > 0) orelse (c.Colors.Count( ) > 0) then
@@ -1555,6 +1603,18 @@ end function
 ' The form (Surface and every control on it) wears the project's theme -- its variant, shape,
 ' styles and per-type colours -- as the program will; tkEdit's own theme stays on the rest. No
 ' theme file, or one that doesn't read: the presets of the variant shown.
+' The size a control with AutoSize asks for, in pixels; 0 when it has no such measure.
+private sub IdealSize_( byref typeName as const ustring, byval w as TK_WIDGET ptr, byref iw as long, byref ih as long )
+    iw = 0 : ih = 0
+    select case typeName
+    case "Button" : tkButton_GetIdealSize( w, iw, ih )
+    case "Label" : tkLabel_GetIdealSize( w, iw, ih )
+    case "CheckBox" : tkCheckBox_GetIdealSize( w, iw, ih )
+    case "OptionButton" : tkOptionButton_GetIdealSize( w, iw, ih )
+    case "ComboBox" : tkComboBox_GetIdealSize( w, iw, ih )
+    end select
+end sub
+
 ' A font role for a control here: GLYPH and GLYPH_LARGE in the theme's glyph font, the rest tkEdit's.
 ' A project glyph font by its key, opened on first use (the surface owns it); the bundled icons for
 ' "" or Fluent. 0 when the key has no file.
@@ -1576,6 +1636,28 @@ function FormCanvas.GlyphFontFor( byref key_ as const ustring, byval large as bo
     o.Large = tkHost_OpenFont( Surface->pHost, path, pt + 2 )
     GlyphOpen.Push( o )
     return iif( large, o.Large, o.Normal )
+end function
+
+' A glyph font by its key at a GlyphSize in points, opened on first use; 0 when the key has no file.
+function FormCanvas.GlyphFontAt( byref key_ as const ustring, byval pt as long ) as TTF_Font ptr
+    for each o as CanvasSizedFont in GlyphSized
+        if (lcase( o.Key ) = lcase( key_ )) andalso (o.Pt = pt) then return o.F
+    next
+    if Surface = 0 then return 0
+    dim as ustring path
+    if (len( key_ ) = 0) orelse (lcase( key_ ) = lcase( GLYPH_FONT_FLUENT )) then
+        path = themefile.GlyphFontPath( PkgDir )
+    else
+        for each s as Setting in GlyphPaths
+            if lcase( s.Key ) = lcase( key_ ) then path = s.Value
+        next
+    end if
+    if len( path ) = 0 then return 0
+    dim as CanvasSizedFont o
+    o.Key = key_ : o.Pt = pt
+    o.F = tkHost_OpenFont( Surface->pHost, path, pt )
+    GlyphSized.Push( o )
+    return o.F
 end function
 
 function FormCanvas.RoleFont( byval f as TK_FORM ptr, byval role as long, byref glyphKey as const ustring ) as TTF_Font ptr
@@ -1607,6 +1689,7 @@ sub FormCanvas.ApplyProjectTheme( )
         GlyphSrc = sig
         GlyphFont = 0 : GlyphFontLarge = 0
         GlyphOpen.Clear( )
+        GlyphSized.Clear( )
         if len( src ) then
             dim as single pt = tkApp_Options( ).FontUISize
             GlyphFont = tkHost_OpenFont( Surface->pHost, src, pt )      ' the surface owns them

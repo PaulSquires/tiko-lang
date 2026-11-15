@@ -92,6 +92,16 @@ public function IsFontRole( byref s as const ustring ) as boolean
     return instr( " UI UI_SMALL UI_BOLD UI_LARGE GLYPH GLYPH_LARGE MONO ", " " & s & " " ) > 0
 end function
 
+' A glyph size in points: a whole number from 6 to 200.
+private function IsPoints_( byref s as const ustring ) as boolean
+    if (len( s ) = 0) orelse (len( s ) > 3) then return false
+    for i as long = 1 to len( s )
+        dim as long a = asc( mid( s, i, 1 ) )
+        if (a < 48) orelse (a > 57) then return false
+    next
+    return (valint( s ) >= 6) andalso (valint( s ) <= 200)
+end function
+
 ' "" when this value suits the kind, or what's wrong with it.
 private function ValueFault_( byref s as Setting, byref kind_ as const ustring, byref pairs as const ustring ) as ustring
     select case kind_
@@ -106,6 +116,8 @@ private function ValueFault_( byref s as Setting, byref kind_ as const ustring, 
     case "color"
         if (s.Kind <> VALUE_TEXT) orelse (IsColor_( s.Value ) = false) then return "must be a colour such as &hFF336699"
     case "font"
+        ' GlyphFont is shown as GlyphSize: a role (GLYPH, GLYPH_LARGE) or a size in points (GLYPHS.md)
+        if (s.Key = "GlyphFont") andalso (s.Kind = VALUE_TEXT) andalso IsPoints_( s.Value ) then return ""
         if (s.Kind <> VALUE_TEXT) orelse (IsFontRole( s.Value ) = false) then return "must be a font role (UI, UI_BOLD, MONO, ...)"
     case "list"
         if s.Kind <> VALUE_TEXT then return "must be a string"

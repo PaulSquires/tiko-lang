@@ -69,11 +69,22 @@ private function EnumConst_( byref pairs as const ustring, byref shown as const 
     return mid( t, a, instr( a, t, "," ) - a )
 end function
 
-' A control's glyph font role: GLYPH, or GLYPH_LARGE when its Glyph size is Large (an older file's
-' other roles read as GLYPH).
+' A control's glyph font role: GLYPH, or GLYPH_LARGE when its GlyphSize is Large (an older file's
+' other roles, and a size in points, read as GLYPH).
 public function GlyphRole( byref c as FormControl ) as ustring
     if SettingOr( c.Props, "GlyphFont" ) = "GLYPH_LARGE" then return "GLYPH_LARGE"
     return "GLYPH"
+end function
+
+' A control's GlyphSize in points; 0 when it is Normal or Large (a role).
+public function GlyphPoints( byref c as FormControl ) as long
+    dim as ustring v = SettingOr( c.Props, "GlyphFont" )
+    if len( v ) = 0 then return 0
+    for i as long = 1 to len( v )
+        dim as long a = asc( mid( v, i, 1 ) )
+        if (a < 48) orelse (a > 57) then return 0
+    next
+    return valint( v )
 end function
 
 ' The project's glyph numbering for the Generate that follows (appGlyphs.tkglyphs [codes], GLYPHS.md
@@ -742,9 +753,20 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
         end if
     next
 
-    ' its glyphs (and tkControls' own icons it draws) in the GLYPH font: Glyph size Large is GLYPH_LARGE
+    ' its glyphs (and tkControls' own icons it draws) in the GLYPH font: GlyphSize Large is GLYPH_LARGE,
+    ' a size in points the GLYPH font's file opened at it (the form's surface keeps it)
     if tkMeta_FindProp( m, "GlyphFont" ) then
-        o &= "    " & c.Name & ".GlyphFont = tkForm_Font( Wnd, TKFONT_" & GlyphRole( c ) & " )" & NL
+        if GlyphPoints( c ) > 0 then
+            ' and the icon box as tall as the font, so the glyph isn't clipped -- unless it has its own size
+            dim as boolean fit = (tkMeta_FindProp( m, "IconSize" ) <> 0) andalso (FindSetting( c.Props, "IconSize" ) < 0)
+            o &= "    scope" & NL
+            o &= "        dim as TTF_Font ptr gf_ = tkHost.tkHost_OpenFont( tkForm_Host( Wnd ), tkApp_GlyphFace( ), " & GlyphPoints( c ) & " )" & NL
+            o &= "        " & c.Name & ".GlyphFont = gf_" & NL
+            if fit then o &= "        " & c.Name & ".IconSize( TTF_GetFontHeight( gf_ ), TTF_GetFontHeight( gf_ ) )" & NL
+            o &= "    end scope" & NL
+        else
+            o &= "    " & c.Name & ".GlyphFont = tkForm_Font( Wnd, TKFONT_" & GlyphRole( c ) & " )" & NL
+        end if
     end if
 
     ColorsCode_( c, m, o )
