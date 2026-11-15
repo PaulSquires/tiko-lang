@@ -1441,6 +1441,27 @@ sub Window.ToggleFormView( )
     end if
 end sub
 
+' d is a form whose code file is there, or a form's code file (frmX.tiko, frmX.design.tiko) whose form is:
+' Next Pane (Primary+Tilde) then goes between the two. Nothing is created to find out.
+function Window.HasFormPartner( byval d as DocRef ) as boolean
+    if (d = 0) orelse (len( d->Path ) = 0) then return false
+    dim as ustring other
+    if d->Designer then
+        other = CodePathOf_( d->Path )
+    else
+        dim as ustring base_ = d->Path
+        if lcase( right( base_, 12 ) ) = ".design.tiko" then
+            base_ = left( base_, len( base_ ) - 12 )
+        elseif lcase( right( base_, 5 ) ) = ".tiko" then
+            base_ = left( base_, len( base_ ) - 5 )
+        else
+            return false
+        end if
+        other = base_ & ".tkform"
+    end if
+    return (this.FindOpen( other ) <> 0) orelse fs.IsFile( other )
+end function
+
 ' A form's code file sees its generated half, unsaved changes included.
 sub Window.AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     dim as ustring p = d->Path

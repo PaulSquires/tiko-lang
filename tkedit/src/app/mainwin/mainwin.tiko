@@ -682,6 +682,7 @@ public type Window
     declare sub CopyResourceFiles( byref exePath as const ustring )
     declare function PrepareForms( ) as boolean
     declare sub ToggleFormView( )
+    declare function HasFormPartner( byval d as DocRef ) as boolean
     declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     Palettes as panels.DesignPanels
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
@@ -5196,9 +5197,14 @@ sub Window.ShowOutput( byval visible as boolean )
     if visible = false then this.FocusEditor( )
 end sub
 
-' Ctrl+Tilde: pane 1, pane 2 (when split), the output pane (when shown), round again.
+' Ctrl+Tilde: pane 1, pane 2 (when split), the output pane (when shown), round again. On a form or
+' its code file, while the other one is there, it goes between the two instead.
 sub Window.CycleFocus( )
     dim as boolean inOut = this.OutputHasFocus( )
+    if (inOut = false) andalso this.HasFormPartner( this.Active( ) ) then
+        this.ToggleFormView( )
+        exit sub
+    end if
     dim as boolean split_ = (Split <> session.SplitMode.None) andalso (Pane2 <> 0)
     if inOut then
         this.FocusPane( false )
