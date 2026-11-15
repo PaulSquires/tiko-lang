@@ -687,6 +687,7 @@ public type Window
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
     declare function KeepTheme( byref nm as const ustring, byref mode as const ustring ) as boolean
+    declare function AskOver( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
     declare sub SetShowExplorer( byval onOff as boolean )        ' likewise
 
     ' ---- configuration
@@ -861,6 +862,18 @@ private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring,
     if mw then mw->modalDepth += 1              ' timers still fire in the modal loop: CheckInbox waits
     dim as long r = tkMessageBox_DoModal( box )
     if mw then mw->modalDepth -= 1
+    return r
+end function
+
+' A question over one of tkEdit's dialogs: Ask assumes its form's Tag is the Window (a dialog's is
+' the dialog), so the box is made here, in the dialog's own fonts. A test's scripted Ask still answers.
+function Window.AskOver( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+    if (f = 0) orelse (Ask <> @AskPerson) then return Ask( iif( f <> 0, f, form ), text, buttons )
+    dim as TK_WIDGET ptr box = NewAskBox( tkForm_Widget( f ), text, buttons )
+    if box = 0 then return 0
+    modalDepth += 1                              ' timers still fire in the modal loop: CheckInbox waits
+    dim as long r = tkMessageBox_DoModal( box )
+    modalDepth -= 1
     return r
 end function
 

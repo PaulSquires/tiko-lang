@@ -37,10 +37,12 @@
 #import "vendor/tkControls/tkNumericUpDown"
 #import "vendor/tkControls/tkPanel"
 #import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkMessageBox"
 using containers
 using cmdids
 using tkApp
 using tkListTree
+using tkMessageBox
 using tkTextBox
 using tkButton
 using tkLabel
@@ -395,6 +397,21 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     fs.WriteAllText( fs.PathJoin( mw.ConfigDir, "themes", "Default.tktheme" ), "format = 1" & wchr( 10 ) & "name = ""Default""" & wchr( 10 ) )
     dlg->FillGallery( )
     t.Check( tkListTree_GetCount( dlg->Gallery ) = 8, P( sc, "a library Default isn't listed beside the shipped one: " & tkListTree_GetCount( dlg->Gallery ) ) )
+    ' ---- Clone and Delete: a copy goes into the library; a library theme can go, a shipped one can't
+    PressIn( th, dlg->BtnClone )
+    tkTest_PumpFor( th, 40 )
+    t.Check( fs.IsFile( fs.PathJoin( mw.ConfigDir, "themes", "My Contrast Copy.tktheme" ) ) andalso (dlg->Doc.Name = "My Contrast Copy") _
+             andalso (tkListTree_GetCount( dlg->Gallery ) = 9), P( sc, "Clone: My Contrast Copy, in the library and the gallery" ) )
+    ' Delete asks first, over the dialog (through mw.Ask: scripted Yes here)
+    dim as long askedBefore = gAsked
+    Answer( MBX_IDYES )
+    PressIn( th, dlg->BtnDelete )
+    tkTest_PumpFor( th, 40 )
+    t.Check( (gAsked = askedBefore + 1) andalso (fs.IsFile( fs.PathJoin( mw.ConfigDir, "themes", "My Contrast Copy.tktheme" ) ) = false) _
+             andalso (tkListTree_GetCount( dlg->Gallery ) = 8), P( sc, "Delete: asked, then gone from the library and the gallery" ) )
+    tkListTree_SetCurSel( dlg->Gallery, 0 )
+    dlg->ShowThemeButtons( )
+    t.Check( tkWidget_IsEnabled( dlg->BtnDelete ) = false, P( sc, "a shipped theme can't be deleted" ) )
     t.Check( fs.ReadAllText( themePath ).ValueOr( none ) = saved, P( sc, "the project's file is where it was" ) )
 
     ' ---- Cancel: closes, and the rename to My Contrast is not written

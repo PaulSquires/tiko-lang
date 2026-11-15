@@ -1473,6 +1473,12 @@ private function ThemePickFont_( byval tc as themecenter.ThemeDialog ptr, byref 
     return cast( Window ptr, tc->Host )->EditResources( "font", current, picked, tc->Win )
 end function
 
+' Delete's question, over the dialog (AskOver: its form's Tag is the dialog, not a Window).
+private function ThemeAsk_( byval tc as themecenter.ThemeDialog ptr, byref text as const ustring ) as boolean
+    dim as Window ptr w = tc->Host
+    return w->AskOver( tc->Win, text, MBX_BTN_YESNO ) = MBX_IDYES
+end function
+
 private sub ThemeClosed_( byval tc as themecenter.ThemeDialog ptr )
     dim as Window ptr mw = tc->Host
     if mw then mw->CloseThemeCenter( )
@@ -1497,6 +1503,7 @@ sub Window.OpenThemeCenterOn( byref path as const ustring, byval forEditor as bo
     ThemeDlg->ForEditor = forEditor
     ThemeDlg->OnSave = @ThemeSaved_
     ThemeDlg->OnClose = @ThemeClosed_
+    ThemeDlg->OnAsk = @ThemeAsk_
     if forEditor = false then ThemeDlg->OnPickFont = @ThemePickFont_
     dim as ustring title
     if forEditor then title = i18n.Tr( "designer.theme_editor_title", "tkEdit Theme" )
@@ -1517,6 +1524,12 @@ sub Window.CloseThemeCenter( )
     if d->Win then SDL_SetWindowModal( tkForm_Host( d->Win )->win, false )
     this.Raise( )
     d->Close( )
+    ' tkEdit's own theme deleted in the dialog and nothing saved in its place: Default from now on
+    dim as ustring mode = Prefs.ThemeMode
+    if d->ForEditor andalso (len( themes.FindTheme( themes.CurrentName( Prefs.Theme, mode ), ConfigDir, "" ) ) = 0) then
+        this.KeepTheme( themes.DEFAULT_THEME, mode )
+        this.ReloadTheme( )
+    end if
     delete d
 end sub
 
@@ -1531,7 +1544,13 @@ function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
     end if
     ' tkEdit's own theme is saved by its name in <config>/themes: a theme picked in the gallery is
     ' saved as itself, never over the file the dialog opened on
-    if tc->ForEditor andalso (tc->SavingToLibrary = false) then tc->Path = tc->LibraryPath( )
+    dim as ustring renamedFrom
+    if tc->ForEditor andalso (tc->SavingToLibrary = false) then
+        tc->Path = tc->LibraryPath( )
+        ' a new name: the library file it came from is renamed (a shipped theme's name can't change)
+        if (len( tc->Source ) > 0) andalso fs.PathEquals( fs.PathParent( tc->Source ), tc->LibraryDir ) _
+           andalso (fs.PathEquals( tc->Source, tc->Path ) = false) then renamedFrom = tc->Source
+    end if
     dim as ustring text = themefile.Render( tc->Doc )
     fs.CreateDirAll( fs.PathParent( tc->Path ) )
     ' an open buffer of the file takes the text, so its undo and the disk agree
@@ -1550,7 +1569,10 @@ function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
         this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
         return true
     end if
+    if len( renamedFrom ) then fs.RemoveFile( renamedFrom )
     if tc->ForEditor then
+        tc->Source = tc->Path
+        tc->SourceName = tc->Doc.Name
         ' and it is what tkEdit wears from now on, in the variant the dialog shows: settings.toml's
         ' theme and theme_mode say so
         dim as ustring fn = fs.PathFileName( tc->Path )
