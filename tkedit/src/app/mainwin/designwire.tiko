@@ -1501,6 +1501,8 @@ sub Window.OpenThemeCenterOn( byref path as const ustring, byval forEditor as bo
     dim as ustring title
     if forEditor then title = i18n.Tr( "designer.theme_editor_title", "tkEdit Theme" )
     ThemeDlg->Open( form, path, fs.PathJoin( ConfigDir, themes.THEME_DIR ), title )
+    ' tkEdit's own theme opens on the variant tkEdit wears
+    if forEditor then ThemeDlg->ShowVariant( tkApp_Theme( ).IsDark )
     ' modal to tkEdit, as the OS sees it (tkHost_RunModal's SDL_SetWindowModal): tkEdit's window takes
     ' no input until it closes. The dialog keeps running in tkEdit's own loop.
     if ThemeDlg->Win then SDL_SetWindowModal( tkForm_Host( ThemeDlg->Win )->win, true )
@@ -1527,6 +1529,9 @@ function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
         this.SetMessage( fs.PathFileName( tc->Path ) & ": " & problems[0] )
         return false
     end if
+    ' tkEdit's own theme is saved by its name in <config>/themes: a theme picked in the gallery is
+    ' saved as itself, never over the file the dialog opened on
+    if tc->ForEditor andalso (tc->SavingToLibrary = false) then tc->Path = tc->LibraryPath( )
     dim as ustring text = themefile.Render( tc->Doc )
     fs.CreateDirAll( fs.PathParent( tc->Path ) )
     ' an open buffer of the file takes the text, so its undo and the disk agree
@@ -1546,7 +1551,12 @@ function Window.SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
         return true
     end if
     if tc->ForEditor then
+        ' and it is what tkEdit wears from now on, in the variant the dialog shows: settings.toml's
+        ' theme and theme_mode say so
+        dim as ustring fn = fs.PathFileName( tc->Path )
+        dim as boolean kept = this.KeepTheme( left( fn, len( fn ) - len( themes.THEME_EXT ) ), iif( tc->IsDark, "dark", "light" ) )
         this.ReloadTheme( )
+        if kept = false then return true        ' KeepTheme said why
         this.SetMessage( strings.Format( i18n.Tr( "designer.theme_saved", "{} saved" ), tc->Path ) )
         return true
     end if

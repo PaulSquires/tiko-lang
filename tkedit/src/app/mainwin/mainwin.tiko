@@ -686,6 +686,7 @@ public type Window
     Palettes as panels.DesignPanels
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
+    declare function KeepTheme( byref nm as const ustring, byref mode as const ustring ) as boolean
     declare sub SetShowExplorer( byval onOff as boolean )        ' likewise
 
     ' ---- configuration
@@ -2202,6 +2203,27 @@ end sub
 ' Ctrl+Shift+M: the menu bar comes or goes now, and settings.toml's [ui] show_menu says so from now
 ' on (an open copy reloads). A settings.toml that does not parse is the person's to fix: the
 ' choice holds for this run only.
+' The theme tkEdit wears and its variant (dark | light): Prefs now, and settings.toml's theme and
+' theme_mode for next time (the Theme dialog's Save). False, with a message, when settings.toml
+' doesn't parse.
+function Window.KeepTheme( byref nm as const ustring, byref mode as const ustring ) as boolean
+    Prefs.Theme = nm
+    Prefs.ThemeMode = mode
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.theme_not_kept", "{} does not parse: the theme is not kept for next time" ), settings.SETTINGS_FILE ) )
+        return false
+    end if
+    dim as settings.EditorSettings st = r.Value( )
+    st.Theme = nm
+    st.ThemeMode = mode
+    if settings.WriteFile( this.SettingsFile( ), st ) then
+        dim as DocRef d = this.FindOpen( this.SettingsFile( ) )
+        if d then d->Reload( )
+    end if
+    return true
+end function
+
 sub Window.SetShowMenu( byval onOff as boolean )
     if (menuBar <> 0) andalso (onOff = false) then tkMenuBar_CloseMenu( menuBar )
     Prefs.ShowMenu = onOff

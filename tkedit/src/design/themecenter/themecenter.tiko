@@ -179,6 +179,7 @@ public type ThemeDialog_
     declare sub LoadRole( )
     declare sub ShowRoleSwatch( )
     declare sub LoadAccent( )
+    declare sub ShowVariant( byval dark as boolean )
     declare sub LoadStyle( )
     declare sub Refresh( )
     declare function Theme( ) as TKTHEME_COLORS
@@ -1174,6 +1175,15 @@ function ThemeDialog_.Problems( ) as Array( of ustring )
     themefile.Check( Doc, p )
     return p
 end function
+
+' The variant shown and edited, as the Dark / Light switch would choose it.
+sub ThemeDialog_.ShowVariant( byval dark as boolean )
+    IsDark = dark
+    tkSelectBar_SetCurSel( SelVariant, iif( dark, 0, 1 ) )
+    this.LoadRole( )
+    this.LoadAccent( )
+    this.Refresh( )
+end sub
 
 ' <library>/<name>.tktheme, the name made a file name.
 function ThemeDialog_.LibraryPath( ) as ustring
