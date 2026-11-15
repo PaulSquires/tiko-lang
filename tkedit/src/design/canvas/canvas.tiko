@@ -183,6 +183,10 @@ public type FormCanvas
     Pressed as ustring                  ' the control a plain press landed on
     DrawParent as ustring
     DrawPage as long
+    ' Design > Tab Order: each control shows its place in Tab order among its siblings, and a click
+    ' gives the control under it the next place in its container (1 first, then on round)
+    TabOrderMode as boolean
+    TabNext as Array( of Setting )      ' per container ("parent|page", lower case): the place its next click gives
 
     declare function Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
     declare sub ApplyProjectTheme( )
@@ -251,6 +255,8 @@ public type FormCanvas
     declare sub ToFront( )
     declare sub ToBack( )
     declare sub SetPageOf( byref name_ as const ustring, byval page as long )
+    declare sub SetTabOrderMode( byval on_ as boolean )
+    declare sub TabClick( byval x as long, byval y as long )
 end type
 
 private function SurfaceProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
@@ -269,7 +275,7 @@ private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         return true
     case TKM_LBUTTONDOWN
         tkHost_SetFocus( w->pHost, w )
-        if (m->clicks >= 2) andalso (len( c->Tool ) = 0) then
+        if (m->clicks >= 2) andalso (len( c->Tool ) = 0) andalso (c->TabOrderMode = false) then
             c->OnDoubleClick( m->x, m->y )
             return true
         end if
@@ -896,6 +902,10 @@ end sub
 sub FormCanvas.OnPress( byval x as long, byval y as long, byval mods as long )
     StartX = x : StartY = y : NowX = x : NowY = y
     DragBase = Doc
+    if TabOrderMode then
+        this.TabClick( x, y )
+        exit sub
+    end if
     if len( Tool ) then
         Drag = DragDraw
         dim as long dx, dy
@@ -1191,7 +1201,9 @@ function FormCanvas.OnKey( byval key as long, byval mods as long ) as boolean
     case SDLK_TAB
         this.SelectNext( shift_ = false )
     case SDLK_ESCAPE
-        if len( Tool ) then
+        if TabOrderMode then
+            this.SetTabOrderMode( false )
+        elseif len( Tool ) then
             Tool = ""
             this.Changed( )
         else
@@ -1284,7 +1296,70 @@ sub FormCanvas.SelectAll( )
     this.Changed( )
 end sub
 
-' Tab order is list order.
+' Design > Tab Order on or off. On: nothing selected, the pointer tool, every container's next
+' click gives place 1.
+sub FormCanvas.SetTabOrderMode( byval on_ as boolean )
+    TabOrderMode = on_
+    TabNext.Clear( )
+    if on_ then
+        Tool = ""
+        Selected.Clear( )
+    end if
+    tkWidget_Invalidate( Glass )
+    this.Changed( )
+end sub
+
+' A click in Tab Order mode: the control under it takes its container's next place in Tab order,
+' the others among its siblings keeping their order around it (undoable, as any edit). A click on
+' another tab of a tab control shows that page instead.
+sub FormCanvas.TabClick( byval x as long, byval y as long )
+    dim as long i = this.HitControl( x, y )
+    if i < 0 then exit sub
+    dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
+    if m->ContainerKind = TKMETA_CONTAINER_PAGES then
+        dim as TK_WIDGET ptr bar_ = tkTabControl_GetTabBar( Widgets[i] )
+        dim as TKRECT rc = this.RectOf( bar_ )
+        if (y >= rc.top) andalso (y < rc.bottom) then
+            dim as long t = tkTabBar_HitTest( bar_, x - rc.left, y - rc.top )
+            if (t >= 0) andalso (t <> tkTabControl_GetCurSel( Widgets[i] )) then
+                this.SetPageOf( Doc.Controls[i].Name, t )
+                tkWidget_Invalidate( Glass )
+                exit sub
+            end if
+        end if
+    end if
+    dim as ustring nm = Doc.Controls[i].Name
+    dim as ustring parent_ = lcase( Doc.Controls[i].Parent )
+    dim as long page_ = Doc.Controls[i].Page
+    dim as ustring key_ = parent_ & "|" & page_
+    dim as long pos_ = 1, k = -1
+    for j as long = 0 to TabNext.Count( ) - 1
+        if TabNext[j].Key = key_ then
+            k = j
+            pos_ = valint( TabNext[j].Value )
+        end if
+    next
+    ' its siblings: past the last of them the next click starts again at 1
+    dim as long n = 0
+    for each c as FormControl in Doc.Controls
+        if (lcase( c.Parent ) = parent_) andalso (c.Page = page_) then n += 1
+    next
+    if pos_ > n then pos_ = 1
+    dim as FormDoc trial = Doc
+    SetTabPlace( trial, nm, pos_ )
+    if len( this.ApplyEdit( trial, false, "" ) ) then exit sub
+    dim as Setting s
+    s.Key = key_
+    s.Value = str( iif( pos_ >= n, 1, pos_ + 1 ) )
+    if k >= 0 then
+        TabNext[k] = s
+    else
+        TabNext.Push( s )
+    end if
+    tkWidget_Invalidate( Glass )
+end sub
+
+' Tab is the selection's next control in list order (the designer's own walk, not the form's Tab order).
 sub FormCanvas.SelectNext( byval forward as boolean )
     dim as long n = Doc.Controls.Count( )
     if n = 0 then exit sub
@@ -1582,6 +1657,24 @@ sub FormCanvas.Paint( byval b as TK_PAINT ptr )
         if allowed and EDGE_B then PaintGrip_( b, mx, rc.bottom, sz, fill_, ink )
         if (allowed and EDGE_R) andalso (allowed and EDGE_B) then PaintGrip_( b, rc.right, rc.bottom, sz, fill_, ink )
     next
+
+    ' Tab Order: each control's place among its siblings, a badge on its top-left corner
+    if TabOrderMode then
+        dim as Array( of long ) ranks = TabRanks( Doc )
+        b->SetFont( Glass->pHost->pDefaultFont )
+        for i as long = 0 to Doc.Controls.Count( ) - 1
+            if (i >= Widgets.Count( )) orelse (i >= ranks.Count( )) then exit for
+            if (Widgets[i] = 0) orelse (this.Shows( Widgets[i] ) = false) then continue for
+            dim as TKRECT rc = this.RectOf( Widgets[i] )
+            dim as ustring num = str( ranks[i] )
+            dim as TKRECT bg
+            tkRect_Set( bg, rc.left, rc.top, rc.left + this.ToPixels( 8 + 7 * len( num ) ), rc.top + this.ToPixels( 16 ) )
+            b->SetBackColor( iif( Doc.Controls[i].TabIndex > 0, t.Accent, t.Border ) )
+            b->PaintRect( @bg )
+            b->SetForeColor( t.Window )
+            b->PaintText( num, @bg, TK_DT_CENTER or TK_DT_VCENTER )
+        next
+    end if
 
     if (Drag = DragRubber) orelse (Drag = DragDraw) then
         dim as TKRECT band

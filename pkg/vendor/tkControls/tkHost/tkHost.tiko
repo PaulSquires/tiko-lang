@@ -210,6 +210,7 @@ public type TK_WIDGET_
     isEnabled     as boolean = true
     isVisible     as boolean = true
     isFocusable   as boolean = false
+    nTabIndex     as long = 0           ' its place among its siblings in Tab order; 0 = none (tree order, after)
     bClipChildren as boolean = true
     bWantsText    as boolean = false    ' focus here starts SDL text input (and the IME)
     cursor        as long = TK_CURSOR_ARROW
@@ -1409,16 +1410,54 @@ public function tkHost_CurrentCursor() as long
 end function
 
 ' Tab order = tree pre-order over focusable, enabled, visible widgets.
+' Tab order: a widget's children by their tab index (tkWidget_SetTabIndex), those without one after
+' them in tree (z) order; each child's own children right after it.
 private sub CollectFocusable( byval w as TK_WIDGET ptr, list() as TK_WIDGET ptr, byref n as long )
+    dim as TK_WIDGET ptr kids()
+    dim as long nk = 0
     dim as TK_WIDGET ptr c = w->pFirst
     while c
+        nk += 1
+        c = c->pNext
+    wend
+    if nk = 0 then exit sub
+    redim kids( 0 to nk - 1 )
+    nk = 0
+    c = w->pFirst
+    while c
+        kids( nk ) = c : nk += 1
+        c = c->pNext
+    wend
+    ' stable: an insertion sort on (the index, or none last)
+    for i as long = 1 to nk - 1
+        dim as TK_WIDGET ptr k = kids( i )
+        dim as long kk = iif( k->nTabIndex > 0, k->nTabIndex, &h7FFFFFFF ), j = i - 1
+        while (j >= 0) andalso (iif( kids( j )->nTabIndex > 0, kids( j )->nTabIndex, &h7FFFFFFF ) > kk)
+            kids( j + 1 ) = kids( j )
+            j -= 1
+        wend
+        kids( j + 1 ) = k
+    next
+    for i as long = 0 to nk - 1
+        c = kids( i )
         if c->isVisible andalso c->isEnabled then
             if c->isFocusable andalso (n <= ubound( list )) then list(n) = c : n += 1
             CollectFocusable( c, list(), n )
         end if
-        c = c->pNext
-    wend
+    next
 end sub
+
+' A widget's place among its siblings in Tab order (1 first); 0 takes it out of the numbering, after
+' the numbered ones in tree order. Its own focusable children follow it either way.
+public sub tkWidget_SetTabIndex( byval w as TK_WIDGET ptr, byval nIndex as long )
+    if w = 0 then exit sub
+    w->nTabIndex = iif( nIndex < 0, 0, nIndex )
+end sub
+
+public function tkWidget_GetTabIndex( byval w as TK_WIDGET ptr ) as long
+    if w = 0 then return 0
+    return w->nTabIndex
+end function
 
 public sub tkHost_FocusNext( byval h as TK_HOST ptr, byval bBack as boolean = false )
     if h = 0 then exit sub

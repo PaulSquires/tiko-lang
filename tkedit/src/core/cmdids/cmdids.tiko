@@ -125,6 +125,7 @@ public enum Cmd explicit
     FormCenterHorz
     FormCenterVert
     FormLockControls
+    FormTabOrder
     UnfoldAll
     ' Project
     ProjectSaveAs
@@ -368,6 +369,7 @@ constructor CommandTable( )
     this.Def( Cmd.FormBringToFront, "FormBringToFront", g, "Bring to Front", "", true )
     this.Def( Cmd.FormSendToBack, "FormSendToBack", g, "Send to Back", "" )
     this.Def( Cmd.FormLockControls, "FormLockControls", g, "Lock Controls", "", true )
+    this.Def( Cmd.FormTabOrder, "FormTabOrder", g, "Tab Order", "" )
     this.Def( Cmd.FormSnapToGrid, "FormSnapToGrid", g, "Snap to Grid", "", true )
     this.Def( Cmd.FormFloatToolbox, "FormFloatToolbox", g, "Float Toolbox", "", true )
     this.Def( Cmd.FormFloatProperties, "FormFloatProperties", g, "Float Properties", "" )

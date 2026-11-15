@@ -356,6 +356,13 @@ public sub PanelsPass( byref t as Tally, byval sc as single )
     mw.Execute( Cmd.FormSnapToGrid )
     t.Check( c->SnapToGrid = false, P( sc, "Snap to Grid toggles" ) )
     mw.Execute( Cmd.FormSnapToGrid )
+    ' Tab Order: a click gives the control place 1 among its siblings; Esc leaves the mode
+    mw.Execute( Cmd.FormTabOrder )
+    ClickOn( h, c->WidgetOf( "lblB" ) )
+    tkTest_PumpFor( h, 30 )
+    t.Check( c->TabOrderMode andalso (Ctl2( c, "lblB" ).TabIndex = 1) andalso (c->Selected.Count( ) = 0), P( sc, "Tab Order: a click numbers, not selects" ) )
+    c->OnKey( SDLK_ESCAPE, 0 )
+    t.Check( c->TabOrderMode = false, P( sc, "Esc leaves Tab Order" ) )
 
     ' ---- the layout: rows really drawn, properties right under the header, a bar that drags
     tkTest_PumpFor( h, 30 )

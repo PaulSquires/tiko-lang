@@ -211,6 +211,19 @@ sub RunPass( byval fScale as single )
     tkTest_PushKey( h, SDLK_TAB )
     tkTest_Check( "a widget that claims Tab keeps focus", tkHost_GetFocus( h ) = F2 )
     Rx( F2 )->claimTab = false
+    ' tab indexes: siblings by index (F4 1, the group 2, F1 none: last); inside the group F3 before F2
+    tkWidget_SetTabIndex( F4, 1 ) : tkWidget_SetTabIndex( G, 2 )
+    tkWidget_SetTabIndex( F3, 1 ) : tkWidget_SetTabIndex( F2, 2 )
+    tkHost_SetFocus( h, F4 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "tab index: F4 (1) -> the group's F3 (1)", tkHost_GetFocus( h ) = F3 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "tab index: F3 -> F2 (2)", tkHost_GetFocus( h ) = F2 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "tab index: then F1, which has none", tkHost_GetFocus( h ) = F1 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "tab index: wraps to F4", tkHost_GetFocus( h ) = F4 )
+    tkWidget_SetTabIndex( F4, 0 ) : tkWidget_SetTabIndex( G, 0 ) : tkWidget_SetTabIndex( F3, 0 ) : tkWidget_SetTabIndex( F2, 0 )
 
     ' keys bubble to the parent while refused
     Rx( G )->claimKeys = true

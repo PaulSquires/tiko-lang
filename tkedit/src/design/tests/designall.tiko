@@ -444,6 +444,14 @@ sub EditsSuite( )
     Check( edits.AllLocked( sp, Names( "Button1", "Button3" ) ) andalso formfile.Parse( formfile.Render( sp ), sp2, spe ) andalso _
            sp2.Controls[0].Locked andalso (sp2.Controls[1].Locked = false), "locked, and saved", spe )
 
+    ' Tab order (Design > Tab Order): Button3 first, the others keep their order after it; saved, generated
+    SetTabPlace( sp, "Button3", 1 )
+    dim as Array( of long ) tr = TabRanks( sp )
+    dim as FormDoc sp3
+    Check( (tr[0] = 2) andalso (tr[1] = 3) andalso (tr[2] = 1) andalso formfile.Parse( formfile.Render( sp ), sp3, spe ) _
+           andalso (sp3.Controls[2].TabIndex = 1) andalso (sp3.Controls[0].TabIndex = 2), "tab order: placed, and saved", spe )
+    Check( instr( codegen.Generate( sp, "frmT", "frmT.tkform", "" ), "tkHost.tkWidget_SetTabIndex( Button3.Handle, 1 )" ) > 0, "tab order: generated" )
+
     ' resizing moves what's anchored inside, at every depth
     dim as FormDoc r
     r.ClientW = 300 : r.ClientH = 200

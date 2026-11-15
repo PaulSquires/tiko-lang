@@ -725,6 +725,15 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
         if (c.Anchor <> TK_ANCHOR_DEFAULT) orelse (c.Dock <> TK_DOCK_NONE) then o &= ", " & AnchorExpr_( c.Anchor )
         if c.Dock <> TK_DOCK_NONE then o &= ", " & DockExpr_( c.Dock )
         o &= " )" & NL
+        ' Tab order set in the designer (Design > Tab Order): each control its place among its siblings
+        dim as boolean anyTab = false
+        for each x as FormControl in doc.Controls
+            if x.TabIndex > 0 then anyTab = true
+        next
+        if anyTab then
+            dim as Array( of long ) ranks = TabRanks( doc )
+            o &= "    tkHost.tkWidget_SetTabIndex( " & c.Name & ".Handle, " & ranks[idx] & " )" & NL
+        end if
     end if
 
     ' A tab control's pages exist before its properties are set, and before its children.

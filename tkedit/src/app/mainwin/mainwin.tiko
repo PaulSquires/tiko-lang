@@ -963,11 +963,14 @@ function Window.Create( byval forcedScale as single ) as boolean
         ' Lock Controls is checked while everything it acts on is locked
         if idx = clng( MenuGroup.Design ) then
             dim as DocRef d = mw->Active( )
-            dim as boolean locked_ = false
+            dim as boolean locked_ = false, tabMode = false
             if (d <> 0) andalso (mw->ShowsStart( ) = false) andalso (d->Designer <> 0) then
                 locked_ = edits.AllLocked( d->Designer->Doc, d->Designer->Selected )
+                tabMode = d->Designer->TabOrderMode
             end if
             tkPopupMenu_SetItemChecked( hPopup, clng( Cmd.FormLockControls ), locked_ )
+            ' and Tab Order while its mode is on
+            tkPopupMenu_SetItemChecked( hPopup, clng( Cmd.FormTabOrder ), tabMode )
         end if
         ' one row starts a session and continues a stopped one (tiko-editor-tiko's)
         if idx = clng( MenuGroup.Debug ) then
@@ -1771,7 +1774,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormPreviewVariant, _
          Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove, _
          Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove, _
-         Cmd.FormCenterHorz, Cmd.FormCenterVert, Cmd.FormLockControls
+         Cmd.FormCenterHorz, Cmd.FormCenterVert, Cmd.FormLockControls, Cmd.FormTabOrder
         return true
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
          Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
@@ -1919,6 +1922,7 @@ function Window.DesignerCommand( byval id as Cmd ) as boolean
     case Cmd.FormCenterHorz : d->Designer->Center( false )
     case Cmd.FormCenterVert : d->Designer->Center( true )
     case Cmd.FormLockControls : d->Designer->ToggleLock( )
+    case Cmd.FormTabOrder : d->Designer->SetTabOrderMode( d->Designer->TabOrderMode = false )
     case Cmd.FormSnapToGrid
         d->Designer->SnapToGrid = (d->Designer->SnapToGrid = false)
         tkWidget_Invalidate( d->Designer->Frame )
