@@ -164,6 +164,10 @@ end enum
 public type TK_HOST as TK_HOST_
 public type TK_WIDGET as TK_WIDGET_
 
+' A widget's mouse-move watcher (tkWidget_SetMouseMoveCallback): x, y in pixels from w's top-left,
+' buttons SDL's button mask, mods SDL's modifier keys.
+public type TK_MouseMoveSub as sub( byval w as TK_WIDGET ptr, byval x as long, byval y as long, byval buttons as long, byval mods as long )
+
 public type TK_MSG
     msg      as long
     x        as single          ' widget-local pixels (mouse messages)
@@ -220,6 +224,7 @@ public type TK_WIDGET_
     pThemeScope   as any ptr            ' a theme for this subtree (tkTheme_ApplyTo); 0 = inherit
     pColorRecipe  as any ptr            ' per-field colour overrides (tkTheme_SetRecipe)
     pContextMenu  as TK_WIDGET ptr      ' the component that is this widget's right-click menu, 0 = none
+    pOnMouseMove  as TK_MouseMoveSub    ' told of moves over it, and over descendants with none of their own
 end type
 
 public type TK_FONT
@@ -1080,6 +1085,23 @@ private sub SendContextMenu_( byval owner as TK_WIDGET ptr, byval x as single, b
     tkWidget_Send( owner->pContextMenu, @m )
 end sub
 
+' Watches the mouse moving over w: over w itself, and over any descendant that has no watcher of
+' its own (the nearest one with a watcher is told). Independent of w's own proc; 0 clears it.
+public sub tkWidget_SetMouseMoveCallback( byval w as TK_WIDGET ptr, byval cb as TK_MouseMoveSub )
+    if w then w->pOnMouseMove = cb
+end sub
+
+' The nearest of w and its ancestors that watches the mouse is told of a move at window pixels px, py.
+private sub NotifyMouseMove_( byval w as TK_WIDGET ptr, byval px as single, byval py as single, byval buttons as long )
+    while (w <> 0) andalso (w->pOnMouseMove = 0)
+        w = w->pParent
+    wend
+    if w = 0 then exit sub
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    w->pOnMouseMove( w, cint( px - a.left ), cint( py - a.top ), buttons, clng( SDL_GetModState( ) ) )
+end sub
+
 public sub tkWidget_SetCursor( byval w as TK_WIDGET ptr, byval cursor as long )
     if w then w->cursor = cursor
 end sub
@@ -1706,6 +1728,13 @@ private sub DispatchTo( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
             dim as TK_WIDGET ptr w = tkHost_HitTest( h, px, py )
             SetHot( h, w )
             if w andalso tkWidget_IsEnabled( w ) then SendMouse( w, TKM_MOUSEMOVE, px, py )
+        end if
+        ' the watchers, after the widget itself; looked up again, since the delivery may have
+        ' destroyed what was there (a disabled widget still passes the move on to its parents)
+        if h->pCapture then
+            NotifyMouseMove_( h->pCapture, px, py, clng( e->motion.state ) )
+        else
+            NotifyMouseMove_( tkHost_HitTest( h, px, py ), px, py, clng( e->motion.state ) )
         end if
         SyncCursor( h )
 

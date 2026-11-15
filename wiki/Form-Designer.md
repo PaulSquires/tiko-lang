@@ -290,6 +290,13 @@ Its events:
 | Paint | `( byval pPaint as TK_PAINT ptr )` | The form's background, under its controls |
 | Destroy | `( )` | The window is going, its controls still there |
 | ThemeChanged | `( )` | The application's theme changed |
+| MouseMove | `( byval x as long, byval y as long, byval buttons as long, byval mods as long )` | The mouse moved over the form, or over a control with no MouseMove of its own; pixels from the client's top-left |
+
+Every control (not a Timer or a PopupMenu) has a **MouseMove** event too, with the same handler, `x`
+and `y` from the control's own top-left. A move goes to the nearest of the control under the mouse
+and its containers that has a MouseMove handler, so a form's handler follows the mouse across the whole
+form unless a control handles it itself. `buttons` is SDL's mouse-button mask (`SDL_BUTTON_LMASK` and
+so on), `mods` the modifier keys, as KeyDown's.
 
 ## Other languages
 

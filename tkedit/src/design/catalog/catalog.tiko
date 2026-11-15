@@ -78,7 +78,7 @@ end function
 
 ' ---- the form's own events, in the order the inspector lists them ----
 public function FormEventCount( ) as long
-    return 7
+    return 8
 end function
 
 public function FormEventName( byval i as long ) as ustring
@@ -90,6 +90,7 @@ public function FormEventName( byval i as long ) as ustring
     case 4 : return "Paint"
     case 5 : return "Destroy"
     case 6 : return "ThemeChanged"
+    case 7 : return "MouseMove"
     end select
     return ""
 end function
@@ -101,14 +102,19 @@ public function IsFormEvent( byref ev as const ustring ) as boolean
     return false
 end function
 
+' A MouseMove handler's parameters, the form's and a control's alike.
+public const as string MOUSEMOVE_PARAMS = "byval x as long, byval y as long, byval buttons as long, byval mods as long"
+
 ' A form event handler's parameters. Resize: the client in pixels, after the layout. KeyDown: a key
-' no control claimed. Paint: the form's background, under its controls.
+' no control claimed. Paint: the form's background, under its controls. MouseMove: pixels from the
+' client's top-left, over the form and over any control with no MouseMove of its own.
 public function FormEventParams( byref ev as const ustring ) as ustring
     select case ev
     case "Close"   : return "byref Cancel as boolean"
     case "Resize"  : return "byval cx as long, byval cy as long"
     case "KeyDown" : return "byval keyCode as long, byval mods as long, byref Handled as boolean"
     case "Paint"   : return "byval pPaint as TK_PAINT ptr"
+    case "MouseMove" : return MOUSEMOVE_PARAMS
     end select
     return ""
 end function

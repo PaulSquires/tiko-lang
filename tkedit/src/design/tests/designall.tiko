@@ -863,7 +863,7 @@ sub WindowSuite( )
         & "always_on_top = true" & LF & "icon = ""app.png""" & LF
     dim as ustring evs = LF & "[form.events]" & LF & "Load = ""Form_Load""" & LF & "Close = ""Form_Close""" & LF _
         & "Resize = ""Form_Resize""" & LF & "KeyDown = ""Form_KeyDown""" & LF & "Paint = ""Form_Paint""" & LF _
-        & "Destroy = ""Form_Destroy""" & LF & "ThemeChanged = ""Form_ThemeChanged""" & LF
+        & "Destroy = ""Form_Destroy""" & LF & "ThemeChanged = ""Form_ThemeChanged""" & LF & "MouseMove = ""Form_MouseMove""" & LF
     dim as ustring src = head & win & evs
     dim as FormDoc d
     Check( ReadForm( src, d ), "window: the form parses" )
@@ -907,6 +907,16 @@ sub WindowSuite( )
     HasLine( g, "DestroyHook = @Thunk_Form_Destroy", "window: Destroy hooked" )
     HasLine( g, "tkForm_OnThemeChanged( Wnd, @Thunk_Form_ThemeChanged )", "window: ThemeChanged hooked" )
     HasLine( g, "return Handled", "window: KeyDown says whether it took the key" )
+    ' MouseMove: the form's watches its own widget; a control's goes through the same tkHost setter
+    HasLine( g, "tkWidget_SetMouseMoveCallback( tkForm_Widget( Wnd ), @Thunk_Form_MouseMove )", "window: MouseMove hooked" )
+    HasLine( g, "declare sub Form_MouseMove( byval x as long, byval y as long, byval buttons as long, byval mods as long )", "window: MouseMove declared" )
+    dim as ustring srcB = Header( ) & Ctl( "btn", "Button" ) & "[control.events]" & LF & "MouseMove = ""btn_MouseMove""" & LF
+    dim as FormDoc dB
+    Check( ReadForm( srcB, dB ), "mousemove: a button's parses" )
+    Accepted( srcB, "mousemove: a button's MouseMove" )
+    dim as ustring gB = codegen.Generate( dB, "frmB", "frmB.tkform", srcB )
+    HasLine( gB, "tkWidget_SetMouseMoveCallback( btn.Handle, @Thunk_btn_MouseMove )", "mousemove: a button's hooked" )
+    Check( catalog.Find( "Timer" ) <> 0 andalso (tkMeta_FindEvent( catalog.Find( "Timer" ), "MouseMove" ) = 0), "mousemove: not a Timer's" )
     dim as ustring g0 = codegen.Generate( plain, "frmW", "frmW.tkform", head )
     Check( (instr( g0, "tkForm_Set" ) = 0) andalso (instr( g0, "Hook" ) = 0) andalso (instr( g0, "Thunk_Form" ) = 0), "window: nothing unless asked" )
     dim as Array( of ustring ) im = reconcile.ImportsFor( "byval pPaint as TK_PAINT ptr", "" )

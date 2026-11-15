@@ -111,6 +111,7 @@ Rules a widget author relies on:
 - **Capture** with `tkHost_SetCapture( w )` and `tkHost_ReleaseCapture( h )`: moves and the release keep coming to `w` while the mouse is outside it or the window. While a widget holds the capture it hears Esc first.
 - **Timers** with `tkWidget_SetTimer( w, id, ms )`, delivered as `TKM_TIMER` on the UI thread. Ids below `TK_TIMER_APP` are reserved.
 - **Context menus** with `tkWidget_SetContextMenu( w, hMenu )`: the right button's release over `w` or anything inside it, and the Menu key or Shift+F10 when the focus is there, go to `hMenu` as `TKM_CONTEXTMENU` instead of to the control. [tkContextMenu](tkContextMenu) is the component that answers it; it calls `tkWidget_ClearContextMenuRefs` as it goes.
+- **Watching the mouse from outside** with `tkWidget_SetMouseMoveCallback( w, cb )`: `cb` (a `TK_MouseMoveSub`) is told of every move over `w`, and over anything inside it that has no watcher of its own, with `x, y` in pixels from `w`'s top-left, SDL's button mask and the modifier keys. It runs after the widget's own `TKM_MOUSEMOVE`, needs no subclassing, and works on any control; 0 clears it. The Form Designer's MouseMove event is built on it.
 - **Theme.** On `TKM_THEMECHANGED`, re-read [tkTheme](tkTheme)'s `tkTheme_Get()` unless your widget's colours are pinned.
 - **Notify like the controls do**: callbacks for user actions only; setters are silent.
 - `tkHost_SetTextInputArea` tells the IME where to put its candidate window; `tkHost_SetClipboardText`, `GetClipboardText` and `HasClipboardText` reach the clipboard.
@@ -313,6 +314,7 @@ type tkHostDropSub as sub( byval h as TK_HOST ptr, byval m as TK_MSG ptr )
 type tkRendererGoneSub as sub( byval r as SDL_Renderer ptr )
 type tkHotChangedSub as sub( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
 type tkEventHookFunc as function( byval e as SDL_Event ptr ) as boolean
+type TK_MouseMoveSub as sub( byval w as TK_WIDGET ptr, byval x as long, byval y as long, byval buttons as long, byval mods as long )
 ```
 
 ### Procedures
@@ -369,6 +371,7 @@ sub tkWidget_Show( byval w as TK_WIDGET ptr, byval bShow as boolean )
 sub tkWidget_SetContextMenu( byval w as TK_WIDGET ptr, byval hMenu as TK_WIDGET ptr )
 function tkWidget_GetContextMenu( byval w as TK_WIDGET ptr ) as TK_WIDGET ptr
 sub tkWidget_ClearContextMenuRefs( byval hMenu as TK_WIDGET ptr )
+sub tkWidget_SetMouseMoveCallback( byval w as TK_WIDGET ptr, byval cb as TK_MouseMoveSub )
 sub tkWidget_SetCursor( byval w as TK_WIDGET ptr, byval cursor as long )
 sub tkWidget_KillTimer( byval w as TK_WIDGET ptr, byval id as long )
 sub tkWidget_SetTimer( byval w as TK_WIDGET ptr, byval id as long, byval ms as long )

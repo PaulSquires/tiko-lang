@@ -24,6 +24,13 @@
 #
 # visual = false: a component, not a control (a Timer). It is created on the form and set up like a
 # control, but never shown or laid out; a designer draws it as a width x height box of its own.
+#
+# common_events: events every visual control has, after its own, through a tkHost setter that works
+# on any widget. MouseMove: the nearest widget with a watcher is told, so a container's (or the
+# form's) handler also sees moves over children that have none.
+common_events = [
+  { name="MouseMove", set="tkWidget_SetMouseMoveCallback", type="TK_MouseMoveSub", sig="byval hWidget as TK_WIDGET ptr, byval x as long, byval y as long, byval buttons as long, byval mods as long", params="byval x as long, byval y as long, byval buttons as long, byval mods as long", args="x, y, buttons, mods" },
+]
 
 [[control]]
 name = "Label"

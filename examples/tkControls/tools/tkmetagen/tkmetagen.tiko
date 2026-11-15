@@ -328,6 +328,19 @@ function ReadBody_( byref getter as const ustring, byref kind as const ustring )
     return ""
 end function
 
+' One event's line in Fill_.
+function EventRow_( byref e as TomlValue ) as ustring
+    dim as ustring r = "    Event_( " & Quote_( Str_( e, "name" ) ) & ", " & Quote_( Str_( e, "set" ) ) & ", " & Quote_( Str_( e, "type" ) ) & ", " _
+                       & Quote_( Str_( e, "sig" ) ) & ", " & Quote_( Str_( e, "params" ) ) & ", " & Quote_( Str_( e, "args" ) )
+    ' widget / returns / result only when the event has them, so the other rows stay as they were
+    if len( Str_( e, "widget" ) ) orelse len( Str_( e, "returns" ) ) orelse len( Str_( e, "fallback" ) ) then
+        r &= ", " & Quote_( Str_( e, "widget" ) ) & ", " & Quote_( Str_( e, "returns" ) ) & ", " & Quote_( Str_( e, "result" ) )
+        if len( Str_( e, "result_init" ) ) orelse len( Str_( e, "fallback" ) ) then r &= ", " & Quote_( Str_( e, "result_init" ) )
+        if len( Str_( e, "fallback" ) ) then r &= ", " & Quote_( Str_( e, "fallback" ) )
+    end if
+    return r & " )" & NL
+end function
+
 sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
     dim as TomlValue ptr ctls = root_.Find( "control" )
     dim as ustring imports, usings, thunks, fill, fields
@@ -442,17 +455,15 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
 
         dim as TomlValue ptr evs = ctl->Find( "events" )
         for i as long = 0 to evs->Count( ) - 1
-            dim as TomlValue ptr e = @evs->Item( i )
-            fill &= "    Event_( " & Quote_( Str_( *e, "name" ) ) & ", " & Quote_( Str_( *e, "set" ) ) & ", " & Quote_( Str_( *e, "type" ) ) & ", " _
-                    & Quote_( Str_( *e, "sig" ) ) & ", " & Quote_( Str_( *e, "params" ) ) & ", " & Quote_( Str_( *e, "args" ) )
-            ' widget / returns / result only when the event has them, so the other rows stay as they were
-            if len( Str_( *e, "widget" ) ) orelse len( Str_( *e, "returns" ) ) orelse len( Str_( *e, "fallback" ) ) then
-                fill &= ", " & Quote_( Str_( *e, "widget" ) ) & ", " & Quote_( Str_( *e, "returns" ) ) & ", " & Quote_( Str_( *e, "result" ) )
-                if len( Str_( *e, "result_init" ) ) orelse len( Str_( *e, "fallback" ) ) then fill &= ", " & Quote_( Str_( *e, "result_init" ) )
-                if len( Str_( *e, "fallback" ) ) then fill &= ", " & Quote_( Str_( *e, "fallback" ) )
-            end if
-            fill &= " )" & NL
+            fill &= EventRow_( evs->Item( i ) )
         next
+        ' then the events every visual control has (MouseMove), not a component's
+        dim as TomlValue ptr common_ = root_.Find( "common_events" )
+        if (common_ <> 0) andalso Flag_( *ctl, "visual", true ) then
+            for i as long = 0 to common_->Count( ) - 1
+                fill &= EventRow_( common_->Item( i ) )
+            next
+        end if
     next
     o &= "#import ""../tkHost""" & NL & imports & "using tkHost" & NL & "using tkPaint" & NL & usings & "using tkTheme" & NL & NL & thunks
     o &= "sub Fill_( )" & NL & fill & "end sub" & NL

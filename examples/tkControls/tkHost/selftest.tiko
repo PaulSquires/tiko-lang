@@ -100,6 +100,12 @@ function AbsStr( byval w as TK_WIDGET ptr ) as string
     return tkRect_Str( a )
 end function
 
+dim shared as TK_WIDGET ptr gMoveW
+dim shared as long gMoveX, gMoveY
+sub OnWatchMove( byval w as TK_WIDGET ptr, byval x as long, byval y as long, byval buttons as long, byval mods as long )
+    gMoveW = w : gMoveX = x : gMoveY = y
+end sub
+
 function S( byval h as TK_HOST ptr, byval v as long ) as long
     return tkHost_Scale( h, v )
 end function
@@ -155,6 +161,20 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "leave child / enter parent", Rx( C )->nLeave = 1 andalso Rx( P )->nEnter = 1 )
     tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
     tkTest_Check( "window leave clears hot", Rx( P )->nLeave = 1 )
+
+    ' a mouse-move watcher: told of moves over a child that has none of its own, in its own pixels;
+    ' a child's own watcher takes them instead
+    gMoveW = 0
+    tkWidget_SetMouseMoveCallback( P, @OnWatchMove )
+    tkTest_PushMotion( h, S( h, 130 ), S( h, 90 ) )
+    tkTest_Check( "watcher: a move over the child reaches the parent's, parent-relative", _
+                  (gMoveW = P) andalso (gMoveX = S( h, 130 ) - S( h, 100 )) andalso (gMoveY = S( h, 90 ) - S( h, 50 )), gMoveX & "," & gMoveY )
+    tkWidget_SetMouseMoveCallback( C, @OnWatchMove )
+    tkTest_PushMotion( h, S( h, 131 ), S( h, 91 ) )
+    tkTest_Check( "watcher: the child's own comes first", (gMoveW = C) andalso (gMoveX = S( h, 131 ) - S( h, 120 )), gMoveX & "," & gMoveY )
+    tkWidget_SetMouseMoveCallback( C, 0 )
+    tkWidget_SetMouseMoveCallback( P, 0 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
 
     ' buttons; the right and middle buttons arrive too
     tkTest_Click( h, S( h, 130 ), S( h, 90 ) )
