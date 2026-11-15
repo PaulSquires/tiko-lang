@@ -49,7 +49,11 @@ def main():
             order.append(name)
             ps.setGlyphOrder(order)
             ps['glyf'][name] = glyph
-            ps['hmtx'][name] = fl['hmtx'][name]
+            # the left bearing as the outline has it: Fluent stores 0 (its head flags tell FreeType to
+            # leave the outline be); PsIcons' don't, so FreeType moves the outline to the stored
+            # bearing -- 0 would draw the glyph left by its real bearing (2026-11-14)
+            glyph.recalcBounds(ps['glyf'])
+            ps['hmtx'][name] = (fl['hmtx'][name][0], glyph.xMin)
         for t in ps['cmap'].tables:
             if t.isUnicode():
                 t.cmap[cp] = name

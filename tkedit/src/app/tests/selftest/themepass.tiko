@@ -232,6 +232,26 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     t.Check( dlg->NudUISize->isEnabled andalso (dlg->Doc.UISize = clng( tkNumericUpDown_GetValue( dlg->NudUISize ) )) andalso (dlg->Doc.UISize > 0), _
              P( sc, "size: unticked, the up-down's " & dlg->Doc.UISize ) )
     PressIn( th, dlg->ChkSizeSystem )
+    ' the font slots' "...": the ellipsis drawn centred in its button (its pixels' middle within 2px)
+    scope
+        dim as TK_WIDGET ptr pb = dlg->BtnFontPick( 0 )
+        tkHost_RenderTo( th, false )
+        dim as TKRECT rb
+        tkWidget_AbsRect( pb, rb )
+        dim as long m = tkHost_Scale( th, 6 ), x0 = rb.right, x1 = rb.left - 1
+        dim as ulong face = tkTest_PixelAt( th, rb.left + m, rb.top + m ) and &hFFFFFFul
+        for y as long = rb.top + m to rb.bottom - m - 1
+            for x as long = rb.left + m to rb.right - m - 1
+                if (tkTest_PixelAt( th, x, y ) and &hFFFFFFul) <> face then
+                    if x < x0 then x0 = x
+                    if x > x1 then x1 = x
+                end if
+            next
+        next
+        dim as long mid_ = (rb.left + rb.right) \ 2, got = (x0 + x1) \ 2
+        t.Check( (x1 >= x0) andalso (abs( got - mid_ ) <= tkHost_Scale( th, 2 )), _
+                 P( sc, "the font slot's ""..."" is centred: its middle " & got & ", the button's " & mid_ ) )
+    end scope
     ' Build the fonts into the program: on for this project, so the build below embeds them
     t.Check( dlg->ChkEmbed->isVisible, P( sc, "a project's theme offers to build its fonts in" ) )
     PressIn( th, dlg->ChkEmbed )
