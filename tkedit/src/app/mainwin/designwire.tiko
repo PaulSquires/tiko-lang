@@ -1441,6 +1441,12 @@ sub Window.ToggleFormView( )
     end if
 end sub
 
+' A form's code file if it's open in a tab, else 0. Nothing is opened or created.
+function Window.OpenCodeDocOf( byval formDoc as DocRef ) as DocRef
+    if (formDoc = 0) orelse (len( formDoc->Path ) = 0) then return 0
+    return this.FindOpen( CodePathOf_( formDoc->Path ) )
+end function
+
 ' d is a form whose code file is there, or a form's code file (frmX.tiko, frmX.design.tiko) whose form is:
 ' Next Pane (Primary+Tilde) then goes between the two. Nothing is created to find out.
 function Window.HasFormPartner( byval d as DocRef ) as boolean

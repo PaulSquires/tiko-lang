@@ -114,6 +114,7 @@ failed_exit = "Build fehlgeschlagen (Exit-Code {})"
 no_diagnostics = "keine Diagnosen"
 nothing_to_run = "nichts auszuführen: zuerst bauen ({})"
 no_terminal = "kein Terminal zum Ausführen gefunden: $TERMINAL setzen"
+gui_no_console = "{} ist ein GUI-Programm (subsystem = 'gui'): seine print-Ausgabe erscheint nicht in diesem Fenster. Setzen Sie subsystem = 'console' in tiko.toml, um sie zu sehen."
 not_run = "{} konnte nicht gestartet werden"
 
 [log]

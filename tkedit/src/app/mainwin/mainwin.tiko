@@ -683,6 +683,7 @@ public type Window
     declare function PrepareForms( ) as boolean
     declare sub ToggleFormView( )
     declare function HasFormPartner( byval d as DocRef ) as boolean
+    declare function OpenCodeDocOf( byval formDoc as DocRef ) as DocRef
     declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     Palettes as panels.DesignPanels
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
@@ -4881,7 +4882,13 @@ sub Window.RunProgram( byref exe as const ustring )
             argv.Push( a )
         next
     else
-        argv = platform.TerminalArgv( exe, args, dir_, fs.PathJoin( ConfigDir, "run" ) )
+        ' a Windows GUI program never writes to the console it's started from: say so there
+        dim as ustring note
+        if platform.IsWindowsGuiExe( exe ) then
+            dim as ustring t = i18n.Tr( "build.gui_no_console", "{} is a GUI program (subsystem = 'gui'): its print output does not show in this window. Set subsystem = 'console' in tiko.toml to see it." )
+            note = strings.Format( t, fs.PathFileName( exe ) )
+        end if
+        argv = platform.TerminalArgv( exe, args, dir_, fs.PathJoin( ConfigDir, "run" ), note )
         if argv.Count( ) = 0 then
             this.SetBuildMessage( i18n.Tr( "build.no_terminal", "no terminal program was found to run it in: set $TERMINAL" ) )
             exit sub
@@ -5334,7 +5341,12 @@ end function
 ' A buffer's scan: its unsaved text when modified, else the file. Untitled buffers are not scanned.
 sub Window.QueueScan( byval d as DocRef )
     if (d = 0) orelse (Scanner.running = false) orelse (len( d->Path ) = 0) then exit sub
-    if documents.IsFormFile( d->Path ) then exit sub     ' TOML, not tiko
+    if documents.IsFormFile( d->Path ) then
+        ' TOML, not tiko: the form's code file instead, if it's open, so its completions know the
+        ' controls just added (it sees the form through its overlay)
+        d = this.OpenCodeDocOf( d )
+        if d = 0 then exit sub
+    end if
     dim as parser.ScanOptions o
     for each inc as ustring in Prefs.Includes
         o.Includes.Push( inc )
@@ -5532,7 +5544,7 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
         if (ch = 62) andalso (right( before, 2 ) <> "->") then exit sub    ' a comparison's ">"
         dim as ustring word, qual
         SplitQualified( left( before, len( before ) - iif( ch = 62, 2, 1 ) ), word, qual )
-        if len( word ) then this.OpenCompletions( v, Db.MemberItems( word, d->Path, ln ), 0 )
+        if len( word ) then this.OpenCompletions( v, Db.MemberItems( word, d->Path, ln, qual ), 0 )
         exit sub
     end if
     if ch = 32 then
@@ -5586,7 +5598,11 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
     if len( word ) < minLen then exit sub
     dim as Array( of symboldb.Completion ) items
     if len( qual ) then
-        items = Db.MemberItems( qual, d->Path, v->CaretLine( ) )
+        ' the qualifier's own qualifier, for a chain: this.Timer1.En_
+        dim as long sepLen = iif( mid( before, len( before ) - len( word ), 1 ) = ".", 1, 2 )
+        dim as ustring q2, outer
+        SplitQualified( left( before, len( before ) - len( word ) - sepLen ), q2, outer )
+        items = Db.MemberItems( qual, d->Path, v->CaretLine( ), outer )
     elseif AfterTypeIntro( left( before, len( before ) - len( word ) ) ) then
         items = this.TypeCompletions( word )
     else

@@ -114,6 +114,7 @@ failed_exit = "Compilación fallida (código de salida {})"
 no_diagnostics = "no hay diagnósticos"
 nothing_to_run = "nada que ejecutar: compílelo primero ({})"
 no_terminal = "no se encontró ningún terminal donde ejecutarlo: fije $TERMINAL"
+gui_no_console = "{} es un programa GUI (subsystem = 'gui'): su salida de print no aparece en esta ventana. Fije subsystem = 'console' en tiko.toml para verla."
 not_run = "no se pudo iniciar {}"
 
 [log]
