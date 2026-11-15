@@ -1218,30 +1218,60 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
     tkWidget_Invalidate( Glass )
 end sub
 
-' A tool double-clicked in the Toolbox: one of its default size on the form, clear of any already
-' at the same spot. Each next one steps down and right, back to the corner once it would leave the form.
+' A tool double-clicked in the Toolbox: one of its default size on the form -- or, when the one
+' control selected is a container (a panel, group box, scroll panel, or a tab control's page
+' showing), in it -- clear of any already at the same spot there. Each next one steps down and
+' right, back to the corner once it would leave its parent.
 function FormCanvas.PlaceDefault( byref typeName as const ustring ) as boolean
     dim as TKMETA_CONTROL ptr m = catalog.Find( typeName )
     if m = 0 then return false
+    dim as ustring parent_
+    dim as long page_ = -1
+    dim as long areaW = Doc.ClientW, areaH = Doc.ClientH
+    if Selected.Count( ) = 1 then
+        dim as long t = FindControl( Doc, Selected[0] )
+        if (t >= 0) andalso (t < Widgets.Count( )) then
+            dim as TKMETA_CONTROL ptr tm = catalog.Find( Doc.Controls[t].TypeName )
+            dim as boolean isPages = (tm <> 0) andalso (tm->ContainerKind = TKMETA_CONTAINER_PAGES)
+            if (tm <> 0) andalso (tm->ContainerKind <> TKMETA_NOT_CONTAINER) andalso ((isPages = false) orelse (Doc.Controls[t].Pages.Count( ) > 0)) then
+                dim as long pg = -1
+                if isPages then
+                    pg = tkTabControl_GetCurSel( Widgets[t] )
+                    if pg < 0 then pg = 0
+                end if
+                dim as TK_WIDGET ptr cw_
+                this.ContainerClient( t, pg, cw_ )
+                if cw_ then
+                    parent_ = Doc.Controls[t].Name
+                    page_ = pg
+                    dim as TKRECT rc = this.RectOf( cw_ )
+                    areaW = this.ToDesign( rc.right - rc.left )
+                    areaH = this.ToDesign( rc.bottom - rc.top )
+                end if
+            end if
+        end if
+    end if
     dim as long stp = edits.Snap( PLACE_STEP, iif( SnapToGrid, GridSize, 1 ) )
     dim as long px = stp, py = stp
     dim as boolean taken = true
     while taken
         taken = false
         for k as long = 0 to Doc.Controls.Count( ) - 1
-            if (len( Doc.Controls[k].Parent ) = 0) andalso (Doc.Controls[k].X = px) andalso (Doc.Controls[k].Y = py) then taken = true
+            if lcase( Doc.Controls[k].Parent ) <> lcase( parent_ ) then continue for
+            if Doc.Controls[k].Page <> page_ then continue for
+            if (Doc.Controls[k].X = px) andalso (Doc.Controls[k].Y = py) then taken = true
         next
         if taken then
             px += stp
             py += stp
-            if (px + m->Width_ > Doc.ClientW) orelse (py + m->Height_ > Doc.ClientH) then
+            if (px + m->Width_ > areaW) orelse (py + m->Height_ > areaH) then
                 px = stp
                 py = stp
                 exit while
             end if
         end if
     wend
-    dim as long i = edits.AddControl( Doc, typeName, "", -1, px, py, m->Width_, m->Height_ )
+    dim as long i = edits.AddControl( Doc, typeName, parent_, page_, px, py, m->Width_, m->Height_ )
     if i < 0 then return false
     Tool = ""
     this.SelectOnly( Doc.Controls[i].Name )

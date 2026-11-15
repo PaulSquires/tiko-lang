@@ -35,6 +35,7 @@ handlers, so you can try the layout without building. Esc closes it.
 | To do this | Do this |
 |---|---|
 | Place a control | Click it in the Toolbox, then click or drag on the form |
+| Place one at its default size | Double-click it in the Toolbox. With a panel, group box or scroll panel selected, it goes in it; with a tab control, on the page showing |
 | Select | Click. Ctrl or Shift adds or removes. Drag on empty form for a band |
 | Move | Drag. It snaps to the grid; hold Alt to place it freely |
 | Resize | Drag a grip |
