@@ -1772,7 +1772,9 @@ end sub
 ' The Theme Center's core (TH5): shipped themes, Resolve, contrast, main.tiko made to install a theme.
 sub ThemeCenterCore( )
     ' every shipped theme is canonical, clean, and resolves; High Contrast passes AA in both variants
-    for each nm as ustring in Names( "Default", "HighContrast", "Ocean" )
+    dim as ustring cleanThemes( 0 to 3 ) = { "Default", "HighContrast", "Ocean", "Classic" }
+    for k as long = 0 to 3
+        dim as ustring nm = cleanThemes( k )
         dim as ustring none
         dim as ustring text = fs.ReadAllText( "../../themes/" & nm & ".tktheme" ).ValueOr( none )
         dim as themefile.ThemeDoc d
@@ -1868,11 +1870,11 @@ end sub
 ' generator makes from it. --accept rewrites them; otherwise they must be current.
 sub ThemeLoadFixtures( byval bAccept as boolean )
     const as string fx = "../../../examples/tkControls/tkThemeFile/fixtures/"
-    dim as ustring fixNames( 0 to 8 ) = { "Default", "HighContrast", "Ocean", "Forest", "Ember", "Violet", "Golden", "Sample", "Mixed" }
-    dim as ustring srcs( 0 to 8 ) = { "../../themes/Default.tktheme", "../../themes/HighContrast.tktheme", "../../themes/Ocean.tktheme", _
-        "../../themes/Forest.tktheme", "../../themes/Ember.tktheme", "../../themes/Violet.tktheme", "tests/golden/appTheme/appTheme.tktheme", _
-        "../../../examples/tkControls/tkDesigned/appTheme/appTheme.tktheme", "" }
-    for i as long = 0 to 8
+    dim as ustring fixNames( 0 to 9 ) = { "Default", "HighContrast", "Ocean", "Forest", "Ember", "Violet", "Classic", "Golden", "Sample", "Mixed" }
+    dim as ustring srcs( 0 to 9 ) = { "../../themes/Default.tktheme", "../../themes/HighContrast.tktheme", "../../themes/Ocean.tktheme", _
+        "../../themes/Forest.tktheme", "../../themes/Ember.tktheme", "../../themes/Violet.tktheme", "../../themes/Classic.tktheme", _
+        "tests/golden/appTheme/appTheme.tktheme", "../../../examples/tkControls/tkDesigned/appTheme/appTheme.tktheme", "" }
+    for i as long = 0 to 9
         dim as ustring none, e
         dim as ustring md = "th" & fixNames( i ), dir_ = fx & md & "/"
         dim as ustring themePath = dir_ & md & ".tktheme"
