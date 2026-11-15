@@ -62,7 +62,7 @@ end enum
 ' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
 ' (2 for a double click); a menu or toolbar entry's takes none.
 public function ItemHandlerParams( byval kind_ as ItemsKind ) as ustring
-    if kind_ = ItemsKind.ItemsStatus then return "byval clicks as long"
+    if kind_ = ItemsKind.ItemsStatus then return "byval clicks as int32"
     return ""
 end function
 
@@ -103,7 +103,7 @@ public function IsFormEvent( byref ev as const ustring ) as boolean
 end function
 
 ' A MouseMove handler's parameters, the form's and a control's alike.
-public const as string MOUSEMOVE_PARAMS = "byval x as long, byval y as long, byval buttons as long, byval mods as long"
+public const as string MOUSEMOVE_PARAMS = "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32"
 
 ' A form event handler's parameters. Resize: the client in pixels, after the layout. KeyDown: a key
 ' no control claimed. Paint: the form's background, under its controls. MouseMove: pixels from the
@@ -111,8 +111,8 @@ public const as string MOUSEMOVE_PARAMS = "byval x as long, byval y as long, byv
 public function FormEventParams( byref ev as const ustring ) as ustring
     select case ev
     case "Close"   : return "byref Cancel as boolean"
-    case "Resize"  : return "byval cx as long, byval cy as long"
-    case "KeyDown" : return "byval keyCode as long, byval mods as long, byref Handled as boolean"
+    case "Resize"  : return "byval cx as int32, byval cy as int32"
+    case "KeyDown" : return "byval keyCode as int32, byval mods as int32, byref Handled as boolean"
     case "Paint"   : return "byval pPaint as TK_PAINT ptr"
     case "MouseMove" : return MOUSEMOVE_PARAMS
     end select

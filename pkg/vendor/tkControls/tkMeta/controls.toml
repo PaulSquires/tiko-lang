@@ -29,7 +29,7 @@
 # on any widget. MouseMove: the nearest widget with a watcher is told, so a container's (or the
 # form's) handler also sees moves over children that have none.
 common_events = [
-  { name="MouseMove", set="tkWidget_SetMouseMoveCallback", type="TK_MouseMoveSub", sig="byval hWidget as TK_WIDGET ptr, byval x as long, byval y as long, byval buttons as long, byval mods as long", params="byval x as long, byval y as long, byval buttons as long, byval mods as long", args="x, y, buttons, mods" },
+  { name="MouseMove", set="tkWidget_SetMouseMoveCallback", type="TK_MouseMoveSub", sig="byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", params="byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", args="x, y, buttons, mods" },
 ]
 
 [[control]]
@@ -58,7 +58,7 @@ props = [
   { name="Font", kind="font", set="tkLabel_SetFont", get="tkLabel_GetFont" },
 ]
 events = [
-  { name="Click", set="tkLabel_SetClickCallback", type="LBL_ClickCallbackSub", sig="byval hLabel as TK_WIDGET ptr, byval id as long", params="", args="" },
+  { name="Click", set="tkLabel_SetClickCallback", type="LBL_ClickCallbackSub", sig="byval hLabel as TK_WIDGET ptr, byval id as int32", params="", args="" },
 ]
 
 [[control]]
@@ -112,7 +112,7 @@ props = [
   { name="BorderWidth", kind="int", set="tkButton_SetBorderWidth", get="tkButton_GetBorderWidth", theme="BorderWidth", scale=1 },
 ]
 events = [
-  { name="Click", set="tkButton_SetClickCallback", type="BTN_ClickCallbackSub", sig="byval hButton as TK_WIDGET ptr, byval id as long", params="", args="" },
+  { name="Click", set="tkButton_SetClickCallback", type="BTN_ClickCallbackSub", sig="byval hButton as TK_WIDGET ptr, byval id as int32", params="", args="" },
   { name="Paint", set="tkButton_SetPaintCallback", type="BTN_PaintCallbackSub", sig="byval p as TKBUTTON_PAINTINFO ptr", params="byval p as TKBUTTON_PAINTINFO ptr", args="p", widget="p->hButton" },
   { name="Tooltip", set="tkButton_SetTooltipCallback", type="BTN_TooltipCallbackFunc", sig="byval hButton as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
   { name="Message", set="tkButton_SetMessageCallback", type="BTN_MessageCallbackFunc", sig="byval m as TKBUTTON_MESSAGEINFO ptr", params="byval m as TKBUTTON_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hButton", returns="boolean", result="Handled" },
@@ -386,7 +386,7 @@ props = [
   { name="ReshowTime", kind="int", set="tkNumericUpDown_SetReshowTime", get="" },
 ]
 events = [
-  { name="ValueChanged", set="tkNumericUpDown_SetValueChangedCallback", type="NUD_ValueChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nValue as double", params="byval nValue as double", args="nValue" },
+  { name="ValueChanged", set="tkNumericUpDown_SetValueChangedCallback", type="NUD_ValueChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nValue as float64", params="byval nValue as float64", args="nValue" },
   { name="Paint", set="tkNumericUpDown_SetPaintCallback", type="NUD_PaintCallbackSub", sig="byval p as TKNUMERICUPDOWN_PAINTINFO ptr", params="byval p as TKNUMERICUPDOWN_PAINTINFO ptr", args="p", widget="p->hCtrl" },
   { name="Message", set="tkNumericUpDown_SetMessageCallback", type="NUD_MessageCallbackFunc", sig="byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr", params="byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
 ]
@@ -449,7 +449,7 @@ events = [
   { name="EditEnter", set="tkComboBox_SetEditEnterCallback", type="CBO_EditCallbackSub", sig="byval hCombo as TK_WIDGET ptr", params="", args="" },
   { name="Paint", set="tkComboBox_SetPaintCallback", type="CBO_PaintCallbackSub", sig="byval p as TKCOMBOBOX_PAINTINFO ptr", params="byval p as TKCOMBOBOX_PAINTINFO ptr", args="p", widget="p->hCombo" },
   { name="Message", set="tkComboBox_SetMessageCallback", type="CBO_MessageCallbackFunc", sig="byval m as TKCOMBOBOX_MESSAGEINFO ptr", params="byval m as TKCOMBOBOX_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCombo", returns="boolean", result="Handled" },
-  { name="SelChange", set="tkComboBox_SetSelChangeCallback", type="CBO_SelChangeCallbackSub", sig="byval hCombo as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
+  { name="SelChange", set="tkComboBox_SetSelChangeCallback", type="CBO_SelChangeCallbackSub", sig="byval hCombo as TK_WIDGET ptr, byval idxOld as int32, byval idxNew as int32", params="byval idxOld as int32, byval idxNew as int32", args="idxOld, idxNew" },
 ]
 
 [[control]]
@@ -578,7 +578,7 @@ props = [
 events = [
   { name="DateActivated", set="tkCalendar_SetDateActivatedCallback", type="CAL_DateActivatedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr", params="byval pDate as TKDATE ptr", args="pDate" },
   { name="SelChange", set="tkCalendar_SetSelChangeCallback", type="CAL_SelChangeCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean", params="byval pDate as TKDATE ptr, byval bHasDate as boolean", args="pDate, bHasDate" },
-  { name="ViewChange", set="tkCalendar_SetViewChangeCallback", type="CAL_ViewChangeCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval eView as long, byval pAnchor as TKDATE ptr", params="byval eView as long, byval pAnchor as TKDATE ptr", args="eView, pAnchor" },
+  { name="ViewChange", set="tkCalendar_SetViewChangeCallback", type="CAL_ViewChangeCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval eView as int32, byval pAnchor as TKDATE ptr", params="byval eView as int32, byval pAnchor as TKDATE ptr", args="eView, pAnchor" },
   { name="Paint", set="tkCalendar_SetPaintCallback", type="CAL_PaintCallbackSub", sig="byval p as TKCALENDAR_PAINTINFO ptr", params="byval p as TKCALENDAR_PAINTINFO ptr", args="p", widget="p->hCtrl" },
   { name="DayPaint", set="tkCalendar_SetDayPaintCallback", type="CAL_DayPaintCallbackSub", sig="byval d as TKCALENDAR_DAYPAINTINFO ptr", params="byval d as TKCALENDAR_DAYPAINTINFO ptr", args="d", widget="d->hCtrl" },
   { name="MonthYearPaint", set="tkCalendar_SetMonthYearPaintCallback", type="CAL_MonthYearPaintCallbackSub", sig="byval c as TKCALENDAR_MYPAINTINFO ptr", params="byval c as TKCALENDAR_MYPAINTINFO ptr", args="c", widget="c->hCtrl" },
@@ -642,7 +642,7 @@ events = [
   { name="Paint", set="tkProgressBar_SetPaintCallback", type="PRG_PaintCallbackSub", sig="byval p as TKPROGRESSBAR_PAINTINFO ptr", params="byval p as TKPROGRESSBAR_PAINTINFO ptr", args="p", widget="p->hProgressBar" },
   { name="Message", set="tkProgressBar_SetMessageCallback", type="PRG_MessageCallbackFunc", sig="byval m as TKPROGRESSBAR_MESSAGEINFO ptr", params="byval m as TKPROGRESSBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hProgressBar", returns="boolean", result="Handled" },
   { name="Tooltip", set="tkProgressBar_SetTooltipCallback", type="PRG_TooltipCallbackFunc", sig="byval hProgressBar as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
-  { name="Text", set="tkProgressBar_SetTextCallback", type="PRG_TextCallbackFunc", sig="byval hProgressBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long", params="byval nPos as long, byval nMin as long, byval nMax as long, byref Text as ustring", args="nPos, nMin, nMax, Text", returns="ustring", result="Text" },
+  { name="Text", set="tkProgressBar_SetTextCallback", type="PRG_TextCallbackFunc", sig="byval hProgressBar as TK_WIDGET ptr, byval nPos as int32, byval nMin as int32, byval nMax as int32", params="byval nPos as int32, byval nMin as int32, byval nMax as int32, byref Text as ustring", args="nPos, nMin, nMax, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]
@@ -717,9 +717,9 @@ props = [
   { name="ActiveTab", kind="enum", enum="Web=CLR_TAB_WEB,System=CLR_TAB_SYSTEM,Custom=CLR_TAB_CUSTOM", set="tkColorPicker_SetTab", get="tkColorPicker_GetTab", default="Custom" },
 ]
 events = [
-  { name="ColorChanged", set="tkColorPicker_SetColorChangedCallback", type="CLR_ColorChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", params="byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long", args="clr, nAlpha, nPhase" },
+  { name="ColorChanged", set="tkColorPicker_SetColorChangedCallback", type="CLR_ColorChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval clr as uint32, byval nAlpha as uint8, byval nPhase as int32", params="byval clr as uint32, byval nAlpha as uint8, byval nPhase as int32", args="clr, nAlpha, nPhase" },
   { name="Open", set="tkColorPicker_SetOpenCallback", type="CLR_OpenCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pSurface as TK_HOST ptr", params="byval pSurface as TK_HOST ptr", args="pSurface" },
-  { name="TabChanged", set="tkColorPicker_SetTabChangedCallback", type="CLR_TabChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nTab as long", params="byval nTab as long", args="nTab" },
+  { name="TabChanged", set="tkColorPicker_SetTabChangedCallback", type="CLR_TabChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nTab as int32", params="byval nTab as int32", args="nTab" },
   { name="Paint", set="tkColorPicker_SetPaintCallback", type="CLR_PaintCallbackSub", sig="byval p as any ptr", params="byval p as TKCOLORPICKER_PAINTINFO ptr", args="cast( TKCOLORPICKER_PAINTINFO ptr, p )", widget="cast( TKCOLORPICKER_PAINTINFO ptr, p )->hColorPicker" },
   { name="Message", set="tkColorPicker_SetMessageCallback", type="CLR_MessageCallbackFunc", sig="byval m as TKCOLORPICKER_MESSAGEINFO ptr", params="byval m as TKCOLORPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hColorPicker", returns="boolean", result="Handled" },
 ]
@@ -738,7 +738,7 @@ props = [
   { name="Transparent", kind="bool", set="tkPicture_SetTransparent", get="tkPicture_GetTransparent", default="true" },
 ]
 events = [
-  { name="Click", set="tkPicture_SetClickCallback", type="PIC_ClickCallbackSub", sig="byval hPicture as TK_WIDGET ptr, byval id as long", params="", args="" },
+  { name="Click", set="tkPicture_SetClickCallback", type="PIC_ClickCallbackSub", sig="byval hPicture as TK_WIDGET ptr, byval id as int32", params="", args="" },
 ]
 
 [[control]]
@@ -799,8 +799,8 @@ props = [
   { name="SelectedIndex", kind="int", set="tkTabControl_SetCurSel", get="tkTabControl_GetCurSel", default="0" },
 ]
 events = [
-  { name="SelChange", set="tkTabControl_SetSelChangeCallback", type="TC_SelChangeCallbackSub", sig="byval hTabControl as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
-  { name="Close", set="tkTabControl_SetCloseCallback", type="TC_CloseCallbackSub", sig="byval hTabControl as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="SelChange", set="tkTabControl_SetSelChangeCallback", type="TC_SelChangeCallbackSub", sig="byval hTabControl as TK_WIDGET ptr, byval idxOld as int32, byval idxNew as int32", params="byval idxOld as int32, byval idxNew as int32", args="idxOld, idxNew" },
+  { name="Close", set="tkTabControl_SetCloseCallback", type="TC_CloseCallbackSub", sig="byval hTabControl as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
 ]
 
 [[control]]
@@ -820,10 +820,10 @@ props = [
   { name="ScrollBarColors", kind="list", enum="Back:color,Fore:color,ForeHot:color", set="tkScrollPanel_SetScrollBarColors", get="" },
 ]
 events = [
-  { name="Scroll", set="tkScrollPanel_SetScrollCallback", type="SCP_ScrollCallbackSub", sig="byval hScrollPanel as TK_WIDGET ptr, byval newPos as long", params="byval newPos as long", args="newPos" },
+  { name="Scroll", set="tkScrollPanel_SetScrollCallback", type="SCP_ScrollCallbackSub", sig="byval hScrollPanel as TK_WIDGET ptr, byval newPos as int32", params="byval newPos as int32", args="newPos" },
   { name="Paint", set="tkScrollPanel_SetPaintCallback", type="SCP_PaintCallbackSub", sig="byval p as SCP_PAINTINFO ptr", params="byval p as SCP_PAINTINFO ptr", args="p", widget="p->hScrollPanel" },
   { name="Message", set="tkScrollPanel_SetMessageCallback", type="SCP_MessageCallbackFunc", sig="byval m as SCP_MESSAGEINFO ptr", params="byval m as SCP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hScrollPanel", returns="boolean", result="Handled" },
-  { name="Layout", set="tkScrollPanel_SetLayoutCallback", type="SCP_LayoutCallbackFunc", sig="byval hPanel as TK_WIDGET ptr, byval cxPanel as long", params="byval cxPanel as long, byref ContentHeight as long", args="cxPanel, ContentHeight", returns="long", result="ContentHeight" },
+  { name="Layout", set="tkScrollPanel_SetLayoutCallback", type="SCP_LayoutCallbackFunc", sig="byval hPanel as TK_WIDGET ptr, byval cxPanel as int32", params="byval cxPanel as int32, byref ContentHeight as int32", args="cxPanel, ContentHeight", returns="int32", result="ContentHeight" },
 ]
 
 [[control]]
@@ -848,7 +848,7 @@ props = [
   { name="Colors", kind="list", enum="Back:color,Hot:color", set="tkSplitter_SetColors", get="" },
 ]
 events = [
-  { name="PosChanged", set="tkSplitter_SetPosChangedCallback", type="SPL_PosChangedCallbackSub", sig="byval hSplitter as TK_WIDGET ptr, byval newPos as long, byval nPhase as long", params="byval newPos as long, byval nPhase as long", args="newPos, nPhase" },
+  { name="PosChanged", set="tkSplitter_SetPosChangedCallback", type="SPL_PosChangedCallbackSub", sig="byval hSplitter as TK_WIDGET ptr, byval newPos as int32, byval nPhase as int32", params="byval newPos as int32, byval nPhase as int32", args="newPos, nPhase" },
   { name="Paint", set="tkSplitter_SetPaintCallback", type="SPL_PaintCallbackSub", sig="byval p as TKSPLITTER_PAINTINFO ptr", params="byval p as TKSPLITTER_PAINTINFO ptr", args="p", widget="p->hSplitter" },
   { name="Message", set="tkSplitter_SetMessageCallback", type="SPL_MessageCallbackFunc", sig="byval m as TKSPLITTER_MESSAGEINFO ptr", params="byval m as TKSPLITTER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSplitter", returns="boolean", result="Handled" },
 ]
@@ -944,10 +944,10 @@ props = [
   { name="SelectedIndex", kind="int", set="tkSelectBar_SetCurSel", get="tkSelectBar_GetCurSel", default="0" },
 ]
 events = [
-  { name="SelChange", set="tkSelectBar_SetSelChangeCallback", type="SEL_SelChangeCallbackSub", sig="byval hSelectBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
+  { name="SelChange", set="tkSelectBar_SetSelChangeCallback", type="SEL_SelChangeCallbackSub", sig="byval hSelectBar as TK_WIDGET ptr, byval idxOld as int32, byval idxNew as int32", params="byval idxOld as int32, byval idxNew as int32", args="idxOld, idxNew" },
   { name="Paint", set="tkSelectBar_SetPaintPanelCallback", type="SEL_PaintPanelCallbackSub", sig="byval p as TKSELECTBAR_PAINTINFO ptr", params="byval p as TKSELECTBAR_PAINTINFO ptr", args="p", widget="p->hSelectBar" },
   { name="Message", set="tkSelectBar_SetMessageCallback", type="SEL_MessageCallbackFunc", sig="byval m as TKSELECTBAR_MESSAGEINFO ptr", params="byval m as TKSELECTBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSelectBar", returns="boolean", result="Handled" },
-  { name="Tooltip", set="tkSelectBar_SetTooltipCallback", type="SEL_TooltipCallbackFunc", sig="byval hSelectBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+  { name="Tooltip", set="tkSelectBar_SetTooltipCallback", type="SEL_TooltipCallbackFunc", sig="byval hSelectBar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]
@@ -990,10 +990,10 @@ props = [
 events = [
   { name="Paint", set="tkTabBar_SetPaintCallback", type="TB_PaintCallbackSub", sig="byval p as TKTABBAR_PAINTINFO ptr", params="byval p as TKTABBAR_PAINTINFO ptr", args="p", widget="p->hTabBar" },
   { name="Message", set="tkTabBar_SetMessageCallback", type="TB_MessageCallbackFunc", sig="byval m as TKTABBAR_MESSAGEINFO ptr", params="byval m as TKTABBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hTabBar", returns="boolean", result="Handled" },
-  { name="Tooltip", set="tkTabBar_SetTooltipCallback", type="TB_TooltipCallbackFunc", sig="byval hTabBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
-  { name="Close", set="tkTabBar_SetCloseCallback", type="TB_CloseCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
-  { name="Reorder", set="tkTabBar_SetReorderCallback", type="TB_ReorderCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long", params="byval idxFrom as long, byval idxTo as long", args="idxFrom, idxTo" },
-  { name="SelChange", set="tkTabBar_SetSelChangeCallback", type="TB_SelChangeCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long", params="byval idxOld as long, byval idxNew as long", args="idxOld, idxNew" },
+  { name="Tooltip", set="tkTabBar_SetTooltipCallback", type="TB_TooltipCallbackFunc", sig="byval hTabBar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+  { name="Close", set="tkTabBar_SetCloseCallback", type="TB_CloseCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
+  { name="Reorder", set="tkTabBar_SetReorderCallback", type="TB_ReorderCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idxFrom as int32, byval idxTo as int32", params="byval idxFrom as int32, byval idxTo as int32", args="idxFrom, idxTo" },
+  { name="SelChange", set="tkTabBar_SetSelChangeCallback", type="TB_SelChangeCallbackSub", sig="byval hTabBar as TK_WIDGET ptr, byval idxOld as int32, byval idxNew as int32", params="byval idxOld as int32, byval idxNew as int32", args="idxOld, idxNew" },
 ]
 
 [[control]]
@@ -1048,8 +1048,8 @@ props = [
   { name="Font", kind="font", set="tkMenuBar_SetFont", get="" },
 ]
 events = [
-  { name="Command", set="tkMenuBar_SetCommandCallback", type="MB_CommandCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval id as long", params="byval id as long", args="id" },
-  { name="InitPopup", set="tkMenuBar_SetInitPopupCallback", type="MB_InitPopupCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr", params="byval idx as long, byval hPopup as TK_MENU ptr", args="idx, hPopup" },
+  { name="Command", set="tkMenuBar_SetCommandCallback", type="MB_CommandCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval id as int32", params="byval id as int32", args="id" },
+  { name="InitPopup", set="tkMenuBar_SetInitPopupCallback", type="MB_InitPopupCallbackSub", sig="byval hMenuBar as TK_WIDGET ptr, byval idx as int32, byval hPopup as TK_MENU ptr", params="byval idx as int32, byval hPopup as TK_MENU ptr", args="idx, hPopup" },
   { name="Paint", set="tkMenuBar_SetPaintItemCallback", type="MB_PaintItemCallbackSub", sig="byval p as TKMENUBAR_PAINTINFO ptr", params="byval p as TKMENUBAR_PAINTINFO ptr", args="p", widget="p->hMenuBar" },
 ]
 
@@ -1089,12 +1089,12 @@ props = [
   { name="Glyphs", kind="list", enum="Chevron:text,Overflow:text", set="tkToolbar_SetGlyphs", get="" },
 ]
 events = [
-  { name="Click", set="tkToolbar_SetClickCallback", type="TBR_ClickCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long, byval id as long", params="byval idx as long", args="idx" },
-  { name="DropDown", set="tkToolbar_SetDropDownCallback", type="TBR_DropDownCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean", params="byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean", args="idx, hMenu, isOpen" },
+  { name="Click", set="tkToolbar_SetClickCallback", type="TBR_ClickCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as int32, byval id as int32", params="byval idx as int32", args="idx" },
+  { name="DropDown", set="tkToolbar_SetDropDownCallback", type="TBR_DropDownCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as int32, byval hMenu as TK_MENU ptr, byval isOpen as boolean", params="byval idx as int32, byval hMenu as TK_MENU ptr, byval isOpen as boolean", args="idx, hMenu, isOpen" },
   { name="Paint", set="tkToolbar_SetPaintItemCallback", type="TBR_PaintItemCallbackSub", sig="byval p as TKTOOLBAR_PAINTINFO ptr", params="byval p as TKTOOLBAR_PAINTINFO ptr", args="p", widget="p->hToolbar" },
   { name="Message", set="tkToolbar_SetMessageCallback", type="TBR_MessageCallbackFunc", sig="byval m as TKTOOLBAR_MESSAGEINFO ptr", params="byval m as TKTOOLBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hToolbar", returns="boolean", result="Handled" },
-  { name="Tooltip", set="tkToolbar_SetTooltipCallback", type="TBR_TooltipCallbackFunc", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
-  { name="SelChange", set="tkToolbar_SetSelChangeCallback", type="TBR_SelChangeCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", params="byval idx as long, byval isSelected as boolean", args="idx, isSelected" },
+  { name="Tooltip", set="tkToolbar_SetTooltipCallback", type="TBR_TooltipCallbackFunc", sig="byval hToolbar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+  { name="SelChange", set="tkToolbar_SetSelChangeCallback", type="TBR_SelChangeCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as int32, byval isSelected as boolean", params="byval idx as int32, byval isSelected as boolean", args="idx, isSelected" },
 ]
 
 [[control]]
@@ -1129,11 +1129,11 @@ props = [
   { name="Padding", kind="list", enum="PadBefore:int,PadAfter:int", set="tkIconPanel_SetPadding", get="" },
 ]
 events = [
-  { name="Click", set="tkIconPanel_SetClickCallback", type="IP_ClickCallbackSub", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval id as long", params="byval idx as long", args="idx" },
+  { name="Click", set="tkIconPanel_SetClickCallback", type="IP_ClickCallbackSub", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as int32, byval id as int32", params="byval idx as int32", args="idx" },
   { name="Paint", set="tkIconPanel_SetPaintItemCallback", type="IP_PaintItemCallbackSub", sig="byval p as TKICONPANEL_PAINTINFO ptr", params="byval p as TKICONPANEL_PAINTINFO ptr", args="p", widget="p->hIconPanel" },
   { name="Message", set="tkIconPanel_SetMessageCallback", type="IP_MessageCallbackFunc", sig="byval m as TKICONPANEL_MESSAGEINFO ptr", params="byval m as TKICONPANEL_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hIconPanel", returns="boolean", result="Handled" },
-  { name="Tooltip", set="tkIconPanel_SetTooltipCallback", type="IP_TooltipCallbackFunc", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
-  { name="SelChange", set="tkIconPanel_SetSelChangeCallback", type="IP_SelChangeCallbackSub", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", params="byval idx as long, byval isSelected as boolean", args="idx, isSelected" },
+  { name="Tooltip", set="tkIconPanel_SetTooltipCallback", type="IP_TooltipCallbackFunc", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+  { name="SelChange", set="tkIconPanel_SetSelChangeCallback", type="IP_SelChangeCallbackSub", sig="byval hIconPanel as TK_WIDGET ptr, byval idx as int32, byval isSelected as boolean", params="byval idx as int32, byval isSelected as boolean", args="idx, isSelected" },
 ]
 
 [[control]]
@@ -1161,10 +1161,10 @@ props = [
   { name="ReshowTime", kind="int", set="tkStatusBar_SetReshowTime", get="" },
 ]
 events = [
-  { name="Click", set="tkStatusBar_SetClickCallback", type="SB_ClickCallbackSub", sig="byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval clicks as long", params="byval idx as long, byval clicks as long", args="idx, clicks" },
+  { name="Click", set="tkStatusBar_SetClickCallback", type="SB_ClickCallbackSub", sig="byval hStatusBar as TK_WIDGET ptr, byval idx as int32, byval clicks as int32", params="byval idx as int32, byval clicks as int32", args="idx, clicks" },
   { name="Paint", set="tkStatusBar_SetPaintCallback", type="SB_PaintCallbackSub", sig="byval p as TKSTATUSBAR_PAINTINFO ptr", params="byval p as TKSTATUSBAR_PAINTINFO ptr", args="p", widget="p->hStatusBar" },
   { name="Message", set="tkStatusBar_SetMessageCallback", type="SB_MessageCallbackFunc", sig="byval m as TKSTATUSBAR_MESSAGEINFO ptr", params="byval m as TKSTATUSBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hStatusBar", returns="boolean", result="Handled" },
-  { name="Tooltip", set="tkStatusBar_SetTooltipCallback", type="SB_TooltipCallbackFunc", sig="byval hStatusBar as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+  { name="Tooltip", set="tkStatusBar_SetTooltipCallback", type="SB_TooltipCallbackFunc", sig="byval hStatusBar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]
@@ -1261,11 +1261,11 @@ props = [
   { name="ValueFormat", kind="list", enum="Decimals:int,Thousands:bool", set="tkChart_SetValueFormat", get="" },
 ]
 events = [
-  { name="HotChange", set="tkChart_SetHotChangeCallback", type="CHT_HotChangeCallbackSub", sig="byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long", params="byval iSeries as long, byval iPoint as long", args="iSeries, iPoint" },
+  { name="HotChange", set="tkChart_SetHotChangeCallback", type="CHT_HotChangeCallbackSub", sig="byval hChart as TK_WIDGET ptr, byval iSeries as int32, byval iPoint as int32", params="byval iSeries as int32, byval iPoint as int32", args="iSeries, iPoint" },
   { name="Paint", set="tkChart_SetPaintCallback", type="CHT_PaintCallbackSub", sig="byval p as TKCHART_PAINTINFO ptr", params="byval p as TKCHART_PAINTINFO ptr", args="p", widget="p->hChart" },
   { name="Message", set="tkChart_SetMessageCallback", type="CHT_MessageCallbackFunc", sig="byval m as TKCHART_MESSAGEINFO ptr", params="byval m as TKCHART_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hChart", returns="boolean", result="Handled" },
   { name="Tooltip", set="tkChart_SetTooltipCallback", type="CHT_TooltipCallbackFunc", sig="byval hChart as TK_WIDGET ptr", params="byref Text as ustring", args="Text", returns="ustring", result="Text" },
-  { name="ValueLabel", set="tkChart_SetValueLabelCallback", type="CHT_ValueLabelCallbackFunc", sig="byval hChart as TK_WIDGET ptr, byval fValue as double, byval nContext as long", params="byval fValue as double, byval nContext as long, byref Text as ustring", args="fValue, nContext, Text", returns="ustring", result="Text" },
+  { name="ValueLabel", set="tkChart_SetValueLabelCallback", type="CHT_ValueLabelCallbackFunc", sig="byval hChart as TK_WIDGET ptr, byval fValue as float64, byval nContext as int32", params="byval fValue as float64, byval nContext as int32, byref Text as ustring", args="fValue, nContext, Text", returns="ustring", result="Text" },
 ]
 
 [[control]]
@@ -1295,14 +1295,14 @@ props = [
 ]
 events = [
   { name="Change", set="tkCodeEdit_SetChangeCallback", type="TKCODEEDIT_ChangeSub", sig="byval hEdit as TK_WIDGET ptr", params="", args="" },
-  { name="CharAdded", set="tkCodeEdit_SetCharAddedCallback", type="TKCODEEDIT_CharAddedSub", sig="byval hEdit as TK_WIDGET ptr, byval ch as long", params="byval ch as long", args="ch" },
-  { name="UpdateUI", set="tkCodeEdit_SetUpdateUICallback", type="TKCODEEDIT_UpdateUISub", sig="byval hEdit as TK_WIDGET ptr, byval updated as long", params="byval updated as long", args="updated" },
+  { name="CharAdded", set="tkCodeEdit_SetCharAddedCallback", type="TKCODEEDIT_CharAddedSub", sig="byval hEdit as TK_WIDGET ptr, byval ch as int32", params="byval ch as int32", args="ch" },
+  { name="UpdateUI", set="tkCodeEdit_SetUpdateUICallback", type="TKCODEEDIT_UpdateUISub", sig="byval hEdit as TK_WIDGET ptr, byval updated as int32", params="byval updated as int32", args="updated" },
   { name="DirtyChanged", set="tkCodeEdit_SetDirtyCallback", type="TKCODEEDIT_DirtySub", sig="byval hEdit as TK_WIDGET ptr, byval isDirty as boolean", params="byval isDirty as boolean", args="isDirty" },
-  { name="MarginClick", set="tkCodeEdit_SetMarginClickCallback", type="TKCODEEDIT_MarginClickSub", sig="byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint, byval modifiers as long", params="byval margin as long, byval position as longint, byval modifiers as long", args="margin, position, modifiers" },
-  { name="DoubleClick", set="tkCodeEdit_SetDoubleClickCallback", type="TKCODEEDIT_DoubleClickSub", sig="byval hEdit as TK_WIDGET ptr, byval position as longint, byval nLine as longint", params="byval position as longint, byval nLine as longint", args="position, nLine" },
+  { name="MarginClick", set="tkCodeEdit_SetMarginClickCallback", type="TKCODEEDIT_MarginClickSub", sig="byval hEdit as TK_WIDGET ptr, byval margin as int32, byval position as int64, byval modifiers as int32", params="byval margin as int32, byval position as int64, byval modifiers as int32", args="margin, position, modifiers" },
+  { name="DoubleClick", set="tkCodeEdit_SetDoubleClickCallback", type="TKCODEEDIT_DoubleClickSub", sig="byval hEdit as TK_WIDGET ptr, byval position as int64, byval nLine as int64", params="byval position as int64, byval nLine as int64", args="position, nLine" },
   { name="Notify", set="tkCodeEdit_SetNotifyCallback", type="TKCODEEDIT_NotifySub", sig="byval hEdit as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr", params="byval n as const TKCE_NOTIFICATION ptr", args="n" },
-  { name="ContextMenu", set="tkCodeEdit_SetContextMenuCallback", type="TKCODEEDIT_ContextMenuSub", sig="byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long", params="byval x as long, byval y as long", args="x, y" },
-  { name="ScaleChanged", set="tkCodeEdit_SetScaleCallback", type="TKCODEEDIT_ScaleSub", sig="byval hEdit as TK_WIDGET ptr, byval fOld as single, byval fNew as single", params="byval fOld as single, byval fNew as single", args="fOld, fNew" },
+  { name="ContextMenu", set="tkCodeEdit_SetContextMenuCallback", type="TKCODEEDIT_ContextMenuSub", sig="byval hEdit as TK_WIDGET ptr, byval x as int32, byval y as int32", params="byval x as int32, byval y as int32", args="x, y" },
+  { name="ScaleChanged", set="tkCodeEdit_SetScaleCallback", type="TKCODEEDIT_ScaleSub", sig="byval hEdit as TK_WIDGET ptr, byval fOld as float32, byval fNew as float32", params="byval fOld as float32, byval fNew as float32", args="fOld, fNew" },
 ]
 
 [[control]]
@@ -1331,6 +1331,6 @@ visual = false
 props = [
 ]
 events = [
-  { name="Command", set="tkContextMenu_SetCommandCallback", type="CTX_CommandCallbackSub", sig="byval hCtx as TK_WIDGET ptr, byval id as long", params="byval id as long", args="id" },
+  { name="Command", set="tkContextMenu_SetCommandCallback", type="CTX_CommandCallbackSub", sig="byval hCtx as TK_WIDGET ptr, byval id as int32", params="byval id as int32", args="id" },
   { name="Popup", set="tkContextMenu_SetPopupCallback", type="CTX_PopupCallbackSub", sig="byval hCtx as TK_WIDGET ptr, byval hSource as TK_WIDGET ptr", params="byval hSource as TK_WIDGET ptr", args="hSource" },
 ]

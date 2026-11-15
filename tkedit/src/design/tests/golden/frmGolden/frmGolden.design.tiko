@@ -46,12 +46,12 @@ public partial type Form extends FormBase
     declare sub Gone_Click( byval x as long )
 end type
 
-private sub Thunk_btnGo_Click( byval hButton as TK_WIDGET ptr, byval id as long )
+private sub Thunk_btnGo_Click( byval hButton as TK_WIDGET ptr, byval id as int32 )
     dim as Form ptr f = tkForms_ObjectOf( hButton )
     if f then f->Shared_Click( )
 end sub
 
-private sub Thunk_lblNote_Click( byval hLabel as TK_WIDGET ptr, byval id as long )
+private sub Thunk_lblNote_Click( byval hLabel as TK_WIDGET ptr, byval id as int32 )
     dim as Form ptr f = tkForms_ObjectOf( hLabel )
     if f then f->Shared_Click( )
 end sub

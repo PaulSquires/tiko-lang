@@ -462,7 +462,7 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     t.Check( tkStatusBar_GetPanelStretch( c->WidgetOf( "StatusBar1" ), 0 ) andalso tkStatusBar_GetPanelStretch( c->WidgetOf( "StatusBar1" ), 1 ), _
              P( sc, "and the surface's bar stretches both" ) )
     dim as DocRef sbCode = mw.FindOpen( fs.PathJoin( dir_, "frmI.tiko" ) )
-    t.Check( (sbCode <> 0) andalso (instr( sbCode->Text( ), "sub Form.OnLinePanel( byval clicks as long )" ) > 0), P( sc, "the panel's handler gets a body that is told the clicks" ) )
+    t.Check( (sbCode <> 0) andalso (instr( sbCode->Text( ), "sub Form.OnLinePanel( byval clicks as int32 )" ) > 0), P( sc, "the panel's handler gets a body that is told the clicks" ) )
     ' opened again, the first panel shows Stretch
     mw.OpenItems( c, "StatusBar1" )
     tkTest_PumpFor( h, 40 )

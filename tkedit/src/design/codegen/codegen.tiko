@@ -514,7 +514,7 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
                 next
             end if
         next
-        o &= "private sub Thunk_Keys( byval h as TK_HOST ptr, byval cmd as long )" & NL
+        o &= "private sub Thunk_Keys( byval h as TK_HOST ptr, byval cmd as int32 )" & NL
         if len( cases ) then
             o &= "    dim as TK_FORM ptr fm = tkForm_FromHost( h )" & NL
             o &= "    if fm = 0 then exit sub" & NL
@@ -540,14 +540,14 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
     end if
     i = FindSetting( doc.Events, "Resize" )
     if i >= 0 then
-        o &= "private sub Thunk_Form_Resize( byval w as TK_FORM ptr, byval cx as long, byval cy as long )" & NL
+        o &= "private sub Thunk_Form_Resize( byval w as TK_FORM ptr, byval cx as int32, byval cy as int32 )" & NL
         o &= "    dim as Form ptr f = w->Tag" & NL
         o &= "    if f then f->" & doc.Events[i].Value & "( cx, cy )" & NL
         o &= "end sub" & NL & NL
     end if
     i = FindSetting( doc.Events, "KeyDown" )
     if i >= 0 then
-        o &= "private function Thunk_Form_KeyDown( byval w as TK_FORM ptr, byval keyCode as long, byval mods as long ) as boolean" & NL
+        o &= "private function Thunk_Form_KeyDown( byval w as TK_FORM ptr, byval keyCode as int32, byval mods as int32 ) as boolean" & NL
         o &= "    dim as Form ptr f = w->Tag" & NL
         o &= "    if f = 0 then return false" & NL
         o &= "    dim as boolean Handled = false" & NL
@@ -579,7 +579,7 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
     ' MouseMove watches the form's own widget: over the form, and over controls with none of their own
     i = FindSetting( doc.Events, "MouseMove" )
     if i >= 0 then
-        o &= "private sub Thunk_Form_MouseMove( byval w as TK_WIDGET ptr, byval x as long, byval y as long, byval buttons as long, byval mods as long )" & NL
+        o &= "private sub Thunk_Form_MouseMove( byval w as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32 )" & NL
         o &= "    dim as Form ptr f = tkForms_ObjectOf( w )" & NL
         o &= "    if f then f->" & doc.Events[i].Value & "( x, y, buttons, mods )" & NL
         o &= "end sub" & NL & NL
