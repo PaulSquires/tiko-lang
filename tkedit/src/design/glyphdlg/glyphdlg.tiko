@@ -302,7 +302,11 @@ sub GlyphDialog.ShowFont( byval i as long, byval want as ulong )
     if GridFont then
         for cp as ulong = &h20 to &hFFFF
             if (cp >= &hD800) andalso (cp <= &hDFFF) then continue for
-            if TTF_FontHasGlyph( GridFont, cp ) then Codes.Push( cp )
+            if TTF_FontHasGlyph( GridFont, cp ) = false then continue for
+            ' one with no ink (a space, an empty slot) would be a blank cell: left out
+            dim as long minx, maxx, miny, maxy, adv
+            if TTF_GetGlyphMetrics( GridFont, cp, @minx, @maxx, @miny, @maxy, @adv ) = false then continue for
+            if (maxx > minx) andalso (maxy > miny) then Codes.Push( cp )
         next
     end if
     Top = 0 : Hot = -1
@@ -380,6 +384,10 @@ private function MakeGlyphButton_( byval parent as TK_WIDGET ptr, byval cp as ul
     return b
 end function
 
+private function NoTip_( byval h as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+    return ""
+end function
+
 private sub OnFontSel_( byval h as TK_WIDGET ptr, byval row as integer )
     dim as GlyphDialog ptr d = DlgOf( h )
     if (d = 0) orelse d->Loading then exit sub
@@ -427,6 +435,7 @@ sub GlyphDialog.Open( byval owner_ as TK_FORM ptr, byref current as const ustrin
         tkListTree_AddString( List, Fonts[i].Label, i )
     next
     tkListTree_SetSelChangeCallback( List, @OnFontSel_ )
+    tkListTree_SetTooltipCallback( List, @NoTip_ )         ' the names show whole: no tooltip
     ' the project's list: Add... a font file, Remove the selected font (GLYPHS.md GV6)
     BtnAdd = MakeGlyphButton_( root_, GLYPH_ADD, i18n.Tr( "designer.glyph_add_font", "Add a font..." ) )
     BtnRemove = MakeGlyphButton_( root_, GLYPH_DELETE, i18n.Tr( "designer.glyph_remove_font", "Remove the font" ) )
@@ -515,8 +524,9 @@ sub GlyphDialog.Layout( )
     tkWidget_SetPos( VBar, gx + gw, gy, sbw, gh )
     tkWidget_SetPos( Big, gx, gy + gh + g, bigH * 2, bigH )
     tkWidget_SetPos( LblCode, gx + bigH * 2 + g, gy + gh + g + (bigH - rh) \ 2, tkForm_Scale( Win, 120 ), rh )
-    tkWidget_SetPos( BtnNone, g, bottomY, bw, rh )
-    tkWidget_SetPos( BtnClose, cw - g - bw, bottomY, bw, rh )
+    ' (none), Select, Close along the right (author)
+    tkWidget_SetPos( BtnNone, cw - 3 * (g + bw), bottomY, bw, rh )
     tkWidget_SetPos( BtnSelect, cw - 2 * (g + bw), bottomY, bw, rh )
+    tkWidget_SetPos( BtnClose, cw - g - bw, bottomY, bw, rh )
     if Sel >= 0 then this.SelectCode( Sel ) else this.SyncBar( )
 end sub
