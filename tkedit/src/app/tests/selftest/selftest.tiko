@@ -148,11 +148,17 @@ end function
 
 ' A fresh, empty config folder for one pass. Under the install folder (platform.InstallDir), never
 ' inside a macOS bundle: a file written in tkEdit.app breaks its signature.
-private function FreshConfig( ) as ustring
+' An empty config folder -- but for a settings.toml that turns the explorer off: a new file has it
+' on (2026-11-16), and the passes measure the editor's layout without the side panel. The window's
+' first sync writes every other key at its default. ExplorerPass asks for none: FreshConfig( false ).
+private function FreshConfig( byval explorerOff as boolean = true ) as ustring
     dim as ustring res = platform.ResourceDir( ).ValueOr( platform.InstallDir( ) )
     dim as ustring cfg = fs.PathJoin( res, "out", "selftest", "config" )
     fs.RemoveDirAll( cfg )
     fs.CreateDirAll( cfg )
+    if explorerOff then
+        fs.WriteAtomic( fs.PathJoin( cfg, settings.SETTINGS_FILE ), "version = 1" & chr( 10 ) & "[ui]" & chr( 10 ) & "explorer = false" & chr( 10 ) )
+    end if
     return cfg
 end function
 
@@ -3177,7 +3183,7 @@ end sub
 
 public sub ExplorerPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
-    mw.ConfigDir = FreshConfig( )
+    mw.ConfigDir = FreshConfig( false )
     mw.Ask = @ScriptedAsk
     mw.Pick = @ScriptedPick
     t.Check( mw.Create( sc ), P( sc, "explorer: main window created" ) )
@@ -3193,9 +3199,10 @@ public sub ExplorerPass( byref t as Tally, byval sc as single )
     mw.OpenFile( pathA )
     mw.OpenFile( pathB )
 
-    ' ---- off in a new settings.toml
+    ' ---- on in a new settings.toml; then off
     dim as ustring st = fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" )
-    t.Check( (instr( st, nl & "explorer = false" ) > 0) andalso (instr( st, nl & "explorer_side = 'left'" ) > 0), P( sc, "explorer: a new settings.toml has it off, on the left" ) )
+    t.Check( (instr( st, nl & "explorer = true" ) > 0) andalso (instr( st, nl & "explorer_side = 'left'" ) > 0), P( sc, "explorer: a new settings.toml has it on, on the left" ) )
+    SetExplorerKeys( mw, "explorer = false" )
     t.Check( (tkWidget_IsVisible( mw.Side.frame ) = false) andalso (tkWidget_IsVisible( mw.sideBar ) = false) andalso (mw.tabs->x = 0) andalso (mw.tabs->cw = cx), _
              P( sc, "explorer: off, the panel and its bar are gone" ) )
 
