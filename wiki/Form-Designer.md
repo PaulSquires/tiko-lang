@@ -290,7 +290,8 @@ Minimized; a maximized window must be resizable), **Resizable** blank for the de
 form resizes, an owned one doesn't), true or false. **MinWidth**, **MinHeight**, **MaxWidth** and
 **MaxHeight** limit the client the user can size it to, in design units; blank is no limit.
 **AlwaysOnTop** keeps it above other windows, and **Icon** is an image for its title bar (its **...**
-picks one from the Resource Center).
+picks one from the Resource Center). On Windows the taskbar and Alt+Tab keep showing the program's
+**Application icon**; only a program without one shows the form's Icon there.
 
 Its events:
 

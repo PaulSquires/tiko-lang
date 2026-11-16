@@ -864,6 +864,36 @@ public function tkForm_GetAlwaysOnTop( byval f as TK_FORM ptr ) as boolean
     return (SDL_GetWindowFlags( f->host->win ) and SDL_WINDOW_ALWAYS_ON_TOP) <> 0
 end function
 
+#ifdef __FB_WIN32__
+type TkaSendFn as function stdcall ( byval hwnd as any ptr, byval msg as ulong, byval w as uinteger, byval l as integer ) as integer
+type TkaClassLongFn as function stdcall ( byval hwnd as any ptr, byval index as long ) as uinteger
+
+' SDL_SetWindowIcon sets the window's big icon as well as its small one, and the taskbar and Alt+Tab
+' show the big one: a form's own icon took the program's place there. The program's icon is the
+' window class's (SDL gives the class the exe's first icon, as Explorer shows it); when there is
+' one it goes back as the big icon, and the form's stays in the title bar. A program without an
+' icon keeps the form's in both.
+private sub KeepProgramIcon_( byval win as SDL_Window ptr )
+    static as TkaSendFn pSend
+    static as TkaClassLongFn pClass
+    static as boolean looked
+    if looked = false then
+        looked = true
+        dim as ustring u32 = "user32.dll"
+        dim as any ptr hu = tka_LoadLibraryW( strptr( u32 ) )
+        if hu then
+            pSend = cast( TkaSendFn, tka_GetProcAddress( hu, @"SendMessageW" ) )
+            pClass = cast( TkaClassLongFn, tka_GetProcAddress( hu, @"GetClassLongPtrW" ) )
+        end if
+    end if
+    if (pSend = 0) orelse (pClass = 0) then exit sub
+    dim as any ptr hwnd = SDL_GetPointerProperty( SDL_GetWindowProperties( win ), SDL_PROP_WINDOW_WIN32_HWND_POINTER, 0 )
+    if hwnd = 0 then exit sub
+    dim as uinteger hIcon = pClass( hwnd, -14 )          ' GCLP_HICON
+    if hIcon then pSend( hwnd, &h80, 1, hIcon )          ' WM_SETICON, ICON_BIG
+end sub
+#endif
+
 ' The window's icon from an image file (any format SDL_image reads) or a registered resource name
 ' (tkHost_AddResourceData / tkHost_AddResourceFile). FALSE when it can't be read.
 public function tkForm_SetIcon( byval f as TK_FORM ptr, byref file as ustring ) as boolean
@@ -872,6 +902,9 @@ public function tkForm_SetIcon( byval f as TK_FORM ptr, byref file as ustring ) 
     if s = 0 then return false
     dim as boolean ok = SDL_SetWindowIcon( f->host->win, s )
     SDL_DestroySurface( s )
+#ifdef __FB_WIN32__
+    if ok then KeepProgramIcon_( f->host->win )
+#endif
     return ok
 end function
 
