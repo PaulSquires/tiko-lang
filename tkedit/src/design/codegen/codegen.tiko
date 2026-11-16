@@ -685,6 +685,13 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         for i as long = 0 to c.Items.Count( ) - 1
             o &= "    " & catalog.ItemsAddProc( c.TypeName ) & "( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
         next
+    case catalog.ItemsKind.ItemsTabs
+        for i as long = 0 to c.Items.Count( ) - 1
+            o &= "    tkTabBar_AddTab( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
+            if len( c.Items[i].Glyph ) then
+                o &= "    tkTabBar_SetGlyph( " & h & ", " & i & ", " & ValueExpr_( c.Items[i].Glyph, "glyph", "" ) & " )" & NL
+            end if
+        next
     end select
 end sub
 
@@ -779,10 +786,13 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
         if GlyphPoints( c ) > 0 then
             ' and the icon box as tall as the font, so the glyph isn't clipped -- unless it has its own size
             dim as boolean fit = (tkMeta_FindProp( m, "IconSize" ) <> 0) andalso (FindSetting( c.Props, "IconSize" ) < 0)
+            ' (a tab bar's glyph box is one width)
+            dim as boolean fitW = (tkMeta_FindProp( m, "IconWidth" ) <> 0) andalso (FindSetting( c.Props, "IconWidth" ) < 0)
             o &= "    scope" & NL
             o &= "        dim as TTF_Font ptr gf_ = tkHost.tkHost_OpenFont( tkForm_Host( Handle ), tkApp_GlyphFace( ), " & GlyphPoints( c ) & " )" & NL
             o &= "        " & c.Name & ".GlyphFont = gf_" & NL
             if fit then o &= "        " & c.Name & ".IconSize( TTF_GetFontHeight( gf_ ), TTF_GetFontHeight( gf_ ) )" & NL
+            if fitW then o &= "        " & c.Name & ".IconWidth = TTF_GetFontHeight( gf_ )" & NL
             o &= "    end scope" & NL
         else
             o &= "    " & c.Name & ".GlyphFont = tkForm_Font( Handle, TKFONT_" & GlyphRole( c ) & " )" & NL

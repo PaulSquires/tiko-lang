@@ -977,8 +977,8 @@ color_fields = [
 props = [
   { name="Keyboard", kind="bool", set="tkTabBar_SetKeyboard", get="tkTabBar_GetKeyboard", default="true" },
   { name="Padding", kind="int", set="tkTabBar_SetPadding", get="tkTabBar_GetPadding" },
-  { name="IconWidth", kind="int", set="tkTabBar_SetIconWidth", get="tkTabBar_GetIconWidth" },
-  { name="Font", kind="font", set="tkTabBar_SetFont", get="tkTabBar_GetFont" },
+  { name="IconWidth", kind="int", set="tkTabBar_SetIconWidth", get="tkTabBar_GetIconWidth", inspector=false },
+  { name="Font", kind="font", set="tkTabBar_SetFont", get="tkTabBar_GetFont", inspector=false },
   { name="BorderWidth", kind="int", set="tkTabBar_SetBorderWidth", get="tkTabBar_GetBorderWidth", theme="BorderWidth", scale=1 },
   { name="BackColor", kind="color", set="tkTabBar_SetBackColor", get="tkTabBar_GetBackColor", inspector=false },
   { name="BorderColor", kind="color", set="tkTabBar_SetBorderColor", get="tkTabBar_GetBorderColor", inspector=false },

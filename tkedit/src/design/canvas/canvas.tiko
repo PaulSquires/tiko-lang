@@ -633,6 +633,12 @@ sub FormCanvas.Rebuild( )
                 dim as long fh = TTF_GetFontHeight( gsf )
                 isp->Apply( w, fh & "," & fh )
             end if
+            ' a tab bar's glyph box: one width, likewise
+            dim as TKMETA_PROP ptr iwp = tkMeta_FindProp( m, "IconWidth" )
+            if (codegen.GlyphPoints( c ) > 0) andalso (gsf <> 0) andalso (iwp <> 0) andalso (iwp->Apply <> 0) _
+               andalso (FindSetting( c.Props, "IconWidth" ) < 0) then
+                iwp->Apply( w, str( TTF_GetFontHeight( gsf ) ) )
+            end if
         end if
         ' AutoSize: the size the control asks for becomes its design size. The layout places every
         ' control at its design W and H, in the designer and in the program, so the control's own
@@ -744,11 +750,15 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         for each it as FormItem in c.Items
             tkListTree_AddColumn( w, it.Text, iif( it.Width > 0, it.Width, 100 ) )
         next
+    case catalog.ItemsKind.ItemsTabs
+        for i as long = 0 to c.Items.Count( ) - 1
+            tkTabBar_AddTab( w, c.Items[i].Text )
+            if len( c.Items[i].Glyph ) then tkTabBar_SetGlyph( w, i, GlyphChar( c.Items[i].Glyph ) )
+        next
     case catalog.ItemsKind.ItemsList
         for each it as FormItem in c.Items
             select case c.TypeName
             case "SelectBar" : tkSelectBar_AddPanel( w, it.Text )
-            case "TabBar"    : tkTabBar_AddTab( w, it.Text )
             case else        : tkComboBox_AddItem( w, it.Text )
             end select
         next

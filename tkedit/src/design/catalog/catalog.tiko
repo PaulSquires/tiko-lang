@@ -57,6 +57,7 @@ public enum ItemsKind explicit
     ItemsPages
     ItemsIcons
     ItemsPopup
+    ItemsTabs       ' a TabBar's tabs: a caption and a glyph each
 end enum
 
 ' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
@@ -150,7 +151,6 @@ end function
 ' The procedure that adds one entry of a text-only list (ItemsList): a combo's item, a select bar's panel.
 public function ItemsAddProc( byref typeName as const ustring ) as ustring
     if typeName = "SelectBar" then return "tkSelectBar_AddPanel"
-    if typeName = "TabBar" then return "tkTabBar_AddTab"
     return "tkComboBox_AddItem"
 end function
 
@@ -164,7 +164,7 @@ public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     case "ListTree"   : return ItemsKind.ItemsColumns
     case "ComboBox"   : return ItemsKind.ItemsList
     case "SelectBar"  : return ItemsKind.ItemsList
-    case "TabBar"     : return ItemsKind.ItemsList
+    case "TabBar"     : return ItemsKind.ItemsTabs
     case "TabControl" : return ItemsKind.ItemsPages
     end select
     return ItemsKind.ItemsNone
