@@ -644,6 +644,7 @@ public type Window
     declare sub OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
     declare sub FinishItems( byval apply_ as boolean )
     declare sub EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring, byval seed as boolean = false )
+    declare function AskParent( byref what as const ustring, byval n as long, byref parent as const ustring, byref page as const ustring ) as boolean
     ColorsDlg as colorsdlg.ColorsDialog ptr
     ColorsOf as canvas.FormCanvas ptr
     ColorsName as ustring
@@ -3243,6 +3244,10 @@ function Window.OpenText( byref path as const ustring ) as boolean
             end function
             d->Designer->OnPickGlyph = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref cur as const ustring, byref picked as ustring ) as boolean
                 return cast( Window ptr, o )->PickGlyph( cur, picked )
+            end function
+            d->Designer->OnAskParent = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref what as const ustring, _
+                                                 byval n as long, byref parent as const ustring, byref page as const ustring ) as boolean
+                return cast( Window ptr, o )->AskParent( what, n, parent, page )
             end function
             d->Designer->OnContextMenu = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
                 cast( Window ptr, o )->ShowDesignMenu( c, x, y )

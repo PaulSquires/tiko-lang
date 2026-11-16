@@ -379,6 +379,19 @@ sub Window.EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
     this.FinishItems( ItemsDlg->RunModal( ) )
 end sub
 
+' Controls dragged over a container that isn't their parent: Yes moves them into it.
+function Window.AskParent( byref what as const ustring, byval n as long, byref parent as const ustring, byref page as const ustring ) as boolean
+    dim as ustring into = parent
+    if len( page ) then into = strings.Format( i18n.Tr( "designer.parent_page", "{}, page '{}'" ), parent, page )
+    dim as ustring q
+    if n = 1 then
+        q = strings.Format( i18n.Tr( "designer.parent_one", "Make {} a child of {}?" ), what, into )
+    else
+        q = strings.Format( i18n.Tr( "designer.parent_many", "Make the {} controls children of {}?" ), n, into )
+    end if
+    return this.AskOver( form, q, MBX_BTN_YESNO ) = MBX_IDYES
+end function
+
 ' ---- Test Form: the form as it is now, in a window of its own, working but wired to nothing ----
 
 sub Window.CloseTestForm( )

@@ -25,6 +25,7 @@
 #import "vendor/tkControls/tkTabControl"
 #import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkScrollBar"
+#import "vendor/tkControls/tkMessageBox"
 using containers
 using cmdids
 using tkApp
@@ -35,6 +36,7 @@ using tkPopupMenu
 using tkTabControl
 using tkTabBar
 using tkScrollBar
+using tkMessageBox
 using model
 
 const as string FORM_TEXT = _
@@ -182,6 +184,17 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     t.Check( d->Text( ) = text1, P( sc, "Redo puts it back" ) )
     Primary( h, SDLK_Z, SDL_SCANCODE_Z )
     tkTest_PumpFor( h, 30 )
+    bA = c->WidgetOf( "btnA" )
+
+    ' ---- dragged onto a panel it isn't in: asked, and Yes makes it the panel's child where it lies
+    Answer( MBX_IDYES )
+    DragPx( h, tkTest_CX( bA ), tkTest_CY( bA ), tkTest_CX( bA ), tkTest_CY( bA ) + 8 * stp )
+    t.Check( (Ctl( c, "btnA" ).Parent = "pnl") andalso (Ctl( c, "btnA" ).X = 0) andalso (Ctl( c, "btnA" ).Y = 24) _
+             andalso (c->WidgetOf( "btnA" )->pParent = c->WidgetOf( "pnl" )), _
+             P( sc, strings.Format( "dropped on a panel, Yes: its child at {},{} in it", Ctl( c, "btnA" ).X, Ctl( c, "btnA" ).Y ) ) )
+    Primary( h, SDLK_Z, SDL_SCANCODE_Z )
+    tkTest_PumpFor( h, 30 )
+    t.Check( d->Text( ) = text0, P( sc, "and one Undo takes it back out" ) )
     bA = c->WidgetOf( "btnA" )
 
     ' ---- resize through a grip

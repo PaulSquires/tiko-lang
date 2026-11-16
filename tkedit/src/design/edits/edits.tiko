@@ -213,6 +213,28 @@ public sub BringToFront( byref doc as FormDoc, byref names as Array( of ustring 
     next
 end sub
 
+' names (each with what is inside it) into parent -- page: a tab control's page, else -1 -- at
+' xs/ys in its client, at the top of their new siblings and keeping their order among themselves.
+' Their names, properties and handlers stay: this is a move, not a cut and paste.
+public sub Reparent( byref doc as FormDoc, byref names as Array( of ustring ), byref parent as const ustring, byval page as long, _
+                     byref xs as Array( of long ), byref ys as Array( of long ) )
+    for k as long = 0 to names.Count( ) - 1
+        dim as long i = FindControl( doc, names[k] )
+        if i < 0 then continue for
+        doc.Controls[i].Parent = parent
+        doc.Controls[i].Page = page
+        doc.Controls[i].X = xs[k]
+        doc.Controls[i].Y = ys[k]
+    next
+    ' after the new parent in the list, as a child must be
+    for each nm as ustring in InListOrder_( doc, names )
+        dim as Array( of FormControl ) block = CutBlock_( doc, FindControl( doc, nm ) )
+        for each c as FormControl in block
+            doc.Controls.Push( c )
+        next
+    next
+end sub
+
 ' To the bottom of its siblings.
 public sub SendToBack( byref doc as FormDoc, byref names as Array( of ustring ) )
     dim as Array( of ustring ) order = InListOrder_( doc, names )

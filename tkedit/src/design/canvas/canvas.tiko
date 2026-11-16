@@ -96,6 +96,10 @@ public type CanvasPickFunc as function( byval host_ as any ptr, byval c as FormC
 public type CanvasGlyphFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref current as const ustring, _
                                          byref picked as ustring ) as boolean
 public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
+' Controls just dragged over a container that isn't their parent: true moves them into it. what is
+' the one control's name (count 1) or empty; page is a tab control's page caption, else "".
+public type CanvasParentFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref what as const ustring, _
+                                          byval count as long, byref parent as const ustring, byref page as const ustring ) as boolean
 public type CanvasGoneFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref handler as const ustring ) as boolean
 public type CanvasHandlerRenameFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
 public type CanvasMenuSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byval x as long, byval y as long )
@@ -172,6 +176,7 @@ public type FormCanvas
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
     OnHandlerRenamed as CanvasHandlerRenameFunc ' true: the code's body (and its uses) now go by the new name
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set
+    OnAskParent as CanvasParentFunc     ' a drag ended over another container: move into it? (none: never)
     MouseX as long                      ' the mouse's last place in Glass pixels, while MouseIn
     MouseY as long
     MouseIn as boolean
@@ -231,6 +236,8 @@ public type FormCanvas
 
     declare sub OnPress( byval x as long, byval y as long, byval mods as long )
     declare sub OnDragTo( byval x as long, byval y as long, byval mods as long )
+    declare function ContainerAt( byval x as long, byval y as long, byref skip as Array( of ustring ) ) as long
+    declare sub OfferParent( byval x as long, byval y as long )
     declare sub OnRelease( byval x as long, byval y as long )
     declare sub OnHover( byval x as long, byval y as long )
     declare sub OnDoubleClick( byval x as long, byval y as long )
@@ -936,6 +943,79 @@ function FormCanvas.HitControl( byval x as long, byval y as long ) as long
     return -1
 end function
 
+' The topmost container showing at a point in Glass pixels that isn't one of skip or inside one of
+' them; -1 for none (the form).
+function FormCanvas.ContainerAt( byval x as long, byval y as long, byref skip as Array( of ustring ) ) as long
+    dim as long i = Doc.Controls.Count( ) - 1
+    while i >= 0
+        dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[i].TypeName )
+        if (i < Widgets.Count( )) andalso (m <> 0) andalso (m->ContainerKind <> TKMETA_NOT_CONTAINER) then
+            dim as boolean skipped = false
+            dim as long k = i
+            while k >= 0
+                for each s as ustring in skip
+                    if lcase( s ) = lcase( Doc.Controls[k].Name ) then skipped = true
+                next
+                k = FindControl( Doc, Doc.Controls[k].Parent )
+            wend
+            dim as TK_WIDGET ptr w = Widgets[i]
+            if (skipped = false) andalso (w <> 0) andalso this.Shows( w ) then
+                dim as TKRECT rc = this.RectOf( w )
+                if (x >= rc.left) andalso (x < rc.right) andalso (y >= rc.top) andalso (y < rc.bottom) then return i
+            end if
+        end if
+        i -= 1
+    wend
+    return -1
+end function
+
+' A move just ended at x, y (Glass pixels). If it ended over a container -- a panel, group box,
+' scroll panel or the page a tab control shows -- that isn't where the moved controls are, the host
+' is asked whether they go into it; yes moves them in where they now are on screen, with their
+' names and handlers. Docked, locked and component controls didn't move, so they don't count.
+sub FormCanvas.OfferParent( byval x as long, byval y as long )
+    if OnAskParent = 0 then exit sub
+    dim as Array( of ustring ) moved
+    for each s as ustring in edits.TopLevelOf( Doc, Selected )
+        dim as long i = FindControl( Doc, s )
+        if (i >= 0) andalso (Doc.Controls[i].Dock = TK_DOCK_NONE) andalso (Doc.Controls[i].Locked = false) _
+           andalso (catalog.IsComponent( Doc.Controls[i].TypeName ) = false) then moved.Push( Doc.Controls[i].Name )
+    next
+    if moved.Count( ) = 0 then exit sub
+    dim as long t = this.ContainerAt( x, y, moved )
+    if t < 0 then exit sub
+    dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[t].TypeName )
+    dim as long pg = -1
+    dim as ustring pageName
+    if m->ContainerKind = TKMETA_CONTAINER_PAGES then
+        pg = tkTabControl_GetCurSel( Widgets[t] )
+        if (pg < 0) orelse (pg >= Doc.Controls[t].Pages.Count( )) then exit sub
+        pageName = Doc.Controls[t].Pages[pg]
+    end if
+    dim as boolean differs = false
+    for each s as ustring in moved
+        dim as long i = FindControl( Doc, s )
+        if (lcase( Doc.Controls[i].Parent ) <> lcase( Doc.Controls[t].Name )) orelse (Doc.Controls[i].Page <> pg) then differs = true
+    next
+    if differs = false then exit sub
+    dim as ustring one
+    if moved.Count( ) = 1 then one = moved[0]
+    if OnAskParent( Host, @this, one, moved.Count( ), Doc.Controls[t].Name, pageName ) = false then exit sub
+    ' where each one is now on screen, as a point in the container's client
+    dim as TK_WIDGET ptr cw_
+    this.ContainerClient( t, iif( pg < 0, 0, pg ), cw_ )
+    if cw_ = 0 then exit sub
+    dim as TKRECT base_ = this.RectOf( cw_ )
+    dim as Array( of long ) xs, ys
+    for each s as ustring in moved
+        dim as TKRECT rc = this.RectOf( Widgets[FindControl( Doc, s )] )
+        xs.Push( this.ToDesign( rc.left - base_.left ) )
+        ys.Push( this.ToDesign( rc.top - base_.top ) )
+    next
+    edits.Reparent( Doc, moved, Doc.Controls[t].Name, pg, xs, ys )
+    this.Rebuild( )
+end sub
+
 ' Which edges control i's grips may move. A docked control can only change its thickness.
 function FormCanvas.GripsOf( byval i as long ) as long
     if catalog.IsComponent( Doc.Controls[i].TypeName ) then return 0     ' a component's box only moves
@@ -1184,7 +1264,11 @@ sub FormCanvas.OnRelease( byval x as long, byval y as long )
         ' pressed on one of several without dragging: that one becomes the active control (the
         ' solid one Align lines the others up against) and the others stay selected
         if (len( Pressed ) > 0) andalso (Selected.Count( ) > 1) then this.MakeActive( Pressed )
-    case DragMove, DragResize, DragFormResize
+    case DragMove
+        ' let go over a panel, group box, scroll panel or tab page they aren't in: ask to move them in
+        this.OfferParent( x, y )
+        this.Commit( )
+    case DragResize, DragFormResize
         this.Commit( )
     case DragRubber
         dim as long l = iif( x < StartX, x, StartX ), r = iif( x < StartX, StartX, x )
