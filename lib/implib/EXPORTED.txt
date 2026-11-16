@@ -4,6 +4,7 @@ tool      /c/dev/tiko-lang/.claude/worktrees/tools/build/mkmsvcdef.py (9421bd9f7
 windows   Microsoft Windows [Version 10.0.26200.9457]
 defs      827 (84233 code exports, 1254 data exports)
 static    16 GUID/data archives copied through, unconverted
+          (2026-11-16: their GUID COMDATs SAME_SIZE -> ANY in place, build/comdatany.py)
 empty     2 import archives with no exports, skipped
 
 The code/data split consulted this machine's System32 DLLs (mkmsvcdef.py).

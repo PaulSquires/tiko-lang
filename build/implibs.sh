@@ -18,7 +18,8 @@
 #
 # export -- ONCE. Runs the same mkmsvcdef.py over the same inputs and KEEPS each
 #           <name>.def in --to; copies the GUID/data archives (no exports, R/D
-#           symbols -- uuid, dxguid, ...) to --to/static/<name>.lib. Writes
+#           symbols -- uuid, dxguid, ...) to --to/static/<name>.lib, their GUID
+#           COMDATs turned from SAME_SIZE to ANY (build/comdatany.py: why). Writes
 #           --to/EXPORTED.txt with the inputs, the machine, and the counts: the
 #           code/data split consults this machine's System32 (mkmsvcdef.py), so the
 #           result is a snapshot and is recorded as one. Run it only to pick up a
@@ -231,6 +232,8 @@ export)
             rm -f "$TO/$name.def"
             if "$NM" "$f" 2>/dev/null | grep -qE '^[0-9a-f]+ [RrDd] '; then
                 cp "$f" "$TO/static/$name.lib"; stat=$((stat + 1))
+                python "$TREE/build/comdatany.py" "$TO/static/$name.lib" > /dev/null \
+                    || fail "comdatany.py could not patch static/$name.lib"
             else
                 empty=$((empty + 1))
             fi
@@ -254,7 +257,7 @@ export)
         echo "windows   $(cmd.exe //c ver 2>/dev/null | tr -d '\r' | grep -i version || echo unknown)"
         echo "defs      $made single-DLL + $umb umbrella over $umbdlls DLLs ($codes code exports, $datas data exports)"
         echo "left out  $lost DLLs of umbrella libraries the loader does not find"
-        echo "static    $stat GUID/data archives copied through, unconverted"
+        echo "static    $stat GUID/data archives copied through, COMDATs SAME_SIZE -> ANY (comdatany.py)"
         echo "empty     $empty import archives with no exports, skipped"
         echo
         echo "The code/data split consulted this machine's System32 DLLs (mkmsvcdef.py)."
