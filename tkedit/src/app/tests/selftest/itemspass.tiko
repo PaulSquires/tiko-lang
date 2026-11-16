@@ -204,8 +204,8 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     ClickPx( h, ox + tkHost_Scale( h, 100 ), oy + tkHost_Scale( h, 150 ) )
     tkTest_PumpFor( h, 60 )
     t.Check( c->Doc.Controls[FindControl( c->Doc, "StatusBar1" )].Dock = TK_DOCK_BOTTOM, P( sc, "a status bar docked bottom" ) )
-    t.Check( gItemsAsked = "", P( sc, "a status bar opens no editor by itself" ) )
-    c->OnEditItems = keepPlace
+    t.Check( (gItemsAsked = "StatusBar1") andalso (gItemsEvent = ""), P( sc, "a status bar opens its editor too, not seeded: " & gItemsAsked & " " & gItemsEvent ) )
+    ' (placing stays recorded for the rest of this pass: a real editor would be modal)
 
     ' the inspector's row asks to edit the selected control's entries
     c->SelectOnly( "MenuBar1" )
@@ -317,7 +317,6 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     c->Tool = "MenuBar"
     ClickPx( h, ox + tkHost_Scale( h, 100 ), oy + tkHost_Scale( h, 120 ) )
     tkTest_PumpFor( h, 60 )
-    c->OnEditItems = keepPlace
     t.Check( gItemsAsked = "MenuBar2", P( sc, "a second menu bar asks too: " & gItemsAsked ) )
     mw.OpenItems( c, "MenuBar2" )
     tkTest_PumpFor( h, 60 )
@@ -424,9 +423,14 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
 
     ' ---- a toolbar button's Glyph row (GLYPHS.md V5): "..." picks into it (answered for the person),
     ' the box shows the code and the row the glyph
+    gItemsAsked = ""
     c->Tool = "Toolbar"
     ClickPx( h, ox + tkHost_Scale( h, 40 ), oy + tkHost_Scale( h, 160 ) )
     tkTest_PumpFor( h, 60 )
+    t.Check( (gItemsAsked = "Toolbar1") andalso (gItemsEvent = "new"), P( sc, "a toolbar placed asks for its editor, new: " & gItemsAsked & " " & gItemsEvent ) )
+    dim as Array( of FormItem ) dtb = itemsdlg.DefaultToolbar( )
+    t.Check( (dtb.Count( ) = 7) andalso (dtb[0].Glyph = "Fluent:E4DB") andalso (len( dtb[0].Text ) > 0) andalso (dtb[3].Kind = "separator") _
+             andalso (dtb[6].Glyph = "Fluent:F2D5"), P( sc, "its defaults: New Open Save | Cut Copy Paste, glyph and text each" ) )
     mw.OpenItems( c, "Toolbar1" )
     tkTest_PumpFor( h, 60 )
     dim as itemsdlg.ItemsEditor ptr tbd = mw.ItemsDlg
@@ -527,6 +531,7 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     tkHost_SetFocus( h, c->Glass )
     Chord( h, SDLK_DELETE, SDL_SCANCODE_DELETE, 0 )
     t.Check( instr( code->Text( ), "OnOpen" ) = 0, P( sc, "deleting a menu removes its empty handlers" ) )
+    c->OnEditItems = keepPlace
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

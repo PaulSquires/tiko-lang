@@ -1301,13 +1301,17 @@ function FormCanvas.PlaceDefault( byref typeName as const ustring ) as boolean
     return true
 end function
 
-' A control just placed from the Toolbox: a menu bar or a popup menu with nothing in it asks for its
-' editor at once, marked "new" so the host fills it with its default entries first.
+' A control just placed from the Toolbox that has entries (an Edit items row) asks for its editor at
+' once. A menu bar, popup menu or toolbar with nothing in it is marked "new", so the host fills it
+' with its default entries first; the others open on what they start with (a tab bar's Tab1, a tab
+' control's Page1) or empty.
 sub FormCanvas.Placed( byval i as long )
     if (i < 0) orelse (i >= Doc.Controls.Count( )) then exit sub
-    if catalog.IsMenuKind( catalog.ItemsKindOf( Doc.Controls[i].TypeName ) ) = false then exit sub
-    if Doc.Controls[i].Items.Count( ) then exit sub
-    if OnEditItems then OnEditItems( Host, @this, Doc.Controls[i].Name, "new", false )
+    dim as long kind_ = catalog.ItemsKindOf( Doc.Controls[i].TypeName )
+    if kind_ = catalog.ItemsKind.ItemsNone then exit sub
+    dim as boolean seeds = catalog.IsMenuKind( kind_ ) orelse (kind_ = catalog.ItemsKind.ItemsToolbar)
+    dim as ustring e = iif( seeds andalso (Doc.Controls[i].Items.Count( ) = 0), "new", "" )
+    if OnEditItems then OnEditItems( Host, @this, Doc.Controls[i].Name, e, false )
 end sub
 
 ' A double click wires the default event: of the control under it, or of the form.

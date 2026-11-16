@@ -422,12 +422,36 @@ public function DefaultPopup( ) as Array( of FormItem )
     return a
 end function
 
-' An empty menu editor filled with DefaultMenu, the first entry selected.
+private sub ToolItem_( byref a as Array( of FormItem ), byref kind_ as const ustring, byref text as const ustring, byref glyph as const ustring )
+    dim as FormItem it
+    it.Kind = kind_
+    it.Text = text
+    it.Glyph = glyph
+    it.Origin = -1
+    a.Push( it )
+end sub
+
+' A new toolbar's starting point: New, Open, Save, a separator, Cut, Copy, Paste -- each with its
+' Fluent glyph and its words. No handlers: the program's author names them.
+public function DefaultToolbar( ) as Array( of FormItem )
+    dim as Array( of FormItem ) a
+    ToolItem_( a, "command", i18n.Tr( "designer.menu_new", "New" ), "Fluent:E4DB" )         ' document_add
+    ToolItem_( a, "command", i18n.Tr( "designer.tool_open", "Open" ), "Fluent:F42E" )       ' folder_open
+    ToolItem_( a, "command", i18n.Tr( "designer.menu_save", "Save" ), "Fluent:F67F" )       ' save
+    ToolItem_( a, "separator", "", "" )
+    ToolItem_( a, "command", i18n.Tr( "designer.menu_cut", "Cut" ), "Fluent:F33A" )         ' cut
+    ToolItem_( a, "command", i18n.Tr( "designer.menu_copy", "Copy" ), "Fluent:F32B" )       ' copy
+    ToolItem_( a, "command", i18n.Tr( "designer.menu_paste", "Paste" ), "Fluent:F2D5" )     ' clipboard_paste
+    return a
+end function
+
+' An empty menu or toolbar editor filled with its defaults, the first entry selected.
 sub ItemsEditor.SeedDefaults( )
     if Items.Count( ) > 0 then exit sub
     select case Kind
-    case catalog.ItemsKind.ItemsMenu  : Items = DefaultMenu( )
-    case catalog.ItemsKind.ItemsPopup : Items = DefaultPopup( )
+    case catalog.ItemsKind.ItemsMenu    : Items = DefaultMenu( )
+    case catalog.ItemsKind.ItemsPopup   : Items = DefaultPopup( )
+    case catalog.ItemsKind.ItemsToolbar : Items = DefaultToolbar( )
     case else : exit sub
     end select
     Current = 0

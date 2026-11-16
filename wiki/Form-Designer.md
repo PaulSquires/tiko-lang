@@ -153,7 +153,10 @@ shortcut such as `Primary+O`, and a handler. Set the text of a menu item to `-` 
 
 A MenuBar dropped on a form opens this editor straight away, filled with a standard menu -- **File**
 (New, Open, Save, Save As, Exit), **Edit** (Undo, Redo, Cut, Copy, Paste, Select All) and **Help**
-(About), with the usual shortcuts. Change what you like; **Cancel** leaves the bar empty. In the editor
+(About), with the usual shortcuts. Change what you like; **Cancel** leaves the bar empty. A Toolbar
+starts the same way, with New, Open, Save, a separator, Cut, Copy and Paste, each with a glyph and its
+words. Every other control with **Edit items** opens its editor when dropped too: a TabBar on its Tab1,
+a TabControl on its Page1, the rest empty. In the editor
 the arrow buttons move the selected item up or down and out or in a level, **+** adds one and the bin
 removes it. The pencil beside **Handler** closes the editor as **OK** does and shows that handler in
 the code; an item with no handler is first given one: the control's name and its menu path -- MenuBar1's
