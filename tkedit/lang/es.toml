@@ -313,7 +313,7 @@ open_file = "Abrir archivo"
 settings = "Mostrar ajustes"
 
 [debug]
-no_python = "El depurador necesita Python 3.10 (64 bits) en el PATH: lldb-dap carga su python310.dll"
+no_python = "El depurador necesita un Python 3 de 64 bits en el PATH: lldb-dap carga su {}"
 no_adapter = "No se encontró lldb-dap: instale LLVM o defina [debug] adapter en settings.toml"
 no_dwarf = "{0} no se puede depurar: {1}"
 not_started = "No se pudo iniciar el depurador: {}"

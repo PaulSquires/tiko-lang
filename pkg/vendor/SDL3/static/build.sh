@@ -62,7 +62,10 @@ case $HOST in
 windows)
     CL=${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
     C+=(-DCMAKE_C_COMPILER="$CL" -DCMAKE_CXX_COMPILER="$(dirname "$CL")/clang++.exe"
+        -DCMAKE_RC_COMPILER="$(dirname "$CL")/llvm-rc.exe"
         -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_POLICY_DEFAULT_CMP0091=NEW) ;;
+    # The RC compiler named, or CMake finds one on the PATH only -- and an LLVM install that leaves
+    # its bin off the PATH (LLVM 23's did) fails every configure: "No CMAKE_RC_COMPILER".
     # CMP0091 NEW, or a project with an old cmake_minimum_required (HarfBuzz) ignores the runtime
     # library and builds /MD -- which lld-link then refuses beside /MT objects (failifmismatch).
 linux)

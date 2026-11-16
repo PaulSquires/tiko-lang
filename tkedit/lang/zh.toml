@@ -315,7 +315,7 @@ open_file = "打开文件"
 settings = "显示设置"
 
 [debug]
-no_python = "调试器需要 PATH 中有 Python 3.10（64 位）：lldb-dap 会加载其 python310.dll"
+no_python = "调试器需要 PATH 中有 64 位 Python 3：lldb-dap 会加载其 {}"
 no_adapter = "未找到 lldb-dap：请安装 LLVM，或在 settings.toml 中设置 [debug] adapter"
 no_dwarf = "{0} 无法调试：{1}"
 not_started = "调试器无法启动：{}"

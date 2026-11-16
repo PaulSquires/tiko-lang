@@ -313,7 +313,7 @@ open_file = "Ouvrir un fichier"
 settings = "Afficher les paramètres"
 
 [debug]
-no_python = "Le débogueur a besoin de Python 3.10 (64 bits) dans le PATH : lldb-dap charge son python310.dll"
+no_python = "Le débogueur a besoin d'un Python 3 64 bits dans le PATH : lldb-dap charge son {}"
 no_adapter = "lldb-dap est introuvable : installez LLVM, ou définissez [debug] adapter dans settings.toml"
 no_dwarf = "{0} ne peut pas être débogué : {1}"
 not_started = "Le débogueur n'a pas pu démarrer : {}"

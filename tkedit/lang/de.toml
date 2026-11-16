@@ -313,7 +313,7 @@ open_file = "Datei öffnen"
 settings = "Einstellungen anzeigen"
 
 [debug]
-no_python = "Der Debugger braucht Python 3.10 (64 Bit) im PATH: lldb-dap lädt dessen python310.dll"
+no_python = "Der Debugger braucht ein 64-Bit-Python 3 im PATH: lldb-dap lädt dessen {}"
 no_adapter = "lldb-dap wurde nicht gefunden: LLVM installieren oder [debug] adapter in settings.toml setzen"
 no_dwarf = "{0} kann nicht debuggt werden: {1}"
 not_started = "Der Debugger konnte nicht starten: {}"

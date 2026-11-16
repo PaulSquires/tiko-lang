@@ -4918,13 +4918,18 @@ function Window.DebugStopped( ) as boolean
     return DbgOn andalso DbgPaused andalso gDbgE.active andalso (gDbgE.running = false)
 end function
 
-' Windows: lldb-dap 21 loads python310.dll and never answers without it, so it is looked for first
-' (tiko-editor-tiko's check): beside lldb-dap, then on the PATH. "" = found.
+' Windows: lldb-dap never answers without the Python DLL liblldb.dll imports, so it is looked for
+' first (tiko-editor-tiko's check): beside lldb-dap, then on the PATH. WHICH DLL is read from
+' liblldb.dll itself: python310.dll for LLVM 21, python3.dll (any Python 3) for LLVM 23 -- a name
+' fixed here stopped every session the day LLVM moved on. "" = found, or nothing to look for.
 private function DebugPythonMissing( byref adapter as const ustring ) as ustring
     if platform.CurrentOs( ) <> platform.Os.Windows then return ""
-    if fs.IsFile( fs.PathJoin( fs.PathParent( adapter ), "python310.dll" ) ) then return ""
-    if len( platform.FindOnPath( "python310.dll" ) ) then return ""
-    return i18n.Tr( "debug.no_python", "the debugger needs Python 3.10 (64-bit) on the PATH: lldb-dap loads its python310.dll" )
+    dim as string a8 = adapter
+    dim as ustring dll = Engine_PythonDll( a8 )
+    if len( dll ) = 0 then return ""
+    if fs.IsFile( fs.PathJoin( fs.PathParent( adapter ), dll ) ) then return ""
+    if len( platform.FindOnPath( dll ) ) then return ""
+    return strings.Format( i18n.Tr( "debug.no_python", "the debugger needs a 64-bit Python 3 on the PATH: lldb-dap loads its {}" ), dll )
 end function
 
 ' Start Debugging's build succeeded: a session on its program. Every breakpoint of every open
