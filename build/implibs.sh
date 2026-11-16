@@ -51,6 +51,7 @@ LLVM=${LLVM_BIN:-"C:/Program Files/LLVM/bin"}
 [ -x "$LLVM/llvm-dlltool.exe" ] || [ -x "$LLVM/llvm-dlltool" ] || fail "no llvm-dlltool in $LLVM (set LLVM_BIN)"
 DLLTOOL="$LLVM/llvm-dlltool"; [ -x "$DLLTOOL.exe" ] && DLLTOOL="$DLLTOOL.exe"
 NM="$LLVM/llvm-nm";           [ -x "$NM.exe" ] && NM="$NM.exe"
+STRINGS="$LLVM/llvm-strings"; [ -x "$STRINGS.exe" ] && STRINGS="$STRINGS.exe"
 
 case "$MODE" in
 export)
@@ -59,12 +60,31 @@ export)
     [ -d "$FROM" ] || fail "no directory $FROM"
     mkdir -p "$TO/static"
     export LLVM_BIN="$LLVM"
+    SYS32=$(cygpath -u "${SYSTEMROOT:-C:\\Windows}")/System32
     made=0; stat=0; empty=0; codes=0; datas=0
     for f in "$FROM"/*.dll.a; do
         [ -f "$f" ] || continue
         name=$(basename "$f" .dll.a); name=${name#lib}
         [ -n "$name" ] || continue
-        if counts=$(python "$TREE/build/mkmsvcdef.py" "$f" "$name.dll" "$TO/$name.def" 2>/dev/null); then
+        # THE DLL IS WHAT System32 HAS, not always <name>.dll. Taking <name>.dll for
+        # every library gave ten .def files a DLL Windows does not have (fixed
+        # 2026-11-15): winspool is winspool.drv, d3dcompiler D3DCompiler_47.dll,
+        # resutil resutils.dll. The name the MinGW library records is the fallback,
+        # NOT the authority -- for twelve it is the DLL's internal export name, absent
+        # from System32 (storprop.dll records PROPPAGE.DLL). So: <name>.dll if System32
+        # has it, else the recorded name if System32 has that, else <name>.dll. A
+        # library recording several DLLs (ucrt, mincore, windowsapp, vfw32,
+        # runtimeobject) cannot be one .def and keeps <name>.dll.
+        dll="$name.dll"
+        # (A file test, not grep over a listing: on Git Bash 'printf | grep -q' over
+        # System32's 4900 names died of SIGPIPE.) find -iname gives System32's spelling.
+        if [ ! -f "$SYS32/$dll" ]; then
+            rec=$("$STRINGS" -a "$f" | grep -i -E '^[A-Za-z0-9_.-]+\.(dll|drv|exe|cpl|ocx|sys|acm)$' | sort -u)
+            if [ -n "$rec" ] && [ "$(echo "$rec" | wc -l)" -eq 1 ] && [ -f "$SYS32/$rec" ]; then
+                dll=$(basename "$(find "$SYS32" -maxdepth 1 -iname "$rec" | head -1)")
+            fi
+        fi
+        if counts=$(python "$TREE/build/mkmsvcdef.py" "$f" "$dll" "$TO/$name.def" 2>/dev/null); then
             made=$((made + 1))
             codes=$((codes + $(echo "$counts" | cut -d' ' -f1)))
             datas=$((datas + $(echo "$counts" | cut -d' ' -f2)))
