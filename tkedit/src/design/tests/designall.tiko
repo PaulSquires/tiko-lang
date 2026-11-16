@@ -372,6 +372,9 @@ sub EditsSuite( )
     i = edits.AddControl( d, "TabControl", "", -1, 100, 8, 150, 150 )
     Check( d.Controls[i].Pages.Count( ) = 1, "a tab control starts with a page" )
     Check( SettingOr( d.Controls[i].Props, "Text", "none" ) = "none", "and has no Text" )
+    dim as FormDoc tbd
+    i = edits.AddControl( tbd, "TabBar", "", -1, 0, 0, 200, 30 )
+    Check( (tbd.Controls[i].Items.Count( ) = 1) andalso (tbd.Controls[i].Items[0].Text = "Tab1"), "a tab bar starts with a tab, Tab1" )
 
     ' z-order: a block moves with its children, and parents stay ahead of them
     dim as FormDoc z

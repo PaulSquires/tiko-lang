@@ -124,6 +124,12 @@ public function AddControl( byref doc as FormDoc, byref typeName as const ustrin
         c.H = m->Height_
     end if
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then c.Pages.Push( "Page1" )
+    ' a tab bar starts with a tab, as a tab control starts with a page
+    if m->Name = "TabBar" then
+        dim as FormItem tab_
+        tab_.Text = "Tab1"
+        c.Items.Push( tab_ )
+    end if
     ' these belong along an edge
     select case m->Name
     case "MenuBar", "Toolbar" : c.Dock = TK_DOCK_TOP
