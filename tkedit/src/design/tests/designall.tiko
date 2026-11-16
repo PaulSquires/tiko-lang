@@ -1236,8 +1236,8 @@ sub TabBarSuite( )
     Check( instr( g, "tkForms_ObjectOf( p->hTabBar )" ) > 0, "tabbar: Paint finds its form through the paint info" )
     Check( instr( g, "tkForms_ObjectOf( m->hTabBar )" ) > 0, "tabbar: Message finds its form through the message info" )
     HasLine( g, "tkTabBar_SetPaintCallback( tb.Handle, @Thunk_tb_Paint )", "tabbar: Paint installed" )
-    ' a tab's glyph, set after its tab; GlyphSize in points fits the glyph box; IconWidth and Font
-    ' are no longer in the Properties panel
+    ' a tab's glyph, set after its tab; GlyphSize in points fits the glyph box; IconWidth is no
+    ' longer in the Properties panel, Font still is
     d.Controls[0].Items[1].Glyph = "Fluent:E824"
     PutSetting( d.Controls[0].Props, "GlyphFont", "24" )
     g = codegen.Generate( d, "frmT", "frmT.tkform", src )
@@ -1245,7 +1245,7 @@ sub TabBarSuite( )
            andalso (instr( g, "tkTabBar_SetGlyph( tb.Handle, 0" ) = 0), "tabbar: a tab's glyph set after it, none for a tab without", g )
     HasLine( g, "tb.IconWidth = TTF_GetFontHeight( gf_ )", "tabbar: GlyphSize in points fits the glyph box" )
     dim as TKMETA_CONTROL ptr m = tkMeta_Find( "TabBar" )
-    Check( (tkMeta_FindProp( m, "IconWidth" )->bInspector = false) andalso (tkMeta_FindProp( m, "Font" )->bInspector = false), "tabbar: IconWidth and Font not shown" )
+    Check( (tkMeta_FindProp( m, "IconWidth" )->bInspector = false) andalso tkMeta_FindProp( m, "Font" )->bInspector, "tabbar: IconWidth not shown, Font shown" )
 end sub
 
 ' A MenuBar's Command handler is told the id, and its two new events: InitPopup and Paint.
