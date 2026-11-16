@@ -338,6 +338,21 @@ sub Tree( )
     next
     Check( named, "which says why" )
     Check( fs.IsFile( root_ & "/bad/frmBad.design.tiko" ) = false, "and writes nothing" )
+
+    ' A project's glyphs are written at its appGlyphs numbering, as tkEdit's build writes them.
+    const as string proj = "tests/bin/treeglyphs"
+    fs.RemoveDirAll( proj )
+    fs.CreateDirAll( proj & "/frmG" )
+    fs.CreateDirAll( proj & "/appGlyphs" )
+    fs.WriteAllText( proj & "/tiko.toml", "[package]" & LF & "name = ""g""" & LF )
+    fs.WriteAllText( proj & "/appGlyphs/appGlyphs.tkglyphs", "format = 1" & LF & LF & "[codes]" & LF & """Fluent:F5C2"" = ""E000""" & LF )
+    fs.WriteAllText( proj & "/frmG/frmG.tkform", Header( ) & Ctl( "b", "Button", "[control.props]" & LF & "GlyphLeft = ""Fluent:F5C2""" & LF ) )
+    dim as Array( of ustring ) r8
+    Check( formtree.Process( proj, true, r8 ) = 0, "a form with a glyph generates" )
+    dim as ustring g8 = fs.ReadAllText( proj & "/frmG/frmG.design.tiko" ).ValueOr( none )
+    Check( instr( g8, "b.GlyphLeft = wchr( &hE000 )" ) > 0, "at the project's numbering, not the source font's", g8 )
+    dim as Array( of ustring ) r9
+    Check( formtree.Process( proj, false, r9 ) = 0, "and --check-forms agrees" )
 end sub
 
 function Names( byval a as ustring, byval b as ustring = "", byval c_ as ustring = "" ) as Array( of ustring )
