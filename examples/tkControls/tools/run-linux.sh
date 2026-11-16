@@ -28,7 +28,8 @@ rm -rf "$W"; mkdir -p "$W"
 echo "source: $SRC  build: $W"
 mkdir -p "$W/examples/tkControls" "$W/build"
 ( cd "$SRC" && tar --exclude='./out' --exclude='*/out' --exclude='*.exe' --exclude='*.dll' \
-      --exclude='*.bmp' --exclude='*.ttf' --exclude='./linux-lib*' -cf - . ) | ( cd "$W/examples/tkControls" && tar -xf - )
+      --exclude='*.bmp' --exclude='Inter-*.ttf' --exclude='CascadiaMono-*.ttf' \
+      --exclude='FluentSystemIcons-*.ttf' --exclude='./linux-lib*' -cf - . ) | ( cd "$W/examples/tkControls" && tar -xf - )
 ( cd "$TREE" && tar --exclude='pkg/vendor/*/lib' --exclude='pkg/vendor/tkControls/fonts' \
       --exclude='*/scintk/bin' --exclude='*/scintk/out' -cf - pkg ) | ( cd "$W" && tar -xf - )
 cp "$TREE/build/vendorfetch.sh" "$W/build/"
@@ -40,6 +41,12 @@ case " ${names[*]} " in
     *" tkStatic "*|"  ")
         TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module SDL3 \
             || { echo "vendorfetch.sh failed: no static SDL3"; exit 1; } ;;
+esac
+# tkContacts keeps its data in SQLite: vendor/sqlite3's library (built from source once, then cached).
+case " ${names[*]} " in
+    *" tkContacts "*|"  ")
+        TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module sqlite3 \
+            || { echo "vendorfetch.sh failed: no sqlite3"; exit 1; } ;;
 esac
 export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal
 [ -n "$LIB" ] && export LD_LIBRARY_PATH=$LIB

@@ -120,4 +120,7 @@ tests/vendor/**/*.o
 /examples/tkControls/**/*.bmp
 /examples/tkControls/**/*.ttf
 /examples/tkControls/**/*-LICENSE.txt
+# a designed project's merged glyph font and its licence are source (tkEdit writes them; commit them)
+!/examples/tkControls/*/appGlyphs/glyphs.ttf
+!/examples/tkControls/*/appGlyphs/licenses/*-LICENSE.txt
 /examples/tkControls/**/*.link
