@@ -249,6 +249,12 @@ also needs Xcode's Command Line Tools (`xcode-select --install`), and a download
 quarantine cleared before the first run: `xattr -dr com.apple.quarantine tiko-lang` (a release
 archive unpacks to `tiko-lang/` on every system, tkEdit in its top folder).
 
+**Building a toolchain on Windows also needs Visual Studio 2022 or newer, or its Build Tools,**
+with *Desktop development with C++*. tkControls' code editor is built on Scintilla, which is C++,
+and the MSVC C++ headers and static runtime come only from Visual Studio. A plain Git Bash finds
+it, and so does a Git Bash started after `vcvars64.bat`. Using a toolchain needs no Visual Studio,
+unless a program links `vendor/tkControls/tkCodeEdit` in with `link static`.
+
 ```bash
 tiko hello.tiko          # hello.exe on Windows, ./hello on Linux and macOS
 tiko -O2 app.tiko        # optimised
