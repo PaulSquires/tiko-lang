@@ -1,4 +1,4 @@
-LIBRARY runtimeobject.dll
+LIBRARY api-ms-win-core-winrt-string-l1-1-0.dll
 EXPORTS
   HSTRING_UserFree
   HSTRING_UserFree64
@@ -8,13 +8,6 @@ EXPORTS
   HSTRING_UserSize64
   HSTRING_UserUnmarshal
   HSTRING_UserUnmarshal64
-  RoActivateInstance
-  RoGetActivationFactory
-  RoGetApartmentIdentifier
-  RoInitialize
-  RoRegisterActivationFactories
-  RoRevokeActivationFactories
-  RoUninitialize
   WindowsCompareStringOrdinal
   WindowsConcatString
   WindowsCreateString
