@@ -238,6 +238,7 @@ public type FormCanvas
     declare sub OnDragTo( byval x as long, byval y as long, byval mods as long )
     declare function ContainerAt( byval x as long, byval y as long, byref skip as Array( of ustring ) ) as long
     declare sub OfferParent( byval x as long, byval y as long )
+    declare sub OffTabs( byref names as Array( of ustring ) )
     declare sub OnRelease( byval x as long, byval y as long )
     declare sub OnHover( byval x as long, byval y as long )
     declare sub OnDoubleClick( byval x as long, byval y as long )
@@ -973,6 +974,8 @@ end function
 ' scroll panel or the page a tab control shows -- that isn't where the moved controls are, the host
 ' is asked whether they go into it; yes moves them in where they now are on screen, with their
 ' names and handlers. Docked, locked and component controls didn't move, so they don't count.
+' Let go over no container at all, the ones that were on a tab control's page go onto the form,
+' unasked: off the page they would be clipped out of sight.
 sub FormCanvas.OfferParent( byval x as long, byval y as long )
     if OnAskParent = 0 then exit sub
     dim as Array( of ustring ) moved
@@ -983,7 +986,10 @@ sub FormCanvas.OfferParent( byval x as long, byval y as long )
     next
     if moved.Count( ) = 0 then exit sub
     dim as long t = this.ContainerAt( x, y, moved )
-    if t < 0 then exit sub
+    if t < 0 then
+        this.OffTabs( moved )
+        exit sub
+    end if
     dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[t].TypeName )
     dim as long pg = -1
     dim as ustring pageName
@@ -1013,6 +1019,27 @@ sub FormCanvas.OfferParent( byval x as long, byval y as long )
         ys.Push( this.ToDesign( rc.top - base_.top ) )
     next
     edits.Reparent( Doc, moved, Doc.Controls[t].Name, pg, xs, ys )
+    this.Rebuild( )
+end sub
+
+' Those of names whose parent is a tab control onto the form, where they now are on screen.
+sub FormCanvas.OffTabs( byref names as Array( of ustring ) )
+    dim as Array( of ustring ) off
+    dim as Array( of long ) xs, ys
+    dim as TKRECT base_ = this.RectOf( Surface )
+    for each s as ustring in names
+        dim as long i = FindControl( Doc, s )
+        dim as long p = FindControl( Doc, Doc.Controls[i].Parent )
+        if p < 0 then continue for
+        dim as TKMETA_CONTROL ptr m = catalog.Find( Doc.Controls[p].TypeName )
+        if (m = 0) orelse (m->ContainerKind <> TKMETA_CONTAINER_PAGES) then continue for
+        dim as TKRECT rc = this.RectOf( Widgets[i] )
+        off.Push( s )
+        xs.Push( this.ToDesign( rc.left - base_.left ) )
+        ys.Push( this.ToDesign( rc.top - base_.top ) )
+    next
+    if off.Count( ) = 0 then exit sub
+    edits.Reparent( Doc, off, "", -1, xs, ys )
     this.Rebuild( )
 end sub
 

@@ -197,6 +197,22 @@ public sub DesignerPass( byref t as Tally, byval sc as single )
     t.Check( d->Text( ) = text0, P( sc, "and one Undo takes it back out" ) )
     bA = c->WidgetOf( "btnA" )
 
+    ' ---- onto a tab page (asked), then off it onto the form: the form's child again, unasked
+    Answer( MBX_IDYES )
+    DragPx( h, tkTest_CX( bA ), tkTest_CY( bA ), tkTest_CX( bA ), tkTest_CY( bA ) + 24 * stp )
+    bA = c->WidgetOf( "btnA" )
+    gAsked = 0
+    DragPx( h, tkTest_CX( bA ), tkTest_CY( bA ), tkTest_CX( bA ), tkTest_CY( bA ) - 24 * stp )
+    t.Check( (gAsked = 0) andalso (Ctl( c, "btnA" ).Parent = "") andalso (Ctl( c, "btnA" ).Page = -1) _
+             andalso (c->WidgetOf( "btnA" )->pParent = c->Surface), _
+             P( sc, strings.Format( "dragged off a tab page: the form's child, unasked ({} asks, parent '{}')", gAsked, Ctl( c, "btnA" ).Parent ) ) )
+    Primary( h, SDLK_Z, SDL_SCANCODE_Z )
+    tkTest_PumpFor( h, 30 )
+    Primary( h, SDLK_Z, SDL_SCANCODE_Z )
+    tkTest_PumpFor( h, 30 )
+    t.Check( d->Text( ) = text0, P( sc, "two Undos take both moves back" ) )
+    bA = c->WidgetOf( "btnA" )
+
     ' ---- resize through a grip
     ClickOn( h, bA )
     dim as TKRECT ra
