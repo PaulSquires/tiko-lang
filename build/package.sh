@@ -297,7 +297,17 @@ mkdir -p "$OUT"
 # copy leaves nothing behind in the package: no binary, no library beside it, and no Linux
 # executable, which is the one file there without an extension.
 rm -rf "$OUT/examples"
-cp -r "$ROOT/examples" "$OUT/examples"
+# Only what the tree TRACKS, when it is a git checkout: a working tree also holds ignored build
+# products and helper folders -- examples/tkControls/linux-lib's Linux .so symlinks among them,
+# which Git Bash cannot recreate, so a whole-tree cp died there (set -e) and left examples/ half
+# copied. A clean worktree and the main tree now package the same examples/.
+if ( cd "$ROOT" && git rev-parse --is-inside-work-tree >/dev/null 2>&1 ); then
+    mkdir -p "$OUT/examples"
+    ( cd "$ROOT" && git -c core.quotePath=false ls-files -z -- examples | tar --null -T - -cf - ) | ( cd "$OUT" && tar -xf - ) \
+        || die "copying the tracked examples/ failed"
+else
+    cp -r "$ROOT/examples" "$OUT/examples"
+fi
 find "$OUT/examples" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.so' -o -name '*.o' \
     -o -name '*.pdb' -o -name '*.a' -o ! -name '*.*' \) -delete
 # ...but a DLL the tree TRACKS is part of an example, not a build product: the WebView2 examples
