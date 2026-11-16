@@ -161,7 +161,12 @@ entry( ) {
     case $_kind in
     copy)
         _from=$(_get from); _to=$(_get to)
-        _src=$(find "$_x" -path "*/$_from" -o -name "$_from" | head -1)
+        # with a folder in it, a path's end; else a name anywhere (GNU find warns that -name
+        # never matches a pattern with a '/')
+        case $_from in
+        */*) _src=$(find "$_x" -path "*/$_from" | head -1) ;;
+        *)   _src=$(find "$_x" -name "$_from" | head -1) ;;
+        esac
         [ -n "$_src" ] && [ -f "$_src" ] || die "$_mod [$_tab]: '$_from' is not in ${_url##*/}"
         mkdir -p "$(dirname "$_mdir/$_to")"
         cp -f "$_src" "$_mdir/$_to"
