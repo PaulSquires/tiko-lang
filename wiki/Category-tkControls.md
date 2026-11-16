@@ -9,7 +9,8 @@ Each control is driven through procedures and callbacks: setters change it silen
 Every control draws itself. There is no system control underneath, so a window looks the same on every machine and can be themed to any palette, dark ones included.
 
 To draw a window instead of coding it, see the [Form Designer](Form-Designer). To give a program a
-colour scheme, styles and light/dark switching, see the [Themes Tutorial](Themes-Tutorial).
+colour scheme, styles and light/dark switching, see the [Themes Tutorial](Themes-Tutorial). The
+[Contacts Tutorial](Contacts-Tutorial) builds a complete program in the designer, with SQLite.
 
 ## Importing a control
 

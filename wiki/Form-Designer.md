@@ -4,6 +4,9 @@
 
 Draw a window in tkEdit, double-click a control, write the handler, press Run.
 
+New to it? The [Contacts Tutorial](Contacts-Tutorial) builds a whole program step by step: menus, a
+toolbar, a status bar, a list, a dialog with tabs, a popup menu, the Resource Center and SQLite.
+
 The Form Designer is part of tkEdit. A form is a `.tkform` file. Open one and it appears on a design
 surface of real [tkControls](Category-tkControls), so what you see is what the program will show. The
 result is ordinary tiko source that builds on Windows, Linux and macOS without the designer.
@@ -25,7 +28,7 @@ myapp/
     frmMain.tiko        your code
 ```
 
-**Form > New Form** adds another form to a program. Press **F5** to build and run.
+**Design > New Form...** adds another form to a program. Press **F5** to build and run.
 
 From the designer, **Alt+F5** (Test Form) shows the form in its own window with working controls and no
 handlers, so you can try the layout without building. Esc closes it.
@@ -44,7 +47,7 @@ handlers, so you can try the layout without building. Esc closes it.
 | Remove | Delete |
 | Copy | Primary+X, C and V. Paste goes into the selected container |
 | Undo | Primary+Z and Primary+Shift+Z, one step per gesture |
-| Line up | The Form menu: align, same size, bring to front, send to back |
+| Line up | The Design menu: align, same size, spacing, bring to front, send to back |
 
 Primary is Ctrl on Windows and Linux, and Cmd on macOS.
 
@@ -218,7 +221,7 @@ can't have the same name as its module.
 
 ## Resources: images and fonts
 
-A project keeps its images and fonts in one place, **Form > Resource Center...**, each under a name.
+A project keeps its images and fonts in one place, **Design > Resource Center...**, each under a name.
 A property that takes a file (a Button's **ImageLeft** and **ImageRight**, a Picture's **File**, the
 form's **Icon**) has a **...** button that opens the Center to pick one, and then holds `res:` and the
 name, `res:logo`. The Theme Center's font files have the same button, for a font of your own.
@@ -275,7 +278,7 @@ end sub
 
 ## Colours and themes
 
-A project's look lives in `appTheme/appTheme.tktheme`: **Form > Project Theme...** picks or edits it,
+A project's look lives in `appTheme/appTheme.tktheme`: **Design > Project Theme...** picks or edits it,
 and each control's **Colors** row gives it a style or its own colours. The
 [Themes Tutorial](Themes-Tutorial) walks through it step by step.
 
@@ -328,4 +331,5 @@ lists any that are stale and exits with the count, which suits a build check.
 - [Themes Tutorial](Themes-Tutorial): themes, styles and colours, in tkEdit and in code
 - [tkControls](Category-tkControls): every control
 - [partial type](Partial)
-- The toolchain's `examples/tkControls/tkContacts`: a small program built this way
+- [Contacts Tutorial](Contacts-Tutorial): an address book built step by step, finished in the
+  toolchain's `examples/tkControls/tkContacts`

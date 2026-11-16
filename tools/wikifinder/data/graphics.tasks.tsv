@@ -38,6 +38,7 @@ seealso	Vendor-Packages	Vendor packages
 from	fbgfx.bi	include	-
 ignore	Notepad2-Tutorial	a tutorial, not a function
 ignore	Themes-Tutorial	a tutorial, not a function
+ignore	Contacts-Tutorial	a tutorial, not a function
 ignore	SDL3-Tutorial	a tutorial, not a function
 seealso	Category-tkControls	tkControls guide
 from	vendor/tkControls/tkApp	import	tkApp

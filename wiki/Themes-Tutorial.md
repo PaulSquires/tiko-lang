@@ -71,7 +71,7 @@ myapp/
 
 ## 3. Pick a ready-made theme
 
-1. **Form > Project Theme...** opens the **Theme Center**.
+1. **Design > Project Theme...** opens the **Theme Center**.
 2. You are on the **Theme** page. It shows a gallery of themes:
 
 | Theme | What it is |
@@ -97,7 +97,7 @@ That's it. Your form on the design surface now wears Ocean too. Press **F5** to 
 
 Ocean is nice, but maybe your app should be teal.
 
-1. **Form > Project Theme...** again.
+1. **Design > Project Theme...** again.
 2. On the **Theme** page, find **Accent**. Type a colour as `#RRGGBB`, for example `#00897B`, or
    press **Pick...** to choose one in a colour picker.
 3. Watch the preview: the check box tick, the progress bar, the toggle and the focus ring all turn
@@ -129,7 +129,7 @@ Your users might run their computer in light mode, so check both.
 
 - **In the Theme Center:** the **Dark | Light** switch at the top changes which variant you're
   looking at and editing.
-- **On the form:** **Form > Preview Light / Dark** flips the design surface between the two. Only
+- **On the form:** **Design > Preview Light / Dark** flips the design surface between the two. Only
   the form changes; tkEdit keeps its own look.
 - **Test Form** (**Alt+F5**) opens in whichever variant the surface shows.
 
@@ -185,7 +185,7 @@ one ("Delete") should look risky. That's what **styles** are for.
 
 ### Make the style
 
-1. **Form > Project Theme...**, then the **Styles** page.
+1. **Design > Project Theme...**, then the **Styles** page.
 2. Press **Add**. A new style appears, and its **Name** box is ready: call it `Danger`.
 3. Under the list of styles are four rows: **Face**, **Text**, **Border** and **Accent**. Each row has a drop-down,
    a swatch showing the colour you get, **Pick...** and **Reset**. A new style starts with Face set
