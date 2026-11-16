@@ -20,6 +20,7 @@
 #import "tkd/formtree"
 #import "tkd/themefile"
 #import "tkd/resfile"
+#import "tkd/appicon"
 #import "tkd/glyphfile"
 #import "tkd/fontwriter"
 #import "tkd/canvas"
@@ -1490,6 +1491,65 @@ end sub
 
 ' A Timer, the first component: created on the form, never laid out, Interval and Tick; placed at its
 ' own size on the form whatever it's dropped on; no parent, dock or anchors.
+' The program's icon: app_icon in the .tkres, the tiko.toml line, the .ico made from an image.
+sub AppIconSuite( )
+    dim as resfile.ResourceDoc rd
+    dim as ustring e, none
+    dim as ustring src = "format = 1" & LF & "app_icon = ""logo""" & LF & LF & "[[resource]]" & LF & "name = ""logo""" & LF _
+        & "kind = ""image""" & LF & "file = ""logo.png""" & LF
+    Check( resfile.Parse( src, rd, e ) andalso (rd.AppIcon = "logo") andalso (resfile.ToText( rd ) = src), "appicon: app_icon read and written back", resfile.ToText( rd ) )
+    rd.AppIcon = "nope"
+    dim as Array( of ustring ) pr
+    resfile.Check( rd, "", pr )
+    dim as ustring pr0
+    if pr.Count( ) then pr0 = pr[0]
+    Check( (pr.Count( ) = 1) andalso (instr( pr0, "app_icon 'nope'" ) > 0), "appicon: one naming no resource is reported", pr0 )
+
+    ' tiko.toml: a table made, an entry added to a list, taken out again, the rest kept
+    dim as boolean ch
+    dim as ustring rc = "appResources/app.rc"
+    dim as ustring t0 = "[package]" & LF & "name = 'a'" & LF & LF & "[target.a]" & LF & "main = 'main.tiko'" & LF
+    dim as ustring t1 = appicon.TomlWithResource( t0, "a", rc, true, ch )
+    Check( ch andalso (t1 = t0 & LF & "[target.a.windows]" & LF & "resources = [""" & rc & """]" & LF), "appicon: a .windows table made", t1 )
+    dim as ustring t2 = appicon.TomlWithResource( t1, "a", rc, true, ch )
+    Check( (ch = false) andalso (t2 = t1), "appicon: there already, nothing changes" )
+    Check( appicon.TomlWithResource( t1, "a", rc, false, ch ) = t0 & LF & "[target.a.windows]" & LF, "appicon: off, the last entry takes its line" )
+    dim as ustring t3 = "[target.a.windows]" & LF & "resources = [""res/x.rc""]  # mine" & LF & "[profile.debug]" & LF
+    dim as ustring t4 = appicon.TomlWithResource( t3, "a", rc, true, ch )
+    Check( t4 = "[target.a.windows]" & LF & "resources = [""res/x.rc"", """ & rc & """]  # mine" & LF & "[profile.debug]" & LF, "appicon: added to a list, the rest kept", t4 )
+    Check( appicon.TomlWithResource( t4, "a", rc, false, ch ) = t3, "appicon: and taken out of it" )
+
+    ' an .ico from a 40x20 PNG: six images, 16..64 as DIBs, 256 as a PNG
+    dim as ustring dir_ = fs.PathJoin( fs.TempDir( ).ValueOr( none ), "designall-appicon" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring png = fs.PathJoin( dir_, "logo.png" ), ico = fs.PathJoin( dir_, "app.ico" )
+    dim as SDL_Surface ptr s = SDL_CreateSurface( 40, 20, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_FillSurfaceRect( s, 0, &hFFCC2200 )
+    dim as string png8 = png
+    IMG_SavePNG( s, strptr( png8 ) )
+    SDL_DestroySurface( s )
+    dim as ustring fault = appicon.MakeIco( png, ico )
+    Check( len( fault ) = 0, "appicon: MakeIco writes the .ico", fault )
+    dim as Array( of ubyte ) b
+    fs.ReadAllBytes( ico, b )
+    dim as boolean ok = (b.Count( ) > 6 + 16 * 6) andalso (b[2] = 1) andalso (b[4] = 6)
+    if ok then
+        ' the entries' sizes (256 is written 0), and the last image starts with PNG's signature
+        dim as long want( 0 to 5 ) = { 16, 24, 32, 48, 64, 0 }
+        for k as long = 0 to 5
+            if b[6 + 16 * k] <> want( k ) then ok = false
+        next
+        dim as long off = b[6 + 16 * 5 + 12] or (b[6 + 16 * 5 + 13] shl 8) or (b[6 + 16 * 5 + 14] shl 16)
+        if (off + 4 > b.Count( )) orelse (b[off + 1] <> 80) orelse (b[off + 2] <> 78) orelse (b[off + 3] <> 71) then ok = false
+        ' the 16 px DIB: header 40, 16 wide, 32 tall (with its mask), 32 bits
+        dim as long d0 = b[6 + 12] or (b[6 + 13] shl 8)
+        if (b[d0] <> 40) orelse (b[d0 + 4] <> 16) orelse (b[d0 + 8] <> 32) orelse (b[d0 + 14] <> 32) then ok = false
+    end if
+    Check( ok, "appicon: six images, 16..64 px DIBs and a 256 px PNG", str( b.Count( ) ) )
+    fs.RemoveFile( png )
+    fs.RemoveFile( ico )
+end sub
+
 sub TimerSuite( )
     Check( catalog.IsComponent( "Timer" ) andalso (catalog.IsComponent( "Button" ) = false) andalso (catalog.IsComponent( catalog.CUSTOM_TYPE ) = false), "timer: a component, a button isn't" )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""T""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -2162,6 +2222,7 @@ PopupSuite( )
 SpinnerSuite( )
 OptionGroupSuite( )
 ResourceSuite( )
+AppIconSuite( )
 ColorsSuite( )
 ThemeSuite( bAccept )
 ThemeCenterCore( )

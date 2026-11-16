@@ -31,6 +31,7 @@
 #import "tkd/themefile"
 #import "tkd/resfile"
 #import "tkd/resdlg"
+#import "tkd/appicon"
 #import "tkd/glyphdlg"
 #import "tkd/glyphfile"
 #import "tkd/fontwriter"
@@ -1072,6 +1073,45 @@ function Window.EditResources( byref kind_ as const ustring, byref current as co
     return ok
 end function
 
+' The program's icon as the .tkres has it: app.ico and app.rc beside it and the .rc in tiko.toml's
+' [target.<t>.windows] resources, or (none) all three gone. The target is the options' one, else the
+' first; the manifest is rewritten through its open document when it has one.
+sub Window.ApplyAppIcon( byref doc as resfile.ResourceDoc, byref tkresPath as const ustring )
+    dim as ustring dir_ = fs.PathParent( tkresPath ), none
+    dim as ustring ico = fs.PathJoin( dir_, appicon.ICO_FILE ), rc = fs.PathJoin( dir_, appicon.RC_FILE )
+    dim as boolean on_ = false
+    dim as long a = resfile.Find( doc, doc.AppIcon )
+    if (len( doc.AppIcon ) > 0) andalso (a >= 0) then
+        dim as ustring fault = appicon.MakeIco( fs.PathJoin( dir_, resfile.FILES_DIR, doc.Items[a].File ), ico )
+        if len( fault ) = 0 then
+            if fs.WriteAllText( rc, appicon.RcText( ) ).IsOk( ) = false then fault = appicon.RC_FILE & ": " & i18n.Tr( "message.cannot_create", "can't be created" )
+        end if
+        if len( fault ) then
+            this.SetMessage( i18n.Tr( "designer.res_app_icon", "Application icon (Windows)" ) & ": " & fault )
+            exit sub
+        end if
+        on_ = true
+    else
+        if fs.IsFile( ico ) then fs.RemoveFile( ico )
+        if fs.IsFile( rc ) then fs.RemoveFile( rc )
+    end if
+    if (len( Proj.Path ) = 0) orelse (Proj.Targets.Count( ) = 0) then exit sub
+    dim as ustring target = Proj.Targets[0].Name
+    if (len( ProjOpts.Target ) > 0) andalso (Proj.TargetIndex( ProjOpts.Target ) >= 0) then target = ProjOpts.Target
+    dim as DocRef open_ = OpenDocAt_( Docs, Proj.Path )
+    dim as ustring t0
+    if open_ then t0 = open_->Text( ) else t0 = fs.ReadAllText( Proj.Path ).ValueOr( none )
+    dim as boolean changed
+    dim as ustring t1 = appicon.TomlWithResource( t0, target, resfile.RES_MODULE & "/" & appicon.RC_FILE, on_, changed )
+    if changed = false then exit sub
+    if open_ then
+        open_->Main.ReplaceAllText( t1 )
+        this.SaveDoc( open_, false )
+    elseif fs.WriteAtomic( Proj.Path, t1 ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( Proj.Path ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+    end if
+end sub
+
 ' OK: the .tkres and its module written, renames carried into the project's forms and theme,
 ' removed files deleted, main made to register them, and this process told the new names.
 sub Window.ApplyResources( byref dlg as resdlg.ResourceDialog )
@@ -1086,6 +1126,7 @@ sub Window.ApplyResources( byref dlg as resdlg.ResourceDialog )
         exit sub
     end if
     this.WriteResourcesGenerated( path, text )
+    this.ApplyAppIcon( dlg.Doc, path )
     for each f as ustring in dlg.Removed
         fs.RemoveFile( fs.PathJoin( fs.PathParent( path ), resfile.FILES_DIR, f ) )
     next

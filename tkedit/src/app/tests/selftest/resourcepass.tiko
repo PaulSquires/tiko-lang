@@ -47,6 +47,7 @@ using tkButton
 dim shared as long gResStep, gResTries, gResTones
 dim shared as ustring gResFaults
 dim shared as ustring gResRename
+dim shared as boolean gResAppBox        ' step 4: the Application icon box showed for the image
 
 private function resfile_Find_( byval dlg as resdlg.ResourceDialog ptr, byref nm as const ustring ) as long
     for i as long = 0 to dlg->Doc.Items.Count( ) - 1
@@ -83,6 +84,15 @@ private sub DriveResources( byval payload as any ptr )
         for r as long = 0 to tkListTree_GetCount( dlg->List ) - 1
             if tkListTree_GetItemData( dlg->List, r ) = want then tkListTree_SetCurSel( dlg->List, r )
         next
+    case 4, 5
+        ' Manage: that image made the program's icon (4), then not (5)
+        dim as long want = resfile_Find_( dlg, gResRename )
+        for r as long = 0 to tkListTree_GetCount( dlg->List ) - 1
+            if tkListTree_GetItemData( dlg->List, r ) = want then tkListTree_SetCurSel( dlg->List, r )
+        next
+        dlg->ShowSelected( )
+        gResAppBox = tkWidget_IsVisible( dlg->ChkAppIcon )
+        dlg->AppIconToggled( gResStep = 4 )
     end select
     dlg->Finish( true )
 end sub
@@ -156,6 +166,17 @@ public sub ResourcePass( byref t as Tally, byval sc as single )
     if bi >= 0 then img = SettingOr( c->Doc.Controls[bi].Props, "ImageLeft" )
     t.Check( img = "res:brand", P( sc, "the Button's ImageLeft follows the rename: " & img ) )
     t.Check( tkHost_HasResource( "res:brand" ) andalso (tkHost_HasResource( "res:red" ) = false), P( sc, "this process knows the new name, not the old" ) )
+
+    ' ---- the program's icon: brand ticked, OK -> app.ico, app.rc and tiko.toml's line; unticked -> gone
+    dim as ustring ico = fs.PathJoin( resDir, "app.ico" ), rcf = fs.PathJoin( resDir, "app.rc" )
+    t.Check( OpenCenter( mw, 4 ) andalso gResAppBox, P( sc, "an image shows the Application icon box; ticked, OK" ) )
+    dim as ustring toml = fs.ReadAllText( fs.PathJoin( proj, "tiko.toml" ) ).ValueOr( none )
+    tkres = fs.ReadAllText( fs.PathJoin( resDir, "appResources.tkres" ) ).ValueOr( none )
+    t.Check( fs.IsFile( ico ) andalso fs.IsFile( rcf ) andalso (instr( toml, "resources = [""appResources/app.rc""]" ) > 0) _
+             andalso (instr( tkres, "app_icon = ""brand""" ) > 0), P( sc, "app.ico, app.rc, the tiko.toml line and app_icon written" ) )
+    t.Check( OpenCenter( mw, 5 ), P( sc, "unticked, OK" ) )
+    toml = fs.ReadAllText( fs.PathJoin( proj, "tiko.toml" ) ).ValueOr( none )
+    t.Check( (fs.IsFile( ico ) = false) andalso (fs.IsFile( rcf ) = false) andalso (instr( toml, "app.rc" ) = 0), P( sc, "and all three gone again" ) )
     ' a Remove's warning names the control's property -- but not the one a "..." is picking for
     c->SelectOnly( "Button1" )
     dim as ustring users = mw.ResourceUsers( "brand" )

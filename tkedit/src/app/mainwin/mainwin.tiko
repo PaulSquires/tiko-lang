@@ -64,6 +64,7 @@
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "tkd/resdlg"
+#import "tkd/resfile"
 #import "tkd/glyphdlg"
 #import "tkd/glyphfile"
 #import "tkd/model"
@@ -644,6 +645,7 @@ public type Window
     declare sub OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
     declare sub FinishItems( byval apply_ as boolean )
     declare sub EditItems( byval c as canvas.FormCanvas ptr, byref name_ as const ustring, byval seed as boolean = false )
+    declare sub ApplyAppIcon( byref doc as resfile.ResourceDoc, byref tkresPath as const ustring )
     declare function AskParent( byref what as const ustring, byval n as long, byref parent as const ustring, byref page as const ustring ) as boolean
     ColorsDlg as colorsdlg.ColorsDialog ptr
     ColorsOf as canvas.FormCanvas ptr

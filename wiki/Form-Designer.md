@@ -228,6 +228,12 @@ name, `res:logo`. The Theme Center's font files have the same button, for a font
 - Rename one in its **Name** box, and every form and the theme that use it follow.
 - **Build into the program** (on by default) puts the file inside the program. Off, the file is
   copied beside the program into `resources/` after each build, and read from there.
+- **Application icon (Windows)**, on an image, makes it the program's icon: the exe's in Explorer and
+  the taskbar, and the title-bar icon of every window whose form has no **Icon** of its own. One image
+  at a time. The Center writes `appResources/app.ico` (16 to 256 pixels; an `.ico` is used as it is)
+  and `appResources/app.rc`, and adds `resources = ["appResources/app.rc"]` to the `[target.<name>.windows]`
+  table of `tiko.toml`; unticking it takes all three away again. Linux and macOS programs have no icon
+  in the file, so the setting doesn't change them.
 
 The Center writes `appResources/appResources.tkres`, and from it `appResources.design.tiko`, whose
 `Register` names every resource before `tkApp_Init`. A typed path still works where a `res:` name

@@ -9,6 +9,8 @@
 ' files it names in appResources/files/, and the generated module that registers them in a program.
 '
 '   format = 1
+'   app_icon = "logo"             the image that is the program's icon (Windows: appicon writes
+'                                 app.ico and app.rc beside the .tkres); absent = none
 '   [[resource]]
 '   name = "logo"                 a property takes it as "res:logo"
 '   kind = "image"                image | font (from the file's extension)
@@ -41,6 +43,7 @@ end type
 
 public type ResourceDoc
     Items as Array( of Resource )
+    AppIcon as ustring                 ' the image resource that is the program's icon; "" = none
     Problems as Array( of ustring )
 end type
 
@@ -154,7 +157,8 @@ public function Parse( byref text as const ustring, byref doc as ResourceDoc, by
         errText = "format " & fmt & " is not one this version reads (expected " & RES_FORMAT & ")"
         return false
     end if
-    OnlyKeys_( root, "format resource", "file", doc )
+    OnlyKeys_( root, "format app_icon resource", "file", doc )
+    doc.AppIcon = StrOf_( root, "app_icon" )
     dim as config.TomlValue ptr list = root.Find( "resource" )
     if list then
         for i as long = 0 to list->Count( ) - 1
@@ -177,6 +181,7 @@ end function
 ' The canonical text: the resources in their order, embed written only when it is off.
 public function ToText( byref doc as ResourceDoc ) as ustring
     dim as ustring o = "format = " & RES_FORMAT & NL
+    if len( doc.AppIcon ) then o &= "app_icon = " & Quote_( doc.AppIcon ) & NL
     for each x as Resource in doc.Items
         o &= NL & "[[resource]]" & NL
         o &= "name = " & Quote_( x.Name ) & NL
@@ -193,6 +198,14 @@ public sub Check( byref doc as ResourceDoc, byref dir_ as const ustring, byref p
     for each p as ustring in doc.Problems
         problems.Push( p )
     next
+    if len( doc.AppIcon ) then
+        dim as long a = Find( doc, doc.AppIcon )
+        if a < 0 then
+            problems.Push( "app_icon '" & doc.AppIcon & "': no such resource" )
+        elseif doc.Items[a].Kind <> "image" then
+            problems.Push( "app_icon '" & doc.AppIcon & "': not an image" )
+        end if
+    end if
     for i as long = 0 to doc.Items.Count( ) - 1
         dim byref as Resource x = doc.Items[i]
         if IsName( x.Name ) = false then

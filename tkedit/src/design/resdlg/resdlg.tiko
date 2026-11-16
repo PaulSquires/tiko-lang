@@ -83,6 +83,7 @@ public type ResourceDialog
     LblName as TK_WIDGET ptr
     TxtName as TK_WIDGET ptr
     ChkEmbed as TK_WIDGET ptr
+    ChkAppIcon as TK_WIDGET ptr         ' Manage, an image: the program's icon (Windows)
     LblInfo as TK_WIDGET ptr
     Preview as TK_WIDGET ptr
     Picture as TK_WIDGET ptr
@@ -108,6 +109,7 @@ public type ResourceDialog
     declare function RenameSelected( byref newName as const ustring ) as ustring
     declare function NameFault( byref nm as const ustring ) as ustring
     declare sub EmbedToggled( byval on_ as boolean )
+    declare sub AppIconToggled( byval on_ as boolean )
     declare function Changed( ) as boolean
 end type
 
@@ -163,6 +165,11 @@ end sub
 private sub OnEmbed( byval h as TK_WIDGET ptr, byval isChecked as boolean )
     dim as ResourceDialog ptr d = DlgOf( h )
     if (d <> 0) andalso (d->Loading = false) then d->EmbedToggled( isChecked )
+end sub
+
+private sub OnAppIcon( byval h as TK_WIDGET ptr, byval isChecked as boolean )
+    dim as ResourceDialog ptr d = DlgOf( h )
+    if (d <> 0) andalso (d->Loading = false) then d->AppIconToggled( isChecked )
 end sub
 
 private function MakeButton_( byval parent as TK_WIDGET ptr, byref text as const ustring ) as TK_WIDGET ptr
@@ -253,6 +260,9 @@ sub ResourceDialog.Open( byval owner_ as TK_FORM ptr, byref dir__ as const ustri
     ChkEmbed = tkCheckBox_Create( root_, 1 )
     tkCheckBox_SetText( ChkEmbed, i18n.Tr( "designer.res_embed", "Build into the program" ) )
     tkCheckBox_SetCheckChangedCallback( ChkEmbed, @OnEmbed )
+    ChkAppIcon = tkCheckBox_Create( root_, 1 )
+    tkCheckBox_SetText( ChkAppIcon, i18n.Tr( "designer.res_app_icon", "Application icon (Windows)" ) )
+    tkCheckBox_SetCheckChangedCallback( ChkAppIcon, @OnAppIcon )
     LblInfo = tkLabel_Create( root_, 1 )
     Preview = tkPanel_Create( root_, 1 )
     Picture = tkPicture_Create( Preview, 1 )
@@ -327,13 +337,16 @@ sub ResourceDialog.Layout( )
     dim as long pvW = tkForm_Scale( Win, 220 ), bw = tkForm_Scale( Win, 90 ), lw = tkForm_Scale( Win, 50 )
     dim as long bottomY = ch - g - rh
     dim as long lstW = cw - pvW - 3 * g
-    ' the list, then the selected one's name and its built-in box under it
-    dim as long fieldsY = bottomY - 2 * (rh + g)
+    ' the list, then the selected one's name with its built-in box beside it, the application
+    ' icon box under that, and the info line
+    dim as long fieldsY = bottomY - 3 * (rh + g)
+    dim as long chkX = 3 * g + lw + tkForm_Scale( Win, 180 )
     tkWidget_SetPos( List, g, g, lstW, fieldsY - 2 * g )
     tkWidget_SetPos( LblName, g, fieldsY, lw, rh )
     tkWidget_SetPos( TxtName, 2 * g + lw, fieldsY, tkForm_Scale( Win, 180 ), rh )
-    tkWidget_SetPos( ChkEmbed, 3 * g + lw + tkForm_Scale( Win, 180 ), fieldsY, lstW - (2 * g + lw + tkForm_Scale( Win, 180 )), rh )
-    tkWidget_SetPos( LblInfo, g, fieldsY + rh + g, lstW, rh )
+    tkWidget_SetPos( ChkEmbed, chkX, fieldsY, lstW - chkX + g, rh )
+    tkWidget_SetPos( ChkAppIcon, chkX, fieldsY + rh + g, lstW - chkX + g, rh )
+    tkWidget_SetPos( LblInfo, g, fieldsY + 2 * (rh + g), lstW, rh )
     tkWidget_SetPos( Preview, cw - pvW - g, g, pvW, fieldsY - 2 * g )
     ' the picture (or the font's sample), its file's size centred under it
     dim as long picH = fieldsY - 5 * g - rh
@@ -388,6 +401,11 @@ sub ResourceDialog.ShowSelected( )
     tkWidget_Show( Picture, false )
     tkWidget_Show( Sample, false )
     tkLabel_SetText( LblSize, "" )
+    ' the application icon box: Manage only, on an image
+    dim as boolean isImage = false
+    if (i >= 0) andalso (i < Doc.Items.Count( )) then isImage = (Doc.Items[i].Kind = "image")
+    tkWidget_Show( ChkAppIcon, (len( PickKind ) = 0) andalso isImage )
+    tkCheckBox_SetChecked( ChkAppIcon, false )
     if i < 0 then
         tkTextBox_SetText( TxtName, "" )
         tkCheckBox_SetChecked( ChkEmbed, false )
@@ -395,6 +413,7 @@ sub ResourceDialog.ShowSelected( )
         dim byref as resfile.Resource x = Doc.Items[i]
         tkTextBox_SetText( TxtName, x.Name )
         tkCheckBox_SetChecked( ChkEmbed, x.Embed )
+        tkCheckBox_SetChecked( ChkAppIcon, lcase( Doc.AppIcon ) = lcase( x.Name ) )
         tkLabel_SetText( LblInfo, resfile.RefOf( x.Name ) )
         dim as ustring file = fs.PathJoin( Dir_, resfile.FILES_DIR, x.File )
         tkLabel_SetText( LblSize, SizeText_( file ) )
@@ -473,6 +492,7 @@ function ResourceDialog.RemoveSelected( ) as boolean
     else
         Removed.Push( Doc.Items[i].File )
     end if
+    if lcase( Doc.AppIcon ) = lcase( nm ) then Doc.AppIcon = ""      ' the program's icon goes with it
     Doc.Items.Remove( i )
     this.Fill( iif( i < Doc.Items.Count( ), i, Doc.Items.Count( ) - 1 ) )
     this.ShowSelected( )
@@ -502,6 +522,7 @@ function ResourceDialog.RenameSelected( byref newName as const ustring ) as ustr
     dim as ustring fault = this.NameFault( nm )
     if len( fault ) then return fault
     Doc.Items[i].Name = nm
+    if lcase( Doc.AppIcon ) = lcase( old ) then Doc.AppIcon = nm   ' the program's icon follows it
     ' one entry per resource the project already knows: old -> newest; one added here needs none
     dim as boolean isNew = false
     for each f as ustring in Added
@@ -522,6 +543,17 @@ function ResourceDialog.RenameSelected( byref newName as const ustring ) as ustr
     this.ShowSelected( )
     return ""
 end function
+
+' The selected image is the program's icon, or no longer is. One at a time: ticking it moves it here.
+sub ResourceDialog.AppIconToggled( byval on_ as boolean )
+    dim as long i = this.SelIndex( )
+    if (i < 0) orelse (Doc.Items[i].Kind <> "image") then exit sub
+    if on_ then
+        Doc.AppIcon = Doc.Items[i].Name
+    elseif lcase( Doc.AppIcon ) = lcase( Doc.Items[i].Name ) then
+        Doc.AppIcon = ""
+    end if
+end sub
 
 sub ResourceDialog.EmbedToggled( byval on_ as boolean )
     dim as long i = this.SelIndex( )
