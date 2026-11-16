@@ -1084,10 +1084,10 @@ props = [
   { name="HoverTime", kind="int", set="tkToolbar_SetHoverTime", get="" },
   { name="AutoPopTime", kind="int", set="tkToolbar_SetAutoPopTime", get="" },
   { name="ReshowTime", kind="int", set="tkToolbar_SetReshowTime", get="" },
-  { name="IconSize", kind="list", enum="IconWidth:int,IconHeight:int", set="tkToolbar_SetIconSize", get="" },
+  { name="IconSize", kind="list", enum="IconWidth:int,IconHeight:int", set="tkToolbar_SetIconSize", get="", inspector=false },
   { name="Padding", kind="list", enum="PadBefore:int,PadAfter:int,PadTop:int,PadBottom:int", set="tkToolbar_SetPadding", get="" },
   { name="ChevronSize", kind="list", enum="ChevronWidth:int,ChevronGap:int", set="tkToolbar_SetChevronSize", get="" },
-  { name="Glyphs", kind="list", enum="Chevron:text,Overflow:text", set="tkToolbar_SetGlyphs", get="" },
+  { name="Glyphs", kind="list", enum="Chevron:text,Overflow:text", set="tkToolbar_SetGlyphs", get="", inspector=false },
 ]
 events = [
   { name="Click", set="tkToolbar_SetClickCallback", type="TBR_ClickCallbackSub", sig="byval hToolbar as TK_WIDGET ptr, byval idx as int32, byval id as int32", params="byval idx as int32", args="idx" },

@@ -1249,6 +1249,8 @@ sub TabBarSuite( )
     HasLine( g, "tb.IconWidth = TTF_GetFontHeight( gf_ )", "tabbar: GlyphSize in points fits the glyph box" )
     dim as TKMETA_CONTROL ptr m = tkMeta_Find( "TabBar" )
     Check( (tkMeta_FindProp( m, "IconWidth" )->bInspector = false) andalso tkMeta_FindProp( m, "Font" )->bInspector, "tabbar: IconWidth not shown, Font shown" )
+    dim as TKMETA_CONTROL ptr mtb = tkMeta_Find( "Toolbar" )
+    Check( (tkMeta_FindProp( mtb, "IconSize" )->bInspector = false) andalso (tkMeta_FindProp( mtb, "Glyphs" )->bInspector = false), "toolbar: IconSize and Glyphs not shown" )
 end sub
 
 ' A MenuBar's Command handler is told the id, and its two new events: InitPopup and Paint.
