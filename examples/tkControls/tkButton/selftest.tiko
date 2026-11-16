@@ -245,6 +245,16 @@ sub RunPass( byval fScale as single )
     ' and a straight edge stays crisp: mid-top border row is ONE colour
     dim as long nEdge = tkTest_TonesIn( h, a->x + rb.left + cr * 2, a->y + rb.top, tkHost_Scale( h, 10 ), 1, cdummy )
     tkTest_Check( "AA: straight edge crisp (1 tone)", nEdge = 1, "" & nEdge )
+    ' the glyph's ink sits in the middle of its block, within a pixel: the icon font's line box is
+    ' where its glyphs are centred (a merged font whose wasn't drew them 2-3 px high, 2026-11-16)
+    dim as TKRECT rg
+    tkButton_GetIconLeftRect( a, rg )
+    dim as ulong bgG = tkTest_PixelAt( h, a->x + rg.left - 2, a->y + (rb.top + rb.bottom) \ 2 )
+    dim as long gTop, gBot
+    dim as boolean gInk = tkTest_InkRows( h, a->x + rg.left, a->y + rb.top + 2, rg.right - rg.left, rb.bottom - rb.top - 4, bgG, gTop, gBot )
+    dim as single gOff = (gTop + gBot + 1) / 2 - (a->y + (rg.top + rg.bottom) / 2)
+    tkTest_Check( "glyph centred in its block by its ink", gInk andalso (abs( gOff ) <= 1), _
+                  "ink " & gTop & ".." & gBot & " block " & (a->y + rg.top) & ".." & (a->y + rg.bottom) & " off " & gOff )
 
     ' ellipsis: a starved caption never paints past its span
     dim as TK_WIDGET ptr el = tkButton_Create( tkHost_Root( h ), 104 )

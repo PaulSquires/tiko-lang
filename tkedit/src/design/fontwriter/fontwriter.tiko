@@ -774,6 +774,30 @@ public function HasGlyph( byref path as const ustring, byval cp as ulong ) as bo
     return GlyphOf_( f, cp ) <> 0
 end function
 
+' For tests: glyph cp's vertical middle in the font at path (its decoded outline's points, font
+' units -- a glyph's stored box can disagree with its outline), the font's line-box middle
+' ((ascent + descent) / 2) and its units per em.
+public function GlyphMiddle( byref path as const ustring, byval cp as ulong, byref glyphMid as double, _
+                             byref lineMid as double, byref upem as long ) as boolean
+    dim as SrcFont_ f
+    dim as ustring why
+    if LoadFont_( path, f, why ) = false then return false
+    dim as long gid = GlyphOf_( f, cp )
+    if gid = 0 then return false
+    dim as Outline_ o
+    if f.IsCff then CffDecode_( f, gid, o, 1 ) else Decode_( f, gid, o, 1, 0, 0, 1, 0, 0, 0 )
+    if o.Y.Count( ) = 0 then return false
+    dim as double lo = o.Y[0], hi = o.Y[0]
+    for k as long = 1 to o.Y.Count( ) - 1
+        if o.Y[k] < lo then lo = o.Y[k]
+        if o.Y[k] > hi then hi = o.Y[k]
+    next
+    glyphMid = (lo + hi) / 2
+    lineMid = (f.Ascent + f.Descent) / 2
+    upem = f.Upem
+    return true
+end function
+
 ' ---- writing -----------------------------------------------------------------------------------------
 
 private sub W8_( byref b as Array( of ubyte ), byval v as long )
@@ -908,6 +932,14 @@ public function Build( byref takes as Array( of GlyphTake ), byref family as con
         dim as double s = upem / f.Upem
         dim as Outline_ o
         if f.IsCff then CffDecode_( f, gid, o, s ) else Decode_( f, gid, o, s, 0, 0, s, 0, 0, 0 )
+        ' ITS FONT'S LINE BOX ONTO THIS ONE'S: an icon font centres its glyphs in its own line box
+        ' (ascent to descent: Phosphor's middle is 448 of 1024, tabler's 400 of 1000, Material's
+        ' 256 of 512), and this font's line box is its em box. Kept where they were, glyphs from
+        ' different fonts sat at different heights, and every one was drawn high (2026-11-16).
+        dim as double lift = upem / 2 - (f.Ascent + f.Descent) * s / 2
+        for k as long = 0 to o.Y.Count( ) - 1
+            o.Y[k] += lift
+        next
         dim as long x0 = 0, y0 = 0, x1 = 0, y1 = 0
         Encode_( o, one, x0, y0, x1, y1 )
         for each byt as ubyte in one
@@ -925,9 +957,6 @@ public function Build( byref takes as Array( of GlyphTake ), byref family as con
             if o.X.Count( ) > maxPts then maxPts = o.X.Count( )
             if o.Ends.Count( ) > maxCts then maxCts = o.Ends.Count( )
         end if
-        dim as long fa = Round_( f.Ascent * s ), fd = Round_( f.Descent * s )
-        if fa > asc_ then asc_ = fa
-        if fd < desc_ then desc_ = fd
         codes.Push( clng( takes[i].Target ) ) : gids.Push( 0 )
     next
     dim as long ng = loca.Count( ) - 1                   ' glyphs: .notdef + the taken (loca has one more)
@@ -940,8 +969,10 @@ public function Build( byref takes as Array( of GlyphTake ), byref family as con
         gids[k] = k + 1
     next
     if fxMin > fxMax then fxMin = 0 : fyMin = 0 : fxMax = 0 : fyMax = 0
-    if asc_ = 0 then asc_ = Round_( upem * 0.8 )
-    if desc_ = 0 then desc_ = -Round_( upem * 0.2 )
+    ' the line box is the em box -- as Fluent's, the default glyph font, is -- so a glyph centred in
+    ' it is centred where text is: a line box from the sources' largest ascent and descent (500
+    ' and -100) put its middle 0.1 em under the glyphs
+    asc_ = upem : desc_ = 0
     ' codes in order, for the cmap
     for i as long = 0 to codes.Count( ) - 1
         for j as long = i + 1 to codes.Count( ) - 1
@@ -978,7 +1009,7 @@ public function Build( byref takes as Array( of GlyphTake ), byref family as con
 
     dim as long first_ = codes[0], last_ = codes[codes.Count( ) - 1]
     W16_( tOs2, 4 ) : W16_( tOs2, upem ) : W16_( tOs2, 400 ) : W16_( tOs2, 5 ) : W16_( tOs2, 0 )
-    for k as long = 1 to 10 : W16_( tOs2, 0 ) : next       ' sub/superscript, strikeout, family class
+    for k as long = 1 to 11 : W16_( tOs2, 0 ) : next       ' sub/superscript (8), strikeout (2), family class
     for k as long = 1 to 10 : W8_( tOs2, 0 ) : next        ' panose
     W32_( tOs2, 0 ) : W32_( tOs2, &h10000000 ) : W32_( tOs2, 0 ) : W32_( tOs2, 0 )   ' Private Use Area
     W8_( tOs2, 84 ) : W8_( tOs2, 73 ) : W8_( tOs2, 75 ) : W8_( tOs2, 79 )            ' 'TIKO'

@@ -2111,6 +2111,31 @@ sub FontWriterSuite( )
         if fontwriter.HasGlyph( out_, &hE000 + i ) = false then all_ = false
     next
     Check( all_ andalso (fontwriter.HasGlyph( out_, &hE824 ) = false), "fontwriter: every glyph at its new code, none at its old", str( bytes.Count( ) ) )
+    ' each glyph keeps its place in its own font's line box, and this font's line box is the em box
+    dim as boolean placed = true
+    dim as string where_
+    for i as long = 0 to 5
+        dim as double sm, sl, om, ol
+        dim as long su, ou
+        if (fontwriter.GlyphMiddle( tk & srcs( i ), cps( i ), sm, sl, su ) = false) orelse _
+           (fontwriter.GlyphMiddle( out_, &hE000 + i, om, ol, ou ) = false) then placed = false : continue for
+        dim as double want = (sm - sl) * ou / su + ou / 2
+        where_ &= " " & hex( cps( i ) ) & ":" & om & "/" & want & " (src " & sm & " line " & sl & " upem " & su & ", out line " & ol & ")"
+        if (abs( om - want ) > 1.5) orelse (ol <> ou / 2) then placed = false
+    next
+    Check( placed, "fontwriter: each glyph where its font centres it, in an em-box line", where_ )
+    ' OS/2 version 4 is 96 bytes: the typo and win metrics at their offsets
+    dim as long os2At = -1, os2Len = 0
+    for t as long = 0 to ((bytes[4] shl 8) or bytes[5]) - 1
+        dim as long r = 12 + 16 * t
+        if (bytes[r] = asc( "O" )) andalso (bytes[r + 1] = asc( "S" )) andalso (bytes[r + 2] = asc( "/" )) andalso (bytes[r + 3] = asc( "2" )) then
+            os2At = (bytes[r + 8] shl 24) or (bytes[r + 9] shl 16) or (bytes[r + 10] shl 8) or bytes[r + 11]
+            os2Len = (bytes[r + 12] shl 24) or (bytes[r + 13] shl 16) or (bytes[r + 14] shl 8) or bytes[r + 15]
+        end if
+    next
+    dim as long typoAsc = -1, winAsc = -1
+    if os2At >= 0 then typoAsc = (bytes[os2At + 68] shl 8) or bytes[os2At + 69] : winAsc = (bytes[os2At + 74] shl 8) or bytes[os2At + 75]
+    Check( (os2Len = 96) andalso (typoAsc = 500) andalso (winAsc = 500), "fontwriter: OS/2 is 96 bytes, typo and win ascent the em", os2Len & " " & typoAsc & " " & winAsc )
     ' V6: CFF outlines -- a name-keyed font (made from PsIcons by fontTools) and a CID-keyed one
     ' (tkEdit's Noto Sans SC subset: subroutines, FDSelect)
     dim as Array( of fontwriter.GlyphTake ) cff
