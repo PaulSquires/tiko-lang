@@ -54,6 +54,7 @@ SITES = [
     ("book/book.yaml", r'^  version: "' + V + r'"$', DOTTED),
     ("by-example/book.yaml", r'^  version: "' + V + r'"$', DOTTED),
     ("book/examples/ch01/solutions/ex01-01.out", r"^compiler: tiko " + V + r"$", DOTTED),
+    ("book/src/appendix-D-from-freebasic.md", r'^\| `__TIKO_VERSION__` \| not defined \| `"' + V + r'"` \|$', DOTTED),
 ]
 
 
