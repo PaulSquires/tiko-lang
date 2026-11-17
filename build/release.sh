@@ -231,6 +231,11 @@ if [ "$LSP" = "1" ]; then
     case "$lsp" in "tiko-lsp "*) note "smoke windows-x86_64: $lsp" ;; *) die "Windows smoke: tiko-lsp --version said '$lsp'" ;; esac
 fi
 note "smoke windows-x86_64: ok"
+# A WSL distro set up from apt.llvm.org may have only clang-NN (Ubuntu 22.04: clang-18), and
+# tiko looks for /usr/bin/clang, then clang on PATH -- as a user there would have to, the
+# smoke then names one: TIKO_CLANG for the compile alone, said here, never otherwise.
+lin_clang=$(MSYS_NO_PATHCONV=1 wsl.exe -e sh -c 'command -v clang > /dev/null || ls /usr/bin/clang-[0-9]* 2> /dev/null | sort -V | tail -1' | tr -d '\r')
+[ -z "$lin_clang" ] || note "smoke linux-x86_64: WSL has no bare clang -- the compile is given TIKO_CLANG=$lin_clang"
 cat > "$OUT/smoke-linux.sh" <<EOF
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT && cd ~/tksmoke-$SHORT
@@ -239,7 +244,7 @@ test "\$(ls -A)" = "tiko-lang"
 [ -z "$TKDIRS" ] || test -x tiko-lang/tkedit
 [ -z "$LSPGZ" ] || tiko-lang/bin/tiko-lsp --version 2>&1 | grep -q '^tiko-lsp '
 printf 'print "hello from tiko"\n' > hello.tiko
-env -u TIKO_INCLUDE -u TIKO_LIBPATH -u TIKO_PKG tiko-lang/bin/tiko hello.tiko -o hello
+env -u TIKO_INCLUDE -u TIKO_LIBPATH -u TIKO_PKG ${lin_clang:+TIKO_CLANG=$lin_clang} tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
 EOF
 got=$(MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$OUT/smoke-linux.sh" | tr -d '\r') || die "Linux smoke: $got"
