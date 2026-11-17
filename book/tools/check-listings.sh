@@ -125,7 +125,7 @@ fi
 
 to_wsl() { cygpath -w "$1" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g'; }
 
-win_tiko=""; lin_tiko=""; mac_tiko=""; book_wsl=""
+win_tiko=""; lin_tiko=""; mac_tiko=""; book_wsl=""; lin_env=""
 if (( ON_MAC )); then
   mac_tiko="$(cd "$root/$MAC_ROOT" 2>/dev/null && pwd)/$MAC_EXE"
 else
@@ -179,7 +179,17 @@ for t in "${targets[@]}"; do
     linux-x86_64)
       v="$(wsl -d "$WSL_DISTRO" -- "$lin_tiko" --version 2>&1 | head -1 | tr -d '\r')"
       [[ -n "$v" ]] || { echo "check-listings: no tiko at $lin_tiko (WSL $WSL_DISTRO)" >&2; exit 2; }
-      assert_pin "$lin_tiko" "$v" ;;
+      assert_pin "$lin_tiko" "$v"
+      # WSL may have only a versioned clang (Ubuntu's clang-18 from apt.llvm.org), and tiko
+      # looks for /usr/bin/clang, then 'clang' on PATH. Name one: TIKO_LINUX_CLANG (a path
+      # inside WSL) if set, else nothing when a bare clang exists, else the newest
+      # /usr/bin/clang-NN. Every Linux compile below gets it as TIKO_CLANG, through env --
+      # never exported here, because the Windows compiles read TIKO_CLANG too.
+      lin_clang="${TIKO_LINUX_CLANG:-$(wsl -d "$WSL_DISTRO" -- bash -c 'command -v clang > /dev/null || ls /usr/bin/clang-[0-9]* 2> /dev/null | sort -V | tail -1' | tr -d '\r')}"
+      if [[ -n "$lin_clang" ]]; then
+        lin_env="env TIKO_CLANG=$lin_clang"
+        echo "check-listings: linux-x86_64 compiles with TIKO_CLANG=$lin_clang"
+      fi ;;
     macos-arm64)
       (( ON_MAC )) || { echo "check-listings: macos-arm64 runs on the Mac" >&2; exit 2; }
       [[ -x "$mac_tiko" ]] || { echo "check-listings: no tiko at $mac_tiko" >&2; exit 2; }
@@ -271,7 +281,7 @@ for f in "${listings[@]}"; do
         if (( is_local )); then
           ( cd "$dir" && eval "\"$ltiko\" $pc" ) >> "$log" 2>&1 || pre_ok=0
         else
-          wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' $pc" >> "$log" 2>&1 || pre_ok=0
+          wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $lin_env '$lin_tiko' $pc" >> "$log" 2>&1 || pre_ok=0
         fi
       done
     fi
@@ -288,7 +298,7 @@ for f in "${listings[@]}"; do
         ( cd "$dir" && "$ltiko" build "$project" ) >> "$log" 2>&1; crc=$?
       else
         exe="$dir/out/debug/$project"; rm -f "$exe"
-        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && ${linux_libdir:+LD_LIBRARY_PATH='$linux_libdir'} '$lin_tiko' build $project ${linux_libdir:+--options '-p $linux_libdir'}" >> "$log" 2>&1; crc=$?
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $lin_env ${linux_libdir:+LD_LIBRARY_PATH='$linux_libdir'} '$lin_tiko' build $project ${linux_libdir:+--options '-p $linux_libdir'}" >> "$log" 2>&1; crc=$?
       fi
     elif (( is_local )); then
       exe="$outdir/$name$xext"; rm -f "$exe"
@@ -300,9 +310,9 @@ for f in "${listings[@]}"; do
     else
       exe="$outdir/$name"; rm -f "$exe"
       if [[ "$cwd" == listing ]]; then
-        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' ${local_srcs[*]} -o '$book_wsl/$exe'" >> "$log" 2>&1; crc=$?
+        wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $lin_env '$lin_tiko' ${local_srcs[*]} -o '$book_wsl/$exe'" >> "$log" 2>&1; crc=$?
       else
-        wsl -d "$WSL_DISTRO" -- "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
+        wsl -d "$WSL_DISTRO" -- $lin_env "$lin_tiko" "${srcs[@]/#/$book_wsl/}" -o "$book_wsl/$exe" > "$log" 2>&1; crc=$?
       fi
     fi
 
