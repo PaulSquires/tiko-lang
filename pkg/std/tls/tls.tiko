@@ -47,7 +47,8 @@ using outcome
 '' generated name for the life of the stream and deletes it afterwards, because
 '' SChannel cannot use a key that exists only in this process.  Linux: OpenSSL 3,
 '' loaded at run time from libssl.so.3 and libcrypto.so.3 (on macOS Homebrew's openssl@3, its
-'' libssl.3.dylib and libcrypto.3.dylib) -- nothing is linked, a
+'' libssl.3.dylib and libcrypto.3.dylib, by absolute path), never from the current
+'' directory (tlsunix.tiko says why) -- nothing is linked, a
 '' program that never shakes hands never needs them, and without them every
 '' handshake fails with TLS_UNAVAILABLE.
 ''
