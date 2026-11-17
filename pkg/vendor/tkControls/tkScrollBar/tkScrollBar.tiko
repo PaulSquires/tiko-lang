@@ -324,6 +324,10 @@ public function tkScrollBar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId
     pSB->bVertical = bVertical
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @Proc, pSB )
     pSB->hWin = w
+    ' The theme in force where it sits, as every other control starts: the struct's defaults are the
+    ' dark preset's, so a bar made under a light theme stayed dark until the theme next changed.
+    ' Not pinned: SetColors still overrides it, and TKM_THEMECHANGED still reaches it.
+    if w then tkScrollBar_ApplyTheme( w, tkTheme_Of( w ) )
     return w
 end function
 
