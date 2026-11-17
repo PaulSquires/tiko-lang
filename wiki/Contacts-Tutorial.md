@@ -54,23 +54,12 @@ What you'll learn, step by step:
 
 ## 1. What you'll build
 
-```
-+-- Contacts ---------------------------------------------------------+
-| File  Help                                                          |  menu bar
-| [+] Add  [/] Edit  [x] Delete  |  [>] Export                        |  toolbar
-| +- Name ----------+- Phone ---+- Email ------------+  +-----------+  |
-| | Ada Byron       | 555-0101  | ada@example.org    |  |           |  |
-| | Edsger Dijkstra |           | ewd@example.org    |  |   photo   |  |
-| | Grace Hopper    | 555-0199  | grace@example.org  |  |           |  |
-| |                 |           |                    |  +-----------+  |
-| |                 |           |                    |  Ada Byron      |
-| |                 |           |                    |  12 St James's  |
-| |                 |           |                    |  London         |
-| |                 |           |                    |                 |
-| +-----------------+-----------+--------------------+  [Add][Remove]  |
-| 3 contacts | Ready                                                  |  status bar
-+---------------------------------------------------------------------+
-```
+![The finished Contacts window in the dark theme: menu bar, toolbar, the list with its Name, Phone and Email columns, the selected contact's photo, name and address on the right, the Add button and the red Danger-style Remove button, and the status bar.](Contacts-Tutorial.png)
+
+From the top: the menu bar (File, Help), the toolbar (Add, Edit, Delete, Export), the list of
+contacts with its three columns, and beside it the selected contact's photo, name and address, with
+the **Add** and **Remove** buttons under them. The status bar counts the contacts and says what
+was last done.
 
 **New Contact...** or **Edit Contact...** opens a dialog with four tabs: **Name**, **Address**,
 **Phone & Email** and **Photo**. **OK** saves the contact in the database.
