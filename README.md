@@ -227,7 +227,7 @@ Reference pages for each are in the [Feature Index](wiki/Feature-Index.md).
 
 ## Getting started
 
-tiko is **pre-1.0** (`0.1.0-dev`). Prebuilt toolchains for Windows and Linux x86-64 and for
+tiko is **pre-1.0**. Prebuilt toolchains for Windows and Linux x86-64 and for
 macOS on Apple Silicon are on the [Releases](https://github.com/PaulSquires/tiko-lang/releases)
 page: unpack one anywhere. To build a toolchain yourself for the machine you are on, run this
 from Git Bash on Windows, or from Linux or macOS:
