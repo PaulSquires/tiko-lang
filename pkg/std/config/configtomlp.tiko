@@ -34,7 +34,13 @@ type TomlParser_
     as TomlValue ptr root
     as TomlValue ptr cur
     as TomlPending_ pending
+    as long depth                       '' arrays and inline tables open around the cursor
 end type
+
+'' NESTING IS BOUNDED: TpValue_ recurses once per '[' or '{', so without a limit about
+'' 100 KB of '[' overflows the stack and ends the process -- a crash, not an error, for
+'' anyone who parses TOML they did not write.  No real document nests this deep.
+const TKF_MAX_DEPTH = 128
 
 '' -------------------------------------------------------------- cursor
 
@@ -602,10 +608,17 @@ function TpValue_( byref p as TomlParser_, byref v as TomlValue ) as boolean
         if( TpString_( p, s ) = FALSE ) then return FALSE
         v = TomlValue.FromString( s )
         return TRUE
-    case 91
-        return TpArray_( p, v )
-    case 123
-        return TpInline_( p, v )
+    case 91, 123
+        if( p.depth >= TKF_MAX_DEPTH ) then return TpFail_( p, CFG_SYNTAX, "nested too deeply" )
+        p.depth += 1
+        dim as boolean ok_
+        if( c = 91 ) then
+            ok_ = TpArray_( p, v )
+        else
+            ok_ = TpInline_( p, v )
+        end if
+        p.depth -= 1
+        return ok_
     case -1, 10, 13, 35, 44, 93, 125
         return TpFail_( p, CFG_SYNTAX, "expected a value" )
     end select

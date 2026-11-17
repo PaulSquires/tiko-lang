@@ -430,6 +430,11 @@ The names differ by platform: `name.dll` on Windows, `libname.so` (often with a 
 `libm.so.6`) on Linux, `libname.dylib` on macOS. The listing loads the C runtime's maths library
 on each — `ucrtbase.dll`, `libm.so.6` and `libm.dylib` — and calls its `cos`.
 
+On Linux and macOS a name without a `/` is searched as fbc searches it: as written, with `lib` and
+the platform's suffix added, and then in the **current directory** (`./name`, `./libname.so`).
+Loading a library runs its startup code, so a program that may be started in a folder someone
+else can write should give `dylibload` a full path.
+
 `dylibsymbol` returns an untyped address, so the function pointer's type is a promise exactly as a
 `declare` is. Nothing checks it. A plugin system typically agrees on one entry point with a fixed
 signature, looks that up, and receives everything else from it.
