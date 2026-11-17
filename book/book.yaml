@@ -10,7 +10,7 @@ date: 2026
 ## does not match, because a stale toolchain yields a plausible number
 ## rather than an error.
 pin:
-  version: "0.1.4"
+  version: "0.1.5"
   windows:
     root: "../toolchains/tiko-windows"      # relative to this book directory
     exe: "tiko.exe"
