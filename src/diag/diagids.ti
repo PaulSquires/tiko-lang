@@ -115,6 +115,13 @@
     DIAG( TKO0176, SEV_ERROR,   "module '%0' needs '%1' at run time, and there is no '%2'" )
     '' '-g' on macOS: the objects' DWARF could not be gathered into '<output>.dSYM'.
     DIAG( TKO0177, SEV_ERROR,   "cannot write the debug symbols of '%0': %1" )
+    '' A '#cmdline' IS THE SOURCE CHOOSING ITS OWN COMPILE, so it may not choose what
+    '' only the person running the compiler should: where the compiler writes outside the
+    '' program's own output, which package tree or clang arguments it uses, or a linker
+    '' option that loads code into the linker ('-Wl -plugin,x.so' runs x.so inside GNU
+    '' ld). See SourceOptionOk_ in driver/cmdline.tiko. fbc has no such check; every
+    '' option the corpus writes in a '#cmdline' passes it.
+    DIAG( TKO0178, SEV_ERROR,   "'%0' is not allowed in a #cmdline: %1" )
     '' 'tiko c2t' (src/c2t): a C header translated into a tiko header.
     DIAG( TKO0173, SEV_ERROR,   "'tiko c2t' translates one header per run; '%0' is a second" )
     DIAG( TKO0174, SEV_ERROR,   "cannot read the C header '%0'" )
@@ -237,6 +244,8 @@
     DIAG( TKO0370, SEV_ERROR,   "%0 here, but %1" )
     '' The unit's preprocessed output passed PP_MAX_TOKENS -- runaway expansion (src/pp/pp.ti).
     DIAG( TKO0372, SEV_ERROR,   "the preprocessed program exceeded %0 tokens; a macro is expanding without bound" )
+    '' '-z nocmdline' (fbc's, and its warning 46 "#cmdline ignored" for it).
+    DIAG( TKO0373, SEV_WARNING, "#cmdline is ignored under -z nocmdline" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

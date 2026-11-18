@@ -188,6 +188,10 @@ namespace Tko
         '' no restart at all. Default false, so a single-file compile and every
         '' caller that does not care honours it.
         as boolean    cmdlineIgnored
+        '' '-z nocmdline': EVERY '#cmdline' is read, warned about (TKO0373) and dropped --
+        '' fbc's FB_COMPOPT_NOCMDLINE, which answers with the same warning 46. The way to
+        '' compile a source that is not trusted without letting it choose its own options.
+        as boolean    cmdlineOff
         '' READ THE FILE'S HEADER AND STOP -- the build graph's scan (ADR 0017). The
         '' engine stops at the first token, or the first directive, that ends the part
         '' of a file in which '#import' may stand, having recorded '#module' and every
