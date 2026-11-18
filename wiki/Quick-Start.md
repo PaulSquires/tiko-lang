@@ -36,7 +36,7 @@ xattr -dr com.apple.quarantine tiko-lang
 
 An archive fetched with `curl` or `gh release download` is not marked.
 
-Optional, also from Homebrew: `openssl@3` for [std/tls and std/http](Category-Http), and `sdl3` (with `sdl3_image`, `sdl3_ttf`, `sdl3_mixer`) for [vendor/SDL3](Vendor-Packages). There is no graphics library on macOS (`SCREEN`, `PSET`), as on Linux.
+Optional, also from Homebrew: `openssl@3` for [std/tls and std/http](Category-Http), and `sdl3` (with `sdl3_image`, `sdl3_ttf`, `sdl3_mixer`) for [vendor/SDL3](Vendor-Packages). The graphics library (`SCREEN`, `PSET`) needs nothing installed: it draws through Cocoa on macOS, as it draws through X11 on Linux and GDI on Windows.
 
 ## A first tour
 
