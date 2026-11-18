@@ -15,7 +15,9 @@
 # (vendor/tkControls' scintk, vendor/SDL3's static libraries) and copies what it made; its
 # optional 'inputs' -- 'url sha256 url sha256 ...' -- are fetched and verified first, like any
 # download, and handed to the script as TIKO_VENDOR_INPUTS (the local paths, in order), with
-# TIKO_VENDOR_HOST (windows, linux, macos) and TIKO_VENDOR_CACHE.
+# TIKO_VENDOR_HOST (windows, linux, macos) and TIKO_VENDOR_CACHE. A 'cbuild' entry's optional
+# 'patches' -- files committed in the package, relative to it, applied in order with 'patch -p1'
+# inside 'dir' before compiling -- carry upstream fixes no release has yet.
 #
 #   TIKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
@@ -37,7 +39,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         --out)    OUT=$2;  shift 2 ;;
         --module) ONLY=$2; shift 2 ;;
-        -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown option '$1'" ;;
     esac
 done
@@ -144,9 +146,17 @@ entry( ) {
         cbuild) _outs="$(_get static) $(_get shared)" ;;
         *) die "$_mod [$_tab]: kind is 'copy', 'cbuild' or 'script', not '$_kind'" ;;
     esac
+    # A PATCH IS AN INPUT TOO: one newer than an output rebuilds it, as fetch.toml does.
+    _pats=
+    for _p in $(_get patches); do
+        [ "$_kind" = cbuild ] || die "$_mod [$_tab]: 'patches' is for 'cbuild' entries"
+        [ -f "$ROOT/pkg/vendor/$_mod/$_p" ] || die "$_mod [$_tab]: patch '$_p' is not in the package"
+        _pats="$_pats $ROOT/pkg/vendor/$_mod/$_p"
+    done
     _fresh=1
     for _o in $_outs; do
         if [ ! -f "$_mdir/$_o" ] || [ "$_toml" -nt "$_mdir/$_o" ]; then _fresh=0; fi
+        for _p in $_pats; do [ "$_p" -nt "$_mdir/$_o" ] && _fresh=0; done
     done
     if [ "$_fresh" = 1 ]; then note "$_mod [$_tab]: up to date"; return; fi
     _dl=$(fetch "$_url" "$_sha")
@@ -174,6 +184,10 @@ entry( ) {
         ;;
     cbuild)
         _dir="$_x/$(_get dir)"; _objs=
+        for _p in $_pats; do
+            patch -p1 -s -t -d "$_dir" -i "$_p" || die "$_mod: patch $(basename "$_p") does not apply"
+            note "$_mod [$_tab]: patched with $(basename "$_p")"
+        done
         for _s in $(_get sources); do
             _o="$_x/$(basename "$_s" .c).o"
             # shellcheck disable=SC2046

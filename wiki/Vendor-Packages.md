@@ -36,14 +36,14 @@ Every routine, type and constant of the library's C header is callable as the li
 | Package | Library | Link modes |
 | --- | --- | --- |
 | `vendor/sqlite3` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
-| `vendor/SDL3` | SDL 3.4.4 (static: 3.4.14) | `static`, `dynamic` (the default) |
-| `vendor/SDL3/image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `static`, `dynamic` (the default) |
-| `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 with FreeType 2.14.3 and HarfBuzz 14.3.0 (brings `vendor/SDL3`) | `static`, `dynamic` (the default) |
+| `vendor/SDL3` | SDL 3.4.14 (the binding is 3.4.4's) | `static`, `dynamic` (the default) |
+| `vendor/SDL3/image` | SDL3_image 3.4.x, built from release-3.4.x past 3.4.8 for its ILBM fix (brings `vendor/SDL3`) | `static`, `dynamic` (the default) |
+| `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 with FreeType 2.15.0 and HarfBuzz 14.3.0 (brings `vendor/SDL3`) | `static`, `dynamic` (the default) |
 | `vendor/SDL3/mixer` | SDL3_mixer 3.2.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
 | `vendor/raylib6` | raylib 6.2 | `static`, `dynamic` (the default) |
 | `vendor/raylib6/raymath` | raylib's raymath (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
 | `vendor/raylib6/rlgl` | raylib's rlgl (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
-| `vendor/cJSON` | cJSON 1.7.19 | `static`, `dynamic` (the default) |
+| `vendor/cJSON` | cJSON 1.7.19, built from master past it with four upstream security PRs applied | `static`, `dynamic` (the default) |
 | `vendor/cJSON/utils` | cJSON_Utils: JSON Pointer, Patch, Merge Patch (brings `vendor/cJSON`) | chosen on `vendor/cJSON` |
 
 **`vendor/tkControls/<control>`** is tiko source, not a C library: owner-drawn controls on SDL3 for Windows, Linux and macOS, one module each. On macOS they run with Homebrew's SDL3. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. `vendor/tkControls/tkCodeEdit` takes `link static`, which puts scintk inside the program. See [tkControls](Category-tkControls).
