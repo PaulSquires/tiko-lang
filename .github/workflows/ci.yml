@@ -39,7 +39,11 @@ jobs:
       # keeps lib/rt LF, and lint's byte compare of the two copies failed on identical blobs.
       - name: No line-ending conversion
         run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
+      # PINNED TO A COMMIT, not the moving v4 tag, and without the token left in .git/config
+      # for later steps -- nothing here pushes (security review, Nov 2026).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
       - name: Fetch the pinned seed
         run: sh seed/fetch-seed.sh --host windows
       - name: Lay out the seed's toolchain where the tests link it
@@ -67,7 +71,11 @@ jobs:
       TIKO_EDITOR_DIR: /nonexistent
       TIKO_TEST_TIMEOUT: "900"
     steps:
-      - uses: actions/checkout@v4
+      # PINNED TO A COMMIT, not the moving v4 tag, and without the token left in .git/config
+      # for later steps -- nothing here pushes (security review, Nov 2026).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
       - name: LLVM 18
         run: |
           sudo apt-get update

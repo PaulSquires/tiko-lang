@@ -66,7 +66,10 @@ namespace Tko
     '' and then asserts that an interface reached only through a ComPtr still works,
     '' which is a question about the interface and not about the stripping. Rejecting it
     '' made that file an unknown-option error, which is the one answer fbc never gives.
-    OPT( OPT_EXTENDED,  "-z",         OPTK_VALUE, OPTCAT_GENERAL, "option",   "fbc extended option; accepted and ignored" )
+    ''
+    '' '-z nocmdline' IS THE EXCEPTION, and is fbc's: every '#cmdline' in the sources is
+    '' ignored with a warning (TKO0373), so a source cannot choose its own options.
+    OPT( OPT_EXTENDED,  "-z",         OPTK_VALUE, OPTCAT_GENERAL, "option",   "fbc extended option: 'nocmdline' ignores every #cmdline; any other is accepted and ignored" )
 
     OPT( OPT_INCLUDE,   "-i",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add an include search path" )
     OPT( OPT_PKGDIR,    "--pkg-dir",  OPTK_VALUE, OPTCAT_INPUT,   "dir",      "the package tree for #import std/... is found in (else TIKO_PKG, else <exe-dir>/pkg)" )
@@ -336,6 +339,7 @@ namespace Tko
         as boolean cNoCache
         as boolean noRpath        '' -norpath
         as boolean noCopyLibs     '' -nocopylibs
+        as boolean noCmdline      '' -z nocmdline: every '#cmdline' is warned about and dropped
         as string  cCacheDir
         as boolean dumpVtable
         as boolean dumpItable

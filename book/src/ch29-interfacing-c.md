@@ -432,8 +432,9 @@ on each — `ucrtbase.dll`, `libm.so.6` and `libm.dylib` — and calls its `cos`
 
 On Linux and macOS a name without a `/` is searched as fbc searches it: as written, with `lib` and
 the platform's suffix added, and then in the **current directory** (`./name`, `./libname.so`).
-Loading a library runs its startup code, so a program that may be started in a folder someone
-else can write should give `dylibload` a full path.
+A name with a `/` is loaded from exactly that path and nowhere else. Loading a library runs its
+startup code, so a program that may be started in a folder someone else can write should give
+`dylibload` a full path.
 
 `dylibsymbol` returns an untyped address, so the function pointer's type is a promise exactly as a
 `declare` is. Nothing checks it. A plugin system typically agrees on one entry point with a fixed

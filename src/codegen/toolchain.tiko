@@ -1,6 +1,7 @@
 '' toolchain.tiko -- see the header.
 
 #import "std/containers"
+#import "std/fs"
 #include once "codegen/toolchain.ti"
 
 namespace Tko.Codegen
@@ -208,30 +209,24 @@ end function
 '' LLVM. A one-static module in the retainedNodes form is compiled back to IR; the
 '' DIGlobalVariable survives only where that form is the accepted one. The driver asks
 '' once per compilation, and only for a '-g' build with a static local in it.
-private function ProbeTempDir_( ) as string
-    dim as string d = environ( "TMPDIR" )
-    if len( d ) = 0 then d = environ( "TEMP" )
-    if len( d ) = 0 then d = environ( "TMP" )
-    #ifdef __FB_WIN32__
-        if len( d ) = 0 then d = "."
-    #else
-        if len( d ) = 0 then d = "/tmp"
-    #endif
-    while (len( d ) > 1) andalso ((right( d, 1 ) = "/") orelse (right( d, 1 ) = "\"))
-        d = left( d, len( d ) - 1 )
-    wend
-    return d
-end function
-
 function DebugStaticsInSubprogram( byref triple as string ) as boolean
     dim as boolean wants = false
     dim as string clang_ = FoundClang( )
     if len( clang_ ) = 0 then return false
     dim as string nl = chr( 10 )
-    dim as string base_ = ProbeTempDir_( ) & "/tiko-diprobe-" & hex( cast( ulong, timer * 1000 ) )
-    dim as string src_ = base_ & ".ll", out_ = base_ & ".out.ll"
+    '' IN A DIRECTORY OF ITS OWN: CreateTempDir makes it exclusively, under a random name,
+    '' and only its owner can write in it. The files were '/tmp/tiko-diprobe-<ms>.ll' and
+    '' clang's '.out.ll' beside it -- a name another user could guess and plant a symlink
+    '' at (security review, Nov 2026).
+    dim as fs.FsResultUStr td = fs.CreateTempDir( "tiko-diprobe" )
+    if td.IsOk( ) = false then return false
+    dim as string dir_ = td.Value( )
+    dim as string src_ = dir_ & "/p.ll", out_ = dir_ & "/p.out.ll"
     dim as int32 fh = freefile
-    if open( src_ for output as #fh ) <> 0 then return false
+    if open( src_ for output as #fh ) <> 0 then
+        fs.RemoveDirAll( dir_ )
+        return false
+    end if
     print #fh, "@f.x = internal global i32 0, align 4, !dbg !0" & nl & _
                "define i32 @f() !dbg !2 {" & nl & _
                "  %v = load i32, ptr @f.x, align 4" & nl & _
@@ -267,8 +262,7 @@ function DebugStaticsInSubprogram( byref triple as string ) as boolean
             close #fh
         end if
     end if
-    kill src_
-    kill out_
+    fs.RemoveDirAll( dir_ )
     return wants
 end function
 

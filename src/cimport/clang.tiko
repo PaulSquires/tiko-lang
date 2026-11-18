@@ -7,6 +7,11 @@
     '' /usr/lib/llvm-N/bin, and libclang sits under that N, not beside the link.
     extern "c"
         declare function realpath( byval path as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
+        '' dlopen ITSELF, not dylibload: a candidate is a full path, and fbc's dylibload
+        '' (the seed's runtime included) tries a path that would not load again as
+        '' 'lib<path>' and './<path>' -- in the current directory (security review, Nov
+        '' 2026). dylibsymbol and dylibfree take the handle as dlsym and dlclose would.
+        declare function tko_dlopen alias "dlopen" ( byval path as zstring ptr, byval flags as long ) as any ptr
     end extern
 #endif
 
@@ -142,7 +147,11 @@ function ClangLoad( byref api as ClangApi, byref clangExe as string ) as boolean
     dim as string tried_
     for i as int32 = 0 to n - 1
         if FileExists_( cand( i ) ) then
+#ifdef __FB_WIN32__
             api.handle = dylibload( cand( i ) )
+#else
+            api.handle = tko_dlopen( strptr( cand( i ) ), 1 )   '' RTLD_LAZY
+#endif
             if api.handle <> nullptr then
                 api.libPath = cand( i )
                 exit for

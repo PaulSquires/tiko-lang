@@ -283,6 +283,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.sharedLexed = @ctx.ppLexed
     cfg.maxTokens = valint( environ( "TIKO_PP_MAX_TOKENS" ) )
     cfg.importsBuilt = ctx.importsBuilt
+    cfg.cmdlineOff = ctx.options.noCmdline
     Tko.CImportDriver.ConfigureHook( cfg, ctx )
     return cfg
 end function
@@ -752,6 +753,7 @@ private function RestartWith_ _
     for i as int32 = 0 to args.Count - 1
         again.Push( args[i] )
     next
+    again.Push( Tko.Cmdline.SOURCE_MARK )       '' what follows is held to TKO0178
     for i as int32 = 0 to injected.Count - 1
         again.Push( injected[i] )
     next
