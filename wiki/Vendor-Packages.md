@@ -45,6 +45,7 @@ Every routine, type and constant of the library's C header is callable as the li
 | `vendor/raylib6/rlgl` | raylib's rlgl (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
 | `vendor/cJSON` | cJSON 1.7.19, built from master past it with four upstream security PRs applied | `static`, `dynamic` (the default) |
 | `vendor/cJSON/utils` | cJSON_Utils: JSON Pointer, Patch, Merge Patch (brings `vendor/cJSON`) | chosen on `vendor/cJSON` |
+| `vendor/pcre2` | PCRE2 10.49, the 8-bit library (UTF-8), with Unicode support and the JIT | `static`, `dynamic` (the default) |
 
 **`vendor/tkControls/<control>`** is tiko source, not a C library: owner-drawn controls on SDL3 for Windows, Linux and macOS, one module each. On macOS they run with Homebrew's SDL3. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. `vendor/tkControls/tkCodeEdit` takes `link static`, which puts scintk inside the program. See [tkControls](Category-tkControls).
 
@@ -55,6 +56,8 @@ Every routine, type and constant of the library's C header is callable as the li
 **`vendor/raylib6` is not available on macos-arm64** yet. Importing it there stops with an `#error` that says so.
 
 **The packages' shared libraries on linux-x86_64 need glibc 2.34 or newer**, `vendor/raylib6`'s included: the toolchain builds raylib's from its source rather than shipping raylib's prebuilt one, which needs 2.38.
+
+**`vendor/pcre2` is PCRE2's 8-bit library only**, so a pattern and a subject are bytes or UTF-8 (`PCRE2_UTF`); a `ustring` is matched as UTF-8. Its names are the generic ones PCRE2 documents -- `pcre2_compile`, `pcre2_match`, `pcre2_match_data` -- each a `#define` of the `_8` name the library exports. A pattern or subject is a `PCRE2_SPTR`: `strptr( s )` passes as one, a string literal does not. PCRE2 backtracks, so a pattern from outside the program can take exponential time: give `pcre2_match` a match context with `pcre2_set_match_limit` (and `pcre2_set_depth_limit`, `pcre2_set_heap_limit`), or use `pcre2_dfa_match`, which does not backtrack but reports no groups.
 
 **`vendor/SDL3` declares `SDL_main.h`'s routines but not its `main`**: `SDL_EnterAppMainCallbacks`, `SDL_RunApp` and `SDL_SetMainReady` (and on Windows `SDL_RegisterApp` and `SDL_UnregisterApp`), as C has them with `SDL_MAIN_HANDLED`. A program written with SDL's main callbacks calls `SDL_EnterAppMainCallbacks` itself; see the [SDL3 tutorial](SDL3-Tutorial).
 

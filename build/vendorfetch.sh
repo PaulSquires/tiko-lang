@@ -17,7 +17,10 @@
 # download, and handed to the script as TIKO_VENDOR_INPUTS (the local paths, in order), with
 # TIKO_VENDOR_HOST (windows, linux, macos) and TIKO_VENDOR_CACHE. A 'cbuild' entry's optional
 # 'patches' -- files committed in the package, relative to it, applied in order with 'patch -p1'
-# inside 'dir' before compiling -- carry upstream fixes no release has yet.
+# inside 'dir' before compiling -- carry upstream fixes no release has yet. Its optional
+# 'copies' -- 'from:to' pairs, both relative to 'dir' -- are copied after the patches: the
+# files a library ships under one name for builds without its own build system to rename
+# (PCRE2's config.h.generic, pcre2.h.generic, pcre2_chartables.c.dist).
 #
 #   TIKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
@@ -39,7 +42,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         --out)    OUT=$2;  shift 2 ;;
         --module) ONLY=$2; shift 2 ;;
-        -h|--help) sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown option '$1'" ;;
     esac
 done
@@ -187,6 +190,11 @@ entry( ) {
         for _p in $_pats; do
             patch -p1 -s -t -d "$_dir" -i "$_p" || die "$_mod: patch $(basename "$_p") does not apply"
             note "$_mod [$_tab]: patched with $(basename "$_p")"
+        done
+        for _c in $(_get copies); do
+            case $_c in *:*) ;; *) die "$_mod [$_tab]: a 'copies' entry is 'from:to', not '$_c'" ;; esac
+            [ -f "$_dir/${_c%%:*}" ] || die "$_mod [$_tab]: '${_c%%:*}' is not in ${_url##*/}"
+            cp -f "$_dir/${_c%%:*}" "$_dir/${_c#*:}"
         done
         for _s in $(_get sources); do
             _o="$_x/$(basename "$_s" .c).o"
