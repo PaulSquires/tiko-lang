@@ -30,6 +30,9 @@ with nothing to copy; on Linux a static program links the system's OpenGL and X1
 The mode is chosen on `vendor/raylib6` even where an example also imports `vendor/raylib6/raymath`
 or `vendor/raylib6/rlgl`, which link nothing of their own.
 
-Each example runs both ways, on Windows and on Linux.
+Each example runs both ways, on Windows and on Linux. On Linux, `link dynamic` needs glibc 2.38 or
+newer (Ubuntu 24.04, Debian 13, Fedora 39 and later): the shared library is raylib's own prebuilt
+one, built against it, and on an older system the link fails with
+`undefined reference to 'fmod@GLIBC_2.38'`. Use `link static` there.
 
 The examples are raylib's, under its zlib/libpng licence; each keeps its original notice.

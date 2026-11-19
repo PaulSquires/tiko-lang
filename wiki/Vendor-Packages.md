@@ -54,6 +54,8 @@ Every routine, type and constant of the library's C header is callable as the li
 
 **`vendor/raylib6` is not available on macos-arm64** yet. Importing it there stops with an `#error` that says so.
 
+**`vendor/raylib6` linked dynamically on linux-x86_64 needs glibc 2.38 or newer** (Ubuntu 24.04, Debian 13, Fedora 39 and later). Its shared library is raylib's own prebuilt `libraylib.so.6.2.0`, built against that glibc; on an older system the link fails with `undefined reference to 'fmod@GLIBC_2.38'`. `link static` works there. The other packages' Linux libraries need glibc 2.34 at most.
+
 **`vendor/SDL3` declares `SDL_main.h`'s routines but not its `main`**: `SDL_EnterAppMainCallbacks`, `SDL_RunApp` and `SDL_SetMainReady` (and on Windows `SDL_RegisterApp` and `SDL_UnregisterApp`), as C has them with `SDL_MAIN_HANDLED`. A program written with SDL's main callbacks calls `SDL_EnterAppMainCallbacks` itself; see the [SDL3 tutorial](SDL3-Tutorial).
 
 `vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` -- modules inside `vendor/SDL3`, their libraries in its `lib/` -- each import `vendor/SDL3` publicly: one `#import` brings SDL's own names too, and links SDL3 as well.
