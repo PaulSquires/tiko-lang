@@ -69,6 +69,8 @@ private function C2tBuiltin_( byval kind as int32, byref r as string ) as boolea
     case CXType_UInt, CXType_Char32        : r = "uint32"
     case CXType_LongLong                   : r = "int64"
     case CXType_ULongLong                  : r = "uint64"
+    case CXType_Int128                     : r = "int128"
+    case CXType_UInt128                    : r = "uint128"
     case CXType_Float                      : r = "float32"
     case CXType_Double                     : r = "float64"
     case else                              : return false
@@ -114,9 +116,11 @@ private function Builtin_( byref x as CImp, byval t as CXType, byref why as stri
         if ldsz = 8 then return iif( x.c2t, "float64", "double" )
         why = "long double is " & ldsz & " bytes here; FreeBASIC has no 80-bit type"
         return ""
-    case CXType_Int128, CXType_UInt128
-        why = "__int128 has no FreeBASIC equivalent"
-        return ""
+    '' __int128 IS tiko's OWN int128 -- fbc has no 128-bit integer, so the spelling is the
+    '' prelude typedef's in both branches. Size 16 and alignment 16, as clang's (probed
+    '' 2026-11-19, clang 23, x86_64-pc-windows-msvc and x86_64-linux-gnu).
+    case CXType_Int128                     : r = "int128"   : want = 16
+    case CXType_UInt128                    : r = "uint128"  : want = 16
     case CXType_Float128, CXType_Ibm128, CXType_Half, CXType_Float16, CXType_BFloat16
         why = "extended/reduced float types have no FreeBASIC equivalent"
         return ""

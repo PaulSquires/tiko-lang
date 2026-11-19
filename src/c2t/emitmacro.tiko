@@ -503,6 +503,10 @@ private sub Define_( byref e as C2tEmit, byref env as CxEnv, byref dirs as C2tDi
         Set_( e, k, 2, "", "macro", "'" & cname & "' is infinity or NaN, which tiko has no literal for" )
         return
     end if
+    if clangV = "!wide128" then
+        Set_( e, k, 2, "", "macro", "'" & cname & "' is a 128-bit integer value: libclang reads only its low 64 bits" )
+        return
+    end if
     '' A STRUCT VALUE -- raylib's 'CLITERAL(Color){ 200, 200, 200, 255 }', a C compound literal
     '' -- as tiko spells a record constant, 'type<Color>(200, 200, 200, 255)'. Each field is
     '' clang's own value for it, asked for one at a time, so the braces' designators, omitted
