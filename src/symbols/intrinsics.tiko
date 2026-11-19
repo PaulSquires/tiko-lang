@@ -214,6 +214,7 @@ private function SignedFlip_ _
         case Tko.TY_LONG,    Tko.TY_ULONG    : return types.Builtin( Tko.TY_ULONG )
         case Tko.TY_INTEGER, Tko.TY_UINTEGER : return types.Builtin( Tko.TY_UINTEGER )
         case Tko.TY_LONGINT, Tko.TY_ULONGINT : return types.Builtin( Tko.TY_ULONGINT )
+        case Tko.TY_INT128,  Tko.TY_UINT128  : return types.Builtin( Tko.TY_UINT128 )
         end select
         return t
     end if
@@ -223,6 +224,7 @@ private function SignedFlip_ _
     case Tko.TY_LONG,    Tko.TY_ULONG    : return types.Builtin( Tko.TY_LONG )
     case Tko.TY_INTEGER, Tko.TY_UINTEGER : return types.Builtin( Tko.TY_INTEGER )
     case Tko.TY_LONGINT, Tko.TY_ULONGINT : return types.Builtin( Tko.TY_LONGINT )
+    case Tko.TY_INT128,  Tko.TY_UINT128  : return types.Builtin( Tko.TY_INT128 )
     end select
     return t
 end function
@@ -641,6 +643,8 @@ private function ExprIntrinsicType_ _
     case "abs", "int", "fix", "frac"
         if ab = Tko.TY_NONE then return iif( c.types->Kind( a0 ) = Tko.TK_ENUM, c.types->Builtin( Tko.TY_INTEGER ), Tko.TYPE_NONE )   '' an ENUM is INTEGER, measured (T53); untyped, 'print abs( e )' vanished
         if IsFloat_( ab ) then return c.types->Builtin( ab )
+        '' tiko's int128 KEEPS its type: INTEGER would truncate it (no fbc measurement exists).
+        if (ab = Tko.TY_INT128) orelse (ab = Tko.TY_UINT128) then return c.types->Builtin( ab )
         if IsInt_( ab ) then return c.types->Builtin( Tko.TY_INTEGER )
         return Tko.TYPE_NONE
 

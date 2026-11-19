@@ -32,6 +32,12 @@ namespace Tko.Codegen
         '' llvm-dlltool, beside clang as well: the import library for a DLL that
         '' '#foreignlib' found without one (MakeImportLib, book work item T98).
         as string dlltoolExe
+        '' COMPILER-RT'S BUILTINS for windows-x86_64 -- clang_rt.builtins-x86_64.lib in clang's
+        '' own resource directory, "" when that LLVM has none. The msvc link is '-nostdlib' and
+        '' clang's msvc driver adds no builtins of its own, so int128's '', MOD and float
+        '' conversions (__divti3, __fixdfti & co., which LLVM calls itself) had nothing to
+        '' resolve against. An archive: only what a program references is pulled in.
+        as string rtBuiltinsLib
         '' Where libfb lives, IN SEARCH ORDER. A list, not one path: a runtime may be
         '' partial and resolve the rest from one behind it.
         as containers.Array( of string ) libPaths

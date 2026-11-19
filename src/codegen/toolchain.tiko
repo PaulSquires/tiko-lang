@@ -140,6 +140,28 @@ function FindTools _
         if FileExists_( toolDir & "llvm-rc-" & ver & EXE_ ) then t.rcExe = toolDir & "llvm-rc-" & ver & EXE_
         if FileExists_( toolDir & "llvm-dlltool-" & ver & EXE_ ) then t.dlltoolExe = toolDir & "llvm-dlltool-" & ver & EXE_
     end if
+    '' COMPILER-RT'S BUILTINS (ToolPaths.rtBuiltinsLib), from '<llvm>\lib\clang\<major>\lib\windows' --
+    '' the directory 'clang --rtlib=compiler-rt -print-libgcc-file-name' names
+    '' for the msvc triple (clang 23, 2026-11-19), found by looking rather than by running
+    '' clang once more per build.
+    #ifdef __FB_WIN32__
+        dim as string resRoot = toolDir & "..\lib\clang\"
+        dim as string sub_ = dir( resRoot & "*", &h10 )
+        while len( sub_ ) > 0
+            if (sub_ <> ".") andalso (sub_ <> "..") then
+                dim as string cand = resRoot & sub_ & "\lib\windows\clang_rt.builtins-x86_64.lib"
+                '' FORWARD SLASHES: a long link goes through a response file, which reads a
+                '' backslash as an escape (driver/link-response-file).
+                if FileExists_( cand ) then
+                    for ci as int32 = 0 to len( cand ) - 1
+                        if cand[ci] = asc( "\" ) then cand[ci] = asc( "/" )
+                    next
+                    t.rtBuiltinsLib = cand
+                end if
+            end if
+            sub_ = dir( )
+        wend
+    #endif
     '' TIKO_AR, WHEN SET, IS THE ARCHIVER -- as it already is to build/toolchain.sh, vendorfetch.sh
     '' and the runtime's build, which CI sets it for. Not second-guessed, as TIKO_CLANG is not.
     if len( environ( "TIKO_AR" ) ) > 0 then t.arExe = environ( "TIKO_AR" )
@@ -1065,6 +1087,11 @@ function LinkExe _
     for i as int32 = 0 to t.linkerOpts.Count - 1
         cmd += " -Xlinker " & Q( t.linkerOpts[i] )
     next
+    '' int128's helpers on the msvc link (ToolPaths.rtBuiltinsLib): an archive, after everything,
+    '' so it answers only what the program and libfb leave undefined.
+    if (target.objFormat = OBJ_COFF) andalso (instr( target.triple, "msvc" ) > 0) andalso (len( t.rtBuiltinsLib ) > 0) then
+        cmd += " " & Q( t.rtBuiltinsLib )
+    end if
     '' NOT LINKED WITHOUT fbrt0.o (review RT-03), but '-v' still shows the line -- the driver
     '' tests read it on hosts with no sysroot to link against.
     if rt0Missing then

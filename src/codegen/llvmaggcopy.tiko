@@ -98,8 +98,10 @@ end sub
 private sub EmitAggShadows_( byref e as EmitCtx )
     for t as int32 = 0 to e.tempShadow.Count - 1
         if e.tempShadow[t] > 0 then
+            dim as int32 shAl = e.tgt->layout.maxAlign
+            if e.m->align16 andalso (e.tempShadow[t] >= 16) then shAl = 16     '' MirModule.align16
             Line( e, TempName( cast( uint32, t ) ) & ".agg = alloca [" & str( e.tempShadow[t] ) & " x i8], align " & _
-                     str( e.tgt->layout.maxAlign ) )
+                     str( shAl ) )
         end if
     next
 end sub

@@ -197,6 +197,28 @@ void __cdecl tkort_run_terminators( void )
     "    ret\n"
 );
 
+/* THE /GS COOKIE PAIR.  LLVM's prebuilt clang_rt.builtins-x86_64.lib -- linked for
+** int128's '\', MOD and float conversions (toolchain.tiko, rtBuiltinsLib) -- is
+** compiled with /GS, so __divti3, __modti3, __floatuntidf & co. reference
+** __security_cookie and __security_check_cookie, which live in Visual Studio's
+** libcmt like __chkstk above. Measured 2026-11-19, LLVM 23.1.5: the link failed on
+** exactly those two. The value is MSVC's own default (it is never re-seeded here:
+** nothing calls __security_init_cookie), and a mismatch fails fast, as MSVC's does.
+**
+** The check is ASSEMBLY for __chkstk's reason: it is called in an EPILOGUE, after the
+** result is already in RAX or XMM0, and must touch nothing but the flags. */
+unsigned long long __security_cookie = 0x00002B992DDFA232ull;
+
+__asm__(
+    ".globl __security_check_cookie\n"
+    "__security_check_cookie:\n"
+    "    cmp  __security_cookie(%rip), %rcx\n"
+    "    jne  1f\n"
+    "    ret\n"
+    "1:\n"
+    "    ud2\n"
+);
+
 /* THE FLOATING-POINT MARKER.  The backend emits a reference to _fltused from
 ** any module that touches a float, and the CRT is expected to define it. Its
 ** value is never read; only its presence is. */

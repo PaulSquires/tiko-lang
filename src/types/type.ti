@@ -86,6 +86,14 @@ namespace Tko
         '' a wstring, whose unit is 2 bytes on Windows and 4 on Linux -- so its size
         '' cannot come from wcharBytes and does not follow the wstring rule.
         BUILTIN( TY_FIXUSTR,  "fixustr",  16,  false, TC_USTRING )
+        '' 'int128' / 'uint128' -- TIKO'S OWN, fbc has no 128-bit integer. Named only by the
+        '' prelude typedefs ('type int128 as __tko_int128'), never by a keyword. LAST in the
+        '' list so every older builtin keeps its id. Size 16 and ALIGN 16 on every target,
+        '' past maxAlign: clang's __int128 is 16-aligned (probed 2026-11-19, clang 23,
+        '' x86_64-pc-windows-msvc and x86_64-linux-gnu: struct{char;__int128} is 32 bytes,
+        '' offset 16), and the datalayouts already say i128:128. Every tiko target is 64-bit.
+        BUILTIN( TY_INT128,   "int128",   128, true,  TC_INT   )
+        BUILTIN( TY_UINT128,  "uint128",  128, false, TC_INT   )
     #endmacro
 
     enum TypeClass

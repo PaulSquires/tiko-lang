@@ -326,6 +326,9 @@ private function BuiltinCode _
     case Tko.TY_UINTEGER : return "u8UINTEGER"
     case Tko.TY_LONGINT  : return "x"
     case Tko.TY_ULONGINT : return "y"
+    '' Itanium's __int128 / unsigned __int128, as g++ and clang++ spell them.
+    case Tko.TY_INT128   : return "n"
+    case Tko.TY_UINT128  : return "o"
     case Tko.TY_SINGLE   : return "f"
     case Tko.TY_DOUBLE   : return "d"
     case Tko.TY_BOOLEAN  : return "b"

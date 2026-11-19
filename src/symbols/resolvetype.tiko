@@ -686,9 +686,16 @@ function ResolveTypeRefAt_ _
         '' Its width is target-dependent and lives in TargetLayout; see TY_CVA_LIST.
         if sp->ownerName = 0 then
             if c.syms->LookupTyped( scope_, sp->name, true ) = Tko.SYMBOL_NONE then
-                if Tko.Text.LowerAscii( c.names->Spelling( sp->name ) ) = "cva_list" then
+                select case Tko.Text.LowerAscii( c.names->Spelling( sp->name ) )
+                case "cva_list"
                     base_ = c.types->Builtin( Tko.TY_CVA_LIST )
-                end if
+                '' THE int128 PAIR'S OWN NAMES, which only the prelude writes ('type int128
+                '' as __tko_int128'): fbc has no keyword to typedef them to.
+                case "__tko_int128"
+                    base_ = c.types->Builtin( Tko.TY_INT128 )
+                case "__tko_uint128"
+                    base_ = c.types->Builtin( Tko.TY_UINT128 )
+                end select
             end if
         end if
 

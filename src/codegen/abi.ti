@@ -56,6 +56,11 @@ namespace Tko.Codegen
         as int32 declined
     end type
 
+    '' WIN64's int128 convention, run first by LowerModule (abiint128.tiko).
+    declare sub Win64Int128 _
+        ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
+          byref target as TargetDescription, byref st as AbiStats )
+
     declare sub LowerModule _
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
           byref target as TargetDescription, byref st as AbiStats )

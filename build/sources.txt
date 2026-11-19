@@ -54,6 +54,7 @@ src/symbols/semdecl.tiko
 src/symbols/semproc.tiko
 src/symbols/methodassign.tiko
 src/symbols/semslice.tiko
+src/symbols/semint128.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko
 src/symbols/semiface.tiko
@@ -124,6 +125,7 @@ src/mir/lowerterm.tiko
 src/codegen/target.tiko
 src/codegen/llvmtype.tiko
 src/codegen/abi.tiko
+src/codegen/abiint128.tiko
 src/codegen/llvmdebug.tiko
 src/codegen/irsink.tiko
 src/codegen/llvmrefs.tiko

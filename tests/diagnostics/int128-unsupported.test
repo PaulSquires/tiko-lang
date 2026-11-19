@@ -1,0 +1,14 @@
+'' int128 / uint128, Phase 1 (symbols/semint128.tiko): TKO1100 where a path stops at 64 bits --
+'' a bit field, PRINT USING, HEX, INPUT, READ, WSTR, and a '...' argument -- rather than
+'' truncating without a word.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/int128-unsupported.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: int128-unsupported.bas(3,15): error TKO1100: a bit field does not support int128 or uint128 yet
+'' EXPECT-OUT: int128-unsupported.bas(7,20): error TKO1100: PRINT USING does not support int128 or uint128 yet
+'' EXPECT-OUT: int128-unsupported.bas(8,12): error TKO1100: hex( ) does not support int128 or uint128 yet
+'' EXPECT-OUT: int128-unsupported.bas(9,7): error TKO1100: INPUT does not support int128 or uint128 yet
+'' EXPECT-OUT: int128-unsupported.bas(10,6): error TKO1100: READ does not support int128 or uint128 yet
+'' EXPECT-OUT: int128-unsupported.bas(11,31): error TKO1100: wstr( ) does not support int128 or uint128 yet
+'' EXPECT-OUT: int128-unsupported.bas(12,13): error TKO1100: a '...' argument does not support int128 or uint128 yet
+'' EXPECT-MAX-DIAG: 7

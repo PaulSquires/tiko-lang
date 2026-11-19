@@ -143,6 +143,7 @@ private sub ConstFitWarn_ ( byref c as Ctx, byval lt as TypeId, byval v as NodeI
     case TY_INTEGER, TY_UINTEGER
         w = iif( c.types->target.pointerBits = 32, 32, 64 )
     case TY_LONGINT, TY_ULONGINT : w = 64                 '' only a float overflows these
+    case TY_INT128, TY_UINT128   : w = 128                '' tiko's; likewise
     end select
     if w = 0 then return
     dim as TypeId vu = c.types->Unqualify( c.info->TypeOf_( v ) )
@@ -714,7 +715,8 @@ sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
             if strParam andalso (c.types->Kind( au ) = TK_BUILTIN) then
                 select case c.types->BuiltinOf( au )
                 case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
-                     TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE
+                     TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE, _
+                     TY_INT128, TY_UINT128
                     c.diags->Report( TKO0698, PointRange( c.ast->Loc( arg ) ) )
                     return
                 end select
@@ -872,7 +874,8 @@ private function StrNumMismatch_ _
     if rStr then num = lu
     select case c.types->BuiltinOf( num )
     case TY_BYTE, TY_UBYTE, TY_SHORT, TY_USHORT, TY_LONG, TY_ULONG, _
-         TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE
+         TY_INTEGER, TY_UINTEGER, TY_LONGINT, TY_ULONGINT, TY_SINGLE, TY_DOUBLE, _
+         TY_INT128, TY_UINT128
     case else
         return false
     end select

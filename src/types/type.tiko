@@ -62,6 +62,8 @@ function FixedWidthBuiltin( byref nm as string ) as BuiltinType
     case "uint32"  : return TY_ULONG
     case "int64"   : return TY_LONGINT
     case "uint64"  : return TY_ULONGINT
+    case "int128"  : return TY_INT128
+    case "uint128" : return TY_UINT128
     case "float32" : return TY_SINGLE
     case "float64" : return TY_DOUBLE
     end select
@@ -871,6 +873,13 @@ function TypeContext.Layout( byval t as TypeId ) as TypeLayout
         if b = TY_FIXUSTR then
             r.size = 2
             r.align = 2
+            return r
+        end if
+        '' INT128 IS 16-ALIGNED PAST maxAlign, as clang's __int128 is (see type.ti). maxAlign
+        '' itself stays 8: it also sets every aggregate's alignment.
+        if (b = TY_INT128) orelse (b = TY_UINT128) then
+            r.size = 16
+            r.align = 16
             return r
         end if
         select case BuiltinClass( b )

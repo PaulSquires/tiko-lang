@@ -1393,6 +1393,7 @@ sub LowerModule _
     end select
 
     DeclineInconsistentReturns( m, st )
+    if target.abi = ABI_WIN64 then Win64Int128( m, names, target, st )   '' abiint128.tiko
 
     '' WHICH AGGREGATES STILL FIT IN REGISTERS, every signature, before anything reads it.
     '' SysV's question alone: AAPCS64's arrays leave register exhaustion to the backend.
