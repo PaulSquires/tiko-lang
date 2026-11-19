@@ -12,7 +12,7 @@
 # static archive and/or a shared library ('cbuild': where it does not). A host makes its own
 # binaries, as package.sh makes its own toolchain. A 'copy' whose url is a single file, not an
 # archive, copies that file. 'script' runs a build script committed in the package
-# (vendor/tkControls' scintk, vendor/SDL3's static libraries) and copies what it made; its
+# (tkControls' scintk, SDL3's static libraries, raylib6's Linux .so) and copies what it made; its
 # optional 'inputs' -- 'url sha256 url sha256 ...' -- are fetched and verified first, like any
 # download, and handed to the script as TIKO_VENDOR_INPUTS (the local paths, in order), with
 # TIKO_VENDOR_HOST (windows, linux, macos) and TIKO_VENDOR_CACHE. A 'cbuild' entry's optional
