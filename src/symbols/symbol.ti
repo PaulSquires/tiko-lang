@@ -549,6 +549,17 @@ namespace Tko
           byref names as Interner, byref elemTypes as containers.Array( of uint32 ), _
           byval at as SourceLoc ) as TypeId
 
+    '' THE SYNTHETIC UDT AN ARRAY SLICE IS -- 'span( of T )' (docs/tiko-slices RFC-0003),
+    '' '__tko_span<id>' with fields __data (T ptr), __len (integer), __anchor (any ptr): the
+    '' string slices' three words. Built as a tuple is, so Resolve ('as span( of long )')
+    '' and Check ('a(2 to 4)') name one type. elemT is taken unqualified -- a const element
+    '' is a const span, which the caller qualifies. Call Slices.SpanTypeFor (checkspan.ti),
+    '' which also registers the mangling (TKOSPAN<T>) and the const.
+    declare function SpanUdtFor _
+        ( byref syms as SymbolTable, byref types as TypeContext, _
+          byref names as Interner, byval elemT as TypeId, _
+          byval at as SourceLoc ) as TypeId
+
     declare function SymbolKindName( byval k as SymbolKind ) as string
     declare function ScopeKindName( byval k as ScopeKind ) as string
 

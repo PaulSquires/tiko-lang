@@ -1028,6 +1028,7 @@ function TypeContext.Name( byval t as TypeId ) as string
                 wend
                 if ok then
                     dim as string bn = left( ks, lt - 1 )
+                    if lcase( bn ) = "__tko_span" then bn = "span"    '' an array slice (RFC-0003)
                     for k as integer = 1 to len( bn )
                         if mid( bn, k, 1 ) = "#" then mid( bn, k, 1 ) = "."
                     next

@@ -1155,8 +1155,8 @@ private function TypeOfUncached_ _
         '' this is. An array subscript yields the ELEMENT type; without this the whole
         '' expression is untyped and every use of a(i) falls back to nothing.
         dim as Tko.TypeId ct = TypeOf_( c, cp->target )
-        if (ct <> Tko.TYPE_NONE) andalso (c.types->Kind( ct ) = Tko.TK_ARRAY) then
-            t = c.types->Inner( ct )
+        if (ct <> Tko.TYPE_NONE) andalso ((c.types->Kind( ct ) = Tko.TK_ARRAY) orelse Tko.Slices.IsSpanIndexCallee( *c.ast, *c.syms, *c.types, *c.info, cp->target )) then
+            t = iif( c.types->Kind( ct ) = Tko.TK_ARRAY, c.types->Inner( ct ), Tko.Slices.SpanElemType( *c.types, ct ) )   '' 'v(i)' over a span: checkspan.tiko
         else
             '' A conversion intrinsic is a KEYWORD, so nothing was ever bound and the
             '' callee lookup below finds nothing. Its result is a measured table.
@@ -1495,6 +1495,5 @@ function Run( byref u as Tko.FrontUnit, byref st as Stats ) as int32
     return st.badOperands
 end function
 
-#include once "symbols/checkdump.tiko"
 
 end namespace

@@ -1177,6 +1177,15 @@
     DIAG( TKO1067, SEV_ERROR,   "the parts of partial type '%0' disagree: one is 'public', another 'private'" )
     DIAG( TKO1068, SEV_ERROR,   "the parts of '%0' disagree: one is a 'partial type', another a 'partial class'" )
 
+    '' ARRAY SLICES, span( of T ) and 'a(lo to hi)' (docs/tiko-slices RFC-0003 §8). 1070's %1 is a
+    '' hint naming '[lo to hi]' when the source is a string, else empty.
+    DIAG( TKO1069, SEV_ERROR,   "'%0' cannot be sliced: it has %1 dimensions; only a one-dimensional array can" )
+    DIAG( TKO1070, SEV_ERROR,   "'%0' cannot be sliced with '( )': it is not an array or a span%1" )
+    DIAG( TKO1071, SEV_ERROR,   "slice %0 is outside '%1' (%2)" )
+    DIAG( TKO1072, SEV_ERROR,   "a span takes one index, not %0" )
+    DIAG( TKO1073, SEV_ERROR,   "span( of %0 )( p, n ) needs a pointer to %0 and a count" )
+    DIAG( TKO1074, SEV_ERROR,   "'%0' is an array or a span: slice it with '( )', as in a(lo to hi)" )
+
 #endmacro
 
 enum DiagId

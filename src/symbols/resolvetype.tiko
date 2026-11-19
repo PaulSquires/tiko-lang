@@ -853,6 +853,27 @@ function ResolveTypeRefAt_ _
         '' 'FB.Array( of long )' found nothing, instantiated nothing, and bound to the
         '' GENERIC instead. Every container in the runtime headers lives in a namespace,
         '' so that was all of them.
+        '' 'span( of T )', AN ARRAY SLICE (docs/tiko-slices RFC-0003): contextual, so only when
+        '' no TYPE the program declares is called span -- a variable or procedure of that name
+        '' is no type and does not hide it.
+        dim as boolean spanOk = (sid = Tko.SYMBOL_NONE)
+        if spanOk = false then
+            dim as Tko.Symbol ptr sps = c.syms->SymbolAt( sid )
+            spanOk = (sps->kind <> cast( uint8, Tko.SYM_UDT )) andalso (sps->kind <> cast( uint8, Tko.SYM_TYPEDEF )) andalso (sps->kind <> cast( uint8, Tko.SYM_ENUM ))
+        end if
+        '' '__tko_span( of T )' is the same type always -- what a module interface writes for it.
+        if (tparam = false) andalso (sp->ownerName = 0) andalso (sp->count = 1) andalso (Tko.Text.LowerAscii( c.names->Spelling( sp->name ) ) = "__tko_span") then spanOk = true
+        if spanOk andalso (tparam = false) andalso (sp->ownerName = 0) andalso (sp->count = 1) then
+            if instr( "|span|__tko_span|", "|" & Tko.Text.LowerAscii( c.names->Spelling( sp->name ) ) & "|" ) > 0 then
+                dim as boolean spConst = ((n->flags and Tko.NF_CONST) <> 0)
+                dim as Tko.TypeId et = ResolveTypeRef( c, cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) ), scope_ )
+                if et = Tko.TYPE_NONE then return Tko.TYPE_NONE
+                dim as Tko.TypeId spt = Tko.Slices.SpanTypeFor( *c.syms, *c.types, *c.names, et, c.ast->Loc( id ) )
+                if spConst andalso (spt <> Tko.TYPE_NONE) then spt = c.types->Qualify( spt, Tko.TF_CONST )
+                c.info->SetType( id, spt )
+                return spt
+            end if
+        end if
         if (tparam = false) andalso (sid <> Tko.SYMBOL_NONE) then GenericArgsCheck_( c, id, sid, sp->count )
         if sp->count > 0 then
             dim as Tko.TypeId inst = InstantiateGeneric_( c, id, sp, scope_, sid )
@@ -1084,6 +1105,29 @@ function BindParamType_ _
     end if
     BindDeclType( c, here, sp->name, t, false )
     return t
+end function
+
+function SpanCtorCall_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval lp as Tko.ListPayload ptr, _
+      byval scope_ as Tko.ScopeId, byval taFirst as int32, byval taCount as int32 ) as boolean
+
+    if taCount <> 1 then return false
+    dim as Tko.NodeId tgt = lp->target
+    if c.ast->Kind( tgt ) <> Tko.N_IDENT then return false
+    if Tko.Text.LowerAscii( c.names->Spelling( c.ast->IdentOf( tgt )->name ) ) <> "span" then return false
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( c.info->RefOf( tgt ) )
+    if gs <> nullptr then
+        if (gs->kind = cast( uint8, Tko.SYM_UDT )) orelse (gs->kind = cast( uint8, Tko.SYM_TYPEDEF )) orelse (gs->kind = cast( uint8, Tko.SYM_ENUM )) then return false
+    end if
+    dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->ChildSlot( taFirst ) )
+    dim as Tko.TypeId et = ResolveTypeRef( c, tn, scope_ )
+    if et = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId st = Tko.Slices.SpanTypeFor( *c.syms, *c.types, *c.names, et, c.ast->Loc( id ) )
+    if st = Tko.TYPE_NONE then return false
+    c.info->SetRef( tgt, Tko.SYMBOL_NONE )
+    c.info->SetType( id, st )
+    c.info->SetType( tgt, st )
+    return true
 end function
 
 '' A PROCEDURE'S RESULT TYPE: the written type, made a DYNAMIC ARRAY of it when the parser saw

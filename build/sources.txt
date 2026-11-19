@@ -40,10 +40,12 @@ src/symbols/generictypedef.tiko
 src/symbols/mangle.tiko
 src/symbols/constfold.tiko
 src/symbols/check.tiko
+src/symbols/checkdump.tiko
 src/symbols/structpick.tiko
 src/symbols/formatcheck.tiko
 src/symbols/castpick.tiko
 src/symbols/checkslice.tiko
+src/symbols/checkspan.tiko
 src/symbols/semwalk.tiko
 src/symbols/sem.tiko
 src/symbols/semsweep.tiko

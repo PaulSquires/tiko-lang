@@ -206,6 +206,7 @@ private function GenericCtorCall_ _
 
     dim as Tko.SymbolId gsid = c.info->RefOf( lp->target )
     dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if SpanCtorCall_( c, id, lp, scope_, taFirst, taCount ) then return true   '' span( of T )( p, n ): resolvetype.tiko
     if gs = nullptr then return false
     if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return false
 

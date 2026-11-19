@@ -913,6 +913,18 @@ private function ResolveCall_ _
                     end if
                     dim as Tko.TypeId pt = c.info->TypeOf_( sp2->a )
 
+                    '' A SPAN FOR AN 'x()' PARAMETER (docs/tiko-slices RFC-0003 §6): its element
+                    '' exactly, one dimension, a const element only for a const one. One worse
+                    '' than exact, so a 'byval v as span( of T )' overload wins over it.
+                    if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) andalso Tko.Slices.IsSpanType( *c.types, at2 ) then
+                        if (c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0 then
+                            if Tko.Slices.SpanFitsArrayParam( *c.types, at2, pt, cast( int32, sp2->extra ), false ) = false then viable = false : exit for
+                            total += CONV_EXACT + 1
+                            ai += 1
+                            continue for
+                        end if
+                    end if
+
                     '' A BYREF NUMERIC PARAMETER TAKES ITS OWN TYPE AND NOTHING ELSE.
                     '' Measured: 'declare sub F( byref x as long )' called with a SHORT
                     '' or an INTEGER is fbc's error 58, not a conversion -- there is

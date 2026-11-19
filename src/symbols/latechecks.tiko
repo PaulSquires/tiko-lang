@@ -310,6 +310,7 @@ sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
         dim as TypeId pt = ct
         if c.types->Kind( pt ) = TK_POINTER then pt = c.types->Unqualify( c.types->Inner( pt ) )
         if c.types->Kind( pt ) = TK_PROC then return
+        if Slices.IsSpanIndexCallee( *c.ast, *c.syms, *c.types, *c.info, tgt ) then return    '' 'v(i)' over a span (RFC-0003)
         '' A CLOSURE OBJECT is called through its '__fbinvoke'.
         if c.types->Kind( ct ) = TK_UDT then
             dim as Symbol ptr us = c.syms->SymbolAt( c.syms->LookupLocalTyped( _
