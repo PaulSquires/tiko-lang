@@ -980,6 +980,17 @@ rendering, a GPU interface, audio, gamepads, cameras, file dialogs, threads and 
 desktop and mobile platforms alike. Many commercial games and emulators are built on it. SDL3 is
 its current version.
 
+```admonish note
+tiko already ships SDL3, as `vendor/SDL3`. With `#import "vendor/SDL3"` in place of this
+section's `#include` and `#foreignlib` lines, the main-callbacks program below builds and runs
+unchanged: the package declares the whole of SDL's interface, `SDL_main.h`'s
+`SDL_EnterAppMainCallbacks` included, and links the library. On Windows it copies `SDL3.dll`
+beside the program; on Linux it links the system's SDL (`libsdl3-dev`), on macOS Homebrew's
+(`brew install sdl3`). `#import "vendor/SDL3" link static` puts SDL inside the program instead.
+This section makes SDL from its download, which is what you do for another SDL version or your
+own build options — and it is the pattern for any library whose interface is many headers.
+```
+
 ### Downloading
 
 From `https://github.com/libsdl-org/SDL/releases`, release 3.4.18:
