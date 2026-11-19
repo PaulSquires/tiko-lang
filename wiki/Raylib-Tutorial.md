@@ -72,8 +72,6 @@ drew 60 frames
 
 `SetTraceLogLevel( LOG_WARNING )` is raylib's, not tiko's: raylib reports everything it does on standard output, about forty lines when a window opens. Leave it out to see them.
 
-> ⚠️ **Linux: the dynamic library needs glibc 2.38 or newer** (Ubuntu 24.04, Debian 13, Fedora 39 and later). raylib's prebuilt `libraylib.so.6.2.0`, which the toolchain ships, was built against it. On an older system the link fails with `undefined reference to 'fmod@GLIBC_2.38'`; link statically (step 2) instead.
-
 ## 2. Linked statically
 
 Change the import, nothing else:
@@ -257,7 +255,7 @@ To keep those lines out of every program, put them in a **binding header** or a 
 |---|---|
 | `TKO0140: cannot find module 'vendor/raylib'` | the package is `vendor/raylib6` |
 | `TKO0309: #error: "vendor/raylib6 on macOS needs framework linking, not yet supported"` | raylib is not available on macOS yet |
-| `undefined reference to 'fmod@GLIBC_2.38'` on Linux | the system's glibc is older than 2.38; use `#import "vendor/raylib6" link static` |
+| `undefined reference to 'fmod@GLIBC_2.38'` on Linux | toolchain 0.1.5 or older: its raylib shared library needs glibc 2.38; use a newer toolchain, or `#import "vendor/raylib6" link static` |
 | `TKO0155: 'link static' on '#import "vendor/raylib6/raymath"': package 'vendor' links nothing` | put `link` on `#import "vendor/raylib6"` instead (step 4) |
 | a long list of `INFO:` lines | `SetTraceLogLevel( LOG_WARNING )` before `InitWindow` |
 | `undefined symbol: __declspec(dllimport) DragQueryFileW` linking statically on Windows (your own build) | a system library is missing (that one is `shell32`); the full list is `winmm`, `gdi32`, `user32`, `shell32` |
