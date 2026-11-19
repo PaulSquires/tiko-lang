@@ -422,6 +422,9 @@ declare function EmitRtl _
         ( byref c as Ctx, byref v as MirValue, byval want as MirType, _
           byval srcUnsigned as boolean = false, _
           byval dstUnsigned as boolean = false ) as MirValue
+    '' An int128 argument to a tko_* runtime entry: its LOW half, then its HIGH, as two i64s.
+    declare sub PushI128Halves _
+        ( byref c as Ctx, byref v as MirValue, byref args as containers.Array( of uint32 ) )
 
     declare sub ZeroStrDescriptor( byref c as Ctx, byref dst as MirValue )
     '' The (pointer, length) pair for one term of a concatenation, appended to 'args'.

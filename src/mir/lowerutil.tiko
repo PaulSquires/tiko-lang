@@ -222,6 +222,7 @@ function TyWidthBytes_( byval t as MirType ) as int32
     case MT_I16 : return 2
     case MT_I32, MT_F32 : return 4
     case MT_I64, MT_F64, MT_PTR : return 8
+    case MT_I128, MT_V2I64 : return 16
     end select
     return 8
 end function
@@ -232,6 +233,7 @@ private function TyWidth( byval t as MirType ) as int32
     case MT_I16 : return 16
     case MT_I32, MT_F32 : return 32
     case MT_I64, MT_F64, MT_PTR : return 64
+    case MT_I128, MT_V2I64 : return 128
     end select
     return 0
 end function
@@ -544,7 +546,8 @@ function Coerce _
         '' where fbc's (int8)(int32) gives -56 -- LLVM's poison, not a wrap.
         dim as boolean narrow32 = (TyWidth( want ) < 32)
         dim as boolean narrow64 = dstUnsigned andalso (TyWidth( want ) < 64)
-        if dstUnsigned andalso (TyWidth( want ) = 64) then
+        '' ...and uint128 the same way, one size up (llvmemit's EmitFloatToInt_).
+        if dstUnsigned andalso (TyWidth( want ) >= 64) then
             ins.op = cast( uint16, M_FPTOUI )
         elseif narrow32 orelse narrow64 then
             '' ...AND A NARROWER UNSIGNED TARGET CONVERTS AT 64 AND TRUNCATES, which
@@ -583,6 +586,32 @@ function Coerce _
     end if
     return Emit( c, ins )
 end function
+
+'' AN int128 TO THE RUNTIME TRAVELS AS TWO i64s, low half first: the tko_* entry points
+'' (lib/rt str/tostr.tiko) take it that way so no target's i128 convention is involved.
+sub PushI128Halves _
+    ( byref c as Ctx, byref v as MirValue, byref args as containers.Array( of uint32 ) )
+    dim as MirValue w = Coerce( c, v, MT_I128 )
+    dim as MirInst lo
+    lo.op = cast( uint16, M_TRUNC )
+    lo.ty = cast( uint8, MT_I64 )
+    lo.a = w
+    dim as MirValue lv = Emit( c, lo )
+    dim as MirValue sixtyFour = ConstInt( c, 64, MT_I128 )
+    dim as MirInst sh
+    sh.op = cast( uint16, M_LSHR )
+    sh.ty = cast( uint8, MT_I128 )
+    sh.a = w
+    sh.b = sixtyFour
+    dim as MirValue hs = Emit( c, sh )
+    dim as MirInst hi
+    hi.op = cast( uint16, M_TRUNC )
+    hi.ty = cast( uint8, MT_I64 )
+    hi.a = hs
+    dim as MirValue hv = Emit( c, hi )
+    args.Push( cast( uint32, lv.kind ) ) : args.Push( cast( uint32, lv.id ) )
+    args.Push( cast( uint32, hv.kind ) ) : args.Push( cast( uint32, hv.id ) )
+end sub
 
 '' ------------------------------------------------------------------- locals
 

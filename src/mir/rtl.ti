@@ -338,6 +338,10 @@ namespace Tko.Mir
         RTL( RTL_STR_UINTTOSTR,     "fb_UIntToStr",        "p",   "l"     )
         RTL( RTL_STR_LONGTOSTR,     "fb_LongintToStr",     "p",   "q"     )
         RTL( RTL_STR_ULONGTOSTR,    "fb_ULongintToStr",    "p",   "q"     )
+        '' tiko's int128 / uint128 (no fbc counterpart): the value as TWO i64s, low half
+        '' first (PushI128Halves), so no target's i128 argument convention is involved.
+        RTL( RTL_STR_INT128TOSTR,   "tko_Int128ToStr",     "p",   "qq"    )
+        RTL( RTL_STR_UINT128TOSTR,  "tko_UInt128ToStr",    "p",   "qq"    )
         RTL( RTL_STR_FLOATTOSTR,    "fb_FloatToStr",       "p",   "f"     )
         RTL( RTL_STR_DBLTOSTR,      "fb_DoubleToStr",      "p",   "d"     )
         '' CHR is VARIADIC and its first argument is the COUNT, not a character:
@@ -533,6 +537,8 @@ namespace Tko.Mir
         RTL( RTL_PRINT_UINT,        "fb_PrintUInt",        "v",   "lll"   )
         RTL( RTL_PRINT_LONGINT,     "fb_PrintLongint",     "v",   "lql"   )
         RTL( RTL_PRINT_ULONGINT,    "fb_PrintULongint",    "v",   "lql"   )
+        RTL( RTL_PRINT_INT128,      "tko_PrintInt128",     "v",   "lqql"  )
+        RTL( RTL_PRINT_UINT128,     "tko_PrintUInt128",    "v",   "lqql"  )
         RTL( RTL_PRINT_SINGLE,      "fb_PrintSingle",      "v",   "lfl"   )
         RTL( RTL_PRINT_DOUBLE,      "fb_PrintDouble",      "v",   "ldl"   )
         RTL( RTL_PRINT_BOOL,        "fb_PrintBool",        "v",   "lbl"   )
@@ -549,6 +555,8 @@ namespace Tko.Mir
         RTL( RTL_WRITE_UINT,        "fb_WriteUInt",        "v",   "lll"   )
         RTL( RTL_WRITE_LONGINT,     "fb_WriteLongint",     "v",   "lql"   )
         RTL( RTL_WRITE_ULONGINT,    "fb_WriteULongint",    "v",   "lql"   )
+        RTL( RTL_WRITE_INT128,      "tko_WriteInt128",     "v",   "lqql"  )
+        RTL( RTL_WRITE_UINT128,     "tko_WriteUInt128",    "v",   "lqql"  )
         RTL( RTL_WRITE_SINGLE,      "fb_WriteSingle",      "v",   "lfl"   )
         RTL( RTL_WRITE_DOUBLE,      "fb_WriteDouble",      "v",   "ldl"   )
         RTL( RTL_WRITE_STRING,      "fb_WriteString",      "v",   "lpl"   )

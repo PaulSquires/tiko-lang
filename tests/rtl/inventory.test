@@ -43,4 +43,9 @@
 '' tkort_ObjIfaceTryCast and tkort_IfaceTypeCast, interfaces' run-time search (lib/rt/src/oop/
 '' iface.tiko, tests/codegen/iface-dynamic-run).
 '' EXPECT-OUT: tkort_IfaceFind ptr (ptr, ptr, ptr)
-'' EXPECT-OUT: rtl: 543 entries
+'' SIX MORE, 2026-11-19: int128 / uint128's STR, PRINT and WRITE, tiko's own and so 'tko_' --
+'' the value as two i64s, low half first (lib/rt/src/str/tostr.tiko, tests/codegen/int128-run).
+'' EXPECT-OUT: tko_Int128ToStr ptr (i64, i64)
+'' EXPECT-OUT: tko_PrintInt128 void (i32, i64, i64, i32)
+'' EXPECT-OUT: tko_WriteUInt128 void (i32, i64, i64, i32)
+'' EXPECT-OUT: rtl: 549 entries

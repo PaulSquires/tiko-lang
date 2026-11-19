@@ -512,6 +512,8 @@ private function InferArgType_ _
                  Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
                  Tko.TY_LONGINT, Tko.TY_ULONGINT
                 return c.types->Builtin( Tko.TY_INTEGER )
+            case Tko.TY_INT128, Tko.TY_UINT128
+                return c.types->Builtin( Tko.TY_INT128 )
             end select
             return Tko.TYPE_NONE
         end if
@@ -520,6 +522,8 @@ private function InferArgType_ _
             return c.types->Builtin( Tko.TY_BOOLEAN )
         case Tko.TY_UINTEGER, Tko.TY_ULONGINT
             return c.types->Builtin( Tko.TY_UINTEGER )
+        case Tko.TY_INT128, Tko.TY_UINT128
+            return c.types->Builtin( ub )
         case Tko.TY_SINGLE, Tko.TY_DOUBLE, Tko.TY_BYTE, Tko.TY_UBYTE, _
              Tko.TY_SHORT, Tko.TY_USHORT, Tko.TY_LONG, Tko.TY_ULONG, _
              Tko.TY_INTEGER, Tko.TY_LONGINT

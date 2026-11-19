@@ -53,7 +53,7 @@ private function IsInt_( byval b as Tko.BuiltinType ) as boolean
     select case b
     case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
          Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
-         Tko.TY_LONGINT, Tko.TY_ULONGINT
+         Tko.TY_LONGINT, Tko.TY_ULONGINT, Tko.TY_INT128, Tko.TY_UINT128
         return true
     end select
     return false
@@ -196,6 +196,7 @@ private function IntResult_ _
     if w = iw then
         return types.Builtin( iif( uns, Tko.TY_UINTEGER, Tko.TY_INTEGER ) )
     end if
+    if w >= 16 then return types.Builtin( iif( uns, Tko.TY_UINT128, Tko.TY_INT128 ) )
     return types.Builtin( iif( uns, Tko.TY_ULONGINT, Tko.TY_LONGINT ) )
 end function
 
@@ -203,8 +204,6 @@ end function
 '' HERE because it reads the operator-class predicates and the integer-promotion
 '' helpers above.
 #include once "symbols/binresult.tiko"
-
-
 
 '' ----------------------------------------------------------- overload resolution
 
@@ -224,15 +223,17 @@ private function Rank_( byval b as Tko.BuiltinType ) as int32
     case Tko.TY_UINTEGER : return 8
     case Tko.TY_LONGINT  : return 9
     case Tko.TY_ULONGINT : return 10
-    case Tko.TY_SINGLE   : return 11
-    case Tko.TY_DOUBLE   : return 12
+    case Tko.TY_INT128   : return 11      '' tiko's: past every fbc integer, below the floats
+    case Tko.TY_UINT128  : return 12
+    case Tko.TY_SINGLE   : return 13
+    case Tko.TY_DOUBLE   : return 14
     end select
     return 0
 end function
 
 private function IsUnsignedInt_( byval b as Tko.BuiltinType ) as boolean
     select case b
-    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG, Tko.TY_UINTEGER, Tko.TY_ULONGINT, Tko.TY_UINT128
         return true
     end select
     return false
@@ -881,6 +882,7 @@ private function TypeOfUncached_ _
                         select case c.types->BuiltinOf( t )
                         case Tko.TY_UINTEGER : t = c.types->Builtin( Tko.TY_INTEGER )
                         case Tko.TY_ULONGINT : t = c.types->Builtin( Tko.TY_LONGINT )
+                        case Tko.TY_UINT128  : t = c.types->Builtin( Tko.TY_INT128 )
                         end select
                     end if
                 end if
@@ -1494,6 +1496,5 @@ function Run( byref u as Tko.FrontUnit, byref st as Stats ) as int32
     InferUnusedVarTypes_( c )
     return st.badOperands
 end function
-
 
 end namespace

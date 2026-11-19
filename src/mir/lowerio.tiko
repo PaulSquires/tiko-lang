@@ -705,7 +705,11 @@ function PrintOne _
         if c.types->target.pointerBits = 32 then pty = MT_I32
     end if
     v = Coerce( c, v, pty )
-    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
+    if (which = RTL_PRINT_INT128) orelse (which = RTL_PRINT_UINT128) then
+        PushI128Halves( c, v, args )
+    else
+        args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
+    end if
     PushConst( args, mask )
     EmitRtl( c, which, args )
     return true

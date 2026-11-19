@@ -75,7 +75,7 @@ end function
 '' BOOLEAN is MT_I8 as well, so every caller checks that separately.
 private function IsIntMirTy_( byval t as MirType ) as boolean
     select case t
-    case MT_I8, MT_I16, MT_I32, MT_I64
+    case MT_I8, MT_I16, MT_I32, MT_I64, MT_I128
         return true
     end select
     return false

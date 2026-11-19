@@ -296,6 +296,7 @@ private function AlignOf _
     '' An array is aligned as its element.
     case MT_HFA_F32_1, MT_HFA_F32_2, MT_HFA_F32_3, MT_HFA_F32_4 : return 4
     case MT_HFA_F64_1, MT_HFA_F64_2, MT_HFA_F64_3, MT_HFA_F64_4, MT_A2_I64 : return 8
+    case MT_I128, MT_V2I64 : return 16
     end select
     dim as int32 a = e.tgt->layout.maxAlign
     if sizeBytes < a then
@@ -317,13 +318,12 @@ end function
 '' was copied with 'align 8' (audit F-74, CG-15). So it claims 1; x86 loses nothing.
 private function AggAccessAlign_ _
     ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as int32, byref addr as MirValue ) as int32
+    dim as boolean own = (addr.kind = cast( uint8, MV_LOCAL )) orelse (addr.kind = cast( uint8, MV_GLOBAL ))
+    if (t = MT_I128) andalso (own = false) then return 8   '' a computed address: 'field = 1' may misalign it
     if t <> MT_AGG then return AlignOf( e, t, sizeBytes )
-    if (addr.kind = cast( uint8, MV_LOCAL )) orelse (addr.kind = cast( uint8, MV_GLOBAL )) then
-        return AlignOf( e, t, sizeBytes )
-    end if
+    if own then return AlignOf( e, t, sizeBytes )
     return 1
 end function
-
 
 '' ---------------------------------------------------------------- instructions
 ''
@@ -349,6 +349,7 @@ private function IntTypeBits_( byref ty as string ) as int32
     case "i16" : return 16
     case "i32" : return 32
     case "i64" : return 64
+    case "i128" : return 128
     end select
     return 0
 end function
@@ -373,6 +374,25 @@ private sub EmitFloatToInt_ _
     dim as int32 w = IntTypeBits_( ty )
     if w = 0 then
         Line( e, res & " = " & iif( op = M_FPTOSI, "fptosi ", "fptoui " ) & src & " " & x & " to " & ty )
+        return
+    end if
+    '' int128 / uint128, ONE SIZE UP: the type's minimum stands in for the indefinite value; [2^127,
+    '' 2^128) goes through fptoui for uint128, a negative value wraps. fptosi on i128 is __fixdfti & co.
+    if w = 128 then
+        const P127 = "0x47E0000000000000", N127 = "0xC7E0000000000000", P128 = "0x47F0000000000000", MIN128 = "-170141183460469231731687303715884105728"
+        Line( e, res & ".lo = fcmp oge " & src & " " & x & ", " & N127 )
+        Line( e, res & ".hi = fcmp olt " & src & " " & x & ", " & P127 )
+        Line( e, res & ".ok = and i1 " & res & ".lo, " & res & ".hi" )
+        Line( e, res & ".v = fptosi " & src & " " & x & " to i128" )
+        dim as string s128 = iif( op = M_FPTOSI, res, res & ".s" )
+        Line( e, s128 & " = select i1 " & res & ".ok, i128 " & res & ".v, i128 " & MIN128 )
+        if op = M_FPTOSI then return
+        Line( e, res & ".big = fcmp oge " & src & " " & x & ", " & P127 )
+        Line( e, res & ".top = fcmp olt " & src & " " & x & ", " & P128 )
+        Line( e, res & ".bok = and i1 " & res & ".big, " & res & ".top" )
+        Line( e, res & ".bv = fptoui " & src & " " & x & " to i128" )
+        Line( e, res & ".bs = select i1 " & res & ".bok, i128 " & res & ".bv, i128 " & MIN128 )
+        Line( e, res & " = select i1 " & res & ".big, i128 " & res & ".bs, i128 " & s128 )
         return
     end if
     if (op = M_FPTOSI) andalso (w <= 32) then
@@ -592,6 +612,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         '' claims more than the slot has (audit F-74, CG-15).
         dim as int32 sal = AlignOf( e, st, sz )
         if (st = MT_AGG) andalso (sal < e.tgt->layout.maxAlign) then sal = e.tgt->layout.maxAlign
+        if (st = MT_AGG) andalso e.m->align16 andalso (sz >= 16) andalso (sal < 16) then sal = 16   '' MirModule.align16
         if e.allocaPart <> 2 then
             Line( e, SlotName( slot ) & " = alloca " & LlvmType( st, sz ) & ", align " & str( sal ) )
         end if

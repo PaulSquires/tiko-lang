@@ -303,7 +303,7 @@ private function IsNumericBuiltin_ _
     case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
          Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
          Tko.TY_LONGINT, Tko.TY_ULONGINT, Tko.TY_SINGLE, Tko.TY_DOUBLE, _
-         Tko.TY_BOOLEAN
+         Tko.TY_BOOLEAN, Tko.TY_INT128, Tko.TY_UINT128
         return true
     end select
     return false
@@ -321,7 +321,7 @@ private function IsIntegerBuiltin_ _
     select case c.types->BuiltinOf( u )
     case Tko.TY_BYTE, Tko.TY_UBYTE, Tko.TY_SHORT, Tko.TY_USHORT, _
          Tko.TY_LONG, Tko.TY_ULONG, Tko.TY_INTEGER, Tko.TY_UINTEGER, _
-         Tko.TY_LONGINT, Tko.TY_ULONGINT
+         Tko.TY_LONGINT, Tko.TY_ULONGINT, Tko.TY_INT128, Tko.TY_UINT128
         return true
     end select
     return false
@@ -1378,6 +1378,9 @@ function NumericCastRank _
     case Tko.TY_ULONGINT : return 11
     case Tko.TY_SINGLE   : return 12
     case Tko.TY_DOUBLE   : return 13
+    '' tiko's int128: past fbc's table, so it never reorders a pair fbc measured.
+    case Tko.TY_INT128   : return 14
+    case Tko.TY_UINT128  : return 15
     end select
     return 0
 end function
