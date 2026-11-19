@@ -221,6 +221,8 @@
   - [Layout and widgets](libraries/tui-layout.md)
   - [SQLite](libraries/sqlite.md)
   - [Prepared statements](libraries/sqlite-bind.md)
+  - [Regular expressions](libraries/pcre2.md)
+  - [Search and replace](libraries/pcre2-replace.md)
 - [Calling C](ffi/index.md)
   - [C types](ffi/ctypes.md)
   - [C strings](ffi/strings.md)
