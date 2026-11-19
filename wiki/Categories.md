@@ -20,6 +20,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Block Strings](Category-Block-Strings) — 1 pages
 - [Partial Types](Category-Partial-Types) — 1 pages
 - [String Slices](Category-String-Slices) — 9 pages
+- [Array Slices](Category-Array-Slices) — 1 pages
 - [Embed](Category-Embed) — 1 pages
 - [Typed Variadics](Category-Typed-Variadics) — 1 pages
 - [Foreign Library Linking](Category-Foreign-Library-Linking) — 3 pages

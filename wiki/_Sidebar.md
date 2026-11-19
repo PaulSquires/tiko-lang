@@ -29,6 +29,7 @@
 - [Block Strings](Category-Block-Strings)
 - [Partial Types](Category-Partial-Types)
 - [String Slices](Category-String-Slices)
+- [Array Slices](Category-Array-Slices)
 - [Embed](Category-Embed)
 - [Typed Variadics](Category-Typed-Variadics)
 - [C Header Import](Category-C-Header-Import)
