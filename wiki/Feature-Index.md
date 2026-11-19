@@ -65,7 +65,7 @@ Libraries the toolchain ships in `vendor/`, each reached with one `#import` and 
 | [SDL3](SDL3-Tutorial) | SDL 3 for windows, input, audio and 2D rendering, with `vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` for images, fonts and mixing. |
 | [raylib6](Raylib-Tutorial) | raylib, for games and graphics programs, with `vendor/raylib6/raymath` and `vendor/raylib6/rlgl`. |
 | [cJSON](Vendor-Packages) | cJSON, a small JSON parser and writer, with `vendor/cJSON/utils` for JSON Pointer, Patch and Merge Patch. |
-| [pcre2](Vendor-Packages) | PCRE2, Perl-compatible regular expressions over UTF-8, with named groups, substitution and a JIT. |
+| [pcre2](PCRE2-Tutorial) | PCRE2, Perl-compatible regular expressions over UTF-8, with named groups, substitution and a JIT. |
 | [tkControls](Category-tkControls) | Owner-drawn controls on SDL3 for Windows, Linux and macOS, written in tiko and shipped as source: text, numeric and date entry, buttons and switches, a list/tree, menus, toolbars, tabs, splitters, scroll bars, a message box, a colour picker, tooltips, a progress bar and a chart, plus a code editor, a file dialog and a font list. The fonts ship with them, so a program looks the same on every system. [tkApp](tkApp) runs a program of them: forms with event callbacks, the event loop, a shared light/dark theme, background-thread hand-off and per-monitor scale. Start with the [tutorial](Notepad2-Tutorial). |
 
 ## Toolchain

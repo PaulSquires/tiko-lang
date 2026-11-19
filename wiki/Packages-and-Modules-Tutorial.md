@@ -395,7 +395,7 @@ the whole library.
 | `vendor/raylib6` | raylib, games and graphics (with `vendor/raylib6/raymath`, `vendor/raylib6/rlgl`) |
 | `vendor/SDL3` | SDL 3, windows, input, audio (with `vendor/SDL3/image`, `/ttf`, `/mixer`) |
 | `vendor/cJSON` | cJSON, reading and writing JSON (with `vendor/cJSON/utils`) |
-| `vendor/pcre2` | PCRE2, Perl-compatible regular expressions |
+| `vendor/pcre2` | PCRE2, Perl-compatible regular expressions ([tutorial](PCRE2-Tutorial)) |
 
 The full list, with the versions and the link modes each one ships, is on
 [Vendor Packages](Vendor-Packages).

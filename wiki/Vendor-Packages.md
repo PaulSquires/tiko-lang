@@ -57,7 +57,7 @@ Every routine, type and constant of the library's C header is callable as the li
 
 **The packages' shared libraries on linux-x86_64 need glibc 2.34 or newer**, `vendor/raylib6`'s included: the toolchain builds raylib's from its source rather than shipping raylib's prebuilt one, which needs 2.38.
 
-**`vendor/pcre2` is PCRE2's 8-bit library only**, so a pattern and a subject are bytes or UTF-8 (`PCRE2_UTF`); a `ustring` is matched as UTF-8. Its names are the generic ones PCRE2 documents -- `pcre2_compile`, `pcre2_match`, `pcre2_match_data` -- each a `#define` of the `_8` name the library exports. A pattern or subject is a `PCRE2_SPTR`: `strptr( s )` passes as one, a string literal does not. PCRE2 backtracks, so a pattern from outside the program can take exponential time: give `pcre2_match` a match context with `pcre2_set_match_limit` (and `pcre2_set_depth_limit`, `pcre2_set_heap_limit`), or use `pcre2_dfa_match`, which does not backtrack but reports no groups.
+**`vendor/pcre2` is PCRE2's 8-bit library only**, so a pattern and a subject are bytes, or UTF-8 with `PCRE2_UTF`: assign a `ustring` to a `string` to get its UTF-8. Its names are the generic ones PCRE2 documents -- `pcre2_compile`, `pcre2_match`, `pcre2_match_data` -- each a `#define` of the `_8` name the library exports. A pattern or subject is a `PCRE2_SPTR`: `strptr( s )` of a `string` passes as one, a string literal does not. PCRE2 backtracks, so a pattern from outside the program can take exponential time: give `pcre2_match` a match context with `pcre2_set_match_limit` (and `pcre2_set_depth_limit`, `pcre2_set_heap_limit`). `pcre2_dfa_match` is no way out: it does not backtrack, but its time still grows steeply and the match limit does not stop it. See the [PCRE2 tutorial](PCRE2-Tutorial).
 
 **`vendor/SDL3` declares `SDL_main.h`'s routines but not its `main`**: `SDL_EnterAppMainCallbacks`, `SDL_RunApp` and `SDL_SetMainReady` (and on Windows `SDL_RegisterApp` and `SDL_UnregisterApp`), as C has them with `SDL_MAIN_HANDLED`. A program written with SDL's main callbacks calls `SDL_EnterAppMainCallbacks` itself; see the [SDL3 tutorial](SDL3-Tutorial).
 
@@ -170,4 +170,5 @@ A public header is read twice: once in the module, and again in every program th
 - [C Header Import](Category-C-Header-Import)
 - [Foreign Library Linking](Category-Foreign-Library-Linking)
 - [SQLite Tutorial](SQLite-Tutorial)
+- [PCRE2 Tutorial](PCRE2-Tutorial)
 - [tkControls](Category-tkControls)
