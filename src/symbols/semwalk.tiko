@@ -26,6 +26,7 @@
 '' ConversionCost, for the constructor pick in latechecks.tiko -- see CtorChosenBy_.
 '' Declarations only; check.tiko is its own compilation unit.
 #include once "symbols/check.ti"
+#include once "symbols/checkslice.ti"
 #include once "symbols/modsym.ti"
 #include once "types/udtlayout.ti"
 
@@ -613,6 +614,19 @@ private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as bo
 end function
 
 #include once "symbols/arrayelem.tiko"
+'' A SPAN FOR AN 'x() as T' PARAMETER (docs/tiko-slices RFC-0003 §6): T exactly (or 'any'), a
+'' parameter of one dimension -- TKO0687 -- and a const element only for a const T, TKO1052.
+private sub CheckSpanBydesc_( byref c as Ctx, byval prm as NodeId, byval arg as NodeId, byval st as TypeId )
+    dim as TypeId pel = c.info->TypeOf_( c.ast->StmtOf( prm )->a )
+    if pel = TYPE_NONE then return
+    dim as int32 prank = cast( int32, c.ast->StmtOf( prm )->extra )
+    if Tko.Slices.SpanFitsArrayParam( *c.types, st, pel, prank, true ) = false then
+        c.diags->Report( TKO0687, PointRange( c.ast->Loc( arg ) ) )
+    elseif Tko.Slices.SpanFitsArrayParam( *c.types, st, pel, prank, false ) = false then
+        c.diags->Report( TKO1052, PointRange( c.ast->Loc( arg ) ), c.types->Name( Tko.Slices.BareType( *c.types, st ) ) )
+    end if
+end sub
+
 private sub CheckBydescArgs_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as ListPayload ptr lp = _
@@ -701,6 +715,7 @@ private sub CheckBydescArgs_ _
         '' argument would point at the wrong line.
         if at2 = TYPE_NONE then continue for
         if c.types->Kind( c.types->Unqualify( at2 ) ) = TK_ARRAY then continue for
+        if Tko.Slices.IsSpanType( *c.types, at2 ) then CheckSpanBydesc_( c, prm, arg, at2 ) : continue for   '' a span (RFC-0003 §6)
         c.diags->Report( TKO0641, PointRange( c.ast->Loc( arg ) ) )
         return
     next

@@ -25,6 +25,7 @@
 #include once "pp/pp.ti"
 #include once "symbols/mangle.ti"
 #include once "symbols/modsym.ti"
+#include once "symbols/checkslice.ti"
 #include once "support/text.ti"
 
 namespace Tko.Modules
@@ -824,6 +825,24 @@ private sub Qualify_( byref w as TkiWriter_ )
                 sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
             elseif w.ast->StmtOf( id )->count > 0 then
                 sid = w.syms->LookupTyped( look, w.ctx->names.Fold( nm ), true )
+            end if
+        end if
+        '' 'span( of T )' IS WRITTEN '__tko_span( of T )': 'span' is contextual, and an importer's
+        '' own type of that name would capture it (docs/tiko-slices RFC-0003 §1).
+        if (sid = Tko.SYMBOL_NONE) andalso (w.ast->Kind( nd ) = Tko.N_TYPEREF) then
+            if Tko.Slices.IsSpanType( w.ctx->types, w.info->TypeOf_( nd ) ) andalso (Tko.Text.LowerAscii( w.ctx->names.Spelling( nm ) ) = "span") then
+                dim as int32 st_ = TokAt_( w, cast( uint32, w.ast->Loc( nd ) ) )
+                for j as int32 = st_ to st_ + 6
+                    if (st_ < 0) orelse (j >= w.toks->Count) then exit for
+                    if Kind_( w, j ) <> Tko.TK_IDENT then continue for
+                    if Tko.Text.LowerAscii( Tko.PpSpell( w.ctx->sources, w.ctx->names, w.ctx->ppLits, (*w.toks)[j] ) ) <> "span" then continue for
+                    dim as int32 k = j
+                    while k >= 0
+                        w.lit[k] = "__tko_span"
+                        k = w.locNext[k]
+                    wend
+                    exit for
+                next
             end if
         end if
         if sid = Tko.SYMBOL_NONE then continue for

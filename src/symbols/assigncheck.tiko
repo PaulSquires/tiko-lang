@@ -434,7 +434,7 @@ sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
         if (fs->flags and SYMF_STATIC) <> 0 then return
         '' A CONST FIELD of any object: 'as const integer k = 1' then 'x.k = 2' wrote it.
         '' ...BUT A 'const slice' FIELD views const text and may be rebound (docs/tiko-slices).
-        if c.types->IsConst( fs->type_ ) andalso (m = sp->a) andalso (Tko.Slices.SliceUnitOfType( *c.types, *c.names, fs->type_ ) = Tko.Slices.SU_NONE) then
+        if c.types->IsConst( fs->type_ ) andalso (m = sp->a) andalso (Tko.Slices.IsBorrowType( *c.types, *c.names, fs->type_ ) = false) then
             c.diags->Report( TKO0617, PointRange( c.ast->Loc( sp->a ) ), c.names->Spelling( fs->name ) )
             return
         end if

@@ -446,7 +446,7 @@ private function ExprIntrinsicType_ _
         end if
         return c.types->Builtin( Tko.TY_INTEGER )
     case "lbound", "ubound"
-        if isArr = false then return Tko.TYPE_NONE
+        if (isArr = false) andalso (Tko.Slices.IsSpanType( *c.types, a0 ) = false) then return Tko.TYPE_NONE
         return c.types->Builtin( Tko.TY_INTEGER )
     case "instr", "instrrev"
         '' NOT REPORTED, only declined. 'instr' HAS A THREE-ARGUMENT FORM whose first
@@ -1200,6 +1200,7 @@ private function IntrinsicTableType_ _
 
     '' 's[lo to hi]' -- a STRING SLICE, typed by symbols/checkslice.tiko (docs/tiko-slices).
     if (nm = "__tko_slice") andalso (cp->count = 3) then TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) : return Tko.Slices.SliceCallType( *c.ast, *c.syms, *c.types, *c.names, *c.diags, *c.info, cp )   '' the source typed first: a FOR EACH asks early
+    if (nm = "__tko_aslice") andalso (cp->count = 3) then TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) : return Tko.Slices.SpanCallType( *c.ast, *c.syms, *c.types, *c.names, *c.info, cp )   '' 'a(lo to hi)', checkspan.tiko
 
     '' '__FB_QUERY_SYMBOL__( query, symbol )' IS AN INTEGER, whatever it is asked --
     '' measured, '#print typeof' of one says INTEGER even for the text queries. Its
