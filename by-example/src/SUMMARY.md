@@ -65,6 +65,7 @@
   - [Returning arrays](arrays/returning.md)
   - [Bounds checking](arrays/bounds.md)
   - [for each over arrays](arrays/foreach.md)
+  - [Array slices](arrays/slices.md)
 - [Strings](strings/index.md)
   - [Built-in functions](strings/intrinsics.md)
   - [The strings module](strings/library.md)
