@@ -11,13 +11,17 @@ the archive does not explain. Before the first line of your program compiles you
 a package, unpack it, give tiko the library's declarations, decide which file to link, and make
 sure the program can find the library again when it runs, on your machine and on someone else's.
 
-tiko does it in two steps, and they are the steps every vendor package was made with:
+tiko does it in two steps:
 
 1. **`tiko c2t`** translates the library's C header, once, into a tiko header: a `.ti` file that
    reads like the C it came from, which you look over, finish where it says so, and keep with
    your code.
 2. **`#foreignlib`** links the library's compiled code, statically or dynamically, choosing the
    right file for each platform.
+
+They are the steps the vendor packages for SQLite, raylib and cJSON were made with. The SDL
+packages took a shortcut on the first: their headers are sdl3-freebasic, an existing FreeBASIC
+binding of SDL, brought over rather than translated.
 
 This chapter takes four of the most widely used C libraries through both steps:
 
