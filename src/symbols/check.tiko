@@ -272,7 +272,6 @@ function FixedStringElem _
     return Tko.TYPE_NONE
 end function
 
-
 '' WHICH STRING PARAMETER A STRING ARGUMENT PREFERS: 0 is best, 3 worst, and -1 when
 '' either side is not one of the four string builtins.
 ''
@@ -532,7 +531,7 @@ declare function TypeOf_ _
 function DecimalLitUnsigned( byref lp as Tko.LiteralPayload ) as boolean
     '' THE LITERAL MODEL's answer (lexer/littype.tiko) for an UNSUFFIXED literal, either target.
     if cast( Tko.NumSuffix, lp.suffix ) <> Tko.NSUF_NONE then return false
-    return Tko.LiteralClassUnsigned( Tko.LiteralClassOf( lp.suffix, lp.radix, lp.intValue, false, true ) )
+    return Tko.LiteralClassUnsigned( Tko.LiteralClassOf( lp.suffix, lp.radix, lp.intValue, false, true, lp.intHi ) )
 end function
 
 '' A literal class as the builtin it is (lexer/littype.tiko).
@@ -543,6 +542,8 @@ function LitClassBuiltin( byref types as Tko.TypeContext, byval lc as int32 ) as
     case Tko.LC_ULONG    : return types.Builtin( Tko.TY_ULONG )
     case Tko.LC_LONGINT  : return types.Builtin( Tko.TY_LONGINT )
     case Tko.LC_ULONGINT : return types.Builtin( Tko.TY_ULONGINT )
+    case Tko.LC_INT128   : return types.Builtin( Tko.TY_INT128 )
+    case Tko.LC_UINT128  : return types.Builtin( Tko.TY_UINT128 )
     case Tko.LC_SINGLE   : return types.Builtin( Tko.TY_SINGLE )
     case Tko.LC_DOUBLE   : return types.Builtin( Tko.TY_DOUBLE )
     end select
@@ -559,7 +560,7 @@ private function LiteralType_ _
         '' THE LITERAL MODEL (lexer/littype.tiko) -- suffix first, then by magnitude and radix, as
         '' fbc's lexer types it. Typed INTEGER always, 's < 3000000000' over 'dim s as integer =
         '' -1' was TRUE and '3000000000 \ -2' negative, where fbc reads the literal unsigned.
-        return LitClassBuiltin( *c.types, Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, c.types->target.pointerBits = 64 ) )
+        return LitClassBuiltin( *c.types, Tko.LiteralClassOf( lp->suffix, lp->radix, lp->intValue, false, c.types->target.pointerBits = 64, lp->intHi ) )
     case Tko.N_FLOAT_LIT
         '' THE SUFFIX TYPES IT, exactly as it does for an integer literal one arm
         '' above. '1.0f' and '1.0!' are SINGLE and were read as DOUBLE, so an
@@ -1464,7 +1465,6 @@ end function
 '' only Check can type -- split out at the 1500-line cap and INCLUDED here, inside
 '' the same namespace. Nothing moved changed in the move.
 #include once "symbols/checkinfer.tiko"
-
 
 #include once "symbols/checkeach.tiko"
 

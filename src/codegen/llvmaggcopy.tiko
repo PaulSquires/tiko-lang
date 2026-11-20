@@ -140,3 +140,38 @@ private function EmitAggCopy_( byref e as EmitCtx, byref b as MirBlock, byval i 
     AggMemcpy_( e, TempName( t ) & ".agg", ValStr( e, q->a ), sz )
     return 1
 end function
+
+'' 'cva_arg( ap, int128 )' ON SysV, written out as clang writes it. LLVM's own 'va_arg ... i128'
+'' is NOT the ABI there (probed 2026-11-19, LLVM 23: it fetches the halves separately, so one
+'' can come from the register save area and the other from the stack, and its overflow
+'' alignment is wrong) -- the C side's 'va_arg( ap, __int128 )' takes BOTH halves from the
+'' registers when two GP slots are left (gp_offset <= 32), else 16 bytes from the overflow
+'' area aligned to 16. Branch-free: both candidate addresses are formed and a select picks.
+'' Every other read, and every other target, is the plain instruction.
+sub EmitVaArg_( byref e as EmitCtx, byref res as string, byref ins as MirInst, byref ty as string )
+    dim as string ap = ValStr( e, ins.a )
+    if (cast( MirType, ins.ty ) <> MT_I128) orelse (e.tgt->abi <> ABI_SYSV_AMD64) then
+        Line( e, res & " = va_arg ptr " & ap & ", " & ty )
+        return
+    end if
+    Line( e, res & ".gp = load i32, ptr " & ap & ", align 8" )
+    Line( e, res & ".inreg = icmp ult i32 " & res & ".gp, 33" )
+    Line( e, res & ".rsap = getelementptr i8, ptr " & ap & ", i64 16" )
+    Line( e, res & ".rsa = load ptr, ptr " & res & ".rsap, align 8" )
+    Line( e, res & ".gpz = zext i32 " & res & ".gp to i64" )
+    Line( e, res & ".ra = getelementptr i8, ptr " & res & ".rsa, i64 " & res & ".gpz" )
+    Line( e, res & ".ofap = getelementptr i8, ptr " & ap & ", i64 8" )
+    Line( e, res & ".ofa = load ptr, ptr " & res & ".ofap, align 8" )
+    Line( e, res & ".ofi = ptrtoint ptr " & res & ".ofa to i64" )
+    Line( e, res & ".ofi15 = add i64 " & res & ".ofi, 15" )
+    Line( e, res & ".ofal = and i64 " & res & ".ofi15, -16" )
+    Line( e, res & ".ma = inttoptr i64 " & res & ".ofal to ptr" )
+    Line( e, res & ".addr = select i1 " & res & ".inreg, ptr " & res & ".ra, ptr " & res & ".ma" )
+    Line( e, res & " = load i128, ptr " & res & ".addr, align 8" )
+    Line( e, res & ".gp2 = add i32 " & res & ".gp, 16" )
+    Line( e, res & ".gp3 = select i1 " & res & ".inreg, i32 " & res & ".gp2, i32 " & res & ".gp" )
+    Line( e, "store i32 " & res & ".gp3, ptr " & ap & ", align 8" )
+    Line( e, res & ".nx = getelementptr i8, ptr " & res & ".ma, i64 16" )
+    Line( e, res & ".of2 = select i1 " & res & ".inreg, ptr " & res & ".ofa, ptr " & res & ".nx" )
+    Line( e, "store ptr " & res & ".of2, ptr " & res & ".ofap, align 8" )
+end sub

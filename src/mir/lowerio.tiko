@@ -1165,6 +1165,7 @@ private function InputRtlFor _
     case Tko.TY_ULONG     : return RTL_INPUT_UINT
     case Tko.TY_INTEGER, Tko.TY_LONGINT   : return RTL_INPUT_LONGINT
     case Tko.TY_UINTEGER, Tko.TY_ULONGINT : return RTL_INPUT_ULONGINT
+    case Tko.TY_INT128, Tko.TY_UINT128    : return RTL_INPUT_INT128    '' tiko's; both halves
     case Tko.TY_SINGLE    : return RTL_INPUT_SINGLE
     case Tko.TY_DOUBLE    : return RTL_INPUT_DOUBLE
     end select

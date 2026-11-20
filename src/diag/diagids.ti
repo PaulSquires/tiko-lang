@@ -150,7 +150,7 @@
     DIAG( TKO0201, SEV_WARNING, "missing closing quote in string literal" )
     DIAG( TKO0202, SEV_ERROR,   "unterminated block comment" )
     DIAG( TKO0203, SEV_ERROR,   "'%0' is not followed by any digits" )
-    DIAG( TKO0205, SEV_WARNING, "numeric literal is too large for 64 bits, truncated" )
+    DIAG( TKO0205, SEV_WARNING, "numeric literal is too large for its type, truncated" )
     '' fbc's warning 44, "Suffix ignored in '<what was written>'". A '$ % & ! #' on a
     '' RESERVED WORD -- 'end% scope%', 'for% i as% integer' -- is accepted and dropped,
     '' and this is the whole of what says so. Lexical, hence the number; emitted from

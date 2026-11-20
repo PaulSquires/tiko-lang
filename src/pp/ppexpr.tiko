@@ -574,6 +574,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             if (c = 66) orelse (c = 98) then radix = 2
             dim as int32 start = 2
             if (c >= 48) andalso (c <= 57) then start = 1
+            dim as boolean wide = false     '' past 64 bits: tiko's int128 in code
             for i as int32 = start to len( digits ) - 1
                 dim as int32 d = -1
                 dim as uint8 ch = digits[i]
@@ -581,8 +582,10 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
                 if (ch >= 65) andalso (ch <= 70) then d = ch - 55
                 if (ch >= 97) andalso (ch <= 102) then d = ch - 87
                 if (d < 0) orelse (d >= radix) then exit for
+                if cast( uint64, v ) > ((&hFFFFFFFFFFFFFFFFull - d) \ radix) then wide = true
                 v = v * radix + d
             next
+            if wide andalso (LitSuffix_( *x.e, t ) = NSUF_NONE) then x.bad = true : return PxNum( 0 )
             '' A 'u' SUFFIX MAKES IT UNSIGNED -- '&hFFFFFFFFFFFFFFFFull > 0' is true to fbc, and
             '' '&h0u > -1' false (warning 35); unsuffixed, '&hFFFFFFFFFFFFFFFF' is -1. PxIntLit_.
             return PxIntLit_( x, v, LitSuffix_( *x.e, t ), false )
@@ -592,6 +595,11 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
             '' fbc. Read as a longint it was -1. It is carried UNSIGNED, so it still
             '' equals a '&hFFFFFFFFFFFFFFFF' beside it, which a double would not.
             dim as uint64 uv = valulng( digits )
+            '' PAST 64 BITS AND UNSUFFIXED it is tiko's int128 in code (lexer/littype.tiko); '#if'
+            '' arithmetic is 64-bit, so it is refused (TKO0308) rather than saturated.
+            dim as string dg = ltrim( digits, "0" )
+            if ((len( dg ) > 20) orelse ((len( dg ) = 20) andalso (dg > "18446744073709551615"))) andalso _
+               (LitSuffix_( *x.e, t ) = NSUF_NONE) then x.bad = true : return PxNum( 0 )
             return PxIntLit_( x, cast( int64, uv ), LitSuffix_( *x.e, t ), true )   '' '5ull > -1' is false
         end if
         return PxNum( v )

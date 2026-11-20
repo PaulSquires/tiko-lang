@@ -1,9 +1,9 @@
 '' semint128.tiko -- where tiko's int128 / uint128 (types/type.ti) is not built yet: TKO1100.
 ''
-'' PHASE 1 REFUSES RATHER THAN TRUNCATES. Each place below would otherwise take the value
-'' through a 64-bit runtime entry or a 64-bit unit -- PRINT USING's fb_PrintUsingLongint,
-'' HEX's widest table row, INPUT's fb_InputLongint -- and drop the high half without a word,
-'' or reach lowering with nothing to lower to. Asked of every node by latesweeps2.tiko's
+'' REFUSED RATHER THAN TRUNCATED. Each place below would otherwise take the value through a
+'' 64-bit unit and drop the high half without a word, or reach lowering with nothing to
+'' lower to. PRINT USING, HEX/OCT/BIN, WSTR, INPUT, READ and '...' arguments were here and
+'' are built now; the bit field is what is left. Asked of every node by latesweeps2.tiko's
 '' WalkExtra_, so each statement is judged once.
 
 #import "std/containers"
@@ -28,80 +28,6 @@ end function
 
 sub CheckInt128Node_ ( byref c as Ctx, byval id as NodeId )
     select case c.ast->Kind( id )
-
-    '' PRINT USING, INPUT and READ: every item or target.
-    case N_INTRINSIC
-        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
-        dim as string what
-        select case cast( TokenKind, sp->op )
-        case KW_PRINT, KW_LPRINT
-            if sp->extra <> 0 then what = "PRINT USING"
-        case KW_INPUT : what = "INPUT"
-        case KW_READ  : what = "READ"
-        end select
-        if len( what ) = 0 then return
-        for i as int32 = 0 to sp->count - 1
-            dim as NodeId it = c.ast->ChildAt( sp->first, i )
-            if it = NODE_NONE then continue for
-            if c.ast->Kind( it ) = N_PRINT_SEP then continue for
-            if Is128_( c, c.info->TypeOf_( it ) ) then
-                c.diags->Report( TKO1100, PointRange( c.ast->Loc( it ) ), what )
-                return
-            end if
-        next
-
-    case N_CALL
-        dim as ListPayload ptr lp = c.ast->ListOf( id )
-        if lp->target = NODE_NONE then return
-        if c.ast->Kind( lp->target ) <> N_IDENT then return
-        dim as SymbolId sid = c.info->RefOf( lp->target )
-        '' THE RADIX AND WIDE-STRING INTRINSICS, which have no symbol: their tables stop at 64
-        '' bits (lowerradix.tiko, lowerwstr.tiko).
-        if sid = SYMBOL_NONE then
-            if lp->count < 1 then return
-            dim as string nm = lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) )
-            select case nm
-            case "hex", "oct", "bin", "whex", "woct", "wbin", "wstr"
-                dim as NodeId a = cast( NodeId, c.ast->ChildSlot( lp->first ) )
-                if Is128_( c, c.info->TypeOf_( a ) ) then
-                    c.diags->Report( TKO1100, PointRange( c.ast->Loc( a ) ), nm & "( )" )
-                end if
-            end select
-            return
-        end if
-        '' AN int128 IN A '...' TAIL: a variadic callee reads it with va_arg, and win64 passes
-        '' a 16-byte vararg by reference where the ABI pass (abiint128.tiko) only rewrites the
-        '' declared parameters.
-        '' The CHOSEN overload when there are several (the call's own binding), else the name's.
-        dim as Symbol ptr sy = c.syms->SymbolAt( c.info->RefOf( id ) )
-        if sy = nullptr then sy = c.syms->SymbolAt( sid )
-        if sy = nullptr then return
-        if sy->kind <> cast( uint8, SYM_PROC ) then return
-        dim as NodeId pn = cast( NodeId, sy->payload )
-        if pn = NODE_NONE then return
-        if c.ast->Kind( pn ) <> N_PROC then return
-        '' A C '...' is a parameter of its own, spelt TK_ELLIPSIS (parser/declparam.tiko).
-        dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
-        dim as int32 fixedN = -1
-        dim as int32 np = 0
-        for i as int32 = 0 to pp->count - 1
-            dim as NodeId prm = c.ast->ChildAt( pp->first, i )
-            if c.ast->Kind( prm ) <> N_PARAM then continue for
-            if cast( TokenKind, c.ast->StmtOf( prm )->op ) = TK_ELLIPSIS then
-                fixedN = np
-                exit for
-            end if
-            np += 1
-        next
-        if fixedN < 0 then return
-        for i as int32 = fixedN to lp->count - 1
-            dim as NodeId a = cast( NodeId, c.ast->ChildSlot( lp->first + i ) )
-            if a = NODE_NONE then continue for
-            if Is128_( c, c.info->TypeOf_( a ) ) then
-                c.diags->Report( TKO1100, PointRange( c.ast->Loc( a ) ), "a '...' argument" )
-                return
-            end if
-        next
 
     '' A BIT FIELD: the unit it is read and written through stops at 64 bits (lowerbf.tiko).
     case N_FIELD

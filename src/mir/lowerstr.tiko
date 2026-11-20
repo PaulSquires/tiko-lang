@@ -476,7 +476,7 @@ function LowerPredeclared _
         '' 'const E_FAIL = cast( long, &h80004005 )' folded to the unnarrowed
         '' 2147500037, and so did every constant built on it.
         dim as Tko.Check.ConstVal cv = _
-            Tko.Check.ConstOf( *c.ast, ip->b, *c.srcMgr, *c.names, _
+            Tko.Check.ConstOf128( *c.ast, ip->b, *c.srcMgr, *c.names, _
                                c.types->target.pointerBits, c.syms, s->parent, _
                                0, c.types, c.info )
         '' AT THE CONSTANT'S OWN DECLARED WIDTH. The INITIALISER is what was folded
@@ -525,6 +525,8 @@ function LowerPredeclared _
             if fv.kind = cast( uint8, MV_NONE ) then return v
             return Coerce( c, fv, mt )
         end if
+        '' AN int128 CONSTANT is both halves (ConstOf128); anything narrower is its low word.
+        if mt = MT_I128 then return ConstInt128( c, cv.value, cast( int64, Tko.Check.Const128Wide( cv ).hi ), mt )
         return ConstInt( c, cv.value, mt )
     end if
     return v

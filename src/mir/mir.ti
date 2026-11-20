@@ -325,6 +325,9 @@ namespace Tko.Mir
         as int32     count
         as uint32    callee      '' M_CALL / M_CALL_RTL: index into functions/externs
         as int64  imm         '' M_CONST integer payload, M_ALLOCA slot index
+        '' THE HIGH HALF of an MT_I128 M_CONST (imm is the low): ConstInt sign-extends into it,
+        '' ConstInt128 sets it. Read for MT_I128 only.
+        as int64  immHi
         as float64   fimm        '' M_CONST float payload
         '' The SOURCE LINE of the statement it was lowered from, in the procedure's own
         '' file, 0 when unknown -- what '-g' writes as a DILocation. Not dumped.
@@ -618,9 +621,9 @@ namespace Tko.Mir
         as Tko.TypeId frontendType
         as int32     size
         as int64  initInt        '' compile-time initial value
-        '' initInt IS AN UNSIGNED 64-BIT VALUE, ZERO-extended into an i128 global: int128's
+        '' THE HIGH HALF of an i128 global's initialiser (initInt is the low): int128's
         '' 'dim shared g as uint128 = &hFFFFFFFFFFFFFFFFull' is 2^64-1, not -1.
-        as boolean initU64
+        as int64  initHi
         as float64   initFlt
         '' AN AGGREGATE'S initial value, as the raw bytes of its storage. fbc emits
         '' 'static struct $1G G$1 = { 1u, 2, 3 };' -- a static UDT is initialised where

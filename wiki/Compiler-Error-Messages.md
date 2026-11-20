@@ -112,7 +112,7 @@ Failures after code generation -- clang, the archiver, the linker, the resource 
 | `TKO0201` | warning | missing closing quote in string literal |
 | `TKO0202` | error | unterminated block comment |
 | `TKO0203` | error | '‹arg1›' is not followed by any digits |
-| `TKO0205` | warning | numeric literal is too large for 64 bits, truncated |
+| `TKO0205` | warning | numeric literal is too large for its type, truncated |
 | `TKO0206` | warning | suffix ignored in '‹arg1›' |
 | `TKO0207` | error | block string has no closing line; one must start with three quotes |
 | `TKO0208` | error | block string line does not start with the closing line's indentation |

@@ -18,7 +18,21 @@ declare function c3_take( byval s as S3 ) as int128
 declare function c3_calls( byval v as int128 ) as int128
 declare function c3_sizeof( ) as long
 declare function c3_offsetof( ) as long
+declare function c3_vmix( byval n as long, ... ) as int128
+declare function c3_calls_vsum( ) as int128
+declare function c3_calls_vsum6( ) as int128
 end extern
+
+function t3_vsum cdecl alias "T3_VSUM" ( byval n as long, ... ) as int128
+    dim as cva_list ap
+    cva_start( ap, n )
+    dim as int128 s = 0
+    for i as long = 1 to n
+        s += cva_arg( ap, int128 )
+    next
+    cva_end( ap )
+    return s
+end function
 
 function t3_twice cdecl alias "T3_TWICE" ( byval v as int128 ) as int128
     return v * 2
@@ -46,3 +60,7 @@ print "sizeof"; c3_sizeof( ); sizeof( S3 )
 print "offsetof"; c3_offsetof( ); offsetof( S3, v )
 dim fp as function cdecl ( byval as int128, byval as int128, byval as long ) as int128 = @c3_mul
 show "ptr", fp( 3, 4, 1 )
+show "vmix", c3_vmix( 3, 9ll, big, -big + 1 )
+show "vsum", c3_calls_vsum( )
+show "vmix6", c3_vmix( 6, -3ll, big, -big + 1, cast( int128, 1 ) shl 120, cast( int128, 5 ), -( cast( int128, 1 ) shl 120 ) )
+show "vsum6", c3_calls_vsum6( )
