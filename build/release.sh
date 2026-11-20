@@ -81,6 +81,8 @@ TKLNX=toolchains/tkedit-linux
 OUT=build/.release/$SHORT
 mkdir -p "$OUT"
 LSPDIR=${LSPDIR:-../tiko-lsp/dist}
+# Relative to this tree, as every use below spells it ("$ROOT/$LSPWIN", WSL's /mnt/c path).
+case $LSPDIR in /*) LSPDIR=$(realpath --relative-to="$ROOT" "$LSPDIR") ;; esac
 LSPWIN=$LSPDIR/tiko-lsp-windows-x86_64.zip
 LSPLNX=$LSPDIR/tiko-lsp-linux-x86_64.tar.gz
 MACH=${TIKO_MAC_HOST:-mac}
@@ -361,13 +363,17 @@ fi
 
 # 6. what changed against the previous release
 if [ -n "$PREV" ]; then
-    for kind in zip tar.gz; do
-        p=$(ls "$PREV"/*."$kind" 2>/dev/null | head -1)
-        n=$(ls "$OUT"/*."$kind" | head -1)
-        [ -n "$p" ] || { note "no previous .$kind in $PREV"; continue; }
-        "$BSDTAR" -tf "$p" | sed 's|^[^/]*/||' | sort > "$OUT/prev.$kind.txt"
-        "$BSDTAR" -tf "$n" | sed 's|^[^/]*/||' | sort > "$OUT/new.$kind.txt"
-        note ".$kind: +$(comm -13 "$OUT/prev.$kind.txt" "$OUT/new.$kind.txt" | wc -l) files, -$(comm -23 "$OUT/prev.$kind.txt" "$OUT/new.$kind.txt" | wc -l) files (lists in $OUT)"
+    # ARCHIVE BY ARCHIVE, paired by host: with four, 'the first *.tar.gz' was linux-arm64's in
+    # one folder and linux-x86_64's in the other.
+    for a in windows-x86_64.zip linux-x86_64.tar.gz macos-arm64.tar.gz linux-arm64.tar.gz; do
+        h=${a%%.*}; kind=${a#*.}
+        n=$(ls "$OUT"/tiko-$h-*."$kind" 2>/dev/null | head -1)
+        [ -n "$n" ] || continue
+        p=$(ls "$PREV"/tiko-$h-*."$kind" 2>/dev/null | head -1)
+        [ -n "$p" ] || { note "$h: no previous archive in $PREV -- new"; continue; }
+        "$BSDTAR" -tf "$p" | sed 's|^[^/]*/||' | sort > "$OUT/prev.$h.txt"
+        "$BSDTAR" -tf "$n" | sed 's|^[^/]*/||' | sort > "$OUT/new.$h.txt"
+        note "$h: +$(comm -13 "$OUT/prev.$h.txt" "$OUT/new.$h.txt" | wc -l) files, -$(comm -23 "$OUT/prev.$h.txt" "$OUT/new.$h.txt" | wc -l) files (lists in $OUT)"
     done
 fi
 
