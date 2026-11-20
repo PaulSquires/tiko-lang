@@ -45,8 +45,13 @@ link Apple's frameworks (`#foreignlib ... "framework:Cocoa"`), but these listing
 set up or run on a Mac. On a Mac, the toolchain's `vendor/SDL3` links Homebrew's SDL instead.
 ```
 
-Every listing in this chapter was compiled and run on Windows and Linux, against exactly the
-versions in the table.
+```admonish info title="On Linux arm64"
+This chapter's raylib, GLFW and SDL listings are checked on windows-x86_64 and linux-x86_64 only,
+as on macOS.
+```
+
+Every listing in this chapter was compiled and run on Windows and x86-64 Linux, against exactly
+the versions in the table.
 
 ## Before you start
 

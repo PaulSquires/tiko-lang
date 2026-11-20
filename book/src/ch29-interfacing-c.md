@@ -52,10 +52,16 @@ On Windows:
 {{#include ../examples/ch29/ctypes.out}}
 ```
 
-On Linux:
+On Linux x86-64:
 
 ```text
 {{#include ../examples/ch29/ctypes.linux-x86_64.out}}
+```
+
+On Linux arm64:
+
+```text
+{{#include ../examples/ch29/ctypes.linux-arm64.out}}
 ```
 
 On macOS:
@@ -179,10 +185,16 @@ On Windows:
 {{#include ../examples/ch29/variadic.out}}
 ```
 
-On Linux the last line is:
+On Linux x86-64 the last line is:
 
 ```text
 cva_list is 24 bytes
+```
+
+On Linux arm64 it is:
+
+```text
+cva_list is 32 bytes
 ```
 
 A **variadic** C function, like `printf` and `snprintf`, is declared with its fixed parameters
@@ -196,7 +208,8 @@ last fixed parameter, `cva_arg( list, T )` takes the next one as type `T`, and `
 finishes. Nothing says how many arguments there are or what types they have; the fixed
 parameters must, as `count` does here and the format string does for `printf`.
 
-A `cva_list` is 8 bytes on Windows and macOS (a pointer) and 24 on Linux (a small record), so it is not
+A `cva_list` is 8 bytes on Windows and macOS (a pointer), and 24 on x86-64 Linux and 32 on arm64 Linux
+(a small record), so it is not
 something to store or pass by value across platforms. Pass it to C's `v` functions — `vsnprintf`
 and the rest — which take a `va_list`.
 
@@ -207,7 +220,7 @@ and the rest — which take a `va_list`.
 On 32-bit x86, C had several calling conventions — `cdecl`, `stdcall`, `pascal`, `fastcall` and
 `thiscall` — that differed in which side cleaned up the stack and in what order the arguments
 went. x86-64 has **one** per platform: Microsoft's on Windows and the System V convention on
-Linux. Apple's arm64, tiko's macOS target, has one too. So `cdecl` and `stdcall` mean the same thing and can be used
+Linux. arm64 has one too: AAPCS64 on Linux, and Apple's variant of it on macOS. So `cdecl` and `stdcall` mean the same thing and can be used
 interchangeably; a Windows header's `WINAPI` (which is `stdcall`) and a plain `cdecl` describe
 the same call.
 
@@ -278,6 +291,7 @@ geom/geom.c
 geom/build.sh
 geom/geom_windows_x86_64.lib
 geom/geom_linux_x86_64.a
+geom/geom_linux_arm64.a
 geom/geom_macos_arm64.a
 ```
 
