@@ -10,7 +10,8 @@
 #
 # A vendor package commits its translated headers and a fetch.toml; its binaries are never
 # committed. This reads each pkg/vendor/<module>/fetch.toml and, for THIS host's [<os>.<n>]
-# entries, downloads the pinned archive, checks its SHA-256, and either copies a file out of
+# entries -- [linux-arm64.<n>] on an aarch64 Linux host (docs/tiko-linux-arm64 D-L4-1), never
+# linux's, whose 'copy' entries can be x86-64 binaries -- downloads the pinned archive, checks its SHA-256, and either copies a file out of
 # it ('copy': where upstream publishes the binary) or compiles C sources with clang into a
 # static archive and/or a shared library ('cbuild': where it does not). A host makes its own
 # binaries, as package.sh makes its own toolchain. A 'copy' whose url is a single file, not an
@@ -18,7 +19,8 @@
 # (tkControls' scintk, SDL3's static libraries, raylib6's Linux .so) and copies what it made; its
 # optional 'inputs' -- 'url sha256 url sha256 ...' -- are fetched and verified first, like any
 # download, and handed to the script as TIKO_VENDOR_INPUTS (the local paths, in order), with
-# TIKO_VENDOR_HOST (windows, linux, macos) and TIKO_VENDOR_CACHE. A 'cbuild' entry's optional
+# TIKO_VENDOR_HOST (windows, linux, macos: the OS, also on linux-arm64), TIKO_VENDOR_ARCH
+# (x86_64, arm64) and TIKO_VENDOR_CACHE. A 'cbuild' entry's optional
 # 'patches' -- files committed in the package, relative to it, applied in order with 'patch -p1'
 # inside 'dir' before compiling -- carry upstream fixes no release has yet. Its optional
 # 'copies' -- 'from:to' pairs, both relative to 'dir' -- are copied after the patches: the
@@ -54,17 +56,20 @@ while [ $# -gt 0 ]; do
 done
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
-        HOST=windows; TRIPLE=x86_64-pc-windows-msvc
+        HOST=windows; TRIPLE=x86_64-pc-windows-msvc; VOS=windows; VARCH=x86_64
         CLANG=${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
         AR=${TIKO_AR:-"$(dirname "$CLANG")/llvm-ar.exe"}
         [ -n "$CXX" ] || CXX="$(dirname "$CLANG")/clang++.exe"; export CXX ;;
     Linux)
-        HOST=linux; TRIPLE=x86_64-pc-linux-gnu
+        HOST=linux; TRIPLE=x86_64-pc-linux-gnu; VOS=linux; VARCH=x86_64
+        if [ "$(uname -m)" = aarch64 ]; then
+            HOST=linux-arm64; TRIPLE=aarch64-unknown-linux-gnu; VARCH=arm64
+        fi
         CLANG=${TIKO_CLANG:-${CLANG:-clang}}
         AR=${TIKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     Darwin)
         # The SDK is clang's own business here: Apple's clang (and Homebrew's) find it.
-        HOST=macos; TRIPLE=arm64-apple-macosx13.0
+        HOST=macos; TRIPLE=arm64-apple-macosx13.0; VOS=macos; VARCH=arm64
         CLANG=${TIKO_CLANG:-${CLANG:-clang}}
         AR=${TIKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     *) die "unsupported host '$(uname -s)'" ;;
@@ -155,7 +160,7 @@ entry( ) {
             shift 2
         done
         [ $# -eq 0 ] || die "$_mod [$_tab]: 'inputs' must be url sha256 pairs"
-        export TIKO_VENDOR_INPUTS TIKO_VENDOR_HOST=$HOST TIKO_VENDOR_CACHE=$CACHE
+        export TIKO_VENDOR_INPUTS TIKO_VENDOR_HOST=$VOS TIKO_VENDOR_ARCH=$VARCH TIKO_VENDOR_CACHE=$CACHE
         bash "$_scr" >/dev/null || die "$_mod [$_tab]: $(_get script) failed"
         [ -f "$_from" ] || die "$_mod [$_tab]: $(_get script) made no $(_get from)"
         mkdir -p "$(dirname "$_mdir/$_to")"

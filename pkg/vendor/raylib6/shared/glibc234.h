@@ -15,4 +15,11 @@ __asm__( ".symver hypot,hypot@GLIBC_2.2.5" );
 __asm__( ".symver hypotf,hypotf@GLIBC_2.2.5" );
 __asm__( ".symver fmod,fmod@GLIBC_2.2.5" );
 __asm__( ".symver fmodf,fmodf@GLIBC_2.2.5" );
+#elif defined(__linux__) && defined(__aarch64__)
+/* aarch64's base version is GLIBC_2.17, the first glibc for the architecture
+ * (docs/tiko-linux-arm64 L4); the same four functions, bound there. */
+__asm__( ".symver hypot,hypot@GLIBC_2.17" );
+__asm__( ".symver hypotf,hypotf@GLIBC_2.17" );
+__asm__( ".symver fmod,fmod@GLIBC_2.17" );
+__asm__( ".symver fmodf,fmodf@GLIBC_2.17" );
 #endif

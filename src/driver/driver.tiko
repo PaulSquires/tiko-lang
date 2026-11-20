@@ -629,6 +629,7 @@ private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as int32
 
+
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
     if tools.found = false then
@@ -716,9 +717,7 @@ private function LinkAll _
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, _
             "the runtime's startup object (fbrt0.o) is on no library path -- add one with -p" )
     end if
-    if rc = Tko.Codegen.LINK_NO_NDK then
-        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, tools.why )
-    end if
+    if rc = Tko.Codegen.LINK_NO_NDK then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, tools.why )
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if

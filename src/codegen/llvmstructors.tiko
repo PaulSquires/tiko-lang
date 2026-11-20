@@ -53,7 +53,7 @@ private function StructorSection_ _
     '' rtlib registers no numbered constructor at all ("isn't supported on Darwin", a
     '' comment that lumps Android in); the order is measured on the device instead
     '' (docs/tiko-android A1 step 6).
-    case Tko.TARGET_LINUX_X86_64, Tko.TARGET_ANDROID_X86_64
+    case Tko.TARGET_LINUX_X86_64, Tko.TARGET_LINUX_ARM64, Tko.TARGET_ANDROID_X86_64
         return iif( isCtor, ".init_array.", ".fini_array." ) & right( "0000" & str( prio ), 5 )
     case Tko.TARGET_WIN64
         return iif( isCtor, ".ctors.", ".dtors." ) & right( "0000" & str( 65535 - prio ), 5 )

@@ -25,6 +25,11 @@ const DL_LINUX64 as string = _
 '' Mach-O mangling: LLVM adds the leading underscore to every C symbol itself.
 const DL_MACOS_ARM64 as string = _
     "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-n32:64-S128-Fn32"
+'' 'clang -S -emit-llvm' in the Lima VM (aarch64 Ubuntu 24.04), clang 23.1.6, 2026-11-19
+'' (docs/tiko-linux-arm64 FEASIBILITY section 1). 'm:e' is ELF mangling, no underscore; and
+'' unlike Apple's it keeps i8 and i16 at a preferred 32-bit alignment.
+const DL_LINUX_ARM64 as string = _
+    "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32"
 
 '' WINDOWS IS THE MinGW ABI, not the Microsoft one. D13 as originally written said the
 '' opposite -- the runtime was to be recompiled with clang for
@@ -103,6 +108,13 @@ function TargetFor( byval t as TargetId ) as TargetDescription
         d.dataLayout = DL_MACOS_ARM64
         d.objFormat = OBJ_MACHO
         d.abi = ABI_AAPCS64_APPLE
+    case TARGET_LINUX_ARM64
+        '' UNVERSIONED, as linux-x86_64's is: glibc's floor is the link's business, not the
+        '' triple's.
+        d.triple = "aarch64-unknown-linux-gnu"
+        d.dataLayout = DL_LINUX_ARM64
+        d.objFormat = OBJ_ELF
+        d.abi = ABI_AAPCS64
     case TARGET_ANDROID_X86_64
         '' VERSIONED, as Darwin's is: the number is the API LEVEL, the oldest Android the
         '' program runs on (minSdk), and it picks which libc functions the NDK's stubs

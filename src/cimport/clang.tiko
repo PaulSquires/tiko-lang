@@ -78,11 +78,23 @@ private sub Candidates_( byref clangExe as string, cand() as string, byref n as 
         cand( n ) = cdir & "../lib/libclang.so.1" : n += 1
         cand( n ) = cdir & "../lib/libclang.so" : n += 1
     end if
-    for v as int32 = 21 to CLANG_MIN_MAJOR step -1
+    '' THE HOST'S MULTIARCH DIRECTORY. On aarch64 Linux (linux-arm64, docs/tiko-linux-arm64 L3)
+    '' apt.llvm.org's libclang 23 is ONLY /usr/lib/aarch64-linux-gnu/libclang-23.so.1 -- there
+    '' is no /usr/lib/llvm-23/lib/libclang.so.1 (probed in the Lima VM, Ubuntu 24.04) -- so the
+    '' directory follows the host, and the versions start at the newest installed there. The
+    '' x86-64 list is what it was.
+    #if defined( __FB_ARM__ )
+        const MULTIARCH_ = "aarch64-linux-gnu"
+        const NEWEST_ = 23
+    #else
+        const MULTIARCH_ = "x86_64-linux-gnu"
+        const NEWEST_ = 21
+    #endif
+    for v as int32 = NEWEST_ to CLANG_MIN_MAJOR step -1
         cand( n ) = "/usr/lib/llvm-" & v & "/lib/libclang.so.1" : n += 1
-        cand( n ) = "/usr/lib/x86_64-linux-gnu/libclang-" & v & ".so.1" : n += 1
+        cand( n ) = "/usr/lib/" & MULTIARCH_ & "/libclang-" & v & ".so.1" : n += 1
     next
-    cand( n ) = "/usr/lib/x86_64-linux-gnu/libclang.so.1" : n += 1
+    cand( n ) = "/usr/lib/" & MULTIARCH_ & "/libclang.so.1" : n += 1
 #endif
 end sub
 

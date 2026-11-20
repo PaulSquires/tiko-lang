@@ -14,7 +14,11 @@
 # left. The static archive is upstream's still: an archive's references are bound when a
 # program links, against that system's libm.
 #
-# Output: bin/linux/libraylib.so.6.2.0 beside this script. Built in a scratch directory (the
+# ON linux-arm64 (TIKO_VENDOR_ARCH=arm64, docs/tiko-linux-arm64 D-L4-3) there is no upstream
+# static archive -- the release's is amd64 -- so this also makes libraylib.a, the same make
+# with RAYLIB_LIBTYPE=STATIC, into bin/linux-arm64 beside the .so.
+#
+# Output: bin/linux/libraylib.so.6.2.0 (bin/linux-arm64/ and libraylib.a too on arm64) beside this script. Built in a scratch directory (the
 # 53 MB unpack and the Makefile's 'ln -s' stay off /mnt/c); a finished build is kept in
 # TIKO_VENDOR_CACHE and copied, not redone. Incremental: a stamp of the input and this script.
 set -e
@@ -25,13 +29,19 @@ set -- $TIKO_VENDOR_INPUTS
 [ $# -eq 1 ] || { echo "raylib shared: expected 1 input, got $#" >&2; exit 1; }
 [ "$HOST" = linux ] || { echo "raylib shared: Linux only, not '$HOST'" >&2; exit 1; }
 SO=libraylib.so.6.2.0
+ARCH=${TIKO_VENDOR_ARCH:-x86_64}
 OUT=$HERE/bin/$HOST
+[ "$ARCH" = x86_64 ] || OUT=$HERE/bin/$HOST-$ARCH
 
-STAMP=$( { basename "$1"; cat "$0" "$HERE/glibc234.h"; echo "$HOST"; } | sha256sum | cut -c1-16 )
-[ -f "$OUT/$SO" ] && [ "$(cat "$OUT/.stamp" 2>/dev/null)" = "$STAMP" ] && exit 0
+STAMP=$( { basename "$1"; cat "$0" "$HERE/glibc234.h"; echo "$HOST"; [ "$ARCH" = x86_64 ] || echo "$ARCH"; } | sha256sum | cut -c1-16 )
+WANT="$SO"; [ "$ARCH" = x86_64 ] || WANT="$SO libraylib.a"
+have=1; for f in $WANT; do [ -f "$OUT/$f" ] || have=0; done
+[ "$have" = 1 ] && [ "$(cat "$OUT/.stamp" 2>/dev/null)" = "$STAMP" ] && exit 0
 D=$CACHE/raylib-shared-$HOST
-if [ "$(cat "$D/.stamp" 2>/dev/null)" = "$STAMP" ] && [ -f "$D/$SO" ]; then
-    mkdir -p "$OUT"; cp -f "$D/$SO" "$OUT/$SO"; echo "$STAMP" > "$OUT/.stamp"; exit 0
+[ "$ARCH" = x86_64 ] || D=$CACHE/raylib-shared-$HOST-$ARCH
+cached=1; for f in $WANT; do [ -f "$D/$f" ] || cached=0; done
+if [ "$(cat "$D/.stamp" 2>/dev/null)" = "$STAMP" ] && [ "$cached" = 1 ]; then
+    mkdir -p "$OUT"; for f in $WANT; do cp -f "$D/$f" "$OUT/$f"; done; echo "$STAMP" > "$OUT/.stamp"; exit 0
 fi
 
 command -v make >/dev/null || { echo "raylib shared: make is not on PATH" >&2; exit 1; }
@@ -55,6 +65,15 @@ NEW=$(objdump -T "$W/out/$SO" | grep -o 'GLIBC_2\.[0-9]*' | sort -u | awk -F. '$
 objdump -p "$W/out/$SO" | grep -q 'SONAME *libraylib\.so\.620$' ||
     { echo "raylib shared: $SO's soname is not libraylib.so.620" >&2; exit 1; }
 
+if [ "$ARCH" != x86_64 ]; then
+    mkdir -p "$W/sout"
+    if ! make -C "$SRC" PLATFORM=PLATFORM_DESKTOP CC=gcc RAYLIB_LIBTYPE=STATIC \
+            RAYLIB_RELEASE_PATH="$W/sout" -B >> "$LOG" 2>&1; then
+        echo "raylib static: make failed" >&2; tail -20 "$LOG" >&2; exit 1
+    fi
+    [ -f "$W/sout/libraylib.a" ] || { echo "raylib static: make made no libraylib.a" >&2; exit 1; }
+    cp -f "$W/sout/libraylib.a" "$W/out/libraylib.a"
+fi
 mkdir -p "$D" "$OUT"
-cp -f "$W/out/$SO" "$D/$SO"; echo "$STAMP" > "$D/.stamp"
-cp -f "$W/out/$SO" "$OUT/$SO"; echo "$STAMP" > "$OUT/.stamp"
+for f in $WANT; do cp -f "$W/out/$f" "$D/$f"; cp -f "$W/out/$f" "$OUT/$f"; done
+echo "$STAMP" > "$D/.stamp"; echo "$STAMP" > "$OUT/.stamp"

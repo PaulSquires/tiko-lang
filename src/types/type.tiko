@@ -103,6 +103,8 @@ function HostTarget( ) as TargetId
         return TARGET_WINDOWS_X86_64
     #elseif defined( __FB_DARWIN__ )
         return TARGET_MACOS_ARM64
+    #elseif defined( __FB_LINUX__ ) and defined( __FB_ARM__ )
+        return TARGET_LINUX_ARM64
     #elseif defined( __FB_LINUX__ )
         return TARGET_LINUX_X86_64
     #else
@@ -128,6 +130,7 @@ function TargetName( byval t as TargetId ) as string
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
     case TARGET_WINDOWS_X86_64  : return "windows-x86_64"
     case TARGET_MACOS_ARM64     : return "macos-arm64"
+    case TARGET_LINUX_ARM64     : return "linux-arm64"
     case TARGET_ANDROID_X86_64  : return "android-x86_64"
     end select
     TargetIce( "TargetName", t )
@@ -141,6 +144,7 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     if s = "windows-x86_64" then return TARGET_WINDOWS_X86_64
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
     if s = "macos-arm64" then return TARGET_MACOS_ARM64
+    if s = "linux-arm64" then return TARGET_LINUX_ARM64
     if s = "android-x86_64" then return TARGET_ANDROID_X86_64
     ok = false
     return HostTarget( )
@@ -157,7 +161,7 @@ end function
 function TargetOs( byval t as TargetId ) as TargetOsKind
     select case t
     case TARGET_WIN64, TARGET_WINDOWS_X86_64 : return OS_WINDOWS
-    case TARGET_LINUX_X86_64                 : return OS_LINUX
+    case TARGET_LINUX_X86_64, TARGET_LINUX_ARM64 : return OS_LINUX
     case TARGET_MACOS_ARM64                  : return OS_DARWIN
     case TARGET_ANDROID_X86_64               : return OS_ANDROID
     end select
@@ -169,7 +173,7 @@ function TargetArch( byval t as TargetId ) as TargetArchKind
     select case t
     case TARGET_WIN64, TARGET_WINDOWS_X86_64, TARGET_LINUX_X86_64, _
          TARGET_ANDROID_X86_64                                    : return ARCH_X86_64
-    case TARGET_MACOS_ARM64                                       : return ARCH_ARM64
+    case TARGET_MACOS_ARM64, TARGET_LINUX_ARM64                   : return ARCH_ARM64
     end select
     TargetIce( "TargetArch", t )
     return ARCH_X86_64
@@ -226,6 +230,19 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         r.cvaListBytes = 8
         r.cvaListAlign = 8
         r.cvaListIsPointer = true
+    case TARGET_LINUX_ARM64
+        '' MEASURED in the Lima VM, clang 23.1.6 for 'aarch64-unknown-linux-gnu'
+        '' (docs/tiko-linux-arm64 FEASIBILITY section 1): LP64, a 4-byte wchar_t, va_list the
+        '' AAPCS64 record { __stack, __gr_top, __vr_top, __gr_offs, __vr_offs } -- 32 bytes,
+        '' 8-aligned, NOT a pointer -- and plain char UNSIGNED (__CHAR_UNSIGNED__ 1).
+        r.pointerBits = 64
+        r.wcharBytes = 4
+        r.stringBytes = 24
+        r.stringAlign = 8
+        r.cvaListBytes = 32
+        r.cvaListAlign = 8
+        r.cvaListIsPointer = false
+        r.charSigned = false
     case else
         TargetIce( "TargetLayoutFor", t )
     end select
