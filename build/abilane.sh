@@ -1,7 +1,8 @@
 #!/bin/sh
 # abilane.sh -- the SysV ABI lane: tiko-compiled code against a gcc-built C library.
 #
-#   build/abilane.sh
+#   build/abilane.sh          SysV in WSL, then win64
+#   build/abilane.sh --mac    ...and fabi3 on the Mac over ssh
 #
 # tests/abi/fabi*.bas call into, and are called back from, tests/abi/cabi*.c: UDTs of
 # 1..24 bytes by value, mixed float/int eightbytes, odd sizes 3/5/13, variadics, and
@@ -18,7 +19,7 @@
 # fabi3/cabi3 is int128 against C's __int128, and runs TWICE: the SysV lane as above, then
 # windows-x86_64 with the C side built by clang for x86_64-pc-windows-msvc -- win64 passes
 # __int128 by address and returns it in XMM0 (src/codegen/abiint128.tiko), which only a real
-# MSVC-ABI callee checks.
+# MSVC-ABI callee checks. With --mac it runs a third time, on the Mac (macos-arm64, AAPCS64).
 # Needs WSL with gcc, and a Linux tiko-rt: TIKO_LINUX_LIB, else the tree's own
 # toolchains/tiko-linux/lib, else C:\dev\tiko-lang's. Exits 1 on any difference.
 
@@ -84,6 +85,51 @@ else
         echo "FAIL fabi3-win64: output differs (< expected  > tiko)"
         tr -d '\r' < "$W/fabi3-win.out" | diff "$ROOT/tests/abi/expected/fabi3.txt" - | head -20
         fail=1
+    fi
+fi
+# THE MAC HALF, int128 only, with --mac: fabi3 for macos-arm64 against cabi3.c built by the
+# Mac's own Homebrew clang. AAPCS64 puts a 16-aligned 16-byte struct on an EVEN register pair
+# or a 16-aligned stack slot (codegen/abi.tiko, TKO_AA_ALIGN16) -- only a real callee there
+# proves it. The Mac's tiko-lang checkout is left alone: this builds the macos-arm64
+# runtime here (lib/rt/build/build.sh) and sends the objects, the archive and cabi3.c to
+# ~/tkm/abilane on TIKO_MAC_HOST (default 'mac'), the way build/aapcslane.sh does.
+if [ "${1:-}" = "--mac" ]; then
+    HOST=${TIKO_MAC_HOST:-mac}
+    MW="$W/mac"
+    mkdir -p "$MW"
+    if ! TKORT_TIKO="$TKO" bash "$ROOT/lib/rt/build/build.sh" Release macos-arm64 > "$MW/rt.log" 2>&1; then
+        echo "FAIL fabi3-mac: the macos-arm64 runtime did not build"; tail -3 "$MW/rt.log"; fail=1
+    elif ! "$TKO" -c -m fabi3 -target macos-arm64 "$ROOT/tests/abi/fabi3.bas" -o "$MW/fabi3.o" > "$MW/tiko.log" 2>&1; then
+        echo "FAIL fabi3-mac: tiko did not compile fabi3.bas"; head -5 "$MW/tiko.log"; fail=1
+    else
+        cp "$ROOT/tests/abi/cabi3.c" "$ROOT/lib/rt/lib/macos-arm64/libfb.a" "$ROOT/lib/rt/lib/macos-arm64/fbrt0.o" "$MW/"
+        cat > "$MW/mac.sh" <<'EOF'
+set -u
+cd ~/tkm/abilane || exit 2
+CC=/opt/homebrew/opt/llvm/bin/clang
+[ -x $CC ] || CC=/usr/bin/clang
+SDK=$(xcrun --show-sdk-path)
+$CC -target arm64-apple-macosx13.0 -isysroot $SDK -O1 -c cabi3.c -o cabi3.o || { print "rc=2 clang"; exit 2; }
+$CC -target arm64-apple-macosx13.0 -isysroot $SDK fbrt0.o fabi3.o cabi3.o libfb.a -lncurses -o fabi3 || { print "rc=2 link"; exit 2; }
+./fabi3
+print "rc=$?"
+EOF
+        sed -i 's/\r$//' "$MW/mac.sh"
+        if ssh -o BatchMode=yes "$HOST" 'mkdir -p ~/tkm/abilane' < /dev/null && \
+           scp -q -o BatchMode=yes "$MW/cabi3.c" "$MW/libfb.a" "$MW/fbrt0.o" "$MW/fabi3.o" "$MW/mac.sh" "$HOST:tkm/abilane/"; then
+            ssh -o BatchMode=yes "$HOST" zsh -l tkm/abilane/mac.sh < /dev/null > "$MW/mac.out" 2>&1
+            if ! grep -q '^rc=0$' "$MW/mac.out"; then
+                echo "FAIL fabi3-mac: link or run"; tail -5 "$MW/mac.out"; fail=1
+            elif grep -v '^rc=' "$MW/mac.out" | tr -d '\r' | cmp -s - "$ROOT/tests/abi/expected/fabi3.txt"; then
+                echo "PASS fabi3-mac"
+            else
+                echo "FAIL fabi3-mac: output differs (< expected  > tiko)"
+                grep -v '^rc=' "$MW/mac.out" | tr -d '\r' | diff "$ROOT/tests/abi/expected/fabi3.txt" - | head -20
+                fail=1
+            fi
+        else
+            echo "FAIL fabi3-mac: no ssh/scp to $HOST"; fail=1
+        fi
     fi
 fi
 [ $fail -eq 0 ] && echo "abilane: ok"

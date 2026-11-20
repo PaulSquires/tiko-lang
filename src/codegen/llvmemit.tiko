@@ -1118,7 +1118,7 @@ function ByvalAttr _
     dim as int32 sz = 0
     if i < f->paramAggs.Count then sz = cast( int32, f->paramAggs[i] )
     if sz <= 0 then return ""
-    return " byval(" & AggType( sz ) & ") align " & str( AlignOf( e, MT_AGG, sz ) )
+    return " byval(" & AggType( sz ) & ") align " & str( iif( (i < f->paramClasses.Count) andalso ((f->paramClasses[i] and TKO_EB_ALIGN16) <> 0), 16, AlignOf( e, MT_AGG, sz ) ) )   '' TKO_EB_ALIGN16
 end function
 
 private function ParamList _
