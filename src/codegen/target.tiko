@@ -129,6 +129,14 @@ function TargetFor( byval t as TargetId ) as TargetDescription
         d.dataLayout = DL_LINUX64
         d.objFormat = OBJ_ELF
         d.abi = ABI_SYSV_AMD64
+    case TARGET_ANDROID_ARM64
+        '' THE SAME API LEVEL as android-x86_64 (29), and linux-arm64's datalayout -- the string
+        '' clang 23 prints for 'aarch64-linux-android29' is 'aarch64-linux-gnu''s, character for
+        '' character (docs/tiko-android FACTS, A0) -- and its generic AAPCS64.
+        d.triple = "aarch64-linux-android29"
+        d.dataLayout = DL_LINUX_ARM64
+        d.objFormat = OBJ_ELF
+        d.abi = ABI_AAPCS64
     case else
         Tko.TargetIce( "TargetFor", t )
     end select
