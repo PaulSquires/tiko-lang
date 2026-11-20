@@ -98,14 +98,14 @@ private function GlobalName( byref e as EmitCtx, byval nm as Tko.InternId ) as s
     return "@""" & e.names->Spelling( nm ) & """"
 end function
 
-'' A FRAME RECORD ON MACH-O. Apple's arm64 ABI has x29 point at a valid frame record, and
-'' clang puts "frame-pointer"="non-leaf" on every function it compiles there (Apple clang 21;
-'' Homebrew 23 writes non-leaf-no-reserve, and both accept non-leaf). IR handed to clang gets
-'' no such attribute unless it is written, so every tiko function saved x29 and never set it,
-'' and a macOS crash report showed the faulting frame and main with nothing between. clang
-'' writes none for COFF or ELF x86-64 at -O2, so neither does this (measured 2026-11-03).
+'' A FRAME RECORD ON EVERY ARM64 TARGET. Apple's arm64 ABI has x29 point at a valid frame record,
+'' and clang puts "frame-pointer"="non-leaf" on every function there (Apple clang 21; Homebrew 23
+'' and aarch64-linux's clang 23 write non-leaf-no-reserve, which only frees x29 in leaves -- one
+'' spelling for both arm64 targets, docs/tiko-linux-arm64 D-L1-3). IR handed to clang gets none
+'' unless written: every tiko function saved x29 and never set it, so a macOS crash report showed
+'' the faulting frame and main, nothing between. None on x86-64, as clang -O2 (2026-11-03).
 private function FrameAttr_( byref e as EmitCtx ) as string
-    if e.tgt->objFormat = OBJ_MACHO then return " ""frame-pointer""=""non-leaf"""
+    if e.tgt->layout.arch = Tko.ARCH_ARM64 then return " ""frame-pointer""=""non-leaf"""
     return ""
 end function
 

@@ -38,6 +38,12 @@ namespace Tko.Codegen
         '' pointer to a caller copy, sret in x8). Its classifier is the AAPCS64 section
         '' of abi.tiko, which models every size.
         ABI_AAPCS64_APPLE
+        '' GENERIC AAPCS64 (linux-arm64): the same classifier as ABI_AAPCS64_APPLE -- HFAs,
+        '' integer aggregates, by-address over 16 bytes, sret -- minus Apple's variations:
+        '' narrow integers are NOT extended by the caller (clang writes no signext/zeroext),
+        '' and cva_arg walks the 32-byte AAPCS64 va_list record, which LLVM's own 'va_arg'
+        '' instruction gets silently wrong there (llvmaggcopy.tiko EmitVaArgAapcs64_).
+        ABI_AAPCS64
     end enum
 
     type TargetDescription
@@ -50,6 +56,10 @@ namespace Tko.Codegen
         '' The convention a procedure gets when the source names none. All three
         '' collapse on x86-64; win32 is where this stops being cosmetic.
         as uint8        defaultCallConv
+        '' WHY THIS TARGET CANNOT LINK YET, "" when it can. linux-arm64 compiles (-c, --emit-ir)
+        '' but has no lib/linux-arm64 runtime until phase L2 (docs/tiko-linux-arm64 D-L1-4); the
+        '' driver refuses its link with this text (TKO0992), as macos-arm64's was until its M2.
+        as string       linkRefused
     end type
 
     declare function TargetFor( byval t as TargetId ) as TargetDescription
