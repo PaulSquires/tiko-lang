@@ -195,7 +195,7 @@ Every diagnostic has a stable `TKOnnnn` id, a location and a caret. Add
 | | |
 | --- | --- |
 | **Compiles to** | Native x86-64 and arm64 executables, DLLs / shared objects / dylibs and static libraries, through LLVM |
-| **Platforms** | Windows x86-64 (MSVC ABI, no Visual Studio needed), Linux x86-64, and macOS on Apple Silicon (arm64, macOS 13 or newer) |
+| **Platforms** | Windows x86-64 (MSVC ABI, no Visual Studio needed), Linux x86-64, Linux arm64 (aarch64, glibc 2.35 or newer), and macOS on Apple Silicon (arm64, macOS 13 or newer) |
 | **Types** | Static, with inference (`var`), fixed-width names (`int32`, `uint8`, `float64`, …), generics, tuples, UDTs with methods, properties, operator overloading, single inheritance and virtual methods |
 | **Memory** | Deterministic: scope-based destruction, `defer`, `SharedPtr` / `WeakPtr`; no GC |
 | **Errors** | `Result( of T, E )` and `Optional( of T )`, plus runtime checks up to array bounds and null pointers with `-exx` |
@@ -227,7 +227,7 @@ Reference pages for each are in the [Feature Index](wiki/Feature-Index.md).
 
 ## Getting started
 
-tiko is **pre-1.0**. Prebuilt toolchains for Windows and Linux x86-64 and for
+tiko is **pre-1.0**. Prebuilt toolchains for Windows and Linux x86-64, for Linux arm64 and for
 macOS on Apple Silicon are on the [Releases](https://github.com/PaulSquires/tiko-lang/releases)
 page: unpack one anywhere. To build a toolchain yourself for the machine you are on, run this
 from Git Bash on Windows, or from Linux or macOS:
@@ -237,7 +237,8 @@ sh seed/fetch-seed.sh
 bash build/package.sh --verify
 ```
 
-This produces `toolchains/tiko-windows/`, `toolchains/tiko-linux/` or `toolchains/tiko-macos/`. The toolchain is a
+This produces `toolchains/tiko-windows/`, `toolchains/tiko-linux/`, `toolchains/tiko-linux-arm64/` (on aarch64
+Linux) or `toolchains/tiko-macos/`. The toolchain is a
 self-contained directory: move it anywhere, and it finds its own headers and libraries. Building
 it needs a **seed**, the earlier tiko release `seed/seed.lock` pins: `seed/fetch-seed.sh`
 downloads it and checks its SHA-256 before unpacking anything.
@@ -248,6 +249,11 @@ looks for it at `C:\Program Files\LLVM\bin\clang.exe`, `/usr/bin/clang` or, on m
 also needs Xcode's Command Line Tools (`xcode-select --install`), and a downloaded archive's
 quarantine cleared before the first run: `xattr -dr com.apple.quarantine tiko-lang` (a release
 archive unpacks to `tiko-lang/` on every system, tkEdit in its top folder).
+
+**On Linux arm64** (glibc 2.35 or newer: Ubuntu 22.04+, Debian 12+, Raspberry Pi OS bookworm
+64-bit), Ubuntu 24.04's `apt install clang` gives clang 18. Ubuntu 22.04, Debian 12 and Raspberry
+Pi OS ship an older one: install apt.llvm.org's `clang-NN` and set `TIKO_CLANG=/usr/bin/clang-NN`.
+lld is used when present (`apt install lld`), else the system linker.
 
 **Building a toolchain on Windows also needs Visual Studio 2022 or newer, or its Build Tools,**
 with *Desktop development with C++*. tkControls' code editor is built on Scintilla, which is C++,
@@ -267,11 +273,11 @@ Source files are `.tiko` and headers are `.ti`. `tiko --help` lists every option
 ## Status
 
 - **Self-hosting.** Built by itself twice, the compiler is byte-identical at `-O0` and `-O2`,
-  on Windows and on Linux, and at `-O0` on macOS.
+  on Windows and on Linux x86-64, at `-O2` on Linux arm64, and at `-O0` on macOS.
 - **Tested.** 1,058 suite tests pass. Behaviour is checked differentially: 2,000
   fuzz-generated programs print the same output as under the reference implementation.
-- **Not there yet:** ARM64 on Linux and Windows, installers, a package manager, and CodeView
-  debug info. Graphics links on Windows only.
+- **Not there yet:** ARM64 on Windows, installers, a package manager, and CodeView debug
+  info.
 
 ## Coming from FreeBASIC
 
