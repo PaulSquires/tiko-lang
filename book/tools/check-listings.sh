@@ -27,6 +27,9 @@
 #                                              listing links. Implies cwd: listing; a source
 #                                              named here is not a listing of its own
 #                 env: LD_LIBRARY_PATH=.       set for the run, on every target
+#                 wsl-env: GALLIUM_DRIVER=d3d12  set for the run on linux-x86_64 only, which is
+#                                              WSL here: WSLg's workarounds, which break Mesa
+#                                              on a real X server (linux-arm64's Xvfb)
 #                 project: greeter             the listing is the main file of a project:
 #                                              `tiko build greeter` runs in its directory,
 #                                              beside its tiko.toml, and the program run is
@@ -123,6 +126,9 @@ if (( ! ON_MAC && ! ON_ARM )) && [[ " ${targets[*]} " == *" linux-arm64 "* ]]; t
   {
     printf 'set -u\nsrc="$1/harness-arm/%s"; h="$HOME/harness"\n' "$here"
     printf 'rm -rf "$h/%s" && mkdir -p "$h" && cp -r "$src" "$h/%s" && ln -sfn %s/toolchains "$h/toolchains" || exit 2\n' "$here" "$here" "$armroot"
+    # Chapter 30's libraries are made per host, never committed: fetch-libs.sh makes linux-arm64's
+    # in the VM's copy (over any x86-64 libsqlite3.so.0 the tree brought), downloads cached.
+    printf 'f="$h/%s/examples/ch30"; if [ -f "$f/fetch-libs.sh" ]; then mkdir -p "$HOME/.cache/tiko-book-dl" "$f/vendor"; rm -rf "$f/vendor/.downloads"; ln -s "$HOME/.cache/tiko-book-dl" "$f/vendor/.downloads"; bash "$f/fetch-libs.sh" > "$h/fetch-libs.log" 2>&1 || echo "fetch-libs failed: $h/fetch-libs.log"; fi\n' "$here"
     printf 'cd "$h/%s" && xvfb-run -a -s "-screen 0 1920x1200x24" bash tools/check-listings.sh --target linux-arm64 %s; rc=$?\n' "$here" "${chapters[*]:-}"
     printf 'rm -rf "$src/out" && mkdir -p "$src/out" && (cd out && tar -cf - --exclude=./bin .) | tar -xf - -C "$src/out"\nexit $rc\n'
   } > out/arm-vm.sh
@@ -309,6 +315,7 @@ for f in "${listings[@]}"; do
   cwd="$(meta_get "$meta" cwd)"
   prebuild="$(meta_get "$meta" prebuild)"
   runenv="$(meta_get "$meta" env)"
+  wslenv="$(meta_get "$meta" wsl-env)"
   project="$(meta_get "$meta" project)"
   output="$(meta_get "$meta" output)"
   linux_libdir="$(meta_get "$meta" linux-libdir)"
@@ -410,9 +417,9 @@ for f in "${listings[@]}"; do
       fi
     else
       if [[ -f "$base.stdin" ]]; then
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv $wslenv '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
       else
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv '$book_wsl/$exe' $args" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv $wslenv '$book_wsl/$exe' $args" 2>&1)"
       fi
     fi
     rc=$?
