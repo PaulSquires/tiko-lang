@@ -389,7 +389,7 @@ if [ "$PUBLISH" = "1" ]; then
     command -v gh > /dev/null 2>&1 || die "no gh"
     flags=""; [ "$LATEST" = "1" ] && flags="--latest"
     gh release create "toolchain-$SHORT" --target "$SHA" --title "toolchain-$SHORT" \
-        --notes-file "$OUT/notes.md" $flags "$ZIP" "$TGZ" ${MTGZ:+"$MTGZ"} || die "gh release create"
+        --notes-file "$OUT/notes.md" $flags "$ZIP" "$TGZ" ${MTGZ:+"$MTGZ"} ${ATGZ:+"$ATGZ"} || die "gh release create"
     note "published toolchain-$SHORT"
 else
     note "not published (pass --publish); everything is in $OUT"
