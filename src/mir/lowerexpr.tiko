@@ -235,6 +235,8 @@ function LowerExpr _
         dim as Tko.LiteralPayload ptr lp = _
             c.ast->LiteralOf( id )
         if mt = MT_VOID then mt = MT_I64
+        '' AN int128 LITERAL past 64 bits carries its high half (Literal.intHi).
+        if mt = MT_I128 then return ConstInt128( c, cast( int64, lp->intValue ), cast( int64, lp->intHi ), mt )
         return ConstInt( c, cast( int64, lp->intValue ), mt )
 
     case Tko.N_FLOAT_LIT
@@ -1254,7 +1256,8 @@ function LowerExpr _
             dim as Tko.ScopeId dsc = c.info->ScopeOf( id )
             if dsc = Tko.SCOPE_NONE then dsc = c.procScope
             if dsc = Tko.SCOPE_NONE then dsc = c.modScope
-            dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( *c.ast, id, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, dsc )
+            dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf128( *c.ast, id, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, dsc )
+            if dcv.known andalso (mt = MT_I128) then return ConstInt128( c, dcv.value, cast( int64, Tko.Check.Const128Wide( dcv ).hi ), mt )
             if dcv.known then return ConstInt( c, dcv.value, mt )
         end if
         dim as MirInst ins

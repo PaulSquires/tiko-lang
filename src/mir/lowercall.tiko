@@ -988,8 +988,8 @@ private function LowerCallPartsBody_ _
                 select case amt
                 case MT_I8, MT_I16
                     a = Coerce( c, a, MT_I32, IsUnsignedType( c, ant ) )
-                case MT_F32
-                    a = Coerce( c, a, MT_F64, false )
+                case MT_F32  : a = Coerce( c, a, MT_F64, false )
+                case MT_I128 : a = VarargI128_( c, a )   '' Windows: by address (lowercva.tiko)
                 end select
             end if
         end if

@@ -7,6 +7,7 @@ src/support/platform.tiko
 src/support/spawn.tiko
 src/support/hostposix.tiko
 src/support/fbstr.tiko
+src/support/dec128.tiko
 src/support/diskcache.tiko
 src/diag/diagnostic.tiko
 src/diag/render.tiko
@@ -38,6 +39,7 @@ src/symbols/genericiface.tiko
 src/symbols/geninit.tiko
 src/symbols/generictypedef.tiko
 src/symbols/mangle.tiko
+src/symbols/fold128.tiko
 src/symbols/constfold.tiko
 src/symbols/check.tiko
 src/symbols/checkdump.tiko

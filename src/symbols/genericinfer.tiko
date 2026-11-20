@@ -460,7 +460,7 @@ private function InferArgType_ _
         '' ...BY THE LITERAL MODEL, unsuffixed too: 'Show( 3000000000 )' is Show( of uinteger ).
         dim as Tko.LiteralPayload ptr ilp = _
             c.ast->LiteralOf( a )
-        return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( ilp->suffix, ilp->radix, ilp->intValue, false, c.types->target.pointerBits = 64 ) )
+        return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( ilp->suffix, ilp->radix, ilp->intValue, false, c.types->target.pointerBits = 64, ilp->intHi ) )
     case Tko.N_FLOAT_LIT
         '' ...AND FOR A FLOAT: '1.5f' is SINGLE, as Check's LiteralType_ says. 'Show( 1.5f )'
         '' instantiated Show( of double ) where fbc-modern makes T SINGLE (audit F-55).

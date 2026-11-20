@@ -233,6 +233,7 @@ private function MakeLiteral _
     if cast( int32, t.literal ) < pool.Count then
         dim as Tko.Literal ptr src = @pool[cast( int32, t.literal )]
         lp.intValue = src->intValue
+        lp.intHi = src->intHi
         lp.fltValue = src->fltValue
         lp.strFile = src->textFile
         lp.strOffset = src->textOffset

@@ -8,6 +8,7 @@
 #import "std/containers"
 #include once "mir/dump.ti"
 #include once "support/irtext.ti"
+#include once "support/dec128.ti"
 
 namespace Tko.Mir
 
@@ -103,6 +104,8 @@ private function InstStr _
         s += " " & TypeName( cast( MirType, ins.ty ) ) & " "
         if (ins.ty = cast( uint8, MT_F32 )) orelse (ins.ty = cast( uint8, MT_F64 )) then
             s += FloatConstText_( ins.fimm )
+        elseif ins.ty = cast( uint8, MT_I128 ) then
+            s += Tko.Text.Dec128( cast( uint64, ins.immHi ), cast( uint64, ins.imm ), true )
         else
             s += str( ins.imm )
         end if

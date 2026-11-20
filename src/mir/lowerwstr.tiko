@@ -841,6 +841,10 @@ function NumberToWideTemp_ _
         r = RTL_LONGINT_TO_WSTR : want = MT_I64
     case Tko.TY_UINTEGER, Tko.TY_ULONGINT
         r = RTL_ULONGINT_TO_WSTR : want = MT_I64
+    case Tko.TY_INT128
+        r = RTL_INT128_TO_WSTR : want = MT_I128
+    case Tko.TY_UINT128
+        r = RTL_UINT128_TO_WSTR : want = MT_I128
     case Tko.TY_SINGLE
         r = RTL_FLOAT_TO_WSTR : want = MT_F32
     case Tko.TY_DOUBLE
@@ -854,7 +858,11 @@ function NumberToWideTemp_ _
     if av.kind = cast( uint8, MV_NONE ) then return false
     av = CoerceTy( c, av, want, at)
     dim as containers.Array( of uint32 ) args
-    args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
+    if want = MT_I128 then
+        PushI128Halves( c, av, args )
+    else
+        args.Push( cast( uint32, av.kind ) ) : args.Push( cast( uint32, av.id ) )
+    end if
     return WideConcatStep_( c, args, r, outv )
 end function
 

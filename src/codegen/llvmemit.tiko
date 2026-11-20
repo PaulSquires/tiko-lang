@@ -7,6 +7,7 @@
 #include once "codegen/llvmrefs.ti"
 #include once "codegen/abi.ti"
 #include once "support/irtext.ti"
+#include once "support/dec128.ti"
 #include once "codegen/irsink.ti"
 
 namespace Tko.Codegen
@@ -75,6 +76,7 @@ declare function SretAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr ) as string
 declare function ByvalAttr _
     ( byref e as EmitCtx, byval f as MirFunction ptr, byval i as int32 ) as string
+declare sub EmitVaArg_( byref e as EmitCtx, byref res as string, byref ins as MirInst, byref ty as string )
 
 private sub Ice( byref e as EmitCtx, byref why as string )
     if len( e.ice ) > 0 then return
@@ -320,8 +322,7 @@ private function AggAccessAlign_ _
     ( byref e as EmitCtx, byval t as MirType, byval sizeBytes as int32, byref addr as MirValue ) as int32
     dim as boolean own = (addr.kind = cast( uint8, MV_LOCAL )) orelse (addr.kind = cast( uint8, MV_GLOBAL ))
     if (t = MT_I128) andalso (own = false) then return 8   '' a computed address: 'field = 1' may misalign it
-    if t <> MT_AGG then return AlignOf( e, t, sizeBytes )
-    if own then return AlignOf( e, t, sizeBytes )
+    if (t <> MT_AGG) orelse own then return AlignOf( e, t, sizeBytes )
     return 1
 end function
 
@@ -376,8 +377,6 @@ private sub EmitFloatToInt_ _
         Line( e, res & " = " & iif( op = M_FPTOSI, "fptosi ", "fptoui " ) & src & " " & x & " to " & ty )
         return
     end if
-    '' int128 / uint128, ONE SIZE UP: the type's minimum stands in for the indefinite value; [2^127,
-    '' 2^128) goes through fptoui for uint128, a negative value wraps. fptosi on i128 is __fixdfti & co.
     if w = 128 then
         const P127 = "0x47E0000000000000", N127 = "0xC7E0000000000000", P128 = "0x47F0000000000000", MIN128 = "-170141183460469231731687303715884105728"
         Line( e, res & ".lo = fcmp oge " & src & " " & x & ", " & N127 )
@@ -579,6 +578,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
                 e.constText[id] = IntAsPtr( ins.imm )
             else
                 e.constText[id] = str( ins.imm )
+                if rt = MT_I128 then e.constText[id] = Tko.Text.Dec128( cast( uint64, ins.immHi ), cast( uint64, ins.imm ), true )
             end if
         end if
 
@@ -932,7 +932,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         Line( e, "call void @llvm.va_copy(ptr " & ValStr( e, ins.a ) & _
                  ", ptr " & ValStr( e, ins.b ) & ")" )
     case M_VA_ARG
-        Line( e, res & " = va_arg ptr " & ValStr( e, ins.a ) & ", " & ty )
+        EmitVaArg_( e, res, ins, ty )   '' llvmaggcopy.tiko: SysV's int128 is clang's sequence
 
     case else
         Ice( e, "no emission for opcode '" & OpName( op ) & "'" )

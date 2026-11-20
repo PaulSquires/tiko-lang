@@ -404,6 +404,7 @@ namespace Tko
 
     type LiteralPayload
         as uint64 intValue
+        as uint64 intHi             '' the high half past 64 bits -- Literal.intHi
         as float64   fltValue
         as int32     strFile         '' FileId the span indexes -- NOT the node's loc,
                                     '' which macro expansion is free to rewrite

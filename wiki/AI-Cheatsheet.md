@@ -129,8 +129,8 @@ print strings.Format( "{} items, total {:.2f}", cart.Count( ), Total( cart ) )
 
 | Type | Notes |
 | --- | --- |
-| `int8 int16 int32 int64` | signed, size in the name |
-| `uint8 uint16 uint32 uint64` | unsigned; `ubyte` = `uint8` |
+| `int8 int16 int32 int64 int128` | signed, size in the name |
+| `uint8 uint16 uint32 uint64 uint128` | unsigned; `ubyte` = `uint8`; the 128-bit pair is C's `__int128` |
 | `float32 float64` | a bare literal `1.5` is `float64` |
 | `boolean` | `true` / `false` |
 | `integer` / `uinteger` | pointer-sized (64-bit). A bare `1` literal is `integer`. `long` is 32-bit |

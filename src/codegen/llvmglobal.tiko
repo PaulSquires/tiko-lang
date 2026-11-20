@@ -339,8 +339,7 @@ sub EmitVarGlobal _
             case MT_F32 : init_ = LlvmFloatConst( g.initFlt, true )
             case MT_F64 : init_ = LlvmFloatConst( g.initFlt, false )
             case MT_I128
-                init_ = str( g.initInt )
-                if g.initU64 then init_ = str( cast( ulongint, g.initInt ) )
+                init_ = Tko.Text.Dec128( cast( uint64, g.initHi ), cast( uint64, g.initInt ), true )
             case else   : init_ = str( g.initInt )
             end select
         else
