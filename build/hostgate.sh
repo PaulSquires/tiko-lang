@@ -44,18 +44,11 @@ case "$EXT" in
 esac
 TKO=${TKO:-$ROOT/bin/tiko$EXT}
 TC=$ROOT/toolchains/tiko-$HOST
-# linux-arm64 HAS NO PACKAGED TOOLCHAIN until docs/tiko-linux-arm64 L5: a stand-in of this
-# tree's own inc/ and lib/rt/lib/linux-arm64 takes its place, as tiko-macos did before M9.
-standin_linux_arm64( ) {
-    _si=$ROOT/build/.standin/tiko-linux-arm64
-    if [ ! -d "$_si/inc" ]; then
-        mkdir -p "$_si/lib"
-        ln -sfn "$ROOT/inc" "$_si/inc"
-        ln -sfn "$ROOT/lib/rt/lib/linux-arm64" "$_si/lib/linux-arm64"
-    fi
-    echo "$_si"
-}
-[ "$TGT" = linux-arm64 ] && [ ! -d "$TC" ] && TC=$(standin_linux_arm64)
+# linux-arm64 has no packaged toolchain until docs/tiko-linux-arm64 L5: build/standin.sh lays
+# out this tree's inc/, runtime, graphics library and libfbcunit.a in its place.
+if [ "$TGT" = linux-arm64 ] && [ ! -d "$TC" ]; then
+    . "$ROOT/build/standin.sh"; TC=$(standin_linux_arm64)
+fi
 export TIKO_LIBPATH=${TIKO_LIBPATH:-$TC/lib/$TGT}
 INC=$TC/inc
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
