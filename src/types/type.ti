@@ -236,6 +236,13 @@ namespace Tko
         '' in a way no width explains -- see BuiltinCode. Windows and Darwin/arm64 say
         '' pointer; SysV x86-64 says record.
         as boolean cvaListIsPointer
+        '' WHETHER C's va_list IS AN ARRAY TYPE -- SysV x86-64's '__va_list_tag[1]'. A BYVAL
+        '' one then DECAYS, as any array parameter does in C: the callee is handed a POINTER
+        '' to the caller's record and works on that record, and fbc passes it so too. Below
+        '' the mangler tiko treats such a parameter as a reference (TypeContext.
+        '' CvaListDecays); the mangler writes C's adjusted type, 'P13__va_list_tag'.
+        '' Windows' and Darwin's 'char *' is not an array, and neither is AAPCS64's struct.
+        as boolean cvaListIsArray
         '' Whether C's plain 'char' is signed. It is on all three targets (Apple's arm64
         '' keeps it signed where AAPCS64 itself says unsigned); recorded so that a target
         '' where it is not cannot inherit the assumption.
@@ -415,6 +422,9 @@ namespace Tko
         '' A procedure type written 'pascal' -- see TF_PASCAL.
         declare function IsPascal( byval t as TypeId ) as boolean
         declare function IsTypedVariadic( byval t as TypeId ) as boolean
+        '' A BYVAL PARAMETER OF THIS TYPE IS PASSED AS A POINTER: a 'cva_list', const or
+        '' not, on a target whose va_list is an array (TargetLayout.cvaListIsArray).
+        declare function CvaListDecays( byval t as TypeId ) as boolean
 
         declare function Layout( byval t as TypeId ) as TypeLayout
         declare function Name( byval t as TypeId ) as string

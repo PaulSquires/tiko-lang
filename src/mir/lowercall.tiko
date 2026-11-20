@@ -1441,7 +1441,7 @@ private function SigParamIsRef_ _
     if sigT = Tko.TYPE_NONE then return false
     if c.types->Kind( sigT ) <> Tko.TK_PROC then return false
     if (idx < 0) orelse (idx >= c.types->ProcParamCount( sigT )) then return false
-    return (c.types->Kind( c.types->ProcParam( sigT, idx ) ) = Tko.TK_REFERENCE)
+    return (c.types->Kind( c.types->ProcParam( sigT, idx ) ) = Tko.TK_REFERENCE) orelse c.types->CvaListDecays( c.types->ProcParam( sigT, idx ) )   '' ParamIsByref
 end function
 
 '' THE '__fbinvoke' PROCEDURE OF A CLOSURE TYPE, as its MODULE-LEVEL symbol -- the
