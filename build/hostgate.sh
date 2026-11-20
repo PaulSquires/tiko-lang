@@ -5,6 +5,8 @@
 #   build/hostgate.sh [-j N] [PAT]            records for this host, in $HOSTGATE_OUT
 #   build/hostgate.sh --against DIR [PAT]     ...then each one compared with DIR's;
 #                                             exit 1 on any difference
+#   build/hostgate.sh --gfx [...] gfx/        gfx/ as well: libtkogfx's null driver, headless,
+#                                             on both Linux hosts (docs/tiko-linux-arm64 L4)
 #
 # fbc does not run on a Mac, so nothing here is compared with fbc: the oracle is tiko itself on
 # another host -- macos-arm64 against linux-x86_64 -- which every other script has already held
@@ -16,7 +18,7 @@
 #   MULTI_MODULE_*           its .bas compiled (-c) as COMPILE_ONLY: the C/C++ halves and
 #                            their .bmk recipes are fbc's make system, not this
 #
-# Not offered: gfx/ (no graphics off Windows, docs/tiko-macos D8), interactive/ (a console
+# Not offered: gfx/ unless --gfx (no window off Windows, docs/tiko-macos D8), interactive/ (a console
 # and a person), fbcunit/ (the framework itself), and the 165 files with no TEST_MODE
 # (included pieces). Every run is from a COPY of the file's directory -- the suites read and
 # write data files beside themselves, and tests/vendor is never edited -- rooted, as fbc's
@@ -59,11 +61,13 @@ WK=${WK%/}
 RUNTIMEOUT=${RUNTIMEOUT:-180}
 JOBS=4
 AGAINST=
+GFX=0
 PAT=
 while [ $# -gt 0 ]; do
     case $1 in
         -j)        JOBS=$2; shift 2 ;;
         --against) AGAINST=$2; shift 2 ;;
+        --gfx)     GFX=1; shift ;;
         *)         PAT=$1; shift ;;
     esac
 done
@@ -125,8 +129,13 @@ one( ) {
     printf '%s\n%s\n' "$rec" "$out" > "$OUT/${rel%.bas}.txt"
 }
 
-LIST=$(find tests/vendor/fbc-tests -name '*.bas' \
-        -not -path '*/gfx/*' -not -path '*/interactive/*' -not -path '*/fbcunit/*' | sort | grep -F -- "$PAT")
+if [ "$GFX" = 1 ]; then
+    LIST=$(find tests/vendor/fbc-tests -name '*.bas' \
+            -not -path '*/interactive/*' -not -path '*/fbcunit/*' | sort | grep -F -- "$PAT")
+else
+    LIST=$(find tests/vendor/fbc-tests -name '*.bas' -not -path '*/gfx/*' \
+            -not -path '*/interactive/*' -not -path '*/fbcunit/*' | sort | grep -F -- "$PAT")
+fi
 if [ -z "$AGAINST" ] || [ ! -d "$OUT" ] || [ -n "${HOSTGATE_RERUN:-}" ]; then
     rm -rf "$WK"; mkdir -p "$WK/x" "$WK/rd" "$WK/cache"
     [ -z "$PAT" ] && rm -rf "$OUT"
