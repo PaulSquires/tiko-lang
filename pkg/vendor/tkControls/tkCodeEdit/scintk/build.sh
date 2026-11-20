@@ -94,7 +94,8 @@ else
     "$CXX" -shared -o "$SO" "${objs[@]}" -static-libstdc++ -static-libgcc -Wl,-z,noexecstack
 fi
 
-case $OS in windows) ARCH=x86_64 ;; macos) ARCH=arm64 ;; *) ARCH=x86_64 ;; esac
+# THE HOST'S ARCHITECTURE on Linux: aarch64 is linux-arm64 (docs/tiko-linux-arm64 L4).
+case $OS in windows) ARCH=x86_64 ;; macos) ARCH=arm64 ;; *) ARCH=x86_64; [ "$(uname -m)" = aarch64 ] && ARCH=arm64 ;; esac
 ST=$OUT/scintk_${OS}_$ARCH.a
 # PlatTk and ScintillaTk define the exported entry points: compiled again with SCITK_STATIC,
 # which on Windows exports nothing (scintk.h) and initialises the C++ runtime (ScintillaTk.cxx).

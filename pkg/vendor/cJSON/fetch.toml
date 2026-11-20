@@ -55,6 +55,18 @@ static = "lib/cJSON_linux_x86_64.a"
 shared = "lib/cJSON_linux_x86_64.so"
 libs = "-lm"
 
+[linux-arm64.1]
+kind = "cbuild"
+url = "https://github.com/DaveGamble/cJSON/archive/6d9f2443ab071f86e5d9b43025a40929ec41c46c.tar.gz"
+sha256 = "2ee53560eb76b6d84d96989689ff46ccc4cd1a9c786967486b3105a7087d1756"
+dir = "cJSON-6d9f2443ab071f86e5d9b43025a40929ec41c46c"
+sources = "cJSON.c cJSON_Utils.c"
+patches = "patches/0001-mergepatch-uaf-nonobject-target.patch patches/0002-json-patch-depth-CVE-2026-67215.patch patches/0003-compare-cost-CVE-2026-67216.patch patches/0004-pointer-unescape-CVE-2026-29036.patch"
+cflags = "-O2 -fPIC"
+static = "lib/cJSON_linux_arm64.a"
+shared = "lib/cJSON_linux_arm64.so"
+libs = "-lm"
+
 [macos.1]
 kind = "cbuild"
 url = "https://github.com/DaveGamble/cJSON/archive/6d9f2443ab071f86e5d9b43025a40929ec41c46c.tar.gz"

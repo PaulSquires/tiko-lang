@@ -29,7 +29,7 @@ SRC_SDL=$1; SRC_TTF=$2; SRC_IMG=$3; SRC_FT=$4; SRC_HB=$5
 
 case $HOST in
     windows) ARCH=x86_64 ;;
-    linux)   ARCH=x86_64 ;;
+    linux)   ARCH=${TIKO_VENDOR_ARCH:-x86_64} ;;   # arm64 on linux-arm64 (docs/tiko-linux-arm64 L4)
     macos)   ARCH=arm64 ;;
     *) echo "SDL3 static: unknown host '$HOST'" >&2; exit 1 ;;
 esac
@@ -39,13 +39,14 @@ OUTS="$OUT/SDL3_${HOST}_$ARCH.a $OUT/SDL3_ttf_${HOST}_$ARCH.a $OUT/SDL3_image_${
 
 # macOS has no sha256sum; its shasum is the same digest.
 digest() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
-STAMP=$( { for f in "$@"; do basename "$f"; done; cat "$0"; echo "$HOST"; } | digest | cut -c1-16 )
+STAMP=$( { for f in "$@"; do basename "$f"; done; cat "$0"; echo "$HOST"; [ "$ARCH" = x86_64 ] || echo "$ARCH"; } | digest | cut -c1-16 )
 fresh=1
 for o in $OUTS; do [ -f "$o" ] || fresh=0; done
 [ "$fresh" = 1 ] && [ "$(cat "$OUT/.stamp" 2>/dev/null)" = "$STAMP" ] && exit 0
 # A FINISHED BUILD IN THE CACHE is copied, not redone: a fresh tree (a test copy, a package
 # worktree) finds the archives the last identical build left there.
 W=$CACHE/sdl3-static-$HOST
+[ "$HOST" = linux ] && [ "$ARCH" != x86_64 ] && W=$CACHE/sdl3-static-$HOST-$ARCH
 if [ "$(cat "$W/done/.stamp" 2>/dev/null)" = "$STAMP" ]; then
     mkdir -p "$OUT"
     for o in $OUTS; do cp -f "$W/done/$(basename "$o")" "$o" || exit 1; done
