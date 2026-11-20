@@ -88,7 +88,7 @@ RT_TARGETS="win64 linux-x86_64"
 # android-x86_64 (docs/tiko-android A1) is build-only for the same reason: fbc-modern's Android
 # rtlib is not built here, so there is no archive to gate it against. Its oracle is tiko's own
 # linux-x86_64 output, compared by lib/rt/build/adblane.sh on the emulator.
-RT_BUILD_ONLY_TARGETS="windows-x86_64 macos-arm64 linux-arm64 android-x86_64"
+RT_BUILD_ONLY_TARGETS="windows-x86_64 macos-arm64 linux-arm64 android-x86_64 android-arm64"
 
 # Include path: tiko-rt's own src/, then tiko-lang's inc/ (phase H, 2026-10-10), which
 # supplies crt/long.bi -- the only header lint lets through. It was fbc-modern's src/inc
@@ -136,6 +136,7 @@ rt_target_triple( ) {
         linux-arm64)           echo "aarch64-unknown-linux-gnu" ;;
         macos-arm64)           echo "arm64-apple-macosx13.0" ;;
         android-x86_64)        echo "x86_64-linux-android29" ;;
+        android-arm64)         echo "aarch64-linux-android29" ;;
         win64|windows-x86_64)  echo "x86_64-w64-windows-gnu" ;;
         *) echo "rt_target_triple: no triple for target '$1'" >&2; return 1 ;;
     esac

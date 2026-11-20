@@ -4,9 +4,10 @@
 #   sh build/vendorfetch.sh                    into the tree's own pkg/vendor/*/lib
 #   sh build/vendorfetch.sh --out DIR          into DIR/vendor/*/lib (package.sh: $OUT/pkg)
 #   sh build/vendorfetch.sh --module sqlite3   one module only
-#   sh build/vendorfetch.sh --target android-x86_64
-#                                              on Windows: the [android.<n>] entries,
-#                                              cross-built with the NDK (docs/tiko-android A2)
+#   sh build/vendorfetch.sh --target android-x86_64|android-arm64
+#                                              on Windows: the [android.<n>] (x86_64) or
+#                                              [android-arm64.<n>] entries, cross-built with the
+#                                              NDK (docs/tiko-android A2, A3)
 #
 # A vendor package commits its translated headers and a fetch.toml; its binaries are never
 # committed. This reads each pkg/vendor/<module>/fetch.toml and, for THIS host's [<os>.<n>]
@@ -79,15 +80,20 @@ esac
 # ANDROID_NDK_ROOT, then the highest <sdk>/ndk/<version>), and the archive is static.
 case "$XTARGET" in
     "") ;;
-    android-x86_64)
-        [ "$HOST" = windows ] || die "--target android-x86_64 runs from Windows"
+    android-x86_64|android-arm64)
+        [ "$HOST" = windows ] || die "--target $XTARGET runs from Windows"
         _sdk=${ANDROID_HOME:-${LOCALAPPDATA:-}/Android/Sdk}
         _ndk=${TIKO_ANDROID_NDK:-${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-$(ls -d "$_sdk"/ndk/* 2>/dev/null | sort -V | tail -1)}}}
         _sr=$_ndk/toolchains/llvm/prebuilt/windows-x86_64/sysroot
         [ -f "$_sr/usr/include/stdio.h" ] || die "no Android NDK sysroot at '$_sr' (set ANDROID_NDK_HOME)"
         command -v cygpath > /dev/null 2>&1 && _sr=$(cygpath -m "$_sr")
-        HOST=android; TRIPLE=x86_64-linux-android29; SYSROOTOPT="--sysroot=$_sr" ;;
-    *) die "--target: only android-x86_64 is a cross target" ;;
+        if [ "$XTARGET" = android-arm64 ]; then
+            HOST=android-arm64; TRIPLE=aarch64-linux-android29
+        else
+            HOST=android; TRIPLE=x86_64-linux-android29
+        fi
+        SYSROOTOPT="--sysroot=$_sr" ;;
+    *) die "--target: android-x86_64 and android-arm64 are the cross targets" ;;
 esac
 CACHE=${TIKO_VENDOR_CACHE:-$ROOT/build/.vendorfetch}
 mkdir -p "$CACHE"

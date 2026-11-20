@@ -299,7 +299,7 @@ build_one( ) {
         # does not, so atomic.c came out as calls in the VM and as LL/SC here. Pinned to LL/SC:
         # it runs on every ARMv8, needs no helper library, and the cross-built runtime and the
         # native one are then the same code.
-        case "$target" in linux-arm64) cabi="-mno-outline-atomics" ;; esac
+        case "$target" in linux-arm64|android-arm64) cabi="-mno-outline-atomics" ;; esac
         if ! "$CLANG" --target="$ctgt" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra $cabi $cpic \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
