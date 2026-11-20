@@ -360,7 +360,7 @@ end function
 '' The mount table and the filesystem-type names, one per OS: FB_FSMOUNTS,
 '' FB_FSMOUNT, FB_FSMOUNT_PATHMAX, hOsMountOpen, hOsMountNext, hParseMountInfo,
 '' hOsMountClose, hIsRealMount and hOsFsHasLinks.
-#if defined( __FB_LINUX__ )
+#if defined( __FB_LINUX__ ) or defined( __FB_ANDROID__ )
 	#include once "volumelinux.tiko"
 #elseif defined( __FB_DARWIN__ )
 	#include once "volumedarwin.tiko"

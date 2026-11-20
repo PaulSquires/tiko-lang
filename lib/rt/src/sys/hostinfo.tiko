@@ -91,7 +91,7 @@
 
 	'' procfs and get_avphys_pages are Linux's: hOsExeLink, hOsExeLinkByPid and
 	'' hOsFreePhysBytes are per OS.
-	#if defined( __FB_LINUX__ )
+	#if defined( __FB_LINUX__ ) or defined( __FB_ANDROID__ )
 		#include once "hostinfolinux.tiko"
 	#elseif defined( __FB_DARWIN__ )
 		#include once "hostinfodarwin.tiko"

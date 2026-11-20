@@ -658,7 +658,7 @@ end extern
 
 '' The exclusive rename and the kernel's random bytes: hOsRenameExclusive( sp, dp )
 '' and hOsRandom( buf, n ), one per OS.
-#if defined( __FB_LINUX__ )
+#if defined( __FB_LINUX__ ) or defined( __FB_ANDROID__ )
 	#include once "opslinux.tiko"
 #elseif defined( __FB_DARWIN__ )
 	#include once "opsdarwin.tiko"

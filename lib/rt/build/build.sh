@@ -371,12 +371,12 @@ build_rt0( ) {
         -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0.o" \
         || rt_die "$_t: fbrt0.c failed to compile"
     case $_t in
-        linux-*)
+        linux-*|android-*)
             "$CLANG" --target="$_tri" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra -fPIC \
                 -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0pic.o" \
                 || rt_die "$_t: fbrt0.c (pic) failed to compile" ;;
     esac
-    echo "build: $_t/fbrt0.o$(case $_t in linux-*) echo ' + fbrt0pic.o' ;; esac)"
+    echo "build: $_t/fbrt0.o$(case $_t in linux-*|android-*) echo ' + fbrt0pic.o' ;; esac)"
 }
 
 echo "build: tiko-rt [$CFG] with $TKORT_TIKO ($RT_JOBS jobs)"
@@ -384,7 +384,7 @@ for target in $TARGETS; do
     build_one "$target" st
     build_one "$target" mt
     case $target in
-        linux-*) build_one "$target" stpic
+        linux-*|android-*) build_one "$target" stpic
                  build_one "$target" mtpic ;;
     esac
     build_rt0 "$target"
