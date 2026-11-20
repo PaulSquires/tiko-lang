@@ -31,6 +31,7 @@ RANGES = [
     (990, 999, "Compiler limits and internal errors"),
     (1000, 1049, "Interfaces"),
     (1050, 1099, "String slices"),
+    (1100, 1149, "128-bit integers"),
 ]
 
 

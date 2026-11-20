@@ -58,7 +58,7 @@ A subcommand is the first word on the command line. It builds a project from its
 | `--frontend-only` | report every diagnostic a build would, through lowering; write no object, link nothing ('tiko check') |
 | `--no-module-cache` | build imported modules without reading or writing the module cache |
 | `--clean-module-cache` | empty the module cache and stop |
-| `-z ‹option›` | fbc extended option; accepted and ignored |
+| `-z ‹option›` | fbc extended option: 'nocmdline' ignores every #cmdline; any other is accepted and ignored |
 | `-maxinstdepth ‹n›` | how deep one generic instantiation may drive another (default 64) |
 
 ## Input {#app-cli-input}
@@ -177,4 +177,4 @@ A subcommand is the first word on the command line. It builds a project from its
 | `--build-only-unit ‹n›` | internal to 'tiko build': compile root n alone into the cache, and link nothing |
 | `--bootstrap-subset-check` | reject constructs outside the self-hosting subset |
 
-<!-- 97 options, generated 2026-11-17 from src/driver/options.ti at e3ece4327 -->
+<!-- 97 options, generated 2026-11-20 from src/driver/options.ti at e7f07a36b -->
