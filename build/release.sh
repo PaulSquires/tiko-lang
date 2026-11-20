@@ -2,7 +2,7 @@
 # release.sh -- archive, hash, smoke-test and (only when asked) publish a toolchain release.
 #
 #   bash build/release.sh --notes <notes.md> [--sha <commit>] [--prev <dir>]
-#                         [--editor <dir>] [--no-tkedit] [--lsp <dir>] [--no-lsp] [--no-mac]
+#                         [--editor <dir>] [--no-tkedit] [--lsp <dir>] [--no-lsp] [--no-mac] [--no-arm64]
 #                         [--publish [--latest]]
 #
 # THE RECIPE THAT LIVED IN MEMORY NOTES (review BLD-06, 2026-10-24), as one script. It does
@@ -30,6 +30,9 @@
 #      (default 'mac', options in TIKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
 #      or AppleDouble files, 644/755 as above; copied back here. It unpacks to tiko-lang/, as the
 #      others do, tkEdit.app in its bin/. --no-mac leaves it out;
+#   3c. tars toolchains/tiko-linux-arm64 IN THE LIMA VM tk22 on the Mac (docs/tiko-linux-arm64 L5),
+#      the Linux lane's recipe on the VM's own disk, copied back through the Mac's ~/tkm.
+#      --no-arm64 leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TIKO_* variable:
 #      hello.tiko compiled and run, tiko-lang/ the archive's only folder, and tkedit in its
@@ -45,7 +48,7 @@
 set -o pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 2
-NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1 MAC=1 LSP=1 LSPDIR=
+NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1 MAC=1 ARM=1 LSP=1 LSPDIR=
 while [ $# -gt 0 ]; do
     case "$1" in
         --notes)   shift; NOTES=$1 ;;
@@ -56,6 +59,7 @@ while [ $# -gt 0 ]; do
         --latest)  LATEST=1 ;;
         --no-tkedit) TKEDIT=0 ;;
         --no-mac)  MAC=0 ;;
+        --no-arm64) ARM=0 ;;
         --lsp)     shift; LSPDIR=$1 ;;
         --no-lsp)  LSP=0 ;;
         -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
@@ -86,6 +90,20 @@ on_mac( ) {
     scp -q -o BatchMode=yes $MSSH "$1" "$MACH:tkm/$(basename "$1")" || return 1
     ssh -o BatchMode=yes $MSSH "$MACH" zsh -l "tkm/$(basename "$1")" < /dev/null
 }
+# THE linux-arm64 LANE runs in the Lima VM on the Mac (docs/tiko-linux-arm64 L5): TIKO_ARM_VM
+# (default tk22, Ubuntu 22.04 arm64 -- the glibc 2.35 floor), its packaged tree at TIKO_ARM_ROOT
+# (default /home/pc.guest/tiko-lang) and tiko-lsp at TIKO_ARM_LSP (/home/pc.guest/tiko-lsp).
+# A step is a bash file run inside the VM, handed the Mac's ~/tkm -- which the VM mounts at the
+# same path and writes through -- by a one-line wrapper the Mac's login zsh runs (limactl is
+# Homebrew's).
+ARMVM=${TIKO_ARM_VM:-tk22}
+ARMROOT=${TIKO_ARM_ROOT:-/home/pc.guest/tiko-lang}
+ARMLSP=${TIKO_ARM_LSP:-/home/pc.guest/tiko-lsp}
+on_vm( ) {
+    scp -q -o BatchMode=yes $MSSH "$1" "$MACH:tkm/$(basename "$1")" || return 1
+    printf 'limactl shell %s -- bash "$HOME/tkm/%s" "$HOME/tkm"\n' "$ARMVM" "$(basename "$1")" > "$1.mac"
+    on_mac "$1.mac"
+}
 
 # 1. both hosts packaged at this commit
 for t in "$WIN" "$LNX"; do
@@ -110,6 +128,23 @@ EOF
     on_mac "$OUT/mac-check.sh"; rc=$?
     [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-macos/tkEdit.app (5), no tkedit line (6; or pass --no-tkedit) or no ~/dev/tiko-lsp/dist/tiko-lsp-macos-arm64.tar.gz (7; build it there with release/build-macos.sh, or pass --no-lsp) -- rc $rc"
     note "the Mac's MANIFEST names $SHORT"
+fi
+if [ "$ARM" = "1" ]; then
+    cat > "$OUT/arm-check.sh" <<EOF
+cd $ARMROOT/toolchains/tiko-linux-arm64 || exit 2
+grep -q "$SHORT" MANIFEST.txt || exit 3
+grep -q " FAIL" MANIFEST.txt && exit 4
+if [ "$TKEDIT" = "1" ]; then
+[ -f ../tkedit-linux-arm64/tkedit ] || exit 5
+grep -q "^tkedit  *\.\./tkedit-linux-arm64" MANIFEST.txt || exit 6
+fi
+[ "$LSP" = "1" ] || exit 0
+[ -f $ARMLSP/dist/tiko-lsp-linux-arm64.tar.gz ] || exit 7
+exit 0
+EOF
+    on_vm "$OUT/arm-check.sh"; rc=$?
+    [ $rc = 0 ] || die "$ARMVM's toolchains/tiko-linux-arm64: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-linux-arm64/tkedit (5), no tkedit line (6; or pass --no-tkedit) or no $ARMLSP/dist/tiko-lsp-linux-arm64.tar.gz (7; build it there with release/build-linux.sh, or pass --no-lsp) -- rc $rc"
+    note "$ARMVM's linux-arm64 MANIFEST names $SHORT"
 fi
 if [ "$TKEDIT" = "1" ]; then
     [ -f "$TKWIN/tkedit.exe" ] || die "no $TKWIN/tkedit.exe -- package.sh packages it (or pass --no-tkedit)"
@@ -209,8 +244,39 @@ EOF
     note "macOS tar.gz $(du -h "$MTGZ" | cut -f1)"
 fi
 
+# 3c. the linux-arm64 tar.gz, in the Lima VM -- the Linux lane's recipe, on the VM's own disk
+ATGZ=""
+if [ "$ARM" = "1" ]; then
+    ATGZ=$OUT/tiko-linux-arm64-$SHORT.tar.gz
+    cat > "$OUT/tar-arm64.sh" <<EOF
+set -e
+rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
+cp -r $ARMROOT/toolchains/tiko-linux-arm64 ~/tkrel-$SHORT/tiko-lang
+[ -z "$TKDIRS" ] || cp -a $ARMROOT/toolchains/tkedit-linux-arm64/tkedit ~/tkrel-$SHORT/tiko-lang/tkedit
+if [ "$LSP" = "1" ]; then
+    mkdir -p ~/tkrel-$SHORT/lsp && tar -xzf $ARMLSP/dist/tiko-lsp-linux-arm64.tar.gz -C ~/tkrel-$SHORT/lsp
+    cp ~/tkrel-$SHORT/lsp/tiko-lsp ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp
+    cp ~/tkrel-$SHORT/lsp/LICENSE ~/tkrel-$SHORT/tiko-lang/licences/LICENSE-tiko-lsp
+    rm -rf ~/tkrel-$SHORT/lsp
+    python3 $ARMROOT/build/elfunversion.py ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp libtinfo.so.6
+fi
+cd ~/tkrel-$SHORT
+find tiko-lang -type f -exec chmod 644 {} +
+find tiko-lang -type d -exec chmod 755 {} +
+chmod 755 tiko-lang/bin/tiko
+[ -z "$TKDIRS" ] || chmod 755 tiko-lang/tkedit
+[ "$LSP" != "1" ] || chmod 755 tiko-lang/bin/tiko-lsp
+tar -czf "\$1/tiko-linux-arm64-$SHORT.tar.gz" --owner=0 --group=0 tiko-lang
+EOF
+    on_vm "$OUT/tar-arm64.sh" || die "$ARMVM's tar failed"
+    scp -q -o BatchMode=yes $MSSH "$MACH:tkm/tiko-linux-arm64-$SHORT.tar.gz" "$ATGZ" || die "scp of the linux-arm64 archive"
+    [ -s "$ATGZ" ] || die "no $ATGZ"
+    note "linux-arm64 tar.gz $(du -h "$ATGZ" | cut -f1)"
+fi
+
 # 4. hashes, and the notes with them
-( cd "$OUT" && sha256sum "$(basename "$ZIP")" "$(basename "$TGZ")" ${MTGZ:+"$(basename "$MTGZ")"} > SHA256SUMS ) || die "sha256sum"
+( cd "$OUT" && sha256sum "$(basename "$ZIP")" "$(basename "$TGZ")" ${MTGZ:+"$(basename "$MTGZ")"} \
+      ${ATGZ:+"$(basename "$ATGZ")"} > SHA256SUMS ) || die "sha256sum"
 { cat "$NOTES"; echo; echo "### SHA-256"; echo; echo '```text'; cat "$OUT/SHA256SUMS"; echo '```'; } > "$OUT/notes.md"
 note "SHA256SUMS and notes.md written"
 
@@ -267,6 +333,26 @@ EOF
     got=$(on_mac "$OUT/smoke-macos.sh") || die "macOS smoke: $got"
     [ "$got" = "hello from tiko" ] || die "macOS smoke printed '$got'"
     note "smoke macos-arm64: ok"
+fi
+# linux-arm64 AS A NEW USER WOULD, in the VM: a fresh HOME, the system's PATH, no TKO_*. Ubuntu
+# 22.04 there has apt.llvm.org's clang-NN and no bare clang, so the compile is given TIKO_CLANG,
+# as the WSL smoke is -- said here, never otherwise.
+if [ "$ARM" = "1" ]; then
+    cat > "$OUT/smoke-arm64.sh" <<EOF
+set -e
+rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
+tar -xzf "\$1/tiko-linux-arm64-$SHORT.tar.gz"
+test "\$(ls -A | grep -v '^home\$')" = "tiko-lang"
+[ -z "$TKDIRS" ] || test -x tiko-lang/tkedit
+[ "$LSP" != "1" ] || tiko-lang/bin/tiko-lsp --version 2>&1 | grep -q '^tiko-lsp '
+echo 'print "hello from tiko"' > hello.tiko
+cc=""; command -v clang > /dev/null || cc=\$(ls /usr/bin/clang-[0-9]* 2> /dev/null | sort -V | tail -1)
+env -i HOME=\$PWD/home PATH=/usr/bin:/bin \${cc:+TIKO_CLANG=\$cc} tiko-lang/bin/tiko hello.tiko -o hello
+./hello
+EOF
+    got=$(on_vm "$OUT/smoke-arm64.sh") || die "linux-arm64 smoke: $got"
+    [ "$got" = "hello from tiko" ] || die "linux-arm64 smoke printed '$got'"
+    note "smoke linux-arm64: ok"
 fi
 
 # 6. what changed against the previous release
