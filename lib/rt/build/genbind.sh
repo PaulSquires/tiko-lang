@@ -3,6 +3,14 @@
 #
 #   lib/rt/build/genbind.sh            on Windows: src/inc/sysbind/win64.ti
 #                                      on Linux:   src/inc/sysbind/linux-x86_64.ti
+#   lib/rt/build/genbind.sh --target android-x86_64 --sysroot <dir>
+#                                      anywhere: src/inc/sysbind/android-x86_64.ti, against
+#                                      Bionic's headers under <dir>/usr/include
+#
+# THE CROSS FORM is for a target whose own tiko does not exist: <dir> is the target's sysroot
+# -- for Android the NDK's own, <ndk>/toolchains/llvm/prebuilt/<host>/sysroot, which IS that
+# target's headers (docs/tiko-android A1) -- handed to clang as -csysroot. Shaped as
+# feat/linux-arm64's (docs/tiko-linux-arm64 L2, D-L2-1), so the two merge mechanically.
 #
 # tiko's own C importer (-cimport, decision 0016) reads lib/rt/build/sysbind.h against the
 # host's C headers -- MinGW-w64's on Windows, the system's glibc on Linux -- and genbind.py
@@ -26,8 +34,20 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) TARGET=win64; TKO=${TKO:-$ROOT/bin/tiko.exe}; PY=${PYTHON:-python} ;;
     *) TARGET=linux-x86_64; TKO=${TKO:-$ROOT/bin/tiko}; PY=${PYTHON:-python3} ;;
 esac
+SYSROOT=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --target)  TARGET=$2; shift 2 ;;
+        --sysroot) SYSROOT=$2; shift 2 ;;
+        *) echo "genbind: unknown option '$1'" >&2; exit 2 ;;
+    esac
+done
+if [ -n "$SYSROOT" ]; then
+    [ -d "$SYSROOT/usr/include" ] || { echo "genbind: no $SYSROOT/usr/include" >&2; exit 2; }
+    command -v cygpath > /dev/null 2>&1 && SYSROOT=$(cygpath -m "$SYSROOT")
+fi
 WK=${TMPDIR:-/tmp}/genbind.$$
 mkdir -p "$WK"
 trap 'rm -rf "$WK"' EXIT
-"$TKO" -target "$TARGET" -cimport build/sysbind.h -cimport-out "$WK/full.bi"
+"$TKO" -target "$TARGET" ${SYSROOT:+-csysroot "$SYSROOT"} -cimport build/sysbind.h -cimport-out "$WK/full.bi"
 "$PY" build/genbind.py "$WK/full.bi" src "$TARGET" "src/inc/sysbind/$TARGET.ti"
