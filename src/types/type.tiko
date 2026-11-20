@@ -198,6 +198,8 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
         r.cvaListBytes = 24
         r.cvaListAlign = 8
         r.cvaListIsPointer = false
+        '' ...and an ARRAY of one, so a byval one decays to a pointer (TargetLayout).
+        r.cvaListIsArray = true
     case TARGET_WIN64, TARGET_WINDOWS_X86_64
         r.pointerBits = 64
         r.wcharBytes = 2
@@ -418,6 +420,16 @@ function TypeContext.IsDynArray( byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
     if this.Kind( t ) <> TK_ARRAY then return false
     return (this.types[cast( int32, t )].dims < 0)
+end function
+
+'' See type.ti. The parameter's own const is not the question: 'byval as const cva_list'
+'' decays the same way, and fbc mangles it the same way.
+function TypeContext.CvaListDecays( byval t as TypeId ) as boolean
+    if this.target.cvaListIsArray = false then return false
+    if t = TYPE_NONE then return false
+    dim as TypeId u = this.Unqualify( t )
+    if this.Kind( u ) <> TK_BUILTIN then return false
+    return (this.BuiltinOf( u ) = TY_CVA_LIST)
 end function
 
 function TypeContext.DynRank( byval t as TypeId ) as int32

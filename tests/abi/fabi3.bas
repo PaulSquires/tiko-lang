@@ -7,7 +7,17 @@ type S3
     v as int128
 end type
 
+type S16
+    v as int128
+end type
+
 extern "C"
+declare function c3_s16a( byval a as long, byval s as S16 ) as int128
+declare function c3_s16x( byval a as long, byval b as long, byval c as long, byval d as long, byval e as long, byval s as S16 ) as int128
+declare function c3_s16m( byval a as long, byval b as long, byval c as long, byval d as long, byval e as long, byval f as long, byval g as long, byval s as S16, byval h as long ) as int128
+declare function c3_s16r( byval a as long, byval v as int128 ) as S16
+declare function c3_take7( byval a as long, byval b as long, byval c as long, byval d as long, byval e as long, byval f as long, byval g as long, byval s as S3 ) as int128
+declare function c3_calls_s16( ) as int128
 declare function c3_mul( byval a as int128, byval b as int128, byval k as long ) as int128
 declare function c3_shr( byval x as uint128, byval n as long ) as uint128
 declare function c3_mix( byval a as long, byval b as int128, byval d as double, byval c as int128, byval e as longint ) as int128
@@ -32,6 +42,10 @@ function t3_vsum cdecl alias "T3_VSUM" ( byval n as long, ... ) as int128
     next
     cva_end( ap )
     return s
+end function
+
+function t3_s16 cdecl alias "T3_S16" ( byval a as long, byval s as S16, byval b as long ) as int128
+    return s.v * a + b
 end function
 
 function t3_twice cdecl alias "T3_TWICE" ( byval v as int128 ) as int128
@@ -64,3 +78,11 @@ show "vmix", c3_vmix( 3, 9ll, big, -big + 1 )
 show "vsum", c3_calls_vsum( )
 show "vmix6", c3_vmix( 6, -3ll, big, -big + 1, cast( int128, 1 ) shl 120, cast( int128, 5 ), -( cast( int128, 1 ) shl 120 ) )
 show "vsum6", c3_calls_vsum6( )
+dim as S16 q
+q.v = big
+show "s16a", c3_s16a( 1, q )
+show "s16x", c3_s16x( 1, 2, 3, 4, 5, q )
+show "s16m", c3_s16m( 1, 2, 3, 4, 5, 6, 7, q, 8 )
+show "s16r", c3_s16r( 3, big ).v
+show "take7", c3_take7( 1, 2, 3, 4, 5, 6, 7, s )
+show "calls16", c3_calls_s16( )

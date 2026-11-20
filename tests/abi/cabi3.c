@@ -54,3 +54,15 @@ i128 c3_calls_vsum( void ) { return T3_VSUM( 3, (i128)1 << 100, (i128)-5, (i128)
 
 /* six: the GP save area runs out, so the later ones come from the 16-aligned overflow area */
 i128 c3_calls_vsum6( void ) { return T3_VSUM( 6, (i128)1 << 100, (i128)-5, (i128)7, (i128)1 << 90, -((i128)1 << 70), (i128)11 ); }
+
+/* a 16-BYTE struct holding an __int128: 16-aligned, so AAPCS64 puts it on an EVEN register
+   pair (after one int: x2:x3, not x1:x2) or a 16-aligned stack slot, and SysV puts its
+   by-value copy in a 16-aligned slot. Both directions, and with the registers running out. */
+struct S16 { i128 v; };
+i128 c3_s16a( int a, struct S16 s ) { return s.v + a; }
+i128 c3_s16x( int a, int b, int c, int d, int e, struct S16 s ) { return s.v + a + b + c + d + e; }
+i128 c3_s16m( int a, int b, int c, int d, int e, int f, int g, struct S16 s, int h ) { return s.v + a + b + c + d + e + f + g + h; }
+struct S16 c3_s16r( int a, i128 v ) { struct S16 s; s.v = v * a; return s; }
+i128 c3_take7( int a, int b, int c, int d, int e, int f, int g, struct S3 s ) { return s.v + s.c + a + g; }
+extern i128 T3_S16( int a, struct S16 s, int b );
+i128 c3_calls_s16( void ) { struct S16 s; s.v = (i128)1 << 99; return T3_S16( 3, s, 4 ); }

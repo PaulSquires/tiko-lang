@@ -332,7 +332,7 @@ def gen_c():
     w("")
     w("void trun_all( void );")
     expected = 7 * len(ORDER) + sum(3 if viaptr(p) else 2 for _, p in PREFIXES) + 2 * len(RETS) + 3
-    expected += VA2_PAIRS + 1 + VA3_PAIRS + 1
+    expected += VA2_PAIRS + 1 + VA3_PAIRS + 2
     w("#define EXPECTED_CALLS %d" % expected)
     w("#define VA2_Q ((__int128)-2 * ((__int128)1 << 64) + (__int128)0x1122334455667788LL)")
     w("int main( void ) {")
@@ -502,26 +502,24 @@ def gen_t():
     w("end function")
     w("")
     w("function t_va3 cdecl( byval n as long, ... ) as longint")
-    w("    dim as cva_list ap, cp")
+    w("    dim as cva_list ap, cp, cp2")
     w("    cva_start( ap, n )")
     w("    cva_copy( cp, ap )")
+    w("    cva_copy( cp2, ap )")
     w("    for k as long = 0 to n - 1")
     w("        dim as longint i = cva_arg( ap, longint )")
     w("        dim as double d = cva_arg( ap, double )")
     w("        c_seen_va3( k, i, d )")
     w("    next")
     w("    cva_end( ap )")
-    # BYVAL cva_list TO A C va_list IS BROKEN ON linux-x86_64 (found 2026-11-19, L1): SysV's
-    # va_list is an ARRAY, so C receives a pointer, while tiko passes the 24-byte record by
-    # value -- the callee reads garbage and the lane segfaulted. Pre-existing (the x86-64 IR is
-    # byte-identical before and after L1), not an AAPCS64 matter: both arm64 targets take the
-    # byval form; the x86-64 control takes 'va_list *' until that is fixed.
-    w("#ifdef __FB_X86__")
-    w("    c_vreadp( n, cp )")
-    w("#else")
+    # BYVAL TO A C va_list ON EVERY TARGET. linux-x86_64 passed the 24-byte record by value
+    # where C (SysV's va_list is an array) takes a pointer, and this lane segfaulted there,
+    # until the list became the caller's, by address (master 2c61ce1f5, 2026-11-19). The
+    # pointer form is called too, so both keep running.
     w("    c_vread( n, cp )")
-    w("#endif")
+    w("    c_vreadp( n, cp2 )")
     w("    cva_end( cp )")
+    w("    cva_end( cp2 )")
     w("    return 55")
     w("end function")
     w("")

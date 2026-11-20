@@ -222,6 +222,11 @@ namespace Tko.Mir
     const TKO_EB_INTEGER as uint32 = 1
     const TKO_EB_SSE     as uint32 = 2
     const TKO_EB_MEMORY  as uint32 = 3
+    '' Bit 4 on SysV: the aggregate is 16-ALIGNED (it holds an int128). Classes compare with it
+    '' masked off (TKO_EB_CLS); a by-value copy in memory is then 'byval ... align 16', as
+    '' clang's is -- an 8-aligned one put it in the wrong stack slot (2026-11-19, clang 23).
+    const TKO_EB_ALIGN16 as uint32 = 16
+    #define TKO_EB_CLS( p )        ((p) and 15)
     '' Eightbyte 0 in bits 0-1, eightbyte 1 in bits 2-3. MEMORY in eightbyte 0 means
     '' the whole aggregate, and nothing reads eightbyte 1 then.
     #define TKO_EB_PACK( c0, c1 )  ((c0) or ((c1) shl 2))
@@ -235,6 +240,10 @@ namespace Tko.Mir
     '' Everything else -- integer registers or memory -- follows from the size alone.
     const TKO_AA_MARK      as uint32 = &h80000000
     const TKO_AA_HFA_DBL   as uint32 = 8
+    '' Bit 4: the aggregate is 16-ALIGNED (it holds an int128). clang passes and returns one of
+    '' 9 to 16 bytes as 'i128', not '[2 x i64]', so it starts on an EVEN register pair or a
+    '' 16-aligned stack slot (probed 2026-11-19, clang 23, arm64-apple-macosx13.0).
+    const TKO_AA_ALIGN16   as uint32 = 16
     #define TKO_AA_IS( p )         (((p) and TKO_AA_MARK) <> 0)
     #define TKO_AA_HFAN( p )       ((p) and 7)
 

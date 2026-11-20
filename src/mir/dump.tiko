@@ -22,7 +22,8 @@ private function EbName( byval packed as uint32 ) as string
         if n = 0 then return "[A]"
         return "[H" & str( n ) & iif( (packed and TKO_AA_HFA_DBL) <> 0, "d]", "f]" )
     end if
-    if packed = TKO_EB_MEMORY then return "[M]"
+    if TKO_EB_CLS( packed ) = TKO_EB_MEMORY then return "[M]"
+    packed = TKO_EB_CLS( packed )
     dim as string r = "["
     dim as uint32 c0 = TKO_EB0( packed )
     dim as uint32 c1 = TKO_EB1( packed )

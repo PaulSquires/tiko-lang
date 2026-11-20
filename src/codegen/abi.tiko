@@ -72,6 +72,7 @@ private function AapcsArgType_( byval sz as int32, byval cls as uint32 ) as MirT
     dim as MirType h = AapcsHfaType_( cls )
     if h <> MT_VOID then return h
     if sz <= 8 then return MT_I64
+    if (sz <= 16) andalso ((cls and TKO_AA_ALIGN16) <> 0) then return MT_I128   '' TKO_AA_ALIGN16
     if sz <= 16 then return MT_A2_I64
     return MT_PTR
 end function
@@ -84,6 +85,7 @@ private function AapcsRetType_( byval sz as int32, byval cls as uint32 ) as MirT
         dim as MirType it = DirectIntType( sz )
         return iif( it <> MT_VOID, it, MT_I64 )
     end if
+    if (sz <= 16) andalso ((cls and TKO_AA_ALIGN16) <> 0) then return MT_I128
     if sz <= 16 then return MT_A2_I64
     return MT_VOID
 end function
@@ -179,8 +181,8 @@ private function RetDirect_ _
     end if
     t0 = DirectIntType( sz )
     if AbiIsWin64_( target ) then return (t0 <> MT_VOID)
-    if (sz > 16) orelse (cls = TKO_EB_MEMORY) then return false
-    if cls = 0 then return (t0 <> MT_VOID)
+    if (sz > 16) orelse (TKO_EB_CLS( cls ) = TKO_EB_MEMORY) then return false
+    if TKO_EB_CLS( cls ) = 0 then return (t0 <> MT_VOID)
     dim as int32 n0 = sz
     if n0 > 8 then n0 = 8
     t0 = SysvEightbyteType( TKO_EB0( cls ), n0 )
@@ -197,7 +199,7 @@ private function SysvReturnUnmodelled_ _
     if AbiIsAapcs_( target ) then return false
     if AbiIsWin64_( target ) then return false
     if (sz <= 0) orelse (sz > 16) then return false
-    return (cls = 0) andalso (DirectIntType( sz ) = MT_VOID)
+    return (TKO_EB_CLS( cls ) = 0) andalso (DirectIntType( sz ) = MT_VOID)
 end function
 
 '' A SysV register slot is WHOLE EIGHTBYTES: a register is loaded out of it and stored
@@ -501,7 +503,7 @@ private sub RewriteCallArgs _
 
         '' ---- SysV
         dim as uint32 packed = callee->paramClasses[i]
-        if (sz > 16) orelse (packed = TKO_EB_MEMORY) orelse (packed = 0) then
+        if (sz > 16) orelse (TKO_EB_CLS( packed ) = TKO_EB_MEMORY) orelse (TKO_EB_CLS( packed ) = 0) then
             '' MEMORY: the slot's address, and the signature marks it byval so it
             '' travels on the stack rather than as a pointer in a register.
             r.m->argPool.Push( cast( uint32, MV_LOCAL ) )
@@ -882,7 +884,7 @@ private sub RewriteSignature _
         end if
 
         '' ---- SysV
-        if (sz > 16) orelse (packed = TKO_EB_MEMORY) orelse (packed = 0) then
+        if (sz > 16) orelse (TKO_EB_CLS( packed ) = TKO_EB_MEMORY) orelse (TKO_EB_CLS( packed ) = 0) then
             ptys.Push( cast( uint8, MT_PTR ) )
             paggs.Push( cast( uint32, sz ) )
             pcls.Push( packed )
@@ -1156,18 +1158,22 @@ private sub SysvRegisterBudget_ _
         case MT_VOID
         case MT_F32, MT_F64
             if sse > 0 then sse -= 1
+        '' AN int128 TAKES TWO GPRs, or none: with one left it goes to the stack whole and the
+        '' register stays for what follows, as clang and LLVM pass one.
+        case MT_I128
+            if gpr >= 2 then gpr -= 2
         case MT_AGG
             dim as int32 sz = cast( int32, f->paramAggs[i] )
             if (sz <= 0) orelse (sz > 16) orelse (i >= f->paramClasses.Count) then continue for
             dim as uint32 packed = f->paramClasses[i]
-            if (packed = TKO_EB_MEMORY) orelse (packed = 0) then continue for
+            if (TKO_EB_CLS( packed ) = TKO_EB_MEMORY) orelse (TKO_EB_CLS( packed ) = 0) then continue for
             dim as int32 ng = 0, ns = 0
             if TKO_EB0( packed ) = TKO_EB_SSE then ns += 1 else ng += 1
             if sz > 8 then
                 if TKO_EB1( packed ) = TKO_EB_SSE then ns += 1 else ng += 1
             end if
             if (ng > gpr) orelse (ns > sse) then
-                f->paramClasses[i] = TKO_EB_MEMORY
+                f->paramClasses[i] = TKO_EB_MEMORY or (packed and TKO_EB_ALIGN16)
             else
                 gpr -= ng
                 sse -= ns

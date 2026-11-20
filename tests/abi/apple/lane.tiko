@@ -2562,21 +2562,20 @@ function t_va2 cdecl( byval n as long, ... ) as longint
 end function
 
 function t_va3 cdecl( byval n as long, ... ) as longint
-    dim as cva_list ap, cp
+    dim as cva_list ap, cp, cp2
     cva_start( ap, n )
     cva_copy( cp, ap )
+    cva_copy( cp2, ap )
     for k as long = 0 to n - 1
         dim as longint i = cva_arg( ap, longint )
         dim as double d = cva_arg( ap, double )
         c_seen_va3( k, i, d )
     next
     cva_end( ap )
-#ifdef __FB_X86__
-    c_vreadp( n, cp )
-#else
     c_vread( n, cp )
-#endif
+    c_vreadp( n, cp2 )
     cva_end( cp )
+    cva_end( cp2 )
     return 55
 end function
 

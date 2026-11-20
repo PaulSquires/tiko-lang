@@ -1109,6 +1109,16 @@ function BindParamType_ _
     if (t <> Tko.TYPE_NONE) andalso _
        ((c.ast->Flags( id ) and Tko.NF_BYREF) <> 0) then
         t = c.types->Reference( t )
+    elseif c.types->CvaListDecays( t ) then
+        '' A BYVAL cva_list ON linux-x86_64 IS THE CALLER'S LIST. SysV's va_list is an
+        '' ARRAY, '__va_list_tag[1]', so C's 'void f(int, va_list ap)' receives a pointer
+        '' and its va_arg advances the caller's record; fbc passes the pointer too. The
+        '' body therefore reaches the parameter through a reference, as it would a byref
+        '' one -- while NF_BYREF stays clear, because the parameter IS byval to everything
+        '' that reads the passing mode (overloads, the mangled name, the procedure type).
+        '' Measured 2026-11-19: tiko copied the 24-byte record ('ptr byval([24 x i8])')
+        '' and a C va_list reader handed it segfaulted (build/aapcslane.sh, t_va3).
+        t = c.types->Reference( t )
     end if
     BindDeclType( c, here, sp->name, t, false )
     return t

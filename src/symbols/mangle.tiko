@@ -479,6 +479,38 @@ private function EmitPrefix _
     return body
 end function
 
+'' SysV x86-64's va_list, '__va_list_tag[1]', and what C adjusts a parameter of that
+'' array type to: a pointer to its element. TypeCode and ParamCode_.
+const CVA_ARRAY_CODE as string = "A1_13__va_list_tag"
+const CVA_DECAYED_CODE as string = "P13__va_list_tag"
+
+'' A BYVAL PARAMETER'S TYPE in a mangled name -- a procedure's own or one inside a
+'' procedure type. The same as TypeCode except for a cva_list that decays (TargetLayout.
+'' cvaListIsArray), which is written as C's adjusted type, a pointer, and -- like the
+'' array -- NEVER SUBSTITUTED, BUT COUNTED, as ONE candidate. Measured from fbc-modern
+'' (-target linux-x86_64 -gen gcc -r), 2026-11-19 -- tests/codegen/cva-list-mangle-*x86_64.test:
+''
+''     sub R( byval a as cva_list, byval b as cva_list )
+''                                       _ZN1N1REP13__va_list_tagP13__va_list_tag
+''     sub U( byval, byval, byref, byref )
+''                     _ZN1N1UEP13__va_list_tagP13__va_list_tagRA1_13__va_list_tagS3_
+''     sub F1( byval f as sub( byval as cva_list ), byval a as cva_list )
+''                                       _ZN1N2F1EPFvP13__va_list_tagEP13__va_list_tag
+''
+'' U's last is S3_: N, the two byval ones, c's array, c's R. tiko wrote the array for a
+'' byval one and substituted it: R was 'A1_13__va_list_tagS0_'.
+private function ParamCode_ _
+    ( byval t as Tko.TypeId, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions ) as string
+
+    if types.CvaListDecays( t ) then
+        subs.AddRaw( CVA_DECAYED_CODE )
+        return CVA_DECAYED_CODE
+    end if
+    return TypeCode( t, types, syms, names, subs )
+end function
+
 function TypeCode _
     ( byval t as Tko.TypeId, byref types as Tko.TypeContext, _
       byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
@@ -496,8 +528,7 @@ function TypeCode _
     '' -- the type itself is written out every time, never as S<n>_, yet each occurrence is a
     '' candidate (U's last is S3_: N, a, b, c's St9__va_list, c's R). A reference or pointer to
     '' it is an ordinary candidate (Q's S1_). clang++ substitutes the byval pair (S0_); fbc is the
-    '' ground truth. linux-x86_64's fbc has the same rule over its own spelling, which tiko does
-    '' not follow either -- a separate, pre-existing difference, not changed here.
+    '' ground truth. linux-x86_64's fbc has the same rule over its own spelling: the block below.
     if types.Kind( t ) = Tko.TK_BUILTIN then
         if types.BuiltinOf( t ) = Tko.TY_CVA_LIST then
             dim as string cvc = CvaListCode_( types.target )
@@ -506,6 +537,24 @@ function TypeCode _
                 return cvc
             end if
         end if
+    end if
+
+    '' linux-x86_64's cva_list IS NEVER SUBSTITUTED, BUT ALWAYS COUNTED. Measured from
+    '' fbc-modern (-target linux-x86_64 -gen gcc -r), 2026-11-19:
+    ''
+    ''     sub Q( byref a as cva_list, byref b as cva_list )  _ZN1N1QERA1_13__va_list_tagS1_
+    ''     sub X( byref a as cva_list, byval p as cva_list ptr )
+    ''                                         _ZN1N1XERA1_13__va_list_tagPA1_13__va_list_tag
+    ''     sub W( byval a as cva_list ptr, byval b as cva_list ptr )
+    ''                                         _ZN1N1WEPA1_13__va_list_tagS1_
+    ''
+    '' -- the array is written out at every occurrence, never as S<n>_, yet each one is a
+    '' candidate (Q's S1_ is the R over it: N, then A1_..., then R); a reference or
+    '' pointer to it is an ordinary candidate (Q's S1_, W's S1_). tiko substituted it, so
+    '' X came out 'PS0_'. A BYVAL one is C's adjusted type -- see ParamCode_.
+    if types.CvaListDecays( t ) andalso (types.IsConst( t ) = false) then
+        subs.AddRaw( CVA_ARRAY_CODE )
+        return CVA_ARRAY_CODE
     end if
 
     '' Look the TYPE up before encoding it. Doing it afterwards compares an encoding
@@ -626,7 +675,7 @@ function TypeCode _
         else
             for i as int32 = 0 to n - 1
                 dim as Tko.TypeId pt = cast( Tko.TypeId, types.pool[ti->first + i] )
-                body += TypeCode( pt, types, syms, names, subs )
+                body += ParamCode_( pt, types, syms, names, subs )
             next
         end if
         '' ...AND THE ELLIPSIS, which is 'z' and comes last. Measured: fbc writes
@@ -1303,7 +1352,7 @@ private function ProcNameCore _
             '' overloads. Only the TOP level is stripped: a pointee's const stays.
             pt = types.Unqualify( pt )
         end if
-        outp += TypeCode( pt, types, syms, names, subs )
+        outp += ParamCode_( pt, types, syms, names, subs )
         emitted += 1
     next
     if emitted = 0 then outp += "v"

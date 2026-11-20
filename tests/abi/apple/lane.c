@@ -3016,7 +3016,7 @@ void c_vreadp( int n, va_list *ap ) { c_vread_( n, *ap ); }
 long long t_va3( int n, ... );
 
 void trun_all( void );
-#define EXPECTED_CALLS 523
+#define EXPECTED_CALLS 524
 #define VA2_Q ((__int128)-2 * ((__int128)1 << 64) + (__int128)0x1122334455667788LL)
 int main( void ) {
     trun_all( );
