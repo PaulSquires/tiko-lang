@@ -33,7 +33,8 @@ RT=$(pwd)
 ROOT=$(cd ../.. && pwd)
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) TARGET=win64; TKO=${TKO:-$ROOT/bin/tiko.exe}; PY=${PYTHON:-python} ;;
-    *) TARGET=linux-x86_64; TKO=${TKO:-$ROOT/bin/tiko}; PY=${PYTHON:-python3} ;;
+    *) TARGET=linux-x86_64; TKO=${TKO:-$ROOT/bin/tiko}; PY=${PYTHON:-python3}
+       [ "$(uname -m)" = "aarch64" ] && TARGET=linux-arm64 ;;
 esac
 SYSROOT=""
 while [ $# -gt 0 ]; do
