@@ -264,7 +264,7 @@ private function ExeOutFlag_( byref flags as Tko.StrVec ) as string
     return r
 end function
 
-'' The OS table ([target.x.<os>]) a build for a.target reads: "windows", "linux" or "macos".
+'' The OS table ([target.x.<os>]) a build for a.target reads: "windows", "linux", "macos" or "android".
 private function OsTableName_( byref a as BuildArgs ) as string
     dim as Tko.TargetId t = Tko.HostTarget( )
     if len( a.target ) > 0 then
@@ -274,6 +274,7 @@ private function OsTableName_( byref a as BuildArgs ) as string
     select case Tko.TargetOs( t )
     case Tko.OS_LINUX  : return "linux"
     case Tko.OS_DARWIN : return "macos"
+    case Tko.OS_ANDROID : return "android"
     end select
     return "windows"
 end function

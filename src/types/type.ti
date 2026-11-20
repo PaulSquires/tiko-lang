@@ -215,6 +215,11 @@ namespace Tko
         '' Its classifier is AAPCS64 with Apple's variations, its own branch in
         '' src/codegen/abi.tiko -- never SysV's.
         TARGET_MACOS_ARM64
+        '' ANDROID ON x86-64 (docs/tiko-android A1): the emulator's ABI. linux-x86_64's
+        '' layout and calling convention exactly (the datalayout is the same string), with
+        '' Bionic for libc, an API level in the triple, and the NDK's sysroot for the link.
+        '' Appended, so no existing value moves.
+        TARGET_ANDROID_X86_64
     end enum
 
     '' Target facts, injected. The frontend never hard-codes a size.

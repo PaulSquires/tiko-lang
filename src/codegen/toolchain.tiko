@@ -55,6 +55,116 @@ private function SearchPath_( byref exeName as string ) as string
     return ""
 end function
 
+'' ANDROID'S NDK (docs/tiko-android A1, D-A1-4). tiko compiles Android with its own clang;
+'' the NDK supplies only what the LINK needs and no LLVM install has: Bionic's sysroot (libc.so
+'' and its siblings as stubs, crtbegin_dynamic.o, crtend_android.o) and the compiler-rt
+'' builtins plus libunwind.a built for Android. Measured (FACTS "Compilers and linking"):
+'' clang 23 without them looks in its own lib/clang/23/lib/<triple>/ and fails on both.
+''
+'' FOUND, IN ORDER: TIKO_ANDROID_NDK; ANDROID_NDK_HOME and ANDROID_NDK_ROOT, the two names
+'' Google's own tools and Gradle read; then the highest-numbered <sdk>/ndk/<version> under
+'' ANDROID_HOME, ANDROID_SDK_ROOT and the SDK's default place on this host (Android Studio's
+'' and the command-line tools' alike). An NDK is a directory with this host's prebuilt
+'' sysroot in it; a variable that names anything else is reported, not skipped.
+#if defined( __FB_WIN32__ )
+    const NDK_HOST_ = "windows-x86_64"
+#elseif defined( __FB_DARWIN__ )
+    const NDK_HOST_ = "darwin-x86_64"
+#else
+    const NDK_HOST_ = "linux-x86_64"
+#endif
+
+'' Forward slashes and no trailing one: these paths go into a response file, which reads a
+'' backslash as an escape (driver/link-response-file).
+private function SlashPath_( byval p as string ) as string
+    for i as int32 = 0 to len( p ) - 1
+        if p[i] = asc( "\" ) then p[i] = asc( "/" )
+    next
+    while (len( p ) > 1) andalso (right( p, 1 ) = "/")
+        p = left( p, len( p ) - 1 )
+    wend
+    return p
+end function
+
+private function NdkIsValid_( byref ndk as string ) as boolean
+    return FileExists_( ndk & "/toolchains/llvm/prebuilt/" & NDK_HOST_ & "/sysroot/usr/include/stdio.h" )
+end function
+
+'' "30.0.16248370" as a key that sorts as the version does: each dotted part right-aligned.
+private function NdkVersionKey_( byref v as string ) as string
+    dim as string k, part
+    for i as int32 = 1 to len( v ) + 1
+        dim as string ch = mid( v, i, 1 )
+        if (ch = ".") orelse (len( ch ) = 0) then
+            k &= right( string( 12, "0" ) & part, 12 ) & "."
+            part = ""
+        else
+            part &= ch
+        end if
+    next
+    return k
+end function
+
+private function NdkUnderSdk_( byref sdk as string ) as string
+    if len( sdk ) = 0 then return ""
+    dim as string root = SlashPath_( sdk ) & "/ndk/"
+    dim as string best, bestKey
+    dim as string d = dir( root & "*", &h10 )
+    while len( d ) > 0
+        if (d <> ".") andalso (d <> "..") andalso NdkIsValid_( root & d ) then
+            dim as string k = NdkVersionKey_( d )
+            if k > bestKey then
+                bestKey = k
+                best = root & d
+            end if
+        end if
+        d = dir( )
+    wend
+    return best
+end function
+
+private function AndroidNdk_( byref why as string ) as string
+    dim as string vars( 0 to 2 ) = { "TIKO_ANDROID_NDK", "ANDROID_NDK_HOME", "ANDROID_NDK_ROOT" }
+    for i as int32 = 0 to 2
+        dim as string v = environ( vars( i ) )
+        if len( v ) > 0 then
+            v = SlashPath_( v )
+            if NdkIsValid_( v ) then return v
+            why = vars( i ) & " is '" & v & "', which has no toolchains/llvm/prebuilt/" & NDK_HOST_ & "/sysroot"
+            return ""
+        end if
+    next
+    dim as string sdks( 0 to 2 ) = { environ( "ANDROID_HOME" ), environ( "ANDROID_SDK_ROOT" ), "" }
+    #if defined( __FB_WIN32__ )
+        if len( environ( "LOCALAPPDATA" ) ) > 0 then sdks( 2 ) = environ( "LOCALAPPDATA" ) & "/Android/Sdk"
+    #elseif defined( __FB_DARWIN__ )
+        if len( environ( "HOME" ) ) > 0 then sdks( 2 ) = environ( "HOME" ) & "/Library/Android/sdk"
+    #else
+        if len( environ( "HOME" ) ) > 0 then sdks( 2 ) = environ( "HOME" ) & "/Android/Sdk"
+    #endif
+    for i as int32 = 0 to 2
+        dim as string n = NdkUnderSdk_( sdks( i ) )
+        if len( n ) > 0 then return n
+    next
+    why = "no Android NDK -- set ANDROID_NDK_HOME (or TIKO_ANDROID_NDK) to one, or install one " & _
+          "into the SDK's ndk folder (sdkmanager ""ndk;<version>"")"
+    return ""
+end function
+
+'' The NDK clang's resource directory: the one holding this arch's Android builtins.
+private function NdkResourceDir_( byref prebuilt as string, byref arch as string ) as string
+    dim as string root = prebuilt & "/lib/clang/"
+    dim as string d = dir( root & "*", &h10 )
+    while len( d ) > 0
+        if (d <> ".") andalso (d <> "..") andalso _
+           FileExists_( root & d & "/lib/linux/libclang_rt.builtins-" & arch & "-android.a" ) then
+            return root & d
+        end if
+        d = dir( )
+    wend
+    return ""
+end function
+
 function FindTools _
     ( byref clangOpt as string, byref libOpt as containers.Array( of string ) ) as ToolPaths
 
@@ -561,6 +671,26 @@ function LinkExe _
         if len( sdk ) > 0 then cmd += " -isysroot " & Q( sdk )
     end if
 
+    '' ANDROID LINKS AGAINST THE NDK, from any host: its sysroot for Bionic's stubs and crt
+    '' objects, and its clang's resource directory for libclang_rt.builtins and libunwind.a,
+    '' which clang's Android driver names on every link. Borrowing the resource directory is
+    '' safe HERE because nothing is compiled from C at link time -- its headers are never read.
+    '' clang's Android driver makes the executable PIE, and lld aligns its segments to 16 KB
+    '' with no flag (measured, docs/tiko-android FACTS).
+    dim as boolean android = (target.layout.osKind = Tko.OS_ANDROID)
+    if android then
+        dim as string ndk = AndroidNdk_( t.why )
+        if len( ndk ) = 0 then return LINK_NO_NDK
+        dim as string prebuilt = ndk & "/toolchains/llvm/prebuilt/" & NDK_HOST_
+        dim as string arch = left( target.triple, instr( target.triple, "-" ) - 1 )
+        dim as string res = NdkResourceDir_( prebuilt, arch )
+        if len( res ) = 0 then
+            t.why = "the NDK at '" & ndk & "' has no libclang_rt.builtins-" & arch & "-android.a"
+            return LINK_NO_NDK
+        end if
+        cmd += " --sysroot=" & Q( prebuilt & "/sysroot" ) & " -resource-dir " & Q( res )
+    end if
+
     '' A REPRODUCIBLE LINK. lld writes the wall clock into the COFF header's TimeDateStamp,
     '' and that was the ONLY difference left between stage3 and stage4 of the bootstrap:
     '' four bytes at offset 128, with every other byte of 4,178,432 identical. The MinGW
@@ -1050,6 +1180,11 @@ function LinkExe _
         '' MACH-O. libm and pthreads are inside libSystem, which clang's darwin driver always
         '' links; tgoto and tputs come from the SDK's ncurses, macOS's terminfo.
         cmd += " -lncurses"
+    elseif android then
+        '' BIONIC. libm and libdl are their own stubs; pthreads are in libc, and the NDK ships
+        '' no libpthread for '-lpthread' to find. Android has no terminfo: tiko-rt's console
+        '' writes its own VT100 sequences there (docs/tiko-android D-A1-6).
+        cmd += " -lm -ldl"
     else
         '' ELF. '-ltinfo' is the counterpart of the pair above: the runtime's console
         '' layer calls tgoto and tputs, which live in terminfo. '-lm' and '-lpthread'

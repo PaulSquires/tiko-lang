@@ -268,11 +268,12 @@ private function BuildName_( byref n as string ) as boolean
     return true
 end function
 
-'' The OS tables of a target: [target.x.windows], [target.x.linux], [target.x.macos] hold the
+'' The OS tables of a target: [target.x.windows], [target.x.linux], [target.x.macos] (and
+'' [target.x.android], docs/tiko-android A1) hold the
 '' array keys that are true of a build for that OS only -- a '.rc' that a Linux build refuses
 '' (TKO0108), a library one platform has. They add to the target's own; another OS's are dropped.
 private function OsTable_( byref s as string ) as boolean
-    return (s = "windows") orelse (s = "linux") orelse (s = "macos")
+    return (s = "windows") orelse (s = "linux") orelse (s = "macos") orelse (s = "android")
 end function
 
 '' [target.x], [target.x.defines], [target.x.<os>], [profile.x]: "" when the header is one,

@@ -161,7 +161,7 @@ private function OutputSuffix_( byref o as Tko.DriverOptions ) as string
     case Tko.OUT_DLL
         select case Tko.TargetOs( o.target )
         case Tko.OS_WINDOWS : return ".dll"
-        case Tko.OS_LINUX   : return ".so"
+        case Tko.OS_LINUX, Tko.OS_ANDROID : return ".so"
         case Tko.OS_DARWIN  : return ".dylib"
         end select
         Tko.TargetIce( "OutputSuffix_", o.target )
@@ -715,6 +715,9 @@ private function LinkAll _
     if rc = Tko.Codegen.LINK_NO_RT0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, _
             "the runtime's startup object (fbrt0.o) is on no library path -- add one with -p" )
+    end if
+    if rc = Tko.Codegen.LINK_NO_NDK then
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, tools.why )
     end if
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )

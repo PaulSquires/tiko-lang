@@ -128,6 +128,7 @@ function TargetName( byval t as TargetId ) as string
     case TARGET_LINUX_X86_64    : return "linux-x86_64"
     case TARGET_WINDOWS_X86_64  : return "windows-x86_64"
     case TARGET_MACOS_ARM64     : return "macos-arm64"
+    case TARGET_ANDROID_X86_64  : return "android-x86_64"
     end select
     TargetIce( "TargetName", t )
     return ""
@@ -140,6 +141,7 @@ function TargetFromName( byval nm as string, byref ok as boolean ) as TargetId
     if s = "windows-x86_64" then return TARGET_WINDOWS_X86_64
     if s = "linux-x86_64" then return TARGET_LINUX_X86_64
     if s = "macos-arm64" then return TARGET_MACOS_ARM64
+    if s = "android-x86_64" then return TARGET_ANDROID_X86_64
     ok = false
     return HostTarget( )
 end function
@@ -157,6 +159,7 @@ function TargetOs( byval t as TargetId ) as TargetOsKind
     case TARGET_WIN64, TARGET_WINDOWS_X86_64 : return OS_WINDOWS
     case TARGET_LINUX_X86_64                 : return OS_LINUX
     case TARGET_MACOS_ARM64                  : return OS_DARWIN
+    case TARGET_ANDROID_X86_64               : return OS_ANDROID
     end select
     TargetIce( "TargetOs", t )
     return OS_WINDOWS
@@ -164,7 +167,8 @@ end function
 
 function TargetArch( byval t as TargetId ) as TargetArchKind
     select case t
-    case TARGET_WIN64, TARGET_WINDOWS_X86_64, TARGET_LINUX_X86_64 : return ARCH_X86_64
+    case TARGET_WIN64, TARGET_WINDOWS_X86_64, TARGET_LINUX_X86_64, _
+         TARGET_ANDROID_X86_64                                    : return ARCH_X86_64
     case TARGET_MACOS_ARM64                                       : return ARCH_ARM64
     end select
     TargetIce( "TargetArch", t )
@@ -185,7 +189,12 @@ function TargetLayoutFor( byval t as TargetId ) as TargetLayout
     r.maxAlign = 8
     r.charSigned = true
     select case t
-    case TARGET_LINUX_X86_64
+    '' ANDROID ON x86-64 IS linux-x86_64's LAYOUT, measured with clang 23 for
+    '' 'x86_64-linux-android29' (docs/tiko-android FACTS): the same datalayout string, a
+    '' 24-byte SysV va_list, a 4-byte signed wchar_t and a signed char. Its long double is
+    '' IEEE fp128 where glibc's is x87, which nothing here models (cimport refuses a 16-byte
+    '' long double on both).
+    case TARGET_LINUX_X86_64, TARGET_ANDROID_X86_64
         r.pointerBits = 64
         r.wcharBytes = 4
         r.stringBytes = 24

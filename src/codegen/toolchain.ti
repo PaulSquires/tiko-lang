@@ -139,6 +139,8 @@ namespace Tko.Codegen
     '' LinkExe's answer when a non-MSVC target has no fbrt0.o on any library path: the
     '' link would succeed and the program deadlock at its first '-mt' lock (RT-03).
     const LINK_NO_RT0 = -1000
+    '' ...and when an Android link finds no usable NDK; ToolPaths.why says what was looked at.
+    const LINK_NO_NDK = -1001
 
     declare function LinkExe _
         ( byref t as ToolPaths, byref target as TargetDescription, _
