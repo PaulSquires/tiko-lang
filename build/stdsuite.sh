@@ -25,12 +25,13 @@
 # Every run is from a COPY of the test's directory (data files; and these suites write), with
 # a closed stdin and a timeout. Modules are cached in a private TIKO_MODCACHE, emptied first.
 #
-#   build/stdsuite.sh --adb [PAT]        the ports, built on Windows for android-x86_64 and run
+#   build/stdsuite.sh --adb [PAT]        the ports, built on Windows for TIKO_ADB_TARGET (android-x86_64,
+#                                        the default, or android-arm64) and run
 #                                        on the device adb reaches (docs/tiko-android A2): every
 #                                        program is built first and staged with a copy of its
 #                                        directory, build/adbrun.sh runs them all in one push,
 #                                        and each record is then judged as above. The runtime
-#                                        is this tree's lib/rt/lib/android-x86_64, with
+#                                        is this tree's lib/rt/lib/<that target>, with
 #                                        fbcunit built for it here.
 set -u
 cd "$(dirname "$0")/.."
@@ -48,7 +49,7 @@ ADB=0
 TGTOPT=""
 if [ "$ADB" = 1 ]; then
     [ "$EXT" = .exe ] || { echo "stdsuite: --adb runs from Windows" >&2; exit 3; }
-    LIBT=android-x86_64; TGTOPT="-target android-x86_64"; EXT=""
+    LIBT=${TIKO_ADB_TARGET:-android-x86_64}; TGTOPT="-target $LIBT"; EXT=""  # docs/tiko-android A3, D-A3-4
 fi
 # linux-arm64 has no packaged toolchain until docs/tiko-linux-arm64 L5: build/standin.sh lays
 # out this tree's inc/, runtime, graphics library and libfbcunit.a in its place.
@@ -80,12 +81,12 @@ if [ "$ADB" = 1 ]; then
     export TIKO_LIBPATH="$WK/lib"
     STAGE=$WK/stage
     mkdir -p "$TIKO_LIBPATH" "$WK/fbcunit" "$STAGE"
-    cp "$ROOT"/lib/rt/lib/android-x86_64/* "$TIKO_LIBPATH"/ || { echo "stdsuite: no lib/rt/lib/android-x86_64 (lib/rt/build/build.sh Release android-x86_64)" >&2; exit 3; }
+    cp "$ROOT"/lib/rt/lib/$LIBT/* "$TIKO_LIBPATH"/ || { echo "stdsuite: no lib/rt/lib/$LIBT (lib/rt/build/build.sh Release $LIBT)" >&2; exit 3; }
     for s in "$CU"/src/*.bas; do
         "$TKO" $TGTOPT -c "$s" -i "$CU/inc" -i "$CU/src" -o "$WK/fbcunit/$(basename "$s" .bas).o" > /dev/null 2>&1
     done
     AR=${TIKO_AR:-/c/Program Files/LLVM/bin/llvm-ar.exe}
-    "$AR" rcs "$TIKO_LIBPATH/libfbcunit.a" "$WK"/fbcunit/*.o || { echo "stdsuite: fbcunit did not build for android-x86_64" >&2; exit 3; }
+    "$AR" rcs "$TIKO_LIBPATH/libfbcunit.a" "$WK"/fbcunit/*.o || { echo "stdsuite: fbcunit did not build for $LIBT" >&2; exit 3; }
     : > "$STAGE/list"; : > "$WK/pending"
 fi
 

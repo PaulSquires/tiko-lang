@@ -29,11 +29,12 @@
 # behaviour does.
 #
 #   build/hostgate.sh --adb [-j N] [--against DIR] [PAT]
-#                                             android-x86_64 (docs/tiko-android A2): built on
+#                                             TIKO_ADB_TARGET (android-x86_64, the default, or
+#                                             android-arm64; docs/tiko-android A2, A3): built on
 #                                             Windows, every program staged with a copy of the
 #                                             tests tree it reads, then run in one batch on the
 #                                             device adb reaches (build/adbrun.sh). The runtime
-#                                             is this tree's lib/rt/lib/android-x86_64, with
+#                                             is this tree's lib/rt/lib/<that target>, with
 #                                             fbcunit built for it here.
 #
 #   HOSTGATE_OUT    the records (default build/.hostgate/<target>)
@@ -57,7 +58,7 @@ case " $* " in *" --adb "*) ADB=1 ;; esac
 TGTOPT=""
 if [ "$ADB" = 1 ]; then
     [ "$EXT" = .exe ] || { echo "hostgate: --adb runs from Windows" >&2; exit 3; }
-    TGT=android-x86_64; TGTOPT="-target android-x86_64"
+    TGT=${TIKO_ADB_TARGET:-android-x86_64}; TGTOPT="-target $TGT"  # docs/tiko-android A3, D-A3-4
 fi
 TKO=${TKO:-$ROOT/bin/tiko$EXT}
 TC=$ROOT/toolchains/tiko-$HOST
@@ -170,12 +171,12 @@ if [ -z "$AGAINST" ] || [ ! -d "$OUT" ] || [ -n "${HOSTGATE_RERUN:-}" ]; then
         # THIS TREE'S ANDROID RUNTIME, and fbcunit built for it as package.sh builds it per target.
         export TIKO_LIBPATH="$WK/lib"
         mkdir -p "$TIKO_LIBPATH" "$WK/fbcunit" "$STAGE" "$WK/pend"
-        cp "$ROOT"/lib/rt/lib/android-x86_64/* "$TIKO_LIBPATH"/ || { echo "hostgate: no lib/rt/lib/android-x86_64" >&2; exit 3; }
+        cp "$ROOT"/lib/rt/lib/$TGT/* "$TIKO_LIBPATH"/ || { echo "hostgate: no lib/rt/lib/$TGT" >&2; exit 3; }
         for s in "$CU"/src/*.bas; do
             "$TKO" $TGTOPT -c "$s" -i "$CU/inc" -i "$CU/src" -o "$WK/fbcunit/$(basename "$s" .bas).o" > /dev/null 2>&1
         done
         AR=${TIKO_AR:-/c/Program Files/LLVM/bin/llvm-ar.exe}
-        "$AR" rcs "$TIKO_LIBPATH/libfbcunit.a" "$WK"/fbcunit/*.o || { echo "hostgate: fbcunit did not build for android-x86_64" >&2; exit 3; }
+        "$AR" rcs "$TIKO_LIBPATH/libfbcunit.a" "$WK"/fbcunit/*.o || { echo "hostgate: fbcunit did not build for $TGT" >&2; exit 3; }
     fi
     # fbcunit, built by this compiler for this host, beside the runtime it is linked with.
     if [ ! -f "$TIKO_LIBPATH/libfbcunit.a" ]; then

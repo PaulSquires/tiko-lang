@@ -22,6 +22,12 @@
 # code are compared. A difference is either fixed or listed as platform-specific in
 # docs/tiko-android FACTS. Exits 1 on any difference or failure.
 #
+# TIKO_ADB_TARGET picks the Android target (android-x86_64, the default, or android-arm64 --
+# docs/tiko-android A3, D-A3-4); its runtime is this tree's lib/rt/lib/<target>.
+# ADBLANE_GOLDEN, when set, is a directory of <name>.out files to compare with instead of the
+# WSL run -- for android-arm64, lib/rt/build/armlane.sh's linux-arm64 outputs from the Lima VM
+# (build/.armlane/arm/out, D-A3-2): the same CPU architecture, so only the OS differs.
+#
 # Needs: bin/tiko; the Android SDK's adb and an NDK (ANDROID_HOME, ANDROID_NDK_HOME, or their
 # default places) with one device or emulator attached; WSL with clang.
 
@@ -34,10 +40,19 @@ case "$(uname -s)" in
 esac
 TKO="$ROOT/bin/tiko$EXT"
 [ -x "$TKO" ] || { echo "adblane: build tiko first (build/build.sh)" >&2; exit 3; }
-for t in android-x86_64 linux-x86_64; do
+ATGT=${TIKO_ADB_TARGET:-android-x86_64}
+case "$ATGT" in
+    android-x86_64) ATRIPLE=x86_64-linux-android29 ;;
+    android-arm64)  ATRIPLE=aarch64-linux-android29 ;;
+    *) echo "adblane: TIKO_ADB_TARGET is android-x86_64 or android-arm64, not '$ATGT'" >&2; exit 3 ;;
+esac
+GOLDEN=${ADBLANE_GOLDEN:-}
+NEED="$ATGT"; [ -z "$GOLDEN" ] && NEED="$ATGT linux-x86_64"
+for t in $NEED; do
     [ -f "$RT/lib/$t/libfb.a" ] && [ -f "$RT/lib/$t/fbrt0.o" ] || \
-        { echo "adblane: no $t runtime (lib/rt/build/build.sh $CFG android-x86_64 linux-x86_64)" >&2; exit 3; }
+        { echo "adblane: no $t runtime (lib/rt/build/build.sh $CFG $NEED)" >&2; exit 3; }
 done
+[ -z "$GOLDEN" ] || [ -d "$GOLDEN" ] || { echo "adblane: ADBLANE_GOLDEN '$GOLDEN' is not a directory" >&2; exit 3; }
 # MSYS rewrites /data/local/tmp into a Windows path in adb's arguments; once it is told not to,
 # every path a native tool is handed must be written C:/... (cygpath -m).
 export MSYS_NO_PATHCONV=1
@@ -54,9 +69,9 @@ CLANG=${TIKO_CLANG:-C:/Program Files/LLVM/bin/clang.exe}
 W="$ROOT/build/.adblane"
 rm -rf "$W"
 mkdir -p "$W/android/obj" "$W/android/run" "$W/android/out" "$W/linux/obj" "$W/linux/lib"
-cp "$RT/lib/linux-x86_64/fbrt0.o" "$RT/lib/linux-x86_64/libfb.a" "$RT/lib/linux-x86_64/libfbmt.a" "$W/linux/lib/"
+[ -z "$GOLDEN" ] && cp "$RT/lib/linux-x86_64/fbrt0.o" "$RT/lib/linux-x86_64/libfb.a" "$RT/lib/linux-x86_64/libfbmt.a" "$W/linux/lib/"
 WM=$(cygpath -m "$W")
-ALIB=$(cygpath -m "$RT/lib/android-x86_64")
+ALIB=$(cygpath -m "$RT/lib/$ATGT")
 
 # ------------------------------------------------------------------ compile both; link Android
 : > "$W/list"
@@ -69,7 +84,8 @@ for src in "$RT"/tests/abi/*-parity.bas; do
     lib=fb
     grep -q 'NEEDS-MT' "$src" && lib=fbmt
     ok=1
-    for t in android-x86_64 linux-x86_64; do
+    TGTS="$ATGT"; [ -z "$GOLDEN" ] && TGTS="$ATGT linux-x86_64"
+    for t in $TGTS; do
         d=android; [ "$t" = linux-x86_64 ] && d=linux
         # shellcheck disable=SC2086
         if ! "$TKO" -c -m "$name" -target $t $LANGOPT -i "$(cygpath -m "$RT/src")" "$(cygpath -m "$src")" \
@@ -82,7 +98,7 @@ for src in "$RT"/tests/abi/*-parity.bas; do
     if [ "$ok" = 1 ]; then
         echo "$name $lib" >> "$W/list"
         # tiko's LinkExe line for android-x86_64 (codegen/toolchain.tiko), with fbrt0.o first.
-        if ! "$CLANG" -target x86_64-linux-android29 -fuse-ld=lld --sysroot="$PRE/sysroot" \
+        if ! "$CLANG" -target $ATRIPLE -fuse-ld=lld --sysroot="$PRE/sysroot" \
                 -resource-dir "$RES" -s -Wl,--gc-sections "$ALIB/fbrt0.o" "$WM/android/obj/$name.o" \
                 -o "$WM/android/run/$name" -L"$ALIB" -Xlinker --start-group -l$lib -lm -ldl \
                 -Xlinker --end-group > "$W/android/out/$name.link" 2>&1; then
@@ -136,8 +152,12 @@ EOF
 sed -i 's/\r$//' "$W/linux/run.sh"
 cp "$W/list" "$W/linux/list"
 mnt( ) { echo "$1" | sed 's#^/\([a-zA-Z]\)/#/mnt/\L\1/#'; }
+if [ -n "$GOLDEN" ]; then
+    rm -rf "$W/linux/out"; mkdir -p "$W/linux/out"; cp "$GOLDEN"/*.out "$W/linux/out/" 2>/dev/null
+else
 wsl.exe -- bash -c "rm -rf ~/adblane && cp -r '$(mnt "$W/linux")' ~/adblane && bash ~/adblane/run.sh ~/adblane > ~/adblane/run.log 2>&1; tar -C ~/adblane -cf - out" \
     < /dev/null 2> "$W/linux/run.log" | tar -C "$W/linux" -xf -
+fi
 
 # ------------------------------------------------------------------ compare
 pass=0; diffs=0; crash=0; na=0
@@ -168,5 +188,5 @@ while read -r name lib; do
     fi
 done < "$W/list"
 
-echo "adblane: $pass identical, $diffs different, $na n/a, $buildfail not built, $crash exited non-zero on Android (of $(ls "$RT"/tests/abi/*-parity.bas | wc -l))"
+echo "adblane: [$ATGT against ${GOLDEN:-linux-x86_64 in WSL}] $pass identical, $diffs different, $na n/a, $buildfail not built, $crash exited non-zero on Android (of $(ls "$RT"/tests/abi/*-parity.bas | wc -l))"
 [ "$diffs" = 0 ] && [ "$buildfail" = 0 ]
