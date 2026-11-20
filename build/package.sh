@@ -149,6 +149,11 @@ case "$(uname -s)" in
         DEFTARGET=linux-x86_64
         # The compiler's own default on Linux -- see src/codegen/toolchain.tiko.
         CLANG_DEFAULT=/usr/bin/clang
+        # aarch64 IS ITS OWN PACKAGE, tiko-linux-arm64 (docs/tiko-linux-arm64 L5): the same
+        # Linux recipe, its own target, toolchain directory and [linux-arm64.<n>] vendor tables.
+        if [ "$(uname -m)" = aarch64 ]; then
+            HOST=linux-arm64; TARGETS="linux-arm64"; DEFTARGET=linux-arm64
+        fi
         ;;
     Darwin)
         # Apple Silicon (docs/tiko-macos D1): the compiler under bin/, as on Linux.
@@ -160,6 +165,13 @@ case "$(uname -s)" in
         ;;
     *)  die "unsupported host '$(uname -s)' -- this packages Windows, Linux or macOS" ;;
 esac
+# THE OS AND ARCHITECTURE beside HOST, the package's name: linux-arm64 is a Linux host for
+# every OS question below (libtinfo, the X11 display, the MANIFEST's graphics), arm64 for names.
+case $HOST in
+    linux-arm64) HOSTOS=linux; HOSTARCH=arm64 ;;
+    macos)       HOSTOS=macos; HOSTARCH=arm64 ;;
+    *)           HOSTOS=$HOST; HOSTARCH=x86_64 ;;
+esac
 
 # WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64, where tiko emits the
 # Microsoft ABI and there is no MSVC libfbgfx anywhere to fall back on; and
@@ -169,7 +181,7 @@ esac
 # runtime and needs fbrt0's tko_darwin_entry -- built by this same package.
 # Kept as a list rather than a test so that the day another appears, this is the
 # line that changes.
-GFX_TARGETS="windows-x86_64 linux-x86_64 macos-arm64"
+GFX_TARGETS="windows-x86_64 linux-x86_64 macos-arm64 linux-arm64"
 
 gfx_has_target( ) {
     for __g in $GFX_TARGETS; do [ "$1" = "$__g" ] && return 0; done
@@ -322,7 +334,7 @@ note "examples -> examples/ ($( ls "$OUT/examples" | tr '\n' ' '))"
 
 note "compiler -> ${BINSUB}tiko$EXT"
 cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
-[ "$HOST" != "linux" ] || unversion_tinfo "$OUT/${BINSUB}tiko" || \
+[ "$HOSTOS" != "linux" ] || unversion_tinfo "$OUT/${BINSUB}tiko" || \
     die "could not drop libtinfo's symbol versions from ${BINSUB}tiko (python3 and build/elfunversion.py)"
 
 # The headers. The compiler finds these itself: AppendDefaultIncludeDir looks at
@@ -947,7 +959,7 @@ if [ "$DO_TKEDIT" = "1" ]; then
     fi
     case $HOST in
         macos) _tkp="$ROOT/bin/parser_macos_arm64.a" ;;
-        *)     _tkp="$ROOT/bin/parser_${HOST}_x86_64.a" ;;
+        *)     _tkp="$ROOT/bin/parser_${HOSTOS}_${HOSTARCH}.a" ;;
     esac
     [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
     if [ -z "$_tkfail" ]; then
@@ -1003,7 +1015,7 @@ PLIST
             _tkexe="$_app/MacOS/tkedit"
         else
             cp -f "$_tkrel/tkedit$EXT" "$TKD/"
-            [ "$HOST" != "linux" ] || unversion_tinfo "$TKD/tkedit" || \
+            [ "$HOSTOS" != "linux" ] || unversion_tinfo "$TKD/tkedit" || \
                 _tkfail="could not drop libtinfo's symbol versions from tkedit"
             _tkexe="$TKD/tkedit$EXT"
         fi
@@ -1013,7 +1025,7 @@ PLIST
         # <its folder>/out/, removed after. On Linux it needs a display (WSLg has one); macOS's
         # is the logged-in desktop (over ssh too), and macOS has no timeout(1): perl's alarm.
         if [ "$DO_VERIFY" = "1" ]; then
-            if [ "$HOST" != "linux" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+            if [ "$HOSTOS" != "linux" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
                 note "verifying tkedit: its self-test"
                 if [ "$HOST" = "macos" ]; then
                     _tkres=$( cd "$TKD" && TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" \
@@ -1112,6 +1124,12 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
         say "A DOWNLOADED ARCHIVE is quarantined by macOS, and its unsigned programs are"
         say "            then refused: 'xattr -dr com.apple.quarantine tiko-macos tkedit'."
     fi
+    if [ "$HOST" = "linux-arm64" ]; then
+        say "            On aarch64 Linux (Ubuntu 22.04+, Debian 12+, Raspberry Pi OS"
+        say "            bookworm): clang 16 or newer WITH lld -- 'apt install clang lld',"
+        say "            or apt.llvm.org's clang-NN and TIKO_CLANG=/usr/bin/clang-NN."
+        say "            Everything here needs glibc 2.35 or newer (built on Ubuntu 22.04)."
+    fi
     say
     say "-- libraries, per target -----------------------------------------------"
     say "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"
@@ -1164,7 +1182,7 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
         say "its main( ) on a thread of its own and AppKit keeps the main one; one that"
         say "never opens a window never touches AppKit. GFX_NULL, or FBGFX=null, draws"
         say "with no window at all."
-    elif [ "$HOST" = "linux" ]; then
+    elif [ "$HOSTOS" = "linux" ]; then
         say "GRAPHICS USES X11, LOADED WHEN A WINDOW OPENS. libtkogfx dlopens libX11"
         say "(and libXext, libXrandr if present), so a SCREEN program links with no X11"
         say "library and needs an X display only to open its window. GFX_NULL, or"
