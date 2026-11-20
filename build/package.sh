@@ -1126,8 +1126,9 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
     fi
     if [ "$HOST" = "linux-arm64" ]; then
         say "            On aarch64 Linux (Ubuntu 22.04+, Debian 12+, Raspberry Pi OS"
-        say "            bookworm): clang 16 or newer WITH lld -- 'apt install clang lld',"
-        say "            or apt.llvm.org's clang-NN and TIKO_CLANG=/usr/bin/clang-NN."
+        say "            bookworm): clang 18 or newer -- Ubuntu 24.04's 'apt install clang';"
+        say "            on older systems apt.llvm.org's clang-NN and TIKO_CLANG=/usr/bin/clang-NN."
+        say "            lld is used when present ('apt install lld'), else the system linker."
         say "            Everything here needs glibc 2.35 or newer (built on Ubuntu 22.04)."
     fi
     say

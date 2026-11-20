@@ -150,7 +150,7 @@ if (( ! ON_MAC && ! ON_ARM )) && [[ " ${targets[*]} " == *" macos-arm64 "* ]]; t
   mh="${TIKO_MAC_HOST:-mac}"; mo="${TIKO_MAC_SSH_OPTS:-}"; here="$(basename "$root")"
   # shellcheck disable=SC2086
   tar -cf - --exclude=./out -C "$root" . | ssh -o BatchMode=yes $mo "$mh" \
-    "mkdir -p tkm/harness && ln -sfn ~/dev/tiko-lang/toolchains tkm/harness/toolchains && rm -rf tkm/harness/$here && mkdir -p tkm/harness/$here && tar -xf - -C tkm/harness/$here" \
+    "mkdir -p tkm/harness && ln -sfn ${TIKO_MAC_TOOLCHAINS:-~/dev/tiko-lang/toolchains} tkm/harness/toolchains && rm -rf tkm/harness/$here && mkdir -p tkm/harness/$here && tar -xf - -C tkm/harness/$here" \
     || { echo "check-examples: could not send the tree to $mh" >&2; exit 2; }
   mkdir -p out/run out/mac-out.tmp
   # A script FILE, run by a login zsh: a non-login ssh shell has no Homebrew on PATH.
