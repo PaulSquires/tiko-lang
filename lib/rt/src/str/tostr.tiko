@@ -29,7 +29,7 @@
 #include once "inc/sysbind.ti"
 #include once "inc/fmt.ti"
 
-extern "c"
+extern "c"   '' NON-FBCALL: tiko-rt's own int128 helpers (tko_*), no fbc counterpart.
 	declare function tkort_Int128Dec alias "tko_Int128Dec" _
 		( byval lo as uint64, byval hi as uint64, byval signed_ as int32, byval lead as int32, _
 		  byval buf as zstring ptr ) as int32
@@ -237,7 +237,7 @@ end extern
 '' or past the cap means the digits did not fit.
 const FB_F2A_ADDBLANK = 1
 
-extern "c"
+extern "c"   '' NON-FBCALL: tiko-rt's own int128 helpers (tko_*), no fbc counterpart.
 
 '' (lo, hi) IN DECIMAL into 'buf' (41 bytes: a sign and 39 digits, and the NUL) and its
 '' length. 'signed_' reads hi's top bit as the sign; 'lead' puts PRINT's blank before a

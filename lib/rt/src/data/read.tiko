@@ -59,7 +59,7 @@ const FB_DATATYPE_OFS  = -2
 const FB_DATATYPE_WSTR = &h8000
 const FB_DATATYPE_LENMASK = &h7FFF
 
-extern "c"
+extern "c"   '' NON-FBCALL: tiko-rt's own int128 helpers (tko_*), no fbc counterpart.
 	'' tiko's int128 parser and double conversion (str/val128.tiko): out through two halves.
 	declare sub tkort_hStr2Int128 alias "tko_hStr2Int128" _
 		( byval s as zstring ptr, byval length as integer, byval dst as uint64 ptr )

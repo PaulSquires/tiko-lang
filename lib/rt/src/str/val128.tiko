@@ -35,7 +35,7 @@ private sub hNeg( byref hi as uint64, byref lo as uint64 )
 	if( lo = 0 ) then hi += 1
 end sub
 
-extern "c"
+extern "c"   '' NON-FBCALL: tiko-rt's own int128 helpers (tko_*), no fbc counterpart.
 
 '' A double, already rounded, to (lo, hi): exact for every double below 2^127 in
 '' magnitude; beyond it, or NaN, the type's minimum -- as the compiler converts one.
