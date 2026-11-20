@@ -7,7 +7,8 @@
 #
 # THE RECIPE THAT LIVED IN MEMORY NOTES (review BLD-06, 2026-10-24), as one script. It does
 # not package: run build/package.sh --verify for each host first (Windows here, Linux under
-# WSL, and on the Mac in ~/dev/tiko-lang), at the SAME commit. Then this:
+# WSL, on the Mac in ~/dev/tiko-lang or TIKO_MAC_ROOT, and in the Mac's arm64 VM at
+# TIKO_ARM_ROOT), at the SAME commit. Then this:
 #
 #   1. refuses unless every toolchain's MANIFEST.txt names the commit (default HEAD);
 #   EVERY ARCHIVE HOLDS ONE FOLDER, tiko-lang/, on every OS (author 2026-10-29), with the one-file
@@ -84,6 +85,9 @@ LSPWIN=$LSPDIR/tiko-lsp-windows-x86_64.zip
 LSPLNX=$LSPDIR/tiko-lsp-linux-x86_64.tar.gz
 MACH=${TIKO_MAC_HOST:-mac}
 MSSH=${TIKO_MAC_SSH_OPTS:-}
+# THE MAC'S TREE, whose toolchains/ holds tiko-macos and tkedit-macos: TIKO_MAC_ROOT, default
+# ~/dev/tiko-lang, written into the Mac's scripts as given (a ~ expands there).
+MACROOT=${TIKO_MAC_ROOT:-"~/dev/tiko-lang"}
 # A REMOTE STEP IS A FILE, run by a login zsh: a non-login ssh shell has no Homebrew on PATH,
 # and variables in an inline ssh command expand on the wrong side (build/aapcslane.sh).
 on_mac( ) {
@@ -114,7 +118,7 @@ done
 note "both MANIFESTs name $SHORT"
 if [ "$MAC" = "1" ]; then
     cat > "$OUT/mac-check.sh" <<EOF
-cd ~/dev/tiko-lang/toolchains/tiko-macos || exit 2
+cd $MACROOT/toolchains/tiko-macos || exit 2
 grep -q "$SHORT" MANIFEST.txt || exit 3
 grep -q " FAIL" MANIFEST.txt && exit 4
 if [ "$TKEDIT" = "1" ]; then
@@ -221,8 +225,8 @@ if [ "$MAC" = "1" ]; then
     cat > "$OUT/tar-macos.sh" <<EOF
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
-cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-lang
-[ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos/tkEdit.app ~/tkrel-$SHORT/tiko-lang/tkEdit.app
+cp -R $MACROOT/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-lang
+[ -z "$TKDIRS" ] || cp -R $MACROOT/toolchains/tkedit-macos/tkEdit.app ~/tkrel-$SHORT/tiko-lang/tkEdit.app
 if [ "$LSP" = "1" ]; then
     mkdir -p ~/tkrel-$SHORT/lsp && tar -xzf ~/dev/tiko-lsp/dist/tiko-lsp-macos-arm64.tar.gz -C ~/tkrel-$SHORT/lsp
     cp ~/tkrel-$SHORT/lsp/tiko-lsp ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp
