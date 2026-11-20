@@ -195,12 +195,14 @@ private function SignedFlip_ _
         return types.Builtin( iif( wantUnsigned, Tko.TY_ULONGINT, Tko.TY_LONGINT ) )
     end if
 
+    '' Fixed or bare ('*pz'), as fbc; 'csign' of a wide one is SHORT on win64, LONG on linux.
     dim as Tko.TypeId fs = FixedStringElem( t, types )
+    select case types.BuiltinOf( t ) : case Tko.TY_ZSTRING, Tko.TY_WSTRING : fs = t : end select
     if fs <> Tko.TYPE_NONE then
         if wantUnsigned then return t
         select case types.BuiltinOf( fs )
         case Tko.TY_ZSTRING : return types.Builtin( Tko.TY_BYTE )
-        case Tko.TY_WSTRING : return types.Builtin( Tko.TY_SHORT )
+        case Tko.TY_WSTRING : return types.Builtin( iif( types.target.wcharBytes = 4, Tko.TY_LONG, Tko.TY_SHORT ) )
         end select
         return t
     end if
