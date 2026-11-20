@@ -46,7 +46,7 @@ fi
 
 LINE=$(grep -v '^[[:space:]]*#' "$HERE/seed.lock" | awk -v h="$HOST" '$1 == h' | head -1)
 if [ -z "$LINE" ] && [ "$HOST" = "linux-arm64" ]; then
-    fail "no linux-arm64 seed is published yet (docs/tiko-linux-arm64 D-L3-1): bootstrap with --seed <a stage0 cross-built on Windows by build/crossstage0.sh>"
+    fail "seed.lock has no linux-arm64 line (seed-10 was the first to have one): bootstrap with --seed <a stage0 cross-built on Windows by build/crossstage0.sh>"
 fi
 [ -n "$LINE" ] || fail "seed.lock has no line for host '$HOST'"
 set -- $LINE
@@ -100,7 +100,7 @@ if [ "$TOP" = "tiko-lang" ]; then mv "$OUTD/tiko-lang" "$OUTD/tiko-$HOST" || fai
 if [ -f "$OUTD/$TOP/tiko.exe" ]; then C="$OUTD/$TOP/tiko.exe"; else C="$OUTD/$TOP/bin/tiko"; fi
 [ -f "$C" ] || fail "no compiler in the unpacked seed ($OUTD/$TOP)"
 # Run it only on its own host: a seed fetched for the other one cannot start here.
-case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ME=windows ;; Linux) ME=linux ;; Darwin) ME=macos ;; *) ME=other ;; esac
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ME=windows ;; Linux) ME=linux; [ "$(uname -m)" = "aarch64" ] && ME=linux-arm64 ;; Darwin) ME=macos ;; *) ME=other ;; esac
 if [ "$ME" = "$HOST" ]; then
     echo "fetch-seed: $($C --version 2>&1 | head -1)"
 else

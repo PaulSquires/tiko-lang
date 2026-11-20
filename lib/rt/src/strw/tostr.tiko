@@ -24,7 +24,7 @@
 #include once "inc/sysbind.ti"
 #include once "inc/fmt.ti"
 
-extern "c"
+extern "c"   '' NON-FBCALL: tiko-rt's own int128 helpers (tko_*), no fbc counterpart.
 	'' tiko's int128 in decimal (str/tostr.tiko).
 	declare function tkort_Int128Dec alias "tko_Int128Dec" _
 		( byval lo as uint64, byval hi as uint64, byval signed_ as int32, byval lead as int32, _

@@ -217,7 +217,8 @@ gets the same answers.
 3. Open `rect.tiko`. Hover `Area`; press `F12` on it; type `box.` on a new line and see `w` and
    `h` offered.
 
-The extension carries its own copy of the server, for Windows, Linux and macOS on Apple silicon.
+The extension carries its own copy of the server, for Windows, Linux on x86-64 and arm64, and macOS
+on Apple silicon.
 
 **Building and running.** Press `Ctrl+F5`, or click the ▶ button at the top right of the editor,
 to run the program: the extension runs `tiko run` in VS Code's terminal, so the program can read
