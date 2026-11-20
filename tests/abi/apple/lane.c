@@ -3014,9 +3014,16 @@ static void c_vread_( int n, va_list ap ) {
 void c_vread( int n, va_list ap ) { c_vread_( n, ap ); }
 void c_vreadp( int n, va_list *ap ) { c_vread_( n, *ap ); }
 long long t_va3( int n, ... );
+void c_seen_va4( int k, long long i, double d ) {
+    calls++; ck_i( "t_va4", "longint", i, 3000 + k ); ck_d( "t_va4", "double", d, k + 0.75 );
+}
+long long t_vread4( int n, va_list ap );
+static long long c_va4( int n, ... ) {
+    va_list ap; va_start( ap, n ); long long r = t_vread4( n, ap ); va_end( ap ); return r;
+}
 
 void trun_all( void );
-#define EXPECTED_CALLS 524
+#define EXPECTED_CALLS 534
 #define VA2_Q ((__int128)-2 * ((__int128)1 << 64) + (__int128)0x1122334455667788LL)
 int main( void ) {
     trun_all( );
@@ -3104,6 +3111,7 @@ int main( void ) {
     ck_i( "t_va", "result", t_va( 7, 11, 12LL, 13.5, &marker ), 99 );
     ck_i( "t_va2", "result", t_va2( 12, 1000LL, 0.5, 1001LL, 1.5, 1002LL, 2.5, 1003LL, 3.5, 1004LL, 4.5, 1005LL, 5.5, VA2_Q, 1006LL, 6.5, 1007LL, 7.5, 1008LL, 8.5, 1009LL, 9.5, 1010LL, 10.5, 1011LL, 11.5 ), 77 );
     ck_i( "t_va3", "result", t_va3( 10, 2000LL, 0.25, 2001LL, 1.25, 2002LL, 2.25, 2003LL, 3.25, 2004LL, 4.25, 2005LL, 5.25, 2006LL, 6.25, 2007LL, 7.25, 2008LL, 8.25, 2009LL, 9.25 ), 55 );
+    ck_i( "t_va4", "result", c_va4( 10, 3000LL, 0.75, 3001LL, 1.75, 3002LL, 2.75, 3003LL, 3.75, 3004LL, 4.75, 3005LL, 5.75, 3006LL, 6.75, 3007LL, 7.75, 3008LL, 8.75, 3009LL, 9.75 ), 44 );
     ck_i( "main", "calls", calls, EXPECTED_CALLS );
     printf( "aapcs lane: %d shapes, %d checks, %d failed\n", 66, checks, fails );
     return fails ? 1 : 0;
