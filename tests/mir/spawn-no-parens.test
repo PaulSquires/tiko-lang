@@ -1,6 +1,10 @@
+'' android-x86_64 IS NOT RUN YET: this program imports pkg/std, whose *linux.tiko files are
+'' not ported to Bionic until docs/tiko-android A2. 'none-until-A2' is no host's name, so
+'' the runner skips that target everywhere; A2 deletes the line.
 '' 'spawn Hello' with no parentheses: desugared as a call of no arguments -- the thunk calls
 '' HELLO and the site hands it to fb_Spawn. It was TKO0994.
 '' TEST: cli
+'' HOSTS[android-x86_64]: none-until-A2
 '' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/spawn-no-parens.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: call void HELLO()

@@ -1,3 +1,6 @@
+'' android-x86_64 IS NOT RUN YET: this program imports pkg/std, whose *linux.tiko files are
+'' not ported to Bionic until docs/tiko-android A2. 'none-until-A2' is no host's name, so
+'' the runner skips that target everywhere; A2 deletes the line.
 '' A SPAWN ARGUMENT IS CONVERTED THE WAY A CALL ARGUMENT IS. The parser desugars
 '' 'spawn f( a )' into '(*frame).__ARG_0 = a', and the field has f's PARAMETER type. For
 '' an argument of another UDT that assignment was a BITWISE copy: 'spawn Produce( ch )'
@@ -10,6 +13,7 @@
 '' into the frame with the type's own let, and the temporary destroyed: argument passing,
 '' which fbc does in its invoke. Pinned: the constructor, the let, no decline, no error.
 '' TEST: cli
+'' HOSTS[android-x86_64]: none-until-A2
 '' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/spawn-conv-arg.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: call void _ZN4VIEWC1ER7COUNTED(

@@ -1,5 +1,9 @@
+'' android-x86_64 IS NOT RUN YET: this program imports pkg/std, whose *linux.tiko files are
+'' not ported to Bionic until docs/tiko-android A2. 'none-until-A2' is no host's name, so
+'' the runner skips that target everywhere; A2 deletes the line.
 '' A concatenation with a ustring term resolves to the ustring overload, as fbc's typeof says it is. Runtime output is checked against fbc.
 '' TEST: cli
+'' HOSTS[android-x86_64]: none-until-A2
 '' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/ustr-concat-overload.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok
