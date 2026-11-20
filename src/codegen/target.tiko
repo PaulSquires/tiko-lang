@@ -115,7 +115,6 @@ function TargetFor( byval t as TargetId ) as TargetDescription
         d.dataLayout = DL_LINUX_ARM64
         d.objFormat = OBJ_ELF
         d.abi = ABI_AAPCS64
-        d.linkRefused = "linking for linux-arm64 (no runtime until phase L2); use -c or --emit-ir"
     case else
         Tko.TargetIce( "TargetFor", t )
     end select

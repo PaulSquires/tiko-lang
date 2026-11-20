@@ -629,8 +629,6 @@ private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as int32
 
-    '' A target that compiles but cannot link yet (linux-arm64 until L2; TargetDescription).
-    if len( td.linkRefused ) > 0 then return ToolFail_( ctx, Tko.EXIT_USER_ERROR, Tko.TKO0992, td.linkRefused )
 
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
