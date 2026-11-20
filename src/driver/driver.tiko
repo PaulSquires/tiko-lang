@@ -629,6 +629,7 @@ private function LinkAll _
     ( byref ctx as Tko.CompilerContext, byref objs as Tko.StrVec, _
       byref td as Tko.Codegen.TargetDescription, byref keep as Tko.StrVec ) as int32
 
+
     dim as Tko.Codegen.ToolPaths tools = _
         Tools_( ctx )
     if tools.found = false then

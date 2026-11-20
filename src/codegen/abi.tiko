@@ -19,9 +19,18 @@ end function
 
 '' WIN64 OR SysV, AND NOTHING ELSE REACHES A CLASSIFIER. Every test in this file used to be
 '' 'abi = ABI_WIN64', with SysV as whatever was left -- so a third ABI would have been
-'' classified as SysV in eight places at once. ABI_AAPCS64_APPLE takes its own branch,
-'' ahead of every call to this; reaching here with it is a compiler bug.
+'' classified as SysV in eight places at once. AAPCS64 takes its own branch, ahead of
+'' every call to this; reaching here with it is a compiler bug.
+''
+'' BOTH AAPCS64s: Apple's (macos-arm64) and the generic one (linux-arm64) share the whole
+'' classifier -- the ABI lane passed 5810 of 5815 checks with Apple's IR retargeted to
+'' aarch64-linux, the 5 being cva_arg (docs/tiko-linux-arm64 FEASIBILITY). What differs is
+'' asked of AbiIsAppleAapcs_ by name: the narrow-integer extension attributes.
 private function AbiIsAapcs_( byref target as TargetDescription ) as boolean
+    return (target.abi = ABI_AAPCS64_APPLE) orelse (target.abi = ABI_AAPCS64)
+end function
+
+private function AbiIsAppleAapcs_( byref target as TargetDescription ) as boolean
     return (target.abi = ABI_AAPCS64_APPLE)
 end function
 
@@ -823,12 +832,16 @@ private sub RewriteSignature _
                 case else          : ex = TKO_PX_NONE
                 end select
             end if
-            '' EXCEPT ON APPLE ARM64, which packs a stack argument at its NATURAL size:
+            '' EXCEPT ON ARM64. Apple's packs a stack argument at its NATURAL size:
             '' with x0-x7 used up a bool goes at sp+0 and a following short at sp+2,
             '' where an i32 puts it at sp+4 and the callee reads 0. clang writes
             '' 'i8 zeroext' / 'i16 signext' there, and LLVM then extends the register and
-            '' packs the stack by Darwin's rules; ExtAttr spells it. The parameter stays
-            '' narrow, so neither half below widens nor truncates.
+            '' packs the stack by Darwin's rules; ExtAttr spells it. Generic AAPCS64
+            '' (linux-arm64) leaves a narrow argument's upper bits UNDEFINED, so clang keeps
+            '' the type narrow and writes NO attribute ('define i8 @fc(i8, i16)', clang 23 in
+            '' the VM; fbc's C is 'int8 F( int8, uint16 )' there): LLVM then gives it an
+            '' 8-byte stack slot by the generic rules. On both, the parameter stays narrow,
+            '' so neither half below widens nor truncates.
             if AbiIsAapcs_( target ) then wt = pt
             ptys.Push( cast( uint8, wt ) )
             paggs.Push( cast( uint32, sz ) )
@@ -1000,10 +1013,11 @@ end sub
 '' i8/i16 result, which is where clang writes them for 'arm64-apple-macosx'. Measured,
 '' clang 23: '(ptr x 8, i1 zeroext, i16 zeroext, i8 signext, i16 signext)', and
 '' 'define zeroext i16 @rus()'. Every other target widens to i32 instead and gets "".
+'' linux-arm64 keeps the narrow type too but gets "": generic AAPCS64 does not extend.
 private function ExtWord_ _
     ( byref target as TargetDescription, byval ty as uint8, byval ex as uint8 ) as string
 
-    if AbiIsAapcs_( target ) = false then return ""
+    if AbiIsAppleAapcs_( target ) = false then return ""
     select case cast( MirType, ty )
     case MT_I8, MT_I16
     case else
@@ -1014,12 +1028,37 @@ private function ExtWord_ _
     return ""
 end function
 
+'' AN HFA ON GENERIC AAPCS64 IS 'alignstack(8)', because clang writes it: on every HFA
+'' argument, float or double, for aarch64-linux -- 53 of the 86 aapcsig signatures (clang
+'' 23.1.5, 2026-11-19) -- and on none for Apple, which packs the stack at natural alignment. It says
+'' what AAPCS64 says (a stack argument starts on an 8-byte boundary), but LLVM 23's aarch64-linux
+'' lowering already does that without it: probed, two [3 x float] after eight doubles land at
+'' sp+0 and sp+16 with or without the attribute, and so do [1 x float], float, [2 x float],
+'' [1 x float] -- the same offsets clang's C uses. So it changes no code today; it is written so
+'' the signature IS clang's (aapcsig compares them) and nothing is left to a backend default.
+'' Running coverage: aapcslane's 'p8hf' (float) and 'hfa9' (double) prefixes.
+private function HfaStackAttr_ _
+    ( byref target as TargetDescription, byval ty as uint8 ) as string
+
+    if target.abi <> ABI_AAPCS64 then return ""
+    select case cast( MirType, ty )
+    case MT_HFA_F32_1, MT_HFA_F32_2, MT_HFA_F32_3, MT_HFA_F32_4, _
+         MT_HFA_F64_1, MT_HFA_F64_2, MT_HFA_F64_3, MT_HFA_F64_4
+        return " alignstack(8)"
+    end select
+    return ""
+end function
+
+'' The attributes after a parameter's type, in a signature and at a call: a narrow integer's
+'' extension (ExtWord_) and a float HFA's stack alignment (HfaStackAttr_).
 function ExtAttr _
     ( byref target as TargetDescription, byval f as MirFunction ptr, byval i as int32 ) as string
 
     if f = nullptr then return ""
-    if (i < 0) orelse (i >= f->paramTys.Count) orelse (i >= f->paramExt.Count) then return ""
-    return ExtWord_( target, f->paramTys[i], f->paramExt[i] )
+    if (i < 0) orelse (i >= f->paramTys.Count) then return ""
+    dim as string hfa = HfaStackAttr_( target, f->paramTys[i] )
+    if i >= f->paramExt.Count then return hfa
+    return ExtWord_( target, f->paramTys[i], f->paramExt[i] ) & hfa
 end function
 
 '' ...and the result's, with its trailing space: 'define' & RetExtAttr & ' i8 @f'.
@@ -1393,7 +1432,7 @@ sub LowerModule _
       byref target as TargetDescription, byref st as AbiStats )
 
     select case target.abi
-    case ABI_WIN64, ABI_SYSV_AMD64, ABI_AAPCS64_APPLE
+    case ABI_WIN64, ABI_SYSV_AMD64, ABI_AAPCS64_APPLE, ABI_AAPCS64
     case else
         Tko.TargetIce( "abi LowerModule", target.id )
     end select

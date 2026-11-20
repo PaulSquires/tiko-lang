@@ -200,11 +200,21 @@ declare function PxNot( byref x as PpExprState ) as PpValue
 '' '#if sizeof( integer ) = 8' would have taken the wrong branch of every header on
 '' win32 -- silently, since a wrong branch is not an error. WSTRING and ZSTRING were
 '' simply absent, which is what '#if sizeof( wstring ) = 4' failed on.
-private function BuiltinSizeOf( byval k as TokenKind, byval is64 as boolean ) as int32
+''
+'' WSTRING IS THE TARGET'S wchar: 2 on Windows, 4 everywhere else. Measured 2026-11-20 with
+'' '#if sizeof( wstring ) = 2 / = 4' and #print: fbc-modern says 4 for linux-x86_64,
+'' linux-aarch64 and darwin-aarch64 and 2 for win64; fbc 1.10.1 native on aarch64 Linux says
+'' 4. It was 2 here on every target, so tiko-rt's io/devfileencod.tiko compiled its UTF-16
+'' decoder for Linux and macOS -- 16-bit stores into 4-byte characters, whose upper halves
+'' happened to be zero on x86-64 and were not on linux-arm64, where LINE INPUT of an encoded
+'' file read one garbled line (wstring/lineinput, docs/tiko-linux-arm64 L4).
+private function BuiltinSizeOf( byval k as TokenKind, byval is64 as boolean, _
+                                byval wcharBytes as int32 = 2 ) as int32
     select case k
     case KW_BYTE, KW_UBYTE, KW_BOOLEAN            : return 1
     case KW_ZSTRING                               : return 1
-    case KW_SHORT, KW_USHORT, KW_WSTRING          : return 2
+    case KW_WSTRING                               : return wcharBytes
+    case KW_SHORT, KW_USHORT                      : return 2
     case KW_LONG, KW_ULONG, KW_SINGLE             : return 4
     case KW_INTEGER, KW_UINTEGER                  : return iif( is64, 8, 4 )
     case KW_LONGINT, KW_ULONGINT, KW_DOUBLE       : return 8
@@ -857,7 +867,7 @@ private function PxPrimary( byref x as PpExprState ) as PpValue
         dim as TokenKind inner = PxPeek( x )
         dim as int32 v = -1
         if k = KW_SIZEOF then
-            v = BuiltinSizeOf( inner, PxIs64_( x ) )
+            v = BuiltinSizeOf( inner, PxIs64_( x ), iif( x.e->cfg->targetOs = OS_WINDOWS, 2, 4 ) )
         else
             v = TypeIdentityOf( inner )
         end if

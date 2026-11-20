@@ -35,7 +35,9 @@ fail( ) { echo "fetch-seed: FAILED -- $*" >&2; exit 1; }
 if [ -z "$HOST" ]; then
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) HOST=windows ;;
-        Linux)                HOST=linux ;;
+        Linux)                HOST=linux
+                              # aarch64 is its own host, never the x86-64 'linux' seed.
+                              [ "$(uname -m)" = "aarch64" ] && HOST=linux-arm64 ;;
         Darwin)               HOST=macos ;;
         *) fail "unknown host $(uname -s); pass --host" ;;
     esac
@@ -43,6 +45,9 @@ fi
 [ -n "$DEST" ] || DEST="$HERE/cache"
 
 LINE=$(grep -v '^[[:space:]]*#' "$HERE/seed.lock" | awk -v h="$HOST" '$1 == h' | head -1)
+if [ -z "$LINE" ] && [ "$HOST" = "linux-arm64" ]; then
+    fail "no linux-arm64 seed is published yet (docs/tiko-linux-arm64 D-L3-1): bootstrap with --seed <a stage0 cross-built on Windows by build/crossstage0.sh>"
+fi
 [ -n "$LINE" ] || fail "seed.lock has no line for host '$HOST'"
 set -- $LINE
 TAG=$2; ASSET=$3; WANT=$4; COMMIT=$5

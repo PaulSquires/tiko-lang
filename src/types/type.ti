@@ -215,6 +215,12 @@ namespace Tko
         '' Its classifier is AAPCS64 with Apple's variations, its own branch in
         '' src/codegen/abi.tiko -- never SysV's.
         TARGET_MACOS_ARM64
+        '' AARCH64 LINUX, ELF, glibc, 'aarch64-unknown-linux-gnu' (docs/tiko-linux-arm64).
+        '' The same machine as TARGET_MACOS_ARM64 but generic AAPCS64, which is Apple's minus
+        '' Apple's variations: no caller extension of narrow integers, variadic arguments in
+        '' registers, a 32-byte va_list record, an unsigned plain char. APPENDED, so the
+        '' values above do not move.
+        TARGET_LINUX_ARM64
     end enum
 
     '' Target facts, injected. The frontend never hard-codes a size.

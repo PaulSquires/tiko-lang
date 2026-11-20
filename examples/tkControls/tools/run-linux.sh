@@ -8,6 +8,8 @@
 # .exe names). TIKO_PKG is the copy's pkg/, whose vendor/tkControls fonts and libscintk.so
 # vendorfetch.sh makes there. Needs SDL3 + SDL3_ttf + SDL3_image: the system's, or linux-lib/
 # (tools/build-linux-libs.sh), or TK_LINUX_LIB.
+# TK_DRIVERS narrows the SDL video drivers (default "x11 wayland"): a headless box under Xvfb
+# has X11 only (docs/tiko-linux-arm64 L4, the Lima VM).
 # The examples folder this script lives in, and its tiko-lang checkout (main or a worktree).
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 TREE=$(cd "$SRC/../.." && pwd)
@@ -61,7 +63,7 @@ for n in "${names[@]}"; do
     if ! out=$(cd "$d" && "$TIKO" build ${LIB:+--options "-p $LIB"} 2>&1); then
         echo "$n: BUILD FAILED"; echo "$out" | head -20; bad=$((bad+1)); continue
     fi
-    for drv in x11 wayland; do
+    for drv in ${TK_DRIVERS:-x11 wayland}; do
         for r in $(seq 1 "$runs"); do
             res=$(cd "$d" && SDL_VIDEO_DRIVER=$drv timeout 300 ./selftest.exe 2>&1 | grep -v ZINK); rc=$?
             rc=${PIPESTATUS[0]}
