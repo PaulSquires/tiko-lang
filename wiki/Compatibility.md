@@ -76,11 +76,13 @@ The constructor case is the one form fbc leaves out. Both compilers accept the s
 
 Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970` (24) is one where fbc gives warning 5 or warning 2.
 
-**A linux-x86_64 program that links a shared library from `#foreignlib` gets a run path of `$ORIGIN`.** fbc writes none, so its program finds a `.so` beside it only through `LD_LIBRARY_PATH`; tiko's finds it there, and `LD_LIBRARY_PATH` still wins. A program that links no shared library from `#foreignlib` is linked exactly as before, and `-norpath` turns the run path off. See [Vendor Packages](Vendor-Packages).
+**A Linux program that links a shared library from `#foreignlib` gets a run path of `$ORIGIN`.** fbc writes none, so its program finds a `.so` beside it only through `LD_LIBRARY_PATH`; tiko's finds it there, and `LD_LIBRARY_PATH` still wins. A program that links no shared library from `#foreignlib` is linked exactly as before, and `-norpath` turns the run path off. See [Vendor Packages](Vendor-Packages).
 
-**Graphics works on all three targets.** libtkogfx, tiko's graphics library, ships for `windows-x86_64`, `linux-x86_64` and `macos-arm64`, so a `SCREEN` / `PSET` program builds and runs unchanged on each. On Windows it draws through GDI. On Linux it uses X11, loaded when a window opens: libtkogfx loads libX11 (and libXext, libXrandr if present) at run time, so the program links with no X11 library and needs an X display (XWayland included) only to open its window. On macOS it uses Cocoa, reached through the Objective-C runtime: a program that opens a window runs its `main( )` on a thread of its own while AppKit keeps the main thread. On every target, `GFX_NULL` or `FBGFX=null` draws with no window at all. fbc's OpenGL driver and Linux framebuffer (`FBDev`) driver are not provided.
+**Graphics works on all four targets.** libtkogfx, tiko's graphics library, ships for `windows-x86_64`, `linux-x86_64`, `linux-arm64` and `macos-arm64`, so a `SCREEN` / `PSET` program builds and runs unchanged on each. On Windows it draws through GDI. On Linux it uses X11, loaded when a window opens: libtkogfx loads libX11 (and libXext, libXrandr if present) at run time, so the program links with no X11 library and needs an X display (XWayland included) only to open its window. On macOS it uses Cocoa, reached through the Objective-C runtime: a program that opens a window runs its `main( )` on a thread of its own while AppKit keeps the main thread. On every target, `GFX_NULL` or `FBGFX=null` draws with no window at all. fbc's OpenGL driver and Linux framebuffer (`FBDev`) driver are not provided.
 
 **`macos-arm64` is a tiko target, named `-target macos-arm64`.** `-target darwin` is refused (`TKO0103`). It defines `__FB_DARWIN__`, `__FB_UNIX__`, `__FB_ARM__` and `__FB_64BIT__`, and not `__FB_X86__`, so code under `#ifdef __FB_X86__` is left out there. `WSTRING` is 4 bytes, as on Linux. Graphics draws through Cocoa (above).
+
+**`linux-arm64` is a tiko target, named `-target linux-arm64`**, the default on aarch64 Linux. It defines `__FB_LINUX__`, `__FB_UNIX__`, `__FB_ARM__` and `__FB_64BIT__`, and not `__FB_X86__` or `__FB_ASM__`. It follows Linux's generic AAPCS64 ABI, not Apple's: C `long` is 8 bytes, `WSTRING` is 4 bytes, and `cva_list` is 32 bytes. Graphics draws through X11, as on x86-64 Linux (above).
 
 **`#pragma msbitfields` is accepted and does nothing.** In fbc 1.20 it stops a bitfield from sharing a unit with the ordinary field before it: `short s : 4, byte c, long i : 7` is 8 bytes with `i` at bit 32, where both compilers say 4 bytes and bit 24 without it. tiko keeps the 4-byte layout under the pragma. It is not MSVC's rule either -- fbc still packs `byte a : 3, long b : 5` into one byte, where MSVC uses 8 -- and `type T extern "c"` is how tiko lays a type out as C does.
 
@@ -94,7 +96,7 @@ Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970`
 ## How it is verified
 
 - fbc's own test corpus is vendored (2,709 `.bas` files) and run differentially: programs, fbcunit suites and the test sources are each built by both compilers and compared.
-- tiko compiles itself to a byte-identical fixpoint on windows-x86_64, linux-x86_64 and macos-arm64.
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64, linux-x86_64, linux-arm64 and macos-arm64.
 
 ## Licensing
 
