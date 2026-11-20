@@ -1,7 +1,0 @@
-'' linux-arm64 compiles (-c, --emit-ir) but does not LINK until its runtime exists (phase L2,
-'' docs/tiko-linux-arm64 D-L1-4): with no lib/linux-arm64 the ELF line would only fail later on
-'' a missing libfb.a. Refused before any tool runs, as macos-arm64's link was until its M2.
-'' TEST: cli
-'' ARGS: -target linux-arm64 tests/source/plain.bas
-'' EXPECT-EXIT: 1
-'' EXPECT-OUT: error TKO0992: not implemented in this build: linking for linux-arm64 (no runtime until phase L2); use -c or --emit-ir
