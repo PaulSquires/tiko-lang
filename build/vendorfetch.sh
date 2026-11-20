@@ -4,6 +4,9 @@
 #   sh build/vendorfetch.sh                    into the tree's own pkg/vendor/*/lib
 #   sh build/vendorfetch.sh --out DIR          into DIR/vendor/*/lib (package.sh: $OUT/pkg)
 #   sh build/vendorfetch.sh --module sqlite3   one module only
+#   sh build/vendorfetch.sh --target android-x86_64
+#                                              on Windows: the [android.<n>] entries,
+#                                              cross-built with the NDK (docs/tiko-android A2)
 #
 # A vendor package commits its translated headers and a fetch.toml; its binaries are never
 # committed. This reads each pkg/vendor/<module>/fetch.toml and, for THIS host's [<os>.<n>]
@@ -36,12 +39,15 @@ set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/pkg"
 ONLY=
+XTARGET=
+SYSROOTOPT=
 die( ) { echo "vendorfetch: $*" >&2; exit 1; }
 note( ) { echo "vendorfetch: $*"; }
 while [ $# -gt 0 ]; do
     case $1 in
         --out)    OUT=$2;  shift 2 ;;
         --module) ONLY=$2; shift 2 ;;
+        --target) XTARGET=$2; shift 2 ;;
         -h|--help) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown option '$1'" ;;
     esac
@@ -62,6 +68,21 @@ case "$(uname -s)" in
         CLANG=${TIKO_CLANG:-${CLANG:-clang}}
         AR=${TIKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     *) die "unsupported host '$(uname -s)'" ;;
+esac
+# A CROSS TARGET: Android, from Windows. Its C sources need Bionic's headers, so clang gets the
+# NDK's sysroot (the NDK found as the compiler finds it: TIKO_ANDROID_NDK, ANDROID_NDK_HOME,
+# ANDROID_NDK_ROOT, then the highest <sdk>/ndk/<version>), and the archive is static.
+case "$XTARGET" in
+    "") ;;
+    android-x86_64)
+        [ "$HOST" = windows ] || die "--target android-x86_64 runs from Windows"
+        _sdk=${ANDROID_HOME:-${LOCALAPPDATA:-}/Android/Sdk}
+        _ndk=${TIKO_ANDROID_NDK:-${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-$(ls -d "$_sdk"/ndk/* 2>/dev/null | sort -V | tail -1)}}}
+        _sr=$_ndk/toolchains/llvm/prebuilt/windows-x86_64/sysroot
+        [ -f "$_sr/usr/include/stdio.h" ] || die "no Android NDK sysroot at '$_sr' (set ANDROID_NDK_HOME)"
+        command -v cygpath > /dev/null 2>&1 && _sr=$(cygpath -m "$_sr")
+        HOST=android; TRIPLE=x86_64-linux-android29; SYSROOTOPT="--sysroot=$_sr" ;;
+    *) die "--target: only android-x86_64 is a cross target" ;;
 esac
 CACHE=${TIKO_VENDOR_CACHE:-$ROOT/build/.vendorfetch}
 mkdir -p "$CACHE"
@@ -199,7 +220,7 @@ entry( ) {
         for _s in $(_get sources); do
             _o="$_x/$(basename "$_s" .c).o"
             # shellcheck disable=SC2046
-            "$CLANG" --target=$TRIPLE $(_get cflags) -c "$_dir/$_s" -o "$_o" || die "$_mod: clang failed on $_s"
+            "$CLANG" --target=$TRIPLE $SYSROOTOPT $(_get cflags) -c "$_dir/$_s" -o "$_o" || die "$_mod: clang failed on $_s"
             _objs="$_objs $_o"
         done
         _st=$(_get static); _sh=$(_get shared)
