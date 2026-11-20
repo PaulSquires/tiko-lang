@@ -26,6 +26,14 @@
 # directory's absolute paths, and an executable's name. What is left differs only when the
 # behaviour does.
 #
+#   build/hostgate.sh --adb [-j N] [--against DIR] [PAT]
+#                                             android-x86_64 (docs/tiko-android A2): built on
+#                                             Windows, every program staged with a copy of the
+#                                             tests tree it reads, then run in one batch on the
+#                                             device adb reaches (build/adbrun.sh). The runtime
+#                                             is this tree's lib/rt/lib/android-x86_64, with
+#                                             fbcunit built for it here.
+#
 #   HOSTGATE_OUT    the records (default build/.hostgate/<target>)
 #   HOSTGATE_WK     the work directory (default ${TMPDIR:-/tmp}/hostgate)
 #   RUNTIMEOUT      seconds a program may run (default 180: math/core.bas walks 2^32 floats)
@@ -41,8 +49,16 @@ case "$EXT" in
     *)    if [ "$(uname -s)" = Darwin ]; then HOST=macos; TGT=macos-arm64
           else HOST=linux; TGT=linux-x86_64; fi ;;
 esac
+ADB=0
+case " $* " in *" --adb "*) ADB=1 ;; esac
+TGTOPT=""
+if [ "$ADB" = 1 ]; then
+    [ "$EXT" = .exe ] || { echo "hostgate: --adb runs from Windows" >&2; exit 3; }
+    TGT=android-x86_64; TGTOPT="-target android-x86_64"
+fi
 TKO=${TKO:-$ROOT/bin/tiko$EXT}
 TC=$ROOT/toolchains/tiko-$HOST
+[ "$ADB" = 1 ] && EXT=""
 export TIKO_LIBPATH=${TIKO_LIBPATH:-$TC/lib/$TGT}
 INC=$TC/inc
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
@@ -58,6 +74,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         -j)        JOBS=$2; shift 2 ;;
         --against) AGAINST=$2; shift 2 ;;
+        --adb)     shift ;;
         *)         PAT=$1; shift ;;
     esac
 done
@@ -72,7 +89,7 @@ run_limited( ) {
 }
 
 norm( ) {
-    tr '\\' '/' | sed -E "s|$WK/[^ :()]*/||g; s|$ROOT/||g; s|[A-Za-z]:/[^ :()]*/||g; s|/tmp/[^ :()]*/||g; s|\.exe\b||g"
+    tr '\\' '/' | sed -E "s|/data/local/tmp/[^ :()]*/||g; s|$WK/[^ :()]*/||g; s|$ROOT/||g; s|[A-Za-z]:/[^ :()]*/||g; s|/tmp/[^ :()]*/||g; s|\.exe\b||g"
 }
 
 # One file: its record, written to $OUT/<path>.txt.
@@ -87,13 +104,20 @@ one( ) {
     case $mode in
     SUITE|COMPILE_AND_RUN_OK|COMPILE_AND_RUN_FAIL)
         if [ "$mode" = SUITE ]; then
-            "$TKO" -mt -i "$INC" -i "$CU/inc" "$DRV" "$f" -o "$exe" >"$log" 2>&1
+            "$TKO" $TGTOPT -mt -i "$INC" -i "$CU/inc" "$DRV" "$f" -o "$exe" >"$log" 2>&1
         else
-            "$TKO" -i "$INC" "$f" -o "$exe" >"$log" 2>&1
+            "$TKO" $TGTOPT -i "$INC" "$f" -o "$exe" >"$log" 2>&1
         fi
         brc=$?
         rec="mode=$mode build=$brc"
-        if [ $brc -eq 0 ]; then
+        if [ $brc -eq 0 ] && [ "$ADB" = 1 ]; then
+            # STAGED for the device, rooted as below; the record is written after the run.
+            rd=$(dirname "$rel")
+            mkdir -p "$STAGE/$key/$rd"; cp "$(dirname "$f")"/* "$STAGE/$key/$rd"/ 2>/dev/null
+            mv "$exe" "$STAGE/$key/$key"
+            printf '%s\n%s\n' "$rel" "$rec" > "$WK/pend/$key"
+            return
+        elif [ $brc -eq 0 ]; then
             # FROM A COPY ROOTED WHERE fbc's OWN MAKEFILE RUNS THEM, the tests directory:
             # boolean_file.bas opens "boolean/data-binary-test.dat" (gatemsvc.sh says the same).
             # ONE COPY PER FILE: a suite that writes beside itself must not meet another's file.
@@ -108,7 +132,7 @@ one( ) {
         fi
         ;;
     COMPILE_ONLY_OK|COMPILE_ONLY_FAIL|MULTI_MODULE_OK|MULTI_MODULE_TEST)
-        "$TKO" -i "$INC" -c "$f" -o "$WK/x/$key.o" >"$log" 2>&1
+        "$TKO" $TGTOPT -i "$INC" -c "$f" -o "$WK/x/$key.o" >"$log" 2>&1
         rec="mode=$mode build=$?"
         out=$(grep -oE "(error|warning) TKO[0-9]+" "$log" | sort -u)
         rm -f "$WK/x/$key.o"
@@ -126,13 +150,25 @@ if [ -z "$AGAINST" ] || [ ! -d "$OUT" ] || [ -n "${HOSTGATE_RERUN:-}" ]; then
     [ -z "$PAT" ] && rm -rf "$OUT"
     mkdir -p "$OUT"
     export TIKO_MODCACHE="$WK/cache"
+    STAGE=$WK/stage
+    if [ "$ADB" = 1 ]; then
+        # THIS TREE'S ANDROID RUNTIME, and fbcunit built for it as package.sh builds it per target.
+        export TIKO_LIBPATH="$WK/lib"
+        mkdir -p "$TIKO_LIBPATH" "$WK/fbcunit" "$STAGE" "$WK/pend"
+        cp "$ROOT"/lib/rt/lib/android-x86_64/* "$TIKO_LIBPATH"/ || { echo "hostgate: no lib/rt/lib/android-x86_64" >&2; exit 3; }
+        for s in "$CU"/src/*.bas; do
+            "$TKO" $TGTOPT -c "$s" -i "$CU/inc" -i "$CU/src" -o "$WK/fbcunit/$(basename "$s" .bas).o" > /dev/null 2>&1
+        done
+        AR=${TIKO_AR:-/c/Program Files/LLVM/bin/llvm-ar.exe}
+        "$AR" rcs "$TIKO_LIBPATH/libfbcunit.a" "$WK"/fbcunit/*.o || { echo "hostgate: fbcunit did not build for android-x86_64" >&2; exit 3; }
+    fi
     # fbcunit, built by this compiler for this host, beside the runtime it is linked with.
     if [ ! -f "$TIKO_LIBPATH/libfbcunit.a" ]; then
         echo "hostgate: no $TIKO_LIBPATH/libfbcunit.a -- build fbcunit for $TGT first" >&2; exit 3
     fi
     # N WORKERS, each taking every Nth file: the corpus is 2700 files, one at a time is an hour.
     export -f one norm run_limited
-    export TKO INC CU DRV OUT WK EXT RUNTIMEOUT ROOT
+    export TKO INC CU DRV OUT WK EXT RUNTIMEOUT ROOT ADB TGTOPT STAGE
     for w in $(seq 0 $((JOBS - 1))); do
         ( i=0; for f in $LIST; do
               [ $((i % JOBS)) -eq "$w" ] && one "$f"
@@ -140,6 +176,18 @@ if [ -z "$AGAINST" ] || [ ! -d "$OUT" ] || [ -n "${HOSTGATE_RERUN:-}" ]; then
           done ) &
     done
     wait
+    if [ "$ADB" = 1 ]; then
+        # THE DEVICE PASS: every staged program at once, then its record, as one( ) writes it.
+        ls "$WK/pend" | sed 's/$/ ./' > "$STAGE/list"
+        sh "$ROOT/build/adbrun.sh" "$STAGE" "$RUNTIMEOUT" "$JOBS"
+        for key in $(ls "$WK/pend"); do
+            rel=$(sed -n 1p "$WK/pend/$key"); rec=$(sed -n 2p "$WK/pend/$key")
+            rc=$(cat "$STAGE/out/$key.rc" 2>/dev/null || echo missing)
+            out=$(norm < "$STAGE/out/$key.out" 2>/dev/null)
+            mkdir -p "$(dirname "$OUT/$rel")"
+            printf '%s\n%s\n' "$rec run=$rc" "$out" > "$OUT/${rel%.bas}.txt"
+        done
+    fi
 fi
 
 n=$(find "$OUT" -name '*.txt' | wc -l | tr -d ' ')
