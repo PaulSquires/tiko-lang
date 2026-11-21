@@ -22,6 +22,11 @@
 **      SDL complaining of a live EGL context), then libmain.so's .fini_array backwards -- module
 **      destructors, then fbrt0's fb_hRtExit, which closes the files -- and stdio flushed.
 **
+** And two things a program sees: EXEPATH is "." and the working directory is the app's storage
+** (A5), and OPEN reads the APK's assets (A6): a read-only open of a relative path fopen cannot
+** find falls back to tko_app_asset_open (fs/upath.tiko), a stdio stream over SDL's I/O; open(2)'s
+** callers (fs/ops, std/fs) to tko_app_asset_fd, the asset copied into an unlinked cache file.
+**
 ** NO HEADERS: like fbrt0.c this is compiled without a sysroot, so the few Bionic and liblog
 ** entries are declared by hand. They are stable NDK ABI. */
 
@@ -54,6 +59,28 @@ void tkort_SetAppExeDot( void );
 int chdir( const char *path );
 const char *SDL_GetAndroidInternalStoragePath( void ) __attribute__(( weak ));
 int tko_AppMain( int argc, char **argv );
+
+/* SDL's I/O (SDL_iostream.h), weak like SDL_Quit: an app that links no SDL opens no assets. */
+typedef struct SDL_IOStream SDL_IOStream;
+SDL_IOStream *SDL_IOFromFile( const char *file, const char *mode ) __attribute__(( weak ));
+unsigned long SDL_ReadIO( SDL_IOStream *io, void *ptr, unsigned long size ) __attribute__(( weak ));
+long long SDL_SeekIO( SDL_IOStream *io, long long offset, int whence ) __attribute__(( weak ));
+_Bool SDL_CloseIO( SDL_IOStream *io ) __attribute__(( weak ));
+/* Bionic's funopen (stdio.h; every API level). fpos_t is off_t, a long on LP64. */
+void *funopen( const void *cookie, int ( *readfn )( void *, char *, int ),
+               int ( *writefn )( void *, const char *, int ),
+               long ( *seekfn )( void *, long, int ), int ( *closefn )( void * ) );
+void tkort_SetAppAssetOpen( void *( *fn )( const char *path ) );
+void tkort_SetAppAssetFd( int ( *fn )( const char *path ) );
+const char *SDL_GetAndroidCachePath( void ) __attribute__(( weak ));
+int mkostemp( char *tmpl, int flags );
+int unlink( const char *path );
+long write( int fd, const void *buf, unsigned long n );
+long lseek( int fd, long off, int whence );
+int close( int fd );
+int *__errno( void );
+int snprintf( char *s, unsigned long n, const char *fmt, ... );
+#define TKO_O_CLOEXEC 02000000  /* x86_64 and arm64 alike */
 
 #define TKO_LOG_INFO 4
 #define TKO_IOLBF 1     /* Bionic's _IOLBF */
@@ -116,6 +143,62 @@ static void tko_app_fini( void )
 	}
 }
 
+/* AN ASSET AS A READ-ONLY stdio STREAM (A6, D-A6-2): read and seek forward to SDL's stream, which
+** reads the APK in place -- nothing is copied out or loaded whole. SDL_SEEK_SET/CUR/END are 0/1/2,
+** as SEEK_SET/CUR/END are. */
+static int tko_asset_read( void *c, char *buf, int n )
+{
+	return (int)SDL_ReadIO( (SDL_IOStream *)c, buf, (unsigned long)( n < 0 ? 0 : n ) );
+}
+static long tko_asset_seek( void *c, long off, int whence )
+{
+	return (long)SDL_SeekIO( (SDL_IOStream *)c, off, whence );
+}
+static int tko_asset_close( void *c )
+{
+	return SDL_CloseIO( (SDL_IOStream *)c ) ? 0 : -1;
+}
+static void *tko_app_asset_open( const char *path )
+{
+	if( !SDL_IOFromFile || !SDL_ReadIO || !SDL_SeekIO || !SDL_CloseIO ) return 0;
+	SDL_IOStream *io = SDL_IOFromFile( path, "rb" );
+	if( !io ) return 0;
+	void *f = funopen( io, tko_asset_read, 0, tko_asset_seek, tko_asset_close );
+	if( !f ) SDL_CloseIO( io );
+	return f;
+}
+
+/* AN ASSET AS A FILE DESCRIPTOR, for open(2)'s callers (fs/ops, std/fs; fs/upath.tiko): the asset
+** copied once into a file in the app's cache that is unlinked at once, so the descriptor is a
+** regular, seekable file and nothing is left behind. -1 with errno as it was when there is no
+** such asset. */
+static int tko_app_asset_fd( const char *path )
+{
+	int saved = *__errno( );
+	if( !SDL_IOFromFile || !SDL_ReadIO || !SDL_CloseIO ) return -1;
+	SDL_IOStream *io = SDL_IOFromFile( path, "rb" );
+	if( !io ) { *__errno( ) = saved; return -1; }
+	const char *dir = SDL_GetAndroidCachePath ? SDL_GetAndroidCachePath( ) : 0;
+	char tmpl[1024];
+	snprintf( tmpl, sizeof( tmpl ), "%s/tko-asset-XXXXXX", dir ? dir : "." );
+	int fd = mkostemp( tmpl, TKO_O_CLOEXEC );
+	if( fd < 0 ) { SDL_CloseIO( io ); *__errno( ) = saved; return -1; }
+	unlink( tmpl );
+	static char buf[65536];
+	unsigned long n;
+	int ok = 1;
+	while( ok && ( n = SDL_ReadIO( io, buf, sizeof( buf ) ) ) > 0 ) {
+		for( unsigned long off = 0; off < n; ) {
+			long w = write( fd, buf + off, n - off );
+			if( w <= 0 ) { ok = 0; break; }
+			off += (unsigned long)w;
+		}
+	}
+	SDL_CloseIO( io );
+	if( !ok || lseek( fd, 0, 0 ) != 0 ) { close( fd ); *__errno( ) = saved; return -1; }
+	return fd;
+}
+
 /* fb_End's hook: back to SDL_main, on SDL_main's own thread only. */
 static void tko_app_end( int errlevel )
 {
@@ -132,6 +215,8 @@ int SDL_main( int argc, char **argv )
 	tko_app_thread = pthread_self( );
 	tkort_SetAppEnd( tko_app_end );
 	tkort_SetAppExeDot( );          /* EXEPATH is "." -- the assets (sys/hostinfo.tiko) */
+	tkort_SetAppAssetOpen( tko_app_asset_open );   /* OPEN falls back to an asset (fs/upath.tiko) */
+	tkort_SetAppAssetFd( tko_app_asset_fd );       /* and fs/ops, std/fs */
 	/* THE WORKING DIRECTORY IS THE APP'S OWN STORAGE. An app starts in "/", which it cannot write:
 	** a program that saves "notes.txt", or copies a photo in, failed there (measured, A5). Its
 	** internal storage (/data/user/0/<id>/files) is private, kept across runs and writable. */

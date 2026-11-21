@@ -160,7 +160,7 @@ end function
 private function OutputSuffix_( byref o as Tko.DriverOptions ) as string
     select case o.outKind
     case Tko.OUT_DLL
-        if o.app then return ".apk"     '' -app: driver/androidapp.ti
+        if o.app then return iif( o.appBundle, ".aab", ".apk" )   '' -app: driver/androidapp.ti
         select case Tko.TargetOs( o.target )
         case Tko.OS_WINDOWS : return ".dll"
         case Tko.OS_LINUX, Tko.OS_ANDROID : return ".so"
@@ -721,7 +721,7 @@ private function LinkAll _
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if
-    dim as string appWhy : if ctx.options.app andalso (Tko.AndroidApp.Package( ctx, appWhy ) = false) then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0180, ctx.options.outputPath, appWhy )
+    dim as string appWhy : if ctx.options.app andalso (Tko.AndroidApp.Package( ctx, appWhy ) = false) then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0196, ctx.options.outputPath, appWhy )
 
     '' '-g' ON MACH-O: the DWARF is in the objects deleted below, so into '<out>.dSYM' first.
     dim as int32 drc = 0

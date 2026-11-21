@@ -123,10 +123,14 @@
     '' ld). See SourceOptionOk_ in driver/cmdline.tiko. fbc has no such check; every
     '' option the corpus writes in a '#cmdline' passes it.
     DIAG( TKO0178, SEV_ERROR,   "'%0' is not allowed in a #cmdline: %1" )
-    '' 'tiko -app' (docs/tiko-android A4): an Android app, so an Android target; and the APK's
-    '' assembly with the SDK's tools (driver/androidapp.tiko), whose failing step %1 names.
-    DIAG( TKO0179, SEV_ERROR,   "'-app' builds an Android app; target '%0' is not android-x86_64 or android-arm64" )
-    DIAG( TKO0180, SEV_ERROR,   "cannot build the app '%0': %1" )
+    '' 'tiko -app' (docs/tiko-android A4, A6): an Android app, so an Android target; the -app*
+    '' options checked before anything compiles; and the APK's assembly with the SDK's tools
+    '' (driver/androidapp.tiko), whose failing step %1 names. AT THE TOP OF THE DRIVER'S RANGE:
+    '' feat/android is a long-lived branch, and master numbers its driver diagnostics upward
+    '' (its -fsanitize took 0179, which this branch had used first).
+    DIAG( TKO0195, SEV_ERROR,   "'-app' builds an Android app; target '%0' is not android-x86_64 or android-arm64" )
+    DIAG( TKO0196, SEV_ERROR,   "cannot build the app '%0': %1" )
+    DIAG( TKO0197, SEV_ERROR,   "'%0': %1" )
     '' 'tiko c2t' (src/c2t): a C header translated into a tiko header.
     DIAG( TKO0173, SEV_ERROR,   "'tiko c2t' translates one header per run; '%0' is a second" )
     DIAG( TKO0174, SEV_ERROR,   "cannot read the C header '%0'" )

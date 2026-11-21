@@ -285,7 +285,7 @@ private function BuildTable_( byref m as Manifest, byref table_ as string ) as s
     dim as int32 dt = instr( rest, "." )
     if dt > 0 then
         dim as string sub_ = mid( rest, dt + 1 )
-        if (isT = false) orelse ((sub_ <> "defines") andalso (OsTable_( sub_ ) = false)) then return "unknown table [" & table_ & "]"
+        if (isT = false) orelse ((sub_ <> "defines") andalso (sub_ <> "app") andalso (OsTable_( sub_ ) = false)) then return "unknown table [" & table_ & "]"
         rest = left( rest, dt - 1 )
     end if
     if BuildName_( rest ) = false then
@@ -343,6 +343,21 @@ private function BuildKey_ _
     dim as int32 dt = instr( rest, "." )
     if dt > 0 then
         dim as string sub_ = mid( rest, dt + 1 )
+        '' [target.x.app] (docs/tiko-android A6 step 5): a kind = "app" target's Android identity,
+        '' the -app* options as keys. Paths are the manifest's, as every other path in it is.
+        if sub_ = "app" then
+            dim as string w = "s"
+            select case k
+            case "id", "label", "assets", "version", "icon", "key"
+            case "bundle" : w = "b"
+            case else
+                return "unknown key '" & k & "' in [" & table_ & "]: it holds id, label, assets, version, " & _
+                       "icon, key and bundle"
+            end select
+            if kind <> w then return "'" & k & "' in [" & table_ & "] is " & iif( w = "b", "true or false", "a string" )
+            m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( "app." & k ) : m.tgtVal.Push( v )
+            return ""
+        end if
         if OsTable_( sub_ ) then
             select case k
             case "sources", "resources", "libs", "libpaths", "options"
@@ -361,7 +376,7 @@ private function BuildKey_ _
     dim as string want, allowed
     if isT then
         select case k
-        case "kind"      : want = "s" : allowed = "exe|dll|lib"
+        case "kind"      : want = "s" : allowed = "exe|dll|lib|app"
         case "subsystem" : want = "s" : allowed = "gui|console"
         case "main", "output" : want = "s"
         case "sources", "resources", "libs", "libpaths", "options", "copy_to" : want = "a"

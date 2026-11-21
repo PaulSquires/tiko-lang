@@ -3,4 +3,4 @@
 '' TEST: cli
 '' ARGS: -app -target linux-x86_64 tests/source/plain.bas
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: TKO0179: '-app' builds an Android app; target 'linux-x86_64' is not android-x86_64 or android-arm64
+'' EXPECT-OUT: TKO0195: '-app' builds an Android app; target 'linux-x86_64' is not android-x86_64 or android-arm64

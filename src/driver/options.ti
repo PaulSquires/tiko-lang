@@ -98,6 +98,13 @@ namespace Tko
     OPT( OPT_APPID,     "-appid",     OPTK_VALUE, OPTCAT_OUTPUT,  "id",       "the app's application id (default org.tiko.<name>)" )
     OPT( OPT_APPLABEL,  "-applabel",  OPTK_VALUE, OPTCAT_OUTPUT,  "text",     "the app's label under its icon (default <name>)" )
     OPT( OPT_APPASSETS, "-appassets", OPTK_VALUE, OPTCAT_OUTPUT,  "dir",      "a directory whose files go into the app's assets" )
+    '' FOR A RELEASE (docs/tiko-android A6): the version, the launcher icon, the signing key, and
+    '' an App Bundle for Play. A keystore's passwords never go on the command line: they are read
+    '' from TIKO_ANDROID_KS_PASS and TIKO_ANDROID_KEY_PASS by the tools themselves.
+    OPT( OPT_APPVERSION,"-appversion",OPTK_VALUE, OPTCAT_OUTPUT,  "name[,code]", "the app's version name and code (default 1.0,1)" )
+    OPT( OPT_APPICON,   "-appicon",   OPTK_VALUE, OPTCAT_OUTPUT,  "png",      "the app's launcher icon, a PNG (default Android's)" )
+    OPT( OPT_APPKEY,    "-appkey",    OPTK_VALUE, OPTCAT_OUTPUT,  "keystore[,alias]", "sign with this keystore; passwords from TIKO_ANDROID_KS_PASS / TIKO_ANDROID_KEY_PASS (default the debug key)" )
+    OPT( OPT_APPBUNDLE, "-appbundle", OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "write an Android App Bundle (.aab) for Play rather than an .apk" )
     OPT( OPT_ERRCHK,    "-e",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "enable runtime error checking" )
     OPT( OPT_ERRCHKX,   "-ex",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "as -e: RESUME, which fbc adds here, does not exist in the fb dialect" )
     OPT( OPT_ERRCHKXX,  "-exx",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "-ex plus array bounds and null-pointer checking" )
@@ -290,6 +297,8 @@ namespace Tko
         '' -app: outKind is OUT_DLL, and the link becomes an APK (driver/androidapp.ti).
         as boolean app
         as string  appId, appLabel, appAssets
+        as string  appVersion, appIcon, appKey    '' -appversion, -appicon, -appkey (A6)
+        as boolean appBundle                       '' -appbundle: an .aab (A6)
         as boolean compileOnly
         as boolean debugInfo
         as boolean threadSafe    '' -mt as WRITTEN; the link's answer is LinkThreadSafe( ctx )

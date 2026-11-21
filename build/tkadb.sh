@@ -53,8 +53,18 @@ for st in "$ROOT"/examples/tkControls/*/selftest.tiko; do
     [ -z "$ONLY" ] || case $ONLY in *,$name,*) ;; *) continue ;; esac
     pkg=org.tiko.selftest.$(printf '%s' "$name" | tr 'A-Z' 'a-z')
     log=$OUT/$name.log; apk=$OUT/$name.apk
+    # The files a test reads beside itself go into its APK's assets at the same relative path,
+    # where OPEN and std/fs find them (docs/tiko-android A6 step 2): fixtures/, and the resource
+    # files a designed app ships (appResources/files/).
+    aa=(); rm -rf "$OUT/$name.assets"
+    for sub in fixtures appResources/files; do
+        [ -d "$(dirname "$st")/$sub" ] || continue
+        mkdir -p "$OUT/$name.assets/$(dirname "$sub")"
+        cp -r "$(dirname "$st")/$sub" "$OUT/$name.assets/$(dirname "$sub")/"
+        aa=(-appassets "$(m "$OUT/$name.assets")")
+    done
     ( cd "$(dirname "$st")" && "$TIKO" -target $T -app selftest.tiko -p "$(m "$ROOT/lib/rt/lib/$T")" \
-        -appid $pkg -applabel "$name selftest" -x "$(m "$apk")" ) > "$log" 2>&1
+        -appid $pkg -applabel "$name selftest" "${aa[@]}" -x "$(m "$apk")" ) > "$log" 2>&1
     if [ ! -f "$apk" ]; then
         line="tkadb: $name BUILD FAILED"
     else
