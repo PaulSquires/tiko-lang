@@ -766,6 +766,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [InstrChars](Modern-String-InstrChars) | Returns the position of the first character from a set, or 0. | [String Library](Category-String-Library) |
 | [InStrRev](Instrrev) | Returns the position of the last match, or 0 if there is none. | [String Functions](Category-String-Functions) |
 | [Int](Int) | Returns the largest whole number not above the value, so Int(-1.3) is -2. | [Mathematical Functions](Category-Mathematical-Functions) |
+| [Int128](Category-Fixed-Width-Types#128-bit-integers) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [Int16](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [Int32](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [Int64](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
@@ -1575,6 +1576,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [UBound](Ubound) | Returns the highest valid index of an array dimension, or -1 if there is none. | [Array Functions](Category-Array-Functions) |
 | [UByte](Ubyte) | Standard data type: 8 bit unsigned. Equivalent to Unsigned Byte. | [Standard Data Types](Category-Standard-Data-Types) |
 | [UCase](Ucase) | Returns an upper-case copy of the string. | [String Functions](Category-String-Functions) |
+| [UInt128](Category-Fixed-Width-Types#128-bit-integers) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [UInt16](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [UInt32](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
 | [UInt64](Category-Fixed-Width-Types) |  | [Fixed-Width Types](Category-Fixed-Width-Types) |
