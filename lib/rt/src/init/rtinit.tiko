@@ -102,7 +102,7 @@ end extern
 '' its handler, which returns from SDL_main instead; fb_End calls it first. NULL in a program.
 dim shared as sub cdecl( byval errlevel as int32 ) tkort_appEnd
 
-extern "c"
+extern "c"   '' NON-FBCALL: internal to tiko-rt, for src/c/fbrtapp.c; fbc has no such entry.
 sub tkort_SetAppEnd alias "tkort_SetAppEnd" ( byval fn as sub cdecl( byval errlevel as int32 ) )
 	tkort_appEnd = fn
 end sub
