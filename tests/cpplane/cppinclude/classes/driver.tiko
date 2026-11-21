@@ -1,0 +1,125 @@
+'' cppinclude/classes, called from tiko through '#cppinclude "lib.hpp"' -- or, when the lane
+'' defines TKO_LANE_IMPORTED, through the binding 'tiko -cppimport lib.hpp' wrote. Must print what
+'' driver.cpp prints, live object counts included: every handle that owns a C++ object deletes it
+'' once, and a borrowed one never does.
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+sub ShowU( byval k as const zstring ptr, byref u as const ustring )
+    dim as string s = u
+    show_s( k, strptr( s ) )
+end sub
+
+sub Points( )
+    dim as geo.Point a
+    dim as geo.Point b = geo.Point( 3, 4 )
+    ShowU( "a", a.str_( ) )
+    ShowU( "b", b.str_( ) )
+    show_d( "dist", a.dist( b ) )
+    dim as geo.Point c = a.plus( b )
+    c.move( 1, 1 )
+    ShowU( "c", c.str_( ) )
+    show_i( "live.3", geo.Point.live( ) )
+    dim as geo.Point d = c
+    d.move( 10, 0 )
+    ShowU( "c.after", c.str_( ) )
+    ShowU( "d", d.str_( ) )
+    d = b
+    ShowU( "d.let", d.str_( ) )
+    ShowU( "origin", geo.Point.origin( ).str_( ) )
+    ShowU( "mid", geo.midpoint( b, c ).str_( ) )
+    geo.nudge( b )
+    ShowU( "nudge", b.str_( ) )
+    show_i( "live.4", geo.Point.live( ) )
+end sub
+
+sub AtNine( byref p as geo.Polygon )
+    on local error goto failed
+    p.at( 9 )
+    show_s( "at.9", "no throw" )
+    exit sub
+failed:
+    dim as string w = "C++ exception: " & cpp.What( )
+    show_s( "at.9", strptr( w ) )
+end sub
+
+sub Polygons( )
+    dim as geo.Polygon p = geo.Polygon( "tri" )
+    p.add( geo.Point( 0, 0 ) )
+    p.add( 4, 0 )
+    p.add( 4, 3 )
+    show_u( "size", p.size( ) )
+    show_d( "perimeter", p.perimeter( ) )
+    ShowU( "describe", p.describe( ) )
+    p.at( 1 ).move( 0, 1 )
+    ShowU( "at.1", p.at( 1 ).str_( ) )
+    ShowU( "first", p.first( ).str_( ) )
+    AtNine( p )
+    p.rename( "trï" )
+    ShowU( "name", p.name_( ) )
+    geo.scale( p, 2 )
+    ShowU( "scaled", p.at( 2 ).str_( ) )
+    dim as geo.Polygon s = geo.square( 2 )
+    ShowU( "square", s.describe( ) )
+    show_d( "square.perimeter", s.perimeter( ) )
+    show_i( "live.7", geo.Point.live( ) )
+end sub
+
+sub ShapeFive( )
+    on local error goto failed
+    geo.shape_at( 5 )
+    show_s( "shape.5", "no throw" )
+    exit sub
+failed:
+    dim as string w = "C++ exception: " & cpp.What( )
+    show_s( "shape.5", strptr( w ) )
+end sub
+
+sub Shapes( )
+    dim as geo.Shape c = geo.shape_at( 0 )
+    dim as geo.Shape r = geo.shape_at( 1 )
+    ShowU( "kind.0", c.kind( ) )
+    show_d( "area.0", c.area( ) )
+    ShowU( "kind.1", r.kind( ) )
+    show_d( "total", geo.total_area( c, r ) )
+    ShapeFive( )
+end sub
+
+sub CopyCounter( byref k as geo.Counter )
+    on local error goto failed
+    dim as geo.Counter k2 = k
+    show_s( "copy", "no throw" )
+    exit sub
+failed:
+    dim as string w = "C++ exception: " & cpp.What( )
+    show_s( "copy", strptr( w ) )
+end sub
+
+sub Counters( )
+    dim as geo.Counter k = geo.Counter( 10 )
+    k.next_( )
+    show_i( "next", k.next_( ) )
+    show_i( "peek", k.peek_( ) )
+    CopyCounter( k )
+    dim as geo.Tally t
+    t.bump( 5 )
+    t.bump( 7 )
+    show_i( "tally", t.total( ) )
+    dim as geo.Counter k0
+    show_i( "default.ctor", k0.next_( ) )
+    dim as geo.Point m = geo.Point( 1, 1 )
+    m.move( 2 )
+    ShowU( "default.method", m.str_( ) )
+    show_d( "default.free", geo.square( ).perimeter( ) )
+end sub
+
+Points( )
+show_i( "live.after.points", geo.Point.live( ) )
+Polygons( )
+show_i( "live.after.polygons", geo.Point.live( ) )
+Shapes( )
+Counters( )
