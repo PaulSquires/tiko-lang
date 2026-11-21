@@ -75,8 +75,9 @@ Exactly one of the three is defined on every target.
 | `TIKO_OS_MACOS` | `1` on `macos-arm64`, otherwise not defined |
 | `TIKO_ARCH_X86_64` | `1` on `windows-x86_64` and `linux-x86_64`, otherwise not defined |
 | `TIKO_ARCH_ARM64` | `1` on `linux-arm64` and `macos-arm64`, otherwise not defined |
+| `__TIKO_CALLER_LOCATION__` | `1`: [`__CALLER_LINE__` and `__CALLER_FILE__`](Caller-Line) exist |
 
-`__TIKO_COMPILER__` says **which compiler** is building; `__TIKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol.
+`__TIKO_COMPILER__` says **which compiler** is building; `__TIKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol. `__TIKO_CALLER_LOCATION__` is one such feature test.
 
 tests/pp/tiko-compiler-define.test holds the define and its value; tests/pp/tiko-target-defines.test holds the `TIKO_OS_` and `TIKO_ARCH_` names on each target.
 

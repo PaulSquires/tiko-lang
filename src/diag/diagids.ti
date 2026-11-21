@@ -24,7 +24,8 @@
 ''     0990-0999   compiler-level (limits, internal)
 ''     1000-1049   semantic, continued: interfaces (docs/tiko-interfaces)
 ''     1050-1099   semantic, continued: string slices (docs/tiko-slices)
-''     1100-1119   semantic, continued: int128 / uint128
+''     1100-1149   semantic, continued: int128 / uint128
+''     1150-1199   flow analysis: what holds on every path to a use (std/outcome's checks)
 ''
 '' FORMAT STRINGS use %0, %1, %2 for the arguments passed to Report( ). A '%' that is
 '' not followed by a digit is literal.
@@ -1190,6 +1191,11 @@
     '' int128 / uint128, tiko's own (src/types/type.ti). Phase 1: a path not built yet REFUSES
     '' rather than truncating to 64 bits; %0 names the path (symbols/semint128.tiko).
     DIAG( TKO1100, SEV_ERROR,   "%0 does not support int128 or uint128 yet" )
+
+    '' FLOW ANALYSIS (symbols/semoptcheck.tiko). 1150: an Optional's 'Value( )', or a Result's
+    '' 'Value( )' or 'Failure( )', that no check covers on every path to it -- runtime error 1
+    '' if it is empty. %0 the variable, %1 the member, %2 the check that would cover it.
+    DIAG( TKO1150, SEV_WARNING, "'%0.%1( )' may raise runtime error 1: no %2( ) check covers every path to it" )
 
 #endmacro
 
