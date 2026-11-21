@@ -33,6 +33,7 @@ RANGES = [
     (1050, 1099, "String slices"),
     (1100, 1149, "128-bit integers"),
     (1150, 1199, "Flow analysis"),
+    (1200, 1239, "Tests and documentation"),
 ]
 
 

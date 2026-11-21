@@ -38,6 +38,7 @@ RANGES = [
     (1050, 1099, "Slices"),
     (1100, 1149, "int128 and uint128"),
     (1150, 1199, "Flow analysis"),
+    (1200, 1239, "Tests and documentation"),
 ]
 
 

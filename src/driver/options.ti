@@ -53,6 +53,11 @@ namespace Tko
     OPT( OPT_PRINTGRAPH, "--print-graph", OPTK_FLAG, OPTCAT_GENERAL, "",     "print the modules the inputs import, in build order, and stop" )
     '' ...and the interface an importer of a module reads (RFC-0004).
     OPT( OPT_EMITTKI,   "--emit-tki",     OPTK_FLAG, OPTCAT_GENERAL, "",     "print the interface of the module directory given, and stop" )
+    '' ...and its documentation, written as files ('tiko doc', driver/docmodel.tiko).
+    OPT( OPT_EMITDOC,   "--emit-doc",     OPTK_VALUE, OPTCAT_GENERAL, "dir", "write the documentation of the module directory given into <dir>, and stop ('tiko doc')" )
+    '' A TEST BUILD ('tiko test'): 'test' blocks are compiled and registered with std/testing, and a
+    '' module of the project's own package takes its '*_test.tiko' files (parser/testblock.tiko).
+    OPT( OPT_TEST,      "--test",         OPTK_FLAG, OPTCAT_GENERAL, "",     "compile 'test' blocks and '*_test.tiko' files and register them with std/testing ('tiko test')" )
     '' ...and the cache the modules a program imports are built into (RFC-0005 §4).
     OPT( OPT_FRONTEND,  "--frontend-only", OPTK_FLAG, OPTCAT_GENERAL, "",    "report every diagnostic a build would, through lowering; write no object, link nothing ('tiko check')" )
     OPT( OPT_NOMODCACHE, "--no-module-cache", OPTK_FLAG, OPTCAT_GENERAL, "",  "build imported modules without reading or writing the module cache" )
@@ -73,6 +78,9 @@ namespace Tko
 
     OPT( OPT_INCLUDE,   "-i",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add an include search path" )
     OPT( OPT_PKGDIR,    "--pkg-dir",  OPTK_VALUE, OPTCAT_INPUT,   "dir",      "the package tree for #import std/... is found in (else TIKO_PKG, else <exe-dir>/pkg)" )
+    '' THE ANONYMOUS PACKAGE'S ROOT, where no tiko.toml is found: otherwise the first root's directory.
+    '' 'tiko test' passes it, its generated main standing in out/test/ below the project.
+    OPT( OPT_PKGROOT,   "--package-root", OPTK_VALUE, OPTCAT_INPUT, "dir",     "the root of the package the inputs belong to when no tiko.toml names one" )
     OPT( OPT_DEFINE,    "-d",         OPTK_VALUE, OPTCAT_INPUT,   "name=val", "define a preprocessor symbol" )
     OPT( OPT_LIBPATH,   "-p",         OPTK_VALUE, OPTCAT_INPUT,   "dir",      "add a library search path" )
     OPT( OPT_LIB,       "-l",         OPTK_VALUE, OPTCAT_INPUT,   "name",     "link against a library" )
@@ -217,6 +225,12 @@ namespace Tko
         as boolean printCIncludes
         '' --emit-tki: check the module directory given, print its interface, stop.
         as boolean emitTki
+        '' --emit-doc <dir>: write the module directory's documentation into <dir>, stop.
+        as string emitDoc
+        '' --test: a test build -- see OPT_TEST.
+        as boolean testMode
+        '' --package-root <dir>: see OPT_PKGROOT.
+        as string packageRoot
         '' --no-module-cache: the imports are built every time, and nothing is stored.
         as boolean noModuleCache
         '' --clean-module-cache: every entry removed, and nothing else done.
