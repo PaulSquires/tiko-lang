@@ -1,0 +1,8 @@
+# tkAndroid: the touch-first demo (docs/tiko-android A5). tiko build writes demo.exe here; for an
+# Android app, see the top of demo.tiko.
+[package]
+name = "tkandroid-demo"
+
+[target.demo]
+main   = "demo.tiko"
+output = "demo.exe"
