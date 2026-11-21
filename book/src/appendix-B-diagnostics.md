@@ -683,4 +683,4 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 |---|---|---|
 | `TKO1100` | error | ‹arg1› does not support int128 or uint128 yet |
 
-<!-- 620 rows, generated 2026-11-20 from src/diag/diagids.ti at e7f07a36b -->
+<!-- 620 rows, generated 2026-11-21 from src/diag/diagids.ti at e7f07a36b -->

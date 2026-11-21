@@ -517,7 +517,7 @@ private function Useful_( byref mc as MCtx_, byref m as MMat_, byref q as contai
     return Useful_( mc, dm, tq, tc, depth + 1 )
 end function
 
-private function Render_( byref mc as MCtx_, byval sh as int32, byval ctor as int64, _
+private function Render_( byref c as Ctx, byref mc as MCtx_, byval sh as int32, byval ctor as int64, _
                           byref kids as StrVec, byval k0 as int32 ) as string
     select case mc.shapes[sh].kind
     case MSK_BOOL
@@ -532,7 +532,8 @@ private function Render_( byref mc as MCtx_, byval sh as int32, byval ctor as in
             if i > 0 then r &= ", "
             r &= kids[k0 + i]
         next
-        return "(" & r & ")"
+        if mc.shapes[sh].tuple_ then return "(" & r & ")"
+        return c.types->Name( mc.shapes[sh].t ) & "( " & r & " )"
     end select
     return "any"
 end function
@@ -555,7 +556,7 @@ private function Missing_( byref c as Ctx, byref mc as MCtx_, byref m as MMat_, 
             Spec_( mc, m, sh, cv, sm )
             dim as StrVec sub_
             if Missing_( c, mc, sm, c2, sub_, depth + 1 ) then
-                out_.Push( Render_( mc, sh, cv, sub_, 0 ) )
+                out_.Push( Render_( c, mc, sh, cv, sub_, 0 ) )
                 for i as int32 = a to sub_.Count - 1
                     out_.Push( sub_[i] )
                 next
@@ -585,7 +586,7 @@ private function Missing_( byref c as Ctx, byref mc as MCtx_, byref m as MMat_, 
             next
             if got = false then
                 dim as StrVec none_
-                head = Render_( mc, sh, cv, none_, 0 )
+                head = Render_( c, mc, sh, cv, none_, 0 )
                 exit for
             end if
         next
