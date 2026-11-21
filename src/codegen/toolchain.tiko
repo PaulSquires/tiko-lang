@@ -502,6 +502,32 @@ function CompileIrAsm _
     return rc
 end function
 
+'' THE C++ RUNTIME'S IMPORT LIBRARIES, windows-x86_64 (docs/tiko-cpp C2): every one this
+'' toolchain's library path holds, as quoted paths, AHEAD of ucrtbase. An import library adds a
+'' DLL to the program only when something calls into it, so a program with no C++ in it is
+'' unchanged; one linking an MSVC-ABI C++ object finds msvcp140's STL and vcruntime140's
+'' exception and RTTI entry points, which is where Visual C++ resolves them. Ahead of ucrtbase
+'' because ucrtbase.dll exports copies of _CxxThrowException and its kin, and a C++ library
+'' built by Visual C++ expects vcruntime140's; lib/implib/vcruntime140.def carries no C-library
+'' name, so nothing of tiko's own can bind there. By PATH and only when present: an older
+'' toolchain has none, and '-l' on a missing one would fail every link. The static pieces no DLL
+'' exports -- operator new, /GS, thread-safe statics, dynamic TLS -- are tiko-rt's msvccxx.c.
+private function CxxRuntimeLibs_( byref t as ToolPaths ) as string
+    dim as string r = ""
+    dim as string nms(0 to 6) = { "vcruntime140", "vcruntime140_1", "msvcp140", "msvcp140_1", _
+                                  "msvcp140_2", "msvcp140_atomic_wait", "msvcp140_codecvt_ids" }
+    for k as int32 = 0 to 6
+        for i as int32 = 0 to t.libPaths.Count - 1
+            dim as string p = t.libPaths[i] & "/" & nms(k) & ".lib"
+            if FileExists_( p ) then
+                r += " " & Q( p )
+                exit for
+            end if
+        next
+    next
+    return r
+end function
+
 function LinkExe _
     ( byref t as ToolPaths, byref target as TargetDescription, _
       byref objs as Tko.StrVec, byref outPath as string ) as int32
@@ -900,6 +926,14 @@ function LinkExe _
         ''     two heaps, and a strdup freed by the other one's free.
         if target.layout.isMsvc then
             if lcase( t.libs[i] ) = "msvcrt" then continue for
+            '' ...AND 'stdc++', 'c++', 'msvcprt' AND 'vcruntime' ARE A REQUEST FOR THE C++ RUNTIME,
+            '' which every link on this target already has (CxxRuntimeLibs_, below): fbc's own
+            '' C++ tests write '#inclib "stdc++"', and the other three are Visual C++'s names.
+            '' Passed on, '-lmsvcprt' found Visual Studio's static stub where one is installed and
+            '' failed where none is (docs/tiko-cpp C2).
+            select case lcase( t.libs[i] )
+            case "stdc++", "c++", "msvcprt", "vcruntime" : continue for
+            end select
         end if
         dim as string named = ""
         dim as boolean cached = namedOf.TryGet( t.libs[i], named )
@@ -1049,7 +1083,7 @@ function LinkExe _
         '' brought it in, and '-nostdlib' drops those too. The first build without it
         '' failed on Sleep, CreateSemaphoreA and CloseHandle from tiko-rt's thread
         '' and timing layers.
-        cmd += " -nostdlib -lucrtbase -lkernel32"
+        cmd += " -nostdlib" & CxxRuntimeLibs_( t ) & " -lucrtbase -lkernel32"
         cmd += " -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32"
         cmd += " -Xlinker /INCLUDE:tkort_msvc_init_"
         '' -fsanitize=address: the DYNAMIC runtime and its thunk, as clang's driver links them for

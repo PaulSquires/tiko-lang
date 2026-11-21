@@ -1,0 +1,26 @@
+'' msvc/iface, called from tiko: must print what driver.cpp prints.
+#include once "../../show.bi"
+
+'' The interface, slot for slot: MSVC gives the virtual destructor ONE slot, as tiko does.
+type ICounter extends object
+    declare virtual destructor( )
+    declare abstract sub add( byval v as long )
+    declare const abstract function scaled( byval k as long ) as long
+    declare const abstract function name( ) as const zstring ptr
+end type
+destructor ICounter( ) : end destructor
+
+extern "C"
+    declare function counter_new( byval name_ as const zstring ptr ) as ICounter ptr
+    declare sub counter_free( byval c as ICounter ptr )
+end extern
+
+dim as ICounter ptr a = counter_new( "alpha" )
+dim as ICounter ptr b = counter_new( "beta" )
+a->add( 3 ) : a->add( 4 ) : b->add( 10 )
+show_s( "a.name", a->name( ) )
+show_i( "a.scaled", a->scaled( 10 ) )
+show_i( "b.scaled", b->scaled( 2 ) )
+counter_free( b )
+counter_free( a )
+show_s( "end", "ok" )

@@ -1,0 +1,10 @@
+'' msvc/threads, called from tiko: must print what driver.cpp prints.
+#include once "../../show.bi"
+
+extern "C"
+    declare sub thr_sequential( byval n as long )
+    declare function thr_race( ) as long
+end extern
+
+thr_sequential( 2 )
+show_i( "race.sum", thr_race( ) )

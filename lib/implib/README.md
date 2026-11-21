@@ -28,6 +28,11 @@ a fresh export reproduces the committed files: `strnlen` in `ucrtbase.def` and
 its libmingwex supplies one; tiko links no libmingwex, so a Visual C++ static library that calls
 it (SDL3's) could not link.
 
+**The Visual C++ runtime** (2026-11-21, docs/tiko-cpp C2): `vcruntime140.def`, `vcruntime140_1.def`, `msvcp140.def`, `msvcp140_1.def`, `msvcp140_2.def`, `msvcp140_atomic_wait.def` and `msvcp140_codecvt_ids.def` have no mingw-w64 archive to come from; `build/dlldef.py` wrote each from the DLL's own export table in System32 (the code/data split as `mkmsvcdef.py` decides it). `vcruntime140.def` leaves out the C-library names that DLL also exports (`mem*`, `str*`, `wcs*`, `longjmp`, the setjmp intrinsics, `__C_specific_handler`, `_local_unwind`, `__telemetry_*`, `__vcrt_*`): the link names it ahead of `ucrtbase.lib`, so it must never win a name tiko-rt itself calls. Regenerate with:
+
+    python -I build/dlldef.py vcruntime140.dll lib/implib/vcruntime140.def --exclude 'mem(chr|cmp|cpy|move|set)|str(chr|rchr|str)|wcs(chr|rchr|str)|longjmp|__intrinsic_setjmp(ex)?|__C_specific_handler(_noexcept)?|_local_unwind|__telemetry_.*|__vcrt_.*'
+    python -I build/dlldef.py <name>.dll lib/implib/<name>.def      # the other six
+
 **A new Windows library**: write its `.def` by hand, or run
 `build/implibs.sh export --from <dir of lib*.dll.a> --only "<name>"` and read the diff
 (fbc-modern's `src/lib/win64` holds the inputs).

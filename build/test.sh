@@ -140,7 +140,7 @@ rt_overlay( ) {
         echo "test: runtime -- the PACKAGED one (TIKO_TEST_PACKAGED_RT=1)"
         return 0
     fi
-    if [ -f "$_ovl/.tree-rt" ] && ! newer_than "$_ovl/.tree-rt" "$ROOT/lib/rt/src" "$ROOT/lib/rt/build" "$_pkg"; then
+    if [ -f "$_ovl/.tree-rt" ] && ! newer_than "$_ovl/.tree-rt" "$ROOT/lib/rt/src" "$ROOT/lib/rt/build" "$_pkg" "$ROOT/lib/implib"; then
         echo "test: runtime -- the tree's lib/rt [$_t], up to date"
         return 0
     fi
@@ -154,6 +154,17 @@ rt_overlay( ) {
     for _a in "$ROOT/lib/rt/lib/$_t"/libfb*.a "$ROOT/lib/rt/lib/$_t"/fbrt0*.o; do
         [ -f "$_a" ] && cp -f "$_a" "$_ovl/"
     done
+    # ...AND THE IMPORT LIBRARIES THE PACKAGE PREDATES: a lib/implib/<name>.def with no <name>.lib
+    # in the packaged directory (docs/tiko-cpp C2 added the C++ runtime's), built here the way
+    # build/implibs.sh builds every one.
+    if [ "$_t" = "windows-x86_64" ]; then
+        _dt="$(dirname "${TIKO_CLANG:-/c/Program Files/LLVM/bin/clang.exe}")/llvm-dlltool.exe"
+        for _d in "$ROOT"/lib/implib/*.def; do
+            _n=$(basename "$_d" .def)
+            [ -f "$_ovl/$_n.lib" ] && continue
+            "$_dt" -m i386:x86-64 -d "$_d" -l "$_ovl/$_n.lib" || echo "test: $_n.lib did not build" >&2
+        done
+    fi
     : > "$_ovl/.tree-rt"
 }
 mkdir -p "$ROOT/build/obj"
