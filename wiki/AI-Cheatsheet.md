@@ -84,6 +84,8 @@ options  = ["-mt"]
 | `tiko run [target] [-- args]` | builds an executable target and runs it |
 | `tiko check` | reports every error and warning, writes nothing |
 | `tiko clean` | removes what `tiko build` wrote |
+| `tiko test [dirs]` | builds the project's tests into one program and runs it (after tiko 0.1.6) |
+| `tiko doc [dirs]` | writes the modules' API pages into `out/doc/` (after tiko 0.1.6) |
 
 Diagnostics look like `file.tiko(5,35): error TKO0698: message`, then a caret excerpt.
 Fix the first error first.
@@ -871,6 +873,17 @@ print cbool( len( PLATFORM ) > 0 ); EDITION; " "; cbool( __LINE__ > 0 )
   is never compiled, so it can hide errors.
 
 ## Testing
+
+After tiko 0.1.6, a test is a `test "name" ... end test` block in a file named `*_test.tiko`.
+Beside a module, starting `#module "<that module>"`, it reaches the module's private names;
+anywhere else it is a program of its own that uses the module through `#import`. Either way it
+does `#import "std/testing"` and checks with `testing.ExpectEq( got, want )`, `testing.Expect`,
+`testing.ExpectNear` or `testing.Require` (which stops the test), and each failure names its file
+and line. `tiko test` builds and runs them all; a normal build drops test blocks. A test in a
+program's main file is never run: put the code under test in a module.
+See [tiko test](Category-Tiko-Test).
+
+With tiko 0.1.6 and earlier, use fbcunit:
 
 ```freebasic
 #include once "fbcunit.bi"

@@ -348,7 +348,9 @@ compiled in parallel; `-j 4` sets how many at once.
 **`tiko check`** reports every error and warning a build would, and writes nothing — no program,
 no objects. A file the last build compiled cleanly is not looked at again, so after a build a
 check is quick. It is what an editor runs on save. **`tiko clean`** removes the program a build
-of the same profile wrote.
+of the same profile wrote. **`tiko test`** builds a project's tests into one program and runs it
+(Chapter 19), and **`tiko doc`** writes its modules' documentation (Chapter 15); both arrive after
+tiko 0.1.6, the toolchain this book is pinned to.
 
 ```admonish note title="For editors and tools"
 `tiko build --message-format json` reports a build as one JSON object per line — each file
