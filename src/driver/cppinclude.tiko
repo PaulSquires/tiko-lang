@@ -1,0 +1,197 @@
+'' cppinclude.tiko -- '#cppinclude "geo.hpp"' (docs/tiko-cpp C3): import the C++ header, enter its
+'' binding as '#include' enters a file, compile its shim for the target, and put the shim's object
+'' and the C++ runtime on the link.
+''
+'' THE IMPORT RUNS EVERY BUILD; THE SHIM'S OBJECT IS CACHED. libclang re-reads the header each
+'' time, so the binding always says what the header says now. The object is kept under the binding
+'' cache (CacheRoot, '/cpp'), named by a hash of the shim's text, the header's own bytes, the target
+'' and the flags: an unchanged header recompiles nothing. A change in a header the header includes
+'' and that leaves the shim's text alone is not seen -- delete the cache or touch the header.
+''
+'' THE OBJECT GOES ON THE LINK AS A FILE (LinkState.pragmaLibFiles, the list #foreignlib fills),
+'' and on Linux and macOS the C++ runtime as a library: 'stdc++', 'c++'. windows-x86_64 has its
+'' C++ runtime on every link already (docs/tiko-cpp C2).
+
+#import "std/containers"
+#import "std/fs"
+#include once "support/diskcache.ti"
+#include once "driver/cppinclude.ti"
+#include once "driver/cimportmode.ti"
+#include once "driver/cicache.ti"
+#include once "cimport/import.ti"
+#include once "cppimport/cppimport.ti"
+#include once "codegen/toolchain.ti"
+#include once "codegen/target.ti"
+
+namespace Tko.CppIncludeDriver
+
+type CppSession_
+    as Tko.CImport.ClangApi api
+    as boolean     loaded
+    as Tko.Codegen.ToolPaths tools
+    as Tko.StrVec  paths           '' headers imported this run, resolved
+    as containers.Array( of int32 ) fileIds
+    as boolean     runtimeAsked
+end type
+
+sub FreeSession( byval p as any ptr )
+    if p <> nullptr then delete cast( CppSession_ ptr, p )
+end sub
+
+private function IsFile_( byref p as string ) as boolean
+    dim as int32 fh = freefile
+    if open( p for input as #fh ) <> 0 then return false
+    close #fh
+    return true
+end function
+
+private function Fwd_( byref p as string ) as string
+    dim as string r = p
+    for i as int32 = 0 to len( r ) - 1
+        if r[i] = asc( "\" ) then r[i] = asc( "/" )
+    next
+    return r
+end function
+
+'' The header, looked for as a quoted '#include' is: beside the file that names it, then as
+'' written (the working directory), then in each -cinclude directory. "" when not found.
+private function Resolve_( byval ctx as Tko.CompilerContext ptr, byref header as string, _
+                           byval at as Tko.SourceLoc ) as string
+    dim as string h = Fwd_( header )
+    if (left( h, 1 ) = "/") orelse (mid( h, 2, 1 ) = ":") then
+        if IsFile_( h ) then return h
+        return ""
+    end if
+    dim as string src = Fwd_( ctx->sources.AbsPathOf( ctx->sources.Decode( at ).file ) )
+    dim as int32 sl = instrrev( src, "/" )
+    if sl > 0 then
+        if IsFile_( left( src, sl ) & h ) then return left( src, sl ) & h
+    end if
+    if IsFile_( h ) then return Fwd_( curdir( ) ) & "/" & h
+    for i as int32 = 0 to ctx->options.cIncludes.Count - 1
+        dim as string cand = Fwd_( ctx->options.cIncludes[i] ) & "/" & h
+        if IsFile_( cand ) then return cand
+    next
+    return ""
+end function
+
+private function Fail_( byval ctx as Tko.CompilerContext ptr, byval at as Tko.SourceLoc, _
+                        byref what as string ) as Tko.FileId
+    ctx->diags.Report( Tko.TKO0120, Tko.PointRange( at ), what )
+    return Tko.FILE_NONE
+end function
+
+private function Hook_ cdecl _
+    ( byval ctxp as any ptr, byref header as string, byval unicode as boolean, _
+      byval root as Tko.FileId, byval at as Tko.SourceLoc ) as Tko.FileId
+
+    dim as Tko.CompilerContext ptr ctx = ctxp
+    if ctx->cppinclude = nullptr then ctx->cppinclude = new CppSession_
+    dim as CppSession_ ptr s = ctx->cppinclude
+
+    dim as string hp = Resolve_( ctx, header, at )
+    if len( hp ) = 0 then return Fail_( ctx, at, header & ": the C++ header was not found beside the file, in the working directory or in a -cinclude directory" )
+    for i as int32 = 0 to s->paths.Count - 1
+        if s->paths[i] = hp then return cast( Tko.FileId, s->fileIds[i] )
+    next
+
+    if s->loaded = false then
+        s->loaded = true
+        dim as containers.Array( of string ) noLibs
+        dim as string noClang = ""
+        s->tools = Tko.Codegen.FindTools( noClang, noLibs )
+        Tko.CImport.ClangLoad( s->api, s->tools.clangExe )
+    end if
+    if s->api.ok = false then
+        ctx->diags.Report( Tko.TKO0335, Tko.PointRange( at ), s->api.why )
+        return Tko.FILE_NONE
+    end if
+
+    '' THE C IMPORTER'S OPTIONS: the same -cinclude, -cdefine, -copt, -csysroot and target.
+    dim as Tko.CImport.CImportOptions ci
+    Tko.CImportDriver.FillOptions( *ctx, s->tools.clangExe, ci )
+    dim as Tko.CppImport.CppImportOptions io
+    io.header = hp
+    dim as string hdir = left( hp, instrrev( hp, "/" ) - 1 )
+    io.includes.Push( hdir )
+    for i as int32 = 0 to ci.cincludes.Count - 1
+        io.includes.Push( ci.cincludes[i] )
+    next
+    for i as int32 = 0 to ci.cdefines.Count - 1
+        io.defines.Push( ci.cdefines[i] )
+    next
+    if unicode then io.defines.Push( "UNICODE" ) : io.defines.Push( "_UNICODE" )
+    for i as int32 = 0 to ci.copts.Count - 1
+        io.copts.Push( ci.copts[i] )
+    next
+    io.sysroot = ci.csysroot
+    io.targetName = ci.targetName
+    io.triple = ci.triple
+
+    dim as Tko.CppImport.CppImportResult res
+    if Tko.CppImport.CppImportRun( s->api, io, res ) = false then
+        dim as Tko.FileId none_ = Fail_( ctx, at, header & ": " & res.why )
+        dim as Tko.SourceRange nr
+        for i as int32 = 0 to res.clangDiags.Count - 1
+            ctx->diags.AddNote( Tko.TKO0900, nr, "clang: " & res.clangDiags[i] )
+        next
+        return none_
+    end if
+
+    '' THE SHIM'S OBJECT: compiled unless an identical one is cached.
+    dim as Tko.StrVec flags
+    for i as int32 = 0 to io.includes.Count - 1
+        flags.Push( "-I" & io.includes[i] )
+    next
+    for i as int32 = 0 to io.defines.Count - 1
+        flags.Push( "-D" & io.defines[i] )
+    next
+    if len( io.sysroot ) then flags.Push( "--sysroot=" & io.sysroot )
+    for i as int32 = 0 to io.copts.Count - 1
+        flags.Push( io.copts[i] )
+    next
+    dim as string hdrText, fl
+    Tko.DiskCache.ReadAll( hp, hdrText )
+    for i as int32 = 0 to flags.Count - 1
+        fl &= flags[i] & chr( 10 )
+    next
+    dim as string dir_ = Tko.CImportDriver.CacheRoot( *ctx )
+    if len( dir_ ) = 0 then
+        dir_ = environ( "TEMP" )
+        if len( dir_ ) = 0 then dir_ = "/tmp"
+        dir_ &= "/tiko-cpp"
+    else
+        dir_ &= "/cpp"
+    end if
+    if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
+    dim as string key = Tko.DiskCache.Hash( res.shim & chr( 0 ) & hdrText & chr( 0 ) & io.targetName & chr( 0 ) & fl )
+    dim as string src = dir_ & "/" & key & ".cpp"
+    dim as string obj = dir_ & "/" & key & ".o"
+    if IsFile_( obj ) = false then
+        if Tko.DiskCache.Commit( src, res.shim, 1 ) = false then return Fail_( ctx, at, header & ": cannot write the C++ shim '" & src & "'" )
+        dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx->options.target )
+        dim as int32 rc = Tko.Codegen.CompileCppShim( s->tools, td, src, obj, flags )
+        if rc <> 0 then
+            kill( obj )
+            return Fail_( ctx, at, header & ": its C++ shim did not compile (clang exit " & rc & "): " & src )
+        end if
+    end if
+    ctx->link.pragmaLibFiles.Push( obj )
+    if (s->runtimeAsked = false) andalso (Tko.TargetIsWindows( ctx->options.target ) = false) then
+        s->runtimeAsked = true
+        ctx->link.pragmaLibs.Push( iif( Tko.TargetOs( ctx->options.target ) = Tko.OS_DARWIN, "c++", "stdc++" ) )
+    end if
+
+    dim as string vname = mid( hp, instrrev( hp, "/" ) + 1 ) & ".ti"
+    dim as Tko.FileId fid = ctx->sources.AddVirtual( vname, res.binding )
+    s->paths.Push( hp )
+    s->fileIds.Push( cast( int32, fid ) )
+    return fid
+end function
+
+sub ConfigureHook( byref cfg as Tko.PpConfig, byref ctx as Tko.CompilerContext )
+    cfg.cppimportFn = @Hook_
+    cfg.cppimportCtx = @ctx
+end sub
+
+end namespace

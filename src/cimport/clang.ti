@@ -113,6 +113,23 @@ const CXCursor_FunctionDecl        = 8      '' :1214
 const CXCursor_VarDecl             = 9      '' :1216
 const CXCursor_ParmDecl            = 10     '' :1218
 const CXCursor_TypedefDecl         = 20     '' :1238
+'' C++ (src/cppimport): Index.h's CXCursorKind, LLVM 23.
+const CXCursor_ClassDecl           = 4
+const CXCursor_CXXMethod           = 21
+const CXCursor_Namespace           = 22
+const CXCursor_LinkageSpec         = 23
+const CXCursor_Constructor         = 24
+const CXCursor_Destructor          = 25
+const CXCursor_ConversionFunction  = 26
+const CXCursor_FunctionTemplate    = 30
+const CXCursor_ClassTemplate       = 31
+const CXCursor_TypeAliasDecl       = 36
+const CXCursor_CXXBaseSpecifier    = 44
+'' CX_CXXAccessSpecifier.
+const CX_CXXPublic                 = 1
+'' CXTypeKind, the two references (types.tiko has the rest).
+const CXType_LValueReference_      = 103
+const CXType_RValueReference_      = 104
 const CXCursor_TranslationUnit     = 350    '' :2229
 const CXCursor_MacroDefinition     = 501    '' :2284
 const CXCursor_InclusionDirective  = 503    '' :2287
@@ -217,6 +234,24 @@ type CXInclusionVisitor as sub cdecl _
     FN( Cursor_isFunctionInlined, "clang_Cursor_isFunctionInlined", ( byval c as CXCursor ), uint32 )
     FN( Cursor_isVariadic, "clang_Cursor_isVariadic", ( byval c as CXCursor ), uint32 )
     FN( Cursor_getStorageClass, "clang_Cursor_getStorageClass", ( byval c as CXCursor ), int32 )
+    '' ---- C++, for #cppinclude (src/cppimport, docs/tiko-cpp C3). Every one is in libclang 16,
+    '' this importer's floor: isDeleted was the last to arrive, in 16.
+    FN( Cursor_getMangling, "clang_Cursor_getMangling", ( byval c as CXCursor ), CXString )
+    FN( getCursorDisplayName, "clang_getCursorDisplayName", ( byval c as CXCursor ), CXString )
+    FN( getCXXAccessSpecifier, "clang_getCXXAccessSpecifier", ( byval c as CXCursor ), int32 )
+    FN( CXXMethod_isConst, "clang_CXXMethod_isConst", ( byval c as CXCursor ), uint32 )
+    FN( CXXMethod_isStatic, "clang_CXXMethod_isStatic", ( byval c as CXCursor ), uint32 )
+    FN( CXXMethod_isVirtual, "clang_CXXMethod_isVirtual", ( byval c as CXCursor ), uint32 )
+    FN( CXXMethod_isPureVirtual, "clang_CXXMethod_isPureVirtual", ( byval c as CXCursor ), uint32 )
+    FN( CXXMethod_isDeleted, "clang_CXXMethod_isDeleted", ( byval c as CXCursor ), uint32 )
+    FN( CXXMethod_isDefaulted, "clang_CXXMethod_isDefaulted", ( byval c as CXCursor ), uint32 )
+    FN( CXXConstructor_isCopyConstructor, "clang_CXXConstructor_isCopyConstructor", ( byval c as CXCursor ), uint32 )
+    FN( CXXConstructor_isMoveConstructor, "clang_CXXConstructor_isMoveConstructor", ( byval c as CXCursor ), uint32 )
+    FN( CXXConstructor_isDefaultConstructor, "clang_CXXConstructor_isDefaultConstructor", ( byval c as CXCursor ), uint32 )
+    FN( CXXRecord_isAbstract, "clang_CXXRecord_isAbstract", ( byval c as CXCursor ), uint32 )
+    FN( Type_getNumTemplateArguments, "clang_Type_getNumTemplateArguments", ( byval t as CXType ), int32 )
+    FN( getNonReferenceType, "clang_getNonReferenceType", ( byval t as CXType ), CXType )
+    FN( EnumDecl_isScoped, "clang_EnumDecl_isScoped", ( byval c as CXCursor ), uint32 )
     '' ---- macros and evaluation
     FN( Cursor_isMacroFunctionLike, "clang_Cursor_isMacroFunctionLike", ( byval c as CXCursor ), uint32 )
     FN( Cursor_isMacroBuiltin, "clang_Cursor_isMacroBuiltin", ( byval c as CXCursor ), uint32 )

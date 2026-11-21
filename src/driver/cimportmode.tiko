@@ -10,11 +10,12 @@
 #include once "cimport/import.ti"
 #include once "cimport/probe.ti"
 #include once "driver/cimportverify.ti"
+#include once "cppimport/cppimport.ti"
 
 namespace Tko.CImportDriver
 
 function Asked( byref o as Tko.DriverOptions ) as boolean
-    return (len( o.cimportProbe ) > 0) orelse (o.cimportHeaders.Count > 0)
+    return (len( o.cimportProbe ) > 0) orelse (o.cimportHeaders.Count > 0) orelse (len( o.cppimportHeader ) > 0)
 end function
 
 '' The file as bytes, LF and all -- the binding is LF-only on every host, and a text-mode
@@ -97,7 +98,60 @@ sub FillOptions _
     io.clangExe = clangExe
 end sub
 
+'' '-cppimport <h> -cppimport-out <f>' (docs/tiko-cpp C3): the binding to <f>, its C++ shim to
+'' <f>.cpp. The -c* options are the C importer's: the same clang, the same include directories.
+private function RunCpp_( byref ctx as Tko.CompilerContext, byref clangExe as string ) as int32
+    if len( ctx.options.cppimportOut ) = 0 then
+        ctx.diags.ReportGlobal( Tko.TKO0120, ctx.options.cppimportHeader & ": -cppimport needs -cppimport-out <file>" )
+        return Tko.EXIT_CMDLINE
+    end if
+    dim as Tko.CImport.ClangApi api
+    if Tko.CImport.ClangLoad( api, clangExe ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0119, api.why )
+        return Tko.EXIT_NO_TOOLCHAIN
+    end if
+    dim as Tko.CImport.CImportOptions ci
+    FillOptions( ctx, clangExe, ci )
+    dim as Tko.CppImport.CppImportOptions io
+    io.header = ctx.options.cppimportHeader
+    for i as int32 = 0 to ci.cincludes.Count - 1
+        io.includes.Push( ci.cincludes[i] )
+    next
+    for i as int32 = 0 to ci.cdefines.Count - 1
+        io.defines.Push( ci.cdefines[i] )
+    next
+    for i as int32 = 0 to ci.copts.Count - 1
+        io.copts.Push( ci.copts[i] )
+    next
+    io.sysroot = ci.csysroot
+    io.targetName = ci.targetName
+    io.triple = ci.triple
+    dim as Tko.CppImport.CppImportResult res
+    if Tko.CppImport.CppImportRun( api, io, res ) = false then
+        if res.rc = 3 then
+            ctx.diags.ReportGlobal( Tko.TKO0119, res.why )
+            return Tko.EXIT_NO_TOOLCHAIN
+        end if
+        ctx.diags.ReportGlobal( Tko.TKO0120, io.header & ": " & res.why )
+        dim as Tko.SourceRange none_
+        for i as int32 = 0 to res.clangDiags.Count - 1
+            ctx.diags.AddNote( Tko.TKO0900, none_, "clang: " & res.clangDiags[i] )
+        next
+        return Tko.EXIT_USER_ERROR
+    end if
+    if WriteBytes_( ctx.options.cppimportOut, res.binding ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0121, ctx.options.cppimportOut )
+        return Tko.EXIT_USER_ERROR
+    end if
+    if WriteBytes_( ctx.options.cppimportOut & ".cpp", res.shim ) = false then
+        ctx.diags.ReportGlobal( Tko.TKO0121, ctx.options.cppimportOut & ".cpp" )
+        return Tko.EXIT_USER_ERROR
+    end if
+    return Tko.EXIT_OK
+end function
+
 function Run( byref ctx as Tko.CompilerContext, byref clangExe as string ) as int32
+    if len( ctx.options.cppimportHeader ) then return RunCpp_( ctx, clangExe )
     dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx.options.target )
 
     if len( ctx.options.cimportProbe ) then

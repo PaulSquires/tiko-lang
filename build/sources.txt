@@ -178,6 +178,8 @@ src/driver/cicache.tiko
 src/driver/cinclude.tiko
 src/cimport/macros.tiko
 src/cimport/state.tiko
+src/cppimport/cppimport.tiko
+src/driver/cppinclude.tiko
 src/c2t/sha256.tiko
 src/c2t/source.tiko
 src/c2t/ppscan.tiko

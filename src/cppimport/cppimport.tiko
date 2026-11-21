@@ -1,0 +1,628 @@
+'' cppimport.tiko -- see cppimport.ti. docs/tiko-cpp C3 (C3-plan.md).
+
+#import "std/containers"
+#include once "cppimport/cppimport.ti"
+#include once "cimport/import.ti"
+
+namespace Tko.CppImport
+
+using Tko.CImport
+
+'' clang's CXTypeKind values this file reads (Index.h, LLVM 23; cimport/types.tiko has the same).
+const TY_VOID_ = 2, TY_BOOL_ = 3, TY_CHAR_U_ = 4, TY_UCHAR_ = 5, TY_CHAR16_ = 6, TY_CHAR32_ = 7
+const TY_USHORT_ = 8, TY_UINT_ = 9, TY_ULONG_ = 10, TY_ULONGLONG_ = 11, TY_CHAR_S_ = 13
+const TY_SCHAR_ = 14, TY_SHORT_ = 16, TY_INT_ = 17, TY_LONG_ = 18, TY_LONGLONG_ = 19
+const TY_FLOAT_ = 21, TY_DOUBLE_ = 22, TY_POINTER_ = 101, TY_LREF_ = 103, TY_RREF_ = 104
+const TY_RECORD_ = 105, TY_ENUM_ = 106, TY_ELABORATED_ = 119
+
+const UNIT_NAME_ = "tiko-cppimport.cpp"
+const ERR_CPP_ = 1000          '' the runtime error number of a C++ exception (D5)
+
+type CppImp_
+    as ClangApi ptr api
+    as any ptr       tu
+    as string        hdrDir       '' the header's directory, '/'-separated, ending '/'
+    as boolean       foldCase     '' compare paths without case (Windows)
+    as string        id           '' 8 hex digits, from the header's spelling
+    as int32          n           '' the next entry number
+    as int32          pass        '' 1 enums, 2 functions
+    as Tko.StrVec    bind         '' binding lines
+    as Tko.StrVec    shim         '' shim functions
+    as Tko.StrVec    cppNs        '' C++ names of the namespaces being walked
+    as Tko.StrVec    tikoNs       '' their tiko names
+    as Tko.StrVec    enumUsr      '' enums emitted: USR, tiko and C++ qualified names
+    as Tko.StrVec    enumTiko
+    as Tko.StrVec    enumCpp
+    as Tko.StrVec    sigs         '' tiko signatures written, lowercase: an overload tiko
+                                  '' cannot tell from another is refused
+    as int32          bound
+    as int32          todos
+end type
+
+'' One parameter or result, as the three texts that carry it.
+type TMap_
+    as boolean ok
+    as string  why
+    as string  tiko       '' parameter: 'byval n as T' / 'byref n as const T'; result: 'T'
+    as string  ctype      '' the shim's C type for it
+    as string  arg        '' parameter: the C++ argument expression, from the shim parameter
+    as string  wrap0      '' result: around the call
+    as string  wrap1
+    as string  fallback   '' result: what the shim returns after a raise that came back
+end type
+
+private function Indent_( byref x as CppImp_ ) as string
+    return space( 4 * x.cppNs.Count )
+end function
+
+private function Text_( byref x as CppImp_, byval s as CXString ) as string
+    return ClangText( *x.api, s )
+end function
+
+private function Fwd_( byref p as string ) as string
+    dim as string r = p
+    for i as int32 = 0 to len( r ) - 1
+        if r[i] = asc( "\" ) then r[i] = asc( "/" )
+    next
+    return r
+end function
+
+'' Is the declaration in the header's own directory tree? The library's headers are; the
+'' standard library's and the platform's are not, and nothing of theirs is bound.
+private function InScope_( byref x as CppImp_, byval c as CXCursor ) as boolean
+    dim as any ptr f = nullptr
+    dim as uint32 ln, col, off
+    x.api->getExpansionLocation( x.api->getCursorLocation( c ), @f, @ln, @col, @off )
+    if f = nullptr then return false
+    dim as string p = Fwd_( Text_( x, x.api->getFileName( f ) ) )
+    if x.foldCase then p = lcase( p )
+    return left( p, len( x.hdrDir ) ) = x.hdrDir
+end function
+
+private function QualTiko_( byref x as CppImp_, byref nm as string ) as string
+    dim as string r = ""
+    for i as int32 = 0 to x.tikoNs.Count - 1
+        r &= x.tikoNs[i] & "."
+    next
+    return r & nm
+end function
+
+private function QualCpp_( byref x as CppImp_, byref nm as string ) as string
+    dim as string r = ""
+    for i as int32 = 0 to x.cppNs.Count - 1
+        r &= "::" & x.cppNs[i]
+    next
+    return r & "::" & nm
+end function
+
+private sub Todo_( byref x as CppImp_, byref what as string, byref why as string )
+    x.bind.Push( Indent_( x ) & "'' CPP-TODO(" & why & "): " & what )
+    x.todos += 1
+end sub
+
+'' ---------------------------------------------------------------- types
+
+private function Canon_( byref x as CppImp_, byval t as CXType ) as CXType
+    return x.api->getCanonicalType( t )
+end function
+
+private function Spell_( byref x as CppImp_, byval t as CXType ) as string
+    return Text_( x, x.api->getTypeSpelling( t ) )
+end function
+
+'' 'const std::size_t' -> 'size_t': the spelling a pointer-sized typedef is recognised by.
+private function BareSpell_( byref s as string ) as string
+    dim as string r = trim( s )
+    if left( r, 6 ) = "const " then r = mid( r, 7 )
+    if left( r, 5 ) = "std::" then r = mid( r, 6 )
+    return trim( r )
+end function
+
+'' A FUNDAMENTAL type as tiko and the shim spell it. The pointer-sized typedefs keep their own
+'' name in the shim and are tiko's integer/uinteger, which is what ptrdiff_t and size_t are.
+private function Fund_( byref x as CppImp_, byval t as CXType, byref tk as string, _
+                        byref ct as string ) as boolean
+    select case BareSpell_( Spell_( x, t ) )
+    case "size_t", "uintptr_t"                 : tk = "uinteger" : ct = "std::size_t" : return true
+    case "ptrdiff_t", "intptr_t", "ssize_t"    : tk = "integer"  : ct = "std::ptrdiff_t" : return true
+    end select
+    dim as CXType c = Canon_( x, t )
+    dim as int64 sz = x.api->Type_getSizeOf( c )
+    select case c.kind
+    case TY_BOOL_                : tk = "boolean"  : ct = "bool"
+    case TY_CHAR_S_, TY_SCHAR_   : tk = "byte"     : ct = "signed char"
+    case TY_CHAR_U_, TY_UCHAR_   : tk = "ubyte"    : ct = "unsigned char"
+    case TY_SHORT_               : tk = "short"    : ct = "short"
+    case TY_USHORT_, TY_CHAR16_  : tk = "ushort"   : ct = "unsigned short"
+    case TY_INT_                 : tk = "long"     : ct = "int"
+    case TY_UINT_, TY_CHAR32_    : tk = "ulong"    : ct = "unsigned int"
+    case TY_LONG_                : tk = iif( sz = 8, "longint", "long" )   : ct = "long"
+    case TY_ULONG_               : tk = iif( sz = 8, "ulongint", "ulong" ) : ct = "unsigned long"
+    case TY_LONGLONG_            : tk = "longint"  : ct = "long long"
+    case TY_ULONGLONG_           : tk = "ulongint" : ct = "unsigned long long"
+    case TY_FLOAT_               : tk = "single"   : ct = "float"
+    case TY_DOUBLE_              : tk = "double"   : ct = "double"
+    case else                    : return false
+    end select
+    return true
+end function
+
+'' std::string and std::string_view, by their canonical spelling: libstdc++'s
+'' 'std::__cxx11::basic_string<char>', libc++'s 'std::basic_string<char>' and the MSVC STL's
+'' 'std::basic_string<char, std::char_traits<char>, std::allocator<char>>' all contain it.
+private function StrKind_( byref x as CppImp_, byval t as CXType ) as int32
+    dim as string s = BareSpell_( Spell_( x, Canon_( x, t ) ) )
+    if instr( s, "basic_string_view<char" ) > 0 then return 2
+    if instr( s, "basic_string<char" ) > 0 then return 1
+    return 0
+end function
+
+private function EnumOf_( byref x as CppImp_, byval t as CXType, byref tq as string, _
+                          byref cq as string ) as boolean
+    dim as CXCursor d = x.api->getTypeDeclaration( Canon_( x, t ) )
+    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
+    for i as int32 = 0 to x.enumUsr.Count - 1
+        if x.enumUsr[i] = usr then
+            tq = x.enumTiko[i] : cq = x.enumCpp[i]
+            return true
+        end if
+    next
+    return false
+end function
+
+private function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as TMap_
+    dim as TMap_ m
+    m.ok = true
+    dim as string tk, ct, tq, cq
+    dim as CXType c = Canon_( x, t )
+    select case c.kind
+    case TY_POINTER_
+        dim as CXType pe = x.api->getPointeeType( t )
+        dim as CXType pc = Canon_( x, pe )
+        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
+        dim as string kw = iif( kq, "const ", "" )
+        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
+            m.tiko = "byval " & nm & " as " & kw & "zstring ptr" : m.ctype = kw & "char* " & nm : m.arg = nm
+        elseif pc.kind = TY_VOID_ then
+            m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm : m.arg = nm
+        elseif Fund_( x, pe, tk, ct ) then
+            m.tiko = "byval " & nm & " as " & kw & tk & " ptr" : m.ctype = kw & ct & "* " & nm
+            m.arg = "reinterpret_cast<" & Spell_( x, c ) & ">(" & nm & ")"
+        else
+            m.ok = false : m.why = "pointer to " & Spell_( x, pe )
+        end if
+    case TY_LREF_
+        dim as CXType pe = x.api->getNonReferenceType( t )
+        dim as CXType pc = Canon_( x, pe )
+        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
+        if (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) > 0) andalso kq then
+            m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
+            m.arg = "tko_cpp_to_std(" & nm & ")"
+        elseif Fund_( x, pe, tk, ct ) then
+            m.tiko = "byref " & nm & " as " & iif( kq, "const ", "" ) & tk
+            m.ctype = iif( kq, "const ", "" ) & ct & "* " & nm
+            m.arg = "*reinterpret_cast<" & Spell_( x, pc ) & "*>(" & nm & ")"
+        else
+            m.ok = false : m.why = "reference to " & Spell_( x, pe )
+        end if
+    case TY_RREF_
+        m.ok = false : m.why = "rvalue reference"
+    case TY_RECORD_
+        if StrKind_( x, t ) > 0 then
+            m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
+            m.arg = "tko_cpp_to_std(" & nm & ")"
+        else
+            m.ok = false : m.why = "class by value: " & Spell_( x, t )
+        end if
+    case TY_ENUM_
+        if EnumOf_( x, t, tq, cq ) then
+            m.tiko = "byval " & nm & " as " & tq : m.ctype = "long long " & nm
+            m.arg = "static_cast<" & cq & ">(" & nm & ")"
+        else
+            m.ok = false : m.why = "enum not in this header: " & Spell_( x, t )
+        end if
+    case else
+        if Fund_( x, t, tk, ct ) then
+            m.tiko = "byval " & nm & " as " & tk : m.ctype = ct & " " & nm : m.arg = nm
+        else
+            m.ok = false : m.why = "type " & Spell_( x, t )
+        end if
+    end select
+    return m
+end function
+
+private function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
+    dim as TMap_ m
+    m.ok = true
+    dim as string tk, ct, tq, cq
+    dim as CXType c = Canon_( x, t )
+    select case c.kind
+    case TY_VOID_
+        m.tiko = ""
+    case TY_POINTER_
+        dim as CXType pe = x.api->getPointeeType( t )
+        dim as CXType pc = Canon_( x, pe )
+        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
+        dim as string kw = iif( kq, "const ", "" )
+        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
+            m.tiko = kw & "zstring ptr" : m.ctype = kw & "char*"
+        elseif pc.kind = TY_VOID_ then
+            m.tiko = kw & "any ptr" : m.ctype = kw & "void*"
+        elseif Fund_( x, pe, tk, ct ) then
+            m.tiko = kw & tk & " ptr" : m.ctype = kw & ct & "*"
+            m.wrap0 = "reinterpret_cast<" & m.ctype & ">(" : m.wrap1 = ")"
+        else
+            m.ok = false : m.why = "returns a pointer to " & Spell_( x, pe )
+        end if
+        m.fallback = "nullptr"
+    case TY_LREF_, TY_RECORD_
+        dim as CXType pe = t
+        if c.kind = TY_LREF_ then pe = x.api->getNonReferenceType( t )
+        if StrKind_( x, pe ) > 0 then
+            m.tiko = "ustring" : m.ctype = "tko_cpp_ustr*"
+            m.wrap0 = "tko_cpp_from(" : m.wrap1 = ")" : m.fallback = "tko_cpp_from_utf8(nullptr, 0)"
+        else
+            m.ok = false : m.why = "returns " & Spell_( x, t )
+        end if
+    case TY_ENUM_
+        if EnumOf_( x, t, tq, cq ) then
+            m.tiko = tq : m.ctype = "long long"
+            m.wrap0 = "static_cast<long long>(" : m.wrap1 = ")" : m.fallback = "0"
+        else
+            m.ok = false : m.why = "returns an enum not in this header: " & Spell_( x, t )
+        end if
+    case else
+        if Fund_( x, t, tk, ct ) then
+            m.tiko = tk : m.ctype = ct : m.fallback = "0"
+        else
+            m.ok = false : m.why = "returns " & Spell_( x, t )
+        end if
+    end select
+    return m
+end function
+
+'' ---------------------------------------------------------------- declarations
+
+'' A C++ name as a tiko name: a keyword or a name the runtime holds takes a trailing '_'
+'' (EXAMPLES.md: 'swap' is 'swap_'); the shim's alias keeps the real one where it matters.
+private function ValueName_( byref nm as string ) as string
+    if NameReservedValue( nm ) then return nm & "_"
+    return nm
+end function
+
+private function TypeName_( byref nm as string ) as string
+    if NameReservedType( nm ) orelse NameReservedValue( nm ) then return nm & "_"
+    return nm
+end function
+
+type EnumBody_
+    as CppImp_ ptr x
+    as boolean unsigned_
+    as Tko.StrVec lines
+end type
+
+private function EnumConst_ cdecl _
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as EnumBody_ ptr eb = client
+    dim as CppImp_ ptr xp = eb->x
+    if xp->api->getCursorKind( c ) = CXCursor_EnumConstantDecl then
+        dim as string v
+        if eb->unsigned_ then
+            v = str( xp->api->getEnumConstantDeclUnsignedValue( c ) )
+        else
+            v = str( xp->api->getEnumConstantDeclValue( c ) )
+        end if
+        eb->lines.Push( ValueName_( Text_( *xp, xp->api->getCursorSpelling( c ) ) ) & " = " & v )
+    end if
+    return CXChildVisit_Continue
+end function
+
+'' An ENUM is a tiko enum of the same name -- 'explicit' (members qualified) when the C++ one
+'' is scoped. It crosses the shim as a 'long long', since a tiko enum is eight bytes.
+private sub Enum_( byref x as CppImp_, byval c as CXCursor )
+    if x.api->isCursorDefinition( c ) = 0 then return
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
+    if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return     '' anonymous
+    dim as EnumBody_ eb
+    eb.x = @x
+    select case Canon_( x, x.api->getEnumDeclIntegerType( c ) ).kind
+    case TY_CHAR_U_, TY_UCHAR_, TY_USHORT_, TY_UINT_, TY_ULONG_, TY_ULONGLONG_
+        eb.unsigned_ = true
+    end select
+    x.api->visitChildren( c, @EnumConst_, @eb )
+    if eb.lines.Count = 0 then return
+    dim as string tn = TypeName_( nm )
+    dim as string ind = Indent_( x )
+    x.bind.Push( ind & "enum " & tn & iif( x.api->EnumDecl_isScoped( c ) <> 0, " explicit", "" ) )
+    for i as int32 = 0 to eb.lines.Count - 1
+        x.bind.Push( ind & "    " & eb.lines[i] )
+    next
+    x.bind.Push( ind & "end enum" )
+    x.enumUsr.Push( Text_( x, x.api->getCursorUSR( c ) ) )
+    x.enumTiko.Push( QualTiko_( x, tn ) )
+    x.enumCpp.Push( QualCpp_( x, nm ) )
+end sub
+
+'' A FREE FUNCTION: a declaration in the binding and a function in the shim.
+private sub Function_( byref x as CppImp_, byval c as CXCursor )
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
+    dim as string disp = QualCpp_( x, Text_( x, x.api->getCursorDisplayName( c ) ) )
+    if left( nm, 8 ) = "operator" then Todo_( x, disp, "operator" ) : return
+    if x.api->Cursor_isVariadic( c ) <> 0 then Todo_( x, disp, "variadic" ) : return
+    dim as int32 na = x.api->Cursor_getNumArguments( c )
+    if na < 0 then Todo_( x, disp, "no prototype" ) : return
+
+    dim as string tparams = "", cparams = "", args = "", tsig = ""
+    for i as int32 = 0 to na - 1
+        dim as CXCursor a = x.api->Cursor_getArgument( c, i )
+        dim as string pn = NameParam( Text_( x, x.api->getCursorSpelling( a ) ) )
+        if len( pn ) = 0 then pn = "p" & i
+        dim as TMap_ m = Param_( x, x.api->getCursorType( a ), pn )
+        if m.ok = false then Todo_( x, disp, m.why ) : return
+        if i > 0 then tparams &= ", " : cparams &= ", " : args &= ", " : tsig &= ","
+        tparams &= m.tiko : cparams &= m.ctype : args &= m.arg
+        tsig &= mid( m.tiko, instr( m.tiko, " as " ) + 4 )
+    next
+    dim as TMap_ r = Result_( x, x.api->getCursorResultType( c ) )
+    if r.ok = false then Todo_( x, disp, r.why ) : return
+
+    dim as string tn = ValueName_( nm )
+    dim as string sig = lcase( QualTiko_( x, tn ) & "(" & tsig & ")" )
+    for i as int32 = 0 to x.sigs.Count - 1
+        if x.sigs[i] = sig then Todo_( x, disp, "same tiko signature as an overload before it" ) : return
+    next
+    x.sigs.Push( sig )
+
+    dim as string sym = "tko_cpp_" & x.id & "_" & x.n
+    x.n += 1
+    dim as boolean isSub = (len( r.tiko ) = 0)
+    '' ONE 'extern "C"' PER DECLARATION, INSIDE ITS NAMESPACE. A procedure in a namespace inside
+    '' an 'extern "C"' block is still C++-mangled around its alias (measured: txt::tko_cpp_..._2(
+    '' FBUSTRING const&, int)); with the block inside the namespace the alias is the symbol.
+    x.bind.Push( Indent_( x ) & "extern ""C"" : declare " & iif( isSub, "sub ", "function " ) & tn & _
+                 " overload alias """ & sym & """ ( " & tparams & " )" & _
+                 iif( isSub, "", " as " & r.tiko ) & " : end extern    '' " & disp )
+
+    dim as string callx = QualCpp_( x, nm ) & "(" & args & ")"
+    dim as string f = "extern ""C"" " & iif( isSub, "void", r.ctype ) & " " & sym & "(" & cparams & ") {" & chr( 10 )
+    if isSub then
+        f &= "    try { " & callx & "; return; } TKO_CPP_CATCH" & chr( 10 ) & "    tko_cpp_raise();" & chr( 10 )
+    else
+        f &= "    try { return " & r.wrap0 & callx & r.wrap1 & "; } TKO_CPP_CATCH" & chr( 10 ) & _
+             "    tko_cpp_raise();" & chr( 10 ) & "    return " & r.fallback & ";" & chr( 10 )
+    end if
+    x.shim.Push( f & "}" & chr( 10 ) )
+    x.bound += 1
+end sub
+
+private function Visit_ cdecl _
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as CppImp_ ptr xp = client
+    dim as int32 k = xp->api->getCursorKind( c )
+    if (k = CXCursor_Namespace) orelse (k = CXCursor_LinkageSpec) then
+        '' A namespace is walked wherever it is declared: 'std' from a system header holds
+        '' nothing in scope, and costs one look at each of its members.
+        if k = CXCursor_LinkageSpec then
+            xp->api->visitChildren( c, @Visit_, client )
+            return CXChildVisit_Continue
+        end if
+        dim as string nm = Text_( *xp, xp->api->getCursorSpelling( c ) )
+        if len( nm ) = 0 then return CXChildVisit_Continue       '' anonymous: internal linkage
+        if InScope_( *xp, c ) = false then return CXChildVisit_Continue
+        dim as int32 mark = xp->bind.Count
+        xp->bind.Push( Indent_( *xp ) & "namespace " & TypeName_( nm ) )
+        xp->cppNs.Push( nm )
+        xp->tikoNs.Push( TypeName_( nm ) )
+        xp->api->visitChildren( c, @Visit_, client )
+        xp->cppNs.Pop( )
+        xp->tikoNs.Pop( )
+        if xp->bind.Count = mark + 1 then
+            xp->bind.Pop( )
+        else
+            xp->bind.Push( Indent_( *xp ) & "end namespace" )
+        end if
+        return CXChildVisit_Continue
+    end if
+    if InScope_( *xp, c ) = false then return CXChildVisit_Continue
+    select case k
+    case CXCursor_EnumDecl
+        if xp->pass = 1 then Enum_( *xp, c )
+    case CXCursor_FunctionDecl
+        if xp->pass = 2 then Function_( *xp, c )
+    case CXCursor_ClassDecl, CXCursor_StructDecl, CXCursor_UnionDecl
+        if (xp->pass = 2) andalso (xp->api->isCursorDefinition( c ) <> 0) then
+            Todo_( *xp, QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) ), "class (C3a-2)" )
+        end if
+    case CXCursor_FunctionTemplate, CXCursor_ClassTemplate
+        if xp->pass = 2 then
+            Todo_( *xp, QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) ), "template (C3b)" )
+        end if
+    end select
+    return CXChildVisit_Continue
+end function
+
+'' ---------------------------------------------------------------- the texts
+
+'' FNV-1a over the header's spelling: the shim's names are 'tko_cpp_<this>_<n>', so two
+'' headers' shims linked into one program do not collide.
+private function Id_( byref s as string ) as string
+    dim as uint32 h = 2166136261u
+    for i as int32 = 0 to len( s ) - 1
+        h = (h xor s[i]) * 16777619u
+    next
+    return lcase( hex( h, 8 ) )
+end function
+
+'' The shim's prelude: tiko-rt's ustring and error entry points, declared by hand from their
+'' tiko definitions (lib/rt/src/ustr, lib/rt/src/err/throw.tiko), and the helpers every entry
+'' uses. 'inline' (one copy per program) where state is shared: the last exception's text is
+'' one per thread whichever shim threw it, and cpp.What( ) reads it.
+private function Prelude_( ) as string
+    dim as string L = chr( 10 )
+    return _
+    "// ---- tiko C++ shim prelude (tiko -cppimport) ----" & L & _
+    "#include <cstddef>" & L & "#include <cstdint>" & L & "#include <cstdio>" & L & _
+    "#include <exception>" & L & "#include <string>" & L & "#include <string_view>" & L & _
+    "#ifndef TKO_CPP_PRELUDE" & L & "#define TKO_CPP_PRELUDE" & L & _
+    "extern ""C"" {" & L & _
+    "struct tko_cpp_ustr { std::uint16_t* data; std::intptr_t len; std::intptr_t size; };" & L & _
+    "std::intptr_t fb_hUtf8ToUtf16(const std::uint8_t* src, std::intptr_t src_bytes, std::uint16_t* dst, std::intptr_t dst_units);" & L & _
+    "std::intptr_t fb_hUtf16ToUtf8(const std::uint16_t* src, std::intptr_t src_units, std::uint8_t* dst, std::intptr_t dst_bytes);" & L & _
+    "tko_cpp_ustr* fb_hUStrAlloc(tko_cpp_ustr* s, std::intptr_t units);" & L & _
+    "tko_cpp_ustr* fb_UStrAllocTempResult(tko_cpp_ustr* src);" & L & _
+    "void* fb_ErrorThrowMsg(int err_num, int line_num, const char* mod_name, const char* msg, void* res_label, void* resnext_label);" & L & _
+    "}" & L & _
+    "// A ustring's UTF-16 as UTF-8. The sign bit of len is the temporary flag." & L & _
+    "static inline std::string tko_cpp_to_std(const tko_cpp_ustr* s) {" & L & _
+    "    if (!s || !s->data) return std::string();" & L & _
+    "    std::intptr_t n = s->len & INTPTR_MAX;" & L & _
+    "    std::intptr_t b = fb_hUtf16ToUtf8(s->data, n, nullptr, 0);" & L & _
+    "    std::string r((std::size_t)b, '\0');" & L & _
+    "    if (b > 0) fb_hUtf16ToUtf8(s->data, n, (std::uint8_t*)&r[0], b);" & L & _
+    "    return r;" & L & "}" & L & _
+    "// UTF-8 as a ustring RESULT: a temporary descriptor, which is what a tiko function returning" & L & _
+    "// ustring hands its caller (measured: the caller fb_UStrInit's from it)." & L & _
+    "static inline tko_cpp_ustr* tko_cpp_from_utf8(const char* p, std::size_t b) {" & L & _
+    "    tko_cpp_ustr t = { nullptr, 0, 0 };" & L & _
+    "    std::intptr_t n = (p && b) ? fb_hUtf8ToUtf16((const std::uint8_t*)p, (std::intptr_t)b, nullptr, 0) : 0;" & L & _
+    "    if (n > 0 && fb_hUStrAlloc(&t, n)) {" & L & _
+    "        fb_hUtf8ToUtf16((const std::uint8_t*)p, (std::intptr_t)b, t.data, n);" & L & _
+    "        t.len = n;" & L & "    }" & L & _
+    "    return fb_UStrAllocTempResult(&t);" & L & "}" & L & _
+    "template <class S> static inline tko_cpp_ustr* tko_cpp_from(const S& s) { return tko_cpp_from_utf8(s.data(), s.size()); }" & L & _
+    "inline std::string& tko_cpp_last() { static thread_local std::string s; return s; }" & L & _
+    "#define TKO_CPP_CATCH catch (const std::exception& e) { tko_cpp_last() = e.what(); } catch (...) { tko_cpp_last() = ""unknown C++ exception""; }" & L & _
+    "// Raised AFTER the catch has ended, so no C++ object of the shim's is alive: a runtime error" & L & _
+    "// with the text, which jumps to an armed ON ERROR handler or ends the program (D5)." & L & _
+    "inline void tko_cpp_raise() {" & L & _
+    "    static thread_local char buf[1024];" & L & _
+    "    std::snprintf(buf, sizeof buf, ""C++ exception: %s"", tko_cpp_last().c_str());" & L & _
+    "    fb_ErrorThrowMsg(" & ERR_CPP_ & ", -1, nullptr, buf, nullptr, nullptr);" & L & "}" & L & _
+    "// INLINE AND USED, NOT WEAK: every shim defines it, and a weak definition on COFF is not folded --" & L & _
+    "// two #cppinclude's in one program failed 'duplicate symbol: tko_cpp_what'. An inline one is a" & L & _
+    "// COMDAT the linker keeps once; 'used' makes a shim emit it although nothing in the shim calls it." & L & _
+    "extern ""C"" inline __attribute__((used)) tko_cpp_ustr* tko_cpp_what() { return tko_cpp_from(tko_cpp_last()); }" & L & _
+    "#endif" & L & "// ---- end of prelude ----" & L
+end function
+
+private function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string ) as string
+    dim as string L = chr( 10 )
+    return _
+    "'' Generated by tiko -cppimport from """ & hdr & """ (" & ver & ", " & tgt & "). Do not edit: regenerate." & L & _
+    "'' Every declaration is a function of the C++ shim written beside this file, which must be" & L & _
+    "'' compiled for the same target and linked. A C++ exception is runtime error " & ERR_CPP_ & "; cpp.What( )" & L & _
+    "'' is its text. A CPP-TODO line is a declaration the importer could not express yet." & L & _
+    "#pragma once" & L & L & _
+    "#ifndef __TKO_CPP_PRELUDE__" & L & "#define __TKO_CPP_PRELUDE__" & L & _
+    "namespace cpp" & L & _
+    "    extern ""C"" : declare function What alias ""tko_cpp_what"" ( ) as ustring : end extern" & L & _
+    "end namespace" & L & "#endif" & L & L
+end function
+
+'' ---------------------------------------------------------------- the run
+
+function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
+                       byref res as CppImportResult ) as boolean
+    res.rc = 0
+    if api.ok = false then
+        res.rc = 3 : res.why = api.why
+        return false
+    end if
+
+    dim as Tko.StrVec av
+    av.Push( "-x" ) : av.Push( "c++" ) : av.Push( "-std=c++17" )
+    av.Push( "--target=" & opts.triple )
+    dim as string rdir = ClangResourceDir( api )
+    if len( rdir ) then av.Push( "-resource-dir=" & rdir )
+    for i as int32 = 0 to opts.includes.Count - 1
+        av.Push( "-I" ) : av.Push( opts.includes[i] )
+    next
+    for i as int32 = 0 to opts.defines.Count - 1
+        av.Push( "-D" ) : av.Push( opts.defines[i] )
+    next
+    if len( opts.sysroot ) then av.Push( "--sysroot=" & opts.sysroot )
+    for i as int32 = 0 to opts.copts.Count - 1
+        av.Push( opts.copts[i] )
+    next
+    dim as zstring ptr argv( 0 to av.Count )
+    for i as int32 = 0 to av.Count - 1
+        argv( i ) = strptr( av[i] )
+    next
+
+    '' THE HEADER'S DIRECTORY decides what is in scope; resolved here, absolute.
+    dim as string hp = Fwd_( opts.header )
+    dim as boolean absolute_ = (left( hp, 1 ) = "/") orelse (mid( hp, 2, 1 ) = ":")
+    if absolute_ = false then hp = Fwd_( curdir( ) ) & "/" & hp
+    dim as string hd = left( hp, instrrev( hp, "/" ) )
+
+    dim as string unitName = UNIT_NAME_
+    dim as string unitText = "#include """ & hp & """" & chr( 10 )
+    dim as CXUnsavedFile uf
+    uf.Filename = strptr( unitName )
+    uf.Contents = strptr( unitText )
+    uf.Length = len( unitText )
+
+    dim as any ptr idx = api.createIndex( 0, 0 )
+    dim as any ptr tu = api.parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), av.Count, _
+                                                  @uf, 1, CXTranslationUnit_SkipFunctionBodies )
+    if tu = nullptr then
+        api.disposeIndex( idx )
+        res.rc = 1 : res.why = "clang could not start a parse"
+        return false
+    end if
+    dim as int32 nerr = 0
+    for i as int32 = 0 to api.getNumDiagnostics( tu ) - 1
+        dim as any ptr d = api.getDiagnostic( tu, i )
+        if api.getDiagnosticSeverity( d ) >= 3 then
+            nerr += 1
+            if res.clangDiags.Count < 10 then res.clangDiags.Push( ClangText( api, api.formatDiagnostic( d, 3 ) ) )
+        end if
+        api.disposeDiagnostic( d )
+    next
+    if nerr > 0 then
+        api.disposeTranslationUnit( tu )
+        api.disposeIndex( idx )
+        res.rc = 1 : res.why = "clang reported " & nerr & " error(s) in the header"
+        return false
+    end if
+
+    dim as CppImp_ x
+    x.api = @api
+    x.tu = tu
+#ifdef __FB_WIN32__
+    x.foldCase = true
+#endif
+    x.hdrDir = iif( x.foldCase, lcase( hd ), hd )
+    x.id = Id_( lcase( Fwd_( opts.header ) ) )
+    for p as int32 = 1 to 2
+        x.pass = p
+        api.visitChildren( api.getTranslationUnitCursor( tu ), @Visit_, @x )
+    next
+    api.disposeTranslationUnit( tu )
+    api.disposeIndex( idx )
+
+    dim as string L = chr( 10 )
+    dim as Tko.StrVec parts
+    dim as string ver = api.version
+    if instr( ver, " (" ) > 0 then ver = left( ver, instr( ver, " (" ) - 1 )
+    parts.Push( BindingHead_( opts.header, ver, opts.targetName ) )
+    for i as int32 = 0 to x.bind.Count - 1
+        parts.Push( x.bind[i] & L )
+    next
+    res.binding = JoinParts( parts )
+
+    parts.Clear( )
+    parts.Push( "// Generated by tiko -cppimport from """ & opts.header & """ for " & opts.targetName & _
+                ". Do not edit: regenerate." & L )
+    parts.Push( "#include """ & opts.header & """" & L )
+    parts.Push( Prelude_( ) & L )
+    for i as int32 = 0 to x.shim.Count - 1
+        parts.Push( x.shim[i] & L )
+    next
+    res.shim = JoinParts( parts )
+    res.bound = x.bound
+    res.todos = x.todos
+    return true
+end function
+
+end namespace

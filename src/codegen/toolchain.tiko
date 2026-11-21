@@ -338,6 +338,25 @@ private function Exec_ _
     return exec( exe, args )
 end function
 
+'' A #cppinclude SHIM, compiled for the target (docs/tiko-cpp C3): the toolchain's clang in C++
+'' mode, so the shim is built by the compiler that builds the rest of the program. On the msvc
+'' triple it takes the DLL C runtime and C++ exceptions, as a /MD /EHsc library expects; on ELF it
+'' is position-independent, as the objects tiko writes there are. 'flags': -I, -D and the rest.
+function CompileCppShim _
+    ( byref t as ToolPaths, byref target as TargetDescription, byref src as string, _
+      byref obj as string, byref flags as Tko.StrVec ) as int32
+    dim as string args = "--target=" & target.triple & " -x c++ -std=c++17 -O2 -c " & Q( src ) & " -o " & Q( obj )
+    if target.layout.isMsvc then
+        args &= " -fms-runtime-lib=dll -fexceptions -fcxx-exceptions"
+    elseif target.objFormat = OBJ_ELF then
+        args &= " -fPIC"
+    end if
+    for i as int32 = 0 to flags.Count - 1
+        args &= " " & Q( flags[i] )
+    next
+    return Exec_( t, t.clangExe, args )
+end function
+
 '' AN IMPORT LIBRARY FOR A DLL THAT CAME WITHOUT ONE (T98; see dllimplib.ti). The .def
 '' names the DLL, so no -D: its LIBRARY line is the name the program will load.
 function MakeImportLib _

@@ -261,6 +261,10 @@ namespace Tko
         '' directive is TKO0310, as it always was.
         as any ptr    cimportCtx
         as any ptr    cimportFn
+        '' '#cppinclude': the driver's C++ importer (docs/tiko-cpp C3), the same shape: a
+        '' PpCImportFn that returns the binding's FileId. NULL: the directive is TKO0310.
+        as any ptr    cppimportCtx
+        as any ptr    cppimportFn
     end type
 
     type PpResult

@@ -1,0 +1,18 @@
+'' cppinclude.ti -- '#cppinclude': the preprocessor's hook into the C++ importer (docs/tiko-cpp
+'' C3). See cppinclude.tiko.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "driver/driver.ti"
+#include once "pp/pp.ti"
+
+namespace Tko.CppIncludeDriver
+
+'' Install the hook: PpConfig.cppimportFn and its context.
+declare sub ConfigureHook( byref cfg as Tko.PpConfig, byref ctx as Tko.CompilerContext )
+
+'' The session's memory, with the context (CompilerContext.cppinclude).
+declare sub FreeSession( byval p as any ptr )
+
+end namespace

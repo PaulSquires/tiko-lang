@@ -167,8 +167,14 @@ end sub
 '' and entered exactly as '#include' enters a file: the once test, the lex, the frame.
 '' The binding carries '#pragma once' itself, so a second #cinclude of one header in a
 '' unit is a no-op either way.
-private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word as string )
-    if e.cfg->cimportFn = nullptr then
+'' ...AND '#cppinclude [once] "header.hpp"', a C++ header through the C++ importer (docs/tiko-cpp
+'' C3): the same directive shape, a binding entered the same way; the driver also compiles the
+'' binding's C++ shim and links it.
+private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word as string, _
+                        byval cpp as boolean )
+    dim as any ptr hookFn = iif( cpp, e.cfg->cppimportFn, e.cfg->cimportFn )
+    dim as any ptr hookCtx = iif( cpp, e.cfg->cppimportCtx, e.cfg->cimportCtx )
+    if hookFn = nullptr then
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
         return
@@ -205,8 +211,8 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
     end if
 
     dim as boolean unicode = (MacroFor( e, e.names->GetString( "unicode" ) ) <> nullptr)
-    dim as PpCImportFn fn = e.cfg->cimportFn
-    dim as FileId got = fn( e.cfg->cimportCtx, header, unicode, e.rootFile, at )
+    dim as PpCImportFn fn = hookFn
+    dim as FileId got = fn( hookCtx, header, unicode, e.rootFile, at )
     if got = FILE_NONE then return
     '' IN A MODULE, A BINDING IS A HEADER LIKE ANY OTHER (T101): its interface carries it when
     '' a public declaration names something from it, and always after 'public #cinclude'.
@@ -490,7 +496,7 @@ function IsDirectiveWord( byval w as string ) as boolean
     select case w
     case "if", "ifdef", "ifndef", "elseif", "elseifdef", "elseifndef", "else", "endif", _
          "define", "undef", "macro", "endmacro", "include", "error", "print", "assert", _
-         "pragma", "lang", "inclib", "libpath", "cmdline", "cinclude", "foreignlib", _
+         "pragma", "lang", "inclib", "libpath", "cmdline", "cinclude", "cppinclude", "foreignlib", _
          "module", "import", "export"
         return true
     end select
@@ -1031,7 +1037,10 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         end if
 
     case "cinclude"
-        PpCInclude( e, at, word )
+        PpCInclude( e, at, word, false )
+
+    case "cppinclude"
+        PpCInclude( e, at, word, true )
 
     case "embed"
         PpEmbed( e, at )

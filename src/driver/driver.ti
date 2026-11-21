@@ -110,6 +110,8 @@ namespace Tko
         '' '#cinclude's session -- libclang and this run's bindings (cinclude.tiko), made
         '' at the first #cinclude and freed with the context.
         as any ptr                cinclude
+        '' '#cppinclude's session (cppinclude.tiko, docs/tiko-cpp C3), the same way.
+        as any ptr                cppinclude
         as UnitState              unit         '' the unit being compiled -- UnitState above
         '' THE MODULES OF THE BUILD (src/driver/modiface.tiko), by graph node: each one's
         '' chain, its interface once it has been compiled (FILE_NONE until then), and the

@@ -1,0 +1,49 @@
+'' cppimport.ti -- the C++ importer: one header in, a tiko binding and its C++ shim out.
+'' docs/tiko-cpp C3 (C3-plan.md). '-cppimport' and, later, '#cppinclude'.
+''
+'' A C++ library is mostly not callable as symbols -- inline members, templates, the standard
+'' library -- and its ABI is two ABIs (Itanium, Microsoft). So nothing here binds to the
+'' library's own symbols. Every entry point the binding declares is a function of the SHIM, a
+'' C++ file compiled with the library's headers for the same target: it unwraps the tiko
+'' arguments, makes the C++ call, wraps the result, and turns a C++ exception into a tiko
+'' runtime error (D5). The binding is declarations only, in an 'extern "C"' block, each with
+'' 'alias "tko_cpp_<id>_<n>"', which is the shim function's C name on every target.
+''
+'' What crosses (C3a-1): fundamentals by value, pointer and reference; enums; 'const char*';
+'' std::string / std::string_view as ustring, converted through UTF-8 (D6). Anything else is a
+'' 'CPP-TODO(<reason>)' line in the binding, where the declaration would have been.
+''
+'' DETERMINISTIC: the same header, options and clang give the same bytes; no path is written
+'' but the header's own spelling.
+
+#pragma once
+
+#include once "tko.ti"
+#include once "cimport/clang.ti"
+
+namespace Tko.CppImport
+
+type CppImportOptions
+    as string     header        '' as the user wrote it
+    as Tko.StrVec includes      '' -cinclude: clang's -I
+    as Tko.StrVec defines       '' -cdefine: clang's -D
+    as Tko.StrVec copts         '' -copt: verbatim
+    as string     sysroot       '' -csysroot
+    as string     targetName    '' "windows-x86_64", "linux-x86_64", ...
+    as string     triple        '' TargetFor( t ).triple
+end type
+
+type CppImportResult
+    as string     binding       '' the tiko declarations, LF-only
+    as string     shim          '' the C++ shim, LF-only; #includes the header by the path given
+    as int32       rc           '' 0 imported, 1 clang could not parse it, 3 no usable libclang
+    as string     why
+    as Tko.StrVec clangDiags    '' clang's own error lines, at most ten
+    as int32       bound        '' entry points written
+    as int32       todos        '' CPP-TODO lines written
+end type
+
+declare function CppImportRun( byref api as Tko.CImport.ClangApi, byref opts as CppImportOptions, _
+                               byref res as CppImportResult ) as boolean
+
+end namespace

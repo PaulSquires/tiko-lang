@@ -1,0 +1,60 @@
+'' cppinclude/funcs, called from tiko through '#cppinclude "lib.hpp"' -- or, when the lane defines
+'' TKO_LANE_IMPORTED, through the binding 'tiko -cppimport lib.hpp' wrote, its shim linked by the
+'' lane (the Linux leg compiles with -c, so there is no link for #cppinclude to add the shim to).
+'' Must print what driver.cpp prints. A ustring result goes through a string, which is the UTF-8
+'' the C++ side printed.
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+sub ShowU( byval k as const zstring ptr, byref u as const ustring )
+    dim as string s = u
+    show_s( k, strptr( s ) )
+end sub
+
+sub RepeatNeg( )
+    on local error goto failed
+    ShowU( "repeat.neg", txt.repeat( "x", -1 ) )
+    show_s( "repeat.neg", "no throw" )
+    exit sub
+failed:
+    dim as string w = cpp.What( )
+    show_s( "repeat.neg", strptr( w ) )
+end sub
+
+sub ParseBad( )
+    on local error goto failed
+    show_i( "parse_int.bad", txt.parse_int( "nope" ) )
+    show_s( "parse_int.bad", "no throw" )
+    exit sub
+failed:
+    show_s( "parse_int.bad", "caught" )
+end sub
+
+ShowU( "transform.upper", txt.transform( "hello world", txt.Mode.Upper ) )
+ShowU( "transform.title", txt.transform( "the QUICK fox", txt.Mode.Title ) )
+ShowU( "transform.utf8", txt.transform( "straße café", txt.Mode.Upper ) )
+show_u( "count_words", txt.count_words( "  one two  three " ) )
+ShowU( "repeat", txt.repeat( "ab", 3 ) )
+RepeatNeg( )
+show_i( "parse_int", txt.parse_int( "1234" ) )
+ParseBad( )
+show_s( "level_name", txt.level_name( txt.Loud ) )
+show_i( "louder", txt.louder( txt.Quiet ) )
+show_i( "add.int", txt.add( 2, 3 ) )
+show_d( "add.double", txt.add( 1.5, 2.25 ) )
+show_i( "add.3", txt.add( 1ll, 2ll, 4000000000ll ) )
+dim as long a = 1, b = 2
+txt.swap_( a, b )
+show_i( "swap.a", a )
+show_i( "swap.b", b )
+dim as long buf(0 to 3)
+txt.fill( @buf(0), 3, 7 )
+show_i( "fill", buf(0) + buf(1) + buf(2) + buf(3) )
+show_i( "square", txt.square( 12 ) )
+ShowU( "greet", txt.greet( "wörld" ) )
+show_i( "is_even", iif( txt.is_even( 10 ), 1, 0 ) )
+show_i( "first_char", txt.detail.first_char( "zed" ) )

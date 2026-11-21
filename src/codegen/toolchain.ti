@@ -156,6 +156,10 @@ namespace Tko.Codegen
     '' A Mach-O output's DWARF into '<outPath>.dSYM' (dsymutil); -1 when there is no dsymutil.
     declare function MakeDsym( byref t as ToolPaths, byref outPath as string ) as int32
 
+    '' A #cppinclude shim compiled for the target: clang in C++ mode. 0, or clang's exit code.
+    declare function CompileCppShim _
+        ( byref t as ToolPaths, byref target as TargetDescription, byref src as string, _
+          byref obj as string, byref flags as Tko.StrVec ) as int32
     '' An import library 'outLib' from the .def 'defFile', for the DLL the .def names in its
     '' LIBRARY line: llvm-dlltool, x86-64. 0, or the tool's exit code; -1 when there is no
     '' llvm-dlltool beside clang.

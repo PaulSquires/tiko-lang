@@ -1,7 +1,7 @@
 #!/bin/sh
 # cpplane.sh -- the C++ lane: tiko-compiled code linked against C++ a C++ compiler built.
 #
-#   build/cpplane.sh [--no-corpus] [--no-linux] [--no-msvc] [case...]
+#   build/cpplane.sh [--no-corpus] [--no-linux] [--no-msvc]
 #
 # THE REFERENCE IS THE C++ COMPILER (docs/tiko-cpp, FEASIBILITY 4 C1). Two corpora:
 #
@@ -14,6 +14,12 @@
 #                           the vendored suite's twelve C++ pairs: the C++ half by the C++
 #                           compiler, the BASIC half by tiko with -g, run; a failed ASSERT is a
 #                           non-zero exit. Never edited (tests/vendor is fbc's, verbatim).
+#   tests/cpplane/cppinclude/<case>/
+#                           C3, the importer: lib.hpp, lib.cpp, driver.cpp and driver.tiko, which
+#                           #include's the "lib.ti" that 'tiko -cppimport lib.hpp' writes here,
+#                           and whose shim (lib.ti.cpp) is compiled and linked into the tiko
+#                           program only. Run on BOTH legs; the Linux import reads libstdc++'s
+#                           headers from TIKO_CPP_SYSROOT (default //wsl.localhost/Ubuntu).
 #   tests/cpplane/msvc/<case>/
 #                           windows-x86_64, the MSVC ABI (C2): the same three files, the library
 #                           behind a C API or a COM-style interface -- tiko writes no Microsoft
@@ -46,11 +52,16 @@ for a in "$@"; do
         --no-linux) LINUX=0 ;;
         --no-msvc) MSVC=0 ;;
         -*) echo "cpplane: unknown option $a" >&2; exit 3 ;;
-        *) CASES="$CASES $a" ;;
+        *) echo "cpplane: no case arguments; run the whole lane" >&2; exit 3 ;;
     esac
 done
-[ -n "$CASES" ] || CASES=$(cd "$ROOT/tests/cpplane" && for d in */; do [ "$d" = "msvc/" ] || printf '%s ' "${d%/}"; done)
-MCASES=$(cd "$ROOT/tests/cpplane/msvc" && for d in */; do printf '%s ' "${d%/}"; done)
+# Itanium cases: the top-level ones and cppinclude's. MSVC cases: msvc's and cppinclude's. A case is
+# named by its path under tests/cpplane; its files here by that path with '/' made '_'.
+CASES=$(cd "$ROOT/tests/cpplane" && for d in */; do case "$d" in msvc/|cppinclude/) ;; *) printf '%s ' "${d%/}" ;; esac; done; \
+        for d in cppinclude/*/; do printf '%s ' "${d%/}"; done)
+MCASES=$(cd "$ROOT/tests/cpplane" && for d in msvc/*/ cppinclude/*/; do printf '%s ' "${d%/}"; done)
+CPPSYSROOT=${TIKO_CPP_SYSROOT:-//wsl.localhost/Ubuntu}
+safe( ) { echo "$1" | tr '/' '_'; }
 if [ $LINUX -eq 0 ]; then CASES=""; CORPUS=0; fi
 
 if [ $LINUX -eq 1 ]; then
@@ -71,9 +82,18 @@ mnt( ) { echo "$1" | sed 's#^/\([a-zA-Z]\)/#/mnt/\L\1/#'; }
 # THE TIKO HALVES, compiled here. A case whose tiko main does not compile is a failure
 # recorded now and skipped in WSL.
 for c in $CASES; do
-    if ! "$TKO" -target linux-x86_64 -c -m driver "$ROOT/tests/cpplane/$c/driver.tiko" \
-            -o "$W/cases/$c.o" > "$W/cases/$c.tiko.log" 2>&1; then
-        echo "tiko" > "$W/cases/$c.nobuild"
+    s=$(safe "$c")
+    inc=""
+    if [ -f "$ROOT/tests/cpplane/$c/lib.hpp" ]; then
+        mkdir -p "$W/cases/$s.inc"
+        ( cd "$ROOT/tests/cpplane/$c" && MSYS_NO_PATHCONV=1 "$TKO" -target linux-x86_64 -csysroot "$CPPSYSROOT" \
+              -cppimport lib.hpp -cppimport-out "$(cygpath -m "$W/cases/$s.inc")/lib.ti" ) > "$W/cases/$s.import.log" 2>&1 \
+            || { echo "import" > "$W/cases/$s.nobuild"; continue; }
+        inc="-d TKO_LANE_IMPORTED -i $W/cases/$s.inc"
+    fi
+    if ! "$TKO" -target linux-x86_64 -c -m driver $inc "$ROOT/tests/cpplane/$c/driver.tiko" \
+            -o "$W/cases/$s.o" > "$W/cases/$s.tiko.log" 2>&1; then
+        echo "tiko" > "$W/cases/$s.nobuild"
     fi
 done
 if [ $CORPUS -eq 1 ]; then
@@ -94,15 +114,21 @@ cd "$(mnt "$W")" || exit 2
 CXX=\${CXX:-g++}
 \$CXX -std=c++17 -O1 -c "$CL/show.cpp" -o show.o || exit 2
 for c in $CASES; do
-    [ -f cases/\$c.nobuild ] && continue
+    s=\$(echo \$c | tr / _)
+    [ -f cases/\$s.nobuild ] && continue
     d="$CL/\$c"
-    ( \$CXX -std=c++17 -O1 -c "\$d/lib.cpp" -o cases/\$c.lib.o &&
-      \$CXX -std=c++17 -O1 -c "\$d/driver.cpp" -o cases/\$c.drv.o &&
-      \$CXX cases/\$c.drv.o cases/\$c.lib.o show.o -o cases/\$c.ref ) > cases/\$c.cxx.log 2>&1 || { echo cxx > cases/\$c.nobuild; continue; }
-    \$CXX -no-pie "$RT/fbrt0.o" cases/\$c.o cases/\$c.lib.o show.o "$RT/libfb.a" \
-        -lm -lpthread -ltinfo -o cases/\$c.tk > cases/\$c.link.log 2>&1 || { echo link > cases/\$c.nobuild; continue; }
-    ./cases/\$c.ref > cases/\$c.ref.out 2>&1; echo \$? > cases/\$c.ref.rc
-    timeout 30 ./cases/\$c.tk > cases/\$c.tk.out 2>&1; echo \$? > cases/\$c.tk.rc
+    ( \$CXX -std=c++17 -O1 -c "\$d/lib.cpp" -o cases/\$s.lib.o &&
+      \$CXX -std=c++17 -O1 -c "\$d/driver.cpp" -o cases/\$s.drv.o &&
+      \$CXX cases/\$s.drv.o cases/\$s.lib.o show.o -o cases/\$s.ref ) > cases/\$s.cxx.log 2>&1 || { echo cxx > cases/\$s.nobuild; continue; }
+    shim=""
+    if [ -f cases/\$s.inc/lib.ti.cpp ]; then
+        \$CXX -std=c++17 -O1 -I "\$d" -c cases/\$s.inc/lib.ti.cpp -o cases/\$s.shim.o > cases/\$s.shim.log 2>&1 || { echo shim > cases/\$s.nobuild; continue; }
+        shim=cases/\$s.shim.o
+    fi
+    \$CXX -no-pie "$RT/fbrt0.o" cases/\$s.o \$shim cases/\$s.lib.o show.o "$RT/libfb.a" \
+        -lm -lpthread -ltinfo -o cases/\$s.tk > cases/\$s.link.log 2>&1 || { echo link > cases/\$s.nobuild; continue; }
+    sh -c "./cases/\$s.ref" > cases/\$s.ref.out 2>&1; echo \$? > cases/\$s.ref.rc
+    sh -c "timeout 30 ./cases/\$s.tk" > cases/\$s.tk.out 2>&1; echo \$? > cases/\$s.tk.rc
 done
 if [ $CORPUS -eq 1 ]; then
     for t in $VENDOR; do
@@ -122,22 +148,25 @@ MSYS_NO_PATHCONV=1 wsl bash "$(mnt "$W")/wsl.sh" || { echo "cpplane: WSL step fa
 pass=0; fail=0
 note( ) { echo "FAIL $1: $2"; [ -f "$3" ] && tr -d '\r' < "$3" | grep -v '^\s*|' | head -6 | sed 's/^/    /'; fail=$((fail + 1)); }
 for c in $CASES; do
-    if [ -f "$W/cases/$c.nobuild" ]; then
-        why=$(cat "$W/cases/$c.nobuild")
+    s=$(safe "$c")
+    if [ -f "$W/cases/$s.nobuild" ]; then
+        why=$(cat "$W/cases/$s.nobuild")
         case "$why" in
-            tiko) note "$c" "tiko did not compile driver.tiko" "$W/cases/$c.tiko.log" ;;
-            cxx)  note "$c" "the C++ side did not build" "$W/cases/$c.cxx.log" ;;
-            link) note "$c" "the tiko program did not link" "$W/cases/$c.link.log" ;;
+            import) note "$c" "tiko -cppimport failed" "$W/cases/$s.import.log" ;;
+            tiko) note "$c" "tiko did not compile driver.tiko" "$W/cases/$s.tiko.log" ;;
+            cxx)  note "$c" "the C++ side did not build" "$W/cases/$s.cxx.log" ;;
+            shim) note "$c" "the generated shim did not compile" "$W/cases/$s.shim.log" ;;
+            link) note "$c" "the tiko program did not link" "$W/cases/$s.link.log" ;;
         esac
         continue
     fi
-    if [ "$(cat "$W/cases/$c.ref.rc")" != "0" ]; then note "$c" "the C++ reference exited $(cat "$W/cases/$c.ref.rc")" "$W/cases/$c.ref.out"; continue; fi
-    if [ "$(cat "$W/cases/$c.tk.rc")" != "0" ]; then note "$c" "the tiko program exited $(cat "$W/cases/$c.tk.rc")" "$W/cases/$c.tk.out"; continue; fi
-    if cmp -s "$W/cases/$c.ref.out" "$W/cases/$c.tk.out"; then
+    if [ "$(cat "$W/cases/$s.ref.rc")" != "0" ]; then note "$c" "the C++ reference exited $(cat "$W/cases/$s.ref.rc")" "$W/cases/$s.ref.out"; continue; fi
+    if [ "$(cat "$W/cases/$s.tk.rc")" != "0" ]; then note "$c" "the tiko program exited $(cat "$W/cases/$s.tk.rc")" "$W/cases/$s.tk.out"; continue; fi
+    if cmp -s "$W/cases/$s.ref.out" "$W/cases/$s.tk.out"; then
         echo "PASS $c"; pass=$((pass + 1))
     else
         echo "FAIL $c: output differs (< C++  > tiko)"
-        diff "$W/cases/$c.ref.out" "$W/cases/$c.tk.out" | head -12 | sed 's/^/    /'
+        diff "$W/cases/$s.ref.out" "$W/cases/$s.tk.out" | head -12 | sed 's/^/    /'
         fail=$((fail + 1))
     fi
 done
@@ -172,21 +201,31 @@ if [ $MSVC -eq 1 ]; then
         echo "FAIL msvc: show.cpp did not compile"; fail=$((fail + 1))
     else
         for c in $MCASES; do
-            d="$ROOT/tests/cpplane/msvc/$c"
+            d="$ROOT/tests/cpplane/$c"
+            nm=$c
+            c=$(safe "$c")
             vars="clang"
-            "$CLANG" $CXF -c "$d/lib.cpp" -o "$MW/$c.lib-clang.o" > "$MW/$c.cxx.log" 2>&1 || { note "msvc/$c" "clang did not compile lib.cpp" "$MW/$c.cxx.log"; continue; }
-            "$CLANG" $CXF -c "$d/driver.cpp" -o "$MW/$c.drv.o" >> "$MW/$c.cxx.log" 2>&1 || { note "msvc/$c" "clang did not compile driver.cpp" "$MW/$c.cxx.log"; continue; }
+            "$CLANG" $CXF -c "$d/lib.cpp" -o "$MW/$c.lib-clang.o" > "$MW/$c.cxx.log" 2>&1 || { note "$nm" "clang did not compile lib.cpp" "$MW/$c.cxx.log"; continue; }
+            "$CLANG" $CXF -c "$d/driver.cpp" -o "$MW/$c.drv.o" >> "$MW/$c.cxx.log" 2>&1 || { note "$nm" "clang did not compile driver.cpp" "$MW/$c.cxx.log"; continue; }
+            # A cppinclude case goes through '#cppinclude' itself here: tiko imports the header,
+            # compiles the shim and links it -- the user's path. Its own cache directory, so a run
+            # proves the compile and not an object an earlier run left.
+            extra=""
+            if [ -f "$d/lib.hpp" ]; then
+                rm -rf "$MW/$c.ccache"
+                extra="-ccachedir $MW/$c.ccache"
+            fi
             if [ -n "$VCVARS" ]; then
                 printf '@echo off\r\ncall "%s" > nul\r\ncl /nologo /std:c++17 /MD /EHsc /O2 /c "%s" /Fo"%s"\r\n' \
                     "$(cygpath -w "$VCVARS")" "$(cygpath -w "$d/lib.cpp")" "$(cygpath -w "$MW/$c.lib-cl.o")" > "$MW/$c.cl.bat"
                 cmd //c "$(cygpath -w "$MW/$c.cl.bat")" > "$MW/$c.cl.log" 2>&1 && vars="clang cl"
             fi
             for v in $vars; do
-                n="msvc/$c[$v]"
+                n="$nm[$v]"
                 lo="$MW/$c.lib-$v.o"
                 "$CLANG" $CXF -fuse-ld=lld "$MW/$c.drv.o" "$lo" "$MW/show.o" -o "$MW/$c-$v.ref.exe" > "$MW/$c-$v.ref.log" 2>&1 \
                     || { note "$n" "the C++ reference did not link" "$MW/$c-$v.ref.log"; continue; }
-                TIKO_LIBPATH="$WRT" "$TKO" -target windows-x86_64 "$d/driver.tiko" "$lo" "$MW/show.o" \
+                TIKO_LIBPATH="$WRT" "$TKO" -target windows-x86_64 $extra "$d/driver.tiko" "$lo" "$MW/show.o" \
                     -o "$MW/$c-$v.tk.exe" > "$MW/$c-$v.tk.log" 2>&1 || { note "$n" "tiko did not build or link it" "$MW/$c-$v.tk.log"; continue; }
                 "$MW/$c-$v.ref.exe" > "$MW/$c-$v.ref.out" 2>&1; rr=$?
                 "$MW/$c-$v.tk.exe" > "$MW/$c-$v.tk.out" 2>&1; tr_=$?
