@@ -140,6 +140,7 @@ A profile is a named set of compiler options, and part of every cache key.
 |---|---|
 | `debug` | `-g -exx -O0`, the default |
 | `release` | `-O2` |
+| `asan` | `-g -exx -O1 -fsanitize=address`: [AddressSanitizer](Compiler-Option-Fsanitize) on top of the debug checks |
 
 `[profile.<name>]` changes a built-in or declares another:
 

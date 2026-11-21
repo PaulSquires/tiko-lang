@@ -257,7 +257,7 @@ end function
 private function Tools_( byref ctx as Tko.CompilerContext ) as Tko.Codegen.ToolPaths
     dim as Tko.Codegen.ToolPaths t = _
         Tko.Codegen.FindTools( "", AssembledLibPaths_( ctx ) )
-    t.verbose = ctx.options.verbose
+    t.verbose = ctx.options.verbose : t.sanitizeAddress = ctx.options.sanitizeAddress : Tko.Codegen.RequireAsanRuntime( t, Tko.TargetLayoutFor( ctx.options.target ).isMsvc )
     return t
 end function
 
@@ -277,6 +277,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.outKind = iif( ctx.options.compileOnly, 3, _
         iif( ctx.options.outKind = Tko.OUT_DLL, 1, iif( ctx.options.outKind = Tko.OUT_STATICLIB, 2, 0 ) ) )
     cfg.guiSubsystem = ctx.options.guiSubsystem
+    cfg.sanitizeAddress = ctx.options.sanitizeAddress
     cfg.optLevel = ctx.options.optLevel
     cfg.reportUnsupported = true
     cfg.sharedLits = @ctx.ppLits
@@ -686,7 +687,7 @@ private function LinkAll _
     '' fbc's RULE, read and then measured: strip unless '-g'. This is also the
     '' first effect '-g' has ever had -- OPT_DEBUG set a field that nothing read.
     '' It does NOT yet make the compiler emit debug information; that is Phase 11.
-    tools.stripSymbols = (ctx.options.debugInfo = false)
+    tools.stripSymbols = (ctx.options.debugInfo = false) andalso (ctx.options.sanitizeAddress = false)   '' ASan names frames by symbol
     tools.threadSafe = Tko.LinkThreadSafe( ctx )
     tools.guiSubsystem = ctx.options.guiSubsystem
     tools.stackSize = ctx.options.stackSize

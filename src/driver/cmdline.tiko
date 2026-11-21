@@ -62,6 +62,7 @@ constructor DriverOptions( )
     this.compileOnly = false
     this.debugInfo = false
     this.threadSafe = false
+    this.sanitizeAddress = false
     this.guiSubsystem = false
     this.stackSize = 2097152
     this.optLevel = 0
@@ -545,7 +546,7 @@ private function SourceOptionOk_ _
          Tko.OPT_ERRCHK, Tko.OPT_ERRCHKX, Tko.OPT_ERRCHKXX, Tko.OPT_DEBUG, _
          Tko.OPT_EARRAY, Tko.OPT_ENULLPTR, Tko.OPT_ELOCATION, Tko.OPT_EARRAYDIMS, _
          Tko.OPT_EASSERT, Tko.OPT_EDEBUG, Tko.OPT_EDEBUGINFO, Tko.OPT_EUNWIND, _
-         Tko.OPT_OPTLEVEL, Tko.OPT_MT, Tko.OPT_PIC, Tko.OPT_MAINMOD, _
+         Tko.OPT_OPTLEVEL, Tko.OPT_MT, Tko.OPT_PIC, Tko.OPT_MAINMOD, Tko.OPT_SANITIZE, _
          Tko.OPT_TARGET, Tko.OPT_M64, Tko.OPT_M32, Tko.OPT_SUBSYS, Tko.OPT_STACK, _
          Tko.OPT_WERROR, Tko.OPT_WNO, Tko.OPT_WLEVEL, Tko.OPT_MAXERR, Tko.OPT_MAXINSTDEPTH, _
          Tko.OPT_COLOR, Tko.OPT_DIAGFMT, _
@@ -751,6 +752,15 @@ function Parse _
         '' subsystem 3, '-s gui' gives 2, and fbc hands ld '-subsystem windows'. Without
         '' it a GUI program -- tracks -- linked as a console one and opened a stray console
         '' window beside its own. Any other value is refused rather than guessed at.
+        '' -fsanitize=address, clang's spelling. 'address' alone: the others (thread, undefined,
+        '' memory) have no runtime measured here, so they are refused rather than passed on.
+        case Tko.OPT_SANITIZE
+            if Tko.Text.LowerAscii( value ) = "address" then
+                opts.sanitizeAddress = true
+            else
+                diags.ReportGlobal( Tko.TKO0106, value, "-fsanitize" )
+                ok = false
+            end if
         case Tko.OPT_SUBSYS
             select case Tko.Text.LowerAscii( value )
             case "gui"     : opts.guiSubsystem = true
@@ -946,6 +956,10 @@ function Parse _
 
     if opts.pic andalso Tko.TargetIsWindows( opts.target ) then
         diags.ReportGlobal( Tko.TKO0123, opts.targetName )
+        ok = false
+    end if
+    if opts.sanitizeAddress andalso Tko.TargetIsWindows( opts.target ) andalso (Tko.TargetLayoutFor( opts.target ).isMsvc = false) then
+        diags.ReportGlobal( Tko.TKO0179, opts.targetName )
         ok = false
     end if
 

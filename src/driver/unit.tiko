@@ -670,7 +670,8 @@ function CompileUnit _
             tPh = timer
             dim as Tko.Codegen.EmitResult er = _
                 Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
-                                      ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe )
+                                      ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe, _
+                                      ctx.options.sanitizeAddress )
             ctx.timing.Add( Tko.PH_EMIT, tPh )
             if er.ok then
                 '' '--emit-ir' AND '--emit-asm' WRITE THEIR FILE AND STOP --

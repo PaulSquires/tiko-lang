@@ -7,6 +7,7 @@
 #include once "driver/manifest.ti"
 #include once "support/text.ti"
 #include once "codegen/dllimplib.ti"
+#include once "codegen/toolchain.ti"
 #include once "codegen/target.ti"
 #include once "build/events.ti"
 
@@ -251,6 +252,16 @@ function CopyVendorLibs _
         dim as string nm = mid( src, instrrev( src, "/" ) + 1 )
         if CopyBeside_( ctx, src, outDir, outSpelled, nm, failSrc, failDst ) = false then return false
     next
+    '' -fsanitize=address ON THE MSVC TRIPLE: the program imports clang's ASan runtime DLL, which
+    '' is beside clang, not on the loader's path -- measured, without it the program does not start.
+    if ctx.options.sanitizeAddress andalso Tko.TargetLayoutFor( ctx.options.target ).isMsvc then
+        dim as containers.Array( of string ) noLibs
+        dim as Tko.Codegen.ToolPaths at_ = Tko.Codegen.FindTools( "", noLibs )
+        if len( at_.asanRtDir ) > 0 then
+            if CopyBeside_( ctx, at_.asanRtDir & "clang_rt.asan_dynamic-x86_64.dll", outDir, outSpelled, _
+                            "clang_rt.asan_dynamic-x86_64.dll", failSrc, failDst ) = false then return false
+        end if
+    end if
     return true
 end function
 

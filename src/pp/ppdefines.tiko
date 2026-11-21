@@ -36,4 +36,8 @@ private sub PpDefineMore_( byref e as PpEngine )
     '' too, and a seed older than the feature must still build it. Bodied "1", as
     '' __TIKO_COMPILER__ is; the test can go once the seed has the feature.
     PpDefineValue( e, "__TIKO_CALLER_LOCATION__", "1" )
+    '' -fsanitize=address: the program is built with AddressSanitizer. tiko's own, bodied "1".
+    if e.cfg <> nullptr then
+        if e.cfg->sanitizeAddress then PpDefineValue( e, "__TIKO_ASAN__", "1" )
+    end if
 end sub

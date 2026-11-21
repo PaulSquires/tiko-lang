@@ -250,6 +250,7 @@ namespace Tko
         '' -s gui, the -O level, and whether this unit's top-level code becomes 'main':
         '' __FB_GUI__, __FB_OPTIMIZE__ and __FB_MAIN__ (T96).
         as boolean    guiSubsystem
+        as boolean    sanitizeAddress  '' -fsanitize=address: __TIKO_ASAN__
         as int32       optLevel
         as boolean    isMainModule
         as any ptr    queryCtx       '' passed back to queryFn

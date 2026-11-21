@@ -71,6 +71,8 @@ tests/vendor/**/*.o
 /tests/driver/*.dll.a
 /tests/modules/*.dll
 /tests/modules/*.dll.a
+# -fsanitize=address copies clang's runtime DLL beside a run test's program
+/tests/codegen/clang_rt.asan_dynamic-x86_64.dll
 /tests/driver/*.a
 /tests/driver/*.exe
 /tests/driver/*.ll

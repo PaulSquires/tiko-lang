@@ -157,6 +157,9 @@ function FindTools _
                         if cand[ci] = asc( "\" ) then cand[ci] = asc( "/" )
                     next
                     t.rtBuiltinsLib = cand
+                    dim as string adir = left( cand, instrrev( cand, "/" ) )
+                    if FileExists_( adir & "clang_rt.asan_dynamic-x86_64.dll" ) andalso _
+                       FileExists_( adir & "clang_rt.asan_dynamic_runtime_thunk-x86_64.lib" ) then t.asanRtDir = adir
                 end if
             end if
             sub_ = dir( )
@@ -400,6 +403,22 @@ function ArchiveLib _
     return Exec_( t, t.arExe, cmd )
 end function
 
+'' -fsanitize=address's compile half. The IR's 'sanitize_address' attributes are what clang
+'' instruments; the flag runs the pass. 'use-after-return=always' gives every frame a fake stack,
+'' so a returned local's address is caught -- except in a function holding inline asm (tiko's
+'' x86-64 division by a variable), where ASan turns that part off.
+sub RequireAsanRuntime( byref t as ToolPaths, byval msvc as boolean )
+    if (t.sanitizeAddress = false) orelse (msvc = false) orelse (len( t.asanRtDir ) > 0) orelse (t.found = false) then return
+    t.found = false
+    t.why = "-fsanitize=address needs clang's AddressSanitizer runtime (clang_rt.asan_dynamic-x86_64.dll and " & _
+            "clang_rt.asan_dynamic_runtime_thunk-x86_64.lib) beside clang_rt.builtins, and this LLVM has none"
+end sub
+
+private function AsanCompileFlags_( byref t as ToolPaths ) as string
+    if t.sanitizeAddress = false then return ""
+    return " -fsanitize=address -fsanitize-address-use-after-return=always"
+end function
+
 private function CompileIrArgs_ _
     ( byref t as ToolPaths, byref target as TargetDescription, _
       byref irPath as string, byref objPath as string ) as string
@@ -438,7 +457,7 @@ private function CompileIrArgs_ _
     '' '-dll': objects meant for a shared library later, as fbc's '-pic' -- measured with
     '' 'fbc -v', it reaches the same clang flag (lib/rt/build/build.sh's pic archives).
     if (t.buildDll orelse t.pic) andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
-    return cmd
+    return cmd & AsanCompileFlags_( t )
 end function
 
 function CompileIr _
@@ -475,6 +494,7 @@ function CompileIrAsm _
         Q( irPath ) & " -o " & Q( asmPath )
     if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
     if (t.buildDll orelse t.pic) andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
+    cmd += AsanCompileFlags_( t )
     dim as int32 rc = Exec_( t, t.clangExe, cmd )
     if keepTemps = false then
         if rc = 0 then kill( irPath )
@@ -641,6 +661,9 @@ function LinkExe _
     '' ON MACH-O AT THE LINK, AND NEVER AFTER IT: ld64 signs an arm64 image ad hoc as its last
     '' step, and a 'strip' run on the result invalidates that signature. ld64's own spellings:
     '' -S drops the debug-map stabs, -x the local symbols.
+    '' -fsanitize=address ON AN ELF OR MACH-O LINK: clang's driver adds the runtime itself --
+    '' whole-archive libclang_rt.asan on Linux, the dylib and its rpaths on macOS ('clang -###').
+    if t.sanitizeAddress andalso (target.layout.isMsvc = false) then cmd += " -fsanitize=address"
     if macho then
         if t.stripSymbols then cmd += " -Wl,-S -Wl,-x"
     elseif (target.layout.isMsvc = false) andalso t.stripSymbols then
@@ -1029,6 +1052,14 @@ function LinkExe _
         cmd += " -nostdlib -lucrtbase -lkernel32"
         cmd += " -lwinspool -lgdi32 -luser32 -ladvapi32 -lwinmm -lmsimg32 -lversion -limm32 -lws2_32"
         cmd += " -Xlinker /INCLUDE:tkort_msvc_init_"
+        '' -fsanitize=address: the DYNAMIC runtime and its thunk, as clang's driver links them for
+        '' a /MD program ('clang -### -fsanitize=address -D_DLL', clang 23) -- the DLL is copied
+        '' beside the output (driver modbuild.tiko). The SEH interceptor is what reports a fault.
+        if t.sanitizeAddress andalso (len( t.asanRtDir ) > 0) then
+            cmd += " " & Q( t.asanRtDir & "clang_rt.asan_dynamic-x86_64.lib" )
+            cmd += " -Xlinker " & Q( "-wholearchive:" & t.asanRtDir & "clang_rt.asan_dynamic_runtime_thunk-x86_64.lib" )
+            cmd += " -Xlinker -include:__asan_seh_interceptor"
+        end if
     elseif target.objFormat = OBJ_COFF then
         '' THE C RUNTIME MUST COME FROM THE SAME TOOLCHAIN AS libfb, and that is not
         '' clang's default sysroot. fbc's crt2.o is built SJLJ (winlibs64-sjlj-9.3.0);

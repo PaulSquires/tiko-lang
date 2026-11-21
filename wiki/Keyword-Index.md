@@ -234,6 +234,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [Compiler Option: -maxerr](Compiler-Option-Maxerr) | Set maximum number of errors to report before aborting compilation. | Using the FreeBASIC compiler |
 | [Compiler Option: -mt](Compiler-Option-Mt) | Link with thread-safe runtime library. | Using the FreeBASIC compiler |
 | [Compiler Option: -nocopylibs](Compiler-Option-Nocopylibs) |  | Using the tiko compiler |
+| [Compiler Option: -fsanitize](Compiler-Option-Fsanitize) |  | Using the tiko compiler |
 | [Compiler Option: -nodeflibs](Compiler-Option-Nodeflibs) | Do not include the default libraries. | Using the FreeBASIC compiler |
 | [Compiler Option: -noerrline](Compiler-Option-Noerrline) | Do not show source line where error occurred. | Using the FreeBASIC compiler |
 | [Compiler Option: -nolib](Compiler-Option-Nolib) | Do not include specific library(s). | Using the FreeBASIC compiler |

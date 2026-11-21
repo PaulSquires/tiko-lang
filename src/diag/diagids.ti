@@ -125,6 +125,9 @@
     '' ld). See SourceOptionOk_ in driver/cmdline.tiko. fbc has no such check; every
     '' option the corpus writes in a '#cmdline' passes it.
     DIAG( TKO0178, SEV_ERROR,   "'%0' is not allowed in a #cmdline: %1" )
+    '' -fsanitize=address where clang has no AddressSanitizer runtime to measure: the MinGW-ABI
+    '' 'win64' target (windows-x86_64 has one).
+    DIAG( TKO0179, SEV_ERROR,   "-fsanitize=address is not supported for target '%0'" )
     '' 'tiko c2t' (src/c2t): a C header translated into a tiko header.
     DIAG( TKO0173, SEV_ERROR,   "'tiko c2t' translates one header per run; '%0' is a second" )
     DIAG( TKO0174, SEV_ERROR,   "cannot read the C header '%0'" )
