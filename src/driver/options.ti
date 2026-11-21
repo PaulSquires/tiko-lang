@@ -91,6 +91,13 @@ namespace Tko
     OPT( OPT_DLL,       "-dll",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a DLL rather than an executable" )
     OPT( OPT_DYLIB,     "-dylib",     OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "same as -dll" )
     OPT( OPT_STATICLIB, "-lib",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build a static library" )
+    '' AN ANDROID APP (docs/tiko-android A4): an SDL3 program as a signed .apk. The program is a
+    '' shared libmain.so whose main module SDL runs as SDL_main; the APK is assembled with the
+    '' Android SDK's tools. The identity has defaults from the program's name.
+    OPT( OPT_APP,       "-app",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "build an Android app (.apk) of an SDL3 program; android targets only" )
+    OPT( OPT_APPID,     "-appid",     OPTK_VALUE, OPTCAT_OUTPUT,  "id",       "the app's application id (default org.tiko.<name>)" )
+    OPT( OPT_APPLABEL,  "-applabel",  OPTK_VALUE, OPTCAT_OUTPUT,  "text",     "the app's label under its icon (default <name>)" )
+    OPT( OPT_APPASSETS, "-appassets", OPTK_VALUE, OPTCAT_OUTPUT,  "dir",      "a directory whose files go into the app's assets" )
     OPT( OPT_ERRCHK,    "-e",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "enable runtime error checking" )
     OPT( OPT_ERRCHKX,   "-ex",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "as -e: RESUME, which fbc adds here, does not exist in the fb dialect" )
     OPT( OPT_ERRCHKXX,  "-exx",       OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "-ex plus array bounds and null-pointer checking" )
@@ -280,6 +287,9 @@ namespace Tko
         '' -e is 513, -ex 515, -exx 1823 and -g 224; each -e<part> option sets one bit.
         as int32    errFlags
         as Tko.OutputKind outKind
+        '' -app: outKind is OUT_DLL, and the link becomes an APK (driver/androidapp.ti).
+        as boolean app
+        as string  appId, appLabel, appAssets
         as boolean compileOnly
         as boolean debugInfo
         as boolean threadSafe    '' -mt as WRITTEN; the link's answer is LinkThreadSafe( ctx )

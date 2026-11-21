@@ -91,7 +91,8 @@ private function NdkIsValid_( byref ndk as string ) as boolean
 end function
 
 '' "30.0.16248370" as a key that sorts as the version does: each dotted part right-aligned.
-private function NdkVersionKey_( byref v as string ) as string
+'' Also the SDK's build-tools and platforms (driver/androidapp.tiko).
+function AndroidVersionKey( byref v as string ) as string
     dim as string k, part
     for i as int32 = 1 to len( v ) + 1
         dim as string ch = mid( v, i, 1 )
@@ -112,7 +113,7 @@ private function NdkUnderSdk_( byref sdk as string ) as string
     dim as string d = dir( root & "*", &h10 )
     while len( d ) > 0
         if (d <> ".") andalso (d <> "..") andalso NdkIsValid_( root & d ) then
-            dim as string k = NdkVersionKey_( d )
+            dim as string k = AndroidVersionKey( d )
             if k > bestKey then
                 bestKey = k
                 best = root & d
@@ -122,6 +123,21 @@ private function NdkUnderSdk_( byref sdk as string ) as string
     wend
     return best
 end function
+
+'' WHERE AN SDK MAY BE, in order: ANDROID_HOME, ANDROID_SDK_ROOT, then the default place on this
+'' host (Android Studio's and the command-line tools' alike). An entry is "" when unset.
+sub AndroidSdkCandidates( sdks() as string )
+    sdks( 0 ) = SlashPath_( environ( "ANDROID_HOME" ) )
+    sdks( 1 ) = SlashPath_( environ( "ANDROID_SDK_ROOT" ) )
+    sdks( 2 ) = ""
+    #if defined( __FB_WIN32__ )
+        if len( environ( "LOCALAPPDATA" ) ) > 0 then sdks( 2 ) = SlashPath_( environ( "LOCALAPPDATA" ) ) & "/Android/Sdk"
+    #elseif defined( __FB_DARWIN__ )
+        if len( environ( "HOME" ) ) > 0 then sdks( 2 ) = environ( "HOME" ) & "/Library/Android/sdk"
+    #else
+        if len( environ( "HOME" ) ) > 0 then sdks( 2 ) = environ( "HOME" ) & "/Android/Sdk"
+    #endif
+end sub
 
 private function AndroidNdk_( byref why as string ) as string
     dim as string vars( 0 to 2 ) = { "TIKO_ANDROID_NDK", "ANDROID_NDK_HOME", "ANDROID_NDK_ROOT" }
@@ -134,14 +150,8 @@ private function AndroidNdk_( byref why as string ) as string
             return ""
         end if
     next
-    dim as string sdks( 0 to 2 ) = { environ( "ANDROID_HOME" ), environ( "ANDROID_SDK_ROOT" ), "" }
-    #if defined( __FB_WIN32__ )
-        if len( environ( "LOCALAPPDATA" ) ) > 0 then sdks( 2 ) = environ( "LOCALAPPDATA" ) & "/Android/Sdk"
-    #elseif defined( __FB_DARWIN__ )
-        if len( environ( "HOME" ) ) > 0 then sdks( 2 ) = environ( "HOME" ) & "/Library/Android/sdk"
-    #else
-        if len( environ( "HOME" ) ) > 0 then sdks( 2 ) = environ( "HOME" ) & "/Android/Sdk"
-    #endif
+    dim as string sdks( 0 to 2 )
+    AndroidSdkCandidates( sdks() )
     for i as int32 = 0 to 2
         dim as string n = NdkUnderSdk_( sdks( i ) )
         if len( n ) > 0 then return n
@@ -752,7 +762,8 @@ function LinkExe _
             if macho then
                 cmd += " -dynamiclib -Wl,-install_name," & Q( "@rpath/" & mid( outPath, cut_ + 1 ) )
             else
-                cmd += " -shared -Wl,-soname," & mid( outPath, cut_ + 1 )
+                '' An app's is libmain.so, the name SDLActivity loads, whatever the file is called.
+                cmd += " -shared -Wl,-soname," & iif( t.app, "libmain.so", mid( outPath, cut_ + 1 ) )
             end if
         end if
     end if
@@ -853,7 +864,7 @@ function LinkExe _
     '' tiko-rt's msvcinit.c does the same job, pulled in by /INCLUDE:tkort_msvc_init_ below.
     '' MACH-O HAS NO PIC VARIANTS: every arm64 Mach-O object is position-independent, and
     '' tiko-rt builds one fbrt0.o and one pair of archives there.
-    dim as boolean rt0Missing = false
+    dim as boolean rt0Missing = false, appMissing = false
     if (target.layout.isMsvc = false) then
         dim as string rt0 = "fbrt0.o"
         if t.buildDll andalso (target.objFormat = OBJ_ELF) then rt0 = "fbrt0pic.o"
@@ -869,6 +880,18 @@ function LinkExe _
             end if
         next
         if rt0Found = false then rt0Missing = true
+        '' AN APP'S ENTRY (lib/rt/src/c/fbrtapp.c), loose like fbrt0 and found the same way.
+        if t.app then
+            dim as boolean appFound = false
+            for i as int32 = 0 to t.libPaths.Count - 1
+                if FileExists_( t.libPaths[i] & "/fbrtapp.o" ) then
+                    cmd += " " & Q( t.libPaths[i] & "/fbrtapp.o" )
+                    appFound = true
+                    exit for
+                end if
+            next
+            if appFound = false then appMissing = true : t.why = "the runtime's app entry (fbrtapp.o) is on no library path -- add one with -p"
+        end if
 
         '' A MACH-O EXECUTABLE ENTERS AT fbrt0's tko_darwin_entry, which runs main( ) itself
         '' -- unless the program uses graphics, when libtkogfx's strong tko_darwin_start
@@ -1185,6 +1208,7 @@ function LinkExe _
         '' no libpthread for '-lpthread' to find. Android has no terminfo: tiko-rt's console
         '' writes its own VT100 sequences there (docs/tiko-android D-A1-6).
         cmd += " -lm -ldl"
+        if t.app then cmd += " -llog"     '' fbrtapp.o's logcat
     else
         '' ELF. '-ltinfo' is the counterpart of the pair above: the runtime's console
         '' layer calls tgoto and tputs, which live in terminfo. '-lm' and '-lpthread'
@@ -1229,9 +1253,9 @@ function LinkExe _
     end if
     '' NOT LINKED WITHOUT fbrt0.o (review RT-03), but '-v' still shows the line -- the driver
     '' tests read it on hosts with no sysroot to link against.
-    if rt0Missing then
+    if rt0Missing orelse appMissing then
         if t.verbose then print Q( t.clangExe ) & " " & cmd
-        return LINK_NO_RT0
+        return iif( rt0Missing, LINK_NO_RT0, LINK_NO_RTAPP )
     end if
     return Exec_( t, t.clangExe, cmd )
 end function

@@ -693,6 +693,10 @@ function Parse _
         '' artefact is a .so rather than a .dll.
         case Tko.OPT_DLL, Tko.OPT_DYLIB : opts.outKind = Tko.OUT_DLL
         case Tko.OPT_STATICLIB          : opts.outKind = Tko.OUT_STATICLIB
+        case Tko.OPT_APP                : opts.outKind = Tko.OUT_DLL : opts.app = true
+        case Tko.OPT_APPID              : opts.appId = value
+        case Tko.OPT_APPLABEL           : opts.appLabel = value
+        case Tko.OPT_APPASSETS          : opts.appAssets = value
         '' BITS, ORED, whatever the order: '-exx -e' is still -exx, because each level's
         '' bits contain the one below's. The values are fbc's, measured with __FB_ERR__
         '' on fbc-modern 1.20 (T63, T64): -g sets 32, 64 and 128 as well as emitting
@@ -940,6 +944,10 @@ function Parse _
 
     if opts.pic andalso Tko.TargetIsWindows( opts.target ) then
         diags.ReportGlobal( Tko.TKO0123, opts.targetName )
+        ok = false
+    end if
+    if opts.app andalso (Tko.TargetOs( opts.target ) <> Tko.OS_ANDROID) then
+        diags.ReportGlobal( Tko.TKO0179, opts.targetName )
         ok = false
     end if
 
