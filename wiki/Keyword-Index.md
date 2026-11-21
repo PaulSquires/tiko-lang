@@ -12,8 +12,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 |---|---|---|
 | [#assert](procedures-Assert) | Preprocessor conditional directive. | [Preprocessor](Category-Preprocessor) |
 | [Abs](Abs) | Returns the absolute value of a number. | [Mathematical Functions](Category-Mathematical-Functions) |
-| [AbsChecked](Modern-Math-AbsChecked) | Returns the absolute value as an Optional, empty for the most negative value. | [Match](Category-Match) |  | [Match](Category-Match) |
-| [Math Library](Category-Math-Library) |
+| [AbsChecked](Modern-Math-AbsChecked) | Returns the absolute value as an Optional, empty for the most negative value. | [Math Library](Category-Math-Library) |
 | [AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | Returns the full form of a path against the current folder; the path need not exist. | [Filesystem](Category-Filesystem) |
 | [AbsSaturating](Modern-Math-AbsSaturating) | Returns the absolute value; the most negative value becomes the maximum instead. | [Math Library](Category-Math-Library) |
 | [Abstract](Abstract) | Declare abstract methods. | [User Defined Types](Category-User-Defined-Types) |
@@ -953,6 +952,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [MapPairIter](Modern-Map-MapPairIter) | Holds a position in Map.Pairs; each step gives the key and value as a tuple. | [Map](Category-Map) |
 | [MapPairView](Modern-Map-MapPairView) | Holds the view that Map.Pairs returns, for for each (k, v) to walk. | [Map](Category-Map) |
 | [MatchPattern](Modern-Fs-MatchPattern) | Returns true if a string matches a wildcard pattern, without touching the disk. | [Filesystem](Category-Filesystem) |
+| [Match](Category-Match) |  | [Match](Category-Match) |
 | [Math Library](Category-Math-Library) |  | [Math Library](Category-Math-Library) |
 | [Mathematical Functions](Mathematical-Functions) | Procedures that work with numbers mathematically. | [Mathematical Functions](Category-Mathematical-Functions) |
 | [Max](Modern-Math-Max) | Returns the larger of two values; a NaN argument gives NaN. | [Math Library](Category-Math-Library) |
