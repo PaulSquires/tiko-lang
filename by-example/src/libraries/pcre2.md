@@ -16,12 +16,6 @@ PCRE2's documentation writes it.
 {{#include ../../examples/libraries/pcre2.out}}
 ```
 
-````admonish warning title="Status in this version"
-`vendor/pcre2` arrives after tiko 0.1.5, the toolchain this site is pinned
-to. This example was compiled and run on Windows, Linux and macOS with the
-development toolchain.
-````
-
 **`pcre2_compile`** turns a pattern into a `pcre2_code ptr` once, to be
 matched as often as you like. When the pattern is wrong it returns `nullptr`
 with an error code and the byte where it gave up, and

@@ -14,12 +14,6 @@ where letters or digits follow.
 {{#include ../../examples/libraries/pcre2-replace.out}}
 ```
 
-````admonish warning title="Status in this version"
-`vendor/pcre2` arrives after tiko 0.1.5, the toolchain this site is pinned
-to. This example was compiled and run on Windows, Linux and macOS with the
-development toolchain.
-````
-
 The result goes into **a buffer you provide**, and the last argument is its
 size going in and the result's length coming back. With
 `PCRE2_SUBSTITUTE_OVERFLOW_LENGTH`, a buffer that is too small makes

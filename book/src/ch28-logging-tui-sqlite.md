@@ -290,12 +290,6 @@ regular-expression library, as **`vendor/pcre2`**: its 8-bit library, built with
 and its just-in-time compiler. As with SQLite, what you call is PCRE2's own C interface, written as
 PCRE2's documentation writes it: `pcre2_compile`, `pcre2_match`, `pcre2_match_data`.
 
-```admonish warning title="Status in this version"
-`vendor/pcre2` arrives after tiko 0.1.5, the toolchain this book is pinned to. The listings in this
-section were compiled and run on Windows, Linux and macOS with the development toolchain; the book's
-harness reports them as blocked (`pin-0.1.5`) until the pin moves to a release that ships PCRE2.
-```
-
 ```tiko
 {{#include ../examples/ch28/regex-find.tiko}}
 ```

@@ -23,6 +23,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 |---|---|
 | [Goroutines Tutorial](Modern-Goroutines-Tutorial) | Concurrency from the first `spawn` to cancellation |
 | [Interfaces Tutorial](Interfaces-Tutorial) | One program written twice, with an abstract base type and with interfaces and classes; then properties, generic interfaces and constraints |
+| [PCRE2 Tutorial](PCRE2-Tutorial) | Regular expressions from `vendor/pcre2`: find matches and groups, replace, keep a pattern from outside the program in bounds, and ship the program |
 | [Packages and Modules Tutorial](Packages-and-Modules-Tutorial) | `#import` the standard library, a C library from `vendor` with `link static` or `link dynamic`, and modules of your own |
 | [tiko c2t Tutorial](C2t-Tutorial) | Translate a C library's header with `tiko c2t`, then use it with `#include` and `#foreignlib` |
 | [Notepad Tutorial](Notepad2-Tutorial) | A text editor from tkControls and tkApp, built from one source for Windows, Linux and macOS: menus, status bar, Find, unsaved-changes prompt, and a self-test that drives the window |
