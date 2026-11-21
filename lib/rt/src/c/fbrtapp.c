@@ -50,6 +50,9 @@ void SDL_Quit( void ) __attribute__(( weak ));
 extern void ( *__fini_array_start[] )( void ) __attribute__(( visibility( "hidden" ), weak ));
 extern void ( *__fini_array_end[] )( void ) __attribute__(( visibility( "hidden" ), weak ));
 void tkort_SetAppEnd( void ( *fn )( int errlevel ) );
+void tkort_SetAppExeDot( void );
+int chdir( const char *path );
+const char *SDL_GetAndroidInternalStoragePath( void ) __attribute__(( weak ));
 int tko_AppMain( int argc, char **argv );
 
 #define TKO_LOG_INFO 4
@@ -128,6 +131,14 @@ int SDL_main( int argc, char **argv )
 	if( !logging ) { logging = 1; tko_app_logcat( ); }
 	tko_app_thread = pthread_self( );
 	tkort_SetAppEnd( tko_app_end );
+	tkort_SetAppExeDot( );          /* EXEPATH is "." -- the assets (sys/hostinfo.tiko) */
+	/* THE WORKING DIRECTORY IS THE APP'S OWN STORAGE. An app starts in "/", which it cannot write:
+	** a program that saves "notes.txt", or copies a photo in, failed there (measured, A5). Its
+	** internal storage (/data/user/0/<id>/files) is private, kept across runs and writable. */
+	if( SDL_GetAndroidInternalStoragePath ) {
+		const char *home = SDL_GetAndroidInternalStoragePath( );
+		if( home ) chdir( home );
+	}
 	tko_app_code = 0;
 	tko_app_running = 1;
 	if( setjmp( tko_app_jb ) == 0 ) tko_app_code = tko_AppMain( argc, argv );

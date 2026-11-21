@@ -178,7 +178,9 @@ end function
 '' SDL's own manifest (android-project), less what an app built here cannot use: TikoActivity
 '' (SDL static in libmain.so, D-A4-2), the system's fullscreen theme and default icon rather than
 '' resources (SDL's AppTheme is that theme), and extractNativeLibs=false -- the .so is stored
-'' and 16 KB-aligned in the APK and mapped from it.
+'' and 16 KB-aligned in the APK and mapped from it. enableOnBackInvokedCallback=false is SDL's own:
+'' with targetSdk 33+ BACK otherwise goes to Android's predictive-back dispatcher, which finished
+'' the Activity on the same press tkHost had already used to close a page (measured, A5 step 8).
 private function Manifest_( byref id as string, byref label as string ) as string
     dim as string nl = chr( 10 )
     return "<?xml version=""1.0"" encoding=""utf-8""?>" & nl & _
@@ -188,7 +190,7 @@ private function Manifest_( byref id as string, byref label as string ) as strin
         "    <uses-feature android:name=""android.hardware.touchscreen"" android:required=""false"" />" & nl & _
         "    <application android:label=""" & Xml_( label ) & """ android:icon=""@android:drawable/sym_def_app_icon""" & nl & _
         "        android:theme=""@android:style/Theme.NoTitleBar.Fullscreen"" android:hardwareAccelerated=""true""" & nl & _
-        "        android:extractNativeLibs=""false"">" & nl & _
+        "        android:extractNativeLibs=""false"" android:enableOnBackInvokedCallback=""false"">" & nl & _
         "        <activity android:name=""org.tiko.app.TikoActivity""" & nl & _
         "            android:label=""" & Xml_( label ) & """ android:alwaysRetainTaskState=""true"" android:launchMode=""singleInstance""" & nl & _
         "            android:configChanges=""layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation""" & nl & _
