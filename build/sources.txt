@@ -40,6 +40,8 @@ src/symbols/genericiface.tiko
 src/symbols/geninit.tiko
 src/symbols/generictypedef.tiko
 src/symbols/mangle.tiko
+src/symbols/manglecxx.tiko
+src/symbols/manglearray.tiko
 src/symbols/fold128.tiko
 src/symbols/constfold.tiko
 src/symbols/check.tiko

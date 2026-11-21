@@ -1,0 +1,73 @@
+'' manglearray.tiko -- see manglearray.ti. Split out of mangle.tiko at the 1500-line cap.
+
+#import "std/containers"
+
+#include once "symbols/manglearray.ti"
+
+namespace Tko.Mangle
+
+'' mangle.tiko's SubRef: S_ is candidate 0, S0_ candidate 1.
+private function SubRef_( byval idx as int32 ) as string
+    if idx = 0 then return "S_"
+    return "S" & trim( str( idx - 1 ) ) & "_"
+end function
+
+'' AN ARRAY PARAMETER IS A REFERENCE TO A TEMPLATE. Measured, for every element
+'' shape fbc accepts -- byref and byval are both ILLEGAL on one, so the passing mode
+'' never enters into it:
+''
+''   x( ) as integer      R7FBARRAYIu7INTEGERE
+''   x( ) as double       R7FBARRAYIdE
+''   x( ) as string       R7FBARRAYI8FBSTRINGE
+''   x( ) as C1           R7FBARRAYIS_E        (inside C1)
+''   x( ) as integer ptr  R7FBARRAYIPu7INTEGERE
+''   x( ) as const integer R7FBARRAYIKu7INTEGERE
+''
+'' The element goes through the ordinary encoder and shares the one substitution
+'' table, which is why the C1 case comes out as S_.
+''
+'' TWO CANDIDATES, AND THE NAME IS NOT ONE OF THEM. Measured from the repeats:
+'' 'd1( x( ) as integer, byref y as C1, z( ) as C1, w( ) as C1 )' ends in S5_ and
+'' 'c1x( x( ) as integer, y( ) as integer )' in S2_, and both count only if
+'' '7FBARRAY' takes no slot at all -- which is why 'R7FBARRAYIS_E' is written out
+'' in full every time with the earlier one right there in the table.
+''
+'' KEYED BY THE ELEMENT TYPE, not by the encoding: the second occurrence of the
+'' element is itself substituted, so the string built the second time round never
+'' equals the one stored the first.
+'' ...AND THE RANK IS IN THE TEMPLATE'S NAME. Measured, and it is a separate
+'' instantiation each time:
+''
+''   a( ) as integer            R7FBARRAYIu7INTEGERE     -- unspecified
+''   a( any ) as integer        R8FBARRAY1Iu7INTEGERE
+''   a( any, any ) as integer   R8FBARRAY2Iu7INTEGERE
+''   eight dimensions           R8FBARRAY8Iu7INTEGERE
+''
+'' Every rank was written '7FBARRAY', so 'k2( a(any) as integer )' and
+'' 'k3( a(any,any) as integer )' were ONE SYMBOL -- ordinary code, no generics and no
+'' procedure pointers, and nothing said so until a file declared both.
+function ArrayParamCode _
+    ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
+      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+      byref subs as Substitutions, byval rank as int32 = 0 ) as string
+
+    for i as int32 = 0 to subs.arrKeys.Count - 1
+        if subs.arrKeys[i] <> cast( uint32, elem ) then continue for
+        if subs.arrRank[i] <> rank then continue for
+        return SubRef_( subs.arrIdx[i] )
+    next
+    dim as string anm = "FBARRAY"
+    if rank > 0 then anm += str( rank )
+    dim as string tmpl = str( len( anm ) ) & anm & "I" & _
+        TypeCode( elem, types, syms, names, subs ) & "E"
+    subs.items.Push( tmpl )
+    subs.keys.Push( 0 )
+    subs.items.Push( "R" & tmpl )
+    subs.keys.Push( 0 )
+    subs.arrKeys.Push( cast( uint32, elem ) )
+    subs.arrRank.Push( rank )
+    subs.arrIdx.Push( subs.items.Count - 1 )
+    return "R" & tmpl
+end function
+
+end namespace

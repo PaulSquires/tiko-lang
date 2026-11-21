@@ -1,0 +1,23 @@
+'' THE C++ SPELLINGS, windows-x86_64 -- each name is what clang++ 23 (and g++ 11 on Linux) gives the C++
+'' declaration written beside it in src/cxx-names.bas; build/cpplane.sh links the same rules
+'' against real C++ objects (docs/tiko-cpp FEASIBILITY 2.3, symbols/manglecxx.ti).
+''
+''   c1, c2, c3   'byte alias "char"' is plain char, c -- and a repeated 'const char*' is S1_,
+''                looked up whole before its parts (it came out PKcPS0_)
+''   i1, l1       64-bit Windows (LLP64): 'integer' is long long, x/y; 'long alias "long"' is C++'s 32-bit long, l
+''   v1           '...' is z (it was the v of a parameter with no type)
+''   n1           a type nested in a C++ type keeps its case (it was INNER)
+''   _Zpl         an operator declared in 'extern "c"': g++ writes the operator alone, as fbc
+''                does; clang++ writes _ZplRK1VS1_ -- the compilers disagree (FEASIBILITY 2.3)
+'' TEST: cli
+'' ARGS: -target windows-x86_64 --dump-mangle tests/mangle/src/cxx-names.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: _ZN2nm2c1Ec
+'' EXPECT-OUT: _ZN2nm2c2Ech
+'' EXPECT-OUT: _ZN2nm2c3EPKcS1_
+'' EXPECT-OUT: _ZN2nm2i1Exy
+'' EXPECT-OUT: _ZN2nm2i2Exy
+'' EXPECT-OUT: _ZN2nm2l1El
+'' EXPECT-OUT: _ZN2nm2v1Eiz
+'' EXPECT-OUT: _ZN2nm2n1ENS_5Outer5InnerE
+'' EXPECT-OUT: _Zpl

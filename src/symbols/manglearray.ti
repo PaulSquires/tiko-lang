@@ -1,0 +1,18 @@
+'' manglearray.ti -- an ARRAY parameter's Itanium code, a reference to the FBARRAY template.
+'' Split out of mangle.tiko at the 1500-line cap; the measurements are in manglearray.tiko.
+
+#ifndef __TKO_MANGLEARRAY_BI__
+#define __TKO_MANGLEARRAY_BI__
+
+#include once "symbols/mangle.ti"
+
+namespace Tko.Mangle
+
+    declare function ArrayParamCode _
+        ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
+          byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
+          byref subs as Substitutions, byval rank as int32 = 0 ) as string
+
+end namespace
+
+#endif

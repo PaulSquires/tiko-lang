@@ -3,6 +3,8 @@
 
 #import "std/containers"
 #include once "symbols/mangle.ti"
+#include once "symbols/manglecxx.ti"
+#include once "symbols/manglearray.ti"
 #include once "support/text.ti"
 #include once "support/irtext.ti"
 
@@ -115,7 +117,7 @@ end function
 '' parameter, so 'operator let( byref rhs as W )' inside W is _ZN1WaSERS_ -- the R
 '' refers BACK to the 1W already emitted, and keying it by name alone would miss.
 '' A COMPONENT OF THE MODULE CHAIN in outTypes: a namespace component EmitPrefix keeps even
-'' outside a generic instance, which drops every other qualifier (ADR 0017; RFC-0002 §5).
+'' outside a generic instance, which drops every other qualifier (ADR 0017; RFC-0002 5).
 const CHAIN_QUAL as uint32 = &hFFFFFFFFul
 
 '' withChain: the name is a LINK name, and module code's carries the module's chain first --
@@ -559,8 +561,24 @@ function TypeCode _
 
     '' Look the TYPE up before encoding it. Doing it afterwards compares an encoding
     '' whose inner components have already been substituted, which never matches.
-    dim as int32 hit = subs.FindType( t )
-    if hit >= 0 then return SubRef( hit )
+    '' ...EXCEPT UNDER A C++ ALIAS: 'ubyte alias "char" ptr' and 'ubyte ptr' are one TypeId
+    '' and two C++ types (Pc, Ph), so an aliased parameter is keyed by its UNSUBSTITUTED
+    '' encoding, from a dry encode -- and looked up as a whole BEFORE its parts are: g++
+    '' writes 'f( const char*, const char* )' as 'PKcS1_', where looking up the parts first
+    '' gave 'PKcPS0_'.
+    dim as string plain = ""
+    if subs.cxxAlias = 0 then
+        dim as int32 hit = subs.FindType( t )
+        if hit >= 0 then return SubRef( hit )
+    elseif subs.dry = false then
+        dim as Substitutions d
+        d.cxx = subs.cxx : d.cxxAlias = subs.cxxAlias : d.dry = true
+        plain = TypeCode( t, types, syms, names, d )
+        if IsSubstitutable( plain ) then
+            dim as int32 ahit = subs.Find( plain )
+            if ahit >= 0 then return SubRef( ahit )
+        end if
+    end if
 
     dim as string enc = ""
 
@@ -571,6 +589,10 @@ function TypeCode _
         dim as Tko.TypeId bare = types.Unqualify( t )
         if bare <> t then
             enc = "K" & TypeCode( bare, types, syms, names, subs )
+            if subs.cxxAlias <> 0 then
+                subs.Add( iif( len( plain ) > 0, plain, enc ) )
+                return enc
+            end if
             subs.Add( enc, t )
             return enc
         end if
@@ -688,14 +710,24 @@ function TypeCode _
         enc = body & "E"
 
     case Tko.TK_BUILTIN
-        enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32), _
-                           CvaListCode_( types.target ) )
+        '' A C++ NAME SPELLS A BUILTIN AS THE C++ COMPILER DOES (manglecxx.ti).
+        if subs.cxx orelse (subs.cxxAlias <> 0) then
+            enc = CxxBuiltinCode( types.BuiltinOf( t ), types.target, subs.cxx, subs.cxxAlias )
+        end if
+        if len( enc ) = 0 then
+            enc = BuiltinCode( types.BuiltinOf( t ), (types.target.pointerBits = 32), _
+                               CvaListCode_( types.target ) )
+        end if
 
     case else
         enc = "v"
     end select
 
     if IsSubstitutable( enc ) = false then return enc
+    if subs.cxxAlias <> 0 then
+        subs.Add( iif( len( plain ) > 0, plain, enc ) )
+        return enc
+    end if
     subs.Add( enc, t )
     return enc
 end function
@@ -1014,63 +1046,6 @@ end function
 '' The name before any target decoration. Split out so the win32 underscore and '@N'
 '' apply to EVERY path -- the foreign one, the unmangled one and the Itanium one alike --
 '' rather than to whichever return the change happened to be written next to.
-'' AN ARRAY PARAMETER IS A REFERENCE TO A TEMPLATE. Measured, for every element
-'' shape fbc accepts -- byref and byval are both ILLEGAL on one, so the passing mode
-'' never enters into it:
-''
-''   x( ) as integer      R7FBARRAYIu7INTEGERE
-''   x( ) as double       R7FBARRAYIdE
-''   x( ) as string       R7FBARRAYI8FBSTRINGE
-''   x( ) as C1           R7FBARRAYIS_E        (inside C1)
-''   x( ) as integer ptr  R7FBARRAYIPu7INTEGERE
-''   x( ) as const integer R7FBARRAYIKu7INTEGERE
-''
-'' The element goes through the ordinary encoder and shares the one substitution
-'' table, which is why the C1 case comes out as S_.
-''
-'' TWO CANDIDATES, AND THE NAME IS NOT ONE OF THEM. Measured from the repeats:
-'' 'd1( x( ) as integer, byref y as C1, z( ) as C1, w( ) as C1 )' ends in S5_ and
-'' 'c1x( x( ) as integer, y( ) as integer )' in S2_, and both count only if
-'' '7FBARRAY' takes no slot at all -- which is why 'R7FBARRAYIS_E' is written out
-'' in full every time with the earlier one right there in the table.
-''
-'' KEYED BY THE ELEMENT TYPE, not by the encoding: the second occurrence of the
-'' element is itself substituted, so the string built the second time round never
-'' equals the one stored the first.
-'' ...AND THE RANK IS IN THE TEMPLATE'S NAME. Measured, and it is a separate
-'' instantiation each time:
-''
-''   a( ) as integer            R7FBARRAYIu7INTEGERE     -- unspecified
-''   a( any ) as integer        R8FBARRAY1Iu7INTEGERE
-''   a( any, any ) as integer   R8FBARRAY2Iu7INTEGERE
-''   eight dimensions           R8FBARRAY8Iu7INTEGERE
-''
-'' Every rank was written '7FBARRAY', so 'k2( a(any) as integer )' and
-'' 'k3( a(any,any) as integer )' were ONE SYMBOL -- ordinary code, no generics and no
-'' procedure pointers, and nothing said so until a file declared both.
-private function ArrayParamCode _
-    ( byval elem as Tko.TypeId, byref types as Tko.TypeContext, _
-      byref syms as Tko.SymbolTable, byref names as Tko.Interner, _
-      byref subs as Substitutions, byval rank as int32 = 0 ) as string
-
-    for i as int32 = 0 to subs.arrKeys.Count - 1
-        if subs.arrKeys[i] <> cast( uint32, elem ) then continue for
-        if subs.arrRank[i] <> rank then continue for
-        return SubRef( subs.arrIdx[i] )
-    next
-    dim as string anm = "FBARRAY"
-    if rank > 0 then anm += str( rank )
-    dim as string tmpl = str( len( anm ) ) & anm & "I" & _
-        TypeCode( elem, types, syms, names, subs ) & "E"
-    subs.items.Push( tmpl )
-    subs.keys.Push( 0 )
-    subs.items.Push( "R" & tmpl )
-    subs.keys.Push( 0 )
-    subs.arrKeys.Push( cast( uint32, elem ) )
-    subs.arrRank.Push( rank )
-    subs.arrIdx.Push( subs.items.Count - 1 )
-    return "R" & tmpl
-end function
 
 
 private function ProcNameCore _
@@ -1127,8 +1102,19 @@ private function ProcNameCore _
     '' and plain 'foo' made every such method in a module one symbol (virtual/virtual.bas,
     '' clang: invalid redefinition of 'foo').
     dim as boolean foreignMethod = false
+    '' ...AND EXCEPT AN OPERATOR. C++ gives every operator function C++ linkage, so
+    '' 'declare operator +( ... )' in an 'extern "c"' block is still _ZplRK1VS1_ to g++ and
+    '' clang++, and went out as a function literally named '+' (vendored cpp/bop).
+    dim as boolean foreignOp = (sp->op = cast( uint16, Tko.KW_OPERATOR )) andalso (aliased = false)
     if (sp->extra and Tko.PF_FOREIGN) <> 0 then
         if aliased then return names.Spelling( aliasNm )
+        '' ...AS THE OPERATOR'S NAME ALONE: C linkage drops the parameters but an operator
+        '' still has no C spelling. Measured, g++ 11 defines 'extern "C" { V operator+( V
+        '' const&, V const& ); }' as '_Zpl' -- and fbc writes the same.
+        if (isMethod = false) andalso foreignOp then
+            dim as Substitutions osubs
+            return "_Z" & OperatorCode( ast, proc_, types, syms, names, info, osubs, written )
+        end if
         if isMethod = false then return written
         foreignMethod = true
     end if
@@ -1147,6 +1133,13 @@ private function ProcNameCore _
             if (fdecl <> Tko.NODE_NONE) andalso (fdecl <> proc_) then
                 if ast.Kind( fdecl ) = Tko.N_PROC then
                     dim as Tko.StmtPayload ptr fdp = StmtOf( ast, fdecl )
+                    '' An OPERATOR declared there is named as its declaration is, above:
+                    '' '_Zpl', not the '+' this branch would return.
+                    if ((fdp->extra and Tko.PF_FOREIGN) <> 0) andalso _
+                       (fdp->op = cast( uint16, Tko.KW_OPERATOR )) andalso (fdp->aliasName = 0) then
+                        dim as Substitutions fsubs
+                        return "_Z" & OperatorCode( ast, proc_, types, syms, names, info, fsubs, written )
+                    end if
                     if (fdp->extra and Tko.PF_FOREIGN) <> 0 then
                         if fdp->rawName <> 0 then return names.Spelling( fdp->rawName )
                         return names.Spelling( fdp->name )
@@ -1242,7 +1235,7 @@ private function ProcNameCore _
             qualTypes.Clear( )
         end if
     end if
-    '' MODULE CODE IS NESTED UNDER ITS CHAIN, generic instances included (RFC-0002 §5).
+    '' MODULE CODE IS NESTED UNDER ITS CHAIN, generic instances included (RFC-0002 5).
     dim as boolean hasQuals = (quals.Count > 0)
     dim as boolean chained = hasQuals
     if chained then chained = (qualTypes[0] = CHAIN_QUAL)
@@ -1288,6 +1281,7 @@ private function ProcNameCore _
     end if
 
     dim as Substitutions subs
+    subs.cxx = isCxx
     dim as string outp = "_Z"
 
     if nested then
@@ -1328,6 +1322,14 @@ private function ProcNameCore _
         dim as Tko.NodeId prm = ast.ChildAt( sp->first, i )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
+        '' '...' IS 'z', as in a procedure TYPE (TypeCode). It went out as the 'v' of a
+        '' parameter with no type: g++ and clang++ define 'int cpp_variadic_start( int, ... )'
+        '' as '..._startEiz' and tiko called '..._startEiv' (vendored cpp/mangle).
+        if pp->op = cast( uint16, Tko.TK_ELLIPSIS ) then
+            outp += "z"
+            emitted += 1
+            continue for
+        end if
         dim as Tko.TypeId pt = info.TypeOf_( pp->a )
         if (ast.Flags( prm ) and Tko.NF_ARRAY) <> 0 then
             outp += ArrayParamCode( pt, types, syms, names, subs, _
@@ -1352,7 +1354,9 @@ private function ProcNameCore _
             '' overloads. Only the TOP level is stripped: a pointee's const stays.
             pt = types.Unqualify( pt )
         end if
+        subs.cxxAlias = CxxAliasOf( ast, syms, info.ScopeOf( proc_ ), pp->a )
         outp += ParamCode_( pt, types, syms, names, subs )
+        subs.cxxAlias = 0
         emitted += 1
     next
     if emitted = 0 then outp += "v"
@@ -1441,7 +1445,7 @@ function CxxVarName _
     return outp & SrcName( written ) & "E"
 end function
 
-'' A MODULE'S VARIABLE (ADR 0017; RFC-0002 §5): the nested name of its chain, any namespace
+'' A MODULE'S VARIABLE (ADR 0017; RFC-0002 5): the nested name of its chain, any namespace
 '' inside the module, and the name upper-cased -- 'public dim shared counter' in acme.net.http
 '' is _ZN4ACME3NET4HTTP7COUNTERE. No '$': that marks fbc's own spellings, and a module's names
 '' are not fbc's. "" for a symbol that is not module code.

@@ -8,7 +8,7 @@
 ''
 '' Measured against fbc, which mangles and mangles WHAT WAS WRITTEN:
 ''
-''     sub g2( byval n as integer )   inside the block   _Z2g2u7INTEGER
+''     sub g2( byval n as integer )   inside the block   _Z2g2<integer>
 ''     sub h( byval n as integer )    outside it         H
 ''
 '' so the two cannot share a flag: PF_FOREIGN says "verbatim", PF_CXX says "mangled,
@@ -23,12 +23,18 @@
 '' THE BYREF RESULT OF A FUNCTION-POINTER PARAMETER IS PART OF THE MANGLING, which is
 '' what the two g1 overloads are here to say: 'R' before the result type, and without
 '' it the two are one name.
+''
+'' 'integer' INSIDE THE BLOCK IS C++'s ptrdiff_t, not fbc's vendor type u7INTEGER, which no C++
+'' compiler emits (docs/tiko-cpp FEASIBILITY 2.3, symbols/manglecxx.ti): 'long long' (x) on
+'' 64-bit Windows, 'long' (l) on LP64. Pinned to windows-x86_64 here; cxx-names-*.test has the
+'' LP64 spellings. Checked against clang++ for x86_64-w64-windows-gnu: 'void g1(long long (*)())'
+'' is _Z2g1PFxvE.
 '' TEST: cli
-'' ARGS: --dump-mangle tests/mangle/src/extern-cxx.bas
+'' ARGS: -target windows-x86_64 --dump-mangle tests/mangle/src/extern-cxx.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: _Z2g1PFu7INTEGERvE
-'' EXPECT-OUT: _Z2g1PFRu7INTEGERvE
-'' EXPECT-OUT: _Z2g2u7INTEGER
+'' EXPECT-OUT: _Z2g1PFxvE
+'' EXPECT-OUT: _Z2g1PFRxvE
+'' EXPECT-OUT: _Z2g2x
 '' EXPECT-OUT: _ZN2nn2g4Ev
 '' EXPECT-OUT: H
 '' GOLDEN: expected/extern-cxx.out

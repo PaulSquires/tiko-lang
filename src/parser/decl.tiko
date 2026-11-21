@@ -2,9 +2,8 @@
 
 namespace Tko.Parse
 
-'' Defined below: the TEXT of a string literal token, interned. Declared here because
-'' VarItem needs it for a variable's ALIAS and is compiled before it.
-declare function StringLitText( byref p as Tko.ParserState ) as Tko.InternId
+'' StringLitText, the TEXT of a string literal token interned, is declared in typeref.tiko:
+'' a type's C++ alias needs it there, and that file is included before this one.
 
 '' AN EMPTY ALIAS OR LIB STRING IS AN ERROR -- fbc's 304 and 305. 'alias ""' would mangle
 '' to a name with nothing in it, and 'lib ""' would link against a library with no name.

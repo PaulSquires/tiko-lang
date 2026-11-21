@@ -1,0 +1,44 @@
+'' manglecxx.ti -- what a builtin type is called when a C++ compiler names it.
+''
+'' THE REFERENCE IS THE C++ COMPILER, not fbc (docs/tiko-cpp FEASIBILITY 2.3). A procedure
+'' in an 'extern "C++"' block, or a method of a type declared there, links against an
+'' object g++ or clang++ built, so its parameter types must be spelt the way that compiler
+'' spells the C++ type the tiko one stands for. Measured with g++ 11 and clang 23 for
+'' x86_64-pc-linux-gnu, aarch64-apple-macosx13.0 and x86_64-w64-windows-gnu
+'' (docs/tiko-cpp/probes/vtable-mangle/m.cpp), all four agreeing:
+''
+''     int fc( char )                  c        tiko: 'byte alias "char"'
+''     long fil( long )                l        LP64: tiko 'integer'; Windows: 'long alias "long"'
+''     unsigned long fu( unsigned long ) m      LP64: tiko 'uinteger'
+''     long long fi( long long )       x        tiko 'longint'
+''
+'' tiko's own procedures keep their names: 'integer' stays the vendor type u7INTEGER outside
+'' a C++ context, because no C++ object ever has to agree with it there.
+
+#ifndef __TKO_MANGLECXX_BI__
+#define __TKO_MANGLECXX_BI__
+
+#include once "tko.ti"
+#include once "ast/nodes.ti"
+#include once "symbols/symbol.ti"
+#include once "types/type.ti"
+
+namespace Tko.Mangle
+
+    '' The Itanium code a C++ compiler gives builtin 'b' on 'tl', or "" when it is the one
+    '' BuiltinCode already gives. 'cxx': the name being built is a C++ one (the integer map
+    '' applies). 'aliasBits': the parameter's TR_CXX_* bits, honoured wherever a name is
+    '' mangled -- an alias is only ever written to say what C++ calls the type.
+    declare function CxxBuiltinCode _
+        ( byval b as Tko.BuiltinType, byref tl as Tko.TargetLayout, _
+          byval cxx as boolean, byval aliasBits as uint32 ) as string
+
+    '' The TR_CXX_* bits of the type reference 'tr' -- written on it, or on the typedef it
+    '' names ('type cxxlongint as long alias "long"'), followed a few levels. 0 for none.
+    declare function CxxAliasOf _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+          byval sc as Tko.ScopeId, byval tr as Tko.NodeId ) as uint32
+
+end namespace
+
+#endif

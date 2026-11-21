@@ -51,6 +51,14 @@ namespace Tko.Mangle
         '' THE RANK IS PART OF THE KEY: 'a(any)' and 'a(any,any)' are FBARRAY1 and
         '' FBARRAY2, two different template instantiations over the same element.
         as containers.Array( of int32 )   arrRank
+        '' THE NAME IS A C++ ONE -- an 'extern "C++"' procedure or a method of a type declared
+        '' there -- so a builtin is spelt as a C++ compiler spells it (manglecxx.ti).
+        as boolean cxx
+        '' The TR_CXX_* alias bits of the parameter being encoded, 0 between parameters.
+        '' Under an alias a candidate is keyed by its UNSUBSTITUTED encoding, which a DRY
+        '' encode into a scratch table computes (TypeCode): one TypeId is two C++ types then.
+        as uint32  cxxAlias
+        as boolean dry
 
         declare function Find( byref enc as string ) as int32
         declare function FindType( byval t as Tko.TypeId ) as int32

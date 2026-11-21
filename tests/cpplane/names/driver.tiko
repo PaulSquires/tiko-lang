@@ -1,0 +1,51 @@
+'' names, called from tiko: must print what driver.cpp prints.
+#include once "../show.bi"
+
+extern "C++"
+namespace nm
+    declare function take_char( byval c as byte alias "char" ) as long
+    declare function take_schar( byval c as byte ) as long
+    declare function take_uchar( byval c as ubyte ) as long
+    declare function take_charptr( byval s as const byte alias "char" ptr, byval out_ as ubyte ptr ) as long
+    declare function take_long( byval v as integer ) as integer          '' C++ long: integer on LP64
+    declare function take_ulong( byval v as uinteger ) as uinteger
+    declare function take_llong( byval v as longint ) as longint
+    declare function take_size( byval n as uinteger, byval s as const byte alias "char" ptr ) as uinteger
+    declare function take_diff( byval a as const byte alias "char" ptr, byval b as const byte alias "char" ptr ) as integer
+    type Outer
+        as long a
+        type Inner
+            as long b
+        end type
+    end type
+    declare function take_inner( byval x as Outer.Inner ) as long
+    declare function take_inner_ref( byref x as const Outer.Inner ) as long
+end namespace
+type V
+    as long x
+end type
+declare operator +( byref l as const V, byref r as const V ) as V
+end extern
+
+show_i( "take_char", nm.take_char( asc( "A" ) ) )
+show_i( "take_schar", nm.take_schar( -5 ) )
+show_i( "take_uchar", nm.take_uchar( 250 ) )
+dim as ubyte o = 0
+dim as zstring * 4 xy = "xy"
+show_i( "take_charptr", nm.take_charptr( cast( const byte ptr, @xy ), @o ) )
+show_i( "take_charptr.out", o )
+show_i( "take_long", nm.take_long( 1234567890123ll ) )
+show_u( "take_ulong", nm.take_ulong( 4000000000ull ) )
+show_i( "take_llong", nm.take_llong( -9000000000ll ) )
+dim as zstring * 4 x = "x"
+show_u( "take_size", nm.take_size( 41, cast( const byte ptr, @x ) ) )
+dim as zstring * 8 s = "hello"
+dim as const byte ptr sp = cast( const byte ptr, @s )
+show_i( "take_diff", nm.take_diff( sp, sp + 4 ) )
+dim as nm.Outer.Inner in_
+in_.b = 7
+show_i( "take_inner", nm.take_inner( in_ ) )
+show_i( "take_inner_ref", nm.take_inner_ref( in_ ) )
+dim as V a, b
+a.x = 20 : b.x = 22
+show_i( "operator+", (a + b).x )

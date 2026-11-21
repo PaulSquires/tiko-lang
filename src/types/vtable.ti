@@ -41,6 +41,12 @@ namespace Tko
         '' 'declare function f( ) as long override' closes the slot below it.
         as TypeId   owner
         as boolean  open
+        '' THE ITANIUM DELETING DESTRUCTOR ('D0'), the second of the TWO slots g++ and clang++
+        '' give a virtual destructor -- complete ('D1'), then deleting. A type declared in
+        '' 'extern "C++"' has it on every target but MSVC, whose one 'vector deleting
+        '' destructor' slot is the layout tiko always had. Calls never reach it: SlotOf finds
+        '' the D1 slot first. Measured, docs/tiko-cpp FEASIBILITY 2.4.
+        as boolean  deleting
     end type
 
     '' WHY a matched override is still incompatible. fbc has a separate error number for

@@ -358,7 +358,7 @@ namespace Tko
     const PF_VIS_PUBLIC     as uint32 = &h00100000
     const PF_VIS_PRIVATE    as uint32 = &h00200000
     '' A 'lib "name"' CLAUSE: the procedure is a library's export, linked by its own name or
-    '' alias -- never nested under a module's chain (ADR 0017 §19).
+    '' alias -- never nested under a module's chain (ADR 0017 19).
     const PF_LIB            as uint32 = &h00400000
     '' 'function f( ) as T( )' -- THE RESULT IS A DYNAMIC ARRAY of T. A TIKO EXTENSION: fbc has
     '' no array result. Set by ResultTypeRef_ (parser/declparam.tiko) and read by Resolve, which
@@ -384,9 +384,17 @@ namespace Tko
     '' ...and its SETTER when the clause is 'get' or 'get, init': only the type's own constructors
     '' may call it (propaccess.tiko, TKO0596).
     const PF_INIT_ONLY      as uint32 = &h10000000
-    '' N_TYPE: 'type T as view' (docs/tiko-slices RFC-0002 §3) -- a type that may hold string
+    '' N_TYPE: 'type T as view' (docs/tiko-slices RFC-0002 3) -- a type that may hold string
     '' slices, and lives only where a slice may: a local, a parameter or a result.
     const PF_VIEW_TYPE      as uint32 = &h20000000
+    '' N_TYPEREF: 'as byte alias "char"', 'as long alias "long"' -- the C++ TYPE a builtin
+    '' is mangled as (symbols/mangle.tiko, CxxBuiltinCode_). C++ has three char types and
+    '' tiko's BYTE/UBYTE are 'signed char'/'unsigned char', so plain 'char' needs the alias;
+    '' 'long' is C++'s 32-bit long on Windows. Typeref-only bits: no N_TYPEREF carries the
+    '' PF_* bits above that share them.
+    const TR_CXX_CHAR       as uint32 = &h40000000
+    const TR_CXX_LONG       as uint32 = &h80000000
+    const TR_CXX_ALIAS_MASK as uint32 = &hC0000000
     '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
     '' a DLL exports, reached through its import pointer (T85). See llvmglobal.tiko.
     const VF_DLLIMPORT      as uint32 = &h00000001
@@ -520,7 +528,7 @@ namespace Tko
         as ChildPool   tokenRanges
 
         '' EVERY DECLARATION OF A MODULE UNIT, as (node, firstTok, endTok) triples, endTok
-        '' exclusive -- what its interface is written from (ADR 0017, RFC-0004 §3). Kept
+        '' exclusive -- what its interface is written from (ADR 0017, RFC-0004 3). Kept
         '' apart from tokenRanges, whose readers take every N_TYPE there to be a generic.
         '' Empty outside a module unit.
         as ChildPool   declRanges

@@ -416,6 +416,25 @@ private function UdtSymbolOf_ _
     return ts
 end function
 
+'' A TYPE DECLARED IN 'extern "C++"', or nested in one: its virtual destructor takes the
+'' Itanium pair of slots (VtSlot.deleting). An 'extern "C"' type does not -- measured, fbc
+'' gives it the one slot an FB type has.
+private function IsCxxUdt_( byref ast as AstArena, byref syms as SymbolTable, byval s as Symbol ptr ) as boolean
+    dim as int32 guard = 0
+    while (s <> nullptr) andalso (guard < 16)
+        guard += 1
+        dim as NodeId dn = cast( NodeId, s->payload )
+        if dn <> NODE_NONE then
+            if (ast.StmtOf( dn )->extra and PF_CXX) <> 0 then return true
+        end if
+        dim as SymScope ptr up = syms.ScopeAt( s->parent )
+        if up = nullptr then return false
+        if up->kind <> cast( uint8, SCOPEK_TYPE ) then return false
+        s = syms.SymbolAt( up->owner )
+    wend
+    return false
+end function
+
 '' Does this type extend OBJECT, transitively? That -- and nothing about the methods --
 '' is what decides whether there is a table at all.
 private function ExtendsObject_ _
@@ -740,6 +759,15 @@ private function BuildOne_ _
                                     sl->open = isVirtual
                                 end if
                                 sl->owner = t
+                                '' ...AND ITS DELETING PARTNER, which follows it and is the same
+                                '' destructor's other entry point.
+                                if at + 1 < v.count then
+                                    dim as VtSlot ptr dl = @store.slots[v.first + at + 1]
+                                    if dl->deleting then
+                                        dl->proc_ = sl->proc_ : dl->decl = decl
+                                        dl->open = sl->open : dl->owner = t
+                                    end if
+                                end if
                             elseif isVirtual then
                                 dim as VtSlot ns
                                 ns.proc_ = iif( isAbstract, cast( SymbolId, SYMBOL_NONE ), ov )
@@ -749,6 +777,15 @@ private function BuildOne_ _
                                 ns.open = true
                                 store.slots.Push( ns )
                                 v.count += 1
+                                '' A C++ TYPE'S VIRTUAL DESTRUCTOR IS TWO SLOTS off MSVC: g++'s
+                                '' table for 'virtual ~T(); virtual int m();' is {D1, D0, m}, and
+                                '' with one slot every later virtual called the one before it.
+                                if (cast( TokenKind, pp->op ) = KW_DESTRUCTOR) andalso _
+                                   (types.target.isMsvc = false) andalso IsCxxUdt_( ast, syms, s ) then
+                                    ns.deleting = true
+                                    store.slots.Push( ns )
+                                    v.count += 1
+                                end if
                             end if
                         end if
                     end if
@@ -895,7 +932,7 @@ function DumpVTables _
     return outp
 end function
 
-'' DOES 'impl' IMPLEMENT THE INTERFACE MEMBER 'member'? docs/tiko-interfaces §7.4: the OVERRIDE
+'' DOES 'impl' IMPLEMENT THE INTERFACE MEMBER 'member'? docs/tiko-interfaces 7.4: the OVERRIDE
 '' comparison, kept here so the two rules cannot drift -- the same parameter types, passing
 '' modes, bydesc ranks, const-ness and calling convention -- and one difference: the return
 '' type must be the SAME for every member, not only for an operator, with no covariance. ""

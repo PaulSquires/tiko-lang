@@ -11,6 +11,8 @@
 	'' On 32bit systems and 64bit Windows, C's long is 32bit like FB's long.
 	'' Note: Using 32bit Long here instead of 32bit/64bit Integer, because
 	'' this is also used for 64bit Windows where Integer isn't 32bit.
-	type clong as long
-	type culong as ulong
+	'' 'alias "long"' makes a C++ name spell it C++'s long ('l'/'m'), not int: a C++
+	'' function taking 'long' links (tiko's manglecxx.ti).
+	type clong as long alias "long"
+	type culong as ulong alias "long"
 #endif

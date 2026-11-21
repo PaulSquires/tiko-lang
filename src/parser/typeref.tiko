@@ -4,6 +4,9 @@
 '' place, so nothing about the compile order changes. Nothing in it changed in the
 '' move.
 
+'' declparam.tiko: the TEXT of a string literal token, interned. A type's C++ alias reads it.
+declare function StringLitText( byref p as Tko.ParserState ) as Tko.InternId
+
 '' '...' IS ONLY FOR A CDECL PROCEDURE -- fbc's error 312, "vararg parameters are only
 '' allowed in CDECL procedures". A variadic stdcall cannot exist: the callee pops its own
 '' arguments and cannot know how many there were. Asked where fbc asks it, as the list is
@@ -689,10 +692,20 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     '' 'as long alias "int"' with a syntax error. That restriction is not applied here --
     '' the shape parses for any type and the diagnostic is owed from the checker, which
     '' does not emit it yet. Recorded rather than silently permitted.
+    ''
+    '' THE MANGLER READS IT. It was parsed and dropped, so 'byval a as byte alias "char"'
+    '' went out 'a' (signed char) where g++ and clang++ define 'c', and the link failed
+    '' (docs/tiko-cpp FEASIBILITY 2.3). The C++ name is kept as a TR_CXX_* bit in 'extra'.
     if Peek( p ) = Tko.KW_ALIAS then
         dim as int32 saveAlias = p.pos
         Advance( p )
         if Peek( p ) = Tko.TK_STRING_LIT then
+            dim as string cxxNm = Tko.Text.LowerAscii( p.names->Spelling( StringLitText( p ) ) )
+            if cxxNm = "char" then
+                sp.extra or= Tko.TR_CXX_CHAR
+            elseif cxxNm = "long" then
+                sp.extra or= Tko.TR_CXX_LONG
+            end if
             sp.b = Expression( p, Tko.PREC_POSTFIX )
         else
             p.pos = saveAlias

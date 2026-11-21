@@ -1,0 +1,42 @@
+'' classes, called from tiko: must print what driver.cpp prints.
+#include once "../show.bi"
+
+extern "C" : declare function counter_sizeof( ) as long : end extern
+
+extern "C++"
+namespace geo
+    type Counter extends object          '' the vptr at offset 0, as g++ lays it out
+        declare constructor( byval name_ as const zstring ptr )
+        declare virtual destructor( )
+        declare sub add( byval v as long )
+        declare const function total( ) as long
+        declare const function name( ) as const zstring ptr
+        declare static function instances( ) as long
+        declare const virtual function scaled( byval k as long ) as long
+    private:
+        as ubyte opaque_( 0 to 55 )      '' std::string + std::vector<int>
+    end type
+    declare function make_doubler( byval name_ as const zstring ptr ) as Counter ptr
+    declare sub destroy( byval c as Counter ptr )
+end namespace
+end extern
+
+show_i( "sizeof", iif( counter_sizeof( ) = sizeof( geo.Counter ), counter_sizeof( ), -1 ) )
+scope
+    dim as geo.Counter c = geo.Counter( "stack" )
+    c.add( 3 ) : c.add( 4 )
+    show_s( "name", c.name( ) )
+    show_i( "total", c.total( ) )
+    show_i( "instances", geo.Counter.instances( ) )
+    show_i( "scaled", c.scaled( 10 ) )
+end scope
+show_i( "instances", geo.Counter.instances( ) )
+dim as geo.Counter ptr h = new geo.Counter( "heap" )
+h->add( 5 )
+show_i( "heap.scaled", h->scaled( 2 ) )
+delete h
+dim as geo.Counter ptr d = geo.make_doubler( "derived" )
+d->add( 6 )
+show_i( "derived.scaled", d->scaled( 3 ) )
+geo.destroy( d )
+show_i( "instances", geo.Counter.instances( ) )

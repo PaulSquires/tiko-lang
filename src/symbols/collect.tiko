@@ -194,7 +194,7 @@ end function
 
 
 '' A MEMBER DEFINED OUT OF LINE, at module or namespace level of a MODULE UNIT, whose
-'' declarations have no order (ADR 0017; RFC-0003 §5): 'sub T.M( )' may be written above
+'' declarations have no order (ADR 0017; RFC-0003 5): 'sub T.M( )' may be written above
 '' 'type T', so it is collected after everything else at its level, when T is declared.
 '' A namespace-qualified definition, 'sub ns.F( )', waits for its namespace the same way.
 private function Deferred_ _
@@ -594,7 +594,7 @@ sub WalkNode _
         next
 
     case Tko.N_TYPE, Tko.N_INTERFACE
-        '' AN INTERFACE IS DECLARED AS A TYPE IS (docs/tiko-interfaces §7.2): a SYM_UDT with a
+        '' AN INTERFACE IS DECLARED AS A TYPE IS (docs/tiko-interfaces 7.2): a SYM_UDT with a
         '' scope holding its two hidden fields and its member SYM_PROCs, its type TF_INTERFACE.
         dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
         '' An ANONYMOUS union or type declares nothing and opens no scope: its
@@ -626,6 +626,24 @@ sub WalkNode _
             '' the one thing 'extern "C++"' and 'extern "C"' agree on.
             if (sp->extra and (Tko.PF_FOREIGN or Tko.PF_CXX)) <> 0 then
                 traw = sp->rawName
+            end if
+            '' ...AND SO DOES A TYPE NESTED IN ONE. 'type Inner' inside a C++ 'type Outer'
+            '' carries no block flag of its own, so 'fn( byval x as Outer.Inner )' went out
+            '' ...5Outer5INNERE where g++ and clang++ define ...5Outer5InnerE (vendored
+            '' cpp/mangle-struct; docs/tiko-cpp FEASIBILITY 2.3).
+            if traw = 0 then
+                dim as Tko.SymScope ptr osc = w.syms->ScopeAt( scope_ )
+                if osc <> nullptr then
+                    if osc->kind = cast( uint8, Tko.SCOPEK_TYPE ) then
+                        dim as Tko.Symbol ptr ows = w.syms->SymbolAt( osc->owner )
+                        if ows <> nullptr then
+                            dim as int32 oti = cast( int32, ows->type_ )
+                            if (oti > 0) andalso (oti < w.types->types.Count) then
+                                if w.types->types[oti].rawName <> 0 then traw = sp->rawName
+                            end if
+                        end if
+                    end if
+                end if
             end if
             s->type_ = w.types->NamedType( Tko.TK_UDT, sp->name, _
                                            cast( uint32, scope_ ), traw )
@@ -1006,7 +1024,7 @@ sub WalkNode _
                     if os->inner <> Tko.SCOPE_NONE then parentScope = os->inner
                     if ownerIsUdt then CheckModCtorMember_( w, id, sp, os )
                     '' 'sub IGreet.Bye( ) ... end sub' -- A BODY FOR AN INTERFACE MEMBER, which
-                    '' has none (docs/tiko-interfaces §4.2, its TKO0434). It joined the abstract
+                    '' has none (docs/tiko-interfaces 4.2, its TKO0434). It joined the abstract
                     '' declaration in silence and was never called: a type that does not
                     '' implement 'Bye' is still TKO1000, and one that does calls its own.
                     if ownerIsUdt andalso (sp->b <> Tko.NODE_NONE) then

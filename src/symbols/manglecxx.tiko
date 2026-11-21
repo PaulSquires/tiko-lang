@@ -1,0 +1,71 @@
+'' manglecxx.tiko -- see manglecxx.ti.
+
+#import "std/containers"
+
+#include once "symbols/manglecxx.ti"
+
+namespace Tko.Mangle
+
+function CxxBuiltinCode _
+    ( byval b as Tko.BuiltinType, byref tl as Tko.TargetLayout, _
+      byval cxx as boolean, byval aliasBits as uint32 ) as string
+
+    '' 'alias "char"': C++'s plain char, which is neither 'signed char' (a) nor 'unsigned
+    '' char' (h). Only a one-byte integer can stand for it.
+    if (aliasBits and Tko.TR_CXX_CHAR) <> 0 then
+        if (b = Tko.TY_BYTE) orelse (b = Tko.TY_UBYTE) then return "c"
+    end if
+    '' 'alias "long"': C++'s long where it is 32 bits wide, which is Windows (LLP64). On an
+    '' LP64 target C++'s long is 64 bits and a 32-bit tiko 'long' cannot be one, so the
+    '' alias says nothing there and the parameter stays C++'s int -- what the value is.
+    if (aliasBits and Tko.TR_CXX_LONG) <> 0 then
+        if tl.isWindows orelse (tl.pointerBits = 32) then
+            if b = Tko.TY_LONG then return "l"
+            if b = Tko.TY_ULONG then return "m"
+        end if
+    end if
+    if cxx = false then return ""
+    '' 'integer' and 'uinteger' are pointer-sized, which is C++'s ptrdiff_t and size_t:
+    '' 'long' / 'unsigned long' on LP64 (Linux, macOS) and on 32-bit targets, and
+    '' 'long long' / 'unsigned long long' on 64-bit Windows (docs/tiko-cpp D7). The vendor
+    '' u7INTEGER fbc writes is a type no C++ compiler ever emits, so a C++ function declared
+    '' with 'integer' could never link.
+    select case b
+    case Tko.TY_INTEGER
+        if tl.isWindows andalso (tl.pointerBits = 64) then return "x"
+        return "l"
+    case Tko.TY_UINTEGER
+        if tl.isWindows andalso (tl.pointerBits = 64) then return "y"
+        return "m"
+    end select
+    return ""
+end function
+
+function CxxAliasOf _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byval sc as Tko.ScopeId, byval tr as Tko.NodeId ) as uint32
+
+    for depth as int32 = 0 to 7
+        if tr = Tko.NODE_NONE then return 0
+        if ast.Kind( tr ) <> Tko.N_TYPEREF then return 0
+        dim as Tko.StmtPayload ptr sp = ast.StmtOf( tr )
+        dim as uint32 bits = sp->extra and Tko.TR_CXX_ALIAS_MASK
+        if bits <> 0 then return bits
+        '' 'as const byte alias "char" ptr': each PTR is a typeref wrapping the one it points
+        '' at, and the alias sits on the innermost.
+        if (ast.Flags( tr ) and Tko.NF_PTR) <> 0 then
+            tr = sp->a
+            continue for
+        end if
+        '' A TYPEDEF carries its alias on its own declaration: the test suite's
+        '' 'type cxxlongint as long alias "long"'. A qualified name is not followed.
+        if (sp->name = 0) orelse (sp->ownerName <> 0) then return 0
+        dim as Tko.Symbol ptr s = syms.SymbolAt( syms.LookupTyped( sc, sp->name, true ) )
+        if s = nullptr then return 0
+        if s->kind <> cast( uint8, Tko.SYM_TYPEDEF ) then return 0
+        tr = cast( Tko.NodeId, s->payload )
+    next
+    return 0
+end function
+
+end namespace

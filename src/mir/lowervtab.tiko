@@ -118,6 +118,7 @@ end function
 
 '' This type's vtable, built if it does not exist yet.
 declare function ImplicitDtorSlot_( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as boolean
+declare function SlotFuncName_( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as string
 
 function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as int32
     if t = Tko.TYPE_NONE then return -1
@@ -135,7 +136,7 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as int32
     '' the middle of this table's run.
     dim as int32 rg = RttiGlobalOf_( c, t )
     '' ...AND THE CLASS DESCRIPTOR of a type that implements an interface (docs/tiko-interfaces
-    '' §9.3), which goes in word 0 -- -1, and a null word, for every other type.
+    '' 9.3), which goes in word 0 -- -1, and a null word, for every other type.
     dim as int32 cdg = ClassDescOf_( c, t )
 
     dim as int32 g = c.m->AddPtrTable( id )
@@ -156,17 +157,88 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as int32
         dim as Tko.VtSlot ptr sl = @c.vts->slots[v->first + i]
         '' AN ABSTRACT SLOT IS A NULL WORD, not an absent one. A derived type's
         '' override fills the same index.
-        if (sl->proc_ = Tko.SYMBOL_NONE) orelse (sl->decl = Tko.NODE_NONE) then
+        dim as string fnm = ""
+        if (sl->proc_ <> Tko.SYMBOL_NONE) andalso (sl->decl <> Tko.NODE_NONE) then
+            fnm = SlotFuncName_( c, t, sl )
+        end if
+        if len( fnm ) = 0 then
             c.m->PushPtrNull( g )
-        elseif ImplicitDtorSlot_( c, t, sl ) then
-            c.m->PushPtrFunc( g, c.names->GetString( ImplicitDtorName_( c, t ) ) )
         else
-            c.m->PushPtrFunc( g, c.names->GetString( Tko.Mangle.ProcName( _
-                *c.ast, sl->decl, *c.syms, *c.names, *c.types, *c.info ) ) )
+            c.m->PushPtrFunc( g, c.names->GetString( fnm ) )
         end if
     next
     return g
 end function
+
+'' The function a filled slot names: the method, the synthesised destructor, or -- for an
+'' Itanium deleting-destructor slot -- the complete destructor's name with D1 made D0.
+function SlotFuncName_( byref c as Ctx, byval t as Tko.TypeId, byval sl as Tko.VtSlot ptr ) as string
+    dim as string nm
+    if ImplicitDtorSlot_( c, t, sl ) then
+        nm = ImplicitDtorName_( c, t )
+    else
+        nm = Tko.Mangle.ProcName( *c.ast, sl->decl, *c.syms, *c.names, *c.types, *c.info )
+    end if
+    if sl->deleting = false then return nm
+    if right( nm, 4 ) <> "D1Ev" then return ""
+    return left( nm, len( nm ) - 4 ) & "D0Ev"
+end function
+
+'' THE DELETING DESTRUCTOR ('D0') of every C++ type whose complete one this module defines.
+'' fbc puts it in the table and never defines it, so a C++ class written in tiko could not
+'' link; a C++ class written in C++ defines its own, and then this module has no D1 to pair
+'' and defines nothing. The body is what 'delete' does after the virtual call -- the
+'' complete destructor, then tiko's own deallocate, which is what allocated a tiko 'new'.
+'' Weak, as a synthesised structor is.
+private sub EmitDeletingDtor_( byref c as Ctx, byref d0 as string, byref d1 as string )
+    dim as Tko.InternId id0 = c.names->GetString( d0 )
+    dim as int32 at = c.m->FirstFunctionNamed( id0 )
+    while at >= 0
+        if c.m->functions[at] = nullptr then exit while
+        if c.m->functions[at]->isDefinition then return
+        at = c.m->functions[at]->nextSameName - 1
+    wend
+    dim as int32 d1ix = -1
+    at = c.m->FirstFunctionNamed( c.names->GetString( d1 ) )
+    while at >= 0
+        if c.m->functions[at] = nullptr then exit while
+        if c.m->functions[at]->isDefinition then d1ix = at : exit while
+        at = c.m->functions[at]->nextSameName - 1
+    wend
+    if d1ix < 0 then return
+
+    dim as MirFunction ptr f = c.m->AddFunction( id0, MT_VOID )
+    f->isDefinition = true
+    f->isWeak = true
+    f->AddParam( MT_PTR )
+    dim as MirFunction ptr savedF = c.f
+    dim as int32 savedB = c.curBlock
+    c.f = f
+    c.st->functions += 1
+    c.curBlock = NewBlock( c, "entry" )
+    dim as MirValue selfv
+    selfv.kind = cast( uint8, MV_PARAM )
+    selfv.ty = cast( uint8, MT_PTR )
+    selfv.id = 0
+
+    dim as int32 first = c.m->argPool.Count \ 2
+    c.m->argPool.Push( cast( uint32, selfv.kind ) )
+    c.m->argPool.Push( cast( uint32, selfv.id ) )
+    dim as MirInst ins
+    ins.op = cast( uint16, M_CALL )
+    ins.ty = cast( uint8, MT_VOID )
+    ins.first = first
+    ins.count = 1
+    ins.callee = d1ix
+    Emit( c, ins )
+    dim as containers.Array( of uint32 ) fa
+    fa.Push( cast( uint32, selfv.kind ) ) : fa.Push( cast( uint32, selfv.id ) )
+    EmitAllocCall_( c, RTL_FREE, fa )
+    Terminate( c, MTERM_RET, -1, -1, NoVal( ) )
+
+    c.f = savedF
+    c.curBlock = savedB
+end sub
 
 '' A BASE'S VIRTUAL DESTRUCTOR SLOT, IN A TYPE WITH NO DESTRUCTOR OF ITS OWN BUT ONE IMPLIED. B extends
 '' A, A's destructor virtual, B holding a field with a destructor and declaring none: fbc's implicit
@@ -199,6 +271,17 @@ sub EmitVTableGlobals( byref c as Ctx )
     if c.vts = nullptr then return
     for i as int32 = 0 to c.vts->types_.Count - 1
         VtableGlobalOf_( c, c.vts->types_[i].type_ )
+    next
+    for i as int32 = 0 to c.vts->types_.Count - 1
+        dim as Tko.TypeId t = c.vts->types_[i].type_
+        if IsObjectType_( c, t ) then continue for
+        for k as int32 = 0 to c.vts->types_[i].count - 1
+            dim as Tko.VtSlot ptr sl = @c.vts->slots[c.vts->types_[i].first + k]
+            if (sl->deleting = false) orelse (k = 0) then continue for
+            dim as string d0 = SlotFuncName_( c, t, sl )
+            if len( d0 ) = 0 then continue for
+            EmitDeletingDtor_( c, d0, SlotFuncName_( c, t, @c.vts->slots[c.vts->types_[i].first + k - 1] ) )
+        next
     next
 end sub
 

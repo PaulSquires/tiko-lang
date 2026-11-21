@@ -1,0 +1,36 @@
+'' byvalue, called from tiko: must print what driver.cpp prints.
+#include once "../show.bi"
+
+extern "C++"
+type Box
+    as long v
+    declare constructor( byval x as long )
+    declare constructor( byref o as const Box )
+    declare destructor( )
+end type
+type Pod
+    as long a, b
+end type
+type Big
+    as longint a, b, c
+end type
+declare function twice( byval b as Box ) as Box
+declare function swappod( byval p as Pod ) as Pod
+declare function bigsum( byval x as Big, byval y as Big ) as Big
+declare function peekbox( byref b as const Box ) as long
+end extern
+
+dim as Pod p = type( 1, 2 )
+dim as Pod q = swappod( p )
+show_i( "swappod.a", q.a )
+show_i( "swappod.b", q.b )
+dim as Big x = type( 1, 2, 3 ), y = type( 10, 20, 30 )
+dim as Big s = bigsum( x, y )
+show_i( "bigsum.c", s.c )
+scope
+    dim as Box b = Box( 21 )
+    show_i( "peekbox", peekbox( b ) )
+    dim as Box r = twice( b )
+    show_i( "twice", r.v )
+end scope
+show_i( "end", 0 )
