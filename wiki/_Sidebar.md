@@ -25,6 +25,7 @@
 - [Tuples](Category-Tuples)
 - [Array Results](Category-Array-Results)
 - [Defer](Category-Defer)
+- [Match](Category-Match)
 - [Lambdas](Category-Lambdas)
 - [Block Strings](Category-Block-Strings)
 - [Partial Types](Category-Partial-Types)

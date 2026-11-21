@@ -16,6 +16,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Array Results](Category-Array-Results) — 1 pages
 - [Collection Initializers](Category-Collection-Initializers) — 1 pages
 - [Defer](Category-Defer) — 1 pages
+- [Match](Category-Match) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
 - [Block Strings](Category-Block-Strings) — 1 pages
 - [Partial Types](Category-Partial-Types) — 1 pages

@@ -124,6 +124,8 @@ namespace Tko
         '' began at, so a list is only ever taken by the declaration that read it.
         as NodeId                pendingImpl
         as int32                 pendingImplTok
+        '' The folded intern of 'match', looked up once (parser/match.tiko runs on every statement).
+        as InternId              matchNm
         as int32                 errors
         as boolean              silent      '' suppress cascades after an error
         '' A MODULE UNIT: every declaration's token range goes to ast->declRanges.

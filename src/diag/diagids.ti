@@ -27,6 +27,7 @@
 ''     1100-1149   semantic, continued: int128 / uint128
 ''     1150-1199   flow analysis: what holds on every path to a use (std/outcome's checks)
 ''     1200-1239   'tiko test' and 'tiko doc' (docs/tiko-test-doc)
+''     1240-1279   'match' (docs/tiko-comparison RFC-0001-match)
 ''
 '' FORMAT STRINGS use %0, %1, %2 for the arguments passed to Report( ). A '%' that is
 '' not followed by a digit is literal.
@@ -1216,6 +1217,27 @@
     DIAG( TKO1209, SEV_WARNING, "no module directories to document in %0" )
     DIAG( TKO1210, SEV_ERROR,   "'%0' is not a module directory: none of its source files begins with '#module'" )
     DIAG( TKO1211, SEV_ERROR,   "'%0' is neither a test file nor a directory" )
+
+    '' 'MATCH' (docs/tiko-comparison RFC-0001-match). 1240-1249: the shape, judged while it is desugared
+    '' (parser/match.tiko); 1250-1257: what needs the subject's type (symbols/semmatch.tiko).
+    DIAG( TKO1240, SEV_ERROR,   "'match' needs at least one arm" )
+    DIAG( TKO1241, SEV_ERROR,   "'match' is not closed: 'end match' expected" )
+    DIAG( TKO1242, SEV_ERROR,   "a 'match' used as a value takes 'pattern => value' arms, not 'case'" )
+    DIAG( TKO1243, SEV_ERROR,   "a 'match' statement takes 'case' arms; 'pattern => value' arms are for a 'match' used as a value" )
+    DIAG( TKO1244, SEV_ERROR,   "'else' must be the last arm of a 'match'" )
+    DIAG( TKO1245, SEV_ERROR,   "a 'match' expression cannot be used in %0" )
+    DIAG( TKO1246, SEV_ERROR,   "malformed 'match' pattern: %0" )
+    DIAG( TKO1247, SEV_ERROR,   "'%0' is bound twice in one pattern" )
+    DIAG( TKO1248, SEV_ERROR,   "a pattern list ('a, b') cannot bind names" )
+    DIAG( TKO1249, SEV_ERROR,   "an 'else' arm cannot have a guard" )
+    DIAG( TKO1250, SEV_ERROR,   "'match' is not exhaustive: %0 is not handled" )
+    DIAG( TKO1251, SEV_WARNING, "this 'match' arm can never run: the arms above it cover every value it matches" )
+    DIAG( TKO1252, SEV_ERROR,   "the pattern '%0( ... )' needs a subject of type '%0', and it is '%1'" )
+    DIAG( TKO1253, SEV_ERROR,   "'%0' has %1 fields, and the pattern names %2" )
+    DIAG( TKO1254, SEV_ERROR,   "a type pattern needs a pointer to a class, and the subject is '%0'" )
+    DIAG( TKO1255, SEV_ERROR,   "'starts' needs a string, and the subject is '%0'" )
+    DIAG( TKO1256, SEV_WARNING, "the binding '%0' hides the constant of the same name; qualify it to compare against it" )
+    DIAG( TKO1257, SEV_ERROR,   "a tuple pattern needs a tuple, and the subject is '%0'" )
 
 #endmacro
 

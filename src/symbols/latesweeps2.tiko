@@ -582,6 +582,8 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         next
         t = BaseOf_( c, t )
     wend
+    '' A 'match' pattern's positional field past the type's last: semmatch.tiko's TKO1253 says so.
+    if left( c.names->Spelling( want ), 9 ) = "__tko_pos" then return
     c.diags->Report( TKO0739, PointRange( c.ast->Loc( mp->rhs ) ), _
                      tnm, c.names->Spelling( want ) )
 end sub
