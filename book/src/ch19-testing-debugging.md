@@ -361,6 +361,70 @@ Locals tab of the output pane lists `rs`, `sum` and `i`. There `rs` is `(1 to 3)
 so the zero-based pitfall above does not apply. A string shows its text, `u"north"`, without the
 bookkeeping, and a watch takes the program's spelling, `rs(2).sensor`.
 
+## Memory errors with -fsanitize=address
+
+`-exx` catches an index past an array's bounds and a null pointer. It cannot catch memory that was
+freed and then used: the pointer still holds a real address, and the program reads whatever is
+there now. **AddressSanitizer** can. Build with **`-fsanitize=address`** and every procedure checks
+each memory access against a map of what the program may touch, and freed blocks are held back
+from reuse, so a stale pointer lands on poisoned memory instead of someone else's data.
+
+```admonish warning title="Status in this version"
+`-fsanitize=address` arrives after tiko 0.1.6, the toolchain this book is pinned to. The listing in
+this section was compiled and run with the development toolchain; the book's harness reports it as
+blocked (`pin-0.1.6`) until the pin moves to a release that has it.
+```
+
+```tiko
+{{#include ../examples/ch19/freed.tiko}}
+```
+
+```text
+{{#include ../examples/ch19/freed.out}}
+```
+
+The listing names its options itself, so `tiko freed.tiko` builds it checked. Without the
+`#cmdline` line the same program prints a second reading, a meaningless number such as
+`1.228383301872162e-311`, and exits 0 as if nothing had happened. Checked, it stops at the read,
+exits 1 (macOS aborts it instead, exit 134), and prints its report on standard error. Trimmed to
+the lines that matter:
+
+```text
+==11612==ERROR: AddressSanitizer: heap-use-after-free on address 0x1206dbfa0070 ...
+READ of size 8 at 0x1206dbfa0070 thread T0
+    #0 0x7ff6a82c1136 in main freed.tiko:12
+freed by thread T0 here:
+    #1 0x7ff6a82c10f2 in main freed.tiko:11
+previously allocated by thread T0 here:
+    #1 0x7ff6a82c102e in main freed.tiko:8
+```
+
+**The report answers all three questions** a stale pointer raises: where it was used, where the
+block was freed, and where it was allocated. `-g` is what puts line numbers in it; without `-g` it
+names procedures only. The same build catches the other memory errors a program can make:
+
+| Bug | Report |
+|---|---|
+| Reading or writing a block after `delete` or `deallocate` | `heap-use-after-free` |
+| Freeing a block twice | `attempting double-free` |
+| A pointer past either end of an `allocate`d block | `heap-buffer-overflow` |
+| A local array or record reached past its end through a pointer | `stack-buffer-overflow` |
+| The address of a local, used after its procedure returned | `stack-use-after-return` |
+
+A project gets all of it from one option: **`tiko build --profile asan`** uses a built-in profile,
+`-g -exx -O1 -fsanitize=address`, and builds into `out/asan/` beside the debug build (Chapter 31).
+Code that has to know is told: `__TIKO_ASAN__` is defined, as `1`, in a checked build.
+
+The runtime that does the checking is clang's, from the LLVM tiko already uses. On Windows its DLL,
+`clang_rt.asan_dynamic-x86_64.dll`, is copied beside the program; on Ubuntu, install the
+`libclang-rt-<version>-dev` package that matches clang.
+
+```admonish danger title="Pitfall"
+**It checks your program's memory, not tiko's runtime.** Every `new`, `delete`, `allocate` and
+string the program makes goes through the checked allocator, so a mistake in how the program uses
+memory is caught. A bug inside a runtime routine is not.
+```
+
 ## Warnings and the diagnostics workflow
 
 An error stops the build. A **warning** does not: the program is built, and it runs. That is
@@ -506,6 +570,9 @@ The full list, with the front end's own `--dump-*` options, is Appendix C.
 - **`-g` makes the executable larger**: the debug information is stored beside the code. Keep it
   in every development build. Optimisation works against it — variables live in registers and
   lines are reordered — so debug an unoptimised build.
+- **`-fsanitize=address` makes a program slower and larger**, and it uses more memory: freed
+  blocks wait before they are reused, and every access is checked. It is a build for finding bugs,
+  not one to ship.
 - **`-Werror` costs a little friction**, paid when the warning appears rather than when the bug it
   predicted does.
 
@@ -531,6 +598,9 @@ The full list, with the front end's own `--dump-*` options, is Appendix C.
   `.pdb`.
 - tkEdit's debugger (`F9`, `F6`) reads the same DWARF and names elements by the program's own
   subscripts.
+- `-fsanitize=address` (with `-g`), or `tiko build --profile asan`, stops a program at a
+  use-after-free, a double free, an overflow or a returned local's address, and names the line of
+  the use, the free and the allocation.
 - A warning can be a wrong answer: `-Werror` fails the build on one, `-Wno-TKOnnnn` silences one
   by id, `--diagnostics-file` gives tools the records.
 - `--dump-udt`, `--emit-ir`, `--emit-asm`, `--keep-temps` and `-v` show what the compiler made of

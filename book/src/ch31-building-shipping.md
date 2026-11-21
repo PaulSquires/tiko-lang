@@ -323,7 +323,9 @@ included, so the project builds the same whatever directory the command is typed
 The `debug` in `out/debug` is the **profile**: a named set of compiler options. `tiko build`
 uses `debug`, which is `-g -exx -O0`, a checked build, and so does `tiko run`. `--profile release`
 builds with `-O2` instead, into `out/release`, and the program above then prints
-`release build`. Both are built in; a `[profile.name]` table changes one or declares another:
+`release build`. Both are built in, and so is `asan`, `-g -exx -O1 -fsanitize=address`, for
+finding memory errors (Chapter 19; after tiko 0.1.6). A `[profile.name]` table changes one or
+declares another:
 
 ```toml
 [profile.fast]

@@ -242,6 +242,7 @@
   - [assert in tests](testing/assert.md)
   - [Tracing](testing/tracing.md)
   - [Debugging in tkEdit](testing/debugging.md)
+  - [Memory errors](testing/asan.md)
 - [Building](building/index.md)
   - [Options in the source](building/cmdline.md)
   - [Checked builds](building/checked.md)

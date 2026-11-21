@@ -48,6 +48,7 @@ snippet's output matters it is shown in `'' →` comments.
 | One file | `tiko app.tiko` → `app.exe` (Windows) or `./app` |
 | Optimised | `tiko -O2 app.tiko` |
 | Debug + runtime checks | `tiko -g -exx app.tiko` (bounds, null pointers) |
+| Memory errors | `tiko -g -fsanitize=address app.tiko`, or `tiko build --profile asan`: use-after-free, double free, overflow (after tiko 0.1.6) |
 | Thread-safe runtime | `tiko -mt app.tiko`, or `#cmdline "-mt"` in the source |
 | Name the output | `-o name` (exact, so `-o name.exe` on Windows) |
 | Define a symbol | `-d NAME=value` |
