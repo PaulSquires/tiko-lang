@@ -20,8 +20,8 @@
 #define ExpectEq( a, b )        ExpectEqAt_( (a), (b), #a, #b, __FILE__, __LINE__ )
 #define ExpectNe( a, b )        ExpectNeAt_( (a), (b), #a, #b, __FILE__, __LINE__ )
 #define ExpectNear( a, b, e )   ExpectNearAt_( (a), (b), (e), #a, #b, __FILE__, __LINE__ )
-#define Require( c )            if ExpectAt_( (c), #c, __FILE__, __LINE__ ) = false then exit sub
-#define RequireEq( a, b )       if ExpectEqAt_( (a), (b), #a, #b, __FILE__, __LINE__ ) = false then exit sub
+#define Require( c )            if RequireAt_( (c), #c, __FILE__, __LINE__ ) = false then exit sub
+#define RequireEq( a, b )       if RequireEqAt_( (a), (b), #a, #b, __FILE__, __LINE__ ) = false then exit sub
 #define Fail( m )               FailAt_( (m), __FILE__, __LINE__ )
 #define Skip( why )             SkipAt_( (why) ) : exit sub
 #export Expect, ExpectFalse, ExpectEq, ExpectNe, ExpectNear, Require, RequireEq, Fail, Skip
@@ -70,6 +70,13 @@ function ExpectAt_( byval c as boolean, byref txt as const string, _
     return false
 end function
 
+function RequireAt_( byval c as boolean, byref txt as const string, _
+                     byref f as const string, byval l as long ) as boolean
+    if c then return true
+    Failed_( f, l, "Require failed: " & txt & " -- the test stops here" )
+    return false
+end function
+
 function ExpectFalseAt_( byval c as boolean, byref txt as const string, _
                          byref f as const string, byval l as long ) as boolean
     if c = false then return true
@@ -82,6 +89,12 @@ function ExpectEqAt_ overload ( pass_ a as ty, pass_ b as ty, byref ta as const 
                                 byref tb as const string, byref f as const string, byval l as long ) as boolean
     if a = b then return true
     Failed_( f, l, "ExpectEq failed" & Sides_( ta, Show_( a ), tb, Show_( b ) ) )
+    return false
+end function
+function RequireEqAt_ overload ( pass_ a as ty, pass_ b as ty, byref ta as const string, _
+                                 byref tb as const string, byref f as const string, byval l as long ) as boolean
+    if a = b then return true
+    Failed_( f, l, "RequireEq failed -- the test stops here" & Sides_( ta, Show_( a ), tb, Show_( b ) ) )
     return false
 end function
 function ExpectNeAt_ overload ( pass_ a as ty, pass_ b as ty, byref ta as const string, _

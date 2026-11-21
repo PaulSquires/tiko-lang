@@ -15,7 +15,7 @@ doc: 3 modules -> out/doc/index.html
 #module "geo"
 '' geo: shapes and their areas.
 ''
-''     #import "geo"
+''     #import "shapes/geo"
 ''     print geo.Area( geo.Square( 2 ) )
 ''
 '' Every public name below is documented by the comment above it.
@@ -63,7 +63,7 @@ Each module is built as a program that imports it builds it, through the module 
 
 | File | |
 |---|---|
-| `<chain>.md` | the module's page in Markdown: its import line, its overview, the contents, then each item with its signatures, its documentation, its members and where it is defined |
+| `<chain>.md` | the module's page in Markdown: its import line (the package path, `#import "shapes/geo"`, which works from anywhere -- a file of the same package included), its overview, the contents, then each item with its signatures, its documentation, its members and where it is defined |
 | `<chain>.html` | the same as a web page, light or dark with the system, with the search box |
 | `index.md`, `index.html` | every module, with its import line and the first sentence of its overview |
 | `search.js` | every name, for the search box -- a script rather than JSON, so the search works on pages opened from the disk |

@@ -520,19 +520,11 @@ function EmitDoc( byref ctx as Tko.CompilerContext, byref dir_ as string, byref 
     dim as int32 rc = Tko.EXIT_OK
     dim as int32 i = Tko.Modules.BuildForInterface( ctx, dir_, rc )
     if i < 0 then return rc
-    dim as Tko.Modules.ModWhere w
-    Tko.Modules.ChainForDir( ctx, dir_, w )
     dim as string chain = ctx.ifaceChains[i]
-    '' HOW A PROGRAM IMPORTS IT: by package path, or for the root package's own modules by their
-    '' path below its root.
+    '' HOW A PROGRAM IMPORTS IT: by its package path, 'std/strings' or 'shapes/geo' -- the
+    '' spelling that works from anywhere, a file of its own package included (a bare 'geo' is
+    '' looked for in the toolchain's pkg/ only).
     dim as string importAs = chain
-    dim as string pkg = left( chain, instr( chain & ".", "." ) - 1 )
-    '' (The toolchain's own packages -- std, vendor, sys -- are always imported by package path.)
-    dim as boolean ownPkg = (Lower_( pkg ) = Lower_( ctx.pkgRootName )) andalso (instr( chain, "." ) > 0)
-    select case Lower_( pkg )
-    case "std", "vendor", "sys" : ownPkg = false
-    end select
-    if ownPkg then importAs = mid( chain, len( pkg ) + 2 )
     for k as int32 = 0 to len( importAs ) - 1
         if importAs[k] = 46 then importAs[k] = 47
     next

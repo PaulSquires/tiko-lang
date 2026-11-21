@@ -5,15 +5,151 @@ separate question, and the sooner you find out the cheaper the answer is. A fail
 minute. A wrong number found in a report a month later costs the month.
 
 This chapter is about the tools that shorten that distance. **Tests** check behaviour you have
-decided on, every time you build. **Tracing** and a **debugger** show you what a program did when a
+decided on, every time you run `tiko test`. **Tracing** and a **debugger** show you what a program did when a
 test, or a user, finds it doing something else. And the compiler's own options — its warnings, its
 diagnostics file and its ways of showing you the code it generated — are tools too.
 
+## Unit tests with tiko test
+
+A test checks one thing you have decided the code must do. In tiko a test is a block of its own,
+written beside the code it checks, and one command finds every test in a project, builds them into
+a program and runs it:
+
+```text
+tiko test
+```
+
+```admonish warning title="Status in this version"
+`tiko test`, `test` blocks and std/testing arrive after tiko 0.1.6, the toolchain this book is pinned
+to. The listings in this section were compiled and run with the development toolchain; the book's
+harness reports them as blocked (`pin-0.1.6`) until the pin moves to a release that has them.
+```
+
+### A test, and what it checks
+
+Here is a small project: a stack of `int32` in a module, and the tests that pin its behaviour down.
+The module first, `stacks/stacks.tiko`:
+
+```tiko
+{{#include ../examples/ch19/tested/stacks/stacks.tiko}}
+```
+
+The tests a client of the module would write sit in the project's own directory, in a file whose
+name ends `_test.tiko`:
+
+```tiko
+{{#include ../examples/ch19/tested/stack_api_test.tiko}}
+```
+
+`tiko test`, in the project's directory:
+
+```text
+{{#include ../examples/ch19/tested/stack_api_test.out}}
+```
+
+- **`test "name"` … `end test`** is one test. Its body is ordinary code, and it is a procedure of
+  its own: what it declares is its own, and every test starts with a fresh `Stack`.
+- **`testing.ExpectEq( a, b )`** checks that `a = b`. When it does not, the failure names the file
+  and line the check is written on, and both sides: the expression as written, and the value it
+  had. A literal is shown once.
+- **A failed `Expect` does not stop its test.** The test carries on, so one run reports every
+  failed check, not just the first.
+- **The exit code is 1** when anything failed — the third test is wrong on purpose — which is what
+  a build script or a CI job checks.
+
+The checks are macros, which is why they are written `testing.ExpectEq` and never bare: only a
+macro sees the line it is written on. The ones you will use most:
+
+| Check | Passes when |
+|---|---|
+| `testing.Expect( c )`, `testing.ExpectFalse( c )` | `c` is true, or false |
+| `testing.ExpectEq( a, b )`, `testing.ExpectNe( a, b )` | `a = b`, or `a <> b` |
+| `testing.ExpectNear( a, b, eps )` | `a` is within `eps` of `b` |
+| `testing.Require( c )`, `testing.RequireEq( a, b )` | as `Expect` and `ExpectEq`, and the test **stops** when they fail |
+| `testing.Fail( "why" )` | never: marks a line that must not be reached |
+| `testing.Skip( "why" )` | the test stops here and is counted as skipped |
+
+Use `Require` when the rest of the test means nothing without it: a pointer that must not be null
+before you follow it, a file that must have opened before you read it.
+
+### Tests inside a module
+
+The fourth test in that run came from somewhere else. A `_test.tiko` file **inside a module's
+directory** begins with the module's own `#module` line and is part of the module — but only in a
+test build:
+
+```tiko
+{{#include ../examples/ch19/tested/stacks/stacks_test.tiko}}
+```
+
+`NextSize_` has no `public`: no program that imports `stacks` can call it. A test inside the module
+can, because it *is* the module. These are **white-box** tests, for the internals that matter on
+their own; the file outside the module holds **black-box** tests, which see only what any client
+sees. A normal `tiko build` leaves every `_test.tiko` file out of its module altogether, and parses
+and drops every `test` block, so tests cost the shipped program nothing.
+
+A `test` block may also sit in one of the module's ordinary files, beside the procedure it checks.
+`tiko test` finds those too.
+
+### Running a selection
+
+```text
+tiko test --filter pops          only the tests whose names hold "pops"
+tiko test stacks                 only the tests under that directory
+tiko test -- --list              print the tests and stop
+```
+
+`tiko test` builds its program the way `tiko build` builds any other — the first run compiles, a
+second with nothing changed compiles nothing — under the `debug` profile, so `-exx` is on: a null
+pointer or an index out of range inside a test is a runtime error with its line, not a quietly
+wrong number.
+
+### A test that ends the program
+
+tiko has no exceptions to catch, so a test that ends the program — a runtime error, an `end`, a
+crash — ends every test after it too. `tiko test` does not let it. It runs the program, and when a
+test stops it, reports that test and starts the program again from the next one. A test that runs
+too long is stopped the same way:
+
+```tiko
+{{#include ../examples/ch19/stopping/sensors_test.tiko}}
+```
+
+`tiko test --timeout 1`:
+
+```text
+{{#include ../examples/ch19/stopping/sensors_test.out}}
+```
+
+`ParseReading` ends the program on a reading it cannot believe — exit code 3 — and
+`WaitForSensor` never returns. Each is reported, and the last test still runs. Without
+`--timeout`, a test may run for 120 seconds.
+
+````admonish danger title="Pitfall"
+**A test in the program's main file never runs.** This project's tests are in `main.tiko`:
+
+```tiko
+{{#include ../examples/ch19/forgotten/main.tiko}}
+```
+
+`tiko test`:
+
+```text
+{{#include ../examples/ch19/forgotten/main.out}}
+```
+
+The test is wrong — `Twice( 2 )` is 4, not 5 — and nothing says so. A normal build drops every
+`test` block, and `tiko test` looks for tests only in modules and in `_test.tiko` files, never in a
+program's main file, whose top-level code would run as well. The only sign is the warning, and
+exit code 0. Put the code under test in a module, and its tests beside it.
+````
+
 ## Unit tests with fbcunit
 
-tiko ships a unit-test library, fbcunit. A test is a block of code that checks something with an
-assertion; tests are grouped into suites; one call runs them all and prints a summary. No module
-fronts the library, so it is reached with `#include`:
+FreeBASIC's own unit-test library, fbcunit, ships with tiko too, and code written for it compiles
+unchanged. Prefer `tiko test` for new code; this section is for the tests you already have. A test
+is a block of code that checks something with an assertion; tests are grouped into suites; one call
+runs them all and prints a summary. No module fronts the library, so it is reached with `#include`:
 
 ```tiko
 {{#include ../examples/ch19/firsttests.tiko}}
@@ -359,6 +495,9 @@ The full list, with the front end's own `--dump-*` options, is Appendix C.
 
 ## What it costs
 
+- **`tiko test` builds one more program**, with `-exx` on: slower than a release build, and the
+  point — a test that reads out of bounds should fail, not pass by luck. A test that ends the
+  program costs a restart, and each restart runs every module's initialisation again.
 - **Tests are code you maintain.** They pay for themselves when they check behaviour callers
   depend on, and cost you when they pin down details nobody relies on. Test through the public
   surface.
@@ -372,6 +511,14 @@ The full list, with the front end's own `--dump-*` options, is Appendix C.
 
 ## Summary
 
+- A test is `test "name"` … `end test`; `tiko test` finds, builds and runs every test of a
+  project. Checks are std/testing's macros, written `testing.ExpectEq( a, b )`; a failure names its
+  file and line, and a failed `Expect` lets the test go on while `Require` stops it.
+- A `_test.tiko` file in a module's directory is part of the module in a test build only, and can
+  test its private names; one elsewhere tests through the public surface. Normal builds drop every
+  test.
+- A test that ends the program, or runs past `--timeout`, is reported, and the rest still run.
+- **A test in a program's main file never runs.**
 - fbcunit: `#include once "fbcunit.bi"`, `SUITE`/`TEST` blocks, `CU_ASSERT*` macros, and
   `fbcu.run_tests( )`, whose result becomes the exit code. A suite is a namespace; name it after a
   behaviour.
@@ -400,3 +547,5 @@ The full list, with the front end's own `--dump-*` options, is Appendix C.
 4. Reorder `Packet`'s fields so that `--dump-udt` reports a size of 8. Why not 6?
 5. Run `readings.tiko` under lldb and print the element `rs( 3 )` the program means. Which
    expression did you need?
+6. Add a `test` block to `stacks.tiko` itself, beside `Stack.Pop`, checking that popping the only
+   item leaves the stack empty. Run `tiko test` and find your test in the output.

@@ -9,5 +9,5 @@
 '' EXPECT-RUN-EXIT: 1
 '' EXPECT-RUN-OUT: test overloads ... ok
 '' EXPECT-RUN-OUT: test require stops the test ... FAILED
-'' EXPECT-RUN-OUT: Expect failed: 1 = 2
+'' EXPECT-RUN-OUT: Require failed: 1 = 2 -- the test stops here
 '' EXPECT-RUN-OUT: test result: FAILED. 1 passed; 1 failed; 0 skipped
