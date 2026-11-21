@@ -25,6 +25,7 @@
 ''     1000-1049   semantic, continued: interfaces (docs/tiko-interfaces)
 ''     1050-1099   semantic, continued: string slices (docs/tiko-slices)
 ''     1100-1119   semantic, continued: int128 / uint128
+''     1200-1239   'tiko test' and 'tiko doc' (docs/tiko-test-doc)
 ''
 '' FORMAT STRINGS use %0, %1, %2 for the arguments passed to Report( ). A '%' that is
 '' not followed by a digit is literal.
@@ -1190,6 +1191,22 @@
     '' int128 / uint128, tiko's own (src/types/type.ti). Phase 1: a path not built yet REFUSES
     '' rather than truncating to 64 bits; %0 names the path (symbols/semint128.tiko).
     DIAG( TKO1100, SEV_ERROR,   "%0 does not support int128 or uint128 yet" )
+
+    '' 'TIKO TEST' AND 'TIKO DOC' (docs/tiko-test-doc RFC-0001). 1200-1202: the 'test' block
+    '' (parser/testblock.tiko); 1203-1206 and 1211: the 'test' subcommand (build/testcmd.tiko,
+    '' build/testrun.tiko); 1207-1210: '--emit-doc' and the 'doc' subcommand.
+    DIAG( TKO1200, SEV_ERROR,   "a 'test' block belongs at the top level of a file, not inside %0" )
+    DIAG( TKO1201, SEV_ERROR,   "a 'test' block in a test build needs '#import ""std/testing""' above it" )
+    DIAG( TKO1202, SEV_ERROR,   "a 'test' block needs a name: test ""what it checks""" )
+    DIAG( TKO1203, SEV_WARNING, "no tests found in %0" )
+    DIAG( TKO1204, SEV_NOTE,    "'%0' is named like a test file but does not import std/testing; it is not run" )
+    DIAG( TKO1205, SEV_ERROR,   "tests built for %0 cannot run on this host; add --no-run to build them only" )
+    DIAG( TKO1206, SEV_ERROR,   "the test program '%0' stopped before running a test (exit code %1)" )
+    DIAG( TKO1207, SEV_ERROR,   "'--emit-doc' writes one module's documentation, and needs one module directory as its input" )
+    DIAG( TKO1208, SEV_ERROR,   "cannot write the documentation file '%0'" )
+    DIAG( TKO1209, SEV_WARNING, "no module directories to document in %0" )
+    DIAG( TKO1210, SEV_ERROR,   "'%0' is not a module directory: none of its source files begins with '#module'" )
+    DIAG( TKO1211, SEV_ERROR,   "'%0' is neither a test file nor a directory" )
 
 #endmacro
 

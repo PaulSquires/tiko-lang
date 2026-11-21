@@ -151,7 +151,10 @@ function HelpText( byval category as string = "" ) as string
         outp += "  tiko metadata print the project as JSON: targets, profiles, modules" & chr( 10 )
         outp += "  tiko run      build one exe target, then run it with the arguments after --" & chr( 10 )
         outp += "  tiko check    every diagnostic a build would give, through lowering; nothing written" & chr( 10 )
-        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 )
+        outp += "  tiko test     build the project's tests into one program and run them" & chr( 10 )
+        outp += "  tiko doc      write the API documentation of the project's modules into out/doc" & chr( 10 )
+        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache;" & chr( 10 )
+        outp += "   test's: --timeout <s>, --filter <text>, --no-run, and the program's after --)" & chr( 10 )
         outp += "  tiko c2t      translate a C header into a tiko header: tiko c2t <in.h> [-o <out.ti>|-]" & chr( 10 ) & chr( 10 )
     end if
 
@@ -665,6 +668,8 @@ function Parse _
 
         case Tko.OPT_INCLUDE  : opts.includePaths.Push( value )
         case Tko.OPT_PKGDIR   : opts.pkgDir = value
+        case Tko.OPT_PKGROOT  : opts.packageRoot = value
+        case Tko.OPT_EMITDOC  : opts.emitDoc = value
         case Tko.OPT_BUILDONLY : opts.buildOnlyUnit = valint( value )
         case Tko.OPT_DEFINE   : opts.defines.Push( value )
         case Tko.OPT_LIBPATH  : opts.libPaths.Push( value )
@@ -883,6 +888,7 @@ function Parse _
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true
         case Tko.OPT_PRINTCINC : opts.printCIncludes = true
         case Tko.OPT_EMITTKI   : opts.emitTki = true
+        case Tko.OPT_TEST      : opts.testMode = true
         case Tko.OPT_FRONTEND : opts.frontendOnly = true
         case Tko.OPT_NOMODCACHE : opts.noModuleCache = true
         case Tko.OPT_CLEANMODCACHE : opts.cleanModuleCache = true

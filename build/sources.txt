@@ -27,6 +27,7 @@ src/parser/declclass.tiko
 src/parser/partialtype.tiko
 src/parser/autoprop.tiko
 src/parser/propblock.tiko
+src/parser/testblock.tiko
 src/types/type.tiko
 src/symbols/symbol.tiko
 src/symbols/collect.tiko
@@ -146,6 +147,9 @@ src/driver/modgraph.tiko
 src/driver/modunit.tiko
 src/driver/modbuild.tiko
 src/driver/tkiemit.tiko
+src/driver/docsource.tiko
+src/driver/docmodel.tiko
+src/driver/docrender.tiko
 src/driver/modiface.tiko
 src/driver/modcache.tiko
 src/driver/unitcache.tiko
@@ -154,6 +158,9 @@ src/build/events.tiko
 src/build/lock.tiko
 src/build/plan.tiko
 src/build/subcmd.tiko
+src/build/testcmd.tiko
+src/build/testrun.tiko
+src/build/doccmd.tiko
 src/cimport/clang.tiko
 src/cimport/probe.tiko
 src/cimport/names.tiko

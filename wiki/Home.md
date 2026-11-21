@@ -63,7 +63,7 @@ Every listing in the book is a real program, compiled and run on Windows, Linux 
 
 ## The toolchain
 
-[tiko build](Category-Tiko-Build) · [C Header Import](Category-C-Header-Import) · [Foreign Library Linking](Category-Foreign-Library-Linking) · [LLVM Backend](Category-LLVM-Backend) · [__TIKO_COMPILER__](Category-Tiko-Compiler-Define)
+[tiko build](Category-Tiko-Build) · [tiko test](Category-Tiko-Test) · [tiko doc](Category-Tiko-Doc) · [C Header Import](Category-C-Header-Import) · [Foreign Library Linking](Category-Foreign-Library-Linking) · [LLVM Backend](Category-LLVM-Backend) · [__TIKO_COMPILER__](Category-Tiko-Compiler-Define)
 
 ---
 

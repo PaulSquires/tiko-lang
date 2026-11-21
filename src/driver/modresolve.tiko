@@ -369,6 +369,11 @@ function RootPackage _
         d = up_
         rel = JoinPath( rel, ".." )
     next
+    '' NO tiko.toml, AND A ROOT GIVEN (--package-root): 'tiko test''s main stands in out/test/, and
+    '' its relative imports reach the project's modules from there.
+    if (ctx.pkgRootName = ANON_PACKAGE) andalso (len( ctx.options.packageRoot ) > 0) then
+        ctx.pkgRootDir = NormPath( ctx.options.packageRoot )
+    end if
     name_ = ctx.pkgRootName
     root = ctx.pkgRootDir
     if ctx.pkgRootName = ANON_PACKAGE then return true
@@ -470,7 +475,30 @@ sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byr
     next
 end sub
 
-sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
+function IsTestFileName( byref nm as string ) as boolean
+    dim as string l = Tko.Text.LowerAscii( nm )
+    return (right( l, 10 ) = "_test.tiko") orelse (right( l, 9 ) = "_test.bas")
+end function
+
+function TestFilesWanted( byref ctx as Tko.CompilerContext, byref pkgName as string, byref dir_ as string ) as boolean
+    if (ctx.options.testMode = false) andalso (ctx.scan = nullptr) then return false
+    dim as string pk = PkgDir_( ctx )
+    if len( pk ) > 0 then
+        if IsWithin_( NormPath( AbsPath( dir_ ) ), NormPath( AbsPath( pk ) ) ) then return false
+    end if
+    if (len( pkgName ) = 0) orelse (ctx.pkgRootKnown = false) then return true
+    return Tko.Text.LowerAscii( pkgName ) = Tko.Text.LowerAscii( ctx.pkgRootName )
+end function
+
+function UnitTestMode( byref ctx as Tko.CompilerContext ) as boolean
+    if ctx.unit.modFileCount > 0 then
+        dim as string d = DirOfFile( ctx.sources.AbsPathOf( cast( Tko.FileId, ctx.unit.modFiles[0] ) ) )
+        return TestFilesWanted( ctx, ctx.unit.modPkgName, d )
+    end if
+    return ctx.options.testMode
+end function
+
+sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec, byval withTests as boolean = false )
     dim as containers.Array( of fs.DirEntry ) entries
     if fs.ListDir( dir_, entries ).IsOk( ) = false then return
     for k as int32 = 0 to entries.Count - 1
@@ -479,6 +507,8 @@ sub ModuleFiles( byref dir_ as string, byref files as Tko.StrVec )
         '' A MODULE'S SOURCES are '.tiko' files, and the legacy '.bas' (T14). A '.ti' is a header.
         dim as string lnm = Tko.Text.LowerAscii( nm )
         if (right( lnm, 4 ) <> ".bas") andalso (right( lnm, 5 ) <> ".tiko") then continue for
+        '' ...and '<x>_test.tiko' only in a test build: never part of the module itself.
+        if (withTests = false) andalso IsTestFileName( nm ) then continue for
         '' Insertion sort: a module is a handful of files.
         dim as string key = Tko.Text.LowerAscii( nm )
         dim as int32 at = files.Count

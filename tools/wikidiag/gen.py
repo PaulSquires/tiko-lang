@@ -37,6 +37,7 @@ RANGES = [
     (1000, 1049, "Interfaces"),
     (1050, 1099, "Slices"),
     (1100, 1119, "int128 and uint128"),
+    (1200, 1239, "Tests and documentation"),
 ]
 
 

@@ -291,6 +291,9 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as int32 ) as stri
     next
     k &= "module " & ctx.ifaceChains[n] & nl
     k &= "dir " & KeyPath_( ctx.ifaceDirs[n] ) & nl
+    '' A TEST BUILD of a module of the project's own package: its test files are in the source list
+    '' below already, and this line covers its 'test' blocks (registered here, dropped otherwise).
+    if TestFilesWanted( ctx, ctx.unit.modPkgName, ctx.ifaceDirs[n] ) then k &= "test 1" & nl
     '' Its sources, in the order the unit reads them -- sorted already (ModuleFiles).
     for each f as uint32 in ctx.unit.modFiles
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )
