@@ -283,7 +283,7 @@ build_one( ) {
     for csrc in $(ls "$RT_ROOT"/src/c/*.c 2>/dev/null); do
         # fbrt0.c IS A LOOSE OBJECT, never a member: nothing refers to it by name, so
         # an archive search would never pull it in. build_rt0 installs it.
-        case $(basename "$csrc") in fbrt0.c) continue ;; esac
+        case $(basename "$csrc") in fbrt0.c|fbrtapp.c) continue ;; esac
         cobj="$objdir/$(basename "$csrc" .c).o"
         ctgt=$(rt_clang_triple "$target")
         [ -n "$ctgt" ] || ctgt=$(rt_target_triple "$target")
@@ -384,6 +384,13 @@ build_rt0( ) {
                 || rt_die "$_t: fbrt0.c (pic) failed to compile" ;;
     esac
     echo "build: $_t/fbrt0.o$(case $_t in linux-*|android-*) echo ' + fbrt0pic.o' ;; esac)"
+    # AN ANDROID APP'S ENTRY, fbrtapp.o (src/c/fbrtapp.c): loose like fbrt0, named by the driver
+    # on a 'tiko -app' link only, which is always a shared libmain.so -- so PIC alone.
+    case $_t in
+        android-*)
+            "$CLANG" --target="$_tri" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra -fPIC                 -c "$RT_ROOT/src/c/fbrtapp.c" -o "$_dir/fbrtapp.o"                 || rt_die "$_t: fbrtapp.c failed to compile"
+            echo "build: $_t/fbrtapp.o" ;;
+    esac
 }
 
 echo "build: tiko-rt [$CFG] with $TKORT_TIKO ($RT_JOBS jobs)"
