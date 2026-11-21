@@ -566,6 +566,13 @@ namespace Tko
         '' procedure is the caret in". A side table for structorPrio's reason.
         as ChildPool   procEnds
 
+        '' 'match' RECORDS (parser/match.tiko, docs/tiko-comparison RFC-0001-match): one string per
+        '' match the parser desugared, keyed by its subject variable's name, for what needs types --
+        '' exhaustiveness, reachability, a pattern that does not fit -- in symbols/semmatch.tiko.
+        '' matchSeq numbers the subject variables, records or not.
+        as StrVec      matchRecs
+        as int32       matchSeq
+
         '' tokenRanges, callTypeArgs and collInit by node: SideTableFind (ast/collinit.tiko).
         as NodeSideIndex tokenRangeAt
         as NodeSideIndex callTypeArgAt

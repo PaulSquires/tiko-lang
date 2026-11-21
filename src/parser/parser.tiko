@@ -1077,6 +1077,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
     if AtEnd( p ) then return Tko.NODE_NONE
 
     p.silent = false
+    MatchRewrite( p )                          '' parser/match.tiko: 'match' becomes what follows
     dim as Tko.Token t = Cur( p )
     dim as Tko.TokenKind k = Peek( p )
     dim as Tko.NodeId n = Tko.NODE_NONE

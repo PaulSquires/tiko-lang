@@ -12,7 +12,8 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 |---|---|---|
 | [#assert](procedures-Assert) | Preprocessor conditional directive. | [Preprocessor](Category-Preprocessor) |
 | [Abs](Abs) | Returns the absolute value of a number. | [Mathematical Functions](Category-Mathematical-Functions) |
-| [AbsChecked](Modern-Math-AbsChecked) | Returns the absolute value as an Optional, empty for the most negative value. | [Math Library](Category-Math-Library) |
+| [AbsChecked](Modern-Math-AbsChecked) | Returns the absolute value as an Optional, empty for the most negative value. | [Match](Category-Match) |  | [Match](Category-Match) |
+| [Math Library](Category-Math-Library) |
 | [AbsolutePath](Modern-Fs-FileInfo-AbsolutePath) | Returns the full form of a path against the current folder; the path need not exist. | [Filesystem](Category-Filesystem) |
 | [AbsSaturating](Modern-Math-AbsSaturating) | Returns the absolute value; the most negative value becomes the maximum instead. | [Math Library](Category-Math-Library) |
 | [Abstract](Abstract) | Declare abstract methods. | [User Defined Types](Category-User-Defined-Types) |

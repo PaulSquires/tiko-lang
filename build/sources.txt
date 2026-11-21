@@ -28,6 +28,7 @@ src/parser/partialtype.tiko
 src/parser/autoprop.tiko
 src/parser/propblock.tiko
 src/parser/testblock.tiko
+src/parser/match.tiko
 src/types/type.tiko
 src/symbols/symbol.tiko
 src/symbols/collect.tiko
@@ -58,6 +59,7 @@ src/symbols/semproc.tiko
 src/symbols/methodassign.tiko
 src/symbols/semslice.tiko
 src/symbols/semoptcheck.tiko
+src/symbols/semmatch.tiko
 src/symbols/semint128.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko

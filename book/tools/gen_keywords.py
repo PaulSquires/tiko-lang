@@ -42,6 +42,7 @@ CONTEXTUAL = [
     ("each", "`for each` (Chapter 20)"),
     ("from", "`case receive v from ch` in `select channel`"),
     ("in", "`for each x in …`"),
+    ("match", "`match x` followed by `case` arms or `pattern => value` arms, closed by `end match` (Chapter 6)"),
     ("of", "type arguments: `Array( of int32 )` (Chapter 17)"),
     ("override", "after a method's declaration: `declare sub M( ) override` (Chapter 14)"),
     ("partial", "`partial type` and `partial class`, one type in several blocks (Chapter 15)"),

@@ -41,6 +41,7 @@
 - [Flow of Control](flow/index.md)
   - [if/else](flow/if.md)
   - [select case](flow/select.md)
+  - [match](flow/match.md)
   - [for](flow/for.md)
   - [do loop](flow/do.md)
   - [exit and continue](flow/exit.md)
