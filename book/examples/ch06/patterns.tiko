@@ -19,9 +19,9 @@ Where( p )
 p.x = 3 : p.y = 3 : Where( p )
 p.x = 1 : p.y = 7 : Where( p )
 
-type Shape extends object
+class Shape
     declare virtual destructor( )
-end type
+end class
 destructor Shape( )
 end destructor
 type Circle extends Shape
