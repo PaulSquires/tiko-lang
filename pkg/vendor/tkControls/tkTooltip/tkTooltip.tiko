@@ -570,7 +570,8 @@ end sub
 
 private sub SetOpacity( byval pTip as TK_TIP ptr, byval a as long )
     pTip->nAlpha = a
-    if pTip->hSurf then SDL_SetWindowOpacity( pTip->hSurf->win, a / 255.0 )
+    ' a virtual surface has no window to fade: it shows at once (Android)
+    if pTip->hSurf andalso (tkHost_IsVirtual( pTip->hSurf ) = false) then SDL_SetWindowOpacity( pTip->hSurf->win, a / 255.0 )
 end sub
 
 ' rcAnchor in the attached surface's window pixels.
