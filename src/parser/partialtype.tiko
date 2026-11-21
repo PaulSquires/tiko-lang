@@ -9,7 +9,10 @@
 '' type with no error).
 ''
 '' A module's files reach the parser as one namespace block each, so the walk goes into namespaces
-'' and matches a part by its namespace path as well as its name.
+'' and matches a part by its namespace path as well as its name. It goes into 'extern' blocks too,
+'' which name no namespace: a generated C++ binding (docs/tiko-cpp C3a-3) declares every handle
+'' type's fields in one 'extern "C"' block and its methods in another, after every type is
+'' complete, so two classes whose methods name each other can both be declared.
 
 #import "std/containers"
 #include once "parser/parser.ti"
@@ -37,6 +40,9 @@ private sub PartialAbsorb_( byref p as Tko.ParserState, byval f as Tko.NodeId, b
 
     dim as boolean isClassF = (pf->extra and Tko.PF_CLASS) <> 0
     if isClassF <> ((pa->extra and Tko.PF_CLASS) <> 0) then p.diags->Report( Tko.TKO1068, at_, shown )
+    '' Parts in different linkage blocks would mangle the type two ways.
+    const LINK_MASK = Tko.PF_FOREIGN or Tko.PF_CXX
+    if (pf->extra and LINK_MASK) <> (pa->extra and LINK_MASK) then p.diags->Report( Tko.TKO1066, at_, shown, "extern" )
 
     '' A BASE PUTS A HIDDEN 'base' FIELD FIRST IN ITS PART (ParseAggregateBody). The merged type has
     '' one, first: taken from the part that wrote a base, and every other part's left behind.
@@ -53,9 +59,10 @@ private sub PartialAbsorb_( byref p as Tko.ParserState, byval f as Tko.NodeId, b
 
     dim as uint32 packA = pa->extra and &hFFFF
     if packA <> 0 then
-        if (pf->extra and &hFFFF) <> 0 then
+        '' The same packing from two parts is no conflict: an 'extern' block gives each its own.
+        if ((pf->extra and &hFFFF) <> 0) andalso ((pf->extra and &hFFFF) <> packA) then
             p.diags->Report( Tko.TKO1066, at_, shown, "field" )
-        else
+        elseif (pf->extra and &hFFFF) = 0 then
             pf->extra or= packA
         end if
     end if
@@ -110,6 +117,13 @@ private sub PartialPlainWalk_( byref p as Tko.ParserState, byref ns as string, b
                 kids.Push( cast( uint32, p.ast->ChildAt( nsp->first, c ) ) )
             next
             PartialPlainWalk_( p, ns & "." & str( cast( uint32, p.names->Fold( nsp->name ) ) ), kids, plain )
+        case Tko.N_EXTERN_BLOCK
+            dim as Tko.StmtPayload ptr esp = p.ast->StmtOf( a )
+            dim as Tko.NodeIdVec kids
+            for c as int32 = 0 to esp->count - 1
+                kids.Push( cast( uint32, p.ast->ChildAt( esp->first, c ) ) )
+            next
+            PartialPlainWalk_( p, ns, kids, plain )
         case Tko.N_TYPE
             dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( a )
             if (sp->name <> 0) andalso ((p.ast->Flags( a ) and Tko.NF_PARTIAL_TYPE) = 0) then
@@ -125,10 +139,11 @@ private sub PartialWalk_( byref p as Tko.ParserState, byref ns as string, byref 
     for i as int32 = 0 to list.Count - 1
         dim as Tko.NodeId a = cast( Tko.NodeId, list[i] )
         dim as boolean gone = false
-        if p.ast->Kind( a ) = Tko.N_NAMESPACE then
+        if (p.ast->Kind( a ) = Tko.N_NAMESPACE) orelse (p.ast->Kind( a ) = Tko.N_EXTERN_BLOCK) then
             dim as Tko.NodeIdVec kids
             dim as Tko.StmtPayload ptr nsp = p.ast->StmtOf( a )
-            dim as string inner = ns & "." & str( cast( uint32, p.names->Fold( nsp->name ) ) )
+            dim as string inner = ns
+            if p.ast->Kind( a ) = Tko.N_NAMESPACE then inner = ns & "." & str( cast( uint32, p.names->Fold( nsp->name ) ) )
             for c as int32 = 0 to nsp->count - 1
                 kids.Push( cast( uint32, p.ast->ChildAt( nsp->first, c ) ) )
             next

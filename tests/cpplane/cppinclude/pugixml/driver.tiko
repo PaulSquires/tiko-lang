@@ -1,0 +1,97 @@
+'' cppinclude/pugixml, called from tiko: what driver.cpp does, through the binding tiko
+'' -cppimport generates for the whole of pugixml.hpp. Must print what driver.cpp prints.
+'' 'if (node)' is 'node.empty( ) = false': pugixml's operator bool is not bound (C3b).
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+const TOOLS_XML = "<Profile FormatVersion='1'>" & _
+              "<Tools>" & _
+              "<Tool Filename='jam' AllowRemote='true' Timeout='40'/>" & _
+              "<Tool Filename='mayabatch.exe' AllowRemote='true' Timeout='60' DeriveCaptionFrom='lastparam'/>" & _
+              "<Tool Filename='meshbuilder_*.exe' AllowRemote='false' Timeout='20'/>" & _
+              "<Tool Filename='texbuilder_*.exe' AllowRemote='true' Timeout='30'/>" & _
+              "</Tools>" & _
+              "</Profile>"
+
+sub LoadString( )
+    dim as pugi.xml_document doc
+    dim as pugi.xml_parse_result result = doc.load_string( "<mesh name='sphere'><bounds>0 0 1 1</bounds></mesh>" )
+    show_s( "load.result", result.description( ) )
+    show_i( "load.status", result.status )
+    show_s( "load.mesh", doc.child( "mesh" ).attribute( "name" ).value( ) )
+    show_s( "load.bounds", doc.child( "mesh" ).child_value( "bounds" ) )
+end sub
+
+sub LoadError( )
+    dim as pugi.xml_document doc
+    dim as pugi.xml_parse_result result = doc.load_string( "<node attr='value'><child>text</chil></node>" )
+    show_i( "error.status", result.status )
+    show_s( "error.description", result.description( ) )
+    show_i( "error.offset", result.offset )
+end sub
+
+sub Traverse( )
+    dim as pugi.xml_document doc
+    doc.load_string( TOOLS_XML )
+    dim as pugi.xml_node tools = doc.child( "Profile" ).child( "Tools" )
+    dim as long n = 0
+    dim as pugi.xml_node tool = tools.first_child( )
+    while tool.empty( ) = false
+        dim as string line_ = *tool.name_( )
+        dim as pugi.xml_attribute attr = tool.first_attribute( )
+        while attr.empty( ) = false
+            line_ &= " " & *attr.name_( ) & "=" & *attr.value( )
+            attr = attr.next_attribute( )
+        wend
+        show_s( "tool", strptr( line_ ) )
+        n += 1
+        tool = tool.next_sibling( )
+    wend
+    show_i( "tools", n )
+    show_i( "timeout.sum", tools.find_child_by_attribute( "Tool", "Filename", "jam" ).attribute( "Timeout" ).as_int( ) + _
+                           tools.last_child( ).attribute( "Timeout" ).as_int( ) )
+end sub
+
+sub Modify( )
+    dim as pugi.xml_document doc
+    doc.load_string( "<node id='123'><child>text</child></node>" )
+    dim as pugi.xml_node node = doc.child( "node" )
+    show_i( "modify.name", iif( node.set_name( "notnode" ), 1, 0 ) )
+    show_s( "modify.renamed", doc.first_child( ).name_( ) )
+    dim as pugi.xml_attribute attr = node.attribute( "id" )
+    attr.set_value( "345" )
+    show_i( "modify.id", attr.as_int( ) )
+    node.append_attribute( "version" ).set_value( 1.25 )
+    show_d( "modify.version", node.attribute( "version" ).as_double( ) )
+    dim as pugi.xml_node param = node.insert_child_before( "param", node.child( "child" ) )
+    param.append_attribute( "name" ).set_value( "id" )
+    param.text( ).set( clng( 42 ) )
+    show_s( "modify.first", node.first_child( ).name_( ) )
+    show_i( "modify.param", node.child( "param" ).text( ).as_int( ) )
+    node.remove_child( "child" )
+    show_i( "modify.empty.child", iif( node.child( "child" ).empty( ), 1, 0 ) )
+end sub
+
+sub XPath( )
+    dim as pugi.xml_document doc
+    doc.load_string( TOOLS_XML )
+    dim as pugi.xpath_node tool = doc.select_node( "/Profile/Tools/Tool[@AllowRemote='true' and @DeriveCaptionFrom='lastparam']" )
+    show_s( "xpath.tool", tool.node( ).attribute( "Filename" ).value( ) )
+    '' C++ converts xml_document -> xml_node -> xpath_node in one step; tiko applies one
+    '' conversion, so the document is its base handle first.
+    dim as pugi.xml_node root = doc
+    dim as pugi.xpath_query sum_ = pugi.xpath_query( "sum(//Tool/@Timeout)" )
+    show_d( "xpath.sum", sum_.evaluate_number( pugi.xpath_node( root ) ) )
+    dim as pugi.xpath_query count_ = pugi.xpath_query( "count(//Tool[@AllowRemote='true'])" )
+    show_d( "xpath.count", count_.evaluate_number( pugi.xpath_node( root ) ) )
+end sub
+
+LoadString( )
+LoadError( )
+Traverse( )
+Modify( )
+XPath( )

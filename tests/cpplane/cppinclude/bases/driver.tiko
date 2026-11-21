@@ -1,0 +1,59 @@
+'' cppinclude/bases, called from tiko through the binding: must print what driver.cpp prints.
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+sub ShowU( byval k as const zstring ptr, byref u as const ustring )
+    dim as string s = u
+    show_s( k, strptr( s ) )
+end sub
+
+dim as shp.Rect r = shp.Rect( 3, 4 )
+r.name_ = "box"
+r.id = 9
+show_d( "area", r.area( ) )
+show_i( "sides", r.sides( ) )
+show_i( "code", r.code( ) )
+ShowU( "tag", r.tag( ) )
+ShowU( "describe", shp.describe( r ) )
+show_d( "area_of", shp.area_of( r ) )
+shp.rename( r, "crate" )
+ShowU( "renamed", r.name_ )
+show_i( "named.offset", cast( byte ptr, shp.named_address( r ) ) - cast( byte ptr, shp.rect_address( r ) ) )
+r.w = 5
+show_d( "w", r.w )
+show_d( "area.after", r.area( ) )
+show_i( "color", r.color_ )
+r.color_ = shp.Color.Green
+show_i( "color.after", r.color_ )
+show_i( "kind", r.kind )
+dim as shp.Square sq = shp.Square( 2.5 )
+show_d( "square.side", sq.side( ) )
+show_d( "square.area", shp.area_of( sq ) )
+show_i( "square.code", sq.code( ) )
+sq.name_ = "sq"
+ShowU( "square.describe", shp.describe( sq ) )
+dim as shp.Frame f
+f.label.name_ = "frame"
+f.label.id = 3
+ShowU( "frame.tag", f.label.tag( ) )
+f.inner.w = 6
+show_d( "frame.inner", f.inner.area( ) )
+show_d( "frame.margin", f.margin )
+'' A 'dim' initialised from a reference result BINDS to it, as 'Named& alias = f.label' -- tiko
+'' builds a 'dim' in place from a function's result, and this result is borrowed.
+dim as shp.Named alias_ = f.label
+alias_.id = 4
+show_i( "frame.alias", f.label.id )
+'' A copy is the copy constructor, called...
+dim as shp.Named copy_ = shp.Named( f.label )
+copy_.name_ = "other"
+ShowU( "frame.after", f.label.name_ )
+'' ...or '=', which is operator let.
+dim as shp.Named other
+other = f.label
+other.name_ = "third"
+ShowU( "frame.let", f.label.name_ )

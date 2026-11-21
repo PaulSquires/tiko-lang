@@ -1,0 +1,37 @@
+'' 'partial type' parts inside 'extern' blocks pool like any others: two types declared first,
+'' each one's members after both are complete, so their members can name each other by value
+'' (a generated C++ binding's shape, docs/tiko-cpp C3a-3). Mismatched linkage is TKO1066.
+namespace NS
+    extern "C"
+        partial type A
+            as long v
+        end type
+        partial type B
+            as long w
+        end type
+    end extern
+    extern "C"
+        partial type A
+            declare function toB( ) as NS.B
+        end type
+        partial type B
+            declare function toA( ) as NS.A
+        end type
+    end extern
+end namespace
+
+function NS.A.toB( ) as NS.B
+    dim as NS.B b
+    b.w = this.v * 2
+    return b
+end function
+
+function NS.B.toA( ) as NS.A
+    dim as NS.A a
+    a.v = this.w + 1
+    return a
+end function
+
+dim as NS.A a0
+a0.v = 20
+print a0.toB( ).w, a0.toB( ).toA( ).v

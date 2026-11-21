@@ -290,6 +290,27 @@ function LowerAddr _
             if bra.kind <> cast( uint8, MV_NONE ) then return bra
         end if
     end if
+    '' ...AND A BY-VALUE UDT GETTER'S ADDRESS IS ITS RESULT'S, in a temporary. 'N( r.inner )' --
+    '' a property returning a UDT, handed to a 'byref' parameter -- reached the field path below,
+    '' which passed the GETTER'S CODE ADDRESS as the object: the copy constructor read machine
+    '' code (fbc calls the getter; tiko 0.1.6 printed garbage). Found binding C++ classes, whose
+    '' class-typed fields are all such properties (docs/tiko-cpp C3a-3).
+    if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso _
+       ((c.ast->Flags( bpn ) and Tko.NF_BYREF) = 0) andalso _
+       (c.ast->StmtOf( bpn )->op = cast( uint16, Tko.KW_PROPERTY )) andalso _
+       (c.types->Kind( c.types->Unqualify( bps->type_ ) ) = Tko.TK_UDT) then
+        dim as MirValue pgv
+        if LowerPropertyGet_( c, id, pgv ) then
+            if pgv.ty = cast( uint8, MT_PTR ) then return pgv       '' the sret slot it built
+            dim as int32 pslot = NewTempLocal( c, MT_AGG, SizeOfType( c, bps->type_ ) )
+            if pslot >= 0 then
+                dim as MirValue pta
+                pta.kind = cast( uint8, MV_LOCAL ) : pta.ty = cast( uint8, MT_PTR ) : pta.id = pslot
+                StoreThrough( c, pta, pgv )
+                return pta
+            end if
+        end if
+    end if
 
 
     '' THE OPEN 'with' SUBJECT WAS ALREADY EVALUATED. Resolve points every baseless

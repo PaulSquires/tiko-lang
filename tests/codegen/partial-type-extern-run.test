@@ -1,0 +1,9 @@
+'' RUN: 'partial type' parts in 'extern "C"' blocks pool, and two types' members name each
+'' other by value (parser/partialtype.tiko walks into extern blocks).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/partial-type-extern.tiko -o tests/codegen/partialtypeextern.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/partialtypeextern.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  40             41

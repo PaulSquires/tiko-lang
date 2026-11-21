@@ -188,6 +188,7 @@ type CXInclusionVisitor as sub cdecl _
     FN( visitChildren, "clang_visitChildren", ( byval parent as CXCursor, byval visitor as CXCursorVisitor, byval client as any ptr ), uint32 )
     FN( Type_visitFields, "clang_Type_visitFields", ( byval t as CXType, byval visitor as CXFieldVisitor, byval client as any ptr ), uint32 )  '' :6761
     FN( isCursorDefinition, "clang_isCursorDefinition", ( byval c as CXCursor ), uint32 )
+    FN( getCursorDefinition, "clang_getCursorDefinition", ( byval c as CXCursor ), CXCursor )
     FN( getCursorSemanticParent, "clang_getCursorSemanticParent", ( byval c as CXCursor ), CXCursor )
     FN( getCursorLocation, "clang_getCursorLocation", ( byval c as CXCursor ), CXSourceLocation )
     FN( getCursorExtent, "clang_getCursorExtent", ( byval c as CXCursor ), CXSourceRange )

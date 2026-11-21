@@ -1,0 +1,83 @@
+'' cppinclude/tinyxml2, called from tiko: what driver.cpp does, through the binding tiko
+'' -cppimport generates for the whole of tinyxml2.h. Must print what driver.cpp prints.
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+const PLAY = "<?xml version=""1.0""?>" & _
+             "<!DOCTYPE PLAY SYSTEM ""play.dtd"">" & _
+             "<PLAY>" & _
+             "<TITLE>A Midsummer Night's Dream</TITLE>" & _
+             "</PLAY>"
+
+sub Example2( )
+    dim as tinyxml2.XMLDocument doc
+    doc.Parse( PLAY )
+    show_i( "example_2.error", doc.ErrorID( ) )
+end sub
+
+sub Example3( )
+    dim as tinyxml2.XMLDocument doc
+    doc.Parse( PLAY )
+    dim as tinyxml2.XMLElement titleElement = doc.FirstChildElement( "PLAY" ).FirstChildElement( "TITLE" )
+    show_s( "example_3.title", titleElement.GetText( ) )
+    dim as tinyxml2.XMLText textNode = titleElement.FirstChild( ).ToText( )
+    show_s( "example_3.text", textNode.Value( ) )
+end sub
+
+sub Example4( )
+    dim as const zstring ptr xml = _
+        @"<information>    <attributeApproach v='2' />    <textApproach>        <v>2</v>    </textApproach></information>"
+    dim as tinyxml2.XMLDocument doc
+    doc.Parse( xml )
+    dim as long v0 = 0, v1 = 0
+    dim as tinyxml2.XMLElement attributeApproachElement = doc.FirstChildElement( ).FirstChildElement( "attributeApproach" )
+    attributeApproachElement.QueryIntAttribute( "v", @v0 )
+    dim as tinyxml2.XMLElement textApproachElement = doc.FirstChildElement( ).FirstChildElement( "textApproach" )
+    textApproachElement.FirstChildElement( "v" ).QueryIntText( @v1 )
+    show_i( "example_4.v0", v0 )
+    show_i( "example_4.v1", v1 )
+    show_i( "example_4.same", iif( v0 = v1, 1, 0 ) )
+end sub
+
+sub Broken( )
+    dim as tinyxml2.XMLDocument doc
+    dim as tinyxml2.XMLError e = doc.Parse( "<a><b></a>" )
+    show_i( "broken.error", e )
+    show_s( "broken.name", doc.ErrorName( ) )
+    show_i( "broken.line", doc.ErrorLineNum( ) )
+end sub
+
+sub Build( )
+    dim as tinyxml2.XMLDocument doc
+    dim as tinyxml2.XMLNode root = doc.NewElement( "library" )
+    doc.InsertFirstChild( root )
+    dim as const zstring ptr titles(0 to 2) = { @"Dune", @"Emma", @"Ulysses" }
+    for i as long = 0 to 2
+        dim as tinyxml2.XMLElement book = doc.NewElement( "book" )
+        book.SetAttribute( "id", clng( i + 1 ) )
+        book.SetAttribute( "title", titles(i) )
+        book.SetText( 1965.5 + i )
+        root.InsertEndChild( book )
+    next
+    dim as tinyxml2.XMLElement last = root.LastChildElement( "book" )
+    show_i( "build.last.id", last.IntAttribute( "id" ) )
+    show_d( "build.last.text", last.DoubleText( ) )
+    show_i( "build.count", root.ToElement( ).ChildElementCount( ) )
+    dim as tinyxml2.XMLPrinter printer
+    doc.Print_( printer )
+    show_s( "build.xml", printer.CStr( ) )
+    dim as tinyxml2.XMLPrinter compact = tinyxml2.XMLPrinter( 0, true )
+    doc.Print_( compact )
+    show_s( "build.compact", compact.CStr( ) )
+    show_i( "build.size", compact.CStrSize( ) )
+end sub
+
+Example2( )
+Example3( )
+Example4( )
+Broken( )
+Build( )
