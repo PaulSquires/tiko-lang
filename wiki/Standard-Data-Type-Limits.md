@@ -26,7 +26,7 @@ Standard variable types and limits.
 
 \[\*\] *[`Integer`](Integer) and [`UInteger`](Uinteger) data types vary with platform, matching the size of pointers.*  
  \[\*\*\] *The minimum and maximum values for the floating-point types [`Single`](Single) and [`Double`](Double) are, respectively, the values closest to zero and the values closest to positive and negative infinity.*  
- \[\*\*\*\] ***tiko:** [`Int128` and `UInt128`](Category-Fixed-Width-Types#128-bit-integers) are tiko's own; fbc has none. They have no literal suffix: a literal too big for 64 bits is 128-bit by itself.*
+ \[\*\*\*\] ***tiko:** [`Int128` and `UInt128`](Category-Fixed-Width-Types#128-bit-integers) have no literal suffix: a literal too big for 64 bits is 128-bit by itself.*
 
 ***String Types***
 
