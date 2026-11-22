@@ -1278,6 +1278,7 @@ type Nest_
     as int32 ci
     as CXCursor outerCur
     as containers.Array( of CXCursor ) cls
+    as boolean enumsOnly          '' a specialization's: its pattern's enums, matched by spelling
 end type
 
 private function NestVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
@@ -1298,7 +1299,7 @@ private function NestVisit_ cdecl ( byval c as CXCursor, byval parent as CXCurso
     end if
     if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return CXChildVisit_Continue
     if k <> CXCursor_EnumDecl then
-        ns->cls.Push( c )
+        if ns->enumsOnly = false then ns->cls.Push( c )
         return CXChildVisit_Continue
     end if
     dim as int32 ci = ns->ci
@@ -1310,7 +1311,9 @@ private function NestVisit_ cdecl ( byval c as CXCursor, byval parent as CXCurso
         nb &= lines[i] & chr( 10 )
     next
     xp->clsNestBind[ci] = nb
-    xp->enumUsr.Push( Text_( *xp, xp->api->getCursorUSR( c ) ) )
+    '' A SPECIALIZATION's nested enum is the pattern's declaration: its instantiation is matched by its
+    '' C++ spelling (EnumOf_), '::kainjow::mustache::basic_data<std::basic_string<char>>::type'.
+    xp->enumUsr.Push( iif( ns->enumsOnly, "spell:" & xp->clsCpp[ci] & "::" & nm, Text_( *xp, xp->api->getCursorUSR( c ) ) ) )
     xp->enumTiko.Push( xp->clsTikoQ[ci] & "." & tn )
     xp->enumCpp.Push( xp->clsCpp[ci] & "::" & nm )
     xp->enumMir.Push( xp->clsMir[ci] & "::" & ucase( tn ) )
@@ -1318,11 +1321,12 @@ private function NestVisit_ cdecl ( byval c as CXCursor, byval parent as CXCurso
     return CXChildVisit_Continue
 end function
 
-private sub CollectNested_( byref x as CppImp_, byval c as CXCursor, byval ci as int32 )
+sub CollectNested_( byref x as CppImp_, byval c as CXCursor, byval ci as int32, byval enumsOnly as boolean = false )
     dim as Nest_ ns
     ns.x = @x
     ns.ci = ci
     ns.outerCur = c
+    ns.enumsOnly = enumsOnly
     x.api->visitChildren( c, @NestVisit_, @ns )
     dim as CXCursor none_
     for i as int32 = 0 to ns.cls.Count - 1

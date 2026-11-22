@@ -109,6 +109,17 @@ function EnumOf_( byref x as CppImp_, byval t as CXType, byref tq as string, _
             return true
         end if
     next
+    dim as string sp = Spell_( x, Canon_( x, t ) )
+    while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
+        sp = mid( sp, instr( sp, " " ) + 1 )
+    wend
+    if left( sp, 2 ) <> "::" then sp = "::" & sp
+    for i as int32 = 0 to x.enumUsr.Count - 1
+        if x.enumUsr[i] = "spell:" & sp then
+            tq = x.enumTiko[i] : cq = x.enumCpp[i] : mq = x.enumMir[i]
+            return true
+        end if
+    next
     return false
 end function
 
@@ -167,18 +178,27 @@ private function ProcPtr_( byref x as CppImp_, byval ft as CXType, byref tiko as
         la &= iif( i > 0, ", ", "" ) & "a" & i
     next
     dim as CXType rt = x.api->getResultType( f )
-    dim as string rk, rc
+    dim as string rk, rc, rm
+    dim as boolean rstr = false
     if Canon_( x, rt ).kind = TY_VOID_ then
-        tiko = "sub cdecl ( " & tp & " )" : rc = "void"
+        tiko = "sub cdecl ( " & tp & " )" : rc = "void" : rm = "void"
     elseif Fund_( x, rt, rk, rc ) then
-        tiko = "function cdecl ( " & tp & " ) as " & rk
+        tiko = "function cdecl ( " & tp & " ) as " & rk : rm = MirFund_( rk )
+    elseif StrKind_( x, rt ) = 1 then
+        '' A std::string RESULT (survey: mustache's partial, std::function<std::string()>): the tiko
+        '' function returns a ustring -- a temporary descriptor -- which the lambda takes as the string.
+        tiko = "function cdecl ( " & tp & " ) as ustring" : rc = "tko_cpp_ustr*" : rm = "FBUSTRING" : rstr = true
     else
         return false
     end if
     cfn = rc & " (*" & nm & ")(" & cp & ")"
-    mir = iif( rc = "void", "void", MirFund_( rk ) ) & " (*)(" & mp & ")"
+    mir = rm & " (*)(" & mp & ")"
     lam = ""
-    if len( lt ) then lam = "[" & nm & "](" & lp & ") { " & lt & "return " & nm & "(" & la & "); }"
+    if rstr then
+        lam = "[" & nm & "](" & lp & ") -> std::string { " & lt & "return tko_cpp_take_ustr(" & nm & "(" & la & ")); }"
+    elseif len( lt ) then
+        lam = "[" & nm & "](" & lp & ") { " & lt & "return " & nm & "(" & la & "); }"
+    end if
     return true
 end function
 

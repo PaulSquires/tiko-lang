@@ -230,7 +230,10 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
         '' characters of a name, and nanoflann's spelled every defaulted argument and allocator.
         if len( tn ) > 100 then tn = left( tn, 88 ) & "_" & Id_( tn )
     end if
+    dim as int32 n0 = x.clsUsr.Count
     CollectAt_( x, d, tn, sp, ns, tm, true )
+    '' ITS NESTED ENUMS (survey: mustache's basic_data<std::string>::type), from the pattern.
+    if (x.clsUsr.Count > n0) andalso (IsStdPair_( x, tm ) = false) then CollectNested_( x, tm, n0, true )
 end sub
 
 '' A FUNCTION'S TYPES, for NoteType_.
@@ -394,6 +397,12 @@ private function TypedefVisit_ cdecl ( byval c as CXCursor, byval parent as CXCu
     dim as TParams_ ptr tp = client
     dim as int32 k = tp->x->api->getCursorKind( c )
     if ((k = 20) orelse (k = CXCursor_TypeAliasDecl)) andalso (tp->x->api->getCXXAccessSpecifier( c ) = CX_CXXPublic) then
+        tp->text &= chr( 1 ) & Text_( *tp->x, tp->x->api->getCursorSpelling( c ) )
+    elseif ((k = CXCursor_EnumDecl) orelse (k = CXCursor_ClassDecl) orelse (k = CXCursor_StructDecl)) andalso _
+           (tp->x->api->getCXXAccessSpecifier( c ) = CX_CXXPublic) andalso _
+           (len( Text_( *tp->x, tp->x->api->getCursorSpelling( c ) ) ) > 0) andalso _
+           (instr( Text_( *tp->x, tp->x->api->getCursorSpelling( c ) ), "(" ) = 0) then
+        '' A NESTED ENUM OR CLASS, named in the probe as in the class (survey: mustache's basic_data(type)).
         tp->text &= chr( 1 ) & Text_( *tp->x, tp->x->api->getCursorSpelling( c ) )
     elseif k = 601 then                    '' CXCursor_TypeAliasTemplateDecl
         '' AN ALIAS TEMPLATE, of any access, as clang prints it: 'typename pattern::X' cannot name

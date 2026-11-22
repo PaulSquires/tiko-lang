@@ -126,7 +126,15 @@ type EnumBody_
     as CppImp_ ptr x
     as boolean unsigned_
     as Tko.StrVec lines
+    as boolean tmpl               '' in a class template: libclang gives no values (survey: mustache)
+    as int64 prev
 end type
+
+private function EnumInitVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as CXCursor ptr r = client
+    *r = c
+    return CXChildVisit_Break
+end function
 
 private function EnumConst_ cdecl _
     ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
@@ -134,7 +142,22 @@ private function EnumConst_ cdecl _
     dim as CppImp_ ptr xp = eb->x
     if xp->api->getCursorKind( c ) = CXCursor_EnumConstantDecl then
         dim as string v
-        if eb->unsigned_ then
+        if eb->tmpl then
+            '' AN ENUMERATOR OF AN ENUM IN A CLASS TEMPLATE: its initializer evaluated when it has one,
+            '' else the one before plus one -- as C++ counts.
+            dim as CXCursor ini
+            xp->api->visitChildren( c, @EnumInitVisit_, @ini )
+            dim as int64 n = eb->prev + 1
+            if IsNullCursor_( *xp, ini ) = false then
+                dim as any ptr ev = xp->api->Cursor_Evaluate( ini )
+                if ev <> nullptr then
+                    if xp->api->EvalResult_getKind( ev ) = 1 then n = xp->api->EvalResult_getAsLongLong( ev )
+                    xp->api->EvalResult_dispose( ev )
+                end if
+            end if
+            eb->prev = n
+            v = str( n )
+        elseif eb->unsigned_ then
             v = str( xp->api->getEnumConstantDeclUnsignedValue( c ) )
         else
             v = str( xp->api->getEnumConstantDeclValue( c ) )
@@ -153,6 +176,11 @@ function EnumLines_( byref x as CppImp_, byval c as CXCursor, byref tn as string
     if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return false     '' anonymous
     dim as EnumBody_ eb
     eb.x = @x
+    eb.prev = -1
+    select case x.api->getCursorKind( x.api->getCursorSemanticParent( c ) )
+    case CXCursor_ClassTemplate, 32                        '' ...or a partial specialization
+        eb.tmpl = true
+    end select
     select case Canon_( x, x.api->getEnumDeclIntegerType( c ) ).kind
     case TY_CHAR_U_, TY_UCHAR_, TY_USHORT_, TY_UINT_, TY_ULONG_, TY_ULONGLONG_
         eb.unsigned_ = true
@@ -498,6 +526,13 @@ function Prelude_( ) as string
     "        if (n > 0 && fb_hUStrAlloc(&u, n)) { tko_cpp_u8to16((const unsigned char*)s.data(), s.size(), u.data); u.len = n; }" & L & _
     "    }" & L & _
     "    ~tko_cpp_ustrtmp() { fb_UStrDelete(&u); }" & L & "};" & L & _
+    "// A ustring a tiko function returned -- a temporary descriptor -- as a std::string, the temporary released." & L & _
+    "static inline std::string tko_cpp_take_ustr(tko_cpp_ustr* r) {" & L & _
+    "    tko_cpp_ustr d = { nullptr, 0, 0 };" & L & _
+    "    if (r) fb_UStrAssign(&d, -1, r, -1, 0);" & L & _
+    "    std::string s = tko_cpp_to_std(&d);" & L & _
+    "    fb_UStrDelete(&d);" & L & _
+    "    return s;" & L & "}" & L & _
     "template <class S> static inline tko_cpp_ustr* tko_cpp_from(const S& s) { return tko_cpp_from_utf8(s.data(), s.size()); }" & L & _
     "inline std::string& tko_cpp_last() { static thread_local std::string s; return s; }" & L & _
     "#define TKO_CPP_CATCH catch (const std::exception& e) { tko_cpp_last() = e.what(); } catch (...) { tko_cpp_last() = ""unknown C++ exception""; }" & L & _

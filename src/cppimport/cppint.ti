@@ -208,6 +208,7 @@ declare sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
 declare function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
 declare sub AltName_( byref x as CppImp_, byval c as CXCursor )
+declare sub CollectNested_( byref x as CppImp_, byval c as CXCursor, byval ci as int32, byval enumsOnly as boolean = false )
 declare function DerivesFrom_( byref x as CppImp_, byval c as CXCursor, byref usr as string, byval depth as int32 ) as boolean
 declare sub MirUnits_( byref x as CppImp_ )
 declare function ClassOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
