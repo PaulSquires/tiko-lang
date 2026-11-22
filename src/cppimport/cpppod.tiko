@@ -282,7 +282,14 @@ sub PodFields_( byref x as CppImp_, byval ci as int32 )
         dim as string fn = NameField( cn, len( dims ) > 0 )
         '' ...AND ONE A tiko WORD WOULD READ AS SOMETHING ELSE: 'as ulongint pointer' is a pointer type
         '' with no name, 'offsetof( T, type )' no field (box2d's b2BodyDef).
-        if (fn = cn) andalso NameReservedValue( cn ) then fn = cn & "_"
+        '' MEASURED (2026-11-22, every keyword as 'as long w' with offsetof and 'r.w = 3'): only these.
+        if fn = cn then
+            select case lcase( cn )
+            case "alias", "and", "andalso", "base", "byval", "const", "delete", "eqv", "imp", "input", "mod", "new", _
+                 "not", "open", "or", "orelse", "pointer", "ptr", "rem", "shl", "shr", "threadcall", "type", "winput", "xor"
+                fn = cn & "_"
+            end select
+        end if
         x.bind.Push( ind & "    as " & tk & " " & fn & iif( len( dims ), "(" & dims & ")", "" ) )
         x.asserts.Push( "#assert offsetof( " & tq & ", " & fn & " ) = " & (x.api->Cursor_getOffsetOfField( fs[i] ) \ 8) )
     next
