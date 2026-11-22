@@ -1,0 +1,70 @@
+'' cppinclude/pods, called from tiko through the binding: must print what driver.cpp prints.
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+dim as vm.Vec2 p
+p.x = 1.5 : p.y = 2.5
+show_d( "vec2.sum", p.x + p.y )
+dim as vm.Vec3 z
+show_d( "vec3.default", z.length( ) )
+show_i( "vec3.default.bool", iif( z, 1, 0 ) )
+dim as vm.Vec3 a = vm.Vec3( 3, 4, 0 ), b = vm.Vec3( 1, 2, 3 )
+show_d( "length", a.length( ) )
+show_d( "normalized.x", a.normalized( ).x )
+dim as vm.Vec3 c = a + b
+show_d( "plus", c.x * 100 + c.y * 10 + c.z )
+dim as vm.Vec3 d = a - b
+show_d( "minus", d.x * 100 + d.y * 10 + d.z )
+show_d( "scale.right", ( a * 2.0 ).x )
+show_d( "scale.left", ( 0.5 * a ).y )
+dim as vm.Vec3 n = -b
+show_d( "neg", n.z )
+a += b
+show_d( "pluseq", a.x )
+a *= 2
+show_d( "muleq", a.y )
+a[2] = 9.5
+show_d( "index", a[2] + a.z )
+show_i( "eq", iif( a = a, 1, 0 ) )
+show_i( "ne", iif( a <> b, 1, 0 ) )
+show_i( "bool", iif( a, 1, 0 ) )
+show_d( "dot", vm.dot( b, b ) )
+dim as vm.Vec3 x = vm.cross( vm.Vec3( 1, 0, 0 ), vm.Vec3( 0, 1, 0 ) )
+show_d( "cross.z", x.z )
+
+dim as vm.Rect r = vm.make_rect( 7, 2, 3 )
+show_d( "rect.hi.y", r.hi.y )
+show_s( "rect.tag", r.tag )
+show_u( "rect.flags", r.flags )
+show_i( "rect.color", r.color )
+show_d( "rect.w2", r.weights(2) )
+vm.grow( r, 1 )
+show_d( "rect.area", vm.area( r ) )
+dim as vm.Rect rs(0 to 2) = { vm.make_rect( 1, 1, 1 ), vm.make_rect( 2, 2, 2 ), vm.make_rect( 3, 3, 3 ) }
+dim as const vm.Rect ptr f = vm.find( @rs(0), 3, 2 )
+show_d( "find", vm.area( *f ) )
+show_i( "find.none", iif( vm.find( @rs(0), 3, 9 ) = 0, 1, 0 ) )
+
+dim as vm.Packed pk = vm.make_packed( 6.25 )
+show_s( "packed", iif( pk.impl_ <> 0, @"a handle", @"not a handle" ) )
+
+dim as vm.Mesh m
+m.add( vm.Vec3( 1, 1, 1 ) )
+m.add( vm.Vec3( 3, 3, 3 ) )
+'' A POD field of a handle is its byref getter: written through, field by field.
+m.origin.x = 10
+m.origin.y = 5
+show_d( "centroid.x", m.centroid( ).x )
+show_d( "centroid.y", m.centroid( ).y )
+m.front( ).z = 7
+show_d( "front.z", m.at( 0 ).z )
+show_d( "index.mesh", m[1].x )
+dim as vm.Mesh e
+show_i( "mesh.empty", iif( not e, 1, 0 ) )
+show_i( "mesh.lt", iif( e < m, 1, 0 ) )
+dim as vm.Mesh s = m + m
+show_u( "mesh.sum", s.size( ) )

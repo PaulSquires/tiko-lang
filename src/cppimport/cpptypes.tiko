@@ -1,0 +1,314 @@
+'' cpptypes.tiko -- the C++ importer's type mapping: a C++ type as tiko spells it, as the shim
+'' carries it, and as the mirror mangles it. See cppint.ti.
+
+#import "std/containers"
+#include once "cppimport/cppint.ti"
+
+namespace Tko.CppImport
+
+using Tko.CImport
+
+'' ---------------------------------------------------------------- types
+
+function Canon_( byref x as CppImp_, byval t as CXType ) as CXType
+    return x.api->getCanonicalType( t )
+end function
+
+function Spell_( byref x as CppImp_, byval t as CXType ) as string
+    return Text_( x, x.api->getTypeSpelling( t ) )
+end function
+
+'' 'const std::size_t' -> 'size_t': the spelling a pointer-sized typedef is recognised by.
+function BareSpell_( byref s as string ) as string
+    dim as string r = trim( s )
+    if left( r, 6 ) = "const " then r = mid( r, 7 )
+    if left( r, 5 ) = "std::" then r = mid( r, 6 )
+    return trim( r )
+end function
+
+'' A FUNDAMENTAL type as tiko and the shim spell it. The pointer-sized typedefs keep their own
+'' name in the shim and are tiko's integer/uinteger, which is what ptrdiff_t and size_t are.
+function Fund_( byref x as CppImp_, byval t as CXType, byref tk as string, _
+                        byref ct as string ) as boolean
+    select case BareSpell_( Spell_( x, t ) )
+    case "size_t", "uintptr_t"                 : tk = "uinteger" : ct = "std::size_t" : return true
+    case "ptrdiff_t", "intptr_t", "ssize_t"    : tk = "integer"  : ct = "std::ptrdiff_t" : return true
+    end select
+    dim as CXType c = Canon_( x, t )
+    dim as int64 sz = x.api->Type_getSizeOf( c )
+    select case c.kind
+    case TY_BOOL_                : tk = "boolean"  : ct = "bool"
+    case TY_CHAR_S_, TY_SCHAR_   : tk = "byte"     : ct = "signed char"
+    case TY_CHAR_U_, TY_UCHAR_   : tk = "ubyte"    : ct = "unsigned char"
+    case TY_SHORT_               : tk = "short"    : ct = "short"
+    case TY_USHORT_, TY_CHAR16_  : tk = "ushort"   : ct = "unsigned short"
+    case TY_INT_                 : tk = "long"     : ct = "int"
+    case TY_UINT_, TY_CHAR32_    : tk = "ulong"    : ct = "unsigned int"
+    case TY_LONG_                : tk = iif( sz = 8, "longint", "long" )   : ct = "long"
+    case TY_ULONG_               : tk = iif( sz = 8, "ulongint", "ulong" ) : ct = "unsigned long"
+    case TY_LONGLONG_            : tk = "longint"  : ct = "long long"
+    case TY_ULONGLONG_           : tk = "ulongint" : ct = "unsigned long long"
+    case TY_FLOAT_               : tk = "single"   : ct = "float"
+    case TY_DOUBLE_              : tk = "double"   : ct = "double"
+    case else                    : return false
+    end select
+    return true
+end function
+
+'' The mirror's C++ type for a tiko fundamental: the one tiko's mangler spells the same way
+'' (C1's type map: integer/uinteger are ptrdiff_t/size_t of the mangling triple).
+function MirFund_( byref tk as string ) as string
+    select case tk
+    case "boolean"  : return "bool"
+    case "byte"     : return "signed char"
+    case "ubyte"    : return "unsigned char"
+    case "short"    : return "short"
+    case "ushort"   : return "unsigned short"
+    case "long"     : return "int"
+    case "ulong"    : return "unsigned int"
+    case "longint"  : return "long long"
+    case "ulongint" : return "unsigned long long"
+    case "single"   : return "float"
+    case "double"   : return "double"
+    case "integer"  : return "__PTRDIFF_TYPE__"
+    case "uinteger" : return "__SIZE_TYPE__"
+    end select
+    return "void"
+end function
+
+'' std::string and std::string_view, by their canonical spelling: libstdc++'s
+'' 'std::__cxx11::basic_string<char>', libc++'s 'std::basic_string<char>' and the MSVC STL's
+'' 'std::basic_string<char, std::char_traits<char>, std::allocator<char>>' all contain it.
+function StrKind_( byref x as CppImp_, byval t as CXType ) as int32
+    dim as string s = BareSpell_( Spell_( x, Canon_( x, t ) ) )
+    if instr( s, "basic_string_view<char" ) > 0 then return 2
+    if instr( s, "basic_string<char" ) > 0 then return 1
+    return 0
+end function
+
+function EnumOf_( byref x as CppImp_, byval t as CXType, byref tq as string, _
+                          byref cq as string, byref mq as string ) as boolean
+    dim as CXCursor d = x.api->getTypeDeclaration( Canon_( x, t ) )
+    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
+    for i as int32 = 0 to x.enumUsr.Count - 1
+        if x.enumUsr[i] = usr then
+            tq = x.enumTiko[i] : cq = x.enumCpp[i] : mq = x.enumMir[i]
+            return true
+        end if
+    next
+    return false
+end function
+
+'' A class the binding has a handle type for, or -1 with the reason.
+function ClassOf_( byref x as CppImp_, byval t as CXType, byref why as string ) as int32
+    dim as CXCursor d = x.api->getTypeDeclaration( Canon_( x, t ) )
+    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
+    for i as int32 = 0 to x.clsUsr.Count - 1
+        if x.clsUsr[i] = usr then return i
+    next
+    why = "class not in this header: " & Spell_( x, t )
+    return -1
+end function
+
+function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as TMap_
+    dim as TMap_ m
+    m.ok = true
+    dim as string tk, ct, tq, cq, mq, cwhy
+    dim as CXType c = Canon_( x, t )
+    select case c.kind
+    case TY_POINTER_
+        dim as CXType pe = x.api->getPointeeType( t )
+        if pe.kind = 0 then pe = x.api->getPointeeType( c )     '' a typedef ('const_iterator')
+        dim as CXType pc = Canon_( x, pe )
+        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
+        dim as string kw = iif( kq, "const ", "" )
+        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
+            m.tiko = "byval " & nm & " as " & kw & "zstring ptr" : m.ctype = kw & "char* " & nm : m.arg = nm
+            m.mir = kw & "char*"
+        elseif pc.kind = TY_VOID_ then
+            m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm : m.arg = nm
+            m.mir = kw & "void*"
+        elseif (pc.kind = TY_POINTER_) andalso (kq = false) andalso _
+               ((Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_S_) orelse _
+                (Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_U_)) then
+            '' 'const char** out': a string the C++ hands back, through a zstring ptr variable.
+            dim as boolean kq2 = (x.api->isConstQualifiedType( Canon_( x, x.api->getPointeeType( pc ) ) ) <> 0)
+            dim as string kw2 = iif( kq2, "const ", "" )
+            m.tiko = "byref " & nm & " as " & kw2 & "zstring ptr" : m.ctype = kw2 & "char** " & nm : m.arg = nm
+            m.mir = kw2 & "char*&"
+        elseif Fund_( x, pe, tk, ct ) then
+            m.tiko = "byval " & nm & " as " & kw & tk & " ptr" : m.ctype = kw & ct & "* " & nm
+            m.arg = "reinterpret_cast<" & Spell_( x, c ) & ">(" & nm & ")"
+            m.mir = kw & MirFund_( tk ) & "*"
+        elseif pc.kind = TY_RECORD_ then
+            '' A POINTER TO A CLASS is the handle, by reference: never null from tiko. A pointer
+            '' to a record the binding has no handle for (FILE, an incomplete internal struct) is
+            '' opaque: 'any ptr'.
+            dim as int32 ci = ClassOf_( x, pe, cwhy )
+            if ci < 0 then
+                if StrKind_( x, pe ) > 0 then m.ok = false : m.why = cwhy : return m
+                m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm
+                m.arg = "static_cast<" & Spell_( x, c ) & ">(" & nm & ")" : m.mir = kw & "void*"
+                return m
+            end if
+            if IsPod_( x, ci ) then           '' a POD's pointer is a pointer: null is allowed
+                m.tiko = "byval " & nm & " as " & kw & x.clsTikoQ[ci] & " ptr" : m.ctype = kw & x.clsCpp[ci] & "* " & nm
+                m.arg = nm : m.mir = kw & x.clsMir[ci] & "*"
+                return m
+            end if
+            m.tiko = "byref " & nm & " as " & kw & x.clsTikoQ[ci] : m.ctype = kw & "tko_cpp_h* " & nm
+            m.arg = "static_cast<" & kw & x.clsCpp[ci] & "*>(" & nm & "->impl)"
+            m.mir = kw & x.clsMir[ci] & "&"
+        else
+            m.ok = false : m.why = "pointer to " & Spell_( x, pe )
+        end if
+    case TY_LREF_
+        dim as CXType pe = x.api->getNonReferenceType( t )
+        dim as CXType pc = Canon_( x, pe )
+        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
+        dim as string kw = iif( kq, "const ", "" )
+        if (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) > 0) andalso kq then
+            m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
+            m.arg = "tko_cpp_to_std(" & nm & ")" : m.mir = "const FBUSTRING&"
+        elseif Fund_( x, pe, tk, ct ) then
+            m.tiko = "byref " & nm & " as " & kw & tk
+            m.ctype = kw & ct & "* " & nm
+            m.arg = "*reinterpret_cast<" & Spell_( x, pc ) & "*>(" & nm & ")"
+            m.mir = kw & MirFund_( tk ) & "&"
+        elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 0) then
+            dim as int32 ci = ClassOf_( x, pe, cwhy )
+            if ci < 0 then m.ok = false : m.why = cwhy : return m
+            if IsPod_( x, ci ) then
+                m.tiko = "byref " & nm & " as " & kw & x.clsTikoQ[ci] : m.ctype = kw & x.clsCpp[ci] & "* " & nm
+                m.arg = "*" & nm : m.mir = kw & x.clsMir[ci] & "&"
+                return m
+            end if
+            m.tiko = "byref " & nm & " as " & kw & x.clsTikoQ[ci] : m.ctype = kw & "tko_cpp_h* " & nm
+            m.arg = "*static_cast<" & kw & x.clsCpp[ci] & "*>(" & nm & "->impl)"
+            m.mir = kw & x.clsMir[ci] & "&"
+        else
+            m.ok = false : m.why = "reference to " & Spell_( x, pe )
+        end if
+    case TY_RREF_
+        m.ok = false : m.why = "rvalue reference"
+    case TY_RECORD_
+        if StrKind_( x, t ) > 0 then
+            m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
+            m.arg = "tko_cpp_to_std(" & nm & ")" : m.mir = "const FBUSTRING&"
+        else
+            '' A CLASS BY VALUE is passed as the handle, 'byref ... const': C++ makes its own copy
+            '' when it calls, so tiko need not make one first.
+            dim as int32 ci = ClassOf_( x, t, cwhy )
+            if ci < 0 then m.ok = false : m.why = cwhy : return m
+            if IsPod_( x, ci ) then           '' by reference to tiko's own: the shim copies
+                m.tiko = "byref " & nm & " as const " & x.clsTikoQ[ci] : m.ctype = "const " & x.clsCpp[ci] & "* " & nm
+                m.arg = "*" & nm : m.mir = "const " & x.clsMir[ci] & "&"
+                return m
+            end if
+            m.tiko = "byref " & nm & " as const " & x.clsTikoQ[ci] : m.ctype = "const tko_cpp_h* " & nm
+            m.arg = "*static_cast<const " & x.clsCpp[ci] & "*>(" & nm & "->impl)"
+            m.mir = "const " & x.clsMir[ci] & "&"
+        end if
+    case TY_ENUM_
+        if EnumOf_( x, t, tq, cq, mq ) then
+            m.tiko = "byval " & nm & " as " & tq : m.ctype = "long long " & nm
+            m.arg = "static_cast<" & cq & ">(" & nm & ")" : m.mir = mq
+        else
+            m.ok = false : m.why = "enum not in this header: " & Spell_( x, t )
+        end if
+    case else
+        if Fund_( x, t, tk, ct ) then
+            m.tiko = "byval " & nm & " as " & tk : m.ctype = ct & " " & nm : m.arg = nm
+            m.mir = MirFund_( tk )
+        else
+            m.ok = false : m.why = "type " & Spell_( x, t )
+        end if
+    end select
+    return m
+end function
+
+function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
+    dim as TMap_ m
+    m.ok = true
+    dim as string tk, ct, tq, cq, mq, cwhy
+    dim as CXType c = Canon_( x, t )
+    select case c.kind
+    case TY_VOID_
+        m.tiko = ""
+    case TY_POINTER_
+        dim as CXType pe = x.api->getPointeeType( t )
+        if pe.kind = 0 then pe = x.api->getPointeeType( c )     '' a typedef ('const_iterator')
+        dim as CXType pc = Canon_( x, pe )
+        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
+        dim as string kw = iif( kq, "const ", "" )
+        m.fallback = "nullptr"
+        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
+            m.tiko = kw & "zstring ptr" : m.ctype = kw & "char*"
+        elseif pc.kind = TY_VOID_ then
+            m.tiko = kw & "any ptr" : m.ctype = kw & "void*"
+        elseif Fund_( x, pe, tk, ct ) then
+            m.tiko = kw & tk & " ptr" : m.ctype = kw & ct & "*"
+            m.wrap0 = "reinterpret_cast<" & m.ctype & ">(" : m.wrap1 = ")"
+        elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 0) then
+            dim as int32 ci = ClassOf_( x, pe, cwhy )
+            if ci < 0 then
+                m.tiko = kw & "any ptr" : m.ctype = kw & "void*"      '' opaque, as a parameter
+                return m
+            end if
+            if IsPod_( x, ci ) then m.tiko = kw & x.clsTikoQ[ci] & " ptr" : m.ctype = kw & x.clsCpp[ci] & "*" : return m
+            m.tiko = x.clsTikoQ[ci] : m.ctype = "tko_cpp_h*" : m.sret = SR_PTR_
+        else
+            m.ok = false : m.why = "returns a pointer to " & Spell_( x, pe )
+        end if
+    case TY_LREF_, TY_RECORD_
+        dim as CXType pe = t
+        if c.kind = TY_LREF_ then pe = x.api->getNonReferenceType( t )
+        if StrKind_( x, pe ) > 0 then
+            m.tiko = "ustring" : m.ctype = "tko_cpp_ustr*"
+            m.wrap0 = "tko_cpp_from(" : m.wrap1 = ")" : m.fallback = "tko_cpp_from_utf8(nullptr, 0)"
+        elseif Canon_( x, pe ).kind = TY_RECORD_ then
+            '' A CLASS RESULT is a handle the caller passes in first: an owned copy of a value,
+            '' or the C++ object a reference names, borrowed (measured ABI, C3.md).
+            dim as int32 ci = ClassOf_( x, pe, cwhy )
+            if ci < 0 then m.ok = false : m.why = cwhy : return m
+            if IsPod_( x, ci ) then
+                '' A POD BY VALUE is returned by value, which is C's ABI on both sides: tiko and the
+                '' shim's 'extern "C"' function agree on a trivially copyable aggregate. By
+                '' reference, 'byref as T': the shim returns its address.
+                m.tiko = x.clsTikoQ[ci]
+                if c.kind = TY_LREF_ then
+                    m.byrefRet = true : m.ctype = x.clsCpp[ci] & "*" : m.fallback = "nullptr"
+                    m.wrap0 = "const_cast<" & x.clsCpp[ci] & "*>(&(" : m.wrap1 = "))"
+                else
+                    m.ctype = x.clsCpp[ci] : m.fallback = x.clsCpp[ci] & "{}"
+                end if
+                return m
+            end if
+            m.tiko = x.clsTikoQ[ci] : m.ctype = "tko_cpp_h*"
+            m.sret = iif( c.kind = TY_LREF_, SR_REF_, SR_OWNED_ )
+            m.rcpp = x.clsCpp[ci]
+        elseif (c.kind = TY_LREF_) andalso Fund_( x, pe, tk, ct ) then
+            '' A REFERENCE TO A FUNDAMENTAL is 'byref as T': 'double& operator[]' assigns through.
+            m.tiko = tk : m.byrefRet = true : m.ctype = ct & "*" : m.fallback = "nullptr"
+            m.wrap0 = "static_cast<" & ct & "*>(const_cast<void*>(static_cast<const void*>(&(" : m.wrap1 = "))))"
+        else
+            m.ok = false : m.why = "returns " & Spell_( x, t )
+        end if
+    case TY_ENUM_
+        if EnumOf_( x, t, tq, cq, mq ) then
+            m.tiko = tq : m.ctype = "long long"
+            m.wrap0 = "static_cast<long long>(" : m.wrap1 = ")" : m.fallback = "0"
+        else
+            m.ok = false : m.why = "returns an enum not in this header: " & Spell_( x, t )
+        end if
+    case else
+        if Fund_( x, t, tk, ct ) then
+            m.tiko = tk : m.ctype = ct : m.fallback = "0"
+        else
+            m.ok = false : m.why = "returns " & Spell_( x, t )
+        end if
+    end select
+    return m
+end function
+
+end namespace

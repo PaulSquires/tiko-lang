@@ -1,0 +1,265 @@
+'' cpppod.tiko -- the C++ importer's PODs (C3b-1): a C++ struct tiko can hold as a VALUE, with
+'' the C++ layout, instead of behind a handle. See cppint.ti.
+''
+'' A POD here is a class whose copy is a copy of its bytes and whose bytes tiko can lay out the
+'' same way: no virtual function, no base, no user-written copy/move constructor, copy/move
+'' assignment or destructor, at least one field, every field public, none a bit-field, every
+'' field's type one tiko spells with the C++ size (a fundamental, an enum as its integer type, a
+'' pointer, a fixed array of those, another POD), and the natural layout -- each field where its
+'' alignment puts it, the size its largest alignment rounds to. Anything else -- '#pragma pack',
+'' 'alignas', a std::string field -- stays a handle.
+''
+'' CHECKED TWICE. The binding '#assert's clang's size and every field's offset, so a tiko that lays
+'' the type out differently does not compile; the shim 'static_assert's that the class is
+'' trivially copyable and standard-layout and of that size, so a header that changed does not.
+
+#import "std/containers"
+#include once "cppimport/cppint.ti"
+
+namespace Tko.CppImport
+
+using Tko.CImport
+
+function IsPod_( byref x as CppImp_, byval ci as int32 ) as boolean
+    if (ci < 0) orelse (ci >= x.clsPod.Count) then return false
+    return x.clsPod[ci] = "1"
+end function
+
+type PodScan_
+    as CppImp_ ptr x
+    as boolean ok
+    as containers.Array( of CXCursor ) fields
+end type
+
+private function PodVisit_ cdecl _
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as PodScan_ ptr ps = client
+    dim as CppImp_ ptr xp = ps->x
+    dim as int32 k = xp->api->getCursorKind( c )
+    select case k
+    case CXCursor_CXXBaseSpecifier
+        ps->ok = false
+    case CXCursor_FieldDecl
+        if (xp->api->getCXXAccessSpecifier( c ) <> CX_CXXPublic) orelse (xp->api->Cursor_isBitField( c ) <> 0) then
+            ps->ok = false
+        else
+            ps->fields.Push( c )
+        end if
+    case CXCursor_CXXMethod
+        if xp->api->CXXMethod_isVirtual( c ) <> 0 then ps->ok = false
+        if Text_( *xp, xp->api->getCursorSpelling( c ) ) = "operator=" then
+            if xp->api->CXXMethod_isDefaulted( c ) = 0 then ps->ok = false
+        end if
+    case CXCursor_Constructor
+        if (xp->api->CXXConstructor_isCopyConstructor( c ) <> 0) orelse (xp->api->CXXConstructor_isMoveConstructor( c ) <> 0) then
+            if (xp->api->CXXMethod_isDefaulted( c ) = 0) orelse (xp->api->CXXMethod_isDeleted( c ) <> 0) then ps->ok = false
+        end if
+    case CXCursor_Destructor
+        if xp->api->CXXMethod_isDefaulted( c ) = 0 then ps->ok = false
+    case CXCursor_UnionDecl
+        ps->ok = false       '' an anonymous union member: later
+    end select
+    return CXChildVisit_Continue
+end function
+
+'' A FIELD'S TIKO TYPE: 'tk' and, for an array, its bounds ('0 to 3'). 'needPod' says the class
+'' a record field names must be a POD itself (the second look, PodCheck_).
+private function PodFieldType_( byref x as CppImp_, byval t as CXType, byref tk as string, _
+                                byref dims as string, byval needPod as boolean ) as boolean
+    dim as CXType c = Canon_( x, t )
+    dim as string ct, why
+    select case c.kind
+    case TY_CARRAY_
+        dim as int64 n = x.api->getNumElements( c )
+        dim as CXType et = Canon_( x, x.api->getElementType( c ) )
+        if n <= 0 then return false
+        if ((et.kind = TY_CHAR_S_) orelse (et.kind = TY_CHAR_U_)) andalso (len( dims ) = 0) then
+            tk = "zstring * " & n             '' FreeBASIC's fixed C string: n bytes
+            return true
+        end if
+        dims &= iif( len( dims ), ", ", "" ) & "0 to " & (n - 1)
+        return PodFieldType_( x, et, tk, dims, needPod )
+    case TY_POINTER_
+        dim as CXType pc = Canon_( x, x.api->getPointeeType( c ) )
+        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
+            tk = "zstring ptr"
+        elseif Fund_( x, pc, tk, ct ) then
+            tk &= " ptr"
+        elseif pc.kind = TY_RECORD_ then
+            dim as int32 ri = ClassOf_( x, pc, why )
+            tk = iif( IsPod_( x, ri ), x.clsTikoQ[ri] & " ptr", "any ptr" )
+        else
+            tk = "any ptr"
+        end if
+        return true
+    case TY_ENUM_
+        '' AS ITS INTEGER TYPE: a tiko enum is eight bytes, the C++ one usually four.
+        return Fund_( x, x.api->getEnumDeclIntegerType( x.api->getTypeDeclaration( c ) ), tk, ct )
+    case TY_RECORD_
+        if StrKind_( x, c ) > 0 then return false
+        dim as int32 ri = ClassOf_( x, c, why )
+        if ri < 0 then return false
+        if needPod andalso (IsPod_( x, ri ) = false) then return false
+        tk = x.clsTikoQ[ri]
+        return true
+    end select
+    return Fund_( x, c, tk, ct )
+end function
+
+private function Round_( byval v as int64, byval a as int64 ) as int64
+    if a <= 1 then return v
+    return ((v + a - 1) \ a) * a
+end function
+
+'' The class alone: everything but whether a record field's class is a POD.
+private function PodLocal_( byref x as CppImp_, byval ci as int32 ) as boolean
+    dim as CXCursor cur = x.clsCur[ci]
+    if x.api->CXXRecord_isAbstract( cur ) <> 0 then return false
+    dim as PodScan_ ps
+    ps.x = @x
+    ps.ok = true
+    x.api->visitChildren( cur, @PodVisit_, @ps )
+    if (ps.ok = false) orelse (ps.fields.Count = 0) then return false
+    '' THE NATURAL LAYOUT, which is the one tiko gives an 'extern "C"' type.
+    dim as CXType rt = x.api->getCursorType( cur )
+    dim as int64 at_ = 0, maxA = 1
+    for i as int32 = 0 to ps.fields.Count - 1
+        dim as string tk, dims
+        dim as CXType ft = x.api->getCursorType( ps.fields[i] )
+        if PodFieldType_( x, ft, tk, dims, false ) = false then return false
+        dim as int64 fa = x.api->Type_getAlignOf( ft ), fs = x.api->Type_getSizeOf( ft )
+        if (fa <= 0) orelse (fs < 0) then return false
+        dim as int64 fo = x.api->Cursor_getOffsetOfField( ps.fields[i] )
+        if (fo < 0) orelse ((fo mod 8) <> 0) then return false
+        if Round_( at_, fa ) <> fo \ 8 then return false
+        at_ = fo \ 8 + fs
+        if fa > maxA then maxA = fa
+    next
+    if Round_( at_, maxA ) <> x.api->Type_getSizeOf( rt ) then return false
+    return x.api->Type_getAlignOf( rt ) = maxA
+end function
+
+private sub PodRecordFields_( byref x as CppImp_, byval ci as int32, byref out_ as containers.Array( of CXCursor ) )
+    dim as PodScan_ ps
+    ps.x = @x
+    ps.ok = true
+    x.api->visitChildren( x.clsCur[ci], @PodVisit_, @ps )
+    for i as int32 = 0 to ps.fields.Count - 1
+        out_.Push( ps.fields[i] )
+    next
+end sub
+
+'' EVERY CLASS'S ANSWER, before anything is emitted: a POD's record fields must be PODs, so a class
+'' demoted to a handle demotes the classes holding it by value, until nothing changes.
+sub PodCheck_( byref x as CppImp_ )
+    x.clsPod.Clear( )
+    for ci as int32 = 0 to x.clsUsr.Count - 1
+        x.clsPod.Push( iif( PodLocal_( x, ci ), "1", "" ) )
+    next
+    dim as boolean changed = true
+    while changed
+        changed = false
+        for ci as int32 = 0 to x.clsUsr.Count - 1
+            if IsPod_( x, ci ) = false then continue for
+            dim as containers.Array( of CXCursor ) fs
+            PodRecordFields_( x, ci, fs )
+            for i as int32 = 0 to fs.Count - 1
+                dim as string tk, dims
+                if PodFieldType_( x, x.api->getCursorType( fs[i] ), tk, dims, true ) = false then
+                    x.clsPod[ci] = ""
+                    changed = true
+                    exit for
+                end if
+            next
+        next
+    wend
+end sub
+
+'' A FIELD WITH AN INITIALISER ('int t_ = 0', 'double w{1}') makes C++'s default construction more
+'' than zeroes, so the POD gets a default constructor through the shim. By its tokens: '=' or '{'
+'' right after the name. An expression child is not enough -- 'char tag[8]' has one, its bound.
+private function FieldHasInit_( byref x as CppImp_, byval f as CXCursor ) as boolean
+    dim as string nm = Text_( x, x.api->getCursorSpelling( f ) )
+    dim as CXToken ptr toks = nullptr
+    dim as uint32 nt = 0
+    x.api->tokenize( x.tu, x.api->getCursorExtent( f ), @toks, @nt )
+    dim as boolean r = false
+    for i as int32 = 0 to cast( int32, nt ) - 2
+        if ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i] ) ) = nm then
+            dim as string nx = ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i + 1] ) )
+            if (nx = "=") orelse (nx = "{") then r = true
+        end if
+    next
+    if toks <> nullptr then x.api->disposeTokens( x.tu, toks, nt )
+    return r
+end function
+
+function PodHasInit_( byref x as CppImp_, byval ci as int32 ) as boolean
+    dim as containers.Array( of CXCursor ) fs
+    PodRecordFields_( x, ci, fs )
+    for i as int32 = 0 to fs.Count - 1
+        if FieldHasInit_( x, fs[i] ) then return true
+    next
+    return false
+end function
+
+'' THE POD'S FIELDS, where its handle-type siblings have 'impl_' and 'owned_' -- and its checks.
+sub PodFields_( byref x as CppImp_, byval ci as int32 )
+    dim as containers.Array( of CXCursor ) fs
+    PodRecordFields_( x, ci, fs )
+    dim as Tko.StrVec opened
+    dim as string ind = NsOpen_( x, ci, opened )
+    dim as string tq = x.clsTikoQ[ci], cpp = x.clsCpp[ci]
+    dim as CXType rt = x.api->getCursorType( x.clsCur[ci] )
+    dim as int64 sz = x.api->Type_getSizeOf( rt )
+    x.bind.Push( ind & "extern ""C""" )
+    x.bind.Push( ind & "    partial type " & x.clsTiko[ci] & "    '' " & cpp & " -- a value: C++'s layout, checked below" )
+    for i as int32 = 0 to fs.Count - 1
+        dim as string tk, dims
+        PodFieldType_( x, x.api->getCursorType( fs[i] ), tk, dims, true )
+        dim as string cn = Text_( x, x.api->getCursorSpelling( fs[i] ) )
+        dim as string fn = NameField( cn, len( dims ) > 0 )
+        x.bind.Push( ind & "        as " & tk & " " & fn & iif( len( dims ), "(" & dims & ")", "" ) )
+        x.asserts.Push( "#assert offsetof( " & tq & ", " & fn & " ) = " & (x.api->Cursor_getOffsetOfField( fs[i] ) \ 8) )
+    next
+    x.bind.Push( ind & "    end type" )
+    x.bind.Push( ind & "end extern" )
+    NsClose_( x, opened )
+    x.asserts.Push( "#assert sizeof( " & tq & " ) = " & sz )
+    x.shim.Push( "static_assert(std::is_trivially_copyable<" & cpp & ">::value && std::is_standard_layout<" & cpp & _
+                 ">::value && sizeof(" & cpp & ") == " & sz & ", ""tiko: " & cpp & _
+                 " is no longer the value type its binding describes: regenerate it"");" & chr( 10 ) )
+end sub
+
+'' EVERY POD'S FIELDS, each after the PODs it holds by value: a tiko type cannot hold one that is
+'' not complete yet. By value, so there is no cycle.
+private sub PodEmitOne_( byref x as CppImp_, byval ci as int32, byref done as Tko.StrVec )
+    if done[ci] <> "" then return
+    done[ci] = "1"
+    dim as containers.Array( of CXCursor ) fs
+    PodRecordFields_( x, ci, fs )
+    for i as int32 = 0 to fs.Count - 1
+        dim as CXType ft = Canon_( x, x.api->getCursorType( fs[i] ) )
+        while ft.kind = TY_CARRAY_
+            ft = Canon_( x, x.api->getElementType( ft ) )
+        wend
+        if ft.kind = TY_RECORD_ then
+            dim as string why
+            dim as int32 ri = ClassOf_( x, ft, why )
+            if IsPod_( x, ri ) then PodEmitOne_( x, ri, done )
+        end if
+    next
+    PodFields_( x, ci )
+end sub
+
+sub PodEmitAll_( byref x as CppImp_ )
+    dim as Tko.StrVec done
+    for ci as int32 = 0 to x.clsUsr.Count - 1
+        done.Push( "" )
+    next
+    for ci as int32 = 0 to x.clsUsr.Count - 1
+        if IsPod_( x, ci ) then PodEmitOne_( x, ci, done )
+    next
+end sub
+
+end namespace

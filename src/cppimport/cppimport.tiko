@@ -1,97 +1,22 @@
 '' cppimport.tiko -- see cppimport.ti. docs/tiko-cpp C3 (C3-plan.md, C3.md).
 
 #import "std/containers"
-#include once "cppimport/cppimport.ti"
-#include once "cimport/import.ti"
-#include once "lexer/token.ti"
+#include once "cppimport/cppint.ti"
 
 namespace Tko.CppImport
 
 using Tko.CImport
 
-'' clang's CXTypeKind values this file reads (Index.h, LLVM 23; cimport/types.tiko has the same).
-const TY_VOID_ = 2, TY_BOOL_ = 3, TY_CHAR_U_ = 4, TY_UCHAR_ = 5, TY_CHAR16_ = 6, TY_CHAR32_ = 7
-const TY_USHORT_ = 8, TY_UINT_ = 9, TY_ULONG_ = 10, TY_ULONGLONG_ = 11, TY_CHAR_S_ = 13
-const TY_SCHAR_ = 14, TY_SHORT_ = 16, TY_INT_ = 17, TY_LONG_ = 18, TY_LONGLONG_ = 19
-const TY_FLOAT_ = 21, TY_DOUBLE_ = 22, TY_POINTER_ = 101, TY_LREF_ = 103, TY_RREF_ = 104
-const TY_RECORD_ = 105, TY_ENUM_ = 106, TY_ELABORATED_ = 119
 
-const UNIT_NAME_ = "tiko-cppimport.cpp"
-const SAME_SIG_ = "same tiko signature as an overload before it"
-const MIRROR_NAME_ = "tiko-cppmirror.cpp"
-const ERR_CPP_ = 1000          '' the runtime error number of a C++ exception (D5)
-
-'' An entry's kind.
-const K_FREE_ = 0, K_METHOD_ = 1, K_STATIC_ = 2, K_CTOR_ = 3, K_FIELD_ = 4
-
-'' A handle result: none, an owned copy of the C++ value, or a borrowed reference / pointer.
-const SR_NONE_ = 0, SR_OWNED_ = 1, SR_REF_ = 2, SR_PTR_ = 3
-
-type CppImp_
-    as ClangApi ptr api
-    as any ptr       tu
-    as string        hdrDir       '' the header's directory, '/'-separated, ending '/'
-    as boolean       foldCase     '' compare paths without case (Windows)
-    as string        id           '' 8 hex digits, from the header's spelling
-    as int32          n           '' the next entry number
-    as int32          pass        '' 1 enums, 2 classes collected, 3 functions
-    as Tko.StrVec    bind         '' binding lines
-    as Tko.StrVec    shim         '' shim functions
-    as Tko.StrVec    cppNs        '' C++ names of the namespaces being walked
-    as Tko.StrVec    tikoNs       '' their tiko names
-    as Tko.StrVec    enumUsr      '' enums emitted: USR, tiko, C++ and mirror qualified names
-    as Tko.StrVec    enumTiko
-    as Tko.StrVec    enumCpp
-    as Tko.StrVec    enumMir
-    as Tko.StrVec    sigs         '' tiko signatures written, lowercase: an overload tiko
-                                  '' cannot tell from another is refused
-    as Tko.StrVec    sigConst     '' "c" where sigs[i] is a const method's
-    as boolean        twinOfConst  '' the refused one's twin was a const method
-    '' CLASSES, collected in pass 2. Every handle type is declared (its two fields) before any
-    '' class's members, which follow in a second 'partial type' block of each: so a member may
-    '' name any class -- a tiko type can otherwise name one declared below it only through a
-    '' pointer (TKO0811), and tinyxml2's XMLNode and XMLElement name each other.
-    as Tko.StrVec    clsUsr
-    as Tko.StrVec    clsTiko      '' the tiko type's own name
-    as Tko.StrVec    clsTikoQ     '' ...qualified, for parameters
-    as Tko.StrVec    clsCpp       '' '::geo::Counter'
-    as Tko.StrVec    clsMir       '' the mirror's 'GEO::Counter'
-    as Tko.StrVec    clsNsTiko    '' the namespaces, chr( 1 )-separated
-    as Tko.StrVec    clsNsMir
-    as containers.Array( of CXCursor ) clsCur
-    '' THE MIRROR: the declarations tiko writes, as C++ over opaque types, for libclang to mangle
-    '' under the target's Itanium triple -- each method's name is what the shim must define.
-    as Tko.StrVec    mirFwd
-    as Tko.StrVec    mirBody
-    as int32          bound
-    as int32          todos
-    as boolean        hasDefault   '' HasDefault_'s answer
-end type
-
-'' One parameter or result, as the texts that carry it.
-type TMap_
-    as boolean ok
-    as string  why
-    as string  tiko       '' parameter: 'byval n as T' / 'byref n as const T'; result: 'T'
-    as string  ctype      '' the shim's C type for it
-    as string  arg        '' parameter: the C++ argument expression, from the shim parameter
-    as string  mir        '' parameter: the mirror's C++ type, which mangles as tiko's does
-    as string  wrap0      '' result: around the call
-    as string  wrap1
-    as string  fallback   '' result: what the shim returns after a raise that came back
-    as int32   sret       '' result: SR_*
-    as string  rcpp       '' result: the C++ class of an owned handle
-end type
-
-private function Indent_( byref x as CppImp_ ) as string
+function Indent_( byref x as CppImp_ ) as string
     return space( 4 * x.cppNs.Count )
 end function
 
-private function Text_( byref x as CppImp_, byval s as CXString ) as string
+function Text_( byref x as CppImp_, byval s as CXString ) as string
     return ClangText( *x.api, s )
 end function
 
-private function Fwd_( byref p as string ) as string
+function Fwd_( byref p as string ) as string
     dim as string r = p
     for i as int32 = 0 to len( r ) - 1
         if r[i] = asc( "\" ) then r[i] = asc( "/" )
@@ -101,7 +26,7 @@ end function
 
 '' Is the declaration in the header's own directory tree? The library's headers are; the
 '' standard library's and the platform's are not, and nothing of theirs is bound.
-private function InScope_( byref x as CppImp_, byval c as CXCursor ) as boolean
+function InScope_( byref x as CppImp_, byval c as CXCursor ) as boolean
     dim as any ptr f = nullptr
     dim as uint32 ln, col, off
     x.api->getExpansionLocation( x.api->getCursorLocation( c ), @f, @ln, @col, @off )
@@ -111,7 +36,7 @@ private function InScope_( byref x as CppImp_, byval c as CXCursor ) as boolean
     return left( p, len( x.hdrDir ) ) = x.hdrDir
 end function
 
-private function QualTiko_( byref x as CppImp_, byref nm as string ) as string
+function QualTiko_( byref x as CppImp_, byref nm as string ) as string
     dim as string r = ""
     for i as int32 = 0 to x.tikoNs.Count - 1
         r &= x.tikoNs[i] & "."
@@ -119,7 +44,7 @@ private function QualTiko_( byref x as CppImp_, byref nm as string ) as string
     return r & nm
 end function
 
-private function QualCpp_( byref x as CppImp_, byref nm as string ) as string
+function QualCpp_( byref x as CppImp_, byref nm as string ) as string
     dim as string r = ""
     for i as int32 = 0 to x.cppNs.Count - 1
         r &= "::" & x.cppNs[i]
@@ -129,7 +54,7 @@ end function
 
 '' THE MIRROR'S SPELLING OF A NAME tiko mangles. Measured (docs/tiko-cpp C3.md): a namespace outside
 '' an 'extern' block and an enum are upper-cased, a type declared in 'extern "C"' keeps its case.
-private function QualMir_( byref x as CppImp_, byref nm as string ) as string
+function QualMir_( byref x as CppImp_, byref nm as string ) as string
     dim as string r = ""
     for i as int32 = 0 to x.tikoNs.Count - 1
         r &= ucase( x.tikoNs[i] ) & "::"
@@ -138,7 +63,7 @@ private function QualMir_( byref x as CppImp_, byref nm as string ) as string
 end function
 
 '' 'namespace A { namespace B { <body> } }', the mirror's way of putting something where it is.
-private function MirWrap_( byref nsList as string, byref body as string ) as string
+function MirWrap_( byref nsList as string, byref body as string ) as string
     dim as string o = "", c = ""
     dim as int32 a = 1
     while a <= len( nsList )
@@ -151,298 +76,28 @@ private function MirWrap_( byref nsList as string, byref body as string ) as str
     return o & body & c & chr( 10 )
 end function
 
-private sub Todo_( byref x as CppImp_, byref what as string, byref why as string )
+sub Todo_( byref x as CppImp_, byref what as string, byref why as string )
     x.bind.Push( Indent_( x ) & "'' CPP-TODO(" & why & "): " & what )
     x.todos += 1
 end sub
-
-'' ---------------------------------------------------------------- types
-
-private function Canon_( byref x as CppImp_, byval t as CXType ) as CXType
-    return x.api->getCanonicalType( t )
-end function
-
-private function Spell_( byref x as CppImp_, byval t as CXType ) as string
-    return Text_( x, x.api->getTypeSpelling( t ) )
-end function
-
-'' 'const std::size_t' -> 'size_t': the spelling a pointer-sized typedef is recognised by.
-private function BareSpell_( byref s as string ) as string
-    dim as string r = trim( s )
-    if left( r, 6 ) = "const " then r = mid( r, 7 )
-    if left( r, 5 ) = "std::" then r = mid( r, 6 )
-    return trim( r )
-end function
-
-'' A FUNDAMENTAL type as tiko and the shim spell it. The pointer-sized typedefs keep their own
-'' name in the shim and are tiko's integer/uinteger, which is what ptrdiff_t and size_t are.
-private function Fund_( byref x as CppImp_, byval t as CXType, byref tk as string, _
-                        byref ct as string ) as boolean
-    select case BareSpell_( Spell_( x, t ) )
-    case "size_t", "uintptr_t"                 : tk = "uinteger" : ct = "std::size_t" : return true
-    case "ptrdiff_t", "intptr_t", "ssize_t"    : tk = "integer"  : ct = "std::ptrdiff_t" : return true
-    end select
-    dim as CXType c = Canon_( x, t )
-    dim as int64 sz = x.api->Type_getSizeOf( c )
-    select case c.kind
-    case TY_BOOL_                : tk = "boolean"  : ct = "bool"
-    case TY_CHAR_S_, TY_SCHAR_   : tk = "byte"     : ct = "signed char"
-    case TY_CHAR_U_, TY_UCHAR_   : tk = "ubyte"    : ct = "unsigned char"
-    case TY_SHORT_               : tk = "short"    : ct = "short"
-    case TY_USHORT_, TY_CHAR16_  : tk = "ushort"   : ct = "unsigned short"
-    case TY_INT_                 : tk = "long"     : ct = "int"
-    case TY_UINT_, TY_CHAR32_    : tk = "ulong"    : ct = "unsigned int"
-    case TY_LONG_                : tk = iif( sz = 8, "longint", "long" )   : ct = "long"
-    case TY_ULONG_               : tk = iif( sz = 8, "ulongint", "ulong" ) : ct = "unsigned long"
-    case TY_LONGLONG_            : tk = "longint"  : ct = "long long"
-    case TY_ULONGLONG_           : tk = "ulongint" : ct = "unsigned long long"
-    case TY_FLOAT_               : tk = "single"   : ct = "float"
-    case TY_DOUBLE_              : tk = "double"   : ct = "double"
-    case else                    : return false
-    end select
-    return true
-end function
-
-'' The mirror's C++ type for a tiko fundamental: the one tiko's mangler spells the same way
-'' (C1's type map: integer/uinteger are ptrdiff_t/size_t of the mangling triple).
-private function MirFund_( byref tk as string ) as string
-    select case tk
-    case "boolean"  : return "bool"
-    case "byte"     : return "signed char"
-    case "ubyte"    : return "unsigned char"
-    case "short"    : return "short"
-    case "ushort"   : return "unsigned short"
-    case "long"     : return "int"
-    case "ulong"    : return "unsigned int"
-    case "longint"  : return "long long"
-    case "ulongint" : return "unsigned long long"
-    case "single"   : return "float"
-    case "double"   : return "double"
-    case "integer"  : return "__PTRDIFF_TYPE__"
-    case "uinteger" : return "__SIZE_TYPE__"
-    end select
-    return "void"
-end function
-
-'' std::string and std::string_view, by their canonical spelling: libstdc++'s
-'' 'std::__cxx11::basic_string<char>', libc++'s 'std::basic_string<char>' and the MSVC STL's
-'' 'std::basic_string<char, std::char_traits<char>, std::allocator<char>>' all contain it.
-private function StrKind_( byref x as CppImp_, byval t as CXType ) as int32
-    dim as string s = BareSpell_( Spell_( x, Canon_( x, t ) ) )
-    if instr( s, "basic_string_view<char" ) > 0 then return 2
-    if instr( s, "basic_string<char" ) > 0 then return 1
-    return 0
-end function
-
-private function EnumOf_( byref x as CppImp_, byval t as CXType, byref tq as string, _
-                          byref cq as string, byref mq as string ) as boolean
-    dim as CXCursor d = x.api->getTypeDeclaration( Canon_( x, t ) )
-    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
-    for i as int32 = 0 to x.enumUsr.Count - 1
-        if x.enumUsr[i] = usr then
-            tq = x.enumTiko[i] : cq = x.enumCpp[i] : mq = x.enumMir[i]
-            return true
-        end if
-    next
-    return false
-end function
-
-'' A class the binding has a handle type for, or -1 with the reason.
-private function ClassOf_( byref x as CppImp_, byval t as CXType, byref why as string ) as int32
-    dim as CXCursor d = x.api->getTypeDeclaration( Canon_( x, t ) )
-    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
-    for i as int32 = 0 to x.clsUsr.Count - 1
-        if x.clsUsr[i] = usr then return i
-    next
-    why = "class not in this header: " & Spell_( x, t )
-    return -1
-end function
-
-private function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as TMap_
-    dim as TMap_ m
-    m.ok = true
-    dim as string tk, ct, tq, cq, mq, cwhy
-    dim as CXType c = Canon_( x, t )
-    select case c.kind
-    case TY_POINTER_
-        dim as CXType pe = x.api->getPointeeType( t )
-        if pe.kind = 0 then pe = x.api->getPointeeType( c )     '' a typedef ('const_iterator')
-        dim as CXType pc = Canon_( x, pe )
-        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
-        dim as string kw = iif( kq, "const ", "" )
-        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
-            m.tiko = "byval " & nm & " as " & kw & "zstring ptr" : m.ctype = kw & "char* " & nm : m.arg = nm
-            m.mir = kw & "char*"
-        elseif pc.kind = TY_VOID_ then
-            m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm : m.arg = nm
-            m.mir = kw & "void*"
-        elseif (pc.kind = TY_POINTER_) andalso (kq = false) andalso _
-               ((Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_S_) orelse _
-                (Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_U_)) then
-            '' 'const char** out': a string the C++ hands back, through a zstring ptr variable.
-            dim as boolean kq2 = (x.api->isConstQualifiedType( Canon_( x, x.api->getPointeeType( pc ) ) ) <> 0)
-            dim as string kw2 = iif( kq2, "const ", "" )
-            m.tiko = "byref " & nm & " as " & kw2 & "zstring ptr" : m.ctype = kw2 & "char** " & nm : m.arg = nm
-            m.mir = kw2 & "char*&"
-        elseif Fund_( x, pe, tk, ct ) then
-            m.tiko = "byval " & nm & " as " & kw & tk & " ptr" : m.ctype = kw & ct & "* " & nm
-            m.arg = "reinterpret_cast<" & Spell_( x, c ) & ">(" & nm & ")"
-            m.mir = kw & MirFund_( tk ) & "*"
-        elseif pc.kind = TY_RECORD_ then
-            '' A POINTER TO A CLASS is the handle, by reference: never null from tiko. A pointer
-            '' to a record the binding has no handle for (FILE, an incomplete internal struct) is
-            '' opaque: 'any ptr'.
-            dim as int32 ci = ClassOf_( x, pe, cwhy )
-            if ci < 0 then
-                if StrKind_( x, pe ) > 0 then m.ok = false : m.why = cwhy : return m
-                m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm
-                m.arg = "static_cast<" & Spell_( x, c ) & ">(" & nm & ")" : m.mir = kw & "void*"
-                return m
-            end if
-            m.tiko = "byref " & nm & " as " & kw & x.clsTikoQ[ci] : m.ctype = kw & "tko_cpp_h* " & nm
-            m.arg = "static_cast<" & kw & x.clsCpp[ci] & "*>(" & nm & "->impl)"
-            m.mir = kw & x.clsMir[ci] & "&"
-        else
-            m.ok = false : m.why = "pointer to " & Spell_( x, pe )
-        end if
-    case TY_LREF_
-        dim as CXType pe = x.api->getNonReferenceType( t )
-        dim as CXType pc = Canon_( x, pe )
-        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
-        dim as string kw = iif( kq, "const ", "" )
-        if (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) > 0) andalso kq then
-            m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
-            m.arg = "tko_cpp_to_std(" & nm & ")" : m.mir = "const FBUSTRING&"
-        elseif Fund_( x, pe, tk, ct ) then
-            m.tiko = "byref " & nm & " as " & kw & tk
-            m.ctype = kw & ct & "* " & nm
-            m.arg = "*reinterpret_cast<" & Spell_( x, pc ) & "*>(" & nm & ")"
-            m.mir = kw & MirFund_( tk ) & "&"
-        elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 0) then
-            dim as int32 ci = ClassOf_( x, pe, cwhy )
-            if ci < 0 then m.ok = false : m.why = cwhy : return m
-            m.tiko = "byref " & nm & " as " & kw & x.clsTikoQ[ci] : m.ctype = kw & "tko_cpp_h* " & nm
-            m.arg = "*static_cast<" & kw & x.clsCpp[ci] & "*>(" & nm & "->impl)"
-            m.mir = kw & x.clsMir[ci] & "&"
-        else
-            m.ok = false : m.why = "reference to " & Spell_( x, pe )
-        end if
-    case TY_RREF_
-        m.ok = false : m.why = "rvalue reference"
-    case TY_RECORD_
-        if StrKind_( x, t ) > 0 then
-            m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
-            m.arg = "tko_cpp_to_std(" & nm & ")" : m.mir = "const FBUSTRING&"
-        else
-            '' A CLASS BY VALUE is passed as the handle, 'byref ... const': C++ makes its own copy
-            '' when it calls, so tiko need not make one first.
-            dim as int32 ci = ClassOf_( x, t, cwhy )
-            if ci < 0 then m.ok = false : m.why = cwhy : return m
-            m.tiko = "byref " & nm & " as const " & x.clsTikoQ[ci] : m.ctype = "const tko_cpp_h* " & nm
-            m.arg = "*static_cast<const " & x.clsCpp[ci] & "*>(" & nm & "->impl)"
-            m.mir = "const " & x.clsMir[ci] & "&"
-        end if
-    case TY_ENUM_
-        if EnumOf_( x, t, tq, cq, mq ) then
-            m.tiko = "byval " & nm & " as " & tq : m.ctype = "long long " & nm
-            m.arg = "static_cast<" & cq & ">(" & nm & ")" : m.mir = mq
-        else
-            m.ok = false : m.why = "enum not in this header: " & Spell_( x, t )
-        end if
-    case else
-        if Fund_( x, t, tk, ct ) then
-            m.tiko = "byval " & nm & " as " & tk : m.ctype = ct & " " & nm : m.arg = nm
-            m.mir = MirFund_( tk )
-        else
-            m.ok = false : m.why = "type " & Spell_( x, t )
-        end if
-    end select
-    return m
-end function
-
-private function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
-    dim as TMap_ m
-    m.ok = true
-    dim as string tk, ct, tq, cq, mq, cwhy
-    dim as CXType c = Canon_( x, t )
-    select case c.kind
-    case TY_VOID_
-        m.tiko = ""
-    case TY_POINTER_
-        dim as CXType pe = x.api->getPointeeType( t )
-        if pe.kind = 0 then pe = x.api->getPointeeType( c )     '' a typedef ('const_iterator')
-        dim as CXType pc = Canon_( x, pe )
-        dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
-        dim as string kw = iif( kq, "const ", "" )
-        m.fallback = "nullptr"
-        if (pc.kind = TY_CHAR_S_) orelse (pc.kind = TY_CHAR_U_) then
-            m.tiko = kw & "zstring ptr" : m.ctype = kw & "char*"
-        elseif pc.kind = TY_VOID_ then
-            m.tiko = kw & "any ptr" : m.ctype = kw & "void*"
-        elseif Fund_( x, pe, tk, ct ) then
-            m.tiko = kw & tk & " ptr" : m.ctype = kw & ct & "*"
-            m.wrap0 = "reinterpret_cast<" & m.ctype & ">(" : m.wrap1 = ")"
-        elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 0) then
-            dim as int32 ci = ClassOf_( x, pe, cwhy )
-            if ci < 0 then
-                m.tiko = kw & "any ptr" : m.ctype = kw & "void*"      '' opaque, as a parameter
-                return m
-            end if
-            m.tiko = x.clsTikoQ[ci] : m.ctype = "tko_cpp_h*" : m.sret = SR_PTR_
-        else
-            m.ok = false : m.why = "returns a pointer to " & Spell_( x, pe )
-        end if
-    case TY_LREF_, TY_RECORD_
-        dim as CXType pe = t
-        if c.kind = TY_LREF_ then pe = x.api->getNonReferenceType( t )
-        if StrKind_( x, pe ) > 0 then
-            m.tiko = "ustring" : m.ctype = "tko_cpp_ustr*"
-            m.wrap0 = "tko_cpp_from(" : m.wrap1 = ")" : m.fallback = "tko_cpp_from_utf8(nullptr, 0)"
-        elseif Canon_( x, pe ).kind = TY_RECORD_ then
-            '' A CLASS RESULT is a handle the caller passes in first: an owned copy of a value,
-            '' or the C++ object a reference names, borrowed (measured ABI, C3.md).
-            dim as int32 ci = ClassOf_( x, pe, cwhy )
-            if ci < 0 then m.ok = false : m.why = cwhy : return m
-            m.tiko = x.clsTikoQ[ci] : m.ctype = "tko_cpp_h*"
-            m.sret = iif( c.kind = TY_LREF_, SR_REF_, SR_OWNED_ )
-            m.rcpp = x.clsCpp[ci]
-        else
-            m.ok = false : m.why = "returns " & Spell_( x, t )
-        end if
-    case TY_ENUM_
-        if EnumOf_( x, t, tq, cq, mq ) then
-            m.tiko = tq : m.ctype = "long long"
-            m.wrap0 = "static_cast<long long>(" : m.wrap1 = ")" : m.fallback = "0"
-        else
-            m.ok = false : m.why = "returns an enum not in this header: " & Spell_( x, t )
-        end if
-    case else
-        if Fund_( x, t, tk, ct ) then
-            m.tiko = tk : m.ctype = ct : m.fallback = "0"
-        else
-            m.ok = false : m.why = "returns " & Spell_( x, t )
-        end if
-    end select
-    return m
-end function
 
 '' ---------------------------------------------------------------- names
 
 '' A C++ name as a tiko name: a keyword or a name the runtime holds takes a trailing '_'
 '' (EXAMPLES.md: 'swap' is 'swap_'); the shim's alias keeps the real one where it matters.
-private function ValueName_( byref nm as string ) as string
+function ValueName_( byref nm as string ) as string
     if NameReservedValue( nm ) then return nm & "_"
     return nm
 end function
 
-private function TypeName_( byref nm as string ) as string
+function TypeName_( byref nm as string ) as string
     if NameReservedType( nm ) then return nm & "_"
     return nm
 end function
 
 '' A TYPE NAMED LIKE A tiko KEYWORD ('Point': POINT) is a keyword token, which keeps no written
 '' spelling, so tiko mangles it upper-cased (measured: GEO::POINT::...) -- and the mirror must too.
-private function MirName_( byref tn as string ) as string
+function MirName_( byref tn as string ) as string
     select case ucase( tn )
     #define KW( k_name, k_spell, k_class ) case k_spell : return ucase( tn )
     TKO_KEYWORD_LIST( KW )
@@ -452,7 +107,7 @@ private function MirName_( byref tn as string ) as string
 end function
 
 '' A parameter's name, clear of the shim's own (self_, ret_, o_).
-private function ParamName_( byref x as CppImp_, byval a as CXCursor, byval i as int32 ) as string
+function ParamName_( byref x as CppImp_, byval a as CXCursor, byval i as int32 ) as string
     dim as string pn = NameParam( Text_( x, x.api->getCursorSpelling( a ) ) )
     if len( pn ) = 0 then pn = "p" & i
     if (pn = "self_") orelse (pn = "ret_") orelse (pn = "o_") then pn &= "p"
@@ -485,7 +140,7 @@ end function
 
 '' An ENUM is a tiko enum of the same name -- 'explicit' (members qualified) when the C++ one
 '' is scoped. It crosses the shim as a 'long long', since a tiko enum is eight bytes.
-private sub Enum_( byref x as CppImp_, byval c as CXCursor )
+sub Enum_( byref x as CppImp_, byval c as CXCursor )
     if x.api->isCursorDefinition( c ) = 0 then return
     dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
     if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return     '' anonymous
@@ -514,525 +169,6 @@ private sub Enum_( byref x as CppImp_, byval c as CXCursor )
         ns &= ucase( x.tikoNs[i] )
     next
     x.mirFwd.Push( MirWrap_( ns, "enum " & ucase( tn ) & " : long long {};" ) )
-end sub
-
-'' ---------------------------------------------------------------- entries
-
-'' ONE ENTRY POINT: its binding declaration, its shim function and -- for a member, whose symbol
-'' tiko mangles -- its mirror declaration. False with 'why' when it cannot be expressed.
-private function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
-                         byval ci as int32, byref decl as string, byref why as string, _
-                         byval upto as int32 = -1 ) as boolean
-    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
-    dim as boolean member = (kind <> K_FREE_)
-    if (kind <> K_CTOR_) andalso (left( nm, 8 ) = "operator") then why = "operator" : return false
-    if x.api->Cursor_isVariadic( c ) <> 0 then why = "variadic" : return false
-    dim as int32 na = x.api->Cursor_getNumArguments( c )
-    if na < 0 then why = "no prototype" : return false
-    if (upto >= 0) andalso (upto < na) then na = upto
-    dim as boolean isConst = (kind = K_METHOD_) andalso (x.api->CXXMethod_isConst( c ) <> 0)
-
-    dim as string tparams = "", cparams = "", args = "", tsig = "", mparams = ""
-    for i as int32 = 0 to na - 1
-        dim as CXCursor a = x.api->Cursor_getArgument( c, i )
-        dim as string pn = ParamName_( x, a, i )
-        dim as TMap_ m = Param_( x, x.api->getCursorType( a ), pn )
-        if m.ok = false then why = m.why : return false
-        if i > 0 then tparams &= ", " : cparams &= ", " : args &= ", " : tsig &= "," : mparams &= ", "
-        tparams &= m.tiko : cparams &= m.ctype : args &= m.arg : mparams &= m.mir
-        tsig &= mid( m.tiko, instr( m.tiko, " as " ) + 4 )
-    next
-    dim as TMap_ r
-    if kind <> K_CTOR_ then
-        r = Result_( x, x.api->getCursorResultType( c ) )
-        if r.ok = false then why = r.why : return false
-    end if
-
-    dim as string tn = iif( kind = K_CTOR_, "constructor", ValueName_( nm ) )
-    dim as string owner = iif( member, x.clsTikoQ[ci], QualTiko_( x, "" ) )
-    dim as string sig = lcase( owner & "." & tn & iif( kind = K_STATIC_, "!", "" ) & "(" & tsig & ")" )
-    for i as int32 = 0 to x.sigs.Count - 1
-        if x.sigs[i] = sig then
-            x.twinOfConst = (x.sigConst[i] = "c")
-            why = SAME_SIG_
-            return false
-        end if
-    next
-    x.sigs.Push( sig )
-    x.sigConst.Push( iif( isConst, "c", "" ) )
-
-    dim as string sym = "tko_cpp_" & x.id & "_" & x.n
-    x.n += 1
-    dim as boolean isSub = (len( r.tiko ) = 0)
-    tparams = iif( len( tparams ), "( " & tparams & " )", "( )" )
-    select case kind
-    case K_FREE_
-        '' ONE 'extern "C"' PER DECLARATION, INSIDE ITS NAMESPACE: a procedure in a namespace
-        '' inside an 'extern "C"' block is still C++-mangled around its alias (measured).
-        decl = "extern ""C"" : declare " & iif( isSub, "sub ", "function " ) & tn & " overload alias """ & _
-               sym & """ " & tparams & iif( isSub, "", " as " & r.tiko ) & " : end extern"
-    case K_CTOR_
-        decl = "declare constructor alias """ & sym & """ " & tparams
-    case else
-        decl = "declare " & iif( kind = K_STATIC_, "static ", "" ) & iif( isConst, "const ", "" ) & _
-               iif( isSub, "sub ", "function " ) & tn & " alias """ & sym & """ " & tparams & _
-               iif( isSub, "", " as " & r.tiko )
-    end select
-
-    '' THE SHIM FUNCTION. Its parameters are tiko's: the result slot first, then 'this', then
-    '' the arguments (measured, C3.md).
-    dim as string pl = ""
-    if r.sret <> SR_NONE_ then pl = "tko_cpp_h* ret_"
-    if (kind = K_METHOD_) orelse (kind = K_CTOR_) then pl &= iif( len( pl ), ", ", "" ) & "tko_cpp_h* self_"
-    if len( cparams ) then pl &= iif( len( pl ), ", ", "" ) & cparams
-    dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", iif( isSub orelse (kind = K_CTOR_), "void", r.ctype ) )
-    dim as string callx
-    select case kind
-    case K_FREE_   : callx = QualCpp_( x, nm ) & "(" & args & ")"
-    case K_STATIC_ : callx = x.clsCpp[ci] & "::" & nm & "(" & args & ")"
-    case K_METHOD_ : callx = "static_cast<" & iif( isConst, "const ", "" ) & x.clsCpp[ci] & "*>(self_->impl)->" & nm & "(" & args & ")"
-    end select
-    dim as string L = chr( 10 )
-    dim as string f = ""
-    if member then f = "extern ""C"" " & rt & " " & sym & "(" & pl & ") __asm__(""@@M:" & sym & "@@"");" & L
-    f &= "extern ""C"" " & rt & " " & sym & "(" & pl & ") {" & L
-    if r.sret <> SR_NONE_ then f &= "    ret_->impl = nullptr; ret_->owned = 0;" & L
-    if kind = K_CTOR_ then f &= "    self_->impl = nullptr; self_->owned = 0;" & L
-    f &= "    try { "
-    if kind = K_CTOR_ then
-        f &= "self_->impl = new " & x.clsCpp[ci] & "(" & args & "); self_->owned = 1; return;"
-    elseif r.sret = SR_OWNED_ then
-        f &= "ret_->impl = new " & r.rcpp & "(" & callx & "); ret_->owned = 1; return ret_;"
-    elseif r.sret = SR_REF_ then
-        f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(&(" & callx & "))); return ret_;"
-    elseif r.sret = SR_PTR_ then
-        f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(" & callx & ")); return ret_;"
-    elseif isSub then
-        f &= callx & "; return;"
-    else
-        f &= "return " & r.wrap0 & callx & r.wrap1 & ";"
-    end if
-    f &= " } TKO_CPP_CATCH" & L & "    tko_cpp_raise();" & L
-    if r.sret <> SR_NONE_ then
-        f &= "    return ret_;" & L
-    elseif (isSub = false) andalso (kind <> K_CTOR_) then
-        f &= "    return " & r.fallback & ";" & L
-    end if
-    x.shim.Push( f & "}" & L )
-    if member then
-        x.mirBody.Push( "    " & iif( kind = K_STATIC_, "static ", "" ) & "void " & sym & "(" & mparams & ")" & _
-                        iif( isConst, " const", "" ) & ";" )
-    end if
-    x.bound += 1
-    return true
-end function
-
-private function HasDefault_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
-    dim as CppImp_ ptr xp = client
-    dim as int32 k = xp->api->getCursorKind( c )
-    if (k >= 100) andalso (k < 200) then        '' CXCursor_FirstExpr .. LastExpr: '= value'
-        xp->hasDefault = true
-        return CXChildVisit_Break
-    end if
-    return CXChildVisit_Continue
-end function
-
-'' DEFAULT ARGUMENTS: how many trailing parameters have one. Each is an entry point of its own
-'' with that many arguments fewer, and C++ supplies the rest -- so the default is C++'s, exactly,
-'' and never an expression translated into tiko.
-private function Defaults_( byref x as CppImp_, byval c as CXCursor ) as int32
-    dim as int32 na = x.api->Cursor_getNumArguments( c )
-    dim as int32 nd = 0
-    for i as int32 = na - 1 to 0 step -1
-        x.hasDefault = false
-        x.api->visitChildren( x.api->Cursor_getArgument( c, i ), @HasDefault_, @x )
-        if x.hasDefault = false then exit for
-        nd += 1
-    next
-    return nd
-end function
-
-private function ArityNote_( byval k as int32, byval na as int32 ) as string
-    if k = 0 then return ""
-    return " -- first " & (na - k) & " of " & na & " arguments"
-end function
-
-'' A FREE FUNCTION, in the namespace being walked.
-private sub Function_( byref x as CppImp_, byval c as CXCursor )
-    dim as string decl, why, lastWhy
-    dim as string disp = QualCpp_( x, Text_( x, x.api->getCursorDisplayName( c ) ) )
-    dim as int32 na = x.api->Cursor_getNumArguments( c )
-    for k as int32 = 0 to Defaults_( x, c )
-        if Entry_( x, c, K_FREE_, -1, decl, why, na - k ) then
-            x.bind.Push( Indent_( x ) & decl & "    '' " & disp & ArityNote_( k, na ) )
-        elseif why <> lastWhy then
-            Todo_( x, disp & ArityNote_( k, na ), why )     '' an arity failing for the same reason: once
-            lastWhy = why
-        end if
-    next
-end sub
-
-'' ---------------------------------------------------------------- classes
-
-'' 'GEO::Counter' from a cursor's semantic parents: the mirror's names, and a member's owner.
-private function MirQual_( byval api as ClangApi ptr, byval c as CXCursor ) as string
-    dim as string r = ""
-    dim as int32 guard = 0
-    while (api->getCursorKind( c ) <> CXCursor_TranslationUnit) andalso (guard < 32)
-        dim as string s = ClangText( *api, api->getCursorSpelling( c ) )
-        r = iif( len( r ), s & "::" & r, s )
-        c = api->getCursorSemanticParent( c )
-        guard += 1
-    wend
-    return r
-end function
-
-'' A CLASS'S MEMBERS, its bases' included: a C++ class has its public bases' public members, so
-'' the handle has them too, called through the derived class (C++ adjusts 'this'). A name the
-'' derived class declares hides every base member of that name, as in C++.
-type Members_
-    as CppImp_ ptr x
-    as containers.Array( of CXCursor ) cur
-    as containers.Array( of int32 ) kind
-    as boolean userCtor
-    as int32 depth              '' 0: the class; 1..: a base
-    as Tko.StrVec hidden        '' names declared at a shallower level
-    as Tko.StrVec here          '' names this level declares
-    as Tko.StrVec seen          '' the bases' USRs, each walked once
-    as containers.Array( of CXCursor ) bases
-    as Tko.StrVec skipped       '' members left out, as 'display: why'
-end type
-
-private sub Take_( byref mb as Members_, byval c as CXCursor, byval kind as int32, byref nm as string )
-    mb.here.Push( nm )
-    for i as int32 = 0 to mb.hidden.Count - 1
-        if mb.hidden[i] = nm then return
-    next
-    mb.cur.Push( c ) : mb.kind.Push( kind )
-end sub
-
-private function MemberVisit_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
-    dim as Members_ ptr mb = client
-    dim as CppImp_ ptr xp = mb->x
-    dim as int32 k = xp->api->getCursorKind( c )
-    dim as boolean pub = (xp->api->getCXXAccessSpecifier( c ) = CX_CXXPublic)
-    dim as boolean top = (mb->depth = 0)
-    dim as string nm = Text_( *xp, xp->api->getCursorSpelling( c ) )
-    select case k
-    case CXCursor_Constructor
-        if top then
-            mb->userCtor = true
-            if pub andalso (xp->api->CXXMethod_isDeleted( c ) = 0) andalso _
-               (xp->api->CXXConstructor_isCopyConstructor( c ) = 0) andalso _
-               (xp->api->CXXConstructor_isMoveConstructor( c ) = 0) then
-                mb->cur.Push( c ) : mb->kind.Push( K_CTOR_ )
-            end if
-        end if
-    case CXCursor_CXXMethod
-        if pub andalso (xp->api->CXXMethod_isDeleted( c ) = 0) then
-            if left( nm, 8 ) = "operator" then
-                if top andalso (nm <> "operator=") then mb->skipped.Push( Text_( *xp, xp->api->getCursorDisplayName( c ) ) & ": operator" )
-            else
-                Take_( *mb, c, iif( xp->api->CXXMethod_isStatic( c ) <> 0, K_STATIC_, K_METHOD_ ), nm )
-            end if
-        end if
-    case CXCursor_FieldDecl
-        if pub then Take_( *mb, c, K_FIELD_, nm )
-    case CXCursor_VarDecl
-        if pub andalso top then mb->skipped.Push( nm & ": static field" )
-    case CXCursor_ConversionFunction
-        if pub andalso top then mb->skipped.Push( Text_( *xp, xp->api->getCursorDisplayName( c ) ) & ": operator" )
-    case CXCursor_CXXBaseSpecifier
-        if pub then mb->bases.Push( c )
-    case CXCursor_FunctionTemplate
-        if pub andalso top then mb->skipped.Push( Text_( *xp, xp->api->getCursorDisplayName( c ) ) & ": template (C3b)" )
-    case CXCursor_ClassDecl, CXCursor_StructDecl
-        if pub andalso top andalso (xp->api->isCursorDefinition( c ) <> 0) then mb->skipped.Push( nm & ": nested class" )
-    end select
-    return CXChildVisit_Continue
-end function
-
-private sub Gather_( byref x as CppImp_, byref mb as Members_, byval c as CXCursor )
-    dim as int32 b0 = mb.bases.Count, h0 = mb.hidden.Count
-    mb.here.Clear( )
-    x.api->visitChildren( c, @MemberVisit_, @mb )
-    for i as int32 = 0 to mb.here.Count - 1
-        mb.hidden.Push( mb.here[i] )
-    next
-    dim as containers.Array( of CXCursor ) lvl
-    for i as int32 = b0 to mb.bases.Count - 1
-        lvl.Push( mb.bases[i] )
-    next
-    for i as int32 = 0 to lvl.Count - 1
-        dim as CXType bt = Canon_( x, x.api->getCursorType( lvl[i] ) )
-        dim as CXCursor bd = x.api->getTypeDeclaration( bt )
-        if x.api->isCursorDefinition( bd ) = 0 then bd = x.api->getCursorDefinition( bd )   '' past 'class xml_node;'
-        dim as string usr = Text_( x, x.api->getCursorUSR( bd ) )
-        dim as boolean dup = false
-        for j as int32 = 0 to mb.seen.Count - 1
-            if mb.seen[j] = usr then dup = true
-        next
-        if dup then continue for
-        mb.seen.Push( usr )
-        if (x.api->isCursorDefinition( bd ) = 0) orelse (InScope_( x, bd ) = false) then
-            if mb.depth = 0 then mb.skipped.Push( Spell_( x, bt ) & ": base class not in this header" )
-            continue for
-        end if
-        mb.depth += 1
-        Gather_( x, mb, bd )
-        mb.depth -= 1
-    next
-    while mb.hidden.Count > h0
-        mb.hidden.Pop( )
-    wend
-end sub
-
-'' 'namespace a' ... 'namespace b', where class ci is; the indent to write at, and the closers.
-private function NsOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
-    dim as string tns = x.clsNsTiko[ci], ind = ""
-    dim as int32 a = 1
-    while a <= len( tns )
-        dim as int32 b = instr( a, tns, chr( 1 ) )
-        if b = 0 then b = len( tns ) + 1
-        x.bind.Push( ind & "namespace " & mid( tns, a, b - a ) )
-        opened.Push( ind )
-        ind &= "    "
-        a = b + 1
-    wend
-    return ind
-end function
-
-private sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
-    for i as int32 = opened.Count - 1 to 0 step -1
-        x.bind.Push( opened[i] & "end namespace" )
-    next
-end sub
-
-private function Sym_( byref x as CppImp_ ) as string
-    dim as string s = "tko_cpp_" & x.id & "_" & x.n
-    x.n += 1
-    return s
-end function
-
-'' A PUBLIC FIELD is a property: a getter, and a setter unless the field is const. A class-typed
-'' field's getter is a borrowed handle of the field itself, so 'p.pos.move( 1, 0 )' moves it.
-private sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref lines as Tko.StrVec )
-    dim as string L = chr( 10 ), why
-    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
-    dim as string disp = "::" & MirQual_( x.api, x.api->getCursorSemanticParent( c ) ) & "::" & nm
-    dim as string tn = ValueName_( nm )
-    dim as CXType t = x.api->getCursorType( c )
-    dim as CXType ct = Canon_( x, t )
-    dim as string cpp = x.clsCpp[ci], owner = lcase( x.clsTikoQ[ci] & "." & tn )
-    for i as int32 = 0 to x.sigs.Count - 1
-        if (left( x.sigs[i], len( owner ) + 1 ) = owner & "(") orelse (left( x.sigs[i], len( owner ) + 2 ) = owner & "!(") then
-            lines.Push( "'' CPP-TODO(a method has this name): " & disp ) : x.todos += 1
-            return
-        end if
-    next
-    dim as TMap_ r
-    if (ct.kind = TY_RECORD_) andalso (StrKind_( x, t ) = 0) then
-        dim as int32 ri = ClassOf_( x, t, why )
-        if ri < 0 then lines.Push( "'' CPP-TODO(" & why & "): " & disp ) : x.todos += 1 : return
-        r.ok = true : r.tiko = x.clsTikoQ[ri] : r.ctype = "tko_cpp_h*" : r.sret = SR_REF_
-    else
-        r = Result_( x, t )
-        if r.ok = false then lines.Push( "'' CPP-TODO(field: " & r.why & "): " & disp ) : x.todos += 1 : return
-    end if
-    dim as string obj = "static_cast<" & cpp & "*>(self_->impl)->" & nm
-    dim as string sg = Sym_( x )
-    lines.Push( "declare property " & tn & " alias """ & sg & """ ( ) as " & r.tiko & "    '' " & disp )
-    dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", r.ctype )
-    dim as string pl = iif( r.sret <> SR_NONE_, "tko_cpp_h* ret_, tko_cpp_h* self_", "tko_cpp_h* self_" )
-    dim as string f = "extern ""C"" " & rt & " " & sg & "(" & pl & ") __asm__(""@@M:" & sg & "@@"");" & L & _
-                      "extern ""C"" " & rt & " " & sg & "(" & pl & ") {" & L
-    if r.sret <> SR_NONE_ then f &= "    ret_->impl = nullptr; ret_->owned = 0;" & L
-    f &= "    try { "
-    select case r.sret
-    case SR_REF_ : f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(&(" & obj & "))); return ret_;"
-    case SR_PTR_ : f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(" & obj & ")); return ret_;"
-    case else    : f &= "return " & r.wrap0 & obj & r.wrap1 & ";"
-    end select
-    f &= " } TKO_CPP_CATCH" & L & "    tko_cpp_raise();" & L & "    return " & iif( r.sret <> SR_NONE_, "ret_", r.fallback ) & ";" & L & "}" & L
-    x.shim.Push( f )
-    x.mirBody.Push( "    void " & sg & "();" )
-    x.bound += 1
-    if x.api->isConstQualifiedType( t ) <> 0 then return
-    dim as TMap_ m = Param_( x, t, "v_" )
-    if m.ok = false then return
-    dim as string ss = Sym_( x )
-    lines.Push( "declare property " & tn & " alias """ & ss & """ ( " & m.tiko & " )" )
-    x.shim.Push( "extern ""C"" void " & ss & "(tko_cpp_h* self_, " & m.ctype & ") __asm__(""@@M:" & ss & "@@"");" & L & _
-                 "extern ""C"" void " & ss & "(tko_cpp_h* self_, " & m.ctype & ") {" & L & _
-                 "    try { if (tko_cpp_set(" & obj & ", " & m.arg & ")) return; tko_cpp_last() = ""this field cannot be assigned""; } TKO_CPP_CATCH" & L & _
-                 "    tko_cpp_raise();" & L & "}" & L )
-    x.mirBody.Push( "    void " & ss & "(" & m.mir & ");" )
-end sub
-
-'' A BASE CLASS the binding has a handle for: 'operator cast' to it, a borrowed handle of the
-'' base subobject (C++'s own conversion, so any layout), which tiko applies where a base is
-'' wanted 'byref ... const'. 'operator cast' ignores its alias: tiko names it 'operator B()'.
-private sub Cast_( byref x as CppImp_, byval ci as int32, byval ai as int32, byref lines as Tko.StrVec )
-    dim as string L = chr( 10 )
-    dim as string sx = Sym_( x )
-    lines.Push( "declare operator cast alias """ & sx & """ ( ) as " & x.clsTikoQ[ai] & "    '' as its base " & x.clsCpp[ai] )
-    '' BY VALUE, NOT THROUGH A RESULT POINTER: tiko gives 'operator cast' no hidden result pointer
-    '' whatever the type (fbc's convention, lowercallemit.tiko), so the handle comes back as a plain
-    '' 16-byte aggregate -- registers on SysV, a hidden pointer on Win64 -- which is exactly what
-    '' C makes of returning the trivial tko_cpp_h.
-    dim as string h = "extern ""C"" tko_cpp_h " & sx & "(tko_cpp_h* self_)"
-    x.shim.Push( h & " __asm__(""@@M:cast:" & x.clsMir[ci] & ">" & x.clsMir[ai] & "@@"");" & L & h & " {" & L & _
-                 "    tko_cpp_h r = { self_->impl ? static_cast<void*>(static_cast<" & x.clsCpp[ai] & "*>(static_cast<" & _
-                 x.clsCpp[ci] & "*>(self_->impl))) : nullptr, 0 };" & L & "    return r;" & L & "}" & L )
-    x.mirBody.Push( "    operator ::" & x.clsMir[ai] & "();" )
-end sub
-
-private sub ClassLines_( byref x as CppImp_, byval ci as int32 )
-    dim as string L = chr( 10 )
-    dim as string cpp = x.clsCpp[ci], tn = x.clsTiko[ci], mq = x.clsMir[ci]
-    dim as Members_ mb
-    mb.x = @x
-    Gather_( x, mb, x.clsCur[ci] )
-    dim as boolean abstract_ = (x.api->CXXRecord_isAbstract( x.clsCur[ci] ) <> 0)
-    dim as Tko.StrVec lines
-    dim as int32 mark = x.mirBody.Count
-    x.mirBody.Push( "" )        '' the struct's opening line, written below
-
-    '' WHAT EVERY HANDLE HAS: the copy constructor, 'let', the destructor -- shim templates that
-    '' compile whatever the class allows (prelude) -- and a default constructor when C++ gives
-    '' one implicitly. 'let' ignores its alias: tiko names it operator= (measured, C3.md).
-    dim as string sc = Sym_( x ), sd = Sym_( x ), sl = Sym_( x )
-    lines.Push( "declare constructor alias """ & sc & """ ( byref o_ as const " & x.clsTikoQ[ci] & " )" )
-    lines.Push( "declare destructor alias """ & sd & """ ( )" )
-    lines.Push( "declare operator let alias """ & sl & """ ( byref o_ as const " & x.clsTikoQ[ci] & " )" )
-    x.mirBody.Push( "    void " & sc & "(const " & MirName_( tn ) & "&);" )
-    x.mirBody.Push( "    void " & sd & "();" )
-    x.mirBody.Push( "    void operator=(const " & MirName_( tn ) & "&);" )
-    x.shim.Push( "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:" & sc & "@@"");" & L & _
-                 "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) { tko_cpp_copy<" & cpp & ">(self_, o_); }" & L )
-    x.shim.Push( "extern ""C"" void " & sd & "(tko_cpp_h* self_) __asm__(""@@M:" & sd & "@@"");" & L & _
-                 "extern ""C"" void " & sd & "(tko_cpp_h* self_) { tko_cpp_free<" & cpp & ">(self_); }" & L )
-    x.shim.Push( "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:let:" & mq & "@@"");" & L & _
-                 "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) { tko_cpp_assign<" & cpp & ">(self_, o_); }" & L )
-    if (mb.userCtor = false) andalso (abstract_ = false) then
-        dim as string s0 = Sym_( x )
-        lines.Push( "declare constructor alias """ & s0 & """ ( )" )
-        x.mirBody.Push( "    void " & s0 & "();" )
-        x.shim.Push( "extern ""C"" void " & s0 & "(tko_cpp_h* self_) __asm__(""@@M:" & s0 & "@@"");" & L & _
-                     "extern ""C"" void " & s0 & "(tko_cpp_h* self_) { tko_cpp_default<" & cpp & ">(self_); }" & L )
-        x.sigs.Push( lcase( x.clsTikoQ[ci] & ".constructor()" ) ) : x.sigConst.Push( "" )
-    end if
-
-    '' Methods: a const one before its non-const twin, which tiko cannot tell from it -- the
-    '' const one is the one a const handle can call too.
-    for pass_ as int32 = 0 to 1
-        for i as int32 = 0 to mb.cur.Count - 1
-            if mb.kind[i] = K_FIELD_ then continue for
-            dim as boolean isC = (mb.kind[i] = K_METHOD_) andalso (x.api->CXXMethod_isConst( mb.cur[i] ) <> 0)
-            if isC <> (pass_ = 0) then continue for
-            dim as string decl, why, lastWhy
-            dim as string disp = "::" & MirQual_( x.api, x.api->getCursorSemanticParent( mb.cur[i] ) ) & "::" & _
-                                 Text_( x, x.api->getCursorDisplayName( mb.cur[i] ) )
-            dim as int32 na = x.api->Cursor_getNumArguments( mb.cur[i] )
-            if (mb.kind[i] = K_CTOR_) andalso abstract_ then
-                lines.Push( "'' CPP-TODO(abstract class: no constructor): " & disp ) : x.todos += 1
-                continue for
-            end if
-            for k as int32 = 0 to Defaults_( x, mb.cur[i] )
-                if Entry_( x, mb.cur[i], mb.kind[i], ci, decl, why, na - k ) then
-                    lines.Push( decl & "    '' " & disp & ArityNote_( k, na ) )
-                elseif (pass_ = 1) andalso (why = SAME_SIG_) andalso x.twinOfConst then
-                    '' the non-const twin of a const method already bound: nothing lost
-                elseif why <> lastWhy then
-                    lines.Push( "'' CPP-TODO(" & why & "): " & disp & ArityNote_( k, na ) ) : x.todos += 1
-                    lastWhy = why
-                end if
-            next
-        next
-    next
-    for i as int32 = 0 to mb.cur.Count - 1
-        if mb.kind[i] = K_FIELD_ then Field_( x, ci, mb.cur[i], lines )
-    next
-    for i as int32 = 0 to mb.seen.Count - 1
-        for ai as int32 = 0 to x.clsUsr.Count - 1
-            if x.clsUsr[ai] = mb.seen[i] then Cast_( x, ci, ai, lines )
-        next
-    next
-    for i as int32 = 0 to mb.skipped.Count - 1
-        dim as string s = mb.skipped[i]
-        dim as int32 at = instrrev( s, ": " )
-        dim as string why = mid( s, at + 2 )
-        dim as string sep = iif( left( why, 10 ) = "base class", " : ", "::" )
-        lines.Push( "'' CPP-TODO(" & why & "): " & cpp & sep & left( s, at - 1 ) ) : x.todos += 1
-    next
-
-    '' The mirror's struct, where the class is: namespace by namespace.
-    dim as string body = "struct " & MirName_( tn ) & " {" & L
-    for i as int32 = mark + 1 to x.mirBody.Count - 1
-        body &= x.mirBody[i] & L
-    next
-    body &= "};"
-    while x.mirBody.Count > mark
-        x.mirBody.Pop( )
-    wend
-    x.mirBody.Push( MirWrap_( x.clsNsMir[ci], body ) )
-
-    '' The members, in the type's second part.
-    dim as Tko.StrVec opened
-    dim as string ind = NsOpen_( x, ci, opened )
-    x.bind.Push( ind & "extern ""C""" )
-    x.bind.Push( ind & "    partial type " & tn )
-    for i as int32 = 0 to lines.Count - 1
-        x.bind.Push( ind & "        " & lines[i] )
-    next
-    x.bind.Push( ind & "    end type" )
-    x.bind.Push( ind & "end extern" )
-    NsClose_( x, opened )
-end sub
-
-'' EVERY HANDLE TYPE, then every class's members: see CppImp_.
-private sub EmitClasses_( byref x as CppImp_ )
-    for ci as int32 = 0 to x.clsUsr.Count - 1
-        dim as Tko.StrVec opened
-        dim as string ind = NsOpen_( x, ci, opened )
-        x.bind.Push( ind & "extern ""C""" )
-        x.bind.Push( ind & "    partial type " & x.clsTiko[ci] & "    '' " & x.clsCpp[ci] )
-        x.bind.Push( ind & "        as any ptr impl_      '' the C++ object" )
-        x.bind.Push( ind & "        as longint owned_     '' 1: this handle deletes it" )
-        x.bind.Push( ind & "    end type" )
-        x.bind.Push( ind & "end extern" )
-        NsClose_( x, opened )
-    next
-    for ci as int32 = 0 to x.clsUsr.Count - 1
-        ClassLines_( x, ci )
-    next
-end sub
-
-private sub CollectClass_( byref x as CppImp_, byval c as CXCursor )
-    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
-    if x.api->isCursorDefinition( c ) = 0 then return
-    if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return
-    dim as string usr = Text_( x, x.api->getCursorUSR( c ) )
-    for i as int32 = 0 to x.clsUsr.Count - 1
-        if x.clsUsr[i] = usr then return
-    next
-    dim as string tn = TypeName_( nm )
-    x.clsUsr.Push( usr )
-    x.clsTiko.Push( tn )
-    x.clsTikoQ.Push( QualTiko_( x, tn ) )
-    x.clsCpp.Push( QualCpp_( x, nm ) )
-    x.clsMir.Push( QualMir_( x, MirName_( tn ) ) )
-    dim as string nt = "", nmr = ""
-    for i as int32 = 0 to x.tikoNs.Count - 1
-        if i > 0 then nt &= chr( 1 ) : nmr &= chr( 1 )
-        nt &= x.tikoNs[i] : nmr &= ucase( x.tikoNs[i] )
-    next
-    x.clsNsTiko.Push( nt )
-    x.clsNsMir.Push( nmr )
-    x.clsCur.Push( c )
-    x.mirFwd.Push( MirWrap_( nmr, "struct " & MirName_( tn ) & ";" ) )
 end sub
 
 '' ---------------------------------------------------------------- the walk
@@ -1091,6 +227,7 @@ end function
 
 type MirNames_
     as ClangApi ptr api
+    as int32 mop
     as Tko.StrVec keys
     as Tko.StrVec names
 end type
@@ -1101,10 +238,20 @@ private function MirVisit_ cdecl _
     dim as int32 k = mn->api->getCursorKind( c )
     if (k = CXCursor_CXXMethod) orelse (k = CXCursor_ConversionFunction) then
         dim as string s = ClangText( *mn->api, mn->api->getCursorSpelling( c ) )
-        if s = "operator=" then s = "let:" & MirQual_( mn->api, mn->api->getCursorSemanticParent( c ) )
-        if k = CXCursor_ConversionFunction then
-            dim as CXCursor td = mn->api->getTypeDeclaration( mn->api->getCanonicalType( mn->api->getCursorResultType( c ) ) )
-            s = "cast:" & MirQual_( mn->api, mn->api->getCursorSemanticParent( c ) ) & ">" & MirQual_( mn->api, td )
+        if s = "operator=" then
+            s = "let:" & MirQual_( mn->api, mn->api->getCursorSemanticParent( c ) )
+        elseif k = CXCursor_ConversionFunction then
+            dim as CXType crt = mn->api->getCanonicalType( mn->api->getCursorResultType( c ) )
+            if crt.kind = 105 then       '' a record: a cast to a base, named by both classes
+                dim as CXCursor td = mn->api->getTypeDeclaration( crt )
+                s = "cast:" & MirQual_( mn->api, mn->api->getCursorSemanticParent( c ) ) & ">" & MirQual_( mn->api, td )
+            else
+                s = "mop" & mn->mop : mn->mop += 1
+            end if
+        elseif left( s, 8 ) = "operator" then
+            '' A MEMBER OPERATOR, by its place: the mirror writes them in the order the shim
+            '' numbered them (Entry_), and clang visits them in that order.
+            s = "mop" & mn->mop : mn->mop += 1
         end if
         mn->keys.Push( s )
         mn->names.Push( ClangText( *mn->api, mn->api->Cursor_getMangling( c ) ) )
@@ -1116,7 +263,7 @@ end function
 '' 'extern "C++"' names tiko writes as x86_64-w64-windows-gnu's (C1) -- and every "@@M:key@@"
 '' in the shim replaced by the name clang gives that member. False when the mirror does not parse
 '' or names something it should not.
-private function ResolveMirror_( byref api as ClangApi, byref triple as string, byref mir as string, _
+function ResolveMirror_( byref api as ClangApi, byref triple as string, byref mir as string, _
                                  byref shim as string, byref res as CppImportResult ) as boolean
     dim as string mt = triple
     if instr( mt, "windows-msvc" ) > 0 then mt = "x86_64-w64-windows-gnu"
@@ -1175,7 +322,7 @@ end function
 
 '' FNV-1a over the header's spelling: the shim's names are 'tko_cpp_<this>_<n>', so two
 '' headers' shims linked into one program do not collide.
-private function Id_( byref s as string ) as string
+function Id_( byref s as string ) as string
     dim as uint32 h = 2166136261u
     for i as int32 = 0 to len( s ) - 1
         h = (h xor s[i]) * 16777619u
@@ -1187,7 +334,7 @@ end function
 '' tiko definitions (lib/rt/src/ustr, lib/rt/src/err/throw.tiko), and the helpers every entry
 '' uses. 'inline' (one copy per program) where state is shared: the last exception's text is
 '' one per thread whichever shim threw it, and cpp.What( ) reads it.
-private function Prelude_( ) as string
+function Prelude_( ) as string
     dim as string L = chr( 10 )
     return _
     "// ---- tiko C++ shim prelude (tiko -cppimport) ----" & L & _
@@ -1197,6 +344,9 @@ private function Prelude_( ) as string
     "#ifndef TKO_CPP_PRELUDE" & L & "#define TKO_CPP_PRELUDE" & L & _
     "// A binding binds the deprecated members too; calling them is not this shim's warning to give." & L & _
     "#pragma GCC diagnostic ignored ""-Wdeprecated-declarations""" & L & _
+    "// A POD returned from an 'extern ""C""' shim function is a C++ type there, and trivially copyable:" & L & _
+    "// its C layout and ABI are the C++ ones, which is what tiko calls it with." & L & _
+    "#ifdef __clang__" & L & "#pragma clang diagnostic ignored ""-Wreturn-type-c-linkage""" & L & "#endif" & L & _
     "extern ""C"" {" & L & _
     "struct tko_cpp_ustr { std::uint16_t* data; std::intptr_t len; std::intptr_t size; };" & L & _
     "// A handle: the binding's type with 'impl_ as any ptr' and 'owned_ as longint'." & L & _
@@ -1281,7 +431,7 @@ private function Prelude_( ) as string
     "#endif" & L & "// ---- end of prelude ----" & L
 end function
 
-private function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string ) as string
+function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string ) as string
     dim as string L = chr( 10 )
     return _
     "'' Generated by tiko -cppimport from """ & hdr & """ (" & ver & ", " & tgt & "). Do not edit: regenerate." & L & _

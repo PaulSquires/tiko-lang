@@ -290,28 +290,17 @@ function LowerAddr _
             if bra.kind <> cast( uint8, MV_NONE ) then return bra
         end if
     end if
-    '' ...AND A BY-VALUE UDT GETTER'S ADDRESS IS ITS RESULT'S, in a temporary. 'N( r.inner )' --
-    '' a property returning a UDT, handed to a 'byref' parameter -- reached the field path below,
-    '' which passed the GETTER'S CODE ADDRESS as the object: the copy constructor read machine
-    '' code (fbc calls the getter; tiko 0.1.6 printed garbage). Found binding C++ classes, whose
-    '' class-typed fields are all such properties (docs/tiko-cpp C3a-3).
-    if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso _
-       ((c.ast->Flags( bpn ) and Tko.NF_BYREF) = 0) andalso _
-       (c.ast->StmtOf( bpn )->op = cast( uint16, Tko.KW_PROPERTY )) andalso _
-       (c.types->Kind( c.types->Unqualify( bps->type_ ) ) = Tko.TK_UDT) then
-        dim as MirValue pgv
+    '' ...AND A BY-VALUE UDT GETTER'S IS ITS RESULT'S, in a temporary: 'N( r.inner )' passed the
+    '' GETTER'S CODE ADDRESS (fbc calls it; tiko 0.1.6 printed garbage). docs/tiko-cpp C3a-3.
+    if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso ((c.ast->Flags( bpn ) and Tko.NF_BYREF) = 0) andalso _
+       (c.ast->StmtOf( bpn )->op = cast( uint16, Tko.KW_PROPERTY )) andalso (c.types->Kind( c.types->Unqualify( bps->type_ ) ) = Tko.TK_UDT) then
+        dim as MirValue pgv, pta
         if LowerPropertyGet_( c, id, pgv ) then
             if pgv.ty = cast( uint8, MT_PTR ) then return pgv       '' the sret slot it built
-            dim as int32 pslot = NewTempLocal( c, MT_AGG, SizeOfType( c, bps->type_ ) )
-            if pslot >= 0 then
-                dim as MirValue pta
-                pta.kind = cast( uint8, MV_LOCAL ) : pta.ty = cast( uint8, MT_PTR ) : pta.id = pslot
-                StoreThrough( c, pta, pgv )
-                return pta
-            end if
+            pta.kind = cast( uint8, MV_LOCAL ) : pta.ty = cast( uint8, MT_PTR ) : pta.id = NewTempLocal( c, MT_AGG, SizeOfType( c, bps->type_ ) )
+            if pta.id >= 0 then StoreThrough( c, pta, pgv ) : return pta
         end if
     end if
-
 
     '' THE OPEN 'with' SUBJECT WAS ALREADY EVALUATED. Resolve points every baseless
     '' '.field' at the subject's own node, so the node is reached once per member --
@@ -736,7 +725,16 @@ function LowerAddr _
                 ptrResult = (c.types->Kind( c.types->Unqualify( bsy->type_ ) ) = Tko.TK_POINTER)
             end if
         end if
-        if (bsy <> nullptr) andalso (ptrResult = false) then
+        '' ...AND A BYREF ONE IS ITS RESULT'S ADDRESS: 'h.Prop.x = 7' over 'property Prop( ) byref as V'
+        '' wrote a copy (fbc writes h's field: 7; docs/tiko-cpp C3b-1). LowerAddr's byref arm answers.
+        if (bsy <> nullptr) andalso (ptrResult = false) andalso (c.ast->Kind( mp->lhs ) = Tko.N_MEMBER) then
+            dim as Tko.NodeId bbn = cast( Tko.NodeId, bsy->payload )
+            if (bbn <> Tko.NODE_NONE) andalso (c.ast->Kind( bbn ) = Tko.N_PROC) andalso ((c.ast->Flags( bbn ) and Tko.NF_BYREF) <> 0) then
+                base_ = LowerAddr( c, mp->lhs )
+                if base_.kind <> cast( uint8, MV_NONE ) then bt = c.types->Unqualify( bsy->type_ ) : calledBase = true
+            end if
+        end if
+        if (calledBase = false) andalso (bsy <> nullptr) andalso (ptrResult = false) then
             '' AN SRET RESULT IS ASKED FOR AS AN ADDRESS. Asking MT_AGG loaded the whole
             '' temporary, and the field offset below was then applied to a VALUE --
             ''     '%t7' defined with type '[32 x i8]' but expected 'ptr'
