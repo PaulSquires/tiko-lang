@@ -142,6 +142,20 @@ private function RunCpp_( byref ctx as Tko.CompilerContext, byref clangExe as st
         next
         return Tko.EXIT_USER_ERROR
     end if
+    '' THE SHIM PARSED IN FULL, as '#cppinclude' does when its shim fails to compile: an entry whose
+    '' body does not compile for this specialization is left out, and the header imported again.
+    '' Always here -- '-cppimport' writes the shim for another compiler to build.
+    for tries as int32 = 1 to 4
+        dim as Tko.StrVec bad
+        if Tko.CppImport.CppShimCheck( api, io, ctx.options.cppimportOut & ".cpp", res.shim, bad ) = false then exit for
+        for i as int32 = 0 to bad.Count - 1
+            io.exclude.Push( bad[i] )
+        next
+        if Tko.CppImport.CppImportRun( api, io, res ) = false then
+            ctx.diags.ReportGlobal( Tko.TKO0120, io.header & ": " & res.why )
+            return Tko.EXIT_USER_ERROR
+        end if
+    next
     if WriteBytes_( ctx.options.cppimportOut, res.binding ) = false then
         ctx.diags.ReportGlobal( Tko.TKO0121, ctx.options.cppimportOut )
         return Tko.EXIT_USER_ERROR

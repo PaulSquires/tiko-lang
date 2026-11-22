@@ -32,6 +32,7 @@ type CppImportOptions
     as string     targetName    '' "windows-x86_64", "linux-x86_64", ...
     as string     triple        '' TargetFor( t ).triple
     as Tko.StrVec instantiate   '' '#cppinstantiate' / -cppinstantiate: "geo::Box<int>", "geo::clamp<int>"
+    as Tko.StrVec exclude       '' shim functions CppShimCheck found would not compile: not bound
 end type
 
 type CppImportResult
@@ -46,5 +47,11 @@ end type
 
 declare function CppImportRun( byref api as Tko.CImport.ClangApi, byref opts as CppImportOptions, _
                                byref res as CppImportResult ) as boolean
+'' A SHIM THAT DID NOT COMPILE, parsed in full: the shim functions (tko_cpp_<id>_<n>) its errors
+'' are in, or were instantiated from -- a member of a class template whose body is ill-formed for
+'' this specialization (json's iter_impl<json>(const iter_impl<const json>&)) declares fine and
+'' fails only here. False when an error is not in, or not from, one of them.
+declare function CppShimCheck( byref api as Tko.CImport.ClangApi, byref opts as CppImportOptions, _
+                               byref path as string, byref shim as string, byref bad as Tko.StrVec ) as boolean
 
 end namespace

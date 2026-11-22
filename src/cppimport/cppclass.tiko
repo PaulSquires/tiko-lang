@@ -80,6 +80,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     end if
 
     dim as string tn = iif( kind = K_CTOR_, "constructor", ValueName_( nm ) )
+    if len( x.nameOverride ) andalso (kind <> K_CTOR_) then tn = x.nameOverride
     dim as string owner = iif( member, x.clsTikoQ[ci], QualTiko_( x, "" ) )
     dim as string sig = lcase( owner & "." & tn & iif( kind = K_STATIC_, "!", "" ) & "(" & tsig & ")" )
     if isOp then sig = lcase( iif( kind = K_OPMEM_, owner & ".", "" ) & "operator " & top & "(" & tsig & ")" )
@@ -95,8 +96,22 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
 
     dim as string sym = "tko_cpp_" & x.id & "_" & x.n
     x.n += 1
+    '' AN ENTRY WHOSE SHIM BODY DID NOT COMPILE (CppShimCheck): its number is spent all the same, so
+    '' every other entry keeps the name the failed shim gave it.
+    for i as int32 = 0 to x.exclude.Count - 1
+        if x.exclude[i] = sym then why = "its C++ body does not compile for this specialization" : return false
+    next
     dim as boolean isSub = (len( r.tiko ) = 0)
-    dim as string asR = iif( r.byrefRet, " byref as ", " as " ) & r.tiko
+    '' A MEMBER 'T& operator[]' OF A CLASS T IS A byref RESULT, so 'j["pi"] = v' assigns through it as
+    '' C++'s does -- fbc and tiko refuse '=' on a by-value result (TKO0932, measured), and 'dim'
+    '' from an operator copies. The handle it returns is a borrowed one in a slot of a ring the shim
+    '' keeps per thread (tko_cpp_slot, 64): valid for that statement, not to be kept by 'dim byref'.
+    dim as boolean slotRef = false
+    if (kind = K_OPMEM_) andalso (top = "[]") andalso (r.sret = SR_REF_) then
+        dim as CXType rq = Canon_( x, iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( c ) ) )
+        if (rq.kind = TY_LREF_) andalso (x.api->isConstQualifiedType( x.api->getPointeeType( rq ) ) = 0) then slotRef = true
+    end if
+    dim as string asR = iif( r.byrefRet orelse slotRef, " byref as ", " as " ) & r.tiko
     if adapt then
         '' THE RAW ENTRY, a free function of the shim taking the object first, and the ADAPTER
         '' tiko calls instead, which the binding defines (cppvec.tiko).
@@ -148,7 +163,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     '' THE SHIM FUNCTION. Its parameters are tiko's: the result slot first, then 'this', then
     '' the arguments (measured, C3.md).
     dim as string pl = ""
-    if r.sret <> SR_NONE_ then pl = "tko_cpp_h* ret_"
+    if (r.sret <> SR_NONE_) andalso (slotRef = false) then pl = "tko_cpp_h* ret_"
     '' A POD's 'this' is the object itself, which tiko and C++ lay out the same way.
     dim as string selfT = "tko_cpp_h*"
     if pod then selfT = iif( isConst, "const ", "" ) & x.clsCpp[ci] & "*"
@@ -158,14 +173,18 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     dim as string obj = "(*self_)"
     if (ci >= 0) andalso (pod = false) then obj = "(*static_cast<" & x.clsCpp[ci] & "*>(self_->impl))"
     dim as string callx
+    '' A TEMPLATE SPECIALIZATION's arguments, where the call cannot deduce them, are the ones the
+    '' '#cppinstantiate' wrote ('get<int>( )'); the rest the call deduces from the shim's exact types
+    '' (clang's own spelling of an enum argument, glm's qualifier, is a bare '0' C++ refuses).
+    dim as string targs = x.calleeTargs
     select case kind
-    case K_FREE_   : callx = iif( len( x.calleeOverride ), x.calleeOverride, QualCpp_( x, nm ) ) & "(" & args & ")"
-    case K_STATIC_ : callx = x.clsCpp[ci] & "::" & nm & "(" & args & ")"
+    case K_FREE_   : callx = iif( len( x.calleeOverride ), x.calleeOverride, QualCpp_( x, nm ) & targs ) & "(" & args & ")"
+    case K_STATIC_ : callx = x.clsCpp[ci] & "::" & iif( len( targs ), "template ", "" ) & nm & targs & "(" & args & ")"
     case K_METHOD_
         if pod then
-            callx = "self_->" & nm & "(" & args & ")"
+            callx = "self_->" & iif( len( targs ), "template ", "" ) & nm & targs & "(" & args & ")"
         else
-            callx = "static_cast<" & iif( isConst, "const ", "" ) & x.clsCpp[ci] & "*>(self_->impl)->" & nm & "(" & args & ")"
+            callx = "static_cast<" & iif( isConst, "const ", "" ) & x.clsCpp[ci] & "*>(self_->impl)->" & iif( len( targs ), "template ", "" ) & nm & targs & "(" & args & ")"
         end if
     case K_OPBIN_  : callx = "(" & av[0] & ") " & cop & " (" & av[1] & ")"
     case K_OPUN_   : callx = cop & "(" & av[0] & ")"
@@ -185,6 +204,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     if kind = K_OPMEM_ then key = "mop" & x.mop : x.mop += 1
     if member then f = "extern ""C"" " & rt & " " & sym & "(" & pl & ") __asm__(""@@M:" & key & "@@"");" & L
     f &= "extern ""C"" " & rt & " " & sym & "(" & pl & ") {" & L
+    if slotRef then f &= "    tko_cpp_h* ret_ = tko_cpp_slot();" & L
     if r.sret <> SR_NONE_ then f &= "    ret_->impl = nullptr; ret_->owned = 0;" & L
     if (kind = K_CTOR_) andalso (pod = false) then f &= "    self_->impl = nullptr; self_->owned = 0;" & L
     f &= "    try { "
@@ -230,27 +250,30 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     return true
 end function
 
-private function HasDefault_ cdecl _
-    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
-    dim as CppImp_ ptr xp = client
-    dim as int32 k = xp->api->getCursorKind( c )
-    if (k >= 100) andalso (k < 200) then        '' CXCursor_FirstExpr .. LastExpr: '= value'
-        xp->hasDefault = true
-        return CXChildVisit_Break
-    end if
-    return CXChildVisit_Continue
-end function
 
 '' DEFAULT ARGUMENTS: how many trailing parameters have one. Each is an entry point of its own
 '' with that many arguments fewer, and C++ supplies the rest -- so the default is C++'s, exactly,
 '' and never an expression translated into tiko.
+private function ParmVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Members_ ptr mb = client
+    if mb->x->api->getCursorKind( c ) = 10 then mb->cur.Push( c )        '' CXCursor_ParmDecl
+    return CXChildVisit_Continue
+end function
+
 function Defaults_( byref x as CppImp_, byval c as CXCursor ) as int32
     dim as int32 na = x.api->Cursor_getNumArguments( c )
     dim as int32 nd = 0
+    '' AN INSTANTIATION'S PARAMETERS do not show their defaults: its template's do (json's parse).
+    dim as Members_ ps
+    ps.x = @x
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( c )
+    if IsNullCursor_( x, tm ) = false then x.api->visitChildren( tm, @ParmVisit_, @ps )
     for i as int32 = na - 1 to 0 step -1
-        x.hasDefault = false
-        x.api->visitChildren( x.api->Cursor_getArgument( c, i ), @HasDefault_, @x )
-        if x.hasDefault = false then exit for
+        '' BY ITS TOKENS, '= value': an expression child is not enough -- 'const mat<2, 2, T, Q>& x'
+        '' has two, its template arguments.
+        dim as CXCursor pc = x.api->Cursor_getArgument( c, i )
+        if ps.cur.Count = na then pc = ps.cur[i]
+        if DeclHasInit_( x, pc, false ) = false then exit for
         nd += 1
     next
     return nd
@@ -326,7 +349,13 @@ sub Function_( byref x as CppImp_, byval c as CXCursor )
         exit sub
     end if
     for k as int32 = 0 to Defaults_( x, c )
-        if Entry_( x, c, K_FREE_, -1, decl, why, na - k ) then
+        dim as boolean ok = Entry_( x, c, K_FREE_, -1, decl, why, na - k )
+        if (ok = false) andalso (why = SAME_SIG_) andalso len( TemplateArgsName_( x, c ) ) then
+            x.nameOverride = ValueName_( nm ) & TemplateArgsName_( x, c )
+            ok = Entry_( x, c, K_FREE_, -1, decl, why, na - k )
+            x.nameOverride = ""
+        end if
+        if ok then
             for g as int32 = 0 to x.extraGlob.Count - 1
                 x.bind.Push( Indent_( x ) & x.extraGlob[g] )
             next
@@ -595,6 +624,9 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     '' one implicitly. 'let' ignores its alias: tiko names it operator= (measured, C3.md).
     dim as string sc = Sym_( x ), sd = Sym_( x ), sl = Sym_( x )
     lines.Push( "declare constructor alias """ & sc & """ ( byref o_ as const " & x.clsTikoQ[ci] & " )" )
+    '' ...whose signature a C++ constructor template can have too: json's iter_impl<json> from
+    '' 'const iter_impl<remove_const<json>::type>&' is its own copy constructor's.
+    x.sigs.Push( lcase( x.clsTikoQ[ci] & ".constructor(const " & x.clsTikoQ[ci] & ")" ) ) : x.sigConst.Push( "" )
     lines.Push( "declare destructor alias """ & sd & """ ( )" )
     lines.Push( "declare operator let alias """ & sl & """ ( byref o_ as const " & x.clsTikoQ[ci] & " )" )
     x.mirBody.Push( "    void " & sc & "(const " & MirName_( tn ) & "&);" )
@@ -672,6 +704,48 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
                 end if
             next
             x.ovrOn = false
+        next
+    next
+    '' MEMBERS A CALL SHAPE FOUND (D12): template constructors and methods, concrete already.
+    x.ovrOn = false
+    for i as int32 = 0 to x.extraMem.Count - 1
+        dim as CXCursor em = x.extraMem[i]
+        dim as string why, decl
+        if ClassOf_( x, x.api->getCursorType( x.api->getCursorSemanticParent( em ) ), why ) <> ci then continue for
+        dim as int32 ek = x.api->getCursorKind( em ), kk = K_METHOD_, na = x.api->Cursor_getNumArguments( em )
+        dim as string emn = Text_( x, x.api->getCursorSpelling( em ) ), top = ""
+        dim as string disp = cpp & "::" & Text_( x, x.api->getCursorDisplayName( em ) ) & TemplateArgs_( x, em )
+        if ek = CXCursor_Constructor then
+            kk = K_CTOR_
+        elseif (ek = CXCursor_ConversionFunction) orelse (left( emn, 8 ) = "operator") then
+            kk = OpKind_( trim( mid( emn, 9 ) ), na, true, top )
+            if kk < 0 then lines.Push( "'' CPP-TODO(operator): " & disp ) : x.todos += 1 : continue for
+        elseif x.api->CXXMethod_isStatic( em ) <> 0 then
+            kk = K_STATIC_
+        end if
+        dim as string lastWhy = ""
+        for k as int32 = 0 to iif( (kk = K_OPBIN_) orelse (kk = K_OPUN_) orelse (kk = K_OPMEM_), 0, Defaults_( x, em ) )
+            x.calleeTargs = x.extraTargs[i]
+            '' Explicit arguments the shape wrote are part of the name: get_long( ), get_double( ).
+            if len( x.calleeTargs ) andalso (kk <> K_CTOR_) then x.nameOverride = ValueName_( emn & TargsName_( x.calleeTargs ) )
+            dim as boolean ok = Entry_( x, em, kk, ci, decl, why, na - k, top )
+            x.nameOverride = ""
+            if (ok = false) andalso (why = SAME_SIG_) andalso len( TemplateArgsName_( x, em ) ) andalso (kk <> K_CTOR_) then
+                x.nameOverride = ValueName_( emn ) & TemplateArgsName_( x, em )
+                ok = Entry_( x, em, kk, ci, decl, why, na - k, top )
+                x.nameOverride = ""
+            end if
+            x.calleeTargs = ""
+            if ok then
+                for g as int32 = 0 to x.extraGlob.Count - 1
+                    glob.Push( x.extraGlob[g] )
+                next
+                x.extraGlob.Clear( )
+                if (kk = K_OPBIN_) orelse (kk = K_OPUN_) then glob.Push( decl & "    '' " & disp ) else lines.Push( decl & "    '' " & disp & ArityNote_( k, na ) )
+            elseif why <> lastWhy then
+                lines.Push( "'' CPP-TODO(" & why & "): " & disp & ArityNote_( k, na ) ) : x.todos += 1
+                lastWhy = why
+            end if
         next
     next
     if HasRange_( x, ci ) then Range_( x, ci, lines )
@@ -787,6 +861,17 @@ sub CollectAt_( byref x as CppImp_, byval c as CXCursor, byref tn as string, byr
         nt &= ns[i] : nmr &= ucase( ns[i] )
         tq &= ns[i] & "." : mq &= ucase( ns[i] ) & "::"
     next
+    '' TWO CLASSES NEVER SHARE A tiko NAME: a second is '<name>_2', and so on.
+    dim as string tn0 = tn
+    dim as int32 dup = 1
+    dim as boolean taken = true
+    while taken
+        taken = false
+        for i as int32 = 0 to x.clsTikoQ.Count - 1
+            if lcase( x.clsTikoQ[i] ) = lcase( tq & tn ) then taken = true : exit for
+        next
+        if taken then dup += 1 : tn = tn0 & "_" & dup
+    wend
     x.clsUsr.Push( usr )
     x.clsTiko.Push( tn )
     x.clsTikoQ.Push( tq & tn )

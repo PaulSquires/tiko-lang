@@ -1,0 +1,76 @@
+'' cppinclude/json, called from tiko: nlohmann/json's README in tiko, through call shapes (D12) --
+'' json's values, parse and get<> are templates -- and the alias nlohmann.json (D13). Must print
+'' what driver.cpp prints.
+'' '#import' is written for both legs: the Linux leg's '-cppimport' binding needs it (templates).
+#import "std/containers"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinstantiate "nlohmann::json(int)"
+    #cppinstantiate "nlohmann::json(double)"
+    #cppinstantiate "nlohmann::json(bool)"
+    #cppinstantiate "nlohmann::json(std::string)"
+    #cppinstantiate "nlohmann::json::parse(std::string)"
+    #cppinstantiate "nlohmann::json::get<int>()"
+    #cppinstantiate "nlohmann::json::get<double>()"
+    #cppinstantiate "nlohmann::json::get<std::string>()"
+    #cppinstantiate "nlohmann::json::get<bool>()"
+    #cppinstantiate "nlohmann::json::items()"
+    #cppinclude "lib.hpp"
+#endif
+#include once "../../show.bi"
+
+sub ShowU( byval k as const zstring ptr, byref u as const ustring )
+    dim as string s = u
+    show_s( k, strptr( s ) )
+end sub
+
+sub AtMissing( byref j as const nlohmann.json )
+    on local error goto failed
+    j.at( "missing" )
+    show_s( "at", "no throw" )
+    exit sub
+failed:
+    dim as string w = "C++ exception: " & cpp.What( )
+    show_s( "at", strptr( w ) )
+end sub
+
+'' README: "JSON as first-class data type" -- 'j["pi"] = ...' assigns through the element, as in C++.
+dim as nlohmann.json j
+j["pi"] = nlohmann.json( 3.141 )
+j["happy"] = nlohmann.json( true )
+j["name"] = nlohmann.json( "Niels" )
+j["nothing"] = nlohmann.json( )
+j["answer"]["everything"] = nlohmann.json( 42 )
+dim as nlohmann.json list_ = nlohmann.json.array( )
+list_.push_back( nlohmann.json( 1 ) ) : list_.push_back( nlohmann.json( 0 ) ) : list_.push_back( nlohmann.json( 2 ) )
+j["list"] = list_
+dim as nlohmann.json object_ = nlohmann.json.object_( )
+object_["currency"] = nlohmann.json( "USD" )
+object_["value"] = nlohmann.json( 42.99 )
+j["object"] = object_
+ShowU( "dump", j.dump( ) )
+ShowU( "dump.4", j["object"].dump( 4 ) )
+show_u( "size", j.size( ) )
+show_i( "is_object", iif( j.is_object( ), 1, 0 ) )
+show_s( "type_name", j["list"].type_name( ) )
+show_i( "contains", iif( j.contains( "happy" ), 1, 0 ) )
+show_i( "contains.not", iif( j.contains( "sad" ), 1, 0 ) )
+'' README: "Serialization / Deserialization"
+dim as nlohmann.json j2 = nlohmann.json.parse( "{""happy"": true, ""pi"": 3.141, ""tags"": [""a"", ""b""]}" )
+show_d( "parse.pi", j2["pi"].get_double( ) )
+show_i( "parse.happy", iif( j2["happy"].get_boolean( ), 1, 0 ) )
+ShowU( "parse.tag", j2["tags"][1].get_ustring( ) )
+show_i( "answer", j["answer"]["everything"].get_long( ) )
+'' README: iterating -- the values, then items( )' key / value pairs
+dim as longint sum_ = 0
+for each el in j["list"]
+    sum_ += el.get_long( )
+next
+show_i( "each.sum", sum_ )
+dim as ustring keys
+for each kv in j2.items( )
+    keys &= kv.key( ) & "=" & kv.value( ).dump( ) & ";"
+next
+ShowU( "items", keys )
+AtMissing( j )

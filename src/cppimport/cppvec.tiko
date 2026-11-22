@@ -155,7 +155,7 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
     wend
     d &= head & L
     for i as int32 = 0 to names.Count - 1
-        if i > 0 then args &= ", "
+        if (i > 0) orelse (len( self_ ) > 0) then args &= ", "
         if vks[i] = 0 then args &= names[i] : continue for
         dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
         d &= "    dim as any ptr " & vv & " = " & tb & "_new( " & names[i] & ".Count( ) )" & L

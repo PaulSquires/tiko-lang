@@ -62,6 +62,29 @@ private function PodVisit_ cdecl _
     return CXChildVisit_Continue
 end function
 
+private function CtorVisit_ cdecl _
+    ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as PodScan_ ptr ps = client
+    dim as CppImp_ ptr xp = ps->x
+    if xp->api->getCursorKind( c ) <> CXCursor_Constructor then return CXChildVisit_Continue
+    if (xp->api->CXXConstructor_isCopyConstructor( c ) <> 0) orelse (xp->api->CXXConstructor_isMoveConstructor( c ) <> 0) then return CXChildVisit_Continue
+    dim as int32 na = xp->api->Cursor_getNumArguments( c )
+    if (na = 0) orelse DeclHasInit_( *xp, xp->api->Cursor_getArgument( c, 0 ), false ) then return CXChildVisit_Break
+    ps->ok = false
+    return CXChildVisit_Continue
+end function
+
+'' A POD tiko can make with no arguments: no constructor of its own, or a default one among them.
+'' A field of one that cannot be is a field tiko cannot declare (json's dtoa_impl::boundaries, three
+'' diyfp, whose only constructor takes two arguments).
+private function PodDefaultable_( byref x as CppImp_, byval ri as int32 ) as boolean
+    dim as PodScan_ ps
+    ps.x = @x
+    ps.ok = true
+    if x.api->visitChildren( MemberRoot_( x, ri ), @CtorVisit_, @ps ) <> 0 then return true
+    return ps.ok
+end function
+
 '' A FIELD'S TIKO TYPE: 'tk' and, for an array, its bounds ('0 to 3'). 'needPod' says the class
 '' a record field names must be a POD itself (the second look, PodCheck_).
 private function PodFieldType_( byref x as CppImp_, byval t as CXType, byref tk as string, _
@@ -99,7 +122,7 @@ private function PodFieldType_( byref x as CppImp_, byval t as CXType, byref tk 
         if StrKind_( x, c ) > 0 then return false
         dim as int32 ri = ClassOf_( x, c, why )
         if ri < 0 then return false
-        if needPod andalso (IsPod_( x, ri ) = false) then return false
+        if needPod andalso ((IsPod_( x, ri ) = false) orelse (PodDefaultable_( x, ri ) = false)) then return false
         tk = x.clsTikoQ[ri]
         return true
     end select
@@ -188,16 +211,19 @@ end sub
 '' A FIELD WITH AN INITIALISER ('int t_ = 0', 'double w{1}') makes C++'s default construction more
 '' than zeroes, so the POD gets a default constructor through the shim. By its tokens: '=' or '{'
 '' right after the name. An expression child is not enough -- 'char tag[8]' has one, its bound.
-private function FieldHasInit_( byref x as CppImp_, byval f as CXCursor ) as boolean
+function DeclHasInit_( byref x as CppImp_, byval f as CXCursor, byval brace as boolean ) as boolean
     dim as string nm = Text_( x, x.api->getCursorSpelling( f ) )
     dim as CXToken ptr toks = nullptr
     dim as uint32 nt = 0
     x.api->tokenize( x.tu, x.api->getCursorExtent( f ), @toks, @nt )
     dim as boolean r = false
     for i as int32 = 0 to cast( int32, nt ) - 2
-        if ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i] ) ) = nm then
-            dim as string nx = ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i + 1] ) )
-            if (nx = "=") orelse (nx = "{") then r = true
+        dim as string tk = ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i] ) )
+        dim as string nx = ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[i + 1] ) )
+        '' 'name =' or 'name {' -- or, a parameter with no name, any '='.
+        if (tk = nm) orelse (len( nm ) = 0) then
+            if (nx = "=") orelse (brace andalso (nx = "{")) then r = true
+            if (len( nm ) = 0) andalso (tk = "=") then r = true
         end if
     next
     if toks <> nullptr then x.api->disposeTokens( x.tu, toks, nt )
@@ -208,7 +234,7 @@ function PodHasInit_( byref x as CppImp_, byval ci as int32 ) as boolean
     dim as containers.Array( of CXCursor ) fs
     PodRecordFields_( x, ci, fs )
     for i as int32 = 0 to fs.Count - 1
-        if FieldHasInit_( x, fs[i] ) then return true
+        if DeclHasInit_( x, fs[i], true ) then return true
     next
     return false
 end function

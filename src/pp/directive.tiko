@@ -1047,9 +1047,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         PpCInclude( e, at, word, true )
 
     case "cppinstantiate"      '' '#cppinstantiate "geo::Box<int>"': for the next #cppinclude (D8)
-        dim as Token it_
-        dim as PpCppInstFn ifn = e.cfg->cppinstFn
-        if (ifn <> nullptr) andalso PeekOnLine( e, it_ ) andalso (Tk( it_ ) = TK_STRING_LIT) then
+        dim as Token it_ : dim as PpCppInstFn ifn = e.cfg->cppinstFn
+        if e.cfg->scanHeader then           '' the scan reads the header; the compile runs it
+        elseif (ifn <> nullptr) andalso PeekOnLine( e, it_ ) andalso (Tk( it_ ) = TK_STRING_LIT) then
             dim as string sp_ = SpellOf( e, it_ )
             ifn( e.cfg->cppimportCtx, mid( sp_, instr( sp_, """" ) + 1, instrrev( sp_, """" ) - instr( sp_, """" ) - 1 ), at )
         elseif e.cfg->reportUnsupported orelse (ifn <> nullptr) then

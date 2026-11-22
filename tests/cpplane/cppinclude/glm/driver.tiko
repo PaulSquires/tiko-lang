@@ -1,0 +1,53 @@
+'' cppinclude/glm, called from tiko: GLM's README example and vector arithmetic, through call
+'' shapes (D12) -- GLM is templates, each instantiated as a call with argument types -- and the
+'' aliases glm.vec3 / glm.mat4 (D13). Must print what driver.cpp prints.
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinstantiate "glm::perspective(float, float, float, float)"
+    #cppinstantiate "glm::translate(glm::mat4, glm::vec3)"
+    #cppinstantiate "glm::rotate(glm::mat4, float, glm::vec3)"
+    #cppinstantiate "glm::scale(glm::mat4, glm::vec3)"
+    #cppinstantiate "glm::operator*(glm::mat4, glm::mat4)"
+    #cppinstantiate "glm::operator*(glm::mat4, glm::vec4)"
+    #cppinstantiate "glm::operator+(glm::vec3, glm::vec3)"
+    #cppinstantiate "glm::dot(glm::vec3, glm::vec3)"
+    #cppinstantiate "glm::cross(glm::vec3, glm::vec3)"
+    #cppinstantiate "glm::normalize(glm::vec3)"
+    #cppinstantiate "glm::length(glm::vec3)"
+    #cppinstantiate "glm::pi<float>()"
+    #cppinclude "lib.hpp"
+#endif
+#include once "../../show.bi"
+
+'' From GLM's README.md, in tiko.
+function Camera( byval Translate as single, byref Rotate as const glm.vec2 ) as glm.mat4
+    dim as glm.mat4 Projection = glm.perspective( glm.pi_single( ) * 0.25!, 4.0! / 3.0!, 0.1!, 100.0! )
+    dim as glm.mat4 View_ = glm.translate( glm.mat4( 1.0! ), glm.vec3( 0.0!, 0.0!, -Translate ) )
+    View_ = glm.rotate( View_, Rotate.y, glm.vec3( -1.0!, 0.0!, 0.0! ) )
+    View_ = glm.rotate( View_, Rotate.x, glm.vec3( 0.0!, 1.0!, 0.0! ) )
+    dim as glm.mat4 Model = glm.scale( glm.mat4( 1.0! ), glm.vec3( 0.5! ) )
+    return Projection * View_ * Model
+end function
+
+dim as glm.mat4 m = Camera( 2.0!, glm.vec2( 0.5!, 0.25! ) )
+for c as long = 0 to 3
+    for r as long = 0 to 3
+        dim as string k = "m" & c & r
+        show_d( k, m[c][r] )
+    next
+next
+dim as glm.vec4 p = m * glm.vec4( 1.0!, 2.0!, 3.0!, 1.0! )
+show_d( "p.x", p.x ) : show_d( "p.y", p.y ) : show_d( "p.z", p.z ) : show_d( "p.w", p.w )
+dim as glm.vec3 a = glm.vec3( 1.0!, 2.0!, 3.0! ), b = glm.vec3( 4.0!, 5.0!, 6.0! )
+dim as glm.vec3 s = a + b
+show_d( "sum.y", s.y )
+show_d( "dot", glm.dot( a, b ) )
+dim as glm.vec3 c = glm.cross( a, b )
+show_d( "cross", c.x * 100 + c.y * 10 + c.z )
+show_d( "length", glm.length( a ) )
+show_d( "normalize.z", glm.normalize( b ).z )
+show_d( "pi", glm.pi_single( ) )
+a[1] = 9.0!
+show_d( "index", a.y )
+show_i( "vec3.length", glm.vec3.length( ) )

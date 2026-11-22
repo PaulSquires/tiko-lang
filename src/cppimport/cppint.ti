@@ -77,7 +77,6 @@ type CppImp_
     as Tko.StrVec    mirBody
     as int32          bound
     as int32          todos
-    as boolean        hasDefault   '' HasDefault_'s answer
     as int32          mop          '' the next member operator's mirror key, "mop<n>": a member
                                    '' operator has no name of its own to look the mangling up by
     as Tko.StrVec    asserts      '' the binding's layout checks, after every type
@@ -90,6 +89,8 @@ type CppImp_
     as containers.Array( of CXCursor ) clsTmpl   '' a specialization's class template (its pattern)
     as Tko.StrVec    clsSpec      '' "1": class ci is a specialization
     as Tko.StrVec    probeNames   '' the probes this parse resolved (cpptmpl.tiko)
+    as Tko.StrVec    badProbes    '' ...and those clang reported an error on: unknown, whatever it recovered
+    as Tko.StrVec    exclude      '' CppImportOptions.exclude: entries whose shim body did not compile
     as containers.Array( of CXType ) probeTypes
     as boolean        ovrOn        '' Entry_ takes its types from ovrRes / ovrArgs, not the cursor
     as CXType         ovrRes
@@ -102,6 +103,15 @@ type CppImp_
     as Tko.StrVec    defs         '' the adapters, private, after them
     as Tko.StrVec    extraGlob    '' a raw entry's declaration, which Entry_'s caller writes
     as Tko.StrVec    mirExtra     '' a range's iterator struct, after its class's in the mirror
+    '' ALIASES (D13) and CALL SHAPES (D12), cpptmpl.tiko.
+    as Tko.StrVec    alUsr        '' a specialization an alias names: its USR, the alias, its namespaces
+    as Tko.StrVec    alName
+    as Tko.StrVec    alNs
+    as Tko.StrVec    alCpp        '' every alias's C++ name, 'nlohmann::json'
+    as containers.Array( of CXCursor ) extraMem   '' members a call shape found: their class's
+    as Tko.StrVec    extraTargs   '' ...and the template arguments the shape wrote, '<int>'
+    as string        calleeTargs  '' Entry_'s explicit template arguments for the call
+    as string        nameOverride '' Entry_'s tiko name, when an instantiation needs its arguments in it
 end type
 
 '' One parameter or result, as the texts that carry it.
@@ -188,6 +198,16 @@ declare sub NoteType_( byref x as CppImp_, byval t as CXType )
 declare sub NoteFunction_( byref x as CppImp_, byval c as CXCursor )
 declare function InstClass_( byref x as CppImp_, byval i as int32 ) as CXType
 declare function InstFunction_( byref x as CppImp_, byval i as int32, byref fn as CXCursor ) as boolean
+declare sub AliasNote_( byref x as CppImp_, byval c as CXCursor )
+declare function AliasOf_( byref x as CppImp_, byval d as CXCursor, byref ns as Tko.StrVec ) as string
+declare function ShapeSplit_( byref s as string, byref callee as string, byref args as Tko.StrVec ) as boolean
+declare function ShapeKind_( byref x as CppImp_, byref s as string ) as string
+declare function ShapeLine_( byref s as string, byref kind as string, byval i as int32 ) as string
+declare function ShapeTarget_( byref x as CppImp_, byval i as int32, byref fn as CXCursor ) as boolean
+declare function TemplateArgs_( byref x as CppImp_, byval c as CXCursor ) as string
+declare function ShapeTargs_( byref s as string ) as string
+declare function TargsName_( byref targs as string ) as string
+declare function TemplateArgsName_( byref x as CppImp_, byval c as CXCursor ) as string
 '' cppclass.tiko, classes from anywhere
 declare sub CollectAt_( byref x as CppImp_, byval c as CXCursor, byref tn as string, byref cppQ as string, _
                         byref ns as Tko.StrVec, byval tmpl as CXCursor, byval spec as boolean )
@@ -196,7 +216,8 @@ declare sub SpecMembers_( byref x as CppImp_, byval ci as int32, byref mem as co
 declare function SpecPattern_( byref x as CppImp_, byval ci as int32 ) as CXCursor
 declare function IsSpec_( byref x as CppImp_, byval ci as int32 ) as boolean
 declare function MemberRoot_( byref x as CppImp_, byval ci as int32 ) as CXCursor
-declare function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.StrVec ) as boolean
+declare function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.StrVec, byref keys as Tko.StrVec ) as boolean
+declare function DeclHasInit_( byref x as CppImp_, byval f as CXCursor, byval brace as boolean ) as boolean
 declare sub LoadProbes_( byref x as CppImp_ )
 declare function ProbeOverride_( byref x as CppImp_, byval ci as int32, byval j as int32 ) as boolean
 declare sub SpecFields_( byref x as CppImp_, byval ci as int32, byref out_ as containers.Array( of CXCursor ) )

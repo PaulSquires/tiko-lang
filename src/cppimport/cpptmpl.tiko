@@ -53,6 +53,8 @@ end function
 private function ArgName_( byref x as CppImp_, byval t as CXType ) as string
     dim as CXType c = Canon_( x, t )
     dim as string tk, ct, tq, cq, mq, why
+    '' 'iter_impl<const basic_json>' is not 'iter_impl<basic_json>': iter_impl_const_json.
+    if x.api->isConstQualifiedType( c ) <> 0 then return "const_" & ArgName_( x, x.api->getUnqualifiedType( c ) )
     if StrKind_( x, c ) > 0 then return "ustring"
     select case c.kind
     case TY_POINTER_ : return ArgName_( x, x.api->getPointeeType( c ) ) & "ptr"
@@ -60,6 +62,9 @@ private function ArgName_( byref x as CppImp_, byval t as CXType ) as string
         if EnumOf_( x, c, tq, cq, mq ) then return mid( tq, instrrev( tq, "." ) + 1 )
     case TY_RECORD_
         dim as CXCursor d = x.api->getTypeDeclaration( c )
+        dim as Tko.StrVec ans
+        dim as string an = AliasOf_( x, d, ans )
+        if len( an ) then return an
         if IsNullCursor_( x, x.api->getSpecializedCursorTemplate( d ) ) = false then return SpecName_( x, c )
         return TypeName_( Text_( x, x.api->getCursorSpelling( d ) ) )
     end select
@@ -101,7 +106,7 @@ function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec 
     while (x.api->getCursorKind( c ) <> CXCursor_TranslationUnit) andalso (guard < 16)
         dim as int32 k = x.api->getCursorKind( c )
         if k = CXCursor_Namespace then
-            rev.Push( TypeName_( Text_( x, x.api->getCursorSpelling( c ) ) ) )
+            if x.api->Cursor_isInlineNamespace( c ) = 0 then rev.Push( TypeName_( Text_( x, x.api->getCursorSpelling( c ) ) ) )
         elseif k <> CXCursor_LinkageSpec then
             return false
         end if
@@ -135,6 +140,10 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
     dim as CXCursor d = x.api->getTypeDeclaration( c )
     dim as CXCursor tm = x.api->getSpecializedCursorTemplate( d )
     if IsNullCursor_( x, tm ) orelse InStd_( x, tm ) orelse (InScope_( x, tm ) = false) then return
+    '' THE TEMPLATE'S DEFINITION, whose members are the pattern's: the cursor can be a forward
+    '' declaration (json's 'template<...> class basic_json;', json_fwd), which has none.
+    dim as CXCursor tdef = x.api->getCursorDefinition( tm )
+    if IsNullCursor_( x, tdef ) = false then tm = tdef
     dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
     for i as int32 = 0 to x.clsUsr.Count - 1
         if x.clsUsr[i] = usr then return
@@ -153,8 +162,12 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
         return
     end if
     dim as Tko.StrVec ns
-    if NsOf_( x, d, ns ) = false then return
-    CollectAt_( x, d, TypeName_( SpecName_( x, c ) ), sp, ns, tm, true )
+    dim as string tn = AliasOf_( x, d, ns )         '' its alias's name and namespace, if one names it
+    if len( tn ) = 0 then
+        if NsOf_( x, d, ns ) = false then return
+        tn = TypeName_( SpecName_( x, c ) )
+    end if
+    CollectAt_( x, d, tn, sp, ns, tm, true )
 end sub
 
 '' A FUNCTION'S TYPES, for NoteType_.
@@ -257,38 +270,95 @@ end function
 type TParams_
     as CppImp_ ptr x
     as string text
+    as string names
     as boolean ok
 end type
 
+'' A TEMPLATE PARAMETER AS CLANG PRINTS IT, without its default: 'class T', 'length_t L',
+'' 'template <typename U, typename V, typename ...Args> class ObjectType', 'class ...Ts'. Printed, not
+'' read from the source: json declares basic_json's parameters through a macro, whose tokens are
+'' the macro's definition.
 private function TParamVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as TParams_ ptr tp = client
     dim as CppImp_ ptr xp = tp->x
+    dim as int32 k = xp->api->getCursorKind( c )
+    if (k < 27) orelse (k > 29) then return CXChildVisit_Continue
     dim as string nm = Text_( *xp, xp->api->getCursorSpelling( c ) )
-    select case xp->api->getCursorKind( c )
-    case 27        '' CXCursor_TemplateTypeParameter
-        tp->text &= iif( len( tp->text ), ", ", "" ) & "class " & nm
-    case 28        '' CXCursor_NonTypeTemplateParameter
-        tp->text &= iif( len( tp->text ), ", ", "" ) & Spell_( *xp, xp->api->getCursorType( c ) ) & " " & nm
-    case 29        '' CXCursor_TemplateTemplateParameter
-        tp->ok = false
-    end select
+    if len( nm ) = 0 then tp->ok = false : return CXChildVisit_Continue       '' an unnamed one: later
+    dim as string pp = Text_( *xp, xp->api->getCursorPrettyPrinted( c, nullptr ) ), tx = ""
+    dim as int32 depth = 0, tail = 1
+    for i as int32 = 1 to len( pp )
+        dim as string ch = mid( pp, i, 1 )
+        if (ch = "<") orelse (ch = "(") then depth += 1
+        if (ch = ">") orelse (ch = ")") then depth -= 1 : if depth = 0 then tail = i + 1
+        if (ch = "=") andalso (depth = 0) then exit for
+        tx &= ch
+    next
+    tx = trim( tx )
+    tp->text &= iif( len( tp->text ), ", ", "" ) & tx
+    '' A PACK names itself with '...' in the pattern -- a template template parameter's own
+    '' parameters do not make it one, so only what follows them counts.
+    tp->names &= iif( len( tp->names ), ", ", "" ) & nm & iif( instr( mid( tx, tail ), "..." ) > 0, "...", "" )
     return CXChildVisit_Continue
 end function
 
 '' THE PROBE LINES for specialization ci, appended to 'out_'. False when its template cannot be
 '' probed (a template template parameter, a parameter pack).
-function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.StrVec ) as boolean
+'' A PATTERN MEMBER'S TYPE AS THE PROBE CAN SPELL IT: a typedef of the class -- glm's 'col_type',
+'' 'length_type' -- is out of the probe's reach, so it is spelled as what it names.
+private function SpellPattern_( byref x as CppImp_, byval t as CXType ) as string
+    dim as boolean kq = (x.api->isConstQualifiedType( t ) <> 0)
+    select case t.kind
+    case TY_LREF_, TY_RREF_, TY_POINTER_
+        dim as string r = SpellPattern_( x, x.api->getPointeeType( t ) ) & iif( t.kind = TY_LREF_, " &", iif( t.kind = TY_RREF_, " &&", " *" ) )
+        return r & iif( kq, " const", "" )
+    case 107, TY_ELABORATED_                         '' CXType_Typedef, Elaborated
+        dim as CXCursor d = x.api->getTypeDeclaration( t )
+        dim as int32 dk = x.api->getCursorKind( d )
+        '' A PUBLIC ONE is declared again in the probe (ProbeLines_) and keeps its name -- json's
+        '' 'iterator' spelled out is 'iter_impl<...>', a name of nlohmann::detail the probe cannot see.
+        if ((dk = 20) orelse (dk = CXCursor_TypeAliasDecl)) andalso (x.api->getCXXAccessSpecifier( d ) <> CX_CXXPublic) then
+            select case x.api->getCursorKind( x.api->getCursorSemanticParent( d ) )
+            case CXCursor_ClassTemplate, 32, CXCursor_StructDecl, CXCursor_ClassDecl
+                return iif( kq, "const ", "" ) & SpellPattern_( x, x.api->getTypedefDeclUnderlyingType( d ) )
+            end select
+        end if
+    end select
+    return Spell_( x, t )
+end function
+
+private function TypedefVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as TParams_ ptr tp = client
+    dim as int32 k = tp->x->api->getCursorKind( c )
+    if ((k = 20) orelse (k = CXCursor_TypeAliasDecl)) andalso (tp->x->api->getCXXAccessSpecifier( c ) = CX_CXXPublic) then
+        tp->text &= chr( 1 ) & Text_( *tp->x, tp->x->api->getCursorSpelling( c ) )
+    elseif k = 601 then                    '' CXCursor_TypeAliasTemplateDecl
+        '' AN ALIAS TEMPLATE, of any access, as clang prints it: 'typename pattern::X' cannot name
+        '' a template, and json's items( ) returns its private 'iteration_proxy<iterator>'.
+        dim as string pp = Text_( *tp->x, tp->x->api->getCursorPrettyPrinted( c, nullptr ) )
+        for i as int32 = 1 to len( pp )
+            if (mid( pp, i, 1 ) = chr( 10 )) orelse (mid( pp, i, 1 ) = chr( 13 )) then mid( pp, i, 1 ) = " "
+        next
+        tp->text &= chr( 1 ) & chr( 3 ) & pp
+    end if
+    return CXChildVisit_Continue
+end function
+
+function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.StrVec, byref keys as Tko.StrVec ) as boolean
     dim as CXCursor tm = x.clsTmpl[ci]
     dim as TParams_ tp
     tp.x = @x
     tp.ok = true
     x.api->visitChildren( tm, @TParamVisit_, @tp )
-    if (tp.ok = false) orelse (len( tp.text ) = 0) orelse (instr( tp.text, "..." ) > 0) then return false
+    if (tp.ok = false) orelse (len( tp.text ) = 0) then return false
     dim as Tko.StrVec ns
     if NsOf_( x, tm, ns ) = false then return false
     dim as string cpp = x.clsCpp[ci]
-    dim as string args = mid( cpp, instr( cpp, "<" ) + 1 )
-    args = left( args, instrrev( args, ">" ) - 1 )
+    '' THE PROBE IS A PARTIAL SPECIALIZATION over the pattern -- 'Box<T>', or a partial
+    '' specialization's own 'vec<3, T, Q>' -- instantiated with the whole type, so C++ deduces the
+    '' parameters: glm's vec<3, float> is an instance of vec<3, T, Q>, whose members say T and Q.
+    dim as string pattern = Text_( x, x.api->getCursorDisplayName( tm ) )
+    if x.api->getCursorKind( tm ) <> 32 then pattern = Text_( x, x.api->getCursorSpelling( tm ) ) & "<" & tp.names & ">"
     dim as string pid = Id_( cpp ), nsq = "", open_ = "", close_ = ""
     for i as int32 = 0 to ns.Count - 1
         nsq &= "::" & ns[i] : open_ &= "namespace " & ns[i] & " { " : close_ &= " }"
@@ -303,16 +373,46 @@ function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.S
         dim as CXCursor m = mem[j]
         if x.api->Cursor_isVariadic( m ) <> 0 then continue for
         dim as string r = "void"
-        if x.api->getCursorKind( m ) <> CXCursor_Constructor then r = Spell_( x, x.api->getCursorResultType( m ) )
+        if x.api->getCursorKind( m ) <> CXCursor_Constructor then r = SpellPattern_( x, x.api->getCursorResultType( m ) )
         dim as string ps = ""
         for a as int32 = 0 to x.api->Cursor_getNumArguments( m ) - 1
-            ps &= iif( a > 0, ", ", "" ) & Spell_( x, x.api->getCursorType( x.api->Cursor_getArgument( m, a ) ) )
+            ps &= iif( a > 0, ", ", "" ) & SpellPattern_( x, x.api->getCursorType( x.api->Cursor_getArgument( m, a ) ) )
         next
-        body &= " using m" & j & " = " & r & "(" & ps & ");"
-        uses &= " using p_" & pid & "_m" & j & " = " & nsq & "::tko_cpp_p_" & pid & "<" & args & ">::m" & j & ";"
+        body &= chr( 1 ) & "using m" & j & " = " & r & "(" & ps & ");" & chr( 2 ) & "p_" & pid & "_m" & j
+        uses &= " using p_" & pid & "_m" & j & " = " & nsq & "::tko_cpp_p_" & pid & "< " & cpp & " >::m" & j & ";"
     next
-    out_.Push( open_ & "template <" & tp.text & "> struct tko_cpp_p_" & pid & " {" & body & " };" & close_ )
-    out_.Push( "namespace tko_cpp_probe {" & uses & " }" )
+    '' ONE MEMBER A LINE, its probe's name beside it in 'keys': an error clang reports on that line
+    '' marks that member unknown -- its recovered type (an 'int' for a name it could not find) is
+    '' never read.
+    out_.Push( open_ & "template <class> struct tko_cpp_p_" & pid & "; template <" & tp.text & "> struct tko_cpp_p_" & pid & _
+               "<" & pattern & "> {" ) : keys.Push( "" )
+    '' THE CLASS'S OWN TYPEDEFS, declared again in the probe, so the pattern's spellings resolve there
+    '' as in the class: json's 'typename object_t::key_type', 'iterator', 'size_type'.
+    dim as TParams_ td
+    td.x = @x
+    x.api->visitChildren( tm, @TypedefVisit_, @td )
+    dim as int32 ta = 1
+    while ta <= len( td.text )
+        dim as int32 tb = instr( ta + 1, td.text, chr( 1 ) )
+        if tb = 0 then tb = len( td.text ) + 1
+        dim as string tdn = mid( td.text, ta + 1, tb - ta - 1 )
+        if left( tdn, 1 ) = chr( 3 ) then
+            out_.Push( "    " & mid( tdn, 2 ) & ";" ) : keys.Push( "" )
+        else
+            out_.Push( "    using " & tdn & " = typename " & pattern & "::" & tdn & ";" ) : keys.Push( "" )
+        end if
+        ta = tb
+    wend
+    dim as int32 a = 1
+    while a <= len( body )
+        dim as int32 b = instr( a + 1, body, chr( 1 ) )
+        if b = 0 then b = len( body ) + 1
+        dim as string part = mid( body, a + 1, b - a - 1 )
+        out_.Push( "    " & left( part, instr( part, chr( 2 ) ) - 1 ) ) : keys.Push( mid( part, instr( part, chr( 2 ) ) + 1 ) )
+        a = b
+    wend
+    out_.Push( "};" & close_ ) : keys.Push( "" )
+    out_.Push( "namespace tko_cpp_probe {" & uses & " }" ) : keys.Push( "" )
     return true
 end function
 
@@ -346,6 +446,9 @@ end sub
 function ProbeOverride_( byref x as CppImp_, byval ci as int32, byval j as int32 ) as boolean
     x.ovrOn = false
     dim as string want = "p_" & Id_( x.clsCpp[ci] ) & "_m" & j
+    for i as int32 = 0 to x.badProbes.Count - 1
+        if x.badProbes[i] = want then return false
+    next
     for i as int32 = 0 to x.probeNames.Count - 1
         if x.probeNames[i] = want then
             dim as CXType ft = x.probeTypes[i]
@@ -373,5 +476,296 @@ end function
 sub SpecFields_( byref x as CppImp_, byval ci as int32, byref out_ as containers.Array( of CXCursor ) )
     x.api->Type_visitFields( x.api->getCursorType( x.clsCur[ci] ), @SpecFieldVisit_, @out_ )
 end sub
+
+'' ---------------------------------------------------------------- aliases (D13)
+
+'' A SPECIALIZATION AN ALIAS NAMES -- 'using json = basic_json<>;', 'typedef vec<3, float, defaultp>
+'' vec3;' -- takes the alias's name and namespace, the name the library's users write; the shortest
+'' when several name it (glm's vec3 beside highp_vec3). Recorded in pass 2, used when the
+'' specialization is bound.
+sub AliasNote_( byref x as CppImp_, byval c as CXCursor )
+    dim as CXCursor par = x.api->getCursorSemanticParent( c )
+    dim as int32 pk = x.api->getCursorKind( par )
+    if (pk <> CXCursor_Namespace) andalso (pk <> CXCursor_TranslationUnit) then return
+    dim as CXType ut = Canon_( x, x.api->getTypedefDeclUnderlyingType( c ) )
+    if ut.kind <> TY_RECORD_ then return
+    dim as CXCursor d = x.api->getTypeDeclaration( ut )
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( d )
+    if IsNullCursor_( x, tm ) orelse InStd_( x, tm ) orelse (InScope_( x, tm ) = false) then return
+    dim as Tko.StrVec ns
+    if NsOf_( x, c, ns ) = false then return
+    dim as string nm = TypeName_( Text_( x, x.api->getCursorSpelling( c ) ) )
+    dim as string usr = Text_( x, x.api->getCursorUSR( d ) ), nsj = "", cq = ""
+    for i as int32 = 0 to ns.Count - 1
+        nsj &= iif( i > 0, chr( 1 ), "" ) & ns[i]
+    next
+    cq = mid( QualCpp_( x, Text_( x, x.api->getCursorSpelling( c ) ) ), 3 )
+    x.alCpp.Push( cq )                     '' every alias, for a call shape's class (ShapeKind_)
+    for i as int32 = 0 to x.alUsr.Count - 1
+        if x.alUsr[i] = usr then
+            if len( nm ) < len( x.alName[i] ) then x.alName[i] = nm : x.alNs[i] = nsj
+            return
+        end if
+    next
+    x.alUsr.Push( usr ) : x.alName.Push( nm ) : x.alNs.Push( nsj )
+end sub
+
+'' The alias name of a specialization's declaration, or "" -- and its namespaces in 'ns'.
+function AliasOf_( byref x as CppImp_, byval d as CXCursor, byref ns as Tko.StrVec ) as string
+    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
+    for i as int32 = 0 to x.alUsr.Count - 1
+        if x.alUsr[i] = usr then
+            dim as string nsj = x.alNs[i]
+            dim as int32 a = 1
+            while a <= len( nsj )
+                dim as int32 b = instr( a, nsj, chr( 1 ) )
+                if b = 0 then b = len( nsj ) + 1
+                ns.Push( mid( nsj, a, b - a ) )
+                a = b + 1
+            wend
+            return x.alName[i]
+        end if
+    next
+    return ""
+end function
+
+'' ---------------------------------------------------------------- call shapes (D12)
+
+'' '#cppinstantiate "glm::dot(glm::vec3, glm::vec3)"' -- A CALL WITH ARGUMENT TYPES: clang picks
+'' what C++ would call with arguments of those types, which binds it -- a function template
+'' deduced, a constructor template ('nlohmann::json(int)'), a member one
+'' ('nlohmann::json::get<int>()', 'nlohmann::json::parse(std::string)'), an operator
+'' ('glm::operator+(glm::vec3, glm::vec3)'). The call goes into the unit as the operand of a
+'' sizeof over 'std::declval' arguments, in a namespace of its own, and the function it calls is
+'' read back from there.
+
+'' 'callee(a, b)' -> callee, the argument types; false when it is not a call shape.
+function ShapeSplit_( byref s as string, byref callee as string, byref args as Tko.StrVec ) as boolean
+    dim as int32 depth = 0, open_ = 0
+    for i as int32 = 1 to len( s )
+        dim as string ch = mid( s, i, 1 )
+        if ch = "<" then depth += 1
+        if ch = ">" then depth -= 1
+        if (ch = "(") andalso (depth = 0) then open_ = i : exit for
+    next
+    if (open_ = 0) orelse (right( trim( s ), 1 ) <> ")") then return false
+    callee = trim( left( s, open_ - 1 ) )
+    if left( callee, 2 ) = "::" then callee = mid( callee, 3 )
+    dim as string inner = mid( trim( s ), open_ + 1, len( trim( s ) ) - open_ - 1 ), cur = ""
+    depth = 0
+    for i as int32 = 1 to len( inner )
+        dim as string ch = mid( inner, i, 1 )
+        if (ch = "<") orelse (ch = "(") then depth += 1
+        if (ch = ">") orelse (ch = ")") then depth -= 1
+        if (ch = ",") andalso (depth = 0) then
+            args.Push( trim( cur ) ) : cur = ""
+        else
+            cur &= ch
+        end if
+    next
+    if len( trim( cur ) ) then args.Push( trim( cur ) )
+    return true
+end function
+
+'' The last '::' outside template arguments: 'nlohmann::json::get<int>' -> 'nlohmann::json' / 'get<int>'.
+private sub LastSeg_( byref q as string, byref pre as string, byref seg as string )
+    dim as int32 depth = 0, at_ = 0
+    for i as int32 = 1 to len( q ) - 1
+        dim as string ch = mid( q, i, 1 )
+        if ch = "<" then depth += 1
+        if ch = ">" then depth -= 1
+        if (depth = 0) andalso (mid( q, i, 2 ) = "::") then at_ = i
+    next
+    if at_ = 0 then pre = "" : seg = q : return
+    pre = left( q, at_ - 1 ) : seg = mid( q, at_ + 2 )
+end sub
+
+'' Is 'q' a class of this header: an alias of one, a class, a class template's specialization?
+private function IsClassName_( byref x as CppImp_, byref q as string ) as boolean
+    if len( q ) = 0 then return false
+    for i as int32 = 0 to x.alCpp.Count - 1
+        if x.alCpp[i] = q then return true
+    next
+    for i as int32 = 0 to x.clsCpp.Count - 1
+        if x.clsCpp[i] = "::" & q then return true
+    next
+    dim as string b = q
+    if instr( b, "<" ) > 0 then b = trim( left( b, instr( b, "<" ) - 1 ) )
+    for i as int32 = 0 to x.tmplNames.Count - 1
+        if (x.tmplNames[i] = b) andalso (x.tmplKinds[i] = "c") andalso (b <> q) then return true
+    next
+    return false
+end function
+
+'' "SC" a constructor, "SM" a member, "SO" an operator, "SF" a function -- or "" not a shape.
+function ShapeKind_( byref x as CppImp_, byref s as string ) as string
+    dim as string callee, pre, seg
+    dim as Tko.StrVec args
+    if ShapeSplit_( s, callee, args ) = false then return ""
+    LastSeg_( callee, pre, seg )
+    if left( seg, 8 ) = "operator" then return "SO"
+    if IsClassName_( x, callee ) then return "SC"
+    if IsClassName_( x, pre ) then return "SM"
+    return "SF"
+end function
+
+'' The unit's line for shape i: the call, over 'std::declval' arguments, in its own namespace.
+function ShapeLine_( byref s as string, byref kind as string, byval i as int32 ) as string
+    dim as string callee, pre, seg, e
+    dim as Tko.StrVec args
+    ShapeSplit_( s, callee, args )
+    LastSeg_( callee, pre, seg )
+    '' AN ARGUMENT IS A 'const A&' unless a reference was written: a forwarding parameter then deduces
+    '' 'const A&' (json's 'basic_json(CompatibleType&&)'), which tiko passes 'byref ... const'.
+    dim as string av = ""
+    for j as int32 = 0 to args.Count - 1
+        if right( args[j], 1 ) <> "&" then args[j] = "const " & args[j] & "&"
+        av &= iif( j > 0, ", ", "" ) & "std::declval<" & args[j] & ">()"
+    next
+    select case kind
+    case "SM"
+        e = "std::declval<::" & pre & "&>()." & iif( instr( seg, "<" ) > 0, "template ", "" ) & seg & "(" & av & ")"
+    case "SO"
+        dim as string op = trim( mid( seg, 9 ) )
+        dim as string d0 = "", d1 = ""
+        if args.Count > 0 then d0 = "std::declval<" & args[0] & ">()"
+        if args.Count > 1 then d1 = "std::declval<" & args[1] & ">()"
+        dim as string a0 = iif( args.Count > 0, args[0], "" )
+        if left( a0, 6 ) = "const " then a0 = mid( a0, 7 )            '' the left of '[]' and '+=' is changed
+        if right( a0, 1 ) = "&" then a0 = left( a0, len( a0 ) - 1 )
+        if op = "[]" then
+            e = "std::declval<" & a0 & "&>()[" & d1 & "]"
+        elseif (args.Count = 2) andalso (right( op, 1 ) = "=") andalso (op <> "==") andalso (op <> "!=") andalso (op <> "<=") andalso (op <> ">=") then
+            e = "std::declval<" & a0 & "&>() " & op & " " & d1
+        elseif args.Count = 2 then
+            e = "(" & d0 & ") " & op & " (" & d1 & ")"
+        else
+            e = op & "(" & d0 & ")"
+        end if
+    case else
+        e = "::" & callee & "(" & av & ")"
+    end select
+    return "namespace tko_cpp_shape_" & i & " { static_assert(sizeof((void)(" & e & "), 0) > 0, ""tiko: instantiate""); }"
+end function
+
+type ShapeFind_
+    as CppImp_ ptr x
+    as string want
+    as CXCursor found
+    as boolean ok
+end type
+
+private function ShapeCallVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as ShapeFind_ ptr f = client
+    if f->x->api->getCursorKind( c ) = 103 then              '' CXCursor_CallExpr: calls, operators, constructions
+        dim as CXCursor r = f->x->api->getCursorReferenced( c )
+        if (IsNullCursor_( *f->x, r ) = false) andalso (Text_( *f->x, f->x->api->getCursorSpelling( r ) ) <> "declval") then
+            f->found = r : f->ok = true
+            return CXChildVisit_Break
+        end if
+    end if
+    return CXChildVisit_Recurse
+end function
+
+private function ShapeNsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as ShapeFind_ ptr f = client
+    if (f->x->api->getCursorKind( c ) = CXCursor_Namespace) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = f->want) then
+        f->x->api->visitChildren( c, @ShapeCallVisit_, f )
+        return CXChildVisit_Break
+    end if
+    return CXChildVisit_Continue
+end function
+
+'' What shape i calls: a function, a method, a constructor. False when clang found nothing.
+function ShapeTarget_( byref x as CppImp_, byval i as int32, byref fn as CXCursor ) as boolean
+    dim as ShapeFind_ f
+    f.x = @x
+    f.want = "tko_cpp_shape_" & i
+    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @ShapeNsVisit_, @f )
+    if f.ok = false then return false
+    select case x.api->getCursorKind( f.found )
+    case CXCursor_FunctionDecl, CXCursor_CXXMethod, CXCursor_Constructor, CXCursor_ConversionFunction
+        fn = f.found
+        return true
+    end select
+    return false
+end function
+
+'' THE TEMPLATE ARGUMENTS A CALL SHAPE WROTE on its callee's last name: '<int>' of
+'' 'nlohmann::json::get<int>()', "" of 'glm::dot(glm::vec3, glm::vec3)'.
+function ShapeTargs_( byref s as string ) as string
+    dim as string callee, pre, seg
+    dim as Tko.StrVec args
+    if ShapeSplit_( s, callee, args ) = false then return ""
+    LastSeg_( callee, pre, seg )
+    if instr( seg, "<" ) = 0 then return ""
+    return mid( seg, instr( seg, "<" ) )
+end function
+
+'' EXPLICIT TEMPLATE ARGUMENTS AS PART OF A tiko NAME: '<int>' -> '_long', '<std::string>' ->
+'' '_ustring' -- json's 'get<int>( )' and 'get<double>( )' differ only so, and tiko cannot overload on
+'' a result: they are get_long( ) and get_double( ).
+function TargsName_( byref targs as string ) as string
+    dim as string inner = mid( targs, 2, len( targs ) - 2 ), r = "", cur = ""
+    inner &= ","
+    for i as int32 = 1 to len( inner )
+        dim as string ch = mid( inner, i, 1 )
+        if ch <> "," then cur &= ch : continue for
+        dim as string t = trim( cur ), n = ""
+        cur = ""
+        select case t
+        case "int", "signed", "signed int" : n = "long"
+        case "unsigned", "unsigned int" : n = "ulong"
+        case "long long", "int64_t", "std::int64_t" : n = "longint"
+        case "unsigned long long", "uint64_t", "std::uint64_t" : n = "ulongint"
+        case "short" : n = "short"
+        case "char", "signed char" : n = "byte"
+        case "unsigned char" : n = "ubyte"
+        case "float" : n = "single"
+        case "double" : n = "double"
+        case "bool" : n = "boolean"
+        case "std::size_t", "size_t" : n = "uinteger"
+        case "std::string", "std::basic_string<char>", "std::string_view" : n = "ustring"
+        case else
+            for j as int32 = len( t ) to 1 step -1
+                dim as string c = mid( t, j, 1 )
+                if (c = ":") orelse (c = " ") orelse (c = "<") orelse (c = ">") orelse (c = "*") orelse (c = "&") then exit for
+                n = c & n
+            next
+        end select
+        r &= "_" & n
+    next
+    return r
+end function
+
+'' A FUNCTION TEMPLATE SPECIALIZATION's arguments as C++ writes them -- '<const std::string &>' --
+'' for a call that names them: '->template get<int>( )'. "" when there are none, or one is not a
+'' type or an integer (a pack: the call deduces it).
+function TemplateArgs_( byref x as CppImp_, byval c as CXCursor ) as string
+    dim as int32 n = x.api->Cursor_getNumTemplateArguments( c )
+    if n <= 0 then return ""
+    dim as string r = ""
+    for i as int32 = 0 to n - 1
+        select case x.api->Cursor_getTemplateArgumentKind( c, i )
+        case 1 : r &= iif( i > 0, ", ", "" ) & Spell_( x, x.api->Cursor_getTemplateArgumentType( c, i ) )
+        case 4 : r &= iif( i > 0, ", ", "" ) & str( x.api->Cursor_getTemplateArgumentValue( c, i ) )
+        case else : return ""
+        end select
+    next
+    return "<" & r & ">"
+end function
+
+'' The same arguments as part of a tiko name: 'get' + '<int>' -> 'get_long'.
+function TemplateArgsName_( byref x as CppImp_, byval c as CXCursor ) as string
+    dim as int32 n = x.api->Cursor_getNumTemplateArguments( c )
+    dim as string r = ""
+    for i as int32 = 0 to n - 1
+        select case x.api->Cursor_getTemplateArgumentKind( c, i )
+        case 1 : r &= "_" & ArgName_( x, x.api->Cursor_getTemplateArgumentType( c, i ) )
+        case 4 : r &= "_" & str( x.api->Cursor_getTemplateArgumentValue( c, i ) )
+        end select
+    next
+    return r
+end function
 
 end namespace

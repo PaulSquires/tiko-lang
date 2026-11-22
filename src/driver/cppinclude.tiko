@@ -169,18 +169,48 @@ private function Hook_ cdecl _
         dir_ &= "/cpp"
     end if
     if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
-    dim as string key = Tko.DiskCache.Hash( res.shim & chr( 0 ) & hdrText & chr( 0 ) & io.targetName & chr( 0 ) & fl )
-    dim as string src = dir_ & "/" & key & ".cpp"
-    dim as string obj = dir_ & "/" & key & ".o"
-    if IsFile_( obj ) = false then
-        if Tko.DiskCache.Commit( src, res.shim, 1 ) = false then return Fail_( ctx, at, header & ": cannot write the C++ shim '" & src & "'" )
-        dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx->options.target )
-        dim as int32 rc = Tko.Codegen.CompileCppShim( s->tools, td, src, obj, flags )
-        if rc <> 0 then
+    '' A SHIM THAT DOES NOT COMPILE is parsed in full (CppShimCheck): the entries its errors are
+    '' in are left out, and the header imported again. What was left out is kept beside the shim,
+    '' '<key>.bad', so the next build imports without them at once instead of failing again.
+    dim as string key, src, obj
+    for tries as int32 = 0 to 4
+        key = Tko.DiskCache.Hash( res.shim & chr( 0 ) & hdrText & chr( 0 ) & io.targetName & chr( 0 ) & fl )
+        src = dir_ & "/" & key & ".cpp"
+        obj = dir_ & "/" & key & ".o"
+        if IsFile_( obj ) then exit for
+        dim as string badPath = dir_ & "/" & key & ".bad", badText
+        dim as Tko.StrVec bad
+        if IsFile_( badPath ) andalso Tko.DiskCache.ReadAll( badPath, badText ) then
+            dim as int32 a = 1
+            while a <= len( badText )
+                dim as int32 b = instr( a, badText, chr( 10 ) )
+                if b = 0 then b = len( badText ) + 1
+                if b > a then bad.Push( mid( badText, a, b - a ) )
+                a = b + 1
+            wend
+        else
+            if Tko.DiskCache.Commit( src, res.shim, 1 ) = false then return Fail_( ctx, at, header & ": cannot write the C++ shim '" & src & "'" )
+            dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx->options.target )
+            dim as int32 rc = Tko.Codegen.CompileCppShim( s->tools, td, src, obj, flags )
+            if rc = 0 then exit for
             kill( obj )
-            return Fail_( ctx, at, header & ": its C++ shim did not compile (clang exit " & rc & "): " & src )
+            if (tries = 4) orelse (Tko.CppImport.CppShimCheck( s->api, io, src, res.shim, bad ) = false) then
+                return Fail_( ctx, at, header & ": its C++ shim did not compile (clang exit " & rc & "): " & src )
+            end if
+            badText = ""
+            for i as int32 = 0 to bad.Count - 1
+                badText &= bad[i] & chr( 10 )
+            next
+            Tko.DiskCache.Commit( badPath, badText, 1 )
         end if
-    end if
+        for i as int32 = 0 to bad.Count - 1
+            io.exclude.Push( bad[i] )
+        next
+        if Tko.CppImport.CppImportRun( s->api, io, res ) = false then return Fail_( ctx, at, header & ": " & res.why )
+    next
+    if IsFile_( obj ) = false then return Fail_( ctx, at, header & ": its C++ shim did not compile: " & src )
+    '' THE BINDING BESIDE ITS SHIM, '<key>.ti', for reading: what the header gave tiko, CPP-TODOs and all.
+    if IsFile_( dir_ & "/" & key & ".ti" ) = false then Tko.DiskCache.Commit( dir_ & "/" & key & ".ti", res.binding, 1 )
     ctx->link.pragmaLibFiles.Push( obj )
     if (s->runtimeAsked = false) andalso (Tko.TargetIsWindows( ctx->options.target ) = false) then
         s->runtimeAsked = true
