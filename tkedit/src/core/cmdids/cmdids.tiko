@@ -85,6 +85,7 @@ public enum Cmd explicit
     BufferNext
     BufferPrev
     OutputPane
+    OutputFloat
     SplitLeftRight
     SplitTopBottom
     CycleFocus
@@ -325,6 +326,7 @@ constructor CommandTable( )
     this.Def( Cmd.ShowMenu, "ShowMenu", g, "Menu Bar", "Primary+Shift+M" )
     this.Def( Cmd.ShowExplorer, "ShowExplorer", g, "Explorer", "Primary+B" )
     this.Def( Cmd.OutputPane, "OutputPane", g, "Output", "Primary+F9" )
+    this.Def( Cmd.OutputFloat, "OutputFloat", g, "Float Output", "" )
     this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "Primary+Shift+P", true )
     this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
     this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )

@@ -65,6 +65,11 @@ public type SessionState
     WinH       as long
     WinMax     as boolean              ' it was maximized
     OutputCY   as long                 ' the output pane's height, unscaled; 0 = the default
+    FloatOutput as boolean             ' session.toml [window]: the output pane floats; its window's place
+    OutX       as long
+    OutY       as long
+    OutW       as long                 ' 0 = none kept
+    OutH       as long
     ExplorerCX as long                 ' the explorer's width, unscaled; 0 = the default
     FloatToolbox as boolean            ' session.toml [designer]: the form designer's floating palettes
     ToolX      as long
@@ -167,6 +172,12 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
     if (st.WinW < 200) orelse (st.WinH < 150) then st.WinW = 0 : st.WinH = 0
     st.OutputCY = tomlget.GetInt( w, "output_height", 0 )
     if (st.OutputCY < 60) orelse (st.OutputCY > 4000) then st.OutputCY = 0
+    st.FloatOutput = tomlget.GetBool( w, "output_float", false )
+    st.OutX = tomlget.GetInt( w, "output_x", 0 )
+    st.OutY = tomlget.GetInt( w, "output_y", 0 )
+    st.OutW = tomlget.GetInt( w, "output_w", 0 )
+    st.OutH = tomlget.GetInt( w, "output_h", 0 )
+    if (st.OutW < 50) orelse (st.OutH < 50) then st.OutW = 0 : st.OutH = 0
     st.ExplorerCX = tomlget.GetInt( w, "explorer_width", 0 )
     if (st.ExplorerCX < 60) orelse (st.ExplorerCX > 4000) then st.ExplorerCX = 0
     return st
@@ -196,6 +207,13 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         tomlget.SetBool( w, "maximized", st.WinMax )
         if st.OutputCY > 0 then tomlget.SetInt( w, "output_height", st.OutputCY )
         if st.ExplorerCX > 0 then tomlget.SetInt( w, "explorer_width", st.ExplorerCX )
+        if st.FloatOutput orelse (st.OutW > 0) then
+            tomlget.SetBool( w, "output_float", st.FloatOutput )
+            tomlget.SetInt( w, "output_x", st.OutX )
+            tomlget.SetInt( w, "output_y", st.OutY )
+            tomlget.SetInt( w, "output_w", st.OutW )
+            tomlget.SetInt( w, "output_h", st.OutH )
+        end if
         root.SetKey( "window", w )
     end if
     if st.FloatToolbox orelse st.FloatProps orelse (st.ToolW > 0) orelse (st.PropsW > 0) orelse _

@@ -3726,14 +3726,14 @@ public sub StartPass( byref t as Tally, byval sc as single )
              (tkWidget_IsVisible( mw.hbar( 0 ) ) = false), P( sc, "start: the blank buffer's view and its bars hidden" ) )
 
     ' ---- nothing open, no project: a row is live only if it would do something
-    dim as Cmd liveIds( 0 to 10 ) = { Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
-                                      Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.FormNewForm, Cmd.BuildConfig }
+    dim as Cmd liveIds( 0 to 11 ) = { Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
+                                      Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.BuildConfig }
     dim as Cmd deadIds( 0 to 18 ) = { Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.FileRecent, Cmd.ProjectSaveAs, Cmd.ProjectClose, Cmd.SearchSymbol, Cmd.FindInProject, _
                                       Cmd.GoBack, Cmd.GoForward, Cmd.CycleFocus, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, _
                                       Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.StartDebugging, Cmd.DeleteAllBreakpoints }
     dim as cmdids.CommandTable startTable
     dim as ustring wrongLive = "", wrongDead = ""
-    for i as long = 0 to 10
+    for i as long = 0 to 11
         if mw.CanRun( liveIds( i ) ) = false then wrongLive &= startTable.Info( liveIds( i ) ).Name & " "
     next
     for i as long = 0 to 18
