@@ -123,9 +123,66 @@ function ClassOf_( byref x as CppImp_, byval t as CXType, byref why as string ) 
     return -1
 end function
 
+'' A CALLBACK'S SIGNATURE as a tiko procedure pointer type and a C function pointer type (survey:
+'' muparser's DefineFun, sigslot, SQLite hooks): fundamentals, 'const char*' and 'void*' only -- the
+'' types tiko and C pass alike, so a tiko procedure IS the callback, with no trampoline.
+private function ProcPtr_( byref x as CppImp_, byval ft as CXType, byref tiko as string, byref cfn as string, byref nm as string, _
+                          byref mir as string ) as boolean
+    dim as CXType f = Canon_( x, ft )
+    if (f.kind <> 111) andalso (f.kind <> 110) then return false     '' FunctionProto / FunctionNoProto
+    dim as int32 na = x.api->getNumArgTypes( f )
+    if na < 0 then return false
+    dim as string tp = "", cp = "", mp = ""
+    for i as int32 = 0 to na - 1
+        dim as CXType a = x.api->getArgType( f, i )
+        dim as string tk, ct
+        dim as CXType ac = Canon_( x, a )
+        if Fund_( x, a, tk, ct ) then
+        elseif (ac.kind = TY_POINTER_) andalso (Canon_( x, x.api->getPointeeType( ac ) ).kind = TY_VOID_) then
+            tk = "any ptr" : ct = "void*"
+        elseif (ac.kind = TY_POINTER_) andalso ((Canon_( x, x.api->getPointeeType( ac ) ).kind = TY_CHAR_S_) orelse (Canon_( x, x.api->getPointeeType( ac ) ).kind = TY_CHAR_U_)) then
+            tk = "const zstring ptr" : ct = "const char*"
+        else
+            return false
+        end if
+        tp &= iif( i > 0, ", ", "" ) & "byval as " & tk
+        cp &= iif( i > 0, ", ", "" ) & ct
+        mp &= iif( i > 0, ", ", "" ) & iif( tk = "any ptr", "void*", iif( tk = "const zstring ptr", "const char*", MirFund_( tk ) ) )
+    next
+    dim as CXType rt = x.api->getResultType( f )
+    dim as string rk, rc
+    if Canon_( x, rt ).kind = TY_VOID_ then
+        tiko = "sub cdecl ( " & tp & " )" : rc = "void"
+    elseif Fund_( x, rt, rk, rc ) then
+        tiko = "function cdecl ( " & tp & " ) as " & rk
+    else
+        return false
+    end if
+    cfn = rc & " (*" & nm & ")(" & cp & ")"
+    mir = iif( rc = "void", "void", MirFund_( rk ) ) & " (*)(" & mp & ")"
+    return true
+end function
+
 function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as TMap_
     dim as TMap_ m
     m.ok = true
+    dim as string pt_, pc_, pm_
+    '' A CALLBACK: 'int (*f)(int)', or a std::function<int(int)> by value or const& -- which a C
+    '' function pointer converts to.
+    dim as CXType cb = Canon_( x, t )
+    if cb.kind = TY_LREF_ then cb = Canon_( x, x.api->getNonReferenceType( cb ) )
+    if (cb.kind = TY_RECORD_) andalso (StdTemplate_( x, cb ) = "function") then
+        if ProcPtr_( x, x.api->Type_getTemplateArgumentAsType( cb, 0 ), pt_, pc_, nm, pm_ ) then
+            m.tiko = "byval " & nm & " as " & pt_ : m.ctype = pc_ : m.arg = nm : m.mir = pm_
+        else
+            m.ok = false : m.why = "a std::function of a signature tiko cannot call back"
+        end if
+        return m
+    end if
+    if (cb.kind = TY_POINTER_) andalso ProcPtr_( x, x.api->getPointeeType( cb ), pt_, pc_, nm, pm_ ) then
+        m.tiko = "byval " & nm & " as " & pt_ : m.ctype = pc_ : m.arg = nm : m.mir = pm_
+        return m
+    end if
     if StdParam_( x, t, nm, m ) then return m
     dim as string tk, ct, tq, cq, mq, cwhy
     dim as CXType c = Canon_( x, t )
@@ -189,8 +246,10 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
         dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
         dim as string kw = iif( kq, "const ", "" )
         if (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) > 0) andalso kq then
+            '' AN LVALUE, as the C++ caller's variable is: a deleted 'f(const std::string&&)' beside
+            '' it must not win the overload (survey: SQLiteCpp's bindNoCopy).
             m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
-            m.arg = "tko_cpp_to_std(" & nm & ")" : m.mir = "const FBUSTRING&"
+            m.arg = "static_cast<const std::string&>(tko_cpp_to_std(" & nm & "))" : m.mir = "const FBUSTRING&"
         elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 1) then
             '' A std::string& TO FILL (survey: utfcpp, argparse, json11's parse error): a ustring variable,
             '' read for the call and written after it.

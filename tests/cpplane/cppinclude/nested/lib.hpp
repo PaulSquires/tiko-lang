@@ -2,6 +2,7 @@
 // std::vector, rvalue-reference parameters (the cpp-import survey, docs/tiko-cpp/SURVEY.md).
 #pragma once
 #include <array>
+#include <functional>
 #include <map>
 #include <unordered_map>
 #include <optional>
@@ -67,6 +68,15 @@ std::map<std::string, int> counts(const std::string& text);          // maps
 std::unordered_map<int, std::string> names(int n);
 int total(const std::map<std::string, int>& m);
 bool parse_num(const std::string& s, int* out, std::string* err);    // a std::string* to fill
+int apply(int (*f)(int), int x);                                     // callbacks into tiko
+double fold(const std::vector<double>& v, std::function<double(double, double)> op, double init);
+class Events {
+public:
+    void on(void (*cb)(const char* name, int value)) { cb_ = cb; }
+    void fire(const char* name, int value) const { if (cb_) cb_(name, value); }
+private:
+    void (*cb_)(const char*, int) = nullptr;
+};
 class Mesh {                                                         // vector fields
 public:
     std::vector<float> vertices;

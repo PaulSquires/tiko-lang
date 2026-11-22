@@ -293,6 +293,7 @@ function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, b
         return true
     end if
     if sk = "optional" then m.ok = false : m.why = "a std::optional parameter" : return true
+    if sk = "function" then m.ok = false : m.why = "a std::function of a signature tiko cannot call back" : return true
     if (sk = "map") orelse (sk = "unordered_map") then
         if isRef andalso (kq = false) then m.ok = false : m.why = "a std::" & sk & "& to fill" : return true
         dim as int32 mk = MapKind_( x, pe, why )

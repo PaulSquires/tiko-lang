@@ -97,6 +97,22 @@ show_i( "parse.ok", iif( nest.parse_num( "12", @pv, perr ), pv, -1 ) )
 show_i( "parse.bad", iif( nest.parse_num( "zz", @pv, perr ), 1, 0 ) )
 dim as string pes = perr
 show_s( "parse.err", strptr( pes ) )
+function triple1 cdecl ( byval a as long ) as long
+    return a * 3 + 1
+end function
+function mul cdecl ( byval a as double, byval b as double ) as double
+    return a * b
+end function
+sub onEvent cdecl ( byval n as const zstring ptr, byval v as long )
+    show_i( n, v )
+end sub
+show_i( "apply", nest.apply( @triple1, 2 ) )
+dim as containers.Array( of double ) fv
+fv.Push( 1.5 ) : fv.Push( 2.5 ) : fv.Push( 4 )
+show_d( "fold", nest.fold( fv, @mul, 2 ) )
+dim as nest.Events ev
+ev.on_( @onEvent )          '' ON is a tiko keyword
+ev.fire( "event.a", 7 )
 dim as nest.Mesh mesh
 dim as containers.Array( of single ) vs
 vs.Push( 1.5! ) : vs.Push( 2.5! ) : vs.Push( 3.5! )

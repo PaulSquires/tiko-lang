@@ -71,6 +71,11 @@ int main() {
     show_i("parse.ok", nest::parse_num("12", &pv, &err) ? pv : -1);
     show_i("parse.bad", nest::parse_num("zz", &pv, &err) ? 1 : 0);
     show_s("parse.err", err.c_str());
+    show_i("apply", nest::apply([](int a) { return a * 3 + 1; }, 2));
+    show_d("fold", nest::fold({ 1.5, 2.5, 4 }, [](double a, double b) { return a * b; }, 2));
+    nest::Events ev;
+    ev.on([](const char* n, int v) { show_i(n, v); });
+    ev.fire("event.a", 7);
     nest::Mesh mesh;
     mesh.vertices = { 1.5f, 2.5f, 3.5f };
     mesh.tags.push_back("t1");

@@ -57,6 +57,8 @@ int total(const std::map<std::string, int>& m) { int t = 0; for (auto& e : m) t 
 bool parse_num(const std::string& s, int* out, std::string* err) {
     try { *out = std::stoi(s); return true; } catch (...) { if (err) *err = "not a number: " + s; return false; }
 }
+int apply(int (*f)(int), int x) { return f(f(x)); }
+double fold(const std::vector<double>& v, std::function<double(double, double)> op, double init) { for (double d : v) init = op(init, d); return init; }
 long long checksum(const std::string& s) { long long t = 0; for (unsigned char c : s) t = t * 257 + c; return t; }
 
 }  // namespace nest
