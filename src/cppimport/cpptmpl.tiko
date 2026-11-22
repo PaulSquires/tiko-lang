@@ -649,7 +649,8 @@ function ShapeKind_( byref x as CppImp_, byref s as string ) as string
     dim as Tko.StrVec args
     if ShapeSplit_( s, callee, args ) = false then return ""
     LastSeg_( callee, pre, seg )
-    if left( seg, 8 ) = "operator" then return "SO"
+    '' A MEMBER OPERATOR is a member: 'rapidjson::Value::operator[](const char*)'.
+    if left( seg, 8 ) = "operator" then return iif( IsClassName_( x, pre ), "SM", "SO" )
     if IsClassName_( x, callee ) then return "SC"
     if IsClassName_( x, pre ) then return "SM"
     return "SF"
@@ -662,15 +663,16 @@ function ShapeLine_( byref s as string, byref kind as string, byval i as int32 )
     ShapeSplit_( s, callee, args )
     LastSeg_( callee, pre, seg )
     '' AN ARGUMENT IS A 'const A&' unless a reference was written: a forwarding parameter then deduces
-    '' 'const A&' (json's 'basic_json(CompatibleType&&)'), which tiko passes 'byref ... const'.
+    '' 'const A&' (json's 'basic_json(CompatibleType&&)'), which tiko passes 'byref ... const'. Written
+    '' 'A const&', so a pointer is one too: 'const char* const&', not 'const const char*&'.
     dim as string av = ""
     for j as int32 = 0 to args.Count - 1
-        if right( args[j], 1 ) <> "&" then args[j] = "const " & args[j] & "&"
+        if right( args[j], 1 ) <> "&" then args[j] = args[j] & " const&"
         av &= iif( j > 0, ", ", "" ) & "std::declval<" & args[j] & ">()"
     next
     select case kind
     case "SM"
-        e = "std::declval<::" & pre & "&>()." & iif( instr( seg, "<" ) > 0, "template ", "" ) & seg & "(" & av & ")"
+        e = "std::declval<::" & pre & "&>()." & iif( (instr( seg, "<" ) > 0) andalso (left( seg, 8 ) <> "operator"), "template ", "" ) & seg & "(" & av & ")"
     case "SO"
         dim as string op = trim( mid( seg, 9 ) )
         dim as string d0 = "", d1 = ""
@@ -678,6 +680,7 @@ function ShapeLine_( byref s as string, byref kind as string, byval i as int32 )
         if args.Count > 1 then d1 = "std::declval<" & args[1] & ">()"
         dim as string a0 = iif( args.Count > 0, args[0], "" )
         if left( a0, 6 ) = "const " then a0 = mid( a0, 7 )            '' the left of '[]' and '+=' is changed
+        if right( a0, 7 ) = " const&" then a0 = left( a0, len( a0 ) - 7 )
         if right( a0, 1 ) = "&" then a0 = left( a0, len( a0 ) - 1 )
         if op = "[]" then
             e = "std::declval<" & a0 & "&>()[" & d1 & "]"
@@ -691,12 +694,11 @@ function ShapeLine_( byref s as string, byref kind as string, byval i as int32 )
     case else
         e = "::" & callee & "(" & av & ")"
     end select
-    '' A MEMBER'S OR A CONSTRUCTOR'S CLASS, named too (survey: 'tsl::robin_map<std::string, int>::insert'):
-    '' a member of a class template's specialization is its pattern's to libclang, whose parent is no
-    '' class of the binding -- ShapeClass_ reads the class from this alias instead.
+    '' THE CLASS THE SHAPE NAMES, for a constructor or member: 'rapidjson::Document::Accept(...)' is
+    '' GenericValue's member, called -- and bound -- through Document.
     dim as string cls = ""
-    if kind = "SM" then cls = " using tko_cpp_shapecls = ::" & pre & ";"
-    if kind = "SC" then cls = " using tko_cpp_shapecls = ::" & callee & ";"
+    if kind = "SC" then cls = " using tko_cpp_cls = ::" & callee & ";"
+    if kind = "SM" then cls = " using tko_cpp_cls = ::" & pre & ";"
     return "namespace tko_cpp_shape_" & i & " {" & cls & " static_assert(sizeof((void)(" & e & "), 0) > 0, ""tiko: instantiate""); }"
 end function
 
@@ -730,25 +732,31 @@ end function
 
 private function ShapeClsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
     dim as ShapeFind_ ptr f = client
-    if (f->x->api->getCursorKind( c ) = CXCursor_Namespace) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = f->want) then
-        return CXChildVisit_Recurse
-    end if
-    if (f->x->api->getCursorKind( c ) = CXCursor_TypeAliasDecl) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = "tko_cpp_shapecls") then
+    if (f->x->api->getCursorKind( c ) = CXCursor_TypeAliasDecl) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = "tko_cpp_cls") then
         f->found = c : f->ok = true
         return CXChildVisit_Break
     end if
     return CXChildVisit_Continue
 end function
 
-'' THE CLASS A MEMBER OR CONSTRUCTOR SHAPE NAMES (its 'tko_cpp_shapecls' alias), canonical; kind 0 if none.
+private function ShapeClsNsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as ShapeFind_ ptr f = client
+    if (f->x->api->getCursorKind( c ) = CXCursor_Namespace) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = f->want) then
+        f->x->api->visitChildren( c, @ShapeClsVisit_, f )
+        return CXChildVisit_Break
+    end if
+    return CXChildVisit_Continue
+end function
+
+'' The class shape i names (SC, SM), or a kind-0 type.
 function ShapeClass_( byref x as CppImp_, byval i as int32 ) as CXType
     dim as ShapeFind_ f
-    dim as CXType none_
     f.x = @x
     f.want = "tko_cpp_shape_" & i
-    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @ShapeClsVisit_, @f )
+    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @ShapeClsNsVisit_, @f )
+    dim as CXType none_
     if f.ok = false then return none_
-    return x.api->getCanonicalType( x.api->getTypedefDeclUnderlyingType( f.found ) )
+    return Canon_( x, x.api->getTypedefDeclUnderlyingType( f.found ) )
 end function
 
 '' What shape i calls: a function, a method, a constructor. False when clang found nothing.

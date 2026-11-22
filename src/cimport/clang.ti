@@ -187,6 +187,7 @@ type CXInclusionVisitor as sub cdecl _
     FN( getCursorType, "clang_getCursorType", ( byval c as CXCursor ), CXType )
     FN( visitChildren, "clang_visitChildren", ( byval parent as CXCursor, byval visitor as CXCursorVisitor, byval client as any ptr ), uint32 )
     FN( Type_visitFields, "clang_Type_visitFields", ( byval t as CXType, byval visitor as CXFieldVisitor, byval client as any ptr ), uint32 )  '' :6761
+    FN( visitCXXBaseClasses, "clang_visitCXXBaseClasses", ( byval t as CXType, byval visitor as CXFieldVisitor, byval client as any ptr ), uint32 )
     FN( isCursorDefinition, "clang_isCursorDefinition", ( byval c as CXCursor ), uint32 )
     FN( getCursorDefinition, "clang_getCursorDefinition", ( byval c as CXCursor ), CXCursor )
     '' ---- templates (docs/tiko-cpp C3b-2)

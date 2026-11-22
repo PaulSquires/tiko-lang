@@ -253,6 +253,13 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
         dim as CXType pc = Canon_( x, pe )
         dim as boolean kq = (x.api->isConstQualifiedType( pc ) <> 0)
         dim as string kw = iif( kq, "const ", "" )
+        if (pc.kind = TY_POINTER_) andalso kq then
+            '' A CONST REFERENCE TO A POINTER is the pointer, by value: rapidjson's 'Key(const Ch* const&)'.
+            m = Param_( x, x.api->getUnqualifiedType( pc ), nm )
+            '' The mirror spells it as tiko declares it, the pointer: its name is the declaration's.
+            if (m.ok = false) orelse (instr( m.tiko, "byval " ) <> 1) then m.ok = false : m.why = "reference to " & Spell_( x, pe )
+            return m
+        end if
         if (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) > 0) andalso kq then
             '' AN LVALUE, as the C++ caller's variable is: a deleted 'f(const std::string&&)' beside
             '' it must not win the overload (survey: SQLiteCpp's bindNoCopy).

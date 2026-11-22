@@ -521,6 +521,15 @@ private function MemberVisit_ cdecl _
     return CXChildVisit_Continue
 end function
 
+private function SpecBaseVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as int32
+    dim as Members_ ptr mb = client
+    if mb->x->api->getCXXAccessSpecifier( c ) = CX_CXXPublic then
+        dim as CXCursor bd = mb->x->api->getTypeDeclaration( Canon_( *mb->x, mb->x->api->getCursorType( c ) ) )
+        mb->seen.Push( Text_( *mb->x, mb->x->api->getCursorUSR( bd ) ) )
+    end if
+    return 1                                    '' CXVisit_Continue
+end function
+
 private sub Gather_( byref x as CppImp_, byref mb as Members_, byval c as CXCursor )
     dim as int32 b0 = mb.bases.Count, h0 = mb.hidden.Count
     mb.here.Clear( )
@@ -1088,8 +1097,7 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     for i as int32 = 0 to x.extraMem.Count - 1
         dim as CXCursor em = x.extraMem[i]
         dim as string why, decl
-        if len( x.extraCls[i] ) andalso (x.extraCls[i] <> x.clsUsr[ci]) then continue for
-        if (len( x.extraCls[i] ) = 0) andalso (ClassOf_( x, x.api->getCursorType( x.api->getCursorSemanticParent( em ) ), why ) <> ci) then continue for
+        if ClassOf_( x, x.extraCls[i], why ) <> ci then continue for
         dim as int32 ek = x.api->getCursorKind( em ), kk = K_METHOD_, na = x.api->Cursor_getNumArguments( em )
         dim as string emn = Text_( x, x.api->getCursorSpelling( em ) ), top = ""
         dim as string disp = cpp & "::" & Text_( x, x.api->getCursorDisplayName( em ) ) & TemplateArgs_( x, em )
@@ -1172,6 +1180,12 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
             StaticField_( x, ci, mb.cur[i], lines )
         end if
     next
+    '' A SPECIALIZATION'S BASES ARE ITS INSTANTIATION'S: the pattern's are dependent ('GenericValue<
+    '' Encoding, Allocator>'), so rapidjson's Document had no cast to its Value.
+    if spec then
+        mb.seen.Clear( )
+        x.api->visitCXXBaseClasses( x.api->getCursorType( x.clsCur[ci] ), @SpecBaseVisit_, @mb )
+    end if
     for i as int32 = 0 to mb.seen.Count - 1
         for ai as int32 = 0 to x.clsUsr.Count - 1
             if x.clsUsr[ai] = mb.seen[i] then Cast_( x, ci, ai, lines )

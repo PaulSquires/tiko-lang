@@ -135,7 +135,7 @@ type CppImp_
     as Tko.StrVec    alCpp        '' every alias's C++ name, 'nlohmann::json'
     as containers.Array( of CXCursor ) extraMem   '' members a call shape found: their class's
     as Tko.StrVec    extraTargs   '' ...and the template arguments the shape wrote, '<int>'
-    as Tko.StrVec    extraCls     '' ...and the USR of the class the shape named ("" none: by the member's parent)
+    as containers.Array( of CXType ) extraCls   '' ...and the class the shape named: a base's member is the derived's too
     as string        calleeTargs  '' Entry_'s explicit template arguments for the call
     as string        nameOverride '' Entry_'s tiko name, when an instantiation needs its arguments in it
 end type
