@@ -136,8 +136,9 @@ Surface = "@Error"
 Text = "@SelectedText"
 ```
 
-The program follows the computer's light or dark setting. **Design > Preview Light / Dark** flips
-the design surface to check the other one. The [Themes Tutorial](Themes-Tutorial) has the rest.
+The program follows the computer's light or dark setting. The **Preview Light / Dark** command flips
+the design surface to check the other one; give it a key in **File > Options > Keyboard Shortcuts**
+(**Ctrl+K**). The [Themes Tutorial](Themes-Tutorial) has the rest.
 
 ---
 
