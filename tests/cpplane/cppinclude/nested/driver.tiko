@@ -79,3 +79,5 @@ show_i( "ANSWER", nest.ANSWER )
 dim as string gr = *nest.GREETING
 show_s( "GREETING", strptr( gr ) )
 show_i( "FLAGS", nest.FLAG_A or nest.FLAG_B )
+'' Bytes that are not UTF-8 cross a ustring and back unchanged (U+DC00 + byte); the euro sign is one unit.
+show_i( "bytes", nest.checksum( nest.bytes( 9 ) ) )

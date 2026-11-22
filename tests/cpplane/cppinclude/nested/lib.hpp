@@ -59,5 +59,7 @@ struct Adder { int base = 0; int operator()(int a, int b = 1) const { return bas
 constexpr int ANSWER = 42;                            // namespace constants and variables
 extern const char* const GREETING;
 enum { FLAG_A = 1, FLAG_B = 4 };
+std::string bytes(int n);                             // binary data in a std::string
+long long checksum(const std::string& s);
 
 }  // namespace nest

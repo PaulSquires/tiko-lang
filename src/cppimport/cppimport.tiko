@@ -429,13 +429,43 @@ function Prelude_( ) as string
     "void* fb_UStrAssign(void* dst, std::intptr_t dst_size, void* src, std::intptr_t src_size, int fill_rem);" & L & _
     "}" & L & _
     "// A ustring's UTF-16 as UTF-8. The sign bit of len is the temporary flag." & L & _
+    "// LOSSLESS FOR BYTES (survey: cpp-base64, utfcpp, hashes): a byte that is not UTF-8 crosses as" & L & _
+    "// the lone surrogate U+DC00 + byte, and that unit back as the byte -- Python's surrogateescape --" & L & _
+    "// so a std::string of binary data round-trips through a ustring. Valid UTF-8 is unchanged." & L & _
     "static inline std::string tko_cpp_to_std(const tko_cpp_ustr* s) {" & L & _
-    "    if (!s || !s->data) return std::string();" & L & _
+    "    std::string r;" & L & _
+    "    if (!s || !s->data) return r;" & L & _
     "    std::intptr_t n = s->len & INTPTR_MAX;" & L & _
-    "    std::intptr_t b = fb_hUtf16ToUtf8(s->data, n, nullptr, 0);" & L & _
-    "    std::string r((std::size_t)b, '\0');" & L & _
-    "    if (b > 0) fb_hUtf16ToUtf8(s->data, n, (std::uint8_t*)&r[0], b);" & L & _
+    "    const std::uint16_t* d = s->data;" & L & _
+    "    r.reserve((std::size_t)n);" & L & _
+    "    for (std::intptr_t i = 0; i < n; ++i) {" & L & _
+    "        std::uint32_t c = d[i];" & L & _
+    "        if (c >= 0xDC80 && c <= 0xDCFF) { r += (char)(c - 0xDC00); continue; }" & L & _
+    "        if (c >= 0xD800 && c <= 0xDBFF && i + 1 < n && d[i + 1] >= 0xDC00 && d[i + 1] <= 0xDFFF) { c = 0x10000 + ((c - 0xD800) << 10) + (d[i + 1] - 0xDC00); ++i; }" & L & _
+    "        if (c < 0x80) { r += (char)c; }" & L & _
+    "        else if (c < 0x800) { r += (char)(0xC0 | (c >> 6)); r += (char)(0x80 | (c & 0x3F)); }" & L & _
+    "        else if (c < 0x10000) { r += (char)(0xE0 | (c >> 12)); r += (char)(0x80 | ((c >> 6) & 0x3F)); r += (char)(0x80 | (c & 0x3F)); }" & L & _
+    "        else { r += (char)(0xF0 | (c >> 18)); r += (char)(0x80 | ((c >> 12) & 0x3F)); r += (char)(0x80 | ((c >> 6) & 0x3F)); r += (char)(0x80 | (c & 0x3F)); }" & L & _
+    "    }" & L & _
     "    return r;" & L & "}" & L & _
+    "// UTF-8 to UTF-16 units, a byte no UTF-8 sequence takes as U+DC00 + byte." & L & _
+    "static inline std::intptr_t tko_cpp_u8to16(const unsigned char* p, std::size_t b, std::uint16_t* out) {" & L & _
+    "    std::intptr_t n = 0; std::size_t i = 0;" & L & _
+    "    while (i < b) {" & L & _
+    "        unsigned c = p[i]; std::uint32_t cp = 0; std::size_t k = 0;" & L & _
+    "        if (c < 0x80) { cp = c; k = 1; }" & L & _
+    "        else if (c >= 0xC2 && c <= 0xDF) { cp = c & 0x1F; k = 2; }" & L & _
+    "        else if (c >= 0xE0 && c <= 0xEF) { cp = c & 0x0F; k = 3; }" & L & _
+    "        else if (c >= 0xF0 && c <= 0xF4) { cp = c & 0x07; k = 4; }" & L & _
+    "        bool ok = k > 0 && i + k <= b;" & L & _
+    "        for (std::size_t j = 1; ok && j < k; ++j) { if ((p[i + j] & 0xC0) != 0x80) ok = false; else cp = (cp << 6) | (p[i + j] & 0x3F); }" & L & _
+    "        if (ok && ((k == 3 && (cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF))) || (k == 4 && (cp < 0x10000 || cp > 0x10FFFF)))) ok = false;" & L & _
+    "        if (!ok) { if (out) out[n] = (std::uint16_t)(0xDC00 + c); ++n; ++i; continue; }" & L & _
+    "        if (cp >= 0x10000) { if (out) { out[n] = (std::uint16_t)(0xD800 + ((cp - 0x10000) >> 10)); out[n + 1] = (std::uint16_t)(0xDC00 + ((cp - 0x10000) & 0x3FF)); } n += 2; }" & L & _
+    "        else { if (out) out[n] = (std::uint16_t)cp; ++n; }" & L & _
+    "        i += k;" & L & _
+    "    }" & L & _
+    "    return n;" & L & "}" & L & _
     "// AN IN-OUT std::string& (survey): the ustring's text for the call, and the call's text back into" & L & _
     "// the ustring when the full expression ends -- a temporary of this type is the argument." & L & _
     "static inline tko_cpp_ustr* tko_cpp_from_utf8(const char* p, std::size_t b);" & L & _
@@ -448,9 +478,9 @@ function Prelude_( ) as string
     "// ustring hands its caller (measured: the caller fb_UStrInit's from it)." & L & _
     "static inline tko_cpp_ustr* tko_cpp_from_utf8(const char* p, std::size_t b) {" & L & _
     "    tko_cpp_ustr t = { nullptr, 0, 0 };" & L & _
-    "    std::intptr_t n = (p && b) ? fb_hUtf8ToUtf16((const std::uint8_t*)p, (std::intptr_t)b, nullptr, 0) : 0;" & L & _
+    "    std::intptr_t n = (p && b) ? tko_cpp_u8to16((const unsigned char*)p, b, nullptr) : 0;" & L & _
     "    if (n > 0 && fb_hUStrAlloc(&t, n)) {" & L & _
-    "        fb_hUtf8ToUtf16((const std::uint8_t*)p, (std::intptr_t)b, t.data, n);" & L & _
+    "        tko_cpp_u8to16((const unsigned char*)p, b, t.data);" & L & _
     "        t.len = n;" & L & "    }" & L & _
     "    return fb_UStrAllocTempResult(&t);" & L & "}" & L & _
     "template <class S> static inline tko_cpp_ustr* tko_cpp_from(const S& s) { return tko_cpp_from_utf8(s.data(), s.size()); }" & L & _

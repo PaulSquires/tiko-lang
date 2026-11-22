@@ -60,5 +60,6 @@ int main() {
     show_i("ANSWER", nest::ANSWER);
     show_s("GREETING", nest::GREETING);
     show_i("FLAGS", nest::FLAG_A | nest::FLAG_B);
+    show_i("bytes", nest::checksum(nest::bytes(9)));
     return 0;
 }

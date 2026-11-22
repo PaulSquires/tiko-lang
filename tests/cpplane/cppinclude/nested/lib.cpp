@@ -46,5 +46,7 @@ std::optional<int> find(const std::vector<int>& v, int x) {
 std::optional<std::string> label(int i) { if (i > 0) return "L" + std::to_string(i); return std::nullopt; }
 void decorate(std::string& s) { s = "[" + s + "]"; }
 const char* const GREETING = "hello";
+std::string bytes(int n) { std::string s; for (int i = 0; i < n; ++i) s += (char)(i * 37 + 200); s += "â¬"; return s; }
+long long checksum(const std::string& s) { long long t = 0; for (unsigned char c : s) t = t * 257 + c; return t; }
 
 }  // namespace nest
