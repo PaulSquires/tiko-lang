@@ -266,6 +266,27 @@ sub VecHelpers_( byref x as CppImp_, byval vk as int32 )
     x.defs.Push( d )
 end sub
 
+'' A std::vector / std::list / std::deque BY POINTER, to fill (survey: tinyobjloader's 'std::vector<shape_t>*',
+'' polypartition's 'TPPLPolyList*'): a byref containers.Array, copied in and back. Never null from tiko.
+function StdPtrParam_( byref x as CppImp_, byval pc as CXType, byref nm as string, byref m as TMap_ ) as boolean
+    dim as string sk = StdTemplate_( x, pc ), why
+    if (sk <> "vector") andalso (sk <> "list") andalso (sk <> "deque") then return false
+    if x.api->isConstQualifiedType( pc ) <> 0 then return false
+    dim as int32 vk = VecKind_( x, x.api->Type_getTemplateArgumentAsType( pc, 0 ), why )
+    if vk = 0 then m.ok = false : m.why = why : return true
+    dim as string vt = "std::vector<" & x.vecEC[vk - 1] & ">", st = "std::" & sk & "<" & x.vecEC[vk - 1] & ">"
+    m.ok = true
+    m.tiko = "byval " & nm & " as any ptr" : m.ctype = "void* " & nm : m.mir = "void*"
+    m.vk1 = vk : m.vmode = 2
+    if sk = "vector" then
+        m.arg = "static_cast<" & vt & "*>(" & nm & ")"
+    else
+        m.arg = "&static_cast<" & st & "&>(tko_cpp_seqout<" & st & ">(*static_cast<" & vt & "*>(" & nm & ")))"
+    end if
+    m.pub = "byref " & nm & " as containers.Array( of " & x.vecET[vk - 1] & " )"
+    return true
+end function
+
 '' A STANDARD LIBRARY PARAMETER: std::vector (by value, const& and & -- the last copied back),
 '' unique_ptr by value, shared_ptr by value and const&. True when 't' is one, with 'm' its map.
 function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, byref m as TMap_ ) as boolean
@@ -289,6 +310,20 @@ function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, b
         '' A std::array (survey): the vector of its elements, made one for the call.
         if sk = "array" then m.arg = "tko_cpp_toarr<" & x.vecEC[vk - 1] & ", " & x.api->Cursor_getTemplateArgumentValue( x.api->getTypeDeclaration( pe ), 1 ) & ">(" & m.arg & ")"
         m.vk1 = vk : m.vmode = iif( isRef andalso (kq = false), 2, 1 )
+        m.pub = "byref " & nm & " as " & iif( m.vmode = 1, "const ", "" ) & "containers.Array( of " & x.vecET[vk - 1] & " )"
+        return true
+    end if
+    if (sk = "list") orelse (sk = "deque") then
+        dim as int32 vk = VecKind_( x, e, why )
+        if vk = 0 then m.ok = false : m.why = why : return true
+        dim as string vt = "std::vector<" & x.vecEC[vk - 1] & ">", st = "std::" & sk & "<" & x.vecEC[vk - 1] & ">"
+        m.tiko = "byval " & nm & " as any ptr" : m.ctype = "void* " & nm : m.mir = "void*"
+        m.vk1 = vk : m.vmode = iif( isRef andalso (kq = false), 2, 1 )
+        if m.vmode = 2 then
+            m.arg = "static_cast<" & st & "&>(tko_cpp_seqout<" & st & ">(*static_cast<" & vt & "*>(" & nm & ")))"
+        else
+            m.arg = "tko_cpp_seq<" & st & ">(*static_cast<" & vt & "*>(" & nm & "))"
+        end if
         m.pub = "byref " & nm & " as " & iif( m.vmode = 1, "const ", "" ) & "containers.Array( of " & x.vecET[vk - 1] & " )"
         return true
     end if
@@ -330,11 +365,11 @@ function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) a
         m.wrap0 = "static_cast<void*>(new std::vector<" & x.vecEC[vk - 1] & ">(" : m.wrap1 = "))"
         return true
     end if
-    if sk = "array" then
+    if (sk = "array") orelse (sk = "list") orelse (sk = "deque") then
         dim as int32 vk = VecKind_( x, e, why )
         if vk = 0 then m.ok = false : m.why = why : return true
         m.tiko = "any ptr" : m.ctype = "void*" : m.fallback = "nullptr" : m.vk1 = vk
-        m.wrap0 = "tko_cpp_arrvec(" : m.wrap1 = ")"
+        m.wrap0 = iif( sk = "array", "tko_cpp_arrvec(", "tko_cpp_vecof(" ) : m.wrap1 = ")"
         return true
     end if
     if (sk = "map") orelse (sk = "unordered_map") then

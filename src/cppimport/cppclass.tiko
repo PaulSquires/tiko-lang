@@ -40,7 +40,11 @@ end function
 private function VecIn_( byref x as CppImp_, byval t as CXType ) as boolean
     dim as CXType c = Canon_( x, t )
     if (c.kind = TY_LREF_) orelse (c.kind = TY_RREF_) then c = Canon_( x, x.api->getNonReferenceType( c ) )
-    return StdTemplate_( x, c ) = "vector"
+    if c.kind = TY_POINTER_ then c = Canon_( x, x.api->getPointeeType( c ) )
+    select case StdTemplate_( x, c )
+    case "vector", "array", "list", "deque", "map", "unordered_map", "optional" : return true
+    end select
+    return false
 end function
 
 function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _

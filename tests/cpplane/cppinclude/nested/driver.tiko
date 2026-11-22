@@ -113,6 +113,23 @@ show_d( "fold", nest.fold( fv, @mul, 2 ) )
 dim as nest.Events ev
 ev.on_( @onEvent )          '' ON is a tiko keyword
 ev.fire( "event.a", 7 )
+dim as containers.Array( of long ) ev2 = nest.evens( 4 )
+show_i( "evens", nest.sum_list( ev2 ) )
+nest.grow( ev2, 10 )
+show_i( "grow.n", ev2.Count )
+show_i( "grow.sum", nest.sum_list( ev2 ) )
+dim as containers.Array( of ustring ) nmv
+dim as ustring warn
+nest.load( nmv, warn )
+show_i( "load.n", nmv.Count )
+dim as string n1 = nmv[1], ws = warn
+show_s( "load.1", strptr( n1 ) )
+show_s( "load.warn", strptr( ws ) )
+dim as zstring ptr av( 0 to 2 ) = { @"ab", @"cde", @"f" }
+show_i( "argc_len", nest.argc_len( 3, @av( 0 ) ) )
+dim as const zstring ptr sp = @"one two three"
+nest.skip_word( sp )
+show_s( "skip", sp )
 dim as nest.Mesh mesh
 dim as containers.Array( of single ) vs
 vs.Push( 1.5! ) : vs.Push( 2.5! ) : vs.Push( 3.5! )

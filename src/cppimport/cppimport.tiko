@@ -520,6 +520,14 @@ function Prelude_( ) as string
     "// for any element type, and the copy C++ refuses is a runtime error instead of a shim that does not build." & L & _
     "template <class T, class A> inline T* tko_cpp_dup(A&& a) { if constexpr (std::is_constructible_v<T, A&&>) { return new T(std::forward<A>(a)); } else { tko_cpp_last() = ""this C++ type cannot be copied""; return nullptr; } }" & L & _
     "template <class V, class A> inline bool tko_cpp_pushback(V& v, A&& a) { if constexpr (std::is_constructible_v<typename V::value_type, A&&>) { v.push_back(std::forward<A>(a)); return true; } else { return false; } }" & L & _
+    "// A std::list / std::deque crosses as a std::vector of its elements; one to fill is written back (survey)." & L & _
+    "template <class S, class V> inline S tko_cpp_seq(const V& v) { return S(v.begin(), v.end()); }" & L & _
+    "template <class S> struct tko_cpp_seqout {" & L & _
+    "    std::vector<typename S::value_type>& d; S s;" & L & _
+    "    explicit tko_cpp_seqout(std::vector<typename S::value_type>& v) : d(v), s(v.begin(), v.end()) {}" & L & _
+    "    ~tko_cpp_seqout() { d.clear(); for (auto& e : s) d.push_back(e); }" & L & _
+    "    operator S&() { return s; }" & L & "};" & L & _
+    "template <class S> inline void* tko_cpp_vecof(const S& s) { return new std::vector<typename S::value_type>(s.begin(), s.end()); }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
     "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
     "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _

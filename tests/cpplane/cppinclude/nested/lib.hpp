@@ -3,6 +3,7 @@
 #pragma once
 #include <array>
 #include <functional>
+#include <list>
 #include <map>
 #include <unordered_map>
 #include <optional>
@@ -68,6 +69,12 @@ std::map<std::string, int> counts(const std::string& text);          // maps
 std::unordered_map<int, std::string> names(int n);
 int total(const std::map<std::string, int>& m);
 bool parse_num(const std::string& s, int* out, std::string* err);    // a std::string* to fill
+std::list<int> evens(int n);                                         // std::list
+int sum_list(const std::list<int>& l);
+void grow(std::list<int>* l, int by);                                // a std::list* to fill
+bool load(std::vector<std::string>* names, std::string* warn);       // a std::vector* to fill
+int argc_len(int argc, const char* const* argv);                     // argv
+const char* skip_word(const char*& p);                               // const char*&
 int apply(int (*f)(int), int x);                                     // callbacks into tiko
 double fold(const std::vector<double>& v, std::function<double(double, double)> op, double init);
 class Events {

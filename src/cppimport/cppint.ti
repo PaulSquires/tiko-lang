@@ -271,6 +271,7 @@ declare function MapKind_( byref x as CppImp_, byval t as CXType, byref why as s
 declare function MapKV_( byref x as CppImp_, byval mk as int32 ) as string
 declare sub FieldVec_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref r as TMap_, byref lines as Tko.StrVec )
 declare function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, byref m as TMap_ ) as boolean
+declare function StdPtrParam_( byref x as CppImp_, byval pc as CXType, byref nm as string, byref m as TMap_ ) as boolean
 declare function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) as boolean
 declare function HasRange_( byref x as CppImp_, byval ci as int32 ) as boolean
 declare function RangeProbe_( byref x as CppImp_, byval ci as int32 ) as string

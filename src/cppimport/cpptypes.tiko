@@ -199,6 +199,14 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
         elseif pc.kind = TY_VOID_ then
             m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm : m.arg = nm
             m.mir = kw & "void*"
+        elseif (pc.kind = TY_RECORD_) andalso StdPtrParam_( x, pc, nm, m ) then
+            return m
+        elseif (pc.kind = TY_POINTER_) andalso kq andalso _
+               ((Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_S_) orelse _
+                (Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_U_)) then
+            '' 'const char* const* argv' (survey: cxxopts, argparse): an array of C strings, read only.
+            m.tiko = "byval " & nm & " as const zstring ptr ptr" : m.ctype = "const char* const* " & nm : m.arg = nm
+            m.mir = "const char* const*"
         elseif (pc.kind = TY_POINTER_) andalso (kq = false) andalso _
                ((Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_S_) orelse _
                 (Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_U_)) then
@@ -260,6 +268,13 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
             m.ctype = kw & ct & "* " & nm
             m.arg = "*reinterpret_cast<" & Spell_( x, pc ) & "*>(" & nm & ")"
             m.mir = kw & MirFund_( tk ) & "&"
+        elseif (pc.kind = TY_POINTER_) andalso (kq = false) andalso _
+               ((Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_S_) orelse _
+                (Canon_( x, x.api->getPointeeType( pc ) ).kind = TY_CHAR_U_)) then
+            '' 'const char*& it' (survey: utfcpp's next(it, end)): a zstring ptr variable the call moves.
+            dim as string ck = iif( x.api->isConstQualifiedType( Canon_( x, x.api->getPointeeType( pc ) ) ) <> 0, "const ", "" )
+            m.tiko = "byref " & nm & " as " & ck & "zstring ptr" : m.ctype = ck & "char** " & nm
+            m.arg = "*" & nm : m.mir = ck & "char*&"
         elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 0) then
             dim as int32 ci = ClassOf_( x, pe, cwhy )
             if ci < 0 then m.ok = false : m.why = cwhy : return m
