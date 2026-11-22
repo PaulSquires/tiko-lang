@@ -129,6 +129,7 @@ if command( 1 ) = "--selftest" then
     selftest.PencilPass( t, 1.0 )
     selftest.FinishPass( t, 1.0 )
     selftest.ThemePass( t, 1.0 )
+    selftest.ThemePass( t, 1.75 )
     selftest.ColorsPass( t, 1.0 )
     selftest.ResourcePass( t, 1.0 )
     selftest.KeysPass( t, 1.0 )
