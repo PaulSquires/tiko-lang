@@ -169,9 +169,11 @@ private function Hook_ cdecl _
         dir_ &= "/cpp"
     end if
     if fs.IsDir( dir_ ) = false then fs.CreateDirAll( dir_ )
-    '' A SHIM THAT DOES NOT COMPILE is parsed in full (CppShimCheck): the entries its errors are
-    '' in are left out, and the header imported again. What was left out is kept beside the shim,
-    '' '<key>.bad', so the next build imports without them at once instead of failing again.
+    '' A SHIM IS PARSED IN FULL BEFORE ITS FIRST COMPILE (CppShimCheck): the entries its errors are
+    '' in are left out, and the header imported again -- so a member whose C++ body does not compile
+    '' for this specialization costs no failed compile, nor a screen of clang's errors. What was left
+    '' out is kept beside the shim, '<key>.bad', so the next build imports without them at once. Only
+    '' a cache miss pays for the parse.
     dim as string key, src, obj
     for tries as int32 = 0 to 4
         key = Tko.DiskCache.Hash( res.shim & chr( 0 ) & hdrText & chr( 0 ) & io.targetName & chr( 0 ) & fl )
@@ -190,11 +192,11 @@ private function Hook_ cdecl _
             wend
         else
             if Tko.DiskCache.Commit( src, res.shim, 1 ) = false then return Fail_( ctx, at, header & ": cannot write the C++ shim '" & src & "'" )
-            dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx->options.target )
-            dim as int32 rc = Tko.Codegen.CompileCppShim( s->tools, td, src, obj, flags )
-            if rc = 0 then exit for
-            kill( obj )
             if (tries = 4) orelse (Tko.CppImport.CppShimCheck( s->api, io, src, res.shim, bad ) = false) then
+                dim as Tko.Codegen.TargetDescription td = Tko.Codegen.TargetFor( ctx->options.target )
+                dim as int32 rc = Tko.Codegen.CompileCppShim( s->tools, td, src, obj, flags )
+                if rc = 0 then exit for
+                kill( obj )
                 return Fail_( ctx, at, header & ": its C++ shim did not compile (clang exit " & rc & "): " & src )
             end if
             badText = ""

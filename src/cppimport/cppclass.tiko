@@ -449,6 +449,15 @@ private function MemberVisit_ cdecl _
     return CXChildVisit_Continue
 end function
 
+private function SpecBaseVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as int32
+    dim as Members_ ptr mb = client
+    if mb->x->api->getCXXAccessSpecifier( c ) = CX_CXXPublic then
+        dim as CXCursor bd = mb->x->api->getTypeDeclaration( Canon_( *mb->x, mb->x->api->getCursorType( c ) ) )
+        mb->seen.Push( Text_( *mb->x, mb->x->api->getCursorUSR( bd ) ) )
+    end if
+    return 1                                    '' CXVisit_Continue
+end function
+
 private sub Gather_( byref x as CppImp_, byref mb as Members_, byval c as CXCursor )
     dim as int32 b0 = mb.bases.Count, h0 = mb.hidden.Count
     mb.here.Clear( )
@@ -504,6 +513,20 @@ sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
         x.bind.Push( opened[i] & "end namespace" )
     next
 end sub
+
+'' A STRUCTOR'S SHIM WHOSE BODY DID NOT COMPILE (CppShimCheck): rapidjson's GenericArray<true, ...>
+'' declares an operator= whose body assigns through a const reference. It stays declared -- tiko
+'' needs every handle's three -- and raises instead.
+function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
+    for i as int32 = 0 to x.exclude.Count - 1
+        if x.exclude[i] = sym then return true
+    next
+    return false
+end function
+
+private function NoBody_( byref what as string ) as string
+    return iif( what = "assigned", "", "self_->impl = nullptr; self_->owned = 0; " ) & "tko_cpp_last() = ""this C++ class cannot be " & what & " (its C++ body does not compile)""; tko_cpp_raise();"
+end function
 
 function Sym_( byref x as CppImp_ ) as string
     dim as string s = "tko_cpp_" & x.id & "_" & x.n
@@ -633,17 +656,20 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     x.mirBody.Push( "    void " & sd & "();" )
     x.mirBody.Push( "    void operator=(const " & MirName_( tn ) & "&);" )
     x.shim.Push( "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:" & sc & "@@"");" & L & _
-                 "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) { tko_cpp_copy<" & cpp & ">(self_, o_); }" & L )
+                 "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) { " & _
+                 iif( Excluded_( x, sc ), NoBody_( "copied" ), "tko_cpp_copy<" & cpp & ">(self_, o_);" ) & " }" & L )
     x.shim.Push( "extern ""C"" void " & sd & "(tko_cpp_h* self_) __asm__(""@@M:" & sd & "@@"");" & L & _
                  "extern ""C"" void " & sd & "(tko_cpp_h* self_) { tko_cpp_free<" & cpp & ">(self_); }" & L )
     x.shim.Push( "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:let:" & mq & "@@"");" & L & _
-                 "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) { tko_cpp_assign<" & cpp & ">(self_, o_); }" & L )
+                 "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) { " & _
+                 iif( Excluded_( x, sl ), NoBody_( "assigned" ), "tko_cpp_assign<" & cpp & ">(self_, o_);" ) & " }" & L )
     if (mb.userCtor = false) andalso (abstract_ = false) then
         dim as string s0 = Sym_( x )
         lines.Push( "declare constructor alias """ & s0 & """ ( )" )
         x.mirBody.Push( "    void " & s0 & "();" )
         x.shim.Push( "extern ""C"" void " & s0 & "(tko_cpp_h* self_) __asm__(""@@M:" & s0 & "@@"");" & L & _
-                     "extern ""C"" void " & s0 & "(tko_cpp_h* self_) { tko_cpp_default<" & cpp & ">(self_); }" & L )
+                     "extern ""C"" void " & s0 & "(tko_cpp_h* self_) { " & _
+                     iif( Excluded_( x, s0 ), NoBody_( "default-constructed" ), "tko_cpp_default<" & cpp & ">(self_);" ) & " }" & L )
         x.sigs.Push( lcase( x.clsTikoQ[ci] & ".constructor()" ) ) : x.sigConst.Push( "" )
     end if
     end if
@@ -711,7 +737,7 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     for i as int32 = 0 to x.extraMem.Count - 1
         dim as CXCursor em = x.extraMem[i]
         dim as string why, decl
-        if ClassOf_( x, x.api->getCursorType( x.api->getCursorSemanticParent( em ) ), why ) <> ci then continue for
+        if ClassOf_( x, x.extraCls[i], why ) <> ci then continue for
         dim as int32 ek = x.api->getCursorKind( em ), kk = K_METHOD_, na = x.api->Cursor_getNumArguments( em )
         dim as string emn = Text_( x, x.api->getCursorSpelling( em ) ), top = ""
         dim as string disp = cpp & "::" & Text_( x, x.api->getCursorDisplayName( em ) ) & TemplateArgs_( x, em )
@@ -774,6 +800,12 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         for i as int32 = 0 to mb.cur.Count - 1
             if mb.kind[i] = K_FIELD_ then Field_( x, ci, mb.cur[i], lines )
         next
+    end if
+    '' A SPECIALIZATION'S BASES ARE ITS INSTANTIATION'S: the pattern's are dependent ('GenericValue<
+    '' Encoding, Allocator>'), so rapidjson's Document had no cast to its Value.
+    if spec then
+        mb.seen.Clear( )
+        x.api->visitCXXBaseClasses( x.api->getCursorType( x.clsCur[ci] ), @SpecBaseVisit_, @mb )
     end if
     for i as int32 = 0 to mb.seen.Count - 1
         for ai as int32 = 0 to x.clsUsr.Count - 1

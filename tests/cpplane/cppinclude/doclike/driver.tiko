@@ -1,0 +1,33 @@
+'' cppinclude/doclike, called from tiko: what RapidJSON's API needs (TUTORIAL-rapidjson.md) --
+'' '#cppinstantiate' of a typedef, call shapes of a base's member templates through the derived
+'' class, the document as its base, a 'const char* const&' parameter, a const view's operator=
+'' left out. Must print what driver.cpp prints.
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinstantiate "dl::Document"
+    #cppinstantiate "dl::Printer<dl::Buffer>"
+    #cppinstantiate "dl::Document::operator[](const char*)"
+    #cppinstantiate "dl::Value::operator[](const char*)"
+    #cppinstantiate "dl::Document::Accept(dl::Printer<dl::Buffer>&)"
+    #cppinclude "lib.hpp"
+#endif
+#include once "../../show.bi"
+
+dim as dl.Document d
+d.Parse( "7" )
+show_i( "doc", d.Get_( ) )
+d["a"].Set( 1 )
+d["b"]["c"].Set( 2 )
+d["a"].Set( d["a"].Get_( ) + 10 )
+show_i( "a", d["a"].Get_( ) )
+show_i( "count", d.Count( ) )
+dim as dl.Value v = d                       '' the document as its base: borrowed (not copyable)
+show_i( "value", v.Get_( ) )
+show_i( "view", v.GetView( ).Get_( ) )
+dim as dl.Buffer b
+dim as dl.Printer_Buffer p = b
+d.Accept( p )
+show_s( "printed", b.Get_( ) )
+p.Key( "k" )
+show_s( "key", b.Get_( ) )

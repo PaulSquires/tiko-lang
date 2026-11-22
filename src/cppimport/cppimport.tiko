@@ -570,7 +570,7 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
     for i as int32 = 0 to opts.instantiate.Count - 1
         dim as CXCursor fn
         if ((ikind[i] = "SC") orelse (ikind[i] = "SM")) andalso ShapeTarget_( x, i, fn ) then
-            x.extraMem.Push( fn ) : x.extraTargs.Push( ShapeTargs_( opts.instantiate[i] ) )
+            x.extraMem.Push( fn ) : x.extraTargs.Push( ShapeTargs_( opts.instantiate[i] ) ) : x.extraCls.Push( ShapeClass_( x, i ) )
         end if
     next
     EmitClasses_( x )
@@ -851,6 +851,12 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
             for j as int32 = 0 to xp->tmplNames.Count - 1
                 if xp->tmplNames[j] = xp->instBases[i] then ikind[i] = xp->tmplKinds[j] : exit for
             next
+            '' AN ALIAS OF A SPECIALIZATION is one too: '#cppinstantiate "rapidjson::Document"'.
+            if (ikind[i] = "") andalso (instr( opts.instantiate[i], "<" ) = 0) then
+                for j as int32 = 0 to xp->alCpp.Count - 1
+                    if xp->alCpp[j] = xp->instBases[i] then ikind[i] = "c" : exit for
+                next
+            end if
             if ikind[i] = "" then
                 res.rc = 1 : res.why = "#cppinstantiate """ & opts.instantiate[i] & """ names no template of this header"
                 delete xp : api.disposeTranslationUnit( tu ) : api.disposeIndex( idx )
@@ -867,7 +873,7 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
                 if (ikind[i] = "f") andalso InstFunction_( *xp, i, fn ) then NoteFunction_( *xp, fn )
                 if (left( ikind[i], 1 ) = "S") andalso ShapeTarget_( *xp, i, fn ) then
                     NoteFunction_( *xp, fn )
-                    if (ikind[i] = "SC") orelse (ikind[i] = "SM") then NoteType_( *xp, xp->api->getCursorType( xp->api->getCursorSemanticParent( fn ) ) )
+                    if (ikind[i] = "SC") orelse (ikind[i] = "SM") then NoteType_( *xp, ShapeClass_( *xp, i ) )
                 end if
             next
             xp->pass = 4
