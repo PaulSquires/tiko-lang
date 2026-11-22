@@ -12,6 +12,30 @@ using Tko.CImport
 
 '' ONE ENTRY POINT: its binding declaration, its shim function and -- for a member, whose symbol
 '' tiko mangles -- its mirror declaration. False with 'why' when it cannot be expressed.
+'' DOES CLASS ci HOLD A REFERENCE OR A POINTER in a field of its own, of any access? (A constructor
+'' taking a std::vector then keeps the vector it was given alive: Adapter_.)
+type Holds_
+    as CppImp_ ptr x
+    as boolean hit
+end type
+
+private function HoldsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Holds_ ptr h = client
+    if h->x->api->getCursorKind( c ) = CXCursor_FieldDecl then
+        dim as int32 k = Canon_( *h->x, h->x->api->getCursorType( c ) ).kind
+        if (k = TY_LREF_) orelse (k = TY_RREF_) orelse (k = TY_POINTER_) then h->hit = true
+    end if
+    return CXChildVisit_Continue
+end function
+
+private function HoldsRefs_( byref x as CppImp_, byval ci as int32 ) as boolean
+    if (ci < 0) orelse IsSpec_( x, ci ) then return false
+    dim as Holds_ h
+    h.x = @x
+    x.api->visitChildren( x.clsCur[ci], @HoldsVisit_, @h )
+    return h.hit
+end function
+
 '' Is a std::vector in this type, by value or reference? (Entry_'s adapter parameters.)
 private function VecIn_( byref x as CppImp_, byval t as CXType ) as boolean
     dim as CXType c = Canon_( x, t )
@@ -166,7 +190,8 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
                 nsl &= iif( i > 0, chr( 1 ), "" ) & x.tikoNs[i]
             next
         end if
-        Adapter_( x, nsl, head, rawn, iif( (kind = K_METHOD_) orelse (kind = K_CTOR_), "this", "" ), pnames, pvk, pmode, r.vk1, r.tiko, isSub, kind = K_CTOR_, r.vopt )
+        Adapter_( x, nsl, head, rawn, iif( (kind = K_METHOD_) orelse (kind = K_CTOR_), "this", "" ), pnames, pvk, pmode, r.vk1, r.tiko, isSub, kind = K_CTOR_, r.vopt, _
+                  (kind = K_CTOR_) andalso HoldsRefs_( x, ci ) )
         member = false                         '' the raw entry is an alias, like a free function
     end if
     tparams = iif( len( tparams ), "( " & tparams & " )", "( )" )
@@ -677,13 +702,16 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
             FieldVec_( x, ci, c, r, lines )
             return
         end if
-        if r.ok andalso ((r.vk1 <> 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library field"
+        '' A POINTER TO A CLASS is a borrowed handle of what it points at (survey: box2d's b2JointDef.bodyA,
+        '' imgui's ImGuiIO.Fonts); setting it stores the handle's object.
+        if r.ok andalso ((r.vk1 <> 0) orelse ((r.sret <> SR_NONE_) andalso (r.sret <> SR_PTR_))) then r.ok = false : r.why = "a standard library field"
         if r.ok = false then lines.Push( "'' CPP-TODO(field: " & r.why & "): " & disp ) : x.todos += 1 : return
     end if
     dim as string obj = "static_cast<" & cpp & "*>(self_->impl)->" & nm
     dim as string sg = Sym_( x )
     if Excluded_( x, sg ) then lines.Push( "'' CPP-TODO(its C++ body does not compile): " & disp ) : x.todos += 1 : return
-    lines.Push( "declare property " & tn & " alias """ & sg & """ ( )" & iif( r.byrefRet, " byref as ", " as " ) & r.tiko & "    '' " & disp )
+    '' A CONST GETTER: a field reads through a const object too (survey: semver's version.major).
+    lines.Push( "declare const property " & tn & " alias """ & sg & """ ( )" & iif( r.byrefRet, " byref as ", " as " ) & r.tiko & "    '' " & disp )
     dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", r.ctype )
     dim as string pl = iif( r.sret <> SR_NONE_, "tko_cpp_h* ret_, tko_cpp_h* self_", "tko_cpp_h* self_" )
     dim as string f = "extern ""C"" " & rt & " " & sg & "(" & pl & ") __asm__(""@@M:" & sg & "@@"");" & L & _
@@ -697,7 +725,7 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
     end select
     f &= " } TKO_CPP_CATCH" & L & "    tko_cpp_raise();" & L & "    return " & iif( r.sret <> SR_NONE_, "ret_", r.fallback ) & ";" & L & "}" & L
     x.shim.Push( f )
-    x.mirBody.Push( "    void " & sg & "();" )
+    x.mirBody.Push( "    void " & sg & "() const;" )
     x.bound += 1
     if x.api->isConstQualifiedType( t ) <> 0 then return
     '' A POD FIELD'S byref getter is all it gets: beside a setter, fbc refuses 'h.pos.x = 1'
@@ -753,6 +781,24 @@ sub Var_( byref x as CppImp_, byval c as CXCursor )
     if len( nm ) = 0 then return
     dim as string disp = QualCpp_( x, nm )
     dim as string tn = ValueName_( nm )
+    '' AN OUT-OF-CLASS DEFINITION of a class template's static member is no namespace variable.
+    dim as int32 pk = x.api->getCursorKind( x.api->getCursorSemanticParent( c ) )
+    if (pk <> CXCursor_Namespace) andalso (pk <> CXCursor_TranslationUnit) andalso (pk <> CXCursor_LinkageSpec) then return
+    '' THE SAME VARIABLE declared twice (SQLiteCpp's 'extern const int OK') is bound once; another whose
+    '' name differs only in case takes '_'.
+    dim as string vu = "usr:" & Text_( x, x.api->getCursorUSR( c ) )
+    for i as int32 = 0 to x.varNames.Count - 1
+        if x.varNames[i] = vu then return
+    next
+    x.varNames.Push( vu )
+    dim as boolean taken = true
+    while taken
+        taken = false
+        for i as int32 = 0 to x.varNames.Count - 1
+            if x.varNames[i] = lcase( QualTiko_( x, tn ) ) then taken = true : tn &= "_" : exit for
+        next
+    wend
+    x.varNames.Push( lcase( QualTiko_( x, tn ) ) )
     dim as string cl = ConstOf_( x, c, tn )
     if len( cl ) then
         x.bind.Push( Indent_( x ) & cl & "    '' " & disp )

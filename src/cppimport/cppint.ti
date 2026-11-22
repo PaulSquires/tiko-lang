@@ -100,6 +100,8 @@ type CppImp_
     '' window): every C++ symbol a shim calls, by its target mangling, given a fallback the link uses
     '' only when no library defines it -- a stub that raises when called. COFF: /alternatename.
     as boolean       coff
+    as Tko.StrVec    varNames     '' namespace variables written (USRs, and lcase qualified names: tiko
+                                  '' names are case-insensitive -- clipper2's MAX_COORD beside max_coord)
     as Tko.StrVec    altNames
     as Tko.StrVec    clsMirBody   '' its mirror struct's members, and the extras after it (a range's
     as Tko.StrVec    clsMirExtra  '' iterator): assembled in Finish_, a nested struct inside its outer one
@@ -276,7 +278,7 @@ declare sub Range_( byref x as CppImp_, byval ci as int32, byref lines as Tko.St
 declare sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
                       byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
                       byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean, _
-                      byval isCtor as boolean = false, byval rOpt as boolean = false )
+                      byval isCtor as boolean = false, byval rOpt as boolean = false, byval keep as boolean = false )
 '' cppclass.tiko, operators
 declare function OpKind_( byref cop as string, byval nargs as int32, byval isMember as boolean, _
                           byref top as string ) as int32

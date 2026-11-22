@@ -203,7 +203,7 @@ sub FieldVec_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref
     x.extraGlob.Push( "extern ""C"" : declare function " & rg & " alias """ & sg & """ ( byref self_ as const " & x.clsTikoQ[ci] & " ) as any ptr : end extern" )
     x.shim.Push( "extern ""C"" void* " & sg & "(tko_cpp_h* self_) { try { return static_cast<void*>(new std::vector<" & x.vecEC[vk - 1] & ">(" & obj & ")); } TKO_CPP_CATCH" & L & _
                  "    tko_cpp_raise(); return nullptr; }" & L )
-    lines.Push( "declare property " & tn & " ( ) as " & et & "    '' " & disp & " (a copy)" )
+    lines.Push( "declare const property " & tn & " ( ) as " & et & "    '' " & disp & " (a copy)" )
     dim as string ns = x.clsNsTiko[ci], d = "", e = ""
     dim as int32 a = 1
     while a <= len( ns )
@@ -367,7 +367,7 @@ end function
 sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
               byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
               byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean, _
-              byval isCtor as boolean = false, byval rOpt as boolean = false )
+              byval isCtor as boolean = false, byval rOpt as boolean = false, byval keep as boolean = false )
     dim as string L = chr( 10 ), d = "", args = self_, e = ""
     dim as int32 a = 1
     while a <= len( nsList )
@@ -397,6 +397,10 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
     end if
     for i as int32 = 0 to names.Count - 1
         if vks[i] = 0 then continue for
+        '' A CONSTRUCTOR OF A CLASS THAT HOLDS A REFERENCE OR A POINTER keeps its arguments' vectors: it may
+        '' keep a reference to one (survey: delaunator's 'const std::vector<double>& coords', nanoflann's
+        '' adaptor) -- freed, its object read freed memory. They live as long as the program.
+        if keep then continue for
         if vks[i] < 0 then d &= "    " & x.mapBase[-vks[i] - 1] & "_free( tko_v" & i & "_ )" & L : continue for
         dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
         if modes[i] = 2 then
