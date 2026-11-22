@@ -38,8 +38,12 @@ function Fund_( byref x as CppImp_, byval t as CXType, byref tk as string, _
     dim as int64 sz = x.api->Type_getSizeOf( c )
     select case c.kind
     case TY_BOOL_                : tk = "boolean"  : ct = "bool"
-    case TY_CHAR_S_, TY_SCHAR_   : tk = "byte"     : ct = "signed char"
-    case TY_CHAR_U_, TY_UCHAR_   : tk = "ubyte"    : ct = "unsigned char"
+    '' PLAIN char IS ITS OWN C++ TYPE (survey: csv-parser's quote(char) beside quote(signed char)
+    '' ran the wrong overload, yaml-cpp's and toml++'s were ambiguous): the shim spells it 'char'.
+    case TY_CHAR_S_              : tk = "byte"     : ct = "char"
+    case TY_SCHAR_               : tk = "byte"     : ct = "signed char"
+    case TY_CHAR_U_              : tk = "ubyte"    : ct = "char"
+    case TY_UCHAR_               : tk = "ubyte"    : ct = "unsigned char"
     case TY_SHORT_               : tk = "short"    : ct = "short"
     case TY_USHORT_, TY_CHAR16_  : tk = "ushort"   : ct = "unsigned short"
     case TY_INT_                 : tk = "long"     : ct = "int"
@@ -180,6 +184,11 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
         if (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) > 0) andalso kq then
             m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm
             m.arg = "tko_cpp_to_std(" & nm & ")" : m.mir = "const FBUSTRING&"
+        elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 1) then
+            '' A std::string& TO FILL (survey: utfcpp, argparse, json11's parse error): a ustring variable,
+            '' read for the call and written after it.
+            m.tiko = "byref " & nm & " as ustring" : m.ctype = "tko_cpp_ustr* " & nm
+            m.arg = "tko_cpp_strout(" & nm & ")" : m.mir = "FBUSTRING&"
         elseif Fund_( x, pe, tk, ct ) then
             m.tiko = "byref " & nm & " as " & kw & tk
             m.ctype = kw & ct & "* " & nm

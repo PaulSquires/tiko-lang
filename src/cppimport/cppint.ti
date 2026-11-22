@@ -96,6 +96,8 @@ type CppImp_
     as Tko.StrVec    clsNestBind  '' its nested enums' binding lines, chr( 10 )-separated
     as Tko.StrVec    clsNestMir   '' what its mirror struct declares first: nested structs, enums
     as Tko.StrVec    mirCls       '' mirBody[i]'s class index, so Finish_ can order the mirror
+    as Tko.StrVec    clsMirBody   '' its mirror struct's members, and the extras after it (a range's
+    as Tko.StrVec    clsMirExtra  '' iterator): assembled in Finish_, a nested struct inside its outer one
     as Tko.StrVec    probeNames   '' the probes this parse resolved (cpptmpl.tiko)
     as Tko.StrVec    badProbes    '' ...and those clang reported an error on: unknown, whatever it recovered
     as Tko.StrVec    exclude      '' CppImportOptions.exclude: entries whose shim body did not compile
@@ -107,6 +109,8 @@ type CppImp_
     as Tko.StrVec    vecEC        '' the element's C++ spelling
     as Tko.StrVec    vecET        '' ...tiko's
     as Tko.StrVec    vecBase      '' the traits' common symbol, 'tko_cpp_<id>_<n>'
+    as Tko.StrVec    vecKindOf    '' "" an element tiko and C++ pass alike; "n" a nested std::vector, "a" a
+    as Tko.StrVec    vecInner     '' std::array (survey) -- each over the traits of ITS element, vecInner
     as Tko.StrVec    vecDecls     '' their declarations, at the binding's end
     as Tko.StrVec    defs         '' the adapters, private, after them
     as Tko.StrVec    extraGlob    '' a raw entry's declaration, which Entry_'s caller writes
@@ -139,6 +143,7 @@ type TMap_
     as int32   vk1        '' a std::vector: its traits' index + 1 (cppvec.tiko); 0 none
     as int32   vmode      '' parameter: 1 in (by value, const&), 2 in and out (&)
     as string  pub        '' parameter: the adapter's own, 'byref v as const containers.Array( of T )'
+    as boolean vopt       '' result: a std::optional, crossing as a vector of none or one (survey)
 end type
 
 declare function Indent_( byref x as CppImp_ ) as string
@@ -164,6 +169,7 @@ declare function Param_( byref x as CppImp_, byval t as CXType, byref nm as stri
 declare function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
 declare function ValueName_( byref nm as string ) as string
 declare function TypeName_( byref nm as string ) as string
+declare function NsName_( byref nm as string ) as string
 declare function MirName_( byref tn as string ) as string
 declare function ParamName_( byref x as CppImp_, byval a as CXCursor, byval i as int32 ) as string
 declare sub Enum_( byref x as CppImp_, byval c as CXCursor )
@@ -173,10 +179,14 @@ declare function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as 
 declare function Defaults_( byref x as CppImp_, byval c as CXCursor ) as int32
 declare function ArityNote_( byval k as int32, byval na as int32 ) as string
 declare sub Function_( byref x as CppImp_, byval c as CXCursor )
+declare sub Var_( byref x as CppImp_, byval c as CXCursor )
+declare function ConstOf_( byref x as CppImp_, byval c as CXCursor, byref tn as string ) as string
+declare sub AnonEnum_( byref x as CppImp_, byval c as CXCursor, byref lines as Tko.StrVec )
 declare function MirQual_( byval api as ClangApi ptr, byval c as CXCursor ) as string
 declare function NsOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
 declare sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
+declare sub MirUnits_( byref x as CppImp_ )
 declare function ClassOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
 declare sub ClassClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function ClsRel_( byref x as CppImp_, byval ci as int32 ) as string
@@ -239,6 +249,7 @@ declare sub SpecFields_( byref x as CppImp_, byval ci as int32, byref out_ as co
 declare sub DiscoverClass_( byref x as CppImp_, byval ci as int32 )
 '' cppvec.tiko
 declare function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) as int32
+declare sub VecHelpers_( byref x as CppImp_, byval vk as int32 )
 declare function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, byref m as TMap_ ) as boolean
 declare function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) as boolean
 declare function HasRange_( byref x as CppImp_, byval ci as int32 ) as boolean
@@ -247,7 +258,7 @@ declare sub Range_( byref x as CppImp_, byval ci as int32, byref lines as Tko.St
 declare sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
                       byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
                       byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean, _
-                      byval isCtor as boolean = false )
+                      byval isCtor as boolean = false, byval rOpt as boolean = false )
 '' cppclass.tiko, operators
 declare function OpKind_( byref cop as string, byval nargs as int32, byval isMember as boolean, _
                           byref top as string ) as int32

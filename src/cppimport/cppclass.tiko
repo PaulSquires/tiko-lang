@@ -12,6 +12,13 @@ using Tko.CImport
 
 '' ONE ENTRY POINT: its binding declaration, its shim function and -- for a member, whose symbol
 '' tiko mangles -- its mirror declaration. False with 'why' when it cannot be expressed.
+'' Is a std::vector in this type, by value or reference? (Entry_'s adapter parameters.)
+private function VecIn_( byref x as CppImp_, byval t as CXType ) as boolean
+    dim as CXType c = Canon_( x, t )
+    if (c.kind = TY_LREF_) orelse (c.kind = TY_RREF_) then c = Canon_( x, x.api->getNonReferenceType( c ) )
+    return StdTemplate_( x, c ) = "vector"
+end function
+
 function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
                          byval ci as int32, byref decl as string, byref why as string, _
                          byval upto as int32 = -1, byval top as string = "" ) as boolean
@@ -19,7 +26,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     '' A MEMBER here is one whose symbol tiko mangles -- a method, a structor, a member operator --
     '' and so one the mirror names. A tiko global operator is an alias, like a free function.
     dim as boolean member = (kind <> K_FREE_) andalso (kind <> K_OPBIN_) andalso (kind <> K_OPUN_)
-    if (kind <= K_STATIC_) andalso (left( nm, 8 ) = "operator") then why = "operator" : return false
+    if (kind <= K_STATIC_) andalso (left( nm, 8 ) = "operator") andalso (x.nameOverride <> "Invoke") then why = "operator" : return false
     dim as boolean isOp = (kind = K_OPBIN_) orelse (kind = K_OPUN_) orelse (kind = K_OPMEM_)
     dim as string cop = trim( mid( nm, 9 ) )          '' 'operator+=' -> '+='
     dim as int32 ck = x.api->getCursorKind( c )
@@ -47,9 +54,25 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
             cparams = kw & "tko_cpp_h* lhs_" : av.Push( "*static_cast<" & kw & x.clsCpp[ci] & "*>(lhs_->impl)" )
         end if
     end if
+    '' AN ADAPTER'S PARAMETERS ARE LOCALS OF A BODY the binding defines (a method's, cppvec.tiko), where
+    '' a parameter named like a member procedure (cxxopts' 'groups') or a type (lodepng's 'state' beside
+    '' State) is refused: there they take 'a_' -- known before the loop by the vectors in the signature.
+    dim as boolean preAdapt = VecIn_( x, iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( c ) ) )
+    for i as int32 = 0 to na - 1
+        if preAdapt then exit for
+        preAdapt = VecIn_( x, iif( x.ovrOn andalso (i < x.ovrArgs.Count), x.ovrArgs[i], x.api->getCursorType( x.api->Cursor_getArgument( c, i ) ) ) )
+    next
+    dim as Tko.StrVec usedPn
     for i as int32 = 0 to na - 1
         dim as CXCursor a = x.api->Cursor_getArgument( c, i )
         dim as string pn = ParamName_( x, a, i )
+        if preAdapt then pn = "a_" & pn
+        '' A PACK'S EXPANSION names every parameter alike ('args, args'): each after the first takes
+        '' its position.
+        for j as int32 = 0 to usedPn.Count - 1
+            if lcase( usedPn[j] ) = lcase( pn ) then pn &= "_" & i : exit for
+        next
+        usedPn.Push( pn )
         dim as CXType at_ = x.api->getCursorType( a )
         if x.ovrOn then
             if i >= x.ovrArgs.Count then why = "the instantiated member has fewer parameters" : return false
@@ -120,7 +143,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         if (kind = K_METHOD_) orelse (kind = K_CTOR_) then rawp = "byref self_ as " & iif( isConst, "const ", "" ) & x.clsTikoQ[ci] & iif( len( rawp ), ", ", "" ) & rawp
         x.extraGlob.Push( "extern ""C"" : declare " & iif( isSub, "sub ", "function " ) & rawn & " alias """ & sym & _
                           """ ( " & rawp & " )" & iif( isSub, "", " as " & r.tiko ) & " : end extern" )
-        dim as string pubR = iif( r.vk1 > 0, "containers.Array( of " & x.vecET[r.vk1 - 1] & " )", r.tiko )
+        dim as string pubR = iif( r.vk1 > 0, iif( r.vopt, "outcome.Optional( of ", "containers.Array( of " ) & x.vecET[r.vk1 - 1] & " )", r.tiko )
         dim as string asP = iif( isSub, "", " as " & pubR )
         dim as string head, nsl = ""
         if member andalso (kind = K_CTOR_) then
@@ -141,7 +164,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
                 nsl &= iif( i > 0, chr( 1 ), "" ) & x.tikoNs[i]
             next
         end if
-        Adapter_( x, nsl, head, rawn, iif( (kind = K_METHOD_) orelse (kind = K_CTOR_), "this", "" ), pnames, pvk, pmode, r.vk1, r.tiko, isSub, kind = K_CTOR_ )
+        Adapter_( x, nsl, head, rawn, iif( (kind = K_METHOD_) orelse (kind = K_CTOR_), "this", "" ), pnames, pvk, pmode, r.vk1, r.tiko, isSub, kind = K_CTOR_, r.vopt )
         member = false                         '' the raw entry is an alias, like a free function
     end if
     tparams = iif( len( tparams ), "( " & tparams & " )", "( )" )
@@ -520,6 +543,20 @@ sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
     next
 end sub
 
+'' A STRUCTOR'S SHIM WHOSE BODY DID NOT COMPILE (CppShimCheck): rapidjson's GenericArray<true, ...>
+'' declares an operator= whose body assigns through a const reference. It stays declared -- tiko
+'' needs every handle's three -- and raises instead.
+function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
+    for i as int32 = 0 to x.exclude.Count - 1
+        if x.exclude[i] = sym then return true
+    next
+    return false
+end function
+
+private function NoBody_( byref what as string ) as string
+    return iif( what = "assigned", "", "self_->impl = nullptr; self_->owned = 0; " ) & "tko_cpp_last() = ""this C++ class cannot be " & what & " (its C++ body does not compile)""; tko_cpp_raise();"
+end function
+
 '' The class ci is nested in, or -1.
 function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
     if (ci < 0) orelse (ci >= x.clsOuter.Count) then return -1
@@ -609,7 +646,9 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
         if IsPod_( x, ri ) then
             '' A POD FIELD is the field itself, 'byref': 'h.pos.x = 1' writes it.
             r.ok = true : r.tiko = x.clsTikoQ[ri] : r.byrefRet = true : r.ctype = x.clsCpp[ri] & "*"
-            r.wrap0 = "&(" : r.wrap1 = ")" : r.fallback = "nullptr"
+            '' ...of a 'const T' field too (inja's 'const SourceLocation location'): tiko's const is the
+            '' binding's to keep.
+            r.wrap0 = "const_cast<" & x.clsCpp[ri] & "*>(&(" : r.wrap1 = "))" : r.fallback = "nullptr"
         else
             r.ok = true : r.tiko = x.clsTikoQ[ri] : r.ctype = "tko_cpp_h*" : r.sret = SR_REF_
         end if
@@ -620,6 +659,7 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
     end if
     dim as string obj = "static_cast<" & cpp & "*>(self_->impl)->" & nm
     dim as string sg = Sym_( x )
+    if Excluded_( x, sg ) then lines.Push( "'' CPP-TODO(its C++ body does not compile): " & disp ) : x.todos += 1 : return
     lines.Push( "declare property " & tn & " alias """ & sg & """ ( )" & iif( r.byrefRet, " byref as ", " as " ) & r.tiko & "    '' " & disp )
     dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", r.ctype )
     dim as string pl = iif( r.sret <> SR_NONE_, "tko_cpp_h* ret_, tko_cpp_h* self_", "tko_cpp_h* self_" )
@@ -643,12 +683,93 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
     dim as TMap_ m = Param_( x, t, "v_" )
     if m.ok = false then return
     dim as string ss = Sym_( x )
+    if Excluded_( x, ss ) then return
+    '' A BIT-FIELD takes no reference (fmt's 'align', imgui's 'Colored'): assigned in place.
+    dim as string setx = "if (tko_cpp_set(" & obj & ", " & m.arg & ")) return; tko_cpp_last() = ""this field cannot be assigned"";"
+    if x.api->Cursor_isBitField( c ) <> 0 then setx = obj & " = " & m.arg & "; return;"
     lines.Push( "declare property " & tn & " alias """ & ss & """ ( " & m.tiko & " )" )
     x.shim.Push( "extern ""C"" void " & ss & "(tko_cpp_h* self_, " & m.ctype & ") __asm__(""@@M:" & ss & "@@"");" & L & _
                  "extern ""C"" void " & ss & "(tko_cpp_h* self_, " & m.ctype & ") {" & L & _
-                 "    try { if (tko_cpp_set(" & obj & ", " & m.arg & ")) return; tko_cpp_last() = ""this field cannot be assigned""; } TKO_CPP_CATCH" & L & _
+                 "    try { " & setx & " } TKO_CPP_CATCH" & L & _
                  "    tko_cpp_raise();" & L & "}" & L )
     x.mirBody.Push( "    void " & ss & "(" & m.mir & ");" )
+end sub
+
+'' A CONSTANT VARIABLE clang evaluates to an integer or a bool -- a class's 'static constexpr int N = 4',
+'' a namespace's 'constexpr std::size_t INVALID_INDEX = ...' -- as a tiko const line; "" otherwise.
+function ConstOf_( byref x as CppImp_, byval c as CXCursor, byref tn as string ) as string
+    dim as CXType t = x.api->getCursorType( c )
+    if x.api->isConstQualifiedType( t ) = 0 then return ""
+    dim as string tk, cty
+    if Fund_( x, t, tk, cty ) = false then return ""
+    if (tk = "single") orelse (tk = "double") then return ""
+    dim as any ptr ev = x.api->Cursor_Evaluate( c )
+    if ev = nullptr then return ""
+    dim as string v = ""
+    if x.api->EvalResult_getKind( ev ) = 1 then          '' CXEval_Int
+        dim as int64 n = x.api->EvalResult_getAsLongLong( ev )
+        if tk = "boolean" then
+            v = iif( n <> 0, "true", "false" )
+        elseif x.api->EvalResult_isUnsignedInt( ev ) then
+            v = str( cast( uint64, n ) )
+        else
+            v = str( n )
+        end if
+    end if
+    x.api->EvalResult_dispose( ev )
+    if len( v ) = 0 then return ""
+    return "const " & tn & " as " & tk & " = " & v
+end function
+
+'' A NAMESPACE'S VARIABLE (survey: SQLiteCpp's 'extern const int OPEN_READWRITE', stduuid's 'static uuid
+'' uuid_namespace_dns'): a constant as a const, anything else a function of no arguments returning
+'' it -- tiko calls one without parentheses, 'SQLite.OPEN_READWRITE' -- a class a borrowed handle.
+sub Var_( byref x as CppImp_, byval c as CXCursor )
+    dim as string L = chr( 10 ), why
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
+    if len( nm ) = 0 then return
+    dim as string disp = QualCpp_( x, nm )
+    dim as string tn = ValueName_( nm )
+    dim as string cl = ConstOf_( x, c, tn )
+    if len( cl ) then
+        x.bind.Push( Indent_( x ) & cl & "    '' " & disp )
+        x.bound += 1
+        return
+    end if
+    dim as CXType t = x.api->getCursorType( c )
+    dim as CXType ct = Canon_( x, t )
+    dim as TMap_ r
+    if (ct.kind = TY_RECORD_) andalso (StrKind_( x, t ) = 0) then
+        dim as int32 ri = ClassOf_( x, t, why )
+        if ri < 0 then Todo_( x, disp, why ) : return
+        if IsPod_( x, ri ) then
+            r.ok = true : r.tiko = x.clsTikoQ[ri] : r.byrefRet = true : r.ctype = x.clsCpp[ri] & "*"
+            r.wrap0 = "const_cast<" & x.clsCpp[ri] & "*>(&(" : r.wrap1 = "))" : r.fallback = "nullptr"
+        else
+            r.ok = true : r.tiko = x.clsTikoQ[ri] : r.ctype = "tko_cpp_h*" : r.sret = SR_REF_
+        end if
+    else
+        r = Result_( x, t )
+        if r.ok andalso ((r.vk1 > 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library variable"
+        if r.ok = false then Todo_( x, disp, "variable: " & r.why ) : return
+    end if
+    dim as string sg = Sym_( x )
+    if Excluded_( x, sg ) then Todo_( x, disp, "its C++ body does not compile" ) : return
+    x.bind.Push( Indent_( x ) & "extern ""C"" : declare function " & tn & " alias """ & sg & """ ( )" & _
+                 iif( r.byrefRet, " byref as ", " as " ) & r.tiko & " : end extern    '' " & disp )
+    dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", r.ctype )
+    dim as string pl = iif( r.sret <> SR_NONE_, "tko_cpp_h* ret_", "void" )
+    dim as string f = "extern ""C"" " & rt & " " & sg & "(" & pl & ") {" & L
+    if r.sret <> SR_NONE_ then f &= "    ret_->impl = nullptr; ret_->owned = 0;" & L
+    f &= "    try { "
+    if r.sret <> SR_NONE_ then
+        f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(&(" & disp & "))); return ret_;"
+    else
+        f &= "return " & r.wrap0 & disp & r.wrap1 & ";"
+    end if
+    f &= " } TKO_CPP_CATCH" & L & "    tko_cpp_raise();" & L & "    return " & iif( r.sret <> SR_NONE_, "ret_", r.fallback ) & ";" & L & "}" & L
+    x.shim.Push( f )
+    x.bound += 1
 end sub
 
 '' A STATIC DATA MEMBER (survey). An integer or bool constant clang evaluates ('static constexpr int
@@ -670,28 +791,11 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
         end if
     next
     dim as boolean konst = (x.api->isConstQualifiedType( t ) <> 0)
-    dim as string tk, cty
-    if konst andalso Fund_( x, t, tk, cty ) andalso (tk <> "single") andalso (tk <> "double") then
-        dim as any ptr ev = x.api->Cursor_Evaluate( c )
-        if ev <> nullptr then
-            dim as string v = ""
-            if x.api->EvalResult_getKind( ev ) = 1 then          '' CXEval_Int
-                dim as int64 n = x.api->EvalResult_getAsLongLong( ev )
-                if tk = "boolean" then
-                    v = iif( n <> 0, "true", "false" )
-                elseif x.api->EvalResult_isUnsignedInt( ev ) then
-                    v = str( cast( uint64, n ) )
-                else
-                    v = str( n )
-                end if
-            end if
-            x.api->EvalResult_dispose( ev )
-            if len( v ) then
-                lines.Push( "const " & tn & " as " & tk & " = " & v & "    '' " & disp )
-                x.bound += 1
-                return
-            end if
-        end if
+    dim as string cl = ConstOf_( x, c, tn )
+    if len( cl ) then
+        lines.Push( cl & "    '' " & disp )
+        x.bound += 1
+        return
     end if
     dim as TMap_ r
     if (ct.kind = TY_RECORD_) andalso (StrKind_( x, t ) = 0) then
@@ -699,7 +803,9 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
         if ri < 0 then lines.Push( "'' CPP-TODO(" & why & "): " & disp ) : x.todos += 1 : return
         if IsPod_( x, ri ) then
             r.ok = true : r.tiko = x.clsTikoQ[ri] : r.byrefRet = true : r.ctype = x.clsCpp[ri] & "*"
-            r.wrap0 = "&(" : r.wrap1 = ")" : r.fallback = "nullptr"
+            '' ...of a 'const T' field too (inja's 'const SourceLocation location'): tiko's const is the
+            '' binding's to keep.
+            r.wrap0 = "const_cast<" & x.clsCpp[ri] & "*>(&(" : r.wrap1 = "))" : r.fallback = "nullptr"
         else
             r.ok = true : r.tiko = x.clsTikoQ[ri] : r.ctype = "tko_cpp_h*" : r.sret = SR_REF_
         end if
@@ -710,6 +816,7 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
     end if
     dim as string obj = disp
     dim as string sg = Sym_( x )
+    if Excluded_( x, sg ) then lines.Push( "'' CPP-TODO(its C++ body does not compile): " & disp ) : x.todos += 1 : return
     lines.Push( "declare static property " & tn & " alias """ & sg & """ ( )" & iif( r.byrefRet, " byref as ", " as " ) & r.tiko & "    '' " & disp )
     dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", r.ctype )
     dim as string pl = iif( r.sret <> SR_NONE_, "tko_cpp_h* ret_", "void" )
@@ -730,6 +837,7 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
     dim as TMap_ m = Param_( x, t, "v_" )
     if m.ok = false then return
     dim as string ss = Sym_( x )
+    if Excluded_( x, ss ) then return
     lines.Push( "declare static property " & tn & " alias """ & ss & """ ( " & m.tiko & " )" )
     x.shim.Push( "extern ""C"" void " & ss & "(" & m.ctype & ") __asm__(""@@M:" & ss & "@@"");" & L & _
                  "extern ""C"" void " & ss & "(" & m.ctype & ") {" & L & _
@@ -795,17 +903,20 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     x.mirBody.Push( "    void " & sd & "();" )
     x.mirBody.Push( "    void operator=(const " & MirName_( tn ) & "&);" )
     x.shim.Push( "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:" & sc & "@@"");" & L & _
-                 "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) { tko_cpp_copy<" & cpp & ">(self_, o_); }" & L )
+                 "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_) { " & _
+                 iif( Excluded_( x, sc ), NoBody_( "copied" ), "tko_cpp_copy<" & cpp & ">(self_, o_);" ) & " }" & L )
     x.shim.Push( "extern ""C"" void " & sd & "(tko_cpp_h* self_) __asm__(""@@M:" & sd & "@@"");" & L & _
                  "extern ""C"" void " & sd & "(tko_cpp_h* self_) { tko_cpp_free<" & cpp & ">(self_); }" & L )
     x.shim.Push( "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:let:" & mq & "@@"");" & L & _
-                 "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) { tko_cpp_assign<" & cpp & ">(self_, o_); }" & L )
+                 "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) { " & _
+                 iif( Excluded_( x, sl ), NoBody_( "assigned" ), "tko_cpp_assign<" & cpp & ">(self_, o_);" ) & " }" & L )
     if (mb.userCtor = false) andalso (abstract_ = false) then
         dim as string s0 = Sym_( x )
         lines.Push( "declare constructor alias """ & s0 & """ ( )" )
         x.mirBody.Push( "    void " & s0 & "();" )
         x.shim.Push( "extern ""C"" void " & s0 & "(tko_cpp_h* self_) __asm__(""@@M:" & s0 & "@@"");" & L & _
-                     "extern ""C"" void " & s0 & "(tko_cpp_h* self_) { tko_cpp_default<" & cpp & ">(self_); }" & L )
+                     "extern ""C"" void " & s0 & "(tko_cpp_h* self_) { " & _
+                     iif( Excluded_( x, s0 ), NoBody_( "default-constructed" ), "tko_cpp_default<" & cpp & ">(self_);" ) & " }" & L )
         x.sigs.Push( lcase( x.clsTikoQ[ci] & ".constructor()" ) ) : x.sigConst.Push( "" )
     end if
     end if
@@ -827,6 +938,26 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
             end if
             if spec andalso (ProbeOverride_( x, ci, i ) = false) then
                 lines.Push( "'' CPP-TODO(its instantiated type is not known): " & disp ) : x.todos += 1
+                continue for
+            end if
+            if (mb.kind[i] = K_OPANY_) andalso (Text_( x, x.api->getCursorSpelling( mb.cur[i] ) ) = "operator()") then
+                '' THE CALL OPERATOR (survey): tiko calls only procedures, so 'sha( "abc" )' is a method,
+                '' 'sha.Invoke( "abc" )', with C++'s default arguments as any method's.
+                x.nameOverride = "Invoke"
+                for k as int32 = 0 to Defaults_( x, mb.cur[i] )
+                    if Entry_( x, mb.cur[i], K_METHOD_, ci, decl, why, na - k ) then
+                        for g as int32 = 0 to x.extraGlob.Count - 1
+                            glob.Push( x.extraGlob[g] )
+                        next
+                        x.extraGlob.Clear( )
+                        lines.Push( decl & "    '' " & disp & ArityNote_( k, na ) )
+                    elseif (why <> SAME_SIG_) andalso (why <> lastWhy) then
+                        lines.Push( "'' CPP-TODO(" & why & "): " & disp & ArityNote_( k, na ) ) : x.todos += 1
+                        lastWhy = why
+                    end if
+                next
+                x.nameOverride = ""
+                x.ovrOn = false
                 continue for
             end if
             if mb.kind[i] = K_OPANY_ then
@@ -965,24 +1096,22 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         lines.Push( "'' CPP-TODO(" & why & "): " & cpp & sep & left( s, at - 1 ) ) : x.todos += 1
     next
 
-    '' The mirror's struct, where the class is: namespace by namespace -- a nested class defined
-    '' out of its outer one ('struct QrSegment::Mode { ... }'), which declares it first -- and the
-    '' range's iterator struct after it: one unit, which Finish_ may move as a whole.
-    dim as string body = "struct " & MirRel_( x, ci ) & " {" & L & x.clsNestMir[ci]
+    '' The mirror's struct members, and the range's iterator struct after it: MirUnits_ assembles
+    '' them once every class is done, a nested struct inside its outer one.
+    dim as string body = ""
     for i as int32 = mark + 1 to x.mirBody.Count - 1
         body &= x.mirBody[i] & L
     next
-    body &= "};"
     while x.mirBody.Count > mark
         x.mirBody.Pop( )
     wend
-    dim as string unit_ = MirWrap_( x.clsNsMir[ci], body )
+    x.clsMirBody[ci] = body
+    dim as string extra = ""
     for i as int32 = 0 to x.mirExtra.Count - 1
-        unit_ &= x.mirExtra[i]
+        extra &= x.mirExtra[i]
     next
     x.mirExtra.Clear( )
-    x.mirBody.Push( unit_ )
-    x.mirCls.Push( str( ci ) )
+    x.clsMirExtra[ci] = extra
 
     '' The members, in the type's second part, and its global operators beside it.
     if lines.Count > 0 then
@@ -1003,6 +1132,29 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         next
         NsClose_( x, opened )
     end if
+end sub
+
+'' A CLASS'S MIRROR STRUCT, whole: its nested enums, its nested classes' structs (so an outer member
+'' may name 'Outer::Inner::E' -- the nested struct is complete before it), then its members.
+private function MirStruct_( byref x as CppImp_, byval ci as int32, byref extra as string ) as string
+    dim as string L = chr( 10 )
+    dim as string s = "struct " & MirName_( x.clsTiko[ci] ) & " {" & L & x.clsNestMir[ci]
+    for cj as int32 = 0 to x.clsUsr.Count - 1
+        if OuterOf_( x, cj ) = ci then s &= MirStruct_( x, cj, extra ) & L
+    next
+    extra &= x.clsMirExtra[ci]
+    return s & x.clsMirBody[ci] & "};"
+end function
+
+'' THE MIRROR'S UNITS: one per class outside any class, its namespaces around it and its extras after.
+sub MirUnits_( byref x as CppImp_ )
+    for ci as int32 = 0 to x.clsUsr.Count - 1
+        if OuterOf_( x, ci ) >= 0 then continue for
+        dim as string extra = ""
+        dim as string st = MirStruct_( x, ci, extra )
+        x.mirBody.Push( MirWrap_( x.clsNsMir[ci], st ) & extra )
+        x.mirCls.Push( str( ci ) )
+    next
 end sub
 
 '' EVERY HANDLE TYPE, then every class's members: see CppImp_.
@@ -1034,6 +1186,7 @@ sub EmitClasses_( byref x as CppImp_ )
     for ci as int32 = 0 to x.clsUsr.Count - 1
         ClassLines_( x, ci )
     next
+    MirUnits_( x )
     '' THE LAYOUT CHECKS, once every type is complete.
     for i as int32 = 0 to x.asserts.Count - 1
         x.bind.Push( x.asserts[i] )
@@ -1084,11 +1237,9 @@ sub CollectAt_( byref x as CppImp_, byval c as CXCursor, byref tn as string, byr
     x.clsOuter.Push( iif( outer >= 0, str( outer ), "" ) )
     x.clsNestBind.Push( "" )
     x.clsNestMir.Push( "" )
-    if outer >= 0 then
-        x.clsNestMir[outer] = x.clsNestMir[outer] & "    struct " & MirName_( tn ) & ";" & chr( 10 )
-    else
-        x.mirFwd.Push( MirWrap_( nmr, "struct " & MirName_( tn ) & ";" ) )
-    end if
+    x.clsMirBody.Push( "" )
+    x.clsMirExtra.Push( "" )
+    if outer < 0 then x.mirFwd.Push( MirWrap_( nmr, "struct " & MirName_( tn ) & ";" ) )
 end sub
 
 '' IS A NAME TAKEN BY A MEMBER of class cursor c? tiko names are case-insensitive, so a nested
@@ -1140,6 +1291,14 @@ private function NestVisit_ cdecl ( byval c as CXCursor, byval parent as CXCurso
     if xp->api->getCXXAccessSpecifier( c ) <> CX_CXXPublic then return CXChildVisit_Continue
     if xp->api->isCursorDefinition( c ) = 0 then return CXChildVisit_Continue
     dim as string nm = Text_( *xp, xp->api->getCursorSpelling( c ) )
+    if (k = CXCursor_EnumDecl) andalso ((len( nm ) = 0) orelse (instr( nm, "(" ) > 0)) then
+        dim as Tko.StrVec al
+        AnonEnum_( *xp, c, al )
+        for i as int32 = 0 to al.Count - 1
+            xp->clsNestBind[ns->ci] = xp->clsNestBind[ns->ci] & al[i] & chr( 10 )
+        next
+        return CXChildVisit_Continue
+    end if
     if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return CXChildVisit_Continue
     if k <> CXCursor_EnumDecl then
         ns->cls.Push( c )
@@ -1186,7 +1345,13 @@ sub CollectClass_( byref x as CppImp_, byval c as CXCursor )
     if IsNullCursor_( x, x.api->getSpecializedCursorTemplate( c ) ) = false then return
     dim as CXCursor none_
     dim as int32 n0 = x.clsUsr.Count
-    CollectAt_( x, c, TypeName_( nm ), QualCpp_( x, nm ), x.tikoNs, none_, false )
+    '' A CLASS NAMED LIKE A NAMESPACE IT IS IN (delaunator::Delaunator) is one name to tiko: the
+    '' class gives way, 'delaunator.Delaunator_'.
+    dim as string tn = TypeName_( nm )
+    for i as int32 = 0 to x.tikoNs.Count - 1
+        if lcase( x.tikoNs[i] ) = lcase( tn ) then tn &= "_" : i = -1
+    next
+    CollectAt_( x, c, tn, QualCpp_( x, nm ), x.tikoNs, none_, false )
     if x.clsUsr.Count > n0 then CollectNested_( x, c, n0 )
 end sub
 

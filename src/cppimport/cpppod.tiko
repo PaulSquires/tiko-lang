@@ -280,6 +280,9 @@ sub PodFields_( byref x as CppImp_, byval ci as int32 )
         PodFieldType_( x, x.api->getCursorType( fs[i] ), tk, dims, true )
         dim as string cn = Text_( x, x.api->getCursorSpelling( fs[i] ) )
         dim as string fn = NameField( cn, len( dims ) > 0 )
+        '' ...AND ONE A tiko WORD WOULD READ AS SOMETHING ELSE: 'as ulongint pointer' is a pointer type
+        '' with no name, 'offsetof( T, type )' no field (box2d's b2BodyDef).
+        if (fn = cn) andalso NameReservedValue( cn ) then fn = cn & "_"
         x.bind.Push( ind & "    as " & tk & " " & fn & iif( len( dims ), "(" & dims & ")", "" ) )
         x.asserts.Push( "#assert offsetof( " & tq & ", " & fn & " ) = " & (x.api->Cursor_getOffsetOfField( fs[i] ) \ 8) )
     next

@@ -4,6 +4,7 @@
 '' name with the method 'mode( )', so the type gives way: 'Mode_' (and 'Level_', beside
 '' 'level( )'); 'name( )' is 'name_( )', NAME being a tiko keyword.
 #import "std/containers"
+#import "std/outcome"
 #include once "../../show.bi"
 #ifdef TKO_LANE_IMPORTED
     #include once "lib.ti"
@@ -46,3 +47,35 @@ show_i( "created", nest.Code.created )
 nest.Code.created = 100
 show_i( "created.set", nest.Code.created )
 show_d( "scale", nest.Code.scale )
+dim as containers.Array( of containers.Array( of long ) ) g = nest.grid( 3 )
+show_i( "grid.rows", g.Count )
+show_i( "grid.2.2", g[2][2] )
+show_i( "sum2", nest.sum2( g ) )
+dim as containers.Array( of double ) ca, cb
+ca.Push( 1 ) : ca.Push( 0 ) : ca.Push( 0 ) : cb.Push( 0 ) : cb.Push( 1 ) : cb.Push( 0 )
+show_d( "cross.z", nest.cross( ca, cb )[2] )
+dim as containers.Array( of containers.Array( of double ) ) rg = nest.ring( 4 )
+show_i( "ring.n", rg.Count )
+show_d( "ring.3.1", rg[3][1] )
+dim as containers.Array( of long ) v3
+v3.Push( 5 ) : v3.Push( 6 ) : v3.Push( 7 )
+dim as outcome.Optional( of long ) f1 = nest.find( v3, 7 ), f2 = nest.find( v3, 9 )
+show_i( "find.1", iif( f1.HasValue( ), f1.Value( ), -1 ) )
+show_i( "find.2", iif( f2.HasValue( ), f2.Value( ), -1 ) )
+dim as outcome.Optional( of ustring ) l1 = nest.label( 3 )
+dim as string ls = "none"
+if l1.HasValue( ) then ls = l1.Value( )
+show_s( "label", strptr( ls ) )
+show_i( "label.0", iif( nest.label( 0 ).HasValue( ), 1, 0 ) )
+dim as ustring s = "x"
+nest.decorate( s )
+dim as string ss = s
+show_s( "decorate", strptr( ss ) )
+dim as nest.Adder add_
+add_.base_ = 100          '' BASE is a tiko keyword: the POD field is base_
+show_i( "adder", add_.Invoke( 2, 3 ) )
+show_i( "adder.1", add_.Invoke( 2 ) )
+show_i( "ANSWER", nest.ANSWER )
+dim as string gr = *nest.GREETING
+show_s( "GREETING", strptr( gr ) )
+show_i( "FLAGS", nest.FLAG_A or nest.FLAG_B )

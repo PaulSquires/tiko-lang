@@ -25,4 +25,26 @@ int Code::sink(std::vector<int>&& v) { int n = (int)v.size(); data_ = std::move(
 int count_level(Code::Level lv, Code::Shape sh) { return (int)lv * 10 + (int)sh; }
 std::string mode_name(const Code::Mode& m) { return m.bits() == 1 ? "numeric" : "text"; }
 
+std::vector<std::vector<int>> grid(int n) {
+    std::vector<std::vector<int>> g;
+    for (int r = 0; r < n; ++r) { g.emplace_back(); for (int c = 0; c <= r; ++c) g.back().push_back(r * 10 + c); }
+    return g;
+}
+int sum2(const std::vector<std::vector<int>>& g) { int t = 0; for (auto& r : g) for (int v : r) t += v; return t; }
+std::array<double, 3> cross(const std::array<double, 3>& a, const std::array<double, 3>& b) {
+    return { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
+}
+std::vector<std::array<double, 2>> ring(int n) {
+    std::vector<std::array<double, 2>> r;
+    for (int i = 0; i < n; ++i) r.push_back({ (double)i, (double)(i * i) });
+    return r;
+}
+std::optional<int> find(const std::vector<int>& v, int x) {
+    for (std::size_t i = 0; i < v.size(); ++i) if (v[i] == x) return (int)i;
+    return std::nullopt;
+}
+std::optional<std::string> label(int i) { if (i > 0) return "L" + std::to_string(i); return std::nullopt; }
+void decorate(std::string& s) { s = "[" + s + "]"; }
+const char* const GREETING = "hello";
+
 }  // namespace nest

@@ -1,6 +1,8 @@
 // cppinclude/nested: types nested in classes, static data members, constructors taking a
 // std::vector, rvalue-reference parameters (the cpp-import survey, docs/tiko-cpp/SURVEY.md).
 #pragma once
+#include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -44,5 +46,18 @@ private:
 
 int count_level(Code::Level lv, Code::Shape sh);     // nested enums from outside the class
 std::string mode_name(const Code::Mode& m);           // a nested class from outside
+
+// Standard library shapes the survey needed.
+std::vector<std::vector<int>> grid(int n);            // nested vectors
+int sum2(const std::vector<std::vector<int>>& g);
+std::array<double, 3> cross(const std::array<double, 3>& a, const std::array<double, 3>& b);
+std::vector<std::array<double, 2>> ring(int n);       // a vector of arrays
+std::optional<int> find(const std::vector<int>& v, int x);
+std::optional<std::string> label(int i);
+void decorate(std::string& s);                        // a std::string& to fill
+struct Adder { int base = 0; int operator()(int a, int b = 1) const { return base + a + b; } };
+constexpr int ANSWER = 42;                            // namespace constants and variables
+extern const char* const GREETING;
+enum { FLAG_A = 1, FLAG_B = 4 };
 
 }  // namespace nest

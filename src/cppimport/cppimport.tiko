@@ -90,6 +90,12 @@ function ValueName_( byref nm as string ) as string
     return nm
 end function
 
+'' A NAMESPACE named like any tiko word ('namespace error', fast-cpp-csv-parser) takes '_' (TKO0807).
+function NsName_( byref nm as string ) as string
+    if NameReservedType( nm ) orelse NameReservedValue( nm ) then return nm & "_"
+    return nm
+end function
+
 function TypeName_( byref nm as string ) as string
     if NameReservedType( nm ) then return nm & "_"
     return nm
@@ -162,10 +168,34 @@ function EnumLines_( byref x as CppImp_, byval c as CXCursor, byref tn as string
     return true
 end function
 
+'' An anonymous enum's members as 'const NAME = value' lines; nothing for a named one.
+sub AnonEnum_( byref x as CppImp_, byval c as CXCursor, byref lines as Tko.StrVec )
+    if x.api->isCursorDefinition( c ) = 0 then return
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
+    if (len( nm ) > 0) andalso (instr( nm, "(" ) = 0) then return
+    dim as EnumBody_ eb
+    eb.x = @x
+    select case Canon_( x, x.api->getEnumDeclIntegerType( c ) ).kind
+    case TY_CHAR_U_, TY_UCHAR_, TY_USHORT_, TY_UINT_, TY_ULONG_, TY_ULONGLONG_
+        eb.unsigned_ = true
+    end select
+    x.api->visitChildren( c, @EnumConst_, @eb )
+    for i as int32 = 0 to eb.lines.Count - 1
+        lines.Push( "const " & eb.lines[i] )
+    next
+end sub
+
 sub Enum_( byref x as CppImp_, byval c as CXCursor )
     dim as string tn = ""
     dim as Tko.StrVec lines
-    if EnumLines_( x, c, tn, lines ) = false then return
+    if EnumLines_( x, c, tn, lines ) = false then
+        '' AN ANONYMOUS ENUM is a set of constants (survey: 'enum { HashBytes = 32 }').
+        AnonEnum_( x, c, lines )
+        for i as int32 = 0 to lines.Count - 1
+            x.bind.Push( Indent_( x ) & lines[i] )
+        next
+        return
+    end if
     dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
     dim as string ind = Indent_( x )
     for i as int32 = 0 to lines.Count - 1
@@ -208,9 +238,9 @@ private function Visit_ cdecl _
             return CXChildVisit_Continue
         end if
         dim as int32 mark = xp->bind.Count
-        xp->bind.Push( Indent_( *xp ) & "namespace " & TypeName_( nm ) )
+        xp->bind.Push( Indent_( *xp ) & "namespace " & NsName_( nm ) )
         xp->cppNs.Push( nm )
-        xp->tikoNs.Push( TypeName_( nm ) )
+        xp->tikoNs.Push( NsName_( nm ) )
         xp->api->visitChildren( c, @Visit_, client )
         xp->cppNs.Pop( )
         xp->tikoNs.Pop( )
@@ -225,6 +255,8 @@ private function Visit_ cdecl _
     select case k
     case CXCursor_EnumDecl
         if xp->pass = 1 then Enum_( *xp, c )
+    case CXCursor_VarDecl
+        if xp->pass = 3 then Var_( *xp, c )
     case CXCursor_ClassDecl, CXCursor_StructDecl
         if xp->pass = 2 then CollectClass_( *xp, c )
     case CXCursor_UnionDecl
@@ -377,7 +409,7 @@ function Prelude_( ) as string
     "// ---- tiko C++ shim prelude (tiko -cppimport) ----" & L & _
     "#include <cstddef>" & L & "#include <cstdint>" & L & "#include <cstdio>" & L & "#include <cstring>" & L & _
     "#include <exception>" & L & "#include <memory>" & L & "#include <new>" & L & "#include <stdexcept>" & L & "#include <string>" & L & _
-    "#include <string_view>" & L & "#include <type_traits>" & L & "#include <utility>" & L & _
+    "#include <string_view>" & L & "#include <array>" & L & "#include <vector>" & L & "#include <type_traits>" & L & "#include <utility>" & L & _
     "#ifndef TKO_CPP_PRELUDE" & L & "#define TKO_CPP_PRELUDE" & L & _
     "// A binding binds the deprecated members too; calling them is not this shim's warning to give." & L & _
     "#pragma GCC diagnostic ignored ""-Wdeprecated-declarations""" & L & _
@@ -394,6 +426,7 @@ function Prelude_( ) as string
     "tko_cpp_ustr* fb_hUStrAlloc(tko_cpp_ustr* s, std::intptr_t units);" & L & _
     "tko_cpp_ustr* fb_UStrAllocTempResult(tko_cpp_ustr* src);" & L & _
     "void* fb_ErrorThrowMsg(int err_num, int line_num, const char* mod_name, const char* msg, void* res_label, void* resnext_label);" & L & _
+    "void* fb_UStrAssign(void* dst, std::intptr_t dst_size, void* src, std::intptr_t src_size, int fill_rem);" & L & _
     "}" & L & _
     "// A ustring's UTF-16 as UTF-8. The sign bit of len is the temporary flag." & L & _
     "static inline std::string tko_cpp_to_std(const tko_cpp_ustr* s) {" & L & _
@@ -403,6 +436,14 @@ function Prelude_( ) as string
     "    std::string r((std::size_t)b, '\0');" & L & _
     "    if (b > 0) fb_hUtf16ToUtf8(s->data, n, (std::uint8_t*)&r[0], b);" & L & _
     "    return r;" & L & "}" & L & _
+    "// AN IN-OUT std::string& (survey): the ustring's text for the call, and the call's text back into" & L & _
+    "// the ustring when the full expression ends -- a temporary of this type is the argument." & L & _
+    "static inline tko_cpp_ustr* tko_cpp_from_utf8(const char* p, std::size_t b);" & L & _
+    "struct tko_cpp_strout {" & L & _
+    "    tko_cpp_ustr* d; std::string v;" & L & _
+    "    explicit tko_cpp_strout(tko_cpp_ustr* s) : d(s), v(tko_cpp_to_std(s)) {}" & L & _
+    "    ~tko_cpp_strout() { if (d) fb_UStrAssign(d, -1, tko_cpp_from_utf8(v.data(), v.size()), -1, 0); }" & L & _
+    "    operator std::string&() { return v; }" & L & "};" & L & _
     "// UTF-8 as a ustring RESULT: a temporary descriptor, which is what a tiko function returning" & L & _
     "// ustring hands its caller (measured: the caller fb_UStrInit's from it)." & L & _
     "static inline tko_cpp_ustr* tko_cpp_from_utf8(const char* p, std::size_t b) {" & L & _
@@ -426,7 +467,16 @@ function Prelude_( ) as string
     "// A SHARED HANDLE's owned_ holds a std::shared_ptr<T> of its own -- T the handle's class --: greater" & L & _
     "// than 1, an address. Copying the handle copies that shared_ptr; destroying it destroys that (C3b-2)." & L & _
     "// An rvalue-reference parameter's argument: a prvalue copy of what tiko passed (survey)." & L & _
-    "template <class T> inline std::decay_t<T> tko_cpp_rv(T&& v) { return std::decay_t<T>(std::forward<T>(v)); }" & L & _
+    "// One that cannot be copied (abstract, move-only) is moved from: tiko's object is left moved-from." & L & _
+    "template <class T> inline decltype(auto) tko_cpp_rv(T&& v) {" & L & _
+    "    using D = std::decay_t<T>;" & L & _
+    "    if constexpr (std::is_copy_constructible_v<D> && !std::is_abstract_v<D>) return D(std::forward<T>(v));" & L & _
+    "    else return static_cast<D&&>(const_cast<D&>(static_cast<const D&>(v)));" & L & "}" & L & _
+    "// A std::optional result as a vector of none or one (survey): the binding's adapter makes it an outcome.Optional." & L & _
+    "template <class E, class O> inline void* tko_cpp_optvec(O&& o) { auto* v = new std::vector<E>(); if (o) v->push_back(*o); return v; }" & L & _
+    "// A std::array crosses as a std::vector of its elements (survey: earcut, happly, clipper2)." & L & _
+    "template <class T, std::size_t N> inline std::array<T, N> tko_cpp_toarr(const std::vector<T>& v) { std::array<T, N> a{}; for (std::size_t i = 0; i < N && i < v.size(); ++i) a[i] = v[i]; return a; }" & L & _
+    "template <class A> inline void* tko_cpp_arrvec(const A& a) { return new std::vector<typename A::value_type>(a.begin(), a.end()); }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
     "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
     "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _
@@ -578,12 +628,16 @@ private sub MirOrder_( byref x as CppImp_, byref order as Tko.StrVec )
     for j as int32 = 0 to n - 1
         if len( ownerOf[j] ) = 0 then continue for
         dim as int32 cj = valint( ownerOf[j] )
-        if len( x.clsNestMir[cj] ) = 0 then continue for
+        dim as boolean nests = (len( x.clsNestMir[cj] ) > 0)
+        for k as int32 = 0 to x.clsUsr.Count - 1
+            if nests then exit for
+            nests = (OuterOf_( x, k ) = cj)
+        next
+        if nests = false then continue for
         dim as string key = x.clsMir[cj] & "::"
         for i as int32 = 0 to n - 1
             if i = j then continue for
             dim as boolean dep = (instr( x.mirBody[i], key ) > 0)
-            if (dep = false) andalso len( ownerOf[i] ) then dep = (OuterOf_( x, valint( ownerOf[i] ) ) = cj)
             if dep then deps[i] = deps[i] & "," & j & ","
         next
     next

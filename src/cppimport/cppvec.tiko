@@ -47,8 +47,54 @@ private function Elem_( byref x as CppImp_, byval e as CXType, byref et as strin
     return true
 end function
 
-'' THE TRAITS of std::vector<element>, written once: their index + 1, or 0.
+'' THE TRAITS of std::vector<element>, written once: their index + 1, or 0. An element may be a std::vector
+'' or a std::array itself (survey: Clipper2's Paths64, earcut's polygon, happly's positions): an Array of
+'' Arrays in tiko, whose get hands back the inner vector (a nested one borrowed, an array's a new copy)
+'' and whose push takes one, both as 'any ptr'. Each kind also gets three tiko helpers in the binding's
+'' private part: tko_vget_<b> (an element as tiko's), tko_vin_<b> (an Array in) and tko_vout_<b> (out).
 function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) as int32
+    dim as string L = chr( 10 )
+    dim as CXType ce = Canon_( x, e )
+    dim as string sk = StdTemplate_( x, ce )
+    if (sk = "vector") orelse (sk = "array") then
+        dim as CXType u = x.api->Type_getTemplateArgumentAsType( ce, 0 )
+        dim as int32 ik = VecKind_( x, u, why )
+        if ik = 0 then why = "std::" & sk & " of " & Spell_( x, u ) : return 0
+        dim as string iec = x.vecEC[ik - 1], ec
+        if sk = "vector" then
+            ec = "std::vector<" & iec & ">"
+        else
+            ec = "std::array<" & iec & ", " & x.api->Cursor_getTemplateArgumentValue( x.api->getTypeDeclaration( ce ), 1 ) & ">"
+        end if
+        for i as int32 = 0 to x.vecEC.Count - 1
+            if x.vecEC[i] = ec then return i + 1
+        next
+        dim as string et = "containers.Array( of " & x.vecET[ik - 1] & " )"
+        dim as string b = Sym_( x ), vt = "std::vector<" & ec & ">", iv = "std::vector<" & iec & ">"
+        dim as string vp = "static_cast<" & vt & "*>(v)", at_ = "(*" & vp & ")[(std::size_t)i]"
+        x.vecDecls.Push( "extern ""C"" : declare function " & b & "_new alias """ & b & "_new"" ( byval n as integer ) as any ptr : end extern" )
+        x.vecDecls.Push( "extern ""C"" : declare sub " & b & "_free alias """ & b & "_free"" ( byval v as any ptr ) : end extern" )
+        x.vecDecls.Push( "extern ""C"" : declare function " & b & "_size alias """ & b & "_size"" ( byval v as any ptr ) as integer : end extern" )
+        x.vecDecls.Push( "extern ""C"" : declare function " & b & "_get alias """ & b & "_get"" ( byval v as any ptr, byval i as integer ) as any ptr : end extern" )
+        x.vecDecls.Push( "extern ""C"" : declare sub " & b & "_push alias """ & b & "_push"" ( byval v as any ptr, byval p as any ptr ) : end extern" )
+        dim as string f = "// " & vt & " <-> containers.Array( of " & et & " )" & L
+        f &= "extern ""C"" void* " & b & "_new(std::ptrdiff_t n) { try { auto* v = new " & vt & "(); v->reserve(n > 0 ? (std::size_t)n : 0); return v; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return nullptr; }" & L
+        f &= "extern ""C"" void " & b & "_free(void* v) { delete " & vp & "; }" & L
+        f &= "extern ""C"" std::ptrdiff_t " & b & "_size(void* v) { return v ? (std::ptrdiff_t)" & vp & "->size() : 0; }" & L
+        if sk = "vector" then
+            f &= "extern ""C"" void* " & b & "_get(void* v, std::ptrdiff_t i) { return &" & at_ & "; }" & L
+            f &= "extern ""C"" void " & b & "_push(void* v, void* p) { try { " & vp & "->push_back(std::move(*static_cast<" & iv & "*>(p))); return; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); }" & L
+        else
+            f &= "extern ""C"" void* " & b & "_get(void* v, std::ptrdiff_t i) { try { return tko_cpp_arrvec(" & at_ & "); } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return nullptr; }" & L
+            f &= "extern ""C"" void " & b & "_push(void* v, void* p) { try { " & vp & "->push_back(tko_cpp_toarr<" & iec & ", " & _
+                 x.api->Cursor_getTemplateArgumentValue( x.api->getTypeDeclaration( ce ), 1 ) & ">(*static_cast<" & iv & "*>(p))); return; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); }" & L
+        end if
+        x.shim.Push( f )
+        x.vecEC.Push( ec ) : x.vecET.Push( et ) : x.vecBase.Push( b )
+        x.vecKindOf.Push( iif( sk = "vector", "n", "a" ) ) : x.vecInner.Push( str( ik ) )
+        VecHelpers_( x, x.vecEC.Count )
+        return x.vecEC.Count
+    end if
     dim as string et, ec
     if Elem_( x, e, et, ec ) = false then why = "std::vector of " & Spell_( x, e ) : return 0
     for i as int32 = 0 to x.vecEC.Count - 1
@@ -57,7 +103,7 @@ function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) 
     dim as TMap_ r = Result_( x, e )
     dim as TMap_ m = Param_( x, e, "x_" )
     if (r.ok = false) orelse (m.ok = false) then why = "std::vector of " & Spell_( x, e ) : return 0
-    dim as string L = chr( 10 ), b = Sym_( x ), vt = "std::vector<" & ec & ">"
+    dim as string b = Sym_( x ), vt = "std::vector<" & ec & ">"
     dim as string vp = "static_cast<" & vt & "*>(v)"
     x.vecDecls.Push( "extern ""C"" : declare function " & b & "_new alias """ & b & "_new"" ( byval n as integer ) as any ptr : end extern" )
     x.vecDecls.Push( "extern ""C"" : declare sub " & b & "_free alias """ & b & "_free"" ( byval v as any ptr ) : end extern" )
@@ -79,8 +125,43 @@ function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) 
     f &= "extern ""C"" void " & b & "_push(void* v, " & m.ctype & ") { try { " & vp & "->push_back(" & m.arg & "); return; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); }" & L
     x.shim.Push( f )
     x.vecEC.Push( ec ) : x.vecET.Push( et ) : x.vecBase.Push( b )
+    x.vecKindOf.Push( "" ) : x.vecInner.Push( "" )
+    VecHelpers_( x, x.vecEC.Count )
     return x.vecEC.Count
 end function
+
+'' THE TIKO HELPERS of traits vk (see VecKind_), private procedures of the binding: an inner kind's
+'' are written before its outer one's, which call them.
+sub VecHelpers_( byref x as CppImp_, byval vk as int32 )
+    dim as string L = chr( 10 ), d = ""
+    dim as string b = x.vecBase[vk - 1], et = x.vecET[vk - 1], kd = x.vecKindOf[vk - 1]
+    dim as string ib = ""
+    if len( kd ) then ib = x.vecBase[valint( x.vecInner[vk - 1] ) - 1]
+    d &= "private function tko_vget_" & b & "( byval v as any ptr, byval i as integer ) as " & et & L
+    select case kd
+    case "n" : d &= "    return tko_vout_" & ib & "( " & b & "_get( v, i ) )" & L
+    case "a"
+        d &= "    dim as any ptr p = " & b & "_get( v, i )" & L
+        d &= "    dim as " & et & " r = tko_vout_" & ib & "( p )" & L
+        d &= "    " & ib & "_free( p )" & L
+        d &= "    return r" & L
+    case else : d &= "    return " & b & "_get( v, i )" & L
+    end select
+    d &= "end function" & L
+    d &= "private function tko_vin_" & b & "( byref a as const containers.Array( of " & et & " ) ) as any ptr" & L
+    d &= "    dim as any ptr v = " & b & "_new( a.Count( ) )" & L
+    if len( kd ) then
+        d &= "    for i as long = 0 to a.Count( ) - 1 : dim as any ptr p = tko_vin_" & ib & "( a[i] ) : " & b & "_push( v, p ) : " & ib & "_free( p ) : next" & L
+    else
+        d &= "    for i as long = 0 to a.Count( ) - 1 : " & b & "_push( v, a[i] ) : next" & L
+    end if
+    d &= "    return v" & L & "end function" & L
+    d &= "private function tko_vout_" & b & "( byval v as any ptr ) as containers.Array( of " & et & " )" & L
+    d &= "    dim as containers.Array( of " & et & " ) a" & L
+    d &= "    for i as long = 0 to " & b & "_size( v ) - 1 : a.Push( tko_vget_" & b & "( v, i ) ) : next" & L
+    d &= "    return a" & L & "end function" & L
+    x.defs.Push( d )
+end sub
 
 '' A STANDARD LIBRARY PARAMETER: std::vector (by value, const& and & -- the last copied back),
 '' unique_ptr by value, shared_ptr by value and const&. True when 't' is one, with 'm' its map.
@@ -95,16 +176,20 @@ function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, b
     dim as CXType e = x.api->Type_getTemplateArgumentAsType( pe, 0 )
     dim as string why
     m.ok = true
-    if sk = "vector" then
+    if (sk = "vector") orelse (sk = "array") then
         dim as int32 vk = VecKind_( x, e, why )
         if vk = 0 then m.ok = false : m.why = why : return true
+        if (sk = "array") andalso isRef andalso (kq = false) then m.ok = false : m.why = "a std::array& to fill" : return true
         dim as string vt = "std::vector<" & x.vecEC[vk - 1] & ">"
         m.tiko = "byval " & nm & " as any ptr" : m.ctype = "void* " & nm : m.mir = "void*"
         m.arg = "*static_cast<" & vt & "*>(" & nm & ")"
+        '' A std::array (survey): the vector of its elements, made one for the call.
+        if sk = "array" then m.arg = "tko_cpp_toarr<" & x.vecEC[vk - 1] & ", " & x.api->Cursor_getTemplateArgumentValue( x.api->getTypeDeclaration( pe ), 1 ) & ">(" & m.arg & ")"
         m.vk1 = vk : m.vmode = iif( isRef andalso (kq = false), 2, 1 )
         m.pub = "byref " & nm & " as " & iif( m.vmode = 1, "const ", "" ) & "containers.Array( of " & x.vecET[vk - 1] & " )"
         return true
     end if
+    if sk = "optional" then m.ok = false : m.why = "a std::optional parameter" : return true
     dim as int32 ci = ClassOf_( x, e, why )
     if (ci < 0) orelse IsPod_( x, ci ) then m.ok = false : m.why = "std::" & sk & " of " & Spell_( x, e ) : return true
     if (sk = "unique_ptr") andalso isRef then m.ok = false : m.why = "a reference to a std::unique_ptr" : return true
@@ -131,6 +216,22 @@ function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) a
         m.wrap0 = "static_cast<void*>(new std::vector<" & x.vecEC[vk - 1] & ">(" : m.wrap1 = "))"
         return true
     end if
+    if sk = "array" then
+        dim as int32 vk = VecKind_( x, e, why )
+        if vk = 0 then m.ok = false : m.why = why : return true
+        m.tiko = "any ptr" : m.ctype = "void*" : m.fallback = "nullptr" : m.vk1 = vk
+        m.wrap0 = "tko_cpp_arrvec(" : m.wrap1 = ")"
+        return true
+    end if
+    if sk = "optional" then
+        '' A std::optional<T> (survey: semver, stduuid, argparse) is an outcome.Optional( of T ): the
+        '' shim hands back a vector of none or one, which the adapter turns into it.
+        dim as int32 vk = VecKind_( x, e, why )
+        if vk = 0 then m.ok = false : m.why = "std::optional of " & Spell_( x, e ) : return true
+        m.tiko = "any ptr" : m.ctype = "void*" : m.fallback = "nullptr" : m.vk1 = vk : m.vopt = true
+        m.wrap0 = "tko_cpp_optvec<" & x.vecEC[vk - 1] & ">(" : m.wrap1 = ")"
+        return true
+    end if
     if c.kind = TY_LREF_ then m.ok = false : m.why = "returns a reference to a std::" & sk : return true
     dim as int32 ci = ClassOf_( x, e, why )
     if (ci < 0) orelse IsPod_( x, ci ) then m.ok = false : m.why = "returns std::" & sk & " of " & Spell_( x, e ) : return true
@@ -145,7 +246,7 @@ end function
 sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
               byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
               byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean, _
-              byval isCtor as boolean = false )
+              byval isCtor as boolean = false, byval rOpt as boolean = false )
     dim as string L = chr( 10 ), d = "", args = self_, e = ""
     dim as int32 a = 1
     while a <= len( nsList )
@@ -159,8 +260,7 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
         if (i > 0) orelse (len( self_ ) > 0) then args &= ", "
         if vks[i] = 0 then args &= names[i] : continue for
         dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
-        d &= "    dim as any ptr " & vv & " = " & tb & "_new( " & names[i] & ".Count( ) )" & L
-        d &= "    for tko_i as long = 0 to " & names[i] & ".Count( ) - 1 : " & tb & "_push( " & vv & ", " & names[i] & "[tko_i] ) : next" & L
+        d &= "    dim as any ptr " & vv & " = tko_vin_" & tb & "( " & names[i] & " )" & L
         args &= vv
     next
     if rvk > 0 then
@@ -175,14 +275,20 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
         dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
         if modes[i] = 2 then
             d &= "    " & names[i] & ".Clear( )" & L
-            d &= "    for tko_i as long = 0 to " & tb & "_size( " & vv & " ) - 1 : " & names[i] & ".Push( " & tb & "_get( " & vv & ", tko_i ) ) : next" & L
+            d &= "    for tko_i as long = 0 to " & tb & "_size( " & vv & " ) - 1 : " & names[i] & ".Push( tko_vget_" & tb & "( " & vv & ", tko_i ) ) : next" & L
         end if
         d &= "    " & tb & "_free( " & vv & " )" & L
     next
-    if rvk > 0 then
+    if (rvk > 0) andalso rOpt then
+        '' A std::optional RESULT: the vector of none or one the shim made, as an outcome.Optional.
         dim as string tb = x.vecBase[rvk - 1]
-        d &= "    dim as containers.Array( of " & x.vecET[rvk - 1] & " ) tko_a_" & L
-        d &= "    for tko_i as long = 0 to " & tb & "_size( tko_r_ ) - 1 : tko_a_.Push( " & tb & "_get( tko_r_, tko_i ) ) : next" & L
+        d &= "    dim as outcome.Optional( of " & x.vecET[rvk - 1] & " ) tko_a_" & L
+        d &= "    if " & tb & "_size( tko_r_ ) > 0 then tko_a_.Assign( tko_vget_" & tb & "( tko_r_, 0 ) )" & L
+        d &= "    " & tb & "_free( tko_r_ )" & L
+        d &= "    return tko_a_" & L
+    elseif rvk > 0 then
+        dim as string tb = x.vecBase[rvk - 1]
+        d &= "    dim as containers.Array( of " & x.vecET[rvk - 1] & " ) tko_a_ = tko_vout_" & tb & "( tko_r_ )" & L
         d &= "    " & tb & "_free( tko_r_ )" & L
         d &= "    return tko_a_" & L
     elseif isSub = false then

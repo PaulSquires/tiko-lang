@@ -44,7 +44,7 @@ function StdTemplate_( byref x as CppImp_, byval t as CXType ) as string
     if IsNullCursor_( x, tm ) orelse (InStd_( x, tm ) = false) then return ""
     dim as string nm = Text_( x, x.api->getCursorSpelling( tm ) )
     select case nm
-    case "vector", "unique_ptr", "shared_ptr" : return nm
+    case "vector", "unique_ptr", "shared_ptr", "optional", "array" : return nm
     end select
     return ""
 end function
@@ -106,7 +106,7 @@ function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec 
     while (x.api->getCursorKind( c ) <> CXCursor_TranslationUnit) andalso (guard < 16)
         dim as int32 k = x.api->getCursorKind( c )
         if k = CXCursor_Namespace then
-            if x.api->Cursor_isInlineNamespace( c ) = 0 then rev.Push( TypeName_( Text_( x, x.api->getCursorSpelling( c ) ) ) )
+            if x.api->Cursor_isInlineNamespace( c ) = 0 then rev.Push( NsName_( Text_( x, x.api->getCursorSpelling( c ) ) ) )
         elseif k <> CXCursor_LinkageSpec then
             return false
         end if
@@ -166,6 +166,9 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
     if len( tn ) = 0 then
         if NsOf_( x, d, ns ) = false then return
         tn = TypeName_( SpecName_( x, c ) )
+        '' A LONG ONE IS CUT, with a hash of the whole to keep it one class's: tiko holds 128
+        '' characters of a name, and nanoflann's spelled every defaulted argument and allocator.
+        if len( tn ) > 60 then tn = left( tn, 48 ) & "_" & Id_( tn )
     end if
     CollectAt_( x, d, tn, sp, ns, tm, true )
 end sub
@@ -727,6 +730,15 @@ function TargsName_( byref targs as string ) as string
         case "std::size_t", "size_t" : n = "uinteger"
         case "std::string", "std::basic_string<char>", "std::string_view" : n = "ustring"
         case else
+            '' A CHARACTER ARGUMENT, argparse's scan<'i', int>: the letter, or its code.
+            if (len( t ) = 3) andalso (left( t, 1 ) = "'") andalso (right( t, 1 ) = "'") then
+                dim as string ch = mid( t, 2, 1 )
+                if instr( "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", ch ) > 0 then
+                    t = ch
+                else
+                    t = "c" & asc( ch )
+                end if
+            end if
             for j as int32 = len( t ) to 1 step -1
                 dim as string c = mid( t, j, 1 )
                 if (c = ":") orelse (c = " ") orelse (c = "<") orelse (c = ">") orelse (c = "*") orelse (c = "&") then exit for
