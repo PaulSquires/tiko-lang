@@ -24,6 +24,12 @@ function IsNullCursor_( byref x as CppImp_, byval c as CXCursor ) as boolean
 end function
 
 '' Inside namespace std (or one of its inline namespaces)?
+'' Is template cursor tm std::pair?
+function IsStdPair_( byref x as CppImp_, byval tm as CXCursor ) as boolean
+    if IsNullCursor_( x, tm ) then return false
+    return (Text_( x, x.api->getCursorSpelling( tm ) ) = "pair") andalso InStd_( x, tm )
+end function
+
 function InStd_( byref x as CppImp_, byval c as CXCursor ) as boolean
     dim as int32 guard = 0
     c = x.api->getCursorSemanticParent( c )
@@ -94,6 +100,12 @@ private function PrivateArgs_( byref x as CppImp_, byval t as CXType, byval dept
         dim as CXType a = x.api->Type_getTemplateArgumentAsType( c, i )
         if (a.kind <> 0) andalso PrivateArgs_( x, a, depth + 1 ) then return true
     next
+    '' ...OR ITS ENCLOSING CLASS'S: robin_hash<..., KeySelect>::robin_iterator names KeySelect too.
+    dim as CXCursor par = x.api->getCursorSemanticParent( d )
+    dim as int32 pk = x.api->getCursorKind( par )
+    if (pk = CXCursor_ClassDecl) orelse (pk = CXCursor_StructDecl) orelse (pk = CXCursor_ClassTemplate) then
+        if PrivateArgs_( x, x.api->getCursorType( par ), depth + 1 ) then return true
+    end if
     return false
 end function
 
@@ -129,14 +141,21 @@ end function
 
 '' THE NAMESPACES a declaration is in, tiko-spelled, outermost first. False for one nested in a
 '' class: a specialization of a member template is not bound.
-function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec ) as boolean
+function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec, byval throughClasses as boolean = false ) as boolean
     dim as Tko.StrVec rev
     dim as int32 guard = 0
     c = x.api->getCursorSemanticParent( c )
     while (x.api->getCursorKind( c ) <> CXCursor_TranslationUnit) andalso (guard < 16)
         dim as int32 k = x.api->getCursorKind( c )
         if k = CXCursor_Namespace then
+            '' AN ANONYMOUS NAMESPACE's names are internal to their unit: nothing in one is bound.
+            if len( Text_( x, x.api->getCursorSpelling( c ) ) ) = 0 then return false
             if x.api->Cursor_isInlineNamespace( c ) = 0 then rev.Push( NsName_( Text_( x, x.api->getCursorSpelling( c ) ) ) )
+        elseif (k = CXCursor_ClassDecl) orelse (k = CXCursor_StructDecl) orelse (k = CXCursor_ClassTemplate) orelse _
+               (k = 32) then                         '' ClassTemplatePartialSpecialization
+            '' A SPECIALIZATION NESTED IN A CLASS (survey: robin_hash<...>::robin_iterator<false>, a map's
+            '' iterator) is bound in the namespace around it, when asked: flat, 'robin_iterator_0'.
+            if throughClasses = false then return false
         elseif k <> CXCursor_LinkageSpec then
             return false
         end if
@@ -169,7 +188,12 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
     end if
     dim as CXCursor d = x.api->getTypeDeclaration( c )
     dim as CXCursor tm = x.api->getSpecializedCursorTemplate( d )
-    if IsNullCursor_( x, tm ) orelse InStd_( x, tm ) orelse (InScope_( x, tm ) = false) then return
+    '' std::pair IS BOUND LIKE A LIBRARY'S TEMPLATE (survey: robin_map's and phmap's 'for each kv', 'kv.first',
+    '' insert's 'r.second'): std.pair_ustring_long, its first and second properties (StdPairCtor_).
+    if IsNullCursor_( x, tm ) then return
+    if (InStd_( x, tm ) orelse (InScope_( x, tm ) = false)) andalso (IsStdPair_( x, tm ) = false) then return
+    '' An anonymous struct or union (one in a class template, reached through it) has no name to bind by.
+    if (instr( Text_( x, x.api->getCursorSpelling( d ) ), "(" ) > 0) orelse (x.api->getCursorKind( d ) = CXCursor_UnionDecl) then return
     '' THE TEMPLATE'S DEFINITION, whose members are the pattern's: the cursor can be a forward
     '' declaration (json's 'template<...> class basic_json;', json_fwd), which has none.
     dim as CXCursor tdef = x.api->getCursorDefinition( tm )
@@ -180,7 +204,10 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
     next
     '' ONE WHOSE ARGUMENTS NAME A PRIVATE CLASS (survey: robin_map's KeySelect) cannot be spelled in the
     '' shim: an internal, not bound -- what names it is a CPP-TODO.
-    if PrivateArgs_( x, c, 0 ) then return
+    if PrivateArgs_( x, c, 0 ) then
+        if x.noAccess = false then return
+        x.usedNoAccess = true
+    end if
     '' Its C++ name, unqualified: the pointee of 'const Box<double>&' spells its 'const'.
     dim as string sp = Spell_( x, c )
     while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
@@ -197,7 +224,7 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
     dim as Tko.StrVec ns
     dim as string tn = AliasOf_( x, d, ns )         '' its alias's name and namespace, if one names it
     if len( tn ) = 0 then
-        if NsOf_( x, d, ns ) = false then return
+        if NsOf_( x, d, ns, true ) = false then return
         tn = TypeName_( SpecName_( x, c ) )
         '' A LONG ONE IS CUT, with a hash of the whole to keep it one class's: tiko holds 128
         '' characters of a name, and nanoflann's spelled every defaulted argument and allocator.
@@ -582,6 +609,8 @@ function ShapeSplit_( byref s as string, byref callee as string, byref args as T
         dim as string ch = mid( s, i, 1 )
         if ch = "<" then depth += 1
         if ch = ">" then depth -= 1
+        '' 'operator()' names the call operator: its '()' is no argument list.
+        if (ch = "(") andalso (mid( s, i, 2 ) = "()") andalso (right( rtrim( left( s, i - 1 ) ), 8 ) = "operator") then i += 1 : continue for
         if (ch = "(") andalso (depth = 0) then open_ = i : exit for
     next
     if (open_ = 0) orelse (right( trim( s ), 1 ) <> ")") then return false
@@ -667,7 +696,13 @@ function ShapeLine_( byref s as string, byref kind as string, byval i as int32 )
     '' 'A const&', so a pointer is one too: 'const char* const&', not 'const const char*&'.
     dim as string av = ""
     for j as int32 = 0 to args.Count - 1
-        if right( args[j], 1 ) <> "&" then args[j] = args[j] & " const&"
+        '' ...and a declarator type -- 'void (*)(int)', a callback (survey: sigslot's connect) -- through
+        '' add_const: 'void (*)(int) const&' is no type.
+        if (right( args[j], 1 ) <> "&") andalso (instr( args[j], "(" ) > 0) then
+            args[j] = "std::add_lvalue_reference_t<std::add_const_t<" & args[j] & ">>"
+        elseif right( args[j], 1 ) <> "&" then
+            args[j] = args[j] & " const&"
+        end if
         av &= iif( j > 0, ", ", "" ) & "std::declval<" & args[j] & ">()"
     next
     select case kind

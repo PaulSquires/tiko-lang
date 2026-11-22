@@ -224,9 +224,9 @@ sub FieldVec_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref
             x.extraGlob.Push( "extern ""C"" : declare sub " & rs & " alias """ & ss & """ ( byref self_ as " & x.clsTikoQ[ci] & ", byval v as any ptr ) : end extern" )
             x.shim.Push( "extern ""C"" void " & ss & "(tko_cpp_h* self_, void* v) { try { " & obj & " = *static_cast<std::vector<" & x.vecEC[vk - 1] & ">*>(v); return; } TKO_CPP_CATCH" & L & _
                          "    tko_cpp_raise(); }" & L )
-            lines.Push( "declare property " & tn & " ( byref v as const " & et & " )" )
-            d &= "property " & ClsRel_( x, ci ) & "." & tn & " ( byref v as const " & et & " )" & L & _
-                 "    dim as any ptr tko_v_ = tko_vin_" & b & "( v )" & L & _
+            lines.Push( "declare property " & tn & " ( byref tko_val_ as const " & et & " )" )
+            d &= "property " & ClsRel_( x, ci ) & "." & tn & " ( byref tko_val_ as const " & et & " )" & L & _
+                 "    dim as any ptr tko_v_ = tko_vin_" & b & "( tko_val_ )" & L & _
                  "    " & rs & "( this, tko_v_ )" & L & "    " & b & "_free( tko_v_ )" & L & "end property" & L
         end if
     end if

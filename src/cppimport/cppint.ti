@@ -100,6 +100,10 @@ type CppImp_
     '' window): every C++ symbol a shim calls, by its target mangling, given a fallback the link uses
     '' only when no library defines it -- a stub that raises when called. COFF: /alternatename.
     as boolean       coff
+    as boolean       noAccess     '' CppImportOptions.noAccess
+    as boolean       usedNoAccess '' ...and a specialization needed it
+    as Tko.StrVec    aliasTmpl    '' the header's alias templates, 'sigslot::signal': a specialization asked for
+                                  '' through one is named by it, 'signal_long' (D13 for alias templates)
     as Tko.StrVec    varNames     '' namespace variables written (USRs, and lcase qualified names: tiko
                                   '' names are case-insensitive -- clipper2's MAX_COORD beside max_coord)
     as Tko.StrVec    altNames
@@ -232,9 +236,10 @@ declare function PodHasInit_( byref x as CppImp_, byval ci as int32 ) as boolean
 '' cpptmpl.tiko
 declare function IsNullCursor_( byref x as CppImp_, byval c as CXCursor ) as boolean
 declare function InStd_( byref x as CppImp_, byval c as CXCursor ) as boolean
+declare function IsStdPair_( byref x as CppImp_, byval tm as CXCursor ) as boolean
 declare function StdTemplate_( byref x as CppImp_, byval t as CXType ) as string
 declare function SpecName_( byref x as CppImp_, byval t as CXType ) as string
-declare function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec ) as boolean
+declare function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec, byval throughClasses as boolean = false ) as boolean
 declare sub NoteType_( byref x as CppImp_, byval t as CXType )
 declare sub NoteFunction_( byref x as CppImp_, byval c as CXCursor )
 declare function InstClass_( byref x as CppImp_, byval i as int32 ) as CXType

@@ -272,6 +272,7 @@ private function Visit_ cdecl _
         if xp->pass = 2 then
             xp->tmplNames.Push( mid( QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) ), 3 ) )
             xp->tmplKinds.Push( "c" )
+            xp->aliasTmpl.Push( mid( QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) ), 3 ) )
         end if
     case CXCursor_FunctionTemplate, CXCursor_ClassTemplate
         '' A TEMPLATE is bound where it is instantiated (cpptmpl.tiko): recorded by name, and a
@@ -432,6 +433,7 @@ function Prelude_( ) as string
     "tko_cpp_ustr* fb_UStrAllocTempResult(tko_cpp_ustr* src);" & L & _
     "void* fb_ErrorThrowMsg(int err_num, int line_num, const char* mod_name, const char* msg, void* res_label, void* resnext_label);" & L & _
     "void* fb_UStrAssign(void* dst, std::intptr_t dst_size, void* src, std::intptr_t src_size, int fill_rem);" & L & _
+    "void fb_UStrDelete(tko_cpp_ustr* s);" & L & _
     "}" & L & _
     "// A ustring's UTF-16 as UTF-8. The sign bit of len is the temporary flag." & L & _
     "// LOSSLESS FOR BYTES (survey: cpp-base64, utfcpp, hashes): a byte that is not UTF-8 crosses as" & L & _
@@ -488,6 +490,14 @@ function Prelude_( ) as string
     "        tko_cpp_u8to16((const unsigned char*)p, b, t.data);" & L & _
     "        t.len = n;" & L & "    }" & L & _
     "    return fb_UStrAllocTempResult(&t);" & L & "}" & L & _
+    "// A ustring a callback into tiko is handed for a std::string argument, freed after the call (survey)." & L & _
+    "struct tko_cpp_ustrtmp {" & L & _
+    "    tko_cpp_ustr u = { nullptr, 0, 0 };" & L & _
+    "    explicit tko_cpp_ustrtmp(const std::string& s) {" & L & _
+    "        std::intptr_t n = s.empty() ? 0 : tko_cpp_u8to16((const unsigned char*)s.data(), s.size(), nullptr);" & L & _
+    "        if (n > 0 && fb_hUStrAlloc(&u, n)) { tko_cpp_u8to16((const unsigned char*)s.data(), s.size(), u.data); u.len = n; }" & L & _
+    "    }" & L & _
+    "    ~tko_cpp_ustrtmp() { fb_UStrDelete(&u); }" & L & "};" & L & _
     "template <class S> static inline tko_cpp_ustr* tko_cpp_from(const S& s) { return tko_cpp_from_utf8(s.data(), s.size()); }" & L & _
     "inline std::string& tko_cpp_last() { static thread_local std::string s; return s; }" & L & _
     "#define TKO_CPP_CATCH catch (const std::exception& e) { tko_cpp_last() = e.what(); } catch (...) { tko_cpp_last() = ""unknown C++ exception""; }" & L & _
@@ -834,6 +844,7 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
         for i as int32 = 0 to order.Count - 1
             parts.Push( x.mirBody[valint( order[i] )] )
         next
+        if len( environ( "TIKO_CPP_DEBUG" ) ) then open err for output as #99 : print #99, "---- tiko-cppmirror" : print #99, JoinParts( parts ) : close #99
         if ResolveMirror_( api, opts.triple, JoinParts( parts ), res.shim, res ) = false then
             res.rc = 1
             return false
@@ -841,6 +852,7 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
     end if
     res.bound = x.bound
     res.todos = x.todos
+    res.noAccess = x.usedNoAccess
     return true
 end function
 
@@ -848,6 +860,7 @@ private sub Args_( byref api as ClangApi, byref opts as CppImportOptions, byref 
     av.Push( "-x" ) : av.Push( "c++" ) : av.Push( "-std=c++17" )
     '' No error limit: a probe clang cannot instantiate is one forgiven error, and glm has many.
     av.Push( "-ferror-limit=0" )
+    if opts.shimNoAccess then av.Push( "-Xclang" ) : av.Push( "-fno-access-control" )
     av.Push( "--target=" & opts.triple )
     dim as string rdir = ClangResourceDir( api )
     if len( rdir ) then av.Push( "-resource-dir=" & rdir )
@@ -1011,6 +1024,7 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
         xp->hdrDir = iif( xp->foldCase, lcase( hd ), hd )
         xp->id = Id_( lcase( Fwd_( opts.header ) ) )
         xp->coff = (instr( opts.triple, "windows-msvc" ) > 0)
+        xp->noAccess = opts.noAccess
         for i as int32 = 0 to opts.exclude.Count - 1
             xp->exclude.Push( opts.exclude[i] )
         next
@@ -1061,7 +1075,25 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
             '' types, every class's members' -- the classes found on the way included.
             for i as int32 = 0 to opts.instantiate.Count - 1
                 dim as CXCursor fn
-                if ikind[i] = "c" then NoteType_( *xp, InstClass_( *xp, i ) )
+                if ikind[i] = "c" then
+                    dim as CXType it_ = InstClass_( *xp, i )
+                    '' THROUGH AN ALIAS TEMPLATE ('sigslot::signal<int>', signal_base<std::mutex, int>): its
+                    '' name and the written arguments name the class, 'sigslot.signal_long'.
+                    for j as int32 = 0 to xp->aliasTmpl.Count - 1
+                        if (xp->aliasTmpl[j] <> xp->instBases[i]) orelse (it_.kind = 0) then continue for
+                        dim as string ta = opts.instantiate[i], nsj = "", seg = xp->aliasTmpl[j]
+                        ta = mid( ta, instr( ta, "<" ) )
+                        while instr( seg, "::" ) > 0
+                            nsj &= iif( len( nsj ), chr( 1 ), "" ) & NsName_( left( seg, instr( seg, "::" ) - 1 ) )
+                            seg = mid( seg, instr( seg, "::" ) + 2 )
+                        wend
+                        xp->alUsr.Push( Text_( *xp, api.getCursorUSR( api.getTypeDeclaration( Canon_( *xp, it_ ) ) ) ) )
+                        xp->alName.Push( TypeName_( seg & TargsName_( ta ) ) )
+                        xp->alNs.Push( nsj )
+                        exit for
+                    next
+                    NoteType_( *xp, it_ )
+                end if
                 if (ikind[i] = "f") andalso InstFunction_( *xp, i, fn ) then NoteFunction_( *xp, fn )
                 if (left( ikind[i], 1 ) = "S") andalso ShapeTarget_( *xp, i, fn ) then
                     NoteFunction_( *xp, fn )

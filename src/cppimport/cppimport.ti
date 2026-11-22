@@ -33,6 +33,13 @@ type CppImportOptions
     as string     triple        '' TargetFor( t ).triple
     as Tko.StrVec instantiate   '' '#cppinstantiate' / -cppinstantiate: "geo::Box<int>", "geo::clamp<int>"
     as Tko.StrVec exclude       '' shim functions CppShimCheck found would not compile: not bound
+    '' A SPECIALIZATION WHOSE SPELLING NAMES A PRIVATE CLASS (robin_map's iterator, over its private
+    '' KeySelect) may be bound: its shim is then compiled without access control ('-Xclang
+    '' -fno-access-control'; CppImportResult.noAccess says so). #cppinclude sets it; -cppimport leaves
+    '' it false -- that shim is compiled with the user's own flags. Only when needed: without access
+    '' control a private, undefined copy constructor counts as copyable (pugixml's xml_document).
+    as boolean    noAccess
+    as boolean    shimNoAccess  '' CppShimCheck: parse the shim without access control
 end type
 
 type CppImportResult
@@ -43,6 +50,7 @@ type CppImportResult
     as Tko.StrVec clangDiags    '' clang's own error lines, at most ten
     as int32       bound        '' entry points written
     as int32       todos        '' CPP-TODO lines written
+    as boolean     noAccess     '' the shim names a private class: compile it with -fno-access-control
 end type
 
 declare function CppImportRun( byref api as Tko.CImport.ClangApi, byref opts as CppImportOptions, _

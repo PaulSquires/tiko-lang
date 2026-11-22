@@ -830,6 +830,24 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     end if
     end if
 
+    '' std::pair's (first, second) constructor: MSVC's are all templates, so the pattern has none to bind.
+    if spec andalso (pod = false) andalso IsStdPair_( x, x.clsTmpl[ci] ) then
+        dim as CXType pt = x.api->getCursorType( x.clsCur[ci] )
+        dim as TMap_ m0 = Param_( x, x.api->Type_getTemplateArgumentAsType( pt, 0 ), "first_" )
+        dim as TMap_ m1 = Param_( x, x.api->Type_getTemplateArgumentAsType( pt, 1 ), "second_" )
+        if m0.ok andalso m1.ok andalso (m0.vk1 = 0) andalso (m1.vk1 = 0) then
+            dim as string sp = Sym_( x )
+            lines.Push( "declare constructor alias """ & sp & """ ( " & m0.tiko & ", " & m1.tiko & " )    '' " & cpp & "(first, second)" )
+            x.shim.Push( "extern ""C"" void " & sp & "(tko_cpp_h* self_, " & m0.ctype & ", " & m1.ctype & ") __asm__(""@@M:" & sp & "@@"");" & L & _
+                         "extern ""C"" void " & sp & "(tko_cpp_h* self_, " & m0.ctype & ", " & m1.ctype & ") {" & L & _
+                         "    self_->impl = nullptr; self_->owned = 0;" & L & _
+                         "    try { self_->impl = new " & cpp & "(" & m0.arg & ", " & m1.arg & "); self_->owned = 1; return; } TKO_CPP_CATCH" & L & _
+                         "    tko_cpp_raise();" & L & "}" & L )
+            x.mirBody.Push( "    void " & sp & "(" & m0.mir & ", " & m1.mir & ");" )
+            x.bound += 1
+        end if
+    end if
+
     '' Methods: a const one before its non-const twin, which tiko cannot tell from it -- the
     '' const one is the one a const handle can call too.
     for pass_ as int32 = 0 to 1
@@ -919,6 +937,8 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         dim as string disp = cpp & "::" & Text_( x, x.api->getCursorDisplayName( em ) ) & TemplateArgs_( x, em )
         if ek = CXCursor_Constructor then
             kk = K_CTOR_
+        elseif emn = "operator()" then
+            kk = K_METHOD_                     '' Invoke (survey: sigslot's emit, a call operator template)
         elseif (ek = CXCursor_ConversionFunction) orelse (left( emn, 8 ) = "operator") then
             kk = OpKind_( trim( mid( emn, 9 ) ), na, true, top )
             if kk < 0 then lines.Push( "'' CPP-TODO(operator): " & disp ) : x.todos += 1 : continue for
@@ -930,6 +950,7 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
             x.calleeTargs = x.extraTargs[i]
             '' Explicit arguments the shape wrote are part of the name: get_long( ), get_double( ).
             if len( x.calleeTargs ) andalso (kk <> K_CTOR_) then x.nameOverride = ValueName_( emn & TargsName_( x.calleeTargs ) )
+            if emn = "operator()" then x.nameOverride = "Invoke"
             dim as boolean ok = Entry_( x, em, kk, ci, decl, why, na - k, top )
             x.nameOverride = ""
             if (ok = false) andalso (why = SAME_SIG_) andalso len( TemplateArgsName_( x, em ) ) andalso (kk <> K_CTOR_) then

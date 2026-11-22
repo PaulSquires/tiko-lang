@@ -130,6 +130,7 @@ private function Hook_ cdecl _
     next
     s->pendingInst.Clear( )
     io.sysroot = ci.csysroot
+    io.noAccess = true
     io.targetName = ci.targetName
     io.triple = ci.triple
 
@@ -152,6 +153,7 @@ private function Hook_ cdecl _
         flags.Push( "-D" & io.defines[i] )
     next
     if len( io.sysroot ) then flags.Push( "--sysroot=" & io.sysroot )
+    if res.noAccess then flags.Push( "-Xclang" ) : flags.Push( "-fno-access-control" ) : io.shimNoAccess = true
     for i as int32 = 0 to io.copts.Count - 1
         flags.Push( io.copts[i] )
     next
