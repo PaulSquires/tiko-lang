@@ -117,12 +117,12 @@ function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) 
     dim as string at_ = "(*" & vp & ")[(std::size_t)i]"
     if r.sret = SR_OWNED_ then
         f &= "extern ""C"" tko_cpp_h* " & b & "_get(tko_cpp_h* ret_, void* v, std::ptrdiff_t i) { ret_->impl = nullptr; ret_->owned = 0;" & L & _
-             "    try { ret_->impl = new " & r.rcpp & "(" & at_ & "); ret_->owned = 1; return ret_; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return ret_; }" & L
+             "    try { ret_->impl = tko_cpp_dup<" & r.rcpp & ">(" & at_ & "); if (ret_->impl) { ret_->owned = 1; return ret_; } } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return ret_; }" & L
     else
         f &= "extern ""C"" " & r.ctype & " " & b & "_get(void* v, std::ptrdiff_t i) {" & L & _
              "    try { return " & r.wrap0 & at_ & r.wrap1 & "; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return " & r.fallback & "; }" & L
     end if
-    f &= "extern ""C"" void " & b & "_push(void* v, " & m.ctype & ") { try { " & vp & "->push_back(" & m.arg & "); return; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); }" & L
+    f &= "extern ""C"" void " & b & "_push(void* v, " & m.ctype & ") { try { if (tko_cpp_pushback(*" & vp & ", " & m.arg & ")) return; tko_cpp_last() = ""this C++ type cannot be copied into a std::vector""; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); }" & L
     x.shim.Push( f )
     x.vecEC.Push( ec ) : x.vecET.Push( et ) : x.vecBase.Push( b )
     x.vecKindOf.Push( "" ) : x.vecInner.Push( "" )
@@ -160,8 +160,8 @@ function MapKind_( byref x as CppImp_, byval t as CXType, byref why as string ) 
     f &= "extern ""C"" void* " & b & "_keys(void* p) { return &static_cast<" & kv & "*>(p)->k; }" & L
     f &= "extern ""C"" void* " & b & "_vals(void* p) { return &static_cast<" & kv & "*>(p)->v; }" & L
     f &= "extern ""C"" void " & b & "_free(void* p) { delete static_cast<" & kv & "*>(p); }" & L
-    f &= "extern ""C"" void* " & b & "_from(void* k, void* v) { try { auto* p = new " & kv & "(); p->k = *static_cast<std::vector<" & kc & ">*>(k); " & _
-         "p->v = *static_cast<std::vector<" & vc & ">*>(v); return p; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return nullptr; }" & L
+    f &= "extern ""C"" void* " & b & "_from(void* k, void* v) { try { return new " & kv & "{ std::vector<" & kc & ">(*static_cast<std::vector<" & kc & ">*>(k)), " & _
+         "std::vector<" & vc & ">(*static_cast<std::vector<" & vc & ">*>(v)) }; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return nullptr; }" & L
     x.shim.Push( f )
     dim as string d = ""
     d &= "private function tko_mout_" & b & "( byval p as any ptr ) as " & et & L

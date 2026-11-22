@@ -79,6 +79,24 @@ end function
 
 '' 'Box<double>' -> 'Box_double', 'Pair<int, std::string>' -> 'Pair_long_ustring', 'Arr<int, 3>' ->
 '' 'Arr_long_3' (D9).
+private function PrivateArgs_( byref x as CppImp_, byval t as CXType, byval depth as int32 ) as boolean
+    if depth > 6 then return false
+    dim as CXType c = Canon_( x, t )
+    while (c.kind = TY_POINTER_) orelse (c.kind = TY_LREF_) orelse (c.kind = TY_RREF_)
+        c = Canon_( x, x.api->getPointeeType( c ) )
+    wend
+    if c.kind <> TY_RECORD_ then return false
+    dim as CXCursor d = x.api->getTypeDeclaration( c )
+    dim as int32 acc = x.api->getCXXAccessSpecifier( d )
+    if (acc = 3) orelse (acc = 2) then return true          '' CX_CXXPrivate, CX_CXXProtected
+    dim as int32 n = x.api->Type_getNumTemplateArguments( c )
+    for i as int32 = 0 to n - 1
+        dim as CXType a = x.api->Type_getTemplateArgumentAsType( c, i )
+        if (a.kind <> 0) andalso PrivateArgs_( x, a, depth + 1 ) then return true
+    next
+    return false
+end function
+
 function SpecName_( byref x as CppImp_, byval t as CXType ) as string
     dim as CXType c = Canon_( x, t )
     dim as CXCursor d = x.api->getTypeDeclaration( c )
@@ -87,6 +105,18 @@ function SpecName_( byref x as CppImp_, byval t as CXType ) as string
     dim as int32 n = x.api->Type_getNumTemplateArguments( c )
     for i as int32 = 0 to n - 1
         dim as CXType at_ = x.api->Type_getTemplateArgumentAsType( c, i )
+        '' A POLICY ARGUMENT ends the name, and every argument after it (survey: robin_map, phmap,
+        '' std::vector's allocator): 'tsl::robin_map<std::string, int>' is robin_map_ustring_long, not
+        '' robin_map_ustring_long_hash_ustring_equal_to_ustring_allocator_... -- the defaults a C++
+        '' user does not write. A hash, an equality, an ordering, an allocator, traits, a deleter.
+        if (i > 0) andalso (Canon_( x, at_ ).kind = TY_RECORD_) then
+            dim as CXCursor ad = x.api->getTypeDeclaration( Canon_( x, at_ ) )
+            dim as CXCursor atm = x.api->getSpecializedCursorTemplate( ad )
+            dim as string pn = lcase( Text_( x, x.api->getCursorSpelling( iif( IsNullCursor_( x, atm ), ad, atm ) ) ) )
+            if (instr( pn, "hash" ) > 0) orelse (instr( pn, "equal" ) > 0) orelse (instr( pn, "eq" ) = len( pn ) - 1) orelse _
+               (pn = "less") orelse (pn = "greater") orelse (instr( pn, "compare" ) > 0) orelse (instr( pn, "alloc" ) > 0) orelse _
+               (instr( pn, "traits" ) > 0) orelse (instr( pn, "delete" ) > 0) then exit for
+        end if
         if at_.kind <> 0 then
             r &= "_" & ArgName_( x, at_ )
         else
@@ -148,6 +178,9 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
     for i as int32 = 0 to x.clsUsr.Count - 1
         if x.clsUsr[i] = usr then return
     next
+    '' ONE WHOSE ARGUMENTS NAME A PRIVATE CLASS (survey: robin_map's KeySelect) cannot be spelled in the
+    '' shim: an internal, not bound -- what names it is a CPP-TODO.
+    if PrivateArgs_( x, c, 0 ) then return
     '' Its C++ name, unqualified: the pointee of 'const Box<double>&' spells its 'const'.
     dim as string sp = Spell_( x, c )
     while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
@@ -168,7 +201,7 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
         tn = TypeName_( SpecName_( x, c ) )
         '' A LONG ONE IS CUT, with a hash of the whole to keep it one class's: tiko holds 128
         '' characters of a name, and nanoflann's spelled every defaulted argument and allocator.
-        if len( tn ) > 60 then tn = left( tn, 48 ) & "_" & Id_( tn )
+        if len( tn ) > 100 then tn = left( tn, 88 ) & "_" & Id_( tn )
     end if
     CollectAt_( x, d, tn, sp, ns, tm, true )
 end sub

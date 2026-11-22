@@ -516,6 +516,10 @@ function Prelude_( ) as string
     "template <class K, class V> struct tko_cpp_kv { std::vector<K> k; std::vector<V> v; };" & L & _
     "template <class K, class V, class M> inline void* tko_cpp_mapkv(const M& m) { auto* p = new tko_cpp_kv<K, V>(); for (auto& e : m) { p->k.push_back(e.first); p->v.push_back(e.second); } return p; }" & L & _
     "template <class M, class K, class V> inline M tko_cpp_kvmap(const tko_cpp_kv<K, V>& p) { M m; for (std::size_t i = 0; i < p.k.size() && i < p.v.size(); ++i) m.emplace(p.k[i], p.v[i]); return m; }" & L & _
+    "// AN ELEMENT COPIED where C++ allows it (survey: mustache's basic_data): a traits function compiles" & L & _
+    "// for any element type, and the copy C++ refuses is a runtime error instead of a shim that does not build." & L & _
+    "template <class T, class A> inline T* tko_cpp_dup(A&& a) { if constexpr (std::is_constructible_v<T, A&&>) { return new T(std::forward<A>(a)); } else { tko_cpp_last() = ""this C++ type cannot be copied""; return nullptr; } }" & L & _
+    "template <class V, class A> inline bool tko_cpp_pushback(V& v, A&& a) { if constexpr (std::is_constructible_v<typename V::value_type, A&&>) { v.push_back(std::forward<A>(a)); return true; } else { return false; } }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
     "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
     "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _
@@ -582,6 +586,11 @@ function Prelude_( ) as string
     "// two #cppinclude's in one program failed 'duplicate symbol: tko_cpp_what'. An inline one is a" & L & _
     "// COMDAT the linker keeps once; 'used' makes a shim emit it although nothing in the shim calls it." & L & _
     "extern ""C"" inline __attribute__((used)) tko_cpp_ustr* tko_cpp_what() { return tko_cpp_from(tko_cpp_last()); }" & L & _
+    "// What a C++ function declared in its header but defined in no linked library resolves to (COFF):" & L & _
+    "// a call reaches it, and the program stops with a runtime error naming the problem." & L & _
+    "extern ""C"" inline __attribute__((used)) void tko_cpp_undefined() {" & L & _
+    "    tko_cpp_last() = ""a C++ function this program calls is declared in its header but defined in no library it links"";" & L & _
+    "    tko_cpp_raise();" & L & "    std::abort();" & L & "}" & L & _
     "#endif" & L & "// ---- end of prelude ----" & L
 end function
 
@@ -807,6 +816,12 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
     for i as int32 = 0 to x.shim.Count - 1
         parts.Push( x.shim[i] & L )
     next
+    if x.altNames.Count > 0 then
+        parts.Push( "// Declared in the header, maybe defined in no library linked: the fallback, if called, raises." & L )
+        for i as int32 = 0 to x.altNames.Count - 1
+            parts.Push( "#pragma comment(linker, ""/alternatename:" & x.altNames[i] & "=tko_cpp_undefined"")" & L )
+        next
+    end if
     res.shim = JoinParts( parts )
 
     '' THE MEMBERS' NAMES, from the mirror.
@@ -997,6 +1012,7 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
 #endif
         xp->hdrDir = iif( xp->foldCase, lcase( hd ), hd )
         xp->id = Id_( lcase( Fwd_( opts.header ) ) )
+        xp->coff = (instr( opts.triple, "windows-msvc" ) > 0)
         for i as int32 = 0 to opts.exclude.Count - 1
             xp->exclude.Push( opts.exclude[i] )
         next

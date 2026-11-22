@@ -176,7 +176,7 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
     dim as any ptr hookCtx = iif( cpp, e.cfg->cppimportCtx, e.cfg->cimportCtx )
     '' A C++ binding may hold std::vector as containers.Array: the scan records the import, the
     '' compile makes it once the line is read, while the unit's header is open (C3b-2, cppvec.tiko).
-    if cpp andalso e.cfg->scanHeader then PpModImportFor( e, at, "std/containers", true ) : PpModImportFor( e, at, "std/outcome", true ) : SkipToEol( e ) : return
+    if cpp andalso e.cfg->scanHeader then PpModImportFor( e, at, "std/containers|std/outcome", true ) : SkipToEol( e ) : return
     if hookFn = nullptr then
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
@@ -212,7 +212,7 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
         Report( e, TKO0316, at, word )
         return
     end if
-    if cpp then PpModImportFor( e, at, "std/containers", true ) : PpModImportFor( e, at, "std/outcome", true )
+    if cpp then PpModImportFor( e, at, "std/containers|std/outcome", true )
 
     dim as boolean unicode = (MacroFor( e, e.names->GetString( "unicode" ) ) <> nullptr)
     dim as PpCImportFn fn = hookFn

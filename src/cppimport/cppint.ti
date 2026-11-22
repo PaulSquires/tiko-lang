@@ -96,6 +96,11 @@ type CppImp_
     as Tko.StrVec    clsNestBind  '' its nested enums' binding lines, chr( 10 )-separated
     as Tko.StrVec    clsNestMir   '' what its mirror struct declares first: nested structs, enums
     as Tko.StrVec    mirCls       '' mirBody[i]'s class index, so Finish_ can order the mirror
+    '' DECLARED, MAYBE NEVER DEFINED (survey: yaml-cpp's IsNull, box2d's SetUserData, imgui's demo
+    '' window): every C++ symbol a shim calls, by its target mangling, given a fallback the link uses
+    '' only when no library defines it -- a stub that raises when called. COFF: /alternatename.
+    as boolean       coff
+    as Tko.StrVec    altNames
     as Tko.StrVec    clsMirBody   '' its mirror struct's members, and the extras after it (a range's
     as Tko.StrVec    clsMirExtra  '' iterator): assembled in Finish_, a nested struct inside its outer one
     as Tko.StrVec    probeNames   '' the probes this parse resolved (cpptmpl.tiko)
@@ -194,6 +199,7 @@ declare function NsOpen_( byref x as CppImp_, byval ci as int32, byref opened as
 declare sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
 declare function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
+declare sub AltName_( byref x as CppImp_, byval c as CXCursor )
 declare sub MirUnits_( byref x as CppImp_ )
 declare function ClassOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
 declare sub ClassClose_( byref x as CppImp_, byref opened as Tko.StrVec )

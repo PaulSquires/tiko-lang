@@ -265,6 +265,9 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         f &= "    return " & r.fallback & ";" & L
     end if
     x.shim.Push( f & "}" & L )
+    '' The C++ symbol called, when it is this declaration's own (not a pattern's, not a template's).
+    if (x.ovrOn = false) andalso (len( x.calleeOverride ) = 0) andalso (len( targs ) = 0) andalso _
+       ((ci < 0) orelse (IsSpec_( x, ci ) = false)) then AltName_( x, c )
     if kind = K_OPMEM_ then
         if top = "[]" then
             x.mirBody.Push( "    void operator[](" & mparams & ");" )
@@ -559,6 +562,20 @@ private function NoBody_( byref what as string ) as string
     return iif( what = "assigned", "", "self_->impl = nullptr; self_->owned = 0; " ) & "tko_cpp_last() = ""this C++ class cannot be " & what & " (its C++ body does not compile)""; tko_cpp_raise();"
 end function
 
+'' A FALLBACK FOR A C++ SYMBOL a shim calls (see CppImp_.altNames): only a declaration with no body in
+'' the header -- a defined one is in the shim's own object -- and not a template's.
+sub AltName_( byref x as CppImp_, byval c as CXCursor )
+    if x.coff = false then return
+    if IsNullCursor_( x, x.api->getCursorDefinition( c ) ) = false then return
+    if IsNullCursor_( x, x.api->getSpecializedCursorTemplate( c ) ) = false then return
+    dim as string m = Text_( x, x.api->Cursor_getMangling( c ) )
+    if (len( m ) = 0) orelse (instr( m, " " ) > 0) orelse (instr( m, """" ) > 0) then return
+    for i as int32 = 0 to x.altNames.Count - 1
+        if x.altNames[i] = m then return
+    next
+    x.altNames.Push( m )
+end sub
+
 '' The class ci is nested in, or -1.
 function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
     if (ci < 0) orelse (ci >= x.clsOuter.Count) then return -1
@@ -837,6 +854,7 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
     end if
     f &= " } TKO_CPP_CATCH" & L & "    tko_cpp_raise();" & L & "    return " & iif( r.sret <> SR_NONE_, "ret_", r.fallback ) & ";" & L & "}" & L
     x.shim.Push( f )
+    AltName_( x, c )
     x.mirBody.Push( "    static void " & sg & "();" )
     x.bound += 1
     if konst orelse r.byrefRet orelse (r.sret <> SR_NONE_) then return
