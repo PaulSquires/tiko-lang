@@ -676,9 +676,22 @@ public sub tkHost_Show( byval h as TK_HOST ptr )
     h->bDirty = true
 end sub
 
+' An owned window (a dialog, a floating palette) about to be hidden or destroyed while it is the
+' active one gives activation to its owner FIRST, as tkHost_RunModal does. Hidden while active,
+' the OS activates the next window in z-order -- often another application's ("docking a floating
+' pane sent tkEdit behind another app", 2026-11-22). Popups and tooltips never take activation.
+private sub GiveActivationToOwner_( byval h as TK_HOST ptr )
+    if (h = 0) orelse (h->win = 0) orelse (h->pOwner = 0) then exit sub
+    if h->kind <> TK_SURF_DIALOG then exit sub
+    if (h->pOwner->win = 0) orelse (SDL_GetKeyboardFocus() <> h->win) then exit sub
+    if (SDL_GetWindowFlags( h->pOwner->win ) and SDL_WINDOW_HIDDEN) <> 0 then exit sub
+    SDL_RaiseWindow( h->pOwner->win )
+end sub
+
 ' Hides the window and keeps everything in it. tkHost_Show brings it back.
 public sub tkHost_Hide( byval h as TK_HOST ptr )
     if h = 0 then exit sub
+    GiveActivationToOwner_( h )
     SDL_HideWindow( h->win )
     if h->pOwner then h->pOwner->bDirty = true
 end sub
@@ -1221,6 +1234,7 @@ public sub tkHost_Close( byval h as TK_HOST ptr )
     next
     h->bClosed = true
     if h->pCapture then tkHost_ReleaseCapture( h )
+    GiveActivationToOwner_( h )
     SDL_HideWindow( h->win )
     if h->pOwner then h->pOwner->bDirty = true
     if h->OnClosed then h->OnClosed( h )
