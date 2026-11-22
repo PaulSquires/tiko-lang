@@ -93,6 +93,8 @@ declare sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k
 declare sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
 declare sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckIndexNeedsPointer_ ( byref c as Ctx, byval id as NodeId )
+declare function OperatorTakesArg_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string, byval at as TypeId ) as int32
 declare sub CheckMemberOnlyOperator_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckModifierAgrees_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )

@@ -1,0 +1,10 @@
+'' A MISSING MEMBER ON A BYREF PROPERTY GETTER'S RESULT -- fbc's 18, measured on fbc 1.10.1 over
+'' line 14 (the assignment) and line 15 (the read, alone). tiko stopped with TKO0994 (N_AMBIGUOUS,
+'' N_INTRINSIC): CheckMemberExists_ (latesweeps2.tiko) did not judge a member of 'so.info'.
+'' Line 16 is fine.
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/member-of-property-result.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: member-of-property-result.bas(14,9): error TKO0739: 'i' has no member named 'nope'
+'' EXPECT-OUT: member-of-property-result.bas(15,15): error TKO0739: 'i' has no member named 'nope'
+'' EXPECT-MAX-DIAG: 2

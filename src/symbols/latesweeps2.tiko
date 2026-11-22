@@ -290,6 +290,11 @@ sub JudgeConversion_ _
             end if
         end if
     end if
+    '' ...BY A 'let' THAT TAKES IT: fbc's 181 when none of the type's own does (OperatorTakesArg_, proccheck.tiko).
+    if lUdt andalso byAssign andalso (OperatorTakesArg_( c, lu, "let", ru ) = 0) then
+        c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
+        return
+    end if
     if Rescued_( c, lu, ru, byAssign ) then return
     c.diags->Report( TKO0738, PointRange( c.ast->Loc( at ) ) )
 end sub
@@ -323,7 +328,8 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     '' A PROPERTY on the left is a call, and its setter's parameter is not measured.
     dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
-    if (ls <> nullptr) andalso (ls->kind = cast( uint8, SYM_PROC )) then return
+    '' ...except 'm["k"] = 3.0' through a byref 'operator []': its element is assigned (fbc's 181).
+    if (ls <> nullptr) andalso (ls->kind = cast( uint8, SYM_PROC )) andalso (c.ast->Kind( sp->a ) <> N_INDEX) then return
     '' ONLY A PLAIN LVALUE ON THE LEFT: 'let( a, b ) = x' unpacks and is its own rule,
     '' and 'this = other' assigns the object, which tiko-lang types as a POINTER.
     select case c.ast->Kind( sp->a )
@@ -464,7 +470,11 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         if c.info->RefOf( id ) <> SYMBOL_NONE then return
         if c.info->RefOf( mp->rhs ) <> SYMBOL_NONE then return
     end if
-    dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
+    dim as NodeId lb = mp->lhs   '' '(*p).nope' is the operator's result as well
+    if c.ast->Kind( lb ) = N_PAREN then
+        if c.ast->Kind( Unparen3_( c, lb ) ) = N_DEREF then lb = Unparen3_( c, lb )
+    end if
+    dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( lb ) )
     if bs = nullptr then return
     select case cast( SymbolKind, bs->kind )
     case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
@@ -475,9 +485,11 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     '' spelling exists further out. 'foo.Bar( )' over 'function Foo( ) as long' is fbc's error
     '' 3, and inside a method of a type with a member 'Mm', 'mm.Ready( )' reaches the member
     '' first, as fbc's lookup does -- both were ICEs, TKO0994/TKO0993 (tracks-2026 TB-004).
+    '' ...AND A USER 'operator []' OR 'operator *' RESULT, OR A PROPERTY'S: 'w[0].nope( 1 )' and
+    '' 's.info.nope' (a byref getter) are fbc's 18 too, and stopped tiko with TKO0994.
     case SYM_PROC
-        dim as NodeKind lk = c.ast->Kind( mp->lhs )
-        if (lk <> N_CALL) andalso (lk <> N_IDENT) then return
+        dim as NodeKind lk = c.ast->Kind( lb )
+        if (lk <> N_CALL) andalso (lk <> N_IDENT) andalso (lk <> N_INDEX) andalso (lk <> N_DEREF) andalso (lk <> N_MEMBER) then return
     '' ...AND A TYPE NAME: 'U.nope( )', 'm.foo' over 'type m as long', 'E.nope' over an enum.
     '' A member that exists was bound by Check and returned above, so what reaches here is
     '' missing; fbc's error 42 over a type name. tiko stopped with TKO0994 instead.
@@ -485,7 +497,7 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     case else
         return
     end select
-    dim as TypeId bt = c.info->TypeOf_( mp->lhs )
+    dim as TypeId bt = c.info->TypeOf_( lb )
     if bt = TYPE_NONE then return
     dim as TypeId bu = ValueType_( c, bt )
     if c.types->Kind( bu ) = TK_POINTER then bu = c.types->Unqualify( c.types->Inner( bu ) )

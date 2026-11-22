@@ -1,0 +1,12 @@
+'' '*' OVER A UDT WITH NO 'operator *' -- fbc's 28, "Expected pointer", measured on fbc 1.10.1
+'' over lines 31-33 exactly: a plain type, one casting to 'long' and one casting to 'long ptr'
+'' (a cast is not tried). tiko stopped on TKO0994 ("this N_INTRINSIC was not compiled");
+'' CheckDerefAddrOperand_ (proccheck.tiko) now says what it says for '*n' over a number. Line
+'' 34, over a type with a global 'operator *', is fine.
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/deref-udt-no-operator.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: deref-udt-no-operator.bas(31,7): error TKO0950
+'' EXPECT-OUT: deref-udt-no-operator.bas(32,7): error TKO0950
+'' EXPECT-OUT: deref-udt-no-operator.bas(33,7): error TKO0950
+'' EXPECT-MAX-DIAG: 3

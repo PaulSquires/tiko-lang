@@ -168,7 +168,12 @@ sub CheckIndexNeedsPointer_ ( byref c as Ctx, byval id as NodeId )
     case TK_POINTER, TK_ARRAY
         return
     case TK_UDT
-        if StructorOf_( c, u, "[]" ) <> nullptr then return
+        '' ...unless NO 'operator []' takes the index: fbc then indexes it as a pointer, and
+        '' says 28 (OperatorTakesArg_, below). tiko called the first one with the operand as it was.
+        if StructorOf_( c, u, "[]" ) <> nullptr then
+            if lp->count <> 1 then return
+            if OperatorTakesArg_( c, u, "[]", c.info->TypeOf_( c.ast->ChildAt( lp->first, 0 ) ) ) <> 0 then return
+        end if
         if Tko.Slices.SliceUnitOfType( *c.types, *c.names, u ) <> Tko.Slices.SU_NONE then return   '' 'v[i]' over a string slice
     case TK_BUILTIN
         select case c.types->BuiltinOf( u )
@@ -963,7 +968,10 @@ sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     dim as boolean lUdt = (c.types->Kind( lt ) = TK_UDT)
     dim as boolean rUdt = (c.types->Kind( rt ) = TK_UDT)
     if lUdt then
-        if StructorOf_( c, lt, selfNm ) <> nullptr then return
+        '' A member self-operator that takes the operand -- and only one that does (OperatorTakesArg_, below).
+        if StructorOf_( c, lt, selfNm ) <> nullptr then
+            if OperatorTakesArg_( c, lt, selfNm, rt ) <> 0 then return
+        end if
         if StructorOf_( c, lt, "let" ) <> nullptr then
             if StructorOf_( c, lt, "cast" ) <> nullptr then return
             if ProcNamedAnywhere_( c, left( selfNm, len( selfNm ) - 1 ) ) then return
@@ -1002,6 +1010,15 @@ sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as Node
         case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_FIXSTR, TY_ANY
             return
         end select
+    '' ...AND A UDT WITH NO 'operator *' for it: fbc's 28 as well, measured on fbc 1.10.1 over
+    '' a plain type and over ones casting to 'long' and to 'long ptr' -- a cast is not tried.
+    '' Check binds the operator when there is one; with none the node reached lowering untyped
+    '' and stopped on TKO0994 ("this N_INTRINSIC was not compiled").
+    case TK_UDT
+        if c.info->RefOf( id ) <> SYMBOL_NONE then return
+        if c.info->TypeOf_( id ) <> TYPE_NONE then return
+        if TupleLike_( c, t ) then return
+        if Tko.Slices.SliceUnitOfType( *c.types, *c.names, t ) <> Tko.Slices.SU_NONE then return
     case else
         return
     end select
@@ -1350,3 +1367,75 @@ sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     end if
     c.diags->Report( TKO0720, PointRange( c.ast->Loc( id ) ), opnm )
 end sub
+
+'' DOES A MEMBER OPERATOR TAKE THIS OPERAND? (OperatorTakesArg_, declared in semcalls.ti.)
+''
+'' A type's 'operator []', 'operator let' and self-assignment operators ('+=' and the rest)
+'' each take one argument. Into a CONST UDT parameter fbc tries the STANDARD conversions
+'' alone -- the parameter type's constructors are not tried. Measured on fbc 1.10.1, with 'H'
+'' constructible from 'byref as string' and from 'byval as long', and W declaring 'let', '+='
+'' and '[]' over 'byref as const H' (and 'byval as const H' alike):
+''
+''     ww = 3, ww = "abc"          error 181    (TKO0738)
+''     ww += 4, ww += "abcd"       error 20     (TKO0820)
+''     ww[5], ww["ab"]             error 28     (TKO0700) -- no '[]' fits, so it is pointer indexing
+''     s( 5 ), s( "abc" )          accepted     -- a plain 'sub s( byref as const H )' converts
+''
+'' Over a NON-const H every one of those is accepted through H's constructor (and so is
+'' codegen/selfop-userconv.bas), so such a candidate answers 'cannot say'.
+''
+'' tiko judged only whether the type DECLARED the operator, then called it with the operand
+'' as it was: 'ww["abc"]' handed the literal to a 'byref as const H' and read garbage, and
+'' 'ww += 4' stopped lowering with TKO0994.
+''
+'' 1 when some overload takes the operand, 0 when none does, -1 when this cannot say --
+'' no such operator, an operand that is not a builtin, enum or pointer (a UDT brings casts
+'' and generics this does not model), or a candidate it cannot cost.
+function OperatorTakesArg_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string, byval at as TypeId ) as int32
+
+    if (udt = TYPE_NONE) orelse (at = TYPE_NONE) then return -1
+    dim as TypeId au = c.types->Unqualify( at )
+    if c.types->Kind( au ) = TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
+    select case c.types->Kind( au )
+    case TK_BUILTIN
+        if c.types->BuiltinOf( au ) = TY_ANY then return -1
+    case TK_POINTER, TK_ENUM
+    case else
+        return -1
+    end select
+    dim as SymbolId cur = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, udt, nm )
+    if cur = SYMBOL_NONE then return -1
+    dim as int32 guard = 0
+    while (cur <> SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Symbol ptr s = c.syms->SymbolAt( cur )
+        if s = nullptr then return -1
+        if s->kind <> cast( uint8, SYM_PROC ) then return -1
+        dim as NodeId pn = cast( NodeId, s->payload )
+        if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return -1
+        dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
+        if (pp->extra and PF_GENERIC_PROC) <> 0 then return -1
+        dim as NodeId prm = NODE_NONE
+        dim as int32 np = 0
+        for i as int32 = 0 to pp->count - 1
+            dim as NodeId q = c.ast->ChildAt( pp->first, i )
+            if c.ast->Kind( q ) <> N_PARAM then continue for
+            np += 1
+            prm = q
+        next
+        if np <> 1 then return -1
+        dim as StmtPayload ptr sp = c.ast->StmtOf( prm )
+        if sp->op = cast( uint16, TK_ELLIPSIS ) then return -1
+        if (c.ast->Flags( prm ) and (NF_ARRAY or NF_VARIADIC)) <> 0 then return -1
+        if sp->a = NODE_NONE then return -1
+        dim as TypeId pt = c.info->TypeOf_( sp->a )
+        if pt = TYPE_NONE then return -1
+        if Tko.Check.ConversionCost( at, pt, *c.types ) < Tko.Check.CONV_NONE then return 1
+        dim as TypeId pu = c.types->Unqualify( pt )
+        if c.types->Kind( pu ) = TK_REFERENCE then pt = c.types->Inner( pu ) : pu = c.types->Unqualify( pt )
+        if (c.types->Kind( pu ) = TK_UDT) andalso (c.types->IsConst( pt ) = false) then return -1
+        cur = s->nextOverload
+    wend
+    return 0
+end function

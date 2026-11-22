@@ -1,0 +1,14 @@
+'' A WHOLE ARRAY NO CONSTRUCTOR TAKES -- fbc's 99, "No matching overloaded function", measured on
+'' fbc 1.10.1 over lines 15-18 exactly: a string and a long array, as an initialiser and in an
+'' assignment, against '( byval as long )' and '( byval as double, byval as long )'. The resolver
+'' costs an array as its element, so the string array matched nothing and lowering stopped with
+'' TKO0994 ("this N_VAR was not compiled", N_AMBIGUOUS for the assignment), and the long array
+'' picked '( byval as long )' and passed it the array. See CtorArrayArgBad_ (checkdecide.tiko).
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/ctor-array-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-array-arg.bas(15,15): error TKO0632
+'' EXPECT-OUT: ctor-array-arg.bas(16,15): error TKO0632
+'' EXPECT-OUT: ctor-array-arg.bas(17,6): error TKO0632
+'' EXPECT-OUT: ctor-array-arg.bas(18,6): error TKO0632
+'' EXPECT-MAX-DIAG: 4
