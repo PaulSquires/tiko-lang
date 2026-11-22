@@ -12,8 +12,8 @@
 ' Shift+/ arrives as '?' and Ctrl+Shift+/ could never match the chord "Ctrl+Shift+/" a user
 ' wrote. A chord is matched on the key its SCANCODE gives with no modifiers (tkKeys_FromMsg);
 ' letters are kept lowercase, as SDL's own keycodes are. On a layout where a bound symbol needs
-' Shift or sits elsewhere (Spanish '/' is Shift+7), tkKeys_LookupMsg also tries the shifted key
-' and the US key at that position -- see "non-US layouts" below.
+' Shift or AltGr (Spanish '/' is Shift+7), the chord is on the key that types it: Ctrl+/ is
+' Ctrl+7 there (tkKeys_LookupMsg) -- see "non-US layouts" below.
 '
 ' "PRIMARY" IS THE COMMAND KEY OF THE PLATFORM: Ctrl on Windows and Linux, Cmd on macOS. Stored
 ' shortcuts say "Primary+S" (tkKeys_Format( c, true )) so one keybindings file serves every OS;
@@ -70,25 +70,10 @@ private function NormKey( byval k as long ) as long
     return k
 end function
 
-' The key a US keyboard has at this scancode, for the keys other layouts move or relabel; 0 for
-' every other scancode (F-keys, arrows, the keypad: the same on every layout).
-public function tkKeys_USKey( byval sc as long ) as long
+' The letter a US keyboard has at this scancode, 0 for any other key. A layout without Latin
+' letters (Cyrillic, Greek) still answers Ctrl+S on its S key, as Win32's VK_S does.
+public function tkKeys_LatinLetter( byval sc as long ) as long
     if (sc >= SDL_SCANCODE_A) andalso (sc <= SDL_SCANCODE_Z) then return asc( "a" ) + sc - SDL_SCANCODE_A
-    if (sc >= SDL_SCANCODE_1) andalso (sc <= SDL_SCANCODE_9) then return asc( "1" ) + sc - SDL_SCANCODE_1
-    select case sc
-    case SDL_SCANCODE_0 : return asc( "0" )
-    case SDL_SCANCODE_MINUS : return SDLK_MINUS
-    case SDL_SCANCODE_EQUALS : return SDLK_EQUALS
-    case SDL_SCANCODE_LEFTBRACKET : return SDLK_LEFTBRACKET
-    case SDL_SCANCODE_RIGHTBRACKET : return SDLK_RIGHTBRACKET
-    case SDL_SCANCODE_BACKSLASH : return SDLK_BACKSLASH
-    case SDL_SCANCODE_SEMICOLON : return SDLK_SEMICOLON
-    case SDL_SCANCODE_APOSTROPHE : return SDLK_APOSTROPHE
-    case SDL_SCANCODE_GRAVE : return SDLK_GRAVE
-    case SDL_SCANCODE_COMMA : return SDLK_COMMA
-    case SDL_SCANCODE_PERIOD : return SDLK_PERIOD
-    case SDL_SCANCODE_SLASH : return SDLK_SLASH
-    end select
     return 0
 end function
 
@@ -108,22 +93,36 @@ public function tkKeys_FromMsg( byval m as TK_MSG ptr ) as TK_CHORD
 end function
 
 ' ---- non-US layouts ------------------------------------------------------------------------------
-' A key message can mean up to three chords, tried in this order (tkKeys_LookupMsg):
+' tiko-editor's rule (keybind.tiko frmKeyboard_OEMtoVirtKey): a symbol in a chord is the KEY THAT
+' TYPES IT on the current layout, whatever Shift or AltGr that takes, and the chord's own
+' modifiers are kept. On Spanish or German '/' is Shift+7, so Ctrl+/ is Ctrl+7 and Ctrl+Shift+/
+' is Ctrl+Shift+7; on Spanish '\' is AltGr+(the key left of 1), so Ctrl+Shift+\ is
+' Ctrl+Shift+(that key). A key message can mean up to four chords, tried in this order
+' (tkKeys_LookupMsg):
 '   0. the layout's unshifted key with the modifiers held (tkKeys_FromMsg);
-'   1. with Shift held, the key Shift gives, Shift dropped: on Spanish or German '/' is Shift+7,
-'      so Ctrl+Shift+7 is Ctrl+/;
-'   2. the key a US keyboard has at that position: the `~ key is Ctrl+Tilde wherever it says º or ^.
-' 1 and 2 only when the layout's key is not a letter (AZERTY's A is A, not Q), Ctrl, Alt or Cmd is
-' held (a bare key is typing), and AltGr is not (AltGr+key types a character on those layouts).
+'   1. the character the key types with Shift, same modifiers;
+'   2. the character the key types with AltGr, same modifiers;
+'   3. on a layout without Latin letters, the US letter at that position.
+' 1-3 only when the layout's key is not a Latin letter (AZERTY's A is A, not Q), Ctrl, Alt or Cmd
+' is held (a bare key is typing), and AltGr is not (AltGr+key types a character).
 public type TK_CHORDS
     n as long
-    c( 0 to 2 ) as TK_CHORD
+    c( 0 to 3 ) as TK_CHORD
 end type
 
-' The pure part, for a layout the test machine does not have: base and shifted are what the layout
-' gives at the scancode without and with Shift, us is tkKeys_USKey of it, sdlMods SDL_KMOD_*.
-public function tkKeys_ChordsFor( byval base_ as long, byval shifted as long, byval us as long, _
-                                  byval sdlMods as long ) as TK_CHORDS
+private sub AddChord( byref r as TK_CHORDS, byval k as long, byval mods as long )
+    if k = 0 then exit sub
+    for i as long = 0 to r.n - 1
+        if r.c(i).key = k then exit sub
+    next
+    r.c(r.n).key = k : r.c(r.n).mods = mods : r.n += 1
+end sub
+
+' The pure part, for a layout the test machine does not have: base, shifted and altgr are what the
+' layout types at the scancode plain, with Shift and with AltGr; latin is tkKeys_LatinLetter of it;
+' sdlMods SDL_KMOD_*.
+public function tkKeys_ChordsFor( byval base_ as long, byval shifted as long, byval altgr as long, _
+                                  byval latin as long, byval sdlMods as long ) as TK_CHORDS
     dim as TK_CHORDS r
     dim as long mods = tkKeys_ModsFromSDL( sdlMods )
     base_ = NormKey( base_ )
@@ -131,13 +130,10 @@ public function tkKeys_ChordsFor( byval base_ as long, byval shifted as long, by
     if IsLetter( base_ ) then return r
     if (mods and (TKKEY_CTRL or TKKEY_ALT or TKKEY_GUI)) = 0 then return r
     if (sdlMods and (SDL_KMOD_RALT or SDL_KMOD_MODE)) then return r
-    shifted = NormKey( shifted )
-    if (mods and TKKEY_SHIFT) andalso (shifted <> 0) andalso (shifted <> base_) andalso (IsLetter( shifted ) = false) then
-        r.c(r.n).key = shifted : r.c(r.n).mods = mods and not TKKEY_SHIFT : r.n += 1
-    end if
-    if (us <> 0) andalso (us <> base_) then
-        r.c(r.n).key = us : r.c(r.n).mods = mods : r.n += 1
-    end if
+    shifted = NormKey( shifted ) : altgr = NormKey( altgr )
+    if IsLetter( shifted ) = false then AddChord( r, shifted, mods )
+    if IsLetter( altgr ) = false then AddChord( r, altgr, mods )
+    if base_ > 127 then AddChord( r, latin, mods )
     return r
 end function
 
@@ -151,7 +147,8 @@ public function tkKeys_ChordsOf( byval m as TK_MSG ptr ) as TK_CHORDS
     dim as long sc = m->scancode
     dim as long base_ = SDL_GetKeyFromScancode( sc, SDL_KMOD_NONE, false )
     if base_ = 0 then base_ = m->key
-    return tkKeys_ChordsFor( base_, SDL_GetKeyFromScancode( sc, SDL_KMOD_SHIFT, false ), tkKeys_USKey( sc ), m->mods )
+    return tkKeys_ChordsFor( base_, SDL_GetKeyFromScancode( sc, SDL_KMOD_SHIFT, false ), _
+                             SDL_GetKeyFromScancode( sc, SDL_KMOD_MODE, false ), tkKeys_LatinLetter( sc ), m->mods )
 end function
 
 ' TRUE when the message is the chord c by any of its readings.
