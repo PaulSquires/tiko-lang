@@ -36,6 +36,34 @@ private function HoldsRefs_( byref x as CppImp_, byval ci as int32 ) as boolean
     return h.hit
 end function
 
+'' DOES CLASS CURSOR c PUBLICLY DERIVE FROM the class whose USR is 'usr', at any depth?
+type Derives_
+    as CppImp_ ptr x
+    as string usr
+    as int32 depth
+    as boolean hit
+end type
+
+private function DerivesVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Derives_ ptr dv = client
+    dim as CppImp_ ptr xp = dv->x
+    if xp->api->getCursorKind( c ) <> CXCursor_CXXBaseSpecifier then return CXChildVisit_Continue
+    if xp->api->getCXXAccessSpecifier( c ) <> CX_CXXPublic then return CXChildVisit_Continue
+    dim as CXCursor bd = xp->api->getTypeDeclaration( Canon_( *xp, xp->api->getCursorType( c ) ) )
+    if xp->api->isCursorDefinition( bd ) = 0 then bd = xp->api->getCursorDefinition( bd )
+    if Text_( *xp, xp->api->getCursorUSR( bd ) ) = dv->usr then dv->hit = true : return CXChildVisit_Break
+    if DerivesFrom_( *xp, bd, dv->usr, dv->depth + 1 ) then dv->hit = true : return CXChildVisit_Break
+    return CXChildVisit_Continue
+end function
+
+function DerivesFrom_( byref x as CppImp_, byval c as CXCursor, byref usr as string, byval depth as int32 ) as boolean
+    if depth > 8 then return false
+    dim as Derives_ dv
+    dv.x = @x : dv.usr = usr : dv.depth = depth
+    x.api->visitChildren( c, @DerivesVisit_, @dv )
+    return dv.hit
+end function
+
 '' Is a std::vector in this type, by value or reference? (Entry_'s adapter parameters.)
 private function VecIn_( byref x as CppImp_, byval t as CXType ) as boolean
     dim as CXType c = Canon_( x, t )
@@ -736,7 +764,8 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
     x.shim.Push( f )
     x.mirBody.Push( "    void " & sg & "() const;" )
     x.bound += 1
-    if x.api->isConstQualifiedType( t ) <> 0 then return
+    '' A const field has no setter -- const through a template argument too (pair<const K, V>.first).
+    if (x.api->isConstQualifiedType( t ) <> 0) orelse (x.api->isConstQualifiedType( ct ) <> 0) then return
     '' A POD FIELD'S byref getter is all it gets: beside a setter, fbc refuses 'h.pos.x = 1'
     '' (error 8), and with the getter alone the whole field is written through '*@h.pos'.
     if r.byrefRet then return
@@ -829,6 +858,34 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         x.sigs.Push( lcase( x.clsTikoQ[ci] & ".constructor()" ) ) : x.sigConst.Push( "" )
     end if
     end if
+
+    '' A POD's pointer-to-handle fields (PodFields_): a property that stores a handle's object.
+    for i as int32 = 0 to x.podPtr.Count - 1
+        dim as string pe = x.podPtr[i]
+        dim as int32 b1 = instr( pe, "|" ), b2 = instr( b1 + 1, pe, "|" )
+        if valint( left( pe, b1 - 1 ) ) <> ci then continue for
+        dim as string pn = mid( pe, b1 + 1, b2 - b1 - 1 )
+        dim as int32 ri = valint( mid( pe, b2 + 1 ) )
+        lines.Push( "declare property " & pn & " ( byref tko_val_ as const " & x.clsTikoQ[ri] & " )    '' stores its C++ object in " & pn & "_ptr_" )
+        dim as string ns = x.clsNsTiko[ci], d = "", e = ""
+        dim as int32 a = 1
+        while a <= len( ns )
+            dim as int32 q = instr( a, ns, chr( 1 ) )
+            if q = 0 then q = len( ns ) + 1
+            d &= "namespace " & mid( ns, a, q - a ) & L : e &= "end namespace" & L
+            a = q + 1
+        wend
+        x.defs.Push( d & "property " & ClsRel_( x, ci ) & "." & pn & " ( byref tko_val_ as const " & x.clsTikoQ[ri] & " )" & L & _
+                     "    this." & pn & "_ptr_ = tko_val_.impl_" & L & "end property" & L & e )
+        '' ...and one for each bound class deriving from it, through its 'operator cast' (C++'s pointer
+        '' adjustment): tiko does not convert a property's operand (b2PolygonShape for a b2Shape).
+        for rj as int32 = 0 to x.clsUsr.Count - 1
+            if (rj = ri) orelse IsPod_( x, rj ) orelse (DerivesFrom_( x, x.clsCur[rj], x.clsUsr[ri], 0 ) = false) then continue for
+            lines.Push( "declare property " & pn & " ( byref tko_val_ as const " & x.clsTikoQ[rj] & " )" )
+            x.defs.Push( d & "property " & ClsRel_( x, ci ) & "." & pn & " ( byref tko_val_ as const " & x.clsTikoQ[rj] & " )" & L & _
+                         "    this." & pn & "_ptr_ = cast( " & x.clsTikoQ[ri] & ", tko_val_ ).impl_" & L & "end property" & L & e )
+        next
+    next
 
     '' std::pair's (first, second) constructor: MSVC's are all templates, so the pattern has none to bind.
     if spec andalso (pod = false) andalso IsStdPair_( x, x.clsTmpl[ci] ) then

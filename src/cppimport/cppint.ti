@@ -102,6 +102,8 @@ type CppImp_
     as boolean       coff
     as boolean       noAccess     '' CppImportOptions.noAccess
     as boolean       usedNoAccess '' ...and a specialization needed it
+    as Tko.StrVec    podPtr       '' a POD field pointing to a bound handle class: "ci|name|ri" (its raw
+                                  '' field is '<name>_ptr_', and a property '<name>' takes a handle)
     as Tko.StrVec    aliasTmpl    '' the header's alias templates, 'sigslot::signal': a specialization asked for
                                   '' through one is named by it, 'signal_long' (D13 for alias templates)
     as Tko.StrVec    varNames     '' namespace variables written (USRs, and lcase qualified names: tiko
@@ -206,6 +208,7 @@ declare sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
 declare function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
 declare sub AltName_( byref x as CppImp_, byval c as CXCursor )
+declare function DerivesFrom_( byref x as CppImp_, byval c as CXCursor, byref usr as string, byval depth as int32 ) as boolean
 declare sub MirUnits_( byref x as CppImp_ )
 declare function ClassOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
 declare sub ClassClose_( byref x as CppImp_, byref opened as Tko.StrVec )

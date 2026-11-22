@@ -290,6 +290,21 @@ sub PodFields_( byref x as CppImp_, byval ci as int32 )
                 fn = cn & "_"
             end select
         end if
+        '' A POINTER TO A HANDLE CLASS (survey: box2d's b2FixtureDef.shape): the field keeps its C layout as
+        '' '<name>_ptr_', and the property '<name>' stores a handle's C++ object -- 'def.shape = box'
+        '' (a derived handle converts to the base). The natural '= @box' would store the handle's address.
+        dim as CXType fc = Canon_( x, x.api->getCursorType( fs[i] ) )
+        if (len( dims ) = 0) andalso (fc.kind = TY_POINTER_) then
+            dim as CXType pc = Canon_( x, x.api->getPointeeType( fc ) )
+            dim as string why
+            if pc.kind = TY_RECORD_ then
+                dim as int32 ri = ClassOf_( x, pc, why )
+                if (ri >= 0) andalso (IsPod_( x, ri ) = false) then
+                    x.podPtr.Push( ci & "|" & fn & "|" & ri )
+                    fn &= "_ptr_"
+                end if
+            end if
+        end if
         x.bind.Push( ind & "    as " & tk & " " & fn & iif( len( dims ), "(" & dims & ")", "" ) )
         x.asserts.Push( "#assert offsetof( " & tq & ", " & fn & " ) = " & (x.api->Cursor_getOffsetOfField( fs[i] ) \ 8) )
     next
