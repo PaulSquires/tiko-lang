@@ -369,7 +369,7 @@ function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.S
     SpecMembers_( x, ci, mem, kinds )
     dim as string body = "", uses = ""
     for j as int32 = 0 to mem.Count - 1
-        if kinds[j] = K_FIELD_ then continue for
+        if (kinds[j] = K_FIELD_) orelse (kinds[j] = K_SFIELD_) then continue for
         dim as CXCursor m = mem[j]
         if x.api->Cursor_isVariadic( m ) <> 0 then continue for
         dim as string r = "void"

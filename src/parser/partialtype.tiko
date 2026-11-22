@@ -187,6 +187,63 @@ private sub PartialWalk_( byref p as Tko.ParserState, byref ns as string, byref 
     next
 end sub
 
+'' NESTED PARTS: a 'partial type' in a type's body is pooled with its namesakes in the same type,
+'' once that type is whole -- its own parts may be in several blocks, so only after the walk
+'' around it has merged them. Then the same again inside each type, to any depth.
+private sub PartialNested_( byref p as Tko.ParserState, byval t as Tko.NodeId, byref key as string )
+    dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( t )
+    dim as Tko.NodeIdVec kids
+    for c as int32 = 0 to sp->count - 1
+        kids.Push( cast( uint32, p.ast->ChildAt( sp->first, c ) ) )
+    next
+    dim as Tko.StrVec plain, seenKey
+    dim as Tko.NodeIdVec seen
+    PartialPlainWalk_( p, key, kids, plain )
+    PartialWalk_( p, key, kids, plain, seen, seenKey )
+    if seen.Count > 0 then
+        sp = p.ast->StmtOf( t )
+        sp->first = p.ast->ChildPoolCount( )
+        sp->count = kids.Count
+        for c as int32 = 0 to kids.Count - 1
+            p.ast->PushChild( kids[c] )
+        next
+        for i as int32 = 0 to seen.Count - 1
+            dim as Tko.StmtPayload ptr np = p.ast->StmtOf( cast( Tko.NodeId, seen[i] ) )
+            if AggHasField_( p, np->first, np->count ) = false then
+                p.diags->Report( Tko.TKO0876, Tko.PointRange( p.ast->Loc( cast( Tko.NodeId, seen[i] ) ) ), "TYPE" )
+            end if
+        next
+    end if
+    for c as int32 = 0 to kids.Count - 1
+        dim as Tko.NodeId k = cast( Tko.NodeId, kids[c] )
+        if p.ast->Kind( k ) = Tko.N_TYPE then
+            dim as Tko.StmtPayload ptr kp = p.ast->StmtOf( k )
+            if kp->name <> 0 then PartialNested_( p, k, PartialKey_( p, key, kp->name ) )
+        end if
+    next
+end sub
+
+'' Every type a list holds, through namespaces and 'extern' blocks: PartialNested_ on each.
+private sub PartialNestedAll_( byref p as Tko.ParserState, byref ns as string, byref list as Tko.NodeIdVec )
+    for i as int32 = 0 to list.Count - 1
+        dim as Tko.NodeId a = cast( Tko.NodeId, list[i] )
+        select case p.ast->Kind( a )
+        case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
+            dim as Tko.StmtPayload ptr nsp = p.ast->StmtOf( a )
+            dim as string inner = ns
+            if p.ast->Kind( a ) = Tko.N_NAMESPACE then inner = ns & "." & str( cast( uint32, p.names->Fold( nsp->name ) ) )
+            dim as Tko.NodeIdVec kids
+            for c as int32 = 0 to nsp->count - 1
+                kids.Push( cast( uint32, p.ast->ChildAt( nsp->first, c ) ) )
+            next
+            PartialNestedAll_( p, inner, kids )
+        case Tko.N_TYPE
+            dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( a )
+            if sp->name <> 0 then PartialNested_( p, a, PartialKey_( p, ns, sp->name ) )
+        end select
+    next
+end sub
+
 sub MergePartialTypes( byref p as Tko.ParserState, byref items as Tko.NodeIdVec )
     if p.sawPartial = false then return
     dim as Tko.StrVec plain, seenKey
@@ -200,6 +257,7 @@ sub MergePartialTypes( byref p as Tko.ParserState, byref items as Tko.NodeIdVec 
             p.diags->Report( Tko.TKO0876, Tko.PointRange( p.ast->Loc( cast( Tko.NodeId, seen[i] ) ) ), "TYPE" )
         end if
     next
+    PartialNestedAll_( p, "", items )
 end sub
 
 end namespace

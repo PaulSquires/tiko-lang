@@ -1,0 +1,48 @@
+'' cppinclude/nested, called from tiko: what driver.cpp does. A type nested in a C++ class is a tiko
+'' type nested in its type (nest.Code.Level, nest.Code.Mode); a static data member is a const or a
+'' static property (nest.Code.MIN_SIZE, nest.Code.created). The nested class 'Mode' shares its tiko
+'' name with the method 'mode( )', so the type gives way: 'Mode_' (and 'Level_', beside
+'' 'level( )'); 'name( )' is 'name_( )', NAME being a tiko keyword.
+#import "std/containers"
+#include once "../../show.bi"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+#endif
+
+dim as containers.Array( of long ) d3
+d3.Push( 4 ) : d3.Push( 5 ) : d3.Push( 6 )
+dim as nest.Code a = nest.Code( nest.Code.Level_.HIGH, d3 )
+show_i( "a.level", a.level( ) )
+show_i( "a.shape", a.shape( ) )
+show_i( "a.total", a.total( ) )
+show_i( "a.mode", a.mode( ).bits( ) )
+dim as string mn = nest.mode_name( a.mode( ) )
+show_s( "a.mode.name", strptr( mn ) )
+dim as nest.Code b = nest.Code( "named", 4 )
+dim as string bn = b.name_( )
+show_s( "b.name", strptr( bn ) )
+show_i( "b.total", b.total( ) )
+dim as containers.Array( of long ) v
+v.Push( 7 ) : v.Push( 8 )
+show_i( "b.sink", b.sink( v ) )
+show_i( "b.total2", b.total( ) )
+show_i( "v.size", v.Count )
+dim as nest.Code c = nest.Code.make( nest.Code.Level_.MEDIUM )
+show_i( "c.level", c.level( ) )
+dim as nest.Code.Cell cell = c.at( 4 )
+show_i( "cell.x", cell.x )
+show_i( "cell.y", cell.y )
+show_i( "numeric", nest.Code.Mode_.NUMERIC.bits( ) )
+show_i( "text", nest.Code.Mode_.TEXT.bits( ) )
+dim as nest.Code.Mode_ m = nest.Code.Mode_( 9 )
+show_i( "m", m.bits( ) )
+show_i( "count", nest.count_level( nest.Code.Level_.HIGH, nest.Code.ROUND ) )
+show_i( "MIN_SIZE", nest.Code.MIN_SIZE )
+show_i( "STRICT", iif( nest.Code.STRICT, 1, 0 ) )
+show_i( "BIG", nest.Code.BIG )
+show_i( "created", nest.Code.created )
+nest.Code.created = 100
+show_i( "created.set", nest.Code.created )
+show_d( "scale", nest.Code.scale )

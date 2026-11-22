@@ -1360,7 +1360,7 @@ private function ParseAggregateBody _
             fp.extra or= vis
             members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
             StrayAfterField_( p )
-        elseif IsDeclarationStart( k ) then
+        elseif IsDeclarationStart( k ) orelse ((k = Tko.TK_IDENT) andalso PartialTypeHere( p )) then
             if AutoPropMember( p, members, vis ) then EndOfStatement( p ) : continue do   '' autoprop.tiko
             dim as Tko.NodeId mn = Declaration( p )
             '' Only an N_PROC carries a StmtPayload whose 'extra' is the modifier set;

@@ -140,10 +140,11 @@ end function
 
 '' An ENUM is a tiko enum of the same name -- 'explicit' (members qualified) when the C++ one
 '' is scoped. It crosses the shim as a 'long long', since a tiko enum is eight bytes.
-sub Enum_( byref x as CppImp_, byval c as CXCursor )
-    if x.api->isCursorDefinition( c ) = 0 then return
+'' Its lines, unindented: 'enum Ecc explicit', its members, 'end enum'. False for none.
+function EnumLines_( byref x as CppImp_, byval c as CXCursor, byref tn as string, byref lines as Tko.StrVec ) as boolean
+    if x.api->isCursorDefinition( c ) = 0 then return false
     dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
-    if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return     '' anonymous
+    if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return false     '' anonymous
     dim as EnumBody_ eb
     eb.x = @x
     select case Canon_( x, x.api->getEnumDeclIntegerType( c ) ).kind
@@ -151,14 +152,25 @@ sub Enum_( byref x as CppImp_, byval c as CXCursor )
         eb.unsigned_ = true
     end select
     x.api->visitChildren( c, @EnumConst_, @eb )
-    if eb.lines.Count = 0 then return
-    dim as string tn = TypeName_( nm )
-    dim as string ind = Indent_( x )
-    x.bind.Push( ind & "enum " & tn & iif( x.api->EnumDecl_isScoped( c ) <> 0, " explicit", "" ) )
+    if eb.lines.Count = 0 then return false
+    if len( tn ) = 0 then tn = TypeName_( nm )
+    lines.Push( "enum " & tn & iif( x.api->EnumDecl_isScoped( c ) <> 0, " explicit", "" ) )
     for i as int32 = 0 to eb.lines.Count - 1
-        x.bind.Push( ind & "    " & eb.lines[i] )
+        lines.Push( "    " & eb.lines[i] )
     next
-    x.bind.Push( ind & "end enum" )
+    lines.Push( "end enum" )
+    return true
+end function
+
+sub Enum_( byref x as CppImp_, byval c as CXCursor )
+    dim as string tn = ""
+    dim as Tko.StrVec lines
+    if EnumLines_( x, c, tn, lines ) = false then return
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
+    dim as string ind = Indent_( x )
+    for i as int32 = 0 to lines.Count - 1
+        x.bind.Push( ind & lines[i] )
+    next
     x.enumUsr.Push( Text_( x, x.api->getCursorUSR( c ) ) )
     x.enumTiko.Push( QualTiko_( x, tn ) )
     x.enumCpp.Push( QualCpp_( x, nm ) )
@@ -413,6 +425,8 @@ function Prelude_( ) as string
     "template <class C, class T> inline C tko_cpp_pod(const T& v) { C c; std::memcpy(&c, &v, sizeof c); return c; }" & L & _
     "// A SHARED HANDLE's owned_ holds a std::shared_ptr<T> of its own -- T the handle's class --: greater" & L & _
     "// than 1, an address. Copying the handle copies that shared_ptr; destroying it destroys that (C3b-2)." & L & _
+    "// An rvalue-reference parameter's argument: a prvalue copy of what tiko passed (survey)." & L & _
+    "template <class T> inline std::decay_t<T> tko_cpp_rv(T&& v) { return std::decay_t<T>(std::forward<T>(v)); }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
     "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
     "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _
@@ -547,6 +561,62 @@ private function Parse_( byref api as ClangApi, byval argv as zstring ptr ptr, b
     return true
 end function
 
+'' THE MIRROR'S STRUCTS IN AN ORDER C++ TAKES: a struct naming a nested type ('QRCODEGEN::QrCode::ECC')
+'' after the struct that declares it, a nested class's own ('struct QrCode::Mode {') after its
+'' outer one's. Otherwise as written, the earliest ready first; a cycle keeps the written order.
+private sub MirOrder_( byref x as CppImp_, byref order as Tko.StrVec )
+    dim as int32 n = x.mirBody.Count
+    dim as Tko.StrVec ownerOf, keyCls
+    for i as int32 = 0 to n - 1
+        ownerOf.Push( iif( i < x.mirCls.Count, x.mirCls[i], "" ) )
+    next
+    '' The units whose class declares nested types, by the prefix that names them.
+    dim as Tko.StrVec deps
+    for i as int32 = 0 to n - 1
+        deps.Push( "" )
+    next
+    for j as int32 = 0 to n - 1
+        if len( ownerOf[j] ) = 0 then continue for
+        dim as int32 cj = valint( ownerOf[j] )
+        if len( x.clsNestMir[cj] ) = 0 then continue for
+        dim as string key = x.clsMir[cj] & "::"
+        for i as int32 = 0 to n - 1
+            if i = j then continue for
+            dim as boolean dep = (instr( x.mirBody[i], key ) > 0)
+            if (dep = false) andalso len( ownerOf[i] ) then dep = (OuterOf_( x, valint( ownerOf[i] ) ) = cj)
+            if dep then deps[i] = deps[i] & "," & j & ","
+        next
+    next
+    dim as Tko.StrVec done
+    for i as int32 = 0 to n - 1
+        done.Push( "" )
+    next
+    dim as int32 left_ = n
+    while left_ > 0
+        dim as int32 pick = -1
+        for i as int32 = 0 to n - 1
+            if done[i] <> "" then continue for
+            dim as boolean ready = true
+            dim as string d = deps[i]
+            dim as int32 a = 1
+            while a < len( d )
+                dim as int32 b = instr( a + 1, d, "," )
+                if done[valint( mid( d, a + 1, b - a - 1 ) )] = "" then ready = false : exit while
+                a = b + 1
+            wend
+            if ready then pick = i : exit for
+        next
+        if pick < 0 then
+            for i as int32 = 0 to n - 1
+                if done[i] = "" then pick = i : exit for
+            next
+        end if
+        order.Push( str( pick ) )
+        done[pick] = "1"
+        left_ -= 1
+    wend
+end sub
+
 '' '#cppinstantiate "geo::clamp<int>"' as the C++ the unit writes for it: '::geo::clamp<int>'.
 private function InstText_( byref s as string ) as string
     dim as string r = trim( s )
@@ -643,8 +713,10 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
         for i as int32 = 0 to x.mirFwd.Count - 1
             parts.Push( x.mirFwd[i] )
         next
-        for i as int32 = 0 to x.mirBody.Count - 1
-            parts.Push( x.mirBody[i] )
+        dim as Tko.StrVec order
+        MirOrder_( x, order )
+        for i as int32 = 0 to order.Count - 1
+            parts.Push( x.mirBody[valint( order[i] )] )
         next
         if ResolveMirror_( api, opts.triple, JoinParts( parts ), res.shim, res ) = false then
             res.rc = 1

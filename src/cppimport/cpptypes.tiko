@@ -200,7 +200,13 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
             m.ok = false : m.why = "reference to " & Spell_( x, pe )
         end if
     case TY_RREF_
-        m.ok = false : m.why = "rvalue reference"
+        '' AN RVALUE REFERENCE (survey: qrcodegen's 'std::vector<bool>&&', any sink parameter) takes a
+        '' COPY of what tiko passes, as a by-value parameter does -- tiko's own object is left as it
+        '' was. Where a 'const T&' overload is beside it, that one has the same tiko signature and wins.
+        dim as CXType pe = x.api->getNonReferenceType( t )
+        if x.api->isConstQualifiedType( pe ) <> 0 then m.ok = false : m.why = "const rvalue reference" : return m
+        m = Param_( x, pe, nm )
+        if m.ok then m.arg = "tko_cpp_rv(" & m.arg & ")"
     case TY_RECORD_
         if StrKind_( x, t ) > 0 then
             m.tiko = "byref " & nm & " as const ustring" : m.ctype = "const tko_cpp_ustr* " & nm

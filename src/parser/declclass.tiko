@@ -51,9 +51,11 @@ end function
 
 '' 'partial' IS A CONTEXTUAL WORD: only 'partial type <name>' and 'partial class <name>' at this
 '' level are the declaration, so a procedure named partial called with a 'type<T>( x )' literal
-'' stays a call.
+'' stays a call. ...AND IN A TYPE'S BODY, a nested part (partialtype.tiko pools it with its
+'' siblings in the other parts of the type around it): a generated C++ binding declares a nested
+'' class's fields with its outer class's, and its methods after every type is complete.
 function PartialTypeHere( byref p as Tko.ParserState ) as boolean
-    if (p.procDepth > 0) orelse (p.aggDepth > 0) then return false
+    if p.procDepth > 0 then return false
     if IdentSpelledAt( p, p.pos, "partial" ) = false then return false
     if KindAt_( p, p.pos + 1 ) = Tko.KW_CLASS then return true
     if KindAt_( p, p.pos + 1 ) <> Tko.KW_TYPE then return false

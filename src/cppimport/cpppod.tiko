@@ -270,23 +270,21 @@ sub PodFields_( byref x as CppImp_, byval ci as int32 )
     dim as containers.Array( of CXCursor ) fs
     PodRecordFields_( x, ci, fs )
     dim as Tko.StrVec opened
-    dim as string ind = NsOpen_( x, ci, opened )
+    dim as string ind = ClassOpen_( x, ci, opened )
     dim as string tq = x.clsTikoQ[ci], cpp = x.clsCpp[ci]
     dim as CXType rt = x.api->getCursorType( x.clsCur[ci] )
     dim as int64 sz = x.api->Type_getSizeOf( rt )
-    x.bind.Push( ind & "extern ""C""" )
-    x.bind.Push( ind & "    partial type " & x.clsTiko[ci] & "    '' " & cpp & " -- a value: C++'s layout, checked below" )
+    x.bind.Push( ind & "partial type " & x.clsTiko[ci] & "    '' " & cpp & " -- a value: C++'s layout, checked below" )
     for i as int32 = 0 to fs.Count - 1
         dim as string tk, dims
         PodFieldType_( x, x.api->getCursorType( fs[i] ), tk, dims, true )
         dim as string cn = Text_( x, x.api->getCursorSpelling( fs[i] ) )
         dim as string fn = NameField( cn, len( dims ) > 0 )
-        x.bind.Push( ind & "        as " & tk & " " & fn & iif( len( dims ), "(" & dims & ")", "" ) )
+        x.bind.Push( ind & "    as " & tk & " " & fn & iif( len( dims ), "(" & dims & ")", "" ) )
         x.asserts.Push( "#assert offsetof( " & tq & ", " & fn & " ) = " & (x.api->Cursor_getOffsetOfField( fs[i] ) \ 8) )
     next
-    x.bind.Push( ind & "    end type" )
-    x.bind.Push( ind & "end extern" )
-    NsClose_( x, opened )
+    x.bind.Push( ind & "end type" )
+    ClassClose_( x, opened )
     x.asserts.Push( "#assert sizeof( " & tq & " ) = " & sz )
     '' THE C STRUCT IT IS RETURNED AS: MSVC returns a class with a user constructor through a hidden
     '' pointer even from an 'extern "C"' function, where tiko reads a C struct of the same size the

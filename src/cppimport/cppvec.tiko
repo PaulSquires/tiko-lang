@@ -144,7 +144,8 @@ end function
 '' 'head' is its 'function T.f( ... ) as R' line; 'self_' is "this, " for a method or "".
 sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
               byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
-              byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean )
+              byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean, _
+              byval isCtor as boolean = false )
     dim as string L = chr( 10 ), d = "", args = self_, e = ""
     dim as int32 a = 1
     while a <= len( nsList )
@@ -187,7 +188,7 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
     elseif isSub = false then
         d &= "    return tko_x_" & L
     end if
-    d &= iif( isSub, "end sub", "end function" ) & L & e
+    d &= iif( isCtor, "end constructor", iif( isSub, "end sub", "end function" ) ) & L & e
     x.defs.Push( d )
 end sub
 
