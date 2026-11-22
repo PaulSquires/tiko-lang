@@ -83,6 +83,64 @@ sub Chords()
     tkTest_Check( "a synthesised 'A' is the a key", ev.key = asc( "a" ) )
 end sub
 
+' True when one of cs's readings is the chord s.
+private function Means( byref cs as TK_CHORDS, byref s as string ) as boolean
+    dim as TK_CHORD c
+    if tkKeys_Parse( s, c ) = false then return false
+    for i as long = 0 to cs.n - 1
+        if (cs.c(i).key = c.key) andalso (cs.c(i).mods = c.mods) then return true
+    next
+    return false
+end function
+
+' Non-US layouts, simulated: tkKeys_ChordsFor takes what the layout gives at the scancode.
+sub Layouts()
+    tkTest_Begin( "layouts" )
+    dim as long ctl = SDL_KMOD_LCTRL, sh = SDL_KMOD_LSHIFT
+    tkTest_Check( "US key of the / position", tkKeys_USKey( SDL_SCANCODE_SLASH ) = SDLK_SLASH )
+    tkTest_Check( "US key of A, 0, `", (tkKeys_USKey( SDL_SCANCODE_A ) = asc( "a" )) andalso _
+        (tkKeys_USKey( SDL_SCANCODE_0 ) = asc( "0" )) andalso (tkKeys_USKey( SDL_SCANCODE_GRAVE ) = SDLK_GRAVE) )
+    tkTest_Check( "F5 has no US key", tkKeys_USKey( SDL_SCANCODE_F5 ) = 0 )
+    dim as TK_CHORDS cs
+    ' Spanish: Shift+7 is '/', the US / position is '-', the US `~ position is U+00BA, '+' its own key
+    cs = tkKeys_ChordsFor( asc( "7" ), SDLK_SLASH, asc( "7" ), ctl or sh )
+    tkTest_Check( "es: Ctrl+Shift+7 means Ctrl+/", Means( cs, "Ctrl+/" ) )
+    tkTest_Check( "es: ... and is still Ctrl+Shift+7 first", Means( cs, "Ctrl+Shift+7" ) andalso (cs.c(0).key = asc( "7" )) )
+    cs = tkKeys_ChordsFor( SDLK_MINUS, SDLK_UNDERSCORE, SDLK_SLASH, ctl or sh )
+    tkTest_Check( "es: Ctrl+Shift+(US / key) means Ctrl+Shift+/", Means( cs, "Ctrl+Shift+/" ) )
+    cs = tkKeys_ChordsFor( SDLK_MINUS, SDLK_UNDERSCORE, SDLK_SLASH, ctl )
+    tkTest_Check( "es: Ctrl+(US / key) is Ctrl+Minus first", Means( cs, "Ctrl+Minus" ) andalso (cs.c(0).key = SDLK_MINUS) )
+    cs = tkKeys_ChordsFor( &hBA, &hAA, SDLK_GRAVE, ctl )   ' U+00BA, U+00AA
+    tkTest_Check( "es: Ctrl+(US `~ key) means Ctrl+Tilde", Means( cs, "Ctrl+Tilde" ) )
+    cs = tkKeys_ChordsFor( SDLK_PLUS, SDLK_ASTERISK, SDLK_RIGHTBRACKET, ctl )
+    tkTest_Check( "es: Ctrl++ is Ctrl+Plus", Means( cs, "Ctrl+Plus" ) )
+    ' what must NOT happen
+    cs = tkKeys_ChordsFor( asc( "q" ), asc( "Q" ), asc( "a" ), ctl )
+    tkTest_Check( "fr: Ctrl+Q stays Ctrl+Q (a letter is never moved)", (cs.n = 1) andalso Means( cs, "Ctrl+Q" ) )
+    cs = tkKeys_ChordsFor( asc( "s" ), asc( "S" ), asc( "s" ), ctl or sh )
+    tkTest_Check( "Ctrl+Shift+S is never Ctrl+S", Means( cs, "Ctrl+S" ) = false )
+    cs = tkKeys_ChordsFor( asc( "7" ), SDLK_SLASH, asc( "7" ), sh )
+    tkTest_Check( "es: Shift+7 alone is typing, not /", cs.n = 1 )
+    cs = tkKeys_ChordsFor( &hBA, SDLK_BACKSLASH, SDLK_GRAVE, SDL_KMOD_LCTRL or SDL_KMOD_RALT )
+    tkTest_Check( "es: AltGr+(US `~ key) types a character, no fallback", cs.n = 1 )
+    ' US: the fallbacks add nothing that could steal a chord
+    cs = tkKeys_ChordsFor( SDLK_SLASH, SDLK_QUESTION, SDLK_SLASH, ctl )
+    tkTest_Check( "us: Ctrl+/ is one chord", (cs.n = 1) andalso Means( cs, "Ctrl+/" ) )
+    ' a Cyrillic key: the US letter at that position
+    cs = tkKeys_ChordsFor( &h44B, &h42B, asc( "s" ), ctl )
+    tkTest_Check( "ru: Ctrl+(US S key) means Ctrl+S", Means( cs, "Ctrl+S" ) )
+    ' tkKeys_LookupMsg through a real message (this machine's layout)
+    dim as TK_KEYMAP ptr km = tkKeys_MapCreate()
+    tkKeys_BindText( km, "Ctrl+/", 7 )
+    dim as TK_MSG mm
+    mm.msg = TKM_KEYDOWN : mm.key = SDLK_SLASH : mm.mods = ctl : mm.scancode = SDL_SCANCODE_SLASH
+    tkTest_Check( "LookupMsg finds Ctrl+/", tkKeys_LookupMsg( km, @mm ) = 7 )
+    dim as TK_CHORD cc
+    tkKeys_Parse( "Ctrl+/", cc )
+    tkTest_Check( "MsgIs matches Ctrl+/", tkKeys_MsgIs( @mm, cc ) )
+    tkKeys_MapDestroy( km )
+end sub
+
 sub Maps()
     tkTest_Begin( "maps" )
     dim as TK_KEYMAP ptr km = tkKeys_MapCreate()
@@ -138,6 +196,7 @@ end sub
 if tkTest_Init() = false then end 99
 Chords()
 Maps()
+Layouts()
 dim as long nFail = tkTest_Report( "tkKeys" )
 tkTest_Quit()
 end nFail

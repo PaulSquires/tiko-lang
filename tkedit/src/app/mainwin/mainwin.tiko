@@ -1298,7 +1298,7 @@ function Window.Create( byval forcedScale as single ) as boolean
             if mw->OutputShown then mw->ShowOutput( false )
             return true
         end if
-        dim as Cmd id = cast( Cmd, tkKeys_Lookup( mw->accel, tkKeys_FromMsg( m ) ) )
+        dim as Cmd id = cast( Cmd, tkKeys_LookupMsg( mw->accel, m ) )
         if id = Cmd.None then return false
         select case id
         case Cmd.IndentBlock, Cmd.UnindentBlock
