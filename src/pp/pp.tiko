@@ -1168,7 +1168,7 @@ declare function PpModRefuse( byref e as PpEngine, byref what as string, byval a
 declare sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as FileId )
 declare function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
 declare sub PpModCIncludeHeader( byref e as PpEngine, byval at as SourceLoc, byval got as FileId )
-
+declare function PpModImportFor( byref e as PpEngine, byval at as SourceLoc, byref path_ as string, byval quiet as boolean ) as boolean
 end namespace
 
 #include once "pp/ppexpr.tiko"

@@ -80,9 +80,18 @@ end function
 '' 'std::__cxx11::basic_string<char>', libc++'s 'std::basic_string<char>' and the MSVC STL's
 '' 'std::basic_string<char, std::char_traits<char>, std::allocator<char>>' all contain it.
 function StrKind_( byref x as CppImp_, byval t as CXType ) as int32
-    dim as string s = BareSpell_( Spell_( x, Canon_( x, t ) ) )
-    if instr( s, "basic_string_view<char" ) > 0 then return 2
-    if instr( s, "basic_string<char" ) > 0 then return 1
+    '' BY ITS OWN TEMPLATE, not the spelling: 'Pair<int, std::string>' and 'std::vector<std::string>'
+    '' spell 'basic_string<char' too.
+    dim as CXType c = Canon_( x, t )
+    if c.kind <> TY_RECORD_ then return 0
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( x.api->getTypeDeclaration( c ) )
+    if IsNullCursor_( x, tm ) orelse (InStd_( x, tm ) = false) then return 0
+    dim as CXType a0 = Canon_( x, x.api->Type_getTemplateArgumentAsType( c, 0 ) )
+    if (a0.kind <> TY_CHAR_S_) andalso (a0.kind <> TY_CHAR_U_) then return 0
+    select case Text_( x, x.api->getCursorSpelling( tm ) )
+    case "basic_string"      : return 1
+    case "basic_string_view" : return 2
+    end select
     return 0
 end function
 
@@ -113,6 +122,7 @@ end function
 function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as TMap_
     dim as TMap_ m
     m.ok = true
+    if StdParam_( x, t, nm, m ) then return m
     dim as string tk, ct, tq, cq, mq, cwhy
     dim as CXType c = Canon_( x, t )
     select case c.kind
@@ -230,6 +240,7 @@ end function
 function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
     dim as TMap_ m
     m.ok = true
+    if StdResult_( x, t, m ) then return m
     dim as string tk, ct, tq, cq, mq, cwhy
     dim as CXType c = Canon_( x, t )
     select case c.kind
@@ -280,7 +291,8 @@ function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
                     m.byrefRet = true : m.ctype = x.clsCpp[ci] & "*" : m.fallback = "nullptr"
                     m.wrap0 = "const_cast<" & x.clsCpp[ci] & "*>(&(" : m.wrap1 = "))"
                 else
-                    m.ctype = x.clsCpp[ci] : m.fallback = x.clsCpp[ci] & "{}"
+                    m.ctype = PodCName_( x, ci ) : m.fallback = PodCName_( x, ci ) & "{}"
+                    m.wrap0 = "tko_cpp_pod<" & PodCName_( x, ci ) & ">(" : m.wrap1 = ")"
                 end if
                 return m
             end if

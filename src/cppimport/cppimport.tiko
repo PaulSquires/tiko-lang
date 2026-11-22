@@ -215,9 +215,26 @@ private function Visit_ cdecl _
         end if
     case CXCursor_FunctionDecl
         if xp->pass = 3 then Function_( *xp, c )
+        if xp->pass = 4 then NoteFunction_( *xp, c )
     case CXCursor_FunctionTemplate, CXCursor_ClassTemplate
-        if xp->pass = 3 then
-            Todo_( *xp, QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) ), "template (C3b)" )
+        '' A TEMPLATE is bound where it is instantiated (cpptmpl.tiko): recorded by name, and a
+        '' CPP-TODO only when nothing instantiated it.
+        dim as string q = QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) )
+        if xp->pass = 2 then
+            xp->tmplNames.Push( mid( q, 3 ) )
+            xp->tmplKinds.Push( iif( k = CXCursor_ClassTemplate, "c", "f" ) )
+        elseif xp->pass = 3 then
+            dim as boolean used = false
+            for i as int32 = 0 to xp->instBases.Count - 1
+                if xp->instBases[i] = mid( q, 3 ) then used = true
+            next
+            for i as int32 = 0 to xp->clsCpp.Count - 1
+                if left( xp->clsCpp[i], len( q ) + 1 ) = q & "<" then used = true
+            next
+            if used = false then
+                Todo_( *xp, q, iif( k = CXCursor_ClassTemplate, "class template nothing here instantiates", _
+                                    "function template" ) & ": #cppinstantiate it" )
+            end if
         end if
     end select
     return CXChildVisit_Continue
@@ -338,8 +355,8 @@ function Prelude_( ) as string
     dim as string L = chr( 10 )
     return _
     "// ---- tiko C++ shim prelude (tiko -cppimport) ----" & L & _
-    "#include <cstddef>" & L & "#include <cstdint>" & L & "#include <cstdio>" & L & _
-    "#include <exception>" & L & "#include <new>" & L & "#include <string>" & L & _
+    "#include <cstddef>" & L & "#include <cstdint>" & L & "#include <cstdio>" & L & "#include <cstring>" & L & _
+    "#include <exception>" & L & "#include <memory>" & L & "#include <new>" & L & "#include <stdexcept>" & L & "#include <string>" & L & _
     "#include <string_view>" & L & "#include <type_traits>" & L & "#include <utility>" & L & _
     "#ifndef TKO_CPP_PRELUDE" & L & "#define TKO_CPP_PRELUDE" & L & _
     "// A binding binds the deprecated members too; calling them is not this shim's warning to give." & L & _
@@ -383,11 +400,33 @@ function Prelude_( ) as string
     "    static thread_local char buf[1024];" & L & _
     "    std::snprintf(buf, sizeof buf, ""C++ exception: %s"", tko_cpp_last().c_str());" & L & _
     "    fb_ErrorThrowMsg(" & ERR_CPP_ & ", -1, nullptr, buf, nullptr, nullptr);" & L & "}" & L & _
+    "// A POD RESULT as the C struct with its fields (cpppod.tiko), byte for byte." & L & _
+    "template <class C, class T> inline C tko_cpp_pod(const T& v) { C c; std::memcpy(&c, &v, sizeof c); return c; }" & L & _
+    "// A SHARED HANDLE's owned_ holds a std::shared_ptr<T> of its own -- T the handle's class --: greater" & L & _
+    "// than 1, an address. Copying the handle copies that shared_ptr; destroying it destroys that (C3b-2)." & L & _
+    "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
+    "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
+    "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _
+    "    if (h->owned != 1 || !h->impl) throw std::runtime_error(""this handle does not own its C++ object alone: it cannot be given away"");" & L & _
+    "    T* p = static_cast<T*>(h->impl); h->impl = nullptr; h->owned = 0; return std::unique_ptr<T>(p);" & L & "}" & L & _
+    "// The handle's own shared_ptr, so a 'const std::shared_ptr<T>&' sees the count C++ would: one that" & L & _
+    "// owned its object alone shares it from now on; a borrowed one is lent without ownership." & L & _
+    "template <class T> inline const std::shared_ptr<T>& tko_cpp_shared(tko_cpp_h* h) {" & L & _
+    "    static thread_local std::shared_ptr<T> lent;" & L & _
+    "    T* p = static_cast<T*>(h->impl);" & L & _
+    "    if (!p) { lent.reset(); return lent; }" & L & _
+    "    if (h->owned == 1) h->owned = tko_cpp_box<T>(std::shared_ptr<T>(p));" & L & _
+    "    if (h->owned > 1) return *tko_cpp_unbox<T>(h->owned);" & L & _
+    "    lent = std::shared_ptr<T>(std::shared_ptr<T>(), p);" & L & _
+    "    return lent;" & L & "}" & L & _
     "// THE HANDLE'S LIFE: whatever the class allows, decided by the class (if constexpr), so a" & L & _
     "// class that cannot be copied still compiles and only a copy made from tiko raises." & L & _
+    "// A RANGE's iterator: the two C++ iterators a 'for each' walks (C3b-2)." & L & _
+    "template <class It> struct tko_cpp_range { It cur, end; };" & L & _
     "template <class T> inline void tko_cpp_free(tko_cpp_h* s) {" & L & _
-    "    // An abstract class's handle only ever borrows: nothing returns one by value." & L & _
-    "    if constexpr (std::is_destructible_v<T> && !std::is_abstract_v<T>) { if (s->owned && s->impl) delete static_cast<T*>(s->impl); }" & L & _
+    "    if (s->owned > 1) { delete tko_cpp_unbox<T>(s->owned); s->impl = nullptr; s->owned = 0; return; }" & L & _
+    "    // An abstract class is owned only through a unique_ptr result: deleted when its destructor is virtual." & L & _
+    "    if constexpr (std::is_destructible_v<T> && (!std::is_abstract_v<T> || std::has_virtual_destructor_v<T>)) { if (s->owned && s->impl) delete static_cast<T*>(s->impl); }" & L & _
     "    s->impl = nullptr; s->owned = 0;" & L & "}" & L & _
     "template <class T> inline void tko_cpp_default(tko_cpp_h* s) {" & L & _
     "    s->impl = nullptr; s->owned = 0;" & L & _
@@ -398,6 +437,7 @@ function Prelude_( ) as string
     "template <class T> inline void tko_cpp_copy(tko_cpp_h* s, const tko_cpp_h* o) {" & L & _
     "    s->impl = nullptr; s->owned = 0;" & L & _
     "    if (!o || !o->impl) return;" & L & _
+    "    if (o->owned > 1) { s->impl = o->impl; s->owned = tko_cpp_box<T>(*tko_cpp_unbox<T>(o->owned)); return; }" & L & _
     "    if constexpr (std::is_copy_constructible_v<T>) {" & L & _
     "        try { s->impl = new T(*static_cast<const T*>(o->impl)); s->owned = 1; return; } TKO_CPP_CATCH" & L & _
     "    } else {" & L & _
@@ -409,6 +449,8 @@ function Prelude_( ) as string
     "    tko_cpp_raise();" & L & "}" & L & _
     "template <class T> inline void tko_cpp_assign(tko_cpp_h* s, const tko_cpp_h* o) {" & L & _
     "    if (s == o) return;" & L & _
+    "    // Either side shared: the handle is rebound, as a shared_ptr is by '='." & L & _
+    "    if (s->owned > 1 || (o && o->owned > 1)) { tko_cpp_free<T>(s); tko_cpp_copy<T>(s, o); return; }" & L & _
     "    try {" & L & _
     "        if constexpr (std::is_copy_assignable_v<T>) {" & L & _
     "            if (s->impl && o && o->impl) { *static_cast<T*>(s->impl) = *static_cast<const T*>(o->impl); return; }" & L & _
@@ -431,9 +473,12 @@ function Prelude_( ) as string
     "#endif" & L & "// ---- end of prelude ----" & L
 end function
 
-function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string ) as string
+function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string, _
+                       byval needsContainers as boolean ) as string
     dim as string L = chr( 10 )
-    return _
+    '' THE FIRST LINE says what a '#cppinclude' must import for the binding (pp/directive.tiko).
+    dim as string need = iif( needsContainers, "'' tiko-cpp-needs: std/containers -- '#import ""std/containers""' before including this file" & L, "" )
+    return need & _
     "'' Generated by tiko -cppimport from """ & hdr & """ (" & ver & ", " & tgt & "). Do not edit: regenerate." & L & _
     "'' Every declaration is a function of the C++ shim written beside this file, which must be" & L & _
     "'' compiled for the same target and linked. A C++ exception is runtime error " & ERR_CPP_ & "; cpp.What( )" & L & _
@@ -448,6 +493,138 @@ function BindingHead_( byref hdr as string, byref ver as string, byref tgt as st
 end function
 
 '' ---------------------------------------------------------------- the run
+
+private function Parse_( byref api as ClangApi, byval argv as zstring ptr ptr, byval argc as int32, _
+                         byref unitText as string, byref res as CppImportResult, _
+                         byref idx as any ptr, byref tu as any ptr ) as boolean
+    dim as string unitName = UNIT_NAME_
+    dim as CXUnsavedFile uf
+    uf.Filename = strptr( unitName )
+    uf.Contents = strptr( unitText )
+    uf.Length = len( unitText )
+    idx = api.createIndex( 0, 0 )
+    tu = api.parseTranslationUnit( idx, strptr( unitName ), argv, argc, @uf, 1, CXTranslationUnit_SkipFunctionBodies )
+    if tu = nullptr then
+        api.disposeIndex( idx ) : idx = nullptr
+        res.rc = 1 : res.why = "clang could not start a parse"
+        return false
+    end if
+    dim as int32 nerr = 0
+    res.clangDiags.Clear( )
+    for i as int32 = 0 to api.getNumDiagnostics( tu ) - 1
+        dim as any ptr d = api.getDiagnostic( tu, i )
+        if api.getDiagnosticSeverity( d ) >= 3 then
+            '' AN ERROR IN THE UNIT'S OWN LINES, past the #include, is a probe or an instantiation
+            '' clang could not make: that member or that specialization is not bound, nothing else.
+            dim as any ptr f = nullptr
+            dim as uint32 ln, col, off
+            api.getExpansionLocation( api.getDiagnosticLocation( d ), @f, @ln, @col, @off )
+            dim as string fnm = iif( f <> nullptr, ClangText( api, api.getFileName( f ) ), "" )
+            if (right( fnm, len( UNIT_NAME_ ) ) <> UNIT_NAME_) orelse (ln <= 1) then
+                nerr += 1
+                if res.clangDiags.Count < 10 then res.clangDiags.Push( ClangText( api, api.formatDiagnostic( d, 3 ) ) )
+            end if
+        end if
+        api.disposeDiagnostic( d )
+    next
+    if nerr > 0 then
+        api.disposeTranslationUnit( tu ) : tu = nullptr
+        api.disposeIndex( idx ) : idx = nullptr
+        res.rc = 1 : res.why = "clang reported " & nerr & " error(s) in the header"
+        return false
+    end if
+    return true
+end function
+
+'' '#cppinstantiate "geo::clamp<int>"' as the C++ the unit writes for it: '::geo::clamp<int>'.
+private function InstText_( byref s as string ) as string
+    dim as string r = trim( s )
+    if left( r, 2 ) <> "::" then r = "::" & r
+    return r
+end function
+
+private function InstBase_( byref s as string ) as string
+    dim as string r = trim( s )
+    if left( r, 2 ) = "::" then r = mid( r, 3 )
+    if instr( r, "<" ) > 0 then r = trim( left( r, instr( r, "<" ) - 1 ) )
+    return r
+end function
+
+'' EVERYTHING AFTER THE LAST PARSE: the classes, the functions, the asked-for function
+'' instantiations, and the three texts.
+private function Finish_( byref api as ClangApi, byref opts as CppImportOptions, byref x as CppImp_, _
+                          byref ikind as Tko.StrVec, byref res as CppImportResult ) as boolean
+    dim as string L = chr( 10 )
+    EmitClasses_( x )
+    x.pass = 3
+    api.visitChildren( api.getTranslationUnitCursor( x.tu ), @Visit_, @x )
+    for i as int32 = 0 to opts.instantiate.Count - 1
+        dim as CXCursor fn
+        if (ikind[i] <> "f") orelse (InstFunction_( x, i, fn ) = false) then continue for
+        dim as Tko.StrVec ns
+        if NsOf_( x, fn, ns ) = false then Todo_( x, opts.instantiate[i], "a member function template" ) : continue for
+        for j as int32 = 0 to ns.Count - 1
+            x.bind.Push( Indent_( x ) & "namespace " & ns[j] )
+            x.cppNs.Push( ns[j] ) : x.tikoNs.Push( ns[j] )
+        next
+        x.calleeOverride = InstText_( opts.instantiate[i] )
+        Function_( x, fn )
+        x.calleeOverride = ""
+        for j as int32 = 0 to ns.Count - 1
+            x.cppNs.Pop( ) : x.tikoNs.Pop( )
+            x.bind.Push( Indent_( x ) & "end namespace" )
+        next
+    next
+
+    dim as Tko.StrVec parts
+    dim as string ver = api.version
+    if instr( ver, " (" ) > 0 then ver = left( ver, instr( ver, " (" ) - 1 )
+    parts.Push( BindingHead_( opts.header, ver, opts.targetName, x.vecEC.Count > 0 ) )
+    for i as int32 = 0 to x.bind.Count - 1
+        parts.Push( x.bind[i] & L )
+    next
+    '' THE std::vector TRAITS and the ADAPTERS, last: every type is complete by now.
+    for i as int32 = 0 to x.vecDecls.Count - 1
+        parts.Push( x.vecDecls[i] & L )
+    next
+    if x.defs.Count > 0 then
+        parts.Push( "#pragma push( private, true )" & L )
+        for i as int32 = 0 to x.defs.Count - 1
+            parts.Push( x.defs[i] )
+        next
+        parts.Push( "#pragma pop( private )" & L )
+    end if
+    res.binding = JoinParts( parts )
+
+    parts.Clear( )
+    parts.Push( "// Generated by tiko -cppimport from """ & opts.header & """ for " & opts.targetName & _
+                ". Do not edit: regenerate." & L )
+    parts.Push( "#include """ & opts.header & """" & L )
+    parts.Push( Prelude_( ) & L )
+    for i as int32 = 0 to x.shim.Count - 1
+        parts.Push( x.shim[i] & L )
+    next
+    res.shim = JoinParts( parts )
+
+    '' THE MEMBERS' NAMES, from the mirror.
+    if instr( res.shim, "@@M:" ) > 0 then
+        parts.Clear( )
+        parts.Push( "struct FBUSTRING;" & L )
+        for i as int32 = 0 to x.mirFwd.Count - 1
+            parts.Push( x.mirFwd[i] )
+        next
+        for i as int32 = 0 to x.mirBody.Count - 1
+            parts.Push( x.mirBody[i] )
+        next
+        if ResolveMirror_( api, opts.triple, JoinParts( parts ), res.shim, res ) = false then
+            res.rc = 1
+            return false
+        end if
+    end if
+    res.bound = x.bound
+    res.todos = x.todos
+    return true
+end function
 
 function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
                        byref res as CppImportResult ) as boolean
@@ -483,92 +660,131 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
     if absolute_ = false then hp = Fwd_( curdir( ) ) & "/" & hp
     dim as string hd = left( hp, instrrev( hp, "/" ) )
 
-    dim as string unitName = UNIT_NAME_
-    dim as string unitText = "#include """ & hp & """" & chr( 10 )
-    dim as CXUnsavedFile uf
-    uf.Filename = strptr( unitName )
-    uf.Contents = strptr( unitText )
-    uf.Length = len( unitText )
-
-    dim as any ptr idx = api.createIndex( 0, 0 )
-    dim as any ptr tu = api.parseTranslationUnit( idx, strptr( unitName ), @argv( 0 ), av.Count, _
-                                                  @uf, 1, CXTranslationUnit_SkipFunctionBodies )
-    if tu = nullptr then
-        api.disposeIndex( idx )
-        res.rc = 1 : res.why = "clang could not start a parse"
-        return false
-    end if
-    dim as int32 nerr = 0
-    for i as int32 = 0 to api.getNumDiagnostics( tu ) - 1
-        dim as any ptr d = api.getDiagnostic( tu, i )
-        if api.getDiagnosticSeverity( d ) >= 3 then
-            nerr += 1
-            if res.clangDiags.Count < 10 then res.clangDiags.Push( ClangText( api, api.formatDiagnostic( d, 3 ) ) )
-        end if
-        api.disposeDiagnostic( d )
+    '' PARSE, LOOK, AND PARSE AGAIN while the bound API names a specialization that is not yet
+    '' complete, or a '#cppinstantiate' has not yet been told apart as a class or a function.
+    dim as string L = chr( 10 )
+    dim as Tko.StrVec forced, ikind, probes, probed, ranged
+    for i as int32 = 0 to opts.instantiate.Count - 1
+        ikind.Push( "" )
     next
-    if nerr > 0 then
+    dim as CppImp_ ptr xp = nullptr
+    dim as any ptr idx = nullptr, tu = nullptr
+    for round_ as int32 = 1 to 8
+        dim as string unitText = "#include """ & hp & """" & L & "#include <utility>" & L
+        for i as int32 = 0 to forced.Count - 1
+            unitText &= "static_assert(sizeof(" & forced[i] & ") > 0, ""tiko: instantiate"");" & L
+        next
+        for i as int32 = 0 to probes.Count - 1
+            unitText &= probes[i] & L
+        next
+        for i as int32 = 0 to opts.instantiate.Count - 1
+            dim as string sx = InstText_( opts.instantiate[i] )
+            if ikind[i] = "c" then
+                unitText &= "using tko_cpp_inst_" & i & " = " & sx & ";" & L & _
+                            "static_assert(sizeof(tko_cpp_inst_" & i & ") > 0, ""tiko: instantiate"");" & L
+            elseif ikind[i] = "f" then
+                unitText &= "inline auto* const tko_cpp_fn_" & i & " = &" & sx & ";" & L
+            end if
+        next
+        if xp <> nullptr then delete xp : xp = nullptr
+        if Parse_( api, @argv( 0 ), av.Count, unitText, res, idx, tu ) = false then return false
+        xp = new CppImp_
+        xp->api = @api
+        xp->tu = tu
+#ifdef __FB_WIN32__
+        xp->foldCase = true
+#endif
+        xp->hdrDir = iif( xp->foldCase, lcase( hd ), hd )
+        xp->id = Id_( lcase( Fwd_( opts.header ) ) )
+        for i as int32 = 0 to opts.instantiate.Count - 1
+            xp->instBases.Push( InstBase_( opts.instantiate[i] ) )
+        next
+        '' Enums, then the classes collected.
+        for p as int32 = 1 to 2
+            xp->pass = p
+            api.visitChildren( api.getTranslationUnitCursor( tu ), @Visit_, xp )
+        next
+        LoadProbes_( *xp )
+        dim as boolean again = false
+        for i as int32 = 0 to opts.instantiate.Count - 1
+            if ikind[i] <> "" then continue for
+            for j as int32 = 0 to xp->tmplNames.Count - 1
+                if xp->tmplNames[j] = xp->instBases[i] then ikind[i] = xp->tmplKinds[j] : exit for
+            next
+            if ikind[i] = "" then
+                res.rc = 1 : res.why = "#cppinstantiate """ & opts.instantiate[i] & """ names no template of this header"
+                delete xp : api.disposeTranslationUnit( tu ) : api.disposeIndex( idx )
+                return false
+            end if
+            again = true
+        next
+        if again = false then
+            '' WHAT IS BOUND names what else is: the asked-for instantiations, the functions'
+            '' types, every class's members' -- the classes found on the way included.
+            for i as int32 = 0 to opts.instantiate.Count - 1
+                dim as CXCursor fn
+                if ikind[i] = "c" then NoteType_( *xp, InstClass_( *xp, i ) )
+                if (ikind[i] = "f") andalso InstFunction_( *xp, i, fn ) then NoteFunction_( *xp, fn )
+            next
+            xp->pass = 4
+            api.visitChildren( api.getTranslationUnitCursor( tu ), @Visit_, xp )
+            dim as int32 ci = 0
+            while ci < xp->clsUsr.Count
+                DiscoverClass_( *xp, ci )
+                ci += 1
+            wend
+            for i as int32 = 0 to xp->needForce.Count - 1
+                dim as boolean have = false
+                for j as int32 = 0 to forced.Count - 1
+                    if forced[j] = xp->needForce[i] then have = true
+                next
+                if have = false then forced.Push( xp->needForce[i] ) : again = true
+            next
+            '' A RANGE's element type, probed once; the types it names noted once it is known.
+            for i as int32 = 0 to xp->clsUsr.Count - 1
+                if HasRange_( *xp, i ) = false then continue for
+                dim as boolean have = false
+                for j as int32 = 0 to ranged.Count - 1
+                    if ranged[j] = xp->clsCpp[i] then have = true
+                next
+                if have = false then
+                    ranged.Push( xp->clsCpp[i] ) : probes.Push( RangeProbe_( *xp, i ) ) : again = true
+                else
+                    for j as int32 = 0 to xp->probeNames.Count - 1
+                        if xp->probeNames[j] = "it_" & Id_( xp->clsCpp[i] ) then NoteType_( *xp, xp->probeTypes[j] )
+                    next
+                end if
+            next
+            for i as int32 = 0 to xp->needForce.Count - 1
+                dim as boolean have = false
+                for j as int32 = 0 to forced.Count - 1
+                    if forced[j] = xp->needForce[i] then have = true
+                next
+                if have = false then forced.Push( xp->needForce[i] ) : again = true
+            next
+            '' A SPECIALIZATION NOT PROBED YET is probed on the next parse.
+            for i as int32 = 0 to xp->clsUsr.Count - 1
+                if IsSpec_( *xp, i ) = false then continue for
+                dim as boolean have = false
+                for j as int32 = 0 to probed.Count - 1
+                    if probed[j] = xp->clsCpp[i] then have = true
+                next
+                if have = false then
+                    probed.Push( xp->clsCpp[i] )
+                    if ProbeLines_( *xp, i, probes ) then again = true
+                end if
+            next
+        end if
+        if (again = false) orelse (round_ = 8) then exit for
         api.disposeTranslationUnit( tu )
         api.disposeIndex( idx )
-        res.rc = 1 : res.why = "clang reported " & nerr & " error(s) in the header"
-        return false
-    end if
-
-    dim as CppImp_ x
-    x.api = @api
-    x.tu = tu
-#ifdef __FB_WIN32__
-    x.foldCase = true
-#endif
-    x.hdrDir = iif( x.foldCase, lcase( hd ), hd )
-    x.id = Id_( lcase( Fwd_( opts.header ) ) )
-    '' Enums, then the classes collected and emitted in dependency order, then the functions.
-    for p as int32 = 1 to 3
-        x.pass = p
-        api.visitChildren( api.getTranslationUnitCursor( tu ), @Visit_, @x )
-        if p = 2 then EmitClasses_( x )
     next
+
+    dim as boolean ok = Finish_( api, opts, *xp, ikind, res )
+    delete xp
     api.disposeTranslationUnit( tu )
     api.disposeIndex( idx )
-
-    dim as string L = chr( 10 )
-    dim as Tko.StrVec parts
-    dim as string ver = api.version
-    if instr( ver, " (" ) > 0 then ver = left( ver, instr( ver, " (" ) - 1 )
-    parts.Push( BindingHead_( opts.header, ver, opts.targetName ) )
-    for i as int32 = 0 to x.bind.Count - 1
-        parts.Push( x.bind[i] & L )
-    next
-    res.binding = JoinParts( parts )
-
-    parts.Clear( )
-    parts.Push( "// Generated by tiko -cppimport from """ & opts.header & """ for " & opts.targetName & _
-                ". Do not edit: regenerate." & L )
-    parts.Push( "#include """ & opts.header & """" & L )
-    parts.Push( Prelude_( ) & L )
-    for i as int32 = 0 to x.shim.Count - 1
-        parts.Push( x.shim[i] & L )
-    next
-    res.shim = JoinParts( parts )
-
-    '' THE MEMBERS' NAMES, from the mirror.
-    if instr( res.shim, "@@M:" ) > 0 then
-        parts.Clear( )
-        parts.Push( "struct FBUSTRING;" & L )
-        for i as int32 = 0 to x.mirFwd.Count - 1
-            parts.Push( x.mirFwd[i] )
-        next
-        for i as int32 = 0 to x.mirBody.Count - 1
-            parts.Push( x.mirBody[i] )
-        next
-        if ResolveMirror_( api, opts.triple, JoinParts( parts ), res.shim, res ) = false then
-            res.rc = 1
-            return false
-        end if
-    end if
-    res.bound = x.bound
-    res.todos = x.todos
-    return true
+    return ok
 end function
 
 end namespace

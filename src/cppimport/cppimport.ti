@@ -31,6 +31,7 @@ type CppImportOptions
     as string     sysroot       '' -csysroot
     as string     targetName    '' "windows-x86_64", "linux-x86_64", ...
     as string     triple        '' TargetFor( t ).triple
+    as Tko.StrVec instantiate   '' '#cppinstantiate' / -cppinstantiate: "geo::Box<int>", "geo::clamp<int>"
 end type
 
 type CppImportResult

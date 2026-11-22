@@ -32,8 +32,11 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     if (upto >= 0) andalso (upto < na) then na = upto
     dim as boolean isConst = (kind = K_METHOD_) andalso methodConst
 
-    dim as string tparams = "", cparams = "", args = "", tsig = "", mparams = ""
+    dim as string tparams = "", cparams = "", args = "", tsig = "", mparams = "", pubp = ""
     dim as Tko.StrVec av                               '' each argument expression, for an operator
+    dim as Tko.StrVec pnames                           '' std::vector adapters (cppvec.tiko)
+    dim as containers.Array( of int32 ) pvk, pmode
+    dim as boolean adapt = false
     '' A C++ MEMBER OPERATOR AS A tiko GLOBAL ONE takes the object first, as its left operand.
     if ((kind = K_OPBIN_) orelse (kind = K_OPUN_)) andalso cppMember then
         dim as string kw = iif( methodConst, "const ", "" )
@@ -47,19 +50,33 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     for i as int32 = 0 to na - 1
         dim as CXCursor a = x.api->Cursor_getArgument( c, i )
         dim as string pn = ParamName_( x, a, i )
-        dim as TMap_ m = Param_( x, x.api->getCursorType( a ), pn )
+        dim as CXType at_ = x.api->getCursorType( a )
+        if x.ovrOn then
+            if i >= x.ovrArgs.Count then why = "the instantiated member has fewer parameters" : return false
+            at_ = x.ovrArgs[i]
+        end if
+        dim as TMap_ m = Param_( x, at_, pn )
         if m.ok = false then why = m.why : return false
         if len( tparams ) then tparams &= ", " : cparams &= ", " : tsig &= ","
-        if i > 0 then args &= ", " : mparams &= ", "
+        if i > 0 then args &= ", " : mparams &= ", " : pubp &= ", "
         tparams &= m.tiko : cparams &= m.ctype : args &= m.arg : mparams &= m.mir
-        tsig &= mid( m.tiko, instr( m.tiko, " as " ) + 4 )
+        dim as string pt_ = iif( m.vk1 > 0, m.pub, m.tiko )
+        pubp &= pt_
+        tsig &= mid( pt_, instr( pt_, " as " ) + 4 )
         av.Push( m.arg )
+        pnames.Push( pn ) : pvk.Push( m.vk1 ) : pmode.Push( m.vmode )
+        if m.vk1 > 0 then adapt = true
     next
     dim as boolean compound = (kind = K_OPMEM_) andalso (top <> "[]") andalso (top <> "cast")
     dim as TMap_ r
     if (kind <> K_CTOR_) andalso (compound = false) then
-        r = Result_( x, x.api->getCursorResultType( c ) )
+        r = Result_( x, iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( c ) ) )
         if r.ok = false then why = r.why : return false
+    end if
+    if r.vk1 > 0 then adapt = true
+    if adapt then
+        if (kind <> K_FREE_) andalso (kind <> K_METHOD_) andalso (kind <> K_STATIC_) then why = "a std::vector in a constructor or operator" : return false
+        if r.byrefRet then why = "a reference result beside a std::vector" : return false
     end if
 
     dim as string tn = iif( kind = K_CTOR_, "constructor", ValueName_( nm ) )
@@ -80,7 +97,35 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     x.n += 1
     dim as boolean isSub = (len( r.tiko ) = 0)
     dim as string asR = iif( r.byrefRet, " byref as ", " as " ) & r.tiko
+    if adapt then
+        '' THE RAW ENTRY, a free function of the shim taking the object first, and the ADAPTER
+        '' tiko calls instead, which the binding defines (cppvec.tiko).
+        dim as string rawn = tn & "__" & mid( sym, instrrev( sym, "_" ) + 1 )
+        dim as string rawp = tparams
+        if kind = K_METHOD_ then rawp = "byref self_ as " & iif( isConst, "const ", "" ) & x.clsTikoQ[ci] & iif( len( rawp ), ", ", "" ) & rawp
+        x.extraGlob.Push( "extern ""C"" : declare " & iif( isSub, "sub ", "function " ) & rawn & " alias """ & sym & _
+                          """ ( " & rawp & " )" & iif( isSub, "", " as " & r.tiko ) & " : end extern" )
+        dim as string pubR = iif( r.vk1 > 0, "containers.Array( of " & x.vecET[r.vk1 - 1] & " )", r.tiko )
+        dim as string asP = iif( isSub, "", " as " & pubR )
+        dim as string head, nsl = ""
+        if member then
+            decl = "declare " & iif( kind = K_STATIC_, "static ", "" ) & iif( isConst, "const ", "" ) & iif( isSub, "sub ", "function " ) & _
+                   tn & iif( len( pubp ), " ( " & pubp & " )", " ( )" ) & asP
+            head = iif( isSub, "sub ", "function " ) & x.clsTiko[ci] & "." & tn & iif( len( pubp ), "( " & pubp & " )", "( )" ) & asP
+            nsl = x.clsNsTiko[ci]
+        else
+            decl = "declare " & iif( isSub, "sub ", "function " ) & tn & " overload" & iif( len( pubp ), " ( " & pubp & " )", " ( )" ) & asP
+            head = iif( isSub, "sub ", "function " ) & tn & iif( len( pubp ), "( " & pubp & " )", "( )" ) & asP
+            for i as int32 = 0 to x.tikoNs.Count - 1
+                nsl &= iif( i > 0, chr( 1 ), "" ) & x.tikoNs[i]
+            next
+        end if
+        Adapter_( x, nsl, head, rawn, iif( kind = K_METHOD_, "this", "" ), pnames, pvk, pmode, r.vk1, r.tiko, isSub )
+        member = false                         '' the raw entry is an alias, like a free function
+    end if
     tparams = iif( len( tparams ), "( " & tparams & " )", "( )" )
+    if adapt then
+    else
     select case kind
     case K_FREE_
         '' ONE 'extern "C"' PER DECLARATION, INSIDE ITS NAMESPACE: a procedure in a namespace
@@ -98,6 +143,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
                iif( isSub, "sub ", "function " ) & tn & " alias """ & sym & """ " & tparams & _
                iif( isSub, "", asR )
     end select
+    end if
 
     '' THE SHIM FUNCTION. Its parameters are tiko's: the result slot first, then 'this', then
     '' the arguments (measured, C3.md).
@@ -113,7 +159,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     if (ci >= 0) andalso (pod = false) then obj = "(*static_cast<" & x.clsCpp[ci] & "*>(self_->impl))"
     dim as string callx
     select case kind
-    case K_FREE_   : callx = QualCpp_( x, nm ) & "(" & args & ")"
+    case K_FREE_   : callx = iif( len( x.calleeOverride ), x.calleeOverride, QualCpp_( x, nm ) ) & "(" & args & ")"
     case K_STATIC_ : callx = x.clsCpp[ci] & "::" & nm & "(" & args & ")"
     case K_METHOD_
         if pod then
@@ -148,6 +194,10 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         f &= "self_->impl = new " & x.clsCpp[ci] & "(" & args & "); self_->owned = 1; return;"
     elseif r.sret = SR_OWNED_ then
         f &= "ret_->impl = new " & r.rcpp & "(" & callx & "); ret_->owned = 1; return ret_;"
+    elseif r.sret = SR_UNIQUE_ then
+        f &= "ret_->impl = const_cast<void*>(static_cast<const void*>((" & callx & ").release())); ret_->owned = 1; return ret_;"
+    elseif r.sret = SR_SHARED_ then
+        f &= "auto tko_sp = " & callx & "; ret_->impl = const_cast<void*>(static_cast<const void*>(tko_sp.get())); ret_->owned = tko_cpp_box<" & r.rcpp & ">(std::const_pointer_cast<" & r.rcpp & ">(tko_sp)); return ret_;"
     elseif r.sret = SR_REF_ then
         f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(&(" & callx & "))); return ret_;"
     elseif r.sret = SR_PTR_ then
@@ -277,6 +327,10 @@ sub Function_( byref x as CppImp_, byval c as CXCursor )
     end if
     for k as int32 = 0 to Defaults_( x, c )
         if Entry_( x, c, K_FREE_, -1, decl, why, na - k ) then
+            for g as int32 = 0 to x.extraGlob.Count - 1
+                x.bind.Push( Indent_( x ) & x.extraGlob[g] )
+            next
+            x.extraGlob.Clear( )
             x.bind.Push( Indent_( x ) & decl & "    '' " & disp & ArityNote_( k, na ) )
         elseif why <> lastWhy then
             Todo_( x, disp & ArityNote_( k, na ), why )     '' an arity failing for the same reason: once
@@ -359,7 +413,7 @@ private function MemberVisit_ cdecl _
     case CXCursor_CXXBaseSpecifier
         if pub then mb->bases.Push( c )
     case CXCursor_FunctionTemplate
-        if pub andalso top then mb->skipped.Push( Text_( *xp, xp->api->getCursorDisplayName( c ) ) & ": template (C3b)" )
+        if pub andalso top then mb->skipped.Push( Text_( *xp, xp->api->getCursorDisplayName( c ) ) & ": a member function template" )
     case CXCursor_ClassDecl, CXCursor_StructDecl
         if pub andalso top andalso (xp->api->isCursorDefinition( c ) <> 0) then mb->skipped.Push( nm & ": nested class" )
     end select
@@ -457,6 +511,7 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
         end if
     else
         r = Result_( x, t )
+        if r.ok andalso ((r.vk1 > 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library field"
         if r.ok = false then lines.Push( "'' CPP-TODO(field: " & r.why & "): " & disp ) : x.todos += 1 : return
     end if
     dim as string obj = "static_cast<" & cpp & "*>(self_->impl)->" & nm
@@ -515,7 +570,8 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     dim as string cpp = x.clsCpp[ci], tn = x.clsTiko[ci], mq = x.clsMir[ci]
     dim as Members_ mb
     mb.x = @x
-    Gather_( x, mb, x.clsCur[ci] )
+    Gather_( x, mb, MemberRoot_( x, ci ) )
+    dim as boolean spec = IsSpec_( x, ci )
     dim as boolean abstract_ = (x.api->CXXRecord_isAbstract( x.clsCur[ci] ) <> 0)
     dim as Tko.StrVec lines, glob
     dim as int32 mark = x.mirBody.Count
@@ -575,6 +631,10 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
                 lines.Push( "'' CPP-TODO(abstract class: no constructor): " & disp ) : x.todos += 1
                 continue for
             end if
+            if spec andalso (ProbeOverride_( x, ci, i ) = false) then
+                lines.Push( "'' CPP-TODO(its instantiated type is not known): " & disp ) : x.todos += 1
+                continue for
+            end if
             if mb.kind[i] = K_OPANY_ then
                 '' A MEMBER OPERATOR: a tiko global one for an operand pair, a member for '[]', a
                 '' compound assignment and a conversion to a fundamental.
@@ -582,21 +642,27 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
                 dim as int32 ok = -1
                 if x.api->getCursorKind( mb.cur[i] ) = CXCursor_ConversionFunction then
                     dim as string tk, ct
-                    if Fund_( x, x.api->getCursorResultType( mb.cur[i] ), tk, ct ) then ok = K_OPMEM_ : top = "cast"
+                    if Fund_( x, iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( mb.cur[i] ) ), tk, ct ) then ok = K_OPMEM_ : top = "cast"
                 else
                     ok = OpKind_( trim( mid( Text_( x, x.api->getCursorSpelling( mb.cur[i] ) ), 9 ) ), na, true, top )
                 end if
                 if ok < 0 then
+                    x.ovrOn = false
                     lines.Push( "'' CPP-TODO(operator): " & disp ) : x.todos += 1
                 elseif Entry_( x, mb.cur[i], ok, ci, decl, why, na, top ) then
                     if ok = K_OPMEM_ then lines.Push( decl & "    '' " & disp ) else glob.Push( decl & "    '' " & disp )
                 elseif why <> SAME_SIG_ then
                     lines.Push( "'' CPP-TODO(" & why & "): " & disp ) : x.todos += 1
                 end if
+                x.ovrOn = false
                 continue for
             end if
             for k as int32 = 0 to Defaults_( x, mb.cur[i] )
                 if Entry_( x, mb.cur[i], mb.kind[i], ci, decl, why, na - k ) then
+                    for g as int32 = 0 to x.extraGlob.Count - 1
+                        glob.Push( x.extraGlob[g] )
+                    next
+                    x.extraGlob.Clear( )
                     lines.Push( decl & "    '' " & disp & ArityNote_( k, na ) )
                 elseif (pass_ = 1) andalso (why = SAME_SIG_) andalso x.twinOfConst then
                     '' the non-const twin of a const method already bound: nothing lost
@@ -605,11 +671,36 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
                     lastWhy = why
                 end if
             next
+            x.ovrOn = false
         next
     next
-    for i as int32 = 0 to mb.cur.Count - 1
-        if (mb.kind[i] = K_FIELD_) andalso (pod = false) then Field_( x, ci, mb.cur[i], lines )
-    next
+    if HasRange_( x, ci ) then Range_( x, ci, lines )
+    '' A HANDLE WITH NO DEFAULT CONSTRUCTOR default-constructs EMPTY (impl_ null), as an empty
+    '' smart pointer: containers.Array( of T ) needs one, and so does 'dim as T x' before 'x = f( )'.
+    if pod = false then
+        dim as boolean hasDef = false
+        for i as int32 = 0 to x.sigs.Count - 1
+            if x.sigs[i] = lcase( x.clsTikoQ[ci] & ".constructor()" ) then hasDef = true
+        next
+        if hasDef = false then
+            dim as string s0 = Sym_( x )
+            lines.Push( "declare constructor alias """ & s0 & """ ( )    '' an empty handle: C++ has no default constructor" )
+            x.mirBody.Push( "    void " & s0 & "();" )
+            x.shim.Push( "extern ""C"" void " & s0 & "(tko_cpp_h* self_) __asm__(""@@M:" & s0 & "@@"");" & L & _
+                         "extern ""C"" void " & s0 & "(tko_cpp_h* self_) { self_->impl = nullptr; self_->owned = 0; }" & L )
+        end if
+    end if
+    if spec andalso (pod = false) then
+        dim as containers.Array( of CXCursor ) fs
+        SpecFields_( x, ci, fs )
+        for i as int32 = 0 to fs.Count - 1
+            if x.api->getCXXAccessSpecifier( fs[i] ) = CX_CXXPublic then Field_( x, ci, fs[i], lines )
+        next
+    elseif pod = false then
+        for i as int32 = 0 to mb.cur.Count - 1
+            if mb.kind[i] = K_FIELD_ then Field_( x, ci, mb.cur[i], lines )
+        next
+    end if
     for i as int32 = 0 to mb.seen.Count - 1
         for ai as int32 = 0 to x.clsUsr.Count - 1
             if x.clsUsr[ai] = mb.seen[i] then Cast_( x, ci, ai, lines )
@@ -633,6 +724,10 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         x.mirBody.Pop( )
     wend
     x.mirBody.Push( MirWrap_( x.clsNsMir[ci], body ) )
+    for i as int32 = 0 to x.mirExtra.Count - 1
+        x.mirBody.Push( x.mirExtra[i] )
+    next
+    x.mirExtra.Clear( )
 
     '' The members, in the type's second part, and its global operators beside it.
     if (lines.Count = 0) andalso (glob.Count = 0) then return
@@ -678,29 +773,85 @@ sub EmitClasses_( byref x as CppImp_ )
     next
 end sub
 
-sub CollectClass_( byref x as CppImp_, byval c as CXCursor )
-    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
-    if x.api->isCursorDefinition( c ) = 0 then return
-    if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return
+'' A CLASS, with the namespaces it is in given: the walk's own for a class it meets, its template's
+'' for a specialization (cpptmpl.tiko).
+sub CollectAt_( byref x as CppImp_, byval c as CXCursor, byref tn as string, byref cppQ as string, _
+                byref ns as Tko.StrVec, byval tmpl as CXCursor, byval spec as boolean )
     dim as string usr = Text_( x, x.api->getCursorUSR( c ) )
     for i as int32 = 0 to x.clsUsr.Count - 1
         if x.clsUsr[i] = usr then return
     next
-    dim as string tn = TypeName_( nm )
+    dim as string nt = "", nmr = "", tq = "", mq = ""
+    for i as int32 = 0 to ns.Count - 1
+        if i > 0 then nt &= chr( 1 ) : nmr &= chr( 1 )
+        nt &= ns[i] : nmr &= ucase( ns[i] )
+        tq &= ns[i] & "." : mq &= ucase( ns[i] ) & "::"
+    next
     x.clsUsr.Push( usr )
     x.clsTiko.Push( tn )
-    x.clsTikoQ.Push( QualTiko_( x, tn ) )
-    x.clsCpp.Push( QualCpp_( x, nm ) )
-    x.clsMir.Push( QualMir_( x, MirName_( tn ) ) )
-    dim as string nt = "", nmr = ""
-    for i as int32 = 0 to x.tikoNs.Count - 1
-        if i > 0 then nt &= chr( 1 ) : nmr &= chr( 1 )
-        nt &= x.tikoNs[i] : nmr &= ucase( x.tikoNs[i] )
-    next
+    x.clsTikoQ.Push( tq & tn )
+    x.clsCpp.Push( cppQ )
+    x.clsMir.Push( mq & MirName_( tn ) )
     x.clsNsTiko.Push( nt )
     x.clsNsMir.Push( nmr )
     x.clsCur.Push( c )
+    x.clsTmpl.Push( tmpl )
+    x.clsSpec.Push( iif( spec, "1", "" ) )
     x.mirFwd.Push( MirWrap_( nmr, "struct " & MirName_( tn ) & ";" ) )
+end sub
+
+sub CollectClass_( byref x as CppImp_, byval c as CXCursor )
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
+    if x.api->isCursorDefinition( c ) = 0 then return
+    if (len( nm ) = 0) orelse (instr( nm, "(" ) > 0) then return
+    '' An explicit specialization ('template<> struct Box<int>') is a specialization: named
+    '' 'Box_long' where the API names it (cpptmpl.tiko), not 'Box'.
+    if IsNullCursor_( x, x.api->getSpecializedCursorTemplate( c ) ) = false then return
+    dim as CXCursor none_
+    CollectAt_( x, c, TypeName_( nm ), QualCpp_( x, nm ), x.tikoNs, none_, false )
+end sub
+
+'' THE TYPES A CLASS'S MEMBERS NAME, for the specializations among them (cpptmpl.tiko NoteType_).
+sub DiscoverClass_( byref x as CppImp_, byval ci as int32 )
+    dim as Members_ mb
+    mb.x = @x
+    Gather_( x, mb, MemberRoot_( x, ci ) )
+    if IsSpec_( x, ci ) then
+        '' A SPECIALIZATION's member types are its probes' (cpptmpl.tiko), its fields its own.
+        for i as int32 = 0 to mb.cur.Count - 1
+            if (mb.kind[i] <> K_FIELD_) andalso ProbeOverride_( x, ci, i ) then
+                NoteType_( x, x.ovrRes )
+                for a as int32 = 0 to x.ovrArgs.Count - 1
+                    NoteType_( x, x.ovrArgs[a] )
+                next
+            end if
+        next
+        x.ovrOn = false
+        dim as containers.Array( of CXCursor ) fs
+        SpecFields_( x, ci, fs )
+        for i as int32 = 0 to fs.Count - 1
+            NoteType_( x, x.api->getCursorType( fs[i] ) )
+        next
+        return
+    end if
+    for i as int32 = 0 to mb.cur.Count - 1
+        if mb.kind[i] = K_FIELD_ then
+            NoteType_( x, x.api->getCursorType( mb.cur[i] ) )
+        else
+            NoteFunction_( x, mb.cur[i] )
+        end if
+    next
+end sub
+
+'' A specialization's pattern members, in Gather_'s order -- the order its probes are numbered in.
+sub SpecMembers_( byref x as CppImp_, byval ci as int32, byref mem as containers.Array( of CXCursor ), _
+                  byref kinds as containers.Array( of int32 ) )
+    dim as Members_ mb
+    mb.x = @x
+    Gather_( x, mb, MemberRoot_( x, ci ) )
+    for i as int32 = 0 to mb.cur.Count - 1
+        mem.Push( mb.cur[i] ) : kinds.Push( mb.kind[i] )
+    next
 end sub
 
 end namespace

@@ -174,6 +174,9 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
                         byval cpp as boolean )
     dim as any ptr hookFn = iif( cpp, e.cfg->cppimportFn, e.cfg->cimportFn )
     dim as any ptr hookCtx = iif( cpp, e.cfg->cppimportCtx, e.cfg->cimportCtx )
+    '' A C++ binding may hold std::vector as containers.Array: the scan records the import, the
+    '' compile makes it once the line is read, while the unit's header is open (C3b-2, cppvec.tiko).
+    if cpp andalso e.cfg->scanHeader then PpModImportFor( e, at, "std/containers", true ) : SkipToEol( e ) : return
     if hookFn = nullptr then
         if e.cfg->reportUnsupported then Report( e, TKO0310, at, word )
         SkipToEol( e )
@@ -209,6 +212,7 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
         Report( e, TKO0316, at, word )
         return
     end if
+    if cpp then PpModImportFor( e, at, "std/containers", true )
 
     dim as boolean unicode = (MacroFor( e, e.names->GetString( "unicode" ) ) <> nullptr)
     dim as PpCImportFn fn = hookFn
@@ -496,7 +500,7 @@ function IsDirectiveWord( byval w as string ) as boolean
     select case w
     case "if", "ifdef", "ifndef", "elseif", "elseifdef", "elseifndef", "else", "endif", _
          "define", "undef", "macro", "endmacro", "include", "error", "print", "assert", _
-         "pragma", "lang", "inclib", "libpath", "cmdline", "cinclude", "cppinclude", "foreignlib", _
+         "pragma", "lang", "inclib", "libpath", "cmdline", "cinclude", "cppinclude", "cppinstantiate", "foreignlib", _
          "module", "import", "export"
         return true
     end select
@@ -1041,6 +1045,17 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
 
     case "cppinclude"
         PpCInclude( e, at, word, true )
+
+    case "cppinstantiate"      '' '#cppinstantiate "geo::Box<int>"': for the next #cppinclude (D8)
+        dim as Token it_
+        dim as PpCppInstFn ifn = e.cfg->cppinstFn
+        if (ifn <> nullptr) andalso PeekOnLine( e, it_ ) andalso (Tk( it_ ) = TK_STRING_LIT) then
+            dim as string sp_ = SpellOf( e, it_ )
+            ifn( e.cfg->cppimportCtx, mid( sp_, instr( sp_, """" ) + 1, instrrev( sp_, """" ) - instr( sp_, """" ) - 1 ), at )
+        elseif e.cfg->reportUnsupported orelse (ifn <> nullptr) then
+            Report( e, iif( ifn = nullptr, TKO0310, TKO0316 ), at, word )
+        end if
+        SkipToEol( e )
 
     case "embed"
         PpEmbed( e, at )

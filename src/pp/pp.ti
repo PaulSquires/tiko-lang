@@ -265,6 +265,7 @@ namespace Tko
         '' PpCImportFn that returns the binding's FileId. NULL: the directive is TKO0310.
         as any ptr    cppimportCtx
         as any ptr    cppimportFn
+        as any ptr    cppinstFn      '' '#cppinstantiate' (docs/tiko-cpp C3b-2): a PpCppInstFn, with cppimportCtx
     end type
 
     type PpResult
@@ -420,6 +421,8 @@ namespace Tko
     type PpCImportFn as function _
         ( byval ctx as any ptr, byref header as string, byval unicode as boolean, _
           byval root as FileId, byval at as SourceLoc ) as FileId
+
+    type PpCppInstFn as sub ( byval ctx as any ptr, byref text as string, byval at as SourceLoc )
 
     type PpQueryFn as function _
         ( byval ctx as any ptr, byval kind as PpQueryKind, byval name as InternId, _

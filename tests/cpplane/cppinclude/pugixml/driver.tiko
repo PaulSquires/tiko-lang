@@ -1,6 +1,6 @@
 '' cppinclude/pugixml, called from tiko: what driver.cpp does, through the binding tiko
 '' -cppimport generates for the whole of pugixml.hpp. Must print what driver.cpp prints.
-'' 'if (node)' is 'node.empty( ) = false': pugixml's operator bool is not bound (C3b).
+'' 'if (node)' is 'node.empty( ) = false': pugixml's operator bool is a pointer-typed conversion, not bound.
 #include once "../../show.bi"
 #ifdef TKO_LANE_IMPORTED
     #include once "lib.ti"
@@ -90,8 +90,38 @@ sub XPath( )
     show_d( "xpath.count", count_.evaluate_number( pugi.xpath_node( root ) ) )
 end sub
 
+sub Ranges( )
+    '' 'for each' over pugixml's ranges: a node's children, a range of attributes, of named
+    '' children, an XPath node set -- each a class with begin( ) and end( ).
+    dim as pugi.xml_document doc
+    doc.load_string( TOOLS_XML )
+    dim as pugi.xml_node tools = doc.child( "Profile" ).child( "Tools" )
+    dim as string s
+    for each tool in tools
+        s &= *tool.attribute( "Filename" ).value( ) & ";"
+    next
+    show_s( "each.tools", strptr( s ) )
+    dim as string a
+    for each attr in tools.first_child( ).attributes( )
+        a &= *attr.name_( ) & ","
+    next
+    show_s( "each.attributes", strptr( a ) )
+    dim as long n = 0
+    for each t in tools.children( "Tool" )
+        n += 1
+    next
+    show_i( "each.named", n )
+    dim as pugi.xpath_node_set remote = doc.select_nodes( "//Tool[@AllowRemote='true']" )
+    dim as string r
+    for each xn in remote
+        r &= *xn.node( ).attribute( "Timeout" ).value( ) & " "
+    next
+    show_s( "each.xpath", strptr( r ) )
+end sub
+
 LoadString( )
 LoadError( )
 Traverse( )
 Modify( )
 XPath( )
+Ranges( )

@@ -83,11 +83,32 @@ static void xpath() {
     show_d("xpath.count", count.evaluate_number(doc));
 }
 
+static void ranges() {
+    // pugixml's own range-for idioms
+    pugi::xml_document doc;
+    doc.load_string(TOOLS);
+    pugi::xml_node tools = doc.child("Profile").child("Tools");
+    std::string s;
+    for (pugi::xml_node tool : tools) s += std::string(tool.attribute("Filename").value()) + ";";
+    show_s("each.tools", s.c_str());
+    std::string a;
+    for (pugi::xml_attribute attr : tools.first_child().attributes()) a += std::string(attr.name()) + ",";
+    show_s("each.attributes", a.c_str());
+    int n = 0;
+    for (pugi::xml_node t : tools.children("Tool")) { (void)t; ++n; }
+    show_i("each.named", n);
+    pugi::xpath_node_set remote = doc.select_nodes("//Tool[@AllowRemote='true']");
+    std::string r;
+    for (pugi::xpath_node xn : remote) r += std::string(xn.node().attribute("Timeout").value()) + " ";
+    show_s("each.xpath", r.c_str());
+}
+
 int main() {
     load_string();
     load_error();
     traverse();
     modify();
     xpath();
+    ranges();
     return 0;
 }

@@ -1,0 +1,291 @@
+'' cppvec.tiko -- the C++ importer's standard library types (C3b-2). See cppint.ti.
+''
+'' std::vector<T> IS containers.Array( of T ), COPIED AT THE CALL (D6): a parameter's Array is
+'' copied into a C++ vector the call reads, a 'std::vector<T>&' one copied back after it, and a
+'' vector result copied into a new Array. tiko cannot build a generic Array from C++, so the
+'' copying is tiko code: each entry point with a vector in it is a RAW shim function, taking and
+'' returning the vector as 'any ptr', and an ADAPTER -- a private tiko procedure the binding
+'' defines -- around it, over five shim functions per element type (new, free, size, get, push:
+'' the TRAITS). An element is anything a parameter and a result can be: a fundamental, an enum,
+'' std::string as ustring, a POD, a class handle.
+''
+'' std::unique_ptr<T> / std::shared_ptr<T> of a bound class are its handle. A unique_ptr result is
+'' an owned handle (owned_ 1); a shared_ptr result keeps the shared_ptr in owned_, so copying the
+'' handle shares the object, as copying a shared_ptr does. A unique_ptr parameter takes the
+'' object from a handle that owns it alone -- the handle is empty after -- and a shared_ptr one
+'' shares it (a handle that owned it alone becomes a shared one).
+
+#import "std/containers"
+#include once "cppimport/cppint.ti"
+
+namespace Tko.CppImport
+
+using Tko.CImport
+
+'' The element type of a vector as tiko and the shim spell it.
+private function Elem_( byref x as CppImp_, byval e as CXType, byref et as string, byref ec as string ) as boolean
+    dim as CXType c = Canon_( x, e )
+    dim as string tk, ct, tq, cq, mq, why
+    ec = Spell_( x, c )
+    while (left( ec, 6 ) = "const ") orelse (left( ec, 9 ) = "volatile ")
+        ec = mid( ec, instr( ec, " " ) + 1 )
+    wend
+    if StrKind_( x, c ) = 1 then et = "ustring" : return true
+    select case c.kind
+    case TY_RECORD_
+        dim as int32 ci = ClassOf_( x, c, why )
+        if (ci < 0) orelse (len( StdTemplate_( x, c ) ) > 0) then return false
+        et = x.clsTikoQ[ci] : ec = "::" & ec
+        return true
+    case TY_ENUM_
+        if EnumOf_( x, c, tq, cq, mq ) = false then return false
+        et = tq : ec = "::" & ec
+        return true
+    end select
+    if Fund_( x, e, tk, ct ) = false then return false
+    et = tk
+    return true
+end function
+
+'' THE TRAITS of std::vector<element>, written once: their index + 1, or 0.
+function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) as int32
+    dim as string et, ec
+    if Elem_( x, e, et, ec ) = false then why = "std::vector of " & Spell_( x, e ) : return 0
+    for i as int32 = 0 to x.vecEC.Count - 1
+        if x.vecEC[i] = ec then return i + 1
+    next
+    dim as TMap_ r = Result_( x, e )
+    dim as TMap_ m = Param_( x, e, "x_" )
+    if (r.ok = false) orelse (m.ok = false) then why = "std::vector of " & Spell_( x, e ) : return 0
+    dim as string L = chr( 10 ), b = Sym_( x ), vt = "std::vector<" & ec & ">"
+    dim as string vp = "static_cast<" & vt & "*>(v)"
+    x.vecDecls.Push( "extern ""C"" : declare function " & b & "_new alias """ & b & "_new"" ( byval n as integer ) as any ptr : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare sub " & b & "_free alias """ & b & "_free"" ( byval v as any ptr ) : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare function " & b & "_size alias """ & b & "_size"" ( byval v as any ptr ) as integer : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare function " & b & "_get alias """ & b & "_get"" ( byval v as any ptr, byval i as integer ) as " & r.tiko & " : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare sub " & b & "_push alias """ & b & "_push"" ( byval v as any ptr, " & m.tiko & " ) : end extern" )
+    dim as string f = "// " & vt & " <-> containers.Array( of " & et & " )" & L
+    f &= "extern ""C"" void* " & b & "_new(std::ptrdiff_t n) { try { auto* v = new " & vt & "(); v->reserve(n > 0 ? (std::size_t)n : 0); return v; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return nullptr; }" & L
+    f &= "extern ""C"" void " & b & "_free(void* v) { delete " & vp & "; }" & L
+    f &= "extern ""C"" std::ptrdiff_t " & b & "_size(void* v) { return v ? (std::ptrdiff_t)" & vp & "->size() : 0; }" & L
+    dim as string at_ = "(*" & vp & ")[(std::size_t)i]"
+    if r.sret = SR_OWNED_ then
+        f &= "extern ""C"" tko_cpp_h* " & b & "_get(tko_cpp_h* ret_, void* v, std::ptrdiff_t i) { ret_->impl = nullptr; ret_->owned = 0;" & L & _
+             "    try { ret_->impl = new " & r.rcpp & "(" & at_ & "); ret_->owned = 1; return ret_; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return ret_; }" & L
+    else
+        f &= "extern ""C"" " & r.ctype & " " & b & "_get(void* v, std::ptrdiff_t i) {" & L & _
+             "    try { return " & r.wrap0 & at_ & r.wrap1 & "; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return " & r.fallback & "; }" & L
+    end if
+    f &= "extern ""C"" void " & b & "_push(void* v, " & m.ctype & ") { try { " & vp & "->push_back(" & m.arg & "); return; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); }" & L
+    x.shim.Push( f )
+    x.vecEC.Push( ec ) : x.vecET.Push( et ) : x.vecBase.Push( b )
+    return x.vecEC.Count
+end function
+
+'' A STANDARD LIBRARY PARAMETER: std::vector (by value, const& and & -- the last copied back),
+'' unique_ptr by value, shared_ptr by value and const&. True when 't' is one, with 'm' its map.
+function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, byref m as TMap_ ) as boolean
+    dim as CXType c = Canon_( x, t ), pe = c
+    dim as boolean isRef = (c.kind = TY_LREF_)
+    if isRef then pe = Canon_( x, x.api->getNonReferenceType( t ) )
+    if pe.kind <> TY_RECORD_ then return false
+    dim as string sk = StdTemplate_( x, pe )
+    if len( sk ) = 0 then return false
+    dim as boolean kq = (x.api->isConstQualifiedType( pe ) <> 0)
+    dim as CXType e = x.api->Type_getTemplateArgumentAsType( pe, 0 )
+    dim as string why
+    m.ok = true
+    if sk = "vector" then
+        dim as int32 vk = VecKind_( x, e, why )
+        if vk = 0 then m.ok = false : m.why = why : return true
+        dim as string vt = "std::vector<" & x.vecEC[vk - 1] & ">"
+        m.tiko = "byval " & nm & " as any ptr" : m.ctype = "void* " & nm : m.mir = "void*"
+        m.arg = "*static_cast<" & vt & "*>(" & nm & ")"
+        m.vk1 = vk : m.vmode = iif( isRef andalso (kq = false), 2, 1 )
+        m.pub = "byref " & nm & " as " & iif( m.vmode = 1, "const ", "" ) & "containers.Array( of " & x.vecET[vk - 1] & " )"
+        return true
+    end if
+    dim as int32 ci = ClassOf_( x, e, why )
+    if (ci < 0) orelse IsPod_( x, ci ) then m.ok = false : m.why = "std::" & sk & " of " & Spell_( x, e ) : return true
+    if (sk = "unique_ptr") andalso isRef then m.ok = false : m.why = "a reference to a std::unique_ptr" : return true
+    if (sk = "shared_ptr") andalso isRef andalso (kq = false) then m.ok = false : m.why = "a std::shared_ptr& to change" : return true
+    m.tiko = "byref " & nm & " as " & x.clsTikoQ[ci] : m.ctype = "tko_cpp_h* " & nm : m.mir = x.clsMir[ci] & "&"
+    m.arg = iif( sk = "unique_ptr", "tko_cpp_take<", "tko_cpp_shared<" ) & x.clsCpp[ci] & ">(" & nm & ")"
+    return true
+end function
+
+'' A STANDARD LIBRARY RESULT: std::vector (by value or reference: a copy), unique_ptr, shared_ptr.
+function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) as boolean
+    dim as CXType c = Canon_( x, t ), pe = c
+    if c.kind = TY_LREF_ then pe = Canon_( x, x.api->getNonReferenceType( t ) )
+    if pe.kind <> TY_RECORD_ then return false
+    dim as string sk = StdTemplate_( x, pe )
+    if len( sk ) = 0 then return false
+    dim as CXType e = x.api->Type_getTemplateArgumentAsType( pe, 0 )
+    dim as string why
+    m.ok = true
+    if sk = "vector" then
+        dim as int32 vk = VecKind_( x, e, why )
+        if vk = 0 then m.ok = false : m.why = why : return true
+        m.tiko = "any ptr" : m.ctype = "void*" : m.fallback = "nullptr" : m.vk1 = vk
+        m.wrap0 = "static_cast<void*>(new std::vector<" & x.vecEC[vk - 1] & ">(" : m.wrap1 = "))"
+        return true
+    end if
+    if c.kind = TY_LREF_ then m.ok = false : m.why = "returns a reference to a std::" & sk : return true
+    dim as int32 ci = ClassOf_( x, e, why )
+    if (ci < 0) orelse IsPod_( x, ci ) then m.ok = false : m.why = "returns std::" & sk & " of " & Spell_( x, e ) : return true
+    m.tiko = x.clsTikoQ[ci] : m.ctype = "tko_cpp_h*" : m.rcpp = x.clsCpp[ci]
+    m.sret = iif( sk = "unique_ptr", SR_UNIQUE_, SR_SHARED_ )
+    return true
+end function
+
+'' THE ADAPTER around a raw entry point with a vector in it: a private tiko procedure that copies
+'' each Array in, calls 'raw', copies a '&' one back, frees, and copies a vector result out.
+'' 'head' is its 'function T.f( ... ) as R' line; 'self_' is "this, " for a method or "".
+sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
+              byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
+              byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean )
+    dim as string L = chr( 10 ), d = "", args = self_, e = ""
+    dim as int32 a = 1
+    while a <= len( nsList )
+        dim as int32 b = instr( a, nsList, chr( 1 ) )
+        if b = 0 then b = len( nsList ) + 1
+        d &= "namespace " & mid( nsList, a, b - a ) & L : e &= "end namespace" & L
+        a = b + 1
+    wend
+    d &= head & L
+    for i as int32 = 0 to names.Count - 1
+        if i > 0 then args &= ", "
+        if vks[i] = 0 then args &= names[i] : continue for
+        dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
+        d &= "    dim as any ptr " & vv & " = " & tb & "_new( " & names[i] & ".Count( ) )" & L
+        d &= "    for tko_i as long = 0 to " & names[i] & ".Count( ) - 1 : " & tb & "_push( " & vv & ", " & names[i] & "[tko_i] ) : next" & L
+        args &= vv
+    next
+    if rvk > 0 then
+        d &= "    dim as any ptr tko_r_ = " & rawq & "( " & args & " )" & L
+    elseif isSub then
+        d &= "    " & rawq & "( " & args & " )" & L
+    else
+        d &= "    dim as " & rtiko & " tko_x_ = " & rawq & "( " & args & " )" & L
+    end if
+    for i as int32 = 0 to names.Count - 1
+        if vks[i] = 0 then continue for
+        dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
+        if modes[i] = 2 then
+            d &= "    " & names[i] & ".Clear( )" & L
+            d &= "    for tko_i as long = 0 to " & tb & "_size( " & vv & " ) - 1 : " & names[i] & ".Push( " & tb & "_get( " & vv & ", tko_i ) ) : next" & L
+        end if
+        d &= "    " & tb & "_free( " & vv & " )" & L
+    next
+    if rvk > 0 then
+        dim as string tb = x.vecBase[rvk - 1]
+        d &= "    dim as containers.Array( of " & x.vecET[rvk - 1] & " ) tko_a_" & L
+        d &= "    for tko_i as long = 0 to " & tb & "_size( tko_r_ ) - 1 : tko_a_.Push( " & tb & "_get( tko_r_, tko_i ) ) : next" & L
+        d &= "    " & tb & "_free( tko_r_ )" & L
+        d &= "    return tko_a_" & L
+    elseif isSub = false then
+        d &= "    return tko_x_" & L
+    end if
+    d &= iif( isSub, "end sub", "end function" ) & L & e
+    x.defs.Push( d )
+end sub
+
+'' A RANGE -- a class with begin( ) and end( ) -- is something tiko walks with 'for each': the class
+'' gets GetIterator( ), which returns a handle of a shim struct holding the two C++ iterators,
+'' '<Class>_iter', whose IsValid( ), Value( ) and MoveNext( ) are 'cur != end', '*cur' and '++cur'.
+'' The element's type is '*begin( )''s, which a probe asks clang for (cpptmpl.tiko). The range
+'' borrows the class: it must outlive the loop, as a C++ range-for's does.
+function HasRange_( byref x as CppImp_, byval ci as int32 ) as boolean
+    dim as containers.Array( of CXCursor ) mem
+    dim as containers.Array( of int32 ) kinds
+    SpecMembers_( x, ci, mem, kinds )
+    dim as boolean b = false, e = false
+    for i as int32 = 0 to mem.Count - 1
+        if (kinds[i] <> K_METHOD_) orelse (x.api->Cursor_getNumArguments( mem[i] ) <> 0) then continue for
+        select case Text_( x, x.api->getCursorSpelling( mem[i] ) )
+        case "begin" : b = true
+        case "end"   : e = true
+        end select
+    next
+    return b andalso e
+end function
+
+function RangeProbe_( byref x as CppImp_, byval ci as int32 ) as string
+    return "namespace tko_cpp_probe { using it_" & Id_( x.clsCpp[ci] ) & " = decltype(*std::declval<" & _
+           x.clsCpp[ci] & "&>().begin()); }"
+end function
+
+sub Range_( byref x as CppImp_, byval ci as int32, byref lines as Tko.StrVec )
+    dim as string want = "it_" & Id_( x.clsCpp[ci] )
+    dim as CXType et
+    dim as boolean found = false
+    for i as int32 = 0 to x.probeNames.Count - 1
+        if x.probeNames[i] = want then et = x.probeTypes[i] : found = true : exit for
+    next
+    if found = false then return
+    dim as TMap_ r = Result_( x, et )
+    if (r.ok = false) orelse (r.vk1 > 0) then lines.Push( "'' CPP-TODO(range of " & Spell_( x, et ) & "): " & x.clsCpp[ci] ) : x.todos += 1 : return
+    dim as string L = chr( 10 ), cpp = x.clsCpp[ci]
+    dim as string itn = x.clsTiko[ci] & "_iter", itq = left( x.clsTikoQ[ci], len( x.clsTikoQ[ci] ) - len( x.clsTiko[ci] ) ) & itn
+    dim as string itm = left( x.clsMir[ci], len( x.clsMir[ci] ) - len( MirName_( x.clsTiko[ci] ) ) ) & MirName_( itn )
+    dim as string rg = "tko_cpp_rng_" & x.id & "_" & x.n
+    dim as string obj = iif( IsPod_( x, ci ), "(*self_)", "(*static_cast<" & cpp & "*>(self_->impl))" )
+    dim as string selfT = iif( IsPod_( x, ci ), cpp & "*", "tko_cpp_h*" )
+    dim as string sg = Sym_( x ), sd = Sym_( x ), sc = Sym_( x ), sl = Sym_( x ), sv = Sym_( x ), sx = Sym_( x ), sn = Sym_( x )
+    dim as string f = "// " & cpp & " as a 'for each' range" & L & _
+        "using " & rg & " = tko_cpp_range<decltype(std::declval<" & cpp & "&>().begin())>;" & L
+    dim as string h = "extern ""C"" tko_cpp_h* " & sg & "(tko_cpp_h* ret_, " & selfT & " self_)"
+    f &= h & " __asm__(""@@M:" & sg & "@@"");" & L & h & " { ret_->impl = nullptr; ret_->owned = 0;" & L & _
+         "    try { auto& o = " & obj & "; ret_->impl = new " & rg & "{o.begin(), o.end()}; ret_->owned = 1; return ret_; } TKO_CPP_CATCH" & L & _
+         "    tko_cpp_raise(); return ret_; }" & L
+    h = "extern ""C"" void " & sd & "(tko_cpp_h* self_)"
+    f &= h & " __asm__(""@@M:" & sd & "@@"");" & L & h & " { tko_cpp_free<" & rg & ">(self_); }" & L
+    h = "extern ""C"" void " & sc & "(tko_cpp_h* self_, const tko_cpp_h* o_)"
+    f &= h & " __asm__(""@@M:" & sc & "@@"");" & L & h & " { tko_cpp_copy<" & rg & ">(self_, o_); }" & L
+    h = "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_)"
+    f &= h & " __asm__(""@@M:let:" & itm & "@@"");" & L & h & " { tko_cpp_assign<" & rg & ">(self_, o_); }" & L
+    h = "extern ""C"" bool " & sv & "(tko_cpp_h* self_)"
+    f &= h & " __asm__(""@@M:" & sv & "@@"");" & L & h & " { auto* r = static_cast<" & rg & "*>(self_->impl); return r && r->cur != r->end; }" & L
+    dim as string cur = "*static_cast<" & rg & "*>(self_->impl)->cur"
+    if r.sret <> SR_NONE_ then
+        h = "extern ""C"" tko_cpp_h* " & sx & "(tko_cpp_h* ret_, tko_cpp_h* self_)"
+        f &= h & " __asm__(""@@M:" & sx & "@@"");" & L & h & " { ret_->impl = nullptr; ret_->owned = 0;" & L & "    try { "
+        select case r.sret
+        case SR_OWNED_ : f &= "ret_->impl = new " & r.rcpp & "(" & cur & "); ret_->owned = 1; return ret_;"
+        case SR_REF_   : f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(&(" & cur & "))); return ret_;"
+        case else      : f &= "ret_->impl = const_cast<void*>(static_cast<const void*>(" & cur & ")); return ret_;"
+        end select
+        f &= " } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return ret_; }" & L
+    else
+        h = "extern ""C"" " & r.ctype & " " & sx & "(tko_cpp_h* self_)"
+        f &= h & " __asm__(""@@M:" & sx & "@@"");" & L & h & " {" & L & _
+             "    try { return " & r.wrap0 & cur & r.wrap1 & "; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return " & r.fallback & "; }" & L
+    end if
+    h = "extern ""C"" void " & sn & "(tko_cpp_h* self_)"
+    f &= h & " __asm__(""@@M:" & sn & "@@"");" & L & h & " { ++static_cast<" & rg & "*>(self_->impl)->cur; }" & L
+    x.shim.Push( f )
+    '' The iterator's type, complete, before the class's members name it.
+    dim as Tko.StrVec opened
+    dim as string ind = NsOpen_( x, ci, opened )
+    x.bind.Push( ind & "extern ""C""" )
+    x.bind.Push( ind & "    type " & itn & "    '' walks " & cpp & " for 'for each'" )
+    x.bind.Push( ind & "        as any ptr impl_" )
+    x.bind.Push( ind & "        as longint owned_" )
+    x.bind.Push( ind & "        declare destructor alias """ & sd & """ ( )" )
+    x.bind.Push( ind & "        declare constructor alias """ & sc & """ ( byref o_ as const " & itq & " )" )
+    x.bind.Push( ind & "        declare operator let alias """ & sl & """ ( byref o_ as const " & itq & " )" )
+    x.bind.Push( ind & "        declare const function IsValid alias """ & sv & """ ( ) as boolean" )
+    x.bind.Push( ind & "        declare function Value alias """ & sx & """ ( )" & iif( r.byrefRet, " byref as ", " as " ) & r.tiko )
+    x.bind.Push( ind & "        declare sub MoveNext alias """ & sn & """ ( )" )
+    x.bind.Push( ind & "    end type" )
+    x.bind.Push( ind & "end extern" )
+    NsClose_( x, opened )
+    x.mirExtra.Push( MirWrap_( x.clsNsMir[ci], "struct " & MirName_( itn ) & " { void " & sd & "(); void " & sc & "(const " & _
+                    MirName_( itn ) & "&); void operator=(const " & MirName_( itn ) & "&); void " & sv & "() const; void " & sx & _
+                    "(); void " & sn & "(); };" ) )
+    lines.Push( "declare function GetIterator alias """ & sg & """ ( ) as " & itq & "    '' for each, over begin( ) .. end( )" )
+    x.mirBody.Push( "    void " & sg & "();" )             '' the class's own struct
+end sub
+
+end namespace

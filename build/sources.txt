@@ -182,6 +182,8 @@ src/cppimport/cppimport.tiko
 src/cppimport/cpptypes.tiko
 src/cppimport/cppclass.tiko
 src/cppimport/cpppod.tiko
+src/cppimport/cpptmpl.tiko
+src/cppimport/cppvec.tiko
 src/driver/cppinclude.tiko
 src/c2t/sha256.tiko
 src/c2t/source.tiko

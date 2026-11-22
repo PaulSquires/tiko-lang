@@ -201,6 +201,8 @@ function PpModPreDirective _
     case "module", "import", "lang", "if", "ifdef", "ifndef", "elseif", "elseifdef", _
          "elseifndef", "else", "endif", "cmdline"
         return false
+    case "cppinclude", "cppinstantiate"      '' it imports std/containers (docs/tiko-cpp C3b-2)
+        return false
     case "pragma"
         dim as Token t
         if PeekOnLine( e, t ) then
@@ -387,6 +389,50 @@ private sub PpModModule_( byref e as PpEngine, byval at as SourceLoc )
     if e.cfg->moduleFiles = nullptr then PpModNotImpl_( e, at )
 end sub
 
+private sub PpModImportRec_( byref e as PpEngine, byval at as SourceLoc, byref rec as PpImport )
+    e.outp->imports.Push( rec )
+    if e.cfg->importsBuilt = false then
+        PpModNotImpl_( e, at )
+        return
+    end if
+    if e.cfg->importFn = nullptr then return
+
+    '' THE INTERFACES, read next and dependencies first: pushed last-first, so the first
+    '' is on top. One already read -- a diamond -- is not read again.
+    dim as FileIdVec got
+    e.modst.importLoc = at
+    dim as PpImportFn fn = e.cfg->importFn
+    dim as string chain_
+    if fn( e.cfg->importCtx, rec, got, chain_ ) = false then return
+    PpAliasAdd_( e, e.names->GetString( Text.LowerAscii( rec.alias_ ) ), chain_ )
+    for k as int32 = got.Count - 1 to 0 step -1
+        dim as FileId id = cast( FileId, got[k] )
+        if PpAlreadyOnce( e, id ) then continue for
+        PpOnceAdd_( e, id )
+        PpIfaceAdd_( e, id )
+        dim as TokenVec ptr toks = PpLexFile( e, id )
+        PushFrame( e, toks, INTERN_NONE, id, false )
+        e.frames[e.frames.Count - 1].iface = true
+        e.frames[e.frames.Count - 1].inImport = true
+    next
+end sub
+
+'' AN IMPORT THE UNIT DID NOT WRITE ('#cppinclude': std/containers); none after code (TKO0362).
+function PpModImportFor( byref e as PpEngine, byval at as SourceLoc, byref path_ as string, _
+                         byval quiet as boolean ) as boolean
+    for i as int32 = 0 to e.outp->imports.Count - 1
+        if Text.LowerAscii( e.outp->imports[i].path ) = Text.LowerAscii( path_ ) then return true
+    next
+    if (PpModInRoot_( e ) = false) orelse e.modst.headerClosed then
+        if quiet = false then Report( e, TKO0362, at )
+        return false
+    end if
+    dim as PpImport rec
+    rec.path = path_ : rec.alias_ = PpModLastSegment_( path_ ) : rec.loc = at
+    PpModImportRec_( e, at, rec )
+    return true
+end function
+
 private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     '' Only the compiled file's own header: a header cannot bring a dependency along.
     dim as boolean placed = PpModInRoot_( e ) andalso (e.modst.headerClosed = false)
@@ -462,32 +508,9 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
         return
     end if
 
-    e.outp->imports.Push( rec )
-    if e.cfg->importsBuilt = false then
-        PpModNotImpl_( e, at )
-        return
-    end if
-    if e.cfg->importFn = nullptr then return
-
-    '' THE INTERFACES, read next and dependencies first: pushed last-first, so the first
-    '' is on top. One already read -- a diamond -- is not read again.
-    dim as FileIdVec got
-    e.modst.importLoc = at
-    dim as PpImportFn fn = e.cfg->importFn
-    dim as string chain_
-    if fn( e.cfg->importCtx, rec, got, chain_ ) = false then return
-    PpAliasAdd_( e, e.names->GetString( Text.LowerAscii( rec.alias_ ) ), chain_ )
-    for k as int32 = got.Count - 1 to 0 step -1
-        dim as FileId id = cast( FileId, got[k] )
-        if PpAlreadyOnce( e, id ) then continue for
-        PpOnceAdd_( e, id )
-        PpIfaceAdd_( e, id )
-        dim as TokenVec ptr toks = PpLexFile( e, id )
-        PushFrame( e, toks, INTERN_NONE, id, false )
-        e.frames[e.frames.Count - 1].iface = true
-        e.frames[e.frames.Count - 1].inImport = true
-    next
+    PpModImportRec_( e, at, rec )
 end sub
+
 
 '' An exported macro, recorded as it is now: the interface writer spells it (tkiemit.tiko).
 private sub PpModRecordExport_( byref e as PpEngine, byval m as PpMacro ptr, byref nm as string )

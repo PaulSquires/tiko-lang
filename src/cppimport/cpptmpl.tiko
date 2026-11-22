@@ -1,0 +1,377 @@
+'' cpptmpl.tiko -- the C++ importer's templates (C3b-2, D8, D9). See cppint.ti.
+''
+'' A CLASS TEMPLATE IS BOUND WHERE IT IS INSTANTIATED. Every specialization the header's own bound
+'' API names -- 'Box<double> make( )', a member 'Pair<int, std::string> p' -- is a class like any
+'' other, named 'Box_double' (D9) in its template's namespace; one nothing names is asked for with
+'' '#cppinstantiate "geo::Box<int>"' (D8). A function template is bound only when asked for:
+'' '#cppinstantiate "geo::clamp<int>"' is an overload of 'geo.clamp'.
+''
+'' AN IMPLICIT SPECIALIZATION A DECLARATION NAMES IS NOT INSTANTIATED: 'Box<double> make( );' does
+'' not need the class complete, so clang has no members for it. The run parses again with
+'' 'static_assert(sizeof(::geo::Box<double>) > 0)' after the header, which instantiates the class
+'' (its member declarations, not their bodies), and does so until nothing new is named.
+
+#import "std/containers"
+#include once "cppimport/cppint.ti"
+
+namespace Tko.CppImport
+
+using Tko.CImport
+
+function IsNullCursor_( byref x as CppImp_, byval c as CXCursor ) as boolean
+    dim as int32 k = x.api->getCursorKind( c )
+    return (k >= 70) andalso (k <= 73)           '' CXCursor_FirstInvalid .. LastInvalid
+end function
+
+'' Inside namespace std (or one of its inline namespaces)?
+function InStd_( byref x as CppImp_, byval c as CXCursor ) as boolean
+    dim as int32 guard = 0
+    c = x.api->getCursorSemanticParent( c )
+    while (x.api->getCursorKind( c ) <> CXCursor_TranslationUnit) andalso (guard < 16)
+        if (x.api->getCursorKind( c ) = CXCursor_Namespace) andalso (Text_( x, x.api->getCursorSpelling( c ) ) = "std") then return true
+        c = x.api->getCursorSemanticParent( c )
+        guard += 1
+    wend
+    return false
+end function
+
+'' A std class template the importer knows by name -- "vector", "unique_ptr", "shared_ptr" --
+'' for a record type that is a specialization of it, else "".
+function StdTemplate_( byref x as CppImp_, byval t as CXType ) as string
+    dim as CXType c = Canon_( x, t )
+    if c.kind <> TY_RECORD_ then return ""
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( x.api->getTypeDeclaration( c ) )
+    if IsNullCursor_( x, tm ) orelse (InStd_( x, tm ) = false) then return ""
+    dim as string nm = Text_( x, x.api->getCursorSpelling( tm ) )
+    select case nm
+    case "vector", "unique_ptr", "shared_ptr" : return nm
+    end select
+    return ""
+end function
+
+'' A template argument as part of a tiko name: 'double', 'long', 'ustring', 'Point', 'Box_long'.
+private function ArgName_( byref x as CppImp_, byval t as CXType ) as string
+    dim as CXType c = Canon_( x, t )
+    dim as string tk, ct, tq, cq, mq, why
+    if StrKind_( x, c ) > 0 then return "ustring"
+    select case c.kind
+    case TY_POINTER_ : return ArgName_( x, x.api->getPointeeType( c ) ) & "ptr"
+    case TY_ENUM_
+        if EnumOf_( x, c, tq, cq, mq ) then return mid( tq, instrrev( tq, "." ) + 1 )
+    case TY_RECORD_
+        dim as CXCursor d = x.api->getTypeDeclaration( c )
+        if IsNullCursor_( x, x.api->getSpecializedCursorTemplate( d ) ) = false then return SpecName_( x, c )
+        return TypeName_( Text_( x, x.api->getCursorSpelling( d ) ) )
+    end select
+    if Fund_( x, c, tk, ct ) then return tk
+    dim as string s = Spell_( x, c ), r = ""
+    for i as int32 = 0 to len( s ) - 1
+        if ((s[i] >= 48) andalso (s[i] <= 57)) orelse ((s[i] >= 65) andalso (s[i] <= 90)) orelse _
+           ((s[i] >= 97) andalso (s[i] <= 122)) then r &= chr( s[i] )
+    next
+    return r
+end function
+
+'' 'Box<double>' -> 'Box_double', 'Pair<int, std::string>' -> 'Pair_long_ustring', 'Arr<int, 3>' ->
+'' 'Arr_long_3' (D9).
+function SpecName_( byref x as CppImp_, byval t as CXType ) as string
+    dim as CXType c = Canon_( x, t )
+    dim as CXCursor d = x.api->getTypeDeclaration( c )
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( d )
+    dim as string r = Text_( x, x.api->getCursorSpelling( tm ) )
+    dim as int32 n = x.api->Type_getNumTemplateArguments( c )
+    for i as int32 = 0 to n - 1
+        dim as CXType at_ = x.api->Type_getTemplateArgumentAsType( c, i )
+        if at_.kind <> 0 then
+            r &= "_" & ArgName_( x, at_ )
+        else
+            dim as int64 v = x.api->Cursor_getTemplateArgumentValue( d, i )
+            r &= "_" & iif( v < 0, "m" & str( -v ), str( v ) )
+        end if
+    next
+    return r
+end function
+
+'' THE NAMESPACES a declaration is in, tiko-spelled, outermost first. False for one nested in a
+'' class: a specialization of a member template is not bound.
+function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec ) as boolean
+    dim as Tko.StrVec rev
+    dim as int32 guard = 0
+    c = x.api->getCursorSemanticParent( c )
+    while (x.api->getCursorKind( c ) <> CXCursor_TranslationUnit) andalso (guard < 16)
+        dim as int32 k = x.api->getCursorKind( c )
+        if k = CXCursor_Namespace then
+            rev.Push( TypeName_( Text_( x, x.api->getCursorSpelling( c ) ) ) )
+        elseif k <> CXCursor_LinkageSpec then
+            return false
+        end if
+        c = x.api->getCursorSemanticParent( c )
+        guard += 1
+    wend
+    for i as int32 = rev.Count - 1 to 0 step -1
+        ns.Push( rev[i] )
+    next
+    return true
+end function
+
+'' A TYPE THE BOUND API NAMES, looked into for specializations to bind: through pointers and
+'' references, into std::vector / unique_ptr / shared_ptr's element. One that is not complete is
+'' asked to be (CppImp_.needForce) and bound on the next parse.
+sub NoteType_( byref x as CppImp_, byval t as CXType )
+    dim as CXType c = Canon_( x, t )
+    select case c.kind
+    case TY_POINTER_, TY_LREF_, TY_RREF_
+        NoteType_( x, x.api->getPointeeType( c ) )
+        return
+    case TY_RECORD_
+    case else
+        return
+    end select
+    if StrKind_( x, c ) > 0 then return
+    if len( StdTemplate_( x, c ) ) then
+        NoteType_( x, x.api->Type_getTemplateArgumentAsType( c, 0 ) )
+        return
+    end if
+    dim as CXCursor d = x.api->getTypeDeclaration( c )
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( d )
+    if IsNullCursor_( x, tm ) orelse InStd_( x, tm ) orelse (InScope_( x, tm ) = false) then return
+    dim as string usr = Text_( x, x.api->getCursorUSR( d ) )
+    for i as int32 = 0 to x.clsUsr.Count - 1
+        if x.clsUsr[i] = usr then return
+    next
+    '' Its C++ name, unqualified: the pointee of 'const Box<double>&' spells its 'const'.
+    dim as string sp = Spell_( x, c )
+    while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
+        sp = mid( sp, instr( sp, " " ) + 1 )
+    wend
+    sp = "::" & sp
+    if x.api->Type_getSizeOf( c ) < 0 then
+        for i as int32 = 0 to x.needForce.Count - 1
+            if x.needForce[i] = sp then return
+        next
+        x.needForce.Push( sp )
+        return
+    end if
+    dim as Tko.StrVec ns
+    if NsOf_( x, d, ns ) = false then return
+    CollectAt_( x, d, TypeName_( SpecName_( x, c ) ), sp, ns, tm, true )
+end sub
+
+'' A FUNCTION'S TYPES, for NoteType_.
+sub NoteFunction_( byref x as CppImp_, byval c as CXCursor )
+    NoteType_( x, x.api->getCursorResultType( c ) )
+    for i as int32 = 0 to x.api->Cursor_getNumArguments( c ) - 1
+        NoteType_( x, x.api->getCursorType( x.api->Cursor_getArgument( c, i ) ) )
+    next
+end sub
+
+'' '#cppinstantiate's targets in the parsed unit: 'using tko_cpp_inst_<i> = ...;' names a class,
+'' 'auto* const tko_cpp_fn_<i> = &...;' a function. Found by name among the unit's own cursors.
+type InstFind_
+    as CppImp_ ptr x
+    as string want
+    as CXCursor found
+    as boolean ok
+end type
+
+private function RefVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as InstFind_ ptr f = client
+    if f->x->api->getCursorKind( c ) = 101 then           '' CXCursor_DeclRefExpr
+        f->found = f->x->api->getCursorReferenced( c )
+        f->ok = true
+        return CXChildVisit_Break
+    end if
+    return CXChildVisit_Recurse
+end function
+
+private function TopVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as InstFind_ ptr f = client
+    if Text_( *f->x, f->x->api->getCursorSpelling( c ) ) <> f->want then return CXChildVisit_Continue
+    dim as int32 k = f->x->api->getCursorKind( c )
+    if (k = CXCursor_TypeAliasDecl) orelse (k = 20) then  '' 20: CXCursor_TypedefDecl
+        f->found = c
+        f->ok = true
+        return CXChildVisit_Break
+    end if
+    if k = CXCursor_VarDecl then
+        f->x->api->visitChildren( c, @RefVisit_, f )
+        return CXChildVisit_Break
+    end if
+    return CXChildVisit_Continue
+end function
+
+'' The class type a 'tko_cpp_inst_<i>' alias names, or a kind-0 type.
+function InstClass_( byref x as CppImp_, byval i as int32 ) as CXType
+    dim as InstFind_ f
+    f.x = @x
+    f.want = "tko_cpp_inst_" & i
+    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @TopVisit_, @f )
+    dim as CXType none_
+    if f.ok = false then return none_
+    return Canon_( x, x.api->getTypedefDeclUnderlyingType( f.found ) )
+end function
+
+'' The function a 'tko_cpp_fn_<i>' pointer takes the address of; false when there is none.
+function InstFunction_( byref x as CppImp_, byval i as int32, byref fn as CXCursor ) as boolean
+    dim as InstFind_ f
+    f.x = @x
+    f.want = "tko_cpp_fn_" & i
+    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @TopVisit_, @f )
+    if f.ok = false then return false
+    if x.api->getCursorKind( f.found ) <> CXCursor_FunctionDecl then return false
+    fn = f.found
+    return true
+end function
+
+'' ---------------------------------------------------------------- the members of a specialization
+
+'' A SPECIALIZATION HAS NO MEMBERS libclang will show: its cursor visitor walks an explicit
+'' specialization's body and nothing of an instantiation's, implicit or explicit. So its MEMBERS
+'' are the pattern's -- the class template's own -- and their TYPES are instantiated by clang
+'' through a PROBE: a template with the class template's own parameter list, in its namespace,
+'' holding each member's type as a function type spelled as the pattern spells it,
+''
+''     namespace tpl { template <class T> struct tko_cpp_p_1a2b3c4d { using m3 = T(const Box<T> &); }; }
+''     namespace tko_cpp_probe { using p_1a2b3c4d_m3 = ::tpl::tko_cpp_p_1a2b3c4d<double>::m3; }
+''
+'' and read back on the next parse as 'double(const tpl::Box<double> &)'. A member whose type
+'' clang cannot spell there -- a class-scope typedef -- is an error in that probe line alone, which
+'' the parse forgives, and that member is a CPP-TODO. Its FIELDS are the instantiation's own,
+'' which clang_Type_visitFields does walk.
+
+function SpecPattern_( byref x as CppImp_, byval ci as int32 ) as CXCursor
+    return x.clsTmpl[ci]
+end function
+
+function IsSpec_( byref x as CppImp_, byval ci as int32 ) as boolean
+    if (ci < 0) orelse (ci >= x.clsSpec.Count) then return false
+    return x.clsSpec[ci] = "1"
+end function
+
+'' The cursor whose children are the class's members: the pattern for a specialization.
+function MemberRoot_( byref x as CppImp_, byval ci as int32 ) as CXCursor
+    if IsSpec_( x, ci ) then return x.clsTmpl[ci]
+    return x.clsCur[ci]
+end function
+
+type TParams_
+    as CppImp_ ptr x
+    as string text
+    as boolean ok
+end type
+
+private function TParamVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as TParams_ ptr tp = client
+    dim as CppImp_ ptr xp = tp->x
+    dim as string nm = Text_( *xp, xp->api->getCursorSpelling( c ) )
+    select case xp->api->getCursorKind( c )
+    case 27        '' CXCursor_TemplateTypeParameter
+        tp->text &= iif( len( tp->text ), ", ", "" ) & "class " & nm
+    case 28        '' CXCursor_NonTypeTemplateParameter
+        tp->text &= iif( len( tp->text ), ", ", "" ) & Spell_( *xp, xp->api->getCursorType( c ) ) & " " & nm
+    case 29        '' CXCursor_TemplateTemplateParameter
+        tp->ok = false
+    end select
+    return CXChildVisit_Continue
+end function
+
+'' THE PROBE LINES for specialization ci, appended to 'out_'. False when its template cannot be
+'' probed (a template template parameter, a parameter pack).
+function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.StrVec ) as boolean
+    dim as CXCursor tm = x.clsTmpl[ci]
+    dim as TParams_ tp
+    tp.x = @x
+    tp.ok = true
+    x.api->visitChildren( tm, @TParamVisit_, @tp )
+    if (tp.ok = false) orelse (len( tp.text ) = 0) orelse (instr( tp.text, "..." ) > 0) then return false
+    dim as Tko.StrVec ns
+    if NsOf_( x, tm, ns ) = false then return false
+    dim as string cpp = x.clsCpp[ci]
+    dim as string args = mid( cpp, instr( cpp, "<" ) + 1 )
+    args = left( args, instrrev( args, ">" ) - 1 )
+    dim as string pid = Id_( cpp ), nsq = "", open_ = "", close_ = ""
+    for i as int32 = 0 to ns.Count - 1
+        nsq &= "::" & ns[i] : open_ &= "namespace " & ns[i] & " { " : close_ &= " }"
+    next
+    '' The pattern's members, in Gather_'s order: the probes are numbered as ClassLines_ reads them.
+    dim as containers.Array( of CXCursor ) mem
+    dim as containers.Array( of int32 ) kinds
+    SpecMembers_( x, ci, mem, kinds )
+    dim as string body = "", uses = ""
+    for j as int32 = 0 to mem.Count - 1
+        if kinds[j] = K_FIELD_ then continue for
+        dim as CXCursor m = mem[j]
+        if x.api->Cursor_isVariadic( m ) <> 0 then continue for
+        dim as string r = "void"
+        if x.api->getCursorKind( m ) <> CXCursor_Constructor then r = Spell_( x, x.api->getCursorResultType( m ) )
+        dim as string ps = ""
+        for a as int32 = 0 to x.api->Cursor_getNumArguments( m ) - 1
+            ps &= iif( a > 0, ", ", "" ) & Spell_( x, x.api->getCursorType( x.api->Cursor_getArgument( m, a ) ) )
+        next
+        body &= " using m" & j & " = " & r & "(" & ps & ");"
+        uses &= " using p_" & pid & "_m" & j & " = " & nsq & "::tko_cpp_p_" & pid & "<" & args & ">::m" & j & ";"
+    next
+    out_.Push( open_ & "template <" & tp.text & "> struct tko_cpp_p_" & pid & " {" & body & " };" & close_ )
+    out_.Push( "namespace tko_cpp_probe {" & uses & " }" )
+    return true
+end function
+
+private function ProbeVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as CppImp_ ptr xp = client
+    if xp->api->getCursorKind( c ) = CXCursor_TypeAliasDecl then
+        xp->probeNames.Push( Text_( *xp, xp->api->getCursorSpelling( c ) ) )
+        '' NOT CANONICAL: the instantiated function type keeps 'std::size_t' as written, which
+        '' tiko spells uinteger; its canonical form is 'unsigned long long'.
+        xp->probeTypes.Push( xp->api->getTypedefDeclUnderlyingType( c ) )
+    end if
+    return CXChildVisit_Continue
+end function
+
+private function ProbeNsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as CppImp_ ptr xp = client
+    if (xp->api->getCursorKind( c ) = CXCursor_Namespace) andalso _
+       (Text_( *xp, xp->api->getCursorSpelling( c ) ) = "tko_cpp_probe") then xp->api->visitChildren( c, @ProbeVisit_, xp )
+    return CXChildVisit_Continue
+end function
+
+'' Every probe this parse resolved, by name.
+sub LoadProbes_( byref x as CppImp_ )
+    x.probeNames.Clear( )
+    x.probeTypes.Clear( )
+    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @ProbeNsVisit_, @x )
+end sub
+
+'' MEMBER j's instantiated function type, as the overriding types Entry_ reads; false when it
+'' was not probed or clang could not instantiate it.
+function ProbeOverride_( byref x as CppImp_, byval ci as int32, byval j as int32 ) as boolean
+    x.ovrOn = false
+    dim as string want = "p_" & Id_( x.clsCpp[ci] ) & "_m" & j
+    for i as int32 = 0 to x.probeNames.Count - 1
+        if x.probeNames[i] = want then
+            dim as CXType ft = x.probeTypes[i]
+            dim as int32 fk = Canon_( x, ft ).kind
+            if (fk <> 111) andalso (fk <> 110) then return false             '' FunctionProto / NoProto
+            x.ovrArgs.Clear( )
+            for a as int32 = 0 to x.api->getNumArgTypes( ft ) - 1
+                x.ovrArgs.Push( x.api->getArgType( ft, a ) )
+            next
+            x.ovrRes = x.api->getResultType( ft )
+            x.ovrOn = true
+            return true
+        end if
+    next
+    return false
+end function
+
+private function SpecFieldVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as int32
+    dim as containers.Array( of CXCursor ) ptr out_ = client
+    out_->Push( c )
+    return 1                         '' CXVisit_Continue
+end function
+
+'' A specialization's own fields, instantiated, every access.
+sub SpecFields_( byref x as CppImp_, byval ci as int32, byref out_ as containers.Array( of CXCursor ) )
+    x.api->Type_visitFields( x.api->getCursorType( x.clsCur[ci] ), @SpecFieldVisit_, @out_ )
+end sub
+
+end namespace

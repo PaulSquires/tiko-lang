@@ -86,8 +86,11 @@ for c in $CASES; do
     inc=""
     if [ -f "$ROOT/tests/cpplane/$c/lib.hpp" ]; then
         mkdir -p "$W/cases/$s.inc"
+        # The driver's '#cppinstantiate' lines, as -cppinstantiate (docs/tiko-cpp C3b-2).
+        inst=()
+        while IFS= read -r ln; do inst+=( -cppinstantiate "$ln" ); done < <(sed -n 's/^[[:space:]]*#cppinstantiate[[:space:]]*"\(.*\)".*/\1/p' "$ROOT/tests/cpplane/$c/driver.tiko")
         ( cd "$ROOT/tests/cpplane/$c" && MSYS_NO_PATHCONV=1 "$TKO" -target linux-x86_64 -csysroot "$CPPSYSROOT" \
-              -cppimport lib.hpp -cppimport-out "$(cygpath -m "$W/cases/$s.inc")/lib.ti" ) > "$W/cases/$s.import.log" 2>&1 \
+              "${inst[@]}" -cppimport lib.hpp -cppimport-out "$(cygpath -m "$W/cases/$s.inc")/lib.ti" ) > "$W/cases/$s.import.log" 2>&1 \
             || { echo "import" > "$W/cases/$s.nobuild"; continue; }
         inc="-d TKO_LANE_IMPORTED -i $W/cases/$s.inc"
     fi
@@ -125,7 +128,11 @@ for c in $CASES; do
         \$CXX -std=c++17 -O1 -I "\$d" -c cases/\$s.inc/lib.ti.cpp -o cases/\$s.shim.o > cases/\$s.shim.log 2>&1 || { echo shim > cases/\$s.nobuild; continue; }
         shim=cases/\$s.shim.o
     fi
-    \$CXX -no-pie "$RT/fbrt0.o" cases/\$s.o \$shim cases/\$s.lib.o show.o "$RT/libfb.a" \
+    # A driver that '#import's -- or '#cppinclude's, which imports std/containers -- links the
+    # module objects tiko -c wrote beside its object (std.<module>.o).
+    mods=""
+    if grep -qE '^[[:space:]]*#(import|cppinclude)' "\$d/driver.tiko"; then mods=\$(ls cases/std.*.o 2>/dev/null); fi
+    \$CXX -no-pie "$RT/fbrt0.o" cases/\$s.o \$shim \$mods cases/\$s.lib.o show.o "$RT/libfb.a" \
         -lm -lpthread -ltinfo -o cases/\$s.tk > cases/\$s.link.log 2>&1 || { echo link > cases/\$s.nobuild; continue; }
     sh -c "./cases/\$s.ref" > cases/\$s.ref.out 2>&1; echo \$? > cases/\$s.ref.rc
     sh -c "timeout 30 ./cases/\$s.tk" > cases/\$s.tk.out 2>&1; echo \$? > cases/\$s.tk.rc

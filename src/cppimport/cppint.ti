@@ -33,6 +33,8 @@ const K_OPBIN_ = 5, K_OPUN_ = 6, K_OPMEM_ = 7, K_OPANY_ = 8
 
 '' A handle result: none, an owned copy of the C++ value, or a borrowed reference / pointer.
 const SR_NONE_ = 0, SR_OWNED_ = 1, SR_REF_ = 2, SR_PTR_ = 3
+'' ...and (C3b-2) a std::unique_ptr result, owned; a std::shared_ptr one, shared.
+const SR_UNIQUE_ = 4, SR_SHARED_ = 5
 
 type CppImp_
     as ClangApi ptr api
@@ -79,6 +81,27 @@ type CppImp_
     as int32          mop          '' the next member operator's mirror key, "mop<n>": a member
                                    '' operator has no name of its own to look the mangling up by
     as Tko.StrVec    asserts      '' the binding's layout checks, after every type
+    '' TEMPLATES (C3b-2, cpptmpl.tiko).
+    as Tko.StrVec    tmplNames    '' the header's templates, 'geo::Box', and "c" / "f" in tmplKinds
+    as Tko.StrVec    tmplKinds
+    as Tko.StrVec    needForce    '' specializations named but not complete: the next parse forces them
+    as string        calleeOverride '' a function instantiation's C++ name: 'geo::clamp<int>'
+    as Tko.StrVec    instBases    '' the '#cppinstantiate' templates' names: 'geo::clamp'
+    as containers.Array( of CXCursor ) clsTmpl   '' a specialization's class template (its pattern)
+    as Tko.StrVec    clsSpec      '' "1": class ci is a specialization
+    as Tko.StrVec    probeNames   '' the probes this parse resolved (cpptmpl.tiko)
+    as containers.Array( of CXType ) probeTypes
+    as boolean        ovrOn        '' Entry_ takes its types from ovrRes / ovrArgs, not the cursor
+    as CXType         ovrRes
+    as containers.Array( of CXType ) ovrArgs
+    '' std::vector (cppvec.tiko): each element type's traits, the adapters, the raw entries' lines.
+    as Tko.StrVec    vecEC        '' the element's C++ spelling
+    as Tko.StrVec    vecET        '' ...tiko's
+    as Tko.StrVec    vecBase      '' the traits' common symbol, 'tko_cpp_<id>_<n>'
+    as Tko.StrVec    vecDecls     '' their declarations, at the binding's end
+    as Tko.StrVec    defs         '' the adapters, private, after them
+    as Tko.StrVec    extraGlob    '' a raw entry's declaration, which Entry_'s caller writes
+    as Tko.StrVec    mirExtra     '' a range's iterator struct, after its class's in the mirror
 end type
 
 '' One parameter or result, as the texts that carry it.
@@ -95,6 +118,9 @@ type TMap_
     as int32   sret       '' result: SR_*
     as string  rcpp       '' result: the C++ class of an owned handle
     as boolean byrefRet   '' result: 'byref as T' -- the shim returns a pointer to it
+    as int32   vk1        '' a std::vector: its traits' index + 1 (cppvec.tiko); 0 none
+    as int32   vmode      '' parameter: 1 in (by value, const&), 2 in and out (&)
+    as string  pub        '' parameter: the adapter's own, 'byref v as const containers.Array( of T )'
 end type
 
 declare function Indent_( byref x as CppImp_ ) as string
@@ -142,14 +168,49 @@ declare function ResolveMirror_( byref api as ClangApi, byref triple as string, 
                                  byref shim as string, byref res as CppImportResult ) as boolean
 declare function Id_( byref s as string ) as string
 declare function Prelude_( ) as string
-declare function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string ) as string
+declare function BindingHead_( byref hdr as string, byref ver as string, byref tgt as string, _
+                               byval needsContainers as boolean ) as string
 
 '' cpppod.tiko
 declare function IsPod_( byref x as CppImp_, byval ci as int32 ) as boolean
+declare function PodCName_( byref x as CppImp_, byval ci as int32 ) as string
 declare sub PodCheck_( byref x as CppImp_ )
 declare sub PodFields_( byref x as CppImp_, byval ci as int32 )
 declare sub PodEmitAll_( byref x as CppImp_ )
 declare function PodHasInit_( byref x as CppImp_, byval ci as int32 ) as boolean
+'' cpptmpl.tiko
+declare function IsNullCursor_( byref x as CppImp_, byval c as CXCursor ) as boolean
+declare function InStd_( byref x as CppImp_, byval c as CXCursor ) as boolean
+declare function StdTemplate_( byref x as CppImp_, byval t as CXType ) as string
+declare function SpecName_( byref x as CppImp_, byval t as CXType ) as string
+declare function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec ) as boolean
+declare sub NoteType_( byref x as CppImp_, byval t as CXType )
+declare sub NoteFunction_( byref x as CppImp_, byval c as CXCursor )
+declare function InstClass_( byref x as CppImp_, byval i as int32 ) as CXType
+declare function InstFunction_( byref x as CppImp_, byval i as int32, byref fn as CXCursor ) as boolean
+'' cppclass.tiko, classes from anywhere
+declare sub CollectAt_( byref x as CppImp_, byval c as CXCursor, byref tn as string, byref cppQ as string, _
+                        byref ns as Tko.StrVec, byval tmpl as CXCursor, byval spec as boolean )
+declare sub SpecMembers_( byref x as CppImp_, byval ci as int32, byref mem as containers.Array( of CXCursor ), _
+                          byref kinds as containers.Array( of int32 ) )
+declare function SpecPattern_( byref x as CppImp_, byval ci as int32 ) as CXCursor
+declare function IsSpec_( byref x as CppImp_, byval ci as int32 ) as boolean
+declare function MemberRoot_( byref x as CppImp_, byval ci as int32 ) as CXCursor
+declare function ProbeLines_( byref x as CppImp_, byval ci as int32, byref out_ as Tko.StrVec ) as boolean
+declare sub LoadProbes_( byref x as CppImp_ )
+declare function ProbeOverride_( byref x as CppImp_, byval ci as int32, byval j as int32 ) as boolean
+declare sub SpecFields_( byref x as CppImp_, byval ci as int32, byref out_ as containers.Array( of CXCursor ) )
+declare sub DiscoverClass_( byref x as CppImp_, byval ci as int32 )
+'' cppvec.tiko
+declare function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) as int32
+declare function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, byref m as TMap_ ) as boolean
+declare function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) as boolean
+declare function HasRange_( byref x as CppImp_, byval ci as int32 ) as boolean
+declare function RangeProbe_( byref x as CppImp_, byval ci as int32 ) as string
+declare sub Range_( byref x as CppImp_, byval ci as int32, byref lines as Tko.StrVec )
+declare sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, byref rawq as string, _
+                      byref self_ as string, byref names as Tko.StrVec, byref vks as containers.Array( of int32 ), _
+                      byref modes as containers.Array( of int32 ), byval rvk as int32, byref rtiko as string, byval isSub as boolean )
 '' cppclass.tiko, operators
 declare function OpKind_( byref cop as string, byval nargs as int32, byval isMember as boolean, _
                           byref top as string ) as int32

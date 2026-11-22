@@ -911,6 +911,7 @@ function Parse _
         case Tko.OPT_CIMPORT_OUT : opts.cimportOut = value
         case Tko.OPT_CPPIMPORT : opts.cppimportHeader = value
         case Tko.OPT_CPPIMPORT_OUT : opts.cppimportOut = value
+        case Tko.OPT_CPPINSTANTIATE : opts.cppinstantiate.Push( value )
         case Tko.OPT_CCACHEDIR : opts.cCacheDir = value
         case Tko.OPT_CIMPORT_MANIFEST : opts.cimportManifest = value
         case Tko.OPT_CDEFINE   : opts.cDefines.Push( value )

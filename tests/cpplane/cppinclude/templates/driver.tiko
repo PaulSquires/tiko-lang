@@ -1,0 +1,94 @@
+'' cppinclude/templates, called from tiko: must print what driver.cpp prints. '#cppinclude'
+'' imports std/containers itself; the binding '-cppimport' wrote (the Linux leg) needs the unit to,
+'' and '#import' cannot be conditional on the lane's own macro -- so it is written for both.
+#import "std/containers"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinstantiate "tpl::clamp<int>"
+    #cppinstantiate "tpl::clamp<double>"
+    #cppinstantiate "tpl::Stack<std::string>"
+    #cppinclude "lib.hpp"
+#endif
+#include once "../../show.bi"
+
+sub ShowU( byval k as const zstring ptr, byref u as const ustring )
+    dim as string s = u
+    show_s( k, strptr( s ) )
+end sub
+
+sub Templates( )
+    dim as tpl.Box_double b = tpl.make_box( 2.5 )
+    show_d( "box.get", b.get_( ) )
+    show_d( "box.twice", b.twice( ).value )
+    b.set( 4 )
+    show_d( "box.sum", tpl.sum( b, tpl.Box_double( 1.5 ) ) )
+    dim as tpl.Pair_long_ustring p = tpl.make_pair_( 7, "seven" )
+    show_i( "pair.first", p.first( ) )
+    ShowU( "pair.second", p.second( ) )
+    ShowU( "pair.describe", p.describe( ) )
+    dim as tpl.Arr_long_3 a = tpl.iota3( )
+    show_i( "arr.size", a.size( ) )
+    show_i( "arr.at", a.at( 2 ) + a.v(0) )
+    show_i( "clamp.int", tpl.clamp( 15, 0, 10 ) )
+    show_d( "clamp.double", tpl.clamp( -0.5, 0.0, 1.0 ) )
+    dim as tpl.Stack_ustring st
+    st.push( "a" ) : st.push( "b" ) : st.push( "c" )
+    show_u( "stack.size", st.size( ) )
+    ShowU( "stack.pop", st.pop( ) )
+    show_i( "stack.empty", iif( st.empty( ), 1, 0 ) )
+end sub
+
+sub Vectors( )
+    dim as containers.Array( of long ) r = tpl.range( 5 )
+    dim as longint rs = 0
+    for each v in r
+        rs += v
+    next
+    show_i( "range.count", r.Count( ) )
+    show_i( "range.sum", rs )
+    dim as containers.Array( of double ) ds = { 1.5, 2.5, 3.0 }
+    show_d( "total", tpl.total( ds ) )
+    dim as containers.Array( of ustring ) parts = tpl.split( "a,bb,,ccc", asc( "," ) )
+    show_i( "split.count", parts.Count( ) )
+    ShowU( "split.3", parts[3] )
+    ShowU( "join", tpl.join( parts, "+" ) )
+    dim as containers.Array( of tpl.Pt ) sq = tpl.square_pts( 2 )
+    show_d( "square.2", sq[2].x + sq[2].y )
+    dim as containers.Array( of ustring ) names_
+    names_.Push( "x" ) : names_.Push( "yy" )
+    dim as containers.Array( of tpl.Tag ) tg = tpl.tags( names_ )
+    ShowU( "tags.1", tg[1].name_( ) )
+    dim as containers.Array( of long ) dd = { 1, 2, 3 }
+    tpl.double_all( dd )
+    show_i( "double_all.count", dd.Count( ) )
+    show_i( "double_all.2", dd[2] )
+    dim as tpl.Shelf sh
+    sh.add( "Dune" ) : sh.add( "Emma" )
+    show_i( "shelf.titles", sh.titles( ).Count( ) )
+    dim as ustring all_
+    for each t in sh
+        all_ &= t & ";"
+    next
+    ShowU( "shelf.each", all_ )
+end sub
+
+sub Owners( )
+    dim as tpl.Shape s = tpl.make_square( 3 )
+    ShowU( "square.kind", s.kind( ) )
+    show_d( "square.area", s.area( ) )
+    show_i( "live.1", tpl.live_shapes( ) )
+    ShowU( "consume", tpl.consume( s ) )
+    show_i( "live.0", tpl.live_shapes( ) )
+    dim as tpl.Shape c = tpl.make_circle( 1 )
+    show_i( "uses.1", tpl.uses( c ) )
+    dim as tpl.Shape c2 = c
+    show_i( "uses.2", tpl.uses( c2 ) )
+    show_d( "circle.area", c2.area( ) )
+    show_i( "live.circle", tpl.live_shapes( ) )
+end sub
+
+Templates( )
+Vectors( )
+Owners( )
+show_i( "live.end", tpl.live_shapes( ) )

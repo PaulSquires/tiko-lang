@@ -114,6 +114,9 @@ private function RunCpp_( byref ctx as Tko.CompilerContext, byref clangExe as st
     FillOptions( ctx, clangExe, ci )
     dim as Tko.CppImport.CppImportOptions io
     io.header = ctx.options.cppimportHeader
+    for i as int32 = 0 to ctx.options.cppinstantiate.Count - 1
+        io.instantiate.Push( ctx.options.cppinstantiate[i] )
+    next
     for i as int32 = 0 to ci.cincludes.Count - 1
         io.includes.Push( ci.cincludes[i] )
     next

@@ -118,7 +118,16 @@ private function PodLocal_( byref x as CppImp_, byval ci as int32 ) as boolean
     dim as PodScan_ ps
     ps.x = @x
     ps.ok = true
-    x.api->visitChildren( cur, @PodVisit_, @ps )
+    x.api->visitChildren( MemberRoot_( x, ci ), @PodVisit_, @ps )
+    if IsSpec_( x, ci ) then
+        ps.fields.Clear( )
+        dim as containers.Array( of CXCursor ) fs
+        SpecFields_( x, ci, fs )
+        for i as int32 = 0 to fs.Count - 1
+            if (x.api->getCXXAccessSpecifier( fs[i] ) <> CX_CXXPublic) orelse (x.api->Cursor_isBitField( fs[i] ) <> 0) then return false
+            ps.fields.Push( fs[i] )
+        next
+    end if
     if (ps.ok = false) orelse (ps.fields.Count = 0) then return false
     '' THE NATURAL LAYOUT, which is the one tiko gives an 'extern "C"' type.
     dim as CXType rt = x.api->getCursorType( cur )
@@ -140,6 +149,7 @@ private function PodLocal_( byref x as CppImp_, byval ci as int32 ) as boolean
 end function
 
 private sub PodRecordFields_( byref x as CppImp_, byval ci as int32, byref out_ as containers.Array( of CXCursor ) )
+    if IsSpec_( x, ci ) then SpecFields_( x, ci, out_ ) : return
     dim as PodScan_ ps
     ps.x = @x
     ps.ok = true
@@ -204,6 +214,32 @@ function PodHasInit_( byref x as CppImp_, byval ci as int32 ) as boolean
 end function
 
 '' THE POD'S FIELDS, where its handle-type siblings have 'impl_' and 'owned_' -- and its checks.
+function PodCName_( byref x as CppImp_, byval ci as int32 ) as string
+    return "tko_cpp_c_" & Id_( x.clsCpp[ci] )
+end function
+
+'' A field's type in the C struct: what C lays out and passes the same way. Pointers are void*.
+private function PodCType_( byref x as CppImp_, byval t as CXType, byref arr as string ) as string
+    dim as CXType c = Canon_( x, t )
+    dim as string why
+    select case c.kind
+    case TY_CARRAY_
+        arr &= "[" & x.api->getNumElements( c ) & "]"
+        return PodCType_( x, x.api->getElementType( c ), arr )
+    case TY_POINTER_
+        return "void*"
+    case TY_ENUM_
+        return Spell_( x, Canon_( x, x.api->getEnumDeclIntegerType( x.api->getTypeDeclaration( c ) ) ) )
+    case TY_RECORD_
+        return PodCName_( x, ClassOf_( x, c, why ) )
+    end select
+    dim as string s = Spell_( x, c )
+    while (left( s, 6 ) = "const ") orelse (left( s, 9 ) = "volatile ")
+        s = mid( s, instr( s, " " ) + 1 )
+    wend
+    return s
+end function
+
 sub PodFields_( byref x as CppImp_, byval ci as int32 )
     dim as containers.Array( of CXCursor ) fs
     PodRecordFields_( x, ci, fs )
@@ -226,6 +262,16 @@ sub PodFields_( byref x as CppImp_, byval ci as int32 )
     x.bind.Push( ind & "end extern" )
     NsClose_( x, opened )
     x.asserts.Push( "#assert sizeof( " & tq & " ) = " & sz )
+    '' THE C STRUCT IT IS RETURNED AS: MSVC returns a class with a user constructor through a hidden
+    '' pointer even from an 'extern "C"' function, where tiko reads a C struct of the same size the
+    '' C way (RAX for eight bytes); the same fields as a C struct are returned alike on every ABI.
+    dim as string cm = "struct " & PodCName_( x, ci ) & " {"
+    for i as int32 = 0 to fs.Count - 1
+        dim as string arr = ""
+        cm &= " " & PodCType_( x, x.api->getCursorType( fs[i] ), arr ) & " f" & i & arr & ";"
+    next
+    x.shim.Push( cm & " };" & chr( 10 ) & "static_assert(sizeof(" & PodCName_( x, ci ) & ") == sizeof(" & cpp & ") && alignof(" & _
+                 PodCName_( x, ci ) & ") == alignof(" & cpp & "), ""tiko: the C struct of " & cpp & """);" & chr( 10 ) )
     x.shim.Push( "static_assert(std::is_trivially_copyable<" & cpp & ">::value && std::is_standard_layout<" & cpp & _
                  ">::value && sizeof(" & cpp & ") == " & sz & ", ""tiko: " & cpp & _
                  " is no longer the value type its binding describes: regenerate it"");" & chr( 10 ) )

@@ -32,6 +32,7 @@ type CppSession_
     as Tko.StrVec  paths           '' headers imported this run, resolved
     as containers.Array( of int32 ) fileIds
     as boolean     runtimeAsked
+    as Tko.StrVec  pendingInst     '' '#cppinstantiate' texts since the last #cppinclude
 end type
 
 sub FreeSession( byval p as any ptr )
@@ -124,6 +125,10 @@ private function Hook_ cdecl _
     for i as int32 = 0 to ci.copts.Count - 1
         io.copts.Push( ci.copts[i] )
     next
+    for i as int32 = 0 to s->pendingInst.Count - 1
+        io.instantiate.Push( s->pendingInst[i] )
+    next
+    s->pendingInst.Clear( )
     io.sysroot = ci.csysroot
     io.targetName = ci.targetName
     io.triple = ci.triple
@@ -189,7 +194,14 @@ private function Hook_ cdecl _
     return fid
 end function
 
+private sub InstHook_ cdecl ( byval ctxp as any ptr, byref text as string, byval at as Tko.SourceLoc )
+    dim as Tko.CompilerContext ptr ctx = ctxp
+    if ctx->cppinclude = nullptr then ctx->cppinclude = new CppSession_
+    cast( CppSession_ ptr, ctx->cppinclude )->pendingInst.Push( text )
+end sub
+
 sub ConfigureHook( byref cfg as Tko.PpConfig, byref ctx as Tko.CompilerContext )
+    cfg.cppinstFn = @InstHook_
     cfg.cppimportFn = @Hook_
     cfg.cppimportCtx = @ctx
 end sub
