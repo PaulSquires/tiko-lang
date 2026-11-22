@@ -64,6 +64,8 @@
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "tkd/resdlg"
+#import "tkd/langdlg"
+#import "tkd/codegen"
 #import "tkd/resfile"
 #import "tkd/glyphdlg"
 #import "tkd/glyphfile"
@@ -685,6 +687,17 @@ public type Window
     declare function ResourcesPath( ) as ustring
     declare function WriteResourcesGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare sub CopyResourceFiles( byref exePath as const ustring )
+    LangDlg as langdlg.LanguagesDialog ptr
+    declare function LanguagesPath( ) as ustring
+    declare function TextOf( byref path as const ustring ) as ustring
+    declare function PutText( byref path as const ustring, byref text as const ustring ) as boolean
+    declare function WriteLanguagesGenerated( byref path as const ustring, byref text as const ustring ) as boolean
+    declare function PrepareLanguages( ) as boolean
+    declare sub CopyLanguageFiles( byref exePath as const ustring )
+    declare function ProjectTexts( ) as Array( of codegen.TrEntry )
+    declare function EditLanguages( byval c as canvas.FormCanvas ptr ) as boolean
+    declare sub ApplyLanguages( byref dlg as langdlg.LanguagesDialog )
+    declare sub RenameLanguageKeys( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
     declare function PrepareForms( ) as boolean
     declare sub ToggleFormView( )
     declare function HasFormPartner( byval d as DocRef ) as boolean
@@ -1809,7 +1822,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormPreviewVariant, _
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormPreviewVariant, _
          Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove, _
          Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove, _
          Cmd.FormCenterHorz, Cmd.FormCenterVert, Cmd.FormLockControls, Cmd.FormTabOrder
@@ -1862,7 +1875,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
         if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
         return true
     case Cmd.ProjectClose : return ProjOpen
-    case Cmd.FormTheme, Cmd.FormResources : return ProjOpen
+    case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
     end select
     if this.ShowsStart( ) = false then return true
     ' no file open: only what would still do something
@@ -1870,7 +1883,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
          Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.BuildConfig
         return true
-    case Cmd.FormTheme, Cmd.FormResources : return ProjOpen
+    case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
         return ProjOpen
     case Cmd.StartDebugging : return ProjOpen orelse DbgOn
@@ -1900,7 +1913,7 @@ function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
     dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
     if noForm = false then noForm = (d->Designer = 0)
-    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Design)   ' New Form makes one; the theme is the project's
+    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (id = Cmd.FormLanguages) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Design)   ' New Form makes one; the theme is the project's
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -2116,6 +2129,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.FormResources
         dim as ustring none
         this.EditResources( "", "", none )
+    case Cmd.FormLanguages : this.EditLanguages( 0 )
     case Cmd.FoldToggle : v->FoldToggle( false )
     case Cmd.FoldBelow : v->FoldToggle( true )
     case Cmd.FoldAll : v->FoldAll( true )
@@ -2819,6 +2833,8 @@ sub Window.AfterSave( byval d as DocRef )
         this.RefreshFormThemes( )               ' the project's: the forms wear it as saved
     elseif right( p, 6 ) = ".tkres" then
         this.WriteResourcesGenerated( d->Path, d->Text( ) )
+    elseif right( p, 7 ) = ".tklang" then
+        this.WriteLanguagesGenerated( d->Path, d->Text( ) )
     elseif p = lcase( this.SettingsFile( ) ) then
         this.ReloadSettings( )
     elseif p = lcase( this.KeysFile( ) ) then
@@ -3300,6 +3316,9 @@ function Window.OpenText( byref path as const ustring ) as boolean
             end sub
             d->Designer->OnEditColors = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
                 cast( Window ptr, o )->EditColors( c, n )
+            end sub
+            d->Designer->OnEditLanguages = sub( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref n as const ustring, byref e as const ustring, byval jump as boolean )
+                cast( Window ptr, o )->EditLanguages( c )
             end sub
             d->Designer->OnPickResource = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref k as const ustring, _
                                                     byref cur as const ustring, byref prop as const ustring, byref picked as ustring ) as boolean
@@ -4824,6 +4843,7 @@ sub Window.FinishBuild( )
     dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
     BuildSucceeded = ok
     if ok then this.CopyResourceFiles( LastExe )            ' the resources not built in, beside it
+    if ok then this.CopyLanguageFiles( LastExe )            ' and the catalogs
     ' the program's size, for the log's summary and the message (a successful build's only)
     dim as longint exeBytes = -1
     if ok andalso (len( LastExe ) > 0) then

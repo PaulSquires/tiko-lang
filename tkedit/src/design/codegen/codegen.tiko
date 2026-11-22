@@ -54,10 +54,32 @@ private function Literal_( byref s as const ustring ) as ustring
     return o & """"
 end function
 
-' A text the program shows: through the translator when the form asks for that. The key says where it's from.
+' A text the program shows, and where a translation of it is looked up.
+public type TrEntry
+    Key as ustring          ' "<Module>.<control>.<Property>", "<Module>.<control>.<id>", "<Module>.Caption"
+    Text as ustring         ' the designer's text, shown when no translation has one
+end type
+
+' While TranslatableTexts runs, every key Generate hands the translator, in the order it does.
+dim shared as boolean gCollect_
+dim shared as Array( of TrEntry ) gTexts_
+
+' A text the program shows: through the translator when the form asks for that and there is anything
+' to translate. The key says where it's from.
 private function TextExpr_( byref doc as FormDoc, byref key_ as const ustring, byref s as const ustring ) as ustring
-    if doc.Translate then return "tkForms_Tr( " & Literal_( doc.ModuleName & "." & key_ ) & ", " & Literal_( s ) & " )"
-    return Literal_( s )
+    if (doc.Translate = false) orelse (len( trim( s ) ) = 0) then return Literal_( s )
+    if gCollect_ then
+        dim as TrEntry e
+        e.Key = doc.ModuleName & "." & key_
+        e.Text = s
+        gTexts_.Push( e )
+    end if
+    return "tkForms_Tr( " & Literal_( doc.ModuleName & "." & key_ ) & ", " & Literal_( s ) & " )"
+end function
+
+' Properties of kind "text" that are not words a person reads: never translated.
+private function NotWords_( byref typeName as const ustring, byref prop as const ustring ) as boolean
+    return (typeName = "CodeEdit") andalso ((prop = "Lexer") orelse (prop = "Keywords"))
 end function
 
 ' The CONSTANT for a Shown name in a "Shown=CONSTANT,..." list.
@@ -620,16 +642,16 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             if it.Level = 0 then
                 if hasKids then
                     o &= "        menus( 0 ) = tkPopupMenu_Create( tkForm_Host( Handle ) )" & NL
-                    o &= "        tkMenuBar_SetDropDown( " & h & ", tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", " & (base_ + i) & " ), menus( 0 ) )" & NL
+                    o &= "        tkMenuBar_SetDropDown( " & h & ", tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", " & (base_ + i) & " ), menus( 0 ) )" & NL
                 else
-                    o &= "        tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", " & (base_ + i) & " )" & NL
+                    o &= "        tkMenuBar_AddItem( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", " & (base_ + i) & " )" & NL
                 end if
             elseif it.Text = "-" then
                 o &= "        tkPopupMenu_AddSeparator( menus( " & (it.Level - 1) & " ) )" & NL
             else
                 dim as ustring accel
                 if len( it.Key ) then accel = ", KeyLabel( " & Literal_( it.Key ) & " )"
-                o &= "        tkPopupMenu_AddItem( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & accel & " )" & NL
+                o &= "        tkPopupMenu_AddItem( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & accel & " )" & NL
                 if hasKids then
                     o &= "        menus( " & it.Level & " ) = tkPopupMenu_Create( tkForm_Host( Handle ) )" & NL
                     o &= "        tkPopupMenu_SetItemSubMenu( menus( " & (it.Level - 1) & " ), " & (base_ + i) & ", menus( " & it.Level & " ) )" & NL
@@ -652,7 +674,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             else
                 dim as ustring accel
                 if len( it.Key ) then accel = ", KeyLabel( " & Literal_( it.Key ) & " )"
-                o &= "        tkPopupMenu_AddItem( menus( " & it.Level & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & accel & " )" & NL
+                o &= "        tkPopupMenu_AddItem( menus( " & it.Level & " ), " & (base_ + i) & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & accel & " )" & NL
                 if hasKids andalso (it.Level < 2) then
                     o &= "        menus( " & (it.Level + 1) & " ) = tkPopupMenu_Create( tkForm_Host( Handle ) )" & NL
                     o &= "        tkPopupMenu_SetItemSubMenu( menus( " & it.Level & " ), " & (base_ + i) & ", menus( " & (it.Level + 1) & " ) )" & NL
@@ -662,7 +684,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         o &= "    end scope" & NL
     case catalog.ItemsKind.ItemsToolbar
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & ValueExpr_( c.Items[i].Glyph, "glyph", "" ) & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
+            o &= "    tkToolbar_AddItem( " & h & ", " & ToolbarKindName_( c.Items[i].Kind ) & ", " & ValueExpr_( c.Items[i].Glyph, "glyph", "" ) & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), c.Items[i].Text ) & ", " & (base_ + i) & " )" & NL
         next
     case catalog.ItemsKind.ItemsIcons
         for i as long = 0 to c.Items.Count( ) - 1
@@ -670,24 +692,24 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
         next
     case catalog.ItemsKind.ItemsStatus
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkStatusBar_AddPanel( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
+            o &= "    tkStatusBar_AddPanel( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), c.Items[i].Text ) & " )" & NL
             if c.Items[i].Width then o &= "    tkStatusBar_SetPanelMinWidth( " & h & ", " & i & ", " & c.Items[i].Width & " )" & NL
             if c.Items[i].Stretch then o &= "    tkStatusBar_SetPanelStretch( " & h & ", " & i & ", true )" & NL
         next
     case catalog.ItemsKind.ItemsColumns
         for i as long = 0 to c.Items.Count( ) - 1
             dim as FormItem it = c.Items[i]
-            o &= "    tkListTree_AddColumn( " & h & ", " & TextExpr_( doc, c.Name & "." & i, it.Text ) & ", "
+            o &= "    tkListTree_AddColumn( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", "
             if it.Width > 0 then o &= it.Width else o &= "100"
             o &= " )" & NL
         next
     case catalog.ItemsKind.ItemsList
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    " & catalog.ItemsAddProc( c.TypeName ) & "( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
+            o &= "    " & catalog.ItemsAddProc( c.TypeName ) & "( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), c.Items[i].Text ) & " )" & NL
         next
     case catalog.ItemsKind.ItemsTabs
         for i as long = 0 to c.Items.Count( ) - 1
-            o &= "    tkTabBar_AddTab( " & h & ", " & TextExpr_( doc, c.Name & "." & i, c.Items[i].Text ) & " )" & NL
+            o &= "    tkTabBar_AddTab( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), c.Items[i].Text ) & " )" & NL
             if len( c.Items[i].Glyph ) then
                 o &= "    tkTabBar_SetGlyph( " & h & ", " & i & ", " & ValueExpr_( c.Items[i].Glyph, "glyph", "" ) & " )" & NL
             end if
@@ -754,7 +776,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     ' A tab control's pages exist before its properties are set, and before its children.
     if m->ContainerKind = TKMETA_CONTAINER_PAGES then
         for p as long = 0 to c.Pages.Count( ) - 1
-            o &= "    tkTabControl_AddPage( " & c.Name & ".Handle, " & TextExpr_( doc, c.Name & ".Page" & p, c.Pages[p] ) & " )" & NL
+            o &= "    tkTabControl_AddPage( " & c.Name & ".Handle, " & TextExpr_( doc, c.Name & ".Page" & PageId( c, p ), c.Pages[p] ) & " )" & NL
             if len( PageGlyph( c, p ) ) then
                 o &= "    tkTabControl_SetPageGlyph( " & c.Name & ".Handle, " & p & ", " & ValueExpr_( PageGlyph( c, p ), "glyph", "" ) & " )" & NL
             end if
@@ -772,7 +794,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p->Kind = "list" then
                 o &= "    " & c.Name & "." & s.Key & "( " & ListExpr_( s.Value, p->EnumPairs ) & " )" & NL
-            elseif p->Kind = "text" then
+            elseif (p->Kind = "text") andalso (NotWords_( c.TypeName, s.Key ) = false) then
                 o &= "    " & c.Name & "." & s.Key & " = " & TextExpr_( doc, c.Name & "." & s.Key, s.Value ) & NL
             else
                 o &= "    " & c.Name & "." & s.Key & " = " & ValueExpr_( s.Value, p->Kind, p->EnumPairs ) & NL
@@ -850,6 +872,18 @@ end function
 ' The drift mark: changes only when the form's content does, whatever line ends the checkout has.
 public function SourceHash( byref sourceText as const ustring ) as ustring
     return left( hash.DigestHex( hash.HASH_SHA256, WithoutCr( sourceText ) ), 16 )
+end function
+
+' The keys and texts of a form that passed validate.Check, as its generated code asks for them; none
+' when the form isn't Translatable.
+public function TranslatableTexts( byref doc as FormDoc, byref moduleName as const ustring ) as Array( of TrEntry )
+    gTexts_.Clear( )
+    gCollect_ = true
+    Generate( doc, moduleName, "", "" )
+    gCollect_ = false
+    dim as Array( of TrEntry ) r = gTexts_
+    gTexts_.Clear( )
+    return r
 end function
 
 ' The whole .design.tiko for a form that passed validate.Check. sourceName is the form file's name.

@@ -175,6 +175,7 @@ public type DesignPanels
     declare sub FillToolbox( )
     declare sub AddRow( byref key_ as const ustring, byref caption as const ustring, byval kind_ as long, byref items as const ustring = "" )
     declare sub AddFileButton( )
+    declare sub AddLangButton( )
     declare sub AddGlyphButton( )
     declare sub AddPropRow( byval p as TKMETA_PROP ptr )
     ImagesHere as boolean     ' while the rows are made: the control takes an image (IconSize is ImageSize)
@@ -411,6 +412,13 @@ private sub OnGlyphGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as
         exit sub
     end if
     if r < p->Rows.Count( ) then p->Rows[r].Text = GlyphShown( picked )
+end sub
+
+' Translatable's "...": the project's Languages, this form's texts to translate.
+private sub OnLangGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if (p = 0) orelse (p->C = 0) orelse (p->C->OnEditLanguages = 0) then exit sub
+    p->C->OnEditLanguages( p->C->Host, p->C, "", "", true )
 end sub
 
 ' The row that opens a control's menu, column, item or page editor -- or its Colors dialog.
@@ -983,6 +991,17 @@ sub DesignPanels.AddFileButton( )
     end with
 end sub
 
+' The last row added gets a "..." that opens Languages (the form's Translatable).
+sub DesignPanels.AddLangButton( )
+    with Rows[Rows.Count( ) - 1]
+        .Btn = tkToolbar_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
+        tkToolbar_SetGlyphFont( .Btn, tkForm_Font( tkForm_FromWidget( Scroll ), TKFONT_GLYPH ) )
+        tkToolbar_AddItem( .Btn, TBR_KIND_COMMAND, wchr( TK_ICON_MORE ), "", 0 )
+        tkToolbar_SetTooltipText( .Btn, 0, i18n.Tr( "designer.lang_title", "Languages" ) )
+        tkToolbar_SetClickCallback( .Btn, @OnLangGo )
+    end with
+end sub
+
 ' The order the inspector shows a control's properties in: tkControls' own, but GlyphFont (shown
 ' as GlyphSize) right after the last glyph property and IconSize (shown as ImageSize) after the last
 ' image one, so each sits with what it sizes. hasImages: whether the control takes an image.
@@ -1064,6 +1083,7 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@FormW", i18n.Tr( "designer.width", "Width" ), RowKind.RowText )
         this.AddRow( "@FormH", i18n.Tr( "designer.height", "Height" ), RowKind.RowText )
         this.AddRow( "@Translate", i18n.Tr( "designer.translate", "Translatable" ), RowKind.RowCheck )
+        this.AddLangButton( )
         ' the window: named as in code, as a control's properties are
         this.AddRow( "@StartPosition", "StartPosition", RowKind.RowCombo, "Default,CenterScreen,CenterOwner" )
         this.AddRow( "@WindowState", "WindowState", RowKind.RowCombo, "Normal,Maximized,Minimized" )

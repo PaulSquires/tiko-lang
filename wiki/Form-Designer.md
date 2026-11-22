@@ -314,8 +314,64 @@ so on), `mods` the modifier keys, as KeyDown's.
 
 ## Other languages
 
-Tick **Translatable** on the form and its captions go through `tkForms_Tr`, with keys like
-`frmMain.btnOK.Text`. Install your lookup with `tkForms_SetTranslator` before `Build`.
+Click the **...** beside the form's **Translatable** property. The form becomes Translatable, and
+**Languages** opens on its texts. **Design > Languages...** opens the same window on every form in
+the project.
+
+1. **Add** a language. Type its code (`fr`, `pt_BR`, `zh-Hans`) and its name as the language writes
+   it (`Français`), then press Enter.
+2. The grid lists every text the program shows: each caption, control text, tooltip, menu and
+   toolbar item, column, list entry and tab. Select a row, type its translation and press Enter to
+   move to the next row. **Only missing or changed** hides the rows that are done.
+3. **Build into the program** is ticked by default, so the catalog is `#embed`ded in the program
+   and nothing ships beside it. Untick it and tkEdit copies the catalog to `lang/` beside the
+   program after every build instead.
+4. **OK** writes everything and updates `main.tiko`.
+
+A text with no translation shows as the form has it, so a partial translation still runs.
+
+**What changes when you edit a form:**
+
+- When you change a form's text, its translation shows as **Changed**. Fix it, or click
+  **Keep translation** if it still fits.
+- When you rename a control, its translations move to the new name.
+- Translations whose key no form uses any more show as **Unused**. **Delete unused** removes them.
+
+**The files.** Languages writes `appLanguages/appLanguages.tklang` (the list of languages),
+`appLanguages/lang/<code>.toml` (one catalog per language) and `appLanguages.design.tiko`.
+`main.tiko` gets these lines after `tkApp_Init`:
+
+```freebasic
+appLanguages.Register( )
+appLanguages.UseSystem( )      ' or appLanguages.Use( "fr" )
+```
+
+`UseSystem` picks the language the system prefers when the program has it. Otherwise the forms keep
+their own language. A form takes the language that is active when it is **built**, so after a
+switch, close a form that is already open and build it again.
+
+A catalog is plain TOML, one table per form, so a translator can work on it without tkEdit:
+
+```toml
+format = 1
+name = "Français"
+
+[frmMain]
+Caption = "Fenêtre principale"
+"btnOK.Text" = "D'accord"
+"mnuMain.3" = "Ouvrir"
+```
+
+A `lang/<code>.toml` placed beside the program replaces the copy built into it, so a corrected
+translation can be tried without a rebuild. `[_source.<form>]` records the text each entry was
+translated from, which is how the window marks an entry Changed; a program ignores it.
+
+The last part of a menu, toolbar, list or tab key is the entry's id (saved in the `.tkform` as
+`id = n`). It is not the entry's position, so inserting or moving entries leaves the other entries'
+translations in place.
+
+To translate without catalogs, install your own lookup with `tkForms_SetTranslator` before `Build`
+(see [tkForms](tkForms)). The runtime that loads catalogs is [tkLanguage](tkLanguage).
 
 ## The files
 
@@ -328,6 +384,7 @@ lists any that are stale and exits with the count, which suits a build check.
 ## See also
 
 - [tkForms](tkForms): the form base
+- [tkLanguage](tkLanguage): the catalogs a translated program loads
 - [tkLayout](tkLayout): anchors and docks
 - [Themes Tutorial](Themes-Tutorial): themes, styles and colours, in tkEdit and in code
 - [tkControls](Category-tkControls): every control

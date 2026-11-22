@@ -132,6 +132,7 @@ if command( 1 ) = "--selftest" then
     selftest.ThemePass( t, 1.75 )
     selftest.ColorsPass( t, 1.0 )
     selftest.ResourcePass( t, 1.0 )
+    selftest.LangPass( t, 1.0 )
     selftest.KeysPass( t, 1.0 )
     selftest.OutputFloatPass( t, 1.0 )
     selftest.OutputFloatPass( t, 1.75 )

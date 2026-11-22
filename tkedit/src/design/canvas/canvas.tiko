@@ -171,6 +171,7 @@ public type FormCanvas
     OnRenamed as CanvasRenameSub
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
+    OnEditLanguages as CanvasWireSub    ' Translatable's "...": the project's Languages, this form's keys first
     OnPickResource as CanvasPickFunc    ' a file property's "...": the Resource Center
     OnPickGlyph as CanvasGlyphFunc      ' a glyph property's "...": the Glyph Picker
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
@@ -1485,6 +1486,7 @@ end function
 ' ---- commands ---------------------------------------------------------------------------------
 
 sub FormCanvas.Commit( )
+    FillAllIds( Doc, false )        ' a new entry's id is fixed now, before anything moves it
     if OnCommit then OnCommit( Owner, formfile.Render( Doc ) )
     this.Changed( )
 end sub

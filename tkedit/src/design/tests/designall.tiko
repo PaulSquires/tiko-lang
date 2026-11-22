@@ -20,6 +20,7 @@
 #import "tkd/formtree"
 #import "tkd/themefile"
 #import "tkd/resfile"
+#import "tkd/langfile"
 #import "tkd/appicon"
 #import "tkd/glyphfile"
 #import "tkd/fontwriter"
@@ -875,6 +876,163 @@ sub TranslateSuite( )
 end sub
 
 ' The form's window settings and its own events: file, refusals, generated code.
+' Entry ids: a translation key ends in the entry's id, which stays with it however entries move.
+sub TranslateIdsSuite( )
+    dim as ustring item = LF & "[[control.items]]" & LF
+    dim as ustring head = "format = 1" & LF & LF & "[form]" & LF & "caption = ""Cap""" & LF & "width = 300" & LF & "height = 200" & LF
+    dim as ustring body = Ctl( "c", "ComboBox" ) & item & "text = ""One""" & LF & item & "text = ""Two""" & LF & item & "text = ""Three""" & LF _
+        & Ctl( "t", "TabControl", "pages = [""P"", ""Q""]" & LF ) _
+        & Ctl( "tb", "Toolbar" ) & item & "text = ""Go""" & LF & "kind = ""command""" & LF & item & "text = """"" & LF & "kind = ""separator""" & LF _
+        & Ctl( "ce", "CodeEdit" ) & LF & "[control.props]" & LF & "Lexer = ""tiko""" & LF
+    dim as FormDoc d
+    Check( ReadForm( head & "translate = true" & LF & body, d ), "a translated form from before ids parses" )
+    dim as ustring g = codegen.Generate( d, "frmT", "frmT.tkform", "" )
+    Check( (instr( g, """frmT.c.0"", ""One""" ) > 0) andalso (instr( g, """frmT.c.2"", ""Three""" ) > 0), "an old form keeps its keys: ids are the places", g )
+    Check( instr( g, """frmT.t.Page1"", ""Q""" ) > 0, "and its pages' keys" )
+    Check( instr( g, "tkForms_Tr( ""frmT.tb.1""" ) = 0, "a separator's empty text isn't translated", g )
+    Check( instr( g, "ce.Lexer = ""tiko""" ) > 0, "a CodeEdit's Lexer is not words", g )
+    dim as ustring r = formfile.Render( d )
+    Check( (instr( r, "id = 2" ) > 0) andalso (instr( r, "page_ids = [0, 1]" ) > 0), "a translated form writes its ids", r )
+    dim as FormDoc d2
+    ReadForm( r, d2 )
+    Check( formfile.Render( d2 ) = r, "and reads them back" )
+
+    ' insert, move, delete: the others keep their keys, the new one gets a fresh id
+    dim as long ci = FindControl( d, "c" )
+    dim as FormItem nu
+    nu.Text = "New"
+    d.Controls[ci].Items.Insert( 1, nu )
+    FillIds( d.Controls[ci], false )
+    Check( d.Controls[ci].Items[1].Id = 3, "a new entry gets one past the highest", str( d.Controls[ci].Items[1].Id ) )
+    dim as FormItem sw = d.Controls[ci].Items[0]
+    d.Controls[ci].Items[0] = d.Controls[ci].Items[3]
+    d.Controls[ci].Items[3] = sw
+    d.Controls[ci].Items.Remove( 2 )
+    g = codegen.Generate( d, "frmT", "frmT.tkform", "" )
+    Check( (instr( g, """frmT.c.2"", ""Three""" ) > 0) andalso (instr( g, """frmT.c.0"", ""One""" ) > 0) andalso (instr( g, """frmT.c.3"", ""New""" ) > 0), "keys follow their entries", g )
+    Check( instr( g, """Two""" ) = 0, "a deleted one is gone" )
+
+    ' a page put in front keeps the others' keys
+    dim as long ti = FindControl( d, "t" )
+    dim as Array( of FormItem ) pages
+    dim as FormItem pg
+    pg.Text = "New page"
+    pages.Push( pg )
+    for p as long = 0 to 1
+        pg.Text = d.Controls[ti].Pages[p]
+        pg.Origin = p
+        pg.Id = PageId( d.Controls[ti], p )
+        pages.Push( pg )
+    next
+    Check( len( edits.ApplyPages( d, ti, pages ) ) = 0, "pages apply" )
+    g = codegen.Generate( d, "frmT", "frmT.tkform", "" )
+    Check( (instr( g, """frmT.t.Page0"", ""P""" ) > 0) andalso (instr( g, """frmT.t.Page2"", ""New page""" ) > 0), "a new page gets a fresh id", g )
+
+    ' what the dialog lists is what the code asks for
+    dim as Array( of codegen.TrEntry ) list = codegen.TranslatableTexts( d, "frmT" )
+    dim as long calls = 0, at_ = instr( g, "tkForms_Tr( " )
+    while at_
+        calls += 1
+        at_ = instr( at_ + 1, g, "tkForms_Tr( " )
+    wend
+    dim as boolean allIn = (list.Count( ) = calls)
+    for each e as codegen.TrEntry in list
+        if instr( g, "tkForms_Tr( """ & e.Key & """, """ & e.Text & """ )" ) = 0 then allIn = false
+    next
+    Check( allIn andalso (calls > 0), "TranslatableTexts is every key Generate asks for", str( list.Count( ) ) & " / " & calls )
+    Check( codegen.TranslatableTexts( d, "frmT" ).Count( ) = list.Count( ), "and asking twice gives the same" )
+
+    ' ids a file gives are kept; a clash or a gap is filled without moving them
+    dim as FormControl k
+    dim as FormItem a
+    a.Id = -1 : k.Items.Push( a )
+    a.Id = 0  : k.Items.Push( a )
+    a.Id = 0  : k.Items.Push( a )
+    FillIds( k, true )
+    Check( (k.Items[0].Id = 1) andalso (k.Items[1].Id = 0) andalso (k.Items[2].Id = 2), "a taken place or a repeated id gets a fresh one", k.Items[0].Id & " " & k.Items[1].Id & " " & k.Items[2].Id )
+
+    ' a form that isn't translated is written as it always was
+    dim as FormDoc d3
+    ReadForm( head & body, d3 )
+    r = formfile.Render( d3 )
+    Check( (instr( r, "id = " ) = 0) andalso (instr( r, "page_ids" ) = 0), "no ids unless the form is translated", r )
+    Check( codegen.TranslatableTexts( d3, "frmT" ).Count( ) = 0, "and nothing to translate" )
+end sub
+
+' The project's languages: appLanguages.tklang, its catalogs, and the module that registers them.
+sub LangFileSuite( )
+    dim as langfile.LangProject pj
+    dim as ustring e
+    Check( langfile.ParseProject( langfile.DefaultProjectText( ), pj, e ), "a new project's languages read", e )
+    Check( (pj.BaseCode = "en") andalso (pj.Languages.Count( ) = 0), "English, no others" )
+    dim as ustring src = "format = 1" & LF & "base = ""en""" & LF & "base_name = ""English""" & LF _
+        & LF & "[[language]]" & LF & "code = ""fr""" & LF & "name = ""Français""" & LF _
+        & LF & "[[language]]" & LF & "code = ""de""" & LF & "name = ""Deutsch""" & LF & "embed = false" & LF
+    dim as langfile.LangProject p2
+    Check( langfile.ParseProject( src, p2, e ) andalso (langfile.ProjectText( p2 ) = src), "a .tklang round-trips", langfile.ProjectText( p2 ) )
+    dim as Array( of ustring ) probs
+    langfile.CheckProject( p2, "", probs )
+    dim as ustring first_
+    if probs.Count( ) then first_ = probs[0]
+    Check( probs.Count( ) = 0, "and is right", first_ )
+    dim as langfile.LangInfo bad
+    bad.Code = "FR"
+    p2.Languages.Push( bad )
+    bad.Code = "en"
+    p2.Languages.Push( bad )
+    bad.Code = "9x"
+    p2.Languages.Push( bad )
+    probs.Clear( )
+    langfile.CheckProject( p2, "", probs )
+    Check( probs.Count( ) = 3, "twice, the forms' own, and a bad code are faults", str( probs.Count( ) ) )
+
+    ' a catalog: one table per form, the rest of the key quoted; what it was translated from
+    dim as ustring ct = "format = 1" & LF & "name = ""Français""" & LF _
+        & LF & "[frmMain]" & LF & "Caption = ""Fenêtre""" & LF & """btnOK.Text"" = ""D'accord""" & LF & """mnuMain.3"" = ""Ouvrir""" & LF _
+        & LF & "[_source.frmMain]" & LF & "Caption = ""Main""" & LF & """btnOK.Text"" = ""OK""" & LF
+    dim as langfile.Catalog cat
+    Check( langfile.ParseCatalog( ct, cat, e ), "a catalog reads", e )
+    Check( (cat.Name = "Français") andalso (cat.Entries.Count( ) = 3), "its name and entries", str( cat.Entries.Count( ) ) )
+    Check( langfile.CatalogText( cat ) = ct, "and round-trips", langfile.CatalogText( cat ) )
+    dim as long i = langfile.FindEntry( cat, "frmMain.btnOK.Text" )
+    Check( (i >= 0) andalso (cat.Entries[i].Text = "D'accord") andalso (cat.Entries[i].Source = "OK"), "a quoted key's dots are its own" )
+    Check( langfile.StateOf( cat, "frmMain.btnOK.Text", "OK" ) = langfile.EntryState.StateDone, "translated from today's text: done" )
+    Check( langfile.StateOf( cat, "frmMain.Caption", "Main window" ) = langfile.EntryState.StateStale, "from another text: stale" )
+    Check( langfile.StateOf( cat, "frmMain.lblX.Text", "X" ) = langfile.EntryState.StateMissing, "none: missing" )
+    Check( langfile.StateOf( cat, "frmMain.mnuMain.3", "Open" ) = langfile.EntryState.StateDone, "no source: taken as done" )
+    dim as langfile.Catalog nest
+    langfile.ParseCatalog( "format = 1" & LF & "[frmMain.btnOK]" & LF & "Text = ""OK""" & LF & "[_private]" & LF & "x = ""y""" & LF, nest, e )
+    Check( (nest.Entries.Count( ) = 1) andalso (langfile.FindEntry( nest, "frmMain.btnOK.Text" ) = 0), "nested tables flatten too; _ tables are skipped" )
+
+    langfile.PutEntry( cat, "frmAbout.Caption", "À propos", "About" )
+    Check( cat.Entries[0].Key = "frmAbout.Caption", "a new entry is kept in order" )
+    langfile.PutEntry( cat, "frmAbout.Caption", "", "" )
+    Check( langfile.FindEntry( cat, "frmAbout.Caption" ) < 0, "an empty text takes it out" )
+    Check( langfile.RenameKeys( cat, "frmMain.btnOK.", "frmMain.btnAccept." ) = 1, "a renamed control's keys move" )
+    Check( (langfile.FindEntry( cat, "frmMain.btnAccept.Text" ) >= 0) andalso (langfile.FindEntry( cat, "frmMain.btnOK.Text" ) < 0), "to the new name" )
+    Check( instr( langfile.CatalogText( cat ), """btnAccept.Text"" = ""OK""" ) > 0, "with what it was translated from" )
+
+    ' the generated module
+    dim as langfile.LangProject p3
+    langfile.ParseProject( src, p3, e )
+    dim as ustring g = langfile.Generate( p3, "appLanguages", "appLanguages.tklang", src )
+    Check( instr( g, "#embed gLang0_ ""lang/fr.toml""" & LF ) > 0, "a built-in catalog is embedded", g )
+    Check( instr( g, "    tkLanguage_SetBase( ""en"", ""English"" )" & LF ) > 0, "the forms' own language", g )
+    Check( instr( g, "    tkLanguage_AddData( ""fr"", ""Français"", @gLang0_( 0 ), ubound( gLang0_ ) + 1 )" & LF ) > 0, "registered from inside", g )
+    Check( instr( g, "    if len( Beside_( ""fr.toml"" ) ) then tkLanguage_AddFile( ""fr"", ""Français"", Beside_( ""fr.toml"" ) )" & LF ) > 0, "a copy beside it wins", g )
+    Check( instr( g, "        tkLanguage_AddFile( ""de"", ""Deutsch"", ""appLanguages/lang/de.toml"" )" & LF ) > 0, "one not built in: the project's copy", g )
+    Check( instr( g, "gLang1_" ) = 0, "and is not embedded" )
+
+    dim as ustring mainText = "#import ""vendor/tkControls/tkApp""" & LF & "#import ""./frmMain""" & LF & "using tkApp" & LF _
+        & "dim as TKAPP_OPTIONS options" & LF & "if tkApp_Init( options ) = false then end 1" & LF & "dim as frmMain.Form f" & LF & "f.Build( )" & LF
+    dim as ustring outText
+    Check( langfile.InstallIntoMain( mainText, outText ) = 1, "main is wired" )
+    Check( instr( outText, "#import ""vendor/tkControls/tkApp""" & LF & "#import ""./appLanguages""" & LF ) > 0, "the import beside tkApp's", outText )
+    Check( instr( outText, "= false then end 1" & LF & "appLanguages.Register( )" & LF & "appLanguages.UseSystem( )" ) > 0, "before any form is built", outText )
+    dim as ustring again
+    Check( langfile.InstallIntoMain( outText, again ) = 0, "once" )
+end sub
+
 sub WindowSuite( )
     dim as ustring head = "format = 1" & LF & LF & "[form]" & LF & "caption = ""W""" & LF & "width = 300" & LF & "height = 200" & LF
     dim as ustring win = "start_position = ""CenterScreen""" & LF & "window_state = ""Maximized""" & LF & "resizable = true" & LF _
@@ -2231,6 +2389,8 @@ EditsSuite( )
 ReconcileSuite( )
 ItemsSuite( )
 TranslateSuite( )
+TranslateIdsSuite( )
+LangFileSuite( )
 WindowSuite( )
 ButtonEventsSuite( )
 TextBoxEventsSuite( )
