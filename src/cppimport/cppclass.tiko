@@ -676,13 +676,23 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
     dim as string tn = ValueName_( nm )
     dim as CXType t = x.api->getCursorType( c )
     dim as CXType ct = Canon_( x, t )
-    dim as string cpp = x.clsCpp[ci], owner = lcase( x.clsTikoQ[ci] & "." & tn )
+    dim as string cpp = x.clsCpp[ci]
+    '' TWO FIELDS WHOSE NAMES DIFFER ONLY IN CASE (date's 'm' and 'M') are one tiko name: the later takes '_'.
+    dim as boolean taken = true
+    while taken
+        taken = false
+        for i as int32 = 0 to x.sigs.Count - 1
+            if x.sigs[i] = lcase( x.clsTikoQ[ci] & "." & tn & "#field" ) then taken = true : tn &= "_" : exit for
+        next
+    wend
+    dim as string owner = lcase( x.clsTikoQ[ci] & "." & tn )
     for i as int32 = 0 to x.sigs.Count - 1
         if (left( x.sigs[i], len( owner ) + 1 ) = owner & "(") orelse (left( x.sigs[i], len( owner ) + 2 ) = owner & "!(") then
             lines.Push( "'' CPP-TODO(a method has this name): " & disp ) : x.todos += 1
             return
         end if
     next
+    x.sigs.Push( owner & "#field" ) : x.sigConst.Push( "" )
     dim as TMap_ r
     if (ct.kind = TY_RECORD_) andalso (StrKind_( x, t ) = 0) andalso (len( StdTemplate_( x, ct ) ) = 0) then
         dim as int32 ri = ClassOf_( x, t, why )
