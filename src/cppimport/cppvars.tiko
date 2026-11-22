@@ -1,6 +1,6 @@
-'' cppvars.tiko -- the C++ importer's variables (the C++ import survey, docs/tiko-cpp/SURVEY.md): a
-'' class's static data members, a namespace's variables and constants, and the fallback a declared but
-'' undefined C++ symbol links to. See cppint.ti.
+'' cppvars.tiko -- the C++ importer's variables and class extras (the C++ import survey,
+'' docs/tiko-cpp/SURVEY.md): a class's static data members, a namespace's variables and constants, the
+'' fallback a declared but undefined C++ symbol links to, conversions to a class, derivation. See cppint.ti.
 
 #import "std/containers"
 #include once "cppimport/cppint.ti"
@@ -191,6 +191,106 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
                  "    try { if (tko_cpp_set(" & obj & ", " & m.arg & ")) return; tko_cpp_last() = ""this field cannot be assigned""; } TKO_CPP_CATCH" & L & _
                  "    tko_cpp_raise();" & L & "}" & L )
     x.mirBody.Push( "    static void " & ss & "(" & m.mir & ");" )
+end sub
+
+'' (owned -1: a temporary, which a copy of a class C++ only moves takes over -- 'dim as document doc =
+'' result' with simdjson's move-only document.)
+'' A CONVERSION OPERATOR TO A BOUND CLASS ri: 'operator cast' to an owned copy of the converted object (a
+'' plain 16-byte aggregate, as Cast_ explains). An rvalue-qualified one converts the object as an rvalue.
+sub ConvCast_( byref x as CppImp_, byval ci as int32, byval ri as int32, byval rv as boolean, byref lines as Tko.StrVec )
+    dim as string L = chr( 10 ), sym = "cast:" & x.clsMir[ci] & ">" & x.clsMir[ri]
+    for i as int32 = 0 to x.sigs.Count - 1
+        if x.sigs[i] = lcase( sym ) then return            '' one per target class
+    next
+    x.sigs.Push( lcase( sym ) ) : x.sigConst.Push( "" )
+    dim as string sx = Sym_( x )
+    if Excluded_( x, sx ) then return
+    lines.Push( "declare operator cast alias """ & sx & """ ( ) as " & x.clsTikoQ[ri] & "    '' C++'s conversion to " & x.clsCpp[ri] & " (a copy)" )
+    dim as string obj = iif( rv, "std::move(*static_cast<" & x.clsCpp[ci] & "*>(self_->impl))", "*static_cast<" & x.clsCpp[ci] & "*>(self_->impl)" )
+    dim as string h = "extern ""C"" tko_cpp_h " & sx & "(tko_cpp_h* self_)"
+    x.shim.Push( h & " __asm__(""@@M:" & sym & "@@"");" & L & h & " {" & L & _
+                 "    tko_cpp_h r = { nullptr, 0 };" & L & _
+                 "    try { r.impl = new " & x.clsCpp[ri] & "(static_cast<" & x.clsCpp[ri] & ">(" & obj & ")); r.owned = -1; return r; } TKO_CPP_CATCH" & L & _
+                 "    tko_cpp_raise();" & L & "    return r;" & L & "}" & L )
+    x.mirBody.Push( "    operator ::" & x.clsMir[ri] & "();" )
+    x.bound += 1
+end sub
+
+'' DOES CLASS CURSOR c PUBLICLY DERIVE FROM the class whose USR is 'usr', at any depth?
+type Derives_
+    as CppImp_ ptr x
+    as string usr
+    as int32 depth
+    as boolean hit
+end type
+
+private function DerivesVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Derives_ ptr dv = client
+    dim as CppImp_ ptr xp = dv->x
+    if xp->api->getCursorKind( c ) <> CXCursor_CXXBaseSpecifier then return CXChildVisit_Continue
+    if xp->api->getCXXAccessSpecifier( c ) <> CX_CXXPublic then return CXChildVisit_Continue
+    dim as CXCursor bd = xp->api->getTypeDeclaration( Canon_( *xp, xp->api->getCursorType( c ) ) )
+    if xp->api->isCursorDefinition( bd ) = 0 then bd = xp->api->getCursorDefinition( bd )
+    if Text_( *xp, xp->api->getCursorUSR( bd ) ) = dv->usr then dv->hit = true : return CXChildVisit_Break
+    if DerivesFrom_( *xp, bd, dv->usr, dv->depth + 1 ) then dv->hit = true : return CXChildVisit_Break
+    return CXChildVisit_Continue
+end function
+
+function DerivesFrom_( byref x as CppImp_, byval c as CXCursor, byref usr as string, byval depth as int32 ) as boolean
+    if depth > 8 then return false
+    dim as Derives_ dv
+    dv.x = @x : dv.usr = usr : dv.depth = depth
+    x.api->visitChildren( c, @DerivesVisit_, @dv )
+    return dv.hit
+end function
+
+
+type StrCtor_
+    as CppImp_ ptr x
+    as boolean found
+end type
+
+private function StrCtorVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as StrCtor_ ptr s = client
+    dim as CppImp_ ptr x = s->x
+    if x->api->getCursorKind( c ) <> CXCursor_Constructor then return CXChildVisit_Continue
+    if x->api->Cursor_getNumArguments( c ) <> 1 then return CXChildVisit_Continue
+    if StrKind_( *x, x->api->getNonReferenceType( x->api->getCursorType( x->api->Cursor_getArgument( c, 0 ) ) ) ) > 0 then s->found = true : return CXChildVisit_Break
+    return CXChildVisit_Continue
+end function
+
+'' A CLASS CONVERTING BOTH TO A STRING AND TO A BOUND CLASS V THAT IS BUILT FROM A STRING (survey:
+'' simdjson's padded_string, to string_view and to padded_string_view, which has a constructor from
+'' std::string): tiko's overloads, as fbc's (probe: a constructor taking a string beside the copy
+'' constructor), prefer the string conversion -- so 'dim as V v = s' would build V from the string,
+'' not by C++'s conversion to V (simdjson: the padding lost). The string conversion is left out; the
+'' class conversion is the one C++ code relies on.
+sub StrCastShadow_( byref x as CppImp_, byref lines as Tko.StrVec )
+    dim as boolean conv = false
+    for i as int32 = 0 to lines.Count - 1
+        dim as int32 at = instr( lines[i], "'' C++'s conversion to " )
+        if at = 0 then continue for
+        dim as string cn = mid( lines[i], at + 23 )
+        cn = left( cn, instr( cn, " (a copy)" ) - 1 )
+        for ri as int32 = 0 to x.clsCpp.Count - 1
+            if x.clsCpp[ri] <> cn then continue for
+            dim as StrCtor_ s
+            s.x = @x
+            dim as CXCursor dc = x.api->getCursorDefinition( x.clsCur[ri] )
+            x.api->visitChildren( iif( IsNullCursor_( x, dc ), x.clsCur[ri], dc ), @StrCtorVisit_, @s )
+            if s.found then conv = true
+            exit for
+        next
+        if conv then exit for
+    next
+    if conv = false then return
+    for i as int32 = 0 to lines.Count - 1
+        dim as string s = lines[i]
+        if (left( ltrim( s ), 29 ) = "declare operator cast alias """) andalso (instr( s, """ ( ) as ustring" ) > 0) then
+            dim as int32 at = instr( s, "'' " )
+            lines[i] = "'' not bound (a conversion to a string would take precedence over the conversion to a class): " & iif( at > 0, mid( s, at + 3 ), s )
+        end if
+    next
 end sub
 
 end namespace

@@ -18,6 +18,21 @@ function Spell_( byref x as CppImp_, byval t as CXType ) as string
     return Text_( x, x.api->getTypeSpelling( t ) )
 end function
 
+'' A TYPE FULLY QUALIFIED, '::' first, for the shim (survey: simdjson's simdjson_result<dom::array> was
+'' spelled with its argument as written inside namespace simdjson). Its const, if any, dropped.
+function FullSpell_( byref x as CppImp_, byval t as CXType ) as string
+    dim as CXType c = Canon_( x, t )
+    dim as any ptr pol = x.api->getCursorPrintingPolicy( x.api->getTypeDeclaration( c ) )
+    dim as string s = Text_( x, x.api->getFullyQualifiedName( c, pol, 1 ) )
+    if pol <> nullptr then x.api->PrintingPolicy_dispose( pol )
+    if len( s ) = 0 then s = Spell_( x, c )
+    while (left( s, 6 ) = "const ") orelse (left( s, 9 ) = "volatile ")
+        s = mid( s, instr( s, " " ) + 1 )
+    wend
+    if left( s, 2 ) <> "::" then s = "::" & s
+    return s
+end function
+
 '' 'const std::size_t' -> 'size_t': the spelling a pointer-sized typedef is recognised by.
 function BareSpell_( byref s as string ) as string
     dim as string r = trim( s )
@@ -76,6 +91,7 @@ function MirFund_( byref tk as string ) as string
     case "double"   : return "double"
     case "integer"  : return "__PTRDIFF_TYPE__"
     case "uinteger" : return "__SIZE_TYPE__"
+    case "ustring"  : return "FBUSTRING"
     end select
     return "void"
 end function
@@ -382,6 +398,8 @@ end function
 function Result_( byref x as CppImp_, byval t as CXType ) as TMap_
     dim as TMap_ m
     m.ok = true
+    '' A 'T&&' RESULT (survey: simdjson's value( ) &&, take_value( )) is a T by value, moved from.
+    if Canon_( x, t ).kind = TY_RREF_ then return Result_( x, x.api->getNonReferenceType( t ) )
     if StdResult_( x, t, m ) then return m
     dim as string tk, ct, tq, cq, mq, cwhy
     dim as CXType c = Canon_( x, t )

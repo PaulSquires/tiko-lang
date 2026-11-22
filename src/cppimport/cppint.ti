@@ -102,6 +102,8 @@ type CppImp_
     as boolean       coff
     as boolean       noAccess     '' CppImportOptions.noAccess
     as boolean       usedNoAccess '' ...and a specialization needed it
+    as Tko.StrVec    nsAlias      '' namespace aliases (survey: simdjson::ondemand): "alias tiko chain|target
+                                  '' tiko chain", chr( 1 )-separated chains
     as Tko.StrVec    podPtr       '' a POD field pointing to a bound handle class: "ci|name|ri" (its raw
                                   '' field is '<name>_ptr_', and a property '<name>' takes a handle)
     as Tko.StrVec    aliasTmpl    '' the header's alias templates, 'sigslot::signal': a specialization asked for
@@ -177,6 +179,7 @@ declare function MirWrap_( byref nsList as string, byref body as string ) as str
 declare sub Todo_( byref x as CppImp_, byref what as string, byref why as string )
 declare function Canon_( byref x as CppImp_, byval t as CXType ) as CXType
 declare function Spell_( byref x as CppImp_, byval t as CXType ) as string
+declare function FullSpell_( byref x as CppImp_, byval t as CXType ) as string
 declare function BareSpell_( byref s as string ) as string
 declare function Fund_( byref x as CppImp_, byval t as CXType, byref tk as string, _
                         byref ct as string ) as boolean
@@ -193,6 +196,8 @@ declare function NsName_( byref nm as string ) as string
 declare function MirName_( byref tn as string ) as string
 declare function ParamName_( byref x as CppImp_, byval a as CXCursor, byval i as int32 ) as string
 declare sub Enum_( byref x as CppImp_, byval c as CXCursor )
+declare sub NsAliasNote_( byref x as CppImp_, byval c as CXCursor )
+declare sub NsAliases_( byref x as CppImp_ )
 declare function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
                          byval ci as int32, byref decl as string, byref why as string, _
                          byval upto as int32 = -1, byval top as string = "" ) as boolean
@@ -208,6 +213,8 @@ declare sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
 declare function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
 declare sub AltName_( byref x as CppImp_, byval c as CXCursor )
+declare sub InheritSpec_( byref x as CppImp_, byval ci as int32, byref own as containers.Array( of CXCursor ), _
+                          byref lines as Tko.StrVec, byref glob as Tko.StrVec )
 declare sub CollectNested_( byref x as CppImp_, byval c as CXCursor, byval ci as int32, byval enumsOnly as boolean = false )
 declare function DerivesFrom_( byref x as CppImp_, byval c as CXCursor, byref usr as string, byval depth as int32 ) as boolean
 declare sub MirUnits_( byref x as CppImp_ )
@@ -220,6 +227,8 @@ declare function Sym_( byref x as CppImp_ ) as string
 declare sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref lines as Tko.StrVec )
 declare sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref lines as Tko.StrVec )
 declare sub Cast_( byref x as CppImp_, byval ci as int32, byval ai as int32, byref lines as Tko.StrVec )
+declare sub StrCastShadow_( byref x as CppImp_, byref lines as Tko.StrVec )
+declare sub ConvCast_( byref x as CppImp_, byval ci as int32, byval ri as int32, byval rv as boolean, byref lines as Tko.StrVec )
 declare sub ClassLines_( byref x as CppImp_, byval ci as int32 )
 declare sub EmitClasses_( byref x as CppImp_ )
 declare sub CollectClass_( byref x as CppImp_, byval c as CXCursor )

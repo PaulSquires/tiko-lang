@@ -36,34 +36,6 @@ private function HoldsRefs_( byref x as CppImp_, byval ci as int32 ) as boolean
     return h.hit
 end function
 
-'' DOES CLASS CURSOR c PUBLICLY DERIVE FROM the class whose USR is 'usr', at any depth?
-type Derives_
-    as CppImp_ ptr x
-    as string usr
-    as int32 depth
-    as boolean hit
-end type
-
-private function DerivesVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
-    dim as Derives_ ptr dv = client
-    dim as CppImp_ ptr xp = dv->x
-    if xp->api->getCursorKind( c ) <> CXCursor_CXXBaseSpecifier then return CXChildVisit_Continue
-    if xp->api->getCXXAccessSpecifier( c ) <> CX_CXXPublic then return CXChildVisit_Continue
-    dim as CXCursor bd = xp->api->getTypeDeclaration( Canon_( *xp, xp->api->getCursorType( c ) ) )
-    if xp->api->isCursorDefinition( bd ) = 0 then bd = xp->api->getCursorDefinition( bd )
-    if Text_( *xp, xp->api->getCursorUSR( bd ) ) = dv->usr then dv->hit = true : return CXChildVisit_Break
-    if DerivesFrom_( *xp, bd, dv->usr, dv->depth + 1 ) then dv->hit = true : return CXChildVisit_Break
-    return CXChildVisit_Continue
-end function
-
-function DerivesFrom_( byref x as CppImp_, byval c as CXCursor, byref usr as string, byval depth as int32 ) as boolean
-    if depth > 8 then return false
-    dim as Derives_ dv
-    dv.x = @x : dv.usr = usr : dv.depth = depth
-    x.api->visitChildren( c, @DerivesVisit_, @dv )
-    return dv.hit
-end function
-
 '' Is a std::vector in this type, by value or reference? (Entry_'s adapter parameters.)
 private function VecIn_( byref x as CppImp_, byval t as CXType ) as boolean
     dim as CXType c = Canon_( x, t )
@@ -93,6 +65,12 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     dim as int32 na = x.api->Cursor_getNumArguments( c )
     if na < 0 then why = "no prototype" : return false
     if (upto >= 0) andalso (upto < na) then na = upto
+    '' A ONE-ARGUMENT CONSTRUCTOR TAKING ONLY AN RVALUE ('S(T&&)'): C++ never converts an lvalue through it,
+    '' tiko would through any one-argument constructor (survey: simdjson's iterate( padded_string )).
+    if (kind = K_CTOR_) andalso (na = 1) then
+        dim as CXType a0 = iif( x.ovrOn andalso (x.ovrArgs.Count > 0), x.ovrArgs[0], x.api->getCursorType( x.api->Cursor_getArgument( c, 0 ) ) )
+        if Canon_( x, a0 ).kind = TY_RREF_ then why = "a converting constructor C++ takes only an rvalue" : return false
+    end if
     dim as boolean isConst = (kind = K_METHOD_) andalso methodConst
 
     dim as string tparams = "", cparams = "", args = "", tsig = "", mparams = "", pubp = ""
@@ -162,7 +140,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     if len( x.nameOverride ) andalso (kind <> K_CTOR_) then tn = x.nameOverride
     dim as string owner = iif( member, x.clsTikoQ[ci], QualTiko_( x, "" ) )
     dim as string sig = lcase( owner & "." & tn & iif( kind = K_STATIC_, "!", "" ) & "(" & tsig & ")" )
-    if isOp then sig = lcase( iif( kind = K_OPMEM_, owner & ".", "" ) & "operator " & top & "(" & tsig & ")" )
+    if isOp then sig = lcase( iif( kind = K_OPMEM_, owner & ".", "" ) & "operator " & top & "(" & tsig & ")" & iif( top = "cast", " as " & r.tiko, "" ) )
     for i as int32 = 0 to x.sigs.Count - 1
         if x.sigs[i] = sig then
             x.twinOfConst = (x.sigConst[i] = "c")
@@ -260,6 +238,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     dim as string rt = iif( r.sret <> SR_NONE_, "tko_cpp_h*", iif( isSub orelse (kind = K_CTOR_), "void", r.ctype ) )
     dim as string obj = "(*self_)"
     if (ci >= 0) andalso (pod = false) then obj = "(*static_cast<" & x.clsCpp[ci] & "*>(self_->impl))"
+    if (kind = K_OPMEM_) andalso (x.api->Type_getCXXRefQualifier( x.api->getCursorType( c ) ) = 2) then obj = "std::move" & obj
     dim as string callx
     '' A TEMPLATE SPECIALIZATION's arguments, where the call cannot deduce them, are the ones the
     '' '#cppinstantiate' wrote ('get<int>( )'); the rest the call deduces from the shim's exact types
@@ -271,6 +250,9 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     case K_METHOD_
         if pod then
             callx = "self_->" & iif( len( targs ), "template ", "" ) & nm & targs & "(" & args & ")"
+        elseif x.api->Type_getCXXRefQualifier( x.api->getCursorType( c ) ) = 2 then
+            '' A '&&'-QUALIFIED METHOD (survey: simdjson's get(T&) &&) is called on the object as an rvalue.
+            callx = "std::move(*static_cast<" & x.clsCpp[ci] & "*>(self_->impl))." & iif( len( targs ), "template ", "" ) & nm & targs & "(" & args & ")"
         else
             callx = "static_cast<" & iif( isConst, "const ", "" ) & x.clsCpp[ci] & "*>(self_->impl)->" & iif( len( targs ), "template ", "" ) & nm & targs & "(" & args & ")"
         end if
@@ -279,6 +261,8 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     case K_OPMEM_
         if top = "[]" then
             callx = obj & "[" & args & "]"
+        elseif (top = "cast") andalso (r.tiko = "ustring") then
+            callx = "tko_cpp_strof(" & obj & ")"              '' a conversion to a string (survey: simdjson)
         elseif top = "cast" then
             callx = "static_cast<" & r.ctype & ">(" & obj & ")"
         else
@@ -802,6 +786,84 @@ sub Cast_( byref x as CppImp_, byval ci as int32, byval ai as int32, byref lines
     x.mirBody.Push( "    operator ::" & x.clsMir[ai] & "();" )
 end sub
 
+'' INHERITED FROM A BASE SPECIALIZATION (survey: simdjson_result<T>'s get( ) from simdjson_result_base<T>,
+'' phmap's flat_hash_map from raw_hash_set): a class template specialization's members are its pattern's,
+'' which Gather_ does not reach through a base -- so each public base that is a bound specialization
+'' gives its methods, probed for the base and called through this class, unless this class has one of
+'' that name (C++ hides it). Bases of bases too.
+sub InheritSpec_( byref x as CppImp_, byval ci as int32, byref own as containers.Array( of CXCursor ), _
+                  byref lines as Tko.StrVec, byref glob as Tko.StrVec )
+    if IsStdPair_( x, x.clsTmpl[ci] ) then return
+    dim as Tko.StrVec names
+    for i as int32 = 0 to own.Count - 1
+        names.Push( lcase( Text_( x, x.api->getCursorSpelling( own[i] ) ) ) )
+    next
+    dim as Members_ mb
+    mb.x = @x
+    x.api->visitCXXBaseClasses( x.api->getCursorType( x.clsCur[ci] ), @SpecBaseVisit_, @mb )
+    dim as int32 q = 0
+    while (q < mb.seen.Count) andalso (q < 8)
+        dim as int32 bj = -1
+        for k as int32 = 0 to x.clsUsr.Count - 1
+            if x.clsUsr[k] = mb.seen[q] then bj = k : exit for
+        next
+        q += 1
+        if (bj < 0) orelse (bj = ci) orelse (IsSpec_( x, bj ) = false) then continue while
+        dim as containers.Array( of CXCursor ) mem
+        dim as containers.Array( of int32 ) kinds
+        SpecMembers_( x, bj, mem, kinds )
+        dim as Tko.StrVec added
+        for k as int32 = 0 to mem.Count - 1
+            '' A BASE'S CONVERSION OPERATOR (simdjson_result_base<T>'s 'operator T&&() &&'), as this class's.
+            if (kinds[k] = K_OPANY_) andalso (x.api->getCursorKind( mem[k] ) = CXCursor_ConversionFunction) then
+                if ProbeOverride_( x, bj, k ) then
+                    dim as CXType cvt = x.ovrRes
+                    if Canon_( x, cvt ).kind = TY_RREF_ then cvt = x.api->getNonReferenceType( cvt )
+                    dim as string tk, ct, cwhy, decl, why
+                    if Fund_( x, cvt, tk, ct ) orelse (StrKind_( x, cvt ) > 0) then
+                        if Entry_( x, mem[k], K_OPMEM_, ci, decl, why, 0, "cast" ) then lines.Push( decl & "    '' (inherited)" )
+                    elseif (Canon_( x, cvt ).kind = TY_RECORD_) andalso (ClassOf_( x, Canon_( x, cvt ), cwhy ) >= 0) then
+                        dim as int32 ri = ClassOf_( x, Canon_( x, cvt ), cwhy )
+                        if (IsPod_( x, ri ) = false) andalso (IsPod_( x, ci ) = false) then
+                            x.ovrOn = false
+                            ConvCast_( x, ci, ri, x.api->Type_getCXXRefQualifier( x.api->getCursorType( mem[k] ) ) = 2, lines )
+                        end if
+                    end if
+                end if
+                x.ovrOn = false
+                continue for
+            end if
+            if (kinds[k] <> K_METHOD_) andalso (kinds[k] <> K_STATIC_) then continue for
+            dim as string nm = lcase( Text_( x, x.api->getCursorSpelling( mem[k] ) ) )
+            dim as boolean hid = false
+            for n as int32 = 0 to names.Count - 1
+                if names[n] = nm then hid = true : exit for
+            next
+            if hid then continue for
+            if ProbeOverride_( x, bj, k ) = false then x.ovrOn = false : continue for
+            dim as int32 na = x.api->Cursor_getNumArguments( mem[k] )
+            dim as string disp = x.clsCpp[bj] & "::" & Text_( x, x.api->getCursorDisplayName( mem[k] ) ) & " (inherited)"
+            for d as int32 = 0 to Defaults_( x, mem[k] )
+                dim as string decl, why
+                if Entry_( x, mem[k], kinds[k], ci, decl, why, na - d ) then
+                    for g as int32 = 0 to x.extraGlob.Count - 1
+                        glob.Push( x.extraGlob[g] )
+                    next
+                    x.extraGlob.Clear( )
+                    lines.Push( decl & "    '' " & disp & ArityNote_( d, na ) )
+                end if
+            next
+            x.ovrOn = false
+            added.Push( nm )
+        next
+        for n as int32 = 0 to added.Count - 1
+            names.Push( added[n] )
+        next
+        '' ...and that base's own bases.
+        x.api->visitCXXBaseClasses( x.api->getCursorType( x.clsCur[bj] ), @SpecBaseVisit_, @mb )
+    wend
+end sub
+
 sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     dim as string L = chr( 10 )
     dim as string cpp = x.clsCpp[ci], tn = x.clsTiko[ci], mq = x.clsMir[ci]
@@ -951,7 +1013,20 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
                 dim as int32 ok = -1
                 if x.api->getCursorKind( mb.cur[i] ) = CXCursor_ConversionFunction then
                     dim as string tk, ct
-                    if Fund_( x, iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( mb.cur[i] ) ), tk, ct ) then ok = K_OPMEM_ : top = "cast"
+                    dim as CXType cvt = iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( mb.cur[i] ) )
+                    if Canon_( x, cvt ).kind = TY_RREF_ then cvt = x.api->getNonReferenceType( cvt )
+                    if Fund_( x, cvt, tk, ct ) orelse (StrKind_( x, cvt ) > 0) then ok = K_OPMEM_ : top = "cast"
+                    '' TO A BOUND CLASS (survey: simdjson's 'operator document&&() &&', 'T x = result'): an
+                    '' 'operator cast' owning a copy of what C++ converts to.
+                    if (ok < 0) andalso (Canon_( x, cvt ).kind = TY_RECORD_) andalso (StrKind_( x, cvt ) = 0) then
+                        dim as string cwhy
+                        dim as int32 ri = ClassOf_( x, Canon_( x, cvt ), cwhy )
+                        if (ri >= 0) andalso (IsPod_( x, ri ) = false) andalso (pod = false) then
+                            ConvCast_( x, ci, ri, x.api->Type_getCXXRefQualifier( x.api->getCursorType( mb.cur[i] ) ) = 2, lines )
+                            x.ovrOn = false
+                            continue for
+                        end if
+                    end if
                 else
                     ok = OpKind_( trim( mid( Text_( x, x.api->getCursorSpelling( mb.cur[i] ) ), 9 ) ), na, true, top )
                 end if
@@ -1085,6 +1160,8 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
             if x.clsUsr[ai] = mb.seen[i] then Cast_( x, ci, ai, lines )
         next
     next
+    InheritSpec_( x, ci, mb.cur, lines, glob )
+    StrCastShadow_( x, lines )
     for i as int32 = 0 to mb.skipped.Count - 1
         dim as string s = mb.skipped[i]
         dim as int32 at = instrrev( s, ": " )
@@ -1357,7 +1434,15 @@ sub CollectClass_( byref x as CppImp_, byval c as CXCursor )
 end sub
 
 '' THE TYPES A CLASS'S MEMBERS NAME, for the specializations among them (cpptmpl.tiko NoteType_).
+private function BaseNoteVisit_ cdecl ( byval c as CXCursor, byval client as any ptr ) as int32
+    dim as CppImp_ ptr xp = client
+    if xp->api->getCXXAccessSpecifier( c ) = CX_CXXPublic then NoteType_( *xp, xp->api->getCursorType( c ) )
+    return 1                                    '' CXVisit_Continue
+end function
+
 sub DiscoverClass_( byref x as CppImp_, byval ci as int32 )
+    '' ITS PUBLIC BASES TOO, so a base specialization is bound and its members inherited (InheritSpec_).
+    x.api->visitCXXBaseClasses( x.api->getCursorType( x.clsCur[ci] ), @BaseNoteVisit_, @x )
     dim as Members_ mb
     mb.x = @x
     Gather_( x, mb, MemberRoot_( x, ci ) )

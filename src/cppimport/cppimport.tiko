@@ -241,6 +241,91 @@ sub Enum_( byref x as CppImp_, byval c as CXCursor )
     x.mirFwd.Push( MirWrap_( ns, "enum " & ucase( tn ) & " : long long {};" ) )
 end sub
 
+'' A NAMESPACE ALIAS (survey: simdjson's 'namespace ondemand = SIMDJSON_BUILTIN_IMPLEMENTATION::ondemand'):
+'' recorded here, its classes and enums aliased by NsAliases_ once every class is known.
+type NsRef_
+    as CppImp_ ptr x
+    as CXCursor found
+    as boolean ok
+end type
+
+private function NsRefVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as NsRef_ ptr r = client
+    '' The LAST reference names the namespace: 'builtin::ondemand' refers to builtin, then ondemand.
+    if r->x->api->getCursorKind( c ) = 46 then r->found = c : r->ok = true       '' CXCursor_NamespaceRef
+    return CXChildVisit_Continue
+end function
+
+private function NsChain_( byref x as CppImp_, byval c as CXCursor ) as string
+    dim as Tko.StrVec ns
+    if NsOf_( x, c, ns ) = false then return ""
+    dim as string r = ""
+    for i as int32 = 0 to ns.Count - 1
+        r &= iif( i > 0, chr( 1 ), "" ) & ns[i]
+    next
+    if x.api->Cursor_isInlineNamespace( c ) = 0 then r &= iif( len( r ), chr( 1 ), "" ) & NsName_( Text_( x, x.api->getCursorSpelling( c ) ) )
+    return r
+end function
+
+sub NsAliasNote_( byref x as CppImp_, byval c as CXCursor )
+    dim as NsRef_ rf
+    rf.x = @x
+    x.api->visitChildren( c, @NsRefVisit_, @rf )
+    if rf.ok = false then return
+    dim as CXCursor tgt = x.api->getCursorReferenced( rf.found )
+    if IsNullCursor_( x, tgt ) then return
+    dim as string an = ""
+    for i as int32 = 0 to x.tikoNs.Count - 1
+        an &= iif( i > 0, chr( 1 ), "" ) & x.tikoNs[i]
+    next
+    an &= iif( len( an ), chr( 1 ), "" ) & NsName_( Text_( x, x.api->getCursorSpelling( c ) ) )
+    dim as string tn = NsChain_( x, tgt )
+    if len( tn ) = 0 then return
+    x.nsAlias.Push( an & "|" & tn )
+end sub
+
+'' Each alias's namespace, with a 'type X as <the class>' for every class and enum of the namespace it
+'' names: 'simdjson.ondemand.parser' is simdjson.fallback.ondemand.parser.
+sub NsAliases_( byref x as CppImp_ )
+    for i as int32 = 0 to x.nsAlias.Count - 1
+        dim as string e = x.nsAlias[i]
+        dim as string an = left( e, instr( e, "|" ) - 1 ), tn = mid( e, instr( e, "|" ) + 1 )
+        dim as string tq = "", L = ""
+        for k as int32 = 1 to len( tn )
+            tq &= iif( mid( tn, k, 1 ) = chr( 1 ), ".", mid( tn, k, 1 ) )
+        next
+        dim as Tko.StrVec lines
+        for ci as int32 = 0 to x.clsUsr.Count - 1
+            if (x.clsNsTiko[ci] <> tn) orelse (OuterOf_( x, ci ) >= 0) then continue for
+            lines.Push( "type " & x.clsTiko[ci] & " as " & x.clsTikoQ[ci] )
+        next
+        for k as int32 = 0 to x.enumTiko.Count - 1
+            dim as string q = x.enumTiko[k]
+            if left( q, len( tq ) + 1 ) <> tq & "." then continue for
+            dim as string rest = mid( q, len( tq ) + 2 )
+            if instr( rest, "." ) > 0 then continue for
+            lines.Push( "type " & rest & " as " & q )
+        next
+        if lines.Count = 0 then continue for
+        dim as string ind = ""
+        dim as int32 a = 1, depth = 0
+        while a <= len( an )
+            dim as int32 b = instr( a, an, chr( 1 ) )
+            if b = 0 then b = len( an ) + 1
+            x.bind.Push( ind & "namespace " & mid( an, a, b - a ) )
+            ind &= "    " : depth += 1
+            a = b + 1
+        wend
+        for k as int32 = 0 to lines.Count - 1
+            x.bind.Push( ind & lines[k] & "    '' through the namespace alias" )
+        next
+        while depth > 0
+            depth -= 1 : ind = left( ind, len( ind ) - 4 )
+            x.bind.Push( ind & "end namespace" )
+        wend
+    next
+end sub
+
 '' ---------------------------------------------------------------- the walk
 
 private function Visit_ cdecl _
@@ -296,6 +381,8 @@ private function Visit_ cdecl _
         if xp->pass = 4 then NoteFunction_( *xp, c )
     case 20, CXCursor_TypeAliasDecl                     '' typedef / using: an alias (D13)
         if xp->pass = 2 then AliasNote_( *xp, c )
+    case 33                                             '' a namespace alias: 'namespace ondemand = fallback::ondemand;'
+        if xp->pass = 2 then NsAliasNote_( *xp, c )
     case 601                                            '' an alias template: 'template <class... T> using signal = ...'
         if xp->pass = 2 then
             xp->tmplNames.Push( mid( QualCpp_( *xp, Text_( *xp, xp->api->getCursorSpelling( c ) ) ), 3 ) )
@@ -345,7 +432,8 @@ private function MirVisit_ cdecl _
             s = "let:" & MirQual_( mn->api, mn->api->getCursorSemanticParent( c ) )
         elseif k = CXCursor_ConversionFunction then
             dim as CXType crt = mn->api->getCanonicalType( mn->api->getCursorResultType( c ) )
-            if crt.kind = 105 then       '' a record: a cast to a base, named by both classes
+            dim as boolean ustr = (crt.kind = 105) andalso (ClangText( *mn->api, mn->api->getCursorSpelling( mn->api->getTypeDeclaration( crt ) ) ) = "FBUSTRING")
+            if (crt.kind = 105) andalso (ustr = false) then       '' a record: a cast to a base, named by both classes
                 dim as CXCursor td = mn->api->getTypeDeclaration( crt )
                 s = "cast:" & MirQual_( mn->api, mn->api->getCursorSemanticParent( c ) ) & ">" & MirQual_( mn->api, td )
             else
@@ -573,10 +661,12 @@ function Prelude_( ) as string
     "    ~tko_cpp_seqout() { d.clear(); for (auto& e : s) d.push_back(e); }" & L & _
     "    operator S&() { return s; }" & L & "};" & L & _
     "template <class S> inline void* tko_cpp_vecof(const S& s) { return new std::vector<typename S::value_type>(s.begin(), s.end()); }" & L & _
+    "// An object converted to a string, through std::string or std::string_view (survey: simdjson's value)." & L & _
+    "template <class O> inline std::string tko_cpp_strof(O&& o) { if constexpr (std::is_convertible_v<O&&, std::string>) return std::string(std::forward<O>(o)); else return std::string(static_cast<std::string_view>(std::forward<O>(o))); }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
     "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
     "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _
-    "    if (h->owned != 1 || !h->impl) throw std::runtime_error(""this handle does not own its C++ object alone: it cannot be given away"");" & L & _
+    "    if ((h->owned != 1 && h->owned != -1) || !h->impl) throw std::runtime_error(""this handle does not own its C++ object alone: it cannot be given away"");" & L & _
     "    T* p = static_cast<T*>(h->impl); h->impl = nullptr; h->owned = 0; return std::unique_ptr<T>(p);" & L & "}" & L & _
     "// The handle's own shared_ptr, so a 'const std::shared_ptr<T>&' sees the count C++ would: one that" & L & _
     "// owned its object alone shares it from now on; a borrowed one is lent without ownership." & L & _
@@ -584,7 +674,7 @@ function Prelude_( ) as string
     "    static thread_local std::shared_ptr<T> lent;" & L & _
     "    T* p = static_cast<T*>(h->impl);" & L & _
     "    if (!p) { lent.reset(); return lent; }" & L & _
-    "    if (h->owned == 1) h->owned = tko_cpp_box<T>(std::shared_ptr<T>(p));" & L & _
+    "    if (h->owned == 1 || h->owned == -1) h->owned = tko_cpp_box<T>(std::shared_ptr<T>(p));" & L & _
     "    if (h->owned > 1) return *tko_cpp_unbox<T>(h->owned);" & L & _
     "    lent = std::shared_ptr<T>(std::shared_ptr<T>(), p);" & L & _
     "    return lent;" & L & "}" & L & _
@@ -613,6 +703,8 @@ function Prelude_( ) as string
     "        // A borrowed handle of a class that cannot be copied (an interface a reference named)" & L & _
     "        // is copied as the borrow: 'Shape& s = shape_at(0)'." & L & _
     "        if (!o->owned) { s->impl = o->impl; return; }" & L & _
+    "        // A TEMPORARY (owned -1, a conversion's result) is taken over: C++ would move it." & L & _
+    "        if (o->owned == -1) { tko_cpp_h* t = const_cast<tko_cpp_h*>(o); s->impl = t->impl; s->owned = 1; t->impl = nullptr; t->owned = 0; return; }" & L & _
     "        tko_cpp_last() = ""this C++ class cannot be copied"";" & L & _
     "    }" & L & _
     "    tko_cpp_raise();" & L & "}" & L & _
@@ -627,6 +719,8 @@ function Prelude_( ) as string
     "        if constexpr (std::is_copy_constructible_v<T>) {" & L & _
     "            T* n = (o && o->impl) ? new T(*static_cast<const T*>(o->impl)) : nullptr;" & L & _
     "            tko_cpp_free<T>(s); s->impl = n; s->owned = (n != nullptr); return;" & L & _
+    "        } else if (o && o->owned == -1) {" & L & _
+    "            tko_cpp_h* t = const_cast<tko_cpp_h*>(o); tko_cpp_free<T>(s); s->impl = t->impl; s->owned = 1; t->impl = nullptr; t->owned = 0; return;" & L & _
     "        } else if (o && !o->owned) {" & L & _
     "            tko_cpp_free<T>(s); s->impl = o->impl; return;" & L & _
     "        } else { tko_cpp_last() = ""this C++ class cannot be copied""; }" & L & _
@@ -658,6 +752,7 @@ function BindingHead_( byref hdr as string, byref ver as string, byref tgt as st
     "'' compiled for the same target and linked. A C++ exception is runtime error " & ERR_CPP_ & "; cpp.What( )" & L & _
     "'' is its text. A CPP-TODO line is a declaration the importer could not express yet. A class is" & L & _
     "'' a handle type: impl_ is the C++ object, which the handle owns (deletes) when owned_ is 1 --" & L & _
+    "'' or -1, a conversion's temporary that a copy of a move-only class takes over --" & L & _
     "'' a value the C++ returned -- and only borrows when C++ returned a reference or pointer." & L & _
     "#pragma once" & L & L & _
     "#ifndef __TKO_CPP_PRELUDE__" & L & "#define __TKO_CPP_PRELUDE__" & L & _
@@ -799,6 +894,7 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
         end if
     next
     EmitClasses_( x )
+    NsAliases_( x )
     x.pass = 3
     api.visitChildren( api.getTranslationUnitCursor( x.tu ), @Visit_, @x )
     for i as int32 = 0 to opts.instantiate.Count - 1

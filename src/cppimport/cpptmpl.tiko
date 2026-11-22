@@ -171,6 +171,21 @@ end function
 '' A TYPE THE BOUND API NAMES, looked into for specializations to bind: through pointers and
 '' references, into std::vector / unique_ptr / shared_ptr's element. One that is not complete is
 '' asked to be (CppImp_.needForce) and bound on the next parse.
+type Own_
+    as CppImp_ ptr x
+    as int32 n
+end type
+
+private function OwnVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Own_ ptr ow = client
+    select case ow->x->api->getCursorKind( c )
+    case CXCursor_CXXMethod, CXCursor_Constructor, CXCursor_FieldDecl
+        ow->n += 1
+        return CXChildVisit_Break
+    end select
+    return CXChildVisit_Continue
+end function
+
 sub NoteType_( byref x as CppImp_, byval t as CXType )
     dim as CXType c = Canon_( x, t )
     select case c.kind
@@ -209,11 +224,7 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
         x.usedNoAccess = true
     end if
     '' Its C++ name, unqualified: the pointee of 'const Box<double>&' spells its 'const'.
-    dim as string sp = Spell_( x, c )
-    while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
-        sp = mid( sp, instr( sp, " " ) + 1 )
-    wend
-    sp = "::" & sp
+    dim as string sp = FullSpell_( x, c )
     if x.api->Type_getSizeOf( c ) < 0 then
         for i as int32 = 0 to x.needForce.Count - 1
             if x.needForce[i] = sp then return
@@ -231,7 +242,18 @@ sub NoteType_( byref x as CppImp_, byval t as CXType )
         if len( tn ) > 100 then tn = left( tn, 88 ) & "_" & Id_( tn )
     end if
     dim as int32 n0 = x.clsUsr.Count
-    CollectAt_( x, d, tn, sp, ns, tm, true )
+    '' AN EXPLICIT SPECIALIZATION ('template<> struct simdjson_result<value> { ... }') has a body of its own,
+    '' concrete: bound as a class of its own members, not its template's pattern (survey: simdjson).
+    dim as Own_ ow
+    ow.x = @x
+    dim as CXCursor dd = x.api->getCursorDefinition( d )         '' past a forward 'template<> struct S<X>;'
+    if IsNullCursor_( x, dd ) then dd = d
+    x.api->visitChildren( dd, @OwnVisit_, @ow )
+    if ow.n > 0 then
+        CollectAt_( x, dd, tn, sp, ns, tm, false )
+    else
+        CollectAt_( x, d, tn, sp, ns, tm, true )
+    end if
     '' ITS NESTED ENUMS (survey: mustache's basic_data<std::string>::type), from the pattern.
     if (x.clsUsr.Count > n0) andalso (IsStdPair_( x, tm ) = false) then CollectNested_( x, tm, n0, true )
 end sub

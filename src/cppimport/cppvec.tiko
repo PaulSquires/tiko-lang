@@ -35,7 +35,7 @@ private function Elem_( byref x as CppImp_, byval e as CXType, byref et as strin
     case TY_RECORD_
         dim as int32 ci = ClassOf_( x, c, why )
         if (ci < 0) orelse (len( StdTemplate_( x, c ) ) > 0) then return false
-        et = x.clsTikoQ[ci] : ec = "::" & ec
+        et = x.clsTikoQ[ci] : ec = x.clsCpp[ci]
         return true
     case TY_ENUM_
         if EnumOf_( x, c, tq, cq, mq ) = false then return false
@@ -136,11 +136,7 @@ end function
 function MapKind_( byref x as CppImp_, byval t as CXType, byref why as string ) as int32
     dim as string L = chr( 10 )
     dim as CXType c = Canon_( x, t )
-    dim as string mc = Spell_( x, c )
-    while (left( mc, 6 ) = "const ") orelse (left( mc, 9 ) = "volatile ")
-        mc = mid( mc, instr( mc, " " ) + 1 )
-    wend
-    if left( mc, 2 ) <> "::" then mc = "::" & mc
+    dim as string mc = FullSpell_( x, c )
     for i as int32 = 0 to x.mapEC.Count - 1
         if x.mapEC[i] = mc then return i + 1
     next
