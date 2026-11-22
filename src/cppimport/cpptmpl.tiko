@@ -592,6 +592,16 @@ private function IsClassName_( byref x as CppImp_, byref q as string ) as boolea
     for i as int32 = 0 to x.clsCpp.Count - 1
         if x.clsCpp[i] = "::" & q then return true
     next
+    '' A TEMPLATE-ID ENDS THE NAME: 'bx::Box<int>' is a class, 'bx::Box<int>::get' is not (survey).
+    dim as int32 lt = instr( q, "<" )
+    if lt > 0 then
+        dim as int32 depth = 0, close_ = 0
+        for i as int32 = lt to len( q )
+            if mid( q, i, 1 ) = "<" then depth += 1
+            if mid( q, i, 1 ) = ">" then depth -= 1 : if depth = 0 then close_ = i : exit for
+        next
+        if close_ <> len( q ) then return false
+    end if
     dim as string b = q
     if instr( b, "<" ) > 0 then b = trim( left( b, instr( b, "<" ) - 1 ) )
     for i as int32 = 0 to x.tmplNames.Count - 1
@@ -648,7 +658,13 @@ function ShapeLine_( byref s as string, byref kind as string, byval i as int32 )
     case else
         e = "::" & callee & "(" & av & ")"
     end select
-    return "namespace tko_cpp_shape_" & i & " { static_assert(sizeof((void)(" & e & "), 0) > 0, ""tiko: instantiate""); }"
+    '' A MEMBER'S OR A CONSTRUCTOR'S CLASS, named too (survey: 'tsl::robin_map<std::string, int>::insert'):
+    '' a member of a class template's specialization is its pattern's to libclang, whose parent is no
+    '' class of the binding -- ShapeClass_ reads the class from this alias instead.
+    dim as string cls = ""
+    if kind = "SM" then cls = " using tko_cpp_shapecls = ::" & pre & ";"
+    if kind = "SC" then cls = " using tko_cpp_shapecls = ::" & callee & ";"
+    return "namespace tko_cpp_shape_" & i & " {" & cls & " static_assert(sizeof((void)(" & e & "), 0) > 0, ""tiko: instantiate""); }"
 end function
 
 type ShapeFind_
@@ -677,6 +693,29 @@ private function ShapeNsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCu
         return CXChildVisit_Break
     end if
     return CXChildVisit_Continue
+end function
+
+private function ShapeClsVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as ShapeFind_ ptr f = client
+    if (f->x->api->getCursorKind( c ) = CXCursor_Namespace) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = f->want) then
+        return CXChildVisit_Recurse
+    end if
+    if (f->x->api->getCursorKind( c ) = CXCursor_TypeAliasDecl) andalso (Text_( *f->x, f->x->api->getCursorSpelling( c ) ) = "tko_cpp_shapecls") then
+        f->found = c : f->ok = true
+        return CXChildVisit_Break
+    end if
+    return CXChildVisit_Continue
+end function
+
+'' THE CLASS A MEMBER OR CONSTRUCTOR SHAPE NAMES (its 'tko_cpp_shapecls' alias), canonical; kind 0 if none.
+function ShapeClass_( byref x as CppImp_, byval i as int32 ) as CXType
+    dim as ShapeFind_ f
+    dim as CXType none_
+    f.x = @x
+    f.want = "tko_cpp_shape_" & i
+    x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @ShapeClsVisit_, @f )
+    if f.ok = false then return none_
+    return x.api->getCanonicalType( x.api->getTypedefDeclUnderlyingType( f.found ) )
 end function
 
 '' What shape i calls: a function, a method, a constructor. False when clang found nothing.

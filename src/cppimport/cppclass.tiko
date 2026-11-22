@@ -1010,7 +1010,8 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
     for i as int32 = 0 to x.extraMem.Count - 1
         dim as CXCursor em = x.extraMem[i]
         dim as string why, decl
-        if ClassOf_( x, x.api->getCursorType( x.api->getCursorSemanticParent( em ) ), why ) <> ci then continue for
+        if len( x.extraCls[i] ) andalso (x.extraCls[i] <> x.clsUsr[ci]) then continue for
+        if (len( x.extraCls[i] ) = 0) andalso (ClassOf_( x, x.api->getCursorType( x.api->getCursorSemanticParent( em ) ), why ) <> ci) then continue for
         dim as int32 ek = x.api->getCursorKind( em ), kk = K_METHOD_, na = x.api->Cursor_getNumArguments( em )
         dim as string emn = Text_( x, x.api->getCursorSpelling( em ) ), top = ""
         dim as string disp = cpp & "::" & Text_( x, x.api->getCursorDisplayName( em ) ) & TemplateArgs_( x, em )

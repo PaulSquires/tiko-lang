@@ -128,6 +128,7 @@ type CppImp_
     as Tko.StrVec    alCpp        '' every alias's C++ name, 'nlohmann::json'
     as containers.Array( of CXCursor ) extraMem   '' members a call shape found: their class's
     as Tko.StrVec    extraTargs   '' ...and the template arguments the shape wrote, '<int>'
+    as Tko.StrVec    extraCls     '' ...and the USR of the class the shape named ("" none: by the member's parent)
     as string        calleeTargs  '' Entry_'s explicit template arguments for the call
     as string        nameOverride '' Entry_'s tiko name, when an instantiation needs its arguments in it
 end type
@@ -236,6 +237,7 @@ declare function ShapeSplit_( byref s as string, byref callee as string, byref a
 declare function ShapeKind_( byref x as CppImp_, byref s as string ) as string
 declare function ShapeLine_( byref s as string, byref kind as string, byval i as int32 ) as string
 declare function ShapeTarget_( byref x as CppImp_, byval i as int32, byref fn as CXCursor ) as boolean
+declare function ShapeClass_( byref x as CppImp_, byval i as int32 ) as CXType
 declare function TemplateArgs_( byref x as CppImp_, byval c as CXCursor ) as string
 declare function ShapeTargs_( byref s as string ) as string
 declare function TargsName_( byref targs as string ) as string

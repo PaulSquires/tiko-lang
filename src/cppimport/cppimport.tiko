@@ -733,7 +733,17 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
     for i as int32 = 0 to opts.instantiate.Count - 1
         dim as CXCursor fn
         if ((ikind[i] = "SC") orelse (ikind[i] = "SM")) andalso ShapeTarget_( x, i, fn ) then
-            x.extraMem.Push( fn ) : x.extraTargs.Push( ShapeTargs_( opts.instantiate[i] ) )
+            '' A PLAIN MEMBER OF A SPECIALIZATION is bound with its class (its pattern's members, probed);
+            '' a member template's or a constructor template's specialization is added to it.
+            dim as CXType sc = ShapeClass_( x, i )
+            dim as string cu = ""
+            if sc.kind <> 0 then cu = Text_( x, api.getCursorUSR( api.getTypeDeclaration( sc ) ) )
+            dim as boolean concrete = (len( TemplateArgs_( x, fn ) ) > 0) orelse _
+                                      (api.getCursorKind( api.getSpecializedCursorTemplate( fn ) ) = CXCursor_FunctionTemplate)
+            dim as boolean inSpec = len( cu ) andalso (IsNullCursor_( x, api.getSpecializedCursorTemplate( api.getTypeDeclaration( sc ) ) ) = false)
+            if (inSpec = false) orelse concrete then
+                x.extraMem.Push( fn ) : x.extraTargs.Push( ShapeTargs_( opts.instantiate[i] ) ) : x.extraCls.Push( cu )
+            end if
         end if
     next
     EmitClasses_( x )
@@ -977,6 +987,7 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
         next
         if xp <> nullptr then delete xp : xp = nullptr
         dim as Tko.StrVec errLines
+        if len( environ( "TIKO_CPP_DEBUG" ) ) then open err for output as #99 : print #99, "---- tiko-cppimport unit" : print #99, unitText : close #99
         if Parse_( api, @argv( 0 ), av.Count, unitText, res, idx, tu, errLines ) = false then return false
         xp = new CppImp_
         xp->api = @api
@@ -1041,6 +1052,10 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
                 if (left( ikind[i], 1 ) = "S") andalso ShapeTarget_( *xp, i, fn ) then
                     NoteFunction_( *xp, fn )
                     if (ikind[i] = "SC") orelse (ikind[i] = "SM") then NoteType_( *xp, xp->api->getCursorType( xp->api->getCursorSemanticParent( fn ) ) )
+                end if
+                if (ikind[i] = "SC") orelse (ikind[i] = "SM") then
+                    dim as CXType sc = ShapeClass_( *xp, i )
+                    if sc.kind <> 0 then NoteType_( *xp, sc )
                 end if
             next
             xp->pass = 4
