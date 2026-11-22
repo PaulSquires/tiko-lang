@@ -1,0 +1,13 @@
+'' A MISSING MEMBER ON AN OPERATOR'S RESULT -- fbc's 18, "Element not defined". 'ww[0].nope( 1 )'
+'' over an 'operator []' returning V stopped tiko with TKO0994 ("this N_INTRINSIC was not
+'' compiled"), and '(*pp).nope' over a user 'operator *' did the same: CheckMemberExists_
+'' (latesweeps2.tiko) judged a call's result and not an operator's. Measured on fbc 1.10.1:
+'' line 21 is 18 and line 22, the statement form, 24 after it; '(*pp).nope' alone is 18 too
+'' (fbc stops judging the file's later lines after the statement's 24). Line 24 is fine.
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/member-of-operator-result.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: member-of-operator-result.bas(21,13): error TKO0739: 'v' has no member named 'nope'
+'' EXPECT-OUT: member-of-operator-result.bas(22,7): error TKO0739: 'v' has no member named 'nope'
+'' EXPECT-OUT: member-of-operator-result.bas(23,13): error TKO0739: 'v' has no member named 'nope'
+'' EXPECT-MAX-DIAG: 3

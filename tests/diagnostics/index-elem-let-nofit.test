@@ -1,0 +1,12 @@
+'' AN ELEMENT OF A BYREF 'operator []' ASSIGNED WHAT ITS 'let' DOES NOT TAKE -- fbc's 181, measured
+'' on fbc 1.10.1 over lines 18-20 exactly. The assignment check skipped every target bound to a
+'' procedure, an 'operator []' element included, so '= 3.0' reached the LLVM IR as a double where
+'' a 'const V' pointer belongs (TKO0113) and '= 3' and '= "tiko"' compiled and segfaulted. An
+'' element target is judged now (CheckUdtAssign_ in latesweeps2.tiko, OperatorTakesArg_).
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/index-elem-let-nofit.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: index-elem-let-nofit.bas(18,1): error TKO0738
+'' EXPECT-OUT: index-elem-let-nofit.bas(19,1): error TKO0738
+'' EXPECT-OUT: index-elem-let-nofit.bas(20,1): error TKO0738
+'' EXPECT-MAX-DIAG: 3

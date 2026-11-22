@@ -256,6 +256,108 @@ private sub DecideProcAddrs_( byref c as Ctx )
     next
 end sub
 
+'' A WHOLE ARRAY, 'T( arr( ) )', AT A CONSTRUCTOR PARAMETER THAT IS NO ARRAY -- fbc's 99 over a set
+'' ("No matching overloaded function"), measured on fbc 1.10.1 over a long and a string array
+'' against '( byval as long )' and '( byval as double, byval as long )', initialiser and
+'' assignment alike; over one constructor fbc refuses it too (error 7). The resolver costs the
+'' array as its ELEMENT, so a long array picked '( byval as long )' and lowering passed the array
+'' there; a string array picked nothing and lowering stopped with TKO0994 ("this N_VAR was not
+'' compiled", or N_AMBIGUOUS for 'x = T( arr( ) )'). Over ONE constructor an element that does
+'' not convert is left to argmismatch.tiko, which reports TKO0698 at the argument already.
+private function CtorArrayArgBad_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval cp as Tko.ListPayload ptr, byval t as Tko.TypeId, _
+      byval first_ as Tko.SymbolId, byval pick as Tko.SymbolId ) as boolean
+
+    dim as Tko.NodeId bad = Tko.NODE_NONE
+    dim as int32 bi = -1
+    for i as int32 = 0 to cp->count - 1
+        dim as Tko.NodeId an = c.ast->ChildAt( cp->first, i )
+        if IsArrayArgShape_( c, an ) then bad = an : bi = i : exit for
+    next
+    if bad = Tko.NODE_NONE then return false
+    dim as int32 ncand = 0
+    dim as Tko.SymbolId cur = first_
+    while (cur <> Tko.SYMBOL_NONE) andalso (ncand < 4096)
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if (cs = nullptr) orelse (cs->kind <> cast( uint8, Tko.SYM_PROC )) then return false
+        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+        if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
+        if (StmtOf( c, pn )->extra and Tko.PF_GENERIC_PROC) <> 0 then return false
+        '' The array lands on an array parameter, a variadic one or past the list: the pick holds.
+        if cur = pick then
+            dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+            dim as int32 seen = 0
+            dim as boolean onArray = true
+            for i as int32 = 0 to pp->count - 1
+                dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
+                if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+                if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then exit for
+                if (c.ast->Flags( prm ) and Tko.NF_VARIADIC) <> 0 then exit for
+                if seen = bi then
+                    onArray = ((c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0)
+                    exit for
+                end if
+                seen += 1
+            next
+            if onArray then return false
+        end if
+        ncand += 1
+        cur = cs->nextOverload
+    wend
+    if (pick = Tko.SYMBOL_NONE) andalso (ncand < 2) then return false
+    for k as int32 = 0 to c.diags->pending.Count - 1
+        if c.diags->pending[k].range.first = c.ast->Loc( id ) then return true
+        if c.diags->pending[k].range.first = c.ast->Loc( bad ) then return true
+    next
+    if ncand > 1 then
+        c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+    else
+        c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( bad ) ) )
+    end if
+    return true
+end function
+
+'' ONE TEXT ARGUMENT NO CONSTRUCTOR OF A SET TAKES -- 'V( "x" )' over '( byval as long )' and
+'' '( byval as double )'. Measured on fbc 1.10.1: refused (58 at the parameter of the candidate
+'' it tried). tiko found nothing either and lowering stopped with TKO0994 ("this N_VAR was not
+'' compiled"). Lowering's own fallback, CharPtrCtorInit_, builds through a one-parameter
+'' character-POINTER constructor, so a set with any pointer, UDT, variadic or generic first
+'' parameter is left to it; what remains is TKO0632, as for the other no-match shapes here.
+private sub CtorTextArgBad_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, byval first_ as Tko.SymbolId )
+
+    dim as int32 ncand = 0
+    dim as Tko.SymbolId cur = first_
+    while (cur <> Tko.SYMBOL_NONE) andalso (ncand < 4096)
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if (cs = nullptr) orelse (cs->kind <> cast( uint8, Tko.SYM_PROC )) then return
+        dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
+        if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return
+        dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
+        if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then return
+        for i as int32 = 0 to pp->count - 1
+            dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
+            if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
+            if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then return
+            if (c.ast->Flags( prm ) and (Tko.NF_VARIADIC or Tko.NF_ARRAY)) <> 0 then return
+            dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
+            if pt = Tko.TYPE_NONE then return
+            if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
+            select case c.types->Kind( pt )
+            case Tko.TK_POINTER, Tko.TK_UDT, Tko.TK_TUPLE : return
+            end select
+            exit for
+        next
+        ncand += 1
+        cur = cs->nextOverload
+    wend
+    if ncand < 2 then return
+    for k as int32 = 0 to c.diags->pending.Count - 1
+        if c.diags->pending[k].range.first = c.ast->Loc( id ) then return
+    next
+    c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+end sub
+
 '' 'T( args )' -- WHICH CONSTRUCTOR, by the shared resolver (structpick.tiko), recorded on the
 '' call for lowering's EmitTypeCtorInto_. Only when every argument is typed: an untyped one
 '' has no cost, and lowering keeps its arity answer for that case.
@@ -289,6 +391,7 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
         return
     end if
     if pick = Tko.SYMBOL_NONE then pick = Tko.Check.LoneScalarStructor( *c.ast, *c.syms, *c.types, *c.info, first_, argT )
+    if CtorArrayArgBad_( c, id, cp, t, first_, pick ) then return
     c.info->SetDecision( id, pick )
     '' ONE UDT ARGUMENT NO CONSTRUCTOR TAKES -- fbc's 99, measured over 'T( w )' with W unrelated
     '' and over an S that casts only to a number (StructorCastCost). Lowering found nothing
@@ -299,6 +402,11 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
         if c.types->Kind( a0 ) = Tko.TK_REFERENCE then a0 = c.types->Unqualify( c.types->Inner( a0 ) )
         if (c.types->Kind( a0 ) = Tko.TK_UDT) andalso (c.types->BaseDistance( a0, t ) < 0) then
             c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+        elseif c.types->Kind( a0 ) = Tko.TK_BUILTIN then
+            select case c.types->BuiltinOf( a0 )
+            case Tko.TY_STRING, Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_USTRING
+                CtorTextArgBad_( c, id, t, first_ )
+            end select
         end if
     end if
 end sub

@@ -1,0 +1,24 @@
+'' A MEMBER OPERATOR THAT DOES NOT TAKE THE OPERAND (OperatorTakesArg_ in symbols/proccheck.tiko). 'ww["abc"]' over
+'' 'operator []( byref as const H )' compiled and handed the literal to the operator, which read
+'' garbage or segfaulted; 'ww = 3' did the same through 'let'; 'ww += 4' stopped on TKO0994.
+''
+'' MEASURED, fbc 1.10.1 with -maxerr inf over the source: exactly these lines, and no others --
+''
+''     51-53  error 28    '[]' with no overload taking the index -- one, and a set of two
+''     54-55  error 181   'let' over a string and a number
+''     56-57  error 20    '+=' over a string and a number
+''
+'' H constructs from a string and a long, and a plain sub over 'byref as const H' takes both
+'' (47-48): into an operator's CONST H only the standard conversions are tried (over a non-const
+'' H fbc takes both through the constructors -- codegen/selfop-userconv.bas). An H is fine (59-61).
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/operator-arg-nofit.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: operator-arg-nofit.bas(51,9): error TKO0700
+'' EXPECT-OUT: operator-arg-nofit.bas(52,9): error TKO0700
+'' EXPECT-OUT: operator-arg-nofit.bas(53,9): error TKO0700
+'' EXPECT-OUT: operator-arg-nofit.bas(54,1): error TKO0738
+'' EXPECT-OUT: operator-arg-nofit.bas(55,1): error TKO0738
+'' EXPECT-OUT: operator-arg-nofit.bas(56,1): error TKO0820
+'' EXPECT-OUT: operator-arg-nofit.bas(57,1): error TKO0820
+'' EXPECT-MAX-DIAG: 7

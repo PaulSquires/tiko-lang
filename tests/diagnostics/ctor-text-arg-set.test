@@ -1,0 +1,12 @@
+'' A STRING ARGUMENT NO CONSTRUCTOR OF A SET TAKES -- 'V( "x" )' over '( byval as long )' and
+'' '( byval as double )'. Measured on fbc 1.10.1: lines 26-28 exactly (58 at the parameter of the
+'' candidate it tried, 99 for the variable), and 'Z( "x" )' through a 'const zstring ptr'
+'' constructor is fine. tiko stopped lowering with TKO0994 ("this N_VAR was not compiled"); see
+'' CtorTextArgBad_ (checkdecide.tiko).
+'' TEST: cli
+'' ARGS: -fmax-errors 100 --dump-ir tests/diagnostics/src/ctor-text-arg-set.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-text-arg-set.bas(26,16): error TKO0632
+'' EXPECT-OUT: ctor-text-arg-set.bas(27,16): error TKO0632
+'' EXPECT-OUT: ctor-text-arg-set.bas(28,7): error TKO0632
+'' EXPECT-MAX-DIAG: 3
