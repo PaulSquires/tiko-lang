@@ -2120,11 +2120,13 @@ private function MenuTitle( byval g as MenuGroup ) as ustring
     return GroupName( g )
 end function
 
-' The Design menu's submenus, after VB6's Format menu (author 2026-11-14): which one a command's
-' row is in (0 = a row of the menu itself), each submenu's title, and a row's short text there.
-public const DESIGN_SUB_ID = &h7F00              ' + n: a submenu's title row (no command has it)
+' The menus' submenus: the Design menu's after VB6's Format menu (author 2026-11-14), the others'
+' so that no menu outgrows a small laptop screen (author 2026-11-21). Which one a command's row is
+' in (0 = a row of the menu itself; a submenu's rows are a run of its group's table order), each
+' submenu's title, and a row's short text there ("" = its command's own name).
+public const MENU_SUB_ID = &h7F00                ' + n: a submenu's title row (no command has it)
 
-public function DesignSub( byval id as Cmd ) as long
+public function MenuSub( byval id as Cmd ) as long
     select case id
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, _
          Cmd.FormAlignTops, Cmd.FormAlignMiddles, Cmd.FormAlignBottoms : return 1
@@ -2133,11 +2135,36 @@ public function DesignSub( byval id as Cmd ) as long
     case Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove : return 4
     case Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove : return 5
     case Cmd.FormCenterHorz, Cmd.FormCenterVert : return 6
+    ' File
+    case Cmd.ProjectSaveAs, Cmd.ProjectClose : return 7
+    case Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile : return 8
+    ' Edit
+    case Cmd.SelectLine, Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, _
+         Cmd.NewLineBelowCurrent : return 9
+    case Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock : return 10
+    case Cmd.ToUpperCase, Cmd.ToLowerCase, Cmd.ToMixedCase : return 11
+    ' Search
+    case Cmd.GoToLine, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, _
+         Cmd.GoToNextFunction, Cmd.GoToPrevFunction : return 12
+    case Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList : return 13
+    ' View
+    case Cmd.SplitLeftRight, Cmd.SplitTopBottom, Cmd.CycleFocus : return 14
+    case Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset : return 15
+    case Cmd.FoldToggle, Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll : return 16
     end select
     return 0
 end function
 
-private function DesignSubTitle( byval n as long ) as ustring
+' Is command id a row of its group's menu? Three Design commands are not (author 2026-11-21): the
+' palettes' own float buttons float them, and Preview Light / Dark is a key to bind. They still run.
+public function InMenu( byval id as Cmd ) as boolean
+    select case id
+    case Cmd.FormPreviewVariant, Cmd.FormFloatToolbox, Cmd.FormFloatProperties : return false
+    end select
+    return true
+end function
+
+private function MenuSubTitle( byval n as long ) as ustring
     select case n
     case 1 : return i18n.Tr( "menubar.align", "Align" )
     case 2 : return i18n.Tr( "menubar.same_size", "Make Same Size" )
@@ -2145,11 +2172,21 @@ private function DesignSubTitle( byval n as long ) as ustring
     case 4 : return i18n.Tr( "menubar.h_spacing", "Horizontal Spacing" )
     case 5 : return i18n.Tr( "menubar.v_spacing", "Vertical Spacing" )
     case 6 : return i18n.Tr( "menubar.center_form", "Center in Form" )
+    case 7 : return i18n.Tr( "menubar.project", "Project" )
+    case 8 : return i18n.Tr( "menubar.options", "Options" )
+    case 9 : return i18n.Tr( "menubar.line", "Line" )
+    case 10 : return i18n.Tr( "menubar.block", "Block" )
+    case 11 : return i18n.Tr( "menubar.case", "Case" )
+    case 12 : return i18n.Tr( "menubar.go_to", "Go To" )
+    case 13 : return i18n.Tr( "menubar.bookmarks", "Bookmarks" )
+    case 14 : return i18n.Tr( "menubar.split", "Split" )
+    case 15 : return i18n.Tr( "menubar.zoom", "Zoom" )
+    case 16 : return i18n.Tr( "menubar.folding", "Folding" )
     end select
     return ""
 end function
 
-private function DesignSubRow( byval id as Cmd ) as ustring
+private function MenuSubRow( byval id as Cmd ) as ustring
     select case id
     case Cmd.FormAlignLefts : return i18n.Tr( "menubar.lefts", "Lefts" )
     case Cmd.FormAlignCenters : return i18n.Tr( "menubar.centers", "Centers" )
@@ -2191,24 +2228,27 @@ sub Window.BuildMenus( )
             m = tkMenuBar_GetDropDown( menuBar, g )
             tkPopupMenu_Clear( m )
         end if
-        ' a run of rows of one Design submenu goes into it, under its own title row
+        ' a run of rows of one submenu goes into it, under its own title row
         dim as TK_MENU ptr sm = 0
         dim as long smN = 0
         for each id as Cmd in t.InGroup( cast( MenuGroup, g ) )
+            if InMenu( id ) = false then continue for
             dim as cmdids.CommandInfo ci = t.Info( id )
-            dim as long n = iif( g = clng( MenuGroup.Design ), DesignSub( id ), 0 )
+            dim as long n = MenuSub( id )
             if n <> smN then
                 smN = n : sm = 0
                 if n then
                     if ci.SepBefore andalso (tkPopupMenu_GetItemCount( m ) > 0) then tkPopupMenu_AddSeparator( m )
-                    tkPopupMenu_AddItem( m, DESIGN_SUB_ID + n, DesignSubTitle( n ) )
+                    tkPopupMenu_AddItem( m, MENU_SUB_ID + n, MenuSubTitle( n ) )
                     sm = tkPopupMenu_Create( h )
-                    tkPopupMenu_SetItemSubMenu( m, DESIGN_SUB_ID + n, sm )
+                    tkPopupMenu_SetItemSubMenu( m, MENU_SUB_ID + n, sm )
                 end if
             end if
             if sm then
                 if ci.SepBefore andalso (tkPopupMenu_GetItemCount( sm ) > 0) then tkPopupMenu_AddSeparator( sm )
-                tkPopupMenu_AddItem( sm, clng( id ), DesignSubRow( id ), this.ShortcutText( id ), this.IsImplemented( id ) = false )
+                dim as ustring rowText = MenuSubRow( id )
+                if len( rowText ) = 0 then rowText = i18n.Tr( "commands." & ci.Name, ci.Description )
+                tkPopupMenu_AddItem( sm, clng( id ), rowText, this.ShortcutText( id ), this.IsImplemented( id ) = false )
                 continue for
             end if
             if ci.SepBefore andalso (tkPopupMenu_GetItemCount( m ) > 0) then tkPopupMenu_AddSeparator( m )
