@@ -417,47 +417,19 @@ private sub PpModImportRec_( byref e as PpEngine, byval at as SourceLoc, byref r
     next
 end sub
 
-'' AN IMPORT THE UNIT DID NOT WRITE ('#cppinclude': std/containers and std/outcome); none after code
-'' (TKO0362). Several, '|'-separated, are judged together: reading one pushes its interface, after
-'' which the unit is no longer at its own root -- a second call would find it closed.
-function PpModImportFor( byref e as PpEngine, byval at as SourceLoc, byref paths as string, _
-                         byval quiet as boolean ) as boolean
-    if (PpModInRoot_( e ) = false) orelse e.modst.headerClosed then
-        '' Every one already imported is no error.
-        dim as boolean all_ = true
-        dim as int32 a = 1
-        while a <= len( paths )
-            dim as int32 b = instr( a, paths, "|" )
-            if b = 0 then b = len( paths ) + 1
-            dim as boolean have = false
-            for i as int32 = 0 to e.outp->imports.Count - 1
-                if Text.LowerAscii( e.outp->imports[i].path ) = Text.LowerAscii( mid( paths, a, b - a ) ) then have = true
-            next
-            if have = false then all_ = false
-            a = b + 1
-        wend
-        if all_ then return true
-        if quiet = false then Report( e, TKO0362, at )
-        return false
-    end if
-    dim as Tko.StrVec todo
-    dim as int32 a = 1
+'' IMPORTS THE UNIT DID NOT WRITE ('#cppinclude': "std/containers|std/outcome"), judged together -- reading
+'' one leaves the unit off its root. Quietly none after code (the callers' TKO0362 is the binding's own).
+function PpModImportFor( byref e as PpEngine, byval at as SourceLoc, byref paths as string, byval quiet as boolean ) as boolean
+    if (PpModInRoot_( e ) = false) orelse e.modst.headerClosed then return false
+    dim as int32 a = 1, b
     while a <= len( paths )
-        dim as int32 b = instr( a, paths, "|" )
-        if b = 0 then b = len( paths ) + 1
-        dim as string p = mid( paths, a, b - a )
+        b = instr( a, paths & "|", "|" ) : dim as PpImport rec : rec.path = mid( paths, a, b - a ) : a = b + 1
         dim as boolean have = false
         for i as int32 = 0 to e.outp->imports.Count - 1
-            if Text.LowerAscii( e.outp->imports[i].path ) = Text.LowerAscii( p ) then have = true
+            if Text.LowerAscii( e.outp->imports[i].path ) = Text.LowerAscii( rec.path ) then have = true
         next
-        if (have = false) andalso len( p ) then todo.Push( p )
-        a = b + 1
+        if have = false then rec.alias_ = PpModLastSegment_( rec.path ) : rec.loc = at : PpModImportRec_( e, at, rec )
     wend
-    for i as int32 = 0 to todo.Count - 1
-        dim as PpImport rec
-        rec.path = todo[i] : rec.alias_ = PpModLastSegment_( todo[i] ) : rec.loc = at
-        PpModImportRec_( e, at, rec )
-    next
     return true
 end function
 
