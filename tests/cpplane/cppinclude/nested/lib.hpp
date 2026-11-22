@@ -2,6 +2,8 @@
 // std::vector, rvalue-reference parameters (the cpp-import survey, docs/tiko-cpp/SURVEY.md).
 #pragma once
 #include <array>
+#include <map>
+#include <unordered_map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -61,5 +63,16 @@ extern const char* const GREETING;
 enum { FLAG_A = 1, FLAG_B = 4 };
 std::string bytes(int n);                             // binary data in a std::string
 long long checksum(const std::string& s);
+std::map<std::string, int> counts(const std::string& text);          // maps
+std::unordered_map<int, std::string> names(int n);
+int total(const std::map<std::string, int>& m);
+bool parse_num(const std::string& s, int* out, std::string* err);    // a std::string* to fill
+class Mesh {                                                         // vector fields
+public:
+    std::vector<float> vertices;
+    std::vector<std::string> tags;
+    std::map<std::string, int> attrs;
+    int count() const { return (int)vertices.size(); }
+};
 
 }  // namespace nest

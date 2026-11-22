@@ -61,5 +61,21 @@ int main() {
     show_s("GREETING", nest::GREETING);
     show_i("FLAGS", nest::FLAG_A | nest::FLAG_B);
     show_i("bytes", nest::checksum(nest::bytes(9)));
+    auto cm = nest::counts("b a c a b a");
+    for (auto& e : cm) show_i(("count." + e.first).c_str(), e.second);
+    show_i("total", nest::total(cm));
+    auto nm = nest::names(3);
+    std::map<int, std::string> sorted(nm.begin(), nm.end());
+    for (auto& e : sorted) show_s(("name." + std::to_string(e.first)).c_str(), e.second.c_str());
+    int pv = 0; std::string err;
+    show_i("parse.ok", nest::parse_num("12", &pv, &err) ? pv : -1);
+    show_i("parse.bad", nest::parse_num("zz", &pv, &err) ? 1 : 0);
+    show_s("parse.err", err.c_str());
+    nest::Mesh mesh;
+    mesh.vertices = { 1.5f, 2.5f, 3.5f };
+    mesh.tags.push_back("t1");
+    show_i("mesh.count", mesh.count());
+    show_d("mesh.v2", mesh.vertices[2]);
+    show_i("mesh.tags", (long long)mesh.tags.size());
     return 0;
 }

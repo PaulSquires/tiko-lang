@@ -507,6 +507,10 @@ function Prelude_( ) as string
     "// A std::array crosses as a std::vector of its elements (survey: earcut, happly, clipper2)." & L & _
     "template <class T, std::size_t N> inline std::array<T, N> tko_cpp_toarr(const std::vector<T>& v) { std::array<T, N> a{}; for (std::size_t i = 0; i < N && i < v.size(); ++i) a[i] = v[i]; return a; }" & L & _
     "template <class A> inline void* tko_cpp_arrvec(const A& a) { return new std::vector<typename A::value_type>(a.begin(), a.end()); }" & L & _
+    "// A std::map / std::unordered_map crosses as its keys and its values, two vectors (survey)." & L & _
+    "template <class K, class V> struct tko_cpp_kv { std::vector<K> k; std::vector<V> v; };" & L & _
+    "template <class K, class V, class M> inline void* tko_cpp_mapkv(const M& m) { auto* p = new tko_cpp_kv<K, V>(); for (auto& e : m) { p->k.push_back(e.first); p->v.push_back(e.second); } return p; }" & L & _
+    "template <class M, class K, class V> inline M tko_cpp_kvmap(const tko_cpp_kv<K, V>& p) { M m; for (std::size_t i = 0; i < p.k.size() && i < p.v.size(); ++i) m.emplace(p.k[i], p.v[i]); return m; }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
     "template <class T> inline std::shared_ptr<T>* tko_cpp_unbox(long long o) { return reinterpret_cast<std::shared_ptr<T>*>(o); }" & L & _
     "template <class T> inline std::unique_ptr<T> tko_cpp_take(tko_cpp_h* h) {" & L & _

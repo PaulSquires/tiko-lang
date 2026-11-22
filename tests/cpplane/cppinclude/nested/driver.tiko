@@ -81,3 +81,29 @@ show_s( "GREETING", strptr( gr ) )
 show_i( "FLAGS", nest.FLAG_A or nest.FLAG_B )
 '' Bytes that are not UTF-8 cross a ustring and back unchanged (U+DC00 + byte); the euro sign is one unit.
 show_i( "bytes", nest.checksum( nest.bytes( 9 ) ) )
+dim as containers.OrderedMap( of ustring, long ) cm = nest.counts( "b a c a b a" )
+for each k in cm.Keys( )
+    show_i( "count." & k, cm[k] )
+next
+show_i( "total", nest.total( cm ) )
+dim as containers.OrderedMap( of long, ustring ) nm = nest.names( 3 )
+for each k in nm.Keys( )
+    dim as string sv = nm[k]
+    show_s( "name." & k, strptr( sv ) )
+next
+dim as long pv = 0
+dim as ustring perr
+show_i( "parse.ok", iif( nest.parse_num( "12", @pv, perr ), pv, -1 ) )
+show_i( "parse.bad", iif( nest.parse_num( "zz", @pv, perr ), 1, 0 ) )
+dim as string pes = perr
+show_s( "parse.err", strptr( pes ) )
+dim as nest.Mesh mesh
+dim as containers.Array( of single ) vs
+vs.Push( 1.5! ) : vs.Push( 2.5! ) : vs.Push( 3.5! )
+mesh.vertices = vs
+dim as containers.Array( of ustring ) tg
+tg.Push( "t1" )
+mesh.tags = tg
+show_i( "mesh.count", mesh.count( ) )
+show_d( "mesh.v2", mesh.vertices[2] )
+show_i( "mesh.tags", mesh.tags.Count )

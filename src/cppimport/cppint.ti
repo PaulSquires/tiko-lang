@@ -111,6 +111,12 @@ type CppImp_
     as Tko.StrVec    vecBase      '' the traits' common symbol, 'tko_cpp_<id>_<n>'
     as Tko.StrVec    vecKindOf    '' "" an element tiko and C++ pass alike; "n" a nested std::vector, "a" a
     as Tko.StrVec    vecInner     '' std::array (survey) -- each over the traits of ITS element, vecInner
+    '' std::map / std::unordered_map (survey): containers.OrderedMap, crossing as two vectors -- keys and
+    '' values -- over the vector traits of each; a TMap_'s vk1 is -(index + 1) for one.
+    as Tko.StrVec    mapEC        '' the map's C++ type, canonical
+    as Tko.StrVec    mapET        '' 'containers.OrderedMap( of KT, VT )'
+    as Tko.StrVec    mapBase      '' its traits' symbol
+    as Tko.StrVec    mapKV        '' the key's and value's vector kinds, 'k,v'
     as Tko.StrVec    vecDecls     '' their declarations, at the binding's end
     as Tko.StrVec    defs         '' the adapters, private, after them
     as Tko.StrVec    extraGlob    '' a raw entry's declaration, which Entry_'s caller writes
@@ -186,6 +192,7 @@ declare function MirQual_( byval api as ClangApi ptr, byval c as CXCursor ) as s
 declare function NsOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
 declare sub NsClose_( byref x as CppImp_, byref opened as Tko.StrVec )
 declare function OuterOf_( byref x as CppImp_, byval ci as int32 ) as int32
+declare function Excluded_( byref x as CppImp_, byref sym as string ) as boolean
 declare sub MirUnits_( byref x as CppImp_ )
 declare function ClassOpen_( byref x as CppImp_, byval ci as int32, byref opened as Tko.StrVec ) as string
 declare sub ClassClose_( byref x as CppImp_, byref opened as Tko.StrVec )
@@ -250,6 +257,9 @@ declare sub DiscoverClass_( byref x as CppImp_, byval ci as int32 )
 '' cppvec.tiko
 declare function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) as int32
 declare sub VecHelpers_( byref x as CppImp_, byval vk as int32 )
+declare function MapKind_( byref x as CppImp_, byval t as CXType, byref why as string ) as int32
+declare function MapKV_( byref x as CppImp_, byval mk as int32 ) as string
+declare sub FieldVec_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref r as TMap_, byref lines as Tko.StrVec )
 declare function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, byref m as TMap_ ) as boolean
 declare function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) as boolean
 declare function HasRange_( byref x as CppImp_, byval ci as int32 ) as boolean

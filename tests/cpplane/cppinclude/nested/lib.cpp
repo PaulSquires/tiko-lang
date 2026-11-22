@@ -47,6 +47,16 @@ std::optional<std::string> label(int i) { if (i > 0) return "L" + std::to_string
 void decorate(std::string& s) { s = "[" + s + "]"; }
 const char* const GREETING = "hello";
 std::string bytes(int n) { std::string s; for (int i = 0; i < n; ++i) s += (char)(i * 37 + 200); s += "â¬"; return s; }
+std::map<std::string, int> counts(const std::string& text) {
+    std::map<std::string, int> m; std::string w;
+    for (char c : text + " ") { if (c == ' ') { if (!w.empty()) ++m[w]; w.clear(); } else w += c; }
+    return m;
+}
+std::unordered_map<int, std::string> names(int n) { std::unordered_map<int, std::string> m; for (int i = n; i > 0; --i) m[i * 7] = "n" + std::to_string(i); return m; }
+int total(const std::map<std::string, int>& m) { int t = 0; for (auto& e : m) t += e.second * (int)e.first.size(); return t; }
+bool parse_num(const std::string& s, int* out, std::string* err) {
+    try { *out = std::stoi(s); return true; } catch (...) { if (err) *err = "not a number: " + s; return false; }
+}
 long long checksum(const std::string& s) { long long t = 0; for (unsigned char c : s) t = t * 257 + c; return t; }
 
 }  // namespace nest

@@ -44,7 +44,7 @@ function StdTemplate_( byref x as CppImp_, byval t as CXType ) as string
     if IsNullCursor_( x, tm ) orelse (InStd_( x, tm ) = false) then return ""
     dim as string nm = Text_( x, x.api->getCursorSpelling( tm ) )
     select case nm
-    case "vector", "unique_ptr", "shared_ptr", "optional", "array" : return nm
+    case "vector", "unique_ptr", "shared_ptr", "optional", "array", "map", "unordered_map" : return nm
     end select
     return ""
 end function

@@ -159,6 +159,13 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
             '' to a record the binding has no handle for (FILE, an incomplete internal struct) is
             '' opaque: 'any ptr'.
             dim as int32 ci = ClassOf_( x, pe, cwhy )
+            if (ci < 0) andalso (StrKind_( x, pe ) = 1) then
+                '' A std::string* (survey: jsoncpp's 'String* errs', tinyobjloader's 'std::string* warn'):
+                '' a byref ustring, read for the call and written after it.
+                m.tiko = "byref " & nm & " as ustring" : m.ctype = "tko_cpp_ustr* " & nm
+                m.arg = "&static_cast<std::string&>(tko_cpp_strout(" & nm & "))" : m.mir = "FBUSTRING&"
+                return m
+            end if
             if ci < 0 then
                 if StrKind_( x, pe ) > 0 then m.ok = false : m.why = cwhy : return m
                 m.tiko = "byval " & nm & " as " & kw & "any ptr" : m.ctype = kw & "void* " & nm
@@ -188,7 +195,7 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
             '' A std::string& TO FILL (survey: utfcpp, argparse, json11's parse error): a ustring variable,
             '' read for the call and written after it.
             m.tiko = "byref " & nm & " as ustring" : m.ctype = "tko_cpp_ustr* " & nm
-            m.arg = "tko_cpp_strout(" & nm & ")" : m.mir = "FBUSTRING&"
+            m.arg = "static_cast<std::string&>(tko_cpp_strout(" & nm & "))" : m.mir = "FBUSTRING&"
         elseif Fund_( x, pe, tk, ct ) then
             m.tiko = "byref " & nm & " as " & kw & tk
             m.ctype = kw & ct & "* " & nm

@@ -130,6 +130,109 @@ function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) 
     return x.vecEC.Count
 end function
 
+'' THE TRAITS OF A MAP TYPE (std::map, std::unordered_map), written once: index + 1, or 0. Its keys and
+'' values are vector kinds; the shim passes a tko_cpp_kv (two vectors), and two tiko helpers turn one
+'' into a containers.OrderedMap and back -- in key order, so an unordered_map's walk is deterministic.
+function MapKind_( byref x as CppImp_, byval t as CXType, byref why as string ) as int32
+    dim as string L = chr( 10 )
+    dim as CXType c = Canon_( x, t )
+    dim as string mc = Spell_( x, c )
+    while (left( mc, 6 ) = "const ") orelse (left( mc, 9 ) = "volatile ")
+        mc = mid( mc, instr( mc, " " ) + 1 )
+    wend
+    if left( mc, 2 ) <> "::" then mc = "::" & mc
+    for i as int32 = 0 to x.mapEC.Count - 1
+        if x.mapEC[i] = mc then return i + 1
+    next
+    dim as CXType kt = x.api->Type_getTemplateArgumentAsType( c, 0 ), vt_ = x.api->Type_getTemplateArgumentAsType( c, 1 )
+    dim as int32 kk = VecKind_( x, kt, why )
+    if kk = 0 then why = "a map keyed by " & Spell_( x, kt ) : return 0
+    dim as int32 vk = VecKind_( x, vt_, why )
+    if vk = 0 then why = "a map of " & Spell_( x, vt_ ) : return 0
+    dim as string kc = x.vecEC[kk - 1], vc = x.vecEC[vk - 1], kb = x.vecBase[kk - 1], vb = x.vecBase[vk - 1]
+    dim as string kv = "tko_cpp_kv<" & kc & ", " & vc & ">", b = Sym_( x )
+    dim as string et = "containers.OrderedMap( of " & x.vecET[kk - 1] & ", " & x.vecET[vk - 1] & " )"
+    x.vecDecls.Push( "extern ""C"" : declare function " & b & "_keys alias """ & b & "_keys"" ( byval p as any ptr ) as any ptr : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare function " & b & "_vals alias """ & b & "_vals"" ( byval p as any ptr ) as any ptr : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare sub " & b & "_free alias """ & b & "_free"" ( byval p as any ptr ) : end extern" )
+    x.vecDecls.Push( "extern ""C"" : declare function " & b & "_from alias """ & b & "_from"" ( byval k as any ptr, byval v as any ptr ) as any ptr : end extern" )
+    dim as string f = "// " & mc & " <-> " & et & L
+    f &= "extern ""C"" void* " & b & "_keys(void* p) { return &static_cast<" & kv & "*>(p)->k; }" & L
+    f &= "extern ""C"" void* " & b & "_vals(void* p) { return &static_cast<" & kv & "*>(p)->v; }" & L
+    f &= "extern ""C"" void " & b & "_free(void* p) { delete static_cast<" & kv & "*>(p); }" & L
+    f &= "extern ""C"" void* " & b & "_from(void* k, void* v) { try { auto* p = new " & kv & "(); p->k = *static_cast<std::vector<" & kc & ">*>(k); " & _
+         "p->v = *static_cast<std::vector<" & vc & ">*>(v); return p; } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return nullptr; }" & L
+    x.shim.Push( f )
+    dim as string d = ""
+    d &= "private function tko_mout_" & b & "( byval p as any ptr ) as " & et & L
+    d &= "    dim as " & et & " m" & L
+    d &= "    dim as any ptr kp = " & b & "_keys( p ), vp = " & b & "_vals( p )" & L
+    d &= "    for i as long = 0 to " & kb & "_size( kp ) - 1 : m.Put( tko_vget_" & kb & "( kp, i ), tko_vget_" & vb & "( vp, i ) ) : next" & L
+    d &= "    return m" & L & "end function" & L
+    d &= "private function tko_min_" & b & "( byref m as const " & et & " ) as any ptr" & L
+    d &= "    dim as " & et & " ptr mp = cast( " & et & " ptr, @m )" & L
+    d &= "    dim as any ptr kv = tko_vin_" & kb & "( mp->Keys( ) ), vv = tko_vin_" & vb & "( mp->Values( ) )" & L
+    d &= "    dim as any ptr p = " & b & "_from( kv, vv )" & L
+    d &= "    " & kb & "_free( kv ) : " & vb & "_free( vv )" & L
+    d &= "    return p" & L & "end function" & L
+    x.defs.Push( d )
+    x.mapEC.Push( mc ) : x.mapET.Push( et ) : x.mapBase.Push( b ) : x.mapKV.Push( kk & "," & vk )
+    return x.mapEC.Count
+end function
+
+'' 'K, V' of map kind mk: the shim's spelling of its key and value types.
+function MapKV_( byref x as CppImp_, byval mk as int32 ) as string
+    dim as string s = x.mapKV[mk - 1]
+    dim as int32 c = instr( s, "," )
+    return x.vecEC[valint( left( s, c - 1 ) ) - 1] & ", " & x.vecEC[valint( mid( s, c + 1 ) ) - 1]
+end function
+
+'' A std::vector FIELD (survey: tinyobjloader's attrib_t.vertices) is a property of an Array: the getter
+'' copies the field out, the setter copies an Array in. Through raw shim functions and a property the
+'' binding defines, as an adapter is.
+sub FieldVec_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref r as TMap_, byref lines as Tko.StrVec )
+    dim as string L = chr( 10 )
+    dim as string nm = Text_( x, x.api->getCursorSpelling( c ) ), tn = ValueName_( nm )
+    dim as string cpp = x.clsCpp[ci], disp = cpp & "::" & nm
+    dim as int32 vk = r.vk1
+    dim as string et = "containers.Array( of " & x.vecET[vk - 1] & " )", b = x.vecBase[vk - 1]
+    dim as string obj = "static_cast<" & cpp & "*>(self_->impl)->" & nm
+    dim as string sg = Sym_( x )
+    if Excluded_( x, sg ) then lines.Push( "'' CPP-TODO(its C++ body does not compile): " & disp ) : x.todos += 1 : return
+    dim as string rg = tn & "__get" & mid( sg, instrrev( sg, "_" ) + 1 )
+    x.extraGlob.Push( "extern ""C"" : declare function " & rg & " alias """ & sg & """ ( byref self_ as const " & x.clsTikoQ[ci] & " ) as any ptr : end extern" )
+    x.shim.Push( "extern ""C"" void* " & sg & "(tko_cpp_h* self_) { try { return static_cast<void*>(new std::vector<" & x.vecEC[vk - 1] & ">(" & obj & ")); } TKO_CPP_CATCH" & L & _
+                 "    tko_cpp_raise(); return nullptr; }" & L )
+    lines.Push( "declare property " & tn & " ( ) as " & et & "    '' " & disp & " (a copy)" )
+    dim as string ns = x.clsNsTiko[ci], d = "", e = ""
+    dim as int32 a = 1
+    while a <= len( ns )
+        dim as int32 q = instr( a, ns, chr( 1 ) )
+        if q = 0 then q = len( ns ) + 1
+        d &= "namespace " & mid( ns, a, q - a ) & L : e &= "end namespace" & L
+        a = q + 1
+    wend
+    d &= "property " & ClsRel_( x, ci ) & "." & tn & " ( ) as " & et & L & _
+         "    dim as any ptr tko_r_ = " & rg & "( this )" & L & _
+         "    dim as " & et & " tko_a_ = tko_vout_" & b & "( tko_r_ )" & L & _
+         "    " & b & "_free( tko_r_ )" & L & "    return tko_a_" & L & "end property" & L
+    x.bound += 1
+    if x.api->isConstQualifiedType( x.api->getCursorType( c ) ) = 0 then
+        dim as string ss = Sym_( x )
+        if Excluded_( x, ss ) = false then
+            dim as string rs = tn & "__set" & mid( ss, instrrev( ss, "_" ) + 1 )
+            x.extraGlob.Push( "extern ""C"" : declare sub " & rs & " alias """ & ss & """ ( byref self_ as " & x.clsTikoQ[ci] & ", byval v as any ptr ) : end extern" )
+            x.shim.Push( "extern ""C"" void " & ss & "(tko_cpp_h* self_, void* v) { try { " & obj & " = *static_cast<std::vector<" & x.vecEC[vk - 1] & ">*>(v); return; } TKO_CPP_CATCH" & L & _
+                         "    tko_cpp_raise(); }" & L )
+            lines.Push( "declare property " & tn & " ( byref v as const " & et & " )" )
+            d &= "property " & ClsRel_( x, ci ) & "." & tn & " ( byref v as const " & et & " )" & L & _
+                 "    dim as any ptr tko_v_ = tko_vin_" & b & "( v )" & L & _
+                 "    " & rs & "( this, tko_v_ )" & L & "    " & b & "_free( tko_v_ )" & L & "end property" & L
+        end if
+    end if
+    x.defs.Push( d & e )
+end sub
+
 '' THE TIKO HELPERS of traits vk (see VecKind_), private procedures of the binding: an inner kind's
 '' are written before its outer one's, which call them.
 sub VecHelpers_( byref x as CppImp_, byval vk as int32 )
@@ -190,6 +293,16 @@ function StdParam_( byref x as CppImp_, byval t as CXType, byref nm as string, b
         return true
     end if
     if sk = "optional" then m.ok = false : m.why = "a std::optional parameter" : return true
+    if (sk = "map") orelse (sk = "unordered_map") then
+        if isRef andalso (kq = false) then m.ok = false : m.why = "a std::" & sk & "& to fill" : return true
+        dim as int32 mk = MapKind_( x, pe, why )
+        if mk = 0 then m.ok = false : m.why = why : return true
+        m.tiko = "byval " & nm & " as any ptr" : m.ctype = "void* " & nm : m.mir = "void*"
+        m.arg = "tko_cpp_kvmap<" & x.mapEC[mk - 1] & ">(*static_cast<tko_cpp_kv<" & MapKV_( x, mk ) & ">*>(" & nm & "))"
+        m.vk1 = -mk : m.vmode = 1
+        m.pub = "byref " & nm & " as const " & x.mapET[mk - 1]
+        return true
+    end if
     dim as int32 ci = ClassOf_( x, e, why )
     if (ci < 0) orelse IsPod_( x, ci ) then m.ok = false : m.why = "std::" & sk & " of " & Spell_( x, e ) : return true
     if (sk = "unique_ptr") andalso isRef then m.ok = false : m.why = "a reference to a std::unique_ptr" : return true
@@ -221,6 +334,13 @@ function StdResult_( byref x as CppImp_, byval t as CXType, byref m as TMap_ ) a
         if vk = 0 then m.ok = false : m.why = why : return true
         m.tiko = "any ptr" : m.ctype = "void*" : m.fallback = "nullptr" : m.vk1 = vk
         m.wrap0 = "tko_cpp_arrvec(" : m.wrap1 = ")"
+        return true
+    end if
+    if (sk = "map") orelse (sk = "unordered_map") then
+        dim as int32 mk = MapKind_( x, pe, why )
+        if mk = 0 then m.ok = false : m.why = why : return true
+        m.tiko = "any ptr" : m.ctype = "void*" : m.fallback = "nullptr" : m.vk1 = -mk
+        m.wrap0 = "tko_cpp_mapkv<" & MapKV_( x, mk ) & ">(" : m.wrap1 = ")"
         return true
     end if
     if sk = "optional" then
@@ -259,11 +379,15 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
     for i as int32 = 0 to names.Count - 1
         if (i > 0) orelse (len( self_ ) > 0) then args &= ", "
         if vks[i] = 0 then args &= names[i] : continue for
-        dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
-        d &= "    dim as any ptr " & vv & " = tko_vin_" & tb & "( " & names[i] & " )" & L
+        dim as string vv = "tko_v" & i & "_"
+        if vks[i] < 0 then
+            d &= "    dim as any ptr " & vv & " = tko_min_" & x.mapBase[-vks[i] - 1] & "( " & names[i] & " )" & L
+        else
+            d &= "    dim as any ptr " & vv & " = tko_vin_" & x.vecBase[vks[i] - 1] & "( " & names[i] & " )" & L
+        end if
         args &= vv
     next
-    if rvk > 0 then
+    if rvk <> 0 then
         d &= "    dim as any ptr tko_r_ = " & rawq & "( " & args & " )" & L
     elseif isSub then
         d &= "    " & rawq & "( " & args & " )" & L
@@ -272,6 +396,7 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
     end if
     for i as int32 = 0 to names.Count - 1
         if vks[i] = 0 then continue for
+        if vks[i] < 0 then d &= "    " & x.mapBase[-vks[i] - 1] & "_free( tko_v" & i & "_ )" & L : continue for
         dim as string tb = x.vecBase[vks[i] - 1], vv = "tko_v" & i & "_"
         if modes[i] = 2 then
             d &= "    " & names[i] & ".Clear( )" & L
@@ -279,7 +404,12 @@ sub Adapter_( byref x as CppImp_, byref nsList as string, byref head as string, 
         end if
         d &= "    " & tb & "_free( " & vv & " )" & L
     next
-    if (rvk > 0) andalso rOpt then
+    if rvk < 0 then
+        dim as string mb = x.mapBase[-rvk - 1]
+        d &= "    dim as " & x.mapET[-rvk - 1] & " tko_a_ = tko_mout_" & mb & "( tko_r_ )" & L
+        d &= "    " & mb & "_free( tko_r_ )" & L
+        d &= "    return tko_a_" & L
+    elseif (rvk > 0) andalso rOpt then
         '' A std::optional RESULT: the vector of none or one the shim made, as an outcome.Optional.
         dim as string tb = x.vecBase[rvk - 1]
         d &= "    dim as outcome.Optional( of " & x.vecET[rvk - 1] & " ) tko_a_" & L
@@ -332,7 +462,7 @@ sub Range_( byref x as CppImp_, byval ci as int32, byref lines as Tko.StrVec )
     next
     if found = false then return
     dim as TMap_ r = Result_( x, et )
-    if (r.ok = false) orelse (r.vk1 > 0) then lines.Push( "'' CPP-TODO(range of " & Spell_( x, et ) & "): " & x.clsCpp[ci] ) : x.todos += 1 : return
+    if (r.ok = false) orelse (r.vk1 <> 0) then lines.Push( "'' CPP-TODO(range of " & Spell_( x, et ) & "): " & x.clsCpp[ci] ) : x.todos += 1 : return
     dim as string L = chr( 10 ), cpp = x.clsCpp[ci]
     dim as string itn = x.clsTiko[ci] & "_iter", itq = left( x.clsTikoQ[ci], len( x.clsTikoQ[ci] ) - len( x.clsTiko[ci] ) ) & itn
     dim as string itm = left( x.clsMir[ci], len( x.clsMir[ci] ) - len( MirName_( x.clsTiko[ci] ) ) ) & MirName_( itn )

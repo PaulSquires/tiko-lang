@@ -83,12 +83,12 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         if len( tparams ) then tparams &= ", " : cparams &= ", " : tsig &= ","
         if i > 0 then args &= ", " : mparams &= ", " : pubp &= ", "
         tparams &= m.tiko : cparams &= m.ctype : args &= m.arg : mparams &= m.mir
-        dim as string pt_ = iif( m.vk1 > 0, m.pub, m.tiko )
+        dim as string pt_ = iif( m.vk1 <> 0, m.pub, m.tiko )
         pubp &= pt_
         tsig &= mid( pt_, instr( pt_, " as " ) + 4 )
         av.Push( m.arg )
         pnames.Push( pn ) : pvk.Push( m.vk1 ) : pmode.Push( m.vmode )
-        if m.vk1 > 0 then adapt = true
+        if m.vk1 <> 0 then adapt = true
     next
     dim as boolean compound = (kind = K_OPMEM_) andalso (top <> "[]") andalso (top <> "cast")
     dim as TMap_ r
@@ -96,7 +96,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         r = Result_( x, iif( x.ovrOn, x.ovrRes, x.api->getCursorResultType( c ) ) )
         if r.ok = false then why = r.why : return false
     end if
-    if r.vk1 > 0 then adapt = true
+    if r.vk1 <> 0 then adapt = true
     if adapt then
         if (kind <> K_FREE_) andalso (kind <> K_METHOD_) andalso (kind <> K_STATIC_) andalso (kind <> K_CTOR_) then why = "a std::vector in an operator" : return false
         if r.byrefRet then why = "a reference result beside a std::vector" : return false
@@ -143,7 +143,9 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         if (kind = K_METHOD_) orelse (kind = K_CTOR_) then rawp = "byref self_ as " & iif( isConst, "const ", "" ) & x.clsTikoQ[ci] & iif( len( rawp ), ", ", "" ) & rawp
         x.extraGlob.Push( "extern ""C"" : declare " & iif( isSub, "sub ", "function " ) & rawn & " alias """ & sym & _
                           """ ( " & rawp & " )" & iif( isSub, "", " as " & r.tiko ) & " : end extern" )
-        dim as string pubR = iif( r.vk1 > 0, iif( r.vopt, "outcome.Optional( of ", "containers.Array( of " ) & x.vecET[r.vk1 - 1] & " )", r.tiko )
+        dim as string pubR = r.tiko
+        if r.vk1 > 0 then pubR = iif( r.vopt, "outcome.Optional( of ", "containers.Array( of " ) & x.vecET[r.vk1 - 1] & " )"
+        if r.vk1 < 0 then pubR = x.mapET[-r.vk1 - 1]
         dim as string asP = iif( isSub, "", " as " & pubR )
         dim as string head, nsl = ""
         if member andalso (kind = K_CTOR_) then
@@ -640,7 +642,7 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
         end if
     next
     dim as TMap_ r
-    if (ct.kind = TY_RECORD_) andalso (StrKind_( x, t ) = 0) then
+    if (ct.kind = TY_RECORD_) andalso (StrKind_( x, t ) = 0) andalso (len( StdTemplate_( x, ct ) ) = 0) then
         dim as int32 ri = ClassOf_( x, t, why )
         if ri < 0 then lines.Push( "'' CPP-TODO(" & why & "): " & disp ) : x.todos += 1 : return
         if IsPod_( x, ri ) then
@@ -654,7 +656,11 @@ sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref li
         end if
     else
         r = Result_( x, t )
-        if r.ok andalso ((r.vk1 > 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library field"
+        if r.ok andalso (r.vk1 > 0) andalso (r.vopt = false) andalso (r.sret = SR_NONE_) andalso (StdTemplate_( x, ct ) = "vector") then
+            FieldVec_( x, ci, c, r, lines )
+            return
+        end if
+        if r.ok andalso ((r.vk1 <> 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library field"
         if r.ok = false then lines.Push( "'' CPP-TODO(field: " & r.why & "): " & disp ) : x.todos += 1 : return
     end if
     dim as string obj = "static_cast<" & cpp & "*>(self_->impl)->" & nm
@@ -750,7 +756,7 @@ sub Var_( byref x as CppImp_, byval c as CXCursor )
         end if
     else
         r = Result_( x, t )
-        if r.ok andalso ((r.vk1 > 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library variable"
+        if r.ok andalso ((r.vk1 <> 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library variable"
         if r.ok = false then Todo_( x, disp, "variable: " & r.why ) : return
     end if
     dim as string sg = Sym_( x )
@@ -811,7 +817,7 @@ sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, by
         end if
     else
         r = Result_( x, t )
-        if r.ok andalso ((r.vk1 > 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library field"
+        if r.ok andalso ((r.vk1 <> 0) orelse (r.sret <> SR_NONE_)) then r.ok = false : r.why = "a standard library field"
         if r.ok = false then lines.Push( "'' CPP-TODO(static field: " & r.why & "): " & disp ) : x.todos += 1 : return
     end if
     dim as string obj = disp
@@ -1073,6 +1079,10 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
         for i as int32 = 0 to mb.cur.Count - 1
             if mb.kind[i] = K_FIELD_ then Field_( x, ci, mb.cur[i], lines )
         next
+        for g as int32 = 0 to x.extraGlob.Count - 1        '' a vector field's raw entries
+            glob.Push( x.extraGlob[g] )
+        next
+        x.extraGlob.Clear( )
     end if
     for i as int32 = 0 to mb.cur.Count - 1
         if mb.kind[i] <> K_SFIELD_ then continue for
