@@ -95,6 +95,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 |---|---|
 | [tkLayout](tkLayout) | Automatic placement by anchor and dock, in design units, shared with the form designer |
 | [tkForms](tkForms) | `FormBase`, the base a designed form extends: a window, a layout, modal and modeless show, caption translation |
+| [tkLanguage](tkLanguage) | Captions in another language: TOML catalogs built in with `#embed` or read from files, the user's language picked at start-up |
 | [tkImage](tkImage) | Image files (`.png`, `.bmp`, `.jpg`, `.gif`, `.ico`, ...) for icon slots, through SDL_image |
 | [tkPopupMenu](tkPopupMenu) | The dropdown behind menus, combo boxes and toolbars |
 | [tkColumnHeader](tkColumnHeader) | The column header band; tkListTree places one above its rows |
