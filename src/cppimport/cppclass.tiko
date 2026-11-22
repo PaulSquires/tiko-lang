@@ -64,6 +64,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     if x.api->Cursor_isVariadic( c ) <> 0 then why = "variadic" : return false
     dim as int32 na = x.api->Cursor_getNumArguments( c )
     if na < 0 then why = "no prototype" : return false
+    if member andalso (ci >= 0) andalso NeverDefined_( x, ci, c ) then why = "declared, never defined" : return false
     if (upto >= 0) andalso (upto < na) then na = upto
     '' A ONE-ARGUMENT CONSTRUCTOR TAKING ONLY AN RVALUE ('S(T&&)'): C++ never converts an lvalue through it,
     '' tiko would through any one-argument constructor (survey: simdjson's iterate( padded_string )).
@@ -97,6 +98,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         preAdapt = VecIn_( x, iif( x.ovrOn andalso (i < x.ovrArgs.Count), x.ovrArgs[i], x.api->getCursorType( x.api->Cursor_getArgument( c, i ) ) ) )
     next
     dim as Tko.StrVec usedPn
+    dim as string keepDecl, keepCap
     for i as int32 = 0 to na - 1
         dim as CXCursor a = x.api->Cursor_getArgument( c, i )
         dim as string pn = ParamName_( x, a, i )
@@ -114,6 +116,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
         end if
         dim as TMap_ m = Param_( x, at_, pn )
         if m.ok = false then why = m.why : return false
+        if (kind = K_CTOR_) andalso (m.vk1 <> 0) andalso (pod = false) then KeepArg_( x, ci, c, i, at_, m.arg, keepDecl, keepCap )
         if len( tparams ) then tparams &= ", " : cparams &= ", " : tsig &= ","
         if i > 0 then args &= ", " : mparams &= ", " : pubp &= ", "
         tparams &= m.tiko : cparams &= m.ctype : args &= m.arg : mparams &= m.mir
@@ -141,6 +144,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     dim as string owner = iif( member, x.clsTikoQ[ci], QualTiko_( x, "" ) )
     dim as string sig = lcase( owner & "." & tn & iif( kind = K_STATIC_, "!", "" ) & "(" & tsig & ")" )
     if isOp then sig = lcase( iif( kind = K_OPMEM_, owner & ".", "" ) & "operator " & top & "(" & tsig & ")" & iif( top = "cast", " as " & r.tiko, "" ) )
+    if (member = false) andalso SeenBefore_( x, "F:" & sig ) then why = SEEN_ : return false
     for i as int32 = 0 to x.sigs.Count - 1
         if x.sigs[i] = sig then
             x.twinOfConst = (x.sigConst[i] = "c")
@@ -283,7 +287,7 @@ function Entry_( byref x as CppImp_, byval c as CXCursor, byval kind as int32, _
     if (kind = K_CTOR_) andalso pod then
         f &= "new (self_) " & x.clsCpp[ci] & "(" & args & "); return;"     '' over tiko's storage
     elseif kind = K_CTOR_ then
-        f &= "self_->impl = new " & x.clsCpp[ci] & "(" & args & "); self_->owned = 1; return;"
+        f &= iif( len( keepCap ), KeepCtor_( x.clsCpp[ci], args, keepDecl, keepCap ), "self_->impl = new " & x.clsCpp[ci] & "(" & args & "); self_->owned = 1; return;" )
     elseif r.sret = SR_OWNED_ then
         f &= "ret_->impl = new " & r.rcpp & "(" & callx & "); ret_->owned = 1; return ret_;"
     elseif r.sret = SR_UNIQUE_ then
@@ -801,13 +805,16 @@ sub InheritSpec_( byref x as CppImp_, byval ci as int32, byref own as containers
     dim as Members_ mb
     mb.x = @x
     x.api->visitCXXBaseClasses( x.api->getCursorType( x.clsCur[ci] ), @SpecBaseVisit_, @mb )
-    dim as int32 q = 0
+    dim as int32 q = 0, direct = mb.seen.Count
     while (q < mb.seen.Count) andalso (q < 8)
         dim as int32 bj = -1
         for k as int32 = 0 to x.clsUsr.Count - 1
             if x.clsUsr[k] = mb.seen[q] then bj = k : exit for
         next
         q += 1
+        '' A BASE OF A BASE converts too, as C++'s derived-to-base does (survey: spdlog's
+        '' ringbuffer_sink<std::mutex> to sink, through base_sink<std::mutex>).
+        if (q > direct) andalso (bj >= 0) andalso (bj <> ci) then Cast_( x, ci, bj, lines )
         if (bj < 0) orelse (bj = ci) orelse (IsSpec_( x, bj ) = false) then continue while
         dim as containers.Array( of CXCursor ) mem
         dim as containers.Array( of int32 ) kinds
@@ -907,9 +914,10 @@ sub ClassLines_( byref x as CppImp_, byval ci as int32 )
                  iif( Excluded_( x, sc ), NoBody_( "copied" ), "tko_cpp_copy<" & cpp & ">(self_, o_);" ) & " }" & L )
     x.shim.Push( "extern ""C"" void " & sd & "(tko_cpp_h* self_) __asm__(""@@M:" & sd & "@@"");" & L & _
                  "extern ""C"" void " & sd & "(tko_cpp_h* self_) { tko_cpp_free<" & cpp & ">(self_); }" & L )
+    dim as string nda = NoDefAssign_( x, ci )
     x.shim.Push( "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) __asm__(""@@M:let:" & mq & "@@"");" & L & _
                  "extern ""C"" void " & sl & "(tko_cpp_h* self_, const tko_cpp_h* o_) { " & _
-                 iif( Excluded_( x, sl ), NoBody_( "assigned" ), "tko_cpp_assign<" & cpp & ">(self_, o_);" ) & " }" & L )
+                 iif( Excluded_( x, sl ), NoBody_( "assigned" ), iif( len( nda ), nda, "tko_cpp_assign<" & cpp & ">(self_, o_);" ) ) & " }" & L )
     if (mb.userCtor = false) andalso (abstract_ = false) then
         dim as string s0 = Sym_( x )
         lines.Push( "declare constructor alias """ & s0 & """ ( )" )
@@ -1237,7 +1245,7 @@ sub EmitClasses_( byref x as CppImp_ )
     for ci as int32 = 0 to x.clsUsr.Count - 1
         '' A POD's fields come later (PodEmitAll_); its nested enums, if any, here.
         dim as boolean pod = IsPod_( x, ci )
-        if pod andalso (len( x.clsNestBind[ci] ) = 0) then continue for
+        if (pod andalso (len( x.clsNestBind[ci] ) = 0)) orelse SeenBefore_( x, "C:" & x.clsCpp[ci] ) then continue for
         dim as Tko.StrVec opened
         dim as string ind = ClassOpen_( x, ci, opened )
         x.bind.Push( ind & "partial type " & x.clsTiko[ci] & "    '' " & x.clsCpp[ci] )
@@ -1258,7 +1266,7 @@ sub EmitClasses_( byref x as CppImp_ )
     next
     PodEmitAll_( x )
     for ci as int32 = 0 to x.clsUsr.Count - 1
-        ClassLines_( x, ci )
+        if SeenBefore_( x, "C:" & x.clsCpp[ci] ) = false then ClassLines_( x, ci )
     next
     MirUnits_( x )
     '' THE LAYOUT CHECKS, once every type is complete.

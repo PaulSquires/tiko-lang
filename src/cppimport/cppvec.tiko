@@ -22,6 +22,21 @@ namespace Tko.CppImport
 
 using Tko.CImport
 
+'' A std::variant's std::string alternative, or a type of kind 0 when t is not a std::variant or has none.
+private function StrVariant_( byref x as CppImp_, byval t as CXType ) as CXType
+    dim as CXType none
+    dim as CXType c = Canon_( x, t )
+    if c.kind <> TY_RECORD_ then return none
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( x.api->getTypeDeclaration( c ) )
+    if IsNullCursor_( x, tm ) orelse (InStd_( x, tm ) = false) then return none
+    if Text_( x, x.api->getCursorSpelling( tm ) ) <> "variant" then return none
+    for k as int32 = 0 to x.api->Type_getNumTemplateArguments( c ) - 1
+        dim as CXType a = x.api->Type_getTemplateArgumentAsType( c, k )
+        if StrKind_( x, a ) = 1 then return a
+    next
+    return none
+end function
+
 '' The element type of a vector as tiko and the shim spell it.
 private function Elem_( byref x as CppImp_, byval e as CXType, byref et as string, byref ec as string ) as boolean
     dim as CXType c = Canon_( x, e )
@@ -96,12 +111,18 @@ function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) 
         return x.vecEC.Count
     end if
     dim as string et, ec
-    if Elem_( x, e, et, ec ) = false then why = "std::vector of " & Spell_( x, e ) : return 0
+    '' A std::variant WITH A std::string ALTERNATIVE (survey: tabulate's Row_t, a vector of
+    '' variant<std::string, const char*, std::string_view, Table>) is a ustring element: pushed as the
+    '' std::string alternative, read as whichever alternative is a string (else "").
+    dim as CXType sv = StrVariant_( x, ce )
+    dim as boolean isVar = (sv.kind <> 0)
+    if Elem_( x, iif( isVar, sv, e ), et, ec ) = false then why = "std::vector of " & Spell_( x, e ) : return 0
+    if isVar then ec = FullSpell_( x, ce )
     for i as int32 = 0 to x.vecEC.Count - 1
         if x.vecEC[i] = ec then return i + 1
     next
-    dim as TMap_ r = Result_( x, e )
-    dim as TMap_ m = Param_( x, e, "x_" )
+    dim as TMap_ r = Result_( x, iif( isVar, sv, e ) )
+    dim as TMap_ m = Param_( x, iif( isVar, sv, e ), "x_" )
     if (r.ok = false) orelse (m.ok = false) then why = "std::vector of " & Spell_( x, e ) : return 0
     dim as string b = Sym_( x ), vt = "std::vector<" & ec & ">"
     dim as string vp = "static_cast<" & vt & "*>(v)"
@@ -115,6 +136,7 @@ function VecKind_( byref x as CppImp_, byval e as CXType, byref why as string ) 
     f &= "extern ""C"" void " & b & "_free(void* v) { delete " & vp & "; }" & L
     f &= "extern ""C"" std::ptrdiff_t " & b & "_size(void* v) { return v ? (std::ptrdiff_t)" & vp & "->size() : 0; }" & L
     dim as string at_ = "(*" & vp & ")[(std::size_t)i]"
+    if isVar then at_ = "tko_cpp_varstr(" & at_ & ")"
     if r.sret = SR_OWNED_ then
         f &= "extern ""C"" tko_cpp_h* " & b & "_get(tko_cpp_h* ret_, void* v, std::ptrdiff_t i) { ret_->impl = nullptr; ret_->owned = 0;" & L & _
              "    try { ret_->impl = tko_cpp_dup<" & r.rcpp & ">(" & at_ & "); if (ret_->impl) { ret_->owned = 1; return ret_; } } TKO_CPP_CATCH" & L & "    tko_cpp_raise(); return ret_; }" & L

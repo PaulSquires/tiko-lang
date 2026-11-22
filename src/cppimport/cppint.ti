@@ -21,6 +21,7 @@ const TY_RECORD_ = 105, TY_ENUM_ = 106, TY_ELABORATED_ = 119, TY_CARRAY_ = 112
 
 const UNIT_NAME_ = "tiko-cppimport.cpp"
 const SAME_SIG_ = "same tiko signature as an overload before it"
+const SEEN_ = "declared by an earlier #cppinclude"
 const MIRROR_NAME_ = "tiko-cppmirror.cpp"
 const ERR_CPP_ = 1000          '' the runtime error number of a C++ exception (D5)
 
@@ -102,6 +103,10 @@ type CppImp_
     as boolean       coff
     as boolean       noAccess     '' CppImportOptions.noAccess
     as boolean       usedNoAccess '' ...and a specialization needed it
+    as Tko.StrVec    seen         '' CppImportOptions.seen, and what this import declares: keys
+    as Tko.StrVec    keys
+    as Tko.StrVec    oolUsr       '' USRs of member functions defined out of their class (DeclDefined_)
+    as boolean       oolDone
     as Tko.StrVec    nsAlias      '' namespace aliases (survey: simdjson::ondemand): "alias tiko chain|target
                                   '' tiko chain", chr( 1 )-separated chains
     as Tko.StrVec    podPtr       '' a POD field pointing to a bound handle class: "ci|name|ri" (its raw
@@ -179,7 +184,7 @@ declare function MirWrap_( byref nsList as string, byref body as string ) as str
 declare sub Todo_( byref x as CppImp_, byref what as string, byref why as string )
 declare function Canon_( byref x as CppImp_, byval t as CXType ) as CXType
 declare function Spell_( byref x as CppImp_, byval t as CXType ) as string
-declare function FullSpell_( byref x as CppImp_, byval t as CXType ) as string
+declare function FullSpell_( byref x as CppImp_, byval t as CXType, byval depth as int32 = 0 ) as string
 declare function BareSpell_( byref s as string ) as string
 declare function Fund_( byref x as CppImp_, byval t as CXType, byref tk as string, _
                         byref ct as string ) as boolean
@@ -227,6 +232,14 @@ declare function Sym_( byref x as CppImp_ ) as string
 declare sub Field_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref lines as Tko.StrVec )
 declare sub StaticField_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byref lines as Tko.StrVec )
 declare sub Cast_( byref x as CppImp_, byval ci as int32, byval ai as int32, byref lines as Tko.StrVec )
+declare function NoDefAssign_( byref x as CppImp_, byval ci as int32 ) as string
+declare sub KeepArg_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byval i as int32, byval at_ as CXType, _
+                      byref arg as string, byref keepDecl as string, byref keepCap as string )
+declare function KeepCtor_( byref cls as const string, byref args as const string, byref keepDecl as const string, byref keepCap as const string ) as string
+declare function OStream_( byref x as CppImp_, byval t as CXType ) as boolean
+declare function SeenBefore_( byref x as CppImp_, byval key as string ) as boolean
+declare function DeclDefined_( byref x as CppImp_, byval c as CXCursor ) as boolean
+declare function NeverDefined_( byref x as CppImp_, byval ci as int32, byval c as CXCursor ) as boolean
 declare sub StrCastShadow_( byref x as CppImp_, byref lines as Tko.StrVec )
 declare sub ConvCast_( byref x as CppImp_, byval ci as int32, byval ri as int32, byval rv as boolean, byref lines as Tko.StrVec )
 declare sub ClassLines_( byref x as CppImp_, byval ci as int32 )
@@ -251,6 +264,7 @@ declare function IsNullCursor_( byref x as CppImp_, byval c as CXCursor ) as boo
 declare function InStd_( byref x as CppImp_, byval c as CXCursor ) as boolean
 declare function IsStdPair_( byref x as CppImp_, byval tm as CXCursor ) as boolean
 declare function StdTemplate_( byref x as CppImp_, byval t as CXType ) as string
+declare function PackVal_( byref sp as const string, byval i as int32 ) as string
 declare function SpecName_( byref x as CppImp_, byval t as CXType ) as string
 declare function NsOf_( byref x as CppImp_, byval c as CXCursor, byref ns as Tko.StrVec, byval throughClasses as boolean = false ) as boolean
 declare sub NoteType_( byref x as CppImp_, byval t as CXType )

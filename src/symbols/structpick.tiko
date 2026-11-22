@@ -209,6 +209,37 @@ private function PtrCastCtorCost_ _
     return CONV_NONE
 end function
 
+'' PickStructor's UDT arm, beside StructorCastCost: CONV_USERDEF for a cast on 'a' yielding the
+'' parameter's UDT 'p' itself. Measured on fbc 1.10.1: 'CC( a )' over 'constructor CC( byref b as BB )' with A's
+'' 'operator cast ( ) as BB' runs [cast][ctor], as a sub's argument does; tiko refused it (TKO0632,
+'' survey: fmt's 'appender( buf )', a memory_buffer cast to its base buffer<char>). A BYREF
+'' parameter only: fbc takes a byval one too, but tiko's lowering of that argument does not
+'' call the cast yet, so it stays refused rather than miscompiled.
+private function UdtCastCtorCost_ _
+    ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32
+    if (at = Tko.TYPE_NONE) orelse (pt = Tko.TYPE_NONE) then return CONV_NONE
+    dim as Tko.TypeId a = types.Unqualify( at )
+    if types.Kind( a ) = Tko.TK_REFERENCE then a = types.Unqualify( types.Inner( a ) )
+    dim as Tko.TypeId p = types.Unqualify( pt )
+    if types.Kind( p ) = Tko.TK_REFERENCE then p = types.Unqualify( types.Inner( p ) )
+    if (types.Kind( a ) <> Tko.TK_UDT) orelse (types.Kind( p ) <> Tko.TK_UDT) orelse (a = p) then return CONV_NONE
+    dim as Tko.SymbolId cur = StructorNamed( syms, types, names, a, "cast" )
+    dim as int32 guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 4096)
+        guard += 1
+        dim as Tko.Symbol ptr cs = syms.SymbolAt( cur )
+        if cs = nullptr then exit while
+        dim as Tko.TypeId rt = types.Unqualify( cs->type_ )
+        if rt <> Tko.TYPE_NONE then
+            if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
+            if rt = p then return CONV_USERDEF
+        end if
+        cur = cs->nextOverload
+    wend
+    return CONV_NONE
+end function
+
 '' A UDT ARGUMENT REACHING A CONSTRUCTOR'S (or 'let's) STRING OR NUMERIC PARAMETER THROUGH ITS OWN
 '' 'operator cast', or CONV_NONE. Measured on fbc-modern: S casting to string (or 'byref as
 '' wstring') and T constructible from 'byref/byval as string' or 'byref as wstring' -- 'T( s )',
@@ -353,6 +384,7 @@ function PickStructor _
                         cost = ConversionCost( at2, pt2, types )
                         if cost >= CONV_NONE then cost = StructorUserConvCost( ast, syms, types, names, info, at2, pt2 )
                         if cost >= CONV_NONE then cost = StructorCastCost( ast, syms, types, names, at2, pt2 )
+                        if (cost >= CONV_NONE) andalso ((ast.Flags( prm ) and Tko.NF_BYREF) <> 0) then cost = UdtCastCtorCost_( syms, types, names, at2, pt2 )
                     end if
                     ai += 1
                     if cost >= CONV_NONE then

@@ -33,6 +33,7 @@ type CppSession_
     as containers.Array( of int32 ) fileIds
     as boolean     runtimeAsked
     as Tko.StrVec  pendingInst     '' '#cppinstantiate' texts since the last #cppinclude
+    as Tko.StrVec  seen            '' what the bindings so far declared (CppImportOptions.seen)
 end type
 
 sub FreeSession( byval p as any ptr )
@@ -131,6 +132,9 @@ private function Hook_ cdecl _
     s->pendingInst.Clear( )
     io.sysroot = ci.csysroot
     io.noAccess = true
+    for i as int32 = 0 to s->seen.Count - 1
+        io.seen.Push( s->seen[i] )
+    next
     io.targetName = ci.targetName
     io.triple = ci.triple
 
@@ -225,6 +229,9 @@ private function Hook_ cdecl _
     dim as Tko.FileId fid = ctx->sources.AddVirtual( vname, res.binding )
     s->paths.Push( hp )
     s->fileIds.Push( cast( int32, fid ) )
+    for i as int32 = 0 to res.keys.Count - 1
+        s->seen.Push( res.keys[i] )
+    next
     return fid
 end function
 

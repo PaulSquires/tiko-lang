@@ -215,6 +215,7 @@ type CXInclusionVisitor as sub cdecl _
     SB( disposeTokens, "clang_disposeTokens", ( byval tu as any ptr, byval toks as CXToken ptr, byval n as uint32 ) )
     FN( getRangeStart, "clang_getRangeStart", ( byval r as CXSourceRange ), CXSourceLocation )
     FN( getRangeEnd, "clang_getRangeEnd", ( byval r as CXSourceRange ), CXSourceLocation )
+    FN( getRange, "clang_getRange", ( byval b as CXSourceLocation, byval e as CXSourceLocation ), CXSourceRange )
     SB( getExpansionLocation, "clang_getExpansionLocation", ( byval loc as CXSourceLocation, byval file as any ptr ptr, byval line_ as uint32 ptr, byval column as uint32 ptr, byval offset as uint32 ptr ) )
     '' ---- types
     FN( getTypeSpelling, "clang_getTypeSpelling", ( byval t as CXType ), CXString )

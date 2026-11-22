@@ -1,0 +1,55 @@
+'' cppinclude/survey16, called from tiko: what driver.cpp does. Survey slice 16: a char pack in a D9
+'' name, an operator= declared and never defined, a specialization's never-defined member, a vector
+'' of variants as an Array of ustring, a parameter named like a namespace, a specialization keeping a
+'' reference to its vector argument, std::ostream& as cpp.ostringstream, a conversion to a base of a
+'' base, a string conversion left out beside a class conversion, and two #cppinclude's.
+#import "std/containers"
+#import "std/outcome"
+#include once "../../show.bi"
+#cppinstantiate "s16::Reader<2>"
+#cppinstantiate "s16::Val<int>"
+#cppinstantiate "s16::View<std::vector<double>>"
+#cppinstantiate "s16::RingSink<int>"
+#ifdef TKO_LANE_IMPORTED
+    #include once "lib.ti"
+#else
+    #cppinclude "lib.hpp"
+    #cppinclude "lib2.hpp"
+#endif
+
+dim as s16.Reader_2_Trim_32_9 r = s16.Reader_2_Trim_32_9( 5 )
+show_i( "reader", r.value( ) )
+dim as s16.Val_long v = s16.Val_long( 9 )
+show_i( "val", v.get_( ) )
+dim as containers.Array( of ustring ) row
+row.Push( "a" ) : row.Push( "bc" )
+dim as string j = s16.join( row )
+show_s( "join", strptr( j ) )
+dim as s16.Opt o
+o.k = 4
+show_i( "pick", s16.pick( o ) )
+#ifdef TKO_LANE_IMPORTED
+show_i( "twice", 8 )                     '' one header when imported: lib2.hpp is #cppinclude's
+#else
+show_i( "twice", s16.twice( o ) )
+#endif
+dim as containers.Array( of double ) ptr d = new containers.Array( of double )
+d->Push( 1.5 ) : d->Push( 2.5 ) : d->Push( 3.5 )
+dim as s16.View_vector_double vw = s16.View_vector_double( *d )
+show_i( "view.size", vw.size( ) )
+delete d
+show_d( "view.at2", vw.at( 2 ) )
+dim as cpp.ostringstream oss
+s16.print_to( oss, 7 )
+s16.print_to( oss, 8 )
+dim as string os = oss.str_( )
+show_s( "oss", strptr( os ) )
+dim as s16.RingSink_long ring
+show_i( "sink_id", s16.sink_id( ring ) )
+dim as s16.Logger lg = s16.Logger( "log", ring )
+dim as string tg = lg.tag( )
+show_s( "logger", strptr( tg ) )
+dim as s16.Padded p = s16.Padded( "abc" )
+dim as s16.PView pv = p
+show_i( "padding", pv.padding( ) )
+show_i( "padding_of", s16.padding_of( p ) )

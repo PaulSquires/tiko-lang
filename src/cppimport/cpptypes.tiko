@@ -18,9 +18,32 @@ function Spell_( byref x as CppImp_, byval t as CXType ) as string
     return Text_( x, x.api->getTypeSpelling( t ) )
 end function
 
+'' The i-th top-level argument of '<a, b<c, d>, 'x'>' as spelled.
+private function PackArg_( byref s as const string, byval i as int32 ) as string
+    dim as int32 d = 0, k = 0, st = 2
+    for q as int32 = 2 to len( s )
+        dim as string ch = mid( s, q, 1 )
+        if ch = "'" then
+            q += 1
+            while (q <= len( s )) andalso (mid( s, q, 1 ) <> "'")
+                if mid( s, q, 1 ) = "\" then q += 1
+                q += 1
+            wend
+        elseif ch = "<" then
+            d += 1
+        elseif (ch = ">") andalso (d > 0) then
+            d -= 1
+        elseif ((ch = ",") andalso (d = 0)) orelse ((ch = ">") andalso (d = 0)) then
+            if k = i then return trim( mid( s, st, q - st ) )
+            k += 1 : st = q + 1
+        end if
+    next
+    return ""
+end function
+
 '' A TYPE FULLY QUALIFIED, '::' first, for the shim (survey: simdjson's simdjson_result<dom::array> was
 '' spelled with its argument as written inside namespace simdjson). Its const, if any, dropped.
-function FullSpell_( byref x as CppImp_, byval t as CXType ) as string
+function FullSpell_( byref x as CppImp_, byval t as CXType, byval depth as int32 = 0 ) as string
     dim as CXType c = Canon_( x, t )
     dim as any ptr pol = x.api->getCursorPrintingPolicy( x.api->getTypeDeclaration( c ) )
     dim as string s = Text_( x, x.api->getFullyQualifiedName( c, pol, 1 ) )
@@ -30,7 +53,53 @@ function FullSpell_( byref x as CppImp_, byval t as CXType ) as string
         s = mid( s, instr( s, " " ) + 1 )
     wend
     if left( s, 2 ) <> "::" then s = "::" & s
-    return s
+    '' A SPECIALIZATION'S ARGUMENTS AS WRITTEN leak through: pcg's 'default_multiplier<pcg128_t>', a
+    '' typedef its namespace sees through a using-directive. Each type argument is spelled again from
+    '' its own type, the enclosing class from its own; a value argument keeps its spelling.
+    if (c.kind <> TY_RECORD_) orelse (depth > 8) then return s
+    dim as int32 n = x.api->Type_getNumTemplateArguments( c )
+    if n <= 0 then return s
+    dim as int32 q = 1, d = 0, lastSep = 0, open_ = 0
+    while q <= len( s )
+        dim as string ch = mid( s, q, 1 )
+        if ch = "'" then
+            q += 1
+            while (q <= len( s )) andalso (mid( s, q, 1 ) <> "'")
+                if mid( s, q, 1 ) = "\" then q += 1
+                q += 1
+            wend
+        elseif ch = "<" then
+            if d = 0 then open_ = q
+            d += 1
+        elseif ch = ">" then
+            d -= 1
+        elseif (d = 0) andalso (mid( s, q, 2 ) = "::") then
+            lastSep = q : open_ = 0 : q += 1
+        end if
+        q += 1
+    wend
+    if (open_ = 0) orelse (right( s, 1 ) <> ">") then return s
+    dim as string head = left( s, open_ - 1 )
+    dim as CXCursor par = x.api->getCursorSemanticParent( x.api->getTypeDeclaration( c ) )
+    dim as int32 pk = x.api->getCursorKind( par )
+    if (pk = CXCursor_ClassDecl) orelse (pk = CXCursor_StructDecl) then
+        head = FullSpell_( x, x.api->getCursorType( par ), depth + 1 ) & mid( head, lastSep )
+    end if
+    dim as string r = head & "<"
+    for i as int32 = 0 to n - 1
+        dim as CXType a = x.api->Type_getTemplateArgumentAsType( c, i )
+        dim as string piece
+        if (a.kind <> 0) andalso (Canon_( x, a ).kind = TY_RECORD_) then
+            piece = FullSpell_( x, a, depth + 1 )
+            if x.api->isConstQualifiedType( a ) <> 0 then piece = "const " & piece
+        elseif (a.kind <> 0) andalso (Canon_( x, a ).kind >= 2) andalso (Canon_( x, a ).kind <= 39) then
+            piece = Spell_( x, Canon_( x, a ) )        '' a builtin: 'unsigned __int128', not its typedef
+        else
+            piece = PackArg_( mid( s, open_ ), i )
+        end if
+        r &= iif( i > 0, ", ", "" ) & piece
+    next
+    return r & ">"
 end function
 
 '' 'const std::size_t' -> 'size_t': the spelling a pointer-sized typedef is recognised by.
@@ -96,6 +165,18 @@ function MirFund_( byref tk as string ) as string
     return "void"
 end function
 
+'' A std::ostream or std::ostringstream of char (the stream a cpp.ostringstream is).
+function OStream_( byref x as CppImp_, byval t as CXType ) as boolean
+    dim as CXType c = Canon_( x, t )
+    if c.kind <> TY_RECORD_ then return false
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( x.api->getTypeDeclaration( c ) )
+    if IsNullCursor_( x, tm ) orelse (InStd_( x, tm ) = false) then return false
+    dim as string sp = Text_( x, x.api->getCursorSpelling( tm ) )
+    if (sp <> "basic_ostream") andalso (sp <> "basic_ostringstream") then return false
+    dim as CXType a0 = Canon_( x, x.api->Type_getTemplateArgumentAsType( c, 0 ) )
+    return (a0.kind = TY_CHAR_S_) orelse (a0.kind = TY_CHAR_U_)
+end function
+
 '' std::string and std::string_view, by their canonical spelling: libstdc++'s
 '' 'std::__cxx11::basic_string<char>', libc++'s 'std::basic_string<char>' and the MSVC STL's
 '' 'std::basic_string<char, std::char_traits<char>, std::allocator<char>>' all contain it.
@@ -125,11 +206,19 @@ function EnumOf_( byref x as CppImp_, byval t as CXType, byref tq as string, _
             return true
         end if
     next
-    dim as string sp = Spell_( x, Canon_( x, t ) )
-    while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
-        sp = mid( sp, instr( sp, " " ) + 1 )
-    wend
-    if left( sp, 2 ) <> "::" then sp = "::" & sp
+    '' An enum nested in a specialization: its class spelled as the class's key is (FullSpell_).
+    dim as string sp
+    dim as CXCursor par = x.api->getCursorSemanticParent( d )
+    dim as int32 pk = x.api->getCursorKind( par )
+    if (pk = CXCursor_ClassDecl) orelse (pk = CXCursor_StructDecl) then
+        sp = FullSpell_( x, x.api->getCursorType( par ) ) & "::" & Text_( x, x.api->getCursorSpelling( d ) )
+    else
+        sp = Spell_( x, Canon_( x, t ) )
+        while (left( sp, 6 ) = "const ") orelse (left( sp, 9 ) = "volatile ")
+            sp = mid( sp, instr( sp, " " ) + 1 )
+        wend
+        if left( sp, 2 ) <> "::" then sp = "::" & sp
+    end if
     for i as int32 = 0 to x.enumUsr.Count - 1
         if x.enumUsr[i] = "spell:" & sp then
             tq = x.enumTiko[i] : cq = x.enumCpp[i] : mq = x.enumMir[i]
@@ -337,6 +426,10 @@ function Param_( byref x as CppImp_, byval t as CXType, byref nm as string ) as 
             dim as string ck = iif( x.api->isConstQualifiedType( Canon_( x, x.api->getPointeeType( pc ) ) ) <> 0, "const ", "" )
             m.tiko = "byref " & nm & " as " & ck & "zstring ptr" : m.ctype = ck & "char** " & nm
             m.arg = "*" & nm : m.mir = ck & "char*&"
+        elseif (pc.kind = TY_RECORD_) andalso (kq = false) andalso OStream_( x, pc ) then
+            '' A 'std::ostream&' TO WRITE TO (survey: spdlog's ostream_sink): a cpp.ostringstream.
+            m.tiko = "byref " & nm & " as cpp.ostringstream" : m.ctype = "tko_cpp_h* " & nm
+            m.arg = "*static_cast<std::ostringstream*>(" & nm & "->impl)" : m.mir = "::CPP::OSTRINGSTREAM&"
         elseif (pc.kind = TY_RECORD_) andalso (StrKind_( x, pe ) = 0) then
             dim as int32 ci = ClassOf_( x, pe, cwhy )
             if ci < 0 then m.ok = false : m.why = cwhy : return m

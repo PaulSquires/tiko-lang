@@ -131,12 +131,67 @@ function SpecName_( byref x as CppImp_, byval t as CXType ) as string
         end if
         if at_.kind <> 0 then
             r &= "_" & ArgName_( x, at_ )
+        elseif (x.api->Cursor_getNumTemplateArguments( d ) <> n) orelse (x.api->Cursor_getTemplateArgumentKind( d, i ) <> 4) then
+            '' A PACK (survey: fast-cpp-csv-parser's trim_chars<' ', '\t'>, 'char... trim_char_list'): the
+            '' cursor counts it as one argument, whose value libclang does not give -- the type's
+            '' spelling does.
+            r &= "_" & PackVal_( Spell_( x, c ), i )
         else
             dim as int64 v = x.api->Cursor_getTemplateArgumentValue( d, i )
             r &= "_" & iif( v < 0, "m" & str( -v ), str( v ) )
         end if
     next
     return r
+end function
+
+'' The i-th template argument of a spelled type ('io::trim_chars<' ', '\t'>'), as a name part: a
+'' character literal is its code (32, 9), an integer its digits (a minus as 'm').
+function PackVal_( byref sp as const string, byval i as int32 ) as string
+    dim as int32 p = instr( sp, "<" ), depth = 0, k = 0, st = 0
+    if p = 0 then return "0"
+    st = p + 1
+    dim as int32 q = p + 1
+    while q <= len( sp )
+        dim as string ch = mid( sp, q, 1 )
+        if ch = "'" then
+            q += 1
+            while (q <= len( sp )) andalso (mid( sp, q, 1 ) <> "'")
+                if mid( sp, q, 1 ) = "\" then q += 1
+                q += 1
+            wend
+        elseif ch = "<" then
+            depth += 1
+        elseif (ch = ">") orelse ((ch = ",") andalso (depth = 0)) then
+            if (ch = ">") andalso (depth > 0) then
+                depth -= 1
+            else
+                if k = i then
+                    dim as string a = trim( mid( sp, st, q - st ) )
+                    if left( a, 1 ) = "'" then
+                        dim as string b = mid( a, 2, len( a ) - 2 )
+                        if left( b, 1 ) <> "\" then return str( asc( b ) )
+                        select case mid( b, 2, 1 )
+                        case "t" : return "9"
+                        case "n" : return "10"
+                        case "r" : return "13"
+                        case "0" : return "0"
+                        case "x" : return str( valint( "&h" & mid( b, 3 ) ) )
+                        case else : return str( asc( mid( b, 2, 1 ) ) )
+                        end select
+                    end if
+                    while (len( a ) > 0) andalso (instr( "uUlL", right( a, 1 ) ) > 0)
+                        a = left( a, len( a ) - 1 )
+                    wend
+                    if left( a, 1 ) = "-" then return "m" & mid( a, 2 )
+                    return a
+                end if
+                k += 1 : st = q + 1
+                if ch = ">" then exit while
+            end if
+        end if
+        q += 1
+    wend
+    return "0"
 end function
 
 '' THE NAMESPACES a declaration is in, tiko-spelled, outermost first. False for one nested in a

@@ -77,6 +77,7 @@ function MirWrap_( byref nsList as string, byref body as string ) as string
 end function
 
 sub Todo_( byref x as CppImp_, byref what as string, byref why as string )
+    if why = SEEN_ then return
     x.bind.Push( Indent_( x ) & "'' CPP-TODO(" & why & "): " & what )
     x.todos += 1
 end sub
@@ -117,6 +118,13 @@ function ParamName_( byref x as CppImp_, byval a as CXCursor, byval i as int32 )
     dim as string pn = NameParam( Text_( x, x.api->getCursorSpelling( a ) ) )
     if len( pn ) = 0 then pn = "p" & i
     if (pn = "self_") orelse (pn = "ret_") orelse (pn = "o_") then pn &= "p"
+    '' NOT A NAMESPACE'S NAME (survey: fmt's 'basic_format_string(runtime_format_string<Char> fmt)'):
+    '' tiko lets no local share one (TKO0961), and in a declaration 'byref fmt as const
+    '' fmt.runtime_format_string_byte' named the parameter where the type meant the namespace.
+    dim as string lp = chr( 1 ) & lcase( pn ) & chr( 1 )
+    for k as int32 = 0 to x.clsNsTiko.Count - 1
+        if instr( chr( 1 ) & lcase( x.clsNsTiko[k] ) & chr( 1 ), lp ) > 0 then return pn & "_"
+    next
     return pn
 end function
 
@@ -219,6 +227,7 @@ sub Enum_( byref x as CppImp_, byval c as CXCursor )
     if EnumLines_( x, c, tn, lines ) = false then
         '' AN ANONYMOUS ENUM is a set of constants (survey: 'enum { HashBytes = 32 }').
         AnonEnum_( x, c, lines )
+        if SeenBefore_( x, "E:" & Text_( x, x.api->getCursorUSR( c ) ) ) then return
         for i as int32 = 0 to lines.Count - 1
             x.bind.Push( Indent_( x ) & lines[i] )
         next
@@ -226,9 +235,11 @@ sub Enum_( byref x as CppImp_, byval c as CXCursor )
     end if
     dim as string nm = Text_( x, x.api->getCursorSpelling( c ) )
     dim as string ind = Indent_( x )
-    for i as int32 = 0 to lines.Count - 1
-        x.bind.Push( ind & lines[i] )
-    next
+    if SeenBefore_( x, "E:" & Text_( x, x.api->getCursorUSR( c ) ) ) = false then
+        for i as int32 = 0 to lines.Count - 1
+            x.bind.Push( ind & lines[i] )
+        next
+    end if
     x.enumUsr.Push( Text_( x, x.api->getCursorUSR( c ) ) )
     x.enumTiko.Push( QualTiko_( x, tn ) )
     x.enumCpp.Push( QualCpp_( x, nm ) )
@@ -289,6 +300,7 @@ end sub
 sub NsAliases_( byref x as CppImp_ )
     for i as int32 = 0 to x.nsAlias.Count - 1
         dim as string e = x.nsAlias[i]
+        if SeenBefore_( x, "A:" & e ) then continue for
         dim as string an = left( e, instr( e, "|" ) - 1 ), tn = mid( e, instr( e, "|" ) + 1 )
         dim as string tq = "", L = ""
         for k as int32 = 1 to len( tn )
@@ -531,7 +543,7 @@ function Prelude_( ) as string
     "// ---- tiko C++ shim prelude (tiko -cppimport) ----" & L & _
     "#include <cstddef>" & L & "#include <cstdint>" & L & "#include <cstdio>" & L & "#include <cstring>" & L & _
     "#include <exception>" & L & "#include <memory>" & L & "#include <new>" & L & "#include <stdexcept>" & L & "#include <string>" & L & _
-    "#include <string_view>" & L & "#include <array>" & L & "#include <vector>" & L & "#include <type_traits>" & L & "#include <utility>" & L & _
+    "#include <string_view>" & L & "#include <array>" & L & "#include <vector>" & L & "#include <type_traits>" & L & "#include <utility>" & L & "#include <variant>" & L & "#include <sstream>" & L & _
     "#ifndef TKO_CPP_PRELUDE" & L & "#define TKO_CPP_PRELUDE" & L & _
     "// A binding binds the deprecated members too; calling them is not this shim's warning to give." & L & _
     "#pragma GCC diagnostic ignored ""-Wdeprecated-declarations""" & L & _
@@ -661,6 +673,9 @@ function Prelude_( ) as string
     "    ~tko_cpp_seqout() { d.clear(); for (auto& e : s) d.push_back(e); }" & L & _
     "    operator S&() { return s; }" & L & "};" & L & _
     "template <class S> inline void* tko_cpp_vecof(const S& s) { return new std::vector<typename S::value_type>(s.begin(), s.end()); }" & L & _
+    "// A std::variant's alternative that is a string, as a std::string; an empty one for any other (survey: tabulate)." & L & _
+    "template <class V> inline std::string tko_cpp_varstr(const V& v) { return std::visit([](const auto& a) -> std::string { using A = std::decay_t<decltype(a)>;" & L & _
+    "    if constexpr (std::is_convertible_v<const A&, std::string>) return std::string(a); else if constexpr (std::is_convertible_v<const A&, std::string_view>) return std::string(std::string_view(a)); else return std::string(); }, v); }" & L & _
     "// An object converted to a string, through std::string or std::string_view (survey: simdjson's value)." & L & _
     "template <class O> inline std::string tko_cpp_strof(O&& o) { if constexpr (std::is_convertible_v<O&&, std::string>) return std::string(std::forward<O>(o)); else return std::string(static_cast<std::string_view>(std::forward<O>(o))); }" & L & _
     "template <class T> inline long long tko_cpp_box(const std::shared_ptr<T>& sp) { return reinterpret_cast<long long>(new std::shared_ptr<T>(sp)); }" & L & _
@@ -733,6 +748,11 @@ function Prelude_( ) as string
     "// two #cppinclude's in one program failed 'duplicate symbol: tko_cpp_what'. An inline one is a" & L & _
     "// COMDAT the linker keeps once; 'used' makes a shim emit it although nothing in the shim calls it." & L & _
     "extern ""C"" inline __attribute__((used)) tko_cpp_ustr* tko_cpp_what() { return tko_cpp_from(tko_cpp_last()); }" & L & _
+    "// cpp.ostringstream, what a 'std::ostream&' parameter takes (survey: spdlog's ostream_sink)." & L & _
+    "extern ""C"" inline __attribute__((used)) void* tko_cpp_oss_new() { return new std::ostringstream(); }" & L & _
+    "extern ""C"" inline __attribute__((used)) void tko_cpp_oss_free(void* p) { delete static_cast<std::ostringstream*>(p); }" & L & _
+    "extern ""C"" inline __attribute__((used)) tko_cpp_ustr* tko_cpp_oss_str(void* p) { return tko_cpp_from(static_cast<std::ostringstream*>(p)->str()); }" & L & _
+    "extern ""C"" inline __attribute__((used)) void tko_cpp_oss_clear(void* p) { static_cast<std::ostringstream*>(p)->str(std::string()); }" & L & _
     "// What a C++ function declared in its header but defined in no linked library resolves to (COFF):" & L & _
     "// a call reaches it, and the program stops with a runtime error naming the problem." & L & _
     "extern ""C"" inline __attribute__((used)) void tko_cpp_undefined() {" & L & _
@@ -758,6 +778,28 @@ function BindingHead_( byref hdr as string, byref ver as string, byref tgt as st
     "#ifndef __TKO_CPP_PRELUDE__" & L & "#define __TKO_CPP_PRELUDE__" & L & _
     "namespace cpp" & L & _
     "    extern ""C"" : declare function What alias ""tko_cpp_what"" ( ) as ustring : end extern" & L & _
+    "    extern ""C""" & L & _
+    "        declare function oss_new_ alias ""tko_cpp_oss_new"" ( ) as any ptr" & L & _
+    "        declare sub oss_free_ alias ""tko_cpp_oss_free"" ( byval p as any ptr )" & L & _
+    "        declare function oss_str_ alias ""tko_cpp_oss_str"" ( byval p as any ptr ) as ustring" & L & _
+    "        declare sub oss_clear_ alias ""tko_cpp_oss_clear"" ( byval p as any ptr )" & L & _
+    "    end extern" & L & _
+    "    '' A C++ std::ostringstream: what a 'std::ostream&' parameter takes; str_( ) is its text so far." & L & _
+    "    '' A copy borrows the same stream." & L & _
+    "    type ostringstream" & L & _
+    "        as any ptr impl_" & L & _
+    "        as longint owned_" & L & _
+    "        declare constructor ( )" & L & _
+    "        declare constructor ( byref o as const ostringstream )" & L & _
+    "        declare destructor ( )" & L & _
+    "        declare function str_ ( ) as ustring" & L & _
+    "        declare sub clear_ ( )" & L & _
+    "    end type" & L & _
+    "    constructor ostringstream ( )" & L & "        impl_ = oss_new_( ) : owned_ = 1" & L & "    end constructor" & L & _
+    "    constructor ostringstream ( byref o as const ostringstream )" & L & "        impl_ = o.impl_ : owned_ = 0" & L & "    end constructor" & L & _
+    "    destructor ostringstream ( )" & L & "        if owned_ <> 0 then oss_free_( impl_ )" & L & "        impl_ = 0 : owned_ = 0" & L & "    end destructor" & L & _
+    "    function ostringstream.str_ ( ) as ustring" & L & "        return oss_str_( impl_ )" & L & "    end function" & L & _
+    "    sub ostringstream.clear_ ( )" & L & "        oss_clear_( impl_ )" & L & "    end sub" & L & _
     "end namespace" & L & "#endif" & L & L
 end function
 
@@ -966,7 +1008,7 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
     '' THE MEMBERS' NAMES, from the mirror.
     if instr( res.shim, "@@M:" ) > 0 then
         parts.Clear( )
-        parts.Push( "struct FBUSTRING;" & L )
+        parts.Push( "struct FBUSTRING;" & L & "namespace CPP { struct OSTRINGSTREAM; }" & L )
         for i as int32 = 0 to x.mirFwd.Count - 1
             parts.Push( x.mirFwd[i] )
         next
@@ -984,6 +1026,10 @@ private function Finish_( byref api as ClangApi, byref opts as CppImportOptions,
     res.bound = x.bound
     res.todos = x.todos
     res.noAccess = x.usedNoAccess
+    res.keys.Clear( )
+    for i as int32 = 0 to x.keys.Count - 1
+        res.keys.Push( x.keys[i] )
+    next
     return true
 end function
 
@@ -1156,6 +1202,9 @@ function CppImportRun( byref api as ClangApi, byref opts as CppImportOptions, _
         xp->id = Id_( lcase( Fwd_( opts.header ) ) )
         xp->coff = (instr( opts.triple, "windows-msvc" ) > 0)
         xp->noAccess = opts.noAccess
+        for i as int32 = 0 to opts.seen.Count - 1
+            xp->seen.Push( opts.seen[i] )
+        next
         for i as int32 = 0 to opts.exclude.Count - 1
             xp->exclude.Push( opts.exclude[i] )
         next

@@ -353,7 +353,7 @@ sub PodEmitAll_( byref x as CppImp_ )
         done.Push( "" )
     next
     for ci as int32 = 0 to x.clsUsr.Count - 1
-        if IsPod_( x, ci ) then PodEmitOne_( x, ci, done )
+        if IsPod_( x, ci ) andalso (SeenBefore_( x, "C:" & x.clsCpp[ci] ) = false) then PodEmitOne_( x, ci, done )
     next
 end sub
 

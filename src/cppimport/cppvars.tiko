@@ -64,6 +64,7 @@ sub Var_( byref x as CppImp_, byval c as CXCursor )
     '' THE SAME VARIABLE declared twice (SQLiteCpp's 'extern const int OK') is bound once; another whose
     '' name differs only in case takes '_'.
     dim as string vu = "usr:" & Text_( x, x.api->getCursorUSR( c ) )
+    if SeenBefore_( x, "V:" & vu ) then return
     for i as int32 = 0 to x.varNames.Count - 1
         if x.varNames[i] = vu then return
     next
@@ -292,5 +293,226 @@ sub StrCastShadow_( byref x as CppImp_, byref lines as Tko.StrVec )
         end if
     next
 end sub
+
+
+type NoDef_
+    as CppImp_ ptr x
+    as string cls
+    as boolean found
+end type
+
+private function NoDefVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as NoDef_ ptr n = client
+    dim as CppImp_ ptr x = n->x
+    if x->api->getCursorKind( c ) <> CXCursor_CXXMethod then return CXChildVisit_Continue
+    if Text_( *x, x->api->getCursorSpelling( c ) ) <> "operator=" then return CXChildVisit_Continue
+    if (x->api->CXXMethod_isDeleted( c ) <> 0) orelse (x->api->CXXMethod_isDefaulted( c ) <> 0) then return CXChildVisit_Continue
+    if x->api->Cursor_getNumArguments( c ) <> 1 then return CXChildVisit_Continue
+    dim as CXType at_ = x->api->getCursorType( x->api->Cursor_getArgument( c, 0 ) )
+    if Canon_( *x, at_ ).kind <> TY_LREF_ then return CXChildVisit_Continue
+    dim as CXCursor ad = x->api->getTypeDeclaration( Canon_( *x, x->api->getNonReferenceType( at_ ) ) )
+    if Text_( *x, x->api->getCursorSpelling( ad ) ) <> n->cls then return CXChildVisit_Continue
+    if DeclDefined_( *x, c ) = false then n->found = true : return CXChildVisit_Break
+    return CXChildVisit_Continue
+end function
+
+'' A COPY ASSIGNMENT DECLARED AND NEVER DEFINED (survey: fast-cpp-csv-parser's CSVReader, the C++03
+'' 'private: C& operator=(const C&);' idiom, here public): C++ links only while nothing uses it, and
+'' the handle's 'let' would -- so 'let' raises instead. The shim body, or "" when it is defined.
+function NoDefAssign_( byref x as CppImp_, byval ci as int32 ) as string
+    '' A specialization's only: another class's may be defined in its library's sources (jsoncpp's
+    '' Value), and links -- S6 covers one that is not.
+    if IsSpec_( x, ci ) = false then return ""
+    dim as NoDef_ n
+    n.x = @x
+    dim as CXCursor c = x.clsCur[ci], tm = x.api->getSpecializedCursorTemplate( c )
+    if IsNullCursor_( x, tm ) = false then c = tm
+    dim as CXCursor dc = x.api->getCursorDefinition( c )
+    if IsNullCursor_( x, dc ) = false then c = dc
+    n.cls = Text_( x, x.api->getCursorSpelling( c ) )
+    x.api->visitChildren( c, @NoDefVisit_, @n )
+    if n.found = false then return ""
+    return "tko_cpp_last() = ""this C++ class cannot be assigned (its operator= is declared, never defined)""; tko_cpp_raise();"
+end function
+
+
+type Kept_
+    as CppImp_ ptr x
+    as string pn, ptype
+    as boolean found
+    as int32 na, i
+    as CXCursor ctor
+    as boolean haveCtor
+end type
+
+private function KeptCtorVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Kept_ ptr k = client
+    dim as CppImp_ ptr x = k->x
+    if x->api->getCursorKind( c ) <> CXCursor_Constructor then return CXChildVisit_Continue
+    if x->api->Cursor_getNumArguments( c ) <> k->na then return CXChildVisit_Continue
+    if Text_( *x, x->api->getCursorSpelling( x->api->Cursor_getArgument( c, k->i ) ) ) <> k->pn then return CXChildVisit_Continue
+    k->ctor = c : k->haveCtor = true
+    return CXChildVisit_Break
+end function
+
+private function KeptFieldVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as Kept_ ptr k = client
+    dim as CppImp_ ptr x = k->x
+    if x->api->getCursorKind( c ) <> CXCursor_FieldDecl then return CXChildVisit_Continue
+    dim as CXType t = x->api->getCursorType( c )
+    if t.kind <> TY_LREF_ then return CXChildVisit_Continue
+    if Spell_( *x, t ) = k->ptype then k->found = true : return CXChildVisit_Break
+    return CXChildVisit_Continue
+end function
+
+'' A SPECIALIZATION'S CONSTRUCTOR KEEPING A REFERENCE TO A VECTOR PARAMETER (survey: nanoflann's
+'' KDTreeVectorOfVectorsAdaptor, 'const VectorOfVectorsType& m_data' initialized from 'mat'): the
+'' Array's copy the call makes would die with the call, the reference left dangling. The unit is
+'' parsed without bodies, so the test is the declarations': a 'const std::vector<T>&' parameter of
+'' the very type of one of the class's reference members, as its pattern writes both. That copy then lives as long as the object: the argument is a shared copy (keepDecl)
+'' that the object's deleter holds (keepCap), and the handle is a shared one. S7 for a class
+'' template specialization, which HoldsRefs_ (cppclass.tiko) leaves out -- without its leak.
+sub KeepArg_( byref x as CppImp_, byval ci as int32, byval c as CXCursor, byval i as int32, byval at_ as CXType, _
+              byref arg as string, byref keepDecl as string, byref keepCap as string )
+    if IsSpec_( x, ci ) = false then return        '' another class's: S7's Adapter_ keeps the vector
+    if Canon_( x, at_ ).kind <> TY_LREF_ then return
+    if x.api->isConstQualifiedType( x.api->getNonReferenceType( at_ ) ) = 0 then return
+    dim as Kept_ k
+    k.x = @x
+    k.pn = Text_( x, x.api->getCursorSpelling( x.api->Cursor_getArgument( c, i ) ) )
+    if len( k.pn ) = 0 then return
+    dim as CXCursor cls = x.clsCur[ci], tm = x.api->getSpecializedCursorTemplate( x.clsCur[ci] )
+    dim as CXCursor pc = c
+    if IsNullCursor_( x, tm ) = false then
+        '' A specialization's: its pattern's constructor of the same parameters, and its pattern's fields.
+        k.na = x.api->Cursor_getNumArguments( c ) : k.i = i
+        x.api->visitChildren( tm, @KeptCtorVisit_, @k )
+        if k.haveCtor = false then return
+        pc = k.ctor : cls = tm
+    end if
+    k.ptype = Spell_( x, x.api->getCursorType( x.api->Cursor_getArgument( pc, i ) ) )
+    x.api->visitChildren( cls, @KeptFieldVisit_, @k )
+    if k.found = false then return
+    dim as string kn = "tko_keep" & i & "_"
+    keepDecl &= "auto " & kn & " = std::make_shared<std::decay_t<decltype(" & arg & ")>>(std::move(" & arg & ")); "
+    keepCap &= iif( len( keepCap ), ", ", "" ) & kn
+    arg = "*" & kn
+end sub
+
+'' The constructor's body when it keeps copies (KeepArg_): a shared handle whose deleter holds them.
+function KeepCtor_( byref cls as const string, byref args as const string, byref keepDecl as const string, byref keepCap as const string ) as string
+    return keepDecl & cls & "* tko_p_ = new " & cls & "(" & args & "); self_->impl = tko_p_; " & _
+           "self_->owned = tko_cpp_box<" & cls & ">(std::shared_ptr<" & cls & ">(tko_p_, [" & keepCap & "](" & cls & "* q) { delete q; })); return;"
+end function
+
+
+type PatMem_
+    as CppImp_ ptr x
+    as CXCursor c
+    as int32 kind, na
+    as string nm, args
+    as boolean found, defined
+end type
+
+private function ArgNames_( byref x as CppImp_, byval c as CXCursor ) as string
+    dim as string r = ""
+    for i as int32 = 0 to x.api->Cursor_getNumArguments( c ) - 1
+        r &= "," & Text_( x, x.api->getCursorSpelling( x.api->Cursor_getArgument( c, i ) ) )
+    next
+    return r
+end function
+
+private function PatMemVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as PatMem_ ptr p = client
+    dim as CppImp_ ptr x = p->x
+    if x->api->getCursorKind( c ) <> p->kind then return CXChildVisit_Continue
+    if Text_( *x, x->api->getCursorSpelling( c ) ) <> p->nm then return CXChildVisit_Continue
+    if x->api->Cursor_getNumArguments( c ) <> p->na then return CXChildVisit_Continue
+    if ArgNames_( *x, c ) <> p->args then return CXChildVisit_Continue
+    p->found = true
+    p->defined = DeclDefined_( *x, c )
+    return CXChildVisit_Break
+end function
+
+'' A SPECIALIZATION'S MEMBER DECLARED AND NEVER DEFINED (survey: fmt's 'value(unformattable);', a
+'' link-time trap for a type fmt cannot format): C++ links while nothing calls it, and the shim would.
+'' Its pattern's member -- same kind, name and parameter names -- says, having no definition. A
+'' deleted or defaulted one is another matter, as is one the pattern does not have (an explicit
+'' specialization's own).
+function NeverDefined_( byref x as CppImp_, byval ci as int32, byval c as CXCursor ) as boolean
+    if IsSpec_( x, ci ) = false then return false
+    dim as int32 k = x.api->getCursorKind( c )
+    if (k <> CXCursor_Constructor) andalso (k <> CXCursor_CXXMethod) then return false
+    if (k = CXCursor_CXXMethod) andalso ((x.api->CXXMethod_isDeleted( c ) <> 0) orelse (x.api->CXXMethod_isDefaulted( c ) <> 0) orelse (x.api->CXXMethod_isPureVirtual( c ) <> 0)) then return false
+    if IsNullCursor_( x, x.api->getCursorDefinition( c ) ) = false then return false
+    dim as CXCursor tm = x.api->getSpecializedCursorTemplate( x.clsCur[ci] )
+    if IsNullCursor_( x, tm ) then return false
+    dim as PatMem_ p
+    p.x = @x : p.kind = k : p.na = x.api->Cursor_getNumArguments( c )
+    p.nm = Text_( x, x.api->getCursorSpelling( c ) ) : p.args = ArgNames_( x, c )
+    x.api->visitChildren( tm, @PatMemVisit_, @p )
+    return p.found andalso (p.defined = false)
+end function
+
+
+private function OolVisit_ cdecl ( byval c as CXCursor, byval parent as CXCursor, byval client as any ptr ) as int32
+    dim as CppImp_ ptr x = client
+    select case x->api->getCursorKind( c )
+    case CXCursor_Namespace, CXCursor_LinkageSpec
+        return CXChildVisit_Recurse
+    case CXCursor_CXXMethod, CXCursor_Constructor, CXCursor_Destructor, CXCursor_ConversionFunction, CXCursor_FunctionTemplate
+        '' At namespace level, a member function is one defined out of its class.
+        dim as int32 pk = x->api->getCursorKind( x->api->getCursorSemanticParent( c ) )
+        if (pk <> CXCursor_Namespace) andalso (pk <> CXCursor_TranslationUnit) andalso (pk <> CXCursor_LinkageSpec) then
+            x->oolUsr.Push( Text_( *x, x->api->getCursorUSR( c ) ) )
+        end if
+    end select
+    return CXChildVisit_Continue
+end function
+
+'' IS A FUNCTION DECLARATION DEFINED? The unit is parsed without bodies, and a class template's
+'' inline members then have no definition for libclang -- so by the declaration's own tokens (a body
+'' ends in '}'; '= default', '= delete', '= 0' count too), else by an out-of-line definition of the
+'' same USR somewhere at namespace level. A declaration with no tokens (a macro's) is taken as defined.
+function DeclDefined_( byref x as CppImp_, byval c as CXCursor ) as boolean
+    if IsNullCursor_( x, x.api->getCursorDefinition( c ) ) = false then return true
+    '' The extent stops before a skipped body: what follows it says -- '{', a constructor's ':', '= ...',
+    '' 'try' a definition; ';' a declaration only.
+    dim as CXSourceLocation e = x.api->getRangeEnd( x.api->getCursorExtent( c ) )
+    dim as any ptr fl = nullptr
+    dim as uint32 ln, col, off
+    x.api->getExpansionLocation( e, @fl, @ln, @col, @off )
+    if fl = nullptr then return true
+    dim as CXToken ptr toks = nullptr
+    dim as uint32 nt = 0
+    x.api->tokenize( x.tu, x.api->getRange( e, x.api->getLocationForOffset( x.tu, fl, off + 8 ) ), @toks, @nt )
+    dim as string nx = ""
+    if nt > 0 then nx = ClangText( *x.api, x.api->getTokenSpelling( x.tu, toks[0] ) )
+    if toks <> nullptr then x.api->disposeTokens( x.tu, toks, nt )
+    if nx <> ";" then return true
+    if x.oolDone = false then
+        x.oolDone = true
+        x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @OolVisit_, @x )
+    end if
+    dim as string usr = Text_( x, x.api->getCursorUSR( c ) )
+    for i as int32 = 0 to x.oolUsr.Count - 1
+        if x.oolUsr[i] = usr then return true
+    next
+    return false
+end function
+
+
+'' DECLARED BY AN EARLIER #cppinclude (CppImportOptions.seen)? Either way the key is this import's
+'' too (CppImportResult.keys), so a third #cppinclude skips it as well.
+function SeenBefore_( byref x as CppImp_, byval key as string ) as boolean
+    for i as int32 = 0 to x.seen.Count - 1
+        if x.seen[i] = key then return true
+    next
+    for i as int32 = 0 to x.keys.Count - 1
+        if x.keys[i] = key then return false
+    next
+    x.keys.Push( key )
+    return false
+end function
 
 end namespace
