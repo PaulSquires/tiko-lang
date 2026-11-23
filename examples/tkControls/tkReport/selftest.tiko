@@ -3,7 +3,8 @@
 ' "Page {p} of {n}"; no group header alone at a page's bottom; a group header repeated on a page the
 ' group continues on; BeforePrint skipping bands; a second layout equal to the first; a tkListTree as
 ' the data; the table printer shrinking, then going across pages with column 1 repeated; an SQLite
-' query as the data (types and NULL). One pass.
+' query as the data (types and NULL); R5's table source at 10,000 rows, its 100 group totals and
+' the report total checked (and timed). One pass.
 '
 '   selftest            exit code = number of failures
 #import "vendor/tkControls/tkTest"
@@ -219,6 +220,42 @@ sub RunPass( )
     tkReportSqlite_Close( sr )
     tkReport_Destroy( sr )
     sqlite3_close( db3 )
+
+    ' ---- R5: the table source, 10,000 rows in 100 groups ----------------------------------------
+    dim as TK_REPORT ptr tr = tkReport_Create( "big" )
+    tkReport_TableAddField( tr, "Group" ) : tkReport_TableAddField( tr, "Amount" )
+    dim as longint want(0 to 99), wantAll = 0
+    for r as long = 0 to 9999
+        dim as integer row = tkReport_TableAddRow( tr )
+        tkReport_TableCell( tr, row, 0 )->SetText( "g" & (r \ 100) )
+        tkReport_TableCell( tr, row, 1 )->SetInt( (r mod 7) + 1 )
+        want(r \ 100) += (r mod 7) + 1 : wantAll += (r mod 7) + 1
+    next
+    tkReport_AddGroup( tr, 0 )
+    tkRBand_SetHeight( tkReport_GetBand( tr, TKRB_DETAIL ), 10 )
+    tkRBand_AddField( tkReport_GetBand( tr, TKRB_DETAIL ), RF( 0, 0, 80, 10 ), 1 )
+    dim as TK_RBAND ptr gf = tkReport_GetBand( tr, TKRB_GROUP_FOOTER, 0 )
+    tkRBand_SetHeight( gf, 12 )
+    tkRBand_AddLabel( gf, RF( 0, 0, 20, 12 ), "T" ) : tkRBand_AddField( gf, RF( 20, 0, 80, 12 ), 0 )
+    tkRBand_AddSummary( gf, RF( 80, 0, 160, 12 ), 1, TKRS_SUM, 0, "0" )
+    dim as TK_RBAND ptr rf_ = tkReport_GetBand( tr, TKRB_REPORT_FOOTER )
+    tkRBand_AddLabel( rf_, RF( 0, 0, 20, 12 ), "ALL" ) : tkRBand_AddSummary( rf_, RF( 80, 0, 160, 12 ), 1, TKRS_SUM, TKRS_SCOPE_REPORT, "0" )
+    dim as double t0 = timer
+    dim as TK_PRINTDOC ptr bd = tkReport_Run( tr )
+    dim as double ms = (timer - t0) * 1000
+    dim as string r5Text
+    for pg as long = 0 to tkPrintDoc_GetPageCount( bd ) - 1 : r5Text &= PageTexts( bd, pg, lowest ) : next
+    dim as long nT = 0, at_ = instr( r5Text, "|T|g" ), bad = -1
+    while at_ > 0 : nT += 1 : at_ = instr( at_ + 1, r5Text, "|T|g" ) : wend
+    for g as long = 0 to 99
+        if instr( r5Text, "|T|g" & g & "|" & want(g) & "|" ) = 0 then bad = g : exit for
+    next
+    print "10,000 rows: " & tkPrintDoc_GetPageCount( bd ) & " pages in " & clng( ms ) & " ms"
+    tkTest_Check( "table source, 10,000 rows: 100 group totals and the report total right", (tkReport_GetRowsRead( tr ) = 10000) _
+                  andalso (nT = 100) andalso (bad < 0) andalso (instr( r5Text, "|ALL|" & wantAll & "|" ) > 0), _
+                  "read " & tkReport_GetRowsRead( tr ) & ", footers " & nT & ", first wrong group " & bad )
+    tkPrintDoc_Destroy( bd )
+    tkReport_Destroy( tr )
 end sub
 
 if tkTest_Init() = false then end 1
