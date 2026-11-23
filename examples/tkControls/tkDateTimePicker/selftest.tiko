@@ -13,6 +13,7 @@ using tkDateTimePicker
 using tkDatePicker
 using tkCalendar
 using tkTimePanel
+using tkTooltip
 using tkTheme
 using tkTest
 using tkBind
@@ -81,7 +82,7 @@ sub Open_( byval h as TK_HOST ptr )
 end sub
 
 ' The day cell showing d of the displayed month, clicked in the POPUP window.
-sub ClickDay( byval c as TK_WIDGET ptr, byval d as long )
+sub ClickDay( byval c as TK_WIDGET ptr, byval d as long, byval bDouble as boolean = false )
     dim as TK_WIDGET ptr cal = tkDateTimePicker_GetCalendarHandle( c )
     dim as TK_HOST ptr pop = tkDateTimePicker_GetPopup( c )
     if (cal = 0) orelse (pop = 0) then exit sub
@@ -94,6 +95,7 @@ sub ClickDay( byval c as TK_WIDGET ptr, byval d as long )
             dim as TKRECT rc
             tkCalendar_GetDayCellRect( cal, 0, k, rc )
             tkTest_Click( pop, WX( cal, (rc.left + rc.right) \ 2 ), WY( cal, (rc.top + rc.bottom) \ 2 ) )
+            if bDouble then tkTest_Click( pop, WX( cal, (rc.left + rc.right) \ 2 ), WY( cal, (rc.top + rc.bottom) \ 2 ), SDL_BUTTON_LEFT, 2 )
             exit sub
         end if
     next
@@ -334,8 +336,103 @@ sub RunBinding( )
 end sub
 
 ' ==========================================================================================
+' The rest, one check each (scale-independent: one pass): the callbacks this control forwards or
+' owns, the dismissals and accepts the main pass does not drive, yy and SetDayNames.
+dim shared as long gTipPart, gTipSeg, gTipDay, gNoonOff
+
+sub OnFmt( byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byref sOut as ustring )
+    sOut = "due " & sOut
+end sub
+
+function OnTip( byval t as TKDATETIMEPICKER_TOOLTIPINFO ptr ) as boolean
+    gTipPart = t->nPart
+    gTipSeg = t->nSegment
+    gTipDay = iif( t->hasValue, t->dt.wDay, -1 )
+    t->outText = "segment " & t->nSegment
+    return t->nPart = TKDTM_HIT_FIELD
+end function
+
+function OnItemDisabled( byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long ) as boolean
+    return (gNoonOff <> 0) andalso (nKind = TKTP_SEG_HOUR24) andalso (nValue = 12)
+end function
+
+sub RunExtras( )
+    tkTest_Begin( "callbacks, dismissals, names" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDateTimePicker extras", 760, 560, tkHost_FontDir() & TK_FONT_UI, 1.0 )
+    tkHost_Show( h )
+    dim as TK_WIDGET ptr c = tkDateTimePicker_Create( tkHost_Root( h ), 1 )
+    dim as long iw, ih
+    tkDateTimePicker_GetIdealSize( c, iw, ih )
+    tkWidget_SetPos( c, 20, 20, iw + 60, ih )
+    tkDateTimePicker_SetDateTimeChangedCallback( c, @OnChanged )
+    tkDateTimePicker_SetDateTime( c, DT( 2026, 11, 23, 14, 30 ) )
+
+    ' Format: the text at rest
+    tkDateTimePicker_SetFormatCallback( c, @OnFmt )
+    tkTest_Check( "FormatDateTime replaces the text at rest", tkDateTimePicker_GetText( c ) = "due 2026-11-23 14:30", tkDateTimePicker_GetText( c ) )
+    tkDateTimePicker_SetFormatCallback( c, 0 )
+
+    ' Tooltip: the value, the part and the segment under the pointer
+    tkDateTimePicker_SetTooltipCallback( c, @OnTip )
+    dim as TK_TIP ptr tip = tkDateTimePicker_GetTooltipHandle( c )
+    dim as TKRECT rs
+    tkDateTimePicker_GetSegmentRect( c, 4, rs )
+    tkHost_SetFocus( h, 0 )
+    tkHost_RenderTo( h, false )
+    tkTest_PushMotion( h, WX( c, (rs.left + rs.right) \ 2 ), WY( c, (rs.top + rs.bottom) \ 2 ) )
+    if tip then tkTooltip_Show( tip )
+    tkTest_Check( "Tooltip over the day: the field, segment 4, the value, shown", (tip <> 0) andalso tkTooltip_IsVisible( tip ) _
+                  andalso gTipPart = TKDTM_HIT_FIELD andalso gTipSeg = 4 andalso gTipDay = 23, gTipPart & " " & gTipSeg & " " & gTipDay )
+    if tip then tkTooltip_Hide( tip )
+    tkTest_PushMotion( h, 700, 500 )
+
+    ' ItemDisabled reaches the dropdown's panel
+    gNoonOff = 1
+    tkDateTimePicker_SetItemDisabledCallback( c, @OnItemDisabled )
+    tkHost_SetFocus( h, c )
+    ResetCounts( )
+    Open_( h )
+    dim as TK_WIDGET ptr pnl = tkDateTimePicker_GetPanelHandle( c )
+    tkTest_Check( "ItemDisabled is forwarded to the panel (hour 12 off, 11 on)", (pnl <> 0) andalso tkTimePanel_IsItemDisabled( pnl, 0, 12 ) _
+                  andalso tkTimePanel_IsItemDisabled( pnl, 0, 11 ) = false )
+    gNoonOff = 0
+    tkDateTimePicker_SetItemDisabledCallback( c, 0 )
+
+    ' a press outside dismisses: closed, nothing written
+    ClickDay( c, 25 )
+    tkTest_Click( h, 700, 500 )
+    tkTest_PumpFor( h, 50 )
+    tkTest_Check( "a press outside dismisses: closed, value unchanged, no event", tkDateTimePicker_IsDroppedDown( c ) = false _
+                  andalso IsDT( c, 2026, 11, 23, 14, 30 ) andalso gChanged = 0, Iso( GetDT( c ) ) )
+
+    ' a double click on a day accepts it
+    tkHost_SetFocus( h, c )
+    Open_( h )
+    ClickDay( c, 27, true )
+    tkTest_PumpFor( h, 50 )
+    tkTest_Check( "a double click on a day accepts it: closed, the 27th, one event", tkDateTimePicker_IsDroppedDown( c ) = false _
+                  andalso IsDT( c, 2026, 11, 27, 14, 30 ) andalso gChanged = 1, Iso( GetDT( c ) ) )
+
+    ' yy: two digits, read as 20xx
+    tkDateTimePicker_SetFormat( c, "yy-MM-dd HH:mm" )
+    tkHost_SetFocus( h, c )
+    tkDateTimePicker_SetFocusedSegment( c, 0 )
+    Keys( h, "31" )
+    tkTest_Check( "yy: 3 1 is 2031, then the month has the focus", IsDT( c, 2031, 11, 27, 14, 30 ) andalso tkDateTimePicker_GetFocusedSegment( c ) = 2, _
+                  Iso( GetDT( c ) ) )
+
+    ' SetDayNames: full and short
+    tkDateTimePicker_SetDayNames( c, "Sonntag,Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag|So,Mo,Di,Mi,Do,Fr,Sa" )
+    tkDateTimePicker_SetFormat( c, "dddd / ddd d" )
+    tkDateTimePicker_SetDateTime( c, DT( 2026, 11, 23 ) )
+    tkTest_Check( "SetDayNames: full and short weekdays", tkDateTimePicker_GetText( c ) = "Montag / Mo 23", tkDateTimePicker_GetText( c ) )
+    tkHost_Destroy( h )
+end sub
+
+' ==========================================================================================
 if tkTest_Init() = false then end 99
 RunBinding( )
+RunExtras( )
 RunPass( 1.0 )
 RunPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkDateTimePicker" )
