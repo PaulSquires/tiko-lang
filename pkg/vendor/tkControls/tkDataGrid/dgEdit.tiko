@@ -53,7 +53,7 @@ const DG_EDITFOCUS_MS = 50
 ' Helpers
 ' ==========================================================================================
 function DgHasNewRow( byval p as TKDATAGRID_STATE ptr ) as boolean
-    return p->bAllowAdd andalso (p->bReadOnly = false)
+    return p->bAllowAdd andalso (p->bReadOnly = false) andalso DgFeedWritable( p ) andalso DgFeedCanInsert( p )
 end function
 
 ' The rows the view shows: the real ones plus the placeholder.
@@ -80,7 +80,7 @@ end function
 ' Can the user change this cell at all (any way: an editor, a toggle, Delete, a paste)?
 function DgCellEditable( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer ) as boolean
     if p->bReadOnly orelse (DgValidViewRow( p, row ) = false) orelse (DgValidCol( p, col ) = false) then return false
-    if (p->cols(col).c.readOnly) orelse (p->cols(col).c.visible = false) then return false
+    if (p->cols(col).c.readOnly) orelse (p->cols(col).c.visible = false) orelse (DgFeedWritable( p ) = false) then return false
     select case p->cols(col).c.kind
     case TKDG_COL_TEXT, TKDG_COL_NUMBER, TKDG_COL_COMBO, TKDG_COL_DATE, TKDG_COL_CHECK : return true
     end select
@@ -181,8 +181,8 @@ sub DgCancelRow( byval p as TKDATAGRID_STATE ptr )
     if p->bDirtyIsNew then
         p->dirtyRow = -1 : p->bDirtyIsNew = false
         erase p->dirtySnap
-        DgStoreDeleteRows( p, row, 1 )
-        DgSelRowsMoved( p, row, -1 )
+        ' virtual mode: the count drops and CancelRowEdit (below) tells the host to drop its row
+        if DgRowsRemoved( p, row, 1 ) then DgSelRowsMoved( p, row, -1 )
         DgChanged( p )
     else
         dim as integer n = ubound( p->dirtySnap ) + 1
@@ -387,7 +387,7 @@ function DgBeginEdit( byval p as TKDATAGRID_STATE ptr, byval row as integer, byv
     ' the placeholder becomes a real row first
     if row >= p->rowCount then
         row = p->rowCount
-        DgStoreInsertRows( p, row, 1 )
+        if DgRowsInserted( p, row, 1 ) = false then return false
         DgChanged( p )
         if p->RowAddedCallback then p->RowAddedCallback( p->hWin, row )
         DgMarkDirty( p, row )
@@ -584,7 +584,7 @@ function DgDeleteKey( byval p as TKDATAGRID_STATE ptr ) as boolean
             end if
             if (p->dirtyRow >= runs(k).a) andalso (p->dirtyRow <= runs(k).b) then p->dirtyRow = -1 : p->bDirtyIsNew = false : erase p->dirtySnap
             if p->dirtyRow > runs(k).b then p->dirtyRow -= cnt
-            DgStoreDeleteRows( p, runs(k).a, cnt )
+            if DgRowsRemoved( p, runs(k).a, cnt ) = false then continue for
             DgSelRowsMoved( p, runs(k).a, -cnt )
             any_ = true
         next
@@ -835,3 +835,72 @@ public function tkDataGrid_PasteText( byval hGrid as TK_WIDGET ptr, byval text a
     if p = 0 then return 0
     return DgPasteText( p, text )
 end function
+
+' ==========================================================================================
+' Public API: virtual mode and change notification (G3)
+' ==========================================================================================
+' TRUE: the host answers every cell (CellValueNeeded / CellValuePushed) and sets the row count
+' with SetRowCount; the grid keeps nothing per row. Either way the grid's rows are dropped.
+public sub tkDataGrid_SetVirtual( byval hGrid as TK_WIDGET ptr, byval bVirtual as boolean )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    DgSwitchFeed( p, iif( bVirtual, DG_FEED_VIRTUAL, DG_FEED_STORE ) )
+    DgChanged( p )
+end sub
+
+public function tkDataGrid_IsVirtual( byval hGrid as TK_WIDGET ptr ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->feed = DG_FEED_VIRTUAL, false )
+end function
+
+public function tkDataGrid_HasSource( byval hGrid as TK_WIDGET ptr ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->feed = DG_FEED_SOURCE, false )
+end function
+
+' Values the host changed in rows row1 .. row2, columns col1 .. col2 (-1 for every one): repaint.
+' The grid caches nothing, so this only owes a paint.
+public sub tkDataGrid_InvalidateCells( byval hGrid as TK_WIDGET ptr, byval row1 as integer = -1, byval col1 as integer = -1, _
+                                       byval row2 as integer = -1, byval col2 as integer = -1 )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then tkWidget_Invalidate( p->wSurf )
+end sub
+
+' The host inserted n rows at row (virtual or source): the count grows, the current row moves with
+' its row, the selection and an open edit are dropped (as for the grid's own inserts).
+public sub tkDataGrid_NotifyRowsInserted( byval hGrid as TK_WIDGET ptr, byval row as integer, byval n as integer )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (p->feed = DG_FEED_STORE) orelse (n <= 0) then exit sub
+    if (row < 0) orelse (row > p->rowCount) then row = p->rowCount
+    DgDropEdit( p )
+    p->rowCount += n
+    DgSelRowsMoved( p, row, n )
+    DgChanged( p )
+end sub
+
+public sub tkDataGrid_NotifyRowsRemoved( byval hGrid as TK_WIDGET ptr, byval row as integer, byval n as integer )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (p->feed = DG_FEED_STORE) orelse (DgValidRow( p, row ) = false) orelse (n <= 0) then exit sub
+    if row + n > p->rowCount then n = p->rowCount - row
+    DgDropEdit( p )
+    p->rowCount -= n
+    DgSelRowsMoved( p, row, -n )
+    if p->hotRow >= p->rowCount then p->hotRow = -1
+    DgChanged( p )
+end sub
+
+' Everything may have changed (a re-query, a new sort order): the edit, the dirty row and the
+' selection go; a source's count is asked again; the current cell is kept in range.
+public sub tkDataGrid_Reset( byval hGrid as TK_WIDGET ptr )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    DgDropEdit( p )
+    DgSelReset( p )
+    if (p->feed = DG_FEED_SOURCE) andalso (p->src.RowCount <> 0) then
+        p->rowCount = p->src.RowCount( p->src.pCtx )
+        if p->rowCount < 0 then p->rowCount = 0
+    end if
+    if p->curRow >= DgViewRows( p ) then p->curRow = DgViewRows( p ) - 1
+    if p->hotRow >= p->rowCount then p->hotRow = -1
+    DgChanged( p )
+end sub

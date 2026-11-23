@@ -36,6 +36,10 @@
 ' becomes the DIRTY row until it is left (RowValidating / RowCommitted) or cancelled (Esc). A check
 ' cell toggles in place. With AllowAddRows a placeholder row follows the last one.
 '
+' THE FEED (G3): the grid's own store, VIRTUAL (CellValueNeeded / CellValuePushed answer every
+' cell; the host sets the row count), or a SOURCE (a TKDATAGRID_SOURCE procedure table). Whatever
+' the feed, DgRead / DgWrite are the one way to a cell, and only the store keeps anything per row.
+'
 ' Setters are silent; only user interaction notifies (dgEvents.tiko lists the events).
 #module "tkDataGrid"
 
@@ -282,6 +286,12 @@ type TKDG_SELSET                     ' one selection: what is selected, nothing 
     nRects    as integer
 end type
 
+enum                                 ' TKDATAGRID_STATE.feed
+    DG_FEED_STORE = 0
+    DG_FEED_VIRTUAL
+    DG_FEED_SOURCE
+end enum
+
 enum                                 ' TKDATAGRID_STATE.drag
     DG_DRAG_NONE = 0
     DG_DRAG_CELLS                    ' extending a selection from the anchor
@@ -301,7 +311,9 @@ type TKDATAGRID_STATE
     cols(any)      as TKDG_COLINFO       ' by model index
     colCount       as integer
     order(any)     as integer            ' display position -> model column
-    ' --- rows (the store) ---
+    ' --- rows (the store, or the virtual / source count) ---
+    feed           as long = DG_FEED_STORE
+    src            as TKDATAGRID_SOURCE
     rowCount       as integer
     rowCap         as integer
     rowData(any)   as integer
@@ -404,6 +416,8 @@ type TKDATAGRID_STATE
     CancelRowEditCallback  as DG_RowSub
     RowAddedCallback       as DG_RowSub
     RowsDeletingCallback   as DG_RowsDeletingFunc
+    CellValueNeededCallback as DG_CellValueNeededSub
+    CellValuePushedCallback as DG_CellValuePushedFunc
 end type
 
 
@@ -627,10 +641,12 @@ public function tkDataGrid_InsertColumn( byval hGrid as TK_WIDGET ptr, byval col
     dim as TKDG_COLINFO fresh
     p->cols(col) = fresh
     p->cols(col).c = c
-    DgStoreRedim( p->cols(col).st, c.valueKind, p->rowCap )
-    for r as integer = 0 to p->rowCount - 1
-        p->cols(col).st.e(r) = 1
-    next
+    if p->feed = DG_FEED_STORE then
+        DgStoreRedim( p->cols(col).st, c.valueKind, p->rowCap )
+        for r as integer = 0 to p->rowCount - 1
+            p->cols(col).st.e(r) = 1
+        next
+    end if
     redim preserve p->order( 0 to p->colCount )
     for k as integer = 0 to p->colCount - 1
         if p->order(k) >= col then p->order(k) += 1
@@ -732,7 +748,7 @@ public function tkDataGrid_SetColumnInfo( byval hGrid as TK_WIDGET ptr, byval co
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
     if (c.valueKind < TKDG_TEXT) orelse (c.valueKind > TKDG_DATE) then return false
-    if c.valueKind <> p->cols(col).c.valueKind then DgStoreConvertColumn( p, col, c.valueKind )
+    if (c.valueKind <> p->cols(col).c.valueKind) andalso (p->feed = DG_FEED_STORE) then DgStoreConvertColumn( p, col, c.valueKind )
     p->cols(col).c = c
     DgChanged( p )
     return true
@@ -844,12 +860,14 @@ public sub tkDataGrid_SetRowCount( byval hGrid as TK_WIDGET ptr, byval n as inte
     if n < 0 then n = 0
     DgDropEdit( p )
     dim as integer was = p->rowCount
-    if n > was then
-        DgStoreInsertRows( p, was, n - was )
-        DgSelRowsMoved( p, was, n - was )
+    if p->feed = DG_FEED_VIRTUAL then
+        ' the host's rows: only the count is the grid's
+        p->rowCount = n
+        if n > was then DgSelRowsMoved( p, was, n - was ) else if n < was then DgSelRowsMoved( p, n, n - was )
+    elseif n > was then
+        if DgRowsInserted( p, was, n - was ) then DgSelRowsMoved( p, was, n - was )
     elseif n < was then
-        DgStoreDeleteRows( p, n, was - n )
-        DgSelRowsMoved( p, n, n - was )
+        if DgRowsRemoved( p, n, was - n ) then DgSelRowsMoved( p, n, n - was )
     end if
     if p->hotRow >= p->rowCount then p->hotRow = -1
     DgChanged( p )
@@ -860,7 +878,7 @@ public function tkDataGrid_InsertRows( byval hGrid as TK_WIDGET ptr, byval row a
     if (p = 0) orelse (n <= 0) then return -1
     if (row < 0) orelse (row > p->rowCount) then row = p->rowCount
     DgDropEdit( p )
-    DgStoreInsertRows( p, row, n )
+    if DgRowsInserted( p, row, n ) = false then return -1
     DgSelRowsMoved( p, row, n )
     DgChanged( p )
     return row
@@ -878,7 +896,7 @@ public function tkDataGrid_DeleteRows( byval hGrid as TK_WIDGET ptr, byval row a
     if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (n <= 0) then return false
     if row + n > p->rowCount then n = p->rowCount - row
     DgDropEdit( p )
-    DgStoreDeleteRows( p, row, n )
+    if DgRowsRemoved( p, row, n ) = false then return false
     DgSelRowsMoved( p, row, -n )
     if p->hotRow >= p->rowCount then p->hotRow = -1
     DgChanged( p )
@@ -890,7 +908,7 @@ public sub tkDataGrid_Clear( byval hGrid as TK_WIDGET ptr )
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then exit sub
     DgDropEdit( p )
-    if p->rowCount > 0 then DgStoreDeleteRows( p, 0, p->rowCount )
+    if p->rowCount > 0 then DgRowsRemoved( p, 0, p->rowCount )
     DgSelReset( p )
     p->curRow = -1
     p->hotRow = -1
@@ -900,13 +918,13 @@ end sub
 
 public function tkDataGrid_GetRowData( byval hGrid as TK_WIDGET ptr, byval row as integer ) as integer
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if (p = 0) orelse (DgValidRow( p, row ) = false) then return 0
+    if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (p->feed <> DG_FEED_STORE) then return 0
     return p->rowData(row)
 end function
 
 public function tkDataGrid_SetRowData( byval hGrid as TK_WIDGET ptr, byval row as integer, byval v as integer ) as boolean
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if (p = 0) orelse (DgValidRow( p, row ) = false) then return false
+    if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (p->feed <> DG_FEED_STORE) then return false
     p->rowData(row) = v
     return true
 end function

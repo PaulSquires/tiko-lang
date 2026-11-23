@@ -1065,12 +1065,176 @@ sub RunG2( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+' ==========================================================================================
+' G3: virtual mode, a source, change notification (one check per behaviour)
+' ==========================================================================================
+dim shared as long gNeedN, gNeedMin, gPushN, gPushRow, gPushCol
+dim shared as longint gPushI
+dim shared as boolean gRefusePush
+dim shared as longint gOvQty(0 to 99)
+dim shared as ubyte gOvSet(0 to 99)
+
+sub G3Need( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
+    gNeedN += 1
+    if row < gNeedMin then gNeedMin = row
+    select case col
+    case 0 : v.SetText( "v" & row )
+    case 1
+        if (row < 100) andalso (gOvSet(row) <> 0) then v.SetInt( gOvQty(row) ) else v.SetInt( row mod 1000 )
+    case 2 : v.SetBool( (row and 1) = 1 )
+    end select
+end sub
+
+function G3Push( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
+    if gRefusePush then return false
+    gPushN += 1 : gPushRow = row : gPushCol = col : gPushI = v.i
+    if (col = 1) andalso (row < 100) then gOvQty(row) = v.i : gOvSet(row) = 1
+    return true
+end function
+
+' A source over a plain array: the context a binding adapter would carry.
+type G3SRC
+    names(any) as ustring
+    n          as integer
+    nIns       as long
+    nDel       as long
+end type
+
+function G3Count( byval ctx as any ptr ) as integer
+    return cast( G3SRC ptr, ctx )->n
+end function
+sub G3Get( byval ctx as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
+    dim as G3SRC ptr s = ctx
+    if (col = 0) andalso (row < s->n) then v.SetText( s->names(row) )
+end sub
+function G3Set( byval ctx as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
+    dim as G3SRC ptr s = ctx
+    if (col <> 0) orelse (row >= s->n) then return false
+    s->names(row) = v.s
+    return true
+end function
+function G3Ins( byval ctx as any ptr, byval row as integer, byval n as integer ) as boolean
+    dim as G3SRC ptr s = ctx
+    redim preserve s->names( 0 to s->n + n - 1 )
+    for k as integer = s->n + n - 1 to row + n step -1
+        s->names(k) = s->names(k - n)
+    next
+    for k as integer = row to row + n - 1
+        s->names(k) = ""
+    next
+    s->n += n : s->nIns += 1
+    return true
+end function
+function G3Del( byval ctx as any ptr, byval row as integer, byval n as integer ) as boolean
+    dim as G3SRC ptr s = ctx
+    for k as integer = row to s->n - n - 1
+        s->names(k) = s->names(k + n)
+    next
+    s->n -= n : s->nDel += 1
+    return true
+end function
+
+sub RunG3( byval fScale as single )
+    tkTest_Begin( "G3 scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDataGrid selftest G3", 700, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkHost_Root( h ), 700 )
+    tkDataGrid_SetFont( g, f10 )
+    tkDataGrid_SetBorderWidth( g, 0 )
+    tkWidget_SetPos( g, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ) )
+    tkDataGrid_AddColumnEx( g, "Name", TKDG_COL_TEXT, 120 )
+    tkDataGrid_AddColumnEx( g, "Qty", TKDG_COL_NUMBER, 80, TKDG_INT )
+    tkDataGrid_AddColumnEx( g, "Done", TKDG_COL_CHECK, 60 )
+    tkDataGrid_SetVirtual( g, true )
+    tkDataGrid_SetCellValueNeededCallback( g, @G3Need )
+    tkDataGrid_SetCellValuePushedCallback( g, @G3Push )
+    tkDataGrid_SetRowCount( g, 100000000 )
+    tkTest_PumpFor( h, 30 )
+
+    ' ---- AF: virtual mode -------------------------------------------------------------------
+    tkDataGrid_SetTopRow( g, 50000000 )
+    gNeedN = 0 : gNeedMin = &h7FFFFFFF
+    tkHost_RenderTo( h, false )
+    dim as integer vf, vl
+    dim as integer nVis = tkDataGrid_GetVisibleRows( g, vf, vl )
+    tkTest_Check( "virtual, 10^8 rows: a paint asks only for the visible cells", (tkDataGrid_GetRowCount( g ) = 100000000) _
+                  andalso (gNeedN = nVis * 3) andalso (gNeedMin = 50000000), gNeedN & " vs " & nVis & "x3" )
+    tkTest_Check( "a read goes through CellValueNeeded", tkDataGrid_GetCellText( g, 99999999, 0 ) = "v99999999" )
+    tkDataGrid_SetTopRow( g, 0 )
+    tkDataGrid_SetCurrentCell( g, 5, 1 )
+    tkHost_SetFocus( h, tkDataGrid_GetSurface( g ) )
+    gPushN = 0
+    tkTest_PushText( h, "42" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "an edit pushes the parsed value through CellValuePushed", (gPushN = 1) andalso (gPushRow = 5) andalso (gPushCol = 1) _
+                  andalso (gPushI = 42) andalso (tkDataGrid_GetCellInt( g, 5, 1 ) = 42) )
+    gRefusePush = true
+    tkTest_PushText( h, "7" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "a refused push keeps the editor open", tkDataGrid_IsEditing( g ) andalso (len( tkDataGrid_GetEditError( g ) ) > 0) )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    gRefusePush = false
+    tkDataGrid_SetCellValuePushedCallback( g, 0 )
+    tkTest_PushKey( h, SDLK_F2 )
+    tkTest_Check( "no CellValuePushed: read-only", tkDataGrid_IsEditing( g ) = false )
+    tkDataGrid_SetCellValuePushedCallback( g, @G3Push )
+    tkDataGrid_SetCurrentCell( g, 10, 0 )
+    tkDataGrid_NotifyRowsInserted( g, 5, 2 )
+    dim as integer cr, cc
+    tkDataGrid_GetCurrentCell( g, cr, cc )
+    tkTest_Check( "NotifyRowsInserted: the count grows, the current row moves with its row", (tkDataGrid_GetRowCount( g ) = 100000002) andalso (cr = 12) )
+
+    ' ---- AG: a source ---------------------------------------------------------------------------
+    dim as G3SRC sd
+    redim sd.names( 0 to 9 )
+    for k as integer = 0 to 9 : sd.names(k) = "s" & k : next
+    sd.n = 10
+    dim as TKDATAGRID_SOURCE src
+    src.pCtx = @sd
+    src.RowCount = @G3Count : src.GetCell = @G3Get : src.SetCell = @G3Set
+    src.InsertRows = @G3Ins : src.DeleteRows = @G3Del
+    tkDataGrid_SetSource( g, @src )
+    tkTest_Check( "a source: its count and its cells", tkDataGrid_HasSource( g ) andalso (tkDataGrid_GetRowCount( g ) = 10) _
+                  andalso (tkDataGrid_GetCellText( g, 3, 0 ) = "s3") )
+    tkDataGrid_SetCurrentCell( g, 2, 0 )
+    tkTest_PushText( h, "x" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "an edit writes through SetCell", sd.names(2) = "x" )
+    tkDataGrid_SetAllowAddRows( g, true )
+    tkDataGrid_SetCurrentCell( g, 10, 0 )
+    tkTest_PushText( h, "new" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "the placeholder row inserts through InsertRows", (sd.nIns = 1) andalso (sd.n = 11) andalso (tkDataGrid_GetRowCount( g ) = 11) _
+                  andalso (sd.names(10) = "new") )
+    tkDataGrid_SetAllowAddRows( g, false )
+    tkDataGrid_SelectRows( g, 0, 0 )
+    tkTest_PushKey( h, SDLK_DELETE )
+    tkTest_Check( "Delete on a whole row deletes through DeleteRows", (sd.nDel = 1) andalso (sd.n = 10) andalso (tkDataGrid_GetCellText( g, 0, 0 ) = "s1") )
+    sd.n = 7
+    tkDataGrid_Reset( g )
+    tkTest_Check( "Reset asks the source for its count again", tkDataGrid_GetRowCount( g ) = 7 )
+    src.SetCell = 0
+    tkDataGrid_SetSource( g, @src )
+    tkDataGrid_SetCurrentCell( g, 1, 0 )
+    tkTest_PushKey( h, SDLK_F2 )
+    tkTest_Check( "a source without SetCell is read-only", tkDataGrid_IsEditing( g ) = false )
+    tkDataGrid_SetSource( g, 0 )
+    tkDataGrid_SetRowCount( g, 3 )
+    tkTest_Check( "SetSource( 0 ): back to the grid's own (empty) store", (tkDataGrid_HasSource( g ) = false) andalso tkDataGrid_IsCellEmpty( g, 0, 0 ) _
+                  andalso tkDataGrid_SetCellText( g, 0, 0, "own" ) andalso (tkDataGrid_GetCellText( g, 0, 0 ) = "own") )
+    tkHost_Destroy( h )
+end sub
+
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
 RunPass( 1.75 )
 ' G1 and G2 once, at 1.75: their geometry is scaled; G0 covers the 1.0 layout
 RunG1( 1.75 )
 RunG2( 1.75 )
+RunG3( 1.75 )
 dim as long nFail = tkTest_Report( "tkDataGrid" )
 tkTest_Quit()
 end nFail

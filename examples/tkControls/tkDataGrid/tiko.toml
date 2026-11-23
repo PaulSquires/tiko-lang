@@ -9,3 +9,7 @@ output = "selftest.exe"
 [target.demo]
 main   = "demo.tiko"
 output = "demo.exe"
+
+[target.perf]
+main   = "perf.tiko"
+output = "perf.exe"

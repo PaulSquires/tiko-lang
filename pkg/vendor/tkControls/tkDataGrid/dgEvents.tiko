@@ -49,6 +49,23 @@ public type DG_RowFunc as function( byval hGrid as TK_WIDGET ptr, byval row as i
 public type DG_RowSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer )
 ' RowsDeleting: FALSE keeps rows row .. row + count - 1.
 public type DG_RowsDeletingFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer, byval count as integer ) as boolean
+' G3, virtual mode: the host answers every cell the grid reads, and takes every value it writes
+' (FALSE refuses it).
+public type DG_CellValueNeededSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
+public type DG_CellValuePushedFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
+
+' G3, a source: a procedure table and its context, for code that is not a form's handlers
+' (generated binding adapters, a database adapter, a library). A procedure left 0 means "cannot":
+' no SetCell is read-only, no InsertRows / DeleteRows refuses those changes. Sorting by the source
+' comes in G4.
+public type TKDATAGRID_SOURCE
+    pCtx       as any ptr
+    RowCount   as function( byval pCtx as any ptr ) as integer
+    GetCell    as sub( byval pCtx as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
+    SetCell    as function( byval pCtx as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
+    InsertRows as function( byval pCtx as any ptr, byval row as integer, byval n as integer ) as boolean
+    DeleteRows as function( byval pCtx as any ptr, byval row as integer, byval n as integer ) as boolean
+end type
 
 ' ==========================================================================================
 ' The setters
@@ -192,4 +209,34 @@ end sub
 public sub tkDataGrid_SetRowsDeletingCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_RowsDeletingFunc )
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p then p->RowsDeletingCallback = cb
+end sub
+
+' ---- G3: virtual mode and sources -----------------------------------------------------------------
+' Virtual mode: every cell read asks CellValueNeeded (none: the cell is EMPTY).
+public sub tkDataGrid_SetCellValueNeededCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellValueNeededSub )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    p->CellValueNeededCallback = cb
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+' Virtual mode: every write (an edit, a toggle, Delete, a paste, a cancelled row's old values)
+' offers the value, already converted to the column's kind; FALSE refuses it. None: read-only.
+public sub tkDataGrid_SetCellValuePushedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellValuePushedFunc )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then p->CellValuePushedCallback = cb
+end sub
+
+' Feeds the grid from a source (copied; its pCtx must outlive the binding). 0: back to the grid's
+' own store, empty. The row count is the source's RowCount; the grid's own rows are dropped.
+public sub tkDataGrid_SetSource( byval hGrid as TK_WIDGET ptr, byval src as TKDATAGRID_SOURCE ptr )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    DgSwitchFeed( p, iif( src <> 0, DG_FEED_SOURCE, DG_FEED_STORE ) )
+    if src then
+        p->src = *src
+        p->rowCount = iif( p->src.RowCount <> 0, p->src.RowCount( p->src.pCtx ), 0 )
+        if p->rowCount < 0 then p->rowCount = 0
+    end if
+    DgChanged( p )
 end sub

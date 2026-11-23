@@ -169,18 +169,101 @@ sub DgStoreConvertColumn( byval p as TKDATAGRID_STATE ptr, byval col as integer,
 end sub
 
 ' ---- the read path -------------------------------------------------------------------------
-' row / col valid. v gets the cell's value: the column's kind, or EMPTY.
+' row / col valid. v gets the cell's value: from the store (the column's kind, or EMPTY), from
+' CellValueNeeded, or from the source's GetCell (whatever kind they give; none: EMPTY).
 sub DgRead( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
-    DgStoreGet( p->cols(col).st, p->cols(col).c.valueKind, row, v )
+    select case p->feed
+    case DG_FEED_STORE
+        DgStoreGet( p->cols(col).st, p->cols(col).c.valueKind, row, v )
+    case DG_FEED_VIRTUAL
+        v.Clear( )
+        if p->CellValueNeededCallback then p->CellValueNeededCallback( p->hWin, row, col, v )
+    case else
+        v.Clear( )
+        if p->src.GetCell then p->src.GetCell( p->src.pCtx, row, col, v )
+    end select
 end sub
 
-' row / col valid. FALSE: v would not convert to the column's kind; nothing stored.
+' row / col valid. v is converted to the column's kind first. FALSE: it would not convert, or the
+' host / source refused it (or cannot take values); nothing changed.
 function DgWrite( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byref v as const TKDG_VALUE ) as boolean
     dim as TKDG_VALUE w = v
     if DgConvert( w, p->cols(col).c.valueKind ) = false then return false
-    DgStorePut( p->cols(col).st, p->cols(col).c.valueKind, row, w )
+    select case p->feed
+    case DG_FEED_STORE
+        DgStorePut( p->cols(col).st, p->cols(col).c.valueKind, row, w )
+        return true
+    case DG_FEED_VIRTUAL
+        if p->CellValuePushedCallback = 0 then return false
+        return p->CellValuePushedCallback( p->hWin, row, col, w )
+    case else
+        if p->src.SetCell = 0 then return false
+        return p->src.SetCell( p->src.pCtx, row, col, w )
+    end select
+end function
+
+' Can the feed take values at all? (Virtual without CellValuePushed, a source without SetCell: no.)
+function DgFeedWritable( byval p as TKDATAGRID_STATE ptr ) as boolean
+    select case p->feed
+    case DG_FEED_VIRTUAL : return p->CellValuePushedCallback <> 0
+    case DG_FEED_SOURCE  : return p->src.SetCell <> 0
+    end select
     return true
 end function
+
+' Can the feed add / remove rows? (Virtual: the host does, told by the events; a source needs the
+' procedure.)
+function DgFeedCanInsert( byval p as TKDATAGRID_STATE ptr ) as boolean
+    return (p->feed <> DG_FEED_SOURCE) orelse (p->src.InsertRows <> 0)
+end function
+
+' n rows into the feed at row: the store makes them, virtual mode counts them (the host was told),
+' a source is asked. FALSE when the source refused (or cannot).
+function DgRowsInserted( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval n as integer ) as boolean
+    if n <= 0 then return true
+    select case p->feed
+    case DG_FEED_STORE
+        DgStoreInsertRows( p, row, n )
+        return true
+    case DG_FEED_SOURCE
+        if (p->src.InsertRows = 0) orelse (p->src.InsertRows( p->src.pCtx, row, n ) = false) then return false
+    end select
+    p->rowCount += n
+    return true
+end function
+
+function DgRowsRemoved( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval n as integer ) as boolean
+    if n <= 0 then return true
+    select case p->feed
+    case DG_FEED_STORE
+        DgStoreDeleteRows( p, row, n )
+        return true
+    case DG_FEED_SOURCE
+        if (p->src.DeleteRows = 0) orelse (p->src.DeleteRows( p->src.pCtx, row, n ) = false) then return false
+    end select
+    p->rowCount -= n
+    if p->rowCount < 0 then p->rowCount = 0
+    return true
+end function
+
+' A new feed: the store's rows freed, the selection, edit and scroll reset; empty until the host
+' sets a count (virtual) or the source gives one.
+sub DgSwitchFeed( byval p as TKDATAGRID_STATE ptr, byval feed as long )
+    DgDropEdit( p )
+    for k as integer = 0 to p->colCount - 1
+        DgStoreRedim( p->cols(k).st, p->cols(k).c.valueKind, 0 )
+    next
+    erase p->rowData
+    p->rowCap = 0
+    p->rowCount = 0
+    dim as TKDATAGRID_SOURCE none_
+    p->src = none_
+    p->feed = feed
+    DgSelReset( p )
+    p->curRow = -1
+    p->hotRow = -1
+    p->scrollY = 0
+end sub
 
 ' ---- the value rules -----------------------------------------------------------------------
 private function DgPad( byval n as long, byval w as long ) as ustring
