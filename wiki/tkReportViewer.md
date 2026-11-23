@@ -18,6 +18,8 @@ A [tkPrint](tkPrint) document with its tools: a toolbar, a [tkPrintPreview](tkPr
 #import "vendor/tkControls/tkReportViewer"
 
 using tkReportViewer
+using tkReport
+using tkBind
 using tkPrintPreview
 using tkPrintDialog
 using tkPrinter
@@ -40,6 +42,37 @@ tkReportViewer_SetDocument( rv, doc )
 
 The toolchain's `examples/tkControls/tkReportViewer/demo` shows a 12-page document.
 
+## Its own report
+
+The viewer can hold a [tkReport](tkReport) of its own, over rows it is given: what a designed form binds to an array.
+
+```freebasic
+tkReportViewer_SetTitle( rv, "Orders" )
+tkReportViewer_AddField( rv, "Customer", 160 )       ' a caption, and a width in pixels
+tkReportViewer_AddField( rv, "Amount", 100 )
+tkReportViewer_ClearRows( rv )
+for i as long = 0 to orders.Count( ) - 1
+    dim as integer r = tkReportViewer_AddRow( rv )
+    tkBind_ToValue( orders[i].Customer, tkReportViewer_Cell( rv, r, 0 ) )
+    tkBind_ToValue( orders[i].Amount, tkReportViewer_Cell( rv, r, 1 ) )
+next
+tkReportViewer_RefreshReport( rv )                   ' laid out on the preview
+```
+
+- `tkBind_ToValue( field, cell )` stores a field by its own type: integers as int, `single` / `double` as float, text, dates, times, booleans.
+- A field's kind is the kind of its first non-empty value.
+- The first `RefreshReport` makes the report's bands:
+  - with a **BuildReport** callback, `BuildReport( h, rpt )` lays the report out with the [tkReport](tkReport) API. It finds fields with `tkReport_FindField`.
+  - without one, the viewer makes a table:
+    - the title, on page 1;
+    - the captions, on every page;
+    - a line per row: numbers right-aligned, floats as `#,##0.00`, booleans as check boxes;
+    - "Page {p} of {n}".
+
+    Columns wider than the page are scaled down to fit it.
+- Later calls lay the same bands out again over the new rows.
+- The viewer owns this report and its document. `GetReport` returns the report, for its page setup or its callbacks.
+
 ## API
 
 - The document is borrowed: `SetDocument`, `GetDocument`, `Refresh` (after it changes outside the viewer), `SetPage`.
@@ -51,7 +84,7 @@ The toolchain's `examples/tkControls/tkReportViewer/demo` shows a 12-page docume
   - `AfterPrint( h, bOk )`.
   - `Exported( h, path, bOk )`.
 
-In a designed form it is the `ReportViewer` control (category Other): properties ShowToolbar and ShowStatus, and the three events.
+In a designed form it is the `ReportViewer` control (category Other): properties Title, ShowToolbar and ShowStatus, and four events (BuildReport too). Its items are its report's fields: a caption, a width and a **Field** each. With an **ItemsSource** and an **ItemType**, the generated `<name>_Fill( )` fills the rows from an `Array( of T )` and calls `RefreshReport` (see [Form Designer](Form-Designer), Lists).
 
 ## Public declarations
 
@@ -71,6 +104,7 @@ end enum
 type RV_BeforePrintFunc as function( byval hViewer as TK_WIDGET ptr, byref job as TKPRINTJOB ) as boolean
 type RV_AfterPrintSub as sub( byval hViewer as TK_WIDGET ptr, byval bOk as boolean )
 type RV_ExportedSub as sub( byval hViewer as TK_WIDGET ptr, byref path as ustring, byval bOk as boolean )
+type RV_BuildReportSub as sub( byval hViewer as TK_WIDGET ptr, byval rpt as TK_REPORT ptr )
 
 function tkReportViewer_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
 function tkReportViewer_GetID( byval hViewer as TK_WIDGET ptr ) as long
@@ -95,10 +129,23 @@ function tkReportViewer_GetZoomCombo( byval hViewer as TK_WIDGET ptr ) as TK_WID
 sub tkReportViewer_SetBeforePrintCallback( byval hViewer as TK_WIDGET ptr, byval cb as RV_BeforePrintFunc )
 sub tkReportViewer_SetAfterPrintCallback( byval hViewer as TK_WIDGET ptr, byval cb as RV_AfterPrintSub )
 sub tkReportViewer_SetExportedCallback( byval hViewer as TK_WIDGET ptr, byval cb as RV_ExportedSub )
+' its own report
+sub tkReportViewer_SetBuildReportCallback( byval hViewer as TK_WIDGET ptr, byval cb as RV_BuildReportSub )
+sub tkReportViewer_SetTitle( byval hViewer as TK_WIDGET ptr, byref title as const ustring )
+function tkReportViewer_GetTitle( byval hViewer as TK_WIDGET ptr ) as ustring
+function tkReportViewer_GetReport( byval hViewer as TK_WIDGET ptr ) as TK_REPORT ptr
+function tkReportViewer_AddField( byval hViewer as TK_WIDGET ptr, byref caption as ustring, byval nWidth as long = 100 ) as long
+function tkReportViewer_GetFieldCount( byval hViewer as TK_WIDGET ptr ) as long
+sub tkReportViewer_ClearRows( byval hViewer as TK_WIDGET ptr )
+function tkReportViewer_AddRow( byval hViewer as TK_WIDGET ptr ) as integer
+function tkReportViewer_Cell( byval hViewer as TK_WIDGET ptr, byval row as integer, byval f as long ) as TK_VALUE ptr
+function tkReportViewer_GetRowCount( byval hViewer as TK_WIDGET ptr ) as integer
+sub tkReportViewer_RefreshReport( byval hViewer as TK_WIDGET ptr )
 ```
 
 ### See also
 
 - [tkPrintPreview](tkPrintPreview)
+- [tkReport](tkReport)
 - [tkPrintDialog](tkPrintDialog)
 - [tkPrinter](tkPrinter)

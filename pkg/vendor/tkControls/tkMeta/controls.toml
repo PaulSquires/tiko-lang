@@ -1913,8 +1913,10 @@ module = "tkReportViewer"
 category = "Other"
 width = 480
 height = 520
+items_bind = "report"
 default_event = "AfterPrint"
 props = [
+  { name="Title", kind="text", set="tkReportViewer_SetTitle", get="tkReportViewer_GetTitle" },
   { name="ShowToolbar", kind="bool", set="tkReportViewer_SetShowToolbar", get="tkReportViewer_GetShowToolbar", default="true" },
   { name="ShowStatus", kind="bool", set="tkReportViewer_SetShowStatus", get="tkReportViewer_GetShowStatus", default="true" },
 ]
@@ -1922,4 +1924,5 @@ events = [
   { name="BeforePrint", set="tkReportViewer_SetBeforePrintCallback", type="RV_BeforePrintFunc", sig="byval hViewer as TK_WIDGET ptr, byref job as TKPRINTJOB", params="byref job as TKPRINTJOB, byref Allow as boolean", args="job, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="AfterPrint", set="tkReportViewer_SetAfterPrintCallback", type="RV_AfterPrintSub", sig="byval hViewer as TK_WIDGET ptr, byval bOk as boolean", params="byval bOk as boolean", args="bOk" },
   { name="Exported", set="tkReportViewer_SetExportedCallback", type="RV_ExportedSub", sig="byval hViewer as TK_WIDGET ptr, byref path as ustring, byval bOk as boolean", params="byref path as ustring, byval bOk as boolean", args="path, bOk" },
+  { name="BuildReport", set="tkReportViewer_SetBuildReportCallback", type="RV_BuildReportSub", sig="byval hViewer as TK_WIDGET ptr, byval rpt as TK_REPORT ptr", params="byval rpt as TK_REPORT ptr", args="rpt" },
 ]

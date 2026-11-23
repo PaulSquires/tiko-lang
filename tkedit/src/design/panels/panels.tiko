@@ -1296,7 +1296,7 @@ sub DesignPanels.BuildRows( )
                 if C->OnFields then this.AddFieldButton( )
                 this.AddRow( "@Value", "ValueField", RowKind.RowText )
                 if C->OnFields then this.AddFieldButton( )
-            else
+            elseif m0->ItemsBind = "rows" then
                 this.AddRow( "@Check", "CheckField", RowKind.RowText )
                 if C->OnFields then this.AddFieldButton( )
             end if

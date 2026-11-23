@@ -166,6 +166,9 @@ public type TK_REPORT_
     vRow        as integer = -1
     cbGet       as RP_GetValueSub
     hList       as TK_WIDGET ptr         ' the ListTree source
+    bTable      as boolean               ' the table source: the values below, nF per row
+    tv(any)     as TK_VALUE
+    tvCap       as integer
     groupKey(any) as long
     nGroups     as long
     bands(any)  as TKREPORT_BAND ptr
@@ -363,6 +366,11 @@ end function
 private function CbFieldKind( byval p as any ptr, byval f as long ) as long
     dim as TK_REPORT ptr r = p
     if (f < 0) orelse (f >= r->nF) then return TKV_EMPTY
+    if r->bTable andalso (r->fKind(f) = TKV_EMPTY) then
+        for row as integer = 0 to r->nRows - 1         ' a table's field: its first value's kind
+            if r->tv(row * r->nF + f).kind <> TKV_EMPTY then return r->tv(row * r->nF + f).kind
+        next
+    end if
     return r->fKind(f)
 end function
 private function CbRowCount( byval p as any ptr ) as integer
@@ -377,7 +385,9 @@ end function
 private sub CbGet( byval p as any ptr, byval f as long, byref v as TK_VALUE )
     dim as TK_REPORT ptr r = p
     v.Clear( )
-    if r->hList then
+    if r->bTable then
+        if (f >= 0) andalso (f < r->nF) then v = r->tv(r->vRow * r->nF + f)
+    elseif r->hList then
         if f = 0 then v.SetText( tkListTree_GetText( r->hList, r->vRow ) ) else v.SetText( tkListTree_GetCellText( r->hList, r->vRow, f ) )
     elseif r->cbGet then
         r->cbGet( r, r->vRow, f, v )
@@ -409,6 +419,7 @@ public sub tkReport_SetFields( byval rpt as TK_REPORT ptr, names() as ustring, k
         rpt->fKind(i) = iif( i <= ubound( kinds ) - lbound( kinds ), kinds(lbound( kinds ) + i), TKV_TEXT )
     next
     rpt->hList = 0
+    rpt->bTable = false
     UseCallbackSource( rpt )
 end sub
 
@@ -437,8 +448,60 @@ public sub tkReport_SourceFromListTree( byval rpt as TK_REPORT ptr, byval hList 
     rpt->nRows = tkListTree_GetCount( hList )
     rpt->hList = hList
     rpt->cbGet = 0
+    rpt->bTable = false
     UseCallbackSource( rpt )
 end sub
+
+' ---- the table source: values the report holds (printing R5; what a designed ReportViewer fills) ----
+' Fields first, then rows, each value set through its cell. A field's kind is its first non-empty
+' value's. Adding a field empties the rows.
+' Every row gone; the fields stay.
+public sub tkReport_TableClear( byval rpt as TK_REPORT ptr )
+    if (rpt = 0) orelse (rpt->bTable = false) then exit sub
+    erase rpt->tv
+    rpt->tvCap = 0
+    rpt->nRows = 0
+    rpt->vRow = -1
+end sub
+
+public function tkReport_TableAddField( byval rpt as TK_REPORT ptr, byref name_ as ustring ) as long
+    if rpt = 0 then return -1
+    if rpt->bTable = false then
+        rpt->nF = 0
+        erase rpt->fName, rpt->fKind
+        rpt->hList = 0
+        rpt->cbGet = 0
+        rpt->bTable = true
+    end if
+    tkReport_TableClear( rpt )
+    redim preserve rpt->fName( 0 to rpt->nF )
+    redim preserve rpt->fKind( 0 to rpt->nF )
+    rpt->fName(rpt->nF) = name_
+    rpt->fKind(rpt->nF) = TKV_EMPTY
+    rpt->nF += 1
+    UseCallbackSource( rpt )
+    return rpt->nF - 1
+end function
+
+' A new row of empty values: its index.
+public function tkReport_TableAddRow( byval rpt as TK_REPORT ptr ) as integer
+    if (rpt = 0) orelse (rpt->bTable = false) orelse (rpt->nF < 1) then return -1
+    dim as integer need = (rpt->nRows + 1) * rpt->nF
+    if need > rpt->tvCap then
+        rpt->tvCap = iif( rpt->tvCap < 64, 64, rpt->tvCap * 2 )
+        if rpt->tvCap < need then rpt->tvCap = need
+        redim preserve rpt->tv( 0 to rpt->tvCap - 1 )
+    end if
+    rpt->nRows += 1
+    return rpt->nRows - 1
+end function
+
+' The value of field f in a row, to set (0 when there is no such cell).
+public function tkReport_TableCell( byval rpt as TK_REPORT ptr, byval row as integer, byval f as long ) as TK_VALUE ptr
+    if (rpt = 0) orelse (rpt->bTable = false) then return 0
+    if (row < 0) orelse (row >= rpt->nRows) orelse (f < 0) orelse (f >= rpt->nF) then return 0
+    return @rpt->tv(row * rpt->nF + f)
+end function
 
 ' The field named 'name' (case-insensitive), -1 when there is none.
 public function tkReport_FindField( byval rpt as TK_REPORT ptr, byref name_ as ustring ) as long

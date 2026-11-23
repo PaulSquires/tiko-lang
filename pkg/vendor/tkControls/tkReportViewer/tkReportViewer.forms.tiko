@@ -14,6 +14,8 @@ public type ReportViewer
     declare property Visible( ) as boolean
     declare property Visible( byval v as boolean )
     declare sub SetFocus( )
+    declare property Title( ) as ustring
+    declare property Title( byref v as const ustring )
     declare property ShowToolbar( ) as boolean
     declare property ShowToolbar( byval v as boolean )
     declare property ShowStatus( ) as boolean
@@ -43,6 +45,14 @@ end property
 sub ReportViewer.SetFocus( )
     tkHost_SetFocus( Handle->pHost, Handle )
 end sub
+
+property ReportViewer.Title( ) as ustring
+    return tkReportViewer_GetTitle( Handle )
+end property
+
+property ReportViewer.Title( byref v as const ustring )
+    tkReportViewer_SetTitle( Handle, v )
+end property
 
 property ReportViewer.ShowToolbar( ) as boolean
     return tkReportViewer_GetShowToolbar( Handle )

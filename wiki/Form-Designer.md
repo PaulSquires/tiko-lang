@@ -368,7 +368,7 @@ CheckChanged handler runs. A wrong field name is the compiler's error, in the ge
 
 ### Lists
 
-A **ListTree** or a **ComboBox** can be filled from an `Array( of T )`:
+A **ListTree**, a **ComboBox** or a **ReportViewer** can be filled from an `Array( of T )`:
 
 - **ItemsField**, a field of the form's DataType (an order's `Lines`): `LoadFrom` fills the list.
 - **ItemsSource**, any array the form can reach: a member such as `People`, or a call such as
@@ -386,6 +386,12 @@ ValueField, **Bind** moves the chosen item's value (an id, a code) rather than i
 selects the item whose value the record holds, and says so when none has it ("Country: 'FR' is not
 in the list"; an empty value and 0 are no value), and `SaveTo` writes the chosen item's value,
 checked as any other.
+
+A **ReportViewer** (in Other) prints the array. Its items are its report's fields: a caption, a
+width and a **Field** each. `<name>_Fill( )` adds a row per element and lays the report out again.
+With no **BuildReport** handler the viewer makes a table of the fields. A BuildReport handler lays
+the report out itself with the [tkReport](tkReport) API: groups, totals, its own bands. It runs once,
+at the first Fill.
 
 A list half filled in is fine while you work; until it has its ItemType and its DisplayField (or a
 column with a Field), the generated file stops the build with an `#error` that says what is missing.

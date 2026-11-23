@@ -4373,6 +4373,14 @@ private function C_ReportViewer( byval hParent as TK_WIDGET ptr, byval id as int
     return tkReportViewer_Create( hParent, id )
 end function
 
+private sub A_ReportViewer_Title( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkReportViewer_SetTitle( w, v )
+end sub
+
+private function R_ReportViewer_Title( byval w as TK_WIDGET ptr ) as ustring
+    return tkReportViewer_GetTitle( w )
+end function
+
 private sub A_ReportViewer_ShowToolbar( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkReportViewer_SetShowToolbar( w, cbool( v = "true" ) )
 end sub
@@ -5706,10 +5714,13 @@ sub Fill_( )
     Event_( "LinkClick", "tkPrintPreview_SetLinkClickCallback", "PV_LinkClickFunc", "byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single", "byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single, byref Handled as boolean", "nPage, url, nTargetPage, fTargetY, Handled", "", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "ReportViewer", "tkReportViewer", "Other", 480, 520, "AfterPrint", "", @C_ReportViewer, "", "", "", "" )
+    ItemsBind_( "report" )
+    Prop_( "Title", "text", "", "", "tkReportViewer_SetTitle", "tkReportViewer_GetTitle", @A_ReportViewer_Title, @R_ReportViewer_Title, 0, true, true, "", 0 )
     Prop_( "ShowToolbar", "bool", "true", "", "tkReportViewer_SetShowToolbar", "tkReportViewer_GetShowToolbar", @A_ReportViewer_ShowToolbar, @R_ReportViewer_ShowToolbar, 0, true, true, "", 0 )
     Prop_( "ShowStatus", "bool", "true", "", "tkReportViewer_SetShowStatus", "tkReportViewer_GetShowStatus", @A_ReportViewer_ShowStatus, @R_ReportViewer_ShowStatus, 0, true, true, "", 0 )
     Event_( "BeforePrint", "tkReportViewer_SetBeforePrintCallback", "RV_BeforePrintFunc", "byval hViewer as TK_WIDGET ptr, byref job as TKPRINTJOB", "byref job as TKPRINTJOB, byref Allow as boolean", "job, Allow", "", "boolean", "Allow", "true" )
     Event_( "AfterPrint", "tkReportViewer_SetAfterPrintCallback", "RV_AfterPrintSub", "byval hViewer as TK_WIDGET ptr, byval bOk as boolean", "byval bOk as boolean", "bOk" )
     Event_( "Exported", "tkReportViewer_SetExportedCallback", "RV_ExportedSub", "byval hViewer as TK_WIDGET ptr, byref path as ustring, byval bOk as boolean", "byref path as ustring, byval bOk as boolean", "path, bOk" )
+    Event_( "BuildReport", "tkReportViewer_SetBuildReportCallback", "RV_BuildReportSub", "byval hViewer as TK_WIDGET ptr, byval rpt as TK_REPORT ptr", "byval rpt as TK_REPORT ptr", "rpt" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub

@@ -82,6 +82,7 @@ A report reads rows once, forward, through a `TKREPORT_SOURCE`: the field names 
 
 - **Callbacks:** `tkReport_SetFields( names(), kinds() )`, `SetRowCount`, `SetGetValueCallback`.
 - **A tkListTree:** `tkReport_SourceFromListTree( rpt, hList )`. Its column captions are the field names and its rows the rows, as text.
+- **A table it holds:** `tkReport_TableAddField( rpt, name )` per field, then `TableAddRow` and `TableCell( rpt, row, f )` to set each value (a `TK_VALUE ptr`, good until the next AddRow). `TableClear` empties the rows. A field's kind is its first non-empty value's. A [tkReportViewer](tkReportViewer)'s own report is one.
 - **An SQLite query:** `tkReportSqlite_Open( rpt, db, "select ... order by ..." )` in the `tkReportSqlite` module. A field's kind comes from the column's declared type, and a NULL is empty. Close it with `tkReportSqlite_Close` before the database.
 - **Any other source:** fill a `TKREPORT_SOURCE` and call `tkReport_SetSource`.
 
@@ -138,6 +139,10 @@ sub tkReport_SetRowCount( byval rpt as TK_REPORT ptr, byval nRows as integer )
 sub tkReport_SetGetValueCallback( byval rpt as TK_REPORT ptr, byval cb as RP_GetValueSub )
 sub tkReport_SourceFromListTree( byval rpt as TK_REPORT ptr, byval hList as TK_WIDGET ptr )
 sub tkReport_SetSource( byval rpt as TK_REPORT ptr, byref src as TKREPORT_SOURCE )
+function tkReport_TableAddField( byval rpt as TK_REPORT ptr, byref name_ as ustring ) as long
+sub tkReport_TableClear( byval rpt as TK_REPORT ptr )
+function tkReport_TableAddRow( byval rpt as TK_REPORT ptr ) as integer
+function tkReport_TableCell( byval rpt as TK_REPORT ptr, byval row as integer, byval f as long ) as TK_VALUE ptr
 function tkReport_FindField( byval rpt as TK_REPORT ptr, byref name_ as ustring ) as long
 function tkReport_FormatValue( byref v as TK_VALUE, byref fmt as ustring = "", byref boolText as ustring = "Yes|No" ) as ustring
 function tkReport_CreateDoc( byval rpt as TK_REPORT ptr ) as TK_PRINTDOC ptr

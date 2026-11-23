@@ -14,10 +14,17 @@
 ' PrintPage callback, generates it again on the preview; PDF asks where and writes it with tkPdf.
 '
 ' Setters are silent; only user interaction notifies (BeforePrint, AfterPrint, Exported).
+'
+' ITS OWN REPORT (phase R5, what a designed form binds): fields (AddField, a caption and a width),
+' rows of values (ClearRows / AddRow / Cell; a designed form's <name>_Fill( ) fills them from an
+' Array( of T ) through tkBind_ToValue), then RefreshReport. The report's bands are made once, at the
+' first RefreshReport: by the BuildReport callback, or else a table of the fields (captions on every
+' page, a line per row, "Page {p} of {n}"). The viewer owns that report and its document.
 #module "tkReportViewer"
 
 #import "../tkPrintPreview" public
 #import "../tkPrintDialog" public
+#import "../tkReport" public
 #import "../tkToolbar"
 #import "../tkStatusBar"
 #import "../tkTextBox"
@@ -25,6 +32,8 @@
 #import "../tkFileDialog"
 using tkPrintPreview
 using tkPrintDialog
+using tkReport
+using tkBind
 using tkToolbar
 using tkStatusBar
 using tkTextBox
@@ -52,6 +61,8 @@ end enum
 public type RV_BeforePrintFunc as function( byval hViewer as TK_WIDGET ptr, byref job as TKPRINTJOB ) as boolean
 public type RV_AfterPrintSub as sub( byval hViewer as TK_WIDGET ptr, byval bOk as boolean )
 public type RV_ExportedSub as sub( byval hViewer as TK_WIDGET ptr, byref path as ustring, byval bOk as boolean )
+' Its own report's bands, made at the first RefreshReport (fields by tkReport_FindField or index).
+public type RV_BuildReportSub as sub( byval hViewer as TK_WIDGET ptr, byval rpt as TK_REPORT ptr )
 
 public type TKREPORTVIEWER_STATE
     hWin         as TK_WIDGET ptr
@@ -69,6 +80,14 @@ public type TKREPORTVIEWER_STATE
     BeforePrint  as RV_BeforePrintFunc
     AfterPrint   as RV_AfterPrintSub
     Exported     as RV_ExportedSub
+    ' its own report (R5)
+    rpt          as TK_REPORT ptr
+    rptDoc       as TK_PRINTDOC ptr
+    bBuilt       as boolean
+    title        as ustring
+    colW(any)    as long                 ' each field's width, in pixels at 96 dpi
+    nCols        as long
+    BuildReport  as RV_BuildReportSub
 end type
 
 function RV( byval w as TK_WIDGET ptr ) as TKREPORTVIEWER_STATE ptr
@@ -249,6 +268,9 @@ function RvProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     case TKM_PAINT
         return true
     case TKM_DESTROY
+        ' the preview (a child) is gone already
+        if p->rptDoc then tkPrintDoc_Destroy( p->rptDoc )
+        if p->rpt then tkReport_Destroy( p->rpt )
         delete p
         w->pData = 0
         return true
@@ -416,4 +438,142 @@ end sub
 public sub tkReportViewer_SetExportedCallback( byval hViewer as TK_WIDGET ptr, byval cb as RV_ExportedSub )
     dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
     if p then p->Exported = cb
+end sub
+
+' ---- its own report (R5) -------------------------------------------------------------------
+public sub tkReportViewer_SetBuildReportCallback( byval hViewer as TK_WIDGET ptr, byval cb as RV_BuildReportSub )
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p then p->BuildReport = cb
+end sub
+
+' The title the made table shows on its first page and in its page footer.
+public sub tkReportViewer_SetTitle( byval hViewer as TK_WIDGET ptr, byref title as const ustring )
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p = 0 then exit sub
+    p->title = title
+    if p->rpt then p->rpt->title = title
+end sub
+
+public function tkReportViewer_GetTitle( byval hViewer as TK_WIDGET ptr ) as ustring
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p = 0 then return ""
+    return p->title
+end function
+
+' Its own report, made on first use (its bands are made at the first RefreshReport).
+public function tkReportViewer_GetReport( byval hViewer as TK_WIDGET ptr ) as TK_REPORT ptr
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p = 0 then return 0
+    if p->rpt = 0 then p->rpt = tkReport_Create( p->title )
+    return p->rpt
+end function
+
+' A field of its report: the caption its column shows, and that column's width in pixels (96 dpi).
+' Adding a field empties the rows. Returns the field's index.
+public function tkReportViewer_AddField( byval hViewer as TK_WIDGET ptr, byref caption as ustring, byval nWidth as long = 100 ) as long
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p = 0 then return -1
+    dim as long f = tkReport_TableAddField( tkReportViewer_GetReport( hViewer ), caption )
+    if f < 0 then return -1
+    redim preserve p->colW( 0 to f )
+    p->colW(f) = iif( nWidth > 0, nWidth, 100 )
+    p->nCols = f + 1
+    return f
+end function
+
+public function tkReportViewer_GetFieldCount( byval hViewer as TK_WIDGET ptr ) as long
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p = 0 then return 0
+    return p->nCols
+end function
+
+public sub tkReportViewer_ClearRows( byval hViewer as TK_WIDGET ptr )
+    tkReport_TableClear( tkReportViewer_GetReport( hViewer ) )
+end sub
+
+' A new row of empty values: its index (-1 with no fields).
+public function tkReportViewer_AddRow( byval hViewer as TK_WIDGET ptr ) as integer
+    return tkReport_TableAddRow( tkReportViewer_GetReport( hViewer ) )
+end function
+
+' A row's value of field f, to set (tkBind_ToValue, or its own setters). Valid until the next AddRow.
+public function tkReportViewer_Cell( byval hViewer as TK_WIDGET ptr, byval row as integer, byval f as long ) as TK_VALUE ptr
+    return tkReport_TableCell( tkReportViewer_GetReport( hViewer ), row, f )
+end function
+
+public function tkReportViewer_GetRowCount( byval hViewer as TK_WIDGET ptr ) as integer
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if (p = 0) orelse (p->rpt = 0) then return 0
+    return p->rpt->nRows
+end function
+
+private function RvRect( byval l as single, byval t as single, byval r as single, byval b as single ) as TKRECTF
+    dim as TKRECTF rc
+    tkRectF_Set( rc, l, t, r, b )
+    return rc
+end function
+
+' The made table: the title on page 1, the captions on every page, a line per row, the page number.
+' Widths are the fields' pixels as points (x 0.75), scaled down to the page's width when wider.
+private sub RvDefaultLayout( byval p as TKREPORTVIEWER_STATE ptr )
+    dim as TK_REPORT ptr rpt = p->rpt
+    dim as TKPAGESETUP ps = rpt->setup
+    tkPageSetup_Resolve( ps )
+    dim as single pw, ph
+    tkPageSetup_PageSize( ps, pw, ph )
+    dim as single avail = pw - ps.marginL - ps.marginR, total = 0
+    for f as long = 0 to p->nCols - 1 : total += p->colW(f) * 0.75 : next
+    dim as single k = 0.75
+    if (total > avail) andalso (total > 0) then k = 0.75 * avail / total
+    if total > avail then total = avail
+    dim as TKREPORT_ITEM ptr it
+    dim as TK_RBAND ptr b
+    if len( rpt->title ) then
+        b = tkReport_GetBand( rpt, TKRB_REPORT_HEADER )
+        tkRBand_SetHeight( b, 30 )
+        it = tkRBand_AddPageInfo( b, RvRect( 0, 0, total, 24 ), "{title}", TK_DT_LEFT )
+        it->font.pt = 16 : it->font.bold = true
+    end if
+    dim as TK_RBAND ptr hdr = tkReport_GetBand( rpt, TKRB_PAGE_HEADER )
+    tkRBand_SetHeight( hdr, 18 ) : hdr->backColor = tkRGB( 228, 234, 242 )
+    dim as TK_RBAND ptr det = tkReport_GetBand( rpt, TKRB_DETAIL )
+    tkRBand_SetHeight( det, 16 )
+    dim as single x = 0
+    for f as long = 0 to p->nCols - 1
+        dim as single w = p->colW(f) * k
+        dim as long kind = rpt->src.FieldKind( rpt->src.pCtx, f )
+        dim as long al = iif( (kind = TKV_INT) orelse (kind = TKV_FLOAT), TK_DT_RIGHT, TK_DT_LEFT )
+        it = tkRBand_AddLabel( hdr, RvRect( x + 2, 0, x + w - 2, 18 ), rpt->fName(f), al )
+        it->font.bold = true
+        select case kind
+        case TKV_BOOL
+            dim as single cx = x + w / 2
+            tkRBand_AddCheckBox( det, RvRect( cx - 6, 2, cx + 6, 14 ), f )
+        case TKV_FLOAT
+            tkRBand_AddField( det, RvRect( x + 2, 0, x + w - 2, 16 ), f, "#,##0.00", al )
+        case else
+            tkRBand_AddField( det, RvRect( x + 2, 0, x + w - 2, 16 ), f, "", al )
+        end select
+        x += w
+    next
+    b = tkReport_GetBand( rpt, TKRB_PAGE_FOOTER )
+    tkRBand_SetHeight( b, 18 )
+    dim as ustring pageText = "Page {p} of {n}"
+    if len( rpt->title ) then pageText = "{title}  -  " & pageText
+    it = tkRBand_AddPageInfo( b, RvRect( 0, 2, total, 18 ), pageText )
+    it->font.pt = 8
+end sub
+
+' Lay its report out (again) on the preview, after the rows changed. The first call makes the bands.
+public sub tkReportViewer_RefreshReport( byval hViewer as TK_WIDGET ptr )
+    dim as TKREPORTVIEWER_STATE ptr p = RV( hViewer )
+    if p = 0 then exit sub
+    dim as TK_REPORT ptr rpt = tkReportViewer_GetReport( hViewer )
+    if p->bBuilt = false then
+        p->bBuilt = true
+        if p->BuildReport then p->BuildReport( hViewer, rpt ) else RvDefaultLayout( p )
+    end if
+    if p->rptDoc = 0 then p->rptDoc = tkReport_CreateDoc( rpt )
+    tkPrintDoc_BeginGenerate( p->rptDoc )
+    tkReportViewer_SetDocument( hViewer, p->rptDoc )
 end sub

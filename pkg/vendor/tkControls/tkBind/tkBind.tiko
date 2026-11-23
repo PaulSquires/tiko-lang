@@ -389,3 +389,67 @@ public sub tkBind_Put( byref f as DateTime, byval v as TKTIME )
     if f.HasOffset then r = r.WithOffset( f.OffsetMinutes )
     f = r
 end sub
+
+' ---- a field as a TK_VALUE (printing R5: what a designed ReportViewer's fill goes through) ----
+' The field's own kind: integers INT, single / double FLOAT, text TEXT, dates DATE, times TIME. A
+' DateTime gives its date. No date / no time is EMPTY, as TK_VALUE's setters make it. v = 0: nothing.
+public sub tkBind_ToValue overload( byval x as boolean, byval v as TK_VALUE ptr )
+    if v then v->SetBool( x )
+end sub
+public sub tkBind_ToValue( byval x as byte, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as ubyte, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as short, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as ushort, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as long, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as ulong, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as longint, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as ulongint, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as integer, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as uinteger, byval v as TK_VALUE ptr )
+    if v then v->SetInt( x )
+end sub
+public sub tkBind_ToValue( byval x as single, byval v as TK_VALUE ptr )
+    if v then v->SetFloat( x )
+end sub
+public sub tkBind_ToValue( byval x as double, byval v as TK_VALUE ptr )
+    if v then v->SetFloat( x )
+end sub
+public sub tkBind_ToValue( byref x as const ustring, byval v as TK_VALUE ptr )
+    if v then v->SetText( x )
+end sub
+public sub tkBind_ToValue( byref x as const string, byval v as TK_VALUE ptr )
+    if v then v->SetText( x )
+end sub
+public sub tkBind_ToValue( byref x as const TKDATE, byval v as TK_VALUE ptr )
+    if v then v->SetDate( x )
+end sub
+public sub tkBind_ToValue( byref x as LocalDate, byval v as TK_VALUE ptr )
+    if v then v->SetDate( DateOfLocal_( x ) )
+end sub
+public sub tkBind_ToValue( byref x as DateTime, byval v as TK_VALUE ptr )
+    if v then v->SetDate( tkBind_Date( x ) )
+end sub
+public sub tkBind_ToValue( byref x as const TKTIME, byval v as TK_VALUE ptr )
+    if v then v->SetTime( x )
+end sub
+public sub tkBind_ToValue( byref x as chrono.LocalTime, byval v as TK_VALUE ptr )
+    if v then v->SetTime( TimeOfLocal_( x ) )
+end sub
