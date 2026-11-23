@@ -50,6 +50,8 @@ public const TKNOTIFY_CLOSECELL = 28      ' the close button's square
 public const TKNOTIFY_CURVATURE = 8       ' corner ellipse DIAMETER (4-unit radius, WinUI's InfoBar)
 public const TKNOTIFY_BTNCURVATURE = 6
 public const TKNOTIFY_MAXLINES = 3        ' STACKED message lines before the rest is clipped
+public const TKNOTIFY_PROGRESSH = 3       ' the progress strip, inside the bottom padding
+public const TKNOTIFY_PROGRESSSEG = 30    ' indeterminate: the moving segment, % of the strip
 
 public enum
     TKN_INFO = 0             ' WinUI Informational; the default everywhere
@@ -69,6 +71,12 @@ public enum
     TKN_CLOSE_PROGRAMMATIC   ' code closed it: never reported by a callback (setters are silent)
 end enum
 
+' An item's progress: none, a moving segment (indeterminate), or 0..100.
+public enum
+    TKN_PROGRESS_NONE = -1
+    TKN_PROGRESS_INDETERMINATE = -2
+end enum
+
 public enum
     TKN_LAYOUT_AUTO = 0
     TKN_LAYOUT_LINE
@@ -76,6 +84,7 @@ public enum
 end enum
 
 public enum
+    TKN_PART_PROGRESS = -2   ' not hit-tested: only for tkNotify_PartRect (the progress strip)
     TKN_PART_NONE = -1
     TKN_PART_BODY = 0
     TKN_PART_CLOSE = 1
@@ -108,6 +117,7 @@ public type TKNOTIFY_COLORS
     CloseBackHot      as ulong
     CloseGlyph        as ulong
     FocusRing         as ulong
+    ProgressTrack     as ulong            ' the strip under the fill; the fill is the severity's glyph colour
 end type
 
 ' What is painted. Both controls fill one and keep it.
@@ -120,6 +130,7 @@ public type TKNOTIFY_ITEM
     actions(any) as ustring              ' captions; action id = index + 1
     actOff(any)  as boolean              ' TRUE = that action is disabled
     bClosable    as boolean = true
+    progress     as long = TKN_PROGRESS_NONE   ' TKN_PROGRESS_* or 0..100
 end type
 
 public type TKNOTIFY_FONTS
@@ -137,6 +148,7 @@ public type TKNOTIFY_LAYOUT
     rcTitle      as TKRECT
     rcMessage    as TKRECT
     rcClose      as TKRECT
+    rcProgress   as TKRECT                      ' empty when the item has no progress
     nActions     as long
     rcAction(any) as TKRECT
     curvature    as long
@@ -205,6 +217,7 @@ public function tkNotify_ThemeColors( byref t as TKTHEME_COLORS ) as TKNOTIFY_CO
     c.CloseBackHot = t.SurfaceHot
     c.CloseGlyph = t.TextDim
     c.FocusRing = t.FocusRing
+    c.ProgressTrack = t.Track
     return c
 end function
 
@@ -223,6 +236,15 @@ private function ActionOff_( byref it as TKNOTIFY_ITEM, byval i as long ) as boo
     if (i < 0) orelse (i > ubound( it.actOff )) then return false
     return it.actOff(i)
 end function
+
+' The progress strip: across the text-free bottom padding, inset like the content.
+private sub PlaceProgress_( byref it as TKNOTIFY_ITEM, byref lo as TKNOTIFY_LAYOUT, byval fScale as single )
+    if it.progress = TKN_PROGRESS_NONE then exit sub
+    dim as long ph = Sc_( TKNOTIFY_PROGRESSH, fScale )
+    if ph < 1 then ph = 1
+    dim as long bot = lo.cy - (Sc_( TKNOTIFY_PADY, fScale ) - ph) \ 2
+    tkRect_Set( lo.rcProgress, Sc_( TKNOTIFY_PADX, fScale ), bot - ph, lo.cx - Sc_( TKNOTIFY_PADX, fScale ), bot )
+end sub
 
 ' Measures `it` at width cx (pixels) and places every part; returns the height. mode AUTO picks.
 ' nMaxLines <= 0 means TKNOTIFY_MAXLINES.
@@ -248,7 +270,7 @@ public function tkNotify_Layout( byref it as TKNOTIFY_ITEM, byval mode as long, 
         erase lo.rcAction
     end if
     tkRect_SetEmpty( lo.rcGlyph ) : tkRect_SetEmpty( lo.rcTitle ) : tkRect_SetEmpty( lo.rcMessage )
-    tkRect_SetEmpty( lo.rcClose )
+    tkRect_SetEmpty( lo.rcClose ) : tkRect_SetEmpty( lo.rcProgress )
 
     dim as long textH = iif( fText <> 0, tkText_Height( fText ), Sc_( 16, fScale ) )
     dim as long titleH = iif( fTitle <> 0, tkText_Height( fTitle ), textH )
@@ -301,6 +323,7 @@ public function tkNotify_Layout( byref it as TKNOTIFY_ITEM, byval mode as long, 
             tx = tr + titleGap
         end if
         if (msgW > 0) andalso (tx < textR) then tkRect_Set( lo.rcMessage, tx, midY - lineH \ 2, textR, midY - lineH \ 2 + lineH )
+        PlaceProgress_( it, lo, fScale )
         return lo.cy
     end if
 
@@ -351,6 +374,7 @@ public function tkNotify_Layout( byref it as TKNOTIFY_ITEM, byval mode as long, 
         y += btnH
     end if
     lo.cy = y + padY
+    PlaceProgress_( it, lo, fScale )
     return lo.cy
 end function
 
@@ -372,6 +396,8 @@ public function tkNotify_PartRect( byref lo as TKNOTIFY_LAYOUT, byval part as lo
         tkRect_Set( rc, 0, 0, lo.cx, lo.cy )
     case TKN_PART_CLOSE
         rc = lo.rcClose
+    case TKN_PART_PROGRESS
+        rc = lo.rcProgress
     case is >= TKN_PART_ACTION1
         dim as long i = part - TKN_PART_ACTION1
         if i < lo.nActions then rc = lo.rcAction(i)
@@ -402,11 +428,12 @@ end function
 
 ' Paints `it` laid out by `lo`, with its top-left at (ox, oy) of b. hotPart / pressedPart /
 ' focusPart are TKN_PART_* (NONE for none); fOpacity scales every colour's alpha (a toast's fade).
+' fPhase (0..1) places an indeterminate progress segment: 0 enters at the left, 1 has left at the right.
 public sub tkNotify_PaintItem( byval b as TK_PAINT ptr, byval ox as long, byval oy as long, _
                                byref it as TKNOTIFY_ITEM, byref lo as TKNOTIFY_LAYOUT, _
                                byref c as TKNOTIFY_COLORS, byref fo as TKNOTIFY_FONTS, _
                                byval hotPart as long, byval pressedPart as long, byval focusPart as long, _
-                               byval fOpacity as single = 1 )
+                               byval fOpacity as single = 1, byval fPhase as single = 0 )
     if (b = 0) orelse (lo.cx <= 0) orelse (lo.cy <= 0) then exit sub
     dim as ulong clrBack, clrBorder, clrGlyph
     tkNotify_SeverityColors( c, it.severity, clrBack, clrBorder, clrGlyph )
@@ -478,6 +505,30 @@ public sub tkNotify_PaintItem( byval b as TK_PAINT ptr, byval ox as long, byval 
             b->PaintRoundOutline( @rf, lo.btnCurvature + 4, 2 )
         end if
     next
+
+    if (it.progress <> TKN_PROGRESS_NONE) andalso (tkRect_IsEmpty( lo.rcProgress ) = false) then
+        dim as TKRECT r = lo.rcProgress
+        tkRect_Offset( r, ox, oy )
+        b->SetBackColor( Fade_( c.ProgressTrack, fOpacity ) )
+        b->PaintRect( @r )
+        dim as long tw = r.right - r.left
+        dim as TKRECT rf = r
+        if it.progress = TKN_PROGRESS_INDETERMINATE then
+            dim as long seg = (tw * TKNOTIFY_PROGRESSSEG) \ 100
+            dim as single ph = iif( fPhase < 0, 0.0, iif( fPhase > 1, 1.0, fPhase ) )
+            rf.left = r.left - seg + cint( (tw + seg) * ph )
+            rf.right = rf.left + seg
+            if rf.left < r.left then rf.left = r.left
+            if rf.right > r.right then rf.right = r.right
+        else
+            dim as long pct = iif( it.progress > 100, 100, it.progress )
+            rf.right = r.left + (tw * pct) \ 100
+        end if
+        if rf.right > rf.left then
+            b->SetBackColor( Fade_( clrGlyph, fOpacity ) )
+            b->PaintRect( @rf )
+        end if
+    end if
 
     if it.bClosable andalso (tkRect_IsEmpty( lo.rcClose ) = false) then
         dim as TKRECT r = lo.rcClose

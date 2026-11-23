@@ -10,8 +10,8 @@
 ' stays until the user closes it or the program does. For a passing "Saved", use a toast.
 ' Design: docs/tkControls/NOTIFICATIONS.md §5.
 '
-' CLOSED MEANS HIDDEN. tkInfoBar_SetOpen( h, false ) hides the widget (tkWidget_Show), and a bar
-' starts closed (WinUI's IsOpen default). tkLayout gives a hidden docked widget no slice, and a
+' CLOSED MEANS HIDDEN. A closed bar's widget is hidden (tkWidget_Show) -- at once, or when its
+' close motion ends (MOTION, below) -- and a bar starts closed (WinUI's IsOpen default). tkLayout gives a hidden docked widget no slice, and a
 ' docked bar's height is its preferred height at the dock's width when the host registers
 ' tkInfoBar_GetPreferredHeight with tkLayout_SetHeightFunc. HeightChanged tells the host to run
 ' its layout again: on open / close, and whenever the text, actions, fonts, scale or width change
@@ -20,6 +20,20 @@
 ' WHO IS TOLD. Setters are silent: SetOpen( false ) fires no Closing / Closed (WinUI raises Closed
 ' with CloseReason.Programmatic; tkControls does not -- NOTIFICATIONS N-8). The close button,
 ' Esc, and an action notify. An action never closes the bar (WinUI): its handler does that.
+'
+' MOTION (N1). SetOpen and a user close animate the bar's height between 0 and its preferred
+' height (TKINFOBAR_ANIM_MS, ease-out), content anchored to the bottom so it slides in from under
+' the edge above (KMessageWidget's animatedShow, AdwBanner's reveal). GetPreferredHeight answers
+' the CURRENT height, so a tkLayout dock follows it frame by frame through HeightChanged. IsOpen is
+' the logical state at once; a closing bar stays visible until it reaches 0, and takes no input
+' while it moves. SetAnimate( false ) opens and closes at once.
+'
+' PROGRESS (N1). SetProgress shows a strip in the bottom padding: 0..100, or a moving segment
+' (TKN_PROGRESS_INDETERMINATE) for "Reconnecting...". The fill is the severity's glyph colour.
+'
+' THE CLOCK is one widget timer, armed only while the bar moves (15 ms) or shows an indeterminate
+' strip while open (30 ms); otherwise none -- an idle bar costs nothing. tkInfoBar_TickForTest
+' pins the clock to a given time and runs one tick, so the selftest steps the motion exactly.
 '
 ' FOCUS. The buttons are painted parts of this one widget (NOTIFICATIONS N-3). The bar is a tab
 ' stop while it is open and has a part to press (an enabled action or the close button), as
@@ -34,6 +48,12 @@ using tkHost
 using tkPaint
 using tkTheme
 using tkNotify
+
+public const TKINFOBAR_ANIM_MS = 150            ' open / close
+public const TKINFOBAR_MARQUEE_MS = 1500        ' one pass of the indeterminate segment
+public const TKINFOBAR_TIMER = TK_TIMER_APP     ' the bar's one timer id
+private const CLOCK_ANIM_MS = 15
+private const CLOCK_MARQUEE_MS = 30
 
 public type IB_ActionCallbackSub as sub( byval hBar as TK_WIDGET ptr, byval id as long )
 ' FALSE vetoes a USER close (WinUI Closing.Cancel). reason: TKN_CLOSE_BUTTON or TKN_CLOSE_KEY.
@@ -64,6 +84,14 @@ public type TKINFOBAR_STATE
     nFocus         as long = TKN_PART_NONE
     bFocused       as boolean
     nLastPref      as long = 0            ' the last height reported by HeightChanged (pixels)
+    bAnimate       as boolean = true
+    fVis           as single              ' 0 closed .. 1 open: the share of the height shown
+    fAnimFrom      as single
+    nAnimDir       as long                ' +1 opening, -1 closing, 0 still
+    tAnimStart     as longint
+    tMarquee       as longint             ' when the indeterminate segment started
+    tTestNow       as longint = -1        ' >= 0: the clock, pinned by tkInfoBar_TickForTest
+    nClockMs       as long                ' the interval armed; 0 = no timer
     ActionCallback        as IB_ActionCallbackSub
     ClosingCallback       as IB_ClosingCallbackFunc
     ClosedCallback        as IB_ClosedCallbackSub
@@ -73,6 +101,10 @@ public type TKINFOBAR_STATE
     declare sub Changed()
     declare sub CheckHeight()
     declare sub SyncFocusable()
+    declare function Now() as longint
+    declare sub StartMotion( byval bOpening as boolean )
+    declare sub Tick()
+    declare sub SyncClock()
 end type
 
 public declare function tkInfoBar_GetPreferredHeight( byval hBar as TK_WIDGET ptr, byval cx as long ) as long
@@ -131,7 +163,7 @@ end sub
 sub TKINFOBAR_STATE.SyncFocusable()
     dim as long parts()
     dim as long n = tkNotify_FocusParts( this.item, parts() )
-    this.hWin->isFocusable = this.bTabStop andalso (n > 0)
+    this.hWin->isFocusable = this.bTabStop andalso (n > 0) andalso this.bOpen
     ' a focused part that went away (an action disabled or removed) moves to the first one left
     if this.nFocus <> TKN_PART_NONE then
         dim as boolean bStill = false
@@ -139,6 +171,67 @@ sub TKINFOBAR_STATE.SyncFocusable()
             if parts(i) = this.nFocus then bStill = true
         next
         if bStill = false then this.nFocus = iif( n > 0, parts(0), TKN_PART_NONE )
+    end if
+end sub
+
+function TKINFOBAR_STATE.Now() as longint
+    if this.tTestNow >= 0 then return this.tTestNow
+    return SDL_GetTicks()
+end function
+
+private function EaseOut_( byval t as single ) as single
+    if t <= 0 then return 0
+    if t >= 1 then return 1
+    return 1 - (1 - t) * (1 - t)
+end function
+
+' Begins moving towards open (1) or closed (0) from wherever the bar is now. Without animation,
+' or with nothing to move, it lands at once.
+sub TKINFOBAR_STATE.StartMotion( byval bOpening as boolean )
+    dim as single target = iif( bOpening, 1.0, 0.0 )
+    if bOpening then tkWidget_Show( this.hWin, true )
+    if (this.bAnimate = false) orelse (this.fVis = target) then
+        this.fVis = target
+        this.nAnimDir = 0
+        if bOpening = false then tkWidget_Show( this.hWin, false )
+    else
+        this.fAnimFrom = this.fVis
+        this.tAnimStart = this.Now()
+        this.nAnimDir = iif( bOpening, 1, -1 )
+    end if
+    this.SyncClock()
+end sub
+
+sub TKINFOBAR_STATE.Tick()
+    if this.nAnimDir <> 0 then
+        dim as single target = iif( this.nAnimDir > 0, 1.0, 0.0 )
+        dim as single t = (this.Now() - this.tAnimStart) / TKINFOBAR_ANIM_MS
+        if t >= 1 then
+            this.fVis = target
+            this.nAnimDir = 0
+            if target = 0 then tkWidget_Show( this.hWin, false )
+        else
+            this.fVis = this.fAnimFrom + (target - this.fAnimFrom) * EaseOut_( t )
+        end if
+        this.CheckHeight()
+    end if
+    tkWidget_Invalidate( this.hWin )
+    this.SyncClock()
+end sub
+
+sub TKINFOBAR_STATE.SyncClock()
+    dim as long ms = 0
+    if this.nAnimDir <> 0 then
+        ms = CLOCK_ANIM_MS
+    elseif this.bOpen andalso (this.item.progress = TKN_PROGRESS_INDETERMINATE) then
+        ms = CLOCK_MARQUEE_MS
+    end if
+    if ms = this.nClockMs then exit sub
+    this.nClockMs = ms
+    if ms = 0 then
+        tkWidget_KillTimer( this.hWin, TKINFOBAR_TIMER )
+    else
+        tkWidget_SetTimer( this.hWin, TKINFOBAR_TIMER, ms )
     end if
 end sub
 
@@ -156,8 +249,13 @@ private sub Fire_( byval p as TKINFOBAR_STATE ptr, byval part as long )
         if p->ClosingCallback then
             if p->ClosingCallback( p->hWin, TKN_CLOSE_BUTTON ) = false then exit sub
         end if
+        ' a bar that had keyboard focus hands it on rather than losing it when it hides
+        if tkHost_GetFocus( p->hWin->pHost ) = p->hWin then tkHost_FocusNext( p->hWin->pHost )
         p->bOpen = false
-        tkWidget_Show( p->hWin, false )
+        p->nHot = TKN_PART_NONE
+        p->nPressed = TKN_PART_NONE
+        p->SyncFocusable()
+        p->StartMotion( false )
         p->CheckHeight()
         if p->ClosedCallback then p->ClosedCallback( p->hWin, TKN_CLOSE_BUTTON )
     elseif part >= TKN_PART_ACTION1 then
@@ -179,7 +277,8 @@ private sub KeyClose_( byval p as TKINFOBAR_STATE ptr )
     dim as TK_HOST ptr h = p->hWin->pHost
     if tkHost_GetFocus( h ) = p->hWin then tkHost_FocusNext( h )
     p->bOpen = false
-    tkWidget_Show( p->hWin, false )
+    p->SyncFocusable()
+    p->StartMotion( false )
     p->CheckHeight()
     if p->ClosedCallback then p->ClosedCallback( p->hWin, TKN_CLOSE_KEY )
 end sub
@@ -190,13 +289,25 @@ private sub tkInfoBar_OnPaint( byval p as TKINFOBAR_STATE ptr, byval b as TK_PAI
     ' the bar fills its rect; a layout taller than the rect (the host has not caught up) is clipped
     dim as long nFocus = iif( p->bFocused, p->nFocus, TKN_PART_NONE )
     dim as long nPressed = iif( p->nPressed = p->nHot, p->nPressed, TKN_PART_NONE )
+    ' A rect taller than the item: the fill stretches to it. Shorter (moving, or the host has not
+    ' caught up): the item keeps its height and its bottom edge, so it slides in from above.
     dim as TKNOTIFY_LAYOUT lo = p->lo
-    lo.cy = p->hWin->ch
-    tkNotify_PaintItem( b, 0, 0, p->item, lo, p->colors, fo, p->nHot, nPressed, nFocus )
+    dim as long oy = 0
+    if p->hWin->ch >= lo.cy then
+        lo.cy = p->hWin->ch
+    else
+        oy = p->hWin->ch - lo.cy
+    end if
+    dim as single fPhase = 0
+    if p->item.progress = TKN_PROGRESS_INDETERMINATE then
+        fPhase = ((p->Now() - p->tMarquee) mod TKINFOBAR_MARQUEE_MS) / TKINFOBAR_MARQUEE_MS
+    end if
+    tkNotify_PaintItem( b, 0, oy, p->item, lo, p->colors, fo, p->nHot, nPressed, nFocus, 1, fPhase )
 end sub
 
 private function HitAt_( byval p as TKINFOBAR_STATE ptr, byval x as single, byval y as single ) as long
     if p->nLoCx <> p->hWin->cw then p->Relayout()
+    if (p->bOpen = false) orelse (p->nAnimDir <> 0) then return TKN_PART_NONE     ' no input while it moves
     if (x < 0) orelse (y < 0) orelse (x >= p->hWin->cw) orelse (y >= p->hWin->ch) then return TKN_PART_NONE
     return tkNotify_HitPart( p->lo, cint( x ), cint( y ) )
 end function
@@ -322,6 +433,10 @@ private function tkInfoBar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr
     case TKM_CHAR
         ' Space was claimed as a key: its character must not reach anything (the beep rule)
         return m->text = " "
+    case TKM_TIMER
+        if m->timerId <> TKINFOBAR_TIMER then return false
+        p->Tick()
+        return true
     case TKM_ENABLE
         if m->bFlag = false then
             p->nHot = TKN_PART_NONE
@@ -355,14 +470,17 @@ public function tkInfoBar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId a
     return w
 end function
 
-' Pixels the bar wants at width cx: 0 while closed. Has tkLayout's height-function shape, so
+' Pixels the bar wants at width cx: 0 while closed, its full height while open, and the height
+' it has reached while it opens or closes. Has tkLayout's height-function shape, so
 ' tkLayout_SetHeightFunc( l, hBar, @tkInfoBar_GetPreferredHeight ) docks it at this height.
 public function tkInfoBar_GetPreferredHeight( byval hBar as TK_WIDGET ptr, byval cx as long ) as long
     dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
-    if (p = 0) orelse (p->bOpen = false) orelse (cx <= 0) then return 0
+    if (p = 0) orelse (p->fVis <= 0) orelse (cx <= 0) then return 0
     dim as TKNOTIFY_FONTS fo = p->Fonts()
     dim as TKNOTIFY_LAYOUT lo
-    return tkNotify_Layout( p->item, p->nMode, cx, hBar->pHost->fScale, fo, p->nMaxLines, lo )
+    dim as long full = tkNotify_Layout( p->item, p->nMode, cx, hBar->pHost->fScale, fo, p->nMaxLines, lo )
+    if p->fVis >= 1 then return full
+    return cint( full * p->fVis )
 end function
 
 ' The layout the bar is painted with: LINE or STACKED, and every part's rect (bar pixels).
@@ -421,9 +539,69 @@ public sub tkInfoBar_SetOpen( byval hBar as TK_WIDGET ptr, byval bOpen as boolea
     p->bOpen = bOpen
     p->nHot = TKN_PART_NONE
     p->nPressed = TKN_PART_NONE
-    tkWidget_Show( hBar, bOpen )
+    if (bOpen = false) andalso (tkHost_GetCapture( hBar->pHost ) = hBar) then tkHost_ReleaseCapture( hBar->pHost )
+    p->StartMotion( bOpen )
     p->Changed()
 end sub
+
+public function tkInfoBar_GetAnimate( byval hBar as TK_WIDGET ptr ) as boolean
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    return iif( p <> 0, p->bAnimate, true )
+end function
+
+' Off: open and close land at once (and a move in progress lands now).
+public sub tkInfoBar_SetAnimate( byval hBar as TK_WIDGET ptr, byval bAnimate as boolean )
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    if p = 0 then exit sub
+    p->bAnimate = bAnimate
+    if (bAnimate = false) andalso (p->nAnimDir <> 0) then
+        p->StartMotion( p->bOpen )
+        p->CheckHeight()
+    end if
+end sub
+
+' TRUE while the bar opens or closes.
+public function tkInfoBar_IsAnimating( byval hBar as TK_WIDGET ptr ) as boolean
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    return iif( p <> 0, p->nAnimDir <> 0, false )
+end function
+
+' Pins the bar's clock to nowMs (SDL_GetTicks' scale) and runs one tick: for self-tests, which
+' step the motion and the progress segment exactly. The clock stays pinned afterwards.
+public sub tkInfoBar_TickForTest( byval hBar as TK_WIDGET ptr, byval nowMs as longint )
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    if p = 0 then exit sub
+    p->tTestNow = nowMs
+    p->Tick()
+end sub
+
+' The interval of the bar's timer now: 0 when none is armed.
+public function tkInfoBar_GetClockMs( byval hBar as TK_WIDGET ptr ) as long
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    return iif( p <> 0, p->nClockMs, 0 )
+end function
+
+public function tkInfoBar_GetProgress( byval hBar as TK_WIDGET ptr ) as long
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    return iif( p <> 0, p->item.progress, TKN_PROGRESS_NONE )
+end function
+
+' TKN_PROGRESS_NONE, TKN_PROGRESS_INDETERMINATE, or 0..100 (clamped). The strip sits in the
+' bottom padding, so the height does not change.
+public sub tkInfoBar_SetProgress( byval hBar as TK_WIDGET ptr, byval n as long )
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    if p = 0 then exit sub
+    if (n <> TKN_PROGRESS_NONE) andalso (n <> TKN_PROGRESS_INDETERMINATE) then
+        if n < 0 then n = 0
+        if n > 100 then n = 100
+    end if
+    if (n = TKN_PROGRESS_INDETERMINATE) andalso (p->item.progress <> TKN_PROGRESS_INDETERMINATE) then p->tMarquee = p->Now()
+    p->item.progress = n
+    p->nLoCx = -1
+    tkWidget_Invalidate( hBar )
+    p->SyncClock()
+end sub
+
 
 public function tkInfoBar_GetSeverity( byval hBar as TK_WIDGET ptr ) as long
     dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )

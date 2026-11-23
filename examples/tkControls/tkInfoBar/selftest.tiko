@@ -87,6 +87,8 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "closed wants no height", tkInfoBar_GetPreferredHeight( B, 500 ) = 0 )
     tkTest_Check( "severity Info by default", tkInfoBar_GetSeverity( B ) = TKN_INFO )
     tkTest_Check( "closable by default", tkInfoBar_GetClosable( B ) )
+    tkTest_Check( "animates by default", tkInfoBar_GetAnimate( B ) )
+    tkInfoBar_SetAnimate( B, false )     ' the N0 checks below are about where things land, not motion
 
     tkInfoBar_SetActionCallback( B, @OnAction )
     tkInfoBar_SetClosingCallback( B, @OnClosing )
@@ -306,6 +308,133 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "closed again: the strip is given back", (strip->y = 0) andalso (content->y = Px( h, 24 )), strip->y & " " & content->y )
     tkLayout_Destroy( gLayout )
     gLayout = 0
+
+    ' ---- N1: motion. The clock is pinned, so every step is exact. ----
+    tkInfoBar_SetAnimate( B, true )
+    tkInfoBar_SetMessage( B, "Payment overdue" )
+    gLayout = tkLayout_Create( )
+    tkLayout_AddContainer( gLayout, root_, 640, 480 )
+    tkLayout_Add( gLayout, B, 0, 0, 640, 40, , TK_DOCK_TOP )
+    tkLayout_Add( gLayout, strip, 0, 0, 640, 24, , TK_DOCK_TOP )
+    tkLayout_Add( gLayout, content, 0, 0, 640, 100, , TK_DOCK_FILL )
+    tkLayout_SetHeightFunc( gLayout, B, @tkInfoBar_GetPreferredHeight )
+    tkLayout_Apply( gLayout )
+    tkTest_Check( "closed and still: no timer", (tkInfoBar_GetClockMs( B ) = 0) andalso (tkWidget_HasTimer( B, TKINFOBAR_TIMER ) = false) )
+    dim as longint t0 = 100000
+    tkInfoBar_TickForTest( B, t0 )
+    gHeights = 0
+    tkInfoBar_SetOpen( B, true )
+    tkTest_Check( "open: logically open at once", tkInfoBar_IsOpen( B ) )
+    tkTest_Check( "...shown, and moving", B->isVisible andalso tkInfoBar_IsAnimating( B ) )
+    tkTest_Check( "moving: the 15 ms clock runs", (tkInfoBar_GetClockMs( B ) = 15) andalso tkWidget_HasTimer( B, TKINFOBAR_TIMER ), str( tkInfoBar_GetClockMs( B ) ) )
+    tkTest_Check( "starts at height 0", (B->ch = 0) andalso (strip->y = 0), B->ch & " " & strip->y )
+    dim as long hPrev = 0, hMid = -1
+    dim as boolean bMono = true, bFollow = true
+    for k as long = 1 to 5
+        tkInfoBar_TickForTest( B, t0 + k * 25 )
+        if B->ch < hPrev then bMono = false
+        if strip->y <> B->ch then bFollow = false
+        hPrev = B->ch
+        if k = 3 then hMid = B->ch
+    next
+    tkTest_Check( "opening grows, never shrinks", bMono )
+    tkTest_Check( "the dock below follows every frame", bFollow )
+    tkTest_Check( "a HeightChanged per frame", gHeights >= 5, str( gHeights ) )
+    ' input is ignored while it moves
+    gClosing = 0
+    dim as TKRECT rcX
+    tkInfoBar_GetPartRect( B, TKN_PART_CLOSE, rcX )
+    ' where the close button is PAINTED now: the content is bottom-anchored while it moves, and
+    ' `want` (measured above for this message at this width) is the full height
+    dim as long yX = B->y + B->ch - want + (rcX.top + rcX.bottom) \ 2
+    tkTest_Check( "the close button is on screen mid-move", (yX > B->y) andalso (yX < B->y + B->ch), yX & " in " & B->y & ".." & (B->y + B->ch) )
+    tkTest_Click( h, B->x + (rcX.left + rcX.right) \ 2, yX )
+    tkTest_PumpFor( h, 10 )
+    tkTest_Check( "no input while it moves", gClosing = 0, str( gClosing ) )
+    tkInfoBar_TickForTest( B, t0 + TKINFOBAR_ANIM_MS )
+    dim as long full = tkInfoBar_GetPreferredHeight( B, root_->cw )
+    tkTest_Check( "lands at the full height", (B->ch = full) andalso (strip->y = full) andalso (tkInfoBar_IsAnimating( B ) = false), B->ch & " vs " & full )
+    tkTest_Check( "ease-out: halfway in time is 3/4 of the height", Near( hMid, cint( full * 0.75 ), 1 ), hMid & " vs " & cint( full * 0.75 ) )
+    tkTest_Check( "still again: no timer", (tkInfoBar_GetClockMs( B ) = 0) andalso (tkWidget_HasTimer( B, TKINFOBAR_TIMER ) = false) )
+
+    ' a user close: logically closed and told at once; the bar moves out, then hides
+    dim as longint t1 = t0 + 1000
+    tkInfoBar_TickForTest( B, t1 )
+    gClosed = 0
+    tkHost_SetFocus( h, B )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Esc: closed and told at once", (tkInfoBar_IsOpen( B ) = false) andalso (gClosed = 1) )
+    tkTest_Check( "...still on screen, moving out", B->isVisible andalso tkInfoBar_IsAnimating( B ) )
+    tkTest_Check( "...focus already moved on", tkHost_GetFocus( h ) = btn )
+    tkTest_Check( "...no longer a tab stop", B->isFocusable = false )
+    tkInfoBar_TickForTest( B, t1 + 75 )
+    tkTest_Check( "closing: halfway in time is 1/4 of the height", Near( B->ch, cint( full * 0.25 ), 1 ), B->ch & " vs " & cint( full * 0.25 ) )
+    tkInfoBar_TickForTest( B, t1 + TKINFOBAR_ANIM_MS )
+    tkTest_Check( "closed: hidden, height 0, strip back at the top", (B->isVisible = false) andalso (strip->y = 0), B->isVisible & " " & strip->y )
+    tkTest_Check( "closed: no timer", tkInfoBar_GetClockMs( B ) = 0 )
+
+    ' reversed mid-way: it closes from where it got to
+    dim as longint t2 = t1 + 1000
+    tkInfoBar_TickForTest( B, t2 )
+    tkInfoBar_SetOpen( B, true )
+    tkInfoBar_TickForTest( B, t2 + 75 )            ' 0.75 of the way open
+    tkInfoBar_SetOpen( B, false )
+    tkInfoBar_TickForTest( B, t2 + 150 )           ' 0.75 -> 0, half the time: 0.75 * (1 - 0.75)
+    tkTest_Check( "a reversal starts from where it was", Near( B->ch, cint( full * 0.1875 ), 1 ), B->ch & " vs " & cint( full * 0.1875 ) )
+    tkInfoBar_TickForTest( B, t2 + 400 )
+    tkTest_Check( "...and ends closed", (B->isVisible = false) andalso (tkInfoBar_IsAnimating( B ) = false) )
+
+    ' SetAnimate( false ) lands a move at once
+    tkInfoBar_SetOpen( B, true )
+    tkInfoBar_TickForTest( B, t2 + 430 )
+    tkInfoBar_SetAnimate( B, false )
+    tkTest_Check( "SetAnimate( false ) lands the move", (tkInfoBar_IsAnimating( B ) = false) andalso (B->ch = full) andalso (tkInfoBar_GetClockMs( B ) = 0), B->ch & " vs " & full )
+    tkTest_Check( "animate reads back", tkInfoBar_GetAnimate( B ) = false )
+
+    ' ---- N1: progress ----
+    tkInfoBar_SetProgress( B, 50 )
+    tkTest_Check( "progress reads back", tkInfoBar_GetProgress( B ) = 50 )
+    tkTest_Check( "progress does not change the height", tkInfoBar_GetPreferredHeight( B, root_->cw ) = full )
+    tkTest_Check( "determinate progress needs no clock", tkInfoBar_GetClockMs( B ) = 0 )
+    dim as TKRECT rcP
+    tkTest_Check( "a progress strip is placed", tkInfoBar_GetPartRect( B, TKN_PART_PROGRESS, rcP ) )
+    tkTest_Check( "...in the bottom padding, inset like the content", _
+                  (rcP.left = Px( h, TKNOTIFY_PADX )) andalso (rcP.right = B->cw - Px( h, TKNOTIFY_PADX )) andalso _
+                  (rcP.top >= full - Px( h, TKNOTIFY_PADY )) andalso (rcP.bottom <= full), RectStr( rcP ) & " cy " & full )
+    tkInfoBar_GetColors( B, @c )
+    dim as long py = B->y + rcP.top
+    dim as long pw = rcP.right - rcP.left
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "50 %: the left quarter is filled", (tkTest_PixelAt( h, B->x + rcP.left + pw \ 4, py ) and &hFFFFFFul) = (c.InfoGlyph and &hFFFFFFul), hex( tkTest_PixelAt( h, B->x + rcP.left + pw \ 4, py ) ) )
+    tkTest_Check( "50 %: the right quarter is track", (tkTest_PixelAt( h, B->x + rcP.left + (3 * pw) \ 4, py ) and &hFFFFFFul) = (c.ProgressTrack and &hFFFFFFul), hex( tkTest_PixelAt( h, B->x + rcP.left + (3 * pw) \ 4, py ) ) )
+    tkInfoBar_SetProgress( B, 150 )
+    tkTest_Check( "over 100 clamps", tkInfoBar_GetProgress( B ) = 100 )
+    tkInfoBar_SetProgress( B, -7 )
+    tkTest_Check( "a negative that is no constant clamps to 0", tkInfoBar_GetProgress( B ) = 0 )
+    dim as longint t3 = t2 + 5000
+    tkInfoBar_TickForTest( B, t3 )
+    tkInfoBar_SetProgress( B, TKN_PROGRESS_INDETERMINATE )
+    tkTest_Check( "indeterminate: the 30 ms clock runs", (tkInfoBar_GetClockMs( B ) = 30) andalso tkWidget_HasTimer( B, TKINFOBAR_TIMER ), str( tkInfoBar_GetClockMs( B ) ) )
+    tkInfoBar_TickForTest( B, t3 + TKINFOBAR_MARQUEE_MS \ 10 )      ' the segment near the left
+    tkHost_RenderTo( h, false )
+    dim as ulong pL = tkTest_PixelAt( h, B->x + rcP.left + 1, py ) and &hFFFFFFul
+    dim as ulong pC = tkTest_PixelAt( h, B->x + rcP.left + pw \ 2, py ) and &hFFFFFFul
+    tkTest_Check( "segment early: at the left, not the centre", (pL = (c.InfoGlyph and &hFFFFFFul)) andalso (pC = (c.ProgressTrack and &hFFFFFFul)), hex( pL ) & " " & hex( pC ) )
+    tkInfoBar_TickForTest( B, t3 + TKINFOBAR_MARQUEE_MS \ 2 )       ' half way: the centre
+    tkHost_RenderTo( h, false )
+    pL = tkTest_PixelAt( h, B->x + rcP.left + 1, py ) and &hFFFFFFul
+    pC = tkTest_PixelAt( h, B->x + rcP.left + pw \ 2, py ) and &hFFFFFFul
+    tkTest_Check( "segment half way: at the centre, not the left", (pC = (c.InfoGlyph and &hFFFFFFul)) andalso (pL = (c.ProgressTrack and &hFFFFFFul)), hex( pL ) & " " & hex( pC ) )
+    tkInfoBar_SetOpen( B, false )
+    tkTest_Check( "closed: the indeterminate clock stops", tkInfoBar_GetClockMs( B ) = 0 )
+    tkInfoBar_SetOpen( B, true )
+    tkTest_Check( "open again: it runs again", tkInfoBar_GetClockMs( B ) = 30 )
+    tkInfoBar_SetProgress( B, TKN_PROGRESS_NONE )
+    tkTest_Check( "no progress: no clock, no strip", (tkInfoBar_GetClockMs( B ) = 0) andalso (tkInfoBar_GetPartRect( B, TKN_PART_PROGRESS, rcP ) = false) )
+    tkInfoBar_SetOpen( B, false )
+    tkLayout_Destroy( gLayout )
+    gLayout = 0
+    tkInfoBar_SetAnimate( B, false )
 
     ' ---- colours ----
     dim as TKNOTIFY_COLORS cp = c

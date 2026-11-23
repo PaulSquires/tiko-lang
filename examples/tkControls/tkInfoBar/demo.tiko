@@ -1,6 +1,7 @@
 ' tkInfoBar demo: an info bar docked above the content. The buttons change its severity, its
 ' message (short = one line, long = stacked), its actions, and open / close it. Resize the window
 ' to watch AUTO switch between one line and stacked; Tab into the bar and use Enter / Esc.
+' Open / close animates (the content below follows it); Progress cycles none, 40 %, moving.
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkInfoBar"
@@ -20,7 +21,7 @@ using tkPaint
 
 dim shared as TK_LAYOUT ptr gLayout
 dim shared as TK_WIDGET ptr gBar, gLog
-dim shared as long gSev, gLong, gActs
+dim shared as long gSev, gLong, gActs, gProg
 
 sub Relayout( )
     tkLayout_Apply( gLayout )
@@ -90,6 +91,15 @@ sub OnToggle( byval h as TK_WIDGET ptr, byval id as long )
     tkInfoBar_SetOpen( gBar, tkInfoBar_IsOpen( gBar ) = false )
 end sub
 
+sub OnProgress( byval h as TK_WIDGET ptr, byval id as long )
+    gProg = (gProg + 1) mod 3
+    select case gProg
+    case 0 : tkInfoBar_SetProgress( gBar, TKN_PROGRESS_NONE )
+    case 1 : tkInfoBar_SetProgress( gBar, 40 )
+    case 2 : tkInfoBar_SetProgress( gBar, TKN_PROGRESS_INDETERMINATE )
+    end select
+end sub
+
 dim as TKAPP_OPTIONS opts
 if tkApp_Init( opts ) = false then end 98
 dim as TK_FORM ptr f = tkApp_NewForm( "tkInfoBar demo", 720, 420 )
@@ -115,6 +125,9 @@ tkButton_SetClickCallback( bAct, @OnActions )
 dim as TK_WIDGET ptr bTog = tkButton_Create( content, 13 )
 tkButton_SetText( bTog, "Open / close" )
 tkButton_SetClickCallback( bTog, @OnToggle )
+dim as TK_WIDGET ptr bPrg = tkButton_Create( content, 15 )
+tkButton_SetText( bPrg, "Progress" )
+tkButton_SetClickCallback( bPrg, @OnProgress )
 gLog = tkLabel_Create( content, 14 )
 
 gLayout = tkLayout_Create( )
@@ -127,6 +140,7 @@ tkLayout_Add( gLayout, bSev, 16, 16, 120, 32 )
 tkLayout_Add( gLayout, bLen, 146, 16, 120, 32 )
 tkLayout_Add( gLayout, bAct, 276, 16, 120, 32 )
 tkLayout_Add( gLayout, bTog, 406, 16, 120, 32 )
+tkLayout_Add( gLayout, bPrg, 536, 16, 120, 32 )
 tkLayout_Add( gLayout, gLog, 16, 64, 688, 24, TK_ANCHOR_LEFT or TK_ANCHOR_RIGHT or TK_ANCHOR_TOP )
 
 gActs = 1
