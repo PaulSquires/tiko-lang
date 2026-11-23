@@ -96,6 +96,9 @@ function FullSpell_( byref x as CppImp_, byval t as CXType, byval depth as int32
             piece = Spell_( x, Canon_( x, a ) )        '' a builtin: 'unsigned __int128', not its typedef
         else
             piece = PackArg_( mid( s, open_ ), i )
+            '' NOT SPELLED: a defaulted trailing value (glm's 'vec<3, float>' is vec<3, float, defaultp>),
+            '' which C++ fills in again.
+            if len( piece ) = 0 then exit for
         end if
         r &= iif( i > 0, ", ", "" ) & piece
     next
