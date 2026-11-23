@@ -13,6 +13,8 @@
 #import "../tkComboBox"
 #import "../tkDatePicker"
 #import "../tkCalendar"
+#import "../tkTimePicker"
+#import "../tkTimePanel"
 #import "../tkProgressBar"
 #import "../tkSpinner"
 #import "../tkColorPicker"
@@ -49,6 +51,8 @@ using tkSlider
 using tkComboBox
 using tkDatePicker
 using tkCalendar
+using tkTimePicker
+using tkTimePanel
 using tkProgressBar
 using tkSpinner
 using tkColorPicker
@@ -1763,6 +1767,245 @@ end sub
 private sub A_Calendar_WeekdayAbbrevs( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkCalendar_SetWeekdayAbbrevsText( w, v )
 end sub
+
+private function C_TimePicker( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkTimePicker_Create( hParent, id )
+end function
+
+private sub G_TimePicker( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkTimePicker_GetColors( w, cast( TKTIMEPICKER_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_TimePicker( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKTIMEPICKER_COLORS ptr, pSlots ) = tkTimePicker_ThemeColors( t )
+end sub
+
+private sub A_TimePicker_Format( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetFormat( w, v )
+end sub
+
+private function R_TimePicker_Format( byval w as TK_WIDGET ptr ) as ustring
+    return tkTimePicker_GetFormat( w )
+end function
+
+private sub A_TimePicker_AllowEmpty( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetAllowEmpty( w, cbool( v = "true" ) )
+end sub
+
+private function R_TimePicker_AllowEmpty( byval w as TK_WIDGET ptr ) as ustring
+    if tkTimePicker_GetAllowEmpty( w ) then return "true" else return "false"
+end function
+
+private sub A_TimePicker_Step( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetStep( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePicker_Step( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePicker_GetStep( w ) )
+end function
+
+private sub A_TimePicker_ButtonStyle( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Dropdown" : tkTimePicker_SetButtonStyle( w, TKTP_BUTTON_DROPDOWN )
+    case "Spin" : tkTimePicker_SetButtonStyle( w, TKTP_BUTTON_SPIN )
+    case "None" : tkTimePicker_SetButtonStyle( w, TKTP_BUTTON_NONE )
+    end select
+end sub
+
+private function R_TimePicker_ButtonStyle( byval w as TK_WIDGET ptr ) as ustring
+    select case tkTimePicker_GetButtonStyle( w )
+    case TKTP_BUTTON_DROPDOWN : return "Dropdown"
+    case TKTP_BUTTON_SPIN : return "Spin"
+    case TKTP_BUTTON_NONE : return "None"
+    end select
+    return ""
+end function
+
+private sub A_TimePicker_PanelMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Columns" : tkTimePicker_SetPanelMode( w, TKTP_PANEL_COLUMNS )
+    case "List" : tkTimePicker_SetPanelMode( w, TKTP_PANEL_LIST )
+    end select
+end sub
+
+private function R_TimePicker_PanelMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkTimePicker_GetPanelMode( w )
+    case TKTP_PANEL_COLUMNS : return "Columns"
+    case TKTP_PANEL_LIST : return "List"
+    end select
+    return ""
+end function
+
+private sub A_TimePicker_VisibleRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetVisibleRows( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePicker_VisibleRows( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePicker_GetVisibleRows( w ) )
+end function
+
+private sub A_TimePicker_ShowNow( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetShowNow( w, cbool( v = "true" ) )
+end sub
+
+private function R_TimePicker_ShowNow( byval w as TK_WIDGET ptr ) as ustring
+    if tkTimePicker_GetShowNow( w ) then return "true" else return "false"
+end function
+
+private sub A_TimePicker_ShowOK( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetShowOK( w, cbool( v = "true" ) )
+end sub
+
+private function R_TimePicker_ShowOK( byval w as TK_WIDGET ptr ) as ustring
+    if tkTimePicker_GetShowOK( w ) then return "true" else return "false"
+end function
+
+private sub A_TimePicker_TabMovesSegments( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetTabMovesSegments( w, cbool( v = "true" ) )
+end sub
+
+private function R_TimePicker_TabMovesSegments( byval w as TK_WIDGET ptr ) as ustring
+    if tkTimePicker_GetTabMovesSegments( w ) then return "true" else return "false"
+end function
+
+private sub A_TimePicker_PlaceholderText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetPlaceholderText( w, v )
+end sub
+
+private function R_TimePicker_PlaceholderText( byval w as TK_WIDGET ptr ) as ustring
+    return tkTimePicker_GetPlaceholderText( w )
+end function
+
+private sub A_TimePicker_AmText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetAmText( w, v )
+end sub
+
+private function R_TimePicker_AmText( byval w as TK_WIDGET ptr ) as ustring
+    return tkTimePicker_GetAmText( w )
+end function
+
+private sub A_TimePicker_PmText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetPmText( w, v )
+end sub
+
+private function R_TimePicker_PmText( byval w as TK_WIDGET ptr ) as ustring
+    return tkTimePicker_GetPmText( w )
+end function
+
+private sub F_TimePicker_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTimePicker_SetFont( w, f )
+end sub
+
+private sub F_TimePicker_IconFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTimePicker_SetIconFont( w, f )
+end sub
+
+private sub A_TimePicker_IconGlyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetIconGlyph( w, v )
+end sub
+
+private function R_TimePicker_IconGlyph( byval w as TK_WIDGET ptr ) as ustring
+    return tkTimePicker_GetIconGlyph( w )
+end function
+
+private sub A_TimePicker_IconWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetIconWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePicker_IconWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePicker_GetIconWidth( w ) )
+end function
+
+private sub A_TimePicker_CornerRadius( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetCornerRadius( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePicker_CornerRadius( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePicker_GetCornerRadius( w ) )
+end function
+
+private sub A_TimePicker_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePicker_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePicker_GetBorderThickness( w ) )
+end function
+
+private sub A_TimePicker_MinTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetMinTime( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_TimePicker_MaxTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetMaxTime( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_TimePicker_Time( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePicker_SetTimeParts( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private function C_TimePanel( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkTimePanel_Create( hParent, id )
+end function
+
+private sub G_TimePanel( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkTimePanel_GetColors( w, cast( TKTIMEPANEL_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_TimePanel( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKTIMEPANEL_COLORS ptr, pSlots ) = tkTimePanel_ThemeColors( t )
+end sub
+
+private sub A_TimePanel_Format( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePanel_SetFormat( w, v )
+end sub
+
+private function R_TimePanel_Format( byval w as TK_WIDGET ptr ) as ustring
+    return tkTimePanel_GetFormat( w )
+end function
+
+private sub A_TimePanel_Step( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePanel_SetStep( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePanel_Step( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePanel_GetStep( w ) )
+end function
+
+private sub A_TimePanel_Mode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Columns" : tkTimePanel_SetMode( w, TKTP_PANEL_COLUMNS )
+    case "List" : tkTimePanel_SetMode( w, TKTP_PANEL_LIST )
+    end select
+end sub
+
+private function R_TimePanel_Mode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkTimePanel_GetMode( w )
+    case TKTP_PANEL_COLUMNS : return "Columns"
+    case TKTP_PANEL_LIST : return "List"
+    end select
+    return ""
+end function
+
+private sub A_TimePanel_VisibleRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePanel_SetVisibleRows( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePanel_VisibleRows( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePanel_GetVisibleRows( w ) )
+end function
+
+private sub F_TimePanel_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkTimePanel_SetFont( w, f )
+end sub
+
+private sub A_TimePanel_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTimePanel_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_TimePanel_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkTimePanel_GetBorderThickness( w ) )
+end function
 
 private function C_ProgressBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     select case arg
@@ -3863,6 +4106,91 @@ sub Fill_( )
     Event_( "MonthYearPaint", "tkCalendar_SetMonthYearPaintCallback", "CAL_MonthYearPaintCallbackSub", "byval c as TKCALENDAR_MYPAINTINFO ptr", "byval c as TKCALENDAR_MYPAINTINFO ptr", "c", "c->hCtrl", "", "" )
     Event_( "Message", "tkCalendar_SetMessageCallback", "CAL_MessageCallbackFunc", "byval m as TKCALENDAR_MESSAGEINFO ptr", "byval m as TKCALENDAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
     Event_( "Tooltip", "tkCalendar_SetTooltipCallback", "CAL_TooltipCallbackFunc", "byval t as TKCALENDAR_TOOLTIPINFO ptr", "byval t as TKCALENDAR_TOOLTIPINFO ptr, byref Show as boolean", "t, Show", "t->hCtrl", "boolean", "Show", "true" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "TimePicker", "tkTimePicker", "Common", 110, 28, "TimeChanged", "", @C_TimePicker, "", "", "", "" )
+    Bind_( "time", "tkTimePicker_GetTimeValue", "tkTimePicker_SetTimeValue", false )
+    Colors_( "TKTIMEPICKER_COLORS", "tkTimePicker_GetColors", "tkTimePicker_ThemeColors", @G_TimePicker, @T_TimePicker )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "FocusBorderColor", "", "", "", false )
+    Color_( "BorderColorDisabled", "Border", "Disabled", "", false )
+    Color_( "DividerColor", "Divider", "Normal", "", false )
+    Color_( "DividerColorDisabled", "Divider", "Disabled", "", false )
+    Color_( "FieldBackColor", "FieldBack", "Normal", "", false )
+    Color_( "FieldForeColor", "FieldFore", "Normal", "", true )
+    Color_( "FieldBackColorDisabled", "FieldBack", "Disabled", "", false )
+    Color_( "FieldForeColorDisabled", "FieldFore", "Disabled", "", true )
+    Color_( "IconColor", "Icon", "Normal", "", true )
+    Color_( "IconGlyphColor", "IconGlyph", "Normal", "", true )
+    Color_( "IconGlyphColorHot", "IconGlyph", "Hot", "", true )
+    Color_( "IconBackColorHot", "IconBack", "Hot", "", false )
+    Color_( "IconGlyphColorDisabled", "IconGlyph", "Disabled", "", true )
+    Color_( "SegmentBackColorFocused", "", "", "", false )
+    Color_( "SegmentForeColorFocused", "", "", "", true )
+    Color_( "PlaceholderColor", "", "", "", true )
+    Color_( "PanelBackColor", "", "", "", false )
+    Color_( "PanelBorderColor", "", "", "", false )
+    Color_( "ItemColor", "Item", "Normal", "", true )
+    Color_( "ItemColorDisabled", "Item", "Disabled", "", true )
+    Color_( "ItemBackColorHot", "ItemBack", "Hot", "", false )
+    Color_( "ItemForeColorHot", "ItemFore", "Hot", "", true )
+    Color_( "ItemBackColorSelected", "ItemBack", "Selected", "", false )
+    Color_( "ItemForeColorSelected", "ItemFore", "Selected", "", true )
+    Color_( "ColumnDividerColor", "", "", "", false )
+    Color_( "FooterColor", "Footer", "Normal", "", true )
+    Color_( "FooterColorHot", "Footer", "Hot", "", true )
+    Color_( "FooterColorDisabled", "Footer", "Disabled", "", true )
+    Prop_( "Format", "text", "HH:mm", "", "tkTimePicker_SetFormat", "tkTimePicker_GetFormat", @A_TimePicker_Format, @R_TimePicker_Format, 0, true, true, "", 0 )
+    Prop_( "AllowEmpty", "bool", "true", "", "tkTimePicker_SetAllowEmpty", "tkTimePicker_GetAllowEmpty", @A_TimePicker_AllowEmpty, @R_TimePicker_AllowEmpty, 0, true, true, "", 0 )
+    Prop_( "Step", "int", "60", "", "tkTimePicker_SetStep", "tkTimePicker_GetStep", @A_TimePicker_Step, @R_TimePicker_Step, 0, true, true, "", 0 )
+    Prop_( "ButtonStyle", "enum", "Dropdown", "Dropdown=TKTP_BUTTON_DROPDOWN,Spin=TKTP_BUTTON_SPIN,None=TKTP_BUTTON_NONE", "tkTimePicker_SetButtonStyle", "tkTimePicker_GetButtonStyle", @A_TimePicker_ButtonStyle, @R_TimePicker_ButtonStyle, 0, true, true, "", 0 )
+    Prop_( "PanelMode", "enum", "Columns", "Columns=TKTP_PANEL_COLUMNS,List=TKTP_PANEL_LIST", "tkTimePicker_SetPanelMode", "tkTimePicker_GetPanelMode", @A_TimePicker_PanelMode, @R_TimePicker_PanelMode, 0, true, true, "", 0 )
+    Prop_( "VisibleRows", "int", "7", "", "tkTimePicker_SetVisibleRows", "tkTimePicker_GetVisibleRows", @A_TimePicker_VisibleRows, @R_TimePicker_VisibleRows, 0, true, true, "", 0 )
+    Prop_( "ShowNow", "bool", "", "", "tkTimePicker_SetShowNow", "tkTimePicker_GetShowNow", @A_TimePicker_ShowNow, @R_TimePicker_ShowNow, 0, true, true, "", 0 )
+    Prop_( "ShowOK", "bool", "", "", "tkTimePicker_SetShowOK", "tkTimePicker_GetShowOK", @A_TimePicker_ShowOK, @R_TimePicker_ShowOK, 0, true, true, "", 0 )
+    Prop_( "TabMovesSegments", "bool", "", "", "tkTimePicker_SetTabMovesSegments", "tkTimePicker_GetTabMovesSegments", @A_TimePicker_TabMovesSegments, @R_TimePicker_TabMovesSegments, 0, true, true, "", 0 )
+    Prop_( "PlaceholderText", "text", "", "", "tkTimePicker_SetPlaceholderText", "tkTimePicker_GetPlaceholderText", @A_TimePicker_PlaceholderText, @R_TimePicker_PlaceholderText, 0, true, true, "", 0 )
+    Prop_( "AmText", "text", "AM", "", "tkTimePicker_SetAmText", "tkTimePicker_GetAmText", @A_TimePicker_AmText, @R_TimePicker_AmText, 0, true, true, "", 0 )
+    Prop_( "PmText", "text", "PM", "", "tkTimePicker_SetPmText", "tkTimePicker_GetPmText", @A_TimePicker_PmText, @R_TimePicker_PmText, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkTimePicker_SetFont", "tkTimePicker_GetFont", 0, 0, @F_TimePicker_Font, true, true, "", 0 )
+    Prop_( "IconFont", "font", "", "", "tkTimePicker_SetIconFont", "tkTimePicker_GetIconFont", 0, 0, @F_TimePicker_IconFont, true, true, "", 0 )
+    Prop_( "IconGlyph", "glyph", "", "", "tkTimePicker_SetIconGlyph", "tkTimePicker_GetIconGlyph", @A_TimePicker_IconGlyph, @R_TimePicker_IconGlyph, 0, true, true, "", 0 )
+    Prop_( "IconWidth", "int", "", "", "tkTimePicker_SetIconWidth", "tkTimePicker_GetIconWidth", @A_TimePicker_IconWidth, @R_TimePicker_IconWidth, 0, true, true, "", 0 )
+    Prop_( "CornerRadius", "int", "", "", "tkTimePicker_SetCornerRadius", "tkTimePicker_GetCornerRadius", @A_TimePicker_CornerRadius, @R_TimePicker_CornerRadius, 0, true, true, "CornerRadius", 1 )
+    Prop_( "BorderThickness", "int", "", "", "tkTimePicker_SetBorderThickness", "tkTimePicker_GetBorderThickness", @A_TimePicker_BorderThickness, @R_TimePicker_BorderThickness, 0, true, true, "BorderWidth", 1 )
+    Prop_( "MinTime", "list", "", "Hour:int,Minute:int,Second:int", "tkTimePicker_SetMinTime", "", @A_TimePicker_MinTime, 0, 0, true, true, "", 0 )
+    Prop_( "MaxTime", "list", "", "Hour:int,Minute:int,Second:int", "tkTimePicker_SetMaxTime", "", @A_TimePicker_MaxTime, 0, 0, true, true, "", 0 )
+    Prop_( "Time", "list", "", "Hour:int,Minute:int,Second:int", "tkTimePicker_SetTimeParts", "", @A_TimePicker_Time, 0, 0, true, true, "", 0 )
+    Event_( "TimeChanged", "tkTimePicker_SetTimeChangedCallback", "TPK_TimeChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byval bHasTime as boolean", "byval pTime as TKTIME ptr, byval bHasTime as boolean", "pTime, bHasTime" )
+    Event_( "DropDown", "tkTimePicker_SetDropDownCallback", "TPK_DropDownCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
+    Event_( "ItemDisabled", "tkTimePicker_SetItemDisabledCallback", "TPK_ItemDisabledCallbackFunc", "byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", "byval nKind as long, byval nValue as long, byref Disabled as boolean", "nKind, nValue, Disabled", "", "boolean", "Disabled" )
+    Event_( "Paint", "tkTimePicker_SetPaintCallback", "TPK_PaintCallbackSub", "byval p as TKTIMEPICKER_PAINTINFO ptr", "byval p as TKTIMEPICKER_PAINTINFO ptr", "p", "p->hCtrl", "", "" )
+    Event_( "Message", "tkTimePicker_SetMessageCallback", "TPK_MessageCallbackFunc", "byval m as TKTIMEPICKER_MESSAGEINFO ptr", "byval m as TKTIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "TimePanel", "tkTimePanel", "Common", 130, 220, "SelChange", "", @C_TimePanel, "", "", "", "" )
+    Colors_( "TKTIMEPANEL_COLORS", "tkTimePanel_GetColors", "tkTimePanel_ThemeColors", @G_TimePanel, @T_TimePanel )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "FocusRingColor", "", "", "", false )
+    Color_( "ItemColor", "Item", "Normal", "", true )
+    Color_( "ItemColorDisabled", "Item", "Disabled", "", true )
+    Color_( "ItemBackColorHot", "ItemBack", "Hot", "", false )
+    Color_( "ItemForeColorHot", "ItemFore", "Hot", "", true )
+    Color_( "ItemBackColorSelected", "ItemBack", "Selected", "", false )
+    Color_( "ItemForeColorSelected", "ItemFore", "Selected", "", true )
+    Color_( "ColumnDividerColor", "", "", "", false )
+    Prop_( "Format", "text", "HH:mm", "", "tkTimePanel_SetFormat", "tkTimePanel_GetFormat", @A_TimePanel_Format, @R_TimePanel_Format, 0, true, true, "", 0 )
+    Prop_( "Step", "int", "60", "", "tkTimePanel_SetStep", "tkTimePanel_GetStep", @A_TimePanel_Step, @R_TimePanel_Step, 0, true, true, "", 0 )
+    Prop_( "Mode", "enum", "Columns", "Columns=TKTP_PANEL_COLUMNS,List=TKTP_PANEL_LIST", "tkTimePanel_SetMode", "tkTimePanel_GetMode", @A_TimePanel_Mode, @R_TimePanel_Mode, 0, true, true, "", 0 )
+    Prop_( "VisibleRows", "int", "7", "", "tkTimePanel_SetVisibleRows", "tkTimePanel_GetVisibleRows", @A_TimePanel_VisibleRows, @R_TimePanel_VisibleRows, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkTimePanel_SetFont", "tkTimePanel_GetFont", 0, 0, @F_TimePanel_Font, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkTimePanel_SetBorderThickness", "tkTimePanel_GetBorderThickness", @A_TimePanel_BorderThickness, @R_TimePanel_BorderThickness, 0, true, true, "BorderWidth", 1 )
+    Event_( "SelChange", "tkTimePanel_SetSelChangeCallback", "TP_SelChangeCallbackSub", "byval hPanel as TK_WIDGET ptr, byval pTime as TKTIME ptr", "byval pTime as TKTIME ptr", "pTime" )
+    Event_( "Accept", "tkTimePanel_SetAcceptCallback", "TP_AcceptCallbackSub", "byval hPanel as TK_WIDGET ptr, byval pTime as TKTIME ptr", "byval pTime as TKTIME ptr", "pTime" )
+    Event_( "Dismiss", "tkTimePanel_SetDismissCallback", "TP_DismissCallbackSub", "byval hPanel as TK_WIDGET ptr", "", "" )
+    Event_( "ItemDisabled", "tkTimePanel_SetItemDisabledCallback", "TP_ItemDisabledCallbackFunc", "byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long", "byval nKind as long, byval nValue as long, byref Disabled as boolean", "nKind, nValue, Disabled", "", "boolean", "Disabled" )
+    Event_( "ItemPaint", "tkTimePanel_SetItemPaintCallback", "TP_ItemPaintCallbackSub", "byval p as TKTIMEPANEL_ITEMPAINTINFO ptr", "byval p as TKTIMEPANEL_ITEMPAINTINFO ptr", "p", "p->hPanel", "", "" )
+    Event_( "Message", "tkTimePanel_SetMessageCallback", "TP_MessageCallbackFunc", "byval m as TKTIMEPANEL_MESSAGEINFO ptr", "byval m as TKTIMEPANEL_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hPanel", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "ProgressBar", "tkProgressBar", "Common", 200, 22, "", "", @C_ProgressBar, "Orientation", "enum", "Horizontal=PRG_HORIZONTAL,Vertical=PRG_VERTICAL", "Horizontal" )
     Colors_( "TKPROGRESSBAR_COLORS", "tkProgressBar_GetColors", "tkProgressBar_ThemeColors", @G_ProgressBar, @T_ProgressBar )

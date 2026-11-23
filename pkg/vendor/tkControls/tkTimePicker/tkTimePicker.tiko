@@ -896,6 +896,17 @@ public sub tkTimePicker_SetAmPmText( byval hCtrl as TK_WIDGET ptr, byval sAm as 
     TpkRefresh( p )
 end sub
 
+' One designator at a time, for the form designer's rows ("" keeps AM / PM).
+public sub tkTimePicker_SetAmText( byval hCtrl as TK_WIDGET ptr, byval sAm as ustring )
+    dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
+    if p then tkTimePicker_SetAmPmText( hCtrl, sAm, p->sPm )
+end sub
+
+public sub tkTimePicker_SetPmText( byval hCtrl as TK_WIDGET ptr, byval sPm as ustring )
+    dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
+    if p then tkTimePicker_SetAmPmText( hCtrl, p->sAm, sPm )
+end sub
+
 public function tkTimePicker_GetAmText( byval hCtrl as TK_WIDGET ptr ) as ustring
     dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
     if p = 0 then return ""

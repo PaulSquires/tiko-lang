@@ -981,6 +981,29 @@ private sub BindReport_( byref doc as FormDoc, byref o as ustring, byref loading
     o &= "    end if" & NL
 end sub
 
+' The control bound to the same field as control i with the other half of a date and a time (a
+' DatePicker and a TimePicker on one DateTime), or -1. SaveTo writes the pair in ONE call: on a new
+' record the DateTime is Invalid, and a time half saved first would have no date to sit on
+' (claude-docs TIMEPICKER.md 10.2).
+private function DateTimePair_( byref doc as FormDoc, byval i as long ) as long
+    dim as TKMETA_CONTROL ptr m = catalog.Find( doc.Controls[i].TypeName )
+    if (m = 0) orelse m->BindLoadOnly then return -1
+    dim as ustring want
+    select case m->BindKind
+    case "date" : want = "time"
+    case "time" : want = "date"
+    case else : return -1
+    end select
+    dim as ustring fld = lcase( doc.Controls[i].Bind )
+    for j as long = 0 to doc.Controls.Count( ) - 1
+        if (j <> i) andalso IsBound_( doc.Controls[j] ) andalso (lcase( doc.Controls[j].Bind ) = fld) then
+            dim as TKMETA_CONTROL ptr mj = catalog.Find( doc.Controls[j].TypeName )
+            if (mj <> 0) andalso (mj->BindKind = want) andalso (mj->BindLoadOnly = false) then return j
+        end if
+    next
+    return -1
+end function
+
 ' Moving each bound control's value in from r, and out to it, through tkBind's overloads: the
 ' compiler picks one by the field's type. Setters are silent, so LoadFrom notifies nobody. A
 ' two-value control's second field (bind2) follows its first: a range Slider's setters push the
@@ -1036,10 +1059,22 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
     next
     BindReport_( doc, o, "false" )
     ' then the writes
-    for each c as FormControl in doc.Controls
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        dim as FormControl c = doc.Controls[i]
         if IsBound_( c ) = false then continue for
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if m->BindLoadOnly then continue for
+        ' a date and a time control on one field: one call, at the first of the two
+        dim as long pair_ = DateTimePair_( doc, i )
+        if pair_ >= 0 then
+            if pair_ < i then continue for
+            dim as FormControl c2 = doc.Controls[pair_]
+            dim as TKMETA_CONTROL ptr m2 = catalog.Find( c2.TypeName )
+            dim as ustring dGot = BindGot_( m->BindKind, m->BindGet, c.Name ), tGot = BindGot_( m2->BindKind, m2->BindGet, c2.Name )
+            if m->BindKind = "time" then swap dGot, tGot
+            o &= "    tkBind_Put( r." & c.Bind & ", " & dGot & ", " & tGot & " )" & NL
+            continue for
+        end if
         dim as ustring fmt
         if len( c.Format ) andalso (m->BindKind = "text") then fmt = ", " & Literal_( c.Format )
         o &= "    tkBind_Put( r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & fmt & " )" & NL

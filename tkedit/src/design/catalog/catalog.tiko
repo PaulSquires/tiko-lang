@@ -129,12 +129,12 @@ public function FormEventParams( byref ev as const ustring ) as ustring
 end function
 
 ' ---- types an event names that are another module's than its control's ----
-' A DatePicker's date events name TKDATE (tkCalendar's); a ListTree's header events name
+' A DatePicker's date events name TKDATE (tkCalendar's), a TimePicker's TKTIME (tkTimePanel's); a ListTree's header events name
 ' TKCOLUMNHEADER_* (tkColumnHeader's); a ScrollPanel's SCP_PAINTINFO and SCP_MESSAGEINFO are its own
 ' but not spelled TK*, so they are listed here too. Both the generated file and the user's need that module in
 ' scope: a public #import of it by the control's module isn't enough for the names.
 public function ForeignTypeCount( ) as long
-    return 4
+    return 5
 end function
 
 ' The type's spelling in upper case, as it follows "AS " (TKDATE alone: TKDATEPICKER_* is not it).
@@ -144,6 +144,7 @@ public function ForeignTypePrefix( byval i as long ) as ustring
     case 1 : return "TKCOLUMNHEADER_"
     case 2 : return "SCP_"
     case 3 : return "TKBIND_"
+    case 4 : return "TKTIME "
     end select
     return ""
 end function
@@ -154,6 +155,7 @@ public function ForeignTypeModule( byval i as long ) as ustring
     case 1 : return "tkColumnHeader"
     case 2 : return "tkScrollPanel"
     case 3 : return "tkBind"
+    case 4 : return "tkTimePanel"
     end select
     return ""
 end function

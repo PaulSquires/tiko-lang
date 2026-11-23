@@ -2477,6 +2477,20 @@ sub BindSuite( )
     Check( instr( t, "btnOK.Handle, tkBind" ) = 0, "bind: an unbound control is left alone" )
     Check( instr( t, "Form.LoadFrom" ) > instr( t, "sub Form.Build" ), "bind: after Build" )
 
+    ' T4 (claude-docs TIMEPICKER.md 10): the time kind, and a date + time pair on one field saved in
+    ' one call -- the time control first here, so the call still takes the date first
+    dim as FormDoc dtp
+    ReadForm( hdr & Ctl( "tpStart", "TimePicker", "bind = ""Start""" & LF ) & Ctl( "tpAt", "TimePicker", "bind = ""Stamp""" & LF ) _
+        & Ctl( "dpAt", "DatePicker", "bind = ""Stamp""" & LF ), dtp )
+    dim as ustring tt = codegen.Generate( dtp, "frmT", "frmT.tkform", "" )
+    HasLine( tt, "tkTimePicker_SetTimeValue( tpStart.Handle, tkBind_Time( r.Start ) )", "bind: time in" )
+    HasLine( tt, "tkBind_Put( r.Start, tkTimePicker_GetTimeValue( tpStart.Handle ) )", "bind: time out" )
+    HasLine( tt, "tkBind_Put( r.Stamp, tkDatePicker_GetDateValue( dpAt.Handle ), tkTimePicker_GetTimeValue( tpAt.Handle ) )", "bind: a date + time pair saves in one call, date first" )
+    Check( (instr( tt, "tkBind_Put( r.Stamp, tkTimePicker" ) = 0) andalso (instr( tt, "tkBind_Put( r.Stamp, tkDatePicker_GetDateValue( dpAt.Handle ) )" ) = 0), "bind: ...and no half-saves", tt )
+    dim as FormDoc dte
+    ReadForm( Header( ) & Ctl( "tp", "TimePicker", "" ) & "[control.events]" & LF & "TimeChanged = ""OnT""" & LF, dte )
+    Check( instr( codegen.Generate( dte, "frmTE", "frmTE.tkform", "" ), LF & "using tkTimePanel" & LF ) > 0, "a TimeChanged handler brings TKTIME's module (tkTimePanel) into scope" )
+
     dim as FormDoc nb
     ReadForm( hdr & Ctl( "b", "Button" ), nb )
     Check( instr( codegen.Generate( nb, "frmNB", "frmNB.tkform", "" ), "LoadFrom" ) = 0, "bind: a DataType with nothing bound generates nothing" )

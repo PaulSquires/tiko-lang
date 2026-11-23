@@ -12,9 +12,10 @@
 '     tkBind_Put( r.Age, tkTextBox_GetText( txtAge.Handle ) )         ' save: the kind -> field
 '
 ' KINDS and the value each carries: text = ustring, bool = boolean, int = longint, float = float64,
-' date = TKDATE. FIELDS: boolean, byte .. ulongint, integer, uinteger, single, double, ustring,
-' string, TKDATE and chrono.LocalDate. A date binds only to a text or date field; a pairing with no
-' overload is a compile error, which is the point.
+' date = TKDATE, time = TKTIME (tkTimePanel). FIELDS: boolean, byte .. ulongint, integer, uinteger,
+' single, double, ustring, string, TKDATE, TKTIME, chrono.LocalDate, chrono.LocalTime and
+' chrono.DateTime (date and time halves). A date or a time binds only to a text field or one of its
+' own; a pairing with no overload is a compile error, which is the point.
 '
 ' THE RULES (B1: lenient; strict parsing and error reporting are B2):
 '   text -> number     trimmed, then VALLNG / VAL: text that is not a number is 0
@@ -23,14 +24,27 @@
 '   bool -> text       "true" / "false"
 '   number -> text     STR
 '   date <-> text      ISO yyyy-mm-dd; "" and text that is not a date are no date
+'   time <-> text      ISO HH:mm:ss (.fff when there are milliseconds); in, ISO first, then
+'                      tkTimePanel_ParseLoose (2:30 pm); text that is no time is no time
 '   no date            an all-zero TKDATE (wYear = 0), an Invalid LocalDate (its default), ""
+'   no time            an empty TKTIME (wHour = -1), LocalTime.Invalid() -- NOT a default LocalTime,
+'                      which is midnight -- and ""
+'   DateTime           its date and time load into a DatePicker and a TimePicker. Saving: one call
+'                      for the pair, Put( f, date, time ), which codegen emits when both bind the
+'                      field (half-saves would drop the time on a new record, whose DateTime is
+'                      Invalid); no date clears the field, no time is midnight. The lone halves,
+'                      for a form that binds one control to it, keep the other half and the offset.
+' chrono.LocalTime is always written qualified: the SDL imports bring crt's localtime, and names
+' are case-blind (TKO0919).
 ' Nothing here notifies: LoadFrom calls the controls' silent setters.
 #module "tkBind"
 
 #import "std/chrono"
 #import "../tkCalendar" public
+#import "../tkTimePanel" public
 using chrono
 using tkCalendar
+using tkTimePanel
 
 ' ---- the text rules -------------------------------------------------------------------------
 
@@ -223,3 +237,83 @@ public sub tkBind_Put( byref f as ustring, byref v as const TKDATE ) : f = IsoOf
 public sub tkBind_Put( byref f as string, byref v as const TKDATE ) : f = IsoOf_( v ) : end sub
 public sub tkBind_Put( byref f as TKDATE, byref v as const TKDATE ) : f = v : end sub
 public sub tkBind_Put( byref f as LocalDate, byref v as const TKDATE ) : f = LocalOfDate_( v ) : end sub
+
+' ---- the time kind (TIMEPICKER.md §10) ----------------------------------------------------------
+
+private function TimeOfLocal_( byref lt as chrono.LocalTime ) as TKTIME
+    if lt.IsValid = false then return tkTimePanel_EmptyTime( )
+    return tkTimePanel_MakeTime( lt.Hour, lt.Minute, lt.Second, lt.Millisecond )
+end function
+
+private function LocalOfTime_( byref t as const TKTIME ) as chrono.LocalTime
+    if tkTimePanel_IsTime( t ) = false then return chrono.LocalTime.Invalid( )
+    return chrono.LocalTime( t.wHour, t.wMinute, t.wSecond, t.wMilliseconds )
+end function
+
+private function TimeOfText_( byref s as const ustring ) as TKTIME
+    dim as TKTIME t
+    if tkTimePanel_ParseIso( s, t ) then return t
+    if tkTimePanel_ParseLoose( s, t ) then return t
+    return tkTimePanel_EmptyTime( )
+end function
+
+private function TimeText_( byref t as const TKTIME ) as ustring
+    return tkTimePanel_FormatIso( t, true, t.wMilliseconds <> 0 )
+end function
+
+' load
+public function tkBind_Time overload( byref v as const TKTIME ) as TKTIME : return v : end function
+public function tkBind_Time( byref v as chrono.LocalTime ) as TKTIME : return TimeOfLocal_( v ) : end function
+public function tkBind_Time( byref v as DateTime ) as TKTIME
+    if v.IsValid = false then return tkTimePanel_EmptyTime( )
+    return tkTimePanel_MakeTime( v.Hour, v.Minute, v.Second, v.Millisecond )
+end function
+public function tkBind_Time( byref v as const ustring ) as TKTIME : return TimeOfText_( v ) : end function
+public function tkBind_Time( byref v as const string ) as TKTIME : return TimeOfText_( v ) : end function
+public function tkBind_Text( byref v as const TKTIME ) as ustring : return TimeText_( v ) : end function
+public function tkBind_Text( byref v as chrono.LocalTime ) as ustring : return TimeText_( TimeOfLocal_( v ) ) : end function
+public function tkBind_Date( byref v as DateTime ) as TKDATE
+    dim as TKDATE none_
+    if v.IsValid = false then return none_
+    return tkCalendar_MakeDate( v.Year, v.Month, v.Day )
+end function
+
+' save
+public sub tkBind_Put( byref f as TKTIME, byval v as TKTIME ) : f = v : end sub
+public sub tkBind_Put( byref f as chrono.LocalTime, byval v as TKTIME ) : f = LocalOfTime_( v ) : end sub
+public sub tkBind_Put( byref f as ustring, byval v as TKTIME ) : f = TimeText_( v ) : end sub
+public sub tkBind_Put( byref f as string, byval v as TKTIME ) : f = TimeText_( v ) : end sub
+public sub tkBind_Put( byref f as TKTIME, byref v as const ustring ) : f = TimeOfText_( v ) : end sub
+public sub tkBind_Put( byref f as chrono.LocalTime, byref v as const ustring ) : f = LocalOfTime_( TimeOfText_( v ) ) : end sub
+
+' DateTime: the pair in one call (what codegen emits when a date and a time control bind the field)
+public sub tkBind_Put( byref f as DateTime, byref d as const TKDATE, byval t as TKTIME )
+    dim as LocalDate ld = LocalOfDate_( d )
+    if ld.IsValid = false then f = DateTime.Invalid( ) : exit sub
+    dim as chrono.LocalTime lt = LocalOfTime_( t )
+    if lt.IsValid = false then lt = chrono.LocalTime.Midnight( )
+    dim as DateTime r = DateTime.FromDateTime( ld, lt )
+    if f.IsValid andalso f.HasOffset then r = r.WithOffset( f.OffsetMinutes )
+    f = r
+end sub
+
+' DateTime: one half, the other half and the offset kept (a form binding one control to it)
+public sub tkBind_Put( byref f as DateTime, byref v as const TKDATE )
+    dim as LocalDate ld = LocalOfDate_( v )
+    if ld.IsValid = false then f = DateTime.Invalid( ) : exit sub
+    dim as chrono.LocalTime lt = chrono.LocalTime.Midnight( )
+    if f.IsValid then lt = f.GetTimeOfDay( )
+    dim as DateTime r = DateTime.FromDateTime( ld, lt )
+    if f.IsValid andalso f.HasOffset then r = r.WithOffset( f.OffsetMinutes )
+    f = r
+end sub
+
+public sub tkBind_Put( byref f as DateTime, byval v as TKTIME )
+    if f.IsValid = false then exit sub                  ' no date to put a time on
+    dim as chrono.LocalTime lt = LocalOfTime_( v )
+    if lt.IsValid = false then lt = chrono.LocalTime.Midnight( )
+    dim as LocalDate ld = f.GetDate( )
+    dim as DateTime r = DateTime.FromDateTime( ld, lt )
+    if f.HasOffset then r = r.WithOffset( f.OffsetMinutes )
+    f = r
+end sub
