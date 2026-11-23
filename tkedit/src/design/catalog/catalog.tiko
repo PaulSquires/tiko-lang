@@ -81,7 +81,7 @@ end function
 
 ' ---- the form's own events, in the order the inspector lists them ----
 public function FormEventCount( ) as long
-    return 8
+    return 9
 end function
 
 public function FormEventName( byval i as long ) as ustring
@@ -94,6 +94,7 @@ public function FormEventName( byval i as long ) as ustring
     case 5 : return "Destroy"
     case 6 : return "ThemeChanged"
     case 7 : return "MouseMove"
+    case 8 : return "ValidationError"
     end select
     return ""
 end function
@@ -108,6 +109,10 @@ end function
 ' A MouseMove handler's parameters, the form's and a control's alike.
 public const as string MOUSEMOVE_PARAMS = "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32"
 
+' ValidationError (B2): what the form's SaveTo refused (Loading = false) or LoadFrom couldn't show as
+' it is (Loading = true). Handled = true keeps the default (a message box) from showing.
+public const as string VALIDATION_PARAMS = "byref Errors as TKBIND_ERRORS, byval Loading as boolean, byref Handled as boolean"
+
 ' A form event handler's parameters. Resize: the client in pixels, after the layout. KeyDown: a key
 ' no control claimed. Paint: the form's background, under its controls. MouseMove: pixels from the
 ' client's top-left, over the form and over any control with no MouseMove of its own.
@@ -118,6 +123,7 @@ public function FormEventParams( byref ev as const ustring ) as ustring
     case "KeyDown" : return "byval keyCode as int32, byval mods as int32, byref Handled as boolean"
     case "Paint"   : return "byval pPaint as TK_PAINT ptr"
     case "MouseMove" : return MOUSEMOVE_PARAMS
+    case "ValidationError" : return VALIDATION_PARAMS
     end select
     return ""
 end function
@@ -128,7 +134,7 @@ end function
 ' but not spelled TK*, so they are listed here too. Both the generated file and the user's need that module in
 ' scope: a public #import of it by the control's module isn't enough for the names.
 public function ForeignTypeCount( ) as long
-    return 3
+    return 4
 end function
 
 ' The type's spelling in upper case, as it follows "AS " (TKDATE alone: TKDATEPICKER_* is not it).
@@ -137,6 +143,7 @@ public function ForeignTypePrefix( byval i as long ) as ustring
     case 0 : return "TKDATE "
     case 1 : return "TKCOLUMNHEADER_"
     case 2 : return "SCP_"
+    case 3 : return "TKBIND_"
     end select
     return ""
 end function
@@ -146,6 +153,7 @@ public function ForeignTypeModule( byval i as long ) as ustring
     case 0 : return "tkCalendar"
     case 1 : return "tkColumnHeader"
     case 2 : return "tkScrollPanel"
+    case 3 : return "tkBind"
     end select
     return ""
 end function
@@ -198,4 +206,34 @@ public function Bind2Holds( byref c as FormControl ) as boolean
     dim as ustring dflt
     if p then dflt = p->DefaultValue
     return lcase( SettingOr( c.Props, pn, dflt ) ) = lcase( mid( m->Bind2When, eq + 1 ) )
+end function
+
+' Which of B2's rules (Required Minimum Maximum MaxLength Format) a type's bound value takes: a text
+' box all five; a load-only one (a Label) only Format; a date Required and a range; a number a range;
+' an int with a "nothing chosen" value (a ComboBox) Required. A bool, a colour, a time: none.
+public function RuleAllowed( byval m as TKMETA_CONTROL ptr, byref rule as const ustring ) as boolean
+    if m = 0 then return false
+    select case m->BindKind
+    case "text"
+        if m->BindLoadOnly then return rule = "Format"
+        return true
+    case "date"
+        return (rule = "Required") orelse (rule = "Minimum") orelse (rule = "Maximum")
+    case "float"
+        return (rule = "Minimum") orelse (rule = "Maximum")
+    case "int"
+        return (len( m->BindNone ) > 0) andalso (rule = "Required")
+    end select
+    return false
+end function
+
+' The rules a control carries, by name, in the inspector's order.
+public function RulesSet( byref c as FormControl ) as ustring
+    dim as ustring o
+    if c.Required then o &= "Required "
+    if len( c.Minimum ) then o &= "Minimum "
+    if len( c.Maximum ) then o &= "Maximum "
+    if c.MaxLength <> 0 then o &= "MaxLength "
+    if len( c.Format ) then o &= "Format "
+    return rtrim( o )
 end function

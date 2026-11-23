@@ -350,6 +350,33 @@ going into a whole-number field is rounded; `true`, `1`, `yes` and `on` are true
 `yyyy-mm-dd`. A date binds only to a text or date field. Loading notifies nobody: no Change or
 CheckChanged handler runs. A wrong field name is the compiler's error, in the generated file.
 
+### Validation
+
+`SaveTo` and `LoadFrom` are functions: they answer whether all was well. **SaveTo checks every bound
+control first and writes nothing unless all pass**: `abc` in a box bound to a number, `2.5` into a
+whole-number field, `300` into a `ubyte`, `31/02/2026` into a date are all refused. **LoadFrom
+still loads**, but says so when a control can't show a field as it is: a slider clamps 130 to 100,
+a list has no entry 7. Either way the form's **ValidationError** event runs first:
+
+```freebasic
+sub Form.frm_ValidationError( byref Errors as TKBIND_ERRORS, byval Loading as boolean, byref Handled as boolean )
+    ' Errors.Items( i ).Field, .Message, .Code (TKBIND_ERR_*), .Widget; Errors.Text( ) is one line each
+end sub
+```
+
+Unless it sets `Handled`, a message box lists the problems ("Age: 'abc' is not a number") and the
+first control takes the focus; a text box at fault gets a red border until it is typed in.
+`tkBind_SetErrorPresenter` replaces that message box for every form.
+
+A bound control also takes **rules**, in the rows under Bind, those that fit it:
+
+| Rule | Controls | What it does |
+| --- | --- | --- |
+| **Required** | TextBox, CodeEdit, DatePicker, ComboBox | empty text, no date, no item chosen is refused |
+| **Minimum**, **Maximum** | TextBox, CodeEdit, DatePicker, NumericUpDown, Slider | a number, or a date as `yyyy-mm-dd`; for a text box only when the field is a number or a date |
+| **MaxLength** | TextBox, CodeEdit | the most characters |
+| **Format** | TextBox, CodeEdit, Label | how a number (`.2f`, `08d`) or a date (`dd/MM/yyyy`) is shown, and how typed text is read |
+
 ## Other languages
 
 Click the **...** beside the form's **Translatable** property. The form becomes Translatable, and

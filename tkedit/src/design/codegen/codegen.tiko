@@ -936,6 +936,7 @@ private function BindFn_( byref kind as const ustring ) as ustring
     case "int"   : return "Int"
     case "float" : return "Float"
     case "date"  : return "Date"
+    case "time"  : return "Time"
     end select
     return ""
 end function
@@ -950,32 +951,104 @@ private function BindGot_( byref kind as const ustring, byref getter as const us
     return v
 end function
 
+' B2: the kinds SaveTo checks before it writes (a bool always converts; a time isn't covered), and
+' the kinds LoadFrom reads back to see whether the control shows the field as it is.
+private function Checked_( byref kind as const ustring ) as boolean
+    return (kind = "text") orelse (kind = "int") orelse (kind = "float") orelse (kind = "date")
+end function
+
+private function ReadBack_( byref kind as const ustring ) as boolean
+    return (kind = "int") orelse (kind = "float") orelse (kind = "date")
+end function
+
+' A control's rules as a tkBind_Rule( ... ) argument.
+private function RuleArg_( byref c as FormControl, byval m as TKMETA_CONTROL ptr ) as ustring
+    dim as ustring r = "tkBind_Rule( " & iif( c.Required, "true", "false" ) & ", " & Literal_( c.Minimum ) & ", " _
+        & Literal_( c.Maximum ) & ", " & c.MaxLength & ", " & Literal_( c.Format )
+    if len( m->BindNone ) then r &= ", true, " & m->BindNone
+    return r & " )"
+end function
+
+' The report both make when they found something: the form's ValidationError handler first, then
+' (unless it set Handled) tkBind's presenter, by default a message box over the form.
+private sub BindReport_( byref doc as FormDoc, byref o as ustring, byref loading as const ustring )
+    o &= "    if bindErrors_.Count then" & NL
+    dim as long i = FindSetting( doc.Events, "ValidationError" )
+    o &= "        dim as boolean bindHandled_ = false" & NL
+    if i >= 0 then o &= "        " & doc.Events[i].Value & "( bindErrors_, " & loading & ", bindHandled_ )" & NL
+    o &= "        if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, " & loading & " )" & NL
+    o &= "        return false" & NL
+    o &= "    end if" & NL
+end sub
+
 ' Moving each bound control's value in from r, and out to it, through tkBind's overloads: the
 ' compiler picks one by the field's type. Setters are silent, so LoadFrom notifies nobody. A
 ' two-value control's second field (bind2) follows its first: a range Slider's setters push the
 ' other thumb, so lower then upper lands on any pair.
+' B2: SaveTo checks every value first (tkBind_Check, and tkBind_Range for a Minimum / Maximum) and
+' writes nothing unless all pass; LoadFrom reads each number, index and date back (tkBind_Loaded) and
+' reports a value the control couldn't show as it is. Both answer whether all was well.
 private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
-    o &= NL & "sub Form.LoadFrom( byref r as " & doc.DataType & " )" & NL
+    o &= NL & "function Form.LoadFrom( byref r as " & doc.DataType & " ) as boolean" & NL
+    o &= "    dim as TKBIND_ERRORS bindErrors_" & NL
     for each c as FormControl in doc.Controls
         if IsBound_( c ) = false then continue for
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
-        o &= "    " & m->BindSet & "( " & c.Name & ".Handle, tkBind_" & BindFn_( m->BindKind ) & "( r." & c.Bind & " ) )" & NL
+        dim as ustring fmt
+        if len( c.Format ) then fmt = ", " & Literal_( c.Format )
+        o &= "    " & m->BindSet & "( " & c.Name & ".Handle, tkBind_" & BindFn_( m->BindKind ) & "( r." & c.Bind & fmt & " ) )" & NL
+        if ReadBack_( m->BindKind ) andalso len( m->BindGet ) then
+            o &= "    tkBind_Loaded( bindErrors_, " & c.Name & ".Handle, " & Literal_( c.Bind ) & ", r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & " )" & NL
+        end if
+        if c.TypeName = "TextBox" then o &= "    tkTextBox_SetError( " & c.Name & ".Handle, false )" & NL
         if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) then
             o &= "    " & m->Bind2Set & "( " & c.Name & ".Handle, tkBind_" & BindFn_( m->Bind2Kind ) & "( r." & c.Bind2 & " ) )" & NL
+            if ReadBack_( m->Bind2Kind ) andalso len( m->Bind2Get ) then
+                o &= "    tkBind_Loaded( bindErrors_, " & c.Name & ".Handle, " & Literal_( c.Bind2 ) & ", r." & c.Bind2 & ", " & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & " )" & NL
+            end if
         end if
     next
-    o &= "end sub" & NL & NL
-    o &= "sub Form.SaveTo( byref r as " & doc.DataType & " )" & NL
+    BindReport_( doc, o, "true" )
+    o &= "    return true" & NL
+    o &= "end function" & NL & NL
+
+    o &= "function Form.SaveTo( byref r as " & doc.DataType & " ) as boolean" & NL
+    o &= "    dim as TKBIND_ERRORS bindErrors_" & NL
+    ' first every check: nothing is written unless all pass
     for each c as FormControl in doc.Controls
         if IsBound_( c ) = false then continue for
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if m->BindLoadOnly then continue for
-        o &= "    tkBind_Put( r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & " )" & NL
+        if Checked_( m->BindKind ) then
+            dim as ustring tail_ = c.Name & ".Handle, " & Literal_( c.Bind ) & ", r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & ", " & RuleArg_( c, m ) & " )"
+            o &= "    tkBind_Check( bindErrors_, " & tail_ & NL
+            if len( c.Minimum ) orelse len( c.Maximum ) then o &= "    tkBind_Range( bindErrors_, " & tail_ & NL
+        end if
+        if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) andalso Checked_( m->Bind2Kind ) then
+            o &= "    tkBind_Check( bindErrors_, " & c.Name & ".Handle, " & Literal_( c.Bind2 ) & ", r." & c.Bind2 & ", " _
+                & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & ", tkBind_Rule( ) )" & NL
+        end if
+    next
+    for each c as FormControl in doc.Controls
+        if IsBound_( c ) andalso (c.TypeName = "TextBox") then
+            o &= "    tkTextBox_SetError( " & c.Name & ".Handle, bindErrors_.Has( " & c.Name & ".Handle ) )" & NL
+        end if
+    next
+    BindReport_( doc, o, "false" )
+    ' then the writes
+    for each c as FormControl in doc.Controls
+        if IsBound_( c ) = false then continue for
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        if m->BindLoadOnly then continue for
+        dim as ustring fmt
+        if len( c.Format ) andalso (m->BindKind = "text") then fmt = ", " & Literal_( c.Format )
+        o &= "    tkBind_Put( r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & fmt & " )" & NL
         if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) then
             o &= "    tkBind_Put( r." & c.Bind2 & ", " & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & " )" & NL
         end if
     next
-    o &= "end sub" & NL
+    o &= "    return true" & NL
+    o &= "end function" & NL
 end sub
 
 ' The whole .design.tiko for a form that passed validate.Check. sourceName is the form file's name.
@@ -1011,10 +1084,10 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     if needsMenu then o &= "#import " & Literal_( "vendor/tkControls/tkPopupMenu" ) & NL
     if needsKeys then o &= "#import " & Literal_( "vendor/tkControls/tkKeys" ) & NL
     dim as boolean binds = HasBinding_( doc )
-    if binds then
-        o &= "#import " & Literal_( "vendor/tkControls/tkBind" ) & NL
-        if len( doc.DataModule ) then o &= "#import " & Literal_( doc.DataModule ) & NL
-    end if
+    ' a ValidationError handler names TKBIND_ERRORS, bound controls or not
+    dim as boolean needsBind = binds orelse (FindSetting( doc.Events, "ValidationError" ) >= 0)
+    if needsBind then o &= "#import " & Literal_( "vendor/tkControls/tkBind" ) & NL
+    if binds andalso (len( doc.DataModule ) > 0) then o &= "#import " & Literal_( doc.DataModule ) & NL
     dim as Array( of ustring ) customMods = CustomModules_( doc )
     for each mo as ustring in customMods
         o &= "#import """ & mo & """" & NL
@@ -1028,7 +1101,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     next
     if needsMenu then o &= "using tkPopupMenu" & NL
     if needsKeys then o &= "using tkKeys" & NL
-    if binds then o &= "using tkBind" & NL
+    if needsBind then o &= "using tkBind" & NL
     dim as boolean needsTheme = false
     for i as long = 0 to doc.Controls.Count( ) - 1
         if HasColors_( doc.Controls[i] ) then needsTheme = true
@@ -1044,8 +1117,8 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     next
     o &= "    declare sub Build( byval owner as TK_FORM ptr = nullptr )" & NL
     if binds then
-        o &= "    declare sub LoadFrom( byref r as " & doc.DataType & " )" & NL
-        o &= "    declare sub SaveTo( byref r as " & doc.DataType & " )" & NL
+        o &= "    declare function LoadFrom( byref r as " & doc.DataType & " ) as boolean" & NL
+        o &= "    declare function SaveTo( byref r as " & doc.DataType & " ) as boolean" & NL
     end if
     HandlerDecls_( doc, o )
     o &= "end type" & NL & NL

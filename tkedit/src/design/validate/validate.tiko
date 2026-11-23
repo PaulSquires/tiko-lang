@@ -13,6 +13,8 @@
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkKeys"
 #import "vendor/tkControls/tkLayout"
+#import "vendor/tkControls/tkBind"
+#import "std/chrono"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
@@ -21,6 +23,8 @@ using tkMeta
 using tkKeys
 using tkLayout
 using model
+using tkBind
+using chrono
 
 public function IsIdentifier( byref s as const ustring ) as boolean
     if len( s ) = 0 then return false
@@ -71,6 +75,89 @@ private function IsDottedName_( byref s as const ustring ) as boolean
         at = dot + 1
     loop
 end function
+
+private function AllDigits_( byref s as const ustring ) as boolean
+    for i as long = 1 to len( s )
+        dim as long c = asc( s, i )
+        if (c < 48) orelse (c > 57) then return false
+    next
+    return true
+end function
+
+' [+|-]digits[.digits][e[+|-]digits] (or .digits): a Minimum / Maximum that is a number.
+private function IsNumberText_( byref s as const ustring ) as boolean
+    dim as ustring t = trim( s )
+    if (left( t, 1 ) = "+") orelse (left( t, 1 ) = "-") then t = mid( t, 2 )
+    dim as long ep = instr( lcase( t ), "e" )
+    if ep then
+        dim as ustring ex = mid( t, ep + 1 )
+        if (left( ex, 1 ) = "+") orelse (left( ex, 1 ) = "-") then ex = mid( ex, 2 )
+        if (len( ex ) = 0) orelse (AllDigits_( ex ) = false) then return false
+        t = left( t, ep - 1 )
+    end if
+    dim as long dp = instr( t, "." )
+    dim as ustring a = t, b
+    if dp then a = left( t, dp - 1 ) : b = mid( t, dp + 1 )
+    if (len( a ) = 0) andalso (len( b ) = 0) then return false
+    return AllDigits_( a ) andalso AllDigits_( b )
+end function
+
+' yyyy-mm-dd, a real date: a Minimum / Maximum for a date.
+private function IsIsoDate_( byref s as const ustring ) as boolean
+    dim as LocalDate ld
+    dim as ustring t = trim( s )
+    return (len( t ) = 10) andalso LocalDate.TryParseIso( t, ld )
+end function
+
+' B2's rules on one control: with Bind, of a kind that takes them, and well formed.
+private sub CheckRules_( byref c as FormControl, byval m as TKMETA_CONTROL ptr, byref out_ as Array( of ustring ) )
+    dim as ustring set_ = catalog.RulesSet( c )
+    if len( set_ ) = 0 then exit sub
+    if len( c.Bind ) = 0 then
+        out_.Push( c.Name & ": " & set_ & " need" & iif( instr( set_, " " ), "", "s" ) & " Bind first" )
+        exit sub
+    end if
+    dim as ustring t = set_ & " "
+    dim as long at_ = 1
+    do
+        dim as long sp = instr( at_, t, " " )
+        if sp = 0 then exit do
+        dim as ustring rule = mid( t, at_, sp - at_ )
+        if catalog.RuleAllowed( m, rule ) = false then
+            out_.Push( c.Name & ": a " & m->Name & " has no " & rule & " rule" )
+            exit sub
+        end if
+        at_ = sp + 1
+    loop
+    ' Minimum / Maximum: numbers, or dates (a DatePicker's always), the two of one kind, in order
+    dim as boolean dateKind = (m->BindKind = "date"), numKind = (m->BindKind = "float")
+    dim as ustring lim( 0 to 1 ) = { c.Minimum, c.Maximum }, nm( 0 to 1 ) = { "minimum", "maximum" }
+    dim as long kinds( 0 to 1 )                  ' 0 none, 1 number, 2 date
+    for k as long = 0 to 1
+        if len( lim( k ) ) = 0 then continue for
+        if IsIsoDate_( lim( k ) ) andalso (numKind = false) then
+            kinds( k ) = 2
+        elseif IsNumberText_( lim( k ) ) andalso (dateKind = false) then
+            kinds( k ) = 1
+        else
+            out_.Push( c.Name & ": " & nm( k ) & " '" & lim( k ) & "' is not " & iif( dateKind, "a date (yyyy-mm-dd)", iif( numKind, "a number", "a number or a date (yyyy-mm-dd)" ) ) )
+            exit sub
+        end if
+    next
+    if (kinds( 0 ) <> 0) andalso (kinds( 1 ) <> 0) then
+        if kinds( 0 ) <> kinds( 1 ) then
+            out_.Push( c.Name & ": minimum and maximum must both be numbers or both dates" )
+        elseif kinds( 0 ) = 1 then
+            if val( c.Minimum ) > val( c.Maximum ) then out_.Push( c.Name & ": minimum " & c.Minimum & " is above maximum " & c.Maximum )
+        elseif trim( c.Minimum ) > trim( c.Maximum ) then
+            out_.Push( c.Name & ": minimum " & c.Minimum & " is after maximum " & c.Maximum )
+        end if
+    end if
+    if c.MaxLength < 0 then out_.Push( c.Name & ": max length " & c.MaxLength & " is below 0" )
+    if len( c.Format ) andalso (tkBind_IsFormat( c.Format ) = false) then
+        out_.Push( c.Name & ": format '" & c.Format & "' is neither a number format (.2f) nor a date pattern (dd/MM/yyyy)" )
+    end if
+end sub
 
 ' Why this name can't be a field or handler of a form, or "" when it can.
 private function NameFault_( byref s as const ustring ) as ustring
@@ -339,6 +426,7 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
                 out_.Push( c.Name & ": binding to a field needs the form's DataType first" )
             end if
         end if
+        CheckRules_( c, m, out_ )
         ' a two-value control's second field (bind2): only with the first, and only while it applies
         if len( c.Bind2 ) then
             if len( m->Bind2Kind ) = 0 then

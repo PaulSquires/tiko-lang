@@ -138,6 +138,34 @@ public sub BindPass( byref t as Tally, byval sc as single )
     t.Check( len( ps->Apply( "@Bind", "Home..City" ) ) > 0, P( sc, "a field path that is no name is refused" ) )
     t.Check( len( ps->Apply( "@Bind", "Age" ) ) = 0, P( sc, "a typed field is taken" ) )
     t.Check( c->Doc.Controls[ti].Bind = "Age", P( sc, "...into the model" ) )
+    ' ---- B2: a bound TextBox's rule rows; validation through them; they go with Bind
+    tkTest_PumpFor( h, 60 )
+    t.Check( (BindRow_( ps, "@Req" ) >= 0) andalso (BindRow_( ps, "@Min" ) >= 0) andalso (BindRow_( ps, "@Max" ) >= 0) _
+        andalso (BindRow_( ps, "@MaxLen" ) >= 0) andalso (BindRow_( ps, "@Fmt" ) >= 0), P( sc, "rules: a bound TextBox has its five rule rows" ) )
+    t.Check( len( ps->Apply( "@Min", "ten" ) ) > 0, P( sc, "rules: a Minimum that is no number is refused" ) )
+    t.Check( (len( ps->Apply( "@Min", "1" ) ) = 0) andalso (len( ps->Apply( "@Max", "120" ) ) = 0) andalso (len( ps->Apply( "@Req", "true" ) ) = 0), _
+        P( sc, "rules: Minimum, Maximum, Required taken" ) )
+    t.Check( len( ps->Apply( "@Max", "0" ) ) > 0, P( sc, "rules: a Maximum below the Minimum is refused" ) )
+    t.Check( len( ps->Apply( "@MaxLen", "abc" ) ) > 0, P( sc, "rules: a MaxLength that is no number is refused" ) )
+    t.Check( len( ps->Apply( "@Fmt", "abc" ) ) > 0, P( sc, "rules: a Format that is neither kind is refused" ) )
+    t.Check( len( ps->Apply( "@Fmt", ".1f" ) ) = 0, P( sc, "rules: a number Format taken" ) )
+    with c->Doc.Controls[ti]
+        t.Check( .Required andalso (.Minimum = "1") andalso (.Maximum = "120") andalso (.Format = ".1f"), P( sc, "rules: all in the model" ) )
+    end with
+    t.Check( ps->ValueOf( "@Req" ) = "true", P( sc, "rules: the Required row reads it back" ) )
+    c->SelectOnly( "Button1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( BindRow_( ps, "@Req" ) < 0, P( sc, "rules: a Button has no rule rows" ) )
+    c->SelectOnly( "TextBox1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( len( ps->Apply( "@Bind", "" ) ) = 0, P( sc, "rules: clearing Bind is taken" ) )
+    tkTest_PumpFor( h, 60 )
+    with c->Doc.Controls[ti]
+        t.Check( (.Required = false) andalso (len( .Minimum ) = 0) andalso (len( .Format ) = 0), P( sc, "rules: ...and takes the rules with it" ) )
+    end with
+    t.Check( BindRow_( ps, "@Req" ) < 0, P( sc, "rules: ...and the rows go" ) )
+    t.Check( len( ps->Apply( "@Bind", "Age" ) ) = 0, P( sc, "rules: bound again" ) )
+
     ' the DataType can't go while a control is bound to one of its fields
     c->SelectNone( )
     tkTest_PumpFor( h, 60 )

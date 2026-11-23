@@ -2460,9 +2460,9 @@ sub BindSuite( )
     dim as ustring t = codegen.Generate( d, "frmBind", "frmBind.tkform", "" )
     Check( instr( t, "#import ""vendor/tkControls/tkBind""" & LF & "#import ""../contactdb""" & LF ) > 0, "bind: imports tkBind and the data module" )
     Check( instr( t, LF & "using tkBind" & LF ) > 0, "bind: using tkBind" )
-    HasLine( t, "declare sub LoadFrom( byref r as contactdb.Contact )", "bind: LoadFrom declared" )
-    HasLine( t, "declare sub SaveTo( byref r as contactdb.Contact )", "bind: SaveTo declared" )
-    Check( instr( t, LF & "sub Form.LoadFrom( byref r as contactdb.Contact )" & LF ) > 0, "bind: LoadFrom defined" )
+    HasLine( t, "declare function LoadFrom( byref r as contactdb.Contact ) as boolean", "bind: LoadFrom declared" )
+    HasLine( t, "declare function SaveTo( byref r as contactdb.Contact ) as boolean", "bind: SaveTo declared" )
+    Check( instr( t, LF & "function Form.LoadFrom( byref r as contactdb.Contact ) as boolean" & LF ) > 0, "bind: LoadFrom defined" )
     HasLine( t, "tkTextBox_SetText( txtName.Handle, tkBind_Text( r.FirstName ) )", "bind: text in" )
     HasLine( t, "tkBind_Put( r.FirstName, tkTextBox_GetText( txtName.Handle ) )", "bind: text out" )
     HasLine( t, "tkCheckBox_SetChecked( chkVip.Handle, tkBind_Bool( r.Flags.Vip ) )", "bind: bool in, a nested field" )
@@ -2560,6 +2560,94 @@ sub Bind2Suite( )
     *m = keep
 end sub
 
+' B2: a bound control's rules (required, minimum, maximum, max_length, format), checked and turned
+' into SaveTo's checks, LoadFrom's read-backs and the ValidationError call.
+sub RuleSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Item""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring body = Ctl( "txtQty", "TextBox", "bind = ""Qty""" & LF & "required = true" & LF & "minimum = ""1""" & LF & "maximum = ""999""" & LF ) _
+        & Ctl( "txtWhen", "TextBox", "bind = ""When""" & LF & "format = ""dd/MM/yyyy""" & LF & "max_length = 10" & LF ) _
+        & Ctl( "nudPrice", "NumericUpDown", "bind = ""Price""" & LF & "maximum = ""500""" & LF ) _
+        & Ctl( "dtDue", "DatePicker", "bind = ""Due""" & LF & "required = true" & LF & "minimum = ""2026-01-01""" & LF ) _
+        & Ctl( "cboKind", "ComboBox", "bind = ""Kind""" & LF & "required = true" & LF ) _
+        & Ctl( "chkVip", "CheckBox", "bind = ""Vip""" & LF ) _
+        & Ctl( "lblTitle", "Label", "bind = ""Title""" & LF & "format = "".2f""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( hdr & body, d ), "rules: the form parses" )
+    dim as long q = FindControl( d, "txtQty" ), wn = FindControl( d, "txtWhen" )
+    Check( d.Controls[q].Required andalso (d.Controls[q].Minimum = "1") andalso (d.Controls[q].Maximum = "999"), "rules: required, minimum, maximum read" )
+    Check( (d.Controls[wn].Format = "dd/MM/yyyy") andalso (d.Controls[wn].MaxLength = 10), "rules: format, max_length read" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "bind = ""Qty""" & LF & "required = true" & LF & "minimum = ""1""" & LF & "maximum = ""999""" & LF ) > 0, "rules: written after bind", t1 )
+    Check( instr( t1, "max_length = 10" & LF & "format = ""dd/MM/yyyy""" & LF ) > 0, "rules: max_length then format" )
+    Check( instr( mid( t1, instr( t1, "chkVip" ) ), "required" ) = 0, "rules: none written when unset" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "rules: round trip" )
+
+    Accepted( hdr & body, "a form with rules" )
+    Refused( hdr & Ctl( "t", "TextBox", "required = true" & LF ), "t: Required needs Bind first" )
+    Refused( hdr & Ctl( "t", "TextBox", "minimum = ""1""" & LF & "maximum = ""2""" & LF ), "t: Minimum Maximum need Bind first" )
+    Refused( hdr & Ctl( "c", "CheckBox", "bind = ""V""" & LF & "required = true" & LF ), "a CheckBox has no Required rule" )
+    Refused( hdr & Ctl( "n", "NumericUpDown", "bind = ""V""" & LF & "max_length = 3" & LF ), "a NumericUpDown has no MaxLength rule" )
+    Refused( hdr & Ctl( "l", "Label", "bind = ""V""" & LF & "required = true" & LF ), "a Label has no Required rule" )
+    Refused( hdr & Ctl( "k", "ColorPicker", "bind = ""V""" & LF & "required = true" & LF ), "a ColorPicker has no Required rule" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""ten""" & LF ), "minimum 'ten' is not a number or a date" )
+    Refused( hdr & Ctl( "n", "NumericUpDown", "bind = ""V""" & LF & "minimum = ""2026-01-01""" & LF ), "minimum '2026-01-01' is not a number" )
+    Refused( hdr & Ctl( "d", "DatePicker", "bind = ""V""" & LF & "maximum = ""5""" & LF ), "maximum '5' is not a date (yyyy-mm-dd)" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""1""" & LF & "maximum = ""2026-01-01""" & LF ), "must both be numbers or both dates" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""10""" & LF & "maximum = ""2""" & LF ), "minimum 10 is above maximum 2" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "max_length = -1" & LF ), "max length -1 is below 0" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "format = ""abc""" & LF ), "format 'abc' is neither" )
+    Accepted( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""-1.5e2""" & LF & "format = ""08d""" & LF ), "a negative exponent minimum, a number format" )
+
+    dim as ustring t = codegen.Generate( d, "frmItem", "frmItem.tkform", "" )
+    HasLine( t, "declare function SaveTo( byref r as shop.Item ) as boolean", "rules: SaveTo is a function" )
+    HasLine( t, "tkBind_Check( bindErrors_, txtQty.Handle, ""Qty"", r.Qty, tkTextBox_GetText( txtQty.Handle ), tkBind_Rule( true, ""1"", ""999"", 0, """" ) )", "rules: a text box's check" )
+    HasLine( t, "tkBind_Range( bindErrors_, txtQty.Handle, ""Qty"", r.Qty, tkTextBox_GetText( txtQty.Handle ), tkBind_Rule( true, ""1"", ""999"", 0, """" ) )", "rules: ...and its range" )
+    Check( instr( t, "tkBind_Range( bindErrors_, txtWhen.Handle" ) = 0, "rules: no range without a minimum or maximum" )
+    HasLine( t, "tkBind_Check( bindErrors_, cboKind.Handle, ""Kind"", r.Kind, clngint( tkComboBox_GetCurSel( cboKind.Handle ) ), tkBind_Rule( true, """", """", 0, """", true, -1 ) )", "rules: a combo's Required knows -1" )
+    HasLine( t, "tkBind_Check( bindErrors_, nudPrice.Handle, ""Price"", r.Price, cdbl( tkNumericUpDown_GetValue( nudPrice.Handle ) ), tkBind_Rule( false, """", ""500"", 0, """" ) )", "rules: a number's check" )
+    Check( instr( t, "tkBind_Check( bindErrors_, chkVip" ) = 0, "rules: a bool isn't checked" )
+    Check( instr( t, "tkBind_Check( bindErrors_, lblTitle" ) = 0, "rules: a load-only control isn't checked" )
+    HasLine( t, "tkTextBox_SetError( txtQty.Handle, bindErrors_.Has( txtQty.Handle ) )", "rules: a text box's error mark" )
+    HasLine( t, "if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, false )", "rules: SaveTo's report" )
+    HasLine( t, "tkBind_Put( r.When, tkTextBox_GetText( txtWhen.Handle ), ""dd/MM/yyyy"" )", "rules: a write in the Format" )
+    dim as long nCheck = instr( t, "tkBind_Check( bindErrors_, txtQty" ), nReport = instr( t, "tkBind_ShowErrors( Handle, bindErrors_, false )" )
+    dim as long nWrite = instr( t, "tkBind_Put( r.Qty" )
+    Check( (nCheck > 0) andalso (nReport > nCheck) andalso (nWrite > nReport), "rules: every check, the report, then the writes" )
+    HasLine( t, "tkTextBox_SetText( txtWhen.Handle, tkBind_Text( r.When, ""dd/MM/yyyy"" ) )", "rules: a load in the Format" )
+    HasLine( t, "tkLabel_SetText( lblTitle.Handle, tkBind_Text( r.Title, "".2f"" ) )", "rules: a label's Format" )
+    HasLine( t, "tkBind_Loaded( bindErrors_, nudPrice.Handle, ""Price"", r.Price, cdbl( tkNumericUpDown_GetValue( nudPrice.Handle ) ) )", "rules: a number read back" )
+    HasLine( t, "tkBind_Loaded( bindErrors_, dtDue.Handle, ""Due"", r.Due, tkDatePicker_GetDateValue( dtDue.Handle ) )", "rules: a date read back" )
+    Check( instr( t, "tkBind_Loaded( bindErrors_, txtQty" ) = 0, "rules: text isn't read back" )
+    HasLine( t, "tkTextBox_SetError( txtQty.Handle, false )", "rules: LoadFrom clears the mark" )
+    HasLine( t, "if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, true )", "rules: LoadFrom's report" )
+
+    ' the form's ValidationError handler is called first; it alone pulls in tkBind
+    dim as FormDoc dv
+    ReadForm( hdr & LF & "[form.events]" & LF & "ValidationError = ""frm_Invalid""" & LF & body, dv )
+    dim as ustring tv = codegen.Generate( dv, "frmItem", "frmItem.tkform", "" )
+    HasLine( tv, "    frm_Invalid( bindErrors_, false, bindHandled_ )", "rules: the handler, on save" )
+    HasLine( tv, "    frm_Invalid( bindErrors_, true, bindHandled_ )", "rules: ...and on load" )
+    HasLine( tv, "declare sub frm_Invalid( byref Errors as TKBIND_ERRORS, byval Loading as boolean, byref Handled as boolean )", "rules: its declaration" )
+    dim as FormDoc dn
+    ReadForm( Header( ) & LF & "[form.events]" & LF & "ValidationError = ""frm_Invalid""" & LF & Ctl( "b", "Button" ), dn )
+    dim as ustring tn = codegen.Generate( dn, "frmN", "frmN.tkform", "" )
+    Check( (instr( tn, "#import ""vendor/tkControls/tkBind""" ) > 0) andalso (instr( tn, "LoadFrom" ) = 0), "rules: a handler with nothing bound imports tkBind, generates no LoadFrom" )
+    Check( reconcile.ImportsFor( catalog.VALIDATION_PARAMS, "" ).Count( ) = 1 andalso (reconcile.ImportsFor( catalog.VALIDATION_PARAMS, "" )[0] = "tkBind"), _
+        "rules: the user's handler file imports tkBind" )
+
+    ' paste into a form with no DataType: the rules go with the field
+    dim as ustring clip = edits.CopyText( d, Names( "txtQty" ) )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added ), "rules: paste into a form without a DataType" )
+    with noType.Controls[noType.Controls.Count( ) - 1]
+        Check( (len( .Bind ) = 0) andalso (.Required = false) andalso (len( .Minimum ) = 0) andalso (len( .Maximum ) = 0), "rules: ...drops them" )
+    end with
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -2619,5 +2707,6 @@ GlyphFileSuite( )
 FontWriterSuite( )
 BindSuite( )
 Bind2Suite( )
+RuleSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

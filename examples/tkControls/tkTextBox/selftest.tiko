@@ -551,6 +551,36 @@ sub RunPass( byval fScale as single )
     tkTest_Click( h, tkTest_CX( b2 ), tkTest_CY( b2 ) )
     tkTest_Check( "disabled: a click does not focus", tkTextBox_HasFocus( b2 ) = false )
 
+    ' ---- N: the error mark (Form Designer B2): ErrorColor, focused or not, until the user's change ----
+    tkWidget_Enable( b2, true )
+    dim as TK_WIDGET ptr er = tkTextBox_Create( tkHost_Root( h ), 106 )
+    tkTextBox_SetFont( er, f10 )
+    tkWidget_SetPos( er, tkHost_Scale( h, 340 ), tkHost_Scale( h, 250 ), tkHost_Scale( h, 200 ), ah )
+    tkTextBox_SetText( er, "abc" )
+    tkTextBox_SetBorderColor( er, &hFFFF0000ul )
+    tkTextBox_SetFocusBorderColor( er, &hFF0000FFul )
+    tkTextBox_SetErrorColor( er, &hFFFF00FFul )
+    tkTextBox_SetChangeCallback( er, @OnChange )
+    dim as long nErrChange = gChanges
+    tkTextBox_SetError( er, true )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "error: the border in ErrorColor", tkTest_PixelAt( h, er->x, er->y + ah \ 2 ) = &hFFFF00FFul, hex( tkTest_PixelAt( h, er->x, er->y + ah \ 2 ) ) )
+    tkHost_SetFocus( h, er )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "error: over the focus border too", tkTest_PixelAt( h, er->x, er->y + ah \ 2 ) = &hFFFF00FFul, hex( tkTest_PixelAt( h, er->x, er->y + ah \ 2 ) ) )
+    tkTextBox_SetText( er, "abcd" )
+    tkTest_Check( "error: a program's SetText leaves it, and SetError is silent", tkTextBox_GetError( er ) andalso (gChanges = nErrChange) )
+    TypeKeys( h, "x" )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "error: the user's change clears it", (tkTextBox_GetError( er ) = false) _
+        andalso (tkTest_PixelAt( h, er->x, er->y + ah \ 2 ) = &hFF0000FFul), hex( tkTest_PixelAt( h, er->x, er->y + ah \ 2 ) ) )
+    tkTextBox_SetError( er, true )
+    tkTextBox_SetError( er, false )
+    tkTest_Check( "error: SetError( false ) clears it", tkTextBox_GetError( er ) = false )
+    dim as TKTHEME_COLORS th = tkTheme_Of( er )
+    tkTest_Check( "error: the theme's Error", tkTextBox_ThemeColors( th ).ErrorColor = th.Error )
+    tkWidget_Destroy( er )
+
     tkHost_Destroy( h )
 end sub
 

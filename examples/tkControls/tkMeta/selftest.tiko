@@ -159,8 +159,8 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "25 controls describe a colour struct, 314 fields", (nColors = 25) andalso (nSlots = 314), nColors & " / " & nSlots )
-    tkTest_Check( "19 shape properties, 17 hidden colour properties", (nShape = 19) andalso (nHidden = 17), nShape & " / " & nHidden )
+    tkTest_Check( "25 controls describe a colour struct, 315 fields", (nColors = 25) andalso (nSlots = 315), nColors & " / " & nSlots )
+    tkTest_Check( "19 shape properties, 18 hidden colour properties", (nShape = 19) andalso (nHidden = 18), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
         andalso (tkMeta_ColorCell( btn, "", "Back", "Hot" ) = 4) andalso (tkMeta_ColorCell( btn, "", "Back", "Open" ) = -1) )
@@ -183,6 +183,7 @@ sub RunPass( byval fScale as single )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )
+    tkTest_Check( "a ComboBox's nothing-chosen is -1 (B2's Required)", (tkMeta_Find( "ComboBox" )->BindNone = "-1") andalso (len( tb->BindNone ) = 0) )
     for i as long = 0 to tkMeta_Count( ) - 1
         CheckControl( tkMeta_At( i ), h, root_, 100 + i )
     next

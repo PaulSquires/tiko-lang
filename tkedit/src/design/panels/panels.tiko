@@ -862,6 +862,8 @@ private function RowSignature_( byval c as canvas.FormCanvas ptr ) as ustring
             s &= "|" & c->Doc.Controls[i].TypeName
             ' a range Slider's BindUpper row comes and goes with its Mode
             if catalog.Bind2Holds( c->Doc.Controls[i] ) orelse (len( c->Doc.Controls[i].Bind2 ) > 0) then s &= "+b2"
+            ' B2's rule rows come with a Bind
+            if len( c->Doc.Controls[i].Bind ) then s &= "+b"
         end if
     next
     return s
@@ -1260,6 +1262,14 @@ sub DesignPanels.BuildRows( )
                 this.AddRow( "@Bind2", m0->Bind2Name, RowKind.RowText )
                 if C->OnFields then this.AddFieldButton( )
             end if
+            ' B2's rules on the bound value, those its kind takes
+            if (i0 >= 0) andalso (len( C->Doc.Controls[i0].Bind ) > 0) then
+                if catalog.RuleAllowed( m0, "Required" ) then this.AddRow( "@Req", "Required", RowKind.RowCheck )
+                if catalog.RuleAllowed( m0, "Minimum" ) then this.AddRow( "@Min", "Minimum", RowKind.RowText )
+                if catalog.RuleAllowed( m0, "Maximum" ) then this.AddRow( "@Max", "Maximum", RowKind.RowText )
+                if catalog.RuleAllowed( m0, "MaxLength" ) then this.AddRow( "@MaxLen", "MaxLength", RowKind.RowText )
+                if catalog.RuleAllowed( m0, "Format" ) then this.AddRow( "@Fmt", "Format", RowKind.RowText )
+            end if
         end if
         if (n = 1) andalso (m0->Name = catalog.CUSTOM_TYPE) then
             this.AddRow( "@CType", i18n.Tr( "designer.custom_type", "Type" ), RowKind.RowText )
@@ -1312,6 +1322,11 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@Ctx"   : return c_.ContextMenu
     case "@Bind"  : return c_.Bind
     case "@Bind2" : return c_.Bind2
+    case "@Req"   : if c_.Required then return "true" else return "false"
+    case "@Min"   : return c_.Minimum
+    case "@Max"   : return c_.Maximum
+    case "@MaxLen" : if c_.MaxLength then return str( c_.MaxLength ) else return ""
+    case "@Fmt"   : return c_.Format
     case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
@@ -1569,6 +1584,33 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
         rebuild = false
     case "@Bind"
         trial.Controls[i].Bind = trim( text )
+        ' what hangs on the field goes with it: the second field, the rules
+        if len( trial.Controls[i].Bind ) = 0 then
+            with trial.Controls[i]
+                .Bind2 = "" : .Required = false : .Minimum = "" : .Maximum = "" : .MaxLength = 0 : .Format = ""
+            end with
+        end if
+        rebuild = false
+    case "@Req"
+        trial.Controls[i].Required = (text = "true")
+        rebuild = false
+    case "@Min"
+        trial.Controls[i].Minimum = trim( text )
+        rebuild = false
+    case "@Max"
+        trial.Controls[i].Maximum = trim( text )
+        rebuild = false
+    case "@MaxLen"
+        if len( trim( text ) ) = 0 then
+            trial.Controls[i].MaxLength = 0
+        elseif ParseLong_( text, v ) then
+            trial.Controls[i].MaxLength = v
+        else
+            return badNumber
+        end if
+        rebuild = false
+    case "@Fmt"
+        trial.Controls[i].Format = trim( text )
         rebuild = false
     case "@Bind2"
         trial.Controls[i].Bind2 = trim( text )

@@ -74,6 +74,14 @@ public type FormControl
                                     ' "Address.City"); "" = not bound. See FormDoc.DataType.
     Bind2 as ustring                ' a two-value control's second field (a range Slider's upper value,
                                     ' tkMeta's Bind2Name "BindUpper"); "" = not bound.
+    ' B2's rules on a bound value (catalog.RuleAllowed says which a type takes): Required; Minimum /
+    ' Maximum, numbers or yyyy-mm-dd ("" = none); MaxLength in characters (0 = none); Format, a
+    ' std::format spec for numbers (".2f") or a date pattern ("dd/MM/yyyy").
+    Required as boolean
+    Minimum as ustring
+    Maximum as ustring
+    MaxLength as long
+    Format as ustring
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

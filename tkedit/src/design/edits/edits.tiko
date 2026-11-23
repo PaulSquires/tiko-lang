@@ -736,7 +736,10 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
             n.Parent = SettingOr( map_, lcase( c.Parent ) )
         end if
         ' a binding names a field of the form's DataType: into a form without one, it goes
-        if len( doc.DataType ) = 0 then n.Bind = "" : n.Bind2 = ""
+        if len( doc.DataType ) = 0 then
+            n.Bind = "" : n.Bind2 = ""
+            n.Required = false : n.Minimum = "" : n.Maximum = "" : n.MaxLength = 0 : n.Format = ""
+        end if
         ' a ContextMenu follows a PopupMenu pasted along, keeps one already on the form, else goes
         if len( c.ContextMenu ) then
             dim as ustring mapped = SettingOr( map_, lcase( c.ContextMenu ) )

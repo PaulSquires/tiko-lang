@@ -25,6 +25,7 @@
 # bind = { kind, get, set, load_only }: the value a designed form's LoadFrom / SaveTo moves (Form Designer B1),
 # through vendor/tkControls/tkBind. kind: text bool int float date. get = "<proc>( h ) as <kind>" (none when
 # load_only = true: LoadFrom sets it, SaveTo leaves it), set = "<proc>( h, <kind> )". tkmetagen checks both exist.
+# none = the int value that means nothing is chosen (a ComboBox's -1): what B2's Required refuses.
 # bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
 # moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
 # needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
@@ -312,6 +313,7 @@ color_fields = [
   { field="SelBackColor" },
   { field="SelForeColor" },
   { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+  { field="ErrorColor" },
 ]
 props = [
   { name="Text", kind="text", set="tkTextBox_SetText", get="tkTextBox_GetText" },
@@ -335,6 +337,7 @@ props = [
   { name="CueBannerColor", kind="color", set="tkTextBox_SetCueBannerColor", get="tkTextBox_GetCueBannerColor", inspector=false },
   { name="FocusBorderColor", kind="color", set="tkTextBox_SetFocusBorderColor", get="tkTextBox_GetFocusBorderColor", inspector=false },
   { name="OuterBackColor", kind="color", set="tkTextBox_SetOuterBackColor", get="tkTextBox_GetOuterBackColor", inspector=false },
+  { name="ErrorColor", kind="color", set="tkTextBox_SetErrorColor", get="tkTextBox_GetErrorColor", inspector=false },
   { name="CueBannerFont", kind="font", set="tkTextBox_SetCueBannerFont", get="tkTextBox_GetCueBannerFont" },
   { name="CornerRadius", kind="int", set="tkTextBox_SetCornerRadius", get="tkTextBox_GetCornerRadius", theme="CornerRadius", scale=1 },
   { name="Sel", kind="list", enum="Start:int,End:int", set="tkTextBox_SetSel", get="" },
@@ -487,7 +490,7 @@ module = "tkComboBox"
 category = "Common"
 width = 160
 height = 28
-bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel" }
+bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel", none="-1" }
 default_event = "SelChange"
 colors = { struct="TKCOMBOBOX_COLORS", get="tkComboBox_GetColors", theme="tkComboBox_ThemeColors" }
 color_fields = [

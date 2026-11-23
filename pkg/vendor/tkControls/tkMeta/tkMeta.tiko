@@ -107,6 +107,7 @@ public type TKMETA_CONTROL
     BindGet       as ustring
     BindSet       as ustring
     BindLoadOnly  as boolean
+    BindNone      as ustring       ' an int kind's "nothing chosen" (a ComboBox's "-1"), for B2's Required; "" = none
     ' A second value of a two-value control (a range Slider's upper thumb): Bind2Kind "" = none. Bind2Name
     ' is the designer's name for it ("BindUpper"); Bind2When "Prop=Shown" the property value it needs
     ' ("Mode=Range"), "" = always. LoadFrom / SaveTo move it right after the first.
@@ -184,6 +185,10 @@ private sub Bind_( byref kind as const ustring, byref getName as const ustring, 
     with gControls( gnControls - 1 )
         .BindKind = kind : .BindGet = getName : .BindSet = setName : .BindLoadOnly = bLoadOnly
     end with
+end sub
+
+private sub BindNone_( byref noneValue as const ustring )
+    gControls( gnControls - 1 ).BindNone = noneValue
 end sub
 
 private sub Bind2_( byref kind as const ustring, byref getName as const ustring, byref setName as const ustring, _

@@ -874,6 +874,14 @@ private function R_TextBox_OuterBackColor( byval w as TK_WIDGET ptr ) as ustring
     return "&h" & hex( tkTextBox_GetOuterBackColor( w ), 8 )
 end function
 
+private sub A_TextBox_ErrorColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkTextBox_SetErrorColor( w, cast( uint32, valulng( v ) ) )
+end sub
+
+private function R_TextBox_ErrorColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkTextBox_GetErrorColor( w ), 8 )
+end function
+
 private sub F_TextBox_CueBannerFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkTextBox_SetCueBannerFont( w, f )
 end sub
@@ -3554,6 +3562,7 @@ sub Fill_( )
     Color_( "SelBackColor", "", "", "", false )
     Color_( "SelForeColor", "", "", "", false )
     Color_( "ForeColorDisabled", "Fore", "Disabled", "", true )
+    Color_( "ErrorColor", "", "", "", false )
     Prop_( "Text", "text", "", "", "tkTextBox_SetText", "tkTextBox_GetText", @A_TextBox_Text, @R_TextBox_Text, 0, true, true, "", 0 )
     Prop_( "ReadOnly", "bool", "false", "", "tkTextBox_SetReadOnly", "tkTextBox_GetReadOnly", @A_TextBox_ReadOnly, @R_TextBox_ReadOnly, 0, true, true, "", 0 )
     Prop_( "PasswordChar", "int", "", "", "tkTextBox_SetPasswordChar", "tkTextBox_GetPasswordChar", @A_TextBox_PasswordChar, @R_TextBox_PasswordChar, 0, true, true, "", 0 )
@@ -3575,6 +3584,7 @@ sub Fill_( )
     Prop_( "CueBannerColor", "color", "", "", "tkTextBox_SetCueBannerColor", "tkTextBox_GetCueBannerColor", @A_TextBox_CueBannerColor, @R_TextBox_CueBannerColor, 0, true, false, "", 0 )
     Prop_( "FocusBorderColor", "color", "", "", "tkTextBox_SetFocusBorderColor", "tkTextBox_GetFocusBorderColor", @A_TextBox_FocusBorderColor, @R_TextBox_FocusBorderColor, 0, true, false, "", 0 )
     Prop_( "OuterBackColor", "color", "", "", "tkTextBox_SetOuterBackColor", "tkTextBox_GetOuterBackColor", @A_TextBox_OuterBackColor, @R_TextBox_OuterBackColor, 0, true, false, "", 0 )
+    Prop_( "ErrorColor", "color", "", "", "tkTextBox_SetErrorColor", "tkTextBox_GetErrorColor", @A_TextBox_ErrorColor, @R_TextBox_ErrorColor, 0, true, false, "", 0 )
     Prop_( "CueBannerFont", "font", "", "", "tkTextBox_SetCueBannerFont", "tkTextBox_GetCueBannerFont", 0, 0, @F_TextBox_CueBannerFont, true, true, "", 0 )
     Prop_( "CornerRadius", "int", "", "", "tkTextBox_SetCornerRadius", "tkTextBox_GetCornerRadius", @A_TextBox_CornerRadius, @R_TextBox_CornerRadius, 0, true, true, "CornerRadius", 1 )
     Prop_( "Sel", "list", "", "Start:int,End:int", "tkTextBox_SetSel", "", @A_TextBox_Sel, 0, 0, true, true, "", 0 )
@@ -3694,6 +3704,7 @@ sub Fill_( )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "ComboBox", "tkComboBox", "Common", 160, 28, "SelChange", "", @C_ComboBox, "", "", "", "" )
     Bind_( "int", "tkComboBox_GetCurSel", "tkComboBox_SetCurSel", false )
+    BindNone_( "-1" )
     Colors_( "TKCOMBOBOX_COLORS", "tkComboBox_GetColors", "tkComboBox_ThemeColors", @G_ComboBox, @T_ComboBox )
     Color_( "BackColor", "Back", "Normal", "", false )
     Color_( "ForeColor", "Fore", "Normal", "", true )
