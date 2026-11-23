@@ -258,7 +258,7 @@ end function
 ' a time, so validate lets them be missing; the generated file says so with an #error instead.
 public function ListMissing( byref c as FormControl ) as ustring
     dim as ustring shape = ItemsBindOf( c )
-    if (len( shape ) = 0) orelse (HasListSource( c ) = false) then return ""
+    if ((shape <> "rows") andalso (shape <> "items")) orelse (HasListSource( c ) = false) then return ""
     if len( c.ItemType ) = 0 then return "its list needs an ItemType, the type of its elements"
     if (shape = "items") andalso (len( c.DisplayField ) = 0) then return "its list needs a DisplayField, the text each item shows"
     if shape = "rows" then
@@ -272,10 +272,39 @@ end function
 
 ' A list that is filled from an array, complete enough to generate.
 public function ListReady( byref c as FormControl ) as boolean
-    return (len( ItemsBindOf( c ) ) > 0) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
+    dim as ustring shape = ItemsBindOf( c )
+    return ((shape = "rows") orelse (shape = "items")) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
 end function
 
 ' A ComboBox that binds its items' ValueField rather than its index.
 public function BindsByValue( byref c as FormControl ) as boolean
     return (ItemsBindOf( c ) = "items") andalso ListReady( c ) andalso (len( c.ValueField ) > 0) andalso (len( c.Bind ) > 0)
+end function
+
+' ---- B4: the record navigator ------------------------------------------------------------------
+public function IsNavigator( byref c as FormControl ) as boolean
+    return ItemsBindOf( c ) = "records"
+end function
+
+' The form's navigator, wired: it steps through ItemsSource, an Array( of DataType ). -1 when the
+' form has none, or it has no ItemsSource or the form no DataType yet.
+public function NavReady( byref doc as FormDoc ) as long
+    if len( doc.DataType ) = 0 then return -1
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        if IsNavigator( doc.Controls[i] ) andalso (len( doc.Controls[i].ItemsSource ) > 0) then return i
+    next
+    return -1
+end function
+
+' The list control a wired navigator follows, ready (B3), or -1.
+public function NavList( byref doc as FormDoc ) as long
+    dim as long ni = NavReady( doc )
+    if (ni < 0) orelse (len( doc.Controls[ni].Follows ) = 0) then return -1
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        if lcase( doc.Controls[i].Name ) = lcase( doc.Controls[ni].Follows ) then
+            if ListReady( doc.Controls[i] ) then return i
+            return -1
+        end if
+    next
+    return -1
 end function

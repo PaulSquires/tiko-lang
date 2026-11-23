@@ -383,6 +383,42 @@ sub Pick_( )
     tkTest_Check( "LoadedPick: empty, 0 and a found value are fine", e.Count = 0, e.Text( ) )
 end sub
 
+' ---- B4: tkBind_Differs, what IsDirty asks per bound value --------------------------------------
+sub Differs_( )
+    tkTest_Begin( "differs (B4)" )
+    dim as long l = 42
+    dim as ubyte ub = 7
+    dim as double db = 2.5
+    dim as boolean bo = true
+    dim as ustring us = "Ada"
+    dim as TKDATE dt = tkCalendar_MakeDate( 2026, 3, 5 )
+    dim as LocalDate ld = LocalDate( 2026, 3, 5 )
+    dim as DateTime stamp = DateTime( 2026, 3, 5 )
+    tkTest_Check( "text: the same number, spaced", tkBind_Differs( l, " 42 ", "" ) = false )
+    tkTest_Check( "text: another number", tkBind_Differs( l, "43", "" ) )
+    tkTest_Check( "text: no number differs", tkBind_Differs( l, "abc", "" ) )
+    tkTest_Check( "text: 2.50 is 2.5", tkBind_Differs( db, "2.50", "" ) = false )
+    dim as ubyte ub0 = 0
+    tkTest_Check( "text: empty is 0", tkBind_Differs( ub, "", "" ) andalso (tkBind_Differs( ub0, "", "" ) = false) )
+    tkTest_Check( "text: yes is true", (tkBind_Differs( bo, "Yes", "" ) = false) andalso tkBind_Differs( bo, "no", "" ) )
+    tkTest_Check( "text: a text field compares as typed", (tkBind_Differs( us, "Ada", "" ) = false) andalso tkBind_Differs( us, "Ada ", "" ) )
+    tkTest_Check( "text: a date in the Format", (tkBind_Differs( dt, "05/03/2026", "dd/MM/yyyy" ) = false) andalso tkBind_Differs( ld, "06/03/2026", "dd/MM/yyyy" ) )
+    tkTest_Check( "text: no date differs from a date", tkBind_Differs( dt, "", "" ) )
+    tkTest_Check( "bool kind", (tkBind_Differs( bo, true ) = false) andalso tkBind_Differs( l, false ) andalso (tkBind_Differs( l, true ) = false) )
+    tkTest_Check( "int kind", (tkBind_Differs( l, clngint( 42 ) ) = false) andalso tkBind_Differs( ub, clngint( 8 ) ) )
+    tkTest_Check( "float kind, a tolerance", (tkBind_Differs( db, 2.5 + 1e-12 ) = false) andalso tkBind_Differs( db, 2.6 ) )
+    dim as ustring s15 = "1.5"
+    tkTest_Check( "float kind into a text field", (tkBind_Differs( us, 1.0 ) = true) andalso (tkBind_Differs( s15, 1.5 ) = false) )
+    tkTest_Check( "date kind", (tkBind_Differs( dt, tkCalendar_MakeDate( 2026, 3, 5 ) ) = false) andalso tkBind_Differs( ld, tkCalendar_MakeDate( 2026, 3, 6 ) ) )
+    tkTest_Check( "date kind on a DateTime", (tkBind_Differs( stamp, tkCalendar_MakeDate( 2026, 3, 5 ) ) = false) andalso tkBind_Differs( stamp, tkCalendar_MakeDate( 2027, 1, 1 ) ) )
+    dim as Array( of ustring ) vals
+    vals.Push( "NZ" ) : vals.Push( "AU" )
+    dim as ustring code = "AU"
+    dim as long id_ = 0
+    tkTest_Check( "pick: the chosen value", (tkBind_DiffersPick( code, vals, 1 ) = false) andalso tkBind_DiffersPick( code, vals, 0 ) )
+    tkTest_Check( "pick: no choice and 0 / empty are the same", (tkBind_DiffersPick( id_, vals, -1 ) = false) andalso tkBind_DiffersPick( code, vals, -1 ) )
+end sub
+
 if tkTest_Init() = false then end 99
 tkTest_Begin( "conversions" )
 Text_( )
@@ -392,6 +428,7 @@ Float_( )
 Date_( )
 Strict_( )
 Pick_( )
+Differs_( )
 Controls_( )
 dim as long nFail = tkTest_Report( "tkBind" )
 tkTest_Quit()

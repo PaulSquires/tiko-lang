@@ -30,6 +30,7 @@
 # rows = a ListTree (a row per element, a column per field, the check from a bool field), items = a
 # ComboBox (DisplayField shown, ValueField the value Bind moves). AutoComplete, CheckedList and DataGrid
 # are to take one of these shapes, or add theirs here.
+# records = a Navigator (B4): it steps through an Array( of <the form's DataType> ), loading each record.
 # bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
 # moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
 # needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
@@ -1160,6 +1161,34 @@ events = [
   { name="Paint", set="tkSelectBar_SetPaintPanelCallback", type="SEL_PaintPanelCallbackSub", sig="byval p as TKSELECTBAR_PAINTINFO ptr", params="byval p as TKSELECTBAR_PAINTINFO ptr", args="p", widget="p->hSelectBar" },
   { name="Message", set="tkSelectBar_SetMessageCallback", type="SEL_MessageCallbackFunc", sig="byval m as TKSELECTBAR_MESSAGEINFO ptr", params="byval m as TKSELECTBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSelectBar", returns="boolean", result="Handled" },
   { name="Tooltip", set="tkSelectBar_SetTooltipCallback", type="SEL_TooltipCallbackFunc", sig="byval hSelectBar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+]
+
+[[control]]
+name = "Navigator"
+module = "tkNavigator"
+category = "Lists"
+width = 260
+height = 30
+items_bind = "records"
+default_event = "Navigate"
+colors = { struct="TKNAVIGATOR_COLORS", get="tkNavigator_GetColors", theme="tkNavigator_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="ButtonBackHot", part="Back", state="Hot" },
+  { field="ButtonBackPressed", part="Back", state="Pressed" },
+  { field="GlyphColor", part="Glyph", state="Normal", ink=true },
+  { field="GlyphColorDisabled", part="Glyph", state="Disabled", ink=true },
+  { field="TextColor", part="Fore", state="Normal", ink=true },
+]
+props = [
+  { name="Font", kind="font", set="tkNavigator_SetFont", get="tkNavigator_GetFont" },
+  { name="ShowNew", kind="bool", set="tkNavigator_SetShowNew", get="tkNavigator_GetShowNew", default="true" },
+  { name="ShowDelete", kind="bool", set="tkNavigator_SetShowDelete", get="tkNavigator_GetShowDelete", default="true" },
+  { name="PositionText", kind="text", set="tkNavigator_SetPositionText", get="tkNavigator_GetPositionText", default="{1} of {2}" },
+]
+events = [
+  { name="Navigate", set="tkNavigator_SetNavigateCallback", type="NAV_NavigateCallbackFunc", sig="byval hNav as TK_WIDGET ptr, byval action as int32, byval target as int32", params="byval action as int32, byval target as int32, byref Allow as boolean", args="action, target, Allow", returns="boolean", result="Allow", result_init="true" },
 ]
 
 [[control]]

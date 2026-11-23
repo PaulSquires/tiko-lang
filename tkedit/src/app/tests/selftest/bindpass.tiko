@@ -244,6 +244,20 @@ public sub BindPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 60 )
     t.Check( (BindRow_( ps, "@Check" ) >= 0) andalso (BindRow_( ps, "@Display" ) < 0), P( sc, "list: a ListTree has CheckField, no DisplayField" ) )
 
+    ' ---- B4: a Navigator's rows: its records and the list it follows
+    trial = c->Doc
+    edits.AddControl( trial, "Navigator", "", -1, 20, 280, 260, 30 )
+    t.Check( len( c->ApplyEdit( trial, true, "" ) ) = 0, P( sc, "nav: a Navigator" ) )
+    c->SelectOnly( "Navigator1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (BindRow_( ps, "@ItemsSource" ) >= 0) andalso (BindRow_( ps, "@Follows" ) >= 0) andalso (BindRow_( ps, "@ItemsField" ) < 0) _
+        andalso (BindRow_( ps, "@Display" ) < 0), P( sc, "nav: ItemsSource and Follows, no other list rows" ) )
+    t.Check( len( ps->Apply( "@ItemsSource", "Staff" ) ) = 0, P( sc, "nav: its records" ) )
+    t.Check( len( ps->Apply( "@Follows", "ListTree1" ) ) > 0, P( sc, "nav: following a list on other records is refused" ) )
+    t.Check( len( ps->Apply( "@Follows", "ComboBox1" ) ) = 0, P( sc, "nav: following the combo on Staff is taken" ) )
+    dim as long nv = FindControl( c->Doc, "Navigator1" )
+    t.Check( (nv >= 0) andalso (c->Doc.Controls[nv].Follows = "ComboBox1") andalso (ps->ValueOf( "@Follows" ) = "ComboBox1"), P( sc, "nav: in the model and the row" ) )
+
     mw.Db.Remove( "c:\bindpass\people.tiko" )
     mw.Destroy( )
 end sub

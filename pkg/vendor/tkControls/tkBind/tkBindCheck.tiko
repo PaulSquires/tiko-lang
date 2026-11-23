@@ -838,3 +838,131 @@ public sub tkBind_PutPick( byref f as ustring, byref values as Array( of ustring
 public sub tkBind_PutPick( byref f as string, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
 public sub tkBind_PutPick( byref f as TKDATE, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
 public sub tkBind_PutPick( byref f as LocalDate, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+
+' ---- B4: comparing for IsDirty ----------------------------------------------------------------
+
+private function DiffReal_( byval held as float64, byval shown as float64 ) as boolean
+    dim as float64 scale_ = abs( held )
+    if scale_ < 1 then scale_ = 1
+    return abs( held - shown ) > 1e-9 * scale_
+end function
+
+' A number field against text: empty text is 0; text that is no number differs.
+private function DiffNum_( byval held as float64, byref v as const ustring ) as boolean
+    dim as float64 x
+    if len( trim( v ) ) = 0 then return DiffReal_( held, 0 )
+    if ParseReal_( v, x ) = false then return true
+    return DiffReal_( held, x )
+end function
+
+private function DiffBool_( byval held as boolean, byref v as const ustring ) as boolean
+    dim as boolean b
+    if len( trim( v ) ) = 0 then return held
+    if ParseBool_( v, b ) = false then return true
+    return b <> held
+end function
+
+' A date field against text in fmt (or ISO): empty text is no date; text that is no date differs.
+private function DiffDate_( byref held as const TKDATE, byref v as const ustring, byref fmt as const ustring ) as boolean
+    dim as TKDATE d
+    if ParseDate_( v, fmt, d ) = false then return true
+    return IsoB2_( d ) <> IsoB2_( held )
+end function
+
+' Two value texts the same, "" and "0" both standing for no value.
+private function SamePick_( byref a as const ustring, byref b as const ustring ) as boolean
+    dim as ustring x = trim( a ), y = trim( b )
+    if (x = "0") then x = ""
+    if (y = "0") then y = ""
+    return x = y
+end function
+
+' ---- B4: does the control show something else than the field holds? (IsDirty, per value) -----
+' Text is read strictly (text that is no number differs from any number); numbers within a float
+' tolerance; dates by day. A by-value ComboBox: its chosen value's text against the field's, with
+' "" and "0" both no value. Nothing here writes.
+
+public function tkBind_Differs overload( byref f as boolean, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffBool_( f, v ) : end function
+public function tkBind_Differs( byref f as byte, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as ubyte, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as short, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as ushort, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as long, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as ulong, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as longint, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as ulongint, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as integer, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as uinteger, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as single, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as double, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffNum_( f, v ) : end function
+public function tkBind_Differs( byref f as ustring, byref v as const ustring, byref fmt as const ustring ) as boolean : return f <> v : end function
+public function tkBind_Differs( byref f as string, byref v as const ustring, byref fmt as const ustring ) as boolean : return f <> v : end function
+public function tkBind_Differs( byref f as TKDATE, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffDate_( f, v, fmt ) : end function
+public function tkBind_Differs( byref f as LocalDate, byref v as const ustring, byref fmt as const ustring ) as boolean : return DiffDate_( DateOfLocalB2_( f ), v, fmt ) : end function
+public function tkBind_Differs( byref f as boolean, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as byte, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as ubyte, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as short, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as ushort, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as long, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as ulong, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as longint, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as ulongint, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as integer, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as uinteger, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as single, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as double, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as ustring, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as string, byval v as boolean ) as boolean : return tkBind_Bool( f ) <> v : end function
+public function tkBind_Differs( byref f as boolean, byval v as longint ) as boolean : return DiffReal_( iif( f, 1.0, 0.0 ), v ) : end function
+public function tkBind_Differs( byref f as byte, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ubyte, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as short, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ushort, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as long, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ulong, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as longint, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ulongint, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as integer, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as uinteger, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as single, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as double, byval v as longint ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ustring, byval v as longint ) as boolean : return DiffNum_( cdbl( v ), f ) : end function
+public function tkBind_Differs( byref f as string, byval v as longint ) as boolean : return DiffNum_( cdbl( v ), f ) : end function
+public function tkBind_Differs( byref f as boolean, byval v as float64 ) as boolean : return DiffReal_( iif( f, 1.0, 0.0 ), v ) : end function
+public function tkBind_Differs( byref f as byte, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ubyte, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as short, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ushort, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as long, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ulong, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as longint, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ulongint, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as integer, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as uinteger, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as single, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as double, byval v as float64 ) as boolean : return DiffReal_( f, v ) : end function
+public function tkBind_Differs( byref f as ustring, byval v as float64 ) as boolean : return DiffNum_( cdbl( v ), f ) : end function
+public function tkBind_Differs( byref f as string, byval v as float64 ) as boolean : return DiffNum_( cdbl( v ), f ) : end function
+public function tkBind_Differs( byref f as ustring, byref v as const TKDATE ) as boolean : return DiffDate_( v, f, "" ) : end function
+public function tkBind_Differs( byref f as string, byref v as const TKDATE ) as boolean : return DiffDate_( v, f, "" ) : end function
+public function tkBind_Differs( byref f as TKDATE, byref v as const TKDATE ) as boolean : return IsoB2_( f ) <> IsoB2_( v ) : end function
+public function tkBind_Differs( byref f as LocalDate, byref v as const TKDATE ) as boolean : return IsoB2_( DateOfLocalB2_( f ) ) <> IsoB2_( v ) : end function
+public function tkBind_Differs( byref f as DateTime, byref v as const TKDATE ) as boolean : return IsoB2_( DateOfDateTimeB3_( f ) ) <> IsoB2_( v ) : end function
+public function tkBind_DiffersPick overload( byref f as boolean, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as byte, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as ubyte, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as short, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as ushort, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as long, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as ulong, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as longint, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as ulongint, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as integer, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as uinteger, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as single, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as double, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as ustring, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as string, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as TKDATE, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function
+public function tkBind_DiffersPick( byref f as LocalDate, byref values as Array( of ustring ), byval sel as long ) as boolean : return SamePick_( tkBind_Text( f ), PickText_( values, sel ) ) = false : end function

@@ -46,7 +46,7 @@ end function
 
 ' What FormBase and the generated Form already use, and the names a field must not hide.
 private function IsFormMember_( byref s as const ustring ) as boolean
-    const as string MEMBERS = " handle layout build show showmodal endmodal close isopen openwindow form this base loadfrom saveto "
+    const as string MEMBERS = " handle layout build show showmodal endmodal close isopen openwindow form this base loadfrom saveto isdirty "
     return instr( MEMBERS, " " & lcase( s ) & " " ) > 0
 end function
 
@@ -194,6 +194,7 @@ end function
 
 ' B3's list binding on one control.
 private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as TKMETA_CONTROL ptr, byref out_ as Array( of ustring ) )
+    if m->ItemsBind = "records" then exit sub           ' a navigator: CheckNav_
     dim as boolean anyField = false
     for each it as FormItem in c.Items
         if len( it.Field ) then anyField = true
@@ -250,6 +251,59 @@ private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as
         next
     end if
 end sub
+
+' B4: a navigator steps through ItemsSource, an Array( of DataType ) it changes (New, Delete), so
+' a name, not a call; it may follow a B3 list control over the same array. One per form.
+private sub CheckNav_( byref doc as FormDoc, byref c as FormControl, byval m as TKMETA_CONTROL ptr, byref out_ as Array( of ustring ) )
+    if m->ItemsBind <> "records" then
+        if len( c.Follows ) then out_.Push( c.Name & ": only a Navigator follows a list" )
+        exit sub
+    end if
+    if len( c.ItemsField ) orelse len( c.ItemType ) orelse len( c.DisplayField ) orelse len( c.ValueField ) orelse len( c.CheckField ) then
+        out_.Push( c.Name & ": a Navigator takes ItemsSource (its records) and Follows, nothing else of a list" )
+    end if
+    if len( c.ItemsSource ) then
+        if IsDottedName_( c.ItemsSource ) = false then
+            out_.Push( c.Name & ": a Navigator's records must be an array it can change, a name (People), not '" & c.ItemsSource & "'" )
+        elseif len( doc.DataType ) = 0 then
+            out_.Push( c.Name & ": a Navigator needs the form's DataType first, the type of its records" )
+        end if
+    elseif len( c.Follows ) then
+        out_.Push( c.Name & ": Follows needs the Navigator's ItemsSource first" )
+    end if
+    if len( c.Follows ) andalso len( c.ItemsSource ) then
+        dim as long fi = -1
+        for k as long = 0 to doc.Controls.Count( ) - 1
+            if lcase( doc.Controls[k].Name ) = lcase( c.Follows ) then fi = k : exit for
+        next
+        if fi < 0 then
+            out_.Push( c.Name & ": follows '" & c.Follows & "', which is not on the form" )
+        else
+            dim as ustring shape = catalog.ItemsBindOf( doc.Controls[fi] )
+            if (shape <> "rows") andalso (shape <> "items") then
+                out_.Push( c.Name & ": follows '" & c.Follows & "', which is no ListTree or ComboBox" )
+            elseif lcase( trim( doc.Controls[fi].ItemsSource ) ) <> lcase( trim( c.ItemsSource ) ) then
+                out_.Push( c.Name & ": follows '" & c.Follows & "', whose ItemsSource is not " & c.ItemsSource )
+            end if
+        end if
+    end if
+    dim as long nNav = 0
+    for each o as FormControl in doc.Controls
+        if catalog.IsNavigator( o ) then nNav += 1
+        dim as ustring ln = lcase( o.Name )
+        if (ln <> lcase( c.Name )) andalso ((ln = lcase( c.Name & "_MoveTo" )) orelse (ln = lcase( c.Name & "_Refresh" )) orelse (ln = lcase( c.Name & "_Current" ))) then
+            out_.Push( o.Name & ": the name is taken by " & c.Name & "'s records" )
+        end if
+    next
+    if (nNav > 1) andalso (lcase( c.Name ) = lcase( FirstNav_( doc ) )) then out_.Push( c.Name & ": a form has one Navigator" )
+end sub
+
+private function FirstNav_( byref doc as FormDoc ) as ustring
+    for each o as FormControl in doc.Controls
+        if catalog.IsNavigator( o ) then return o.Name
+    next
+    return ""
+end function
 
 ' Why this name can't be a field or handler of a form, or "" when it can.
 private function NameFault_( byref s as const ustring ) as ustring
@@ -520,6 +574,7 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         end if
         CheckRules_( c, m, out_ )
         CheckList_( doc, c, m, out_ )
+        CheckNav_( doc, c, m, out_ )
         ' a two-value control's second field (bind2): only with the first, and only while it applies
         if len( c.Bind2 ) then
             if len( m->Bind2Kind ) = 0 then

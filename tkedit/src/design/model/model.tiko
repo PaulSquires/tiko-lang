@@ -93,6 +93,7 @@ public type FormControl
     DisplayField as ustring
     ValueField as ustring
     CheckField as ustring
+    Follows as ustring              ' a Navigator (B4): the list control (ListTree, ComboBox) on its records
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

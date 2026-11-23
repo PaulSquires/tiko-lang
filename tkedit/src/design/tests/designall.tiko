@@ -2758,6 +2758,78 @@ sub ListSuite( )
     end with
 end sub
 
+' B4: the record navigator -- its records (ItemsSource), the list it follows, the generated IsDirty /
+' MoveTo / Refresh / Go_, and its thunks.
+sub NavSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""pd.Person""" & LF & "data_module = ""../pd""" & LF
+    dim as ustring lst = Ctl( "lstP", "ListTree", "items_source = ""People""" & LF & "item_type = ""pd.Person""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""Name""" & LF & "field = ""Name""" & LF
+    dim as ustring boxes = Ctl( "txtName", "TextBox", "bind = ""Name""" & LF & "format = """"" & LF ) _
+        & Ctl( "chkVip", "CheckBox", "bind = ""Vip""" & LF ) & Ctl( "nudAge", "NumericUpDown", "bind = ""Age""" & LF )
+    dim as ustring nav = Ctl( "navP", "Navigator", "items_source = ""People""" & LF & "follows = ""lstP""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( hdr & lst & boxes & nav, d ), "nav: the form parses" )
+    Check( d.Controls[FindControl( d, "navP" )].Follows = "lstP", "nav: follows read" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "items_source = ""People""" & LF & "follows = ""lstP""" & LF ) > 0, "nav: follows written", t1 )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "nav: round trip" )
+
+    Accepted( hdr & lst & boxes & nav, "a navigator following a list" )
+    Accepted( hdr & Ctl( "n", "Navigator" ), "a navigator with no records yet" )
+    Refused( hdr & lst & Ctl( "b", "Button", "follows = ""lstP""" & LF ), "only a Navigator follows a list" )
+    Refused( hdr & Ctl( "n", "Navigator", "items_source = ""pd.All( )""" & LF ), "a name (People), not 'pd.All( )'" )
+    Refused( Header( ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF ), "a Navigator needs the form's DataType first" )
+    Refused( hdr & Ctl( "n", "Navigator", "follows = ""lstP""" & LF ) & lst, "Follows needs the Navigator's ItemsSource first" )
+    Refused( hdr & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""lstX""" & LF ), "follows 'lstX', which is not on the form" )
+    Refused( hdr & Ctl( "b", "Button" ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""b""" & LF ), "which is no ListTree or ComboBox" )
+    Refused( hdr & lst & Ctl( "n", "Navigator", "items_source = ""Others""" & LF & "follows = ""lstP""" & LF ), "whose ItemsSource is not Others" )
+    Refused( hdr & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "display_field = ""Name""" & LF ), "a Navigator takes ItemsSource (its records) and Follows" )
+    Refused( hdr & Ctl( "n", "Navigator" ) & Ctl( "m", "Navigator" ), "a form has one Navigator" )
+    Refused( hdr & nav & lst & Ctl( "navP_MoveTo", "Button" ), "navP_MoveTo: the name is taken by navP's records" )
+    Refused( hdr & Ctl( "IsDirty", "Button" ), "control 'IsDirty' is already a member of every form" )
+
+    dim as ustring t = codegen.Generate( d, "frmP", "frmP.tkform", "" )
+    HasLine( t, "declare function IsDirty( byref r as pd.Person ) as boolean", "nav: IsDirty declared" )
+    HasLine( t, "declare function navP_MoveTo( byval i as long ) as boolean", "nav: MoveTo declared" )
+    HasLine( t, "declare sub navP_Refresh( )", "nav: Refresh declared" )
+    HasLine( t, "declare sub navP_FromList_( )", "nav: FromList_ declared" )
+    HasLine( t, "if tkBind_Differs( r.Name, tkTextBox_GetText( txtName.Handle ), """" ) then return true", "nav: IsDirty asks a text box" )
+    HasLine( t, "if tkBind_Differs( r.Vip, tkCheckBox_GetChecked( chkVip.Handle ) ) then return true", "nav: ...a check box" )
+    HasLine( t, "if tkBind_Differs( r.Age, cdbl( tkNumericUpDown_GetValue( nudAge.Handle ) ) ) then return true", "nav: ...a number" )
+    HasLine( t, "dim byref as Array( of pd.Person ) a_ = People", "nav: the records by reference" )
+    HasLine( t, "if SaveTo( a_[cur] ) = false then return false", "nav: a changed record is saved first, and may refuse" )
+    HasLine( t, "navP_ListRow_( cur )", "nav: ...and its row updated" )
+    HasLine( t, "tkListTree_SetCurSel( lstP.Handle, i )", "nav: the list follows a move" )
+    HasLine( t, "tkListTree_SetCellText( lstP.Handle, i, 0, tkBind_Text( a_[i].Name ) )", "nav: a row's cells from its record" )
+    HasLine( t, "lstP_Fill( )", "nav: Refresh refills the list" )
+    HasLine( t, "a_.Push( blank_ )", "nav: New appends a blank record" )
+    HasLine( t, "a_.Remove( cur )", "nav: Delete removes the current one" )
+    HasLine( t, "tkNavigator_SetNavigateCallback( navP.Handle, @Thunk_navP_Navigate )", "nav: Navigate wired with no handler" )
+    HasLine( t, "tkListTree_SetSelChangeCallback( lstP.Handle, @Thunk_lstP_SelChange )", "nav: the list's SelChange wired with no handler" )
+    Check( instr( t, "    if Allow then f->navP_Go_( action, target )" & LF & "    return false" ) > 0, "nav: the thunk goes, and the navigator takes nothing itself" )
+    HasLine( t, "f->navP_FromList_( )", "nav: the list's thunk moves the navigator" )
+
+    ' a user's handlers: Navigate's first (it may say no), the list's after the move
+    dim as FormDoc dh
+    ReadForm( hdr & lst & LF & "[control.events]" & LF & "SelChange = ""lstP_Sel""" & LF & boxes & nav & LF & "[control.events]" & LF & "Navigate = ""navP_Nav""" & LF, dh )
+    dim as ustring th = codegen.Generate( dh, "frmP", "frmP.tkform", "" )
+    dim as long a1 = instr( th, "    f->navP_Nav( action, target, Allow )" ), a2 = instr( th, "    if Allow then f->navP_Go_( action, target )" )
+    Check( (a1 > 0) andalso (a2 > a1), "nav: the Navigate handler runs before the go", LineWith( th, "navP_Nav" ) )
+    dim as long b1 = instr( th, "    f->navP_FromList_( )" ), b2 = instr( th, "    f->lstP_Sel( row )" )
+    Check( (b1 > 0) andalso (b2 > b1), "nav: the list handler runs after the follow", LineWith( th, "lstP_Sel" ) )
+
+    ' a navigator with no list, and one with no records yet
+    dim as FormDoc dn
+    ReadForm( hdr & boxes & Ctl( "navP", "Navigator", "items_source = ""People""" & LF ), dn )
+    dim as ustring tn = codegen.Generate( dn, "frmP", "frmP.tkform", "" )
+    Check( (instr( tn, "navP_MoveTo" ) > 0) andalso (instr( tn, "FromList_" ) = 0) andalso (instr( tn, "ListRow_" ) = 0), "nav: no list, no list code" )
+    dim as FormDoc de
+    ReadForm( hdr & boxes & Ctl( "navP", "Navigator" ), de )
+    Check( instr( codegen.Generate( de, "frmP", "frmP.tkform", "" ), "navP_MoveTo" ) = 0, "nav: no records, no wiring" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -2819,5 +2891,6 @@ BindSuite( )
 Bind2Suite( )
 RuleSuite( )
 ListSuite( )
+NavSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

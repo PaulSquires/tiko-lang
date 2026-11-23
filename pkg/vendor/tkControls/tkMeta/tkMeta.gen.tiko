@@ -26,6 +26,7 @@
 #import "../tkSplitter"
 #import "../tkListTree"
 #import "../tkSelectBar"
+#import "../tkNavigator"
 #import "../tkTabBar"
 #import "../tkColumnHeader"
 #import "../tkMenuBar"
@@ -64,6 +65,7 @@ using tkScrollPanel
 using tkSplitter
 using tkListTree
 using tkSelectBar
+using tkNavigator
 using tkTabBar
 using tkColumnHeader
 using tkMenuBar
@@ -2844,6 +2846,46 @@ private function R_SelectBar_SelectedIndex( byval w as TK_WIDGET ptr ) as ustrin
     return str( tkSelectBar_GetCurSel( w ) )
 end function
 
+private function C_Navigator( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkNavigator_Create( hParent, id )
+end function
+
+private sub G_Navigator( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkNavigator_GetColors( w, cast( TKNAVIGATOR_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Navigator( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKNAVIGATOR_COLORS ptr, pSlots ) = tkNavigator_ThemeColors( t )
+end sub
+
+private sub F_Navigator_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkNavigator_SetFont( w, f )
+end sub
+
+private sub A_Navigator_ShowNew( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNavigator_SetShowNew( w, cbool( v = "true" ) )
+end sub
+
+private function R_Navigator_ShowNew( byval w as TK_WIDGET ptr ) as ustring
+    if tkNavigator_GetShowNew( w ) then return "true" else return "false"
+end function
+
+private sub A_Navigator_ShowDelete( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNavigator_SetShowDelete( w, cbool( v = "true" ) )
+end sub
+
+private function R_Navigator_ShowDelete( byval w as TK_WIDGET ptr ) as ustring
+    if tkNavigator_GetShowDelete( w ) then return "true" else return "false"
+end function
+
+private sub A_Navigator_PositionText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNavigator_SetPositionText( w, v )
+end sub
+
+private function R_Navigator_PositionText( byval w as TK_WIDGET ptr ) as ustring
+    return tkNavigator_GetPositionText( w )
+end function
+
 private function C_TabBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkTabBar_Create( hParent, id )
 end function
@@ -4423,6 +4465,22 @@ sub Fill_( )
     Event_( "Paint", "tkSelectBar_SetPaintPanelCallback", "SEL_PaintPanelCallbackSub", "byval p as TKSELECTBAR_PAINTINFO ptr", "byval p as TKSELECTBAR_PAINTINFO ptr", "p", "p->hSelectBar", "", "" )
     Event_( "Message", "tkSelectBar_SetMessageCallback", "SEL_MessageCallbackFunc", "byval m as TKSELECTBAR_MESSAGEINFO ptr", "byval m as TKSELECTBAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hSelectBar", "boolean", "Handled" )
     Event_( "Tooltip", "tkSelectBar_SetTooltipCallback", "SEL_TooltipCallbackFunc", "byval hSelectBar as TK_WIDGET ptr, byval idx as int32", "byval idx as int32, byref Text as ustring", "idx, Text", "", "ustring", "Text" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Navigator", "tkNavigator", "Lists", 260, 30, "Navigate", "", @C_Navigator, "", "", "", "" )
+    ItemsBind_( "records" )
+    Colors_( "TKNAVIGATOR_COLORS", "tkNavigator_GetColors", "tkNavigator_ThemeColors", @G_Navigator, @T_Navigator )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "ButtonBackHot", "Back", "Hot", "", false )
+    Color_( "ButtonBackPressed", "Back", "Pressed", "", false )
+    Color_( "GlyphColor", "Glyph", "Normal", "", true )
+    Color_( "GlyphColorDisabled", "Glyph", "Disabled", "", true )
+    Color_( "TextColor", "Fore", "Normal", "", true )
+    Prop_( "Font", "font", "", "", "tkNavigator_SetFont", "tkNavigator_GetFont", 0, 0, @F_Navigator_Font, true, true, "", 0 )
+    Prop_( "ShowNew", "bool", "true", "", "tkNavigator_SetShowNew", "tkNavigator_GetShowNew", @A_Navigator_ShowNew, @R_Navigator_ShowNew, 0, true, true, "", 0 )
+    Prop_( "ShowDelete", "bool", "true", "", "tkNavigator_SetShowDelete", "tkNavigator_GetShowDelete", @A_Navigator_ShowDelete, @R_Navigator_ShowDelete, 0, true, true, "", 0 )
+    Prop_( "PositionText", "text", "{1} of {2}", "", "tkNavigator_SetPositionText", "tkNavigator_GetPositionText", @A_Navigator_PositionText, @R_Navigator_PositionText, 0, true, true, "", 0 )
+    Event_( "Navigate", "tkNavigator_SetNavigateCallback", "NAV_NavigateCallbackFunc", "byval hNav as TK_WIDGET ptr, byval action as int32, byval target as int32", "byval action as int32, byval target as int32, byref Allow as boolean", "action, target, Allow", "", "boolean", "Allow", "true" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "TabBar", "tkTabBar", "Lists", 300, 32, "SelChange", "", @C_TabBar, "", "", "", "" )
     Colors_( "TKTABBAR_COLORS", "tkTabBar_GetColors", "tkTabBar_ThemeColors", @G_TabBar, @T_TabBar )

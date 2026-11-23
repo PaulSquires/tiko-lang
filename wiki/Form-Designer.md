@@ -374,6 +374,25 @@ checked as any other.
 A list half filled in is fine while you work; until it has its ItemType and its DisplayField (or a
 column with a Field), the generated file stops the build with an `#error` that says what is missing.
 
+### Stepping through records
+
+A **Navigator** (in Lists) steps through an array of the form's records: First, Previous, the
+position ("3 of 120"), Next, Last, New and Delete. Set its **ItemsSource** to the array (a name, such
+as `People`, an `Array( of <DataType> )` the form holds) and, if a list shows the same array, its
+**Follows** to that ListTree or ComboBox. Then the generated file has:
+
+- `navPeople_Refresh( )`: call it after the program fills or changes the array; it refills the
+  list and loads the current record (or blanks the form when there are none).
+- `navPeople_MoveTo( i )`: what the buttons and a click on the list do. If the record on show was
+  changed, `SaveTo` writes it first; if that refuses (a Required box left empty), the form stays
+  where it is.
+- `navPeople_Current( )`: the record on show, -1 for none.
+- `IsDirty( r )`: whether any bound control shows something else than `r` holds.
+
+New appends a blank record and shows it; Delete removes the one on show. The navigator's
+**Navigate** event runs first and can say no (`Allow = false`), a confirmation before a delete for
+instance. Very large or database lists belong to the DataGrid, not a ListTree.
+
 ### Validation
 
 `SaveTo` and `LoadFrom` are functions: they answer whether all was well. **SaveTo checks every bound

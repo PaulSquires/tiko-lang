@@ -55,6 +55,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
 | `tkBind` | the conversions a designed form's `LoadFrom` / `SaveTo` use to move record fields in and out of controls, and their strict checks, rules and error report |
 | `tkAutoComplete` | a text box with a filter-as-you-type list of suggestions (stored items; the list never takes the keyboard focus) |
+| `tkNavigator` | a record navigator: First, Previous, the position ("3 of 120"), Next, Last, New, Delete; a designed form steps it through an array of its records |
 | `tkMatch` | filter-as-you-type matching, no SDL: prefix, word-prefix, contains and fuzzy (fzy) with highlight runs, narrowing, ranked and capped filters |
 | `tkSlider` | a value on a track (or a lower and upper value, range mode): horizontal or vertical, ticks and labels, a value tip, jump or page clicks; the designer's Slider |
 | `tkTimePicker`, `tkTimePanel` | a time of day: a segmented field you type into and step, with a column or list dropdown (or spin buttons), 12- or 24-hour by pattern, a range and a step; the panel alone embeds in a form; the designer's TimePicker and TimePanel, bound as `time` |

@@ -500,6 +500,9 @@ private sub HandlerDecls_( byref doc as FormDoc, byref o as ustring )
     next
 end sub
 
+declare function NavWires_( byref doc as FormDoc, byref c as FormControl, byref evName as const ustring ) as boolean
+declare function NavThunk_( byref doc as FormDoc, byref k as FormControl, byval ev as TKMETA_EVENT ptr, byval i as long, byref o as ustring ) as boolean
+
 private sub Thunks_( byref doc as FormDoc, byref o as ustring )
     for c as long = 0 to doc.Controls.Count( ) - 1
         dim as FormControl k = doc.Controls[c]
@@ -510,7 +513,9 @@ private sub Thunks_( byref doc as FormDoc, byref o as ustring )
             ' a menu's Command, a toolbar's and a status bar's Click also reach the handler of the
             ' entry that fired (a status bar names its panel by index)
             dim as boolean dispatches = Dispatches_( k, m->Events( e ).Name )
-            if dispatches then
+            if NavThunk_( doc, k, @m->Events( e ), i, o ) then
+                ' B4: made even with no handler
+            elseif dispatches then
                 o &= "private sub Thunk_" & k.Name & "_" & m->Events( e ).Name & Parens_( m->Events( e ).Sig ) & NL
                 o &= "    dim as Form ptr f = tkForms_ObjectOf( " & WidgetOf_( m->Events( e ) ) & " )" & NL
                 o &= "    if f = 0 then exit sub" & NL
@@ -851,6 +856,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     for e as long = 0 to m->NumEvents - 1
         dim as boolean wired = (FindSetting( c.Events, m->Events( e ).Name ) >= 0)
         if Dispatches_( c, m->Events( e ).Name ) then wired = true
+        if NavWires_( doc, c, m->Events( e ).Name ) then wired = true
         if wired then
             o &= "    " & m->Events( e ).SetName & "( " & c.Name & ".Handle, @Thunk_" & c.Name & "_" & m->Events( e ).Name & " )" & NL
         elseif len( m->Events( e ).Fallback ) then
@@ -925,6 +931,7 @@ private function HasBinding_( byref doc as FormDoc ) as boolean
     if len( doc.DataType ) = 0 then return false
     for each c as FormControl in doc.Controls
         if IsBound_( c ) orelse (catalog.ListReady( c ) andalso (len( c.ItemsField ) > 0)) then return true
+        if catalog.NavReady( doc ) >= 0 then return true
     next
     return false
 end function
@@ -1201,6 +1208,198 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
     o &= "end function" & NL
 end sub
 
+' ---- the record navigator (B4) ----------------------------------------------------------------
+' Its own Navigate thunk (the user's handler first, which may say no) and the followed list's
+' SelChange thunk (the navigator follows, then the user's handler) are made even with no handler.
+private function NavWires_( byref doc as FormDoc, byref c as FormControl, byref evName as const ustring ) as boolean
+    dim as long ni = catalog.NavReady( doc )
+    if ni < 0 then return false
+    if (lcase( c.Name ) = lcase( doc.Controls[ni].Name )) andalso (evName = "Navigate") then return true
+    dim as long li = catalog.NavList( doc )
+    return (li >= 0) andalso (lcase( c.Name ) = lcase( doc.Controls[li].Name )) andalso (evName = "SelChange")
+end function
+
+private function NavThunk_( byref doc as FormDoc, byref k as FormControl, byval ev as TKMETA_EVENT ptr, byval i as long, byref o as ustring ) as boolean
+    if NavWires_( doc, k, ev->Name ) = false then return false
+    dim as FormControl nav = doc.Controls[catalog.NavReady( doc )]
+    if ev->Name = "Navigate" then
+        o &= "private function Thunk_" & k.Name & "_Navigate" & Parens_( ev->Sig ) & " as boolean" & NL
+        o &= "    dim as boolean Allow = true" & NL
+        o &= "    dim as Form ptr f = tkForms_ObjectOf( " & WidgetOf_( *ev ) & " )" & NL
+        o &= "    if f = 0 then return true" & NL
+        if i >= 0 then o &= "    f->" & k.Events[i].Value & Parens_( ev->Args ) & NL
+        o &= "    if Allow then f->" & nav.Name & "_Go_( action, target )" & NL
+        o &= "    return false                ' the form has moved it, or kept it: the navigator takes nothing itself" & NL
+        o &= "end function" & NL & NL
+    else
+        o &= "private sub Thunk_" & k.Name & "_SelChange" & Parens_( ev->Sig ) & NL
+        o &= "    dim as Form ptr f = tkForms_ObjectOf( " & WidgetOf_( *ev ) & " )" & NL
+        o &= "    if f = 0 then exit sub" & NL
+        o &= "    f->" & nav.Name & "_FromList_( )" & NL
+        if i >= 0 then o &= "    f->" & k.Events[i].Value & Parens_( ev->Args ) & NL
+        o &= "end sub" & NL & NL
+    end if
+    return true
+end function
+
+private sub NavDecls_( byref doc as FormDoc, byref o as ustring )
+    dim as long ni = catalog.NavReady( doc )
+    if ni < 0 then exit sub
+    dim as ustring n = doc.Controls[ni].Name
+    o &= "    declare function IsDirty( byref r as " & doc.DataType & " ) as boolean" & NL
+    o &= "    declare function " & n & "_MoveTo( byval i as long ) as boolean" & NL
+    o &= "    declare sub " & n & "_Refresh( )" & NL
+    o &= "    declare function " & n & "_Current( ) as long" & NL
+    o &= "    declare function " & n & "_Go_( byval action as long, byval target as long ) as boolean" & NL
+    if catalog.NavList( doc ) >= 0 then
+        o &= "    declare sub " & n & "_FromList_( )" & NL
+        o &= "    declare sub " & n & "_ListRow_( byval i as long )" & NL
+    end if
+end sub
+
+' The followed list's selection, silently.
+private sub NavSelect_( byref doc as FormDoc, byref idx as const ustring, byref o as ustring, byref indent as const ustring )
+    dim as long li = catalog.NavList( doc )
+    if li < 0 then exit sub
+    dim as FormControl l = doc.Controls[li]
+    if catalog.ItemsBindOf( l ) = "rows" then
+        o &= indent & "tkListTree_SetCurSel( " & l.Name & ".Handle, " & idx & " )" & NL
+    else
+        o &= indent & "tkComboBox_SetCurSel( " & l.Name & ".Handle, " & idx & " )" & NL
+    end if
+end sub
+
+private sub NavCode_( byref doc as FormDoc, byref o as ustring )
+    dim as long ni = catalog.NavReady( doc )
+    if ni < 0 then exit sub
+    dim as FormControl nav = doc.Controls[ni]
+    dim as ustring n = nav.Name, nh = nav.Name & ".Handle", src = nav.ItemsSource, T = doc.DataType
+    dim as long li = catalog.NavList( doc )
+    dim as ustring arr = "    dim byref as Array( of " & T & " ) a_ = " & src & NL
+
+    ' IsDirty: any bound control that shows something else than r holds
+    o &= NL & "function Form.IsDirty( byref r as " & T & " ) as boolean" & NL
+    for each c as FormControl in doc.Controls
+        if IsBound_( c ) = false then continue for
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        if m->BindLoadOnly then continue for
+        if catalog.BindsByValue( c ) then
+            o &= "    if tkBind_DiffersPick( r." & c.Bind & ", " & c.Name & "_Values_, tkComboBox_GetCurSel( " & c.Name & ".Handle ) ) then return true" & NL
+        elseif m->BindKind = "text" then
+            o &= "    if tkBind_Differs( r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & ", " & Literal_( c.Format ) & " ) then return true" & NL
+        elseif Checked_( m->BindKind ) orelse (m->BindKind = "bool") then
+            o &= "    if tkBind_Differs( r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & " ) then return true" & NL
+        end if
+        if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) andalso (Checked_( m->Bind2Kind ) orelse (m->Bind2Kind = "bool")) andalso (m->Bind2Kind <> "text") then
+            o &= "    if tkBind_Differs( r." & c.Bind2 & ", " & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & " ) then return true" & NL
+        end if
+    next
+    o &= "    return false" & NL
+    o &= "end function" & NL
+
+    ' MoveTo: save a changed record (SaveTo may refuse), then load i
+    o &= NL & "function Form." & n & "_MoveTo( byval i as long ) as boolean" & NL
+    o &= arr
+    o &= "    if (i < 0) orelse (i >= a_.Count( )) then return false" & NL
+    o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "    if (cur >= 0) andalso (cur < a_.Count( )) then" & NL
+    o &= "        if cur = i then return true" & NL
+    o &= "        if IsDirty( a_[cur] ) then" & NL
+    o &= "            if SaveTo( a_[cur] ) = false then return false" & NL
+    if li >= 0 then o &= "            " & n & "_ListRow_( cur )" & NL
+    o &= "        end if" & NL
+    o &= "    end if" & NL
+    o &= "    tkNavigator_SetCount( " & nh & ", a_.Count( ) )" & NL
+    o &= "    tkNavigator_SetPosition( " & nh & ", i )" & NL
+    o &= "    LoadFrom( a_[i] )" & NL
+    NavSelect_( doc, "i", o, "    " )
+    o &= "    return true" & NL
+    o &= "end function" & NL
+
+    ' Refresh: after the program changed the array
+    o &= NL & "sub Form." & n & "_Refresh( )" & NL
+    o &= arr
+    if li >= 0 then o &= "    " & doc.Controls[li].Name & "_Fill( )" & NL
+    o &= "    tkNavigator_SetCount( " & nh & ", a_.Count( ) )" & NL
+    o &= "    if a_.Count( ) = 0 then" & NL
+    o &= "        tkNavigator_SetPosition( " & nh & ", -1 )" & NL
+    o &= "        dim as " & T & " blank_" & NL
+    o &= "        LoadFrom( blank_ )" & NL
+    o &= "        exit sub" & NL
+    o &= "    end if" & NL
+    o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "    if cur < 0 then cur = 0" & NL
+    o &= "    tkNavigator_SetPosition( " & nh & ", cur )" & NL
+    o &= "    LoadFrom( a_[cur] )" & NL
+    NavSelect_( doc, "cur", o, "    " )
+    o &= "end sub" & NL
+
+    o &= NL & "function Form." & n & "_Current( ) as long" & NL
+    o &= "    return tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "end function" & NL
+
+    ' Go_: what a navigator button asks for, once its Navigate handler has let it
+    o &= NL & "function Form." & n & "_Go_( byval action as long, byval target as long ) as boolean" & NL
+    o &= arr
+    o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "    select case action" & NL
+    o &= "    case TKNAV_NEW" & NL
+    o &= "        if (cur >= 0) andalso (cur < a_.Count( )) then" & NL
+    o &= "            if IsDirty( a_[cur] ) then" & NL
+    o &= "                if SaveTo( a_[cur] ) = false then return false" & NL
+    o &= "            end if" & NL
+    o &= "        end if" & NL
+    o &= "        dim as " & T & " blank_" & NL
+    o &= "        a_.Push( blank_ )" & NL
+    o &= "        tkNavigator_SetCount( " & nh & ", a_.Count( ) )" & NL
+    o &= "        tkNavigator_SetPosition( " & nh & ", a_.Count( ) - 1 )" & NL
+    o &= "        " & n & "_Refresh( )" & NL
+    o &= "        return true" & NL
+    o &= "    case TKNAV_DELETE" & NL
+    o &= "        if (cur < 0) orelse (cur >= a_.Count( )) then return false" & NL
+    o &= "        a_.Remove( cur )" & NL
+    o &= "        tkNavigator_SetCount( " & nh & ", a_.Count( ) )" & NL
+    o &= "        " & n & "_Refresh( )" & NL
+    o &= "        return true" & NL
+    o &= "    end select" & NL
+    o &= "    return " & n & "_MoveTo( target )" & NL
+    o &= "end function" & NL
+
+    if li >= 0 then
+        dim as FormControl l = doc.Controls[li]
+        dim as ustring lh = l.Name & ".Handle"
+        o &= NL & "sub Form." & n & "_FromList_( )" & NL
+        if catalog.ItemsBindOf( l ) = "rows" then
+            o &= "    dim as long i = " & l.Name & "_Item( )" & NL
+        else
+            o &= "    dim as long i = tkComboBox_GetCurSel( " & lh & " )" & NL
+        end if
+        o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+        o &= "    if (i < 0) orelse (i = cur) then exit sub" & NL
+        o &= "    if " & n & "_MoveTo( i ) = false then" & NL
+        NavSelect_( doc, "cur", o, "        " )
+        o &= "    end if" & NL
+        o &= "end sub" & NL
+
+        ' a saved record's row shows its new values (the list is not refilled from its own SelChange)
+        o &= NL & "sub Form." & n & "_ListRow_( byval i as long )" & NL
+        o &= arr
+        o &= "    if (i < 0) orelse (i >= a_.Count( )) then exit sub" & NL
+        if catalog.ItemsBindOf( l ) = "rows" then
+            for k as long = 0 to l.Items.Count( ) - 1
+                if len( l.Items[k].Field ) then
+                    o &= "    tkListTree_SetCellText( " & lh & ", i, " & k & ", tkBind_Text( a_[i]." & l.Items[k].Field & " ) )" & NL
+                end if
+            next
+            if len( l.CheckField ) then o &= "    tkListTree_SetCheck( " & lh & ", i, iif( tkBind_Bool( a_[i]." & l.CheckField & " ), 1, 0 ) )" & NL
+        else
+            o &= "    tkComboBox_SetItemText( " & lh & ", i, tkBind_Text( a_[i]." & l.DisplayField & " ) )" & NL
+            if len( l.ValueField ) then o &= "    " & l.Name & "_Values_[i] = tkBind_Text( a_[i]." & l.ValueField & " )" & NL
+        end if
+        o &= "end sub" & NL
+    end if
+end sub
+
 ' The whole .design.tiko for a form that passed validate.Check. sourceName is the form file's name.
 public function Generate( byref doc as FormDoc, byref moduleName as const ustring, byref sourceName as const ustring, byref sourceText as const ustring ) as ustring
     dim as Sizes sz
@@ -1271,6 +1470,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     next
     o &= "    declare sub Build( byval owner as TK_FORM ptr = nullptr )" & NL
     ListDecls_( doc, o )
+    NavDecls_( doc, o )
     if binds then
         o &= "    declare function LoadFrom( byref r as " & doc.DataType & " ) as boolean" & NL
         o &= "    declare function SaveTo( byref r as " & doc.DataType & " ) as boolean" & NL
@@ -1322,5 +1522,6 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     o &= "end sub" & NL
     if binds then BindingCode_( doc, o )
     ListCode_( doc, o )
+    NavCode_( doc, o )
     return o
 end function

@@ -1,0 +1,7 @@
+# tkNavigator: selftest (Form Designer B4).
+[package]
+name = "tknavigator-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"

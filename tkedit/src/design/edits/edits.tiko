@@ -735,6 +735,7 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
         else
             n.Parent = SettingOr( map_, lcase( c.Parent ) )
         end if
+        n.Follows = ""                  ' a navigator's list is the form's to name again
         ' a binding names a field of the form's DataType: into a form without one, it goes
         if len( doc.DataType ) = 0 then
             n.Bind = "" : n.Bind2 = ""

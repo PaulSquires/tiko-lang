@@ -960,6 +960,16 @@ end sub
 
 ' The Shown names of a "Shown=CONSTANT,..." list.
 ' A ContextMenu row's choices: none, then each PopupMenu on the form.
+' A navigator's Follows choices: the form's ListTrees and ComboBoxes (B3 lists), after none.
+private function ListNames_( byref doc as FormDoc ) as ustring
+    dim as ustring o
+    for each c as FormControl in doc.Controls
+        dim as ustring shape = catalog.ItemsBindOf( c )
+        if (shape = "rows") orelse (shape = "items") then o &= "," & c.Name
+    next
+    return o
+end function
+
 private function PopupNames_( byref doc as FormDoc ) as ustring
     dim as ustring o
     for each c as FormControl in doc.Controls
@@ -1272,7 +1282,11 @@ sub DesignPanels.BuildRows( )
         ' the PopupMenu a right-click on it opens
         if anyComponent = false then this.AddRow( "@Ctx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
         ' its list from an array (B3): where it comes from, and the element fields it shows
-        if (n = 1) andalso (len( m0->ItemsBind ) > 0) then
+        if (n = 1) andalso (m0->ItemsBind = "records") then
+            ' a navigator (B4): its records, and the list that follows them
+            this.AddRow( "@ItemsSource", "ItemsSource", RowKind.RowText )
+            this.AddRow( "@Follows", "Follows", RowKind.RowCombo, ListNames_( C->Doc ) )
+        elseif (n = 1) andalso (len( m0->ItemsBind ) > 0) then
             this.AddRow( "@ItemsField", "ItemsField", RowKind.RowText )
             if C->OnFields then this.AddFieldButton( )
             this.AddRow( "@ItemsSource", "ItemsSource", RowKind.RowText )
@@ -1368,6 +1382,7 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@Display"     : return c_.DisplayField
     case "@Value"       : return c_.ValueField
     case "@Check"       : return c_.CheckField
+    case "@Follows"     : return c_.Follows
     case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
@@ -1659,6 +1674,7 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     case "@Display"     : trial.Controls[i].DisplayField = trim( text ) : rebuild = false
     case "@Value"       : trial.Controls[i].ValueField = trim( text ) : rebuild = false
     case "@Check"       : trial.Controls[i].CheckField = trim( text ) : rebuild = false
+    case "@Follows"     : trial.Controls[i].Follows = trim( text ) : rebuild = false
     case "@Bind2"
         trial.Controls[i].Bind2 = trim( text )
         rebuild = false

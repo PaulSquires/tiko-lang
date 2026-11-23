@@ -142,7 +142,7 @@ sub RunPass( byval fScale as single )
     tkHost_Show( h )
     tkTest_PumpFor( h, 50 )
     dim as TK_WIDGET ptr root_ = tkHost_Root( h )
-    tkTest_Check( "the table is populated", tkMeta_Count( ) = 36, str( tkMeta_Count( ) ) )
+    tkTest_Check( "the table is populated", tkMeta_Count( ) = 37, str( tkMeta_Count( ) ) )
     tkTest_Check( "find by name", tkMeta_Find( "Button" ) <> 0 )
     tkTest_Check( "find misses", tkMeta_Find( "NoSuchControl" ) = 0 )
     tkTest_Check( "find a property", tkMeta_FindProp( tkMeta_Find( "Button" ), "Text" ) <> 0 )
@@ -159,7 +159,7 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "27 controls describe a colour struct, 355 fields", (nColors = 27) andalso (nSlots = 355), nColors & " / " & nSlots )
+    tkTest_Check( "28 controls describe a colour struct, 362 fields", (nColors = 28) andalso (nSlots = 362), nColors & " / " & nSlots )
     tkTest_Check( "22 shape properties, 18 hidden colour properties", (nShape = 22) andalso (nHidden = 18), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
@@ -183,7 +183,7 @@ sub RunPass( byval fScale as single )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )
-    tkTest_Check( "list shapes (B3): ListTree rows, ComboBox items, nothing else", (tkMeta_Find( "ListTree" )->ItemsBind = "rows") andalso (tkMeta_Find( "ComboBox" )->ItemsBind = "items") andalso (len( tb->ItemsBind ) = 0) )
+    tkTest_Check( "list shapes (B3, B4): ListTree rows, ComboBox items, Navigator records, nothing else", (tkMeta_Find( "ListTree" )->ItemsBind = "rows") andalso (tkMeta_Find( "ComboBox" )->ItemsBind = "items") andalso (tkMeta_Find( "Navigator" )->ItemsBind = "records") andalso (len( tb->ItemsBind ) = 0) )
     tkTest_Check( "a ComboBox's nothing-chosen is -1 (B2's Required)", (tkMeta_Find( "ComboBox" )->BindNone = "-1") andalso (len( tb->BindNone ) = 0) )
     for i as long = 0 to tkMeta_Count( ) - 1
         CheckControl( tkMeta_At( i ), h, root_, 100 + i )
