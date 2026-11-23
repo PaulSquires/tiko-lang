@@ -13,6 +13,7 @@ using tkTheme
 using tkTest
 using tkHost
 using tkPaint
+using tkTooltip
 
 dim shared as long gCells, gMinRow, gMaxRow, gMinCol, gMaxCol, gFmt, gMsgs, gLastMsgRow
 dim shared as boolean gRedFirstCell
@@ -267,7 +268,11 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "CellFormatting's back colour is painted", Px( h, g, cxl, cyl ) = &hFF0000ul, hex( Px( h, g, cxl, cyl ) ) )
     tkTest_Check( "an even row is BackColor, an odd one AltBackColor", (Px( h, g, cxl, cyl + 2 * rowH ) = (col_.BackColor and &hFFFFFFul)) _
                   andalso (Px( h, g, cxl, cyl + rowH ) = (col_.AltBackColor and &hFFFFFFul)), hex( Px( h, g, cxl, cyl + rowH ) ) )
-    tkTest_Check( "the hot row is HotBackColor", Px( h, g, cxl, cyl + 4 * rowH ) = (col_.HotBackColor and &hFFFFFFul), hex( Px( h, g, cxl, cyl + 4 * rowH ) ) )
+    ' row 4 is also the current row (its Name cell has the frame): sample Qty's blank left side
+    dim as TKRECT rq
+    tkDataGrid_GetCellRect( g, 4, cQty, rq )
+    dim as long hx = rq.left + tkHost_Scale( h, 6 ), hy = (rq.top + rq.bottom) \ 2
+    tkTest_Check( "the hot row is HotBackColor", Px( h, g, hx, hy ) = (col_.HotBackColor and &hFFFFFFul), hex( Px( h, g, hx, hy ) ) )
     dim as TKCOLUMNHEADER_COLORS hc
     tkColumnHeader_GetColors( tkDataGrid_GetHeader( g ), @hc )
     tkTest_Check( "the header band is the style header's BackColor", Px( h, g, surf->cw - 2, 2 ) = (hc.BackColor and &hFFFFFFul), hex( Px( h, g, surf->cw - 2, 2 ) ) )
@@ -329,9 +334,410 @@ sub RunPass( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+' ==========================================================================================
+' G1: the current cell, selection, keyboard, frozen columns, row headers, column gestures
+' ==========================================================================================
+dim shared as long gCur, gCurRow, gCurCol, gSelCh, gClick, gAct, gActRow, gColClick, gColClickCol
+dim shared as long gResizeLive, gResizeFinal, gResizeW, gReorder, gReorderCol, gReorderPos
+
+sub G1Cur( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gCur += 1 : gCurRow = row : gCurCol = col
+end sub
+sub G1Sel( byval hg as TK_WIDGET ptr )
+    gSelCh += 1
+end sub
+sub G1Click( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gClick += 1
+end sub
+sub G1Act( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gAct += 1 : gActRow = row
+end sub
+sub G1ColClick( byval hg as TK_WIDGET ptr, byval col as integer )
+    gColClick += 1 : gColClickCol = col
+end sub
+sub G1Resize( byval hg as TK_WIDGET ptr, byval col as integer, byval nWidth as integer, byval bLive as boolean )
+    if bLive then gResizeLive += 1 else gResizeFinal += 1
+    gResizeW = nWidth
+end sub
+sub G1Reorder( byval hg as TK_WIDGET ptr, byval col as integer, byval dispPos as integer )
+    gReorder += 1 : gReorderCol = col : gReorderPos = dispPos
+end sub
+function G1Tip( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+    return "tip " & row & "," & col
+end function
+
+sub G1Reset()
+    gCur = 0 : gCurRow = -9 : gCurCol = -9 : gSelCh = 0 : gClick = 0 : gAct = 0 : gActRow = -9
+    gColClick = 0 : gColClickCol = -9 : gResizeLive = 0 : gResizeFinal = 0 : gResizeW = 0
+    gReorder = 0 : gReorderCol = -9 : gReorderPos = -9
+end sub
+
+' Window pixels of the centre of a cell (it must be on screen).
+sub CellXY( byval g as TK_WIDGET ptr, byval row as integer, byval col as integer, byref x as single, byref y as single )
+    dim as TKRECT rc
+    tkDataGrid_GetCellRect( g, row, col, rc )
+    SurfXY( g, (rc.left + rc.right) \ 2, (rc.top + rc.bottom) \ 2, x, y )
+end sub
+
+sub ClickCell( byval h as TK_HOST ptr, byval g as TK_WIDGET ptr, byval row as integer, byval col as integer, _
+               byval mods as long = 0, byval clicks as long = 1 )
+    dim as single x, y
+    CellXY( g, row, col, x, y )
+    SDL_SetModState( mods )
+    tkTest_Click( h, x, y, SDL_BUTTON_LEFT, clicks )
+    SDL_SetModState( SDL_KMOD_NONE )
+end sub
+
+function CurIs( byval g as TK_WIDGET ptr, byval row as integer, byval col as integer ) as boolean
+    dim as integer r, c
+    tkDataGrid_GetCurrentCell( g, r, c )
+    return (r = row) andalso (c = col)
+end function
+
+function CurStr( byval g as TK_WIDGET ptr ) as string
+    dim as integer r, c
+    tkDataGrid_GetCurrentCell( g, r, c )
+    return "(" & r & "," & c & ")"
+end function
+
+sub RunG1( byval fScale as single )
+    tkTest_Begin( "G1 scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDataGrid selftest G1", 700, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    #if defined( TIKO_OS_WINDOWS )
+        dim as ustring eol = chr(13) & chr(10)
+    #else
+        dim as ustring eol = chr(10)
+    #endif
+
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkHost_Root( h ), 700 )
+    tkDataGrid_SetFont( g, f10 )
+    tkDataGrid_SetBorderWidth( g, 0 )
+    tkWidget_SetPos( g, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ) )
+    dim as TK_WIDGET ptr other = tkDataGrid_Create( tkHost_Root( h ), 800 )
+    tkWidget_SetPos( other, tkHost_Scale( h, 430 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 100 ) )
+    dim as TK_WIDGET ptr surf = tkDataGrid_GetSurface( g )
+    tkDataGrid_AddColumnEx( g, "Name", TKDG_COL_TEXT, 100 )                 ' 0
+    tkDataGrid_AddColumnEx( g, "Qty", TKDG_COL_NUMBER, 80, TKDG_INT )       ' 1
+    tkDataGrid_AddColumnEx( g, "Note", TKDG_COL_TEXT, 100 )                 ' 2
+    tkDataGrid_AddColumnEx( g, "City", TKDG_COL_TEXT, 100 )                 ' 3
+    tkDataGrid_AddColumnEx( g, "Code", TKDG_COL_TEXT, 100 )                 ' 4
+    tkDataGrid_AddColumnEx( g, "Tag", TKDG_COL_TEXT, 100 )                  ' 5
+    tkDataGrid_SetRowCount( g, 50 )
+    for r as integer = 0 to 49
+        for c as integer = 0 to 5
+            if c = 1 then tkDataGrid_SetCellInt( g, r, c, r ) else tkDataGrid_SetCellText( g, r, c, "r" & r & "c" & c )
+        next
+    next
+    tkDataGrid_SetCurrentCellChangedCallback( g, @G1Cur )
+    tkDataGrid_SetSelChangeCallback( g, @G1Sel )
+    tkDataGrid_SetCellClickCallback( g, @G1Click )
+    tkDataGrid_SetCellActivateCallback( g, @G1Act )
+    tkDataGrid_SetColumnClickCallback( g, @G1ColClick )
+    tkDataGrid_SetColumnResizeCallback( g, @G1Resize )
+    tkDataGrid_SetColumnReorderedCallback( g, @G1Reorder )
+    tkTest_PumpFor( h, 30 )
+    dim as long rowH = tkDataGrid_GetRowHeightPx( g ), hdrH = tkDataGrid_GetHeaderHeightPx( g )
+    tkTest_Check( "no current cell before any interaction", CurIs( g, -1, -1 ) )
+
+    ' ---- M: clicks, the current cell and its events ---------------------------------------
+    G1Reset( )
+    ClickCell( h, g, 2, 1 )
+    tkTest_Check( "a click: the current cell, the only selected cell, one of each event", CurIs( g, 2, 1 ) _
+                  andalso tkDataGrid_IsCellSelected( g, 2, 1 ) andalso (tkDataGrid_IsCellSelected( g, 2, 2 ) = false) _
+                  andalso (gCur = 1) andalso (gCurRow = 2) andalso (gCurCol = 1) andalso (gSelCh = 1) andalso (gClick = 1), _
+                  CurStr( g ) & " cur=" & gCur & " sel=" & gSelCh & " click=" & gClick )
+    tkTest_Check( "the click took the focus", h->pFocus = surf )
+    G1Reset( )
+    ClickCell( h, g, 2, 1 )
+    tkTest_Check( "re-clicking the current cell: CellClick only", (gClick = 1) andalso (gCur = 0) andalso (gSelCh = 0) )
+    tkDataGrid_SetCurrentCell( g, 5, 2 )
+    tkTest_Check( "SetCurrentCell is silent and selects it", CurIs( g, 5, 2 ) andalso tkDataGrid_IsCellSelected( g, 5, 2 ) _
+                  andalso (tkDataGrid_IsCellSelected( g, 2, 1 ) = false) andalso (gCur = 0) andalso (gSelCh = 0) )
+
+    ' ---- N: the keyboard ------------------------------------------------------------------
+    G1Reset( )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Down, Right move the current cell and notify", CurIs( g, 6, 3 ) andalso (gCur = 2) andalso (gSelCh = 2), CurStr( g ) )
+    tkTest_PushKey( h, SDLK_DOWN, SDL_KMOD_LCTRL )
+    dim as TKRECT rc
+    tkTest_Check( "Ctrl+Down: the last row, scrolled into view", CurIs( g, 49, 3 ) andalso tkDataGrid_GetCellRect( g, 49, 3, rc ) _
+                  andalso (rc.bottom <= surf->ch) andalso (rc.top >= hdrH), CurStr( g ) & " " & tkRect_Str( rc ) )
+    tkTest_PushKey( h, SDLK_HOME, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Home: the first cell, scrolled back", CurIs( g, 0, 0 ) andalso (tkDataGrid_GetScrollY( g ) = 0) andalso (tkDataGrid_GetScrollX( g ) = 0) )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End: the last column, scrolled to show it", CurIs( g, 0, 5 ) andalso tkDataGrid_GetCellRect( g, 0, 5, rc ) andalso (rc.right <= surf->cw), CurStr( g ) )
+    tkTest_PushKey( h, SDLK_END, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+End: the last cell", CurIs( g, 49, 5 ) )
+    tkTest_PushKey( h, SDLK_HOME, SDL_KMOD_LCTRL )
+    dim as integer page = (surf->ch - hdrH) \ rowH
+    tkTest_PushKey( h, SDLK_PAGEDOWN )
+    tkTest_Check( "PgDn: one page of rows", CurIs( g, page, 0 ), CurStr( g ) & " page=" & page )
+    tkTest_PushKey( h, SDLK_PAGEUP )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter: down one row", CurIs( g, 1, 0 ) )
+    tkTest_PushKey( h, SDLK_RETURN, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Enter: up one row", CurIs( g, 0, 0 ) )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up at the top stays", CurIs( g, 0, 0 ) )
+    tkDataGrid_SetCurrentCell( g, 5, 1 )
+    G1Reset( )
+    tkTest_PushKey( h, SDLK_DOWN, SDL_KMOD_LSHIFT )
+    tkTest_PushKey( h, SDLK_DOWN, SDL_KMOD_LSHIFT )
+    tkTest_PushKey( h, SDLK_RIGHT, SDL_KMOD_LSHIFT )
+    dim as TKDG_RANGE rg()
+    dim as integer nr = tkDataGrid_GetSelectedRanges( g, rg() )
+    tkTest_Check( "Shift+arrows extend a rectangle from the anchor", CurIs( g, 7, 2 ) andalso (nr = 1) _
+                  andalso tkDataGrid_IsCellSelected( g, 6, 2 ) andalso tkDataGrid_IsCellSelected( g, 5, 1 ) _
+                  andalso (tkDataGrid_IsCellSelected( g, 8, 1 ) = false) andalso (tkDataGrid_IsCellSelected( g, 6, 3 ) = false) _
+                  andalso (gSelCh = 3), CurStr( g ) & " n=" & nr )
+    tkTest_Check( "the range is rows 5..7, display 1..2", (nr = 1) andalso (rg(0).row1 = 5) andalso (rg(0).row2 = 7) andalso (rg(0).disp1 = 1) andalso (rg(0).disp2 = 2) )
+    tkTest_Check( "the copy text is the rectangle, tab-separated", tkDataGrid_GetSelectionText( g ) = _
+                  "5" & chr(9) & "r5c2" & eol & "6" & chr(9) & "r6c2" & eol & "7" & chr(9) & "r7c2" & eol, tkDataGrid_GetSelectionText( g ) )
+    tkTest_Check( "with headers", left( tkDataGrid_GetSelectionText( g, true ), len( "Qty" & chr(9) & "Note" & eol ) ) = "Qty" & chr(9) & "Note" & eol )
+    tkTest_PushKey( h, SDLK_C, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+C puts it on the clipboard", tkHost_GetClipboardText( ) = tkDataGrid_GetSelectionText( g ) )
+    tkDataGrid_SetCellText( g, 6, 2, "a" & chr(9) & "b""c" )
+    tkTest_Check( "a field with a tab or quote is quoted, quotes doubled", instr( tkDataGrid_GetSelectionText( g ), """a" & chr(9) & "b""""c""" ) > 0, tkDataGrid_GetSelectionText( g ) )
+    tkTest_PushKey( h, SDLK_SPACE, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Space selects the current row", tkDataGrid_IsRowSelected( g, 7 ) andalso (tkDataGrid_GetSelectedRowCount( g ) = 1) )
+    tkTest_PushKey( h, SDLK_SPACE, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Space selects the current column", tkDataGrid_IsCellSelected( g, 0, 2 ) andalso tkDataGrid_IsCellSelected( g, 49, 2 ) _
+                  andalso (tkDataGrid_IsCellSelected( g, 0, 1 ) = false) andalso (tkDataGrid_IsRowSelected( g, 7 ) = false) )
+    G1Reset( )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+A selects all and notifies", tkDataGrid_IsAllSelected( g ) andalso (tkDataGrid_GetSelectedRowCount( g ) = 50) andalso (gSelCh = 1) )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL )
+    tkTest_Check( "again: no change, no event", gSelCh = 1 )
+
+    ' Tab along the row, wrapping, and out at the end
+    tkDataGrid_SetCurrentCell( g, 0, 5 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab at a row's end: the next row's first cell", CurIs( g, 1, 0 ) )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab back to the row above's last cell", CurIs( g, 0, 5 ) )
+    tkDataGrid_SetCurrentCell( g, 49, 5 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab at the last cell leaves the grid", (h->pFocus <> surf) andalso CurIs( g, 49, 5 ) )
+    tkHost_SetFocus( h, surf )
+    tkDataGrid_SetTabWraps( g, true )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "with TabWraps it wraps to the first cell", (h->pFocus = surf) andalso CurIs( g, 0, 0 ) )
+    tkDataGrid_SetTabWraps( g, false )
+
+    ' ---- O: the mouse: Ctrl, Shift, drag, double click -----------------------------------
+    ClickCell( h, g, 1, 1 )
+    ClickCell( h, g, 3, 1, TK_KMOD_PRIMARY )
+    tkTest_Check( "Ctrl+click adds a cell", tkDataGrid_IsCellSelected( g, 1, 1 ) andalso tkDataGrid_IsCellSelected( g, 3, 1 ) _
+                  andalso (tkDataGrid_IsCellSelected( g, 2, 1 ) = false) andalso CurIs( g, 3, 1 ) )
+    ClickCell( h, g, 1, 1, TK_KMOD_PRIMARY )
+    tkTest_Check( "Ctrl+click again takes it out", (tkDataGrid_IsCellSelected( g, 1, 1 ) = false) andalso tkDataGrid_IsCellSelected( g, 3, 1 ) )
+    ClickCell( h, g, 1, 0 )
+    ClickCell( h, g, 3, 2, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+click: the rectangle from the anchor", tkDataGrid_IsCellSelected( g, 2, 1 ) andalso tkDataGrid_IsCellSelected( g, 3, 2 ) _
+                  andalso tkDataGrid_IsCellSelected( g, 1, 0 ) andalso (tkDataGrid_IsCellSelected( g, 4, 1 ) = false) andalso CurIs( g, 3, 2 ) )
+    dim as single x1, y1, x2, y2
+    CellXY( g, 1, 0, x1, y1 )
+    CellXY( g, 4, 2, x2, y2 )
+    G1Reset( )
+    tkTest_PushButton( h, true, x1, y1 )
+    tkTest_PushMotion( h, x2, y2 )
+    tkTest_PushButton( h, false, x2, y2 )
+    tkTest_Check( "a drag selects the rectangle; the current cell stays where it was pressed", tkDataGrid_IsCellSelected( g, 4, 2 ) _
+                  andalso tkDataGrid_IsCellSelected( g, 2, 1 ) andalso (tkDataGrid_IsCellSelected( g, 5, 2 ) = false) andalso CurIs( g, 1, 0 ) _
+                  andalso (tkHost_GetCapture( h ) = 0), CurStr( g ) )
+    ' a drag below the body autoscrolls
+    tkDataGrid_SetTopRow( g, 0 )
+    CellXY( g, 2, 0, x1, y1 )
+    dim as TKRECT sa
+    tkWidget_AbsRect( surf, sa )
+    tkTest_PushButton( h, true, x1, y1 )
+    tkTest_PushMotion( h, x1, sa.bottom + tkHost_Scale( h, 20 ) )
+    tkTest_PumpFor( h, 400 )
+    dim as integer sy = tkDataGrid_GetScrollY( g )
+    tkTest_PushButton( h, false, x1, sa.bottom + tkHost_Scale( h, 20 ) )
+    dim as integer vf, vl
+    tkDataGrid_GetVisibleRows( g, vf, vl )
+    tkTest_Check( "dragging below the body autoscrolls and extends", (sy > 0) andalso tkDataGrid_IsCellSelected( g, vl, 0 ) andalso (vl > 12), _
+                  "scrollY=" & sy & " last=" & vl )
+    tkDataGrid_SetTopRow( g, 0 )
+    ClickCell( h, g, 6, 3 )
+    G1Reset( )
+    ClickCell( h, g, 6, 3, 0, 2 )
+    tkTest_Check( "a double click activates the cell", (gAct = 1) andalso (gActRow = 6) )
+
+    ' ---- P: row headers, the corner, the ROW unit, single select ---------------------------
+    tkDataGrid_ShowRowHeaders( g, true )
+    dim as long rh = tkDataGrid_GetRowHeaderWidthPx( g )
+    tkDataGrid_GetCellRect( g, 0, 0, rc )
+    tkTest_Check( "row headers push the cells right", (rh = tkHost_Scale( h, 24 )) andalso (rc.left = rh), tkRect_Str( rc ) )
+    dim as TKDG_HITTEST ht
+    tkTest_Check( "hit: a row header, the corner", (tkDataGrid_HitTest( g, rh \ 2, hdrH + 3 * rowH + 2, ht ) = TKDG_HT_ROWHEADER) andalso (ht.row = 3) _
+                  andalso (tkDataGrid_HitTest( g, rh \ 2, hdrH \ 2, ht ) = TKDG_HT_CORNER) )
+    dim as single rx, ry
+    SurfXY( g, rh \ 2, hdrH + 3 * rowH + rowH \ 2, rx, ry )
+    tkTest_Click( h, rx, ry )
+    tkTest_Check( "a row-header click selects the row", tkDataGrid_IsRowSelected( g, 3 ) andalso (tkDataGrid_GetSelectedRowCount( g ) = 1) andalso CurIs( g, 3, 3 ), CurStr( g ) )
+    SDL_SetModState( SDL_KMOD_LSHIFT )
+    tkTest_Click( h, rx, ry + 2 * rowH )
+    SDL_SetModState( SDL_KMOD_NONE )
+    tkTest_Check( "Shift on a row header: rows 3..5", (tkDataGrid_GetSelectedRowCount( g ) = 3) andalso tkDataGrid_IsRowSelected( g, 5 ) )
+    SDL_SetModState( TK_KMOD_PRIMARY )
+    tkTest_Click( h, rx, ry + rowH )
+    SDL_SetModState( SDL_KMOD_NONE )
+    dim as integer rows_()
+    tkTest_Check( "Ctrl on a row header takes row 4 out: 3 and 5", (tkDataGrid_GetSelectedRows( g, rows_() ) = 2) andalso (rows_(0) = 3) andalso (rows_(1) = 5) )
+    SurfXY( g, rh \ 2, hdrH \ 2, rx, ry )
+    tkTest_Click( h, rx, ry )
+    tkTest_Check( "the corner selects all", tkDataGrid_IsAllSelected( g ) )
+    tkDataGrid_SetSelectionUnit( g, TKDG_SEL_ROW )
+    ClickCell( h, g, 2, 2 )
+    ClickCell( h, g, 4, 0, SDL_KMOD_LSHIFT )
+    tkTest_Check( "the ROW unit: a cell click selects rows", tkDataGrid_IsRowSelected( g, 2 ) andalso tkDataGrid_IsRowSelected( g, 4 ) _
+                  andalso (tkDataGrid_GetSelectedRowCount( g ) = 3) andalso (tkDataGrid_GetSelectedRanges( g, rg() ) = 0) )
+    tkDataGrid_SetSelectionUnit( g, TKDG_SEL_CELLORROW )
+    tkDataGrid_SetMultiSelect( g, false )
+    ClickCell( h, g, 1, 1 )
+    ClickCell( h, g, 3, 1, TK_KMOD_PRIMARY )
+    tkTest_Check( "single select: Ctrl+click replaces", tkDataGrid_IsCellSelected( g, 3, 1 ) andalso (tkDataGrid_IsCellSelected( g, 1, 1 ) = false) )
+    tkDataGrid_SetMultiSelect( g, true )
+
+    ' ---- Q: frozen columns --------------------------------------------------------------------
+    tkDataGrid_SetFrozenColumns( g, 1 )
+    tkTest_PumpFor( h, 20 )
+    dim as long fw = tkDataGrid_GetFrozenWidthPx( g )
+    tkTest_Check( "frozen width = the first column's", fw = tkHost_Scale( h, 100 ) )
+    tkDataGrid_SetScrollX( g, 99999 )
+    tkDataGrid_GetCellRect( g, 0, 0, rc )
+    tkTest_Check( "scrolled to the end: the frozen column stays", (tkDataGrid_GetScrollX( g ) > 0) andalso (rc.left = rh), tkRect_Str( rc ) )
+    tkDataGrid_GetCellRect( g, 0, 5, rc )
+    tkTest_Check( "the last column ends at the right edge", rc.right = surf->cw, tkRect_Str( rc ) )
+    tkTest_Check( "a column scrolled wholly under the frozen one has no rect", tkDataGrid_GetCellRect( g, 0, 1, rc ) = false )
+    tkTest_Check( "hit inside the frozen area is the frozen column", (tkDataGrid_HitTest( g, rh + 5, hdrH + 2, ht ) = TKDG_HT_CELL) andalso (ht.col = 0) )
+    tkDataGrid_EnsureVisible( g, 0, 1 )
+    tkDataGrid_GetCellRect( g, 0, 1, rc )
+    tkTest_Check( "EnsureVisible brings a column out from under the frozen one", rc.left = rh + fw, tkRect_Str( rc ) )
+    tkDataGrid_SetScrollX( g, 0 )
+    tkDataGrid_GetCellRect( g, 0, 1, rc )
+    tkTest_Check( "unscrolled: the next column starts after the frozen one", rc.left = rh + fw )
+
+    ' ---- R: column resize, autosize, reorder, click ------------------------------------------
+    G1Reset( )
+    dim as TKRECT hc
+    tkDataGrid_GetColumnRect( g, 2, hc )
+    dim as single dx, dy
+    SurfXY( g, hc.right, hdrH \ 2, dx, dy )
+    tkTest_Check( "the gutter is a divider of its left column", (tkDataGrid_HitTest( g, hc.right, hdrH \ 2, ht ) = TKDG_HT_DIVIDER) andalso (ht.col = 2) )
+    tkTest_PushButton( h, true, dx, dy )
+    tkTest_PushMotion( h, dx + tkHost_Scale( h, 20 ), dy )
+    tkTest_PushMotion( h, dx + tkHost_Scale( h, 40 ), dy )
+    tkTest_PushButton( h, false, dx + tkHost_Scale( h, 40 ), dy )
+    tkTest_Check( "dragging the gutter 40 units widens the column by 40", (tkDataGrid_GetColumnWidth( g, 2 ) = 140) andalso (gResizeLive >= 1) _
+                  andalso (gResizeFinal = 1) andalso (gResizeW = 140) andalso (tkHost_GetCapture( h ) = 0), str( tkDataGrid_GetColumnWidth( g, 2 ) ) )
+    tkDataGrid_SetColumnWidth( g, 2, 100 )            ' Note's gutter back on screen
+    tkDataGrid_SetCellText( g, 0, 2, "a much longer piece of text than fits" )
+    tkDataGrid_GetColumnRect( g, 2, hc )
+    SurfXY( g, hc.right, hdrH \ 2, dx, dy )
+    G1Reset( )
+    tkTest_Click( h, dx, dy, SDL_BUTTON_LEFT, 2 )
+    dim as integer needU = -int( -(tkText_Width( f10, "a much longer piece of text than fits" ) + 2 * tkHost_Scale( h, 6 )) / h->fScale )
+    tkTest_Check( "a double click on the gutter fits the longest text", (tkDataGrid_GetColumnWidth( g, 2 ) >= needU) _
+                  andalso (tkDataGrid_GetColumnWidth( g, 2 ) <= needU + 3) andalso (gResizeFinal = 1), tkDataGrid_GetColumnWidth( g, 2 ) & " vs " & needU & " final=" & gResizeFinal & " hit=" & tkDataGrid_HitTest( g, hc.right, hdrH \ 2, ht ) & " col=" & ht.col & " hc=" & tkRect_Str( hc ) & " cw=" & surf->cw )
+    tkTest_Check( "the tip of a cell that fits is none", (tkDataGrid_GetTipText( g, 1, 2 ) = "") andalso (tkDataGrid_GetTipText( g, 0, 2 ) = "") )
+    tkDataGrid_SetColumnWidth( g, 2, 60 )
+    tkTest_Check( "narrowed: a cut-off cell's tip is its whole text", tkDataGrid_GetTipText( g, 0, 2 ) = "a much longer piece of text than fits" )
+    tkDataGrid_SetTooltipCallback( g, @G1Tip )
+    tkTest_Check( "a Tooltip callback decides", (tkDataGrid_GetTipText( g, 1, 3 ) = "tip 1,3") andalso (tkDataGrid_GetTipText( g, -1, 2 ) = "tip -1,2") )
+    tkDataGrid_SetTooltipCallback( g, 0 )
+    dim as single hx1, hy1
+    CellXY( g, 1, 3, hx1, hy1 )
+    tkTest_PushMotion( h, hx1, hy1 )
+    dim as long tool1 = tkTooltip_GetToolIndex( tkDataGrid_GetTooltipHandle( g ) )
+    CellXY( g, 2, 3, hx1, hy1 )
+    tkTest_PushMotion( h, hx1, hy1 )
+    dim as long tool2 = tkTooltip_GetToolIndex( tkDataGrid_GetTooltipHandle( g ) )
+    tkTest_Check( "hovering another cell is another tool", (tool1 >= 1) andalso (tool2 >= 1) andalso (tool1 <> tool2), tool1 & " " & tool2 )
+
+    ' a header click (no movement) is ColumnClick; a drag past the threshold reorders
+    G1Reset( )
+    tkDataGrid_GetColumnRect( g, 2, hc )
+    SurfXY( g, (hc.left + hc.right) \ 2, hdrH \ 2, dx, dy )
+    tkTest_Click( h, dx, dy )
+    tkTest_Check( "a header click is ColumnClick", (gColClick = 1) andalso (gColClickCol = 2) andalso (gReorder = 0) )
+    tkDataGrid_SetColumnWidth( g, 2, 100 )            ' so City is wholly on screen
+    tkDataGrid_GetColumnRect( g, 2, hc )
+    SurfXY( g, (hc.left + hc.right) \ 2, hdrH \ 2, dx, dy )
+    dim as TKRECT hc4
+    tkDataGrid_GetColumnRect( g, 3, hc4 )
+    dim as single ex, ey
+    SurfXY( g, hc4.left + (hc4.right - hc4.left) * 3 \ 4, hdrH \ 2, ex, ey )
+    tkTest_PushButton( h, true, dx, dy )
+    tkTest_PushMotion( h, dx + tkHost_Scale( h, 10 ), dy )
+    tkTest_PushMotion( h, ex, ey )
+    tkTest_PushButton( h, false, ex, ey )
+    tkTest_Check( "dragging Note past City's middle drops it after City", (tkDataGrid_GetDisplayIndex( g, 2 ) = 3) _
+                  andalso (tkDataGrid_ColumnAtDisplay( g, 2 ) = 3) andalso (gReorder = 1) andalso (gReorderCol = 2) andalso (gReorderPos = 3) _
+                  andalso (gColClick = 1), "disp=" & tkDataGrid_GetDisplayIndex( g, 2 ) )
+    tkDataGrid_SetDisplayIndex( g, 2, 2 )
+    tkDataGrid_SetColumnHeaderSelects( g, true )
+    tkTest_Click( h, dx, dy )
+    tkTest_Check( "ColumnHeaderSelects: a header click selects its column", tkDataGrid_IsCellSelected( g, 0, 2 ) andalso tkDataGrid_IsCellSelected( g, 49, 2 ) _
+                  andalso (tkDataGrid_IsCellSelected( g, 0, 1 ) = false) )
+    tkDataGrid_SetColumnHeaderSelects( g, false )
+
+    ' ---- S: what resets the selection ---------------------------------------------------------
+    tkDataGrid_SetCurrentCell( g, 4, 2 )
+    tkDataGrid_SelectRange( g, 4, 1, 6, 2 )
+    tkDataGrid_InsertRows( g, 0, 2 )
+    tkTest_Check( "inserting rows clears the selection; the current row moves with its row", CurIs( g, 6, 2 ) _
+                  andalso (tkDataGrid_GetSelectedRanges( g, rg() ) = 0) andalso (tkDataGrid_IsCellSelected( g, 6, 2 ) = false) )
+    tkDataGrid_DeleteRows( g, 0, 2 )
+    tkTest_Check( "deleting them moves it back", CurIs( g, 4, 2 ) )
+    tkDataGrid_SelectRows( g, 1, 2 )
+    tkDataGrid_SelectRange( g, 4, 1, 6, 2, true )
+    dim as TKDATAGRID_COLUMN cx
+    cx.caption = "New" : cx.key = "New"
+    tkDataGrid_InsertColumn( g, 0, cx )
+    tkTest_Check( "inserting a column drops the cell rectangles, keeps the rows; the current column shifts", CurIs( g, 4, 3 ) _
+                  andalso (tkDataGrid_GetSelectedRanges( g, rg() ) = 0) andalso tkDataGrid_IsRowSelected( g, 2 ), CurStr( g ) )
+    tkDataGrid_DeleteColumn( g, 0 )
+    tkTest_Check( "deleting it shifts it back", CurIs( g, 4, 2 ) )
+
+    ' ---- T: pixels: selection, the current frame, focus, the frozen line, row headers ----------
+    tkDataGrid_SetFrozenColumns( g, 1 )
+    tkDataGrid_SetCurrentCell( g, 2, 2 )
+    tkDataGrid_SelectRange( g, 2, 2, 3, 2 )
+    tkHost_SetFocus( h, surf )
+    tkTest_PushMotion( h, 1, 1 )
+    tkHost_RenderTo( h, false )
+    dim as TKDATAGRID_COLORS c_
+    tkDataGrid_GetColors( g, @c_ )
+    dim as TKRECT r2, r3
+    tkDataGrid_GetCellRect( g, 2, 2, r2 )
+    tkDataGrid_GetCellRect( g, 3, 2, r3 )
+    dim as long midX = (r3.left + r3.right) \ 2
+    tkTest_Check( "a selected cell with the focus is SelBackColor", Px( h, g, r3.left + tkHost_Scale( h, 4 ), r3.top + 3 ) = (c_.SelBackColor and &hFFFFFFul), _
+                  hex( Px( h, g, r3.left + tkHost_Scale( h, 4 ), r3.top + 3 ) ) )
+    tkTest_Check( "the current cell has the CurrentBorder frame", Px( h, g, midX, r2.top ) = (c_.CurrentBorder and &hFFFFFFul), hex( Px( h, g, midX, r2.top ) ) )
+    tkTest_Check( "the frozen line", Px( h, g, rh + fw, hdrH + rowH * 8 + 3 ) = (c_.FrozenLineColor and &hFFFFFFul), hex( Px( h, g, rh + fw, hdrH + rowH * 8 + 3 ) ) )
+    tkTest_Check( "the current row's header has the mark", Px( h, g, rh \ 2, r2.top + rowH \ 2 ) = (c_.RowHeaderForeColor and &hFFFFFFul), hex( Px( h, g, rh \ 2, r2.top + rowH \ 2 ) ) )
+    tkHost_SetFocus( h, tkDataGrid_GetSurface( other ) )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "without the focus: SelBackInactive, no frame", (Px( h, g, r3.left + tkHost_Scale( h, 4 ), r3.top + 3 ) = (c_.SelBackInactive and &hFFFFFFul)) _
+                  andalso (Px( h, g, midX, r2.top ) <> (c_.CurrentBorder and &hFFFFFFul)), hex( Px( h, g, r3.left + tkHost_Scale( h, 4 ), r3.top + 3 ) ) )
+
+    tkHost_Destroy( h )
+end sub
+
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
 RunPass( 1.75 )
+RunG1( 1.0 )
+RunG1( 1.75 )
 dim as long nFail = tkTest_Report( "tkDataGrid" )
 tkTest_Quit()
 end nFail

@@ -1,6 +1,7 @@
-' tkDataGrid demo (phase G0): an order list of 100,000 stored rows in every column kind G0
-' paints, with alternate rows, a fill column, conditional formatting, hover and both scroll bars.
-' Selection and editing come in G1 / G2.
+' tkDataGrid demo (phases G0 + G1): an order list of 100,000 stored rows in every column kind,
+' with alternate rows, a fill column, conditional formatting, hover, both scroll bars, row
+' headers, a frozen first column, cell / row selection, the keyboard, column resize / autosize /
+' drag-reorder, Ctrl+C and tooltips for cut-off text. Editing comes in G2.
 '
 '   demo                     interactive
 '   demo --shot out.bmp      render once, save the window, exit
@@ -12,7 +13,7 @@ using tkTheme
 using tkHost
 using tkPaint
 
-const as long M = 12, LABELH = 22
+const as long MARGIN = 12, LABELH = 22
 const as long NROWS = 100000
 
 dim shared as TK_HOST ptr gHost
@@ -21,7 +22,7 @@ dim shared as ustring gStatus
 dim shared as TTF_Font ptr gFont10, gFontBold10
 dim shared as integer gColQty, gColTotal
 
-' Totals over 1000 go bold-coloured: CellFormatting runs only for the cells on screen.
+' Totals over 1000 in the warning colour: CellFormatting runs only for the cells on screen.
 sub OnFormat( byval f as TKDATAGRID_FORMATINFO ptr )
     if (f->col = gColTotal) andalso (f->value->kind = TKDG_FLOAT) then
         f->text = "$ " & str( cint( f->value->f * 100 ) / 100 )
@@ -29,28 +30,47 @@ sub OnFormat( byval f as TKDATAGRID_FORMATINFO ptr )
     end if
 end sub
 
-function OnMsg( byval mi as TKDATAGRID_MESSAGEINFO ptr ) as boolean
-    if mi->msg = TKM_LBUTTONDOWN then
-        select case mi->ht.area
-        case TKDG_HT_CELL
-            gStatus = "cell  row " & mi->ht.row & ", column """ & tkDataGrid_GetColumnCaption( mi->hGrid, mi->ht.col ) _
-                      & """ = " & tkDataGrid_GetCellText( mi->hGrid, mi->ht.row, mi->ht.col )
-        case TKDG_HT_HEADER
-            gStatus = "header  """ & tkDataGrid_GetColumnCaption( mi->hGrid, mi->ht.col ) & """"
-        case TKDG_HT_DIVIDER
-            gStatus = "resize gutter of """ & tkDataGrid_GetColumnCaption( mi->hGrid, mi->ht.col ) & """ (resizing is G1)"
-        case else
-            gStatus = "empty area"
-        end select
-        tkHost_Invalidate( gHost )
-    end if
-    return false
+private function Q( byref s as const ustring ) as ustring
+    return chr(34) & s & chr(34)
 end function
+
+sub OnCurrent( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gStatus = "current  row " & row & ", " & Q( tkDataGrid_GetColumnCaption( hg, col ) ) & " = " & tkDataGrid_GetCellText( hg, row, col ) _
+              & "     whole rows selected: " & tkDataGrid_GetSelectedRowCount( hg ) & iif( tkDataGrid_IsAllSelected( hg ), "  (all)", "" )
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnSelChange( byval hg as TK_WIDGET ptr )
+    dim as integer r, c
+    tkDataGrid_GetCurrentCell( hg, r, c )
+    if r >= 0 then OnCurrent( hg, r, c )
+end sub
+
+sub OnColumnClick( byval hg as TK_WIDGET ptr, byval col as integer )
+    gStatus = "header click: " & Q( tkDataGrid_GetColumnCaption( hg, col ) ) & " (sorting is G4)"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnReordered( byval hg as TK_WIDGET ptr, byval col as integer, byval dispPos as integer )
+    gStatus = Q( tkDataGrid_GetColumnCaption( hg, col ) ) & " moved to position " & dispPos
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnResized( byval hg as TK_WIDGET ptr, byval col as integer, byval nWidth as integer, byval bLive as boolean )
+    if bLive then exit sub
+    gStatus = Q( tkDataGrid_GetColumnCaption( hg, col ) ) & " is " & nWidth & " units wide"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnActivate( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gStatus = "activate  row " & row & " (double click)"
+    tkHost_Invalidate( gHost )
+end sub
 
 sub Form_Size( byval h as TK_HOST ptr )
     dim as long pw, ph
     tkHost_PixelSize( h, pw, ph )
-    dim as long sm = tkHost_Scale( h, M ), lh = tkHost_Scale( h, LABELH )
+    dim as long sm = tkHost_Scale( h, MARGIN ), lh = tkHost_Scale( h, LABELH )
     tkWidget_SetPos( gGrid, sm, sm + lh, pw - 2 * sm, ph - 2 * sm - 2 * lh )
 end sub
 
@@ -61,11 +81,11 @@ sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
     b->SetFont( gFontBold10 )
     b->SetForeColor( t.TextHot )
     tkRect_Set( r, gGrid->x, gGrid->y - lh, gGrid->x + gGrid->cw, gGrid->y )
-    b->PaintText( "tkDataGrid G0 -- " & NROWS & " stored rows; wheel / Shift+wheel / the bars scroll", @r, TK_DT_LEFT )
+    b->PaintText( "tkDataGrid G0 + G1 -- " & NROWS & " rows: click / Shift / Ctrl / drag, arrows, Tab, Ctrl+A, Ctrl+C; drag headers and their edges", @r, TK_DT_LEFT or TK_DT_ELLIPSIS )
     tkRect_Set( r, gGrid->x, gGrid->y + gGrid->ch, gGrid->x + gGrid->cw, gGrid->y + gGrid->ch + lh )
     b->SetFont( gFont10 )
     b->SetForeColor( t.Accent )
-    b->PaintText( gStatus, @r, TK_DT_LEFT )
+    b->PaintText( gStatus, @r, TK_DT_LEFT or TK_DT_ELLIPSIS )
 end sub
 
 private function ArgValue( byref name_ as string ) as string
@@ -100,8 +120,15 @@ gFontBold10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI_BOLD, 10 )
 gGrid = tkDataGrid_Create( tkHost_Root( gHost ), 1000 )
 tkDataGrid_ApplyFonts( gGrid, gFont10, 0 )
 tkDataGrid_SetAlternateRows( gGrid, true )
+tkDataGrid_ShowRowHeaders( gGrid, true )
+tkDataGrid_SetFrozenColumns( gGrid, 1 )
 tkDataGrid_SetCellFormattingCallback( gGrid, @OnFormat )
-tkDataGrid_SetMessageCallback( gGrid, @OnMsg )
+tkDataGrid_SetCurrentCellChangedCallback( gGrid, @OnCurrent )
+tkDataGrid_SetSelChangeCallback( gGrid, @OnSelChange )
+tkDataGrid_SetColumnClickCallback( gGrid, @OnColumnClick )
+tkDataGrid_SetColumnReorderedCallback( gGrid, @OnReordered )
+tkDataGrid_SetColumnResizeCallback( gGrid, @OnResized )
+tkDataGrid_SetCellActivateCallback( gGrid, @OnActivate )
 
 dim as integer cId = tkDataGrid_AddColumnEx( gGrid, "Order", TKDG_COL_TEXT, 80, TKDG_INT )
 dim as TKDATAGRID_COLUMN cc
@@ -120,14 +147,14 @@ dim as string names_(0 to 7) = { "Acme Corp", "Globex", "Initech", "Umbrella", "
 tkDataGrid_BeginUpdate( gGrid )
 tkDataGrid_SetRowCount( gGrid, NROWS )
 for r as integer = 0 to NROWS - 1
-    dim as long q = 1 + (r * 7) mod 23
+    dim as long qn = 1 + (r * 7) mod 23
     dim as double pr = 5 + ((r * 13) mod 997) / 10
     tkDataGrid_SetCellInt( gGrid, r, cId, 100000 + r )
     tkDataGrid_SetCellText( gGrid, r, cCust, names_( r mod 8 ) )
     tkDataGrid_SetCellDate( gGrid, r, cDate, tkCalendar_MakeDate( 2026, 1 + (r mod 12), 1 + (r mod 28) ) )
-    tkDataGrid_SetCellInt( gGrid, r, gColQty, q )
+    tkDataGrid_SetCellInt( gGrid, r, gColQty, qn )
     tkDataGrid_SetCellFloat( gGrid, r, cPrice, pr )
-    tkDataGrid_SetCellFloat( gGrid, r, gColTotal, q * pr )
+    tkDataGrid_SetCellFloat( gGrid, r, gColTotal, qn * pr )
     tkDataGrid_SetCellBool( gGrid, r, cPaid, (r mod 3) <> 0 )
     tkDataGrid_SetCellFloat( gGrid, r, cShip, (r * 17) mod 101 )
     tkDataGrid_SetCellText( gGrid, r, cLink, "INV-" & (100000 + r) )
@@ -135,12 +162,15 @@ for r as integer = 0 to NROWS - 1
 next
 tkDataGrid_EndUpdate( gGrid )
 
-gStatus = "Click a cell, a header or a column's edge."
+gStatus = "Click a cell, a row header, the corner, a header or a column's edge."
 gHost->OnPaint = @Form_Paint
 gHost->OnSize = @Form_Size
 Form_Size( gHost )
 tkHost_Show( gHost )
 tkHost_SetFocus( gHost, gGrid )
+tkDataGrid_SetCurrentCell( gGrid, 2, cCust )
+tkDataGrid_SelectRange( gGrid, 2, cCust, 5, gColQty )
+tkDataGrid_SelectRows( gGrid, 8, 9, true )
 
 dim as string shot = ArgValue( "--shot" )
 if len( shot ) then
