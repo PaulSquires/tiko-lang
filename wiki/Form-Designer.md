@@ -337,6 +337,7 @@ end sub
 | TextBox, CodeEdit | the text |
 | Label | the text, in only: SaveTo leaves the field alone |
 | NumericUpDown | the value |
+| Slider | the value; with **Mode** = Range, **Bind** takes the lower value and **BindUpper** the upper (loaded lower first, so any old pair loads right) |
 | CheckBox, OptionButton, Toggle | checked or not |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |

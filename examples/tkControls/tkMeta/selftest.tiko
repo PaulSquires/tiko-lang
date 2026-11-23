@@ -178,8 +178,8 @@ sub RunPass( byval fScale as single )
         dim as TKMETA_CONTROL ptr c = tkMeta_At( i )
         if len( c->BindKind ) then bound &= c->Name & ":" & c->BindKind & iif( c->BindLoadOnly, "!", "" ) & " "
     next
-    tkTest_Check( "ten bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
-        & "NumericUpDown:float ComboBox:int DatePicker:date ColorPicker:int CodeEdit:text ", bound )
+    tkTest_Check( "eleven bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
+        & "NumericUpDown:float Slider:float ComboBox:int DatePicker:date ColorPicker:int CodeEdit:text ", bound )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )

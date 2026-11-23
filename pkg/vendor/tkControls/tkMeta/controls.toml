@@ -410,6 +410,8 @@ module = "tkSlider"
 category = "Common"
 width = 160
 height = 32
+bind = { kind="float", get="tkSlider_GetValue", set="tkSlider_SetValue" }
+bind2 = { kind="float", get="tkSlider_GetUpperValue", set="tkSlider_SetUpperValue", name="BindUpper", when="Mode=Range" }
 default_event = "ValueChanged"
 colors = { struct="TKSLIDER_COLORS", get="tkSlider_GetColors", theme="tkSlider_ThemeColors" }
 color_fields = [
