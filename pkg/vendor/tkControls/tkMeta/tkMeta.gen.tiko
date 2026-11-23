@@ -45,6 +45,7 @@
 #import "../tkCheckedList"
 #import "../tkCheckedCombo"
 #import "../tkTokenBox"
+#import "../tkAutoComplete"
 using tkHost
 using tkPaint
 using tkLabel
@@ -90,6 +91,7 @@ using tkToast
 using tkCheckedList
 using tkCheckedCombo
 using tkTokenBox
+using tkAutoComplete
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -4117,6 +4119,184 @@ private sub F_TokenBox_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkTokenBox_SetFont( w, f )
 end sub
 
+private function C_AutoComplete( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkAutoComplete_Create( hParent, id )
+end function
+
+private sub G_AutoComplete( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkAutoComplete_GetColors( w, cast( TKAUTOCOMPLETE_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_AutoComplete( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKAUTOCOMPLETE_COLORS ptr, pSlots ) = tkAutoComplete_ThemeColors( t )
+end sub
+
+private sub A_AutoComplete_Style( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Input" : tkAutoComplete_SetStyle( w, TKAC_STYLE_INPUT )
+    case "Search" : tkAutoComplete_SetStyle( w, TKAC_STYLE_SEARCH )
+    end select
+end sub
+
+private function R_AutoComplete_Style( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAutoComplete_GetStyle( w )
+    case TKAC_STYLE_INPUT : return "Input"
+    case TKAC_STYLE_SEARCH : return "Search"
+    end select
+    return ""
+end function
+
+private sub A_AutoComplete_Mode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Suggest" : tkAutoComplete_SetMode( w, TKAC_MODE_SUGGEST )
+    case "Append" : tkAutoComplete_SetMode( w, TKAC_MODE_APPEND )
+    case "SuggestAppend" : tkAutoComplete_SetMode( w, TKAC_MODE_SUGGESTAPPEND )
+    end select
+end sub
+
+private function R_AutoComplete_Mode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAutoComplete_GetMode( w )
+    case TKAC_MODE_SUGGEST : return "Suggest"
+    case TKAC_MODE_APPEND : return "Append"
+    case TKAC_MODE_SUGGESTAPPEND : return "SuggestAppend"
+    end select
+    return ""
+end function
+
+private sub A_AutoComplete_ValuePolicy( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "FreeText" : tkAutoComplete_SetValuePolicy( w, TKAC_VALUE_FREETEXT )
+    case "LimitToList" : tkAutoComplete_SetValuePolicy( w, TKAC_VALUE_LIMITTOLIST )
+    end select
+end sub
+
+private function R_AutoComplete_ValuePolicy( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAutoComplete_GetValuePolicy( w )
+    case TKAC_VALUE_FREETEXT : return "FreeText"
+    case TKAC_VALUE_LIMITTOLIST : return "LimitToList"
+    end select
+    return ""
+end function
+
+private sub A_AutoComplete_FilterMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Prefix" : tkAutoComplete_SetFilterMode( w, TKAC_FILTER_PREFIX )
+    case "WordPrefix" : tkAutoComplete_SetFilterMode( w, TKAC_FILTER_WORDPREFIX )
+    case "Contains" : tkAutoComplete_SetFilterMode( w, TKAC_FILTER_CONTAINS )
+    case "Fuzzy" : tkAutoComplete_SetFilterMode( w, TKAC_FILTER_FUZZY )
+    end select
+end sub
+
+private function R_AutoComplete_FilterMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAutoComplete_GetFilterMode( w )
+    case TKAC_FILTER_PREFIX : return "Prefix"
+    case TKAC_FILTER_WORDPREFIX : return "WordPrefix"
+    case TKAC_FILTER_CONTAINS : return "Contains"
+    case TKAC_FILTER_FUZZY : return "Fuzzy"
+    end select
+    return ""
+end function
+
+private sub A_AutoComplete_DropButton( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetDropButton( w, cbool( v = "true" ) )
+end sub
+
+private function R_AutoComplete_DropButton( byval w as TK_WIDGET ptr ) as ustring
+    if tkAutoComplete_GetDropButton( w ) then return "true" else return "false"
+end function
+
+private sub A_AutoComplete_CaseSensitive( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetCaseSensitive( w, cbool( v = "true" ) )
+end sub
+
+private function R_AutoComplete_CaseSensitive( byval w as TK_WIDGET ptr ) as ustring
+    if tkAutoComplete_GetCaseSensitive( w ) then return "true" else return "false"
+end function
+
+private sub A_AutoComplete_RankPrefixFirst( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetRankPrefixFirst( w, cbool( v = "true" ) )
+end sub
+
+private function R_AutoComplete_RankPrefixFirst( byval w as TK_WIDGET ptr ) as ustring
+    if tkAutoComplete_GetRankPrefixFirst( w ) then return "true" else return "false"
+end function
+
+private sub A_AutoComplete_MinChars( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetMinChars( w, clng( val( v ) ) )
+end sub
+
+private function R_AutoComplete_MinChars( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAutoComplete_GetMinChars( w ) )
+end function
+
+private sub A_AutoComplete_MaxResults( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetMaxResults( w, clng( val( v ) ) )
+end sub
+
+private function R_AutoComplete_MaxResults( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAutoComplete_GetMaxResults( w ) )
+end function
+
+private sub A_AutoComplete_SearchDelay( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetSearchDelay( w, clng( val( v ) ) )
+end sub
+
+private function R_AutoComplete_SearchDelay( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAutoComplete_GetSearchDelay( w ) )
+end function
+
+private sub A_AutoComplete_PreviewOnNavigate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetPreviewOnNavigate( w, cbool( v = "true" ) )
+end sub
+
+private function R_AutoComplete_PreviewOnNavigate( byval w as TK_WIDGET ptr ) as ustring
+    if tkAutoComplete_GetPreviewOnNavigate( w ) then return "true" else return "false"
+end function
+
+private sub A_AutoComplete_PlaceholderText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetPlaceholderText( w, v )
+end sub
+
+private function R_AutoComplete_PlaceholderText( byval w as TK_WIDGET ptr ) as ustring
+    return tkAutoComplete_GetPlaceholderText( w )
+end function
+
+private sub A_AutoComplete_EmptyText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetEmptyText( w, v )
+end sub
+
+private function R_AutoComplete_EmptyText( byval w as TK_WIDGET ptr ) as ustring
+    return tkAutoComplete_GetEmptyText( w )
+end function
+
+private sub A_AutoComplete_ListMaxRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetListMaxRows( w, clng( val( v ) ) )
+end sub
+
+private function R_AutoComplete_ListMaxRows( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAutoComplete_GetListMaxRows( w ) )
+end function
+
+private sub A_AutoComplete_ListItemHeight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetListItemHeight( w, clng( val( v ) ) )
+end sub
+
+private function R_AutoComplete_ListItemHeight( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAutoComplete_GetListItemHeight( w ) )
+end function
+
+private sub A_AutoComplete_ListWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAutoComplete_SetListWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_AutoComplete_ListWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAutoComplete_GetListWidth( w ) )
+end function
+
+private sub F_AutoComplete_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkAutoComplete_SetFont( w, f )
+end sub
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -5365,5 +5545,57 @@ sub Fill_( )
     Event_( "ChipClick", "tkTokenBox_SetChipClickCallback", "TKB_ChipClickCallbackSub", "byval hBox as TK_WIDGET ptr, byval idx as long", "byval idx as long", "idx" )
     Event_( "Suggest", "tkTokenBox_SetSuggestCallback", "TKB_SuggestCallbackSub", "byval hBox as TK_WIDGET ptr, byval Text as ustring", "byval Text as ustring", "Text" )
     Event_( "Paint", "tkTokenBox_SetPaintCallback", "TKB_ChipPaintCallbackSub", "byval ci as TKTOKENBOX_CHIPINFO ptr", "byval ci as TKTOKENBOX_CHIPINFO ptr", "ci", "ci->hBox", "", "" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "AutoComplete", "tkAutoComplete", "Common", 220, 32, "ItemSelected", "", @C_AutoComplete, "", "", "", "" )
+    Bind_( "text", "tkAutoComplete_GetText", "tkAutoComplete_SetText", false )
+    ItemsBind_( "items" )
+    Bind2_( "int", "tkAutoComplete_GetSelectedId", "tkAutoComplete_SetSelectedId", "BindValue", "ValuePolicy=LimitToList" )
+    Colors_( "TKAUTOCOMPLETE_COLORS", "tkAutoComplete_GetColors", "tkAutoComplete_ThemeColors", @G_AutoComplete, @T_AutoComplete )
+    Color_( "ForeColor", "Fore", "Normal", "", true )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "CueColor", "", "", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "FocusBorderColor", "", "", "", false )
+    Color_( "OuterBackColor", "", "", "", false )
+    Color_( "SelBackColor", "", "", "", false )
+    Color_( "SelForeColor", "", "", "", false )
+    Color_( "ForeColorDisabled", "Fore", "Disabled", "", true )
+    Color_( "ListBackColor", "List", "Normal", "", false )
+    Color_( "ListForeColor", "ListText", "Normal", "", true )
+    Color_( "ListBackColorHot", "List", "Hot", "", false )
+    Color_( "ListForeColorHot", "ListText", "Hot", "", true )
+    Color_( "ListForeColorDisabled", "ListText", "Disabled", "", true )
+    Color_( "ListBorderColor", "", "", "", false )
+    Color_( "MatchForeColor", "", "", "", false )
+    Color_( "DetailForeColor", "", "", "", false )
+    Color_( "GlyphColor", "Glyph", "Normal", "", true )
+    Color_( "GlyphColorHot", "Glyph", "Hot", "", true )
+    Color_( "ErrorColor", "", "", "", false )
+    Prop_( "Style", "enum", "", "Input=TKAC_STYLE_INPUT,Search=TKAC_STYLE_SEARCH", "tkAutoComplete_SetStyle", "tkAutoComplete_GetStyle", @A_AutoComplete_Style, @R_AutoComplete_Style, 0, true, true, "", 0 )
+    Prop_( "Mode", "enum", "", "Suggest=TKAC_MODE_SUGGEST,Append=TKAC_MODE_APPEND,SuggestAppend=TKAC_MODE_SUGGESTAPPEND", "tkAutoComplete_SetMode", "tkAutoComplete_GetMode", @A_AutoComplete_Mode, @R_AutoComplete_Mode, 0, true, true, "", 0 )
+    Prop_( "ValuePolicy", "enum", "", "FreeText=TKAC_VALUE_FREETEXT,LimitToList=TKAC_VALUE_LIMITTOLIST", "tkAutoComplete_SetValuePolicy", "tkAutoComplete_GetValuePolicy", @A_AutoComplete_ValuePolicy, @R_AutoComplete_ValuePolicy, 0, true, true, "", 0 )
+    Prop_( "FilterMode", "enum", "", "Prefix=TKAC_FILTER_PREFIX,WordPrefix=TKAC_FILTER_WORDPREFIX,Contains=TKAC_FILTER_CONTAINS,Fuzzy=TKAC_FILTER_FUZZY", "tkAutoComplete_SetFilterMode", "tkAutoComplete_GetFilterMode", @A_AutoComplete_FilterMode, @R_AutoComplete_FilterMode, 0, true, true, "", 0 )
+    Prop_( "DropButton", "bool", "false", "", "tkAutoComplete_SetDropButton", "tkAutoComplete_GetDropButton", @A_AutoComplete_DropButton, @R_AutoComplete_DropButton, 0, true, true, "", 0 )
+    Prop_( "CaseSensitive", "bool", "false", "", "tkAutoComplete_SetCaseSensitive", "tkAutoComplete_GetCaseSensitive", @A_AutoComplete_CaseSensitive, @R_AutoComplete_CaseSensitive, 0, true, true, "", 0 )
+    Prop_( "RankPrefixFirst", "bool", "false", "", "tkAutoComplete_SetRankPrefixFirst", "tkAutoComplete_GetRankPrefixFirst", @A_AutoComplete_RankPrefixFirst, @R_AutoComplete_RankPrefixFirst, 0, true, true, "", 0 )
+    Prop_( "MinChars", "int", "1", "", "tkAutoComplete_SetMinChars", "tkAutoComplete_GetMinChars", @A_AutoComplete_MinChars, @R_AutoComplete_MinChars, 0, true, true, "", 0 )
+    Prop_( "MaxResults", "int", "100", "", "tkAutoComplete_SetMaxResults", "tkAutoComplete_GetMaxResults", @A_AutoComplete_MaxResults, @R_AutoComplete_MaxResults, 0, true, true, "", 0 )
+    Prop_( "SearchDelay", "int", "150", "", "tkAutoComplete_SetSearchDelay", "tkAutoComplete_GetSearchDelay", @A_AutoComplete_SearchDelay, @R_AutoComplete_SearchDelay, 0, true, true, "", 0 )
+    Prop_( "PreviewOnNavigate", "bool", "true", "", "tkAutoComplete_SetPreviewOnNavigate", "tkAutoComplete_GetPreviewOnNavigate", @A_AutoComplete_PreviewOnNavigate, @R_AutoComplete_PreviewOnNavigate, 0, true, true, "", 0 )
+    Prop_( "PlaceholderText", "text", "", "", "tkAutoComplete_SetPlaceholderText", "tkAutoComplete_GetPlaceholderText", @A_AutoComplete_PlaceholderText, @R_AutoComplete_PlaceholderText, 0, true, true, "", 0 )
+    Prop_( "EmptyText", "text", "", "", "tkAutoComplete_SetEmptyText", "tkAutoComplete_GetEmptyText", @A_AutoComplete_EmptyText, @R_AutoComplete_EmptyText, 0, true, true, "", 0 )
+    Prop_( "ListMaxRows", "int", "8", "", "tkAutoComplete_SetListMaxRows", "tkAutoComplete_GetListMaxRows", @A_AutoComplete_ListMaxRows, @R_AutoComplete_ListMaxRows, 0, true, true, "", 0 )
+    Prop_( "ListItemHeight", "int", "24", "", "tkAutoComplete_SetListItemHeight", "tkAutoComplete_GetListItemHeight", @A_AutoComplete_ListItemHeight, @R_AutoComplete_ListItemHeight, 0, true, true, "", 0 )
+    Prop_( "ListWidth", "int", "0", "", "tkAutoComplete_SetListWidth", "tkAutoComplete_GetListWidth", @A_AutoComplete_ListWidth, @R_AutoComplete_ListWidth, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkAutoComplete_SetFont", "tkAutoComplete_GetFont", 0, 0, @F_AutoComplete_Font, true, true, "", 0 )
+    Event_( "ItemSelected", "tkAutoComplete_SetItemSelectedCallback", "AC_ItemSelectedSub", "byval hAC as TK_WIDGET ptr, byval index as long, byval id as longint", "byval index as long, byval id as longint", "index, id" )
+    Event_( "TextChanged", "tkAutoComplete_SetTextChangedCallback", "AC_TextChangedSub", "byval hAC as TK_WIDGET ptr, byval bFromList as boolean", "byval bFromList as boolean", "bFromList" )
+    Event_( "Submit", "tkAutoComplete_SetSubmitCallback", "AC_SubmitSub", "byval hAC as TK_WIDGET ptr, byref text as const ustring, byval index as long", "byref text as const ustring, byval index as long", "text, index" )
+    Event_( "Search", "tkAutoComplete_SetSearchCallback", "AC_SearchSub", "byval hAC as TK_WIDGET ptr, byref text as const ustring", "byref text as const ustring", "text" )
+    Event_( "Highlight", "tkAutoComplete_SetHighlightCallback", "AC_HighlightSub", "byval hAC as TK_WIDGET ptr, byval index as long", "byval index as long", "index" )
+    Event_( "DropDown", "tkAutoComplete_SetDropDownCallback", "AC_DropDownSub", "byval hAC as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
+    Event_( "NotInList", "tkAutoComplete_SetNotInListCallback", "AC_NotInListSub", "byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as long", "byref text as const ustring, byref action as long", "text, action" )
+    Event_( "ItemsNeeded", "tkAutoComplete_SetItemsNeededCallback", "AC_ItemsNeededSub", "byval hAC as TK_WIDGET ptr, byref query as const ustring", "byref query as const ustring", "query" )
+    Event_( "Populate", "tkAutoComplete_SetPopulateCallback", "AC_PopulateSub", "byval hAC as TK_WIDGET ptr, byref query as const ustring, byval requestId as long", "byref query as const ustring, byval requestId as long", "query, requestId" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub

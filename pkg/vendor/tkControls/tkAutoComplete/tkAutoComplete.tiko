@@ -84,6 +84,12 @@ public enum
     TKAC_VALUE_LIMITTOLIST   ' the value is an item (a lookup)
 end enum
 
+' FilterMode's values under the control's own names (tkMatch's; a designed form sees these)
+public const TKAC_FILTER_PREFIX = TKMATCH_PREFIX
+public const TKAC_FILTER_WORDPREFIX = TKMATCH_WORDPREFIX
+public const TKAC_FILTER_CONTAINS = TKMATCH_CONTAINS
+public const TKAC_FILTER_FUZZY = TKMATCH_FUZZY
+
 public enum                  ' NotInList's answer
     AC_REVERT = 0            ' back to the selected item's text, or empty
     AC_ACCEPT                ' the host added an item for the text: look it up again

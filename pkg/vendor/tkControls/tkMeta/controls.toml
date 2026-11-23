@@ -1814,3 +1814,67 @@ events = [
   { name="Suggest", set="tkTokenBox_SetSuggestCallback", type="TKB_SuggestCallbackSub", sig="byval hBox as TK_WIDGET ptr, byval Text as ustring", params="byval Text as ustring", args="Text" },
   { name="Paint", set="tkTokenBox_SetPaintCallback", type="TKB_ChipPaintCallbackSub", sig="byval ci as TKTOKENBOX_CHIPINFO ptr", params="byval ci as TKTOKENBOX_CHIPINFO ptr", args="ci", widget="ci->hBox" },
 ]
+
+[[control]]
+name = "AutoComplete"
+module = "tkAutoComplete"
+category = "Common"
+width = 220
+height = 32
+bind = { kind="text", get="tkAutoComplete_GetText", set="tkAutoComplete_SetText" }
+bind2 = { kind="int", get="tkAutoComplete_GetSelectedId", set="tkAutoComplete_SetSelectedId", name="BindValue", when="ValuePolicy=LimitToList" }
+items_bind = "items"
+default_event = "ItemSelected"
+colors = { struct="TKAUTOCOMPLETE_COLORS", get="tkAutoComplete_GetColors", theme="tkAutoComplete_ThemeColors" }
+color_fields = [
+  { field="ForeColor", part="Fore", state="Normal", ink=true },
+  { field="BackColor", part="Back", state="Normal" },
+  { field="CueColor" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="FocusBorderColor" },
+  { field="OuterBackColor" },
+  { field="SelBackColor" },
+  { field="SelForeColor" },
+  { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+  { field="ListBackColor", part="List", state="Normal" },
+  { field="ListForeColor", part="ListText", state="Normal", ink=true },
+  { field="ListBackColorHot", part="List", state="Hot" },
+  { field="ListForeColorHot", part="ListText", state="Hot", ink=true },
+  { field="ListForeColorDisabled", part="ListText", state="Disabled", ink=true },
+  { field="ListBorderColor" },
+  { field="MatchForeColor" },
+  { field="DetailForeColor" },
+  { field="GlyphColor", part="Glyph", state="Normal", ink=true },
+  { field="GlyphColorHot", part="Glyph", state="Hot", ink=true },
+  { field="ErrorColor" },
+]
+props = [
+  { name="Style", kind="enum", enum="Input=TKAC_STYLE_INPUT,Search=TKAC_STYLE_SEARCH", set="tkAutoComplete_SetStyle", get="tkAutoComplete_GetStyle" },
+  { name="Mode", kind="enum", enum="Suggest=TKAC_MODE_SUGGEST,Append=TKAC_MODE_APPEND,SuggestAppend=TKAC_MODE_SUGGESTAPPEND", set="tkAutoComplete_SetMode", get="tkAutoComplete_GetMode" },
+  { name="ValuePolicy", kind="enum", enum="FreeText=TKAC_VALUE_FREETEXT,LimitToList=TKAC_VALUE_LIMITTOLIST", set="tkAutoComplete_SetValuePolicy", get="tkAutoComplete_GetValuePolicy" },
+  { name="FilterMode", kind="enum", enum="Prefix=TKAC_FILTER_PREFIX,WordPrefix=TKAC_FILTER_WORDPREFIX,Contains=TKAC_FILTER_CONTAINS,Fuzzy=TKAC_FILTER_FUZZY", set="tkAutoComplete_SetFilterMode", get="tkAutoComplete_GetFilterMode" },
+  { name="DropButton", kind="bool", set="tkAutoComplete_SetDropButton", get="tkAutoComplete_GetDropButton", default="false" },
+  { name="CaseSensitive", kind="bool", set="tkAutoComplete_SetCaseSensitive", get="tkAutoComplete_GetCaseSensitive", default="false" },
+  { name="RankPrefixFirst", kind="bool", set="tkAutoComplete_SetRankPrefixFirst", get="tkAutoComplete_GetRankPrefixFirst", default="false" },
+  { name="MinChars", kind="int", set="tkAutoComplete_SetMinChars", get="tkAutoComplete_GetMinChars", default="1" },
+  { name="MaxResults", kind="int", set="tkAutoComplete_SetMaxResults", get="tkAutoComplete_GetMaxResults", default="100" },
+  { name="SearchDelay", kind="int", set="tkAutoComplete_SetSearchDelay", get="tkAutoComplete_GetSearchDelay", default="150" },
+  { name="PreviewOnNavigate", kind="bool", set="tkAutoComplete_SetPreviewOnNavigate", get="tkAutoComplete_GetPreviewOnNavigate", default="true" },
+  { name="PlaceholderText", kind="text", set="tkAutoComplete_SetPlaceholderText", get="tkAutoComplete_GetPlaceholderText" },
+  { name="EmptyText", kind="text", set="tkAutoComplete_SetEmptyText", get="tkAutoComplete_GetEmptyText" },
+  { name="ListMaxRows", kind="int", set="tkAutoComplete_SetListMaxRows", get="tkAutoComplete_GetListMaxRows", default="8" },
+  { name="ListItemHeight", kind="int", set="tkAutoComplete_SetListItemHeight", get="tkAutoComplete_GetListItemHeight", default="24" },
+  { name="ListWidth", kind="int", set="tkAutoComplete_SetListWidth", get="tkAutoComplete_GetListWidth", default="0" },
+  { name="Font", kind="font", set="tkAutoComplete_SetFont", get="tkAutoComplete_GetFont" },
+]
+events = [
+  { name="ItemSelected", set="tkAutoComplete_SetItemSelectedCallback", type="AC_ItemSelectedSub", sig="byval hAC as TK_WIDGET ptr, byval index as long, byval id as longint", params="byval index as long, byval id as longint", args="index, id" },
+  { name="TextChanged", set="tkAutoComplete_SetTextChangedCallback", type="AC_TextChangedSub", sig="byval hAC as TK_WIDGET ptr, byval bFromList as boolean", params="byval bFromList as boolean", args="bFromList" },
+  { name="Submit", set="tkAutoComplete_SetSubmitCallback", type="AC_SubmitSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring, byval index as long", params="byref text as const ustring, byval index as long", args="text, index" },
+  { name="Search", set="tkAutoComplete_SetSearchCallback", type="AC_SearchSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring", params="byref text as const ustring", args="text" },
+  { name="Highlight", set="tkAutoComplete_SetHighlightCallback", type="AC_HighlightSub", sig="byval hAC as TK_WIDGET ptr, byval index as long", params="byval index as long", args="index" },
+  { name="DropDown", set="tkAutoComplete_SetDropDownCallback", type="AC_DropDownSub", sig="byval hAC as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
+  { name="NotInList", set="tkAutoComplete_SetNotInListCallback", type="AC_NotInListSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as long", params="byref text as const ustring, byref action as long", args="text, action" },
+  { name="ItemsNeeded", set="tkAutoComplete_SetItemsNeededCallback", type="AC_ItemsNeededSub", sig="byval hAC as TK_WIDGET ptr, byref query as const ustring", params="byref query as const ustring", args="query" },
+  { name="Populate", set="tkAutoComplete_SetPopulateCallback", type="AC_PopulateSub", sig="byval hAC as TK_WIDGET ptr, byref query as const ustring, byval requestId as long", params="byref query as const ustring, byval requestId as long", args="query, requestId" },
+]
