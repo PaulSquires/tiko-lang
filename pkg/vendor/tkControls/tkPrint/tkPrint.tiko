@@ -136,9 +136,9 @@ end type
 
 ' ---- the display list ----------------------------------------------------------------------
 ' One more op beside tkPaint's TKREC_*: text resolved at replay.
-const PR_LATE = 100
+public const PR_LATE = 100
 ' A link: rect; i0 = the URL (string index), n = the target page (-1: the URL), gy0 = target y.
-const PR_LINK = 101
+public const PR_LINK = 101
 
 ' Late text: the format's {p} becomes the page number, {n} the page count.
 public type PR_OP
@@ -163,6 +163,7 @@ public type PR_OP
     font   as long                ' the doc's font table
     size   as single              ' the font's size on the page, points
     tw     as single              ' TEXT: measured width, points
+    asc    as single              ' TEXT / LATE: the font's ascent (top of the line to the baseline), points
     img    as long                ' the doc's image table
     sx     as single              ' IMAGE: source rect in the image (sw = 0: all of it)
     sy     as single
@@ -331,6 +332,11 @@ public function tkPrintDoc_GetPageSize( byval doc as TK_PRINTDOC ptr, byval page
     w = doc->pages(page)->wPt : h = doc->pages(page)->hPt
     return true
 end function
+
+' Add a line to the warnings (an output device's: a font drawn as an image ...). Never repeated.
+public sub tkPrintDoc_Warn( byval doc as TK_PRINTDOC ptr, byref s as ustring )
+    if doc then PrWarn( doc, s )
+end sub
 
 ' Substituted fonts, unreadable images: one line each, never repeated.
 public function tkPrintDoc_Warnings( byval doc as TK_PRINTDOC ptr ) as ustring
@@ -585,6 +591,7 @@ sub PrRecSub( byval pCtx as any ptr, byval o as TK_RECOP ptr )
         q->op = TKREC_TEXT : q->c = o->c : q->font = fi
         q->size = PrFontPx( o->pFont ) * k
         q->x = o->x * k + mx : q->y = o->y * k + my : q->tw = o->tw * k
+        q->asc = TTF_GetFontAscent( o->pFont ) * k
         q->i0 = PrAddStr( pp, o->sText )
     case TKREC_IMAGE
         dim as long ii = CaptureTexture( doc, pg->pCapR, o->tex )

@@ -4,10 +4,13 @@
 '
 '   demo                     the window: PgUp / PgDn change page, +/- zoom, P writes PNGs to ../out/
 '   demo --png ../out/p{p}.png  write every page at 150 dpi and exit
+'   demo --pdf ../out/demo.pdf  write the document as a PDF and exit
 '   demo --scale 1.75        pin the scale instead of asking the display
 #import "vendor/tkControls/tkChart"
 #import "vendor/tkControls/tkPrint"
+#import "vendor/tkControls/tkPdf"
 using tkChart
+using tkPdf
 using tkHost
 using tkPaint
 using tkPrint
@@ -165,8 +168,10 @@ tkPrintDoc_Generate( gDoc )
 tkWidget_Show( gChart, false )
 if len( tkPrintDoc_Warnings( gDoc ) ) then print "warnings: " & tkPrintDoc_Warnings( gDoc )
 
-dim as string png = ArgValue( "--png" )
-if len( png ) then
+dim as string png = ArgValue( "--png" ), pdf = ArgValue( "--pdf" )
+if len( pdf ) then
+    print "pdf: " & tkPrintDoc_ExportPdf( gDoc, pdf ) & "  " & tkPrintDoc_Warnings( gDoc )
+elseif len( png ) then
     dim as boolean ok = tkPrintDoc_ExportPng( gDoc, png, 150 )
     print "png: " & ok & "  pages " & tkPrintDoc_GetPageCount( gDoc )
 else

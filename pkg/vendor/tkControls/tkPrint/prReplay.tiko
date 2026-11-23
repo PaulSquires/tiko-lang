@@ -126,7 +126,7 @@ private function TexOf( byval rp as TK_PRINTREPLAY ptr, byval doc as TK_PRINTDOC
 end function
 
 ' Late text: {p} -> page number (from 1), {n} -> page count.
-function PrLateText( byref fmt as string, byval page as long, byval count as long ) as string
+public function PrLateText( byref fmt as string, byval page as long, byval count as long ) as string
     dim as string s = fmt
     dim as long i = instr( s, "{p}" )
     while i

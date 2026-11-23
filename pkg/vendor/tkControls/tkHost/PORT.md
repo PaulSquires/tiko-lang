@@ -25,3 +25,5 @@ name or path and face; `tkHost_FontSource( f, path, face )` reads it back. `tkHo
 and forgets (tkHost_Destroy uses it for the surface's fonts). A slot is reused when SDL_ttf hands out
 the same pointer again, so a font closed with `TTF_CloseFont` directly leaves nothing that misleads.
 Measured: examples/tkControls/tkPrint's registry checks (4 per scale).
+`tkHost_FontBytes( path, pData, nBytes, bOwned )` (2026-11-23, printing R2): a font's bytes by the name or
+path OpenFontFace takes -- a registered resource's own, or the file read whole -- for tkPdf to embed.

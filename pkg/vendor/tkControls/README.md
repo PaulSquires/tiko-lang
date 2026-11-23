@@ -55,6 +55,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkChart` | line, column, HLOC and pie charts |
 | `tkPrint` | print documents: pages recorded once in points (the `tkPage_*` API, or any widget's own painting), replayed to the screen, PNG and (later) PDF and printers |
 | `tkPrintPreview` | a print document's pages as paper: fit / custom zoom, columns, continuous or single view, links, pages generated while shown |
+| `tkPdf` | a print document as a PDF file: vector shapes, real (searchable) text in embedded fonts, images, links; no library linked |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |

@@ -624,6 +624,29 @@ public function tkHost_FontSource( byval f as TTF_Font ptr, byref path as string
     return false
 end function
 
+' A font file's bytes, by the name or path tkHost_OpenFontFace takes: a registered resource's own
+' bytes (bOwned = FALSE: they live as long as the registration), else the file read whole
+' (bOwned = TRUE: SDL_free them). FALSE when there is nothing to read. For a PDF writer's embedding.
+public function tkHost_FontBytes( byref path as string, byref pData as const any ptr, byref nBytes as integer, _
+                                  byref bOwned as boolean ) as boolean
+    pData = 0 : nBytes = 0 : bOwned = false
+    dim as string file = path
+    dim as long k = ResIndex_( path )
+    if k >= 0 then
+        if gResData(k) then
+            pData = gResData(k) : nBytes = gResSize(k)
+            return nBytes > 0
+        end if
+        file = gResFile(k)
+    end if
+    if len( file ) = 0 then return false
+    dim as uinteger sz
+    dim as any ptr p = SDL_LoadFile( strptr( file ), @sz )
+    if p = 0 then return false
+    pData = p : nBytes = sz : bOwned = true
+    return true
+end function
+
 ' Close a font tkHost_OpenFontFace opened, and forget where it came from.
 public sub tkHost_CloseFont( byval f as TTF_Font ptr )
     if f = 0 then exit sub

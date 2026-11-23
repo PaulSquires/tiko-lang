@@ -6,7 +6,7 @@ Builds print documents: pages drawn once in points, then shown, rasterised or ex
 
 A `TK_PRINTDOC` holds pages. You draw a page with the `tkPage_*` API, in **points** (1/72 inch, origin top-left, y down), or let any widget paint itself onto it with `tkPrint_PaintWidget`. Either way the page is a *recording* of what [tkPaint](tkPaint) would have drawn, so it can be replayed at any size: in a window (`tkPrintReplay_Page`), as a surface (`tkPrintDoc_RenderSurface`) or as PNG files (`tkPrintDoc_ExportPng`). A page replayed at the scale it was recorded at is the same pixels as painting it directly.
 
-The pages can be shown in [tkPrintPreview](tkPrintPreview). PDF export, print dialogs and printers come in later phases of the printing work.
+The pages can be shown in [tkPrintPreview](tkPrintPreview) and written as PDF by [tkPdf](tkPdf). Print dialogs and printers come in a later phase of the printing work.
 
 ## Importing
 
@@ -58,7 +58,7 @@ The toolchain's `examples/tkControls/tkPrint/demo` also prints a [tkChart](tkCha
 - **A few pages at a time:** `tkPrintDoc_BeginGenerate( doc )`, then `tkPrintDoc_GenerateStep( doc, n )` makes up to n more pages and returns TRUE while more remain. `tkPrintDoc_IsComplete` says the count is final; `tkPrintDoc_Cancel` stops and keeps what was made. A [tkPrintPreview](tkPrintPreview) given a document begun this way finishes it on its own timer.
 - `tkPrintDoc_GetSerial( doc )` changes whenever pages are added or cleared, for a cache of rendered pages to key on.
 - A document has **one** `TK_PAGE` pen: `AddPage` moves it to the new page, so a `TK_PAGE ptr` always means the latest page.
-- `tkPrintDoc_Warnings( doc )` lists anything replaced while recording (a font tkHost did not open, an image that could not be read), one line each.
+- `tkPrintDoc_Warnings( doc )` lists anything replaced while recording or writing (a font tkHost did not open, an image that could not be read, text a PDF draws as an image), one line each. An output device adds to it with `tkPrintDoc_Warn`.
 
 ## Drawing on a page
 
@@ -182,6 +182,7 @@ sub tkPrintDoc_SetUserData( byval doc as TK_PRINTDOC ptr, byval p as any ptr )
 function tkPrintDoc_GetUserData( byval doc as TK_PRINTDOC ptr ) as any ptr
 function tkPrintDoc_GetPageCount( byval doc as TK_PRINTDOC ptr ) as long
 function tkPrintDoc_GetPageSize( byval doc as TK_PRINTDOC ptr, byval page as long, byref w as single, byref h as single ) as boolean
+sub tkPrintDoc_Warn( byval doc as TK_PRINTDOC ptr, byref s as ustring )
 function tkPrintDoc_Warnings( byval doc as TK_PRINTDOC ptr ) as ustring
 function tkPrintDoc_AddPageEx( byval doc as TK_PRINTDOC ptr, byref ps as TKPAGESETUP ) as TK_PAGE ptr
 function tkPrintDoc_AddPage( byval doc as TK_PRINTDOC ptr ) as TK_PAGE ptr
@@ -238,6 +239,7 @@ function tkPrintDoc_ExportPng( byval doc as TK_PRINTDOC ptr, byref pathPattern a
 ### See also
 
 - [tkPrintPreview](tkPrintPreview) — shows the pages
+- [tkPdf](tkPdf) — writes them as PDF
 - [tkPaint](tkPaint) — the drawing it records
 - [tkChart](tkChart)
 - [tkControls](Category-tkControls)

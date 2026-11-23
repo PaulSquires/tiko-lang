@@ -321,6 +321,7 @@ public sub tkPage_LateText( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref 
     pp->nOps += 1
     q->op = PR_LATE : q->c = pg->clrText : q->flags = flags
     q->font = PrFontRef( doc, pg->pFont ) : q->size = PrFontPx( pg->pFont ) / PR_PXPERPT
+    q->asc = TTF_GetFontAscent( pg->pFont ) / PR_PXPERPT
     q->x = rc.left : q->y = rc.top : q->cw = rc.right - rc.left : q->ch = rc.bottom - rc.top
     dim as string u8 = fmt
     q->i0 = PrAddStr( pp, u8 )
