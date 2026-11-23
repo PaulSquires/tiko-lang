@@ -1,6 +1,8 @@
-' tkToast demo (notifications N2): post toasts and watch the stack, the queue, the holds. Hover a
-' card and its time stops; switch to another window and every card's time stops. The status line
-' says what the callbacks heard. No motion yet (N3): cards appear and vanish at once.
+' tkToast demo (notifications N2 + N3): post toasts and watch the stack, the queue, the holds. Hover
+' a card and its time stops; switch to another window and every card's time stops. Cards slide and
+' fade in and out; drag one sideways to swipe it away. F6 moves the keyboard to the cards (this
+' demo's choice of chord -- tkToast has none): Tab / Shift+Tab, Up / Down, Enter, Esc / Delete,
+' Shift+Esc for all. The status line says what the callbacks heard.
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkToast"
 #import "vendor/tkControls/tkButton"
@@ -66,7 +68,7 @@ sub OnRepeat( byval h as TK_WIDGET ptr, byval id as long )
     tkToast_ShowText( gRoot, "Retrying...", TKN_WARNING )      ' the same text again counts up
 end sub
 
-sub OnKey( byval h as TK_WIDGET ptr, byval id as long )
+sub OnSameKey( byval h as TK_WIDGET ptr, byval id as long )
     static as long nStep
     nStep = (nStep mod 3) + 1
     dim as TK_TOAST t
@@ -84,14 +86,25 @@ sub OnClear( byval h as TK_WIDGET ptr, byval id as long )
     tkToast_DismissAll( gRoot )
 end sub
 
+sub OnMotion( byval h as TK_WIDGET ptr, byval id as long )
+    tkToast_SetAnimate( gRoot, tkToast_GetAnimate( gRoot ) = false )
+    Log_( iif( tkToast_GetAnimate( gRoot ), "Motion on", "Motion off" ) )
+end sub
+
+function OnKey( byval f as TK_FORM ptr, byval key as long, byval mods as long ) as boolean
+    if key <> SDLK_F6 then return false
+    if tkToast_FocusToasts( gRoot ) = false then Log_( "No toasts to focus" )
+    return true
+end function
+
 dim as TKAPP_OPTIONS opts
 if tkApp_Init( opts ) = false then end 98
 dim as TK_FORM ptr f = tkApp_NewForm( "tkToast demo", 900, 560 )
 gRoot = tkForm_Widget( f )
 
-dim as string caps(0 to 7) = { "Info", "Success", "Action (sticky)", "Error HIGH", "Repeat", "Same key", "Position", "Dismiss all" }
-dim as BTN_ClickCallbackSub cbs(0 to 7) = { @OnInfo, @OnSuccess, @OnUndo, @OnHigh, @OnRepeat, @OnKey, @OnPosition, @OnClear }
-for i as long = 0 to 7
+dim as string caps(0 to 8) = { "Info", "Success", "Action (sticky)", "Error HIGH", "Repeat", "Same key", "Position", "Dismiss all", "Motion on/off" }
+dim as BTN_ClickCallbackSub cbs(0 to 8) = { @OnInfo, @OnSuccess, @OnUndo, @OnHigh, @OnRepeat, @OnSameKey, @OnPosition, @OnClear, @OnMotion }
+for i as long = 0 to 8
     dim as TK_WIDGET ptr b = tkButton_Create( gRoot, 10 + i )
     tkButton_SetText( b, caps(i) )
     tkButton_SetClickCallback( b, cbs(i) )
@@ -104,5 +117,6 @@ Log_( "Post some toasts." )
 tkToast_ApplyFonts( gRoot, tkForm_Font( f, TKFONT_UI ), tkForm_Font( f, TKFONT_UI_BOLD ), tkForm_Font( f, TKFONT_GLYPH ) )
 tkToast_SetActionCallback( gRoot, @OnAction )
 tkToast_SetDismissedCallback( gRoot, @OnDismissed )
+tkForm_OnKeyDown( f, @OnKey )
 
 end tkApp_Run( f )

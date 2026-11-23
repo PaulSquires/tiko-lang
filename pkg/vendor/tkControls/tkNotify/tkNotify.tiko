@@ -118,6 +118,7 @@ public type TKNOTIFY_COLORS
     CloseGlyph        as ulong
     FocusRing         as ulong
     ProgressTrack     as ulong            ' the strip under the fill; the fill is the severity's glyph colour
+    Shadow            as ulong            ' a floating item's (a toast card's) shadow; its alpha is the strength
 end type
 
 ' What is painted. Both controls fill one and keep it.
@@ -218,6 +219,7 @@ public function tkNotify_ThemeColors( byref t as TKTHEME_COLORS ) as TKNOTIFY_CO
     c.CloseGlyph = t.TextDim
     c.FocusRing = t.FocusRing
     c.ProgressTrack = t.Track
+    c.Shadow = tkRGBA( 0, 0, 0, iif( t.IsDark, 120, 64 ) )
     return c
 end function
 

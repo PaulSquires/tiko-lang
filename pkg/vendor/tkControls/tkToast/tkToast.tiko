@@ -6,8 +6,9 @@
 '
 ' tkToast -- transient notification cards over a window's content (Fluent Toaster, AdwToastOverlay,
 ' Sonner, Ant notification): a corner stack, a queue behind it, timeouts that hold while the user
-' is engaged, actions, update in place by key. Design: docs/tkControls/NOTIFICATIONS.md §6. This is
-' phase N2: no motion, swipe or keyboard yet (N3), no loading toasts or time scale (N4).
+' is engaged, actions, update in place by key. Design: docs/tkControls/NOTIFICATIONS.md §6. Phases
+' N2 + N3 (motion, swipe, keyboard); loading toasts and the time scale are N4. The cards' own code
+' -- painting, motion, mouse, swipe, keyboard -- is tkToastCard.tiko, the second file of this module.
 '
 ' ONE TOASTER PER SURFACE, made on first use. Every tkToast_* call takes ANY widget of the target
 ' window (hWnd) and finds that surface's toaster: a hidden, zero-size LISTENER child of the root
@@ -42,6 +43,25 @@
 ' OnDismissed and a pCtx, so the code that posts a toast handles it; toasts without them go to the
 ' toaster's callbacks. Callbacks run after the toast has left the queue: they may post or dismiss.
 '
+' MOTION (N3). A card enters with a slide from its stack's edge and a fade (TKTOAST_ENTER_MS), leaves
+' with a fade and a slide back towards the edge (TKTOAST_LEAVE_MS) -- or, swiped, onwards in the
+' swipe's direction -- and the cards that stay move to their new places (TKTOAST_MOVE_MS). A window
+' resize or a settings change places them at once. tkToast_SetAnimate( hWnd, false ) turns motion off.
+' Cards carry a soft shadow (TKTOAST_SHADOW design units round the card, inside the card's widget).
+'
+' SWIPE (N3). A card dragged sideways follows the pointer and fades; released past TKTOAST_SWIPE
+' design units, or flicked faster than TKTOAST_SWIPE_SPEED, it is dismissed (TKN_CLOSE_SWIPE), else
+' it springs back. Only away from the stack's side (a right stack swipes right); a centred stack
+' either way. A drag that starts on a button cancels the button. On Android SDL makes a finger the mouse.
+'
+' KEYBOARD (N3, NOTIFICATIONS N-7). Cards never take focus on their own. tkToast_FocusToasts( hWnd ) --
+' bound by the host to a chord of its choosing; there is no default -- remembers the focused widget
+' and focuses the newest card. Tab / Shift+Tab walk a card's parts (enabled actions, then close),
+' then the next / previous card down / up the screen; past the last, focus goes back. Up / Down move
+' between cards; Enter / Space press the part; Esc or Delete dismiss the card (TKN_CLOSE_KEY); Shift+Esc
+' dismisses them all. When the last focused card goes, focus returns to the widget that had it.
+' While a card has focus, time holds.
+'
 ' UI THREAD ONLY: a call from another thread is refused (returns 0) -- post with tkApp_RunOnUI.
 #module "tkToast"
 
@@ -69,6 +89,14 @@ end enum
 
 public const TKTOAST_TIMER = TK_TIMER_APP
 public const TKTOAST_HOLD_MIN_MS = 1000         ' what a toast has left, at least, when a hold ends
+public const TKTOAST_ENTER_MS = 180
+public const TKTOAST_LEAVE_MS = 150
+public const TKTOAST_MOVE_MS = 150              ' the stack closing up; a swiped card springing back
+public const TKTOAST_SLIDE = 24                 ' design units a card slides in and out
+public const TKTOAST_SHADOW = 4                 ' design units of shadow round a card
+public const TKTOAST_SWIPE = 45                 ' design units: a drag this far dismisses (Sonner's 45 px)
+public const TKTOAST_SWIPE_SLOP = 4             ' design units before a press becomes a drag
+public const TKTOAST_SWIPE_SPEED = 0.5          ' design units per ms: a flick this fast dismisses
 
 ' hToaster is the toaster (tkToast_GetToaster); nAction 1 or 2; reason TKN_CLOSE_*.
 public type TST_ActionSub as sub( byval hToaster as TK_WIDGET ptr, byval id as long, byval nAction as long, byval pCtx as any ptr )
@@ -128,6 +156,7 @@ public type TKTOASTER_SETTINGS
     alertMs           as long = 8000      ' warning / error
     bCoalesceRepeats  as boolean = true
     historySize       as long = 50
+    bAnimate          as boolean = true   ' N3: enter / leave / move motion
 end type
 
 ' ---- internal records ---------------------------------------------------------------------------
@@ -159,6 +188,35 @@ type TKTOAST_CARD
     lo        as TKNOTIFY_LAYOUT
     nHot      as long = TKN_PART_NONE
     nPressed  as long = TKN_PART_NONE
+    ' ---- motion (tkToastCard.tiko) ----
+    bPlaced   as boolean
+    rcItem    as TKRECT                   ' where the card belongs: the item, ROOT pixels
+    curX      as long                     ' where the item is now, root pixels (moving towards rcItem)
+    curY      as long
+    fromX     as long
+    fromY     as long
+    tMove     as longint = -1
+    tEnter    as longint = -1
+    tLeave    as longint = -1
+    bLeaving  as boolean
+    leaveDX   as long                     ' the drag offset the leave started from
+    fOpacity  as single = 1
+    nVSign    as long = 1                 ' +1 the stack grows from the bottom (slides down), -1 from the top
+    nSwipeSign as long = 1                ' +1 right only, -1 left only, 0 either way
+    ' ---- swipe ----
+    bPress    as boolean
+    bDragging as boolean
+    dragX     as long
+    pressX    as single                   ' root pixels
+    prevX     as single
+    prevT     as longint
+    lastX     as single
+    lastT     as longint
+    tSpring   as longint = -1
+    springFrom as long
+    ' ---- keyboard ----
+    bFocused  as boolean
+    nFocusPart as long = TKN_PART_NONE
 end type
 
 type TKTOASTER_STATE_
@@ -186,6 +244,10 @@ type TKTOASTER_STATE_
     bHeld         as boolean
     bWinFocused   as boolean = true
     nClockMs      as long
+    bKeyMode      as boolean              ' tkToast_FocusToasts is in force: cards are tab stops
+    pSavedFocus   as TK_WIDGET ptr        ' what had focus before (checked against the tree, never trusted)
+    bRefocus      as boolean              ' the focused card went: move focus after the queue settles
+    bFocusBack    as boolean              ' the next card to take focus lands on its LAST part
     ActionCb      as TST_ActionSub
     DismissedCb   as TST_DismissedSub
     ClickCb       as TST_ClickSub
@@ -198,7 +260,11 @@ dim shared as long gCardDepth                            ' > 0: inside a card's 
 
 declare function Listener_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
 declare function Card_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
-declare sub Relayout_( byval pT as TKTOASTER_STATE ptr )
+declare sub Relayout_( byval pT as TKTOASTER_STATE ptr, byval bMotion as boolean )
+declare function CardFrame_( byval pT as TKTOASTER_STATE ptr, byval w as TK_WIDGET ptr, byval tNow as longint ) as boolean
+declare function CardMoving_( byval w as TK_WIDGET ptr ) as boolean
+declare sub Refocus_( byval pT as TKTOASTER_STATE ptr )
+declare sub LeaveKeyMode_( byval pT as TKTOASTER_STATE ptr, byval bRestore as boolean )
 declare sub SyncHold_( byval pT as TKTOASTER_STATE ptr )
 declare sub SyncClock_( byval pT as TKTOASTER_STATE ptr )
 public declare sub tkToast_ApplyTheme( byval hWnd as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
@@ -273,12 +339,12 @@ end sub
 ' ==========================================================================================
 ' The toaster
 ' ==========================================================================================
-private function Now_( byval pT as TKTOASTER_STATE ptr ) as longint
+function Now_( byval pT as TKTOASTER_STATE ptr ) as longint
     if pT->tTestNow >= 0 then return pT->tTestNow
     return SDL_GetTicks()
 end function
 
-private function Find_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
+function Find_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
     if (hAny = 0) orelse (hAny->pHost = 0) then return 0
     if hAny->proc = @Listener_Proc then return cast( TKTOASTER_STATE ptr, hAny->pData )
     dim as TK_WIDGET ptr c = hAny->pHost->root->pFirst
@@ -290,7 +356,7 @@ private function Find_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
 end function
 
 private sub SizeHook_( byval h as TK_HOST ptr, byval pUser as any ptr )
-    if pUser then Relayout_( cast( TKTOASTER_STATE ptr, pUser ) )
+    if pUser then Relayout_( cast( TKTOASTER_STATE ptr, pUser ), false )     ' a resize places, it does not animate
 end sub
 
 ' The window's input focus, from its own events (pushed ones too, which a test relies on).
@@ -306,7 +372,7 @@ private function FocusHook_( byval e as SDL_Event ptr ) as boolean
     return false
 end function
 
-private function Get_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
+function Get_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
     dim as TKTOASTER_STATE ptr pT = Find_( hAny )
     if (pT <> 0) orelse (hAny = 0) orelse (hAny->pHost = 0) then return pT
     dim as TK_HOST ptr h = hAny->pHost
@@ -328,7 +394,7 @@ private function Get_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
     return pT
 end function
 
-private function Fonts_( byval pT as TKTOASTER_STATE ptr ) as TKNOTIFY_FONTS
+function Fonts_( byval pT as TKTOASTER_STATE ptr ) as TKNOTIFY_FONTS
     dim as TKNOTIFY_FONTS fo
     fo.fText = iif( pT->pTextFont <> 0, pT->pTextFont, pT->pHost->pDefaultFont )
     if pT->pTitleFont then
@@ -346,7 +412,7 @@ private function Fonts_( byval pT as TKTOASTER_STATE ptr ) as TKNOTIFY_FONTS
     return fo
 end function
 
-private function IndexOf_( byval pT as TKTOASTER_STATE ptr, byval id as long ) as long
+function IndexOf_( byval pT as TKTOASTER_STATE ptr, byval id as long ) as long
     if id <= 0 then return -1
     for i as long = 0 to pT->nItems - 1
         if pT->items(i).id = id then return i
@@ -362,7 +428,7 @@ private function IndexOfKey_( byval pT as TKTOASTER_STATE ptr, byref key as cons
     return -1
 end function
 
-private function CountShown_( byval pT as TKTOASTER_STATE ptr ) as long
+function CountShown_( byval pT as TKTOASTER_STATE ptr ) as long
     dim as long n = 0
     for i as long = 0 to pT->nItems - 1
         if pT->items(i).state = TST_SHOWN then n += 1
@@ -380,7 +446,7 @@ private function DurationOf_( byval pT as TKTOASTER_STATE ptr, byref t as TK_TOA
 end function
 
 ' Counts time down for every armed, shown toast unless the toaster holds.
-private sub Account_( byval pT as TKTOASTER_STATE ptr, byval tNow as longint )
+sub Account_( byval pT as TKTOASTER_STATE ptr, byval tNow as longint )
     if pT->bHeld = false then
         dim as long dt = clng( tNow - pT->tPrev )
         if dt > 0 then
@@ -397,7 +463,7 @@ private sub Account_( byval pT as TKTOASTER_STATE ptr, byval tNow as longint )
     pT->tPrev = tNow
 end sub
 
-private function IsOurCard_( byval pT as TKTOASTER_STATE ptr, byval w as TK_WIDGET ptr ) as boolean
+function IsOurCard_( byval pT as TKTOASTER_STATE ptr, byval w as TK_WIDGET ptr ) as boolean
     while w
         if w->proc = @Card_Proc then
             dim as TKTOAST_CARD ptr pc = cast( TKTOAST_CARD ptr, w->pData )
@@ -411,6 +477,7 @@ end function
 private function ComputeHeld_( byval pT as TKTOASTER_STATE ptr ) as boolean
     if pT->st.bPauseOnHover andalso IsOurCard_( pT, pT->pHost->pHot ) then return true
     if IsOurCard_( pT, pT->pHost->pCapture ) then return true          ' a press (touch: Adw's hold)
+    if IsOurCard_( pT, pT->pHost->pFocus ) then return true            ' a card has keyboard focus
     if pT->st.bPauseOnBlur andalso (pT->bWinFocused = false) then return true
     return false
 end function
@@ -443,6 +510,15 @@ sub SyncClock_( byval pT as TKTOASTER_STATE ptr )
             end with
         next
     end if
+    ' any card in motion (shown, or leaving on the reap list): the frame clock
+    dim as boolean bMotion = false
+    for i as long = 0 to pT->nItems - 1
+        if (pT->items(i).card <> 0) andalso CardMoving_( pT->items(i).card ) then bMotion = true
+    next
+    for i as long = 0 to pT->nReap - 1
+        if CardMoving_( pT->reap(i) ) then bMotion = true
+    next
+    if bMotion andalso ((ms = 0) orelse (ms > 15)) then ms = 15
     if ms = 0 then
         if pT->nClockMs <> 0 then tkWidget_KillTimer( pT->hWin, TKTOAST_TIMER )
     else
@@ -480,44 +556,62 @@ private sub ToItem_( byref src as TKTOAST_ITEM, byval pc as TKTOAST_CARD ptr )
     end with
 end sub
 
-private sub NewCard_( byval pT as TKTOASTER_STATE ptr, byval idx as long )
+sub NewCard_( byval pT as TKTOASTER_STATE ptr, byval idx as long )
     dim as TKTOAST_CARD ptr pc = new TKTOAST_CARD
     pc->pT = pT
     pc->id = pT->items(idx).id
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( pT->pHost->root, 0, @Card_Proc, pc )
-    w->isFocusable = false
+    w->isFocusable = pT->bKeyMode
     pT->items(idx).card = w
 end sub
 
 ' Hidden now, destroyed at the next tick: it may be the card whose handler is running.
-private sub DropCard_( byval pT as TKTOASTER_STATE ptr, byval idx as long )
+sub DropCard_( byval pT as TKTOASTER_STATE ptr, byval idx as long )
     dim as TK_WIDGET ptr w = pT->items(idx).card
     if w = 0 then exit sub
     pT->items(idx).card = 0
     dim as TKTOAST_CARD ptr pc = cast( TKTOAST_CARD ptr, w->pData )
     if pc then pc->id = 0
-    tkWidget_Show( w, false )
+    if pT->pHost->pFocus = w then pT->bRefocus = true
+    if pc andalso pT->st.bAnimate andalso pc->bPlaced andalso w->isVisible then
+        pc->bLeaving = true
+        pc->tLeave = Now_( pT )
+        pc->leaveDX = pc->dragX
+        pc->bPress = false
+        pc->bDragging = false
+        pc->tSpring = -1
+        if tkHost_GetCapture( pT->pHost ) = w then tkHost_ReleaseCapture( pT->pHost )
+        w->isFocusable = false
+    else
+        tkWidget_Show( w, false )
+    end if
     if pT->nReap > ubound( pT->reap ) then redim preserve pT->reap( 0 to pT->nReap + 7 )
     pT->reap(pT->nReap) = w
     pT->nReap += 1
 end sub
 
-private sub Reap_( byval pT as TKTOASTER_STATE ptr )
+sub Reap_( byval pT as TKTOASTER_STATE ptr )
     if (pT->nReap = 0) orelse (gCardDepth > 0) then exit sub
-    ' empty the list first: each destruction reports back through CardGone_
-    dim as long n = pT->nReap
+    ' a card still leaving stays; empty the rest from the list first, because each destruction
+    ' reports back through CardGone_
+    dim as long n = pT->nReap, nDead = 0, k = 0
     dim as TK_WIDGET ptr dead( 0 to n - 1 )
     for i as long = 0 to n - 1
-        dead(i) = pT->reap(i)
+        dim as TKTOAST_CARD ptr pc = cast( TKTOAST_CARD ptr, pT->reap(i)->pData )
+        if (pc <> 0) andalso pc->bLeaving then
+            pT->reap(k) = pT->reap(i) : k += 1
+        else
+            dead(nDead) = pT->reap(i) : nDead += 1
+        end if
     next
-    pT->nReap = 0
-    for i as long = 0 to n - 1
+    pT->nReap = k
+    for i as long = 0 to nDead - 1
         tkWidget_Destroy( dead(i) )
     next
 end sub
 
 ' A card is going (reaped, or its surface is being torn down in whatever order): forget it.
-private sub CardGone_( byval pT as TKTOASTER_STATE ptr, byval w as TK_WIDGET ptr )
+sub CardGone_( byval pT as TKTOASTER_STATE ptr, byval w as TK_WIDGET ptr )
     for i as long = 0 to pT->nItems - 1
         if pT->items(i).card = w then pT->items(i).card = 0
     next
@@ -528,7 +622,7 @@ private sub CardGone_( byval pT as TKTOASTER_STATE ptr, byval w as TK_WIDGET ptr
     pT->nReap = k
 end sub
 
-sub Relayout_( byval pT as TKTOASTER_STATE ptr )
+sub Relayout_( byval pT as TKTOASTER_STATE ptr, byval bMotion as boolean )
     dim as long n = CountShown_( pT )
     if n = 0 then exit sub
     ' the shown toasts, newest first
@@ -561,17 +655,52 @@ sub Relayout_( byval pT as TKTOASTER_STATE ptr )
     next
     dim as TKRECT rects(any)
     tkToast_ComputeLayout( pT->st, rcRoot, h->fScale, heights(), n, rects() )
+    ' where each card belongs; a new one enters, a moved one travels (or both land, without motion)
+    dim as boolean bAnim = bMotion andalso pT->st.bAnimate
+    dim as longint tNow = Now_( pT )
+    dim as long vSign = 1, sSign = 1
+    dim as long nPos = pT->st.position
+    if (rcRoot.right - rcRoot.left) < cint( pT->st.narrowWidth * h->fScale ) then nPos = TST_POS_BOTTOM_CENTER
+    if nPos < TST_POS_BOTTOM_LEFT then vSign = -1
+    select case nPos
+    case TST_POS_TOP_LEFT, TST_POS_BOTTOM_LEFT     : sSign = -1
+    case TST_POS_TOP_CENTER, TST_POS_BOTTOM_CENTER : sSign = 0
+    end select
+    for j as long = 0 to n - 1
+        dim as TK_WIDGET ptr w = pT->items(order(j)).card
+        dim as TKTOAST_CARD ptr pc = cast( TKTOAST_CARD ptr, w->pData )
+        pc->nVSign = vSign
+        pc->nSwipeSign = sSign
+        if pc->bPlaced = false then
+            pc->bPlaced = true
+            pc->curX = rects(j).left : pc->curY = rects(j).top
+            pc->tEnter = iif( bAnim, tNow, -1ll )
+            pc->tMove = -1
+        elseif (rects(j).left <> pc->rcItem.left) orelse (rects(j).top <> pc->rcItem.top) then
+            if bAnim then
+                pc->fromX = pc->curX : pc->fromY = pc->curY
+                pc->tMove = tNow
+            else
+                pc->curX = rects(j).left : pc->curY = rects(j).top
+                pc->tMove = -1
+            end if
+        end if
+        if bAnim = false then
+            pc->tEnter = -1
+            pc->tMove = -1
+            pc->curX = rects(j).left : pc->curY = rects(j).top
+        end if
+        pc->rcItem = rects(j)
+        CardFrame_( pT, w, tNow )
+    next
     ' oldest first to the top of the z-order, so the newest ends up above the rest
     for j as long = n - 1 to 0 step -1
-        dim as TK_WIDGET ptr w = pT->items(order(j)).card
-        tkWidget_SetPos( w, rects(j).left, rects(j).top, rects(j).right - rects(j).left, rects(j).bottom - rects(j).top )
-        tkWidget_BringToTop( w )
-        tkWidget_Invalidate( w )
+        tkWidget_BringToTop( pT->items(order(j)).card )
     next
 end sub
 
 ' Fills free slots from the queue: highest priority, then oldest.
-private sub Pump_( byval pT as TKTOASTER_STATE ptr )
+sub Pump_( byval pT as TKTOASTER_STATE ptr )
     do while CountShown_( pT ) < pT->st.maxVisible
         dim as long best = -1
         for i as long = 0 to pT->nItems - 1
@@ -602,7 +731,7 @@ private sub Pump_( byval pT as TKTOASTER_STATE ptr )
 end sub
 
 ' Takes the toast at idx out of the queue into the history; returns its record.
-private function Remove_( byval pT as TKTOASTER_STATE ptr, byval idx as long, byval reason as long, _
+function Remove_( byval pT as TKTOASTER_STATE ptr, byval idx as long, byval reason as long, _
                           byref tOut as TK_TOAST ) as long
     dim as long id = pT->items(idx).id
     tOut = pT->items(idx).t
@@ -636,7 +765,7 @@ private function Remove_( byval pT as TKTOASTER_STATE ptr, byval idx as long, by
     return id
 end function
 
-private sub NotifyDismissed_( byval pT as TKTOASTER_STATE ptr, byref t as TK_TOAST, byval id as long, byval reason as long )
+sub NotifyDismissed_( byval pT as TKTOASTER_STATE ptr, byref t as TK_TOAST, byval id as long, byval reason as long )
     if t.OnDismissed then
         t.OnDismissed( pT->hWin, id, reason, t.pCtx )
     elseif pT->DismissedCb then
@@ -645,18 +774,26 @@ private sub NotifyDismissed_( byval pT as TKTOASTER_STATE ptr, byref t as TK_TOA
 end sub
 
 ' Out of the queue, the rest moved up, then (bNotify) the callback -- last, so it may post or dismiss.
-private sub DismissIdx_( byval pT as TKTOASTER_STATE ptr, byval idx as long, byval reason as long, byval bNotify as boolean )
+sub DismissIdx_( byval pT as TKTOASTER_STATE ptr, byval idx as long, byval reason as long, byval bNotify as boolean )
     Account_( pT, Now_( pT ) )
     dim as TK_TOAST t
     dim as long id = Remove_( pT, idx, reason, t )
     Pump_( pT )
-    Relayout_( pT )
+    Relayout_( pT, true )
+    if pT->bRefocus then Refocus_( pT )
     SyncHold_( pT )
     if bNotify then NotifyDismissed_( pT, t, id, reason )
 end sub
 
 private sub Tick_( byval pT as TKTOASTER_STATE ptr )
-    Account_( pT, Now_( pT ) )
+    dim as longint tNow = Now_( pT )
+    Account_( pT, tNow )
+    for i as long = 0 to pT->nItems - 1
+        if pT->items(i).card then CardFrame_( pT, pT->items(i).card, tNow )
+    next
+    for i as long = 0 to pT->nReap - 1
+        CardFrame_( pT, pT->reap(i), tNow )      ' a leaving card that finishes hides itself
+    next
     Reap_( pT )
     if pT->bHeld = false then
         dim as boolean bAgain = true
@@ -683,7 +820,7 @@ function Listener_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boo
         Tick_( pT )
         return true
     case TKM_SCALECHANGED
-        Relayout_( pT )                   ' the surface resized our fonts; the layout scales at use
+        Relayout_( pT, false )            ' the surface resized our fonts; the layout scales at use
         return true
     case TKM_THEMECHANGED
         tkToast_ApplyTheme( w, tkTheme_Of( w ) )
@@ -708,112 +845,6 @@ function Listener_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boo
     return false
 end function
 
-' ---- card input ---------------------------------------------------------------------------------
-private function Pressable_( byval pc as TKTOAST_CARD ptr, byval part as long ) as boolean
-    if part = TKN_PART_CLOSE then return pc->it.bClosable
-    if part >= TKN_PART_ACTION1 then return (part - TKN_PART_ACTION1) < tkNotify_ActionCount( pc->it )
-    if part = TKN_PART_BODY then return (pc->pT <> 0) andalso (pc->pT->ClickCb <> 0)
-    return false
-end function
-
-private sub Fire_( byval pc as TKTOAST_CARD ptr, byval part as long )
-    dim as TKTOASTER_STATE ptr pT = pc->pT
-    if (pT = 0) orelse (pc->id = 0) then exit sub
-    dim as long idx = IndexOf_( pT, pc->id )
-    if idx < 0 then exit sub
-    gCardDepth += 1
-    if part = TKN_PART_CLOSE then
-        DismissIdx_( pT, idx, TKN_CLOSE_BUTTON, true )
-    elseif part >= TKN_PART_ACTION1 then
-        dim as long nAction = pc->nActOf(part - TKN_PART_ACTION1)
-        dim as TK_TOAST t = pT->items(idx).t
-        dim as long id = pT->items(idx).id
-        if t.bKeepOnAction = false then
-            Account_( pT, Now_( pT ) )
-            Remove_( pT, idx, TKN_CLOSE_ACTION, t )
-            Pump_( pT )
-            Relayout_( pT )
-            SyncHold_( pT )
-        end if
-        if t.OnAction then
-            t.OnAction( pT->hWin, id, nAction, t.pCtx )
-        elseif pT->ActionCb then
-            pT->ActionCb( pT->hWin, id, nAction, t.pCtx )
-        end if
-        if t.bKeepOnAction = false then NotifyDismissed_( pT, t, id, TKN_CLOSE_ACTION )
-    elseif part = TKN_PART_BODY then
-        if pT->ClickCb then pT->ClickCb( pT->hWin, pc->id, pT->items(idx).t.pCtx )
-    end if
-    gCardDepth -= 1
-    SyncClock_( pT )                      ' a card dropped in there is reaped on the next tick
-end sub
-
-function Card_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
-    dim as TKTOAST_CARD ptr pc = cast( TKTOAST_CARD ptr, w->pData )
-    if pc = 0 then return false
-    if m->msg = TKM_DESTROY then
-        if pc->pT then CardGone_( pc->pT, w )
-        delete pc
-        w->pData = 0
-        return true
-    end if
-    dim as TKTOASTER_STATE ptr pT = pc->pT
-    if (pT = 0) orelse (pc->id = 0) then return false
-    select case m->msg
-    case TKM_PAINT
-        dim as TKNOTIFY_FONTS fo = Fonts_( pT )
-        dim as long nPr = iif( pc->nPressed = pc->nHot, pc->nPressed, TKN_PART_NONE )
-        tkNotify_PaintItem( m->pPaint, 0, 0, pc->it, pc->lo, pT->colors, fo, pc->nHot, nPr, TKN_PART_NONE )
-        return true
-    case TKM_MOUSEMOVE
-        dim as long partM = tkNotify_HitPart( pc->lo, cint( m->x ), cint( m->y ) )
-        if Pressable_( pc, partM ) = false then partM = TKN_PART_NONE
-        if partM <> pc->nHot then
-            pc->nHot = partM
-            tkWidget_Invalidate( w )
-        end if
-        w->cursor = iif( partM <> TKN_PART_NONE, TK_CURSOR_HAND, TK_CURSOR_ARROW )
-        return true
-    case TKM_MOUSEENTER
-        SyncHold_( pT )
-        return true
-    case TKM_MOUSELEAVE
-        if (pc->nPressed = TKN_PART_NONE) andalso (pc->nHot <> TKN_PART_NONE) then
-            pc->nHot = TKN_PART_NONE
-            tkWidget_Invalidate( w )
-        end if
-        SyncHold_( pT )
-        return true
-    case TKM_LBUTTONDOWN
-        dim as long partD = tkNotify_HitPart( pc->lo, cint( m->x ), cint( m->y ) )
-        if Pressable_( pc, partD ) = false then return true
-        pc->nPressed = partD
-        pc->nHot = partD
-        tkHost_SetCapture( w )
-        SyncHold_( pT )
-        tkWidget_Invalidate( w )
-        return true
-    case TKM_LBUTTONUP
-        dim as long was = pc->nPressed
-        if tkHost_GetCapture( w->pHost ) = w then tkHost_ReleaseCapture( w->pHost )
-        pc->nPressed = TKN_PART_NONE
-        dim as long partU = tkNotify_HitPart( pc->lo, cint( m->x ), cint( m->y ) )
-        pc->nHot = iif( Pressable_( pc, partU ), partU, TKN_PART_NONE )
-        tkWidget_Invalidate( w )
-        SyncHold_( pT )
-        if (was <> TKN_PART_NONE) andalso (partU = was) then Fire_( pc, was )
-        return true
-    case TKM_CAPTURECHANGED
-        if pc->nPressed <> TKN_PART_NONE then
-            pc->nPressed = TKN_PART_NONE
-            tkWidget_Invalidate( w )
-        end if
-        return true
-    end select
-    return false
-end function
-
-
 ' ==========================================================================================
 ' Public API
 ' ==========================================================================================
@@ -836,7 +867,7 @@ public function tkToast_Show( byval hWnd as TK_WIDGET ptr, byref t as TK_TOAST )
         pT->items(idx).t = t
         pT->items(idx).nRepeat = 1
         if pT->items(idx).state = TST_SHOWN then pT->items(idx).nLeft = DurationOf_( pT, t )
-        Relayout_( pT )
+        Relayout_( pT, true )
         SyncClock_( pT )
         return pT->items(idx).id
     end if
@@ -848,7 +879,7 @@ public function tkToast_Show( byval hWnd as TK_WIDGET ptr, byref t as TK_TOAST )
                    (.t.title = t.title) andalso (.t.message = t.message) then
                     .nRepeat += 1
                     .nLeft = DurationOf_( pT, .t )
-                    Relayout_( pT )
+                    Relayout_( pT, true )
                     SyncClock_( pT )
                     return .id
                 end if
@@ -895,7 +926,7 @@ public function tkToast_Show( byval hWnd as TK_WIDGET ptr, byref t as TK_TOAST )
             Pump_( pT )
         end if
     end if
-    Relayout_( pT )
+    Relayout_( pT, true )
     SyncHold_( pT )
     return id
 end function
@@ -919,7 +950,7 @@ public function tkToast_Update( byval hWnd as TK_WIDGET ptr, byval id as long, b
     pT->items(idx).t = t
     if len( t.key ) = 0 then pT->items(idx).t.key = keep
     if pT->items(idx).state = TST_SHOWN then pT->items(idx).nLeft = DurationOf_( pT, t )
-    Relayout_( pT )
+    Relayout_( pT, true )
     SyncClock_( pT )
     return true
 end function
@@ -930,7 +961,7 @@ public function tkToast_SetMessage( byval hWnd as TK_WIDGET ptr, byval id as lon
     dim as long idx = IndexOf_( pT, id )
     if idx < 0 then return false
     pT->items(idx).t.message = msg
-    Relayout_( pT )
+    Relayout_( pT, true )
     return true
 end function
 
@@ -958,6 +989,7 @@ public sub tkToast_DismissAll( byval hWnd as TK_WIDGET ptr )
     do while pT->nItems > 0
         Remove_( pT, 0, TKN_CLOSE_PROGRAMMATIC, t )
     loop
+    if pT->bRefocus then Refocus_( pT )
     SyncHold_( pT )
 end sub
 
@@ -993,15 +1025,15 @@ public function tkToast_GetQueuedCount( byval hWnd as TK_WIDGET ptr ) as long
     return pT->nItems - CountShown_( pT )
 end function
 
-' A shown toast's card, ROOT pixels. FALSE when it is not on screen.
+' A shown toast's card -- the card itself, without its shadow, where it belongs (a card in motion
+' is on its way there) -- ROOT pixels. FALSE when it is not on screen.
 public function tkToast_GetCardRect( byval hWnd as TK_WIDGET ptr, byval id as long, byref rc as TKRECT ) as boolean
     tkRect_SetEmpty( rc )
     dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
     if pT = 0 then return false
     dim as long idx = IndexOf_( pT, id )
     if (idx < 0) orelse (pT->items(idx).card = 0) then return false
-    dim as TK_WIDGET ptr w = pT->items(idx).card
-    tkRect_Set( rc, w->x, w->y, w->x + w->cw, w->y + w->ch )
+    rc = cast( TKTOAST_CARD ptr, pT->items(idx).card->pData )->rcItem      ' where it belongs (it may be moving there)
     return true
 end function
 
@@ -1091,7 +1123,7 @@ public sub tkToast_SetSettings( byval hWnd as TK_WIDGET ptr, byref st as TKTOAST
     pT->st = st
     if pT->st.maxVisible < 1 then pT->st.maxVisible = 1
     Pump_( pT )
-    Relayout_( pT )
+    Relayout_( pT, false )
     SyncHold_( pT )
 end sub
 
@@ -1102,7 +1134,7 @@ end function
 
 private sub Changed_( byval pT as TKTOASTER_STATE ptr )
     Pump_( pT )
-    Relayout_( pT )
+    Relayout_( pT, false )
     SyncHold_( pT )
 end sub
 
@@ -1221,7 +1253,7 @@ public sub tkToast_ApplyFonts( byval hWnd as TK_WIDGET ptr, byval fText as TTF_F
     if fText then pT->pTextFont = fText
     if fTitle then pT->pTitleFont = fTitle
     if fGlyph then pT->pGlyphFont = fGlyph
-    Relayout_( pT )
+    Relayout_( pT, false )
 end sub
 
 public sub tkToast_ApplyTheme( byval hWnd as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
@@ -1230,7 +1262,7 @@ public sub tkToast_ApplyTheme( byval hWnd as TK_WIDGET ptr, byref t as TKTHEME_C
     dim as TKTHEME_COLORS tr = tkTheme_Styled( pT->hWin, t )
     pT->colors = tkNotify_ThemeColors( tr )
     tkTheme_ResolveInto( pT->hWin, tr, cast( ulong ptr, @pT->colors ), sizeof( TKNOTIFY_COLORS ) \ 4, "Toast" )
-    Relayout_( pT )
+    Relayout_( pT, false )
 end sub
 
 public sub tkToast_GetColors( byval hWnd as TK_WIDGET ptr, byval pColors as TKNOTIFY_COLORS ptr )
@@ -1244,7 +1276,7 @@ public sub tkToast_SetColors( byval hWnd as TK_WIDGET ptr, byval pColors as TKNO
     if (pT = 0) orelse (pColors = 0) then exit sub
     pT->colors = *pColors
     pT->bColorsPinned = true
-    Relayout_( pT )
+    Relayout_( pT, false )
 end sub
 
 public sub tkToast_UnpinColors( byval hWnd as TK_WIDGET ptr )
