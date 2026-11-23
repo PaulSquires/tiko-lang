@@ -73,6 +73,23 @@ public enum
     TKAC_STYLE_SEARCH        ' plus a search glyph, a clear button, Escape clears
 end enum
 
+public enum
+    TKAC_MODE_SUGGEST = 0    ' typing lists the matches
+    TKAC_MODE_APPEND         ' typing completes the edit inline, no list
+    TKAC_MODE_SUGGESTAPPEND  ' both
+end enum
+
+public enum
+    TKAC_VALUE_FREETEXT = 0  ' the value is the text
+    TKAC_VALUE_LIMITTOLIST   ' the value is an item (a lookup)
+end enum
+
+public enum                  ' NotInList's answer
+    AC_REVERT = 0            ' back to the selected item's text, or empty
+    AC_ACCEPT                ' the host added an item for the text: look it up again
+    AC_KEEP                  ' keep the text, unselected, with the error tint
+end enum
+
 const AC_TIMER_DELAY = 1
 const AC_TIMER_SEARCH = 2
 
@@ -97,6 +114,7 @@ public type TKAUTOCOMPLETE_COLORS
     DetailForeColor       as ulong = &hFF969CA6ul    ' a row's detail, the status row
     GlyphColor            as ulong = &hFF969CA6ul    ' the search glyph and the clear button
     GlyphColorHot         as ulong = &hFFE2E6EEul    ' the clear button under the mouse
+    ErrorColor            as ulong = &hFFE06C75ul    ' the border of a text NotInList kept
 end type
 
 public type TKAUTOCOMPLETE_ITEM
@@ -117,6 +135,8 @@ public type AC_HighlightSub as sub( byval hAC as TK_WIDGET ptr, byval index as l
 public type AC_DropDownSub as sub( byval hAC as TK_WIDGET ptr, byval isOpen as boolean )
 ' the text to search for: SearchDelay after the user's last change, at once on Enter / clear / commit
 public type AC_SearchSub as sub( byval hAC as TK_WIDGET ptr, byref text as const ustring )
+' LIMITTOLIST: the user left text that is no item's; set action (AC_REVERT by default)
+public type AC_NotInListSub as sub( byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as long )
 
 public type TKAUTOCOMPLETE_STATE
     hWin            as TK_WIDGET ptr
@@ -183,6 +203,20 @@ public type TKAUTOCOMPLETE_STATE
     wClear          as TK_WIDGET ptr
     bClearHot       as boolean
     pGlyphFont      as TTF_Font ptr         ' borrowed; 0 = vector glyphs
+    bDropButton     as boolean
+    wDrop           as TK_WIDGET ptr
+    bDropHot        as boolean
+    nClosedSerial   as ulong                ' the press that last closed the list
+    nSearches       as long                 ' Search events fired, ever (Enter: one per press)
+    ' ---- modes and the value (tkAutoCompleteValue.tiko) ----
+    nMode           as long = TKAC_MODE_SUGGEST
+    nPolicy         as long = TKAC_VALUE_FREETEXT
+    bShowAllOnEmpty as boolean
+    nNoValueId      as longint
+    bDeleting       as boolean              ' the last key was Backspace / Delete: no completion
+    nAppendItem     as long = -1            ' the item an inline completion came from
+    bError          as boolean              ' NotInList kept a text: the error tint
+    NotInListCallback    as AC_NotInListSub
     ' ---- callbacks ----
     SearchCallback       as AC_SearchSub
     TextChangedCallback  as AC_TextChangedSub
@@ -323,6 +357,12 @@ declare sub AcFaceSync( byval p as TKAUTOCOMPLETE_STATE ptr )
 declare sub AcSearchArm( byval p as TKAUTOCOMPLETE_STATE ptr )
 declare sub AcSearchNow( byval p as TKAUTOCOMPLETE_STATE ptr )
 declare sub AcClearByUser( byval p as TKAUTOCOMPLETE_STATE ptr )
+' tkAutoCompleteValue.tiko
+declare sub AcTryAppend( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare function AcHasAppend( byval p as TKAUTOCOMPLETE_STATE ptr ) as boolean
+declare sub AcDropAppend( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare sub AcResolve( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare sub AcEditColors( byval p as TKAUTOCOMPLETE_STATE ptr )
 
 ' Items changed: the last matched set is stale; an open list closes (silently re-filtering under
 ' the user's eyes would move the highlight).
@@ -447,6 +487,7 @@ private sub AcListClosed( byval hPop as TK_HOST ptr )
     if (p = 0) orelse (p->pList <> hPop) then exit sub
     if p->wList then p->wList->pData = 0
     p->pList = 0 : p->wList = 0 : p->wListBar = 0
+    p->nClosedSerial = tkHost_PressSerial( )     ' the drop button's "this press closed it" guard
     ' a preview left in place by an outside click is what the user now has
     if p->bPreviewed then
         p->sQuery = tkTextBox_GetText( p->wEdit )
@@ -518,19 +559,22 @@ private sub AcCommit( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long )
     if AcRowEnabled( p, row ) = false then exit sub
     dim as long idx = AcRowItem( p, row )
     p->bPreviewed = false
+    p->bError = false
+    p->nAppendItem = -1
     AcCloseList( p )
     tkTextBox_SetText( p->wEdit, p->itText(idx) )
     p->sQuery = p->itText(idx)
     p->nSel = idx
+    AcEditColors( p )
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, true )
     if p->ItemSelectedCallback then p->ItemSelectedCallback( p->hWin, idx, p->itId(idx) )
     AcFaceSync( p )
     AcSearchNow( p )
 end sub
 
-private sub AcSubmit( byval p as TKAUTOCOMPLETE_STATE ptr )
+private sub AcSubmit( byval p as TKAUTOCOMPLETE_STATE ptr, byval bDoSearch as boolean = true )
     AcCloseList( p )
-    AcSearchNow( p )
+    if bDoSearch then AcSearchNow( p )
     if p->SubmitCallback then p->SubmitCallback( p->hWin, tkTextBox_GetText( p->wEdit ), AcSubmitIndex( p ) )
 end sub
 
@@ -539,6 +583,8 @@ private sub AcCancel( byval p as TKAUTOCOMPLETE_STATE ptr )
     if p->bPreviewed then
         tkTextBox_SetText( p->wEdit, p->sQuery )
         p->bPreviewed = false
+    elseif AcHasAppend( p ) then
+        AcDropAppend( p )                    ' an inline completion goes too
     end if
     AcCloseList( p )
 end sub
@@ -635,12 +681,21 @@ end sub
 private function AcOpenByKey( byval p as TKAUTOCOMPLETE_STATE ptr, byval dir_ as long ) as boolean
     tkWidget_KillTimer( p->hWin, AC_TIMER_DELAY )
     p->sQuery = tkTextBox_GetText( p->wEdit )
-    if len( p->sQuery ) < p->nMinChars then return false
+    dim as boolean bAll = p->bShowAllOnEmpty andalso (len( p->sQuery ) = 0)
+    if (len( p->sQuery ) < p->nMinChars) andalso (bAll = false) then return false
     AcFilter( p )
     if AcRowCount( p ) = 0 then return false
     AcShowResults( p )
     if p->isOpen = false then return false
-    if dir_ <> 0 then AcSetHot( p, AcStep( p, -1, dir_ ), true )
+    if dir_ <> 0 then
+        ' the selected item's row when it is listed, else the first / last
+        dim as long target = AcStep( p, -1, dir_ )
+        for r as long = 0 to p->nShown - 1
+            if (p->nSel >= 0) andalso (p->hits(r).index = p->nSel) andalso AcRowEnabled( p, r ) then target = r : exit for
+        next
+        p->nHot = -1
+        AcSetHot( p, target, true )
+    end if
     return true
 end function
 
@@ -882,11 +937,15 @@ private sub AcEditChanged( byval hEdit as TK_WIDGET ptr )
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( tkWidget_Parent( hEdit ) )
     if p = 0 then exit sub
     p->sQuery = tkTextBox_GetText( hEdit )
-    p->nSel = -1
+    ' free text: typing unselects; a lookup's value stands until the box is left (AcResolve)
+    if p->nPolicy = TKAC_VALUE_FREETEXT then p->nSel = -1
     p->bPreviewed = false
+    if p->bError then p->bError = false : AcEditColors( p )
+    AcTryAppend( p )                          ' APPEND modes: the rest of the first match, selected
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, false )
     AcFaceSync( p )
     AcSearchArm( p )
+    if p->nMode = TKAC_MODE_APPEND then exit sub          ' no list
     if p->nDelay > 0 then
         tkWidget_SetTimer( p->hWin, AC_TIMER_DELAY, p->nDelay )
     else
@@ -899,12 +958,17 @@ private sub AcEditFocus( byval hEdit as TK_WIDGET ptr, byval bGot as boolean )
     if (p = 0) orelse bGot then exit sub
     tkWidget_KillTimer( p->hWin, AC_TIMER_DELAY )
     AcCloseList( p )
+    AcResolve( p )                            ' leaving the box settles the value
 end sub
 
 ' The edit's keys while the list is closed (open, they reach the list's widget first).
 private function AcEditMessage( byval mi as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( tkWidget_Parent( mi->hTextBox ) )
-    if (p = 0) orelse (mi->msg <> TKM_KEYDOWN) orelse p->isOpen then return false
+    if p = 0 then return false
+    ' a completion never follows a deletion (whichever way the key came: here or via the list)
+    if mi->msg = TKM_KEYDOWN then p->bDeleting = (mi->key = SDLK_BACKSPACE) orelse (mi->key = SDLK_DELETE)
+    if mi->msg = TKM_CHAR then p->bDeleting = false       ' text with no key before it (an IME's)
+    if (mi->msg <> TKM_KEYDOWN) orelse p->isOpen then return false
     dim as long mods = mi->mods and (SDL_KMOD_CTRL or SDL_KMOD_ALT or SDL_KMOD_GUI or SDL_KMOD_SHIFT)
     dim as boolean bAlt = (mods = SDL_KMOD_LALT) orelse (mods = SDL_KMOD_RALT) orelse (mods = SDL_KMOD_ALT)
     select case mi->key
@@ -914,8 +978,14 @@ private function AcEditMessage( byval mi as TKTEXTBOX_MESSAGEINFO ptr ) as boole
     case SDLK_UP
         if mods = 0 then return AcOpenByKey( p, -1 )
     case SDLK_RETURN, SDLK_KP_ENTER
-        if (mods = 0) andalso ((p->SubmitCallback <> 0) orelse (p->SearchCallback <> 0)) then AcSubmit( p ) : return true
+        if mods = 0 then
+            ' resolving may select an item, which searches already: one Search per Enter
+            dim as long nBefore = p->nSearches
+            AcResolve( p )
+            if (p->SubmitCallback <> 0) orelse (p->SearchCallback <> 0) then AcSubmit( p, p->nSearches = nBefore ) : return true
+        end if
     case SDLK_ESCAPE
+        if (mods = 0) andalso AcHasAppend( p ) then AcDropAppend( p ) : return true
         ' the search face's: clear; an empty box leaves Escape to the dialog
         if (mods = 0) andalso p->bClearOnEscape andalso (len( tkTextBox_GetText( p->wEdit ) ) > 0) then
             AcClearByUser( p )
@@ -930,6 +1000,7 @@ private sub AcEditColors( byval p as TKAUTOCOMPLETE_STATE ptr )
     dim as TKTEXTBOX_COLORS c
     c.ForeColor = p->colors.ForeColor : c.BackColor = p->colors.BackColor : c.CueColor = p->colors.CueColor
     c.BorderColor = p->colors.BorderColor : c.FocusBorderColor = p->colors.FocusBorderColor
+    if p->bError then c.BorderColor = p->colors.ErrorColor : c.FocusBorderColor = p->colors.ErrorColor
     c.OuterBackColor = p->colors.OuterBackColor : c.SelBackColor = p->colors.SelBackColor
     c.SelForeColor = p->colors.SelForeColor : c.ForeColorDisabled = p->colors.ForeColorDisabled
     tkTextBox_SetColors( p->wEdit, @c )
@@ -1149,55 +1220,6 @@ public function tkAutoComplete_GetPlaceholderText( byval hAC as TK_WIDGET ptr ) 
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
     if p = 0 then return ""
     return tkTextBox_GetCueBannerText( p->wEdit )
-end function
-
-' ---- text and value ---------------------------------------------------------------------------
-public function tkAutoComplete_GetText( byval hAC as TK_WIDGET ptr ) as ustring
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then return ""
-    return tkTextBox_GetText( p->wEdit )
-end function
-
-' Silent: closes the list, filters nothing, selects nothing.
-public sub tkAutoComplete_SetText( byval hAC as TK_WIDGET ptr, byval s as ustring )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then exit sub
-    p->bPreviewed = false
-    AcCloseList( p )
-    tkTextBox_SetText( p->wEdit, s )
-    p->sQuery = s
-    p->nSel = -1
-    AcFaceSync( p )
-end sub
-
-' What the user typed -- not a row's text the arrows put in.
-public function tkAutoComplete_GetQueryText( byval hAC as TK_WIDGET ptr ) as ustring
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then return ""
-    return p->sQuery
-end function
-
-public function tkAutoComplete_GetSelectedIndex( byval hAC as TK_WIDGET ptr ) as long
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    return iif( p <> 0, p->nSel, -1 )
-end function
-
-' Silent: the item's text into the edit (-1: none selected, the text stays).
-public function tkAutoComplete_SetSelectedIndex( byval hAC as TK_WIDGET ptr, byval idx as long ) as boolean
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then return false
-    if idx = -1 then p->nSel = -1 : return true
-    if AcValid( p, idx ) = false then return false
-    tkAutoComplete_SetText( hAC, p->itText(idx) )
-    p->nSel = idx
-    return true
-end function
-
-' The selected item's id; 0 when none.
-public function tkAutoComplete_GetSelectedId( byval hAC as TK_WIDGET ptr ) as longint
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if (p = 0) orelse (AcValid( p, p->nSel ) = false) then return 0
-    return p->itId(p->nSel)
 end function
 
 ' ---- items (every mutator silent; an open list closes) --------------------------------------
