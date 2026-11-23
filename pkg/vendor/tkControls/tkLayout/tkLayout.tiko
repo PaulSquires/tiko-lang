@@ -13,6 +13,15 @@
 ' the matching edge of the parent: left and top by default, right and bottom when named, both of
 ' an axis to stretch, neither to stay centred as the parent grows. A DOCK takes a slice off the
 ' parent's remaining client area, in list order; FILL takes what is left after every other dock.
+'
+' A HIDDEN docked control takes no slice (WinForms' rule): an info bar that closes gives its
+' strip back. A TOP or BOTTOM dock may take its height from the control itself instead of its
+' design rect (tkLayout_SetHeightFunc): an info bar whose message wraps to two lines at this width
+' gets two lines. Both are set by tkLayout_Apply; tkLayout_Compute's own callers (a designer
+' canvas) leave them at their defaults and see the rule they always had -- so for a HIDDEN docked
+' control the canvas (which shows it) and the running form (which gives its space away) differ,
+' as WinForms' designer and runtime do. Showing or hiding a docked control at run time takes
+' effect at the next tkLayout_Apply.
 #module "tkLayout"
 
 #import "../tkHost" public
@@ -37,6 +46,10 @@ public enum
     TK_DOCK_FILL
 end enum
 
+' A docked control's own height, in PIXELS, at the width its dock has (pixels).
+' tkInfoBar_GetPreferredHeight has this shape.
+public type TKLAYOUT_HeightFunc as function( byval w as TK_WIDGET ptr, byval cx as long ) as long
+
 ' One control: its design rectangle and how it follows its parent.
 public type TKLAYOUT_ITEM
     x      as long
@@ -45,6 +58,9 @@ public type TKLAYOUT_ITEM
     cy     as long
     anchor as long = TK_ANCHOR_DEFAULT
     dock   as long = TK_DOCK_NONE
+    bHidden  as boolean                ' a hidden DOCK takes no slice (Apply: the widget's visibility)
+    heightFn as TKLAYOUT_HeightFunc    ' a TOP / BOTTOM dock's height from its widget (0 = cy)
+    pFnW     as TK_WIDGET ptr          ' the widget heightFn is asked about
 end type
 
 ' A container whose docks use less than its whole area (a group box's frame). Answers the client
@@ -112,14 +128,26 @@ public sub tkLayout_Compute( byval items as TKLAYOUT_ITEM ptr, byval n as long, 
 
     for i as long = 0 to n - 1
         with items[i]
+            if .bHidden andalso (.dock <> TK_DOCK_NONE) then
+                ' no slice: an empty rect on the edge it would have taken
+                select case .dock
+                case TK_DOCK_BOTTOM : tkRect_Set( rcOut[i], rem_.left, rem_.bottom, rem_.right, rem_.bottom )
+                case TK_DOCK_RIGHT  : tkRect_Set( rcOut[i], rem_.right, rem_.top, rem_.right, rem_.bottom )
+                case TK_DOCK_LEFT   : tkRect_Set( rcOut[i], rem_.left, rem_.top, rem_.left, rem_.bottom )
+                case else           : tkRect_Set( rcOut[i], rem_.left, rem_.top, rem_.right, rem_.top )
+                end select
+                continue for
+            end if
+            dim as long hDock = Sc_( .cy, fScale )
+            if .heightFn then hDock = .heightFn( .pFnW, rem_.right - rem_.left )
             select case .dock
             case TK_DOCK_TOP
-                dim as long b = rem_.top + Sc_( .cy, fScale )
+                dim as long b = rem_.top + hDock
                 if b > rem_.bottom then b = rem_.bottom
                 tkRect_Set( rcOut[i], rem_.left, rem_.top, rem_.right, b )
                 rem_.top = b
             case TK_DOCK_BOTTOM
-                dim as long t = rem_.bottom - Sc_( .cy, fScale )
+                dim as long t = rem_.bottom - hDock
                 if t < rem_.top then t = rem_.top
                 tkRect_Set( rcOut[i], rem_.left, t, rem_.right, rem_.bottom )
                 rem_.bottom = t
@@ -144,7 +172,7 @@ public sub tkLayout_Compute( byval items as TKLAYOUT_ITEM ptr, byval n as long, 
         end with
     next
     for i as long = 0 to n - 1
-        if items[i].dock = TK_DOCK_FILL then rcOut[i] = rem_
+        if (items[i].dock = TK_DOCK_FILL) andalso (items[i].bHidden = false) then rcOut[i] = rem_
     next
 end sub
 
@@ -257,6 +285,17 @@ public sub tkLayout_SetDesignRect( byval l as TK_LAYOUT ptr, byval w as TK_WIDGE
     end with
 end sub
 
+' A TOP or BOTTOM dock takes its height from fn( w, dock width in pixels ) instead of its design
+' rect; 0 returns to the design rect. Run tkLayout_Apply again when that height changes (an info
+' bar's HeightChanged).
+public sub tkLayout_SetHeightFunc( byval l as TK_LAYOUT ptr, byval w as TK_WIDGET ptr, byval fn as TKLAYOUT_HeightFunc )
+    if l = 0 then exit sub
+    dim as long i = FindEntry_( l, w )
+    if i < 0 then exit sub
+    l->entries(i).item.heightFn = fn
+    l->entries(i).item.pFnW = iif( fn <> 0, w, cast( TK_WIDGET ptr, 0 ) )
+end sub
+
 public function tkLayout_GetDesignRect( byval l as TK_LAYOUT ptr, byval w as TK_WIDGET ptr, byref item as TKLAYOUT_ITEM ) as boolean
     if l = 0 then return false
     dim as long i = FindEntry_( l, w )
@@ -283,6 +322,7 @@ public sub tkLayout_Apply( byval l as TK_LAYOUT ptr )
         for i as long = 0 to l->nEntries - 1
             if l->entries(i).w->pParent = parent then
                 items(k) = l->entries(i).item
+                items(k).bHidden = (l->entries(i).w->isVisible = false)
                 who(k) = l->entries(i).w
                 k += 1
             end if
