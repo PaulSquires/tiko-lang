@@ -732,6 +732,15 @@ public function tkBadge_GetPresence( byval hBadge as TK_WIDGET ptr ) as long
     return p->spec.nPresence
 end function
 
+' The Kind as such, the content left as it is (a designed form sets it after the content, so the
+' designer's choice wins over whichever content setter ran last).
+public sub tkBadge_SetKind( byval hBadge as TK_WIDGET ptr, byval nKind as long )
+    dim as TKBADGE_STATE ptr p = BG( hBadge )
+    if (p = 0) orelse (nKind < TKBADGE_KIND_DOT) orelse (nKind > TKBADGE_KIND_PRESENCE) then exit sub
+    p->spec.nKind = nKind
+    Refresh( p )
+end sub
+
 public function tkBadge_GetKind( byval hBadge as TK_WIDGET ptr ) as long
     dim as TKBADGE_STATE ptr p = BG( hBadge )
     if p = 0 then return TKBADGE_KIND_DOT

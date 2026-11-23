@@ -1057,6 +1057,11 @@ public sub tkChipGroup_SetColors( byval hGroup as TK_WIDGET ptr, byval pColors a
     tkWidget_Invalidate( hGroup )
 end sub
 
+' The chips' colours from the theme: tkChip's roles.
+public function tkChipGroup_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHIP_COLORS
+    return tkChip_ThemeColors( t )
+end function
+
 ' The chips' colours (tkChip's roles), resolved under "ChipGroup".
 public sub tkChipGroup_ApplyTheme( byval hGroup as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )

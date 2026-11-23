@@ -46,6 +46,12 @@
 #import "../tkCheckedCombo"
 #import "../tkTokenBox"
 #import "../tkAutoComplete"
+#import "../tkRating"
+#import "../tkBadge"
+#import "../tkAvatar"
+#import "../tkAvatarGroup"
+#import "../tkChip"
+#import "../tkChipGroup"
 using tkHost
 using tkPaint
 using tkLabel
@@ -92,6 +98,12 @@ using tkCheckedList
 using tkCheckedCombo
 using tkTokenBox
 using tkAutoComplete
+using tkRating
+using tkBadge
+using tkAvatar
+using tkAvatarGroup
+using tkChip
+using tkChipGroup
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -4297,6 +4309,859 @@ private sub F_AutoComplete_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font p
     tkAutoComplete_SetFont( w, f )
 end sub
 
+private function C_Rating( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkRating_Create( hParent, id )
+end function
+
+private sub G_Rating( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkRating_GetColors( w, cast( TKRATING_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Rating( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKRATING_COLORS ptr, pSlots ) = tkRating_ThemeColors( t )
+end sub
+
+private sub A_Rating_ItemCount( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetItemCount( w, clng( val( v ) ) )
+end sub
+
+private function R_Rating_ItemCount( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkRating_GetItemCount( w ) )
+end function
+
+private sub A_Rating_Precision( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Full" : tkRating_SetPrecision( w, TKRATING_FULL )
+    case "Half" : tkRating_SetPrecision( w, TKRATING_HALF )
+    case "Tenth" : tkRating_SetPrecision( w, TKRATING_TENTH )
+    end select
+end sub
+
+private function R_Rating_Precision( byval w as TK_WIDGET ptr ) as ustring
+    select case tkRating_GetPrecision( w )
+    case TKRATING_FULL : return "Full"
+    case TKRATING_HALF : return "Half"
+    case TKRATING_TENTH : return "Tenth"
+    end select
+    return ""
+end function
+
+private sub A_Rating_Value( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetValue( w, val( v ) )
+end sub
+
+private function R_Rating_Value( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkRating_GetValue( w ) )
+end function
+
+private sub A_Rating_PlaceholderValue( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetPlaceholderValue( w, val( v ) )
+end sub
+
+private function R_Rating_PlaceholderValue( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkRating_GetPlaceholderValue( w ) )
+end function
+
+private sub A_Rating_AllowClear( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetAllowClear( w, cbool( v = "true" ) )
+end sub
+
+private function R_Rating_AllowClear( byval w as TK_WIDGET ptr ) as ustring
+    if tkRating_GetAllowClear( w ) then return "true" else return "false"
+end function
+
+private sub A_Rating_ReadOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetReadOnly( w, cbool( v = "true" ) )
+end sub
+
+private function R_Rating_ReadOnly( byval w as TK_WIDGET ptr ) as ustring
+    if tkRating_GetReadOnly( w ) then return "true" else return "false"
+end function
+
+private sub A_Rating_HoverPreview( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetHoverPreview( w, cbool( v = "true" ) )
+end sub
+
+private function R_Rating_HoverPreview( byval w as TK_WIDGET ptr ) as ustring
+    if tkRating_GetHoverPreview( w ) then return "true" else return "false"
+end function
+
+private sub A_Rating_ShowEmpty( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetShowEmpty( w, cbool( v = "true" ) )
+end sub
+
+private function R_Rating_ShowEmpty( byval w as TK_WIDGET ptr ) as ustring
+    if tkRating_GetShowEmpty( w ) then return "true" else return "false"
+end function
+
+private sub A_Rating_Shape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Star" : tkRating_SetShape( w, TKRATING_STAR )
+    case "Heart" : tkRating_SetShape( w, TKRATING_HEART )
+    case "Circle" : tkRating_SetShape( w, TKRATING_CIRCLE )
+    case "Diamond" : tkRating_SetShape( w, TKRATING_DIAMOND )
+    case "Glyph" : tkRating_SetShape( w, TKRATING_GLYPH )
+    end select
+end sub
+
+private function R_Rating_Shape( byval w as TK_WIDGET ptr ) as ustring
+    select case tkRating_GetShape( w )
+    case TKRATING_STAR : return "Star"
+    case TKRATING_HEART : return "Heart"
+    case TKRATING_CIRCLE : return "Circle"
+    case TKRATING_DIAMOND : return "Diamond"
+    case TKRATING_GLYPH : return "Glyph"
+    end select
+    return ""
+end function
+
+private sub A_Rating_Glyphs( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetGlyphs( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ) )
+end sub
+
+private sub A_Rating_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Small" : tkRating_SetSize( w, TKRATING_SIZE_SMALL )
+    case "Medium" : tkRating_SetSize( w, TKRATING_SIZE_MEDIUM )
+    case "Large" : tkRating_SetSize( w, TKRATING_SIZE_LARGE )
+    end select
+end sub
+
+private function R_Rating_Size( byval w as TK_WIDGET ptr ) as ustring
+    select case tkRating_GetSize( w )
+    case TKRATING_SIZE_SMALL : return "Small"
+    case TKRATING_SIZE_MEDIUM : return "Medium"
+    case TKRATING_SIZE_LARGE : return "Large"
+    end select
+    return ""
+end function
+
+private sub A_Rating_ItemSpacing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetItemSpacing( w, clng( val( v ) ) )
+end sub
+
+private function R_Rating_ItemSpacing( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkRating_GetItemSpacing( w ) )
+end function
+
+private sub A_Rating_Caption( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetCaption( w, v )
+end sub
+
+private function R_Rating_Caption( byval w as TK_WIDGET ptr ) as ustring
+    return tkRating_GetCaption( w )
+end function
+
+private sub A_Rating_CaptionGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetCaptionGap( w, clng( val( v ) ) )
+end sub
+
+private function R_Rating_CaptionGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkRating_GetCaptionGap( w ) )
+end function
+
+private sub F_Rating_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkRating_SetFont( w, f )
+end sub
+
+private sub A_Rating_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_Rating_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkRating_GetBorderThickness( w ) )
+end function
+
+private sub A_Rating_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Rating_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetTooltipText( w, v )
+end sub
+
+private function R_Rating_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkRating_GetTooltipText( w )
+end function
+
+private sub A_Rating_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Rating_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Rating_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkRating_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private function C_Badge( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkBadge_Create( hParent, id )
+end function
+
+private sub G_Badge( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkBadge_GetColors( w, cast( TKBADGE_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Badge( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKBADGE_COLORS ptr, pSlots ) = tkBadge_ThemeColors( t )
+end sub
+
+private sub A_Badge_MaxCount( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetMaxCount( w, clng( val( v ) ) )
+end sub
+
+private function R_Badge_MaxCount( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBadge_GetMaxCount( w ) )
+end function
+
+private sub A_Badge_ShowZero( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetShowZero( w, cbool( v = "true" ) )
+end sub
+
+private function R_Badge_ShowZero( byval w as TK_WIDGET ptr ) as ustring
+    if tkBadge_GetShowZero( w ) then return "true" else return "false"
+end function
+
+private sub A_Badge_Count( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetCount( w, clng( val( v ) ) )
+end sub
+
+private function R_Badge_Count( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBadge_GetCount( w ) )
+end function
+
+private sub A_Badge_Text( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetText( w, v )
+end sub
+
+private function R_Badge_Text( byval w as TK_WIDGET ptr ) as ustring
+    return tkBadge_GetText( w )
+end function
+
+private sub A_Badge_Glyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetGlyph( w, v )
+end sub
+
+private sub A_Badge_Presence( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Available" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_AVAILABLE )
+    case "Away" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_AWAY )
+    case "Busy" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_BUSY )
+    case "DoNotDisturb" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_DND )
+    case "Offline" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_OFFLINE )
+    case "OutOfOffice" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_OOO )
+    case "Blocked" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_BLOCKED )
+    case "Unknown" : tkBadge_SetPresence( w, TKBADGE_PRESENCE_UNKNOWN )
+    end select
+end sub
+
+private function R_Badge_Presence( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetPresence( w )
+    case TKBADGE_PRESENCE_AVAILABLE : return "Available"
+    case TKBADGE_PRESENCE_AWAY : return "Away"
+    case TKBADGE_PRESENCE_BUSY : return "Busy"
+    case TKBADGE_PRESENCE_DND : return "DoNotDisturb"
+    case TKBADGE_PRESENCE_OFFLINE : return "Offline"
+    case TKBADGE_PRESENCE_OOO : return "OutOfOffice"
+    case TKBADGE_PRESENCE_BLOCKED : return "Blocked"
+    case TKBADGE_PRESENCE_UNKNOWN : return "Unknown"
+    end select
+    return ""
+end function
+
+private sub A_Badge_Kind( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Dot" : tkBadge_SetKind( w, TKBADGE_KIND_DOT )
+    case "Count" : tkBadge_SetKind( w, TKBADGE_KIND_COUNT )
+    case "Text" : tkBadge_SetKind( w, TKBADGE_KIND_TEXT )
+    case "Glyph" : tkBadge_SetKind( w, TKBADGE_KIND_GLYPH )
+    case "Presence" : tkBadge_SetKind( w, TKBADGE_KIND_PRESENCE )
+    end select
+end sub
+
+private function R_Badge_Kind( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetKind( w )
+    case TKBADGE_KIND_DOT : return "Dot"
+    case TKBADGE_KIND_COUNT : return "Count"
+    case TKBADGE_KIND_TEXT : return "Text"
+    case TKBADGE_KIND_GLYPH : return "Glyph"
+    case TKBADGE_KIND_PRESENCE : return "Presence"
+    end select
+    return ""
+end function
+
+private sub A_Badge_Invisible( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetInvisible( w, cbool( v = "true" ) )
+end sub
+
+private function R_Badge_Invisible( byval w as TK_WIDGET ptr ) as ustring
+    if tkBadge_GetInvisible( w ) then return "true" else return "false"
+end function
+
+private sub A_Badge_Status( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Accent" : tkBadge_SetStatus( w, TKBADGE_ACCENT )
+    case "Info" : tkBadge_SetStatus( w, TKBADGE_INFO )
+    case "Success" : tkBadge_SetStatus( w, TKBADGE_SUCCESS )
+    case "Warning" : tkBadge_SetStatus( w, TKBADGE_WARNING )
+    case "Error" : tkBadge_SetStatus( w, TKBADGE_ERROR )
+    case "Neutral" : tkBadge_SetStatus( w, TKBADGE_NEUTRAL )
+    end select
+end sub
+
+private function R_Badge_Status( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetStatus( w )
+    case TKBADGE_ACCENT : return "Accent"
+    case TKBADGE_INFO : return "Info"
+    case TKBADGE_SUCCESS : return "Success"
+    case TKBADGE_WARNING : return "Warning"
+    case TKBADGE_ERROR : return "Error"
+    case TKBADGE_NEUTRAL : return "Neutral"
+    end select
+    return ""
+end function
+
+private sub A_Badge_Appearance( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Filled" : tkBadge_SetAppearance( w, TKBADGE_FILLED )
+    case "Outline" : tkBadge_SetAppearance( w, TKBADGE_OUTLINE )
+    case "Tint" : tkBadge_SetAppearance( w, TKBADGE_TINT )
+    end select
+end sub
+
+private function R_Badge_Appearance( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetAppearance( w )
+    case TKBADGE_FILLED : return "Filled"
+    case TKBADGE_OUTLINE : return "Outline"
+    case TKBADGE_TINT : return "Tint"
+    end select
+    return ""
+end function
+
+private sub A_Badge_Shape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Pill" : tkBadge_SetShape( w, TKBADGE_PILL )
+    case "Rounded" : tkBadge_SetShape( w, TKBADGE_ROUNDED )
+    case "Square" : tkBadge_SetShape( w, TKBADGE_SQUARE )
+    end select
+end sub
+
+private function R_Badge_Shape( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetShape( w )
+    case TKBADGE_PILL : return "Pill"
+    case TKBADGE_ROUNDED : return "Rounded"
+    case TKBADGE_SQUARE : return "Square"
+    end select
+    return ""
+end function
+
+private sub A_Badge_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Small" : tkBadge_SetSize( w, TKBADGE_SMALL )
+    case "Medium" : tkBadge_SetSize( w, TKBADGE_MEDIUM )
+    case "Large" : tkBadge_SetSize( w, TKBADGE_LARGE )
+    end select
+end sub
+
+private function R_Badge_Size( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetSize( w )
+    case TKBADGE_SMALL : return "Small"
+    case TKBADGE_MEDIUM : return "Medium"
+    case TKBADGE_LARGE : return "Large"
+    end select
+    return ""
+end function
+
+private sub A_Badge_Ring( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetRing( w, clng( val( v ) ) )
+end sub
+
+private function R_Badge_Ring( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBadge_GetRing( w ) )
+end function
+
+private sub A_Badge_Label( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetLabel( w, v )
+end sub
+
+private function R_Badge_Label( byval w as TK_WIDGET ptr ) as ustring
+    return tkBadge_GetLabel( w )
+end function
+
+private sub A_Badge_Justify( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Left" : tkBadge_SetJustify( w, TKBADGE_JUSTIFY_LEFT )
+    case "Center" : tkBadge_SetJustify( w, TKBADGE_JUSTIFY_CENTER )
+    case "Right" : tkBadge_SetJustify( w, TKBADGE_JUSTIFY_RIGHT )
+    end select
+end sub
+
+private function R_Badge_Justify( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBadge_GetJustify( w )
+    case TKBADGE_JUSTIFY_LEFT : return "Left"
+    case TKBADGE_JUSTIFY_CENTER : return "Center"
+    case TKBADGE_JUSTIFY_RIGHT : return "Right"
+    end select
+    return ""
+end function
+
+private sub F_Badge_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkBadge_SetFont( w, f )
+end sub
+
+private sub A_Badge_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBadge_SetTooltipText( w, v )
+end sub
+
+private function R_Badge_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkBadge_GetTooltipText( w )
+end function
+
+private function C_Avatar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkAvatar_Create( hParent, id )
+end function
+
+private sub G_Avatar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkAvatar_GetColors( w, cast( TKAVATAR_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Avatar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKAVATAR_COLORS ptr, pSlots ) = tkAvatar_ThemeColors( t )
+end sub
+
+private sub A_Avatar_DisplayName( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetDisplayName( w, v )
+end sub
+
+private function R_Avatar_DisplayName( byval w as TK_WIDGET ptr ) as ustring
+    return tkAvatar_GetDisplayName( w )
+end function
+
+private sub A_Avatar_Initials( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetInitials( w, v )
+end sub
+
+private function R_Avatar_Initials( byval w as TK_WIDGET ptr ) as ustring
+    return tkAvatar_GetInitials( w )
+end function
+
+private sub A_Avatar_ImageFile( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetImageFile( w, v )
+end sub
+
+private function R_Avatar_ImageFile( byval w as TK_WIDGET ptr ) as ustring
+    return tkAvatar_GetImageFile( w )
+end function
+
+private sub A_Avatar_Glyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetGlyph( w, v )
+end sub
+
+private sub A_Avatar_IsGroup( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetIsGroup( w, cbool( v = "true" ) )
+end sub
+
+private sub A_Avatar_ColorMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Colorful" : tkAvatar_SetColorMode( w, TKAVATAR_COLORFUL )
+    case "Neutral" : tkAvatar_SetColorMode( w, TKAVATAR_NEUTRAL )
+    case "Accent" : tkAvatar_SetColorMode( w, TKAVATAR_ACCENT )
+    case "Custom" : tkAvatar_SetColorMode( w, TKAVATAR_CUSTOM )
+    end select
+end sub
+
+private function R_Avatar_ColorMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAvatar_GetColorMode( w )
+    case TKAVATAR_COLORFUL : return "Colorful"
+    case TKAVATAR_NEUTRAL : return "Neutral"
+    case TKAVATAR_ACCENT : return "Accent"
+    case TKAVATAR_CUSTOM : return "Custom"
+    end select
+    return ""
+end function
+
+private sub A_Avatar_ColorKey( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetColorKey( w, v )
+end sub
+
+private sub A_Avatar_Shape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Circle" : tkAvatar_SetShape( w, TKAVATAR_CIRCLE )
+    case "Rounded" : tkAvatar_SetShape( w, TKAVATAR_ROUNDED )
+    case "Square" : tkAvatar_SetShape( w, TKAVATAR_SQUARE )
+    end select
+end sub
+
+private function R_Avatar_Shape( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAvatar_GetShape( w )
+    case TKAVATAR_CIRCLE : return "Circle"
+    case TKAVATAR_ROUNDED : return "Rounded"
+    case TKAVATAR_SQUARE : return "Square"
+    end select
+    return ""
+end function
+
+private sub A_Avatar_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetSize( w, clng( val( v ) ) )
+end sub
+
+private function R_Avatar_Size( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAvatar_GetSize( w ) )
+end function
+
+private sub A_Avatar_Presence( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkAvatar_SetPresence( w, TKAVATAR_PRESENCE_NONE )
+    case "Available" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_AVAILABLE )
+    case "Away" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_AWAY )
+    case "Busy" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_BUSY )
+    case "DoNotDisturb" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_DND )
+    case "Offline" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_OFFLINE )
+    case "OutOfOffice" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_OOO )
+    case "Blocked" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_BLOCKED )
+    case "Unknown" : tkAvatar_SetPresence( w, TKBADGE_PRESENCE_UNKNOWN )
+    end select
+end sub
+
+private function R_Avatar_Presence( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAvatar_GetPresence( w )
+    case TKAVATAR_PRESENCE_NONE : return "None"
+    case TKBADGE_PRESENCE_AVAILABLE : return "Available"
+    case TKBADGE_PRESENCE_AWAY : return "Away"
+    case TKBADGE_PRESENCE_BUSY : return "Busy"
+    case TKBADGE_PRESENCE_DND : return "DoNotDisturb"
+    case TKBADGE_PRESENCE_OFFLINE : return "Offline"
+    case TKBADGE_PRESENCE_OOO : return "OutOfOffice"
+    case TKBADGE_PRESENCE_BLOCKED : return "Blocked"
+    case TKBADGE_PRESENCE_UNKNOWN : return "Unknown"
+    end select
+    return ""
+end function
+
+private sub A_Avatar_Active( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Unset" : tkAvatar_SetActive( w, TKAVATAR_ACTIVE_UNSET )
+    case "Active" : tkAvatar_SetActive( w, TKAVATAR_ACTIVE_ACTIVE )
+    case "Inactive" : tkAvatar_SetActive( w, TKAVATAR_ACTIVE_INACTIVE )
+    end select
+end sub
+
+private function R_Avatar_Active( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAvatar_GetActive( w )
+    case TKAVATAR_ACTIVE_UNSET : return "Unset"
+    case TKAVATAR_ACTIVE_ACTIVE : return "Active"
+    case TKAVATAR_ACTIVE_INACTIVE : return "Inactive"
+    end select
+    return ""
+end function
+
+private sub A_Avatar_Clickable( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetClickable( w, cbool( v = "true" ) )
+end sub
+
+private function R_Avatar_Clickable( byval w as TK_WIDGET ptr ) as ustring
+    if tkAvatar_GetClickable( w ) then return "true" else return "false"
+end function
+
+private sub A_Avatar_NameTip( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetNameTip( w, cbool( v = "true" ) )
+end sub
+
+private sub A_Avatar_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatar_SetTooltipText( w, v )
+end sub
+
+private function C_AvatarGroup( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkAvatarGroup_Create( hParent, id )
+end function
+
+private sub G_AvatarGroup( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkAvatarGroup_GetColors( w, cast( TKAVGROUP_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_AvatarGroup( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKAVGROUP_COLORS ptr, pSlots ) = tkAvatarGroup_ThemeColors( t )
+end sub
+
+private sub A_AvatarGroup_Layout( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Stack" : tkAvatarGroup_SetLayout( w, TKAVGROUP_STACK )
+    case "Spread" : tkAvatarGroup_SetLayout( w, TKAVGROUP_SPREAD )
+    end select
+end sub
+
+private function R_AvatarGroup_Layout( byval w as TK_WIDGET ptr ) as ustring
+    select case tkAvatarGroup_GetLayout( w )
+    case TKAVGROUP_STACK : return "Stack"
+    case TKAVGROUP_SPREAD : return "Spread"
+    end select
+    return ""
+end function
+
+private sub A_AvatarGroup_MaxVisible( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatarGroup_SetMaxVisible( w, clng( val( v ) ) )
+end sub
+
+private function R_AvatarGroup_MaxVisible( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkAvatarGroup_GetMaxVisible( w ) )
+end function
+
+private sub A_AvatarGroup_Total( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatarGroup_SetTotal( w, clng( val( v ) ) )
+end sub
+
+private sub A_AvatarGroup_Overlap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatarGroup_SetOverlap( w, clng( val( v ) ) )
+end sub
+
+private sub A_AvatarGroup_Spacing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatarGroup_SetSpacing( w, clng( val( v ) ) )
+end sub
+
+private sub A_AvatarGroup_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatarGroup_SetSize( w, clng( val( v ) ) )
+end sub
+
+private sub A_AvatarGroup_Shape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Circle" : tkAvatarGroup_SetShape( w, TKAVATAR_CIRCLE )
+    case "Rounded" : tkAvatarGroup_SetShape( w, TKAVATAR_ROUNDED )
+    case "Square" : tkAvatarGroup_SetShape( w, TKAVATAR_SQUARE )
+    end select
+end sub
+
+private sub A_AvatarGroup_ColorMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Colorful" : tkAvatarGroup_SetColorMode( w, TKAVATAR_COLORFUL )
+    case "Neutral" : tkAvatarGroup_SetColorMode( w, TKAVATAR_NEUTRAL )
+    case "Accent" : tkAvatarGroup_SetColorMode( w, TKAVATAR_ACCENT )
+    case "Custom" : tkAvatarGroup_SetColorMode( w, TKAVATAR_CUSTOM )
+    end select
+end sub
+
+private sub A_AvatarGroup_Interactive( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkAvatarGroup_SetInteractive( w, cbool( v = "true" ) )
+end sub
+
+private function C_Chip( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkChip_Create( hParent, id )
+end function
+
+private sub G_Chip( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkChip_GetColors( w, cast( TKCHIP_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Chip( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKCHIP_COLORS ptr, pSlots ) = tkChip_ThemeColors( t )
+end sub
+
+private sub A_Chip_Kind( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Action" : tkChip_SetKind( w, TKCHIP_ACTION )
+    case "Toggle" : tkChip_SetKind( w, TKCHIP_TOGGLE )
+    case "Input" : tkChip_SetKind( w, TKCHIP_INPUT )
+    end select
+end sub
+
+private function R_Chip_Kind( byval w as TK_WIDGET ptr ) as ustring
+    select case tkChip_GetKind( w )
+    case TKCHIP_ACTION : return "Action"
+    case TKCHIP_TOGGLE : return "Toggle"
+    case TKCHIP_INPUT : return "Input"
+    end select
+    return ""
+end function
+
+private sub A_Chip_Text( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetText( w, v )
+end sub
+
+private function R_Chip_Text( byval w as TK_WIDGET ptr ) as ustring
+    return tkChip_GetText( w )
+end function
+
+private sub A_Chip_Selected( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetSelected( w, cbool( v = "true" ) )
+end sub
+
+private function R_Chip_Selected( byval w as TK_WIDGET ptr ) as ustring
+    if tkChip_GetSelected( w ) then return "true" else return "false"
+end function
+
+private sub A_Chip_Removable( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetRemovable( w, cbool( v = "true" ) )
+end sub
+
+private function R_Chip_Removable( byval w as TK_WIDGET ptr ) as ustring
+    if tkChip_GetRemovable( w ) then return "true" else return "false"
+end function
+
+private sub A_Chip_Selectable( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetSelectable( w, cbool( v = "true" ) )
+end sub
+
+private sub A_Chip_LeadingGlyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetLeadingGlyph( w, v )
+end sub
+
+private sub A_Chip_LeadingImage( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetLeadingImageFile( w, v )
+end sub
+
+private sub A_Chip_AvatarName( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetLeadingAvatar( w, v )
+end sub
+
+private sub A_Chip_ShowCheck( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetShowCheck( w, cbool( v = "true" ) )
+end sub
+
+private sub A_Chip_ReserveCheck( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetReserveCheck( w, cbool( v = "true" ) )
+end sub
+
+private sub A_Chip_Count( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetCount( w, clng( val( v ) ) )
+end sub
+
+private sub A_Chip_Status( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Neutral" : tkChip_SetStatus( w, TKBADGE_NEUTRAL )
+    case "Accent" : tkChip_SetStatus( w, TKBADGE_ACCENT )
+    case "Info" : tkChip_SetStatus( w, TKBADGE_INFO )
+    case "Success" : tkChip_SetStatus( w, TKBADGE_SUCCESS )
+    case "Warning" : tkChip_SetStatus( w, TKBADGE_WARNING )
+    case "Error" : tkChip_SetStatus( w, TKBADGE_ERROR )
+    end select
+end sub
+
+private sub A_Chip_Appearance( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Filled" : tkChip_SetAppearance( w, TKCHIP_FILLED )
+    case "Outlined" : tkChip_SetAppearance( w, TKCHIP_OUTLINED )
+    end select
+end sub
+
+private sub A_Chip_Shape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Pill" : tkChip_SetShape( w, TKCHIP_PILL )
+    case "Rounded" : tkChip_SetShape( w, TKCHIP_ROUNDED )
+    end select
+end sub
+
+private sub A_Chip_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Small" : tkChip_SetSize( w, TKCHIP_SMALL )
+    case "Medium" : tkChip_SetSize( w, TKCHIP_MEDIUM )
+    end select
+end sub
+
+private sub A_Chip_MaxLabelWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetMaxLabelWidth( w, clng( val( v ) ) )
+end sub
+
+private sub F_Chip_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkChip_SetFont( w, f )
+end sub
+
+private sub A_Chip_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChip_SetTooltipText( w, v )
+end sub
+
+private function C_ChipGroup( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkChipGroup_Create( hParent, id )
+end function
+
+private sub G_ChipGroup( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkChipGroup_GetColors( w, cast( TKCHIP_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_ChipGroup( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKCHIP_COLORS ptr, pSlots ) = tkChipGroup_ThemeColors( t )
+end sub
+
+private sub A_ChipGroup_KeySeparator( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetKeySeparator( w, v )
+end sub
+
+private function R_ChipGroup_KeySeparator( byval w as TK_WIDGET ptr ) as ustring
+    return tkChipGroup_GetKeySeparator( w )
+end function
+
+private sub A_ChipGroup_SelectionMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkChipGroup_SetSelectionMode( w, TKCHIPGRP_NONE )
+    case "Single" : tkChipGroup_SetSelectionMode( w, TKCHIPGRP_SINGLE )
+    case "SingleOrNone" : tkChipGroup_SetSelectionMode( w, TKCHIPGRP_SINGLE_OR_NONE )
+    case "Multi" : tkChipGroup_SetSelectionMode( w, TKCHIPGRP_MULTI )
+    end select
+end sub
+
+private function R_ChipGroup_SelectionMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkChipGroup_GetSelectionMode( w )
+    case TKCHIPGRP_NONE : return "None"
+    case TKCHIPGRP_SINGLE : return "Single"
+    case TKCHIPGRP_SINGLE_OR_NONE : return "SingleOrNone"
+    case TKCHIPGRP_MULTI : return "Multi"
+    end select
+    return ""
+end function
+
+private sub A_ChipGroup_Items( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetItemsText( w, v )
+end sub
+
+private function R_ChipGroup_Items( byval w as TK_WIDGET ptr ) as ustring
+    return tkChipGroup_GetItemsText( w )
+end function
+
+private sub A_ChipGroup_SelectedKeys( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetSelectedKeys( w, v )
+end sub
+
+private function R_ChipGroup_SelectedKeys( byval w as TK_WIDGET ptr ) as ustring
+    return tkChipGroup_GetSelectedKeys( w )
+end function
+
+private sub A_ChipGroup_Removable( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetRemovable( w, cbool( v = "true" ) )
+end sub
+
+private sub A_ChipGroup_Wrap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetWrap( w, cbool( v = "true" ) )
+end sub
+
+private sub A_ChipGroup_Gaps( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetGaps( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_ChipGroup_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Small" : tkChipGroup_SetSize( w, TKCHIP_SMALL )
+    case "Medium" : tkChipGroup_SetSize( w, TKCHIP_MEDIUM )
+    end select
+end sub
+
+private sub A_ChipGroup_Shape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Pill" : tkChipGroup_SetShape( w, TKCHIP_PILL )
+    case "Rounded" : tkChipGroup_SetShape( w, TKCHIP_ROUNDED )
+    end select
+end sub
+
+private sub A_ChipGroup_Appearance( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Filled" : tkChipGroup_SetAppearance( w, TKCHIP_FILLED )
+    case "Outlined" : tkChipGroup_SetAppearance( w, TKCHIP_OUTLINED )
+    end select
+end sub
+
+private sub A_ChipGroup_MaxLabelWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetMaxLabelWidth( w, clng( val( v ) ) )
+end sub
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -5597,5 +6462,226 @@ sub Fill_( )
     Event_( "NotInList", "tkAutoComplete_SetNotInListCallback", "AC_NotInListSub", "byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as long", "byref text as const ustring, byref action as long", "text, action" )
     Event_( "ItemsNeeded", "tkAutoComplete_SetItemsNeededCallback", "AC_ItemsNeededSub", "byval hAC as TK_WIDGET ptr, byref query as const ustring", "byref query as const ustring", "query" )
     Event_( "Populate", "tkAutoComplete_SetPopulateCallback", "AC_PopulateSub", "byval hAC as TK_WIDGET ptr, byref query as const ustring, byval requestId as long", "byref query as const ustring, byval requestId as long", "query, requestId" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Rating", "tkRating", "Common", 140, 30, "ValueChanged", "", @C_Rating, "", "", "", "" )
+    Bind_( "float", "tkRating_GetValue", "tkRating_SetValue", false )
+    Colors_( "TKRATING_COLORS", "tkRating_GetColors", "tkRating_ThemeColors", @G_Rating, @T_Rating )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "FocusRingColor", "", "", "", false )
+    Color_( "FillColor", "Fill", "Normal", "", false )
+    Color_( "FillColorHot", "Fill", "Hot", "", false )
+    Color_( "FillColorDisabled", "Fill", "Disabled", "", false )
+    Color_( "EmptyColor", "Empty", "Normal", "", false )
+    Color_( "EmptyColorHot", "Empty", "Hot", "", false )
+    Color_( "EmptyColorDisabled", "Empty", "Disabled", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "BorderColorDisabled", "Border", "Disabled", "", false )
+    Color_( "PlaceholderColor", "", "", "", false )
+    Color_( "CaptionColor", "Caption", "Normal", "", true )
+    Color_( "CaptionColorDisabled", "Caption", "Disabled", "", true )
+    Prop_( "ItemCount", "int", "5", "", "tkRating_SetItemCount", "tkRating_GetItemCount", @A_Rating_ItemCount, @R_Rating_ItemCount, 0, true, true, "", 0 )
+    Prop_( "Precision", "enum", "Full", "Full=TKRATING_FULL,Half=TKRATING_HALF,Tenth=TKRATING_TENTH", "tkRating_SetPrecision", "tkRating_GetPrecision", @A_Rating_Precision, @R_Rating_Precision, 0, true, true, "", 0 )
+    Prop_( "Value", "float", "", "", "tkRating_SetValue", "tkRating_GetValue", @A_Rating_Value, @R_Rating_Value, 0, true, true, "", 0 )
+    Prop_( "PlaceholderValue", "float", "", "", "tkRating_SetPlaceholderValue", "tkRating_GetPlaceholderValue", @A_Rating_PlaceholderValue, @R_Rating_PlaceholderValue, 0, true, true, "", 0 )
+    Prop_( "AllowClear", "bool", "true", "", "tkRating_SetAllowClear", "tkRating_GetAllowClear", @A_Rating_AllowClear, @R_Rating_AllowClear, 0, true, true, "", 0 )
+    Prop_( "ReadOnly", "bool", "false", "", "tkRating_SetReadOnly", "tkRating_GetReadOnly", @A_Rating_ReadOnly, @R_Rating_ReadOnly, 0, true, true, "", 0 )
+    Prop_( "HoverPreview", "bool", "true", "", "tkRating_SetHoverPreview", "tkRating_GetHoverPreview", @A_Rating_HoverPreview, @R_Rating_HoverPreview, 0, true, true, "", 0 )
+    Prop_( "ShowEmpty", "bool", "true", "", "tkRating_SetShowEmpty", "tkRating_GetShowEmpty", @A_Rating_ShowEmpty, @R_Rating_ShowEmpty, 0, true, true, "", 0 )
+    Prop_( "Shape", "enum", "Star", "Star=TKRATING_STAR,Heart=TKRATING_HEART,Circle=TKRATING_CIRCLE,Diamond=TKRATING_DIAMOND,Glyph=TKRATING_GLYPH", "tkRating_SetShape", "tkRating_GetShape", @A_Rating_Shape, @R_Rating_Shape, 0, true, true, "", 0 )
+    Prop_( "Glyphs", "list", "", "Filled:text,Empty:text", "tkRating_SetGlyphs", "", @A_Rating_Glyphs, 0, 0, true, true, "", 0 )
+    Prop_( "Size", "enum", "Medium", "Small=TKRATING_SIZE_SMALL,Medium=TKRATING_SIZE_MEDIUM,Large=TKRATING_SIZE_LARGE", "tkRating_SetSize", "tkRating_GetSize", @A_Rating_Size, @R_Rating_Size, 0, true, true, "", 0 )
+    Prop_( "ItemSpacing", "int", "", "", "tkRating_SetItemSpacing", "tkRating_GetItemSpacing", @A_Rating_ItemSpacing, @R_Rating_ItemSpacing, 0, true, true, "", 0 )
+    Prop_( "Caption", "text", "", "", "tkRating_SetCaption", "tkRating_GetCaption", @A_Rating_Caption, @R_Rating_Caption, 0, true, true, "", 0 )
+    Prop_( "CaptionGap", "int", "", "", "tkRating_SetCaptionGap", "tkRating_GetCaptionGap", @A_Rating_CaptionGap, @R_Rating_CaptionGap, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkRating_SetFont", "tkRating_GetFont", 0, 0, @F_Rating_Font, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkRating_SetBorderThickness", "tkRating_GetBorderThickness", @A_Rating_BorderThickness, @R_Rating_BorderThickness, 0, true, true, "BorderWidth", 1 )
+    Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkRating_SetFocusRing", "", @A_Rating_FocusRing, 0, 0, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkRating_SetTooltipText", "tkRating_GetTooltipText", @A_Rating_TooltipText, @R_Rating_TooltipText, 0, true, true, "", 0 )
+    Prop_( "HoverTime", "int", "", "", "tkRating_SetHoverTime", "", @A_Rating_HoverTime, 0, 0, true, true, "", 0 )
+    Prop_( "AutoPopTime", "int", "", "", "tkRating_SetAutoPopTime", "", @A_Rating_AutoPopTime, 0, 0, true, true, "", 0 )
+    Prop_( "ReshowTime", "int", "", "", "tkRating_SetReshowTime", "", @A_Rating_ReshowTime, 0, 0, true, true, "", 0 )
+    Event_( "ValueChanged", "tkRating_SetValueChangedCallback", "RTG_ValueChangedCallbackSub", "byval hRating as TK_WIDGET ptr, byval nValue as double", "byval nValue as double", "nValue" )
+    Event_( "HoverChanged", "tkRating_SetHoverChangedCallback", "RTG_HoverChangedCallbackSub", "byval hRating as TK_WIDGET ptr, byval nHover as double", "byval nHover as double", "nHover" )
+    Event_( "FormatCaption", "tkRating_SetFormatCaptionCallback", "RTG_FormatCaptionCallbackFunc", "byval hRating as TK_WIDGET ptr, byval nValue as double, byval nHover as double", "byval nValue as double, byval nHover as double, byref Text as ustring", "nValue, nHover, Text", "", "ustring", "Text" )
+    Event_( "PaintItem", "tkRating_SetPaintItemCallback", "RTG_PaintItemCallbackSub", "byval p as TKRATING_ITEMPAINTINFO ptr", "byval p as TKRATING_ITEMPAINTINFO ptr", "p", "p->hRating", "", "" )
+    Event_( "Paint", "tkRating_SetPaintCallback", "RTG_PaintCallbackSub", "byval p as TKRATING_PAINTINFO ptr", "byval p as TKRATING_PAINTINFO ptr", "p", "p->hRating", "", "" )
+    Event_( "Message", "tkRating_SetMessageCallback", "RTG_MessageCallbackFunc", "byval m as TKRATING_MESSAGEINFO ptr", "byval m as TKRATING_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hRating", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Badge", "tkBadge", "Common", 80, 24, "Paint", "", @C_Badge, "", "", "", "" )
+    Bind_( "int", "", "tkBadge_SetCount", true )
+    Colors_( "TKBADGE_COLORS", "tkBadge_GetColors", "tkBadge_ThemeColors", @G_Badge, @T_Badge )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "RingColor", "", "", "", false )
+    Color_( "LabelColor", "Label", "Normal", "", true )
+    Color_( "LabelColorDisabled", "Label", "Disabled", "", true )
+    Color_( "FillAccent", "AccentFill", "Normal", "", false )
+    Color_( "InkAccent", "AccentInk", "Normal", "", true )
+    Color_( "FillInfo", "InfoFill", "Normal", "", false )
+    Color_( "InkInfo", "InfoInk", "Normal", "", true )
+    Color_( "FillSuccess", "SuccessFill", "Normal", "", false )
+    Color_( "InkSuccess", "SuccessInk", "Normal", "", true )
+    Color_( "FillWarning", "WarningFill", "Normal", "", false )
+    Color_( "InkWarning", "WarningInk", "Normal", "", true )
+    Color_( "FillError", "ErrorFill", "Normal", "", false )
+    Color_( "InkError", "ErrorInk", "Normal", "", true )
+    Color_( "FillNeutral", "NeutralFill", "Normal", "", false )
+    Color_( "InkNeutral", "NeutralInk", "Normal", "", true )
+    Color_( "FillDisabled", "Fill", "Disabled", "", false )
+    Color_( "InkDisabled", "Ink", "Disabled", "", true )
+    Prop_( "MaxCount", "int", "99", "", "tkBadge_SetMaxCount", "tkBadge_GetMaxCount", @A_Badge_MaxCount, @R_Badge_MaxCount, 0, true, true, "", 0 )
+    Prop_( "ShowZero", "bool", "false", "", "tkBadge_SetShowZero", "tkBadge_GetShowZero", @A_Badge_ShowZero, @R_Badge_ShowZero, 0, true, true, "", 0 )
+    Prop_( "Count", "int", "", "", "tkBadge_SetCount", "tkBadge_GetCount", @A_Badge_Count, @R_Badge_Count, 0, true, true, "", 0 )
+    Prop_( "Text", "text", "", "", "tkBadge_SetText", "tkBadge_GetText", @A_Badge_Text, @R_Badge_Text, 0, true, true, "", 0 )
+    Prop_( "Glyph", "glyph", "", "", "tkBadge_SetGlyph", "", @A_Badge_Glyph, 0, 0, true, true, "", 0 )
+    Prop_( "Presence", "enum", "Available", "Available=TKBADGE_PRESENCE_AVAILABLE,Away=TKBADGE_PRESENCE_AWAY,Busy=TKBADGE_PRESENCE_BUSY,DoNotDisturb=TKBADGE_PRESENCE_DND,Offline=TKBADGE_PRESENCE_OFFLINE,OutOfOffice=TKBADGE_PRESENCE_OOO,Blocked=TKBADGE_PRESENCE_BLOCKED,Unknown=TKBADGE_PRESENCE_UNKNOWN", "tkBadge_SetPresence", "tkBadge_GetPresence", @A_Badge_Presence, @R_Badge_Presence, 0, true, true, "", 0 )
+    Prop_( "Kind", "enum", "Dot", "Dot=TKBADGE_KIND_DOT,Count=TKBADGE_KIND_COUNT,Text=TKBADGE_KIND_TEXT,Glyph=TKBADGE_KIND_GLYPH,Presence=TKBADGE_KIND_PRESENCE", "tkBadge_SetKind", "tkBadge_GetKind", @A_Badge_Kind, @R_Badge_Kind, 0, true, true, "", 0 )
+    Prop_( "Invisible", "bool", "false", "", "tkBadge_SetInvisible", "tkBadge_GetInvisible", @A_Badge_Invisible, @R_Badge_Invisible, 0, true, true, "", 0 )
+    Prop_( "Status", "enum", "Accent", "Accent=TKBADGE_ACCENT,Info=TKBADGE_INFO,Success=TKBADGE_SUCCESS,Warning=TKBADGE_WARNING,Error=TKBADGE_ERROR,Neutral=TKBADGE_NEUTRAL", "tkBadge_SetStatus", "tkBadge_GetStatus", @A_Badge_Status, @R_Badge_Status, 0, true, true, "", 0 )
+    Prop_( "Appearance", "enum", "Filled", "Filled=TKBADGE_FILLED,Outline=TKBADGE_OUTLINE,Tint=TKBADGE_TINT", "tkBadge_SetAppearance", "tkBadge_GetAppearance", @A_Badge_Appearance, @R_Badge_Appearance, 0, true, true, "", 0 )
+    Prop_( "Shape", "enum", "Pill", "Pill=TKBADGE_PILL,Rounded=TKBADGE_ROUNDED,Square=TKBADGE_SQUARE", "tkBadge_SetShape", "tkBadge_GetShape", @A_Badge_Shape, @R_Badge_Shape, 0, true, true, "", 0 )
+    Prop_( "Size", "enum", "Medium", "Small=TKBADGE_SMALL,Medium=TKBADGE_MEDIUM,Large=TKBADGE_LARGE", "tkBadge_SetSize", "tkBadge_GetSize", @A_Badge_Size, @R_Badge_Size, 0, true, true, "", 0 )
+    Prop_( "Ring", "int", "", "", "tkBadge_SetRing", "tkBadge_GetRing", @A_Badge_Ring, @R_Badge_Ring, 0, true, true, "", 0 )
+    Prop_( "Label", "text", "", "", "tkBadge_SetLabel", "tkBadge_GetLabel", @A_Badge_Label, @R_Badge_Label, 0, true, true, "", 0 )
+    Prop_( "Justify", "enum", "Left", "Left=TKBADGE_JUSTIFY_LEFT,Center=TKBADGE_JUSTIFY_CENTER,Right=TKBADGE_JUSTIFY_RIGHT", "tkBadge_SetJustify", "tkBadge_GetJustify", @A_Badge_Justify, @R_Badge_Justify, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkBadge_SetFont", "tkBadge_GetFont", 0, 0, @F_Badge_Font, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkBadge_SetTooltipText", "tkBadge_GetTooltipText", @A_Badge_TooltipText, @R_Badge_TooltipText, 0, true, true, "", 0 )
+    Event_( "Paint", "tkBadge_SetPaintCallback", "BDG_PaintCallbackSub", "byval p as TKBADGE_PAINTINFO ptr", "byval p as TKBADGE_PAINTINFO ptr", "p", "p->hBadge", "", "" )
+    Event_( "Message", "tkBadge_SetMessageCallback", "BDG_MessageCallbackFunc", "byval m as TKBADGE_MESSAGEINFO ptr", "byval m as TKBADGE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hBadge", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Avatar", "tkAvatar", "Common", 48, 48, "Click", "", @C_Avatar, "", "", "", "" )
+    Bind_( "text", "", "tkAvatar_SetDisplayName", true )
+    Bind2_( "text", "tkAvatar_GetImageFile", "tkAvatar_SetImageFile", "BindImage", "" )
+    Colors_( "TKAVATAR_COLORS", "tkAvatar_GetColors", "tkAvatar_ThemeColors", @G_Avatar, @T_Avatar )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "NeutralBack", "NeutralFill", "Normal", "", false )
+    Color_( "NeutralInk", "NeutralInk", "Normal", "", true )
+    Color_( "AccentBack", "AccentFill", "Normal", "", false )
+    Color_( "AccentInk", "AccentInk", "Normal", "", true )
+    Color_( "CustomBack", "CustomFill", "Normal", "", false )
+    Color_( "CustomInk", "CustomInk", "Normal", "", true )
+    Color_( "ActiveRingColor", "", "", "", false )
+    Prop_( "DisplayName", "text", "", "", "tkAvatar_SetDisplayName", "tkAvatar_GetDisplayName", @A_Avatar_DisplayName, @R_Avatar_DisplayName, 0, true, true, "", 0 )
+    Prop_( "Initials", "text", "", "", "tkAvatar_SetInitials", "tkAvatar_GetInitials", @A_Avatar_Initials, @R_Avatar_Initials, 0, true, true, "", 0 )
+    Prop_( "ImageFile", "file", "", "", "tkAvatar_SetImageFile", "tkAvatar_GetImageFile", @A_Avatar_ImageFile, @R_Avatar_ImageFile, 0, true, true, "", 0 )
+    Prop_( "Glyph", "glyph", "", "", "tkAvatar_SetGlyph", "", @A_Avatar_Glyph, 0, 0, true, true, "", 0 )
+    Prop_( "IsGroup", "bool", "false", "", "tkAvatar_SetIsGroup", "", @A_Avatar_IsGroup, 0, 0, true, true, "", 0 )
+    Prop_( "ColorMode", "enum", "Colorful", "Colorful=TKAVATAR_COLORFUL,Neutral=TKAVATAR_NEUTRAL,Accent=TKAVATAR_ACCENT,Custom=TKAVATAR_CUSTOM", "tkAvatar_SetColorMode", "tkAvatar_GetColorMode", @A_Avatar_ColorMode, @R_Avatar_ColorMode, 0, true, true, "", 0 )
+    Prop_( "ColorKey", "text", "", "", "tkAvatar_SetColorKey", "", @A_Avatar_ColorKey, 0, 0, true, true, "", 0 )
+    Prop_( "Shape", "enum", "Circle", "Circle=TKAVATAR_CIRCLE,Rounded=TKAVATAR_ROUNDED,Square=TKAVATAR_SQUARE", "tkAvatar_SetShape", "tkAvatar_GetShape", @A_Avatar_Shape, @R_Avatar_Shape, 0, true, true, "", 0 )
+    Prop_( "Size", "int", "32", "", "tkAvatar_SetSize", "tkAvatar_GetSize", @A_Avatar_Size, @R_Avatar_Size, 0, true, true, "", 0 )
+    Prop_( "Presence", "enum", "None", "None=TKAVATAR_PRESENCE_NONE,Available=TKBADGE_PRESENCE_AVAILABLE,Away=TKBADGE_PRESENCE_AWAY,Busy=TKBADGE_PRESENCE_BUSY,DoNotDisturb=TKBADGE_PRESENCE_DND,Offline=TKBADGE_PRESENCE_OFFLINE,OutOfOffice=TKBADGE_PRESENCE_OOO,Blocked=TKBADGE_PRESENCE_BLOCKED,Unknown=TKBADGE_PRESENCE_UNKNOWN", "tkAvatar_SetPresence", "tkAvatar_GetPresence", @A_Avatar_Presence, @R_Avatar_Presence, 0, true, true, "", 0 )
+    Prop_( "Active", "enum", "Unset", "Unset=TKAVATAR_ACTIVE_UNSET,Active=TKAVATAR_ACTIVE_ACTIVE,Inactive=TKAVATAR_ACTIVE_INACTIVE", "tkAvatar_SetActive", "tkAvatar_GetActive", @A_Avatar_Active, @R_Avatar_Active, 0, true, true, "", 0 )
+    Prop_( "Clickable", "bool", "false", "", "tkAvatar_SetClickable", "tkAvatar_GetClickable", @A_Avatar_Clickable, @R_Avatar_Clickable, 0, true, true, "", 0 )
+    Prop_( "NameTip", "bool", "true", "", "tkAvatar_SetNameTip", "", @A_Avatar_NameTip, 0, 0, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkAvatar_SetTooltipText", "", @A_Avatar_TooltipText, 0, 0, true, true, "", 0 )
+    Event_( "Click", "tkAvatar_SetClickCallback", "AVT_ClickCallbackSub", "byval hAvatar as TK_WIDGET ptr", "", "" )
+    Event_( "Paint", "tkAvatar_SetPaintCallback", "AVT_PaintCallbackSub", "byval p as TKAVATAR_PAINTINFO ptr", "byval p as TKAVATAR_PAINTINFO ptr", "p", "p->hAvatar", "", "" )
+    Event_( "Message", "tkAvatar_SetMessageCallback", "AVT_MessageCallbackFunc", "byval m as TKAVATAR_MESSAGEINFO ptr", "byval m as TKAVATAR_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hAvatar", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "AvatarGroup", "tkAvatarGroup", "Lists", 200, 48, "ItemClick", "", @C_AvatarGroup, "", "", "", "" )
+    Colors_( "TKAVGROUP_COLORS", "tkAvatarGroup_GetColors", "tkAvatarGroup_ThemeColors", @G_AvatarGroup, @T_AvatarGroup )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "FocusRingColor", "", "", "", false )
+    Color_( "OverflowBack", "Overflow", "Normal", "", false )
+    Color_( "OverflowInk", "OverflowText", "Normal", "", true )
+    Prop_( "Layout", "enum", "Stack", "Stack=TKAVGROUP_STACK,Spread=TKAVGROUP_SPREAD", "tkAvatarGroup_SetLayout", "tkAvatarGroup_GetLayout", @A_AvatarGroup_Layout, @R_AvatarGroup_Layout, 0, true, true, "", 0 )
+    Prop_( "MaxVisible", "int", "5", "", "tkAvatarGroup_SetMaxVisible", "tkAvatarGroup_GetMaxVisible", @A_AvatarGroup_MaxVisible, @R_AvatarGroup_MaxVisible, 0, true, true, "", 0 )
+    Prop_( "Total", "int", "-1", "", "tkAvatarGroup_SetTotal", "", @A_AvatarGroup_Total, 0, 0, true, true, "", 0 )
+    Prop_( "Overlap", "int", "20", "", "tkAvatarGroup_SetOverlap", "", @A_AvatarGroup_Overlap, 0, 0, true, true, "", 0 )
+    Prop_( "Spacing", "int", "4", "", "tkAvatarGroup_SetSpacing", "", @A_AvatarGroup_Spacing, 0, 0, true, true, "", 0 )
+    Prop_( "Size", "int", "32", "", "tkAvatarGroup_SetSize", "", @A_AvatarGroup_Size, 0, 0, true, true, "", 0 )
+    Prop_( "Shape", "enum", "Circle", "Circle=TKAVATAR_CIRCLE,Rounded=TKAVATAR_ROUNDED,Square=TKAVATAR_SQUARE", "tkAvatarGroup_SetShape", "", @A_AvatarGroup_Shape, 0, 0, true, true, "", 0 )
+    Prop_( "ColorMode", "enum", "Colorful", "Colorful=TKAVATAR_COLORFUL,Neutral=TKAVATAR_NEUTRAL,Accent=TKAVATAR_ACCENT,Custom=TKAVATAR_CUSTOM", "tkAvatarGroup_SetColorMode", "", @A_AvatarGroup_ColorMode, 0, 0, true, true, "", 0 )
+    Prop_( "Interactive", "bool", "false", "", "tkAvatarGroup_SetInteractive", "", @A_AvatarGroup_Interactive, 0, 0, true, true, "", 0 )
+    Event_( "ItemClick", "tkAvatarGroup_SetItemClickCallback", "AVG_ItemClickCallbackSub", "byval hGroup as TK_WIDGET ptr, byval idx as long", "byval idx as long", "idx" )
+    Event_( "OverflowClick", "tkAvatarGroup_SetOverflowClickCallback", "AVG_OverflowClickCallbackSub", "byval hGroup as TK_WIDGET ptr", "", "" )
+    Event_( "Message", "tkAvatarGroup_SetMessageCallback", "AVG_MessageCallbackFunc", "byval m as TKAVGROUP_MESSAGEINFO ptr", "byval m as TKAVGROUP_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hGroup", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Chip", "tkChip", "Common", 100, 40, "Click", "", @C_Chip, "", "", "", "" )
+    Bind_( "bool", "tkChip_GetSelected", "tkChip_SetSelected", false )
+    Colors_( "TKCHIP_COLORS", "tkChip_GetColors", "tkChip_ThemeColors", @G_Chip, @T_Chip )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "FocusRingColor", "", "", "", false )
+    Color_( "FillColor", "Fill", "Normal", "", false )
+    Color_( "FillColorHot", "Fill", "Hot", "", false )
+    Color_( "FillColorPressed", "Fill", "Pressed", "", false )
+    Color_( "FillColorSelected", "Fill", "Selected", "", false )
+    Color_( "FillColorSelectedHot", "", "", "", false )
+    Color_( "FillColorDisabled", "Fill", "Disabled", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "BorderColorHot", "Border", "Hot", "", false )
+    Color_( "BorderColorSelected", "Border", "Selected", "", false )
+    Color_( "BorderColorDisabled", "Border", "Disabled", "", false )
+    Color_( "TextColor", "Text", "Normal", "", true )
+    Color_( "TextColorSelected", "Text", "Selected", "", true )
+    Color_( "TextColorDisabled", "Text", "Disabled", "", true )
+    Color_( "CheckColor", "", "", "", false )
+    Color_( "RemoveColor", "Remove", "Normal", "", false )
+    Color_( "RemoveColorHot", "Remove", "Hot", "", false )
+    Color_( "RemoveBackHot", "", "", "", false )
+    Prop_( "Kind", "enum", "Action", "Action=TKCHIP_ACTION,Toggle=TKCHIP_TOGGLE,Input=TKCHIP_INPUT", "tkChip_SetKind", "tkChip_GetKind", @A_Chip_Kind, @R_Chip_Kind, 0, true, true, "", 0 )
+    Prop_( "Text", "text", "", "", "tkChip_SetText", "tkChip_GetText", @A_Chip_Text, @R_Chip_Text, 0, true, true, "", 0 )
+    Prop_( "Selected", "bool", "false", "", "tkChip_SetSelected", "tkChip_GetSelected", @A_Chip_Selected, @R_Chip_Selected, 0, true, true, "", 0 )
+    Prop_( "Removable", "bool", "false", "", "tkChip_SetRemovable", "tkChip_GetRemovable", @A_Chip_Removable, @R_Chip_Removable, 0, true, true, "", 0 )
+    Prop_( "Selectable", "bool", "false", "", "tkChip_SetSelectable", "", @A_Chip_Selectable, 0, 0, true, true, "", 0 )
+    Prop_( "LeadingGlyph", "glyph", "", "", "tkChip_SetLeadingGlyph", "", @A_Chip_LeadingGlyph, 0, 0, true, true, "", 0 )
+    Prop_( "LeadingImage", "file", "", "", "tkChip_SetLeadingImageFile", "", @A_Chip_LeadingImage, 0, 0, true, true, "", 0 )
+    Prop_( "AvatarName", "text", "", "", "tkChip_SetLeadingAvatar", "", @A_Chip_AvatarName, 0, 0, true, true, "", 0 )
+    Prop_( "ShowCheck", "bool", "true", "", "tkChip_SetShowCheck", "", @A_Chip_ShowCheck, 0, 0, true, true, "", 0 )
+    Prop_( "ReserveCheck", "bool", "false", "", "tkChip_SetReserveCheck", "", @A_Chip_ReserveCheck, 0, 0, true, true, "", 0 )
+    Prop_( "Count", "int", "0", "", "tkChip_SetCount", "", @A_Chip_Count, 0, 0, true, true, "", 0 )
+    Prop_( "Status", "enum", "Neutral", "Neutral=TKBADGE_NEUTRAL,Accent=TKBADGE_ACCENT,Info=TKBADGE_INFO,Success=TKBADGE_SUCCESS,Warning=TKBADGE_WARNING,Error=TKBADGE_ERROR", "tkChip_SetStatus", "", @A_Chip_Status, 0, 0, true, true, "", 0 )
+    Prop_( "Appearance", "enum", "Filled", "Filled=TKCHIP_FILLED,Outlined=TKCHIP_OUTLINED", "tkChip_SetAppearance", "", @A_Chip_Appearance, 0, 0, true, true, "", 0 )
+    Prop_( "Shape", "enum", "Pill", "Pill=TKCHIP_PILL,Rounded=TKCHIP_ROUNDED", "tkChip_SetShape", "", @A_Chip_Shape, 0, 0, true, true, "", 0 )
+    Prop_( "Size", "enum", "Medium", "Small=TKCHIP_SMALL,Medium=TKCHIP_MEDIUM", "tkChip_SetSize", "", @A_Chip_Size, 0, 0, true, true, "", 0 )
+    Prop_( "MaxLabelWidth", "int", "200", "", "tkChip_SetMaxLabelWidth", "", @A_Chip_MaxLabelWidth, 0, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkChip_SetFont", "", 0, 0, @F_Chip_Font, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkChip_SetTooltipText", "", @A_Chip_TooltipText, 0, 0, true, true, "", 0 )
+    Event_( "Click", "tkChip_SetClickCallback", "CHP_ClickCallbackSub", "byval hChip as TK_WIDGET ptr", "", "" )
+    Event_( "SelectedChanged", "tkChip_SetSelectedChangedCallback", "CHP_SelectedChangedCallbackSub", "byval hChip as TK_WIDGET ptr, byval isSelected as boolean", "byval isSelected as boolean", "isSelected" )
+    Event_( "RemoveRequested", "tkChip_SetRemoveRequestedCallback", "CHP_RemoveRequestedCallbackSub", "byval hChip as TK_WIDGET ptr", "", "" )
+    Event_( "Paint", "tkChip_SetPaintCallback", "CHP_PaintCallbackSub", "byval p as TKCHIP_PAINTINFO ptr", "byval p as TKCHIP_PAINTINFO ptr", "p", "p->hChip", "", "" )
+    Event_( "Message", "tkChip_SetMessageCallback", "CHP_MessageCallbackFunc", "byval m as TKCHIP_MESSAGEINFO ptr", "byval m as TKCHIP_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hChip", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "ChipGroup", "tkChipGroup", "Lists", 300, 80, "SelChange", "", @C_ChipGroup, "", "", "", "" )
+    Bind_( "text", "tkChipGroup_GetSelectedKeys", "tkChipGroup_SetSelectedKeys", false )
+    Bind2_( "text", "tkChipGroup_GetItemsText", "tkChipGroup_SetItemsText", "BindItems", "" )
+    Colors_( "TKCHIP_COLORS", "tkChipGroup_GetColors", "tkChipGroup_ThemeColors", @G_ChipGroup, @T_ChipGroup )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "FocusRingColor", "", "", "", false )
+    Color_( "FillColor", "Fill", "Normal", "", false )
+    Color_( "FillColorHot", "Fill", "Hot", "", false )
+    Color_( "FillColorPressed", "Fill", "Pressed", "", false )
+    Color_( "FillColorSelected", "Fill", "Selected", "", false )
+    Color_( "FillColorSelectedHot", "", "", "", false )
+    Color_( "FillColorDisabled", "Fill", "Disabled", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "BorderColorHot", "Border", "Hot", "", false )
+    Color_( "BorderColorSelected", "Border", "Selected", "", false )
+    Color_( "BorderColorDisabled", "Border", "Disabled", "", false )
+    Color_( "TextColor", "Text", "Normal", "", true )
+    Color_( "TextColorSelected", "Text", "Selected", "", true )
+    Color_( "TextColorDisabled", "Text", "Disabled", "", true )
+    Color_( "CheckColor", "", "", "", false )
+    Color_( "RemoveColor", "Remove", "Normal", "", false )
+    Color_( "RemoveColorHot", "Remove", "Hot", "", false )
+    Color_( "RemoveBackHot", "", "", "", false )
+    Prop_( "KeySeparator", "text", "", "", "tkChipGroup_SetKeySeparator", "tkChipGroup_GetKeySeparator", @A_ChipGroup_KeySeparator, @R_ChipGroup_KeySeparator, 0, true, true, "", 0 )
+    Prop_( "SelectionMode", "enum", "None", "None=TKCHIPGRP_NONE,Single=TKCHIPGRP_SINGLE,SingleOrNone=TKCHIPGRP_SINGLE_OR_NONE,Multi=TKCHIPGRP_MULTI", "tkChipGroup_SetSelectionMode", "tkChipGroup_GetSelectionMode", @A_ChipGroup_SelectionMode, @R_ChipGroup_SelectionMode, 0, true, true, "", 0 )
+    Prop_( "Items", "text", "", "", "tkChipGroup_SetItemsText", "tkChipGroup_GetItemsText", @A_ChipGroup_Items, @R_ChipGroup_Items, 0, true, true, "", 0 )
+    Prop_( "SelectedKeys", "text", "", "", "tkChipGroup_SetSelectedKeys", "tkChipGroup_GetSelectedKeys", @A_ChipGroup_SelectedKeys, @R_ChipGroup_SelectedKeys, 0, true, true, "", 0 )
+    Prop_( "Removable", "bool", "false", "", "tkChipGroup_SetRemovable", "", @A_ChipGroup_Removable, 0, 0, true, true, "", 0 )
+    Prop_( "Wrap", "bool", "true", "", "tkChipGroup_SetWrap", "", @A_ChipGroup_Wrap, 0, 0, true, true, "", 0 )
+    Prop_( "Gaps", "list", "", "ItemGap:int,RowGap:int", "tkChipGroup_SetGaps", "", @A_ChipGroup_Gaps, 0, 0, true, true, "", 0 )
+    Prop_( "Size", "enum", "Medium", "Small=TKCHIP_SMALL,Medium=TKCHIP_MEDIUM", "tkChipGroup_SetSize", "", @A_ChipGroup_Size, 0, 0, true, true, "", 0 )
+    Prop_( "Shape", "enum", "Pill", "Pill=TKCHIP_PILL,Rounded=TKCHIP_ROUNDED", "tkChipGroup_SetShape", "", @A_ChipGroup_Shape, 0, 0, true, true, "", 0 )
+    Prop_( "Appearance", "enum", "Filled", "Filled=TKCHIP_FILLED,Outlined=TKCHIP_OUTLINED", "tkChipGroup_SetAppearance", "", @A_ChipGroup_Appearance, 0, 0, true, true, "", 0 )
+    Prop_( "MaxLabelWidth", "int", "200", "", "tkChipGroup_SetMaxLabelWidth", "", @A_ChipGroup_MaxLabelWidth, 0, 0, true, true, "", 0 )
+    Event_( "ItemClick", "tkChipGroup_SetItemClickCallback", "CHG_ItemClickCallbackSub", "byval hGroup as TK_WIDGET ptr, byval idx as long", "byval idx as long", "idx" )
+    Event_( "SelChange", "tkChipGroup_SetSelChangeCallback", "CHG_SelChangeCallbackSub", "byval hGroup as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", "byval idx as long, byval isSelected as boolean", "idx, isSelected" )
+    Event_( "ItemRemoving", "tkChipGroup_SetItemRemovingCallback", "CHG_ItemRemovingCallbackFunc", "byval hGroup as TK_WIDGET ptr, byval idx as long", "byval idx as long, byref Allow as boolean", "idx, Allow", "", "boolean", "Allow", "true" )
+    Event_( "ItemRemoved", "tkChipGroup_SetItemRemovedCallback", "CHG_ItemRemovedCallbackSub", "byval hGroup as TK_WIDGET ptr, byval Key as ustring", "byval Key as ustring", "Key" )
+    Event_( "OverflowClick", "tkChipGroup_SetOverflowClickCallback", "CHG_OverflowClickCallbackSub", "byval hGroup as TK_WIDGET ptr", "", "" )
+    Event_( "Message", "tkChipGroup_SetMessageCallback", "CHG_MessageCallbackFunc", "byval m as TKCHIPGRP_MESSAGEINFO ptr", "byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hGroup", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub
