@@ -315,3 +315,15 @@ public function tkTimePanel_FormatPattern( byref t as const TKTIME, byref patter
     next
     return r
 end function
+
+' ---- keys ------------------------------------------------------------------------------------
+' The digit a key types, 0-9, or -1: the keycode (top row, keypad), else the top row's PHYSICAL key
+' (scancode), so AZERTY's unshifted & é " ' ... row still types digits.
+public function tkTimePanel_KeyDigit( byval key as long, byval scancode as long = 0 ) as long
+    if (key >= SDLK_0) andalso (key <= SDLK_9) then return key - SDLK_0
+    if (key >= SDLK_KP_1) andalso (key <= SDLK_KP_9) then return key - SDLK_KP_1 + 1
+    if key = SDLK_KP_0 then return 0
+    if (scancode >= SDL_SCANCODE_1) andalso (scancode <= SDL_SCANCODE_9) then return scancode - SDL_SCANCODE_1 + 1
+    if scancode = SDL_SCANCODE_0 then return 0
+    return -1
+end function

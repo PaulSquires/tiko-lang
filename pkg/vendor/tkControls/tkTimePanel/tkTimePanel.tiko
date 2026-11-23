@@ -718,11 +718,8 @@ end function
 
 ' Type-ahead: digits pick by number in the focused column (LIST: by the label's digits); a / p
 ' (or the designators' first letters) pick the half of the day where there is an AM/PM column.
-private function TypeAhead( byval p as TKTIMEPANEL_STATE ptr, byval key as long ) as boolean
-    dim as long dgt = -1
-    if (key >= SDLK_0) andalso (key <= SDLK_9) then dgt = key - SDLK_0
-    if (key >= SDLK_KP_1) andalso (key <= SDLK_KP_9) then dgt = key - SDLK_KP_1 + 1
-    if key = SDLK_KP_0 then dgt = 0
+private function TypeAhead( byval p as TKTIMEPANEL_STATE ptr, byval key as long, byval scancode as long ) as boolean
+    dim as long dgt = tkTimePanel_KeyDigit( key, scancode )
     if dgt < 0 then
         ' a letter: the designators
         if (key < SDLK_A) orelse (key > SDLK_A + 25) then return false
@@ -789,7 +786,7 @@ private function TypeAhead( byval p as TKTIMEPANEL_STATE ptr, byval key as long 
     return true
 end function
 
-private function OnKey( byval p as TKTIMEPANEL_STATE ptr, byval key as long, byval mods as long ) as boolean
+private function OnKey( byval p as TKTIMEPANEL_STATE ptr, byval key as long, byval mods as long, byval scancode as long ) as boolean
     EnsureLayout( p )
     dim as boolean bAlt = ((mods and SDL_KMOD_ALT) <> 0)
     dim as boolean bShift = ((mods and SDL_KMOD_SHIFT) <> 0)
@@ -831,7 +828,7 @@ private function OnKey( byval p as TKTIMEPANEL_STATE ptr, byval key as long, byv
         return true
     end select
     if (mods and (SDL_KMOD_CTRL or SDL_KMOD_ALT or SDL_KMOD_GUI)) <> 0 then return false
-    return TypeAhead( p, key )
+    return TypeAhead( p, key, scancode )
 end function
 
 private function OnWheel( byval p as TKTIMEPANEL_STATE ptr, byval x as long, byval y as long, byval notches as single ) as boolean
@@ -928,7 +925,7 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
     case TKM_KEYDOWN
         if p->isEnabled = false then return false
         if CallMessage( p, m ) then return true
-        return OnKey( p, m->key, m->mods )
+        return OnKey( p, m->key, m->mods, m->scancode )
 
     case TKM_MOUSEWHEEL
         if p->isEnabled = false then return false
