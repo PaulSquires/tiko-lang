@@ -29,6 +29,11 @@
 ' Setters are silent; only the user notifies. Do not replace the edit's callbacks
 ' (tkTextBox_Set*Callback on GetEditHandle): the control runs on them.
 '
+' THE SEARCH FACE (Style = TKAC_STYLE_SEARCH; tkAutoCompleteFace.tiko): a search glyph at the left,
+' a clear button at the right while there is text, Escape clears, and the Search event SearchDelay ms
+' after the user's last change (at once on Enter, the clear button, Escape, a commit). Search fires in
+' either style once a handler is set; with no items the list simply never opens.
+'
 ' KEYS, list closed (the edit's): Down opens and highlights the first row, Up the last, Alt+Down
 ' opens; Enter submits when there is a Submit handler. List open: Down / Up move, wrapping through
 ' "no row" (the typed text); PgDn / PgUp a page; Ctrl+Home / Ctrl+End the ends; Enter commits the
@@ -59,7 +64,17 @@ public const TKAUTOCOMPLETE_DEFAULT_MAXRESULTS = 100
 public const TKAUTOCOMPLETE_ROWPAD = 8          ' text inset at each end of a row
 public const TKAUTOCOMPLETE_DETAILGAP = 16      ' between a row's text and its detail
 
+public const TKAUTOCOMPLETE_GLYPHCELL = 28     ' the glyph's and the clear button's cell width
+public const TKAUTOCOMPLETE_GLYPHSIZE = 14     ' the vector glyphs' box
+public const TKAUTOCOMPLETE_DEFAULT_SEARCHDELAY = 150   ' GtkSearchEntry's search-delay
+
+public enum
+    TKAC_STYLE_INPUT = 0     ' a text box with suggestions
+    TKAC_STYLE_SEARCH        ' plus a search glyph, a clear button, Escape clears
+end enum
+
 const AC_TIMER_DELAY = 1
+const AC_TIMER_SEARCH = 2
 
 ' The edit's colours (TKTEXTBOX_COLORS, field for field) then the list's.
 public type TKAUTOCOMPLETE_COLORS
@@ -80,6 +95,8 @@ public type TKAUTOCOMPLETE_COLORS
     ListBorderColor       as ulong = &hFF444A56ul
     MatchForeColor        as ulong = &hFF61AFEFul    ' the matched characters
     DetailForeColor       as ulong = &hFF969CA6ul    ' a row's detail, the status row
+    GlyphColor            as ulong = &hFF969CA6ul    ' the search glyph and the clear button
+    GlyphColorHot         as ulong = &hFFE2E6EEul    ' the clear button under the mouse
 end type
 
 public type TKAUTOCOMPLETE_ITEM
@@ -98,6 +115,8 @@ public type AC_ItemSelectedSub as sub( byval hAC as TK_WIDGET ptr, byval index a
 ' index: the item the highlight moved to (keys or mouse), -1 = none
 public type AC_HighlightSub as sub( byval hAC as TK_WIDGET ptr, byval index as long )
 public type AC_DropDownSub as sub( byval hAC as TK_WIDGET ptr, byval isOpen as boolean )
+' the text to search for: SearchDelay after the user's last change, at once on Enter / clear / commit
+public type AC_SearchSub as sub( byval hAC as TK_WIDGET ptr, byref text as const ustring )
 
 public type TKAUTOCOMPLETE_STATE
     hWin            as TK_WIDGET ptr
@@ -154,7 +173,18 @@ public type TKAUTOCOMPLETE_STATE
     pFont           as TTF_Font ptr         ' borrowed
     pBold           as TTF_Font ptr         ' borrowed
     bMatchBold      as boolean
+    ' ---- the search face ----
+    nStyle          as long = TKAC_STYLE_INPUT
+    bClearButton    as boolean
+    bClearOnEscape  as boolean
+    nSearchGlyph    as ulong                ' 0 = none
+    nSearchDelay    as long = TKAUTOCOMPLETE_DEFAULT_SEARCHDELAY
+    wGlyph          as TK_WIDGET ptr
+    wClear          as TK_WIDGET ptr
+    bClearHot       as boolean
+    pGlyphFont      as TTF_Font ptr         ' borrowed; 0 = vector glyphs
     ' ---- callbacks ----
+    SearchCallback       as AC_SearchSub
     TextChangedCallback  as AC_TextChangedSub
     SubmitCallback       as AC_SubmitSub
     ItemSelectedCallback as AC_ItemSelectedSub
@@ -287,6 +317,12 @@ private sub AcGrow( byval p as TKAUTOCOMPLETE_STATE ptr, byval n as long )
 end sub
 
 declare sub AcCloseList( byval p as TKAUTOCOMPLETE_STATE ptr )
+' tkAutoCompleteFace.tiko
+declare sub AcFaceLayout( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare sub AcFaceSync( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare sub AcSearchArm( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare sub AcSearchNow( byval p as TKAUTOCOMPLETE_STATE ptr )
+declare sub AcClearByUser( byval p as TKAUTOCOMPLETE_STATE ptr )
 
 ' Items changed: the last matched set is stale; an open list closes (silently re-filtering under
 ' the user's eyes would move the highlight).
@@ -488,10 +524,13 @@ private sub AcCommit( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long )
     p->nSel = idx
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, true )
     if p->ItemSelectedCallback then p->ItemSelectedCallback( p->hWin, idx, p->itId(idx) )
+    AcFaceSync( p )
+    AcSearchNow( p )
 end sub
 
 private sub AcSubmit( byval p as TKAUTOCOMPLETE_STATE ptr )
     AcCloseList( p )
+    AcSearchNow( p )
     if p->SubmitCallback then p->SubmitCallback( p->hWin, tkTextBox_GetText( p->wEdit ), AcSubmitIndex( p ) )
 end sub
 
@@ -846,6 +885,8 @@ private sub AcEditChanged( byval hEdit as TK_WIDGET ptr )
     p->nSel = -1
     p->bPreviewed = false
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, false )
+    AcFaceSync( p )
+    AcSearchArm( p )
     if p->nDelay > 0 then
         tkWidget_SetTimer( p->hWin, AC_TIMER_DELAY, p->nDelay )
     else
@@ -873,7 +914,13 @@ private function AcEditMessage( byval mi as TKTEXTBOX_MESSAGEINFO ptr ) as boole
     case SDLK_UP
         if mods = 0 then return AcOpenByKey( p, -1 )
     case SDLK_RETURN, SDLK_KP_ENTER
-        if (mods = 0) andalso (p->SubmitCallback <> 0) then AcSubmit( p ) : return true
+        if (mods = 0) andalso ((p->SubmitCallback <> 0) orelse (p->SearchCallback <> 0)) then AcSubmit( p ) : return true
+    case SDLK_ESCAPE
+        ' the search face's: clear; an empty box leaves Escape to the dialog
+        if (mods = 0) andalso p->bClearOnEscape andalso (len( tkTextBox_GetText( p->wEdit ) ) > 0) then
+            AcClearByUser( p )
+            return true
+        end if
     end select
     return false
 end function
@@ -897,7 +944,7 @@ private function AcProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
     case TKM_PAINT
         return true                           ' the edit covers the control
     case TKM_SIZE
-        if p->wEdit then tkWidget_SetPos( p->wEdit, 0, 0, w->cw, w->ch )
+        AcFaceLayout( p )
         AcCloseList( p )
         return true
     case TKM_SETFOCUS
@@ -905,8 +952,10 @@ private function AcProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
         return true
     case TKM_TIMER
         if m->timerId = AC_TIMER_DELAY then AcRun( p ) : return true
+        if m->timerId = AC_TIMER_SEARCH then AcSearchNow( p ) : return true
     case TKM_SCALECHANGED
         AcCloseList( p )
+        AcFaceLayout( p )
         return true
     case TKM_THEMECHANGED
         tkAutoComplete_ApplyTheme( w, tkTheme_Of( w ) )
@@ -917,6 +966,7 @@ private function AcProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
         return true
     case TKM_DESTROY
         tkWidget_KillTimer( w, AC_TIMER_DELAY )
+        tkWidget_KillTimer( w, AC_TIMER_SEARCH )
         if p->pList then
             dim as TK_HOST ptr pop = p->pList
             pop->pUser = 0
@@ -1117,6 +1167,7 @@ public sub tkAutoComplete_SetText( byval hAC as TK_WIDGET ptr, byval s as ustrin
     tkTextBox_SetText( p->wEdit, s )
     p->sQuery = s
     p->nSel = -1
+    AcFaceSync( p )
 end sub
 
 ' What the user typed -- not a row's text the arrows put in.
@@ -1387,89 +1438,6 @@ public function tkAutoComplete_GetListMaxWidth( byval hAC as TK_WIDGET ptr ) as 
 end function
 
 
-' ---- appearance --------------------------------------------------------------------------------
-public sub tkAutoComplete_GetColors( byval hAC as TK_WIDGET ptr, byval pColors as TKAUTOCOMPLETE_COLORS ptr )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if (p = 0) orelse (pColors = 0) then exit sub
-    *pColors = p->colors
-end sub
-
-' Copies and PINS (a theme change leaves them).
-public sub tkAutoComplete_SetColors( byval hAC as TK_WIDGET ptr, byval pColors as TKAUTOCOMPLETE_COLORS ptr )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if (p = 0) orelse (pColors = 0) then exit sub
-    p->colors = *pColors
-    p->bColorsPinned = true
-    AcEditColors( p )
-    if p->pList then p->pList->clrBack = p->colors.ListBackColor
-    if p->wList then tkWidget_Invalidate( p->wList )
-end sub
-
-public function tkAutoComplete_ThemeColors( byref t as TKTHEME_COLORS ) as TKAUTOCOMPLETE_COLORS
-    dim as TKAUTOCOMPLETE_COLORS c
-    dim as TKTEXTBOX_COLORS e = tkTextBox_ThemeColors( t )
-    c.ForeColor = e.ForeColor : c.BackColor = e.BackColor : c.CueColor = e.CueColor
-    c.BorderColor = e.BorderColor : c.FocusBorderColor = e.FocusBorderColor : c.OuterBackColor = e.OuterBackColor
-    c.SelBackColor = e.SelBackColor : c.SelForeColor = e.SelForeColor : c.ForeColorDisabled = e.ForeColorDisabled
-    dim as TKPOPUPMENU_COLORS l = tkPopupMenu_ThemeColors( t )
-    c.ListBackColor = l.BackColor : c.ListForeColor = l.ForeColor
-    c.ListBackColorHot = l.BackColorHot : c.ListForeColorHot = l.ForeColorHot
-    c.ListForeColorDisabled = l.ForeColorDisabled : c.ListBorderColor = l.BorderColor
-    c.MatchForeColor = t.Accent
-    c.DetailForeColor = t.TextDim
-    return c
-end function
-
-public sub tkAutoComplete_ApplyTheme( byval hAC as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if (p = 0) orelse p->bColorsPinned then exit sub
-    dim as TKTHEME_COLORS tr = tkTheme_Styled( hAC, t )
-    p->colors = tkAutoComplete_ThemeColors( tr )
-    tkTheme_ResolveInto( hAC, tr, cast( ulong ptr, @p->colors ), sizeof( TKAUTOCOMPLETE_COLORS ) \ 4, "AutoComplete" )
-    AcEditColors( p )
-    if p->pList then p->pList->clrBack = p->colors.ListBackColor
-    if p->wList then tkWidget_Invalidate( p->wList )
-end sub
-
-public sub tkAutoComplete_UnpinColors( byval hAC as TK_WIDGET ptr )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then exit sub
-    p->bColorsPinned = false
-    tkAutoComplete_ApplyTheme( hAC, tkTheme_Of( hAC ) )
-end sub
-
-public function tkAutoComplete_GetFont( byval hAC as TK_WIDGET ptr ) as TTF_Font ptr
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    return iif( p <> 0, p->pFont, 0 )
-end function
-
-' Borrowed: the edit's and the list's.
-public sub tkAutoComplete_SetFont( byval hAC as TK_WIDGET ptr, byval f as TTF_Font ptr )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then exit sub
-    AcCloseList( p )
-    p->pFont = f
-    tkTextBox_SetFont( p->wEdit, f )
-end sub
-
-public sub tkAutoComplete_ApplyFonts( byval hAC as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
-    if fText then tkAutoComplete_SetFont( hAC, fText )
-end sub
-
-' Matched characters in a bold face too (borrowed; 0 keeps colour only).
-public sub tkAutoComplete_SetMatchBold( byval hAC as TK_WIDGET ptr, byval bBold as boolean, byval fBold as TTF_Font ptr = 0 )
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    if p = 0 then exit sub
-    p->bMatchBold = bBold
-    if fBold then p->pBold = fBold
-    if p->wList then tkWidget_Invalidate( p->wList )
-end sub
-
-public function tkAutoComplete_GetMatchBold( byval hAC as TK_WIDGET ptr ) as boolean
-    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
-    return (p <> 0) andalso p->bMatchBold
-end function
-
 ' ---- callbacks (single slot each) -------------------------------------------------------------
 public sub tkAutoComplete_SetTextChangedCallback( byval hAC as TK_WIDGET ptr, byval cb as AC_TextChangedSub )
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
@@ -1489,6 +1457,11 @@ end sub
 public sub tkAutoComplete_SetHighlightCallback( byval hAC as TK_WIDGET ptr, byval cb as AC_HighlightSub )
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
     if p then p->HighlightCallback = cb
+end sub
+
+public sub tkAutoComplete_SetSearchCallback( byval hAC as TK_WIDGET ptr, byval cb as AC_SearchSub )
+    dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
+    if p then p->SearchCallback = cb
 end sub
 
 public sub tkAutoComplete_SetDropDownCallback( byval hAC as TK_WIDGET ptr, byval cb as AC_DropDownSub )

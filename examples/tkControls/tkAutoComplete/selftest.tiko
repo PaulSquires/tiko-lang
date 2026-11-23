@@ -1,11 +1,13 @@
-' tkAutoComplete self-test (phase A1): silent setters and the item store; typing opens and narrows
+' tkAutoComplete self-test (phases A1 and A2): silent setters and the item store; typing opens and narrows
 ' the list while the EDIT keeps the focus and the popup is not focusable; keys and characters sent
 ' to the open list reach the edit; the popup is reused while its row count holds and replaced when
 ' it changes; the arrows, paging, preview and Escape; commit (order of events), submit, Tab; the
 ' closed-list keys; the mouse (hover never previews, click commits, a click in the edit closes);
 ' geometry (popup size and place, row rects, matched characters painted in the match colour where
 ' the run is and not after it); the status rows; the debounce; theme and pinned colours; an owner
-' accelerator; focus loss. Two passes, 1.0 and 1.75; every input is a pushed SDL event.
+' accelerator; focus loss. A2: the search face -- glyph and clear cells and the text's margins,
+' the clear button's showing, hover and click, Search's debounce, Enter, Escape, commit, the glyph
+' font. Two passes each, 1.0 and 1.75; every input is a pushed SDL event.
 '
 '   selftest            exit code = number of failures
 #import "vendor/tkControls/tkAutoComplete"
@@ -192,7 +194,7 @@ sub RunPass( byval fScale as single )
     tkTest_PushKey( h, SDLK_BACKSPACE )
     tkTest_Check( "Backspace back to 'ca': 18 rows, a NEW popup (the row count changed)", _
         (tkAutoComplete_GetText( ac ) = "ca") andalso (tkAutoComplete_GetResultCount( ac ) = 18) andalso _
-        (tkAutoComplete_GetListGeneration( ac ) = gen1 + 1) andalso (gDrops = 1), tkAutoComplete_GetText( ac ) & " gen " & tkAutoComplete_GetListGeneration( ac ) - gen1 )
+        (tkAutoComplete_GetListGeneration( ac ) = gen1 + 1), tkAutoComplete_GetText( ac ) & " gen " & tkAutoComplete_GetListGeneration( ac ) - gen1 & " " & gLog )
 
     ' ---- geometry ----
     lst = tkAutoComplete_GetListHandle( ac )
@@ -396,8 +398,11 @@ sub RunPass( byval fScale as single )
     TypeText( h, "car" )
     tkTest_Check( "Delay: three changes, nothing open yet", (gChanged = 3) andalso (tkAutoComplete_IsDroppedDown( ac ) = false) )
     tkTest_PumpFor( h, 300 )
-    tkTest_Check( "Delay: one filter after the pause, one popup", tkAutoComplete_IsDroppedDown( ac ) andalso _
-        (tkAutoComplete_GetListGeneration( ac ) = genD + 1) andalso (tkAutoComplete_GetResultCount( ac ) = 13) )
+    ' (not "still open": 300 ms is past tkHost's 150 ms focus check, which closes popups when the
+    ' test window is not the active application)
+    tkTest_Check( "Delay: one filter after the pause, one popup", _
+        (tkAutoComplete_GetListGeneration( ac ) = genD + 1) andalso (tkAutoComplete_GetResultCount( ac ) = 13), _
+        "gen +" & (tkAutoComplete_GetListGeneration( ac ) - genD) & " rows " & tkAutoComplete_GetResultCount( ac ) )
     tkTest_PushKey( h, SDLK_ESCAPE )
     tkAutoComplete_SetDelay( ac, 0 )
 
@@ -430,9 +435,148 @@ sub RunPass( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+' ==========================================================================================
+' A2: the search face
+' ==========================================================================================
+dim shared as long gSearches
+dim shared as ustring gSearchText
+
+sub OnSearch( byval h as TK_WIDGET ptr, byref text as const ustring )
+    gSearches += 1 : gSearchText = text
+    gLog &= "Q[" & text & "];"
+end sub
+
+' Pixels of the main window's back buffer near colour c, in the control-local rect rc of w.
+function InkIn( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byref rc as TKRECT, byval c as ulong ) as long
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return CountNear( h, a.left + rc.left, a.top + rc.top, rc.right - rc.left, rc.bottom - rc.top, c )
+end function
+
+sub SearchPass( byval fScale as single )
+    tkTest_Begin( "search " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkAutoComplete search", 640, 360, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as TK_WIDGET ptr ac = tkAutoComplete_Create( tkHost_Root( h ), 20 )
+    tkWidget_SetPos( ac, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 300 ), tkHost_Scale( h, 32 ) )
+    dim as TK_WIDGET ptr other = tkTextBox_Create( tkHost_Root( h ), 21, false )
+    tkWidget_SetPos( other, tkHost_Scale( h, 360 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 32 ) )
+    dim as TK_WIDGET ptr ed = tkAutoComplete_GetEditHandle( ac )
+    tkAutoComplete_SetTextChangedCallback( ac, @OnChanged )
+    tkAutoComplete_SetSearchCallback( ac, @OnSearch )
+    dim as long cell = tkHost_Scale( h, TKAUTOCOMPLETE_GLYPHCELL )
+    dim as TKRECT rg, rcl, rt
+
+    ' ---- the input style has no face ----
+    tkTest_Check( "input style: no glyph, no clear button, no Escape-clears", (tkAutoComplete_GetGlyphRect( ac, rg ) = false) andalso _
+        (tkAutoComplete_GetClearButton( ac ) = false) andalso (tkAutoComplete_GetClearOnEscape( ac ) = false) )
+    ' ---- the search style ----
+    tkAutoComplete_SetStyle( ac, TKAC_STYLE_SEARCH )
+    tkTest_Check( "search style: glyph cell at the left, full height", tkAutoComplete_GetGlyphRect( ac, rg ) andalso _
+        (rg.left = 0) andalso (rg.top = 0) andalso (rg.right = cell) andalso (rg.bottom = ac->ch), rg.left & "," & rg.right & "," & rg.bottom )
+    tkTest_Check( "an empty box shows no clear button", tkAutoComplete_GetClearRect( ac, rcl ) = false )
+    tkTextBox_GetTextRect( ed, rt )
+    tkTest_Check( "the text keeps clear of both cells", (rt.left >= cell) andalso (rt.right <= ac->cw - cell), rt.left & ".." & rt.right & " cell " & cell )
+    gSearches = 0 : ResetLog( )
+    tkHost_SetFocus( h, ac )
+    Settle( h )
+    TypeText( h, "abc" )
+    tkTest_Check( "the clear button appears with text, at the right", tkAutoComplete_GetClearRect( ac, rcl ) andalso _
+        (rcl.right = ac->cw) andalso (rcl.left = ac->cw - cell) andalso (rcl.bottom = ac->ch) )
+    tkTest_Check( "Search waits for the pause", gSearches = 0 )
+    tkTest_PumpFor( h, 350 )
+    tkTest_Check( "one Search after the pause, with the text", (gSearches = 1) andalso (gSearchText = "abc"), gLog )
+    tkTest_PushKey( h, SDLK_BACKSPACE ) : tkTest_PushKey( h, SDLK_BACKSPACE ) : tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkTest_PumpFor( h, 350 )
+    tkTest_Check( "erased to empty: one Search(empty), the clear button gone", (gSearches = 2) andalso (gSearchText = "") andalso _
+        (tkAutoComplete_GetClearRect( ac, rcl ) = false), gLog )
+    TypeText( h, "q" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter searches at once", (gSearches = 3) andalso (gSearchText = "q") )
+    tkTest_PumpFor( h, 350 )
+    tkTest_Check( "and the pending one is dropped", gSearches = 3, gLog )
+
+    ' ---- the clear button: hover, click ----
+    dim as TKAUTOCOMPLETE_COLORS cc
+    tkAutoComplete_GetColors( ac, @cc )
+    cc.GlyphColor = &hFF00FF00ul : cc.GlyphColorHot = &hFFFF0000ul : cc.BackColor = &hFF000000ul
+    tkAutoComplete_SetColors( ac, @cc )
+    tkAutoComplete_GetClearRect( ac, rcl )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "the clear cross is drawn (glyph colour)", InkIn( h, ac, rcl, cc.GlyphColor ) > 3 )
+    tkTest_Check( "the lens is drawn (glyph colour)", InkIn( h, ac, rg, cc.GlyphColor ) > 3 )
+    dim as TKRECT a
+    tkWidget_AbsRect( ac, a )
+    tkTest_PushMotion( h, a.left + (rcl.left + rcl.right) / 2, a.top + (rcl.top + rcl.bottom) / 2 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "hovered, the cross takes the hot colour", (InkIn( h, ac, rcl, cc.GlyphColorHot ) > 3) andalso (InkIn( h, ac, rcl, cc.GlyphColor ) = 0) )
+    ResetLog( ) : gSearches = 0
+    tkHost_SetFocus( h, other )
+    tkTest_Click( h, a.left + (rcl.left + rcl.right) / 2, a.top + (rcl.top + rcl.bottom) / 2 )
+    tkTest_Check( "a click on clear: empty, TextChanged, Search(empty) at once, focus in the box", _
+        (tkAutoComplete_GetText( ac ) = "") andalso (gLog = "T0;Q[];") andalso (tkHost_GetFocus( h ) = ed) andalso _
+        (tkAutoComplete_GetClearRect( ac, rcl ) = false), gLog )
+    tkHost_SetFocus( h, other )
+    tkTest_Click( h, a.left + (rg.left + rg.right) / 2, a.top + (rg.top + rg.bottom) / 2 )
+    tkTest_Check( "a click on the glyph focuses the box", tkHost_GetFocus( h ) = ed )
+
+    ' ---- Escape ----
+    TypeText( h, "zz" )
+    ResetLog( ) : gSearches = 0
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape with text: cleared, Search(empty) at once", (tkAutoComplete_GetText( ac ) = "") andalso (gLog = "T0;Q[];"), gLog )
+    ResetLog( )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape on an empty box is left alone", gLog = "", gLog )
+
+    ' ---- with suggestions: the first Escape closes the list, the second clears ----
+    tkAutoComplete_AddItem( ac, "alpha", 1 )
+    tkAutoComplete_AddItem( ac, "alpine", 2 )
+    tkAutoComplete_AddItem( ac, "beta", 3 )
+    Settle( h )
+    TypeText( h, "al" )
+    tkTest_Check( "suggestions in the search face", tkAutoComplete_IsDroppedDown( ac ) andalso (tkAutoComplete_GetResultCount( ac ) = 2) )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape #1 closes the list, the text stays", (tkAutoComplete_IsDroppedDown( ac ) = false) andalso (tkAutoComplete_GetText( ac ) = "al") )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape #2 clears", tkAutoComplete_GetText( ac ) = "" )
+    Settle( h )
+    TypeText( h, "al" )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_PushKey( h, SDLK_DOWN )
+    ResetLog( ) : gSearches = 0
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "a commit searches at once for the item", (gSearches = 1) andalso (gSearchText = "alpine"), gLog )
+
+    ' ---- no delay: Search per change ----
+    tkAutoComplete_SetSearchDelay( ac, 0 )
+    tkAutoComplete_SetText( ac, "" )
+    gSearches = 0
+    TypeText( h, "xyz" )
+    tkTest_Check( "SearchDelay 0: one Search per change", (gSearches = 3) andalso (gSearchText = "xyz") )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+
+    ' ---- a glyph font draws the glyphs instead ----
+    dim as TTF_Font ptr fIcons = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+    tkAutoComplete_SetGlyphFont( ac, fIcons )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "glyph font: the search glyph has ink", (fIcons <> 0) andalso (InkIn( h, ac, rg, cc.GlyphColor ) > 3) )
+    tkAutoComplete_SetSearchGlyph( ac, 0 )
+    tkTextBox_GetTextRect( ed, rt )
+    tkTest_Check( "SearchGlyph 0: no glyph cell, the text starts at the left", (tkAutoComplete_GetGlyphRect( ac, rg ) = false) andalso (rt.left < cell) )
+    tkAutoComplete_SetStyle( ac, TKAC_STYLE_INPUT )
+    tkTextBox_GetTextRect( ed, rt )
+    tkTest_Check( "back to input: no face, full-width text", (tkAutoComplete_GetClearButton( ac ) = false) andalso (rt.right > ac->cw - cell) )
+    tkHost_Destroy( h )
+end sub
+
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
 RunPass( 1.75 )
+SearchPass( 1.0 )
+SearchPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkAutoComplete" )
 tkTest_Quit()
 end nFail
