@@ -406,6 +406,7 @@ type TKDATAGRID_STATE
     viewToModel(any) as integer
     modelToView(any) as integer          ' -1: filtered out
     viewCount      as integer
+    bSrcSorted     as boolean            ' G6: the source sorted itself last time (keys cleared: ask it back)
     ' --- tooltips ---
     tip            as TKTIPHOST_STATE
     tipRow         as integer = -2       ' -1 = a header, -2 = none
@@ -446,6 +447,18 @@ type TKDATAGRID_STATE
     CellValuePushedCallback as DG_CellValuePushedFunc
     SortChangedCallback    as DG_GridSub
     FilterCallback         as DG_FilterFunc
+    ' --- G6: the block cache (dgCache.tiko) ---
+    cacheRows      as integer            ' rows per block, 0 = no cache
+    cacheMax       as integer            ' blocks (slots)
+    cacheCols      as integer            ' the column count the slots were sized for
+    cacheHit       as integer = -1       ' the last slot found
+    cacheTick      as ulongint
+    blkIdx(any)    as integer            ' a slot's block, -1 = free
+    blkState(any)  as long               ' DG_BLOCK_REQUESTED / DG_BLOCK_LOADED
+    blkUsed(any)   as ulongint           ' the tick it was last painted at (LRU)
+    cacheVals(any) as TKDG_VALUE
+    nRequests      as integer
+    DataRequestCallback as DG_RowsSub
 end type
 
 
@@ -684,6 +697,7 @@ public function tkDataGrid_InsertColumn( byval hGrid as TK_WIDGET ptr, byval col
     next
     p->order(dispPos) = col
     p->colCount += 1
+    DgCacheClear( p )
     DgRenumber( p )
     DgSortColumnInserted( p, col )
     if p->curCol >= col then p->curCol += 1
@@ -732,6 +746,7 @@ public function tkDataGrid_DeleteColumn( byval hGrid as TK_WIDGET ptr, byval col
         w += 1
     next
     p->colCount -= 1
+    DgCacheClear( p )
     if p->colCount = 0 then
         erase p->cols : erase p->order
     else
@@ -754,6 +769,7 @@ public sub tkDataGrid_ClearColumns( byval hGrid as TK_WIDGET ptr )
     DgDropEdit( p )
     erase p->cols : erase p->order
     p->colCount = 0
+    DgCacheClear( p )
     p->hotHdrCol = -1 : p->hotDivCol = -1
     p->curCol = -1
     p->scrollX = 0

@@ -915,6 +915,7 @@ public sub tkDataGrid_Reset( byval hGrid as TK_WIDGET ptr )
     if p = 0 then exit sub
     DgDropEdit( p )
     DgSelReset( p )
+    DgCacheClear( p )
     if (p->feed = DG_FEED_SOURCE) andalso (p->src.RowCount <> 0) then
         p->rowCount = p->src.RowCount( p->src.pCtx )
         if p->rowCount < 0 then p->rowCount = 0

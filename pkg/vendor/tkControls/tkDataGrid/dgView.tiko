@@ -486,7 +486,17 @@ private sub DgPaintCell( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT pt
         b->PaintRect( @rc )
         exit sub
     end if
-    DgRead( p, r, k, v )
+    if DgCacheOn( p ) then
+        ' G6: a block not loaded yet paints a placeholder (and is asked for once)
+        if DgCachePaintRead( p, r, k, v ) = false then
+            dim as TKRECT rc
+            tkRect_Set( rc, x, y, x + p->cols(k).wPx, y + rowH )
+            DgPaintPlaceholder( p, b, rc, iif( DgCellSelected( p, r, k ), iif( hasFocus, p->colors.SelBackColor, p->colors.SelBackInactive ), rowBack ) )
+            exit sub
+        end if
+    else
+        DgRead( p, r, k, v )
+    end if
     dim as TKDATAGRID_FORMATINFO fi
     fi.hGrid = p->hWin : fi.row = r : fi.col = k : fi.value = @v
     fi.text = DgDisplayText( p, k, v )

@@ -80,6 +80,8 @@ end sub
 ' Model rows inserted (n > 0) or deleted (n < 0) at row: the map follows. New rows join the end of
 ' the view; deleted ones leave it. Called after rowCount has changed.
 sub DgViewRowsMoved( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval n as integer )
+    ' G6: every row count change comes through here: cached blocks no longer line up
+    if n <> 0 then DgCacheClear( p )
     if (p->bViewMap = false) orelse (n = 0) then exit sub
     if n > 0 then
         for v as integer = 0 to p->viewCount - 1
@@ -242,8 +244,18 @@ sub DgApplyView( byval p as TKDATAGRID_STATE ptr )
         bSort = true
         ' a source may sort itself; then the view needs no order of its own
         if (p->feed = DG_FEED_SOURCE) andalso (p->src.Sort <> 0) then
-            if p->src.Sort( p->src.pCtx, @p->sortKeys(0), p->nSortKeys ) then bSort = false
+            if p->src.Sort( p->src.pCtx, @p->sortKeys(0), p->nSortKeys ) then
+                bSort = false
+                p->bSrcSorted = true
+                ' G6: its rows are in a new order: cached blocks hold the old one
+                DgCacheClear( p )
+            end if
         end if
+    elseif p->bSrcSorted andalso (p->feed = DG_FEED_SOURCE) andalso (p->src.Sort <> 0) then
+        ' G6: the keys went: a source that sorted itself is asked back to its own order (no keys)
+        p->src.Sort( p->src.pCtx, 0, 0 )
+        p->bSrcSorted = false
+        DgCacheClear( p )
     end if
     DgSelDropRects( p )
     if (bFilter = false) andalso (bSort = false) then

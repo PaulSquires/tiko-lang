@@ -172,6 +172,13 @@ end sub
 ' row / col valid. v gets the cell's value: from the store (the column's kind, or EMPTY), from
 ' CellValueNeeded, or from the source's GetCell (whatever kind they give; none: EMPTY).
 sub DgRead( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
+    ' G6: a loaded block's value first (what the grid shows); else the feed, synchronously (D-5)
+    if (p->cacheRows > 0) andalso DgCacheGet( p, row, col, v ) then exit sub
+    DgReadFeed( p, row, col, v )
+end sub
+
+' The feed itself, past the block cache.
+sub DgReadFeed( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
     select case p->feed
     case DG_FEED_STORE
         DgStoreGet( p->cols(col).st, p->cols(col).c.valueKind, row, v )
@@ -195,11 +202,13 @@ function DgWrite( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval c
         return true
     case DG_FEED_VIRTUAL
         if p->CellValuePushedCallback = 0 then return false
-        return p->CellValuePushedCallback( p->hWin, row, col, w )
+        if p->CellValuePushedCallback( p->hWin, row, col, w ) = false then return false
     case else
         if p->src.SetCell = 0 then return false
-        return p->src.SetCell( p->src.pCtx, row, col, w )
+        if p->src.SetCell( p->src.pCtx, row, col, w ) = false then return false
     end select
+    DgCachePut( p, row, col, w )
+    return true
 end function
 
 ' Can the feed take values at all? (Virtual without CellValuePushed, a source without SetCell: no.)
@@ -254,6 +263,8 @@ end function
 ' sets a count (virtual) or the source gives one.
 sub DgSwitchFeed( byval p as TKDATAGRID_STATE ptr, byval feed as long )
     DgDropEdit( p )
+    DgCacheClear( p )
+    p->bSrcSorted = false
     for k as integer = 0 to p->colCount - 1
         DgStoreRedim( p->cols(k).st, p->cols(k).c.valueKind, 0 )
     next

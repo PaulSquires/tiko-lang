@@ -49,6 +49,8 @@ public type DG_RowFunc as function( byval hGrid as TK_WIDGET ptr, byval row as i
 public type DG_RowSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer )
 ' RowsDeleting: FALSE keeps rows row .. row + count - 1.
 public type DG_RowsDeletingFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer, byval count as integer ) as boolean
+' G6: DataRequest -- the block cache wants rows firstRow .. firstRow + count - 1 (tkDataGrid_SupplyRows).
+public type DG_RowsSub as sub( byval hGrid as TK_WIDGET ptr, byval firstRow as integer, byval count as integer )
 ' G4: Filter keeps a model row when it returns TRUE.
 public type DG_FilterFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer ) as boolean
 
@@ -67,7 +69,8 @@ public type TKDATAGRID_SOURCE
     SetCell    as function( byval pCtx as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
     InsertRows as function( byval pCtx as any ptr, byval row as integer, byval n as integer ) as boolean
     DeleteRows as function( byval pCtx as any ptr, byval row as integer, byval n as integer ) as boolean
-    ' G4: the source sorts itself by the keys (most significant first); FALSE: the grid sorts
+    ' G4: the source sorts itself by the keys (most significant first); FALSE: the grid sorts.
+    ' G6: keys 0, nKeys 0 once the keys are cleared after it sorted: back to its own order.
     Sort       as function( byval pCtx as any ptr, byval keys as TKDG_SORTKEY ptr, byval nKeys as integer ) as boolean
 end type
 
@@ -217,6 +220,12 @@ end sub
 
 ' ---- G3: virtual mode and sources -----------------------------------------------------------------
 ' Virtual mode: every cell read asks CellValueNeeded (none: the cell is EMPTY).
+' G6: the block cache's requests (tkDataGrid_SetBlockCache); none: it reads the feed itself.
+public sub tkDataGrid_SetDataRequestCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_RowsSub )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then p->DataRequestCallback = cb
+end sub
+
 public sub tkDataGrid_SetCellValueNeededCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellValueNeededSub )
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then exit sub
