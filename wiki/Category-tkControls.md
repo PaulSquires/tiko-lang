@@ -78,13 +78,13 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 
 | Group | Pages |
 |---|---|
-| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkTimePicker](tkTimePicker), [tkDateTimePicker](tkDateTimePicker), [tkTimePanel](tkTimePanel), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit) |
+| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkTimePicker](tkTimePicker), [tkDateTimePicker](tkDateTimePicker), [tkTimePanel](tkTimePanel), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit), [tkAutoComplete](tkAutoComplete) |
 | Buttons and switches | [tkButton](tkButton), [tkCheckBox](tkCheckBox), [tkOptionButton](tkOptionButton), [tkToggle](tkToggle) |
-| Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar) |
-| Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar) |
+| Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar), [tkCheckedList](tkCheckedList), [tkCheckedCombo](tkCheckedCombo), [tkTokenBox](tkTokenBox) |
+| Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar), [tkNavigator](tkNavigator) |
 | Containers and layout | [tkPanel](tkPanel), [tkGroupBox](tkGroupBox), [tkTabControl](tkTabControl), [tkSplitter](tkSplitter) |
 | Scrolling | [tkScrollPanel](tkScrollPanel), [tkVScrollBar](tkVScrollBar), [tkHScrollBar](tkHScrollBar) |
-| Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner) |
+| Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner), [tkInfoBar](tkInfoBar), [tkToast](tkToast) |
 | Static display | [tkLabel](tkLabel), [tkPicture](tkPicture) |
 | Data display | [tkChart](tkChart) |
 | Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
