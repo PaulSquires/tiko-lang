@@ -142,6 +142,7 @@ public enum
     TK_IMGFIT_ASPECT = 0      ' fit inside, proportions kept, centred
     TK_IMGFIT_STRETCH         ' fill exactly
     TK_IMGFIT_CENTER          ' natural size, centred, clipped
+    TK_IMGFIT_COVER           ' fill the box, proportions kept, centred; the overflow cropped
 end enum
 
 public enum
@@ -218,6 +219,8 @@ public type TK_PAINT
     declare sub PaintTextEx( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
     declare sub PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval clr as ulong )
     declare sub PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
+    declare sub PaintImageShape( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval curvature as long = 0, _
+                                 byval nFit as long = TK_IMGFIT_COVER, byval nAlpha as long = 255 )
 end type
 
 
@@ -500,7 +503,7 @@ type GEOM
     ni as long
     declare function AddV( byval x as single, byval y as single, byval c as ulong, byval a as single ) as long
     declare sub AddTri( byval a as long, byval b as long, byval c as long )
-    declare sub Flush( byval r as SDL_Renderer ptr )
+    declare sub Flush( byval r as SDL_Renderer ptr, byval tex as SDL_Texture ptr = 0 )
 end type
 
 function GEOM.AddV( byval x as single, byval y as single, byval c as ulong, byval a as single ) as long
@@ -516,8 +519,8 @@ sub GEOM.AddTri( byval a as long, byval b as long, byval c as long )
     this.ni += 3
 end sub
 
-sub GEOM.Flush( byval r as SDL_Renderer ptr )
-    if this.ni > 0 then SDL_RenderGeometry( r, 0, @this.v(0), this.nv, @this.ix(0), this.ni )
+sub GEOM.Flush( byval r as SDL_Renderer ptr, byval tex as SDL_Texture ptr = 0 )
+    if this.ni > 0 then SDL_RenderGeometry( r, tex, @this.v(0), this.nv, @this.ix(0), this.ni )
     this.nv = 0 : this.ni = 0
 end sub
 
@@ -669,6 +672,46 @@ private sub FillPolyAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byval 
         g.AddTri( i, n + j, j )
     next
     g.Flush( r )
+end sub
+
+' The texture coordinate of window point (x, y) for an image whose source rect s (texture pixels)
+' is drawn into d (window pixels); clamped, because the AA fringe reaches half a pixel past d.
+private sub TexCoordAt( byref v as SDL_Vertex, byref d as SDL_FRect, byref s as SDL_FRect, _
+                        byval tw as single, byval th as single )
+    dim as single u = (s.x + (v.position.x - d.x) / d.w * s.w) / tw
+    dim as single t = (s.y + (v.position.y - d.y) / d.h * s.h) / th
+    v.tex_coord.x = iif( u < 0, 0, iif( u > 1, 1, u ) )
+    v.tex_coord.y = iif( t < 0, 0, iif( t > 1, 1, t ) )
+end sub
+
+' FillPolyAA with a texture instead of a colour: the polygon shows the image (s drawn into d),
+' its edge anti-aliased by the same half-pixel fringe. White vertices: SDL modulates the texture
+' by the vertex colour, so only the alpha (the fringe, the opacity) changes anything.
+private sub FillPolyTexAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byval n as long, byval tex as SDL_Texture ptr, _
+                           byref d as SDL_FRect, byref s as SDL_FRect, byval tw as single, byval th as single, _
+                           byval alpha as single )
+    n = Dedupe( pts(), n )
+    if n < 3 then exit sub
+    dim as single nx(), ny()
+    VertexNormals( pts(), n, nx(), ny() )
+    dim as GEOM g
+    dim as SDL_FPoint inner(0 to n - 1)
+    for i as long = 0 to n - 1
+        inner(i).x = pts(i).x - nx(i) * 0.5 : inner(i).y = pts(i).y - ny(i) * 0.5
+        dim as long k = g.AddV( inner(i).x, inner(i).y, &hFFFFFFFFul, alpha )
+        TexCoordAt( g.v(k), d, s, tw, th )
+    next
+    for i as long = 0 to n - 1
+        dim as long k = g.AddV( pts(i).x + nx(i) * 0.5, pts(i).y + ny(i) * 0.5, &hFFFFFFFFul, 0 )
+        TexCoordAt( g.v(k), d, s, tw, th )
+    next
+    EarClip( g, inner(), n, 0 )
+    for i as long = 0 to n - 1
+        dim as long j = (i + 1) mod n
+        g.AddTri( i, n + i, n + j )
+        g.AddTri( i, n + j, j )
+    next
+    g.Flush( r, tex )
 end sub
 
 ' THE STROKE WORKHORSE for CLOSED outlines: a band of width t centred on pts, with AA fringes
@@ -1183,6 +1226,32 @@ sub TK_PAINT.PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval cl
 end sub
 
 ' Draw a texture into rc by the fit mode (vendor's PS_IMGFIT_*).
+' Where a tw x th image goes in the box (bx, by0, bw, bh), window pixels: d = the destination (it
+' may exceed the box: CENTER), s = the source rect in texture pixels (all of it, except COVER's crop).
+private sub FitImage( byval tw as single, byval th as single, byval bx as single, byval by0 as single, _
+                      byval bw as single, byval bh as single, byval nFit as long, _
+                      byref d as SDL_FRect, byref s as SDL_FRect )
+    s.x = 0 : s.y = 0 : s.w = tw : s.h = th
+    select case nFit
+    case TK_IMGFIT_STRETCH
+        d.w = bw : d.h = bh
+    case TK_IMGFIT_CENTER
+        d.w = tw : d.h = th
+    case TK_IMGFIT_COVER
+        dim as single k = bw / tw
+        if bh / th > k then k = bh / th
+        s.w = bw / k : s.h = bh / k
+        s.x = (tw - s.w) / 2 : s.y = (th - s.h) / 2
+        d.w = bw : d.h = bh
+    case else
+        dim as single k = bw / tw
+        if bh / th < k then k = bh / th
+        d.w = tw * k : d.h = th * k
+    end select
+    d.x = bx + (bw - d.w) / 2
+    d.y = by0 + (bh - d.h) / 2
+end sub
+
 sub TK_PAINT.PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
     if (tex = 0) orelse (rc = 0) then exit sub
     dim as single tw, th
@@ -1190,20 +1259,38 @@ sub TK_PAINT.PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, b
     if (tw <= 0) orelse (th <= 0) then exit sub
     dim as single bw = rc->right - rc->left, bh = rc->bottom - rc->top
     if (bw <= 0) orelse (bh <= 0) then exit sub
-    dim as SDL_FRect d
-    select case nFit
-    case TK_IMGFIT_STRETCH
-        d.w = bw : d.h = bh
-    case TK_IMGFIT_CENTER
-        d.w = tw : d.h = th
-    case else
-        dim as single k = bw / tw
-        if bh / th < k then k = bh / th
-        d.w = tw * k : d.h = th * k
-    end select
-    d.x = rc->left + this.ox + (bw - d.w) / 2
-    d.y = rc->top + this.oy + (bh - d.h) / 2
+    dim as SDL_FRect d, s
+    FitImage( tw, th, rc->left + this.ox, rc->top + this.oy, bw, bh, nFit, d, s )
     this.ApplyClip( rc )
-    SDL_RenderTexture( this.renderer, tex, 0, @d )
+    if nFit = TK_IMGFIT_COVER then
+        SDL_RenderTexture( this.renderer, tex, @s, @d )
+    else
+        SDL_RenderTexture( this.renderer, tex, 0, @d )       ' the whole texture, exactly as before COVER
+    end if
     this.ApplyClip( 0 )
+end sub
+
+' The image inside a rounded rect of this curvature (a DIAMETER, as everywhere here; 0 = square
+' corners; >= the shorter side = an ellipse, a circle in a square box), anti-aliased like every
+' other shape. The shape is the image's own drawn rect inside the box: the whole box for COVER and
+' STRETCH (an avatar), the fitted image for ASPECT, the box's share of the image for CENTER.
+' nAlpha 0..255 is the opacity.
+sub TK_PAINT.PaintImageShape( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval curvature as long = 0, _
+                              byval nFit as long = TK_IMGFIT_COVER, byval nAlpha as long = 255 )
+    if (tex = 0) orelse (rc = 0) orelse (nAlpha <= 0) then exit sub
+    dim as single tw, th
+    SDL_GetTextureSize( tex, @tw, @th )
+    if (tw <= 0) orelse (th <= 0) then exit sub
+    dim as single bx = rc->left + this.ox, by0 = rc->top + this.oy
+    dim as single bw = rc->right - rc->left, bh = rc->bottom - rc->top
+    if (bw < 1) orelse (bh < 1) then exit sub
+    dim as SDL_FRect d, s
+    FitImage( tw, th, bx, by0, bw, bh, nFit, d, s )
+    dim as single x0 = iif( d.x > bx, d.x, bx ), y0 = iif( d.y > by0, d.y, by0 )
+    dim as single x1 = iif( d.x + d.w < bx + bw, d.x + d.w, bx + bw )
+    dim as single y1 = iif( d.y + d.h < by0 + bh, d.y + d.h, by0 + bh )
+    if (x1 - x0 < 1) orelse (y1 - y0 < 1) then exit sub
+    dim as SDL_FPoint pts()
+    dim as long n = RoundRectPts( x0, y0, x1, y1, curvature / 2, curvature / 2, pts() )
+    FillPolyTexAA( this.renderer, pts(), n, tex, d, s, tw, th, iif( nAlpha >= 255, 1.0, nAlpha / 255.0 ) )
 end sub
