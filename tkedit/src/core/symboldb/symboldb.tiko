@@ -193,6 +193,9 @@ public type Database
     declare function TypeRefOf( byref name_ as const ustring, byref file as const ustring, byval ln as long, _
                                 byref qualifier as const ustring = "" ) as SymRef
     declare function Members( byref typeRef as const SymRef ) as Array( of SymRef )
+    ' the Form Designer's Bind (B1): a record type's data fields, "Address.City" one level down
+    declare function TypeByName( byref name_ as const ustring ) as SymRef
+    declare function FieldPaths( byref typeName as const ustring ) as Array( of ustring )
     declare function Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
     declare function MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
     declare function CallTip( byref name_ as const ustring, byref qualifier as const ustring = "", _
@@ -384,6 +387,57 @@ function Database.TypeRefOf( byref name_ as const ustring, byref file as const u
 end function
 
 ' A type's fields and methods, then its base's (EXTENDS), deepest last; ten levels at most.
+' The first TYPE or UNION of this name in any set (any case); invalid when none is scanned.
+function Database.TypeByName( byref name_ as const ustring ) as SymRef
+    dim as SymRef r
+    for k as long = 0 to m_sets.Count( ) - 1
+        dim as long i = m_sets[k].First( name_ )
+        while i >= 0
+            dim as SymKind kk = m_sets[k].Syms[i].Kind
+            if (kk = SymKind.TypeDef) orelse (kk = SymKind.UnionDef) then
+                r.SetNo = k : r.Index = i
+                return r
+            end if
+            i = m_sets[k].NextSame( i )
+        wend
+    next
+    return r
+end function
+
+' A field a form can bind: data held in each record -- not shared or static, not an array, not a pointer.
+private function Bindable_( byref y as const Sym ) as boolean
+    if y.Kind <> SymKind.Field then return false
+    if (y.Flags and (FLAG_SHARED or FLAG_STATIC or FLAG_ARRAY)) then return false
+    dim as ustring t = " " & lcase( trim( y.TypeText ) ) & " "
+    return (instr( t, " ptr " ) = 0) andalso (instr( t, " pointer " ) = 0)
+end function
+
+' The data fields of a record type, for a control's Bind row: its own, then its bases', each followed
+' by its fields one level down when its type is a scanned TYPE ("Address", "Address.City"). A
+' qualified name ("contactdb.Contact") is looked up by its last part. Empty when the type isn't scanned.
+function Database.FieldPaths( byref typeName as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) out_
+    dim as ustring tn = typeName
+    dim as long dot = instrrev( tn, "." )
+    if dot then tn = mid( tn, dot + 1 )
+    dim as SymRef t = this.TypeByName( tn )
+    if t.IsValid( ) = false then return out_
+    for each r as SymRef in this.Members( t )
+        dim as Sym y = this.Item( r )
+        if Bindable_( y ) = false then continue for
+        out_.Push( y.Name )
+        dim as ustring sub_ = BaseTypeName( y.TypeText )
+        if (len( sub_ ) = 0) orelse (lcase( sub_ ) = lcase( tn )) then continue for
+        dim as SymRef st = this.TypeByName( sub_ )
+        if st.IsValid( ) = false then continue for
+        for each r2 as SymRef in this.Members( st )
+            dim as Sym y2 = this.Item( r2 )
+            if Bindable_( y2 ) then out_.Push( y.Name & "." & y2.Name )
+        next
+    next
+    return out_
+end function
+
 function Database.Members( byref typeRef as const SymRef ) as Array( of SymRef )
     dim as Array( of SymRef ) out_
     dim as SymRef t = typeRef

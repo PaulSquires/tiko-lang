@@ -3332,6 +3332,15 @@ function Window.OpenText( byref path as const ustring ) as boolean
             d->Designer->OnPickGlyph = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref cur as const ustring, byref picked as ustring ) as boolean
                 return cast( Window ptr, o )->PickGlyph( cur, picked )
             end function
+            ' a Bind row's "...": the DataType's fields, as the last scans know them (B1)
+            d->Designer->OnFields = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref typeName as const ustring ) as ustring
+                dim as ustring list
+                for each f as ustring in cast( Window ptr, o )->Db.FieldPaths( typeName )
+                    if len( list ) then list &= ","
+                    list &= f
+                next
+                return list
+            end function
             d->Designer->OnAskParent = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref what as const ustring, _
                                                  byval n as long, byref parent as const ustring, byref page as const ustring ) as boolean
                 return cast( Window ptr, o )->AskParent( what, n, parent, page )

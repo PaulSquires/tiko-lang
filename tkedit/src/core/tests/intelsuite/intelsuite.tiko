@@ -75,6 +75,27 @@ public sub Run( byref c as tally.Checker )
     for i as long = 0 to frm.Syms.Count( ) - 1
         frm.Syms[i].File = "C:\P\FORM.TIKO"
     next
+    ' a record for the Form Designer's Bind (B1): own fields, then the base's, one level into a TYPE
+    ' field; methods, statics, arrays and pointers left out
+    dim as symboldb.SymbolSet rec
+    rec.Root = "c:\p\rec.tiko"
+    rec.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Address", "", -1, 1 ) )                     ' 0
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "City", "ustring", 0, 2 ) )                    ' 1
+    rec.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Person", "", -1, 5 ) )                      ' 2
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Id", "long", 2, 6 ) )                         ' 3
+    rec.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Contact", "Person", -1, 10 ) )              ' 4
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Name", "ustring", 4, 11 ) )                   ' 5
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Home", "Address", 4, 12 ) )                   ' 6
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Next_", "Contact ptr", 4, 13 ) )              ' 7
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Tags", "ustring", 4, 14, 0, 0, symboldb.FLAG_ARRAY ) ) ' 8
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Count_", "long", 4, 15, 0, 0, symboldb.FLAG_SHARED ) ) ' 9
+    rec.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "FullName", "ustring", 4, 16 ) )        ' 10
+    rec.Syms.Push( Mk( symboldb.SymKind.Field, "Self_", "Contact", 4, 17 ) )                  ' 11
+    dim as symboldb.Database rdb
+    rdb.Install( rec )
+    c.Same( Joined( rdb.FieldPaths( "contactdb.Contact" ) ), "Name|Home|Home.City|Self_|Id", "FieldPaths: own, nested, base; no method, static, array or pointer" )
+    c.Same( Joined( rdb.FieldPaths( "NoSuchType" ) ), "", "FieldPaths: an unscanned type has none" )
+    c.Check( rdb.TypeByName( "address" ).IsValid( ), "TypeByName: any case" )
     dim as symboldb.Database fdb
     fdb.Install( frm )
     c.Same( Joined( fdb.MemberNames( "Timer1", "c:\p\form.tiko", 7 ) ), "Enabled|Interval", "Timer1. inside sub Form.Go: its own type's field, an implicit this" )

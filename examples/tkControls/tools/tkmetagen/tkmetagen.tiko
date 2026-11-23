@@ -193,6 +193,78 @@ end function
 
 ' color_fields must list the struct's fields, every one, in order, all ulong; parts and states
 ' must come from the dialog's vocabulary, and no two fields may be one grid cell.
+' The text of every source file of a module: a module may be split over several files
+' (tkSlider's getters and setters are in tkSliderApi.tiko). The generated wrapper is left out.
+function ModuleText_( byref root as const ustring, byref mod_ as const ustring ) as ustring
+    dim as ustring dir_ = root & "/" & mod_, text
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then Fail_( "cannot list " & dir_ )
+        dim as ustring nm = r.Value( ).Name( )
+        if r.Value( ).IsFile( ) = false then continue for
+        if lcase( right( nm, 5 ) ) <> ".tiko" then continue for
+        if lcase( right( nm, 11 ) ) = ".forms.tiko" then continue for
+        text &= NL & fs.ReadAllText( dir_ & "/" & nm ).ValueOr( "" )
+    next
+    if len( text ) = 0 then Fail_( "cannot read the source of " & mod_ & " in " & dir_ )
+    return text
+end function
+
+' One bind table's kind, get and set: what = "bind" or "bind2".
+sub CheckBindProcs_( byref b as TomlValue, byref name_ as const ustring, byref mod_ as const ustring, byref what as const ustring, _
+                     byref text as const ustring, byval loadOnly as boolean )
+    dim as ustring kind = Str_( b, "kind" ), g = Str_( b, "get" ), s_ = Str_( b, "set" )
+    select case kind
+    case "text", "bool", "int", "float", "date"
+    case else : Fail_( name_ & ": " & what & " kind '" & kind & "' is not text, bool, int, float or date" )
+    end select
+    if loadOnly andalso len( g ) then Fail_( name_ & ": a load_only " & what & " has no get" )
+    if (loadOnly = false) andalso (len( g ) = 0) then Fail_( name_ & ": " & what & " needs a get, or load_only = true" )
+    if len( s_ ) = 0 then Fail_( name_ & ": " & what & " needs a set" )
+    if len( g ) andalso (instr( text, NL & "public function " & g & "(" ) = 0) then Fail_( name_ & ": " & what & " get " & g & " is not a public function of " & mod_ )
+    if (instr( text, NL & "public sub " & s_ & "(" ) = 0) andalso (instr( text, NL & "public function " & s_ & "(" ) = 0) then
+        Fail_( name_ & ": " & what & " set " & s_ & " is not a public sub or function of " & mod_ )
+    end if
+end sub
+
+' bind = { kind, get, set, load_only }: a known kind, and procedures the control's module defines --
+' a function for get (none when load_only), a sub or function for set.
+' bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper
+' thumb). It needs a bind, both procedures, a name for the designer, and a when of "Prop=Shown" naming
+' one of the control's enum (or bool) properties and one of its values; "" = always.
+sub CheckBind_( byref ctl as TomlValue, byref root as const ustring )
+    dim as TomlValue ptr b = ctl.Find( "bind" )
+    dim as TomlValue ptr b2 = ctl.Find( "bind2" )
+    if (b = 0) andalso (b2 = 0) then exit sub
+    dim as ustring name_ = Str_( ctl, "name" ), mod_ = Str_( ctl, "module" )
+    if b = 0 then Fail_( name_ & ": bind2 without bind" )
+    dim as ustring text = ModuleText_( root, mod_ )
+    CheckBindProcs_( *b, name_, mod_, "bind", text, Flag_( *b, "load_only", false ) )
+    if b2 = 0 then exit sub
+    if b2->Find( "load_only" ) then Fail_( name_ & ": bind2 has no load_only" )
+    CheckBindProcs_( *b2, name_, mod_, "bind2", text, false )
+    if len( Str_( *b2, "name" ) ) = 0 then Fail_( name_ & ": bind2 needs a name (the designer's row, BindUpper)" )
+    dim as ustring when_ = Str_( *b2, "when" )
+    if len( when_ ) = 0 then exit sub
+    dim as long eq = instr( when_, "=" )
+    if eq < 2 then Fail_( name_ & ": bind2 when '" & when_ & "' is not Prop=Value" )
+    dim as ustring pn = left( when_, eq - 1 ), pv = mid( when_, eq + 1 )
+    dim as TomlValue ptr props = ctl.Find( "props" )
+    if props then
+        for i as long = 0 to props->Count( ) - 1
+            dim as TomlValue ptr pr = @props->Item( i )
+            if Str_( *pr, "name" ) <> pn then continue for
+            select case Str_( *pr, "kind" )
+            case "bool"
+                if (pv = "true") orelse (pv = "false") then exit sub
+            case "enum"
+                if instr( "," & Str_( *pr, "enum" ), "," & pv & "=" ) then exit sub
+            end select
+            Fail_( name_ & ": bind2 when '" & when_ & "': " & pv & " is not a value of " & pn )
+        next
+    end if
+    Fail_( name_ & ": bind2 when '" & when_ & "': " & name_ & " has no property " & pn )
+end sub
+
 sub CheckColors_( byref ctl as TomlValue, byref root as const ustring )
     dim as ustring name_ = Str_( ctl, "name" ), mod_ = Str_( ctl, "module" )
     dim as TomlValue ptr col = ctl.Find( "colors" )
@@ -374,6 +446,16 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
                 & Quote_( Str_( *ctl, "default_event" ) ) & ", " & Quote_( Str_( *ctl, "container" ) ) & ", @C_" & name_ & ", " _
                 & Quote_( Str_( *ctl, "create_arg" ) ) & ", " & Quote_( argKind ) & ", " & Quote_( argEnum ) & ", " & Quote_( Str_( *ctl, "create_arg_default" ) ) _
                 & iif( Flag_( *ctl, "visual", true ), "", ", false" ) & " )" & NL
+        dim as TomlValue ptr bnd = ctl->Find( "bind" )
+        if bnd then
+            fill &= "    Bind_( " & Quote_( Str_( *bnd, "kind" ) ) & ", " & Quote_( Str_( *bnd, "get" ) ) & ", " & Quote_( Str_( *bnd, "set" ) ) _
+                    & ", " & iif( Flag_( *bnd, "load_only", false ), "true", "false" ) & " )" & NL
+        end if
+        dim as TomlValue ptr bnd2 = ctl->Find( "bind2" )
+        if bnd2 then
+            fill &= "    Bind2_( " & Quote_( Str_( *bnd2, "kind" ) ) & ", " & Quote_( Str_( *bnd2, "get" ) ) & ", " & Quote_( Str_( *bnd2, "set" ) ) _
+                    & ", " & Quote_( Str_( *bnd2, "name" ) ) & ", " & Quote_( Str_( *bnd2, "when" ) ) & " )" & NL
+        end if
 
         dim as TomlValue ptr col = ctl->Find( "colors" )
         if col then
@@ -487,6 +569,7 @@ dim as TomlValue doc = r.Value( )
 dim as TomlValue ptr ctls = doc.Find( "control" )
 for c as long = 0 to ctls->Count( ) - 1
     CheckColors_( ctls->Item( c ), root )
+    CheckBind_( ctls->Item( c ), root )
 next
 for c as long = 0 to ctls->Count( ) - 1
     GenWrapper( ctls->Item( c ), root )

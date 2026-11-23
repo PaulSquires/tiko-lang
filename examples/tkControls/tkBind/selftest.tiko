@@ -1,0 +1,229 @@
+' tkBind self-test: every field type through every kind, both ways, with the B1 rules at their
+' edges (text that is no number, rounding, no date); then the lines a designed form's LoadFrom /
+' SaveTo are made of, spelled as codegen spells them, against real controls of every bindable kind.
+#import "vendor/tkControls/tkBind"
+#import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkLabel"
+#import "vendor/tkControls/tkCheckBox"
+#import "vendor/tkControls/tkOptionButton"
+#import "vendor/tkControls/tkToggle"
+#import "vendor/tkControls/tkNumericUpDown"
+#import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkColorPicker"
+#import "vendor/tkControls/tkDatePicker"
+#import "std/chrono"
+using tkBind
+using tkCalendar
+using tkTest
+using tkHost
+using tkTextBox
+using tkLabel
+using tkCheckBox
+using tkOptionButton
+using tkToggle
+using tkNumericUpDown
+using tkComboBox
+using tkColorPicker
+using tkDatePicker
+using chrono
+
+type Rec
+    b as boolean
+    i8 as byte
+    u8 as ubyte
+    i16 as short
+    u16 as ushort
+    i32 as int32
+    u32 as ulong
+    i64 as int64
+    u64 as ulongint
+    n as integer
+    un as uinteger
+    f32 as single
+    f64 as double
+    s as ustring
+    z as string
+    dt as TKDATE
+    ld as LocalDate
+end type
+
+sub Text_( )
+    dim as Rec r
+    tkBind_Put( r.s, "hello" )      : tkTest_Check( "text -> ustring", r.s = "hello" )
+    tkBind_Put( r.z, "zed" )        : tkTest_Check( "text -> string", r.z = "zed" )
+    tkBind_Put( r.i32, " 42 " )     : tkTest_Check( "text -> int32, trimmed", r.i32 = 42 )
+    tkBind_Put( r.i32, "abc" )      : tkTest_Check( "text that is no number -> 0", r.i32 = 0 )
+    tkBind_Put( r.i64, "-9000000000" ) : tkTest_Check( "text -> int64, past 32 bits", r.i64 = -9000000000ll )
+    tkBind_Put( r.u8, "200" )       : tkTest_Check( "text -> ubyte", r.u8 = 200 )
+    tkBind_Put( r.i8, "-5" )        : tkTest_Check( "text -> byte", r.i8 = -5 )
+    tkBind_Put( r.i16, "-300" )     : tkTest_Check( "text -> short", r.i16 = -300 )
+    tkBind_Put( r.u16, "60000" )    : tkTest_Check( "text -> ushort", r.u16 = 60000 )
+    tkBind_Put( r.u32, "4000000000" ) : tkTest_Check( "text -> ulong", r.u32 = 4000000000ul )
+    tkBind_Put( r.u64, "7" )        : tkTest_Check( "text -> ulongint", r.u64 = 7 )
+    tkBind_Put( r.n, "11" )         : tkTest_Check( "text -> integer", r.n = 11 )
+    tkBind_Put( r.un, "12" )        : tkTest_Check( "text -> uinteger", r.un = 12 )
+    tkBind_Put( r.f64, "2.5" )      : tkTest_Check( "text -> double", r.f64 = 2.5 )
+    tkBind_Put( r.f32, "0.25" )     : tkTest_Check( "text -> single", r.f32 = 0.25 )
+    tkBind_Put( r.b, " YES " )      : tkTest_Check( "text yes -> true", r.b = true )
+    tkBind_Put( r.b, "nope" )       : tkTest_Check( "other text -> false", r.b = false )
+    tkBind_Put( r.dt, "2026-11-22" )
+    tkTest_Check( "ISO text -> TKDATE", (r.dt.wYear = 2026) andalso (r.dt.wMonth = 11) andalso (r.dt.wDay = 22) andalso (r.dt.wDayOfWeek = 0), "dow " & r.dt.wDayOfWeek )
+    tkBind_Put( r.dt, "22/11/2026" ) : tkTest_Check( "text that is no date -> no date", r.dt.wYear = 0 )
+    tkBind_Put( r.ld, "2024-02-29" ) : tkTest_Check( "ISO text -> LocalDate", r.ld.IsValid andalso (r.ld.Month = 2) andalso (r.ld.Day = 29) )
+    tkBind_Put( r.ld, "" )          : tkTest_Check( "empty text -> an Invalid LocalDate", r.ld.IsValid = false )
+
+    r.i32 = -7 : tkTest_Check( "int32 -> text", tkBind_Text( r.i32 ) = "-7" )
+    r.u32 = 4000000000ul : tkTest_Check( "ulong -> text, no sign", tkBind_Text( r.u32 ) = "4000000000" )
+    r.u64 = 18000000000000000000ull : tkTest_Check( "ulongint -> text", tkBind_Text( r.u64 ) = "18000000000000000000" )
+    r.f64 = 2.5 : tkTest_Check( "double -> text", tkBind_Text( r.f64 ) = "2.5" )
+    r.b = true : tkTest_Check( "bool -> text", tkBind_Text( r.b ) = "true" )
+    r.z = "z" : tkTest_Check( "string -> text", tkBind_Text( r.z ) = "z" )
+    r.dt = tkCalendar_MakeDate( 2026, 1, 5 ) : tkTest_Check( "TKDATE -> ISO text", tkBind_Text( r.dt ) = "2026-01-05" )
+    dim as TKDATE none_
+    tkTest_Check( "no date -> empty text", tkBind_Text( none_ ) = "" )
+    r.ld = LocalDate( 999, 3, 4 ) : tkTest_Check( "LocalDate -> ISO text, 4-digit year", tkBind_Text( r.ld ) = "0999-03-04", tkBind_Text( r.ld ) )
+end sub
+
+sub Bool_( )
+    dim as Rec r
+    tkBind_Put( r.i32, true )  : tkTest_Check( "bool -> int32", r.i32 = 1 )
+    tkBind_Put( r.f64, true )  : tkTest_Check( "bool -> double", r.f64 = 1 )
+    tkBind_Put( r.s, false )   : tkTest_Check( "bool -> ustring", r.s = "false" )
+    tkBind_Put( r.b, true )    : tkTest_Check( "bool -> bool", r.b )
+    r.i32 = 5 : tkTest_Check( "int32 nonzero -> true", tkBind_Bool( r.i32 ) )
+    r.f64 = 0 : tkTest_Check( "double zero -> false", tkBind_Bool( r.f64 ) = false )
+    r.s = "On" : tkTest_Check( "ustring On -> true", tkBind_Bool( r.s ) )
+    r.z = "0" : tkTest_Check( "string 0 -> false", tkBind_Bool( r.z ) = false )
+end sub
+
+sub Int_( )
+    dim as Rec r
+    tkBind_Put( r.i32, 123ll )        : tkTest_Check( "int -> int32", r.i32 = 123 )
+    tkBind_Put( r.u8, 300ll )         : tkTest_Check( "int -> ubyte wraps as assignment does", r.u8 = 44, str( r.u8 ) )
+    tkBind_Put( r.f32, 3ll )          : tkTest_Check( "int -> single", r.f32 = 3 )
+    tkBind_Put( r.s, -4ll )           : tkTest_Check( "int -> ustring", r.s = "-4" )
+    tkBind_Put( r.b, 0ll )            : tkTest_Check( "int 0 -> false", r.b = false )
+    tkBind_Put( r.u32, clngint( &hFF112233ul ) ) : tkTest_Check( "a colour through int -> ulong", r.u32 = &hFF112233ul )
+    r.f64 = 2.5 : tkTest_Check( "double -> int rounds to even", tkBind_Int( r.f64 ) = 2 )
+    r.f64 = 3.5 : tkTest_Check( "...and 3.5 to 4", tkBind_Int( r.f64 ) = 4 )
+    r.s = "17" : tkTest_Check( "ustring -> int", tkBind_Int( r.s ) = 17 )
+    r.b = true : tkTest_Check( "true -> 1", tkBind_Int( r.b ) = 1 )
+    r.u64 = 5 : tkTest_Check( "ulongint -> int", tkBind_Int( r.u64 ) = 5 )
+end sub
+
+sub Float_( )
+    dim as Rec r
+    tkBind_Put( r.i32, 2.5 )   : tkTest_Check( "float 2.5 -> int32 rounds to even", r.i32 = 2 )
+    tkBind_Put( r.i64, -1.5 )  : tkTest_Check( "float -1.5 -> int64", r.i64 = -2 )
+    tkBind_Put( r.f64, 0.125 ) : tkTest_Check( "float -> double", r.f64 = 0.125 )
+    tkBind_Put( r.s, 0.5 )     : tkTest_Check( "float -> ustring", r.s = "0.5", r.s )
+    tkBind_Put( r.b, 0.0 )     : tkTest_Check( "float 0 -> false", r.b = false )
+    r.i32 = 9 : tkTest_Check( "int32 -> float", tkBind_Float( r.i32 ) = 9 )
+    r.s = " 1.25 " : tkTest_Check( "ustring -> float, trimmed", tkBind_Float( r.s ) = 1.25 )
+    r.z = "x" : tkTest_Check( "string no number -> 0", tkBind_Float( r.z ) = 0 )
+end sub
+
+sub Date_( )
+    dim as Rec r
+    dim as TKDATE d = tkCalendar_MakeDate( 2026, 11, 22 )
+    tkBind_Put( r.dt, d ) : tkTest_Check( "date -> TKDATE", (r.dt.wYear = 2026) andalso (r.dt.wDay = 22) )
+    tkBind_Put( r.ld, d ) : tkTest_Check( "date -> LocalDate", r.ld.IsValid andalso (r.ld.Year = 2026) andalso (r.ld.Month = 11) )
+    tkBind_Put( r.s, d )  : tkTest_Check( "date -> ustring", r.s = "2026-11-22" )
+    tkBind_Put( r.z, d )  : tkTest_Check( "date -> string", r.z = "2026-11-22" )
+    dim as TKDATE none_
+    tkBind_Put( r.ld, none_ ) : tkTest_Check( "no date -> an Invalid LocalDate", r.ld.IsValid = false )
+    tkBind_Put( r.s, none_ )  : tkTest_Check( "no date -> empty text", r.s = "" )
+    r.ld = LocalDate( 2025, 7, 1 )
+    dim as TKDATE e = tkBind_Date( r.ld )
+    tkTest_Check( "LocalDate -> date, day of week filled", (e.wYear = 2025) andalso (e.wMonth = 7) andalso (e.wDay = 1) andalso (e.wDayOfWeek = 2), "dow " & e.wDayOfWeek )
+    dim as LocalDate unset_
+    tkTest_Check( "a default LocalDate -> no date", tkBind_Date( unset_ ).wYear = 0 )
+    r.s = "2026-02-30" : tkTest_Check( "an impossible ISO date -> no date", tkBind_Date( r.s ).wYear = 0 )
+    r.z = "2026-03-01" : tkTest_Check( "string -> date", tkBind_Date( r.z ).wMonth = 3 )
+    tkTest_Check( "TKDATE -> date", tkBind_Date( d ).wDay = 22 )
+end sub
+
+type Person
+    Name as ustring
+    Title as ustring
+    Vip as boolean
+    Pick as long
+    Night as ustring
+    Age as int32
+    Kind as int32
+    Tint as ulong
+    Born as LocalDate
+    Since as ustring
+end type
+
+' What codegen writes for a form binding each kind (designall checks the spelling, this that it builds
+' and moves the values): load, a person's edits, save.
+sub Controls_( )
+    tkTest_Begin( "controls" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkBind selftest", 400, 300, tkHost_FontDir() & TK_FONT_UI, 1.0 )
+    dim as TK_WIDGET ptr root_ = tkHost_Root( h )
+    dim as TK_WIDGET ptr txt = tkTextBox_Create( root_, 1 ), lbl = tkLabel_Create( root_, 2 )
+    dim as TK_WIDGET ptr chk = tkCheckBox_Create( root_, 3 ), opt = tkOptionButton_Create( root_, 4 )
+    dim as TK_WIDGET ptr tgl = tkToggle_Create( root_, 5 ), nud = tkNumericUpDown_Create( root_, 6 )
+    dim as TK_WIDGET ptr cbo = tkComboBox_Create( root_, 7 ), clr = tkColorPicker_Create( root_, 8 )
+    dim as TK_WIDGET ptr dtp = tkDatePicker_Create( root_, 9 ), dt2 = tkDatePicker_Create( root_, 10 )
+    tkNumericUpDown_SetRange( nud, 0, 150 )
+    tkComboBox_AddItem( cbo, "Home" ) : tkComboBox_AddItem( cbo, "Work" ) : tkComboBox_AddItem( cbo, "Other" )
+
+    dim as Person r
+    r.Name = "Ada" : r.Title = "Countess" : r.Vip = true : r.Pick = 0 : r.Night = "yes"
+    r.Age = 36 : r.Kind = 2 : r.Tint = &hFF336699ul : r.Born = LocalDate( 1815, 12, 10 ) : r.Since = ""
+    ' LoadFrom
+    tkTextBox_SetText( txt, tkBind_Text( r.Name ) )
+    tkLabel_SetText( lbl, tkBind_Text( r.Title ) )
+    tkCheckBox_SetChecked( chk, tkBind_Bool( r.Vip ) )
+    tkOptionButton_SetChecked( opt, tkBind_Bool( r.Pick ) )
+    tkToggle_SetChecked( tgl, tkBind_Bool( r.Night ) )
+    tkNumericUpDown_SetValue( nud, tkBind_Float( r.Age ) )
+    tkComboBox_SetCurSel( cbo, tkBind_Int( r.Kind ) )
+    tkColorPicker_SetColor( clr, tkBind_Int( r.Tint ) )
+    tkDatePicker_SetDateValue( dtp, tkBind_Date( r.Born ) )
+    tkDatePicker_SetDateValue( dt2, tkBind_Date( r.Since ) )
+    tkTest_Check( "load: text, label", (tkTextBox_GetText( txt ) = "Ada") andalso (tkLabel_GetText( lbl ) = "Countess") )
+    tkTest_Check( "load: bool from boolean, long and text", tkCheckBox_GetChecked( chk ) andalso (tkOptionButton_GetChecked( opt ) = false) andalso tkToggle_GetChecked( tgl ) )
+    tkTest_Check( "load: a number, an index, a colour", (tkNumericUpDown_GetValue( nud ) = 36) andalso (tkComboBox_GetCurSel( cbo ) = 2) _
+        andalso (tkColorPicker_GetColor( clr ) = &hFF336699ul), hex( tkColorPicker_GetColor( clr ) ) )
+    dim as TKDATE b = tkDatePicker_GetDateValue( dtp )
+    tkTest_Check( "load: a LocalDate into a picker", (b.wYear = 1815) andalso (b.wMonth = 12) andalso (b.wDay = 10) )
+    tkTest_Check( "load: no date leaves a picker empty", tkDatePicker_HasDate( dt2 ) = false )
+
+    ' the person's edits
+    tkTextBox_SetText( txt, "Ada L." )
+    tkCheckBox_SetChecked( chk, false ) : tkOptionButton_SetChecked( opt, true ) : tkToggle_SetChecked( tgl, false )
+    tkNumericUpDown_SetValue( nud, 37 ) : tkComboBox_SetCurSel( cbo, 0 )
+    tkColorPicker_SetColor( clr, &hFF112233ul )
+    tkDatePicker_SetDate( dt2, tkCalendar_MakeDate( 1833, 6, 5 ) )
+    ' SaveTo (a Label is load only: not saved)
+    tkBind_Put( r.Name, tkTextBox_GetText( txt ) )
+    tkBind_Put( r.Vip, tkCheckBox_GetChecked( chk ) )
+    tkBind_Put( r.Pick, tkOptionButton_GetChecked( opt ) )
+    tkBind_Put( r.Night, tkToggle_GetChecked( tgl ) )
+    tkBind_Put( r.Age, cdbl( tkNumericUpDown_GetValue( nud ) ) )
+    tkBind_Put( r.Kind, clngint( tkComboBox_GetCurSel( cbo ) ) )
+    tkBind_Put( r.Tint, clngint( tkColorPicker_GetColor( clr ) ) )
+    tkBind_Put( r.Born, tkDatePicker_GetDateValue( dtp ) )
+    tkBind_Put( r.Since, tkDatePicker_GetDateValue( dt2 ) )
+    tkTest_Check( "save: text", r.Name = "Ada L." )
+    tkTest_Check( "save: bools into boolean, long and text", (r.Vip = false) andalso (r.Pick = 1) andalso (r.Night = "false"), r.Night )
+    tkTest_Check( "save: a number, an index, a colour", (r.Age = 37) andalso (r.Kind = 0) andalso (r.Tint = &hFF112233ul) )
+    tkTest_Check( "save: dates into a LocalDate and ISO text", r.Born.IsValid andalso (r.Born.Year = 1815) andalso (r.Since = "1833-06-05"), r.Since )
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+tkTest_Begin( "conversions" )
+Text_( )
+Bool_( )
+Int_( )
+Float_( )
+Date_( )
+Controls_( )
+dim as long nFail = tkTest_Report( "tkBind" )
+tkTest_Quit()
+end nFail

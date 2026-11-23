@@ -479,7 +479,16 @@ public type Contact
     Notes as ustring
     Photo as ustring             ' its file name in photos/; "" for none
     declare function FullName( ) as ustring
+    declare sub TrimFields( )
 end type
+
+' The one-line fields without their outer spaces, as a form's boxes hand them over (Notes keeps its own).
+sub Contact.TrimFields( )
+    FirstName = trim( FirstName ) : LastName = trim( LastName ) : Company = trim( Company )
+    Street = trim( Street ) : City = trim( City ) : Region = trim( Region )
+    PostalCode = trim( PostalCode ) : Country = trim( Country )
+    Phone = trim( Phone ) : Mobile = trim( Mobile ) : Email = trim( Email )
+end sub
 ```
 
 4. Opening the database makes the file and its table the first time:
@@ -699,15 +708,20 @@ Your file and the generated one are one module, joined by the `partial type`: yo
 procedures sit beside the controls, and each control is reached by its name. A file's own
 `#import` and `using` lines apply to that file only.
 
+**Binding the boxes to the contact.** Rather than copy twelve boxes in and out by hand, let the
+designer do it (see [Data binding](Form-Designer#data-binding)). Back on the form (**Shift+F7**
+again), click the empty form and set **DataType** to `contactdb.Contact` and **DataModule** to
+`../contactdb`. Then select each box and set its **Bind** to its field: `txtFirstName` to
+`FirstName`, `txtCity` to `City`, and so on to `txtNotes` and `Notes`. Press the **...** beside
+**Bind** for the list of Contact's fields once tkEdit has scanned `contactdb.tiko`, or type the name.
+The generated file now has `LoadFrom( c )` and `SaveTo( c )`.
+
 **Filling it.** The main window calls `Edit` before showing the dialog:
 
 ```freebasic
 sub Form.Edit( byref c as contactdb.Contact )
     Person = c
-    txtFirstName.Text = c.FirstName
-    txtLastName.Text = c.LastName
-    ' ... every box the same way ...
-    txtNotes.Text = c.Notes
+    LoadFrom( c )                    ' every bound box shows its field
     PhotoFile = contactdb.PhotoPath( c )
     PhotoChanged = false
     ShowPhoto( )
@@ -732,7 +746,15 @@ sub Form.btnCancel_Click( )
 end sub
 ```
 
-`Collect` copies the boxes into `Person` (trimmed) and says whether there is a name.
+`Collect` copies the boxes into `Person`, trimmed, and says whether there is a name:
+
+```freebasic
+function Form.Collect( ) as boolean
+    SaveTo( Person )
+    Person.TrimFields( )
+    return len( Person.FullName( ) ) > 0
+end function
+```
 
 **The photo.** `tkFileDialog_OpenFile` shows the system's Open dialog and returns the path, or `""`
 when cancelled. Its filters are one string, `"Name|patterns|Name|patterns"`:

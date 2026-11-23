@@ -42,7 +42,7 @@ end function
 
 ' What FormBase and the generated Form already use, and the names a field must not hide.
 private function IsFormMember_( byref s as const ustring ) as boolean
-    const as string MEMBERS = " handle layout build show showmodal endmodal close isopen openwindow form this base "
+    const as string MEMBERS = " handle layout build show showmodal endmodal close isopen openwindow form this base loadfrom saveto "
     return instr( MEMBERS, " " & lcase( s ) & " " ) > 0
 end function
 
@@ -57,6 +57,19 @@ private function IsControlWord_( byref s as const ustring ) as boolean
         if (lcase( m->Name ) = want) orelse (lcase( m->Module_ ) = want) then return true
     next
     return false
+end function
+
+' A dotted name: "Contact", "contactdb.Contact", "Address.City" -- each part an identifier.
+private function IsDottedName_( byref s as const ustring ) as boolean
+    if len( s ) = 0 then return false
+    dim as long at = 1
+    do
+        dim as long dot = instr( at, s, "." )
+        dim as ustring part = iif( dot > 0, mid( s, at, dot - at ), mid( s, at ) )
+        if IsIdentifier( part ) = false then return false
+        if dot = 0 then return true
+        at = dot + 1
+    loop
 end function
 
 ' Why this name can't be a field or handler of a form, or "" when it can.
@@ -221,6 +234,9 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         out_.Push( "form file name '" & moduleName & "' can't be a module name" )
     end if
     if (doc.ClientW <= 0) orelse (doc.ClientH <= 0) then out_.Push( "form: width and height must be positive" )
+    if len( doc.DataType ) andalso (IsDottedName_( doc.DataType ) = false) then
+        out_.Push( "form: data type '" & doc.DataType & "' is not a type name (Contact, or contactdb.Contact)" )
+    end if
     select case doc.StartPosition
     case "", "CenterScreen", "CenterOwner"
     case else : out_.Push( "form: no start position '" & doc.StartPosition & "'" )
@@ -312,6 +328,29 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
 
         CheckProps_( c, m, out_ )
         CheckColors_( c, m, out_ )
+
+        ' data binding (B1): a field of the form's DataType, on a control that has a value to move
+        if len( c.Bind ) then
+            if len( m->BindKind ) = 0 then
+                out_.Push( c.Name & ": a " & m->Name & " can't be bound to a field" )
+            elseif IsDottedName_( c.Bind ) = false then
+                out_.Push( c.Name & ": bind '" & c.Bind & "' is not a field name (Name, or Address.City)" )
+            elseif len( doc.DataType ) = 0 then
+                out_.Push( c.Name & ": binding to a field needs the form's DataType first" )
+            end if
+        end if
+        ' a two-value control's second field (bind2): only with the first, and only while it applies
+        if len( c.Bind2 ) then
+            if len( m->Bind2Kind ) = 0 then
+                out_.Push( c.Name & ": a " & m->Name & " has no second value to bind" )
+            elseif len( c.Bind ) = 0 then
+                out_.Push( c.Name & ": " & m->Bind2Name & " needs Bind first" )
+            elseif IsDottedName_( c.Bind2 ) = false then
+                out_.Push( c.Name & ": " & m->Bind2Name & " '" & c.Bind2 & "' is not a field name (Name, or Address.City)" )
+            elseif catalog.Bind2Holds( c ) = false then
+                out_.Push( c.Name & ": " & m->Bind2Name & " needs " & m->Bind2When )
+            end if
+        end if
 
         for each s as Setting in c.Events
             dim as TKMETA_EVENT ptr e = tkMeta_FindEvent( m, s.Key )

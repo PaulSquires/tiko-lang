@@ -22,6 +22,13 @@
 # params) whose value the thunk returns, starting from that type's default or from result_init.
 # fallback = a procedure the generated code installs when no handler is bound (a ListTree's rows).
 #
+# bind = { kind, get, set, load_only }: the value a designed form's LoadFrom / SaveTo moves (Form Designer B1),
+# through vendor/tkControls/tkBind. kind: text bool int float date. get = "<proc>( h ) as <kind>" (none when
+# load_only = true: LoadFrom sets it, SaveTo leaves it), set = "<proc>( h, <kind> )". tkmetagen checks both exist.
+# bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
+# moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
+# needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
+#
 # visual = false: a component, not a control (a Timer). It is created on the form and set up like a
 # control, but never shown or laid out; a designer draws it as a width x height box of its own.
 #
@@ -38,6 +45,7 @@ module = "tkLabel"
 category = "Common"
 width = 100
 height = 24
+bind = { kind="text", set="tkLabel_SetText", load_only=true }
 default_event = "Click"
 colors = { struct="TKLABEL_COLORS", get="tkLabel_GetColors", theme="tkLabel_ThemeColors" }
 color_fields = [
@@ -124,6 +132,7 @@ module = "tkCheckBox"
 category = "Common"
 width = 120
 height = 24
+bind = { kind="bool", get="tkCheckBox_GetChecked", set="tkCheckBox_SetChecked" }
 default_event = "CheckChanged"
 colors = { struct="TKCHECKBOX_COLORS", get="tkCheckBox_GetColors", theme="tkCheckBox_ThemeColors" }
 color_fields = [
@@ -179,6 +188,7 @@ module = "tkOptionButton"
 category = "Common"
 width = 120
 height = 24
+bind = { kind="bool", get="tkOptionButton_GetChecked", set="tkOptionButton_SetChecked" }
 default_event = "CheckChanged"
 colors = { struct="TKOPTIONBUTTON_COLORS", get="tkOptionButton_GetColors", theme="tkOptionButton_ThemeColors" }
 color_fields = [
@@ -237,6 +247,7 @@ module = "tkToggle"
 category = "Common"
 width = 60
 height = 28
+bind = { kind="bool", get="tkToggle_GetChecked", set="tkToggle_SetChecked" }
 default_event = "CheckChanged"
 colors = { struct="TKTOGGLE_COLORS", get="tkToggle_GetColors", theme="tkToggle_ThemeColors" }
 color_fields = [
@@ -285,6 +296,7 @@ module = "tkTextBox"
 category = "Common"
 width = 160
 height = 28
+bind = { kind="text", get="tkTextBox_GetText", set="tkTextBox_SetText" }
 default_event = "Change"
 create_arg = "Multiline"
 create_arg_kind = "bool"
@@ -343,6 +355,7 @@ module = "tkNumericUpDown"
 category = "Common"
 width = 100
 height = 28
+bind = { kind="float", get="tkNumericUpDown_GetValue", set="tkNumericUpDown_SetValue" }
 default_event = "ValueChanged"
 colors = { struct="TKNUMERICUPDOWN_COLORS", get="tkNumericUpDown_GetColors", theme="tkNumericUpDown_ThemeColors" }
 color_fields = [
@@ -366,17 +379,17 @@ color_fields = [
   { field="GlyphColorDisabled", part="Glyph", state="Disabled", ink=true },
 ]
 props = [
+  { name="Range", kind="list", enum="Min:float,Max:float", set="tkNumericUpDown_SetRange", get="" },
+  { name="DecimalPlaces", kind="int", set="tkNumericUpDown_SetDecimalPlaces", get="tkNumericUpDown_GetDecimalPlaces" },
   { name="Value", kind="float", set="tkNumericUpDown_SetValue", get="tkNumericUpDown_GetValue" },
   { name="Increment", kind="float", set="tkNumericUpDown_SetIncrement", get="tkNumericUpDown_GetIncrement" },
   { name="LargeIncrement", kind="float", set="tkNumericUpDown_SetLargeIncrement", get="tkNumericUpDown_GetLargeIncrement" },
-  { name="DecimalPlaces", kind="int", set="tkNumericUpDown_SetDecimalPlaces", get="tkNumericUpDown_GetDecimalPlaces" },
   { name="ReadOnly", kind="bool", set="tkNumericUpDown_SetReadOnly", get="tkNumericUpDown_GetReadOnly", default="false" },
   { name="Font", kind="font", set="tkNumericUpDown_SetFont", get="tkNumericUpDown_GetFont" },
   { name="ButtonWidth", kind="int", set="tkNumericUpDown_SetButtonWidth", get="tkNumericUpDown_GetButtonWidth" },
   { name="CornerRadius", kind="int", set="tkNumericUpDown_SetCornerRadius", get="tkNumericUpDown_GetCornerRadius", theme="CornerRadius", scale=1 },
   { name="BorderThickness", kind="int", set="tkNumericUpDown_SetBorderThickness", get="tkNumericUpDown_GetBorderThickness", theme="BorderWidth", scale=1 },
   { name="DividerThickness", kind="int", set="tkNumericUpDown_SetDividerThickness", get="tkNumericUpDown_GetDividerThickness" },
-  { name="Range", kind="list", enum="Min:float,Max:float", set="tkNumericUpDown_SetRange", get="" },
   { name="AutoRepeat", kind="list", enum="DelayMs:int,IntervalMs:int", set="tkNumericUpDown_SetAutoRepeat", get="" },
   { name="ValuePadding", kind="list", enum="Left:int,Right:int,Vert:int", set="tkNumericUpDown_SetValuePadding", get="" },
   { name="GlyphSize", kind="list", enum="Length:int,Thickness:int", set="tkNumericUpDown_SetGlyphSize", get="" },
@@ -392,11 +405,89 @@ events = [
 ]
 
 [[control]]
+name = "Slider"
+module = "tkSlider"
+category = "Common"
+width = 160
+height = 32
+bind = { kind="float", get="tkSlider_GetValue", set="tkSlider_SetValue" }
+bind2 = { kind="float", get="tkSlider_GetUpperValue", set="tkSlider_SetUpperValue", name="BindUpper", when="Mode=Range" }
+default_event = "ValueChanged"
+colors = { struct="TKSLIDER_COLORS", get="tkSlider_GetColors", theme="tkSlider_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="FocusRingColor" },
+  { field="TrackColor", part="Track", state="Normal" },
+  { field="TrackColorDisabled", part="Track", state="Disabled" },
+  { field="FillColor", part="Fill", state="Normal" },
+  { field="FillColorHot", part="Fill", state="Hot" },
+  { field="FillColorDisabled", part="Fill", state="Disabled" },
+  { field="ThumbColor", part="Thumb", state="Normal" },
+  { field="ThumbColorHot", part="Thumb", state="Hot" },
+  { field="ThumbColorPressed", part="Thumb", state="Pressed" },
+  { field="ThumbColorDisabled", part="Thumb", state="Disabled" },
+  { field="ThumbBorderColor", part="ThumbBorder", state="Normal" },
+  { field="ThumbBorderColorHot", part="ThumbBorder", state="Hot" },
+  { field="ThumbBorderColorDisabled", part="ThumbBorder", state="Disabled" },
+  { field="TickColor", part="Tick", state="Normal" },
+  { field="TickColorDisabled", part="Tick", state="Disabled" },
+  { field="LabelColor", part="Label", state="Normal", ink=true },
+  { field="LabelColorDisabled", part="Label", state="Disabled", ink=true },
+]
+# ORDER MATTERS: Build sets props in this order and every value setter clamps and snaps, so the
+# limits (Range, Step, DecimalPlaces, the ticks SnapToTicks may use, Mode) come before Value / UpperValue.
+props = [
+  { name="Range", kind="list", enum="Min:float,Max:float", set="tkSlider_SetRange", get="" },
+  { name="Step", kind="float", set="tkSlider_SetStep", get="tkSlider_GetStep" },
+  { name="DecimalPlaces", kind="int", set="tkSlider_SetDecimalPlaces", get="tkSlider_GetDecimalPlaces" },
+  { name="TickFrequency", kind="float", set="tkSlider_SetTickFrequency", get="tkSlider_GetTickFrequency" },
+  { name="SnapToTicks", kind="bool", set="tkSlider_SetSnapToTicks", get="tkSlider_GetSnapToTicks", default="false" },
+  { name="Mode", kind="enum", enum="Single=TKSL_MODE_SINGLE,Range=TKSL_MODE_RANGE", set="tkSlider_SetMode", get="tkSlider_GetMode", default="Single" },
+  { name="Value", kind="float", set="tkSlider_SetValue", get="tkSlider_GetValue" },
+  { name="UpperValue", kind="float", set="tkSlider_SetUpperValue", get="tkSlider_GetUpperValue" },
+  { name="SmallChange", kind="float", set="tkSlider_SetSmallChange", get="tkSlider_GetSmallChange" },
+  { name="LargeChange", kind="float", set="tkSlider_SetLargeChange", get="tkSlider_GetLargeChange" },
+  { name="MinDistance", kind="float", set="tkSlider_SetMinDistance", get="tkSlider_GetMinDistance" },
+  { name="AllowRangeDrag", kind="bool", set="tkSlider_SetAllowRangeDrag", get="tkSlider_GetAllowRangeDrag", default="false" },
+  { name="Orientation", kind="enum", enum="Horizontal=TKSL_HORIZONTAL,Vertical=TKSL_VERTICAL", set="tkSlider_SetOrientation", get="tkSlider_GetOrientation", default="Horizontal" },
+  { name="Reversed", kind="bool", set="tkSlider_SetReversed", get="tkSlider_GetReversed", default="false" },
+  { name="TrackClick", kind="enum", enum="Jump=TKSL_CLICK_JUMP,Page=TKSL_CLICK_PAGE", set="tkSlider_SetTrackClick", get="tkSlider_GetTrackClick", default="Jump" },
+  { name="WheelMode", kind="enum", enum="Focused=TKSL_WHEEL_FOCUSED,Hover=TKSL_WHEEL_HOVER,Never=TKSL_WHEEL_NEVER", set="tkSlider_SetWheelMode", get="tkSlider_GetWheelMode", default="Focused" },
+  { name="FillMode", kind="enum", enum="Min=TKSL_FILL_MIN,None=TKSL_FILL_NONE,Origin=TKSL_FILL_ORIGIN", set="tkSlider_SetFillMode", get="tkSlider_GetFillMode", default="Min" },
+  { name="FillOrigin", kind="float", set="tkSlider_SetFillOrigin", get="tkSlider_GetFillOrigin" },
+  { name="TickPlacement", kind="enum", enum="None=TKSL_TICKS_NONE,TopLeft=TKSL_TICKS_TOPLEFT,BottomRight=TKSL_TICKS_BOTTOMRIGHT,Both=TKSL_TICKS_BOTH", set="tkSlider_SetTickPlacement", get="tkSlider_GetTickPlacement", default="None" },
+  { name="ShowTickLabels", kind="bool", set="tkSlider_SetShowTickLabels", get="tkSlider_GetShowTickLabels", default="false" },
+  { name="LabelEvery", kind="int", set="tkSlider_SetLabelEvery", get="tkSlider_GetLabelEvery" },
+  { name="ShowValueTip", kind="enum", enum="None=TKSL_TIP_NONE,Drag=TKSL_TIP_DRAG,Focused=TKSL_TIP_FOCUSED", set="tkSlider_SetShowValueTip", get="tkSlider_GetShowValueTip", default="Drag" },
+  { name="ThumbShape", kind="enum", enum="Round=TKSL_THUMB_ROUND,Rect=TKSL_THUMB_RECT", set="tkSlider_SetThumbShape", get="tkSlider_GetThumbShape", default="Round" },
+  { name="ReadOnly", kind="bool", set="tkSlider_SetReadOnly", get="tkSlider_GetReadOnly", default="false" },
+  { name="Font", kind="font", set="tkSlider_SetFont", get="tkSlider_GetFont" },
+  { name="TrackSize", kind="int", set="tkSlider_SetTrackSize", get="tkSlider_GetTrackSize" },
+  { name="ThumbSize", kind="list", enum="Along:int,Across:int", set="tkSlider_SetThumbSize", get="" },
+  { name="TickSize", kind="list", enum="Length:int,Gap:int,LabelGap:int", set="tkSlider_SetTickSize", get="" },
+  { name="BorderThickness", kind="int", set="tkSlider_SetBorderThickness", get="tkSlider_GetBorderThickness", theme="BorderWidth", scale=1 },
+  { name="FocusRing", kind="list", enum="Gap:int,Thickness:int", set="tkSlider_SetFocusRing", get="" },
+  { name="AutoRepeat", kind="list", enum="DelayMs:int,IntervalMs:int", set="tkSlider_SetAutoRepeat", get="" },
+  { name="TooltipText", kind="text", set="tkSlider_SetTooltipText", get="tkSlider_GetTooltipText" },
+  { name="HoverTime", kind="int", set="tkSlider_SetHoverTime", get="" },
+  { name="AutoPopTime", kind="int", set="tkSlider_SetAutoPopTime", get="" },
+  { name="ReshowTime", kind="int", set="tkSlider_SetReshowTime", get="" },
+]
+events = [
+  { name="ValueChanged", set="tkSlider_SetValueChangedCallback", type="SLD_ValueChangedCallbackSub", sig="byval hSlider as TK_WIDGET ptr, byval nThumb as int32, byval nValue as float64", params="byval nThumb as int32, byval nValue as float64", args="nThumb, nValue" },
+  { name="ValueCommitted", set="tkSlider_SetValueCommittedCallback", type="SLD_ValueCommittedCallbackSub", sig="byval hSlider as TK_WIDGET ptr, byval nThumb as int32, byval nValue as float64", params="byval nThumb as int32, byval nValue as float64", args="nThumb, nValue" },
+  { name="FormatValue", set="tkSlider_SetFormatValueCallback", type="SLD_FormatValueCallbackFunc", sig="byval hSlider as TK_WIDGET ptr, byval nValue as float64, byval nWhere as int32", params="byval nValue as float64, byval nWhere as int32, byref Text as ustring", args="nValue, nWhere, Text", returns="ustring", result="Text" },
+  { name="Paint", set="tkSlider_SetPaintCallback", type="SLD_PaintCallbackSub", sig="byval p as TKSLIDER_PAINTINFO ptr", params="byval p as TKSLIDER_PAINTINFO ptr", args="p", widget="p->hSlider" },
+  { name="Message", set="tkSlider_SetMessageCallback", type="SLD_MessageCallbackFunc", sig="byval m as TKSLIDER_MESSAGEINFO ptr", params="byval m as TKSLIDER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSlider", returns="boolean", result="Handled" },
+]
+
+[[control]]
 name = "ComboBox"
 module = "tkComboBox"
 category = "Common"
 width = 160
 height = 28
+bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel" }
 default_event = "SelChange"
 colors = { struct="TKCOMBOBOX_COLORS", get="tkComboBox_GetColors", theme="tkComboBox_ThemeColors" }
 color_fields = [
@@ -458,6 +549,7 @@ module = "tkDatePicker"
 category = "Common"
 width = 140
 height = 28
+bind = { kind="date", get="tkDatePicker_GetDateValue", set="tkDatePicker_SetDateValue" }
 default_event = "DateChanged"
 colors = { struct="TKDATEPICKER_COLORS", get="tkDatePicker_GetColors", theme="tkDatePicker_ThemeColors" }
 color_fields = [
@@ -614,6 +706,7 @@ color_fields = [
   { field="TextColorDisabled", part="Text", state="Disabled", ink=true },
 ]
 props = [
+  { name="Range", kind="list", enum="Min:int,Max:int", set="tkProgressBar_SetRange", get="" },
   { name="Position", kind="int", set="tkProgressBar_SetPos", get="tkProgressBar_GetPos" },
   { name="Mode", kind="enum", enum="Determinate=PRG_MODE_DETERMINATE,Indeterminate=PRG_MODE_INDETERMINATE", set="tkProgressBar_SetMode", get="tkProgressBar_GetMode", default="Determinate", design=false },
   { name="FillStyle", kind="enum", enum="Solid=PRG_FILL_SOLID,Gradient=PRG_FILL_GRADIENT", set="tkProgressBar_SetFillStyle", get="tkProgressBar_GetFillStyle", default="Solid" },
@@ -634,7 +727,6 @@ props = [
   { name="HoverTime", kind="int", set="tkProgressBar_SetHoverTime", get="" },
   { name="AutoPopTime", kind="int", set="tkProgressBar_SetAutoPopTime", get="" },
   { name="ReshowTime", kind="int", set="tkProgressBar_SetReshowTime", get="" },
-  { name="Range", kind="list", enum="Min:int,Max:int", set="tkProgressBar_SetRange", get="" },
   { name="MarqueeSpeed", kind="list", enum="IntervalMs:int,StepPx:int", set="tkProgressBar_SetMarqueeSpeed", get="" },
   { name="BlockMetrics", kind="list", enum="BlockLen:int,BlockGap:int", set="tkProgressBar_SetBlockMetrics", get="" },
 ]
@@ -682,6 +774,7 @@ module = "tkColorPicker"
 category = "Common"
 width = 120
 height = 28
+bind = { kind="int", get="tkColorPicker_GetColor", set="tkColorPicker_SetColor" }
 default_event = "ColorChanged"
 colors = { struct="TKCOLORPICKER_COLORS", get="tkColorPicker_GetColors", theme="tkColorPicker_ThemeColors" }
 color_fields = [
@@ -844,8 +937,8 @@ color_fields = [
   { field="HotColor", part="Back", state="Hot" },
 ]
 props = [
-  { name="Position", kind="int", set="tkSplitter_SetPos", get="tkSplitter_GetPos" },
   { name="Range", kind="list", enum="Min:int,Max:int", set="tkSplitter_SetRange", get="" },
+  { name="Position", kind="int", set="tkSplitter_SetPos", get="tkSplitter_GetPos" },
   { name="Colors", kind="list", enum="Back:color,Hot:color", set="tkSplitter_SetColors", get="" },
 ]
 events = [
@@ -1176,9 +1269,9 @@ width = 16
 height = 160
 default_event = "Scroll"
 props = [
+  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkVScrollBar_SetRange", get="" },
   { name="Position", kind="int", set="tkVScrollBar_SetPos", get="tkVScrollBar_GetPos" },
   { name="WheelStep", kind="int", set="tkVScrollBar_SetWheelStep", get="tkVScrollBar_GetWheelStep" },
-  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkVScrollBar_SetRange", get="" },
   { name="Colors", kind="list", enum="Back:color,Fore:color,ForeHot:color", set="tkVScrollBar_SetColors", get="" },
   { name="DividerColor", kind="list", enum="Color:color,Show:bool", set="tkVScrollBar_SetDividerColor", get="" },
 ]
@@ -1195,9 +1288,9 @@ width = 160
 height = 16
 default_event = "Scroll"
 props = [
+  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkHScrollBar_SetRange", get="" },
   { name="Position", kind="int", set="tkHScrollBar_SetPos", get="tkHScrollBar_GetPos" },
   { name="WheelStep", kind="int", set="tkHScrollBar_SetWheelStep", get="tkHScrollBar_GetWheelStep" },
-  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkHScrollBar_SetRange", get="" },
   { name="Colors", kind="list", enum="Back:color,Fore:color,ForeHot:color", set="tkHScrollBar_SetColors", get="" },
 ]
 events = [
@@ -1275,6 +1368,7 @@ module = "tkCodeEdit"
 category = "Other"
 width = 320
 height = 200
+bind = { kind="text", get="tkCodeEdit_GetText", set="tkCodeEdit_SetText" }
 default_event = "Change"
 props = [
   { name="Text", kind="text", set="tkCodeEdit_SetText", get="tkCodeEdit_GetText" },

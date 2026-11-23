@@ -1,0 +1,329 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkTimePanel -- the time core (TIMEPICKER.md phase T0): TKTIME's helpers, ISO and lenient
+' parsing, and the pattern engine (segments, formatting). Pure functions, no widget. The types
+' (TKTIME, TKTIME_SEGMENT, TKTP_SEG_*) are in tkTimePanel.tiko, which sorts before this file.
+' Pad2_ / Pad3_ are module-wide: the panel's labels use them.
+#module "tkTimePanel"
+
+#import "../tkHost"
+using tkHost
+
+' ==========================================================================================
+' T0 -- the time core (pure functions)
+' ==========================================================================================
+function Pad2_( byval n as long ) as string
+    return iif( n < 10, "0" & str( n ), str( n ) )
+end function
+
+function Pad3_( byval n as long ) as string
+    if n < 10 then return "00" & str( n )
+    if n < 100 then return "0" & str( n )
+    return str( n )
+end function
+
+function IsDigits_( byref t as const string ) as boolean
+    if len( t ) = 0 then return false
+    for i as long = 1 to len( t )
+        dim as long c = asc( t, i )
+        if (c < 48) orelse (c > 57) then return false
+    next
+    return true
+end function
+
+public function tkTimePanel_EmptyTime() as TKTIME
+    dim as TKTIME t
+    return t
+end function
+
+public function tkTimePanel_IsTime( byref t as const TKTIME ) as boolean
+    if (t.wHour < 0) orelse (t.wHour > 23) then return false
+    if (t.wMinute < 0) orelse (t.wMinute > 59) then return false
+    if (t.wSecond < 0) orelse (t.wSecond > 59) then return false
+    if (t.wMilliseconds < 0) orelse (t.wMilliseconds > 999) then return false
+    return true
+end function
+
+' A time from its parts; any part out of range gives the empty time.
+public function tkTimePanel_MakeTime( byval hh as long, byval mi as long, byval ss as long = 0, byval ms as long = 0 ) as TKTIME
+    dim as TKTIME t
+    t.wHour = hh : t.wMinute = mi : t.wSecond = ss : t.wMilliseconds = ms
+    if tkTimePanel_IsTime( t ) then return t
+    return tkTimePanel_EmptyTime()
+end function
+
+' Milliseconds since midnight; -1 for no time. The comparison serial.
+public function tkTimePanel_TimeToMs( byref t as const TKTIME ) as long
+    if tkTimePanel_IsTime( t ) = false then return -1
+    return ((t.wHour * 60 + t.wMinute) * 60 + t.wSecond) * 1000 + t.wMilliseconds
+end function
+
+public function tkTimePanel_MsToTime( byval ms as long ) as TKTIME
+    if (ms < 0) orelse (ms >= TKTP_MS_PER_DAY) then return tkTimePanel_EmptyTime()
+    return tkTimePanel_MakeTime( ms \ 3600000, (ms \ 60000) mod 60, (ms \ 1000) mod 60, ms mod 1000 )
+end function
+
+' -1 / 0 / 1; no time sorts before every time.
+public function tkTimePanel_CompareTime( byref a as const TKTIME, byref b as const TKTIME ) as long
+    return sgn( tkTimePanel_TimeToMs( a ) - tkTimePanel_TimeToMs( b ) )
+end function
+
+public function tkTimePanel_SameTime( byref a as const TKTIME, byref b as const TKTIME ) as boolean
+    return tkTimePanel_TimeToMs( a ) = tkTimePanel_TimeToMs( b )
+end function
+
+' The local wall-clock time (SDL's clock, as tkCalendar_LocalToday).
+public function tkTimePanel_LocalNow() as TKTIME
+    dim as SDL_Time st
+    dim as SDL_DateTime dt
+    if SDL_GetCurrentTime( @st ) andalso SDL_TimeToDateTime( st, @dt, true ) then
+        return tkTimePanel_MakeTime( dt.hour, dt.minute, dt.second, dt.nanosecond \ 1000000 )
+    end if
+    return tkTimePanel_MakeTime( 12, 0 )
+end function
+
+' ISO 8601 24-hour text: HH:mm, HH:mm:ss, HH:mm:ss.fff. "" for no time.
+public function tkTimePanel_FormatIso( byref t as const TKTIME, byval bSeconds as boolean = true, byval bMs as boolean = false ) as ustring
+    if tkTimePanel_IsTime( t ) = false then return ""
+    dim as string r = Pad2_( t.wHour ) & ":" & Pad2_( t.wMinute )
+    if bSeconds orelse bMs then r &= ":" & Pad2_( t.wSecond )
+    if bMs then r &= "." & Pad3_( t.wMilliseconds )
+    return r
+end function
+
+' Strict ISO: HH:mm, HH:mm:ss or HH:mm:ss.f (one to nine fraction digits; milliseconds kept).
+public function tkTimePanel_ParseIso( byval sText as ustring, byref t as TKTIME ) as boolean
+    dim as string u = trim( sText )
+    dim as long n = len( u )
+    if (n <> 5) andalso (n <> 8) andalso (n < 10) then return false
+    if mid( u, 3, 1 ) <> ":" then return false
+    dim as string fr
+    if n >= 8 then
+        if mid( u, 6, 1 ) <> ":" then return false
+        if n >= 10 then
+            if mid( u, 9, 1 ) <> "." then return false
+            fr = mid( u, 10 )
+            if (len( fr ) > 9) orelse (IsDigits_( fr ) = false) then return false
+        end if
+    end if
+    dim as string sh = mid( u, 1, 2 ), sm = mid( u, 4, 2 ), ss = iif( n >= 8, mid( u, 7, 2 ), "00" )
+    if (IsDigits_( sh ) = false) orelse (IsDigits_( sm ) = false) orelse (IsDigits_( ss ) = false) then return false
+    dim as long ms = 0
+    if len( fr ) then ms = valint( left( fr & "00", 3 ) )
+    dim as TKTIME r = tkTimePanel_MakeTime( valint( sh ), valint( sm ), valint( ss ), ms )
+    if tkTimePanel_IsTime( r ) = false then return false
+    t = r
+    return true
+end function
+
+' Ends u with suffix x (both folded)? Then cut it off.
+function CutSuffix_( byref u as ustring, byref x as const ustring ) as boolean
+    dim as long k = len( x )
+    if (k = 0) orelse (len( u ) <= k) then return false
+    if right( u, k ) <> x then return false
+    u = rtrim( left( u, len( u ) - k ) )
+    return true
+end function
+
+' Lenient text, for pasting and typing (TIMEPICKER.md §5.1): 14:30, 14:30:05, 14:30:05.250, 14.30,
+' 1430, 930, 2:30 pm, 2:30pm, 2pm, 2 p, 12 am (= 00:00), and the host's designators. Refuses,
+' never guesses: minutes and seconds take exactly two digits.
+public function tkTimePanel_ParseLoose( byval sText as ustring, byref t as TKTIME, _
+                                        byval sAm as ustring = "AM", byval sPm as ustring = "PM" ) as boolean
+    dim as ustring u = lcase( trim( sText ) )
+    if len( u ) = 0 then return false
+    dim as long ampm = 0                                   ' 1 am, 2 pm
+    dim as ustring am = lcase( trim( sAm ) ), pm = lcase( trim( sPm ) )
+    if CutSuffix_( u, am ) then
+        ampm = 1
+    elseif CutSuffix_( u, pm ) then
+        ampm = 2
+    elseif CutSuffix_( u, "a.m." ) then
+        ampm = 1
+    elseif CutSuffix_( u, "p.m." ) then
+        ampm = 2
+    elseif CutSuffix_( u, "am" ) then
+        ampm = 1
+    elseif CutSuffix_( u, "pm" ) then
+        ampm = 2
+    elseif CutSuffix_( u, "a" ) then
+        ampm = 1
+    elseif CutSuffix_( u, "p" ) then
+        ampm = 2
+    end if
+    dim as string r = trim( u )
+    if len( r ) = 0 then return false
+    dim as string sh, sm = "00", ss = "00", fr
+    dim as long nParts = 0
+    if instr( r, ":" ) then
+        ' h:mm, h:mm:ss, h:mm:ss.f
+        dim as long p1 = instr( r, ":" ), p2 = instr( p1 + 1, r, ":" )
+        sh = left( r, p1 - 1 )
+        if p2 then
+            sm = mid( r, p1 + 1, p2 - p1 - 1 )
+            ss = mid( r, p2 + 1 )
+            dim as long pd = instr( ss, "." )
+            if pd then fr = mid( ss, pd + 1 ) : ss = left( ss, pd - 1 ) : if IsDigits_( fr ) = false then return false
+            nParts = 3
+        else
+            sm = mid( r, p1 + 1 )
+            nParts = 2
+        end if
+    elseif instr( r, "." ) then
+        ' h.mm, h.mm.ss
+        dim as long p1 = instr( r, "." ), p2 = instr( p1 + 1, r, "." )
+        sh = left( r, p1 - 1 )
+        if p2 then
+            sm = mid( r, p1 + 1, p2 - p1 - 1 )
+            ss = mid( r, p2 + 1 )
+        else
+            sm = mid( r, p1 + 1 )
+        end if
+        nParts = 2
+    else
+        if IsDigits_( r ) = false then return false
+        select case len( r )
+        case 1, 2 : sh = r
+        case 3    : sh = left( r, 1 ) : sm = mid( r, 2, 2 )
+        case 4    : sh = left( r, 2 ) : sm = mid( r, 3, 2 )
+        case 6    : sh = left( r, 2 ) : sm = mid( r, 3, 2 ) : ss = mid( r, 5, 2 )
+        case else : return false
+        end select
+        nParts = 1
+    end if
+    if (len( sh ) < 1) orelse (len( sh ) > 2) orelse (IsDigits_( sh ) = false) then return false
+    if (len( sm ) <> 2) orelse (IsDigits_( sm ) = false) then return false
+    if (len( ss ) <> 2) orelse (IsDigits_( ss ) = false) then return false
+    if len( fr ) > 9 then return false
+    dim as long hh = valint( sh )
+    if ampm then
+        if (hh < 1) orelse (hh > 12) then return false
+        if ampm = 1 then
+            if hh = 12 then hh = 0
+        else
+            if hh < 12 then hh += 12
+        end if
+    end if
+    dim as long ms = 0
+    if len( fr ) then ms = valint( left( fr & "00", 3 ) )
+    dim as TKTIME res = tkTimePanel_MakeTime( hh, valint( sm ), valint( ss ), ms )
+    if tkTimePanel_IsTime( res ) = false then return false
+    t = res
+    return true
+end function
+
+' ---- patterns ----------------------------------------------------------------------------------
+sub AddSeg_( segs() as TKTIME_SEGMENT, byref n as long, byval kind as long, byval nLen as long, byref text as const ustring )
+    if (kind = TKTP_SEG_LITERAL) andalso (n > 0) then
+        if segs( n - 1 ).kind = TKTP_SEG_LITERAL then segs( n - 1 ).text &= text : exit sub
+    end if
+    if n > ubound( segs ) then redim preserve segs( 0 to n + 7 )
+    segs( n ).kind = kind
+    segs( n ).nLen = nLen
+    segs( n ).text = text
+    n += 1
+end sub
+
+' The pattern as a segment table; returns the count (segs() is sized to at least that).
+public function tkTimePanel_ParsePattern( byref pattern as const ustring, segs() as TKTIME_SEGMENT ) as long
+    redim segs( 0 to 7 )
+    dim as long n = 0, i = 1, k = len( pattern )
+    while i <= k
+        dim as ustring c = mid( pattern, i, 1 )
+        if c = "'" then
+            ' quoted literal; '' is a quote
+            if mid( pattern, i + 1, 1 ) = "'" then
+                AddSeg_( segs(), n, TKTP_SEG_LITERAL, 0, "'" )
+                i += 2
+            else
+                dim as long j = instr( i + 1, pattern, "'" )
+                if j = 0 then j = k + 1
+                if j > i + 1 then AddSeg_( segs(), n, TKTP_SEG_LITERAL, 0, mid( pattern, i + 1, j - i - 1 ) )
+                i = j + 1
+            end if
+        else
+            dim as long kind = TKTP_SEG_LITERAL, maxLen = 2
+            select case c
+            case "H" : kind = TKTP_SEG_HOUR24
+            case "h" : kind = TKTP_SEG_HOUR12
+            case "m" : kind = TKTP_SEG_MINUTE
+            case "s" : kind = TKTP_SEG_SECOND
+            case "f" : kind = TKTP_SEG_FRACTION : maxLen = 3
+            case "t" : kind = TKTP_SEG_AMPM
+            end select
+            if kind = TKTP_SEG_LITERAL then
+                AddSeg_( segs(), n, TKTP_SEG_LITERAL, 0, c )
+                i += 1
+            else
+                dim as long nRun = 1
+                while (i + nRun <= k) andalso (mid( pattern, i + nRun, 1 ) = c) andalso (nRun < maxLen)
+                    nRun += 1
+                wend
+                AddSeg_( segs(), n, kind, nRun, "" )
+                i += nRun
+            end if
+        end if
+    wend
+    return n
+end function
+
+' One segment of t as text (t must be a time).
+public function tkTimePanel_SegmentText( byval kind as long, byval nLen as long, byref t as const TKTIME, _
+                                         byval sAm as ustring = "AM", byval sPm as ustring = "PM" ) as ustring
+    select case kind
+    case TKTP_SEG_HOUR24
+        return iif( nLen >= 2, Pad2_( t.wHour ), str( t.wHour ) )
+    case TKTP_SEG_HOUR12
+        dim as long h12 = t.wHour mod 12
+        if h12 = 0 then h12 = 12
+        return iif( nLen >= 2, Pad2_( h12 ), str( h12 ) )
+    case TKTP_SEG_MINUTE
+        return iif( nLen >= 2, Pad2_( t.wMinute ), str( t.wMinute ) )
+    case TKTP_SEG_SECOND
+        return iif( nLen >= 2, Pad2_( t.wSecond ), str( t.wSecond ) )
+    case TKTP_SEG_FRACTION
+        select case nLen
+        case 1 : return str( t.wMilliseconds \ 100 )
+        case 2 : return Pad2_( t.wMilliseconds \ 10 )
+        case else : return Pad3_( t.wMilliseconds )
+        end select
+    case TKTP_SEG_AMPM
+        dim as ustring des = iif( t.wHour < 12, sAm, sPm )
+        if nLen = 1 then return left( des, 1 )
+        return des
+    end select
+    return ""
+end function
+
+' t through the pattern; "" for no time.
+public function tkTimePanel_FormatPattern( byref t as const TKTIME, byref pattern as const ustring, _
+                                           byval sAm as ustring = "AM", byval sPm as ustring = "PM" ) as ustring
+    if tkTimePanel_IsTime( t ) = false then return ""
+    dim as TKTIME_SEGMENT segs( any )
+    dim as long n = tkTimePanel_ParsePattern( pattern, segs() )
+    dim as ustring r
+    for i as long = 0 to n - 1
+        if segs( i ).kind = TKTP_SEG_LITERAL then
+            r &= segs( i ).text
+        else
+            r &= tkTimePanel_SegmentText( segs( i ).kind, segs( i ).nLen, t, sAm, sPm )
+        end if
+    next
+    return r
+end function
+
+' ---- keys ------------------------------------------------------------------------------------
+' The digit a key types, 0-9, or -1: the keycode (top row, keypad), else the top row's PHYSICAL key
+' (scancode), so AZERTY's unshifted & é " ' ... row still types digits.
+public function tkTimePanel_KeyDigit( byval key as long, byval scancode as long = 0 ) as long
+    if (key >= SDLK_0) andalso (key <= SDLK_9) then return key - SDLK_0
+    if (key >= SDLK_KP_1) andalso (key <= SDLK_KP_9) then return key - SDLK_KP_1 + 1
+    if key = SDLK_KP_0 then return 0
+    if (scancode >= SDL_SCANCODE_1) andalso (scancode <= SDL_SCANCODE_9) then return scancode - SDL_SCANCODE_1 + 1
+    if scancode = SDL_SCANCODE_0 then return 0
+    return -1
+end function

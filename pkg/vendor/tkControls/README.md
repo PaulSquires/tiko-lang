@@ -56,6 +56,10 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
+| `tkBind` | the conversions a designed form's `LoadFrom` / `SaveTo` use to move record fields in and out of controls |
+| `tkAutoComplete` | a text box with a filter-as-you-type list of suggestions (stored items; the list never takes the keyboard focus) |
+| `tkMatch` | filter-as-you-type matching, no SDL: prefix, word-prefix, contains and fuzzy (fzy) with highlight runs, narrowing, ranked and capped filters |
+| `tkSlider` | a value on a track (or a lower and upper value, range mode): horizontal or vertical, ticks and labels, a value tip, jump or page clicks; the designer's Slider |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla

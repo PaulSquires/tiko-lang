@@ -95,6 +95,9 @@ public type CanvasPickFunc as function( byval host_ as any ptr, byval c as FormC
 ' character ("" for none); the theme's glyph font may have changed by then (GLYPHS.md, GQ1 = A).
 public type CanvasGlyphFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref current as const ustring, _
                                          byref picked as ustring ) as boolean
+' The fields of a record type, for a control's Bind row (B1): "Name,Phone,Address.City", in the type's
+' order; "" when the host knows no such type (nothing scanned yet, or no host). Never modal.
+public type CanvasFieldsFunc as function( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref typeName as const ustring ) as ustring
 public type CanvasRenameSub as sub( byval host_ as any ptr, byval c as FormCanvas_ ptr, byref oldName as const ustring, byref newName as const ustring )
 ' Controls just dragged over a container that isn't their parent: true moves them into it. what is
 ' the one control's name (count 1) or empty; page is a tab control's page caption, else "".
@@ -174,6 +177,7 @@ public type FormCanvas
     OnEditLanguages as CanvasWireSub    ' Translatable's "...": the project's Languages, this form's keys first
     OnPickResource as CanvasPickFunc    ' a file property's "...": the Resource Center
     OnPickGlyph as CanvasGlyphFunc      ' a glyph property's "...": the Glyph Picker
+    OnFields as CanvasFieldsFunc        ' a Bind row's "...": the fields of the form's DataType
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
     OnHandlerRenamed as CanvasHandlerRenameFunc ' true: the code's body (and its uses) now go by the new name
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set
