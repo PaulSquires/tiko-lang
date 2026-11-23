@@ -27,11 +27,13 @@
 #import "../tkTheme" public
 #import "../tkPopupMenu" public
 #import "../tkTextBox" public
+#import "../tkMatch" public
 using tkHost
 using tkPaint
 using tkTheme
 using tkPopupMenu
 using tkTextBox
+using tkMatch
 
 private function AcCell( byval p as TKAUTOCOMPLETE_STATE ptr ) as long
     return tkHost_Scale( p->hWin->pHost, TKAUTOCOMPLETE_GLYPHCELL )
@@ -246,6 +248,128 @@ sub AcClearByUser( byval p as TKAUTOCOMPLETE_STATE ptr )
     tkHost_SetFocus( p->hWin->pHost, p->wEdit )
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, false )
     AcSearchNow( p )
+end sub
+
+
+' ==========================================================================================
+' The list's rows (moved from tkAutoComplete.tiko in A4)
+' ==========================================================================================
+' ---- painting --------------------------------------------------------------------------------
+' text with its runs in matchFore (and the bold font), cut with an ellipsis when it overflows rc.
+private sub AcPaintRuns( byval p as TKAUTOCOMPLETE_STATE ptr, byval b as TK_PAINT ptr, byval f as TTF_Font ptr, _
+                         byref s as ustring, runs() as TKMATCH_RUN, byval nRuns as long, _
+                         byref rc as TKRECT, byval fore as ulong, byval matchFore as ulong )
+    b->SetFont( f )
+    b->SetForeColor( fore )
+    if nRuns = 0 then
+        b->PaintText( s, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        exit sub
+    end if
+    dim as long avail = rc.right - rc.left
+    if avail <= 0 then exit sub
+    ' how many characters show: all, or as many as fit before an ellipsis
+    dim as long nShow = len( s )
+    dim as ustring ell = wchr( &h2026 )
+    dim as boolean bCut = tkText_Width( f, s ) > avail
+    if bCut then
+        dim as long room = avail - tkText_Width( f, ell )
+        dim as long lo = 0, hi = len( s )
+        while lo < hi
+            dim as long m = (lo + hi + 1) \ 2
+            if tkText_Width( f, left( s, m ) ) <= room then
+                lo = m
+            else
+                hi = m - 1
+            end if
+        wend
+        nShow = lo
+    end if
+    dim as long pos_ = 0, k = 0
+    while pos_ < nShow
+        dim as long segEnd = nShow, bMatch = 0
+        if k < nRuns then
+            if runs(k).first <= pos_ then
+                bMatch = 1
+                segEnd = runs(k).first + runs(k).count
+                k += 1
+            else
+                segEnd = runs(k).first
+            end if
+        end if
+        if segEnd > nShow then segEnd = nShow
+        if segEnd > pos_ then
+            dim as TKRECT r = rc
+            r.left = rc.left + tkText_Width( f, left( s, pos_ ) )
+            dim as TTF_Font ptr fs = f
+            if bMatch andalso p->bMatchBold andalso (p->pBold <> 0) then fs = p->pBold
+            b->SetFont( fs )
+            b->SetForeColor( iif( bMatch, matchFore, fore ) )
+            b->PaintText( mid( s, pos_ + 1, segEnd - pos_ ), @r, TK_DT_LEFT )
+        end if
+        pos_ = segEnd
+    wend
+    if bCut then
+        dim as TKRECT r = rc
+        r.left = rc.left + tkText_Width( f, left( s, nShow ) )
+        b->SetFont( f )
+        b->SetForeColor( fore )
+        b->PaintText( ell, @r, TK_DT_LEFT )
+    end if
+end sub
+
+sub AcListPaint( byval p as TKAUTOCOMPLETE_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TK_WIDGET ptr w = p->wList
+    dim as TKRECT rcAll
+    tkRect_Set( rcAll, 0, 0, w->cw, w->ch )
+    b->SetBackColor( p->colors.ListBackColor )
+    b->PaintRect( @rcAll )
+    dim as TTF_Font ptr f = AcFont( p )
+    dim as long pad = AcSc( p, TKAUTOCOMPLETE_ROWPAD ), gap = AcSc( p, TKAUTOCOMPLETE_DETAILGAP )
+    dim as TKMATCH_RUN runs()
+    for v as long = 0 to AcVisRows( p ) - 1
+        dim as long row = p->nTop + v
+        dim as TKRECT r
+        if AcRowRect( p, row, r ) = false then continue for
+        dim as TKRECT rt = r
+        rt.left += pad : rt.right -= pad
+        if row >= p->nShown then
+            b->SetFont( f )
+            b->SetForeColor( p->colors.DetailForeColor )
+            b->PaintText( AcStatusText( p ), @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
+            continue for
+        end if
+        dim as ustring rowText = AcRowText( p, row ), rowDetail = AcRowDetail( p, row )
+        dim as ulong fore = p->colors.ListForeColor, matchFore = p->colors.MatchForeColor
+        dim as ulong detailFore = p->colors.DetailForeColor
+        if AcRowEnabled( p, row ) = false then
+            fore = p->colors.ListForeColorDisabled : matchFore = fore : detailFore = fore
+        elseif row = p->nHot then
+            b->SetBackColor( p->colors.ListBackColorHot )
+            b->PaintRect( @r )
+            fore = p->colors.ListForeColorHot : matchFore = fore : detailFore = fore
+        end if
+        ' the detail, right-aligned, given at most what the text leaves (and never over half)
+        if len( rowDetail ) then
+            dim as long avail = rt.right - rt.left
+            dim as long dw = tkText_Width( f, rowDetail )
+            dim as long tw = tkText_Width( f, rowText )
+            dim as long room = avail - tw - gap
+            if room < avail \ 2 then room = avail \ 2
+            if dw > room then dw = room
+            if dw > 0 then
+                dim as TKRECT rd = rt
+                rd.left = rt.right - dw
+                b->SetFont( f )
+                b->SetForeColor( detailFore )
+                b->PaintText( rowDetail, @rd, TK_DT_RIGHT or TK_DT_ELLIPSIS )
+                rt.right = rd.left - gap
+            end if
+        end if
+        dim as long nRuns = tkMatch_Runs( p->q, rowText, AcRowKey( p, row ), runs(), @p->work )
+        AcPaintRuns( p, b, f, rowText, runs(), nRuns, rt, fore, matchFore )
+    next
+    b->SetPenColor( p->colors.ListBorderColor )
+    b->PaintRoundOutline( @rcAll, 0, AcBorder( p ) )
 end sub
 
 

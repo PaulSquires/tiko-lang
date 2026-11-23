@@ -1,4 +1,4 @@
-' tkAutoComplete self-test (phases A1 to A3): silent setters and the item store; typing opens and narrows
+' tkAutoComplete self-test (phases A1 to A4): silent setters and the item store; typing opens and narrows
 ' the list while the EDIT keeps the focus and the popup is not focusable; keys and characters sent
 ' to the open list reach the edit; the popup is reused while its row count holds and replaced when
 ' it changes; the arrows, paging, preview and Escape; commit (order of events), submit, Tab; the
@@ -8,7 +8,8 @@
 ' accelerator; focus loss. A2: the search face -- glyph and clear cells and the text's margins,
 ' the clear button's showing, hover and click, Search's debounce, Enter, Escape, commit, the glyph
 ' font. A3: APPEND and SUGGESTAPPEND (completion, overtyping, Backspace, Escape, case, caret), the
-' LimitToList value (NotInList's three answers, full matches, emptying, ids), the drop button. One
+' LimitToList value (NotInList's three answers, full matches, emptying, ids), the drop button. A4:
+' the callback and async feeds (stale answers, the status row, cancel), a source, SetSelectedItem. One
 ' check per distinct behaviour, one run at 1.75; every input is a pushed SDL event.
 '
 '   selftest            exit code = number of failures
@@ -798,6 +799,120 @@ sub ValuePass( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+' ==========================================================================================
+' A4: the feeds (callback, async), a source, SetSelectedItem
+' ==========================================================================================
+dim shared as long gNeeded, gPopulates, gLastReq
+dim shared as ustring gNeededQuery
+dim shared as ustring gCities( 0 to 7 )
+dim shared as long gCityCount
+
+sub OnItemsNeeded( byval h as TK_WIDGET ptr, byref query as const ustring )
+    gNeeded += 1 : gNeededQuery = query
+    ' the host's own filter: rows containing the query
+    dim as ustring names_( 0 to 4 )
+    names_(0) = "Rome" : names_(1) = "Romania" : names_(2) = "Roma Termini" : names_(3) = "Oslo" : names_(4) = "Rotterdam"
+    tkAutoComplete_ClearResults( h )
+    for i as long = 0 to 4
+        if instr( lcase( names_(i) ), lcase( query ) ) > 0 then tkAutoComplete_AddResult( h, names_(i), 1000 + i, "city" )
+    next
+end sub
+
+sub OnPopulate( byval h as TK_WIDGET ptr, byref query as const ustring, byval requestId as long )
+    gPopulates += 1 : gLastReq = requestId
+end sub
+
+function SrcCount( byval pCtx as any ptr ) as integer
+    return gCityCount
+end function
+function SrcText( byval pCtx as any ptr, byval i as integer ) as ustring
+    return gCities(i)
+end function
+function SrcId( byval pCtx as any ptr, byval i as integer ) as longint
+    return 500 + i
+end function
+
+sub FeedPass( byval fScale as single )
+    tkTest_Begin( "feeds " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkAutoComplete feeds", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as TK_WIDGET ptr ac = tkAutoComplete_Create( tkHost_Root( h ), 40 )
+    tkWidget_SetPos( ac, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 280 ), tkHost_Scale( h, 32 ) )
+    dim as TK_WIDGET ptr other = tkTextBox_Create( tkHost_Root( h ), 41, false )
+    tkWidget_SetPos( other, tkHost_Scale( h, 360 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 32 ) )
+    dim as TK_WIDGET ptr ed = tkAutoComplete_GetEditHandle( ac )
+    gKeepAc = ac
+    tkAutoComplete_SetItemSelectedCallback( ac, @OnSelected )
+    tkAutoComplete_SetDropDownCallback( ac, @OnDrop )
+    tkAutoComplete_SetNotInListCallback( ac, @OnNotInList )
+
+    ' ---- the synchronous feed ----
+    tkAutoComplete_SetItemsNeededCallback( ac, @OnItemsNeeded )
+    Fresh( h, ac )
+    gNeeded = 0
+    TypeText( h, "ro" )
+    dim as boolean bWaited = (gNeeded = 0)
+    tkTest_PumpFor( h, 350 )
+    tkTest_Check( "a feed's default debounce: nothing while typing, one call after", bWaited andalso (gNeeded = 1) andalso (gNeededQuery = "ro"), str( gNeeded ) )
+    tkTest_Check( "the host's rows are the list, not items", tkAutoComplete_IsDroppedDown( ac ) andalso (tkAutoComplete_GetResultCount( ac ) = 4) andalso _
+        (tkAutoComplete_GetResultItem( ac, 0 ) = -1) andalso (tkAutoComplete_GetResultText( ac, 1 ) = "Romania") andalso (tkAutoComplete_GetResultId( ac, 1 ) = 1001) )
+    Key( h, SDLK_DOWN )
+    ResetLog( )
+    Key( h, SDLK_RETURN )
+    tkTest_Check( "a supplied row committed: its text, its id the value, no item index", (tkAutoComplete_GetText( ac ) = "Rome") andalso _
+        (tkAutoComplete_GetSelectedIndex( ac ) = -1) andalso (tkAutoComplete_GetSelectedId( ac ) = 1000) andalso (gLog = "C;I-1;"), gLog )
+    tkAutoComplete_SetDelay( ac, 0 )
+    tkAutoComplete_SetItemsNeededCallback( ac, 0 )
+
+    ' ---- the asynchronous feed ----
+    tkAutoComplete_SetPopulateCallback( ac, @OnPopulate )
+    Fresh( h, ac )
+    gPopulates = 0
+    TypeText( h, "os" )
+    dim as long req2 = gLastReq
+    tkTest_Check( "Populate per change; the list shows only the status row", (gPopulates = 2) andalso tkAutoComplete_IsDroppedDown( ac ) andalso _
+        (tkAutoComplete_GetResultCount( ac ) = 0) andalso (tkAutoComplete_GetPendingRequest( ac ) = req2) )
+    tkTest_Check( "a stale answer is refused", tkAutoComplete_BeginSupply( ac, req2 - 1 ) = false )
+    if tkAutoComplete_BeginSupply( ac, req2 ) then
+        tkAutoComplete_AddResult( ac, "Oslo", 7, "Norway" )
+        tkAutoComplete_EndSupply( ac )
+    end if
+    KeepUp( )
+    tkTest_Check( "the awaited answer shows, the status row goes", (tkAutoComplete_GetResultCount( ac ) = 1) andalso _
+        (tkAutoComplete_GetPendingRequest( ac ) = 0) andalso tkAutoComplete_IsDroppedDown( ac ) )
+    TypeText( h, "l" )
+    dim as long req3 = gLastReq
+    tkTest_Check( "a new request keeps the last rows up under the status row", (tkAutoComplete_GetResultCount( ac ) = 1) andalso _
+        (tkAutoComplete_GetPendingRequest( ac ) = req3) andalso (req3 <> req2) )
+    tkAutoComplete_CancelPending( ac )
+    tkTest_Check( "CancelPending makes the id stale", (tkAutoComplete_GetPendingRequest( ac ) = 0) andalso (tkAutoComplete_BeginSupply( ac, req3 ) = false) )
+    Key( h, SDLK_ESCAPE )
+    tkAutoComplete_SetPopulateCallback( ac, 0 )
+
+    ' ---- a source ----
+    gCities(0) = "Lima" : gCities(1) = "Lisbon" : gCities(2) = "London" : gCityCount = 3
+    dim as TKAUTOCOMPLETE_SOURCE src
+    src.Count = @SrcCount : src.GetText = @SrcText : src.GetId = @SrcId
+    tkAutoComplete_SetSource( ac, @src )
+    gCities(3) = "Luanda" : gCityCount = 4
+    tkAutoComplete_SourceChanged( ac )
+    tkTest_Check( "a source fills the items, SourceChanged re-reads it", (tkAutoComplete_GetCount( ac ) = 4) andalso _
+        (tkAutoComplete_FindItemById( ac, 503 ) = 3) andalso (tkAutoComplete_GetItemText( ac, 1 ) = "Lisbon") )
+
+    ' ---- SetSelectedItem: a value the items do not hold ----
+    tkAutoComplete_SetValuePolicy( ac, TKAC_VALUE_LIMITTOLIST )
+    ResetLog( ) : gNil = 0
+    tkAutoComplete_SetSelectedItem( ac, 55, "Zanzibar" )
+    tkHost_SetFocus( h, ac )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "SetSelectedItem: silent, and the value stands on leaving (no NotInList)", (tkAutoComplete_GetSelectedId( ac ) = 55) andalso _
+        (tkAutoComplete_GetText( ac ) = "Zanzibar") andalso (gNil = 0) andalso (gLog = ""), gLog )
+    gKeepAc = 0
+    tkHost_Destroy( h )
+end sub
+
 if tkTest_Init() = false then end 99
 ' ONE run, at 1.75: scaled geometry is the stricter test (a missing tkHost_Scale shows there, not at
 ' 1.0), and the behaviour checks do not depend on the scale (the author's "one check per distinct
@@ -805,6 +920,7 @@ if tkTest_Init() = false then end 99
 RunPass( 1.75 )
 SearchPass( 1.75 )
 ValuePass( 1.75 )
+FeedPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkAutoComplete" )
 tkTest_Quit()
 end nFail
