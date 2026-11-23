@@ -76,7 +76,9 @@ Hover and selection styling is yours: decide the state, set the colours, then pa
 
 Every call is clipped to the widget, and to any ancestor that clips its children. `SetClipRect` narrows that to a rect until `ResetClip`; each call replaces the last. `PushClip` intersects with the clip in force and `PopClip` restores it, nesting up to eight deep; `ResetClip` also empties that stack.
 
-`PaintImage( tex, rc, fit )` draws an `SDL_Texture`, clipped to `rc`: `TK_IMGFIT_ASPECT` fits it inside, centred, with its proportions kept, `_STRETCH` fills `rc` exactly, `_CENTER` draws it centred at natural size. For an image file, use [tkImage](tkImage)'s `tkImage_Paint`, which makes the texture for you.
+`PaintImage( tex, rc, fit )` draws an `SDL_Texture`, clipped to `rc`: `TK_IMGFIT_ASPECT` fits it inside, centred, with its proportions kept, `_STRETCH` fills `rc` exactly, `_CENTER` draws it centred at natural size, `_COVER` fills `rc` with its proportions kept, centred, cropping what overflows.
+
+`PaintImageShape( tex, rc, curvature, fit, alpha )` draws the image inside a rounded rect, anti-aliased like every other shape: `curvature` is a diameter as elsewhere (0 = square corners; at least the shorter side = an ellipse, so a circle in a square box: a round photo). `fit` defaults to `TK_IMGFIT_COVER`; the shape is the image's own drawn rect inside `rc` (all of `rc` for COVER and STRETCH, the fitted image for ASPECT). `alpha` 0..255 is the opacity. The clip in force is honoured. For an image file, use [tkImage](tkImage)'s `tkImage_Paint`, which makes the texture for you.
 
 ## Recording
 
@@ -105,6 +107,7 @@ enum
     TK_IMGFIT_ASPECT = 0      ' fit inside, proportions kept, centred
     TK_IMGFIT_STRETCH         ' fill exactly
     TK_IMGFIT_CENTER          ' natural size, centred, clipped
+    TK_IMGFIT_COVER           ' fill the box, proportions kept, centred; the overflow cropped
 end enum
 
 enum
@@ -224,6 +227,7 @@ type TK_PAINT
     declare sub PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval clr as ulong )
     declare sub PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
     declare sub PlayOp( byref o as TK_RECOP )
+    declare sub PaintImageShape( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval curvature as long = 0, byval nFit as long = TK_IMGFIT_COVER, byval nAlpha as long = 255 )
 end type
 ```
 

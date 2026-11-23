@@ -808,7 +808,11 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
     o &= " )" & NL
 
     ' a component (a Timer) is never shown: nothing to lay out
-    if m->Visual then
+    ' an attached Badge (D-B3) is placed by its target, not by the layout
+    dim as boolean attached = (c.TypeName = catalog.BADGE_TYPE) andalso (len( c.AttachTo ) > 0)
+    if m->Visual andalso attached then
+        ' its Attach comes once every control exists (below, with the context menus)
+    elseif m->Visual then
         o &= "    tkLayout_Add( Layout, " & c.Name & ".Handle, " & c.X & ", " & c.Y & ", " & c.W & ", " & c.H
         if (c.Anchor <> TK_ANCHOR_DEFAULT) orelse (c.Dock <> TK_DOCK_NONE) then o &= ", " & AnchorExpr_( c.Anchor )
         if c.Dock <> TK_DOCK_NONE then o &= ", " & DockExpr_( c.Dock )
@@ -1761,6 +1765,15 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         if len( c.ContextMenu ) then o &= "    tkContextMenu_Attach( " & c.ContextMenu & ".Handle, " & c.Name & ".Handle )" & NL
     next
     if len( doc.ContextMenu ) then o &= "    tkContextMenu_Attach( " & doc.ContextMenu & ".Handle, tkForm_Widget( Handle ) )" & NL
+    ' badges on their targets, once both exist (D-B3)
+    for each c as FormControl in doc.Controls
+        if (c.TypeName = catalog.BADGE_TYPE) andalso (len( c.AttachTo ) > 0) then
+            dim as long dx, dy
+            catalog.BadgeOffset( c.AttachOffset, dx, dy )
+            o &= "    tkBadge_Attach( " & c.Name & ".Handle, " & c.AttachTo & ".Handle, " & catalog.BadgeCornerConst( c.AttachCorner ) _
+               & ", " & dx & ", " & dy & ", " & iif( catalog.BadgeOverlapIsCircle( c.AttachOverlap ), "TKBADGE_OVERLAP_CIRCLE", "TKBADGE_OVERLAP_RECT" ) & " )" & NL
+        end if
+    next
     o &= "    tkLayout_Apply( Layout )" & NL
     dim as long i = FindSetting( doc.Events, "Load" )
     if i >= 0 then o &= "    " & doc.Events[i].Value & "( )" & NL

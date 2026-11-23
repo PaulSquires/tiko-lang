@@ -2900,6 +2900,72 @@ sub AutoCompleteSuite( )
     HasLine( g, "tkAutoComplete_AddItem( acCity.Handle, ""Oslo"" )", "autocomplete: a design-time item" )
 end sub
 
+' Rating, Badge, Avatar, AvatarGroup, Chip, ChipGroup (claude-docs RATING-BADGE-AVATAR-CHIP.md, phase D):
+' their bind lines, the load-only ones not saved, ChipGroup's bind2, the props' order, an answering event.
+sub RbacSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""crm.Contact""" & LF & "data_module = ""../crm""" & LF
+    dim as ustring src = hdr _
+        & Ctl( "rtg", "Rating", "bind = ""Stars""" & LF ) & LF & "[control.props]" & LF & "Value = 4" & LF & "ItemCount = 10" & LF _
+        & Ctl( "bdg", "Badge", "bind = ""Unread""" & LF ) & LF & "[control.props]" & LF & "Kind = ""Count""" & LF & "Text = ""x""" & LF _
+        & Ctl( "avt", "Avatar", "bind = ""FullName""" & LF & "bind2 = ""PhotoPath""" & LF ) _
+        & Ctl( "avg", "AvatarGroup" ) _
+        & Ctl( "chp", "Chip", "bind = ""Vip""" & LF ) & LF & "[control.props]" & LF & "Kind = ""Toggle""" & LF _
+        & Ctl( "chg", "ChipGroup", "bind = ""Picked""" & LF & "bind2 = ""Tags""" & LF ) & LF & "[control.events]" & LF & "ItemRemoving = ""chg_Removing""" & LF
+    Accepted( src, "rbac: the six controls, bound" )
+    dim as FormDoc d
+    ReadForm( src, d )
+    dim as ustring g = codegen.Generate( d, "frmC", "frmC.tkform", src )
+    HasLine( g, "tkRating_SetValue( rtg.Handle, tkBind_Float( r.Stars ) )", "rbac: Rating loads a float" )
+    HasLine( g, "tkBind_Put( r.Stars, cdbl( tkRating_GetValue( rtg.Handle ) ) )", "rbac: Rating saves it" )
+    HasLine( g, "tkBadge_SetCount( bdg.Handle, tkBind_Int( r.Unread ) )", "rbac: Badge loads its count" )
+    Check( instr( g, "tkBind_Put( r.Unread" ) = 0, "rbac: ...load only, never saved" )
+    HasLine( g, "tkAvatar_SetDisplayName( avt.Handle, tkBind_Text( r.FullName ) )", "rbac: Avatar loads the name" )
+    HasLine( g, "tkAvatar_SetImageFile( avt.Handle, tkBind_Text( r.PhotoPath ) )", "rbac: ...and the picture (BindImage)" )
+    Check( instr( g, "tkBind_Put( r.FullName" ) = 0, "rbac: the name is load only" )
+    HasLine( g, "tkChip_SetSelected( chp.Handle, tkBind_Bool( r.Vip ) )", "rbac: Chip loads a bool" )
+    HasLine( g, "tkBind_Put( r.Vip, tkChip_GetSelected( chp.Handle ) )", "rbac: Chip saves it" )
+    dim as long l1 = instr( g, "tkChipGroup_SetSelectedKeys( chg.Handle, tkBind_Text( r.Picked ) )" )
+    dim as long l2 = instr( g, "tkChipGroup_SetItemsText( chg.Handle, tkBind_Text( r.Tags ) )" )
+    Check( (l1 > 0) andalso (l2 > l1), "rbac: ChipGroup loads its keys, then its items (they commute)", LineWith( g, "chg.Handle" ) )
+    HasLine( g, "tkBind_Put( r.Tags, tkChipGroup_GetItemsText( chg.Handle ) )", "rbac: ChipGroup saves its items" )
+    dim as long nCount = instr( g, "    rtg.ItemCount = 10" ), nVal = instr( g, "    rtg.Value = 4" )
+    Check( (nCount > 0) andalso (nVal > nCount), "rbac: Rating's ItemCount before its Value", nCount & " " & nVal )
+    dim as long nText = instr( g, "    bdg.Text = ""x""" ), nKind = instr( g, "    bdg.Kind = TKBADGE_KIND_COUNT" )
+    Check( (nText > 0) andalso (nKind > nText), "rbac: Badge's Kind after its content", nText & " " & nKind )
+    HasLine( g, "chp.Kind = TKCHIP_TOGGLE", "rbac: an enum prop is its constant" )
+    HasLine( g, "bdg.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )", "rbac: a glyph-drawing control gets the form's glyph font" )
+    Check( instr( g, "    dim as boolean Allow = true" & LF ) > 0, "rbac: ItemRemoving's Allow starts true" )
+
+    ' a Badge hung on another control (D-B3), and an AvatarGroup's designed items
+    dim as ustring sa = Header( ) _
+        & Ctl( "bdgA", "Badge", "attach_to = ""btnIn""" & LF & "attach_corner = ""BottomLeft""" & LF & "attach_offset = ""2,-3""" & LF & "attach_overlap = ""Circle""" & LF ) _
+        & Ctl( "btnIn", "Button" ) _
+        & Ctl( "avgI", "AvatarGroup" ) & LF & "[[control.items]]" & LF & "text = ""Ada Lovelace""" & LF & LF & "[[control.items]]" & LF & "text = ""Alan Turing""" & LF
+    Accepted( sa, "attach: a Badge on a Button, and a group's items" )
+    dim as FormDoc da
+    ReadForm( sa, da )
+    dim as FormDoc da2
+    ReadForm( formfile.Render( da ), da2 )
+    Check( formfile.Render( da2 ) = formfile.Render( da ) andalso da2.Controls[0].AttachTo = "btnIn" andalso da2.Controls[0].AttachOffset = "2,-3", _
+           "attach: the four attach keys round-trip" )
+    dim as ustring ga = codegen.Generate( da, "frmA", "frmA.tkform", sa )
+    dim as long nAt = instr( ga, "    tkBadge_Attach( bdgA.Handle, btnIn.Handle, TKBADGE_BOTTOM_LEFT, 2, -3, TKBADGE_OVERLAP_CIRCLE )" )
+    Check( (nAt > instr( ga, "btnIn.Create(" )) andalso (instr( ga, "btnIn.Create(" ) > 0) andalso (instr( ga, "tkLayout_Add( Layout, bdgA.Handle" ) = 0), _
+           "attach: tkBadge_Attach once the target exists, and no layout entry for the badge", LineWith( ga, "bdgA" ) )
+    HasLine( ga, "tkAvatarGroup_AddItem( avgI.Handle, ""Alan Turing"" )", "attach: an AvatarGroup's designed items" )
+    Refused( Header( ) & Ctl( "bdgS", "Badge", "attach_to = ""bdgS""" & LF ), "can't attach to itself" )
+    Refused( Header( ) & Ctl( "b1", "Badge", "attach_to = ""b2""" & LF ) & Ctl( "b2", "Badge" ), "another Badge" )
+    Refused( Header( ) & Ctl( "b1", "Badge", "attach_to = ""nope""" & LF ), "which is not on the form" )
+    Refused( Header( ) & Ctl( "btnX", "Button", "attach_to = ""btnIn""" & LF ) & Ctl( "btnIn", "Button" ), "only a Badge attaches" )
+    Refused( Header( ) & Ctl( "b1", "Badge", "attach_to = ""btnIn""" & LF & "attach_offset = ""2""" & LF ) & Ctl( "btnIn", "Button" ), "AttachOffset is two whole numbers" )
+    edits.RenameControl( da, "btnIn", "btnInbox" )
+    dim as boolean renamed = (da.Controls[0].AttachTo = "btnInbox")
+    dim as Array( of ustring ) gone
+    gone.Push( "btnInbox" )
+    edits.DeleteControls( da, gone )
+    Check( renamed andalso (da.Controls[0].AttachTo = ""), "attach: a rename of the target follows; deleting it leaves the badge on nothing" )
+end sub
+
 sub NavSuite( )
     dim as ustring hdr = Header( ) & "data_type = ""pd.Person""" & LF & "data_module = ""../pd""" & LF
     dim as ustring lst = Ctl( "lstP", "ListTree", "items_source = ""People""" & LF & "item_type = ""pd.Person""" & LF ) _
@@ -3120,6 +3186,7 @@ RuleSuite( )
 ListSuite( )
 KeyedListSuite( )
 AutoCompleteSuite( )
+RbacSuite( )
 NavSuite( )
 DataGridSuite( bAccept )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"

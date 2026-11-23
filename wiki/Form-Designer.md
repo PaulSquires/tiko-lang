@@ -216,6 +216,12 @@ opens it too. An item's handler runs when it is chosen; the menu's **Popup** han
 it opens and is told which control it opens for (`sub Form.OnPopup( byval hSource as TK_WIDGET ptr )`),
 the moment to enable or check its items. See [tkContextMenu](tkContextMenu).
 
+A **Badge** can hang on another control: name it in the badge's **AttachTo** (any visual control of
+the form but a Badge), and pick **AttachCorner** (TopRight by default), **AttachOffset** (`dx,dy` in
+design units) and **AttachOverlap** (Rect, or Circle for a round target). The surface shows it on that
+corner, a click on it selects the badge, and its own position and size no longer count: the target
+places it. Renaming the target follows; deleting it leaves the badge on nothing. See [tkBadge](tkBadge).
+
 ## Your own controls
 
 The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel, give it the name of
@@ -352,6 +358,11 @@ end sub
 | NumericUpDown | the value |
 | Slider | the value; with **Mode** = Range, **Bind** takes the lower value and **BindUpper** the upper (loaded lower first, so any old pair loads right) |
 | CheckBox, OptionButton, Toggle | checked or not |
+| Rating | the value, a number (half or tenth stars where the rating allows them) |
+| Badge | the count, in only |
+| Avatar | the display name, in only (the initials and the colour come from it); **BindImage** moves the image file's path both ways |
+| Chip | selected or not |
+| ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives. With **AllowReorder**, BindItems saves the order the user left |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |
 | DatePicker | the date; a field with no date leaves the picker empty |

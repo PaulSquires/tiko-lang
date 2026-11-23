@@ -524,6 +524,26 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
             end if
         end if
 
+        ' a Badge hangs on another visual control of the form (D-B3); nothing else hangs
+        if len( c.AttachTo ) orelse len( c.AttachCorner ) orelse len( c.AttachOffset ) orelse len( c.AttachOverlap ) then
+            if c.TypeName <> catalog.BADGE_TYPE then
+                out_.Push( c.Name & ": only a Badge attaches to a control" )
+            elseif len( c.AttachTo ) then
+                dim as long t = FindControl( doc, c.AttachTo )
+                dim as long dx, dy
+                if t < 0 then
+                    out_.Push( c.Name & ": attaches to '" & c.AttachTo & "', which is not on the form" )
+                elseif t = i then
+                    out_.Push( c.Name & ": a Badge can't attach to itself" )
+                elseif doc.Controls[t].TypeName = catalog.BADGE_TYPE then
+                    out_.Push( c.Name & ": attaches to '" & c.AttachTo & "', another Badge" )
+                elseif catalog.IsComponent( doc.Controls[t].TypeName ) then
+                    out_.Push( c.Name & ": attaches to '" & c.AttachTo & "', a component, which is never shown" )
+                end if
+                if catalog.BadgeOffset( c.AttachOffset, dx, dy ) = false then out_.Push( c.Name & ": AttachOffset is two whole numbers: dx,dy" )
+            end if
+        end if
+
         ' a component (a Timer) is never shown: it belongs to the form, with nothing to lay out
         if catalog.IsComponent( c.TypeName ) then
             if len( c.Parent ) then out_.Push( c.Name & ": a " & m->Name & " belongs to the form, not inside '" & c.Parent & "'" )

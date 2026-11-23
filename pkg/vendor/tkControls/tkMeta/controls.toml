@@ -2105,3 +2105,310 @@ events = [
   { name="Exported", set="tkReportViewer_SetExportedCallback", type="RV_ExportedSub", sig="byval hViewer as TK_WIDGET ptr, byref path as ustring, byval bOk as boolean", params="byref path as ustring, byval bOk as boolean", args="path, bOk" },
   { name="BuildReport", set="tkReportViewer_SetBuildReportCallback", type="RV_BuildReportSub", sig="byval hViewer as TK_WIDGET ptr, byval rpt as TK_REPORT ptr", params="byval rpt as TK_REPORT ptr", args="rpt" },
 ]
+
+# ---- Rating, Badge, Avatar, AvatarGroup, Chip, ChipGroup (claude-docs docs/tkControls/RATING-BADGE-AVATAR-CHIP.md, phase D)
+
+[[control]]
+name = "Rating"
+module = "tkRating"
+category = "Common"
+width = 140
+height = 30
+bind = { kind="float", get="tkRating_GetValue", set="tkRating_SetValue" }
+default_event = "ValueChanged"
+colors = { struct="TKRATING_COLORS", get="tkRating_GetColors", theme="tkRating_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="FocusRingColor" },
+  { field="FillColor", part="Fill", state="Normal" },
+  { field="FillColorHot", part="Fill", state="Hot" },
+  { field="FillColorDisabled", part="Fill", state="Disabled" },
+  { field="EmptyColor", part="Empty", state="Normal" },
+  { field="EmptyColorHot", part="Empty", state="Hot" },
+  { field="EmptyColorDisabled", part="Empty", state="Disabled" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="BorderColorDisabled", part="Border", state="Disabled" },
+  { field="PlaceholderColor" },
+  { field="CaptionColor", part="Caption", state="Normal", ink=true },
+  { field="CaptionColorDisabled", part="Caption", state="Disabled", ink=true },
+]
+# ORDER MATTERS: Value and PlaceholderValue clamp to ItemCount, so it comes first.
+props = [
+  { name="ItemCount", kind="int", set="tkRating_SetItemCount", get="tkRating_GetItemCount", default="5" },
+  { name="Precision", kind="enum", enum="Full=TKRATING_FULL,Half=TKRATING_HALF,Tenth=TKRATING_TENTH", set="tkRating_SetPrecision", get="tkRating_GetPrecision", default="Full" },
+  { name="Value", kind="float", set="tkRating_SetValue", get="tkRating_GetValue" },
+  { name="PlaceholderValue", kind="float", set="tkRating_SetPlaceholderValue", get="tkRating_GetPlaceholderValue" },
+  { name="AllowClear", kind="bool", set="tkRating_SetAllowClear", get="tkRating_GetAllowClear", default="true" },
+  { name="ReadOnly", kind="bool", set="tkRating_SetReadOnly", get="tkRating_GetReadOnly", default="false" },
+  { name="HoverPreview", kind="bool", set="tkRating_SetHoverPreview", get="tkRating_GetHoverPreview", default="true" },
+  { name="ShowEmpty", kind="bool", set="tkRating_SetShowEmpty", get="tkRating_GetShowEmpty", default="true" },
+  { name="Shape", kind="enum", enum="Star=TKRATING_STAR,Heart=TKRATING_HEART,Circle=TKRATING_CIRCLE,Diamond=TKRATING_DIAMOND,Glyph=TKRATING_GLYPH", set="tkRating_SetShape", get="tkRating_GetShape", default="Star" },
+  { name="Glyphs", kind="list", enum="Filled:text,Empty:text", set="tkRating_SetGlyphs", get="" },
+  { name="GlyphFont", kind="font", set="tkRating_SetGlyphFont", get="" },
+  { name="Size", kind="enum", enum="Small=TKRATING_SIZE_SMALL,Medium=TKRATING_SIZE_MEDIUM,Large=TKRATING_SIZE_LARGE", set="tkRating_SetSize", get="tkRating_GetSize", default="Medium" },
+  { name="ItemSpacing", kind="int", set="tkRating_SetItemSpacing", get="tkRating_GetItemSpacing" },
+  { name="Caption", kind="text", set="tkRating_SetCaption", get="tkRating_GetCaption" },
+  { name="CaptionGap", kind="int", set="tkRating_SetCaptionGap", get="tkRating_GetCaptionGap" },
+  { name="Font", kind="font", set="tkRating_SetFont", get="tkRating_GetFont" },
+  { name="BorderThickness", kind="int", set="tkRating_SetBorderThickness", get="tkRating_GetBorderThickness", theme="BorderWidth", scale=1 },
+  { name="FocusRing", kind="list", enum="Gap:int,Thickness:int", set="tkRating_SetFocusRing", get="" },
+  { name="TooltipText", kind="text", set="tkRating_SetTooltipText", get="tkRating_GetTooltipText" },
+  { name="HoverTime", kind="int", set="tkRating_SetHoverTime", get="" },
+  { name="AutoPopTime", kind="int", set="tkRating_SetAutoPopTime", get="" },
+  { name="ReshowTime", kind="int", set="tkRating_SetReshowTime", get="" },
+]
+events = [
+  { name="ValueChanged", set="tkRating_SetValueChangedCallback", type="RTG_ValueChangedCallbackSub", sig="byval hRating as TK_WIDGET ptr, byval nValue as double", params="byval nValue as double", args="nValue" },
+  { name="HoverChanged", set="tkRating_SetHoverChangedCallback", type="RTG_HoverChangedCallbackSub", sig="byval hRating as TK_WIDGET ptr, byval nHover as double", params="byval nHover as double", args="nHover" },
+  { name="FormatCaption", set="tkRating_SetFormatCaptionCallback", type="RTG_FormatCaptionCallbackFunc", sig="byval hRating as TK_WIDGET ptr, byval nValue as double, byval nHover as double", params="byval nValue as double, byval nHover as double, byref Text as ustring", args="nValue, nHover, Text", returns="ustring", result="Text" },
+  { name="PaintItem", set="tkRating_SetPaintItemCallback", type="RTG_PaintItemCallbackSub", sig="byval p as TKRATING_ITEMPAINTINFO ptr", params="byval p as TKRATING_ITEMPAINTINFO ptr", args="p", widget="p->hRating" },
+  { name="Paint", set="tkRating_SetPaintCallback", type="RTG_PaintCallbackSub", sig="byval p as TKRATING_PAINTINFO ptr", params="byval p as TKRATING_PAINTINFO ptr", args="p", widget="p->hRating" },
+  { name="Message", set="tkRating_SetMessageCallback", type="RTG_MessageCallbackFunc", sig="byval m as TKRATING_MESSAGEINFO ptr", params="byval m as TKRATING_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hRating", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "Badge"
+module = "tkBadge"
+category = "Common"
+width = 80
+height = 24
+bind = { kind="int", set="tkBadge_SetCount", load_only=true }
+default_event = "Paint"
+colors = { struct="TKBADGE_COLORS", get="tkBadge_GetColors", theme="tkBadge_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="RingColor" },
+  { field="LabelColor", part="Label", state="Normal", ink=true },
+  { field="LabelColorDisabled", part="Label", state="Disabled", ink=true },
+  { field="FillAccent", part="AccentFill", state="Normal" },
+  { field="InkAccent", part="AccentInk", state="Normal", ink=true },
+  { field="FillInfo", part="InfoFill", state="Normal" },
+  { field="InkInfo", part="InfoInk", state="Normal", ink=true },
+  { field="FillSuccess", part="SuccessFill", state="Normal" },
+  { field="InkSuccess", part="SuccessInk", state="Normal", ink=true },
+  { field="FillWarning", part="WarningFill", state="Normal" },
+  { field="InkWarning", part="WarningInk", state="Normal", ink=true },
+  { field="FillError", part="ErrorFill", state="Normal" },
+  { field="InkError", part="ErrorInk", state="Normal", ink=true },
+  { field="FillNeutral", part="NeutralFill", state="Normal" },
+  { field="InkNeutral", part="NeutralInk", state="Normal", ink=true },
+  { field="FillDisabled", part="Fill", state="Disabled" },
+  { field="InkDisabled", part="Ink", state="Disabled", ink=true },
+]
+# ORDER MATTERS: each content setter switches the Kind, so Kind comes after them -- the designer's
+# choice wins; MaxCount and ShowZero come before Count.
+props = [
+  { name="MaxCount", kind="int", set="tkBadge_SetMaxCount", get="tkBadge_GetMaxCount", default="99" },
+  { name="ShowZero", kind="bool", set="tkBadge_SetShowZero", get="tkBadge_GetShowZero", default="false" },
+  { name="Count", kind="int", set="tkBadge_SetCount", get="tkBadge_GetCount" },
+  { name="Text", kind="text", set="tkBadge_SetText", get="tkBadge_GetText" },
+  { name="Glyph", kind="glyph", set="tkBadge_SetGlyph", get="" },
+  { name="GlyphFont", kind="font", set="tkBadge_SetGlyphFont", get="" },
+  { name="Presence", kind="enum", enum="Available=TKBADGE_PRESENCE_AVAILABLE,Away=TKBADGE_PRESENCE_AWAY,Busy=TKBADGE_PRESENCE_BUSY,DoNotDisturb=TKBADGE_PRESENCE_DND,Offline=TKBADGE_PRESENCE_OFFLINE,OutOfOffice=TKBADGE_PRESENCE_OOO,Blocked=TKBADGE_PRESENCE_BLOCKED,Unknown=TKBADGE_PRESENCE_UNKNOWN", set="tkBadge_SetPresence", get="tkBadge_GetPresence", default="Available" },
+  { name="Kind", kind="enum", enum="Dot=TKBADGE_KIND_DOT,Count=TKBADGE_KIND_COUNT,Text=TKBADGE_KIND_TEXT,Glyph=TKBADGE_KIND_GLYPH,Presence=TKBADGE_KIND_PRESENCE", set="tkBadge_SetKind", get="tkBadge_GetKind", default="Dot" },
+  { name="Invisible", kind="bool", set="tkBadge_SetInvisible", get="tkBadge_GetInvisible", default="false" },
+  { name="Status", kind="enum", enum="Accent=TKBADGE_ACCENT,Info=TKBADGE_INFO,Success=TKBADGE_SUCCESS,Warning=TKBADGE_WARNING,Error=TKBADGE_ERROR,Neutral=TKBADGE_NEUTRAL", set="tkBadge_SetStatus", get="tkBadge_GetStatus", default="Accent" },
+  { name="Appearance", kind="enum", enum="Filled=TKBADGE_FILLED,Outline=TKBADGE_OUTLINE,Tint=TKBADGE_TINT", set="tkBadge_SetAppearance", get="tkBadge_GetAppearance", default="Filled" },
+  { name="Shape", kind="enum", enum="Pill=TKBADGE_PILL,Rounded=TKBADGE_ROUNDED,Square=TKBADGE_SQUARE", set="tkBadge_SetShape", get="tkBadge_GetShape", default="Pill" },
+  { name="Size", kind="enum", enum="Small=TKBADGE_SMALL,Medium=TKBADGE_MEDIUM,Large=TKBADGE_LARGE", set="tkBadge_SetSize", get="tkBadge_GetSize", default="Medium" },
+  { name="Ring", kind="int", set="tkBadge_SetRing", get="tkBadge_GetRing" },
+  { name="Label", kind="text", set="tkBadge_SetLabel", get="tkBadge_GetLabel" },
+  { name="Justify", kind="enum", enum="Left=TKBADGE_JUSTIFY_LEFT,Center=TKBADGE_JUSTIFY_CENTER,Right=TKBADGE_JUSTIFY_RIGHT", set="tkBadge_SetJustify", get="tkBadge_GetJustify", default="Left" },
+  { name="Font", kind="font", set="tkBadge_SetFont", get="tkBadge_GetFont" },
+  { name="TooltipText", kind="text", set="tkBadge_SetTooltipText", get="tkBadge_GetTooltipText" },
+]
+events = [
+  { name="Paint", set="tkBadge_SetPaintCallback", type="BDG_PaintCallbackSub", sig="byval p as TKBADGE_PAINTINFO ptr", params="byval p as TKBADGE_PAINTINFO ptr", args="p", widget="p->hBadge" },
+  { name="Message", set="tkBadge_SetMessageCallback", type="BDG_MessageCallbackFunc", sig="byval m as TKBADGE_MESSAGEINFO ptr", params="byval m as TKBADGE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hBadge", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "Avatar"
+module = "tkAvatar"
+category = "Common"
+width = 48
+height = 48
+bind = { kind="text", set="tkAvatar_SetDisplayName", load_only=true }
+bind2 = { kind="text", get="tkAvatar_GetImageFile", set="tkAvatar_SetImageFile", name="BindImage", when="" }
+default_event = "Click"
+colors = { struct="TKAVATAR_COLORS", get="tkAvatar_GetColors", theme="tkAvatar_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="NeutralBack", part="NeutralFill", state="Normal" },
+  { field="NeutralInk", part="NeutralInk", state="Normal", ink=true },
+  { field="AccentBack", part="AccentFill", state="Normal" },
+  { field="AccentInk", part="AccentInk", state="Normal", ink=true },
+  { field="CustomBack", part="CustomFill", state="Normal" },
+  { field="CustomInk", part="CustomInk", state="Normal", ink=true },
+  { field="ActiveRingColor" },
+]
+props = [
+  { name="DisplayName", kind="text", set="tkAvatar_SetDisplayName", get="tkAvatar_GetDisplayName" },
+  { name="Initials", kind="text", set="tkAvatar_SetInitials", get="tkAvatar_GetInitials" },
+  { name="ImageFile", kind="file", set="tkAvatar_SetImageFile", get="tkAvatar_GetImageFile" },
+  { name="Glyph", kind="glyph", set="tkAvatar_SetGlyph", get="" },
+  { name="GlyphFont", kind="font", set="tkAvatar_SetGlyphFont", get="" },
+  { name="IsGroup", kind="bool", set="tkAvatar_SetIsGroup", get="", default="false" },
+  { name="ColorMode", kind="enum", enum="Colorful=TKAVATAR_COLORFUL,Neutral=TKAVATAR_NEUTRAL,Accent=TKAVATAR_ACCENT,Custom=TKAVATAR_CUSTOM", set="tkAvatar_SetColorMode", get="tkAvatar_GetColorMode", default="Colorful" },
+  { name="ColorKey", kind="text", set="tkAvatar_SetColorKey", get="" },
+  { name="Shape", kind="enum", enum="Circle=TKAVATAR_CIRCLE,Rounded=TKAVATAR_ROUNDED,Square=TKAVATAR_SQUARE", set="tkAvatar_SetShape", get="tkAvatar_GetShape", default="Circle" },
+  { name="Size", kind="int", set="tkAvatar_SetSize", get="tkAvatar_GetSize", default="32" },
+  { name="Presence", kind="enum", enum="None=TKAVATAR_PRESENCE_NONE,Available=TKBADGE_PRESENCE_AVAILABLE,Away=TKBADGE_PRESENCE_AWAY,Busy=TKBADGE_PRESENCE_BUSY,DoNotDisturb=TKBADGE_PRESENCE_DND,Offline=TKBADGE_PRESENCE_OFFLINE,OutOfOffice=TKBADGE_PRESENCE_OOO,Blocked=TKBADGE_PRESENCE_BLOCKED,Unknown=TKBADGE_PRESENCE_UNKNOWN", set="tkAvatar_SetPresence", get="tkAvatar_GetPresence", default="None" },
+  { name="Active", kind="enum", enum="Unset=TKAVATAR_ACTIVE_UNSET,Active=TKAVATAR_ACTIVE_ACTIVE,Inactive=TKAVATAR_ACTIVE_INACTIVE", set="tkAvatar_SetActive", get="tkAvatar_GetActive", default="Unset" },
+  { name="Clickable", kind="bool", set="tkAvatar_SetClickable", get="tkAvatar_GetClickable", default="false" },
+  { name="NameTip", kind="bool", set="tkAvatar_SetNameTip", get="", default="true" },
+  { name="TooltipText", kind="text", set="tkAvatar_SetTooltipText", get="" },
+]
+events = [
+  { name="Click", set="tkAvatar_SetClickCallback", type="AVT_ClickCallbackSub", sig="byval hAvatar as TK_WIDGET ptr", params="", args="" },
+  { name="Paint", set="tkAvatar_SetPaintCallback", type="AVT_PaintCallbackSub", sig="byval p as TKAVATAR_PAINTINFO ptr", params="byval p as TKAVATAR_PAINTINFO ptr", args="p", widget="p->hAvatar" },
+  { name="Message", set="tkAvatar_SetMessageCallback", type="AVT_MessageCallbackFunc", sig="byval m as TKAVATAR_MESSAGEINFO ptr", params="byval m as TKAVATAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hAvatar", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "AvatarGroup"
+module = "tkAvatarGroup"
+category = "Lists"
+width = 200
+height = 48
+default_event = "ItemClick"
+colors = { struct="TKAVGROUP_COLORS", get="tkAvatarGroup_GetColors", theme="tkAvatarGroup_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="FocusRingColor" },
+  { field="OverflowBack", part="Overflow", state="Normal" },
+  { field="OverflowInk", part="OverflowText", state="Normal", ink=true },
+]
+props = [
+  { name="Layout", kind="enum", enum="Stack=TKAVGROUP_STACK,Spread=TKAVGROUP_SPREAD", set="tkAvatarGroup_SetLayout", get="tkAvatarGroup_GetLayout", default="Stack" },
+  { name="MaxVisible", kind="int", set="tkAvatarGroup_SetMaxVisible", get="tkAvatarGroup_GetMaxVisible", default="5" },
+  { name="Total", kind="int", set="tkAvatarGroup_SetTotal", get="", default="-1" },
+  { name="Overlap", kind="int", set="tkAvatarGroup_SetOverlap", get="", default="20" },
+  { name="Spacing", kind="int", set="tkAvatarGroup_SetSpacing", get="", default="4" },
+  { name="Size", kind="int", set="tkAvatarGroup_SetSize", get="", default="32" },
+  { name="Shape", kind="enum", enum="Circle=TKAVATAR_CIRCLE,Rounded=TKAVATAR_ROUNDED,Square=TKAVATAR_SQUARE", set="tkAvatarGroup_SetShape", get="", default="Circle" },
+  { name="ColorMode", kind="enum", enum="Colorful=TKAVATAR_COLORFUL,Neutral=TKAVATAR_NEUTRAL,Accent=TKAVATAR_ACCENT,Custom=TKAVATAR_CUSTOM", set="tkAvatarGroup_SetColorMode", get="", default="Colorful" },
+  { name="Interactive", kind="bool", set="tkAvatarGroup_SetInteractive", get="", default="false" },
+]
+events = [
+  { name="ItemClick", set="tkAvatarGroup_SetItemClickCallback", type="AVG_ItemClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="OverflowClick", set="tkAvatarGroup_SetOverflowClickCallback", type="AVG_OverflowClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr", params="", args="" },
+  { name="Message", set="tkAvatarGroup_SetMessageCallback", type="AVG_MessageCallbackFunc", sig="byval m as TKAVGROUP_MESSAGEINFO ptr", params="byval m as TKAVGROUP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGroup", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "Chip"
+module = "tkChip"
+category = "Common"
+width = 100
+height = 40
+bind = { kind="bool", get="tkChip_GetSelected", set="tkChip_SetSelected" }
+default_event = "Click"
+colors = { struct="TKCHIP_COLORS", get="tkChip_GetColors", theme="tkChip_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="FocusRingColor" },
+  { field="FillColor", part="Fill", state="Normal" },
+  { field="FillColorHot", part="Fill", state="Hot" },
+  { field="FillColorPressed", part="Fill", state="Pressed" },
+  { field="FillColorSelected", part="Fill", state="Selected" },
+  { field="FillColorSelectedHot" },
+  { field="FillColorDisabled", part="Fill", state="Disabled" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="BorderColorHot", part="Border", state="Hot" },
+  { field="BorderColorSelected", part="Border", state="Selected" },
+  { field="BorderColorDisabled", part="Border", state="Disabled" },
+  { field="TextColor", part="Text", state="Normal", ink=true },
+  { field="TextColorSelected", part="Text", state="Selected", ink=true },
+  { field="TextColorDisabled", part="Text", state="Disabled", ink=true },
+  { field="CheckColor" },
+  { field="RemoveColor", part="Remove", state="Normal" },
+  { field="RemoveColorHot", part="Remove", state="Hot" },
+  { field="RemoveBackHot" },
+]
+# ORDER MATTERS: Kind first -- INPUT makes the chip removable, a later Removable can undo it.
+props = [
+  { name="Kind", kind="enum", enum="Action=TKCHIP_ACTION,Toggle=TKCHIP_TOGGLE,Input=TKCHIP_INPUT", set="tkChip_SetKind", get="tkChip_GetKind", default="Action" },
+  { name="Text", kind="text", set="tkChip_SetText", get="tkChip_GetText" },
+  { name="Selected", kind="bool", set="tkChip_SetSelected", get="tkChip_GetSelected", default="false" },
+  { name="Removable", kind="bool", set="tkChip_SetRemovable", get="tkChip_GetRemovable", default="false" },
+  { name="Selectable", kind="bool", set="tkChip_SetSelectable", get="", default="false" },
+  { name="LeadingGlyph", kind="glyph", set="tkChip_SetLeadingGlyph", get="" },
+  { name="GlyphFont", kind="font", set="tkChip_SetGlyphFont", get="" },
+  { name="LeadingImage", kind="file", set="tkChip_SetLeadingImageFile", get="" },
+  { name="AvatarName", kind="text", set="tkChip_SetLeadingAvatar", get="" },
+  { name="ShowCheck", kind="bool", set="tkChip_SetShowCheck", get="", default="true" },
+  { name="ReserveCheck", kind="bool", set="tkChip_SetReserveCheck", get="", default="false" },
+  { name="Count", kind="int", set="tkChip_SetCount", get="", default="0" },
+  { name="Status", kind="enum", enum="Neutral=TKBADGE_NEUTRAL,Accent=TKBADGE_ACCENT,Info=TKBADGE_INFO,Success=TKBADGE_SUCCESS,Warning=TKBADGE_WARNING,Error=TKBADGE_ERROR", set="tkChip_SetStatus", get="", default="Neutral" },
+  { name="Appearance", kind="enum", enum="Filled=TKCHIP_FILLED,Outlined=TKCHIP_OUTLINED", set="tkChip_SetAppearance", get="", default="Filled" },
+  { name="Shape", kind="enum", enum="Pill=TKCHIP_PILL,Rounded=TKCHIP_ROUNDED", set="tkChip_SetShape", get="", default="Pill" },
+  { name="Size", kind="enum", enum="Small=TKCHIP_SMALL,Medium=TKCHIP_MEDIUM", set="tkChip_SetSize", get="", default="Medium" },
+  { name="MaxLabelWidth", kind="int", set="tkChip_SetMaxLabelWidth", get="", default="200" },
+  { name="Font", kind="font", set="tkChip_SetFont", get="" },
+  { name="TooltipText", kind="text", set="tkChip_SetTooltipText", get="" },
+]
+events = [
+  { name="Click", set="tkChip_SetClickCallback", type="CHP_ClickCallbackSub", sig="byval hChip as TK_WIDGET ptr", params="", args="" },
+  { name="SelectedChanged", set="tkChip_SetSelectedChangedCallback", type="CHP_SelectedChangedCallbackSub", sig="byval hChip as TK_WIDGET ptr, byval isSelected as boolean", params="byval isSelected as boolean", args="isSelected" },
+  { name="RemoveRequested", set="tkChip_SetRemoveRequestedCallback", type="CHP_RemoveRequestedCallbackSub", sig="byval hChip as TK_WIDGET ptr", params="", args="" },
+  { name="Paint", set="tkChip_SetPaintCallback", type="CHP_PaintCallbackSub", sig="byval p as TKCHIP_PAINTINFO ptr", params="byval p as TKCHIP_PAINTINFO ptr", args="p", widget="p->hChip" },
+  { name="Message", set="tkChip_SetMessageCallback", type="CHP_MessageCallbackFunc", sig="byval m as TKCHIP_MESSAGEINFO ptr", params="byval m as TKCHIP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hChip", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "ChipGroup"
+module = "tkChipGroup"
+category = "Lists"
+width = 300
+height = 80
+bind = { kind="text", get="tkChipGroup_GetSelectedKeys", set="tkChipGroup_SetSelectedKeys" }
+bind2 = { kind="text", get="tkChipGroup_GetItemsText", set="tkChipGroup_SetItemsText", name="BindItems", when="" }
+default_event = "SelChange"
+colors = { struct="TKCHIP_COLORS", struct_module="tkChip", get="tkChipGroup_GetColors", theme="tkChipGroup_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="FocusRingColor" },
+  { field="FillColor", part="Fill", state="Normal" },
+  { field="FillColorHot", part="Fill", state="Hot" },
+  { field="FillColorPressed", part="Fill", state="Pressed" },
+  { field="FillColorSelected", part="Fill", state="Selected" },
+  { field="FillColorSelectedHot" },
+  { field="FillColorDisabled", part="Fill", state="Disabled" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="BorderColorHot", part="Border", state="Hot" },
+  { field="BorderColorSelected", part="Border", state="Selected" },
+  { field="BorderColorDisabled", part="Border", state="Disabled" },
+  { field="TextColor", part="Text", state="Normal", ink=true },
+  { field="TextColorSelected", part="Text", state="Selected", ink=true },
+  { field="TextColorDisabled", part="Text", state="Disabled", ink=true },
+  { field="CheckColor" },
+  { field="RemoveColor", part="Remove", state="Normal" },
+  { field="RemoveColorHot", part="Remove", state="Hot" },
+  { field="RemoveBackHot" },
+]
+# The selection is a key set kept apart from the items, so Items and SelectedKeys may come in either
+# order; KeySeparator first, since both are split by it.
+props = [
+  { name="KeySeparator", kind="text", set="tkChipGroup_SetKeySeparator", get="tkChipGroup_GetKeySeparator" },
+  { name="SelectionMode", kind="enum", enum="None=TKCHIPGRP_NONE,Single=TKCHIPGRP_SINGLE,SingleOrNone=TKCHIPGRP_SINGLE_OR_NONE,Multi=TKCHIPGRP_MULTI", set="tkChipGroup_SetSelectionMode", get="tkChipGroup_GetSelectionMode", default="None" },
+  { name="Items", kind="text", set="tkChipGroup_SetItemsText", get="tkChipGroup_GetItemsText" },
+  { name="SelectedKeys", kind="text", set="tkChipGroup_SetSelectedKeys", get="tkChipGroup_GetSelectedKeys" },
+  { name="Removable", kind="bool", set="tkChipGroup_SetRemovable", get="", default="false" },
+  { name="Wrap", kind="bool", set="tkChipGroup_SetWrap", get="", default="true" },
+  { name="AllowReorder", kind="bool", set="tkChipGroup_SetAllowReorder", get="tkChipGroup_GetAllowReorder", default="false" },
+  { name="Gaps", kind="list", enum="ItemGap:int,RowGap:int", set="tkChipGroup_SetGaps", get="" },
+  { name="Size", kind="enum", enum="Small=TKCHIP_SMALL,Medium=TKCHIP_MEDIUM", set="tkChipGroup_SetSize", get="", default="Medium" },
+  { name="Shape", kind="enum", enum="Pill=TKCHIP_PILL,Rounded=TKCHIP_ROUNDED", set="tkChipGroup_SetShape", get="", default="Pill" },
+  { name="Appearance", kind="enum", enum="Filled=TKCHIP_FILLED,Outlined=TKCHIP_OUTLINED", set="tkChipGroup_SetAppearance", get="", default="Filled" },
+  { name="MaxLabelWidth", kind="int", set="tkChipGroup_SetMaxLabelWidth", get="", default="200" },
+]
+events = [
+  { name="ItemClick", set="tkChipGroup_SetItemClickCallback", type="CHG_ItemClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="SelChange", set="tkChipGroup_SetSelChangeCallback", type="CHG_SelChangeCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", params="byval idx as long, byval isSelected as boolean", args="idx, isSelected" },
+  { name="ItemRemoving", set="tkChipGroup_SetItemRemovingCallback", type="CHG_ItemRemovingCallbackFunc", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="ItemRemoved", set="tkChipGroup_SetItemRemovedCallback", type="CHG_ItemRemovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval Key as ustring", params="byval Key as ustring", args="Key" },
+  { name="OverflowClick", set="tkChipGroup_SetOverflowClickCallback", type="CHG_OverflowClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr", params="", args="" },
+  { name="ItemMoved", set="tkChipGroup_SetItemMovedCallback", type="CHG_ItemMovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long", params="byval nFrom as long, byval nTo as long", args="nFrom, nTo" },
+  { name="Message", set="tkChipGroup_SetMessageCallback", type="CHG_MessageCallbackFunc", sig="byval m as TKCHIPGRP_MESSAGEINFO ptr", params="byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGroup", returns="boolean", result="Handled" },
+]

@@ -105,6 +105,12 @@ public type FormControl
     ' copied) instead of copying it in LoadFrom / _Fill and back in SaveTo. The array must outlive
     ' the binding: a record's field, or a name for ItemsSource, never a call's result.
     ItemsLive as boolean
+    ' A Badge hung on another control of the form (D-B3): its name, the corner ("" = TopRight), the
+    ' offset in design units ("dx,dy", "" = 0,0) and the overlap ("" = Rect).
+    AttachTo as ustring
+    AttachCorner as ustring
+    AttachOffset as ustring
+    AttachOverlap as ustring
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

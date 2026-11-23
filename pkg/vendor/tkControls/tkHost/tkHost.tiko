@@ -127,6 +127,9 @@ public enum
     TKM_CONTEXTMENU          ' to a CONTEXT-MENU COMPONENT (tkWidget_SetContextMenu): m->pOther = the widget
                              ' it opens for, m->x / y = where, in the surface's window pixels; m->bFlag =
                              ' from the keyboard (the Menu key, Shift+F10)
+    TKM_ADORNLAYOUT          ' to an ADORNMENT just before it paints: place yourself against your parent
+                             ' (the target) as it is now. Invalidations made while handling it are
+                             ' dropped: this frame already paints the new rect.
 end enum
 
 public enum
@@ -227,6 +230,8 @@ public type TK_WIDGET_
     pColorRecipe  as any ptr            ' per-field colour overrides (tkTheme_SetRecipe)
     pContextMenu  as TK_WIDGET ptr      ' the component that is this widget's right-click menu, 0 = none
     pOnMouseMove  as TK_MouseMoveSub    ' told of moves over it, and over descendants with none of their own
+    bAdorner      as boolean = false    ' an ADORNMENT of its parent (tkWidget_SetAdorner): painted after the
+                                        ' parent's subtree with the parent's own clip, never hit-tested
 end type
 
 public type TK_FONT
@@ -1166,6 +1171,30 @@ public sub tkWidget_Show( byval w as TK_WIDGET ptr, byval bShow as boolean )
     tkWidget_Invalidate( w )
 end sub
 
+' ---- adornments: a child that decorates its parent (an attached badge, a validation mark). It is
+' ---- painted right after the parent's own subtree, with the clip the PARENT was given -- so it
+' ---- may overhang the parent and sits above it and its other children -- after a TKM_ADORNLAYOUT
+' ---- that lets it place itself against the parent's current size. It is never hit-tested (a
+' ---- click on it reaches whatever is below), never in the Tab order, and otherwise an ordinary
+' ---- child: hidden, moved, rescaled, rethemed and destroyed with its parent. A sibling above the
+' ---- parent in z-order covers it as it covers the parent. ----------------------------------------
+public sub tkWidget_SetAdorner( byval w as TK_WIDGET ptr, byval bOn as boolean )
+    if (w = 0) orelse (w->bAdorner = bOn) then exit sub
+    w->bAdorner = bOn
+    dim as TK_HOST ptr h = w->pHost
+    if bOn andalso (h <> 0) then
+        ' it takes no input from now on: let go of whatever input state it held
+        if IsWithin( w, h->pCapture ) then tkHost_ReleaseCapture( h )
+        if IsWithin( w, h->pFocus ) then tkHost_SetFocus( h, 0 )
+        if IsWithin( w, h->pHot ) then h->pHot = 0
+    end if
+    tkWidget_Invalidate( w )
+end sub
+
+public function tkWidget_IsAdorner( byval w as TK_WIDGET ptr ) as boolean
+    return (w <> 0) andalso w->bAdorner
+end function
+
 ' ---- context menus: a component (tkContextMenu) a right-click or the Menu key opens. The
 ' ---- release of the right button over w, or over anything inside it, goes to the component as
 ' ---- TKM_CONTEXTMENU INSTEAD of to the control, so it replaces a control's own menu. --------
@@ -1391,29 +1420,52 @@ end sub
 
 
 ' ---- painting ----------------------------------------------------------------------------
+' One widget at window pixels (cx, cy), then its children, inside rcClip.
+private sub PaintOne( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byval cx as long, byval cy as long, _
+                      byref rcClip as TKRECT )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( cx, cy, c->cw, c->ch, @rcClip )
+    if tkRect_IsEmpty( wp.rcClip ) then exit sub
+    dim as TK_MSG m
+    m.msg = TKM_PAINT
+    m.pPaint = @wp
+    tkWidget_Send( c, @m )
+    if c->pFirst then
+        dim as TKRECT rcKids = rcClip
+        if c->bClipChildren then rcKids = wp.rcClip
+        PaintTree( h, c, cx, cy, rcKids )
+    end if
+end sub
+
+' c's adornments, after c's own subtree: placed (TKM_ADORNLAYOUT) against c as it is now, then
+' painted with the clip c itself was given, so they may overhang c and sit above it and its children.
+private sub PaintAdornments( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byval cx as long, byval cy as long, _
+                             byref rcClip as TKRECT )
+    dim as TK_WIDGET ptr a = c->pFirst
+    while a
+        if a->bAdorner andalso a->isVisible then
+            dim as boolean bWasDirty = h->bDirty
+            SendSimple( a, TKM_ADORNLAYOUT )
+            h->bDirty = bWasDirty                ' this frame paints the new rect already
+            if (a->cw > 0) andalso (a->ch > 0) then PaintOne( h, a, cx + a->x, cy + a->y, rcClip )
+        end if
+        a = a->pNext
+    wend
+end sub
+
 private sub PaintTree( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval ax as long, byval ay as long, _
                        byref rcClip as TKRECT )
     dim as TK_WIDGET ptr c = w->pFirst
     while c
-        if c->isVisible andalso (c->cw > 0) andalso (c->ch > 0) then
+        ' an adornment is painted by its target's turn (PaintAdornments), never in the child order
+        if (c->bAdorner = false) andalso c->isVisible andalso (c->cw > 0) andalso (c->ch > 0) then
             dim as long cx = ax + c->x, cy = ay + c->y
-            dim as TK_PAINT wp
-            wp.renderer = h->renderer
-            wp.engine = h->engine
-            wp.pFont = h->pDefaultFont
-            wp.fScale = h->fScale
-            wp.Begin( cx, cy, c->cw, c->ch, @rcClip )
-            if tkRect_IsEmpty( wp.rcClip ) = false then
-                dim as TK_MSG m
-                m.msg = TKM_PAINT
-                m.pPaint = @wp
-                tkWidget_Send( c, @m )
-                if c->pFirst then
-                    dim as TKRECT rcKids = rcClip
-                    if c->bClipChildren then rcKids = wp.rcClip
-                    PaintTree( h, c, cx, cy, rcKids )
-                end if
-            end if
+            PaintOne( h, c, cx, cy, rcClip )
+            PaintAdornments( h, c, cx, cy, rcClip )
         end if
         c = c->pNext
     wend
@@ -1480,7 +1532,7 @@ private function HitIn( byval w as TK_WIDGET ptr, byval px as single, byval py a
                         byval ax as long, byval ay as long ) as TK_WIDGET ptr
     dim as TK_WIDGET ptr c = w->pLast
     while c
-        if c->isVisible then
+        if c->isVisible andalso (c->bAdorner = false) then     ' an adornment is never hit
             dim as long cx = ax + c->x, cy = ay + c->y
             dim as boolean bIn = (px >= cx) andalso (px < cx + c->cw) andalso (py >= cy) andalso (py < cy + c->ch)
             if bIn orelse (c->bClipChildren = false) then
@@ -1596,7 +1648,7 @@ private sub CollectFocusable( byval w as TK_WIDGET ptr, list() as TK_WIDGET ptr,
     next
     for i as long = 0 to nk - 1
         c = kids( i )
-        if c->isVisible andalso c->isEnabled then
+        if c->isVisible andalso c->isEnabled andalso (c->bAdorner = false) then
             if c->isFocusable andalso (n <= ubound( list )) then list(n) = c : n += 1
             CollectFocusable( c, list(), n )
         end if
