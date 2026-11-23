@@ -216,6 +216,12 @@ opens it too. An item's handler runs when it is chosen; the menu's **Popup** han
 it opens and is told which control it opens for (`sub Form.OnPopup( byval hSource as TK_WIDGET ptr )`),
 the moment to enable or check its items. See [tkContextMenu](tkContextMenu).
 
+A **Badge** can hang on another control: name it in the badge's **AttachTo** (any visual control of
+the form but a Badge), and pick **AttachCorner** (TopRight by default), **AttachOffset** (`dx,dy` in
+design units) and **AttachOverlap** (Rect, or Circle for a round target). The surface shows it on that
+corner, a click on it selects the badge, and its own position and size no longer count: the target
+places it. Renaming the target follows; deleting it leaves the badge on nothing. See [tkBadge](tkBadge).
+
 ## Your own controls
 
 The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel, give it the name of

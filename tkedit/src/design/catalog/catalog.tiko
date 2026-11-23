@@ -48,6 +48,59 @@ end function
 ' The type whose components a ContextMenu property names.
 public const as string POPUP_TYPE = "PopupMenu"
 
+' A Badge hangs on another control (D-B3): its corners and overlaps as the inspector shows them
+' (the first is the default), and the constant each one is.
+public const as string BADGE_TYPE = "Badge"
+public const as string BADGE_CORNERS = "TopRight,TopLeft,BottomRight,BottomLeft"
+public const as string BADGE_OVERLAPS = "Rect,Circle"
+
+' 0 .. 3 for a corner's name ("" and an unknown name: TopRight), as TKBADGE_TOP_RIGHT ...
+public function BadgeCornerIndex( byref s as const ustring ) as long
+    select case lcase( s )
+    case "topleft" : return 1
+    case "bottomright" : return 2
+    case "bottomleft" : return 3
+    end select
+    return 0
+end function
+
+public function BadgeCornerConst( byref s as const ustring ) as string
+    select case BadgeCornerIndex( s )
+    case 1 : return "TKBADGE_TOP_LEFT"
+    case 2 : return "TKBADGE_BOTTOM_RIGHT"
+    case 3 : return "TKBADGE_BOTTOM_LEFT"
+    end select
+    return "TKBADGE_TOP_RIGHT"
+end function
+
+public function BadgeOverlapIsCircle( byref s as const ustring ) as boolean
+    return lcase( s ) = "circle"
+end function
+
+private function IsInt_( byref s as const ustring ) as boolean
+    if len( s ) = 0 then return false
+    for i as long = 1 to len( s )
+        dim as string ch = mid( s, i, 1 )
+        if (ch = "-") andalso (i = 1) andalso (len( s ) > 1) then continue for
+        if (ch < "0") orelse (ch > "9") then return false
+    next
+    return true
+end function
+
+' "dx,dy" in design units; "" or a malformed part reads 0. FALSE when s is not two integers.
+public function BadgeOffset( byref s as const ustring, byref dx as long, byref dy as long ) as boolean
+    dx = 0 : dy = 0
+    dim as ustring t = trim( s )
+    if len( t ) = 0 then return true
+    dim as long k = instr( t, "," )
+    if k = 0 then return false
+    dim as ustring a = trim( left( t, k - 1 ) ), b = trim( mid( t, k + 1 ) )
+    if (IsInt_( a ) = false) orelse (IsInt_( b ) = false) then return false
+    dx = valint( a ) : dy = valint( b )
+    return true
+end function
+
+
 ' Which list of entries a control type has, if any.
 public enum ItemsKind explicit
     ItemsNone = 0
@@ -168,6 +221,7 @@ public function ItemsAddProc( byref typeName as const ustring ) as ustring
     case "CheckedComboBox" : return "tkCheckedCombo_AddItem"
     case "TokenBox"        : return "tkTokenBox_AddItem"
     case "AutoComplete"    : return "tkAutoComplete_AddItem"
+    case "AvatarGroup"     : return "tkAvatarGroup_AddItem"
     end select
     return "tkComboBox_AddItem"
 end function
@@ -211,6 +265,7 @@ public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     case "SelectBar"  : return ItemsKind.ItemsList
     case "CheckedList", "CheckedComboBox", "TokenBox" : return ItemsKind.ItemsList
     case "AutoComplete" : return ItemsKind.ItemsList
+    case "AvatarGroup" : return ItemsKind.ItemsList
     case "TabBar"     : return ItemsKind.ItemsTabs
     case "TabControl" : return ItemsKind.ItemsPages
     end select

@@ -152,8 +152,9 @@ The toolbox's **AvatarGroup** (Lists) has the properties above, in the order the
 Layout, MaxVisible, Total, Overlap, Spacing, Size, Shape, ColorMode, Interactive. Its events are
 ItemClick (the default), OverflowClick and Message.
 
-There is no Bind and no items property: add the items in code, after the form is created. See
-[Form Designer](Form-Designer).
+**Edit items** lists the people: each item's text is a name (`AddItem( h, name )`), shown on the
+surface as it will be in the program. There is no Bind; pictures, colour keys and presence are set
+in code. See [Form Designer](Form-Designer).
 
 ## Public declarations
 

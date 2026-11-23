@@ -2871,6 +2871,35 @@ sub RbacSuite( )
     HasLine( g, "chp.Kind = TKCHIP_TOGGLE", "rbac: an enum prop is its constant" )
     HasLine( g, "bdg.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )", "rbac: a glyph-drawing control gets the form's glyph font" )
     Check( instr( g, "    dim as boolean Allow = true" & LF ) > 0, "rbac: ItemRemoving's Allow starts true" )
+
+    ' a Badge hung on another control (D-B3), and an AvatarGroup's designed items
+    dim as ustring sa = Header( ) _
+        & Ctl( "bdgA", "Badge", "attach_to = ""btnIn""" & LF & "attach_corner = ""BottomLeft""" & LF & "attach_offset = ""2,-3""" & LF & "attach_overlap = ""Circle""" & LF ) _
+        & Ctl( "btnIn", "Button" ) _
+        & Ctl( "avgI", "AvatarGroup" ) & LF & "[[control.items]]" & LF & "text = ""Ada Lovelace""" & LF & LF & "[[control.items]]" & LF & "text = ""Alan Turing""" & LF
+    Accepted( sa, "attach: a Badge on a Button, and a group's items" )
+    dim as FormDoc da
+    ReadForm( sa, da )
+    dim as FormDoc da2
+    ReadForm( formfile.Render( da ), da2 )
+    Check( formfile.Render( da2 ) = formfile.Render( da ) andalso da2.Controls[0].AttachTo = "btnIn" andalso da2.Controls[0].AttachOffset = "2,-3", _
+           "attach: the four attach keys round-trip" )
+    dim as ustring ga = codegen.Generate( da, "frmA", "frmA.tkform", sa )
+    dim as long nAt = instr( ga, "    tkBadge_Attach( bdgA.Handle, btnIn.Handle, TKBADGE_BOTTOM_LEFT, 2, -3, TKBADGE_OVERLAP_CIRCLE )" )
+    Check( (nAt > instr( ga, "btnIn.Create(" )) andalso (instr( ga, "btnIn.Create(" ) > 0) andalso (instr( ga, "tkLayout_Add( Layout, bdgA.Handle" ) = 0), _
+           "attach: tkBadge_Attach once the target exists, and no layout entry for the badge", LineWith( ga, "bdgA" ) )
+    HasLine( ga, "tkAvatarGroup_AddItem( avgI.Handle, ""Alan Turing"" )", "attach: an AvatarGroup's designed items" )
+    Refused( Header( ) & Ctl( "bdgS", "Badge", "attach_to = ""bdgS""" & LF ), "can't attach to itself" )
+    Refused( Header( ) & Ctl( "b1", "Badge", "attach_to = ""b2""" & LF ) & Ctl( "b2", "Badge" ), "another Badge" )
+    Refused( Header( ) & Ctl( "b1", "Badge", "attach_to = ""nope""" & LF ), "which is not on the form" )
+    Refused( Header( ) & Ctl( "btnX", "Button", "attach_to = ""btnIn""" & LF ) & Ctl( "btnIn", "Button" ), "only a Badge attaches" )
+    Refused( Header( ) & Ctl( "b1", "Badge", "attach_to = ""btnIn""" & LF & "attach_offset = ""2""" & LF ) & Ctl( "btnIn", "Button" ), "AttachOffset is two whole numbers" )
+    edits.RenameControl( da, "btnIn", "btnInbox" )
+    dim as boolean renamed = (da.Controls[0].AttachTo = "btnInbox")
+    dim as Array( of ustring ) gone
+    gone.Push( "btnInbox" )
+    edits.DeleteControls( da, gone )
+    Check( renamed andalso (da.Controls[0].AttachTo = ""), "attach: a rename of the target follows; deleting it leaves the badge on nothing" )
 end sub
 
 sub NavSuite( )

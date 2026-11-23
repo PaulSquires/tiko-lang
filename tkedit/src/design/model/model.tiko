@@ -94,6 +94,12 @@ public type FormControl
     ValueField as ustring
     CheckField as ustring
     Follows as ustring              ' a Navigator (B4): the list control (ListTree, ComboBox) on its records
+    ' A Badge hung on another control of the form (D-B3): its name, the corner ("" = TopRight), the
+    ' offset in design units ("dx,dy", "" = 0,0) and the overlap ("" = Rect).
+    AttachTo as ustring
+    AttachCorner as ustring
+    AttachOffset as ustring
+    AttachOverlap as ustring
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

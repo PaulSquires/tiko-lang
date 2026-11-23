@@ -171,6 +171,10 @@ public sub DeleteControls( byref doc as FormDoc, byref names as Array( of ustrin
         if len( doc.Controls[k].ContextMenu ) andalso (FindControl( doc, doc.Controls[k].ContextMenu ) < 0) then doc.Controls[k].ContextMenu = ""
     next
     if len( doc.ContextMenu ) andalso (FindControl( doc, doc.ContextMenu ) < 0) then doc.ContextMenu = ""
+    ' a Badge hung on a control that went hangs on nothing
+    for k as long = 0 to doc.Controls.Count( ) - 1
+        if len( doc.Controls[k].AttachTo ) andalso (FindControl( doc, doc.Controls[k].AttachTo ) < 0) then doc.Controls[k].AttachTo = ""
+    next
 end sub
 
 ' ---- z-order ----------------------------------------------------------------------------------
@@ -508,6 +512,8 @@ public sub RenameControl( byref doc as FormDoc, byref oldName as const ustring, 
         end if
         ' a PopupMenu's name, wherever a ContextMenu names it
         if lcase( doc.Controls[i].ContextMenu ) = was then doc.Controls[i].ContextMenu = newName
+        ' and wherever a Badge hangs on it
+        if lcase( doc.Controls[i].AttachTo ) = was then doc.Controls[i].AttachTo = newName
     next
     if lcase( doc.ContextMenu ) = was then doc.ContextMenu = newName
 end sub
@@ -758,6 +764,15 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
                 n.ContextMenu = mapped
             elseif FindControl( doc, c.ContextMenu ) < 0 then
                 n.ContextMenu = ""
+            end if
+        end if
+        ' a Badge hangs on its target pasted along, keeps one already on the form, else on nothing
+        if len( c.AttachTo ) then
+            dim as ustring mappedT = SettingOr( map_, lcase( c.AttachTo ) )
+            if len( mappedT ) then
+                n.AttachTo = mappedT
+            elseif FindControl( doc, c.AttachTo ) < 0 then
+                n.AttachTo = ""
             end if
         end if
         ' a Text left at its own name follows the new one

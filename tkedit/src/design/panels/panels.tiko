@@ -970,6 +970,16 @@ private function ListNames_( byref doc as FormDoc ) as ustring
     return o
 end function
 
+' A Badge's AttachTo choices: none, then every other visual control of the form but a Badge.
+private function AttachNames_( byref doc as FormDoc, byref self as const ustring ) as ustring
+    dim as ustring o
+    for each c as FormControl in doc.Controls
+        if (c.TypeName <> catalog.BADGE_TYPE) andalso (catalog.IsComponent( c.TypeName ) = false) _
+           andalso (lcase( c.Name ) <> lcase( self )) then o &= "," & c.Name
+    next
+    return o
+end function
+
 private function PopupNames_( byref doc as FormDoc ) as ustring
     dim as ustring o
     for each c as FormControl in doc.Controls
@@ -1281,6 +1291,13 @@ sub DesignPanels.BuildRows( )
         end if
         ' the PopupMenu a right-click on it opens
         if anyComponent = false then this.AddRow( "@Ctx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
+        ' a Badge hung on another control (D-B3)
+        if (n = 1) andalso (m0->Name = catalog.BADGE_TYPE) then
+            this.AddRow( "@AttachTo", "AttachTo", RowKind.RowCombo, AttachNames_( C->Doc, C->Selected[0] ) )
+            this.AddRow( "@AttachCorner", "AttachCorner", RowKind.RowCombo, catalog.BADGE_CORNERS )
+            this.AddRow( "@AttachOffset", "AttachOffset", RowKind.RowText )
+            this.AddRow( "@AttachOverlap", "AttachOverlap", RowKind.RowCombo, catalog.BADGE_OVERLAPS )
+        end if
         ' its list from an array (B3): where it comes from, and the element fields it shows
         if (n = 1) andalso (m0->ItemsBind = "records") then
             ' a navigator (B4): its records, and the list that follows them
@@ -1383,6 +1400,14 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@Value"       : return c_.ValueField
     case "@Check"       : return c_.CheckField
     case "@Follows"     : return c_.Follows
+    case "@AttachTo"      : return c_.AttachTo
+    case "@AttachCorner"
+        if len( c_.AttachCorner ) = 0 then return "TopRight"
+        return c_.AttachCorner
+    case "@AttachOffset"  : return c_.AttachOffset
+    case "@AttachOverlap"
+        if len( c_.AttachOverlap ) = 0 then return "Rect"
+        return c_.AttachOverlap
     case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
@@ -1675,6 +1700,18 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     case "@Value"       : trial.Controls[i].ValueField = trim( text ) : rebuild = false
     case "@Check"       : trial.Controls[i].CheckField = trim( text ) : rebuild = false
     case "@Follows"     : trial.Controls[i].Follows = trim( text ) : rebuild = false
+    case "@AttachTo"      : trial.Controls[i].AttachTo = trim( text )
+    case "@AttachCorner"
+        trial.Controls[i].AttachCorner = trim( text )
+        if trial.Controls[i].AttachCorner = "TopRight" then trial.Controls[i].AttachCorner = ""
+    case "@AttachOverlap"
+        trial.Controls[i].AttachOverlap = trim( text )
+        if trial.Controls[i].AttachOverlap = "Rect" then trial.Controls[i].AttachOverlap = ""
+    case "@AttachOffset"
+        dim as long ox, oy
+        if catalog.BadgeOffset( text, ox, oy ) = false then return i18n.Tr( "designer.need_offset", "two whole numbers: dx,dy" )
+        trial.Controls[i].AttachOffset = ox & "," & oy
+        if (ox = 0) andalso (oy = 0) then trial.Controls[i].AttachOffset = ""
     case "@Bind2"
         trial.Controls[i].Bind2 = trim( text )
         rebuild = false

@@ -209,7 +209,10 @@ switches the kind, so Kind comes after them and the designer's choice wins. Then
 Appearance, Shape, Size, Ring, Label, Justify, Font, GlyphFont (the form's glyph font, as a
 button's) and TooltipText. Its events are Paint (the default) and Message.
 
-No property attaches a designed badge to another control: call `tkBadge_Attach` in code.
+**AttachTo** hangs a designed badge on another control of the form (not a Badge, not a component),
+with **AttachCorner**, **AttachOffset** (`dx,dy`) and **AttachOverlap**. The generated code calls
+`tkBadge_Attach` once both controls exist, and gives the badge no layout entry: its target places it.
+The designer draws it on the corner, and a click there selects the badge.
 
 **Bind** loads the count from a number field of the form's DataType; `SaveTo` leaves the field
 alone. See [Form Designer](Form-Designer), Data binding.
