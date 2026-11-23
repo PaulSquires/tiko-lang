@@ -1222,6 +1222,29 @@ sub PropOrderSuite( )
     Check( (instr( r, "Range = " ) > 0) andalso (instr( r, "Range = " ) < instr( r, "Value = " )), "proporder: the writer saves Range before Value" )
 end sub
 
+' A Slider (S3): its limits before its value whatever the file's order, enum constants, and a
+' FormatValue thunk that answers a ustring.
+sub SliderSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "sld", "Slider" ) & LF & "[control.props]" & LF & "Value = 500" & LF & "UpperValue = 800" & LF & "Mode = ""Range""" & LF _
+        & "Range = ""0,1000""" & LF & "Step = 5" & LF & "Orientation = ""Vertical""" & LF & "ThumbSize = ""12,20""" & LF _
+        & LF & "[control.events]" & LF & "FormatValue = ""sld_Format""" & LF & "ValueCommitted = ""sld_Done""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "slider: the form parses" )
+    Accepted( src, "slider: its props and events" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    dim as long nRange = instr( g, "    sld.Range( 0, 1000 )" ), nStep = instr( g, "    sld.Step = 5" )
+    dim as long nMode = instr( g, "    sld.Mode = TKSL_MODE_RANGE" ), nVal = instr( g, "    sld.Value = 500" ), nUp = instr( g, "    sld.UpperValue = 800" )
+    Check( (nRange > 0) andalso (nStep > 0) andalso (nMode > 0) andalso (nVal > 0) andalso (nUp > 0), "slider: the five lines", LineWith( g, "sld." ) )
+    Check( (nRange < nStep) andalso (nStep < nMode) andalso (nMode < nVal) andalso (nVal < nUp), "slider: Range, Step, Mode, then Value, UpperValue", _
+           nRange & " " & nStep & " " & nMode & " " & nVal & " " & nUp )
+    HasLine( g, "sld.Orientation = TKSL_VERTICAL", "slider: an enum prop is its constant" )
+    HasLine( g, "sld.ThumbSize( 12, 20 )", "slider: a list prop" )
+    Check( instr( g, "private function Thunk_sld_FormatValue( byval hSlider as TK_WIDGET ptr, byval nValue as float64, byval nWhere as int32 ) as ustring" & LF _
+        & "    dim as ustring Text" & LF ) > 0, "slider: FormatValue's thunk answers its Text", LineWith( g, "Thunk_sld_FormatValue" ) )
+    HasLine( g, "tkSlider_SetValueCommittedCallback( sld.Handle, @Thunk_sld_ValueCommitted )", "slider: ValueCommitted installed" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -2416,6 +2439,7 @@ ButtonEventsSuite( )
 TextBoxEventsSuite( )
 NumericUpDownSuite( )
 PropOrderSuite( )
+SliderSuite( )
 DatePickerSuite( )
 CalendarSuite( )
 CodeEditSuite( )

@@ -9,6 +9,7 @@
 #import "../tkToggle"
 #import "../tkTextBox"
 #import "../tkNumericUpDown"
+#import "../tkSlider"
 #import "../tkComboBox"
 #import "../tkDatePicker"
 #import "../tkCalendar"
@@ -44,6 +45,7 @@ using tkOptionButton
 using tkToggle
 using tkTextBox
 using tkNumericUpDown
+using tkSlider
 using tkComboBox
 using tkDatePicker
 using tkCalendar
@@ -1018,6 +1020,328 @@ end sub
 
 private sub A_NumericUpDown_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkNumericUpDown_SetReshowTime( w, clng( val( v ) ) )
+end sub
+
+private function C_Slider( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkSlider_Create( hParent, id )
+end function
+
+private sub G_Slider( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkSlider_GetColors( w, cast( TKSLIDER_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Slider( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKSLIDER_COLORS ptr, pSlots ) = tkSlider_ThemeColors( t )
+end sub
+
+private sub A_Slider_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Slider_Step( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetStep( w, val( v ) )
+end sub
+
+private function R_Slider_Step( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetStep( w ) )
+end function
+
+private sub A_Slider_DecimalPlaces( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetDecimalPlaces( w, clng( val( v ) ) )
+end sub
+
+private function R_Slider_DecimalPlaces( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetDecimalPlaces( w ) )
+end function
+
+private sub A_Slider_TickFrequency( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetTickFrequency( w, val( v ) )
+end sub
+
+private function R_Slider_TickFrequency( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetTickFrequency( w ) )
+end function
+
+private sub A_Slider_SnapToTicks( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetSnapToTicks( w, cbool( v = "true" ) )
+end sub
+
+private function R_Slider_SnapToTicks( byval w as TK_WIDGET ptr ) as ustring
+    if tkSlider_GetSnapToTicks( w ) then return "true" else return "false"
+end function
+
+private sub A_Slider_Mode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Single" : tkSlider_SetMode( w, TKSL_MODE_SINGLE )
+    case "Range" : tkSlider_SetMode( w, TKSL_MODE_RANGE )
+    end select
+end sub
+
+private function R_Slider_Mode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetMode( w )
+    case TKSL_MODE_SINGLE : return "Single"
+    case TKSL_MODE_RANGE : return "Range"
+    end select
+    return ""
+end function
+
+private sub A_Slider_Value( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetValue( w, val( v ) )
+end sub
+
+private function R_Slider_Value( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetValue( w ) )
+end function
+
+private sub A_Slider_UpperValue( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetUpperValue( w, val( v ) )
+end sub
+
+private function R_Slider_UpperValue( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetUpperValue( w ) )
+end function
+
+private sub A_Slider_SmallChange( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetSmallChange( w, val( v ) )
+end sub
+
+private function R_Slider_SmallChange( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetSmallChange( w ) )
+end function
+
+private sub A_Slider_LargeChange( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetLargeChange( w, val( v ) )
+end sub
+
+private function R_Slider_LargeChange( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetLargeChange( w ) )
+end function
+
+private sub A_Slider_MinDistance( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetMinDistance( w, val( v ) )
+end sub
+
+private function R_Slider_MinDistance( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetMinDistance( w ) )
+end function
+
+private sub A_Slider_AllowRangeDrag( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetAllowRangeDrag( w, cbool( v = "true" ) )
+end sub
+
+private function R_Slider_AllowRangeDrag( byval w as TK_WIDGET ptr ) as ustring
+    if tkSlider_GetAllowRangeDrag( w ) then return "true" else return "false"
+end function
+
+private sub A_Slider_Orientation( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Horizontal" : tkSlider_SetOrientation( w, TKSL_HORIZONTAL )
+    case "Vertical" : tkSlider_SetOrientation( w, TKSL_VERTICAL )
+    end select
+end sub
+
+private function R_Slider_Orientation( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetOrientation( w )
+    case TKSL_HORIZONTAL : return "Horizontal"
+    case TKSL_VERTICAL : return "Vertical"
+    end select
+    return ""
+end function
+
+private sub A_Slider_Reversed( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetReversed( w, cbool( v = "true" ) )
+end sub
+
+private function R_Slider_Reversed( byval w as TK_WIDGET ptr ) as ustring
+    if tkSlider_GetReversed( w ) then return "true" else return "false"
+end function
+
+private sub A_Slider_TrackClick( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Jump" : tkSlider_SetTrackClick( w, TKSL_CLICK_JUMP )
+    case "Page" : tkSlider_SetTrackClick( w, TKSL_CLICK_PAGE )
+    end select
+end sub
+
+private function R_Slider_TrackClick( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetTrackClick( w )
+    case TKSL_CLICK_JUMP : return "Jump"
+    case TKSL_CLICK_PAGE : return "Page"
+    end select
+    return ""
+end function
+
+private sub A_Slider_WheelMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Focused" : tkSlider_SetWheelMode( w, TKSL_WHEEL_FOCUSED )
+    case "Hover" : tkSlider_SetWheelMode( w, TKSL_WHEEL_HOVER )
+    case "Never" : tkSlider_SetWheelMode( w, TKSL_WHEEL_NEVER )
+    end select
+end sub
+
+private function R_Slider_WheelMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetWheelMode( w )
+    case TKSL_WHEEL_FOCUSED : return "Focused"
+    case TKSL_WHEEL_HOVER : return "Hover"
+    case TKSL_WHEEL_NEVER : return "Never"
+    end select
+    return ""
+end function
+
+private sub A_Slider_FillMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Min" : tkSlider_SetFillMode( w, TKSL_FILL_MIN )
+    case "None" : tkSlider_SetFillMode( w, TKSL_FILL_NONE )
+    case "Origin" : tkSlider_SetFillMode( w, TKSL_FILL_ORIGIN )
+    end select
+end sub
+
+private function R_Slider_FillMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetFillMode( w )
+    case TKSL_FILL_MIN : return "Min"
+    case TKSL_FILL_NONE : return "None"
+    case TKSL_FILL_ORIGIN : return "Origin"
+    end select
+    return ""
+end function
+
+private sub A_Slider_FillOrigin( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetFillOrigin( w, val( v ) )
+end sub
+
+private function R_Slider_FillOrigin( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetFillOrigin( w ) )
+end function
+
+private sub A_Slider_TickPlacement( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkSlider_SetTickPlacement( w, TKSL_TICKS_NONE )
+    case "TopLeft" : tkSlider_SetTickPlacement( w, TKSL_TICKS_TOPLEFT )
+    case "BottomRight" : tkSlider_SetTickPlacement( w, TKSL_TICKS_BOTTOMRIGHT )
+    case "Both" : tkSlider_SetTickPlacement( w, TKSL_TICKS_BOTH )
+    end select
+end sub
+
+private function R_Slider_TickPlacement( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetTickPlacement( w )
+    case TKSL_TICKS_NONE : return "None"
+    case TKSL_TICKS_TOPLEFT : return "TopLeft"
+    case TKSL_TICKS_BOTTOMRIGHT : return "BottomRight"
+    case TKSL_TICKS_BOTH : return "Both"
+    end select
+    return ""
+end function
+
+private sub A_Slider_ShowTickLabels( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetShowTickLabels( w, cbool( v = "true" ) )
+end sub
+
+private function R_Slider_ShowTickLabels( byval w as TK_WIDGET ptr ) as ustring
+    if tkSlider_GetShowTickLabels( w ) then return "true" else return "false"
+end function
+
+private sub A_Slider_LabelEvery( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetLabelEvery( w, clng( val( v ) ) )
+end sub
+
+private function R_Slider_LabelEvery( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetLabelEvery( w ) )
+end function
+
+private sub A_Slider_ShowValueTip( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkSlider_SetShowValueTip( w, TKSL_TIP_NONE )
+    case "Drag" : tkSlider_SetShowValueTip( w, TKSL_TIP_DRAG )
+    case "Focused" : tkSlider_SetShowValueTip( w, TKSL_TIP_FOCUSED )
+    end select
+end sub
+
+private function R_Slider_ShowValueTip( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetShowValueTip( w )
+    case TKSL_TIP_NONE : return "None"
+    case TKSL_TIP_DRAG : return "Drag"
+    case TKSL_TIP_FOCUSED : return "Focused"
+    end select
+    return ""
+end function
+
+private sub A_Slider_ThumbShape( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Round" : tkSlider_SetThumbShape( w, TKSL_THUMB_ROUND )
+    case "Rect" : tkSlider_SetThumbShape( w, TKSL_THUMB_RECT )
+    end select
+end sub
+
+private function R_Slider_ThumbShape( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSlider_GetThumbShape( w )
+    case TKSL_THUMB_ROUND : return "Round"
+    case TKSL_THUMB_RECT : return "Rect"
+    end select
+    return ""
+end function
+
+private sub A_Slider_ReadOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetReadOnly( w, cbool( v = "true" ) )
+end sub
+
+private function R_Slider_ReadOnly( byval w as TK_WIDGET ptr ) as ustring
+    if tkSlider_GetReadOnly( w ) then return "true" else return "false"
+end function
+
+private sub F_Slider_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkSlider_SetFont( w, f )
+end sub
+
+private sub A_Slider_TrackSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetTrackSize( w, clng( val( v ) ) )
+end sub
+
+private function R_Slider_TrackSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetTrackSize( w ) )
+end function
+
+private sub A_Slider_ThumbSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetThumbSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Slider_TickSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetTickSize( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private sub A_Slider_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_Slider_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSlider_GetBorderThickness( w ) )
+end function
+
+private sub A_Slider_FocusRing( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetFocusRing( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Slider_AutoRepeat( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetAutoRepeat( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Slider_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetTooltipText( w, v )
+end sub
+
+private function R_Slider_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkSlider_GetTooltipText( w )
+end function
+
+private sub A_Slider_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Slider_AutoPopTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetAutoPopTime( w, clng( val( v ) ) )
+end sub
+
+private sub A_Slider_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSlider_SetReshowTime( w, clng( val( v ) ) )
 end sub
 
 private function C_ComboBox( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -3298,6 +3622,67 @@ sub Fill_( )
     Event_( "ValueChanged", "tkNumericUpDown_SetValueChangedCallback", "NUD_ValueChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval nValue as float64", "byval nValue as float64", "nValue" )
     Event_( "Paint", "tkNumericUpDown_SetPaintCallback", "NUD_PaintCallbackSub", "byval p as TKNUMERICUPDOWN_PAINTINFO ptr", "byval p as TKNUMERICUPDOWN_PAINTINFO ptr", "p", "p->hCtrl", "", "" )
     Event_( "Message", "tkNumericUpDown_SetMessageCallback", "NUD_MessageCallbackFunc", "byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr", "byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Slider", "tkSlider", "Common", 160, 32, "ValueChanged", "", @C_Slider, "", "", "", "" )
+    Colors_( "TKSLIDER_COLORS", "tkSlider_GetColors", "tkSlider_ThemeColors", @G_Slider, @T_Slider )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "FocusRingColor", "", "", "", false )
+    Color_( "TrackColor", "Track", "Normal", "", false )
+    Color_( "TrackColorDisabled", "Track", "Disabled", "", false )
+    Color_( "FillColor", "Fill", "Normal", "", false )
+    Color_( "FillColorHot", "Fill", "Hot", "", false )
+    Color_( "FillColorDisabled", "Fill", "Disabled", "", false )
+    Color_( "ThumbColor", "Thumb", "Normal", "", false )
+    Color_( "ThumbColorHot", "Thumb", "Hot", "", false )
+    Color_( "ThumbColorPressed", "Thumb", "Pressed", "", false )
+    Color_( "ThumbColorDisabled", "Thumb", "Disabled", "", false )
+    Color_( "ThumbBorderColor", "ThumbBorder", "Normal", "", false )
+    Color_( "ThumbBorderColorHot", "ThumbBorder", "Hot", "", false )
+    Color_( "ThumbBorderColorDisabled", "ThumbBorder", "Disabled", "", false )
+    Color_( "TickColor", "Tick", "Normal", "", false )
+    Color_( "TickColorDisabled", "Tick", "Disabled", "", false )
+    Color_( "LabelColor", "Label", "Normal", "", true )
+    Color_( "LabelColorDisabled", "Label", "Disabled", "", true )
+    Prop_( "Range", "list", "", "Min:float,Max:float", "tkSlider_SetRange", "", @A_Slider_Range, 0, 0, true, true, "", 0 )
+    Prop_( "Step", "float", "", "", "tkSlider_SetStep", "tkSlider_GetStep", @A_Slider_Step, @R_Slider_Step, 0, true, true, "", 0 )
+    Prop_( "DecimalPlaces", "int", "", "", "tkSlider_SetDecimalPlaces", "tkSlider_GetDecimalPlaces", @A_Slider_DecimalPlaces, @R_Slider_DecimalPlaces, 0, true, true, "", 0 )
+    Prop_( "TickFrequency", "float", "", "", "tkSlider_SetTickFrequency", "tkSlider_GetTickFrequency", @A_Slider_TickFrequency, @R_Slider_TickFrequency, 0, true, true, "", 0 )
+    Prop_( "SnapToTicks", "bool", "false", "", "tkSlider_SetSnapToTicks", "tkSlider_GetSnapToTicks", @A_Slider_SnapToTicks, @R_Slider_SnapToTicks, 0, true, true, "", 0 )
+    Prop_( "Mode", "enum", "Single", "Single=TKSL_MODE_SINGLE,Range=TKSL_MODE_RANGE", "tkSlider_SetMode", "tkSlider_GetMode", @A_Slider_Mode, @R_Slider_Mode, 0, true, true, "", 0 )
+    Prop_( "Value", "float", "", "", "tkSlider_SetValue", "tkSlider_GetValue", @A_Slider_Value, @R_Slider_Value, 0, true, true, "", 0 )
+    Prop_( "UpperValue", "float", "", "", "tkSlider_SetUpperValue", "tkSlider_GetUpperValue", @A_Slider_UpperValue, @R_Slider_UpperValue, 0, true, true, "", 0 )
+    Prop_( "SmallChange", "float", "", "", "tkSlider_SetSmallChange", "tkSlider_GetSmallChange", @A_Slider_SmallChange, @R_Slider_SmallChange, 0, true, true, "", 0 )
+    Prop_( "LargeChange", "float", "", "", "tkSlider_SetLargeChange", "tkSlider_GetLargeChange", @A_Slider_LargeChange, @R_Slider_LargeChange, 0, true, true, "", 0 )
+    Prop_( "MinDistance", "float", "", "", "tkSlider_SetMinDistance", "tkSlider_GetMinDistance", @A_Slider_MinDistance, @R_Slider_MinDistance, 0, true, true, "", 0 )
+    Prop_( "AllowRangeDrag", "bool", "false", "", "tkSlider_SetAllowRangeDrag", "tkSlider_GetAllowRangeDrag", @A_Slider_AllowRangeDrag, @R_Slider_AllowRangeDrag, 0, true, true, "", 0 )
+    Prop_( "Orientation", "enum", "Horizontal", "Horizontal=TKSL_HORIZONTAL,Vertical=TKSL_VERTICAL", "tkSlider_SetOrientation", "tkSlider_GetOrientation", @A_Slider_Orientation, @R_Slider_Orientation, 0, true, true, "", 0 )
+    Prop_( "Reversed", "bool", "false", "", "tkSlider_SetReversed", "tkSlider_GetReversed", @A_Slider_Reversed, @R_Slider_Reversed, 0, true, true, "", 0 )
+    Prop_( "TrackClick", "enum", "Jump", "Jump=TKSL_CLICK_JUMP,Page=TKSL_CLICK_PAGE", "tkSlider_SetTrackClick", "tkSlider_GetTrackClick", @A_Slider_TrackClick, @R_Slider_TrackClick, 0, true, true, "", 0 )
+    Prop_( "WheelMode", "enum", "Focused", "Focused=TKSL_WHEEL_FOCUSED,Hover=TKSL_WHEEL_HOVER,Never=TKSL_WHEEL_NEVER", "tkSlider_SetWheelMode", "tkSlider_GetWheelMode", @A_Slider_WheelMode, @R_Slider_WheelMode, 0, true, true, "", 0 )
+    Prop_( "FillMode", "enum", "Min", "Min=TKSL_FILL_MIN,None=TKSL_FILL_NONE,Origin=TKSL_FILL_ORIGIN", "tkSlider_SetFillMode", "tkSlider_GetFillMode", @A_Slider_FillMode, @R_Slider_FillMode, 0, true, true, "", 0 )
+    Prop_( "FillOrigin", "float", "", "", "tkSlider_SetFillOrigin", "tkSlider_GetFillOrigin", @A_Slider_FillOrigin, @R_Slider_FillOrigin, 0, true, true, "", 0 )
+    Prop_( "TickPlacement", "enum", "None", "None=TKSL_TICKS_NONE,TopLeft=TKSL_TICKS_TOPLEFT,BottomRight=TKSL_TICKS_BOTTOMRIGHT,Both=TKSL_TICKS_BOTH", "tkSlider_SetTickPlacement", "tkSlider_GetTickPlacement", @A_Slider_TickPlacement, @R_Slider_TickPlacement, 0, true, true, "", 0 )
+    Prop_( "ShowTickLabels", "bool", "false", "", "tkSlider_SetShowTickLabels", "tkSlider_GetShowTickLabels", @A_Slider_ShowTickLabels, @R_Slider_ShowTickLabels, 0, true, true, "", 0 )
+    Prop_( "LabelEvery", "int", "", "", "tkSlider_SetLabelEvery", "tkSlider_GetLabelEvery", @A_Slider_LabelEvery, @R_Slider_LabelEvery, 0, true, true, "", 0 )
+    Prop_( "ShowValueTip", "enum", "Drag", "None=TKSL_TIP_NONE,Drag=TKSL_TIP_DRAG,Focused=TKSL_TIP_FOCUSED", "tkSlider_SetShowValueTip", "tkSlider_GetShowValueTip", @A_Slider_ShowValueTip, @R_Slider_ShowValueTip, 0, true, true, "", 0 )
+    Prop_( "ThumbShape", "enum", "Round", "Round=TKSL_THUMB_ROUND,Rect=TKSL_THUMB_RECT", "tkSlider_SetThumbShape", "tkSlider_GetThumbShape", @A_Slider_ThumbShape, @R_Slider_ThumbShape, 0, true, true, "", 0 )
+    Prop_( "ReadOnly", "bool", "false", "", "tkSlider_SetReadOnly", "tkSlider_GetReadOnly", @A_Slider_ReadOnly, @R_Slider_ReadOnly, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkSlider_SetFont", "tkSlider_GetFont", 0, 0, @F_Slider_Font, true, true, "", 0 )
+    Prop_( "TrackSize", "int", "", "", "tkSlider_SetTrackSize", "tkSlider_GetTrackSize", @A_Slider_TrackSize, @R_Slider_TrackSize, 0, true, true, "", 0 )
+    Prop_( "ThumbSize", "list", "", "Along:int,Across:int", "tkSlider_SetThumbSize", "", @A_Slider_ThumbSize, 0, 0, true, true, "", 0 )
+    Prop_( "TickSize", "list", "", "Length:int,Gap:int,LabelGap:int", "tkSlider_SetTickSize", "", @A_Slider_TickSize, 0, 0, true, true, "", 0 )
+    Prop_( "BorderThickness", "int", "", "", "tkSlider_SetBorderThickness", "tkSlider_GetBorderThickness", @A_Slider_BorderThickness, @R_Slider_BorderThickness, 0, true, true, "BorderWidth", 1 )
+    Prop_( "FocusRing", "list", "", "Gap:int,Thickness:int", "tkSlider_SetFocusRing", "", @A_Slider_FocusRing, 0, 0, true, true, "", 0 )
+    Prop_( "AutoRepeat", "list", "", "DelayMs:int,IntervalMs:int", "tkSlider_SetAutoRepeat", "", @A_Slider_AutoRepeat, 0, 0, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkSlider_SetTooltipText", "tkSlider_GetTooltipText", @A_Slider_TooltipText, @R_Slider_TooltipText, 0, true, true, "", 0 )
+    Prop_( "HoverTime", "int", "", "", "tkSlider_SetHoverTime", "", @A_Slider_HoverTime, 0, 0, true, true, "", 0 )
+    Prop_( "AutoPopTime", "int", "", "", "tkSlider_SetAutoPopTime", "", @A_Slider_AutoPopTime, 0, 0, true, true, "", 0 )
+    Prop_( "ReshowTime", "int", "", "", "tkSlider_SetReshowTime", "", @A_Slider_ReshowTime, 0, 0, true, true, "", 0 )
+    Event_( "ValueChanged", "tkSlider_SetValueChangedCallback", "SLD_ValueChangedCallbackSub", "byval hSlider as TK_WIDGET ptr, byval nThumb as int32, byval nValue as float64", "byval nThumb as int32, byval nValue as float64", "nThumb, nValue" )
+    Event_( "ValueCommitted", "tkSlider_SetValueCommittedCallback", "SLD_ValueCommittedCallbackSub", "byval hSlider as TK_WIDGET ptr, byval nThumb as int32, byval nValue as float64", "byval nThumb as int32, byval nValue as float64", "nThumb, nValue" )
+    Event_( "FormatValue", "tkSlider_SetFormatValueCallback", "SLD_FormatValueCallbackFunc", "byval hSlider as TK_WIDGET ptr, byval nValue as float64, byval nWhere as int32", "byval nValue as float64, byval nWhere as int32, byref Text as ustring", "nValue, nWhere, Text", "", "ustring", "Text" )
+    Event_( "Paint", "tkSlider_SetPaintCallback", "SLD_PaintCallbackSub", "byval p as TKSLIDER_PAINTINFO ptr", "byval p as TKSLIDER_PAINTINFO ptr", "p", "p->hSlider", "", "" )
+    Event_( "Message", "tkSlider_SetMessageCallback", "SLD_MessageCallbackFunc", "byval m as TKSLIDER_MESSAGEINFO ptr", "byval m as TKSLIDER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hSlider", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "ComboBox", "tkComboBox", "Common", 160, 28, "SelChange", "", @C_ComboBox, "", "", "", "" )
     Colors_( "TKCOMBOBOX_COLORS", "tkComboBox_GetColors", "tkComboBox_ThemeColors", @G_ComboBox, @T_ComboBox )
