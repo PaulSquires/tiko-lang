@@ -2169,6 +2169,7 @@ props = [
   { name="SelectedKeys", kind="text", set="tkChipGroup_SetSelectedKeys", get="tkChipGroup_GetSelectedKeys" },
   { name="Removable", kind="bool", set="tkChipGroup_SetRemovable", get="", default="false" },
   { name="Wrap", kind="bool", set="tkChipGroup_SetWrap", get="", default="true" },
+  { name="AllowReorder", kind="bool", set="tkChipGroup_SetAllowReorder", get="tkChipGroup_GetAllowReorder", default="false" },
   { name="Gaps", kind="list", enum="ItemGap:int,RowGap:int", set="tkChipGroup_SetGaps", get="" },
   { name="Size", kind="enum", enum="Small=TKCHIP_SMALL,Medium=TKCHIP_MEDIUM", set="tkChipGroup_SetSize", get="", default="Medium" },
   { name="Shape", kind="enum", enum="Pill=TKCHIP_PILL,Rounded=TKCHIP_ROUNDED", set="tkChipGroup_SetShape", get="", default="Pill" },
@@ -2181,5 +2182,6 @@ events = [
   { name="ItemRemoving", set="tkChipGroup_SetItemRemovingCallback", type="CHG_ItemRemovingCallbackFunc", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="ItemRemoved", set="tkChipGroup_SetItemRemovedCallback", type="CHG_ItemRemovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval Key as ustring", params="byval Key as ustring", args="Key" },
   { name="OverflowClick", set="tkChipGroup_SetOverflowClickCallback", type="CHG_OverflowClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr", params="", args="" },
+  { name="ItemMoved", set="tkChipGroup_SetItemMovedCallback", type="CHG_ItemMovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long", params="byval nFrom as long, byval nTo as long", args="nFrom, nTo" },
   { name="Message", set="tkChipGroup_SetMessageCallback", type="CHG_MessageCallbackFunc", sig="byval m as TKCHIPGRP_MESSAGEINFO ptr", params="byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGroup", returns="boolean", result="Handled" },
 ]

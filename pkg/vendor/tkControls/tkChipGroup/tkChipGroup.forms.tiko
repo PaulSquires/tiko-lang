@@ -24,6 +24,8 @@ public type ChipGroup
     declare property SelectedKeys( byref v as const ustring )
     declare property Removable( byval v as boolean )
     declare property Wrap( byval v as boolean )
+    declare property AllowReorder( ) as boolean
+    declare property AllowReorder( byval v as boolean )
     declare sub Gaps( byval a0 as int32, byval a1 as int32 )
     declare property Size( byval v as int32 )
     declare property Shape( byval v as int32 )
@@ -93,6 +95,14 @@ end property
 
 property ChipGroup.Wrap( byval v as boolean )
     tkChipGroup_SetWrap( Handle, v )
+end property
+
+property ChipGroup.AllowReorder( ) as boolean
+    return tkChipGroup_GetAllowReorder( Handle )
+end property
+
+property ChipGroup.AllowReorder( byval v as boolean )
+    tkChipGroup_SetAllowReorder( Handle, v )
 end property
 
 sub ChipGroup.Gaps( byval a0 as int32, byval a1 as int32 )

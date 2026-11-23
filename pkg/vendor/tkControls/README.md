@@ -65,7 +65,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkTimePicker`, `tkTimePanel` | a time of day: a segmented field you type into and step, with a column or list dropdown (or spin buttons), 12- or 24-hour by pattern, a range and a step; the panel alone embeds in a form; the designer's TimePicker and TimePanel, bound as `time` |
 | `tkRating` | a rating: a row of stars (or hearts, circles, diamonds, a glyph) set by click, drag or keys; half or tenth steps, read-only display, a caption; the designer's Rating, bound as a number |
 | `tkBadge`, `tkAvatar`, `tkAvatarGroup` | status marks: a count, dot, text, glyph or presence badge, standalone or attached to a corner of another control; a picture, initials or glyph in a circle or rounded square, with a presence badge; a row of overlapping avatars ending in `+N`. The designer's Badge, Avatar and AvatarGroup |
-| `tkChip`, `tkChipGroup` | compact choices and tags: an action, toggle or removable input chip with avatar, glyph, check, count and remove button; a wrapping or one-row group with none, single or multiple selection and veto-able removal. Chip binds its selected state, ChipGroup its selected keys and its items |
+| `tkChip`, `tkChipGroup` | compact choices and tags: an action, toggle or removable input chip with avatar, glyph, check, count and remove button; a wrapping or one-row group with none, single or multiple selection, veto-able removal and reordering (Shift+arrows, drag). Chip binds its selected state, ChipGroup its selected keys and its items |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla

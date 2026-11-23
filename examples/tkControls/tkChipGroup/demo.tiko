@@ -1,7 +1,8 @@
-' tkChipGroup demo (phases C1 + C2): a filter row (multi, counts), a single choice, a removable
-' tag list with avatars (removing "Admin" is vetoed), and one row with a "+N".
+' tkChipGroup demo (phases C1 - C3): a filter row (multi, counts), a single choice, a removable
+' tag list with avatars that can be reordered (removing "Admin" is vetoed), and one row with a "+N".
 '
-'   demo                     interactive (Tab to a group; arrows, Space, Delete)
+'   demo                     interactive (Tab to a group; arrows, Space, Delete; in People, drag
+'                            a chip or Shift+Left / Right to reorder)
 '   demo --shot out.bmp      render once, save the window, exit
 '   demo --scale 1.75        pin the scale instead of asking the display
 #import "vendor/tkControls/tkChipGroup"
@@ -28,13 +29,17 @@ sub OnRemoved( byval hGroup as TK_WIDGET ptr, byval Key as ustring )
     print "removed " & Key & "; left: " & tkChipGroup_GetItemsText( hGroup )
 end sub
 
+sub OnMoved( byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long )
+    print "moved " & nFrom & " -> " & nTo & ": " & tkChipGroup_GetItemsText( hGroup )
+end sub
+
 sub OnOverflow( byval hGroup as TK_WIDGET ptr )
     print "+N clicked: " & tkChipGroup_GetTipText( hGroup, TKCHIPGRP_OVERFLOW )
 end sub
 
 sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
     dim as TKTHEME_COLORS t = tkTheme_Of( tkHost_Root( h ) )
-    dim as ustring heads(0 to 3) = { "Filters (multi, counts)", "Size (single choice)", "People (removable; Admin is vetoed)", "One row (+N)" }
+    dim as ustring heads(0 to 3) = { "Filters (multi, counts)", "Size (single choice)", "People (removable, reorderable; Admin is vetoed)", "One row (+N)" }
     b->SetFont( gFont )
     b->SetColors( t.TextDim, t.Window )
     for i as long = 0 to 3
@@ -102,6 +107,8 @@ Fit( g )
 
 g = NewGroup( 196, "Ada Lovelace;Grace Hopper;Admin;Alan Turing;Ken Thompson" )
 tkChipGroup_SetRemovable( g, true )
+tkChipGroup_SetAllowReorder( g, true )
+tkChipGroup_SetItemMovedCallback( g, @OnMoved )
 for i as long = 0 to 4
     if i <> 2 then tkChipGroup_SetItemLeadingAvatar( g, i )
 next

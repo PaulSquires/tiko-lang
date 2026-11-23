@@ -152,6 +152,24 @@ item, removes it:
 A disabled item cannot be removed by the user. When no item is left, the focus ring goes round the
 whole group. `RemoveItem` from code is silent.
 
+## Reordering
+
+`SetAllowReorder( true )` (default off) lets the user change the items' order:
+
+- **Shift+Left** / **Shift+Right** move the focus item one place, among the items shown. At either
+  end nothing moves (the key is still claimed). A disabled item does not move.
+- **A drag**: a press on an item's body that moves more than 4 pixels (scaled) starts it; no click
+  follows. While it lasts, a bar in the focus ring's colour marks where the item will go: in the
+  gap before the first item of the row nearest the pointer whose centre is right of it, else after
+  that row's last item. The release moves the item there. **Esc** cancels; a release outside the
+  group moves nothing.
+- Either way `ItemMoved( hGroup, nFrom, nTo )` fires after the move. The selection (a key set) and
+  the focus item stay with their items. A bound **BindItems** saves the new order.
+- `MoveItem( h, nFrom, nTo )` does the same from code, silently. `GetDropMark( h, rc )` answers the
+  mark while a drag is on.
+
+Items hidden behind a `+N` take no part: a drag drops among the items shown.
+
 ## Mouse and keyboard
 
 The group is one tab stop with a roving focus item (`GetFocusItem` / `SetFocusItem`;
@@ -182,6 +200,7 @@ gives its focus to the `+N`, and when the `+N` goes, the focus goes to the last 
 | `SetItemRemovingCallback` | the user asked to remove an item; return FALSE to veto |
 | `SetItemRemovedCallback` | the item is gone; the callback gets its key |
 | `SetOverflowClickCallback` | a click on the `+N` chip, or Space / Enter on it |
+| `SetItemMovedCallback` | the user moved an item (Shift+arrow or a drag); `nFrom`, `nTo` |
 | `SetMessageCallback` | the input stream, with the item (`idx`) and the part under the pointer; TRUE claims a press, a release (no click) or a key |
 
 The state is updated before a callback runs: inside `SelChange`, `GetSelectedKeys` already answers
@@ -211,10 +230,11 @@ leaves it) until `UnpinColors`.
 
 The toolbox's **ChipGroup** (Lists) has the properties above, in the order the form sets them:
 KeySeparator first, because Items and SelectedKeys are both split by it; then SelectionMode, Items,
-SelectedKeys, Removable, Wrap, Gaps (ItemGap, RowGap), Size, Shape, Appearance and MaxLabelWidth.
+SelectedKeys, Removable, Wrap, AllowReorder, Gaps (ItemGap, RowGap), Size, Shape, Appearance and
+MaxLabelWidth.
 Items and SelectedKeys may come in either order, since the selection is a key set. Its events are
 ItemClick, SelChange (the default), ItemRemoving (the handler sets `Allow`, which starts TRUE),
-ItemRemoved, OverflowClick and Message.
+ItemRemoved, OverflowClick, ItemMoved and Message.
 
 **Bind** moves the selected keys into and out of a text field of the form's DataType, joined by the
 KeySeparator. **BindItems** moves the items the same way: a tag editor can bind its items, and a
@@ -233,7 +253,8 @@ filter row with designed Items its selection. The two load in either order. See
 
 `TKCHIPGRP_MESSAGEINFO` (the message, the item and the part), and the callback types
 `CHG_ItemClickCallbackSub`, `CHG_SelChangeCallbackSub`, `CHG_ItemRemovingCallbackFunc`,
-`CHG_ItemRemovedCallbackSub`, `CHG_OverflowClickCallbackSub`, `CHG_MessageCallbackFunc`. The colours
+`CHG_ItemRemovedCallbackSub`, `CHG_OverflowClickCallbackSub`, `CHG_ItemMovedCallbackSub`,
+`CHG_MessageCallbackFunc`. The colours
 are tkChip's `TKCHIP_COLORS`.
 
 ### Procedures
@@ -248,6 +269,10 @@ sub tkChipGroup_RemoveItem( byval hGroup as TK_WIDGET ptr, byval idx as long )
 sub tkChipGroup_Clear( byval hGroup as TK_WIDGET ptr )
 function tkChipGroup_GetCount( byval hGroup as TK_WIDGET ptr ) as long
 function tkChipGroup_FindItemByKey( byval hGroup as TK_WIDGET ptr, byval Key as ustring ) as long
+sub tkChipGroup_MoveItem( byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long )
+sub tkChipGroup_SetAllowReorder( byval hGroup as TK_WIDGET ptr, byval bOn as boolean )
+function tkChipGroup_GetAllowReorder( byval hGroup as TK_WIDGET ptr ) as boolean
+function tkChipGroup_GetDropMark( byval hGroup as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
 function tkChipGroup_GetItemText( byval hGroup as TK_WIDGET ptr, byval idx as long ) as ustring
 sub tkChipGroup_SetItemText( byval hGroup as TK_WIDGET ptr, byval idx as long, byval Text as ustring )
 function tkChipGroup_GetItemKey( byval hGroup as TK_WIDGET ptr, byval idx as long ) as ustring
@@ -302,6 +327,7 @@ sub tkChipGroup_SetSelChangeCallback( byval hGroup as TK_WIDGET ptr, byval users
 sub tkChipGroup_SetItemRemovingCallback( byval hGroup as TK_WIDGET ptr, byval userfunc as CHG_ItemRemovingCallbackFunc )
 sub tkChipGroup_SetItemRemovedCallback( byval hGroup as TK_WIDGET ptr, byval usersub as CHG_ItemRemovedCallbackSub )
 sub tkChipGroup_SetOverflowClickCallback( byval hGroup as TK_WIDGET ptr, byval usersub as CHG_OverflowClickCallbackSub )
+sub tkChipGroup_SetItemMovedCallback( byval hGroup as TK_WIDGET ptr, byval usersub as CHG_ItemMovedCallbackSub )
 sub tkChipGroup_SetMessageCallback( byval hGroup as TK_WIDGET ptr, byval userfunc as CHG_MessageCallbackFunc )
 ```
 

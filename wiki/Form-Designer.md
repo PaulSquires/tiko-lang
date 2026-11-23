@@ -356,7 +356,7 @@ end sub
 | Badge | the count, in only |
 | Avatar | the display name, in only (the initials and the colour come from it); **BindImage** moves the image file's path both ways |
 | Chip | selected or not |
-| ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives |
+| ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives. With **AllowReorder**, BindItems saves the order the user left |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |
 | DatePicker | the date; a field with no date leaves the picker empty |

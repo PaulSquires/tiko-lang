@@ -5149,6 +5149,14 @@ private sub A_ChipGroup_Wrap( byval w as TK_WIDGET ptr, byref v as const ustring
     tkChipGroup_SetWrap( w, cbool( v = "true" ) )
 end sub
 
+private sub A_ChipGroup_AllowReorder( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChipGroup_SetAllowReorder( w, cbool( v = "true" ) )
+end sub
+
+private function R_ChipGroup_AllowReorder( byval w as TK_WIDGET ptr ) as ustring
+    if tkChipGroup_GetAllowReorder( w ) then return "true" else return "false"
+end function
+
 private sub A_ChipGroup_Gaps( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkChipGroup_SetGaps( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
@@ -6692,6 +6700,7 @@ sub Fill_( )
     Prop_( "SelectedKeys", "text", "", "", "tkChipGroup_SetSelectedKeys", "tkChipGroup_GetSelectedKeys", @A_ChipGroup_SelectedKeys, @R_ChipGroup_SelectedKeys, 0, true, true, "", 0 )
     Prop_( "Removable", "bool", "false", "", "tkChipGroup_SetRemovable", "", @A_ChipGroup_Removable, 0, 0, true, true, "", 0 )
     Prop_( "Wrap", "bool", "true", "", "tkChipGroup_SetWrap", "", @A_ChipGroup_Wrap, 0, 0, true, true, "", 0 )
+    Prop_( "AllowReorder", "bool", "false", "", "tkChipGroup_SetAllowReorder", "tkChipGroup_GetAllowReorder", @A_ChipGroup_AllowReorder, @R_ChipGroup_AllowReorder, 0, true, true, "", 0 )
     Prop_( "Gaps", "list", "", "ItemGap:int,RowGap:int", "tkChipGroup_SetGaps", "", @A_ChipGroup_Gaps, 0, 0, true, true, "", 0 )
     Prop_( "Size", "enum", "Medium", "Small=TKCHIP_SMALL,Medium=TKCHIP_MEDIUM", "tkChipGroup_SetSize", "", @A_ChipGroup_Size, 0, 0, true, true, "", 0 )
     Prop_( "Shape", "enum", "Pill", "Pill=TKCHIP_PILL,Rounded=TKCHIP_ROUNDED", "tkChipGroup_SetShape", "", @A_ChipGroup_Shape, 0, 0, true, true, "", 0 )
@@ -6702,6 +6711,7 @@ sub Fill_( )
     Event_( "ItemRemoving", "tkChipGroup_SetItemRemovingCallback", "CHG_ItemRemovingCallbackFunc", "byval hGroup as TK_WIDGET ptr, byval idx as long", "byval idx as long, byref Allow as boolean", "idx, Allow", "", "boolean", "Allow", "true" )
     Event_( "ItemRemoved", "tkChipGroup_SetItemRemovedCallback", "CHG_ItemRemovedCallbackSub", "byval hGroup as TK_WIDGET ptr, byval Key as ustring", "byval Key as ustring", "Key" )
     Event_( "OverflowClick", "tkChipGroup_SetOverflowClickCallback", "CHG_OverflowClickCallbackSub", "byval hGroup as TK_WIDGET ptr", "", "" )
+    Event_( "ItemMoved", "tkChipGroup_SetItemMovedCallback", "CHG_ItemMovedCallbackSub", "byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long", "byval nFrom as long, byval nTo as long", "nFrom, nTo" )
     Event_( "Message", "tkChipGroup_SetMessageCallback", "CHG_MessageCallbackFunc", "byval m as TKCHIPGRP_MESSAGEINFO ptr", "byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hGroup", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub
