@@ -73,6 +73,7 @@ public type TKITEMPOPUP_STATE
     nMaxRows     as long = TKITEMPOPUP_DEFAULT_MAXROWS
     nRowHeight   as long = TKITEMPOPUP_DEFAULT_ROWHEIGHT     ' unscaled
     nMatchMode   as long = TKMATCH_CONTAINS
+    bPassDismissClick as boolean        ' the press that closes the popup still reaches its target
     wszSelectAll as ustring = "(Select all)"
     wszOK        as ustring = "OK"
     wszCancel    as ustring = "Cancel"
@@ -385,6 +386,11 @@ private function IpKey( byval ip as TKITEMPOPUP_STATE ptr, byval m as TK_MSG ptr
     case SDLK_TAB
         if plain orelse bShiftOnly then
             dim as TK_HOST ptr oh = ip->owner->pHost
+            ' without check boxes Tab picks the current row first (D-13)
+            if (ip->bChecks = false) andalso (ip->OnPick <> 0) then
+                dim as long idxTab = IpItemOfRow( ip, tkListTree_GetCurSel( ip->hList ) )
+                if idxTab >= 0 then ip->OnPick( ip->pCtx, idxTab )
+            end if
             tkItemPopup_Close( *ip, true )
             tkHost_FocusNext( oh, bShiftOnly )
             return true
@@ -395,7 +401,7 @@ private function IpKey( byval ip as TKITEMPOPUP_STATE ptr, byval m as TK_MSG ptr
     case SDLK_UP
         if bAlt then tkItemPopup_Close( *ip, true ) : return true
     case SDLK_A
-        if bPrimary andalso ((m->mods and (SDL_KMOD_ALT or SDL_KMOD_SHIFT)) = 0) then IpUserSetAll( ip ) : return true
+        if ip->bChecks andalso bPrimary andalso ((m->mods and (SDL_KMOD_ALT or SDL_KMOD_SHIFT)) = 0) then IpUserSetAll( ip ) : return true
     case SDLK_BACKSPACE
         if ip->bFilter andalso plain then
             if len( ip->sFilter ) then IpSetFilter( ip, IpDropLast( ip->sFilter ) )
@@ -405,12 +411,16 @@ private function IpKey( byval ip as TKITEMPOPUP_STATE ptr, byval m as TK_MSG ptr
     ' the rows' keys
     ' (with a filter, + and - are the filter's text, not keys; Space is always the toggle, and its
     ' character is dropped -- TKM_CHAR below)
+    ' (without check boxes -- a suggestion list -- only the up / down keys are the rows'; Home, End,
+    ' Space and the rest belong to the owner's edit)
     dim as boolean bRowKey = false
     select case m->key
-    case SDLK_UP, SDLK_DOWN, SDLK_PAGEUP, SDLK_PAGEDOWN, SDLK_HOME, SDLK_END, SDLK_SPACE
+    case SDLK_UP, SDLK_DOWN, SDLK_PAGEUP, SDLK_PAGEDOWN
         bRowKey = true
+    case SDLK_HOME, SDLK_END, SDLK_SPACE
+        bRowKey = ip->bChecks
     case SDLK_KP_PLUS, SDLK_PLUS, SDLK_EQUALS, SDLK_KP_MINUS, SDLK_MINUS
-        bRowKey = (ip->bFilter = false)
+        bRowKey = ip->bChecks andalso (ip->bFilter = false)
     end select
     if bRowKey andalso ((m->mods and (SDL_KMOD_ALT or SDL_KMOD_GUI)) = 0) then
         if ip->hList then tkWidget_Send( tkListTree_GetSurface( ip->hList ), m )
@@ -548,6 +558,7 @@ public function tkItemPopup_Open( byref ip as TKITEMPOPUP_STATE, byval owner as 
     pop->clrBack = tkTheme_RolesFor( owner ).Window
     pop->pUser = @ip
     pop->OnClosed = @IpHostClosed
+    pop->bPassDismissClick = ip.bPassDismissClick
     ip.wPop = tkWidget_Create( pop, owner->ctrlId, @IpProc, @ip )
     ip.wPop->isFocusable = true
     tkWidget_SetPos( ip.wPop, 0, 0, lw, lh )
