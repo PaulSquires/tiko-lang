@@ -262,7 +262,7 @@ sub RunPass( byval fScale as single )
     tkCheckedCombo_SetShowFilter( cc, false )
 
     ' ---- theme ------------------------------------------------------------------------------------
-    dim as TKCOMBOBOX_COLORS c1, c2
+    dim as TKCHECKEDCOMBO_COLORS c1, c2
     tkCheckedCombo_GetColors( cc, @c1 )
     c2 = c1 : c2.BackColor = &hFF102030ul
     tkCheckedCombo_SetColors( cc, @c2 )

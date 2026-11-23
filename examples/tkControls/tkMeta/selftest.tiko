@@ -143,7 +143,7 @@ sub RunPass( byval fScale as single )
     tkHost_Show( h )
     tkTest_PumpFor( h, 50 )
     dim as TK_WIDGET ptr root_ = tkHost_Root( h )
-    tkTest_Check( "the table is populated", tkMeta_Count( ) = 39, str( tkMeta_Count( ) ) )
+    tkTest_Check( "the table is populated", tkMeta_Count( ) = 42, str( tkMeta_Count( ) ) )
     tkTest_Check( "find by name", tkMeta_Find( "Button" ) <> 0 )
     tkTest_Check( "find misses", tkMeta_Find( "NoSuchControl" ) = 0 )
     tkTest_Check( "find a property", tkMeta_FindProp( tkMeta_Find( "Button" ), "Text" ) <> 0 )
@@ -160,7 +160,7 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "29 controls describe a colour struct, 387 fields", (nColors = 29) andalso (nSlots = 387), nColors & " / " & nSlots )
+    tkTest_Check( "31 controls describe a colour struct, 421 fields", (nColors = 31) andalso (nSlots = 421), nColors & " / " & nSlots )
     tkTest_Check( "22 shape properties, 18 hidden colour properties", (nShape = 22) andalso (nHidden = 18), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
@@ -179,8 +179,9 @@ sub RunPass( byval fScale as single )
         dim as TKMETA_CONTROL ptr c = tkMeta_At( i )
         if len( c->BindKind ) then bound &= c->Name & ":" & c->BindKind & iif( c->BindLoadOnly, "!", "" ) & " "
     next
-    tkTest_Check( "thirteen bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
-        & "NumericUpDown:float Slider:float ComboBox:int DatePicker:date TimePicker:time ColorPicker:int CodeEdit:text InfoBar:text! ", bound )
+    tkTest_Check( "sixteen bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
+        & "NumericUpDown:float Slider:float ComboBox:int DatePicker:date TimePicker:time ColorPicker:int CodeEdit:text InfoBar:text! " _
+        & "CheckedList:text CheckedComboBox:text TokenBox:text ", bound )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )

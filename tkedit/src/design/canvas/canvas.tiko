@@ -36,6 +36,9 @@
 #import "vendor/tkControls/tkOptionButton"
 #import "vendor/tkControls/tkSelectBar"
 #import "vendor/tkControls/tkIconPanel"
+#import "vendor/tkControls/tkCheckedList"
+#import "vendor/tkControls/tkCheckedCombo"
+#import "vendor/tkControls/tkTokenBox"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
@@ -66,6 +69,9 @@ using tkCheckBox
 using tkOptionButton
 using tkSelectBar
 using tkIconPanel
+using tkCheckedList
+using tkCheckedCombo
+using tkTokenBox
 using tkHost
 using tkPaint
 using model
@@ -774,8 +780,11 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
     case catalog.ItemsKind.ItemsList
         for each it as FormItem in c.Items
             select case c.TypeName
-            case "SelectBar" : tkSelectBar_AddPanel( w, it.Text )
-            case else        : tkComboBox_AddItem( w, it.Text )
+            case "SelectBar"       : tkSelectBar_AddPanel( w, it.Text )
+            case "CheckedList"     : tkCheckedList_AddItem( w, it.Text )
+            case "CheckedComboBox" : tkCheckedCombo_AddItem( w, it.Text )
+            case "TokenBox"        : tkTokenBox_AddItem( w, it.Text )
+            case else              : tkComboBox_AddItem( w, it.Text )
             end select
         next
     end select

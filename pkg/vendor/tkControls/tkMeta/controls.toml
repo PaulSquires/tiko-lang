@@ -1090,6 +1090,10 @@ props = [
   { name="MultiSelect", kind="bool", set="tkListTree_SetMultiSelect", get="tkListTree_GetMultiSelect", default="false" },
   { name="ExtendedSelect", kind="bool", set="tkListTree_SetExtendedSelect", get="tkListTree_GetExtendedSelect", default="false" },
   { name="DragReorder", kind="bool", set="tkListTree_SetDragReorder", get="tkListTree_GetDragReorder", default="false" },
+  { name="CheckBoxes", kind="bool", set="tkListTree_SetCheckBoxes", get="tkListTree_GetCheckBoxes", default="false" },
+  { name="CheckMode", kind="enum", enum="TwoState=LT_CHECKMODE_TWOSTATE,ThreeState=LT_CHECKMODE_THREESTATE", set="tkListTree_SetCheckMode", get="tkListTree_GetCheckMode" },
+  { name="CheckCascade", kind="bool", set="tkListTree_SetCheckCascade", get="tkListTree_GetCheckCascade", default="false" },
+  { name="CheckOnClick", kind="bool", set="tkListTree_SetCheckOnClick", get="tkListTree_GetCheckOnClick", default="false" },
   { name="BackColor", kind="color", set="tkListTree_SetBackColor", get="tkListTree_GetBackColor" },
   { name="BorderColor", kind="color", set="tkListTree_SetBorderColor", get="tkListTree_GetBorderColor" },
   { name="BorderWidth", kind="int", set="tkListTree_SetBorderWidth", get="tkListTree_GetBorderWidth", theme="BorderWidth", scale=1 },
@@ -1122,6 +1126,8 @@ events = [
   { name="ColumnResize", set="tkListTree_SetColumnResizeCallback", type="HDR_WidthChangedCallbackSub", sig="byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean", params="byval idx as integer, byval nWidth as integer, byval bLive as boolean", args="idx, nWidth, bLive" },
   { name="DragDrop", set="tkListTree_SetDragDropCallback", type="LT_DragDropCallbackSub", sig="byval hList as TK_WIDGET ptr, byval newFirstRow as integer, byval count as integer", params="byval newFirstRow as integer, byval count as integer", args="newFirstRow, count" },
   { name="ExpandCollapse", set="tkListTree_SetExpandCollapseCallback", type="LT_ExpandCollapseCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean", params="byval row as integer, byval bExpanded as boolean", args="row, bExpanded" },
+  { name="ItemCheck", set="tkListTree_SetItemCheckCallback", type="LT_ItemCheckCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval oldState as long, byref newState as long", params="byval row as integer, byval oldState as long, byref newState as long, byref Allow as boolean", args="row, oldState, newState, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="ItemChecked", set="tkListTree_SetItemCheckedCallback", type="LT_ItemCheckedCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval newState as long", params="byval row as integer, byval newState as long", args="row, newState" },
   { name="SelChange", set="tkListTree_SetSelChangeCallback", type="LT_SelChangeCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer", params="byval row as integer", args="row" },
   { name="Paint", set="tkListTree_SetPaintCallback", type="LT_PaintCallbackSub", sig="byval p as TKLISTTREE_PAINTINFO ptr", params="byval p as TKLISTTREE_PAINTINFO ptr", args="p", widget="p->hList", fallback="tkListTree_PaintRowDefault" },
   { name="Message", set="tkListTree_SetMessageCallback", type="LT_MessageCallbackFunc", sig="byval m as TKLISTTREE_MESSAGEINFO ptr", params="byval m as TKLISTTREE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hList", returns="boolean", result="Handled" },
@@ -1673,4 +1679,138 @@ events = [
   { name="Action", set="tkToast_SetActionCallback", type="TST_ActionSub", sig="byval hToaster as TK_WIDGET ptr, byval id as int32, byval nAction as int32, byval pCtx as any ptr", params="byval id as int32, byval nAction as int32", args="id, nAction" },
   { name="Dismissed", set="tkToast_SetDismissedCallback", type="TST_DismissedSub", sig="byval hToaster as TK_WIDGET ptr, byval id as int32, byval reason as int32, byval pCtx as any ptr", params="byval id as int32, byval reason as int32", args="id, reason" },
   { name="Click", set="tkToast_SetClickCallback", type="TST_ClickSub", sig="byval hToaster as TK_WIDGET ptr, byval id as int32, byval pCtx as any ptr", params="byval id as int32", args="id" },
+]
+
+# ---- the checked-list controls (claude-docs docs/tkControls/CHECKED-LISTS.md, C2b / C3b / C4b) ----------------
+# Their value is the chosen items' KEYS joined by a separator: a text bind. Their AddItem takes a key, so
+# items_bind = "items" fills them with DisplayField as the text and ValueField as the key (no _Values_ member).
+
+[[control]]
+name = "CheckedList"
+module = "tkCheckedList"
+category = "Lists"
+width = 200
+height = 160
+bind = { kind="text", get="tkCheckedList_GetCheckedText", set="tkCheckedList_SetCheckedText" }
+items_bind = "items"
+default_event = "CheckedChanged"
+props = [
+  { name="CheckOnClick", kind="bool", set="tkCheckedList_SetCheckOnClick", get="tkCheckedList_GetCheckOnClick", default="false" },
+  { name="ExtendedSelect", kind="bool", set="tkCheckedList_SetExtendedSelect", get="", default="false" },
+  { name="ValueSeparator", kind="text", set="tkCheckedList_SetValueSeparator", get="tkCheckedList_GetValueSeparator", default=";" },
+  { name="RowHeight", kind="int", set="tkCheckedList_SetRowHeight", get="tkCheckedList_GetRowHeight" },
+  { name="Font", kind="font", set="tkCheckedList_SetFont", get="tkCheckedList_GetFont" },
+]
+events = [
+  { name="CheckedChanged", set="tkCheckedList_SetCheckedChangedCallback", type="CKL_CheckedChangedCallbackSub", sig="byval hList as TK_WIDGET ptr", params="", args="" },
+  { name="ItemCheck", set="tkCheckedList_SetItemCheckCallback", type="CKL_ItemCheckCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval idx as long, byref bNewChecked as boolean", params="byval idx as long, byref bNewChecked as boolean, byref Allow as boolean", args="idx, bNewChecked, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="SelChange", set="tkCheckedList_SetSelChangeCallback", type="CKL_SelChangeCallbackSub", sig="byval hList as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="Activate", set="tkCheckedList_SetActivateCallback", type="CKL_ActivateCallbackSub", sig="byval hList as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+]
+
+[[control]]
+name = "CheckedComboBox"
+module = "tkCheckedCombo"
+category = "Common"
+width = 180
+height = 28
+bind = { kind="text", get="tkCheckedCombo_GetCheckedText", set="tkCheckedCombo_SetCheckedText" }
+items_bind = "items"
+default_event = "CheckedChanged"
+colors = { struct="TKCHECKEDCOMBO_COLORS", get="tkCheckedCombo_GetColors", theme="tkCheckedCombo_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="ForeColor", part="Fore", state="Normal", ink=true },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="ChevronColor", part="Chevron", state="Normal", ink=true },
+  { field="BackColorHot", part="Back", state="Hot" },
+  { field="ForeColorHot", part="Fore", state="Hot", ink=true },
+  { field="BorderColorHot", part="Border", state="Hot" },
+  { field="ChevronColorHot", part="Chevron", state="Hot", ink=true },
+  { field="BackColorOpen", part="Back", state="Open" },
+  { field="ForeColorOpen", part="Fore", state="Open", ink=true },
+  { field="BorderColorOpen", part="Border", state="Open" },
+  { field="ChevronColorOpen", part="Chevron", state="Open", ink=true },
+  { field="BackColorDisabled", part="Back", state="Disabled" },
+  { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+  { field="BorderColorDisabled", part="Border", state="Disabled" },
+  { field="ChevronColorDisabled", part="Chevron", state="Disabled", ink=true },
+  { field="ForeColorPlaceholder" },
+  { field="FocusRingColor" },
+]
+props = [
+  { name="PlaceholderText", kind="text", set="tkCheckedCombo_SetPlaceholderText", get="tkCheckedCombo_GetPlaceholderText" },
+  { name="SummaryMode", kind="enum", enum="Join=CCB_SUMMARY_JOIN,Count=CCB_SUMMARY_COUNT,Fit=CCB_SUMMARY_FIT", set="tkCheckedCombo_SetSummaryMode", get="tkCheckedCombo_GetSummaryMode" },
+  { name="CountFormat", kind="text", set="tkCheckedCombo_SetCountFormat", get="", default="{n} selected" },
+  { name="MoreFormat", kind="text", set="tkCheckedCombo_SetMoreFormat", get="", default="+{k}" },
+  { name="AllText", kind="text", set="tkCheckedCombo_SetAllText", get="" },
+  { name="DisplaySeparator", kind="text", set="tkCheckedCombo_SetDisplaySeparator", get="", default=", " },
+  { name="ValueSeparator", kind="text", set="tkCheckedCombo_SetValueSeparator", get="", default=";" },
+  { name="ShowSelectAll", kind="bool", set="tkCheckedCombo_SetShowSelectAll", get="", default="false" },
+  { name="SelectAllText", kind="text", set="tkCheckedCombo_SetSelectAllText", get="", default="(Select all)" },
+  { name="ShowFilter", kind="bool", set="tkCheckedCombo_SetShowFilter", get="", default="false" },
+  { name="ShowButtons", kind="bool", set="tkCheckedCombo_SetShowButtons", get="", default="false" },
+  { name="ButtonTexts", kind="list", enum="OK:text,Cancel:text", set="tkCheckedCombo_SetButtonTexts", get="" },
+  { name="MaxChecked", kind="int", set="tkCheckedCombo_SetMaxChecked", get="", default="0" },
+  { name="ListMaxRows", kind="int", set="tkCheckedCombo_SetListMaxRows", get="", default="12" },
+  { name="Font", kind="font", set="tkCheckedCombo_SetFont", get="tkCheckedCombo_GetFont" },
+  { name="TooltipText", kind="text", set="tkCheckedCombo_SetTooltipText", get="" },
+]
+events = [
+  { name="CheckedChanged", set="tkCheckedCombo_SetCheckedChangedCallback", type="CCB_CheckedChangedCallbackSub", sig="byval hCombo as TK_WIDGET ptr", params="", args="" },
+  { name="ItemCheck", set="tkCheckedCombo_SetItemCheckCallback", type="CCB_ItemCheckCallbackFunc", sig="byval hCombo as TK_WIDGET ptr, byval idx as long, byval bNewChecked as boolean", params="byval idx as long, byval bNewChecked as boolean, byref Allow as boolean", args="idx, bNewChecked, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="DropDown", set="tkCheckedCombo_SetDropDownCallback", type="CCB_DropDownCallbackSub", sig="byval hCombo as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
+  { name="Paint", set="tkCheckedCombo_SetPaintCallback", type="CCB_PaintCallbackSub", sig="byval p as TKCHECKEDCOMBO_PAINTINFO ptr", params="byval p as TKCHECKEDCOMBO_PAINTINFO ptr", args="p", widget="p->hCombo" },
+  { name="Message", set="tkCheckedCombo_SetMessageCallback", type="CCB_MessageCallbackFunc", sig="byval m as TKCHECKEDCOMBO_MESSAGEINFO ptr", params="byval m as TKCHECKEDCOMBO_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCombo", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "TokenBox"
+module = "tkTokenBox"
+category = "Common"
+width = 240
+height = 32
+bind = { kind="text", get="tkTokenBox_GetTokensText", set="tkTokenBox_SetTokensText" }
+items_bind = "items"
+default_event = "TokensChanged"
+colors = { struct="TKTOKENBOX_COLORS", get="tkTokenBox_GetColors", theme="tkTokenBox_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="BorderColorFocused" },
+  { field="ForeColor", part="Fore", state="Normal", ink=true },
+  { field="PlaceholderColor" },
+  { field="ChipBack", part="Chip", state="Normal" },
+  { field="ChipBackHot", part="Chip", state="Hot" },
+  { field="ChipBackFocused", part="Chip", state="Selected" },
+  { field="ChipText", part="ChipText", state="Normal", ink=true },
+  { field="ChipTextFocused", part="ChipText", state="Selected", ink=true },
+  { field="ChipBorderInvalid" },
+  { field="CloseGlyph", part="Close", state="Normal", ink=true },
+  { field="CloseGlyphHot", part="Close", state="Hot", ink=true },
+  { field="CloseBackHot" },
+  { field="BackColorDisabled", part="Back", state="Disabled" },
+  { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+]
+props = [
+  { name="EntryMode", kind="enum", enum="Free=TKTB_ENTRY_FREE,Items=TKTB_ENTRY_ITEMS", set="tkTokenBox_SetEntryMode", get="" },
+  { name="TokenSeparators", kind="text", set="tkTokenBox_SetTokenSeparators", get="", default=",;" },
+  { name="ValueSeparator", kind="text", set="tkTokenBox_SetValueSeparator", get="", default=";" },
+  { name="AllowDuplicates", kind="bool", set="tkTokenBox_SetAllowDuplicates", get="", default="false" },
+  { name="MaxTokens", kind="int", set="tkTokenBox_SetMaxTokens", get="", default="0" },
+  { name="MaxChipWidth", kind="int", set="tkTokenBox_SetMaxChipWidth", get="", default="200" },
+  { name="AutoHeight", kind="list", enum="On:bool,MaxLines:int", set="tkTokenBox_SetAutoHeight", get="" },
+  { name="PlaceholderText", kind="text", set="tkTokenBox_SetPlaceholderText", get="" },
+  { name="CommitOnBlur", kind="bool", set="tkTokenBox_SetCommitOnBlur", get="", default="true" },
+  { name="MaxSuggestions", kind="int", set="tkTokenBox_SetMaxSuggestions", get="", default="8" },
+  { name="Font", kind="font", set="tkTokenBox_SetFont", get="" },
+]
+events = [
+  { name="TokensChanged", set="tkTokenBox_SetTokensChangedCallback", type="TKB_NotifyCallbackSub", sig="byval hBox as TK_WIDGET ptr", params="", args="" },
+  { name="TokenAdding", set="tkTokenBox_SetTokenAddingCallback", type="TKB_TokenAddingCallbackFunc", sig="byval hBox as TK_WIDGET ptr, byref Text as ustring, byref Key as ustring", params="byref Text as ustring, byref Key as ustring, byref Allow as boolean", args="Text, Key, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="TokenRemoving", set="tkTokenBox_SetTokenRemovingCallback", type="TKB_TokenRemovingCallbackFunc", sig="byval hBox as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="InputChanged", set="tkTokenBox_SetInputChangedCallback", type="TKB_NotifyCallbackSub", sig="byval hBox as TK_WIDGET ptr", params="", args="" },
+  { name="ChipClick", set="tkTokenBox_SetChipClickCallback", type="TKB_ChipClickCallbackSub", sig="byval hBox as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="Suggest", set="tkTokenBox_SetSuggestCallback", type="TKB_SuggestCallbackSub", sig="byval hBox as TK_WIDGET ptr, byval Text as ustring", params="byval Text as ustring", args="Text" },
+  { name="Paint", set="tkTokenBox_SetPaintCallback", type="TKB_ChipPaintCallbackSub", sig="byval ci as TKTOKENBOX_CHIPINFO ptr", params="byval ci as TKTOKENBOX_CHIPINFO ptr", args="ci", widget="ci->hBox" },
 ]

@@ -61,6 +61,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkNavigator` | a record navigator: First, Previous, the position ("3 of 120"), Next, Last, New, Delete; a designed form steps it through an array of its records |
 | `tkMatch` | filter-as-you-type matching, no SDL: prefix, word-prefix, contains and fuzzy (fzy) with highlight runs, narrowing, ranked and capped filters |
 | `tkSlider` | a value on a track (or a lower and upper value, range mode): horizontal or vertical, ticks and labels, a value tip, jump or page clicks; the designer's Slider |
+| `tkCheckedList`, `tkCheckedCombo`, `tkTokenBox` | several values picked at once: a list with a check box per item; a combo whose dropdown is a checked list (summary, select-all, filter, OK / Cancel); chips in a text box with suggestions. Each binds its chosen keys as text; the designer's CheckedList, CheckedComboBox and TokenBox. `tkListTree` has the check boxes (tri-state tree cascade) they are built on; `tkItemPopup` is their dropdown |
 | `tkTimePicker`, `tkTimePanel` | a time of day: a segmented field you type into and step, with a column or list dropdown (or spin buttons), 12- or 24-hour by pattern, a range and a step; the panel alone embeds in a form; the designer's TimePicker and TimePanel, bound as `time` |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
