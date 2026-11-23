@@ -768,6 +768,94 @@ events = [
 ]
 
 [[control]]
+name = "DateTimePicker"
+module = "tkDateTimePicker"
+category = "Common"
+width = 170
+height = 28
+bind = { kind="datetime", get="tkDateTimePicker_GetDateTimeValue", set="tkDateTimePicker_SetDateTimeValue" }
+default_event = "DateTimeChanged"
+colors = { struct="TKDATETIMEPICKER_COLORS", get="tkDateTimePicker_GetColors", theme="tkDateTimePicker_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="FocusBorderColor" },
+  { field="BorderColorDisabled", part="Border", state="Disabled" },
+  { field="DividerColor", part="Divider", state="Normal" },
+  { field="DividerColorDisabled", part="Divider", state="Disabled" },
+  { field="FieldBackColor", part="FieldBack", state="Normal" },
+  { field="FieldForeColor", part="FieldFore", state="Normal", ink=true },
+  { field="FieldBackColorDisabled", part="FieldBack", state="Disabled" },
+  { field="FieldForeColorDisabled", part="FieldFore", state="Disabled", ink=true },
+  { field="IconColor", part="Icon", state="Normal", ink=true },
+  { field="IconGlyphColor", part="IconGlyph", state="Normal", ink=true },
+  { field="IconGlyphColorHot", part="IconGlyph", state="Hot", ink=true },
+  { field="IconBackColorHot", part="IconBack", state="Hot" },
+  { field="IconGlyphColorDisabled", part="IconGlyph", state="Disabled", ink=true },
+  { field="SegmentBackColorFocused" },
+  { field="SegmentForeColorFocused", ink=true },
+  { field="PlaceholderColor", ink=true },
+  { field="PanelBackColor" },
+  { field="PanelBorderColor" },
+  { field="ItemColor", part="Item", state="Normal", ink=true },
+  { field="ItemColorDisabled", part="Item", state="Disabled", ink=true },
+  { field="ItemBackColorHot", part="ItemBack", state="Hot" },
+  { field="ItemForeColorHot", part="ItemFore", state="Hot", ink=true },
+  { field="ItemBackColorSelected", part="ItemBack", state="Selected" },
+  { field="ItemForeColorSelected", part="ItemFore", state="Selected", ink=true },
+  { field="ColumnDividerColor" },
+  { field="FooterColor", part="Footer", state="Normal", ink=true },
+  { field="FooterColorHot", part="Footer", state="Hot", ink=true },
+  { field="FooterColorDisabled", part="Footer", state="Disabled", ink=true },
+  { field="TitleColor", part="Title", state="Normal", ink=true },
+  { field="TitleColorHot", part="Title", state="Hot", ink=true },
+  { field="NavGlyphColor", part="NavGlyph", state="Normal", ink=true },
+  { field="NavGlyphColorHot", part="NavGlyph", state="Hot", ink=true },
+  { field="NavGlyphColorDisabled", part="NavGlyph", state="Disabled", ink=true },
+  { field="WeekdayColor" },
+  { field="DayColor", part="Day", state="Normal", ink=true },
+  { field="DayColorWeekend" },
+  { field="DayColorAdjacent" },
+  { field="DayColorDisabled", part="Day", state="Disabled", ink=true },
+  { field="DayBackColorHot", part="DayBack", state="Hot" },
+  { field="DayForeColorHot", part="DayFore", state="Hot", ink=true },
+  { field="DayBackColorSelected", part="DayBack", state="Selected" },
+  { field="DayForeColorSelected", part="DayFore", state="Selected", ink=true },
+  { field="TodayRingColor" },
+]
+props = [
+  { name="Format", kind="text", set="tkDateTimePicker_SetFormat", get="tkDateTimePicker_GetFormat", default="yyyy-MM-dd HH:mm" },
+  { name="AllowEmpty", kind="bool", set="tkDateTimePicker_SetAllowEmpty", get="tkDateTimePicker_GetAllowEmpty", default="true" },
+  { name="Step", kind="int", set="tkDateTimePicker_SetStep", get="tkDateTimePicker_GetStep", default="60" },
+  { name="ButtonStyle", kind="enum", enum="Dropdown=TKDTM_BUTTON_DROPDOWN,Spin=TKDTM_BUTTON_SPIN,None=TKDTM_BUTTON_NONE", set="tkDateTimePicker_SetButtonStyle", get="tkDateTimePicker_GetButtonStyle", default="Dropdown" },
+  { name="WeekStart", kind="enum", enum="Sunday=TKDTM_SUNDAY,Monday=TKDTM_MONDAY", set="tkDateTimePicker_SetWeekStart", get="tkDateTimePicker_GetWeekStart", default="Sunday" },
+  { name="VisibleRows", kind="int", set="tkDateTimePicker_SetVisibleRows", get="tkDateTimePicker_GetVisibleRows", default="7" },
+  { name="ShowNow", kind="bool", set="tkDateTimePicker_SetShowNow", get="tkDateTimePicker_GetShowNow" },
+  { name="TabMovesSegments", kind="bool", set="tkDateTimePicker_SetTabMovesSegments", get="tkDateTimePicker_GetTabMovesSegments" },
+  { name="PlaceholderText", kind="text", set="tkDateTimePicker_SetPlaceholderText", get="tkDateTimePicker_GetPlaceholderText" },
+  { name="AmText", kind="text", set="tkDateTimePicker_SetAmText", get="tkDateTimePicker_GetAmText", default="AM" },
+  { name="PmText", kind="text", set="tkDateTimePicker_SetPmText", get="tkDateTimePicker_GetPmText", default="PM" },
+  { name="Font", kind="font", set="tkDateTimePicker_SetFont", get="tkDateTimePicker_GetFont" },
+  { name="IconFont", kind="font", set="tkDateTimePicker_SetIconFont", get="tkDateTimePicker_GetIconFont" },
+  { name="IconGlyph", kind="glyph", set="tkDateTimePicker_SetIconGlyph", get="tkDateTimePicker_GetIconGlyph" },
+  { name="IconWidth", kind="int", set="tkDateTimePicker_SetIconWidth", get="tkDateTimePicker_GetIconWidth" },
+  { name="CornerRadius", kind="int", set="tkDateTimePicker_SetCornerRadius", get="tkDateTimePicker_GetCornerRadius", theme="CornerRadius", scale=1 },
+  { name="BorderThickness", kind="int", set="tkDateTimePicker_SetBorderThickness", get="tkDateTimePicker_GetBorderThickness", theme="BorderWidth", scale=1 },
+  { name="MinDateTime", kind="list", enum="Year:int,Month:int,Day:int,Hour:int,Minute:int,Second:int", set="tkDateTimePicker_SetMinDateTime", get="" },
+  { name="MaxDateTime", kind="list", enum="Year:int,Month:int,Day:int,Hour:int,Minute:int,Second:int", set="tkDateTimePicker_SetMaxDateTime", get="" },
+  { name="DateTime", kind="list", enum="Year:int,Month:int,Day:int,Hour:int,Minute:int,Second:int", set="tkDateTimePicker_SetDateTimeParts", get="" },
+]
+events = [
+  { name="DateTimeChanged", set="tkDateTimePicker_SetDateTimeChangedCallback", type="DTM_DateTimeChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byval bHasValue as boolean", params="byval pDT as TKDATETIME ptr, byval bHasValue as boolean", args="pDT, bHasValue" },
+  { name="DropDown", set="tkDateTimePicker_SetDropDownCallback", type="DTM_DropDownCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
+  { name="ItemDisabled", set="tkDateTimePicker_SetItemDisabledCallback", type="DTM_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
+  { name="Paint", set="tkDateTimePicker_SetPaintCallback", type="DTM_PaintCallbackSub", sig="byval p as TKDATETIMEPICKER_PAINTINFO ptr", params="byval p as TKDATETIMEPICKER_PAINTINFO ptr", args="p", widget="p->hCtrl" },
+  { name="Message", set="tkDateTimePicker_SetMessageCallback", type="DTM_MessageCallbackFunc", sig="byval m as TKDATETIMEPICKER_MESSAGEINFO ptr", params="byval m as TKDATETIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
+  { name="FormatDateTime", set="tkDateTimePicker_SetFormatCallback", type="DTM_FormatCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byref sOut as ustring", params="byval pDT as TKDATETIME ptr, byref sOut as ustring", args="pDT, sOut" },
+  { name="Tooltip", set="tkDateTimePicker_SetTooltipCallback", type="DTM_TooltipCallbackFunc", sig="byval t as TKDATETIMEPICKER_TOOLTIPINFO ptr", params="byval t as TKDATETIMEPICKER_TOOLTIPINFO ptr, byref Show as boolean", args="t, Show", widget="t->hCtrl", returns="boolean", result="Show", result_init="true" },
+]
+
+[[control]]
 name = "TimePanel"
 module = "tkTimePanel"
 category = "Common"

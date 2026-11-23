@@ -45,6 +45,12 @@ public enum
     TKTP_SEG_SECOND
     TKTP_SEG_FRACTION
     TKTP_SEG_AMPM
+    ' date segments: only tkTimePanel_ParsePattern( ..., bDateTokens = TRUE ) makes them (tkDateTimePicker)
+    TKTP_SEG_YEAR
+    TKTP_SEG_MONTH
+    TKTP_SEG_MONTHNAME
+    TKTP_SEG_DAY
+    TKTP_SEG_WEEKDAY
 end enum
 public const as long TKTP_ITEM_TIME = 100       ' a LIST item: its value is seconds since midnight
 

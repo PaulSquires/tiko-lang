@@ -214,8 +214,8 @@ sub CheckBindProcs_( byref b as TomlValue, byref name_ as const ustring, byref m
                      byref text as const ustring, byval loadOnly as boolean )
     dim as ustring kind = Str_( b, "kind" ), g = Str_( b, "get" ), s_ = Str_( b, "set" )
     select case kind
-    case "text", "bool", "int", "float", "date", "time"
-    case else : Fail_( name_ & ": " & what & " kind '" & kind & "' is not text, bool, int, float, date or time" )
+    case "text", "bool", "int", "float", "date", "time", "datetime"
+    case else : Fail_( name_ & ": " & what & " kind '" & kind & "' is not text, bool, int, float, date, time or datetime" )
     end select
     if loadOnly andalso len( g ) then Fail_( name_ & ": a load_only " & what & " has no get" )
     if (loadOnly = false) andalso (len( g ) = 0) then Fail_( name_ & ": " & what & " needs a get, or load_only = true" )

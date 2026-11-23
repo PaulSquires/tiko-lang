@@ -2,11 +2,13 @@
 ' tkEdit --generate-forms. One check per behaviour: the designer's props reach a TimePicker, its
 ' event is wired, LoadFrom fills a TimePicker from a LocalTime and a DatePicker + TimePicker pair
 ' from one DateTime, and SaveTo writes the pair in ONE call -- so a NEW record (its DateTime
-' Invalid) gets both halves, although the time control comes first in the form.
+' Invalid) gets both halves, although the time control comes first in the form. A DateTimePicker
+' holds a second DateTime whole.
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTimePicker"
 #import "vendor/tkControls/tkDatePicker"
+#import "vendor/tkControls/tkDateTimePicker"
 #import "vendor/tkControls/tkForms"
 #import "std/chrono"
 #import "./frmAppt"
@@ -15,6 +17,7 @@ using tkApp
 using tkTimePicker
 using tkTimePanel
 using tkDatePicker
+using tkDateTimePicker
 using tkCalendar
 using tkForms
 using tkHost
@@ -39,7 +42,10 @@ sub Appt( byval owner as TK_FORM ptr )
     dim as apptdata.Appt r
     r.Start = chrono.LocalTime( 9, 30, 0, 0 )
     r.Stamp = DateTime( 2026, 11, 23, 14, 5, 0, 0 )
+    r.Ends = DateTime( 2026, 11, 23, 15, 35, 0, 0 )
     f.LoadFrom( r )
+    tkTest_Check( "LoadFrom: the DateTimePicker shows the second DateTime", tkDateTimePicker_GetText( f.dtpEnd.Handle ) = "2026-11-23 15:35", _
+                  tkDateTimePicker_GetText( f.dtpEnd.Handle ) )
     dim as TKDATE d = tkDatePicker_GetDateValue( f.dpDay.Handle )
     tkTest_Check( "LoadFrom: 9:30 AM; the DateTime's date and time in their pickers, silently", _
                   tkTimePicker_GetText( f.tpStart.Handle ) = "9:30 AM" andalso d.wDay = 23 _
@@ -59,6 +65,7 @@ sub Appt( byval owner as TK_FORM ptr )
                   fresh.Start.IsValid andalso fresh.Start.Hour = 9 andalso fresh.Start.Minute = 45 _
                   andalso fresh.Stamp.IsValid andalso fresh.Stamp.Day = 23 andalso fresh.Stamp.Hour = 14 andalso fresh.Stamp.Minute = 5, _
                   DtStr( fresh.Stamp ) )
+    tkTest_Check( "SaveTo: Ends 2026-11-23 15:35", fresh.Ends.IsValid andalso fresh.Ends.Hour = 15 andalso fresh.Ends.Minute = 35, DtStr( fresh.Ends ) )
     f.Close( )
     tkTest_PumpFor( h, 40 )
 end sub

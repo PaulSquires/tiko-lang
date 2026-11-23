@@ -2512,6 +2512,13 @@ sub BindSuite( )
     dim as FormDoc dte
     ReadForm( Header( ) & Ctl( "tp", "TimePicker", "" ) & "[control.events]" & LF & "TimeChanged = ""OnT""" & LF, dte )
     Check( instr( codegen.Generate( dte, "frmTE", "frmTE.tkform", "" ), LF & "using tkTimePanel" & LF ) > 0, "a TimeChanged handler brings TKTIME's module (tkTimePanel) into scope" )
+    ' the datetime kind (tkDateTimePicker): one control, one value, no pair
+    dim as FormDoc ddt
+    ReadForm( hdr & Ctl( "dtpEnd", "DateTimePicker", "bind = ""Ends""" & LF ) & "[control.events]" & LF & "DateTimeChanged = ""OnEnd""" & LF, ddt )
+    dim as ustring td = codegen.Generate( ddt, "frmDT", "frmDT.tkform", "" )
+    HasLine( td, "tkDateTimePicker_SetDateTimeValue( dtpEnd.Handle, tkBind_DateTime( r.Ends ) )", "bind: datetime in" )
+    HasLine( td, "tkBind_Put( r.Ends, tkDateTimePicker_GetDateTimeValue( dtpEnd.Handle ) )", "bind: datetime out" )
+    Check( instr( td, LF & "using tkTimePanel" & LF ) > 0, "a DateTimeChanged handler brings TKDATETIME's module (tkTimePanel) into scope" )
 
     dim as FormDoc nb
     ReadForm( hdr & Ctl( "b", "Button" ), nb )

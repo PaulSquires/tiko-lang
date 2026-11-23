@@ -249,6 +249,33 @@ sub RunCore( )
     FmtIs( Tm( 8, 30 ), "HH'h'mm", "08h30" )
     FmtIs( Tm( 15, 0 ), "h tt", "3 nachm.", "vorm.", "nachm." )
     FmtIs( e, "HH:mm", "" )
+
+    ' date and time together (tkDateTimePicker), one check per behaviour
+    tkTest_Check( "MakeDateTime: 2024-02-29 is a date, 2023-02-29 is not; the weekday is filled", _
+                  tkTimePanel_IsDateTime( tkTimePanel_MakeDateTime( 2024, 2, 29 ) ) _
+                  andalso tkTimePanel_IsDateTime( tkTimePanel_MakeDateTime( 2023, 2, 29 ) ) = false _
+                  andalso tkTimePanel_MakeDateTime( 2026, 11, 23 ).wDayOfWeek = 1 )
+    dim as TKDATETIME dtA = tkTimePanel_MakeDateTime( 2026, 11, 23, 14, 30, 5, 250 )
+    tkTest_Check( "serial round trip, and no value sorts first", tkTimePanel_SameDateTime( _
+                  tkTimePanel_SerialToDateTime( tkTimePanel_DateTimeToSerial( dtA ) ), dtA ) _
+                  andalso tkTimePanel_CompareDateTime( tkTimePanel_EmptyDateTime( ), dtA ) = -1 _
+                  andalso tkTimePanel_CompareDateTime( tkTimePanel_MakeDateTime( 2026, 11, 24 ), dtA ) = 1 )
+    tkTest_Check( "ISO out", tkTimePanel_FormatIsoDateTime( dtA, true, true ) = "2026-11-23T14:30:05.250", tkTimePanel_FormatIsoDateTime( dtA, true, true ) )
+    dim as TKDATETIME dtB
+    dim as boolean okB = tkTimePanel_ParseIsoDateTime( "2026-11-23 14:30", dtB )
+    tkTest_Check( "ISO in: a space for T; a date alone is midnight; 2026-02-30 refused", okB _
+                  andalso tkTimePanel_SameDateTime( dtB, tkTimePanel_MakeDateTime( 2026, 11, 23, 14, 30 ) ) _
+                  andalso tkTimePanel_ParseIsoDateTime( "2026-11-23", dtB ) andalso dtB.wHour = 0 _
+                  andalso tkTimePanel_ParseIsoDateTime( "2026-02-30T10:00", dtB ) = false )
+    okB = tkTimePanel_ParseLooseDateTime( "2026-11-23  2:30 pm", dtB )
+    tkTest_Check( "lenient: an ISO date and ParseLoose's time", okB andalso dtB.wHour = 14 andalso dtB.wMinute = 30 )
+    tkTest_Check( "date tokens only with the flag: yyyy-MM-dd is literal without it", SegsStr( "yyyy-MM-dd" ) = "L'yyyy-MM-dd'", SegsStr( "yyyy-MM-dd" ) )
+    dim as TKTIME_SEGMENT sg( any )
+    dim as long nSg = tkTimePanel_ParsePattern( "dddd d MMMM yy", sg(), true )
+    tkTest_Check( "with the flag: weekday, day, month name, year", nSg = 7 andalso sg( 0 ).kind = TKTP_SEG_WEEKDAY _
+                  andalso sg( 2 ).kind = TKTP_SEG_DAY andalso sg( 4 ).kind = TKTP_SEG_MONTHNAME andalso sg( 6 ).kind = TKTP_SEG_YEAR andalso sg( 6 ).nLen = 2 )
+    dim as ustring fdt = tkTimePanel_FormatPatternDT( dtA, "ddd d MMM yyyy h:mm tt" )
+    tkTest_Check( "FormatPatternDT", fdt = "Mon 23 Nov 2026 2:30 PM", fdt )
 end sub
 
 ' ==========================================================================================

@@ -3,7 +3,7 @@ format = 1
 [form]
 caption = "Appointment"
 width = 360
-height = 200
+height = 250
 data_type = "apptdata.Appt"
 data_module = "../apptdata"
 
@@ -43,3 +43,13 @@ y = 60
 w = 130
 h = 28
 bind = "Stamp"
+
+[[control]]
+name = "dtpEnd"
+type = "DateTimePicker"
+parent = ""
+x = 16
+y = 104
+w = 190
+h = 28
+bind = "Ends"

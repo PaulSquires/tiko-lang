@@ -14,6 +14,7 @@
 #import "../tkDatePicker"
 #import "../tkCalendar"
 #import "../tkTimePicker"
+#import "../tkDateTimePicker"
 #import "../tkTimePanel"
 #import "../tkProgressBar"
 #import "../tkSpinner"
@@ -60,6 +61,7 @@ using tkComboBox
 using tkDatePicker
 using tkCalendar
 using tkTimePicker
+using tkDateTimePicker
 using tkTimePanel
 using tkProgressBar
 using tkSpinner
@@ -1958,6 +1960,174 @@ end sub
 
 private sub A_TimePicker_Time( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkTimePicker_SetTimeParts( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
+private function C_DateTimePicker( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkDateTimePicker_Create( hParent, id )
+end function
+
+private sub G_DateTimePicker( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkDateTimePicker_GetColors( w, cast( TKDATETIMEPICKER_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_DateTimePicker( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKDATETIMEPICKER_COLORS ptr, pSlots ) = tkDateTimePicker_ThemeColors( t )
+end sub
+
+private sub A_DateTimePicker_Format( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetFormat( w, v )
+end sub
+
+private function R_DateTimePicker_Format( byval w as TK_WIDGET ptr ) as ustring
+    return tkDateTimePicker_GetFormat( w )
+end function
+
+private sub A_DateTimePicker_AllowEmpty( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetAllowEmpty( w, cbool( v = "true" ) )
+end sub
+
+private function R_DateTimePicker_AllowEmpty( byval w as TK_WIDGET ptr ) as ustring
+    if tkDateTimePicker_GetAllowEmpty( w ) then return "true" else return "false"
+end function
+
+private sub A_DateTimePicker_Step( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetStep( w, clng( val( v ) ) )
+end sub
+
+private function R_DateTimePicker_Step( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDateTimePicker_GetStep( w ) )
+end function
+
+private sub A_DateTimePicker_ButtonStyle( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Dropdown" : tkDateTimePicker_SetButtonStyle( w, TKDTM_BUTTON_DROPDOWN )
+    case "Spin" : tkDateTimePicker_SetButtonStyle( w, TKDTM_BUTTON_SPIN )
+    case "None" : tkDateTimePicker_SetButtonStyle( w, TKDTM_BUTTON_NONE )
+    end select
+end sub
+
+private function R_DateTimePicker_ButtonStyle( byval w as TK_WIDGET ptr ) as ustring
+    select case tkDateTimePicker_GetButtonStyle( w )
+    case TKDTM_BUTTON_DROPDOWN : return "Dropdown"
+    case TKDTM_BUTTON_SPIN : return "Spin"
+    case TKDTM_BUTTON_NONE : return "None"
+    end select
+    return ""
+end function
+
+private sub A_DateTimePicker_WeekStart( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Sunday" : tkDateTimePicker_SetWeekStart( w, TKDTM_SUNDAY )
+    case "Monday" : tkDateTimePicker_SetWeekStart( w, TKDTM_MONDAY )
+    end select
+end sub
+
+private function R_DateTimePicker_WeekStart( byval w as TK_WIDGET ptr ) as ustring
+    select case tkDateTimePicker_GetWeekStart( w )
+    case TKDTM_SUNDAY : return "Sunday"
+    case TKDTM_MONDAY : return "Monday"
+    end select
+    return ""
+end function
+
+private sub A_DateTimePicker_VisibleRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetVisibleRows( w, clng( val( v ) ) )
+end sub
+
+private function R_DateTimePicker_VisibleRows( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDateTimePicker_GetVisibleRows( w ) )
+end function
+
+private sub A_DateTimePicker_ShowNow( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetShowNow( w, cbool( v = "true" ) )
+end sub
+
+private function R_DateTimePicker_ShowNow( byval w as TK_WIDGET ptr ) as ustring
+    if tkDateTimePicker_GetShowNow( w ) then return "true" else return "false"
+end function
+
+private sub A_DateTimePicker_TabMovesSegments( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetTabMovesSegments( w, cbool( v = "true" ) )
+end sub
+
+private function R_DateTimePicker_TabMovesSegments( byval w as TK_WIDGET ptr ) as ustring
+    if tkDateTimePicker_GetTabMovesSegments( w ) then return "true" else return "false"
+end function
+
+private sub A_DateTimePicker_PlaceholderText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetPlaceholderText( w, v )
+end sub
+
+private function R_DateTimePicker_PlaceholderText( byval w as TK_WIDGET ptr ) as ustring
+    return tkDateTimePicker_GetPlaceholderText( w )
+end function
+
+private sub A_DateTimePicker_AmText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetAmText( w, v )
+end sub
+
+private function R_DateTimePicker_AmText( byval w as TK_WIDGET ptr ) as ustring
+    return tkDateTimePicker_GetAmText( w )
+end function
+
+private sub A_DateTimePicker_PmText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetPmText( w, v )
+end sub
+
+private function R_DateTimePicker_PmText( byval w as TK_WIDGET ptr ) as ustring
+    return tkDateTimePicker_GetPmText( w )
+end function
+
+private sub F_DateTimePicker_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkDateTimePicker_SetFont( w, f )
+end sub
+
+private sub F_DateTimePicker_IconFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkDateTimePicker_SetIconFont( w, f )
+end sub
+
+private sub A_DateTimePicker_IconGlyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetIconGlyph( w, v )
+end sub
+
+private function R_DateTimePicker_IconGlyph( byval w as TK_WIDGET ptr ) as ustring
+    return tkDateTimePicker_GetIconGlyph( w )
+end function
+
+private sub A_DateTimePicker_IconWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetIconWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_DateTimePicker_IconWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDateTimePicker_GetIconWidth( w ) )
+end function
+
+private sub A_DateTimePicker_CornerRadius( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetCornerRadius( w, clng( val( v ) ) )
+end sub
+
+private function R_DateTimePicker_CornerRadius( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDateTimePicker_GetCornerRadius( w ) )
+end function
+
+private sub A_DateTimePicker_BorderThickness( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetBorderThickness( w, clng( val( v ) ) )
+end sub
+
+private function R_DateTimePicker_BorderThickness( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDateTimePicker_GetBorderThickness( w ) )
+end function
+
+private sub A_DateTimePicker_MinDateTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetMinDateTime( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ), clng( val( tkMeta_ListItem( v, 4 ) ) ), clng( val( tkMeta_ListItem( v, 5 ) ) ) )
+end sub
+
+private sub A_DateTimePicker_MaxDateTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetMaxDateTime( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ), clng( val( tkMeta_ListItem( v, 4 ) ) ), clng( val( tkMeta_ListItem( v, 5 ) ) ) )
+end sub
+
+private sub A_DateTimePicker_DateTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDateTimePicker_SetDateTimeParts( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ), clng( val( tkMeta_ListItem( v, 4 ) ) ), clng( val( tkMeta_ListItem( v, 5 ) ) ) )
 end sub
 
 private function C_TimePanel( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -4865,6 +5035,82 @@ sub Fill_( )
     Event_( "Message", "tkTimePicker_SetMessageCallback", "TPK_MessageCallbackFunc", "byval m as TKTIMEPICKER_MESSAGEINFO ptr", "byval m as TKTIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
     Event_( "FormatTime", "tkTimePicker_SetFormatCallback", "TPK_FormatCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byref sOut as ustring", "byval pTime as TKTIME ptr, byref sOut as ustring", "pTime, sOut" )
     Event_( "Tooltip", "tkTimePicker_SetTooltipCallback", "TPK_TooltipCallbackFunc", "byval t as TKTIMEPICKER_TOOLTIPINFO ptr", "byval t as TKTIMEPICKER_TOOLTIPINFO ptr, byref Show as boolean", "t, Show", "t->hCtrl", "boolean", "Show", "true" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "DateTimePicker", "tkDateTimePicker", "Common", 170, 28, "DateTimeChanged", "", @C_DateTimePicker, "", "", "", "" )
+    Bind_( "datetime", "tkDateTimePicker_GetDateTimeValue", "tkDateTimePicker_SetDateTimeValue", false )
+    Colors_( "TKDATETIMEPICKER_COLORS", "tkDateTimePicker_GetColors", "tkDateTimePicker_ThemeColors", @G_DateTimePicker, @T_DateTimePicker )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "FocusBorderColor", "", "", "", false )
+    Color_( "BorderColorDisabled", "Border", "Disabled", "", false )
+    Color_( "DividerColor", "Divider", "Normal", "", false )
+    Color_( "DividerColorDisabled", "Divider", "Disabled", "", false )
+    Color_( "FieldBackColor", "FieldBack", "Normal", "", false )
+    Color_( "FieldForeColor", "FieldFore", "Normal", "", true )
+    Color_( "FieldBackColorDisabled", "FieldBack", "Disabled", "", false )
+    Color_( "FieldForeColorDisabled", "FieldFore", "Disabled", "", true )
+    Color_( "IconColor", "Icon", "Normal", "", true )
+    Color_( "IconGlyphColor", "IconGlyph", "Normal", "", true )
+    Color_( "IconGlyphColorHot", "IconGlyph", "Hot", "", true )
+    Color_( "IconBackColorHot", "IconBack", "Hot", "", false )
+    Color_( "IconGlyphColorDisabled", "IconGlyph", "Disabled", "", true )
+    Color_( "SegmentBackColorFocused", "", "", "", false )
+    Color_( "SegmentForeColorFocused", "", "", "", true )
+    Color_( "PlaceholderColor", "", "", "", true )
+    Color_( "PanelBackColor", "", "", "", false )
+    Color_( "PanelBorderColor", "", "", "", false )
+    Color_( "ItemColor", "Item", "Normal", "", true )
+    Color_( "ItemColorDisabled", "Item", "Disabled", "", true )
+    Color_( "ItemBackColorHot", "ItemBack", "Hot", "", false )
+    Color_( "ItemForeColorHot", "ItemFore", "Hot", "", true )
+    Color_( "ItemBackColorSelected", "ItemBack", "Selected", "", false )
+    Color_( "ItemForeColorSelected", "ItemFore", "Selected", "", true )
+    Color_( "ColumnDividerColor", "", "", "", false )
+    Color_( "FooterColor", "Footer", "Normal", "", true )
+    Color_( "FooterColorHot", "Footer", "Hot", "", true )
+    Color_( "FooterColorDisabled", "Footer", "Disabled", "", true )
+    Color_( "TitleColor", "Title", "Normal", "", true )
+    Color_( "TitleColorHot", "Title", "Hot", "", true )
+    Color_( "NavGlyphColor", "NavGlyph", "Normal", "", true )
+    Color_( "NavGlyphColorHot", "NavGlyph", "Hot", "", true )
+    Color_( "NavGlyphColorDisabled", "NavGlyph", "Disabled", "", true )
+    Color_( "WeekdayColor", "", "", "", false )
+    Color_( "DayColor", "Day", "Normal", "", true )
+    Color_( "DayColorWeekend", "", "", "", false )
+    Color_( "DayColorAdjacent", "", "", "", false )
+    Color_( "DayColorDisabled", "Day", "Disabled", "", true )
+    Color_( "DayBackColorHot", "DayBack", "Hot", "", false )
+    Color_( "DayForeColorHot", "DayFore", "Hot", "", true )
+    Color_( "DayBackColorSelected", "DayBack", "Selected", "", false )
+    Color_( "DayForeColorSelected", "DayFore", "Selected", "", true )
+    Color_( "TodayRingColor", "", "", "", false )
+    Prop_( "Format", "text", "yyyy-MM-dd HH:mm", "", "tkDateTimePicker_SetFormat", "tkDateTimePicker_GetFormat", @A_DateTimePicker_Format, @R_DateTimePicker_Format, 0, true, true, "", 0 )
+    Prop_( "AllowEmpty", "bool", "true", "", "tkDateTimePicker_SetAllowEmpty", "tkDateTimePicker_GetAllowEmpty", @A_DateTimePicker_AllowEmpty, @R_DateTimePicker_AllowEmpty, 0, true, true, "", 0 )
+    Prop_( "Step", "int", "60", "", "tkDateTimePicker_SetStep", "tkDateTimePicker_GetStep", @A_DateTimePicker_Step, @R_DateTimePicker_Step, 0, true, true, "", 0 )
+    Prop_( "ButtonStyle", "enum", "Dropdown", "Dropdown=TKDTM_BUTTON_DROPDOWN,Spin=TKDTM_BUTTON_SPIN,None=TKDTM_BUTTON_NONE", "tkDateTimePicker_SetButtonStyle", "tkDateTimePicker_GetButtonStyle", @A_DateTimePicker_ButtonStyle, @R_DateTimePicker_ButtonStyle, 0, true, true, "", 0 )
+    Prop_( "WeekStart", "enum", "Sunday", "Sunday=TKDTM_SUNDAY,Monday=TKDTM_MONDAY", "tkDateTimePicker_SetWeekStart", "tkDateTimePicker_GetWeekStart", @A_DateTimePicker_WeekStart, @R_DateTimePicker_WeekStart, 0, true, true, "", 0 )
+    Prop_( "VisibleRows", "int", "7", "", "tkDateTimePicker_SetVisibleRows", "tkDateTimePicker_GetVisibleRows", @A_DateTimePicker_VisibleRows, @R_DateTimePicker_VisibleRows, 0, true, true, "", 0 )
+    Prop_( "ShowNow", "bool", "", "", "tkDateTimePicker_SetShowNow", "tkDateTimePicker_GetShowNow", @A_DateTimePicker_ShowNow, @R_DateTimePicker_ShowNow, 0, true, true, "", 0 )
+    Prop_( "TabMovesSegments", "bool", "", "", "tkDateTimePicker_SetTabMovesSegments", "tkDateTimePicker_GetTabMovesSegments", @A_DateTimePicker_TabMovesSegments, @R_DateTimePicker_TabMovesSegments, 0, true, true, "", 0 )
+    Prop_( "PlaceholderText", "text", "", "", "tkDateTimePicker_SetPlaceholderText", "tkDateTimePicker_GetPlaceholderText", @A_DateTimePicker_PlaceholderText, @R_DateTimePicker_PlaceholderText, 0, true, true, "", 0 )
+    Prop_( "AmText", "text", "AM", "", "tkDateTimePicker_SetAmText", "tkDateTimePicker_GetAmText", @A_DateTimePicker_AmText, @R_DateTimePicker_AmText, 0, true, true, "", 0 )
+    Prop_( "PmText", "text", "PM", "", "tkDateTimePicker_SetPmText", "tkDateTimePicker_GetPmText", @A_DateTimePicker_PmText, @R_DateTimePicker_PmText, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkDateTimePicker_SetFont", "tkDateTimePicker_GetFont", 0, 0, @F_DateTimePicker_Font, true, true, "", 0 )
+    Prop_( "IconFont", "font", "", "", "tkDateTimePicker_SetIconFont", "tkDateTimePicker_GetIconFont", 0, 0, @F_DateTimePicker_IconFont, true, true, "", 0 )
+    Prop_( "IconGlyph", "glyph", "", "", "tkDateTimePicker_SetIconGlyph", "tkDateTimePicker_GetIconGlyph", @A_DateTimePicker_IconGlyph, @R_DateTimePicker_IconGlyph, 0, true, true, "", 0 )
+    Prop_( "IconWidth", "int", "", "", "tkDateTimePicker_SetIconWidth", "tkDateTimePicker_GetIconWidth", @A_DateTimePicker_IconWidth, @R_DateTimePicker_IconWidth, 0, true, true, "", 0 )
+    Prop_( "CornerRadius", "int", "", "", "tkDateTimePicker_SetCornerRadius", "tkDateTimePicker_GetCornerRadius", @A_DateTimePicker_CornerRadius, @R_DateTimePicker_CornerRadius, 0, true, true, "CornerRadius", 1 )
+    Prop_( "BorderThickness", "int", "", "", "tkDateTimePicker_SetBorderThickness", "tkDateTimePicker_GetBorderThickness", @A_DateTimePicker_BorderThickness, @R_DateTimePicker_BorderThickness, 0, true, true, "BorderWidth", 1 )
+    Prop_( "MinDateTime", "list", "", "Year:int,Month:int,Day:int,Hour:int,Minute:int,Second:int", "tkDateTimePicker_SetMinDateTime", "", @A_DateTimePicker_MinDateTime, 0, 0, true, true, "", 0 )
+    Prop_( "MaxDateTime", "list", "", "Year:int,Month:int,Day:int,Hour:int,Minute:int,Second:int", "tkDateTimePicker_SetMaxDateTime", "", @A_DateTimePicker_MaxDateTime, 0, 0, true, true, "", 0 )
+    Prop_( "DateTime", "list", "", "Year:int,Month:int,Day:int,Hour:int,Minute:int,Second:int", "tkDateTimePicker_SetDateTimeParts", "", @A_DateTimePicker_DateTime, 0, 0, true, true, "", 0 )
+    Event_( "DateTimeChanged", "tkDateTimePicker_SetDateTimeChangedCallback", "DTM_DateTimeChangedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byval bHasValue as boolean", "byval pDT as TKDATETIME ptr, byval bHasValue as boolean", "pDT, bHasValue" )
+    Event_( "DropDown", "tkDateTimePicker_SetDropDownCallback", "DTM_DropDownCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", "byval isOpen as boolean", "isOpen" )
+    Event_( "ItemDisabled", "tkDateTimePicker_SetItemDisabledCallback", "DTM_ItemDisabledCallbackFunc", "byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", "byval nKind as long, byval nValue as long, byref Disabled as boolean", "nKind, nValue, Disabled", "", "boolean", "Disabled" )
+    Event_( "Paint", "tkDateTimePicker_SetPaintCallback", "DTM_PaintCallbackSub", "byval p as TKDATETIMEPICKER_PAINTINFO ptr", "byval p as TKDATETIMEPICKER_PAINTINFO ptr", "p", "p->hCtrl", "", "" )
+    Event_( "Message", "tkDateTimePicker_SetMessageCallback", "DTM_MessageCallbackFunc", "byval m as TKDATETIMEPICKER_MESSAGEINFO ptr", "byval m as TKDATETIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hCtrl", "boolean", "Handled" )
+    Event_( "FormatDateTime", "tkDateTimePicker_SetFormatCallback", "DTM_FormatCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byref sOut as ustring", "byval pDT as TKDATETIME ptr, byref sOut as ustring", "pDT, sOut" )
+    Event_( "Tooltip", "tkDateTimePicker_SetTooltipCallback", "DTM_TooltipCallbackFunc", "byval t as TKDATETIMEPICKER_TOOLTIPINFO ptr", "byval t as TKDATETIMEPICKER_TOOLTIPINFO ptr, byref Show as boolean", "t, Show", "t->hCtrl", "boolean", "Show", "true" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "TimePanel", "tkTimePanel", "Common", 130, 220, "SelChange", "", @C_TimePanel, "", "", "", "" )
     Colors_( "TKTIMEPANEL_COLORS", "tkTimePanel_GetColors", "tkTimePanel_ThemeColors", @G_TimePanel, @T_TimePanel )

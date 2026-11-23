@@ -63,6 +63,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkSlider` | a value on a track (or a lower and upper value, range mode): horizontal or vertical, ticks and labels, a value tip, jump or page clicks; the designer's Slider |
 | `tkCheckedList`, `tkCheckedCombo`, `tkTokenBox` | several values picked at once: a list with a check box per item; a combo whose dropdown is a checked list (summary, select-all, filter, OK / Cancel); chips in a text box with suggestions. Each binds its chosen keys as text; the designer's CheckedList, CheckedComboBox and TokenBox. `tkListTree` has the check boxes (tri-state tree cascade) they are built on; `tkItemPopup` is their dropdown |
 | `tkTimePicker`, `tkTimePanel` | a time of day: a segmented field you type into and step, with a column or list dropdown (or spin buttons), 12- or 24-hour by pattern, a range and a step; the panel alone embeds in a form; the designer's TimePicker and TimePanel, bound as `time` |
+| `tkDateTimePicker` | a date and a time in one segmented field (year, month or its name, day, weekday shown, hour, minute...), with a calendar beside the time columns in one dropdown whose picks wait for OK, Enter or Now; one range over both halves; the designer's DateTimePicker, bound as `datetime` |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla

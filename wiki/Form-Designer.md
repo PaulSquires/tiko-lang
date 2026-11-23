@@ -356,9 +356,10 @@ end sub
 | ColorPicker | the colour |
 | DatePicker | the date; a field with no date leaves the picker empty |
 | TimePicker | the time; a field with no time leaves the picker empty. A DatePicker and a TimePicker bound to one `chrono.DateTime` save both halves in one call |
+| DateTimePicker | the date and time together, in one field; a field with no value leaves the picker empty |
 
 The field can be any of `boolean`, `byte` to `ulongint`, `integer`, `single`, `double`, `ustring`,
-`string`, `TKDATE`, `chrono.LocalDate`, `TKTIME`, `chrono.LocalTime` or `chrono.DateTime`; the conversion is chosen by the field's type
+`string`, `TKDATE`, `chrono.LocalDate`, `TKTIME`, `chrono.LocalTime`, `TKDATETIME` or `chrono.DateTime`; the conversion is chosen by the field's type
 (`vendor/tkControls/tkBind`). Text that isn't a number becomes 0 in a number field; a fraction
 going into a whole-number field is rounded; `true`, `1`, `yes` and `on` are true; a date in text is
 `yyyy-mm-dd` and a time `HH:mm:ss`. A date or a time binds only to a text field or one of its own

@@ -1051,6 +1051,7 @@ private function BindFn_( byref kind as const ustring ) as ustring
     case "float" : return "Float"
     case "date"  : return "Date"
     case "time"  : return "Time"
+    case "datetime" : return "DateTime"
     end select
     return ""
 end function

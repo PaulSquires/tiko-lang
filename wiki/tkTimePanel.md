@@ -123,19 +123,39 @@ The toolbox's **TimePanel** has Format, Step, Mode, VisibleRows, Font and Border
 events SelChange, Accept, Dismiss, ItemDisabled, ItemPaint and Message. It does not bind; bind a
 [tkTimePicker](tkTimePicker).
 
+## The date-time helpers
+
+[tkDateTimePicker](tkDateTimePicker)'s value lives here too, so it needs neither chrono nor
+tkCalendar. `TKDATETIME` is SYSTEMTIME's layout (`wYear wMonth wDayOfWeek wDay wHour wMinute
+wSecond wMilliseconds`), and **`wYear = 0` is no value** (its default).
+
+- `tkTimePanel_MakeDateTime( y, mo, d, hh, mi, ss, ms )` fills the weekday and gives the empty
+  value for any part out of range. `EmptyDateTime`, `IsDateTime`, `SameDateTime`,
+  `CompareDateTime`, `TimeOf` (the time half), `DateTimeToSerial` / `SerialToDateTime`
+  (milliseconds), `LocalNowDateTime`. `IsLeapYear`, `DaysInMonth`, `DayOfWeek` (0 = Sunday).
+- `tkTimePanel_FormatIsoDateTime( dt, bSeconds, bMs )` writes `yyyy-mm-ddTHH:mm[:ss[.fff]]`;
+  `ParseIsoDateTime` reads it, with a space allowed for the `T` and a date alone as midnight.
+  `ParseLooseDateTime( s, dt, am, pm )` takes an ISO date, a space, then any time `ParseLoose` reads.
+- `ParsePattern( pattern, segs(), bDateTokens )`: only with the flag are `yyyy` `yy`, `M` `MM`
+  `MMM` `MMMM`, `d` `dd`, `ddd` `dddd` segments (`TKTP_SEG_YEAR`, `_MONTH`, `_MONTHNAME`, `_DAY`,
+  `_WEEKDAY`); without it they are literal text, as they always were for the time controls.
+  `FormatPatternDT( dt, pattern, am, pm, pNames )` and `SegmentTextDT` format through them, with
+  month and weekday names from a `TKDT_NAMES` (`DefaultNames` is English).
+
 ## Public declarations
 
 ### Constants
 
 `TKTP_SEG_LITERAL`, `TKTP_SEG_HOUR24`, `TKTP_SEG_HOUR12`, `TKTP_SEG_MINUTE`, `TKTP_SEG_SECOND`,
-`TKTP_SEG_FRACTION`, `TKTP_SEG_AMPM`, `TKTP_ITEM_TIME` · `TKTP_PANEL_COLUMNS`, `TKTP_PANEL_LIST` ·
+`TKTP_SEG_FRACTION`, `TKTP_SEG_AMPM`, `TKTP_SEG_YEAR`, `TKTP_SEG_MONTH`, `TKTP_SEG_MONTHNAME`,
+`TKTP_SEG_DAY`, `TKTP_SEG_WEEKDAY`, `TKTP_ITEM_TIME` · `TKTP_PANEL_COLUMNS`, `TKTP_PANEL_LIST` ·
 `TKTP_PART_NONE`, `TKTP_PART_ITEM`, `TKTP_PART_COLUMN` · `TKTP_MS_PER_DAY`, `TKTP_DEFAULT_PATTERN`,
 `TKTP_DEFAULT_STEP`, `TKTP_DEFAULT_ROWS`, `TKTP_DEFAULT_LIST_INTERVAL`, `TKTP_TYPE_TIMEOUT` and the
 design-unit sizes.
 
 ### Types
 
-`TKTIME`, `TKTIME_SEGMENT`, `TKTIMEPANEL_HIT`, `TKTIMEPANEL_COLORS`, `TKTIMEPANEL_ITEMPAINTINFO`,
+`TKTIME`, `TKDATETIME`, `TKDT_NAMES`, `TKTIME_SEGMENT`, `TKTIMEPANEL_HIT`, `TKTIMEPANEL_COLORS`, `TKTIMEPANEL_ITEMPAINTINFO`,
 `TKTIMEPANEL_MESSAGEINFO`, and the callback types `TP_SelChangeCallbackSub`, `TP_AcceptCallbackSub`,
 `TP_DismissCallbackSub`, `TP_ItemDisabledCallbackFunc`, `TP_ItemPaintCallbackSub`,
 `TP_MessageCallbackFunc`, `TP_ItemTextCallbackSub`.
@@ -215,10 +235,28 @@ function tkTimePanel_LocalNow() as TKTIME
 function tkTimePanel_FormatIso( byref t as const TKTIME, byval bSeconds as boolean = true, byval bMs as boolean = false ) as ustring
 function tkTimePanel_ParseIso( byval sText as ustring, byref t as TKTIME ) as boolean
 function tkTimePanel_ParseLoose( byval sText as ustring, byref t as TKTIME, _
-function tkTimePanel_ParsePattern( byref pattern as const ustring, segs() as TKTIME_SEGMENT ) as long
+function tkTimePanel_ParsePattern( byref pattern as const ustring, segs() as TKTIME_SEGMENT, _
 function tkTimePanel_SegmentText( byval kind as long, byval nLen as long, byref t as const TKTIME, _
 function tkTimePanel_FormatPattern( byref t as const TKTIME, byref pattern as const ustring, _
 function tkTimePanel_KeyDigit( byval key as long, byval scancode as long = 0 ) as long
+function tkTimePanel_DefaultNames( ) as TKDT_NAMES
+function tkTimePanel_IsLeapYear( byval y as long ) as boolean
+function tkTimePanel_DaysInMonth( byval y as long, byval m as long ) as long
+function tkTimePanel_DayOfWeek( byval y as long, byval m as long, byval d as long ) as long
+function tkTimePanel_EmptyDateTime( ) as TKDATETIME
+function tkTimePanel_IsDateTime( byref dt as const TKDATETIME ) as boolean
+function tkTimePanel_MakeDateTime( byval y as long, byval mo as long, byval d as long, _
+function tkTimePanel_TimeOf( byref dt as const TKDATETIME ) as TKTIME
+function tkTimePanel_DateTimeToSerial( byref dt as const TKDATETIME ) as longint
+function tkTimePanel_SerialToDateTime( byval serial as longint ) as TKDATETIME
+function tkTimePanel_CompareDateTime( byref a as const TKDATETIME, byref b as const TKDATETIME ) as long
+function tkTimePanel_SameDateTime( byref a as const TKDATETIME, byref b as const TKDATETIME ) as boolean
+function tkTimePanel_LocalNowDateTime( ) as TKDATETIME
+function tkTimePanel_FormatIsoDateTime( byref dt as const TKDATETIME, byval bSeconds as boolean = true, _
+function tkTimePanel_ParseIsoDateTime( byval sText as ustring, byref dt as TKDATETIME ) as boolean
+function tkTimePanel_ParseLooseDateTime( byval sText as ustring, byref dt as TKDATETIME, _
+function tkTimePanel_SegmentTextDT( byval kind as long, byval nLen as long, byref dt as const TKDATETIME, _
+function tkTimePanel_FormatPatternDT( byref dt as const TKDATETIME, byref pattern as const ustring, _
 ```
 
 ### See also

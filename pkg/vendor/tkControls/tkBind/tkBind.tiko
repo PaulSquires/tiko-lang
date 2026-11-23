@@ -12,7 +12,7 @@
 '     tkBind_Put( r.Age, tkTextBox_GetText( txtAge.Handle ) )         ' save: the kind -> field
 '
 ' KINDS and the value each carries: text = ustring, bool = boolean, int = longint, float = float64,
-' date = TKDATE, time = TKTIME (tkTimePanel). FIELDS: boolean, byte .. ulongint, integer, uinteger,
+' date = TKDATE, time = TKTIME, datetime = TKDATETIME (both tkTimePanel). FIELDS: boolean, byte .. ulongint, integer, uinteger,
 ' single, double, ustring, string, TKDATE, TKTIME, chrono.LocalDate, chrono.LocalTime and
 ' chrono.DateTime (date and time halves). A date or a time binds only to a text field or one of its
 ' own; a pairing with no overload is a compile error, which is the point.
@@ -317,3 +317,48 @@ public sub tkBind_Put( byref f as DateTime, byval v as TKTIME )
     if f.HasOffset then r = r.WithOffset( f.OffsetMinutes )
     f = r
 end sub
+
+' ---- the datetime kind (tkDateTimePicker) -------------------------------------------------------
+' TKDATETIME (tkTimePanel) <-> chrono.DateTime, TKDATETIME and text. No value is wYear = 0,
+' DateTime.Invalid() and "". Text out is ISO yyyy-mm-ddTHH:mm:ss (.fff when there are
+' milliseconds); in, ISO first, then tkTimePanel_ParseLooseDateTime. A DateTime's offset is
+' ignored on load and kept on save.
+
+private function DtOfDateTime_( byref v as DateTime ) as TKDATETIME
+    if v.IsValid = false then return tkTimePanel_EmptyDateTime( )
+    return tkTimePanel_MakeDateTime( v.Year, v.Month, v.Day, v.Hour, v.Minute, v.Second, v.Millisecond )
+end function
+
+private function DtOfText_( byref s as const ustring ) as TKDATETIME
+    dim as TKDATETIME t
+    if tkTimePanel_ParseIsoDateTime( s, t ) then return t
+    if tkTimePanel_ParseLooseDateTime( s, t ) then return t
+    return tkTimePanel_EmptyDateTime( )
+end function
+
+private function DtText_( byref t as const TKDATETIME ) as ustring
+    return tkTimePanel_FormatIsoDateTime( t, true, t.wMilliseconds <> 0 )
+end function
+
+private sub PutDateTime_( byref f as DateTime, byref t as const TKDATETIME )
+    if tkTimePanel_IsDateTime( t ) = false then f = DateTime.Invalid( ) : exit sub
+    dim as LocalDate ld = LocalOfDate_( tkCalendar_MakeDate( t.wYear, t.wMonth, t.wDay ) )
+    dim as chrono.LocalTime lt = chrono.LocalTime( t.wHour, t.wMinute, t.wSecond, t.wMilliseconds )
+    dim as DateTime r = DateTime.FromDateTime( ld, lt )
+    if f.IsValid andalso f.HasOffset then r = r.WithOffset( f.OffsetMinutes )
+    f = r
+end sub
+
+' load
+public function tkBind_DateTime overload( byref v as const TKDATETIME ) as TKDATETIME : return v : end function
+public function tkBind_DateTime( byref v as DateTime ) as TKDATETIME : return DtOfDateTime_( v ) : end function
+public function tkBind_DateTime( byref v as const ustring ) as TKDATETIME : return DtOfText_( v ) : end function
+public function tkBind_DateTime( byref v as const string ) as TKDATETIME : return DtOfText_( v ) : end function
+public function tkBind_Text( byref v as const TKDATETIME ) as ustring : return DtText_( v ) : end function
+
+' save
+public sub tkBind_Put( byref f as TKDATETIME, byval v as TKDATETIME ) : f = v : end sub
+public sub tkBind_Put( byref f as DateTime, byval v as TKDATETIME ) : PutDateTime_( f, v ) : end sub
+public sub tkBind_Put( byref f as ustring, byval v as TKDATETIME ) : f = DtText_( v ) : end sub
+public sub tkBind_Put( byref f as string, byval v as TKDATETIME ) : f = DtText_( v ) : end sub
+public sub tkBind_Put( byref f as TKDATETIME, byref v as const ustring ) : f = DtOfText_( v ) : end sub
