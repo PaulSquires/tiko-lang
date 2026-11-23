@@ -53,6 +53,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
+| `tkMatch` | filter-as-you-type matching, no SDL: prefix, word-prefix, contains and fuzzy (fzy) with highlight runs, narrowing, ranked and capped filters |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla
