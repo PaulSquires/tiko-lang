@@ -36,9 +36,10 @@ sub Form.Edit( byref c as contactdb.Contact )
     tabDetails.SelectedIndex = 0
 end sub
 
-' The boxes into Person, trimmed. False when there is no name to file it under.
+' The boxes into Person, trimmed. False when a box can't be saved (SaveTo has said why) or there is
+' no name to file it under.
 function Form.Collect( ) as boolean
-    SaveTo( Person )
+    if SaveTo( Person ) = false then return false
     Person.TrimFields( )
     return len( Person.FullName( ) ) > 0
 end function

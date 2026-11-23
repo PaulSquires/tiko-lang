@@ -25,6 +25,12 @@
 # bind = { kind, get, set, load_only }: the value a designed form's LoadFrom / SaveTo moves (Form Designer B1),
 # through vendor/tkControls/tkBind. kind: text bool int float date. get = "<proc>( h ) as <kind>" (none when
 # load_only = true: LoadFrom sets it, SaveTo leaves it), set = "<proc>( h, <kind> )". tkmetagen checks both exist.
+# none = the int value that means nothing is chosen (a ComboBox's -1): what B2's Required refuses.
+# items_bind = "rows" | "items": how a designed form fills the control's list from an Array( of T ) (B3):
+# rows = a ListTree (a row per element, a column per field, the check from a bool field), items = a
+# ComboBox (DisplayField shown, ValueField the value Bind moves). AutoComplete, CheckedList and DataGrid
+# are to take one of these shapes, or add theirs here.
+# records = a Navigator (B4): it steps through an Array( of <the form's DataType> ), loading each record.
 # bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
 # moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
 # needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
@@ -318,6 +324,7 @@ color_fields = [
   { field="SelBackColor" },
   { field="SelForeColor" },
   { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+  { field="ErrorColor" },
 ]
 props = [
   { name="Text", kind="text", set="tkTextBox_SetText", get="tkTextBox_GetText" },
@@ -341,6 +348,7 @@ props = [
   { name="CueBannerColor", kind="color", set="tkTextBox_SetCueBannerColor", get="tkTextBox_GetCueBannerColor", inspector=false },
   { name="FocusBorderColor", kind="color", set="tkTextBox_SetFocusBorderColor", get="tkTextBox_GetFocusBorderColor", inspector=false },
   { name="OuterBackColor", kind="color", set="tkTextBox_SetOuterBackColor", get="tkTextBox_GetOuterBackColor", inspector=false },
+  { name="ErrorColor", kind="color", set="tkTextBox_SetErrorColor", get="tkTextBox_GetErrorColor", inspector=false },
   { name="CueBannerFont", kind="font", set="tkTextBox_SetCueBannerFont", get="tkTextBox_GetCueBannerFont" },
   { name="CornerRadius", kind="int", set="tkTextBox_SetCornerRadius", get="tkTextBox_GetCornerRadius", theme="CornerRadius", scale=1 },
   { name="Sel", kind="list", enum="Start:int,End:int", set="tkTextBox_SetSel", get="" },
@@ -493,7 +501,8 @@ module = "tkComboBox"
 category = "Common"
 width = 160
 height = 28
-bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel" }
+bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel", none="-1" }
+items_bind = "items"
 default_event = "SelChange"
 colors = { struct="TKCOMBOBOX_COLORS", get="tkComboBox_GetColors", theme="tkComboBox_ThemeColors" }
 color_fields = [
@@ -682,6 +691,115 @@ events = [
   { name="MonthYearPaint", set="tkCalendar_SetMonthYearPaintCallback", type="CAL_MonthYearPaintCallbackSub", sig="byval c as TKCALENDAR_MYPAINTINFO ptr", params="byval c as TKCALENDAR_MYPAINTINFO ptr", args="c", widget="c->hCtrl" },
   { name="Message", set="tkCalendar_SetMessageCallback", type="CAL_MessageCallbackFunc", sig="byval m as TKCALENDAR_MESSAGEINFO ptr", params="byval m as TKCALENDAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
   { name="Tooltip", set="tkCalendar_SetTooltipCallback", type="CAL_TooltipCallbackFunc", sig="byval t as TKCALENDAR_TOOLTIPINFO ptr", params="byval t as TKCALENDAR_TOOLTIPINFO ptr, byref Show as boolean", args="t, Show", widget="t->hCtrl", returns="boolean", result="Show", result_init="true" },
+]
+
+[[control]]
+name = "TimePicker"
+module = "tkTimePicker"
+category = "Common"
+width = 110
+height = 28
+bind = { kind="time", get="tkTimePicker_GetTimeValue", set="tkTimePicker_SetTimeValue" }
+default_event = "TimeChanged"
+colors = { struct="TKTIMEPICKER_COLORS", get="tkTimePicker_GetColors", theme="tkTimePicker_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="FocusBorderColor" },
+  { field="BorderColorDisabled", part="Border", state="Disabled" },
+  { field="DividerColor", part="Divider", state="Normal" },
+  { field="DividerColorDisabled", part="Divider", state="Disabled" },
+  { field="FieldBackColor", part="FieldBack", state="Normal" },
+  { field="FieldForeColor", part="FieldFore", state="Normal", ink=true },
+  { field="FieldBackColorDisabled", part="FieldBack", state="Disabled" },
+  { field="FieldForeColorDisabled", part="FieldFore", state="Disabled", ink=true },
+  { field="IconColor", part="Icon", state="Normal", ink=true },
+  { field="IconGlyphColor", part="IconGlyph", state="Normal", ink=true },
+  { field="IconGlyphColorHot", part="IconGlyph", state="Hot", ink=true },
+  { field="IconBackColorHot", part="IconBack", state="Hot" },
+  { field="IconGlyphColorDisabled", part="IconGlyph", state="Disabled", ink=true },
+  { field="SegmentBackColorFocused" },
+  { field="SegmentForeColorFocused", ink=true },
+  { field="PlaceholderColor", ink=true },
+  { field="PanelBackColor" },
+  { field="PanelBorderColor" },
+  { field="ItemColor", part="Item", state="Normal", ink=true },
+  { field="ItemColorDisabled", part="Item", state="Disabled", ink=true },
+  { field="ItemBackColorHot", part="ItemBack", state="Hot" },
+  { field="ItemForeColorHot", part="ItemFore", state="Hot", ink=true },
+  { field="ItemBackColorSelected", part="ItemBack", state="Selected" },
+  { field="ItemForeColorSelected", part="ItemFore", state="Selected", ink=true },
+  { field="ColumnDividerColor" },
+  { field="FooterColor", part="Footer", state="Normal", ink=true },
+  { field="FooterColorHot", part="Footer", state="Hot", ink=true },
+  { field="FooterColorDisabled", part="Footer", state="Disabled", ink=true },
+]
+props = [
+  { name="Format", kind="text", set="tkTimePicker_SetFormat", get="tkTimePicker_GetFormat", default="HH:mm" },
+  { name="AllowEmpty", kind="bool", set="tkTimePicker_SetAllowEmpty", get="tkTimePicker_GetAllowEmpty", default="true" },
+  { name="Step", kind="int", set="tkTimePicker_SetStep", get="tkTimePicker_GetStep", default="60" },
+  { name="ButtonStyle", kind="enum", enum="Dropdown=TKTP_BUTTON_DROPDOWN,Spin=TKTP_BUTTON_SPIN,None=TKTP_BUTTON_NONE", set="tkTimePicker_SetButtonStyle", get="tkTimePicker_GetButtonStyle", default="Dropdown" },
+  { name="PanelMode", kind="enum", enum="Columns=TKTP_PANEL_COLUMNS,List=TKTP_PANEL_LIST", set="tkTimePicker_SetPanelMode", get="tkTimePicker_GetPanelMode", default="Columns" },
+  { name="VisibleRows", kind="int", set="tkTimePicker_SetVisibleRows", get="tkTimePicker_GetVisibleRows", default="7" },
+  { name="ShowNow", kind="bool", set="tkTimePicker_SetShowNow", get="tkTimePicker_GetShowNow" },
+  { name="ShowOK", kind="bool", set="tkTimePicker_SetShowOK", get="tkTimePicker_GetShowOK" },
+  { name="TabMovesSegments", kind="bool", set="tkTimePicker_SetTabMovesSegments", get="tkTimePicker_GetTabMovesSegments" },
+  { name="PlaceholderText", kind="text", set="tkTimePicker_SetPlaceholderText", get="tkTimePicker_GetPlaceholderText" },
+  { name="AmText", kind="text", set="tkTimePicker_SetAmText", get="tkTimePicker_GetAmText", default="AM" },
+  { name="PmText", kind="text", set="tkTimePicker_SetPmText", get="tkTimePicker_GetPmText", default="PM" },
+  { name="Font", kind="font", set="tkTimePicker_SetFont", get="tkTimePicker_GetFont" },
+  { name="IconFont", kind="font", set="tkTimePicker_SetIconFont", get="tkTimePicker_GetIconFont" },
+  { name="IconGlyph", kind="glyph", set="tkTimePicker_SetIconGlyph", get="tkTimePicker_GetIconGlyph" },
+  { name="IconWidth", kind="int", set="tkTimePicker_SetIconWidth", get="tkTimePicker_GetIconWidth" },
+  { name="CornerRadius", kind="int", set="tkTimePicker_SetCornerRadius", get="tkTimePicker_GetCornerRadius", theme="CornerRadius", scale=1 },
+  { name="BorderThickness", kind="int", set="tkTimePicker_SetBorderThickness", get="tkTimePicker_GetBorderThickness", theme="BorderWidth", scale=1 },
+  { name="MinTime", kind="list", enum="Hour:int,Minute:int,Second:int", set="tkTimePicker_SetMinTime", get="" },
+  { name="MaxTime", kind="list", enum="Hour:int,Minute:int,Second:int", set="tkTimePicker_SetMaxTime", get="" },
+  { name="Time", kind="list", enum="Hour:int,Minute:int,Second:int", set="tkTimePicker_SetTimeParts", get="" },
+]
+events = [
+  { name="TimeChanged", set="tkTimePicker_SetTimeChangedCallback", type="TPK_TimeChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byval bHasTime as boolean", params="byval pTime as TKTIME ptr, byval bHasTime as boolean", args="pTime, bHasTime" },
+  { name="DropDown", set="tkTimePicker_SetDropDownCallback", type="TPK_DropDownCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
+  { name="ItemDisabled", set="tkTimePicker_SetItemDisabledCallback", type="TPK_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
+  { name="Paint", set="tkTimePicker_SetPaintCallback", type="TPK_PaintCallbackSub", sig="byval p as TKTIMEPICKER_PAINTINFO ptr", params="byval p as TKTIMEPICKER_PAINTINFO ptr", args="p", widget="p->hCtrl" },
+  { name="Message", set="tkTimePicker_SetMessageCallback", type="TPK_MessageCallbackFunc", sig="byval m as TKTIMEPICKER_MESSAGEINFO ptr", params="byval m as TKTIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "TimePanel"
+module = "tkTimePanel"
+category = "Common"
+width = 130
+height = 220
+default_event = "SelChange"
+colors = { struct="TKTIMEPANEL_COLORS", get="tkTimePanel_GetColors", theme="tkTimePanel_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="FocusRingColor" },
+  { field="ItemColor", part="Item", state="Normal", ink=true },
+  { field="ItemColorDisabled", part="Item", state="Disabled", ink=true },
+  { field="ItemBackColorHot", part="ItemBack", state="Hot" },
+  { field="ItemForeColorHot", part="ItemFore", state="Hot", ink=true },
+  { field="ItemBackColorSelected", part="ItemBack", state="Selected" },
+  { field="ItemForeColorSelected", part="ItemFore", state="Selected", ink=true },
+  { field="ColumnDividerColor" },
+]
+props = [
+  { name="Format", kind="text", set="tkTimePanel_SetFormat", get="tkTimePanel_GetFormat", default="HH:mm" },
+  { name="Step", kind="int", set="tkTimePanel_SetStep", get="tkTimePanel_GetStep", default="60" },
+  { name="Mode", kind="enum", enum="Columns=TKTP_PANEL_COLUMNS,List=TKTP_PANEL_LIST", set="tkTimePanel_SetMode", get="tkTimePanel_GetMode", default="Columns" },
+  { name="VisibleRows", kind="int", set="tkTimePanel_SetVisibleRows", get="tkTimePanel_GetVisibleRows", default="7" },
+  { name="Font", kind="font", set="tkTimePanel_SetFont", get="tkTimePanel_GetFont" },
+  { name="BorderThickness", kind="int", set="tkTimePanel_SetBorderThickness", get="tkTimePanel_GetBorderThickness", theme="BorderWidth", scale=1 },
+]
+events = [
+  { name="SelChange", set="tkTimePanel_SetSelChangeCallback", type="TP_SelChangeCallbackSub", sig="byval hPanel as TK_WIDGET ptr, byval pTime as TKTIME ptr", params="byval pTime as TKTIME ptr", args="pTime" },
+  { name="Accept", set="tkTimePanel_SetAcceptCallback", type="TP_AcceptCallbackSub", sig="byval hPanel as TK_WIDGET ptr, byval pTime as TKTIME ptr", params="byval pTime as TKTIME ptr", args="pTime" },
+  { name="Dismiss", set="tkTimePanel_SetDismissCallback", type="TP_DismissCallbackSub", sig="byval hPanel as TK_WIDGET ptr", params="", args="" },
+  { name="ItemDisabled", set="tkTimePanel_SetItemDisabledCallback", type="TP_ItemDisabledCallbackFunc", sig="byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
+  { name="ItemPaint", set="tkTimePanel_SetItemPaintCallback", type="TP_ItemPaintCallbackSub", sig="byval p as TKTIMEPANEL_ITEMPAINTINFO ptr", params="byval p as TKTIMEPANEL_ITEMPAINTINFO ptr", args="p", widget="p->hPanel" },
+  { name="Message", set="tkTimePanel_SetMessageCallback", type="TP_MessageCallbackFunc", sig="byval m as TKTIMEPANEL_MESSAGEINFO ptr", params="byval m as TKTIMEPANEL_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hPanel", returns="boolean", result="Handled" },
 ]
 
 [[control]]
@@ -959,6 +1077,7 @@ module = "tkListTree"
 category = "Lists"
 width = 240
 height = 160
+items_bind = "rows"
 default_event = "SelChange"
 props = [
   { name="RowHeight", kind="int", set="tkListTree_SetRowHeight", get="tkListTree_GetRowHeight" },
@@ -1048,6 +1167,34 @@ events = [
   { name="Paint", set="tkSelectBar_SetPaintPanelCallback", type="SEL_PaintPanelCallbackSub", sig="byval p as TKSELECTBAR_PAINTINFO ptr", params="byval p as TKSELECTBAR_PAINTINFO ptr", args="p", widget="p->hSelectBar" },
   { name="Message", set="tkSelectBar_SetMessageCallback", type="SEL_MessageCallbackFunc", sig="byval m as TKSELECTBAR_MESSAGEINFO ptr", params="byval m as TKSELECTBAR_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSelectBar", returns="boolean", result="Handled" },
   { name="Tooltip", set="tkSelectBar_SetTooltipCallback", type="SEL_TooltipCallbackFunc", sig="byval hSelectBar as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
+]
+
+[[control]]
+name = "Navigator"
+module = "tkNavigator"
+category = "Lists"
+width = 260
+height = 30
+items_bind = "records"
+default_event = "Navigate"
+colors = { struct="TKNAVIGATOR_COLORS", get="tkNavigator_GetColors", theme="tkNavigator_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="ButtonBackHot", part="Back", state="Hot" },
+  { field="ButtonBackPressed", part="Back", state="Pressed" },
+  { field="GlyphColor", part="Glyph", state="Normal", ink=true },
+  { field="GlyphColorDisabled", part="Glyph", state="Disabled", ink=true },
+  { field="TextColor", part="Fore", state="Normal", ink=true },
+]
+props = [
+  { name="Font", kind="font", set="tkNavigator_SetFont", get="tkNavigator_GetFont" },
+  { name="ShowNew", kind="bool", set="tkNavigator_SetShowNew", get="tkNavigator_GetShowNew", default="true" },
+  { name="ShowDelete", kind="bool", set="tkNavigator_SetShowDelete", get="tkNavigator_GetShowDelete", default="true" },
+  { name="PositionText", kind="text", set="tkNavigator_SetPositionText", get="tkNavigator_GetPositionText", default="{1} of {2}" },
+]
+events = [
+  { name="Navigate", set="tkNavigator_SetNavigateCallback", type="NAV_NavigateCallbackFunc", sig="byval hNav as TK_WIDGET ptr, byval action as int32, byval target as int32", params="byval action as int32, byval target as int32, byref Allow as boolean", args="action, target, Allow", returns="boolean", result="Allow", result_init="true" },
 ]
 
 [[control]]

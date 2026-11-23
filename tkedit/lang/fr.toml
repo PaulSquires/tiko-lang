@@ -362,6 +362,7 @@ delete_breakpoint = "Retirer le point d'arrêt"
 mac_permission = "macOS n'a pas laissé le débogueur contrôler le programme : activez le mode développeur (sudo DevToolsSecurity -enable), ou autorisez-le quand macOS le demande"
 
 [designer]
+item_field = "Champ"
 bind_pick = "Choisir un champ"
 bind_need_type = "Donnez d'abord un DataType au formulaire : le type d'enregistrement auquel ses contrôles sont liés."
 bind_no_fields = "Aucun champ de {} n'est connu : tapez le nom du champ."

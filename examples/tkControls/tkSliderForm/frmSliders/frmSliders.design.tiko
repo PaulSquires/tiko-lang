@@ -20,8 +20,8 @@ public partial type Form extends FormBase
     sldPrice as Slider
     sldV as Slider
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
-    declare sub LoadFrom( byref r as sliderdata.Prefs )
-    declare sub SaveTo( byref r as sliderdata.Prefs )
+    declare function LoadFrom( byref r as sliderdata.Prefs ) as boolean
+    declare function SaveTo( byref r as sliderdata.Prefs ) as boolean
     declare sub OnVolChanged( byval nThumb as int32, byval nValue as float64 )
     declare sub OnVolFormat( byval nValue as float64, byval nWhere as int32, byref Text as ustring )
     declare sub OnPriceCommitted( byval nThumb as int32, byval nValue as float64 )
@@ -76,14 +76,34 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     tkLayout_Apply( Layout )
 end sub
 
-sub Form.LoadFrom( byref r as sliderdata.Prefs )
+function Form.LoadFrom( byref r as sliderdata.Prefs ) as boolean
+    dim as TKBIND_ERRORS bindErrors_
     tkSlider_SetValue( sldVol.Handle, tkBind_Float( r.Volume ) )
+    tkBind_Loaded( bindErrors_, sldVol.Handle, "Volume", r.Volume, cdbl( tkSlider_GetValue( sldVol.Handle ) ) )
     tkSlider_SetValue( sldPrice.Handle, tkBind_Float( r.PriceLo ) )
+    tkBind_Loaded( bindErrors_, sldPrice.Handle, "PriceLo", r.PriceLo, cdbl( tkSlider_GetValue( sldPrice.Handle ) ) )
     tkSlider_SetUpperValue( sldPrice.Handle, tkBind_Float( r.PriceHi ) )
-end sub
+    tkBind_Loaded( bindErrors_, sldPrice.Handle, "PriceHi", r.PriceHi, cdbl( tkSlider_GetUpperValue( sldPrice.Handle ) ) )
+    if bindErrors_.Count then
+        dim as boolean bindHandled_ = false
+        if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, true )
+        return false
+    end if
+    return true
+end function
 
-sub Form.SaveTo( byref r as sliderdata.Prefs )
+function Form.SaveTo( byref r as sliderdata.Prefs ) as boolean
+    dim as TKBIND_ERRORS bindErrors_
+    tkBind_Check( bindErrors_, sldVol.Handle, "Volume", r.Volume, cdbl( tkSlider_GetValue( sldVol.Handle ) ), tkBind_Rule( false, "", "", 0, "" ) )
+    tkBind_Check( bindErrors_, sldPrice.Handle, "PriceLo", r.PriceLo, cdbl( tkSlider_GetValue( sldPrice.Handle ) ), tkBind_Rule( false, "", "", 0, "" ) )
+    tkBind_Check( bindErrors_, sldPrice.Handle, "PriceHi", r.PriceHi, cdbl( tkSlider_GetUpperValue( sldPrice.Handle ) ), tkBind_Rule( ) )
+    if bindErrors_.Count then
+        dim as boolean bindHandled_ = false
+        if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, false )
+        return false
+    end if
     tkBind_Put( r.Volume, cdbl( tkSlider_GetValue( sldVol.Handle ) ) )
     tkBind_Put( r.PriceLo, cdbl( tkSlider_GetValue( sldPrice.Handle ) ) )
     tkBind_Put( r.PriceHi, cdbl( tkSlider_GetUpperValue( sldPrice.Handle ) ) )
-end sub
+    return true
+end function

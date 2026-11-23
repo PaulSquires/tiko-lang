@@ -13,6 +13,7 @@
 #import "vendor/tkControls/tkColorPicker"
 #import "vendor/tkControls/tkDatePicker"
 #import "std/chrono"
+#import "std/containers"
 using tkBind
 using tkCalendar
 using tkTest
@@ -27,6 +28,7 @@ using tkComboBox
 using tkColorPicker
 using tkDatePicker
 using chrono
+using containers
 
 type Rec
     b as boolean
@@ -216,6 +218,207 @@ sub Controls_( )
     tkHost_Destroy( h )
 end sub
 
+' ---- B2: strict checks, ranges, LoadFrom's report, Format -------------------------------------
+
+' The codes a check left, comma-separated; "" for none.
+function Codes( byref e as TKBIND_ERRORS ) as ustring
+    dim as ustring o
+    for i as long = 0 to e.Count - 1
+        if i then o &= ","
+        o &= e.Items( i ).Code
+    next
+    return o
+end function
+
+' One check from empty.
+#define CHK( fld, v, ru ) e.Clear( ) : tkBind_Check( e, 0, "F", fld, v, ru )
+#define RNG( fld, v, ru ) e.Clear( ) : tkBind_Range( e, 0, "F", fld, v, ru )
+#define LDD( fld, shown ) e.Clear( ) : tkBind_Loaded( e, 0, "F", fld, shown )
+
+sub Strict_( )
+    tkTest_Begin( "strict (B2)" )
+    dim as TKBIND_ERRORS e
+    dim as TKBIND_RULE no = tkBind_Rule( ), req = tkBind_Rule( true )
+    dim as ubyte ub
+    dim as byte sb
+    dim as long l
+    dim as ulong ul
+    dim as longint ll
+    dim as ulongint ull
+    dim as single sg
+    dim as double db
+    dim as boolean bo
+    dim as ustring us
+    dim as TKDATE dt
+    dim as LocalDate ld
+    dim as ustring OK_ = "", NUM = str( TKBIND_ERR_NOTNUMBER ), WHOLE = str( TKBIND_ERR_NOTWHOLE ), RANGE_ = str( TKBIND_ERR_OUTOFRANGE )
+    dim as ustring NDATE = str( TKBIND_ERR_NOTDATE ), NBOOL = str( TKBIND_ERR_NOTBOOL ), REQ_ = str( TKBIND_ERR_REQUIRED ), LONG_ = str( TKBIND_ERR_TOOLONG )
+    dim as ustring BELOW = str( TKBIND_ERR_BELOWMIN ), ABOVE = str( TKBIND_ERR_ABOVEMAX ), CLAMP = str( TKBIND_ERR_CLAMPED )
+
+    ' whole numbers, by the field's own width
+    CHK( ub, "255", no ) : tkTest_Check( "ubyte takes 255", Codes( e ) = OK_, e.Text( ) )
+    CHK( ub, "256", no ) : tkTest_Check( "ubyte refuses 256", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( ub, "-1", no ) : tkTest_Check( "ubyte refuses -1", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( sb, "-128", no ) : tkTest_Check( "byte takes -128", Codes( e ) = OK_, e.Text( ) )
+    CHK( sb, "128", no ) : tkTest_Check( "byte refuses 128", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( l, "2147483647", no ) : tkTest_Check( "long takes its max", Codes( e ) = OK_, e.Text( ) )
+    CHK( l, "-2147483649", no ) : tkTest_Check( "long refuses one past its min", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( ll, "-9223372036854775808", no ) : tkTest_Check( "longint takes its min", Codes( e ) = OK_, e.Text( ) )
+    CHK( ull, "18446744073709551615", no ) : tkTest_Check( "ulongint takes its max", Codes( e ) = OK_, e.Text( ) )
+    CHK( ull, "18446744073709551616", no ) : tkTest_Check( "ulongint: one past is out of range", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( l, " +7 ", no ) : tkTest_Check( "a sign and spaces", Codes( e ) = OK_, e.Text( ) )
+    CHK( l, "abc", no ) : tkTest_Check( "text is no number", Codes( e ) = NUM, e.Text( ) )
+    CHK( l, "2.5", no ) : tkTest_Check( "a fraction is no whole number", Codes( e ) = WHOLE, e.Text( ) )
+    CHK( l, "12abc", no ) : tkTest_Check( "no trailing junk (VALLNG would take 12)", Codes( e ) = NUM, e.Text( ) )
+    CHK( l, "", no ) : tkTest_Check( "empty is 0 when not Required", Codes( e ) = OK_, e.Text( ) )
+    CHK( l, "  ", req ) : tkTest_Check( "empty and Required", Codes( e ) = REQ_, e.Text( ) )
+    ' real numbers
+    CHK( db, "+1.5e-3", no ) : tkTest_Check( "an exponent", Codes( e ) = OK_, e.Text( ) )
+    CHK( db, ".5", no ) : tkTest_Check( ".5", Codes( e ) = OK_, e.Text( ) )
+    CHK( db, "1.2.3", no ) : tkTest_Check( "1.2.3 is no number", Codes( e ) = NUM, e.Text( ) )
+    CHK( db, "e5", no ) : tkTest_Check( "e5 is no number", Codes( e ) = NUM, e.Text( ) )
+    CHK( sg, "1e39", no ) : tkTest_Check( "a single refuses 1e39", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( db, "1e39", no ) : tkTest_Check( "a double takes 1e39", Codes( e ) = OK_, e.Text( ) )
+    ' boolean, text, dates
+    CHK( bo, "Yes", no ) : tkTest_Check( "Yes is a boolean", Codes( e ) = OK_, e.Text( ) )
+    CHK( bo, "maybe", no ) : tkTest_Check( "maybe is not", Codes( e ) = NBOOL, e.Text( ) )
+    CHK( us, "abcd", tkBind_Rule( false, "", "", 3 ) ) : tkTest_Check( "MaxLength 3", Codes( e ) = LONG_, e.Text( ) )
+    CHK( dt, "2026-02-30", no ) : tkTest_Check( "30 February is no date", Codes( e ) = NDATE, e.Text( ) )
+    CHK( ld, "2026-02-28", no ) : tkTest_Check( "an ISO date", Codes( e ) = OK_, e.Text( ) )
+    CHK( dt, "05/03/2026", tkBind_Rule( false, "", "", 0, "dd/MM/yyyy" ) ) : tkTest_Check( "a date in the Format", Codes( e ) = OK_, e.Text( ) )
+    CHK( dt, "35/03/2026", tkBind_Rule( false, "", "", 0, "dd/MM/yyyy" ) ) : tkTest_Check( "35/03 is no date", Codes( e ) = NDATE, e.Text( ) )
+    ' a number or date control's value
+    CHK( l, 2.5, no ) : tkTest_Check( "2.5 from a number control into a long", Codes( e ) = WHOLE, e.Text( ) )
+    CHK( ub, 300.0, no ) : tkTest_Check( "300 into a ubyte", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( ul, -1.0, no ) : tkTest_Check( "-1 into a ulong", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( ub, clngint( 300 ), no ) : tkTest_Check( "an int control's 300 into a ubyte", Codes( e ) = RANGE_, e.Text( ) )
+    CHK( l, clngint( -1 ), tkBind_Rule( true, "", "", 0, "", true, -1 ) ) : tkTest_Check( "no selection and Required", Codes( e ) = REQ_, e.Text( ) )
+    CHK( l, clngint( -1 ), tkBind_Rule( false, "", "", 0, "", true, -1 ) ) : tkTest_Check( "no selection, not Required", Codes( e ) = OK_, e.Text( ) )
+    dim as TKDATE none_
+    CHK( dt, none_, req ) : tkTest_Check( "no date and Required", Codes( e ) = REQ_, e.Text( ) )
+
+    ' Minimum / Maximum
+    dim as TKBIND_RULE r10 = tkBind_Rule( false, "10", "120" )
+    RNG( l, "5", r10 ) : tkTest_Check( "below the minimum", Codes( e ) = BELOW, e.Text( ) )
+    RNG( l, "200", r10 ) : tkTest_Check( "above the maximum", Codes( e ) = ABOVE, e.Text( ) )
+    RNG( l, "abc", r10 ) : tkTest_Check( "text that didn't convert is Check's to report", Codes( e ) = OK_, e.Text( ) )
+    RNG( db, 5.0, r10 ) : tkTest_Check( "a number control's value below", Codes( e ) = BELOW, e.Text( ) )
+    RNG( dt, tkCalendar_MakeDate( 2026, 1, 1 ), tkBind_Rule( false, "2026-06-01" ) ) : tkTest_Check( "a date before the minimum", Codes( e ) = BELOW, e.Text( ) )
+
+    ' LoadFrom's report
+    db = 130 : LDD( db, 100.0 ) : tkTest_Check( "130 shown as 100", Codes( e ) = CLAMP, e.Text( ) )
+    db = 1 / 3 : LDD( db, 1 / 3 ) : tkTest_Check( "shown as held", Codes( e ) = OK_, e.Text( ) )
+    us = "abc" : LDD( us, 0.0 ) : tkTest_Check( "text that is no number, into a number control", Codes( e ) = NUM, e.Text( ) )
+    l = 7 : LDD( l, clngint( -1 ) ) : tkTest_Check( "an index the list hasn't", Codes( e ) = CLAMP, e.Text( ) )
+    LDD( none_, tkCalendar_MakeDate( 2026, 11, 23 ) )
+    tkTest_Check( "no date shown as one", (Codes( e ) = CLAMP) andalso (instr( e.Text( ), "no date is shown as 2026-11-23" ) > 0), e.Text( ) )
+
+    ' a DateTime field (Time picker T4's pair): its date part, read back and checked
+    dim as DateTime stamp = DateTime( 2026, 1, 2 )
+    LDD( stamp, tkCalendar_MakeDate( 2026, 1, 2 ) ) : tkTest_Check( "a DateTime shown as its date", Codes( e ) = OK_, e.Text( ) )
+    LDD( stamp, tkCalendar_MakeDate( 2026, 1, 3 ) ) : tkTest_Check( "a DateTime shown as another date", Codes( e ) = CLAMP, e.Text( ) )
+    CHK( stamp, none_, req ) : tkTest_Check( "a DateTime with no date and Required", Codes( e ) = REQ_, e.Text( ) )
+
+    ' Format
+    tkTest_Check( "Format .2f", tkBind_Text( 3.14159, ".2f" ) = "3.14", tkBind_Text( 3.14159, ".2f" ) )
+    l = 42
+    tkTest_Check( "Format 08d", tkBind_Text( l, "08d" ) = "00000042", tkBind_Text( l, "08d" ) )
+    tkTest_Check( "Format .1f on a whole number", tkBind_Text( l, ".1f" ) = "42.0", tkBind_Text( l, ".1f" ) )
+    dt = tkCalendar_MakeDate( 2026, 3, 5 )
+    tkTest_Check( "Format dd/MM/yyyy", tkBind_Text( dt, "dd/MM/yyyy" ) = "05/03/2026", tkBind_Text( dt, "dd/MM/yyyy" ) )
+    tkTest_Check( "a number spec on a date is ISO", tkBind_Text( dt, ".2f" ) = "2026-03-05", tkBind_Text( dt, ".2f" ) )
+    tkBind_Put( dt, "17/08/2025", "dd/MM/yyyy" )
+    tkTest_Check( "save in the Format", (dt.wYear = 2025) andalso (dt.wMonth = 8) andalso (dt.wDay = 17) )
+    tkTest_Check( "IsFormat", tkBind_IsFormat( ".2f" ) andalso tkBind_IsFormat( "dd/MM/yyyy" ) andalso (tkBind_IsFormat( "abc" ) = false) andalso (tkBind_IsFormat( "" ) = false) )
+
+    ' the list
+    e.Clear( )
+    dim as TK_WIDGET ptr fake = cast( TK_WIDGET ptr, 16 )
+    tkBind_Check( e, fake, "Age", l, "x", no )
+    tkBind_Check( e, 0, "Name", us, "", req )
+    tkTest_Check( "two errors, one line each", (e.Count = 2) andalso (e.Text( ) = "Age: 'x' is not a number" & !"\n" & "Name: is required"), e.Text( ) )
+    tkTest_Check( "Has finds the control", e.Has( fake ) andalso (e.Has( cast( TK_WIDGET ptr, 32 ) ) = false) )
+end sub
+
+' ---- B3: a ComboBox bound by its items' ValueField ----------------------------------------------
+sub Pick_( )
+    tkTest_Begin( "pick (B3)" )
+    dim as Array( of ustring ) vals
+    vals.Push( "NZ" ) : vals.Push( "AU" ) : vals.Push( "2026-01-02" ) : vals.Push( "300" )
+    tkTest_Check( "IndexOf finds", (tkBind_IndexOf( vals, "AU" ) = 1) andalso (tkBind_IndexOf( vals, "FR" ) = -1) )
+    dim as TKBIND_ERRORS e
+    dim as ustring code
+    dim as long id_
+    dim as ubyte ub
+    dim as TKDATE dt
+    tkBind_CheckPick( e, 0, "Country", code, vals, 1, tkBind_Rule( true ) )
+    tkTest_Check( "a choice meets Required", e.Count = 0, e.Text( ) )
+    tkBind_CheckPick( e, 0, "Country", code, vals, -1, tkBind_Rule( true ) )
+    tkTest_Check( "no choice and Required", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_REQUIRED), e.Text( ) )
+    e.Clear( )
+    tkBind_CheckPick( e, 0, "Country", code, vals, -1, tkBind_Rule( ) )
+    tkTest_Check( "no choice, not Required", e.Count = 0, e.Text( ) )
+    tkBind_CheckPick( e, 0, "Id", id_, vals, 0, tkBind_Rule( ) )
+    tkTest_Check( "a value that is no number, into a long", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_NOTNUMBER), e.Text( ) )
+    e.Clear( )
+    tkBind_CheckPick( e, 0, "Small", ub, vals, 3, tkBind_Rule( ) )
+    tkTest_Check( "300 into a ubyte", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_OUTOFRANGE), e.Text( ) )
+    e.Clear( )
+    tkBind_PutPick( code, vals, 1 )
+    tkTest_Check( "PutPick: the code", code = "AU", code )
+    tkBind_PutPick( code, vals, -1 )
+    tkTest_Check( "PutPick: no choice is empty", len( code ) = 0 )
+    tkBind_PutPick( dt, vals, 2 )
+    tkTest_Check( "PutPick: a date value", (dt.wYear = 2026) andalso (dt.wMonth = 1) andalso (dt.wDay = 2) )
+    id_ = 7
+    tkBind_PutPick( id_, vals, -1 )
+    tkTest_Check( "PutPick: no choice into a long is 0", id_ = 0 )
+    tkBind_LoadedPick( e, 0, "Country", "FR", -1 )
+    tkTest_Check( "LoadedPick: a value not in the list", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_NOTINLIST) _
+        andalso (e.Text( ) = "Country: 'FR' is not in the list"), e.Text( ) )
+    e.Clear( )
+    tkBind_LoadedPick( e, 0, "Country", "", -1 )
+    tkBind_LoadedPick( e, 0, "Id", "0", -1 )
+    tkBind_LoadedPick( e, 0, "Country", "AU", 1 )
+    tkTest_Check( "LoadedPick: empty, 0 and a found value are fine", e.Count = 0, e.Text( ) )
+end sub
+
+' ---- B4: tkBind_Differs, what IsDirty asks per bound value --------------------------------------
+sub Differs_( )
+    tkTest_Begin( "differs (B4)" )
+    dim as long l = 42
+    dim as ubyte ub = 7
+    dim as double db = 2.5
+    dim as boolean bo = true
+    dim as ustring us = "Ada"
+    dim as TKDATE dt = tkCalendar_MakeDate( 2026, 3, 5 )
+    dim as LocalDate ld = LocalDate( 2026, 3, 5 )
+    dim as DateTime stamp = DateTime( 2026, 3, 5 )
+    tkTest_Check( "text: the same number, spaced", tkBind_Differs( l, " 42 ", "" ) = false )
+    tkTest_Check( "text: another number", tkBind_Differs( l, "43", "" ) )
+    tkTest_Check( "text: no number differs", tkBind_Differs( l, "abc", "" ) )
+    tkTest_Check( "text: 2.50 is 2.5", tkBind_Differs( db, "2.50", "" ) = false )
+    dim as ubyte ub0 = 0
+    tkTest_Check( "text: empty is 0", tkBind_Differs( ub, "", "" ) andalso (tkBind_Differs( ub0, "", "" ) = false) )
+    tkTest_Check( "text: yes is true", (tkBind_Differs( bo, "Yes", "" ) = false) andalso tkBind_Differs( bo, "no", "" ) )
+    tkTest_Check( "text: a text field compares as typed", (tkBind_Differs( us, "Ada", "" ) = false) andalso tkBind_Differs( us, "Ada ", "" ) )
+    tkTest_Check( "text: a date in the Format", (tkBind_Differs( dt, "05/03/2026", "dd/MM/yyyy" ) = false) andalso tkBind_Differs( ld, "06/03/2026", "dd/MM/yyyy" ) )
+    tkTest_Check( "text: no date differs from a date", tkBind_Differs( dt, "", "" ) )
+    tkTest_Check( "bool kind", (tkBind_Differs( bo, true ) = false) andalso tkBind_Differs( l, false ) andalso (tkBind_Differs( l, true ) = false) )
+    tkTest_Check( "int kind", (tkBind_Differs( l, clngint( 42 ) ) = false) andalso tkBind_Differs( ub, clngint( 8 ) ) )
+    tkTest_Check( "float kind, a tolerance", (tkBind_Differs( db, 2.5 + 1e-12 ) = false) andalso tkBind_Differs( db, 2.6 ) )
+    dim as ustring s15 = "1.5"
+    tkTest_Check( "float kind into a text field", (tkBind_Differs( us, 1.0 ) = true) andalso (tkBind_Differs( s15, 1.5 ) = false) )
+    tkTest_Check( "date kind", (tkBind_Differs( dt, tkCalendar_MakeDate( 2026, 3, 5 ) ) = false) andalso tkBind_Differs( ld, tkCalendar_MakeDate( 2026, 3, 6 ) ) )
+    tkTest_Check( "date kind on a DateTime", (tkBind_Differs( stamp, tkCalendar_MakeDate( 2026, 3, 5 ) ) = false) andalso tkBind_Differs( stamp, tkCalendar_MakeDate( 2027, 1, 1 ) ) )
+    dim as Array( of ustring ) vals
+    vals.Push( "NZ" ) : vals.Push( "AU" )
+    dim as ustring code = "AU"
+    dim as long id_ = 0
+    tkTest_Check( "pick: the chosen value", (tkBind_DiffersPick( code, vals, 1 ) = false) andalso tkBind_DiffersPick( code, vals, 0 ) )
+    tkTest_Check( "pick: no choice and 0 / empty are the same", (tkBind_DiffersPick( id_, vals, -1 ) = false) andalso tkBind_DiffersPick( code, vals, -1 ) )
+end sub
+
 if tkTest_Init() = false then end 99
 tkTest_Begin( "conversions" )
 Text_( )
@@ -223,6 +426,9 @@ Bool_( )
 Int_( )
 Float_( )
 Date_( )
+Strict_( )
+Pick_( )
+Differs_( )
 Controls_( )
 dim as long nFail = tkTest_Report( "tkBind" )
 tkTest_Quit()

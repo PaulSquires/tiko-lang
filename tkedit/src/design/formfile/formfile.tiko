@@ -147,18 +147,34 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     c.ContextMenu = StrOf_( t, "context_menu" )
     c.Bind = StrOf_( t, "bind" )
     c.Bind2 = StrOf_( t, "bind2" )
+    c.Minimum = StrOf_( t, "minimum" )
+    c.Maximum = StrOf_( t, "maximum" )
+    c.Format = StrOf_( t, "format" )
+    c.MaxLength = IntOf_( t, "max_length", 0 )
+    c.ItemsField = StrOf_( t, "items_field" )
+    c.ItemsSource = StrOf_( t, "items_source" )
+    c.ItemType = StrOf_( t, "item_type" )
+    c.DisplayField = StrOf_( t, "display_field" )
+    c.ValueField = StrOf_( t, "value_field" )
+    c.CheckField = StrOf_( t, "check_field" )
+    c.Follows = StrOf_( t, "follows" )
     c.X = IntOf_( t, "x", 0 )
     c.Y = IntOf_( t, "y", 0 )
     c.W = IntOf_( t, "w", 0 )
     c.H = IntOf_( t, "h", 0 )
     dim as ustring where = "control '" & c.Name & "'"
-    OnlyKeys_( t, "name type parent page x y w h anchor dock locked tabindex pages page_glyphs page_ids custom_type custom_module context_menu bind bind2 props events items colors", where, doc )
+    OnlyKeys_( t, "name type parent page x y w h anchor dock locked tabindex pages page_glyphs page_ids custom_type custom_module context_menu bind bind2 required minimum maximum max_length format items_field items_source item_type display_field value_field check_field follows props events items colors", where, doc )
     c.TabIndex = IntOf_( t, "tabindex", 0 )
     if c.TabIndex < 0 then c.TabIndex = 0
     dim as config.TomlValue ptr p = t.Find( "locked" )
     if p then
         dim as boolean noFlag = false
         c.Locked = p->AsBool( ).ValueOr( noFlag )
+    end if
+    p = t.Find( "required" )
+    if p then
+        dim as boolean noReq = false
+        c.Required = p->AsBool( ).ValueOr( noReq )
     end if
     p = t.Find( "anchor" )
     if p then
@@ -195,7 +211,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     if p then
         for i as long = 0 to p->Count( ) - 1
             dim byref as config.TomlValue it = p->Item( i )
-            OnlyKeys_( it, "text key glyph handler kind level width stretch id", where & " item", doc )
+            OnlyKeys_( it, "text key glyph handler kind level width stretch id field", where & " item", doc )
             dim as FormItem x
             x.Text = StrOf_( it, "text" )
             x.Key = StrOf_( it, "key" )
@@ -205,6 +221,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
             x.Level = IntOf_( it, "level", 0 )
             x.Width = IntOf_( it, "width", 0 )
             x.Id = IntOf_( it, "id", -1 )
+            x.Field = StrOf_( it, "field" )
             dim as config.TomlValue ptr st = it.Find( "stretch" )
             if st then
                 dim as boolean no = false
@@ -472,6 +489,18 @@ public function Render( byref doc as FormDoc ) as ustring
         if len( c.ContextMenu ) then o &= "context_menu = " & Quote_( c.ContextMenu ) & NL
         if len( c.Bind ) then o &= "bind = " & Quote_( c.Bind ) & NL
         if len( c.Bind2 ) then o &= "bind2 = " & Quote_( c.Bind2 ) & NL
+        if c.Required then o &= "required = true" & NL
+        if len( c.Minimum ) then o &= "minimum = " & Quote_( c.Minimum ) & NL
+        if len( c.Maximum ) then o &= "maximum = " & Quote_( c.Maximum ) & NL
+        if c.MaxLength <> 0 then o &= "max_length = " & c.MaxLength & NL
+        if len( c.Format ) then o &= "format = " & Quote_( c.Format ) & NL
+        if len( c.ItemsField ) then o &= "items_field = " & Quote_( c.ItemsField ) & NL
+        if len( c.ItemsSource ) then o &= "items_source = " & Quote_( c.ItemsSource ) & NL
+        if len( c.ItemType ) then o &= "item_type = " & Quote_( c.ItemType ) & NL
+        if len( c.DisplayField ) then o &= "display_field = " & Quote_( c.DisplayField ) & NL
+        if len( c.ValueField ) then o &= "value_field = " & Quote_( c.ValueField ) & NL
+        if len( c.CheckField ) then o &= "check_field = " & Quote_( c.CheckField ) & NL
+        if len( c.Follows ) then o &= "follows = " & Quote_( c.Follows ) & NL
         if c.Pages.Count( ) then
             o &= "pages = ["
             for p as long = 0 to c.Pages.Count( ) - 1
@@ -515,6 +544,7 @@ public function Render( byref doc as FormDoc ) as ustring
             if len( it.Key ) then o &= "key = " & Quote_( it.Key ) & NL
             if len( it.Glyph ) then o &= "glyph = " & Quote_( it.Glyph ) & NL
             if it.Width then o &= "width = " & it.Width & NL
+            if len( it.Field ) then o &= "field = " & Quote_( it.Field ) & NL
             if it.Stretch then o &= "stretch = true" & NL
             if len( it.Handler ) then o &= "handler = " & Quote_( it.Handler ) & NL
             if doc.Translate then o &= "id = " & ItemId( c, k ) & NL

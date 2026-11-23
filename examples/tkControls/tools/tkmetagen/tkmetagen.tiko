@@ -214,8 +214,8 @@ sub CheckBindProcs_( byref b as TomlValue, byref name_ as const ustring, byref m
                      byref text as const ustring, byval loadOnly as boolean )
     dim as ustring kind = Str_( b, "kind" ), g = Str_( b, "get" ), s_ = Str_( b, "set" )
     select case kind
-    case "text", "bool", "int", "float", "date"
-    case else : Fail_( name_ & ": " & what & " kind '" & kind & "' is not text, bool, int, float or date" )
+    case "text", "bool", "int", "float", "date", "time"
+    case else : Fail_( name_ & ": " & what & " kind '" & kind & "' is not text, bool, int, float, date or time" )
     end select
     if loadOnly andalso len( g ) then Fail_( name_ & ": a load_only " & what & " has no get" )
     if (loadOnly = false) andalso (len( g ) = 0) then Fail_( name_ & ": " & what & " needs a get, or load_only = true" )
@@ -232,6 +232,11 @@ end sub
 ' thumb). It needs a bind, both procedures, a name for the designer, and a when of "Prop=Shown" naming
 ' one of the control's enum (or bool) properties and one of its values; "" = always.
 sub CheckBind_( byref ctl as TomlValue, byref root as const ustring )
+    ' items_bind (B3): the shape a designed form fills the control's list in
+    select case Str_( ctl, "items_bind" )
+    case "", "rows", "items", "records"
+    case else : Fail_( Str_( ctl, "name" ) & ": items_bind '" & Str_( ctl, "items_bind" ) & "' is not rows, items or records" )
+    end select
     dim as TomlValue ptr b = ctl.Find( "bind" )
     dim as TomlValue ptr b2 = ctl.Find( "bind2" )
     if (b = 0) andalso (b2 = 0) then exit sub
@@ -239,6 +244,11 @@ sub CheckBind_( byref ctl as TomlValue, byref root as const ustring )
     if b = 0 then Fail_( name_ & ": bind2 without bind" )
     dim as ustring text = ModuleText_( root, mod_ )
     CheckBindProcs_( *b, name_, mod_, "bind", text, Flag_( *b, "load_only", false ) )
+    dim as ustring none_ = Str_( *b, "none" )
+    if len( none_ ) then
+        if Str_( *b, "kind" ) <> "int" then Fail_( name_ & ": bind none is for an int kind" )
+        if str( vallng( none_ ) ) <> none_ then Fail_( name_ & ": bind none '" & none_ & "' is not a whole number" )
+    end if
     if b2 = 0 then exit sub
     if b2->Find( "load_only" ) then Fail_( name_ & ": bind2 has no load_only" )
     CheckBindProcs_( *b2, name_, mod_, "bind2", text, false )
@@ -461,7 +471,9 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
         if bnd then
             fill &= "    Bind_( " & Quote_( Str_( *bnd, "kind" ) ) & ", " & Quote_( Str_( *bnd, "get" ) ) & ", " & Quote_( Str_( *bnd, "set" ) ) _
                     & ", " & iif( Flag_( *bnd, "load_only", false ), "true", "false" ) & " )" & NL
+            if len( Str_( *bnd, "none" ) ) then fill &= "    BindNone_( " & Quote_( Str_( *bnd, "none" ) ) & " )" & NL
         end if
+        if len( Str_( *ctl, "items_bind" ) ) then fill &= "    ItemsBind_( " & Quote_( Str_( *ctl, "items_bind" ) ) & " )" & NL
         dim as TomlValue ptr bnd2 = ctl->Find( "bind2" )
         if bnd2 then
             fill &= "    Bind2_( " & Quote_( Str_( *bnd2, "kind" ) ) & ", " & Quote_( Str_( *bnd2, "get" ) ) & ", " & Quote_( Str_( *bnd2, "set" ) ) _

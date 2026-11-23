@@ -138,6 +138,34 @@ public sub BindPass( byref t as Tally, byval sc as single )
     t.Check( len( ps->Apply( "@Bind", "Home..City" ) ) > 0, P( sc, "a field path that is no name is refused" ) )
     t.Check( len( ps->Apply( "@Bind", "Age" ) ) = 0, P( sc, "a typed field is taken" ) )
     t.Check( c->Doc.Controls[ti].Bind = "Age", P( sc, "...into the model" ) )
+    ' ---- B2: a bound TextBox's rule rows; validation through them; they go with Bind
+    tkTest_PumpFor( h, 60 )
+    t.Check( (BindRow_( ps, "@Req" ) >= 0) andalso (BindRow_( ps, "@Min" ) >= 0) andalso (BindRow_( ps, "@Max" ) >= 0) _
+        andalso (BindRow_( ps, "@MaxLen" ) >= 0) andalso (BindRow_( ps, "@Fmt" ) >= 0), P( sc, "rules: a bound TextBox has its five rule rows" ) )
+    t.Check( len( ps->Apply( "@Min", "ten" ) ) > 0, P( sc, "rules: a Minimum that is no number is refused" ) )
+    t.Check( (len( ps->Apply( "@Min", "1" ) ) = 0) andalso (len( ps->Apply( "@Max", "120" ) ) = 0) andalso (len( ps->Apply( "@Req", "true" ) ) = 0), _
+        P( sc, "rules: Minimum, Maximum, Required taken" ) )
+    t.Check( len( ps->Apply( "@Max", "0" ) ) > 0, P( sc, "rules: a Maximum below the Minimum is refused" ) )
+    t.Check( len( ps->Apply( "@MaxLen", "abc" ) ) > 0, P( sc, "rules: a MaxLength that is no number is refused" ) )
+    t.Check( len( ps->Apply( "@Fmt", "abc" ) ) > 0, P( sc, "rules: a Format that is neither kind is refused" ) )
+    t.Check( len( ps->Apply( "@Fmt", ".1f" ) ) = 0, P( sc, "rules: a number Format taken" ) )
+    with c->Doc.Controls[ti]
+        t.Check( .Required andalso (.Minimum = "1") andalso (.Maximum = "120") andalso (.Format = ".1f"), P( sc, "rules: all in the model" ) )
+    end with
+    t.Check( ps->ValueOf( "@Req" ) = "true", P( sc, "rules: the Required row reads it back" ) )
+    c->SelectOnly( "Button1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( BindRow_( ps, "@Req" ) < 0, P( sc, "rules: a Button has no rule rows" ) )
+    c->SelectOnly( "TextBox1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( len( ps->Apply( "@Bind", "" ) ) = 0, P( sc, "rules: clearing Bind is taken" ) )
+    tkTest_PumpFor( h, 60 )
+    with c->Doc.Controls[ti]
+        t.Check( (.Required = false) andalso (len( .Minimum ) = 0) andalso (len( .Format ) = 0), P( sc, "rules: ...and takes the rules with it" ) )
+    end with
+    t.Check( BindRow_( ps, "@Req" ) < 0, P( sc, "rules: ...and the rows go" ) )
+    t.Check( len( ps->Apply( "@Bind", "Age" ) ) = 0, P( sc, "rules: bound again" ) )
+
     ' the DataType can't go while a control is bound to one of its fields
     c->SelectNone( )
     tkTest_PumpFor( h, 60 )
@@ -183,6 +211,53 @@ public sub BindPass( byref t as Tally, byval sc as single )
         end if
         *m = keep
     end if
+    ' ---- B3: a ComboBox's and a ListTree's list rows; the element fields' menu from ItemType
+    trial = c->Doc
+    edits.AddControl( trial, "ComboBox", "", -1, 20, 140, 160, 28 )
+    edits.AddControl( trial, "ListTree", "", -1, 200, 140, 200, 120 )
+    t.Check( len( c->ApplyEdit( trial, true, "" ) ) = 0, P( sc, "list: a ComboBox and a ListTree" ) )
+    c->SelectOnly( "ComboBox1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (BindRow_( ps, "@ItemsField" ) >= 0) andalso (BindRow_( ps, "@ItemsSource" ) >= 0) andalso (BindRow_( ps, "@ItemType" ) >= 0) _
+        andalso (BindRow_( ps, "@Display" ) >= 0) andalso (BindRow_( ps, "@Value" ) >= 0) andalso (BindRow_( ps, "@Check" ) < 0), _
+        P( sc, "list: a ComboBox's rows: source, type, DisplayField, ValueField" ) )
+    t.Check( (len( ps->Apply( "@ItemsSource", "Staff" ) ) = 0) andalso (len( ps->Apply( "@ItemType", "people.Person" ) ) = 0), P( sc, "list: a source and its type" ) )
+    dim as long db_ = BindRow_( ps, "@Display" )
+    if db_ >= 0 then
+        ps->ShowFields( ps->Rows[db_].Btn )
+        tkTest_PumpFor( h, 30 )
+        dim as ustring dn
+        for i as long = 0 to ps->FieldNames.Count( ) - 1
+            if i then dn &= "|"
+            dn &= ps->FieldNames[i]
+        next
+        t.Check( dn = "Name|Age|Home|Home.City", P( sc, "list: DisplayField's menu lists ItemType's fields: " & dn ) )
+        if ps->FieldMenu then tkPopupMenu_Hide( ps->FieldMenu )
+        ps->PickField( 0 )
+        tkTest_PumpFor( h, 30 )
+    end if
+    dim as long cb = FindControl( c->Doc, "ComboBox1" )
+    t.Check( (cb >= 0) andalso (c->Doc.Controls[cb].DisplayField = "Name"), P( sc, "list: a pick fills DisplayField" ) )
+    t.Check( len( ps->Apply( "@Value", "Age" ) ) = 0, P( sc, "list: a typed ValueField" ) )
+    t.Check( len( ps->Apply( "@ItemsField", "Kids" ) ) > 0, P( sc, "list: an ItemsField beside an ItemsSource is refused" ) )
+    c->SelectOnly( "ListTree1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (BindRow_( ps, "@Check" ) >= 0) andalso (BindRow_( ps, "@Display" ) < 0), P( sc, "list: a ListTree has CheckField, no DisplayField" ) )
+
+    ' ---- B4: a Navigator's rows: its records and the list it follows
+    trial = c->Doc
+    edits.AddControl( trial, "Navigator", "", -1, 20, 280, 260, 30 )
+    t.Check( len( c->ApplyEdit( trial, true, "" ) ) = 0, P( sc, "nav: a Navigator" ) )
+    c->SelectOnly( "Navigator1" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (BindRow_( ps, "@ItemsSource" ) >= 0) andalso (BindRow_( ps, "@Follows" ) >= 0) andalso (BindRow_( ps, "@ItemsField" ) < 0) _
+        andalso (BindRow_( ps, "@Display" ) < 0), P( sc, "nav: ItemsSource and Follows, no other list rows" ) )
+    t.Check( len( ps->Apply( "@ItemsSource", "Staff" ) ) = 0, P( sc, "nav: its records" ) )
+    t.Check( len( ps->Apply( "@Follows", "ListTree1" ) ) > 0, P( sc, "nav: following a list on other records is refused" ) )
+    t.Check( len( ps->Apply( "@Follows", "ComboBox1" ) ) = 0, P( sc, "nav: following the combo on Staff is taken" ) )
+    dim as long nv = FindControl( c->Doc, "Navigator1" )
+    t.Check( (nv >= 0) andalso (c->Doc.Controls[nv].Follows = "ComboBox1") andalso (ps->ValueOf( "@Follows" ) = "ComboBox1"), P( sc, "nav: in the model and the row" ) )
+
     mw.Db.Remove( "c:\bindpass\people.tiko" )
     mw.Destroy( )
 end sub

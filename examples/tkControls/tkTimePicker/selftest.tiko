@@ -7,7 +7,12 @@
 #import "vendor/tkControls/tkTimePicker"
 #import "vendor/tkControls/tkDatePicker"
 #import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkBind"
+#import "std/chrono"
 using tkTimePicker
+using tkBind
+using tkCalendar
+using chrono
 using tkTimePanel
 using tkDatePicker
 using tkTheme
@@ -565,7 +570,57 @@ end sub
 
 
 ' ==========================================================================================
+' T4: the time kind in tkBind (TIMEPICKER.md §10). One check per behaviour (the author's test
+' budget); LoadFrom / SaveTo lines spelled as codegen spells them, against a real TimePicker.
+type ApptRec
+    t   as TKTIME
+    lt  as chrono.LocalTime
+    s   as ustring
+    dtm as DateTime
+end type
+
+sub RunBinding( )
+    tkTest_Begin( "binding" )
+    dim as ApptRec r
+    dim as chrono.LocalTime fresh
+    tkTest_Check( "a default LocalTime loads as 00:00, not as no time", tkTimePanel_SameTime( tkBind_Time( fresh ), Tm( 0, 0 ) ) )
+    tkTest_Check( "LocalTime.Invalid loads as no time", tkTimePanel_IsTime( tkBind_Time( chrono.LocalTime.Invalid( ) ) ) = false )
+    tkBind_Put( r.lt, Tm( 9, 30, 15, 250 ) )
+    tkTest_Check( "TKTIME -> LocalTime -> TKTIME round trip", tkTimePanel_SameTime( tkBind_Time( r.lt ), Tm( 9, 30, 15, 250 ) ) )
+    tkBind_Put( r.lt, tkTimePanel_EmptyTime( ) )
+    tkTest_Check( "no time saves as LocalTime.Invalid", r.lt.IsValid = false )
+    tkBind_Put( r.s, Tm( 6, 7 ) )
+    dim as ustring sLoose = "2:30 pm"
+    tkTest_Check( "time -> text is ISO; text -> time takes lenient text", r.s = "06:07:00" andalso tkTimePanel_SameTime( tkBind_Time( sLoose ), Tm( 14, 30 ) ), r.s )
+    ' the DateTime pair, in one call, on a NEW record (Invalid DateTime)
+    tkBind_Put( r.dtm, tkCalendar_MakeDate( 2027, 1, 2 ), Tm( 9, 15 ) )
+    tkTest_Check( "pair on a new record: both halves land", r.dtm.IsValid andalso r.dtm.Year = 2027 andalso r.dtm.Day = 2 andalso r.dtm.Hour = 9 andalso r.dtm.Minute = 15 )
+    r.dtm = DateTime( 2026, 11, 23, 14, 5, 0, 0 ).WithOffset( -210 )
+    tkBind_Put( r.dtm, tkCalendar_MakeDate( 2027, 1, 2 ), Tm( 9, 15 ) )
+    tkTest_Check( "pair keeps the offset", r.dtm.HasOffset andalso r.dtm.OffsetMinutes = -210 andalso r.dtm.Hour = 9 )
+    dim as TKDATE noDate
+    tkBind_Put( r.dtm, noDate, Tm( 9, 15 ) )
+    tkTest_Check( "pair with no date clears the field", r.dtm.IsValid = false )
+    r.dtm = DateTime( 2026, 11, 23, 14, 5, 0, 0 )
+    tkBind_Put( r.dtm, Tm( 8, 0 ) )
+    tkTest_Check( "a lone time half keeps the date", r.dtm.Day = 23 andalso r.dtm.Hour = 8 )
+    tkTest_Check( "DateTime loads into both kinds", tkBind_Date( r.dtm ).wDay = 23 andalso tkTimePanel_SameTime( tkBind_Time( r.dtm ), Tm( 8, 0 ) ) )
+    ' codegen's line shapes against a real control
+    dim as TK_HOST ptr h = tkHost_Create( "tkTimePicker binding", 300, 200, tkHost_FontDir() & TK_FONT_UI, 1.0 )
+    dim as TK_WIDGET ptr c = tkTimePicker_Create( tkHost_Root( h ), 1 )
+    gChanged = 0
+    tkTimePicker_SetTimeChangedCallback( c, @OnChanged )
+    tkBind_Put( r.lt, Tm( 17, 45 ) )
+    tkTimePicker_SetTimeValue( c, tkBind_Time( r.lt ) )
+    tkTimePicker_SetTime( c, Tm( 18, 0 ) )
+    tkBind_Put( r.lt, tkTimePicker_GetTimeValue( c ) )
+    tkTest_Check( "LoadFrom / SaveTo lines: a real picker loads 17:45 silently, saves 18:00", gChanged = 0 andalso r.lt.Hour = 18 andalso r.lt.Minute = 0 )
+    tkHost_Destroy( h )
+end sub
+
+' ==========================================================================================
 if tkTest_Init() = false then end 99
+RunBinding( )
 RunPass( 1.0 )
 RunPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkTimePicker" )

@@ -196,6 +196,7 @@ public type Database
     ' the Form Designer's Bind (B1): a record type's data fields, "Address.City" one level down
     declare function TypeByName( byref name_ as const ustring ) as SymRef
     declare function FieldPaths( byref typeName as const ustring ) as Array( of ustring )
+    declare function ElementType( byref typeName as const ustring, byref path as const ustring ) as ustring
     declare function Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
     declare function MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
     declare function CallTip( byref name_ as const ustring, byref qualifier as const ustring = "", _
@@ -436,6 +437,39 @@ function Database.FieldPaths( byref typeName as const ustring ) as Array( of ust
         next
     next
     return out_
+end function
+
+' The element type of a record's Array( of T ) field, for a list's field menus (B3): "OrderLine" for
+' ElementType( "shop.Order", "Lines" ) when Lines is Array( of OrderLine ). A dotted path walks into
+' TYPE fields. "" when the type, the field or an Array( of ... ) isn't there.
+function Database.ElementType( byref typeName as const ustring, byref path as const ustring ) as ustring
+    dim as ustring tn = typeName
+    dim as long dot = instrrev( tn, "." )
+    if dot then tn = mid( tn, dot + 1 )
+    dim as ustring rest = trim( path ) & "."
+    dim as ustring found
+    do
+        dim as long d = instr( rest, "." )
+        if d = 0 then exit do
+        dim as ustring part = lcase( left( rest, d - 1 ) )
+        rest = mid( rest, d + 1 )
+        dim as SymRef t = this.TypeByName( tn )
+        if t.IsValid( ) = false then return ""
+        found = ""
+        for each r as SymRef in this.Members( t )
+            dim as Sym y = this.Item( r )
+            if (y.Kind = SymKind.Field) andalso (lcase( y.Name ) = part) then found = y.TypeText : exit for
+        next
+        if len( found ) = 0 then return ""
+        if len( rest ) then tn = BaseTypeName( found )
+    loop
+    ' "Array( of OrderLine )", any spacing or case
+    dim as ustring lt = lcase( found )
+    dim as long a = instr( lt, "array" ), o = instr( lt, " of " )
+    if (a = 0) orelse (o = 0) then return ""
+    dim as ustring e = trim( mid( found, o + 4 ) )
+    if right( e, 1 ) = ")" then e = rtrim( left( e, len( e ) - 1 ) )
+    return e
 end function
 
 function Database.Members( byref typeRef as const SymRef ) as Array( of SymRef )

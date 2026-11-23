@@ -24,8 +24,8 @@ public partial type Form extends FormBase
     lblBody as Label
     tst as Toaster
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
-    declare sub LoadFrom( byref r as orders.Order )
-    declare sub SaveTo( byref r as orders.Order )
+    declare function LoadFrom( byref r as orders.Order ) as boolean
+    declare function SaveTo( byref r as orders.Order ) as boolean
     declare sub OnBarAction( byval id as int32 )
     declare sub OnBarClosing( byval reason as int32, byref Allow as boolean )
     declare sub OnToastDismissed( byval id as int32, byval reason as int32 )
@@ -72,9 +72,23 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     tkLayout_Apply( Layout )
 end sub
 
-sub Form.LoadFrom( byref r as orders.Order )
+function Form.LoadFrom( byref r as orders.Order ) as boolean
+    dim as TKBIND_ERRORS bindErrors_
     tkInfoBar_SetText( bar.Handle, tkBind_Text( r.Notice ) )
-end sub
+    if bindErrors_.Count then
+        dim as boolean bindHandled_ = false
+        if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, true )
+        return false
+    end if
+    return true
+end function
 
-sub Form.SaveTo( byref r as orders.Order )
-end sub
+function Form.SaveTo( byref r as orders.Order ) as boolean
+    dim as TKBIND_ERRORS bindErrors_
+    if bindErrors_.Count then
+        dim as boolean bindHandled_ = false
+        if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, false )
+        return false
+    end if
+    return true
+end function
