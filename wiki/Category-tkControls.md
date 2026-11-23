@@ -78,7 +78,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 
 | Group | Pages |
 |---|---|
-| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkDatePicker](tkDatePicker), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit) |
+| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit) |
 | Buttons and switches | [tkButton](tkButton), [tkCheckBox](tkCheckBox), [tkOptionButton](tkOptionButton), [tkToggle](tkToggle) |
 | Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar) |
 | Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar) |
