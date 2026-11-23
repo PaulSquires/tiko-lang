@@ -1,0 +1,657 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkDataGrid -- layout, geometry, painting and the surface's input.
+'
+' LAYOUT (DgLayout) runs on a size, scale or shape change, never from a paint. The scroll bars
+' depend on each other (a horizontal bar takes height, which can make rows overflow), so the
+' pass repeats until neither changes -- at most three times. Columns are laid out in DISPLAY
+' order: each gets its scaled width clamped to [min, max]; while the natural widths leave room,
+' the fill columns share it by weight. xPx / wPx are content pixels; the screen x of a column is
+' xPx - scrollX.
+'
+' THE SURFACE is header band (0 .. hdrH) over the body. A row's top is
+' hdrH + row * rowH - scrollY. Only the visible rows and columns are read and painted.
+#module "tkDataGrid"
+
+#import "../tkHost"
+#import "../tkTheme"
+#import "../tkColumnHeader"
+#import "../tkVScrollBar"
+#import "../tkHScrollBar"
+using tkHost
+using tkPaint
+using tkTheme
+using tkColumnHeader
+using tkVScrollBar
+using tkHScrollBar
+
+' ==========================================================================================
+' Layout
+' ==========================================================================================
+private sub DgLayoutColumns( byval p as TKDATAGRID_STATE ptr, byval availW as integer )
+    dim as integer natural = 0, totalWeight = 0
+    for k as integer = 0 to p->colCount - 1
+        with p->cols(k)
+            if .c.visible = false then .wPx = 0 : continue for
+            dim as integer w = DgScale( p, .c.width )
+            dim as integer mn = DgScale( p, .c.minWidth )
+            if w < mn then w = mn
+            if (.c.maxWidth > 0) andalso (w > DgScale( p, .c.maxWidth )) then w = DgScale( p, .c.maxWidth )
+            .wPx = w
+            natural += w
+            if .c.fillWeight > 0 then totalWeight += .c.fillWeight
+        end with
+    next
+    if (totalWeight > 0) andalso (natural < availW) then
+        dim as integer extra = availW - natural, given = 0, weightLeft = totalWeight
+        for d as integer = 0 to p->colCount - 1
+            dim as integer k = p->order(d)
+            with p->cols(k)
+                if (.c.visible = false) orelse (.c.fillWeight <= 0) then continue for
+                ' the last fill column takes the rounding remainder
+                dim as integer share = iif( weightLeft = .c.fillWeight, extra - given, (extra * .c.fillWeight) \ totalWeight )
+                weightLeft -= .c.fillWeight
+                if .c.maxWidth > 0 then
+                    dim as integer room = DgScale( p, .c.maxWidth ) - .wPx
+                    if share > room then share = iif( room > 0, room, 0 )
+                end if
+                .wPx += share
+                given += share
+            end with
+        next
+    end if
+    dim as integer x = 0
+    for d as integer = 0 to p->colCount - 1
+        dim as integer k = p->order(d)
+        p->cols(k).xPx = x
+        x += p->cols(k).wPx
+    next
+    p->contentW = x
+end sub
+
+private function DgBodyH( byval p as TKDATAGRID_STATE ptr ) as integer
+    dim as integer h = p->wSurf->ch - DgHdrHPx( p )
+    return iif( h < 0, 0, h )
+end function
+
+private function DgMaxScrollY( byval p as TKDATAGRID_STATE ptr ) as integer
+    dim as integer m = p->rowCount * DgRowHPx( p ) - DgBodyH( p )
+    return iif( m < 0, 0, m )
+end function
+
+private function DgMaxScrollX( byval p as TKDATAGRID_STATE ptr ) as integer
+    dim as integer m = p->contentW - p->wSurf->cw
+    return iif( m < 0, 0, m )
+end function
+
+private sub DgClampScroll( byval p as TKDATAGRID_STATE ptr )
+    if p->scrollY > DgMaxScrollY( p ) then p->scrollY = DgMaxScrollY( p )
+    if p->scrollY < 0 then p->scrollY = 0
+    if p->scrollX > DgMaxScrollX( p ) then p->scrollX = DgMaxScrollX( p )
+    if p->scrollX < 0 then p->scrollX = 0
+end sub
+
+private sub DgSyncBars( byval p as TKDATAGRID_STATE ptr )
+    dim as integer rowH = DgRowHPx( p )
+    tkVScrollBar_SetRange( p->wVBar, p->rowCount * rowH, DgBodyH( p ), p->scrollY )
+    tkVScrollBar_SetWheelStep( p->wVBar, 3 * rowH )
+    tkHScrollBar_SetRange( p->wHBar, p->contentW, p->wSurf->cw, p->scrollX )
+end sub
+
+sub DgLayout( byval p as TKDATAGRID_STATE ptr )
+    dim as TK_WIDGET ptr w = p->hWin
+    dim as integer bw = p->nBorderWidth
+    dim as integer W_ = w->cw - 2 * bw, H_ = w->ch - 2 * bw
+    if W_ < 0 then W_ = 0
+    if H_ < 0 then H_ = 0
+    dim as integer sb = DgScale( p, p->ScrollBarWidth )
+    dim as integer hdrH = DgHdrHPx( p )
+    dim as integer rowsH = p->rowCount * DgRowHPx( p )
+    dim as boolean vNeed = false, hNeed = false
+    dim as integer sw, sh
+    for pass as integer = 1 to 3
+        sw = W_ - iif( vNeed, sb, 0 ) : if sw < 0 then sw = 0
+        sh = H_ - iif( hNeed, sb, 0 ) : if sh < 0 then sh = 0
+        DgLayoutColumns( p, sw )
+        dim as boolean nv = rowsH > sh - hdrH
+        dim as boolean nh = p->contentW > sw
+        if (nv = vNeed) andalso (nh = hNeed) then exit for
+        vNeed = nv : hNeed = nh
+    next
+    p->vShown = vNeed
+    p->hShown = hNeed
+    tkWidget_SetPos( p->wSurf, bw, bw, sw, sh )
+    tkWidget_Show( p->wVBar, vNeed )
+    if vNeed then tkWidget_SetPos( p->wVBar, bw + sw, bw + hdrH, sb, iif( sh - hdrH > 0, sh - hdrH, 0 ) )
+    tkWidget_Show( p->wHBar, hNeed )
+    if hNeed then tkWidget_SetPos( p->wHBar, bw, bw + sh, sw, sb )
+    DgClampScroll( p )
+    DgSyncBars( p )
+    tkWidget_Invalidate( w )
+end sub
+
+' Scrolled to (x, y) pixels, clamped; the bars follow, silently.
+private sub DgScrollTo( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as integer )
+    p->scrollX = x : p->scrollY = y
+    DgClampScroll( p )
+    DgSyncBars( p )
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+sub DgInvalidateCell( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer )
+    ' one surface, repainted whole: a cell rect would only narrow the dirty flag
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+' ==========================================================================================
+' Geometry
+' ==========================================================================================
+private function DgColAtX( byval p as TKDATAGRID_STATE ptr, byval x as integer ) as integer
+    dim as integer cx = x + p->scrollX
+    for d as integer = 0 to p->colCount - 1
+        dim as integer k = p->order(d)
+        if p->cols(k).wPx <= 0 then continue for
+        if (cx >= p->cols(k).xPx) andalso (cx < p->cols(k).xPx + p->cols(k).wPx) then return k
+    next
+    return -1
+end function
+
+private sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as integer, byref ht as TKDG_HITTEST )
+    ht.area = TKDG_HT_NONE : ht.row = -1 : ht.col = -1
+    dim as TK_WIDGET ptr s = p->wSurf
+    if (x < 0) orelse (y < 0) orelse (x >= s->cw) orelse (y >= s->ch) then exit sub
+    dim as integer hdrH = DgHdrHPx( p )
+    if y < hdrH then
+        dim as integer gut = DgScale( p, CDATAGRID_DIVIDER_GUTTER )
+        for d as integer = 0 to p->colCount - 1
+            dim as integer k = p->order(d)
+            if p->cols(k).wPx <= 0 then continue for
+            dim as integer xr = p->cols(k).xPx + p->cols(k).wPx - p->scrollX
+            if abs( x - xr ) <= gut then ht.area = TKDG_HT_DIVIDER : ht.col = k : exit sub
+        next
+        ht.col = DgColAtX( p, x )
+        ht.area = iif( ht.col >= 0, TKDG_HT_HEADER, TKDG_HT_EMPTY )
+        exit sub
+    end if
+    dim as integer row = (y - hdrH + p->scrollY) \ DgRowHPx( p )
+    if row < p->rowCount then ht.row = row
+    ht.col = DgColAtX( p, x )
+    ht.area = iif( (ht.row >= 0) andalso (ht.col >= 0), TKDG_HT_CELL, TKDG_HT_EMPTY )
+end sub
+
+private function DgFirstVisibleRow( byval p as TKDATAGRID_STATE ptr ) as integer
+    return p->scrollY \ DgRowHPx( p )
+end function
+
+private function DgLastVisibleRow( byval p as TKDATAGRID_STATE ptr ) as integer
+    dim as integer bh = DgBodyH( p )
+    if bh <= 0 then return -1
+    dim as integer r = (p->scrollY + bh - 1) \ DgRowHPx( p )
+    return iif( r > p->rowCount - 1, p->rowCount - 1, r )
+end function
+
+private function DgAlignOf( byref c as const TKDATAGRID_COLUMN ) as long
+    if c.align >= 0 then return c.align
+    select case c.kind
+    case TKDG_COL_NUMBER : return TKDG_ALIGN_RIGHT
+    case TKDG_COL_CHECK, TKDG_COL_PROGRESS, TKDG_COL_BUTTON : return TKDG_ALIGN_CENTER
+    case TKDG_COL_TEXT
+        if (c.valueKind = TKDG_INT) orelse (c.valueKind = TKDG_FLOAT) then return TKDG_ALIGN_RIGHT
+    end select
+    return TKDG_ALIGN_LEFT
+end function
+
+' ==========================================================================================
+' Painting
+' ==========================================================================================
+sub DgPaintContainer( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TK_WIDGET ptr w = p->hWin
+    dim as integer bw = p->nBorderWidth
+    dim as integer sb = DgScale( p, p->ScrollBarWidth )
+    dim as integer sx = bw + p->wSurf->cw, sy = bw + p->wSurf->ch
+    dim as integer hdrH = DgHdrHPx( p )
+    dim as TKRECT rc
+    if p->vShown andalso (hdrH > 0) then
+        ' above the vertical bar: the header band carries on
+        dim as TKCOLUMNHEADER_COLORS hc
+        tkColumnHeader_GetColors( p->wHdr, @hc )
+        tkRect_Set( rc, sx, bw, sx + sb, bw + hdrH )
+        b->SetBackColor( hc.BackColor )
+        b->PaintRect( @rc )
+    end if
+    if p->vShown andalso p->hShown then
+        tkRect_Set( rc, sx, sy, sx + sb, sy + sb )
+        b->SetBackColor( p->colors.BackColor )
+        b->PaintRect( @rc )
+    end if
+    if bw > 0 then
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        b->SetPenColor( p->colors.BorderColor )
+        b->PaintRoundOutline( @rc, 0, bw )
+    end if
+end sub
+
+private sub DgPaintCheck( byval p as TKDATAGRID_STATE ptr, byval pi as TKDATAGRID_CELLPAINTINFO ptr )
+    dim as TK_PAINT ptr b = pi->b
+    dim as TKDG_VALUE v = *pi->value
+    dim as boolean bOn = false
+    if DgConvert( v, TKDG_BOOL ) andalso (v.kind = TKDG_BOOL) then bOn = v.b
+    dim as integer side = DgScale( p, 14 )
+    dim as integer hmax = (pi->rc.bottom - pi->rc.top) - 2 * DgScale( p, 3 )
+    if side > hmax then side = hmax
+    if side < 4 then exit sub
+    dim as integer cx
+    select case pi->align
+    case TKDG_ALIGN_LEFT : cx = pi->rc.left + DgScale( p, CDATAGRID_CELL_PAD ) + side \ 2
+    case TKDG_ALIGN_RIGHT : cx = pi->rc.right - DgScale( p, CDATAGRID_CELL_PAD ) - side \ 2
+    case else : cx = (pi->rc.left + pi->rc.right) \ 2
+    end select
+    dim as integer cy = (pi->rc.top + pi->rc.bottom) \ 2
+    dim as TKRECT box
+    tkRect_Set( box, cx - side \ 2, cy - side \ 2, cx - side \ 2 + side, cy - side \ 2 + side )
+    dim as long curv = DgScale( p, 5 )
+    if bOn then
+        b->SetBackColor( p->colors.AccentColor )
+        b->PaintRoundRect( @box, curv )
+        dim as TKPOINT pts(0 to 2)
+        pts(0).x = box.left + side * 22 \ 100 : pts(0).y = box.top + side * 52 \ 100
+        pts(1).x = box.left + side * 42 \ 100 : pts(1).y = box.top + side * 72 \ 100
+        pts(2).x = box.left + side * 78 \ 100 : pts(2).y = box.top + side * 30 \ 100
+        b->SetPenColor( &hFFFFFFFFul )
+        b->PaintPolyline( @pts(0), 3, DgScale( p, 2 ) )
+    else
+        b->SetPenColor( pi->foreColor )
+        b->PaintRoundOutline( @box, curv, DgScale( p, 1 ) )
+    end if
+end sub
+
+private sub DgPaintProgress( byval p as TKDATAGRID_STATE ptr, byval pi as TKDATAGRID_CELLPAINTINFO ptr )
+    dim as TK_PAINT ptr b = pi->b
+    dim as TKDG_VALUE v = *pi->value
+    dim as float64 x = 0
+    if DgConvert( v, TKDG_FLOAT ) andalso (v.kind = TKDG_FLOAT) then x = v.f
+    if x < 0 then x = 0
+    if x > 100 then x = 100
+    dim as integer pad = DgScale( p, CDATAGRID_CELL_PAD )
+    dim as integer barH = DgScale( p, 6 )
+    dim as integer cy = (pi->rc.top + pi->rc.bottom) \ 2
+    dim as TKRECT track
+    tkRect_Set( track, pi->rc.left + pad, cy - barH \ 2, pi->rc.right - pad, cy - barH \ 2 + barH )
+    if track.right <= track.left then exit sub
+    b->SetBackColor( p->colors.GridLineColor )
+    b->PaintRoundRect( @track, barH )
+    dim as TKRECT fill = track
+    fill.right = track.left + cint( (track.right - track.left) * x / 100 )
+    if fill.right > fill.left then
+        b->SetBackColor( p->colors.AccentColor )
+        b->PaintRoundRect( @fill, barH )
+    end if
+end sub
+
+' The grid's own cell painter: background, then the kind's content. A CellPaint callback may
+' call it before or after drawing of its own.
+public sub tkDataGrid_PaintCellDefault( byval pi as TKDATAGRID_CELLPAINTINFO ptr )
+    if pi = 0 then exit sub
+    dim as TKDATAGRID_STATE ptr p = DgState( pi->hGrid )
+    if p = 0 then exit sub
+    dim as TK_PAINT ptr b = pi->b
+    b->SetBackColor( pi->backColor )
+    b->PaintRect( @pi->rc )
+    dim as integer pad = DgScale( p, CDATAGRID_CELL_PAD )
+    dim as TKRECT rt = pi->rc
+    rt.left += pad : rt.right -= pad
+    dim as long flags = TK_DT_ELLIPSIS
+    select case pi->align
+    case TKDG_ALIGN_CENTER : flags or= TK_DT_CENTER
+    case TKDG_ALIGN_RIGHT : flags or= TK_DT_RIGHT
+    end select
+    select case pi->kind
+    case TKDG_COL_CHECK
+        DgPaintCheck( p, pi )
+    case TKDG_COL_PROGRESS
+        DgPaintProgress( p, pi )
+    case TKDG_COL_BUTTON
+        dim as TKRECT face = pi->rc
+        dim as integer ins = DgScale( p, 3 )
+        tkRect_Inflate( face, -ins, -ins )
+        b->SetBackColor( p->colors.ButtonBackColor )
+        b->PaintRoundRect( @face, DgScale( p, 6 ) )
+        b->SetForeColor( p->colors.ButtonForeColor )
+        b->PaintText( pi->text, @rt, (flags and not 3) or TK_DT_CENTER )
+    case TKDG_COL_LINK
+        b->SetForeColor( p->colors.LinkColor )
+        b->PaintText( pi->text, @rt, flags )
+        if (b->pFont <> 0) andalso (len( pi->text ) > 0) then
+            dim as integer tw = tkText_Width( b->pFont, pi->text )
+            if tw > rt.right - rt.left then tw = rt.right - rt.left
+            dim as integer x0 = rt.left
+            if pi->align = TKDG_ALIGN_CENTER then x0 = rt.left + ((rt.right - rt.left) - tw) \ 2
+            if pi->align = TKDG_ALIGN_RIGHT then x0 = rt.right - tw
+            dim as integer fh = tkText_Height( b->pFont )
+            dim as integer uy = (rt.top + rt.bottom) \ 2 + fh \ 2
+            dim as TKRECT ul
+            tkRect_Set( ul, x0, uy, x0 + tw, uy + DgScale( p, 1 ) )
+            b->SetBackColor( p->colors.LinkColor )
+            b->PaintRect( @ul )
+        end if
+    case else
+        b->SetForeColor( pi->foreColor )
+        b->PaintText( pi->text, @rt, flags )
+    end select
+end sub
+
+private sub DgPaintHeader( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr, byval cw as integer, byval hdrH as integer )
+    dim as TKCOLUMNHEADER_COLORS hc
+    tkColumnHeader_GetColors( p->wHdr, @hc )
+    dim as TKRECT band
+    tkRect_Set( band, 0, 0, cw, hdrH )
+    b->SetBackColor( hc.BackColor )
+    b->PaintRect( @band )
+    b->PushClip( @band )
+    for d as integer = 0 to p->colCount - 1
+        dim as integer k = p->order(d)
+        if p->cols(k).wPx <= 0 then continue for
+        dim as integer x = p->cols(k).xPx - p->scrollX
+        if x >= cw then exit for
+        if x + p->cols(k).wPx <= 0 then continue for
+        dim as TKCOLUMNHEADER_PAINTINFO pi
+        pi.hHeader = p->wHdr
+        pi.itemID = k
+        pi.b = b
+        tkRect_Set( pi.rc, x, 0, x + p->cols(k).wPx, hdrH )
+        pi.isHot = (k = p->hotHdrCol)
+        pi.wszCaption = p->cols(k).c.caption
+        pi.nSortDir = HDR_SORT_NONE
+        if p->HeaderPaintCallback then p->HeaderPaintCallback( @pi ) else tkColumnHeader_PaintColumnDefault( @pi )
+    next
+    dim as TKRECT hl
+    tkRect_Set( hl, 0, hdrH - 1, cw, hdrH )
+    b->SetBackColor( hc.DividerColor )
+    b->PaintRect( @hl )
+    b->PopClip( )
+end sub
+
+private sub DgPaintSurface( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TK_WIDGET ptr s = p->wSurf
+    dim as integer cw = s->cw, ch = s->ch
+    dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, cw, ch )
+    b->SetBackColor( p->colors.BackColor )
+    b->PaintRect( @rc )
+    dim as TTF_Font ptr font_ = iif( p->pFont <> 0, p->pFont, s->pHost->pDefaultFont )
+
+    dim as integer first = DgFirstVisibleRow( p ), last = DgLastVisibleRow( p )
+    dim as integer rightX = p->contentW - p->scrollX
+    if rightX > cw then rightX = cw
+    dim as TKRECT body
+    tkRect_Set( body, 0, hdrH, cw, ch )
+    b->PushClip( @body )
+    if p->colCount > 0 then
+        for r as integer = first to last
+            dim as integer y = hdrH + r * rowH - p->scrollY
+            dim as boolean isAlt = p->bAltRows andalso ((r and 1) = 1)
+            dim as boolean isHot = (r = p->hotRow)
+            dim as ulong rowBack = p->colors.BackColor
+            if isAlt then rowBack = p->colors.AltBackColor
+            if isHot then rowBack = p->colors.HotBackColor
+            for d as integer = 0 to p->colCount - 1
+                dim as integer k = p->order(d)
+                if p->cols(k).wPx <= 0 then continue for
+                dim as integer x = p->cols(k).xPx - p->scrollX
+                if x >= cw then exit for
+                if x + p->cols(k).wPx <= 0 then continue for
+                dim as TKDG_VALUE v
+                DgRead( p, r, k, v )
+                dim as TKDATAGRID_FORMATINFO fi
+                fi.hGrid = p->hWin : fi.row = r : fi.col = k : fi.value = @v
+                fi.text = DgDefaultText( v )
+                fi.foreColor = p->colors.ForeColor
+                fi.backColor = rowBack
+                fi.align = DgAlignOf( p->cols(k).c )
+                if p->CellFormattingCallback then p->CellFormattingCallback( @fi )
+                dim as TKDATAGRID_CELLPAINTINFO pi
+                pi.hGrid = p->hWin : pi.row = r : pi.col = k : pi.kind = p->cols(k).c.kind
+                pi.b = b
+                tkRect_Set( pi.rc, x, y, x + p->cols(k).wPx, y + rowH )
+                pi.value = @v
+                pi.text = fi.text
+                pi.foreColor = fi.foreColor
+                pi.backColor = fi.backColor
+                pi.align = fi.align
+                pi.isAlt = isAlt
+                pi.isHot = isHot
+                b->SetFont( font_ )
+                dim as boolean handled = false
+                if p->CellPaintCallback then handled = p->CellPaintCallback( @pi )
+                if handled = false then tkDataGrid_PaintCellDefault( @pi )
+            next
+        next
+        ' the grid lines, over the cells
+        b->SetBackColor( p->colors.GridLineColor )
+        dim as integer bottomY = hdrH + p->rowCount * rowH - p->scrollY
+        if bottomY > ch then bottomY = ch
+        if (p->nGridLines and TKDG_GRID_HORZ) andalso (rightX > 0) then
+            for r as integer = first to last
+                dim as integer y = hdrH + (r + 1) * rowH - p->scrollY - 1
+                tkRect_Set( rc, 0, y, rightX, y + 1 )
+                b->PaintRect( @rc )
+            next
+        end if
+        if (p->nGridLines and TKDG_GRID_VERT) andalso (bottomY > hdrH) then
+            for d as integer = 0 to p->colCount - 1
+                dim as integer k = p->order(d)
+                if p->cols(k).wPx <= 0 then continue for
+                dim as integer x = p->cols(k).xPx + p->cols(k).wPx - p->scrollX - 1
+                if x >= cw then exit for
+                if x < 0 then continue for
+                tkRect_Set( rc, x, hdrH, x + 1, bottomY )
+                b->PaintRect( @rc )
+            next
+        end if
+    end if
+    b->PopClip( )
+    if hdrH > 0 then DgPaintHeader( p, b, cw, hdrH )
+end sub
+
+' ==========================================================================================
+' The surface's input (G0: hover, wheel, focus; selection and editing are G1 / G2)
+' ==========================================================================================
+private function DgCallMsg( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr, byref ht as TKDG_HITTEST ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKDATAGRID_MESSAGEINFO mi
+    mi.hGrid = p->hWin : mi.msg = m->msg : mi.x = m->x : mi.y = m->y : mi.clicks = m->clicks
+    mi.wheelX = m->wheelX : mi.wheelY = m->wheelY : mi.mods = m->mods : mi.ht = ht
+    return p->MessageCallback( @mi )
+end function
+
+private sub DgSetHot( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval hdrCol as integer )
+    if (row = p->hotRow) andalso (hdrCol = p->hotHdrCol) then exit sub
+    p->hotRow = row : p->hotHdrCol = hdrCol
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+' 3 rows per notch vertically, 3 x 16 design units across; Shift turns the vertical wheel
+' sideways. FALSE at the end it was pushed against, so the parent may scroll instead.
+private function DgWheel( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    dim as single dx = m->wheelX, dy = m->wheelY
+    if (m->mods and SDL_KMOD_SHIFT) andalso (dx = 0) then dx = -dy : dy = 0
+    p->fWheelX += dx : p->fWheelY += dy
+    dim as integer nx = fix( p->fWheelX ), ny = fix( p->fWheelY )
+    p->fWheelX -= nx : p->fWheelY -= ny
+    if (nx = 0) andalso (ny = 0) then return true
+    dim as integer ox = p->scrollX, oy = p->scrollY
+    DgScrollTo( p, p->scrollX + nx * 3 * DgScale( p, 16 ), p->scrollY - ny * 3 * DgRowHPx( p ) )
+    return (p->scrollX <> ox) orelse (p->scrollY <> oy)
+end function
+
+function DgSurfaceProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( tkWidget_Parent( w ) )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        DgPaintSurface( p, m->pPaint )
+        return true
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        tkWidget_Invalidate( w )
+        return true
+    case TKM_MOUSEWHEEL
+        dim as TKDG_HITTEST ht
+        DgHitTest( p, cint( m->x ), cint( m->y ), ht )
+        if DgCallMsg( p, m, ht ) then return true
+        return DgWheel( p, m )
+    case TKM_MOUSEMOVE
+        dim as TKDG_HITTEST ht
+        DgHitTest( p, cint( m->x ), cint( m->y ), ht )
+        if DgCallMsg( p, m, ht ) = false then
+            DgSetHot( p, iif( ht.area = TKDG_HT_CELL, ht.row, -1 ), iif( ht.area = TKDG_HT_HEADER, ht.col, -1 ) )
+        end if
+        return true
+    case TKM_MOUSELEAVE
+        dim as TKDG_HITTEST ht
+        DgCallMsg( p, m, ht )
+        DgSetHot( p, -1, -1 )
+        return true
+    case TKM_LBUTTONDOWN, TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        dim as TKDG_HITTEST ht
+        DgHitTest( p, cint( m->x ), cint( m->y ), ht )
+        if (m->msg = TKM_LBUTTONDOWN) orelse (m->msg = TKM_RBUTTONDOWN) then tkHost_SetFocus( w->pHost, w )
+        DgCallMsg( p, m, ht )
+        return true
+    end select
+    return false
+end function
+
+' ==========================================================================================
+' Public API: scrolling and geometry
+' ==========================================================================================
+public function tkDataGrid_GetTopRow( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then return 0
+    return DgFirstVisibleRow( p )
+end function
+
+' Scrolls so row is the top row (clamped at the end); returns the top row it got.
+public function tkDataGrid_SetTopRow( byval hGrid as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then return 0
+    if row < 0 then row = 0
+    DgScrollTo( p, p->scrollX, row * DgRowHPx( p ) )
+    return DgFirstVisibleRow( p )
+end function
+
+public function tkDataGrid_GetScrollX( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->scrollX, 0 )
+end function
+
+public function tkDataGrid_GetScrollY( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->scrollY, 0 )
+end function
+
+' Pixels, clamped; returns the offset it got.
+public function tkDataGrid_SetScrollX( byval hGrid as TK_WIDGET ptr, byval x as integer ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then return 0
+    DgScrollTo( p, x, p->scrollY )
+    return p->scrollX
+end function
+
+public function tkDataGrid_SetScrollY( byval hGrid as TK_WIDGET ptr, byval y as integer ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then return 0
+    DgScrollTo( p, p->scrollX, y )
+    return p->scrollY
+end function
+
+' The rows (partly) on screen; returns how many. first > last when there are none.
+public function tkDataGrid_GetVisibleRows( byval hGrid as TK_WIDGET ptr, byref first as integer, byref last as integer ) as integer
+    first = 0 : last = -1
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (p->rowCount = 0) then return 0
+    first = DgFirstVisibleRow( p )
+    last = DgLastVisibleRow( p )
+    return iif( last >= first, last - first + 1, 0 )
+end function
+
+' Scrolls the least that shows the whole cell (col -1: the row only, horizontally untouched).
+public sub tkDataGrid_EnsureVisible( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer = -1 )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    dim as integer x = p->scrollX, y = p->scrollY
+    if DgValidRow( p, row ) then
+        dim as integer rowH = DgRowHPx( p ), top = row * rowH, bh = DgBodyH( p )
+        if top < y then
+            y = top
+        elseif top + rowH > y + bh then
+            y = top + rowH - bh
+        end if
+    end if
+    if DgValidCol( p, col ) andalso (p->cols(col).wPx > 0) then
+        dim as integer l = p->cols(col).xPx, r = l + p->cols(col).wPx, sw = p->wSurf->cw
+        if l < x then
+            x = l
+        elseif r > x + sw then
+            x = r - sw
+        end if
+    end if
+    DgScrollTo( p, x, y )
+end sub
+
+' Surface-local: the whole cell, unclipped. FALSE (rc empty) when no part of it is in the body.
+public function tkDataGrid_GetCellRect( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (DgValidCol( p, col ) = false) then return false
+    if p->cols(col).wPx <= 0 then return false
+    dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
+    dim as integer x = p->cols(col).xPx - p->scrollX, y = hdrH + row * rowH - p->scrollY
+    tkRect_Set( rc, x, y, x + p->cols(col).wPx, y + rowH )
+    dim as TK_WIDGET ptr s = p->wSurf
+    if (rc.right <= 0) orelse (rc.left >= s->cw) orelse (rc.bottom <= hdrH) orelse (rc.top >= s->ch) then
+        tkRect_SetEmpty( rc )
+        return false
+    end if
+    return true
+end function
+
+' Surface-local: the column's header cell (top 0, the header's height). FALSE when hidden or
+' scrolled out of view.
+public function tkDataGrid_GetColumnRect( byval hGrid as TK_WIDGET ptr, byval col as integer, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
+    if p->cols(col).wPx <= 0 then return false
+    dim as integer x = p->cols(col).xPx - p->scrollX
+    tkRect_Set( rc, x, 0, x + p->cols(col).wPx, DgHdrHPx( p ) )
+    if (rc.right <= 0) orelse (rc.left >= p->wSurf->cw) then
+        tkRect_SetEmpty( rc )
+        return false
+    end if
+    return true
+end function
+
+' The columns' total laid-out width in pixels (fill applied).
+public function tkDataGrid_GetContentWidth( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->contentW, 0 )
+end function
+
+' (x, y) surface-local; returns ht.area.
+public function tkDataGrid_HitTest( byval hGrid as TK_WIDGET ptr, byval x as integer, byval y as integer, byref ht as TKDG_HITTEST ) as long
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    ht.area = TKDG_HT_NONE : ht.row = -1 : ht.col = -1
+    if p = 0 then return TKDG_HT_NONE
+    DgHitTest( p, x, y, ht )
+    return ht.area
+end function
+
+public function tkDataGrid_GetHotRow( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->hotRow, -1 )
+end function

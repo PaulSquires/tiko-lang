@@ -1,0 +1,337 @@
+' tkDataGrid self-test (phase G0). Real windows, real SDL event queue: every input claim is
+' made by PUSHING the SDL event a user would have produced and pumping the host. Two passes,
+' scale pinned at 1.0 and at 1.75. Geometry is asserted against tkHost_Scale, never eyeballed.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkDataGrid"
+#import "vendor/tkControls/tkTest"
+using tkDataGrid
+using tkColumnHeader
+using tkVScrollBar
+using tkCalendar
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gCells, gMinRow, gMaxRow, gMinCol, gMaxCol, gFmt, gMsgs, gLastMsgRow
+dim shared as boolean gRedFirstCell
+
+function OnCellPaint( byval p as TKDATAGRID_CELLPAINTINFO ptr ) as boolean
+    gCells += 1
+    if p->row < gMinRow then gMinRow = p->row
+    if p->row > gMaxRow then gMaxRow = p->row
+    if p->col < gMinCol then gMinCol = p->col
+    if p->col > gMaxCol then gMaxCol = p->col
+    return false
+end function
+
+sub OnFormat( byval f as TKDATAGRID_FORMATINFO ptr )
+    gFmt += 1
+    if gRedFirstCell andalso (f->row = 0) andalso (f->col = 0) then
+        f->backColor = &hFFFF0000ul
+        f->text = "formatted"
+    end if
+end sub
+
+function OnMsg( byval m as TKDATAGRID_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_LBUTTONDOWN then gMsgs += 1 : gLastMsgRow = m->ht.row
+    return false
+end function
+
+sub ResetPaintCounts()
+    gCells = 0 : gFmt = 0
+    gMinRow = &h7FFFFFFF : gMaxRow = -1 : gMinCol = &h7FFFFFFF : gMaxCol = -1
+end sub
+
+' Window pixels of a surface-local point.
+sub SurfXY( byval g as TK_WIDGET ptr, byval lx as long, byval ly as long, byref x as single, byref y as single )
+    dim as TKRECT a
+    tkWidget_AbsRect( tkDataGrid_GetSurface( g ), a )
+    x = a.left + lx : y = a.top + ly
+end sub
+
+function Px( byval h as TK_HOST ptr, byval g as TK_WIDGET ptr, byval lx as long, byval ly as long ) as ulong
+    dim as single x, y
+    SurfXY( g, lx, ly, x, y )
+    return tkTest_PixelAt( h, cint( x ), cint( y ) ) and &hFFFFFFul
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDataGrid selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkHost_Root( h ), 500 )
+    tkDataGrid_SetFont( g, f10 )
+    tkDataGrid_SetBorderWidth( g, 0 )
+    tkWidget_SetPos( g, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ) )
+    dim as TK_WIDGET ptr surf = tkDataGrid_GetSurface( g )
+    dim as long rowH = tkDataGrid_GetRowHeightPx( g ), hdrH = tkDataGrid_GetHeaderHeightPx( g )
+    tkTest_Check( "row / header heights are design units, scaled at use", _
+                  (tkDataGrid_GetRowHeight( g ) = 24) andalso (rowH = tkHost_Scale( h, 24 )) andalso (hdrH = tkHost_Scale( h, 26 )) )
+
+    ' ---- A: columns ---------------------------------------------------------------------
+    dim as integer cName = tkDataGrid_AddColumnEx( g, "Name", TKDG_COL_TEXT, 120 )
+    dim as integer cQty = tkDataGrid_AddColumnEx( g, "Qty", TKDG_COL_NUMBER, 80, TKDG_INT )
+    dim as integer cPrice = tkDataGrid_AddColumnEx( g, "Price", TKDG_COL_NUMBER, 90 )
+    dim as integer cDone = tkDataGrid_AddColumnEx( g, "Done", TKDG_COL_CHECK, 60 )
+    dim as integer cDue = tkDataGrid_AddColumnEx( g, "Due", TKDG_COL_DATE, 100 )
+    dim as integer cPct = tkDataGrid_AddColumnEx( g, "Progress", TKDG_COL_PROGRESS, 100 )
+    dim as TKDATAGRID_COLUMN ci
+    tkDataGrid_GetColumnInfo( g, cPrice, ci )
+    dim as TKDATAGRID_COLUMN cd
+    tkDataGrid_GetColumnInfo( g, cDue, cd )
+    tkTest_Check( "AddColumnEx: model indices in order, value kind from the column kind", _
+                  (tkDataGrid_GetColumnCount( g ) = 6) andalso (cPct = 5) andalso (ci.valueKind = TKDG_FLOAT) andalso (cd.valueKind = TKDG_DATE) )
+    tkTest_Check( "FindColumn by key", (tkDataGrid_FindColumn( g, "Done" ) = cDone) andalso (tkDataGrid_FindColumn( g, "nope" ) = -1) )
+
+    ' ---- B: the store and the value rules ----------------------------------------------
+    tkDataGrid_SetRowCount( g, 1000 )
+    tkTest_Check( "SetRowCount grows with EMPTY rows", (tkDataGrid_GetRowCount( g ) = 1000) andalso tkDataGrid_IsCellEmpty( g, 999, cName ) _
+                  andalso (tkDataGrid_GetCellText( g, 999, cQty ) = "") )
+    for r as integer = 0 to 999
+        tkDataGrid_SetCellText( g, r, cName, "item " & r )
+        tkDataGrid_SetCellInt( g, r, cQty, r * 2 )
+        tkDataGrid_SetRowData( g, r, 10000 + r )
+    next
+    tkTest_Check( "text and int cells read back", (tkDataGrid_GetCellText( g, 7, cName ) = "item 7") andalso (tkDataGrid_GetCellInt( g, 7, cQty ) = 14) )
+    tkTest_Check( "text -> int converts a number", tkDataGrid_SetCellText( g, 1, cQty, " 42 " ) andalso (tkDataGrid_GetCellInt( g, 1, cQty ) = 42) )
+    tkTest_Check( "text -> int refuses a non-number and keeps the old value", (tkDataGrid_SetCellText( g, 1, cQty, "4x" ) = false) andalso (tkDataGrid_GetCellInt( g, 1, cQty ) = 42) )
+    tkTest_Check( "text -> int refuses a fraction", tkDataGrid_SetCellText( g, 1, cQty, "1.5" ) = false )
+    tkTest_Check( "float -> int rounds to even", tkDataGrid_SetCellFloat( g, 2, cQty, 2.5 ) andalso (tkDataGrid_GetCellInt( g, 2, cQty ) = 2) _
+                  andalso tkDataGrid_SetCellFloat( g, 3, cQty, 3.5 ) andalso (tkDataGrid_GetCellInt( g, 3, cQty ) = 4) )
+    tkTest_Check( "text -> float: exponents, signs", tkDataGrid_SetCellText( g, 0, cPrice, "-1.25e2" ) andalso (tkDataGrid_GetCellFloat( g, 0, cPrice ) = -125) )
+    tkTest_Check( "text -> bool: yes / off; junk refused", tkDataGrid_SetCellText( g, 0, cDone, "Yes" ) andalso tkDataGrid_GetCellBool( g, 0, cDone ) _
+                  andalso tkDataGrid_SetCellText( g, 1, cDone, "off" ) andalso (tkDataGrid_GetCellBool( g, 1, cDone ) = false) _
+                  andalso (tkDataGrid_IsCellEmpty( g, 1, cDone ) = false) andalso (tkDataGrid_SetCellText( g, 2, cDone, "maybe" ) = false) )
+    dim as TKDATE dd = tkDataGrid_GetCellDate( g, 0, cDue )
+    tkTest_Check( "an empty date is wYear 0", dd.wYear = 0 )
+    tkTest_Check( "text -> date: ISO, a real date", tkDataGrid_SetCellText( g, 0, cDue, "2026-11-22" ) andalso (tkDataGrid_GetCellText( g, 0, cDue ) = "2026-11-22") _
+                  andalso (tkDataGrid_SetCellText( g, 1, cDue, "2026-02-30" ) = false) andalso (tkDataGrid_SetCellText( g, 1, cDue, "22/11/2026" ) = false) _
+                  andalso tkDataGrid_SetCellText( g, 1, cDue, "2024-02-29" ) )
+    dd = tkDataGrid_GetCellDate( g, 0, cDue )
+    tkTest_Check( "GetCellDate", (dd.wYear = 2026) andalso (dd.wMonth = 11) andalso (dd.wDay = 22) )
+    tkTest_Check( "a date will not go into a number column", tkDataGrid_SetCellDate( g, 0, cQty, dd ) = false )
+    tkTest_Check( "blank text empties a typed cell", tkDataGrid_SetCellText( g, 3, cQty, "" ) andalso tkDataGrid_IsCellEmpty( g, 3, cQty ) )
+    tkTest_Check( "bool -> float is 1", tkDataGrid_SetCellBool( g, 4, cPrice, true ) andalso (tkDataGrid_GetCellFloat( g, 4, cPrice ) = 1) )
+    tkTest_Check( "ClearCell", tkDataGrid_ClearCell( g, 4, cPrice ) andalso tkDataGrid_IsCellEmpty( g, 4, cPrice ) )
+    tkTest_Check( "out of range: refused, empty text", (tkDataGrid_SetCellInt( g, 1000, cQty, 1 ) = false) andalso (tkDataGrid_GetCellText( g, -1, 0 ) = "") _
+                  andalso (tkDataGrid_GetCellText( g, 0, 6 ) = "") )
+
+    ' ---- C: rows move with their values -------------------------------------------------
+    tkTest_Check( "InsertRows shifts values and row data down", (tkDataGrid_InsertRows( g, 5, 2 ) = 5) andalso (tkDataGrid_GetRowCount( g ) = 1002) _
+                  andalso tkDataGrid_IsCellEmpty( g, 5, cName ) andalso tkDataGrid_IsCellEmpty( g, 6, cQty ) andalso (tkDataGrid_GetCellText( g, 7, cName ) = "item 5") _
+                  andalso (tkDataGrid_GetRowData( g, 7 ) = 10005) andalso (tkDataGrid_GetRowData( g, 5 ) = 0) )
+    tkTest_Check( "DeleteRows shifts them back up", tkDataGrid_DeleteRows( g, 5, 2 ) andalso (tkDataGrid_GetRowCount( g ) = 1000) _
+                  andalso (tkDataGrid_GetCellText( g, 5, cName ) = "item 5") andalso (tkDataGrid_GetRowData( g, 999 ) = 10999) )
+    tkTest_Check( "AddRow appends one empty row", (tkDataGrid_AddRow( g ) = 1000) andalso tkDataGrid_IsCellEmpty( g, 1000, cName ) )
+    tkDataGrid_SetRowCount( g, 1000 )
+    tkDataGrid_SetRowCount( g, 1001 )
+    tkTest_Check( "a trimmed row comes back empty", tkDataGrid_IsCellEmpty( g, 1000, cName ) andalso (tkDataGrid_GetRowData( g, 1000 ) = 0) )
+    tkDataGrid_SetRowCount( g, 1000 )
+
+    ' ---- D: column order, insert, delete, a kind change ---------------------------------
+    dim as TKDATAGRID_COLUMN cx
+    cx.key = "Note" : cx.caption = "Note" : cx.width = 70
+    tkTest_Check( "InsertColumn at 1 shifts model indices; it shows where column 1 was", (tkDataGrid_InsertColumn( g, 1, cx ) = 1) _
+                  andalso (tkDataGrid_FindColumn( g, "Qty" ) = 2) andalso (tkDataGrid_ColumnAtDisplay( g, 1 ) = 1) andalso (tkDataGrid_ColumnAtDisplay( g, 2 ) = 2) _
+                  andalso (tkDataGrid_GetCellInt( g, 7, 2 ) = 14) andalso tkDataGrid_IsCellEmpty( g, 7, 1 ) )
+    tkTest_Check( "DeleteColumn restores the indices", tkDataGrid_DeleteColumn( g, 1 ) andalso (tkDataGrid_FindColumn( g, "Qty" ) = cQty) _
+                  andalso (tkDataGrid_GetCellInt( g, 7, cQty ) = 14) andalso (tkDataGrid_GetColumnCount( g ) = 6) )
+    tkTest_Check( "SetDisplayIndex moves one column, the rest keep order", tkDataGrid_SetDisplayIndex( g, cPct, 0 ) _
+                  andalso (tkDataGrid_ColumnAtDisplay( g, 0 ) = cPct) andalso (tkDataGrid_ColumnAtDisplay( g, 1 ) = cName) andalso (tkDataGrid_GetDisplayIndex( g, cDue ) = 5) )
+    tkDataGrid_SetDisplayIndex( g, cPct, 5 )
+    tkTest_Check( "and back", (tkDataGrid_ColumnAtDisplay( g, 5 ) = cPct) andalso (tkDataGrid_ColumnAtDisplay( g, 4 ) = cDue) )
+    dim as TKDATAGRID_COLUMN cq
+    tkDataGrid_GetColumnInfo( g, cQty, cq )
+    cq.valueKind = TKDG_TEXT
+    tkDataGrid_SetColumnInfo( g, cQty, cq )
+    tkTest_Check( "a kind change converts the stored values (int -> text)", (tkDataGrid_GetCellText( g, 7, cQty ) = "14") andalso tkDataGrid_SetCellText( g, 8, cQty, "x" ) )
+    cq.valueKind = TKDG_INT
+    tkDataGrid_SetColumnInfo( g, cQty, cq )
+    tkTest_Check( "text -> int: what will not convert becomes EMPTY", (tkDataGrid_GetCellInt( g, 7, cQty ) = 14) andalso tkDataGrid_IsCellEmpty( g, 8, cQty ) )
+
+    ' ---- E: layout and geometry ---------------------------------------------------------
+    tkTest_PumpFor( h, 30 )
+    dim as long sb = tkHost_Scale( h, 12 )
+    dim as long natW = tkHost_Scale( h, 120 ) + tkHost_Scale( h, 80 ) + tkHost_Scale( h, 90 ) + tkHost_Scale( h, 60 ) + tkHost_Scale( h, 100 ) + tkHost_Scale( h, 100 )
+    tkTest_Check( "both bars show: 1000 rows and 550 units of columns in 400", tkWidget_IsVisible( tkDataGrid_GetVScrollBar( g ) ) _
+                  andalso tkWidget_IsVisible( tkDataGrid_GetHScrollBar( g ) ) )
+    tkTest_Check( "the surface is the client minus both bars", (surf->cw = tkHost_Scale( h, 400 ) - sb) andalso (surf->ch = tkHost_Scale( h, 300 ) - sb), _
+                  surf->cw & "x" & surf->ch )
+    tkTest_Check( "content width = the scaled widths", tkDataGrid_GetContentWidth( g ) = natW, str( tkDataGrid_GetContentWidth( g ) ) & " vs " & natW )
+    dim as TKRECT rc
+    tkTest_Check( "cell (0, Name): at the origin under the header", tkDataGrid_GetCellRect( g, 0, cName, rc ) andalso (rc.left = 0) andalso (rc.top = hdrH) _
+                  andalso (rc.right = tkHost_Scale( h, 120 )) andalso (rc.bottom = hdrH + rowH), tkRect_Str( rc ) )
+    dim as long xPrice = tkHost_Scale( h, 120 ) + tkHost_Scale( h, 80 )
+    tkTest_Check( "cell (3, Price): x after Name + Qty, row 3 down", tkDataGrid_GetCellRect( g, 3, cPrice, rc ) andalso (rc.left = xPrice) _
+                  andalso (rc.top = hdrH + 3 * rowH) andalso (rc.right - rc.left = tkHost_Scale( h, 90 )), tkRect_Str( rc ) )
+    tkTest_Check( "header rect of Qty", tkDataGrid_GetColumnRect( g, cQty, rc ) andalso (rc.left = tkHost_Scale( h, 120 )) andalso (rc.top = 0) andalso (rc.bottom = hdrH) )
+    tkTest_Check( "a row below the fold has no rect", (tkDataGrid_GetCellRect( g, 900, cName, rc ) = false) andalso tkRect_IsEmpty( rc ) )
+    dim as long bodyH = surf->ch - hdrH
+    dim as long maxY = 1000 * rowH - bodyH
+    tkTest_Check( "SetScrollY clamps at the end", tkDataGrid_SetScrollY( g, 99999999 ) = maxY, str( tkDataGrid_GetScrollY( g ) ) & " vs " & maxY )
+    tkTest_Check( "the vertical bar follows, silently", tkVScrollBar_GetPos( tkDataGrid_GetVScrollBar( g ) ) = maxY )
+    tkTest_Check( "SetTopRow", (tkDataGrid_SetTopRow( g, 10 ) = 10) andalso (tkDataGrid_GetScrollY( g ) = 10 * rowH) )
+    dim as long half = rowH \ 2
+    tkDataGrid_SetScrollY( g, half )
+    tkTest_Check( "pixel scroll: half a row up, the top row is still 0", (tkDataGrid_GetTopRow( g ) = 0) andalso tkDataGrid_GetCellRect( g, 0, cName, rc ) _
+                  andalso (rc.top = hdrH - half), tkRect_Str( rc ) )
+    tkDataGrid_SetScrollY( g, 0 )
+    tkTest_Check( "SetScrollX clamps at content minus surface", tkDataGrid_SetScrollX( g, 99999 ) = natW - surf->cw )
+    tkTest_Check( "cells move left by scrollX", tkDataGrid_GetCellRect( g, 0, cPct, rc ) andalso (rc.right = surf->cw), tkRect_Str( rc ) )
+    tkDataGrid_SetScrollX( g, 0 )
+    tkDataGrid_EnsureVisible( g, 500, cPct )
+    tkTest_Check( "EnsureVisible: the whole cell is in the body", tkDataGrid_GetCellRect( g, 500, cPct, rc ) andalso (rc.bottom = surf->ch) _
+                  andalso (rc.right = surf->cw) andalso (rc.top >= hdrH), tkRect_Str( rc ) )
+    tkDataGrid_EnsureVisible( g, 0, cName )
+    tkTest_Check( "EnsureVisible back to the origin", (tkDataGrid_GetScrollX( g ) = 0) andalso (tkDataGrid_GetScrollY( g ) = 0) )
+    dim as integer vf, vl
+    dim as integer nVis = tkDataGrid_GetVisibleRows( g, vf, vl )
+    dim as integer expectVis = (bodyH + rowH - 1) \ rowH
+    tkTest_Check( "visible rows = the body's height in rows, rounded up", (vf = 0) andalso (nVis = expectVis), nVis & " vs " & expectVis )
+
+    ' ---- F: hit testing and the message callback ----------------------------------------
+    dim as TKDG_HITTEST ht
+    tkDataGrid_GetCellRect( g, 2, cQty, rc )
+    tkTest_Check( "hit: a cell", (tkDataGrid_HitTest( g, (rc.left + rc.right) \ 2, (rc.top + rc.bottom) \ 2, ht ) = TKDG_HT_CELL) _
+                  andalso (ht.row = 2) andalso (ht.col = cQty) )
+    tkTest_Check( "hit: a header", (tkDataGrid_HitTest( g, tkHost_Scale( h, 20 ), hdrH \ 2, ht ) = TKDG_HT_HEADER) andalso (ht.col = cName) )
+    tkTest_Check( "hit: a resize gutter belongs to the column on its left", (tkDataGrid_HitTest( g, tkHost_Scale( h, 120 ) + 1, hdrH \ 2, ht ) = TKDG_HT_DIVIDER) _
+                  andalso (ht.col = cName) )
+    tkTest_Check( "hit: outside", tkDataGrid_HitTest( g, -1, 5, ht ) = TKDG_HT_NONE )
+    tkDataGrid_SetMessageCallback( g, @OnMsg )
+    dim as single wx, wy
+    tkDataGrid_GetCellRect( g, 4, cName, rc )
+    SurfXY( g, (rc.left + rc.right) \ 2, (rc.top + rc.bottom) \ 2, wx, wy )
+    gMsgs = 0 : gLastMsgRow = -9
+    tkTest_Click( h, wx, wy, SDL_BUTTON_LEFT, 1 )
+    tkTest_Check( "a click reaches the message callback, hit-tested", (gMsgs = 1) andalso (gLastMsgRow = 4), str( gLastMsgRow ) )
+    tkTest_Check( "a click puts the focus on the surface", h->pFocus = surf )
+    tkTest_PushMotion( h, wx, wy )
+    tkTest_Check( "hover: the row under the mouse is hot", tkDataGrid_GetHotRow( g ) = 4 )
+
+    ' ---- G: the wheel ----------------------------------------------------------------------
+    tkTest_PushWheel( h, wx, wy, 0, -1 )
+    tkTest_Check( "one notch down scrolls 3 rows", tkDataGrid_GetScrollY( g ) = 3 * rowH, str( tkDataGrid_GetScrollY( g ) ) )
+    tkTest_PushWheel( h, wx, wy, 0, 1 )
+    tkTest_Check( "one notch up scrolls back", tkDataGrid_GetScrollY( g ) = 0 )
+    tkTest_PushWheel( h, wx, wy, 1, 0 )
+    tkTest_Check( "the horizontal wheel scrolls 3 x 16 units", tkDataGrid_GetScrollX( g ) = 3 * tkHost_Scale( h, 16 ), str( tkDataGrid_GetScrollX( g ) ) )
+    tkDataGrid_SetScrollX( g, 0 )
+
+    ' ---- H: only the visible cells are read and painted -----------------------------------
+    tkDataGrid_SetCellPaintCallback( g, @OnCellPaint )
+    tkDataGrid_SetCellFormattingCallback( g, @OnFormat )
+    tkDataGrid_SetTopRow( g, 100 )
+    ResetPaintCounts( )
+    tkHost_RenderTo( h, false )
+    dim as integer nCols = 0
+    for c as integer = 0 to tkDataGrid_GetColumnCount( g ) - 1
+        if tkDataGrid_GetColumnRect( g, c, rc ) then nCols += 1
+    next
+    nVis = tkDataGrid_GetVisibleRows( g, vf, vl )
+    ' the top row sits on a row boundary, so the body shows ceil( bodyH / rowH ) rows
+    tkTest_Check( "paint: exactly visible rows x visible columns cells", (nVis = expectVis) andalso (gCells = expectVis * nCols) andalso (gFmt = gCells), _
+                  gCells & " vs " & expectVis & "x" & nCols )
+    tkTest_Check( "paint: no row outside the viewport", (gMinRow = 100) andalso (gMaxRow = 100 + expectVis - 1) andalso (vf = 100), gMinRow & ".." & gMaxRow )
+    tkDataGrid_SetRowCount( g, 1000000 )
+    tkDataGrid_SetTopRow( g, 500000 )
+    ResetPaintCounts( )
+    dim as double t0 = timer
+    tkHost_RenderTo( h, false )
+    dim as double ms = (timer - t0) * 1000
+    nVis = tkDataGrid_GetVisibleRows( g, vf, vl )
+    tkTest_Check( "1,000,000 rows: still only the visible cells", (gCells = expectVis * nCols) andalso (gMinRow = 500000) _
+                  andalso (gMaxRow = 500000 + expectVis - 1), str( gCells ) )
+    print "  [scale " & fScale & "] one frame, 1M rows, " & nVis & "x" & nCols & " cells: " & str( cint( ms * 100 ) / 100 ) & " ms"
+    tkDataGrid_SetRowCount( g, 1000 )
+    tkTest_Check( "trimmed back to 1000; scrolled into range", (tkDataGrid_GetRowCount( g ) = 1000) andalso (tkDataGrid_GetScrollY( g ) <= maxY) )
+    tkDataGrid_SetCellPaintCallback( g, 0 )
+    tkDataGrid_SetTopRow( g, 0 )
+
+    ' ---- I: pixels: formatting, alternate rows, hover, header ----------------------------
+    dim as TKDATAGRID_COLORS col_
+    tkDataGrid_GetColors( g, @col_ )
+    tkDataGrid_SetAlternateRows( g, true )
+    tkTest_PushMotion( h, wx, wy )            ' row 4 hot
+    gRedFirstCell = true
+    tkHost_RenderTo( h, false )
+    tkDataGrid_GetCellRect( g, 0, cName, rc )
+    dim as long cxl = rc.left + tkHost_Scale( h, 3 ), cyl = rc.top + 2
+    tkTest_Check( "CellFormatting's back colour is painted", Px( h, g, cxl, cyl ) = &hFF0000ul, hex( Px( h, g, cxl, cyl ) ) )
+    tkTest_Check( "an even row is BackColor, an odd one AltBackColor", (Px( h, g, cxl, cyl + 2 * rowH ) = (col_.BackColor and &hFFFFFFul)) _
+                  andalso (Px( h, g, cxl, cyl + rowH ) = (col_.AltBackColor and &hFFFFFFul)), hex( Px( h, g, cxl, cyl + rowH ) ) )
+    tkTest_Check( "the hot row is HotBackColor", Px( h, g, cxl, cyl + 4 * rowH ) = (col_.HotBackColor and &hFFFFFFul), hex( Px( h, g, cxl, cyl + 4 * rowH ) ) )
+    dim as TKCOLUMNHEADER_COLORS hc
+    tkColumnHeader_GetColors( tkDataGrid_GetHeader( g ), @hc )
+    tkTest_Check( "the header band is the style header's BackColor", Px( h, g, surf->cw - 2, 2 ) = (hc.BackColor and &hFFFFFFul), hex( Px( h, g, surf->cw - 2, 2 ) ) )
+    dim as long gy = hdrH + rowH - 1
+    tkTest_Check( "a horizontal grid line closes each row", Px( h, g, tkHost_Scale( h, 60 ), gy ) = (col_.GridLineColor and &hFFFFFFul), hex( Px( h, g, tkHost_Scale( h, 60 ), gy ) ) )
+    gRedFirstCell = false
+    tkDataGrid_SetCellFormattingCallback( g, 0 )
+
+    ' ---- J: fill columns and the header switch, on a second grid ----------------------------
+    dim as TK_WIDGET ptr g2 = tkDataGrid_Create( tkHost_Root( h ), 600 )
+    tkDataGrid_SetBorderWidth( g2, 0 )
+    tkWidget_SetPos( g2, tkHost_Scale( h, 420 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 150 ) )
+    tkDataGrid_AddColumnEx( g2, "A", TKDG_COL_TEXT, 60 )
+    dim as TKDATAGRID_COLUMN cf
+    cf.key = "B" : cf.caption = "B" : cf.width = 40 : cf.fillWeight = 1
+    tkDataGrid_AddColumn( g2, cf )
+    tkDataGrid_SetRowCount( g2, 3 )
+    dim as TK_WIDGET ptr s2 = tkDataGrid_GetSurface( g2 )
+    tkTest_Check( "few rows, narrow columns: no bars", (tkWidget_IsVisible( tkDataGrid_GetVScrollBar( g2 ) ) = false) _
+                  andalso (tkWidget_IsVisible( tkDataGrid_GetHScrollBar( g2 ) ) = false) andalso (s2->cw = tkHost_Scale( h, 200 )) )
+    tkDataGrid_GetCellRect( g2, 0, 1, rc )
+    tkTest_Check( "the fill column takes the rest of the width", (rc.left = tkHost_Scale( h, 60 )) andalso (rc.right = s2->cw), tkRect_Str( rc ) )
+    tkTest_Check( "below the last row is EMPTY", tkDataGrid_HitTest( g2, 5, s2->ch - 2, ht ) = TKDG_HT_EMPTY )
+    cf.maxWidth = 70
+    tkDataGrid_SetColumnInfo( g2, 1, cf )
+    tkDataGrid_GetCellRect( g2, 0, 1, rc )
+    tkTest_Check( "a fill column stops at its max width", rc.right - rc.left = tkHost_Scale( h, 70 ), tkRect_Str( rc ) )
+    tkDataGrid_ShowHeader( g2, false )
+    tkDataGrid_GetCellRect( g2, 0, 0, rc )
+    tkTest_Check( "no header: row 0 starts at the top", (rc.top = 0) andalso (tkDataGrid_GetHeaderHeightPx( g2 ) = 0) )
+    tkDataGrid_SetColumnVisible( g2, 0, false )
+    tkDataGrid_GetCellRect( g2, 0, 1, rc )
+    tkTest_Check( "a hidden column has no rect and gives its place up", (tkDataGrid_GetCellRect( g2, 0, 0, rc ) = false) _
+                  andalso tkDataGrid_GetCellRect( g2, 0, 1, rc ) andalso (rc.left = 0) )
+    tkDataGrid_BeginUpdate( g2 )
+    tkDataGrid_SetRowCount( g2, 500 )
+    tkTest_Check( "BeginUpdate defers the layout", tkWidget_IsVisible( tkDataGrid_GetVScrollBar( g2 ) ) = false )
+    tkDataGrid_EndUpdate( g2 )
+    tkTest_Check( "EndUpdate lays out once", tkWidget_IsVisible( tkDataGrid_GetVScrollBar( g2 ) ) )
+    tkDataGrid_ClearColumns( g2 )
+    tkDataGrid_Clear( g2 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "no columns, no rows: paints, nothing to hit", (tkDataGrid_GetColumnCount( g2 ) = 0) andalso (tkDataGrid_GetRowCount( g2 ) = 0) _
+                  andalso (tkDataGrid_HitTest( g2, 5, 5, ht ) = TKDG_HT_EMPTY) )
+
+    ' ---- K: the theme and pinning --------------------------------------------------------
+    tkDataGrid_ApplyTheme( g, tkTheme_Light() )
+    tkTest_Check( "ApplyTheme maps BackColor to Window", tkDataGrid_GetBackColor( g ) = tkTheme_Light().Window )
+    tkDataGrid_SetBackColor( g, &hFF102030ul )
+    tkDataGrid_ApplyTheme( g, tkTheme_Dark() )
+    tkTest_Check( "a colour setter pins", tkDataGrid_GetBackColor( g ) = &hFF102030ul )
+    tkDataGrid_UnpinColors( g )
+    tkTest_Check( "UnpinColors returns to the current theme", tkDataGrid_GetBackColor( g ) = tkTheme_Get().Window )
+
+    ' ---- L: the border takes pixels from the surface ----------------------------------------
+    tkDataGrid_SetBorderWidth( g, 2 )
+    tkTest_Check( "a 2-px border: the surface starts inside it", (surf->x = 2) andalso (surf->y = 2) andalso (surf->cw = tkHost_Scale( h, 400 ) - 4 - sb) )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkDataGrid" )
+tkTest_Quit()
+end nFail

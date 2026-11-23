@@ -44,6 +44,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkButton`, `tkCheckBox`, `tkOptionButton`, `tkToggle` | buttons and switches |
 | `tkTextBox`, `tkNumericUpDown`, `tkDatePicker`, `tkCalendar`, `tkCodeEdit` | text, numbers, dates, code |
 | `tkListTree`, `tkComboBox`, `tkSelectBar`, `tkTabBar`, `tkColumnHeader` | lists and selection |
+| `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel (phase G0: no selection or editing yet) |
 | `tkMenuBar`, `tkPopupMenu`, `tkToolbar`, `tkIconPanel`, `tkStatusBar` | command surfaces |
 | `tkLayout` | automatic position and size: Anchor and Dock, in design units |
 | `tkLabel`, `tkPanel`, `tkGroupBox`, `tkPicture`, `tkTabControl` | text, containers, images and tabbed pages |
