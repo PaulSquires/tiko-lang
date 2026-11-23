@@ -137,6 +137,8 @@ end type
 ' ---- the display list ----------------------------------------------------------------------
 ' One more op beside tkPaint's TKREC_*: text resolved at replay.
 const PR_LATE = 100
+' A link: rect; i0 = the URL (string index), n = the target page (-1: the URL), gy0 = target y.
+const PR_LINK = 101
 
 ' Late text: the format's {p} becomes the page number, {n} the page count.
 public type PR_OP
@@ -234,6 +236,8 @@ public type TK_PRINTDOC_
     cbPage   as PR_PrintPageFunc
     pUser    as any ptr
     warnings as ustring
+    serial   as long              ' +1 whenever a page is added or the pages are cleared
+    nGenNext as long = -1         ' the page index GenerateStep calls back for next; -1 = not generating
 end type
 
 sub PrWarn( byval doc as TK_PRINTDOC ptr, byref s as ustring )
@@ -272,6 +276,8 @@ public sub tkPrintDoc_Clear( byval doc as TK_PRINTDOC ptr )
     next
     doc->nImgs = 0
     doc->nFonts = 0
+    doc->serial += 1
+    doc->nGenNext = -1
     doc->warnings = ""
 end sub
 
@@ -342,6 +348,7 @@ public function tkPrintDoc_AddPageEx( byval doc as TK_PRINTDOC ptr, byref ps as 
     if doc->nPages > ubound( doc->pages ) then redim preserve doc->pages( 0 to doc->nPages * 2 + 7 )
     doc->pages(doc->nPages) = pp
     doc->nPages += 1
+    doc->serial += 1
     dim as TK_PAGE ptr pg = @doc->pen
     pg->index = doc->nPages - 1
     pg->mk = 1 / PR_PXPERPT : pg->mx = 0 : pg->my = 0
@@ -366,19 +373,73 @@ public sub tkPrintDoc_SetPrintPageCallback( byval doc as TK_PRINTDOC ptr, byval 
     if doc then doc->cbPage = cb
 end sub
 
+' Clear the pages and get ready to call the PrintPage callback from page 0 (GenerateStep).
+public sub tkPrintDoc_BeginGenerate( byval doc as TK_PRINTDOC ptr )
+    if doc = 0 then exit sub
+    tkPrintDoc_Clear( doc )
+    if doc->cbPage then doc->nGenNext = 0
+end sub
+
+' Up to nMax more pages from the PrintPage callback. TRUE while more remain: a preview calls it on
+' idle ticks so its first pages show before the last are made (WPF's DynamicDocumentPaginator).
+public function tkPrintDoc_GenerateStep( byval doc as TK_PRINTDOC ptr, byval nMax as long = 1 ) as boolean
+    if (doc = 0) orelse (doc->nGenNext < 0) orelse (doc->cbPage = 0) then return false
+    for k as long = 1 to iif( nMax < 1, 1, nMax )
+        dim as long i = doc->nGenNext
+        dim as TK_PAGE ptr pg = tkPrintDoc_AddPage( doc )
+        if (doc->cbPage( doc, pg, i ) = false) orelse (i + 1 >= 100000) then
+            doc->nGenNext = -1
+            return false
+        end if
+        doc->nGenNext = i + 1
+    next
+    return true
+end function
+
+' TRUE when no generation is under way: the page count is final.
+public function tkPrintDoc_IsComplete( byval doc as TK_PRINTDOC ptr ) as boolean
+    if doc = 0 then return true
+    return doc->nGenNext < 0
+end function
+
+' Stop a generation; the pages made so far stay, and the count is final.
+public sub tkPrintDoc_Cancel( byval doc as TK_PRINTDOC ptr )
+    if doc then doc->nGenNext = -1
+end sub
+
+' Changes whenever pages are added or cleared: a cache of rendered pages keys on it.
+public function tkPrintDoc_GetSerial( byval doc as TK_PRINTDOC ptr ) as long
+    if doc = 0 then return 0
+    return doc->serial
+end function
+
 ' Clear the pages and run the PrintPage callback until it says there are no more (or 100 000
 ' pages). The page count.
 public function tkPrintDoc_Generate( byval doc as TK_PRINTDOC ptr ) as long
     if doc = 0 then return 0
-    tkPrintDoc_Clear( doc )
-    if doc->cbPage = 0 then return 0
-    dim as long i = 0
-    do
-        dim as TK_PAGE ptr pg = tkPrintDoc_AddPage( doc )
-        if doc->cbPage( doc, pg, i ) = false then exit do
-        i += 1
-    loop while i < 100000
+    tkPrintDoc_BeginGenerate( doc )
+    while tkPrintDoc_GenerateStep( doc, 1000 )
+    wend
     return doc->nPages
+end function
+
+' The link under (xPt, yPt) on a page, the last one drawn winning: a URL, or a target page
+' (from 0) and y. FALSE when there is none.
+public function tkPrintDoc_LinkAt( byval doc as TK_PRINTDOC ptr, byval page as long, byval xPt as single, _
+                                   byval yPt as single, byref url as ustring, byref targetPage as long, _
+                                   byref targetY as single ) as boolean
+    if (doc = 0) orelse (page < 0) orelse (page >= doc->nPages) then return false
+    dim as PR_PAGE ptr pp = doc->pages(page)
+    for i as long = pp->nOps - 1 to 0 step -1
+        dim byref as PR_OP q = pp->ops(i)
+        if q.op <> PR_LINK then continue for
+        if (xPt >= q.x) andalso (xPt < q.x + q.cw) andalso (yPt >= q.y) andalso (yPt < q.y + q.ch) then
+            targetPage = q.n : targetY = q.gy0
+            url = iif( q.n < 0, pp->strs(q.i0), "" )
+            return true
+        end if
+    next
+    return false
 end function
 
 ' ---- the recorder --------------------------------------------------------------------------
@@ -579,7 +640,7 @@ public function tkPrintDoc_GetOp( byval doc as TK_PRINTDOC ptr, byval page as lo
     select case q->op
     case TKREC_FILLPOLY, TKREC_STROKE, TKREC_STROKEOPEN
         if q->n > 0 then info.x0 = pp->pts(q->i0).x : info.y0 = pp->pts(q->i0).y
-    case TKREC_TEXT, PR_LATE
+    case TKREC_TEXT, PR_LATE, PR_LINK
         info.text = pp->strs(q->i0)
         if (q->font >= 0) andalso (q->font < doc->nFonts) then info.font = doc->fonts(q->font).path
     end select

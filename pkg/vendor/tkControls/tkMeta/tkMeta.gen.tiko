@@ -42,6 +42,7 @@
 #import "../tkInfoBar"
 #import "../tkNotify"
 #import "../tkToast"
+#import "../tkPrintPreview"
 using tkHost
 using tkPaint
 using tkLabel
@@ -84,6 +85,7 @@ using tkContextMenu
 using tkInfoBar
 using tkNotify
 using tkToast
+using tkPrintPreview
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -3884,6 +3886,74 @@ private function R_Toaster_Timeouts( byval w as TK_WIDGET ptr ) as ustring
     if tkToast_GetTimeouts( w ) then return "true" else return "false"
 end function
 
+private function C_PrintPreview( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkPrintPreview_Create( hParent, id )
+end function
+
+private sub G_PrintPreview( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkPrintPreview_GetColors( w, cast( TKPRINTPREVIEW_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_PrintPreview( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKPRINTPREVIEW_COLORS ptr, pSlots ) = tkPrintPreview_ThemeColors( t )
+end sub
+
+private sub A_PrintPreview_ViewMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Continuous" : tkPrintPreview_SetViewMode( w, TKPV_VIEW_CONTINUOUS )
+    case "Single" : tkPrintPreview_SetViewMode( w, TKPV_VIEW_SINGLE )
+    end select
+end sub
+
+private function R_PrintPreview_ViewMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkPrintPreview_GetViewMode( w )
+    case TKPV_VIEW_CONTINUOUS : return "Continuous"
+    case TKPV_VIEW_SINGLE : return "Single"
+    end select
+    return ""
+end function
+
+private sub A_PrintPreview_Columns( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkPrintPreview_SetColumns( w, clng( val( v ) ) )
+end sub
+
+private function R_PrintPreview_Columns( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkPrintPreview_GetColumns( w ) )
+end function
+
+private sub A_PrintPreview_Zoom( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkPrintPreview_SetZoom( w, val( v ) )
+end sub
+
+private function R_PrintPreview_Zoom( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkPrintPreview_GetZoom( w ) )
+end function
+
+private sub A_PrintPreview_ZoomMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Custom" : tkPrintPreview_SetZoomMode( w, TKPV_ZOOM_CUSTOM )
+    case "FitWidth" : tkPrintPreview_SetZoomMode( w, TKPV_ZOOM_FITWIDTH )
+    case "FitPage" : tkPrintPreview_SetZoomMode( w, TKPV_ZOOM_FITPAGE )
+    end select
+end sub
+
+private function R_PrintPreview_ZoomMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkPrintPreview_GetZoomMode( w )
+    case TKPV_ZOOM_CUSTOM : return "Custom"
+    case TKPV_ZOOM_FITWIDTH : return "FitWidth"
+    case TKPV_ZOOM_FITPAGE : return "FitPage"
+    end select
+    return ""
+end function
+
+private sub A_PrintPreview_CacheSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkPrintPreview_SetCacheSize( w, clng( val( v ) ) )
+end sub
+
+private function R_PrintPreview_CacheSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkPrintPreview_GetCacheSize( w ) )
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -5031,4 +5101,19 @@ sub Fill_( )
     Event_( "Action", "tkToast_SetActionCallback", "TST_ActionSub", "byval hToaster as TK_WIDGET ptr, byval id as int32, byval nAction as int32, byval pCtx as any ptr", "byval id as int32, byval nAction as int32", "id, nAction" )
     Event_( "Dismissed", "tkToast_SetDismissedCallback", "TST_DismissedSub", "byval hToaster as TK_WIDGET ptr, byval id as int32, byval reason as int32, byval pCtx as any ptr", "byval id as int32, byval reason as int32", "id, reason" )
     Event_( "Click", "tkToast_SetClickCallback", "TST_ClickSub", "byval hToaster as TK_WIDGET ptr, byval id as int32, byval pCtx as any ptr", "byval id as int32", "id" )
+    Add_( "PrintPreview", "tkPrintPreview", "Other", 320, 400, "PageChanged", "", @C_PrintPreview, "", "", "", "" )
+    Colors_( "TKPRINTPREVIEW_COLORS", "tkPrintPreview_GetColors", "tkPrintPreview_ThemeColors", @G_PrintPreview, @T_PrintPreview )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "PaperColor", "", "", "", false )
+    Color_( "ShadowColor", "", "", "", false )
+    Color_( "PageBorderColor", "Border", "Normal", "", false )
+    Prop_( "ViewMode", "enum", "Continuous", "Continuous=TKPV_VIEW_CONTINUOUS,Single=TKPV_VIEW_SINGLE", "tkPrintPreview_SetViewMode", "tkPrintPreview_GetViewMode", @A_PrintPreview_ViewMode, @R_PrintPreview_ViewMode, 0, true, true, "", 0 )
+    Prop_( "Columns", "int", "1", "", "tkPrintPreview_SetColumns", "tkPrintPreview_GetColumns", @A_PrintPreview_Columns, @R_PrintPreview_Columns, 0, true, true, "", 0 )
+    Prop_( "Zoom", "float", "1", "", "tkPrintPreview_SetZoom", "tkPrintPreview_GetZoom", @A_PrintPreview_Zoom, @R_PrintPreview_Zoom, 0, true, true, "", 0 )
+    Prop_( "ZoomMode", "enum", "FitWidth", "Custom=TKPV_ZOOM_CUSTOM,FitWidth=TKPV_ZOOM_FITWIDTH,FitPage=TKPV_ZOOM_FITPAGE", "tkPrintPreview_SetZoomMode", "tkPrintPreview_GetZoomMode", @A_PrintPreview_ZoomMode, @R_PrintPreview_ZoomMode, 0, true, true, "", 0 )
+    Prop_( "CacheSize", "int", "8", "", "tkPrintPreview_SetCacheSize", "tkPrintPreview_GetCacheSize", @A_PrintPreview_CacheSize, @R_PrintPreview_CacheSize, 0, true, true, "", 0 )
+    Event_( "PageChanged", "tkPrintPreview_SetPageChangedCallback", "PV_PageChangedSub", "byval hPreview as TK_WIDGET ptr, byval nPage as int32", "byval nPage as int32", "nPage" )
+    Event_( "ZoomChanged", "tkPrintPreview_SetZoomChangedCallback", "PV_ZoomChangedSub", "byval hPreview as TK_WIDGET ptr, byval fZoom as single", "byval fZoom as single", "fZoom" )
+    Event_( "LinkClick", "tkPrintPreview_SetLinkClickCallback", "PV_LinkClickFunc", "byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single", "byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single, byref Handled as boolean", "nPage, url, nTargetPage, fTargetY, Handled", "", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub

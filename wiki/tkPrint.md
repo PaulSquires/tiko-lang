@@ -6,7 +6,7 @@ Builds print documents: pages drawn once in points, then shown, rasterised or ex
 
 A `TK_PRINTDOC` holds pages. You draw a page with the `tkPage_*` API, in **points** (1/72 inch, origin top-left, y down), or let any widget paint itself onto it with `tkPrint_PaintWidget`. Either way the page is a *recording* of what [tkPaint](tkPaint) would have drawn, so it can be replayed at any size: in a window (`tkPrintReplay_Page`), as a surface (`tkPrintDoc_RenderSurface`) or as PNG files (`tkPrintDoc_ExportPng`). A page replayed at the scale it was recorded at is the same pixels as painting it directly.
 
-This is phase R0 of the printing work: the page model, recording and raster output. A preview control, PDF export, print dialogs and printers come in later phases.
+The pages can be shown in [tkPrintPreview](tkPrintPreview). PDF export, print dialogs and printers come in later phases of the printing work.
 
 ## Importing
 
@@ -55,6 +55,8 @@ The toolchain's `examples/tkControls/tkPrint/demo` also prints a [tkChart](tkCha
 - `TKPAGESETUP` is the paper (`TK_PAPER_A4`, `_LETTER`, `_LEGAL`, `_A3`, `_A5`, `_B5`, `_TABLOID`, `_EXECUTIVE`, or `_CUSTOM` with `widthPt` / `heightPt`), `landscape`, and four margins in points from the paper's edge (20 mm by default). `TK_PAPER_DEFAULT` becomes Letter in the regions that use it (US, Canada, Mexico and others) and A4 everywhere else, from the user's locale.
 - **Push style:** `tkPrintDoc_AddPage( doc )` (or `AddPageEx` with its own setup) returns the page to draw on now.
 - **Pull style:** `tkPrintDoc_SetPrintPageCallback( doc, cb )`, then `tkPrintDoc_Generate( doc )` calls `cb( doc, pg, pageIndex )` until it returns FALSE, and returns the page count. Generating again starts over.
+- **A few pages at a time:** `tkPrintDoc_BeginGenerate( doc )`, then `tkPrintDoc_GenerateStep( doc, n )` makes up to n more pages and returns TRUE while more remain. `tkPrintDoc_IsComplete` says the count is final; `tkPrintDoc_Cancel` stops and keeps what was made. A [tkPrintPreview](tkPrintPreview) given a document begun this way finishes it on its own timer.
+- `tkPrintDoc_GetSerial( doc )` changes whenever pages are added or cleared, for a cache of rendered pages to key on.
 - A document has **one** `TK_PAGE` pen: `AddPage` moves it to the new page, so a `TK_PAGE ptr` always means the latest page.
 - `tkPrintDoc_Warnings( doc )` lists anything replaced while recording (a font tkHost did not open, an image that could not be read), one line each.
 
@@ -67,6 +69,7 @@ Everything is in points. Fill colour fills, line colour strokes, text colour wri
 - `tkPage_LateText( pg, rc, fmt, flags )` writes text known only when the document is complete: `{p}` is the page number and `{n}` the page count, filled in each time the page is drawn.
 - Images: `tkPage_Image( pg, file, rc, fit )` and `tkPage_ImageSurface` copy the pixels into the document.
 - `tkPage_PushClip` / `PopClip` clip to a rect.
+- Links: `tkPage_Link( pg, rc, url )` and `tkPage_LinkToPage( pg, rc, page, yPt )` make a rect clickable in a preview. They draw nothing; draw the text yourself. `tkPrintDoc_LinkAt( doc, page, xPt, yPt, url, targetPage, targetY )` finds the link at a point.
 
 The page API draws through a recording `TK_PAINT` at 10 pixels per point, so positions are exact to 0.1 pt and text is measured by SDL_ttf at that size.
 
@@ -183,7 +186,13 @@ function tkPrintDoc_Warnings( byval doc as TK_PRINTDOC ptr ) as ustring
 function tkPrintDoc_AddPageEx( byval doc as TK_PRINTDOC ptr, byref ps as TKPAGESETUP ) as TK_PAGE ptr
 function tkPrintDoc_AddPage( byval doc as TK_PRINTDOC ptr ) as TK_PAGE ptr
 sub tkPrintDoc_SetPrintPageCallback( byval doc as TK_PRINTDOC ptr, byval cb as PR_PrintPageFunc )
+sub tkPrintDoc_BeginGenerate( byval doc as TK_PRINTDOC ptr )
+function tkPrintDoc_GenerateStep( byval doc as TK_PRINTDOC ptr, byval nMax as long = 1 ) as boolean
+function tkPrintDoc_IsComplete( byval doc as TK_PRINTDOC ptr ) as boolean
+sub tkPrintDoc_Cancel( byval doc as TK_PRINTDOC ptr )
+function tkPrintDoc_GetSerial( byval doc as TK_PRINTDOC ptr ) as long
 function tkPrintDoc_Generate( byval doc as TK_PRINTDOC ptr ) as long
+function tkPrintDoc_LinkAt( byval doc as TK_PRINTDOC ptr, byval page as long, byval xPt as single, byval yPt as single, byref url as ustring, byref targetPage as long, byref targetY as single ) as boolean
 function tkPrintDoc_GetOpCount( byval doc as TK_PRINTDOC ptr, byval page as long ) as long
 function tkPrintDoc_GetOp( byval doc as TK_PRINTDOC ptr, byval page as long, byval i as long, byref info as TKPRINT_OPINFO ) as boolean
 function tkPrint_PaintWidget( byval pg as TK_PAGE ptr, byval w as TK_WIDGET ptr, byref rc as TKRECTF ) as boolean
@@ -216,6 +225,8 @@ function tkPage_LineSkip( byval pg as TK_PAGE ptr ) as single
 sub tkPage_LateText( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref fmt as ustring, byval flags as long = 0 )
 function tkPage_ImageSurface( byval pg as TK_PAGE ptr, byval s as SDL_Surface ptr, byref rc as TKRECTF, byval nFit as long = TK_IMGFIT_ASPECT ) as boolean
 function tkPage_Image( byval pg as TK_PAGE ptr, byref file as ustring, byref rc as TKRECTF, byval nFit as long = TK_IMGFIT_ASPECT ) as boolean
+sub tkPage_Link( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref url as ustring )
+sub tkPage_LinkToPage( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byval page as long, byval yPt as single = 0 )
 function tkPrintReplay_Create( byval r as SDL_Renderer ptr, byval engine as TTF_TextEngine ptr = 0 ) as TK_PRINTREPLAY ptr
 sub tkPrintReplay_Flush( byval rp as TK_PRINTREPLAY ptr )
 sub tkPrintReplay_Destroy( byval rp as TK_PRINTREPLAY ptr )
@@ -226,6 +237,7 @@ function tkPrintDoc_ExportPng( byval doc as TK_PRINTDOC ptr, byref pathPattern a
 
 ### See also
 
+- [tkPrintPreview](tkPrintPreview) — shows the pages
 - [tkPaint](tkPaint) — the drawing it records
 - [tkChart](tkChart)
 - [tkControls](Category-tkControls)

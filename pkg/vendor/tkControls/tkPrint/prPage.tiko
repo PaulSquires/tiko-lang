@@ -374,3 +374,31 @@ public function tkPage_Image( byval pg as TK_PAGE ptr, byref file as ustring, by
     SDL_DestroySurface( s )
     return ok
 end function
+
+' ---- links -------------------------------------------------------------------------------
+' A clickable rect, drawn as nothing (draw the text or button yourself). In a preview the cursor
+' becomes a hand over it; a click opens url (tkPage_Link) or goes to a page (tkPage_LinkToPage).
+private sub AddLink( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref url as string, byval target as long, _
+                     byval targetY as single )
+    dim as PR_PAGE ptr pp = pg->doc->pages(pg->index)
+    if pp->nOps > ubound( pp->ops ) then redim preserve pp->ops( 0 to pp->nOps * 2 + 63 )
+    dim as PR_OP blank
+    pp->ops(pp->nOps) = blank
+    dim as PR_OP ptr q = @pp->ops(pp->nOps)
+    pp->nOps += 1
+    q->op = PR_LINK : q->n = target : q->gy0 = targetY
+    q->x = rc.left : q->y = rc.top : q->cw = rc.right - rc.left : q->ch = rc.bottom - rc.top
+    q->i0 = PrAddStr( pp, url )
+end sub
+
+public sub tkPage_Link( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref url as ustring )
+    if (Live( pg ) = false) orelse (len( url ) = 0) then exit sub
+    dim as string u8 = url
+    AddLink( pg, rc, u8, -1, 0 )
+end sub
+
+' A link to page 'page' (from 0), scrolled to y points down it.
+public sub tkPage_LinkToPage( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byval page as long, byval yPt as single = 0 )
+    if (Live( pg ) = false) orelse (page < 0) then exit sub
+    AddLink( pg, rc, "", page, yPt )
+end sub

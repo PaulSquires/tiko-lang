@@ -1674,3 +1674,31 @@ events = [
   { name="Dismissed", set="tkToast_SetDismissedCallback", type="TST_DismissedSub", sig="byval hToaster as TK_WIDGET ptr, byval id as int32, byval reason as int32, byval pCtx as any ptr", params="byval id as int32, byval reason as int32", args="id, reason" },
   { name="Click", set="tkToast_SetClickCallback", type="TST_ClickSub", sig="byval hToaster as TK_WIDGET ptr, byval id as int32, byval pCtx as any ptr", params="byval id as int32", args="id" },
 ]
+
+[[control]]
+name = "PrintPreview"
+module = "tkPrintPreview"
+category = "Other"
+width = 320
+height = 400
+default_event = "PageChanged"
+colors = { struct="TKPRINTPREVIEW_COLORS", get="tkPrintPreview_GetColors", theme="tkPrintPreview_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="PaperColor" },
+  { field="ShadowColor" },
+  { field="PageBorderColor", part="Border", state="Normal" },
+]
+# ORDER MATTERS: Zoom switches to a custom zoom; ZoomMode, after it, can put a fit back.
+props = [
+  { name="ViewMode", kind="enum", enum="Continuous=TKPV_VIEW_CONTINUOUS,Single=TKPV_VIEW_SINGLE", set="tkPrintPreview_SetViewMode", get="tkPrintPreview_GetViewMode", default="Continuous" },
+  { name="Columns", kind="int", set="tkPrintPreview_SetColumns", get="tkPrintPreview_GetColumns", default="1" },
+  { name="Zoom", kind="float", set="tkPrintPreview_SetZoom", get="tkPrintPreview_GetZoom", default="1" },
+  { name="ZoomMode", kind="enum", enum="Custom=TKPV_ZOOM_CUSTOM,FitWidth=TKPV_ZOOM_FITWIDTH,FitPage=TKPV_ZOOM_FITPAGE", set="tkPrintPreview_SetZoomMode", get="tkPrintPreview_GetZoomMode", default="FitWidth" },
+  { name="CacheSize", kind="int", set="tkPrintPreview_SetCacheSize", get="tkPrintPreview_GetCacheSize", default="8" },
+]
+events = [
+  { name="PageChanged", set="tkPrintPreview_SetPageChangedCallback", type="PV_PageChangedSub", sig="byval hPreview as TK_WIDGET ptr, byval nPage as int32", params="byval nPage as int32", args="nPage" },
+  { name="ZoomChanged", set="tkPrintPreview_SetZoomChangedCallback", type="PV_ZoomChangedSub", sig="byval hPreview as TK_WIDGET ptr, byval fZoom as single", params="byval fZoom as single", args="fZoom" },
+  { name="LinkClick", set="tkPrintPreview_SetLinkClickCallback", type="PV_LinkClickFunc", sig="byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single", params="byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single, byref Handled as boolean", args="nPage, url, nTargetPage, fTargetY, Handled", returns="boolean", result="Handled" },
+]
