@@ -196,6 +196,18 @@ anchor or dock it. Its **Interval** is in milliseconds (0, the default, means st
 and stops it, and its **Tick** handler (`sub Form.OnTick( )`) runs every Interval while it is enabled. A
 Test Form leaves it out. See [tkTimer](tkTimer).
 
+A **Toaster** is the form's toasts: transient cards in a corner of the window. Drop one to set how they
+behave -- **Position**, **MaxVisible**, **Width**, **Durations** (info / success, warning / error, in ms),
+**Insets**, **PauseOnHover**, **PauseOnWindowBlur**, **CoalesceRepeats**, **Animate**, **TimeScale**,
+**Timeouts** -- and to handle **Action**, **Dismissed** and **Click** for toasts that carry no handler
+of their own. Post toasts from code with `tkToast_ShowText( Handle_Of_Any_Widget, "Saved" )` or
+`tkToast_Show`. A window has one toaster: a second Toaster on a form is the same one.
+
+An **InfoBar** is a control, not a component: a message bar in the layout, usually docked top. Dock it and
+the form gives it the height its text needs and takes the space back when it closes (the bar re-runs the
+layout itself). **IsOpen** (on by default) is a creation choice; **Actions** lists its buttons as
+`Retry|Details`; its **Closing** handler can refuse a close by setting `Allow = false`.
+
 A **PopupMenu** is a right-click menu. Its **Edit items** are a menu's -- text, shortcut, handler, indented
 for a submenu -- but the first level is the menu that opens, not a bar. Give a control (or the form)
 that menu in its **ContextMenu** property: a right-click on it, or the Menu key or Shift+F10 when it has
@@ -311,6 +323,118 @@ and `y` from the control's own top-left. A move goes to the nearest of the contr
 and its containers that has a MouseMove handler, so a form's handler follows the mouse across the whole
 form unless a control handles it itself. `buttons` is SDL's mouse-button mask (`SDL_BUTTON_LMASK` and
 so on), `mods` the modifier keys, as KeyDown's.
+
+## Data binding
+
+A form can move a record in and out of its controls for you. Click the empty form and set
+**DataType** to the record's type, `contactdb.Contact`, and **DataModule** to the module it comes
+from, `../contactdb` (leave it blank when the form's own module already sees the type). Then select
+a control and set its **Bind** to a field of that type: type the name, or press the **...** beside
+it for the type's fields as tkEdit last scanned them (`Name`, and one level into a field that is
+itself a TYPE, `Home.City`). The generated file then has two more procedures:
+
+```freebasic
+sub Form.Edit( byref c as contactdb.Contact )
+    LoadFrom( c )         ' every bound control shows its field
+end sub
+
+sub Form.btnOK_Click( )
+    SaveTo( Person )      ' every bound control's value goes back into its field
+    EndModal( 1 )
+end sub
+```
+
+| Control | What moves |
+| --- | --- |
+| TextBox, CodeEdit | the text |
+| Label | the text, in only: SaveTo leaves the field alone |
+| InfoBar | the message, in only: a field with text opens the bar, an empty one closes it |
+| NumericUpDown | the value |
+| Slider | the value; with **Mode** = Range, **Bind** takes the lower value and **BindUpper** the upper (loaded lower first, so any old pair loads right) |
+| CheckBox, OptionButton, Toggle | checked or not |
+| ComboBox | the selected item's index (-1 for none) |
+| ColorPicker | the colour |
+| DatePicker | the date; a field with no date leaves the picker empty |
+| TimePicker | the time; a field with no time leaves the picker empty. A DatePicker and a TimePicker bound to one `chrono.DateTime` save both halves in one call |
+
+The field can be any of `boolean`, `byte` to `ulongint`, `integer`, `single`, `double`, `ustring`,
+`string`, `TKDATE`, `chrono.LocalDate`, `TKTIME`, `chrono.LocalTime` or `chrono.DateTime`; the conversion is chosen by the field's type
+(`vendor/tkControls/tkBind`). Text that isn't a number becomes 0 in a number field; a fraction
+going into a whole-number field is rounded; `true`, `1`, `yes` and `on` are true; a date in text is
+`yyyy-mm-dd` and a time `HH:mm:ss`. A date or a time binds only to a text field or one of its own
+(a `DateTime` takes both). A `chrono.LocalTime` field's default is midnight, not "no time": set it
+to `LocalTime.Invalid( )` for an empty picker. Loading notifies nobody: no Change or
+CheckChanged handler runs. A wrong field name is the compiler's error, in the generated file.
+
+### Lists
+
+A **ListTree** or a **ComboBox** can be filled from an `Array( of T )`:
+
+- **ItemsField**, a field of the form's DataType (an order's `Lines`): `LoadFrom` fills the list.
+- **ItemsSource**, any array the form can reach: a member such as `People`, or a call such as
+  `contactdb.Countries( )`. The generated `<name>_Fill( )` fills it; call it when the array changes.
+- **ItemType**, the type of the elements (`shopdata.Line`). Its module must be the form's
+  **DataModule** or the form's own; the "..." beside the field rows then lists its fields.
+
+A ListTree takes a **Field** per column (in its Columns, `Name`, `Home.City` or a method such as
+`FullName( )`) and, if you like, a **CheckField**, a boolean field shown in the rows' check boxes.
+`<name>_Item( )` answers the selected row's index in the array, -1 for none. The list shows the
+array; edits in it are not written back.
+
+A ComboBox takes a **DisplayField**, the text each item shows, and a **ValueField**. With a
+ValueField, **Bind** moves the chosen item's value (an id, a code) rather than its index: `LoadFrom`
+selects the item whose value the record holds, and says so when none has it ("Country: 'FR' is not
+in the list"; an empty value and 0 are no value), and `SaveTo` writes the chosen item's value,
+checked as any other.
+
+A list half filled in is fine while you work; until it has its ItemType and its DisplayField (or a
+column with a Field), the generated file stops the build with an `#error` that says what is missing.
+
+### Stepping through records
+
+A **Navigator** (in Lists) steps through an array of the form's records: First, Previous, the
+position ("3 of 120"), Next, Last, New and Delete. Set its **ItemsSource** to the array (a name, such
+as `People`, an `Array( of <DataType> )` the form holds) and, if a list shows the same array, its
+**Follows** to that ListTree or ComboBox. Then the generated file has:
+
+- `navPeople_Refresh( )`: call it after the program fills or changes the array; it refills the
+  list and loads the current record (or blanks the form when there are none).
+- `navPeople_MoveTo( i )`: what the buttons and a click on the list do. If the record on show was
+  changed, `SaveTo` writes it first; if that refuses (a Required box left empty), the form stays
+  where it is.
+- `navPeople_Current( )`: the record on show, -1 for none.
+- `IsDirty( r )`: whether any bound control shows something else than `r` holds.
+
+New appends a blank record and shows it; Delete removes the one on show. The navigator's
+**Navigate** event runs first and can say no (`Allow = false`), a confirmation before a delete for
+instance. Very large or database lists belong to the DataGrid, not a ListTree.
+
+### Validation
+
+`SaveTo` and `LoadFrom` are functions: they answer whether all was well. **SaveTo checks every bound
+control first and writes nothing unless all pass**: `abc` in a box bound to a number, `2.5` into a
+whole-number field, `300` into a `ubyte`, `31/02/2026` into a date are all refused. **LoadFrom
+still loads**, but says so when a control can't show a field as it is: a slider clamps 130 to 100,
+a list has no entry 7. Either way the form's **ValidationError** event runs first:
+
+```freebasic
+sub Form.frm_ValidationError( byref Errors as TKBIND_ERRORS, byval Loading as boolean, byref Handled as boolean )
+    ' Errors.Items( i ).Field, .Message, .Code (TKBIND_ERR_*), .Widget; Errors.Text( ) is one line each
+end sub
+```
+
+Unless it sets `Handled`, a message box lists the problems ("Age: 'abc' is not a number") and the
+first control takes the focus; a text box at fault gets a red border until it is typed in.
+`tkBind_SetErrorPresenter` replaces that message box for every form.
+
+A bound control also takes **rules**, in the rows under Bind, those that fit it:
+
+| Rule | Controls | What it does |
+| --- | --- | --- |
+| **Required** | TextBox, CodeEdit, DatePicker, ComboBox | empty text, no date, no item chosen is refused |
+| **Minimum**, **Maximum** | TextBox, CodeEdit, DatePicker, NumericUpDown, Slider | a number, or a date as `yyyy-mm-dd`; for a text box only when the field is a number or a date |
+| **MaxLength** | TextBox, CodeEdit | the most characters |
+| **Format** | TextBox, CodeEdit, Label | how a number (`.2f`, `08d`) or a date (`dd/MM/yyyy`) is shown, and how typed text is read |
 
 ## Other languages
 

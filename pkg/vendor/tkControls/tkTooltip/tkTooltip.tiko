@@ -1354,13 +1354,15 @@ public function tkTipHost_IsTracked( byval pHost as TKTIPHOST_STATE ptr ) as boo
 end function
 
 ' Show text at once against rcAnchor (control-local), bypassing the dwell -- the tracked tip
-' a control drives itself (a scrollbar thumb's position, a splitter's size).
-public sub tkTipHost_TrackShow( byval pHost as TKTIPHOST_STATE ptr, byref rcAnchor as TKRECT, byval wszText as ustring )
+' a control drives itself (a scrollbar thumb's position, a splitter's size, a slider's value).
+' nAlign: TIP_ALIGN_BELOW (the default) or TIP_ALIGN_ABOVE; either flips when there is no room.
+public sub tkTipHost_TrackShow( byval pHost as TKTIPHOST_STATE ptr, byref rcAnchor as TKRECT, byval wszText as ustring, _
+                                byval nAlign as long = TIP_ALIGN_BELOW )
     if (pHost = 0) orelse (pHost->pTip = 0) then exit sub
     if len( wszText ) = 0 then TIP_HideCore( pHost->pTip, false ) : exit sub
     pHost->pTip->wszText = wszText
     TIP_InvalidateText( pHost->pTip )
-    tkTooltip_ShowForRect( pHost->pTip, rcAnchor, TIP_ALIGN_BELOW )
+    tkTooltip_ShowForRect( pHost->pTip, rcAnchor, nAlign )
 end sub
 
 public sub tkTipHost_TrackHide( byval pHost as TKTIPHOST_STATE ptr )

@@ -45,15 +45,24 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkTextBox`, `tkNumericUpDown`, `tkDatePicker`, `tkCalendar`, `tkCodeEdit` | text, numbers, dates, code |
 | `tkListTree`, `tkComboBox`, `tkSelectBar`, `tkTabBar`, `tkColumnHeader` | lists and selection |
 | `tkMenuBar`, `tkPopupMenu`, `tkToolbar`, `tkIconPanel`, `tkStatusBar` | command surfaces |
-| `tkLayout` | automatic position and size: Anchor and Dock, in design units |
+| `tkLayout` | automatic position and size: Anchor and Dock, in design units; a hidden docked control takes no space, and a dock can take its height from the control |
 | `tkLabel`, `tkPanel`, `tkGroupBox`, `tkPicture`, `tkTabControl` | text, containers, images and tabbed pages |
 | `tkSplitter`, `tkScrollPanel`, `tkScrollBar`, `tkVScrollBar`, `tkHScrollBar` | layout and scrolling |
 | `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkSpinner`, `tkFileDialog` | popups and feedback |
+| `tkInfoBar` | an inline message bar in the layout: severity, title, message, actions, close |
+| `tkToast` | toasts: transient cards in a corner of a window, queued, timed, with actions; one toaster per window |
+| `tkNotify` | what the info bar and the toasts share: severities, colours, the item painter |
 | `tkChart` | line, column, HLOC and pie charts |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
+| `tkBind` | the conversions a designed form's `LoadFrom` / `SaveTo` use to move record fields in and out of controls, and their strict checks, rules and error report |
+| `tkAutoComplete` | a text box with a filter-as-you-type list of suggestions (stored items; the list never takes the keyboard focus) |
+| `tkNavigator` | a record navigator: First, Previous, the position ("3 of 120"), Next, Last, New, Delete; a designed form steps it through an array of its records |
 | `tkMatch` | filter-as-you-type matching, no SDL: prefix, word-prefix, contains and fuzzy (fzy) with highlight runs, narrowing, ranked and capped filters |
+| `tkSlider` | a value on a track (or a lower and upper value, range mode): horizontal or vertical, ticks and labels, a value tip, jump or page clicks; the designer's Slider |
+| `tkCheckedList`, `tkCheckedCombo`, `tkTokenBox` | several values picked at once: a list with a check box per item; a combo whose dropdown is a checked list (summary, select-all, filter, OK / Cancel); chips in a text box with suggestions. Each binds its chosen keys as text; the designer's CheckedList, CheckedComboBox and TokenBox. `tkListTree` has the check boxes (tri-state tree cascade) they are built on; `tkItemPopup` is their dropdown |
+| `tkTimePicker`, `tkTimePanel` | a time of day: a segmented field you type into and step, with a column or list dropdown (or spin buttons), 12- or 24-hour by pattern, a range and a step; the panel alone embeds in a form; the designer's TimePicker and TimePanel, bound as `time` |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla

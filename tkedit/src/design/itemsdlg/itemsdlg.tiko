@@ -273,6 +273,8 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
     case catalog.ItemsKind.ItemsColumns
         this.AddField( "Text", textLabel )
         this.AddField( "Width", widthLabel )
+        ' B3: the element field a list-bound ListTree shows in this column
+        this.AddField( "Field", i18n.Tr( "designer.item_field", "Field" ) )
     case catalog.ItemsKind.ItemsPages, catalog.ItemsKind.ItemsTabs
         ' a tab: its caption and the glyph before it (the control's GlyphSize sizes every tab's)
         this.AddField( "Text", textLabel )
@@ -510,6 +512,7 @@ sub ItemsEditor.ShowItem( byval i as long )
             case "Kind"    : v = Items[i].Kind
             case "Width"
                 if Items[i].Width then v = str( Items[i].Width )
+            case "Field"   : v = Items[i].Field
             end select
         end if
         if f.IsCheck then
@@ -573,6 +576,7 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
             case "Handler" : Items[Current].Handler = v
             case "Kind"    : Items[Current].Kind = v
             case "Width"   : Items[Current].Width = valint( v )
+            case "Field"   : Items[Current].Field = trim( v )
             end select
         end if
     next

@@ -735,6 +735,22 @@ public function PasteText( byref doc as FormDoc, byref text as const ustring, by
         else
             n.Parent = SettingOr( map_, lcase( c.Parent ) )
         end if
+        n.Follows = ""                  ' a navigator's list is the form's to name again
+        ' a binding names a field of the form's DataType: into a form without one, it goes
+        if len( doc.DataType ) = 0 then
+            n.Bind = "" : n.Bind2 = ""
+            n.Required = false : n.Minimum = "" : n.Maximum = "" : n.MaxLength = 0 : n.Format = ""
+            ' an ItemsField is the DataType's; what hangs on it goes with it (an ItemsSource stays)
+            if len( n.ItemsField ) then
+                n.ItemsField = ""
+                if len( n.ItemsSource ) = 0 then
+                    n.DisplayField = "" : n.ValueField = "" : n.CheckField = ""
+                    for k as long = 0 to n.Items.Count( ) - 1
+                        n.Items[k].Field = ""
+                    next
+                end if
+            end if
+        end if
         ' a ContextMenu follows a PopupMenu pasted along, keeps one already on the form, else goes
         if len( c.ContextMenu ) then
             dim as ustring mapped = SettingOr( map_, lcase( c.ContextMenu ) )

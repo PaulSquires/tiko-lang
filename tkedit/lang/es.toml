@@ -362,6 +362,10 @@ delete_breakpoint = "Quitar punto de interrupción"
 mac_permission = "macOS no permitió que el depurador controlara el programa: active el modo de desarrollador (sudo DevToolsSecurity -enable) o permítalo cuando macOS lo pregunte"
 
 [designer]
+item_field = "Campo"
+bind_pick = "Elegir un campo"
+bind_need_type = "Primero dé al formulario un DataType: el tipo de registro al que se enlazan sus controles."
+bind_no_fields = "No se conoce ningún campo de {}: escriba el nombre del campo."
 delete = "Eliminar"
 translate = "Traducible"
 edit_items = "Editar elementos"

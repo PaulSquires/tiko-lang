@@ -201,6 +201,8 @@ public type tkHostCloseFunc as function( byval h as TK_HOST ptr ) as boolean
 public type tkHostKeyFunc as function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
 ' Files or text dropped where no widget claimed them: TKM_DROPFILES / TKM_DROPTEXT, window pixels.
 public type tkHostDropSub as sub( byval h as TK_HOST ptr, byval m as TK_MSG ptr )
+' Told after the surface's size or scale changed (tkHost_AddSizeHook): pUser is what was added.
+public type tkHostSizeHookSub as sub( byval h as TK_HOST ptr, byval pUser as any ptr )
 
 public type TK_WIDGET_
     pHost         as TK_HOST ptr
@@ -290,6 +292,10 @@ public type TK_HOST_
     sDropFiles   as string            ' a drop in progress: the paths so far, LF-separated
     nDropFiles   as long
     sDropText    as string
+    ' MORE SIZE WATCHERS than OnSize's one slot (which tkApp's form owns): a toaster keeping its
+    ' cards in a corner. Run after OnSize on every path that runs it, live resize included.
+    sizeHooks(0 to 3)    as tkHostSizeHookSub
+    sizeHookData(0 to 3) as any ptr
 end type
 
 
@@ -309,6 +315,40 @@ dim shared as long gDispatching           ' >0: an event is being delivered, so 
 ' it (tkImage) can drop them. One hook: the only client is tkImage.
 public type tkRendererGoneSub as sub( byval r as SDL_Renderer ptr )
 dim shared as tkRendererGoneSub gOnRendererGone
+
+' Adds a size watcher to h: f( h, pUser ) runs after h's size or scale changed, after OnSize --
+' including inside Windows' live-resize loop. Up to 4 per surface; adding the same pair twice is
+' one. FALSE when all 4 are taken.
+public function tkHost_AddSizeHook( byval h as TK_HOST ptr, byval f as tkHostSizeHookSub, byval pUser as any ptr = 0 ) as boolean
+    if (h = 0) orelse (f = 0) then return false
+    for i as long = 0 to 3
+        if (h->sizeHooks(i) = f) andalso (h->sizeHookData(i) = pUser) then return true
+    next
+    for i as long = 0 to 3
+        if h->sizeHooks(i) = 0 then
+            h->sizeHooks(i) = f
+            h->sizeHookData(i) = pUser
+            return true
+        end if
+    next
+    return false
+end function
+
+public sub tkHost_RemoveSizeHook( byval h as TK_HOST ptr, byval f as tkHostSizeHookSub, byval pUser as any ptr = 0 )
+    if h = 0 then exit sub
+    for i as long = 0 to 3
+        if (h->sizeHooks(i) = f) andalso (h->sizeHookData(i) = pUser) then
+            h->sizeHooks(i) = 0
+            h->sizeHookData(i) = 0
+        end if
+    next
+end sub
+
+private sub RunSizeHooks_( byval h as TK_HOST ptr )
+    for i as long = 0 to 3
+        if h->sizeHooks(i) then h->sizeHooks(i)( h, h->sizeHookData(i) )
+    next
+end sub
 
 public sub tkHost_SetRendererGoneHook( byval f as tkRendererGoneSub )
     gOnRendererGone = f
@@ -1400,6 +1440,7 @@ function LiveResizeWatch( byval userdata as any ptr, byval e as SDL_Event ptr ) 
     if (h = 0) orelse h->bClosed then return true
     SizeRoot( h )
     if h->OnSize then h->OnSize( h )
+    RunSizeHooks_( h )
     tkHost_Render( h )
     return true
 end function
@@ -1589,6 +1630,7 @@ private sub RescaleAll( byval h as TK_HOST ptr )
     RescaleTree( h->root, fOld, h->fScale )
     if h->OnScale then h->OnScale( h )
     if h->OnSize then h->OnSize( h )
+    RunSizeHooks_( h )
     h->bDirty = true
 end sub
 
@@ -1764,6 +1806,7 @@ private sub DispatchTo( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
     case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, SDL_EVENT_WINDOW_RESIZED
         SizeRoot( h )
         if h->OnSize then h->OnSize( h )
+        RunSizeHooks_( h )
         h->bDirty = true
 
     case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED
