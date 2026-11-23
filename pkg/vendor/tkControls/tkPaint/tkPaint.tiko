@@ -206,6 +206,7 @@ public type TK_PAINT
                                    byval nMode as long = TK_GRADIENT_VERTICAL, byval nCurvature as long = 0 )
     declare sub PaintEllipse( byval rc as TKRECT ptr, byval nPenWidth as long = 0 )
     declare sub PaintPolygon( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 0 )
+    declare sub PaintPolygonF( byval pts as SDL_FPoint ptr, byval nCount as long, byval nPenWidth as long = 0 )
     declare sub PaintPie( byval rc as TKRECT ptr, byval startAngle as single, byval sweepAngle as single, _
                           byval nPenWidth as long = 0 )
     declare sub PaintPieRing( byval rc as TKRECT ptr, byval nInnerRatio as single, byval startAngle as single, _
@@ -1006,6 +1007,19 @@ sub TK_PAINT.PaintPolygon( byval pts as TKPOINT ptr, byval nCount as long, byval
     dim as SDL_FPoint p(0 to nCount - 1)
     for i as long = 0 to nCount - 1
         p(i).x = pts[i].x + this.ox + 0.5 : p(i).y = pts[i].y + this.oy + 0.5
+    next
+    dim as GRAD gr
+    FillPolyAA( this.renderer, p(), nCount, this.clrBack, gr )
+    if nPenWidth > 0 then StrokeClosedAA( this.renderer, p(), nCount, nPenWidth, this.clrPen )
+end sub
+
+' PaintPolygon with fractional points: widget-local EDGE coordinates, used as given (no +0.5) --
+' for small shapes whose symmetry integer centres would break (a 16 px star).
+sub TK_PAINT.PaintPolygonF( byval pts as SDL_FPoint ptr, byval nCount as long, byval nPenWidth as long = 0 )
+    if (pts = 0) orelse (nCount < 3) then exit sub
+    dim as SDL_FPoint p(0 to nCount - 1)
+    for i as long = 0 to nCount - 1
+        p(i).x = pts[i].x + this.ox : p(i).y = pts[i].y + this.oy
     next
     dim as GRAD gr
     FillPolyAA( this.renderer, p(), nCount, this.clrBack, gr )
