@@ -58,17 +58,18 @@ end function
 ' A current cell when there is data and none yet: the first visible cell. Silent.
 sub DgEnsureCurrent( byval p as TKDATAGRID_STATE ptr )
     if (DgViewRows( p ) = 0) orelse (DgFirstVisDisp( p ) < 0) then exit sub
-    if DgValidViewRow( p, p->curRow ) andalso (DgDispOf( p, p->curCol ) >= 0) then exit sub
-    if DgValidViewRow( p, p->curRow ) = false then p->curRow = 0
+    if DgValidViewRow( p, p->curRow ) andalso (DgViewOf( p, p->curRow ) >= 0) andalso (DgDispOf( p, p->curCol ) >= 0) then exit sub
+    if (DgValidViewRow( p, p->curRow ) = false) orelse (DgViewOf( p, p->curRow ) < 0) then p->curRow = DgModelOf( p, 0 )
     p->curCol = p->order( DgFirstVisDisp( p ) )
     if (p->sel.bAll = false) andalso (p->sel.nSpans = 0) andalso (p->sel.nRects = 0) then DgSelectOnly( p, p->curRow, DgDispOf( p, p->curCol ) )
 end sub
 
-' The current cell to (row, col): the selection becomes it, or (bExtend) anchor .. it. FALSE when
-' leaving the dirty row was refused (nothing moved).
-private function DgMoveCurrent( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byval bExtend as boolean ) as boolean
-    if row < 0 then row = 0
-    if row > DgViewRows( p ) - 1 then row = DgViewRows( p ) - 1
+' The current cell to VIEW row v (clamped), column col: the selection becomes it, or (bExtend)
+' anchor .. it. FALSE when leaving the dirty row was refused (nothing moved).
+private function DgMoveCurrent( byval p as TKDATAGRID_STATE ptr, byval v as integer, byval col as integer, byval bExtend as boolean ) as boolean
+    if v < 0 then v = 0
+    if v > DgViewRows( p ) - 1 then v = DgViewRows( p ) - 1
+    dim as integer row = DgModelOf( p, v )
     if (p->dirtyRow >= 0) andalso (row <> p->dirtyRow) then
         if DgCommitRow( p ) = false then return false
     end if
@@ -177,16 +178,19 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
     dim as DG_USERMARK mk
     DgUserBegin( p, mk )
     DgEnsureCurrent( p )
+    ' row: the current MODEL row (values, state); v: its VIEW row (where the keys move it)
     dim as integer row = p->curRow, d = DgDispOf( p, p->curCol )
+    dim as integer v = DgViewOf( p, row )
+    if v < 0 then v = 0
     dim as integer dFirst = DgFirstVisDisp( p ), dLast = DgLastVisDisp( p )
     dim as integer page = DgBodyH( p ) \ DgRowHPx( p )
     if page < 1 then page = 1
     dim as boolean bExtend = bShift
     select case key
     case SDLK_UP
-        row = iif( bCtrl, 0, row - 1 )
+        v = iif( bCtrl, 0, v - 1 )
     case SDLK_DOWN
-        row = iif( bCtrl, DgViewRows( p ) - 1, row + 1 )
+        v = iif( bCtrl, DgViewRows( p ) - 1, v + 1 )
     case SDLK_LEFT
         if bCtrl then
             d = dFirst
@@ -201,14 +205,14 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
         end if
     case SDLK_HOME
         d = dFirst
-        if bCtrl then row = 0
+        if bCtrl then v = 0
     case SDLK_END
         d = dLast
-        if bCtrl then row = DgViewRows( p ) - 1
+        if bCtrl then v = DgViewRows( p ) - 1
     case SDLK_PAGEUP
-        row -= page
+        v -= page
     case SDLK_PAGEDOWN
-        row += page
+        v += page
     case SDLK_RETURN, SDLK_KP_ENTER
         if DgCellEditable( p, row, p->order(d) ) = false then
             ' a cell that cannot be edited: Enter activates it (a button clicks)
@@ -218,17 +222,17 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
             DgUserEnd( p, mk )
             return true
         end if
-        row = iif( bShift, row - 1, row + 1 )
+        v = iif( bShift, v - 1, v + 1 )
         bExtend = false
     case SDLK_TAB
         bExtend = false
         if bShift then
             if DgNextVisDisp( p, d, -1 ) >= 0 then
                 d = DgNextVisDisp( p, d, -1 )
-            elseif row > 0 then
-                row -= 1 : d = dLast
+            elseif v > 0 then
+                v -= 1 : d = dLast
             elseif p->bTabWraps then
-                row = DgViewRows( p ) - 1 : d = dLast
+                v = DgViewRows( p ) - 1 : d = dLast
             else
                 DgUserEnd( p, mk )
                 return false                    ' leave the grid backwards
@@ -236,10 +240,10 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
         else
             if DgNextVisDisp( p, d, 1 ) >= 0 then
                 d = DgNextVisDisp( p, d, 1 )
-            elseif row < DgViewRows( p ) - 1 then
-                row += 1 : d = dFirst
+            elseif v < DgViewRows( p ) - 1 then
+                v += 1 : d = dFirst
             elseif p->bTabWraps then
-                row = 0 : d = dFirst
+                v = 0 : d = dFirst
             else
                 DgUserEnd( p, mk )
                 return false                    ' leave the grid
@@ -263,7 +267,7 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
             DgSetAnchor( p, row, d, true )
         elseif bCtrl andalso p->bMulti andalso (p->selUnit <> TKDG_SEL_ROW) then
             DgSetClear( p->sel )
-            DgSetAddRect( p->sel, 0, d, DgViewRows( p ) - 1, d )
+            DgSetAddRect( p->sel, 0, d, DgViewCount( p ) - 1, d )
             DgSetAnchor( p, row, d, false )
         else
             p->bSwallowChar = false
@@ -312,7 +316,7 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
         DgUserEnd( p, mk )
         return false
     end select
-    if DgMoveCurrent( p, row, p->order(d), bExtend ) andalso (p->editMode = TKDG_EDIT_ONENTER) andalso (bExtend = false) then
+    if DgMoveCurrent( p, v, p->order(d), bExtend ) andalso (p->editMode = TKDG_EDIT_ONENTER) andalso (bExtend = false) then
         DgBeginEdit( p, p->curRow, p->curCol, "", false, p->bEditSelectAll )
     end if
     DgUserEnd( p, mk )
@@ -365,9 +369,10 @@ private sub DgDragSelectAt( byval p as TKDATAGRID_STATE ptr, byval x as integer,
     dim as integer cy = y
     if cy < hdrH then cy = hdrH
     if cy > s->ch - 1 then cy = s->ch - 1
-    dim as integer row = (cy - hdrH + p->scrollY) \ rowH
-    if row > p->rowCount - 1 then row = p->rowCount - 1
-    if row < 0 then row = 0
+    dim as integer vr = (cy - hdrH + p->scrollY) \ rowH
+    if vr > DgViewCount( p ) - 1 then vr = DgViewCount( p ) - 1
+    if vr < 0 then vr = 0
+    dim as integer row = DgModelOf( p, vr )
     dim as integer d = -1
     if p->drag = DG_DRAG_CELLS then
         dim as integer cx = x
@@ -547,14 +552,17 @@ private sub DgButtonUp( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr )
         if p->ColumnResizeCallback then p->ColumnResizeCallback( p->hWin, k, p->cols(k).c.width, false )
     case DG_DRAG_HEADER
         if p->ColumnClickCallback then p->ColumnClickCallback( p->hWin, k )
-        if p->bHeaderSelects andalso p->bMulti andalso (p->selUnit <> TKDG_SEL_ROW) andalso (p->rowCount > 0) then
+        if p->bHeaderSelects = false then
+            DgHeaderSortClick( p, k, DgIsShift( SDL_GetModState( ) ) )
+        elseif p->bMulti andalso (p->selUnit <> TKDG_SEL_ROW) andalso (DgViewCount( p ) > 0) then
             dim as DG_USERMARK mk
             DgUserBegin( p, mk )
             dim as integer d = p->cols(k).disp
             if DgIsCtrl( SDL_GetModState( ) ) = false then DgSetClear( p->sel )
-            DgSetAddRect( p->sel, 0, d, p->rowCount - 1, d )
-            DgSetAnchor( p, iif( p->curRow >= 0, p->curRow, 0 ), d, false )
-            p->curRow = iif( p->curRow >= 0, p->curRow, 0 ) : p->curCol = k
+            DgSetAddRect( p->sel, 0, d, DgViewCount( p ) - 1, d )
+            if p->curRow < 0 then p->curRow = DgModelOf( p, 0 )
+            DgSetAnchor( p, p->curRow, d, false )
+            p->curCol = k
             DgUserEnd( p, mk )
         end if
     case DG_DRAG_REORDER

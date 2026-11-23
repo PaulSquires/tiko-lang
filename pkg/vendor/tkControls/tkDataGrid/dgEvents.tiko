@@ -49,6 +49,9 @@ public type DG_RowFunc as function( byval hGrid as TK_WIDGET ptr, byval row as i
 public type DG_RowSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer )
 ' RowsDeleting: FALSE keeps rows row .. row + count - 1.
 public type DG_RowsDeletingFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer, byval count as integer ) as boolean
+' G4: Filter keeps a model row when it returns TRUE.
+public type DG_FilterFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer ) as boolean
+
 ' G3, virtual mode: the host answers every cell the grid reads, and takes every value it writes
 ' (FALSE refuses it).
 public type DG_CellValueNeededSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
@@ -56,8 +59,7 @@ public type DG_CellValuePushedFunc as function( byval hGrid as TK_WIDGET ptr, by
 
 ' G3, a source: a procedure table and its context, for code that is not a form's handlers
 ' (generated binding adapters, a database adapter, a library). A procedure left 0 means "cannot":
-' no SetCell is read-only, no InsertRows / DeleteRows refuses those changes. Sorting by the source
-' comes in G4.
+' no SetCell is read-only, no InsertRows / DeleteRows refuses those changes, no Sort lets the grid sort.
 public type TKDATAGRID_SOURCE
     pCtx       as any ptr
     RowCount   as function( byval pCtx as any ptr ) as integer
@@ -65,6 +67,8 @@ public type TKDATAGRID_SOURCE
     SetCell    as function( byval pCtx as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
     InsertRows as function( byval pCtx as any ptr, byval row as integer, byval n as integer ) as boolean
     DeleteRows as function( byval pCtx as any ptr, byval row as integer, byval n as integer ) as boolean
+    ' G4: the source sorts itself by the keys (most significant first); FALSE: the grid sorts
+    Sort       as function( byval pCtx as any ptr, byval keys as TKDG_SORTKEY ptr, byval nKeys as integer ) as boolean
 end type
 
 ' ==========================================================================================
@@ -239,4 +243,20 @@ public sub tkDataGrid_SetSource( byval hGrid as TK_WIDGET ptr, byval src as TKDA
         if p->rowCount < 0 then p->rowCount = 0
     end if
     DgChanged( p )
+end sub
+
+' ---- G4: sort and filter --------------------------------------------------------------------------
+' The sort keys changed by a header click (after the view was rebuilt, or -- HOST -- for the host
+' to re-query; GetSortKeys has them).
+public sub tkDataGrid_SetSortChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_GridSub )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then p->SortChangedCallback = cb
+end sub
+
+' Rows the callback refuses are not shown. Applied at once, and again by Sort / ApplyFilter.
+public sub tkDataGrid_SetFilterCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_FilterFunc )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    p->FilterCallback = cb
+    DgApplyView( p )
 end sub

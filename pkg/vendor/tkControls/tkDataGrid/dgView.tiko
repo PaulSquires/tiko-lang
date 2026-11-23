@@ -184,12 +184,14 @@ sub DgInvalidateCell( byval p as TKDATAGRID_STATE ptr, byval row as integer, byv
     tkWidget_Invalidate( p->wSurf )
 end sub
 
-' The least scroll that shows the whole cell (col -1: the row only). A frozen column is always
-' in view sideways; a scrolling one is brought out from under the frozen columns.
+' The least scroll that shows the whole cell (col -1: the row only; a MODEL row, not shown when
+' filtered out). A frozen column is always in view sideways; a scrolling one is brought out from
+' under the frozen columns.
 sub DgEnsureVisible( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer )
     dim as integer x = p->scrollX, y = p->scrollY
-    if DgValidViewRow( p, row ) then
-        dim as integer rowH = DgRowHPx( p ), top = row * rowH, bh = DgBodyH( p )
+    dim as integer v = DgViewOf( p, row )
+    if v >= 0 then
+        dim as integer rowH = DgRowHPx( p ), top = v * rowH, bh = DgBodyH( p )
         if top < y then
             y = top
         elseif top + rowH > y + bh then
@@ -248,8 +250,8 @@ sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as i
         ht.area = iif( ht.col >= 0, TKDG_HT_HEADER, TKDG_HT_EMPTY )
         exit sub
     end if
-    dim as integer row = (y - hdrH + p->scrollY) \ DgRowHPx( p )
-    if row < DgViewRows( p ) then ht.row = row
+    dim as integer v = (y - hdrH + p->scrollY) \ DgRowHPx( p )
+    if v < DgViewRows( p ) then ht.row = DgModelOf( p, v )
     if x < rh then
         ht.area = iif( ht.row >= 0, TKDG_HT_ROWHEADER, TKDG_HT_EMPTY )
         exit sub
@@ -258,6 +260,7 @@ sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as i
     ht.area = iif( (ht.row >= 0) andalso (ht.col >= 0), TKDG_HT_CELL, TKDG_HT_EMPTY )
 end sub
 
+' The first and last VIEW rows (partly) on screen.
 function DgFirstVisibleRow( byval p as TKDATAGRID_STATE ptr ) as integer
     return p->scrollY \ DgRowHPx( p )
 end function
@@ -304,7 +307,10 @@ function DgAutoWidth( byval p as TKDATAGRID_STATE ptr, byval col as integer, byv
         for pass as integer = 0 to 1
             dim as integer r0 = iif( pass = 0, 0, from_ ), r1 = iif( pass = 0, n - 1, last )
             for r as integer = r0 to r1
-                dim as integer tw = tkText_Width( fCell, DgShownText( p, r, col ) ) + 2 * pad + extra + 1
+                ' pass 0: model rows; pass 1: view rows on screen
+                dim as integer mr = iif( pass = 0, r, DgModelOf( p, r ) )
+                if (mr < 0) orelse (mr >= p->rowCount) then continue for
+                dim as integer tw = tkText_Width( fCell, DgShownText( p, mr, col ) ) + 2 * pad + extra + 1
                 if tw > wPx then wPx = tw
             next
         next
@@ -525,9 +531,11 @@ private sub DgPaintRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT 
     dim as integer d0 = iif( bFrozen, 0, p->nFrozen ), d1 = iif( bFrozen, p->nFrozen - 1, p->colCount - 1 )
     if d1 > p->colCount - 1 then d1 = p->colCount - 1
     dim as integer rightX = clip.left
-    for r as integer = first to last
-        dim as integer y = hdrH + r * rowH - p->scrollY
-        dim as boolean isAlt = p->bAltRows andalso ((r and 1) = 1)
+    for v as integer = first to last
+        ' v: the view row (position, stripes); r: the model row (value, state)
+        dim as integer r = DgModelOf( p, v )
+        dim as integer y = hdrH + v * rowH - p->scrollY
+        dim as boolean isAlt = p->bAltRows andalso ((v and 1) = 1)
         dim as boolean isHot = (r = p->hotRow)
         dim as ulong rowBack = p->colors.BackColor
         if isAlt then rowBack = p->colors.AltBackColor
@@ -567,10 +575,11 @@ private sub DgPaintRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT 
         next
     end if
     ' the current cell's frame, while the grid has the focus
-    if hasFocus andalso DgValidRow( p, p->curRow ) andalso DgValidCol( p, p->curCol ) then
+    dim as integer cv = DgViewOf( p, p->curRow )
+    if hasFocus andalso DgValidRow( p, p->curRow ) andalso DgValidCol( p, p->curCol ) andalso (cv >= 0) then
         dim as integer k = p->curCol
-        if (p->cols(k).wPx > 0) andalso (DgIsFrozen( p, k ) = bFrozen) andalso (p->curRow >= first) andalso (p->curRow <= last) then
-            dim as integer x = DgColLeft( p, k ), y = hdrH + p->curRow * rowH - p->scrollY
+        if (p->cols(k).wPx > 0) andalso (DgIsFrozen( p, k ) = bFrozen) andalso (cv >= first) andalso (cv <= last) then
+            dim as integer x = DgColLeft( p, k ), y = hdrH + cv * rowH - p->scrollY
             tkRect_Set( rc, x, y, x + p->cols(k).wPx, y + rowH )
             b->SetPenColor( p->colors.CurrentBorder )
             b->PaintRoundOutline( @rc, 0, DgScale( p, 2 ) )
@@ -601,8 +610,21 @@ private sub DgPaintHeaderRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_
         pi.isResizeHot = (k = p->hotDivCol) andalso (p->drag = DG_DRAG_NONE)
         pi.isResizing = (k = p->dragCol) andalso (p->drag = DG_DRAG_RESIZE)
         pi.wszCaption = p->cols(k).c.caption
-        pi.nSortDir = HDR_SORT_NONE
+        dim as integer nKey
+        DgSortGlyphOf( p, k, pi.nSortDir, nKey )
         if p->HeaderPaintCallback then p->HeaderPaintCallback( @pi ) else tkColumnHeader_PaintColumnDefault( @pi )
+        if (nKey > 0) andalso (p->nSortKeys > 1) then
+            ' which key it is, left of the arrow (the painter draws the arrow 1..3 x 4 units in)
+            dim as TTF_Font ptr fh = tkColumnHeader_GetFont( p->wHdr )
+            if fh = 0 then fh = p->wSurf->pHost->pDefaultFont
+            dim as TKCOLUMNHEADER_COLORS hc
+            tkColumnHeader_GetColors( p->wHdr, @hc )
+            dim as TKRECT rn = pi.rc
+            rn.right -= tkColumnHeader_GetPadding( p->wHdr ) + DgScale( p, 4 ) * 3
+            b->SetFont( fh )
+            b->SetForeColor( hc.SortMarkColor )
+            b->PaintText( str( nKey ), @rn, TK_DT_RIGHT )
+        end if
     next
     b->PopClip( )
 end sub
@@ -615,8 +637,9 @@ private sub DgPaintRowHeaders( byval p as TKDATAGRID_STATE ptr, byval b as TK_PA
     b->PushClip( @clip )
     b->SetBackColor( p->colors.RowHeaderBackColor )
     b->PaintRect( @clip )
-    for r as integer = first to last
-        dim as integer y = hdrH + r * rowH - p->scrollY
+    for v as integer = first to last
+        dim as integer r = DgModelOf( p, v )
+        dim as integer y = hdrH + v * rowH - p->scrollY
         if DgSetHasRow( p->sel, r ) then
             tkRect_Set( rc, 0, y, rh, y + rowH )
             b->SetBackColor( iif( hasFocus, p->colors.SelBackColor, p->colors.SelBackInactive ) )
@@ -738,16 +761,18 @@ end sub
 public function tkDataGrid_GetTopRow( byval hGrid as TK_WIDGET ptr ) as integer
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then return 0
-    return DgFirstVisibleRow( p )
+    return DgModelOf( p, DgFirstVisibleRow( p ) )
 end function
 
-' Scrolls so row is the top row (clamped at the end); returns the top row it got.
+' Scrolls so (model) row is the top row (clamped at the end); returns the top row it got. A row
+' filtered out does not scroll.
 public function tkDataGrid_SetTopRow( byval hGrid as TK_WIDGET ptr, byval row as integer ) as integer
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then return 0
     if row < 0 then row = 0
-    DgScrollTo( p, p->scrollX, row * DgRowHPx( p ) )
-    return DgFirstVisibleRow( p )
+    dim as integer v = DgViewOf( p, row )
+    if v >= 0 then DgScrollTo( p, p->scrollX, v * DgRowHPx( p ) )
+    return DgModelOf( p, DgFirstVisibleRow( p ) )
 end function
 
 public function tkDataGrid_GetScrollX( byval hGrid as TK_WIDGET ptr ) as integer
@@ -775,7 +800,8 @@ public function tkDataGrid_SetScrollY( byval hGrid as TK_WIDGET ptr, byval y as 
     return p->scrollY
 end function
 
-' The rows (partly) on screen; returns how many. first > last when there are none.
+' The rows (partly) on screen as VIEW positions (ViewToModel gives their rows; they are the model
+' rows while nothing is sorted or filtered); returns how many. first > last when there are none.
 public function tkDataGrid_GetVisibleRows( byval hGrid as TK_WIDGET ptr, byref first as integer, byref last as integer ) as integer
     first = 0 : last = -1
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
@@ -799,7 +825,9 @@ public function tkDataGrid_GetCellRect( byval hGrid as TK_WIDGET ptr, byval row 
     if (p = 0) orelse (DgValidViewRow( p, row ) = false) orelse (DgValidCol( p, col ) = false) then return false
     if p->cols(col).wPx <= 0 then return false
     dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
-    dim as integer x = DgColLeft( p, col ), y = hdrH + row * rowH - p->scrollY
+    dim as integer v = DgViewOf( p, row )
+    if v < 0 then return false
+    dim as integer x = DgColLeft( p, col ), y = hdrH + v * rowH - p->scrollY
     tkRect_Set( rc, x, y, x + p->cols(col).wPx, y + rowH )
     dim as TK_WIDGET ptr s = p->wSurf
     dim as integer lim = iif( DgIsFrozen( p, col ), DgRhPx( p ), DgScrollLeft( p ) )

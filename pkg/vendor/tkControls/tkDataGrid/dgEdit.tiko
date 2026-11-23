@@ -56,13 +56,14 @@ function DgHasNewRow( byval p as TKDATAGRID_STATE ptr ) as boolean
     return p->bAllowAdd andalso (p->bReadOnly = false) andalso DgFeedWritable( p ) andalso DgFeedCanInsert( p )
 end function
 
-' The rows the view shows: the real ones plus the placeholder.
+' The rows the view shows: the real ones (sorted and filtered) plus the placeholder.
 function DgViewRows( byval p as TKDATAGRID_STATE ptr ) as integer
-    return p->rowCount + iif( DgHasNewRow( p ), 1, 0 )
+    return DgViewCount( p ) + iif( DgHasNewRow( p ), 1, 0 )
 end function
 
+' A model row, or the placeholder (row = rowCount with AllowAddRows).
 function DgValidViewRow( byval p as TKDATAGRID_STATE ptr, byval row as integer ) as boolean
-    return (row >= 0) andalso (row < DgViewRows( p ))
+    return (row >= 0) andalso ((row < p->rowCount) orelse (DgHasNewRow( p ) andalso (row = p->rowCount)))
 end function
 
 private function DgValueEqual( byref a as const TKDG_VALUE, byref b as const TKDG_VALUE ) as boolean
@@ -349,7 +350,12 @@ sub DgPlaceEditor( byval p as TKDATAGRID_STATE ptr )
         exit sub
     end if
     dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
-    dim as integer x = DgColLeft( p, col ), y = hdrH + row * rowH - p->scrollY
+    dim as integer v = DgViewOf( p, row )
+    if v < 0 then
+        DgEndEdit( p, true )
+        exit sub
+    end if
+    dim as integer x = DgColLeft( p, col ), y = hdrH + v * rowH - p->scrollY
     dim as integer lim = iif( DgIsFrozen( p, col ), DgRhPx( p ), DgScrollLeft( p ) )
     if (x + p->cols(col).wPx <= lim) orelse (x >= p->wSurf->cw) orelse (y + rowH <= hdrH) orelse (y >= p->wSurf->ch) then
         if DgEndEdit( p, true ) = false then DgEnsureVisible( p, row, col )
@@ -596,7 +602,9 @@ function DgDeleteKey( byval p as TKDATAGRID_STATE ptr ) as boolean
     dim as TKDG_VALUE e
     for k as integer = 0 to p->sel.nRects - 1
         dim as TKDG_RANGE q = p->sel.rects(k)
-        for r as integer = q.row1 to iif( q.row2 < p->rowCount, q.row2, p->rowCount - 1 )
+        for qv as integer = q.row1 to iif( q.row2 < DgViewCount( p ), q.row2, DgViewCount( p ) - 1 )
+            dim as integer r = DgModelOf( p, qv )
+            if (r < 0) orelse (r >= p->rowCount) then continue for
             for d as integer = q.disp1 to q.disp2
                 if (d < 0) orelse (d >= p->colCount) then continue for
                 dim as integer c = p->order(d)
@@ -614,7 +622,7 @@ end function
 ' cells changed.
 private sub DgPasteOne( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval d0 as integer, byval ci as integer, _
                         byref fld as const ustring, byref n as integer )
-    if row >= p->rowCount then exit sub
+    if (row < 0) orelse (row >= p->rowCount) then exit sub
     dim as integer d = d0
     for k as integer = 1 to ci
         d = DgNextVisDisp( p, d, 1 )
@@ -642,6 +650,7 @@ function DgPasteText( byval p as TKDATAGRID_STATE ptr, byref text as const ustri
     if p->bEditing then DgEndEdit( p, true )
     dim as ustring q = chr(34), fld
     dim as integer n = 0, r = 0, ci = 0, k = 1, L = len( text )
+    dim as integer v0 = DgViewOf( p, p->curRow )         ' lines go down the rows as shown
     dim as boolean inQ = false
     while k <= L
         dim as ustring c = mid( text, k, 1 )
@@ -654,18 +663,18 @@ function DgPasteText( byval p as TKDATAGRID_STATE ptr, byref text as const ustri
         elseif (c = q) andalso (len( fld ) = 0) then
             inQ = true
         elseif c = chr(9) then
-            DgPasteOne( p, p->curRow + r, d0, ci, fld, n )
+            DgPasteOne( p, DgModelOf( p, v0 + r ), d0, ci, fld, n )
             ci += 1 : fld = ""
         elseif (c = chr(13)) orelse (c = chr(10)) then
             if (c = chr(13)) andalso (k < L) andalso (mid( text, k + 1, 1 ) = chr(10)) then k += 1
-            DgPasteOne( p, p->curRow + r, d0, ci, fld, n )
+            DgPasteOne( p, DgModelOf( p, v0 + r ), d0, ci, fld, n )
             r += 1 : ci = 0 : fld = ""
         else
             fld &= c
         end if
         k += 1
     wend
-    if (len( fld ) > 0) orelse (ci > 0) then DgPasteOne( p, p->curRow + r, d0, ci, fld, n )
+    if (len( fld ) > 0) orelse (ci > 0) then DgPasteOne( p, DgModelOf( p, v0 + r ), d0, ci, fld, n )
     return n
 end function
 
@@ -874,6 +883,7 @@ public sub tkDataGrid_NotifyRowsInserted( byval hGrid as TK_WIDGET ptr, byval ro
     if (row < 0) orelse (row > p->rowCount) then row = p->rowCount
     DgDropEdit( p )
     p->rowCount += n
+    DgViewRowsMoved( p, row, n )
     DgSelRowsMoved( p, row, n )
     DgChanged( p )
 end sub
@@ -884,6 +894,7 @@ public sub tkDataGrid_NotifyRowsRemoved( byval hGrid as TK_WIDGET ptr, byval row
     if row + n > p->rowCount then n = p->rowCount - row
     DgDropEdit( p )
     p->rowCount -= n
+    DgViewRowsMoved( p, row, -n )
     DgSelRowsMoved( p, row, -n )
     if p->hotRow >= p->rowCount then p->hotRow = -1
     DgChanged( p )
@@ -900,7 +911,8 @@ public sub tkDataGrid_Reset( byval hGrid as TK_WIDGET ptr )
         p->rowCount = p->src.RowCount( p->src.pCtx )
         if p->rowCount < 0 then p->rowCount = 0
     end if
-    if p->curRow >= DgViewRows( p ) then p->curRow = DgViewRows( p ) - 1
+    if p->curRow >= p->rowCount + iif( DgHasNewRow( p ), 1, 0 ) then p->curRow = p->rowCount - 1
     if p->hotRow >= p->rowCount then p->hotRow = -1
-    DgChanged( p )
+    ' the host re-queried: a filter (or the grid's own sort) is rebuilt over the new rows
+    if p->bViewMap then DgApplyView( p ) else DgChanged( p )
 end sub

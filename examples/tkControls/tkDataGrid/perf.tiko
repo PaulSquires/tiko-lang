@@ -143,6 +143,22 @@ for r as integer = 0 to 99999
 next
 print "stored: 100,000 x 15 cells loaded in " & Ms2( (timer - tl) * 1000 ) & " ms"
 Measure( h, g, "stored 100,000" )
+
+' the internal sort (G4): one text key, then a float key and a second text key, on 100,000 rows
+dim as TKDG_SORTKEY k1(0 to 0)
+k1(0).col = 1 : k1(0).bDescending = false
+dim as double ts = timer
+tkDataGrid_SetSortKeys( g, k1() )
+print "sort 100,000 by Customer (text): " & Ms2( (timer - ts) * 1000 ) & " ms"
+dim as TKDG_SORTKEY k2(0 to 1)
+k2(0).col = 7 : k2(0).bDescending = true
+k2(1).col = 3 : k2(1).bDescending = false
+ts = timer
+tkDataGrid_SetSortKeys( g, k2() )
+print "sort 100,000 by Total desc, City (float + text): " & Ms2( (timer - ts) * 1000 ) & " ms"
+ts = timer
+tkDataGrid_SetQuickFilter( g, "wonka" )
+print "quick filter 100,000 rows x 15 columns (" & tkDataGrid_GetViewCount( g ) & " kept): " & Ms2( (timer - ts) * 1000 ) & " ms"
 tkHost_Destroy( h )
 TTF_Quit( )
 SDL_Quit( )

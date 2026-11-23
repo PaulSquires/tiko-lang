@@ -421,6 +421,7 @@ sub RunG1( byval fScale as single )
     tkDataGrid_SetColumnClickCallback( g, @G1ColClick )
     tkDataGrid_SetColumnResizeCallback( g, @G1Resize )
     tkDataGrid_SetColumnReorderedCallback( g, @G1Reorder )
+    tkDataGrid_SetSortMode( g, TKDG_SORT_NONE )       ' G1's header clicks must not sort (G4 does)
     tkTest_PumpFor( h, 30 )
     dim as long rowH = tkDataGrid_GetRowHeightPx( g ), hdrH = tkDataGrid_GetHeaderHeightPx( g )
 
@@ -1228,6 +1229,167 @@ sub RunG3( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+' ==========================================================================================
+' G4: sort and filter (one check per behaviour)
+' ==========================================================================================
+dim shared as long gSortChN
+dim shared as integer gMinQty
+
+sub G4SortCh( byval hg as TK_WIDGET ptr )
+    gSortChN += 1
+end sub
+function G4Filter( byval hg as TK_WIDGET ptr, byval row as integer ) as boolean
+    return tkDataGrid_GetCellInt( hg, row, 1 ) >= gMinQty
+end function
+
+function ViewIs( byval g as TK_WIDGET ptr, byref want as const string ) as boolean
+    dim as string s
+    for v as integer = 0 to tkDataGrid_GetViewCount( g ) - 1
+        s &= str( tkDataGrid_ViewToModel( g, v ) )
+    next
+    return s = want
+end function
+
+function ViewStr( byval g as TK_WIDGET ptr ) as string
+    dim as string s
+    for v as integer = 0 to tkDataGrid_GetViewCount( g ) - 1
+        s &= str( tkDataGrid_ViewToModel( g, v ) )
+    next
+    return s
+end function
+
+sub G4Keys1( byval g as TK_WIDGET ptr, byval col as integer, byval bDesc as boolean )
+    dim as TKDG_SORTKEY k(0 to 0)
+    k(0).col = col : k(0).bDescending = bDesc
+    tkDataGrid_SetSortKeys( g, k() )
+end sub
+
+sub HeaderClick( byval h as TK_HOST ptr, byval g as TK_WIDGET ptr, byval col as integer, byval mods as long = 0 )
+    dim as TKRECT hc
+    tkDataGrid_GetColumnRect( g, col, hc )
+    dim as single x, y
+    SurfXY( g, (hc.left + hc.right) \ 2, (hc.top + hc.bottom) \ 2, x, y )
+    SDL_SetModState( mods )
+    tkTest_Click( h, x, y )
+    SDL_SetModState( SDL_KMOD_NONE )
+end sub
+
+sub RunG4( byval fScale as single )
+    tkTest_Begin( "G4 scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDataGrid selftest G4", 700, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    #if defined( TIKO_OS_WINDOWS )
+        dim as ustring eol = chr(13) & chr(10)
+    #else
+        dim as ustring eol = chr(10)
+    #endif
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkHost_Root( h ), 700 )
+    tkDataGrid_SetFont( g, f10 )
+    tkDataGrid_SetBorderWidth( g, 0 )
+    tkWidget_SetPos( g, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ) )
+    tkDataGrid_AddColumnEx( g, "Name", TKDG_COL_TEXT, 120 )
+    tkDataGrid_AddColumnEx( g, "Qty", TKDG_COL_NUMBER, 80, TKDG_INT )
+    tkDataGrid_SetSortChangedCallback( g, @G4SortCh )
+    dim as string nm(0 to 5) = { "delta", "Alpha", "charlie", "bravo", "echo", "" }
+    dim as long qt(0 to 5) = { 3, 1, 3, 2, 5, 4 }
+    tkDataGrid_SetRowCount( g, 6 )
+    for r as integer = 0 to 5
+        if len( nm(r) ) then tkDataGrid_SetCellText( g, r, 0, nm(r) )
+        tkDataGrid_SetCellInt( g, r, 1, qt(r) )
+    next
+    tkTest_PumpFor( h, 30 )
+    dim as long rowH = tkDataGrid_GetRowHeightPx( g ), hdrH = tkDataGrid_GetHeaderHeightPx( g )
+
+    ' ---- AH: sorting --------------------------------------------------------------------------
+    G4Keys1( g, 0, false )
+    tkTest_Check( "sort by text: case-insensitive, EMPTY first", ViewIs( g, "513204" ), ViewStr( g ) )
+    G4Keys1( g, 0, true )
+    tkTest_Check( "descending", ViewIs( g, "402315" ), ViewStr( g ) )
+    dim as TKDG_SORTKEY k2(0 to 1)
+    k2(0).col = 1 : k2(0).bDescending = false
+    k2(1).col = 0 : k2(1).bDescending = true
+    tkDataGrid_SetSortKeys( g, k2() )
+    tkTest_Check( "two keys: the second orders ties of the first", ViewIs( g, "130254" ), ViewStr( g ) )
+    tkDataGrid_ClearSort( g )
+    gSortChN = 0
+    HeaderClick( h, g, 1 )
+    dim as TKDG_SORTKEY got()
+    dim as integer ng = tkDataGrid_GetSortKeys( g, got() )
+    dim as boolean asc1 = (ng = 1) andalso (got(0).col = 1) andalso (got(0).bDescending = false)
+    HeaderClick( h, g, 1 )
+    ng = tkDataGrid_GetSortKeys( g, got() )
+    dim as boolean desc1 = (ng = 1) andalso got(0).bDescending
+    HeaderClick( h, g, 1 )
+    tkTest_Check( "a header click cycles ascending, descending, none, firing SortChanged each time", asc1 andalso desc1 _
+                  andalso (tkDataGrid_GetSortKeys( g, got() ) = 0) andalso ViewIs( g, "012345" ) andalso (gSortChN = 3) )
+    HeaderClick( h, g, 1 )
+    HeaderClick( h, g, 0, SDL_KMOD_LSHIFT )
+    ng = tkDataGrid_GetSortKeys( g, got() )
+    tkTest_Check( "Shift+click adds the next key", (ng = 2) andalso (got(0).col = 1) andalso (got(1).col = 0) andalso ViewIs( g, "132054" ), ViewStr( g ) )
+
+    ' ---- AI: the view drives geometry, keys, selection, copy ------------------------------------
+    G4Keys1( g, 0, false )                                      ' 5 1 3 2 0 4
+    dim as TKRECT rc
+    tkDataGrid_GetCellRect( g, 1, 0, rc )
+    dim as TKDG_HITTEST ht
+    tkDataGrid_HitTest( g, tkHost_Scale( h, 10 ), hdrH + rowH \ 2, ht )
+    tkTest_Check( "geometry and hit tests use the view row", (rc.top = hdrH + rowH) andalso (ht.row = 5), tkRect_Str( rc ) & " hit " & ht.row )
+    tkDataGrid_SetCurrentCell( g, 1, 0 )
+    tkHost_SetFocus( h, tkDataGrid_GetSurface( g ) )
+    tkTest_PushKey( h, SDLK_DOWN )
+    dim as integer cr, cc
+    tkDataGrid_GetCurrentCell( g, cr, cc )
+    tkTest_Check( "Down moves in view order", cr = 3, str( cr ) )
+    tkDataGrid_SelectRange( g, 1, 0, 3, 1 )
+    tkDataGrid_SelectRows( g, 4, 4, true )
+    G4Keys1( g, 0, true )
+    dim as TKDG_RANGE rg()
+    tkTest_Check( "re-sorting drops the cell rectangles and keeps whole rows", (tkDataGrid_GetSelectedRanges( g, rg() ) = 0) _
+                  andalso tkDataGrid_IsRowSelected( g, 4 ) )
+    tkDataGrid_SelectAll( g )
+    tkTest_Check( "copy follows the view order", left( tkDataGrid_GetSelectionText( g ), 4 ) = "echo", left( tkDataGrid_GetSelectionText( g ), 12 ) )
+    tkDataGrid_SetCurrentCell( g, 0, 0 )
+    tkDataGrid_SelectRange( g, 2, 0, 2, 0 )                      ' view: 4 0 2 3 1 5 -- charlie is view 2
+    dim as integer nAdd = tkDataGrid_AddRow( g )
+    tkDataGrid_SetCellText( g, nAdd, 0, "aaa" )
+    tkTest_Check( "a new row joins the end of the view; a data change does not resort", (tkDataGrid_ViewToModel( g, tkDataGrid_GetViewCount( g ) - 1 ) = 6) )
+    tkDataGrid_Sort( g )
+    tkTest_Check( "Sort re-applies the keys", tkDataGrid_ViewToModel( g, 5 ) = 6, ViewStr( g ) )
+    tkDataGrid_DeleteRows( g, 6, 1 )
+    tkDataGrid_ClearSort( g )
+
+    ' ---- AJ: filtering ----------------------------------------------------------------------------
+    tkDataGrid_SetCurrentCell( g, 0, 0 )
+    tkDataGrid_SetQuickFilter( g, "AR" )
+    tkDataGrid_GetCurrentCell( g, cr, cc )
+    tkTest_Check( "the quick filter: any visible column's text, any case; a current row filtered out moves to the first shown", _
+                  ViewIs( g, "2" ) andalso (cr = 2) andalso (tkDataGrid_GetCellRect( g, 0, 0, rc ) = false), ViewStr( g ) & " cur " & cr )
+    tkDataGrid_SetQuickFilter( g, "" )
+    gMinQty = 3
+    tkDataGrid_SetFilterCallback( g, @G4Filter )
+    G4Keys1( g, 1, true )
+    tkTest_Check( "a Filter callback, then the sort, in one view", ViewIs( g, "4502" ), ViewStr( g ) )
+    tkDataGrid_SetFilterCallback( g, 0 )
+    tkDataGrid_ClearSort( g )
+
+    ' ---- AK: host sorting -------------------------------------------------------------------------
+    tkDataGrid_SetSortMode( g, TKDG_SORT_HOST )
+    gSortChN = 0
+    HeaderClick( h, g, 0 )
+    tkTest_Check( "HOST mode: a header click sets the key and fires SortChanged; the rows stay as they are", (gSortChN = 1) _
+                  andalso (tkDataGrid_GetSortKeys( g, got() ) = 1) andalso ViewIs( g, "012345" ) )
+    tkDataGrid_SetSortMode( g, TKDG_SORT_AUTO )
+    tkDataGrid_SetVirtual( g, true )
+    tkDataGrid_SetRowCount( g, 6 )
+    HeaderClick( h, g, 1 )
+    tkTest_Check( "AUTO sorting of a virtual grid is the host's: the click leaves the rows unsorted", (tkDataGrid_GetSortKeys( g, got() ) = 1) _
+                  andalso (tkDataGrid_GetViewCount( g ) = 6) andalso (tkDataGrid_ViewToModel( g, 0 ) = 0) andalso (tkDataGrid_ViewToModel( g, 5 ) = 5) )
+    tkHost_Destroy( h )
+end sub
+
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
 RunPass( 1.75 )
@@ -1235,6 +1397,7 @@ RunPass( 1.75 )
 RunG1( 1.75 )
 RunG2( 1.75 )
 RunG3( 1.75 )
+RunG4( 1.75 )
 dim as long nFail = tkTest_Report( "tkDataGrid" )
 tkTest_Quit()
 end nFail

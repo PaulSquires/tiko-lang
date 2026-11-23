@@ -204,9 +204,41 @@ end function
 ' ==========================================================================================
 ' The grid's selection
 ' ==========================================================================================
+' (model row, model column): by "all" or a row span (model rows), or a rectangle (view rows).
 function DgCellSelected( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer ) as boolean
-    return DgSetHasCell( p->sel, row, p->cols(col).disp )
+    if DgSetHasRow( p->sel, row ) then return true
+    dim as integer v = DgViewOf( p, row )
+    if v < 0 then return false
+    return DgSetHasCell( p->sel, v, p->cols(col).disp )
 end function
+
+' Model rows of view rows va .. vb as row spans (one span while the view is the model).
+private sub DgAddViewRows( byref s as TKDG_SELSET, byval p as TKDATAGRID_STATE ptr, byval va as integer, byval vb as integer )
+    if va > vb then swap va, vb
+    if p->bViewMap = false then DgSetAddRows( s, va, vb ) : exit sub
+    if vb > p->viewCount - 1 then vb = p->viewCount - 1
+    if va < 0 then va = 0
+    if vb < va then exit sub
+    ' the model rows, in order, then each run of consecutive ones as one span
+    dim as integer n = vb - va + 1
+    dim as ubyte mark( any )
+    if p->rowCount <= 0 then exit sub
+    redim mark( 0 to p->rowCount - 1 )
+    for v as integer = va to vb
+        mark( p->viewToModel(v) ) = 1
+    next
+    dim as integer r = 0
+    while r < p->rowCount
+        if mark(r) then
+            dim as integer a = r
+            while (r + 1 < p->rowCount) andalso (mark(r + 1) <> 0)
+                r += 1
+            wend
+            DgSetAddRows( s, a, r )
+        end if
+        r += 1
+    wend
+end sub
 
 ' Everything gone, the anchor too; the current cell stays.
 sub DgSelReset( byval p as TKDATAGRID_STATE ptr )
@@ -233,8 +265,9 @@ sub DgSelRowsMoved( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval
     elseif p->curRow >= row then
         p->curRow = row                 ' its row went: the one that took its place
     end if
-    if p->curRow >= DgViewRows( p ) then p->curRow = DgViewRows( p ) - 1
-    if DgViewRows( p ) = 0 then p->curRow = -1 : p->curCol = -1
+    dim as integer maxRow = p->rowCount - 1 + iif( DgHasNewRow( p ), 1, 0 )
+    if p->curRow > maxRow then p->curRow = maxRow
+    if maxRow < 0 then p->curRow = -1 : p->curCol = -1
 end sub
 
 ' The anchor at (row, disp); what is selected now becomes the base extensions add to.
@@ -247,10 +280,14 @@ end sub
 sub DgExtendTo( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval disp as integer )
     if p->anchorRow < 0 then DgSetAnchor( p, row, disp, p->selUnit = TKDG_SEL_ROW )
     p->sel = p->selBase
+    ' the anchor and the target are model rows; the range between them is on screen (view rows)
+    dim as integer va = DgViewOf( p, p->anchorRow ), vb = DgViewOf( p, row )
+    if va < 0 then va = vb
+    if vb < 0 then exit sub
     if p->bAnchorRows orelse (p->selUnit = TKDG_SEL_ROW) then
-        DgSetAddRows( p->sel, p->anchorRow, row )
+        DgAddViewRows( p->sel, p, va, vb )
     else
-        DgSetAddRect( p->sel, p->anchorRow, p->anchorDisp, row, disp )
+        DgSetAddRect( p->sel, va, p->anchorDisp, vb, disp )
     end if
 end sub
 
@@ -259,8 +296,8 @@ sub DgSelectOnly( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval d
     DgSetClear( p->sel )
     if p->selUnit = TKDG_SEL_ROW then
         DgSetAddRows( p->sel, row, row )
-    elseif disp >= 0 then
-        DgSetAddRect( p->sel, row, disp, row, disp )
+    elseif (disp >= 0) andalso (DgViewOf( p, row ) >= 0) then
+        DgSetAddRect( p->sel, DgViewOf( p, row ), disp, DgViewOf( p, row ), disp )
     end if
     DgSetAnchor( p, row, disp, p->selUnit = TKDG_SEL_ROW )
     DgSetClear( p->selBase )             ' an extension replaces this one cell: nothing under it
@@ -277,17 +314,19 @@ sub DgToggle( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval disp 
         if DgSetHasRow( p->sel, row ) then DgSetRemoveRow( p->sel, row ) else DgSetAddRows( p->sel, row, row )
         DgSetAnchor( p, row, disp, true )
     else
-        if DgSetHasCell( p->sel, row, disp ) then
+        dim as integer v = DgViewOf( p, row )
+        if v < 0 then exit sub
+        if DgSetHasRow( p->sel, row ) orelse DgSetHasCell( p->sel, v, disp ) then
             if DgSetHasRow( p->sel, row ) then
                 ' a cell of a selected row: the row becomes its other cells
                 DgSetRemoveRow( p->sel, row )
                 dim as integer d1 = DgFirstVisDisp( p ), d2 = DgLastVisDisp( p )
-                if d1 >= 0 then DgSetAddRect( p->sel, row, d1, row, d2 )
+                if d1 >= 0 then DgSetAddRect( p->sel, v, d1, v, d2 )
             end if
-            DgSetRemoveCell( p->sel, row, disp )
+            DgSetRemoveCell( p->sel, v, disp )
         else
             dim as TKDG_SELSET before = p->sel
-            DgSetAddRect( p->sel, row, disp, row, disp )
+            DgSetAddRect( p->sel, v, disp, v, disp )
             DgSetAnchor( p, row, disp, false )
             p->selBase = before
             exit sub
@@ -361,22 +400,18 @@ function DgSelectionText( byval p as TKDATAGRID_STATE ptr, byval bHeaders as boo
             if (d >= p->sel.rects(k).disp1) andalso (d <= p->sel.rects(k).disp2) then useDisp(d) = 1 : exit for
         next
     next
-    ' which rows: a mark per row, from the spans and the rectangles
-    dim as ubyte useRow( 0 to p->rowCount - 1 )
-    if p->sel.bAll then
-        for r as integer = 0 to p->rowCount - 1 : useRow(r) = 1 : next
-    else
-        for k as integer = 0 to p->sel.nSpans - 1
-            for r as integer = p->sel.spans(k).a to iif( p->sel.spans(k).b < p->rowCount, p->sel.spans(k).b, p->rowCount - 1 )
-                useRow(r) = 1
-            next
+    ' which rows: a mark per VIEW row, from the spans (model rows) and the rectangles (view rows)
+    dim as integer nv = DgViewCount( p )
+    if nv <= 0 then return ""
+    dim as ubyte useRow( 0 to nv - 1 )
+    for v as integer = 0 to nv - 1
+        if DgSetHasRow( p->sel, DgModelOf( p, v ) ) then useRow(v) = 1
+    next
+    for k as integer = 0 to p->sel.nRects - 1
+        for v as integer = p->sel.rects(k).row1 to iif( p->sel.rects(k).row2 < nv, p->sel.rects(k).row2, nv - 1 )
+            if v >= 0 then useRow(v) = 1
         next
-        for k as integer = 0 to p->sel.nRects - 1
-            for r as integer = p->sel.rects(k).row1 to iif( p->sel.rects(k).row2 < p->rowCount, p->sel.rects(k).row2, p->rowCount - 1 )
-                useRow(r) = 1
-            next
-        next
-    end if
+    next
     dim as ustring o
     if bHeaders then
         dim as boolean firstCol = true
@@ -388,13 +423,14 @@ function DgSelectionText( byval p as TKDATAGRID_STATE ptr, byval bHeaders as boo
         next
         o &= eol
     end if
-    for r as integer = 0 to p->rowCount - 1
-        if useRow(r) = 0 then continue for
+    for v as integer = 0 to nv - 1
+        if useRow(v) = 0 then continue for
+        dim as integer r = DgModelOf( p, v )
         dim as boolean firstCol = true
         for d as integer = 0 to p->colCount - 1
             if useDisp(d) = 0 then continue for
             if firstCol = false then o &= chr(9)
-            if DgSetHasCell( p->sel, r, d ) then o &= DgTsvField( DgShownText( p, r, p->order(d) ) )
+            if DgCellSelected( p, r, p->order(d) ) then o &= DgTsvField( DgShownText( p, r, p->order(d) ) )
             firstCol = false
         next
         o &= eol
@@ -449,7 +485,7 @@ end function
 public function tkDataGrid_SetCurrentCell( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, _
                                            byval bSelect as boolean = true ) as boolean
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if (p = 0) orelse (DgValidViewRow( p, row ) = false) orelse (DgDispOf( p, col ) < 0) then return false
+    if (p = 0) orelse (DgValidViewRow( p, row ) = false) orelse (DgViewOf( p, row ) < 0) orelse (DgDispOf( p, col ) < 0) then return false
     if p->bEditing then DgEndEdit( p, false )
     p->curRow = row : p->curCol = col
     if bSelect then DgSelectOnly( p, row, DgDispOf( p, col ) )
@@ -499,7 +535,9 @@ public sub tkDataGrid_SelectRange( byval hGrid as TK_WIDGET ptr, byval row1 as i
     if (d1 < 0) orelse (d2 < 0) then exit sub
     if (bAdd = false) orelse (p->bMulti = false) then DgSetClear( p->sel )
     if p->bMulti = false then row2 = row1 : d2 = d1
-    if p->selUnit = TKDG_SEL_ROW then DgSetAddRows( p->sel, row1, row2 ) else DgSetAddRect( p->sel, row1, d1, row2, d2 )
+    dim as integer v1 = DgViewOf( p, row1 ), v2 = DgViewOf( p, row2 )
+    if (v1 < 0) orelse (v2 < 0) then exit sub
+    if p->selUnit = TKDG_SEL_ROW then DgAddViewRows( p->sel, p, v1, v2 ) else DgSetAddRect( p->sel, v1, d1, v2, d2 )
     p->selBase = p->sel
     tkWidget_Invalidate( p->wSurf )
 end sub

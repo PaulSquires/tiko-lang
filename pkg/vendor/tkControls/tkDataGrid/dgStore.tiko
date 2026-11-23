@@ -224,11 +224,13 @@ function DgRowsInserted( byval p as TKDATAGRID_STATE ptr, byval row as integer, 
     select case p->feed
     case DG_FEED_STORE
         DgStoreInsertRows( p, row, n )
+        DgViewRowsMoved( p, row, n )
         return true
     case DG_FEED_SOURCE
         if (p->src.InsertRows = 0) orelse (p->src.InsertRows( p->src.pCtx, row, n ) = false) then return false
     end select
     p->rowCount += n
+    DgViewRowsMoved( p, row, n )
     return true
 end function
 
@@ -237,12 +239,14 @@ function DgRowsRemoved( byval p as TKDATAGRID_STATE ptr, byval row as integer, b
     select case p->feed
     case DG_FEED_STORE
         DgStoreDeleteRows( p, row, n )
+        DgViewRowsMoved( p, row, -n )
         return true
     case DG_FEED_SOURCE
         if (p->src.DeleteRows = 0) orelse (p->src.DeleteRows( p->src.pCtx, row, n ) = false) then return false
     end select
     p->rowCount -= n
     if p->rowCount < 0 then p->rowCount = 0
+    DgViewRowsMoved( p, row, -n )
     return true
 end function
 
@@ -259,6 +263,8 @@ sub DgSwitchFeed( byval p as TKDATAGRID_STATE ptr, byval feed as long )
     dim as TKDATAGRID_SOURCE none_
     p->src = none_
     p->feed = feed
+    p->bViewMap = false : p->viewCount = 0
+    erase p->viewToModel : erase p->modelToView
     DgSelReset( p )
     p->curRow = -1
     p->hotRow = -1

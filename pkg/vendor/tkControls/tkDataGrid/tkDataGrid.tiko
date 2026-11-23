@@ -40,6 +40,9 @@
 ' cell; the host sets the row count), or a SOURCE (a TKDATAGRID_SOURCE procedure table). Whatever
 ' the feed, DgRead / DgWrite are the one way to a cell, and only the store keeps anything per row.
 '
+' THE VIEW (G4, dgSort.tiko): a sort and a filter make a view-to-model map; every on-screen row is
+' a VIEW row, every public row a MODEL row.
+'
 ' Setters are silent; only user interaction notifies (dgEvents.tiko lists the events).
 #module "tkDataGrid"
 
@@ -126,6 +129,13 @@ public enum                  ' tkDataGrid_SetEditMode: what starts an edit (Data
     TKDG_EDIT_PROGRAMMATIC   ' tkDataGrid_BeginEdit only
 end enum
 
+public enum                  ' tkDataGrid_SetSortMode
+    TKDG_SORT_AUTO = -1      ' HOST for a virtual grid, INTERNAL otherwise (the default)
+    TKDG_SORT_NONE = 0       ' header clicks do not sort
+    TKDG_SORT_INTERNAL       ' the grid sorts its rows
+    TKDG_SORT_HOST           ' a key change fires SortChanged; the host re-queries and calls Reset
+end enum
+
 public enum                  ' tkDataGrid_SetSelectionUnit
     TKDG_SEL_CELL = 0        ' cells: rectangles (a row header selects a row's cells)
     TKDG_SEL_ROW             ' whole rows, wherever the click
@@ -173,8 +183,15 @@ public type TKDG_HITTEST
     col  as integer = -1              ' model
 end type
 
-' A selected rectangle of cells. Rows are model rows (= view rows until sorting, G4); the columns
-' are DISPLAY positions -- a rectangle on screen. Reordering columns clears the cell rectangles.
+' One sort key: a model column and its direction.
+public type TKDG_SORTKEY
+    col         as integer
+    bDescending as boolean
+end type
+
+' A selected rectangle of cells, as on screen: VIEW rows (= model rows while nothing is sorted or
+' filtered; tkDataGrid_ViewToModel converts) and DISPLAY positions. Reordering columns, sorting and
+' filtering clear the cell rectangles.
 public type TKDG_RANGE
     row1  as integer
     row2  as integer
@@ -380,6 +397,15 @@ type TKDATAGRID_STATE
     dirtyRow       as integer = -1       ' the row with uncommitted changes, -1 = none
     bDirtyIsNew    as boolean            ' it was added from the placeholder in this transaction
     dirtySnap(any) as TKDG_VALUE         ' its values before the first change
+    ' --- the view (dgSort.tiko) ---
+    sortMode       as long = TKDG_SORT_AUTO
+    sortKeys(any)  as TKDG_SORTKEY
+    nSortKeys      as integer
+    quickFilter    as ustring
+    bViewMap       as boolean            ' a sort or filter is in force: the maps below are live
+    viewToModel(any) as integer
+    modelToView(any) as integer          ' -1: filtered out
+    viewCount      as integer
     ' --- tooltips ---
     tip            as TKTIPHOST_STATE
     tipRow         as integer = -2       ' -1 = a header, -2 = none
@@ -418,6 +444,8 @@ type TKDATAGRID_STATE
     RowsDeletingCallback   as DG_RowsDeletingFunc
     CellValueNeededCallback as DG_CellValueNeededSub
     CellValuePushedCallback as DG_CellValuePushedFunc
+    SortChangedCallback    as DG_GridSub
+    FilterCallback         as DG_FilterFunc
 end type
 
 
@@ -657,6 +685,7 @@ public function tkDataGrid_InsertColumn( byval hGrid as TK_WIDGET ptr, byval col
     p->order(dispPos) = col
     p->colCount += 1
     DgRenumber( p )
+    DgSortColumnInserted( p, col )
     if p->curCol >= col then p->curCol += 1
     if p->hotHdrCol >= col then p->hotHdrCol += 1
     DgSelDropRects( p )
@@ -712,6 +741,7 @@ public function tkDataGrid_DeleteColumn( byval hGrid as TK_WIDGET ptr, byval col
     if p->hotHdrCol = col then p->hotHdrCol = -1 else if p->hotHdrCol > col then p->hotHdrCol -= 1
     p->hotDivCol = -1
     if p->curCol = col then p->curCol = -1 else if p->curCol > col then p->curCol -= 1
+    DgSortColumnRemoved( p, col )
     DgRenumber( p )
     DgSelDropRects( p )
     DgChanged( p )
@@ -727,6 +757,7 @@ public sub tkDataGrid_ClearColumns( byval hGrid as TK_WIDGET ptr )
     p->hotHdrCol = -1 : p->hotDivCol = -1
     p->curCol = -1
     p->scrollX = 0
+    erase p->sortKeys : p->nSortKeys = 0
     DgSelDropRects( p )
     DgChanged( p )
 end sub
@@ -863,7 +894,8 @@ public sub tkDataGrid_SetRowCount( byval hGrid as TK_WIDGET ptr, byval n as inte
     if p->feed = DG_FEED_VIRTUAL then
         ' the host's rows: only the count is the grid's
         p->rowCount = n
-        if n > was then DgSelRowsMoved( p, was, n - was ) else if n < was then DgSelRowsMoved( p, n, n - was )
+        if n > was then DgViewRowsMoved( p, was, n - was ) : DgSelRowsMoved( p, was, n - was )
+        if n < was then DgViewRowsMoved( p, n, n - was ) : DgSelRowsMoved( p, n, n - was )
     elseif n > was then
         if DgRowsInserted( p, was, n - was ) then DgSelRowsMoved( p, was, n - was )
     elseif n < was then
