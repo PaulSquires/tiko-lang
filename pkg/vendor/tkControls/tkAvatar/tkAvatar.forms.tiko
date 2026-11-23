@@ -21,6 +21,7 @@ public type Avatar
     declare property ImageFile( ) as ustring
     declare property ImageFile( byref v as const ustring )
     declare property Glyph( byref v as const ustring )
+    declare property GlyphFont( byval v as TTF_Font ptr )
     declare property IsGroup( byval v as boolean )
     declare property ColorMode( ) as int32
     declare property ColorMode( byval v as int32 )
@@ -89,6 +90,10 @@ end property
 
 property Avatar.Glyph( byref v as const ustring )
     tkAvatar_SetGlyph( Handle, v )
+end property
+
+property Avatar.GlyphFont( byval v as TTF_Font ptr )
+    tkAvatar_SetGlyphFont( Handle, v )
 end property
 
 property Avatar.IsGroup( byval v as boolean )

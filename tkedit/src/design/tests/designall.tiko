@@ -2869,6 +2869,7 @@ sub RbacSuite( )
     dim as long nText = instr( g, "    bdg.Text = ""x""" ), nKind = instr( g, "    bdg.Kind = TKBADGE_KIND_COUNT" )
     Check( (nText > 0) andalso (nKind > nText), "rbac: Badge's Kind after its content", nText & " " & nKind )
     HasLine( g, "chp.Kind = TKCHIP_TOGGLE", "rbac: an enum prop is its constant" )
+    HasLine( g, "bdg.GlyphFont = tkForm_Font( Handle, TKFONT_GLYPH )", "rbac: a glyph-drawing control gets the form's glyph font" )
     Check( instr( g, "    dim as boolean Allow = true" & LF ) > 0, "rbac: ItemRemoving's Allow starts true" )
 end sub
 

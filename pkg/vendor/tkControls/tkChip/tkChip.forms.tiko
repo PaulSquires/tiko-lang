@@ -24,6 +24,7 @@ public type Chip
     declare property Removable( byval v as boolean )
     declare property Selectable( byval v as boolean )
     declare property LeadingGlyph( byref v as const ustring )
+    declare property GlyphFont( byval v as TTF_Font ptr )
     declare property LeadingImage( byref v as const ustring )
     declare property AvatarName( byref v as const ustring )
     declare property ShowCheck( byval v as boolean )
@@ -100,6 +101,10 @@ end property
 
 property Chip.LeadingGlyph( byref v as const ustring )
     tkChip_SetLeadingGlyph( Handle, v )
+end property
+
+property Chip.GlyphFont( byval v as TTF_Font ptr )
+    tkChip_SetGlyphFont( Handle, v )
 end property
 
 property Chip.LeadingImage( byref v as const ustring )

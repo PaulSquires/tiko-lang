@@ -33,6 +33,7 @@ public type Rating
     declare property Shape( ) as int32
     declare property Shape( byval v as int32 )
     declare sub Glyphs( byref a0 as const ustring, byref a1 as const ustring )
+    declare property GlyphFont( byval v as TTF_Font ptr )
     declare property Size( ) as int32
     declare property Size( byval v as int32 )
     declare property ItemSpacing( ) as int32
@@ -152,6 +153,10 @@ end property
 sub Rating.Glyphs( byref a0 as const ustring, byref a1 as const ustring )
     tkRating_SetGlyphs( Handle, a0, a1 )
 end sub
+
+property Rating.GlyphFont( byval v as TTF_Font ptr )
+    tkRating_SetGlyphFont( Handle, v )
+end property
 
 property Rating.Size( ) as int32
     return tkRating_GetSize( Handle )

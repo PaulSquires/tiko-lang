@@ -13,10 +13,13 @@ using tkHost
 using tkPaint
 
 dim shared as long gClicks, gSel, gRemoves
-dim shared as boolean gLastSel
+dim shared as boolean gLastSel, gClaimUp
 dim shared as TKRECT gPiRc
 dim shared as TKCHIP_SPEC gPiSpec
 
+function OnMsg( byval mi as TKCHIP_MESSAGEINFO ptr ) as boolean
+    return gClaimUp andalso (mi->msg = TKM_LBUTTONUP)
+end function
 sub OnClick( byval hChip as TK_WIDGET ptr )
     gClicks += 1
 end sub
@@ -212,6 +215,13 @@ sub RunPass( byval fScale as single )
     tkTest_Click( h, WX( c, bx ), WY( c, by ) )
     tkTest_Check( "disabled: no events", gClicks = 0 andalso gRemoves = 0 )
     tkChip_SetEnabled( c, true )
+    tkChip_SetMessageCallback( c, @OnMsg )
+    gClaimUp = true
+    tkTest_Click( h, WX( c, bx ), WY( c, by ) )
+    gClaimUp = false
+    tkHost_SetFocus( h, c )
+    tkTest_PushKey( h, SDLK_RETURN, SDL_KMOD_CTRL )
+    tkTest_Check( "a claimed button-up is no click; Ctrl+Enter is not the chip's", gClicks = 0 )
 
     ' ---- theme, widgetless ---------------------------------------------------------------------
     tkTheme_Apply( tkTheme_Light() )

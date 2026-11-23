@@ -612,6 +612,7 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
     case TKM_KEYDOWN
         if p->isEnabled = false then return false
         if CallMessage( p, m ) then return true
+        if (m->mods and (SDL_KMOD_CTRL or SDL_KMOD_ALT or SDL_KMOD_GUI)) <> 0 then return false   ' a chord is not ours
         if m->key = SDLK_ESCAPE then
             if p->isPressed = false then return false    ' only a press claims Esc
             if CancelPress( p ) then Notify( p, true, false )

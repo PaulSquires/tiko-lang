@@ -979,6 +979,14 @@ public function tkBadge_GetFont( byval hBadge as TK_WIDGET ptr ) as TTF_Font ptr
     return p->spec.fText
 end function
 
+' The font a Glyph badge draws its glyph in (the designer's GlyphFont).
+public sub tkBadge_SetGlyphFont( byval hBadge as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKBADGE_STATE ptr p = BG( hBadge )
+    if p = 0 then exit sub
+    p->spec.fGlyph = f
+    Refresh( p )
+end sub
+
 ' Text and glyph fonts; a 0 leaves that one alone.
 public sub tkBadge_ApplyFonts( byval hBadge as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
     dim as TKBADGE_STATE ptr p = BG( hBadge )

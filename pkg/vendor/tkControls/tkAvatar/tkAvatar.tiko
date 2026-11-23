@@ -392,7 +392,7 @@ private function ImageFor( byval pImg as tkImageFile ptr, byval d as long, byval
     if (pCache = 0) orelse (d <= 0) then return pImg
     dim as long nw = pImg->NaturalWidth(), nh = pImg->NaturalHeight()
     dim as long shorter = iif( nw < nh, nw, nh )
-    if shorter <= 2 * d then return pImg
+    if shorter <= 2 * d then *pCacheFor = 0 : return pImg        ' the original drawn (GetDrawnImageWidth)
     if (*pCacheFor = d) andalso (pCache->IsValid() <> 0) then return pCache
     dim as double k = (2 * d) / shorter
     dim as SDL_Surface ptr sc = SDL_ScaleSurface( pImg->Surface(), cint( nw * k ), cint( nh * k ), SDL_SCALEMODE_LINEAR )
@@ -754,6 +754,7 @@ public sub tkAvatar_SetImage( byval hAvatar as TK_WIDGET ptr, byval pImage as tk
     dim as TKAVATAR_STATE ptr p = AV( hAvatar )
     if p = 0 then exit sub
     p->spec.pImage = pImage
+    p->wszImageFile = ""                                    ' no longer from a file (BindImage)
     p->nScaledFor = -1
     tkWidget_Invalidate( hAvatar )
 end sub
@@ -764,6 +765,7 @@ public sub tkAvatar_SetImagePixels( byval hAvatar as TK_WIDGET ptr, byval w as l
     if p = 0 then exit sub
     p->imgOwn.LoadFromPixels( w, h, argb )
     p->spec.pImage = @p->imgOwn
+    p->wszImageFile = ""
     p->nScaledFor = -1
     tkWidget_Invalidate( hAvatar )
 end sub
@@ -778,6 +780,7 @@ public sub tkAvatar_SetImageData( byval hAvatar as TK_WIDGET ptr, byval pData as
         if sf then p->imgOwn.LoadFromSurface( sf ) : SDL_DestroySurface( sf )
     end if
     p->spec.pImage = @p->imgOwn
+    p->wszImageFile = ""
     p->nScaledFor = -1
     tkWidget_Invalidate( hAvatar )
 end sub

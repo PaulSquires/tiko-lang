@@ -169,7 +169,8 @@ sub RunPass( byval fScale as single )
     SDL_free( bytes )
     SDL_RemovePath( "avatar-selftest.bmp" )
     tkHost_RenderTo( h, false )
-    tkTest_Check( "SetImageData decodes an image from memory", Px( h, a, cx, cy ) = tkRGB( 30, 200, 60 ), hex( Px( h, a, cx, cy ) ) )
+    tkTest_Check( "SetImageData decodes an image from memory; the old file's path is dropped", Px( h, a, cx, cy ) = tkRGB( 30, 200, 60 ) _
+                  andalso tkAvatar_GetImageFile( a ) = "", hex( Px( h, a, cx, cy ) ) )
     ' a large photo is drawn from a pre-scaled copy (at most twice the diameter)
     dim as ulong big(any)
     redim big( 0 to 400 * 400 - 1 )
@@ -178,6 +179,12 @@ sub RunPass( byval fScale as single )
     tkHost_RenderTo( h, false )
     tkTest_Check( "a 400 px photo is drawn from a copy <= 2 x the diameter", tkAvatar_GetDrawnImageWidth( a ) <= 2 * d _
                   andalso Px( h, a, cx, cy ) = &hFF2050C0ul, "" & tkAvatar_GetDrawnImageWidth( a ) )
+    dim as long aw = a->cw, ah = a->ch
+    tkWidget_SetSize( a, 260, 260 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "grown to where the original is drawn, the drawn width is the original's", tkAvatar_GetDrawnImageWidth( a ) = 400, _
+                  "" & tkAvatar_GetDrawnImageWidth( a ) )
+    tkWidget_SetSize( a, aw, ah )
     tkAvatar_ClearImage( a )
 
     ' ---- presence, active, inactive, size -----------------------------------------------------

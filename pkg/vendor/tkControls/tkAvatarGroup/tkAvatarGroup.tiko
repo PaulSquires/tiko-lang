@@ -147,6 +147,16 @@ private sub Shown( byval p as TKAVGROUP_STATE ptr, byref nShown as long, byref n
     end if
 end sub
 
+' The focus slot kept inside the slots shown: RemoveItem, SetMaxVisible and SetTotal can leave it
+' past them (and Enter would then answer a "+N" that is not there).
+private sub ClampFocus( byval p as TKAVGROUP_STATE ptr )
+    dim as long nShown, nMore
+    Shown( p, nShown, nMore )
+    dim as long nSlots = nShown + iif( nMore > 0, 1, 0 )
+    if p->nFocusItem >= nSlots then p->nFocusItem = nSlots - 1
+    if p->nFocusItem < 0 then p->nFocusItem = 0
+end sub
+
 ' Slot k's avatar square (slot = item index; the overflow is the slot after the shown items).
 private sub SlotRect( byval p as TKAVGROUP_STATE ptr, byval k as long, byref rc as TKRECT )
     dim as long d = Diam( p ), m = Margin( p )
@@ -346,10 +356,12 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
     case TKM_KEYDOWN
         if (p->bInteractive = false) orelse (tkWidget_IsEnabled( w ) = false) then return false
         if CallMessage( p, m, p->nFocusItem ) then return true
+        if (m->mods and (SDL_KMOD_CTRL or SDL_KMOD_ALT or SDL_KMOD_GUI)) <> 0 then return false   ' a chord is not ours
         dim as long nShown, nMore
         Shown( p, nShown, nMore )
         dim as long nSlots = nShown + iif( nMore > 0, 1, 0 )
         if nSlots = 0 then return false
+        ClampFocus( p )
         dim as long f = p->nFocusItem
         select case m->key
         case SDLK_LEFT  : if f > 0 then f -= 1
@@ -524,6 +536,7 @@ end sub
 public sub tkAvatarGroup_SetItemPresence( byval hGroup as TK_WIDGET ptr, byval idx as long, byval nPresence as long )
     dim as TKAVGROUP_STATE ptr p = AG( hGroup )
     if (p = 0) orelse (idx < 0) orelse (idx >= p->nCount) then exit sub
+    if (nPresence < TKAVATAR_PRESENCE_NONE) orelse (nPresence > TKBADGE_PRESENCE_UNKNOWN) then exit sub
     p->items(idx).nPresence = nPresence
     tkWidget_Invalidate( hGroup )
 end sub
@@ -687,6 +700,7 @@ end sub
 public function tkAvatarGroup_GetFocusItem( byval hGroup as TK_WIDGET ptr ) as long
     dim as TKAVGROUP_STATE ptr p = AG( hGroup )
     if p = 0 then return 0
+    ClampFocus( p )
     return p->nFocusItem
 end function
 

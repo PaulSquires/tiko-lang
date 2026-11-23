@@ -149,6 +149,18 @@ sub RunPass( byval fScale as single )
     tkAvatarGroup_RemoveItem( g, 0 )
     tkAvatarGroup_RemoveItem( g, 0 )
     tkTest_Check( "RemoveItem, including one with an owned picture", tkAvatarGroup_GetCount( g ) = 6 andalso tkAvatarGroup_GetItemName( g, 0 ) = names(1) )
+    ' the focus slot after the slots shrink: no "+N" to answer
+    tkAvatarGroup_SetTotal( g, 0 )
+    tkAvatarGroup_SetMaxVisible( g, 50 )
+    tkHost_SetFocus( h, g )
+    tkTest_PushKey( h, SDLK_END )
+    tkAvatarGroup_RemoveItem( g, 5 )
+    Reset_( )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "RemoveItem under the focus slot: it stays on a shown item; Enter clicks that, no OverflowClick", _
+                  tkAvatarGroup_GetFocusItem( g ) = 4 andalso gOverflowClicks = 0 andalso gLastItem = 4 )
+    tkTest_PushKey( h, SDLK_LEFT, SDL_KMOD_CTRL )
+    tkTest_Check( "Ctrl+Left is not the group's", tkAvatarGroup_GetFocusItem( g ) = 4 )
 
     ' ---- theme ----------------------------------------------------------------------------------------
     tkTheme_Apply( tkTheme_Light() )

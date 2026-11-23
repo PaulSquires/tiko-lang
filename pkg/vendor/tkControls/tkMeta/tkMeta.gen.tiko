@@ -4419,6 +4419,10 @@ private sub A_Rating_Glyphs( byval w as TK_WIDGET ptr, byref v as const ustring 
     tkRating_SetGlyphs( w, tkMeta_ListItem( v, 0 ), tkMeta_ListItem( v, 1 ) )
 end sub
 
+private sub F_Rating_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkRating_SetGlyphFont( w, f )
+end sub
+
 private sub A_Rating_Size( byval w as TK_WIDGET ptr, byref v as const ustring )
     select case v
     case "Small" : tkRating_SetSize( w, TKRATING_SIZE_SMALL )
@@ -4542,6 +4546,10 @@ end function
 
 private sub A_Badge_Glyph( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkBadge_SetGlyph( w, v )
+end sub
+
+private sub F_Badge_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkBadge_SetGlyphFont( w, f )
 end sub
 
 private sub A_Badge_Presence( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -4757,6 +4765,10 @@ end function
 
 private sub A_Avatar_Glyph( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkAvatar_SetGlyph( w, v )
+end sub
+
+private sub F_Avatar_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkAvatar_SetGlyphFont( w, f )
 end sub
 
 private sub A_Avatar_IsGroup( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -5004,6 +5016,10 @@ end sub
 
 private sub A_Chip_LeadingGlyph( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkChip_SetLeadingGlyph( w, v )
+end sub
+
+private sub F_Chip_GlyphFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkChip_SetGlyphFont( w, f )
 end sub
 
 private sub A_Chip_LeadingImage( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -6489,6 +6505,7 @@ sub Fill_( )
     Prop_( "ShowEmpty", "bool", "true", "", "tkRating_SetShowEmpty", "tkRating_GetShowEmpty", @A_Rating_ShowEmpty, @R_Rating_ShowEmpty, 0, true, true, "", 0 )
     Prop_( "Shape", "enum", "Star", "Star=TKRATING_STAR,Heart=TKRATING_HEART,Circle=TKRATING_CIRCLE,Diamond=TKRATING_DIAMOND,Glyph=TKRATING_GLYPH", "tkRating_SetShape", "tkRating_GetShape", @A_Rating_Shape, @R_Rating_Shape, 0, true, true, "", 0 )
     Prop_( "Glyphs", "list", "", "Filled:text,Empty:text", "tkRating_SetGlyphs", "", @A_Rating_Glyphs, 0, 0, true, true, "", 0 )
+    Prop_( "GlyphFont", "font", "", "", "tkRating_SetGlyphFont", "", 0, 0, @F_Rating_GlyphFont, true, true, "", 0 )
     Prop_( "Size", "enum", "Medium", "Small=TKRATING_SIZE_SMALL,Medium=TKRATING_SIZE_MEDIUM,Large=TKRATING_SIZE_LARGE", "tkRating_SetSize", "tkRating_GetSize", @A_Rating_Size, @R_Rating_Size, 0, true, true, "", 0 )
     Prop_( "ItemSpacing", "int", "", "", "tkRating_SetItemSpacing", "tkRating_GetItemSpacing", @A_Rating_ItemSpacing, @R_Rating_ItemSpacing, 0, true, true, "", 0 )
     Prop_( "Caption", "text", "", "", "tkRating_SetCaption", "tkRating_GetCaption", @A_Rating_Caption, @R_Rating_Caption, 0, true, true, "", 0 )
@@ -6533,6 +6550,7 @@ sub Fill_( )
     Prop_( "Count", "int", "", "", "tkBadge_SetCount", "tkBadge_GetCount", @A_Badge_Count, @R_Badge_Count, 0, true, true, "", 0 )
     Prop_( "Text", "text", "", "", "tkBadge_SetText", "tkBadge_GetText", @A_Badge_Text, @R_Badge_Text, 0, true, true, "", 0 )
     Prop_( "Glyph", "glyph", "", "", "tkBadge_SetGlyph", "", @A_Badge_Glyph, 0, 0, true, true, "", 0 )
+    Prop_( "GlyphFont", "font", "", "", "tkBadge_SetGlyphFont", "", 0, 0, @F_Badge_GlyphFont, true, true, "", 0 )
     Prop_( "Presence", "enum", "Available", "Available=TKBADGE_PRESENCE_AVAILABLE,Away=TKBADGE_PRESENCE_AWAY,Busy=TKBADGE_PRESENCE_BUSY,DoNotDisturb=TKBADGE_PRESENCE_DND,Offline=TKBADGE_PRESENCE_OFFLINE,OutOfOffice=TKBADGE_PRESENCE_OOO,Blocked=TKBADGE_PRESENCE_BLOCKED,Unknown=TKBADGE_PRESENCE_UNKNOWN", "tkBadge_SetPresence", "tkBadge_GetPresence", @A_Badge_Presence, @R_Badge_Presence, 0, true, true, "", 0 )
     Prop_( "Kind", "enum", "Dot", "Dot=TKBADGE_KIND_DOT,Count=TKBADGE_KIND_COUNT,Text=TKBADGE_KIND_TEXT,Glyph=TKBADGE_KIND_GLYPH,Presence=TKBADGE_KIND_PRESENCE", "tkBadge_SetKind", "tkBadge_GetKind", @A_Badge_Kind, @R_Badge_Kind, 0, true, true, "", 0 )
     Prop_( "Invisible", "bool", "false", "", "tkBadge_SetInvisible", "tkBadge_GetInvisible", @A_Badge_Invisible, @R_Badge_Invisible, 0, true, true, "", 0 )
@@ -6564,6 +6582,7 @@ sub Fill_( )
     Prop_( "Initials", "text", "", "", "tkAvatar_SetInitials", "tkAvatar_GetInitials", @A_Avatar_Initials, @R_Avatar_Initials, 0, true, true, "", 0 )
     Prop_( "ImageFile", "file", "", "", "tkAvatar_SetImageFile", "tkAvatar_GetImageFile", @A_Avatar_ImageFile, @R_Avatar_ImageFile, 0, true, true, "", 0 )
     Prop_( "Glyph", "glyph", "", "", "tkAvatar_SetGlyph", "", @A_Avatar_Glyph, 0, 0, true, true, "", 0 )
+    Prop_( "GlyphFont", "font", "", "", "tkAvatar_SetGlyphFont", "", 0, 0, @F_Avatar_GlyphFont, true, true, "", 0 )
     Prop_( "IsGroup", "bool", "false", "", "tkAvatar_SetIsGroup", "", @A_Avatar_IsGroup, 0, 0, true, true, "", 0 )
     Prop_( "ColorMode", "enum", "Colorful", "Colorful=TKAVATAR_COLORFUL,Neutral=TKAVATAR_NEUTRAL,Accent=TKAVATAR_ACCENT,Custom=TKAVATAR_CUSTOM", "tkAvatar_SetColorMode", "tkAvatar_GetColorMode", @A_Avatar_ColorMode, @R_Avatar_ColorMode, 0, true, true, "", 0 )
     Prop_( "ColorKey", "text", "", "", "tkAvatar_SetColorKey", "", @A_Avatar_ColorKey, 0, 0, true, true, "", 0 )
@@ -6625,6 +6644,7 @@ sub Fill_( )
     Prop_( "Removable", "bool", "false", "", "tkChip_SetRemovable", "tkChip_GetRemovable", @A_Chip_Removable, @R_Chip_Removable, 0, true, true, "", 0 )
     Prop_( "Selectable", "bool", "false", "", "tkChip_SetSelectable", "", @A_Chip_Selectable, 0, 0, true, true, "", 0 )
     Prop_( "LeadingGlyph", "glyph", "", "", "tkChip_SetLeadingGlyph", "", @A_Chip_LeadingGlyph, 0, 0, true, true, "", 0 )
+    Prop_( "GlyphFont", "font", "", "", "tkChip_SetGlyphFont", "", 0, 0, @F_Chip_GlyphFont, true, true, "", 0 )
     Prop_( "LeadingImage", "file", "", "", "tkChip_SetLeadingImageFile", "", @A_Chip_LeadingImage, 0, 0, true, true, "", 0 )
     Prop_( "AvatarName", "text", "", "", "tkChip_SetLeadingAvatar", "", @A_Chip_AvatarName, 0, 0, true, true, "", 0 )
     Prop_( "ShowCheck", "bool", "true", "", "tkChip_SetShowCheck", "", @A_Chip_ShowCheck, 0, 0, true, true, "", 0 )

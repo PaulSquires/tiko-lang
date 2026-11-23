@@ -55,7 +55,6 @@ public type TKCHIPGRP_ITEM
     wszAvatar   as ustring
     wszGlyph    as ustring
     pImg        as tkImageFile ptr
-    pOwn        as tkImageFile ptr     ' owned (SetItemLeadingImagePixels)
     nStatus     as long = TKBADGE_NEUTRAL
     bEnabled    as boolean = true
     nRemovable  as long = -1           ' -1 = the group's
@@ -102,6 +101,7 @@ public type TKCHIPGRP_STATE
     colors           as TKCHIP_COLORS
     bColorsPinned    as boolean
     fAvatar          as TTF_Font ptr
+    nMaxLabelDu      as long = -1            ' -1 = tkChip's default; scaled at every layout
     bLayoutDirty     as boolean = true
     nShownCount      as long
     rcOverflow       as TKRECT
@@ -156,6 +156,18 @@ private sub SelRemove( byval p as TKCHIPGRP_STATE ptr, byref k as ustring )
     p->selKeys(p->nSel) = ""
 end sub
 
+' The SINGLE modes hold one key: the first selected item's, else the first key in the set.
+private sub KeepOne( byval p as TKCHIPGRP_STATE ptr )
+    if ((p->nMode <> TKCHIPGRP_SINGLE) andalso (p->nMode <> TKCHIPGRP_SINGLE_OR_NONE)) orelse (p->nSel < 2) then exit sub
+    dim as ustring k = p->selKeys(0)
+    for i as long = 0 to p->nCount - 1
+        if IsSel( p, i ) then k = p->items(i).wszKey : exit for
+    next
+    erase p->selKeys
+    p->nSel = 0
+    SelAdd( p, k )
+end sub
+
 ' ==========================================================================================
 ' Layout
 ' ==========================================================================================
@@ -180,6 +192,8 @@ private function ItemSpec( byval p as TKCHIPGRP_STATE ptr, byval idx as long ) a
     if s.fText = 0 then s.fText = p->hWin->pHost->pDefaultFont
     s.fAvatar = p->fAvatar
     s.pColors = @p->colors
+    if p->nMaxLabelDu >= 0 then s.nMaxLabel = iif( p->nMaxLabelDu = 0, 0, tkHost_Scale( p->hWin->pHost, p->nMaxLabelDu ) )
+    s.bEnabled = tkWidget_IsEnabled( p->hWin )
     if idx < 0 then return s                ' the prototype alone (the +N chip, measuring)
     with p->items(idx)
         s.wszText = .wszText
@@ -218,7 +232,7 @@ private function LayoutFor( byval p as TKCHIPGRP_STATE ptr, byval nWidth as long
     dim as long ovW = 0, h
     if p->bWrap = false then
         dim as long oh
-        tkChip_MeasureSpec( OverflowSpec( p, 99 ), ovW, oh )
+        tkChip_MeasureSpec( OverflowSpec( p, p->nCount ), ovW, oh )     ' room for the largest N there can be
     end if
     for i as long = 0 to p->nCount - 1
         dim as long w
@@ -251,10 +265,22 @@ private function LayoutFor( byval p as TKCHIPGRP_STATE ptr, byval nWidth as long
     return bottom
 end function
 
+' The focus item made valid for the layout: an item hidden behind the +N moves to the +N, and a +N
+' that is gone (wrap on, a wider group, fewer items) to the last item.
+private sub FixFocus( byval p as TKCHIPGRP_STATE ptr )
+    if p->nCount = 0 then p->nFocus = 0 : exit sub
+    if p->nShownCount < p->nCount then
+        if p->nFocus >= p->nShownCount then p->nFocus = TKCHIPGRP_OVERFLOW
+    elseif (p->nFocus < 0) orelse (p->nFocus >= p->nCount) then
+        p->nFocus = p->nCount - 1
+    end if
+end sub
+
 private sub EnsureLayout( byval p as TKCHIPGRP_STATE ptr )
     if p->bLayoutDirty = false then exit sub
     p->bLayoutDirty = false
     LayoutFor( p, p->hWin->cw )
+    FixFocus( p )
 end sub
 
 private sub Refresh( byval p as TKCHIPGRP_STATE ptr )
@@ -300,7 +326,7 @@ private sub OnPaint( byval p as TKCHIPGRP_STATE ptr, byval b as TK_PAINT ptr )
         dim as long g = RingPad( p )
         if p->nCount = 0 then
             r = rcAll                                     ' nothing left: the ring round the empty group
-        elseif p->nFocus = TKCHIPGRP_OVERFLOW then
+        elseif (p->nFocus = TKCHIPGRP_OVERFLOW) andalso (tkRect_IsEmpty( p->rcOverflow ) = false) then
             r = p->rcOverflow
             tkRect_Inflate( r, g, g )
         elseif (p->nFocus >= 0) andalso (p->nFocus < p->nShownCount) then
@@ -359,17 +385,33 @@ private sub Activate( byval p as TKCHIPGRP_STATE ptr, byval idx as long )
     end select
 end sub
 
+' Item idx is gone: the focus stays on the item it was on (the next one when idx had it, the last
+' when idx was the last); hot and pressed are dropped.
+private sub AfterRemove( byval p as TKCHIPGRP_STATE ptr, byval idx as long )
+    if (p->nFocus > idx) andalso (p->nFocus <> TKCHIPGRP_OVERFLOW) then p->nFocus -= 1
+    if p->nFocus >= p->nCount then p->nFocus = p->nCount - 1
+    if (p->nCount = 0) orelse (p->nFocus < TKCHIPGRP_OVERFLOW) then p->nFocus = 0
+    p->nHot = TKCHIPGRP_HIT_NONE
+    p->nPress = TKCHIPGRP_HIT_NONE
+end sub
+
 ' Remove item idx at the user's request (veto-able); focus to the next, else the previous.
 private sub UserRemove( byval p as TKCHIPGRP_STATE ptr, byval idx as long )
     if (idx < 0) orelse (idx >= p->nCount) then exit sub
     if (ItemRemovable( p, idx ) = false) orelse (p->items(idx).bEnabled = false) then exit sub
     dim as TK_WIDGET ptr w = p->hWin
+    dim as ustring k = p->items(idx).wszKey
     dim as CHG_ItemRemovingCallbackFunc veto = p->RemovingCallback
     if veto then
         if veto( w, idx ) = false then exit sub
+        ' the handler may have changed the items (it must not destroy the group): find it again
+        idx = -1
+        for i as long = 0 to p->nCount - 1
+            if p->items(i).wszKey = k then idx = i : exit for
+        next
+        if idx < 0 then exit sub
+        if (ItemRemovable( p, idx ) = false) orelse (p->items(idx).bEnabled = false) then exit sub
     end if
-    dim as ustring k = p->items(idx).wszKey
-    if p->items(idx).pOwn then delete p->items(idx).pOwn
     for i as long = idx to p->nCount - 2
         p->items(i) = p->items(i + 1)
     next
@@ -377,9 +419,7 @@ private sub UserRemove( byval p as TKCHIPGRP_STATE ptr, byval idx as long )
     dim as TKCHIPGRP_ITEM blank
     p->items(p->nCount) = blank
     SelRemove( p, k )
-    if p->nFocus >= p->nCount then p->nFocus = p->nCount - 1
-    if p->nFocus < 0 then p->nFocus = 0
-    p->nHot = TKCHIPGRP_HIT_NONE
+    AfterRemove( p, idx )
     Refresh( p )
     dim as CHG_ItemRemovedCallbackSub cb = p->RemovedCallback
     if cb then cb( w, k )
@@ -476,7 +516,7 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
         dim as long part, idx = ItemAt( p, m->x, m->y, part )
         SetHot( p, iif( w->pHost->pHot = w, idx, TKCHIPGRP_HIT_NONE ), part )
         tkWidget_Invalidate( w )
-        CallMessage( p, m, idx, part )
+        if CallMessage( p, m, idx, part ) then return true          ' claimed: no click
         if (began <> TKCHIPGRP_HIT_NONE) andalso (idx = began) andalso (part = beganPart) then
             if part = TKCHIP_HIT_REMOVE then UserRemove( p, idx ) else Activate( p, idx )
         end if
@@ -497,6 +537,7 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
         if tkWidget_IsEnabled( w ) = false then return false
         EnsureLayout( p )
         if CallMessage( p, m, p->nFocus, TKCHIP_HIT_NONE ) then return true
+        if (m->mods and (SDL_KMOD_CTRL or SDL_KMOD_ALT or SDL_KMOD_GUI)) <> 0 then return false   ' a chord is not ours
         if p->nCount = 0 then return false
         dim as long f = p->nFocus
         select case m->key
@@ -506,9 +547,12 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
         case SDLK_RIGHT : if f <> TKCHIPGRP_OVERFLOW then f = NextEnabled( p, f, 1 )
         case SDLK_UP    : f = RowNeighbour( p, f, -1 )
         case SDLK_DOWN  : f = RowNeighbour( p, f, 1 )
-        case SDLK_HOME  : f = NextEnabled( p, -1, 1 )
+        case SDLK_HOME
+            f = NextEnabled( p, -1, 1 )
+            if (f = TKCHIPGRP_OVERFLOW) andalso (p->nShownCount = p->nCount) then f = p->nFocus   ' nothing enabled
         case SDLK_END
             f = iif( p->nShownCount < p->nCount, TKCHIPGRP_OVERFLOW, NextEnabled( p, p->nShownCount, -1 ) )
+            if f >= p->nShownCount then f = p->nFocus                                            ' nothing enabled
         case SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
             if m->bFlag = false then Activate( p, f )
             return true
@@ -525,9 +569,6 @@ private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bool
         Refresh( p )
         return true
     case TKM_DESTROY
-        for i as long = 0 to p->nCount - 1
-            if p->items(i).pOwn then delete p->items(i).pOwn
-        next
         if p->fAvatar then TTF_CloseFont( p->fAvatar )
         tkTipHost_Destroy( @p->tip )
         delete p
@@ -587,13 +628,17 @@ public sub tkChipGroup_SetEnabled( byval hGroup as TK_WIDGET ptr, byval isEnable
 end sub
 
 ' ---- items (every setter SILENT) -----------------------------------------------------------------
-' Before nBefore (-1 = at the end). Key "" = the text. -1 when the key holds the separator.
+' Before nBefore (-1 = at the end). Key "" = the text. -1 when the key holds the separator or is
+' already an item's.
 public function tkChipGroup_InsertItem( byval hGroup as TK_WIDGET ptr, byval nBefore as long, byval Text as ustring, _
                                         byval Key as ustring = "" ) as long
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if p = 0 then return -1
     if len( Key ) = 0 then Key = Text
     if instr( Key, p->wszSep ) > 0 then return -1
+    for i as long = 0 to p->nCount - 1
+        if p->items(i).wszKey = Key then return -1                 ' keys are unique
+    next
     if (nBefore < 0) orelse (nBefore > p->nCount) then nBefore = p->nCount
     redim preserve p->items( 0 to p->nCount )
     for i as long = p->nCount to nBefore + 1 step -1
@@ -617,26 +662,24 @@ end function
 public sub tkChipGroup_RemoveItem( byval hGroup as TK_WIDGET ptr, byval idx as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if (p = 0) orelse (idx < 0) orelse (idx >= p->nCount) then exit sub
-    if p->items(idx).pOwn then delete p->items(idx).pOwn
     for i as long = idx to p->nCount - 2
         p->items(i) = p->items(i + 1)
     next
     p->nCount -= 1
     dim as TKCHIPGRP_ITEM blank
     p->items(p->nCount) = blank
-    if p->nFocus >= p->nCount then p->nFocus = iif( p->nCount > 0, p->nCount - 1, 0 )
+    AfterRemove( p, idx )
     Refresh( p )
 end sub
 
 public sub tkChipGroup_Clear( byval hGroup as TK_WIDGET ptr )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if p = 0 then exit sub
-    for i as long = 0 to p->nCount - 1
-        if p->items(i).pOwn then delete p->items(i).pOwn
-    next
     erase p->items
     p->nCount = 0
     p->nFocus = 0
+    p->nHot = TKCHIPGRP_HIT_NONE
+    p->nPress = TKCHIPGRP_HIT_NONE
     Refresh( p )
 end sub
 
@@ -720,6 +763,7 @@ end sub
 public sub tkChipGroup_SetItemStatus( byval hGroup as TK_WIDGET ptr, byval idx as long, byval nStatus as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if (p = 0) orelse (idx < 0) orelse (idx >= p->nCount) then exit sub
+    if (nStatus < TKBADGE_ACCENT) orelse (nStatus > TKBADGE_NEUTRAL) then exit sub
     p->items(idx).nStatus = nStatus
     Refresh( p )
 end sub
@@ -761,10 +805,13 @@ public function tkChipGroup_GetSelectionMode( byval hGroup as TK_WIDGET ptr ) as
     return p->nMode
 end function
 
+' In the SINGLE modes a selection of several keys keeps one: the first selected item's, else the
+' first key.
 public sub tkChipGroup_SetSelectionMode( byval hGroup as TK_WIDGET ptr, byval nMode as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if (p = 0) orelse (nMode < TKCHIPGRP_NONE) orelse (nMode > TKCHIPGRP_MULTI) then exit sub
     p->nMode = nMode
+    KeepOne( p )
     Refresh( p )
 end sub
 
@@ -807,7 +854,7 @@ public function tkChipGroup_GetSelectedKeys( byval hGroup as TK_WIDGET ptr ) as 
 end function
 
 ' The selection as keys joined by KeySeparator. Kept as a set: keys not (yet) present stay, and an
-' item added later with one is selected. Silent.
+' item added later with one is selected. A SINGLE mode keeps one key (KeepOne). Silent.
 public sub tkChipGroup_SetSelectedKeys( byval hGroup as TK_WIDGET ptr, byval Keys as ustring )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if p = 0 then exit sub
@@ -821,6 +868,7 @@ public sub tkChipGroup_SetSelectedKeys( byval hGroup as TK_WIDGET ptr, byval Key
         if len( one ) then SelAdd( p, one )
         st = k + sl
     wend
+    KeepOne( p )
     Refresh( p )
 end sub
 
@@ -870,6 +918,9 @@ end function
 public sub tkChipGroup_SetKeySeparator( byval hGroup as TK_WIDGET ptr, byval Sep as ustring )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if (p = 0) orelse (len( Sep ) = 0) then exit sub
+    for i as long = 0 to p->nCount - 1
+        if instr( p->items(i).wszKey, Sep ) > 0 then exit sub      ' it would split a key: refused
+    next
     p->wszSep = Sep
 end sub
 
@@ -907,21 +958,21 @@ end sub
 
 public sub tkChipGroup_SetSize( byval hGroup as TK_WIDGET ptr, byval nSize as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
-    if p = 0 then exit sub
+    if (p = 0) orelse (nSize < TKCHIP_SMALL) orelse (nSize > TKCHIP_MEDIUM) then exit sub
     p->proto.nSize = nSize
     Refresh( p )
 end sub
 
 public sub tkChipGroup_SetShape( byval hGroup as TK_WIDGET ptr, byval nShape as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
-    if p = 0 then exit sub
+    if (p = 0) orelse (nShape < TKCHIP_PILL) orelse (nShape > TKCHIP_ROUNDED) then exit sub
     p->proto.nShape = nShape
     Refresh( p )
 end sub
 
 public sub tkChipGroup_SetAppearance( byval hGroup as TK_WIDGET ptr, byval nAppearance as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
-    if p = 0 then exit sub
+    if (p = 0) orelse (nAppearance < TKCHIP_FILLED) orelse (nAppearance > TKCHIP_OUTLINED) then exit sub
     p->proto.nAppearance = nAppearance
     Refresh( p )
 end sub
@@ -930,7 +981,7 @@ end sub
 public sub tkChipGroup_SetMaxLabelWidth( byval hGroup as TK_WIDGET ptr, byval nDu as long )
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if p = 0 then exit sub
-    p->proto.nMaxLabel = iif( nDu <= 0, 0, tkHost_Scale( hGroup->pHost, nDu ) )
+    p->nMaxLabelDu = iif( nDu <= 0, 0, nDu )
     Refresh( p )
 end sub
 
@@ -1032,6 +1083,7 @@ end function
 public function tkChipGroup_GetFocusItem( byval hGroup as TK_WIDGET ptr ) as long
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if p = 0 then return 0
+    EnsureLayout( p )
     return p->nFocus
 end function
 
@@ -1039,7 +1091,7 @@ public sub tkChipGroup_SetFocusItem( byval hGroup as TK_WIDGET ptr, byval idx as
     dim as TKCHIPGRP_STATE ptr p = CG( hGroup )
     if (p = 0) orelse (idx < TKCHIPGRP_OVERFLOW) orelse (idx >= p->nCount) then exit sub
     p->nFocus = idx
-    tkWidget_Invalidate( hGroup )
+    Refresh( p )                                 ' made valid by the next layout (FixFocus)
 end sub
 
 ' ---- appearance ----------------------------------------------------------------------------------------

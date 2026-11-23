@@ -23,6 +23,7 @@ public type Badge
     declare property Text( ) as ustring
     declare property Text( byref v as const ustring )
     declare property Glyph( byref v as const ustring )
+    declare property GlyphFont( byval v as TTF_Font ptr )
     declare property Presence( ) as int32
     declare property Presence( byval v as int32 )
     declare property Kind( ) as int32
@@ -107,6 +108,10 @@ end property
 
 property Badge.Glyph( byref v as const ustring )
     tkBadge_SetGlyph( Handle, v )
+end property
+
+property Badge.GlyphFont( byval v as TTF_Font ptr )
+    tkBadge_SetGlyphFont( Handle, v )
 end property
 
 property Badge.Presence( ) as int32
