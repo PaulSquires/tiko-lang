@@ -118,7 +118,7 @@ private function UserConvCost_ _
         return CONV_USERDEF + iif( nrt = t, 0, CONV_NUMERIC )
     end if
 
-    '' A CONVERSION CONSTRUCTOR on the destination -- any arity-1 constructor whose
+    '' A CONVERSION CONSTRUCTOR on the destination -- any one-argument constructor whose
     '' parameter is not the destination type itself, which is the copy constructor.
     if c.types->Kind( t ) = Tko.TK_UDT then
         dim as Tko.SymbolId cur = UdtMemberSym_( c, t, "__ctor" )
@@ -127,7 +127,7 @@ private function UserConvCost_ _
             guard += 1
             dim as Tko.Symbol ptr s = c.syms->SymbolAt( cur )
             if s = nullptr then exit while
-            if ProcParamCount_( c, cur ) = 1 then
+            if Tko.Check.StructorTakesOne( *c.ast, *c.syms, cur ) then   '' a defaulted tail too (structpick.tiko)
                 dim as Tko.TypeId pt = ProcParamTypeAt_( c, cur, 0 )
                 if pt <> Tko.TYPE_NONE then
                     dim as Tko.TypeId pu = c.types->Unqualify( pt )
@@ -1175,6 +1175,8 @@ private function ResolveCall_ _
         cur = s->nextOverload
     wend
 
+    '' SCORED AND NOT BOUND: lowering must not run the name's first overload (SemanticInfo.unbound).
+    c.info->SetUnbound( id, overloaded andalso ((best = Tko.SYMBOL_NONE) orelse (ties > 0)) andalso (c.info->AmbiguousOf( id ) <> Tko.AMB_PROPERTY_SET) )
     if best = Tko.SYMBOL_NONE then
         '' NO MATCHING OVERLOADED FUNCTION -- fbc error 99. Reported only for a genuine
         '' OVERLOAD SET, and only when every argument already has a type.
