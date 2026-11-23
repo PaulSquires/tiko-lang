@@ -1,0 +1,225 @@
+' tkChipGroup self-test (phases C1 + C2), one check per distinct behaviour. Real windows; two passes,
+' scale pinned at 1.0 and 1.75. The wrap rule against §7.3, the selection modes and the key set,
+' removal with its veto and focus rule, the keyboard, by the real dispatch with events counted.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkChipGroup"
+#import "vendor/tkControls/tkTest"
+using tkChipGroup
+using tkChip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gClicks, gLastClick, gSelN, gRemoving, gRemoved, gOverflow
+dim shared as string gSelLog
+dim shared as ustring gLastRemoved
+dim shared as boolean gVeto
+
+sub OnClick( byval hGroup as TK_WIDGET ptr, byval idx as long )
+    gClicks += 1 : gLastClick = idx
+end sub
+sub OnSel( byval hGroup as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+    gSelN += 1 : gSelLog &= idx & iif( isSelected, "+", "-" ) & " "
+end sub
+function OnRemoving( byval hGroup as TK_WIDGET ptr, byval idx as long ) as boolean
+    gRemoving += 1
+    return gVeto = false
+end function
+sub OnRemoved( byval hGroup as TK_WIDGET ptr, byval Key as ustring )
+    gRemoved += 1 : gLastRemoved = Key
+end sub
+sub OnOverflow( byval hGroup as TK_WIDGET ptr )
+    gOverflow += 1
+end sub
+sub Reset_( )
+    gClicks = 0 : gLastClick = -9 : gSelN = 0 : gSelLog = "" : gRemoving = 0 : gRemoved = 0 : gOverflow = 0
+end sub
+
+function Px( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return tkTest_PixelAt( h, a.left + x, a.top + y )
+end function
+
+' Click the middle of item idx's label area (left part, clear of a remove button).
+sub ClickItem( byval h as TK_HOST ptr, byval g as TK_WIDGET ptr, byval idx as long )
+    dim as TKRECT r, a
+    tkChipGroup_GetItemRect( g, idx, r )
+    tkWidget_AbsRect( g, a )
+    tkTest_Click( h, a.left + r.left + (r.right - r.left) \ 3, a.top + (r.top + r.bottom) \ 2 )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkChipGroup selftest", 640, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TK_WIDGET ptr root = tkHost_Root( h )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 50 )
+    dim as long m = tkHost_Scale( h, 2 ) + 1, gap = tkHost_Scale( h, 8 )
+
+    ' ---- the wrap rule ---------------------------------------------------------------------------
+    dim as TK_WIDGET ptr g = tkChipGroup_Create( root, 1 )
+    dim as ustring words(0 to 6) = { "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta" }
+    for i as long = 0 to 6 : tkChipGroup_AddItem( g, words(i) ) : next
+    dim as long cw = tkHost_Scale( h, 260 )
+    dim as long ih = tkChipGroup_GetIdealHeight( g, cw )
+    tkWidget_SetPos( g, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), cw, ih )
+    dim as long bad = 0, bottom = 0, rows = 0
+    for i as long = 0 to 6
+        dim as TKRECT r
+        tkChipGroup_GetItemRect( g, i, r )
+        if r.right > cw - m then bad += 1                            ' inside the width
+        if r.bottom > bottom then bottom = r.bottom
+        if i > 0 then
+            dim as TKRECT q
+            tkChipGroup_GetItemRect( g, i - 1, q )
+            if tkChipGroup_GetItemRow( g, i ) = tkChipGroup_GetItemRow( g, i - 1 ) then
+                if r.left <> q.right + gap then bad += 1             ' a gap apart on a row
+            else
+                ' a break exactly where this one would have passed the right edge
+                if (q.right + gap + (r.right - r.left) <= cw - m) orelse (r.left <> m) then bad += 1
+                rows += 1
+            end if
+        end if
+    next
+    tkTest_Check( "wrap: rows within the width, a gap apart, breaking exactly where the next would not fit", bad = 0 andalso rows >= 1, bad & " off, " & rows & " breaks" )
+    tkTest_Check( "GetIdealHeight( w ) = the last row's bottom + the margin", ih = bottom + m, ih & " vs " & bottom + m )
+    ' Wrap off: one row and a "+N"
+    tkChipGroup_SetWrap( g, false )
+    dim as TKRECT ro
+    tkTest_Check( "no wrap: the items that do not fit become +N, which fits", tkChipGroup_GetOverflowCount( g ) > 0 _
+                  andalso tkChipGroup_GetOverflowRect( g, ro ) andalso ro.right <= cw - m, "" & tkChipGroup_GetOverflowCount( g ) )
+    tkChipGroup_SetOverflowClickCallback( g, @OnOverflow )
+    Reset_( )
+    dim as TKRECT a
+    tkWidget_AbsRect( g, a )
+    tkTest_Click( h, a.left + (ro.left + ro.right) \ 2, a.top + (ro.top + ro.bottom) \ 2 )
+    tkTest_Check( "a click on +N: OverflowClick; its tip lists the hidden items", gOverflow = 1 _
+                  andalso instr( tkChipGroup_GetTipText( g, TKCHIPGRP_OVERFLOW ), words(6) ) > 0 )
+    tkChipGroup_SetWrap( g, true )
+    tkWidget_SetSize( g, cw, tkChipGroup_GetIdealHeight( g, cw ) )
+
+    ' ---- selection modes --------------------------------------------------------------------------
+    tkChipGroup_SetItemClickCallback( g, @OnClick )
+    tkChipGroup_SetSelChangeCallback( g, @OnSel )
+    Reset_( )
+    ClickItem( h, g, 1 )
+    tkTest_Check( "NONE: a click is ItemClick, no selection", gClicks = 1 andalso gLastClick = 1 andalso gSelN = 0 andalso tkChipGroup_GetCurSel( g ) = -1 )
+    tkChipGroup_SetSelectionMode( g, TKCHIPGRP_SINGLE )
+    Reset_( )
+    ClickItem( h, g, 1 ) : ClickItem( h, g, 2 ) : ClickItem( h, g, 2 )
+    tkTest_Check( "SINGLE: select 1; 2 deselects 1 first, then selects; a re-click keeps it", gSelLog = "1+ 1- 2+ " _
+                  andalso tkChipGroup_GetCurSel( g ) = 2, gSelLog )
+    tkChipGroup_SetSelectionMode( g, TKCHIPGRP_SINGLE_OR_NONE )
+    Reset_( )
+    ClickItem( h, g, 2 )
+    tkTest_Check( "SINGLE_OR_NONE: a re-click deselects", gSelLog = "2- " andalso tkChipGroup_GetCurSel( g ) = -1, gSelLog )
+    tkChipGroup_SetSelectionMode( g, TKCHIPGRP_MULTI )
+    dim as TKRECT r0a, r0b
+    tkChipGroup_GetItemRect( g, 0, r0a )
+    Reset_( )
+    ClickItem( h, g, 0 ) : ClickItem( h, g, 3 )
+    tkChipGroup_GetItemRect( g, 0, r0b )
+    tkTest_Check( "MULTI: toggles each; a check mark widens the selected chip", gSelLog = "0+ 3+ " _
+                  andalso tkChipGroup_GetSelectedKeys( g ) = words(0) & ";" & words(3) andalso (r0b.right - r0b.left) > (r0a.right - r0a.left), gSelLog )
+    dim as TKCHIP_COLORS cc
+    tkChipGroup_GetColors( g, @cc )
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushMotion( h, 1, 1 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "a selected item draws the selected fill", Px( h, g, r0b.right - tkHost_Scale( h, 5 ), (r0b.top + r0b.bottom) \ 2 ) = cc.FillColorSelected )
+
+    ' ---- the key set ---------------------------------------------------------------------------------
+    Reset_( )
+    tkChipGroup_SetSelectedKeys( g, "Zeta;Nope;Beta" )
+    tkTest_Check( "SetSelectedKeys: silent; answers the present keys in item order", gSelN = 0 andalso tkChipGroup_GetSelectedKeys( g ) = "Beta;Zeta" )
+    tkChipGroup_AddItem( g, "Nope" )
+    tkTest_Check( "...and keeps an absent key: an item added later with it is selected", tkChipGroup_GetItemSelected( g, 7 ) )
+    tkChipGroup_SetItemsText( g, "x;Beta;y" )
+    tkTest_Check( "SetItemsText keeps the key set: the selection survives a reload of the items", tkChipGroup_GetSelectedKeys( g ) = "Beta" _
+                  andalso tkChipGroup_GetItemsText( g ) = "x;Beta;y" )
+    tkTest_Check( "a key holding the separator is refused", tkChipGroup_AddItem( g, "a;b" ) = -1 )
+
+    ' ---- removal -----------------------------------------------------------------------------------
+    tkChipGroup_SetItemsText( g, "one;two;three;four" )
+    tkChipGroup_SetSelectionMode( g, TKCHIPGRP_NONE )
+    tkChipGroup_SetRemovable( g, true )
+    tkChipGroup_SetItemRemovingCallback( g, @OnRemoving )
+    tkChipGroup_SetItemRemovedCallback( g, @OnRemoved )
+    tkWidget_SetSize( g, cw, tkChipGroup_GetIdealHeight( g, cw ) )
+    tkChipGroup_SetSelectedKeys( g, "two" )
+    dim as TKRECT rr
+    tkChipGroup_GetRemoveRect( g, 1, rr )
+    tkWidget_AbsRect( g, a )
+    Reset_( )
+    gVeto = true
+    tkTest_Click( h, a.left + (rr.left + rr.right) \ 2, a.top + (rr.top + rr.bottom) \ 2 )
+    tkTest_Check( "a veto (ItemRemoving FALSE): nothing removed, no ItemRemoved", gRemoving = 1 andalso gRemoved = 0 andalso tkChipGroup_GetCount( g ) = 4 )
+    gVeto = false
+    tkChipGroup_SetFocusItem( g, 1 )
+    tkTest_Click( h, a.left + (rr.left + rr.right) \ 2, a.top + (rr.top + rr.bottom) \ 2 )
+    tkTest_Check( "the remove button: removed, ItemRemoved( key ), the key leaves the selection, no ItemClick", gRemoved = 1 _
+                  andalso gLastRemoved = "two" andalso tkChipGroup_GetCount( g ) = 3 andalso tkChipGroup_GetSelectedKeys( g ) = "" andalso gClicks = 0 )
+    tkTest_Check( "focus goes to the next item", tkChipGroup_GetFocusItem( g ) = 1 andalso tkChipGroup_GetItemText( g, 1 ) = "three" )
+    tkHost_SetFocus( h, g )
+    tkChipGroup_SetFocusItem( g, 2 )
+    tkTest_PushKey( h, SDLK_DELETE )
+    tkTest_Check( "Delete on the last item: removed, focus to the previous", tkChipGroup_GetCount( g ) = 2 andalso tkChipGroup_GetFocusItem( g ) = 1 )
+    tkChipGroup_RemoveItem( g, 0 )
+    tkTest_Check( "RemoveItem from code is silent", gRemoved = 2 andalso gRemoving = 3 )
+
+    ' ---- the keyboard ---------------------------------------------------------------------------------
+    tkChipGroup_SetRemovable( g, false )
+    tkChipGroup_SetItemsText( g, "Alpha;Beta;Gamma;Delta;Epsilon;Zeta;Eta" )
+    tkWidget_SetSize( g, cw, tkChipGroup_GetIdealHeight( g, cw ) )
+    tkChipGroup_SetItemEnabled( g, 1, false )
+    tkHost_SetFocus( h, g )
+    tkChipGroup_SetFocusItem( g, 0 )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right skips a disabled item", tkChipGroup_GetFocusItem( g ) = 2 )
+    tkTest_PushKey( h, SDLK_HOME ) : tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Home; Left at the first stays (no wrap)", tkChipGroup_GetFocusItem( g ) = 0 )
+    ' Down from the LAST item of row 0: the item in the next row nearest its centre (not merely that
+    ' row's first item -- the check must tell the two apart)
+    dim as long f0 = 0, want = -1, bestD = &h7FFFFFFF, firstNext = -1
+    for i as long = 0 to 6
+        if tkChipGroup_GetItemRow( g, i ) = 0 then f0 = i
+        if (firstNext < 0) andalso (tkChipGroup_GetItemRow( g, i ) = 1) then firstNext = i
+    next
+    tkChipGroup_SetFocusItem( g, f0 )
+    dim as TKRECT rf, rx
+    tkChipGroup_GetItemRect( g, f0, rf )
+    for i as long = 0 to 6
+        if tkChipGroup_GetItemRow( g, i ) = tkChipGroup_GetItemRow( g, f0 ) + 1 andalso tkChipGroup_GetItemEnabled( g, i ) then
+            tkChipGroup_GetItemRect( g, i, rx )
+            dim as long dd = abs( (rx.left + rx.right) \ 2 - (rf.left + rf.right) \ 2 )
+            if dd < bestD then bestD = dd : want = i
+        end if
+    next
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down: the nearest item in the next row (not its first)", (want >= 0) andalso (want <> firstNext) _
+                  andalso tkChipGroup_GetFocusItem( g ) = want, f0 & " -> " & want & " vs " & tkChipGroup_GetFocusItem( g ) & ", first " & firstNext )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up: back to the row above", tkChipGroup_GetItemRow( g, tkChipGroup_GetFocusItem( g ) ) = 0 )
+    tkChipGroup_SetSelectionMode( g, TKCHIPGRP_MULTI )
+    Reset_( )
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "Space selects the focus item", gSelN = 1 andalso tkChipGroup_GetItemSelected( g, tkChipGroup_GetFocusItem( g ) ) )
+    Reset_( )
+    ClickItem( h, g, 1 )
+    tkTest_Check( "a disabled item ignores the mouse", gSelN = 0 andalso gClicks = 0 )
+
+    tkHost_Destroy( h )
+end sub
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkChipGroup" )
+tkTest_Quit()
+end nFail
