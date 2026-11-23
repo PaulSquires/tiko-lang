@@ -128,6 +128,8 @@ tkControls ships its own fonts, copied beside every program that imports tkHost,
 
 `tkHost_FontDir()` is the folder they are in (the program's own, ending in a separator), so `tkHost_FontDir() & TK_FONT_UI` is always a file that is there. `tkHost_OpenFont( h, path, pt )` opens a font in points at the surface's scale; the surface owns it, re-sizes it when the scale changes and closes it when the surface goes. `h->pDefaultFont` is the font every control falls back to.
 
+`tkHost_FontSource( f, path, face )` says where a font `tkHost_OpenFontFace` opened came from (the name or path it was given, and the face); [tkPrint](tkPrint) re-opens recorded fonts at a page's size this way. Close a font you opened with `tkHost_OpenFontFace` through `tkHost_CloseFont`, which also forgets its source.
+
 ### Fonts and images by name
 
 A program can carry its fonts and images inside itself instead of beside it. Register each one's bytes under a name, and every font tkHost, [tkApp](tkApp) and [tkCodeEdit](tkCodeEdit) open, and every image [tkImage](tkImage), [tkPicture](tkPicture), [tkButton](tkButton) and `tkForm_SetIcon` load, takes that name where it takes a file path:
@@ -338,6 +340,8 @@ sub tkHost_AddFontData( byref name_ as string, byval pData as const any ptr, byv
 function tkHost_HasFontData( byref name_ as string ) as boolean
 function tkHost_LoadSurface( byref path as ustring ) as SDL_Surface ptr
 function tkHost_OpenFontFace( byref path as string, byval pt as single, byval face as long ) as TTF_Font ptr
+function tkHost_FontSource( byval f as TTF_Font ptr, byref path as string, byref face as long ) as boolean
+sub tkHost_CloseFont( byval f as TTF_Font ptr )
 function tkHost_OpenFont( byval h as TK_HOST ptr, byref path as ustring, byval pt as single ) as TTF_Font ptr
 function tkHost_Create( byref title as ustring, byval w as long, byval hgt as long, byref defaultFont as ustring, byval forcedScale as single = 0 ) as TK_HOST ptr
 function tkHost_CreatePopup( byval owner as TK_HOST ptr, byval x as long, byval y as long, byval w as long, byval hgt as long, byval kind as long = TK_SURF_POPUP, byval extraFlags as Uint64 = 0 ) as TK_HOST ptr

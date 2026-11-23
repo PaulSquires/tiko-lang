@@ -16,3 +16,12 @@ Not done: drag-over feedback (`SDL_EVENT_DROP_POSITION`), and dragging OUT of th
 Measured: examples/tkControls/tkHost 154/154 (16 new) on Windows, X11 and Wayland. The plant (a refused drop
 not bubbling) failed 8 checks. Not verified: a real drag from Explorer / a file manager. The
 tests push SDL's events.
+
+## Font sources (2026-11-23, for tkPrint)
+
+tkPrint records text by the font's source, not its `TTF_Font ptr`, and opens it again at a page's
+pixel size. `tkHost_OpenFontFace` -- the one place a font is opened by name -- now notes each font's
+name or path and face; `tkHost_FontSource( f, path, face )` reads it back. `tkHost_CloseFont` closes
+and forgets (tkHost_Destroy uses it for the surface's fonts). A slot is reused when SDL_ttf hands out
+the same pointer again, so a font closed with `TTF_CloseFont` directly leaves nothing that misleads.
+Measured: examples/tkControls/tkPrint's registry checks (4 per scale).
