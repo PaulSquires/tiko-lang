@@ -127,7 +127,9 @@ private sub CardPaint_( byval pT as TKTOASTER_STATE ptr, byval pc as TKTOAST_CAR
     dim as TKNOTIFY_FONTS fo = Fonts_( pT )
     dim as long nPr = iif( pc->nPressed = pc->nHot, pc->nPressed, TKN_PART_NONE )
     dim as long nFoc = iif( pc->bFocused, pc->nFocusPart, TKN_PART_NONE )
-    tkNotify_PaintItem( b, sm, sm, pc->it, pc->lo, pT->colors, fo, pc->nHot, nPr, nFoc, op )
+    dim as single fPhase = 0
+    if pc->it.progress = TKN_PROGRESS_INDETERMINATE then fPhase = (Now_( pT ) mod TKTOAST_MARQUEE_MS) / TKTOAST_MARQUEE_MS
+    tkNotify_PaintItem( b, sm, sm, pc->it, pc->lo, pT->colors, fo, pc->nHot, nPr, nFoc, op, fPhase )
     if pc->bFocused andalso (pc->nFocusPart = TKN_PART_NONE) then
         ' a card with nothing to press shows its focus round the whole card
         b->SetPenColor( tkColor_WithAlpha( pT->colors.FocusRing, cint( 255 * op ) ) )

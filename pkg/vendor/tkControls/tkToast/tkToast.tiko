@@ -7,7 +7,7 @@
 ' tkToast -- transient notification cards over a window's content (Fluent Toaster, AdwToastOverlay,
 ' Sonner, Ant notification): a corner stack, a queue behind it, timeouts that hold while the user
 ' is engaged, actions, update in place by key. Design: docs/tkControls/NOTIFICATIONS.md §6. Phases
-' N2 + N3 (motion, swipe, keyboard); loading toasts and the time scale are N4. The cards' own code
+' N2 + N3 (motion, swipe, keyboard) + N4 (loading toasts, time scale, background hold). The cards' own code
 ' -- painting, motion, mouse, swipe, keyboard -- is tkToastCard.tiko, the second file of this module.
 '
 ' ONE TOASTER PER SURFACE, made on first use. Every tkToast_* call takes ANY widget of the target
@@ -62,6 +62,18 @@
 ' dismisses them all. When the last focused card goes, focus returns to the widget that had it.
 ' While a card has focus, time holds.
 '
+' LOADING -> RESULT (N4, Sonner's toast.promise without promises). tkToast_Begin posts a sticky,
+' not closable toast with a moving progress strip; tkToast_SetProgress makes it 0..100;
+' tkToast_Finish turns it into the result -- severity, message, closable, timed by the rule -- or,
+' if the user closed it meanwhile, posts the result as a new toast (a result is never lost).
+'
+' WCAG 2.2.1 (N4). tkToast_SetTimeScale( f ) multiplies every duration, the rule's and an explicit
+' one (10 meets "extend at least 10x"); tkToast_SetTimeouts( false ) makes every toast sticky,
+' those up now included ("turn off"). Both apply to durations armed from then on.
+'
+' BACKGROUND (N4). While the app is in the background (SDL_EVENT_DID_ENTER_BACKGROUND, Android /
+' iOS; WILL_ENTER_FOREGROUND ends it) every toaster holds time, whatever its pause settings.
+'
 ' UI THREAD ONLY: a call from another thread is refused (returns 0) -- post with tkApp_RunOnUI.
 #module "tkToast"
 
@@ -97,6 +109,7 @@ public const TKTOAST_SHADOW = 4                 ' design units of shadow round a
 public const TKTOAST_SWIPE = 45                 ' design units: a drag this far dismisses (Sonner's 45 px)
 public const TKTOAST_SWIPE_SLOP = 4             ' design units before a press becomes a drag
 public const TKTOAST_SWIPE_SPEED = 0.5          ' design units per ms: a flick this fast dismisses
+public const TKTOAST_MARQUEE_MS = 1500          ' one pass of an indeterminate strip
 
 ' hToaster is the toaster (tkToast_GetToaster); nAction 1 or 2; reason TKN_CLOSE_*.
 public type TST_ActionSub as sub( byval hToaster as TK_WIDGET ptr, byval id as long, byval nAction as long, byval pCtx as any ptr )
@@ -117,6 +130,7 @@ public type TK_TOAST
     bClosable     as boolean = true
     bKeepOnAction as boolean              ' an action does not dismiss (e.g. "Details")
     bAlert        as boolean              ' politeness: assertive whatever the severity (for an AT bridge)
+    progress      as long = TKN_PROGRESS_NONE   ' N4: TKN_PROGRESS_* or 0..100 (a strip in the bottom padding)
     OnAction      as TST_ActionSub        ' this toast's own; 0 = the toaster's
     OnDismissed   as TST_DismissedSub
     pCtx          as any ptr
@@ -157,6 +171,8 @@ public type TKTOASTER_SETTINGS
     bCoalesceRepeats  as boolean = true
     historySize       as long = 50
     bAnimate          as boolean = true   ' N3: enter / leave / move motion
+    fTimeScale        as single = 1       ' N4: every duration times this (WCAG 2.2.1: 10 = "at least 10x")
+    bTimeouts         as boolean = true   ' N4: false = every toast sticky ("turn off")
 end type
 
 ' ---- internal records ---------------------------------------------------------------------------
@@ -248,6 +264,7 @@ type TKTOASTER_STATE_
     pSavedFocus   as TK_WIDGET ptr        ' what had focus before (checked against the tree, never trusted)
     bRefocus      as boolean              ' the focused card went: move focus after the queue settles
     bFocusBack    as boolean              ' the next card to take focus lands on its LAST part
+    bBackground   as boolean              ' the app is in the background: time holds
     ActionCb      as TST_ActionSub
     DismissedCb   as TST_DismissedSub
     ClickCb       as TST_ClickSub
@@ -257,6 +274,7 @@ dim shared as TKTOASTER_SETTINGS gDefaults
 dim shared as TKTOASTER_STATE ptr gToasters(0 to 63)    ' for the window-focus hook only
 dim shared as boolean gHookAdded
 dim shared as long gCardDepth                            ' > 0: inside a card's own handler
+dim shared as boolean gInBackground                      ' the app is in the background (all toasters)
 
 declare function Listener_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
 declare function Card_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
@@ -359,8 +377,16 @@ private sub SizeHook_( byval h as TK_HOST ptr, byval pUser as any ptr )
     if pUser then Relayout_( cast( TKTOASTER_STATE ptr, pUser ), false )     ' a resize places, it does not animate
 end sub
 
-' The window's input focus, from its own events (pushed ones too, which a test relies on).
+' The window's input focus, from its own events (pushed ones too, which a test relies on); and
+' the app going to / coming back from the background, which holds every toaster.
 private function FocusHook_( byval e as SDL_Event ptr ) as boolean
+    if (e->type = SDL_EVENT_DID_ENTER_BACKGROUND) orelse (e->type = SDL_EVENT_WILL_ENTER_FOREGROUND) then
+        gInBackground = (e->type = SDL_EVENT_DID_ENTER_BACKGROUND)
+        for i as long = 0 to ubound( gToasters )
+            if gToasters(i) then gToasters(i)->bBackground = gInBackground : SyncHold_( gToasters(i) )
+        next
+        return false
+    end if
     if (e->type <> SDL_EVENT_WINDOW_FOCUS_GAINED) andalso (e->type <> SDL_EVENT_WINDOW_FOCUS_LOST) then return false
     for i as long = 0 to ubound( gToasters )
         dim as TKTOASTER_STATE ptr pT = gToasters(i)
@@ -386,6 +412,7 @@ function Get_( byval hAny as TK_WIDGET ptr ) as TKTOASTER_STATE ptr
     tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @pT->colors ), sizeof( TKNOTIFY_COLORS ) \ 4, "Toast" )
     pT->bWinFocused = (h->win <> 0) andalso ((SDL_GetWindowFlags( h->win ) and SDL_WINDOW_INPUT_FOCUS) <> 0)
     pT->tPrev = Now_( pT )
+    pT->bBackground = gInBackground
     tkHost_AddSizeHook( h, @SizeHook_, pT )
     for i as long = 0 to ubound( gToasters )
         if gToasters(i) = 0 then gToasters(i) = pT : exit for
@@ -438,11 +465,20 @@ end function
 
 ' The toaster's time rule (NOTIFICATIONS N-6): -1 = sticky.
 private function DurationOf_( byval pT as TKTOASTER_STATE ptr, byref t as TK_TOAST ) as long
-    if t.duration > 0 then return t.duration
-    if t.duration = 0 then return -1
-    if (len( t.action1 ) > 0) orelse (len( t.action2 ) > 0) then return -1
-    if (t.severity = TKN_WARNING) orelse (t.severity = TKN_ERROR) then return pT->st.alertMs
-    return pT->st.normalMs
+    if pT->st.bTimeouts = false then return -1                     ' WCAG "turn off"
+    dim as long d
+    if t.duration > 0 then
+        d = t.duration
+    elseif t.duration = 0 then
+        return -1
+    elseif (len( t.action1 ) > 0) orelse (len( t.action2 ) > 0) then
+        return -1
+    elseif (t.severity = TKN_WARNING) orelse (t.severity = TKN_ERROR) then
+        d = pT->st.alertMs
+    else
+        d = pT->st.normalMs
+    end if
+    return cint( d * iif( pT->st.fTimeScale > 0, pT->st.fTimeScale, 1.0 ) )
 end function
 
 ' Counts time down for every armed, shown toast unless the toaster holds.
@@ -479,6 +515,7 @@ private function ComputeHeld_( byval pT as TKTOASTER_STATE ptr ) as boolean
     if IsOurCard_( pT, pT->pHost->pCapture ) then return true          ' a press (touch: Adw's hold)
     if IsOurCard_( pT, pT->pHost->pFocus ) then return true            ' a card has keyboard focus
     if pT->st.bPauseOnBlur andalso (pT->bWinFocused = false) then return true
+    if pT->bBackground then return true                              ' the app is in the background
     return false
 end function
 
@@ -519,6 +556,11 @@ sub SyncClock_( byval pT as TKTOASTER_STATE ptr )
         if CardMoving_( pT->reap(i) ) then bMotion = true
     next
     if bMotion andalso ((ms = 0) orelse (ms > 15)) then ms = 15
+    for i as long = 0 to pT->nItems - 1
+        if (pT->items(i).state = TST_SHOWN) andalso (pT->items(i).t.progress = TKN_PROGRESS_INDETERMINATE) then
+            if (ms = 0) orelse (ms > 30) then ms = 30
+        end if
+    next
     if ms = 0 then
         if pT->nClockMs <> 0 then tkWidget_KillTimer( pT->hWin, TKTOAST_TIMER )
     else
@@ -536,6 +578,7 @@ private sub ToItem_( byref src as TKTOAST_ITEM, byval pc as TKTOAST_CARD ptr )
         .message = src.t.message
         .glyph = src.t.glyph
         .bClosable = src.t.bClosable
+        .progress = src.t.progress
         if src.nRepeat > 1 then
             dim as ustring badge = "  " & wchr( &hD7 ) & src.nRepeat
             if len( .title ) then .title &= badge else .message &= badge
@@ -931,6 +974,64 @@ public function tkToast_Show( byval hWnd as TK_WIDGET ptr, byref t as TK_TOAST )
     return id
 end function
 
+' ---- loading -> result (N4) ----------------------------------------------------------------------
+' A loading toast: sticky, not closable, a moving progress strip. key: "" or one to update in place
+' (a second Begin with the same key is the same toast). Returns its id.
+public function tkToast_Begin( byval hWnd as TK_WIDGET ptr, byref msg as const ustring, byref key as const ustring = "" ) as long
+    dim as TK_TOAST t
+    t.message = msg
+    t.key = key
+    t.duration = 0
+    t.bClosable = false
+    t.progress = TKN_PROGRESS_INDETERMINATE
+    return tkToast_Show( hWnd, t )
+end function
+
+' TKN_PROGRESS_NONE, TKN_PROGRESS_INDETERMINATE, or 0..100 (clamped). Silent; FALSE when the toast is gone.
+public function tkToast_SetProgress( byval hWnd as TK_WIDGET ptr, byval id as long, byval n as long ) as boolean
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    if pT = 0 then return false
+    dim as long idx = IndexOf_( pT, id )
+    if idx < 0 then return false
+    if (n <> TKN_PROGRESS_NONE) andalso (n <> TKN_PROGRESS_INDETERMINATE) then
+        if n < 0 then n = 0
+        if n > 100 then n = 100
+    end if
+    pT->items(idx).t.progress = n
+    Relayout_( pT, false )
+    SyncClock_( pT )
+    return true
+end function
+
+' The loading toast id becomes its result: nSeverity, msg, closable, no strip, timed by the rule
+' (duration -1) or as given. If it is gone (the user closed it), the result is posted anew.
+' Returns the toast's id (the same, or the new one).
+public function tkToast_Finish( byval hWnd as TK_WIDGET ptr, byval id as long, byval nSeverity as long, _
+                                byref msg as const ustring, byval duration as long = -1 ) as long
+    dim as TKTOASTER_STATE ptr pT = Get_( hWnd )
+    if pT = 0 then return 0
+    dim as long idx = IndexOf_( pT, id )
+    if idx < 0 then
+        dim as TK_TOAST t
+        t.severity = nSeverity
+        t.message = msg
+        t.duration = duration
+        return tkToast_Show( hWnd, t )
+    end if
+    Account_( pT, Now_( pT ) )
+    with pT->items(idx)
+        .t.severity = nSeverity
+        .t.message = msg
+        .t.duration = duration
+        .t.bClosable = true
+        .t.progress = TKN_PROGRESS_NONE
+        if .state = TST_SHOWN then .nLeft = DurationOf_( pT, .t )
+    end with
+    Relayout_( pT, false )
+    SyncClock_( pT )
+    return id
+end function
+
 ' A one-liner: a message at a severity.
 public function tkToast_ShowText( byval hWnd as TK_WIDGET ptr, byref msg as const ustring, byval nSeverity as long = TKN_INFO ) as long
     dim as TK_TOAST t
@@ -1212,6 +1313,27 @@ public sub tkToast_SetCoalesceRepeats( byval hWnd as TK_WIDGET ptr, byval b as b
     dim as TKTOASTER_STATE ptr pT
     if GetSt_( hWnd, pT ) = false then exit sub
     pT->st.bCoalesceRepeats = b
+end sub
+
+' WCAG 2.2.1: every duration armed from now on times f (> 0); 10 = "at least 10x the default".
+public sub tkToast_SetTimeScale( byval hWnd as TK_WIDGET ptr, byval f as single )
+    dim as TKTOASTER_STATE ptr pT
+    if (GetSt_( hWnd, pT ) = false) orelse (f <= 0) then exit sub
+    pT->st.fTimeScale = f
+end sub
+
+' WCAG 2.2.1 "turn off": false makes every toast sticky -- those showing now too. Turning it on
+' again times toasts armed from then on; the ones made sticky stay so.
+public sub tkToast_SetTimeouts( byval hWnd as TK_WIDGET ptr, byval bOn as boolean )
+    dim as TKTOASTER_STATE ptr pT
+    if GetSt_( hWnd, pT ) = false then exit sub
+    pT->st.bTimeouts = bOn
+    if bOn = false then
+        for i as long = 0 to pT->nItems - 1
+            if pT->items(i).bArmed then pT->items(i).nLeft = -1
+        next
+        SyncClock_( pT )
+    end if
 end sub
 
 public sub tkToast_SetHistorySize( byval hWnd as TK_WIDGET ptr, byval n as long )

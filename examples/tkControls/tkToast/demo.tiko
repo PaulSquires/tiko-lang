@@ -2,7 +2,8 @@
 ' a card and its time stops; switch to another window and every card's time stops. Cards slide and
 ' fade in and out; drag one sideways to swipe it away. F6 moves the keyboard to the cards (this
 ' demo's choice of chord -- tkToast has none): Tab / Shift+Tab, Up / Down, Enter, Esc / Delete,
-' Shift+Esc for all. The status line says what the callbacks heard.
+' Shift+Esc for all. Export posts a loading toast that counts to 100 % and finishes as a result.
+' The status line says what the callbacks heard.
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkToast"
 #import "vendor/tkControls/tkButton"
@@ -17,7 +18,7 @@ using tkHost
 using tkPaint
 
 dim shared as TK_WIDGET ptr gRoot, gLog
-dim shared as long gPos = TST_POS_BOTTOM_RIGHT, gN
+dim shared as long gPos = TST_POS_BOTTOM_RIGHT, gN, gExportId, gExportPct
 
 sub Log_( byref s as const ustring )
     tkLabel_SetText( gLog, s )
@@ -91,6 +92,22 @@ sub OnMotion( byval h as TK_WIDGET ptr, byval id as long )
     Log_( iif( tkToast_GetAnimate( gRoot ), "Motion on", "Motion off" ) )
 end sub
 
+sub OnExportTick( byval timerId as long, byval payload as any ptr )
+    gExportPct += 10
+    if gExportPct < 100 then
+        tkToast_SetProgress( gRoot, gExportId, gExportPct )
+    else
+        tkApp_KillTimer( timerId )
+        tkToast_Finish( gRoot, gExportId, TKN_SUCCESS, "Exported 12,408 rows to orders.csv" )
+    end if
+end sub
+
+sub OnExport( byval h as TK_WIDGET ptr, byval id as long )
+    gExportId = tkToast_Begin( gRoot, "Exporting 12,408 rows...", "export" )
+    gExportPct = 0
+    tkApp_SetTimer( 300, @OnExportTick )
+end sub
+
 function OnKey( byval f as TK_FORM ptr, byval key as long, byval mods as long ) as boolean
     if key <> SDLK_F6 then return false
     if tkToast_FocusToasts( gRoot ) = false then Log_( "No toasts to focus" )
@@ -102,9 +119,9 @@ if tkApp_Init( opts ) = false then end 98
 dim as TK_FORM ptr f = tkApp_NewForm( "tkToast demo", 900, 560 )
 gRoot = tkForm_Widget( f )
 
-dim as string caps(0 to 8) = { "Info", "Success", "Action (sticky)", "Error HIGH", "Repeat", "Same key", "Position", "Dismiss all", "Motion on/off" }
-dim as BTN_ClickCallbackSub cbs(0 to 8) = { @OnInfo, @OnSuccess, @OnUndo, @OnHigh, @OnRepeat, @OnSameKey, @OnPosition, @OnClear, @OnMotion }
-for i as long = 0 to 8
+dim as string caps(0 to 9) = { "Info", "Success", "Action (sticky)", "Error HIGH", "Repeat", "Same key", "Position", "Dismiss all", "Motion on/off", "Export (loading)" }
+dim as BTN_ClickCallbackSub cbs(0 to 9) = { @OnInfo, @OnSuccess, @OnUndo, @OnHigh, @OnRepeat, @OnSameKey, @OnPosition, @OnClear, @OnMotion, @OnExport }
+for i as long = 0 to 9
     dim as TK_WIDGET ptr b = tkButton_Create( gRoot, 10 + i )
     tkButton_SetText( b, caps(i) )
     tkButton_SetClickCallback( b, cbs(i) )

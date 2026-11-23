@@ -532,6 +532,50 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "a click elsewhere ends keyboard mode", (tkToast_IsKeyMode( root_ ) = false) andalso (tkToast_GetCard( root_, idN )->isFocusable = false) )
     tkToast_DismissAll( root_ )
 
+    ' ==== N4: loading -> result, the time scale, timeouts off, the background ====
+    tkToast_SetAnimate( root_, false )
+    dim as longint t4 = t3 + 100000
+    tkToast_TickForTest( root_, t4 )
+    gDismissed = 0
+    dim as long idL = tkToast_Begin( root_, "Exporting 12,408 rows..." )
+    dim as TKRECT rcLp, rcLx
+    tkTest_Check( "Begin: sticky, not closable, a moving strip on the 30 ms clock", (tkToast_GetRemaining( root_, idL ) = -1) andalso _
+                  tkToast_GetPartRect( root_, idL, TKN_PART_PROGRESS, rcLp ) andalso (tkToast_GetPartRect( root_, idL, TKN_PART_CLOSE, rcLx ) = false) andalso _
+                  (tkToast_GetClockMs( root_ ) = 30), str( tkToast_GetClockMs( root_ ) ) )
+    tkToast_SetProgress( root_, idL, 40 )
+    tkTest_Check( "SetProgress: determinate, and no clock for a still, sticky toast", tkToast_GetPartRect( root_, idL, TKN_PART_PROGRESS, rcLp ) andalso _
+                  (tkToast_GetClockMs( root_ ) = 0), str( tkToast_GetClockMs( root_ ) ) )
+    tkTest_Check( "Finish: the same toast, now closable, timed by the rule, no strip", (tkToast_Finish( root_, idL, TKN_SUCCESS, "Exported" ) = idL) andalso _
+                  tkToast_GetPartRect( root_, idL, TKN_PART_CLOSE, rcLx ) andalso (tkToast_GetPartRect( root_, idL, TKN_PART_PROGRESS, rcLp ) = false) andalso _
+                  (tkToast_GetRemaining( root_, idL ) = 5000), str( tkToast_GetRemaining( root_, idL ) ) )
+    tkToast_Dismiss( root_, idL )
+    dim as long idL2 = tkToast_Finish( root_, idL, TKN_SUCCESS, "Exported (late)" )
+    tkTest_Check( "Finish after it is gone posts the result anew", (idL2 <> idL) andalso tkToast_IsShown( root_, idL2 ) )
+    tkToast_DismissAll( root_ )
+    tkToast_SetTimeScale( root_, 10 )
+    dim as long idTS = tkToast_ShowText( root_, "Scaled" )
+    dim as TK_TOAST te
+    te.message = "Explicit" : te.duration = 1234
+    dim as long idTE = tkToast_Show( root_, te )
+    tkTest_Check( "a time scale multiplies the rule's and an explicit duration", (tkToast_GetRemaining( root_, idTS ) = 50000) andalso _
+                  (tkToast_GetRemaining( root_, idTE ) = 12340), tkToast_GetRemaining( root_, idTS ) & " " & tkToast_GetRemaining( root_, idTE ) )
+    tkToast_SetTimeScale( root_, 1 )
+    tkToast_SetTimeouts( root_, false )
+    dim as long idOff = tkToast_ShowText( root_, "Timeouts off" )
+    tkTest_Check( "timeouts off: new and showing toasts are sticky", (tkToast_GetRemaining( root_, idOff ) = -1) andalso (tkToast_GetRemaining( root_, idTS ) = -1) )
+    tkToast_SetTimeouts( root_, true )
+    tkToast_DismissAll( root_ )
+    dim as long idBg = tkToast_ShowText( root_, "Backgrounded" )
+    tkTest_PushMotion( h, Px( h, 20 ), Px( h, 20 ) )               ' no hover hold to mistake for it
+    dim as boolean bFreeBefore = (tkToast_IsHeld( root_ ) = false)
+    tkTest_PushWindowEvent( h, SDL_EVENT_DID_ENTER_BACKGROUND )
+    dim as boolean bBgHeld = tkToast_IsHeld( root_ )
+    tkToast_TickForTest( root_, t4 + 60000 )
+    dim as boolean bBgLive = tkToast_IsLive( root_, idBg )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WILL_ENTER_FOREGROUND )
+    tkTest_Check( "the background holds time (nothing expires); the foreground releases it", bFreeBefore andalso bBgHeld andalso bBgLive andalso (tkToast_IsHeld( root_ ) = false) )
+    tkToast_DismissAll( root_ )
+
     ' ---- colours ----
     dim as TKNOTIFY_COLORS cp = c
     cp.InfoBack = &hFF123456ul
