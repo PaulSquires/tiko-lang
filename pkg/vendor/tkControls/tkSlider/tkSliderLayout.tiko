@@ -5,7 +5,7 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' tkSlider, part two: geometry (SLIDER.md §4), ticks and labels (§3.3), painting (§7), the value
+' tkSlider, part three: geometry (SLIDER.md §4), ticks and labels (§3.3), painting (§7), the value
 ' tip (§6.1). The types and the value model are in tkSlider.tiko.
 '
 ' LAYOUT, in the track's own frame ("along" / "across"), mapped to x / y at the end:
@@ -163,6 +163,7 @@ sub TKSLIDER_STATE.Layout()
     this.bLayoutDirty = false
     tkRect_SetEmpty( this.rcTrack ) : tkRect_SetEmpty( this.rcFill )
     tkRect_SetEmpty( this.rcThumb ) : tkRect_SetEmpty( this.rcTarget )
+    tkRect_SetEmpty( this.rcThumb1 ) : tkRect_SetEmpty( this.rcTarget1 ) : tkRect_SetEmpty( this.rcBody )
     tkRect_SetEmpty( this.rcTicks1 ) : tkRect_SetEmpty( this.rcTicks2 ) : tkRect_SetEmpty( this.rcLabels )
     this.a0 = 0 : this.a1 = 0
     if this.hWin = 0 then exit sub
@@ -195,20 +196,31 @@ sub TKSLIDER_STATE.Layout()
     MapRect( @this, this.rcTrack, trLo, trHi, tLo, tLo + t )
 
     dim as long c = this.CentreOf( this.nValue )
-    dim as long o = c
-    select case this.nFillMode
-    case TKSL_FILL_MIN    : o = iif( this.Inverted(), trHi, trLo )
-    case TKSL_FILL_ORIGIN : o = this.CentreOf( Clamp_( this.nFillOrigin, this.nMin, this.nMax ) )
-    end select
-    if o <> c then MapRect( @this, this.rcFill, iif( o < c, o, c ), iif( o < c, c, o ), tLo, tLo + t )
-
-    MapRect( @this, this.rcThumb, c - half, c - half + this.nThumbA, bandLo, bandHi )
-    this.rcTarget = this.rcThumb
     dim as long minT = tkHost_Scale( h, TKSLIDER_MIN_TARGET )
     dim as long gA = (minT - this.nThumbA + 1) \ 2, gX = (minT - this.nThumbX + 1) \ 2
     if gA < 0 then gA = 0
     if gX < 0 then gX = 0
+    MapRect( @this, this.rcThumb, c - half, c - half + this.nThumbA, bandLo, bandHi )
+    this.rcTarget = this.rcThumb
     if vert then tkRect_Inflate( this.rcTarget, gX, gA ) else tkRect_Inflate( this.rcTarget, gA, gX )
+
+    if this.IsRange() then
+        ' range mode: the second thumb, and the fill (and the body a range drag grabs) between them
+        dim as long c1 = this.CentreOf( this.nUpper )
+        MapRect( @this, this.rcThumb1, c1 - half, c1 - half + this.nThumbA, bandLo, bandHi )
+        this.rcTarget1 = this.rcThumb1
+        if vert then tkRect_Inflate( this.rcTarget1, gX, gA ) else tkRect_Inflate( this.rcTarget1, gA, gX )
+        dim as long lo = iif( c < c1, c, c1 ), hi = iif( c < c1, c1, c )
+        if hi > lo then MapRect( @this, this.rcFill, lo, hi, tLo, tLo + t )
+        if hi > lo then MapRect( @this, this.rcBody, lo, hi, bandLo, bandHi )
+    else
+        dim as long o = c
+        select case this.nFillMode
+        case TKSL_FILL_MIN    : o = iif( this.Inverted(), trHi, trLo )
+        case TKSL_FILL_ORIGIN : o = this.CentreOf( Clamp_( this.nFillOrigin, this.nMin, this.nMax ) )
+        end select
+        if o <> c then MapRect( @this, this.rcFill, iif( o < c, o, c ), iif( o < c, c, o ), tLo, tLo + t )
+    end if
 
     ' the tick and label bands (the whole content along)
     dim as long tk = this.nTickGap + this.nTickLen
@@ -288,21 +300,26 @@ sub RenderDefault( byval p as TKSLIDER_STATE ptr, byval pi as TKSLIDER_PAINTINFO
     if tkRect_IsEmpty( pi->rcTrack ) then exit sub
     dim as TK_HOST ptr h = p->hWin->pHost
     dim as boolean vert = (pi->nOrientation = TKSL_VERTICAL)
-    dim as ulong clrTrack, clrFill, clrThumb, clrBorder, clrTick, clrLabel
+    dim as ulong clrTrack, clrFill, clrTick, clrLabel
+    dim as ulong clrThumb(0 to 1), clrBorder(0 to 1)
     with p->colors
         if pi->isEnabled = false then
             clrTrack = .TrackColorDisabled : clrFill = .FillColorDisabled
-            clrThumb = .ThumbColorDisabled : clrBorder = .ThumbBorderColorDisabled
             clrTick = .TickColorDisabled : clrLabel = .LabelColorDisabled
+            for k as long = 0 to 1
+                clrThumb(k) = .ThumbColorDisabled : clrBorder(k) = .ThumbBorderColorDisabled
+            next
         else
-            clrTrack = .TrackColor : clrTick = .TickColor : clrLabel = .LabelColor
-            if pi->nPressedThumb = 0 then
-                clrFill = .FillColorHot : clrThumb = .ThumbColorPressed : clrBorder = .ThumbBorderColorHot
-            elseif pi->nHotThumb = 0 then
-                clrFill = .FillColorHot : clrThumb = .ThumbColorHot : clrBorder = .ThumbBorderColorHot
-            else
-                clrFill = .FillColor : clrThumb = .ThumbColor : clrBorder = .ThumbBorderColor
-            end if
+            clrTrack = .TrackColor : clrTick = .TickColor : clrLabel = .LabelColor : clrFill = .FillColor
+            for k as long = 0 to 1
+                if (pi->nPressedThumb = k) orelse (pi->nPressedThumb = TKSL_THUMB_BOTH) then
+                    clrFill = .FillColorHot : clrThumb(k) = .ThumbColorPressed : clrBorder(k) = .ThumbBorderColorHot
+                elseif pi->nHotThumb = k then
+                    clrFill = .FillColorHot : clrThumb(k) = .ThumbColorHot : clrBorder(k) = .ThumbBorderColorHot
+                else
+                    clrThumb(k) = .ThumbColor : clrBorder(k) = .ThumbBorderColor
+                end if
+            next
         end if
     end with
 
@@ -350,20 +367,26 @@ sub RenderDefault( byval p as TKSLIDER_STATE ptr, byval pi as TKSLIDER_PAINTINFO
         end if
     end if
 
-    ' the thumb: filled, its border stroked inside it
-    r = pi->rcThumb
-    b->SetBackColor( clrThumb )
-    b->SetPenColor( clrBorder )
+    ' the thumbs: filled, the border stroked inside; the inactive one first, the active on top
     dim as long corner = 2 * tkHost_Scale( h, TKSLIDER_RECT_CORNER )
-    if pi->nThumbShape = TKSL_THUMB_RECT then
-        if p->nBorderThick > 0 then
-            b->PaintRoundBorderRect( @r, corner, p->nBorderThick )
+    dim as long nThumbs = iif( pi->nThumbs = 2, 2, 1 )
+    for n as long = 0 to nThumbs - 1
+        dim as long k = n
+        if nThumbs = 2 then k = iif( n = 0, 1 - pi->nActiveThumb, pi->nActiveThumb )
+        r = pi->rcThumb
+        if k = 1 then r = pi->rcThumb1
+        b->SetBackColor( clrThumb(k) )
+        b->SetPenColor( clrBorder(k) )
+        if pi->nThumbShape = TKSL_THUMB_RECT then
+            if p->nBorderThick > 0 then
+                b->PaintRoundBorderRect( @r, corner, p->nBorderThick )
+            else
+                b->PaintRoundRect( @r, corner )
+            end if
         else
-            b->PaintRoundRect( @r, corner )
+            b->PaintEllipse( @r, p->nBorderThick )
         end if
-    else
-        b->PaintEllipse( @r, p->nBorderThick )
-    end if
+    next
 
     ' the ring round the thumb, an outline drawn over everything
     if pi->isFocused andalso (p->nFocusThick > 0) then
@@ -388,10 +411,20 @@ sub OnPaint( byval p as TKSLIDER_STATE ptr, byval b as TK_PAINT ptr )
     pi.rcTrack = p->rcTrack
     pi.rcFill = p->rcFill
     pi.rcThumb = p->rcThumb
+    pi.nThumbs = iif( p->IsRange(), 2, 1 )
+    pi.nActiveThumb = iif( p->IsRange(), p->nActive, 0 )
+    if p->IsRange() then pi.rcThumb1 = p->rcThumb1
+    pi.nUpperValue = p->nUpper
     pi.rcFocus = p->rcThumb
+    if pi.nActiveThumb = 1 then pi.rcFocus = p->rcThumb1
     tkRect_Inflate( pi.rcFocus, p->RingPad(), p->RingPad() )
     pi.nHotThumb = p->nHot
-    pi.nPressedThumb = iif( p->isDragging orelse p->isPaging, 0, -1 )
+    pi.nPressedThumb = -1
+    if p->isPaging then
+        pi.nPressedThumb = p->nPageThumb
+    elseif p->isDragging then
+        pi.nPressedThumb = iif( p->nDrag >= 0, p->nDrag, p->nActive )
+    end if
     pi.isEnabled = p->isEnabled
     pi.isFocused = p->isFocused
     pi.isReadOnly = p->isReadOnly
@@ -437,7 +470,17 @@ sub UpdateTip( byval p as TKSLIDER_STATE ptr )
         if tkTipHost_Ensure( @p->vtip, p->hWin ) = false then exit sub
     end if
     tkTipHost_Pop( @p->tip )
-    tkTipHost_TrackShow( @p->vtip, p->rcThumb, FormatV( p, p->nValue, TKSL_FMT_TIP ), TIP_ALIGN_ABOVE )
+    dim as long k = p->nActive
+    if p->isPaging then k = p->nPageThumb
+    if p->isDragging andalso (p->nDrag >= 0) then k = p->nDrag
+    if p->IsRange() = false then k = 0
+    if k = TKSL_THUMB_BOTH then
+        tkTipHost_TrackShow( @p->vtip, p->rcBody, FormatV( p, p->nValue, TKSL_FMT_TIP ) & " - " & FormatV( p, p->nUpper, TKSL_FMT_TIP ), TIP_ALIGN_ABOVE )
+    elseif k = 1 then
+        tkTipHost_TrackShow( @p->vtip, p->rcThumb1, FormatV( p, p->nUpper, TKSL_FMT_TIP ), TIP_ALIGN_ABOVE )
+    else
+        tkTipHost_TrackShow( @p->vtip, p->rcThumb, FormatV( p, p->nValue, TKSL_FMT_TIP ), TIP_ALIGN_ABOVE )
+    end if
     p->bTipShown = true
 end sub
 
@@ -457,7 +500,7 @@ public sub tkSlider_SetTickFrequency( byval hSlider as TK_WIDGET ptr, byval f as
     if p = 0 then exit sub
     p->nTickFreq = iif( f < 0, 0, f )
     p->bTicksDirty = true
-    if p->bSnapToTicks then p->nValue = p->Snap( p->nValue )
+    if p->bSnapToTicks then p->Resnap()
     p->Refresh()
 end sub
 
@@ -477,7 +520,7 @@ public sub tkSlider_SetTicks( byval hSlider as TK_WIDGET ptr, values() as double
         next
     end if
     p->bTicksDirty = true
-    if p->bSnapToTicks then p->nValue = p->Snap( p->nValue )
+    if p->bSnapToTicks then p->Resnap()
     p->Refresh()
 end sub
 
@@ -508,7 +551,7 @@ public sub tkSlider_SetSnapToTicks( byval hSlider as TK_WIDGET ptr, byval bSnap 
     dim as TKSLIDER_STATE ptr p = SL( hSlider )
     if p = 0 then exit sub
     p->bSnapToTicks = bSnap
-    p->nValue = p->Snap( p->nValue )
+    p->Resnap()
     p->Refresh()
 end sub
 

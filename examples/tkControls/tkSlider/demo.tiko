@@ -1,4 +1,4 @@
-' tkSlider demo (phases S0 + S1): six rows, each a label, a slider and its value, and two vertical
+' tkSlider demo (phases S0 - S2): seven rows, each a label, a slider and its value, and two vertical
 ' sliders on the right.
 '
 '   demo                     interactive; ValueChanged / ValueCommitted are printed
@@ -10,14 +10,14 @@ using tkTheme
 using tkHost
 using tkPaint
 
-const as long ROWS = 6
+const as long ROWS = 7
 const as long ROW_HEIGHT = 64, ROW_TOP = 14, MARGIN = 22, LABEL_W = 230, VALUE_W = 70, VERT_W = 150
 const as long IDC_FIRST = 1000
 
 dim shared as TK_HOST ptr gHost
 dim shared as TK_WIDGET ptr gSl(0 to ROWS - 1), gV(0 to 1)
 dim shared as ustring gLabel(0 to ROWS - 1)
-dim shared as long gPlaces(0 to ROWS + 1)
+dim shared as long gPlaces(0 to ROWS + 2)
 dim shared as TTF_Font ptr gFont
 
 private function RowTop( byval i as long ) as long
@@ -28,8 +28,8 @@ private function RowOf( byval w as TK_WIDGET ptr ) as long
     for i as long = 0 to ROWS - 1
         if w = gSl(i) then return i
     next
-    if w = gV(0) then return 6
-    if w = gV(1) then return 7
+    if w = gV(0) then return 7
+    if w = gV(1) then return 8
     return -1
 end function
 
@@ -63,7 +63,9 @@ sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
         dim as long vr = pw - m - tkHost_Scale( h, VERT_W )
         tkRect_Set( rc, vr - tkHost_Scale( h, VALUE_W ), y, vr, y + rh )
         b->SetColors( t.TextStrong, t.Window )
-        b->PaintText( Fmt( tkSlider_GetValue( gSl(i) ), gPlaces(i) ), @rc, TK_DT_RIGHT or TK_DT_VCENTER )
+        dim as string txt = Fmt( tkSlider_GetValue( gSl(i) ), gPlaces(i) )
+        if tkSlider_GetMode( gSl(i) ) = TKSL_MODE_RANGE then txt &= " - " & Fmt( tkSlider_GetUpperValue( gSl(i) ), gPlaces(i) )
+        b->PaintText( txt, @rc, TK_DT_RIGHT or TK_DT_VCENTER )
         tkRect_Set( rc, m, y + rh - 1, vr, y + rh )
         b->SetBackColor( t.Divider )
         b->PaintRect( @rc )
@@ -96,13 +98,13 @@ end function
 
 sub Demo_Changed( byval hSlider as TK_WIDGET ptr, byval nThumb as long, byval nValue as double )
     dim as long i = RowOf( hSlider )
-    print "changed    row=" & i & "  value=" & Fmt( nValue, gPlaces(i) ) & iif( tkSlider_IsDragging( hSlider ), "  (dragging)", "" )
+    print "changed    row=" & i & "  thumb=" & nThumb & "  value=" & Fmt( nValue, gPlaces(i) ) & iif( tkSlider_IsDragging( hSlider ), "  (dragging)", "" )
     tkHost_Invalidate( gHost )                    ' the value column
 end sub
 
 sub Demo_Committed( byval hSlider as TK_WIDGET ptr, byval nThumb as long, byval nValue as double )
     dim as long i = RowOf( hSlider )
-    print "committed  row=" & i & "  value=" & Fmt( nValue, gPlaces(i) )
+    print "committed  row=" & i & "  thumb=" & nThumb & "  value=" & Fmt( nValue, gPlaces(i) )
     tkHost_Invalidate( gHost )
 end sub
 
@@ -130,7 +132,7 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkSlider on SDL3", 860, 420, tkHost_FontDir() & TK_FONT_UI, forced )
+gHost = tkHost_Create( "tkSlider on SDL3", 860, 484, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = tkTheme_Of( tkHost_Root( gHost ) ).Window
 gFont = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
@@ -142,6 +144,7 @@ gLabel(2) = "Gain   (±12 dB, fill from 0)"
 gLabel(3) = "Quality   (snap to 0 3 6 9 10)"
 gLabel(4) = "Pages   (click pages, rect thumb)"
 gLabel(5) = "Disabled   (custom colours)"
+gLabel(6) = "Price   (range, drag the band)"
 
 for i as long = 0 to ROWS - 1
     gSl(i) = tkSlider_Create( tkHost_Root( gHost ), IDC_FIRST + i )
@@ -198,6 +201,18 @@ c.ThumbBorderColor = c.FillColor : c.ThumbBorderColorHot = c.FillColorHot : c.Th
 tkSlider_SetColors( gSl(5), @c )
 tkSlider_SetValue( gSl(5), 30 )
 tkSlider_SetEnabled( gSl(5), false )
+
+tkSlider_SetMode( gSl(6), TKSL_MODE_RANGE )
+tkSlider_SetRange( gSl(6), 0, 500 )
+tkSlider_SetStep( gSl(6), 5 )
+tkSlider_SetSmallChange( gSl(6), 5 )
+tkSlider_SetLargeChange( gSl(6), 50 )
+tkSlider_SetMinDistance( gSl(6), 10 )
+tkSlider_SetAllowRangeDrag( gSl(6), true )
+tkSlider_SetTickFrequency( gSl(6), 100 )
+tkSlider_SetTickPlacement( gSl(6), TKSL_TICKS_BOTTOMRIGHT )
+tkSlider_SetShowTickLabels( gSl(6), true )
+tkSlider_SetValues( gSl(6), 120, 340 )
 
 ' the verticals: Min at the bottom with labels; reversed (Min at the top), no labels
 for i as long = 0 to 1
