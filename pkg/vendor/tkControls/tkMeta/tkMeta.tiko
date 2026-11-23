@@ -115,6 +115,10 @@ public type TKMETA_CONTROL
     Bind2Set      as ustring
     Bind2Name     as ustring
     Bind2When     as ustring
+    ' Called by a designed form right after the control joins its layout: "<proc>( h, layout )", the
+    ' layout a TK_LAYOUT ptr ("" = none). An info bar registers its height and re-runs the layout
+    ' when that height changes (tkInfoBar_AttachLayout).
+    LayoutHook    as ustring
 end type
 
 dim shared as TKMETA_CONTROL gControls( any )
@@ -191,6 +195,10 @@ private sub Bind2_( byref kind as const ustring, byref getName as const ustring,
     with gControls( gnControls - 1 )
         .Bind2Kind = kind : .Bind2Get = getName : .Bind2Set = setName : .Bind2Name = shownName : .Bind2When = when_
     end with
+end sub
+
+private sub LayoutHook_( byref procName as const ustring )
+    gControls( gnControls - 1 ).LayoutHook = procName
 end sub
 
 private sub Color_( byref name_ as const ustring, byref part as const ustring, byref state as const ustring, _

@@ -783,6 +783,8 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
         if (c.Anchor <> TK_ANCHOR_DEFAULT) orelse (c.Dock <> TK_DOCK_NONE) then o &= ", " & AnchorExpr_( c.Anchor )
         if c.Dock <> TK_DOCK_NONE then o &= ", " & DockExpr_( c.Dock )
         o &= " )" & NL
+        ' a control that sizes its own dock (an InfoBar): told the layout it is in (controls.toml layout_hook)
+        if len( m->LayoutHook ) then o &= "    " & m->LayoutHook & "( " & c.Name & ".Handle, Layout )" & NL
         ' Tab order set in the designer (Design > Tab Order): each control its place among its siblings
         dim as boolean anyTab = false
         for each x as FormControl in doc.Controls

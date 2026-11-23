@@ -891,6 +891,15 @@ end function
 ' ==========================================================================================
 ' Public API
 ' ==========================================================================================
+' A designed form's Toaster component: the toaster of hParent's window (made if there is none),
+' its listener given ctrlId. One per window: a second Create returns the same toaster.
+public function tkToast_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
+    dim as TKTOASTER_STATE ptr pT = Get_( hParent )
+    if pT = 0 then return 0
+    pT->hWin->ctrlId = ctrlId
+    return pT->hWin
+end function
+
 ' The toaster of hWnd's window -- its handle, which callbacks receive -- made if there is none.
 public function tkToast_GetToaster( byval hWnd as TK_WIDGET ptr ) as TK_WIDGET ptr
     dim as TKTOASTER_STATE ptr pT = Get_( hWnd )
@@ -1314,6 +1323,47 @@ public sub tkToast_SetCoalesceRepeats( byval hWnd as TK_WIDGET ptr, byval b as b
     if GetSt_( hWnd, pT ) = false then exit sub
     pT->st.bCoalesceRepeats = b
 end sub
+
+' ---- getters (what a designer reads back) ----
+public function tkToast_GetPosition( byval hWnd as TK_WIDGET ptr ) as long
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.position, gDefaults.position )
+end function
+
+public function tkToast_GetMaxVisible( byval hWnd as TK_WIDGET ptr ) as long
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.maxVisible, gDefaults.maxVisible )
+end function
+
+public function tkToast_GetWidth( byval hWnd as TK_WIDGET ptr ) as long
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.cardWidth, gDefaults.cardWidth )
+end function
+
+public function tkToast_GetPauseOnHover( byval hWnd as TK_WIDGET ptr ) as boolean
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.bPauseOnHover, gDefaults.bPauseOnHover )
+end function
+
+public function tkToast_GetPauseOnWindowBlur( byval hWnd as TK_WIDGET ptr ) as boolean
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.bPauseOnBlur, gDefaults.bPauseOnBlur )
+end function
+
+public function tkToast_GetCoalesceRepeats( byval hWnd as TK_WIDGET ptr ) as boolean
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.bCoalesceRepeats, gDefaults.bCoalesceRepeats )
+end function
+
+public function tkToast_GetTimeScale( byval hWnd as TK_WIDGET ptr ) as single
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.fTimeScale, gDefaults.fTimeScale )
+end function
+
+public function tkToast_GetTimeouts( byval hWnd as TK_WIDGET ptr ) as boolean
+    dim as TKTOASTER_STATE ptr pT = Find_( hWnd )
+    return iif( pT <> 0, pT->st.bTimeouts, gDefaults.bTimeouts )
+end function
 
 ' WCAG 2.2.1: every duration armed from now on times f (> 0); 10 = "at least 10x the default".
 public sub tkToast_SetTimeScale( byval hWnd as TK_WIDGET ptr, byval f as single )

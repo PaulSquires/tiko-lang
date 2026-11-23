@@ -36,6 +36,9 @@
 #import "../tkCodeEdit"
 #import "../tkTimer"
 #import "../tkContextMenu"
+#import "../tkInfoBar"
+#import "../tkNotify"
+#import "../tkToast"
 using tkHost
 using tkPaint
 using tkLabel
@@ -72,6 +75,9 @@ using tkChart
 using tkCodeEdit
 using tkTimer
 using tkContextMenu
+using tkInfoBar
+using tkNotify
+using tkToast
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -3350,6 +3356,241 @@ private function C_PopupMenu( byval hParent as TK_WIDGET ptr, byval id as int32,
     return tkContextMenu_Create( hParent, id )
 end function
 
+private function C_InfoBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkInfoBar_Create( hParent, id, cbool( arg = "true" ) )
+end function
+
+private sub G_InfoBar( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkInfoBar_GetColors( w, cast( TKNOTIFY_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_InfoBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKNOTIFY_COLORS ptr, pSlots ) = tkNotify_ThemeColors( t )
+end sub
+
+private sub A_InfoBar_Severity( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Info" : tkInfoBar_SetSeverity( w, tkNotify.TKN_INFO )
+    case "Success" : tkInfoBar_SetSeverity( w, tkNotify.TKN_SUCCESS )
+    case "Warning" : tkInfoBar_SetSeverity( w, tkNotify.TKN_WARNING )
+    case "Error" : tkInfoBar_SetSeverity( w, tkNotify.TKN_ERROR )
+    end select
+end sub
+
+private function R_InfoBar_Severity( byval w as TK_WIDGET ptr ) as ustring
+    select case tkInfoBar_GetSeverity( w )
+    case tkNotify.TKN_INFO : return "Info"
+    case tkNotify.TKN_SUCCESS : return "Success"
+    case tkNotify.TKN_WARNING : return "Warning"
+    case tkNotify.TKN_ERROR : return "Error"
+    end select
+    return ""
+end function
+
+private sub A_InfoBar_Title( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetTitle( w, v )
+end sub
+
+private function R_InfoBar_Title( byval w as TK_WIDGET ptr ) as ustring
+    return tkInfoBar_GetTitle( w )
+end function
+
+private sub A_InfoBar_Message( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetMessage( w, v )
+end sub
+
+private function R_InfoBar_Message( byval w as TK_WIDGET ptr ) as ustring
+    return tkInfoBar_GetMessage( w )
+end function
+
+private sub A_InfoBar_Actions( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetActionList( w, v )
+end sub
+
+private function R_InfoBar_Actions( byval w as TK_WIDGET ptr ) as ustring
+    return tkInfoBar_GetActionList( w )
+end function
+
+private sub A_InfoBar_Closable( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetClosable( w, cbool( v = "true" ) )
+end sub
+
+private function R_InfoBar_Closable( byval w as TK_WIDGET ptr ) as ustring
+    if tkInfoBar_GetClosable( w ) then return "true" else return "false"
+end function
+
+private sub A_InfoBar_IconVisible( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetIconVisible( w, cbool( v = "true" ) )
+end sub
+
+private function R_InfoBar_IconVisible( byval w as TK_WIDGET ptr ) as ustring
+    if tkInfoBar_GetIconVisible( w ) then return "true" else return "false"
+end function
+
+private sub A_InfoBar_Glyph( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetGlyph( w, v )
+end sub
+
+private function R_InfoBar_Glyph( byval w as TK_WIDGET ptr ) as ustring
+    return tkInfoBar_GetGlyph( w )
+end function
+
+private sub A_InfoBar_LayoutMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Auto" : tkInfoBar_SetLayoutMode( w, tkNotify.TKN_LAYOUT_AUTO )
+    case "Line" : tkInfoBar_SetLayoutMode( w, tkNotify.TKN_LAYOUT_LINE )
+    case "Stacked" : tkInfoBar_SetLayoutMode( w, tkNotify.TKN_LAYOUT_STACKED )
+    end select
+end sub
+
+private function R_InfoBar_LayoutMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkInfoBar_GetLayoutMode( w )
+    case tkNotify.TKN_LAYOUT_AUTO : return "Auto"
+    case tkNotify.TKN_LAYOUT_LINE : return "Line"
+    case tkNotify.TKN_LAYOUT_STACKED : return "Stacked"
+    end select
+    return ""
+end function
+
+private sub A_InfoBar_MaxLines( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetMaxLines( w, clng( val( v ) ) )
+end sub
+
+private function R_InfoBar_MaxLines( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkInfoBar_GetMaxLines( w ) )
+end function
+
+private sub A_InfoBar_Progress( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetProgress( w, clng( val( v ) ) )
+end sub
+
+private function R_InfoBar_Progress( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkInfoBar_GetProgress( w ) )
+end function
+
+private sub A_InfoBar_Animate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetAnimate( w, cbool( v = "true" ) )
+end sub
+
+private function R_InfoBar_Animate( byval w as TK_WIDGET ptr ) as ustring
+    if tkInfoBar_GetAnimate( w ) then return "true" else return "false"
+end function
+
+private sub A_InfoBar_TabStop( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkInfoBar_SetTabStop( w, cbool( v = "true" ) )
+end sub
+
+private function R_InfoBar_TabStop( byval w as TK_WIDGET ptr ) as ustring
+    if tkInfoBar_GetTabStop( w ) then return "true" else return "false"
+end function
+
+private sub F_InfoBar_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkInfoBar_SetFont( w, f )
+end sub
+
+private sub F_InfoBar_TitleFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkInfoBar_SetTitleFont( w, f )
+end sub
+
+private function C_Toaster( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkToast_Create( hParent, id )
+end function
+
+private sub A_Toaster_Position( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "TopLeft" : tkToast_SetPosition( w, TST_POS_TOP_LEFT )
+    case "TopCenter" : tkToast_SetPosition( w, TST_POS_TOP_CENTER )
+    case "TopRight" : tkToast_SetPosition( w, TST_POS_TOP_RIGHT )
+    case "BottomLeft" : tkToast_SetPosition( w, TST_POS_BOTTOM_LEFT )
+    case "BottomCenter" : tkToast_SetPosition( w, TST_POS_BOTTOM_CENTER )
+    case "BottomRight" : tkToast_SetPosition( w, TST_POS_BOTTOM_RIGHT )
+    end select
+end sub
+
+private function R_Toaster_Position( byval w as TK_WIDGET ptr ) as ustring
+    select case tkToast_GetPosition( w )
+    case TST_POS_TOP_LEFT : return "TopLeft"
+    case TST_POS_TOP_CENTER : return "TopCenter"
+    case TST_POS_TOP_RIGHT : return "TopRight"
+    case TST_POS_BOTTOM_LEFT : return "BottomLeft"
+    case TST_POS_BOTTOM_CENTER : return "BottomCenter"
+    case TST_POS_BOTTOM_RIGHT : return "BottomRight"
+    end select
+    return ""
+end function
+
+private sub A_Toaster_MaxVisible( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetMaxVisible( w, clng( val( v ) ) )
+end sub
+
+private function R_Toaster_MaxVisible( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToast_GetMaxVisible( w ) )
+end function
+
+private sub A_Toaster_Width( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_Toaster_Width( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToast_GetWidth( w ) )
+end function
+
+private sub A_Toaster_Durations( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetDurations( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
+private sub A_Toaster_Insets( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetInsets( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ), clng( val( tkMeta_ListItem( v, 3 ) ) ) )
+end sub
+
+private sub A_Toaster_PauseOnHover( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetPauseOnHover( w, cbool( v = "true" ) )
+end sub
+
+private function R_Toaster_PauseOnHover( byval w as TK_WIDGET ptr ) as ustring
+    if tkToast_GetPauseOnHover( w ) then return "true" else return "false"
+end function
+
+private sub A_Toaster_PauseOnWindowBlur( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetPauseOnWindowBlur( w, cbool( v = "true" ) )
+end sub
+
+private function R_Toaster_PauseOnWindowBlur( byval w as TK_WIDGET ptr ) as ustring
+    if tkToast_GetPauseOnWindowBlur( w ) then return "true" else return "false"
+end function
+
+private sub A_Toaster_CoalesceRepeats( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetCoalesceRepeats( w, cbool( v = "true" ) )
+end sub
+
+private function R_Toaster_CoalesceRepeats( byval w as TK_WIDGET ptr ) as ustring
+    if tkToast_GetCoalesceRepeats( w ) then return "true" else return "false"
+end function
+
+private sub A_Toaster_Animate( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetAnimate( w, cbool( v = "true" ) )
+end sub
+
+private function R_Toaster_Animate( byval w as TK_WIDGET ptr ) as ustring
+    if tkToast_GetAnimate( w ) then return "true" else return "false"
+end function
+
+private sub A_Toaster_TimeScale( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetTimeScale( w, val( v ) )
+end sub
+
+private function R_Toaster_TimeScale( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkToast_GetTimeScale( w ) )
+end function
+
+private sub A_Toaster_Timeouts( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkToast_SetTimeouts( w, cbool( v = "true" ) )
+end sub
+
+private function R_Toaster_Timeouts( byval w as TK_WIDGET ptr ) as ustring
+    if tkToast_GetTimeouts( w ) then return "true" else return "false"
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -4328,4 +4569,67 @@ sub Fill_( )
     Add_( "PopupMenu", "tkContextMenu", "Components", 72, 24, "Command", "", @C_PopupMenu, "", "", "", "", false )
     Event_( "Command", "tkContextMenu_SetCommandCallback", "CTX_CommandCallbackSub", "byval hCtx as TK_WIDGET ptr, byval id as int32", "byval id as int32", "id" )
     Event_( "Popup", "tkContextMenu_SetPopupCallback", "CTX_PopupCallbackSub", "byval hCtx as TK_WIDGET ptr, byval hSource as TK_WIDGET ptr", "byval hSource as TK_WIDGET ptr", "hSource" )
+    Add_( "InfoBar", "tkInfoBar", "Common", 400, 44, "Action", "", @C_InfoBar, "IsOpen", "bool", "", "true" )
+    LayoutHook_( "tkInfoBar_AttachLayout" )
+    Bind_( "text", "", "tkInfoBar_SetText", true )
+    Colors_( "TKNOTIFY_COLORS", "tkInfoBar_GetColors", "tkNotify_ThemeColors", @G_InfoBar, @T_InfoBar )
+    Color_( "InfoBack", "InfoBack", "Normal", "", false )
+    Color_( "InfoBorder", "InfoBorder", "Normal", "", false )
+    Color_( "InfoGlyph", "InfoGlyph", "Normal", "", false )
+    Color_( "SuccessBack", "SuccessBack", "Normal", "", false )
+    Color_( "SuccessBorder", "SuccessBorder", "Normal", "", false )
+    Color_( "SuccessGlyph", "SuccessGlyph", "Normal", "", false )
+    Color_( "WarningBack", "WarningBack", "Normal", "", false )
+    Color_( "WarningBorder", "WarningBorder", "Normal", "", false )
+    Color_( "WarningGlyph", "WarningGlyph", "Normal", "", false )
+    Color_( "ErrorBack", "ErrorBack", "Normal", "", false )
+    Color_( "ErrorBorder", "ErrorBorder", "Normal", "", false )
+    Color_( "ErrorGlyph", "ErrorGlyph", "Normal", "", false )
+    Color_( "TitleColor", "Title", "Normal", "", true )
+    Color_( "TextColor", "Text", "Normal", "", true )
+    Color_( "ButtonBack", "Button", "Normal", "", false )
+    Color_( "ButtonBackHot", "Button", "Hot", "", false )
+    Color_( "ButtonBackPressed", "Button", "Pressed", "", false )
+    Color_( "ButtonBorder", "ButtonBorder", "Normal", "", false )
+    Color_( "ButtonText", "ButtonText", "Normal", "", true )
+    Color_( "ButtonTextDisabled", "ButtonText", "Disabled", "", true )
+    Color_( "CloseBackHot", "Close", "Hot", "", false )
+    Color_( "CloseGlyph", "CloseGlyph", "Normal", "", true )
+    Color_( "FocusRing", "", "", "", false )
+    Color_( "ProgressTrack", "ProgressTrack", "Normal", "", false )
+    Color_( "Shadow", "", "", "", false )
+    Prop_( "Severity", "enum", "Info", "Info=tkNotify.TKN_INFO,Success=tkNotify.TKN_SUCCESS,Warning=tkNotify.TKN_WARNING,Error=tkNotify.TKN_ERROR", "tkInfoBar_SetSeverity", "tkInfoBar_GetSeverity", @A_InfoBar_Severity, @R_InfoBar_Severity, 0, true, true, "", 0 )
+    Prop_( "Title", "text", "", "", "tkInfoBar_SetTitle", "tkInfoBar_GetTitle", @A_InfoBar_Title, @R_InfoBar_Title, 0, true, true, "", 0 )
+    Prop_( "Message", "text", "Message", "", "tkInfoBar_SetMessage", "tkInfoBar_GetMessage", @A_InfoBar_Message, @R_InfoBar_Message, 0, true, true, "", 0 )
+    Prop_( "Actions", "text", "", "", "tkInfoBar_SetActionList", "tkInfoBar_GetActionList", @A_InfoBar_Actions, @R_InfoBar_Actions, 0, true, true, "", 0 )
+    Prop_( "Closable", "bool", "true", "", "tkInfoBar_SetClosable", "tkInfoBar_GetClosable", @A_InfoBar_Closable, @R_InfoBar_Closable, 0, true, true, "", 0 )
+    Prop_( "IconVisible", "bool", "true", "", "tkInfoBar_SetIconVisible", "tkInfoBar_GetIconVisible", @A_InfoBar_IconVisible, @R_InfoBar_IconVisible, 0, true, true, "", 0 )
+    Prop_( "Glyph", "glyph", "", "", "tkInfoBar_SetGlyph", "tkInfoBar_GetGlyph", @A_InfoBar_Glyph, @R_InfoBar_Glyph, 0, true, true, "", 0 )
+    Prop_( "LayoutMode", "enum", "Auto", "Auto=tkNotify.TKN_LAYOUT_AUTO,Line=tkNotify.TKN_LAYOUT_LINE,Stacked=tkNotify.TKN_LAYOUT_STACKED", "tkInfoBar_SetLayoutMode", "tkInfoBar_GetLayoutMode", @A_InfoBar_LayoutMode, @R_InfoBar_LayoutMode, 0, true, true, "", 0 )
+    Prop_( "MaxLines", "int", "3", "", "tkInfoBar_SetMaxLines", "tkInfoBar_GetMaxLines", @A_InfoBar_MaxLines, @R_InfoBar_MaxLines, 0, true, true, "", 0 )
+    Prop_( "Progress", "int", "-1", "", "tkInfoBar_SetProgress", "tkInfoBar_GetProgress", @A_InfoBar_Progress, @R_InfoBar_Progress, 0, true, true, "", 0 )
+    Prop_( "Animate", "bool", "true", "", "tkInfoBar_SetAnimate", "tkInfoBar_GetAnimate", @A_InfoBar_Animate, @R_InfoBar_Animate, 0, true, true, "", 0 )
+    Prop_( "TabStop", "bool", "true", "", "tkInfoBar_SetTabStop", "tkInfoBar_GetTabStop", @A_InfoBar_TabStop, @R_InfoBar_TabStop, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkInfoBar_SetFont", "tkInfoBar_GetFont", 0, 0, @F_InfoBar_Font, true, true, "", 0 )
+    Prop_( "TitleFont", "font", "", "", "tkInfoBar_SetTitleFont", "tkInfoBar_GetTitleFont", 0, 0, @F_InfoBar_TitleFont, true, true, "", 0 )
+    Event_( "Action", "tkInfoBar_SetActionCallback", "IB_ActionCallbackSub", "byval hBar as TK_WIDGET ptr, byval id as int32", "byval id as int32", "id" )
+    Event_( "Closing", "tkInfoBar_SetClosingCallback", "IB_ClosingCallbackFunc", "byval hBar as TK_WIDGET ptr, byval reason as int32", "byval reason as int32, byref Allow as boolean", "reason, Allow", "", "boolean", "Allow", "true" )
+    Event_( "Closed", "tkInfoBar_SetClosedCallback", "IB_ClosedCallbackSub", "byval hBar as TK_WIDGET ptr, byval reason as int32", "byval reason as int32", "reason" )
+    Event_( "HeightChanged", "tkInfoBar_SetHeightChangedCallback", "IB_HeightChangedCallbackSub", "byval hBar as TK_WIDGET ptr, byval cyDesign as int32", "byval cyDesign as int32", "cyDesign" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Toaster", "tkToast", "Components", 72, 24, "Action", "", @C_Toaster, "", "", "", "", false )
+    Prop_( "Position", "enum", "BottomRight", "TopLeft=TST_POS_TOP_LEFT,TopCenter=TST_POS_TOP_CENTER,TopRight=TST_POS_TOP_RIGHT,BottomLeft=TST_POS_BOTTOM_LEFT,BottomCenter=TST_POS_BOTTOM_CENTER,BottomRight=TST_POS_BOTTOM_RIGHT", "tkToast_SetPosition", "tkToast_GetPosition", @A_Toaster_Position, @R_Toaster_Position, 0, true, true, "", 0 )
+    Prop_( "MaxVisible", "int", "3", "", "tkToast_SetMaxVisible", "tkToast_GetMaxVisible", @A_Toaster_MaxVisible, @R_Toaster_MaxVisible, 0, true, true, "", 0 )
+    Prop_( "Width", "int", "360", "", "tkToast_SetWidth", "tkToast_GetWidth", @A_Toaster_Width, @R_Toaster_Width, 0, true, true, "", 0 )
+    Prop_( "Durations", "list", "", "Normal:int,Alert:int", "tkToast_SetDurations", "", @A_Toaster_Durations, 0, 0, true, true, "", 0 )
+    Prop_( "Insets", "list", "", "Left:int,Top:int,Right:int,Bottom:int", "tkToast_SetInsets", "", @A_Toaster_Insets, 0, 0, true, true, "", 0 )
+    Prop_( "PauseOnHover", "bool", "true", "", "tkToast_SetPauseOnHover", "tkToast_GetPauseOnHover", @A_Toaster_PauseOnHover, @R_Toaster_PauseOnHover, 0, true, true, "", 0 )
+    Prop_( "PauseOnWindowBlur", "bool", "true", "", "tkToast_SetPauseOnWindowBlur", "tkToast_GetPauseOnWindowBlur", @A_Toaster_PauseOnWindowBlur, @R_Toaster_PauseOnWindowBlur, 0, true, true, "", 0 )
+    Prop_( "CoalesceRepeats", "bool", "true", "", "tkToast_SetCoalesceRepeats", "tkToast_GetCoalesceRepeats", @A_Toaster_CoalesceRepeats, @R_Toaster_CoalesceRepeats, 0, true, true, "", 0 )
+    Prop_( "Animate", "bool", "true", "", "tkToast_SetAnimate", "tkToast_GetAnimate", @A_Toaster_Animate, @R_Toaster_Animate, 0, true, true, "", 0 )
+    Prop_( "TimeScale", "float", "1", "", "tkToast_SetTimeScale", "tkToast_GetTimeScale", @A_Toaster_TimeScale, @R_Toaster_TimeScale, 0, true, true, "", 0 )
+    Prop_( "Timeouts", "bool", "true", "", "tkToast_SetTimeouts", "tkToast_GetTimeouts", @A_Toaster_Timeouts, @R_Toaster_Timeouts, 0, true, true, "", 0 )
+    Event_( "Action", "tkToast_SetActionCallback", "TST_ActionSub", "byval hToaster as TK_WIDGET ptr, byval id as int32, byval nAction as int32, byval pCtx as any ptr", "byval id as int32, byval nAction as int32", "id, nAction" )
+    Event_( "Dismissed", "tkToast_SetDismissedCallback", "TST_DismissedSub", "byval hToaster as TK_WIDGET ptr, byval id as int32, byval reason as int32, byval pCtx as any ptr", "byval id as int32, byval reason as int32", "id, reason" )
+    Event_( "Click", "tkToast_SetClickCallback", "TST_ClickSub", "byval hToaster as TK_WIDGET ptr, byval id as int32, byval pCtx as any ptr", "byval id as int32", "id" )
 end sub

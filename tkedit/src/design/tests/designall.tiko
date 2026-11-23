@@ -1222,6 +1222,28 @@ sub PropOrderSuite( )
     Check( (instr( r, "Range = " ) > 0) andalso (instr( r, "Range = " ) < instr( r, "Value = " )), "proporder: the writer saves Range before Value" )
 end sub
 
+' InfoBar + Toaster (notifications N5): a bar's create arg, its layout hook right after it joins the
+' layout, a Closing thunk answering Allow (true unless the handler says no), its load-only binding;
+' a Toaster is created but never laid out, and its events are wired.
+sub NotifySuite( )
+    dim as ustring src = Header( ) & "data_type = ""orders.Order""" & LF & "data_module = ""../orders""" & LF _
+        & Ctl( "bar", "InfoBar", "dock = ""top""" & LF & "bind = ""Notice""" & LF & "[control.props]" & LF & "Severity = ""Warning""" & LF & "Actions = ""Retry|Details""" & LF _
+        & LF & "[control.events]" & LF & "Closing = ""bar_Closing""" & LF ) _
+        & Ctl( "tst", "Toaster", "[control.props]" & LF & "Position = ""TopRight""" & LF & LF & "[control.events]" & LF & "Action = ""tst_Action""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "notify: the form parses" )
+    Accepted( src, "notify: an InfoBar and a Toaster" )
+    dim as ustring g = codegen.Generate( d, "frmN", "frmN.tkform", src )
+    dim as long nAdd = instr( g, "tkLayout_Add( Layout, bar.Handle" ), nHook = instr( g, "    tkInfoBar_AttachLayout( bar.Handle, Layout )" & LF )
+    Check( (nAdd > 0) andalso (nHook > nAdd), "notify: the bar's layout hook, right after it joins the layout", LineWith( g, "AttachLayout" ) )
+    Check( instr( g, "bar.Create( " ) > 0 andalso (instr( LineWith( g, "bar.Create( " ), ", true )" ) > 0), "notify: a designed bar is created open (IsOpen's default)", LineWith( g, "bar.Create( " ) )
+    HasLine( g, "bar.Severity = tkNotify.TKN_WARNING", "notify: an enum prop is its (qualified) constant" )
+    Check( instr( g, "    dim as boolean Allow = true" & LF ) > 0, "notify: Closing's thunk starts Allow at true", LineWith( g, "Allow" ) )
+    Check( instr( g, "tkInfoBar_SetText( bar.Handle, tkBind_Text( r.Notice ) )" ) > 0, "notify: the bar loads its field", LineWith( g, "tkInfoBar_SetText" ) )
+    Check( (instr( g, "tst.Create( " ) > 0) andalso (instr( g, "tkLayout_Add( Layout, tst.Handle" ) = 0) andalso _
+           (instr( g, "tkToast_SetActionCallback( tst.Handle, @Thunk_tst_Action )" ) > 0), "notify: a Toaster is made, not laid out, its event wired", LineWith( g, "tst." ) )
+end sub
+
 ' A Slider (S3): its limits before its value whatever the file's order, enum constants, and a
 ' FormatValue thunk that answers a ustring.
 sub SliderSuite( )
@@ -2580,6 +2602,7 @@ TextBoxEventsSuite( )
 NumericUpDownSuite( )
 PropOrderSuite( )
 SliderSuite( )
+NotifySuite( )
 DatePickerSuite( )
 CalendarSuite( )
 CodeEditSuite( )

@@ -196,6 +196,18 @@ anchor or dock it. Its **Interval** is in milliseconds (0, the default, means st
 and stops it, and its **Tick** handler (`sub Form.OnTick( )`) runs every Interval while it is enabled. A
 Test Form leaves it out. See [tkTimer](tkTimer).
 
+A **Toaster** is the form's toasts: transient cards in a corner of the window. Drop one to set how they
+behave -- **Position**, **MaxVisible**, **Width**, **Durations** (info / success, warning / error, in ms),
+**Insets**, **PauseOnHover**, **PauseOnWindowBlur**, **CoalesceRepeats**, **Animate**, **TimeScale**,
+**Timeouts** -- and to handle **Action**, **Dismissed** and **Click** for toasts that carry no handler
+of their own. Post toasts from code with `tkToast_ShowText( Handle_Of_Any_Widget, "Saved" )` or
+`tkToast_Show`. A window has one toaster: a second Toaster on a form is the same one.
+
+An **InfoBar** is a control, not a component: a message bar in the layout, usually docked top. Dock it and
+the form gives it the height its text needs and takes the space back when it closes (the bar re-runs the
+layout itself). **IsOpen** (on by default) is a creation choice; **Actions** lists its buttons as
+`Retry|Details`; its **Closing** handler can refuse a close by setting `Allow = false`.
+
 A **PopupMenu** is a right-click menu. Its **Edit items** are a menu's -- text, shortcut, handler, indented
 for a submenu -- but the first level is the menu that opens, not a bar. Give a control (or the form)
 that menu in its **ContextMenu** property: a right-click on it, or the Menu key or Shift+F10 when it has
@@ -336,6 +348,7 @@ end sub
 | --- | --- |
 | TextBox, CodeEdit | the text |
 | Label | the text, in only: SaveTo leaves the field alone |
+| InfoBar | the message, in only: a field with text opens the bar, an empty one closes it |
 | NumericUpDown | the value |
 | Slider | the value; with **Mode** = Range, **Bind** takes the lower value and **BindUpper** the upper (loaded lower first, so any old pair loads right) |
 | CheckBox, OptionButton, Toggle | checked or not |

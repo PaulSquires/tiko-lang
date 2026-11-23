@@ -44,10 +44,12 @@
 #import "../tkHost" public
 #import "../tkTheme" public
 #import "../tkNotify" public
+#import "../tkLayout"
 using tkHost
 using tkPaint
 using tkTheme
 using tkNotify
+using tkLayout
 
 public const TKINFOBAR_ANIM_MS = 150            ' open / close
 public const TKINFOBAR_MARQUEE_MS = 1500        ' one pass of the indeterminate segment
@@ -92,6 +94,7 @@ public type TKINFOBAR_STATE
     tMarquee       as longint             ' when the indeterminate segment started
     tTestNow       as longint = -1        ' >= 0: the clock, pinned by tkInfoBar_TickForTest
     nClockMs       as long                ' the interval armed; 0 = no timer
+    pLayout        as TK_LAYOUT ptr       ' tkInfoBar_AttachLayout's: re-run when the height changes
     ActionCallback        as IB_ActionCallbackSub
     ClosingCallback       as IB_ClosingCallbackFunc
     ClosedCallback        as IB_ClosedCallbackSub
@@ -145,6 +148,7 @@ sub TKINFOBAR_STATE.CheckHeight()
     dim as long pref = tkInfoBar_GetPreferredHeight( this.hWin, this.hWin->cw )
     if pref = this.nLastPref then exit sub
     this.nLastPref = pref
+    if this.pLayout then tkLayout_Apply( this.pLayout )
     if this.HeightChangedCallback then
         dim as single f = this.hWin->pHost->fScale
         this.HeightChangedCallback( this.hWin, cint( pref / iif( f > 0, f, 1 ) ) )
@@ -447,14 +451,17 @@ end function
 ' ========================================================================================
 ' Public API
 ' ========================================================================================
-' A child of hParent. It starts CLOSED (hidden), severity Info, closable, no text.
-public function tkInfoBar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
+' A child of hParent: severity Info, closable, no text. It starts CLOSED (hidden) unless bOpen --
+' a designed form's bar (controls.toml create_arg IsOpen, default true), open at once, no motion.
+public function tkInfoBar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long, byval bOpen as boolean = false ) as TK_WIDGET ptr
     if hParent = 0 then return 0
     dim as TKINFOBAR_STATE ptr p = new TKINFOBAR_STATE
     p->id = ctrlId
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkInfoBar_Proc, p )
     p->hWin = w
-    w->isVisible = false
+    w->isVisible = bOpen
+    p->bOpen = bOpen
+    p->fVis = iif( bOpen, 1.0, 0.0 )
     p->colors = tkNotify_ThemeColors( tkTheme_Of( w ) )
     tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKNOTIFY_COLORS ) \ 4, "InfoBar" )
     p->SyncFocusable()
@@ -693,6 +700,52 @@ public function tkInfoBar_AddAction( byval hBar as TK_WIDGET ptr, byref caption 
     p->Changed()
     return n + 1
 end function
+
+' The actions as one text, "|" between captions ("Retry|Details"): what a designer's Actions
+' property holds. Replaces every action; ids are 1, 2, ... in order. Empty captions are skipped.
+public sub tkInfoBar_SetActionList( byval hBar as TK_WIDGET ptr, byref list_ as const ustring )
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    if p = 0 then exit sub
+    erase p->item.actions
+    erase p->item.actOff
+    dim as long st = 1, n = 0
+    do
+        dim as long bar = instr( st, list_, "|" )
+        dim as ustring cap = iif( bar > 0, mid( list_, st, bar - st ), mid( list_, st ) )
+        if len( cap ) then
+            redim preserve p->item.actions( 0 to n )
+            redim preserve p->item.actOff( 0 to n )
+            p->item.actions(n) = cap
+            n += 1
+        end if
+        if bar = 0 then exit do
+        st = bar + 1
+    loop
+    p->Changed()
+end sub
+
+public function tkInfoBar_GetActionList( byval hBar as TK_WIDGET ptr ) as ustring
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    if p = 0 then return ""
+    dim as ustring s
+    for i as long = 0 to tkNotify_ActionCount( p->item ) - 1
+        if i > 0 then s &= "|"
+        s &= p->item.actions(i)
+    next
+    return s
+end function
+
+' Docks the bar in l at its own height: registers tkInfoBar_GetPreferredHeight as its height
+' function and re-runs l whenever that height changes (open, close, rewrap, each motion frame),
+' before HeightChanged. A designed form calls it (controls.toml layout_hook); 0 detaches. l must
+' outlive the bar, or be detached first.
+public sub tkInfoBar_AttachLayout( byval hBar as TK_WIDGET ptr, byval l as TK_LAYOUT ptr )
+    dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )
+    if p = 0 then exit sub
+    if (p->pLayout <> 0) andalso (p->pLayout <> l) then tkLayout_SetHeightFunc( p->pLayout, hBar, 0 )
+    p->pLayout = l
+    if l then tkLayout_SetHeightFunc( l, hBar, @tkInfoBar_GetPreferredHeight )
+end sub
 
 public function tkInfoBar_GetActionCount( byval hBar as TK_WIDGET ptr ) as long
     dim as TKINFOBAR_STATE ptr p = GetBarPointer( hBar )

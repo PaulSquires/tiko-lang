@@ -276,7 +276,8 @@ sub CheckColors_( byref ctl as TomlValue, byref root as const ustring )
     if flds = 0 then Fail_( name_ & ": colors without color_fields" )
     dim as ustring st = Str_( *col, "struct" )
     dim as ustring names( any ), types( any )
-    dim as long n = StructFields_( root, mod_, st, names(), types() )
+    ' struct_module: the module that declares a struct several controls share (tkNotify's colours)
+    dim as long n = StructFields_( root, Str_( *col, "struct_module", mod_ ), st, names(), types() )
     if flds->Count( ) <> n then Fail_( name_ & ": color_fields lists " & flds->Count( ) & " fields, " & st & " has " & n )
     for i as long = 0 to n - 1
         dim as TomlValue ptr f = @flds->Item( i )
@@ -422,6 +423,15 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
         dim as ustring name_ = Str_( *ctl, "name" ), mod_ = Str_( *ctl, "module" )
         imports &= "#import ""../" & mod_ & """" & NL
         usings &= "using " & mod_ & NL
+        ' a shared colour struct's module, once (its type is named in the thunks)
+        dim as TomlValue ptr colm = ctl->Find( "colors" )
+        if colm then
+            dim as ustring sm = Str_( *colm, "struct_module" )
+            if len( sm ) andalso (instr( imports, "#import ""../" & sm & """" ) = 0) then
+                imports &= "#import ""../" & sm & """" & NL
+                usings &= "using " & sm & NL
+            end if
+        end if
 
         dim as ustring argKind = Str_( *ctl, "create_arg_kind" ), argEnum = Str_( *ctl, "create_arg_enum" )
         thunks &= "private function C_" & name_ & "( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr" & NL
@@ -446,6 +456,7 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
                 & Quote_( Str_( *ctl, "default_event" ) ) & ", " & Quote_( Str_( *ctl, "container" ) ) & ", @C_" & name_ & ", " _
                 & Quote_( Str_( *ctl, "create_arg" ) ) & ", " & Quote_( argKind ) & ", " & Quote_( argEnum ) & ", " & Quote_( Str_( *ctl, "create_arg_default" ) ) _
                 & iif( Flag_( *ctl, "visual", true ), "", ", false" ) & " )" & NL
+        if len( Str_( *ctl, "layout_hook" ) ) then fill &= "    LayoutHook_( " & Quote_( Str_( *ctl, "layout_hook" ) ) & " )" & NL
         dim as TomlValue ptr bnd = ctl->Find( "bind" )
         if bnd then
             fill &= "    Bind_( " & Quote_( Str_( *bnd, "kind" ) ) & ", " & Quote_( Str_( *bnd, "get" ) ) & ", " & Quote_( Str_( *bnd, "set" ) ) _
@@ -570,6 +581,11 @@ dim as TomlValue ptr ctls = doc.Find( "control" )
 for c as long = 0 to ctls->Count( ) - 1
     CheckColors_( ctls->Item( c ), root )
     CheckBind_( ctls->Item( c ), root )
+    ' layout_hook = "<proc>": a public sub of the control's module, "( h, layout )"
+    dim as ustring hk = Str_( ctls->Item( c ), "layout_hook" )
+    if len( hk ) andalso (instr( ModuleText_( root, Str_( ctls->Item( c ), "module" ) ), NL & "public sub " & hk & "(" ) = 0) then
+        Fail_( Str_( ctls->Item( c ), "name" ) & ": layout_hook " & hk & " is not a public sub of " & Str_( ctls->Item( c ), "module" ) )
+    end if
 next
 for c as long = 0 to ctls->Count( ) - 1
     GenWrapper( ctls->Item( c ), root )
