@@ -774,9 +774,12 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
             n += 1
         next
     case catalog.ItemsKind.ItemsColumns
-        for each it as FormItem in c.Items
-            tkListTree_AddColumn( w, it.Text, iif( it.Width > 0, it.Width, 100 ) )
-        next
+        ' a ReportViewer's fields have no look until its report is laid out: a ListTree's columns only
+        if c.TypeName = "ListTree" then
+            for each it as FormItem in c.Items
+                tkListTree_AddColumn( w, it.Text, iif( it.Width > 0, it.Width, 100 ) )
+            next
+        end if
     case catalog.ItemsKind.ItemsGridColumns
         ' the columns, and three sample rows so their kinds show
         tkDataGrid_BeginUpdate( w )

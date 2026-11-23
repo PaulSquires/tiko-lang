@@ -234,8 +234,8 @@ end sub
 sub CheckBind_( byref ctl as TomlValue, byref root as const ustring )
     ' items_bind (B3): the shape a designed form fills the control's list in
     select case Str_( ctl, "items_bind" )
-    case "", "rows", "items", "records", "grid"
-    case else : Fail_( Str_( ctl, "name" ) & ": items_bind '" & Str_( ctl, "items_bind" ) & "' is not rows, items, records or grid" )
+    case "", "rows", "items", "records", "grid", "report"
+    case else : Fail_( Str_( ctl, "name" ) & ": items_bind '" & Str_( ctl, "items_bind" ) & "' is not rows, items, records, grid or report" )
     end select
     dim as TomlValue ptr b = ctl.Find( "bind" )
     dim as TomlValue ptr b2 = ctl.Find( "bind2" )

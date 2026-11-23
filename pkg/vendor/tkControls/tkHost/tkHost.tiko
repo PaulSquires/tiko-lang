@@ -556,6 +556,43 @@ end function
 
 ' A font file or a registered name, at 'pt' points (unscaled) and face 'face' of a collection.
 ' The one place a font is opened from a name, so a registered one is honoured everywhere.
+' The font-source registry (tkHost_FontSource). A font's slot is reused when SDL_ttf hands out the
+' same pointer again, so a font closed without tkHost_CloseFont leaves nothing that can mislead.
+dim shared as TTF_Font ptr gFontSrcF()
+dim shared as string gFontSrcPath()
+dim shared as long gFontSrcFace()
+dim shared as long gnFontSrc
+
+private sub NoteFontSource_( byval f as TTF_Font ptr, byref path as string, byval face as long )
+    dim as long k = -1
+    for i as long = 0 to gnFontSrc - 1
+        if gFontSrcF(i) = f then k = i : exit for
+    next
+    if k < 0 then
+        k = gnFontSrc
+        if k > ubound( gFontSrcF ) then
+            dim as long n = iif( k < 16, 16, k * 2 )
+            redim preserve gFontSrcF( 0 to n - 1 )
+            redim preserve gFontSrcPath( 0 to n - 1 )
+            redim preserve gFontSrcFace( 0 to n - 1 )
+        end if
+        gnFontSrc += 1
+    end if
+    gFontSrcF(k) = f : gFontSrcPath(k) = path : gFontSrcFace(k) = face
+end sub
+
+private sub ForgetFontSource_( byval f as TTF_Font ptr )
+    for i as long = 0 to gnFontSrc - 1
+        if gFontSrcF(i) = f then
+            gnFontSrc -= 1
+            gFontSrcF(i) = gFontSrcF(gnFontSrc) : gFontSrcPath(i) = gFontSrcPath(gnFontSrc)
+            gFontSrcFace(i) = gFontSrcFace(gnFontSrc)
+            gFontSrcPath(gnFontSrc) = ""
+            exit sub
+        end if
+    next
+end sub
+
 public function tkHost_OpenFontFace( byref path as string, byval pt as single, byval face as long ) as TTF_Font ptr
     dim as SDL_PropertiesID props = SDL_CreateProperties()
     if props = 0 then return 0
@@ -572,8 +609,50 @@ public function tkHost_OpenFontFace( byref path as string, byval pt as single, b
     SDL_SetNumberProperty( props, TTF_PROP_FONT_CREATE_FACE_NUMBER, face )
     dim as TTF_Font ptr f = TTF_OpenFontWithProperties( props )
     SDL_DestroyProperties( props )
+    if f then NoteFontSource_( f, path, face )
     return f
 end function
+
+' Where a font came from: the name or path tkHost_OpenFontFace was given, and the face. tkPrint
+' re-opens a recorded font at a page's size this way (and a PDF writer will embed its bytes).
+' FALSE for a font SDL_ttf opened without tkHost.
+public function tkHost_FontSource( byval f as TTF_Font ptr, byref path as string, byref face as long ) as boolean
+    if f = 0 then return false
+    for i as long = 0 to gnFontSrc - 1
+        if gFontSrcF(i) = f then path = gFontSrcPath(i) : face = gFontSrcFace(i) : return true
+    next
+    return false
+end function
+
+' A font file's bytes, by the name or path tkHost_OpenFontFace takes: a registered resource's own
+' bytes (bOwned = FALSE: they live as long as the registration), else the file read whole
+' (bOwned = TRUE: SDL_free them). FALSE when there is nothing to read. For a PDF writer's embedding.
+public function tkHost_FontBytes( byref path as string, byref pData as const any ptr, byref nBytes as integer, _
+                                  byref bOwned as boolean ) as boolean
+    pData = 0 : nBytes = 0 : bOwned = false
+    dim as string file = path
+    dim as long k = ResIndex_( path )
+    if k >= 0 then
+        if gResData(k) then
+            pData = gResData(k) : nBytes = gResSize(k)
+            return nBytes > 0
+        end if
+        file = gResFile(k)
+    end if
+    if len( file ) = 0 then return false
+    dim as uinteger sz
+    dim as any ptr p = SDL_LoadFile( strptr( file ), @sz )
+    if p = 0 then return false
+    pData = p : nBytes = sz : bOwned = true
+    return true
+end function
+
+' Close a font tkHost_OpenFontFace opened, and forget where it came from.
+public sub tkHost_CloseFont( byval f as TTF_Font ptr )
+    if f = 0 then exit sub
+    ForgetFontSource_( f )
+    TTF_CloseFont( f )
+end sub
 
 public function tkHost_OpenFont( byval h as TK_HOST ptr, byref path as ustring, byval pt as single ) as TTF_Font ptr
     if h = 0 then return 0
@@ -1252,7 +1331,7 @@ private sub DestroyNow( byval h as TK_HOST ptr )
         h->root = 0
     end if
     for k as long = 0 to ubound( h->fonts )
-        TTF_CloseFont( h->fonts(k).f )
+        tkHost_CloseFont( h->fonts(k).f )
     next
     Unregister( h )
     if h->engine then TTF_DestroyRendererTextEngine( h->engine )

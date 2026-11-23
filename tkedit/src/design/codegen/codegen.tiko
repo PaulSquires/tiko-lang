@@ -723,9 +723,11 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             if c.Items[i].Stretch then o &= "    tkStatusBar_SetPanelStretch( " & h & ", " & i & ", true )" & NL
         next
     case catalog.ItemsKind.ItemsColumns
+        ' a ListTree's columns, or a ReportViewer's report's fields (R5): a caption and a width each
+        dim as ustring addCol = iif( c.TypeName = "ReportViewer", "tkReportViewer_AddField", "tkListTree_AddColumn" )
         for i as long = 0 to c.Items.Count( ) - 1
             dim as FormItem it = c.Items[i]
-            o &= "    tkListTree_AddColumn( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", "
+            o &= "    " & addCol & "( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", "
             if it.Width > 0 then o &= it.Width else o &= "100"
             o &= " )" & NL
         next
@@ -991,7 +993,8 @@ private function AnyValues_( byref doc as FormDoc ) as boolean
 end function
 
 ' The loop that fills c's list from src (an Array( of T ) expression, T = ItemType): a row per
-' element with a column per field (ListTree), or an item per element showing DisplayField (ComboBox).
+' element with a column per field (ListTree; a ReportViewer's report, laid out again after), or an
+' item per element showing DisplayField (ComboBox).
 ' A name is bound by reference, a call's result copied once. The array's type is spelled out, not
 ' typeof( src ): typeof of a member declared in the form's other file, or of a record's array field,
 ' reaches the compiler's limits (TKO0700 on [ ], TKO0994) -- see Learnings, B3.
@@ -1044,6 +1047,18 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
         end if
         o &= "        next" & NL
         o &= "        tkListTree_EndUpdate( " & h & " )" & NL
+    elseif catalog.ItemsBindOf( c ) = "report" then
+        ' a ReportViewer's report (R5): a row per element, column k's Field as field k, by its own type
+        o &= "        tkReportViewer_ClearRows( " & h & " )" & NL
+        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        o &= "            dim as integer row_ = tkReportViewer_AddRow( " & h & " )" & NL
+        for k as long = 0 to c.Items.Count( ) - 1
+            if len( c.Items[k].Field ) then
+                o &= "            tkBind_ToValue( a_[i_]." & c.Items[k].Field & ", tkReportViewer_Cell( " & h & ", row_, " & k & " ) )" & NL
+            end if
+        next
+        o &= "        next" & NL
+        o &= "        tkReportViewer_RefreshReport( " & h & " )" & NL
     else
         o &= "        " & catalog.ItemsClearProc( c.TypeName ) & "( " & h & " )" & NL
         if HasValues_( c ) then o &= "        " & c.Name & "_Values_.Clear( )" & NL

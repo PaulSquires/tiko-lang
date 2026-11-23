@@ -239,6 +239,7 @@ private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as
             out_.Push( c.Name & ": a live grid's ItemsSource must be an array it can change, a name (Lines), not '" & c.ItemsSource & "'" )
         end if
         if len( c.DisplayField ) orelse len( c.ValueField ) then out_.Push( c.Name & ": a " & m->Name & " shows columns: give each column a Field" )
+        if (shape = "report") andalso len( c.CheckField ) then out_.Push( c.Name & ": a ReportViewer's fields are its columns; it has no CheckField" )
         if (src = false) andalso (len( c.CheckField ) orelse anyField) then out_.Push( c.Name & ": columns' fields need ItemsField or ItemsSource" )
         if len( c.CheckField ) andalso (IsElementField_( c.CheckField ) = false) then
             out_.Push( c.Name & ": check field '" & c.CheckField & "' is not a field" )

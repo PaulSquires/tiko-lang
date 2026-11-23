@@ -1246,6 +1246,63 @@ end sub
 
 ' A Slider (S3): its limits before its value whatever the file's order, enum constants, and a
 ' FormatValue thunk that answers a ustring.
+' A PrintPreview (printing R1): Zoom before ZoomMode (a custom zoom, then the mode that may undo it),
+' an enum as its constant, and LinkClick's thunk answering its Handled.
+sub PrintPreviewSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""P""" & LF & "width = 400" & LF & "height = 500" & LF _
+        & Ctl( "pv", "PrintPreview" ) & LF & "[control.props]" & LF & "ZoomMode = ""Custom""" & LF & "Zoom = 0.75" & LF _
+        & "ViewMode = ""Single""" & LF & LF & "[control.events]" & LF & "LinkClick = ""pv_Link""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "preview: the form parses" )
+    Accepted( src, "preview: its props and events" )
+    dim as ustring g = codegen.Generate( d, "frmP", "frmP.tkform", src )
+    dim as long nZoom = instr( g, "    pv.Zoom = 0.75" ), nMode = instr( g, "    pv.ZoomMode = TKPV_ZOOM_CUSTOM" )
+    Check( (nZoom > 0) andalso (nMode > nZoom), "preview: Zoom, then ZoomMode", LineWith( g, "pv." ) )
+    HasLine( g, "pv.ViewMode = TKPV_VIEW_SINGLE", "preview: an enum prop is its constant" )
+    Check( instr( g, "private function Thunk_pv_LinkClick( byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single ) as boolean" & LF _
+        & "    dim as boolean Handled" & LF ) > 0, "preview: LinkClick's thunk answers its Handled", LineWith( g, "Thunk_pv_LinkClick" ) )
+end sub
+
+' A ReportViewer (printing R3): a bool prop, and BeforePrint's thunk answering Allow from true.
+sub ReportViewerSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""R""" & LF & "width = 500" & LF & "height = 560" & LF _
+        & Ctl( "rv", "ReportViewer" ) & LF & "[control.props]" & LF & "ShowStatus = false" & LF _
+        & LF & "[control.events]" & LF & "BeforePrint = ""rv_Before""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "viewer: the form parses" )
+    Accepted( src, "viewer: its props and events" )
+    dim as ustring g = codegen.Generate( d, "frmR", "frmR.tkform", src )
+    HasLine( g, "rv.ShowStatus = false", "viewer: a bool prop" )
+    Check( instr( g, "private function Thunk_rv_BeforePrint( byval hViewer as TK_WIDGET ptr, byref job as TKPRINTJOB ) as boolean" & LF _
+        & "    dim as boolean Allow = true" & LF ) > 0, "viewer: BeforePrint's thunk answers Allow, from true", LineWith( g, "Thunk_rv_BeforePrint" ) )
+    Check( instr( g, "#import ""vendor/tkControls/tkPrinter""" ) > 0, "viewer: BeforePrint's TKPRINTJOB brings tkPrinter" )
+
+    ' R5: its own report from an Array( of T ) -- B3's list shape "report": a field per column
+    dim as ustring rpt = Ctl( "rv", "ReportViewer", "items_source = ""Orders""" & LF & "item_type = ""db.Order""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""Customer""" & LF & "width = 160" & LF & "field = ""Customer""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Note""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Amount""" & LF & "field = ""Amount""" & LF _
+        & LF & "[control.events]" & LF & "BuildReport = ""rv_Build""" & LF
+    Accepted( Header( ) & rpt, "viewer report: a ReportViewer bound to an array" )
+    Refused( Header( ) & Ctl( "rv", "ReportViewer", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "check_field = ""Done""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF, "it has no CheckField" )
+    dim as FormDoc dh
+    ReadForm( Header( ) & Ctl( "rv", "ReportViewer", "items_source = ""S""" & LF & "item_type = ""T""" & LF ), dh )
+    Check( instr( codegen.Generate( dh, "frmH", "frmH.tkform", "" ), "#error ""rv: its list needs a column with a Field" ) > 0, "viewer report: no Field yet, an #error" )
+    dim as FormDoc dr
+    ReadForm( Header( ) & rpt, dr )
+    dim as ustring gr = codegen.Generate( dr, "frmR", "frmR.tkform", "" )
+    Check( (instr( gr, "    tkReportViewer_AddField( rv.Handle, ""Customer"", 160 )" & LF & "    tkReportViewer_AddField( rv.Handle, ""Note"", 100 )" & LF ) > 0) _
+        andalso (instr( gr, "tkListTree" ) = 0), "viewer report: its fields, in Build", LineWith( gr, "AddField" ) )
+    Check( instr( gr, "        tkReportViewer_ClearRows( rv.Handle )" & LF & "        for i_ as long = 0 to a_.Count( ) - 1" & LF _
+        & "            dim as integer row_ = tkReportViewer_AddRow( rv.Handle )" & LF _
+        & "            tkBind_ToValue( a_[i_].Customer, tkReportViewer_Cell( rv.Handle, row_, 0 ) )" & LF _
+        & "            tkBind_ToValue( a_[i_].Amount, tkReportViewer_Cell( rv.Handle, row_, 2 ) )" & LF _
+        & "        next" & LF & "        tkReportViewer_RefreshReport( rv.Handle )" & LF ) > 0, "viewer report: Fill, a value per Field, then RefreshReport", gr )
+    Check( (instr( gr, "#import ""vendor/tkControls/tkReport""" ) > 0) andalso (reconcile.ImportsFor( "byval rpt as TK_REPORT ptr", "tkReportViewer" ).Count( ) = 1) _
+        andalso (reconcile.ImportsFor( "byval rpt as TK_REPORT ptr", "tkReportViewer" )[0] = "tkReport"), "viewer report: BuildReport's TK_REPORT brings tkReport, to both files" )
+end sub
+
 sub SliderSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
         & Ctl( "sld", "Slider" ) & LF & "[control.props]" & LF & "Value = 500" & LF & "UpperValue = 800" & LF & "Mode = ""Range""" & LF _
@@ -3017,6 +3074,8 @@ TextBoxEventsSuite( )
 NumericUpDownSuite( )
 PropOrderSuite( )
 SliderSuite( )
+PrintPreviewSuite( )
+ReportViewerSuite( )
 NotifySuite( )
 DatePickerSuite( )
 CalendarSuite( )

@@ -1,6 +1,7 @@
 ' tkBind self-test: every field type through every kind, both ways, with the B1 rules at their
 ' edges (text that is no number, rounding, no date); then the lines a designed form's LoadFrom /
 ' SaveTo are made of, spelled as codegen spells them, against real controls of every bindable kind.
+' And tkBind_ToValue (printing R5): a field into a TK_VALUE by its own type.
 #import "vendor/tkControls/tkBind"
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkTextBox"
@@ -16,6 +17,7 @@
 #import "std/containers"
 using tkBind
 using tkCalendar
+using tkTimePanel
 using tkTest
 using tkHost
 using tkTextBox
@@ -419,6 +421,38 @@ sub Differs_( )
     tkTest_Check( "pick: no choice and 0 / empty are the same", (tkBind_DiffersPick( id_, vals, -1 ) = false) andalso tkBind_DiffersPick( code, vals, -1 ) )
 end sub
 
+' printing R5: what a designed ReportViewer's fill does with each field
+sub ToValue_( )
+    dim as TK_VALUE v(0 to 9)
+    dim as byte b8 = -5
+    dim as ushort u16 = 65000
+    dim as ulongint u64 = 1234567890123ull
+    dim as single f = 1.5
+    dim as string z = "zed"
+    dim as TKDATE d = tkCalendar_MakeDate( 2026, 3, 5 )
+    dim as LocalDate ld = LocalDate( 2026, 4, 6 )
+    dim as DateTime dtm = DateTime( 2026, 5, 7 )
+    dim as TKTIME t = tkTimePanel_MakeTime( 9, 30, 15, 0 )
+    dim as chrono.LocalTime lt = chrono.LocalTime( 14, 5, 0, 0 )
+    tkBind_ToValue( b8, @v(0) ) : tkBind_ToValue( u16, @v(1) ) : tkBind_ToValue( u64, @v(2) )
+    tkBind_ToValue( f, @v(3) ) : tkBind_ToValue( z, @v(4) ) : tkBind_ToValue( d, @v(5) )
+    tkBind_ToValue( ld, @v(6) ) : tkBind_ToValue( dtm, @v(7) ) : tkBind_ToValue( t, @v(8) ) : tkBind_ToValue( lt, @v(9) )
+    dim as string got
+    for i as long = 0 to 9 : got &= v(i).kind & " " : next
+    tkTest_Check( "ToValue: the kind is the field's type's (narrow and wide ints, float, string, the dates, the times)", _
+                  (got = TKV_INT & " " & TKV_INT & " " & TKV_INT & " " & TKV_FLOAT & " " & TKV_TEXT & " " & TKV_DATE & " " _
+                         & TKV_DATE & " " & TKV_DATE & " " & TKV_TIME & " " & TKV_TIME & " ") _
+                  andalso (v(0).i = -5) andalso (v(1).i = 65000) andalso (v(2).i = 1234567890123ll) andalso (v(3).f = 1.5) andalso (v(4).s = "zed") _
+                  andalso (v(6).d.wDay = 6) andalso (v(7).d.wMonth = 5) andalso (v(8).t.wMinute = 30) andalso (v(9).t.wHour = 14), got )
+    dim as TKDATE noDate
+    dim as LocalDate noLocal
+    dim as TK_VALUE e(0 to 2)
+    tkBind_ToValue( noDate, @e(0) ) : tkBind_ToValue( noLocal, @e(1) ) : tkBind_ToValue( chrono.LocalTime.Invalid( ), @e(2) )
+    tkBind_ToValue( 1, cast( TK_VALUE ptr, 0 ) )              ' no cell: nothing
+    tkTest_Check( "ToValue: no date and no time are EMPTY", (e(0).kind = TKV_EMPTY) andalso (e(1).kind = TKV_EMPTY) andalso (e(2).kind = TKV_EMPTY), _
+                  e(0).kind & " " & e(1).kind & " " & e(2).kind )
+end sub
+
 if tkTest_Init() = false then end 99
 tkTest_Begin( "conversions" )
 Text_( )
@@ -430,6 +464,7 @@ Strict_( )
 Pick_( )
 Differs_( )
 Controls_( )
+ToValue_( )
 dim as long nFail = tkTest_Report( "tkBind" )
 tkTest_Quit()
 end nFail
