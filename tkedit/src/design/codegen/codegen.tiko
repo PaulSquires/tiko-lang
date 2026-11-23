@@ -911,6 +911,73 @@ public function TranslatableTexts( byref doc as FormDoc, byref moduleName as con
     return r
 end function
 
+' ---- data binding (B1) ---------------------------------------------------------------------
+' A control whose value LoadFrom / SaveTo move: bound to a field, and of a type that has a value.
+private function IsBound_( byref c as FormControl ) as boolean
+    if len( c.Bind ) = 0 then return false
+    dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+    if m = 0 then return false
+    return len( m->BindKind ) > 0
+end function
+
+' The form generates LoadFrom / SaveTo: it names its record type and binds at least one control.
+private function HasBinding_( byref doc as FormDoc ) as boolean
+    if len( doc.DataType ) = 0 then return false
+    for each c as FormControl in doc.Controls
+        if IsBound_( c ) then return true
+    next
+    return false
+end function
+
+private function BindFn_( byref kind as const ustring ) as ustring
+    select case kind
+    case "text"  : return "Text"
+    case "bool"  : return "Bool"
+    case "int"   : return "Int"
+    case "float" : return "Float"
+    case "date"  : return "Date"
+    end select
+    return ""
+end function
+
+' The value a getter returns, as its kind's own type: the overload is then chosen by the field alone.
+private function BindGot_( byref kind as const ustring, byref getter as const ustring, byref ctl as const ustring ) as ustring
+    dim as ustring v = getter & "( " & ctl & ".Handle )"
+    select case kind
+    case "int"   : return "clngint( " & v & " )"
+    case "float" : return "cdbl( " & v & " )"
+    end select
+    return v
+end function
+
+' Moving each bound control's value in from r, and out to it, through tkBind's overloads: the
+' compiler picks one by the field's type. Setters are silent, so LoadFrom notifies nobody. A
+' two-value control's second field (bind2) follows its first: a range Slider's setters push the
+' other thumb, so lower then upper lands on any pair.
+private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
+    o &= NL & "sub Form.LoadFrom( byref r as " & doc.DataType & " )" & NL
+    for each c as FormControl in doc.Controls
+        if IsBound_( c ) = false then continue for
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        o &= "    " & m->BindSet & "( " & c.Name & ".Handle, tkBind_" & BindFn_( m->BindKind ) & "( r." & c.Bind & " ) )" & NL
+        if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) then
+            o &= "    " & m->Bind2Set & "( " & c.Name & ".Handle, tkBind_" & BindFn_( m->Bind2Kind ) & "( r." & c.Bind2 & " ) )" & NL
+        end if
+    next
+    o &= "end sub" & NL & NL
+    o &= "sub Form.SaveTo( byref r as " & doc.DataType & " )" & NL
+    for each c as FormControl in doc.Controls
+        if IsBound_( c ) = false then continue for
+        dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        if m->BindLoadOnly then continue for
+        o &= "    tkBind_Put( r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & " )" & NL
+        if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) then
+            o &= "    tkBind_Put( r." & c.Bind2 & ", " & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & " )" & NL
+        end if
+    next
+    o &= "end sub" & NL
+end sub
+
 ' The whole .design.tiko for a form that passed validate.Check. sourceName is the form file's name.
 public function Generate( byref doc as FormDoc, byref moduleName as const ustring, byref sourceName as const ustring, byref sourceText as const ustring ) as ustring
     dim as Sizes sz
@@ -943,6 +1010,11 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     next
     if needsMenu then o &= "#import " & Literal_( "vendor/tkControls/tkPopupMenu" ) & NL
     if needsKeys then o &= "#import " & Literal_( "vendor/tkControls/tkKeys" ) & NL
+    dim as boolean binds = HasBinding_( doc )
+    if binds then
+        o &= "#import " & Literal_( "vendor/tkControls/tkBind" ) & NL
+        if len( doc.DataModule ) then o &= "#import " & Literal_( doc.DataModule ) & NL
+    end if
     dim as Array( of ustring ) customMods = CustomModules_( doc )
     for each mo as ustring in customMods
         o &= "#import """ & mo & """" & NL
@@ -956,6 +1028,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     next
     if needsMenu then o &= "using tkPopupMenu" & NL
     if needsKeys then o &= "using tkKeys" & NL
+    if binds then o &= "using tkBind" & NL
     dim as boolean needsTheme = false
     for i as long = 0 to doc.Controls.Count( ) - 1
         if HasColors_( doc.Controls[i] ) then needsTheme = true
@@ -970,6 +1043,10 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         o &= "    " & doc.Controls[i].Name & " as " & typeName_ & NL
     next
     o &= "    declare sub Build( byval owner as TK_FORM ptr = nullptr )" & NL
+    if binds then
+        o &= "    declare sub LoadFrom( byref r as " & doc.DataType & " )" & NL
+        o &= "    declare sub SaveTo( byref r as " & doc.DataType & " )" & NL
+    end if
     HandlerDecls_( doc, o )
     o &= "end type" & NL & NL
 
@@ -1015,5 +1092,6 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     dim as long i = FindSetting( doc.Events, "Load" )
     if i >= 0 then o &= "    " & doc.Events[i].Value & "( )" & NL
     o &= "end sub" & NL
+    if binds then BindingCode_( doc, o )
     return o
 end function

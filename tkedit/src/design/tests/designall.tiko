@@ -2420,6 +2420,146 @@ sub EmbedFontsSuite( )
     Check( (p2.Count( ) = 1) andalso (instr( p2[0], "Missing.ttf" ) > 0), "embed: a font not found is named" )
 end sub
 
+' Data binding (B1): the form's DataType / DataModule and each control's Bind, read, written,
+' checked and turned into LoadFrom / SaveTo.
+sub BindSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""contactdb.Contact""" & LF & "data_module = ""../contactdb""" & LF
+    dim as ustring body = Ctl( "txtName", "TextBox", "bind = ""FirstName""" & LF ) _
+        & Ctl( "chkVip", "CheckBox", "bind = ""Flags.Vip""" & LF ) _
+        & Ctl( "lblTitle", "Label", "bind = ""Title""" & LF ) _
+        & Ctl( "cboKind", "ComboBox", "bind = ""Kind""" & LF ) _
+        & Ctl( "nudAge", "NumericUpDown", "bind = ""Age""" & LF ) _
+        & Ctl( "dtBorn", "DatePicker", "bind = ""Born""" & LF ) _
+        & Ctl( "btnOK", "Button" )
+    dim as FormDoc d
+    Check( ReadForm( hdr & body, d ), "bind: the form parses" )
+    Check( (d.DataType = "contactdb.Contact") andalso (d.DataModule = "../contactdb"), "bind: data_type and data_module read" )
+    Check( d.Controls[FindControl( d, "chkVip" )].Bind = "Flags.Vip", "bind: a control's bind read" )
+    Check( len( d.Controls[FindControl( d, "btnOK" )].Bind ) = 0, "bind: no bind is empty" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "data_type = ""contactdb.Contact""" & LF & "data_module = ""../contactdb""" & LF ) > 0, "bind: the form's keys written", t1 )
+    Check( instr( t1, "bind = ""FirstName""" & LF ) > 0, "bind: a control's bind written" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "bind: round trip" )
+    Check( instr( formfile.Render( d2 ), "data_type" ) > 0, "bind: kept" )
+    dim as FormDoc plain
+    ReadForm( Header( ) & Ctl( "b", "Button" ), plain )
+    Check( (instr( formfile.Render( plain ), "data_" ) = 0) andalso (instr( formfile.Render( plain ), "bind" ) = 0), "bind: none written when unset" )
+
+    Accepted( hdr & body, "a bound form" )
+    Accepted( Header( ) & "data_module = ""../m""" & LF, "a data module before its type" )
+    Refused( hdr & Ctl( "btnX", "Button", "bind = ""X""" & LF ), "a Button can't be bound to a field" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""1st""" & LF ), "bind '1st' is not a field name" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""a..b""" & LF ), "bind 'a..b' is not a field name" )
+    Refused( Header( ) & Ctl( "t", "TextBox", "bind = ""Name""" & LF ), "needs the form's DataType first" )
+    Refused( Header( ) & "data_type = ""contactdb.""" & LF, "data type 'contactdb.' is not a type name" )
+    Refused( hdr & Ctl( "LoadFrom", "Button" ), "control 'LoadFrom' is already a member of every form" )
+    Refused( hdr & Ctl( "SaveTo", "Button" ), "control 'SaveTo' is already a member of every form" )
+
+    dim as ustring t = codegen.Generate( d, "frmBind", "frmBind.tkform", "" )
+    Check( instr( t, "#import ""vendor/tkControls/tkBind""" & LF & "#import ""../contactdb""" & LF ) > 0, "bind: imports tkBind and the data module" )
+    Check( instr( t, LF & "using tkBind" & LF ) > 0, "bind: using tkBind" )
+    HasLine( t, "declare sub LoadFrom( byref r as contactdb.Contact )", "bind: LoadFrom declared" )
+    HasLine( t, "declare sub SaveTo( byref r as contactdb.Contact )", "bind: SaveTo declared" )
+    Check( instr( t, LF & "sub Form.LoadFrom( byref r as contactdb.Contact )" & LF ) > 0, "bind: LoadFrom defined" )
+    HasLine( t, "tkTextBox_SetText( txtName.Handle, tkBind_Text( r.FirstName ) )", "bind: text in" )
+    HasLine( t, "tkBind_Put( r.FirstName, tkTextBox_GetText( txtName.Handle ) )", "bind: text out" )
+    HasLine( t, "tkCheckBox_SetChecked( chkVip.Handle, tkBind_Bool( r.Flags.Vip ) )", "bind: bool in, a nested field" )
+    HasLine( t, "tkBind_Put( r.Flags.Vip, tkCheckBox_GetChecked( chkVip.Handle ) )", "bind: bool out" )
+    HasLine( t, "tkComboBox_SetCurSel( cboKind.Handle, tkBind_Int( r.Kind ) )", "bind: int in" )
+    HasLine( t, "tkBind_Put( r.Kind, clngint( tkComboBox_GetCurSel( cboKind.Handle ) ) )", "bind: int out, as longint" )
+    HasLine( t, "tkBind_Put( r.Age, cdbl( tkNumericUpDown_GetValue( nudAge.Handle ) ) )", "bind: float out, as double" )
+    HasLine( t, "tkDatePicker_SetDateValue( dtBorn.Handle, tkBind_Date( r.Born ) )", "bind: date in" )
+    HasLine( t, "tkBind_Put( r.Born, tkDatePicker_GetDateValue( dtBorn.Handle ) )", "bind: date out" )
+    HasLine( t, "tkLabel_SetText( lblTitle.Handle, tkBind_Text( r.Title ) )", "bind: a load-only control loads" )
+    Check( instr( t, "tkBind_Put( r.Title" ) = 0, "bind: ...and is not saved" )
+    Check( instr( t, "btnOK.Handle, tkBind" ) = 0, "bind: an unbound control is left alone" )
+    Check( instr( t, "Form.LoadFrom" ) > instr( t, "sub Form.Build" ), "bind: after Build" )
+
+    dim as FormDoc nb
+    ReadForm( hdr & Ctl( "b", "Button" ), nb )
+    Check( instr( codegen.Generate( nb, "frmNB", "frmNB.tkform", "" ), "LoadFrom" ) = 0, "bind: a DataType with nothing bound generates nothing" )
+    Check( instr( codegen.Generate( nb, "frmNB", "frmNB.tkform", "" ), "tkBind" ) = 0, "bind: ...not even the import" )
+
+    ' paste: a bound control keeps its field in a form with a DataType, loses it in one without
+    dim as ustring clip = edits.CopyText( d, Names( "txtName" ) )
+    dim as Array( of ustring ) added
+    dim as FormDoc withType
+    ReadForm( hdr, withType )
+    Check( edits.PasteText( withType, clip, "", -1, 0, 0, added ), "bind: paste into a bound form" )
+    Check( withType.Controls[withType.Controls.Count( ) - 1].Bind = "FirstName", "bind: ...keeps the field" )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added2
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added2 ), "bind: paste into a form without a DataType" )
+    Check( len( noType.Controls[noType.Controls.Count( ) - 1].Bind ) = 0, "bind: ...drops the field" )
+end sub
+
+' bind2: a two-value control's second field (a range Slider's upper thumb). The Slider's own bind and
+' bind2 entries are not in controls.toml yet, so its table entry stands in for the suite and is put back.
+sub Bind2Suite( )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( "Slider" )
+    Check( m <> 0, "bind2: the Slider is in the table" )
+    if m = 0 then exit sub
+    dim as TKMETA_CONTROL keep = *m
+    if len( m->Bind2Kind ) = 0 then
+        m->BindKind = "float" : m->BindGet = "tkSlider_GetValue" : m->BindSet = "tkSlider_SetValue" : m->BindLoadOnly = false
+        m->Bind2Kind = "float" : m->Bind2Get = "tkSlider_GetUpperValue" : m->Bind2Set = "tkSlider_SetUpperValue"
+        m->Bind2Name = "BindUpper" : m->Bind2When = "Mode=Range"
+    end if
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Filter""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring rangeProps = LF & "[control.props]" & LF & "Mode = ""Range""" & LF
+    dim as ustring src = hdr & Ctl( "sldPrice", "Slider", "bind = ""PriceLo""" & LF & "bind2 = ""PriceHi""" & LF ) & rangeProps _
+        & Ctl( "txtName", "TextBox", "bind = ""Name""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "bind2: the form parses" )
+    Check( d.Controls[FindControl( d, "sldPrice" )].Bind2 = "PriceHi", "bind2: read" )
+    Check( len( d.Controls[FindControl( d, "txtName" )].Bind2 ) = 0, "bind2: none is empty" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "bind = ""PriceLo""" & LF & "bind2 = ""PriceHi""" & LF ) > 0, "bind2: written after bind", t1 )
+    Check( instr( mid( t1, instr( t1, "txtName" ) ), "bind2" ) = 0, "bind2: not written when unset" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "bind2: round trip" )
+    Check( catalog.Bind2Holds( d.Controls[FindControl( d, "sldPrice" )] ), "bind2: holds in Range mode" )
+
+    Accepted( src, "a range slider bound to two fields" )
+    Accepted( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF ), "a single slider bound to one field" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind2 = ""Hi""" & LF ) & rangeProps, "BindUpper needs Bind first" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""Hi""" & LF ), "BindUpper needs Mode=Range" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""Hi""" & LF ) & LF & "[control.props]" & LF & "Mode = ""Single""" & LF, _
+        "BindUpper needs Mode=Range" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""9x""" & LF ) & rangeProps, "BindUpper '9x' is not a field name" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""A""" & LF & "bind2 = ""B""" & LF ), "a TextBox has no second value to bind" )
+
+    dim as ustring t = codegen.Generate( d, "frmF", "frmF.tkform", "" )
+    dim as long l1 = instr( t, "    tkSlider_SetValue( sldPrice.Handle, tkBind_Float( r.PriceLo ) )" & LF )
+    dim as long l2 = instr( t, "    tkSlider_SetUpperValue( sldPrice.Handle, tkBind_Float( r.PriceHi ) )" & LF )
+    dim as long l3 = instr( t, "    tkTextBox_SetText( txtName.Handle, tkBind_Text( r.Name ) )" & LF )
+    Check( (l1 > 0) andalso (l2 > l1) andalso (l3 > l2), "bind2: LoadFrom lower, upper, then the next control", LineWith( t, "sldPrice" ) )
+    dim as long s1 = instr( t, "    tkBind_Put( r.PriceLo, cdbl( tkSlider_GetValue( sldPrice.Handle ) ) )" & LF )
+    dim as long s2 = instr( t, "    tkBind_Put( r.PriceHi, cdbl( tkSlider_GetUpperValue( sldPrice.Handle ) ) )" & LF )
+    dim as long s3 = instr( t, "    tkBind_Put( r.Name, tkTextBox_GetText( txtName.Handle ) )" & LF )
+    Check( (s1 > l3) andalso (s2 > s1) andalso (s3 > s2), "bind2: SaveTo lower, upper, then the next control", LineWith( t, "tkBind_Put" ) )
+
+    ' a single-mode slider's form, should one carry a bind2 anyway, moves the first value only
+    dim as FormDoc one
+    ReadForm( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""Hi""" & LF ), one )
+    Check( instr( codegen.Generate( one, "frmO", "frmO.tkform", "" ), "r.Hi" ) = 0, "bind2: not moved while it doesn't hold" )
+
+    ' paste into a form without a DataType drops both
+    dim as ustring clip = edits.CopyText( d, Names( "sldPrice" ) )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added ), "bind2: paste into a form without a DataType" )
+    with noType.Controls[noType.Controls.Count( ) - 1]
+        Check( (len( .Bind ) = 0) andalso (len( .Bind2 ) = 0), "bind2: ...drops both fields" )
+    end with
+    *m = keep
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -2477,5 +2617,7 @@ EmbedFontsSuite( )
 GlyphValueSuite( )
 GlyphFileSuite( )
 FontWriterSuite( )
+BindSuite( )
+Bind2Suite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

@@ -22,6 +22,13 @@
 # params) whose value the thunk returns, starting from that type's default or from result_init.
 # fallback = a procedure the generated code installs when no handler is bound (a ListTree's rows).
 #
+# bind = { kind, get, set, load_only }: the value a designed form's LoadFrom / SaveTo moves (Form Designer B1),
+# through vendor/tkControls/tkBind. kind: text bool int float date. get = "<proc>( h ) as <kind>" (none when
+# load_only = true: LoadFrom sets it, SaveTo leaves it), set = "<proc>( h, <kind> )". tkmetagen checks both exist.
+# bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
+# moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
+# needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
+#
 # visual = false: a component, not a control (a Timer). It is created on the form and set up like a
 # control, but never shown or laid out; a designer draws it as a width x height box of its own.
 #
@@ -38,6 +45,7 @@ module = "tkLabel"
 category = "Common"
 width = 100
 height = 24
+bind = { kind="text", set="tkLabel_SetText", load_only=true }
 default_event = "Click"
 colors = { struct="TKLABEL_COLORS", get="tkLabel_GetColors", theme="tkLabel_ThemeColors" }
 color_fields = [
@@ -124,6 +132,7 @@ module = "tkCheckBox"
 category = "Common"
 width = 120
 height = 24
+bind = { kind="bool", get="tkCheckBox_GetChecked", set="tkCheckBox_SetChecked" }
 default_event = "CheckChanged"
 colors = { struct="TKCHECKBOX_COLORS", get="tkCheckBox_GetColors", theme="tkCheckBox_ThemeColors" }
 color_fields = [
@@ -179,6 +188,7 @@ module = "tkOptionButton"
 category = "Common"
 width = 120
 height = 24
+bind = { kind="bool", get="tkOptionButton_GetChecked", set="tkOptionButton_SetChecked" }
 default_event = "CheckChanged"
 colors = { struct="TKOPTIONBUTTON_COLORS", get="tkOptionButton_GetColors", theme="tkOptionButton_ThemeColors" }
 color_fields = [
@@ -237,6 +247,7 @@ module = "tkToggle"
 category = "Common"
 width = 60
 height = 28
+bind = { kind="bool", get="tkToggle_GetChecked", set="tkToggle_SetChecked" }
 default_event = "CheckChanged"
 colors = { struct="TKTOGGLE_COLORS", get="tkToggle_GetColors", theme="tkToggle_ThemeColors" }
 color_fields = [
@@ -285,6 +296,7 @@ module = "tkTextBox"
 category = "Common"
 width = 160
 height = 28
+bind = { kind="text", get="tkTextBox_GetText", set="tkTextBox_SetText" }
 default_event = "Change"
 create_arg = "Multiline"
 create_arg_kind = "bool"
@@ -343,6 +355,7 @@ module = "tkNumericUpDown"
 category = "Common"
 width = 100
 height = 28
+bind = { kind="float", get="tkNumericUpDown_GetValue", set="tkNumericUpDown_SetValue" }
 default_event = "ValueChanged"
 colors = { struct="TKNUMERICUPDOWN_COLORS", get="tkNumericUpDown_GetColors", theme="tkNumericUpDown_ThemeColors" }
 color_fields = [
@@ -472,6 +485,7 @@ module = "tkComboBox"
 category = "Common"
 width = 160
 height = 28
+bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel" }
 default_event = "SelChange"
 colors = { struct="TKCOMBOBOX_COLORS", get="tkComboBox_GetColors", theme="tkComboBox_ThemeColors" }
 color_fields = [
@@ -533,6 +547,7 @@ module = "tkDatePicker"
 category = "Common"
 width = 140
 height = 28
+bind = { kind="date", get="tkDatePicker_GetDateValue", set="tkDatePicker_SetDateValue" }
 default_event = "DateChanged"
 colors = { struct="TKDATEPICKER_COLORS", get="tkDatePicker_GetColors", theme="tkDatePicker_ThemeColors" }
 color_fields = [
@@ -757,6 +772,7 @@ module = "tkColorPicker"
 category = "Common"
 width = 120
 height = 28
+bind = { kind="int", get="tkColorPicker_GetColor", set="tkColorPicker_SetColor" }
 default_event = "ColorChanged"
 colors = { struct="TKCOLORPICKER_COLORS", get="tkColorPicker_GetColors", theme="tkColorPicker_ThemeColors" }
 color_fields = [
@@ -1350,6 +1366,7 @@ module = "tkCodeEdit"
 category = "Other"
 width = 320
 height = 200
+bind = { kind="text", get="tkCodeEdit_GetText", set="tkCodeEdit_SetText" }
 default_event = "Change"
 props = [
   { name="Text", kind="text", set="tkCodeEdit_SetText", get="tkCodeEdit_GetText" },

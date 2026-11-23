@@ -28,6 +28,7 @@
 #import "vendor/tkControls/tkScrollPanel"
 #import "vendor/tkControls/tkSplitter"
 #import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkPopupMenu"
 #import "../model"
 #import "../catalog"
 #import "../edits"
@@ -47,6 +48,7 @@ using tkCheckBox
 using tkScrollPanel
 using tkSplitter
 using tkTheme
+using tkPopupMenu
 using tkHost
 using tkPaint
 using model
@@ -146,6 +148,9 @@ public type DesignPanels
     AreaX as long                       ' the rectangle PlaceDocked last shared out
     AreaCX as long
     Rows as Array( of PanelRow )
+    FieldMenu as TK_MENU ptr            ' a Bind row's "...": the DataType's fields (B1)
+    FieldNames as Array( of ustring )   ' ...and what its items stand for, item id - 1
+    FieldKey as ustring                 ' ...and the row it fills: "@Bind" or "@Bind2"
     RowSig as ustring
     TreeSig as ustring
     Updating as boolean
@@ -175,6 +180,9 @@ public type DesignPanels
     declare sub FillToolbox( )
     declare sub AddRow( byref key_ as const ustring, byref caption as const ustring, byval kind_ as long, byref items as const ustring = "" )
     declare sub AddFileButton( )
+    declare sub AddFieldButton( )
+    declare sub ShowFields( byval btn as TK_WIDGET ptr )
+    declare sub PickField( byval i as long )
     declare sub AddLangButton( )
     declare sub AddGlyphButton( )
     declare sub AddPropRow( byval p as TKMETA_PROP ptr )
@@ -363,6 +371,19 @@ private sub OnEventGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as
 end sub
 
 ' A file row's "...": the Resource Center picks an image, and the row takes "res:<name>" as if typed.
+' The panels whose field menu is open: a menu's pick names no widget of ours.
+dim shared as DesignPanels ptr gFieldPanels
+
+private sub OnFieldPicked( byval hPopup as TK_MENU ptr, byval id as long )
+    if gFieldPanels then gFieldPanels->PickField( id - 1 )
+end sub
+
+' A Bind row's "...": the fields of the form's DataType, from the host (the project's last scan).
+private sub OnFieldGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if p then p->ShowFields( h )
+end sub
+
 private sub OnFileGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
     dim as DesignPanels ptr p = PanelsOf( h )
     if (p = 0) orelse (p->C = 0) orelse (p->C->OnPickResource = 0) then exit sub
@@ -467,6 +488,8 @@ sub DesignPanels.Init( byval hostForm as TK_FORM ptr, byval owner_ as any ptr )
 end sub
 
 sub DesignPanels.Destroy( )
+    if FieldMenu then tkPopupMenu_Destroy( FieldMenu )
+    FieldMenu = 0
     for i as long = 0 to 1
         if Pal( i ).Float then tkForm_Destroy( Pal( i ).Float )
         Pal( i ).Float = 0
@@ -835,7 +858,11 @@ private function RowSignature_( byval c as canvas.FormCanvas ptr ) as ustring
     dim as ustring s = "n" & c->Selected.Count( )
     for each n as ustring in c->Selected
         dim as long i = FindControl( c->Doc, n )
-        if i >= 0 then s &= "|" & c->Doc.Controls[i].TypeName
+        if i >= 0 then
+            s &= "|" & c->Doc.Controls[i].TypeName
+            ' a range Slider's BindUpper row comes and goes with its Mode
+            if catalog.Bind2Holds( c->Doc.Controls[i] ) orelse (len( c->Doc.Controls[i].Bind2 ) > 0) then s &= "+b2"
+        end if
     next
     return s
 end function
@@ -980,6 +1007,68 @@ sub DesignPanels.AddGlyphButton( )
     end with
 end sub
 
+' The last row added (a Bind row) gets a "..." that offers the DataType's fields.
+sub DesignPanels.AddFieldButton( )
+    with Rows[Rows.Count( ) - 1]
+        .Btn = tkToolbar_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
+        tkToolbar_SetGlyphFont( .Btn, tkForm_Font( tkForm_FromWidget( Scroll ), TKFONT_GLYPH ) )
+        tkToolbar_AddItem( .Btn, TBR_KIND_COMMAND, wchr( TK_ICON_MORE ), "", 0 )
+        tkToolbar_SetTooltipText( .Btn, 0, i18n.Tr( "designer.bind_pick", "Pick a field" ) )
+        tkToolbar_SetClickCallback( .Btn, @OnFieldGo )
+    end with
+end sub
+
+' The fields as a menu under btn; a pick goes through the row, as typing it would.
+sub DesignPanels.ShowFields( byval btn as TK_WIDGET ptr )
+    if C = 0 then exit sub
+    if len( C->Doc.DataType ) = 0 then
+        if OnMessage then OnMessage( Owner, i18n.Tr( "designer.bind_need_type", "Give the form a DataType first: the record type its controls bind to." ) )
+        exit sub
+    end if
+    dim as ustring list
+    if C->OnFields then list = C->OnFields( C->Host, C, C->Doc.DataType )
+    FieldNames.Clear( )
+    FieldKey = "@Bind"
+    for r as long = 0 to Rows.Count( ) - 1
+        if Rows[r].Btn = btn then FieldKey = Rows[r].Key : exit for
+    next
+    dim as ustring t = list & ","
+    dim as long a = 1
+    dim as long b = instr( a, t, "," )
+    while b > 0
+        if b > a then FieldNames.Push( mid( t, a, b - a ) )
+        a = b + 1
+        b = instr( a, t, "," )
+    wend
+    if FieldNames.Count( ) = 0 then
+        if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "designer.bind_no_fields", "No fields of {} are known: type the field's name." ), C->Doc.DataType ) )
+        exit sub
+    end if
+    ' made again each time: the panels may have moved to a float window since
+    if FieldMenu then tkPopupMenu_Destroy( FieldMenu )
+    FieldMenu = tkPopupMenu_Create( btn->pHost )
+    dim as ustring now_ = this.ValueOf( FieldKey )
+    for i as long = 0 to FieldNames.Count( ) - 1
+        tkPopupMenu_AddItem( FieldMenu, i + 1, FieldNames[i], "", false, lcase( FieldNames[i] ) = lcase( now_ ) )
+    next
+    tkPopupMenu_SetSelectCallback( FieldMenu, @OnFieldPicked )
+    gFieldPanels = @this
+    dim as TKRECT rc
+    tkWidget_AbsRect( btn, rc )
+    tkPopupMenu_ShowForRect( FieldMenu, rc, PM_ALIGN_BELOW )
+end sub
+
+sub DesignPanels.PickField( byval i as long )
+    if (i < 0) orelse (i >= FieldNames.Count( )) then exit sub
+    for r as long = 0 to Rows.Count( ) - 1
+        if Rows[r].Key = FieldKey then
+            tkTextBox_SetText( Rows[r].Edit, FieldNames[i] )
+            this.CommitRow( r )
+            exit for
+        end if
+    next
+end sub
+
 ' The last row added gets a "..." that opens the Resource Center (a file property, the form's Icon).
 sub DesignPanels.AddFileButton( )
     with Rows[Rows.Count( ) - 1]
@@ -1096,6 +1185,9 @@ sub DesignPanels.BuildRows( )
         this.AddRow( "@Icon", "Icon", RowKind.RowText )
         this.AddFileButton( )
         this.AddRow( "@FormCtx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
+        ' data binding (B1): the record LoadFrom / SaveTo take, and where it comes from
+        this.AddRow( "@DataType", "DataType", RowKind.RowText )
+        this.AddRow( "@DataModule", "DataModule", RowKind.RowText )
         for e as long = 0 to catalog.FormEventCount( ) - 1
             this.AddEventRow( catalog.FormEventName( e ) )
         next
@@ -1158,6 +1250,17 @@ sub DesignPanels.BuildRows( )
         end if
         ' the PopupMenu a right-click on it opens
         if anyComponent = false then this.AddRow( "@Ctx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
+        ' the field of the form's DataType it binds to (B1)
+        if (n = 1) andalso (len( m0->BindKind ) > 0) then
+            this.AddRow( "@Bind", "Bind", RowKind.RowText )
+            if C->OnFields then this.AddFieldButton( )
+            ' a two-value control's second field, while it has one (a Slider in Range mode)
+            dim as long i0 = FindControl( C->Doc, C->Selected[0] )
+            if (i0 >= 0) andalso (catalog.Bind2Holds( C->Doc.Controls[i0] ) orelse (len( C->Doc.Controls[i0].Bind2 ) > 0)) then
+                this.AddRow( "@Bind2", m0->Bind2Name, RowKind.RowText )
+                if C->OnFields then this.AddFieldButton( )
+            end if
+        end if
         if (n = 1) andalso (m0->Name = catalog.CUSTOM_TYPE) then
             this.AddRow( "@CType", i18n.Tr( "designer.custom_type", "Type" ), RowKind.RowText )
             this.AddRow( "@CModule", i18n.Tr( "designer.custom_module", "Module" ), RowKind.RowText )
@@ -1207,6 +1310,8 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@Dock" : return DockWord( c_.Dock )
     case "@CType" : return c_.CustomType
     case "@Ctx"   : return c_.ContextMenu
+    case "@Bind"  : return c_.Bind
+    case "@Bind2" : return c_.Bind2
     case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
@@ -1257,6 +1362,8 @@ function DesignPanels.ValueOf( byref key_ as const ustring ) as ustring
         if C->Doc.AlwaysOnTop then return "true" else return "false"
     case "@Icon" : return C->Doc.Icon
     case "@FormCtx" : return C->Doc.ContextMenu
+    case "@DataType" : return C->Doc.DataType
+    case "@DataModule" : return C->Doc.DataModule
     end select
     if (left( key_, 2 ) = "E:") andalso (C->Selected.Count( ) = 0) then return SettingOr( C->Doc.Events, mid( key_, 3 ) )
     dim as ustring out_
@@ -1453,6 +1560,18 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
         rebuild = false
     case "@FormCtx"
         trial.ContextMenu = text
+        rebuild = false
+    case "@DataType"
+        trial.DataType = trim( text )
+        rebuild = false
+    case "@DataModule"
+        trial.DataModule = trim( text )
+        rebuild = false
+    case "@Bind"
+        trial.Controls[i].Bind = trim( text )
+        rebuild = false
+    case "@Bind2"
+        trial.Controls[i].Bind2 = trim( text )
         rebuild = false
     case "@Ctx"
         for each s_ as ustring in C->Selected

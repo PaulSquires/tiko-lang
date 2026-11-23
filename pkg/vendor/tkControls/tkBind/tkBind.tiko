@@ -1,0 +1,225 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkBind -- the conversions a designed form's LoadFrom / SaveTo go through (Form Designer B1). The
+' designer knows a control's kind but not a record field's type, so every call names the field and
+' the compiler picks the overload:
+'
+'     tkTextBox_SetText( txtAge.Handle, tkBind_Text( r.Age ) )        ' load: field -> the kind
+'     tkBind_Put( r.Age, tkTextBox_GetText( txtAge.Handle ) )         ' save: the kind -> field
+'
+' KINDS and the value each carries: text = ustring, bool = boolean, int = longint, float = float64,
+' date = TKDATE. FIELDS: boolean, byte .. ulongint, integer, uinteger, single, double, ustring,
+' string, TKDATE and chrono.LocalDate. A date binds only to a text or date field; a pairing with no
+' overload is a compile error, which is the point.
+'
+' THE RULES (B1: lenient; strict parsing and error reporting are B2):
+'   text -> number     trimmed, then VALLNG / VAL: text that is not a number is 0
+'   float -> integer   rounds as CLNGINT does (to even); a narrower field wraps as an assignment does
+'   text -> bool       true, 1, -1, yes, on (any case, trimmed); anything else is false
+'   bool -> text       "true" / "false"
+'   number -> text     STR
+'   date <-> text      ISO yyyy-mm-dd; "" and text that is not a date are no date
+'   no date            an all-zero TKDATE (wYear = 0), an Invalid LocalDate (its default), ""
+' Nothing here notifies: LoadFrom calls the controls' silent setters.
+#module "tkBind"
+
+#import "std/chrono"
+#import "../tkCalendar" public
+using chrono
+using tkCalendar
+
+' ---- the text rules -------------------------------------------------------------------------
+
+private function TextBool_( byref s as const ustring ) as boolean
+    select case lcase( trim( s ) )
+    case "true", "1", "-1", "yes", "on" : return true
+    end select
+    return false
+end function
+
+private function TextInt_( byref s as const ustring ) as longint
+    return vallng( trim( s ) )
+end function
+
+private function TextFloat_( byref s as const ustring ) as float64
+    return val( trim( s ) )
+end function
+
+private function Pad_( byval n as long, byval w as long ) as ustring
+    dim as ustring s = str( n )
+    if len( s ) < w then s = string( w - len( s ), "0" ) & s
+    return s
+end function
+
+private function IsoOf_( byref d as const TKDATE ) as ustring
+    if d.wYear = 0 then return ""
+    return Pad_( d.wYear, 4 ) & "-" & Pad_( d.wMonth, 2 ) & "-" & Pad_( d.wDay, 2 )
+end function
+
+private function DateOfLocal_( byref ld as LocalDate ) as TKDATE
+    dim as TKDATE none_
+    if ld.IsValid = false then return none_
+    return tkCalendar_MakeDate( ld.Year, ld.Month, ld.Day )
+end function
+
+private function LocalOfDate_( byref d as const TKDATE ) as LocalDate
+    dim as LocalDate none_                  ' Invalid
+    if d.wYear = 0 then return none_
+    return LocalDate( d.wYear, d.wMonth, d.wDay )
+end function
+
+private function DateOfText_( byref s as const ustring ) as TKDATE
+    dim as LocalDate ld
+    dim as ustring t = trim( s )
+    if LocalDate.TryParseIso( t, ld ) = false then
+        dim as TKDATE none_
+        return none_
+    end if
+    return DateOfLocal_( ld )
+end function
+
+private function LocalText_( byref ld as LocalDate ) as ustring
+    if ld.IsValid = false then return ""
+    return ld.ToIsoString( )
+end function
+
+' ---- load: a field's value as the control's kind ---------------------------------------------
+
+public function tkBind_Text overload( byval v as boolean ) as ustring : return iif( v, "true", "false" ) : end function
+public function tkBind_Text( byval v as byte ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as ubyte ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as short ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as ushort ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as long ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as ulong ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as longint ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as ulongint ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as integer ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as uinteger ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as single ) as ustring : return str( v ) : end function
+public function tkBind_Text( byval v as double ) as ustring : return str( v ) : end function
+public function tkBind_Text( byref v as const ustring ) as ustring : return v : end function
+public function tkBind_Text( byref v as const string ) as ustring : return v : end function
+public function tkBind_Text( byref v as const TKDATE ) as ustring : return IsoOf_( v ) : end function
+public function tkBind_Text( byref v as LocalDate ) as ustring : return LocalText_( v ) : end function
+public function tkBind_Bool overload( byval v as boolean ) as boolean : return v : end function
+public function tkBind_Bool( byval v as byte ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as ubyte ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as short ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as ushort ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as long ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as ulong ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as longint ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as ulongint ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as integer ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as uinteger ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as single ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byval v as double ) as boolean : return v <> 0 : end function
+public function tkBind_Bool( byref v as const ustring ) as boolean : return TextBool_( v ) : end function
+public function tkBind_Bool( byref v as const string ) as boolean : return TextBool_( v ) : end function
+public function tkBind_Int overload( byval v as boolean ) as longint : return iif( v, 1, 0 ) : end function
+public function tkBind_Int( byval v as byte ) as longint : return v : end function
+public function tkBind_Int( byval v as ubyte ) as longint : return v : end function
+public function tkBind_Int( byval v as short ) as longint : return v : end function
+public function tkBind_Int( byval v as ushort ) as longint : return v : end function
+public function tkBind_Int( byval v as long ) as longint : return v : end function
+public function tkBind_Int( byval v as ulong ) as longint : return v : end function
+public function tkBind_Int( byval v as longint ) as longint : return v : end function
+public function tkBind_Int( byval v as ulongint ) as longint : return v : end function
+public function tkBind_Int( byval v as integer ) as longint : return v : end function
+public function tkBind_Int( byval v as uinteger ) as longint : return v : end function
+public function tkBind_Int( byval v as single ) as longint : return clngint( v ) : end function
+public function tkBind_Int( byval v as double ) as longint : return clngint( v ) : end function
+public function tkBind_Int( byref v as const ustring ) as longint : return TextInt_( v ) : end function
+public function tkBind_Int( byref v as const string ) as longint : return TextInt_( v ) : end function
+public function tkBind_Float overload( byval v as boolean ) as float64 : return iif( v, 1.0, 0.0 ) : end function
+public function tkBind_Float( byval v as byte ) as float64 : return v : end function
+public function tkBind_Float( byval v as ubyte ) as float64 : return v : end function
+public function tkBind_Float( byval v as short ) as float64 : return v : end function
+public function tkBind_Float( byval v as ushort ) as float64 : return v : end function
+public function tkBind_Float( byval v as long ) as float64 : return v : end function
+public function tkBind_Float( byval v as ulong ) as float64 : return v : end function
+public function tkBind_Float( byval v as longint ) as float64 : return v : end function
+public function tkBind_Float( byval v as ulongint ) as float64 : return v : end function
+public function tkBind_Float( byval v as integer ) as float64 : return v : end function
+public function tkBind_Float( byval v as uinteger ) as float64 : return v : end function
+public function tkBind_Float( byval v as single ) as float64 : return v : end function
+public function tkBind_Float( byval v as double ) as float64 : return v : end function
+public function tkBind_Float( byref v as const ustring ) as float64 : return TextFloat_( v ) : end function
+public function tkBind_Float( byref v as const string ) as float64 : return TextFloat_( v ) : end function
+public function tkBind_Date overload( byref v as const ustring ) as TKDATE : return DateOfText_( v ) : end function
+public function tkBind_Date( byref v as const string ) as TKDATE : return DateOfText_( v ) : end function
+public function tkBind_Date( byref v as const TKDATE ) as TKDATE : return v : end function
+public function tkBind_Date( byref v as LocalDate ) as TKDATE : return DateOfLocal_( v ) : end function
+' ---- save: the control's value into a field ------------------------------------------------
+
+public sub tkBind_Put overload( byref f as boolean, byref v as const ustring ) : f = TextBool_( v ) : end sub
+public sub tkBind_Put( byref f as byte, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as ubyte, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as short, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as ushort, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as long, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as ulong, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as longint, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as ulongint, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as integer, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as uinteger, byref v as const ustring ) : f = TextInt_( v ) : end sub
+public sub tkBind_Put( byref f as single, byref v as const ustring ) : f = TextFloat_( v ) : end sub
+public sub tkBind_Put( byref f as double, byref v as const ustring ) : f = TextFloat_( v ) : end sub
+public sub tkBind_Put( byref f as ustring, byref v as const ustring ) : f = v : end sub
+public sub tkBind_Put( byref f as string, byref v as const ustring ) : f = v : end sub
+public sub tkBind_Put( byref f as TKDATE, byref v as const ustring ) : f = DateOfText_( v ) : end sub
+public sub tkBind_Put( byref f as LocalDate, byref v as const ustring ) : f = LocalOfDate_( DateOfText_( v ) ) : end sub
+public sub tkBind_Put( byref f as boolean, byval v as boolean ) : f = v : end sub
+public sub tkBind_Put( byref f as byte, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as ubyte, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as short, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as ushort, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as long, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as ulong, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as longint, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as ulongint, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as integer, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as uinteger, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as single, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as double, byval v as boolean ) : f = iif( v, 1, 0 ) : end sub
+public sub tkBind_Put( byref f as ustring, byval v as boolean ) : f = iif( v, "true", "false" ) : end sub
+public sub tkBind_Put( byref f as string, byval v as boolean ) : f = iif( v, "true", "false" ) : end sub
+public sub tkBind_Put( byref f as boolean, byval v as longint ) : f = (v <> 0) : end sub
+public sub tkBind_Put( byref f as byte, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as ubyte, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as short, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as ushort, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as long, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as ulong, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as longint, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as ulongint, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as integer, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as uinteger, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as single, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as double, byval v as longint ) : f = v : end sub
+public sub tkBind_Put( byref f as ustring, byval v as longint ) : f = str( v ) : end sub
+public sub tkBind_Put( byref f as string, byval v as longint ) : f = str( v ) : end sub
+public sub tkBind_Put( byref f as boolean, byval v as float64 ) : f = (v <> 0) : end sub
+public sub tkBind_Put( byref f as byte, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as ubyte, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as short, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as ushort, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as long, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as ulong, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as longint, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as ulongint, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as integer, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as uinteger, byval v as float64 ) : f = clngint( v ) : end sub
+public sub tkBind_Put( byref f as single, byval v as float64 ) : f = v : end sub
+public sub tkBind_Put( byref f as double, byval v as float64 ) : f = v : end sub
+public sub tkBind_Put( byref f as ustring, byval v as float64 ) : f = str( v ) : end sub
+public sub tkBind_Put( byref f as string, byval v as float64 ) : f = str( v ) : end sub
+public sub tkBind_Put( byref f as ustring, byref v as const TKDATE ) : f = IsoOf_( v ) : end sub
+public sub tkBind_Put( byref f as string, byref v as const TKDATE ) : f = IsoOf_( v ) : end sub
+public sub tkBind_Put( byref f as TKDATE, byref v as const TKDATE ) : f = v : end sub
+public sub tkBind_Put( byref f as LocalDate, byref v as const TKDATE ) : f = LocalOfDate_( v ) : end sub

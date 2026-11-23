@@ -100,6 +100,21 @@ public type TKMETA_CONTROL
     ThemeColors   as TKMETA_ThemeColorsProc
     Colors( any ) as TKMETA_COLORFIELD
     NumColorSlots as long
+    ' Data binding (Form Designer B1): the control's value as a form's LoadFrom / SaveTo moves it, through
+    ' vendor/tkControls/tkBind. BindKind "" = not bindable; else text bool int float date. BindGet is
+    ' "<proc>( h ) as <kind>" ("" when BindLoadOnly), BindSet "<proc>( h, <kind> )".
+    BindKind      as ustring
+    BindGet       as ustring
+    BindSet       as ustring
+    BindLoadOnly  as boolean
+    ' A second value of a two-value control (a range Slider's upper thumb): Bind2Kind "" = none. Bind2Name
+    ' is the designer's name for it ("BindUpper"); Bind2When "Prop=Shown" the property value it needs
+    ' ("Mode=Range"), "" = always. LoadFrom / SaveTo move it right after the first.
+    Bind2Kind     as ustring
+    Bind2Get      as ustring
+    Bind2Set      as ustring
+    Bind2Name     as ustring
+    Bind2When     as ustring
 end type
 
 dim shared as TKMETA_CONTROL gControls( any )
@@ -162,6 +177,19 @@ private sub Colors_( byref struct_ as const ustring, byref getName as const ustr
     with gControls( gnControls - 1 )
         .ColorStruct = struct_ : .ColorGet = getName : .ColorTheme = themeName
         .GetColors = g : .ThemeColors = t
+    end with
+end sub
+
+private sub Bind_( byref kind as const ustring, byref getName as const ustring, byref setName as const ustring, byval bLoadOnly as boolean )
+    with gControls( gnControls - 1 )
+        .BindKind = kind : .BindGet = getName : .BindSet = setName : .BindLoadOnly = bLoadOnly
+    end with
+end sub
+
+private sub Bind2_( byref kind as const ustring, byref getName as const ustring, byref setName as const ustring, _
+                    byref shownName as const ustring, byref when_ as const ustring )
+    with gControls( gnControls - 1 )
+        .Bind2Kind = kind : .Bind2Get = getName : .Bind2Set = setName : .Bind2Name = shownName : .Bind2When = when_
     end with
 end sub
 

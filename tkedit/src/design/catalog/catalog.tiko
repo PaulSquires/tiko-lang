@@ -12,9 +12,11 @@
 
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkLabel"
+#import "../model"
 using tkMeta
 using tkLabel
 using tkHost
+using model
 
 public const as string CUSTOM_TYPE = "Custom"
 
@@ -181,4 +183,19 @@ public function Find( byref name_ as const ustring ) as TKMETA_CONTROL ptr
         standIn.Create = @CreateStandIn
     end if
     return @standIn
+end function
+
+' A two-value control's second binding (tkMeta's bind2, a range Slider's BindUpper) applies: the type
+' has one, and the property its Bind2When names holds that value -- the control's own setting, or the
+' property's default when the form leaves it unset.
+public function Bind2Holds( byref c as FormControl ) as boolean
+    dim as TKMETA_CONTROL ptr m = Find( c.TypeName )
+    if (m = 0) orelse (len( m->Bind2Kind ) = 0) then return false
+    dim as long eq = instr( m->Bind2When, "=" )
+    if eq = 0 then return true
+    dim as ustring pn = left( m->Bind2When, eq - 1 )
+    dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, pn )
+    dim as ustring dflt
+    if p then dflt = p->DefaultValue
+    return lcase( SettingOr( c.Props, pn, dflt ) ) = lcase( mid( m->Bind2When, eq + 1 ) )
 end function

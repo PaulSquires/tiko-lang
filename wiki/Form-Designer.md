@@ -312,6 +312,43 @@ and its containers that has a MouseMove handler, so a form's handler follows the
 form unless a control handles it itself. `buttons` is SDL's mouse-button mask (`SDL_BUTTON_LMASK` and
 so on), `mods` the modifier keys, as KeyDown's.
 
+## Data binding
+
+A form can move a record in and out of its controls for you. Click the empty form and set
+**DataType** to the record's type, `contactdb.Contact`, and **DataModule** to the module it comes
+from, `../contactdb` (leave it blank when the form's own module already sees the type). Then select
+a control and set its **Bind** to a field of that type: type the name, or press the **...** beside
+it for the type's fields as tkEdit last scanned them (`Name`, and one level into a field that is
+itself a TYPE, `Home.City`). The generated file then has two more procedures:
+
+```freebasic
+sub Form.Edit( byref c as contactdb.Contact )
+    LoadFrom( c )         ' every bound control shows its field
+end sub
+
+sub Form.btnOK_Click( )
+    SaveTo( Person )      ' every bound control's value goes back into its field
+    EndModal( 1 )
+end sub
+```
+
+| Control | What moves |
+| --- | --- |
+| TextBox, CodeEdit | the text |
+| Label | the text, in only: SaveTo leaves the field alone |
+| NumericUpDown | the value |
+| CheckBox, OptionButton, Toggle | checked or not |
+| ComboBox | the selected item's index (-1 for none) |
+| ColorPicker | the colour |
+| DatePicker | the date; a field with no date leaves the picker empty |
+
+The field can be any of `boolean`, `byte` to `ulongint`, `integer`, `single`, `double`, `ustring`,
+`string`, `TKDATE` or `chrono.LocalDate`; the conversion is chosen by the field's type
+(`vendor/tkControls/tkBind`). Text that isn't a number becomes 0 in a number field; a fraction
+going into a whole-number field is rounded; `true`, `1`, `yes` and `on` are true; a date in text is
+`yyyy-mm-dd`. A date binds only to a text or date field. Loading notifies nobody: no Change or
+CheckChanged handler runs. A wrong field name is the compiler's error, in the generated file.
+
 ## Other languages
 
 Click the **...** beside the form's **Translatable** property. The form becomes Translatable, and
