@@ -87,7 +87,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner) |
 | Static display | [tkLabel](tkLabel), [tkPicture](tkPicture) |
 | Data display | [tkChart](tkChart) |
-| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer) |
+| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer), [tkReport](tkReport) |
 | Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
 
 ## Support modules

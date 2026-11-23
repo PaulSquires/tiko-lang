@@ -46,6 +46,78 @@ using chrono
 using tkCalendar
 using tkTimePanel
 
+' ---- TK_VALUE: one typed value, as tkDataGrid and tkReport read cells and fields ---------------
+' (claude-docs docs/tkControls/PRINTING.md decision P-16.) The kinds are numbered as tkDataGrid's
+' TKDG_* so the two can be one type; TKV_TIME is new. The setters keep kind right; an all-zero date
+' is no date, so SetDate of one makes the value EMPTY.
+public enum
+    TKV_EMPTY = 0           ' no value: a database NULL, a field not filled
+    TKV_TEXT
+    TKV_INT
+    TKV_FLOAT
+    TKV_BOOL
+    TKV_DATE
+    TKV_TIME
+end enum
+
+public type TK_VALUE
+    kind as long = TKV_EMPTY
+    s    as ustring          ' TKV_TEXT
+    i    as longint          ' TKV_INT
+    f    as float64          ' TKV_FLOAT
+    b    as boolean          ' TKV_BOOL
+    d    as TKDATE           ' TKV_DATE
+    t    as TKTIME           ' TKV_TIME
+    declare sub SetText( byref v as const ustring )
+    declare sub SetInt( byval v as longint )
+    declare sub SetFloat( byval v as float64 )
+    declare sub SetBool( byval v as boolean )
+    declare sub SetDate( byref v as const TKDATE )
+    declare sub SetTime( byref v as const TKTIME )
+    declare sub Clear( )
+    declare function AsFloat( ) as float64       ' INT / FLOAT / BOOL as a number, else 0
+    declare function IsNumber( ) as boolean
+end type
+
+sub TK_VALUE.Clear( )
+    dim as TKDATE nd
+    dim as TKTIME nt
+    this.kind = TKV_EMPTY : this.s = "" : this.i = 0 : this.f = 0 : this.b = false : this.d = nd : this.t = nt
+end sub
+sub TK_VALUE.SetText( byref v as const ustring )
+    this.Clear( ) : this.kind = TKV_TEXT : this.s = v
+end sub
+sub TK_VALUE.SetInt( byval v as longint )
+    this.Clear( ) : this.kind = TKV_INT : this.i = v
+end sub
+sub TK_VALUE.SetFloat( byval v as float64 )
+    this.Clear( ) : this.kind = TKV_FLOAT : this.f = v
+end sub
+sub TK_VALUE.SetBool( byval v as boolean )
+    this.Clear( ) : this.kind = TKV_BOOL : this.b = v
+end sub
+sub TK_VALUE.SetDate( byref v as const TKDATE )
+    this.Clear( )
+    if v.wYear = 0 then exit sub
+    this.kind = TKV_DATE : this.d = v
+end sub
+sub TK_VALUE.SetTime( byref v as const TKTIME )
+    this.Clear( )
+    if v.wHour < 0 then exit sub                  ' -1 = no time: EMPTY
+    this.kind = TKV_TIME : this.t = v
+end sub
+function TK_VALUE.AsFloat( ) as float64
+    select case this.kind
+    case TKV_INT : return this.i
+    case TKV_FLOAT : return this.f
+    case TKV_BOOL : return iif( this.b, 1, 0 )
+    end select
+    return 0
+end function
+function TK_VALUE.IsNumber( ) as boolean
+    return (this.kind = TKV_INT) orelse (this.kind = TKV_FLOAT)
+end function
+
 ' ---- the text rules -------------------------------------------------------------------------
 
 private function TextBool_( byref s as const ustring ) as boolean
