@@ -2866,7 +2866,7 @@ sub NavSuite( )
     Refused( Header( ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF ), "a Navigator needs the form's DataType first" )
     Refused( hdr & Ctl( "n", "Navigator", "follows = ""lstP""" & LF ) & lst, "Follows needs the Navigator's ItemsSource first" )
     Refused( hdr & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""lstX""" & LF ), "follows 'lstX', which is not on the form" )
-    Refused( hdr & Ctl( "b", "Button" ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""b""" & LF ), "which is no ListTree or ComboBox" )
+    Refused( hdr & Ctl( "b", "Button" ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""b""" & LF ), "which is no ListTree, ComboBox or DataGrid" )
     Refused( hdr & lst & Ctl( "n", "Navigator", "items_source = ""Others""" & LF & "follows = ""lstP""" & LF ), "whose ItemsSource is not Others" )
     Refused( hdr & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "display_field = ""Name""" & LF ), "a Navigator takes ItemsSource (its records) and Follows" )
     Refused( hdr & Ctl( "n", "Navigator" ) & Ctl( "m", "Navigator" ), "a form has one Navigator" )
@@ -2947,6 +2947,17 @@ sub DataGridSuite( byval bAccept as boolean )
     HasLine( t, "if tkDataGrid_EndEdit( grdLines.Handle, true ) = false then return false", "datagrid: SaveTo commits an open edit first" )
     HasLine( t, "declare function grdLines_Item( ) as long", "datagrid: _Item( )" )
     HasLine( t, "tkDataGrid_SetColumnReadOnly( grdLines.Handle, 5, true )", "datagrid: a method column is read-only" )
+    ' the column settings past Text / Width / Kind / Field: read, validated, written back, generated
+    Refused( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "align = ""middle""" & LF, "no DataGrid column align 'middle'" )
+    dim as FormDoc dc
+    Check( ReadForm( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "align = ""right""" & LF & "min_width = 40" & LF _
+        & "fill = 2" & LF & "read_only = true" & LF & "hidden = true" & LF, dc ) andalso (dc.Controls[0].Items[0].Fill = 2) andalso dc.Controls[0].Items[0].Hidden, _
+        "datagrid: a column's align, min_width, fill, read_only, hidden read" )
+    Check( instr( formfile.Render( dc ), "align = ""right""" & LF & "min_width = 40" & LF & "fill = 2" & LF & "read_only = true" & LF & "hidden = true" ) > 0, "datagrid: ... and written back" )
+    dim as ustring tc = codegen.Generate( dc, "frmC", "frmC.tkform", "" )
+    Check( (instr( tc, "c_.align = TKDG_ALIGN_RIGHT" ) > 0) andalso (instr( tc, "c_.minWidth = 40" ) > 0) andalso (instr( tc, "c_.fillWeight = 2" ) > 0) _
+        andalso (instr( tc, "c_.readOnly = true" ) > 0) andalso (instr( tc, "c_.visible = false" ) > 0) andalso (instr( tc, "tkDataGrid_SetColumnInfo( g.Handle, 0, c_ )" ) > 0), _
+        "datagrid: ... and set on the column", tc )
 
     ' G5b: ItemsLive -- the grid shows the array in place, through generated source procedures
     Refused( hdr & Ctl( "l", "ListTree", "items_live = true" & LF ), "only a DataGrid shows its array in place" )
@@ -2968,6 +2979,22 @@ sub DataGridSuite( byval bAccept as boolean )
     HasLine( tl, "    tkDataGrid_SetSource( grdLines.Handle, @src_ )", "datagrid: a live grid binds a source" )
     HasLine( tl, "case 1 : tkBind_Put( a_[row_].Qty, v_.f )", "datagrid: a live edit lands in the field" )
     HasLine( tl, "    if tkDataGrid_GetSourceContext( grdLines.Handle ) <> cptr( any ptr, @a_ ) then", "datagrid: SaveTo copies only another array" )
+
+    ' a Navigator following a grid of its records; IsDirty over a grid of the record's lines
+    const as string dirN = "../../../examples/tkControls/tkGridForm/frmNav/"
+    dim as ustring srcN = fs.ReadAllText( dirN & "frmNav.tkform" ).ValueOr( none )
+    dim as FormDoc dn
+    Check( (len( srcN ) > 0) andalso ReadForm( srcN, dn ), "datagrid: the navigator fixture parses" )
+    dim as Array( of ustring ) pn
+    validate.Check( dn, "frmNav", pn )
+    dim as ustring firstN
+    if pn.Count( ) then firstN = pn[0]
+    Check( pn.Count( ) = 0, "datagrid: a navigator may follow a DataGrid", firstN )
+    dim as ustring tn = codegen.Generate( dn, "frmNav", "frmNav.tkform", srcN )
+    if bAccept then fs.WriteAllText( dirN & "frmNav.design.tiko", tn )
+    Check( fs.ReadAllText( dirN & "frmNav.design.tiko" ).ValueOr( none ) = tn, "datagrid: tkGridForm's navigator form is current" )
+    Check( instr( tn, "private sub Thunk_grdOrders_CurrentCellChanged(" ) > 0, "datagrid: the followed grid's CurrentCellChanged moves the navigator" )
+    HasLine( tn, "if tkDataGrid_IsEditing( grdLines.Handle ) then return true", "datagrid: IsDirty counts a grid's open edit" )
 end sub
 
 dim as boolean bAccept = (command( 1 ) = "--accept")

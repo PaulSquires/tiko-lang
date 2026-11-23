@@ -735,7 +735,22 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             o &= "    tkDataGrid_AddColumnEx( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", " _
                 & catalog.GridKindConst( it.Kind ) & ", " & iif( it.Width > 0, it.Width, 100 ) & " )" & NL
             ' a method's value (Total( )) is shown, never written: no editor opens on it
-            if GridMethodField_( it.Field ) then o &= "    tkDataGrid_SetColumnReadOnly( " & h & ", " & i & ", true )" & NL
+            dim as boolean ro = it.ReadOnly orelse GridMethodField_( it.Field )
+            if (len( it.Align ) > 0) orelse (it.MinWidth > 0) orelse (it.Fill > 0) orelse it.Hidden then
+                ' the rest of the column's settings: through its TKDATAGRID_COLUMN
+                o &= "    scope" & NL
+                o &= "        dim as TKDATAGRID_COLUMN c_" & NL
+                o &= "        tkDataGrid_GetColumnInfo( " & h & ", " & i & ", c_ )" & NL
+                if len( it.Align ) then o &= "        c_.align = " & catalog.GridAlignConst( it.Align ) & NL
+                if it.MinWidth > 0 then o &= "        c_.minWidth = " & it.MinWidth & NL
+                if it.Fill > 0 then o &= "        c_.fillWeight = " & it.Fill & NL
+                if ro then o &= "        c_.readOnly = true" & NL
+                if it.Hidden then o &= "        c_.visible = false" & NL
+                o &= "        tkDataGrid_SetColumnInfo( " & h & ", " & i & ", c_ )" & NL
+                o &= "    end scope" & NL
+            elseif ro then
+                o &= "    tkDataGrid_SetColumnReadOnly( " & h & ", " & i & ", true )" & NL
+            end if
         next
     case catalog.ItemsKind.ItemsList
         for i as long = 0 to c.Items.Count( ) - 1
@@ -1150,6 +1165,33 @@ private sub GridSaveBody_( byref c as FormControl, byref o as ustring )
     o &= "    end scope" & NL
 end sub
 
+' IsDirty's test for a grid filled from r's ItemsField. A live grid showing r's own array has written
+' every edit into it already: only its open edit counts.
+private sub GridDirty_( byref c as FormControl, byref o as ustring )
+    dim as ustring h = c.Name & ".Handle"
+    o &= "    if tkDataGrid_IsEditing( " & h & " ) then return true" & NL
+    o &= "    scope" & NL
+    o &= "        dim byref as Array( of " & c.ItemType & " ) a_ = r." & c.ItemsField & NL
+    dim as ustring t = "        "
+    if c.ItemsLive then
+        o &= "        if tkDataGrid_GetSourceContext( " & h & " ) <> cptr( any ptr, @a_ ) then" & NL
+        t = "            "
+    end if
+    o &= t & "if tkDataGrid_GetRowCount( " & h & " ) <> a_.Count( ) then return true" & NL
+    o &= t & "for i_ as long = 0 to a_.Count( ) - 1" & NL
+    for k as long = 0 to c.Items.Count( ) - 1
+        dim as ustring f = c.Items[k].Field
+        if (len( f ) = 0) orelse GridMethodField_( f ) then continue for
+        dim as ustring vk = catalog.GridValueKind( c.Items[k].Kind )
+        dim as ustring fmt
+        if vk = "Text" then fmt = ", """""
+        o &= t & "    if tkBind_Differs( a_[i_]." & f & ", tkDataGrid_GetCell" & vk & "( " & h & ", i_, " & k & " )" & fmt & " ) then return true" & NL
+    next
+    o &= t & "next" & NL
+    if c.ItemsLive then o &= "        end if" & NL
+    o &= "    end scope" & NL
+end sub
+
 ' The list members: <name>_Fill( ) for an ItemsSource (the program calls it; an ItemsField is
 ' filled by LoadFrom), <name>_Item( ) for a ListTree: the chosen row's element, -1 for none.
 private sub ListDecls_( byref doc as FormDoc, byref o as ustring )
@@ -1378,7 +1420,10 @@ private function NavWires_( byref doc as FormDoc, byref c as FormControl, byref 
     if ni < 0 then return false
     if (lcase( c.Name ) = lcase( doc.Controls[ni].Name )) andalso (evName = "Navigate") then return true
     dim as long li = catalog.NavList( doc )
-    return (li >= 0) andalso (lcase( c.Name ) = lcase( doc.Controls[li].Name )) andalso (evName = "SelChange")
+    if (li < 0) orelse (lcase( c.Name ) <> lcase( doc.Controls[li].Name )) then return false
+    ' a DataGrid moves its current row (CurrentCellChanged); a ListTree / ComboBox its selection
+    if catalog.ItemsBindOf( c ) = "grid" then return evName = "CurrentCellChanged"
+    return evName = "SelChange"
 end function
 
 private function NavThunk_( byref doc as FormDoc, byref k as FormControl, byval ev as TKMETA_EVENT ptr, byval i as long, byref o as ustring ) as boolean
@@ -1394,7 +1439,7 @@ private function NavThunk_( byref doc as FormDoc, byref k as FormControl, byval 
         o &= "    return false                ' the form has moved it, or kept it: the navigator takes nothing itself" & NL
         o &= "end function" & NL & NL
     else
-        o &= "private sub Thunk_" & k.Name & "_SelChange" & Parens_( ev->Sig ) & NL
+        o &= "private sub Thunk_" & k.Name & "_" & ev->Name & Parens_( ev->Sig ) & NL
         o &= "    dim as Form ptr f = tkForms_ObjectOf( " & WidgetOf_( *ev ) & " )" & NL
         o &= "    if f = 0 then exit sub" & NL
         o &= "    f->" & nav.Name & "_FromList_( )" & NL
@@ -1426,6 +1471,13 @@ private sub NavSelect_( byref doc as FormDoc, byref idx as const ustring, byref 
     dim as FormControl l = doc.Controls[li]
     if catalog.ItemsBindOf( l ) = "rows" then
         o &= indent & "tkListTree_SetCurSel( " & l.Name & ".Handle, " & idx & " )" & NL
+    elseif catalog.ItemsBindOf( l ) = "grid" then
+        ' the record's row, in the column the grid is on (silent: no CurrentCellChanged)
+        o &= indent & "scope" & NL
+        o &= indent & "    dim as integer r_, c_" & NL
+        o &= indent & "    tkDataGrid_GetCurrentCell( " & l.Name & ".Handle, r_, c_ )" & NL
+        o &= indent & "    tkDataGrid_SetCurrentCell( " & l.Name & ".Handle, " & idx & ", iif( c_ < 0, 0, c_ ) )" & NL
+        o &= indent & "end scope" & NL
     else
         o &= indent & "tkComboBox_SetCurSel( " & l.Name & ".Handle, " & idx & " )" & NL
     end if
@@ -1455,6 +1507,10 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
         if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) andalso (Checked_( m->Bind2Kind ) orelse (m->Bind2Kind = "bool")) andalso (m->Bind2Kind <> "text") then
             o &= "    if tkBind_Differs( r." & c.Bind2 & ", " & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & " ) then return true" & NL
         end if
+    next
+    ' a grid on one of r's arrays: an open edit, another row count, or any cell that differs
+    for each c as FormControl in doc.Controls
+        if GridWritesBack_( c ) then GridDirty_( c, o )
     next
     o &= "    return false" & NL
     o &= "end function" & NL
@@ -1531,7 +1587,7 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
         dim as FormControl l = doc.Controls[li]
         dim as ustring lh = l.Name & ".Handle"
         o &= NL & "sub Form." & n & "_FromList_( )" & NL
-        if catalog.ItemsBindOf( l ) = "rows" then
+        if (catalog.ItemsBindOf( l ) = "rows") orelse (catalog.ItemsBindOf( l ) = "grid") then
             o &= "    dim as long i = " & l.Name & "_Item( )" & NL
         else
             o &= "    dim as long i = tkComboBox_GetCurSel( " & lh & " )" & NL
@@ -1554,6 +1610,17 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
                 end if
             next
             if len( l.CheckField ) then o &= "    tkListTree_SetCheck( " & lh & ", i, iif( tkBind_Bool( a_[i]." & l.CheckField & " ), 1, 0 ) )" & NL
+        elseif catalog.ItemsBindOf( l ) = "grid" then
+            if l.ItemsLive then
+                ' it reads the array itself: a repaint shows the saved values
+                o &= "    tkDataGrid_InvalidateCells( " & lh & ", i, -1, i, -1 )" & NL
+            else
+                for k as long = 0 to l.Items.Count( ) - 1
+                    if len( l.Items[k].Field ) = 0 then continue for
+                    dim as ustring vk = catalog.GridValueKind( l.Items[k].Kind )
+                    o &= "    tkDataGrid_SetCell" & vk & "( " & lh & ", i, " & k & ", tkBind_" & vk & "( a_[i]." & l.Items[k].Field & " ) )" & NL
+                next
+            end if
         else
             o &= "    tkComboBox_SetItemText( " & lh & ", i, tkBind_Text( a_[i]." & l.DisplayField & " ) )" & NL
             if len( l.ValueField ) then o &= "    " & l.Name & "_Values_[i] = tkBind_Text( a_[i]." & l.ValueField & " )" & NL

@@ -216,7 +216,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     if p then
         for i as long = 0 to p->Count( ) - 1
             dim byref as config.TomlValue it = p->Item( i )
-            OnlyKeys_( it, "text key glyph handler kind level width stretch id field", where & " item", doc )
+            OnlyKeys_( it, "text key glyph handler kind level width stretch id field align min_width fill read_only hidden", where & " item", doc )
             dim as FormItem x
             x.Text = StrOf_( it, "text" )
             x.Key = StrOf_( it, "key" )
@@ -231,6 +231,19 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
             if st then
                 dim as boolean no = false
                 x.Stretch = st->AsBool( ).ValueOr( no )
+            end if
+            x.Align = StrOf_( it, "align" )
+            x.MinWidth = IntOf_( it, "min_width", 0 )
+            x.Fill = IntOf_( it, "fill", 0 )
+            st = it.Find( "read_only" )
+            if st then
+                dim as boolean no = false
+                x.ReadOnly = st->AsBool( ).ValueOr( no )
+            end if
+            st = it.Find( "hidden" )
+            if st then
+                dim as boolean no = false
+                x.Hidden = st->AsBool( ).ValueOr( no )
             end if
             c.Items.Push( x )
         next
@@ -552,6 +565,11 @@ public function Render( byref doc as FormDoc ) as ustring
             if it.Width then o &= "width = " & it.Width & NL
             if len( it.Field ) then o &= "field = " & Quote_( it.Field ) & NL
             if it.Stretch then o &= "stretch = true" & NL
+            if len( it.Align ) then o &= "align = " & Quote_( it.Align ) & NL
+            if it.MinWidth then o &= "min_width = " & it.MinWidth & NL
+            if it.Fill then o &= "fill = " & it.Fill & NL
+            if it.ReadOnly then o &= "read_only = true" & NL
+            if it.Hidden then o &= "hidden = true" & NL
             if len( it.Handler ) then o &= "handler = " & Quote_( it.Handler ) & NL
             if doc.Translate then o &= "id = " & ItemId( c, k ) & NL
         next

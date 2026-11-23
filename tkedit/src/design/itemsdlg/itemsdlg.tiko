@@ -281,6 +281,12 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         this.AddField( "Width", widthLabel )
         this.AddField( "Kind", i18n.Tr( "designer.item_kind", "Kind" ), "text,number,check,combo,date,button,link,progress" )
         this.AddField( "Field", i18n.Tr( "designer.item_field", "Field" ) )
+        ' the column's layout and editing, by its TKDATAGRID_COLUMN names (as the inspector's rows are)
+        this.AddField( "Align", "Align", "auto,left,center,right" )
+        this.AddField( "MinWidth", "MinWidth" )
+        this.AddField( "Fill", "Fill" )
+        this.AddCheck( "ReadOnly", "ReadOnly" )
+        this.AddCheck( "Visible", "Visible" )
     case catalog.ItemsKind.ItemsPages, catalog.ItemsKind.ItemsTabs
         ' a tab: its caption and the glyph before it (the control's GlyphSize sizes every tab's)
         this.AddField( "Text", textLabel )
@@ -519,10 +525,25 @@ sub ItemsEditor.ShowItem( byval i as long )
             case "Width"
                 if Items[i].Width then v = str( Items[i].Width )
             case "Field"   : v = Items[i].Field
+            case "Align"
+                v = Items[i].Align
+                if len( v ) = 0 then v = "auto"
+            case "MinWidth"
+                if Items[i].MinWidth then v = str( Items[i].MinWidth )
+            case "Fill"
+                if Items[i].Fill then v = str( Items[i].Fill )
             end select
         end if
         if f.IsCheck then
-            tkCheckBox_SetChecked( f.Edit, (i >= 0) andalso (i < Items.Count( )) andalso Items[i].Stretch )
+            dim as boolean on_ = false
+            if (i >= 0) andalso (i < Items.Count( )) then
+                select case f.Key
+                case "ReadOnly" : on_ = Items[i].ReadOnly
+                case "Visible"  : on_ = (Items[i].Hidden = false)
+                case else       : on_ = Items[i].Stretch
+                end select
+            end if
+            tkCheckBox_SetChecked( f.Edit, on_ )
         elseif f.IsCombo then
             tkComboBox_SetCurSel( f.Edit, tkComboBox_FindItemByText( f.Edit, v ) )
         else
@@ -567,8 +588,13 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
     if Loading orelse (Current < 0) orelse (Current >= Items.Count( )) then exit sub
     for each f as ItemField in Fields
         if (f.Edit = w) andalso f.IsCheck then
-            ' Stretch: several panels may share the spare width
-            Items[Current].Stretch = tkCheckBox_GetChecked( f.Edit )
+            select case f.Key
+            case "ReadOnly" : Items[Current].ReadOnly = tkCheckBox_GetChecked( f.Edit )
+            case "Visible"  : Items[Current].Hidden = (tkCheckBox_GetChecked( f.Edit ) = false)
+            case else
+                ' Stretch: several panels may share the spare width
+                Items[Current].Stretch = tkCheckBox_GetChecked( f.Edit )
+            end select
         elseif f.Edit = w then
             dim as ustring v
             if f.IsCombo then v = tkComboBox_GetText( f.Edit ) else v = tkTextBox_GetText( f.Edit )
@@ -583,6 +609,11 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
             case "Kind"    : Items[Current].Kind = v
             case "Width"   : Items[Current].Width = valint( v )
             case "Field"   : Items[Current].Field = trim( v )
+            case "Align"
+                Items[Current].Align = v
+                if v = "auto" then Items[Current].Align = ""
+            case "MinWidth" : Items[Current].MinWidth = valint( v )
+            case "Fill"     : Items[Current].Fill = valint( v )
             end select
         end if
     next

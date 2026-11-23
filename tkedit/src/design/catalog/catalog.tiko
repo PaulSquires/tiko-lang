@@ -335,6 +335,17 @@ public function GridValueKind( byref kind as const ustring ) as ustring
 end function
 
 ' Its column constant (TKDG_COL_*), as source.
+' A DataGrid column's Align ("" = by its kind) as its TKDG_ALIGN_* constant; "" for no such align.
+public function GridAlignConst( byref a as const ustring ) as ustring
+    select case a
+    case ""       : return "TKDG_ALIGN_AUTO"
+    case "left"   : return "TKDG_ALIGN_LEFT"
+    case "center" : return "TKDG_ALIGN_CENTER"
+    case "right"  : return "TKDG_ALIGN_RIGHT"
+    end select
+    return ""
+end function
+
 public function GridKindConst( byref kind as const ustring ) as ustring
     select case kind
     case "number"   : return "TKDG_COL_NUMBER"

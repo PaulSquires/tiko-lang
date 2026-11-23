@@ -286,8 +286,8 @@ private sub CheckNav_( byref doc as FormDoc, byref c as FormControl, byval m as 
             out_.Push( c.Name & ": follows '" & c.Follows & "', which is not on the form" )
         else
             dim as ustring shape = catalog.ItemsBindOf( doc.Controls[fi] )
-            if (shape <> "rows") andalso (shape <> "items") then
-                out_.Push( c.Name & ": follows '" & c.Follows & "', which is no ListTree or ComboBox" )
+            if (shape <> "rows") andalso (shape <> "items") andalso (shape <> "grid") then
+                out_.Push( c.Name & ": follows '" & c.Follows & "', which is no ListTree, ComboBox or DataGrid" )
             elseif lcase( trim( doc.Controls[fi].ItemsSource ) ) <> lcase( trim( c.ItemsSource ) ) then
                 out_.Push( c.Name & ": follows '" & c.Follows & "', whose ItemsSource is not " & c.ItemsSource )
             end if
@@ -644,6 +644,10 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
             if (kind_ = catalog.ItemsKind.ItemsGridColumns) andalso (catalog.GridKindOk( it.Kind ) = false) then
                 out_.Push( c.Name & ": no DataGrid column kind '" & it.Kind & "' (text number check combo date button link progress)" )
             end if
+            if (kind_ = catalog.ItemsKind.ItemsGridColumns) andalso (len( catalog.GridAlignConst( it.Align ) ) = 0) then
+                out_.Push( c.Name & ": no DataGrid column align '" & it.Align & "' (left center right, or none for the kind's)" )
+            end if
+            if (it.MinWidth < 0) orelse (it.Fill < 0) then out_.Push( c.Name & ": a column's MinWidth and Fill are 0 or more" )
             if len( it.Handler ) then AddHandler_( handlers, c.Name, it.Handler, "", doc, out_ )
         next
     next

@@ -4,6 +4,8 @@
 ' current row's element, SaveTo writes every row back -- an edited cell, an added row -- with an open
 ' edit committed first. frmLive (G5b, ItemsLive) shows the arrays in place: edits, added and deleted
 ' rows land in them at once, SaveTo copies only into another record, _Fill binds a form member.
+' frmNav: a Navigator following a grid of orders (its row follows the navigator, a click on a row
+' moves the navigator), each order's lines in a grid that IsDirty and SaveTo cover.
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkForms"
@@ -12,6 +14,8 @@
 #import "vendor/tkControls/tkTextBox"
 #import "./frmGrid"
 #import "./frmLive"
+#import "./frmNav"
+#import "vendor/tkControls/tkNavigator"
 #import "./griddata"
 #import "std/containers"
 #import "std/chrono"
@@ -21,8 +25,10 @@ using tkBind
 using tkDataGrid
 using tkTextBox
 using tkHost
+using tkPaint
 using tkTest
 using containers
+using tkNavigator
 
 function NewLine( byref item as const ustring, byval qty as long, byval price as double, byval paid as boolean, byval d as long ) as griddata.Line
     dim as griddata.Line l
@@ -123,6 +129,77 @@ sub Live( byval owner as TK_FORM ptr )
     tkTest_PumpFor( h, 40 )
 end sub
 
+function NewOrder( byref cust as const ustring, byval n as long ) as griddata.Order
+    dim as griddata.Order o
+    o.Customer = cust
+    for k as long = 1 to n
+        o.Lines.Push( NewLine( cust & " item " & k, k, 1, false, k ) )
+    next
+    return o
+end function
+
+sub ClickNav( byval h as TK_HOST ptr, byval nav as TK_WIDGET ptr, byval part as long )
+    dim as TKRECT rc, a
+    tkNavigator_GetPartRect( nav, part, rc )
+    tkWidget_AbsRect( nav, a )
+    dim as single x = a.left + (rc.left + rc.right) / 2, y = a.top + (rc.top + rc.bottom) / 2
+    tkTest_PushMotion( h, x, y )
+    tkTest_Click( h, x, y )
+    tkTest_PumpFor( h, 20 )
+end sub
+
+sub ClickCell( byval h as TK_HOST ptr, byval g as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    dim as TKRECT rc, a
+    tkDataGrid_GetCellRect( g, row, col, rc )
+    tkWidget_AbsRect( tkDataGrid_GetSurface( g ), a )
+    dim as single x = a.left + (rc.left + rc.right) \ 2, y = a.top + (rc.top + rc.bottom) \ 2
+    tkTest_PushMotion( h, x, y )
+    tkTest_Click( h, x, y )
+    tkTest_PumpFor( h, 20 )
+end sub
+
+function CurRow( byval g as TK_WIDGET ptr ) as integer
+    dim as integer r, c
+    tkDataGrid_GetCurrentCell( g, r, c )
+    return r
+end function
+
+sub NavOrders( byval owner as TK_FORM ptr )
+    tkTest_Begin( "a navigator following a DataGrid, with a grid of lines per record" )
+    dim as frmNav.Form f
+    f.Build( owner )
+    dim as TK_HOST ptr h = tkForm_Host( f.Handle )
+    f.Show( )
+    tkTest_PumpFor( h, 60 )
+    dim as TK_WIDGET ptr go = f.grdOrders.Handle, gl = f.grdLines.Handle, nav = f.navOrders.Handle
+    f.Orders.Push( NewOrder( "Ada", 2 ) ) : f.Orders.Push( NewOrder( "Bob", 3 ) ) : f.Orders.Push( NewOrder( "Cy", 1 ) )
+    f.navOrders_Refresh( )
+    tkTest_Check( "Refresh: the orders grid filled and on row 0, its lines in the other grid, not dirty", (tkDataGrid_GetRowCount( go ) = 3) _
+        andalso (CurRow( go ) = 0) andalso (tkDataGrid_GetRowCount( gl ) = 2) andalso (f.IsDirty( f.Orders[0] ) = false) )
+
+    ClickNav( h, nav, TKNAV_NEXT )
+    tkTest_Check( "Next: the grid's current row follows the navigator", (f.navOrders_Current( ) = 1) andalso (CurRow( go ) = 1) _
+        andalso (tkDataGrid_GetRowCount( gl ) = 3), str( CurRow( go ) ) )
+
+    tkDataGrid_SetCellFloat( gl, 0, 1, 99 )
+    dim as boolean dirty = f.IsDirty( f.Orders[1] )
+    ClickNav( h, nav, TKNAV_FIRST )
+    tkTest_Check( "a changed line makes the record dirty; moving saves it into the order", dirty andalso (f.Orders[1].Lines[0].Qty = 99) _
+        andalso (f.navOrders_Current( ) = 0) )
+
+    tkTextBox_SetText( f.txtCustomer.Handle, "Ada Lovelace" )
+    ClickCell( h, go, 2, 0 )
+    tkTest_Check( "a click on the grid's row moves the navigator, the saved record's row shows its new values", (f.navOrders_Current( ) = 2) _
+        andalso (f.Orders[0].Customer = "Ada Lovelace") andalso (tkDataGrid_GetCellText( go, 0, 0 ) = "Ada Lovelace"), str( f.navOrders_Current( ) ) )
+
+    tkDataGrid_BeginEdit( gl, 0, 0 )
+    tkTest_Check( "an open edit in the lines grid counts as dirty", f.IsDirty( f.Orders[2] ) )
+    tkDataGrid_EndEdit( gl, false )
+
+    f.Close( )
+    tkTest_PumpFor( h, 40 )
+end sub
+
 if tkTest_Init() = false then end 99
 dim as TKAPP_OPTIONS opts
 if tkApp_Init( opts ) = false then
@@ -134,6 +211,7 @@ tkForm_Show( mainForm )
 tkTest_PumpFor( tkForm_Host( mainForm ), 50 )
 Lines( mainForm )
 Live( mainForm )
+NavOrders( mainForm )
 dim as long nFail = tkTest_Report( "tkGridForm" )
 tkApp_Shutdown( )
 end nFail

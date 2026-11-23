@@ -965,7 +965,7 @@ private function ListNames_( byref doc as FormDoc ) as ustring
     dim as ustring o
     for each c as FormControl in doc.Controls
         dim as ustring shape = catalog.ItemsBindOf( c )
-        if (shape = "rows") orelse (shape = "items") then o &= "," & c.Name
+        if (shape = "rows") orelse (shape = "items") orelse (shape = "grid") then o &= "," & c.Name
     next
     return o
 end function

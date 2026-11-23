@@ -1,5 +1,6 @@
-' The records frmGrid binds (tkDataGrid G5): an order whose lines fill a DataGrid (ItemsField), a
-' column per field -- text, numbers, a bool, a date -- and one method column the grid only shows.
+' The records tkGridForm's forms bind (tkDataGrid G5): an order whose lines fill a DataGrid (ItemsField),
+' a column per field -- text, numbers, a bool, a date -- and one method column the grid only shows.
+' frmNav steps through orders (a Navigator following a grid of them), each with its own lines.
 #module "griddata"
 
 #import "std/containers" public
@@ -20,5 +21,6 @@ function Line.Total( ) as double
 end function
 
 public type Order
+    Customer as ustring
     Lines as Array( of Line )
 end type

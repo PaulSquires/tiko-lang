@@ -43,6 +43,13 @@ public type FormItem
     Stretch as boolean      ' a status bar panel: takes a share of the spare width (several may)
     Id as long = -1         ' its translation key's last part, kept however entries move; -1 = not given yet
     Field as ustring        ' a list-bound ListTree's column: the element's field it shows (B3), "" = none
+    ' a DataGrid column (G5): "" (by kind) left center right; the narrowest it may be dragged to; its
+    ' share of the spare width (0 = none); no editor opens on it; not shown (Visible unticked)
+    Align as ustring
+    MinWidth as long
+    Fill as long
+    ReadOnly as boolean
+    Hidden as boolean
 end type
 
 public type FormControl
