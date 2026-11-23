@@ -1222,6 +1222,51 @@ sub PropOrderSuite( )
     Check( (instr( r, "Range = " ) > 0) andalso (instr( r, "Range = " ) < instr( r, "Value = " )), "proporder: the writer saves Range before Value" )
 end sub
 
+' InfoBar + Toaster (notifications N5): a bar's create arg, its layout hook right after it joins the
+' layout, a Closing thunk answering Allow (true unless the handler says no), its load-only binding;
+' a Toaster is created but never laid out, and its events are wired.
+sub NotifySuite( )
+    dim as ustring src = Header( ) & "data_type = ""orders.Order""" & LF & "data_module = ""../orders""" & LF _
+        & Ctl( "bar", "InfoBar", "dock = ""top""" & LF & "bind = ""Notice""" & LF & "[control.props]" & LF & "Severity = ""Warning""" & LF & "Actions = ""Retry|Details""" & LF _
+        & LF & "[control.events]" & LF & "Closing = ""bar_Closing""" & LF ) _
+        & Ctl( "tst", "Toaster", "[control.props]" & LF & "Position = ""TopRight""" & LF & LF & "[control.events]" & LF & "Action = ""tst_Action""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "notify: the form parses" )
+    Accepted( src, "notify: an InfoBar and a Toaster" )
+    dim as ustring g = codegen.Generate( d, "frmN", "frmN.tkform", src )
+    dim as long nAdd = instr( g, "tkLayout_Add( Layout, bar.Handle" ), nHook = instr( g, "    tkInfoBar_AttachLayout( bar.Handle, Layout )" & LF )
+    Check( (nAdd > 0) andalso (nHook > nAdd), "notify: the bar's layout hook, right after it joins the layout", LineWith( g, "AttachLayout" ) )
+    Check( instr( g, "bar.Create( " ) > 0 andalso (instr( LineWith( g, "bar.Create( " ), ", true )" ) > 0), "notify: a designed bar is created open (IsOpen's default)", LineWith( g, "bar.Create( " ) )
+    HasLine( g, "bar.Severity = tkNotify.TKN_WARNING", "notify: an enum prop is its (qualified) constant" )
+    Check( instr( g, "    dim as boolean Allow = true" & LF ) > 0, "notify: Closing's thunk starts Allow at true", LineWith( g, "Allow" ) )
+    Check( instr( g, "tkInfoBar_SetText( bar.Handle, tkBind_Text( r.Notice ) )" ) > 0, "notify: the bar loads its field", LineWith( g, "tkInfoBar_SetText" ) )
+    Check( (instr( g, "tst.Create( " ) > 0) andalso (instr( g, "tkLayout_Add( Layout, tst.Handle" ) = 0) andalso _
+           (instr( g, "tkToast_SetActionCallback( tst.Handle, @Thunk_tst_Action )" ) > 0), "notify: a Toaster is made, not laid out, its event wired", LineWith( g, "tst." ) )
+end sub
+
+' A Slider (S3): its limits before its value whatever the file's order, enum constants, and a
+' FormatValue thunk that answers a ustring.
+sub SliderSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "sld", "Slider" ) & LF & "[control.props]" & LF & "Value = 500" & LF & "UpperValue = 800" & LF & "Mode = ""Range""" & LF _
+        & "Range = ""0,1000""" & LF & "Step = 5" & LF & "Orientation = ""Vertical""" & LF & "ThumbSize = ""12,20""" & LF _
+        & LF & "[control.events]" & LF & "FormatValue = ""sld_Format""" & LF & "ValueCommitted = ""sld_Done""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "slider: the form parses" )
+    Accepted( src, "slider: its props and events" )
+    dim as ustring g = codegen.Generate( d, "frmS", "frmS.tkform", src )
+    dim as long nRange = instr( g, "    sld.Range( 0, 1000 )" ), nStep = instr( g, "    sld.Step = 5" )
+    dim as long nMode = instr( g, "    sld.Mode = TKSL_MODE_RANGE" ), nVal = instr( g, "    sld.Value = 500" ), nUp = instr( g, "    sld.UpperValue = 800" )
+    Check( (nRange > 0) andalso (nStep > 0) andalso (nMode > 0) andalso (nVal > 0) andalso (nUp > 0), "slider: the five lines", LineWith( g, "sld." ) )
+    Check( (nRange < nStep) andalso (nStep < nMode) andalso (nMode < nVal) andalso (nVal < nUp), "slider: Range, Step, Mode, then Value, UpperValue", _
+           nRange & " " & nStep & " " & nMode & " " & nVal & " " & nUp )
+    HasLine( g, "sld.Orientation = TKSL_VERTICAL", "slider: an enum prop is its constant" )
+    HasLine( g, "sld.ThumbSize( 12, 20 )", "slider: a list prop" )
+    Check( instr( g, "private function Thunk_sld_FormatValue( byval hSlider as TK_WIDGET ptr, byval nValue as float64, byval nWhere as int32 ) as ustring" & LF _
+        & "    dim as ustring Text" & LF ) > 0, "slider: FormatValue's thunk answers its Text", LineWith( g, "Thunk_sld_FormatValue" ) )
+    HasLine( g, "tkSlider_SetValueCommittedCallback( sld.Handle, @Thunk_sld_ValueCommitted )", "slider: ValueCommitted installed" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -2397,6 +2442,416 @@ sub EmbedFontsSuite( )
     Check( (p2.Count( ) = 1) andalso (instr( p2[0], "Missing.ttf" ) > 0), "embed: a font not found is named" )
 end sub
 
+' Data binding (B1): the form's DataType / DataModule and each control's Bind, read, written,
+' checked and turned into LoadFrom / SaveTo.
+sub BindSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""contactdb.Contact""" & LF & "data_module = ""../contactdb""" & LF
+    dim as ustring body = Ctl( "txtName", "TextBox", "bind = ""FirstName""" & LF ) _
+        & Ctl( "chkVip", "CheckBox", "bind = ""Flags.Vip""" & LF ) _
+        & Ctl( "lblTitle", "Label", "bind = ""Title""" & LF ) _
+        & Ctl( "cboKind", "ComboBox", "bind = ""Kind""" & LF ) _
+        & Ctl( "nudAge", "NumericUpDown", "bind = ""Age""" & LF ) _
+        & Ctl( "dtBorn", "DatePicker", "bind = ""Born""" & LF ) _
+        & Ctl( "btnOK", "Button" )
+    dim as FormDoc d
+    Check( ReadForm( hdr & body, d ), "bind: the form parses" )
+    Check( (d.DataType = "contactdb.Contact") andalso (d.DataModule = "../contactdb"), "bind: data_type and data_module read" )
+    Check( d.Controls[FindControl( d, "chkVip" )].Bind = "Flags.Vip", "bind: a control's bind read" )
+    Check( len( d.Controls[FindControl( d, "btnOK" )].Bind ) = 0, "bind: no bind is empty" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "data_type = ""contactdb.Contact""" & LF & "data_module = ""../contactdb""" & LF ) > 0, "bind: the form's keys written", t1 )
+    Check( instr( t1, "bind = ""FirstName""" & LF ) > 0, "bind: a control's bind written" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "bind: round trip" )
+    Check( instr( formfile.Render( d2 ), "data_type" ) > 0, "bind: kept" )
+    dim as FormDoc plain
+    ReadForm( Header( ) & Ctl( "b", "Button" ), plain )
+    Check( (instr( formfile.Render( plain ), "data_" ) = 0) andalso (instr( formfile.Render( plain ), "bind" ) = 0), "bind: none written when unset" )
+
+    Accepted( hdr & body, "a bound form" )
+    Accepted( Header( ) & "data_module = ""../m""" & LF, "a data module before its type" )
+    Refused( hdr & Ctl( "btnX", "Button", "bind = ""X""" & LF ), "a Button can't be bound to a field" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""1st""" & LF ), "bind '1st' is not a field name" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""a..b""" & LF ), "bind 'a..b' is not a field name" )
+    Refused( Header( ) & Ctl( "t", "TextBox", "bind = ""Name""" & LF ), "needs the form's DataType first" )
+    Refused( Header( ) & "data_type = ""contactdb.""" & LF, "data type 'contactdb.' is not a type name" )
+    Refused( hdr & Ctl( "LoadFrom", "Button" ), "control 'LoadFrom' is already a member of every form" )
+    Refused( hdr & Ctl( "SaveTo", "Button" ), "control 'SaveTo' is already a member of every form" )
+
+    dim as ustring t = codegen.Generate( d, "frmBind", "frmBind.tkform", "" )
+    Check( instr( t, "#import ""vendor/tkControls/tkBind""" & LF & "#import ""../contactdb""" & LF ) > 0, "bind: imports tkBind and the data module" )
+    Check( instr( t, LF & "using tkBind" & LF ) > 0, "bind: using tkBind" )
+    HasLine( t, "declare function LoadFrom( byref r as contactdb.Contact ) as boolean", "bind: LoadFrom declared" )
+    HasLine( t, "declare function SaveTo( byref r as contactdb.Contact ) as boolean", "bind: SaveTo declared" )
+    Check( instr( t, LF & "function Form.LoadFrom( byref r as contactdb.Contact ) as boolean" & LF ) > 0, "bind: LoadFrom defined" )
+    HasLine( t, "tkTextBox_SetText( txtName.Handle, tkBind_Text( r.FirstName ) )", "bind: text in" )
+    HasLine( t, "tkBind_Put( r.FirstName, tkTextBox_GetText( txtName.Handle ) )", "bind: text out" )
+    HasLine( t, "tkCheckBox_SetChecked( chkVip.Handle, tkBind_Bool( r.Flags.Vip ) )", "bind: bool in, a nested field" )
+    HasLine( t, "tkBind_Put( r.Flags.Vip, tkCheckBox_GetChecked( chkVip.Handle ) )", "bind: bool out" )
+    HasLine( t, "tkComboBox_SetCurSel( cboKind.Handle, tkBind_Int( r.Kind ) )", "bind: int in" )
+    HasLine( t, "tkBind_Put( r.Kind, clngint( tkComboBox_GetCurSel( cboKind.Handle ) ) )", "bind: int out, as longint" )
+    HasLine( t, "tkBind_Put( r.Age, cdbl( tkNumericUpDown_GetValue( nudAge.Handle ) ) )", "bind: float out, as double" )
+    HasLine( t, "tkDatePicker_SetDateValue( dtBorn.Handle, tkBind_Date( r.Born ) )", "bind: date in" )
+    HasLine( t, "tkBind_Put( r.Born, tkDatePicker_GetDateValue( dtBorn.Handle ) )", "bind: date out" )
+    HasLine( t, "tkLabel_SetText( lblTitle.Handle, tkBind_Text( r.Title ) )", "bind: a load-only control loads" )
+    Check( instr( t, "tkBind_Put( r.Title" ) = 0, "bind: ...and is not saved" )
+    Check( instr( t, "btnOK.Handle, tkBind" ) = 0, "bind: an unbound control is left alone" )
+    Check( instr( t, "Form.LoadFrom" ) > instr( t, "sub Form.Build" ), "bind: after Build" )
+
+    ' T4 (claude-docs TIMEPICKER.md 10): the time kind, and a date + time pair on one field saved in
+    ' one call -- the time control first here, so the call still takes the date first
+    dim as FormDoc dtp
+    ReadForm( hdr & Ctl( "tpStart", "TimePicker", "bind = ""Start""" & LF ) & Ctl( "tpAt", "TimePicker", "bind = ""Stamp""" & LF ) _
+        & Ctl( "dpAt", "DatePicker", "bind = ""Stamp""" & LF ), dtp )
+    dim as ustring tt = codegen.Generate( dtp, "frmT", "frmT.tkform", "" )
+    HasLine( tt, "tkTimePicker_SetTimeValue( tpStart.Handle, tkBind_Time( r.Start ) )", "bind: time in" )
+    HasLine( tt, "tkBind_Put( r.Start, tkTimePicker_GetTimeValue( tpStart.Handle ) )", "bind: time out" )
+    HasLine( tt, "tkBind_Put( r.Stamp, tkDatePicker_GetDateValue( dpAt.Handle ), tkTimePicker_GetTimeValue( tpAt.Handle ) )", "bind: a date + time pair saves in one call, date first" )
+    Check( (instr( tt, "tkBind_Put( r.Stamp, tkTimePicker" ) = 0) andalso (instr( tt, "tkBind_Put( r.Stamp, tkDatePicker_GetDateValue( dpAt.Handle ) )" ) = 0), "bind: ...and no half-saves", tt )
+    dim as FormDoc dte
+    ReadForm( Header( ) & Ctl( "tp", "TimePicker", "" ) & "[control.events]" & LF & "TimeChanged = ""OnT""" & LF, dte )
+    Check( instr( codegen.Generate( dte, "frmTE", "frmTE.tkform", "" ), LF & "using tkTimePanel" & LF ) > 0, "a TimeChanged handler brings TKTIME's module (tkTimePanel) into scope" )
+
+    dim as FormDoc nb
+    ReadForm( hdr & Ctl( "b", "Button" ), nb )
+    Check( instr( codegen.Generate( nb, "frmNB", "frmNB.tkform", "" ), "LoadFrom" ) = 0, "bind: a DataType with nothing bound generates nothing" )
+    Check( instr( codegen.Generate( nb, "frmNB", "frmNB.tkform", "" ), "tkBind" ) = 0, "bind: ...not even the import" )
+
+    ' paste: a bound control keeps its field in a form with a DataType, loses it in one without
+    dim as ustring clip = edits.CopyText( d, Names( "txtName" ) )
+    dim as Array( of ustring ) added
+    dim as FormDoc withType
+    ReadForm( hdr, withType )
+    Check( edits.PasteText( withType, clip, "", -1, 0, 0, added ), "bind: paste into a bound form" )
+    Check( withType.Controls[withType.Controls.Count( ) - 1].Bind = "FirstName", "bind: ...keeps the field" )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added2
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added2 ), "bind: paste into a form without a DataType" )
+    Check( len( noType.Controls[noType.Controls.Count( ) - 1].Bind ) = 0, "bind: ...drops the field" )
+end sub
+
+' bind2: a two-value control's second field (a range Slider's upper thumb). The Slider's own bind and
+' bind2 entries are not in controls.toml yet, so its table entry stands in for the suite and is put back.
+sub Bind2Suite( )
+    dim as TKMETA_CONTROL ptr m = catalog.Find( "Slider" )
+    Check( m <> 0, "bind2: the Slider is in the table" )
+    if m = 0 then exit sub
+    dim as TKMETA_CONTROL keep = *m
+    if len( m->Bind2Kind ) = 0 then
+        m->BindKind = "float" : m->BindGet = "tkSlider_GetValue" : m->BindSet = "tkSlider_SetValue" : m->BindLoadOnly = false
+        m->Bind2Kind = "float" : m->Bind2Get = "tkSlider_GetUpperValue" : m->Bind2Set = "tkSlider_SetUpperValue"
+        m->Bind2Name = "BindUpper" : m->Bind2When = "Mode=Range"
+    end if
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Filter""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring rangeProps = LF & "[control.props]" & LF & "Mode = ""Range""" & LF
+    dim as ustring src = hdr & Ctl( "sldPrice", "Slider", "bind = ""PriceLo""" & LF & "bind2 = ""PriceHi""" & LF ) & rangeProps _
+        & Ctl( "txtName", "TextBox", "bind = ""Name""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "bind2: the form parses" )
+    Check( d.Controls[FindControl( d, "sldPrice" )].Bind2 = "PriceHi", "bind2: read" )
+    Check( len( d.Controls[FindControl( d, "txtName" )].Bind2 ) = 0, "bind2: none is empty" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "bind = ""PriceLo""" & LF & "bind2 = ""PriceHi""" & LF ) > 0, "bind2: written after bind", t1 )
+    Check( instr( mid( t1, instr( t1, "txtName" ) ), "bind2" ) = 0, "bind2: not written when unset" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "bind2: round trip" )
+    Check( catalog.Bind2Holds( d.Controls[FindControl( d, "sldPrice" )] ), "bind2: holds in Range mode" )
+
+    Accepted( src, "a range slider bound to two fields" )
+    Accepted( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF ), "a single slider bound to one field" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind2 = ""Hi""" & LF ) & rangeProps, "BindUpper needs Bind first" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""Hi""" & LF ), "BindUpper needs Mode=Range" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""Hi""" & LF ) & LF & "[control.props]" & LF & "Mode = ""Single""" & LF, _
+        "BindUpper needs Mode=Range" )
+    Refused( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""9x""" & LF ) & rangeProps, "BindUpper '9x' is not a field name" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""A""" & LF & "bind2 = ""B""" & LF ), "a TextBox has no second value to bind" )
+
+    dim as ustring t = codegen.Generate( d, "frmF", "frmF.tkform", "" )
+    dim as long l1 = instr( t, "    tkSlider_SetValue( sldPrice.Handle, tkBind_Float( r.PriceLo ) )" & LF )
+    dim as long l2 = instr( t, "    tkSlider_SetUpperValue( sldPrice.Handle, tkBind_Float( r.PriceHi ) )" & LF )
+    dim as long l3 = instr( t, "    tkTextBox_SetText( txtName.Handle, tkBind_Text( r.Name ) )" & LF )
+    Check( (l1 > 0) andalso (l2 > l1) andalso (l3 > l2), "bind2: LoadFrom lower, upper, then the next control", LineWith( t, "sldPrice" ) )
+    dim as long s1 = instr( t, "    tkBind_Put( r.PriceLo, cdbl( tkSlider_GetValue( sldPrice.Handle ) ) )" & LF )
+    dim as long s2 = instr( t, "    tkBind_Put( r.PriceHi, cdbl( tkSlider_GetUpperValue( sldPrice.Handle ) ) )" & LF )
+    dim as long s3 = instr( t, "    tkBind_Put( r.Name, tkTextBox_GetText( txtName.Handle ) )" & LF )
+    Check( (s1 > l3) andalso (s2 > s1) andalso (s3 > s2), "bind2: SaveTo lower, upper, then the next control", LineWith( t, "tkBind_Put" ) )
+
+    ' a single-mode slider's form, should one carry a bind2 anyway, moves the first value only
+    dim as FormDoc one
+    ReadForm( hdr & Ctl( "sld", "Slider", "bind = ""Lo""" & LF & "bind2 = ""Hi""" & LF ), one )
+    Check( instr( codegen.Generate( one, "frmO", "frmO.tkform", "" ), "r.Hi" ) = 0, "bind2: not moved while it doesn't hold" )
+
+    ' paste into a form without a DataType drops both
+    dim as ustring clip = edits.CopyText( d, Names( "sldPrice" ) )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added ), "bind2: paste into a form without a DataType" )
+    with noType.Controls[noType.Controls.Count( ) - 1]
+        Check( (len( .Bind ) = 0) andalso (len( .Bind2 ) = 0), "bind2: ...drops both fields" )
+    end with
+    *m = keep
+end sub
+
+' B2: a bound control's rules (required, minimum, maximum, max_length, format), checked and turned
+' into SaveTo's checks, LoadFrom's read-backs and the ValidationError call.
+sub RuleSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Item""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring body = Ctl( "txtQty", "TextBox", "bind = ""Qty""" & LF & "required = true" & LF & "minimum = ""1""" & LF & "maximum = ""999""" & LF ) _
+        & Ctl( "txtWhen", "TextBox", "bind = ""When""" & LF & "format = ""dd/MM/yyyy""" & LF & "max_length = 10" & LF ) _
+        & Ctl( "nudPrice", "NumericUpDown", "bind = ""Price""" & LF & "maximum = ""500""" & LF ) _
+        & Ctl( "dtDue", "DatePicker", "bind = ""Due""" & LF & "required = true" & LF & "minimum = ""2026-01-01""" & LF ) _
+        & Ctl( "cboKind", "ComboBox", "bind = ""Kind""" & LF & "required = true" & LF ) _
+        & Ctl( "chkVip", "CheckBox", "bind = ""Vip""" & LF ) _
+        & Ctl( "lblTitle", "Label", "bind = ""Title""" & LF & "format = "".2f""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( hdr & body, d ), "rules: the form parses" )
+    dim as long q = FindControl( d, "txtQty" ), wn = FindControl( d, "txtWhen" )
+    Check( d.Controls[q].Required andalso (d.Controls[q].Minimum = "1") andalso (d.Controls[q].Maximum = "999"), "rules: required, minimum, maximum read" )
+    Check( (d.Controls[wn].Format = "dd/MM/yyyy") andalso (d.Controls[wn].MaxLength = 10), "rules: format, max_length read" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "bind = ""Qty""" & LF & "required = true" & LF & "minimum = ""1""" & LF & "maximum = ""999""" & LF ) > 0, "rules: written after bind", t1 )
+    Check( instr( t1, "max_length = 10" & LF & "format = ""dd/MM/yyyy""" & LF ) > 0, "rules: max_length then format" )
+    Check( instr( mid( t1, instr( t1, "chkVip" ) ), "required" ) = 0, "rules: none written when unset" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "rules: round trip" )
+
+    Accepted( hdr & body, "a form with rules" )
+    Refused( hdr & Ctl( "t", "TextBox", "required = true" & LF ), "t: Required needs Bind first" )
+    Refused( hdr & Ctl( "t", "TextBox", "minimum = ""1""" & LF & "maximum = ""2""" & LF ), "t: Minimum Maximum need Bind first" )
+    Refused( hdr & Ctl( "c", "CheckBox", "bind = ""V""" & LF & "required = true" & LF ), "a CheckBox has no Required rule" )
+    Refused( hdr & Ctl( "n", "NumericUpDown", "bind = ""V""" & LF & "max_length = 3" & LF ), "a NumericUpDown has no MaxLength rule" )
+    Refused( hdr & Ctl( "l", "Label", "bind = ""V""" & LF & "required = true" & LF ), "a Label has no Required rule" )
+    Refused( hdr & Ctl( "k", "ColorPicker", "bind = ""V""" & LF & "required = true" & LF ), "a ColorPicker has no Required rule" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""ten""" & LF ), "minimum 'ten' is not a number or a date" )
+    Refused( hdr & Ctl( "n", "NumericUpDown", "bind = ""V""" & LF & "minimum = ""2026-01-01""" & LF ), "minimum '2026-01-01' is not a number" )
+    Refused( hdr & Ctl( "d", "DatePicker", "bind = ""V""" & LF & "maximum = ""5""" & LF ), "maximum '5' is not a date (yyyy-mm-dd)" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""1""" & LF & "maximum = ""2026-01-01""" & LF ), "must both be numbers or both dates" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""10""" & LF & "maximum = ""2""" & LF ), "minimum 10 is above maximum 2" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "max_length = -1" & LF ), "max length -1 is below 0" )
+    Refused( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "format = ""abc""" & LF ), "format 'abc' is neither" )
+    Accepted( hdr & Ctl( "t", "TextBox", "bind = ""V""" & LF & "minimum = ""-1.5e2""" & LF & "format = ""08d""" & LF ), "a negative exponent minimum, a number format" )
+
+    dim as ustring t = codegen.Generate( d, "frmItem", "frmItem.tkform", "" )
+    HasLine( t, "declare function SaveTo( byref r as shop.Item ) as boolean", "rules: SaveTo is a function" )
+    HasLine( t, "tkBind_Check( bindErrors_, txtQty.Handle, ""Qty"", r.Qty, tkTextBox_GetText( txtQty.Handle ), tkBind_Rule( true, ""1"", ""999"", 0, """" ) )", "rules: a text box's check" )
+    HasLine( t, "tkBind_Range( bindErrors_, txtQty.Handle, ""Qty"", r.Qty, tkTextBox_GetText( txtQty.Handle ), tkBind_Rule( true, ""1"", ""999"", 0, """" ) )", "rules: ...and its range" )
+    Check( instr( t, "tkBind_Range( bindErrors_, txtWhen.Handle" ) = 0, "rules: no range without a minimum or maximum" )
+    HasLine( t, "tkBind_Check( bindErrors_, cboKind.Handle, ""Kind"", r.Kind, clngint( tkComboBox_GetCurSel( cboKind.Handle ) ), tkBind_Rule( true, """", """", 0, """", true, -1 ) )", "rules: a combo's Required knows -1" )
+    HasLine( t, "tkBind_Check( bindErrors_, nudPrice.Handle, ""Price"", r.Price, cdbl( tkNumericUpDown_GetValue( nudPrice.Handle ) ), tkBind_Rule( false, """", ""500"", 0, """" ) )", "rules: a number's check" )
+    Check( instr( t, "tkBind_Check( bindErrors_, chkVip" ) = 0, "rules: a bool isn't checked" )
+    Check( instr( t, "tkBind_Check( bindErrors_, lblTitle" ) = 0, "rules: a load-only control isn't checked" )
+    HasLine( t, "tkTextBox_SetError( txtQty.Handle, bindErrors_.Has( txtQty.Handle ) )", "rules: a text box's error mark" )
+    HasLine( t, "if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, false )", "rules: SaveTo's report" )
+    HasLine( t, "tkBind_Put( r.When, tkTextBox_GetText( txtWhen.Handle ), ""dd/MM/yyyy"" )", "rules: a write in the Format" )
+    dim as long nCheck = instr( t, "tkBind_Check( bindErrors_, txtQty" ), nReport = instr( t, "tkBind_ShowErrors( Handle, bindErrors_, false )" )
+    dim as long nWrite = instr( t, "tkBind_Put( r.Qty" )
+    Check( (nCheck > 0) andalso (nReport > nCheck) andalso (nWrite > nReport), "rules: every check, the report, then the writes" )
+    HasLine( t, "tkTextBox_SetText( txtWhen.Handle, tkBind_Text( r.When, ""dd/MM/yyyy"" ) )", "rules: a load in the Format" )
+    HasLine( t, "tkLabel_SetText( lblTitle.Handle, tkBind_Text( r.Title, "".2f"" ) )", "rules: a label's Format" )
+    HasLine( t, "tkBind_Loaded( bindErrors_, nudPrice.Handle, ""Price"", r.Price, cdbl( tkNumericUpDown_GetValue( nudPrice.Handle ) ) )", "rules: a number read back" )
+    HasLine( t, "tkBind_Loaded( bindErrors_, dtDue.Handle, ""Due"", r.Due, tkDatePicker_GetDateValue( dtDue.Handle ) )", "rules: a date read back" )
+    Check( instr( t, "tkBind_Loaded( bindErrors_, txtQty" ) = 0, "rules: text isn't read back" )
+    HasLine( t, "tkTextBox_SetError( txtQty.Handle, false )", "rules: LoadFrom clears the mark" )
+    HasLine( t, "if bindHandled_ = false then tkBind_ShowErrors( Handle, bindErrors_, true )", "rules: LoadFrom's report" )
+
+    ' the form's ValidationError handler is called first; it alone pulls in tkBind
+    dim as FormDoc dv
+    ReadForm( hdr & LF & "[form.events]" & LF & "ValidationError = ""frm_Invalid""" & LF & body, dv )
+    dim as ustring tv = codegen.Generate( dv, "frmItem", "frmItem.tkform", "" )
+    HasLine( tv, "    frm_Invalid( bindErrors_, false, bindHandled_ )", "rules: the handler, on save" )
+    HasLine( tv, "    frm_Invalid( bindErrors_, true, bindHandled_ )", "rules: ...and on load" )
+    HasLine( tv, "declare sub frm_Invalid( byref Errors as TKBIND_ERRORS, byval Loading as boolean, byref Handled as boolean )", "rules: its declaration" )
+    dim as FormDoc dn
+    ReadForm( Header( ) & LF & "[form.events]" & LF & "ValidationError = ""frm_Invalid""" & LF & Ctl( "b", "Button" ), dn )
+    dim as ustring tn = codegen.Generate( dn, "frmN", "frmN.tkform", "" )
+    Check( (instr( tn, "#import ""vendor/tkControls/tkBind""" ) > 0) andalso (instr( tn, "LoadFrom" ) = 0), "rules: a handler with nothing bound imports tkBind, generates no LoadFrom" )
+    Check( reconcile.ImportsFor( catalog.VALIDATION_PARAMS, "" ).Count( ) = 1 andalso (reconcile.ImportsFor( catalog.VALIDATION_PARAMS, "" )[0] = "tkBind"), _
+        "rules: the user's handler file imports tkBind" )
+
+    ' paste into a form with no DataType: the rules go with the field
+    dim as ustring clip = edits.CopyText( d, Names( "txtQty" ) )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added ), "rules: paste into a form without a DataType" )
+    with noType.Controls[noType.Controls.Count( ) - 1]
+        Check( (len( .Bind ) = 0) andalso (.Required = false) andalso (len( .Minimum ) = 0) andalso (len( .Maximum ) = 0), "rules: ...drops them" )
+    end with
+end sub
+
+' B3: list binding -- a ListTree's rows and a ComboBox's items from an Array( of T ), a DataType field
+' (filled by LoadFrom) or an expression (filled by <name>_Fill), and a ComboBox bound by ValueField.
+sub ListSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Order""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring lst = Ctl( "lstLines", "ListTree", "items_field = ""Lines""" & LF & "item_type = ""shop.Line""" & LF & "check_field = ""Packed""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""Item""" & LF & "field = ""Item""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Note""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Total""" & LF & "field = ""Total( )""" & LF
+    dim as ustring cbo = Ctl( "cboCountry", "ComboBox", "bind = ""Country""" & LF & "required = true" & LF & "items_source = ""shop.Countries( )""" & LF _
+        & "item_type = ""shop.Country""" & LF & "display_field = ""Name""" & LF & "value_field = ""Code""" & LF )
+    dim as ustring cb2 = Ctl( "cboCarrier", "ComboBox", "bind = ""CarrierId""" & LF & "items_source = ""Carriers""" & LF & "item_type = ""shop.Carrier""" & LF & "display_field = ""Name""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( hdr & lst & cbo & cb2, d ), "list: the form parses" )
+    dim as long li = FindControl( d, "lstLines" ), ci = FindControl( d, "cboCountry" )
+    Check( (d.Controls[li].ItemsField = "Lines") andalso (d.Controls[li].CheckField = "Packed") andalso (d.Controls[li].Items[2].Field = "Total( )"), "list: rows read" )
+    Check( (d.Controls[ci].ItemsSource = "shop.Countries( )") andalso (d.Controls[ci].ItemType = "shop.Country") _
+        andalso (d.Controls[ci].DisplayField = "Name") andalso (d.Controls[ci].ValueField = "Code"), "list: items read" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "items_source = ""shop.Countries( )""" & LF & "item_type = ""shop.Country""" & LF & "display_field = ""Name""" & LF & "value_field = ""Code""" & LF ) > 0, "list: written", t1 )
+    Check( instr( t1, "text = ""Item""" & LF & "field = ""Item""" & LF ) > 0, "list: a column's field written" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "list: round trip" )
+
+    Accepted( hdr & lst & cbo & cb2, "a form with lists" )
+    Accepted( Header( ) & Ctl( "l", "ListTree", "items_source = ""People""" & LF & "item_type = ""db.Person""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""Name""" & LF, _
+        "an ItemsSource needs no DataType" )
+    Refused( hdr & Ctl( "b", "Button", "items_source = ""X""" & LF ), "a Button has no list to bind" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_field = ""A""" & LF & "items_source = ""B""" & LF & "display_field = ""N""" & LF ), "ItemsField or ItemsSource, not both" )
+    Refused( Header( ) & Ctl( "c", "ComboBox", "items_field = ""A""" & LF & "display_field = ""N""" & LF ), "an ItemsField needs the form's DataType first" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = 'f( ""x"" )'" & LF & "display_field = ""N""" & LF ), "is not a name or a call" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = ""f( (x )""" & LF & "display_field = ""N""" & LF ), "is not a name or a call" )
+    ' a list filled in one row at a time: accepted half done, and the generated file says what it lacks
+    Accepted( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF ), "a list with no ItemType yet" )
+    dim as FormDoc dh
+    ReadForm( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "item_type = ""T""" & LF ) & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF ), dh )
+    dim as ustring th = codegen.Generate( dh, "frmH", "frmH.tkform", "" )
+    Check( (instr( th, "#error ""c: its list needs a DisplayField" ) > 0) andalso (instr( th, "#error ""l: its list needs a column with a Field" ) > 0) _
+        andalso (instr( th, "c_Fill" ) = 0), "list: a half-done list generates an #error, no code", LineWith( th, "#error" ) )
+    Refused( hdr & Ctl( "c", "ComboBox", "display_field = ""N""" & LF ), "DisplayField and ValueField need ItemsField or ItemsSource" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "display_field = ""N""" & LF ) & LF & "[[control.items]]" & LF & "text = ""typed""" & LF, _
+        "its items come from the list" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "display_field = ""1N""" & LF ), "display field '1N' is not a field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "display_field = ""N""" & LF ), "shows columns: give each column a Field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "check_field = ""1Done""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF, _
+        "check field '1Done' is not a field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N( x )""" & LF, "column field 'N( x )' is not a field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF _
+        & Ctl( "l_Fill", "Button" ), "l_Fill: the name is taken by l's list" )
+
+    dim as ustring t = codegen.Generate( d, "frmShop", "frmShop.tkform", "" )
+    HasLine( t, "cboCountry_Values_ as Array( of ustring )", "list: the values member" )
+    HasLine( t, "declare sub cboCountry_Fill( )", "list: an ItemsSource's Fill" )
+    Check( instr( t, "declare sub lstLines_Fill" ) = 0, "list: no Fill for an ItemsField (LoadFrom fills it)" )
+    HasLine( t, "declare function lstLines_Item( ) as long", "list: a ListTree's Item" )
+    Check( (instr( t, "#import ""std/containers""" ) > 0) andalso (instr( t, LF & "using containers" & LF ) > 0), "list: containers for the arrays" )
+    HasLine( t, "    dim as Array( of shop.Country ) a_ = shop.Countries( )", "list: a call's result copied once" )
+    HasLine( t, "    dim byref as Array( of shop.Carrier ) a_ = Carriers", "list: a name bound by reference" )
+    HasLine( t, "    dim byref as Array( of shop.Line ) a_ = r.Lines", "list: the DataType's field, in LoadFrom" )
+    Accepted( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "display_field = ""N""" & LF ), "a list whose ItemType is still to come" )
+    HasLine( t, "        dim as integer row_ = tkListTree_AddString( lstLines.Handle, tkBind_Text( a_[i_].Item ) )", "list: the first column" )
+    Check( instr( t, "row_, 1," ) = 0, "list: a column with no field is left empty" )
+    HasLine( t, "        tkListTree_SetCellText( lstLines.Handle, row_, 2, tkBind_Text( a_[i_].Total( ) ) )", "list: a method column" )
+    HasLine( t, "        tkListTree_SetItemData( lstLines.Handle, row_, i_ )", "list: the row knows its element" )
+    HasLine( t, "        tkListTree_SetCheck( lstLines.Handle, row_, iif( tkBind_Bool( a_[i_].Packed ), 1, 0 ) )", "list: the check" )
+    HasLine( t, "    tkListTree_SetCheckBoxes( lstLines.Handle, true )", "list: a CheckField turns the check boxes on" )
+    HasLine( t, "        tkComboBox_AddItem( cboCountry.Handle, tkBind_Text( a_[i_].Name ) )", "list: an item's text" )
+    HasLine( t, "        cboCountry_Values_.Push( tkBind_Text( a_[i_].Code ) )", "list: its value" )
+    Check( instr( t, "cboCarrier_Values_" ) = 0, "list: no ValueField, no values" )
+    HasLine( t, "tkComboBox_SetCurSel( cboCountry.Handle, tkBind_IndexOf( cboCountry_Values_, tkBind_Text( r.Country ) ) )", "list: LoadFrom by value" )
+    HasLine( t, "tkBind_LoadedPick( bindErrors_, cboCountry.Handle, ""Country"", tkBind_Text( r.Country ), tkComboBox_GetCurSel( cboCountry.Handle ) )", "list: a value not in the list reported" )
+    HasLine( t, "tkBind_CheckPick( bindErrors_, cboCountry.Handle, ""Country"", r.Country, cboCountry_Values_, tkComboBox_GetCurSel( cboCountry.Handle ), tkBind_Rule( true, """", """", 0, """", true, -1 ) )", "list: SaveTo checks the value" )
+    HasLine( t, "tkBind_PutPick( r.Country, cboCountry_Values_, tkComboBox_GetCurSel( cboCountry.Handle ) )", "list: SaveTo writes the value" )
+    HasLine( t, "tkComboBox_SetCurSel( cboCarrier.Handle, tkBind_Int( r.CarrierId ) )", "list: no ValueField binds the index, as B1" )
+    HasLine( t, "return tkListTree_GetItemData( lstLines.Handle, row_ )", "list: Item maps the row" )
+    Check( (instr( t, "tkBind_Check( bindErrors_, lstLines" ) = 0) andalso (instr( t, "tkBind_Put( r.Lines" ) = 0), "list: a ListTree has no value of its own to bind" )
+
+    ' an ItemsSource alone: Fill and Item, no LoadFrom
+    dim as FormDoc dm
+    ReadForm( Header( ) & "data_module = ""../db""" & LF & Ctl( "l", "ListTree", "items_source = ""People""" & LF & "item_type = ""db.Person""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""FullName( )""" & LF, dm )
+    dim as ustring tm = codegen.Generate( dm, "frmMain", "frmMain.tkform", "" )
+    Check( (instr( tm, "sub Form.l_Fill( )" ) > 0) andalso (instr( tm, "LoadFrom" ) = 0) andalso (instr( tm, "#import ""vendor/tkControls/tkBind""" ) > 0) _
+        andalso (instr( tm, "#import ""../db""" ) > 0), "list: an ItemsSource form without a DataType: Fill, tkBind, its DataModule, no LoadFrom" )
+
+    ' paste into a form with no DataType: an ItemsField goes, with what hangs on it
+    dim as ustring clip = edits.CopyText( d, Names( "lstLines" ) )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added ), "list: paste into a form without a DataType" )
+    with noType.Controls[noType.Controls.Count( ) - 1]
+        Check( (len( .ItemsField ) = 0) andalso (len( .CheckField ) = 0) andalso (len( .Items[0].Field ) = 0), "list: ...drops the list" )
+    end with
+end sub
+
+' B4: the record navigator -- its records (ItemsSource), the list it follows, the generated IsDirty /
+' MoveTo / Refresh / Go_, and its thunks.
+sub NavSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""pd.Person""" & LF & "data_module = ""../pd""" & LF
+    dim as ustring lst = Ctl( "lstP", "ListTree", "items_source = ""People""" & LF & "item_type = ""pd.Person""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""Name""" & LF & "field = ""Name""" & LF
+    dim as ustring boxes = Ctl( "txtName", "TextBox", "bind = ""Name""" & LF & "format = """"" & LF ) _
+        & Ctl( "chkVip", "CheckBox", "bind = ""Vip""" & LF ) & Ctl( "nudAge", "NumericUpDown", "bind = ""Age""" & LF )
+    dim as ustring nav = Ctl( "navP", "Navigator", "items_source = ""People""" & LF & "follows = ""lstP""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( hdr & lst & boxes & nav, d ), "nav: the form parses" )
+    Check( d.Controls[FindControl( d, "navP" )].Follows = "lstP", "nav: follows read" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "items_source = ""People""" & LF & "follows = ""lstP""" & LF ) > 0, "nav: follows written", t1 )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "nav: round trip" )
+
+    Accepted( hdr & lst & boxes & nav, "a navigator following a list" )
+    Accepted( hdr & Ctl( "n", "Navigator" ), "a navigator with no records yet" )
+    Refused( hdr & lst & Ctl( "b", "Button", "follows = ""lstP""" & LF ), "only a Navigator follows a list" )
+    Refused( hdr & Ctl( "n", "Navigator", "items_source = ""pd.All( )""" & LF ), "a name (People), not 'pd.All( )'" )
+    Refused( Header( ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF ), "a Navigator needs the form's DataType first" )
+    Refused( hdr & Ctl( "n", "Navigator", "follows = ""lstP""" & LF ) & lst, "Follows needs the Navigator's ItemsSource first" )
+    Refused( hdr & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""lstX""" & LF ), "follows 'lstX', which is not on the form" )
+    Refused( hdr & Ctl( "b", "Button" ) & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "follows = ""b""" & LF ), "which is no ListTree or ComboBox" )
+    Refused( hdr & lst & Ctl( "n", "Navigator", "items_source = ""Others""" & LF & "follows = ""lstP""" & LF ), "whose ItemsSource is not Others" )
+    Refused( hdr & Ctl( "n", "Navigator", "items_source = ""People""" & LF & "display_field = ""Name""" & LF ), "a Navigator takes ItemsSource (its records) and Follows" )
+    Refused( hdr & Ctl( "n", "Navigator" ) & Ctl( "m", "Navigator" ), "a form has one Navigator" )
+    Refused( hdr & nav & lst & Ctl( "navP_MoveTo", "Button" ), "navP_MoveTo: the name is taken by navP's records" )
+    Refused( hdr & Ctl( "IsDirty", "Button" ), "control 'IsDirty' is already a member of every form" )
+
+    dim as ustring t = codegen.Generate( d, "frmP", "frmP.tkform", "" )
+    HasLine( t, "declare function IsDirty( byref r as pd.Person ) as boolean", "nav: IsDirty declared" )
+    HasLine( t, "declare function navP_MoveTo( byval i as long ) as boolean", "nav: MoveTo declared" )
+    HasLine( t, "declare sub navP_Refresh( )", "nav: Refresh declared" )
+    HasLine( t, "declare sub navP_FromList_( )", "nav: FromList_ declared" )
+    HasLine( t, "if tkBind_Differs( r.Name, tkTextBox_GetText( txtName.Handle ), """" ) then return true", "nav: IsDirty asks a text box" )
+    HasLine( t, "if tkBind_Differs( r.Vip, tkCheckBox_GetChecked( chkVip.Handle ) ) then return true", "nav: ...a check box" )
+    HasLine( t, "if tkBind_Differs( r.Age, cdbl( tkNumericUpDown_GetValue( nudAge.Handle ) ) ) then return true", "nav: ...a number" )
+    HasLine( t, "dim byref as Array( of pd.Person ) a_ = People", "nav: the records by reference" )
+    HasLine( t, "if SaveTo( a_[cur] ) = false then return false", "nav: a changed record is saved first, and may refuse" )
+    HasLine( t, "navP_ListRow_( cur )", "nav: ...and its row updated" )
+    HasLine( t, "tkListTree_SetCurSel( lstP.Handle, i )", "nav: the list follows a move" )
+    HasLine( t, "tkListTree_SetCellText( lstP.Handle, i, 0, tkBind_Text( a_[i].Name ) )", "nav: a row's cells from its record" )
+    HasLine( t, "lstP_Fill( )", "nav: Refresh refills the list" )
+    HasLine( t, "a_.Push( blank_ )", "nav: New appends a blank record" )
+    HasLine( t, "a_.Remove( cur )", "nav: Delete removes the current one" )
+    HasLine( t, "tkNavigator_SetNavigateCallback( navP.Handle, @Thunk_navP_Navigate )", "nav: Navigate wired with no handler" )
+    HasLine( t, "tkListTree_SetSelChangeCallback( lstP.Handle, @Thunk_lstP_SelChange )", "nav: the list's SelChange wired with no handler" )
+    Check( instr( t, "    if Allow then f->navP_Go_( action, target )" & LF & "    return false" ) > 0, "nav: the thunk goes, and the navigator takes nothing itself" )
+    HasLine( t, "f->navP_FromList_( )", "nav: the list's thunk moves the navigator" )
+
+    ' a user's handlers: Navigate's first (it may say no), the list's after the move
+    dim as FormDoc dh
+    ReadForm( hdr & lst & LF & "[control.events]" & LF & "SelChange = ""lstP_Sel""" & LF & boxes & nav & LF & "[control.events]" & LF & "Navigate = ""navP_Nav""" & LF, dh )
+    dim as ustring th = codegen.Generate( dh, "frmP", "frmP.tkform", "" )
+    dim as long a1 = instr( th, "    f->navP_Nav( action, target, Allow )" ), a2 = instr( th, "    if Allow then f->navP_Go_( action, target )" )
+    Check( (a1 > 0) andalso (a2 > a1), "nav: the Navigate handler runs before the go", LineWith( th, "navP_Nav" ) )
+    dim as long b1 = instr( th, "    f->navP_FromList_( )" ), b2 = instr( th, "    f->lstP_Sel( row )" )
+    Check( (b1 > 0) andalso (b2 > b1), "nav: the list handler runs after the follow", LineWith( th, "lstP_Sel" ) )
+
+    ' a navigator with no list, and one with no records yet
+    dim as FormDoc dn
+    ReadForm( hdr & boxes & Ctl( "navP", "Navigator", "items_source = ""People""" & LF ), dn )
+    dim as ustring tn = codegen.Generate( dn, "frmP", "frmP.tkform", "" )
+    Check( (instr( tn, "navP_MoveTo" ) > 0) andalso (instr( tn, "FromList_" ) = 0) andalso (instr( tn, "ListRow_" ) = 0), "nav: no list, no list code" )
+    dim as FormDoc de
+    ReadForm( hdr & boxes & Ctl( "navP", "Navigator" ), de )
+    Check( instr( codegen.Generate( de, "frmP", "frmP.tkform", "" ), "navP_MoveTo" ) = 0, "nav: no records, no wiring" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -2416,6 +2871,8 @@ ButtonEventsSuite( )
 TextBoxEventsSuite( )
 NumericUpDownSuite( )
 PropOrderSuite( )
+SliderSuite( )
+NotifySuite( )
 DatePickerSuite( )
 CalendarSuite( )
 CodeEditSuite( )
@@ -2453,5 +2910,10 @@ EmbedFontsSuite( )
 GlyphValueSuite( )
 GlyphFileSuite( )
 FontWriterSuite( )
+BindSuite( )
+Bind2Suite( )
+RuleSuite( )
+ListSuite( )
+NavSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail
