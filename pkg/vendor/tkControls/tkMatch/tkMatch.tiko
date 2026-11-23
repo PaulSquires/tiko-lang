@@ -523,6 +523,8 @@ end sub
 
 ' Filters a source of texts and their keys for q.
 '   cand(0 to nCand-1)  the indexes to look at, in source order; nCand < 0 = every index of texts()
+'                       below nItems (nItems < 0: every element of texts(), whose arrays may then
+'                       be larger than the count -- a capacity)
 '                       (pass the previous call's matched() when tkMatch_Extends allows it)
 '   matched()           OUT: every index that matched, in source order -- the next keystroke's cand
 '   hits()              OUT: the result rows: at most maxResults (0 = no cap). bRank (always for FUZZY):
@@ -531,11 +533,12 @@ end sub
 public function tkMatch_Filter( byref q as const TKMATCH_QUERY, texts() as ustring, keys() as ustring, _
                                 cand() as long, byval nCand as long, matched() as long, hits() as TKMATCH_HIT, _
                                 byval maxResults as long = 0, byval bRank as boolean = false, _
-                                byval pWork as TKMATCH_WORK ptr = 0 ) as long
+                                byval pWork as TKMATCH_WORK ptr = 0, byval nItems as long = -1 ) as long
     dim as TKMATCH_WORK local_
     if pWork = 0 then pWork = @local_
     if q.mode = TKMATCH_FUZZY then bRank = true
-    dim as long nAll = iif( nCand < 0, ubound( texts ) + 1, nCand )
+    dim as long nAll = nCand
+    if nCand < 0 then nAll = iif( nItems >= 0, nItems, ubound( texts ) + 1 )
     redim matched( 0 to iif( nAll > 0, nAll - 1, 0 ) )
     redim hits( 0 to iif( nAll > 0, nAll - 1, 0 ) )
     dim as long nm = 0
