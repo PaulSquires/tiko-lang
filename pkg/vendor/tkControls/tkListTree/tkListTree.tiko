@@ -1012,14 +1012,18 @@ private function LtBeginEdit( byval p as TKLISTTREE_STATE ptr, byval row as inte
     if p->bEditing then LtEndEdit( p, true )
     dim as integer vis = p->ModelToVisible( row )
     if vis < 0 then return false
+    ' set BEFORE the callback: GetEditRow / GetEditCol are how BeginLabelEdit learns the cell
+    ' (its signature has no column); every failure below puts editRow back to -1
+    p->editRow = row
+    p->editCol = col
     if p->BeginLabelEditCallback then
-        if p->BeginLabelEditCallback( p->hWin, row ) = false then return false
+        if p->BeginLabelEditCallback( p->hWin, row ) = false then p->editRow = -1 : return false
     end if
     dim as TKRECT rcRow
-    if LtVisIndexRect( p, vis, rcRow ) = false then return false
+    if LtVisIndexRect( p, vis, rcRow ) = false then p->editRow = -1 : return false
     if p->wEdit = 0 then
         p->wEdit = tkTextBox_Create( p->wSurf, p->hWin->ctrlId + 3, false )
-        if p->wEdit = 0 then return false
+        if p->wEdit = 0 then p->editRow = -1 : return false
         tkTextBox_SetEnterPressedCallback( p->wEdit, @LtEditEnterPressed )
         tkTextBox_SetFocusCallback( p->wEdit, @LtEditFocusChanged )
         tkTextBox_SetMessageCallback( p->wEdit, @LtEditMessage )
@@ -1027,8 +1031,6 @@ private function LtBeginEdit( byval p as TKLISTTREE_STATE ptr, byval row as inte
         LtApplyEditColors( p )
     end if
     if p->pRowFont then tkTextBox_SetFont( p->wEdit, p->pRowFont )
-    p->editRow = row
-    p->editCol = col
     dim as integer nCols = LtColCount( p ), xLeft, xRight
     if (col > 0) andalso (col < nCols) then
         dim as TKRECT rcCol

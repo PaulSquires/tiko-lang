@@ -33,6 +33,14 @@ end sub
 function OnEndEdit( byval h as TK_WIDGET ptr, byval row as integer, byval newText as ustring ) as boolean
     return gRejectEdit = false
 end function
+dim shared as boolean gRejectBegin
+dim shared as integer gBeginRow = -2, gBeginEditRow = -2, gBeginEditCol = -2
+function OnBeginEdit( byval h as TK_WIDGET ptr, byval row as integer ) as boolean
+    gBeginRow = row
+    gBeginEditRow = tkListTree_GetEditRow( h )
+    gBeginEditCol = tkListTree_GetEditCol( h )
+    return gRejectBegin = false
+end function
 sub OnPaint( byval p as TKLISTTREE_PAINTINFO ptr )
     gPaints += 1 : gPaintList = p->hList
     tkListTree_PaintRowDefault( p )
@@ -232,6 +240,16 @@ sub RunPass( byval fScale as single )
     ClickRow( h, c, 5 )
     tkTest_Check( "clicking away commits and selects", (tkListTree_IsEditing( c ) = false) andalso (tkListTree_GetCurSel( c ) = 5) andalso (tkListTree_GetText( c, 4 ) = "clicked"), tkListTree_GetText( c, 4 ) )
     tkListTree_SetClickToEdit( c, false )
+    ' every edit so far was column 0: BeginLabelEdit must see THIS edit's cell, not the last one's
+    tkListTree_SetBeginLabelEditCallback( c, @OnBeginEdit )
+    tkTest_Check( "BeginEdit on column 2 starts", tkListTree_BeginEdit( c, 4, 2 ) andalso tkListTree_IsEditing( c ) )
+    tkTest_Check( "BeginLabelEdit sees the row and column being edited", (gBeginRow = 4) andalso (gBeginEditRow = 4) andalso (gBeginEditCol = 2), "row " & gBeginEditRow & " col " & gBeginEditCol )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    gRejectBegin = true
+    tkTest_Check( "BeginLabelEdit can veto", (tkListTree_BeginEdit( c, 5, 1 ) = false) andalso (tkListTree_IsEditing( c ) = false) )
+    tkTest_Check( "a vetoed edit leaves no edit row", tkListTree_GetEditRow( c ) = -1 )
+    gRejectBegin = false
+    tkListTree_SetBeginLabelEditCallback( c, 0 )
     tkListTree_EnableLabelEdit( c, false )
 
     ' ---- I: drag reorder -------------------------------------------------------------------
