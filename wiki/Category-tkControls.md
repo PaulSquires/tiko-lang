@@ -80,12 +80,12 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 |---|---|
 | Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkTimePicker](tkTimePicker), [tkTimePanel](tkTimePanel), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit) |
 | Buttons and switches | [tkButton](tkButton), [tkCheckBox](tkCheckBox), [tkOptionButton](tkOptionButton), [tkToggle](tkToggle) |
-| Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar) |
+| Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar), [tkChip](tkChip), [tkChipGroup](tkChipGroup), [tkRating](tkRating) |
 | Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar) |
 | Containers and layout | [tkPanel](tkPanel), [tkGroupBox](tkGroupBox), [tkTabControl](tkTabControl), [tkSplitter](tkSplitter) |
 | Scrolling | [tkScrollPanel](tkScrollPanel), [tkVScrollBar](tkVScrollBar), [tkHScrollBar](tkHScrollBar) |
 | Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner) |
-| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture) |
+| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture), [tkBadge](tkBadge), [tkAvatar](tkAvatar), [tkAvatarGroup](tkAvatarGroup) |
 | Data display | [tkChart](tkChart) |
 | Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
 

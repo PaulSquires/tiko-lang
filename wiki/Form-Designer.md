@@ -352,6 +352,11 @@ end sub
 | NumericUpDown | the value |
 | Slider | the value; with **Mode** = Range, **Bind** takes the lower value and **BindUpper** the upper (loaded lower first, so any old pair loads right) |
 | CheckBox, OptionButton, Toggle | checked or not |
+| Rating | the value, a number (half or tenth stars where the rating allows them) |
+| Badge | the count, in only |
+| Avatar | the display name, in only (the initials and the colour come from it); **BindImage** moves the image file's path both ways |
+| Chip | selected or not |
+| ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |
 | DatePicker | the date; a field with no date leaves the picker empty |
