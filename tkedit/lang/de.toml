@@ -362,6 +362,10 @@ delete_breakpoint = "Haltepunkt entfernen"
 mac_permission = "macOS hat dem Debugger die Kontrolle über das Programm verweigert: den Entwicklermodus einschalten (sudo DevToolsSecurity -enable) oder es zulassen, wenn macOS fragt"
 
 [designer]
+item_field = "Feld"
+bind_pick = "Feld wählen"
+bind_need_type = "Geben Sie dem Formular zuerst einen DataType: den Datensatztyp, an den seine Steuerelemente gebunden werden."
+bind_no_fields = "Von {} sind keine Felder bekannt: Geben Sie den Namen des Feldes ein."
 delete = "Löschen"
 translate = "Übersetzbar"
 edit_items = "Einträge bearbeiten"

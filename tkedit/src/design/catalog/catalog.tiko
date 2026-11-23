@@ -12,9 +12,11 @@
 
 #import "vendor/tkControls/tkMeta"
 #import "vendor/tkControls/tkLabel"
+#import "../model"
 using tkMeta
 using tkLabel
 using tkHost
+using model
 
 public const as string CUSTOM_TYPE = "Custom"
 
@@ -79,7 +81,7 @@ end function
 
 ' ---- the form's own events, in the order the inspector lists them ----
 public function FormEventCount( ) as long
-    return 8
+    return 9
 end function
 
 public function FormEventName( byval i as long ) as ustring
@@ -92,6 +94,7 @@ public function FormEventName( byval i as long ) as ustring
     case 5 : return "Destroy"
     case 6 : return "ThemeChanged"
     case 7 : return "MouseMove"
+    case 8 : return "ValidationError"
     end select
     return ""
 end function
@@ -106,6 +109,10 @@ end function
 ' A MouseMove handler's parameters, the form's and a control's alike.
 public const as string MOUSEMOVE_PARAMS = "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32"
 
+' ValidationError (B2): what the form's SaveTo refused (Loading = false) or LoadFrom couldn't show as
+' it is (Loading = true). Handled = true keeps the default (a message box) from showing.
+public const as string VALIDATION_PARAMS = "byref Errors as TKBIND_ERRORS, byval Loading as boolean, byref Handled as boolean"
+
 ' A form event handler's parameters. Resize: the client in pixels, after the layout. KeyDown: a key
 ' no control claimed. Paint: the form's background, under its controls. MouseMove: pixels from the
 ' client's top-left, over the form and over any control with no MouseMove of its own.
@@ -116,17 +123,18 @@ public function FormEventParams( byref ev as const ustring ) as ustring
     case "KeyDown" : return "byval keyCode as int32, byval mods as int32, byref Handled as boolean"
     case "Paint"   : return "byval pPaint as TK_PAINT ptr"
     case "MouseMove" : return MOUSEMOVE_PARAMS
+    case "ValidationError" : return VALIDATION_PARAMS
     end select
     return ""
 end function
 
 ' ---- types an event names that are another module's than its control's ----
-' A DatePicker's date events name TKDATE (tkCalendar's); a ListTree's header events name
+' A DatePicker's date events name TKDATE (tkCalendar's), a TimePicker's TKTIME and a DateTimePicker's TKDATETIME (tkTimePanel's); a ListTree's header events name
 ' TKCOLUMNHEADER_* (tkColumnHeader's); a ScrollPanel's SCP_PAINTINFO and SCP_MESSAGEINFO are its own
 ' but not spelled TK*, so they are listed here too. Both the generated file and the user's need that module in
 ' scope: a public #import of it by the control's module isn't enough for the names.
 public function ForeignTypeCount( ) as long
-    return 3
+    return 6
 end function
 
 ' The type's spelling in upper case, as it follows "AS " (TKDATE alone: TKDATEPICKER_* is not it).
@@ -135,6 +143,9 @@ public function ForeignTypePrefix( byval i as long ) as ustring
     case 0 : return "TKDATE "
     case 1 : return "TKCOLUMNHEADER_"
     case 2 : return "SCP_"
+    case 3 : return "TKBIND_"
+    case 4 : return "TKTIME "
+    case 5 : return "TKDATETIME "
     end select
     return ""
 end function
@@ -144,14 +155,50 @@ public function ForeignTypeModule( byval i as long ) as ustring
     case 0 : return "tkCalendar"
     case 1 : return "tkColumnHeader"
     case 2 : return "tkScrollPanel"
+    case 3 : return "tkBind"
+    case 4 : return "tkTimePanel"
+    case 5 : return "tkTimePanel"
     end select
     return ""
 end function
 
 ' The procedure that adds one entry of a text-only list (ItemsList): a combo's item, a select bar's panel.
 public function ItemsAddProc( byref typeName as const ustring ) as ustring
-    if typeName = "SelectBar" then return "tkSelectBar_AddPanel"
+    select case typeName
+    case "SelectBar"       : return "tkSelectBar_AddPanel"
+    case "CheckedList"     : return "tkCheckedList_AddItem"
+    case "CheckedComboBox" : return "tkCheckedCombo_AddItem"
+    case "TokenBox"        : return "tkTokenBox_AddItem"
+    case "AutoComplete"    : return "tkAutoComplete_AddItem"
+    end select
     return "tkComboBox_AddItem"
+end function
+
+' The procedure that empties an "items" list before a fill (B3).
+public function ItemsClearProc( byref typeName as const ustring ) as ustring
+    select case typeName
+    case "CheckedList"     : return "tkCheckedList_Clear"
+    case "CheckedComboBox" : return "tkCheckedCombo_Clear"
+    case "TokenBox"        : return "tkTokenBox_ClearItems"
+    case "AutoComplete"    : return "tkAutoComplete_Clear"
+    end select
+    return "tkComboBox_Clear"
+end function
+
+' A list whose AddItem takes a KEY (the checked-list controls): an "items" fill passes ValueField as
+' the key, and the control's own value is made of those keys -- no _Values_ member, no index mapping.
+public function ItemsKeyed( byref typeName as const ustring ) as boolean
+    select case typeName
+    case "CheckedList", "CheckedComboBox", "TokenBox" : return true
+    end select
+    return false
+end function
+
+' A list whose AddItem takes a numeric ID (an AutoComplete): an "items" fill passes ValueField as
+' each item's id, and the control's own value (BindValue) IS that id -- no _Values_ member, no
+' index mapping (docs/tkControls/AUTOCOMPLETE.md section 10.4).
+public function ItemsIdKeyed( byref typeName as const ustring ) as boolean
+    return typeName = "AutoComplete"
 end function
 
 public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
@@ -164,6 +211,8 @@ public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     case "ListTree"   : return ItemsKind.ItemsColumns
     case "ComboBox"   : return ItemsKind.ItemsList
     case "SelectBar"  : return ItemsKind.ItemsList
+    case "CheckedList", "CheckedComboBox", "TokenBox" : return ItemsKind.ItemsList
+    case "AutoComplete" : return ItemsKind.ItemsList
     case "TabBar"     : return ItemsKind.ItemsTabs
     case "TabControl" : return ItemsKind.ItemsPages
     end select
@@ -181,4 +230,120 @@ public function Find( byref name_ as const ustring ) as TKMETA_CONTROL ptr
         standIn.Create = @CreateStandIn
     end if
     return @standIn
+end function
+
+' A two-value control's second binding (tkMeta's bind2, a range Slider's BindUpper) applies: the type
+' has one, and the property its Bind2When names holds that value -- the control's own setting, or the
+' property's default when the form leaves it unset.
+public function Bind2Holds( byref c as FormControl ) as boolean
+    dim as TKMETA_CONTROL ptr m = Find( c.TypeName )
+    if (m = 0) orelse (len( m->Bind2Kind ) = 0) then return false
+    dim as long eq = instr( m->Bind2When, "=" )
+    if eq = 0 then return true
+    dim as ustring pn = left( m->Bind2When, eq - 1 )
+    dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, pn )
+    dim as ustring dflt
+    if p then dflt = p->DefaultValue
+    return lcase( SettingOr( c.Props, pn, dflt ) ) = lcase( mid( m->Bind2When, eq + 1 ) )
+end function
+
+' Which of B2's rules (Required Minimum Maximum MaxLength Format) a type's bound value takes: a text
+' box all five; a load-only one (a Label) only Format; a date Required and a range; a number a range;
+' an int with a "nothing chosen" value (a ComboBox) Required. A bool, a colour, a time: none.
+public function RuleAllowed( byval m as TKMETA_CONTROL ptr, byref rule as const ustring ) as boolean
+    if m = 0 then return false
+    select case m->BindKind
+    case "text"
+        if m->BindLoadOnly then return rule = "Format"
+        return true
+    case "date"
+        return (rule = "Required") orelse (rule = "Minimum") orelse (rule = "Maximum")
+    case "float"
+        return (rule = "Minimum") orelse (rule = "Maximum")
+    case "int"
+        return (len( m->BindNone ) > 0) andalso (rule = "Required")
+    end select
+    return false
+end function
+
+' The rules a control carries, by name, in the inspector's order.
+public function RulesSet( byref c as FormControl ) as ustring
+    dim as ustring o
+    if c.Required then o &= "Required "
+    if len( c.Minimum ) then o &= "Minimum "
+    if len( c.Maximum ) then o &= "Maximum "
+    if c.MaxLength <> 0 then o &= "MaxLength "
+    if len( c.Format ) then o &= "Format "
+    return rtrim( o )
+end function
+
+' ---- B3: list binding ------------------------------------------------------------------------
+' A control's list shape (tkMeta's items_bind): "rows" (ListTree), "items" (ComboBox), "" none.
+public function ItemsBindOf( byref c as FormControl ) as ustring
+    dim as TKMETA_CONTROL ptr m = Find( c.TypeName )
+    if m = 0 then return ""
+    return m->ItemsBind
+end function
+
+' The control fills its list from an array: a DataType field or an expression.
+public function HasListSource( byref c as FormControl ) as boolean
+    return (len( c.ItemsField ) > 0) orelse (len( c.ItemsSource ) > 0)
+end function
+
+' What a list with a source still lacks before code can be made for it, "" when nothing: its
+' ItemType, a ComboBox's DisplayField, a ListTree column's Field. The inspector fills these in one at
+' a time, so validate lets them be missing; the generated file says so with an #error instead.
+public function ListMissing( byref c as FormControl ) as ustring
+    dim as ustring shape = ItemsBindOf( c )
+    if ((shape <> "rows") andalso (shape <> "items")) orelse (HasListSource( c ) = false) then return ""
+    if len( c.ItemType ) = 0 then return "its list needs an ItemType, the type of its elements"
+    if (shape = "items") andalso (len( c.DisplayField ) = 0) then return "its list needs a DisplayField, the text each item shows"
+    if shape = "rows" then
+        for each it as FormItem in c.Items
+            if len( it.Field ) then return ""
+        next
+        return "its list needs a column with a Field, the element field it shows"
+    end if
+    return ""
+end function
+
+' A list that is filled from an array, complete enough to generate.
+public function ListReady( byref c as FormControl ) as boolean
+    dim as ustring shape = ItemsBindOf( c )
+    return ((shape = "rows") orelse (shape = "items")) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
+end function
+
+' A ComboBox that binds its items' ValueField rather than its index. (A keyed list's value is
+' already its items' keys: never.)
+public function BindsByValue( byref c as FormControl ) as boolean
+    if ItemsKeyed( c.TypeName ) orelse ItemsIdKeyed( c.TypeName ) then return false
+    return (ItemsBindOf( c ) = "items") andalso ListReady( c ) andalso (len( c.ValueField ) > 0) andalso (len( c.Bind ) > 0)
+end function
+
+' ---- B4: the record navigator ------------------------------------------------------------------
+public function IsNavigator( byref c as FormControl ) as boolean
+    return ItemsBindOf( c ) = "records"
+end function
+
+' The form's navigator, wired: it steps through ItemsSource, an Array( of DataType ). -1 when the
+' form has none, or it has no ItemsSource or the form no DataType yet.
+public function NavReady( byref doc as FormDoc ) as long
+    if len( doc.DataType ) = 0 then return -1
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        if IsNavigator( doc.Controls[i] ) andalso (len( doc.Controls[i].ItemsSource ) > 0) then return i
+    next
+    return -1
+end function
+
+' The list control a wired navigator follows, ready (B3), or -1.
+public function NavList( byref doc as FormDoc ) as long
+    dim as long ni = NavReady( doc )
+    if (ni < 0) orelse (len( doc.Controls[ni].Follows ) = 0) then return -1
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        if lcase( doc.Controls[i].Name ) = lcase( doc.Controls[ni].Follows ) then
+            if ListReady( doc.Controls[i] ) then return i
+            return -1
+        end if
+    next
+    return -1
 end function

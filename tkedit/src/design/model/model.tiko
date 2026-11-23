@@ -42,6 +42,7 @@ public type FormItem
     Origin as long = -1     ' editing tab pages: which page this was, -1 for a new one
     Stretch as boolean      ' a status bar panel: takes a share of the spare width (several may)
     Id as long = -1         ' its translation key's last part, kept however entries move; -1 = not given yet
+    Field as ustring        ' a list-bound ListTree's column: the element's field it shows (B3), "" = none
 end type
 
 public type FormControl
@@ -70,6 +71,29 @@ public type FormControl
     ContextMenu as ustring          ' a PopupMenu of the form that a right-click on it opens, "" = none
     Locked as boolean               ' Design > Lock Controls: the designer won't move or resize it
     TabIndex as long                ' its place in Tab order among its siblings (1 first); 0 = none
+    Bind as ustring                 ' the field of the form's DataType its value moves to and from ("Name",
+                                    ' "Address.City"); "" = not bound. See FormDoc.DataType.
+    Bind2 as ustring                ' a two-value control's second field (a range Slider's upper value,
+                                    ' tkMeta's Bind2Name "BindUpper"); "" = not bound.
+    ' B2's rules on a bound value (catalog.RuleAllowed says which a type takes): Required; Minimum /
+    ' Maximum, numbers or yyyy-mm-dd ("" = none); MaxLength in characters (0 = none); Format, a
+    ' std::format spec for numbers (".2f") or a date pattern ("dd/MM/yyyy").
+    Required as boolean
+    Minimum as ustring
+    Maximum as ustring
+    MaxLength as long
+    Format as ustring
+    ' B3: a list from an Array( of T ) -- a field of the DataType (ItemsField, filled by LoadFrom) or
+    ' an expression (ItemsSource, filled by the generated <name>_Fill), never both. ItemType names T
+    ' for the field menus. A ComboBox shows DisplayField and binds ValueField; a ListTree checks its
+    ' rows from CheckField and fills its columns from each FormItem.Field.
+    ItemsField as ustring
+    ItemsSource as ustring
+    ItemType as ustring
+    DisplayField as ustring
+    ValueField as ustring
+    CheckField as ustring
+    Follows as ustring              ' a Navigator (B4): the list control (ListTree, ComboBox) on its records
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept
@@ -96,6 +120,10 @@ public type FormDoc
     AlwaysOnTop as boolean
     Icon as ustring                     ' an image file
     ContextMenu as ustring              ' a PopupMenu a right-click on the form's own surface opens
+    ' Data binding (B1): the record type LoadFrom / SaveTo take ("contactdb.Contact") and the module to
+    ' import it from ("../contactdb"; "" when the form's module already sees it). Both "" = no binding.
+    DataType as ustring
+    DataModule as ustring
     Events as Array( of Setting )       ' catalog.FormEventName's
     Controls as Array( of FormControl )
     Orphans as Array( of FormOrphan )
