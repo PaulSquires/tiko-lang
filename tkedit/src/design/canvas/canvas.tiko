@@ -40,6 +40,7 @@
 #import "vendor/tkControls/tkCheckedCombo"
 #import "vendor/tkControls/tkTokenBox"
 #import "vendor/tkControls/tkAutoComplete"
+#import "vendor/tkControls/tkDataGrid"
 #import "../model"
 #import "../catalog"
 #import "../formfile"
@@ -52,6 +53,8 @@ using containers
 using tkApp
 using tkMeta
 using tkLayout
+using tkDataGrid
+using tkCalendar
 using tkTabControl
 using tkTabBar
 using tkScrollPanel
@@ -774,6 +777,26 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         for each it as FormItem in c.Items
             tkListTree_AddColumn( w, it.Text, iif( it.Width > 0, it.Width, 100 ) )
         next
+    case catalog.ItemsKind.ItemsGridColumns
+        ' the columns, and three sample rows so their kinds show
+        tkDataGrid_BeginUpdate( w )
+        for each it as FormItem in c.Items
+            tkDataGrid_AddColumnEx( w, it.Text, GridKindValue_( it.Kind ), iif( it.Width > 0, it.Width, 100 ) )
+        next
+        if tkDataGrid_IsVirtual( w ) = false then
+            tkDataGrid_SetRowCount( w, 3 )
+            for r as long = 0 to 2
+                for k as long = 0 to c.Items.Count( ) - 1
+                    select case c.Items[k].Kind
+                    case "number", "progress" : tkDataGrid_SetCellFloat( w, r, k, (r + 1) * 25 )
+                    case "check" : tkDataGrid_SetCellBool( w, r, k, (r mod 2) = 0 )
+                    case "date" : tkDataGrid_SetCellDate( w, r, k, tkCalendar_MakeDate( 2026, 1, r + 1 ) )
+                    case else : tkDataGrid_SetCellText( w, r, k, c.Items[k].Text & " " & (r + 1) )
+                    end select
+                next
+            next
+        end if
+        tkDataGrid_EndUpdate( w )
     case catalog.ItemsKind.ItemsTabs
         for i as long = 0 to c.Items.Count( ) - 1
             tkTabBar_AddTab( w, c.Items[i].Text )
@@ -792,6 +815,19 @@ sub FormCanvas.ApplyItems( byref c as FormControl, byval w as TK_WIDGET ptr )
         next
     end select
 end sub
+
+private function GridKindValue_( byref kind as const ustring ) as long
+    select case kind
+    case "number"   : return TKDG_COL_NUMBER
+    case "check"    : return TKDG_COL_CHECK
+    case "combo"    : return TKDG_COL_COMBO
+    case "date"     : return TKDG_COL_DATE
+    case "button"   : return TKDG_COL_BUTTON
+    case "link"     : return TKDG_COL_LINK
+    case "progress" : return TKDG_COL_PROGRESS
+    end select
+    return TKDG_COL_TEXT
+end function
 
 ' The real controls to where the model says, without rebuilding them: the feedback during a drag.
 sub FormCanvas.SyncGeometry( )

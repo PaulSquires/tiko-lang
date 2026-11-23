@@ -275,6 +275,12 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         this.AddField( "Width", widthLabel )
         ' B3: the element field a list-bound ListTree shows in this column
         this.AddField( "Field", i18n.Tr( "designer.item_field", "Field" ) )
+    case catalog.ItemsKind.ItemsGridColumns
+        ' G5: a DataGrid column: its caption, width, kind, and the element field it binds
+        this.AddField( "Text", textLabel )
+        this.AddField( "Width", widthLabel )
+        this.AddField( "Kind", i18n.Tr( "designer.item_kind", "Kind" ), "text,number,check,combo,date,button,link,progress" )
+        this.AddField( "Field", i18n.Tr( "designer.item_field", "Field" ) )
     case catalog.ItemsKind.ItemsPages, catalog.ItemsKind.ItemsTabs
         ' a tab: its caption and the glyph before it (the control's GlyphSize sizes every tab's)
         this.AddField( "Text", textLabel )

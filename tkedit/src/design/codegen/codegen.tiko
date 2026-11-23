@@ -729,6 +729,12 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             if it.Width > 0 then o &= it.Width else o &= "100"
             o &= " )" & NL
         next
+    case catalog.ItemsKind.ItemsGridColumns
+        for i as long = 0 to c.Items.Count( ) - 1
+            dim as FormItem it = c.Items[i]
+            o &= "    tkDataGrid_AddColumnEx( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", " _
+                & catalog.GridKindConst( it.Kind ) & ", " & iif( it.Width > 0, it.Width, 100 ) & " )" & NL
+        next
     case catalog.ItemsKind.ItemsList
         for i as long = 0 to c.Items.Count( ) - 1
             o &= "    " & catalog.ItemsAddProc( c.TypeName ) & "( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), c.Items[i].Text ) & " )" & NL
@@ -978,7 +984,20 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
     if right( trim( src ), 1 ) = ")" then kw = ""
     o &= "    scope" & NL
     o &= "        dim " & kw & "as Array( of " & c.ItemType & " ) a_ = " & src & NL
-    if catalog.ItemsBindOf( c ) = "rows" then
+    if catalog.ItemsBindOf( c ) = "grid" then
+        ' G5: a row per element, each column's field through tkBind as the column's kind
+        o &= "        tkDataGrid_BeginUpdate( " & h & " )" & NL
+        o &= "        tkDataGrid_SetRowCount( " & h & ", 0 )" & NL
+        o &= "        tkDataGrid_SetRowCount( " & h & ", a_.Count( ) )" & NL
+        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        for k as long = 0 to c.Items.Count( ) - 1
+            if len( c.Items[k].Field ) = 0 then continue for
+            dim as ustring vk = catalog.GridValueKind( c.Items[k].Kind )
+            o &= "            tkDataGrid_SetCell" & vk & "( " & h & ", i_, " & k & ", tkBind_" & vk & "( a_[i_]." & c.Items[k].Field & " ) )" & NL
+        next
+        o &= "        next" & NL
+        o &= "        tkDataGrid_EndUpdate( " & h & " )" & NL
+    elseif catalog.ItemsBindOf( c ) = "rows" then
         o &= "        tkListTree_BeginUpdate( " & h & " )" & NL
         o &= "        tkListTree_Clear( " & h & " )" & NL
         ' a CheckField shows in the rows' check boxes, which the ListTree then has
@@ -1014,6 +1033,33 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
     o &= "    end scope" & NL
 end sub
 
+' G5: a DataGrid filled from an ItemsField writes its rows back in SaveTo.
+private function GridWritesBack_( byref c as FormControl ) as boolean
+    return (catalog.ItemsBindOf( c ) = "grid") andalso (len( c.ItemsField ) > 0) andalso catalog.ListReady( c )
+end function
+
+' The array as long as the grid, each column with a plain field (not a method) written from its cell.
+private sub GridSaveBody_( byref c as FormControl, byref o as ustring )
+    dim as ustring h = c.Name & ".Handle"
+    o &= "    scope" & NL
+    o &= "        dim byref as Array( of " & c.ItemType & " ) a_ = r." & c.ItemsField & NL
+    o &= "        dim as long n_ = tkDataGrid_GetRowCount( " & h & " )" & NL
+    ' shorter: cut; longer: new elements pushed (SetCount cannot grow past what is constructed)
+    o &= "        if a_.Count( ) > n_ then a_.SetCount( n_ )" & NL
+    o &= "        while a_.Count( ) < n_" & NL
+    o &= "            dim as " & c.ItemType & " new_" & NL
+    o &= "            a_.Push( new_ )" & NL
+    o &= "        wend" & NL
+    o &= "        for i_ as long = 0 to n_ - 1" & NL
+    for k as long = 0 to c.Items.Count( ) - 1
+        dim as ustring f = c.Items[k].Field
+        if (len( f ) = 0) orelse (right( trim( f ), 1 ) = ")") then continue for
+        o &= "            tkBind_Put( a_[i_]." & f & ", tkDataGrid_GetCell" & catalog.GridValueKind( c.Items[k].Kind ) & "( " & h & ", i_, " & k & " ) )" & NL
+    next
+    o &= "        next" & NL
+    o &= "    end scope" & NL
+end sub
+
 ' The list members: <name>_Fill( ) for an ItemsSource (the program calls it; an ItemsField is
 ' filled by LoadFrom), <name>_Item( ) for a ListTree: the chosen row's element, -1 for none.
 private sub ListDecls_( byref doc as FormDoc, byref o as ustring )
@@ -1021,7 +1067,7 @@ private sub ListDecls_( byref doc as FormDoc, byref o as ustring )
         if catalog.ListReady( c ) = false then continue for
         if HasValues_( c ) then o &= "    " & c.Name & "_Values_ as Array( of ustring )" & NL
         if len( c.ItemsSource ) then o &= "    declare sub " & c.Name & "_Fill( )" & NL
-        if catalog.ItemsBindOf( c ) = "rows" then o &= "    declare function " & c.Name & "_Item( ) as long" & NL
+        if (catalog.ItemsBindOf( c ) = "rows") orelse (catalog.ItemsBindOf( c ) = "grid") then o &= "    declare function " & c.Name & "_Item( ) as long" & NL
     next
 end sub
 
@@ -1032,6 +1078,15 @@ private sub ListCode_( byref doc as FormDoc, byref o as ustring )
             o &= NL & "sub Form." & c.Name & "_Fill( )" & NL
             FillBody_( c, c.ItemsSource, o )
             o &= "end sub" & NL
+        end if
+        if catalog.ItemsBindOf( c ) = "grid" then
+            ' the current row is its element (the grid keeps the array's order: no sort reaches the store)
+            o &= NL & "function Form." & c.Name & "_Item( ) as long" & NL
+            o &= "    dim as integer r_, c_" & NL
+            o &= "    if tkDataGrid_GetCurrentCell( " & c.Name & ".Handle, r_, c_ ) = false then return -1" & NL
+            o &= "    if r_ >= tkDataGrid_GetRowCount( " & c.Name & ".Handle ) then return -1" & NL
+            o &= "    return r_" & NL
+            o &= "end function" & NL
         end if
         if catalog.ItemsBindOf( c ) = "rows" then
             o &= NL & "function Form." & c.Name & "_Item( ) as long" & NL
@@ -1159,6 +1214,10 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
 
     o &= "function Form.SaveTo( byref r as " & doc.DataType & " ) as boolean" & NL
     o &= "    dim as TKBIND_ERRORS bindErrors_" & NL
+    ' a grid's open edit first: a value it refuses stops the save, as a check would
+    for each c as FormControl in doc.Controls
+        if GridWritesBack_( c ) then o &= "    if tkDataGrid_EndEdit( " & c.Name & ".Handle, true ) = false then return false" & NL
+    next
     ' first every check: nothing is written unless all pass
     for each c as FormControl in doc.Controls
         if IsBound_( c ) = false then continue for
@@ -1212,6 +1271,10 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
         if len( c.Bind2 ) andalso catalog.Bind2Holds( c ) then
             o &= "    tkBind_Put( r." & c.Bind2 & ", " & BindGot_( m->Bind2Kind, m->Bind2Get, c.Name ) & " )" & NL
         end if
+    next
+    ' G5: every grid row back into its ItemsField array, rows added and deleted included
+    for each c as FormControl in doc.Controls
+        if GridWritesBack_( c ) then GridSaveBody_( c, o )
     next
     o &= "    return true" & NL
     o &= "end function" & NL

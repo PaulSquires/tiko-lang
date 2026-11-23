@@ -232,6 +232,7 @@ private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as
         if len( c.DisplayField ) andalso (IsElementField_( c.DisplayField ) = false) then out_.Push( c.Name & ": display field '" & c.DisplayField & "' is not a field (Name, FullName( ))" )
         if len( c.ValueField ) andalso (IsElementField_( c.ValueField ) = false) then out_.Push( c.Name & ": value field '" & c.ValueField & "' is not a field (Id, Code)" )
     else
+        if (shape = "grid") andalso len( c.CheckField ) then out_.Push( c.Name & ": a DataGrid has no CheckField: give a column the Kind check and a Field" )
         if len( c.DisplayField ) orelse len( c.ValueField ) then out_.Push( c.Name & ": a " & m->Name & " shows columns: give each column a Field" )
         if (src = false) andalso (len( c.CheckField ) orelse anyField) then out_.Push( c.Name & ": columns' fields need ItemsField or ItemsSource" )
         if len( c.CheckField ) andalso (IsElementField_( c.CheckField ) = false) then
@@ -634,6 +635,9 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
                 case else
                     out_.Push( c.Name & ": no icon panel item kind '" & it.Kind & "'" )
                 end select
+            end if
+            if (kind_ = catalog.ItemsKind.ItemsGridColumns) andalso (catalog.GridKindOk( it.Kind ) = false) then
+                out_.Push( c.Name & ": no DataGrid column kind '" & it.Kind & "' (text number check combo date button link progress)" )
             end if
             if len( it.Handler ) then AddHandler_( handlers, c.Name, it.Handler, "", doc, out_ )
         next

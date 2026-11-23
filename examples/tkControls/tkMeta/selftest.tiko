@@ -143,7 +143,7 @@ sub RunPass( byval fScale as single )
     tkHost_Show( h )
     tkTest_PumpFor( h, 50 )
     dim as TK_WIDGET ptr root_ = tkHost_Root( h )
-    tkTest_Check( "the table is populated", tkMeta_Count( ) = 44, str( tkMeta_Count( ) ) )
+    tkTest_Check( "the table is populated", tkMeta_Count( ) = 45, str( tkMeta_Count( ) ) )
     tkTest_Check( "find by name", tkMeta_Find( "Button" ) <> 0 )
     tkTest_Check( "find misses", tkMeta_Find( "NoSuchControl" ) = 0 )
     tkTest_Check( "find a property", tkMeta_FindProp( tkMeta_Find( "Button" ), "Text" ) <> 0 )
@@ -160,8 +160,8 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "33 controls describe a colour struct, 486 fields", (nColors = 33) andalso (nSlots = 486), nColors & " / " & nSlots )
-    tkTest_Check( "24 shape properties, 18 hidden colour properties", (nShape = 24) andalso (nHidden = 18), nShape & " / " & nHidden )
+    tkTest_Check( "34 controls describe a colour struct, 506 fields", (nColors = 34) andalso (nSlots = 506), nColors & " / " & nSlots )
+    tkTest_Check( "25 shape properties, 18 hidden colour properties", (nShape = 25) andalso (nHidden = 18), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
         andalso (tkMeta_ColorCell( btn, "", "Back", "Hot" ) = 4) andalso (tkMeta_ColorCell( btn, "", "Back", "Open" ) = -1) )

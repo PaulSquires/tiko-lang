@@ -2913,6 +2913,41 @@ sub NavSuite( )
     Check( instr( codegen.Generate( de, "frmP", "frmP.tkform", "" ), "navP_MoveTo" ) = 0, "nav: no records, no wiring" )
 end sub
 
+' G5: a DataGrid in the designer -- its columns (caption, width, kind, field), its list from an
+' Array( of T ) filled by LoadFrom and written back by SaveTo, and examples/tkControls/tkGridForm's
+' generated form, kept current here (--accept rewrites it). One check per behaviour.
+sub DataGridSuite( byval bAccept as boolean )
+    Check( catalog.ItemsKindOf( "DataGrid" ) = catalog.ItemsKind.ItemsGridColumns, "datagrid: its columns are a list of entries" )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Order""" & LF & "data_module = ""../shop""" & LF
+    Refused( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "kind = ""spin""" & LF, "no DataGrid column kind 'spin'" )
+    Refused( hdr & Ctl( "g", "DataGrid", "items_field = ""Lines""" & LF & "item_type = ""shop.Line""" & LF & "check_field = ""Paid""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF, "a DataGrid has no CheckField" )
+    dim as FormDoc dh
+    ReadForm( hdr & Ctl( "g", "DataGrid", "items_field = ""Lines""" & LF & "item_type = ""shop.Line""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF, dh )
+    Check( instr( codegen.Generate( dh, "frmH", "frmH.tkform", "" ), "a column with a Field" ) > 0, "datagrid: a list with no column Field yet says so" )
+
+    ' the fixture: examples/tkControls/tkGridForm/frmGrid
+    const as string dir_ = "../../../examples/tkControls/tkGridForm/frmGrid/"
+    dim as ustring none
+    dim as ustring src = fs.ReadAllText( dir_ & "frmGrid.tkform" ).ValueOr( none )
+    dim as FormDoc d
+    Check( (len( src ) > 0) andalso ReadForm( src, d ), "datagrid: the tkGridForm fixture parses" )
+    dim as Array( of ustring ) p
+    validate.Check( d, "frmGrid", p )
+    dim as ustring first_
+    if p.Count( ) then first_ = p[0]
+    Check( p.Count( ) = 0, "datagrid: the fixture validates", first_ )
+    dim as ustring t = codegen.Generate( d, "frmGrid", "frmGrid.tkform", src )
+    if bAccept then fs.WriteAllText( dir_ & "frmGrid.design.tiko", t )
+    Check( fs.ReadAllText( dir_ & "frmGrid.design.tiko" ).ValueOr( none ) = t, "datagrid: tkGridForm's generated form is current" )
+    HasLine( t, "tkDataGrid_AddColumnEx( grdLines.Handle, ""Qty"", TKDG_COL_NUMBER, 60 )", "datagrid: a column in its kind" )
+    HasLine( t, "        tkDataGrid_SetCellFloat( grdLines.Handle, i_, 1, tkBind_Float( a_[i_].Qty ) )", "datagrid: LoadFrom fills a cell through tkBind" )
+    HasLine( t, "        tkBind_Put( a_[i_].Due, tkDataGrid_GetCellDate( grdLines.Handle, i_, 4 ) )", "datagrid: SaveTo writes a cell back" )
+    Check( instr( t, "tkBind_Put( a_[i_].Total( )" ) = 0, "datagrid: a method column is not written back" )
+    HasLine( t, "if tkDataGrid_EndEdit( grdLines.Handle, true ) = false then return false", "datagrid: SaveTo commits an open edit first" )
+    HasLine( t, "declare function grdLines_Item( ) as long", "datagrid: _Item( )" )
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -2978,5 +3013,6 @@ ListSuite( )
 KeyedListSuite( )
 AutoCompleteSuite( )
 NavSuite( )
+DataGridSuite( bAccept )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail
