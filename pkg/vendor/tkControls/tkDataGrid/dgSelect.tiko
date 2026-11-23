@@ -233,8 +233,8 @@ sub DgSelRowsMoved( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval
     elseif p->curRow >= row then
         p->curRow = row                 ' its row went: the one that took its place
     end if
-    if p->curRow >= p->rowCount then p->curRow = p->rowCount - 1
-    if p->rowCount = 0 then p->curRow = -1 : p->curCol = -1
+    if p->curRow >= DgViewRows( p ) then p->curRow = DgViewRows( p ) - 1
+    if DgViewRows( p ) = 0 then p->curRow = -1 : p->curCol = -1
 end sub
 
 ' The anchor at (row, disp); what is selected now becomes the base extensions add to.
@@ -323,10 +323,10 @@ end sub
 function DgShownText( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer ) as ustring
     dim as TKDG_VALUE v
     DgRead( p, row, col, v )
-    if p->CellFormattingCallback = 0 then return DgDefaultText( v )
+    if p->CellFormattingCallback = 0 then return DgDisplayText( p, col, v )
     dim as TKDATAGRID_FORMATINFO fi
     fi.hGrid = p->hWin : fi.row = row : fi.col = col : fi.value = @v
-    fi.text = DgDefaultText( v )
+    fi.text = DgDisplayText( p, col, v )
     fi.foreColor = p->colors.ForeColor : fi.backColor = p->colors.BackColor
     fi.align = TKDG_ALIGN_LEFT
     p->CellFormattingCallback( @fi )
@@ -449,7 +449,8 @@ end function
 public function tkDataGrid_SetCurrentCell( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, _
                                            byval bSelect as boolean = true ) as boolean
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (DgDispOf( p, col ) < 0) then return false
+    if (p = 0) orelse (DgValidViewRow( p, row ) = false) orelse (DgDispOf( p, col ) < 0) then return false
+    if p->bEditing then DgEndEdit( p, false )
     p->curRow = row : p->curCol = col
     if bSelect then DgSelectOnly( p, row, DgDispOf( p, col ) )
     tkDataGrid_EnsureVisible( hGrid, row, col )

@@ -6,7 +6,7 @@
 '
 ' tkDataGrid -- a data grid: typed columns over rows the grid stores (or, from G3, rows a host
 ' supplies per cell), painted cell by cell for the visible cells only, scrolled by the pixel in
-' both directions. Design: docs/tkControls/DATAGRID.md (claude-docs); phases G0 + G1.
+' both directions. Design: docs/tkControls/DATAGRID.md (claude-docs); phases G0, G1 and G2.
 '
 ' THE MODEL. Every cell is read through one path (DgRead, dgStore.tiko) whatever feeds the grid.
 ' In G0 the only feed is the grid's own store: one typed array per column (text, longint,
@@ -31,8 +31,12 @@
 ' selection is a sorted, merged set of row spans (whole rows), a list of cell rectangles in DISPLAY
 ' positions, and an "all" flag -- memory per range, never per row. Keyboard and mouse: dgInput.tiko.
 '
-' Setters are silent; only user interaction notifies (CurrentCellChanged, SelChange, CellClick,
-' CellActivate, ColumnClick, ColumnResize, ColumnReordered).
+' EDITING (G2, dgEdit.tiko): one hidden editor per kind (tkTextBox, tkComboBox, tkDatePicker),
+' placed over the cell; a cell edit commits through a parse into the store, and the row it is in
+' becomes the DIRTY row until it is left (RowValidating / RowCommitted) or cancelled (Esc). A check
+' cell toggles in place. With AllowAddRows a placeholder row follows the last one.
+'
+' Setters are silent; only user interaction notifies (dgEvents.tiko lists the events).
 #module "tkDataGrid"
 
 #import "../tkHost" public
@@ -108,6 +112,14 @@ public enum                  ' TKDG_HITTEST.area
     TKDG_HT_EMPTY            ' the body past the last row or the last column
     TKDG_HT_ROWHEADER        ' the row-header strip: row
     TKDG_HT_CORNER           ' above the row headers, left of the column headers
+end enum
+
+public enum                  ' tkDataGrid_SetEditMode: what starts an edit (DataGridView's EditMode)
+    TKDG_EDIT_ONENTER = 0    ' the cell becoming current (and F2, a double click)
+    TKDG_EDIT_ONF2           ' F2 or a double click
+    TKDG_EDIT_ONKEYSTROKE    ' a typed character (replacing the content) or a double click
+    TKDG_EDIT_ONKEYSTROKEORF2 ' either (the default)
+    TKDG_EDIT_PROGRAMMATIC   ' tkDataGrid_BeginEdit only
 end enum
 
 public enum                  ' tkDataGrid_SetSelectionUnit
@@ -186,6 +198,7 @@ public type TKDATAGRID_COLORS
     RowHeaderBackColor as ulong = &hFF2C313Aul
     RowHeaderForeColor as ulong = &hFF969CA6ul  ' the current-row mark
     DropMarkColor    as ulong = &hFF569CD6ul    ' where a dragged column header will land
+    ErrorColor       as ulong = &hFFE06C75ul    ' an editor whose text was refused
 end type
 
 ' A cell about to be painted, after CellFormatting. Every field is the grid's default for the
@@ -234,17 +247,7 @@ public type TKDATAGRID_MESSAGEINFO
     ht     as TKDG_HITTEST           ' what is under (x, y)
 end type
 
-public type DG_CellPaintFunc as function( byval p as TKDATAGRID_CELLPAINTINFO ptr ) as boolean
-public type DG_CellFormattingSub as sub( byval p as TKDATAGRID_FORMATINFO ptr )
-public type DG_MessageFunc as function( byval m as TKDATAGRID_MESSAGEINFO ptr ) as boolean
-' CurrentCellChanged, CellClick, CellActivate (a double click): model row and column.
-public type DG_CellSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer )
-public type DG_GridSub as sub( byval hGrid as TK_WIDGET ptr )
-public type DG_ColumnSub as sub( byval hGrid as TK_WIDGET ptr, byval col as integer )
-public type DG_ColumnResizeSub as sub( byval hGrid as TK_WIDGET ptr, byval col as integer, byval nWidth as integer, byval bLive as boolean )
-public type DG_ColumnReorderedSub as sub( byval hGrid as TK_WIDGET ptr, byval col as integer, byval dispPos as integer )
-' row -1: the header of col. "" = no tip.
-public type DG_TooltipFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+' The callback types and every setter that takes one: dgEvents.tiko.
 
 ' ---- internal state ---------------------------------------------------------------------
 type TKDG_COLSTORE
@@ -262,6 +265,8 @@ type TKDG_COLINFO
     xPx as integer                   ' laid out: its left edge in content pixels (display order)
     wPx as integer                   ' laid out: its width in pixels, fill applied; 0 when hidden
     disp as integer                  ' laid out: its display position
+    items(any) as ustring            ' a COMBO column's choices (SetColumnItems)
+    nItems as integer
 end type
 
 type TKDG_SPAN                       ' rows a .. b, a <= b
@@ -343,6 +348,26 @@ type TKDATAGRID_STATE
     dropBefore     as integer = -1       ' a reorder: the display position it lands before
     lastX          as integer
     lastY          as integer
+    ' --- editing (dgEdit.tiko) ---
+    editMode       as long = TKDG_EDIT_ONKEYSTROKEORF2
+    bReadOnly      as boolean
+    bAllowAdd      as boolean            ' a placeholder row after the last
+    bAllowDelete   as boolean = true     ' Delete on whole rows deletes them
+    bEditSelectAll as boolean            ' F2 / double click select the text (else the caret goes to the end)
+    bEditing       as boolean
+    bEndingEdit    as boolean            ' re-entry guard: an editor's callbacks can end the edit
+    editRow        as integer = -1
+    editCol        as integer = -1
+    wEditor        as TK_WIDGET ptr      ' the editor in use (one of the three), 0 when none
+    wEdText        as TK_WIDGET ptr      ' created on first use, hidden between edits, never destroyed
+    wEdCombo       as TK_WIDGET ptr
+    wEdDate        as TK_WIDGET ptr
+    editError      as ustring            ' why the last commit was refused
+    bErrorShown    as boolean
+    bSwallowChar   as boolean            ' the key just claimed may still send its text
+    dirtyRow       as integer = -1       ' the row with uncommitted changes, -1 = none
+    bDirtyIsNew    as boolean            ' it was added from the placeholder in this transaction
+    dirtySnap(any) as TKDG_VALUE         ' its values before the first change
     ' --- tooltips ---
     tip            as TKTIPHOST_STATE
     tipRow         as integer = -2       ' -1 = a header, -2 = none
@@ -369,6 +394,16 @@ type TKDATAGRID_STATE
     ColumnResizeCallback   as DG_ColumnResizeSub
     ColumnReorderedCallback as DG_ColumnReorderedSub
     TooltipCallback        as DG_TooltipFunc
+    CellBeginEditCallback  as DG_CellBeginEditFunc
+    CellParseCallback      as DG_CellParseFunc
+    CellEndEditCallback    as DG_CellEndEditSub
+    CellValueChangedCallback as DG_CellSub
+    ButtonClickCallback    as DG_CellSub
+    RowValidatingCallback  as DG_RowFunc
+    RowCommittedCallback   as DG_RowSub
+    CancelRowEditCallback  as DG_RowSub
+    RowAddedCallback       as DG_RowSub
+    RowsDeletingCallback   as DG_RowsDeletingFunc
 end type
 
 
@@ -491,6 +526,7 @@ function tkDataGrid_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as b
         tkDataGrid_ApplyTheme( w, tkTheme_Of( w ) )
         return true
     case TKM_DESTROY
+        tkWidget_KillTimer( p->wSurf, DG_TIMER_EDITFOCUS )
         tkTipHost_Destroy( @p->tip )
         delete p
         w->pData = 0
@@ -510,6 +546,7 @@ public function tkDataGrid_Create( byval hParent as TK_WIDGET ptr, byval CtrlID 
     p->hWin = w
     p->wSurf = tkWidget_CreateChild( w, CtrlID, @DgSurfaceProc, 0 )
     p->wSurf->isFocusable = true
+    p->wSurf->bWantsText = true          ' a typed character starts an edit (G2)
     p->wVBar = tkVScrollBar_Create( w, CtrlID + 1 )
     tkVScrollBar_SetScrollCallback( p->wVBar, @DgVScrolled )
     tkWidget_Show( p->wVBar, false )
@@ -578,6 +615,7 @@ public function tkDataGrid_InsertColumn( byval hGrid as TK_WIDGET ptr, byval col
     if p = 0 then return -1
     if (col < 0) orelse (col > p->colCount) then col = p->colCount
     if (c.valueKind < TKDG_TEXT) orelse (c.valueKind > TKDG_DATE) then return -1
+    DgDropEdit( p )
     dim as integer dispPos = p->colCount
     for k as integer = 0 to p->colCount - 1
         if p->order(k) = col then dispPos = k : exit for
@@ -638,6 +676,7 @@ end function
 public function tkDataGrid_DeleteColumn( byval hGrid as TK_WIDGET ptr, byval col as integer ) as boolean
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
+    DgDropEdit( p )
     for k as integer = col to p->colCount - 2
         p->cols(k) = p->cols(k + 1)
     next
@@ -666,6 +705,7 @@ end function
 public sub tkDataGrid_ClearColumns( byval hGrid as TK_WIDGET ptr )
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then exit sub
+    DgDropEdit( p )
     erase p->cols : erase p->order
     p->colCount = 0
     p->hotHdrCol = -1 : p->hotDivCol = -1
@@ -802,6 +842,7 @@ public sub tkDataGrid_SetRowCount( byval hGrid as TK_WIDGET ptr, byval n as inte
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then exit sub
     if n < 0 then n = 0
+    DgDropEdit( p )
     dim as integer was = p->rowCount
     if n > was then
         DgStoreInsertRows( p, was, n - was )
@@ -818,6 +859,7 @@ public function tkDataGrid_InsertRows( byval hGrid as TK_WIDGET ptr, byval row a
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if (p = 0) orelse (n <= 0) then return -1
     if (row < 0) orelse (row > p->rowCount) then row = p->rowCount
+    DgDropEdit( p )
     DgStoreInsertRows( p, row, n )
     DgSelRowsMoved( p, row, n )
     DgChanged( p )
@@ -835,6 +877,7 @@ public function tkDataGrid_DeleteRows( byval hGrid as TK_WIDGET ptr, byval row a
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (n <= 0) then return false
     if row + n > p->rowCount then n = p->rowCount - row
+    DgDropEdit( p )
     DgStoreDeleteRows( p, row, n )
     DgSelRowsMoved( p, row, -n )
     if p->hotRow >= p->rowCount then p->hotRow = -1
@@ -846,6 +889,7 @@ end function
 public sub tkDataGrid_Clear( byval hGrid as TK_WIDGET ptr )
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then exit sub
+    DgDropEdit( p )
     if p->rowCount > 0 then DgStoreDeleteRows( p, 0, p->rowCount )
     DgSelReset( p )
     p->curRow = -1
@@ -1142,6 +1186,7 @@ public function tkDataGrid_ThemeColors( byref t as TKTHEME_COLORS ) as TKDATAGRI
     c.RowHeaderBackColor = t.Surface
     c.RowHeaderForeColor = t.TextDim
     c.DropMarkColor = t.Accent
+    c.ErrorColor = t.Error
     return c
 end function
 
@@ -1179,87 +1224,4 @@ sub DgApplyThemeShape( byval w as TK_WIDGET ptr )
         p->nBorderWidth = v
         DgChanged( p )
     end if
-end sub
-
-' ---- callbacks -----------------------------------------------------------------------------
-' EVERY SETTER TAKING A DG_* PROCEDURE-POINTER TYPE LIVES IN THIS FILE, the one that declares
-' those types. Declared in another file of the module, such a setter's TK_WIDGET ptr parameter
-' mangles as void* there while callers mangle TK_WIDGET_*, and the link fails (tiko, 2026-11-22).
-' Paints a cell: return TRUE when it painted it, FALSE for the default (the callback may call
-' tkDataGrid_PaintCellDefault itself, before or after its own drawing, and return TRUE).
-public sub tkDataGrid_SetCellPaintCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellPaintFunc )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p = 0 then exit sub
-    p->CellPaintCallback = cb
-    tkWidget_Invalidate( p->wSurf )
-end sub
-
-' Per visible cell per paint: keep it cheap.
-public sub tkDataGrid_SetCellFormattingCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellFormattingSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p = 0 then exit sub
-    p->CellFormattingCallback = cb
-    tkWidget_Invalidate( p->wSurf )
-end sub
-
-' pi->hHeader is the grid's style header (tkDataGrid_GetHeader); itemID is the MODEL column.
-public sub tkDataGrid_SetHeaderPaintCallback( byval hGrid as TK_WIDGET ptr, byval cb as HDR_PaintCallbackSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p = 0 then exit sub
-    p->HeaderPaintCallback = cb
-    tkWidget_Invalidate( p->wSurf )
-end sub
-
-' Raw mouse messages on the surface, hit-tested; TRUE = handled (the grid does nothing more).
-public sub tkDataGrid_SetMessageCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_MessageFunc )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->MessageCallback = cb
-end sub
-
-' ---- G1 callbacks (here, not in dgSelect.tiko: see the note above tkDataGrid_SetCellPaintCallback) ------------------------------------------------------------------------------
-public sub tkDataGrid_SetCurrentCellChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->CurrentCellChangedCallback = cb
-end sub
-
-public sub tkDataGrid_SetSelChangeCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_GridSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->SelChangeCallback = cb
-end sub
-
-' A press on a cell, after the selection and the current cell have moved.
-public sub tkDataGrid_SetCellClickCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->CellClickCallback = cb
-end sub
-
-' A double click on a cell.
-public sub tkDataGrid_SetCellActivateCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->CellActivateCallback = cb
-end sub
-
-' A header clicked and released without a drag (G4 sorts here).
-public sub tkDataGrid_SetColumnClickCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->ColumnClickCallback = cb
-end sub
-
-' A user resize: bLive while dragging, FALSE once at the end (and after a double-click autosize).
-' nWidth is design units.
-public sub tkDataGrid_SetColumnResizeCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnResizeSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->ColumnResizeCallback = cb
-end sub
-
-public sub tkDataGrid_SetColumnReorderedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnReorderedSub )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->ColumnReorderedCallback = cb
-end sub
-
-' The tip for a cell (row >= 0) or a header (row -1); without it, a cell or header whose text is
-' cut off shows its whole text.
-public sub tkDataGrid_SetTooltipCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_TooltipFunc )
-    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then p->TooltipCallback = cb
 end sub

@@ -1,11 +1,14 @@
-' tkDataGrid demo (phases G0 + G1): an order list of 100,000 stored rows in every column kind,
+' tkDataGrid demo (phases G0 - G2): an order list of 100,000 stored rows in every column kind,
 ' with alternate rows, a fill column, conditional formatting, hover, both scroll bars, row
 ' headers, a frozen first column, cell / row selection, the keyboard, column resize / autosize /
-' drag-reorder, Ctrl+C and tooltips for cut-off text. Editing comes in G2.
+' drag-reorder, Ctrl+C / Ctrl+V, tooltips for cut-off text, and editing: F2 or typing, a combo and
+' a date editor, check toggles, the dirty row (Esc cancels it), a placeholder row to add one,
+' Delete on cells or whole rows.
 '
 '   demo                     interactive
 '   demo --shot out.bmp      render once, save the window, exit
 '   demo --scale 1.75        pin the scale instead of asking the display
+'   demo --edit 3            open the editor on row 3 of column 3 (with --shot, to see one)
 #import "vendor/tkControls/tkDataGrid"
 using tkDataGrid
 using tkCalendar
@@ -62,6 +65,27 @@ sub OnResized( byval hg as TK_WIDGET ptr, byval col as integer, byval nWidth as 
     tkHost_Invalidate( gHost )
 end sub
 
+sub OnValueChanged( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gStatus = "changed  row " & row & ", " & Q( tkDataGrid_GetColumnCaption( hg, col ) ) & " = " & tkDataGrid_GetCellText( hg, row, col ) _
+              & "   (row " & tkDataGrid_GetDirtyRow( hg ) & " is dirty: leave it to commit, Esc to cancel)"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnRowCommitted( byval hg as TK_WIDGET ptr, byval row as integer )
+    gStatus = "row " & row & " committed"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnRowCancelled( byval hg as TK_WIDGET ptr, byval row as integer )
+    gStatus = "row " & row & " cancelled: its old values are back"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnButton( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
+    gStatus = Q( tkDataGrid_GetColumnCaption( hg, col ) ) & " clicked on row " & row
+    tkHost_Invalidate( gHost )
+end sub
+
 sub OnActivate( byval hg as TK_WIDGET ptr, byval row as integer, byval col as integer )
     gStatus = "activate  row " & row & " (double click)"
     tkHost_Invalidate( gHost )
@@ -81,7 +105,7 @@ sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
     b->SetFont( gFontBold10 )
     b->SetForeColor( t.TextHot )
     tkRect_Set( r, gGrid->x, gGrid->y - lh, gGrid->x + gGrid->cw, gGrid->y )
-    b->PaintText( "tkDataGrid G0 + G1 -- " & NROWS & " rows: click / Shift / Ctrl / drag, arrows, Tab, Ctrl+A, Ctrl+C; drag headers and their edges", @r, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    b->PaintText( "tkDataGrid G0-G2 -- " & NROWS & " rows: F2 or type to edit, Enter / Tab / Esc, Space on Paid, Ctrl+C / Ctrl+V, Delete; the last row adds one", @r, TK_DT_LEFT or TK_DT_ELLIPSIS )
     tkRect_Set( r, gGrid->x, gGrid->y + gGrid->ch, gGrid->x + gGrid->cw, gGrid->y + gGrid->ch + lh )
     b->SetFont( gFont10 )
     b->SetForeColor( t.Accent )
@@ -129,12 +153,20 @@ tkDataGrid_SetColumnClickCallback( gGrid, @OnColumnClick )
 tkDataGrid_SetColumnReorderedCallback( gGrid, @OnReordered )
 tkDataGrid_SetColumnResizeCallback( gGrid, @OnResized )
 tkDataGrid_SetCellActivateCallback( gGrid, @OnActivate )
+tkDataGrid_SetCellValueChangedCallback( gGrid, @OnValueChanged )
+tkDataGrid_SetRowCommittedCallback( gGrid, @OnRowCommitted )
+tkDataGrid_SetCancelRowEditCallback( gGrid, @OnRowCancelled )
+tkDataGrid_SetButtonClickCallback( gGrid, @OnButton )
+tkDataGrid_SetAllowAddRows( gGrid, true )
 
 dim as integer cId = tkDataGrid_AddColumnEx( gGrid, "Order", TKDG_COL_TEXT, 80, TKDG_INT )
 dim as TKDATAGRID_COLUMN cc
 cc.key = "Customer" : cc.caption = "Customer" : cc.width = 180 : cc.fillWeight = 1
 dim as integer cCust = tkDataGrid_AddColumn( gGrid, cc )
-dim as integer cDate = tkDataGrid_AddColumnEx( gGrid, "Date", TKDG_COL_DATE, 100 )
+dim as integer cDate = tkDataGrid_AddColumnEx( gGrid, "Date", TKDG_COL_DATE, 110 )
+dim as integer cStatus = tkDataGrid_AddColumnEx( gGrid, "Status", TKDG_COL_COMBO, 90, TKDG_INT )
+dim as ustring statuses(0 to 2) = { "New", "Paid", "Shipped" }
+tkDataGrid_SetColumnItems( gGrid, cStatus, statuses() )
 gColQty = tkDataGrid_AddColumnEx( gGrid, "Qty", TKDG_COL_NUMBER, 60, TKDG_INT )
 dim as integer cPrice = tkDataGrid_AddColumnEx( gGrid, "Price", TKDG_COL_NUMBER, 80 )
 gColTotal = tkDataGrid_AddColumnEx( gGrid, "Total", TKDG_COL_NUMBER, 100 )
@@ -152,6 +184,7 @@ for r as integer = 0 to NROWS - 1
     tkDataGrid_SetCellInt( gGrid, r, cId, 100000 + r )
     tkDataGrid_SetCellText( gGrid, r, cCust, names_( r mod 8 ) )
     tkDataGrid_SetCellDate( gGrid, r, cDate, tkCalendar_MakeDate( 2026, 1 + (r mod 12), 1 + (r mod 28) ) )
+    tkDataGrid_SetCellInt( gGrid, r, cStatus, r mod 3 )
     tkDataGrid_SetCellInt( gGrid, r, gColQty, qn )
     tkDataGrid_SetCellFloat( gGrid, r, cPrice, pr )
     tkDataGrid_SetCellFloat( gGrid, r, gColTotal, qn * pr )
@@ -162,7 +195,7 @@ for r as integer = 0 to NROWS - 1
 next
 tkDataGrid_EndUpdate( gGrid )
 
-gStatus = "Click a cell, a row header, the corner, a header or a column's edge."
+gStatus = "F2 or type on a cell to edit it; Space toggles Paid; Ctrl+End goes to the new row."
 gHost->OnPaint = @Form_Paint
 gHost->OnSize = @Form_Size
 Form_Size( gHost )
@@ -171,6 +204,10 @@ tkHost_SetFocus( gHost, gGrid )
 tkDataGrid_SetCurrentCell( gGrid, 2, cCust )
 tkDataGrid_SelectRange( gGrid, 2, cCust, 5, gColQty )
 tkDataGrid_SelectRows( gGrid, 8, 9, true )
+
+' --edit <column>: an editor open on row 3 of that column, for a shot
+dim as string editCol = ArgValue( "--edit" )
+if len( editCol ) then tkDataGrid_BeginEdit( gGrid, 3, valint( editCol ), false )
 
 dim as string shot = ArgValue( "--shot" )
 if len( shot ) then
