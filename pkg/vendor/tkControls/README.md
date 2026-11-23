@@ -50,7 +50,8 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkSplitter`, `tkScrollPanel`, `tkScrollBar`, `tkVScrollBar`, `tkHScrollBar` | layout and scrolling |
 | `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkSpinner`, `tkFileDialog` | popups and feedback |
 | `tkInfoBar` | an inline message bar in the layout: severity, title, message, actions, close |
-| `tkNotify` | what the info bar (and the coming toasts) share: severities, colours, the item painter |
+| `tkToast` | toasts: transient cards in a corner of a window, queued, timed, with actions; one toaster per window |
+| `tkNotify` | what the info bar and the toasts share: severities, colours, the item painter |
 | `tkChart` | line, column, HLOC and pie charts |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |

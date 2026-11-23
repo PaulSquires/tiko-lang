@@ -222,6 +222,30 @@ public function tkNotify_ThemeColors( byref t as TKTHEME_COLORS ) as TKNOTIFY_CO
 end function
 
 
+' ---- fonts ------------------------------------------------------------------------------------
+' What an item uses when its host gives no fonts: the surface's default for text, Inter Bold at
+' the same size for the title, the bundled icon font two points larger for glyphs. Opened on the
+' surface, which owns them and resizes them on a scale change. Call once per control and keep.
+
+public function tkNotify_DefaultPt( byval h as TK_HOST ptr ) as single
+    if h = 0 then return 9
+    for i as long = 0 to ubound( h->fonts )
+        if h->fonts(i).f = h->pDefaultFont then return h->fonts(i).pt
+    next
+    return 9
+end function
+
+public function tkNotify_OpenTitleFont( byval h as TK_HOST ptr ) as TTF_Font ptr
+    if h = 0 then return 0
+    return tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, tkNotify_DefaultPt( h ) )
+end function
+
+public function tkNotify_OpenGlyphFont( byval h as TK_HOST ptr ) as TTF_Font ptr
+    if h = 0 then return 0
+    return tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, tkNotify_DefaultPt( h ) + 2 )
+end function
+
+
 ' ---- layout -----------------------------------------------------------------------------------
 
 private function Sc_( byval v as long, byval fScale as single ) as long

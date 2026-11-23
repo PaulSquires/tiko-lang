@@ -115,15 +115,6 @@ private function GetBarPointer( byval h as TK_WIDGET ptr ) as TKINFOBAR_STATE pt
     return cast( TKINFOBAR_STATE ptr, h->pData )
 end function
 
-' The point size of the surface's default font, so our bold title matches it.
-private function DefaultPt_( byval h as TK_HOST ptr ) as single
-    if h = 0 then return 9
-    for i as long = 0 to ubound( h->fonts )
-        if h->fonts(i).f = h->pDefaultFont then return h->fonts(i).pt
-    next
-    return 9
-end function
-
 function TKINFOBAR_STATE.Fonts() as TKNOTIFY_FONTS
     dim as TKNOTIFY_FONTS fo
     dim as TK_HOST ptr h = this.hWin->pHost
@@ -131,13 +122,13 @@ function TKINFOBAR_STATE.Fonts() as TKNOTIFY_FONTS
     if this.pTitleFont then
         fo.fTitle = this.pTitleFont
     else
-        if this.pOwnTitle = 0 then this.pOwnTitle = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, DefaultPt_( h ) )
+        if this.pOwnTitle = 0 then this.pOwnTitle = tkNotify_OpenTitleFont( h )
         fo.fTitle = iif( this.pOwnTitle <> 0, this.pOwnTitle, fo.fText )
     end if
     if this.pGlyphFont then
         fo.fGlyph = this.pGlyphFont
     else
-        if this.pOwnGlyph = 0 then this.pOwnGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, DefaultPt_( h ) + 2 )
+        if this.pOwnGlyph = 0 then this.pOwnGlyph = tkNotify_OpenGlyphFont( h )
         fo.fGlyph = this.pOwnGlyph
     end if
     return fo
