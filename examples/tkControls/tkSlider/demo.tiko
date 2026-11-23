@@ -1,0 +1,185 @@
+' tkSlider demo (phase S0): six rows, each a label, a slider and its value.
+'
+'   demo                     interactive; ValueChanged / ValueCommitted are printed
+'   demo --shot out.bmp      render once (row 0 focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkSlider"
+using tkSlider
+using tkTheme
+using tkHost
+using tkPaint
+
+const as long ROWS = 6
+const as long ROW_HEIGHT = 48, ROW_TOP = 14, MARGIN = 22, LABEL_W = 230, VALUE_W = 70
+const as long IDC_FIRST = 1000
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gSl(0 to ROWS - 1)
+dim shared as ustring gLabel(0 to ROWS - 1)
+dim shared as long gPlaces(0 to ROWS - 1)
+dim shared as TTF_Font ptr gFont
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+private function RowOf( byval w as TK_WIDGET ptr ) as long
+    for i as long = 0 to ROWS - 1
+        if w = gSl(i) then return i
+    next
+    return -1
+end function
+
+' v with n decimals (tiko has no format()).
+private function Fmt( byval v as double, byval n as long ) as string
+    dim as double k = 10 ^ n
+    dim as longint q = clngint( abs( v ) * k )
+    dim as string d = str( q )
+    if n > 0 then
+        while len( d ) <= n
+            d = "0" & d
+        wend
+        d = left( d, len( d ) - n ) & "." & right( d, n )
+    end if
+    if (v < 0) andalso (q <> 0) then d = "-" & d
+    return d
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long m = tkHost_Scale( h, MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    dim as TKTHEME_COLORS t = tkTheme_Of( tkHost_Root( h ) )
+    b->SetFont( gFont )
+    for i as long = 0 to ROWS - 1
+        dim as long y = RowTop( i )
+        dim as TKRECT rc
+        tkRect_Set( rc, m, y, m + tkHost_Scale( h, LABEL_W ), y + rh )
+        b->SetColors( t.Text, t.Window )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT or TK_DT_VCENTER )
+        tkRect_Set( rc, pw - m - tkHost_Scale( h, VALUE_W ), y, pw - m, y + rh )
+        b->SetColors( t.TextStrong, t.Window )
+        b->PaintText( Fmt( tkSlider_GetValue( gSl(i) ), gPlaces(i) ), @rc, TK_DT_RIGHT or TK_DT_VCENTER )
+        tkRect_Set( rc, m, y + rh - 1, pw - m, y + rh )
+        b->SetBackColor( t.Divider )
+        b->PaintRect( @rc )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long m = tkHost_Scale( h, MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    dim as long l = m + tkHost_Scale( h, LABEL_W ), r = pw - m - tkHost_Scale( h, VALUE_W ) - tkHost_Scale( h, 8 )
+    for i as long = 0 to ROWS - 1
+        dim as long iw, ih
+        tkSlider_GetIdealSize( gSl(i), iw, ih )
+        tkWidget_SetPos( gSl(i), l, RowTop( i ) + (rh - ih) \ 2, r - l, ih )
+    next
+end sub
+
+sub Demo_Changed( byval hSlider as TK_WIDGET ptr, byval nThumb as long, byval nValue as double )
+    dim as long i = RowOf( hSlider )
+    print "changed    row=" & i & "  value=" & Fmt( nValue, gPlaces(i) ) & iif( tkSlider_IsDragging( hSlider ), "  (dragging)", "" )
+    tkHost_Invalidate( gHost )                    ' the value column
+end sub
+
+sub Demo_Committed( byval hSlider as TK_WIDGET ptr, byval nThumb as long, byval nValue as double )
+    dim as long i = RowOf( hSlider )
+    print "committed  row=" & i & "  value=" & Fmt( nValue, gPlaces(i) )
+    tkHost_Invalidate( gHost )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkSlider on SDL3", 640, 330, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Of( tkHost_Root( gHost ) ).Window
+gFont = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+if gFont = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+gLabel(0) = "Volume   (0..100, step 1)"
+gLabel(1) = "Opacity   (0..1, step 0.05)"
+gLabel(2) = "Gain   (continuous, 2 places)"
+gLabel(3) = "Quality   (0..10, step 3: Max off-grid)"
+gLabel(4) = "Locked   (read-only)"
+gLabel(5) = "Disabled   (custom colours)"
+
+for i as long = 0 to ROWS - 1
+    gSl(i) = tkSlider_Create( tkHost_Root( gHost ), IDC_FIRST + i )
+    tkSlider_SetValueChangedCallback( gSl(i), @Demo_Changed )
+    tkSlider_SetValueCommittedCallback( gSl(i), @Demo_Committed )
+next
+
+tkSlider_SetValue( gSl(0), 40 )
+
+tkSlider_SetRange( gSl(1), 0, 1 )
+tkSlider_SetStep( gSl(1), 0.05 )
+tkSlider_SetSmallChange( gSl(1), 0.05 )
+tkSlider_SetLargeChange( gSl(1), 0.25 )
+tkSlider_SetDecimalPlaces( gSl(1), 2 )
+tkSlider_SetValue( gSl(1), 0.75 )
+gPlaces(1) = 2
+
+tkSlider_SetRange( gSl(2), -12, 12 )
+tkSlider_SetStep( gSl(2), 0 )
+tkSlider_SetDecimalPlaces( gSl(2), 2 )
+tkSlider_SetSmallChange( gSl(2), 0.5 )
+tkSlider_SetLargeChange( gSl(2), 3 )
+tkSlider_SetWheelMode( gSl(2), TKSL_WHEEL_HOVER )
+gPlaces(2) = 2
+
+tkSlider_SetRange( gSl(3), 0, 10 )
+tkSlider_SetStep( gSl(3), 3 )
+tkSlider_SetValue( gSl(3), 10 )
+
+tkSlider_SetValue( gSl(4), 65 )
+tkSlider_SetReadOnly( gSl(4), true )
+
+dim as TKSLIDER_COLORS c
+tkSlider_GetColors( gSl(5), @c )
+c.FillColor = tkRGB( 62, 140, 90 ) : c.FillColorHot = tkRGB( 78, 168, 110 ) : c.FillColorDisabled = tkRGB( 50, 90, 64 )
+c.ThumbBorderColor = c.FillColor : c.ThumbBorderColorHot = c.FillColorHot : c.ThumbBorderColorDisabled = c.FillColorDisabled
+tkSlider_SetColors( gSl(5), @c )
+tkSlider_SetValue( gSl(5), 30 )
+tkSlider_SetEnabled( gSl(5), false )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gSl(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()
