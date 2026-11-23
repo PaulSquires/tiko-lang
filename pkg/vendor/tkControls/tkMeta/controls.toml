@@ -763,6 +763,8 @@ events = [
   { name="ItemDisabled", set="tkTimePicker_SetItemDisabledCallback", type="TPK_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
   { name="Paint", set="tkTimePicker_SetPaintCallback", type="TPK_PaintCallbackSub", sig="byval p as TKTIMEPICKER_PAINTINFO ptr", params="byval p as TKTIMEPICKER_PAINTINFO ptr", args="p", widget="p->hCtrl" },
   { name="Message", set="tkTimePicker_SetMessageCallback", type="TPK_MessageCallbackFunc", sig="byval m as TKTIMEPICKER_MESSAGEINFO ptr", params="byval m as TKTIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
+  { name="FormatTime", set="tkTimePicker_SetFormatCallback", type="TPK_FormatCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byref sOut as ustring", params="byval pTime as TKTIME ptr, byref sOut as ustring", args="pTime, sOut" },
+  { name="Tooltip", set="tkTimePicker_SetTooltipCallback", type="TPK_TooltipCallbackFunc", sig="byval t as TKTIMEPICKER_TOOLTIPINFO ptr", params="byval t as TKTIMEPICKER_TOOLTIPINFO ptr, byref Show as boolean", args="t, Show", widget="t->hCtrl", returns="boolean", result="Show", result_init="true" },
 ]
 
 [[control]]

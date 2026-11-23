@@ -137,6 +137,8 @@ public type TP_DismissCallbackSub as sub( byval hPanel as TK_WIDGET ptr )
 public type TP_ItemDisabledCallbackFunc as function( byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long ) as boolean
 public type TP_ItemPaintCallbackSub as sub( byval p as TKTIMEPANEL_ITEMPAINTINFO ptr )
 public type TP_MessageCallbackFunc as function( byval m as TKTIMEPANEL_MESSAGEINFO ptr ) as boolean
+' An item's label: sText arrives as the default (the pattern's); the host may replace it.
+public type TP_ItemTextCallbackSub as sub( byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long, byref sText as ustring )
 
 type TP_COLUMN
     kind    as long
@@ -198,6 +200,7 @@ type TKTIMEPANEL_STATE
     ItemDisabledCallback as TP_ItemDisabledCallbackFunc
     ItemPaintCallback    as TP_ItemPaintCallbackSub
     MessageCallback      as TP_MessageCallbackFunc
+    ItemTextCallback     as TP_ItemTextCallbackSub
 end type
 
 
@@ -309,7 +312,7 @@ private sub BuildItems( byval p as TKTIMEPANEL_STATE ptr )
     p->bLayoutDirty = true
 end sub
 
-private function ItemText( byval p as TKTIMEPANEL_STATE ptr, byval c as long, byval i as long ) as ustring
+private function ItemTextDefault_( byval p as TKTIMEPANEL_STATE ptr, byval c as long, byval i as long ) as ustring
     dim as long v = p->cols( c ).v( i )
     select case p->cols( c ).kind
     case TKTP_SEG_HOUR24, TKTP_SEG_MINUTE, TKTP_SEG_SECOND : return Pad2_( v )
@@ -320,6 +323,17 @@ private function ItemText( byval p as TKTIMEPANEL_STATE ptr, byval c as long, by
         return tkTimePanel_FormatPattern( t, p->sPattern, p->sAm, p->sPm )
     end select
     return ""
+end function
+
+' The label: the default, then the ItemText callback's say (hours as 0-23, as ItemDisabled).
+private function ItemText( byval p as TKTIMEPANEL_STATE ptr, byval c as long, byval i as long ) as ustring
+    dim as ustring sText = ItemTextDefault_( p, c, i )
+    if p->ItemTextCallback then
+        dim as long kind = p->cols( c ).kind, v = p->cols( c ).v( i )
+        if kind = TKTP_SEG_HOUR12 then kind = TKTP_SEG_HOUR24 : v = ItemHour24( p, c, i )
+        p->ItemTextCallback( p->hWin, kind, v, sText )
+    end if
+    return sText
 end function
 
 ' The time edits start from: the value, or midnight when there is none (TIMEPICKER.md D-7).
@@ -1465,6 +1479,15 @@ end sub
 public sub tkTimePanel_SetMessageCallback( byval hPanel as TK_WIDGET ptr, byval userfunc as TP_MessageCallbackFunc )
     dim as TKTIMEPANEL_STATE ptr p = TP( hPanel )
     if p then p->MessageCallback = userfunc
+end sub
+
+' Replaces item labels (tkTimePicker's FormatTime reaches its list this way). Re-measures.
+public sub tkTimePanel_SetItemTextCallback( byval hPanel as TK_WIDGET ptr, byval usersub as TP_ItemTextCallbackSub )
+    dim as TKTIMEPANEL_STATE ptr p = TP( hPanel )
+    if p = 0 then exit sub
+    p->ItemTextCallback = usersub
+    p->bLayoutDirty = true
+    tkWidget_Invalidate( hPanel )
 end sub
 
 ' The theme's shape until a shape setter ran: its BorderWidth is the panel's border.

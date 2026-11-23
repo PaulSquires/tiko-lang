@@ -100,6 +100,7 @@ default; 0 is midnight).
 | `SetDismissCallback` | Esc, F4, Alt+Up / Down |
 | `SetItemDisabledCallback` | asked for each item: TRUE dims it |
 | `SetItemPaintCallback` | draws one item; `tkTimePanel_PaintItemDefault( p )` draws the stock one |
+| `SetItemTextCallback` | an item's label: `sText` arrives as the default and may be replaced (hours as 0–23); the columns are measured with it |
 | `SetMessageCallback` | the input stream; TRUE claims a message |
 
 Callbacks fire last, from a snapshot: one may destroy the panel.
@@ -137,7 +138,7 @@ design-unit sizes.
 `TKTIME`, `TKTIME_SEGMENT`, `TKTIMEPANEL_HIT`, `TKTIMEPANEL_COLORS`, `TKTIMEPANEL_ITEMPAINTINFO`,
 `TKTIMEPANEL_MESSAGEINFO`, and the callback types `TP_SelChangeCallbackSub`, `TP_AcceptCallbackSub`,
 `TP_DismissCallbackSub`, `TP_ItemDisabledCallbackFunc`, `TP_ItemPaintCallbackSub`,
-`TP_MessageCallbackFunc`.
+`TP_MessageCallbackFunc`, `TP_ItemTextCallbackSub`.
 
 ### Procedures
 
@@ -202,6 +203,7 @@ sub tkTimePanel_SetDismissCallback( byval hPanel as TK_WIDGET ptr, byval usersub
 sub tkTimePanel_SetItemDisabledCallback( byval hPanel as TK_WIDGET ptr, byval userfunc as TP_ItemDisabledCallbackFunc )
 sub tkTimePanel_SetItemPaintCallback( byval hPanel as TK_WIDGET ptr, byval usersub as TP_ItemPaintCallbackSub )
 sub tkTimePanel_SetMessageCallback( byval hPanel as TK_WIDGET ptr, byval userfunc as TP_MessageCallbackFunc )
+sub tkTimePanel_SetItemTextCallback( byval hPanel as TK_WIDGET ptr, byval usersub as TP_ItemTextCallbackSub )
 function tkTimePanel_EmptyTime() as TKTIME
 function tkTimePanel_IsTime( byref t as const TKTIME ) as boolean
 function tkTimePanel_MakeTime( byval hh as long, byval mi as long, byval ss as long = 0, byval ms as long = 0 ) as TKTIME

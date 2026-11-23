@@ -10,6 +10,7 @@
 #import "vendor/tkControls/tkBind"
 #import "std/chrono"
 using tkTimePicker
+using tkTooltip
 using tkBind
 using tkCalendar
 using chrono
@@ -619,8 +620,83 @@ sub RunBinding( )
 end sub
 
 ' ==========================================================================================
+' FormatTime and Tooltip (one check per behaviour; scale-independent, so one pass)
+dim shared as long gTipPart, gTipSeg, gTipCalls
+
+sub OnFmt( byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byref sOut as ustring )
+    if pTime->wHour >= 12 then exit sub                  ' afternoons keep the pattern's text
+    sOut = "morning appointment at " & sOut
+end sub
+
+function OnTip( byval t as TKTIMEPICKER_TOOLTIPINFO ptr ) as boolean
+    gTipCalls += 1
+    gTipPart = t->nPart
+    gTipSeg = t->nSegment
+    if t->nPart <> TKTPK_HIT_FIELD then return false
+    t->outText = "segment " & t->nSegment
+    return true
+end function
+
+sub RunCallbacks( )
+    tkTest_Begin( "format and tooltip" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTimePicker callbacks", 500, 400, tkHost_FontDir() & TK_FONT_UI, 1.0 )
+    dim as TK_WIDGET ptr c = tkTimePicker_Create( tkHost_Root( h ), 1 )
+    dim as TK_WIDGET ptr c2 = tkTimePicker_Create( tkHost_Root( h ), 2 )
+    tkTimePicker_SetTime( c, Tm( 9, 30 ) )
+    dim as long w0, h0, w1, h1
+    tkTimePicker_GetIdealSize( c, w0, h0 )
+    tkTimePicker_SetFormatCallback( c, @OnFmt )
+    tkTimePicker_GetIdealSize( c, w1, h1 )
+    tkWidget_SetPos( c, 10, 10, w1, h1 )
+    tkWidget_SetPos( c2, 10, 60, w0, h0 )
+    tkTest_Check( "FormatTime replaces GetText", tkTimePicker_GetText( c ) = "morning appointment at 09:30", tkTimePicker_GetText( c ) )
+    tkTimePicker_SetTime( c, Tm( 14, 0 ) )
+    tkTest_Check( "an empty answer keeps the pattern's text", tkTimePicker_GetText( c ) = "14:00", tkTimePicker_GetText( c ) )
+    tkTest_Check( "the ideal size makes room for the formatted text", w1 > w0 + tkText_Width( h->pDefaultFont, "morning appointment at" ) - 4, w0 & " -> " & w1 )
+    tkTimePicker_SetTime( c, Tm( 9, 30 ) )
+    tkHost_SetFocus( h, c )
+    tkTest_PushKey( h, SDLK_C, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+C still copies the pattern's text", tkHost_GetClipboardText() = "09:30", tkHost_GetClipboardText() )
+    ' the dropdown's list labels go through FormatTime too, and the popup is measured with them
+    tkTimePicker_SetPanelMode( c, TKTP_PANEL_LIST )
+    tkTimePicker_SetListRange( c, Tm( 8, 0 ), Tm( 11, 0 ), 3600 )
+    tkWidget_SetPos( c, 10, 10, w0, h1 )            ' a narrow field: the popup must measure its own labels
+    tkTimePicker_DropDown( c )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_WIDGET ptr pnl = tkTimePicker_GetPanelHandle( c )
+    dim as TKRECT rcCol
+    if pnl then tkTimePanel_GetColumnRect( pnl, 0, rcCol )
+    tkTest_Check( "list labels are formatted, and the popup is wide enough for them", (pnl <> 0) _
+                  andalso tkTimePanel_GetItemText( pnl, 0, 0 ) = "morning appointment at 08:00" _
+                  andalso pnl->cw >= tkText_Width( h->pDefaultFont, "morning appointment at 08:00" ), _
+                  tkTimePanel_GetItemText( pnl, 0, 0 ) )
+    tkTimePicker_CloseUp( c )
+    tkTest_PumpFor( h, 30 )
+    ' Tooltip: made on demand; asked with the part and segment under the pointer
+    tkTest_Check( "no tip until a Tooltip callback is set", tkTimePicker_GetTooltipHandle( c2 ) = 0 )
+    tkTimePicker_SetTime( c2, Tm( 7, 45 ) )
+    tkTimePicker_SetTooltipCallback( c2, @OnTip )
+    dim as TK_TIP ptr tip = tkTimePicker_GetTooltipHandle( c2 )
+    dim as TKRECT rs, ri
+    tkTimePicker_GetSegmentRect( c2, 2, rs )
+    tkHost_SetFocus( h, 0 )
+    tkHost_RenderTo( h, false )
+    tkTest_PushMotion( h, WX( c2, (rs.left + rs.right) \ 2 ), WY( c2, (rs.top + rs.bottom) \ 2 ) )
+    tkTooltip_Show( tip )
+    tkTest_Check( "over the minutes: the callback sees the field and segment 2, and the tip shows", tkTooltip_IsVisible( tip ) _
+                  andalso gTipPart = TKTPK_HIT_FIELD andalso gTipSeg = 2, gTipPart & " " & gTipSeg )
+    tkTooltip_Hide( tip )
+    tkTimePicker_GetIconRect( c2, ri )
+    tkTest_PushMotion( h, WX( c2, (ri.left + ri.right) \ 2 ), WY( c2, (ri.top + ri.bottom) \ 2 ) )
+    tkTooltip_Show( tip )
+    tkTest_Check( "over the button the callback says no: no tip", tkTooltip_IsVisible( tip ) = false andalso gTipPart = TKTPK_HIT_BUTTON, str( gTipPart ) )
+    tkHost_Destroy( h )
+end sub
+
+' ==========================================================================================
 if tkTest_Init() = false then end 99
 RunBinding( )
+RunCallbacks( )
 RunPass( 1.0 )
 RunPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkTimePicker" )

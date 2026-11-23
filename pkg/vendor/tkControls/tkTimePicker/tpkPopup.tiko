@@ -52,6 +52,17 @@ function TpkPanelColors( byval p as TKTIMEPICKER_STATE ptr ) as TKTIMEPANEL_COLO
     return c
 end function
 
+' The picker whose dropdown is being measured (TpkOpen's throwaway panel is not in the popup yet).
+dim shared as TKTIMEPICKER_STATE ptr gMeasuringPicker
+
+sub TpkPanelItemText( byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long, byref sText as ustring )
+    if nKind <> TKTP_ITEM_TIME then exit sub
+    dim as TKTIMEPICKER_STATE ptr p = TpkOfPopupWidget( hPanel )
+    if p = 0 then p = gMeasuringPicker
+    if (p = 0) orelse (p->FormatCallback = 0) then exit sub
+    sText = TpkFormatOf( p, tkTimePanel_MsToTime( nValue * 1000 ) )
+end sub
+
 function TpkPanelItemDisabled( byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long ) as boolean
     dim as TKTIMEPICKER_STATE ptr p = TpkOfPopupWidget( hPanel )
     if (p = 0) orelse (p->ItemDisabledCallback = 0) then return false
@@ -60,6 +71,7 @@ end function
 
 sub TpkSeedPanel( byval p as TKTIMEPICKER_STATE ptr, byval c as TK_WIDGET ptr )
     tkTimePanel_SetFont( c, TpkFont( p ) )
+    if p->FormatCallback then tkTimePanel_SetItemTextCallback( c, @TpkPanelItemText )
     tkTimePanel_SetFormat( c, p->sPattern )
     tkTimePanel_SetAmPmText( c, p->sAm, p->sPm )
     tkTimePanel_SetStep( c, p->nStep )
@@ -217,9 +229,11 @@ sub TpkOpen( byval p as TKTIMEPICKER_STATE ptr )
     ' measure with a throwaway panel on our own surface (the popup draws at our scale)
     dim as TK_WIDGET ptr tmp = tkTimePanel_Create( p->hWin, 0 )
     tkWidget_Show( tmp, false )
+    gMeasuringPicker = p
     TpkSeedPanel( p, tmp )
     dim as long cw, ch
     tkTimePanel_GetIdealSize( tmp, cw, ch )
+    gMeasuringPicker = 0
     tkWidget_Destroy( tmp )
     dim as long bt = CTP_POP_BORDERTHICK
     dim as long fh = iif( p->bShowNow orelse p->bShowOK, p->nFooterH, 0 )

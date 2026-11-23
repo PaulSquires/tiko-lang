@@ -28,10 +28,12 @@
 #import "../tkHost" public
 #import "../tkTheme" public
 #import "../tkTimePanel" public
+#import "../tkTooltip" public
 using tkHost
 using tkPaint
 using tkTheme
 using tkTimePanel
+using tkTooltip
 
 ' ---- constants ---------------------------------------------------------------------------------
 public enum
@@ -129,6 +131,18 @@ public type TKTIMEPICKER_MESSAGEINFO
     wheelY as single
 end type
 
+public type TKTIMEPICKER_TOOLTIPINFO
+    hCtrl    as TK_WIDGET ptr
+    tm       as TKTIME             ' the value (empty when there is none)
+    hasTime  as boolean
+    nPart    as long               ' TKTPK_HIT_* under the pointer
+    nSegment as long               ' the segment under the pointer, -1 (a literal, the button, outside)
+    outText  as ustring            ' the tip's text: set it, and return TRUE to show it
+end type
+
+' FormatTime: sOut arrives as the pattern's text; set it to show other text at rest ("" keeps it).
+public type TPK_FormatCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byref sOut as ustring )
+public type TPK_TooltipCallbackFunc as function( byval t as TKTIMEPICKER_TOOLTIPINFO ptr ) as boolean
 public type TPK_TimeChangedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byval bHasTime as boolean )
 public type TPK_DropDownCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean )
 public type TPK_PaintCallbackSub as sub( byval p as TKTIMEPICKER_PAINTINFO ptr )
@@ -218,6 +232,11 @@ type TKTIMEPICKER_STATE
     PaintCallback        as TPK_PaintCallbackSub
     ItemDisabledCallback as TPK_ItemDisabledCallbackFunc
     MessageCallback      as TPK_MessageCallbackFunc
+    FormatCallback       as TPK_FormatCallbackSub
+    TooltipCallback      as TPK_TooltipCallbackFunc
+    tip                  as TKTIPHOST_STATE
+    nMouseX              as long = -1
+    nMouseY              as long = -1
 end type
 
 dim shared as TKTIMEPICKER_STATE ptr gOpenTimePicker     ' one dropdown open per process
@@ -336,6 +355,25 @@ function TpkCallMessage( byval p as TKTIMEPICKER_STATE ptr, byval m as TK_MSG pt
 end function
 
 ' ---- what the field shows ------------------------------------------------------------------------
+' t as text: the pattern's, then FormatTime's say ("" from it keeps the pattern's). "" for no time.
+function TpkFormatOf( byval p as TKTIMEPICKER_STATE ptr, byref t as const TKTIME ) as ustring
+    if tkTimePanel_IsTime( t ) = false then return ""
+    dim as ustring sOut = tkTimePanel_FormatPattern( t, p->sPattern, p->sAm, p->sPm )
+    if p->FormatCallback then
+        dim as ustring sDef = sOut
+        dim as TKTIME tc = t
+        p->FormatCallback( p->hWin, @tc, sOut )
+        if len( sOut ) = 0 then sOut = sDef
+    end if
+    return sOut
+end function
+
+' At rest -- unfocused, a time, no pending entry -- a FormatTime callback's text replaces the segments.
+function TpkShowsFormat( byval p as TKTIMEPICKER_STATE ptr ) as boolean
+    return (p->FormatCallback <> 0) andalso (p->isFocused = false) andalso tkTimePanel_IsTime( p->tm ) _
+           andalso (len( p->sEntry ) = 0)
+end function
+
 function TpkSegText( byval p as TKTIMEPICKER_STATE ptr, byval i as long ) as ustring
     with p->segs( i )
         if .kind = TKTP_SEG_LITERAL then return .text
@@ -519,7 +557,12 @@ sub TpkRenderDefault( byval p as TKTIMEPICKER_STATE ptr, byval pi as TKTIMEPICKE
     dim as TTF_Font ptr f = TpkFont( p )
     b->SetFont( f )
     dim as boolean bEmpty = (pi->hasTime = false) andalso (len( p->sEntry ) = 0)
-    if bEmpty andalso (len( p->sPlaceholder ) > 0) andalso (pi->isFocused = false) then
+    if TpkShowsFormat( p ) then
+        dim as TKRECT rcF = pi->rcField
+        rcF.left += p->nFieldPad
+        b->SetForeColor( iif( pi->isEnabled, p->colors.FieldForeColor, p->colors.FieldForeColorDisabled ) )
+        b->PaintText( TpkFormatOf( p, p->tm ), @rcF, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    elseif bEmpty andalso (len( p->sPlaceholder ) > 0) andalso (pi->isFocused = false) then
         dim as TKRECT rcT = pi->rcField
         rcT.left += p->nFieldPad
         b->SetForeColor( iif( pi->isEnabled, p->colors.PlaceholderColor, p->colors.FieldForeColorDisabled ) )
@@ -621,6 +664,8 @@ function TpkProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
         return true
 
     case TKM_MOUSEMOVE
+        p->nMouseX = cint( m->x ) : p->nMouseY = cint( m->y )
+        if p->TooltipCallback then tkTipHost_SetToolIndex( @p->tip, TpkTipIndex( p ) )
         if TpkCallMessage( p, m ) then return true
         if p->isEnabled = false then return true
         dim as long part = TpkHit( p, m->x, m->y )
@@ -634,6 +679,7 @@ function TpkProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
 
     case TKM_LBUTTONDOWN
         if p->isEnabled = false then return true
+        tkTipHost_Pop( @p->tip )
         if TpkCallMessage( p, m ) then return true
         return TpkPress( p, m->x, m->y )
 
@@ -696,6 +742,7 @@ function TpkProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
         if gOpenTimePicker = p then gOpenTimePicker = 0
         tkWidget_KillTimer( w, TK_TIMER_AUTOREPEAT )
         tkWidget_KillTimer( w, TPK_TIMER_ENTRY )
+        tkTipHost_Destroy( @p->tip )
         delete p
         w->pData = 0
         return true
@@ -933,11 +980,12 @@ public sub tkTimePicker_SetPlaceholderText( byval hCtrl as TK_WIDGET ptr, byval 
     tkWidget_Invalidate( hCtrl )
 end sub
 
-' The formatted time; "" when there is none.
+' The time as text: the pattern's, or FormatTime's when it says something; "" when there is none.
+' (Ctrl+C copies the pattern's text, which pastes back.)
 public function tkTimePicker_GetText( byval hCtrl as TK_WIDGET ptr ) as ustring
     dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
     if p = 0 then return ""
-    return tkTimePanel_FormatPattern( p->tm, p->sPattern, p->sAm, p->sPm )
+    return TpkFormatOf( p, p->tm )
 end function
 
 public function tkTimePicker_GetButtonStyle( byval hCtrl as TK_WIDGET ptr ) as long
@@ -1117,7 +1165,9 @@ public sub tkTimePicker_GetIdealSize( byval hCtrl as TK_WIDGET ptr, byref nWidth
     dim as long textW = 0
     for k as long = 0 to 1
         dim as TKTIME t = tkTimePanel_MakeTime( 10 + k * 12, 58, 58, 888 )
-        dim as long tw = tkText_Width( f, tkTimePanel_FormatPattern( t, p->sPattern, p->sAm, p->sPm ) )
+        dim as long tw = tkText_Width( f, TpkFormatOf( p, t ) )
+        if tw > textW then textW = tw
+        tw = tkText_Width( f, tkTimePanel_FormatPattern( t, p->sPattern, p->sAm, p->sPm ) )
         if tw > textW then textW = tw
     next
     if len( p->sPlaceholder ) then
@@ -1304,6 +1354,57 @@ public sub tkTimePicker_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval 
     dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
     if p then p->MessageCallback = userfunc
 end sub
+
+' FormatTime: the text shown at rest (unfocused, a time, nothing being typed), GetText, and the
+' dropdown's list labels. Focus brings the segments back: editing works on the pattern.
+public sub tkTimePicker_SetFormatCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as TPK_FormatCallbackSub )
+    dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
+    if p = 0 then exit sub
+    p->FormatCallback = usersub
+    TpkRefresh( p )
+end sub
+
+' The tip over the picker: TRUE with outText shows it. The tip is made when this is first set.
+public sub tkTimePicker_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as TPK_TooltipCallbackFunc )
+    dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
+    if p = 0 then exit sub
+    p->TooltipCallback = userfunc
+    if userfunc then tkTipHost_Ensure( @p->tip, hCtrl, @TpkTipText )
+end sub
+
+' The tip (0 until a Tooltip callback is set): its delays, or tkTooltip_Show in a test.
+public function tkTimePicker_GetTooltipHandle( byval hCtrl as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKTIMEPICKER_STATE ptr p = TPK( hCtrl )
+    if p = 0 then return 0
+    return tkTipHost_Tip( @p->tip )
+end function
+
+' The segment under (x, y), -1 for a literal, the button cell or outside.
+function TpkSegUnder( byval p as TKTIMEPICKER_STATE ptr, byval x as long, byval y as long ) as long
+    if TpkHit( p, x, y ) <> TKTPK_HIT_FIELD then return -1
+    for i as long = 0 to p->nSegs - 1
+        if TpkIsEditable( p, i ) andalso (x >= p->segX( i )) andalso (x < p->segX( i ) + p->segW( i )) then return i
+    next
+    return -1
+end function
+
+' One tool per part and segment, so moving between segments brings a fresh tip.
+function TpkTipIndex( byval p as TKTIMEPICKER_STATE ptr ) as long
+    return TpkHit( p, p->nMouseX, p->nMouseY ) * 100 + TpkSegUnder( p, p->nMouseX, p->nMouseY ) + 1
+end function
+
+function TpkTipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTIMEPICKER_STATE ptr p = TPK( a )
+    if (p = 0) orelse (p->TooltipCallback = 0) then return ""
+    dim as TKTIMEPICKER_TOOLTIPINFO ti
+    ti.hCtrl = p->hWin
+    ti.tm = p->tm
+    ti.hasTime = tkTimePanel_IsTime( p->tm )
+    ti.nPart = TpkHit( p, p->nMouseX, p->nMouseY )
+    ti.nSegment = TpkSegUnder( p, p->nMouseX, p->nMouseY )
+    if p->TooltipCallback( @ti ) = false then return ""
+    return ti.outText
+end function
 
 ' The theme's shape until a shape setter ran: its CornerRadius and BorderWidth.
 sub TpkApplyThemeShape( byval w as TK_WIDGET ptr )

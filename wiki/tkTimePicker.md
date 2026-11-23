@@ -27,7 +27,7 @@ using tkHost
 
 The module brings in [tkTimePanel](tkTimePanel) (`TKTIME`, the `tkTimePanel_*` time helpers and
 the pattern engine), [tkHost](tkHost) (and through it [tkPaint](tkPaint), SDL3, SDL_ttf and
-SDL_image) and [tkTheme](tkTheme). `using tkTimePanel` names `TKTIME` and the `TKTP_*`
+SDL_image), [tkTheme](tkTheme) and [tkTooltip](tkTooltip). `using tkTimePanel` names `TKTIME` and the `TKTP_*`
 constants. Add `using tkPaint` for a paint callback.
 
 ## Example
@@ -88,6 +88,12 @@ tkWidget_SetPos( tp, tkHost_Scale( host, 20 ), tkHost_Scale( host, 20 ), w, h )
 Any other character shows as itself. `SetAmPmText( am, pm )` (or `SetAmText` / `SetPmText`) sets
 the designators; the default is `AM` / `PM`. `GetText` answers the formatted time, "" for none.
 `SetPlaceholderText` shows a hint while the field is empty and unfocused.
+
+`SetFormatCallback` (the designer's **FormatTime**) changes the text: the callback gets the time
+and `sOut` already holding the pattern's text, and may replace it ("" keeps it). Its text is shown
+**at rest** -- unfocused, with a time, nothing being typed -- and answers `GetText`, sizes
+`GetIdealSize`, and labels the dropdown's list. Focus brings the segments back, because typing
+and stepping work on the pattern. Ctrl+C copies the pattern's text, which pastes back.
 
 ## Typing and keys
 
@@ -151,7 +157,9 @@ The clock is drawn; `SetIconFont` plus `SetIconGlyph` replace it with a glyph.
 | --- | --- |
 | `SetTimeChangedCallback` | each completed user change: a finished segment, a step, a paste, a clear, an accepted dropdown pick |
 | `SetDropDownCallback` | the dropdown opens (before it is built) and closes |
+| `SetFormatCallback` | the text at rest and in the dropdown's list (above) |
 | `SetItemDisabledCallback` | asked for each dropdown item: TRUE greys it out (hours are passed as 0–23) |
+| `SetTooltipCallback` | the tip: `TKTIMEPICKER_TOOLTIPINFO` carries the time, the part (`TKTPK_HIT_*`) and the segment under the pointer; set `outText` and return TRUE to show it. The tip is made when this is first set; moving to another segment brings a fresh one |
 | `SetPaintCallback` | replaces the drawing; `tkTimePicker_PaintDefault( p )` draws the stock picker |
 | `SetMessageCallback` | the input stream; TRUE claims a message |
 
@@ -180,7 +188,8 @@ corner radius and border follow the theme's shape until a setter pins them.
 The toolbox's **TimePicker** has Format, AllowEmpty, Step, ButtonStyle, PanelMode, VisibleRows,
 ShowNow, ShowOK, TabMovesSegments, PlaceholderText, AmText, PmText, the fonts and icon, CornerRadius,
 BorderThickness, MinTime, MaxTime and Time. Its events are TimeChanged, DropDown, ItemDisabled,
-Paint and Message.
+Paint, Message, FormatTime (the handler sets `sOut`) and Tooltip (it sets `t->outText`; `Show`
+starts TRUE).
 
 **Bind** moves the time into and out of a field of the form's DataType: a `TKTIME`,
 `chrono.LocalTime`, `ustring` or `string` (ISO `HH:mm:ss`), or the time half of a `chrono.DateTime`.
@@ -199,9 +208,10 @@ sizes) · from [tkTimePanel](tkTimePanel): `TKTP_PANEL_COLUMNS`, `TKTP_PANEL_LIS
 ### Types
 
 `TKTIMEPICKER_COLORS`, `TKTIMEPICKER_PAINTINFO` (the frame, field, divider, icon and spin rects,
-the state, the hot and pressed part, the focused segment), `TKTIMEPICKER_MESSAGEINFO`, and the
-callback types `TPK_TimeChangedCallbackSub`, `TPK_DropDownCallbackSub`, `TPK_ItemDisabledCallbackFunc`,
-`TPK_PaintCallbackSub`, `TPK_MessageCallbackFunc`. `TKTIME` is [tkTimePanel](tkTimePanel)'s.
+the state, the hot and pressed part, the focused segment), `TKTIMEPICKER_MESSAGEINFO`,
+`TKTIMEPICKER_TOOLTIPINFO`, and the callback types `TPK_TimeChangedCallbackSub`,
+`TPK_DropDownCallbackSub`, `TPK_ItemDisabledCallbackFunc`, `TPK_PaintCallbackSub`,
+`TPK_MessageCallbackFunc`, `TPK_FormatCallbackSub`, `TPK_TooltipCallbackFunc`. `TKTIME` is [tkTimePanel](tkTimePanel)'s.
 
 ### Procedures
 
@@ -281,6 +291,9 @@ sub tkTimePicker_SetDropDownCallback( byval hCtrl as TK_WIDGET ptr, byval usersu
 sub tkTimePicker_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as TPK_PaintCallbackSub )
 sub tkTimePicker_SetItemDisabledCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as TPK_ItemDisabledCallbackFunc )
 sub tkTimePicker_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as TPK_MessageCallbackFunc )
+sub tkTimePicker_SetFormatCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as TPK_FormatCallbackSub )
+sub tkTimePicker_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as TPK_TooltipCallbackFunc )
+function tkTimePicker_GetTooltipHandle( byval hCtrl as TK_WIDGET ptr ) as TK_TIP ptr
 sub tkTimePicker_DropDown( byval hCtrl as TK_WIDGET ptr )
 sub tkTimePicker_CloseUp( byval hCtrl as TK_WIDGET ptr )
 function tkTimePicker_IsDroppedDown( byval hCtrl as TK_WIDGET ptr ) as boolean
