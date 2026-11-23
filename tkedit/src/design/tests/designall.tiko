@@ -2946,6 +2946,28 @@ sub DataGridSuite( byval bAccept as boolean )
     Check( instr( t, "tkBind_Put( a_[i_].Total( )" ) = 0, "datagrid: a method column is not written back" )
     HasLine( t, "if tkDataGrid_EndEdit( grdLines.Handle, true ) = false then return false", "datagrid: SaveTo commits an open edit first" )
     HasLine( t, "declare function grdLines_Item( ) as long", "datagrid: _Item( )" )
+    HasLine( t, "tkDataGrid_SetColumnReadOnly( grdLines.Handle, 5, true )", "datagrid: a method column is read-only" )
+
+    ' G5b: ItemsLive -- the grid shows the array in place, through generated source procedures
+    Refused( hdr & Ctl( "l", "ListTree", "items_live = true" & LF ), "only a DataGrid shows its array in place" )
+    Refused( hdr & Ctl( "g", "DataGrid", "items_source = ""shop.All( )""" & LF & "item_type = ""shop.Line""" & LF & "items_live = true" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF, "a live grid's ItemsSource must be an array it can change" )
+    const as string dirL = "../../../examples/tkControls/tkGridForm/frmLive/"
+    dim as ustring srcL = fs.ReadAllText( dirL & "frmLive.tkform" ).ValueOr( none )
+    dim as FormDoc dl
+    Check( (len( srcL ) > 0) andalso ReadForm( srcL, dl ) andalso dl.Controls[0].ItemsLive, "datagrid: the live fixture parses, items_live read" )
+    dim as Array( of ustring ) pl
+    validate.Check( dl, "frmLive", pl )
+    dim as ustring firstL
+    if pl.Count( ) then firstL = pl[0]
+    Check( pl.Count( ) = 0, "datagrid: the live fixture validates", firstL )
+    dim as ustring tl = codegen.Generate( dl, "frmLive", "frmLive.tkform", srcL )
+    if bAccept then fs.WriteAllText( dirL & "frmLive.design.tiko", tl )
+    Check( fs.ReadAllText( dirL & "frmLive.design.tiko" ).ValueOr( none ) = tl, "datagrid: tkGridForm's live form is current" )
+    Check( instr( formfile.Render( dl ), "items_live = true" ) > 0, "datagrid: items_live written back" )
+    HasLine( tl, "    tkDataGrid_SetSource( grdLines.Handle, @src_ )", "datagrid: a live grid binds a source" )
+    HasLine( tl, "case 1 : tkBind_Put( a_[row_].Qty, v_.f )", "datagrid: a live edit lands in the field" )
+    HasLine( tl, "    if tkDataGrid_GetSourceContext( grdLines.Handle ) <> cptr( any ptr, @a_ ) then", "datagrid: SaveTo copies only another array" )
 end sub
 
 dim as boolean bAccept = (command( 1 ) = "--accept")

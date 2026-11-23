@@ -734,6 +734,8 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
             dim as FormItem it = c.Items[i]
             o &= "    tkDataGrid_AddColumnEx( " & h & ", " & TextExpr_( doc, c.Name & "." & ItemId( c, i ), it.Text ) & ", " _
                 & catalog.GridKindConst( it.Kind ) & ", " & iif( it.Width > 0, it.Width, 100 ) & " )" & NL
+            ' a method's value (Total( )) is shown, never written: no editor opens on it
+            if GridMethodField_( it.Field ) then o &= "    tkDataGrid_SetColumnReadOnly( " & h & ", " & i & ", true )" & NL
         next
     case catalog.ItemsKind.ItemsList
         for i as long = 0 to c.Items.Count( ) - 1
@@ -984,7 +986,17 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
     if right( trim( src ), 1 ) = ")" then kw = ""
     o &= "    scope" & NL
     o &= "        dim " & kw & "as Array( of " & c.ItemType & " ) a_ = " & src & NL
-    if catalog.ItemsBindOf( c ) = "grid" then
+    if (catalog.ItemsBindOf( c ) = "grid") andalso c.ItemsLive then
+        ' G5b: the grid reads and writes the array itself, through the Live_ procedures (LiveCode_)
+        o &= "        dim as TKDATAGRID_SOURCE src_" & NL
+        o &= "        src_.pCtx = @a_" & NL
+        o &= "        src_.RowCount = @" & LiveName_( c, "Count" ) & NL
+        o &= "        src_.GetCell = @" & LiveName_( c, "Get" ) & NL
+        o &= "        src_.SetCell = @" & LiveName_( c, "Set" ) & NL
+        o &= "        src_.InsertRows = @" & LiveName_( c, "Insert" ) & NL
+        o &= "        src_.DeleteRows = @" & LiveName_( c, "Delete" ) & NL
+        o &= "        tkDataGrid_SetSource( " & h & ", @src_ )" & NL
+    elseif catalog.ItemsBindOf( c ) = "grid" then
         ' G5: a row per element, each column's field through tkBind as the column's kind
         o &= "        tkDataGrid_BeginUpdate( " & h & " )" & NL
         o &= "        tkDataGrid_SetRowCount( " & h & ", 0 )" & NL
@@ -1038,25 +1050,103 @@ private function GridWritesBack_( byref c as FormControl ) as boolean
     return (catalog.ItemsBindOf( c ) = "grid") andalso (len( c.ItemsField ) > 0) andalso catalog.ListReady( c )
 end function
 
+' A column field that is a method's value (Total( )): shown, not written.
+private function GridMethodField_( byref f as const ustring ) as boolean
+    return right( trim( f ), 1 ) = ")"
+end function
+
+private function LiveName_( byref c as FormControl, byref what as const ustring ) as ustring
+    return "Live_" & c.Name & "_" & what
+end function
+
+' G5b: a live DataGrid's source procedures, one set per grid. pCtx is the Array object itself (not its
+' storage), so the array may grow under the binding; the host keeps it alive while the grid shows it.
+private sub LiveCode_( byref doc as FormDoc, byref o as ustring )
+    for each c as FormControl in doc.Controls
+        if (catalog.ItemsBindOf( c ) <> "grid") orelse (c.ItemsLive = false) orelse (catalog.ListReady( c ) = false) then continue for
+        dim as ustring A = "Array( of " & c.ItemType & " )"
+        dim as ustring a_ = "    dim byref as " & A & " a_ = *cptr( " & A & " ptr, p_ )" & NL
+        o &= "' " & c.Name & " shows its array in place (ItemsLive)" & NL
+        o &= "private function " & LiveName_( c, "Count" ) & "( byval p_ as any ptr ) as integer" & NL
+        o &= "    return cptr( " & A & " ptr, p_ )->Count( )" & NL
+        o &= "end function" & NL & NL
+        o &= "private sub " & LiveName_( c, "Get" ) & "( byval p_ as any ptr, byval row_ as integer, byval col_ as integer, byref v_ as TKDG_VALUE )" & NL
+        o &= a_
+        o &= "    select case col_" & NL
+        for k as long = 0 to c.Items.Count( ) - 1
+            if len( c.Items[k].Field ) = 0 then continue for
+            dim as ustring vk = catalog.GridValueKind( c.Items[k].Kind )
+            o &= "    case " & k & " : v_.Set" & vk & "( tkBind_" & vk & "( a_[row_]." & c.Items[k].Field & " ) )" & NL
+        next
+        o &= "    end select" & NL
+        o &= "end sub" & NL & NL
+        o &= "private function " & LiveName_( c, "Set" ) & "( byval p_ as any ptr, byval row_ as integer, byval col_ as integer, byref v_ as TKDG_VALUE ) as boolean" & NL
+        o &= a_
+        o &= "    select case col_" & NL
+        for k as long = 0 to c.Items.Count( ) - 1
+            dim as ustring f = c.Items[k].Field
+            if (len( f ) = 0) orelse GridMethodField_( f ) then continue for
+            dim as ustring m
+            select case catalog.GridValueKind( c.Items[k].Kind )
+            case "Float" : m = "f"
+            case "Bool"  : m = "b"
+            case "Date"  : m = "d"
+            case else    : m = "s"
+            end select
+            o &= "    case " & k & " : tkBind_Put( a_[row_]." & f & ", v_." & m & " )" & NL
+        next
+        o &= "    case else : return false" & NL
+        o &= "    end select" & NL
+        o &= "    return true" & NL
+        o &= "end function" & NL & NL
+        o &= "private function " & LiveName_( c, "Insert" ) & "( byval p_ as any ptr, byval row_ as integer, byval n_ as integer ) as boolean" & NL
+        o &= a_
+        o &= "    for j_ as integer = 1 to n_" & NL
+        o &= "        dim as " & c.ItemType & " new_" & NL
+        o &= "        a_.Insert( row_, new_ )" & NL
+        o &= "    next" & NL
+        o &= "    return true" & NL
+        o &= "end function" & NL & NL
+        o &= "private function " & LiveName_( c, "Delete" ) & "( byval p_ as any ptr, byval row_ as integer, byval n_ as integer ) as boolean" & NL
+        o &= a_
+        o &= "    for j_ as integer = 1 to n_" & NL
+        o &= "        a_.Remove( row_ )" & NL
+        o &= "    next" & NL
+        o &= "    return true" & NL
+        o &= "end function" & NL & NL
+    next
+end sub
+
 ' The array as long as the grid, each column with a plain field (not a method) written from its cell.
+' A live grid already wrote into the array it shows: only another record's array is copied.
 private sub GridSaveBody_( byref c as FormControl, byref o as ustring )
     dim as ustring h = c.Name & ".Handle"
-    o &= "    scope" & NL
-    o &= "        dim byref as Array( of " & c.ItemType & " ) a_ = r." & c.ItemsField & NL
-    o &= "        dim as long n_ = tkDataGrid_GetRowCount( " & h & " )" & NL
+    ' the copy, indented one more step inside a live grid's "not this array" test
+    dim as ustring b, t = "        "
+    if c.ItemsLive then t = "            "
+    b &= t & "dim as long n_ = tkDataGrid_GetRowCount( " & h & " )" & NL
     ' shorter: cut; longer: new elements pushed (SetCount cannot grow past what is constructed)
-    o &= "        if a_.Count( ) > n_ then a_.SetCount( n_ )" & NL
-    o &= "        while a_.Count( ) < n_" & NL
-    o &= "            dim as " & c.ItemType & " new_" & NL
-    o &= "            a_.Push( new_ )" & NL
-    o &= "        wend" & NL
-    o &= "        for i_ as long = 0 to n_ - 1" & NL
+    b &= t & "if a_.Count( ) > n_ then a_.SetCount( n_ )" & NL
+    b &= t & "while a_.Count( ) < n_" & NL
+    b &= t & "    dim as " & c.ItemType & " new_" & NL
+    b &= t & "    a_.Push( new_ )" & NL
+    b &= t & "wend" & NL
+    b &= t & "for i_ as long = 0 to n_ - 1" & NL
     for k as long = 0 to c.Items.Count( ) - 1
         dim as ustring f = c.Items[k].Field
-        if (len( f ) = 0) orelse (right( trim( f ), 1 ) = ")") then continue for
-        o &= "            tkBind_Put( a_[i_]." & f & ", tkDataGrid_GetCell" & catalog.GridValueKind( c.Items[k].Kind ) & "( " & h & ", i_, " & k & " ) )" & NL
+        if (len( f ) = 0) orelse GridMethodField_( f ) then continue for
+        b &= t & "    tkBind_Put( a_[i_]." & f & ", tkDataGrid_GetCell" & catalog.GridValueKind( c.Items[k].Kind ) & "( " & h & ", i_, " & k & " ) )" & NL
     next
-    o &= "        next" & NL
+    b &= t & "next" & NL
+    o &= "    scope" & NL
+    o &= "        dim byref as Array( of " & c.ItemType & " ) a_ = r." & c.ItemsField & NL
+    if c.ItemsLive then
+        o &= "        if tkDataGrid_GetSourceContext( " & h & " ) <> cptr( any ptr, @a_ ) then" & NL
+        o &= b
+        o &= "        end if" & NL
+    else
+        o &= b
+    end if
     o &= "    end scope" & NL
 end sub
 
@@ -1551,6 +1641,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     o &= "end type" & NL & NL
 
     Thunks_( doc, o )
+    LiveCode_( doc, o )
 
     o &= "sub Form.Build( byval owner as TK_FORM ptr = nullptr )" & NL
     o &= "    OpenWindow( " & TextExpr_( doc, "Caption", doc.Caption ) & ", " & doc.ClientW & ", " & doc.ClientH & ", owner )" & NL

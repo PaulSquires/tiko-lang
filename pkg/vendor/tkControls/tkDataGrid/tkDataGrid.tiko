@@ -808,6 +808,23 @@ public function tkDataGrid_SetColumnCaption( byval hGrid as TK_WIDGET ptr, byval
     return true
 end function
 
+' G5: a read-only column shows its values and opens no editor (paste and Delete skip it). An edit
+' open in it is cancelled.
+public function tkDataGrid_SetColumnReadOnly( byval hGrid as TK_WIDGET ptr, byval col as integer, byval b as boolean ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
+    if b andalso (p->editCol = col) then DgDropEdit( p )
+    p->cols(col).c.readOnly = b
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkDataGrid_GetColumnReadOnly( byval hGrid as TK_WIDGET ptr, byval col as integer ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
+    return p->cols(col).c.readOnly
+end function
+
 ' Design units. The laid-out width (fill applied, scaled) is tkDataGrid_GetColumnRect's.
 public function tkDataGrid_GetColumnWidth( byval hGrid as TK_WIDGET ptr, byval col as integer ) as integer
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )

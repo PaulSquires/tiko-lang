@@ -867,6 +867,14 @@ public function tkDataGrid_HasSource( byval hGrid as TK_WIDGET ptr ) as boolean
     return iif( p <> 0, p->feed = DG_FEED_SOURCE, false )
 end function
 
+' G5: the bound source's pCtx (what tkDataGrid_SetSource was given), 0 with no source. A generated
+' live binding compares it with a record's array to tell "this grid shows it" from "copy it".
+public function tkDataGrid_GetSourceContext( byval hGrid as TK_WIDGET ptr ) as any ptr
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (p->feed <> DG_FEED_SOURCE) then return 0
+    return p->src.pCtx
+end function
+
 ' Values the host changed in rows row1 .. row2, columns col1 .. col2 (-1 for every one): repaint.
 ' The grid caches nothing, so this only owes a paint.
 public sub tkDataGrid_InvalidateCells( byval hGrid as TK_WIDGET ptr, byval row1 as integer = -1, byval col1 as integer = -1, _

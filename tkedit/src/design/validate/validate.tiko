@@ -201,6 +201,7 @@ private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as
     next
     dim as boolean anySet = catalog.HasListSource( c ) orelse (len( c.ItemType ) > 0) orelse (len( c.DisplayField ) > 0) _
         orelse (len( c.ValueField ) > 0) orelse (len( c.CheckField ) > 0) orelse anyField
+    if c.ItemsLive andalso (m->ItemsBind <> "grid") then out_.Push( c.Name & ": only a DataGrid shows its array in place (ItemsLive)" )
     if anySet = false then exit sub
     dim as ustring shape = m->ItemsBind
     if len( shape ) = 0 then
@@ -233,6 +234,10 @@ private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as
         if len( c.ValueField ) andalso (IsElementField_( c.ValueField ) = false) then out_.Push( c.Name & ": value field '" & c.ValueField & "' is not a field (Id, Code)" )
     else
         if (shape = "grid") andalso len( c.CheckField ) then out_.Push( c.Name & ": a DataGrid has no CheckField: give a column the Kind check and a Field" )
+        ' G5b: shown in place, so the array must be one that lives on, not a call's copy
+        if c.ItemsLive andalso len( c.ItemsSource ) andalso (IsDottedName_( c.ItemsSource ) = false) then
+            out_.Push( c.Name & ": a live grid's ItemsSource must be an array it can change, a name (Lines), not '" & c.ItemsSource & "'" )
+        end if
         if len( c.DisplayField ) orelse len( c.ValueField ) then out_.Push( c.Name & ": a " & m->Name & " shows columns: give each column a Field" )
         if (src = false) andalso (len( c.CheckField ) orelse anyField) then out_.Push( c.Name & ": columns' fields need ItemsField or ItemsSource" )
         if len( c.CheckField ) andalso (IsElementField_( c.CheckField ) = false) then

@@ -37,6 +37,7 @@ sub Form.Build( byval owner as TK_FORM ptr = nullptr )
     tkDataGrid_AddColumnEx( grdLines.Handle, "Paid", TKDG_COL_CHECK, 50 )
     tkDataGrid_AddColumnEx( grdLines.Handle, "Due", TKDG_COL_DATE, 100 )
     tkDataGrid_AddColumnEx( grdLines.Handle, "Total", TKDG_COL_NUMBER, 80 )
+    tkDataGrid_SetColumnReadOnly( grdLines.Handle, 5, true )
     grdLines.AllowAddRows = true
     tkLayout_Apply( Layout )
 end sub

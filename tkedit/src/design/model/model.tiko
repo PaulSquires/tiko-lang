@@ -94,6 +94,10 @@ public type FormControl
     ValueField as ustring
     CheckField as ustring
     Follows as ustring              ' a Navigator (B4): the list control (ListTree, ComboBox) on its records
+    ' G5b: a DataGrid shows its array in place (a source over it: edits land at once, nothing is
+    ' copied) instead of copying it in LoadFrom / _Fill and back in SaveTo. The array must outlive
+    ' the binding: a record's field, or a name for ItemsSource, never a call's result.
+    ItemsLive as boolean
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

@@ -1299,6 +1299,9 @@ sub DesignPanels.BuildRows( )
             elseif m0->ItemsBind = "rows" then
                 this.AddRow( "@Check", "CheckField", RowKind.RowText )
                 if C->OnFields then this.AddFieldButton( )
+            elseif m0->ItemsBind = "grid" then
+                ' G5b: the array shown in place instead of copied
+                this.AddRow( "@Live", "ItemsLive", RowKind.RowCheck )
             end if
         end if
         ' the field of the form's DataType it binds to (B1)
@@ -1379,6 +1382,7 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@ItemsField"  : return c_.ItemsField
     case "@ItemsSource" : return c_.ItemsSource
     case "@ItemType"    : return c_.ItemType
+    case "@Live"        : if c_.ItemsLive then return "true" else return "false"
     case "@Display"     : return c_.DisplayField
     case "@Value"       : return c_.ValueField
     case "@Check"       : return c_.CheckField
@@ -1675,6 +1679,7 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     case "@Value"       : trial.Controls[i].ValueField = trim( text ) : rebuild = false
     case "@Check"       : trial.Controls[i].CheckField = trim( text ) : rebuild = false
     case "@Follows"     : trial.Controls[i].Follows = trim( text ) : rebuild = false
+    case "@Live"        : trial.Controls[i].ItemsLive = (text = "true") : rebuild = false
     case "@Bind2"
         trial.Controls[i].Bind2 = trim( text )
         rebuild = false
