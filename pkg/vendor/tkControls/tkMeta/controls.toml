@@ -366,17 +366,17 @@ color_fields = [
   { field="GlyphColorDisabled", part="Glyph", state="Disabled", ink=true },
 ]
 props = [
+  { name="Range", kind="list", enum="Min:float,Max:float", set="tkNumericUpDown_SetRange", get="" },
+  { name="DecimalPlaces", kind="int", set="tkNumericUpDown_SetDecimalPlaces", get="tkNumericUpDown_GetDecimalPlaces" },
   { name="Value", kind="float", set="tkNumericUpDown_SetValue", get="tkNumericUpDown_GetValue" },
   { name="Increment", kind="float", set="tkNumericUpDown_SetIncrement", get="tkNumericUpDown_GetIncrement" },
   { name="LargeIncrement", kind="float", set="tkNumericUpDown_SetLargeIncrement", get="tkNumericUpDown_GetLargeIncrement" },
-  { name="DecimalPlaces", kind="int", set="tkNumericUpDown_SetDecimalPlaces", get="tkNumericUpDown_GetDecimalPlaces" },
   { name="ReadOnly", kind="bool", set="tkNumericUpDown_SetReadOnly", get="tkNumericUpDown_GetReadOnly", default="false" },
   { name="Font", kind="font", set="tkNumericUpDown_SetFont", get="tkNumericUpDown_GetFont" },
   { name="ButtonWidth", kind="int", set="tkNumericUpDown_SetButtonWidth", get="tkNumericUpDown_GetButtonWidth" },
   { name="CornerRadius", kind="int", set="tkNumericUpDown_SetCornerRadius", get="tkNumericUpDown_GetCornerRadius", theme="CornerRadius", scale=1 },
   { name="BorderThickness", kind="int", set="tkNumericUpDown_SetBorderThickness", get="tkNumericUpDown_GetBorderThickness", theme="BorderWidth", scale=1 },
   { name="DividerThickness", kind="int", set="tkNumericUpDown_SetDividerThickness", get="tkNumericUpDown_GetDividerThickness" },
-  { name="Range", kind="list", enum="Min:float,Max:float", set="tkNumericUpDown_SetRange", get="" },
   { name="AutoRepeat", kind="list", enum="DelayMs:int,IntervalMs:int", set="tkNumericUpDown_SetAutoRepeat", get="" },
   { name="ValuePadding", kind="list", enum="Left:int,Right:int,Vert:int", set="tkNumericUpDown_SetValuePadding", get="" },
   { name="GlyphSize", kind="list", enum="Length:int,Thickness:int", set="tkNumericUpDown_SetGlyphSize", get="" },
@@ -614,6 +614,7 @@ color_fields = [
   { field="TextColorDisabled", part="Text", state="Disabled", ink=true },
 ]
 props = [
+  { name="Range", kind="list", enum="Min:int,Max:int", set="tkProgressBar_SetRange", get="" },
   { name="Position", kind="int", set="tkProgressBar_SetPos", get="tkProgressBar_GetPos" },
   { name="Mode", kind="enum", enum="Determinate=PRG_MODE_DETERMINATE,Indeterminate=PRG_MODE_INDETERMINATE", set="tkProgressBar_SetMode", get="tkProgressBar_GetMode", default="Determinate", design=false },
   { name="FillStyle", kind="enum", enum="Solid=PRG_FILL_SOLID,Gradient=PRG_FILL_GRADIENT", set="tkProgressBar_SetFillStyle", get="tkProgressBar_GetFillStyle", default="Solid" },
@@ -634,7 +635,6 @@ props = [
   { name="HoverTime", kind="int", set="tkProgressBar_SetHoverTime", get="" },
   { name="AutoPopTime", kind="int", set="tkProgressBar_SetAutoPopTime", get="" },
   { name="ReshowTime", kind="int", set="tkProgressBar_SetReshowTime", get="" },
-  { name="Range", kind="list", enum="Min:int,Max:int", set="tkProgressBar_SetRange", get="" },
   { name="MarqueeSpeed", kind="list", enum="IntervalMs:int,StepPx:int", set="tkProgressBar_SetMarqueeSpeed", get="" },
   { name="BlockMetrics", kind="list", enum="BlockLen:int,BlockGap:int", set="tkProgressBar_SetBlockMetrics", get="" },
 ]
@@ -844,8 +844,8 @@ color_fields = [
   { field="HotColor", part="Back", state="Hot" },
 ]
 props = [
-  { name="Position", kind="int", set="tkSplitter_SetPos", get="tkSplitter_GetPos" },
   { name="Range", kind="list", enum="Min:int,Max:int", set="tkSplitter_SetRange", get="" },
+  { name="Position", kind="int", set="tkSplitter_SetPos", get="tkSplitter_GetPos" },
   { name="Colors", kind="list", enum="Back:color,Hot:color", set="tkSplitter_SetColors", get="" },
 ]
 events = [
@@ -1176,9 +1176,9 @@ width = 16
 height = 160
 default_event = "Scroll"
 props = [
+  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkVScrollBar_SetRange", get="" },
   { name="Position", kind="int", set="tkVScrollBar_SetPos", get="tkVScrollBar_GetPos" },
   { name="WheelStep", kind="int", set="tkVScrollBar_SetWheelStep", get="tkVScrollBar_GetWheelStep" },
-  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkVScrollBar_SetRange", get="" },
   { name="Colors", kind="list", enum="Back:color,Fore:color,ForeHot:color", set="tkVScrollBar_SetColors", get="" },
   { name="DividerColor", kind="list", enum="Color:color,Show:bool", set="tkVScrollBar_SetDividerColor", get="" },
 ]
@@ -1195,9 +1195,9 @@ width = 160
 height = 16
 default_event = "Scroll"
 props = [
+  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkHScrollBar_SetRange", get="" },
   { name="Position", kind="int", set="tkHScrollBar_SetPos", get="tkHScrollBar_GetPos" },
   { name="WheelStep", kind="int", set="tkHScrollBar_SetWheelStep", get="tkHScrollBar_GetWheelStep" },
-  { name="Range", kind="list", enum="Total:int,Page:int,Position:int", set="tkHScrollBar_SetRange", get="" },
   { name="Colors", kind="list", enum="Back:color,Fore:color,ForeHot:color", set="tkHScrollBar_SetColors", get="" },
 ]
 events = [

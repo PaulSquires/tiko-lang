@@ -908,6 +908,18 @@ private sub T_NumericUpDown( byref t as TKTHEME_COLORS, byval pSlots as uint32 p
     *cast( TKNUMERICUPDOWN_COLORS ptr, pSlots ) = tkNumericUpDown_ThemeColors( t )
 end sub
 
+private sub A_NumericUpDown_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_NumericUpDown_DecimalPlaces( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkNumericUpDown_SetDecimalPlaces( w, clng( val( v ) ) )
+end sub
+
+private function R_NumericUpDown_DecimalPlaces( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkNumericUpDown_GetDecimalPlaces( w ) )
+end function
+
 private sub A_NumericUpDown_Value( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkNumericUpDown_SetValue( w, val( v ) )
 end sub
@@ -930,14 +942,6 @@ end sub
 
 private function R_NumericUpDown_LargeIncrement( byval w as TK_WIDGET ptr ) as ustring
     return str( tkNumericUpDown_GetLargeIncrement( w ) )
-end function
-
-private sub A_NumericUpDown_DecimalPlaces( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkNumericUpDown_SetDecimalPlaces( w, clng( val( v ) ) )
-end sub
-
-private function R_NumericUpDown_DecimalPlaces( byval w as TK_WIDGET ptr ) as ustring
-    return str( tkNumericUpDown_GetDecimalPlaces( w ) )
 end function
 
 private sub A_NumericUpDown_ReadOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -983,10 +987,6 @@ end sub
 private function R_NumericUpDown_DividerThickness( byval w as TK_WIDGET ptr ) as ustring
     return str( tkNumericUpDown_GetDividerThickness( w ) )
 end function
-
-private sub A_NumericUpDown_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkNumericUpDown_SetRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
-end sub
 
 private sub A_NumericUpDown_AutoRepeat( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkNumericUpDown_SetAutoRepeat( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
@@ -1448,6 +1448,10 @@ private sub T_ProgressBar( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr
     *cast( TKPROGRESSBAR_COLORS ptr, pSlots ) = tkProgressBar_ThemeColors( t )
 end sub
 
+private sub A_ProgressBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkProgressBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
 private sub A_ProgressBar_Position( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkProgressBar_SetPos( w, clng( val( v ) ) )
 end sub
@@ -1642,10 +1646,6 @@ end sub
 
 private sub A_ProgressBar_ReshowTime( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkProgressBar_SetReshowTime( w, clng( val( v ) ) )
-end sub
-
-private sub A_ProgressBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkProgressBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
 end sub
 
 private sub A_ProgressBar_MarqueeSpeed( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -2009,6 +2009,10 @@ private sub T_Splitter( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
     *cast( TKSPLITTER_COLORS ptr, pSlots ) = tkSplitter_ThemeColors( t )
 end sub
 
+private sub A_Splitter_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSplitter_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
+end sub
+
 private sub A_Splitter_Position( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkSplitter_SetPos( w, clng( val( v ) ) )
 end sub
@@ -2016,10 +2020,6 @@ end sub
 private function R_Splitter_Position( byval w as TK_WIDGET ptr ) as ustring
     return str( tkSplitter_GetPos( w ) )
 end function
-
-private sub A_Splitter_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkSplitter_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ) )
-end sub
 
 private sub A_Splitter_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkSplitter_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ) )
@@ -2646,6 +2646,10 @@ private function C_VScrollBar( byval hParent as TK_WIDGET ptr, byval id as int32
     return tkVScrollBar_Create( hParent, id )
 end function
 
+private sub A_VScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkVScrollBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
+
 private sub A_VScrollBar_Position( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkVScrollBar_SetPos( w, clng( val( v ) ) )
 end sub
@@ -2662,10 +2666,6 @@ private function R_VScrollBar_WheelStep( byval w as TK_WIDGET ptr ) as ustring
     return str( tkVScrollBar_GetWheelStep( w ) )
 end function
 
-private sub A_VScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkVScrollBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
-end sub
-
 private sub A_VScrollBar_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkVScrollBar_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ) )
 end sub
@@ -2677,6 +2677,10 @@ end sub
 private function C_HScrollBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkHScrollBar_Create( hParent, id )
 end function
+
+private sub A_HScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkHScrollBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
+end sub
 
 private sub A_HScrollBar_Position( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkHScrollBar_SetPos( w, clng( val( v ) ) )
@@ -2693,10 +2697,6 @@ end sub
 private function R_HScrollBar_WheelStep( byval w as TK_WIDGET ptr ) as ustring
     return str( tkHScrollBar_GetWheelStep( w ) )
 end function
-
-private sub A_HScrollBar_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
-    tkHScrollBar_SetRange( w, clng( val( tkMeta_ListItem( v, 0 ) ) ), clng( val( tkMeta_ListItem( v, 1 ) ) ), clng( val( tkMeta_ListItem( v, 2 ) ) ) )
-end sub
 
 private sub A_HScrollBar_Colors( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkHScrollBar_SetColors( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 1 ) ) ), cast( uint32, valulng( tkMeta_ListItem( v, 2 ) ) ) )
@@ -3277,17 +3277,17 @@ sub Fill_( )
     Color_( "GlyphColorHot", "Glyph", "Hot", "", true )
     Color_( "GlyphColorPressed", "Glyph", "Pressed", "", true )
     Color_( "GlyphColorDisabled", "Glyph", "Disabled", "", true )
+    Prop_( "Range", "list", "", "Min:float,Max:float", "tkNumericUpDown_SetRange", "", @A_NumericUpDown_Range, 0, 0, true, true, "", 0 )
+    Prop_( "DecimalPlaces", "int", "", "", "tkNumericUpDown_SetDecimalPlaces", "tkNumericUpDown_GetDecimalPlaces", @A_NumericUpDown_DecimalPlaces, @R_NumericUpDown_DecimalPlaces, 0, true, true, "", 0 )
     Prop_( "Value", "float", "", "", "tkNumericUpDown_SetValue", "tkNumericUpDown_GetValue", @A_NumericUpDown_Value, @R_NumericUpDown_Value, 0, true, true, "", 0 )
     Prop_( "Increment", "float", "", "", "tkNumericUpDown_SetIncrement", "tkNumericUpDown_GetIncrement", @A_NumericUpDown_Increment, @R_NumericUpDown_Increment, 0, true, true, "", 0 )
     Prop_( "LargeIncrement", "float", "", "", "tkNumericUpDown_SetLargeIncrement", "tkNumericUpDown_GetLargeIncrement", @A_NumericUpDown_LargeIncrement, @R_NumericUpDown_LargeIncrement, 0, true, true, "", 0 )
-    Prop_( "DecimalPlaces", "int", "", "", "tkNumericUpDown_SetDecimalPlaces", "tkNumericUpDown_GetDecimalPlaces", @A_NumericUpDown_DecimalPlaces, @R_NumericUpDown_DecimalPlaces, 0, true, true, "", 0 )
     Prop_( "ReadOnly", "bool", "false", "", "tkNumericUpDown_SetReadOnly", "tkNumericUpDown_GetReadOnly", @A_NumericUpDown_ReadOnly, @R_NumericUpDown_ReadOnly, 0, true, true, "", 0 )
     Prop_( "Font", "font", "", "", "tkNumericUpDown_SetFont", "tkNumericUpDown_GetFont", 0, 0, @F_NumericUpDown_Font, true, true, "", 0 )
     Prop_( "ButtonWidth", "int", "", "", "tkNumericUpDown_SetButtonWidth", "tkNumericUpDown_GetButtonWidth", @A_NumericUpDown_ButtonWidth, @R_NumericUpDown_ButtonWidth, 0, true, true, "", 0 )
     Prop_( "CornerRadius", "int", "", "", "tkNumericUpDown_SetCornerRadius", "tkNumericUpDown_GetCornerRadius", @A_NumericUpDown_CornerRadius, @R_NumericUpDown_CornerRadius, 0, true, true, "CornerRadius", 1 )
     Prop_( "BorderThickness", "int", "", "", "tkNumericUpDown_SetBorderThickness", "tkNumericUpDown_GetBorderThickness", @A_NumericUpDown_BorderThickness, @R_NumericUpDown_BorderThickness, 0, true, true, "BorderWidth", 1 )
     Prop_( "DividerThickness", "int", "", "", "tkNumericUpDown_SetDividerThickness", "tkNumericUpDown_GetDividerThickness", @A_NumericUpDown_DividerThickness, @R_NumericUpDown_DividerThickness, 0, true, true, "", 0 )
-    Prop_( "Range", "list", "", "Min:float,Max:float", "tkNumericUpDown_SetRange", "", @A_NumericUpDown_Range, 0, 0, true, true, "", 0 )
     Prop_( "AutoRepeat", "list", "", "DelayMs:int,IntervalMs:int", "tkNumericUpDown_SetAutoRepeat", "", @A_NumericUpDown_AutoRepeat, 0, 0, true, true, "", 0 )
     Prop_( "ValuePadding", "list", "", "Left:int,Right:int,Vert:int", "tkNumericUpDown_SetValuePadding", "", @A_NumericUpDown_ValuePadding, 0, 0, true, true, "", 0 )
     Prop_( "GlyphSize", "list", "", "Length:int,Thickness:int", "tkNumericUpDown_SetGlyphSize", "", @A_NumericUpDown_GlyphSize, 0, 0, true, true, "", 0 )
@@ -3474,6 +3474,7 @@ sub Fill_( )
     Color_( "TextColor", "Text", "Normal", "", true )
     Color_( "TextColorOnBar", "", "", "", false )
     Color_( "TextColorDisabled", "Text", "Disabled", "", true )
+    Prop_( "Range", "list", "", "Min:int,Max:int", "tkProgressBar_SetRange", "", @A_ProgressBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "Position", "int", "", "", "tkProgressBar_SetPos", "tkProgressBar_GetPos", @A_ProgressBar_Position, @R_ProgressBar_Position, 0, true, true, "", 0 )
     Prop_( "Mode", "enum", "Determinate", "Determinate=PRG_MODE_DETERMINATE,Indeterminate=PRG_MODE_INDETERMINATE", "tkProgressBar_SetMode", "tkProgressBar_GetMode", @A_ProgressBar_Mode, @R_ProgressBar_Mode, 0, false, true, "", 0 )
     Prop_( "FillStyle", "enum", "Solid", "Solid=PRG_FILL_SOLID,Gradient=PRG_FILL_GRADIENT", "tkProgressBar_SetFillStyle", "tkProgressBar_GetFillStyle", @A_ProgressBar_FillStyle, @R_ProgressBar_FillStyle, 0, true, true, "", 0 )
@@ -3494,7 +3495,6 @@ sub Fill_( )
     Prop_( "HoverTime", "int", "", "", "tkProgressBar_SetHoverTime", "", @A_ProgressBar_HoverTime, 0, 0, true, true, "", 0 )
     Prop_( "AutoPopTime", "int", "", "", "tkProgressBar_SetAutoPopTime", "", @A_ProgressBar_AutoPopTime, 0, 0, true, true, "", 0 )
     Prop_( "ReshowTime", "int", "", "", "tkProgressBar_SetReshowTime", "", @A_ProgressBar_ReshowTime, 0, 0, true, true, "", 0 )
-    Prop_( "Range", "list", "", "Min:int,Max:int", "tkProgressBar_SetRange", "", @A_ProgressBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "MarqueeSpeed", "list", "", "IntervalMs:int,StepPx:int", "tkProgressBar_SetMarqueeSpeed", "", @A_ProgressBar_MarqueeSpeed, 0, 0, true, true, "", 0 )
     Prop_( "BlockMetrics", "list", "", "BlockLen:int,BlockGap:int", "tkProgressBar_SetBlockMetrics", "", @A_ProgressBar_BlockMetrics, 0, 0, true, true, "", 0 )
     Event_( "Paint", "tkProgressBar_SetPaintCallback", "PRG_PaintCallbackSub", "byval p as TKPROGRESSBAR_PAINTINFO ptr", "byval p as TKPROGRESSBAR_PAINTINFO ptr", "p", "p->hProgressBar", "", "" )
@@ -3605,8 +3605,8 @@ sub Fill_( )
     Colors_( "TKSPLITTER_COLORS", "tkSplitter_GetColors", "tkSplitter_ThemeColors", @G_Splitter, @T_Splitter )
     Color_( "BackColor", "Back", "Normal", "", false )
     Color_( "HotColor", "Back", "Hot", "", false )
-    Prop_( "Position", "int", "", "", "tkSplitter_SetPos", "tkSplitter_GetPos", @A_Splitter_Position, @R_Splitter_Position, 0, true, true, "", 0 )
     Prop_( "Range", "list", "", "Min:int,Max:int", "tkSplitter_SetRange", "", @A_Splitter_Range, 0, 0, true, true, "", 0 )
+    Prop_( "Position", "int", "", "", "tkSplitter_SetPos", "tkSplitter_GetPos", @A_Splitter_Position, @R_Splitter_Position, 0, true, true, "", 0 )
     Prop_( "Colors", "list", "", "Back:color,Hot:color", "tkSplitter_SetColors", "", @A_Splitter_Colors, 0, 0, true, true, "", 0 )
     Event_( "PosChanged", "tkSplitter_SetPosChangedCallback", "SPL_PosChangedCallbackSub", "byval hSplitter as TK_WIDGET ptr, byval newPos as int32, byval nPhase as int32", "byval newPos as int32, byval nPhase as int32", "newPos, nPhase" )
     Event_( "Paint", "tkSplitter_SetPaintCallback", "SPL_PaintCallbackSub", "byval p as TKSPLITTER_PAINTINFO ptr", "byval p as TKSPLITTER_PAINTINFO ptr", "p", "p->hSplitter", "", "" )
@@ -3833,18 +3833,18 @@ sub Fill_( )
     Event_( "Tooltip", "tkStatusBar_SetTooltipCallback", "SB_TooltipCallbackFunc", "byval hStatusBar as TK_WIDGET ptr, byval idx as int32", "byval idx as int32, byref Text as ustring", "idx, Text", "", "ustring", "Text" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "VScrollBar", "tkVScrollBar", "Other", 16, 160, "Scroll", "", @C_VScrollBar, "", "", "", "" )
+    Prop_( "Range", "list", "", "Total:int,Page:int,Position:int", "tkVScrollBar_SetRange", "", @A_VScrollBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "Position", "int", "", "", "tkVScrollBar_SetPos", "tkVScrollBar_GetPos", @A_VScrollBar_Position, @R_VScrollBar_Position, 0, true, true, "", 0 )
     Prop_( "WheelStep", "int", "", "", "tkVScrollBar_SetWheelStep", "tkVScrollBar_GetWheelStep", @A_VScrollBar_WheelStep, @R_VScrollBar_WheelStep, 0, true, true, "", 0 )
-    Prop_( "Range", "list", "", "Total:int,Page:int,Position:int", "tkVScrollBar_SetRange", "", @A_VScrollBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "Colors", "list", "", "Back:color,Fore:color,ForeHot:color", "tkVScrollBar_SetColors", "", @A_VScrollBar_Colors, 0, 0, true, true, "", 0 )
     Prop_( "DividerColor", "list", "", "Color:color,Show:bool", "tkVScrollBar_SetDividerColor", "", @A_VScrollBar_DividerColor, 0, 0, true, true, "", 0 )
     Event_( "Scroll", "tkVScrollBar_SetScrollCallback", "VScrollCallbackSub", "byval hSB as TK_WIDGET ptr, byval newPos as integer", "byval newPos as integer", "newPos" )
     Event_( "Paint", "tkVScrollBar_SetPaintCallback", "VScrollPaintCallbackSub", "byval p as TKVSCROLLBAR_PAINTINFO ptr", "byval p as TKVSCROLLBAR_PAINTINFO ptr", "p", "p->hScrollBar", "", "" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "HScrollBar", "tkHScrollBar", "Other", 160, 16, "Scroll", "", @C_HScrollBar, "", "", "", "" )
+    Prop_( "Range", "list", "", "Total:int,Page:int,Position:int", "tkHScrollBar_SetRange", "", @A_HScrollBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "Position", "int", "", "", "tkHScrollBar_SetPos", "tkHScrollBar_GetPos", @A_HScrollBar_Position, @R_HScrollBar_Position, 0, true, true, "", 0 )
     Prop_( "WheelStep", "int", "", "", "tkHScrollBar_SetWheelStep", "tkHScrollBar_GetWheelStep", @A_HScrollBar_WheelStep, @R_HScrollBar_WheelStep, 0, true, true, "", 0 )
-    Prop_( "Range", "list", "", "Total:int,Page:int,Position:int", "tkHScrollBar_SetRange", "", @A_HScrollBar_Range, 0, 0, true, true, "", 0 )
     Prop_( "Colors", "list", "", "Back:color,Fore:color,ForeHot:color", "tkHScrollBar_SetColors", "", @A_HScrollBar_Colors, 0, 0, true, true, "", 0 )
     Event_( "Scroll", "tkHScrollBar_SetScrollCallback", "HScrollCallbackSub", "byval hSB as TK_WIDGET ptr, byval newPos as integer", "byval newPos as integer", "newPos" )
     Event_( "Paint", "tkHScrollBar_SetPaintCallback", "HScrollPaintCallbackSub", "byval p as TKHSCROLLBAR_PAINTINFO ptr", "byval p as TKHSCROLLBAR_PAINTINFO ptr", "p", "p->hScrollBar", "", "" )

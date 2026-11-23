@@ -1202,6 +1202,26 @@ sub NumericUpDownSuite( )
         & "    dim as boolean Handled" & LF & "    dim as Form ptr f = tkForms_ObjectOf( m->hCtrl )" & LF ) > 0, "numericupdown: Message's thunk answers Handled" )
 end sub
 
+' A bound before the value it bounds: every setter clamps / snaps, so Build must set Range and
+' DecimalPlaces before Value (Position after Range), whatever order the file lists them in -- a form
+' saved under the old table order lists Value first. And the writer now saves that order too.
+sub PropOrderSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""O""" & LF & "width = 300" & LF & "height = 200" & LF _
+        & Ctl( "nud", "NumericUpDown" ) & LF & "[control.props]" & LF & "Value = 2500000.5" & LF & "DecimalPlaces = 1" & LF _
+        & "Range = ""0,5000000""" & LF & LF _
+        & Ctl( "prg", "ProgressBar" ) & LF & "[control.props]" & LF & "Position = 150" & LF & "Range = ""0,200""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "proporder: the form parses" )
+    dim as ustring g = codegen.Generate( d, "frmO", "frmO.tkform", src )
+    dim as long nRange = instr( g, "    nud.Range( " ), nDec = instr( g, "    nud.DecimalPlaces = " ), nVal = instr( g, "    nud.Value = " )
+    Check( (nRange > 0) andalso (nDec > 0) andalso (nVal > 0), "proporder: the three NumericUpDown lines", LineWith( g, "nud." ) )
+    Check( (nRange < nVal) andalso (nDec < nVal), "proporder: NumericUpDown Range and DecimalPlaces before Value", LineWith( g, "nud.Value" ) )
+    dim as long pRange = instr( g, "    prg.Range( " ), pPos = instr( g, "    prg.Position = " )
+    Check( (pRange > 0) andalso (pPos > pRange), "proporder: ProgressBar Range before Position", LineWith( g, "prg.Position" ) )
+    dim as ustring r = formfile.Render( d )
+    Check( (instr( r, "Range = " ) > 0) andalso (instr( r, "Range = " ) < instr( r, "Value = " )), "proporder: the writer saves Range before Value" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -2395,6 +2415,7 @@ WindowSuite( )
 ButtonEventsSuite( )
 TextBoxEventsSuite( )
 NumericUpDownSuite( )
+PropOrderSuite( )
 DatePickerSuite( )
 CalendarSuite( )
 CodeEditSuite( )

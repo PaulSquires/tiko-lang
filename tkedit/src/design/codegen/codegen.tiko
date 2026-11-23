@@ -217,6 +217,27 @@ end function
 const as long ITEM_ID_BASE = 1000
 
 ' Has this menu or toolbar anything to dispatch?
+' Indices into c.Props in the order Build sets them: Enabled, Visible, then the control table's
+' order (formfile's WriteProps_ order), then any key the table doesn't know, as found.
+private function PropOrder_( byref c as FormControl, byval m as TKMETA_CONTROL ptr ) as Array( of long )
+    dim as Array( of long ) order_
+    dim as Array( of boolean ) done
+    done.Reserve( c.Props.Count( ) )
+    done.SetCount( c.Props.Count( ) )
+    dim as long i = FindSetting( c.Props, "Enabled" )
+    if i >= 0 then order_.Push( i ) : done[i] = true
+    i = FindSetting( c.Props, "Visible" )
+    if i >= 0 then order_.Push( i ) : done[i] = true
+    for p as long = 0 to m->NumProps - 1
+        i = FindSetting( c.Props, m->Props( p ).Name )
+        if (i >= 0) andalso (done[i] = false) then order_.Push( i ) : done[i] = true
+    next
+    for j as long = 0 to c.Props.Count( ) - 1
+        if done[j] = false then order_.Push( j )
+    next
+    return order_
+end function
+
 private function HasItemHandlers_( byref c as FormControl ) as boolean
     for each it as FormItem in c.Items
         if len( it.Handler ) then return true
@@ -785,7 +806,11 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
 
     ItemsCode_( doc, idx, o )
 
-    for each s as Setting in c.Props
+    ' In the control table's order, not the file's: setters clamp and snap, so a Range must reach the
+    ' control before the Value it bounds (controls.toml lists them so). The writer saves this order too.
+    dim as Array( of long ) order_ = PropOrder_( c, m )
+    for each pi_ as long in order_
+        dim byref as Setting s = c.Props[pi_]
         if (s.Key = "Enabled") orelse (s.Key = "Visible") then
             o &= "    " & c.Name & "." & s.Key & " = " & s.Value & NL
         elseif s.Key = "GlyphFont" then

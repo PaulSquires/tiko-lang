@@ -111,6 +111,9 @@ sub CheckControl( byval c as TKMETA_CONTROL ptr, byval h as TK_HOST ptr, byval p
             loop
         case "list"
             dim as ustring v = ListValue( p->EnumPairs )
+            ' A Min/Max range wide enough for the values tried after it: the table lists Range before the
+            ' Value / Position it bounds, so "1,1" would clamp them.
+            if left( p->EnumPairs, 4 ) = "Min:" then v = "0,100"
             tkTest_Check( c->Name & "." & p->Name & " list value fits", len( tkMeta_ListFault( v, p->EnumPairs ) ) = 0, v )
             p->Apply( w, v )
         case else
