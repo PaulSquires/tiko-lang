@@ -1,0 +1,112 @@
+' tkReportViewer self-test (printing phase R3). One check per behaviour: the layout (toolbar, preview,
+' status bar), the status and page box from the document, Next, the page box's Enter, zoom in, hiding
+' the toolbar, PDF export with Exported, and (Windows) a print with no dialog to "Microsoft Print to
+' PDF" with AfterPrint. One pass.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkReportViewer"
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkStatusBar"
+#import "vendor/tkControls/tkTextBox"
+using tkTest
+using tkReportViewer
+using tkToolbar
+using tkStatusBar
+using tkTextBox
+using tkPrintPreview
+using tkPrintDialog
+using tkPrinter
+using tkPdf
+using tkPrint
+using tkHost
+using tkPaint
+
+dim shared as long gExported, gAfter
+dim shared as boolean gAfterOk
+
+sub OnExported( byval h as TK_WIDGET ptr, byref path as ustring, byval bOk as boolean )
+    gExported += 1
+end sub
+
+sub OnAfter( byval h as TK_WIDGET ptr, byval bOk as boolean )
+    gAfter += 1 : gAfterOk = bOk
+end sub
+
+function ThreePages( byval doc as TK_PRINTDOC ptr, byval pg as TK_PAGE ptr, byval i as long ) as boolean
+    dim as TKRECTF r
+    tkRectF_Set( r, 72, 72, 400, 110 )
+    dim as TKFONTSPEC fs
+    fs.pt = 20
+    tkPage_SetFont( pg, fs )
+    tkPage_Text( pg, "Viewer page " & (i + 1), r, TK_DT_LEFT )
+    return i < 2
+end function
+
+function ItemOf( byval bar as TK_WIDGET ptr, byval id as long ) as long
+    return tkToolbar_FindItemByID( bar, id )
+end function
+
+sub RunPass( )
+    tkTest_Begin( "viewer" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkReportViewer selftest", 800, 600, tkHost_FontDir() & TK_FONT_UI, 1.0 )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    tkHost_Show( h )
+    dim as TK_PRINTDOC ptr doc = tkPrintDoc_Create( "viewer" )
+    tkPrintDoc_SetPrintPageCallback( doc, @ThreePages )
+    tkPrintDoc_Generate( doc )
+    dim as TK_WIDGET ptr rv = tkReportViewer_Create( tkHost_Root( h ), 5 )
+    tkWidget_SetPos( rv, 0, 0, 800, 600 )
+    tkReportViewer_SetDocument( rv, doc )
+    tkReportViewer_SetExportedCallback( rv, @OnExported )
+    tkReportViewer_SetAfterPrintCallback( rv, @OnAfter )
+    tkHost_RenderTo( h, false )
+    dim as TK_WIDGET ptr bar = tkReportViewer_GetToolbar( rv ), pv = tkReportViewer_GetPreview( rv ), sb = tkReportViewer_GetStatusBar( rv )
+
+    tkTest_Check( "layout: toolbar on top, status at the bottom, the preview between", (bar->y = 0) andalso (pv->y = bar->ch) _
+                  andalso (sb->y + sb->ch = 600) andalso (pv->y + pv->ch = sb->y) andalso (pv->cw = 800), _
+                  "bar " & bar->ch & " pv " & pv->y & "+" & pv->ch & " sb " & sb->y )
+    tkTest_Check( "status and page box from the document", (tkStatusBar_GetText( sb, 0 ) = "Page 1 of 3") _
+                  andalso (tkTextBox_GetText( tkReportViewer_GetPageBox( rv ) ) = "1"), tkStatusBar_GetText( sb, 0 ) )
+    tkToolbar_Click( bar, ItemOf( bar, TKRV_CMD_NEXT ) )
+    tkTest_Check( "Next: page 2", (tkPrintPreview_GetPage( pv ) = 1) andalso (tkStatusBar_GetText( sb, 0 ) = "Page 2 of 3"), tkStatusBar_GetText( sb, 0 ) )
+    dim as TK_WIDGET ptr box = tkReportViewer_GetPageBox( rv )
+    tkTextBox_SetText( box, "3" )
+    tkHost_SetFocus( h, box )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "the page box: 3 + Enter shows page 3", tkPrintPreview_GetPage( pv ) = 2, "page " & tkPrintPreview_GetPage( pv ) )
+    dim as single z0 = tkPrintPreview_GetZoom( pv )
+    tkToolbar_Click( bar, ItemOf( bar, TKRV_CMD_ZOOMIN ) )
+    tkTest_Check( "zoom in: x1.25, the status shows it", (abs( tkPrintPreview_GetZoom( pv ) - z0 * 1.25 ) < 0.001) _
+                  andalso (tkStatusBar_GetText( sb, 1 ) = clng( z0 * 125 ) & "%"), tkStatusBar_GetText( sb, 1 ) )
+    tkReportViewer_SetShowToolbar( rv, false )
+    tkTest_Check( "no toolbar: the preview takes its place", (pv->y = 0) andalso (tkWidget_IsVisible( bar ) = false) )
+    tkReportViewer_SetShowToolbar( rv, true )
+
+    SDL_CreateDirectory( "../out" )
+    dim as ustring pdf = "../out/tkreportviewer.pdf"
+    tkTest_Check( "Export PDF: written, Exported told", tkReportViewer_ExportPdf( rv, pdf ) andalso (gExported = 1) )
+#ifdef __FB_WIN32__
+    dim as TKPRINTERINFO list()
+    dim as long n = tkPrinter_Enumerate( list() ), have = 0
+    for i as long = 0 to n - 1
+        if list(i).name = "Microsoft Print to PDF" then have = 1
+    next
+    if have then
+        dim as TKPRINTJOB job
+        job.printer = "Microsoft Print to PDF"
+        job.outputFile = *SDL_GetBasePath( ) & "..\out\tkreportviewer-print.pdf"
+        tkReportViewer_SetJob( rv, job )
+        dim as boolean ok = tkReportViewer_Print( rv, false )
+        tkTest_Check( "Print with no dialog: the job runs, AfterPrint told", ok andalso (gAfter = 1) andalso gAfterOk, tkPrinter_LastError( ) )
+    end if
+#endif
+    tkPrintDoc_Destroy( doc )
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 1
+RunPass( )
+dim as long nFail = tkTest_Report( "tkReportViewer" )
+tkTest_Quit()
+end nFail

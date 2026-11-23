@@ -1263,6 +1263,20 @@ sub PrintPreviewSuite( )
         & "    dim as boolean Handled" & LF ) > 0, "preview: LinkClick's thunk answers its Handled", LineWith( g, "Thunk_pv_LinkClick" ) )
 end sub
 
+' A ReportViewer (printing R3): a bool prop, and BeforePrint's thunk answering Allow from true.
+sub ReportViewerSuite( )
+    dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""R""" & LF & "width = 500" & LF & "height = 560" & LF _
+        & Ctl( "rv", "ReportViewer" ) & LF & "[control.props]" & LF & "ShowStatus = false" & LF _
+        & LF & "[control.events]" & LF & "BeforePrint = ""rv_Before""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "viewer: the form parses" )
+    Accepted( src, "viewer: its props and events" )
+    dim as ustring g = codegen.Generate( d, "frmR", "frmR.tkform", src )
+    HasLine( g, "rv.ShowStatus = false", "viewer: a bool prop" )
+    Check( instr( g, "private function Thunk_rv_BeforePrint( byval hViewer as TK_WIDGET ptr, byref job as TKPRINTJOB ) as boolean" & LF _
+        & "    dim as boolean Allow = true" & LF ) > 0, "viewer: BeforePrint's thunk answers Allow, from true", LineWith( g, "Thunk_rv_BeforePrint" ) )
+end sub
+
 sub SliderSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""S""" & LF & "width = 300" & LF & "height = 200" & LF _
         & Ctl( "sld", "Slider" ) & LF & "[control.props]" & LF & "Value = 500" & LF & "UpperValue = 800" & LF & "Mode = ""Range""" & LF _
@@ -2890,6 +2904,7 @@ NumericUpDownSuite( )
 PropOrderSuite( )
 SliderSuite( )
 PrintPreviewSuite( )
+ReportViewerSuite( )
 NotifySuite( )
 DatePickerSuite( )
 CalendarSuite( )
