@@ -183,6 +183,7 @@ sub RunPass( byval fScale as single )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )
+    tkTest_Check( "list shapes (B3): ListTree rows, ComboBox items, nothing else", (tkMeta_Find( "ListTree" )->ItemsBind = "rows") andalso (tkMeta_Find( "ComboBox" )->ItemsBind = "items") andalso (len( tb->ItemsBind ) = 0) )
     tkTest_Check( "a ComboBox's nothing-chosen is -1 (B2's Required)", (tkMeta_Find( "ComboBox" )->BindNone = "-1") andalso (len( tb->BindNone ) = 0) )
     for i as long = 0 to tkMeta_Count( ) - 1
         CheckControl( tkMeta_At( i ), h, root_, 100 + i )

@@ -364,6 +364,7 @@ delete_breakpoint = "移除断点"
 mac_permission = "macOS 不允许调试器控制该程序：请开启开发者模式（sudo DevToolsSecurity -enable），或在 macOS 询问时允许"
 
 [designer]
+item_field = "字段"
 bind_pick = "选择字段"
 bind_need_type = "请先为窗体设置 DataType：其控件绑定到的记录类型。"
 bind_no_fields = "未知 {} 的任何字段：请输入字段名称。"

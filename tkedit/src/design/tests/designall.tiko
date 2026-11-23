@@ -2662,6 +2662,102 @@ sub RuleSuite( )
     end with
 end sub
 
+' B3: list binding -- a ListTree's rows and a ComboBox's items from an Array( of T ), a DataType field
+' (filled by LoadFrom) or an expression (filled by <name>_Fill), and a ComboBox bound by ValueField.
+sub ListSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Order""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring lst = Ctl( "lstLines", "ListTree", "items_field = ""Lines""" & LF & "item_type = ""shop.Line""" & LF & "check_field = ""Packed""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""Item""" & LF & "field = ""Item""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Note""" & LF _
+        & LF & "[[control.items]]" & LF & "text = ""Total""" & LF & "field = ""Total( )""" & LF
+    dim as ustring cbo = Ctl( "cboCountry", "ComboBox", "bind = ""Country""" & LF & "required = true" & LF & "items_source = ""shop.Countries( )""" & LF _
+        & "item_type = ""shop.Country""" & LF & "display_field = ""Name""" & LF & "value_field = ""Code""" & LF )
+    dim as ustring cb2 = Ctl( "cboCarrier", "ComboBox", "bind = ""CarrierId""" & LF & "items_source = ""Carriers""" & LF & "item_type = ""shop.Carrier""" & LF & "display_field = ""Name""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( hdr & lst & cbo & cb2, d ), "list: the form parses" )
+    dim as long li = FindControl( d, "lstLines" ), ci = FindControl( d, "cboCountry" )
+    Check( (d.Controls[li].ItemsField = "Lines") andalso (d.Controls[li].CheckField = "Packed") andalso (d.Controls[li].Items[2].Field = "Total( )"), "list: rows read" )
+    Check( (d.Controls[ci].ItemsSource = "shop.Countries( )") andalso (d.Controls[ci].ItemType = "shop.Country") _
+        andalso (d.Controls[ci].DisplayField = "Name") andalso (d.Controls[ci].ValueField = "Code"), "list: items read" )
+    dim as ustring t1 = formfile.Render( d )
+    Check( instr( t1, "items_source = ""shop.Countries( )""" & LF & "item_type = ""shop.Country""" & LF & "display_field = ""Name""" & LF & "value_field = ""Code""" & LF ) > 0, "list: written", t1 )
+    Check( instr( t1, "text = ""Item""" & LF & "field = ""Item""" & LF ) > 0, "list: a column's field written" )
+    dim as FormDoc d2
+    ReadForm( t1, d2 )
+    Check( formfile.Render( d2 ) = t1, "list: round trip" )
+
+    Accepted( hdr & lst & cbo & cb2, "a form with lists" )
+    Accepted( Header( ) & Ctl( "l", "ListTree", "items_source = ""People""" & LF & "item_type = ""db.Person""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""Name""" & LF, _
+        "an ItemsSource needs no DataType" )
+    Refused( hdr & Ctl( "b", "Button", "items_source = ""X""" & LF ), "a Button has no list to bind" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_field = ""A""" & LF & "items_source = ""B""" & LF & "display_field = ""N""" & LF ), "ItemsField or ItemsSource, not both" )
+    Refused( Header( ) & Ctl( "c", "ComboBox", "items_field = ""A""" & LF & "display_field = ""N""" & LF ), "an ItemsField needs the form's DataType first" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = 'f( ""x"" )'" & LF & "display_field = ""N""" & LF ), "is not a name or a call" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = ""f( (x )""" & LF & "display_field = ""N""" & LF ), "is not a name or a call" )
+    ' a list filled in one row at a time: accepted half done, and the generated file says what it lacks
+    Accepted( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF ), "a list with no ItemType yet" )
+    dim as FormDoc dh
+    ReadForm( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "item_type = ""T""" & LF ) & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF ), dh )
+    dim as ustring th = codegen.Generate( dh, "frmH", "frmH.tkform", "" )
+    Check( (instr( th, "#error ""c: its list needs a DisplayField" ) > 0) andalso (instr( th, "#error ""l: its list needs a column with a Field" ) > 0) _
+        andalso (instr( th, "c_Fill" ) = 0), "list: a half-done list generates an #error, no code", LineWith( th, "#error" ) )
+    Refused( hdr & Ctl( "c", "ComboBox", "display_field = ""N""" & LF ), "DisplayField and ValueField need ItemsField or ItemsSource" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "display_field = ""N""" & LF ) & LF & "[[control.items]]" & LF & "text = ""typed""" & LF, _
+        "its items come from the list" )
+    Refused( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "display_field = ""1N""" & LF ), "display field '1N' is not a field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "display_field = ""N""" & LF ), "shows columns: give each column a Field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF & "check_field = ""1Done""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF, _
+        "check field '1Done' is not a field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N( x )""" & LF, "column field 'N( x )' is not a field" )
+    Refused( hdr & Ctl( "l", "ListTree", "items_source = ""S""" & LF & "item_type = ""T""" & LF ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""N""" & LF _
+        & Ctl( "l_Fill", "Button" ), "l_Fill: the name is taken by l's list" )
+
+    dim as ustring t = codegen.Generate( d, "frmShop", "frmShop.tkform", "" )
+    HasLine( t, "cboCountry_Values_ as Array( of ustring )", "list: the values member" )
+    HasLine( t, "declare sub cboCountry_Fill( )", "list: an ItemsSource's Fill" )
+    Check( instr( t, "declare sub lstLines_Fill" ) = 0, "list: no Fill for an ItemsField (LoadFrom fills it)" )
+    HasLine( t, "declare function lstLines_Item( ) as long", "list: a ListTree's Item" )
+    Check( (instr( t, "#import ""std/containers""" ) > 0) andalso (instr( t, LF & "using containers" & LF ) > 0), "list: containers for the arrays" )
+    HasLine( t, "    dim as Array( of shop.Country ) a_ = shop.Countries( )", "list: a call's result copied once" )
+    HasLine( t, "    dim byref as Array( of shop.Carrier ) a_ = Carriers", "list: a name bound by reference" )
+    HasLine( t, "    dim byref as Array( of shop.Line ) a_ = r.Lines", "list: the DataType's field, in LoadFrom" )
+    Accepted( hdr & Ctl( "c", "ComboBox", "items_source = ""S""" & LF & "display_field = ""N""" & LF ), "a list whose ItemType is still to come" )
+    HasLine( t, "        dim as integer row_ = tkListTree_AddString( lstLines.Handle, tkBind_Text( a_[i_].Item ) )", "list: the first column" )
+    Check( instr( t, "row_, 1," ) = 0, "list: a column with no field is left empty" )
+    HasLine( t, "        tkListTree_SetCellText( lstLines.Handle, row_, 2, tkBind_Text( a_[i_].Total( ) ) )", "list: a method column" )
+    HasLine( t, "        tkListTree_SetItemData( lstLines.Handle, row_, i_ )", "list: the row knows its element" )
+    HasLine( t, "        tkListTree_SetCheck( lstLines.Handle, row_, iif( tkBind_Bool( a_[i_].Packed ), 1, 0 ) )", "list: the check" )
+    HasLine( t, "    tkListTree_SetCheckBoxes( lstLines.Handle, true )", "list: a CheckField turns the check boxes on" )
+    HasLine( t, "        tkComboBox_AddItem( cboCountry.Handle, tkBind_Text( a_[i_].Name ) )", "list: an item's text" )
+    HasLine( t, "        cboCountry_Values_.Push( tkBind_Text( a_[i_].Code ) )", "list: its value" )
+    Check( instr( t, "cboCarrier_Values_" ) = 0, "list: no ValueField, no values" )
+    HasLine( t, "tkComboBox_SetCurSel( cboCountry.Handle, tkBind_IndexOf( cboCountry_Values_, tkBind_Text( r.Country ) ) )", "list: LoadFrom by value" )
+    HasLine( t, "tkBind_LoadedPick( bindErrors_, cboCountry.Handle, ""Country"", tkBind_Text( r.Country ), tkComboBox_GetCurSel( cboCountry.Handle ) )", "list: a value not in the list reported" )
+    HasLine( t, "tkBind_CheckPick( bindErrors_, cboCountry.Handle, ""Country"", r.Country, cboCountry_Values_, tkComboBox_GetCurSel( cboCountry.Handle ), tkBind_Rule( true, """", """", 0, """", true, -1 ) )", "list: SaveTo checks the value" )
+    HasLine( t, "tkBind_PutPick( r.Country, cboCountry_Values_, tkComboBox_GetCurSel( cboCountry.Handle ) )", "list: SaveTo writes the value" )
+    HasLine( t, "tkComboBox_SetCurSel( cboCarrier.Handle, tkBind_Int( r.CarrierId ) )", "list: no ValueField binds the index, as B1" )
+    HasLine( t, "return tkListTree_GetItemData( lstLines.Handle, row_ )", "list: Item maps the row" )
+    Check( (instr( t, "tkBind_Check( bindErrors_, lstLines" ) = 0) andalso (instr( t, "tkBind_Put( r.Lines" ) = 0), "list: a ListTree has no value of its own to bind" )
+
+    ' an ItemsSource alone: Fill and Item, no LoadFrom
+    dim as FormDoc dm
+    ReadForm( Header( ) & "data_module = ""../db""" & LF & Ctl( "l", "ListTree", "items_source = ""People""" & LF & "item_type = ""db.Person""" & LF ) _
+        & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "field = ""FullName( )""" & LF, dm )
+    dim as ustring tm = codegen.Generate( dm, "frmMain", "frmMain.tkform", "" )
+    Check( (instr( tm, "sub Form.l_Fill( )" ) > 0) andalso (instr( tm, "LoadFrom" ) = 0) andalso (instr( tm, "#import ""vendor/tkControls/tkBind""" ) > 0) _
+        andalso (instr( tm, "#import ""../db""" ) > 0), "list: an ItemsSource form without a DataType: Fill, tkBind, its DataModule, no LoadFrom" )
+
+    ' paste into a form with no DataType: an ItemsField goes, with what hangs on it
+    dim as ustring clip = edits.CopyText( d, Names( "lstLines" ) )
+    dim as FormDoc noType
+    ReadForm( Header( ), noType )
+    dim as Array( of ustring ) added
+    Check( edits.PasteText( noType, clip, "", -1, 0, 0, added ), "list: paste into a form without a DataType" )
+    with noType.Controls[noType.Controls.Count( ) - 1]
+        Check( (len( .ItemsField ) = 0) andalso (len( .CheckField ) = 0) andalso (len( .Items[0].Field ) = 0), "list: ...drops the list" )
+    end with
+end sub
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -2722,5 +2818,6 @@ FontWriterSuite( )
 BindSuite( )
 Bind2Suite( )
 RuleSuite( )
+ListSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

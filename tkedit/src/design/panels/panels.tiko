@@ -150,7 +150,8 @@ public type DesignPanels
     Rows as Array( of PanelRow )
     FieldMenu as TK_MENU ptr            ' a Bind row's "...": the DataType's fields (B1)
     FieldNames as Array( of ustring )   ' ...and what its items stand for, item id - 1
-    FieldKey as ustring                 ' ...and the row it fills: "@Bind" or "@Bind2"
+    FieldKey as ustring                 ' ...and the row it fills: "@Bind", "@Bind2", "@ItemsField", or a list's
+                                        ' element field ("@Display", "@Value", "@Check")
     RowSig as ustring
     TreeSig as ustring
     Updating as boolean
@@ -1023,17 +1024,35 @@ end sub
 ' The fields as a menu under btn; a pick goes through the row, as typing it would.
 sub DesignPanels.ShowFields( byval btn as TK_WIDGET ptr )
     if C = 0 then exit sub
-    if len( C->Doc.DataType ) = 0 then
-        if OnMessage then OnMessage( Owner, i18n.Tr( "designer.bind_need_type", "Give the form a DataType first: the record type its controls bind to." ) )
-        exit sub
-    end if
-    dim as ustring list
-    if C->OnFields then list = C->OnFields( C->Host, C, C->Doc.DataType )
-    FieldNames.Clear( )
     FieldKey = "@Bind"
     for r as long = 0 to Rows.Count( ) - 1
         if Rows[r].Btn = btn then FieldKey = Rows[r].Key : exit for
     next
+    ' a list's element fields (B3): its ItemType, else what its ItemsField holds
+    dim as ustring typeName = C->Doc.DataType
+    if (FieldKey = "@Display") orelse (FieldKey = "@Value") orelse (FieldKey = "@Check") then
+        dim as long ci = -1
+        if C->Selected.Count( ) = 1 then ci = FindControl( C->Doc, C->Selected[0] )
+        if ci < 0 then exit sub
+        with C->Doc.Controls[ci]
+            typeName = .ItemType
+            if (len( typeName ) = 0) andalso len( .ItemsField ) andalso len( C->Doc.DataType ) andalso (C->OnElementType <> 0) then
+                typeName = C->OnElementType( C->Host, C, C->Doc.DataType, .ItemsField )
+            end if
+            if len( typeName ) = 0 then
+                dim as ustring what = .ItemsSource
+                if len( what ) = 0 then what = .ItemsField
+                if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "designer.bind_no_fields", "No fields of {} are known: type the field's name." ), what ) )
+                exit sub
+            end if
+        end with
+    elseif len( C->Doc.DataType ) = 0 then
+        if OnMessage then OnMessage( Owner, i18n.Tr( "designer.bind_need_type", "Give the form a DataType first: the record type its controls bind to." ) )
+        exit sub
+    end if
+    dim as ustring list
+    if C->OnFields then list = C->OnFields( C->Host, C, typeName )
+    FieldNames.Clear( )
     dim as ustring t = list & ","
     dim as long a = 1
     dim as long b = instr( a, t, "," )
@@ -1043,7 +1062,7 @@ sub DesignPanels.ShowFields( byval btn as TK_WIDGET ptr )
         b = instr( a, t, "," )
     wend
     if FieldNames.Count( ) = 0 then
-        if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "designer.bind_no_fields", "No fields of {} are known: type the field's name." ), C->Doc.DataType ) )
+        if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "designer.bind_no_fields", "No fields of {} are known: type the field's name." ), typeName ) )
         exit sub
     end if
     ' made again each time: the panels may have moved to a float window since
@@ -1252,6 +1271,22 @@ sub DesignPanels.BuildRows( )
         end if
         ' the PopupMenu a right-click on it opens
         if anyComponent = false then this.AddRow( "@Ctx", "ContextMenu", RowKind.RowCombo, PopupNames_( C->Doc ) )
+        ' its list from an array (B3): where it comes from, and the element fields it shows
+        if (n = 1) andalso (len( m0->ItemsBind ) > 0) then
+            this.AddRow( "@ItemsField", "ItemsField", RowKind.RowText )
+            if C->OnFields then this.AddFieldButton( )
+            this.AddRow( "@ItemsSource", "ItemsSource", RowKind.RowText )
+            this.AddRow( "@ItemType", "ItemType", RowKind.RowText )
+            if m0->ItemsBind = "items" then
+                this.AddRow( "@Display", "DisplayField", RowKind.RowText )
+                if C->OnFields then this.AddFieldButton( )
+                this.AddRow( "@Value", "ValueField", RowKind.RowText )
+                if C->OnFields then this.AddFieldButton( )
+            else
+                this.AddRow( "@Check", "CheckField", RowKind.RowText )
+                if C->OnFields then this.AddFieldButton( )
+            end if
+        end if
         ' the field of the form's DataType it binds to (B1)
         if (n = 1) andalso (len( m0->BindKind ) > 0) then
             this.AddRow( "@Bind", "Bind", RowKind.RowText )
@@ -1327,6 +1362,12 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@Max"   : return c_.Maximum
     case "@MaxLen" : if c_.MaxLength then return str( c_.MaxLength ) else return ""
     case "@Fmt"   : return c_.Format
+    case "@ItemsField"  : return c_.ItemsField
+    case "@ItemsSource" : return c_.ItemsSource
+    case "@ItemType"    : return c_.ItemType
+    case "@Display"     : return c_.DisplayField
+    case "@Value"       : return c_.ValueField
+    case "@Check"       : return c_.CheckField
     case "@CModule" : return c_.CustomModule
     case "@AL"   : if (c_.Anchor and TK_ANCHOR_LEFT) then return "true" else return "false"
     case "@AT"   : if (c_.Anchor and TK_ANCHOR_TOP) then return "true" else return "false"
@@ -1612,6 +1653,12 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
     case "@Fmt"
         trial.Controls[i].Format = trim( text )
         rebuild = false
+    case "@ItemsField"  : trial.Controls[i].ItemsField = trim( text ) : rebuild = false
+    case "@ItemsSource" : trial.Controls[i].ItemsSource = trim( text ) : rebuild = false
+    case "@ItemType"    : trial.Controls[i].ItemType = trim( text ) : rebuild = false
+    case "@Display"     : trial.Controls[i].DisplayField = trim( text ) : rebuild = false
+    case "@Value"       : trial.Controls[i].ValueField = trim( text ) : rebuild = false
+    case "@Check"       : trial.Controls[i].CheckField = trim( text ) : rebuild = false
     case "@Bind2"
         trial.Controls[i].Bind2 = trim( text )
         rebuild = false

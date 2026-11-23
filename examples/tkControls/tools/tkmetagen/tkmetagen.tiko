@@ -232,6 +232,11 @@ end sub
 ' thumb). It needs a bind, both procedures, a name for the designer, and a when of "Prop=Shown" naming
 ' one of the control's enum (or bool) properties and one of its values; "" = always.
 sub CheckBind_( byref ctl as TomlValue, byref root as const ustring )
+    ' items_bind (B3): the shape a designed form fills the control's list in
+    select case Str_( ctl, "items_bind" )
+    case "", "rows", "items"
+    case else : Fail_( Str_( ctl, "name" ) & ": items_bind '" & Str_( ctl, "items_bind" ) & "' is not rows or items" )
+    end select
     dim as TomlValue ptr b = ctl.Find( "bind" )
     dim as TomlValue ptr b2 = ctl.Find( "bind2" )
     if (b = 0) andalso (b2 = 0) then exit sub
@@ -457,6 +462,7 @@ sub GenMeta( byref root_ as TomlValue, byref root as const ustring )
                     & ", " & iif( Flag_( *bnd, "load_only", false ), "true", "false" ) & " )" & NL
             if len( Str_( *bnd, "none" ) ) then fill &= "    BindNone_( " & Quote_( Str_( *bnd, "none" ) ) & " )" & NL
         end if
+        if len( Str_( *ctl, "items_bind" ) ) then fill &= "    ItemsBind_( " & Quote_( Str_( *ctl, "items_bind" ) ) & " )" & NL
         dim as TomlValue ptr bnd2 = ctl->Find( "bind2" )
         if bnd2 then
             fill &= "    Bind2_( " & Quote_( Str_( *bnd2, "kind" ) ) & ", " & Quote_( Str_( *bnd2, "get" ) ) & ", " & Quote_( Str_( *bnd2, "set" ) ) _

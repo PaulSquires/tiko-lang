@@ -26,6 +26,10 @@
 # through vendor/tkControls/tkBind. kind: text bool int float date. get = "<proc>( h ) as <kind>" (none when
 # load_only = true: LoadFrom sets it, SaveTo leaves it), set = "<proc>( h, <kind> )". tkmetagen checks both exist.
 # none = the int value that means nothing is chosen (a ComboBox's -1): what B2's Required refuses.
+# items_bind = "rows" | "items": how a designed form fills the control's list from an Array( of T ) (B3):
+# rows = a ListTree (a row per element, a column per field, the check from a bool field), items = a
+# ComboBox (DisplayField shown, ValueField the value Bind moves). AutoComplete, CheckedList and DataGrid
+# are to take one of these shapes, or add theirs here.
 # bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
 # moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
 # needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
@@ -491,6 +495,7 @@ category = "Common"
 width = 160
 height = 28
 bind = { kind="int", get="tkComboBox_GetCurSel", set="tkComboBox_SetCurSel", none="-1" }
+items_bind = "items"
 default_event = "SelChange"
 colors = { struct="TKCOMBOBOX_COLORS", get="tkComboBox_GetColors", theme="tkComboBox_ThemeColors" }
 color_fields = [
@@ -1065,6 +1070,7 @@ module = "tkListTree"
 category = "Lists"
 width = 240
 height = 160
+items_bind = "rows"
 default_event = "SelChange"
 props = [
   { name="RowHeight", kind="int", set="tkListTree_SetRowHeight", get="tkListTree_GetRowHeight" },

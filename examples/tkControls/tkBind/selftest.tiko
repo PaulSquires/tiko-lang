@@ -13,6 +13,7 @@
 #import "vendor/tkControls/tkColorPicker"
 #import "vendor/tkControls/tkDatePicker"
 #import "std/chrono"
+#import "std/containers"
 using tkBind
 using tkCalendar
 using tkTest
@@ -27,6 +28,7 @@ using tkComboBox
 using tkColorPicker
 using tkDatePicker
 using chrono
+using containers
 
 type Rec
     b as boolean
@@ -311,6 +313,12 @@ sub Strict_( )
     LDD( none_, tkCalendar_MakeDate( 2026, 11, 23 ) )
     tkTest_Check( "no date shown as one", (Codes( e ) = CLAMP) andalso (instr( e.Text( ), "no date is shown as 2026-11-23" ) > 0), e.Text( ) )
 
+    ' a DateTime field (Time picker T4's pair): its date part, read back and checked
+    dim as DateTime stamp = DateTime( 2026, 1, 2 )
+    LDD( stamp, tkCalendar_MakeDate( 2026, 1, 2 ) ) : tkTest_Check( "a DateTime shown as its date", Codes( e ) = OK_, e.Text( ) )
+    LDD( stamp, tkCalendar_MakeDate( 2026, 1, 3 ) ) : tkTest_Check( "a DateTime shown as another date", Codes( e ) = CLAMP, e.Text( ) )
+    CHK( stamp, none_, req ) : tkTest_Check( "a DateTime with no date and Required", Codes( e ) = REQ_, e.Text( ) )
+
     ' Format
     tkTest_Check( "Format .2f", tkBind_Text( 3.14159, ".2f" ) = "3.14", tkBind_Text( 3.14159, ".2f" ) )
     l = 42
@@ -332,6 +340,49 @@ sub Strict_( )
     tkTest_Check( "Has finds the control", e.Has( fake ) andalso (e.Has( cast( TK_WIDGET ptr, 32 ) ) = false) )
 end sub
 
+' ---- B3: a ComboBox bound by its items' ValueField ----------------------------------------------
+sub Pick_( )
+    tkTest_Begin( "pick (B3)" )
+    dim as Array( of ustring ) vals
+    vals.Push( "NZ" ) : vals.Push( "AU" ) : vals.Push( "2026-01-02" ) : vals.Push( "300" )
+    tkTest_Check( "IndexOf finds", (tkBind_IndexOf( vals, "AU" ) = 1) andalso (tkBind_IndexOf( vals, "FR" ) = -1) )
+    dim as TKBIND_ERRORS e
+    dim as ustring code
+    dim as long id_
+    dim as ubyte ub
+    dim as TKDATE dt
+    tkBind_CheckPick( e, 0, "Country", code, vals, 1, tkBind_Rule( true ) )
+    tkTest_Check( "a choice meets Required", e.Count = 0, e.Text( ) )
+    tkBind_CheckPick( e, 0, "Country", code, vals, -1, tkBind_Rule( true ) )
+    tkTest_Check( "no choice and Required", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_REQUIRED), e.Text( ) )
+    e.Clear( )
+    tkBind_CheckPick( e, 0, "Country", code, vals, -1, tkBind_Rule( ) )
+    tkTest_Check( "no choice, not Required", e.Count = 0, e.Text( ) )
+    tkBind_CheckPick( e, 0, "Id", id_, vals, 0, tkBind_Rule( ) )
+    tkTest_Check( "a value that is no number, into a long", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_NOTNUMBER), e.Text( ) )
+    e.Clear( )
+    tkBind_CheckPick( e, 0, "Small", ub, vals, 3, tkBind_Rule( ) )
+    tkTest_Check( "300 into a ubyte", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_OUTOFRANGE), e.Text( ) )
+    e.Clear( )
+    tkBind_PutPick( code, vals, 1 )
+    tkTest_Check( "PutPick: the code", code = "AU", code )
+    tkBind_PutPick( code, vals, -1 )
+    tkTest_Check( "PutPick: no choice is empty", len( code ) = 0 )
+    tkBind_PutPick( dt, vals, 2 )
+    tkTest_Check( "PutPick: a date value", (dt.wYear = 2026) andalso (dt.wMonth = 1) andalso (dt.wDay = 2) )
+    id_ = 7
+    tkBind_PutPick( id_, vals, -1 )
+    tkTest_Check( "PutPick: no choice into a long is 0", id_ = 0 )
+    tkBind_LoadedPick( e, 0, "Country", "FR", -1 )
+    tkTest_Check( "LoadedPick: a value not in the list", (e.Count = 1) andalso (e.Items( 0 ).Code = TKBIND_ERR_NOTINLIST) _
+        andalso (e.Text( ) = "Country: 'FR' is not in the list"), e.Text( ) )
+    e.Clear( )
+    tkBind_LoadedPick( e, 0, "Country", "", -1 )
+    tkBind_LoadedPick( e, 0, "Id", "0", -1 )
+    tkBind_LoadedPick( e, 0, "Country", "AU", 1 )
+    tkTest_Check( "LoadedPick: empty, 0 and a found value are fine", e.Count = 0, e.Text( ) )
+end sub
+
 if tkTest_Init() = false then end 99
 tkTest_Begin( "conversions" )
 Text_( )
@@ -340,6 +391,7 @@ Int_( )
 Float_( )
 Date_( )
 Strict_( )
+Pick_( )
 Controls_( )
 dim as long nFail = tkTest_Report( "tkBind" )
 tkTest_Quit()

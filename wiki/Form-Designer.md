@@ -350,6 +350,30 @@ going into a whole-number field is rounded; `true`, `1`, `yes` and `on` are true
 `yyyy-mm-dd`. A date binds only to a text or date field. Loading notifies nobody: no Change or
 CheckChanged handler runs. A wrong field name is the compiler's error, in the generated file.
 
+### Lists
+
+A **ListTree** or a **ComboBox** can be filled from an `Array( of T )`:
+
+- **ItemsField**, a field of the form's DataType (an order's `Lines`): `LoadFrom` fills the list.
+- **ItemsSource**, any array the form can reach: a member such as `People`, or a call such as
+  `contactdb.Countries( )`. The generated `<name>_Fill( )` fills it; call it when the array changes.
+- **ItemType**, the type of the elements (`shopdata.Line`). Its module must be the form's
+  **DataModule** or the form's own; the "..." beside the field rows then lists its fields.
+
+A ListTree takes a **Field** per column (in its Columns, `Name`, `Home.City` or a method such as
+`FullName( )`) and, if you like, a **CheckField**, a boolean field shown in the rows' check boxes.
+`<name>_Item( )` answers the selected row's index in the array, -1 for none. The list shows the
+array; edits in it are not written back.
+
+A ComboBox takes a **DisplayField**, the text each item shows, and a **ValueField**. With a
+ValueField, **Bind** moves the chosen item's value (an id, a code) rather than its index: `LoadFrom`
+selects the item whose value the record holds, and says so when none has it ("Country: 'FR' is not
+in the list"; an empty value and 0 are no value), and `SaveTo` writes the chosen item's value,
+checked as any other.
+
+A list half filled in is fine while you work; until it has its ItemType and its DisplayField (or a
+column with a Field), the generated file stops the build with an `#error` that says what is missing.
+
 ### Validation
 
 `SaveTo` and `LoadFrom` are functions: they answer whether all was well. **SaveTo checks every bound

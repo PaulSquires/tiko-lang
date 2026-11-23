@@ -26,11 +26,13 @@
 #module "tkBind"
 
 #import "std/strings"
+#import "std/containers"
 #import "std/chrono"
 #import "../tkCalendar" public
 #import "../tkApp"
 #import "../tkMessageBox"
 using chrono
+using containers
 using tkCalendar
 using tkApp
 using tkMessageBox
@@ -48,6 +50,7 @@ public enum
     TKBIND_ERR_BELOWMIN         ' below the rule's Minimum
     TKBIND_ERR_ABOVEMAX         ' above the rule's Maximum
     TKBIND_ERR_CLAMPED          ' LoadFrom: the control shows something else than the field holds
+    TKBIND_ERR_NOTINLIST        ' LoadFrom: a ComboBox has no item with the field's value (B3)
 end enum
 
 ' One problem with one bound control.
@@ -216,6 +219,13 @@ private function DateOfLocalB2_( byref ld as LocalDate ) as TKDATE
     dim as TKDATE none_
     if ld.IsValid = false then return none_
     return tkCalendar_MakeDate( ld.Year, ld.Month, ld.Day )
+end function
+
+' A DateTime's date part (Time picker T4 binds a DatePicker to one); an invalid one is no date.
+private function DateOfDateTimeB3_( byref d as DateTime ) as TKDATE
+    dim as TKDATE none_
+    if d.IsValid = false then return none_
+    return tkCalendar_MakeDate( d.Year, d.Month, d.Day )
 end function
 
 private function LocalOfDateB2_( byref d as const TKDATE ) as LocalDate
@@ -578,6 +588,7 @@ public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byr
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as string, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : CheckRequiredDate_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKDATE, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : CheckRequiredDate_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as LocalDate, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : CheckRequiredDate_( e, w, fld, v, ru ) : end sub
+public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as DateTime, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : CheckRequiredDate_( e, w, fld, v, ru ) : end sub
 
 ' ---- range: Minimum / Maximum, for number and date fields only (a text field has none to compare) --
 
@@ -621,6 +632,7 @@ public sub tkBind_Range( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byr
 public sub tkBind_Range( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKDATE, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : RangeDate_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Range( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as LocalDate, byref v as const ustring, byref ru as const TKBIND_RULE ) : RangeDateText_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Range( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as LocalDate, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : RangeDate_( e, w, fld, v, ru ) : end sub
+public sub tkBind_Range( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as DateTime, byref v as const TKDATE, byref ru as const TKBIND_RULE ) : RangeDate_( e, w, fld, v, ru ) : end sub
 
 ' ---- loaded: does the control show the field's value? (LoadFrom, after each setter) -----------
 
@@ -658,6 +670,7 @@ public sub tkBind_Loaded( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, by
 public sub tkBind_Loaded( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as string, byref shown as const TKDATE ) : LoadedDateText_( e, w, fld, f, shown ) : end sub
 public sub tkBind_Loaded( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKDATE, byref shown as const TKDATE ) : LoadedDate_( e, w, fld, f, shown ) : end sub
 public sub tkBind_Loaded( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as LocalDate, byref shown as const TKDATE ) : LoadedDate_( e, w, fld, DateOfLocalB2_( f ), shown ) : end sub
+public sub tkBind_Loaded( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as DateTime, byref shown as const TKDATE ) : LoadedDate_( e, w, fld, DateOfDateTimeB3_( f ), shown ) : end sub
 
 ' ---- Format: a field as text in a pattern (load), text in that pattern back into it (save) --------
 
@@ -695,3 +708,133 @@ public sub tkBind_Put( byref f as ustring, byref v as const ustring, byref fmt a
 public sub tkBind_Put( byref f as string, byref v as const ustring, byref fmt as const ustring ) : tkBind_Put( f, v ) : end sub
 public sub tkBind_Put( byref f as TKDATE, byref v as const ustring, byref fmt as const ustring ) : f = DateOfTextFmt_( v, fmt ) : end sub
 public sub tkBind_Put( byref f as LocalDate, byref v as const ustring, byref fmt as const ustring ) : f = LocalOfDateB2_( DateOfTextFmt_( v, fmt ) ) : end sub
+
+' ---- B3: list binding helpers -----------------------------------------------------------------
+
+' Where text is in values (a ComboBox's ValueField texts), or -1.
+public function tkBind_IndexOf( byref values as Array( of ustring ), byref text as const ustring ) as long
+    for i as long = 0 to values.Count( ) - 1
+        if values[i] = text then return i
+    next
+    return -1
+end function
+
+' The chosen item's value text; "" for no choice (into a field: 0, false, no date, "").
+private function PickText_( byref values as Array( of ustring ), byval sel as long ) as ustring
+    if (sel < 0) orelse (sel >= values.Count( )) then return ""
+    return values[sel]
+end function
+
+' No choice: Required says so, and there is nothing else to check. True when handled.
+private function PickNone_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, _
+                            byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE ) as boolean
+    if (sel >= 0) andalso (sel < values.Count( )) then return false
+    if ru.Required then e.Add( w, fld, TKBIND_ERR_REQUIRED, "", "is required" )
+    return true
+end function
+
+' The rule for the chosen value itself: Required was the choice's to meet.
+private function NoRequired_( byref ru as const TKBIND_RULE ) as TKBIND_RULE
+    dim as TKBIND_RULE r = ru
+    r.Required = false
+    return r
+end function
+
+' LoadFrom: the field's value (as tkBind_Text gives it) found no item. "" and "0" are no value.
+public sub tkBind_LoadedPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, _
+                              byref held as const ustring, byval sel as long )
+    if sel >= 0 then exit sub
+    dim as ustring t = trim( held )
+    if (len( t ) = 0) orelse (t = "0") then exit sub
+    e.Add( w, fld, TKBIND_ERR_NOTINLIST, t, "'" & t & "' is not in the list" )
+end sub
+
+' ---- B3: a ComboBox that binds its items' ValueField ------------------------------------------
+' The values are kept as text (tkBind_Text of each item's ValueField, in a generated member); the
+' chosen one goes back through tkBind_Check / tkBind_Put, so an id, a code or a date all bind.
+
+public sub tkBind_CheckPick overload( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as boolean, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as byte, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as ubyte, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as short, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as ushort, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as long, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as ulong, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as longint, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as ulongint, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as integer, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as uinteger, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as single, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as double, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as ustring, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as string, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKDATE, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_CheckPick( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as LocalDate, byref values as Array( of ustring ), byval sel as long, byref ru as const TKBIND_RULE )
+    if PickNone_( e, w, fld, values, sel, ru ) then exit sub
+    tkBind_Check( e, w, fld, f, values[sel], NoRequired_( ru ) )
+end sub
+public sub tkBind_PutPick overload( byref f as boolean, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as byte, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as ubyte, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as short, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as ushort, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as long, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as ulong, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as longint, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as ulongint, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as integer, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as uinteger, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as single, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as double, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as ustring, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as string, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as TKDATE, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub
+public sub tkBind_PutPick( byref f as LocalDate, byref values as Array( of ustring ), byval sel as long ) : tkBind_Put( f, PickText_( values, sel ) ) : end sub

@@ -3341,6 +3341,10 @@ function Window.OpenText( byref path as const ustring ) as boolean
                 next
                 return list
             end function
+            d->Designer->OnElementType = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref typeName as const ustring, _
+                                                   byref path as const ustring ) as ustring
+                return cast( Window ptr, o )->Db.ElementType( typeName, path )
+            end function
             d->Designer->OnAskParent = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref what as const ustring, _
                                                  byval n as long, byref parent as const ustring, byref page as const ustring ) as boolean
                 return cast( Window ptr, o )->AskParent( what, n, parent, page )

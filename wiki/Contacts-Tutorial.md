@@ -337,8 +337,12 @@ bars and the other controls with a **Tooltip** event work the same way.
 
 ### Filling it
 
-Rows are added from code (step 16): `tkListTree_AddString` adds a row and returns its index, and
-`tkListTree_SetCellText` fills its other columns.
+The rows come from the contacts the program holds (step 16), so the list is bound to them rather than
+filled by hand. Click the empty form and set **DataModule** to `../contactdb`. Then, with
+`lstContacts` selected, set **ItemsSource** to `People` and **ItemType** to `contactdb.Contact`. In
+its **Columns**, give each column the **Field** it shows: `FullName( )`, `Phone`, `Email`. The
+generated file then has `lstContacts_Fill( )`, a row per contact, and `lstContacts_Item( )`, the
+selected row's index in `People` (-1 for none).
 
 ---
 
@@ -848,27 +852,29 @@ sub Form.Form_Destroy( )
 end sub
 ```
 
-**Filling the list.** One row per contact, its other columns by `SetCellText`, then the count in
-the status bar's first panel:
+**Filling the list.** Read the contacts into `People`, let the generated `lstContacts_Fill( )` make
+a row for each, select the one asked for, then put the count in the status bar's first panel:
 
 ```freebasic
 sub Form.Reload( byval selectId as int64 = 0 )
     dim as ustring e = contactdb.LoadAll( People )
     if len( e ) then SetStatus( e )
-    dim as TK_WIDGET ptr h = lstContacts.Handle
-    tkListTree_Clear( h )
+    lstContacts_Fill( )
     dim as long pick = 0
     for i as long = 0 to People.Count( ) - 1
-        dim byref as contactdb.Contact c = People[i]
-        dim as integer row = tkListTree_AddString( h, c.FullName( ) )
-        tkListTree_SetCellText( h, row, 1, c.Phone )
-        tkListTree_SetCellText( h, row, 2, c.Email )
-        if c.Id = selectId then pick = i
+        if People[i].Id = selectId then pick = i
     next
-    if People.Count( ) then tkListTree_SetCurSel( h, pick )
+    if People.Count( ) then tkListTree_SetCurSel( lstContacts.Handle, pick )
     tkStatusBar_SetText( sbMain.Handle, 0, People.Count( ) & iif( People.Count( ) = 1, " contact", " contacts" ) )
     ShowSelected( )
 end sub
+
+' The selected contact's index in People, or -1.
+function Form.Selected( ) as long
+    dim as long i = lstContacts_Item( )
+    if i >= People.Count( ) then return -1
+    return i
+end function
 ```
 
 `ShowSelected` puts the selected contact's photo in `picPhoto`, its name in `lblName` and its

@@ -159,6 +159,98 @@ private sub CheckRules_( byref c as FormControl, byval m as TKMETA_CONTROL ptr, 
     end if
 end sub
 
+' A field of a list's element: Name, Home.City, or a method with no arguments, FullName( ).
+private function IsElementField_( byref s as const ustring ) as boolean
+    dim as ustring t = trim( s )
+    if right( t, 1 ) = ")" then
+        dim as long op = instr( t, "(" )
+        if (op = 0) orelse (len( trim( mid( t, op + 1, len( t ) - op - 1 ) ) ) > 0) then return false
+        t = rtrim( left( t, op - 1 ) )
+    end if
+    return IsDottedName_( t )
+end function
+
+' An ItemsSource: a name (People, contactdb.All) or a call (contactdb.Countries( )), parentheses
+' balanced, on one line.
+private function IsSourceExpr_( byref s as const ustring ) as boolean
+    dim as ustring t = trim( s )
+    if (len( t ) = 0) orelse instr( t, chr( 10 ) ) orelse instr( t, chr( 34 ) ) then return false
+    dim as long op = instr( t, "(" )
+    dim as ustring head_ = t
+    if op then
+        if right( t, 1 ) <> ")" then return false
+        head_ = rtrim( left( t, op - 1 ) )
+        dim as long depth = 0
+        for i as long = op to len( t )
+            select case mid( t, i, 1 )
+            case "(" : depth += 1
+            case ")" : depth -= 1 : if depth < 0 then return false
+            end select
+        next
+        if depth <> 0 then return false
+    end if
+    return IsDottedName_( head_ )
+end function
+
+' B3's list binding on one control.
+private sub CheckList_( byref doc as FormDoc, byref c as FormControl, byval m as TKMETA_CONTROL ptr, byref out_ as Array( of ustring ) )
+    dim as boolean anyField = false
+    for each it as FormItem in c.Items
+        if len( it.Field ) then anyField = true
+    next
+    dim as boolean anySet = catalog.HasListSource( c ) orelse (len( c.ItemType ) > 0) orelse (len( c.DisplayField ) > 0) _
+        orelse (len( c.ValueField ) > 0) orelse (len( c.CheckField ) > 0) orelse anyField
+    if anySet = false then exit sub
+    dim as ustring shape = m->ItemsBind
+    if len( shape ) = 0 then
+        out_.Push( c.Name & ": a " & m->Name & " has no list to bind" )
+        exit sub
+    end if
+    if (len( c.ItemsField ) > 0) andalso (len( c.ItemsSource ) > 0) then
+        out_.Push( c.Name & ": a list comes from ItemsField or ItemsSource, not both" )
+        exit sub
+    end if
+    if len( c.ItemsField ) then
+        if IsDottedName_( c.ItemsField ) = false then
+            out_.Push( c.Name & ": items field '" & c.ItemsField & "' is not a field name" )
+        elseif len( doc.DataType ) = 0 then
+            out_.Push( c.Name & ": an ItemsField needs the form's DataType first" )
+        end if
+    end if
+    if len( c.ItemsSource ) andalso (IsSourceExpr_( c.ItemsSource ) = false) then
+        out_.Push( c.Name & ": items source '" & c.ItemsSource & "' is not a name or a call (People, contactdb.Countries( ))" )
+    end if
+    dim as boolean src = catalog.HasListSource( c )
+    if len( c.ItemType ) andalso (IsDottedName_( c.ItemType ) = false) then
+        out_.Push( c.Name & ": item type '" & c.ItemType & "' is not a type name" )
+    end if
+    if shape = "items" then
+        if len( c.CheckField ) orelse anyField then out_.Push( c.Name & ": a " & m->Name & " has DisplayField and ValueField, not columns or checks" )
+        if src andalso c.Items.Count( ) then out_.Push( c.Name & ": its items come from the list; remove the ones typed in" )
+        if (src = false) andalso (len( c.DisplayField ) orelse len( c.ValueField )) then out_.Push( c.Name & ": DisplayField and ValueField need ItemsField or ItemsSource" )
+        if len( c.DisplayField ) andalso (IsElementField_( c.DisplayField ) = false) then out_.Push( c.Name & ": display field '" & c.DisplayField & "' is not a field (Name, FullName( ))" )
+        if len( c.ValueField ) andalso (IsElementField_( c.ValueField ) = false) then out_.Push( c.Name & ": value field '" & c.ValueField & "' is not a field (Id, Code)" )
+    else
+        if len( c.DisplayField ) orelse len( c.ValueField ) then out_.Push( c.Name & ": a " & m->Name & " shows columns: give each column a Field" )
+        if (src = false) andalso (len( c.CheckField ) orelse anyField) then out_.Push( c.Name & ": columns' fields need ItemsField or ItemsSource" )
+        if len( c.CheckField ) andalso (IsElementField_( c.CheckField ) = false) then
+            out_.Push( c.Name & ": check field '" & c.CheckField & "' is not a field" )
+        end if
+        for each it as FormItem in c.Items
+            if len( it.Field ) andalso (IsElementField_( it.Field ) = false) then out_.Push( c.Name & ": column field '" & it.Field & "' is not a field (Name, FullName( ))" )
+        next
+    end if
+    ' the members the generated code adds for it
+    if src then
+        for each o as FormControl in doc.Controls
+            dim as ustring ln = lcase( o.Name )
+            if (ln = lcase( c.Name & "_Fill" )) orelse (ln = lcase( c.Name & "_Item" )) orelse (ln = lcase( c.Name & "_Values_" )) then
+                out_.Push( o.Name & ": the name is taken by " & c.Name & "'s list" )
+            end if
+        next
+    end if
+end sub
+
 ' Why this name can't be a field or handler of a form, or "" when it can.
 private function NameFault_( byref s as const ustring ) as ustring
     if IsIdentifier( s ) = false then return "is not an identifier"
@@ -427,6 +519,7 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
             end if
         end if
         CheckRules_( c, m, out_ )
+        CheckList_( doc, c, m, out_ )
         ' a two-value control's second field (bind2): only with the first, and only while it applies
         if len( c.Bind2 ) then
             if len( m->Bind2Kind ) = 0 then

@@ -239,3 +239,43 @@ public function RulesSet( byref c as FormControl ) as ustring
     if len( c.Format ) then o &= "Format "
     return rtrim( o )
 end function
+
+' ---- B3: list binding ------------------------------------------------------------------------
+' A control's list shape (tkMeta's items_bind): "rows" (ListTree), "items" (ComboBox), "" none.
+public function ItemsBindOf( byref c as FormControl ) as ustring
+    dim as TKMETA_CONTROL ptr m = Find( c.TypeName )
+    if m = 0 then return ""
+    return m->ItemsBind
+end function
+
+' The control fills its list from an array: a DataType field or an expression.
+public function HasListSource( byref c as FormControl ) as boolean
+    return (len( c.ItemsField ) > 0) orelse (len( c.ItemsSource ) > 0)
+end function
+
+' What a list with a source still lacks before code can be made for it, "" when nothing: its
+' ItemType, a ComboBox's DisplayField, a ListTree column's Field. The inspector fills these in one at
+' a time, so validate lets them be missing; the generated file says so with an #error instead.
+public function ListMissing( byref c as FormControl ) as ustring
+    dim as ustring shape = ItemsBindOf( c )
+    if (len( shape ) = 0) orelse (HasListSource( c ) = false) then return ""
+    if len( c.ItemType ) = 0 then return "its list needs an ItemType, the type of its elements"
+    if (shape = "items") andalso (len( c.DisplayField ) = 0) then return "its list needs a DisplayField, the text each item shows"
+    if shape = "rows" then
+        for each it as FormItem in c.Items
+            if len( it.Field ) then return ""
+        next
+        return "its list needs a column with a Field, the element field it shows"
+    end if
+    return ""
+end function
+
+' A list that is filled from an array, complete enough to generate.
+public function ListReady( byref c as FormControl ) as boolean
+    return (len( ItemsBindOf( c ) ) > 0) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
+end function
+
+' A ComboBox that binds its items' ValueField rather than its index.
+public function BindsByValue( byref c as FormControl ) as boolean
+    return (ItemsBindOf( c ) = "items") andalso ListReady( c ) andalso (len( c.ValueField ) > 0) andalso (len( c.Bind ) > 0)
+end function

@@ -924,10 +924,109 @@ end function
 private function HasBinding_( byref doc as FormDoc ) as boolean
     if len( doc.DataType ) = 0 then return false
     for each c as FormControl in doc.Controls
-        if IsBound_( c ) then return true
+        if IsBound_( c ) orelse (catalog.ListReady( c ) andalso (len( c.ItemsField ) > 0)) then return true
     next
     return false
 end function
+
+' ---- list binding (B3) ----------------------------------------------------------------------
+' A ComboBox keeps its items' ValueField texts in a generated member, <name>_Values_.
+private function HasValues_( byref c as FormControl ) as boolean
+    return (catalog.ItemsBindOf( c ) = "items") andalso catalog.ListReady( c ) andalso (len( c.ValueField ) > 0)
+end function
+
+private function AnyList_( byref doc as FormDoc ) as boolean
+    for each c as FormControl in doc.Controls
+        if catalog.ListReady( c ) then return true
+    next
+    return false
+end function
+
+' A list the inspector has left half filled in: the build stops on it, saying what it still needs.
+private sub ListErrors_( byref doc as FormDoc, byref o as ustring )
+    for each c as FormControl in doc.Controls
+        dim as ustring missing = catalog.ListMissing( c )
+        if len( missing ) then o &= "#error " & Literal_( c.Name & ": " & missing & " (Form Designer)" ) & NL
+    next
+end sub
+
+private function AnyValues_( byref doc as FormDoc ) as boolean
+    for each c as FormControl in doc.Controls
+        if HasValues_( c ) then return true
+    next
+    return false
+end function
+
+' The loop that fills c's list from src (an Array( of T ) expression, T = ItemType): a row per
+' element with a column per field (ListTree), or an item per element showing DisplayField (ComboBox).
+' A name is bound by reference, a call's result copied once. The array's type is spelled out, not
+' typeof( src ): typeof of a member declared in the form's other file, or of a record's array field,
+' reaches the compiler's limits (TKO0700 on [ ], TKO0994) -- see Learnings, B3.
+private sub FillBody_( byref c as FormControl, byref src as const ustring, byref o as ustring )
+    dim as ustring h = c.Name & ".Handle"
+    dim as ustring kw = "byref "
+    if right( trim( src ), 1 ) = ")" then kw = ""
+    o &= "    scope" & NL
+    o &= "        dim " & kw & "as Array( of " & c.ItemType & " ) a_ = " & src & NL
+    if catalog.ItemsBindOf( c ) = "rows" then
+        o &= "        tkListTree_BeginUpdate( " & h & " )" & NL
+        o &= "        tkListTree_Clear( " & h & " )" & NL
+        ' a CheckField shows in the rows' check boxes, which the ListTree then has
+        if len( c.CheckField ) then o &= "        tkListTree_SetCheckBoxes( " & h & ", true )" & NL
+        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        dim as ustring first_ = """"""
+        if c.Items.Count( ) andalso len( c.Items[0].Field ) then first_ = "tkBind_Text( a_[i_]." & c.Items[0].Field & " )"
+        o &= "            dim as integer row_ = tkListTree_AddString( " & h & ", " & first_ & " )" & NL
+        for k as long = 1 to c.Items.Count( ) - 1
+            if len( c.Items[k].Field ) then
+                o &= "            tkListTree_SetCellText( " & h & ", row_, " & k & ", tkBind_Text( a_[i_]." & c.Items[k].Field & " ) )" & NL
+            end if
+        next
+        o &= "            tkListTree_SetItemData( " & h & ", row_, i_ )" & NL
+        if len( c.CheckField ) then
+            o &= "            tkListTree_SetCheck( " & h & ", row_, iif( tkBind_Bool( a_[i_]." & c.CheckField & " ), 1, 0 ) )" & NL
+        end if
+        o &= "        next" & NL
+        o &= "        tkListTree_EndUpdate( " & h & " )" & NL
+    else
+        o &= "        tkComboBox_Clear( " & h & " )" & NL
+        if HasValues_( c ) then o &= "        " & c.Name & "_Values_.Clear( )" & NL
+        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        o &= "            tkComboBox_AddItem( " & h & ", tkBind_Text( a_[i_]." & c.DisplayField & " ) )" & NL
+        if HasValues_( c ) then o &= "            " & c.Name & "_Values_.Push( tkBind_Text( a_[i_]." & c.ValueField & " ) )" & NL
+        o &= "        next" & NL
+    end if
+    o &= "    end scope" & NL
+end sub
+
+' The list members: <name>_Fill( ) for an ItemsSource (the program calls it; an ItemsField is
+' filled by LoadFrom), <name>_Item( ) for a ListTree: the chosen row's element, -1 for none.
+private sub ListDecls_( byref doc as FormDoc, byref o as ustring )
+    for each c as FormControl in doc.Controls
+        if catalog.ListReady( c ) = false then continue for
+        if HasValues_( c ) then o &= "    " & c.Name & "_Values_ as Array( of ustring )" & NL
+        if len( c.ItemsSource ) then o &= "    declare sub " & c.Name & "_Fill( )" & NL
+        if catalog.ItemsBindOf( c ) = "rows" then o &= "    declare function " & c.Name & "_Item( ) as long" & NL
+    next
+end sub
+
+private sub ListCode_( byref doc as FormDoc, byref o as ustring )
+    for each c as FormControl in doc.Controls
+        if catalog.ListReady( c ) = false then continue for
+        if len( c.ItemsSource ) then
+            o &= NL & "sub Form." & c.Name & "_Fill( )" & NL
+            FillBody_( c, c.ItemsSource, o )
+            o &= "end sub" & NL
+        end if
+        if catalog.ItemsBindOf( c ) = "rows" then
+            o &= NL & "function Form." & c.Name & "_Item( ) as long" & NL
+            o &= "    dim as long row_ = tkListTree_GetCurSel( " & c.Name & ".Handle )" & NL
+            o &= "    if row_ < 0 then return -1" & NL
+            o &= "    return tkListTree_GetItemData( " & c.Name & ".Handle, row_ )" & NL
+            o &= "end function" & NL
+        end if
+    next
+end sub
 
 private function BindFn_( byref kind as const ustring ) as ustring
     select case kind
@@ -1015,8 +1114,15 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
     o &= NL & "function Form.LoadFrom( byref r as " & doc.DataType & " ) as boolean" & NL
     o &= "    dim as TKBIND_ERRORS bindErrors_" & NL
     for each c as FormControl in doc.Controls
+        if len( c.ItemsField ) andalso catalog.ListReady( c ) then FillBody_( c, "r." & c.ItemsField, o )
         if IsBound_( c ) = false then continue for
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
+        if catalog.BindsByValue( c ) then
+            dim as ustring hv = c.Name & ".Handle"
+            o &= "    tkComboBox_SetCurSel( " & hv & ", tkBind_IndexOf( " & c.Name & "_Values_, tkBind_Text( r." & c.Bind & " ) ) )" & NL
+            o &= "    tkBind_LoadedPick( bindErrors_, " & hv & ", " & Literal_( c.Bind ) & ", tkBind_Text( r." & c.Bind & " ), tkComboBox_GetCurSel( " & hv & " ) )" & NL
+            continue for
+        end if
         dim as ustring fmt
         if len( c.Format ) then fmt = ", " & Literal_( c.Format )
         o &= "    " & m->BindSet & "( " & c.Name & ".Handle, tkBind_" & BindFn_( m->BindKind ) & "( r." & c.Bind & fmt & " ) )" & NL
@@ -1042,6 +1148,11 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
         if IsBound_( c ) = false then continue for
         dim as TKMETA_CONTROL ptr m = catalog.Find( c.TypeName )
         if m->BindLoadOnly then continue for
+        if catalog.BindsByValue( c ) then
+            o &= "    tkBind_CheckPick( bindErrors_, " & c.Name & ".Handle, " & Literal_( c.Bind ) & ", r." & c.Bind & ", " & c.Name & "_Values_, " _
+                & "tkComboBox_GetCurSel( " & c.Name & ".Handle ), " & RuleArg_( c, m ) & " )" & NL
+            continue for
+        end if
         if Checked_( m->BindKind ) then
             dim as ustring tail_ = c.Name & ".Handle, " & Literal_( c.Bind ) & ", r." & c.Bind & ", " & BindGot_( m->BindKind, m->BindGet, c.Name ) & ", " & RuleArg_( c, m ) & " )"
             o &= "    tkBind_Check( bindErrors_, " & tail_ & NL
@@ -1073,6 +1184,10 @@ private sub BindingCode_( byref doc as FormDoc, byref o as ustring )
             dim as ustring dGot = BindGot_( m->BindKind, m->BindGet, c.Name ), tGot = BindGot_( m2->BindKind, m2->BindGet, c2.Name )
             if m->BindKind = "time" then swap dGot, tGot
             o &= "    tkBind_Put( r." & c.Bind & ", " & dGot & ", " & tGot & " )" & NL
+            continue for
+        end if
+        if catalog.BindsByValue( c ) then
+            o &= "    tkBind_PutPick( r." & c.Bind & ", " & c.Name & "_Values_, tkComboBox_GetCurSel( " & c.Name & ".Handle ) )" & NL
             continue for
         end if
         dim as ustring fmt
@@ -1120,9 +1235,11 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     if needsKeys then o &= "#import " & Literal_( "vendor/tkControls/tkKeys" ) & NL
     dim as boolean binds = HasBinding_( doc )
     ' a ValidationError handler names TKBIND_ERRORS, bound controls or not
-    dim as boolean needsBind = binds orelse (FindSetting( doc.Events, "ValidationError" ) >= 0)
+    dim as boolean needsBind = binds orelse (FindSetting( doc.Events, "ValidationError" ) >= 0) orelse AnyList_( doc )
     if needsBind then o &= "#import " & Literal_( "vendor/tkControls/tkBind" ) & NL
-    if binds andalso (len( doc.DataModule ) > 0) then o &= "#import " & Literal_( doc.DataModule ) & NL
+    ' the records' module: what DataType and the lists' ItemTypes come from
+    if (binds orelse AnyList_( doc )) andalso (len( doc.DataModule ) > 0) then o &= "#import " & Literal_( doc.DataModule ) & NL
+    if AnyList_( doc ) then o &= "#import " & Literal_( "std/containers" ) & NL
     dim as Array( of ustring ) customMods = CustomModules_( doc )
     for each mo as ustring in customMods
         o &= "#import """ & mo & """" & NL
@@ -1137,6 +1254,8 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     if needsMenu then o &= "using tkPopupMenu" & NL
     if needsKeys then o &= "using tkKeys" & NL
     if needsBind then o &= "using tkBind" & NL
+    if AnyList_( doc ) then o &= "using containers" & NL
+    ListErrors_( doc, o )
     dim as boolean needsTheme = false
     for i as long = 0 to doc.Controls.Count( ) - 1
         if HasColors_( doc.Controls[i] ) then needsTheme = true
@@ -1151,6 +1270,7 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         o &= "    " & doc.Controls[i].Name & " as " & typeName_ & NL
     next
     o &= "    declare sub Build( byval owner as TK_FORM ptr = nullptr )" & NL
+    ListDecls_( doc, o )
     if binds then
         o &= "    declare function LoadFrom( byref r as " & doc.DataType & " ) as boolean" & NL
         o &= "    declare function SaveTo( byref r as " & doc.DataType & " ) as boolean" & NL
@@ -1201,5 +1321,6 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     if i >= 0 then o &= "    " & doc.Events[i].Value & "( )" & NL
     o &= "end sub" & NL
     if binds then BindingCode_( doc, o )
+    ListCode_( doc, o )
     return o
 end function
