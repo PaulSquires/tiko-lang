@@ -87,6 +87,7 @@ sub AcSelectByUser( byval p as TKAUTOCOMPLETE_STATE ptr, byval idx as long )
     tkTextBox_SetText( p->wEdit, p->itText(idx) )
     p->sQuery = p->itText(idx)
     p->nSel = idx
+    p->bExtSel = false
     AcEditColors( p )
     AcFaceSync( p )
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, true )
@@ -97,6 +98,12 @@ end sub
 ' The user is leaving the box (focus out, Enter, Tab): settle the value.
 sub AcResolve( byval p as TKAUTOCOMPLETE_STATE ptr )
     dim as ustring text = tkTextBox_GetText( p->wEdit )
+    ' a supplied row's value (or SetSelectedItem's) stands while its text does
+    if p->bExtSel andalso (text = p->sSelText) then exit sub
+    ' the feeds: a full match among the rows the host gave last selects that row
+    if AcSupplied( p ) andalso (len( text ) > 0) then
+        if AcSelectSuppliedText( p, text ) then exit sub
+    end if
     if (p->nSel >= 0) andalso (p->nSel < p->nItems) then
         if text = p->itText(p->nSel) then exit sub
     end if
@@ -108,8 +115,9 @@ sub AcResolve( byval p as TKAUTOCOMPLETE_STATE ptr )
     end if
     if len( text ) = 0 then
         ' a lookup emptied: no value
-        if p->nSel >= 0 then
+        if (p->nSel >= 0) orelse p->bExtSel then
             p->nSel = -1
+            p->bExtSel = false
             if p->ItemSelectedCallback then p->ItemSelectedCallback( p->hWin, -1, p->nNoValueId )
         end if
         exit sub
@@ -133,6 +141,7 @@ sub AcResolve( byval p as TKAUTOCOMPLETE_STATE ptr )
     p->nAppendItem = -1
     dim as ustring back = ""
     if p->nSel >= 0 then back = p->itText(p->nSel)
+    if p->bExtSel then back = p->sSelText
     tkTextBox_SetText( p->wEdit, back )
     p->sQuery = back
     AcEditColors( p )
@@ -159,6 +168,7 @@ public sub tkAutoComplete_SetText( byval hAC as TK_WIDGET ptr, byval s as ustrin
     tkTextBox_SetText( p->wEdit, s )
     p->sQuery = s
     p->nSel = -1
+    p->bExtSel = false
     p->nAppendItem = -1
     if p->bError then p->bError = false : AcEditColors( p )
     AcFaceSync( p )
@@ -191,6 +201,7 @@ end function
 public function tkAutoComplete_GetSelectedId( byval hAC as TK_WIDGET ptr ) as longint
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
     if p = 0 then return 0
+    if p->bExtSel then return p->nSelId
     if AcValid( p, p->nSel ) = false then return p->nNoValueId
     return p->itId(p->nSel)
 end function

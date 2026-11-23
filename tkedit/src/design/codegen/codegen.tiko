@@ -941,6 +941,7 @@ end function
 ' ---- list binding (B3) ----------------------------------------------------------------------
 ' A ComboBox keeps its items' ValueField texts in a generated member, <name>_Values_.
 private function HasValues_( byref c as FormControl ) as boolean
+    if catalog.ItemsKeyed( c.TypeName ) orelse catalog.ItemsIdKeyed( c.TypeName ) then return false   ' its keys / ids ARE the values
     return (catalog.ItemsBindOf( c ) = "items") andalso catalog.ListReady( c ) andalso (len( c.ValueField ) > 0)
 end function
 
@@ -998,10 +999,15 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
         o &= "        next" & NL
         o &= "        tkListTree_EndUpdate( " & h & " )" & NL
     else
-        o &= "        tkComboBox_Clear( " & h & " )" & NL
+        o &= "        " & catalog.ItemsClearProc( c.TypeName ) & "( " & h & " )" & NL
         if HasValues_( c ) then o &= "        " & c.Name & "_Values_.Clear( )" & NL
         o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
-        o &= "            tkComboBox_AddItem( " & h & ", tkBind_Text( a_[i_]." & c.DisplayField & " ) )" & NL
+        ' a keyed list (the checked-list controls) takes ValueField as each item's key
+        dim as ustring keyArg
+        if catalog.ItemsKeyed( c.TypeName ) andalso len( c.ValueField ) then keyArg = ", tkBind_Text( a_[i_]." & c.ValueField & " )"
+        ' an id-keyed list (AutoComplete) takes ValueField as each item's numeric id
+        if catalog.ItemsIdKeyed( c.TypeName ) andalso len( c.ValueField ) then keyArg = ", tkBind_Int( a_[i_]." & c.ValueField & " )"
+        o &= "            " & catalog.ItemsAddProc( c.TypeName ) & "( " & h & ", tkBind_Text( a_[i_]." & c.DisplayField & " )" & keyArg & " )" & NL
         if HasValues_( c ) then o &= "            " & c.Name & "_Values_.Push( tkBind_Text( a_[i_]." & c.ValueField & " ) )" & NL
         o &= "        next" & NL
     end if

@@ -2813,6 +2813,60 @@ end sub
 
 ' B4: the record navigator -- its records (ItemsSource), the list it follows, the generated IsDirty /
 ' MoveTo / Refresh / Go_, and its thunks.
+' The checked-list controls (claude-docs CHECKED-LISTS.md, C2b / C3b / C4b): a text bind (the chosen
+' keys) and a keyed "items" fill -- ValueField is each item's key, so no _Values_ member and no index
+' mapping; design-time items through each control's own AddItem.
+sub KeyedListSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Order""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring src = hdr _
+        & Ctl( "cboTags", "CheckedComboBox", "bind = ""Tags""" & LF & "items_source = ""shop.AllTags( )""" & LF & "item_type = ""shop.Tag""" & LF _
+            & "display_field = ""Name""" & LF & "value_field = ""Code""" & LF ) _
+        & Ctl( "lstDays", "CheckedList", "bind = ""Days""" & LF ) & LF & "[[control.items]]" & LF & "text = ""Mon""" & LF _
+        & Ctl( "tokPeople", "TokenBox", "bind = ""People""" & LF ) & LF & "[[control.items]]" & LF & "text = ""Ann""" & LF
+    Check( (catalog.ItemsKindOf( "CheckedList" ) = catalog.ItemsKind.ItemsList) andalso (catalog.ItemsKindOf( "TokenBox" ) = catalog.ItemsKind.ItemsList), _
+        "keyed: their items are a text list" )
+    Accepted( src, "keyed: a form with the three bound" )
+    dim as FormDoc d
+    ReadForm( src, d )
+    dim as ustring g = codegen.Generate( d, "frmTags", "frmTags.tkform", src )
+    HasLine( g, "    tkCheckedCombo_Clear( cboTags.Handle )", "keyed: the control's own Clear" )
+    HasLine( g, "        tkCheckedCombo_AddItem( cboTags.Handle, tkBind_Text( a_[i_].Name ), tkBind_Text( a_[i_].Code ) )", "keyed: ValueField is the key" )
+    Check( instr( g, "cboTags_Values_" ) = 0, "keyed: no values member" )
+    HasLine( g, "tkCheckedCombo_SetCheckedText( cboTags.Handle, tkBind_Text( r.Tags ) )", "keyed: LoadFrom sets the chosen keys" )
+    HasLine( g, "tkBind_Put( r.Tags, tkCheckedCombo_GetCheckedText( cboTags.Handle ) )", "keyed: SaveTo reads them" )
+    HasLine( g, "tkCheckedList_AddItem( lstDays.Handle, ""Mon"" )", "keyed: a CheckedList's design-time item" )
+    HasLine( g, "tkTokenBox_AddItem( tokPeople.Handle, ""Ann"" )", "keyed: a TokenBox's design-time suggestion" )
+end sub
+
+' A5 (docs/tkControls/AUTOCOMPLETE.md section 10.4): an AutoComplete binds its text (bind) and, as a
+' lookup, its item's id (bind2 BindValue, ValuePolicy=LimitToList); its list fills with ValueField
+' as each item's numeric id.
+sub AutoCompleteSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Order""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring lookup = LF & "[control.props]" & LF & "ValuePolicy = ""LimitToList""" & LF
+    dim as ustring src = hdr _
+        & Ctl( "acCountry", "AutoComplete", "bind = ""CountryName""" & LF & "bind2 = ""CountryId""" & LF _
+            & "items_source = ""shop.Countries( )""" & LF & "item_type = ""shop.Country""" & LF _
+            & "display_field = ""Name""" & LF & "value_field = ""Id""" & LF ) & lookup _
+        & Ctl( "acCity", "AutoComplete", "bind = ""City""" & LF ) & LF & "[[control.items]]" & LF & "text = ""Oslo""" & LF
+    Check( (catalog.ItemsKindOf( "AutoComplete" ) = catalog.ItemsKind.ItemsList) andalso catalog.ItemsIdKeyed( "AutoComplete" ), _
+        "autocomplete: a text list keyed by id" )
+    Accepted( src, "autocomplete: a lookup and a free-text box, bound" )
+    Refused( hdr & Ctl( "ac", "AutoComplete", "bind = ""A""" & LF & "bind2 = ""B""" & LF ), "BindValue needs ValuePolicy=LimitToList" )
+    dim as FormDoc d
+    ReadForm( src, d )
+    dim as ustring g = codegen.Generate( d, "frmOrder", "frmOrder.tkform", src )
+    HasLine( g, "        tkAutoComplete_AddItem( acCountry.Handle, tkBind_Text( a_[i_].Name ), tkBind_Int( a_[i_].Id ) )", _
+        "autocomplete: ValueField is each item's id" )
+    Check( instr( g, "acCountry_Values_" ) = 0, "autocomplete: no values member" )
+    dim as long l1 = instr( g, "tkAutoComplete_SetText( acCountry.Handle, tkBind_Text( r.CountryName ) )" )
+    dim as long l2 = instr( g, "tkAutoComplete_SetSelectedId( acCountry.Handle, tkBind_Int( r.CountryId ) )" )
+    Check( (l1 > 0) andalso (l2 > l1), "autocomplete: LoadFrom sets the text, then the id", LineWith( g, "acCountry" ) )
+    Check( instr( g, "tkBind_Put( r.CountryId, clngint( tkAutoComplete_GetSelectedId( acCountry.Handle ) ) )" ) > 0, _
+        "autocomplete: SaveTo reads the id", LineWith( g, "tkBind_Put" ) )
+    HasLine( g, "tkAutoComplete_AddItem( acCity.Handle, ""Oslo"" )", "autocomplete: a design-time item" )
+end sub
+
 sub NavSuite( )
     dim as ustring hdr = Header( ) & "data_type = ""pd.Person""" & LF & "data_module = ""../pd""" & LF
     dim as ustring lst = Ctl( "lstP", "ListTree", "items_source = ""People""" & LF & "item_type = ""pd.Person""" & LF ) _
@@ -2947,6 +3001,8 @@ BindSuite( )
 Bind2Suite( )
 RuleSuite( )
 ListSuite( )
+KeyedListSuite( )
+AutoCompleteSuite( )
 NavSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

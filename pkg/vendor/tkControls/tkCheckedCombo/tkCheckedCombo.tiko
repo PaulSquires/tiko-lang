@@ -10,8 +10,9 @@
 '
 ' THE BUTTON is tkComboBox's (D-3): its four-rect layout, moods (disabled > open > hot > idle),
 ' chevron of four strokes and focus ring, copied rather than shared (tkComboBox's painter is
-' private), and its colour struct and theme function -- TKCOMBOBOX_COLORS, tkComboBox_ThemeColors,
-' the theme's "ComboBox" recipes -- so the two combos look the same under every theme. Its text is
+' private), and its colours: TKCHECKEDCOMBO_COLORS has TKCOMBOBOX_COLORS's fields, filled from
+' tkComboBox_ThemeColors, so the two combos look the same under every theme (the designer's table
+' needs the struct in this module). A theme's "CheckedComboBox" recipes apply on top. Its text is
 ' the SUMMARY of the checked items: their names joined (", "), a count ("3 selected"), or as many
 ' names as fit and "+k"; the placeholder when none; AllText when all (if set).
 '
@@ -51,6 +52,28 @@ public enum
 end enum
 
 public const TKCHECKEDCOMBO_DEFAULT_SEPARATOR = ";"
+
+' TKCOMBOBOX_COLORS's fields, in its order (tkCheckedCombo_ThemeColors copies them over).
+public type TKCHECKEDCOMBO_COLORS
+    BackColor            as ulong = &hFF2C313Aul
+    ForeColor            as ulong = &hFFC8CDD6ul
+    BorderColor          as ulong = &hFF2C313Aul
+    ChevronColor         as ulong = &hFFC8CDD6ul
+    BackColorHot         as ulong = &hFF373D48ul
+    ForeColorHot         as ulong = &hFFE2E6EEul
+    BorderColorHot       as ulong = &hFF373D48ul
+    ChevronColorHot      as ulong = &hFFE2E6EEul
+    BackColorOpen        as ulong = &hFF2C313Aul
+    ForeColorOpen        as ulong = &hFF61AFEFul
+    BorderColorOpen      as ulong = &hFF2C313Aul
+    ChevronColorOpen     as ulong = &hFF61AFEFul
+    BackColorDisabled    as ulong = &hFF282C33ul
+    ForeColorDisabled    as ulong = &hFF606670ul
+    BorderColorDisabled  as ulong = &hFF282C33ul
+    ChevronColorDisabled as ulong = &hFF606670ul
+    ForeColorPlaceholder as ulong = &hFF787E88ul
+    FocusRingColor       as ulong = &hFF61AFEFul
+end type
 
 public type TKCHECKEDCOMBO_ITEM
     Text     as ustring
@@ -102,7 +125,7 @@ public type TKCHECKEDCOMBO_STATE
     id              as long
     items(any)      as TKCHECKEDCOMBO_ITEM
     itemCount       as long
-    colors          as TKCOMBOBOX_COLORS
+    colors          as TKCHECKEDCOMBO_COLORS
     bColorsPinned   as boolean
     pTextFont       as TTF_Font ptr
     isEnabled       as boolean = true
@@ -153,6 +176,7 @@ public type TKCHECKEDCOMBO_STATE
 end type
 
 public declare sub tkCheckedCombo_ApplyTheme( byval hCombo as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkCheckedCombo_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHECKEDCOMBO_COLORS
 
 
 ' ---- plumbing ---------------------------------------------------------------------------------
@@ -574,8 +598,8 @@ public function tkCheckedCombo_Create( byval hParent as TK_WIDGET ptr, byval Ctr
     if w = 0 then delete p : return 0
     w->isFocusable = true
     p->hWin = w
-    p->colors = tkComboBox_ThemeColors( tkTheme_Of( w ) )
-    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKCOMBOBOX_COLORS ) \ 4, "ComboBox" )
+    p->colors = tkCheckedCombo_ThemeColors( tkTheme_Of( w ) )
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKCHECKEDCOMBO_COLORS ) \ 4, "CheckedComboBox" )
     tkTipHost_Ensure( @p->tip, w, @CcTipText )
     return w
 end function
@@ -983,12 +1007,12 @@ end function
 
 
 ' ---- colours and theme ------------------------------------------------------------------------
-public sub tkCheckedCombo_GetColors( byval h as TK_WIDGET ptr, byval pColors as TKCOMBOBOX_COLORS ptr )
+public sub tkCheckedCombo_GetColors( byval h as TK_WIDGET ptr, byval pColors as TKCHECKEDCOMBO_COLORS ptr )
     dim as TKCHECKEDCOMBO_STATE ptr p = CC( h )
     if (p <> 0) andalso (pColors <> 0) then *pColors = p->colors
 end sub
 
-public sub tkCheckedCombo_SetColors( byval h as TK_WIDGET ptr, byval pColors as TKCOMBOBOX_COLORS ptr )
+public sub tkCheckedCombo_SetColors( byval h as TK_WIDGET ptr, byval pColors as TKCHECKEDCOMBO_COLORS ptr )
     dim as TKCHECKEDCOMBO_STATE ptr p = CC( h )
     if (p = 0) orelse (pColors = 0) then exit sub
     p->colors = *pColors
@@ -996,12 +1020,25 @@ public sub tkCheckedCombo_SetColors( byval h as TK_WIDGET ptr, byval pColors as 
     tkWidget_Invalidate( h )
 end sub
 
+' tkComboBox's colours for a theme, field by field.
+public function tkCheckedCombo_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHECKEDCOMBO_COLORS
+    dim as TKCOMBOBOX_COLORS k = tkComboBox_ThemeColors( t )
+    dim as TKCHECKEDCOMBO_COLORS c
+    c.BackColor = k.BackColor : c.ForeColor = k.ForeColor : c.BorderColor = k.BorderColor : c.ChevronColor = k.ChevronColor
+    c.BackColorHot = k.BackColorHot : c.ForeColorHot = k.ForeColorHot : c.BorderColorHot = k.BorderColorHot : c.ChevronColorHot = k.ChevronColorHot
+    c.BackColorOpen = k.BackColorOpen : c.ForeColorOpen = k.ForeColorOpen : c.BorderColorOpen = k.BorderColorOpen : c.ChevronColorOpen = k.ChevronColorOpen
+    c.BackColorDisabled = k.BackColorDisabled : c.ForeColorDisabled = k.ForeColorDisabled
+    c.BorderColorDisabled = k.BorderColorDisabled : c.ChevronColorDisabled = k.ChevronColorDisabled
+    c.ForeColorPlaceholder = k.ForeColorPlaceholder : c.FocusRingColor = k.FocusRingColor
+    return c
+end function
+
 public sub tkCheckedCombo_ApplyTheme( byval hCombo as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
     dim as TKCHECKEDCOMBO_STATE ptr p = CC( hCombo )
     if (p = 0) orelse p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( hCombo, t )
-    p->colors = tkComboBox_ThemeColors( tr )
-    tkTheme_ResolveInto( hCombo, tr, cast( ulong ptr, @p->colors ), sizeof( TKCOMBOBOX_COLORS ) \ 4, "ComboBox" )
+    p->colors = tkCheckedCombo_ThemeColors( tr )
+    tkTheme_ResolveInto( hCombo, tr, cast( ulong ptr, @p->colors ), sizeof( TKCHECKEDCOMBO_COLORS ) \ 4, "CheckedComboBox" )
     tkWidget_Invalidate( hCombo )
 end sub
 

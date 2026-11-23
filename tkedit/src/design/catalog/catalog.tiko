@@ -162,8 +162,41 @@ end function
 
 ' The procedure that adds one entry of a text-only list (ItemsList): a combo's item, a select bar's panel.
 public function ItemsAddProc( byref typeName as const ustring ) as ustring
-    if typeName = "SelectBar" then return "tkSelectBar_AddPanel"
+    select case typeName
+    case "SelectBar"       : return "tkSelectBar_AddPanel"
+    case "CheckedList"     : return "tkCheckedList_AddItem"
+    case "CheckedComboBox" : return "tkCheckedCombo_AddItem"
+    case "TokenBox"        : return "tkTokenBox_AddItem"
+    case "AutoComplete"    : return "tkAutoComplete_AddItem"
+    end select
     return "tkComboBox_AddItem"
+end function
+
+' The procedure that empties an "items" list before a fill (B3).
+public function ItemsClearProc( byref typeName as const ustring ) as ustring
+    select case typeName
+    case "CheckedList"     : return "tkCheckedList_Clear"
+    case "CheckedComboBox" : return "tkCheckedCombo_Clear"
+    case "TokenBox"        : return "tkTokenBox_ClearItems"
+    case "AutoComplete"    : return "tkAutoComplete_Clear"
+    end select
+    return "tkComboBox_Clear"
+end function
+
+' A list whose AddItem takes a KEY (the checked-list controls): an "items" fill passes ValueField as
+' the key, and the control's own value is made of those keys -- no _Values_ member, no index mapping.
+public function ItemsKeyed( byref typeName as const ustring ) as boolean
+    select case typeName
+    case "CheckedList", "CheckedComboBox", "TokenBox" : return true
+    end select
+    return false
+end function
+
+' A list whose AddItem takes a numeric ID (an AutoComplete): an "items" fill passes ValueField as
+' each item's id, and the control's own value (BindValue) IS that id -- no _Values_ member, no
+' index mapping (docs/tkControls/AUTOCOMPLETE.md section 10.4).
+public function ItemsIdKeyed( byref typeName as const ustring ) as boolean
+    return typeName = "AutoComplete"
 end function
 
 public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
@@ -176,6 +209,8 @@ public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     case "ListTree"   : return ItemsKind.ItemsColumns
     case "ComboBox"   : return ItemsKind.ItemsList
     case "SelectBar"  : return ItemsKind.ItemsList
+    case "CheckedList", "CheckedComboBox", "TokenBox" : return ItemsKind.ItemsList
+    case "AutoComplete" : return ItemsKind.ItemsList
     case "TabBar"     : return ItemsKind.ItemsTabs
     case "TabControl" : return ItemsKind.ItemsPages
     end select
@@ -276,8 +311,10 @@ public function ListReady( byref c as FormControl ) as boolean
     return ((shape = "rows") orelse (shape = "items")) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
 end function
 
-' A ComboBox that binds its items' ValueField rather than its index.
+' A ComboBox that binds its items' ValueField rather than its index. (A keyed list's value is
+' already its items' keys: never.)
 public function BindsByValue( byref c as FormControl ) as boolean
+    if ItemsKeyed( c.TypeName ) orelse ItemsIdKeyed( c.TypeName ) then return false
     return (ItemsBindOf( c ) = "items") andalso ListReady( c ) andalso (len( c.ValueField ) > 0) andalso (len( c.Bind ) > 0)
 end function
 

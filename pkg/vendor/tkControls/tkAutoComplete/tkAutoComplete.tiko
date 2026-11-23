@@ -84,6 +84,12 @@ public enum
     TKAC_VALUE_LIMITTOLIST   ' the value is an item (a lookup)
 end enum
 
+' FilterMode's values under the control's own names (tkMatch's; a designed form sees these)
+public const TKAC_FILTER_PREFIX = TKMATCH_PREFIX
+public const TKAC_FILTER_WORDPREFIX = TKMATCH_WORDPREFIX
+public const TKAC_FILTER_CONTAINS = TKMATCH_CONTAINS
+public const TKAC_FILTER_FUZZY = TKMATCH_FUZZY
+
 public enum                  ' NotInList's answer
     AC_REVERT = 0            ' back to the selected item's text, or empty
     AC_ACCEPT                ' the host added an item for the text: look it up again
@@ -117,6 +123,17 @@ public type TKAUTOCOMPLETE_COLORS
     ErrorColor            as ulong = &hFFE06C75ul    ' the border of a text NotInList kept
 end type
 
+' A source the control reads its items from (SetSource; tkAutoCompleteFeed.tiko): a procedure table
+' over the host's data -- generated binding code's shape. GetId 0 = the index is the id; GetDetail 0
+' = none.
+public type TKAUTOCOMPLETE_SOURCE
+    pCtx      as any ptr
+    Count     as function( byval pCtx as any ptr ) as integer
+    GetText   as function( byval pCtx as any ptr, byval i as integer ) as ustring
+    GetId     as function( byval pCtx as any ptr, byval i as integer ) as longint
+    GetDetail as function( byval pCtx as any ptr, byval i as integer ) as ustring
+end type
+
 public type TKAUTOCOMPLETE_ITEM
     text     as ustring       ' shown, matched, and put into the edit on commit
     detail   as ustring       ' dimmed, right-aligned; not matched (A1)
@@ -136,6 +153,10 @@ public type AC_DropDownSub as sub( byval hAC as TK_WIDGET ptr, byval isOpen as b
 ' the text to search for: SearchDelay after the user's last change, at once on Enter / clear / commit
 public type AC_SearchSub as sub( byval hAC as TK_WIDGET ptr, byref text as const ustring )
 ' LIMITTOLIST: the user left text that is no item's; set action (AC_REVERT by default)
+' the callback feed: the host filters; call ClearResults / AddResult inside
+public type AC_ItemsNeededSub as sub( byval hAC as TK_WIDGET ptr, byref query as const ustring )
+' the async feed: start the fetch; answer later with BeginSupply( requestId ) / AddResult / EndSupply
+public type AC_PopulateSub as sub( byval hAC as TK_WIDGET ptr, byref query as const ustring, byval requestId as long )
 public type AC_NotInListSub as sub( byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as long )
 
 public type TKAUTOCOMPLETE_STATE
@@ -217,6 +238,24 @@ public type TKAUTOCOMPLETE_STATE
     nAppendItem     as long = -1            ' the item an inline completion came from
     bError          as boolean              ' NotInList kept a text: the error tint
     NotInListCallback    as AC_NotInListSub
+    ' ---- supplied rows: the callback and async feeds (tkAutoCompleteFeed.tiko) ----
+    supText(any)    as ustring
+    supKey(any)     as ustring
+    supDetail(any)  as ustring
+    supId(any)      as longint
+    nSup            as long
+    nReq            as long                 ' the last request id handed out
+    nPendingReq     as long                 ' the request whose answer is awaited; 0 = none
+    bSupplying      as boolean              ' between an accepted BeginSupply and EndSupply
+    bFiltering      as boolean              ' inside AcFilter (a synchronous answer shows nothing itself)
+    sStatusText     as ustring = "Searching..."
+    bDelaySet       as boolean              ' SetDelay was called (else 200 ms for the feeds, 0 for items)
+    bExtSel         as boolean              ' the value is a supplied row's (or SetSelectedItem's)
+    nSelId          as longint
+    sSelText        as ustring
+    pSource         as TKAUTOCOMPLETE_SOURCE ptr
+    ItemsNeededCallback  as AC_ItemsNeededSub
+    PopulateCallback     as AC_PopulateSub
     ' ---- callbacks ----
     SearchCallback       as AC_SearchSub
     TextChangedCallback  as AC_TextChangedSub
@@ -245,28 +284,53 @@ private function AcValid( byval p as TKAUTOCOMPLETE_STATE ptr, byval idx as long
     return (idx >= 0) andalso (idx < p->nItems)
 end function
 
+' The rows come from the host (a callback or async feed), not the stored items.
+private function AcSupplied( byval p as TKAUTOCOMPLETE_STATE ptr ) as boolean
+    return (p->ItemsNeededCallback <> 0) orelse (p->PopulateCallback <> 0)
+end function
+
+' Row -> stored item index; -1 for no row or a supplied row.
 private function AcRowItem( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as long
-    if (row < 0) orelse (row >= p->nShown) then return -1
+    if (row < 0) orelse (row >= p->nShown) orelse AcSupplied( p ) then return -1
     return p->hits(row).index
 end function
 
-private function AcRowEnabled( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as boolean
-    dim as long idx = AcRowItem( p, row )
-    return (idx >= 0) andalso p->itEnabled(idx)
+' A row's text, detail, id and key, whichever feed it came from (row must be valid).
+private function AcRowText( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as ustring
+    if AcSupplied( p ) then return p->supText(p->hits(row).index)
+    return p->itText(p->hits(row).index)
 end function
 
-' The key items are compared by under the current case rule.
-private function AcKeyOf( byval p as TKAUTOCOMPLETE_STATE ptr, byval idx as long ) as ustring
-    if p->bCaseSensitive then return p->itText(idx)
-    return p->itKey(idx)
+private function AcRowDetail( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as ustring
+    if AcSupplied( p ) then return p->supDetail(p->hits(row).index)
+    return p->itDetail(p->hits(row).index)
+end function
+
+private function AcRowId( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as longint
+    if AcSupplied( p ) then return p->supId(p->hits(row).index)
+    return p->itId(p->hits(row).index)
+end function
+
+private function AcRowKey( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as ustring
+    if p->bCaseSensitive then return AcRowText( p, row )
+    if AcSupplied( p ) then return p->supKey(p->hits(row).index)
+    return p->itKey(p->hits(row).index)
+end function
+
+private function AcRowEnabled( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long ) as boolean
+    if (row < 0) orelse (row >= p->nShown) then return false
+    if AcSupplied( p ) then return true
+    return p->itEnabled(p->hits(row).index)
 end function
 
 private function AcHasStatus( byval p as TKAUTOCOMPLETE_STATE ptr ) as boolean
+    if p->nPendingReq <> 0 then return len( p->sStatusText ) > 0     ' an async answer is awaited
     if (p->nShown = 0) andalso (len( p->sEmptyText ) > 0) then return true
     return (p->nTotal > p->nShown) andalso (len( p->sMoreText ) > 0)
 end function
 
 private function AcStatusText( byval p as TKAUTOCOMPLETE_STATE ptr ) as ustring
+    if p->nPendingReq <> 0 then return p->sStatusText
     if p->nShown = 0 then return p->sEmptyText
     dim as ustring s = p->sMoreText
     dim as long k = instr( s, "{0}" )
@@ -310,9 +374,9 @@ private function AcListW( byval p as TKAUTOCOMPLETE_STATE ptr ) as long
     dim as TTF_Font ptr f = AcFont( p )
     dim as long wMax = 0
     for r as long = 0 to p->nShown - 1
-        dim as long idx = p->hits(r).index
-        dim as long w = tkText_Width( f, p->itText(idx) )
-        if len( p->itDetail(idx) ) then w += AcSc( p, TKAUTOCOMPLETE_DETAILGAP ) + tkText_Width( f, p->itDetail(idx) )
+        dim as long w = tkText_Width( f, AcRowText( p, r ) )
+        dim as ustring dt = AcRowDetail( p, r )
+        if len( dt ) then w += AcSc( p, TKAUTOCOMPLETE_DETAILGAP ) + tkText_Width( f, dt )
         if w > wMax then wMax = w
     next
     if AcHasStatus( p ) then
@@ -362,6 +426,8 @@ declare sub AcTryAppend( byval p as TKAUTOCOMPLETE_STATE ptr )
 declare function AcHasAppend( byval p as TKAUTOCOMPLETE_STATE ptr ) as boolean
 declare sub AcDropAppend( byval p as TKAUTOCOMPLETE_STATE ptr )
 declare sub AcResolve( byval p as TKAUTOCOMPLETE_STATE ptr )
+' tkAutoCompleteFeed.tiko
+declare function AcSelectSuppliedText( byval p as TKAUTOCOMPLETE_STATE ptr, byref text as const ustring ) as boolean
 declare sub AcEditColors( byval p as TKAUTOCOMPLETE_STATE ptr )
 
 ' Items changed: the last matched set is stale; an open list closes (silently re-filtering under
@@ -402,7 +468,15 @@ end function
 ' ==========================================================================================
 ' Filtering
 ' ==========================================================================================
+declare sub AcFeedFilter( byval p as TKAUTOCOMPLETE_STATE ptr )
+
 private sub AcFilter( byval p as TKAUTOCOMPLETE_STATE ptr )
+    if AcSupplied( p ) then
+        p->bFiltering = true
+        AcFeedFilter( p )                     ' the host's rows (tkAutoCompleteFeed.tiko)
+        p->bFiltering = false
+        exit sub
+    end if
     dim as TKMATCH_QUERY q
     tkMatch_Prepare( q, p->nFilterMode, p->sQuery, p->bCaseSensitive )
     dim as long cand()
@@ -505,7 +579,7 @@ private sub AcSetHot( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long, by
     p->nHot = row
     if bKeys andalso p->bPreview then
         if row >= 0 then
-            tkTextBox_SetText( p->wEdit, p->itText(AcRowItem( p, row )) )      ' silent, caret at the end
+            tkTextBox_SetText( p->wEdit, AcRowText( p, row ) )      ' silent, caret at the end
             p->bPreviewed = true
         else
             tkTextBox_SetText( p->wEdit, p->sQuery )
@@ -557,17 +631,20 @@ end function
 ' Commit row: the list closes FIRST, then the text, then TextChanged( true ), then ItemSelected.
 private sub AcCommit( byval p as TKAUTOCOMPLETE_STATE ptr, byval row as long )
     if AcRowEnabled( p, row ) = false then exit sub
-    dim as long idx = AcRowItem( p, row )
+    dim as long idx = AcRowItem( p, row )             ' -1 for a supplied row
+    dim as ustring text = AcRowText( p, row )
+    dim as longint id = AcRowId( p, row )
     p->bPreviewed = false
     p->bError = false
     p->nAppendItem = -1
     AcCloseList( p )
-    tkTextBox_SetText( p->wEdit, p->itText(idx) )
-    p->sQuery = p->itText(idx)
+    tkTextBox_SetText( p->wEdit, text )
+    p->sQuery = text
     p->nSel = idx
+    p->bExtSel = (idx < 0) : p->nSelId = id : p->sSelText = text
     AcEditColors( p )
     if p->TextChangedCallback then p->TextChangedCallback( p->hWin, true )
-    if p->ItemSelectedCallback then p->ItemSelectedCallback( p->hWin, idx, p->itId(idx) )
+    if p->ItemSelectedCallback then p->ItemSelectedCallback( p->hWin, idx, id )
     AcFaceSync( p )
     AcSearchNow( p )
 end sub
@@ -669,6 +746,7 @@ end sub
 private sub AcRun( byval p as TKAUTOCOMPLETE_STATE ptr )
     tkWidget_KillTimer( p->hWin, AC_TIMER_DELAY )
     if len( p->sQuery ) < p->nMinChars then
+        p->nPendingReq = 0
         AcCloseList( p )
         exit sub
     end if
@@ -699,123 +777,7 @@ private function AcOpenByKey( byval p as TKAUTOCOMPLETE_STATE ptr, byval dir_ as
     return true
 end function
 
-' ---- painting --------------------------------------------------------------------------------
-' text with its runs in matchFore (and the bold font), cut with an ellipsis when it overflows rc.
-private sub AcPaintRuns( byval p as TKAUTOCOMPLETE_STATE ptr, byval b as TK_PAINT ptr, byval f as TTF_Font ptr, _
-                         byref s as ustring, runs() as TKMATCH_RUN, byval nRuns as long, _
-                         byref rc as TKRECT, byval fore as ulong, byval matchFore as ulong )
-    b->SetFont( f )
-    b->SetForeColor( fore )
-    if nRuns = 0 then
-        b->PaintText( s, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
-        exit sub
-    end if
-    dim as long avail = rc.right - rc.left
-    if avail <= 0 then exit sub
-    ' how many characters show: all, or as many as fit before an ellipsis
-    dim as long nShow = len( s )
-    dim as ustring ell = wchr( &h2026 )
-    dim as boolean bCut = tkText_Width( f, s ) > avail
-    if bCut then
-        dim as long room = avail - tkText_Width( f, ell )
-        dim as long lo = 0, hi = len( s )
-        while lo < hi
-            dim as long m = (lo + hi + 1) \ 2
-            if tkText_Width( f, left( s, m ) ) <= room then
-                lo = m
-            else
-                hi = m - 1
-            end if
-        wend
-        nShow = lo
-    end if
-    dim as long pos_ = 0, k = 0
-    while pos_ < nShow
-        dim as long segEnd = nShow, bMatch = 0
-        if k < nRuns then
-            if runs(k).first <= pos_ then
-                bMatch = 1
-                segEnd = runs(k).first + runs(k).count
-                k += 1
-            else
-                segEnd = runs(k).first
-            end if
-        end if
-        if segEnd > nShow then segEnd = nShow
-        if segEnd > pos_ then
-            dim as TKRECT r = rc
-            r.left = rc.left + tkText_Width( f, left( s, pos_ ) )
-            dim as TTF_Font ptr fs = f
-            if bMatch andalso p->bMatchBold andalso (p->pBold <> 0) then fs = p->pBold
-            b->SetFont( fs )
-            b->SetForeColor( iif( bMatch, matchFore, fore ) )
-            b->PaintText( mid( s, pos_ + 1, segEnd - pos_ ), @r, TK_DT_LEFT )
-        end if
-        pos_ = segEnd
-    wend
-    if bCut then
-        dim as TKRECT r = rc
-        r.left = rc.left + tkText_Width( f, left( s, nShow ) )
-        b->SetFont( f )
-        b->SetForeColor( fore )
-        b->PaintText( ell, @r, TK_DT_LEFT )
-    end if
-end sub
-
-private sub AcListPaint( byval p as TKAUTOCOMPLETE_STATE ptr, byval b as TK_PAINT ptr )
-    dim as TK_WIDGET ptr w = p->wList
-    dim as TKRECT rcAll
-    tkRect_Set( rcAll, 0, 0, w->cw, w->ch )
-    b->SetBackColor( p->colors.ListBackColor )
-    b->PaintRect( @rcAll )
-    dim as TTF_Font ptr f = AcFont( p )
-    dim as long pad = AcSc( p, TKAUTOCOMPLETE_ROWPAD ), gap = AcSc( p, TKAUTOCOMPLETE_DETAILGAP )
-    dim as TKMATCH_RUN runs()
-    for v as long = 0 to AcVisRows( p ) - 1
-        dim as long row = p->nTop + v
-        dim as TKRECT r
-        if AcRowRect( p, row, r ) = false then continue for
-        dim as TKRECT rt = r
-        rt.left += pad : rt.right -= pad
-        if row >= p->nShown then
-            b->SetFont( f )
-            b->SetForeColor( p->colors.DetailForeColor )
-            b->PaintText( AcStatusText( p ), @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
-            continue for
-        end if
-        dim as long idx = p->hits(row).index
-        dim as ulong fore = p->colors.ListForeColor, matchFore = p->colors.MatchForeColor
-        dim as ulong detailFore = p->colors.DetailForeColor
-        if p->itEnabled(idx) = false then
-            fore = p->colors.ListForeColorDisabled : matchFore = fore : detailFore = fore
-        elseif row = p->nHot then
-            b->SetBackColor( p->colors.ListBackColorHot )
-            b->PaintRect( @r )
-            fore = p->colors.ListForeColorHot : matchFore = fore : detailFore = fore
-        end if
-        ' the detail, right-aligned, given at most what the text leaves (and never over half)
-        if len( p->itDetail(idx) ) then
-            dim as long avail = rt.right - rt.left
-            dim as long dw = tkText_Width( f, p->itDetail(idx) )
-            dim as long tw = tkText_Width( f, p->itText(idx) )
-            dim as long room = avail - tw - gap
-            if room < avail \ 2 then room = avail \ 2
-            if dw > room then dw = room
-            if dw > 0 then
-                dim as TKRECT rd = rt
-                rd.left = rt.right - dw
-                b->SetFont( f )
-                b->SetForeColor( detailFore )
-                b->PaintText( p->itDetail(idx), @rd, TK_DT_RIGHT or TK_DT_ELLIPSIS )
-                rt.right = rd.left - gap
-            end if
-        end if
-        dim as long nRuns = tkMatch_Runs( p->q, p->itText(idx), AcKeyOf( p, idx ), runs(), @p->work )
-        AcPaintRuns( p, b, f, p->itText(idx), runs(), nRuns, rt, fore, matchFore )
-    next
-    b->SetPenColor( p->colors.ListBorderColor )
-    b->PaintRoundOutline( @rcAll, 0, AcBorder( p ) )
-end sub
+declare sub AcListPaint( byval p as TKAUTOCOMPLETE_STATE ptr, byval b as TK_PAINT ptr )   ' tkAutoCompleteFace.tiko
 
 ' ---- the list's keys ---------------------------------------------------------------------------
 private function AcListKey( byval p as TKAUTOCOMPLETE_STATE ptr, byval m as TK_MSG ptr ) as boolean
@@ -938,7 +900,7 @@ private sub AcEditChanged( byval hEdit as TK_WIDGET ptr )
     if p = 0 then exit sub
     p->sQuery = tkTextBox_GetText( hEdit )
     ' free text: typing unselects; a lookup's value stands until the box is left (AcResolve)
-    if p->nPolicy = TKAC_VALUE_FREETEXT then p->nSel = -1
+    if p->nPolicy = TKAC_VALUE_FREETEXT then p->nSel = -1 : p->bExtSel = false
     p->bPreviewed = false
     if p->bError then p->bError = false : AcEditColors( p )
     AcTryAppend( p )                          ' APPEND modes: the rest of the first match, selected
@@ -946,8 +908,11 @@ private sub AcEditChanged( byval hEdit as TK_WIDGET ptr )
     AcFaceSync( p )
     AcSearchArm( p )
     if p->nMode = TKAC_MODE_APPEND then exit sub          ' no list
-    if p->nDelay > 0 then
-        tkWidget_SetTimer( p->hWin, AC_TIMER_DELAY, p->nDelay )
+    ' the feeds' default debounce is 200 ms (D-7), stored items' 0; SetDelay overrides both
+    dim as long nDelay = p->nDelay
+    if (p->bDelaySet = false) andalso AcSupplied( p ) then nDelay = 200
+    if nDelay > 0 then
+        tkWidget_SetTimer( p->hWin, AC_TIMER_DELAY, nDelay )
     else
         AcRun( p )
     end if
@@ -1143,7 +1108,7 @@ end function
 public sub tkAutoComplete_SetDelay( byval hAC as TK_WIDGET ptr, byval v as long )
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )
     if p = 0 then exit sub
-    p->nDelay = v : p->bHaveQ = false
+    p->nDelay = v : p->bHaveQ = false : p->bDelaySet = true
 end sub
 public function tkAutoComplete_GetDelay( byval hAC as TK_WIDGET ptr ) as long
     dim as TKAUTOCOMPLETE_STATE ptr p = AC( hAC )

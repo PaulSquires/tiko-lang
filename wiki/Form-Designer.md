@@ -355,12 +355,15 @@ end sub
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |
 | DatePicker | the date; a field with no date leaves the picker empty |
+| TimePicker | the time; a field with no time leaves the picker empty. A DatePicker and a TimePicker bound to one `chrono.DateTime` save both halves in one call |
 
 The field can be any of `boolean`, `byte` to `ulongint`, `integer`, `single`, `double`, `ustring`,
-`string`, `TKDATE` or `chrono.LocalDate`; the conversion is chosen by the field's type
+`string`, `TKDATE`, `chrono.LocalDate`, `TKTIME`, `chrono.LocalTime` or `chrono.DateTime`; the conversion is chosen by the field's type
 (`vendor/tkControls/tkBind`). Text that isn't a number becomes 0 in a number field; a fraction
 going into a whole-number field is rounded; `true`, `1`, `yes` and `on` are true; a date in text is
-`yyyy-mm-dd`. A date binds only to a text or date field. Loading notifies nobody: no Change or
+`yyyy-mm-dd` and a time `HH:mm:ss`. A date or a time binds only to a text field or one of its own
+(a `DateTime` takes both). A `chrono.LocalTime` field's default is midnight, not "no time": set it
+to `LocalTime.Invalid( )` for an empty picker. Loading notifies nobody: no Change or
 CheckChanged handler runs. A wrong field name is the compiler's error, in the generated file.
 
 ### Lists
