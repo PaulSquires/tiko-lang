@@ -1272,9 +1272,9 @@ private function ResolveCall_ _
         '' candidates both viable with no argument (one of them through a DEFAULTED
         '' parameter) is refused, while the same pair with only one viable is not.
         ''
-        '' Guarded exactly as the no-match report above is, and for the same reasons: a
-        '' UDT argument brings conversions and generics this scoring does not model, and
-        '' an untyped one means something earlier declined.
+        '' Guarded as the no-match report above is, and for the same reasons: a UDT argument
+        '' can bring conversions and generics this scoring does not model, and an untyped one
+        '' means something earlier declined.
         dim as boolean tieTyped = true
         for i as int32 = 0 to argT.Count - 1
             dim as Tko.TypeId a3 = cast( Tko.TypeId, argT[i] )
@@ -1291,6 +1291,13 @@ private function ResolveCall_ _
                 if FixedStringElem( c.types->Unqualify( a3 ), *c.types ) <> Tko.TYPE_NONE then
                     a3k = Tko.TK_BUILTIN
                 end if
+            end if
+            '' ...AND A UDT WHOSE CASTS ARE ALL SCORED, when no candidate was refused on grounds the
+            '' scoring does not model (RefusalTrusted_): two conversion constructors, or a type itself
+            '' against another's constructor in a crossed pair, are fbc-modern 1.20's 98 (measured
+            '' 2026-11-23, tests/diagnostics/overload-udt-tie) -- tiko stopped on TKO0994 there.
+            if (a3k = Tko.TK_UDT) andalso refusalsTrusted then
+                if UdtCastsInert_( c, c.types->Unqualify( a3 ) ) then a3k = Tko.TK_BUILTIN
             end if
             if (a3k <> Tko.TK_BUILTIN) andalso (a3k <> Tko.TK_POINTER) then
                 tieTyped = false
