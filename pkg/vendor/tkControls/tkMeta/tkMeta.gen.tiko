@@ -26,6 +26,7 @@
 #import "../tkScrollPanel"
 #import "../tkSplitter"
 #import "../tkListTree"
+#import "../tkDataGrid"
 #import "../tkSelectBar"
 #import "../tkNavigator"
 #import "../tkTabBar"
@@ -73,6 +74,7 @@ using tkTabControl
 using tkScrollPanel
 using tkSplitter
 using tkListTree
+using tkDataGrid
 using tkSelectBar
 using tkNavigator
 using tkTabBar
@@ -3025,6 +3027,258 @@ private sub A_ListTree_ScrollBarDividerColor( byval w as TK_WIDGET ptr, byref v 
     tkListTree_SetScrollBarDividerColor( w, cast( uint32, valulng( tkMeta_ListItem( v, 0 ) ) ), cbool( tkMeta_ListItem( v, 1 ) = "true" ) )
 end sub
 
+private function C_DataGrid( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkDataGrid_Create( hParent, id )
+end function
+
+private sub G_DataGrid( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkDataGrid_GetColors( w, cast( TKDATAGRID_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_DataGrid( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKDATAGRID_COLORS ptr, pSlots ) = tkDataGrid_ThemeColors( t )
+end sub
+
+private sub A_DataGrid_RowHeight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetRowHeight( w, clng( val( v ) ) )
+end sub
+
+private function R_DataGrid_RowHeight( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDataGrid_GetRowHeight( w ) )
+end function
+
+private sub A_DataGrid_HeaderHeight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetHeaderHeight( w, clng( val( v ) ) )
+end sub
+
+private function R_DataGrid_HeaderHeight( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDataGrid_GetHeaderHeight( w ) )
+end function
+
+private sub A_DataGrid_ShowHeader( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_ShowHeader( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_ShowHeader( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_IsHeaderVisible( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_ShowRowHeaders( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_ShowRowHeaders( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_ShowRowHeaders( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_AreRowHeadersVisible( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_RowHeaderWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetRowHeaderWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_DataGrid_RowHeaderWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDataGrid_GetRowHeaderWidth( w ) )
+end function
+
+private sub A_DataGrid_FrozenColumns( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetFrozenColumns( w, clng( val( v ) ) )
+end sub
+
+private function R_DataGrid_FrozenColumns( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDataGrid_GetFrozenColumns( w ) )
+end function
+
+private sub A_DataGrid_GridLines( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkDataGrid_SetGridLines( w, TKDG_GRID_NONE )
+    case "Horizontal" : tkDataGrid_SetGridLines( w, TKDG_GRID_HORZ )
+    case "Vertical" : tkDataGrid_SetGridLines( w, TKDG_GRID_VERT )
+    case "Both" : tkDataGrid_SetGridLines( w, TKDG_GRID_BOTH )
+    end select
+end sub
+
+private function R_DataGrid_GridLines( byval w as TK_WIDGET ptr ) as ustring
+    select case tkDataGrid_GetGridLines( w )
+    case TKDG_GRID_NONE : return "None"
+    case TKDG_GRID_HORZ : return "Horizontal"
+    case TKDG_GRID_VERT : return "Vertical"
+    case TKDG_GRID_BOTH : return "Both"
+    end select
+    return ""
+end function
+
+private sub A_DataGrid_AlternateRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetAlternateRows( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_AlternateRows( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetAlternateRows( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_SelectionUnit( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Cell" : tkDataGrid_SetSelectionUnit( w, TKDG_SEL_CELL )
+    case "Row" : tkDataGrid_SetSelectionUnit( w, TKDG_SEL_ROW )
+    case "CellOrRow" : tkDataGrid_SetSelectionUnit( w, TKDG_SEL_CELLORROW )
+    end select
+end sub
+
+private function R_DataGrid_SelectionUnit( byval w as TK_WIDGET ptr ) as ustring
+    select case tkDataGrid_GetSelectionUnit( w )
+    case TKDG_SEL_CELL : return "Cell"
+    case TKDG_SEL_ROW : return "Row"
+    case TKDG_SEL_CELLORROW : return "CellOrRow"
+    end select
+    return ""
+end function
+
+private sub A_DataGrid_MultiSelect( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetMultiSelect( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_MultiSelect( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetMultiSelect( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_EditMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "OnEnter" : tkDataGrid_SetEditMode( w, TKDG_EDIT_ONENTER )
+    case "OnF2" : tkDataGrid_SetEditMode( w, TKDG_EDIT_ONF2 )
+    case "OnKeystroke" : tkDataGrid_SetEditMode( w, TKDG_EDIT_ONKEYSTROKE )
+    case "OnKeystrokeOrF2" : tkDataGrid_SetEditMode( w, TKDG_EDIT_ONKEYSTROKEORF2 )
+    case "Programmatic" : tkDataGrid_SetEditMode( w, TKDG_EDIT_PROGRAMMATIC )
+    end select
+end sub
+
+private function R_DataGrid_EditMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkDataGrid_GetEditMode( w )
+    case TKDG_EDIT_ONENTER : return "OnEnter"
+    case TKDG_EDIT_ONF2 : return "OnF2"
+    case TKDG_EDIT_ONKEYSTROKE : return "OnKeystroke"
+    case TKDG_EDIT_ONKEYSTROKEORF2 : return "OnKeystrokeOrF2"
+    case TKDG_EDIT_PROGRAMMATIC : return "Programmatic"
+    end select
+    return ""
+end function
+
+private sub A_DataGrid_ReadOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetReadOnly( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_ReadOnly( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetReadOnly( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_AllowAddRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetAllowAddRows( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_AllowAddRows( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetAllowAddRows( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_AllowDeleteRows( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetAllowDeleteRows( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_AllowDeleteRows( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetAllowDeleteRows( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_EditSelectAll( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetEditSelectAll( w, cbool( v = "true" ) )
+end sub
+
+private sub A_DataGrid_SortMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Auto" : tkDataGrid_SetSortMode( w, TKDG_SORT_AUTO )
+    case "None" : tkDataGrid_SetSortMode( w, TKDG_SORT_NONE )
+    case "Internal" : tkDataGrid_SetSortMode( w, TKDG_SORT_INTERNAL )
+    case "Host" : tkDataGrid_SetSortMode( w, TKDG_SORT_HOST )
+    end select
+end sub
+
+private function R_DataGrid_SortMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkDataGrid_GetSortMode( w )
+    case TKDG_SORT_AUTO : return "Auto"
+    case TKDG_SORT_NONE : return "None"
+    case TKDG_SORT_INTERNAL : return "Internal"
+    case TKDG_SORT_HOST : return "Host"
+    end select
+    return ""
+end function
+
+private sub A_DataGrid_AllowColumnResize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetAllowColumnResize( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_AllowColumnResize( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetAllowColumnResize( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_AllowColumnReorder( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetAllowColumnReorder( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_AllowColumnReorder( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetAllowColumnReorder( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_ColumnHeaderSelects( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetColumnHeaderSelects( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_ColumnHeaderSelects( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetColumnHeaderSelects( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_TabWraps( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetTabWraps( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_TabWraps( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_GetTabWraps( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_Virtual( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetVirtual( w, cbool( v = "true" ) )
+end sub
+
+private function R_DataGrid_Virtual( byval w as TK_WIDGET ptr ) as ustring
+    if tkDataGrid_IsVirtual( w ) then return "true" else return "false"
+end function
+
+private sub A_DataGrid_BackColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetBackColor( w, cast( uint32, valulng( v ) ) )
+end sub
+
+private function R_DataGrid_BackColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkDataGrid_GetBackColor( w ), 8 )
+end function
+
+private sub A_DataGrid_BorderWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetBorderWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_DataGrid_BorderWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkDataGrid_GetBorderWidth( w ) )
+end function
+
+private sub A_DataGrid_ScrollBarWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetScrollBarWidth( w, clng( val( v ) ) )
+end sub
+
+private sub F_DataGrid_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkDataGrid_SetFont( w, f )
+end sub
+
+private sub F_DataGrid_HeaderFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkDataGrid_SetHeaderFont( w, f )
+end sub
+
+private sub A_DataGrid_HoverTime( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkDataGrid_SetHoverTime( w, clng( val( v ) ) )
+end sub
+
 private function C_SelectBar( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkSelectBar_Create( hParent, id )
 end function
@@ -5350,6 +5604,81 @@ sub Fill_( )
     Event_( "HeaderPaint", "tkListTree_SetHeaderPaintCallback", "HDR_PaintCallbackSub", "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "p", "p->hHeader", "", "" )
     Event_( "HeaderTooltip", "tkListTree_SetHeaderTooltipCallback", "HDR_TooltipCallbackFunc", "byval hHeader as TK_WIDGET ptr, byval idx as integer", "byval idx as integer, byref Text as ustring", "idx, Text", "", "ustring", "Text" )
     Event_( "ColumnAutoSize", "tkListTree_SetColumnAutoSizeCallback", "HDR_AutoSizeCallbackFunc", "byval hHeader as TK_WIDGET ptr, byval idx as integer", "byval idx as integer, byref BestWidth as integer", "idx, BestWidth", "", "integer", "BestWidth" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "DataGrid", "tkDataGrid", "Lists", 320, 200, "CurrentCellChanged", "", @C_DataGrid, "", "", "", "" )
+    ItemsBind_( "grid" )
+    Colors_( "TKDATAGRID_COLORS", "tkDataGrid_GetColors", "tkDataGrid_ThemeColors", @G_DataGrid, @T_DataGrid )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "AltBackColor", "", "", "", false )
+    Color_( "ForeColor", "Fore", "Normal", "", true )
+    Color_( "GridLineColor", "", "", "", false )
+    Color_( "HotBackColor", "Back", "Hot", "", false )
+    Color_( "SelBackColor", "Back", "Selected", "", false )
+    Color_( "SelForeColor", "Fore", "Selected", "", true )
+    Color_( "SelBackInactive", "", "", "", false )
+    Color_( "CurrentBorder", "", "", "", false )
+    Color_( "ReadOnlyForeColor", "", "", "", false )
+    Color_( "FrozenLineColor", "", "", "", false )
+    Color_( "AccentColor", "", "", "", false )
+    Color_( "LinkColor", "", "", "", false )
+    Color_( "ButtonBackColor", "", "", "", false )
+    Color_( "ButtonForeColor", "", "", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "RowHeaderBackColor", "", "", "", false )
+    Color_( "RowHeaderForeColor", "", "", "", false )
+    Color_( "DropMarkColor", "", "", "", false )
+    Color_( "ErrorColor", "", "", "", false )
+    Prop_( "RowHeight", "int", "", "", "tkDataGrid_SetRowHeight", "tkDataGrid_GetRowHeight", @A_DataGrid_RowHeight, @R_DataGrid_RowHeight, 0, true, true, "", 0 )
+    Prop_( "HeaderHeight", "int", "", "", "tkDataGrid_SetHeaderHeight", "tkDataGrid_GetHeaderHeight", @A_DataGrid_HeaderHeight, @R_DataGrid_HeaderHeight, 0, true, true, "", 0 )
+    Prop_( "ShowHeader", "bool", "true", "", "tkDataGrid_ShowHeader", "tkDataGrid_IsHeaderVisible", @A_DataGrid_ShowHeader, @R_DataGrid_ShowHeader, 0, true, true, "", 0 )
+    Prop_( "ShowRowHeaders", "bool", "false", "", "tkDataGrid_ShowRowHeaders", "tkDataGrid_AreRowHeadersVisible", @A_DataGrid_ShowRowHeaders, @R_DataGrid_ShowRowHeaders, 0, true, true, "", 0 )
+    Prop_( "RowHeaderWidth", "int", "", "", "tkDataGrid_SetRowHeaderWidth", "tkDataGrid_GetRowHeaderWidth", @A_DataGrid_RowHeaderWidth, @R_DataGrid_RowHeaderWidth, 0, true, true, "", 0 )
+    Prop_( "FrozenColumns", "int", "0", "", "tkDataGrid_SetFrozenColumns", "tkDataGrid_GetFrozenColumns", @A_DataGrid_FrozenColumns, @R_DataGrid_FrozenColumns, 0, true, true, "", 0 )
+    Prop_( "GridLines", "enum", "Both", "None=TKDG_GRID_NONE,Horizontal=TKDG_GRID_HORZ,Vertical=TKDG_GRID_VERT,Both=TKDG_GRID_BOTH", "tkDataGrid_SetGridLines", "tkDataGrid_GetGridLines", @A_DataGrid_GridLines, @R_DataGrid_GridLines, 0, true, true, "", 0 )
+    Prop_( "AlternateRows", "bool", "false", "", "tkDataGrid_SetAlternateRows", "tkDataGrid_GetAlternateRows", @A_DataGrid_AlternateRows, @R_DataGrid_AlternateRows, 0, true, true, "", 0 )
+    Prop_( "SelectionUnit", "enum", "CellOrRow", "Cell=TKDG_SEL_CELL,Row=TKDG_SEL_ROW,CellOrRow=TKDG_SEL_CELLORROW", "tkDataGrid_SetSelectionUnit", "tkDataGrid_GetSelectionUnit", @A_DataGrid_SelectionUnit, @R_DataGrid_SelectionUnit, 0, true, true, "", 0 )
+    Prop_( "MultiSelect", "bool", "true", "", "tkDataGrid_SetMultiSelect", "tkDataGrid_GetMultiSelect", @A_DataGrid_MultiSelect, @R_DataGrid_MultiSelect, 0, true, true, "", 0 )
+    Prop_( "EditMode", "enum", "OnKeystrokeOrF2", "OnEnter=TKDG_EDIT_ONENTER,OnF2=TKDG_EDIT_ONF2,OnKeystroke=TKDG_EDIT_ONKEYSTROKE,OnKeystrokeOrF2=TKDG_EDIT_ONKEYSTROKEORF2,Programmatic=TKDG_EDIT_PROGRAMMATIC", "tkDataGrid_SetEditMode", "tkDataGrid_GetEditMode", @A_DataGrid_EditMode, @R_DataGrid_EditMode, 0, true, true, "", 0 )
+    Prop_( "ReadOnly", "bool", "false", "", "tkDataGrid_SetReadOnly", "tkDataGrid_GetReadOnly", @A_DataGrid_ReadOnly, @R_DataGrid_ReadOnly, 0, true, true, "", 0 )
+    Prop_( "AllowAddRows", "bool", "false", "", "tkDataGrid_SetAllowAddRows", "tkDataGrid_GetAllowAddRows", @A_DataGrid_AllowAddRows, @R_DataGrid_AllowAddRows, 0, true, true, "", 0 )
+    Prop_( "AllowDeleteRows", "bool", "true", "", "tkDataGrid_SetAllowDeleteRows", "tkDataGrid_GetAllowDeleteRows", @A_DataGrid_AllowDeleteRows, @R_DataGrid_AllowDeleteRows, 0, true, true, "", 0 )
+    Prop_( "EditSelectAll", "bool", "false", "", "tkDataGrid_SetEditSelectAll", "", @A_DataGrid_EditSelectAll, 0, 0, true, true, "", 0 )
+    Prop_( "SortMode", "enum", "Auto", "Auto=TKDG_SORT_AUTO,None=TKDG_SORT_NONE,Internal=TKDG_SORT_INTERNAL,Host=TKDG_SORT_HOST", "tkDataGrid_SetSortMode", "tkDataGrid_GetSortMode", @A_DataGrid_SortMode, @R_DataGrid_SortMode, 0, true, true, "", 0 )
+    Prop_( "AllowColumnResize", "bool", "true", "", "tkDataGrid_SetAllowColumnResize", "tkDataGrid_GetAllowColumnResize", @A_DataGrid_AllowColumnResize, @R_DataGrid_AllowColumnResize, 0, true, true, "", 0 )
+    Prop_( "AllowColumnReorder", "bool", "true", "", "tkDataGrid_SetAllowColumnReorder", "tkDataGrid_GetAllowColumnReorder", @A_DataGrid_AllowColumnReorder, @R_DataGrid_AllowColumnReorder, 0, true, true, "", 0 )
+    Prop_( "ColumnHeaderSelects", "bool", "false", "", "tkDataGrid_SetColumnHeaderSelects", "tkDataGrid_GetColumnHeaderSelects", @A_DataGrid_ColumnHeaderSelects, @R_DataGrid_ColumnHeaderSelects, 0, true, true, "", 0 )
+    Prop_( "TabWraps", "bool", "false", "", "tkDataGrid_SetTabWraps", "tkDataGrid_GetTabWraps", @A_DataGrid_TabWraps, @R_DataGrid_TabWraps, 0, true, true, "", 0 )
+    Prop_( "Virtual", "bool", "false", "", "tkDataGrid_SetVirtual", "tkDataGrid_IsVirtual", @A_DataGrid_Virtual, @R_DataGrid_Virtual, 0, true, true, "", 0 )
+    Prop_( "BackColor", "color", "", "", "tkDataGrid_SetBackColor", "tkDataGrid_GetBackColor", @A_DataGrid_BackColor, @R_DataGrid_BackColor, 0, true, true, "", 0 )
+    Prop_( "BorderWidth", "int", "", "", "tkDataGrid_SetBorderWidth", "tkDataGrid_GetBorderWidth", @A_DataGrid_BorderWidth, @R_DataGrid_BorderWidth, 0, true, true, "BorderWidth", 1 )
+    Prop_( "ScrollBarWidth", "int", "", "", "tkDataGrid_SetScrollBarWidth", "", @A_DataGrid_ScrollBarWidth, 0, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkDataGrid_SetFont", "tkDataGrid_GetFont", 0, 0, @F_DataGrid_Font, true, true, "", 0 )
+    Prop_( "HeaderFont", "font", "", "", "tkDataGrid_SetHeaderFont", "", 0, 0, @F_DataGrid_HeaderFont, true, true, "", 0 )
+    Prop_( "HoverTime", "int", "", "", "tkDataGrid_SetHoverTime", "", @A_DataGrid_HoverTime, 0, 0, true, true, "", 0 )
+    Event_( "CurrentCellChanged", "tkDataGrid_SetCurrentCellChangedCallback", "DG_CellSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer", "row, col" )
+    Event_( "SelChange", "tkDataGrid_SetSelChangeCallback", "DG_GridSub", "byval hGrid as TK_WIDGET ptr", "", "" )
+    Event_( "CellClick", "tkDataGrid_SetCellClickCallback", "DG_CellSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer", "row, col" )
+    Event_( "CellActivate", "tkDataGrid_SetCellActivateCallback", "DG_CellSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer", "row, col" )
+    Event_( "CellValueChanged", "tkDataGrid_SetCellValueChangedCallback", "DG_CellSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer", "row, col" )
+    Event_( "ButtonClick", "tkDataGrid_SetButtonClickCallback", "DG_CellSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer", "row, col" )
+    Event_( "ColumnClick", "tkDataGrid_SetColumnClickCallback", "DG_ColumnSub", "byval hGrid as TK_WIDGET ptr, byval col as integer", "byval col as integer", "col" )
+    Event_( "ColumnResize", "tkDataGrid_SetColumnResizeCallback", "DG_ColumnResizeSub", "byval hGrid as TK_WIDGET ptr, byval col as integer, byval nWidth as integer, byval bLive as boolean", "byval col as integer, byval nWidth as integer, byval bLive as boolean", "col, nWidth, bLive" )
+    Event_( "ColumnReordered", "tkDataGrid_SetColumnReorderedCallback", "DG_ColumnReorderedSub", "byval hGrid as TK_WIDGET ptr, byval col as integer, byval dispPos as integer", "byval col as integer, byval dispPos as integer", "col, dispPos" )
+    Event_( "SortChanged", "tkDataGrid_SetSortChangedCallback", "DG_GridSub", "byval hGrid as TK_WIDGET ptr", "", "" )
+    Event_( "CellBeginEdit", "tkDataGrid_SetCellBeginEditCallback", "DG_CellBeginEditFunc", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer, byref Allow as boolean", "row, col, Allow", "", "boolean", "Allow", "true" )
+    Event_( "CellEndEdit", "tkDataGrid_SetCellEndEditCallback", "DG_CellEndEditSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval bCommitted as boolean", "byval row as integer, byval col as integer, byval bCommitted as boolean", "row, col, bCommitted" )
+    Event_( "RowValidating", "tkDataGrid_SetRowValidatingCallback", "DG_RowFunc", "byval hGrid as TK_WIDGET ptr, byval row as integer", "byval row as integer, byref Allow as boolean", "row, Allow", "", "boolean", "Allow", "true" )
+    Event_( "RowCommitted", "tkDataGrid_SetRowCommittedCallback", "DG_RowSub", "byval hGrid as TK_WIDGET ptr, byval row as integer", "byval row as integer", "row" )
+    Event_( "CancelRowEdit", "tkDataGrid_SetCancelRowEditCallback", "DG_RowSub", "byval hGrid as TK_WIDGET ptr, byval row as integer", "byval row as integer", "row" )
+    Event_( "RowAdded", "tkDataGrid_SetRowAddedCallback", "DG_RowSub", "byval hGrid as TK_WIDGET ptr, byval row as integer", "byval row as integer", "row" )
+    Event_( "RowsDeleting", "tkDataGrid_SetRowsDeletingCallback", "DG_RowsDeletingFunc", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval count as integer", "byval row as integer, byval count as integer, byref Allow as boolean", "row, count, Allow", "", "boolean", "Allow", "true" )
+    Event_( "CellValueNeeded", "tkDataGrid_SetCellValueNeededCallback", "DG_CellValueNeededSub", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE", "byval row as integer, byval col as integer, byref v as TKDG_VALUE", "row, col, v" )
+    Event_( "CellValuePushed", "tkDataGrid_SetCellValuePushedCallback", "DG_CellValuePushedFunc", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE", "byval row as integer, byval col as integer, byref v as TKDG_VALUE, byref Accept as boolean", "row, col, v, Accept", "", "boolean", "Accept", "true" )
+    Event_( "Tooltip", "tkDataGrid_SetTooltipCallback", "DG_TooltipFunc", "byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", "byval row as integer, byval col as integer, byref Text as ustring", "row, col, Text", "", "ustring", "Text" )
+    Event_( "CellFormatting", "tkDataGrid_SetCellFormattingCallback", "DG_CellFormattingSub", "byval p as TKDATAGRID_FORMATINFO ptr", "byval p as TKDATAGRID_FORMATINFO ptr", "p", "p->hGrid", "", "" )
+    Event_( "CellPaint", "tkDataGrid_SetCellPaintCallback", "DG_CellPaintFunc", "byval p as TKDATAGRID_CELLPAINTINFO ptr", "byval p as TKDATAGRID_CELLPAINTINFO ptr, byref Handled as boolean", "p, Handled", "p->hGrid", "boolean", "Handled" )
+    Event_( "HeaderPaint", "tkDataGrid_SetHeaderPaintCallback", "HDR_PaintCallbackSub", "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "byval p as TKCOLUMNHEADER_PAINTINFO ptr", "p", "tkWidget_Parent( p->hHeader )", "", "" )
+    Event_( "Message", "tkDataGrid_SetMessageCallback", "DG_MessageFunc", "byval m as TKDATAGRID_MESSAGEINFO ptr", "byval m as TKDATAGRID_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hGrid", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "SelectBar", "tkSelectBar", "Lists", 240, 32, "SelChange", "", @C_SelectBar, "", "", "", "" )
     Colors_( "TKSELECTBAR_COLORS", "tkSelectBar_GetColors", "tkSelectBar_ThemeColors", @G_SelectBar, @T_SelectBar )

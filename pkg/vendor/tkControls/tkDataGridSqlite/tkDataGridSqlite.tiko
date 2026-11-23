@@ -1,0 +1,390 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkDataGridSqlite -- an SQLite query as a tkDataGrid's rows (DATAGRID.md §9.4; phase G6). Its own
+' module, so a grid that does not read SQLite does not link it.
+'
+'   dim as TKDGSQL ptr q = tkDataGridSqlite_Open( hGrid, db, "select id, name, born from person" )
+'
+' THE QUERY is the user's; the adapter wraps it: "select count(*) from ( <query> )" for the row
+' count, "select * from ( <query> ) [order by ...] limit ? offset ?" for a BLOCK of rows (100 by
+' default), kept in an LRU of blocks (50), so a paint costs a query per block it has not seen, not
+' one per cell. The result's columns become the grid's columns (Open's bColumns), each in the kind
+' its declared type says: INT -> a number column holding integers, REAL / FLOAT / DOUBLE / NUMERIC /
+' DECIMAL -> a number column, BOOL -> a check column, DATE -> a date column ("yyyy-mm-dd" text),
+' anything else -> text. A NULL is an EMPTY cell.
+'
+' SORTING happens where the data is: a header click rewrites the ORDER BY from the grid's keys
+' (text columns COLLATE NOCASE, as the grid's own sort compares them) and the blocks are dropped;
+' clearing the keys goes back to the query's own order.
+'
+' WRITES are opt-in: tkDataGridSqlite_SetWritable( q, table, pkColumn ) -- an edit is
+' "update <table> set <column> = ? where <pk> = ?", a deleted row "delete from <table> where <pk>
+' = ?"; the key column must be one of the query's. Adding rows is not offered (the grid's new row
+' and AddRow are refused); insert through SQL and call tkDataGridSqlite_Refresh.
+'
+' The adapter does not own db. tkDataGridSqlite_Close( q ) unbinds the grid and frees q.
+#module "tkDataGridSqlite"
+
+#import "vendor/sqlite3"
+#import "../tkDataGrid" public
+using tkDataGrid
+using tkHost
+using tkCalendar
+
+public type TKDGSQL
+    hGrid      as TK_WIDGET ptr
+    db         as sqlite3 ptr
+    query      as ustring
+    orderBy    as ustring
+    nCols      as long
+    names(any) as ustring
+    kinds(any) as long                   ' TKDG_TEXT / INT / FLOAT / BOOL / DATE
+    rowCount   as integer
+    blockRows  as integer = 100
+    maxBlocks  as integer = 50
+    blkIdx(any)  as integer              ' a slot's block, -1 = free
+    blkN(any)    as integer              ' rows it holds
+    blkUsed(any) as ulongint
+    vals(any)  as TKDG_VALUE             ' slot s, row i, column k at (s * blockRows + i) * nCols + k
+    tick       as ulongint
+    hit        as integer = -1
+    stmt       as sqlite3_stmt ptr       ' the block query for the current orderBy
+    table      as ustring
+    pkCol      as long = -1
+    fetches    as integer                ' block queries run (progress, tests)
+    lastError  as ustring
+    src        as TKDATAGRID_SOURCE
+end type
+
+private function Utf8_( byval z as const zstring ptr ) as ustring
+    dim as string s
+    if z then s = *z
+    return s
+end function
+
+private function Quoted_( byref name_ as const ustring ) as ustring
+    dim as ustring o = """"
+    for i as long = 1 to len( name_ )
+        dim as ustring c = mid( name_, i, 1 )
+        if c = """" then o &= """""" else o &= c
+    next
+    return o & """"
+end function
+
+private function KindOf_( byref decl as const string ) as long
+    dim as string d = ucase( decl )
+    if instr( d, "BOOL" ) then return TKDG_BOOL
+    if instr( d, "INT" ) then return TKDG_INT
+    if instr( d, "REAL" ) orelse instr( d, "FLOA" ) orelse instr( d, "DOUB" ) orelse instr( d, "NUM" ) orelse instr( d, "DEC" ) then return TKDG_FLOAT
+    if instr( d, "DATE" ) then return TKDG_DATE
+    return TKDG_TEXT
+end function
+
+private sub Error_( byval q as TKDGSQL ptr )
+    q->lastError = Utf8_( sqlite3_errmsg( q->db ) )
+end sub
+
+private sub DropBlocks_( byval q as TKDGSQL ptr )
+    redim q->blkIdx( 0 to q->maxBlocks - 1 )
+    redim q->blkN( 0 to q->maxBlocks - 1 )
+    redim q->blkUsed( 0 to q->maxBlocks - 1 )
+    for s as integer = 0 to q->maxBlocks - 1
+        q->blkIdx(s) = -1
+    next
+    redim q->vals( 0 to q->maxBlocks * q->blockRows * q->nCols - 1 )
+    q->hit = -1
+end sub
+
+private function Count_( byval q as TKDGSQL ptr ) as integer
+    dim as sqlite3_stmt ptr st
+    if sqlite3_prepare_v2( q->db, "select count(*) from ( " & q->query & " )", -1, @st, nullptr ) <> SQLITE_OK then
+        Error_( q )
+        return 0
+    end if
+    dim as integer n = 0
+    if sqlite3_step( st ) = SQLITE_ROW then n = sqlite3_column_int64( st, 0 )
+    sqlite3_finalize( st )
+    return n
+end function
+
+' The block query for the current order, prepared once per order.
+private function Prepare_( byval q as TKDGSQL ptr ) as boolean
+    if q->stmt then sqlite3_finalize( q->stmt ) : q->stmt = nullptr
+    dim as ustring sql = "select * from ( " & q->query & " )"
+    if len( q->orderBy ) then sql &= " order by " & q->orderBy
+    sql &= " limit ? offset ?"
+    if sqlite3_prepare_v2( q->db, sql, -1, @q->stmt, nullptr ) <> SQLITE_OK then
+        Error_( q )
+        q->stmt = nullptr
+        return false
+    end if
+    return true
+end function
+
+private sub ColumnValue_( byval q as TKDGSQL ptr, byval st as sqlite3_stmt ptr, byval k as long, byref v as TKDG_VALUE )
+    v.Clear( )
+    if sqlite3_column_type( st, k ) = SQLITE_NULL then exit sub
+    select case q->kinds(k)
+    case TKDG_INT   : v.SetInt( sqlite3_column_int64( st, k ) )
+    case TKDG_FLOAT : v.SetFloat( sqlite3_column_double( st, k ) )
+    case TKDG_BOOL  : v.SetBool( sqlite3_column_int64( st, k ) <> 0 )
+    case TKDG_DATE
+        dim as string s = Utf8_( cast( const zstring ptr, sqlite3_column_text( st, k ) ) )
+        if (len( s ) >= 10) andalso (mid( s, 5, 1 ) = "-") andalso (mid( s, 8, 1 ) = "-") then
+            dim as TKDATE d
+            d.wYear = valint( left( s, 4 ) ) : d.wMonth = valint( mid( s, 6, 2 ) ) : d.wDay = valint( mid( s, 9, 2 ) )
+            if d.wYear > 0 then v.SetDate( d )
+        end if
+    case else
+        v.SetText( Utf8_( cast( const zstring ptr, sqlite3_column_text( st, k ) ) ) )
+    end select
+end sub
+
+' The slot holding row's block, fetched if it is not held. -1 when the query fails.
+private function Block_( byval q as TKDGSQL ptr, byval row as integer ) as integer
+    dim as integer b = row \ q->blockRows
+    if (q->hit >= 0) andalso (q->blkIdx(q->hit) = b) then return q->hit
+    dim as integer s_ = -1
+    for s as integer = 0 to q->maxBlocks - 1
+        if q->blkIdx(s) = b then s_ = s : exit for
+    next
+    if s_ < 0 then
+        ' a free slot, else the least recently read
+        for s as integer = 0 to q->maxBlocks - 1
+            if q->blkIdx(s) = -1 then s_ = s : exit for
+            if (s_ < 0) orelse (q->blkUsed(s) < q->blkUsed(s_)) then s_ = s
+        next
+        if (q->stmt = nullptr) andalso (Prepare_( q ) = false) then return -1
+        sqlite3_reset( q->stmt )
+        sqlite3_bind_int64( q->stmt, 1, q->blockRows )
+        sqlite3_bind_int64( q->stmt, 2, cast( longint, b ) * q->blockRows )
+        q->fetches += 1
+        dim as integer n = 0, base_ = s_ * q->blockRows * q->nCols
+        while (n < q->blockRows) andalso (sqlite3_step( q->stmt ) = SQLITE_ROW)
+            for k as long = 0 to q->nCols - 1
+                ColumnValue_( q, q->stmt, k, q->vals(base_ + n * q->nCols + k) )
+            next
+            n += 1
+        wend
+        q->blkIdx(s_) = b
+        q->blkN(s_) = n
+    end if
+    q->tick += 1
+    q->blkUsed(s_) = q->tick
+    q->hit = s_
+    return s_
+end function
+
+' ---- the source procedures ---------------------------------------------------------------------
+private function QRowCount( byval p as any ptr ) as integer
+    return cast( TKDGSQL ptr, p )->rowCount
+end function
+
+private sub QGetCell( byval p as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE )
+    dim as TKDGSQL ptr q = p
+    v.Clear( )
+    if (col < 0) orelse (col >= q->nCols) orelse (row < 0) then exit sub
+    dim as integer s = Block_( q, row )
+    if (s < 0) orelse (row mod q->blockRows >= q->blkN(s)) then exit sub
+    v = q->vals((s * q->blockRows + row mod q->blockRows) * q->nCols + col)
+end sub
+
+' The key of row (its block fetched); FALSE when there is none to name the row by.
+private function Key_( byval q as TKDGSQL ptr, byval row as integer, byref key as TKDG_VALUE ) as boolean
+    if q->pkCol < 0 then return false
+    QGetCell( q, row, q->pkCol, key )
+    return key.kind <> TKDG_EMPTY
+end function
+
+private sub Bind_( byval st as sqlite3_stmt ptr, byval i as long, byref v as const TKDG_VALUE )
+    select case v.kind
+    case TKDG_INT   : sqlite3_bind_int64( st, i, v.i )
+    case TKDG_FLOAT : sqlite3_bind_double( st, i, v.f )
+    case TKDG_BOOL  : sqlite3_bind_int( st, i, iif( v.b, 1, 0 ) )
+    case TKDG_DATE
+        dim as string s = right( "000" & v.d.wYear, 4 ) & "-" & right( "0" & v.d.wMonth, 2 ) & "-" & right( "0" & v.d.wDay, 2 )
+        sqlite3_bind_text( st, i, s, -1, SQLITE_TRANSIENT )
+    case TKDG_TEXT
+        dim as string s = v.s
+        sqlite3_bind_text( st, i, s, -1, SQLITE_TRANSIENT )
+    case else       : sqlite3_bind_null( st, i )
+    end select
+end sub
+
+private function QSetCell( byval p as any ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE ) as boolean
+    dim as TKDGSQL ptr q = p
+    if (len( q->table ) = 0) orelse (col < 0) orelse (col >= q->nCols) then return false
+    dim as TKDG_VALUE key
+    if Key_( q, row, key ) = false then return false
+    dim as sqlite3_stmt ptr st
+    dim as ustring sql = "update " & Quoted_( q->table ) & " set " & Quoted_( q->names(col) ) & " = ? where " & Quoted_( q->names(q->pkCol) ) & " = ?"
+    if sqlite3_prepare_v2( q->db, sql, -1, @st, nullptr ) <> SQLITE_OK then Error_( q ) : return false
+    Bind_( st, 1, v )
+    Bind_( st, 2, key )
+    dim as long rc = sqlite3_step( st )
+    sqlite3_finalize( st )
+    if rc <> SQLITE_DONE then Error_( q ) : return false
+    ' the held row shows the new value (a sort over it is the host's to redo: Sort / Refresh)
+    dim as integer s = Block_( q, row )
+    if s >= 0 then q->vals((s * q->blockRows + row mod q->blockRows) * q->nCols + col) = v
+    return true
+end function
+
+private function QDeleteRows( byval p as any ptr, byval row as integer, byval n as integer ) as boolean
+    dim as TKDGSQL ptr q = p
+    if len( q->table ) = 0 then return false
+    ' every key first: the rows shift as they go
+    dim as TKDG_VALUE keys( any )
+    redim keys( 0 to n - 1 )
+    for i as integer = 0 to n - 1
+        if Key_( q, row + i, keys(i) ) = false then return false
+    next
+    dim as sqlite3_stmt ptr st
+    if sqlite3_prepare_v2( q->db, "delete from " & Quoted_( q->table ) & " where " & Quoted_( q->names(q->pkCol) ) & " = ?", -1, @st, nullptr ) <> SQLITE_OK then
+        Error_( q )
+        return false
+    end if
+    sqlite3_exec( q->db, "begin", nullptr, nullptr, nullptr )
+    dim as boolean ok = true
+    for i as integer = 0 to n - 1
+        sqlite3_reset( st )
+        Bind_( st, 1, keys(i) )
+        if sqlite3_step( st ) <> SQLITE_DONE then ok = false : Error_( q ) : exit for
+    next
+    sqlite3_finalize( st )
+    sqlite3_exec( q->db, iif( ok, "commit", "rollback" ), nullptr, nullptr, nullptr )
+    if ok = false then return false
+    q->rowCount -= n
+    DropBlocks_( q )
+    return true
+end function
+
+private function QSort( byval p as any ptr, byval keys as TKDG_SORTKEY ptr, byval nKeys as integer ) as boolean
+    dim as TKDGSQL ptr q = p
+    dim as ustring ob
+    for i as integer = 0 to nKeys - 1
+        dim as integer k = keys[i].col
+        if (k < 0) orelse (k >= q->nCols) then continue for
+        if len( ob ) then ob &= ", "
+        ob &= Quoted_( q->names(k) )
+        if q->kinds(k) = TKDG_TEXT then ob &= " collate nocase"
+        if keys[i].bDescending then ob &= " desc"
+    next
+    q->orderBy = ob
+    DropBlocks_( q )
+    if Prepare_( q ) = false then
+        ' a query that cannot be ordered so: back to its own order, and the grid sorts
+        q->orderBy = ""
+        Prepare_( q )
+        return false
+    end if
+    return true
+end function
+
+' ==========================================================================================
+' The API
+' ==========================================================================================
+' query: a SELECT (no trailing ';'). bColumns: the grid's columns are replaced by the query's.
+' 0 when the query does not prepare (tkDataGridSqlite_LastError( 0 ) is not available then: check
+' it with sqlite3 first, or read sqlite3_errmsg( db )).
+public function tkDataGridSqlite_Open( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, _
+                                       byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr
+    if (hGrid = 0) orelse (db = nullptr) then return 0
+    dim as sqlite3_stmt ptr st
+    if sqlite3_prepare_v2( db, query, -1, @st, nullptr ) <> SQLITE_OK then return 0
+    dim as TKDGSQL ptr q = new TKDGSQL
+    q->hGrid = hGrid
+    q->db = db
+    q->query = query
+    if blockRows > 0 then q->blockRows = blockRows
+    if maxBlocks > 0 then q->maxBlocks = maxBlocks
+    q->nCols = sqlite3_column_count( st )
+    if q->nCols > 0 then
+        redim q->names( 0 to q->nCols - 1 )
+        redim q->kinds( 0 to q->nCols - 1 )
+    end if
+    for k as long = 0 to q->nCols - 1
+        q->names(k) = Utf8_( sqlite3_column_name( st, k ) )
+        dim as string decl
+        dim as const zstring ptr z = sqlite3_column_decltype( st, k )
+        if z then decl = *z
+        q->kinds(k) = KindOf_( decl )
+    next
+    sqlite3_finalize( st )
+    if q->nCols > 0 then DropBlocks_( q )
+    q->rowCount = Count_( q )
+    if bColumns then
+        tkDataGrid_BeginUpdate( hGrid )
+        tkDataGrid_ClearColumns( hGrid )
+        for k as long = 0 to q->nCols - 1
+            select case q->kinds(k)
+            case TKDG_INT   : tkDataGrid_AddColumnEx( hGrid, q->names(k), TKDG_COL_NUMBER, 80, TKDG_INT )
+            case TKDG_FLOAT : tkDataGrid_AddColumnEx( hGrid, q->names(k), TKDG_COL_NUMBER, 90 )
+            case TKDG_BOOL  : tkDataGrid_AddColumnEx( hGrid, q->names(k), TKDG_COL_CHECK, 60 )
+            case TKDG_DATE  : tkDataGrid_AddColumnEx( hGrid, q->names(k), TKDG_COL_DATE, 100 )
+            case else       : tkDataGrid_AddColumnEx( hGrid, q->names(k), TKDG_COL_TEXT, 140 )
+            end select
+        next
+        tkDataGrid_EndUpdate( hGrid )
+    end if
+    q->src.pCtx = q
+    q->src.RowCount = @QRowCount
+    q->src.GetCell = @QGetCell
+    q->src.SetCell = @QSetCell
+    q->src.DeleteRows = @QDeleteRows
+    q->src.Sort = @QSort
+    tkDataGrid_SetSource( hGrid, @q->src )
+    return q
+end function
+
+' Edits and deletes write to table, naming each row by pkColumn (one of the query's columns).
+' FALSE: no such column. table "" makes the grid read-only again.
+public function tkDataGridSqlite_SetWritable( byval q as TKDGSQL ptr, byref table as const ustring, byref pkColumn as const ustring ) as boolean
+    if q = 0 then return false
+    if len( table ) = 0 then
+        q->table = "" : q->pkCol = -1
+        return true
+    end if
+    for k as long = 0 to q->nCols - 1
+        if lcase( q->names(k) ) = lcase( pkColumn ) then
+            q->table = table : q->pkCol = k
+            return true
+        end if
+    next
+    return false
+end function
+
+' The data changed under the grid (an INSERT, another program): counted again, blocks dropped,
+' the grid reset (its selection and edit go).
+public sub tkDataGridSqlite_Refresh( byval q as TKDGSQL ptr )
+    if q = 0 then exit sub
+    q->rowCount = Count_( q )
+    DropBlocks_( q )
+    tkDataGrid_Reset( q->hGrid )
+end sub
+
+public function tkDataGridSqlite_GetFetchCount( byval q as TKDGSQL ptr ) as integer
+    return iif( q <> 0, q->fetches, 0 )
+end function
+
+public function tkDataGridSqlite_GetOrderBy( byval q as TKDGSQL ptr ) as ustring
+    if q = 0 then return ""
+    return q->orderBy
+end function
+
+public function tkDataGridSqlite_LastError( byval q as TKDGSQL ptr ) as ustring
+    if q = 0 then return ""
+    return q->lastError
+end function
+
+' The grid back to its own rows (empty), q freed. db stays open.
+public sub tkDataGridSqlite_Close( byval q as TKDGSQL ptr )
+    if q = 0 then exit sub
+    if q->hGrid then tkDataGrid_SetSource( q->hGrid, 0 )
+    if q->stmt then sqlite3_finalize( q->stmt )
+    delete q
+end sub

@@ -31,6 +31,8 @@
 # ComboBox (DisplayField shown, ValueField the value Bind moves). AutoComplete, CheckedList and DataGrid
 # are to take one of these shapes, or add theirs here.
 # records = a Navigator (B4): it steps through an Array( of <the form's DataType> ), loading each record.
+# grid = a DataGrid (G5): a row per element, a typed column per field (Kind: text number check combo date
+# button link progress), edited in place; LoadFrom fills it, SaveTo writes every row back (ItemsField only).
 # bind2 = { kind, get, set, name, when }: a two-value control's second value (a range Slider's upper thumb),
 # moved right after bind. name = the designer's row ("BindUpper"); when = "Prop=Shown", the property value it
 # needs ("Mode=Range"; "" = always). tkmetagen checks the procedures (in every file of the module) and when.
@@ -1228,6 +1230,93 @@ events = [
   { name="HeaderPaint", set="tkListTree_SetHeaderPaintCallback", type="HDR_PaintCallbackSub", sig="byval p as TKCOLUMNHEADER_PAINTINFO ptr", params="byval p as TKCOLUMNHEADER_PAINTINFO ptr", args="p", widget="p->hHeader" },
   { name="HeaderTooltip", set="tkListTree_SetHeaderTooltipCallback", type="HDR_TooltipCallbackFunc", sig="byval hHeader as TK_WIDGET ptr, byval idx as integer", params="byval idx as integer, byref Text as ustring", args="idx, Text", returns="ustring", result="Text" },
   { name="ColumnAutoSize", set="tkListTree_SetColumnAutoSizeCallback", type="HDR_AutoSizeCallbackFunc", sig="byval hHeader as TK_WIDGET ptr, byval idx as integer", params="byval idx as integer, byref BestWidth as integer", args="idx, BestWidth", returns="integer", result="BestWidth" },
+]
+
+[[control]]
+name = "DataGrid"
+module = "tkDataGrid"
+category = "Lists"
+width = 320
+height = 200
+items_bind = "grid"
+default_event = "CurrentCellChanged"
+colors = { struct="TKDATAGRID_COLORS", get="tkDataGrid_GetColors", theme="tkDataGrid_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="AltBackColor" },
+  { field="ForeColor", part="Fore", state="Normal", ink=true },
+  { field="GridLineColor" },
+  { field="HotBackColor", part="Back", state="Hot" },
+  { field="SelBackColor", part="Back", state="Selected" },
+  { field="SelForeColor", part="Fore", state="Selected", ink=true },
+  { field="SelBackInactive" },
+  { field="CurrentBorder" },
+  { field="ReadOnlyForeColor" },
+  { field="FrozenLineColor" },
+  { field="AccentColor" },
+  { field="LinkColor" },
+  { field="ButtonBackColor" },
+  { field="ButtonForeColor" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="RowHeaderBackColor" },
+  { field="RowHeaderForeColor" },
+  { field="DropMarkColor" },
+  { field="ErrorColor" },
+]
+props = [
+  { name="RowHeight", kind="int", set="tkDataGrid_SetRowHeight", get="tkDataGrid_GetRowHeight" },
+  { name="HeaderHeight", kind="int", set="tkDataGrid_SetHeaderHeight", get="tkDataGrid_GetHeaderHeight" },
+  { name="ShowHeader", kind="bool", set="tkDataGrid_ShowHeader", get="tkDataGrid_IsHeaderVisible", default="true" },
+  { name="ShowRowHeaders", kind="bool", set="tkDataGrid_ShowRowHeaders", get="tkDataGrid_AreRowHeadersVisible", default="false" },
+  { name="RowHeaderWidth", kind="int", set="tkDataGrid_SetRowHeaderWidth", get="tkDataGrid_GetRowHeaderWidth" },
+  { name="FrozenColumns", kind="int", set="tkDataGrid_SetFrozenColumns", get="tkDataGrid_GetFrozenColumns", default="0" },
+  { name="GridLines", kind="enum", enum="None=TKDG_GRID_NONE,Horizontal=TKDG_GRID_HORZ,Vertical=TKDG_GRID_VERT,Both=TKDG_GRID_BOTH", set="tkDataGrid_SetGridLines", get="tkDataGrid_GetGridLines", default="Both" },
+  { name="AlternateRows", kind="bool", set="tkDataGrid_SetAlternateRows", get="tkDataGrid_GetAlternateRows", default="false" },
+  { name="SelectionUnit", kind="enum", enum="Cell=TKDG_SEL_CELL,Row=TKDG_SEL_ROW,CellOrRow=TKDG_SEL_CELLORROW", set="tkDataGrid_SetSelectionUnit", get="tkDataGrid_GetSelectionUnit", default="CellOrRow" },
+  { name="MultiSelect", kind="bool", set="tkDataGrid_SetMultiSelect", get="tkDataGrid_GetMultiSelect", default="true" },
+  { name="EditMode", kind="enum", enum="OnEnter=TKDG_EDIT_ONENTER,OnF2=TKDG_EDIT_ONF2,OnKeystroke=TKDG_EDIT_ONKEYSTROKE,OnKeystrokeOrF2=TKDG_EDIT_ONKEYSTROKEORF2,Programmatic=TKDG_EDIT_PROGRAMMATIC", set="tkDataGrid_SetEditMode", get="tkDataGrid_GetEditMode", default="OnKeystrokeOrF2" },
+  { name="ReadOnly", kind="bool", set="tkDataGrid_SetReadOnly", get="tkDataGrid_GetReadOnly", default="false" },
+  { name="AllowAddRows", kind="bool", set="tkDataGrid_SetAllowAddRows", get="tkDataGrid_GetAllowAddRows", default="false" },
+  { name="AllowDeleteRows", kind="bool", set="tkDataGrid_SetAllowDeleteRows", get="tkDataGrid_GetAllowDeleteRows", default="true" },
+  { name="EditSelectAll", kind="bool", set="tkDataGrid_SetEditSelectAll", get="", default="false" },
+  { name="SortMode", kind="enum", enum="Auto=TKDG_SORT_AUTO,None=TKDG_SORT_NONE,Internal=TKDG_SORT_INTERNAL,Host=TKDG_SORT_HOST", set="tkDataGrid_SetSortMode", get="tkDataGrid_GetSortMode", default="Auto" },
+  { name="AllowColumnResize", kind="bool", set="tkDataGrid_SetAllowColumnResize", get="tkDataGrid_GetAllowColumnResize", default="true" },
+  { name="AllowColumnReorder", kind="bool", set="tkDataGrid_SetAllowColumnReorder", get="tkDataGrid_GetAllowColumnReorder", default="true" },
+  { name="ColumnHeaderSelects", kind="bool", set="tkDataGrid_SetColumnHeaderSelects", get="tkDataGrid_GetColumnHeaderSelects", default="false" },
+  { name="TabWraps", kind="bool", set="tkDataGrid_SetTabWraps", get="tkDataGrid_GetTabWraps", default="false" },
+  { name="Virtual", kind="bool", set="tkDataGrid_SetVirtual", get="tkDataGrid_IsVirtual", default="false" },
+  { name="BackColor", kind="color", set="tkDataGrid_SetBackColor", get="tkDataGrid_GetBackColor" },
+  { name="BorderWidth", kind="int", set="tkDataGrid_SetBorderWidth", get="tkDataGrid_GetBorderWidth", theme="BorderWidth", scale=1 },
+  { name="ScrollBarWidth", kind="int", set="tkDataGrid_SetScrollBarWidth", get="" },
+  { name="Font", kind="font", set="tkDataGrid_SetFont", get="tkDataGrid_GetFont" },
+  { name="HeaderFont", kind="font", set="tkDataGrid_SetHeaderFont", get="" },
+  { name="HoverTime", kind="int", set="tkDataGrid_SetHoverTime", get="" },
+]
+events = [
+  { name="CurrentCellChanged", set="tkDataGrid_SetCurrentCellChangedCallback", type="DG_CellSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer", args="row, col" },
+  { name="SelChange", set="tkDataGrid_SetSelChangeCallback", type="DG_GridSub", sig="byval hGrid as TK_WIDGET ptr", params="", args="" },
+  { name="CellClick", set="tkDataGrid_SetCellClickCallback", type="DG_CellSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer", args="row, col" },
+  { name="CellActivate", set="tkDataGrid_SetCellActivateCallback", type="DG_CellSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer", args="row, col" },
+  { name="CellValueChanged", set="tkDataGrid_SetCellValueChangedCallback", type="DG_CellSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer", args="row, col" },
+  { name="ButtonClick", set="tkDataGrid_SetButtonClickCallback", type="DG_CellSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer", args="row, col" },
+  { name="ColumnClick", set="tkDataGrid_SetColumnClickCallback", type="DG_ColumnSub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer", params="byval col as integer", args="col" },
+  { name="ColumnResize", set="tkDataGrid_SetColumnResizeCallback", type="DG_ColumnResizeSub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval nWidth as integer, byval bLive as boolean", params="byval col as integer, byval nWidth as integer, byval bLive as boolean", args="col, nWidth, bLive" },
+  { name="ColumnReordered", set="tkDataGrid_SetColumnReorderedCallback", type="DG_ColumnReorderedSub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval dispPos as integer", params="byval col as integer, byval dispPos as integer", args="col, dispPos" },
+  { name="SortChanged", set="tkDataGrid_SetSortChangedCallback", type="DG_GridSub", sig="byval hGrid as TK_WIDGET ptr", params="", args="" },
+  { name="CellBeginEdit", set="tkDataGrid_SetCellBeginEditCallback", type="DG_CellBeginEditFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer, byref Allow as boolean", args="row, col, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="CellEndEdit", set="tkDataGrid_SetCellEndEditCallback", type="DG_CellEndEditSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval bCommitted as boolean", params="byval row as integer, byval col as integer, byval bCommitted as boolean", args="row, col, bCommitted" },
+  { name="RowValidating", set="tkDataGrid_SetRowValidatingCallback", type="DG_RowFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer", params="byval row as integer, byref Allow as boolean", args="row, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="RowCommitted", set="tkDataGrid_SetRowCommittedCallback", type="DG_RowSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer", params="byval row as integer", args="row" },
+  { name="CancelRowEdit", set="tkDataGrid_SetCancelRowEditCallback", type="DG_RowSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer", params="byval row as integer", args="row" },
+  { name="RowAdded", set="tkDataGrid_SetRowAddedCallback", type="DG_RowSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer", params="byval row as integer", args="row" },
+  { name="RowsDeleting", set="tkDataGrid_SetRowsDeletingCallback", type="DG_RowsDeletingFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval count as integer", params="byval row as integer, byval count as integer, byref Allow as boolean", args="row, count, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="CellValueNeeded", set="tkDataGrid_SetCellValueNeededCallback", type="DG_CellValueNeededSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE", params="byval row as integer, byval col as integer, byref v as TKDG_VALUE", args="row, col, v" },
+  { name="CellValuePushed", set="tkDataGrid_SetCellValuePushedCallback", type="DG_CellValuePushedFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byref v as TKDG_VALUE", params="byval row as integer, byval col as integer, byref v as TKDG_VALUE, byref Accept as boolean", args="row, col, v, Accept", returns="boolean", result="Accept", result_init="true" },
+  { name="Tooltip", set="tkDataGrid_SetTooltipCallback", type="DG_TooltipFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer, byref Text as ustring", args="row, col, Text", returns="ustring", result="Text" },
+  { name="CellFormatting", set="tkDataGrid_SetCellFormattingCallback", type="DG_CellFormattingSub", sig="byval p as TKDATAGRID_FORMATINFO ptr", params="byval p as TKDATAGRID_FORMATINFO ptr", args="p", widget="p->hGrid" },
+  { name="CellPaint", set="tkDataGrid_SetCellPaintCallback", type="DG_CellPaintFunc", sig="byval p as TKDATAGRID_CELLPAINTINFO ptr", params="byval p as TKDATAGRID_CELLPAINTINFO ptr, byref Handled as boolean", args="p, Handled", widget="p->hGrid", returns="boolean", result="Handled" },
+  { name="HeaderPaint", set="tkDataGrid_SetHeaderPaintCallback", type="HDR_PaintCallbackSub", sig="byval p as TKCOLUMNHEADER_PAINTINFO ptr", params="byval p as TKCOLUMNHEADER_PAINTINFO ptr", args="p", widget="tkWidget_Parent( p->hHeader )" },
+  { name="Message", set="tkDataGrid_SetMessageCallback", type="DG_MessageFunc", sig="byval m as TKDATAGRID_MESSAGEINFO ptr", params="byval m as TKDATAGRID_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGrid", returns="boolean", result="Handled" },
 ]
 
 [[control]]

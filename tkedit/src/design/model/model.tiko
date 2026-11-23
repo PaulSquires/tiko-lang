@@ -43,6 +43,13 @@ public type FormItem
     Stretch as boolean      ' a status bar panel: takes a share of the spare width (several may)
     Id as long = -1         ' its translation key's last part, kept however entries move; -1 = not given yet
     Field as ustring        ' a list-bound ListTree's column: the element's field it shows (B3), "" = none
+    ' a DataGrid column (G5): "" (by kind) left center right; the narrowest it may be dragged to; its
+    ' share of the spare width (0 = none); no editor opens on it; not shown (Visible unticked)
+    Align as ustring
+    MinWidth as long
+    Fill as long
+    ReadOnly as boolean
+    Hidden as boolean
 end type
 
 public type FormControl
@@ -94,6 +101,10 @@ public type FormControl
     ValueField as ustring
     CheckField as ustring
     Follows as ustring              ' a Navigator (B4): the list control (ListTree, ComboBox) on its records
+    ' G5b: a DataGrid shows its array in place (a source over it: edits land at once, nothing is
+    ' copied) instead of copying it in LoadFrom / _Fill and back in SaveTo. The array must outlive
+    ' the binding: a record's field, or a name for ItemsSource, never a call's result.
+    ItemsLive as boolean
 end type
 
 ' A handler whose control was deleted while its body still had code in it. Its declaration is kept

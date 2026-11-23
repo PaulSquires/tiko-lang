@@ -60,6 +60,7 @@ public enum ItemsKind explicit
     ItemsIcons
     ItemsPopup
     ItemsTabs       ' a TabBar's tabs: a caption and a glyph each
+    ItemsGridColumns ' a DataGrid's columns: caption, width, kind, field (G5)
 end enum
 
 ' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
@@ -209,6 +210,7 @@ public function ItemsKindOf( byref typeName as const ustring ) as ItemsKind
     case "IconPanel"  : return ItemsKind.ItemsIcons
     case "StatusBar"  : return ItemsKind.ItemsStatus
     case "ListTree"   : return ItemsKind.ItemsColumns
+    case "DataGrid"   : return ItemsKind.ItemsGridColumns
     case "ComboBox"   : return ItemsKind.ItemsList
     case "SelectBar"  : return ItemsKind.ItemsList
     case "CheckedList", "CheckedComboBox", "TokenBox" : return ItemsKind.ItemsList
@@ -278,7 +280,8 @@ public function RulesSet( byref c as FormControl ) as ustring
 end function
 
 ' ---- B3: list binding ------------------------------------------------------------------------
-' A control's list shape (tkMeta's items_bind): "rows" (ListTree), "items" (ComboBox), "" none.
+' A control's list shape (tkMeta's items_bind): "rows" (ListTree), "items" (ComboBox), "grid"
+' (DataGrid, G5), "records" (Navigator), "" none.
 public function ItemsBindOf( byref c as FormControl ) as ustring
     dim as TKMETA_CONTROL ptr m = Find( c.TypeName )
     if m = 0 then return ""
@@ -295,10 +298,10 @@ end function
 ' a time, so validate lets them be missing; the generated file says so with an #error instead.
 public function ListMissing( byref c as FormControl ) as ustring
     dim as ustring shape = ItemsBindOf( c )
-    if ((shape <> "rows") andalso (shape <> "items")) orelse (HasListSource( c ) = false) then return ""
+    if ((shape <> "rows") andalso (shape <> "items") andalso (shape <> "grid")) orelse (HasListSource( c ) = false) then return ""
     if len( c.ItemType ) = 0 then return "its list needs an ItemType, the type of its elements"
     if (shape = "items") andalso (len( c.DisplayField ) = 0) then return "its list needs a DisplayField, the text each item shows"
-    if shape = "rows" then
+    if (shape = "rows") orelse (shape = "grid") then
         for each it as FormItem in c.Items
             if len( it.Field ) then return ""
         next
@@ -310,7 +313,50 @@ end function
 ' A list that is filled from an array, complete enough to generate.
 public function ListReady( byref c as FormControl ) as boolean
     dim as ustring shape = ItemsBindOf( c )
-    return ((shape = "rows") orelse (shape = "items")) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
+    return ((shape = "rows") orelse (shape = "items") orelse (shape = "grid")) andalso HasListSource( c ) andalso (len( ListMissing( c ) ) = 0)
+end function
+
+' A DataGrid column's Kind (G5): "" is text.
+public function GridKindOk( byref kind as const ustring ) as boolean
+    select case kind
+    case "", "text", "number", "check", "combo", "date", "button", "link", "progress" : return true
+    end select
+    return false
+end function
+
+' The tkBind / tkDataGrid value kind a DataGrid column of that Kind moves: Text Float Bool Date.
+public function GridValueKind( byref kind as const ustring ) as ustring
+    select case kind
+    case "number", "progress" : return "Float"
+    case "check" : return "Bool"
+    case "date" : return "Date"
+    end select
+    return "Text"
+end function
+
+' Its column constant (TKDG_COL_*), as source.
+' A DataGrid column's Align ("" = by its kind) as its TKDG_ALIGN_* constant; "" for no such align.
+public function GridAlignConst( byref a as const ustring ) as ustring
+    select case a
+    case ""       : return "TKDG_ALIGN_AUTO"
+    case "left"   : return "TKDG_ALIGN_LEFT"
+    case "center" : return "TKDG_ALIGN_CENTER"
+    case "right"  : return "TKDG_ALIGN_RIGHT"
+    end select
+    return ""
+end function
+
+public function GridKindConst( byref kind as const ustring ) as ustring
+    select case kind
+    case "number"   : return "TKDG_COL_NUMBER"
+    case "check"    : return "TKDG_COL_CHECK"
+    case "combo"    : return "TKDG_COL_COMBO"
+    case "date"     : return "TKDG_COL_DATE"
+    case "button"   : return "TKDG_COL_BUTTON"
+    case "link"     : return "TKDG_COL_LINK"
+    case "progress" : return "TKDG_COL_PROGRESS"
+    end select
+    return "TKDG_COL_TEXT"
 end function
 
 ' A ComboBox that binds its items' ValueField rather than its index. (A keyed list's value is
