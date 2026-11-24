@@ -2,7 +2,7 @@
 
 # tkReport
 
-Banded reports over rows of data, laid out into [tkPrint](tkPrint) pages; and the table printer, which prints a list as it is shown.
+Lays out banded reports over rows of data, with group headers, footers and totals.
 
 A report has the bands every reporting tool shares:
 

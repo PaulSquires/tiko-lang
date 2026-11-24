@@ -2,7 +2,7 @@
 
 # tkPrinter
 
-Lists the printers and prints [tkPrint](tkPrint) documents on them.
+Lists the printers and prints print documents on them.
 
 - **Windows.** The printers, their papers, duplex and colour come from winspool; no import library is linked. A job is sent as images: each page is replayed by tkPrint at the printer's resolution (at most 600 dpi), in bands, and lined up with the paper's edge as in the preview. Copies and collation are done by tkPrinter.
 - **Linux and macOS.** CUPS: the document is written as a PDF by [tkPdf](tkPdf) and submitted with its options. libcups is loaded at run time; without it the `lpstat` and `lp` commands are used.

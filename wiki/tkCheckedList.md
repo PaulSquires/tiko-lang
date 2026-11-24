@@ -2,7 +2,7 @@
 
 # tkCheckedList
 
-Shows a list with a check box per item: several items picked at once.
+Shows a list with a check box on each item, so several can be picked at once.
 
 `tkCheckedList` is the [tkControls](Category-tkControls) checked list box. It is a thin control over a
 [tkListTree](tkListTree) with its check boxes on: flat, two-state, drawn by the list's stock row

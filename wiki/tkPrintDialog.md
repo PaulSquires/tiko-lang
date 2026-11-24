@@ -2,7 +2,7 @@
 
 # tkPrintDialog
 
-The Print and Page Setup dialogs, drawn by tkControls on every OS.
+Shows the Print and Page Setup dialogs, drawn the same on every system.
 
 - **Print** offers:
   - the printer, with its location;

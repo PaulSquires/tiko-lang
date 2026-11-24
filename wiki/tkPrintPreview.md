@@ -2,7 +2,7 @@
 
 # tkPrintPreview
 
-Shows a [tkPrint](tkPrint) document's pages as paper on a backdrop, with zoom, columns, scrolling and links.
+Shows a print document's pages as paper, with zoom, columns and scrolling.
 
 The preview lays the pages out in rows (one page per row by default, two for facing pages), scrolls them by the pixel, and zooms to fit the width, to fit a page, or to a custom factor. Pages are drawn by replaying the document, once per page and zoom, into a texture that is reused until the zoom or the document changes. A document still being made is finished by the preview itself, a few pages per tick, so the first pages show while the rest are made.
 

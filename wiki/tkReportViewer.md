@@ -2,7 +2,7 @@
 
 # tkReportViewer
 
-A [tkPrint](tkPrint) document with its tools: a toolbar, a [tkPrintPreview](tkPrintPreview) and a status bar.
+Shows a print document with a toolbar, a preview and a status bar.
 
 - **Toolbar:**
   - **Print** runs [tkPrintDialog](tkPrintDialog), then prints with [tkPrinter](tkPrinter); the status bar counts the pages.

@@ -2,7 +2,7 @@
 
 # tkPrint
 
-Builds print documents: pages drawn once in points, then shown, rasterised or exported.
+Builds print documents: pages drawn once in points, then shown, printed or exported.
 
 A `TK_PRINTDOC` holds pages. You draw a page with the `tkPage_*` API, in **points** (1/72 inch, origin top-left, y down), or let any widget paint itself onto it with `tkPrint_PaintWidget`. Either way the page is a *recording* of what [tkPaint](tkPaint) would have drawn, so it can be replayed at any size: in a window (`tkPrintReplay_Page`), as a surface (`tkPrintDoc_RenderSurface`) or as PNG files (`tkPrintDoc_ExportPng`). A page replayed at the scale it was recorded at is the same pixels as painting it directly.
 

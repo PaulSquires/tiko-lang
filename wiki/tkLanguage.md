@@ -2,7 +2,7 @@
 
 # tkLanguage
 
-Shows a designed program's captions in another language, from catalogs built into the program or read from files.
+Shows a designed program's captions in another language, from TOML catalogs.
 
 A form marked Translatable in the [Form Designer](Form-Designer) asks [tkForms](tkForms) for each caption it sets: `tkForms_Tr( "frmMain.btnOK.Text", "OK" )`. `tkLanguage` answers those questions. You register one catalog per language, by its code, and `tkLanguage_Use` makes one of them the program's: it reads the catalog and installs it as tkForms' translator. A key the catalog lacks shows the text the form was designed with, so a catalog can be partial.
 

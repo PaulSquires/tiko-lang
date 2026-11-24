@@ -2,7 +2,7 @@
 
 # tkTokenBox
 
-Draws an input whose values are chips: typed or picked tokens, each with a remove ×.
+Draws an input whose values are chips, typed or picked, each with a remove button.
 
 `tkTokenBox` is the [tkControls](Category-tkControls) token (tag) box. Text typed into it becomes a
 **token** on a separator character or Enter, or is completed from a list of suggestions. Each token

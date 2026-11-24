@@ -2,7 +2,7 @@
 
 # tkPdf
 
-Writes a [tkPrint](tkPrint) document as a PDF file.
+Writes a print document as a PDF file.
 
 Every page becomes a PDF page as it was recorded: shapes as vector paths, text as real text in the embedded font (searchable and copyable), images, gradients, clips and links. No PDF library is linked; the writer, its compression and its font reader are part of the module.
 

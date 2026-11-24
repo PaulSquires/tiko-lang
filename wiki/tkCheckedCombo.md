@@ -2,7 +2,7 @@
 
 # tkCheckedCombo
 
-Draws a combo button whose dropdown is a checked list: several values picked at once.
+Draws a combo button whose dropdown is a checked list of several picked values.
 
 `tkCheckedCombo` is the [tkControls](Category-tkControls) multi-select combo. Its button looks like a
 [tkComboBox](tkComboBox)'s: the same layout, moods, chevron and theme colours. Instead of the current
