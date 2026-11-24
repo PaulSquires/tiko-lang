@@ -50,6 +50,7 @@ public type FormItem
     Fill as long
     ReadOnly as boolean
     Hidden as boolean
+    Summary as ustring      ' G7b: the footer's total: "" (none) sum count avg min max
 end type
 
 public type FormControl

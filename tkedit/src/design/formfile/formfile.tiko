@@ -220,7 +220,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
     if p then
         for i as long = 0 to p->Count( ) - 1
             dim byref as config.TomlValue it = p->Item( i )
-            OnlyKeys_( it, "text key glyph handler kind level width stretch id field align min_width fill read_only hidden", where & " item", doc )
+            OnlyKeys_( it, "text key glyph handler kind level width stretch id field align min_width fill read_only hidden summary", where & " item", doc )
             dim as FormItem x
             x.Text = StrOf_( it, "text" )
             x.Key = StrOf_( it, "key" )
@@ -249,6 +249,7 @@ private sub ReadControl_( byref t as config.TomlValue, byref doc as FormDoc )
                 dim as boolean no = false
                 x.Hidden = st->AsBool( ).ValueOr( no )
             end if
+            x.Summary = StrOf_( it, "summary" )
             c.Items.Push( x )
         next
     end if
@@ -578,6 +579,7 @@ public function Render( byref doc as FormDoc ) as ustring
             if it.Fill then o &= "fill = " & it.Fill & NL
             if it.ReadOnly then o &= "read_only = true" & NL
             if it.Hidden then o &= "hidden = true" & NL
+            if len( it.Summary ) then o &= "summary = " & Quote_( it.Summary ) & NL
             if len( it.Handler ) then o &= "handler = " & Quote_( it.Handler ) & NL
             if doc.Translate then o &= "id = " & ItemId( c, k ) & NL
         next

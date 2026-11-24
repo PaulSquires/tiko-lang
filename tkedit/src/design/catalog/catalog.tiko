@@ -407,6 +407,19 @@ public function GridAlignConst( byref a as const ustring ) as ustring
     return ""
 end function
 
+' G7b: a DataGrid column's footer total ("" = none); "" when the name is not one.
+public function GridSummaryConst( byref s as const ustring ) as ustring
+    select case s
+    case ""      : return "TKDG_SUM_NONE"
+    case "sum"   : return "TKDG_SUM_SUM"
+    case "count" : return "TKDG_SUM_COUNT"
+    case "avg"   : return "TKDG_SUM_AVG"
+    case "min"   : return "TKDG_SUM_MIN"
+    case "max"   : return "TKDG_SUM_MAX"
+    end select
+    return ""
+end function
+
 public function GridKindConst( byref kind as const ustring ) as ustring
     select case kind
     case "number"   : return "TKDG_COL_NUMBER"

@@ -75,7 +75,7 @@ private function DgSetIsEmpty( byref s as TKDG_SELSET ) as boolean
     return (s.bAll = false) andalso (s.nSpans = 0) andalso (s.nRects = 0)
 end function
 
-private function DgSetEqual( byref a as TKDG_SELSET, byref b as TKDG_SELSET ) as boolean
+function DgSetEqual( byref a as TKDG_SELSET, byref b as TKDG_SELSET ) as boolean
     if (a.bAll <> b.bAll) orelse (a.nSpans <> b.nSpans) orelse (a.nRects <> b.nRects) then return false
     for k as integer = 0 to a.nSpans - 1
         if (a.spans(k).a <> b.spans(k).a) orelse (a.spans(k).b <> b.spans(k).b) then return false
@@ -673,6 +673,27 @@ public sub tkDataGrid_SetFrozenColumns( byval hGrid as TK_WIDGET ptr, byval n as
     p->nFrozen = iif( n < 0, 0, n )
     DgChanged( p )
 end sub
+
+' G7b: the first n VIEW rows stay at the top while the rest scroll (Excel's freeze panes: they are
+' positions, so a sort changes which rows they are). Silent.
+public sub tkDataGrid_SetFrozenRows( byval hGrid as TK_WIDGET ptr, byval n as integer )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then exit sub
+    p->nFrozenRows = iif( n < 0, 0, n )
+    DgChanged( p )
+end sub
+
+public function tkDataGrid_GetFrozenRows( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    return iif( p <> 0, p->nFrozenRows, 0 )
+end function
+
+' The frozen rows' height in pixels (fewer rows than FrozenRows: theirs).
+public function tkDataGrid_GetFrozenRowsHeightPx( byval hGrid as TK_WIDGET ptr ) as integer
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p = 0 then return 0
+    return DgNFR( p ) * DgRowHPx( p )
+end function
 
 public function tkDataGrid_GetFrozenColumns( byval hGrid as TK_WIDGET ptr ) as integer
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )

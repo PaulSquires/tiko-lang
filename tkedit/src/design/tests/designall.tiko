@@ -3081,6 +3081,15 @@ sub DataGridSuite( byval bAccept as boolean )
     Check( (instr( tc, "c_.align = TKDG_ALIGN_RIGHT" ) > 0) andalso (instr( tc, "c_.minWidth = 40" ) > 0) andalso (instr( tc, "c_.fillWeight = 2" ) > 0) _
         andalso (instr( tc, "c_.readOnly = true" ) > 0) andalso (instr( tc, "c_.visible = false" ) > 0) andalso (instr( tc, "tkDataGrid_SetColumnInfo( g.Handle, 0, c_ )" ) > 0), _
         "datagrid: ... and set on the column", tc )
+    ' G7b: a column's footer total
+    Refused( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "summary = ""total""" & LF, "no DataGrid column summary 'total'" )
+    dim as FormDoc ds
+    Check( ReadForm( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "summary = ""avg""" & LF, ds ) _
+        andalso (ds.Controls[0].Items[0].Summary = "avg"), "datagrid: a column's summary read" )
+    Check( instr( formfile.Render( ds ), "summary = ""avg""" ) > 0, "datagrid: ... and written back" )
+    dim as ustring tsum = codegen.Generate( ds, "frmS", "frmS.tkform", "" )
+    Check( (instr( tsum, "c_.summary = TKDG_SUM_AVG" ) > 0) andalso (instr( tsum, "tkDataGrid_SetColumnInfo( g.Handle, 0, c_ )" ) > 0), _
+        "datagrid: ... and set on the column", tsum )
 
     ' G5b: ItemsLive -- the grid shows the array in place, through generated source procedures
     Refused( hdr & Ctl( "l", "ListTree", "items_live = true" & LF ), "only a DataGrid shows its array in place" )

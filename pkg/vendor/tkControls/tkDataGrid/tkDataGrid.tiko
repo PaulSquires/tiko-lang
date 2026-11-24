@@ -24,8 +24,9 @@
 ' grid header exactly as they paint a ListTree's.
 '
 ' Uniform row height, pixel-smooth scrolling (D-2): row r's top is hdrH + r * rowH - scrollY.
-' The first FrozenColumns display positions do not scroll sideways; an optional row-header strip
-' sits left of them (dgView.tiko has the geometry).
+' The first FrozenColumns display positions do not scroll sideways, the first FrozenRows view rows
+' do not scroll vertically (G7b); an optional row-header strip sits left, a filter row (G7c) and a
+' footer (G7b) are bands above and below the rows (dgView.tiko has the geometry).
 '
 ' SELECTION (G1, dgSelect.tiko): a CURRENT CELL, always one cell, apart from the selection; the
 ' selection is a sorted, merged set of row spans (whole rows), a list of cell rectangles in DISPLAY
@@ -123,7 +124,9 @@ public enum                  ' TKDG_HITTEST.area
     TKDG_HT_CELL             ' row, col
     TKDG_HT_EMPTY            ' the body past the last row or the last column
     TKDG_HT_ROWHEADER        ' the row-header strip: row
-    TKDG_HT_CORNER           ' above the row headers, left of the column headers
+    TKDG_HT_CORNER           ' above the row headers, left of the column headers (and left of the footer)
+    TKDG_HT_FOOTER           ' G7b: the footer (summary row): col
+    TKDG_HT_FILTER           ' G7c: the filter row: col
 end enum
 
 public enum                  ' tkDataGrid_SetEditMode: what starts an edit (DataGridView's EditMode)
@@ -139,6 +142,20 @@ public enum                  ' tkDataGrid_SetSortMode
     TKDG_SORT_NONE = 0       ' header clicks do not sort
     TKDG_SORT_INTERNAL       ' the grid sorts its rows
     TKDG_SORT_HOST           ' a key change fires SortChanged; the host re-queries and calls Reset
+end enum
+
+public enum                  ' TKDATAGRID_COLUMN.summary: the footer's total for the column (G7b)
+    TKDG_SUM_NONE = 0
+    TKDG_SUM_SUM
+    TKDG_SUM_COUNT           ' the non-empty cells
+    TKDG_SUM_AVG
+    TKDG_SUM_MIN
+    TKDG_SUM_MAX
+end enum
+
+public enum                  ' tkDataGrid_SetSummaryScope (G7b)
+    TKDG_SUMSCOPE_VIEW = 0   ' the rows the view shows
+    TKDG_SUMSCOPE_SELECTION  ' the selected cells
 end enum
 
 public enum                  ' tkDataGrid_SetSelectionUnit
@@ -180,12 +197,36 @@ public type TKDATAGRID_COLUMN
     sortable   as boolean = true      ' reserved (G4)
     resizable  as boolean = true      ' the header gutter resizes it (and SetAllowColumnResize)
     itemData   as integer
+    summary    as long = TKDG_SUM_NONE ' G7b: the footer's total for it (TKDG_SUM_*)
 end type
 
 public type TKDG_HITTEST
     area as long = TKDG_HT_NONE
     row  as integer = -1              ' model
     col  as integer = -1              ' model
+end type
+
+' G7c: a column filter's operator (TKDG_COLFILTER.op; dgFilter.tiko has the text syntax).
+public enum
+    TKDG_FLT_NONE = 0
+    TKDG_FLT_CONTAINS        ' v1: text, case-insensitive, over the shown text
+    TKDG_FLT_STARTS          ' v1: text
+    TKDG_FLT_EQ
+    TKDG_FLT_NE
+    TKDG_FLT_LT
+    TKDG_FLT_LE
+    TKDG_FLT_GT
+    TKDG_FLT_GE
+    TKDG_FLT_BETWEEN         ' v1 .. v2, both included
+    TKDG_FLT_EMPTY
+    TKDG_FLT_NOTEMPTY
+end enum
+
+' G7c: one column's filter: an operator and its values, in the column's value kind.
+public type TKDG_COLFILTER
+    op as long = TKDG_FLT_NONE
+    v1 as TKDG_VALUE
+    v2 as TKDG_VALUE
 end type
 
 ' One sort key: a model column and its direction.
@@ -225,6 +266,9 @@ public type TKDATAGRID_COLORS
     RowHeaderForeColor as ulong = &hFF969CA6ul  ' the current-row mark
     DropMarkColor    as ulong = &hFF569CD6ul    ' where a dragged column header will land
     ErrorColor       as ulong = &hFFE06C75ul    ' an editor whose text was refused
+    FooterBackColor  as ulong = &hFF2C313Aul    ' G7b: the summary row
+    FooterForeColor  as ulong = &hFFE6E9EFul
+    FilterBackColor  as ulong = &hFF262A31ul    ' G7c: the filter row
 end type
 
 ' A cell about to be painted, after CellFormatting. Every field is the grid's default for the
@@ -357,6 +401,9 @@ type TKDATAGRID_STATE
     hotHdrCol      as integer = -1
     hotDivCol      as integer = -1       ' the resize gutter under the mouse
     nFrozen        as integer            ' display positions 0 .. nFrozen - 1 do not scroll sideways
+    nFrozenRows    as integer            ' G7b: view rows 0 .. nFrozenRows - 1 do not scroll vertically
+    bFooter        as boolean            ' G7b: the summary row at the bottom (dgSummary.tiko)
+    bFilterRow     as boolean            ' G7c: the filter row under the header (dgFilter.tiko)
     frozenW        as integer            ' laid out: their total width in pixels
     bRowHeaders    as boolean
     RowHeaderWidth as integer = 24       ' unscaled
@@ -474,6 +521,26 @@ type TKDATAGRID_STATE
     wszShowAll     as ustring = "Show all columns"
     ColumnVisibilityChangedCallback as DG_ColumnVisibleSub
     ContextMenuCallback as DG_ContextMenuSub
+    ' --- G7b: the footer's totals (dgSummary.tiko) ---
+    sumScope       as long = TKDG_SUMSCOPE_VIEW
+    bSumValid      as boolean            ' the totals below are current
+    sumVals(any)   as TKDG_VALUE         ' by model column
+    sumTexts(any)  as ustring
+    sumSel         as TKDG_SELSET        ' the selection they were taken over (selection scope)
+    SummaryFormattingCallback as DG_SummarySub
+    ' --- G7c: column filters and the filter row (dgFilter.tiko) ---
+    flt(any)       as TKDG_COLFILTER     ' by model column
+    fltText(any)   as ustring            ' as typed (the filter row shows it)
+    fltBad(any)    as ubyte              ' 1: the text does not read for the column (filters nothing)
+    nFlt           as integer            ' the arrays' length (DgFltEnsure keeps it the column count)
+    fltSerial      as integer            ' bumped by every change of a filter
+    srcFltSerial   as integer = -1       ' the change a source was last told of
+    bSrcFiltered   as boolean            ' the source applies the filters (a WHERE): the grid does not
+    wEdFilter      as TK_WIDGET ptr      ' the filter row's editor, made on first use
+    fltEditCol     as integer = -1       ' the column it is open on, -1 = closed
+    fltEditOrig    as ustring            ' its text when opened (Esc puts it back)
+    bFltLoading    as boolean            ' setting the editor's text: not a user change
+    FilterChangedCallback as DG_GridSub
 end type
 
 
@@ -546,6 +613,7 @@ end sub
 
 ' A change to the shape (rows, columns, sizes): lay out now, or when the batch ends.
 sub DgChanged( byval p as TKDATAGRID_STATE ptr )
+    DgSumInvalidate( p )                 ' G7b: rows, columns or the view changed: totals are stale
     if p->updateDepth > 0 then p->bPending = true : exit sub
     DgLayout( p )
     tkWidget_Invalidate( p->hWin )
@@ -716,6 +784,7 @@ public function tkDataGrid_InsertColumn( byval hGrid as TK_WIDGET ptr, byval col
     DgCacheClear( p )
     DgRenumber( p )
     DgSortColumnInserted( p, col )
+    DgFltColumnInserted( p, col )
     if p->curCol >= col then p->curCol += 1
     if p->hotHdrCol >= col then p->hotHdrCol += 1
     DgSelDropRects( p )
@@ -773,6 +842,7 @@ public function tkDataGrid_DeleteColumn( byval hGrid as TK_WIDGET ptr, byval col
     p->hotDivCol = -1
     if p->curCol = col then p->curCol = -1 else if p->curCol > col then p->curCol -= 1
     DgSortColumnRemoved( p, col )
+    DgFltColumnRemoved( p, col )
     DgRenumber( p )
     DgSelDropRects( p )
     DgChanged( p )
@@ -790,6 +860,10 @@ public sub tkDataGrid_ClearColumns( byval hGrid as TK_WIDGET ptr )
     p->curCol = -1
     p->scrollX = 0
     erase p->sortKeys : p->nSortKeys = 0
+    ' G7c: the filters went with their columns
+    if p->fltEditCol >= 0 then DgFltClose( p, false, false )
+    if DgFltAny( p ) then p->fltSerial += 1
+    erase p->flt : erase p->fltText : erase p->fltBad : p->nFlt = 0
     DgSelDropRects( p )
     DgChanged( p )
 end sub
@@ -1286,6 +1360,9 @@ public function tkDataGrid_ThemeColors( byref t as TKTHEME_COLORS ) as TKDATAGRI
     c.RowHeaderForeColor = t.TextDim
     c.DropMarkColor = t.Accent
     c.ErrorColor = t.Error
+    c.FooterBackColor = t.Surface
+    c.FooterForeColor = t.TextStrong
+    c.FilterBackColor = tkColor_Lerp( t.Window, t.Surface, 0.5 )
     return c
 end function
 

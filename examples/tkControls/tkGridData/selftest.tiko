@@ -311,6 +311,108 @@ sub SqlSafe( byval owner as TK_FORM ptr )
     sqlite3_close( db )
 end sub
 
+' ---- G7b / G7c: SQLite filters (WHERE) and totals (aggregates) ----------------------------------
+function SumOf( byval g as TK_WIDGET ptr, byval col as integer ) as string
+    dim as TKDG_VALUE v
+    if tkDataGrid_GetSummary( g, col, v ) = false then return "none"
+    return tkDataGrid_GetSummaryText( g, col )
+end function
+
+sub SqlFilter( byval owner as TK_FORM ptr )
+    tkTest_Begin( "tkDataGridSqlite: filters and totals" )
+    dim as TK_HOST ptr h = tkForm_Host( owner )
+    dim as sqlite3 ptr db
+    sqlite3_open( ":memory:", @db )
+    sqlite3_exec( db, "create table item( id integer primary key, name text, qty int, price real, made date )", nullptr, nullptr, nullptr )
+    sqlite3_exec( db, "begin", nullptr, nullptr, nullptr )
+    for i as integer = 1 to 300
+        dim as string nm = "n" & right( "000" & i, 3 )
+        if i = 7 then nm = "a_b%c"
+        if i = 8 then nm = "axbyc"
+        if i = 9 then nm = "back\slash"
+        if i = 10 then nm = "Banana"
+        dim as string pr = iif( (i mod 4) = 0, "null", str( i / 2 ) )
+        sqlite3_exec( db, "insert into item( name, qty, price, made ) values( '" & nm & "', " & (i mod 10) & ", " & pr & ", '2026-" _
+            & right( "0" & (1 + i mod 12), 2 ) & "-01' )", nullptr, nullptr, nullptr )
+    next
+    sqlite3_exec( db, "commit", nullptr, nullptr, nullptr )
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkForm_Widget( owner ), 13 )
+    tkWidget_SetPos( g, 10, 10, 520, 300 )
+    dim as TKDGSQL ptr q = tkDataGridSqlite_Open( g, db, "select id, name, qty, price, made from item", true, 8 )
+    tkTest_PumpFor( h, 30 )
+
+    tkDataGrid_SetColumnFilterText( g, 2, "3" )
+    tkTest_Check( "a column filter is a WHERE with a parameter; the rows counted again", (tkDataGridSqlite_GetWhere( q ) = """qty"" = ?1") _
+        andalso (tkDataGrid_GetRowCount( g ) = 30) andalso (tkDataGrid_GetViewCount( g ) = 30) andalso (tkDataGrid_GetCellInt( g, 29, 2 ) = 3), _
+        tkDataGridSqlite_GetWhere( q ) & " / " & tkDataGrid_GetRowCount( g ) )
+    tkDataGrid_SetColumnFilterText( g, 1, "^N29" )
+    tkTest_Check( "two filters AND; starts-with as LIKE without case", (tkDataGrid_GetRowCount( g ) = 1) andalso (tkDataGrid_GetCellText( g, 0, 1 ) = "n293"), _
+        tkDataGridSqlite_GetWhere( q ) & " / " & tkDataGrid_GetRowCount( g ) )
+    tkDataGrid_ClearColumnFilters( g )
+    tkTest_Check( "cleared: no WHERE, every row", (tkDataGridSqlite_GetWhere( q ) = "") andalso (tkDataGrid_GetRowCount( g ) = 300) )
+    tkDataGrid_SetColumnFilterText( g, 1, "_b%" )
+    tkTest_Check( "contains: % and _ are only characters (escaped)", (tkDataGrid_GetRowCount( g ) = 1) andalso (tkDataGrid_GetCellText( g, 0, 1 ) = "a_b%c"), _
+        "" & tkDataGrid_GetRowCount( g ) )
+    tkDataGrid_SetColumnFilterText( g, 1, "k\s" )
+    tkTest_Check( "contains: a backslash is only a character", (tkDataGrid_GetRowCount( g ) = 1) andalso (tkDataGrid_GetCellText( g, 0, 1 ) = "back\slash"), _
+        "" & tkDataGrid_GetRowCount( g ) )
+    tkDataGrid_SetColumnFilterText( g, 1, "" )
+    tkDataGrid_SetColumnFilterText( g, 3, """""" )
+    tkTest_Check( "empty: NULL", tkDataGrid_GetRowCount( g ) = 75, "" & tkDataGrid_GetRowCount( g ) )
+    tkDataGrid_SetColumnFilterText( g, 3, "" )
+    tkDataGrid_SetColumnFilterText( g, 4, "2026-02-01..2026-03-01" )
+    tkTest_Check( "between two dates", tkDataGrid_GetRowCount( g ) = 50, "" & tkDataGrid_GetRowCount( g ) )
+    tkDataGrid_SetColumnFilterText( g, 4, "" )
+    tkDataGrid_SetColumnFilterText( g, 1, "=banana" )
+    tkTest_Check( "equals without case on text", (tkDataGrid_GetRowCount( g ) = 1) andalso (tkDataGrid_GetCellText( g, 0, 1 ) = "Banana") )
+    tkDataGrid_ClearColumnFilters( g )
+
+    ' a sort and a filter together, blocks of 8 rows past the WHERE's parameter
+    tkDataGrid_SetColumnFilterText( g, 2, ">=8" )
+    dim as TKDG_SORTKEY keys(0)
+    keys(0).col = 0 : keys(0).bDescending = true
+    tkDataGrid_SetSortKeys( g, keys() )
+    tkTest_Check( "sorted and filtered: ORDER BY and WHERE, LIMIT / OFFSET after the filter's parameter", (tkDataGrid_GetRowCount( g ) = 60) _
+        andalso (tkDataGrid_GetCellInt( g, 0, 0 ) = 299) andalso (tkDataGrid_GetCellInt( g, 59, 0 ) = 8), _
+        tkDataGrid_GetCellInt( g, 0, 0 ) & " .. " & tkDataGrid_GetCellInt( g, 59, 0 ) )
+    tkDataGrid_ClearSort( g )
+
+    ' totals by SQL, over the filter
+    tkDataGrid_SetColumnSummary( g, 2, TKDG_SUM_SUM )
+    tkDataGrid_SetColumnSummary( g, 1, TKDG_SUM_COUNT )
+    tkDataGrid_SetColumnSummary( g, 3, TKDG_SUM_AVG )
+    tkDataGrid_SetColumnSummary( g, 4, TKDG_SUM_MAX )
+    tkDataGrid_SetColumnSummary( g, 0, TKDG_SUM_MIN )
+    dim as integer f0 = tkDataGridSqlite_GetFetchCount( q )
+    tkTest_Check( "totals by SQL over the WHERE: sum, count, min", (SumOf( g, 2 ) = Scalar( db, "select sum( qty ) from item where qty >= 8" )) _
+        andalso (SumOf( g, 1 ) = "60") andalso (SumOf( g, 0 ) = "8"), SumOf( g, 2 ) & " " & SumOf( g, 1 ) & " " & SumOf( g, 0 ) )
+    tkTest_Check( "... avg over the non-null, max of a date; no block read", (abs( val( SumOf( g, 3 ) ) - val( Scalar( db, "select avg( price ) from item where qty >= 8" ) ) ) < 1e-9) _
+        andalso (SumOf( g, 4 ) = Scalar( db, "select max( made ) from item where qty >= 8" )) andalso (tkDataGridSqlite_GetFetchCount( q ) = f0), _
+        SumOf( g, 3 ) & " " & SumOf( g, 4 ) )
+    tkDataGrid_ClearColumnFilters( g )
+    tkDataGrid_SetColumnSummary( g, 1, TKDG_SUM_MIN )
+    tkTest_Check( "a text MIN without case, as the grid compares", SumOf( g, 1 ) = "a_b%c", SumOf( g, 1 ) )
+    tkDataGrid_SetColumnFilterText( g, 2, ">99" )
+    tkTest_Check( "no rows: SUM 0", (tkDataGrid_GetRowCount( g ) = 0) andalso (SumOf( g, 2 ) = "0"), SumOf( g, 2 ) )
+
+    ' a parameterized query: the filter's parameters come after its own
+    tkDataGridSqlite_Close( q )
+    dim as TKDG_VALUE pr(0)
+    pr(0).SetInt( 5 )
+    q = tkDataGridSqlite_OpenEx( g, db, "select id, name, qty from item where qty = ?", pr(), true, 4 )
+    tkDataGrid_SetColumnFilterText( g, 1, "^n1" )
+    tkTest_Check( "a parameterized query and a filter: ?1 is the query's, ?2 the filter's", (tkDataGridSqlite_GetWhere( q ) = """name"" like ?2 escape '\'") _
+        andalso (tkDataGrid_GetRowCount( g ) = 10) andalso (tkDataGrid_GetCellText( g, 9, 1 ) = "n195"), _
+        tkDataGridSqlite_GetWhere( q ) & " / " & tkDataGrid_GetRowCount( g ) & " " & tkDataGrid_GetCellText( g, 9, 1 ) )
+    tkDataGrid_SetColumnFilterText( g, 1, "" )
+    tkDataGrid_SetColumnFilterText( g, 0, ">=150" )
+    tkTest_Check( "... and a comparison: ?2 too (ids 155 .. 295 with qty 5)", (tkDataGridSqlite_GetWhere( q ) = """id"" >= ?2") _
+        andalso (tkDataGrid_GetRowCount( g ) = 15), tkDataGridSqlite_GetWhere( q ) & " / " & tkDataGrid_GetRowCount( g ) )
+    tkDataGridSqlite_Close( q )
+    tkWidget_Destroy( g )
+    sqlite3_close( db )
+end sub
+
 if tkTest_Init() = false then end 99
 dim as TKAPP_OPTIONS opts
 if tkApp_Init( opts ) = false then
@@ -323,6 +425,7 @@ tkTest_PumpFor( tkForm_Host( mainForm ), 50 )
 Cache( mainForm )
 Sql( mainForm )
 SqlSafe( mainForm )
+SqlFilter( mainForm )
 dim as long nFail = tkTest_Report( "tkGridData" )
 tkApp_Shutdown( )
 end nFail

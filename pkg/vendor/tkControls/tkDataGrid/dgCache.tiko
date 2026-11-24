@@ -217,6 +217,9 @@ public function tkDataGrid_SupplyRows( byval hGrid as TK_WIDGET ptr, byval first
         end if
         i += 1
     wend
-    if took then tkWidget_Invalidate( p->wSurf )
+    if took then
+        DgSumInvalidate( p )             ' G7b
+        tkWidget_Invalidate( p->wSurf )
+    end if
     return took
 end function

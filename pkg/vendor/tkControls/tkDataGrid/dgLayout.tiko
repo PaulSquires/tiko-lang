@@ -9,7 +9,9 @@
 ' GetLayout writes what the user can change about the columns: their display order, widths
 ' (design units) and shown / hidden, the frozen column count, and the sort keys:
 '
-'     tkdg1;frozen=1;sort=Name:a,Qty:d;cols=Name:120:1,Qty:80:1,Notes:200:0
+'     tkdg1;frozen=1;frows=0;sort=Name:a,Qty:d;cols=Name:120:1,Qty:80:1,Notes:200:0
+'
+' (frows, the frozen row count, came with G7b; a layout without it leaves the count as it is.)
 '
 ' A column is named by its key; a column without a key by "#" and its model index. A key's
 ' % ; , : = # and control characters are written %XX. The host stores the string where it likes
@@ -111,7 +113,7 @@ end function
 public function tkDataGrid_GetLayout( byval hGrid as TK_WIDGET ptr ) as ustring
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if p = 0 then return ""
-    dim as ustring s = "tkdg1;frozen=" & p->nFrozen & ";sort="
+    dim as ustring s = "tkdg1;frozen=" & p->nFrozen & ";frows=" & p->nFrozenRows & ";sort="
     dim as integer n = 0
     for k as integer = 0 to p->nSortKeys - 1
         dim as integer col = p->sortKeys(k).col
@@ -138,7 +140,7 @@ public function tkDataGrid_SetLayout( byval hGrid as TK_WIDGET ptr, byref layout
     if p->bEditing then
         if DgEndEdit( p, true ) = false then DgEndEdit( p, false )
     end if
-    dim as integer frozen = -1
+    dim as integer frozen = -1, frows = -1
     dim as boolean bSort = false
     dim as TKDG_SORTKEY keys( any )
     dim as integer nKeys = 0
@@ -154,6 +156,8 @@ public function tkDataGrid_SetLayout( byval hGrid as TK_WIDGET ptr, byref layout
         select case nm
         case "frozen"
             frozen = DgLayoutNum( v )
+        case "frows"
+            frows = DgLayoutNum( v )
         case "sort"
             bSort = true
             for j as integer = 0 to DgLayoutSplit( v, ",", items() ) - 1
@@ -189,6 +193,7 @@ public function tkDataGrid_SetLayout( byval hGrid as TK_WIDGET ptr, byref layout
         DgSelDropRects( p )
     end if
     if frozen >= 0 then p->nFrozen = iif( frozen > p->colCount, p->colCount, frozen )
+    if frows >= 0 then p->nFrozenRows = frows
     p->hotHdrCol = -1 : p->hotDivCol = -1
     if bSort then
         erase p->sortKeys

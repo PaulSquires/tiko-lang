@@ -194,6 +194,7 @@ end sub
 ' row / col valid. v is converted to the column's kind first. FALSE: it would not convert, or the
 ' host / source refused it (or cannot take values); nothing changed.
 function DgWrite( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byref v as const TKDG_VALUE ) as boolean
+    DgSumInvalidate( p )                 ' G7b
     dim as TKDG_VALUE w = v
     if DgConvert( w, p->cols(col).c.valueKind ) = false then return false
     select case p->feed
@@ -274,6 +275,7 @@ sub DgSwitchFeed( byval p as TKDATAGRID_STATE ptr, byval feed as long )
     dim as TKDATAGRID_SOURCE none_
     p->src = none_
     p->feed = feed
+    p->bSrcFiltered = false : p->srcFltSerial = -1     ' G7c: a new feed has not been told of the filters
     p->bViewMap = false : p->viewCount = 0
     erase p->viewToModel : erase p->modelToView
     DgSelReset( p )

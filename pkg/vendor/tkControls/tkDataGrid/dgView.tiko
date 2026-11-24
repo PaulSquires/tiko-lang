@@ -15,11 +15,16 @@
 ' THE SURFACE, left to right: the row-header strip (rhW, 0 when hidden), the FROZEN columns
 ' (display positions 0 .. nFrozen - 1, frozenW wide, never scrolled sideways), then the
 ' SCROLLING columns, clipped to start after the frozen ones. Top to bottom: the header band
-' (0 .. hdrH), then the rows, row r's top at hdrH + r * rowH - scrollY. So:
+' (0 .. hdrH), the filter row (G7c), the FROZEN ROWS (the first nFR view rows, never scrolled
+' vertically), the SCROLLING ROWS, and the footer (G7b) at the bottom. So:
 '     a frozen column's left    = rhW + xPx
 '     a scrolling column's left = rhW + xPx - scrollX, shown only right of rhW + frozenW
-' The horizontal bar scrolls the scrolling part: total contentW - frozenW, page the room after
-' the frozen columns. Only the visible rows and columns are read and painted.
+'     a frozen row's top        = bandTop + v * rowH
+'     a scrolling row's top     = bodyTop + (v - nFR) * rowH - scrollY, shown only between bodyTop
+'                                 and the footer
+' The horizontal bar scrolls the scrolling columns: total contentW - frozenW, page the room after
+' the frozen columns; the vertical bar the scrolling rows: total (viewRows - nFR) * rowH, page
+' bodyH. Only the visible rows and columns are read and painted.
 #module "tkDataGrid"
 
 #import "../tkHost"
@@ -56,6 +61,54 @@ end function
 ' Where the scrolling columns start showing.
 function DgScrollLeft( byval p as TKDATAGRID_STATE ptr ) as integer
     return DgRhPx( p ) + p->frozenW
+end function
+
+' ---- the horizontal bands (G7b): header, filter row, frozen rows, scrolling rows, footer ----
+' The filter row's height (G7c; 0 while hidden).
+function DgFiltHPx( byval p as TKDATAGRID_STATE ptr ) as integer
+    return iif( p->bFilterRow, DgRowHPx( p ), 0 )
+end function
+
+' The footer's height (0 while hidden).
+function DgFootHPx( byval p as TKDATAGRID_STATE ptr ) as integer
+    return iif( p->bFooter, DgRowHPx( p ), 0 )
+end function
+
+' Where the rows start: under the header and the filter row.
+function DgBandTop( byval p as TKDATAGRID_STATE ptr ) as integer
+    return DgHdrHPx( p ) + DgFiltHPx( p )
+end function
+
+' The frozen rows in force: the first nFR view rows (fewer when the view has fewer).
+function DgNFR( byval p as TKDATAGRID_STATE ptr ) as integer
+    dim as integer n = DgViewRows( p )
+    return iif( p->nFrozenRows < n, p->nFrozenRows, n )
+end function
+
+' Where the scrolling rows start.
+function DgBodyTop( byval p as TKDATAGRID_STATE ptr ) as integer
+    return DgBandTop( p ) + DgNFR( p ) * DgRowHPx( p )
+end function
+
+' Where the scrolling rows end (the footer's top, or the surface's bottom).
+function DgBodyBottom( byval p as TKDATAGRID_STATE ptr ) as integer
+    return p->wSurf->ch - DgFootHPx( p )
+end function
+
+' VIEW row v's top on the surface.
+function DgRowY( byval p as TKDATAGRID_STATE ptr, byval v as integer ) as integer
+    dim as integer nfr = DgNFR( p )
+    if v < nfr then return DgBandTop( p ) + v * DgRowHPx( p )
+    return DgBodyTop( p ) + (v - nfr) * DgRowHPx( p ) - p->scrollY
+end function
+
+' The VIEW row at surface y (it may be past the last row: the caller checks), -1 outside the rows'
+' bands (header, filter row, footer).
+function DgRowAtY( byval p as TKDATAGRID_STATE ptr, byval y as integer ) as integer
+    dim as integer bt = DgBandTop( p ), top = DgBodyTop( p ), rowH = DgRowHPx( p )
+    if (y < bt) orelse (y >= DgBodyBottom( p )) then return -1
+    if y < top then return (y - bt) \ rowH
+    return DgNFR( p ) + (y - top + p->scrollY) \ rowH
 end function
 
 ' ==========================================================================================
@@ -105,13 +158,19 @@ private sub DgLayoutColumns( byval p as TKDATAGRID_STATE ptr, byval availW as in
     p->contentW = x
 end sub
 
+' The scrolling rows' height on screen.
 function DgBodyH( byval p as TKDATAGRID_STATE ptr ) as integer
-    dim as integer h = p->wSurf->ch - DgHdrHPx( p )
+    dim as integer h = DgBodyBottom( p ) - DgBodyTop( p )
     return iif( h < 0, 0, h )
 end function
 
+' The scrolling rows' total height.
+function DgScrollRowsH( byval p as TKDATAGRID_STATE ptr ) as integer
+    return (DgViewRows( p ) - DgNFR( p )) * DgRowHPx( p )
+end function
+
 private function DgMaxScrollY( byval p as TKDATAGRID_STATE ptr ) as integer
-    dim as integer m = DgViewRows( p ) * DgRowHPx( p ) - DgBodyH( p )
+    dim as integer m = DgScrollRowsH( p ) - DgBodyH( p )
     return iif( m < 0, 0, m )
 end function
 
@@ -129,7 +188,7 @@ end sub
 
 private sub DgSyncBars( byval p as TKDATAGRID_STATE ptr )
     dim as integer rowH = DgRowHPx( p )
-    tkVScrollBar_SetRange( p->wVBar, DgViewRows( p ) * rowH, DgBodyH( p ), p->scrollY )
+    tkVScrollBar_SetRange( p->wVBar, DgScrollRowsH( p ), DgBodyH( p ), p->scrollY )
     tkVScrollBar_SetWheelStep( p->wVBar, 3 * rowH )
     dim as integer page = p->wSurf->cw - DgRhPx( p ) - p->frozenW
     tkHScrollBar_SetRange( p->wHBar, p->contentW - p->frozenW, iif( page < 0, 0, page ), p->scrollX )
@@ -143,14 +202,16 @@ sub DgLayout( byval p as TKDATAGRID_STATE ptr )
     if H_ < 0 then H_ = 0
     dim as integer sb = DgScale( p, p->ScrollBarWidth )
     dim as integer hdrH = DgHdrHPx( p ), rh = DgRhPx( p )
-    dim as integer rowsH = DgViewRows( p ) * DgRowHPx( p )
+    ' the scrolling rows' height, and what the fixed bands (header, filter row, frozen rows,
+    ' footer) take of the surface's height
+    dim as integer rowsH = DgScrollRowsH( p ), fixedH = DgBodyTop( p ) + DgFootHPx( p )
     dim as boolean vNeed = false, hNeed = false
     dim as integer sw, sh
     for pass as integer = 1 to 3
         sw = W_ - iif( vNeed, sb, 0 ) : if sw < 0 then sw = 0
         sh = H_ - iif( hNeed, sb, 0 ) : if sh < 0 then sh = 0
         DgLayoutColumns( p, sw - rh )
-        dim as boolean nv = rowsH > sh - hdrH
+        dim as boolean nv = rowsH > sh - fixedH
         dim as boolean nh = p->contentW > sw - rh
         if (nv = vNeed) andalso (nh = hNeed) then exit for
         vNeed = nv : hNeed = nh
@@ -168,6 +229,7 @@ sub DgLayout( byval p as TKDATAGRID_STATE ptr )
     DgSyncBars( p )
     tkWidget_Invalidate( w )
     DgPlaceEditor( p )
+    DgFltPlaceEditor( p )
 end sub
 
 ' Scrolled to (x, y) pixels, clamped; the bars follow, silently.
@@ -177,6 +239,7 @@ sub DgScrollTo( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as 
     DgSyncBars( p )
     tkWidget_Invalidate( p->wSurf )
     DgPlaceEditor( p )
+    DgFltPlaceEditor( p )
 end sub
 
 sub DgInvalidateCell( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer )
@@ -185,13 +248,14 @@ sub DgInvalidateCell( byval p as TKDATAGRID_STATE ptr, byval row as integer, byv
 end sub
 
 ' The least scroll that shows the whole cell (col -1: the row only; a MODEL row, not shown when
-' filtered out). A frozen column is always in view sideways; a scrolling one is brought out from
+' filtered out; a frozen row needs no vertical scroll). A frozen column is always in view sideways; a scrolling one is brought out from
 ' under the frozen columns.
 sub DgEnsureVisible( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer )
     dim as integer x = p->scrollX, y = p->scrollY
     dim as integer v = DgViewOf( p, row )
-    if v >= 0 then
-        dim as integer rowH = DgRowHPx( p ), top = v * rowH, bh = DgBodyH( p )
+    ' a frozen row is always in view vertically
+    if v >= DgNFR( p ) then
+        dim as integer rowH = DgRowHPx( p ), top = (v - DgNFR( p )) * rowH, bh = DgBodyH( p )
         if top < y then
             y = top
         elseif top + rowH > y + bh then
@@ -234,6 +298,13 @@ sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as i
     dim as TK_WIDGET ptr s = p->wSurf
     if (x < 0) orelse (y < 0) orelse (x >= s->cw) orelse (y >= s->ch) then exit sub
     dim as integer hdrH = DgHdrHPx( p ), rh = DgRhPx( p )
+    if (y >= hdrH) andalso (y < DgBandTop( p )) then
+        ' G7c: the filter row
+        if x < rh then ht.area = TKDG_HT_CORNER : exit sub
+        ht.col = DgColAtX( p, x )
+        ht.area = iif( ht.col >= 0, TKDG_HT_FILTER, TKDG_HT_EMPTY )
+        exit sub
+    end if
     if y < hdrH then
         if x < rh then ht.area = TKDG_HT_CORNER : exit sub
         dim as integer gut = DgScale( p, CDATAGRID_DIVIDER_GUTTER ), sl = DgScrollLeft( p )
@@ -250,8 +321,15 @@ sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as i
         ht.area = iif( ht.col >= 0, TKDG_HT_HEADER, TKDG_HT_EMPTY )
         exit sub
     end if
-    dim as integer v = (y - hdrH + p->scrollY) \ DgRowHPx( p )
-    if v < DgViewRows( p ) then ht.row = DgModelOf( p, v )
+    if y >= DgBodyBottom( p ) then
+        ' G7b: the footer
+        if x < rh then ht.area = TKDG_HT_CORNER : exit sub
+        ht.col = DgColAtX( p, x )
+        ht.area = iif( ht.col >= 0, TKDG_HT_FOOTER, TKDG_HT_EMPTY )
+        exit sub
+    end if
+    dim as integer v = DgRowAtY( p, y )
+    if (v >= 0) andalso (v < DgViewRows( p )) then ht.row = DgModelOf( p, v )
     if x < rh then
         ht.area = iif( ht.row >= 0, TKDG_HT_ROWHEADER, TKDG_HT_EMPTY )
         exit sub
@@ -260,15 +338,16 @@ sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as i
     ht.area = iif( (ht.row >= 0) andalso (ht.col >= 0), TKDG_HT_CELL, TKDG_HT_EMPTY )
 end sub
 
-' The first and last VIEW rows (partly) on screen.
+' The first and last SCROLLING VIEW rows (partly) on screen; the frozen ones, 0 .. nFR - 1, always
+' are. last < first when none shows.
 function DgFirstVisibleRow( byval p as TKDATAGRID_STATE ptr ) as integer
-    return p->scrollY \ DgRowHPx( p )
+    return DgNFR( p ) + p->scrollY \ DgRowHPx( p )
 end function
 
 function DgLastVisibleRow( byval p as TKDATAGRID_STATE ptr ) as integer
     dim as integer bh = DgBodyH( p )
-    if bh <= 0 then return -1
-    dim as integer r = (p->scrollY + bh - 1) \ DgRowHPx( p )
+    if bh <= 0 then return DgFirstVisibleRow( p ) - 1
+    dim as integer r = DgNFR( p ) + (p->scrollY + bh - 1) \ DgRowHPx( p )
     return iif( r > DgViewRows( p ) - 1, DgViewRows( p ) - 1, r )
 end function
 
@@ -529,8 +608,9 @@ private sub DgPaintCell( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT pt
     if handled = false then tkDataGrid_PaintCellDefault( @pi )
 end sub
 
-' The cells, grid lines and current-cell frame of one region (the frozen columns or the
-' scrolling ones), clipped to it.
+' The cells, grid lines and current-cell frame of one region -- the frozen columns or the
+' scrolling ones, in one row band (the frozen rows, or the scrolling rows first .. last) -- clipped
+' to it.
 private sub DgPaintRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr, byval bFrozen as boolean, _
                            byref clip as TKRECT, byval first as integer, byval last as integer, byval hasFocus as boolean )
     if clip.right <= clip.left then exit sub
@@ -544,7 +624,7 @@ private sub DgPaintRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT 
     for v as integer = first to last
         ' v: the view row (position, stripes); r: the model row (value, state)
         dim as integer r = DgModelOf( p, v )
-        dim as integer y = hdrH + v * rowH - p->scrollY
+        dim as integer y = DgRowY( p, v )
         dim as boolean isAlt = p->bAltRows andalso ((v and 1) = 1)
         dim as boolean isHot = (r = p->hotRow)
         dim as ulong rowBack = p->colors.BackColor
@@ -564,23 +644,23 @@ private sub DgPaintRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT 
     ' the grid lines, over the cells
     dim as TKRECT rc
     b->SetBackColor( p->colors.GridLineColor )
-    dim as integer bottomY = hdrH + DgViewRows( p ) * rowH - p->scrollY
+    dim as integer bottomY = iif( last >= first, DgRowY( p, last ) + rowH, clip.top )
     if bottomY > clip.bottom then bottomY = clip.bottom
     if (p->nGridLines and TKDG_GRID_HORZ) andalso (rightX > clip.left) then
         for r as integer = first to last
-            dim as integer y = hdrH + (r + 1) * rowH - p->scrollY - 1
+            dim as integer y = DgRowY( p, r ) + rowH - 1
             tkRect_Set( rc, clip.left, y, rightX, y + 1 )
             b->PaintRect( @rc )
         next
     end if
-    if (p->nGridLines and TKDG_GRID_VERT) andalso (bottomY > hdrH) then
+    if (p->nGridLines and TKDG_GRID_VERT) andalso (bottomY > clip.top) then
         for d as integer = d0 to d1
             dim as integer k = p->order(d)
             if p->cols(k).wPx <= 0 then continue for
             dim as integer x = DgColLeft( p, k ) + p->cols(k).wPx - 1
             if x >= clip.right then exit for
             if x < clip.left then continue for
-            tkRect_Set( rc, x, hdrH, x + 1, bottomY )
+            tkRect_Set( rc, x, clip.top, x + 1, bottomY )
             b->PaintRect( @rc )
         next
     end if
@@ -589,7 +669,7 @@ private sub DgPaintRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT 
     if hasFocus andalso DgValidRow( p, p->curRow ) andalso DgValidCol( p, p->curCol ) andalso (cv >= 0) then
         dim as integer k = p->curCol
         if (p->cols(k).wPx > 0) andalso (DgIsFrozen( p, k ) = bFrozen) andalso (cv >= first) andalso (cv <= last) then
-            dim as integer x = DgColLeft( p, k ), y = hdrH + cv * rowH - p->scrollY
+            dim as integer x = DgColLeft( p, k ), y = DgRowY( p, cv )
             tkRect_Set( rc, x, y, x + p->cols(k).wPx, y + rowH )
             b->SetPenColor( p->colors.CurrentBorder )
             b->PaintRoundOutline( @rc, 0, DgScale( p, 2 ) )
@@ -639,17 +719,19 @@ private sub DgPaintHeaderRegion( byval p as TKDATAGRID_STATE ptr, byval b as TK_
     b->PopClip( )
 end sub
 
+' The row headers of one row band (clipTop .. clipBottom: the frozen rows or the scrolling ones).
 private sub DgPaintRowHeaders( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr, byval first as integer, _
-                               byval last as integer, byval hasFocus as boolean )
-    dim as integer rh = DgRhPx( p ), hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p ), ch = p->wSurf->ch
+                               byval last as integer, byval hasFocus as boolean, byval clipTop as integer, byval clipBottom as integer )
+    dim as integer rh = DgRhPx( p ), rowH = DgRowHPx( p )
+    if clipBottom <= clipTop then exit sub
     dim as TKRECT clip, rc
-    tkRect_Set( clip, 0, hdrH, rh, ch )
+    tkRect_Set( clip, 0, clipTop, rh, clipBottom )
     b->PushClip( @clip )
     b->SetBackColor( p->colors.RowHeaderBackColor )
     b->PaintRect( @clip )
     for v as integer = first to last
         dim as integer r = DgModelOf( p, v )
-        dim as integer y = hdrH + v * rowH - p->scrollY
+        dim as integer y = DgRowY( p, v )
         if DgSetHasRow( p->sel, r ) then
             tkRect_Set( rc, 0, y, rh, y + rowH )
             b->SetBackColor( iif( hasFocus, p->colors.SelBackColor, p->colors.SelBackInactive ) )
@@ -684,7 +766,7 @@ private sub DgPaintRowHeaders( byval p as TKDATAGRID_STATE ptr, byval b as TK_PA
         b->PaintRect( @rc )
     next
     b->SetBackColor( p->colors.GridLineColor )
-    tkRect_Set( rc, rh - 1, hdrH, rh, ch )
+    tkRect_Set( rc, rh - 1, clipTop, rh, clipBottom )
     b->PaintRect( @rc )
     b->PopClip( )
 end sub
@@ -720,15 +802,30 @@ sub DgPaintSurface( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr )
     b->SetBackColor( p->colors.BackColor )
     b->PaintRect( @rc )
     dim as integer first = DgFirstVisibleRow( p ), last = DgLastVisibleRow( p )
+    dim as integer nfr = DgNFR( p ), bandTop = DgBandTop( p ), bodyTop = DgBodyTop( p ), bodyBot = DgBodyBottom( p )
+    if bodyTop > bodyBot then bodyTop = bodyBot
     if sl > cw then sl = cw
     if p->colCount > 0 then
         dim as TKRECT clip
-        tkRect_Set( clip, sl, hdrH, cw, ch )
+        ' the scrolling rows, then the frozen rows over them (each: scrolling columns, then frozen)
+        tkRect_Set( clip, sl, bodyTop, cw, bodyBot )
         DgPaintRegion( p, b, false, clip, first, last, hasFocus )
-        tkRect_Set( clip, rh, hdrH, sl, ch )
+        tkRect_Set( clip, rh, bodyTop, sl, bodyBot )
         DgPaintRegion( p, b, true, clip, first, last, hasFocus )
+        if nfr > 0 then
+            tkRect_Set( clip, sl, bandTop, cw, bodyTop )
+            DgPaintRegion( p, b, false, clip, 0, nfr - 1, hasFocus )
+            tkRect_Set( clip, rh, bandTop, sl, bodyTop )
+            DgPaintRegion( p, b, true, clip, 0, nfr - 1, hasFocus )
+        end if
     end if
-    if rh > 0 then DgPaintRowHeaders( p, b, first, last, hasFocus )
+    if rh > 0 then
+        DgPaintRowHeaders( p, b, first, last, hasFocus, bodyTop, bodyBot )
+        if nfr > 0 then DgPaintRowHeaders( p, b, 0, nfr - 1, hasFocus, bandTop, bodyTop )
+    end if
+    ' G7b: the footer; G7c: the filter row
+    DgPaintFooter( p, b, hasFocus )
+    DgPaintFilterRow( p, b )
     if hdrH > 0 then
         dim as TKCOLUMNHEADER_COLORS hc
         tkColumnHeader_GetColors( p->wHdr, @hc )
@@ -753,6 +850,13 @@ sub DgPaintSurface( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr )
     if (p->nFrozen > 0) andalso (p->frozenW > 0) andalso (sl < cw) then
         dim as integer t = DgScale( p, 2 )
         tkRect_Set( rc, sl - t \ 2, 0, sl - t \ 2 + t, ch )
+        b->SetBackColor( p->colors.FrozenLineColor )
+        b->PaintRect( @rc )
+    end if
+    ' G7b: the line under the frozen rows
+    if (nfr > 0) andalso (bodyTop < bodyBot) then
+        dim as integer t = DgScale( p, 2 )
+        tkRect_Set( rc, 0, bodyTop - t \ 2, cw, bodyTop - t \ 2 + t )
         b->SetBackColor( p->colors.FrozenLineColor )
         b->PaintRect( @rc )
     end if
@@ -781,7 +885,8 @@ public function tkDataGrid_SetTopRow( byval hGrid as TK_WIDGET ptr, byval row as
     if p = 0 then return 0
     if row < 0 then row = 0
     dim as integer v = DgViewOf( p, row )
-    if v >= 0 then DgScrollTo( p, p->scrollX, v * DgRowHPx( p ) )
+    ' a frozen row: the scrolling rows go back to their start
+    if v >= 0 then DgScrollTo( p, p->scrollX, iif( v > DgNFR( p ), v - DgNFR( p ), 0 ) * DgRowHPx( p ) )
     return DgModelOf( p, DgFirstVisibleRow( p ) )
 end function
 
@@ -810,7 +915,8 @@ public function tkDataGrid_SetScrollY( byval hGrid as TK_WIDGET ptr, byval y as 
     return p->scrollY
 end function
 
-' The rows (partly) on screen as VIEW positions (ViewToModel gives their rows; they are the model
+' The SCROLLING rows (partly) on screen as VIEW positions (the frozen rows, 0 .. GetFrozenRows - 1,
+' always are) (ViewToModel gives their rows; they are the model
 ' rows while nothing is sorted or filtered); returns how many. first > last when there are none.
 public function tkDataGrid_GetVisibleRows( byval hGrid as TK_WIDGET ptr, byref first as integer, byref last as integer ) as integer
     first = 0 : last = -1
@@ -834,14 +940,16 @@ public function tkDataGrid_GetCellRect( byval hGrid as TK_WIDGET ptr, byval row 
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     if (p = 0) orelse (DgValidViewRow( p, row ) = false) orelse (DgValidCol( p, col ) = false) then return false
     if p->cols(col).wPx <= 0 then return false
-    dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
+    dim as integer rowH = DgRowHPx( p )
     dim as integer v = DgViewOf( p, row )
     if v < 0 then return false
-    dim as integer x = DgColLeft( p, col ), y = hdrH + v * rowH - p->scrollY
+    dim as integer x = DgColLeft( p, col ), y = DgRowY( p, v )
     tkRect_Set( rc, x, y, x + p->cols(col).wPx, y + rowH )
     dim as TK_WIDGET ptr s = p->wSurf
     dim as integer lim = iif( DgIsFrozen( p, col ), DgRhPx( p ), DgScrollLeft( p ) )
-    if (rc.right <= lim) orelse (rc.left >= s->cw) orelse (rc.bottom <= hdrH) orelse (rc.top >= s->ch) then
+    ' a scrolling row shows between the frozen rows and the footer; a frozen row in its band
+    dim as integer top = iif( v < DgNFR( p ), DgBandTop( p ), DgBodyTop( p ) )
+    if (rc.right <= lim) orelse (rc.left >= s->cw) orelse (rc.bottom <= top) orelse (rc.top >= DgBodyBottom( p )) then
         tkRect_SetEmpty( rc )
         return false
     end if

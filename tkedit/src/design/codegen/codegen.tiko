@@ -738,7 +738,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
                 & catalog.GridKindConst( it.Kind ) & ", " & iif( it.Width > 0, it.Width, 100 ) & " )" & NL
             ' a method's value (Total( )) is shown, never written: no editor opens on it
             dim as boolean ro = it.ReadOnly orelse GridMethodField_( it.Field )
-            if (len( it.Align ) > 0) orelse (it.MinWidth > 0) orelse (it.Fill > 0) orelse it.Hidden then
+            if (len( it.Align ) > 0) orelse (it.MinWidth > 0) orelse (it.Fill > 0) orelse it.Hidden orelse (len( it.Summary ) > 0) then
                 ' the rest of the column's settings: through its TKDATAGRID_COLUMN
                 o &= "    scope" & NL
                 o &= "        dim as TKDATAGRID_COLUMN c_" & NL
@@ -748,6 +748,7 @@ private sub ItemsCode_( byref doc as FormDoc, byval idx as long, byref o as ustr
                 if it.Fill > 0 then o &= "        c_.fillWeight = " & it.Fill & NL
                 if ro then o &= "        c_.readOnly = true" & NL
                 if it.Hidden then o &= "        c_.visible = false" & NL
+                if len( it.Summary ) then o &= "        c_.summary = " & catalog.GridSummaryConst( it.Summary ) & NL
                 o &= "        tkDataGrid_SetColumnInfo( " & h & ", " & i & ", c_ )" & NL
                 o &= "    end scope" & NL
             elseif ro then
