@@ -174,6 +174,20 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "AutoHeight: chips wrap and the box grows to MaxLines; the input's line stays in view", (tb->ch > h1) _
         andalso (ed->y + ed->ch <= tb->ch) andalso (rLast.top > 0), "h " & h1 & " -> " & tb->ch )
 
+    ' ---- disabled -----------------------------------------------------------------------------
+    ' the input fills the field right of the chips: it must wear the field's disabled colour too
+    dim as TKTOKENBOX_COLORS cd
+    tkTokenBox_GetColors( tb, @cd )
+    dim as long px = tb->x + ed->x + ed->cw - 3, py = tb->y + ed->y + ed->ch \ 2
+    tkTokenBox_SetEnabled( tb, false )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "disabled: the input area wears BackColorDisabled", _
+        (tkTest_PixelAt( h, px, py ) and &hFFFFFFul) = (cd.BackColorDisabled and &hFFFFFFul), hex( tkTest_PixelAt( h, px, py ) ) )
+    tkTokenBox_SetEnabled( tb, true )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "enabled again: the input area wears BackColor", _
+        (tkTest_PixelAt( h, px, py ) and &hFFFFFFul) = (cd.BackColor and &hFFFFFFul), hex( tkTest_PixelAt( h, px, py ) ) )
+
     ' ---- theme --------------------------------------------------------------------------------
     dim as TKTOKENBOX_COLORS c
     tkTokenBox_GetColors( tb, @c )

@@ -67,7 +67,7 @@ end sub
 
 private sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
     dim as TKTHEME_COLORS t = tkTheme_Of( tkHost_Root( h ) )
-    dim as ustring caps(0 to 3) = { "Line border, theme", "Pinned back + border", "Transparent", "Paint callback" }
+    dim as ustring caps(0 to 3) = { "Line border, theme", "Pinned back + border", "Transparent, border", "Paint callback" }
     for i as long = 0 to 3
         DrawLine( b, caps(i), tkHost_Scale( h, 20 + i * 175 ), tkHost_Scale( h, 12 ), tkHost_Scale( h, 180 + i * 175 ), tkHost_Scale( h, 36 ), t.TextDim )
     next
@@ -116,8 +116,8 @@ tkPanel_SetBorderColor( p2, t.Accent )
 tkPanel_SetBorderStyle( p2, PNL_BORDER_LINE )
 
 dim as TK_WIDGET ptr p3 = NewPanel( root, 3, 370, 40, 160, 130 )
-' (no border here: a transparent panel's line border fills its inside black -- see the report)
 tkPanel_SetTransparent( p3, true )
+tkPanel_SetBorderStyle( p3, PNL_BORDER_LINE )      ' the frame alone: the stripes show inside
 tkPanel_SetPaintCallback( p3, @Panel_Paint )
 
 dim as TK_WIDGET ptr p4 = NewPanel( root, 4, 545, 40, 160, 130 )

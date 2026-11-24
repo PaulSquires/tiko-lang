@@ -645,6 +645,17 @@ end function
 
 
 ' ---- the container ------------------------------------------------------------------------------
+private sub TkEditColors( byval p as TKTOKENBOX_STATE ptr )
+    if p->wEdit = 0 then exit sub
+    dim as TKTEXTBOX_COLORS c = tkTextBox_ThemeColors( tkTheme_Of( p->hWin ) )
+    ' the input fills the rest of the field, so it wears the field's colour, disabled too
+    dim as ulong back = iif( p->isEnabled, p->colors.BackColor, p->colors.BackColorDisabled )
+    c.BackColor = back : c.OuterBackColor = back
+    c.ForeColor = p->colors.ForeColor : c.CueColor = p->colors.PlaceholderColor
+    c.ForeColorDisabled = p->colors.ForeColorDisabled
+    tkTextBox_SetColors( p->wEdit, @c )
+end sub
+
 private function TkProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     dim as TKTOKENBOX_STATE ptr p = TBX( w )
     if p = 0 then return false
@@ -719,6 +730,7 @@ private function TkProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
     case TKM_ENABLE
         p->isEnabled = m->bFlag
         if p->wEdit then tkWidget_Enable( p->wEdit, m->bFlag )
+        TkEditColors( p )
         if p->isEnabled = false then tkItemPopup_Close( p->pop, false ) : p->nFocusChip = -1
         tkWidget_Invalidate( w )
         return true
@@ -731,13 +743,6 @@ private function TkProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
     return false
 end function
 
-private sub TkEditColors( byval p as TKTOKENBOX_STATE ptr )
-    if p->wEdit = 0 then exit sub
-    dim as TKTEXTBOX_COLORS c = tkTextBox_ThemeColors( tkTheme_Of( p->hWin ) )
-    c.BackColor = p->colors.BackColor : c.OuterBackColor = p->colors.BackColor
-    c.ForeColor = p->colors.ForeColor : c.CueColor = p->colors.PlaceholderColor
-    tkTextBox_SetColors( p->wEdit, @c )
-end sub
 
 
 ' ---- create -----------------------------------------------------------------------------------
