@@ -15,6 +15,12 @@
 <a href="wiki/Home.md">Docs</a>
 </p>
 
+<p align="center">
+<a href="https://github.com/PaulSquires/tiko-lang/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/PaulSquires/tiko-lang/ci.yml?branch=master&label=CI&logo=github" alt="CI"></a>
+<a href="https://github.com/PaulSquires/tiko-lang/releases/latest"><img src="https://img.shields.io/badge/release-v0.1.7-orange" alt="release"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0%2B%20%7C%20LGPL--2.1%20runtime-blue" alt="license"></a>
+</p>
+
 **tiko is a compiled, statically typed programming language for building fast, self-contained
 programs.** Its syntax is built to be read: blocks say what they close, keywords are words, and
 there is very little punctuation to learn. Underneath it is a systems language — generics, tuples,
