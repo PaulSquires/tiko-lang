@@ -1024,7 +1024,7 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
         o &= "        tkDataGrid_BeginUpdate( " & h & " )" & NL
         o &= "        tkDataGrid_SetRowCount( " & h & ", 0 )" & NL
         o &= "        tkDataGrid_SetRowCount( " & h & ", a_.Count( ) )" & NL
-        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        o &= "        for i_ as int32 = 0 to a_.Count( ) - 1" & NL
         for k as long = 0 to c.Items.Count( ) - 1
             if len( c.Items[k].Field ) = 0 then continue for
             dim as ustring vk = catalog.GridValueKind( c.Items[k].Kind )
@@ -1037,7 +1037,7 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
         o &= "        tkListTree_Clear( " & h & " )" & NL
         ' a CheckField shows in the rows' check boxes, which the ListTree then has
         if len( c.CheckField ) then o &= "        tkListTree_SetCheckBoxes( " & h & ", true )" & NL
-        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        o &= "        for i_ as int32 = 0 to a_.Count( ) - 1" & NL
         dim as ustring first_ = """"""
         if c.Items.Count( ) andalso len( c.Items[0].Field ) then first_ = "tkBind_Text( a_[i_]." & c.Items[0].Field & " )"
         o &= "            dim as integer row_ = tkListTree_AddString( " & h & ", " & first_ & " )" & NL
@@ -1055,7 +1055,7 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
     elseif catalog.ItemsBindOf( c ) = "report" then
         ' a ReportViewer's report (R5): a row per element, column k's Field as field k, by its own type
         o &= "        tkReportViewer_ClearRows( " & h & " )" & NL
-        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        o &= "        for i_ as int32 = 0 to a_.Count( ) - 1" & NL
         o &= "            dim as integer row_ = tkReportViewer_AddRow( " & h & " )" & NL
         for k as long = 0 to c.Items.Count( ) - 1
             if len( c.Items[k].Field ) then
@@ -1067,7 +1067,7 @@ private sub FillBody_( byref c as FormControl, byref src as const ustring, byref
     else
         o &= "        " & catalog.ItemsClearProc( c.TypeName ) & "( " & h & " )" & NL
         if HasValues_( c ) then o &= "        " & c.Name & "_Values_.Clear( )" & NL
-        o &= "        for i_ as long = 0 to a_.Count( ) - 1" & NL
+        o &= "        for i_ as int32 = 0 to a_.Count( ) - 1" & NL
         ' a keyed list (the checked-list controls) takes ValueField as each item's key
         dim as ustring keyArg
         if catalog.ItemsKeyed( c.TypeName ) andalso len( c.ValueField ) then keyArg = ", tkBind_Text( a_[i_]." & c.ValueField & " )"
@@ -1159,14 +1159,14 @@ private sub GridSaveBody_( byref c as FormControl, byref o as ustring )
     ' the copy, indented one more step inside a live grid's "not this array" test
     dim as ustring b, t = "        "
     if c.ItemsLive then t = "            "
-    b &= t & "dim as long n_ = tkDataGrid_GetRowCount( " & h & " )" & NL
+    b &= t & "dim as int32 n_ = tkDataGrid_GetRowCount( " & h & " )" & NL
     ' shorter: cut; longer: new elements pushed (SetCount cannot grow past what is constructed)
     b &= t & "if a_.Count( ) > n_ then a_.SetCount( n_ )" & NL
     b &= t & "while a_.Count( ) < n_" & NL
     b &= t & "    dim as " & c.ItemType & " new_" & NL
     b &= t & "    a_.Push( new_ )" & NL
     b &= t & "wend" & NL
-    b &= t & "for i_ as long = 0 to n_ - 1" & NL
+    b &= t & "for i_ as int32 = 0 to n_ - 1" & NL
     for k as long = 0 to c.Items.Count( ) - 1
         dim as ustring f = c.Items[k].Field
         if (len( f ) = 0) orelse GridMethodField_( f ) then continue for
@@ -1198,7 +1198,7 @@ private sub GridDirty_( byref c as FormControl, byref o as ustring )
         t = "            "
     end if
     o &= t & "if tkDataGrid_GetRowCount( " & h & " ) <> a_.Count( ) then return true" & NL
-    o &= t & "for i_ as long = 0 to a_.Count( ) - 1" & NL
+    o &= t & "for i_ as int32 = 0 to a_.Count( ) - 1" & NL
     for k as long = 0 to c.Items.Count( ) - 1
         dim as ustring f = c.Items[k].Field
         if (len( f ) = 0) orelse GridMethodField_( f ) then continue for
@@ -1219,7 +1219,7 @@ private sub ListDecls_( byref doc as FormDoc, byref o as ustring )
         if catalog.ListReady( c ) = false then continue for
         if HasValues_( c ) then o &= "    " & c.Name & "_Values_ as Array( of ustring )" & NL
         if len( c.ItemsSource ) then o &= "    declare sub " & c.Name & "_Fill( )" & NL
-        if (catalog.ItemsBindOf( c ) = "rows") orelse (catalog.ItemsBindOf( c ) = "grid") then o &= "    declare function " & c.Name & "_Item( ) as long" & NL
+        if (catalog.ItemsBindOf( c ) = "rows") orelse (catalog.ItemsBindOf( c ) = "grid") then o &= "    declare function " & c.Name & "_Item( ) as int32" & NL
     next
 end sub
 
@@ -1233,7 +1233,7 @@ private sub ListCode_( byref doc as FormDoc, byref o as ustring )
         end if
         if catalog.ItemsBindOf( c ) = "grid" then
             ' the current row is its element (the grid keeps the array's order: no sort reaches the store)
-            o &= NL & "function Form." & c.Name & "_Item( ) as long" & NL
+            o &= NL & "function Form." & c.Name & "_Item( ) as int32" & NL
             o &= "    dim as integer r_, c_" & NL
             o &= "    if tkDataGrid_GetCurrentCell( " & c.Name & ".Handle, r_, c_ ) = false then return -1" & NL
             o &= "    if r_ >= tkDataGrid_GetRowCount( " & c.Name & ".Handle ) then return -1" & NL
@@ -1241,8 +1241,8 @@ private sub ListCode_( byref doc as FormDoc, byref o as ustring )
             o &= "end function" & NL
         end if
         if catalog.ItemsBindOf( c ) = "rows" then
-            o &= NL & "function Form." & c.Name & "_Item( ) as long" & NL
-            o &= "    dim as long row_ = tkListTree_GetCurSel( " & c.Name & ".Handle )" & NL
+            o &= NL & "function Form." & c.Name & "_Item( ) as int32" & NL
+            o &= "    dim as int32 row_ = tkListTree_GetCurSel( " & c.Name & ".Handle )" & NL
             o &= "    if row_ < 0 then return -1" & NL
             o &= "    return tkListTree_GetItemData( " & c.Name & ".Handle, row_ )" & NL
             o &= "end function" & NL
@@ -1474,13 +1474,13 @@ private sub NavDecls_( byref doc as FormDoc, byref o as ustring )
     if ni < 0 then exit sub
     dim as ustring n = doc.Controls[ni].Name
     o &= "    declare function IsDirty( byref r as " & doc.DataType & " ) as boolean" & NL
-    o &= "    declare function " & n & "_MoveTo( byval i as long ) as boolean" & NL
+    o &= "    declare function " & n & "_MoveTo( byval i as int32 ) as boolean" & NL
     o &= "    declare sub " & n & "_Refresh( )" & NL
-    o &= "    declare function " & n & "_Current( ) as long" & NL
-    o &= "    declare function " & n & "_Go_( byval action as long, byval target as long ) as boolean" & NL
+    o &= "    declare function " & n & "_Current( ) as int32" & NL
+    o &= "    declare function " & n & "_Go_( byval action as int32, byval target as int32 ) as boolean" & NL
     if catalog.NavList( doc ) >= 0 then
         o &= "    declare sub " & n & "_FromList_( )" & NL
-        o &= "    declare sub " & n & "_ListRow_( byval i as long )" & NL
+        o &= "    declare sub " & n & "_ListRow_( byval i as int32 )" & NL
     end if
 end sub
 
@@ -1536,10 +1536,10 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
     o &= "end function" & NL
 
     ' MoveTo: save a changed record (SaveTo may refuse), then load i
-    o &= NL & "function Form." & n & "_MoveTo( byval i as long ) as boolean" & NL
+    o &= NL & "function Form." & n & "_MoveTo( byval i as int32 ) as boolean" & NL
     o &= arr
     o &= "    if (i < 0) orelse (i >= a_.Count( )) then return false" & NL
-    o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "    dim as int32 cur = tkNavigator_GetPosition( " & nh & " )" & NL
     o &= "    if (cur >= 0) andalso (cur < a_.Count( )) then" & NL
     o &= "        if cur = i then return true" & NL
     o &= "        if IsDirty( a_[cur] ) then" & NL
@@ -1565,21 +1565,21 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
     o &= "        LoadFrom( blank_ )" & NL
     o &= "        exit sub" & NL
     o &= "    end if" & NL
-    o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "    dim as int32 cur = tkNavigator_GetPosition( " & nh & " )" & NL
     o &= "    if cur < 0 then cur = 0" & NL
     o &= "    tkNavigator_SetPosition( " & nh & ", cur )" & NL
     o &= "    LoadFrom( a_[cur] )" & NL
     NavSelect_( doc, "cur", o, "    " )
     o &= "end sub" & NL
 
-    o &= NL & "function Form." & n & "_Current( ) as long" & NL
+    o &= NL & "function Form." & n & "_Current( ) as int32" & NL
     o &= "    return tkNavigator_GetPosition( " & nh & " )" & NL
     o &= "end function" & NL
 
     ' Go_: what a navigator button asks for, once its Navigate handler has let it
-    o &= NL & "function Form." & n & "_Go_( byval action as long, byval target as long ) as boolean" & NL
+    o &= NL & "function Form." & n & "_Go_( byval action as int32, byval target as int32 ) as boolean" & NL
     o &= arr
-    o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+    o &= "    dim as int32 cur = tkNavigator_GetPosition( " & nh & " )" & NL
     o &= "    select case action" & NL
     o &= "    case TKNAV_NEW" & NL
     o &= "        if (cur >= 0) andalso (cur < a_.Count( )) then" & NL
@@ -1608,11 +1608,11 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
         dim as ustring lh = l.Name & ".Handle"
         o &= NL & "sub Form." & n & "_FromList_( )" & NL
         if (catalog.ItemsBindOf( l ) = "rows") orelse (catalog.ItemsBindOf( l ) = "grid") then
-            o &= "    dim as long i = " & l.Name & "_Item( )" & NL
+            o &= "    dim as int32 i = " & l.Name & "_Item( )" & NL
         else
-            o &= "    dim as long i = tkComboBox_GetCurSel( " & lh & " )" & NL
+            o &= "    dim as int32 i = tkComboBox_GetCurSel( " & lh & " )" & NL
         end if
-        o &= "    dim as long cur = tkNavigator_GetPosition( " & nh & " )" & NL
+        o &= "    dim as int32 cur = tkNavigator_GetPosition( " & nh & " )" & NL
         o &= "    if (i < 0) orelse (i = cur) then exit sub" & NL
         o &= "    if " & n & "_MoveTo( i ) = false then" & NL
         NavSelect_( doc, "cur", o, "        " )
@@ -1620,7 +1620,7 @@ private sub NavCode_( byref doc as FormDoc, byref o as ustring )
         o &= "end sub" & NL
 
         ' a saved record's row shows its new values (the list is not refilled from its own SelChange)
-        o &= NL & "sub Form." & n & "_ListRow_( byval i as long )" & NL
+        o &= NL & "sub Form." & n & "_ListRow_( byval i as int32 )" & NL
         o &= arr
         o &= "    if (i < 0) orelse (i >= a_.Count( )) then exit sub" & NL
         if catalog.ItemsBindOf( l ) = "rows" then

@@ -58,7 +58,7 @@ sub Form.rvTable_Fill( )
     scope
         dim as Array( of orderdata.ORDER ) a_ = orderdata.Orders( )
         tkReportViewer_ClearRows( rvTable.Handle )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             dim as integer row_ = tkReportViewer_AddRow( rvTable.Handle )
             tkBind_ToValue( a_[i_].Customer, tkReportViewer_Cell( rvTable.Handle, row_, 0 ) )
             tkBind_ToValue( a_[i_].Qty, tkReportViewer_Cell( rvTable.Handle, row_, 2 ) )
@@ -73,7 +73,7 @@ sub Form.rvRegions_Fill( )
     scope
         dim as Array( of orderdata.ORDER ) a_ = orderdata.Orders( )
         tkReportViewer_ClearRows( rvRegions.Handle )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             dim as integer row_ = tkReportViewer_AddRow( rvRegions.Handle )
             tkBind_ToValue( a_[i_].Region, tkReportViewer_Cell( rvRegions.Handle, row_, 0 ) )
             tkBind_ToValue( a_[i_].Amount, tkReportViewer_Cell( rvRegions.Handle, row_, 1 ) )

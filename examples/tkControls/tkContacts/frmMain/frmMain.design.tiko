@@ -49,7 +49,7 @@ public partial type Form extends FormBase
     mnuContext as PopupMenu
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub lstContacts_Fill( )
-    declare function lstContacts_Item( ) as long
+    declare function lstContacts_Item( ) as int32
     declare sub Form_Load( )
     declare sub Form_Destroy( )
     declare sub lstContacts_Activate( byval row as integer )
@@ -268,7 +268,7 @@ sub Form.lstContacts_Fill( )
         dim byref as Array( of contactdb.Contact ) a_ = People
         tkListTree_BeginUpdate( lstContacts.Handle )
         tkListTree_Clear( lstContacts.Handle )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             dim as integer row_ = tkListTree_AddString( lstContacts.Handle, tkBind_Text( a_[i_].FullName( ) ) )
             tkListTree_SetCellText( lstContacts.Handle, row_, 1, tkBind_Text( a_[i_].Phone ) )
             tkListTree_SetCellText( lstContacts.Handle, row_, 2, tkBind_Text( a_[i_].Email ) )
@@ -278,8 +278,8 @@ sub Form.lstContacts_Fill( )
     end scope
 end sub
 
-function Form.lstContacts_Item( ) as long
-    dim as long row_ = tkListTree_GetCurSel( lstContacts.Handle )
+function Form.lstContacts_Item( ) as int32
+    dim as int32 row_ = tkListTree_GetCurSel( lstContacts.Handle )
     if row_ < 0 then return -1
     return tkListTree_GetItemData( lstContacts.Handle, row_ )
 end function

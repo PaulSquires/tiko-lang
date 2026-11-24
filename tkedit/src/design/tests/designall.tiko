@@ -1259,7 +1259,7 @@ sub PrintPreviewSuite( )
     dim as long nZoom = instr( g, "    pv.Zoom = 0.75" ), nMode = instr( g, "    pv.ZoomMode = TKPV_ZOOM_CUSTOM" )
     Check( (nZoom > 0) andalso (nMode > nZoom), "preview: Zoom, then ZoomMode", LineWith( g, "pv." ) )
     HasLine( g, "pv.ViewMode = TKPV_VIEW_SINGLE", "preview: an enum prop is its constant" )
-    Check( instr( g, "private function Thunk_pv_LinkClick( byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single ) as boolean" & LF _
+    Check( instr( g, "private function Thunk_pv_LinkClick( byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as float32 ) as boolean" & LF _
         & "    dim as boolean Handled" & LF ) > 0, "preview: LinkClick's thunk answers its Handled", LineWith( g, "Thunk_pv_LinkClick" ) )
 end sub
 
@@ -1294,7 +1294,7 @@ sub ReportViewerSuite( )
     dim as ustring gr = codegen.Generate( dr, "frmR", "frmR.tkform", "" )
     Check( (instr( gr, "    tkReportViewer_AddField( rv.Handle, ""Customer"", 160 )" & LF & "    tkReportViewer_AddField( rv.Handle, ""Note"", 100 )" & LF ) > 0) _
         andalso (instr( gr, "tkListTree" ) = 0), "viewer report: its fields, in Build", LineWith( gr, "AddField" ) )
-    Check( instr( gr, "        tkReportViewer_ClearRows( rv.Handle )" & LF & "        for i_ as long = 0 to a_.Count( ) - 1" & LF _
+    Check( instr( gr, "        tkReportViewer_ClearRows( rv.Handle )" & LF & "        for i_ as int32 = 0 to a_.Count( ) - 1" & LF _
         & "            dim as integer row_ = tkReportViewer_AddRow( rv.Handle )" & LF _
         & "            tkBind_ToValue( a_[i_].Customer, tkReportViewer_Cell( rv.Handle, row_, 0 ) )" & LF _
         & "            tkBind_ToValue( a_[i_].Amount, tkReportViewer_Cell( rv.Handle, row_, 2 ) )" & LF _
@@ -2802,7 +2802,7 @@ sub ListSuite( )
     HasLine( t, "cboCountry_Values_ as Array( of ustring )", "list: the values member" )
     HasLine( t, "declare sub cboCountry_Fill( )", "list: an ItemsSource's Fill" )
     Check( instr( t, "declare sub lstLines_Fill" ) = 0, "list: no Fill for an ItemsField (LoadFrom fills it)" )
-    HasLine( t, "declare function lstLines_Item( ) as long", "list: a ListTree's Item" )
+    HasLine( t, "declare function lstLines_Item( ) as int32", "list: a ListTree's Item" )
     Check( (instr( t, "#import ""std/containers""" ) > 0) andalso (instr( t, LF & "using containers" & LF ) > 0), "list: containers for the arrays" )
     HasLine( t, "    dim as Array( of shop.Country ) a_ = shop.Countries( )", "list: a call's result copied once" )
     HasLine( t, "    dim byref as Array( of shop.Carrier ) a_ = Carriers", "list: a name bound by reference" )
@@ -2998,7 +2998,7 @@ sub NavSuite( )
 
     dim as ustring t = codegen.Generate( d, "frmP", "frmP.tkform", "" )
     HasLine( t, "declare function IsDirty( byref r as pd.Person ) as boolean", "nav: IsDirty declared" )
-    HasLine( t, "declare function navP_MoveTo( byval i as long ) as boolean", "nav: MoveTo declared" )
+    HasLine( t, "declare function navP_MoveTo( byval i as int32 ) as boolean", "nav: MoveTo declared" )
     HasLine( t, "declare sub navP_Refresh( )", "nav: Refresh declared" )
     HasLine( t, "declare sub navP_FromList_( )", "nav: FromList_ declared" )
     HasLine( t, "if tkBind_Differs( r.Name, tkTextBox_GetText( txtName.Handle ), """" ) then return true", "nav: IsDirty asks a text box" )
@@ -3068,7 +3068,7 @@ sub DataGridSuite( byval bAccept as boolean )
     HasLine( t, "        tkBind_Put( a_[i_].Due, tkDataGrid_GetCellDate( grdLines.Handle, i_, 4 ) )", "datagrid: SaveTo writes a cell back" )
     Check( instr( t, "tkBind_Put( a_[i_].Total( )" ) = 0, "datagrid: a method column is not written back" )
     HasLine( t, "if tkDataGrid_EndEdit( grdLines.Handle, true ) = false then return false", "datagrid: SaveTo commits an open edit first" )
-    HasLine( t, "declare function grdLines_Item( ) as long", "datagrid: _Item( )" )
+    HasLine( t, "declare function grdLines_Item( ) as int32", "datagrid: _Item( )" )
     HasLine( t, "tkDataGrid_SetColumnReadOnly( grdLines.Handle, 5, true )", "datagrid: a method column is read-only" )
     ' the column settings past Text / Width / Kind / Field: read, validated, written back, generated
     Refused( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "align = ""middle""" & LF, "no DataGrid column align 'middle'" )
