@@ -8,6 +8,8 @@
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkDatePicker"
+#import "std/fs"
+#import "std/containers"
 using tkDataGrid
 using tkColumnHeader
 using tkVScrollBar
@@ -20,6 +22,7 @@ using tkTooltip
 using tkTextBox
 using tkComboBox
 using tkDatePicker
+using tkPopupMenu
 
 dim shared as long gCells, gMinRow, gMaxRow, gMinCol, gMaxCol, gFmt, gMsgs, gLastMsgRow
 dim shared as boolean gRedFirstCell
@@ -1390,6 +1393,8 @@ sub RunG4( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+#include once "selftest_g7.tiko"
+
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
 RunPass( 1.75 )
@@ -1398,6 +1403,7 @@ RunG1( 1.75 )
 RunG2( 1.75 )
 RunG3( 1.75 )
 RunG4( 1.75 )
+RunG7a( 1.75 )
 dim as long nFail = tkTest_Report( "tkDataGrid" )
 tkTest_Quit()
 end nFail

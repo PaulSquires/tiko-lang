@@ -43,6 +43,9 @@
 ' THE VIEW (G4, dgSort.tiko): a sort and a filter make a view-to-model map; every on-screen row is
 ' a VIEW row, every public row a MODEL row.
 '
+' G7a: CSV export of the view (dgExport.tiko, over std/strings' JoinCsvRow), the column chooser
+' and the ContextMenu event (dgChooser.tiko), the column layout as a string (dgLayout.tiko).
+'
 ' Setters are silent; only user interaction notifies (dgEvents.tiko lists the events).
 #module "tkDataGrid"
 
@@ -54,6 +57,7 @@
 #import "../tkScrollBar" public
 #import "../tkCalendar" public
 #import "../tkTooltip" public
+#import "../tkPopupMenu" public
 using tkHost
 using tkPaint
 using tkTheme
@@ -63,6 +67,7 @@ using tkHScrollBar
 using tkScrollBar
 using tkCalendar
 using tkTooltip
+using tkPopupMenu
 
 ' ---- constants --------------------------------------------------------------------------
 public const CDATAGRID_DEFAULT_ROWHEIGHT = 24       ' unscaled
@@ -459,6 +464,16 @@ type TKDATAGRID_STATE
     cacheVals(any) as TKDG_VALUE
     nRequests      as integer
     DataRequestCallback as DG_RowsSub
+    ' --- G7a: export, the column chooser, the context menu (dgExport.tiko, dgChooser.tiko) ---
+    exportError    as ustring            ' why the last ExportCsv failed
+    bChooser       as boolean            ' a header right-click opens the column chooser
+    pMenu          as TK_MENU ptr        ' the chooser, created on first use, rebuilt on every open
+    menuCol        as integer = -1       ' the column whose header was right-clicked
+    wszBestFit     as ustring = "Best fit"
+    wszBestFitAll  as ustring = "Best fit (all columns)"
+    wszShowAll     as ustring = "Show all columns"
+    ColumnVisibilityChangedCallback as DG_ColumnVisibleSub
+    ContextMenuCallback as DG_ContextMenuSub
 end type
 
 
@@ -583,6 +598,7 @@ function tkDataGrid_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as b
     case TKM_DESTROY
         tkWidget_KillTimer( p->wSurf, DG_TIMER_EDITFOCUS )
         tkTipHost_Destroy( @p->tip )
+        DgChooserDestroy( p )
         delete p
         w->pData = 0
         return true

@@ -174,6 +174,8 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
             return false
         end select
     end if
+    ' G7a: the Menu key / Shift+F10 (claimed only when a ContextMenu callback is set)
+    if (key = SDLK_APPLICATION) orelse ((key = SDLK_F10) andalso bShift) then return DgKeyContextMenu( p )
     if (DgViewRows( p ) = 0) orelse (DgFirstVisDisp( p ) < 0) then return false
     dim as DG_USERMARK mk
     DgUserBegin( p, mk )
@@ -422,11 +424,7 @@ private sub DgButtonDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr
     select case ht.area
     case TKDG_HT_DIVIDER
         if m->clicks >= 2 then
-            dim as integer w = DgAutoWidth( p, ht.col, 200 )
-            p->cols(ht.col).c.width = w
-            p->cols(ht.col).c.fillWeight = 0
-            DgChanged( p )
-            if p->ColumnResizeCallback then p->ColumnResizeCallback( p->hWin, ht.col, w, false )
+            DgUserBestFit( p, ht.col )
             exit sub
         end if
         p->drag = DG_DRAG_RESIZE : p->dragCol = ht.col
@@ -648,7 +646,8 @@ function DgSurfaceProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boo
         dim as TKDG_HITTEST ht
         DgHitTest( p, cint( m->x ), cint( m->y ), ht )
         if m->msg = TKM_RBUTTONDOWN then tkHost_SetFocus( w->pHost, w )
-        DgCallMsg( p, m, ht )
+        ' G7a: the release opens the chooser (header) or fires ContextMenu, unless the host took it
+        if (DgCallMsg( p, m, ht ) = false) andalso (m->msg = TKM_RBUTTONUP) then DgRightClick( p, ht, cint( m->x ), cint( m->y ) )
         return true
     case TKM_CAPTURECHANGED
         if p->drag <> DG_DRAG_NONE then DgEndDrag( p )

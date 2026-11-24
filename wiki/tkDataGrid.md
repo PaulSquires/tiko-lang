@@ -184,6 +184,69 @@ for; `SetQuickFilter( text )` keeps rows where any visible column's shown text c
 runs before sorting. A change of the data re-sorts nothing until `Sort` / `ApplyFilter` or a header
 click.
 
+## CSV export
+
+`tkDataGrid_ExportCsv( h, path, opts )` writes what the user sees to a file: the rows of the view
+(sorted, filtered, without the placeholder new row) and the visible columns in display order.
+`tkDataGrid_GetCsvText( h, opts )` gives the same records as one string. Both take a
+`TKDG_CSVOPTIONS`; its defaults are the usual file:
+
+| Field | Default | |
+| --- | --- | --- |
+| `sep` | `","` | `";"` for a European Excel, `chr(9)` for tab-separated |
+| `bHeaders` | TRUE | the captions as the first record |
+| `bFormatted` | TRUE | the text shown (after CellFormatting); FALSE: the value -- an integer, a float with "." decimals, true / false, a date as yyyy-mm-dd |
+| `bSelectedOnly` | FALSE | only the selection, as Ctrl+C takes it; a cell outside it is an empty field |
+| `bAllColumns` | FALSE | hidden columns too |
+| `bBom` | TRUE | `ExportCsv` starts with a UTF-8 BOM, without which Excel misreads accents |
+| `bCrLf` | TRUE | CRLF record ends (RFC 4180), else LF |
+| `bGuardFormulas` | FALSE | a `'` before a text value that starts with `=` `+` `-` `@`, so a spreadsheet does not run it |
+
+```freebasic
+dim as TKDG_CSVOPTIONS o                 ' the defaults
+o.sep = ";"
+dim as ustring path = tkFileDialog_SaveFile( hHost, "CSV|*.csv" )
+if len( path ) andalso (tkDataGrid_ExportCsv( grd, path, o ) = false) then
+    print "export failed: " & tkDataGrid_GetExportError( grd )
+end if
+```
+
+Quoting is std's `strings.JoinCsvRow` (RFC 4180). `ExportCsv` writes in chunks and never holds the
+whole text: a million virtual rows cost a byte each and one chunk of memory, and every cell is read
+once, as the grid reads it (a block cache that lacks a row fetches it, as copy does). Measured
+in a release build: 100,000 rows x 15 columns in 0.56 s, 1,000,000 in 6.3 s. An edit in
+progress is not committed by an export. The grid shows no file dialog; the host picks the path.
+
+## The column chooser and the context menu
+
+`tkDataGrid_SetColumnChooser( h, true )` makes a right-click on the header open a menu with one
+checked item per column (in display order; the last shown column cannot be hidden), then **Best
+fit** (the column clicked), **Best fit (all columns)** and **Show all columns**.
+`tkDataGrid_SetChooserTexts` localizes the three; `tkDataGrid_ShowColumnChooser( h, col, x, y )`
+opens it from a button of your own; `tkDataGrid_GetChooserMenu` is its
+[tkPopupMenu](tkPopupMenu), for styling. The user's choices fire `ColumnVisibilityChanged` and
+`ColumnResize`. Hiding the current cell's column moves the current cell to the next shown column.
+
+Any other right-click -- a cell, a row header, the empty body, or the header while the chooser is
+off -- fires **ContextMenu**( row, col, x, y, bKeyboard ), and so do the Menu key and Shift+F10, at
+the current cell's bottom-left. `x`, `y` are the window pixels `tkPopupMenu_Show` takes, so a
+handler opens its own menu there. A MessageCallback that claims the right button's release, or a
+[tkContextMenu](tkContextMenu) attached to the grid, takes the click first.
+
+## Saving the column layout
+
+`tkDataGrid_GetLayout( h )` returns the columns' display order, widths, shown / hidden state, the
+frozen column count and the sort keys as one string, for the host to keep between runs:
+
+```
+tkdg1;frozen=1;sort=Qty:d,Name:a;cols=Name:120:1,Qty:80:1,Notes:200:0
+```
+
+`tkDataGrid_SetLayout( h, s )` puts it back, matching columns by **key** (a column without a key is
+`#` and its index), so a layout survives columns added or removed since it was saved: unknown names
+are skipped, and columns it does not name follow the named ones in their present order. A string
+that is not a layout returns FALSE and changes nothing. Silent, as every setter.
+
 ## Notifications
 
 | Callback | When |
@@ -194,6 +257,8 @@ click.
 | `SetButtonClickCallback` | a button or link cell was clicked or activated |
 | `SetColumnClickCallback`, `SetColumnResizeCallback`, `SetColumnReorderedCallback` | the header: a click, a resize (`bLive` while dragging), a column moved |
 | `SetSortChangedCallback` | the sort keys changed by a header click |
+| `SetColumnVisibilityChangedCallback` | the user showed or hid a column from the chooser |
+| `SetContextMenuCallback` | a right-click the grid does not use, or the Menu key / Shift+F10: (row, col, window x, y, bKeyboard) |
 | `SetCellBeginEditCallback` | an edit is starting; FALSE vetoes it |
 | `SetCellParseCallback` | the editor's text, parsed or not; may change the value or refuse it |
 | `SetCellEndEditCallback` | an edit ended, committed or not |
@@ -292,7 +357,7 @@ tkDataGridSqlite_SetParams( q, p() )                   ' counted again, read aga
 The toolbox's **DataGrid** (Lists) has the properties RowHeight, HeaderHeight, ShowHeader,
 ShowRowHeaders, RowHeaderWidth, FrozenColumns, GridLines, AlternateRows, SelectionUnit, MultiSelect,
 EditMode, ReadOnly, AllowAddRows, AllowDeleteRows, EditSelectAll, SortMode, AllowColumnResize,
-AllowColumnReorder, ColumnHeaderSelects, TabWraps, Virtual, BackColor, BorderWidth, ScrollBarWidth,
+AllowColumnReorder, ColumnHeaderSelects, TabWraps, Virtual, ColumnChooser, BackColor, BorderWidth, ScrollBarWidth,
 Font, HeaderFont and HoverTime, the colours above, and the events in the table (CurrentCellChanged
 by default). Its **Columns** editor gives each column Text, Width, Kind, Field, Align, MinWidth,
 Fill, ReadOnly and Visible.
@@ -336,11 +401,12 @@ See [Form Designer](Form-Designer), Data binding.
 `TKDG_VALUE` (`kind`, `s`, `i`, `f`, `b`, `d`; `SetText`, `SetInt`, `SetFloat`, `SetBool`, `SetDate`,
 `Clear`), `TKDATAGRID_COLUMN`, `TKDG_HITTEST`, `TKDG_SORTKEY` (`col`, `bDescending`), `TKDG_RANGE`,
 `TKDATAGRID_COLORS`, `TKDATAGRID_CELLPAINTINFO`, `TKDATAGRID_FORMATINFO`,
-`TKDATAGRID_MESSAGEINFO`, `TKDATAGRID_SOURCE`, and the callback types `DG_CellPaintFunc`,
+`TKDATAGRID_MESSAGEINFO`, `TKDATAGRID_SOURCE`, `TKDG_CSVOPTIONS`, and the callback types `DG_CellPaintFunc`,
 `DG_CellFormattingSub`, `DG_MessageFunc`, `DG_CellSub`, `DG_GridSub`, `DG_ColumnSub`,
 `DG_ColumnResizeSub`, `DG_ColumnReorderedSub`, `DG_TooltipFunc`, `DG_CellBeginEditFunc`,
 `DG_CellParseFunc`, `DG_CellEndEditSub`, `DG_RowFunc`, `DG_RowSub`, `DG_RowsDeletingFunc`,
-`DG_RowsSub`, `DG_FilterFunc`, `DG_CellValueNeededSub`, `DG_CellValuePushedFunc`.
+`DG_RowsSub`, `DG_FilterFunc`, `DG_CellValueNeededSub`, `DG_CellValuePushedFunc`,
+`DG_ColumnVisibleSub`, `DG_ContextMenuSub`.
 tkDataGridSqlite: `TKDGSQL`.
 
 ### Procedures
@@ -564,6 +630,20 @@ sub tkDataGrid_SetCellValueNeededCallback( byval hGrid as TK_WIDGET ptr, byval c
 sub tkDataGrid_SetCellValuePushedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_CellValuePushedFunc )
 sub tkDataGrid_SetSortChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_GridSub )
 sub tkDataGrid_SetFilterCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_FilterFunc )
+sub tkDataGrid_SetColumnVisibilityChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnVisibleSub )
+sub tkDataGrid_SetContextMenuCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ContextMenuSub )
+
+' ---- export, the column chooser, the layout
+function tkDataGrid_GetCsvText( byval hGrid as TK_WIDGET ptr, byref o as const TKDG_CSVOPTIONS ) as ustring
+function tkDataGrid_ExportCsv( byval hGrid as TK_WIDGET ptr, byref path as const ustring, byref o as const TKDG_CSVOPTIONS ) as boolean
+function tkDataGrid_GetExportError( byval hGrid as TK_WIDGET ptr ) as ustring
+sub tkDataGrid_SetColumnChooser( byval hGrid as TK_WIDGET ptr, byval bOn as boolean )
+function tkDataGrid_GetColumnChooser( byval hGrid as TK_WIDGET ptr ) as boolean
+sub tkDataGrid_SetChooserTexts( byval hGrid as TK_WIDGET ptr, byref BestFit as const ustring, byref BestFitAll as const ustring, byref ShowAll as const ustring )
+function tkDataGrid_ShowColumnChooser( byval hGrid as TK_WIDGET ptr, byval col as integer, byval x as integer, byval y as integer ) as boolean
+function tkDataGrid_GetChooserMenu( byval hGrid as TK_WIDGET ptr ) as TK_MENU ptr
+function tkDataGrid_GetLayout( byval hGrid as TK_WIDGET ptr ) as ustring
+function tkDataGrid_SetLayout( byval hGrid as TK_WIDGET ptr, byref layout as const ustring ) as boolean
 
 ' ---- tkDataGridSqlite
 function tkDataGridSqlite_Open( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr
