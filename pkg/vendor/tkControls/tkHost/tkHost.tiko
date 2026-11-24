@@ -363,6 +363,16 @@ public sub tkHost_SetHotChangedHook( byval f as tkHotChangedSub )
     gOnHotChanged = f
 end sub
 
+' Called after tkWidget_Show changed a widget's visibility (not when it was already in that
+' state), so a watcher that does not subclass the widget -- tkLayout, whose hidden docks take no
+' slice -- can place its siblings again. One hook.
+public type tkShowChangedSub as sub( byval w as TK_WIDGET ptr, byval bShow as boolean )
+dim shared as tkShowChangedSub gOnShowChanged
+
+public sub tkHost_SetShowChangedHook( byval f as tkShowChangedSub )
+    gOnShowChanged = f
+end sub
+
 ' Offered every event tkHost_Dispatch sees, before anything else -- in tkHost_Run, in
 ' tkHost_Pump AND inside tkHost_RunModal's loop -- so an application layer (tkApp) can run its
 ' own user events and watch system events wherever the pump happens to be. TRUE consumes the
@@ -1169,6 +1179,7 @@ public sub tkWidget_Show( byval w as TK_WIDGET ptr, byval bShow as boolean )
     m.bFlag = bShow
     tkWidget_Send( w, @m )
     tkWidget_Invalidate( w )
+    if gOnShowChanged then gOnShowChanged( w, bShow )
 end sub
 
 ' ---- adornments: a child that decorates its parent (an attached badge, a validation mark). It is
