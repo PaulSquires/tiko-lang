@@ -52,8 +52,8 @@ On macOS:
 {{#include ../examples/ch31/target.macos-arm64.out}}
 ```
 
-The predefined symbols are how a program adapts to its target: `__FB_WIN32__`, `__FB_LINUX__`
-and `__FB_DARWIN__` for the platform, `__FB_MSVC__` when the C runtime is Microsoft's, `__FB_BACKEND__` for the code
+The predefined symbols are how a program adapts to its target: `TIKO_OS_WINDOWS`, `TIKO_OS_LINUX`
+and `TIKO_OS_MACOS` for the platform, `__FB_MSVC__` when the C runtime is Microsoft's, `__FB_BACKEND__` for the code
 generator. Code inside an `#ifdef` that does not apply is never compiled, so it may call
 functions that do not exist on the other platform.
 

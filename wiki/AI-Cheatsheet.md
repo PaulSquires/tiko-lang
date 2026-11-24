@@ -847,11 +847,11 @@ print strlen( strptr( bytes ) )
 ## Preprocessor and platforms
 
 ```freebasic
-#if defined( __FB_WIN32__ )
+#if defined( TIKO_OS_WINDOWS )
     const PLATFORM = "windows"
-#elseif defined( __FB_LINUX__ )
+#elseif defined( TIKO_OS_LINUX )
     const PLATFORM = "linux"
-#elseif defined( __FB_DARWIN__ )
+#elseif defined( TIKO_OS_MACOS )
     const PLATFORM = "macos"
 #endif
 
@@ -868,8 +868,11 @@ print cbool( len( PLATFORM ) > 0 ); EDITION; " "; cbool( __LINE__ > 0 )
 ```
 
 - `#cmdline "-mt -d X=1"` puts compiler options in the source.
-- `#error "msg"`, `#assert`, `__FB_64BIT__`, `__FB_UNIX__`, `__FB_DEBUG__` and `__FB_MT__`
-  are available too.
+- `#error "msg"`, `#assert`, `TIKO_ARCH_X86_64`, `TIKO_ARCH_ARM64`, `__FB_64BIT__`, `__FB_DEBUG__`
+  and `__FB_MT__` are available too.
+- Test the platform with tiko's names, `TIKO_OS_WINDOWS`, `TIKO_OS_LINUX` and `TIKO_OS_MACOS` —
+  not the older `__FB_WIN32__`, `__FB_LINUX__`, `__FB_DARWIN__`, which exist only for existing
+  headers. "Any Unix" is `defined( TIKO_OS_LINUX ) orelse defined( TIKO_OS_MACOS )`.
 - Write code that builds on every platform. A branch for a platform you didn't build for
   is never compiled, so it can hide errors.
 
