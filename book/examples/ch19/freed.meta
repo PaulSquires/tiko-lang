@@ -1,0 +1,2 @@
+env: ASAN_OPTIONS=abort_on_error=0
+stderr: drop

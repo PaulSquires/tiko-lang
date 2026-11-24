@@ -55,8 +55,8 @@ On macOS:
 {{#include ../examples/ch31/target.macos-arm64.out}}
 ```
 
-The predefined symbols are how a program adapts to its target: `__FB_WIN32__`, `__FB_LINUX__`
-and `__FB_DARWIN__` for the platform, `__FB_MSVC__` when the C runtime is Microsoft's, `__FB_BACKEND__` for the code
+The predefined symbols are how a program adapts to its target: `TIKO_OS_WINDOWS`, `TIKO_OS_LINUX`
+and `TIKO_OS_MACOS` for the platform, `__FB_MSVC__` when the C runtime is Microsoft's, `__FB_BACKEND__` for the code
 generator. Code inside an `#ifdef` that does not apply is never compiled, so it may call
 functions that do not exist on the other platform.
 
@@ -326,7 +326,9 @@ included, so the project builds the same whatever directory the command is typed
 The `debug` in `out/debug` is the **profile**: a named set of compiler options. `tiko build`
 uses `debug`, which is `-g -exx -O0`, a checked build, and so does `tiko run`. `--profile release`
 builds with `-O2` instead, into `out/release`, and the program above then prints
-`release build`. Both are built in; a `[profile.name]` table changes one or declares another:
+`release build`. Both are built in, and so is `asan`, `-g -exx -O1 -fsanitize=address`, for
+finding memory errors (Chapter 19). A `[profile.name]` table changes one or
+declares another:
 
 ```toml
 [profile.fast]
@@ -351,7 +353,8 @@ compiled in parallel; `-j 4` sets how many at once.
 **`tiko check`** reports every error and warning a build would, and writes nothing — no program,
 no objects. A file the last build compiled cleanly is not looked at again, so after a build a
 check is quick. It is what an editor runs on save. **`tiko clean`** removes the program a build
-of the same profile wrote.
+of the same profile wrote. **`tiko test`** builds a project's tests into one program and runs it
+(Chapter 19), and **`tiko doc`** writes its modules' documentation (Chapter 15).
 
 ```admonish note title="For editors and tools"
 `tiko build --message-format json` reports a build as one JSON object per line — each file

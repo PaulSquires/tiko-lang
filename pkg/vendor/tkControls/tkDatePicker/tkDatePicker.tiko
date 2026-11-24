@@ -1029,6 +1029,22 @@ public sub tkDatePicker_ClearDate( byval hCtrl as TK_WIDGET ptr )
     DtpFormatIntoField( p )
 end sub
 
+' The date as a value, for a form's data binding (tkBind): an all-zero TKDATE when there is none.
+public function tkDatePicker_GetDateValue( byval hCtrl as TK_WIDGET ptr ) as TKDATE
+    dim as TKDATE st
+    tkDatePicker_GetDate( hCtrl, st )
+    return st
+end function
+
+' Sets the date from a value; wYear = 0 clears it. Silent, as SetDate and ClearDate are.
+public sub tkDatePicker_SetDateValue( byval hCtrl as TK_WIDGET ptr, byval st as TKDATE )
+    if st.wYear = 0 then
+        tkDatePicker_ClearDate( hCtrl )
+    else
+        tkDatePicker_SetDate( hCtrl, st )
+    end if
+end sub
+
 public function tkDatePicker_HasDate( byval hCtrl as TK_WIDGET ptr ) as boolean
     dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
     if p = 0 then return false

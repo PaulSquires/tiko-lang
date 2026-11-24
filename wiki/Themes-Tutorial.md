@@ -129,8 +129,10 @@ Your users might run their computer in light mode, so check both.
 
 - **In the Theme Center:** the **Dark | Light** switch at the top changes which variant you're
   looking at and editing.
-- **On the form:** **Design > Preview Light / Dark** flips the design surface between the two. Only
-  the form changes; tkEdit keeps its own look.
+- **On the form:** the **Preview Light / Dark** command flips the design surface between the two.
+  Only the form changes; tkEdit keeps its own look. It has no menu row or key of its own, so give it
+  a key once: **File > Options > Keyboard Shortcuts** (**Ctrl+K**), type `preview` in the filter,
+  pick the row, **Modify**, and press the key you want.
 - **Test Form** (**Alt+F5**) opens in whichever variant the surface shows.
 
 ### The contrast line

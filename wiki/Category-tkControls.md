@@ -78,15 +78,16 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 
 | Group | Pages |
 |---|---|
-| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkDatePicker](tkDatePicker), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit) |
+| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkTimePicker](tkTimePicker), [tkDateTimePicker](tkDateTimePicker), [tkTimePanel](tkTimePanel), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit), [tkAutoComplete](tkAutoComplete) |
 | Buttons and switches | [tkButton](tkButton), [tkCheckBox](tkCheckBox), [tkOptionButton](tkOptionButton), [tkToggle](tkToggle) |
-| Lists and selection | [tkListTree](tkListTree), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar) |
-| Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar) |
+| Lists and selection | [tkListTree](tkListTree), [tkDataGrid](tkDataGrid) (with tkDataGridSqlite), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar), [tkCheckedList](tkCheckedList), [tkCheckedCombo](tkCheckedCombo), [tkTokenBox](tkTokenBox), [tkChip](tkChip), [tkChipGroup](tkChipGroup), [tkRating](tkRating) |
+| Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar), [tkNavigator](tkNavigator) |
 | Containers and layout | [tkPanel](tkPanel), [tkGroupBox](tkGroupBox), [tkTabControl](tkTabControl), [tkSplitter](tkSplitter) |
 | Scrolling | [tkScrollPanel](tkScrollPanel), [tkVScrollBar](tkVScrollBar), [tkHScrollBar](tkHScrollBar) |
-| Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner) |
-| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture) |
+| Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner), [tkInfoBar](tkInfoBar), [tkToast](tkToast) |
+| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture), [tkBadge](tkBadge), [tkAvatar](tkAvatar), [tkAvatarGroup](tkAvatarGroup) |
 | Data display | [tkChart](tkChart) |
+| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer), [tkReport](tkReport) |
 | Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
 
 ## Support modules
@@ -95,6 +96,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 |---|---|
 | [tkLayout](tkLayout) | Automatic placement by anchor and dock, in design units, shared with the form designer |
 | [tkForms](tkForms) | `FormBase`, the base a designed form extends: a window, a layout, modal and modeless show, caption translation |
+| [tkLanguage](tkLanguage) | Captions in another language: TOML catalogs built in with `#embed` or read from files, the user's language picked at start-up |
 | [tkImage](tkImage) | Image files (`.png`, `.bmp`, `.jpg`, `.gif`, `.ico`, ...) for icon slots, through SDL_image |
 | [tkPopupMenu](tkPopupMenu) | The dropdown behind menus, combo boxes and toolbars |
 | [tkColumnHeader](tkColumnHeader) | The column header band; tkListTree places one above its rows |

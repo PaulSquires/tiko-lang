@@ -195,7 +195,7 @@ Details, and what is checked only under `-exx`: [String Slice Lifetime](String-S
 ## Known Limits
 
 - **A slice of a `zstring ptr` or `wstring ptr` is as valid as the pointer.** The storage rules still apply, but nothing checks that the memory is alive.
-- **An array is sliced with `( )`, not `[ ]`**: `a( lo to hi )` makes a `span( of T )`, after tiko 0.1.5. See [Array Slices](Category-Array-Slices).
+- **An array is sliced with `( )`, not `[ ]`**: `a( lo to hi )` makes a `span( of T )`. See [Array Slices](Category-Array-Slices).
 
 See also: [String Slice Lifetime](String-Slice-Lifetime), [Array Slices](Category-Array-Slices), [UString](Category-UString), [String Library](Category-String-Library), [For Each](Category-For-Each).
 

@@ -218,6 +218,7 @@ function CompileUnit _
     p.diags = @ctx.diags
     p.pos = 0
     p.recordDecls = (ctx.unit.modFileCount > 0)
+    p.testMode = Tko.Modules.UnitTestMode( ctx )     '' 'test' blocks: parser/testblock.tiko
     p.ifaceChains = @ctx.ifaceChains
     '' The target's default convention, which the '...' rule needs. See
     '' ParserState.fbcallConv.
@@ -670,7 +671,8 @@ function CompileUnit _
             tPh = timer
             dim as Tko.Codegen.EmitResult er = _
                 Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
-                                      ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe )
+                                      ctx.options.debugInfo, ctx.sources.AbsPathOf( id ), @dfe, _
+                                      ctx.options.sanitizeAddress )
             ctx.timing.Add( Tko.PH_EMIT, tPh )
             if er.ok then
                 '' '--emit-ir' AND '--emit-asm' WRITE THEIR FILE AND STOP --

@@ -1245,7 +1245,7 @@ sub Walk_ _
     if k = N_VAR_ITEM then CheckPtrInit_( c, id ) : CheckArrayInit_( c, id )   '' arrresult.tiko
     if (k = N_VAR_ITEM) orelse (k = N_AMBIGUOUS) orelse (k = N_RETURN) orelse (k = N_CALL) then CheckSliceConst_( c, id, innerResult )   '' semslice.tiko
     if (k = N_VAR_ITEM) orelse (k = N_AMBIGUOUS) orelse (k = N_RETURN) orelse (k = N_NEW) orelse (k = N_FIELD) orelse (k = N_CLOSURE) then CheckSliceLife_( c, id, innerResult )   '' semslice.tiko (RFC-0002)
-    if (k = N_PROC) orelse (k = N_MODULE) then CheckSliceLock_( c, id )   '' semslice.tiko (RFC-0002 §6)
+    if (k = N_PROC) orelse (k = N_MODULE) then CheckSliceLock_( c, id ) : CheckOptAccess_( c, id )   '' semslice.tiko (RFC-0002 §6), semoptcheck.tiko
     if k = N_AMBIGUOUS then CheckConstThisWrite_( c, id, here, innerConst, innerWith )
     if k = N_CALL then CheckConstThisCall_( c, id, here, innerConst )
     if k = N_MEMBER then CheckExplicitStructor_( c, id )
@@ -1286,13 +1286,14 @@ sub Walk_ _
     WalkExtra_( c, id, k, innerByref, here )
     if k = N_INTRINSIC then CheckEraseStructors_( c, id, here )
     if k = N_SELECT then CheckSelectCaseKinds_( c, id )
+    if k = N_VAR_ITEM then CheckMatchItem_( c, id )   '' semmatch.tiko
     if k = N_WITH then CheckWithSubject_( c, id )
     if (k = N_DEREF) orelse (k = N_ADDROF) then CheckDerefAddrOperand_( c, id, k )
     if k = N_DEREF then CheckProcPtrDeref_( c, id )
     if k = N_INDEX then CheckIndexNeedsPointer_( c, id )
     if k = N_NEW then CheckNewString_( c, id )
     if k = N_UNARY then CheckNotPointer_( c, id ) : CheckUdtUnary_( c, id )
-    if k = N_AMBIGUOUS then CheckProcPtrCompound_( c, id ) : CheckUdtCompound_( c, id ) : CheckPtrCompound_( c, id )
+    if k = N_AMBIGUOUS then CheckProcPtrCompound_( c, id ) : CheckUdtCompound_( c, id ) : CheckPtrCompound_( c, id ) : CheckStrCompound_( c, id )
 
     '' EVERY SHAPE OF CHILD LIST, because a member access hides under all of them. The
     '' arena stores three, and a walk that knew only about statements missed every

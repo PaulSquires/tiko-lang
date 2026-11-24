@@ -44,9 +44,9 @@ case " ${names[*]} " in
         TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module SDL3 \
             || { echo "vendorfetch.sh failed: no static SDL3"; exit 1; } ;;
 esac
-# tkContacts keeps its data in SQLite: vendor/sqlite3's library (built from source once, then cached).
+# tkContacts and tkGridData keep data in SQLite: vendor/sqlite3's library (built from source once, then cached).
 case " ${names[*]} " in
-    *" tkContacts "*|"  ")
+    *" tkContacts "*|*" tkGridData "*|"  ")
         TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module sqlite3 \
             || { echo "vendorfetch.sh failed: no sqlite3"; exit 1; } ;;
 esac

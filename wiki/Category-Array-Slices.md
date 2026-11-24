@@ -2,8 +2,6 @@
 
 # Array Slices
 
-> ⚠️ **Array slices arrive after tiko 0.1.5.** The programs on this page were run with the development toolchain; a 0.1.5 toolchain refuses `a(2 to 4)` with `TKO0401`.
-
 ```freebasic
 dim as int32 a( 1 to 6 ) = { 10, 20, 30, 40, 50, 60 }
 

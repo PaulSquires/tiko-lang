@@ -688,6 +688,42 @@ once. A plain constant from such a header that a signature names, such as `NULL`
 default, is written into the interface as its value. An importer that read the C runtime's headers
 first holds those names as macros, and the Windows headers then never declare them.
 
+## Documenting a module
+
+A module's public names are a promise to every program that imports it, and the promise needs
+words. tiko reads them from where you already write them — the comments above each declaration —
+and `tiko doc` turns a project's modules into pages: one per module, in Markdown and in HTML, an
+index with a search box, and a `doc.json` for tools.
+
+The module, `geo/geo.tiko`, in a project whose `tiko.toml` names the package `shapes`:
+
+```tiko
+{{#include ../examples/ch15/documented/geo/geo.tiko}}
+```
+
+`tiko doc`, in the project's directory, and the page it writes, `out/doc/shapes.geo.md`:
+
+````text
+{{#include ../examples/ch15/documented/main.out}}
+````
+
+- **A name's documentation is the block of `''` lines directly above it.** A blank line ends a
+  block, so a comment separated from its declaration by an empty line documents nothing.
+- **`Square` and `Area` are documented above their `declare`s.** A declaration with no comment of
+  its own takes the one above its definition instead, so either place works.
+- **A field may be documented at the end of its line**, as `size` is.
+- **The module's overview** is the first comment block after `#module` in the file named like the
+  module — `geo.tiko` — and an indented line in it is shown as code.
+- **Only what an importer sees is there.** `Round_` has no `public`, so it is not; nor is anything a
+  type keeps under `private:`, nor the module's `_test.tiko` files.
+- **The signatures are the compiler's**, read from the module's interface after it is built, so a
+  page can never show a parameter list the code does not have. The import line is the package path
+  that works from anywhere: `#import "shapes/geo"`.
+
+`tiko doc` with no arguments documents every module of the project; `tiko doc geo` documents one,
+and `-o docs/api` writes the pages somewhere else. Like `tiko build`, it compiles through the
+module cache, so documenting an unchanged project compiles nothing.
+
 ## What it costs
 
 - **A module is compiled once and cached**, so the first build of a program that imports a large
@@ -729,6 +765,8 @@ first holds those names as macros, and the Windows headers then never declare th
 - `--print-graph`, `-v`, `--no-module-cache`, `--clean-module-cache` and `--emit-tki` show and
   control the build; `-c`, `-lib` and `-dll` work on programs that import.
 - `std` is a package in the toolchain, and its modules are ordinary modules.
+- `tiko doc` writes a module's pages from its interface and the `''` comments above each public
+  declaration (or above its definition): Markdown, HTML, an index with a search, and `doc.json`.
 - Converting a header library: add `#module`, drop the guard and the namespace, mark the API
   `public`, unmark the helpers, and turn configuration macros into `[defines]`.
 

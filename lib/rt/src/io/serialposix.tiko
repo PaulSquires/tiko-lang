@@ -213,6 +213,14 @@ function tkort_SerialOpen alias "fb_SerialOpen" _
 
 	DeviceName[0] = 0
 
+	'' A PATH THAT DOES NOT FIT IS REFUSED: hOsSerialDevName copies it whole into the 512
+	'' bytes above (security review, Nov 2026; fbc's unix/io_serial.c does the same).
+	if( (iPort = 0) andalso (pszDevice <> nullptr) ) then
+		if( strlen( pszDevice ) >= 512 ) then
+			return tkrt_ErrorSetNum( FB_RTERROR_ILLEGALFUNCTIONCALL )
+		end if
+	end if
+
 	'' The node is the OS's -- see seriallinux.tiko.
 	hOsSerialDevName( iPort, pszDevice, @DeviceName )
 

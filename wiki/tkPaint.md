@@ -76,7 +76,13 @@ Hover and selection styling is yours: decide the state, set the colours, then pa
 
 Every call is clipped to the widget, and to any ancestor that clips its children. `SetClipRect` narrows that to a rect until `ResetClip`; each call replaces the last. `PushClip` intersects with the clip in force and `PopClip` restores it, nesting up to eight deep; `ResetClip` also empties that stack.
 
-`PaintImage( tex, rc, fit )` draws an `SDL_Texture`, clipped to `rc`: `TK_IMGFIT_ASPECT` fits it inside, centred, with its proportions kept, `_STRETCH` fills `rc` exactly, `_CENTER` draws it centred at natural size. For an image file, use [tkImage](tkImage)'s `tkImage_Paint`, which makes the texture for you.
+`PaintImage( tex, rc, fit )` draws an `SDL_Texture`, clipped to `rc`: `TK_IMGFIT_ASPECT` fits it inside, centred, with its proportions kept, `_STRETCH` fills `rc` exactly, `_CENTER` draws it centred at natural size, `_COVER` fills `rc` with its proportions kept, centred, cropping what overflows.
+
+`PaintImageShape( tex, rc, curvature, fit, alpha )` draws the image inside a rounded rect, anti-aliased like every other shape: `curvature` is a diameter as elsewhere (0 = square corners; at least the shorter side = an ellipse, so a circle in a square box: a round photo). `fit` defaults to `TK_IMGFIT_COVER`; the shape is the image's own drawn rect inside `rc` (all of `rc` for COVER and STRETCH, the fitted image for ASPECT). `alpha` 0..255 is the opacity. The clip in force is honoured. For an image file, use [tkImage](tkImage)'s `tkImage_Paint`, which makes the texture for you.
+
+## Recording
+
+A `TK_PAINT` whose `pfnRec` is set draws nothing. Every primitive it would have drawn goes to `pfnRec( pRecCtx, op )` as one `TK_RECOP`, in window pixels with pens already scaled: a filled, stroked or open outline (the exact edge, before the anti-aliased fringe), a rect, a gradient, a text run (font, UTF-8, top-left, measured width), an image or a clip. `PlayOp( op )` draws one back. [tkPrint](tkPrint) is built on this: a page is a recording, and a recording replayed at the scale it was made at is the same pixels as painting directly. Controls need nothing to support it; one that draws with SDL directly instead of through `TK_PAINT` is not recorded.
 
 ## Public declarations
 
@@ -101,6 +107,7 @@ enum
     TK_IMGFIT_ASPECT = 0      ' fit inside, proportions kept, centred
     TK_IMGFIT_STRETCH         ' fill exactly
     TK_IMGFIT_CENTER          ' natural size, centred, clipped
+    TK_IMGFIT_COVER           ' fill the box, proportions kept, centred; the overflow cropped
 end enum
 
 enum
@@ -115,6 +122,17 @@ enum
     TK_GRADIENT_VERTICAL
     TK_GRADIENT_FDIAGONAL     ' top-left -> bottom-right
     TK_GRADIENT_BDIAGONAL     ' top-right -> bottom-left
+end enum
+
+enum
+    TKREC_FILLPOLY = 1      ' pts, n, c (+ gradient)
+    TKREC_STROKE            ' closed outline: pts, n, w, c
+    TKREC_STROKEOPEN        ' open polyline: pts, n, w, c, nDash, bRound
+    TKREC_FILLRECT          ' rc, c
+    TKREC_GRADRECT          ' rc + gradient
+    TKREC_TEXT              ' pFont, sText, x, y (top-left of the line), tw, c
+    TKREC_IMAGE             ' tex, rc (dest), src (w = 0: all of it)
+    TKREC_CLIP              ' rc; n = 0: no clip beyond the widget's own
 end enum
 ```
 
@@ -133,6 +151,33 @@ type TKPOINT
     y as long
 end type
 
+type TK_RECOP
+    op       as long
+    pts      as SDL_FPoint ptr
+    n        as long
+    c        as ulong
+    w        as single
+    nDash    as long
+    bRound   as boolean
+    rc       as SDL_FRect
+    bGrad    as boolean          ' a linear gradient gc0 at (gx0, gy0) -> gc1 at (gx1, gy1)
+    gx0      as single
+    gy0      as single
+    gx1      as single
+    gy1      as single
+    gc0      as ulong
+    gc1      as ulong
+    pFont    as TTF_Font ptr
+    sText    as string           ' UTF-8
+    x        as single
+    y        as single
+    tw       as single           ' the run's width as measured by SDL_ttf, pixels
+    tex      as SDL_Texture ptr
+    src      as SDL_FRect
+end type
+
+type TK_PaintRecSub as sub( byval pCtx as any ptr, byval op as TK_RECOP ptr )
+
 type TK_PAINT
     renderer as SDL_Renderer ptr
     engine   as TTF_TextEngine ptr
@@ -148,6 +193,8 @@ type TK_PAINT
     clrPen   as ulong = &hFFFFFFFFul
     nDash    as long = TK_PENDASH_SOLID
     pFont    as TTF_Font ptr
+    pfnRec   as TK_PaintRecSub        ' set: record, do not draw (tkPrint)
+    pRecCtx  as any ptr
     declare sub SetBackColor( byval c as ulong )
     declare sub SetForeColor( byval c as ulong )
     declare sub SetPenColor( byval c as ulong )
@@ -179,6 +226,8 @@ type TK_PAINT
     declare sub PaintTextEx( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
     declare sub PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval clr as ulong )
     declare sub PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
+    declare sub PlayOp( byref o as TK_RECOP )
+    declare sub PaintImageShape( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval curvature as long = 0, byval nFit as long = TK_IMGFIT_COVER, byval nAlpha as long = 255 )
 end type
 ```
 

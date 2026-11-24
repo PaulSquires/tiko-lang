@@ -15,6 +15,8 @@ The book's [Building and Shipping](https://tiko-lang.net/book/ch31-building-ship
 | `tiko check [targets]` | every error and warning a build would give, through lowering; writes nothing |
 | `tiko clean [targets]` | removes what a `tiko build` with the same profile would write |
 | `tiko metadata` | prints the project as one JSON object: targets, profiles, modules, search paths; compiles nothing |
+| `tiko test [dirs]` | builds the project's tests into one program and runs them -- see [tiko test](Category-Tiko-Test) |
+| `tiko doc [dirs]` | writes the API documentation of the project's modules into `out/doc/` -- see [tiko doc](Category-Tiko-Doc) |
 
 ```
 tiko build    [<target>...] [--profile <p>] [-j <n>] [--options "<flags>"] [--manifest <path>]
@@ -22,6 +24,8 @@ tiko run      [<target>] [build options] [-- <program arguments>]
 tiko check    [<target>...] [build options]
 tiko clean    [<target>...] [--profile <p>] [--manifest <path>]
 tiko metadata [--manifest <path>] [--format json] [-target <t>] [--options "<flags>"]
+tiko test     [<dirs> | <x_test.tiko>...] [--timeout <s>] [--filter <text>] [--no-run] [build options] [-- <args>]
+tiko doc      [<dirs>...] [-o <dir>] [--manifest <path>] [-target <t>]
 ```
 
 The subcommand must be the first word. A later `build` is a file name.
@@ -42,7 +46,8 @@ The subcommand must be the first word. A later `build` is a file name.
 | `-o <path>`, `-x <path>` | the output of a build with no manifest |
 | `-v` | each cache hit and miss, with the reason, and every tool command; not with `--message-format json` |
 | `--color=always\|never\|auto` | the console's colour, as for the driver |
-| `--` | ends tiko's arguments; the rest go to the program. `tiko run` only (`TKO0154` elsewhere) |
+| `--` | ends tiko's arguments; the rest go to the program. `tiko run` and `tiko test` only (`TKO0154` elsewhere) |
+| `--timeout <s>`, `--filter <text>`, `--no-run` | `tiko test`'s: see [tiko test](Category-Tiko-Test#running-tests) |
 
 A word is a **target** when a manifest is in force and the word has no `.`, `/` or `\`; otherwise it is a **file**. A target the manifest does not declare is `TKO0160`.
 
@@ -135,6 +140,7 @@ A profile is a named set of compiler options, and part of every cache key.
 |---|---|
 | `debug` | `-g -exx -O0`, the default |
 | `release` | `-O2` |
+| `asan` | `-g -exx -O1 -fsanitize=address`: [AddressSanitizer](Compiler-Option-Fsanitize) on top of the debug checks |
 
 `[profile.<name>]` changes a built-in or declares another:
 
@@ -195,6 +201,8 @@ end	<errors>	<warnings>	<exitcode>
 | `run-end` | `exit` | the program's exit code |
 | `copy` | `target`, `from`, `path`, `copied` (true/false) | each `copy_to` directory, after a build that succeeded; `copied` is false when the copy there was already current |
 | `clean` | `target`, `path`, `removed` (true/false) | `tiko clean`: the artefact, then each `copy_to` copy |
+| `test-plan`, `test-start`, `test-fail`, `test-end`, `test-summary` | see [tiko test](Category-Tiko-Test#the-json-event-stream) | `tiko test`, after the build of the test program |
+| `doc`, `doc-end` | `dir`, `exit`; `modules`, `path`, `exit` | `tiko doc`: each module, then the whole ([tiko doc](Category-Tiko-Doc#docjson)) |
 
 | `status` | Means |
 |---|---|
@@ -212,11 +220,13 @@ end	<errors>	<warnings>	<exitcode>
 ```json
 {"format":1,
  "package":{"name":"greeter","manifest":"tiko.toml","root":"."},
- "profiles":[{"name":"debug","flags":["-g","-exx","-O0"]},{"name":"release","flags":["-O2"]}],
+ "profiles":[{"name":"debug","flags":["-g","-exx","-O0"]},{"name":"release","flags":["-O2"]},
+             {"name":"asan","flags":["-g","-exx","-O1","-fsanitize=address"]}],
  "targets":[{"name":"greeter","kind":"exe","implicit":false,"main":"main.tiko",
              "roots":["main.tiko"],"resources":[],"defines":["TIMES=2"],
              "flags":["-g","-exx","-O0"],
-             "outputs":{"debug":"out/debug/greeter.exe","release":"out/release/greeter.exe"}}],
+             "outputs":{"debug":"out/debug/greeter.exe","release":"out/release/greeter.exe",
+                        "asan":"out/asan/greeter.exe"}}],
  "modules":[{"chain":"greeter.text","package":"greeter","dir":"text",
              "files":["text/text.tiko"],"imports":[]}],
  "searchPaths":{"roots":[],"pkg":"C:/tiko/pkg"},
@@ -249,7 +259,7 @@ Paths are relative to the current directory, as for the build; run it in the man
 | 5 | a tool failed: clang, the linker, or `tiko run` could not start the program; or a `copy_to` copy failed (`TKO0171`) |
 | 6 | a child compile crashed (`TKO0167`) |
 
-`tiko run` exits with the program's code once the build succeeds.
+`tiko run` exits with the program's code once the build succeeds. `tiko test` exits 1 when a test failed, crashed or timed out ([tiko test](Category-Tiko-Test#running-tests)).
 
 ## Editors
 

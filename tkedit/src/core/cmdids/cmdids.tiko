@@ -85,6 +85,7 @@ public enum Cmd explicit
     BufferNext
     BufferPrev
     OutputPane
+    OutputFloat
     SplitLeftRight
     SplitTopBottom
     CycleFocus
@@ -113,6 +114,7 @@ public enum Cmd explicit
     FormNewForm
     FormTheme
     FormResources
+    FormLanguages
     FormPreviewVariant
     FormHSpaceEqual
     FormHSpaceIncrease
@@ -286,7 +288,7 @@ constructor CommandTable( )
     this.Def( Cmd.Copy, "Copy", g, "Copy", "Primary+C" )
     this.Def( Cmd.Paste, "Paste", g, "Paste", "Primary+V" )
     this.Def( Cmd.SelectAll, "SelectAll", g, "Select All", "Primary+A" )
-    this.Def( Cmd.SelectLine, "SelectLine", g, "Select Line", "Primary+L" )
+    this.Def( Cmd.SelectLine, "SelectLine", g, "Select Line", "Primary+L", true )
     this.Def( Cmd.DeleteLine, "DeleteLine", g, "Delete Line", "Primary+Y", true )
     this.Def( Cmd.DuplicateLine, "DuplicateLine", g, "Duplicate Line", "Primary+D" )
     this.Def( Cmd.MoveLineUp, "MoveLineUp", g, "Move Line Up", "Primary+Shift+Up" )
@@ -325,6 +327,7 @@ constructor CommandTable( )
     this.Def( Cmd.ShowMenu, "ShowMenu", g, "Menu Bar", "Primary+Shift+M" )
     this.Def( Cmd.ShowExplorer, "ShowExplorer", g, "Explorer", "Primary+B" )
     this.Def( Cmd.OutputPane, "OutputPane", g, "Output", "Primary+F9" )
+    this.Def( Cmd.OutputFloat, "OutputFloat", g, "Float Output", "" )
     this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "Primary+Shift+P", true )
     this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
     this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )
@@ -345,6 +348,7 @@ constructor CommandTable( )
     this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "" )
     this.Def( Cmd.FormTheme, "FormTheme", g, "Project Theme...", "" )
     this.Def( Cmd.FormResources, "FormResources", g, "Resource Center...", "" )
+    this.Def( Cmd.FormLanguages, "FormLanguages", g, "Languages...", "" )
     this.Def( Cmd.FormPreviewVariant, "FormPreviewVariant", g, "Preview Light / Dark", "" )
     this.Def( Cmd.FormTest, "FormTest", g, "Test Form", "Alt+F5", true )
     this.Def( Cmd.FormAlignLefts, "FormAlignLefts", g, "Align Lefts", "", true )

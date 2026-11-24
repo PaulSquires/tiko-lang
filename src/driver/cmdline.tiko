@@ -62,6 +62,7 @@ constructor DriverOptions( )
     this.compileOnly = false
     this.debugInfo = false
     this.threadSafe = false
+    this.sanitizeAddress = false
     this.guiSubsystem = false
     this.stackSize = 2097152
     this.optLevel = 0
@@ -151,7 +152,10 @@ function HelpText( byval category as string = "" ) as string
         outp += "  tiko metadata print the project as JSON: targets, profiles, modules" & chr( 10 )
         outp += "  tiko run      build one exe target, then run it with the arguments after --" & chr( 10 )
         outp += "  tiko check    every diagnostic a build would give, through lowering; nothing written" & chr( 10 )
-        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache)" & chr( 10 )
+        outp += "  tiko test     build the project's tests into one program and run them" & chr( 10 )
+        outp += "  tiko doc      write the API documentation of the project's modules into out/doc" & chr( 10 )
+        outp += "  (their options: --profile, --manifest, --options, -j, --message-format, --no-cache;" & chr( 10 )
+        outp += "   test's: --timeout <s>, --filter <text>, --no-run, and the program's after --)" & chr( 10 )
         outp += "  tiko c2t      translate a C header into a tiko header: tiko c2t <in.h> [-o <out.ti>|-]" & chr( 10 ) & chr( 10 )
     end if
 
@@ -542,7 +546,7 @@ private function SourceOptionOk_ _
          Tko.OPT_ERRCHK, Tko.OPT_ERRCHKX, Tko.OPT_ERRCHKXX, Tko.OPT_DEBUG, _
          Tko.OPT_EARRAY, Tko.OPT_ENULLPTR, Tko.OPT_ELOCATION, Tko.OPT_EARRAYDIMS, _
          Tko.OPT_EASSERT, Tko.OPT_EDEBUG, Tko.OPT_EDEBUGINFO, Tko.OPT_EUNWIND, _
-         Tko.OPT_OPTLEVEL, Tko.OPT_MT, Tko.OPT_PIC, Tko.OPT_MAINMOD, _
+         Tko.OPT_OPTLEVEL, Tko.OPT_MT, Tko.OPT_PIC, Tko.OPT_MAINMOD, Tko.OPT_SANITIZE, _
          Tko.OPT_TARGET, Tko.OPT_M64, Tko.OPT_M32, Tko.OPT_SUBSYS, Tko.OPT_STACK, _
          Tko.OPT_WERROR, Tko.OPT_WNO, Tko.OPT_WLEVEL, Tko.OPT_MAXERR, Tko.OPT_MAXINSTDEPTH, _
          Tko.OPT_COLOR, Tko.OPT_DIAGFMT, _
@@ -732,6 +736,8 @@ function Parse _
 
         case Tko.OPT_INCLUDE  : opts.includePaths.Push( value )
         case Tko.OPT_PKGDIR   : opts.pkgDir = value
+        case Tko.OPT_PKGROOT  : opts.packageRoot = value
+        case Tko.OPT_EMITDOC  : opts.emitDoc = value
         case Tko.OPT_BUILDONLY : opts.buildOnlyUnit = valint( value )
         case Tko.OPT_DEFINE   : opts.defines.Push( value )
         case Tko.OPT_LIBPATH  : opts.libPaths.Push( value )
@@ -822,6 +828,15 @@ function Parse _
         '' subsystem 3, '-s gui' gives 2, and fbc hands ld '-subsystem windows'. Without
         '' it a GUI program -- tracks -- linked as a console one and opened a stray console
         '' window beside its own. Any other value is refused rather than guessed at.
+        '' -fsanitize=address, clang's spelling. 'address' alone: the others (thread, undefined,
+        '' memory) have no runtime measured here, so they are refused rather than passed on.
+        case Tko.OPT_SANITIZE
+            if Tko.Text.LowerAscii( value ) = "address" then
+                opts.sanitizeAddress = true
+            else
+                diags.ReportGlobal( Tko.TKO0106, value, "-fsanitize" )
+                ok = false
+            end if
         case Tko.OPT_SUBSYS
             select case Tko.Text.LowerAscii( value )
             case "gui"     : opts.guiSubsystem = true
@@ -959,6 +974,7 @@ function Parse _
         case Tko.OPT_PRINTGRAPH : opts.printGraph = true
         case Tko.OPT_PRINTCINC : opts.printCIncludes = true
         case Tko.OPT_EMITTKI   : opts.emitTki = true
+        case Tko.OPT_TEST      : opts.testMode = true
         case Tko.OPT_FRONTEND : opts.frontendOnly = true
         case Tko.OPT_NOMODCACHE : opts.noModuleCache = true
         case Tko.OPT_CLEANMODCACHE : opts.cleanModuleCache = true
@@ -1033,6 +1049,10 @@ function Parse _
     end if
     if len( appWhy ) > 0 then
         diags.ReportGlobal( Tko.TKO0197, appOpt, appWhy )
+        ok = false
+    end if
+    if opts.sanitizeAddress andalso Tko.TargetIsWindows( opts.target ) andalso (Tko.TargetLayoutFor( opts.target ).isMsvc = false) then
+        diags.ReportGlobal( Tko.TKO0179, opts.targetName )
         ok = false
     end if
 

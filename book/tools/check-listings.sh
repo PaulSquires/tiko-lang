@@ -27,9 +27,18 @@
 #                                              listing links. Implies cwd: listing; a source
 #                                              named here is not a listing of its own
 #                 env: LD_LIBRARY_PATH=.       set for the run, on every target
+#                 stderr: drop               the run's stderr is not compared, only stdout and the exit code
 #                 wsl-env: GALLIUM_DRIVER=d3d12  set for the run on linux-x86_64 only, which is
 #                                              WSL here: WSLg's workarounds, which break Mesa
 #                                              on a real X server (linux-arm64's Xvfb)
+#                 verb: test                   the listing is a file of a project whose
+#                                              output is a tiko SUBCOMMAND's, not a program's:
+#                                              `tiko <verb> <.args>` runs in the listing's
+#                                              directory and its console output and exit code
+#                                              are compared. The run time a summary prints
+#                                              ' (0.03 s)' is dropped. Implies cwd: listing
+#                 show: out/doc/x.md           with verb: a file the subcommand wrote, relative
+#                                              to the listing, appended to its output
 #                 project: greeter             the listing is the main file of a project:
 #                                              `tiko build greeter` runs in its directory,
 #                                              beside its tiko.toml, and the program run is
@@ -269,11 +278,14 @@ for t in "${targets[@]}"; do
 done
 
 # ------------------------------------------------------------------ listings
+exec 7>/dev/null   # where a 'stderr: drop' listing's stderr goes
 meta_get() { [[ -f "$1" ]] && sed -nE "s/^$2:[[:space:]]*//p" "$1" | head -1; }
 
 all=(); while IFS= read -r _l; do all+=("$_l"); done < <(find examples \( -name '*.tiko' -o -name '*.bas' \) | sed 's|\\|/|g' | sort)
 listings=()
 for f in "${all[@]}"; do
+  # out/ is a build's, never a listing's: 'tiko test' writes out/test/tests.tiko there.
+  [[ "$f" == */out/* ]] && continue
   # The chapter is the first directory under examples/: a listing may sit deeper, in a
   # project of its own (ch15/app/main.tiko) or among the solutions.
   rel="${f#examples/}"; chap="${rel%%/*}"
@@ -283,7 +295,8 @@ for f in "${all[@]}"; do
   fi
   # A file of a module begins with #module (comments may come first). It is compiled
   # through the listing that imports it, never on its own.
-  first="$(grep -m1 -vE "^[[:space:]]*('.*)?$" "$f" | tr -d '')"
+  first="$(grep -m1 -vE "^[[:space:]]*('.*)?$" "$f" | tr -d '
+')"
   [[ "$first" == '#module'* ]] && continue
   # A module named by another listing's meta is built with it, not on its own.
   base="$(basename "$f")"; dir="$(dirname "$f")"
@@ -315,13 +328,18 @@ for f in "${listings[@]}"; do
   cwd="$(meta_get "$meta" cwd)"
   prebuild="$(meta_get "$meta" prebuild)"
   runenv="$(meta_get "$meta" env)"
+  # stderr: drop -- the run's stderr is not compared (a report full of addresses and pids).
+  errfd=1; [[ "$(meta_get "$meta" stderr)" == drop ]] && errfd=7
   wslenv="$(meta_get "$meta" wsl-env)"
   project="$(meta_get "$meta" project)"
+  verb="$(meta_get "$meta" verb)"
+  show="$(meta_get "$meta" show)"
   output="$(meta_get "$meta" output)"
   linux_libdir="$(meta_get "$meta" linux-libdir)"
   [[ -n "$output" ]] && cwd=listing
   [[ -n "$prebuild" ]] && cwd=listing
   [[ -n "$project" ]] && cwd=listing
+  [[ -n "$verb" ]] && cwd=listing
   blocked_item="${blocked%% *}"; blocked_where="${blocked#* }"
   srcs=("$f"); for m in $modules; do srcs+=("$dir/$m"); done
   local_srcs=(); for s in "${srcs[@]}"; do local_srcs+=("$(basename "$s")"); done
@@ -363,6 +381,21 @@ for f in "${listings[@]}"; do
       continue
     fi
 
+    # A SUBCOMMAND's run (verb:): 'tiko test' or 'tiko doc' in the listing's directory, its
+    # console output and exit code being what is compared, and a file it wrote shown after.
+    if [[ -n "$verb" ]]; then
+      vargs=""; [[ -f "$base.args" ]] && vargs="$(head -1 "$base.args")"
+      [[ -n "$show" ]] && rm -f "$dir/$show"
+      if (( is_local )); then
+        got="$(cd "$dir" && eval "$runenv \"\$ltiko\" $verb $vargs" 2>&1)"; rc=$?
+      else
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $lin_env $runenv '$lin_tiko' $verb $vargs" 2>&1)"; rc=$?
+      fi
+      if [[ -n "$show" ]]; then
+        if [[ -f "$dir/$show" ]]; then got+=$'\n'"$(cat "$dir/$show")"; else got+=$'\n'"(no $show)"; fi
+      fi
+      got="$(printf '%s' "$got" | tr -d '\r' | sed -E 's/ \([0-9]+\.[0-9]+ s\)$//')"
+    else
     [[ -n "$output" ]] && rm -f "$dir/$output"
     if [[ -n "$project" ]]; then
       # A project builds where its tiko.toml is, into its own out/debug.
@@ -411,20 +444,21 @@ for f in "${listings[@]}"; do
       # One quoted eval: the .args line is parsed once, as a shell would, so a '*' inside
       # quotes reaches the program instead of being expanded against the directory.
       if [[ -f "$base.stdin" ]]; then
-        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" < "$root/$base.stdin" 2>&1)"
+        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" < "$root/$base.stdin" 2>&$errfd)"
       else
-        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" 2>&1)"
+        got="$(cd "$dir" && eval "$runenv \"\$root/\$exe\" $args" 2>&$errfd)"
       fi
     else
       if [[ -f "$base.stdin" ]]; then
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv $wslenv '$book_wsl/$exe' $args" < "$base.stdin" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv $wslenv '$book_wsl/$exe' $args" < "$base.stdin" 2>&$errfd)"
       else
-        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv $wslenv '$book_wsl/$exe' $args" 2>&1)"
+        got="$(wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && $runenv $wslenv '$book_wsl/$exe' $args" 2>&$errfd)"
       fi
     fi
     rc=$?
     got="$(printf '%s' "$got" | tr -d '\r')"
 
+    fi
     # A program's own output can name its source file -- a runtime error does. The path
     # it prints is whatever was passed to the compiler, which differs between a native
     # build and a WSL one, so reduce every form of it to the bare file name. That is also

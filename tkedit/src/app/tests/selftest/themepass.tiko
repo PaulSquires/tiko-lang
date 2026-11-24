@@ -150,6 +150,17 @@ public sub ThemePass( byref t as Tally, byval sc as single )
     t.Check( (dlg->PvGroup->y > dlg->PvStyled->y + dlg->PvStyled->ch) andalso (dlg->PvText->y > dlg->PvGroup->y + dlg->PvGroup->ch), _
              P( sc, "the group box sits between the buttons and the text box: " & dlg->PvGroup->y & " " & dlg->PvGroup->ch & " " & dlg->PvText->y ) )
     t.Check( tkGroupBox_GetText( dlg->PvGroup ) = "Options", P( sc, "the group box's caption: " & tkGroupBox_GetText( dlg->PvGroup ) ) )
+    ' small enough for a 1080-line laptop screen at 175 % (author 2026-11-22), and everything still in it
+    dim as TK_WIDGET ptr troot = tkForm_Widget( dlg->Win )
+    t.Check( (troot->cw <= tkHost_Scale( th, 860 )) andalso (troot->ch <= tkHost_Scale( th, 480 )), _
+             P( sc, "the Theme Center is at most 860 x 480: " & troot->cw & " x " & troot->ch ) )
+    t.Check( dlg->PvProgress->y + dlg->PvProgress->ch <= dlg->Preview->ch, _
+             P( sc, "the preview's last row inside it: " & (dlg->PvProgress->y + dlg->PvProgress->ch) & " of " & dlg->Preview->ch ) )
+    t.Check( dlg->BtnClose->y + dlg->BtnClose->ch <= troot->ch, P( sc, "Cancel inside the dialog: " & (dlg->BtnClose->y + dlg->BtnClose->ch) ) )
+    dim as TK_WIDGET ptr tbar = tkTabControl_GetTabBar( dlg->Tabs )
+    dim as TKRECT lastTab
+    t.Check( tkTabBar_GetTabRect( tbar, tkTabBar_GetCount( tbar ) - 1, lastTab ) andalso (lastTab.right <= tbar->cw), _
+             P( sc, "all four tabs in their strip: " & lastTab.right & " of " & tbar->cw ) )
     dim as TKBUTTON_COLORS bc
 
     ' ---- an accent: the preview follows, derived as the program will. Before one is typed the box shows

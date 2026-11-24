@@ -14,12 +14,6 @@ an array where the elements already are: `a( lo to hi )`.
 {{#include ../../examples/arrays/slices.out}}
 ```
 
-````admonish warning title="Status in this version"
-Array slices arrive after tiko 0.1.5, the toolchain this site is pinned to.
-This example was compiled and run on Windows and Linux with the development
-toolchain.
-````
-
 **`temps( 3 to 5 )` uses the array's own indices**, both ends included: the
 same numbers `temps( i )` takes. What comes back is a `span( of int32 )`, and
 **a span counts from 0** whatever the array did: `midweek( 0 )` is

@@ -16,8 +16,6 @@ tiko ships PCRE2 10.49 as a [vendor package](Vendor-Packages): its 8-bit library
 
 There is nothing to download, no header to translate, no `#foreignlib` and nothing on the command line, on Windows, Linux and macOS. The names are the ones PCRE2's documentation uses -- `pcre2_compile`, `pcre2_match`, `pcre2_match_data` -- each a `#define` of the 8-bit name the library exports (`pcre2_compile_8`). More programs, from named groups to Unicode text, are in the toolchain's `examples/pcre2`.
 
-> ⚠️ **`vendor/pcre2` arrives after tiko 0.1.5.** The programs on this page were run with the development toolchain; a 0.1.5 toolchain has no `vendor/pcre2`.
-
 ---
 
 ## 1. Finding matches

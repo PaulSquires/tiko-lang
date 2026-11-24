@@ -189,6 +189,7 @@ sub Window.OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
             it.Text = c->Doc.Controls[i].Pages[p]
             it.Glyph = PageGlyph( c->Doc.Controls[i], p )
             it.Origin = p
+            it.Id = PageId( c->Doc.Controls[i], p )
             items.Push( it )
         next
     else
@@ -1369,6 +1370,7 @@ end function
 sub Window.ControlRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
     dim as DocRef d = this.DocOfCanvas( c )
     if d = 0 then exit sub
+    this.RenameLanguageKeys( c, oldName, newName )       ' its translations go by the new name too
     dim as ustring path = CodePathOf_( d->Path )
     if (this.FindOpen( path ) = 0) andalso (fs.IsFile( path ) = false) then exit sub
     dim as DocRef code = this.OpenQuietly( path )
@@ -1464,6 +1466,8 @@ function Window.PrepareForms( ) as boolean
             if this.WriteResourcesGenerated( resPath, fs.ReadAllText( resPath ).ValueOr( none ) ) = false then ok = false
         end if
     end if
+    ' the project's languages: its appLanguages module, from the .tklang open or not
+    if this.PrepareLanguages( ) = false then ok = false
     GlyphsReady = false
     if len( SaveNote ) then
         this.SetMessage( SaveNote )

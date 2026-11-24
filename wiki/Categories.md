@@ -16,6 +16,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Array Results](Category-Array-Results) — 1 pages
 - [Collection Initializers](Category-Collection-Initializers) — 1 pages
 - [Defer](Category-Defer) — 1 pages
+- [Match](Category-Match) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
 - [Block Strings](Category-Block-Strings) — 1 pages
 - [Partial Types](Category-Partial-Types) — 1 pages
@@ -65,6 +66,8 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Goroutines and Channels](Category-Goroutines-and-Channels) — 13 pages
 - [LLVM Backend](Category-LLVM-Backend) — 1 pages
 - [tiko build](Category-Tiko-Build) — 1 pages
+- [tiko test](Category-Tiko-Test) — 1 pages
+- [tiko doc](Category-Tiko-Doc) — 1 pages
 - [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) — 1 pages
 
 ## Compatibility reference (the FreeBASIC manual)

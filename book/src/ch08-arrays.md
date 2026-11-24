@@ -359,12 +359,6 @@ A procedure that should work on *some* of an array has had two choices: take the
 a first and last index beside it, or copy the part it wants into a new array. A **span** is the
 third: it names a run of an array where the elements already are.
 
-```admonish warning title="Status in this version"
-Spans arrive after tiko 0.1.5, the toolchain this book is pinned to. The listings in this section
-were compiled and run with the development toolchain; the book's harness reports them as blocked
-(`pin-0.1.5`) until the pin moves to a release that has them.
-```
-
 ```tiko
 {{#include ../examples/ch08/spans.tiko}}
 ```
@@ -503,7 +497,7 @@ is simpler, and stop as soon as it is not.
 - **`a( lo to hi )` is a span**, `span( of T )`: part of a one-dimensional array, no copy, in the
   array's indices; the span itself counts from 0. Writes go through to the array, a span passes
   where `a( )` is wanted, and while one is in use its dynamic array cannot be `redim`med or
-  `erase`d (`TKO1062`). After tiko 0.1.5.
+  `erase`d (`TKO1062`).
 - The array variable is a descriptor; `fbc-int/array.bi` exposes `FB.ArrayLen`, `FB.ArraySize` and
   the record itself.
 - **Stop using a raw array when you start writing bookkeeping around it** — a live count, a doubling

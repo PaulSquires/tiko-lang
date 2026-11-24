@@ -71,11 +71,13 @@ using tkHost
 using tkPaint
 using model
 
-const as long WIN_CX = 980
-const as long WIN_CY = 600
+' 860 x 480: at 175 % that is 1505 x 840 pixels, inside a 1080-line laptop screen (980 x 600 was
+' 1050 lines tall there, author 2026-11-22); never more than the display's work area (Open)
+const as long WIN_CX = 860
+const as long WIN_CY = 480
 const as long ROW_CY = 28
 const as long GAP = 8
-const as long PREVIEW_CX = 340
+const as long PREVIEW_CX = 280
 const as long GLYPH_CX = 40                     ' a glyph button's width (the Resource Center's)
 const as ulong GLYPH_CLONE = &hF32B             ' copy (two sheets), the bundled icon font's
 const as ulong GLYPH_DELETE = &hF34C            ' a bin, as the Resource Center's Remove
@@ -429,8 +431,20 @@ sub ThemeDialog_.Open( byval owner as TK_FORM ptr, byref themePath as const ustr
     dim as ustring title = caption
     if len( title ) = 0 then title = i18n.Tr( "designer.theme_title", "Project Theme" )
     dim as single sc = 0
-    if owner then sc = tkForm_Host( owner )->fScaleForced
-    Win = tkApp_NewForm( title, WIN_CX, WIN_CY, owner, sc )
+    dim as long winCX = WIN_CX, winCY = WIN_CY
+    if owner then
+        dim as TK_HOST ptr oh = tkForm_Host( owner )
+        sc = oh->fScaleForced
+        ' no bigger than the work area of the owner's display, less room for the frame and title bar
+        dim as SDL_Rect rd
+        if (oh->fScale > 0) andalso SDL_GetDisplayUsableBounds( SDL_GetDisplayForWindow( oh->win ), @rd ) then
+            dim as long maxCX = cint( rd.w * oh->fDensity / oh->fScale ) - 16
+            dim as long maxCY = cint( rd.h * oh->fDensity / oh->fScale ) - 48
+            if (maxCX > 0) andalso (winCX > maxCX) then winCX = maxCX
+            if (maxCY > 0) andalso (winCY > maxCY) then winCY = maxCY
+        end if
+    end if
+    Win = tkApp_NewForm( title, winCX, winCY, owner, sc )
     if Win = 0 then exit sub
     Win->Tag = @this
     dim as TK_WIDGET ptr root_ = tkForm_Widget( Win )
@@ -707,7 +721,7 @@ sub ThemeDialog_.Layout( )
     dim as long nameX = 4 * g + 2 * bw2
     tkWidget_SetPos( LblStyleName, nameX, g, lblW, rh )
     tkWidget_SetPos( TxtStyleName, nameX + lblW, g, pw - g - nameX - lblW, rh )
-    dim as long listY = 2 * g + rh, listH = 4 * rh                          ' about four names
+    dim as long listY = 2 * g + rh, listH = 3 * rh                          ' about three names
     tkWidget_SetPos( StyleList, g, listY, fullW, listH )
     dim as long rowsY = listY + listH + 2 * g, chkY = ph - g - rh
     ' the rows inside their frame, clear of its line by a small gap
@@ -717,8 +731,9 @@ sub ThemeDialog_.Layout( )
     tkWidget_SetPos( ChkAllRoles, g, chkY, fullW, rh )
     this.LayoutStyleRows( )
 
-    ' the preview: one control a row; the check box, option and toggle in a group box, one a row
-    dim as long px = 2 * g, pwid = pvW - 4 * g, stepY = rh + g + g \ 2, y = 2 * g
+    ' the preview: one control a row, half a gap between; the check box, option and toggle in a
+    ' group box, one a row
+    dim as long px = 2 * g, pwid = pvW - 4 * g, stepY = rh + g \ 2, y = 2 * g
     dim as TK_WIDGET ptr above( 0 to 2 ) = { PvLabel, PvButton, PvStyled }
     for i as long = 0 to 2
         tkWidget_SetPos( above( i ), px, y, pwid, rh )
@@ -733,13 +748,13 @@ sub ThemeDialog_.Layout( )
     dim as TKRECT inner
     tkGroupBox_GetClientRect( PvGroup, inner )
     dim as long frameH = 3 * stepY - (inner.bottom - inner.top)       ' caption above + frame below
-    tkWidget_SetPos( PvGroup, px, y, pwid, frameH + 3 * rh + 2 * g )
+    tkWidget_SetPos( PvGroup, px, y, pwid, frameH + 3 * rh + g )
     tkGroupBox_GetClientRect( PvGroup, inner )
     dim as TK_WIDGET ptr inside( 0 to 2 ) = { PvCheck, PvOption, PvToggle }
     for i as long = 0 to 2
         dim as long w_ = inner.right - inner.left
         if inside( i ) = PvToggle then w_ = tkForm_Scale( Win, 48 )
-        tkWidget_SetPos( inside( i ), inner.left, inner.top + i * (rh + g), w_, rh )
+        tkWidget_SetPos( inside( i ), inner.left, inner.top + i * (rh + g \ 2), w_, rh )
     next
     y += PvGroup->ch + g
     dim as TK_WIDGET ptr below( 0 to 2 ) = { PvText, PvCombo, PvProgress }

@@ -135,7 +135,7 @@ LGPL-2.1-or-later with the static-linking exception: a program tiko compiles may
 same `fb_Gfx*` entry points, so it is a drop-in replacement. Its A/B tests (`lib/gfx/tools`) run
 drawing primitives through both libraries and compare what they drew. It is
 derived from FreeBASIC's `gfxlib2`, under the same LGPL licence and exception. It is built for
-windows-x86_64 only, which is why graphics programs build on Windows only (Appendix D).
+all four targets, drawing through GDI on Windows, X11 on Linux and Cocoa on macOS (Appendix D).
 
 ## Self-hosting
 

@@ -3459,27 +3459,68 @@ private sub ClickMenuTitle( byref mw as mainwin.Window, byval idx as long )
     tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
 end sub
 
-' The row index of command id in the menu of its group: rows in table order, a separator where the
-' table says (none above a menu's first row).
+' Walks group g's menu as mainwin.BuildMenus lays it out: rows in table order, a separator where the
+' table says (none above a menu's or a submenu's first row), a run of one submenu's rows (mainwin.MenuSub)
+' one title row of the menu. Gives command id's row in its own level (the menu, or its submenu; -1:
+' not in g), that submenu's title row in the menu (-1: none) and the count of the menu's own rows.
+private sub MenuWalk( byval g as MenuGroup, byval id as long, byref row as long, byref titleRow as long, byref topRows as long )
+    dim as cmdids.CommandTable t
+    dim as long top = 0, subR = 0, smN = 0, curTitle = -1
+    row = -1 : titleRow = -1
+    for each c as Cmd in t.InGroup( g )
+        if mainwin.InMenu( c ) = false then continue for
+        dim as long n = mainwin.MenuSub( c )
+        dim as boolean sep = t.Info( c ).SepBefore
+        if n <> smN then
+            smN = n : subR = 0
+            if n then
+                if sep andalso (top > 0) then top += 1
+                curTitle = top
+                top += 1
+            end if
+        end if
+        if n then
+            if sep andalso (subR > 0) then subR += 1
+            if clng( c ) = id then row = subR : titleRow = curTitle
+            subR += 1
+        else
+            if sep andalso (top > 0) then top += 1
+            if clng( c ) = id then row = top
+            top += 1
+        end if
+    next
+    topRows = top
+end sub
+
+' The row index of command id in its level of its group's menu (the menu, or its submenu).
 private function MenuRow( byval id as Cmd ) as long
     dim as cmdids.CommandTable t
-    dim as long r = 0
-    for each c as Cmd in t.InGroup( t.Info( id ).Group )
-        if t.Info( c ).SepBefore andalso (r > 0) then r += 1
-        if c = id then return r
-        r += 1
-    next
-    return -1
+    dim as long r, tr, tc
+    MenuWalk( t.Info( id ).Group, clng( id ), r, tr, tc )
+    return r
 end function
 
-' Clicks command id's row in the open dropdown m.
-private sub ClickMenuRow( byref mw as mainwin.Window, byval m as TK_MENU ptr, byval id as Cmd )
+' Clicks row idx of the open popup m on its own surface.
+private sub ClickPopupRow( byref mw as mainwin.Window, byval m as TK_MENU ptr, byval idx as long )
     dim as TKRECT ir
     dim as TK_HOST ptr ms = tkPopupMenu_Surface( m )
-    if (ms <> 0) andalso tkPopupMenu_GetItemRect( m, MenuRow( id ), ir ) then
+    if (ms <> 0) andalso tkPopupMenu_GetItemRect( m, idx, ir ) then
         tkTest_Click( ms, (ir.left + ir.right) \ 2, (ir.top + ir.bottom) \ 2 )
     end if
     tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
+end sub
+
+' Clicks command id's row in the open dropdown m: in a submenu, its title row first, which opens it.
+private sub ClickMenuRow( byref mw as mainwin.Window, byval m as TK_MENU ptr, byval id as Cmd )
+    dim as cmdids.CommandTable t
+    dim as long r, tr, tc
+    MenuWalk( t.Info( id ).Group, clng( id ), r, tr, tc )
+    dim as TK_MENU ptr lv = m
+    if tr >= 0 then
+        ClickPopupRow( mw, m, tr )
+        lv = tkPopupMenu_GetItemSubMenu( m, mainwin.MENU_SUB_ID + mainwin.MenuSub( id ) )
+    end if
+    if lv then ClickPopupRow( mw, lv, r )
 end sub
 
 public sub MenuPass( byref t as Tally, byval sc as single )
@@ -3507,19 +3548,53 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     dim as cmdids.CommandTable ct
     dim as boolean rowsOk = true
     for g as long = 0 to clng( MenuGroup.Count_ ) - 1
-        if g = clng( MenuGroup.Design ) then continue for          ' its submenus: checked below
         dim as Array( of Cmd ) ids = ct.InGroup( cast( MenuGroup, g ) )
         dim as TK_MENU ptr m = tkMenuBar_GetDropDown( mw.menuBar, g )
-        dim as long last_ = MenuRow( ids[ids.Count( ) - 1] )
-        if (m = 0) orelse (tkPopupMenu_GetItemCount( m ) <> last_ + 1) then rowsOk = false
+        dim as long r, tr, tc
+        MenuWalk( cast( MenuGroup, g ), -1, r, tr, tc )
+        if (m = 0) orelse (tkPopupMenu_GetItemCount( m ) <> tc) then rowsOk = false : continue for
+        ' each submenu ends at its last command's row
+        for i as long = 0 to ids.Count( ) - 1
+            dim as long n = mainwin.MenuSub( ids[i] )
+            if n = 0 then continue for
+            if (i < ids.Count( ) - 1) andalso (mainwin.MenuSub( ids[i + 1] ) = n) then continue for
+            MenuWalk( cast( MenuGroup, g ), clng( ids[i] ), r, tr, tc )
+            dim as TK_MENU ptr sm = tkPopupMenu_GetItemSubMenu( m, mainwin.MENU_SUB_ID + n )
+            if (sm = 0) orelse (tkPopupMenu_GetItemCount( sm ) <> r + 1) then rowsOk = false
+        next
     next
-    t.Check( rowsOk, P( sc, "menu: every command a row of its group's menu, the separators between" ) )
+    t.Check( rowsOk, P( sc, "menu: every command a row of its group's menu or submenu, the separators between" ) )
+    ' SetItemEnabled says whether the menu has the row at all (any level)
+    dim as TK_MENU ptr dsm0 = tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.Design ) )
+    t.Check( (tkPopupMenu_SetItemEnabled( dsm0, clng( Cmd.FormPreviewVariant ), true ) = false) andalso _
+             (tkPopupMenu_SetItemEnabled( dsm0, clng( Cmd.FormFloatToolbox ), true ) = false) andalso _
+             (tkPopupMenu_SetItemEnabled( dsm0, clng( Cmd.FormFloatProperties ), true ) = false) andalso _
+             tkPopupMenu_SetItemEnabled( dsm0, clng( Cmd.FormSnapToGrid ), true ), _
+             P( sc, "menu: Design has no Preview Light / Dark, Float Toolbox, Float Properties rows; Snap to Grid stays" ) )
+    ' no menu but Design taller than 14 rows and 6 separators (a small laptop screen, author
+    ' 2026-11-21); Design, grouped after VB6's Format menu, is the tallest and only reported
+    dim as long tallest = 0
+    dim as ustring heights
+    for g as long = 0 to clng( MenuGroup.Count_ ) - 1
+        dim as long iw, ih
+        tkPopupMenu_GetIdealSize( tkMenuBar_GetDropDown( mw.menuBar, g ), iw, ih )
+        if (ih > tallest) andalso (g <> clng( MenuGroup.Design )) then tallest = ih
+        heights &= iif( g, " ", "" ) & tkMenuBar_GetItemText( mw.menuBar, g ) & "=" & ih
+    next
+    t.Check( (tallest > 0) andalso (tallest <= tkForm_Scale( mw.form, 14 * TKPOPUPMENU_DEFAULT_ITEMHEIGHT + 6 * TKPOPUPMENU_DEFAULT_SEPHEIGHT )), _
+             P( sc, strings.Format( "menu: no dropdown but Design taller than 14 rows + 6 separators ({}: {})", _
+                tkForm_Scale( mw.form, 14 * TKPOPUPMENU_DEFAULT_ITEMHEIGHT + 6 * TKPOPUPMENU_DEFAULT_SEPHEIGHT ), heights ) ) )
+    dim as TK_MENU ptr esm = tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.Edit ) )
+    dim as TK_MENU ptr lnm = tkPopupMenu_GetItemSubMenu( esm, mainwin.MENU_SUB_ID + mainwin.MenuSub( Cmd.DeleteLine ) )
+    t.Check( (lnm <> 0) andalso (tkPopupMenu_GetItemCount( lnm ) = 7) andalso (MenuRow( Cmd.DeleteLine ) = 2) andalso _
+             tkPopupMenu_GetItemEnabled( esm, clng( Cmd.MoveLineUp ) ), _
+             P( sc, "menu: Edit > Line holds Select Line, a separator, Delete .. New Line Below" ) )
     dim as TK_MENU ptr dsm = tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.Design ) )
-    dim as TK_MENU ptr alm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormAlignLefts ) )
+    dim as TK_MENU ptr alm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.MENU_SUB_ID + mainwin.MenuSub( Cmd.FormAlignLefts ) )
     t.Check( (tkMenuBar_GetItemText( mw.menuBar, clng( MenuGroup.Design ) ) = "Design") andalso (alm <> 0) andalso _
              (tkPopupMenu_GetItemCount( alm ) = 7), P( sc, "menu: Design > Align holds Lefts .. Bottoms, a separator between" ) )
-    dim as TK_MENU ptr hsm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormHSpaceEqual ) )
-    dim as TK_MENU ptr cfm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.DESIGN_SUB_ID + mainwin.DesignSub( Cmd.FormCenterHorz ) )
+    dim as TK_MENU ptr hsm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.MENU_SUB_ID + mainwin.MenuSub( Cmd.FormHSpaceEqual ) )
+    dim as TK_MENU ptr cfm = tkPopupMenu_GetItemSubMenu( dsm, mainwin.MENU_SUB_ID + mainwin.MenuSub( Cmd.FormCenterHorz ) )
     t.Check( (hsm <> 0) andalso (tkPopupMenu_GetItemCount( hsm ) = 4) andalso (cfm <> 0) andalso (tkPopupMenu_GetItemCount( cfm ) = 2) andalso _
              tkPopupMenu_GetItemEnabled( dsm, clng( Cmd.FormLockControls ) ), _
              P( sc, "menu: Design > Horizontal Spacing (4 rows), Center in Form (2), Lock Controls" ) )
@@ -3586,6 +3661,13 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     t.Check( mw.OutputShown, P( sc, "menu: View > Output showed the output pane" ) )
     mw.ShowOutput( false )
 
+    ' ---- View > Split > Left/Right: a submenu's row runs its command too
+    ClickMenuTitle( mw, clng( MenuGroup.View ) )
+    ClickMenuRow( mw, tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.View ) ), Cmd.SplitLeftRight )
+    t.Check( (mw.Pane2 <> 0) andalso (tkMenuBar_IsMenuOpen( mw.menuBar ) = false), _
+             P( sc, "menu: View > Split > Left/Right split the editor and closed the menu" ) )
+    if mw.Pane2 then mw.Execute( Cmd.SplitLeftRight )
+
     ' ---- the Menu Bar row has its chord in force
     t.Check( mw.ShortcutText( Cmd.ShowMenu ) <> "", P( sc, "menu: Menu Bar has a chord (" & mw.ShortcutText( Cmd.ShowMenu ) & ")" ) )
 
@@ -3644,14 +3726,14 @@ public sub StartPass( byref t as Tally, byval sc as single )
              (tkWidget_IsVisible( mw.hbar( 0 ) ) = false), P( sc, "start: the blank buffer's view and its bars hidden" ) )
 
     ' ---- nothing open, no project: a row is live only if it would do something
-    dim as Cmd liveIds( 0 to 10 ) = { Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
-                                      Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.FormNewForm, Cmd.BuildConfig }
+    dim as Cmd liveIds( 0 to 11 ) = { Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
+                                      Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.BuildConfig }
     dim as Cmd deadIds( 0 to 18 ) = { Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.FileRecent, Cmd.ProjectSaveAs, Cmd.ProjectClose, Cmd.SearchSymbol, Cmd.FindInProject, _
                                       Cmd.GoBack, Cmd.GoForward, Cmd.CycleFocus, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, _
                                       Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.StartDebugging, Cmd.DeleteAllBreakpoints }
     dim as cmdids.CommandTable startTable
     dim as ustring wrongLive = "", wrongDead = ""
-    for i as long = 0 to 10
+    for i as long = 0 to 11
         if mw.CanRun( liveIds( i ) ) = false then wrongLive &= startTable.Info( liveIds( i ) ).Name & " "
     next
     for i as long = 0 to 18
