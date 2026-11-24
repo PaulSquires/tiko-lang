@@ -219,6 +219,28 @@ sub RunPass( )
     tkPrintDoc_Destroy( sd )
     tkReportSqlite_Close( sr )
     tkReport_Destroy( sr )
+
+    ' parameters: values from outside go in bound, never pasted into the SQL
+    dim as TK_REPORT ptr pr = tkReport_Create( "sqlp" )
+    dim as TK_VALUE pv(1)
+    pv(0).SetText( "a' or '1'='1" ) : pv(1).SetInt( 2 )
+    tkTest_Check( "SQLite: Open refuses a query with parameters", _
+                  tkReportSqlite_Open( pr, db3, "select name from t where name <> ? order by name" ) = false )
+    dim as TK_VALUE one_(0)
+    one_(0).SetText( "a" )
+    tkTest_Check( "SQLite: OpenEx refuses the wrong number of parameters", _
+                  tkReportSqlite_OpenEx( pr, db3, "select name from t where name <> ? and qty >= ? order by name", one_() ) = false )
+    opened = tkReportSqlite_OpenEx( pr, db3, "select name, qty from t where name <> ? and qty >= ? order by name", pv() )
+    dim as TK_RBAND ptr pb = tkReport_GetBand( pr, TKRB_DETAIL )
+    tkRBand_SetHeight( pb, 14 )
+    tkRBand_AddField( pb, RF( 0, 0, 60, 14 ), 0 ) : tkRBand_AddField( pb, RF( 60, 0, 120, 14 ), 1 )
+    sd = tkReport_Run( pr )
+    st = PageTexts( sd, 0, lowest )
+    ' the quote trick is text compared with name, so every row passes it; qty >= 2 leaves c alone
+    tkTest_Check( "SQLite: OpenEx binds its parameters (a quote in one is only text)", opened andalso (st = "c|3|"), st )
+    tkPrintDoc_Destroy( sd )
+    tkReportSqlite_Close( pr )
+    tkReport_Destroy( pr )
     sqlite3_close( db3 )
 
     ' ---- R5: the table source, 10,000 rows in 100 groups ----------------------------------------

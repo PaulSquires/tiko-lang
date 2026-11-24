@@ -83,7 +83,7 @@ A report reads rows once, forward, through a `TKREPORT_SOURCE`: the field names 
 - **Callbacks:** `tkReport_SetFields( names(), kinds() )`, `SetRowCount`, `SetGetValueCallback`.
 - **A tkListTree:** `tkReport_SourceFromListTree( rpt, hList )`. Its column captions are the field names and its rows the rows, as text.
 - **A table it holds:** `tkReport_TableAddField( rpt, name )` per field, then `TableAddRow` and `TableCell( rpt, row, f )` to set each value (a `TK_VALUE ptr`, good until the next AddRow). `TableClear` empties the rows. A field's kind is its first non-empty value's. A [tkReportViewer](tkReportViewer)'s own report is one.
-- **An SQLite query:** `tkReportSqlite_Open( rpt, db, "select ... order by ..." )` in the `tkReportSqlite` module. A field's kind comes from the column's declared type, and a NULL is empty. Close it with `tkReportSqlite_Close` before the database.
+- **An SQLite query:** `tkReportSqlite_Open( rpt, db, "select ... order by ..." )` in the `tkReportSqlite` module. A field's kind comes from the column's declared type, and a NULL is empty. Close it with `tkReportSqlite_Close` before the database. A value that comes from outside the program goes in as a **parameter**, never pasted into the SQL: `tkReportSqlite_OpenEx( rpt, db, "select ... where region = ? order by ...", params() )`, a `TK_VALUE` per parameter, `params(0)` being parameter 1. It must hold exactly as many as the query has, or the report is not opened (`Open` is `OpenEx` with none, so it refuses a query that has parameters).
 - **Any other source:** fill a `TKREPORT_SOURCE` and call `tkReport_SetSource`.
 
 ## Running
@@ -155,6 +155,7 @@ sub tkTablePrint_GetLayout( byval t as TK_TABLEPRINT ptr, byref scale as single,
 sub tkTablePrint_Destroy( byval t as TK_TABLEPRINT ptr )
 ' module tkReportSqlite
 function tkReportSqlite_Open( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring ) as boolean
+function tkReportSqlite_OpenEx( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring, params() as TK_VALUE ) as boolean
 sub tkReportSqlite_Close( byval rpt as TK_REPORT ptr )
 ```
 

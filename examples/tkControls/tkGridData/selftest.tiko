@@ -233,6 +233,84 @@ sub Sql( byval owner as TK_FORM ptr )
     sqlite3_close( db )
 end sub
 
+' Parameters, and writes that keep to one row inside the host's own transaction.
+sub SqlSafe( byval owner as TK_FORM ptr )
+    tkTest_Begin( "tkDataGridSqlite: parameters and savepoints" )
+    dim as TK_HOST ptr h = tkForm_Host( owner )
+    dim as sqlite3 ptr db
+    sqlite3_open( ":memory:", @db )
+    sqlite3_exec( db, "create table person( id integer primary key, name text, age int )", nullptr, nullptr, nullptr )
+    sqlite3_exec( db, "begin", nullptr, nullptr, nullptr )
+    for i as integer = 1 to 300
+        sqlite3_exec( db, "insert into person( name, age ) values( 'p" & right( "000" & i, 3 ) & "', " & (i mod 10) & " )", nullptr, nullptr, nullptr )
+    next
+    sqlite3_exec( db, "commit", nullptr, nullptr, nullptr )
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkForm_Widget( owner ), 12 )
+    tkWidget_SetPos( g, 10, 10, 520, 300 )
+
+    const as string FILTERED = "select id, name, age from person where name like ? and age = ?"
+    tkTest_Check( "Open refuses a query with parameters", tkDataGridSqlite_Open( g, db, FILTERED ) = 0 )
+    dim as TKDG_VALUE one_(0)
+    one_(0).SetText( "p%" )
+    tkTest_Check( "OpenEx refuses the wrong number of parameters", tkDataGridSqlite_OpenEx( g, db, FILTERED, one_() ) = 0 )
+
+    dim as TKDG_VALUE p(1)
+    p(0).SetText( "p1%" ) : p(1).SetInt( 3 )          ' p100 .. p199 with age 3: p103, p113, ... p193
+    dim as TKDGSQL ptr q = tkDataGridSqlite_OpenEx( g, db, FILTERED, p(), true, 4 )    ' 4-row blocks: LIMIT / OFFSET after the parameters
+    tkTest_PumpFor( h, 30 )
+    tkTest_Check( "OpenEx: the parameters filter the count and every block", (q <> 0) andalso (tkDataGrid_GetRowCount( g ) = 10) _
+        andalso (tkDataGrid_GetCellText( g, 0, 1 ) = "p103") andalso (tkDataGrid_GetCellText( g, 9, 1 ) = "p193"), _
+        str( tkDataGrid_GetRowCount( g ) ) & " " & tkDataGrid_GetCellText( g, 9, 1 ) )
+
+    dim as TKDG_SORTKEY keys(0)
+    keys(0).col = 1 : keys(0).bDescending = true
+    tkDataGrid_SetSortKeys( g, keys() )
+    tkTest_Check( "a sort prepares the block query again, its parameters bound", (tkDataGrid_GetCellText( g, 0, 1 ) = "p193") _
+        andalso (tkDataGrid_GetRowCount( g ) = 10), tkDataGrid_GetCellText( g, 0, 1 ) )
+    tkDataGrid_ClearSort( g )
+
+    p(0).SetText( "x' or '1'='1" )
+    tkTest_Check( "SetParams: a quote in a value is only text", tkDataGridSqlite_SetParams( q, p() ) andalso (tkDataGrid_GetRowCount( g ) = 0) )
+    p(0).SetText( "p2%" ) : p(1).SetInt( 0 )
+    tkTest_Check( "SetParams: new values, rows counted and read again", tkDataGridSqlite_SetParams( q, p() ) _
+        andalso (tkDataGrid_GetRowCount( g ) = 10) andalso (tkDataGrid_GetCellText( g, 0, 1 ) = "p200") )
+    tkTest_Check( "SetParams refuses the wrong number", (tkDataGridSqlite_SetParams( q, one_() ) = false) _
+        andalso (tkDataGrid_GetRowCount( g ) = 10) andalso (instr( tkDataGridSqlite_LastError( q ), "2 parameters" ) > 0), _
+        tkDataGridSqlite_LastError( q ) )
+
+    ' writes inside the host's transaction: the host's COMMIT / ROLLBACK stays the host's
+    tkDataGridSqlite_SetWritable( q, "person", "id" )
+    sqlite3_exec( db, "begin", nullptr, nullptr, nullptr )
+    sqlite3_exec( db, "insert into person( name, age ) values( 'host', 0 )", nullptr, nullptr, nullptr )
+    dim as boolean deleted = tkDataGrid_DeleteRows( g, 0, 2 )
+    dim as boolean edited = tkDataGrid_SetCellText( g, 0, 1, "Zed" )
+    tkTest_Check( "a delete and an edit inside the host's transaction leave it open", deleted andalso edited _
+        andalso (sqlite3_get_autocommit( db ) = 0) andalso (Scalar( db, "select count(*) from person" ) = "299") _
+        andalso (Scalar( db, "select name from person where id = 220" ) = "Zed"), tkDataGridSqlite_LastError( q ) )
+    sqlite3_exec( db, "rollback", nullptr, nullptr, nullptr )
+    tkTest_Check( "the host's ROLLBACK undoes them with its own work", (Scalar( db, "select count(*) from person" ) = "300") _
+        andalso (Scalar( db, "select name from person where id = 220" ) = "p220") )
+    tkDataGridSqlite_Refresh( q )
+
+    ' an edit or a delete that would not change exactly one row is undone and refused
+    tkTest_Check( "the rows are back after Refresh", tkDataGrid_GetCellText( g, 0, 1 ) = "p200" )   ' (and the block is held)
+    sqlite3_exec( db, "delete from person where id = 200", nullptr, nullptr, nullptr )    ' behind the grid's back
+    tkTest_Check( "an edit of a row that is gone is refused", (tkDataGrid_SetCellText( g, 0, 1, "ghost" ) = false) _
+        andalso (instr( tkDataGridSqlite_LastError( q ), "matched 0 rows" ) > 0), tkDataGridSqlite_LastError( q ) )
+    tkTest_Check( "a delete that includes a row that is gone deletes none", (tkDataGrid_DeleteRows( g, 0, 2 ) = false) _
+        andalso (Scalar( db, "select count(*) from person" ) = "299") andalso (sqlite3_get_autocommit( db ) <> 0), tkDataGridSqlite_LastError( q ) )
+    tkDataGridSqlite_Refresh( q )
+    tkDataGridSqlite_SetWritable( q, "person", "age" )            ' not a key: 30 rows share each age
+    tkTest_Check( "an edit by a column that is not unique is refused, nothing written", (tkDataGrid_SetCellText( g, 0, 1, "many" ) = false) _
+        andalso (Scalar( db, "select count(*) from person where name = 'many'" ) = "0") _
+        andalso (instr( tkDataGridSqlite_LastError( q ), "it must match one" ) > 0), tkDataGridSqlite_LastError( q ) )
+    tkTest_Check( "no savepoint is left open", sqlite3_get_autocommit( db ) <> 0 )
+
+    tkDataGridSqlite_Close( q )
+    tkWidget_Destroy( g )
+    sqlite3_close( db )
+end sub
+
 if tkTest_Init() = false then end 99
 dim as TKAPP_OPTIONS opts
 if tkApp_Init( opts ) = false then
@@ -244,6 +322,7 @@ tkForm_Show( mainForm )
 tkTest_PumpFor( tkForm_Host( mainForm ), 50 )
 Cache( mainForm )
 Sql( mainForm )
+SqlSafe( mainForm )
 dim as long nFail = tkTest_Report( "tkGridData" )
 tkApp_Shutdown( )
 end nFail

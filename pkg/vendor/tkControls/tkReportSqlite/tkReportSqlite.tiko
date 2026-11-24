@@ -11,6 +11,9 @@
 ' declared column types -- INT, REAL / FLOAT / DOUBLE / NUMERIC / DECIMAL, BOOL, DATE, TIME, else
 ' text), each step a row, sqlite3_reset to lay the report out again. A NULL is an EMPTY value. The
 ' query must ORDER BY the report's group keys: the report does not sort.
+'
+' PARAMETERS: a report filtered on what the user chose takes it as a parameter, never pasted into
+' the SQL -- tkReportSqlite_OpenEx( rpt, db, "select ... where region = ? order by ...", params() ).
 #module "tkReportSqlite"
 
 #import "vendor/sqlite3"
@@ -90,13 +93,45 @@ private sub QGet( byval p as any ptr, byval f as long, byref v as TK_VALUE )
     end select
 end sub
 
-' The report reads rows of 'sql' on db. FALSE (and nothing changed) when it does not prepare. The
-' statement lives until tkReportSqlite_Close (before the database is closed).
-public function tkReportSqlite_Open( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring ) as boolean
+' A value as a parameter: never pasted into the SQL. A date is bound as yyyy-mm-dd text, a time as
+' HH:mm:ss, as the columns are read back.
+private sub BindValue( byval st as sqlite3_stmt ptr, byval i as long, byref v as const TK_VALUE )
+    select case v.kind
+    case TKV_INT   : sqlite3_bind_int64( st, i, v.i )
+    case TKV_FLOAT : sqlite3_bind_double( st, i, v.f )
+    case TKV_BOOL  : sqlite3_bind_int( st, i, iif( v.b, 1, 0 ) )
+    case TKV_DATE
+        dim as string s = right( "000" & v.d.wYear, 4 ) & "-" & right( "0" & v.d.wMonth, 2 ) & "-" & right( "0" & v.d.wDay, 2 )
+        sqlite3_bind_text( st, i, s, -1, SQLITE_TRANSIENT )
+    case TKV_TIME
+        dim as string s = right( "0" & v.t.wHour, 2 ) & ":" & right( "0" & v.t.wMinute, 2 ) & ":" & right( "0" & v.t.wSecond, 2 )
+        sqlite3_bind_text( st, i, s, -1, SQLITE_TRANSIENT )
+    case TKV_TEXT
+        dim as string s = v.s
+        sqlite3_bind_text( st, i, s, -1, SQLITE_TRANSIENT )
+    case else      : sqlite3_bind_null( st, i )
+    end select
+end sub
+
+' The report reads rows of 'sql' on db, with a '?' (or ?NNN, :name) for each value that comes from
+' outside the program; params(0) is parameter 1, bound once (sqlite3_reset, which lays the report
+' out again, keeps them). FALSE (and nothing changed) when it does not prepare, or params() does not
+' hold exactly as many values as the query has parameters. The statement lives until
+' tkReportSqlite_Close (before the database is closed).
+public function tkReportSqlite_OpenEx( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring, _
+                                       params() as TK_VALUE ) as boolean
     if (rpt = 0) orelse (db = 0) then return false
     dim as string s8 = sql
     dim as sqlite3_stmt ptr st
     if sqlite3_prepare_v2( db, strptr( s8 ), len( s8 ), @st, 0 ) <> SQLITE_OK then return false
+    dim as long n = ubound( params ) - lbound( params ) + 1
+    if n <> sqlite3_bind_parameter_count( st ) then
+        sqlite3_finalize( st )
+        return false
+    end if
+    for i as long = 0 to n - 1
+        BindValue( st, i + 1, params(lbound( params ) + i) )
+    next
     dim as RSQ_CTX ptr c = new RSQ_CTX
     c->stmt = st
     c->nCols = sqlite3_column_count( st )
@@ -114,6 +149,12 @@ public function tkReportSqlite_Open( byval rpt as TK_REPORT ptr, byval db as sql
     src.RowCount = @QRowCount : src.MoveNext = @QNext : src.GetValue = @QGet : src.Rewind = @QRewind
     tkReport_SetSource( rpt, src )
     return true
+end function
+
+' A query with no parameters. One that has some needs OpenEx: here it is refused (FALSE).
+public function tkReportSqlite_Open( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring ) as boolean
+    dim as TK_VALUE none_( any )
+    return tkReportSqlite_OpenEx( rpt, db, sql, none_() )
 end function
 
 ' Finalize the statement tkReportSqlite_Open made for this report.

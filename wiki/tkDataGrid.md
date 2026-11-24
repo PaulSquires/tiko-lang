@@ -258,6 +258,34 @@ Its own module, so a grid that does not read SQLite does not link it.
   must be one of the query's. Adding rows is not offered: insert with SQL, then
   `tkDataGridSqlite_Refresh( q )` (rows counted again, the grid reset). `LastError`,
   `GetFetchCount`.
+- **Each write is a savepoint**, so it nests inside a transaction your program has open: your
+  `commit` or `rollback` still decides, and covers the grid's writes too. Every edit and every
+  deleted row must change exactly one row. One that changes none (the row was deleted elsewhere) or
+  several (the key column is not unique) is undone and refused, and `LastError` says why.
+
+### Parameters: a filtered grid
+
+Anything that comes from outside the program -- a search box, a chosen customer -- goes in as a
+**parameter**, never pasted into the SQL. That is what keeps a quote in the user's text from
+becoming SQL (SQL injection):
+
+```freebasic
+dim as TKDG_VALUE p(1)
+p(0).SetText( "Sm%" ) : p(1).SetInt( 18 )             ' params(0) is parameter 1
+dim as TKDGSQL ptr q = tkDataGridSqlite_OpenEx( g, db, "select id, name, age from person where name like ? and age >= ?", p() )
+
+' the search box changed
+p(0).SetText( tkTextBox_GetText( txtSearch.Handle ) & "%" )
+tkDataGridSqlite_SetParams( q, p() )                   ' counted again, read again, the grid reset
+```
+
+- `OpenEx( h, db, query, params(), bColumns, blockRows, maxBlocks )` binds them in the row count and
+  in every block query; the block's own `limit` and `offset` are numbered after them, so the two
+  never collide. `?`, `?NNN` and `:name` all work; `params(0)` is parameter 1.
+- `params()` must hold exactly as many values as the query has parameters. Otherwise `OpenEx`
+  returns 0 and `SetParams` returns `false` and changes nothing: an unbound parameter would quietly
+  be NULL. `Open` is `OpenEx` with none, so it refuses a query that has parameters.
+- `SetParams( q, params() )` is a new search: the rows are counted and read again, as `Refresh`.
 
 ## In the Form Designer
 
@@ -539,6 +567,8 @@ sub tkDataGrid_SetFilterCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_F
 
 ' ---- tkDataGridSqlite
 function tkDataGridSqlite_Open( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr
+function tkDataGridSqlite_OpenEx( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, params() as TKDG_VALUE, byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr
+function tkDataGridSqlite_SetParams( byval q as TKDGSQL ptr, params() as TKDG_VALUE ) as boolean
 function tkDataGridSqlite_SetWritable( byval q as TKDGSQL ptr, byref table as const ustring, byref pkColumn as const ustring ) as boolean
 sub tkDataGridSqlite_Refresh( byval q as TKDGSQL ptr )
 function tkDataGridSqlite_GetFetchCount( byval q as TKDGSQL ptr ) as integer
