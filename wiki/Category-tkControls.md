@@ -95,6 +95,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Module | What it is |
 |---|---|
 | [tkLayout](tkLayout) | Automatic placement by anchor and dock, in design units, shared with the form designer |
+| [tkStack](tkStack) | A column or a row of controls, one after another: a phone screen's layout, with cards and a scroll panel's content height |
 | [tkForms](tkForms) | `FormBase`, the base a designed form extends: a window, a layout, modal and modeless show, caption translation |
 | [tkLanguage](tkLanguage) | Captions in another language: TOML catalogs built in with `#embed` or read from files, the user's language picked at start-up |
 | [tkImage](tkImage) | Image files (`.png`, `.bmp`, `.jpg`, `.gif`, `.ico`, ...) for icon slots, through SDL_image |

@@ -194,6 +194,16 @@ public enum
     TK_CURSOR_COUNT
 end enum
 
+' What a focused text widget's screen keyboard is (tkWidget_SetTextKind; docs/fasting-android F4).
+public enum
+    TK_TEXT_DEFAULT = 0      ' SDL's default: multi-line text with autocorrect (what every widget had)
+    TK_TEXT_LINE             ' one line of text
+    TK_TEXT_MULTILINE        ' paragraphs; sentences capitalised
+    TK_TEXT_DECIMAL          ' a number with a point (and a sign)
+    TK_TEXT_INTEGER          ' a whole number (and a sign)
+    TK_TEXT_PASSWORD         ' hidden, never learned by the keyboard
+end enum
+
 ' Reserved timer ids. A control's own ids start at TK_TIMER_APP.
 public enum
     TK_TIMER_CARET = 900
@@ -203,6 +213,7 @@ public enum
     TK_TIMER_HOVER
     TK_TIMER_TIPSHOW
     TK_TIMER_TIPPOP
+    TK_TIMER_TEXTRESTART     ' the host's own: a field of another keyboard kind (F4)
     TK_TIMER_APP = 1000
 end enum
 
@@ -264,6 +275,7 @@ public type TK_WIDGET_
     nTabIndex     as long = 0           ' its place among its siblings in Tab order; 0 = none (tree order, after)
     bClipChildren as boolean = true
     bWantsText    as boolean = false    ' focus here starts SDL text input (and the IME)
+    nTextKind     as long = 0           ' TK_TEXT_*: the screen keyboard a focused text widget asks for
     cursor        as long = TK_CURSOR_ARROW
     proc          as tkWidgetProc
     pData         as any ptr            ' the control's own state
@@ -316,6 +328,7 @@ public type TK_HOST_
     pLastDown    as TK_WIDGET ptr     ' for demoting a double click that changed widgets
     bCaptureOS   as boolean           ' did SDL_CaptureMouse succeed for the live capture?
     bTextInput   as boolean
+    nTextKindOn  as long              ' the TK_TEXT_* the live text input was started with
     bDirty       as boolean = true
     bQuit        as boolean
     bClosed      as boolean           ' closed, waiting to be reaped after this event
@@ -1336,6 +1349,45 @@ private sub WholeWidgetArea_( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, 
     SDL_SetTextInputArea( h->win, @r, cint( cursorX / h->fDensity ) )
 end sub
 
+' THE KIND OF KEYBOARD (docs/fasting-android F4 X1): a text widget says what it takes -- a line, a
+' multi-line note, a decimal, a whole number, a password -- and the text input is started with
+' those properties, so a phone shows a number pad, or a keyboard that does not learn a password.
+' SDL has no decimal type: its NUMBER is Android's TYPE_CLASS_NUMBER without the DECIMAL flag
+' (measured, F0-FACTS c), so Android's own input type is given as well (0x3002 = NUMBER | SIGNED |
+' DECIMAL; 0x1002 NUMBER | SIGNED; 0x81 TEXT | PASSWORD, no autocorrect). TK_TEXT_DEFAULT is SDL's
+' own default, as every text widget had before. On a desktop the properties change nothing visible.
+private sub StartText_( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
+    dim as long k = 0
+    if w then k = w->nTextKind
+    h->nTextKindOn = k
+    if k = TK_TEXT_DEFAULT then SDL_StartTextInput( h->win ) : exit sub
+    dim as SDL_PropertiesID p = SDL_CreateProperties( )
+    select case k
+    case TK_TEXT_LINE
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_TYPE_NUMBER, SDL_TEXTINPUT_TYPE_TEXT )
+        SDL_SetBooleanProperty( p, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false )
+    case TK_TEXT_MULTILINE
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_TYPE_NUMBER, SDL_TEXTINPUT_TYPE_TEXT )
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_CAPITALIZATION_NUMBER, SDL_CAPITALIZE_SENTENCES )
+        SDL_SetBooleanProperty( p, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, true )
+    case TK_TEXT_DECIMAL
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_TYPE_NUMBER, SDL_TEXTINPUT_TYPE_NUMBER )
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER, &h3002 )
+        SDL_SetBooleanProperty( p, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false )
+    case TK_TEXT_INTEGER
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_TYPE_NUMBER, SDL_TEXTINPUT_TYPE_NUMBER )
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER, &h1002 )
+        SDL_SetBooleanProperty( p, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false )
+    case TK_TEXT_PASSWORD
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_TYPE_NUMBER, SDL_TEXTINPUT_TYPE_TEXT_PASSWORD_HIDDEN )
+        SDL_SetNumberProperty( p, SDL_PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER, &h81 )
+        SDL_SetBooleanProperty( p, SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN, false )
+        SDL_SetBooleanProperty( p, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false )
+    end select
+    SDL_StartTextInputWithProperties( h->win, p )
+    SDL_DestroyProperties( p )
+end sub
+
 ' THE KEYBOARD AGAIN: Android ignores the request made while the window is not focused (a field
 ' focused at start-up got none, measured), and BACK hides it with the field still focused. As an
 ' Android field does, a tap on the focused text widget -- or the window gaining focus -- asks again.
@@ -1345,16 +1397,56 @@ private sub KeyboardAgain_( byval h as TK_HOST ptr )
     if (h->pFocus->bWantsText = false) orelse SDL_ScreenKeyboardShown( h->win ) then exit sub
     WholeWidgetArea_( h, h->pFocus, 0 )
     SDL_StopTextInput( h->win )
-    SDL_StartTextInput( h->win )
+    StartText_( h, h->pFocus )
 end sub
+
+public declare sub tkWidget_SetTimer( byval w as TK_WIDGET ptr, byval id as long, byval ms as long )
+public declare sub tkWidget_KillTimer( byval w as TK_WIDGET ptr, byval id as long )
 
 private sub UpdateTextInput( byval h as TK_HOST ptr )
     dim as boolean bWant = (h->pFocus <> 0) andalso h->pFocus->bWantsText
-    if bWant = h->bTextInput then exit sub
+    dim as long k = 0
+    if bWant then k = h->pFocus->nTextKind
+    ' the same state -- or text input on for a field of the same kind -- needs nothing; a field of
+    ' ANOTHER kind restarts it, or the keyboard would stay the previous field's
+    if bWant = false then tkWidget_KillTimer( h->root, TK_TIMER_TEXTRESTART )    ' a restart still due is moot
+    if (bWant = h->bTextInput) andalso ((bWant = false) orelse (k = h->nTextKindOn)) then exit sub
+    ' ANOTHER KIND WHILE TYPING: stopped and started again -- but on a phone the start comes
+    ' 120 ms later (TK_TIMER_TEXTRESTART). Measured on Android (F4): a start straight after the
+    ' stop lost to the stop's hide, so every other field got no keyboard at all; and a second
+    ' start without a stop is ignored, so the keyboard stayed the previous field's kind.
+    if bWant andalso h->bTextInput then
+        SDL_StopTextInput( h->win )
+        if SDL_HasScreenKeyboardSupport( ) then
+            h->nTextKindOn = k
+            if Virtual_() then WholeWidgetArea_( h, h->pFocus, 0 )
+            tkWidget_SetTimer( h->root, TK_TIMER_TEXTRESTART, 120 )
+            exit sub
+        end if
+    end if
     h->bTextInput = bWant
     if bWant andalso Virtual_() then WholeWidgetArea_( h, h->pFocus, 0 )
-    if bWant then SDL_StartTextInput( h->win ) else SDL_StopTextInput( h->win )
+    if bWant then StartText_( h, h->pFocus ) else SDL_StopTextInput( h->win )
 end sub
+
+' A widget's keyboard kind (TK_TEXT_*); a focused one's text input restarts with it.
+public sub tkWidget_SetTextKind( byval w as TK_WIDGET ptr, byval kind as long )
+    if w = 0 then exit sub
+    if w->nTextKind = kind then exit sub
+    w->nTextKind = kind
+    if (w->pHost <> 0) andalso (w->pHost->pFocus = w) then UpdateTextInput( w->pHost )
+end sub
+
+public function tkWidget_GetTextKind( byval w as TK_WIDGET ptr ) as long
+    if w = 0 then return 0
+    return w->nTextKind
+end function
+
+' What the live text input was started with: -1 when none is on (self-tests).
+public function tkHost_TextKindOn( byval h as TK_HOST ptr ) as long
+    if (h = 0) orelse (h->bTextInput = false) then return -1
+    return h->nTextKindOn
+end function
 
 public sub tkHost_SetFocus( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
     if h = 0 then exit sub
@@ -1683,6 +1775,11 @@ private sub DestroyNow( byval h as TK_HOST ptr )
         while h->root->pLast
             tkWidget_Destroy( h->root->pLast )
         wend
+        ' the root's own timers too (the keyboard restart, F4): a tick after this would reach a
+        ' freed widget -- measured, a SIGSEGV in tkHost_Dispatch on the next host's pump
+        for i as long = 0 to ubound( gTimers )
+            if gTimers(i).active andalso (gTimers(i).pW = h->root) then tkWidget_KillTimer( h->root, gTimers(i).id )
+        next
         delete h->root
         h->root = 0
     end if
@@ -2783,7 +2880,12 @@ public sub tkHost_Dispatch( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
     if (gEvTimer <> 0) andalso (e->type = gEvTimer) then
         dim as TK_TIMER ptr t = cast( TK_TIMER ptr, e->user.data1 )
         ' drop a tick that was already queued when its timer was killed
-        if t andalso t->active andalso (t->gen = e->user.code) then
+        if t andalso t->active andalso (t->gen = e->user.code) andalso (t->id = TK_TIMER_TEXTRESTART) then
+            dim as TK_WIDGET ptr tw = t->pW
+            tkWidget_KillTimer( tw, TK_TIMER_TEXTRESTART )
+            dim as TK_HOST ptr th = tw->pHost
+            if (th <> 0) andalso th->bTextInput andalso (th->pFocus <> 0) andalso th->pFocus->bWantsText then StartText_( th, th->pFocus )
+        elseif t andalso t->active andalso (t->gen = e->user.code) then
             dim as TK_MSG m
             m.msg = TKM_TIMER
             m.timerId = t->id

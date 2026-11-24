@@ -1461,6 +1461,20 @@ end sub
 ' ==========================================================================================
 public declare function tkTextBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKTEXTBOX_COLORS
 
+' The screen keyboard the box's modes ask for (docs/fasting-android F4 X1): a note's, a line's, a
+' password's, or a number pad -- decimal when DecimalPlaces > 0.
+private sub TbTextKind( byval t as TKTEXTBOX_STATE ptr )
+    dim as long k = TK_TEXT_LINE
+    if t->bMultiline then
+        k = TK_TEXT_MULTILINE
+    elseif t->chPassword <> 0 then
+        k = TK_TEXT_PASSWORD
+    elseif t->bNumeric then
+        k = iif( t->nDecimals > 0, TK_TEXT_DECIMAL, TK_TEXT_INTEGER )
+    end if
+    tkWidget_SetTextKind( t->hWin, k )
+end sub
+
 ' bMultiline is fixed for the control's lifetime.
 public function tkTextBox_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long, byval bMultiline as boolean = false ) as TK_WIDGET ptr
     if hParent = 0 then return 0
@@ -1472,6 +1486,7 @@ public function tkTextBox_Create( byval hParent as TK_WIDGET ptr, byval CtrlID a
     w->bWantsText = true
     w->cursor = TK_CURSOR_IBEAM
     t->hWin = w
+    TbTextKind( t )
     t->nScrollW = tkHost_Scale( w->pHost, TKVSCROLL_DEFAULT_WIDTH )
     t->colors = tkTextBox_ThemeColors( tkTheme_Of( w ) )
     ' the theme's recipes for this type apply from the start, not just after a theme change
@@ -1613,6 +1628,7 @@ public sub tkTextBox_SetPasswordChar( byval hTextBox as TK_WIDGET ptr, byval wch
     if (t = 0) orelse t->bMultiline then exit sub
     t->chPassword = wchChar
     t->sMask = iif( wchChar <> 0, TbUtf8Of( wchChar ), "" )
+    TbTextKind( t )
     TbTextChanged( t )
     TbEnsureCaretVisible( t )
     tkWidget_Invalidate( hTextBox )
@@ -1712,6 +1728,7 @@ public sub tkTextBox_SetNumericMode( byval hTextBox as TK_WIDGET ptr, byval bEna
     dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
     if (t = 0) orelse t->bMultiline then exit sub
     t->bNumeric = bEnable
+    TbTextKind( t )
 end sub
 
 public function tkTextBox_GetDecimalPlaces( byval hTextBox as TK_WIDGET ptr ) as integer
@@ -1722,7 +1739,9 @@ end function
 
 public sub tkTextBox_SetDecimalPlaces( byval hTextBox as TK_WIDGET ptr, byval nPlaces as integer )
     dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
-    if t then t->nDecimals = iif( nPlaces < 0, 0, nPlaces )
+    if t = 0 then exit sub
+    t->nDecimals = iif( nPlaces < 0, 0, nPlaces )
+    TbTextKind( t )
 end sub
 
 ' Empty, "-" and "." read as 0.

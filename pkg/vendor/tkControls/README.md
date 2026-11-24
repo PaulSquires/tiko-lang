@@ -47,6 +47,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel (phase G0: no selection or editing yet) |
 | `tkMenuBar`, `tkPopupMenu`, `tkToolbar`, `tkIconPanel`, `tkStatusBar` | command surfaces |
 | `tkLayout` | automatic position and size: Anchor and Dock, in design units; a hidden docked control takes no space, and a dock can take its height from the control |
+| `tkStack` | a column or a row of controls, one after another, for a phone screen: fixed, own-size (a callback) or FILL items, padding and gaps in design units, a hidden item taking no space, nested stacks (cards); `Measure` gives a scroll panel its content height |
 | `tkLabel`, `tkPanel`, `tkGroupBox`, `tkPicture`, `tkTabControl` | text, containers, images and tabbed pages |
 | `tkSplitter`, `tkScrollPanel`, `tkScrollBar`, `tkVScrollBar`, `tkHScrollBar` | layout and scrolling |
 | `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkSpinner`, `tkFileDialog` | popups and feedback |

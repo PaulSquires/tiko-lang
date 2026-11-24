@@ -581,6 +581,30 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "error: the theme's Error", tkTextBox_ThemeColors( th ).ErrorColor = th.Error )
     tkWidget_Destroy( er )
 
+    ' ---- the screen keyboard each mode asks for (docs/fasting-android F4 X1) ------------------
+    dim as TK_WIDGET ptr kl = tkTextBox_Create( tkHost_Root( h ), 107 )
+    dim as TK_WIDGET ptr kn = tkTextBox_Create( tkHost_Root( h ), 108 )
+    dim as TK_WIDGET ptr kp = tkTextBox_Create( tkHost_Root( h ), 109 )
+    dim as TK_WIDGET ptr km = tkTextBox_Create( tkHost_Root( h ), 110, true )
+    tkTextBox_SetNumericMode( kn, true )          ' DecimalPlaces is 2 by default
+    tkTextBox_SetPasswordChar( kp, &h2022 )
+    tkTest_Check( "keyboard: a line, a decimal, a password, a note", (tkWidget_GetTextKind( kl ) = TK_TEXT_LINE) _
+        andalso (tkWidget_GetTextKind( kn ) = TK_TEXT_DECIMAL) andalso (tkWidget_GetTextKind( kp ) = TK_TEXT_PASSWORD) _
+        andalso (tkWidget_GetTextKind( km ) = TK_TEXT_MULTILINE), tkWidget_GetTextKind( kl ) & tkWidget_GetTextKind( kn ) & tkWidget_GetTextKind( kp ) & tkWidget_GetTextKind( km ) )
+    tkHost_SetFocus( h, kl )
+    tkTest_Check( "keyboard: focus starts the line's", tkHost_TextKindOn( h ) = TK_TEXT_LINE, "" & tkHost_TextKindOn( h ) )
+    tkHost_SetFocus( h, kn )
+    tkTest_Check( "keyboard: a decimal field restarts it as a number pad", tkHost_TextKindOn( h ) = TK_TEXT_DECIMAL, "" & tkHost_TextKindOn( h ) )
+    tkTextBox_SetDecimalPlaces( kn, 0 )
+    tkTest_Check( "keyboard: no decimals while focused: a whole number, at once", tkHost_TextKindOn( h ) = TK_TEXT_INTEGER, "" & tkHost_TextKindOn( h ) )
+    tkHost_SetFocus( h, kp )
+    tkTest_Check( "keyboard: a password's", tkHost_TextKindOn( h ) = TK_TEXT_PASSWORD, "" & tkHost_TextKindOn( h ) )
+    tkHost_SetFocus( h, km )
+    tkTest_Check( "keyboard: a note's", tkHost_TextKindOn( h ) = TK_TEXT_MULTILINE, "" & tkHost_TextKindOn( h ) )
+    tkHost_SetFocus( h, 0 )
+    tkTest_Check( "keyboard: no focus, no text input", tkHost_TextKindOn( h ) = -1, "" & tkHost_TextKindOn( h ) )
+    tkWidget_Destroy( kl ) : tkWidget_Destroy( kn ) : tkWidget_Destroy( kp ) : tkWidget_Destroy( km )
+
     tkHost_Destroy( h )
 end sub
 
