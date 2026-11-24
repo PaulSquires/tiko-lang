@@ -3,10 +3,13 @@
 '   virtual   1,000,000 rows answered by CellValueNeeded
 '   stored    100,000 rows in the grid's own store
 ' Prints the median and p95 per case. Build it with: tiko build --profile release
+' G7a adds the CSV export: GetCsvText and ExportCsv of the 100,000 stored rows, ExportCsv of the
+' 1,000,000 virtual rows (15 columns each), to a file in the temp folder that is removed after.
 '
 '   perf                 both cases at scale 1.0
 '   perf --scale 1.75    pin another scale
 #import "vendor/tkControls/tkDataGrid"
+#import "std/fs"
 using tkDataGrid
 using tkCalendar
 using tkHost
@@ -159,6 +162,32 @@ print "sort 100,000 by Total desc, City (float + text): " & Ms2( (timer - ts) * 
 ts = timer
 tkDataGrid_SetQuickFilter( g, "wonka" )
 print "quick filter 100,000 rows x 15 columns (" & tkDataGrid_GetViewCount( g ) & " kept): " & Ms2( (timer - ts) * 1000 ) & " ms"
+
+' G7a: the CSV export
+tkDataGrid_SetQuickFilter( g, "" )
+tkDataGrid_ClearSort( g )
+dim as TKDG_CSVOPTIONS co
+dim as ustring csvPath = fs.TempDir( ).Value( ) & "/tkdg_perf.csv"
+ts = timer
+dim as ustring csvText = tkDataGrid_GetCsvText( g, co )
+print "GetCsvText 100,000 x 15 (stored): " & Ms2( (timer - ts) * 1000 ) & " ms, " & len( csvText ) & " characters"
+csvText = ""
+ts = timer
+dim as boolean csvOk = tkDataGrid_ExportCsv( g, csvPath, co )
+print "ExportCsv 100,000 x 15 (stored): " & Ms2( (timer - ts) * 1000 ) & " ms"
+if csvOk = false then print "  FAILED: " & tkDataGrid_GetExportError( g )
+co.bFormatted = false
+ts = timer
+csvOk = tkDataGrid_ExportCsv( g, csvPath, co )
+print "ExportCsv 100,000 x 15 (stored, invariant values): " & Ms2( (timer - ts) * 1000 ) & " ms"
+co.bFormatted = true
+tkDataGrid_SetVirtual( g, true )
+tkDataGrid_SetRowCount( g, 1000000 )
+ts = timer
+csvOk = tkDataGrid_ExportCsv( g, csvPath, co )
+print "ExportCsv 1,000,000 x 15 (virtual): " & Ms2( (timer - ts) * 1000 ) & " ms"
+if csvOk = false then print "  FAILED: " & tkDataGrid_GetExportError( g )
+fs.RemoveFile( csvPath )
 tkHost_Destroy( h )
 TTF_Quit( )
 SDL_Quit( )

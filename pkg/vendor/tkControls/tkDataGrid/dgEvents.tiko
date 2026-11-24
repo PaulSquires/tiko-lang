@@ -53,6 +53,13 @@ public type DG_RowsDeletingFunc as function( byval hGrid as TK_WIDGET ptr, byval
 public type DG_RowsSub as sub( byval hGrid as TK_WIDGET ptr, byval firstRow as integer, byval count as integer )
 ' G4: Filter keeps a model row when it returns TRUE.
 public type DG_FilterFunc as function( byval hGrid as TK_WIDGET ptr, byval row as integer ) as boolean
+' G7a: ColumnVisibilityChanged -- the user showed or hid col (the column chooser).
+public type DG_ColumnVisibleSub as sub( byval hGrid as TK_WIDGET ptr, byval col as integer, byval bVisible as boolean )
+' G7a: ContextMenu -- a right-click (bKeyboard FALSE) or the Menu key / Shift+F10 (TRUE). row and
+' col are model (-1: none; row -1 with a col: that column's header). x, y are the WINDOW pixels
+' tkPopupMenu_Show takes.
+public type DG_ContextMenuSub as sub( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, _
+                                      byval x as long, byval y as long, byval bKeyboard as boolean )
 
 ' G3, virtual mode: the host answers every cell the grid reads, and takes every value it writes
 ' (FALSE refuses it).
@@ -268,4 +275,18 @@ public sub tkDataGrid_SetFilterCallback( byval hGrid as TK_WIDGET ptr, byval cb 
     if p = 0 then exit sub
     p->FilterCallback = cb
     DgApplyView( p )
+end sub
+
+' ---- G7a: the column chooser and the context menu ---------------------------------------------------
+' The user showed or hid a column from the chooser (once per column "Show all columns" showed).
+public sub tkDataGrid_SetColumnVisibilityChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnVisibleSub )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then p->ColumnVisibilityChangedCallback = cb
+end sub
+
+' A right-click the MessageCallback left alone (on a header only while the chooser is off), or the
+' Menu key / Shift+F10 at the current cell. The grid shows no menu of its own there.
+public sub tkDataGrid_SetContextMenuCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ContextMenuSub )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then p->ContextMenuCallback = cb
 end sub

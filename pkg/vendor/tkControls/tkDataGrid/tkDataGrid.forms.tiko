@@ -55,6 +55,8 @@ public type DataGrid
     declare property TabWraps( byval v as boolean )
     declare property Virtual( ) as boolean
     declare property Virtual( byval v as boolean )
+    declare property ColumnChooser( ) as boolean
+    declare property ColumnChooser( byval v as boolean )
     declare property BackColor( ) as uint32
     declare property BackColor( byval v as uint32 )
     declare property BorderWidth( ) as int32
@@ -252,6 +254,14 @@ end property
 
 property DataGrid.Virtual( byval v as boolean )
     tkDataGrid_SetVirtual( Handle, v )
+end property
+
+property DataGrid.ColumnChooser( ) as boolean
+    return tkDataGrid_GetColumnChooser( Handle )
+end property
+
+property DataGrid.ColumnChooser( byval v as boolean )
+    tkDataGrid_SetColumnChooser( Handle, v )
 end property
 
 property DataGrid.BackColor( ) as uint32
