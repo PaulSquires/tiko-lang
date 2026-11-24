@@ -229,6 +229,7 @@ sub DgLayout( byval p as TKDATAGRID_STATE ptr )
     DgSyncBars( p )
     tkWidget_Invalidate( w )
     DgPlaceEditor( p )
+    DgFltPlaceEditor( p )
 end sub
 
 ' Scrolled to (x, y) pixels, clamped; the bars follow, silently.
@@ -238,6 +239,7 @@ sub DgScrollTo( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as 
     DgSyncBars( p )
     tkWidget_Invalidate( p->wSurf )
     DgPlaceEditor( p )
+    DgFltPlaceEditor( p )
 end sub
 
 sub DgInvalidateCell( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer )
@@ -296,6 +298,13 @@ sub DgHitTest( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as i
     dim as TK_WIDGET ptr s = p->wSurf
     if (x < 0) orelse (y < 0) orelse (x >= s->cw) orelse (y >= s->ch) then exit sub
     dim as integer hdrH = DgHdrHPx( p ), rh = DgRhPx( p )
+    if (y >= hdrH) andalso (y < DgBandTop( p )) then
+        ' G7c: the filter row
+        if x < rh then ht.area = TKDG_HT_CORNER : exit sub
+        ht.col = DgColAtX( p, x )
+        ht.area = iif( ht.col >= 0, TKDG_HT_FILTER, TKDG_HT_EMPTY )
+        exit sub
+    end if
     if y < hdrH then
         if x < rh then ht.area = TKDG_HT_CORNER : exit sub
         dim as integer gut = DgScale( p, CDATAGRID_DIVIDER_GUTTER ), sl = DgScrollLeft( p )
@@ -816,6 +825,7 @@ sub DgPaintSurface( byval p as TKDATAGRID_STATE ptr, byval b as TK_PAINT ptr )
     end if
     ' G7b: the footer; G7c: the filter row
     DgPaintFooter( p, b, hasFocus )
+    DgPaintFilterRow( p, b )
     if hdrH > 0 then
         dim as TKCOLUMNHEADER_COLORS hc
         tkColumnHeader_GetColors( p->wHdr, @hc )

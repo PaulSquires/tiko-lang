@@ -30,6 +30,8 @@ public type DataGrid
     declare property FrozenRows( byval v as int32 )
     declare property ShowFooter( ) as boolean
     declare property ShowFooter( byval v as boolean )
+    declare property ShowFilterRow( ) as boolean
+    declare property ShowFilterRow( byval v as boolean )
     declare property SummaryScope( ) as int32
     declare property SummaryScope( byval v as int32 )
     declare property GridLines( ) as int32
@@ -160,6 +162,14 @@ end property
 
 property DataGrid.ShowFooter( byval v as boolean )
     tkDataGrid_ShowFooter( Handle, v )
+end property
+
+property DataGrid.ShowFilterRow( ) as boolean
+    return tkDataGrid_IsFilterRowVisible( Handle )
+end property
+
+property DataGrid.ShowFilterRow( byval v as boolean )
+    tkDataGrid_ShowFilterRow( Handle, v )
 end property
 
 property DataGrid.SummaryScope( ) as int32

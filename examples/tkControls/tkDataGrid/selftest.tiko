@@ -1395,6 +1395,7 @@ end sub
 
 #include once "selftest_g7.tiko"
 #include once "selftest_g7b.tiko"
+#include once "selftest_g7c.tiko"
 
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
@@ -1407,6 +1408,7 @@ RunG4( 1.75 )
 RunG7a( 1.75 )
 RunG7b( 1.0 )
 RunG7b( 1.75 )
+RunG7c( 1.75 )
 dim as long nFail = tkTest_Report( "tkDataGrid" )
 tkTest_Quit()
 end nFail

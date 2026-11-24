@@ -206,6 +206,29 @@ public type TKDG_HITTEST
     col  as integer = -1              ' model
 end type
 
+' G7c: a column filter's operator (TKDG_COLFILTER.op; dgFilter.tiko has the text syntax).
+public enum
+    TKDG_FLT_NONE = 0
+    TKDG_FLT_CONTAINS        ' v1: text, case-insensitive, over the shown text
+    TKDG_FLT_STARTS          ' v1: text
+    TKDG_FLT_EQ
+    TKDG_FLT_NE
+    TKDG_FLT_LT
+    TKDG_FLT_LE
+    TKDG_FLT_GT
+    TKDG_FLT_GE
+    TKDG_FLT_BETWEEN         ' v1 .. v2, both included
+    TKDG_FLT_EMPTY
+    TKDG_FLT_NOTEMPTY
+end enum
+
+' G7c: one column's filter: an operator and its values, in the column's value kind.
+public type TKDG_COLFILTER
+    op as long = TKDG_FLT_NONE
+    v1 as TKDG_VALUE
+    v2 as TKDG_VALUE
+end type
+
 ' One sort key: a model column and its direction.
 public type TKDG_SORTKEY
     col         as integer
@@ -245,6 +268,7 @@ public type TKDATAGRID_COLORS
     ErrorColor       as ulong = &hFFE06C75ul    ' an editor whose text was refused
     FooterBackColor  as ulong = &hFF2C313Aul    ' G7b: the summary row
     FooterForeColor  as ulong = &hFFE6E9EFul
+    FilterBackColor  as ulong = &hFF262A31ul    ' G7c: the filter row
 end type
 
 ' A cell about to be painted, after CellFormatting. Every field is the grid's default for the
@@ -504,6 +528,19 @@ type TKDATAGRID_STATE
     sumTexts(any)  as ustring
     sumSel         as TKDG_SELSET        ' the selection they were taken over (selection scope)
     SummaryFormattingCallback as DG_SummarySub
+    ' --- G7c: column filters and the filter row (dgFilter.tiko) ---
+    flt(any)       as TKDG_COLFILTER     ' by model column
+    fltText(any)   as ustring            ' as typed (the filter row shows it)
+    fltBad(any)    as ubyte              ' 1: the text does not read for the column (filters nothing)
+    nFlt           as integer            ' the arrays' length (DgFltEnsure keeps it the column count)
+    fltSerial      as integer            ' bumped by every change of a filter
+    srcFltSerial   as integer = -1       ' the change a source was last told of
+    bSrcFiltered   as boolean            ' the source applies the filters (a WHERE): the grid does not
+    wEdFilter      as TK_WIDGET ptr      ' the filter row's editor, made on first use
+    fltEditCol     as integer = -1       ' the column it is open on, -1 = closed
+    fltEditOrig    as ustring            ' its text when opened (Esc puts it back)
+    bFltLoading    as boolean            ' setting the editor's text: not a user change
+    FilterChangedCallback as DG_GridSub
 end type
 
 
@@ -747,6 +784,7 @@ public function tkDataGrid_InsertColumn( byval hGrid as TK_WIDGET ptr, byval col
     DgCacheClear( p )
     DgRenumber( p )
     DgSortColumnInserted( p, col )
+    DgFltColumnInserted( p, col )
     if p->curCol >= col then p->curCol += 1
     if p->hotHdrCol >= col then p->hotHdrCol += 1
     DgSelDropRects( p )
@@ -804,6 +842,7 @@ public function tkDataGrid_DeleteColumn( byval hGrid as TK_WIDGET ptr, byval col
     p->hotDivCol = -1
     if p->curCol = col then p->curCol = -1 else if p->curCol > col then p->curCol -= 1
     DgSortColumnRemoved( p, col )
+    DgFltColumnRemoved( p, col )
     DgRenumber( p )
     DgSelDropRects( p )
     DgChanged( p )
@@ -821,6 +860,10 @@ public sub tkDataGrid_ClearColumns( byval hGrid as TK_WIDGET ptr )
     p->curCol = -1
     p->scrollX = 0
     erase p->sortKeys : p->nSortKeys = 0
+    ' G7c: the filters went with their columns
+    if p->fltEditCol >= 0 then DgFltClose( p, false, false )
+    if DgFltAny( p ) then p->fltSerial += 1
+    erase p->flt : erase p->fltText : erase p->fltBad : p->nFlt = 0
     DgSelDropRects( p )
     DgChanged( p )
 end sub
@@ -1319,6 +1362,7 @@ public function tkDataGrid_ThemeColors( byref t as TKTHEME_COLORS ) as TKDATAGRI
     c.ErrorColor = t.Error
     c.FooterBackColor = t.Surface
     c.FooterForeColor = t.TextStrong
+    c.FilterBackColor = tkColor_Lerp( t.Window, t.Surface, 0.5 )
     return c
 end function
 

@@ -20,7 +20,9 @@
 ' with a Sort procedure is asked first; FALSE from it means the grid sorts.
 '
 ' FILTERING. A Filter callback and / or a quick filter (a case-insensitive substring of any
-' visible column's shown text) keep rows; filtering runs before sorting, in one rebuild.
+' visible column's shown text) and / or column filters (G7c, dgFilter.tiko) keep rows; filtering
+' runs before sorting, in one rebuild. A source with a Filter procedure takes the column filters
+' itself (DgFltSyncSource), and HOST mode leaves them to the host.
 '
 ' A data change does not resort or refilter (Excel, WPF without live shaping): the rows stay put
 ' until Sort / ApplyFilter or a header click. Inserted rows are added at the end of the view.
@@ -239,7 +241,10 @@ sub DgApplyView( byval p as TKDATAGRID_STATE ptr )
     if p->bEditing then
         if DgEndEdit( p, true ) = false then DgEndEdit( p, false )
     end if
-    dim as boolean bFilter = (p->FilterCallback <> 0) orelse (len( p->quickFilter ) > 0)
+    ' G7c: a source told of changed column filters may now have other rows
+    DgFltSyncSource( p )
+    dim as boolean bColFlt = DgFltInternal( p )
+    dim as boolean bFilter = (p->FilterCallback <> 0) orelse (len( p->quickFilter ) > 0) orelse bColFlt
     dim as boolean bSort = false
     if (p->nSortKeys > 0) andalso (DgSortModeOf( p ) = TKDG_SORT_INTERNAL) then
         bSort = true
@@ -274,6 +279,9 @@ sub DgApplyView( byval p as TKDATAGRID_STATE ptr )
             end if
             if len( needle ) then
                 if DgRowPassesQuick( p, r, needle ) = false then continue for
+            end if
+            if bColFlt then
+                if DgFltRowPasses( p, r ) = false then continue for
             end if
             cand(n) = r : n += 1
         next

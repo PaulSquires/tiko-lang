@@ -257,6 +257,39 @@ vertical bar scrolls the other rows only; `GetTopRow` / `GetVisibleRows` answer 
 rows always show), `SetTopRow` of a frozen row scrolls back to the start, and `EnsureVisible` never
 scrolls for one. An editor on a frozen row stays put while the rows scroll.
 
+## Column filters and the filter row
+
+Each column may filter the rows by a condition; filters of several columns AND together, and with
+`SetFilterCallback` and `SetQuickFilter`. `tkDataGrid_SetColumnFilterText( h, col, text )` takes the
+same text a user types in the filter row:
+
+| Text | Keeps the rows whose cell |
+| --- | --- |
+| `abc` | contains abc (a text column, without case); equals it (a number, date or check column) |
+| `=x` `<>x` | equals / does not equal x (text without case) |
+| `>x` `>=x` `<x` `<=x` | compares so with x |
+| `^abc` | starts with abc |
+| `a..b` | lies between a and b, both included |
+| `""` / `!""` | is empty / is not empty |
+
+A value is read as the column's kind (numbers, ISO dates, true / false / yes / no), so `>100` is
+numeric and dates compare as dates. A text that does not read for its column returns FALSE, is kept
+(the filter row shows it in the error colour) and filters nothing. `SetColumnFilter( h, col, f )` /
+`GetColumnFilter` take a `TKDG_COLFILTER` (`op`: `TKDG_FLT_*`, `v1`, `v2`), `GetColumnFilterText`,
+`ParseFilterText` (reads without setting), `ClearColumnFilters`.
+
+The filters are applied where the rows are, as sorting is: a source with a `Filter` procedure is
+handed them and counts its rows again ([tkDataGridSqlite](#tkdatagridsqlite-an-sqlite-query-as-the-rows)
+makes a WHERE of them); in HOST mode (a virtual grid, by default) the grid applies nothing and
+**FilterChanged** tells the host to re-query; otherwise the grid keeps the rows that pass.
+
+`tkDataGrid_ShowFilterRow( h, true )` adds a band under the header where the user types them. A click
+on a column's cell there (or Up from the first row, or `EditColumnFilter`) opens an editor over it;
+the text applies after 300 ms without a key, and at once on Enter; Esc puts back the text the editor
+opened with; Tab / Shift+Tab move along the row; Down goes to the first row; leaving it applies it.
+`GetFilterEditor`, `GetFilterEditColumn`, `GetFilterRowHeightPx`. FilterChanged fires for the user's
+changes only.
+
 ## The footer: column totals
 
 `tkDataGrid_ShowFooter( h, true )` adds a row under the rows (above the horizontal bar) that shows
@@ -296,6 +329,7 @@ something changed (an edit, rows added or deleted, a filter, `InvalidateCells`),
 | `SetColumnVisibilityChangedCallback` | the user showed or hid a column from the chooser |
 | `SetContextMenuCallback` | a right-click the grid does not use, or the Menu key / Shift+F10: (row, col, window x, y, bKeyboard) |
 | `SetSummaryFormattingCallback` | a footer total was worked out: re-word it, or give it (HOST mode) |
+| `SetFilterChangedCallback` | the user changed a column filter (HOST mode: re-query) |
 | `SetCellBeginEditCallback` | an edit is starting; FALSE vetoes it |
 | `SetCellParseCallback` | the editor's text, parsed or not; may change the value or refuse it |
 | `SetCellEndEditCallback` | an edit ended, committed or not |
@@ -325,7 +359,7 @@ TKDG_GRID_NONE | _HORZ | _VERT | _BOTH )`, `SetAlternateRows`, `SetBorderWidth`,
 `TKDATAGRID_COLORS` has the back and alternate-row back, text, grid lines, the hot row, the
 selection with and without the focus, the current cell's frame, read-only text, the frozen line, the
 accent (check fill, progress), links, button faces, the border, the row headers, the column drop mark,
-the error frame, and the footer's back and text. `tkDataGrid_ThemeColors( t )` maps them from the theme's roles. `SetColors`
+the error frame, the footer's back and text, and the filter row's back. `tkDataGrid_ThemeColors( t )` maps them from the theme's roles. `SetColors`
 pins the struct (a theme change leaves it) until `UnpinColors`. The header's colours are
 tkColumnHeader's, through `GetHeader`.
 
@@ -355,6 +389,11 @@ Its own module, so a grid that does not read SQLite does not link it.
   has not seen, not one per cell.
 - **Sorting happens in SQL**: the grid's sort keys become the query's `order by` (text columns
   `collate nocase`); clearing the keys goes back to the query's own order. `GetOrderBy`.
+- **Filtering happens in SQL too**: the grid's column filters become a `where` on the wrapped query,
+  each value a parameter numbered after the query's own (text without case; contains / starts with
+  as `like` with `%` `_` `\` escaped; empty as NULL or ''); the rows are counted again. `GetWhere`.
+- **So do the footer's totals**: `select sum( "col" ) from ( query ) [where …]` (count, avg, min, max
+  likewise), so the footer of a million rows reads no block.
 - **Writes are opt-in**: after `SetWritable( q, table, pkColumn )` an edit is `update <table> set
   <column> = ? where <pk> = ?` and a deleted row `delete from <table> where <pk> = ?`; the key column
   must be one of the query's. Adding rows is not offered: insert with SQL, then
@@ -395,7 +434,7 @@ The toolbox's **DataGrid** (Lists) has the properties RowHeight, HeaderHeight, S
 ShowRowHeaders, RowHeaderWidth, FrozenColumns, GridLines, AlternateRows, SelectionUnit, MultiSelect,
 EditMode, ReadOnly, AllowAddRows, AllowDeleteRows, EditSelectAll, SortMode, AllowColumnResize,
 AllowColumnReorder, ColumnHeaderSelects, TabWraps, Virtual, ColumnChooser, FrozenRows, ShowFooter,
-SummaryScope, BackColor, BorderWidth, ScrollBarWidth,
+SummaryScope, ShowFilterRow, BackColor, BorderWidth, ScrollBarWidth,
 Font, HeaderFont and HoverTime, the colours above, and the events in the table (CurrentCellChanged
 by default). Its **Columns** editor gives each column Text, Width, Kind, Field, Align, MinWidth,
 Fill, ReadOnly, Visible and Summary (the footer's total: none, sum, count, avg, min, max).
@@ -426,7 +465,9 @@ See [Form Designer](Form-Designer), Data binding.
 `TKDG_ALIGN_AUTO`, `TKDG_ALIGN_LEFT`, `TKDG_ALIGN_CENTER`, `TKDG_ALIGN_RIGHT` ·
 `TKDG_GRID_NONE`, `TKDG_GRID_HORZ`, `TKDG_GRID_VERT`, `TKDG_GRID_BOTH` ·
 `TKDG_HT_NONE`, `TKDG_HT_HEADER`, `TKDG_HT_DIVIDER`, `TKDG_HT_CELL`, `TKDG_HT_EMPTY`,
-`TKDG_HT_ROWHEADER`, `TKDG_HT_CORNER`, `TKDG_HT_FOOTER` ·
+`TKDG_HT_ROWHEADER`, `TKDG_HT_CORNER`, `TKDG_HT_FOOTER`, `TKDG_HT_FILTER` ·
+`TKDG_FLT_NONE`, `TKDG_FLT_CONTAINS`, `TKDG_FLT_STARTS`, `TKDG_FLT_EQ`, `TKDG_FLT_NE`, `TKDG_FLT_LT`,
+`TKDG_FLT_LE`, `TKDG_FLT_GT`, `TKDG_FLT_GE`, `TKDG_FLT_BETWEEN`, `TKDG_FLT_EMPTY`, `TKDG_FLT_NOTEMPTY` ·
 `TKDG_SUM_NONE`, `TKDG_SUM_SUM`, `TKDG_SUM_COUNT`, `TKDG_SUM_AVG`, `TKDG_SUM_MIN`, `TKDG_SUM_MAX` ·
 `TKDG_SUMSCOPE_VIEW`, `TKDG_SUMSCOPE_SELECTION` ·
 `TKDG_EDIT_ONENTER`, `TKDG_EDIT_ONF2`, `TKDG_EDIT_ONKEYSTROKE`, `TKDG_EDIT_ONKEYSTROKEORF2`,
@@ -441,7 +482,7 @@ See [Form Designer](Form-Designer), Data binding.
 `TKDG_VALUE` (`kind`, `s`, `i`, `f`, `b`, `d`; `SetText`, `SetInt`, `SetFloat`, `SetBool`, `SetDate`,
 `Clear`), `TKDATAGRID_COLUMN`, `TKDG_HITTEST`, `TKDG_SORTKEY` (`col`, `bDescending`), `TKDG_RANGE`,
 `TKDATAGRID_COLORS`, `TKDATAGRID_CELLPAINTINFO`, `TKDATAGRID_FORMATINFO`,
-`TKDATAGRID_MESSAGEINFO`, `TKDATAGRID_SOURCE`, `TKDG_CSVOPTIONS`, and the callback types `DG_CellPaintFunc`,
+`TKDATAGRID_MESSAGEINFO`, `TKDATAGRID_SOURCE`, `TKDG_CSVOPTIONS`, `TKDG_COLFILTER`, and the callback types `DG_CellPaintFunc`,
 `DG_CellFormattingSub`, `DG_MessageFunc`, `DG_CellSub`, `DG_GridSub`, `DG_ColumnSub`,
 `DG_ColumnResizeSub`, `DG_ColumnReorderedSub`, `DG_TooltipFunc`, `DG_CellBeginEditFunc`,
 `DG_CellParseFunc`, `DG_CellEndEditSub`, `DG_RowFunc`, `DG_RowSub`, `DG_RowsDeletingFunc`,
@@ -673,6 +714,7 @@ sub tkDataGrid_SetFilterCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_F
 sub tkDataGrid_SetColumnVisibilityChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnVisibleSub )
 sub tkDataGrid_SetContextMenuCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ContextMenuSub )
 sub tkDataGrid_SetSummaryFormattingCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_SummarySub )
+sub tkDataGrid_SetFilterChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_GridSub )
 
 ' ---- export, the column chooser, the layout
 function tkDataGrid_GetCsvText( byval hGrid as TK_WIDGET ptr, byref o as const TKDG_CSVOPTIONS ) as ustring
@@ -700,6 +742,20 @@ function tkDataGrid_GetSummaryScope( byval hGrid as TK_WIDGET ptr ) as long
 function tkDataGrid_GetSummary( byval hGrid as TK_WIDGET ptr, byval col as integer, byref v as TKDG_VALUE ) as boolean
 function tkDataGrid_GetSummaryText( byval hGrid as TK_WIDGET ptr, byval col as integer ) as ustring
 
+' ---- column filters, the filter row
+function tkDataGrid_SetColumnFilterText( byval hGrid as TK_WIDGET ptr, byval col as integer, byref text as const ustring ) as boolean
+function tkDataGrid_GetColumnFilterText( byval hGrid as TK_WIDGET ptr, byval col as integer ) as ustring
+function tkDataGrid_SetColumnFilter( byval hGrid as TK_WIDGET ptr, byval col as integer, byref f as const TKDG_COLFILTER ) as boolean
+function tkDataGrid_GetColumnFilter( byval hGrid as TK_WIDGET ptr, byval col as integer, byref f as TKDG_COLFILTER ) as boolean
+function tkDataGrid_ParseFilterText( byval hGrid as TK_WIDGET ptr, byval col as integer, byref text as const ustring, byref f as TKDG_COLFILTER ) as boolean
+sub tkDataGrid_ClearColumnFilters( byval hGrid as TK_WIDGET ptr )
+sub tkDataGrid_ShowFilterRow( byval hGrid as TK_WIDGET ptr, byval bShow as boolean )
+function tkDataGrid_IsFilterRowVisible( byval hGrid as TK_WIDGET ptr ) as boolean
+function tkDataGrid_EditColumnFilter( byval hGrid as TK_WIDGET ptr, byval col as integer ) as boolean
+function tkDataGrid_GetFilterEditor( byval hGrid as TK_WIDGET ptr ) as TK_WIDGET ptr
+function tkDataGrid_GetFilterEditColumn( byval hGrid as TK_WIDGET ptr ) as integer
+function tkDataGrid_GetFilterRowHeightPx( byval hGrid as TK_WIDGET ptr ) as integer
+
 ' ---- tkDataGridSqlite
 function tkDataGridSqlite_Open( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr
 function tkDataGridSqlite_OpenEx( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, params() as TKDG_VALUE, byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr
@@ -708,6 +764,7 @@ function tkDataGridSqlite_SetWritable( byval q as TKDGSQL ptr, byref table as co
 sub tkDataGridSqlite_Refresh( byval q as TKDGSQL ptr )
 function tkDataGridSqlite_GetFetchCount( byval q as TKDGSQL ptr ) as integer
 function tkDataGridSqlite_GetOrderBy( byval q as TKDGSQL ptr ) as ustring
+function tkDataGridSqlite_GetWhere( byval q as TKDGSQL ptr ) as ustring
 function tkDataGridSqlite_LastError( byval q as TKDGSQL ptr ) as ustring
 sub tkDataGridSqlite_Close( byval q as TKDGSQL ptr )
 ```

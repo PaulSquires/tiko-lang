@@ -162,6 +162,8 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
     dim as long key = m->key
     dim as boolean bShift = DgIsShift( m->mods ), bCtrl = DgIsCtrl( m->mods )
     p->bSwallowChar = false
+    ' G7c: keys the filter row's editor leaves
+    if p->fltEditCol >= 0 then return DgFltKey( p, key, bShift )
     if p->bEditing then
         ' keys an editor left unclaimed: commit and move, or cancel
         select case key
@@ -190,6 +192,11 @@ function DgKeyDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr ) as 
     dim as boolean bExtend = bShift
     select case key
     case SDLK_UP
+        ' G7c: up from the first row into the filter row
+        if (v = 0) andalso p->bFilterRow andalso (bShift = false) andalso (bCtrl = false) then
+            DgUserEnd( p, mk )
+            return DgFltOpen( p, p->order(d) )
+        end if
         v = iif( bCtrl, 0, v - 1 )
     case SDLK_DOWN
         v = iif( bCtrl, DgViewRows( p ) - 1, v + 1 )
@@ -419,6 +426,11 @@ private sub DgButtonDown( byval p as TKDATAGRID_STATE ptr, byval m as TK_MSG ptr
     end if
     if (p->dirtyRow >= 0) andalso ((ht.area = TKDG_HT_CELL) orelse (ht.area = TKDG_HT_ROWHEADER)) andalso (ht.row <> p->dirtyRow) then
         if DgCommitRow( p ) = false then exit sub
+    end if
+    ' G7c: a press on the filter row opens its editor there
+    if ht.area = TKDG_HT_FILTER then
+        DgFltOpen( p, ht.col )
+        exit sub
     end if
     dim as long km = SDL_GetModState( )        ' a button message carries no modifiers
     dim as boolean bShift = DgIsShift( km ) andalso p->bMulti, bCtrl = DgIsCtrl( km ) andalso p->bMulti
@@ -657,6 +669,7 @@ function DgSurfaceProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boo
     case TKM_TIMER
         if m->timerId = TK_TIMER_AUTOSCROLL then DgAutoScrollTick( p )
         if m->timerId = DG_TIMER_EDITFOCUS then DgFocusWatchTick( p )
+        if m->timerId = DG_TIMER_FILTER then DgFltIdleTick( p )
         return true
     end select
     return false

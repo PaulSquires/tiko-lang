@@ -86,6 +86,10 @@ public type TKDATAGRID_SOURCE
     ' G7b: the source adds up column col (kind: TKDG_SUM_*) over its rows into v; FALSE: the grid
     ' does (when it may read every row). 0 = never asked.
     Aggregate  as function( byval pCtx as any ptr, byval col as integer, byval kind as long, byref v as TKDG_VALUE ) as boolean
+    ' G7c: the source applies the column filters (filters(k) for model column k, nCols of them; a
+    ' database makes a WHERE) and its RowCount answers for the filtered rows; FALSE: the grid
+    ' filters. filters 0 / nCols 0 once they are all cleared after it took some.
+    Filter     as function( byval pCtx as any ptr, byval filters as TKDG_COLFILTER ptr, byval nCols as integer ) as boolean
 end type
 
 ' ==========================================================================================
@@ -265,7 +269,8 @@ public sub tkDataGrid_SetSource( byval hGrid as TK_WIDGET ptr, byval src as TKDA
         p->rowCount = iif( p->src.RowCount <> 0, p->src.RowCount( p->src.pCtx ), 0 )
         if p->rowCount < 0 then p->rowCount = 0
     end if
-    DgChanged( p )
+    ' G7c: column filters in force apply to the new rows (a source with Filter is handed them)
+    if DgFltAny( p ) then DgApplyView( p ) else DgChanged( p )
 end sub
 
 ' ---- G4: sort and filter --------------------------------------------------------------------------
@@ -305,4 +310,12 @@ public sub tkDataGrid_SetSummaryFormattingCallback( byval hGrid as TK_WIDGET ptr
     if p = 0 then exit sub
     p->SummaryFormattingCallback = cb
     DgSumInvalidate( p )
+end sub
+
+' ---- G7c: column filters -----------------------------------------------------------------------
+' The user changed a column filter (the filter row). In HOST mode the host re-queries (the grid
+' applies nothing), as for SortChanged; GetColumnFilter / GetColumnFilterText have them.
+public sub tkDataGrid_SetFilterChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_GridSub )
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if p then p->FilterChangedCallback = cb
 end sub

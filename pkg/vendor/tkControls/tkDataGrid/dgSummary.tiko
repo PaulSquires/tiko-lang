@@ -51,7 +51,7 @@ sub DgSumInvalidate( byval p as TKDATAGRID_STATE ptr )
 end sub
 
 ' -1 / 0 / 1 for two values of one kind (the sort's order).
-private function DgSumCmp( byref a as const TKDG_VALUE, byref b as const TKDG_VALUE ) as long
+function DgSumCmp( byref a as const TKDG_VALUE, byref b as const TKDG_VALUE ) as long
     select case a.kind
     case TKDG_TEXT
         dim as ustring x = lcase( a.s ), y = lcase( b.s )
