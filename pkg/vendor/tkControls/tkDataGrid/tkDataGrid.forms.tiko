@@ -26,6 +26,12 @@ public type DataGrid
     declare property RowHeaderWidth( byval v as int32 )
     declare property FrozenColumns( ) as int32
     declare property FrozenColumns( byval v as int32 )
+    declare property FrozenRows( ) as int32
+    declare property FrozenRows( byval v as int32 )
+    declare property ShowFooter( ) as boolean
+    declare property ShowFooter( byval v as boolean )
+    declare property SummaryScope( ) as int32
+    declare property SummaryScope( byval v as int32 )
     declare property GridLines( ) as int32
     declare property GridLines( byval v as int32 )
     declare property AlternateRows( ) as boolean
@@ -138,6 +144,30 @@ end property
 
 property DataGrid.FrozenColumns( byval v as int32 )
     tkDataGrid_SetFrozenColumns( Handle, v )
+end property
+
+property DataGrid.FrozenRows( ) as int32
+    return tkDataGrid_GetFrozenRows( Handle )
+end property
+
+property DataGrid.FrozenRows( byval v as int32 )
+    tkDataGrid_SetFrozenRows( Handle, v )
+end property
+
+property DataGrid.ShowFooter( ) as boolean
+    return tkDataGrid_IsFooterVisible( Handle )
+end property
+
+property DataGrid.ShowFooter( byval v as boolean )
+    tkDataGrid_ShowFooter( Handle, v )
+end property
+
+property DataGrid.SummaryScope( ) as int32
+    return tkDataGrid_GetSummaryScope( Handle )
+end property
+
+property DataGrid.SummaryScope( byval v as int32 )
+    tkDataGrid_SetSummaryScope( Handle, v )
 end property
 
 property DataGrid.GridLines( ) as int32

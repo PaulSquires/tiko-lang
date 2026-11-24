@@ -236,16 +236,52 @@ handler opens its own menu there. A MessageCallback that claims the right button
 ## Saving the column layout
 
 `tkDataGrid_GetLayout( h )` returns the columns' display order, widths, shown / hidden state, the
-frozen column count and the sort keys as one string, for the host to keep between runs:
+frozen column and row counts and the sort keys as one string, for the host to keep between runs:
 
 ```
-tkdg1;frozen=1;sort=Qty:d,Name:a;cols=Name:120:1,Qty:80:1,Notes:200:0
+tkdg1;frozen=1;frows=0;sort=Qty:d,Name:a;cols=Name:120:1,Qty:80:1,Notes:200:0
 ```
 
 `tkDataGrid_SetLayout( h, s )` puts it back, matching columns by **key** (a column without a key is
 `#` and its index), so a layout survives columns added or removed since it was saved: unknown names
 are skipped, and columns it does not name follow the named ones in their present order. A string
-that is not a layout returns FALSE and changes nothing. Silent, as every setter.
+that is not a layout returns FALSE and changes nothing. Silent, as every setter. (A layout saved
+before `frows` existed leaves the frozen row count as it is.)
+
+## Frozen rows
+
+`tkDataGrid_SetFrozenRows( h, n )` keeps the first n rows of the **view** at the top while the rest
+scroll under them, as Excel's freeze panes (a line in FrozenLineColor marks the edge). They are
+positions: a sort changes which rows they are. `GetFrozenRows`, `GetFrozenRowsHeightPx`. The
+vertical bar scrolls the other rows only; `GetTopRow` / `GetVisibleRows` answer for those (the frozen
+rows always show), `SetTopRow` of a frozen row scrolls back to the start, and `EnsureVisible` never
+scrolls for one. An editor on a frozen row stays put while the rows scroll.
+
+## The footer: column totals
+
+`tkDataGrid_ShowFooter( h, true )` adds a row under the rows (above the horizontal bar) that shows
+each column's total in the column's place, scrolling sideways with it.
+`tkDataGrid_SetColumnSummary( h, col, kind )` (or `TKDATAGRID_COLUMN.summary`) picks it:
+
+| `TKDG_SUM_*` | |
+| --- | --- |
+| `NONE` | nothing (the default) |
+| `SUM` | an integer column's sum stays an integer; 0 over no rows |
+| `COUNT` | the non-empty cells (SQL's `COUNT( col )`) |
+| `AVG` | a float, over the non-empty numbers; empty over none |
+| `MIN`, `MAX` | in the sort's order: text without case, dates as dates |
+
+`tkDataGrid_SetSummaryScope( h, TKDG_SUMSCOPE_VIEW )` adds up the rows the view shows (filtered-out
+rows do not count); `TKDG_SUMSCOPE_SELECTION` the selected cells, as Excel's status bar.
+`GetSummary( h, col, v )`, `GetSummaryText( h, col )`, `GetFooterHeightPx`.
+
+Where a total comes from: a source's `Aggregate` procedure when it has one (a database adds up where
+the data is), unless the grid itself filters; else the grid reads every row of the view once, when it
+may (its own rows, a source, or a virtual grid with `TKDG_SORT_INTERNAL`); else -- a virtual grid in
+HOST mode, which the grid never reads whole -- nothing, and the **SummaryFormatting** event gives it.
+SummaryFormatting( col, kind, v, text ) is called once per column each time the totals are worked
+out, with the text made from the value; change either. The totals are worked out again only after
+something changed (an edit, rows added or deleted, a filter, `InvalidateCells`), never per paint.
 
 ## Notifications
 
@@ -259,6 +295,7 @@ that is not a layout returns FALSE and changes nothing. Silent, as every setter.
 | `SetSortChangedCallback` | the sort keys changed by a header click |
 | `SetColumnVisibilityChangedCallback` | the user showed or hid a column from the chooser |
 | `SetContextMenuCallback` | a right-click the grid does not use, or the Menu key / Shift+F10: (row, col, window x, y, bKeyboard) |
+| `SetSummaryFormattingCallback` | a footer total was worked out: re-word it, or give it (HOST mode) |
 | `SetCellBeginEditCallback` | an edit is starting; FALSE vetoes it |
 | `SetCellParseCallback` | the editor's text, parsed or not; may change the value or refuse it |
 | `SetCellEndEditCallback` | an edit ended, committed or not |
@@ -287,8 +324,8 @@ TKDG_GRID_NONE | _HORZ | _VERT | _BOTH )`, `SetAlternateRows`, `SetBorderWidth`,
 
 `TKDATAGRID_COLORS` has the back and alternate-row back, text, grid lines, the hot row, the
 selection with and without the focus, the current cell's frame, read-only text, the frozen line, the
-accent (check fill, progress), links, button faces, the border, the row headers, the column drop mark
-and the error frame. `tkDataGrid_ThemeColors( t )` maps them from the theme's roles. `SetColors`
+accent (check fill, progress), links, button faces, the border, the row headers, the column drop mark,
+the error frame, and the footer's back and text. `tkDataGrid_ThemeColors( t )` maps them from the theme's roles. `SetColors`
 pins the struct (a theme change leaves it) until `UnpinColors`. The header's colours are
 tkColumnHeader's, through `GetHeader`.
 
@@ -357,10 +394,11 @@ tkDataGridSqlite_SetParams( q, p() )                   ' counted again, read aga
 The toolbox's **DataGrid** (Lists) has the properties RowHeight, HeaderHeight, ShowHeader,
 ShowRowHeaders, RowHeaderWidth, FrozenColumns, GridLines, AlternateRows, SelectionUnit, MultiSelect,
 EditMode, ReadOnly, AllowAddRows, AllowDeleteRows, EditSelectAll, SortMode, AllowColumnResize,
-AllowColumnReorder, ColumnHeaderSelects, TabWraps, Virtual, ColumnChooser, BackColor, BorderWidth, ScrollBarWidth,
+AllowColumnReorder, ColumnHeaderSelects, TabWraps, Virtual, ColumnChooser, FrozenRows, ShowFooter,
+SummaryScope, BackColor, BorderWidth, ScrollBarWidth,
 Font, HeaderFont and HoverTime, the colours above, and the events in the table (CurrentCellChanged
 by default). Its **Columns** editor gives each column Text, Width, Kind, Field, Align, MinWidth,
-Fill, ReadOnly and Visible.
+Fill, ReadOnly, Visible and Summary (the footer's total: none, sum, count, avg, min, max).
 
 **Binding** a grid to an `Array( of T )`:
 
@@ -388,7 +426,9 @@ See [Form Designer](Form-Designer), Data binding.
 `TKDG_ALIGN_AUTO`, `TKDG_ALIGN_LEFT`, `TKDG_ALIGN_CENTER`, `TKDG_ALIGN_RIGHT` ·
 `TKDG_GRID_NONE`, `TKDG_GRID_HORZ`, `TKDG_GRID_VERT`, `TKDG_GRID_BOTH` ·
 `TKDG_HT_NONE`, `TKDG_HT_HEADER`, `TKDG_HT_DIVIDER`, `TKDG_HT_CELL`, `TKDG_HT_EMPTY`,
-`TKDG_HT_ROWHEADER`, `TKDG_HT_CORNER` ·
+`TKDG_HT_ROWHEADER`, `TKDG_HT_CORNER`, `TKDG_HT_FOOTER` ·
+`TKDG_SUM_NONE`, `TKDG_SUM_SUM`, `TKDG_SUM_COUNT`, `TKDG_SUM_AVG`, `TKDG_SUM_MIN`, `TKDG_SUM_MAX` ·
+`TKDG_SUMSCOPE_VIEW`, `TKDG_SUMSCOPE_SELECTION` ·
 `TKDG_EDIT_ONENTER`, `TKDG_EDIT_ONF2`, `TKDG_EDIT_ONKEYSTROKE`, `TKDG_EDIT_ONKEYSTROKEORF2`,
 `TKDG_EDIT_PROGRAMMATIC` · `TKDG_SORT_AUTO`, `TKDG_SORT_NONE`, `TKDG_SORT_INTERNAL`,
 `TKDG_SORT_HOST` · `TKDG_SEL_CELL`, `TKDG_SEL_ROW`, `TKDG_SEL_CELLORROW` ·
@@ -406,7 +446,7 @@ See [Form Designer](Form-Designer), Data binding.
 `DG_ColumnResizeSub`, `DG_ColumnReorderedSub`, `DG_TooltipFunc`, `DG_CellBeginEditFunc`,
 `DG_CellParseFunc`, `DG_CellEndEditSub`, `DG_RowFunc`, `DG_RowSub`, `DG_RowsDeletingFunc`,
 `DG_RowsSub`, `DG_FilterFunc`, `DG_CellValueNeededSub`, `DG_CellValuePushedFunc`,
-`DG_ColumnVisibleSub`, `DG_ContextMenuSub`.
+`DG_ColumnVisibleSub`, `DG_ContextMenuSub`, `DG_SummarySub`.
 tkDataGridSqlite: `TKDGSQL`.
 
 ### Procedures
@@ -632,6 +672,7 @@ sub tkDataGrid_SetSortChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as
 sub tkDataGrid_SetFilterCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_FilterFunc )
 sub tkDataGrid_SetColumnVisibilityChangedCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ColumnVisibleSub )
 sub tkDataGrid_SetContextMenuCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_ContextMenuSub )
+sub tkDataGrid_SetSummaryFormattingCallback( byval hGrid as TK_WIDGET ptr, byval cb as DG_SummarySub )
 
 ' ---- export, the column chooser, the layout
 function tkDataGrid_GetCsvText( byval hGrid as TK_WIDGET ptr, byref o as const TKDG_CSVOPTIONS ) as ustring
@@ -644,6 +685,20 @@ function tkDataGrid_ShowColumnChooser( byval hGrid as TK_WIDGET ptr, byval col a
 function tkDataGrid_GetChooserMenu( byval hGrid as TK_WIDGET ptr ) as TK_MENU ptr
 function tkDataGrid_GetLayout( byval hGrid as TK_WIDGET ptr ) as ustring
 function tkDataGrid_SetLayout( byval hGrid as TK_WIDGET ptr, byref layout as const ustring ) as boolean
+
+' ---- frozen rows, the footer
+sub tkDataGrid_SetFrozenRows( byval hGrid as TK_WIDGET ptr, byval n as integer )
+function tkDataGrid_GetFrozenRows( byval hGrid as TK_WIDGET ptr ) as integer
+function tkDataGrid_GetFrozenRowsHeightPx( byval hGrid as TK_WIDGET ptr ) as integer
+sub tkDataGrid_ShowFooter( byval hGrid as TK_WIDGET ptr, byval bShow as boolean )
+function tkDataGrid_IsFooterVisible( byval hGrid as TK_WIDGET ptr ) as boolean
+function tkDataGrid_GetFooterHeightPx( byval hGrid as TK_WIDGET ptr ) as integer
+function tkDataGrid_SetColumnSummary( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as long ) as boolean
+function tkDataGrid_GetColumnSummary( byval hGrid as TK_WIDGET ptr, byval col as integer ) as long
+sub tkDataGrid_SetSummaryScope( byval hGrid as TK_WIDGET ptr, byval nScope as long )
+function tkDataGrid_GetSummaryScope( byval hGrid as TK_WIDGET ptr ) as long
+function tkDataGrid_GetSummary( byval hGrid as TK_WIDGET ptr, byval col as integer, byref v as TKDG_VALUE ) as boolean
+function tkDataGrid_GetSummaryText( byval hGrid as TK_WIDGET ptr, byval col as integer ) as ustring
 
 ' ---- tkDataGridSqlite
 function tkDataGridSqlite_Open( byval hGrid as TK_WIDGET ptr, byval db as sqlite3 ptr, byref query as const ustring, byval bColumns as boolean = true, byval blockRows as integer = 100, byval maxBlocks as integer = 50 ) as TKDGSQL ptr

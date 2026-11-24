@@ -287,6 +287,8 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         this.AddField( "Fill", "Fill" )
         this.AddCheck( "ReadOnly", "ReadOnly" )
         this.AddCheck( "Visible", "Visible" )
+        ' G7b: the column's total in the grid's footer (ShowFooter)
+        this.AddField( "Summary", "Summary", "none,sum,count,avg,min,max" )
     case catalog.ItemsKind.ItemsPages, catalog.ItemsKind.ItemsTabs
         ' a tab: its caption and the glyph before it (the control's GlyphSize sizes every tab's)
         this.AddField( "Text", textLabel )
@@ -532,6 +534,9 @@ sub ItemsEditor.ShowItem( byval i as long )
                 if Items[i].MinWidth then v = str( Items[i].MinWidth )
             case "Fill"
                 if Items[i].Fill then v = str( Items[i].Fill )
+            case "Summary"
+                v = Items[i].Summary
+                if len( v ) = 0 then v = "none"
             end select
         end if
         if f.IsCheck then
@@ -614,6 +619,9 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
                 if v = "auto" then Items[Current].Align = ""
             case "MinWidth" : Items[Current].MinWidth = valint( v )
             case "Fill"     : Items[Current].Fill = valint( v )
+            case "Summary"
+                Items[Current].Summary = v
+                if v = "none" then Items[Current].Summary = ""
             end select
         end if
     next

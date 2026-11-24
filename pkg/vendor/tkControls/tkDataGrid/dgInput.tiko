@@ -367,11 +367,11 @@ end function
 ' A selection drag at surface (x, y): the cell under it, clamped into the body, extends.
 private sub DgDragSelectAt( byval p as TKDATAGRID_STATE ptr, byval x as integer, byval y as integer )
     dim as TK_WIDGET ptr s = p->wSurf
-    dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
+    dim as integer bt = DgBandTop( p ), bb = DgBodyBottom( p )
     dim as integer cy = y
-    if cy < hdrH then cy = hdrH
-    if cy > s->ch - 1 then cy = s->ch - 1
-    dim as integer vr = (cy - hdrH + p->scrollY) \ rowH
+    if cy > bb - 1 then cy = bb - 1
+    if cy < bt then cy = bt
+    dim as integer vr = DgRowAtY( p, cy )
     if vr > DgViewCount( p ) - 1 then vr = DgViewCount( p ) - 1
     if vr < 0 then vr = 0
     dim as integer row = DgModelOf( p, vr )
@@ -393,7 +393,9 @@ private sub DgDragSelectAt( byval p as TKDATAGRID_STATE ptr, byval x as integer,
     DgExtendTo( p, row, d )
     DgUserEnd( p, mk )
     ' outside the body: keep scrolling while held
-    dim as boolean outside = (y < hdrH) orelse (y >= s->ch) orelse ((p->drag = DG_DRAG_CELLS) andalso ((x >= s->cw) orelse ((x < DgScrollLeft( p )) andalso (p->scrollX > 0))))
+    ' (G7b: over the frozen rows while the rows below are scrolled counts as above them)
+    dim as boolean outside = (y < bt) orelse (y >= bb) orelse ((y < DgBodyTop( p )) andalso (p->scrollY > 0)) _
+                             orelse ((p->drag = DG_DRAG_CELLS) andalso ((x >= s->cw) orelse ((x < DgScrollLeft( p )) andalso (p->scrollX > 0))))
     if outside then
         if tkWidget_HasTimer( s, TK_TIMER_AUTOSCROLL ) = false then tkWidget_SetTimer( s, TK_TIMER_AUTOSCROLL, DG_AUTOSCROLL_MS )
     else
@@ -586,8 +588,8 @@ private sub DgAutoScrollTick( byval p as TKDATAGRID_STATE ptr )
     end if
     dim as TK_WIDGET ptr s = p->wSurf
     dim as integer dx = 0, dy = 0
-    if p->lastY < DgHdrHPx( p ) then dy = -DgRowHPx( p )
-    if p->lastY >= s->ch then dy = DgRowHPx( p )
+    if p->lastY < DgBodyTop( p ) then dy = -DgRowHPx( p )
+    if p->lastY >= DgBodyBottom( p ) then dy = DgRowHPx( p )
     if p->drag = DG_DRAG_CELLS then
         if p->lastX >= s->cw then dx = DgScale( p, 16 )
         if p->lastX < DgScrollLeft( p ) then dx = -DgScale( p, 16 )

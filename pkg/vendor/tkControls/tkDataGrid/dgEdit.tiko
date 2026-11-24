@@ -349,15 +349,17 @@ sub DgPlaceEditor( byval p as TKDATAGRID_STATE ptr )
         DgEndEdit( p, true )
         exit sub
     end if
-    dim as integer hdrH = DgHdrHPx( p ), rowH = DgRowHPx( p )
+    dim as integer rowH = DgRowHPx( p )
     dim as integer v = DgViewOf( p, row )
     if v < 0 then
         DgEndEdit( p, true )
         exit sub
     end if
-    dim as integer x = DgColLeft( p, col ), y = hdrH + v * rowH - p->scrollY
+    dim as integer x = DgColLeft( p, col ), y = DgRowY( p, v )
     dim as integer lim = iif( DgIsFrozen( p, col ), DgRhPx( p ), DgScrollLeft( p ) )
-    if (x + p->cols(col).wPx <= lim) orelse (x >= p->wSurf->cw) orelse (y + rowH <= hdrH) orelse (y >= p->wSurf->ch) then
+    ' a scrolling row under the frozen rows or the footer is out of view; a frozen row never is
+    dim as integer top = iif( v < DgNFR( p ), DgBandTop( p ), DgBodyTop( p ) )
+    if (x + p->cols(col).wPx <= lim) orelse (x >= p->wSurf->cw) orelse (y + rowH <= top) orelse (y >= DgBodyBottom( p )) then
         if DgEndEdit( p, true ) = false then DgEnsureVisible( p, row, col )
         exit sub
     end if
@@ -876,11 +878,13 @@ public function tkDataGrid_GetSourceContext( byval hGrid as TK_WIDGET ptr ) as a
 end function
 
 ' Values the host changed in rows row1 .. row2, columns col1 .. col2 (-1 for every one): repaint.
-' The grid caches nothing, so this only owes a paint.
+' The grid caches no cell, so this owes a paint -- and the footer's totals (G7b) are worked out again.
 public sub tkDataGrid_InvalidateCells( byval hGrid as TK_WIDGET ptr, byval row1 as integer = -1, byval col1 as integer = -1, _
                                        byval row2 as integer = -1, byval col2 as integer = -1 )
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
-    if p then tkWidget_Invalidate( p->wSurf )
+    if p = 0 then exit sub
+    DgSumInvalidate( p )
+    tkWidget_Invalidate( p->wSurf )
 end sub
 
 ' The host inserted n rows at row (virtual or source): the count grows, the current row moves with

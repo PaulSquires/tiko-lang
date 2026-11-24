@@ -80,6 +80,7 @@ end sub
 ' Model rows inserted (n > 0) or deleted (n < 0) at row: the map follows. New rows join the end of
 ' the view; deleted ones leave it. Called after rowCount has changed.
 sub DgViewRowsMoved( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval n as integer )
+    DgSumInvalidate( p )                 ' G7b
     ' G6: every row count change comes through here: cached blocks no longer line up
     if n <> 0 then DgCacheClear( p )
     if (p->bViewMap = false) orelse (n = 0) then exit sub

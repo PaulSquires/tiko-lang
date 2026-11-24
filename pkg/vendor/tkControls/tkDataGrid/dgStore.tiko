@@ -194,6 +194,7 @@ end sub
 ' row / col valid. v is converted to the column's kind first. FALSE: it would not convert, or the
 ' host / source refused it (or cannot take values); nothing changed.
 function DgWrite( byval p as TKDATAGRID_STATE ptr, byval row as integer, byval col as integer, byref v as const TKDG_VALUE ) as boolean
+    DgSumInvalidate( p )                 ' G7b
     dim as TKDG_VALUE w = v
     if DgConvert( w, p->cols(col).c.valueKind ) = false then return false
     select case p->feed

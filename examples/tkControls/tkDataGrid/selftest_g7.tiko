@@ -406,7 +406,7 @@ sub RunG7a( byval fScale as single )
     dim as integer w0 = tkDataGrid_GetColumnWidth( g, 0 ), w1 = tkDataGrid_GetColumnWidth( g, 1 ), w3 = tkDataGrid_GetColumnWidth( g, 3 )
     dim as integer w4 = tkDataGrid_GetColumnWidth( g, 4 )
     dim as ustring lay = tkDataGrid_GetLayout( g )
-    dim as ustring layWant = "tkdg1;frozen=2;sort=Qty:d,Name:a;cols=Due:" & w4 & ":1,Name:" & w0 & ":1,Qty:" & w1 & ":1,Price:95:1,Done:" & w3 & ":0,Notes:120:0"
+    dim as ustring layWant = "tkdg1;frozen=2;frows=0;sort=Qty:d,Name:a;cols=Due:" & w4 & ":1,Name:" & w0 & ":1,Qty:" & w1 & ":1,Price:95:1,Done:" & w3 & ":0,Notes:120:0"
     tkTest_Check( "GetLayout: frozen, sort keys, then each column in display order (key:width:shown)", lay = layWant, lay )
     ' a second grid, columns added in another order, gets the same layout
     dim as TK_WIDGET ptr g2 = tkDataGrid_Create( tkHost_Root( h ), 720 )
@@ -460,7 +460,7 @@ sub RunG7a( byval fScale as single )
     tkDataGrid_AddColumn( g3, c3 )
     dim as ustring lay3 = tkDataGrid_GetLayout( g3 )
     tkTest_Check( "GetLayout: a key's separators are %XX; a column with no key is #index", _
-                  lay3 = "tkdg1;frozen=0;sort=;cols=a%3Bb%3Ac%2Cd%3D%25%23:40:1,#1:50:1", lay3 )
+                  lay3 = "tkdg1;frozen=0;frows=0;sort=;cols=a%3Bb%3Ac%2Cd%3D%25%23:40:1,#1:50:1", lay3 )
     tkDataGrid_SetDisplayIndex( g3, 1, 0 ) : tkDataGrid_SetColumnWidth( g3, 0, 41 )
     okSet = tkDataGrid_SetLayout( g3, lay3 )
     tkTest_Check( "SetLayout decodes them back", okSet andalso (tkDataGrid_GetLayout( g3 ) = lay3), tkDataGrid_GetLayout( g3 ) )

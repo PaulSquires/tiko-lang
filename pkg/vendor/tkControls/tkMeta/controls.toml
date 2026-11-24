@@ -1262,6 +1262,8 @@ color_fields = [
   { field="RowHeaderForeColor" },
   { field="DropMarkColor" },
   { field="ErrorColor" },
+  { field="FooterBackColor" },
+  { field="FooterForeColor", ink=true },
 ]
 props = [
   { name="RowHeight", kind="int", set="tkDataGrid_SetRowHeight", get="tkDataGrid_GetRowHeight" },
@@ -1270,6 +1272,9 @@ props = [
   { name="ShowRowHeaders", kind="bool", set="tkDataGrid_ShowRowHeaders", get="tkDataGrid_AreRowHeadersVisible", default="false" },
   { name="RowHeaderWidth", kind="int", set="tkDataGrid_SetRowHeaderWidth", get="tkDataGrid_GetRowHeaderWidth" },
   { name="FrozenColumns", kind="int", set="tkDataGrid_SetFrozenColumns", get="tkDataGrid_GetFrozenColumns", default="0" },
+  { name="FrozenRows", kind="int", set="tkDataGrid_SetFrozenRows", get="tkDataGrid_GetFrozenRows", default="0" },
+  { name="ShowFooter", kind="bool", set="tkDataGrid_ShowFooter", get="tkDataGrid_IsFooterVisible", default="false" },
+  { name="SummaryScope", kind="enum", enum="View=TKDG_SUMSCOPE_VIEW,Selection=TKDG_SUMSCOPE_SELECTION", set="tkDataGrid_SetSummaryScope", get="tkDataGrid_GetSummaryScope", default="View" },
   { name="GridLines", kind="enum", enum="None=TKDG_GRID_NONE,Horizontal=TKDG_GRID_HORZ,Vertical=TKDG_GRID_VERT,Both=TKDG_GRID_BOTH", set="tkDataGrid_SetGridLines", get="tkDataGrid_GetGridLines", default="Both" },
   { name="AlternateRows", kind="bool", set="tkDataGrid_SetAlternateRows", get="tkDataGrid_GetAlternateRows", default="false" },
   { name="SelectionUnit", kind="enum", enum="Cell=TKDG_SEL_CELL,Row=TKDG_SEL_ROW,CellOrRow=TKDG_SEL_CELLORROW", set="tkDataGrid_SetSelectionUnit", get="tkDataGrid_GetSelectionUnit", default="CellOrRow" },
@@ -1305,6 +1310,7 @@ events = [
   { name="ColumnReordered", set="tkDataGrid_SetColumnReorderedCallback", type="DG_ColumnReorderedSub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval dispPos as integer", params="byval col as integer, byval dispPos as integer", args="col, dispPos" },
   { name="SortChanged", set="tkDataGrid_SetSortChangedCallback", type="DG_GridSub", sig="byval hGrid as TK_WIDGET ptr", params="", args="" },
   { name="ColumnVisibilityChanged", set="tkDataGrid_SetColumnVisibilityChangedCallback", type="DG_ColumnVisibleSub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval bVisible as boolean", params="byval col as integer, byval bVisible as boolean", args="col, bVisible" },
+  { name="SummaryFormatting", set="tkDataGrid_SetSummaryFormattingCallback", type="DG_SummarySub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring", params="byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring", args="col, kind, v, text" },
   { name="ContextMenu", set="tkDataGrid_SetContextMenuCallback", type="DG_ContextMenuSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval x as long, byval y as long, byval bKeyboard as boolean", params="byval row as integer, byval col as integer, byval x as long, byval y as long, byval bKeyboard as boolean", args="row, col, x, y, bKeyboard" },
   { name="CellBeginEdit", set="tkDataGrid_SetCellBeginEditCallback", type="DG_CellBeginEditFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer, byref Allow as boolean", args="row, col, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="CellEndEdit", set="tkDataGrid_SetCellEndEditCallback", type="DG_CellEndEditSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval bCommitted as boolean", params="byval row as integer, byval col as integer, byval bCommitted as boolean", args="row, col, bCommitted" },
