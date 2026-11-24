@@ -324,7 +324,7 @@ The `debug` in `out/debug` is the **profile**: a named set of compiler options. 
 uses `debug`, which is `-g -exx -O0`, a checked build, and so does `tiko run`. `--profile release`
 builds with `-O2` instead, into `out/release`, and the program above then prints
 `release build`. Both are built in, and so is `asan`, `-g -exx -O1 -fsanitize=address`, for
-finding memory errors (Chapter 19; after tiko 0.1.6). A `[profile.name]` table changes one or
+finding memory errors (Chapter 19). A `[profile.name]` table changes one or
 declares another:
 
 ```toml
@@ -351,8 +351,7 @@ compiled in parallel; `-j 4` sets how many at once.
 no objects. A file the last build compiled cleanly is not looked at again, so after a build a
 check is quick. It is what an editor runs on save. **`tiko clean`** removes the program a build
 of the same profile wrote. **`tiko test`** builds a project's tests into one program and runs it
-(Chapter 19), and **`tiko doc`** writes its modules' documentation (Chapter 15); both arrive after
-tiko 0.1.6, the toolchain this book is pinned to.
+(Chapter 19), and **`tiko doc`** writes its modules' documentation (Chapter 15).
 
 ```admonish note title="For editors and tools"
 `tiko build --message-format json` reports a build as one JSON object per line — each file

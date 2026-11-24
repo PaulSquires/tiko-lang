@@ -695,12 +695,6 @@ words. tiko reads them from where you already write them — the comments above 
 and `tiko doc` turns a project's modules into pages: one per module, in Markdown and in HTML, an
 index with a search box, and a `doc.json` for tools.
 
-```admonish warning title="Status in this version"
-`tiko doc` arrives after tiko 0.1.6, the toolchain this book is pinned to. The listing in this
-section was compiled and run with the development toolchain; the book's harness reports it as
-blocked (`pin-0.1.6`) until the pin moves to a release that has it.
-```
-
 The module, `geo/geo.tiko`, in a project whose `tiko.toml` names the package `shapes`:
 
 ```tiko
