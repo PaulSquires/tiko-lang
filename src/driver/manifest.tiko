@@ -350,11 +350,13 @@ private function BuildKey_ _
             select case k
             case "id", "label", "assets", "version", "icon", "key"
             case "bundle" : w = "b"
+            case "permissions" : w = "a"     '' -apppermission, one per element (docs/fasting-android F0)
             case else
                 return "unknown key '" & k & "' in [" & table_ & "]: it holds id, label, assets, version, " & _
-                       "icon, key and bundle"
+                       "icon, key, permissions and bundle"
             end select
-            if kind <> w then return "'" & k & "' in [" & table_ & "] is " & iif( w = "b", "true or false", "a string" )
+            if kind <> w then return "'" & k & "' in [" & table_ & "] is " & _
+                                     iif( w = "b", "true or false", iif( w = "a", "an array of strings", "a string" ) )
             m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( "app." & k ) : m.tgtVal.Push( v )
             return ""
         end if

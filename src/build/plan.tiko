@@ -326,6 +326,12 @@ function PlanTarget _
             appArgs.Push( "-appkey" )
             appArgs.Push( iif( c > 0, Rel( mdir, left( v, c - 1 ) ) & mid( v, c ), Rel( mdir, v ) ) )
         case "app.bundle"  : appBundle = (v = "true")
+        case "app.permissions"
+            dim as Tko.StrVec perms
+            SplitLf_( v, perms )
+            for j as int32 = 0 to perms.Count - 1
+                appArgs.Push( "-apppermission" ) : appArgs.Push( perms[j] )
+            next
         end select
     next
     if len( main_ ) = 0 then

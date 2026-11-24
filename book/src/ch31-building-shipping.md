@@ -464,6 +464,10 @@ other vendor package are linked into the program; there is no `.so` to ship besi
 | `-appversion 1.2,12` | the version a user sees, and the number Android compares | `1.0,1` |
 | `-appicon icon.png` | the launcher icon | Android's default |
 | `-appassets data` | a folder whose files become the app's assets | none |
+| `-apppermission INTERNET` | a permission the app asks for; repeat it for each. A name with no dot means `android.permission.<name>` | none |
+
+An app asks for nothing unless you say so: without `-apppermission INTERNET`, every network call fails
+(Java reports `SecurityException: Permission denied (missing INTERNET permission?)`).
 
 The application id cannot change once an app is published. The version number after the comma
 must grow with every release a store accepts.
@@ -505,6 +509,7 @@ id      = "org.example.game"
 label   = "My Game"
 version = "1.0,1"
 icon    = "art/icon.png"
+permissions = ["INTERNET"]
 assets  = "data"
 key     = "keys/release.jks,upload"   # its passwords in TIKO_ANDROID_KS_PASS / TIKO_ANDROID_KEY_PASS
 bundle  = true                        # game.aab for Play, rather than game.apk

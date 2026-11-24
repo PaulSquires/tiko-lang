@@ -3,4 +3,4 @@
 '' TEST: cli
 '' ARGS: -appversion 2.0 -target android-x86_64 tests/source/plain.bas
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: TKO0197: '-app*': -appid, -applabel, -appassets, -appversion, -appicon, -appkey and -appbundle need -app
+'' EXPECT-OUT: TKO0197: '-app*': -appid, -applabel, -appassets, -appversion, -appicon, -appkey, -apppermission and -appbundle need -app

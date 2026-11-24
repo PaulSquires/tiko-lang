@@ -3,4 +3,4 @@
 '' TEST: cli
 '' ARGS: build --manifest tests/diagnostics/src/build-appkey
 '' EXPECT-EXIT: 2
-'' EXPECT-OUT: tiko.toml(10): unknown key 'icn' in [target.game.app]: it holds id, label, assets, version, icon, key and bundle
+'' EXPECT-OUT: tiko.toml(10): unknown key 'icn' in [target.game.app]: it holds id, label, assets, version, icon, key, permissions and bundle

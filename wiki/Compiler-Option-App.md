@@ -6,7 +6,7 @@ Build an Android app (an APK, or an App Bundle for Play) of an SDL3 program
 
 Syntax
 
-`-app [ -appid id ] [ -applabel text ] [ -appversion name[,code] ] [ -appicon file.png ] [ -appassets dir ] [ -appkey keystore[,alias] ] [ -appbundle ]`
+`-app [ -appid id ] [ -applabel text ] [ -appversion name[,code] ] [ -appicon file.png ] [ -appassets dir ] [ -apppermission name ]... [ -appkey keystore[,alias] ] [ -appbundle ]`
 
 Parameters
 
@@ -16,6 +16,7 @@ Parameters
 | `-applabel text` | the name shown under the app's icon; default the program's name |
 | `-appversion name[,code]` | the version name a user sees and the version code Android compares, a whole number from 1 to 2100000000; default `1.0,1` |
 | `-appicon file.png` | the launcher icon; default Android's own |
+| `-apppermission name` | a permission the app uses, one `<uses-permission>` in the manifest; repeatable. A name with no dot is `android.permission.<name>`, so `-apppermission INTERNET` is what any network use (sockets, HTTP) needs. Default none |
 | `-appassets dir` | a directory whose files, subdirectories included, become the app's assets |
 | `-appkey keystore[,alias]` | sign with this key rather than the debug key. Its passwords are read from the environment variables `TIKO_ANDROID_KS_PASS` and `TIKO_ANDROID_KEY_PASS` (the key's, when it differs), never from the command line. `-appbundle` needs the alias |
 | `-appbundle` | write an Android App Bundle (`.aab`), what Google Play takes, rather than an `.apk` |
@@ -28,7 +29,7 @@ The program must import `vendor/SDL3`, directly or through a package such as tkC
 
 Needed besides the toolchain: the Android NDK (`ANDROID_NDK_HOME`), the SDK's build-tools and platform 36 (`ANDROID_HOME`), and a JDK 17 or newer (`JAVA_HOME`); for `-appbundle`, bundletool (`TIKO_ANDROID_BUNDLETOOL`, or `bundletool*.jar` in a `bundletool` folder beside the SDK).
 
-In a project, `kind = "app"` in `[target.<name>]` builds the target with `-app`, and a `[target.<name>.app]` table sets the others: `id`, `label`, `version`, `icon`, `assets`, `key` and `bundle = true`.
+In a project, `kind = "app"` in `[target.<name>]` builds the target with `-app`, and a `[target.<name>.app]` table sets the others: `id`, `label`, `version`, `icon`, `assets`, `key`, `permissions` (an array: `permissions = ["INTERNET"]`) and `bundle = true`.
 
 Examples
 

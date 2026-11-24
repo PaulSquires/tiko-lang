@@ -182,11 +182,25 @@ end function
 '' with targetSdk 33+ BACK otherwise goes to Android's predictive-back dispatcher, which finished
 '' the Activity on the same press tkHost had already used to close a page (measured, A5 step 8).
 private function Manifest_( byref id as string, byref label as string, byref vname as string, _
-                            byref vcode as string, byref icon as string ) as string
+                            byref vcode as string, byref icon as string, byref perms as string ) as string
     dim as string nl = chr( 10 )
+    '' -apppermission: one <uses-permission> each, in the order given; a name with no dot is
+    '' android.permission.<name>, and a name given twice is written once.
+    dim as string uses, seen = nl
+    dim as int32 st = 1
+    do while st <= len( perms )
+        dim as int32 e = instr( st, perms, nl )
+        dim as string pn = mid( perms, st, e - st )
+        st = e + 1
+        if instr( pn, "." ) = 0 then pn = "android.permission." & pn
+        if instr( seen, nl & pn & nl ) > 0 then continue do
+        seen &= pn & nl
+        uses &= "    <uses-permission android:name=""" & pn & """ />" & nl
+    loop
     return "<?xml version=""1.0"" encoding=""utf-8""?>" & nl & _
         "<manifest xmlns:android=""http://schemas.android.com/apk/res/android""" & nl & _
         "    package=""" & id & """ android:versionCode=""" & vcode & """ android:versionName=""" & Xml_( vname ) & """>" & nl & _
+        uses & _
         "    <uses-feature android:glEsVersion=""0x00020000"" />" & nl & _
         "    <uses-feature android:name=""android.hardware.touchscreen"" android:required=""false"" />" & nl & _
         "    <application android:label=""" & Xml_( label ) & """ android:icon=""" & icon & """" & nl & _
@@ -449,7 +463,7 @@ private function Package_( byref ctx as Tko.CompilerContext, byref why as string
         why = "cannot write '" & stage & "/AndroidManifest.xml'"
         return false
     end if
-    print #fh, Manifest_( id, label, vname, vcode, icon );
+    print #fh, Manifest_( id, label, vname, vcode, icon, ctx.options.appPermissions );
     close #fh
 
     if ctx.options.appBundle then return Bundle_( ctx, stage, abi, bt, plat, jdk, flat, haveAssets, key, outApk, why )

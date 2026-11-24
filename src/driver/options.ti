@@ -103,7 +103,10 @@ namespace Tko
     '' from TIKO_ANDROID_KS_PASS and TIKO_ANDROID_KEY_PASS by the tools themselves.
     OPT( OPT_APPVERSION,"-appversion",OPTK_VALUE, OPTCAT_OUTPUT,  "name[,code]", "the app's version name and code (default 1.0,1)" )
     OPT( OPT_APPICON,   "-appicon",   OPTK_VALUE, OPTCAT_OUTPUT,  "png",      "the app's launcher icon, a PNG (default Android's)" )
-    OPT( OPT_APPKEY,    "-appkey",    OPTK_VALUE, OPTCAT_OUTPUT,  "keystore[,alias]", "sign with this keystore; passwords from TIKO_ANDROID_KS_PASS / TIKO_ANDROID_KEY_PASS (default the debug key)" )
+    '' A PERMISSION (docs/fasting-android F0): the generated manifest asks for none, so without
+    '' -apppermission INTERNET even a socket fails. Repeatable; a name with no dot is android.permission.<name>.
+    OPT( OPT_APPPERMISSION, "-apppermission", OPTK_VALUE, OPTCAT_OUTPUT, "name", "an Android permission the app uses, repeatable (INTERNET means android.permission.INTERNET)" )
+    OPT( OPT_APPKEY,    "-appkey",   OPTK_VALUE, OPTCAT_OUTPUT,  "keystore[,alias]", "sign with this keystore; passwords from TIKO_ANDROID_KS_PASS / TIKO_ANDROID_KEY_PASS (default the debug key)" )
     OPT( OPT_APPBUNDLE, "-appbundle", OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "write an Android App Bundle (.aab) for Play rather than an .apk" )
     OPT( OPT_ERRCHK,    "-e",         OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "enable runtime error checking" )
     OPT( OPT_ERRCHKX,   "-ex",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "as -e: RESUME, which fbc adds here, does not exist in the fb dialect" )
@@ -299,6 +302,7 @@ namespace Tko
         as string  appId, appLabel, appAssets
         as string  appVersion, appIcon, appKey    '' -appversion, -appicon, -appkey (A6)
         as boolean appBundle                       '' -appbundle: an .aab (A6)
+        as string  appPermissions                  '' -apppermission, each name followed by chr(10)
         as boolean compileOnly
         as boolean debugInfo
         as boolean threadSafe    '' -mt as WRITTEN; the link's answer is LinkThreadSafe( ctx )
