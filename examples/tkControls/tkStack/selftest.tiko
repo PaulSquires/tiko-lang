@@ -105,6 +105,26 @@ sub Arithmetic( )
     CheckRect( "a card is as tall as its stack", o(0), 0, 0, 300, 222 )
     CheckRect( "the next item after it", o(1), 0, 232, 300, 252 )
     tkStack_Destroy( s )
+
+    ' a row in a column: the row's height is the size given; its items are laid out across it
+    s = tkStack_Create( 0 )
+    dim as TK_WIDGET ptr rowW = W_( ), r1 = W_( ), r2 = W_( ), below = W_( )
+    dim as TK_STACK ptr row = tkStack_Create( 0, TK_STACK_HORIZONTAL )
+    tkStack_SetGap( row, 8 )
+    tkStack_AddFill( row, r1 ) : tkStack_Add( row, r2, 96 )
+    tkStack_AddStack( s, rowW, row, 48 ) : tkStack_Add( s, below, 18 )
+    tkRect_Set( rc, 0, 0, 300, 1000 )
+    tkStack_Layout( s, rc, @o(0) )
+    CheckRect( "a row in a column: the size given", o(0), 0, 0, 300, 48 )
+    CheckRect( "... and the next item under it", o(1), 0, 48, 300, 66 )
+    tkTest_Check( "... Measure counts the row's size", tkStack_Measure( s, 300 ) = 66, "" & tkStack_Measure( s, 300 ) )
+    ' Remove, then add again: the item moves to the end
+    tkStack_Remove( s, rowW )
+    tkStack_Add( s, rowW, 10 )
+    tkStack_Layout( s, rc, @o(0) )
+    CheckRect( "Remove: the next item moves up", o(0), 0, 0, 300, 18 )
+    CheckRect( "... and the one added again is last", o(1), 0, 18, 300, 28 )
+    tkStack_Destroy( s )
 end sub
 
 sub WindowPass( byval fScale as single )

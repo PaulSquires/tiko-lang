@@ -60,7 +60,7 @@ Hover and selection styling is yours: decide the state, set the colours, then pa
 - `PaintLine` draws an axis-aligned rule as a crisp filled rect, centred on the line and stopping short of the end point; a diagonal is an anti-aliased line through the centres of both end pixels.
 - `SetPenDashStyle` applies to `PaintPolyline` and `PaintCurve`; the pattern is in pen-width units, and an unknown value means `TK_PENDASH_SOLID`. A solid polyline or curve wider than 1.5 pixels gets round joins.
 - `PaintPolygon` fills any simple polygon, convex or not, closing it for you; its points are pixel centres. Fewer than 3 points draw nothing.
-- `PaintPie` and `PaintPieRing` take angles in degrees, clockwise from the positive x axis. A zero sweep draws nothing; a sweep of 360 or more is the whole ellipse. The ring's hole is `nInnerRatio` of the radius, clamped to 0..0.9; a hole under a pixel draws a plain pie.
+- `PaintPie` and `PaintPieRing` take angles in degrees, clockwise from the positive x axis. A zero sweep draws nothing; a sweep of 360 or more is the whole ellipse. The ring's hole is `nInnerRatio` of the radius, clamped to 0..0.9; a hole under a pixel draws a plain pie. A whole ring of a circle is one closed band, with no seam where it closes; a whole ring of an ellipse (not a constant width) is a polygon.
 - `PaintCurve` draws a cardinal spline through the points, `nTension` clamped to 0..1; with fewer than 3 points it is a polyline.
 - Empty rects and missing pointers are skipped silently.
 

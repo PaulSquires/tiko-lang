@@ -31,7 +31,9 @@ left (`tkStack_AddFill`; the last FILL item takes the remainder, so the shares a
 Across, an item takes the stack's whole extent unless `tkStack_SetAlign` gives it a size and START,
 CENTER or END. A **hidden** item takes no space and no gap. `tkStack_AddStack` nests a stack inside
 a container (a card): the container is as tall as the inner stack measures, and applying the outer
-stack applies the inner one; the outer stack owns it.
+stack applies the inner one; the outer stack owns it. A `size` given to `tkStack_AddStack` wins over
+the measure -- a row of a fixed height inside a column. `tkStack_Remove` takes an item out (a list
+that grows keeps its "Show more" last by removing and re-adding it).
 
 ## Functions
 
@@ -43,7 +45,8 @@ stack applies the inner one; the outer stack owns it.
 | `tkStack_Add( s, w, size )` | A fixed extent along the stack. |
 | `tkStack_AddFunc( s, w, fn )` | `fn( w, crossPx ) as long`: its extent in pixels for the cross extent it gets. |
 | `tkStack_AddFill( s, w, weight = 1, minSize = 0 )` | A share of what is left, by weight; at least `minSize`. |
-| `tkStack_AddStack( s, w, inner )` | A container laid out by its own stack. |
+| `tkStack_AddStack( s, w, inner, size = 0 )` | A container laid out by its own stack: as long as `inner` measures (one of the same orientation), or `size` design units when it is given. |
+| `tkStack_Remove( s, w )` | Takes `w`'s item out, the stack nested for it freed; the widget stays. |
 | `tkStack_SetAlign( s, align, crossSize = 0 )` | The LAST item added: `TK_STACK_STRETCH` (the default), `START`, `CENTER`, `END`, and its cross size (design units). |
 | `tkStack_SetSpaceBefore( s, space )` | The LAST item added: extra space before it, beyond the gap. |
 | `tkStack_Measure( s, crossPx ) as long` | The whole stack's extent along it, padding included, FILL items at their minimum. |

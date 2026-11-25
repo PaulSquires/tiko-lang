@@ -123,10 +123,31 @@ public sub tkStack_AddFill( byval s as TK_STACK ptr, byval w as TK_WIDGET ptr, b
 end sub
 
 ' A container w (a card) whose own items are the stack inner: w is as tall (or wide) as inner
-' measures, and inner is applied inside w. The outer stack owns inner from here on.
-public sub tkStack_AddStack( byval s as TK_STACK ptr, byval w as TK_WIDGET ptr, byval inner as TK_STACK ptr )
+' measures, and inner is applied inside w. An inner stack of the OTHER orientation (a row in a
+' column) has no extent of its own along the outer one: size (design units) is it -- and a size
+' given wins for one of the same orientation too (a fixed-width row inside a row). The outer
+' stack owns inner from here on.
+public sub tkStack_AddStack( byval s as TK_STACK ptr, byval w as TK_WIDGET ptr, byval inner as TK_STACK ptr, byval size as long = 0 )
     if (s = 0) orelse (w = 0) orelse (inner = 0) then exit sub
-    Push_( s, w )->inner = inner
+    dim as TKSTACK_ITEM ptr it = Push_( s, w )
+    it->inner = inner
+    it->size = size
+end sub
+
+' Takes w out of the stack (its nested stack, if any, is freed); the widget stays. To move an item to
+' the end: Remove it, then add it again.
+public sub tkStack_Remove( byval s as TK_STACK ptr, byval w as TK_WIDGET ptr )
+    if s = 0 then exit sub
+    for i as long = 0 to s->n - 1
+        if s->items[i].w = w then
+            if s->items[i].inner then tkStack_Destroy( s->items[i].inner )
+            for j as long = i to s->n - 2
+                s->items[j] = s->items[j + 1]
+            next
+            s->n -= 1
+            exit sub
+        end if
+    next
 end sub
 
 ' The LAST item added: its cross alignment and cross size (design units; 0 = the stack's).
@@ -155,7 +176,10 @@ public declare function tkStack_Measure( byval s as TK_STACK ptr, byval crossPx 
 
 ' One item's extent along the stack for crossPx (pixels): fixed, its own, or its stack's.
 private function Extent_( byval s as TK_STACK ptr, byval it as TKSTACK_ITEM ptr, byval crossPx as long ) as long
-    if it->inner then return tkStack_Measure( it->inner, crossPx )
+    if it->inner then
+        if it->size > 0 then return Sc_( s, it->size )                  ' a size given wins
+        if it->inner->orient = s->orient then return tkStack_Measure( it->inner, crossPx )
+    end if
     if it->fn then return it->fn( it->w, crossPx )
     return Sc_( s, it->size )
 end function

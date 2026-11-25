@@ -1183,6 +1183,25 @@ sub TK_PAINT.PaintPieRing( byval rc as TKRECT ptr, byval nInnerRatio as single, 
     ' below about a pixel of hole there is nothing to see: it is a pie
     if (ratio * rx < 1) orelse (ratio * ry < 1) then this.PaintPie( rc, startAngle, sweepAngle, nPenWidth ) : exit sub
     dim as single cx = rc->left + this.ox + 0.5 + rx, cy = rc->top + this.oy + 0.5 + ry
+    ' A WHOLE CIRCULAR RING IS ONE CLOSED BAND: as a polygon it is a 359.9 degree slit whose two
+    ' AA fringes left a light seam at the start, and the ear-clipped sliver another (the fasting
+    ' app's 700 px timer ring on a phone, F5). An ellipse's ring is not a constant-width band, so
+    ' it keeps the polygon.
+    if (abs( sweepAngle ) >= 359.99) andalso (abs( rx - ry ) < 0.5) then
+        dim as single ri = rx * ratio, rm = (rx + ri) / 2
+        dim as SDL_FPoint band()
+        dim as long nb = ArcPts( cx, cy, rm, rm, 0, 360, band() ) - 1        ' closed: no repeated end
+        StrokeClosedP( this, band(), nb, rx - ri, this.clrBack )
+        if nPenWidth > 0 then
+            dim as SDL_FPoint rim()
+            dim as long pw = ScalePen( this.fScale, nPenWidth )
+            dim as long nr = ArcPts( cx, cy, rx, rx, 0, 360, rim() ) - 1
+            StrokeClosedP( this, rim(), nr, pw, this.clrPen )
+            nr = ArcPts( cx, cy, ri, ri, 0, 360, rim() ) - 1
+            StrokeClosedP( this, rim(), nr, pw, this.clrPen )
+        end if
+        exit sub
+    end if
     dim as single sw = iif( abs( sweepAngle ) >= 359.99, sgn( sweepAngle ) * 359.9, sweepAngle )
     dim as SDL_FPoint outerA(), innerA()
     dim as long no = ArcPts( cx, cy, rx, ry, startAngle, sw, outerA() )
