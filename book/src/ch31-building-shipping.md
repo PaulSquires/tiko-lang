@@ -8,8 +8,8 @@ about the command line that does all of that, and about what a shipped program d
 
 ## Targets
 
-tiko builds for four targets, chosen with `-target`, and for two Android ones when its toolchain
-has them ([Android](#android), below):
+tiko builds for six targets, chosen with `-target`. The two Android ones are experimental, and only
+the Windows toolchain has them ([Android](#android), below):
 
 | Target | Builds | Default on |
 |---|---|---|
@@ -17,8 +17,8 @@ has them ([Android](#android), below):
 | `linux-x86_64` | a Linux x86-64 executable, linked against the system's C library | x86-64 Linux |
 | `linux-arm64` | a Linux arm64 (aarch64) executable, linked against the system's C library | arm64 Linux |
 | `macos-arm64` | a macOS executable for Apple Silicon, linked by Apple's linker against the macOS SDK | macOS |
-| `android-x86_64` | an Android program or app for the x86-64 emulator, linked with the Android NDK | — |
-| `android-arm64` | an Android program or app for arm64 phones and tablets, linked with the Android NDK | — |
+| `android-x86_64` | an Android program or app for the x86-64 emulator, linked with the Android NDK (experimental) | — |
+| `android-arm64` | an Android program or app for arm64 phones and tablets, linked with the Android NDK (experimental) | — |
 
 The compiler turns tiko into LLVM's intermediate form and hands it to **clang**, which produces
 machine code and drives the linker. tiko looks for clang in the place LLVM installs it, then on
@@ -403,9 +403,16 @@ and that licence's conditions apply.
 
 ## Android
 
-A Windows toolchain packaged with Android (`build/package.sh --with-android`) adds two targets:
-**`android-x86_64`**, which the Android emulator on a PC runs, and **`android-arm64`**, which
-phones run. tiko cross-compiles for both from Windows. What it needs and does not ship:
+```admonish warning title="Experimental"
+Android support is new and still settling. It builds and runs real apps, but the `-app` options,
+the `[target.x.app]` table and how tkControls behaves under a finger may still change, and it has
+been tried on few devices. Chapter 37 builds a complete app with it.
+```
+
+The Windows toolchain has two more targets: **`android-x86_64`**, which the Android emulator on a
+PC runs, and **`android-arm64`**, which phones run, Android 10 (API level 29) or newer. tiko
+cross-compiles for both from Windows; the Linux and macOS toolchains do not build for Android.
+What it needs and does not ship:
 
 | Tool | For | Found through |
 |---|---|---|
@@ -427,8 +434,10 @@ adb push hello /data/local/tmp/
 adb shell /data/local/tmp/hello
 ```
 
-`print`, `input`, files, threads and the standard library behave as on Linux. The predefined
-symbol is **`__FB_ANDROID__`**, together with `__FB_UNIX__`; `__FB_LINUX__` is *not* defined,
+`print`, `input`, files, threads and the standard library behave as on Linux, except `std/tls`
+and `std/http`, which have no TLS library there. The predefined
+symbols are **`TIKO_OS_ANDROID`**, and the FreeBASIC-style **`__FB_ANDROID__`** with `__FB_UNIX__`;
+`TIKO_OS_LINUX` and `__FB_LINUX__` are *not* defined,
 because Android's C library is not glibc and a program's `#ifdef __FB_LINUX__` code would assume
 it is.
 

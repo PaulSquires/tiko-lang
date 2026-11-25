@@ -2,7 +2,7 @@
 
 # tkControls
 
-> **In tiko.** Owner-drawn controls on **SDL3 and SDL_ttf**, for **Windows, Linux and macOS**, written in tiko. They ship with the toolchain as modules of the `vendor` package, source only: `#import "vendor/tkControls/tkButton"` and nothing on the command line.
+> **In tiko.** Owner-drawn controls on **SDL3 and SDL_ttf**, for **Windows, Linux and macOS**, written in tiko. They also run on **Android**, experimentally: see [Android](Android). They ship with the toolchain as modules of the `vendor` package, source only: `#import "vendor/tkControls/tkButton"` and nothing on the command line.
 
 Each control is driven through procedures and callbacks: setters change it silently, and only what the user does fires a callback. One program builds and runs on all three systems unchanged.
 
@@ -136,4 +136,6 @@ Each control's procedures are named `tk<Name>_*` (`tkButton_SetText`) and its co
 - [Vendor Packages](Vendor-Packages)
 - [SDL3 Tutorial](SDL3-Tutorial)
 - [Notepad Tutorial](Notepad2-Tutorial)
+- [Android Setup Tutorial](Android-Setup-Tutorial)
+- [Android App Tutorial: Fasting](Android-Fasting-App-Tutorial)
 - [tiko build](Category-Tiko-Build)

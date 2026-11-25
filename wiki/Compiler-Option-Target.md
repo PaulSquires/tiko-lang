@@ -12,7 +12,7 @@ Parameters
 
 `platform`
 
-The target platform. tiko recognizes four, and two Android ones in a Windows toolchain packaged with them:
+The target platform. tiko recognizes six. The two Android ones are in the Windows toolchain only, and are **experimental** (see [Android](Android)):
 
 | Target | |
 | --- | --- |

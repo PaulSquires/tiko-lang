@@ -4,6 +4,8 @@
 
 Build an Android app (an APK, or an App Bundle for Play) of an SDL3 program
 
+> **Experimental.** Android support is new and still settling: these options and how tkControls behaves on a phone may still change. See [Android](Android).
+
 Syntax
 
 `-app [ -appid id ] [ -applabel text ] [ -appversion name[,code] ] [ -appicon file.png ] [ -appassets dir ] [ -apppermission name ]... [ -appkey keystore[,alias] ] [ -appbundle ]`
@@ -46,4 +48,5 @@ See also
 
 - [Compiler Option: -target](Compiler-Option-Target)
 - [Compiler Option: -dll](Compiler-Option-Dll)
+- [Android](Android), [Android Setup Tutorial](Android-Setup-Tutorial), [Android App Tutorial: Fasting](Android-Fasting-App-Tutorial)
 - [__FB_ANDROID__](Fb-Android)

@@ -368,8 +368,9 @@ platform symbols tiko defines:
 | `TIKO_OS_WINDOWS` | Windows |
 | `TIKO_OS_LINUX` | Linux |
 | `TIKO_OS_MACOS` | macOS |
-| `TIKO_ARCH_X86_64` | `windows-x86_64` and `linux-x86_64` |
-| `TIKO_ARCH_ARM64` | `linux-arm64` and `macos-arm64` |
+| `TIKO_OS_ANDROID` | Android (experimental; Chapter 31) |
+| `TIKO_ARCH_X86_64` | `windows-x86_64`, `linux-x86_64` and `android-x86_64` |
+| `TIKO_ARCH_ARM64` | `linux-arm64`, `macos-arm64` and `android-arm64` |
 | `__FB_64BIT__` | every 64-bit target |
 | `__FB_MSVC__` | the `windows-x86_64` target |
 | `__TIKO_VERSION__` | always: tiko's version, as a string |
