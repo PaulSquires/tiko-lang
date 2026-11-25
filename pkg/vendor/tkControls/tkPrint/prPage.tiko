@@ -136,6 +136,20 @@ public sub tkPage_FillRect( byval pg as TK_PAGE ptr, byref rc as TKRECTF )
     pg->p.PaintRect( @r )
 end sub
 
+' tkPage_FillRect at its EXACT position: not snapped to the page's 0.1 pt grid. For geometry whose
+' edges must land where computed -- a barcode's bars, whose widths a 0.1 pt snap would change by
+' up to 10 % of a module (tkBarcode, docs/tkControls/BARCODE.md §7). PDF keeps 0.001 pt.
+public sub tkPage_FillRectExact( byval pg as TK_PAGE ptr, byref rc as TKRECTF )
+    if Live( pg ) = false then exit sub
+    if (rc.right <= rc.left) orelse (rc.bottom <= rc.top) orelse (pg->p.pfnRec = 0) then exit sub
+    dim as TK_RECOP o
+    o.op = TKREC_FILLRECT
+    o.rc.x = rc.left * PR_PXPERPT + pg->p.ox : o.rc.y = rc.top * PR_PXPERPT + pg->p.oy
+    o.rc.w = ( rc.right - rc.left ) * PR_PXPERPT : o.rc.h = ( rc.bottom - rc.top ) * PR_PXPERPT
+    o.c = pg->clrFill
+    pg->p.pfnRec( pg->p.pRecCtx, @o )
+end sub
+
 ' A frame of the pen's width, inside rc.
 public sub tkPage_StrokeRect( byval pg as TK_PAGE ptr, byref rc as TKRECTF )
     if Live( pg ) = false then exit sub

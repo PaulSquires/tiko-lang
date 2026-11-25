@@ -58,6 +58,8 @@ public enum
     TKRI_IMAGE              ' a file / resource: Text, or the field's text
     TKRI_CHECK              ' a bool field as a box, ticked when true
     TKRI_CUSTOM             ' the PaintItem callback draws it
+    TKRI_BARCODE            ' a barcode of the field's text (or Text): drawn by the painter tkReportBarcode
+                            ' installs (tkReport_SetItemPainter); with none, a thin red frame
 end enum
 
 public enum
@@ -111,6 +113,7 @@ public type TKREPORT_ITEM
     canGrow   as boolean               ' text wraps and the band grows
     tag       as integer
     sumIdx    as long = -1             ' the engine's accumulator
+    opts      as ustring               ' an installed kind's settings, "key=value;..." (BARCODE: tkReportBarcode)
 end type
 
 public type TKREPORT_BAND
@@ -136,6 +139,10 @@ public type RP_BeforePrintFunc as function( byval rpt as TK_REPORT ptr, byval ba
 ' A TKRI_CUSTOM item: draw it in rc on the page.
 public type RP_PaintItemSub as sub( byval rpt as TK_REPORT ptr, byval item as TKREPORT_ITEM ptr, byval pg as TK_PAGE ptr, _
                                     byref rc as TKRECTF, byval row as TK_VALUE ptr )
+' An item kind drawn by a module that registers itself (TKRI_BARCODE: tkReportBarcode), so tkReport
+' links nothing of it. value: the item's field formatted by its fmt, or its Text with no field.
+public type RP_ItemPainterSub as sub( byval rpt as TK_REPORT ptr, byval item as TKREPORT_ITEM ptr, byval pg as TK_PAGE ptr, _
+                                      byref rc as TKRECTF, byref value as ustring )
 ' The callback source: field f of row (from 0).
 public type RP_GetValueSub as sub( byval rpt as TK_REPORT ptr, byval row as integer, byval f as long, byref v as TK_VALUE )
 
@@ -342,6 +349,19 @@ end sub
 public sub tkReport_SetPaintItemCallback( byval rpt as TK_REPORT ptr, byval cb as RP_PaintItemSub )
     if rpt then rpt->PaintItem = cb
 end sub
+
+' The painters of the installable item kinds, process-wide: a module that draws a kind registers
+' itself here (tkReportBarcode_Install), so a program that never prints one never links it.
+dim shared as RP_ItemPainterSub gItemPainters(0 to 15)
+
+public sub tkReport_SetItemPainter( byval kind as long, byval cb as RP_ItemPainterSub )
+    if (kind > TKRI_CUSTOM) andalso (kind - TKRI_CUSTOM - 1 <= ubound( gItemPainters )) then gItemPainters(kind - TKRI_CUSTOM - 1) = cb
+end sub
+
+public function tkReport_GetItemPainter( byval kind as long ) as RP_ItemPainterSub
+    if (kind > TKRI_CUSTOM) andalso (kind - TKRI_CUSTOM - 1 <= ubound( gItemPainters )) then return gItemPainters(kind - TKRI_CUSTOM - 1)
+    return 0
+end function
 
 ' How a bool field reads: "Yes|No" by default.
 public sub tkReport_SetBoolText( byval rpt as TK_REPORT ptr, byref yesNo as ustring )

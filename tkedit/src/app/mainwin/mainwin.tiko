@@ -2851,7 +2851,13 @@ sub Window.AfterSave( byval d as DocRef )
             ProjOpts = r.Value( )
             ProjOpts.Manifest = Proj.Path         ' which project it is, whatever was typed
             this.ApplyProjectOptions( )
-            this.ShowStatus( )
+            if len( ProjOpts.Ignored ) then       ' say so: a subsystem typed here does nothing
+                dim as ustring t = i18n.Tr( "message.options_ignored", "{0}: {1} ignored; only manifest, target, build and command_line here, build settings go in tiko.toml" )
+                this.SetMessage( strings.Format( t, fs.PathFileName( d->Path ), ProjOpts.Ignored ) )
+                ProjOpts.Ignored = ""
+            else
+                this.ShowStatus( )
+            end if
         else
             this.SetMessage( fs.PathFileName( d->Path ) & ": " & r.Failure( ) )
         end if
