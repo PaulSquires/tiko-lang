@@ -77,7 +77,7 @@ namespace Tko.Codegen
         '' and read by nothing, so '-O2' produced a byte-identical executable to '-O0' --
         '' measured over the whole of tiko-lang. 0 passes no flag at all.
         as int32 optLevel
-        '' '-O s': clang gets -Os in place of -O<optLevel>, and the link the size runtime
+        '' '-Os': clang gets -Os in place of -O<optLevel>, and the link the size runtime
         '' (libfb-s.a and its siblings) wherever a library path has it.
         as boolean optSize
         '' Build a DLL rather than an executable, and where to write the import

@@ -150,8 +150,8 @@ rt_overlay( ) {
         echo "test: lib/rt did not build for $_t (build/obj/rtlib.log)" >&2
         exit 4
     }
-    # ...AND THE SIZE RUNTIME, libfb-s.a and its siblings, which '-O s' links: a toolchain
-    # ships both (build/package.sh), so the tests that link under '-O s' get the real one.
+    # ...AND THE SIZE RUNTIME, libfb-s.a and its siblings, which '-Os' links: a toolchain
+    # ships both (build/package.sh), so the tests that link under '-Os' get the real one.
     TKORT_TIKO="$TIKO" bash "$ROOT/lib/rt/build/build.sh" MinSizeRel "$_t" > "$ROOT/build/obj/rtlib-s.log" 2>&1 || {
         tail -5 "$ROOT/build/obj/rtlib-s.log" >&2
         echo "test: lib/rt's size runtime did not build for $_t (build/obj/rtlib-s.log)" >&2

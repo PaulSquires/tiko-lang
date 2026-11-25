@@ -305,7 +305,7 @@ namespace Tko
         as boolean guiSubsystem  '' -s gui; console (false) is fbc's default too
         as int64   stackSize     '' -t, in BYTES: a Windows link's stack reserve and commit; 2 MB default
         as int32    optLevel
-        '' '-O s': optimise for size -- clang's -Os. optLevel is 2 beside it, so __FB_OPTIMIZE__
+        '' '-Os': optimise for size -- clang's -Os. optLevel is 2 beside it, so __FB_OPTIMIZE__
         '' and every 'optLevel > 0' test read it as an optimised build.
         as boolean  optSize
 

@@ -234,7 +234,7 @@ if [ "$DO_BUILD" = "1" ]; then
         sh "$ROOT/lib/rt/build/build.sh" "$CFG" "$t" >"$ROOT/lib/rt/obj/package-$t.log" 2>&1 &
         _pids_rt="$_pids_rt $t:$!"
         # THE SIZE RUNTIME BESIDE IT: MinSizeRel writes libfb-s.a / libfbmt-s.a (and the pic
-        # pair), which the driver links under '-O s'. Its own obj/ tree and archive names, so
+        # pair), which the driver links under '-Os'. Its own obj/ tree and archive names, so
         # it builds concurrently with the one above; it leaves fbrt0.o to that one.
         note "building the size runtime [MinSizeRel $t]"
         sh "$ROOT/lib/rt/build/build.sh" MinSizeRel "$t" >"$ROOT/lib/rt/obj/package-$t-s.log" 2>&1 &
@@ -499,7 +499,7 @@ for t in $TARGETS; do
     for _pic in libfbpic.a libfbmtpic.a; do
         [ -f "$ROOT/lib/rt/lib/$t/$_pic" ] && cp -f "$ROOT/lib/rt/lib/$t/$_pic" "$OUT/lib/$t/"
     done
-    # THE SIZE RUNTIME, what '-O s' links: the same set built at '-O s', suffixed -s. Its
+    # THE SIZE RUNTIME, what '-Os' links: the same set built at '-Os', suffixed -s. Its
     # own stamp, .config-s, is checked, so a stale or Debug pair cannot ship as one.
     [ "$( cat "$ROOT/lib/rt/lib/$t/.config-s" 2>/dev/null )" = "MinSizeRel" ] || \
         die "the size runtime for $t is not a MinSizeRel build -- run lib/rt/build/build.sh MinSizeRel $t"

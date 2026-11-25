@@ -985,11 +985,11 @@ function LinkExe _
     '' fbc's names and fbc's rule ('-lfbpic' on its Linux '-dll' line). The plain
     '' archives are not position-independent and ld refuses them in a .so.
     ''
-    '' AND UNDER '-O s' THE SIZE RUNTIME, the same archive built at '-O s' and suffixed -s
+    '' AND UNDER '-Os' THE SIZE RUNTIME, the same archive built at '-Os' and suffixed -s
     '' (libfb-s.a, libfbmt-s.a, libfbpic-s.a, libfbmtpic-s.a; lib/rt's MinSizeRel), PATH BY
     '' PATH: where a directory has the -s archive it is named in place of the plain one,
     '' and where it has not -- an older toolchain, a hand-built runtime -- the plain one is,
-    '' so '-O s' never fails a link that '-O 2' would make. Never both from one directory:
+    '' so '-Os' never fails a link that '-O2' would make. Never both from one directory:
     '' they define the same symbols.
     dim as string rtBase = iif( t.threadSafe, "/libfbmt", "/libfb" )
     if t.buildDll andalso (target.objFormat = OBJ_ELF) then rtBase &= "pic"

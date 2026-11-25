@@ -13,8 +13,8 @@
 #           lib/<target>/libfbpic.a, libfbmtpic.a   (the same, position-independent)
 #
 # MinSizeRel WRITES THE SIZE RUNTIME BESIDE THEM, not over them: libfb-s.a, libfbmt-s.a
-# (and libfbpic-s.a, libfbmtpic-s.a), every member at '-O s'. The driver links that set
-# under '-O s' when it is there (LinkExe), so a toolchain ships both. fbrt0.o is shared
+# (and libfbpic-s.a, libfbmtpic-s.a), every member at '-Os'. The driver links that set
+# under '-Os' when it is there (LinkExe), so a toolchain ships both. fbrt0.o is shared
 # and comes from the other configurations; MinSizeRel leaves it alone.
 #
 # THE PIC PAIR IS WHAT A LINUX SHARED LIBRARY LINKS. fbc ships both and names them
@@ -89,7 +89,7 @@ case "$CFG" in
     Release|MinSizeRel) CDBG="" ;;
     *)                  CDBG="-g" ;;
 esac
-# THE C MEMBERS' LEVEL: -O2, or -Os in MinSizeRel as the tiko members get '-O s'.
+# THE C MEMBERS' LEVEL: -O2, or -Os in MinSizeRel as the tiko members get '-Os'.
 case "$CFG" in
     MinSizeRel) COPT="-Os" ;;
     *)          COPT="-O2" ;;

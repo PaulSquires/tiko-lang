@@ -374,7 +374,7 @@ private function BuildKey_ _
         select case k
         case "inherits" : want = "s"
         case "errors"   : want = "s" : allowed = "|e|ex|exx"
-        '' opt = 0..3, or opt = "s" for size -- the command line's '-O s'.
+        '' opt = 0..3, or opt = "s" for size -- the command line's '-Os'.
         case "opt"
             if kind = "s" then want = "s" : allowed = "s" else want = "i" : allowed = "0|1|2|3"
         case "debug"    : want = "b"
