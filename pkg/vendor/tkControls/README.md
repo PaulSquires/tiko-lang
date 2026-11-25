@@ -60,8 +60,9 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkPrinter` | printers and print jobs: Windows (winspool, raster at the printer's resolution), CUPS on Linux / macOS (a PDF job; libcups loaded at run time, `lp` without it) |
 | `tkPrintDialog` | the Print and Page Setup dialogs, tk-drawn on every OS |
 | `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar |
-| `tkReport` | banded reports (report / page / group headers and footers, detail, summaries, page info) over callback, ListTree or custom sources; the table printer for a ListTree |
-| `tkReportSqlite` | an SQLite query as a tkReport's data |
+| `tkReport` | banded reports (report / page / group headers and footers, detail, no-data, summaries, page info) over callback, table, ListTree or custom sources; expressions (tkRExpr): calculated fields, filters, groups, items, totals with their scope, late values, rules and visibility; the table printer for a ListTree |
+| `tkReportSqlite` | an SQLite query as a tkReport's data: positional or named parameters; sorts by wrapping the query |
+| `tkReportGrid` | a tkDataGrid as a tkReport's data: its visible columns in display order, its rows in view order, typed values |
 | `tkRExpr` | the report expression language: typed, sandboxed expressions over `TK_VALUE` (fields, parameters, totals, report values, text / number / date functions, `Format` masks), compiled once and evaluated per row |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |

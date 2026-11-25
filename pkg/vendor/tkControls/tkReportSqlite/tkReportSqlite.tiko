@@ -9,8 +9,9 @@
 '
 ' One prepared statement: the result's columns are the fields (their names; their kinds from the
 ' declared column types -- INT, REAL / FLOAT / DOUBLE / NUMERIC / DECIMAL, BOOL, DATE, TIME, else
-' text), each step a row, sqlite3_reset to lay the report out again. A NULL is an EMPTY value. The
-' query must ORDER BY the report's group keys: the report does not sort.
+' text), each step a row, sqlite3_reset to lay the report out again. A NULL is an EMPTY value. Rows
+' must arrive in the report's group order: ORDER BY in the query, or the report's sort keys
+' (tkReport_AddSortKey), which wrap it -- select * from ( <sql> ) order by ... (QSort).
 '
 ' PARAMETERS: a report filtered on what the user chose takes it as a parameter, never pasted into
 ' the SQL -- tkReportSqlite_OpenEx( rpt, db, "select ... where region = ? order by ...", params() ).
@@ -31,6 +32,10 @@ type RSQ_CTX
     nCols    as long
     names(any) as ustring
     kinds(any) as long
+    db       as sqlite3 ptr           ' to prepare again, sorted (QSort)
+    sql      as string                ' the query as given
+    pv(any)  as TK_VALUE              ' its parameters by position (1 = pv(0))
+    nP       as long
 end type
 
 private function KindOf( byref decl as string ) as long
@@ -113,11 +118,45 @@ private sub BindValue( byval st as sqlite3_stmt ptr, byval i as long, byref v as
     end select
 end sub
 
+' A column name as an SQL identifier: "name", a " doubled.
+private function QuoteId( byref s as const string ) as string
+    dim as string r = """"
+    for i as long = 1 to len( s )
+        if mid( s, i, 1 ) = """" then r &= """""" else r &= mid( s, i, 1 )
+    next
+    return r & """"
+end function
+
+' The source sorts itself: the query again, wrapped -- select * from ( <sql> ) order by "a" desc, "b" --
+' with the same parameters. FALSE (the old statement kept) when that does not prepare.
+private function QSort( byval p as any ptr, byval keys as TKREPORT_SORTKEY ptr, byval nKeys as long ) as boolean
+    dim as RSQ_CTX ptr c = p
+    if (c->db = 0) orelse (nKeys < 1) then return nKeys < 1
+    dim as string ob
+    for j as long = 0 to nKeys - 1
+        if (keys[j].field < 0) orelse (keys[j].field >= c->nCols) then return false
+        if j then ob &= ", "
+        dim as string nm = c->names(keys[j].field)
+        ob &= QuoteId( nm )
+        if keys[j].desc then ob &= " desc"
+    next
+    dim as string s8 = "select * from ( " & c->sql & " ) order by " & ob
+    dim as sqlite3_stmt ptr st
+    if sqlite3_prepare_v2( c->db, strptr( s8 ), len( s8 ), @st, 0 ) <> SQLITE_OK then return false
+    for i as long = 0 to c->nP - 1
+        BindValue( st, i + 1, c->pv(i) )
+    next
+    sqlite3_finalize( c->stmt )
+    c->stmt = st
+    return true
+end function
+
 ' The report reads rows of 'sql' on db, with a '?' (or ?NNN, :name) for each value that comes from
 ' outside the program; params(0) is parameter 1, bound once (sqlite3_reset, which lays the report
 ' out again, keeps them). FALSE (and nothing changed) when it does not prepare, or params() does not
 ' hold exactly as many values as the query has parameters. The statement lives until
-' tkReportSqlite_Close (before the database is closed).
+' tkReportSqlite_Close (before the database is closed). The source can sort (tkReport_AddSortKey):
+' it wraps the query in an ORDER BY of its result's columns.
 public function tkReportSqlite_OpenEx( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring, _
                                        params() as TK_VALUE ) as boolean
     if (rpt = 0) orelse (db = 0) then return false
@@ -134,6 +173,13 @@ public function tkReportSqlite_OpenEx( byval rpt as TK_REPORT ptr, byval db as s
     next
     dim as RSQ_CTX ptr c = new RSQ_CTX
     c->stmt = st
+    c->db = db
+    c->sql = s8
+    c->nP = n
+    if n > 0 then
+        redim c->pv( 0 to n - 1 )
+        for i as long = 0 to n - 1 : c->pv(i) = params(lbound( params ) + i) : next
+    end if
     c->nCols = sqlite3_column_count( st )
     redim c->names( 0 to iif( c->nCols > 0, c->nCols - 1, 0 ) )
     redim c->kinds( 0 to iif( c->nCols > 0, c->nCols - 1, 0 ) )
@@ -147,8 +193,45 @@ public function tkReportSqlite_OpenEx( byval rpt as TK_REPORT ptr, byval db as s
     src.pCtx = c
     src.FieldCount = @QFieldCount : src.FieldName = @QFieldName : src.FieldKind = @QFieldKind
     src.RowCount = @QRowCount : src.MoveNext = @QNext : src.GetValue = @QGet : src.Rewind = @QRewind
+    src.Sort = @QSort
     tkReport_SetSource( rpt, src )
     return true
+end function
+
+' As OpenEx, with the parameters by NAME: each :name, @name or $name of the query takes the value
+' whose name matches (without its sign, case-insensitive) -- a report's parameter @From is :From.
+' FALSE when one of the query's parameters has no value, or is a bare ?.
+public function tkReportSqlite_OpenNamed( byval rpt as TK_REPORT ptr, byval db as sqlite3 ptr, byref sql as ustring, _
+                                          names() as ustring, vals() as TK_VALUE ) as boolean
+    if (rpt = 0) orelse (db = 0) then return false
+    dim as string s8 = sql
+    dim as sqlite3_stmt ptr st
+    if sqlite3_prepare_v2( db, strptr( s8 ), len( s8 ), @st, 0 ) <> SQLITE_OK then return false
+    dim as long n = sqlite3_bind_parameter_count( st )
+    dim as TK_VALUE pos_(any)
+    if n > 0 then redim pos_( 0 to n - 1 )
+    for i as long = 1 to n
+        dim as const zstring ptr z = sqlite3_bind_parameter_name( st, i )
+        dim as string pn
+        if z then pn = *z
+        if len( pn ) < 2 then
+            sqlite3_finalize( st )
+            return false
+        end if
+        pn = lcase( mid( pn, 2 ) )
+        dim as long found = -1
+        for k as long = lbound( names ) to ubound( names )
+            dim as string nk = names(k)
+            if lcase( nk ) = pn then found = k : exit for
+        next
+        if (found < 0) orelse (found > ubound( vals )) then
+            sqlite3_finalize( st )
+            return false
+        end if
+        pos_(i - 1) = vals(found)
+    next
+    sqlite3_finalize( st )
+    return tkReportSqlite_OpenEx( rpt, db, sql, pos_() )
 end function
 
 ' A query with no parameters. One that has some needs OpenEx: here it is refused (FALSE).

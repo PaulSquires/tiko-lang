@@ -22,6 +22,15 @@
 ' sources: callbacks (SetFields + SetRowCount + a GetValue callback), a tkListTree (its columns and
 ' rows as text), and any procedure table (tkReportSqlite builds one over a query).
 '
+' SORTING is the source's (TKREPORT_SOURCE.Sort, asked with tkReport_AddSortKey): the callback / table
+' / ListTree source sorts a row map, tkReportSqlite wraps its query in an ORDER BY.
+'
+' EXPRESSIONS (Report Designer RD2, rpExpr.tiko): calculated fields, a filter, groups on an
+' expression, TKRI_EXPR / TKRI_TEXT items, visibility and conditional styles, parameters -- text
+' compiled by tkRExpr (tkReport_Prepare), with totals that restart by group, page or report and
+' late values (a group's total in its own header, Page n of N) filled in when they are known. A
+' NO_DATA band prints when no row passes.
+'
 ' RUNNING: tkReport_CreateDoc makes a tkPrint document whose PrintPage callback is this engine, a
 ' page per call -- so a tkPrintPreview / tkReportViewer shows the first pages while the rest are
 ' laid out, and Generate / GenerateStep / Print / PDF all work on it. Laying out again (a new page
@@ -30,9 +39,11 @@
 
 #import "../tkPrint" public
 #import "../tkBind" public
+#import "../tkRExpr" public
 #import "../tkListTree"
 using tkPrint
 using tkBind
+using tkRExpr
 using tkListTree
 using tkColumnHeader
 using tkHost
@@ -46,6 +57,7 @@ public enum
     TKRB_GROUP_FOOTER
     TKRB_REPORT_FOOTER
     TKRB_PAGE_FOOTER
+    TKRB_NO_DATA            ' in place of the rows when there are none (after the filter)
 end enum
 
 public enum
@@ -58,6 +70,8 @@ public enum
     TKRI_IMAGE              ' a file / resource: Text, or the field's text
     TKRI_CHECK              ' a bool field as a box, ticked when true
     TKRI_CUSTOM             ' the PaintItem callback draws it
+    TKRI_EXPR               ' an expression's value (tkRExpr), formatted by fmt
+    TKRI_TEXT               ' text with {expression} parts: "Total for {[Customer]}: {Sum([Amount])}"
 end enum
 
 public enum
@@ -68,8 +82,35 @@ public enum
     TKRS_MAX
 end enum
 
-' A summary's scope: a group level (0 = outermost), or the whole report.
+' A summary's scope: a group level (0 = outermost), or the whole report. An expression's totals
+' also restart on each page (PAGE), or by the band they are in (AUTO: a group's bands -> that group,
+' the page header / footer -> the page, else the report).
 public const TKRS_SCOPE_REPORT = -1
+public const TKRS_SCOPE_PAGE = -2
+public const TKRS_RESET_AUTO = -3
+
+' A conditional style: when 'when_' is true for the values the item shows, these apply (the first
+' rule that is true wins). hide = TRUE leaves the item out.
+public type TKREPORT_RULE
+    when_     as ustring
+    setFore   as boolean
+    fore      as ulong
+    setBack   as boolean
+    back      as ulong
+    setBold   as boolean
+    bold      as boolean
+    setItalic as boolean
+    italic    as boolean
+    hide      as boolean
+    px        as TK_REXPR ptr          ' compiled by tkReport_Prepare
+    aggBase   as long = -1
+end type
+
+' A sort key a source is asked to order its rows by (the report never sorts: P-13).
+public type TKREPORT_SORTKEY
+    field as long
+    desc  as boolean
+end type
 
 ' Item borders.
 public enum
@@ -91,6 +132,8 @@ public type TKREPORT_SOURCE
     MoveNext   as function( byval pCtx as any ptr ) as boolean
     GetValue   as sub( byval pCtx as any ptr, byval f as long, byref v as TK_VALUE )
     Rewind     as function( byval pCtx as any ptr ) as boolean
+    ' optional (0 = the source can't): order the rows by these keys, most significant first
+    Sort       as function( byval pCtx as any ptr, byval keys as TKREPORT_SORTKEY ptr, byval nKeys as long ) as boolean
 end type
 
 public type TKREPORT_ITEM
@@ -111,6 +154,20 @@ public type TKREPORT_ITEM
     canGrow   as boolean               ' text wraps and the band grows
     tag       as integer
     sumIdx    as long = -1             ' the engine's accumulator
+    ' ---- expressions (Report Designer RD2; compiled by tkReport_Prepare) ----
+    name_     as ustring               ' named in tkReport_Prepare's errors
+    expr      as ustring               ' EXPR: the value; TEXT: the template; IMAGE / CHECK: in place of field
+    visibleExpr as ustring             ' "" = always shown
+    rules(any) as TKREPORT_RULE
+    nRules    as long
+    reset     as long = TKRS_RESET_AUTO ' where the expression's totals restart
+    running   as boolean               ' totals so far, never filled in later (a running total)
+    incrLevel as long = -1             ' totals: -1 = every row; L = once per group L (a master's row)
+    px        as TK_REXPR ptr
+    pvis      as TK_REXPR ptr
+    aggBase   as long = -1             ' the first of px's totals in the report's accumulators
+    visBase   as long = -1
+    late      as long                  ' RP_LATE_* bits: printed into a slot filled when they are known
 end type
 
 public type TKREPORT_BAND
@@ -126,6 +183,11 @@ public type TKREPORT_BAND
     backColor         as ulong
     items(any)        as TKREPORT_ITEM
     nItems            as long
+    visibleExpr       as ustring       ' "" = always; else shown only when true for its values
+    defaultSource     as ustring       ' [X] in its expressions also finds "<defaultSource>.X"
+    printAtBottom     as boolean       ' REPORT_FOOTER: at the bottom of the last page
+    pvis              as TK_REXPR ptr
+    visBase           as long = -1
 end type
 
 public type TK_REPORT as TK_REPORT_
@@ -144,6 +206,36 @@ public type RP_QITEM                     ' a band waiting to be drawn, with the 
     vals(any) as TK_VALUE
     sums(any) as double
     open_  as long                       ' GROUP_HEADER: the level it opens; FOOTER: closes; -1
+    xv(any) as TK_VALUE                  ' the expressions' totals as they stood
+    rowNo  as integer                    ' RowNumber / GroupRowNumber for its expressions
+    grpRowNo as integer
+end type
+
+' One total of one expression, with its scope.
+public type RP_XACC
+    acc    as TKREXPR_ACC
+    x      as TK_REXPR ptr               ' the expression it belongs to (its argument: AggArg( x, k ))
+    k      as long
+    reset  as long                       ' a group level, TKRS_SCOPE_REPORT or TKRS_SCOPE_PAGE
+    incr   as long                       ' -1 every row; L once per group L
+end type
+
+public const RP_LATE_DOC = 1             ' reads PageCount: known when the document is complete
+public const RP_LATE_GROUP = 2           ' a group's totals in its header: known when the group closes
+public const RP_LATE_REPORT = 4          ' the report's totals in its header: known at the end of the rows
+public const RP_LATE_PAGE = 8            ' the page's totals in the page header: known at the end of the page
+
+' A late item drawn and waiting for its value.
+public type RP_LATE
+    slot   as long
+    item   as TKREPORT_ITEM ptr
+    level  as long                       ' its band's group level
+    page   as long
+    need   as long                       ' RP_LATE_* still to come
+    vals(any) as TK_VALUE
+    xv(any) as TK_VALUE
+    rowNo  as integer
+    grpRowNo as integer
 end type
 
 public type RP_ACC
@@ -169,6 +261,7 @@ public type TK_REPORT_
     bTable      as boolean               ' the table source: the values below, nF per row
     tv(any)     as TK_VALUE
     tvCap       as integer
+    rowMap(any) as integer               ' the callback source sorted: row at each position (empty = in order)
     groupKey(any) as long
     nGroups     as long
     bands(any)  as TKREPORT_BAND ptr
@@ -191,6 +284,35 @@ public type TK_REPORT_
     eof         as boolean
     started     as boolean
     nRead       as integer
+    ' ---- expressions (rpExpr.tiko) ----
+    groupExpr(any) as ustring            ' per group level: "" = groupKey's field, else this expression
+    calcName(any) as ustring             ' calculated fields: the user's, then the group expressions'
+    calcSrc(any)  as ustring
+    calcX(any)    as TK_REXPR ptr
+    nCalc       as long                  ' all calculated fields
+    nCalcUser   as long                  ' of which the host's (AddCalcField)
+    nSrcF       as long                  ' fields the source gives; calculated ones follow
+    filterSrc   as ustring
+    filterX     as TK_REXPR ptr
+    pName(any)  as ustring               ' parameters
+    pKind(any)  as long
+    pVal(any)   as TK_VALUE
+    nPar        as long
+    sortK(any)  as TKREPORT_SORTKEY
+    nSortK      as long
+    sortDone    as boolean
+    sch         as TKREXPR_SCHEMA
+    ctx         as TKREXPR_CTX
+    prepared    as boolean
+    prepErrors  as ustring
+    xa(any)     as RP_XACC
+    nXa         as long
+    late(any)   as RP_LATE
+    nLate       as long
+    doc         as TK_PRINTDOC ptr       ' the document being laid out
+    curPage     as long
+    grpRow      as integer
+    nFiltered   as integer
 end type
 
 ' ---- building ------------------------------------------------------------------------------
@@ -203,6 +325,7 @@ end function
 
 public sub tkReport_Destroy( byval rpt as TK_REPORT ptr )
     if rpt = 0 then exit sub
+    RpFreeCompiled( rpt )
     for i as long = 0 to rpt->nBands - 1 : delete rpt->bands(i) : next
     delete rpt
 end sub
@@ -241,9 +364,20 @@ end function
 public function tkReport_AddGroup( byval rpt as TK_REPORT ptr, byval keyField as long ) as long
     if rpt = 0 then return -1
     redim preserve rpt->groupKey( 0 to rpt->nGroups )
+    redim preserve rpt->groupExpr( 0 to rpt->nGroups )
     rpt->groupKey(rpt->nGroups) = keyField
+    rpt->groupExpr(rpt->nGroups) = ""
     rpt->nGroups += 1
+    rpt->prepared = false
     return rpt->nGroups - 1
+end function
+
+' A group on an expression's value ("Left([Customer], 1)", "Year([Date])"): rows must arrive in
+' its order (sort the source by what it reads). Its level.
+public function tkReport_AddGroupExpr( byval rpt as TK_REPORT ptr, byref expr as const ustring ) as long
+    dim as long L = tkReport_AddGroup( rpt, -1 )
+    if L >= 0 then rpt->groupExpr(L) = expr
+    return L
 end function
 
 public sub tkRBand_SetHeight( byval band as TK_RBAND ptr, byval heightPt as single )
@@ -353,6 +487,8 @@ public sub tkReport_SetSource( byval rpt as TK_REPORT ptr, byref src as TKREPORT
     if rpt = 0 then exit sub
     rpt->src = src
     rpt->bSrc = true
+    rpt->prepared = false
+    rpt->sortDone = false
 end sub
 
 private function CbFieldCount( byval p as any ptr ) as long
@@ -382,17 +518,110 @@ private function CbNext( byval p as any ptr ) as boolean
     r->vRow += 1
     return true
 end function
-private sub CbGet( byval p as any ptr, byval f as long, byref v as TK_VALUE )
-    dim as TK_REPORT ptr r = p
+' Field f of row 'row' (the row as stored, not as sorted).
+private sub CbValueAt( byval r as TK_REPORT ptr, byval row as integer, byval f as long, byref v as TK_VALUE )
     v.Clear( )
     if r->bTable then
-        if (f >= 0) andalso (f < r->nF) then v = r->tv(r->vRow * r->nF + f)
+        if (f >= 0) andalso (f < r->nF) then v = r->tv(row * r->nF + f)
     elseif r->hList then
-        if f = 0 then v.SetText( tkListTree_GetText( r->hList, r->vRow ) ) else v.SetText( tkListTree_GetCellText( r->hList, r->vRow, f ) )
+        if f = 0 then v.SetText( tkListTree_GetText( r->hList, row ) ) else v.SetText( tkListTree_GetCellText( r->hList, row, f ) )
     elseif r->cbGet then
-        r->cbGet( r, r->vRow, f, v )
+        r->cbGet( r, row, f, v )
     end if
 end sub
+private sub CbGet( byval p as any ptr, byval f as long, byref v as TK_VALUE )
+    dim as TK_REPORT ptr r = p
+    dim as integer row = r->vRow
+    if (ubound( r->rowMap ) >= row) andalso (row >= 0) then row = r->rowMap(row)
+    CbValueAt( r, row, f, v )
+end sub
+
+' Two values in sort order: -1 / 0 / 1. Empty first; numbers by value; text by character code.
+function RpCompareValues( byref a as TK_VALUE, byref b as TK_VALUE ) as long
+    if a.kind = TKV_EMPTY then return iif( b.kind = TKV_EMPTY, 0, -1 )
+    if b.kind = TKV_EMPTY then return 1
+    dim as boolean na = (a.kind = TKV_INT) orelse (a.kind = TKV_FLOAT), nb = (b.kind = TKV_INT) orelse (b.kind = TKV_FLOAT)
+    if na andalso nb then
+        if (a.kind = TKV_INT) andalso (b.kind = TKV_INT) then
+            if a.i = b.i then return 0
+            return iif( a.i < b.i, -1, 1 )
+        end if
+        dim as double x = a.AsFloat( ), y = b.AsFloat( )
+        if x = y then return 0
+        return iif( x < y, -1, 1 )
+    end if
+    if a.kind <> b.kind then return iif( a.kind < b.kind, -1, 1 )
+    dim as longint ka, kb
+    select case a.kind
+    case TKV_TEXT
+        if a.s = b.s then return 0
+        return iif( a.s < b.s, -1, 1 )
+    case TKV_BOOL
+        ka = iif( a.b, 1, 0 ) : kb = iif( b.b, 1, 0 )
+    case TKV_DATE
+        ka = (a.d.wYear * 13 + a.d.wMonth) * 32 + a.d.wDay : kb = (b.d.wYear * 13 + b.d.wMonth) * 32 + b.d.wDay
+    case TKV_TIME
+        ka = (a.t.wHour * 60 + a.t.wMinute) * 60 + a.t.wSecond : kb = (b.t.wHour * 60 + b.t.wMinute) * 60 + b.t.wSecond
+    end select
+    if ka = kb then return 0
+    return iif( ka < kb, -1, 1 )
+end function
+
+' The callback / table / ListTree source sorts itself: a stable merge sort of a row map by the keys.
+private function CbSort( byval p as any ptr, byval keys as TKREPORT_SORTKEY ptr, byval nKeys as long ) as boolean
+    dim as TK_REPORT ptr r = p
+    dim as integer n = r->nRows
+    erase r->rowMap
+    if (n < 2) orelse (nKeys < 1) then return true
+    for j as long = 0 to nKeys - 1
+        if (keys[j].field < 0) orelse (keys[j].field >= r->nF) then return false
+    next
+    dim as TK_VALUE kv(any)
+    redim kv( 0 to n * nKeys - 1 )
+    for row as integer = 0 to n - 1
+        for j as long = 0 to nKeys - 1
+            CbValueAt( r, row, keys[j].field, kv(row * nKeys + j) )
+        next
+    next
+    dim as integer a(any), t(any)
+    redim a( 0 to n - 1 )
+    redim t( 0 to n - 1 )
+    for i as integer = 0 to n - 1 : a(i) = i : next
+    dim as integer w = 1
+    while w < n
+        dim as integer lo = 0
+        while lo < n
+            dim as integer mid_ = lo + w, hi = lo + 2 * w
+            if mid_ > n then mid_ = n
+            if hi > n then hi = n
+            dim as integer i = lo, j = mid_, o = lo
+            while (i < mid_) orelse (j < hi)
+                dim as boolean takeLeft = (j >= hi)
+                if (takeLeft = false) andalso (i < mid_) then
+                    dim as long c = 0
+                    for k as long = 0 to nKeys - 1
+                        c = RpCompareValues( kv(a(i) * nKeys + k), kv(a(j) * nKeys + k) )
+                        if keys[k].desc then c = -c
+                        if c <> 0 then exit for
+                    next
+                    takeLeft = (c <= 0)
+                end if
+                if takeLeft then
+                    t(o) = a(i) : i += 1
+                else
+                    t(o) = a(j) : j += 1
+                end if
+                o += 1
+            wend
+            lo = hi
+        wend
+        for i as integer = 0 to n - 1 : a(i) = t(i) : next
+        w *= 2
+    wend
+    redim r->rowMap( 0 to n - 1 )
+    for i as integer = 0 to n - 1 : r->rowMap(i) = a(i) : next
+    return true
+end function
 private function CbRewind( byval p as any ptr ) as boolean
     cast( TK_REPORT ptr, p )->vRow = -1
     return true
@@ -403,9 +632,12 @@ private sub UseCallbackSource( byval rpt as TK_REPORT ptr )
     s.pCtx = rpt
     s.FieldCount = @CbFieldCount : s.FieldName = @CbFieldName : s.FieldKind = @CbFieldKind
     s.RowCount = @CbRowCount : s.MoveNext = @CbNext : s.GetValue = @CbGet : s.Rewind = @CbRewind
+    s.Sort = @CbSort
     rpt->src = s
     rpt->bSrc = true
     rpt->vRow = -1
+    erase rpt->rowMap
+    rpt->prepared = false
 end sub
 
 ' The callback source: these fields (names, TKV_* kinds), nRows rows, each value from cb.
@@ -424,7 +656,10 @@ public sub tkReport_SetFields( byval rpt as TK_REPORT ptr, names() as ustring, k
 end sub
 
 public sub tkReport_SetRowCount( byval rpt as TK_REPORT ptr, byval nRows as integer )
-    if rpt then rpt->nRows = iif( nRows < 0, 0, nRows )
+    if rpt = 0 then exit sub
+    rpt->nRows = iif( nRows < 0, 0, nRows )
+    erase rpt->rowMap
+    rpt->sortDone = false
 end sub
 
 public sub tkReport_SetGetValueCallback( byval rpt as TK_REPORT ptr, byval cb as RP_GetValueSub )
@@ -462,6 +697,8 @@ public sub tkReport_TableClear( byval rpt as TK_REPORT ptr )
     rpt->tvCap = 0
     rpt->nRows = 0
     rpt->vRow = -1
+    erase rpt->rowMap
+    rpt->sortDone = false
 end sub
 
 public function tkReport_TableAddField( byval rpt as TK_REPORT ptr, byref name_ as ustring ) as long
@@ -493,6 +730,8 @@ public function tkReport_TableAddRow( byval rpt as TK_REPORT ptr ) as integer
         redim preserve rpt->tv( 0 to rpt->tvCap - 1 )
     end if
     rpt->nRows += 1
+    if ubound( rpt->rowMap ) >= 0 then erase rpt->rowMap
+    rpt->sortDone = false
     return rpt->nRows - 1
 end function
 
@@ -510,14 +749,13 @@ public function tkReport_FindField( byval rpt as TK_REPORT ptr, byref name_ as u
     for f as long = 0 to n - 1
         if lcase( rpt->src.FieldName( rpt->src.pCtx, f ) ) = lcase( name_ ) then return f
     next
+    for c as long = 0 to rpt->nCalcUser - 1          ' a calculated field follows the source's
+        if lcase( rpt->calcName(c) ) = lcase( name_ ) then return n + c
+    next
     return -1
 end function
 
 ' ---- formatting ----------------------------------------------------------------------------
-private function Pad2( byval n as long ) as string
-    return right( "0" & n, 2 )
-end function
-
 ' x with 'dec' decimals, thousands grouped with ',' when asked. Rounded half away from zero.
 function RpNumber( byval x as double, byval dec as long, byval grouped as boolean ) as string
     dim as double p10 = 10 ^ dec
@@ -537,65 +775,10 @@ function RpNumber( byval x as double, byval dec as long, byval grouped as boolea
     return iif( (x < 0) andalso (n <> 0), "-", "" ) & ip & fp
 end function
 
-' A number by a mask: literal text around one number pattern, e.g. "$#,##0.00", "0.0%", "#,##0 kg".
-private function FmtNumber( byval x as double, byref fmt as string ) as string
-    dim as long a = 0, b = 0
-    for i as long = 1 to len( fmt )
-        if instr( "#0,.", mid( fmt, i, 1 ) ) then
-            if a = 0 then a = i
-            b = i
-        elseif a then
-            exit for
-        end if
-    next
-    if a = 0 then return fmt & str( x )
-    dim as string mask = mid( fmt, a, b - a + 1 )
-    dim as long dot = instr( mask, "." ), dec = 0
-    if dot then dec = len( mask ) - dot
-    if instr( fmt, "%" ) then x *= 100
-    return left( fmt, a - 1 ) & RpNumber( x, dec, instr( mask, "," ) > 0 ) & mid( fmt, b + 1 )
-end function
-
 ' A value as text: by fmt when given (numbers, dates "dd/mm/yyyy" (yyyy mm dd), times "hh:nn:ss",
 ' booleans "Yes|No"), else plainly (numbers as they are, dates ISO, times hh:nn).
 public function tkReport_FormatValue( byref v as TK_VALUE, byref fmt as ustring = "", byref boolText as ustring = "Yes|No" ) as ustring
-    dim as string f = fmt
-    select case v.kind
-    case TKV_TEXT : return v.s
-    case TKV_INT
-        if len( f ) then return FmtNumber( v.i, f )
-        return str( v.i )
-    case TKV_FLOAT
-        if len( f ) then return FmtNumber( v.f, f )
-        return str( v.f )
-    case TKV_BOOL
-        dim as string bt = boolText
-        if len( f ) then bt = f
-        dim as long bar = instr( bt, "|" )
-        if bar = 0 then return iif( v.b, bt, "" )
-        return iif( v.b, left( bt, bar - 1 ), mid( bt, bar + 1 ) )
-    case TKV_DATE
-        if len( f ) = 0 then f = "yyyy-mm-dd"
-        dim as string s = f
-        dim as long k = instr( s, "yyyy" )
-        if k then s = left( s, k - 1 ) & v.d.wYear & mid( s, k + 4 )
-        k = instr( s, "mm" )
-        if k then s = left( s, k - 1 ) & Pad2( v.d.wMonth ) & mid( s, k + 2 )
-        k = instr( s, "dd" )
-        if k then s = left( s, k - 1 ) & Pad2( v.d.wDay ) & mid( s, k + 2 )
-        return s
-    case TKV_TIME
-        if len( f ) = 0 then f = "hh:nn"
-        dim as string s = f
-        dim as long k = instr( s, "hh" )
-        if k then s = left( s, k - 1 ) & Pad2( v.t.wHour ) & mid( s, k + 2 )
-        k = instr( s, "nn" )
-        if k then s = left( s, k - 1 ) & Pad2( v.t.wMinute ) & mid( s, k + 2 )
-        k = instr( s, "ss" )
-        if k then s = left( s, k - 1 ) & Pad2( v.t.wSecond ) & mid( s, k + 2 )
-        return s
-    end select
-    return ""
+    return tkRExpr_FormatValue( v, fmt, boolText )       ' one formatter (tkRExpr), the same results
 end function
 
 ' ---- running -------------------------------------------------------------------------------

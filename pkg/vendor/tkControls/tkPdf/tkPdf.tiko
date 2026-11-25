@@ -391,7 +391,7 @@ private sub PageContent( byref w as PDF_W, byval page as long, byref c as PDF_PA
         case PR_LATE
             dim as PDF_TTF ptr f = FontOf( w, q.font )
             if (f = 0) orelse (f->bOk = false) then continue for
-            dim as string u8 = PrLateText( pp->strs(q.i0), page, doc->nPages )
+            dim as string u8 = PrLateText( pp->strs(q.i0), page, doc->nPages, doc )
             dim as double sc = q.size / f->upem, tw = 0, lh = (f->ascender - f->descender) * sc
             dim as long k = 1
             while k <= len( u8 )
