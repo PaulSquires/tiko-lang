@@ -46,7 +46,7 @@ case " ${names[*]} " in
 esac
 # tkContacts, tkGridData, tkReportBarcode and the report suites read SQLite: vendor/sqlite3's library (built from source once, then cached).
 case " ${names[*]} " in
-    *" tkContacts "*|*" tkGridData "*|*" tkReportBarcode "*|*" tkReport "*|*" tkReportDef "*|*" tkReportDesigned "*|"  ")
+    *" tkContacts "*|*" tkGridData "*|*" tkReportBarcode "*|*" tkReport "*|*" tkReportDef "*|*" tkReportDesigner "*|"  ")
         TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module sqlite3 \
             || { echo "vendorfetch.sh failed: no sqlite3"; exit 1; } ;;
 esac

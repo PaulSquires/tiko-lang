@@ -128,7 +128,7 @@ r.ShowIn( viewer.Handle )            ' a tkReportViewer: parameter strip, Run, P
 On a form, a ReportViewer's `report` property names the report module. The form then has a member
 `<viewer>Report` of that report's type.
 
-The sample `examples/tkControls/tkReportDesigned` builds `orders`, a program showing a designed
+The sample `examples/tkControls/tkReportDesigner` builds `orders`, a program showing a designed
 report in a designed form. Its selftest covers arrays with master-detail, SQLite, a DataGrid,
 parameters, events, the viewer and PDF.
 
