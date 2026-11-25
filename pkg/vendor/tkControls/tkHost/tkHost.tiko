@@ -346,6 +346,7 @@ public type TK_HOST_
     fonts(any)   as TK_FONT
     rcDrag       as TKRECT            ' window pixels; a press here drags the window (dialogs)
     nFrames      as long              ' frames rendered, for the idle-CPU claim
+    bResumed     as boolean           ' back in the foreground: the next render presents twice
     pUser        as any ptr           ' the host's own payload
     OnPaint      as tkHostPaintSub    ' the surface's own background (labels, hairlines)
     OnSize       as tkHostSub
@@ -1997,6 +1998,9 @@ public sub tkHost_RenderTo( byval h as TK_HOST ptr, byval bPresent as boolean )
     if bPresent then
         SDL_RenderPresent( h->renderer )
         h->nFrames += 1
+        ' The first present after a return to the foreground is never shown (see ResumeWatch):
+        ' paint and present once more.
+        if h->bResumed then h->bResumed = false : tkHost_RenderTo( h, true )
     end if
 end sub
 
@@ -2004,6 +2008,24 @@ end sub
 public sub tkHost_Render( byval h as TK_HOST ptr )
     tkHost_RenderTo( h, true )
 end sub
+
+' BACK IN THE FOREGROUND (Android). HOME destroys the Activity's surface; on the return SDL makes a
+' new one and restores the GL context, and the window comes back RESTORED -- but no EXPOSED, so
+' nothing was dirty and the window stayed black until something repainted. Worse, the first
+' SDL_RenderPresent after the return is never shown: a plain SDL program that presents once per
+' tap shows black for the first tap and the right frame from the second, with no lag after it
+' (measured, API 36 emulator, SDL 3.4.14, 2026-11-25). So every window is dirty again AND its
+' next render presents twice. SDL only calls watchers for this event (it is never queued); the
+' RESTORED it sends next wakes the loop that renders, after the renderer stops counting the
+' window hidden. Main thread only, as below.
+private function ResumeWatch( byval e as SDL_Event ptr ) as boolean
+    if SDL_IsMainThread( ) = false then return true
+    for i as long = 0 to gnHosts - 1
+        dim as TK_HOST ptr h = gHosts(i)
+        if (h->bVirtual = false) andalso (h->bClosed = false) then h->bDirty = true : h->bResumed = true
+    next
+    return true
+end function
 
 ' LIVE RESIZE. While a window edge is dragged, Windows runs its own loop: the application's loop
 ' sees no event until the drag ends, so the window's contents kept their old layout until then.
@@ -2013,6 +2035,7 @@ end sub
 ' when the drag ends, which costs one layout. Main thread only: a watcher also sees events pushed
 ' from other threads (tkFileDialog's answer).
 function LiveResizeWatch( byval userdata as any ptr, byval e as SDL_Event ptr ) as boolean
+    if e->type = SDL_EVENT_DID_ENTER_FOREGROUND then return ResumeWatch( e )
     if (e->type <> SDL_EVENT_WINDOW_EXPOSED) orelse (e->window.data1 <> 1) then return true
     if SDL_IsMainThread( ) = false then return true
     dim as TK_HOST ptr h = HostOfWindow( e->window.windowID )

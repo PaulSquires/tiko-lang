@@ -288,6 +288,19 @@ sub RunPass( byval fScale as single )
     tkTest_PumpFor( h, 120 )
     tkTest_Check( "killed timer: no more ticks", Rx( F4 )->nTimer = nT, nT & " -> " & Rx( F4 )->nTimer )
 
+    ' ---- back in the foreground (Android HOME, then the app again) -------------------------------
+    ' SDL calls watchers for the event (on Android it is never queued); the window is dirty again
+    ' and presented TWICE, because the first present after the return never reaches the screen.
+    if fScale = 1 then
+        tkHost_Pump( h )
+        dim as long nF = h->nFrames
+        dim as SDL_Event fg
+        fg.type = SDL_EVENT_DID_ENTER_FOREGROUND
+        SDL_PushEvent( @fg )
+        tkHost_Pump( h )
+        tkTest_Check( "foreground: repainted and presented twice", h->nFrames = nF + 2, nF & " -> " & h->nFrames )
+    end if
+
     ' ---- cursor follows the hot widget ----------------------------------------------------------
     tkWidget_SetCursor( C, TK_CURSOR_IBEAM )
     tkTest_PushMotion( h, S( h, 130 ), S( h, 90 ) )
