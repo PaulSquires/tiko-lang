@@ -300,7 +300,13 @@ build_one( ) {
         # it runs on every ARMv8, needs no helper library, and the cross-built runtime and the
         # native one are then the same code.
         case "$target" in linux-arm64) cabi="-mno-outline-atomics" ;; esac
+        # ONE SECTION PER FUNCTION AND PER DATUM, as the FreeBASIC members already get
+        # (CompileIrArgs_). Without them a member is one .text, and once anything pulls it
+        # in, the link keeps every function in it -- msvccrt.o's 90 symbols reached a
+        # program that needs 13 of them (a user's size report, 2026-11-25). Roots the
+        # linker honours stay: the entry, /INCLUDE, .CRT$X* / .init_array by name.
         if ! "$CLANG" --target="$ctgt" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra $cabi $cpic \
+                -ffunction-sections -fdata-sections \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
         fi
