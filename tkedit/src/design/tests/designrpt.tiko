@@ -113,3 +113,66 @@ sub ReportCodegenSuite( byval bAccept as boolean )
     Check( named, "report: a file that does not read: its problem, with the file's name" )
     fs.RemoveDirAll( tmp )
 end sub
+
+' ---- the Report Designer's edits (RD5): redits, GUI-free ------------------------------------------
+private function RptIds( byval d as TK_REPORTDEF ptr ) as ustring
+    dim as ustring s
+    for i as int32 = 0 to d->nItems - 1
+        s &= d->items(i).id & " "
+    next
+    return rtrim( s )
+end function
+
+private function RptNames( byval a as ustring, byval b as ustring = "", byval c_ as ustring = "" ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    r.Push( a )
+    if len( b ) then r.Push( b )
+    if len( c_ ) then r.Push( c_ )
+    return r
+end function
+
+sub ReportEditsSuite( )
+    dim as ustring src = "format = 1" & LF & "[[source]]" & LF & "name = ""S""" & LF _
+        & "[[band]]" & LF & "id = ""rf""" & LF & "kind = ""report_footer""" & LF _
+        & "[[band]]" & LF & "id = ""d""" & LF & "kind = ""detail""" & LF & "source = ""S""" & LF _
+        & "[[band]]" & LF & "id = ""g0f""" & LF & "kind = ""group_footer""" & LF _
+        & "[[band]]" & LF & "id = ""g1h""" & LF & "kind = ""group_header""" & LF & "level = 1" & LF & "group = ""[a]""" & LF _
+        & "[[band]]" & LF & "id = ""g0h""" & LF & "kind = ""group_header""" & LF & "group = ""[b]""" & LF _
+        & "[[band]]" & LF & "id = ""g1f""" & LF & "kind = ""group_footer""" & LF & "level = 1" & LF _
+        & "[[band]]" & LF & "id = ""rh""" & LF & "kind = ""report_header""" & LF _
+        & "[[item]]" & LF & "id = ""a""" & LF & "band = ""d""" & LF & "rect = [10, 0, 50, 10]" & LF _
+        & "[[item]]" & LF & "id = ""b""" & LF & "band = ""d""" & LF & "rect = [100, 4, 20, 10]" & LF _
+        & "[[item]]" & LF & "id = ""c""" & LF & "band = ""d""" & LF & "rect = [200, 8, 30, 10]" & LF
+    dim as TK_REPORTDEF ptr d = LoadRpt( src )
+    Check( d <> 0, "redits: the report loads" )
+    if d = 0 then exit sub
+    dim as Array( of int32 ) bandOrder, depths
+    redits.BandOrder( d, bandOrder, depths )
+    dim as ustring o
+    for each i as int32 in bandOrder
+        o &= d->bands(i).id & " "
+    next
+    Check( rtrim( o ) = "rh g0h g1h d g1f g0f rf", "redits: the bands stacked as the report prints them", o )
+    Check( (redits.GridPt( d ) > 2.83) andalso (redits.GridPt( d ) < 2.84) andalso (abs( redits.Snap( 10, redits.GridPt( d ) ) - 11.34 ) < 0.001), _
+           "redits: a 1 mm grid, snapping to 0.01 pt", str( redits.Snap( 10, redits.GridPt( d ) ) ) )
+    Check( (redits.NewItemId( d, "x" ) = "x") andalso (redits.NewItemId( d, "a" ) = "a1"), "redits: a new id is the wanted one, else numbered" )
+    redits.AlignItems( d, RptNames( "c", "a" ), redits.RAlign.RAlignRights )
+    Check( d->items(0).x = 180, "redits: Align Rights puts the right edges on the anchor's", str( d->items(0).x ) )
+    redits.AlignItems( d, RptNames( "c", "b" ), redits.RAlign.RSameSize )
+    Check( (d->items(1).w = 30) andalso (d->items(1).h = 10), "redits: Same Size takes the anchor's" )
+    d->items(0).x = 0 : d->items(1).x = 10
+    redits.SpaceEqual( d, RptNames( "a", "b", "c" ), false )
+    Check( d->items(1).x = 110, "redits: equal spacing moves the middle one, the outer two stay", str( d->items(1).x ) )
+    redits.ToFront( d, RptNames( "a" ) )
+    Check( RptIds( d ) = "b c a", "redits: to the front draws it last", RptIds( d ) )
+    redits.ToBack( d, RptNames( "a", "c" ) )
+    Check( RptIds( d ) = "c a b", "redits: to the back keeps their own order", RptIds( d ) )
+    dim as ustring clip = redits.CopyText( d, RptNames( "a" ) )
+    Check( redits.IsClipText( clip ) andalso (redits.IsClipText( src ) = false), "redits: a copy is report items; a report is not", clip )
+    dim as Array( of ustring ) ids
+    Check( redits.PasteText( d, clip, "rh", 2, 3, ids ) andalso (ids.Count( ) = 1) andalso (ids[0] = "a1") _
+           andalso (d->items(3).band = "rh") andalso (d->items(3).x = 2) andalso (d->items(3).y = 3), "redits: a paste goes into the band, moved, renamed", RptIds( d ) )
+    redits.DeleteItems( d, RptNames( "a", "a1" ) )
+    Check( RptIds( d ) = "c b", "redits: delete", RptIds( d ) )
+    tkReportDef_Destroy( d )
+end sub

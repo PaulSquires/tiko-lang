@@ -318,6 +318,77 @@ private function Measure( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byr
     return h
 end function
 
+' An item's background (a box fills its own, inside its rect, in tkReport_PaintItem).
+public sub tkReport_PaintItemBack( byval pg as TK_PAGE ptr, byref it as TKREPORT_ITEM, byref rc as TKRECTF, byval back as ulong )
+    if ((back shr 24) <> 0) andalso (it.kind <> TKRI_BOX) then
+        tkPage_SetFillColor( pg, back )
+        tkPage_FillRect( pg, rc )
+    end if
+end sub
+
+' An item's content and borders, after tkReport_PaintItemBack: what the engine prints and what the
+' Report Designer's canvas shows (WYSIWYG by construction). text is a text item's text, a page
+' item's text with {title} {date} {time} replaced, or an image's file; ticked is a check's value.
+' A late text item (it.late) and a custom item are the caller's; their borders are drawn here.
+public sub tkReport_PaintItem( byval pg as TK_PAGE ptr, byref it as TKREPORT_ITEM, byref rc as TKRECTF, byref fnt as TKFONTSPEC, _
+                               byval fore as ulong, byval back as ulong, byval text as ustring, byval ticked as boolean )
+    select case it.kind
+    case TKRI_LABEL, TKRI_FIELD, TKRI_SUMMARY, TKRI_EXPR, TKRI_TEXT
+        if it.late = 0 then
+            tkPage_SetFont( pg, fnt )
+            tkPage_SetTextColor( pg, fore )
+            dim as long fl = it.flags
+            if it.canGrow then fl or= TK_DT_WORDBREAK
+            tkPage_Text( pg, text, rc, fl )
+        end if
+    case TKRI_PAGEINFO
+        tkPage_SetFont( pg, fnt )
+        tkPage_SetTextColor( pg, fore )
+        if (instr( text, "{p}" ) > 0) orelse (instr( text, "{n}" ) > 0) then
+            tkPage_LateText( pg, rc, text, it.flags )
+        else
+            tkPage_Text( pg, text, rc, it.flags )
+        end if
+    case TKRI_LINE
+        tkPage_SetLineColor( pg, it.lineColor )
+        tkPage_SetPen( pg, it.penPt )
+        tkPage_Line( pg, rc.left, rc.top, rc.right, rc.bottom )
+    case TKRI_BOX
+        if (back shr 24) <> 0 then tkPage_SetFillColor( pg, back ) : tkPage_FillRect( pg, rc )
+        if it.penPt > 0 then
+            tkPage_SetLineColor( pg, it.lineColor )
+            tkPage_SetPen( pg, it.penPt )
+            tkPage_StrokeRect( pg, rc )
+        end if
+    case TKRI_IMAGE
+        if len( text ) then tkPage_Image( pg, text, rc )
+    case TKRI_CHECK
+        dim as single side = iif( rc.right - rc.left < rc.bottom - rc.top, rc.right - rc.left, rc.bottom - rc.top )
+        if side > 10 then side = 10
+        dim as TKRECTF bx
+        tkRectF_Set( bx, rc.left, rc.top + (rc.bottom - rc.top - side) / 2, rc.left + side, rc.top + (rc.bottom - rc.top + side) / 2 )
+        tkPage_SetLineColor( pg, fore )
+        tkPage_SetPen( pg, 0.75 )
+        tkPage_StrokeRect( pg, bx )
+        if ticked then
+            dim as TKPOINTF pts(0 to 2)
+            pts(0).x = bx.left + side * 0.2 : pts(0).y = bx.top + side * 0.55
+            pts(1).x = bx.left + side * 0.42 : pts(1).y = bx.top + side * 0.78
+            pts(2).x = bx.left + side * 0.82 : pts(2).y = bx.top + side * 0.25
+            tkPage_SetPen( pg, 1.2 )
+            tkPage_Polyline( pg, @pts(0), 3 )
+        end if
+    end select
+    if it.borders then
+        tkPage_SetLineColor( pg, it.lineColor )
+        tkPage_SetPen( pg, it.penPt )
+        if it.borders and TKRI_BORDER_LEFT then tkPage_Line( pg, rc.left, rc.top, rc.left, rc.bottom )
+        if it.borders and TKRI_BORDER_TOP then tkPage_Line( pg, rc.left, rc.top, rc.right, rc.top )
+        if it.borders and TKRI_BORDER_RIGHT then tkPage_Line( pg, rc.right, rc.top, rc.right, rc.bottom )
+        if it.borders and TKRI_BORDER_BOTTOM then tkPage_Line( pg, rc.left, rc.bottom, rc.right, rc.bottom )
+    end if
+end sub
+
 private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q as RP_QITEM, byval x0 as single, _
                       byval y as single, byval h as single, byval w as single )
     dim as TKREPORT_BAND ptr b = q.band
@@ -334,88 +405,43 @@ private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q
         if ItemStyle( r, it, q, fnt, fore, back ) = false then continue for
         tkRectF_Set( rc, x0 + it.rc.left, y + it.rc.top, x0 + it.rc.right, y + it.rc.bottom )
         if it.canGrow andalso IsTextItem( it.kind ) andalso (it.late = 0) then rc.bottom = y + h - (b->height - it.rc.bottom)
-        if ((back shr 24) <> 0) andalso (it.kind <> TKRI_BOX) then
-            tkPage_SetFillColor( pg, back )
-            tkPage_FillRect( pg, rc )
-        end if
+        tkReport_PaintItemBack( pg, it, rc, back )
+        dim as ustring text
+        dim as boolean ticked
         select case it.kind
         case TKRI_LABEL, TKRI_FIELD, TKRI_SUMMARY, TKRI_EXPR, TKRI_TEXT
-            tkPage_SetFont( pg, fnt )
-            tkPage_SetTextColor( pg, fore )
-            dim as long fl = it.flags
             if it.late <> 0 then
-                RpLateItem( r, pg, it, q, rc, fl )
+                tkPage_SetFont( pg, fnt )
+                tkPage_SetTextColor( pg, fore )
+                RpLateItem( r, pg, it, q, rc, it.flags )
             else
-                if it.canGrow then fl or= TK_DT_WORDBREAK
-                tkPage_Text( pg, ItemText( r, it, q ), rc, fl )
+                text = ItemText( r, it, q )
             end if
         case TKRI_PAGEINFO
-            dim as string s = it.text
-            dim as long k = instr( s, "{title}" )
-            if k then s = left( s, k - 1 ) & r->title & mid( s, k + 7 )
-            k = instr( s, "{date}" )
-            if k then s = left( s, k - 1 ) & date & mid( s, k + 6 )
-            k = instr( s, "{time}" )
-            if k then s = left( s, k - 1 ) & left( time, 5 ) & mid( s, k + 6 )
-            tkPage_SetFont( pg, fnt )
-            tkPage_SetTextColor( pg, fore )
-            if (instr( s, "{p}" ) > 0) orelse (instr( s, "{n}" ) > 0) then
-                tkPage_LateText( pg, rc, s, it.flags )
-            else
-                tkPage_Text( pg, s, rc, it.flags )
-            end if
-        case TKRI_LINE
-            tkPage_SetLineColor( pg, it.lineColor )
-            tkPage_SetPen( pg, it.penPt )
-            tkPage_Line( pg, rc.left, rc.top, rc.right, rc.bottom )
-        case TKRI_BOX
-            if (back shr 24) <> 0 then tkPage_SetFillColor( pg, back ) : tkPage_FillRect( pg, rc )
-            if it.penPt > 0 then
-                tkPage_SetLineColor( pg, it.lineColor )
-                tkPage_SetPen( pg, it.penPt )
-                tkPage_StrokeRect( pg, rc )
-            end if
+            text = it.text
+            dim as long k = instr( text, "{title}" )
+            if k then text = left( text, k - 1 ) & r->title & mid( text, k + 7 )
+            k = instr( text, "{date}" )
+            if k then text = left( text, k - 1 ) & date & mid( text, k + 6 )
+            k = instr( text, "{time}" )
+            if k then text = left( text, k - 1 ) & left( time, 5 ) & mid( text, k + 6 )
         case TKRI_IMAGE
-            dim as ustring file = it.text
-            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then file = tkReport_FormatValue( q.vals(it.field) )
+            text = it.text
+            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then text = tkReport_FormatValue( q.vals(it.field) )
             if it.px then
                 RpCtxFor( r, q, it.aggBase )
-                file = tkRExpr_EvalText( it.px, r->ctx )
+                text = tkRExpr_EvalText( it.px, r->ctx )
             end if
-            if len( file ) then tkPage_Image( pg, file, rc )
         case TKRI_CHECK
-            dim as single side = iif( rc.right - rc.left < rc.bottom - rc.top, rc.right - rc.left, rc.bottom - rc.top )
-            if side > 10 then side = 10
-            dim as TKRECTF bx
-            tkRectF_Set( bx, rc.left, rc.top + (rc.bottom - rc.top - side) / 2, rc.left + side, rc.top + (rc.bottom - rc.top + side) / 2 )
-            tkPage_SetLineColor( pg, fore )
-            tkPage_SetPen( pg, 0.75 )
-            tkPage_StrokeRect( pg, bx )
-            dim as boolean ticked
             if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then ticked = q.vals(it.field).b
             if it.px then
                 RpCtxFor( r, q, it.aggBase )
                 ticked = tkRExpr_EvalBool( it.px, r->ctx )
             end if
-            if ticked then
-                dim as TKPOINTF pts(0 to 2)
-                pts(0).x = bx.left + side * 0.2 : pts(0).y = bx.top + side * 0.55
-                pts(1).x = bx.left + side * 0.42 : pts(1).y = bx.top + side * 0.78
-                pts(2).x = bx.left + side * 0.82 : pts(2).y = bx.top + side * 0.25
-                tkPage_SetPen( pg, 1.2 )
-                tkPage_Polyline( pg, @pts(0), 3 )
-            end if
         case TKRI_CUSTOM
             if r->PaintItem then r->PaintItem( r, @it, pg, rc, @q.vals(0) )
         end select
-        if it.borders then
-            tkPage_SetLineColor( pg, it.lineColor )
-            tkPage_SetPen( pg, it.penPt )
-            if it.borders and TKRI_BORDER_LEFT then tkPage_Line( pg, rc.left, rc.top, rc.left, rc.bottom )
-            if it.borders and TKRI_BORDER_TOP then tkPage_Line( pg, rc.left, rc.top, rc.right, rc.top )
-            if it.borders and TKRI_BORDER_RIGHT then tkPage_Line( pg, rc.right, rc.top, rc.right, rc.bottom )
-            if it.borders and TKRI_BORDER_BOTTOM then tkPage_Line( pg, rc.left, rc.bottom, rc.right, rc.bottom )
-        end if
+        tkReport_PaintItem( pg, it, rc, fnt, fore, back, text, ticked )
     next
 end sub
 

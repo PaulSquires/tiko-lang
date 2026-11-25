@@ -1,0 +1,116 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' reportwire -- a .tkreport on the Report Designer's canvas (Report Designer RD5): which commands act
+' on it, what they do, and its generated module written on save and before a build (RD4's codegen).
+' The canvas has no palettes yet (RD6): the toolbox, field list and inspector are not shown for it.
+#module "mainwin"
+
+#import "std/containers"
+#import "std/fs"
+#import "tkc/i18n"
+#import "tkc/cmdids"
+#import "tka/documents"
+#import "tkd/rcanvas"
+#import "tkd/redits"
+#import "tkd/rcodegen"
+#import "tkd/codegen"
+#import "vendor/tkControls/tkReportDef"
+#import "vendor/tkControls/tkHost"
+using containers
+using tkReportDef
+using tkHost
+using cmdids
+
+private function ReportDesignPathOf_( byref reportPath as const ustring ) as ustring
+    return left( reportPath, len( reportPath ) - 9 ) & ".design.tiko"
+end function
+
+' With a report on its canvas: the edit commands it has, the Design menu's arrange commands, and
+' what does not act on the hidden text.
+function Window.ReportActs( byval id as Cmd ) as boolean
+    select case id
+    case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
+         Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
+        return true
+    case Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, Cmd.FoldBelow, Cmd.FoldAll
+        return false
+    case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
+         Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
+         Cmd.FormSendToBack, Cmd.FormHSpaceEqual, Cmd.FormVSpaceEqual, Cmd.FormSnapToGrid, _
+         Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages
+        return true
+    end select
+    select case Keys.Commands( ).Info( id ).Group
+    case MenuGroup.Edit, MenuGroup.Search, MenuGroup.Design : return false
+    end select
+    return true
+end function
+
+function Window.ReportCommand( byval id as Cmd ) as boolean
+    dim as DocRef d = this.Active( )
+    dim as rcanvas.ReportCanvas ptr c = d->Report
+    select case id
+    case Cmd.Undo
+        if d->Main.CanUndo( ) then
+            d->Main.Undo( )
+            c->LoadText( d->Text( ) )
+        end if
+    case Cmd.Redo
+        if d->Main.CanRedo( ) then
+            d->Main.Redo( )
+            c->LoadText( d->Text( ) )
+        end if
+    case Cmd.Cut : c->Cut( )
+    case Cmd.Copy : c->Copy( )
+    case Cmd.Paste : c->Paste( )
+    case Cmd.SelectAll : c->SelectAll( )
+    case Cmd.FormAlignLefts : c->Align( redits.RAlign.RAlignLefts )
+    case Cmd.FormAlignCenters : c->Align( redits.RAlign.RAlignCenters )
+    case Cmd.FormAlignRights : c->Align( redits.RAlign.RAlignRights )
+    case Cmd.FormAlignTops : c->Align( redits.RAlign.RAlignTops )
+    case Cmd.FormAlignMiddles : c->Align( redits.RAlign.RAlignMiddles )
+    case Cmd.FormAlignBottoms : c->Align( redits.RAlign.RAlignBottoms )
+    case Cmd.FormSameWidth : c->Align( redits.RAlign.RSameWidth )
+    case Cmd.FormSameHeight : c->Align( redits.RAlign.RSameHeight )
+    case Cmd.FormSameSize : c->Align( redits.RAlign.RSameSize )
+    case Cmd.FormBringToFront : c->ToFront( )
+    case Cmd.FormSendToBack : c->ToBack( )
+    case Cmd.FormHSpaceEqual : c->Space( false )
+    case Cmd.FormVSpaceEqual : c->Space( true )
+    case Cmd.FormSnapToGrid
+        c->SnapToGrid = (c->SnapToGrid = false)
+        tkWidget_Invalidate( c->Frame )
+    case else
+        return false
+    end select
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
+' rptX.design.tiko from the report on the canvas, when it differs from the file (RD4's generator).
+function Window.WriteReportGenerated( byval d as DocRef ) as boolean
+    if (d = 0) orelse (d->Report = 0) orelse (len( d->Path ) = 0) then return true
+    dim as ustring moduleName = fs.PathStem( d->Path )
+    dim as Array( of ustring ) problems
+    rcodegen.Check( d->Report->Def, moduleName, problems )
+    if problems.Count( ) then
+        this.SetMessage( fs.PathFileName( d->Path ) & ": " & problems[0] )
+        return false
+    end if
+    dim as ustring generated = rcodegen.Generate( d->Report->Def, moduleName, fs.PathFileName( d->Path ), d->Text( ) )
+    dim as ustring target = ReportDesignPathOf_( d->Path ), none
+    if fs.IsFile( target ) then
+        if codegen.WithoutCr( fs.ReadAllText( target ).ValueOr( none ) ) = generated then return true
+    end if
+    if fs.WriteAtomic( target, generated ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( target ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    return true
+end function

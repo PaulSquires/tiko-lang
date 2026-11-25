@@ -324,6 +324,58 @@ public function tkReportDef_FindParam( byval def as TK_REPORTDEF ptr, byref name
     return -1
 end function
 
+public function tkReportDef_FindBand( byval def as TK_REPORTDEF ptr, byref id as const ustring ) as int32
+    if def = 0 then return -1
+    for i as int32 = 0 to def->nBands - 1
+        if lcase( def->bands(i).id ) = lcase( id ) then return i
+    next
+    return -1
+end function
+
+public function tkReportDef_FindItem( byval def as TK_REPORTDEF ptr, byref id as const ustring ) as int32
+    if def = 0 then return -1
+    for i as int32 = 0 to def->nItems - 1
+        if lcase( def->items(i).id ) = lcase( id ) then return i
+    next
+    return -1
+end function
+
+' ---- editing the model (the Report Designer): items are drawn in their order, the last on top ----
+' Appends a copy of it; its index.
+public function tkReportDef_AddItem( byval def as TK_REPORTDEF ptr, byref it as TKRD_ITEM ) as int32
+    if def = 0 then return -1
+    if def->nItems > ubound( def->items ) then redim preserve def->items( 0 to def->nItems * 2 + 7 )
+    def->items(def->nItems) = it
+    def->nItems += 1
+    return def->nItems - 1
+end function
+
+public sub tkReportDef_RemoveItem( byval def as TK_REPORTDEF ptr, byval i as int32 )
+    if (def = 0) orelse (i < 0) orelse (i >= def->nItems) then exit sub
+    for k as int32 = i to def->nItems - 2
+        def->items(k) = def->items(k + 1)
+    next
+    dim as TKRD_ITEM blank
+    def->items(def->nItems - 1) = blank
+    def->nItems -= 1
+end sub
+
+' Item from goes to index to_; the ones between shift by one.
+public sub tkReportDef_MoveItem( byval def as TK_REPORTDEF ptr, byval from as int32, byval to_ as int32 )
+    if (def = 0) orelse (from < 0) orelse (from >= def->nItems) orelse (to_ < 0) orelse (to_ >= def->nItems) orelse (from = to_) then exit sub
+    dim as TKRD_ITEM t = def->items(from)
+    if from < to_ then
+        for k as int32 = from to to_ - 1
+            def->items(k) = def->items(k + 1)
+        next
+    else
+        for k as int32 = from to to_ + 1 step -1
+            def->items(k) = def->items(k - 1)
+        next
+    end if
+    def->items(to_) = t
+end sub
+
 private sub EnsureBinds( byval def as TK_REPORTDEF ptr )
     if ubound( def->binds ) < def->nSources - 1 then redim preserve def->binds( 0 to def->nSources - 1 )
     if ubound( def->pv ) < def->nParams - 1 then

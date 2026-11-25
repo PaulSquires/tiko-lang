@@ -1440,6 +1440,13 @@ function Window.PrepareForms( ) as boolean
             elseif this.WriteGenerated( d ) = false then
                 ok = false
             end if
+        elseif d->Report then
+            ' an open report: as a form is (its generated module, RD4)
+            if Prefs.SaveBeforeBuild andalso d->IsModified( ) then
+                if this.SaveDoc( d, false ) = false then ok = false
+            elseif this.WriteReportGenerated( d ) = false then
+                ok = false
+            end if
         elseif lcase( right( d->Path, 8 ) ) = ".tktheme" then
             ' an open theme: saved first when the user wants that (AfterSave generates), else generated
             if Prefs.SaveBeforeBuild andalso d->IsModified( ) then

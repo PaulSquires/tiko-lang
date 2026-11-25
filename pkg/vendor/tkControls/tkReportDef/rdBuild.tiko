@@ -370,6 +370,19 @@ private function ParseSort( byref text as const ustring, byref src as TKREPORT_S
 end function
 
 ' ---- making the report -----------------------------------------------------------------------
+
+private function BandIndex( byval def as TK_REPORTDEF ptr, byref id as const ustring ) as int32
+    for i as int32 = 0 to def->nBands - 1
+        if lcase( def->bands(i).id ) = lcase( id ) then return i
+    next
+    return -1
+end function
+
+private function LevelOf( byref s as const ustring, byval dflt as long ) as long
+    if left( s, 6 ) = "group:" then return valint( mid( s, 7 ) )
+    return dflt
+end function
+
 private function PaperOf( byref s as const ustring ) as long
     select case lcase( s )
     case "a4" : return TK_PAPER_A4
@@ -385,17 +398,65 @@ private function PaperOf( byref s as const ustring ) as long
     return TK_PAPER_DEFAULT
 end function
 
-private function BandIndex( byval def as TK_REPORTDEF ptr, byref id as const ustring ) as int32
-    for i as int32 = 0 to def->nBands - 1
-        if lcase( def->bands(i).id ) = lcase( id ) then return i
-    next
-    return -1
-end function
+' The report's page: paper, orientation, margins.
+public sub tkReportDef_PageSetup( byval def as TK_REPORTDEF ptr, byref ps as TKPAGESETUP )
+    ps.paper = PaperOf( def->paper )
+    if ps.paper = TK_PAPER_CUSTOM then ps.widthPt = def->paperW : ps.heightPt = def->paperH
+    ps.landscape = def->landscape
+    ps.marginL = def->mL : ps.marginT = def->mT : ps.marginR = def->mR : ps.marginB = def->mB
+end sub
 
-private function LevelOf( byref s as const ustring, byval dflt as long ) as long
-    if left( s, 6 ) = "group:" then return valint( mid( s, 7 ) )
-    return dflt
-end function
+' The engine's item for a definition's item: geometry, kind, style, totals. masterLevel is the
+' group level a "master" increment means. Its rules are the caller's (tkRItem_AddRule).
+public sub tkReportDef_MakeItem( byref it as TKRD_ITEM, byref e as TKREPORT_ITEM, byval masterLevel as long )
+    e.name_ = it.id
+    tkRectF_Set( e.rc, it.x, it.y, it.x + it.w, it.y + it.h )
+    select case it.kind
+    case "text" : e.kind = TKRI_TEXT : e.expr = it.text
+    case "field" : e.kind = TKRI_EXPR : e.expr = it.expr : e.fmt = it.format
+    case "line" : e.kind = TKRI_LINE
+    case "box" : e.kind = TKRI_BOX
+    case "image" : e.kind = TKRI_IMAGE : e.text = it.text : e.expr = it.expr
+    case "check" : e.kind = TKRI_CHECK : e.expr = it.expr
+    case "custom" : e.kind = TKRI_CUSTOM : e.tag = it.tag
+    end select
+    select case it.align
+    case "center" : e.flags = TK_DT_CENTER
+    case "right" : e.flags = TK_DT_RIGHT
+    case else : e.flags = TK_DT_LEFT
+    end select
+    if it.valign = "top" then e.flags or= TK_DT_TOP
+    if it.valign = "bottom" then e.flags or= TK_DT_BOTTOM
+    if it.wrap then e.flags or= TK_DT_WORDBREAK
+    e.canGrow = it.canGrow
+    e.font.src = it.fontSrc
+    e.font.pt = it.fontSize
+    e.font.bold = it.bold
+    e.font.italic = it.italic
+    e.fore = RdColor( it.fore, &hFF000000ul )
+    e.back = RdColor( it.back, 0 )
+    e.lineColor = RdColor( it.lineColor, &hFF000000ul )
+    e.penPt = it.pen
+    dim as ustring bw = " " & it.border & " "
+    if instr( bw, " all " ) then e.borders = TKRI_BORDER_ALL
+    if instr( bw, " left " ) then e.borders or= TKRI_BORDER_LEFT
+    if instr( bw, " top " ) then e.borders or= TKRI_BORDER_TOP
+    if instr( bw, " right " ) then e.borders or= TKRI_BORDER_RIGHT
+    if instr( bw, " bottom " ) then e.borders or= TKRI_BORDER_BOTTOM
+    e.visibleExpr = it.visible
+    select case it.reset
+    case "page" : e.reset = TKRS_SCOPE_PAGE
+    case "report" : e.reset = TKRS_SCOPE_REPORT
+    case "auto" : e.reset = TKRS_RESET_AUTO
+    case else : e.reset = LevelOf( it.reset, TKRS_RESET_AUTO )
+    end select
+    e.running = it.running
+    select case it.incr
+    case "row" : e.incrLevel = -1
+    case "master" : e.incrLevel = masterLevel
+    case else : e.incrLevel = LevelOf( it.incr, -1 )
+    end select
+end sub
 
 private sub AddItems( byval def as TK_REPORTDEF ptr, byval bi as int32, byval band as TK_RBAND ptr, byval masterLevel as long )
     dim as ustring id = lcase( def->bands(bi).id )
@@ -403,53 +464,7 @@ private sub AddItems( byval def as TK_REPORTDEF ptr, byval bi as int32, byval ba
         dim byref as TKRD_ITEM it = def->items(i)
         if lcase( it.band ) <> id then continue for
         dim as TKREPORT_ITEM e
-        e.name_ = it.id
-        tkRectF_Set( e.rc, it.x, it.y, it.x + it.w, it.y + it.h )
-        select case it.kind
-        case "text" : e.kind = TKRI_TEXT : e.expr = it.text
-        case "field" : e.kind = TKRI_EXPR : e.expr = it.expr : e.fmt = it.format
-        case "line" : e.kind = TKRI_LINE
-        case "box" : e.kind = TKRI_BOX
-        case "image" : e.kind = TKRI_IMAGE : e.text = it.text : e.expr = it.expr
-        case "check" : e.kind = TKRI_CHECK : e.expr = it.expr
-        case "custom" : e.kind = TKRI_CUSTOM : e.tag = it.tag
-        end select
-        select case it.align
-        case "center" : e.flags = TK_DT_CENTER
-        case "right" : e.flags = TK_DT_RIGHT
-        case else : e.flags = TK_DT_LEFT
-        end select
-        if it.valign = "top" then e.flags or= TK_DT_TOP
-        if it.valign = "bottom" then e.flags or= TK_DT_BOTTOM
-        if it.wrap then e.flags or= TK_DT_WORDBREAK
-        e.canGrow = it.canGrow
-        e.font.src = it.fontSrc
-        e.font.pt = it.fontSize
-        e.font.bold = it.bold
-        e.font.italic = it.italic
-        e.fore = RdColor( it.fore, &hFF000000ul )
-        e.back = RdColor( it.back, 0 )
-        e.lineColor = RdColor( it.lineColor, &hFF000000ul )
-        e.penPt = it.pen
-        dim as ustring bw = " " & it.border & " "
-        if instr( bw, " all " ) then e.borders = TKRI_BORDER_ALL
-        if instr( bw, " left " ) then e.borders or= TKRI_BORDER_LEFT
-        if instr( bw, " top " ) then e.borders or= TKRI_BORDER_TOP
-        if instr( bw, " right " ) then e.borders or= TKRI_BORDER_RIGHT
-        if instr( bw, " bottom " ) then e.borders or= TKRI_BORDER_BOTTOM
-        e.visibleExpr = it.visible
-        select case it.reset
-        case "page" : e.reset = TKRS_SCOPE_PAGE
-        case "report" : e.reset = TKRS_SCOPE_REPORT
-        case "auto" : e.reset = TKRS_RESET_AUTO
-        case else : e.reset = LevelOf( it.reset, TKRS_RESET_AUTO )
-        end select
-        e.running = it.running
-        select case it.incr
-        case "row" : e.incrLevel = -1
-        case "master" : e.incrLevel = masterLevel
-        case else : e.incrLevel = LevelOf( it.incr, -1 )
-        end select
+        tkReportDef_MakeItem( it, e, masterLevel )
         dim as TKREPORT_ITEM ptr p = tkRBand_AddItem( band, e )
         for k as int32 = 0 to it.nRules - 1
             dim byref as TKRD_RULE r = it.rules(k)
@@ -623,10 +638,7 @@ public function tkReportDef_CreateReport( byval def as TK_REPORTDEF ptr, byref e
     dim as TK_REPORT ptr r = tkReport_Create( def->title )
     def->rpt = r
     dim as TKPAGESETUP ps
-    ps.paper = PaperOf( def->paper )
-    if ps.paper = TK_PAPER_CUSTOM then ps.widthPt = def->paperW : ps.heightPt = def->paperH
-    ps.landscape = def->landscape
-    ps.marginL = def->mL : ps.marginT = def->mT : ps.marginR = def->mR : ps.marginB = def->mB
+    tkReportDef_PageSetup( def, ps )
     tkReport_SetPageSetup( r, ps )
     tkReport_SetBoolText( r, def->boolText )
     dim as TKREPORT_SOURCE js

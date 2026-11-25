@@ -1,0 +1,308 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' redits -- the Report Designer's edits of a report definition (Report Designer RD5), without a
+' window: the bands in the order the canvas shows them, the grid, ids, align / size / spacing,
+' z-order, delete, and the clipboard. Geometry is in points, kept to 0.01 pt (what the .tkreport
+' writer keeps), so an edit and its file agree.
+#module "redits"
+
+#import "std/containers"
+#import "vendor/tkControls/tkReportDef"
+using containers
+using tkReportDef
+using tkReport
+
+' What a copy puts on the clipboard: a .tkreport of the items and their bands, under this title.
+public const CLIP_TITLE = "tkEdit report items"
+
+public enum RAlign
+    RAlignLefts
+    RAlignCenters
+    RAlignRights
+    RAlignTops
+    RAlignMiddles
+    RAlignBottoms
+    RSameWidth
+    RSameHeight
+    RSameSize
+end enum
+
+' To 0.01 pt.
+public function Round2( byval v as float32 ) as float32
+    return cast( float32, int( v * 100 + 0.5 ) ) / 100
+end function
+
+' The grid step, in points: 1 mm, 0.05 in, or 1 pt, by the report's units.
+public function GridPt( byval def as TK_REPORTDEF ptr ) as float32
+    if def = 0 then return 1
+    select case lcase( def->units )
+    case "in" : return 3.6
+    case "pt" : return 1
+    end select
+    return 72 / 25.4
+end function
+
+' v to the nearest multiple of g (no grid when g <= 0), to 0.01 pt.
+public function Snap( byval v as float32, byval g as float32 ) as float32
+    if g <= 0 then return Round2( v )
+    return Round2( cast( float32, int( v / g + 0.5 ) ) * g )
+end function
+
+private function Rank_( byref b as TKRD_BAND ) as int32
+    select case b.kind
+    case "report_header" : return 0
+    case "page_header" : return 10
+    case "group_header" : return 20 + b.level
+    case "detail" : return 50
+    case "detail_report" : return 60
+    case "group_footer" : return 170 - b.level
+    case "report_footer" : return 180
+    case "page_footer" : return 190
+    case "no_data" : return 200
+    end select
+    return 210
+end function
+
+private sub AddChildren_( byval def as TK_REPORTDEF ptr, byref parent as const ustring, byval depth as int32, _
+                          byref order as Array( of int32 ), byref depths as Array( of int32 ) )
+    ' a stable selection by rank: the file's order among equals
+    dim as Array( of int32 ) kids
+    for i as int32 = 0 to def->nBands - 1
+        if lcase( def->bands(i).parent ) = lcase( parent ) then kids.Push( i )
+    next
+    dim as int32 n = kids.Count( )
+    dim as Array( of boolean ) taken
+    for k as int32 = 0 to n - 1
+        taken.Push( false )
+    next
+    for pass as int32 = 0 to n - 1
+        dim as int32 best = -1
+        for k as int32 = 0 to n - 1
+            if taken[k] then continue for
+            if best < 0 then
+                best = k
+            elseif Rank_( def->bands(kids[k]) ) < Rank_( def->bands(kids[best]) ) then
+                best = k
+            end if
+        next
+        taken[best] = true
+        order.Push( kids[best] )
+        depths.Push( depth )
+        if depth < 8 then AddChildren_( def, def->bands(kids[best]).id, depth + 1, order, depths )
+    next
+end sub
+
+' The bands as the canvas stacks them: the top-level ones by kind (headers, groups outer to inner,
+' detail, footers inner to outer, page footer, no-data), each followed by its own (a detail's
+' detail_report, then that one's bands), depth 1 more.
+public sub BandOrder( byval def as TK_REPORTDEF ptr, byref order as Array( of int32 ), byref depths as Array( of int32 ) )
+    order.Clear( )
+    depths.Clear( )
+    if def = 0 then exit sub
+    AddChildren_( def, "", 0, order, depths )
+    ' a band whose parent is not a band: last, so it is not lost
+    for i as int32 = 0 to def->nBands - 1
+        dim as boolean seen = false
+        for k as int32 = 0 to order.Count( ) - 1
+            if order[k] = i then seen = true
+        next
+        if seen = false then
+            order.Push( i )
+            depths.Push( 0 )
+        end if
+    next
+end sub
+
+' wanted, or wanted1, wanted2 ... (its own digits dropped): the first id no item has.
+public function NewItemId( byval def as TK_REPORTDEF ptr, byref wanted as const ustring ) as ustring
+    if tkReportDef_FindItem( def, wanted ) < 0 then return wanted
+    dim as ustring stem = wanted
+    while (len( stem ) > 0) andalso (instr( "0123456789", right( stem, 1 ) ) > 0)
+        stem = left( stem, len( stem ) - 1 )
+    wend
+    if len( stem ) = 0 then stem = "item"
+    dim as int32 n = 1
+    while tkReportDef_FindItem( def, stem & n ) >= 0
+        n += 1
+    wend
+    return stem & n
+end function
+
+' The indexes of the items ids names that exist, in the order of ids.
+private sub Indexes_( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ), byref out_ as Array( of int32 ) )
+    out_.Clear( )
+    for each s as ustring in ids
+        dim as int32 i = tkReportDef_FindItem( def, s )
+        if i >= 0 then out_.Push( i )
+    next
+end sub
+
+' Lines up the items with the first (the anchor), or gives them its size.
+public sub AlignItems( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ), byval mode as RAlign )
+    dim as Array( of int32 ) ix
+    Indexes_( def, ids, ix )
+    if ix.Count( ) < 2 then exit sub
+    dim as TKRD_ITEM a = def->items(ix[0])
+    for k as int32 = 1 to ix.Count( ) - 1
+        dim byref as TKRD_ITEM it = def->items(ix[k])
+        select case mode
+        case RAlign.RAlignLefts : it.x = a.x
+        case RAlign.RAlignCenters : it.x = Round2( a.x + (a.w - it.w) / 2 )
+        case RAlign.RAlignRights : it.x = Round2( a.x + a.w - it.w )
+        case RAlign.RAlignTops : it.y = a.y
+        case RAlign.RAlignMiddles : it.y = Round2( a.y + (a.h - it.h) / 2 )
+        case RAlign.RAlignBottoms : it.y = Round2( a.y + a.h - it.h )
+        case RAlign.RSameWidth : it.w = a.w
+        case RAlign.RSameHeight : it.h = a.h
+        case RAlign.RSameSize : it.w = a.w : it.h = a.h
+        end select
+    next
+end sub
+
+' Equal gaps between three or more items, across (down_ false) or down: the outermost two stay.
+public sub SpaceEqual( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ), byval down_ as boolean )
+    dim as Array( of int32 ) ix
+    Indexes_( def, ids, ix )
+    dim as int32 n = ix.Count( )
+    if n < 3 then exit sub
+    ' by position
+    for a as int32 = 0 to n - 2
+        for b as int32 = a + 1 to n - 1
+            dim as float32 pa = iif( down_, def->items(ix[a]).y, def->items(ix[a]).x )
+            dim as float32 pb = iif( down_, def->items(ix[b]).y, def->items(ix[b]).x )
+            if pb < pa then
+                dim as int32 t = ix[a]
+                ix[a] = ix[b]
+                ix[b] = t
+            end if
+        next
+    next
+    dim as float32 total, sizes
+    dim byref as TKRD_ITEM first = def->items(ix[0])
+    dim byref as TKRD_ITEM last = def->items(ix[n - 1])
+    if down_ then
+        total = last.y + last.h - first.y
+    else
+        total = last.x + last.w - first.x
+    end if
+    for k as int32 = 0 to n - 1
+        sizes += iif( down_, def->items(ix[k]).h, def->items(ix[k]).w )
+    next
+    dim as float32 gap = (total - sizes) / (n - 1)
+    dim as float32 at_ = iif( down_, first.y + first.h, first.x + first.w ) + gap
+    for k as int32 = 1 to n - 2
+        dim byref as TKRD_ITEM it = def->items(ix[k])
+        if down_ then
+            it.y = Round2( at_ )
+            at_ += it.h + gap
+        else
+            it.x = Round2( at_ )
+            at_ += it.w + gap
+        end if
+    next
+end sub
+
+public sub DeleteItems( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ) )
+    for each s as ustring in ids
+        tkReportDef_RemoveItem( def, tkReportDef_FindItem( def, s ) )
+    next
+end sub
+
+private function Picked_( byref ids as Array( of ustring ), byref id as const ustring ) as boolean
+    for each s as ustring in ids
+        if lcase( s ) = lcase( id ) then return true
+    next
+    return false
+end function
+
+' Drawn last (on top), or first; among themselves they keep their order.
+public sub ToFront( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ) )
+    dim as int32 at_ = def->nItems - 1
+    for j as int32 = def->nItems - 1 to 0 step -1
+        if Picked_( ids, def->items(j).id ) then
+            tkReportDef_MoveItem( def, j, at_ )
+            at_ -= 1
+        end if
+    next
+end sub
+
+public sub ToBack( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ) )
+    dim as int32 at_ = 0
+    for j as int32 = 0 to def->nItems - 1
+        if Picked_( ids, def->items(j).id ) then
+            tkReportDef_MoveItem( def, j, at_ )
+            at_ += 1
+        end if
+    next
+end sub
+
+' The clipboard's text for the items ids names: a .tkreport of them and the bands they sit in.
+public function CopyText( byval def as TK_REPORTDEF ptr, byref ids as Array( of ustring ) ) as ustring
+    dim as TK_REPORTDEF ptr c = tkReportDef_Create( )
+    c->title = CLIP_TITLE
+    dim as Array( of ustring ) bands
+    for i as int32 = 0 to def->nItems - 1
+        dim as boolean sel = false
+        for each s as ustring in ids
+            if lcase( s ) = lcase( def->items(i).id ) then sel = true
+        next
+        if sel = false then continue for
+        tkReportDef_AddItem( c, def->items(i) )
+        dim as boolean have = false
+        for each b as ustring in bands
+            if lcase( b ) = lcase( def->items(i).band ) then have = true
+        next
+        if have = false then bands.Push( def->items(i).band )
+    next
+    ' the bands, so the text reads as a report; a paste uses none of them
+    dim as ustring text = tkReportDef_SaveText( c )
+    dim as ustring bandText
+    for each b as ustring in bands
+        bandText &= !"[[band]]\nid = """ & b & !"""\nkind = ""detail""\n\n"
+    next
+    tkReportDef_Destroy( c )
+    ' the bands go before the first item
+    dim as long at_ = instr( text, "[[item]]" )
+    if at_ > 0 then text = left( text, at_ - 1 ) & bandText & mid( text, at_ )
+    return text
+end function
+
+public function IsClipText( byref text as const ustring ) as boolean
+    dim as ustring e
+    dim as TK_REPORTDEF ptr c = tkReportDef_LoadText( text, e )
+    if c = 0 then return false
+    dim as boolean ok = (c->title = CLIP_TITLE) andalso (c->nItems > 0)
+    tkReportDef_Destroy( c )
+    return ok
+end function
+
+' The clipboard's items into band bandId, moved by dx, dy points, each with an id no item has;
+' newIds gets their ids. False when the text is not a copy of report items or there is no such band.
+public function PasteText( byval def as TK_REPORTDEF ptr, byref text as const ustring, byref bandId as const ustring, _
+                           byval dx as float32, byval dy as float32, byref newIds as Array( of ustring ) ) as boolean
+    newIds.Clear( )
+    if tkReportDef_FindBand( def, bandId ) < 0 then return false
+    dim as ustring e
+    dim as TK_REPORTDEF ptr c = tkReportDef_LoadText( text, e )
+    if c = 0 then return false
+    if (c->title <> CLIP_TITLE) orelse (c->nItems = 0) then
+        tkReportDef_Destroy( c )
+        return false
+    end if
+    for i as int32 = 0 to c->nItems - 1
+        dim as TKRD_ITEM it = c->items(i)
+        it.id = NewItemId( def, it.id )
+        it.band = def->bands(tkReportDef_FindBand( def, bandId )).id
+        it.x = Round2( it.x + dx )
+        it.y = Round2( it.y + dy )
+        tkReportDef_AddItem( def, it )
+        newIds.Push( it.id )
+    next
+    tkReportDef_Destroy( c )
+    return true
+end function
