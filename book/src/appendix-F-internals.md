@@ -71,7 +71,7 @@ compiles it. clang is not bundled: tiko runs whatever `TIKO_CLANG` names, else
 clang on the `PATH`, and it needs clang 18 or newer. The link
 goes through clang with lld, or on Linux the system linker when there is no `ld.lld`; on macOS
 it goes through Apple's linker with the macOS SDK.
-`-O1` to `-O3` are clang's optimisations; tiko's own optimiser is deliberately thin.
+`-O1` to `-O3` and `-Os` are clang's optimisations; tiko's own optimiser is deliberately thin.
 
 **The driver** (`src/driver`). Reads the command line, decides what is being built, builds the
 modules a program imports in dependency order, and runs everything above. A module is compiled

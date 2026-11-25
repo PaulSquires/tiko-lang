@@ -66,6 +66,7 @@ constructor DriverOptions( )
     this.guiSubsystem = false
     this.stackSize = 2097152
     this.optLevel = 0
+    this.optSize = false
     this.showHelp = false
     this.helpCategory = ""
     this.showVersion = false
@@ -794,18 +795,23 @@ function Parse _
         case Tko.OPT_MT       : opts.threadSafe = true
 
         case Tko.OPT_OPTLEVEL
-            '' '-O 2' AS fbc TAKES IT, the level a separate argument; and only a DIGIT: '-Os'
-            '' read as valint( "s" ) = 0 and built at -O0 in silence -- fbc's 81 (F-64).
+            '' '-O 2' AS fbc TAKES IT, the level a separate argument; a DIGIT, or 's'.
+            '' fbc read '-Os' as valint( "s" ) = 0 and built at -O0 in silence (F-64); tiko
+            '' refused it, and since 2026-11-25 it means what it says: clang's -Os, at level 2
+            '' for __FB_OPTIMIZE__. A tiko extension -- input fbc mishandled, not one it built.
             if (len( value ) = 0) andalso (i + 1 < n) then
-                if (len( args[i + 1] ) = 1) andalso (instr( "0123", args[i + 1] ) > 0) then value = args[i + 1] : i += 1
+                if (len( args[i + 1] ) = 1) andalso (instr( "0123s", args[i + 1] ) > 0) then value = args[i + 1] : i += 1
             end if
-            dim as int32 lvl = valint( value )
-            dim as boolean bad = (len( value ) <> 1) orelse (instr( "0123", value ) = 0)
+            dim as boolean bad = (len( value ) <> 1) orelse (instr( "0123s", value ) = 0)
             if bad then
                 diags.ReportGlobal( Tko.TKO0106, value, "-O" )
                 ok = false
+            elseif value = "s" then
+                opts.optLevel = 2
+                opts.optSize = true
             else
-                opts.optLevel = lvl
+                opts.optLevel = valint( value )
+                opts.optSize = false
             end if
 
         case Tko.OPT_TARGET
