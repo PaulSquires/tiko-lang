@@ -76,7 +76,8 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkRating` | a rating: a row of stars (or hearts, circles, diamonds, a glyph) set by click, drag or keys; half or tenth steps, read-only display, a caption; the designer's Rating, bound as a number |
 | `tkBadge`, `tkAvatar`, `tkAvatarGroup` | status marks: a count, dot, text, glyph or presence badge, standalone or attached to a corner of another control; a picture, initials or glyph in a circle or rounded square, with a presence badge; a row of overlapping avatars ending in `+N`. The designer's Badge, Avatar and AvatarGroup |
 | `tkChip`, `tkChipGroup` | compact choices and tags: an action, toggle or removable input chip with avatar, glyph, check, count and remove button; a wrapping or one-row group with none, single or multiple selection, veto-able removal and reordering (Shift+arrows, drag). Chip binds its selected state, ChipGroup its selected keys and its items |
+| `tkBarcode` | a 1D or 2D barcode -- EAN / UPC / ISBN, Code 128 / GS1-128, Code 39, Code 93, ITF / ITF-14, Codabar, QR / Micro QR, Data Matrix, PDF417, Aztec -- encoded by libzint (`vendor/zint`): whole-pixel modules, quiet zones, the human-readable text, fit modes, rotation, an error state for data the symbology refuses; also painted widgetless (`tkBarcode_PaintInto`). Design: docs/tkControls/BARCODE.md |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla
-keep theirs in `tkCodeEdit/scintk/vendor/`.
+keep theirs in `tkCodeEdit/scintk/vendor/`. tkBarcode links libzint, BSD-3 (`vendor/zint/LICENSE`).
