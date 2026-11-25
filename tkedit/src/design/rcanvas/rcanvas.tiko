@@ -34,6 +34,9 @@
 #import "vendor/tkControls/tkReportDef"
 #import "../redits"
 #import "../rmodel"
+#import "../rpreview"
+#import "vendor/tkControls/tkReportViewer"
+#import "std/fs"
 using containers
 using tkReportDef
 using tkHost
@@ -42,6 +45,7 @@ using tkScrollBar
 using tkTheme
 using tkPrint
 using tkReport
+using tkReportViewer
 
 public type RCommitSub as sub( byval owner as any ptr, byref text as const ustring )
 public type RChangedSub as sub( byval listener as any ptr )
@@ -108,6 +112,12 @@ public type ReportCanvas
     ContentH   as long
     Docs       as Array( of any ptr )     ' by band index: the band recorded (TK_PRINTDOC ptr), 0 = to record
     Rp         as TK_PRINTREPLAY ptr
+    ' the Preview (RD8): a viewer over a copy of the report bound to design data
+    Previewing as boolean
+    Viewer     as TK_WIDGET ptr
+    PreviewDef as TK_REPORTDEF ptr
+    Rows       as rpreview.RDesignData   ' the design data the Preview binds
+    ReportPath as ustring                 ' the .tkreport's path (its folder holds design_db and the sample)
 
     declare function Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
     declare sub Destroy( )
@@ -139,6 +149,8 @@ public type ReportCanvas
     declare function ApplyProp( byref target as const ustring, byref key_ as const ustring, byref value as const ustring ) as ustring
     declare function InsertBand( byref kind as const ustring ) as boolean
     declare function AdoptDef( byval nd as TK_REPORTDEF ptr ) as ustring
+    declare function SetPreview( byval on_ as boolean ) as ustring
+    declare function SamplePath( ) as ustring
     declare function ApplyPageSetup( byref ps as TKPAGESETUP ) as ustring
     declare function PlaceTool( byval x as long, byval y as long, byval mods as long ) as boolean
     declare sub SelectNone( )
@@ -258,6 +270,7 @@ function ReportCanvas.Create( byval parent as TK_WIDGET ptr, byval id as long ) 
 end function
 
 sub ReportCanvas.Destroy( )
+    this.SetPreview( false )
     this.DirtyAll( )
     Docs.Clear( )
     if Rp then tkPrintReplay_Destroy( Rp )
@@ -346,6 +359,16 @@ end sub
 
 sub ReportCanvas.PlaceSurface( )
     if Frame = 0 then exit sub
+    if Viewer then
+        tkWidget_Show( Viewer, Previewing )
+        if Previewing then tkWidget_SetPos( Viewer, 0, 0, Frame->cw, Frame->ch )
+    end if
+    tkWidget_Show( Glass, Previewing = false )
+    if Previewing then
+        tkWidget_Show( HBar, false )
+        tkWidget_Show( VBar, false )
+        exit sub
+    end if
     dim as long bar_ = this.Sc( BAR )
     dim as long cw = Frame->cw, ch = Frame->ch
     dim as boolean showV = ContentH > ch
@@ -1198,4 +1221,49 @@ function ReportCanvas.ApplyPageSetup( byref ps as TKPAGESETUP ) as ustring
     if nd = 0 then return e
     tkReportDef_SetPageSetup( nd, ps )
     return this.AdoptDef( nd )
+end function
+
+' ---- the Preview (RD8) -----------------------------------------------------------------------------
+' <rpt>.sample.toml beside the report: its design rows.
+function ReportCanvas.SamplePath( ) as ustring
+    if len( ReportPath ) = 0 then return ""
+    return fs.PathJoin( fs.PathParent( ReportPath ), fs.PathStem( ReportPath ) & ".sample.toml" )
+end function
+
+' The Preview on: a viewer in place of the bands, showing a copy of the report made in-process
+' (tkReportDef) over design data (rpreview: live SQLite, else the sample rows), its parameter strip
+' working. Off: the bands again. The answer is what could not be bound or made ("" = shown).
+function ReportCanvas.SetPreview( byval on_ as boolean ) as ustring
+    dim as ustring errs
+    if on_ = false then
+        if Viewer then tkReportViewer_SetReportDef( Viewer, 0 )
+        if PreviewDef then tkReportDef_Destroy( PreviewDef )
+        PreviewDef = 0
+        Rows.Release( )
+        Rows.Sources.Clear( )
+        Previewing = false
+        if Frame then this.PlaceSurface( )
+        return ""
+    end if
+    if (Def = 0) orelse (Frame = 0) then return "?"
+    if Previewing then this.SetPreview( false )
+    PreviewDef = tkReportDef_LoadText( tkReportDef_SaveText( Def ), errs )
+    if PreviewDef = 0 then return errs
+    dim as ustring sample, none_, dir_
+    if len( ReportPath ) then dir_ = fs.PathParent( ReportPath )
+    dim as ustring sp = this.SamplePath( )
+    if len( sp ) andalso fs.IsFile( sp ) then sample = fs.ReadAllText( sp ).ValueOr( none_ )
+    rpreview.BindDesignData( PreviewDef, dir_, sample, Rows, errs )
+    if Viewer = 0 then Viewer = tkReportViewer_Create( Frame, 4 )
+    Previewing = true
+    this.PlaceSurface( )
+    tkReportViewer_SetReportDef( Viewer, PreviewDef )
+    if tkReportViewer_GetDocument( Viewer ) = 0 then
+        ' why the report could not be made: the definition says, made once more here
+        dim as ustring why
+        dim as TK_PRINTDOC ptr t = tkReportDef_CreateDoc( PreviewDef, why )
+        if t then tkPrintDoc_Destroy( t )
+        if len( why ) then errs = why
+    end if
+    return errs
 end function

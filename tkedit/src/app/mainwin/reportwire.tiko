@@ -12,6 +12,7 @@
 
 #import "std/containers"
 #import "std/fs"
+#import "std/strings"
 #import "tkc/i18n"
 #import "tkc/cmdids"
 #import "tka/documents"
@@ -26,6 +27,8 @@
 #import "vendor/tkControls/tkHost"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkPrintDialog"
+#import "vendor/tkControls/tkFileDialog"
+#import "vendor/tkControls/tkReportViewer"
 #import "vendor/tkControls/tkPrint"
 using containers
 using tkReportDef
@@ -34,6 +37,7 @@ using cmdids
 using tkApp
 using tkPrint
 using tkPrintDialog
+using tkFileDialog
 using tkReport
 
 private function ReportDesignPathOf_( byref reportPath as const ustring ) as ustring
@@ -43,6 +47,15 @@ end function
 ' With a report on its canvas: the edit commands it has, the Design menu's arrange commands, and
 ' what does not act on the hidden text.
 function Window.ReportActs( byval id as Cmd ) as boolean
+    ' the Preview: only the toggle back and what acts on no buffer's text
+    dim as DocRef d = this.Active( )
+    if (d <> 0) andalso (d->Report <> 0) andalso d->Report->Previewing then
+        if id = Cmd.FormToggleView then return true
+        select case Keys.Commands( ).Info( id ).Group
+        case MenuGroup.Edit, MenuGroup.Search, MenuGroup.Design : return false
+        end select
+        return true
+    end if
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -52,7 +65,7 @@ function Window.ReportActs( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormHSpaceEqual, Cmd.FormVSpaceEqual, Cmd.FormSnapToGrid, _
-         Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages
+         Cmd.FormNewForm, Cmd.FormNewReport, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormToggleView
         return true
     end select
     select case Keys.Commands( ).Info( id ).Group
@@ -95,6 +108,17 @@ function Window.ReportCommand( byval id as Cmd ) as boolean
     case Cmd.FormSnapToGrid
         c->SnapToGrid = (c->SnapToGrid = false)
         tkWidget_Invalidate( c->Frame )
+    case Cmd.FormToggleView
+        ' Design / Preview (RD8)
+        c->ReportPath = d->Path
+        dim as ustring errs = c->SetPreview( c->Previewing = false )
+        this.Layout( )
+        if c->Previewing then
+            tkHost_SetFocus( c->Viewer->pHost, c->Viewer )
+        else
+            tkHost_SetFocus( c->Glass->pHost, c->Glass )
+        end if
+        if len( errs ) then this.SetMessage( fs.PathFileName( d->Path ) & ": " & errs )
     case else
         return false
     end select
@@ -204,3 +228,51 @@ sub Window.ReportDialog( byref which as const ustring, byref target as const ust
     this.ShowTitle( )
     this.ShowStatus( )
 end sub
+
+' New Report: where (a folder of its own, as a form has), then the wizard; the report opens on its
+' canvas (RD8).
+function Window.NewReport( byref wanted as const ustring ) as boolean
+    dim as ustring picked = wanted
+    if len( picked ) = 0 then
+        dim as ustring where = "rptNew.tkreport"
+        if len( this.ActivePath( ) ) then where = fs.PathJoin( fs.PathParent( this.ActivePath( ) ), "rptNew.tkreport" )
+        picked = Pick( form, TKFD_SAVE, where )
+        if len( picked ) = 0 then return false
+    end if
+    dim as ustring name_ = fs.PathStem( picked )
+    dim as boolean ok = len( name_ ) > 0
+    for i as long = 1 to len( name_ )
+        dim as long ch = asc( mid( name_, i, 1 ) )
+        if ((ch >= 65) andalso (ch <= 90)) orelse ((ch >= 97) andalso (ch <= 122)) orelse (ch = 95) orelse ((i > 1) andalso (ch >= 48) andalso (ch <= 57)) then continue for
+        ok = false
+    next
+    if ok = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.bad_form_name", "{}: a form's name has to be an identifier" ), name_ ) )
+        return false
+    end if
+    dim as ustring folder = fs.PathParent( picked )
+    if lcase( fs.PathFileName( folder ) ) <> lcase( name_ ) then folder = fs.PathJoin( folder, name_ )
+    dim as ustring path = fs.PathJoin( folder, name_ & ".tkreport" )
+    if fs.IsFile( path ) then
+        this.SetMessage( strings.Format( i18n.Tr( "message.form_exists", "{} already exists" ), name_ ) )
+        return false
+    end if
+    RptWizDlg = new rdialogs.WizardDialog
+    RptWizDlg->Open( form, DialogTitle_( i18n.Tr( "commands.FormNewReport", "New Report..." ) ), name_ )
+    dim as boolean accepted = false
+    dim as ustring text
+    if RptWizDlg->Win then
+        accepted = RptWizDlg->RunModal( )
+        text = RptWizDlg->Text
+    end if
+    RptWizDlg->Close( )
+    delete RptWizDlg
+    RptWizDlg = 0
+    if accepted = false then return false
+    fs.CreateDirAll( folder )
+    if fs.WriteAllText( path, text ).IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( path ) & ": " & i18n.Tr( "message.cannot_create", "can't be created" ) )
+        return false
+    end if
+    return this.OpenFile( path )
+end function

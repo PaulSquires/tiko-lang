@@ -32,6 +32,8 @@
 #import "tkd/redits"
 #import "tkd/rmodel"
 #import "tkd/rrecords"
+#import "tkd/rwizard"
+#import "tkd/rpreview"
 #import "vendor/tkControls/tkReportDef"
 #import "vendor/tkControls/tkBind"
 #import "vendor/tkControls/tkPrint"
@@ -3232,5 +3234,6 @@ ReportCodegenSuite( bAccept )
 ReportEditsSuite( )
 ReportPalettesSuite( )
 ReportDialogsSuite( )
+ReportWizardSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

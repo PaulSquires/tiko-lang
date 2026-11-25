@@ -128,6 +128,7 @@ if command( 1 ) = "--selftest" then
     selftest.RPanelsPass( t, 1.0 )
     selftest.RPanelsPass( t, 1.75 )
     selftest.RDialogsPass( t, 1.0 )
+    selftest.RWizardPass( t, 1.0 )
     selftest.WiringPass( t, 1.0 )
     selftest.ItemsPass( t, 1.0 )
     selftest.ItemsPass( t, 1.75 )

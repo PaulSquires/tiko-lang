@@ -199,6 +199,7 @@ no_definition = "未找到 {} 的定义"
 [commands]
 FormTest = "测试窗体"
 FormNewForm = "新建窗体..."
+FormNewReport = "新建 tkreport..."
 FormTheme = "项目主题..."
 FormResources = "资源中心..."
 FormLanguages = "语言..."

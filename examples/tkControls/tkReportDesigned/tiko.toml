@@ -5,3 +5,8 @@ name = "tkreportdesigned"
 [target.selftest]
 main   = "selftest.tiko"
 output = "selftest.exe"
+
+[target.orders]
+main   = "main.tiko"
+output = "orders.exe"
+subsystem = "gui"

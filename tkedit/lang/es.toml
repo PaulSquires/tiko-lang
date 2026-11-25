@@ -197,6 +197,7 @@ no_definition = "no se encontró la definición de {}"
 [commands]
 FormTest = "Probar formulario"
 FormNewForm = "Nuevo formulario..."
+FormNewReport = "Nuevo informe..."
 FormTheme = "Tema del proyecto..."
 FormResources = "Recursos..."
 FormLanguages = "Idiomas..."

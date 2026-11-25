@@ -689,6 +689,7 @@ public type Window
     declare function ReportCommand( byval id as Cmd ) as boolean
     declare function WriteReportGenerated( byval d as DocRef ) as boolean
     declare sub ReportDialog( byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
+    declare function NewReport( byref wanted as const ustring ) as boolean
     declare function WriteGenerated( byval d as DocRef ) as boolean
     declare function WriteThemeGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare function ResourcesPath( ) as ustring
@@ -698,6 +699,7 @@ public type Window
     RptRecDlg as rdialogs.RecordDialog ptr  ' the Report Designer's dialogs while open (RD7; tests find them here)
     RptExprDlg as rdialogs.ExprDialog ptr
     RptPageDlg as TK_HOST ptr
+    RptWizDlg as rdialogs.WizardDialog ptr
     declare function LanguagesPath( ) as ustring
     declare function TextOf( byref path as const ustring ) as ustring
     declare function PutText( byref path as const ustring, byref text as const ustring ) as boolean
@@ -1839,7 +1841,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormPreviewVariant, _
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormPreviewVariant, _
          Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove, _
          Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove, _
          Cmd.FormCenterHorz, Cmd.FormCenterVert, Cmd.FormLockControls, Cmd.FormTabOrder
@@ -1898,7 +1900,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     ' no file open: only what would still do something
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
-         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.BuildConfig
+         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.BuildConfig
         return true
     case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
@@ -1925,6 +1927,7 @@ sub Window.SyncPanels( )
     ' a report's own palettes (RD6)
     dim as rcanvas.ReportCanvas ptr rc = 0
     if (d <> 0) andalso (this.ShowsStart( ) = false) then rc = d->Report
+    if (rc <> 0) andalso rc->Previewing then rc = 0      ' the Preview has the whole pane
     RPalettes.Bind( rc )
     if (rc <> 0) <> RPalettes.IsShown then RPalettes.ShowAll( rc <> 0 )
 end sub
@@ -1936,7 +1939,7 @@ function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
     if (noForm = false) andalso (d->Report <> 0) then return this.ReportActs( id )
     if noForm = false then noForm = (d->Designer = 0)
-    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (id = Cmd.FormLanguages) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Design)   ' New Form makes one; the theme is the project's
+    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormNewReport) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (id = Cmd.FormLanguages) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Design)   ' New Form makes one; the theme is the project's
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -2149,6 +2152,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ZoomReset : v->ZoomReset( )
     case Cmd.FormToggleView : this.ToggleFormView( )
     case Cmd.FormNewForm : this.NewForm( "" )
+    case Cmd.FormNewReport : this.NewReport( "" )
     case Cmd.FormTheme : this.OpenThemeCenter( )
     case Cmd.FormResources
         dim as ustring none
