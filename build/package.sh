@@ -233,6 +233,12 @@ if [ "$DO_BUILD" = "1" ]; then
         note "building the runtime [$CFG $t]"
         sh "$ROOT/lib/rt/build/build.sh" "$CFG" "$t" >"$ROOT/lib/rt/obj/package-$t.log" 2>&1 &
         _pids_rt="$_pids_rt $t:$!"
+        # THE SIZE RUNTIME BESIDE IT: MinSizeRel writes libfb-s.a / libfbmt-s.a (and the pic
+        # pair), which the driver links under '-O s'. Its own obj/ tree and archive names, so
+        # it builds concurrently with the one above; it leaves fbrt0.o to that one.
+        note "building the size runtime [MinSizeRel $t]"
+        sh "$ROOT/lib/rt/build/build.sh" MinSizeRel "$t" >"$ROOT/lib/rt/obj/package-$t-s.log" 2>&1 &
+        _pids_rt="$_pids_rt $t-s:$!"
     done
     # The graphics library too -- see the note below on why its failure is not fatal.
     _pids_gfx=""
@@ -288,6 +294,8 @@ TIKO="$ROOT/bin/tiko$EXT"
 for t in $TARGETS; do
     [ -f "$ROOT/lib/rt/lib/$t/libfb.a" ] || \
         die "no runtime for $t -- run lib/rt/build/build.sh $CFG $t"
+    [ -f "$ROOT/lib/rt/lib/$t/libfb-s.a" ] || \
+        die "no size runtime for $t -- run lib/rt/build/build.sh MinSizeRel $t"
 done
 
 # ----------------------------------------------------------------- the assembly
@@ -490,6 +498,13 @@ for t in $TARGETS; do
     # links, as fbc's own '-lfbpic' does. lib/rt/build/build.sh says why.
     for _pic in libfbpic.a libfbmtpic.a; do
         [ -f "$ROOT/lib/rt/lib/$t/$_pic" ] && cp -f "$ROOT/lib/rt/lib/$t/$_pic" "$OUT/lib/$t/"
+    done
+    # THE SIZE RUNTIME, what '-O s' links: the same set built at '-O s', suffixed -s. Its
+    # own stamp, .config-s, is checked, so a stale or Debug pair cannot ship as one.
+    [ "$( cat "$ROOT/lib/rt/lib/$t/.config-s" 2>/dev/null )" = "MinSizeRel" ] || \
+        die "the size runtime for $t is not a MinSizeRel build -- run lib/rt/build/build.sh MinSizeRel $t"
+    for _s in libfb-s.a libfbmt-s.a libfbpic-s.a libfbmtpic-s.a; do
+        [ -f "$ROOT/lib/rt/lib/$t/$_s" ] && cp -f "$ROOT/lib/rt/lib/$t/$_s" "$OUT/lib/$t/"
     done
     # THE STARTUP OBJECT, tiko-rt's own since 2026-10-09 (lib/rt/src/c/fbrt0.c), for a
     # gnu target. It goes beside the runtime so the driver's first-match search finds

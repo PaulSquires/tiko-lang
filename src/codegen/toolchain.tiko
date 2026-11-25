@@ -984,12 +984,18 @@ function LinkExe _
     '' AND THE PIC BUILD OF IT FOR AN ELF SHARED LIBRARY: libfbpic.a / libfbmtpic.a,
     '' fbc's names and fbc's rule ('-lfbpic' on its Linux '-dll' line). The plain
     '' archives are not position-independent and ld refuses them in a .so.
-    dim as string rtName = iif( t.threadSafe, "/libfbmt.a", "/libfb.a" )
-    if t.buildDll andalso (target.objFormat = OBJ_ELF) then
-        rtName = iif( t.threadSafe, "/libfbmtpic.a", "/libfbpic.a" )
-    end if
+    ''
+    '' AND UNDER '-O s' THE SIZE RUNTIME, the same archive built at '-O s' and suffixed -s
+    '' (libfb-s.a, libfbmt-s.a, libfbpic-s.a, libfbmtpic-s.a; lib/rt's MinSizeRel), PATH BY
+    '' PATH: where a directory has the -s archive it is named in place of the plain one,
+    '' and where it has not -- an older toolchain, a hand-built runtime -- the plain one is,
+    '' so '-O s' never fails a link that '-O 2' would make. Never both from one directory:
+    '' they define the same symbols.
+    dim as string rtBase = iif( t.threadSafe, "/libfbmt", "/libfb" )
+    if t.buildDll andalso (target.objFormat = OBJ_ELF) then rtBase &= "pic"
     for i as int32 = 0 to t.libPaths.Count - 1
-        dim as string rtLib = t.libPaths[i] & rtName
+        dim as string rtLib = t.libPaths[i] & rtBase & ".a"
+        if t.optSize andalso FileExists_( t.libPaths[i] & rtBase & "-s.a" ) then rtLib = t.libPaths[i] & rtBase & "-s.a"
         if FileExists_( rtLib ) then cmd += " " & Q( rtLib )
     next
 

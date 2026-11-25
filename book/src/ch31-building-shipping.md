@@ -219,7 +219,7 @@ The same source can be built for finding bugs or for speed.
 | `-earray`, `-enullptr`, `-elocation` | one part of `-exx` at a time |
 | `-g` | debug information for a debugger, and turns `assert` on |
 | `-O0` … `-O3` | how hard the optimiser works; `-O0`, none, is the default |
-| `-Os` | optimise for size: `-O2` without the changes that make the code bigger |
+| `-Os` | optimise for size: `-O2` without the changes that make the code bigger, and the runtime built the same way |
 | `-mt` | the thread-safe runtime, needed with threads (Chapter 23) |
 
 A **checked build** (`-exx -g`) stops at the first bad index with its line and the bounds, as
@@ -228,6 +228,12 @@ end of the array, and carries on with it. A **release build** (`-O2`, or `-O3`) 
 the code; it runs faster, and a bug that the checks would have caught becomes a wrong
 answer or a crash somewhere else. Test with the checks on, ship with them off — or, for a program
 where a wrong answer costs more than speed buys, ship checked.
+
+A **small build** (`-Os`) trades some of that speed for size, in your code and in the runtime:
+the toolchain ships a second runtime built for size, and `-Os` links it. A small Windows program
+comes out 1 to 2 KB smaller than at `-O2`; the runtime's own work -- building strings, `val`,
+arithmetic in it -- runs up to about a sixth slower. Choose it for a tool you hand out, not for
+a loop you are waiting on.
 
 ### Build settings in the source
 

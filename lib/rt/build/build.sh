@@ -1,7 +1,7 @@
 #!/bin/sh
 # build.sh -- build tiko-rt's archives with tiko.
 #
-#   build/build.sh [Debug|Release|RelWithDebInfo] [target ...]
+#   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [target ...]
 #
 #   build/build.sh                       Debug, all three targets, st and mt
 #   build/build.sh Release win64         Release, win64 only
@@ -11,6 +11,11 @@
 #           lib/<target>/libfbmt.a (ENABLE_MT)
 # and on linux-x86_64 also
 #           lib/<target>/libfbpic.a, libfbmtpic.a   (the same, position-independent)
+#
+# MinSizeRel WRITES THE SIZE RUNTIME BESIDE THEM, not over them: libfb-s.a, libfbmt-s.a
+# (and libfbpic-s.a, libfbmtpic-s.a), every member at '-O s'. The driver links that set
+# under '-O s' when it is there (LinkExe), so a toolchain ships both. fbrt0.o is shared
+# and comes from the other configurations; MinSizeRel leaves it alone.
 #
 # THE PIC PAIR IS WHAT A LINUX SHARED LIBRARY LINKS. fbc ships both and names them
 # on its '-dll' line ('-lfbpic', measured with 'fbc -dll -v'), and tiko's driver
@@ -73,7 +78,9 @@ RT_SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 RT_JOBS=${TKORT_JOBS:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}
 
 CFG=${1:-Debug}
-FLAGS=$(rt_cfg_flags "$CFG") || rt_die "unknown configuration '$CFG' (Debug|Release|RelWithDebInfo)"
+FLAGS=$(rt_cfg_flags "$CFG") || rt_die "unknown configuration '$CFG' (Debug|Release|RelWithDebInfo|MinSizeRel)"
+# THE ARCHIVES' SUFFIX: '-s' for the size runtime, which lives beside the plain one.
+case "$CFG" in MinSizeRel) RT_SFX="-s" ;; *) RT_SFX="" ;; esac
 # THE C OBJECTS' DEBUG INFO FOLLOWS THE CONFIGURATION, and names no build directory. Every
 # Release libfb.a object carried its -cc1 line -- the worktree's path, the MSVC and SDK
 # versions -- because -g was passed in every configuration (review BLD-05). The prefix map
@@ -106,11 +113,12 @@ SOURCES=$(rt_sources)
 thread_vars( ) {
     picdef=""; cpic=""
     case $thread in
-        st)    archive=libfb.a;      mtdef="" ;;
-        mt)    archive=libfbmt.a;    mtdef="-d ENABLE_MT" ;;
-        stpic) archive=libfbpic.a;   mtdef="";             picdef="-pic"; cpic="-fPIC" ;;
-        mtpic) archive=libfbmtpic.a; mtdef="-d ENABLE_MT"; picdef="-pic"; cpic="-fPIC" ;;
+        st)    archive=libfb;      mtdef="" ;;
+        mt)    archive=libfbmt;    mtdef="-d ENABLE_MT" ;;
+        stpic) archive=libfbpic;   mtdef="";             picdef="-pic"; cpic="-fPIC" ;;
+        mtpic) archive=libfbmtpic; mtdef="-d ENABLE_MT"; picdef="-pic"; cpic="-fPIC" ;;
     esac
+    archive="$archive$RT_SFX.a"
 
     objdir="$RT_ROOT/obj/$target/$CFG/$thread"
     libdir="$RT_ROOT/lib/$target"
@@ -366,7 +374,7 @@ build_one( ) {
     #
     # Sixth stale-artefact incident, same shape as the five above. The stamp lets
     # a reader of the archive CHECK rather than assume.
-    echo "$CFG" > "$libdir/.config"
+    echo "$CFG" > "$libdir/.config$RT_SFX"
 
     echo "build: $target/$archive [$CFG] -- $(echo $objs | wc -w) objects, $n text symbols"
 }
@@ -405,6 +413,6 @@ for target in $TARGETS; do
         linux-*) build_one "$target" stpic
                  build_one "$target" mtpic ;;
     esac
-    build_rt0 "$target"
+    [ -n "$RT_SFX" ] || build_rt0 "$target"
 done
 echo "build: ok"
