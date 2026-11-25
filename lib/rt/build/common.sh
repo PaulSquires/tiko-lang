@@ -188,10 +188,10 @@ rt_cfg_flags( ) {
         Debug)          echo "-g -w all" ;;
         RelWithDebInfo) echo "-g -O 2 -w all" ;;
         Release)        echo "-O 2 -w all" ;;
-        # '-O 2', NOT '-O s' -- see rt_opt_level. Under '-gen llvm' this only sets
-        # the level of the .ll that clang then re-optimizes at '-Os', and for the
-        # targets fbc compiles end to end '-O s' would mean '-O0'.
-        MinSizeRel)     echo "-O 2 -w all" ;;
+        # '-O s' SINCE tiko HAS IT (2026-11-25): clang's -Os on every member. The note
+        # above rt_opt_level is fbc's, from when fbc built this tree and read '-O s'
+        # as '-O0'. tiko is the compiler here now; build.sh's C members follow suit.
+        MinSizeRel)     echo "-O s -w all" ;;
         *)              return 1 ;;
     esac
 }

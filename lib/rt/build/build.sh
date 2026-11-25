@@ -82,6 +82,11 @@ case "$CFG" in
     Release|MinSizeRel) CDBG="" ;;
     *)                  CDBG="-g" ;;
 esac
+# THE C MEMBERS' LEVEL: -O2, or -Os in MinSizeRel as the tiko members get '-O s'.
+case "$CFG" in
+    MinSizeRel) COPT="-Os" ;;
+    *)          COPT="-O2" ;;
+esac
 CMAP="-ffile-prefix-map=$RT_ROOT=lib/rt"
 # ...in both spellings on Windows: clang is handed the source as C:/..., not /c/...
 if command -v cygpath > /dev/null 2>&1; then
@@ -277,7 +282,7 @@ build_one( ) {
     # own C written against a documented signature, not a transliteration of a
     # body (PROVENANCE.md), and reaching for fb.h is how the second kind starts.
     #
-    # -O2 EVEN IN Debug. These are primitives -- an atomic wrapper compiled at -O0
+    # -O2 EVEN IN Debug ($COPT; -Os in MinSizeRel). These are primitives -- an atomic wrapper compiled at -O0
     # is a call around a call -- and there is no tiko-rt source to step through in
     # them. -g (CDBG) is passed outside Release so a backtrace names the file.
     for csrc in $(ls "$RT_ROOT"/src/c/*.c 2>/dev/null); do
@@ -305,7 +310,7 @@ build_one( ) {
         # in, the link keeps every function in it -- msvccrt.o's 90 symbols reached a
         # program that needs 13 of them (a user's size report, 2026-11-25). Roots the
         # linker honours stay: the entry, /INCLUDE, .CRT$X* / .init_array by name.
-        if ! "$CLANG" --target="$ctgt" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra $cabi $cpic \
+        if ! "$CLANG" --target="$ctgt" $COPT $CDBG $CMAP -std=c99 -Wall -Wextra $cabi $cpic \
                 -ffunction-sections -fdata-sections \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"

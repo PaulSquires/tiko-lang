@@ -440,7 +440,7 @@ function EmitStopFile_ _
     if tools.found = false then
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
-    tools.optLevel = ctx.options.optLevel
+    tools.optLevel = ctx.options.optLevel : tools.optSize = ctx.options.optSize
     dim as int32 rc = Tko.Codegen.CompileIrAsm( tools, td, irPath, outp, ctx.options.keepTemps )
     if rc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0113, irPath, str( rc ) )
     return Tko.EXIT_OK
@@ -553,7 +553,7 @@ function BuildFromIr _
     end if
     '' THE OPTIMISATION LEVEL -- see ToolPaths.optLevel. The link does not need it; the
     '' compile of each module's IR is where clang optimises.
-    tools.optLevel = ctx.options.optLevel
+    tools.optLevel = ctx.options.optLevel : tools.optSize = ctx.options.optSize
     '' A SHARED LIBRARY'S MODULES ARE COMPILED AS PIC on ELF -- see CompileIr. The link
     '' sets this again; the compile needs it first.
     tools.buildDll = (ctx.options.outKind = Tko.OUT_DLL)

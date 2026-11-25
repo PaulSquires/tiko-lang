@@ -111,7 +111,7 @@ namespace Tko
     OPT( OPT_EDEBUG,      "-edebug",      OPTK_FLAG, OPTCAT_OUTPUT, "", "define __FB_DEBUG__ as -1 (one part of -g)" )
     OPT( OPT_EDEBUGINFO,  "-edebuginfo",  OPTK_FLAG, OPTCAT_OUTPUT, "", "emit debug information alone (one part of -g)" )
     OPT( OPT_EUNWIND,     "-eunwind",     OPTK_FLAG, OPTCAT_OUTPUT, "", "unwind information (one part of -e; always emitted)" )
-    OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3" )
+    OPT( OPT_OPTLEVEL,  "-O",         OPTK_JOINED,OPTCAT_OUTPUT,  "level",    "optimisation level 0-3, or s for size" )
     OPT( OPT_MT,        "-mt",        OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "link the thread-safe runtime" )
     '' fbc's '-pic'. '-dll' implies it on Linux; this asks for it without one -- a '-c' or
     '' '-lib' whose objects go into a shared library later (tiko-rt's libfbpic.a).
@@ -305,6 +305,9 @@ namespace Tko
         as boolean guiSubsystem  '' -s gui; console (false) is fbc's default too
         as int64   stackSize     '' -t, in BYTES: a Windows link's stack reserve and commit; 2 MB default
         as int32    optLevel
+        '' '-O s': optimise for size -- clang's -Os. optLevel is 2 beside it, so __FB_OPTIMIZE__
+        '' and every 'optLevel > 0' test read it as an optimised build.
+        as boolean  optSize
 
         as boolean showHelp
         as string  helpCategory

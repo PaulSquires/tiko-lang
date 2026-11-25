@@ -168,18 +168,19 @@ function ProfileFlags _
     loop
 
     '' ...APPLIED ANCESTOR FIRST: a built-in's own values, then the manifest's keys for it.
-    dim as int32 dbg = -1, opt = -1, asan = 0
+    dim as int32 dbg = -1, asan = 0
+    dim as string opt = ""   '' the -O value: "0".."3", "s" (size), or "" for none
     dim as string errs = chr( 1 ), opts = chr( 1 )
     for i as int32 = chain.Count - 1 to 0 step -1
         dim as string pn = chain[i]
-        if pn = "debug" then dbg = 1 : errs = "exx" : opt = 0
-        if pn = "release" then dbg = 0 : errs = "" : opt = 2
-        if pn = "asan" then dbg = 1 : errs = "exx" : opt = 1 : asan = 1
+        if pn = "debug" then dbg = 1 : errs = "exx" : opt = "0"
+        if pn = "release" then dbg = 0 : errs = "" : opt = "2"
+        if pn = "asan" then dbg = 1 : errs = "exx" : opt = "1" : asan = 1
         for k as int32 = 0 to m.prfName.Count - 1
             if m.prfName[k] <> pn then continue for
             select case m.prfKey[k]
             case "debug"   : dbg = iif( m.prfVal[k] = "true", 1, 0 )
-            case "opt"     : opt = valint( m.prfVal[k] )
+            case "opt"     : opt = m.prfVal[k]
             case "errors"  : errs = m.prfVal[k]
             case "options" : opts = m.prfVal[k]
             end select
@@ -187,7 +188,7 @@ function ProfileFlags _
     next
     if dbg = 1 then flags.Push( "-g" )
     if (errs <> chr( 1 )) andalso (len( errs ) > 0) then flags.Push( "-" & errs )
-    if opt >= 0 then flags.Push( "-O" & opt )
+    if len( opt ) > 0 then flags.Push( "-O" & opt )
     if asan = 1 then flags.Push( "-fsanitize=address" )
     if opts <> chr( 1 ) then
         dim as Tko.StrVec mo

@@ -439,7 +439,11 @@ private function CompileIrArgs_ _
     dim as string cmd = _
         "-target " & target.triple & " -Wno-override-module -c " & _
         Q( irPath ) & " -o " & Q( objPath )
-    if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
+    if t.optSize then
+        cmd += " -Os"
+    elseif (t.optLevel > 0) andalso (t.optLevel <= 3) then
+        cmd += " -O" & t.optLevel
+    end if
     '' ONE SECTION PER PROCEDURE AND PER GLOBAL, so the link can drop what nothing reaches
     '' (LinkExe's --gc-sections / /OPT:REF). Without them a unit is one .text, and a module
     '' that emits every method of its classes -- pkg/fbx's gui -- linked every one of them
@@ -492,7 +496,11 @@ function CompileIrAsm _
     dim as string cmd = _
         "-target " & target.triple & " -Wno-override-module -S " & _
         Q( irPath ) & " -o " & Q( asmPath )
-    if (t.optLevel > 0) andalso (t.optLevel <= 3) then cmd += " -O" & t.optLevel
+    if t.optSize then
+        cmd += " -Os"
+    elseif (t.optLevel > 0) andalso (t.optLevel <= 3) then
+        cmd += " -O" & t.optLevel
+    end if
     if (t.buildDll orelse t.pic) andalso (target.objFormat <> OBJ_COFF) then cmd += " -fPIC"
     cmd += AsanCompileFlags_( t )
     dim as int32 rc = Exec_( t, t.clangExe, cmd )
@@ -688,8 +696,14 @@ function LinkExe _
     '' see it here. The MinGW frontend folds nothing unless asked.
     '' ld64's is -dead_strip, which keeps __mod_init_func and exported symbols as roots; it
     '' folds nothing unless asked.
+    ''
+    '' AND .CRT INTO .rdata ON THE MSVC TARGET. lld-link otherwise gives the structor tables
+    '' a section of their own -- 56 bytes padded to a 512-byte file block, in every exe.
+    '' The $-suffix sort that orders .CRT$XCA..$XCZ happens before the merge, so the order
+    '' is the same: measured 2026-11-25, priority, plain and global-object constructors and
+    '' destructors print identically, and a hello world is 15,872 -> 15,360 bytes.
     if target.layout.isMsvc then
-        cmd += " -Xlinker -opt:ref -Xlinker -opt:noicf"
+        cmd += " -Xlinker -opt:ref -Xlinker -opt:noicf -Xlinker -merge:.CRT=.rdata"
     elseif macho then
         cmd += " -Wl,-dead_strip"
     else

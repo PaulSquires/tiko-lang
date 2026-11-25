@@ -101,7 +101,7 @@ A subcommand is the first word on the command line. It builds a project from its
 | `-edebug` | define __FB_DEBUG__ as -1 (one part of -g) |
 | `-edebuginfo` | emit debug information alone (one part of -g) |
 | `-eunwind` | unwind information (one part of -e; always emitted) |
-| `-O‹level›` | optimisation level 0-3 |
+| `-O‹level›` | optimisation level 0-3, or `s` for size |
 | `-mt` | link the thread-safe runtime |
 | `-pic` | position-independent code, for a Unix shared library (Linux only) |
 | `-m ‹name›` | which module owns main; the others become module constructors |

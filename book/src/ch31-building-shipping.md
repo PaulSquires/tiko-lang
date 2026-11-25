@@ -219,6 +219,7 @@ The same source can be built for finding bugs or for speed.
 | `-earray`, `-enullptr`, `-elocation` | one part of `-exx` at a time |
 | `-g` | debug information for a debugger, and turns `assert` on |
 | `-O0` … `-O3` | how hard the optimiser works; `-O0`, none, is the default |
+| `-Os` | optimise for size: `-O2` without the changes that make the code bigger |
 | `-mt` | the thread-safe runtime, needed with threads (Chapter 23) |
 
 A **checked build** (`-exx -g`) stops at the first bad index with its line and the bounds, as
@@ -333,7 +334,7 @@ inherits = "release"
 options  = ["-mt"]
 ```
 
-`inherits` starts from another profile; `opt` sets the optimiser level (`0` to `3`), `errors` the
+`inherits` starts from another profile; `opt` sets the optimiser level (`0` to `3`, or `"s"` for size), `errors` the
 checks (`"e"`, `"ex"`, `"exx"` or `""`), `debug` whether `-g` is given, and `options` adds the
 rest. Each profile has its own directory under `out`, so a debug build and a release build of the
 same project sit side by side.
