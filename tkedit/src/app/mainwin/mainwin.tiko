@@ -1264,6 +1264,21 @@ function Window.Create( byval forcedScale as single ) as boolean
     RPalettes.OnDialog = sub( byval o as any ptr, byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
         cast( Window ptr, o )->ReportDialog( which, target, key_ )
     end sub
+    RPalettes.OnLayout = sub( byval o as any ptr )
+        cast( Window ptr, o )->Layout( )
+    end sub
+    RPalettes.OnFloatMade = sub( byval o as any ptr, byval f as TK_FORM ptr )
+        dim as Window ptr mw = o
+        f->Tag = mw                              ' the shortcuts work from a floating palette too
+        tkForm_Host( f )->OnPreKey = tkForm_Host( mw->form )->OnPreKey
+        tkForm_OnClose( f, function( byval g as TK_FORM ptr ) as boolean
+            cast( Window ptr, g->Tag )->RPalettes.CloseFloat( g )
+            return false                         ' it docks instead, once this event is done
+        end function )
+        tkForm_OnSize( f, sub( byval g as TK_FORM ptr, byval cx as long, byval cy as long )
+            cast( Window ptr, g->Tag )->RPalettes.SizeFloat( g )
+        end sub )
+    end sub
     Palettes.OnLayout = sub( byval o as any ptr )
         cast( Window ptr, o )->Layout( )
     end sub
@@ -2444,7 +2459,11 @@ sub Window.ReloadSettings( )
     this.ApplyStatusPanels( )
     this.ReloadTheme( )
     this.SyncInstance( )                        ' [ui] single_instance may have changed
-    this.Layout( )                              ' [ui] show_menu, tab_strip may have come or gone
+    if Side.HideGenerated <> Prefs.ExplorerHideGenerated then
+        Side.HideGenerated = Prefs.ExplorerHideGenerated
+        Side.Rescan( )                          ' the project's *.design.tiko rows come or go
+    end if
+    this.Layout( )                            ' [ui] show_menu, tab_strip may have come or gone
     this.ShowStatus( )
 end sub
 
@@ -3869,6 +3888,17 @@ sub Window.SaveSession( )
     st.PropsCX = Palettes.InspCX
     st.ToolSplit = Palettes.Pal( 0 ).SplitPm
     st.PropsSplit = Palettes.Pal( 1 ).SplitPm
+    RPalettes.KeepPlaces( )
+    st.RFloatToolbox = RPalettes.Pal( 0 ).Place.On_
+    st.RToolX = RPalettes.Pal( 0 ).Place.X : st.RToolY = RPalettes.Pal( 0 ).Place.Y
+    st.RToolW = RPalettes.Pal( 0 ).Place.W : st.RToolH = RPalettes.Pal( 0 ).Place.H
+    st.RFloatTree = RPalettes.Pal( 1 ).Place.On_
+    st.RTreeX = RPalettes.Pal( 1 ).Place.X : st.RTreeY = RPalettes.Pal( 1 ).Place.Y
+    st.RTreeW = RPalettes.Pal( 1 ).Place.W : st.RTreeH = RPalettes.Pal( 1 ).Place.H
+    st.RToolCX = RPalettes.ToolCX
+    st.RTreeCX = RPalettes.TreeCX
+    st.RToolSplit = RPalettes.Pal( 0 ).SplitPm
+    st.RTreeSplit = RPalettes.Pal( 1 ).SplitPm
     session.SaveSession( this.SessionFile( ), st )
 end sub
 
@@ -3915,6 +3945,16 @@ sub Window.RestoreSession( byval reopen as boolean )
     Palettes.InspCX = st.PropsCX
     Palettes.Pal( 0 ).SplitPm = st.ToolSplit
     Palettes.Pal( 1 ).SplitPm = st.PropsSplit
+    with RPalettes.Pal( 0 ).Place
+        .On_ = st.RFloatToolbox : .X = st.RToolX : .Y = st.RToolY : .W = st.RToolW : .H = st.RToolH
+    end with
+    with RPalettes.Pal( 1 ).Place
+        .On_ = st.RFloatTree : .X = st.RTreeX : .Y = st.RTreeY : .W = st.RTreeW : .H = st.RTreeH
+    end with
+    RPalettes.ToolCX = st.RToolCX
+    RPalettes.TreeCX = st.RTreeCX
+    RPalettes.Pal( 0 ).SplitPm = st.RToolSplit
+    RPalettes.Pal( 1 ).SplitPm = st.RTreeSplit
     if (st.WinW > 0) andalso (form <> 0) then
         dim as SDL_Window ptr win = tkForm_Host( form )->win
         SDL_SetWindowSize( win, st.WinW, st.WinH )

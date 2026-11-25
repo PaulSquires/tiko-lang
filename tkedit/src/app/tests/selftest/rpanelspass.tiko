@@ -230,8 +230,9 @@ public sub RPanelsPass( byref t as Tally, byval sc as single )
     dim as ustring tot = RpSel0( c )
     c->SelectNone( )
     tkTest_PumpFor( h, 40 )
-    RpClickRow( h, ps->Tree, RpRowOf( ps->Tree, tot & "  field" ) )
+    RpClickRow( h, ps->Tree, RpRowOf( ps->Tree, tot ) )
     t.Check( (c->Selected.Count( ) = 1) andalso (RpSel0( c ) = tot) andalso (RpEditOf( ps, "expr" ) <> 0), P( sc, "rpanels: the tree picks an item, the inspector shows it" ) )
+    t.Check( tkListTree_GetCellText( ps->Tree, RpRowOf( ps->Tree, tot ), 1 ) = "field", P( sc, "rpanels: the tree's second column is the type" ) )
     RpTypeIn( h, ps, "expr", "Sum([Amount])" )
     t.Check( RpExpr( c, tot ) = "Sum([Amount])", P( sc, "rpanels: the inspector sets its expression" ) )
     dim as ustring before = d->Text( )
@@ -268,6 +269,49 @@ public sub RPanelsPass( byref t as Tally, byval sc as single )
         tkReportDef_Destroy( def )
     end if
     t.Check( s = "Avery|Amount|10|5|15|Blake|Amount|7|7|", P( sc, "rpanels: the report drawn from the palettes prints grouped: " & s & " " & e ) )
+
+    ' ---- the bars: beside the canvas, and in a palette (author 2026-11-25)
+    tkTest_PumpFor( h, 30 )
+    dim as long tool0 = ps->FrameL->cw, canv0 = c->Frame->cw, dragBy = tkHost_Scale( h, 40 )
+    dim as single barX = tkTest_CX( ps->BarL ), barY = tkTest_CY( ps->BarL )
+    tkTest_PushMotion( h, barX, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, true, barX, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushMotion( h, barX + dragBy, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, false, barX + dragBy, barY )
+    tkTest_PumpFor( h, 30 )
+    t.Check( (abs( ps->FrameL->cw - (tool0 + dragBy) ) <= 1) andalso (abs( c->Frame->cw - (canv0 - dragBy) ) <= 1), _
+             P( sc, strings.Format( "rpanels: the bar widens the toolbox ({} -> {}), the canvas gives way", tool0, ps->FrameL->cw ) ) )
+    ps->ToolCX = 0
+    ps->OnLayout( ps->Owner )
+    tkTest_PumpFor( h, 30 )
+    dim as long list0 = ps->ToolList->ch
+    barX = tkTest_CX( ps->Pal( 0 ).Split ) : barY = tkTest_CY( ps->Pal( 0 ).Split )
+    tkTest_PushMotion( h, barX, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, true, barX, barY )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushMotion( h, barX, barY + dragBy )
+    tkTest_PumpFor( h, 15 )
+    tkTest_PushButton( h, false, barX, barY + dragBy )
+    tkTest_PumpFor( h, 30 )
+    t.Check( abs( ps->ToolList->ch - (list0 + dragBy) ) <= 1, P( sc, strings.Format( "rpanels: the palette's bar gives the toolbox more ({} -> {})", list0, ps->ToolList->ch ) ) )
+    ps->Pal( 0 ).SplitPm = 0
+    ps->LayoutPalette( 0 )
+
+    ' ---- the tree's palette floats (Float Properties), its tree rebuilt there; then docks
+    dim as long wide0 = c->Frame->cw
+    mw.Execute( Cmd.FormFloatProperties )
+    tkTest_PumpFor( h, 120 )
+    t.Check( (ps->Pal( 1 ).Float <> 0) andalso (ps->FrameR->pHost = tkForm_Host( ps->Pal( 1 ).Float )) andalso (c->Frame->cw > wide0) _
+             andalso (tkWidget_IsVisible( ps->BarR ) = false) andalso (RpRowOf( ps->Tree, tot ) >= 0), _
+             P( sc, strings.Format( "rpanels: the tree palette floats with its tree, the canvas wider ({} -> {})", wide0, c->Frame->cw ) ) )
+    mw.Execute( Cmd.FormFloatProperties )
+    tkTest_PumpFor( h, 120 )
+    t.Check( (ps->Pal( 1 ).Float = 0) andalso (ps->FrameR->pHost = h) andalso (c->Frame->cw = wide0) andalso tkWidget_IsVisible( ps->BarR ), _
+             P( sc, strings.Format( "rpanels: and docks back ({})", c->Frame->cw ) ) )
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

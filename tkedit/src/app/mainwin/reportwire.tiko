@@ -65,7 +65,8 @@ function Window.ReportActs( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormHSpaceEqual, Cmd.FormVSpaceEqual, Cmd.FormSnapToGrid, _
-         Cmd.FormNewForm, Cmd.FormNewReport, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormToggleView
+         Cmd.FormNewForm, Cmd.FormNewReport, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormToggleView, _
+         Cmd.FormFloatToolbox, Cmd.FormFloatProperties
         return true
     end select
     select case Keys.Commands( ).Info( id ).Group
@@ -108,6 +109,8 @@ function Window.ReportCommand( byval id as Cmd ) as boolean
     case Cmd.FormSnapToGrid
         c->SnapToGrid = (c->SnapToGrid = false)
         tkWidget_Invalidate( c->Frame )
+    case Cmd.FormFloatToolbox : RPalettes.ToggleFloat( 0 )      ' the toolbox and fields palette
+    case Cmd.FormFloatProperties : RPalettes.ToggleFloat( 1 )   ' the object tree and properties palette
     case Cmd.FormToggleView
         ' Design / Preview (RD8)
         c->ReportPath = d->Path

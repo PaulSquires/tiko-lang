@@ -7,10 +7,13 @@
 '
 ' rpanels -- the Report Designer's palettes (RD6), docked beside a report's canvas: on the left the
 ' toolbox (the item kinds, then Insert band) over the field list; on the right the report's tree
-' (bands and their items) over the inspector.
+' (bands and their items, name | type) over the inspector. Bars beside the canvas size the palettes, a bar
+' in each splits its two lists, and each floats in a window of its own (its header's button, Float
+' Toolbox / Float Properties) -- rebuilt there, as the form palettes are (author 2026-11-25).
 '
-' A SIBLING OF tkd/panels, NOT A USER OF IT: the form palettes are typed to the form canvas, its
-' FormDoc and tkMeta's tables throughout. The idioms are copied -- a palette frame that finds its
+' A SIBLING OF tkd/panels, NOT A USER OF IT (but for its FloatPlace and float glyphs): the form palettes
+' are typed to the form canvas, its FormDoc and tkMeta's tables throughout. The idioms are copied -- the
+' float and dock dance, the bars, a palette frame that finds its
 ' owner by walking up (RPanelsOf), rows rebuilt on a timer when the selection's shape changes, never
 ' inside the canvas's callback, a row's edit applied on Enter, focus lost, a pick or a toggle and
 ' reverted with the canvas's answer when refused -- and each copied comment checked.
@@ -32,6 +35,9 @@
 #import "vendor/tkControls/tkButton"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkReportDef"
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkSplitter"
+#import "../panels"
 #import "../redits"
 #import "../rmodel"
 #import "../rcanvas"
@@ -49,15 +55,23 @@ using tkHost
 using tkPaint
 using tkReportDef
 using tkReport
+using tkToolbar
+using tkSplitter
 
-const as long LEFT_CX = 190         ' the toolbox and field list palette
+const as long LEFT_CX = 190         ' the toolbox and field list palette, unscaled; its default width
 const as long RIGHT_CX = 290        ' the tree and inspector palette
-const as long GAP = 4               ' between a palette and the canvas
+const as long SPLIT_CX = 5          ' a bar's thickness
+const as long MIN_PALETTE_CX = 100
+const as long MIN_CANVAS_CX = 200
+const as long MIN_PANE_CY = 60
+const as long PALETTE_SPLIT = 400   ' the upper list's share of a palette, in thousandths, by default
+const as long TYPE_CX = 110         ' the Object Tree's type column
 const as long HEADER_CY = 28
 const as long ROW_CY = 28
 const as long LABEL_CX = 120
 const as long PAD = 4
 const as long TIMER_REBUILD = 1
+const as long TIMER_DOCK = 2
 
 ' Toolbox rows: 0 the pointer, 1 to 7 the item kinds, then a band kind each (BAND_BASE + its place).
 const as long BAND_BASE = 100
@@ -68,6 +82,18 @@ public type RMessageSub as sub( byval owner as any ptr, byref text as const ustr
 ' A dialog asked for (RD7): which is sources params groups page expr rules; target and key as the
 ' inspector names them (an expression row's), else "".
 public type RDialogSub as sub( byval owner as any ptr, byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
+public type RNotifySub as sub( byval owner as any ptr )
+public type RFloatSub as sub( byval owner as any ptr, byval f as TK_FORM ptr )
+
+' A palette's float state, its header button and its own bar (0 the toolbox's, 1 the tree's).
+public type RPalette
+    Float       as TK_FORM ptr
+    Place       as panels.FloatPlace
+    PendingDock as boolean
+    FloatBtn    as TK_WIDGET ptr
+    Split       as TK_WIDGET ptr      ' between the palette's two lists
+    SplitPm     as long               ' the upper list's share, in thousandths; 0 = the default
+end type
 
 public type RRow
     Key   as ustring
@@ -83,7 +109,16 @@ public type ReportPanels
     Owner      as any ptr
     OnMessage  as RMessageSub
     OnDialog   as RDialogSub
+    OnFloatMade as RFloatSub          ' give a new float window its Tag, keys and close handling
+    OnLayout   as RNotifySub          ' the panes need placing again
     C          as rcanvas.ReportCanvas ptr
+    Pal( 0 to 1 ) as RPalette
+    BarL       as TK_WIDGET ptr       ' the bars either side of the canvas
+    BarR       as TK_WIDGET ptr
+    ToolCX     as long                ' the docked palettes' widths, unscaled; 0 = the default
+    TreeCX     as long
+    AreaX      as long                ' the rectangle PlaceDocked last shared out
+    AreaCX     as long
     IsShown    as boolean
     Ticker     as TK_WIDGET ptr
     FrameL     as TK_WIDGET ptr
@@ -108,9 +143,17 @@ public type ReportPanels
     declare sub Bind( byval canvas_ as rcanvas.ReportCanvas ptr )
     declare sub ShowAll( byval onOff as boolean )
     declare sub PlaceDocked( byref x as long, byref y as long, byref cx as long, byref cy as long )
+    declare function FrameOf( byval which as long ) as TK_WIDGET ptr
+    declare function IsDocked( byval which as long ) as boolean
+    declare sub SetFloat( byval which as long, byval onOff as boolean )
+    declare sub ToggleFloat( byval which as long )
+    declare sub CloseFloat( byval f as TK_FORM ptr )
+    declare sub SizeFloat( byval f as TK_FORM ptr )
+    declare sub KeepPlaces( )
+    declare sub OnTick( byval id as long )
     declare sub Refresh( )
     declare sub RebuildContent( )
-    declare sub Build( )
+    declare sub BuildPalette( byval which as long, byval parent as TK_WIDGET ptr )
     declare sub LayoutPalette( byval which as long )
     declare sub LayoutRows( )
     declare sub FillToolbox( )
@@ -155,10 +198,19 @@ private function ItemKind_( byval k as long ) as ustring
 end function
 
 ' ---- the widgets' procedures ------------------------------------------------------------------
+
+' The float icon's bar takes the palette header's colour, not a toolbar's. Pinned, so set again at
+' every theme.
+private sub ColorFloatBar_( byval bar as TK_WIDGET ptr )
+    dim as TKTOOLBAR_COLORS c = tkToolbar_ThemeColors( tkTheme_Get( ) )
+    c.BackColor = tkTheme_Get( ).Surface
+    tkToolbar_SetColors( bar, @c )
+end sub
+
 private function TickerProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     if m->msg = TKM_TIMER then
         tkWidget_KillTimer( w, m->timerId )
-        cast( ReportPanels ptr, w->pData )->RebuildContent( )
+        cast( ReportPanels ptr, w->pData )->OnTick( m->timerId )
         return true
     end if
     return false
@@ -173,6 +225,8 @@ private function RPaletteProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr )
         m->pPaint->SetBackColor( tkTheme_Get( ).Surface )
         m->pPaint->PaintRect( @rc )
         return true
+    case TKM_THEMECHANGED
+        if p->Pal( w->ctrlId ).FloatBtn then ColorFloatBar_( p->Pal( w->ctrlId ).FloatBtn )
     case TKM_SIZE
         p->LayoutPalette( w->ctrlId )
         return true
@@ -187,6 +241,47 @@ private function RPanelsOf( byval w as TK_WIDGET ptr ) as ReportPanels ptr
     wend
     return 0
 end function
+
+' A bar beside the canvas is a child of the form, where RPanelsOf can't find us; the Ticker can.
+private function RPanelsOfBar( byval bar as TK_WIDGET ptr ) as ReportPanels ptr
+    dim as TK_WIDGET ptr w = bar->pParent->pFirst
+    while w
+        if w->proc = @TickerProc then return w->pData
+        w = w->pNext
+    wend
+    return 0
+end function
+
+private sub OnCanvasBarMoved( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+    if nPhase = TKSPLITTER_PHASE_BEGIN then exit sub
+    dim as ReportPanels ptr p = RPanelsOfBar( h )
+    if p = 0 then exit sub
+    dim as TK_HOST ptr hs = h->pHost
+    if h = p->BarL then
+        p->ToolCX = cint( (newPos - p->AreaX) / hs->fScale )
+    else
+        p->TreeCX = cint( (p->AreaX + p->AreaCX - newPos - h->cw) / hs->fScale )
+    end if
+    if p->OnLayout then p->OnLayout( p->Owner )
+end sub
+
+private sub OnPaletteBarMoved( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+    if nPhase = TKSPLITTER_PHASE_BEGIN then exit sub
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p = 0 then exit sub
+    dim as long which = h->pParent->ctrlId
+    dim as long hh = tkHost_Scale( h->pHost, HEADER_CY )
+    dim as long avail = h->pParent->ch - hh - h->ch
+    if avail <= 0 then exit sub
+    p->Pal( which ).SplitPm = (newPos - hh) * 1000 \ avail
+    if p->Pal( which ).SplitPm < 1 then p->Pal( which ).SplitPm = 1
+    p->LayoutPalette( which )
+end sub
+
+private sub OnFloatClicked( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p then p->ToggleFloat( cid )
+end sub
 
 private sub OnCanvasChanged( byval owner as any ptr )
     cast( ReportPanels ptr, owner )->Refresh( )
@@ -239,13 +334,31 @@ sub ReportPanels.Init( byval hostForm as TK_FORM ptr, byval owner_ as any ptr )
     Owner = owner_
     Ticker = tkWidget_CreateChild( tkForm_Widget( Host ), 9911, @TickerProc, @this )
     tkWidget_Show( Ticker, false )
+    BarL = tkSplitter_Create( tkForm_Widget( Host ), 9912, TKSPLITTER_VERTICAL )
+    BarR = tkSplitter_Create( tkForm_Widget( Host ), 9913, TKSPLITTER_VERTICAL )
+    tkSplitter_SetPosChangedCallback( BarL, @OnCanvasBarMoved )
+    tkSplitter_SetPosChangedCallback( BarR, @OnCanvasBarMoved )
+    tkWidget_Show( BarL, false )
+    tkWidget_Show( BarR, false )
 end sub
 
 sub ReportPanels.Destroy( )
+    for i as long = 0 to 1
+        if Pal( i ).Float then tkForm_Destroy( Pal( i ).Float )
+        Pal( i ).Float = 0
+    next
     C = 0
     FrameL = 0
     FrameR = 0
 end sub
+
+function ReportPanels.FrameOf( byval which as long ) as TK_WIDGET ptr
+    return iif( which = 0, FrameL, FrameR )
+end function
+
+function ReportPanels.IsDocked( byval which as long ) as boolean
+    return (this.FrameOf( which ) <> 0) andalso (Pal( which ).Float = 0)
+end function
 
 sub ReportPanels.Bind( byval canvas_ as rcanvas.ReportCanvas ptr )
     dim as boolean changed = (C <> canvas_)
@@ -259,79 +372,270 @@ sub ReportPanels.Bind( byval canvas_ as rcanvas.ReportCanvas ptr )
         TreeSig = "?"
         FieldSig = "?"
     end if
-    if (canvas_ <> 0) andalso (FrameL = 0) then this.Build( )
+    for i as long = 0 to 1
+        if (canvas_ <> 0) andalso (this.FrameOf( i ) = 0) then
+            if Pal( i ).Place.On_ then
+                this.SetFloat( i, true )
+            else
+                this.BuildPalette( i, tkForm_Widget( Host ) )
+            end if
+        end if
+    next
     if changed andalso (canvas_ <> 0) then this.RebuildContent( )
 end sub
 
 sub ReportPanels.ShowAll( byval onOff as boolean )
     IsShown = onOff
-    if FrameL then tkWidget_Show( FrameL, onOff )
-    if FrameR then tkWidget_Show( FrameR, onOff )
+    for i as long = 0 to 1
+        if Pal( i ).Float then
+            if onOff then
+                tkHost_Show( tkForm_Host( Pal( i ).Float ) )
+            else
+                tkHost_Hide( tkForm_Host( Pal( i ).Float ) )
+            end if
+        elseif this.FrameOf( i ) then
+            tkWidget_Show( this.FrameOf( i ), onOff )
+        end if
+    next
+    tkWidget_Show( BarL, onOff andalso this.IsDocked( 0 ) )
+    tkWidget_Show( BarR, onOff andalso this.IsDocked( 1 ) )
 end sub
 
-' The palettes out of the pane x, y, cx, cy: left and right strips; what is left is the canvas's.
+' The docked palettes and their bars out of the pane x, y, cx, cy; what is left is the canvas's. A
+' window too narrow for the widths asked for: the palettes give way, the right one first.
 sub ReportPanels.PlaceDocked( byref x as long, byref y as long, byref cx as long, byref cy as long )
-    if (FrameL = 0) orelse (IsShown = false) then exit sub
+    if IsShown = false then exit sub
     dim as TK_HOST ptr h = tkForm_Host( Host )
-    dim as long wL = tkHost_Scale( h, LEFT_CX ), wR = tkHost_Scale( h, RIGHT_CX ), g = tkHost_Scale( h, GAP )
-    ' a narrow window: the palettes give way to a third each
-    if wL + wR + 2 * g > cx * 2 \ 3 then
-        wL = cx \ 3 - g
-        wR = cx \ 3 - g
-        if wL < 0 then wL = 0
-        if wR < 0 then wR = 0
+    dim as long bar = tkHost_Scale( h, SPLIT_CX ), minP = tkHost_Scale( h, MIN_PALETTE_CX ), minS = tkHost_Scale( h, MIN_CANVAS_CX )
+    dim as boolean dockL = this.IsDocked( 0 ), dockR = this.IsDocked( 1 )
+    AreaX = x
+    AreaCX = cx
+    dim as long wL = 0, wR = 0, over = minS - cx
+    if dockL then
+        wL = tkHost_Scale( h, iif( ToolCX > 0, ToolCX, LEFT_CX ) )
+        if wL < minP then wL = minP
+        over += wL + bar
     end if
-    tkWidget_SetPos( FrameL, x, y, wL, cy )
-    tkWidget_SetPos( FrameR, x + cx - wR, y, wR, cy )
-    x += wL + g
-    cx -= wL + wR + 2 * g
+    if dockR then
+        wR = tkHost_Scale( h, iif( TreeCX > 0, TreeCX, RIGHT_CX ) )
+        if wR < minP then wR = minP
+        over += wR + bar
+    end if
+    if dockR andalso (over > 0) andalso (wR > minP) then
+        dim as long give = iif( over < wR - minP, over, wR - minP )
+        wR -= give
+        over -= give
+    end if
+    if dockL andalso (over > 0) andalso (wL > minP) then
+        wL -= iif( over < wL - minP, over, wL - minP )
+    end if
+    tkWidget_Show( BarL, dockL )
+    tkWidget_Show( BarR, dockR )
+    if dockL then
+        tkWidget_SetPos( FrameL, x, y, wL, cy )
+        tkSplitter_SetRange( BarL, x + minP, x + cx - iif( dockR, wR + bar, 0 ) - bar - minS )
+        tkWidget_SetPos( BarL, x + wL, y, bar, cy )
+        x += wL + bar
+        cx -= wL + bar
+    end if
+    if dockR then
+        tkWidget_SetPos( FrameR, x + cx - wR, y, wR, cy )
+        tkSplitter_SetRange( BarR, x + minS, x + cx - minP - bar )
+        tkWidget_SetPos( BarR, x + cx - wR - bar, y, bar, cy )
+        cx -= wR + bar
+    end if
     if cx < 0 then cx = 0
 end sub
 
-' ---- building --------------------------------------------------------------------------------
-sub ReportPanels.Build( )
-    dim as TK_WIDGET ptr parent = tkForm_Widget( Host )
-    FrameL = tkWidget_CreateChild( parent, 0, @RPaletteProc, @this )
-    FrameR = tkWidget_CreateChild( parent, 1, @RPaletteProc, @this )
-    TitleTools = tkLabel_Create( FrameL, 1 )
-    tkLabel_SetText( TitleTools, i18n.Tr( "designer.toolbox", "Toolbox" ) )
-    ToolList = tkListTree_Create( FrameL, 2 )
-    tkListTree_SetPaintCallback( ToolList, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
-    tkListTree_SetSelChangeCallback( ToolList, @OnToolSel )
-    TitleFields = tkLabel_Create( FrameL, 3 )
-    tkLabel_SetText( TitleFields, i18n.Tr( "report.fields", "Fields" ) )
-    FieldTree = tkListTree_Create( FrameL, 4 )
-    tkListTree_SetPaintCallback( FieldTree, @tkListTree_PaintRowDefault )
-    tkListTree_SetSelChangeCallback( FieldTree, @OnFieldSel )
-    TitleTree = tkLabel_Create( FrameR, 1 )
-    tkLabel_SetText( TitleTree, i18n.Tr( "designer.objects", "Object Tree" ) )
-    Tree = tkListTree_Create( FrameR, 2 )
-    tkListTree_SetPaintCallback( Tree, @tkListTree_PaintRowDefault )
-    tkListTree_SetSelChangeCallback( Tree, @OnTreeSel )
-    TitleProps = tkLabel_Create( FrameR, 3 )
-    tkLabel_SetText( TitleProps, i18n.Tr( "designer.properties", "Properties" ) )
-    Scroll = tkScrollPanel_Create( FrameR, 4 )
-    this.FillToolbox( )
-    tkWidget_Show( FrameL, IsShown )
-    tkWidget_Show( FrameR, IsShown )
+' The current size and place of what floats, for session.toml.
+sub ReportPanels.KeepPlaces( )
+    for i as long = 0 to 1
+        if Pal( i ).Float then
+            dim as SDL_Window ptr win = tkForm_Host( Pal( i ).Float )->win
+            dim as long x, y, w, h
+            SDL_GetWindowPosition( win, @x, @y )
+            SDL_GetWindowSize( win, @w, @h )
+            Pal( i ).Place.X = x
+            Pal( i ).Place.Y = y
+            Pal( i ).Place.W = w
+            Pal( i ).Place.H = h
+        end if
+    next
 end sub
 
-' Each palette: its title, a list, the second title, the second list; the upper list 40 %.
+' ---- building --------------------------------------------------------------------------------
+
+' One palette, in the main form (docked) or in its float window: its header's float button and its
+' own bar, then the toolbox over the field list, or the tree over the inspector.
+sub ReportPanels.BuildPalette( byval which as long, byval parent as TK_WIDGET ptr )
+    dim as TK_WIDGET ptr f = tkWidget_CreateChild( parent, which, @RPaletteProc, @this )
+    if which = 0 then FrameL = f else FrameR = f
+    with Pal( which )
+        .FloatBtn = tkToolbar_Create( f, 5 )
+        tkToolbar_SetGlyphFont( .FloatBtn, tkForm_Font( tkForm_FromWidget( parent ), TKFONT_GLYPH ) )
+        ColorFloatBar_( .FloatBtn )
+        tkToolbar_SetClickCallback( .FloatBtn, @OnFloatClicked )
+        if .Float then
+            tkToolbar_AddItem( .FloatBtn, TBR_KIND_COMMAND, wchr( panels.GLYPH_DOCK ), "", which )
+            tkToolbar_SetTooltipText( .FloatBtn, 0, i18n.Tr( "designer.dock", "Dock" ) )
+        else
+            tkToolbar_AddItem( .FloatBtn, TBR_KIND_COMMAND, wchr( panels.GLYPH_FLOAT ), "", which )
+            tkToolbar_SetTooltipText( .FloatBtn, 0, i18n.Tr( "designer.float", "Float" ) )
+        end if
+        .Split = tkSplitter_Create( f, 6, TKSPLITTER_HORIZONTAL )
+        tkSplitter_SetPosChangedCallback( .Split, @OnPaletteBarMoved )
+    end with
+    if which = 0 then
+        TitleTools = tkLabel_Create( f, 1 )
+        tkLabel_SetText( TitleTools, i18n.Tr( "designer.toolbox", "Toolbox" ) )
+        ToolList = tkListTree_Create( f, 2 )
+        tkListTree_SetPaintCallback( ToolList, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+        tkListTree_SetSelChangeCallback( ToolList, @OnToolSel )
+        TitleFields = tkLabel_Create( f, 3 )
+        tkLabel_SetText( TitleFields, i18n.Tr( "report.fields", "Fields" ) )
+        FieldTree = tkListTree_Create( f, 4 )
+        tkListTree_SetPaintCallback( FieldTree, @tkListTree_PaintRowDefault )
+        tkListTree_SetSelChangeCallback( FieldTree, @OnFieldSel )
+        this.FillToolbox( )
+        FieldSig = "?"
+    else
+        TitleTree = tkLabel_Create( f, 1 )
+        tkLabel_SetText( TitleTree, i18n.Tr( "designer.objects", "Object Tree" ) )
+        Tree = tkListTree_Create( f, 2 )
+        tkListTree_SetPaintCallback( Tree, @tkListTree_PaintRowDefault )
+        tkListTree_SetSelChangeCallback( Tree, @OnTreeSel )
+        ' two columns, no header: the name (the rest of the width), the type (author 2026-11-25)
+        tkListTree_AddColumn( Tree, "", tkHost_Scale( f->pHost, RIGHT_CX - TYPE_CX ) )
+        tkListTree_AddColumn( Tree, "", tkHost_Scale( f->pHost, TYPE_CX ) )
+        tkListTree_SetFillColumn( Tree, 0 )
+        TitleProps = tkLabel_Create( f, 3 )
+        tkLabel_SetText( TitleProps, i18n.Tr( "designer.properties", "Properties" ) )
+        Scroll = tkScrollPanel_Create( f, 4 )
+        Rows.Clear( )                            ' their widgets went with the old frame
+        TreeSig = "?"
+        RowSig = "?"
+    end if
+    if Pal( which ).Float = 0 then tkWidget_Show( f, IsShown )
+    this.LayoutPalette( which )
+end sub
+
+sub ReportPanels.SetFloat( byval which as long, byval onOff as boolean )
+    with Pal( which )
+        if onOff = (.Float <> 0) andalso (this.FrameOf( which ) <> 0) then exit sub
+        ' a focused editor gets its focus-loss commit before its window goes
+        if (which = 1) andalso (FrameR <> 0) then
+            for r as long = 0 to Rows.Count( ) - 1
+                this.CommitRow( r )
+            next
+        end if
+        if .Float then
+            this.KeepPlaces( )
+            dim as TK_FORM ptr gone = .Float
+            .Float = 0
+            if which = 0 then FrameL = 0 else FrameR = 0
+            tkForm_Destroy( gone )
+        elseif this.FrameOf( which ) then
+            tkWidget_Destroy( this.FrameOf( which ) )
+            if which = 0 then FrameL = 0 else FrameR = 0
+        end if
+        .Place.On_ = onOff
+        if onOff then
+            dim as TK_HOST ptr h = tkForm_Host( Host )
+            dim as long w = iif( which = 0, LEFT_CX, RIGHT_CX ), ht = 480
+            dim as ustring title = i18n.Tr( "designer.toolbox", "Toolbox" )
+            if which = 1 then title = i18n.Tr( "designer.objects", "Object Tree" )
+            .Float = tkApp_NewForm( title, w, ht, Host, h->fScaleForced )
+            if .Float then
+                if OnFloatMade then OnFloatMade( Owner, .Float )
+                if .Place.W > 0 then
+                    SDL_SetWindowSize( tkForm_Host( .Float )->win, .Place.W, .Place.H )
+                    SDL_SetWindowPosition( tkForm_Host( .Float )->win, .Place.X, .Place.Y )
+                end if
+                this.BuildPalette( which, tkForm_Widget( .Float ) )
+                tkForm_Show( .Float )
+                this.SizeFloat( .Float )
+            end if
+        else
+            this.BuildPalette( which, tkForm_Widget( Host ) )
+        end if
+    end with
+    RowSig = "?"
+    TreeSig = "?"
+    FieldSig = "?"
+    if C then this.RebuildContent( )
+    if OnLayout then OnLayout( Owner )
+end sub
+
+sub ReportPanels.ToggleFloat( byval which as long )
+    ' a button can't destroy the window it's in from its own click
+    Pal( which ).PendingDock = true
+    tkWidget_SetTimer( Ticker, TIMER_DOCK, 1 )
+end sub
+
+' The float's close button: back beside the canvas. Not from inside the close handling.
+sub ReportPanels.CloseFloat( byval f as TK_FORM ptr )
+    for i as long = 0 to 1
+        if Pal( i ).Float = f then this.ToggleFloat( i )
+    next
+end sub
+
+sub ReportPanels.SizeFloat( byval f as TK_FORM ptr )
+    for i as long = 0 to 1
+        if (Pal( i ).Float = f) andalso (this.FrameOf( i ) <> 0) then
+            dim as TK_WIDGET ptr r = tkForm_Widget( f )
+            tkWidget_SetPos( this.FrameOf( i ), 0, 0, r->cw, r->ch )
+        end if
+    next
+end sub
+
+sub ReportPanels.OnTick( byval id as long )
+    select case id
+    case TIMER_REBUILD
+        this.RebuildContent( )
+    case TIMER_DOCK
+        for i as long = 0 to 1
+            if Pal( i ).PendingDock then
+                Pal( i ).PendingDock = false
+                this.SetFloat( i, Pal( i ).Float = 0 )
+            end if
+        next
+    end select
+end sub
+
+' Each palette: its title and float button, a list, its bar, the second title, the second list.
 sub ReportPanels.LayoutPalette( byval which as long )
-    dim as TK_WIDGET ptr f = iif( which = 0, FrameL, FrameR )
+    dim as TK_WIDGET ptr f = this.FrameOf( which )
     if f = 0 then exit sub
     dim as TK_HOST ptr h = f->pHost
-    dim as long hh = tkHost_Scale( h, HEADER_CY ), p_ = tkHost_Scale( h, PAD )
-    dim as long avail = f->ch - 2 * hh
-    if avail < 0 then avail = 0
-    dim as long topH = avail * 40 \ 100
+    dim as long hh = tkHost_Scale( h, HEADER_CY ), p_ = tkHost_Scale( h, PAD ), bw, bh
+    tkToolbar_GetIdealSize( Pal( which ).FloatBtn, bw, bh )
+    if bh > hh then bh = hh
     dim as TK_WIDGET ptr t1 = iif( which = 0, TitleTools, TitleTree ), l1 = iif( which = 0, ToolList, Tree )
     dim as TK_WIDGET ptr t2 = iif( which = 0, TitleFields, TitleProps ), l2 = iif( which = 0, FieldTree, Scroll )
-    if t1 then tkWidget_SetPos( t1, p_, 0, f->cw - 2 * p_, hh )
+    if t1 then tkWidget_SetPos( t1, p_, 0, f->cw - bw - 2 * p_, hh )
+    tkWidget_SetPos( Pal( which ).FloatBtn, f->cw - bw - p_, (hh - bh) \ 2, bw, bh )
+    dim as long bar = tkHost_Scale( h, SPLIT_CX ), minH = tkHost_Scale( h, MIN_PANE_CY )
+    dim as long avail = f->ch - hh - bar
+    if avail < 0 then avail = 0
+    dim as long pm = Pal( which ).SplitPm
+    if pm <= 0 then pm = PALETTE_SPLIT
+    dim as long topH = avail * pm \ 1000
+    dim as long hi = avail - minH - hh
+    if hi < minH then hi = minH
+    if topH < minH then topH = minH
+    if topH > hi then topH = hi
+    dim as long barY = hh + topH, below = barY + bar, belowH = f->ch - below
+    if belowH < 0 then belowH = 0
+    dim as long listH = iif( belowH > hh, belowH - hh, 0 )
+    tkSplitter_SetRange( Pal( which ).Split, hh + minH, hh + hi )
+    tkWidget_SetPos( Pal( which ).Split, 0, barY, f->cw, bar )
     if l1 then tkWidget_SetPos( l1, 0, hh, f->cw, topH )
-    if t2 then tkWidget_SetPos( t2, p_, hh + topH, f->cw - 2 * p_, hh )
-    if l2 then tkWidget_SetPos( l2, 0, 2 * hh + topH, f->cw, avail - topH )
-    if which = 1 then this.LayoutRows( )
+    if t2 then tkWidget_SetPos( t2, p_, below, f->cw - 2 * p_, hh )
+    if l2 then tkWidget_SetPos( l2, 0, below + hh, f->cw, listH )
+    if which = 1 then
+        if Tree then tkListTree_SetColumnWidth( Tree, 1, tkHost_Scale( h, TYPE_CX ) )
+        this.LayoutRows( )
+    end if
 end sub
 
 sub ReportPanels.LayoutRows( )
@@ -460,8 +764,9 @@ sub ReportPanels.BuildFields( )
     Updating = false
 end sub
 
-' The report, its bands as the canvas stacks them (nested), each band's items. Row data: 0 the
-' report, 1 a band (extra: its index), 2 an item (extra: its index).
+' The report, its bands as the canvas stacks them (nested), each band's items: the name, then the
+' type in the second column. Row data: 0 the report, 1 a band (extra: its index), 2 an item (extra:
+' its index).
 sub ReportPanels.BuildTree( )
     Updating = true
     tkListTree_BeginUpdate( Tree )
@@ -477,10 +782,12 @@ sub ReportPanels.BuildTree( )
         dim as integer par = root
         if dp > 0 then par = parents(dp - 1)
         dim byref as TKRD_BAND b = C->Def->bands(bi)
-        parents(dp) = tkListTree_AddNode( Tree, par, b.id & "  " & b.kind, 1, bi )
+        parents(dp) = tkListTree_AddNode( Tree, par, b.id, 1, bi )
+        tkListTree_SetCellText( Tree, parents(dp), 1, b.kind )
         for i as int32 = 0 to C->Def->nItems - 1
             if lcase( C->Def->items(i).band ) = lcase( b.id ) then
-                tkListTree_AddNode( Tree, parents(dp), C->Def->items(i).id & "  " & C->Def->items(i).kind, 2, i )
+                dim as integer row = tkListTree_AddNode( Tree, parents(dp), C->Def->items(i).id, 2, i )
+                tkListTree_SetCellText( Tree, row, 1, C->Def->items(i).kind )
             end if
         next
     next

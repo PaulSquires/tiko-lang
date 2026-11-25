@@ -3276,6 +3276,7 @@ public sub ExplorerPass( byref t as Tally, byval sc as single )
     fs.CreateDirAll( fs.PathJoin( proj, ".hidden" ) )
     WriteBytes( fs.PathJoin( proj, "main.tiko" ), "print 1" & chr( 10 ) )
     WriteBytes( fs.PathJoin( proj, "notes.txt" ), "notes" & chr( 10 ) )
+    WriteBytes( fs.PathJoin( proj, "main.design.tiko" ), "' generated" & chr( 10 ) )   ' a designer's: hidden by default
     WriteBytes( fs.PathJoin( proj, "blob.dll" ), "MZ" & chr( 0 ) & "x" )    ' binary: not listed
     WriteBytes( fs.PathJoin( proj, "tiko.toml" ), "[package]" & chr( 10 ) & "name = ""demo""" & chr( 10 ) & "[target.demo]" & chr( 10 ) & "main = ""main.tiko""" & chr( 10 ) )
     WriteBytes( fs.PathJoin( proj, "src", "lib.tiko" ), "dim x as long" & chr( 10 ) )
@@ -3287,7 +3288,14 @@ public sub ExplorerPass( byref t as Tally, byval sc as single )
     for r as long = 0 to tkListTree_GetCount( mw.Side.rows ) - 1
         got &= tkListTree_GetText( mw.Side.rows, r ) & ","
     next
-    t.Check( got = "src,lib.tiko,main.tiko,notes.txt,tiko.toml,", P( sc, "explorer: the project's files, no out/ or dot-folders: " & got ) )
+    t.Check( got = "src,lib.tiko,main.tiko,notes.txt,tiko.toml,", P( sc, "explorer: the project's files, no out/, dot-folders or *.design.tiko: " & got ) )
+    SetExplorerKeys( mw, "explorer = true" & nl & "explorer_hide_generated = false" )
+    got = ""
+    for r as long = 0 to tkListTree_GetCount( mw.Side.rows ) - 1
+        got &= tkListTree_GetText( mw.Side.rows, r ) & ","
+    next
+    t.Check( got = "src,lib.tiko,main.design.tiko,main.tiko,notes.txt,tiko.toml,", P( sc, "explorer: explorer_hide_generated = false lists it: " & got ) )
+    SetExplorerKeys( mw, "explorer = true" )
     t.Check( (tkListTree_GetLevel( mw.Side.rows, 1 ) = 1) andalso (tkListTree_GetLevel( mw.Side.rows, 2 ) = 0), P( sc, "explorer: lib.tiko under src" ) )
     t.Check( (mw.Side.ProjectName = "demo") andalso (mw.Side.HeaderProject( ) = "[demo]"), P( sc, "explorer: the header names the project, in brackets: " & mw.Side.HeaderProject( ) ) )
     t.Check( tkListTree_GetCurSel( mw.Side.rows ) = 2, P( sc, strings.Format( "explorer: main.tiko, the active buffer, selected ({})", tkListTree_GetCurSel( mw.Side.rows ) ) ) )

@@ -182,6 +182,19 @@ private function Backdrop_( ) as ulong
     return tkRGB( 250, 249, 246 )
 end function
 
+' The paper under the bands: white, but a soft grey in a dark theme -- full white glares there
+' (author 2026-11-25). The bands' ink is recorded black, so the paper stays light.
+private function Paper_( ) as ulong
+    if tkTheme_Get( ).IsDark then return tkRGB( 201, 201, 198 )
+    return tkRGB( 255, 255, 255 )
+end function
+
+' The margins' faint lines on it.
+private function MarginLine_( ) as ulong
+    if tkTheme_Get( ).IsDark then return tkRGB( 172, 172, 170 )
+    return tkRGB( 220, 220, 226 )
+end function
+
 private function GlassProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     dim as ReportCanvas ptr c = w->pData
     select case m->msg
@@ -958,9 +971,9 @@ sub ReportCanvas.Paint( byval b as TK_PAINT ptr )
         ' the paper, the margins as faint lines, the band as recorded
         dim as TKRECT paper
         tkRect_Set( paper, pl, body.top, pl + pw, body.bottom )
-        b->SetBackColor( tkRGB( 255, 255, 255 ) )
+        b->SetBackColor( Paper_( ) )
         b->PaintRect( @paper )
-        b->SetBackColor( tkRGB( 220, 220, 226 ) )
+        b->SetBackColor( MarginLine_( ) )
         tkRect_Set( ln, cl - 1, body.top, cl, body.bottom ) : b->PaintRect( @ln )
         tkRect_Set( ln, cr, body.top, cr + 1, body.bottom ) : b->PaintRect( @ln )
         while Docs.Count( ) <= bi
@@ -986,7 +999,7 @@ sub ReportCanvas.Paint( byval b as TK_PAINT ptr )
         if i >= 0 then
             for g as long = 0 to 7
                 dim as TKRECT gr = this.GripRect( i, g )
-                b->SetBackColor( tkRGB( 255, 255, 255 ) )
+                b->SetBackColor( Paper_( ) )
                 b->PaintRect( @gr )
                 b->SetPenColor( t.Accent )
                 b->PaintRoundOutline( @gr, 0, 1 )
