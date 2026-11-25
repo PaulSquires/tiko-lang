@@ -674,9 +674,13 @@ function LinkExe _
     '' host every link died with clang's 'invalid linker name in argument
     '' -fuse-ld=lld'. Beside clang or on the system path it is used; otherwise clang
     '' links with the platform's own ld. ELF records no link time either way.
+    '' NOT FOR ANDROID: the NDK's link is lld's (16 KB segments with no flag, FACTS), and
+    '' clang finds ld.lld in its own resolved install dir -- Ubuntu's lld-18 puts it in
+    '' /usr/lib/llvm-18/bin with only ld.lld-18 in /usr/bin, which the probe below misses.
     #ifndef __FB_WIN32__
         dim as int32 sl = instrrev( t.clangExe, "/" )
-        if (FileExists_( left( t.clangExe, sl ) & "ld.lld" ) = false) andalso _
+        if (target.layout.osKind <> Tko.OS_ANDROID) andalso _
+           (FileExists_( left( t.clangExe, sl ) & "ld.lld" ) = false) andalso _
            (FileExists_( "/usr/bin/ld.lld" ) = false) then
             cmd = "-target " & target.triple
             viaLld = false
