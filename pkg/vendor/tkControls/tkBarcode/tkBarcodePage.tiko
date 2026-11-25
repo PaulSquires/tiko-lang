@@ -435,7 +435,9 @@ private function SurfaceBytes( byval s as SDL_Surface ptr, byval bPng as boolean
 end function
 
 ' Puts the symbol on the clipboard as an image (PNG and BMP, at dpi with whole-pixel modules) and
-' its data as text. FALSE when there is no symbol or the clipboard refuses.
+' its data as text. FALSE when there is no symbol or the clipboard refuses. NEEDS A WINDOW OPEN: on
+' X11 a selection is owned by a window, and SDL's clipboard used before any exists crashed the next
+' window's creation (BC5, measured under WSLg). A GUI program always has one.
 public function tkBarcode_CopySymbolToClipboard( byref sym as TKBARCODE_SYMBOL, byref spec as TKBARCODE_SPEC, _
                                                  byref pl as TKBARCODE_PAGELOOK, byref sData as ustring, _
                                                  byval dpi as float32 = 300 ) as boolean

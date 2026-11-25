@@ -459,6 +459,24 @@ sub RunPass( byval fScale as single )
     h->fScaleForced = fScale
     tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
 
+    ' ---- the clipboard (BC2), with this window open; once ------------------------------------------
+    if fScale = 1 then
+        tkBarcode_SetData( q, "https://tiko-lang.net" )
+        dim as boolean clipOk = tkBarcode_CopyToClipboard( q, 300 )
+        dim as uinteger nc
+        dim as ubyte ptr pc = SDL_GetClipboardData( "image/png", @nc )
+        dim as boolean isPng = (pc <> 0) andalso (nc > 8) andalso (pc[1] = asc( "P" )) andalso (pc[2] = asc( "N" )) andalso (pc[3] = asc( "G" ))
+        if pc then SDL_free( pc )
+        pc = SDL_GetClipboardData( "text/plain;charset=utf-8", @nc )
+        dim as string ct = ""
+        if pc then
+            ct = space( nc )
+            for i as integer = 0 to nc - 1 : ct[i] = pc[i] : next
+            SDL_free( pc )
+        end if
+        tkTest_Check( "clipboard: a PNG (read back) and the data as text", clipOk andalso isPng andalso left( ct, 21 ) = "https://tiko-lang.net", "png=" & isPng & " text='" & ct & "'" )
+    end if
+
     tkHost_Destroy( h )
 end sub
 
@@ -632,23 +650,11 @@ sub PaperChecks( )
     tkTest_Check( "SVG: 37.29 mm wide, viewBox in modules, a rect per run + the ground, a text per HRT run", _
                   instr( svg, "width=""37.29mm""" ) > 0 andalso instr( svg, "viewBox=""0 0 113 " ) > 0 andalso nRect = 31 andalso nText = 3, _
                   nRect & " rects, " & nText & " texts" )
+    ' (the clipboard is checked in RunPass, with a window open: X11 needs one to own a selection)
     dim as TKBARCODE_SPEC sq
     sq.nSymbology = TKBC_QR
     dim as TKBARCODE_SYMBOL yq
     tkBarcode_Encode( sq, "https://tiko-lang.net", yq )
-    dim as boolean clipOk = tkBarcode_CopySymbolToClipboard( yq, sq, pl, "https://tiko-lang.net", 300 )
-    dim as uinteger nc
-    dim as ubyte ptr pc = SDL_GetClipboardData( "image/png", @nc )
-    dim as boolean isPng = (pc <> 0) andalso (nc > 8) andalso (pc[1] = asc( "P" )) andalso (pc[2] = asc( "N" )) andalso (pc[3] = asc( "G" ))
-    if pc then SDL_free( pc )
-    pc = SDL_GetClipboardData( "text/plain;charset=utf-8", @nc )
-    dim as string ct = ""
-    if pc then
-        ct = space( nc )
-        for i as integer = 0 to nc - 1 : ct[i] = pc[i] : next
-        SDL_free( pc )
-    end if
-    tkTest_Check( "clipboard: a PNG (read back) and the data as text", clipOk andalso isPng andalso left( ct, 21 ) = "https://tiko-lang.net", "png=" & isPng & " text='" & ct & "'" )
 
     ' ---- the error state on paper ------------------------------------------------------------------------
     dim as TKBARCODE_SYMBOL ye
