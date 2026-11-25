@@ -81,6 +81,9 @@ namespace Tko.Codegen
         '' library that goes with it.
         as boolean buildDll
         as string  implibPath
+        '' 'tiko -app' (docs/tiko-android A4): buildDll too, plus fbrtapp.o -- SDL_main, logcat
+        '' and the return path -- from the library search, and liblog.
+        as boolean app
         '' '-pic': -fPIC on an ELF target without a '-dll' (CompileIr).
         as boolean pic
         '' '-v': print every tool command before running it, which '--help' has always
@@ -148,6 +151,15 @@ namespace Tko.Codegen
     '' LinkExe's answer when a non-MSVC target has no fbrt0.o on any library path: the
     '' link would succeed and the program deadlock at its first '-mt' lock (RT-03).
     const LINK_NO_RT0 = -1000
+    '' ...and when an Android link finds no usable NDK; ToolPaths.why says what was looked at.
+    const LINK_NO_NDK = -1001
+    '' ...and when an app's link finds no fbrtapp.o on any library path.
+    const LINK_NO_RTAPP = -1002
+
+    '' Android SDKs (docs/tiko-android): where one may be, three entries (toolchain.tiko), and
+    '' a version string as a key that sorts as the version does.
+    declare sub AndroidSdkCandidates( sdks() as string )
+    declare function AndroidVersionKey( byref v as string ) as string
 
     declare function LinkExe _
         ( byref t as ToolPaths, byref target as TargetDescription, _

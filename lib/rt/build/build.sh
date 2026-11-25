@@ -283,7 +283,7 @@ build_one( ) {
     for csrc in $(ls "$RT_ROOT"/src/c/*.c 2>/dev/null); do
         # fbrt0.c IS A LOOSE OBJECT, never a member: nothing refers to it by name, so
         # an archive search would never pull it in. build_rt0 installs it.
-        case $(basename "$csrc") in fbrt0.c) continue ;; esac
+        case $(basename "$csrc") in fbrt0.c|fbrtapp.c) continue ;; esac
         cobj="$objdir/$(basename "$csrc" .c).o"
         ctgt=$(rt_clang_triple "$target")
         [ -n "$ctgt" ] || ctgt=$(rt_target_triple "$target")
@@ -299,7 +299,7 @@ build_one( ) {
         # does not, so atomic.c came out as calls in the VM and as LL/SC here. Pinned to LL/SC:
         # it runs on every ARMv8, needs no helper library, and the cross-built runtime and the
         # native one are then the same code.
-        case "$target" in linux-arm64) cabi="-mno-outline-atomics" ;; esac
+        case "$target" in linux-arm64|android-arm64) cabi="-mno-outline-atomics" ;; esac
         if ! "$CLANG" --target="$ctgt" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra $cabi $cpic \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
@@ -378,12 +378,19 @@ build_rt0( ) {
         -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0.o" \
         || rt_die "$_t: fbrt0.c failed to compile"
     case $_t in
-        linux-*)
+        linux-*|android-*)
             "$CLANG" --target="$_tri" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra -fPIC \
                 -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0pic.o" \
                 || rt_die "$_t: fbrt0.c (pic) failed to compile" ;;
     esac
-    echo "build: $_t/fbrt0.o$(case $_t in linux-*) echo ' + fbrt0pic.o' ;; esac)"
+    echo "build: $_t/fbrt0.o$(case $_t in linux-*|android-*) echo ' + fbrt0pic.o' ;; esac)"
+    # AN ANDROID APP'S ENTRY, fbrtapp.o (src/c/fbrtapp.c): loose like fbrt0, named by the driver
+    # on a 'tiko -app' link only, which is always a shared libmain.so -- so PIC alone.
+    case $_t in
+        android-*)
+            "$CLANG" --target="$_tri" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra -fPIC                 -c "$RT_ROOT/src/c/fbrtapp.c" -o "$_dir/fbrtapp.o"                 || rt_die "$_t: fbrtapp.c failed to compile"
+            echo "build: $_t/fbrtapp.o" ;;
+    esac
 }
 
 echo "build: tiko-rt [$CFG] with $TKORT_TIKO ($RT_JOBS jobs)"
@@ -391,7 +398,7 @@ for target in $TARGETS; do
     build_one "$target" st
     build_one "$target" mt
     case $target in
-        linux-*) build_one "$target" stpic
+        linux-*|android-*) build_one "$target" stpic
                  build_one "$target" mtpic ;;
     esac
     build_rt0 "$target"

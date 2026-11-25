@@ -202,6 +202,15 @@ sub RunPass( byval fScale as single )
     Scene( h, 6 )
     tkTest_Check( "ring: the hole is empty", Px( h, cv, 70, 70 ) = BG )
     tkTest_Check( "ring: the band is filled", Px( h, cv, 70, 30 ) = FG andalso Px( h, cv, 110, 70 ) = FG )
+    ' a whole ring has no seam where it closes (0 degrees, the +x axis): it was a 359.9 degree slit
+    ' whose AA fringes blended the rows there (the fasting app's timer ring, F5)
+    dim as long nSeam = 0
+    for y as long = 68 to 72
+        for x as long = 98 to 116
+            if Px( h, cv, x, y ) <> FG then nSeam += 1
+        next
+    next
+    tkTest_Check( "ring: no seam where a whole ring closes", nSeam = 0, nSeam & " band pixels not the fill" )
 
     ' ---- gradients --------------------------------------------------------------------------------
     Scene( h, 7 )

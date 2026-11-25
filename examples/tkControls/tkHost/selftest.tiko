@@ -595,11 +595,68 @@ sub DropPass( byval fScale as single )
     tkHost_Destroy( h )
 end sub
 
+' ---- touch (A5, D-A5-3): the gesture layer runs with virtual surfaces only ---------------------
+sub TouchPass( byval fScale as single )
+    tkTest_Begin( "touch " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkHost touch", 400, 300, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    if tkTest_Virtual( h ) = false then
+        ' the layer is off on the desktop: SDL's own touch-as-mouse is left alone
+        tkTest_Skip( "gestures", "touch gestures run with virtual surfaces only (Android, TK_VIRTUAL=1)" )
+        tkHost_Destroy( h )
+        exit sub
+    end if
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 60 )
+    dim as TK_WIDGET ptr W = Probe( tkHost_Root( h ), h, 20, 20, 300, 200 )
+    Rx( W )->claimWheel = true
+    dim as single cx = tkTest_CX( W ), cy = tkTest_CY( W )
+    ' SDL's order: the touch-mouse event, then the finger's. A swipe: the finger passes the slop
+    ' before the tap timeout -- no press at all, and the rest is wheel, up the finger = down the
+    ' content (negative notches)
+    tkTest_PushTouchMouse( h, true, cx, cy )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_DOWN, cx, cy )
+    tkHost_Pump( h )
+    tkTest_Check( "a touch is not a press yet", Rx( W )->nDown = 0, "" & Rx( W )->nDown )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_MOTION, cx, cy - S( h, 40 ) )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_MOTION, cx, cy - S( h, 80 ) )
+    tkHost_Pump( h )
+    tkTest_Check( "a swipe becomes wheel notches", Rx( W )->nWheel >= 1 andalso Rx( W )->wheelY < 0, Rx( W )->nWheel & " " & Rx( W )->wheelY )
+    tkTest_PushTouchMouse( h, false, cx, cy - S( h, 80 ) )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_UP, cx, cy - S( h, 80 ) )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "a swipe never presses", (Rx( W )->nDown = 0) andalso (Rx( W )->nUp = 0), Rx( W )->nDown & " " & Rx( W )->nUp )
+    ' a finger held: its press after the tap timeout; still after TK_LONGPRESS_MS, the press is
+    ' taken back and the right button goes there
+    dim as long r0 = Rx( W )->nRDown
+    tkTest_PushTouchMouse( h, true, cx, cy )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_DOWN, cx, cy )
+    tkTest_PumpFor( h, 250 )
+    tkTest_Check( "a held finger gets its press after the tap timeout", Rx( W )->nDown = 1, "" & Rx( W )->nDown )
+    tkTest_PumpFor( h, 400 )
+    tkTest_Check( "a long press is the right button", Rx( W )->nRDown = r0 + 1, "" & Rx( W )->nRDown )
+    tkTest_PushTouchMouse( h, false, cx, cy )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_UP, cx, cy )
+    tkTest_PumpFor( h, 50 )
+    ' a tap: down and up before the timeout -- press and release together, an ordinary click
+    dim as long d0 = Rx( W )->nDown, u0 = Rx( W )->nUp, w0 = Rx( W )->nWheel
+    tkTest_PushTouchMouse( h, true, cx, cy )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_DOWN, cx, cy )
+    tkTest_PushTouchMouse( h, false, cx, cy )
+    tkTest_PushFinger( h, SDL_EVENT_FINGER_UP, cx, cy )
+    tkHost_Pump( h )
+    tkTest_Check( "a tap is a click", (Rx( W )->nDown = d0 + 1) andalso (Rx( W )->nUp = u0 + 1) andalso (Rx( W )->nWheel = w0), _
+                  (Rx( W )->nDown - d0) & " " & (Rx( W )->nUp - u0) )
+    tkHost_Destroy( h )
+end sub
+
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
 RunPass( 1.75 )
 DropPass( 1.0 )
 DropPass( 1.75 )
+TouchPass( 1.0 )
+TouchPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkHost" )
 tkTest_Quit()
 end nFail

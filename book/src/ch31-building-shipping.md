@@ -8,7 +8,8 @@ about the command line that does all of that, and about what a shipped program d
 
 ## Targets
 
-tiko builds for four targets, chosen with `-target`:
+tiko builds for four targets, chosen with `-target`, and for two Android ones when its toolchain
+has them ([Android](#android), below):
 
 | Target | Builds | Default on |
 |---|---|---|
@@ -16,6 +17,8 @@ tiko builds for four targets, chosen with `-target`:
 | `linux-x86_64` | a Linux x86-64 executable, linked against the system's C library | x86-64 Linux |
 | `linux-arm64` | a Linux arm64 (aarch64) executable, linked against the system's C library | arm64 Linux |
 | `macos-arm64` | a macOS executable for Apple Silicon, linked by Apple's linker against the macOS SDK | macOS |
+| `android-x86_64` | an Android program or app for the x86-64 emulator, linked with the Android NDK | — |
+| `android-arm64` | an Android program or app for arm64 phones and tablets, linked with the Android NDK | — |
 
 The compiler turns tiko into LLVM's intermediate form and hands it to **clang**, which produces
 machine code and drives the linker. tiko looks for clang in the place LLVM installs it, then on
@@ -390,6 +393,133 @@ runtime: a program compiled by tiko and linked with it may be distributed under 
 author chooses, with no obligation to publish its source. The exception covers the runtime only.
 Every other library a program links — a vendored C library, a DLL — comes with its own licence,
 and that licence's conditions apply.
+
+## Android
+
+A Windows toolchain packaged with Android (`build/package.sh --with-android`) adds two targets:
+**`android-x86_64`**, which the Android emulator on a PC runs, and **`android-arm64`**, which
+phones run. tiko cross-compiles for both from Windows. What it needs and does not ship:
+
+| Tool | For | Found through |
+|---|---|---|
+| the Android NDK, r30 or newer | every link: Android's C library and linker files | `ANDROID_NDK_HOME`, else the newest `<sdk>/ndk/<version>` |
+| the Android SDK: build-tools and platform 36 | an app (`-app`) | `ANDROID_HOME` |
+| a JDK, 17 or newer | an app: packaging and signing are Java tools | `JAVA_HOME`, else Android Studio's own |
+| bundletool | an App Bundle for Play (`-appbundle`) | `TIKO_ANDROID_BUNDLETOOL`, else `bundletool*.jar` in `bundletool/` beside the SDK |
+
+Android Studio installs the SDK and a JDK; its SDK Manager adds the build-tools, platform 36 and the
+NDK.
+
+### A console program
+
+`tiko -target android-arm64 hello.tiko` writes an ordinary Linux-style executable. It has no
+window and no icon: it runs in a shell on the device, which is how tiko's own tests run there.
+
+```text
+adb push hello /data/local/tmp/
+adb shell /data/local/tmp/hello
+```
+
+`print`, `input`, files, threads and the standard library behave as on Linux. The predefined
+symbol is **`__FB_ANDROID__`**, together with `__FB_UNIX__`; `__FB_LINUX__` is *not* defined,
+because Android's C library is not glibc and a program's `#ifdef __FB_LINUX__` code would assume
+it is.
+
+### An app
+
+A program a user starts from their home screen is an **app**, and an app's window, input and
+life cycle come from Android's Java side. tiko uses **SDL3** for all three, so an app is an SDL3
+program built with **`-app`**:
+
+```text
+tiko -target android-arm64 -app game.tiko
+```
+
+The result is **`game.apk`**, signed and ready to install (`adb install game.apk`). Inside it,
+the program is a shared library that SDL's Java code loads and runs. A program written for the
+desktop with SDL3, or with the tkControls package, which is built on it, is the same source on a
+phone:
+
+- **`print` goes to the device's log**: `adb logcat -s tiko` shows it.
+- **The program ends** when its main code returns or reaches `end`, and Android closes the app.
+- **The app's own files are its assets.** `-appassets data` puts the folder `data` into the
+  APK. A program opens them by a relative name, with `open` or `std/fs`, as it opens files beside
+  it on the desktop. They are read-only. A file the program writes goes to its working directory,
+  which is the app's private storage and is kept between runs. A file there with the same name as
+  an asset is the one that is read.
+- **`exepath` is `"."`.** `exepath & "/sound.wav"` opens the asset.
+- **tkControls adapts by itself.** Menus, popups and dialogs open inside the one window, a touch
+  scrolls a list, a long press is a right click, the soft keyboard rises for a text box, and
+  BACK closes the topmost dialog, then the app.
+
+```admonish info title="An app needs an SDL3 program"
+`-app` refuses a program that does not `#import "vendor/SDL3"` (or a package that does, such as
+tkControls): without SDL there is nothing for Android to start. On Android, vendor/SDL3 and every
+other vendor package are linked into the program; there is no `.so` to ship beside it.
+```
+
+### Identity, version and icon
+
+| Option | Sets | Default |
+|---|---|---|
+| `-appid org.example.game` | the application id, which identifies the app on a device and on Play | `org.tiko.<name>` |
+| `-applabel "My Game"` | the name under the icon | the program's name |
+| `-appversion 1.2,12` | the version a user sees, and the number Android compares | `1.0,1` |
+| `-appicon icon.png` | the launcher icon | Android's default |
+| `-appassets data` | a folder whose files become the app's assets | none |
+| `-apppermission INTERNET` | a permission the app asks for; repeat it for each. A name with no dot means `android.permission.<name>` | none |
+
+An app asks for nothing unless you say so: without `-apppermission INTERNET`, every network call fails
+(Java reports `SecurityException: Permission denied (missing INTERNET permission?)`).
+
+The application id cannot change once an app is published. The version number after the comma
+must grow with every release a store accepts.
+
+### Signing and Play
+
+Every APK is signed. Without `-appkey`, tiko signs with the **debug key** Android Studio uses,
+creating it the first time. A device installs a debug-signed app, but a store does not accept one,
+and an update must be signed by the same key as the version it replaces.
+
+**`-appkey release.jks,upload`** signs with a key of your own: the keystore file and the key's
+alias. Its passwords are **never** typed on the command line, where other programs could read
+them: tiko leaves them in the environment variables **`TIKO_ANDROID_KS_PASS`** (the keystore) and
+**`TIKO_ANDROID_KEY_PASS`** (the key, when it differs), and the signing tools read them there.
+`keytool`, in the JDK, makes a keystore.
+
+Google Play takes an **App Bundle** rather than an APK. **`-appbundle`** writes `game.aab`,
+signed with the `-appkey` key, which Play treats as the upload key:
+
+```text
+tiko -target android-arm64 -app -appbundle -appid org.example.game -appversion 1.0,1 -appkey release.jks,upload game.tiko
+```
+
+Play builds and signs the APKs for each device from it. To try a bundle on a device first,
+bundletool does what Play does: `build-apks` makes the set, `install-apks` installs it.
+
+### Projects
+
+A project builds an app as any other target. `kind = "app"` makes it one, and a
+**`[target.<name>.app]`** table holds the options above, with paths relative to `tiko.toml`:
+
+```toml
+[target.game]
+main = "game.tiko"
+kind = "app"
+
+[target.game.app]
+id      = "org.example.game"
+label   = "My Game"
+version = "1.0,1"
+icon    = "art/icon.png"
+permissions = ["INTERNET"]
+assets  = "data"
+key     = "keys/release.jks,upload"   # its passwords in TIKO_ANDROID_KS_PASS / TIKO_ANDROID_KEY_PASS
+bundle  = true                        # game.aab for Play, rather than game.apk
+```
+
+`tiko build game -target android-arm64` writes `out/debug/game.aab`; `--profile release` writes
+`out/release/game.aab`.
 
 ## What it costs
 
