@@ -155,6 +155,7 @@ public type RD_OpenRowsFunc as function( byval def as TK_REPORTDEF ptr, byval si
 public type RD_OpenChildFunc as function( byval def as TK_REPORTDEF ptr, byval si as int32, byval pCtx as any ptr, _
                                           byref child as TKRD_CHILD ) as boolean
 public type RD_CloseSub as sub( byval pCtx as any ptr, byval bFinal as boolean )
+public type RD_ReportMadeSub as sub( byval def as TK_REPORTDEF ptr, byval rpt as TK_REPORT ptr, byval pUser as any ptr )
 
 ' How source si reaches its rows: a ready source / child of the host, or procedures a binder
 ' registered (OpenRows for a master, OpenChild for a child; CloseAll frees what they opened, and
@@ -207,6 +208,8 @@ public type TK_REPORTDEF_
     childPar(any) as TK_REXPR ptr       ' the child source's parameter expressions, compiled against the master
     childParSi as int32 = -1
     ctx        as TKREXPR_CTX
+    onMade     as RD_ReportMadeSub        ' after each CreateReport (a generated report attaches its events)
+    onMadeUser as any ptr
 end type
 
 ' ---- small helpers shared by the files of the module --------------------------------------------
@@ -381,3 +384,11 @@ public function tkReportDef_GetReport( byval def as TK_REPORTDEF ptr ) as TK_REP
     if def = 0 then return 0
     return def->rpt
 end function
+
+' cb is called after each report the definition makes (CreateReport, CreateDoc, a viewer's Run), with
+' pUser: where a generated report sets its event handlers on the new TK_REPORT.
+public sub tkReportDef_SetReportMadeCallback( byval def as TK_REPORTDEF ptr, byval cb as RD_ReportMadeSub, byval pUser as any ptr )
+    if def = 0 then exit sub
+    def->onMade = cb
+    def->onMadeUser = pUser
+end sub

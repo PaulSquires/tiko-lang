@@ -717,6 +717,7 @@ public function tkReportDef_CreateReport( byval def as TK_REPORTDEF ptr, byref e
         RdFreeBuilt( def, false )
         return 0
     end if
+    if def->onMade then def->onMade( def, r, def->onMadeUser )
     return r
 end function
 

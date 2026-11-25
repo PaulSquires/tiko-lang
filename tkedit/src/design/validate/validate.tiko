@@ -589,6 +589,24 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
         CheckProps_( c, m, out_ )
         CheckColors_( c, m, out_ )
 
+        ' the report a ReportViewer shows (RD4): a module whose name is a name; its member <Name>Report
+        if len( c.Report ) then
+            dim as ustring rstem = c.Report
+            dim as long rk = instrrev( rstem, "/" )
+            rstem = mid( rstem, rk + 1 )
+            if c.TypeName <> "ReportViewer" then
+                out_.Push( c.Name & ": only a ReportViewer shows a report" )
+            elseif IsDottedName_( rstem ) = false orelse (instr( rstem, "." ) > 0) then
+                out_.Push( c.Name & ": report '" & c.Report & "' is not a report module (rptOrders, ../reports/rptOrders)" )
+            elseif len( c.ItemsSource ) then
+                out_.Push( c.Name & ": a ReportViewer shows a designed report or its own list, not both" )
+            else
+                for k as long = 0 to doc.Controls.Count( ) - 1
+                    if lcase( doc.Controls[k].Name ) = lcase( c.Name & "Report" ) then out_.Push( c.Name & ": its report member " & c.Name & "Report is the name of a control" )
+                next
+            end if
+        end if
+
         ' data binding (B1): a field of the form's DataType, on a control that has a value to move
         if len( c.Bind ) then
             if len( m->BindKind ) = 0 then

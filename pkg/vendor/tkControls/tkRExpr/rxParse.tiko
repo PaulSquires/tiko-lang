@@ -194,7 +194,7 @@ function RX_PARSER.FindField( byref nm as const ustring ) as int32
     for f as int32 = 0 to sch->nFields - 1
         if lcase( sch->names(f) ) = l then return f
     next
-    if (len( sch->defaultSource ) > 0) andalso (instr( l, "." ) = 0) then
+    if len( sch->defaultSource ) > 0 then            ' [Qty], [Home.City]: under the default source
         dim as ustring q = lcase( sch->defaultSource ) & "." & l
         for f as int32 = 0 to sch->nFields - 1
             if lcase( sch->names(f) ) = q then return f

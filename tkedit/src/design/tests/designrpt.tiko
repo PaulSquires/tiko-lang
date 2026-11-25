@@ -1,0 +1,115 @@
+' designall: the Report Designer's generator (RD4). The golden .tkreport (every source kind, both
+' events, a parameter of each kind) generates its golden .design.tiko byte for byte; the rules the
+' golden stands for are spelled out so a careless --accept still shows; Check refuses what can't be
+' generated; formtree generates and checks .tkreport files like forms.
+
+private function LoadRpt( byref text as const ustring ) as TK_REPORTDEF ptr
+    dim as ustring errs
+    dim as TK_REPORTDEF ptr d = tkReportDef_LoadText( text, errs )
+    if d = 0 then print "  (load: "; errs; ")"
+    return d
+end function
+
+private function CheckProblems( byref text as const ustring, byref moduleName as const ustring = "rptTest" ) as ustring
+    dim as TK_REPORTDEF ptr d = LoadRpt( text )
+    if d = 0 then return "(does not load)"
+    dim as Array( of ustring ) p
+    rcodegen.Check( d, moduleName, p )
+    tkReportDef_Destroy( d )
+    dim as ustring all_
+    for each s as ustring in p
+        all_ &= s & LF
+    next
+    return all_
+end function
+
+sub RptRefused( byref text as const ustring, byref want as const ustring, byref moduleName as const ustring = "rptTest" )
+    dim as ustring got = CheckProblems( text, moduleName )
+    Check( instr( got, want ) > 0, "report refused: " & want, got )
+end sub
+
+sub ReportCodegenSuite( byval bAccept as boolean )
+    const as string dir_ = "tests/golden/rptGolden/"
+    dim as ustring none_
+    dim as ustring source = fs.ReadAllText( dir_ & "rptGolden.tkreport" ).ValueOr( none_ )
+    Check( len( source ) > 0, "report: the golden .tkreport was found" )
+    dim as TK_REPORTDEF ptr d = LoadRpt( source )
+    Check( d <> 0, "report: the golden loads" )
+    if d = 0 then exit sub
+    dim as Array( of ustring ) p
+    rcodegen.Check( d, "rptGolden", p )
+    Check( p.Count( ) = 0, "report: the golden passes Check" )
+    dim as ustring t = rcodegen.Generate( d, "rptGolden", "rptGolden.tkreport", source )
+    tkReportDef_Destroy( d )
+    if bAccept then fs.WriteAllText( dir_ & "rptGolden.design.tiko", t )
+    dim as ustring golden = codegen.WithoutCr( fs.ReadAllText( dir_ & "rptGolden.design.tiko" ).ValueOr( none_ ) )
+    Check( t = golden, "report: the generator matches its golden", len( t ) & " vs " & len( golden ) )
+    ' the rules the golden stands for
+    Check( instr( t, LF & "#embed rptGolden_Layout_ ""rptGolden.tkreport""" & LF ) > 0, "report: the layout embedded" )
+    Check( instr( t, "' source-hash: " & codegen.SourceHash( source ) & LF ) > 0, "report: the source's hash" )
+    Check( instr( t, "#import ""../shopdata""" & LF ) > 0, "report: the data module imported" )
+    Check( (instr( t, "#import ""vendor/tkControls/tkReportSqlite""" ) > 0) andalso (instr( t, "#import ""vendor/tkControls/tkReportGrid""" ) > 0), _
+           "report: the sqlite and grid modules when a source needs them" )
+    HasLine( t, "Label as ustring", "report: a text parameter" )
+    HasLine( t, "Min as int64", "report: an int parameter" )
+    HasLine( t, "Rate as float64", "report: a float parameter" )
+    HasLine( t, "Paid as boolean", "report: a bool parameter" )
+    HasLine( t, "From as TKDATE", "report: a date parameter" )
+    HasLine( t, "At as TKTIME", "report: a time parameter" )
+    HasLine( t, "declare sub SetOrders( byref rows as Array( of shopdata.Order ) )", "report: an array master's setter" )
+    Check( instr( t, "SetLines" ) = 0, "report: no setter for a child" )
+    HasLine( t, "declare sub SetStockGrid( byval hGrid as TK_WIDGET ptr )", "report: a grid's setter" )
+    HasLine( t, "declare sub SetExtraSource( byref src as TKREPORT_SOURCE )", "report: a host source's setter" )
+    HasLine( t, "declare sub SetDatabase( byval db as sqlite3 ptr )", "report: the database setter" )
+    HasLine( t, "declare function OnBefore( byval band as TK_RBAND ptr, byval row as TK_VALUE ptr ) as boolean", "report: BeforePrint's handler" )
+    HasLine( t, "declare sub OnPaint( byval item as TKREPORT_ITEM ptr, byval pg as TK_PAGE ptr, byref rc as TKRECTF, byval row as TK_VALUE ptr )", "report: PaintItem's handler" )
+    HasLine( t, "case 1 : tkBind_ToValue( r_.Ship.City, @v )", "report: a field path read by tkBind_ToValue" )
+    HasLine( t, "dim byref as shopdata.Line r_ = a_[m].Lines[row]", "report: a child's row through its relation" )
+    HasLine( t, "tkReportDef_BindArrayChild( def_, ""Lines"", @rows, @Lines_Count_, @Lines_Value_ )", "report: the child bound with its master" )
+    HasLine( t, "    Orders_Rows_ = shopdata.Orders( )", "report: items_source when the program gives no rows" )
+    HasLine( t, "tkReportDef_SetReportMadeCallback( def_, @rptGolden_Made_, @this )", "report: the handlers attached to every report made" )
+    HasLine( t, "From = v_.d", "report: a parameter starts at its default" )
+    HasLine( t, "v_.SetTime( At )", "report: a parameter set into the definition" )
+    ' a report with no events, arrays or sql: none of their code
+    dim as ustring plain = "format = 1" & LF & "[[source]]" & LF & "name = ""S""" & LF & "[[band]]" & LF & "id = ""d""" & LF & "kind = ""detail""" & LF
+    d = LoadRpt( plain )
+    dim as ustring tp = rcodegen.Generate( d, "rptPlain", "rptPlain.tkreport", plain )
+    tkReportDef_Destroy( d )
+    Check( (instr( tp, "_Made_" ) = 0) andalso (instr( tp, "Array(" ) = 0) andalso (instr( tp, "sqlite" ) = 0) andalso (instr( tp, "containers" ) = 0), _
+           "report: a plain report has no event, array or sql code", tp )
+    ' Check
+    dim as ustring hdr = "format = 1" & LF
+    RptRefused( hdr & "[[source]]" & LF & "name = ""A""" & LF & "kind = ""array""" & LF, "needs its item_type" )
+    RptRefused( hdr & "[[source]]" & LF & "name = ""A""" & LF & "kind = ""array""" & LF & "item_type = ""T""" & LF, "lists its fields" )
+    RptRefused( hdr & "[[source]]" & LF & "name = ""A""" & LF & "kind = ""array""" & LF & "item_type = ""T""" & LF & _
+                "  [[source.field]]" & LF & "  name = ""a b""" & LF, "field 'a b' is not a field" )
+    RptRefused( hdr & "[[source]]" & LF & "name = ""M""" & LF & "kind = ""sqlite""" & LF & "sql = ""x""" & LF & _
+                "[[source]]" & LF & "name = ""C""" & LF & "kind = ""array""" & LF & "parent = ""M""" & LF & "item_type = ""T""" & LF & _
+                "  [[source.field]]" & LF & "  name = ""a""" & LF, "an array child needs an array master" )
+    RptRefused( hdr & "[[source]]" & LF & "name = ""My Grid""" & LF & "kind = ""grid""" & LF, "must be a name" )
+    RptRefused( hdr & "[[source]]" & LF & "name = ""L""" & LF & "kind = ""listtree""" & LF, "not generated yet" )
+    RptRefused( hdr & "[[parameter]]" & LF & "name = ""CreateDoc""" & LF, "a member the report already has" )
+    RptRefused( hdr & "[[parameter]]" & LF & "name = ""SetX""" & LF & "[[source]]" & LF & "name = ""X""" & LF, "a member the report already has" )
+    RptRefused( hdr & "[report]" & LF & "[report.events]" & LF & "BeforePrint = ""On Before""" & LF, "is not a name" )
+    RptRefused( hdr, "is not a name", "rpt-1" )
+    Check( CheckProblems( hdr & "[[parameter]]" & LF & "name = ""Settle""" & LF ) = "", "report: a parameter may start with Set when no setter has its name" )
+    ' formtree: a .tkreport is generated and checked like a form
+    dim as ustring tmp = fs.CreateTempDir( "rdtree" ).ValueOr( none_ )
+    fs.WriteAllText( fs.PathJoin( tmp, "rptTree.tkreport" ), plain )
+    dim as Array( of ustring ) rep
+    dim as long nBad = formtree.Process( tmp, false, rep )
+    Check( (nBad = 1) andalso (rep.Count( ) = 1) andalso (instr( rep[0], "rptTree.design.tiko: stale" ) > 0), "report: --check-forms finds a report with no module" )
+    dim as Array( of ustring ) rep1
+    formtree.Process( tmp, true, rep1 )
+    dim as Array( of ustring ) rep2
+    Check( (formtree.Process( tmp, false, rep2 ) = 0) andalso fs.IsFile( fs.PathJoin( tmp, "rptTree.design.tiko" ) ), "report: --generate-forms writes it; then it is current" )
+    fs.WriteAllText( fs.PathJoin( tmp, "rptBad.tkreport" ), "format = 1" & LF & "[[band]]" & LF & "id = ""b""" & LF & "kind = ""nope""" & LF )
+    dim as Array( of ustring ) rep3
+    formtree.Process( tmp, false, rep3 )
+    dim as boolean named
+    for each s as ustring in rep3
+        if (instr( s, "rptBad.tkreport: band 'b'" ) > 0) then named = true
+    next
+    Check( named, "report: a file that does not read: its problem, with the file's name" )
+    fs.RemoveDirAll( tmp )
+end sub

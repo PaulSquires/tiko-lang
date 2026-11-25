@@ -79,6 +79,8 @@ public type FormControl
     ContextMenu as ustring          ' a PopupMenu of the form that a right-click on it opens, "" = none
     Locked as boolean               ' Design > Lock Controls: the designer won't move or resize it
     TabIndex as long                ' its place in Tab order among its siblings (1 first); 0 = none
+    Report as ustring               ' a ReportViewer: the report module it shows ("../rptOrders"; Report Designer
+                                    ' RD4); the form gets a member <Name>Report of that module's Report type
     Bind as ustring                 ' the field of the form's DataType its value moves to and from ("Name",
                                     ' "Address.City"); "" = not bound. See FormDoc.DataType.
     Bind2 as ustring                ' a two-value control's second field (a range Slider's upper value,
