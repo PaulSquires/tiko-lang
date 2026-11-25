@@ -301,6 +301,19 @@ private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q
             end if
         case TKRI_CUSTOM
             if r->PaintItem then r->PaintItem( r, @it, pg, rc, @q.vals(0) )
+        case is > TKRI_CUSTOM
+            ' an installed kind: its registered painter, given the field's text (or the item's Text)
+            dim as ustring value = it.text
+            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then value = tkReport_FormatValue( q.vals(it.field), it.fmt, r->boolText )
+            dim as RP_ItemPainterSub paint_ = tkReport_GetItemPainter( it.kind )
+            if paint_ then
+                paint_( r, @it, pg, rc, value )
+            else
+                ' nothing installed draws it: say so on the page rather than leave a hole
+                tkPage_SetLineColor( pg, &hFFE06C75ul )
+                tkPage_SetPen( pg, 0.5 )
+                tkPage_StrokeRect( pg, rc )
+            end if
         end select
         if it.borders then
             tkPage_SetLineColor( pg, it.lineColor )

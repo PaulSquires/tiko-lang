@@ -62,6 +62,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar |
 | `tkReport` | banded reports (report / page / group headers and footers, detail, summaries, page info) over callback, ListTree or custom sources; the table printer for a ListTree |
 | `tkReportSqlite` | an SQLite query as a tkReport's data |
+| `tkReportBarcode` | barcodes in tkReport bands: `tkRBand_AddBarcode` draws a field's text as any tkBarcode symbology at its physical size (vector in PDF); `tkReportBarcode_Install` registers the painter, so a report without barcodes links no libzint |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
