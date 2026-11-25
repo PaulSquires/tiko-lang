@@ -2,7 +2,7 @@
 
 # tkStack
 
-A column (or a row) of controls, each after the one before: the layout of a phone screen.
+Lays out controls one after another in a column or a row, the layout of a phone screen.
 
 ```freebasic
 #import "vendor/tkControls/tkStack"

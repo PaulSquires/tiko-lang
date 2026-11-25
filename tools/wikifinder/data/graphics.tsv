@@ -73,6 +73,7 @@ tkIconPanel	tkIconPanel	-	ctl-command	vendor/tkControls/tkIconPanel	-	Draws a ro
 tkStatusBar	tkStatusBar	-	ctl-command	vendor/tkControls/tkStatusBar	-	Draws a status bar of text panels, one of which stretches to fill the leftover width.
 tkSplitter	tkSplitter	-	ctl-layout	vendor/tkControls/tkSplitter	-	Draws a draggable divider bar between two panes and reports where the user drags it.
 tkScrollPanel	tkScrollPanel	-	ctl-layout	vendor/tkControls/tkScrollPanel	-	Scrolls a page of ordinary child widgets that is taller than the space it is shown in.
+tkStack	tkStack	-	ctl-layout	vendor/tkControls/tkStack	-	Lays out controls one after another in a column or a row, the layout of a phone screen.
 tkVScrollBar	tkVScrollBar	-	ctl-layout	vendor/tkControls/tkVScrollBar	-	Draws a vertical scrollbar that you size, feed a range, and listen to.
 tkHScrollBar	tkHScrollBar	-	ctl-layout	vendor/tkControls/tkHScrollBar	-	Draws a horizontal scrollbar that you size, feed a range, and listen to.
 tkMessageBox	tkMessageBox	-	ctl-popup	vendor/tkControls/tkMessageBox	-	Shows a themed modal message box and returns the id of the button that closed it.

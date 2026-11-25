@@ -63,6 +63,7 @@ from	vendor/tkControls/tkIconPanel	import	tkIconPanel
 from	vendor/tkControls/tkStatusBar	import	tkStatusBar
 from	vendor/tkControls/tkSplitter	import	tkSplitter
 from	vendor/tkControls/tkScrollPanel	import	tkScrollPanel
+from	vendor/tkControls/tkStack	import	tkStack
 from	vendor/tkControls/tkVScrollBar	import	tkVScrollBar
 from	vendor/tkControls/tkHScrollBar	import	tkHScrollBar
 from	vendor/tkControls/tkMessageBox	import	tkMessageBox
