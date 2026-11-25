@@ -30,6 +30,12 @@
 #import "../tkTextBox"
 #import "../tkComboBox"
 #import "../tkFileDialog"
+#import "../tkReportDef" public
+#import "../tkLabel"
+#import "../tkCheckBox"
+#import "../tkDatePicker"
+#import "../tkTimePicker"
+#import "../tkButton"
 using tkPrintPreview
 using tkPrintDialog
 using tkReport
@@ -39,6 +45,14 @@ using tkStatusBar
 using tkTextBox
 using tkComboBox
 using tkFileDialog
+using tkReportDef
+using tkLabel
+using tkCheckBox
+using tkDatePicker
+using tkTimePicker
+using tkButton
+using tkCalendar
+using tkTimePanel
 using tkPrinter
 using tkPdf
 using tkPrint
@@ -88,6 +102,15 @@ public type TKREPORTVIEWER_STATE
     colW(any)    as long                 ' each field's width, in pixels at 96 dpi
     nCols        as long
     BuildReport  as RV_BuildReportSub
+    ' a report definition and its parameter strip (Report Designer RD3, rvParams.tiko)
+    def          as TK_REPORTDEF ptr      ' borrowed
+    defDoc       as TK_PRINTDOC ptr       ' owned
+    pLbl(any)    as TK_WIDGET ptr
+    pCtl(any)    as TK_WIDGET ptr
+    pKind(any)   as long
+    nPar         as long
+    hRun         as TK_WIDGET ptr
+    stripH       as long
 end type
 
 function RV( byval w as TK_WIDGET ptr ) as TKREPORTVIEWER_STATE ptr
@@ -119,6 +142,7 @@ private sub Arrange( byval p as TKREPORTVIEWER_STATE ptr )
     end if
     tkWidget_Show( p->hBar, p->bToolbar )
     tkWidget_Show( p->hStatus, p->bStatus )
+    top += RvStripLayout( p, top )
     tkWidget_SetPos( p->hPv, 0, top, w->cw, iif( bottom > top, bottom - top, 0 ) )
 end sub
 
@@ -270,6 +294,7 @@ function RvProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     case TKM_DESTROY
         ' the preview (a child) is gone already
         if p->rptDoc then tkPrintDoc_Destroy( p->rptDoc )
+        if p->defDoc then tkPrintDoc_Destroy( p->defDoc )
         if p->rpt then tkReport_Destroy( p->rpt )
         delete p
         w->pData = 0

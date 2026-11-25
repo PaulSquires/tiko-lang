@@ -149,3 +149,5 @@ sub tkReportViewer_RefreshReport( byval hViewer as TK_WIDGET ptr )
 - [tkReport](tkReport)
 - [tkPrintDialog](tkPrintDialog)
 - [tkPrinter](tkPrinter)
+
+To draw a report instead of building it in code, see the [Report Designer](Report-Designer).

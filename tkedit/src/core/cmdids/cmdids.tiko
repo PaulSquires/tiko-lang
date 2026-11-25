@@ -151,6 +151,7 @@ public enum Cmd explicit
     RunToCursor
     ToggleBreakpoint
     DeleteAllBreakpoints
+    FormNewReport           ' the Report Designer's New Report (RD8)
     Last_                   ' not a command: the count
 end enum
 
@@ -346,6 +347,7 @@ constructor CommandTable( )
 
     g = MenuGroup.Design
     this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "" )
+    this.Def( Cmd.FormNewReport, "FormNewReport", g, "New Report...", "" )
     this.Def( Cmd.FormTheme, "FormTheme", g, "Project Theme...", "" )
     this.Def( Cmd.FormResources, "FormResources", g, "Resource Center...", "" )
     this.Def( Cmd.FormLanguages, "FormLanguages", g, "Languages...", "" )

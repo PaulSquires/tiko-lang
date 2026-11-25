@@ -196,6 +196,7 @@ public type Database
     ' the Form Designer's Bind (B1): a record type's data fields, "Address.City" one level down
     declare function TypeByName( byref name_ as const ustring ) as SymRef
     declare function FieldPaths( byref typeName as const ustring ) as Array( of ustring )
+    declare function RelationPaths( byref typeName as const ustring ) as Array( of ustring )
     declare function ElementType( byref typeName as const ustring, byref path as const ustring ) as ustring
     declare function Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
     declare function MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
@@ -435,6 +436,16 @@ function Database.FieldPaths( byref typeName as const ustring ) as Array( of ust
             dim as Sym y2 = this.Item( r2 )
             if Bindable_( y2 ) then out_.Push( y.Name & "." & y2.Name )
         next
+    next
+    return out_
+end function
+
+' The fields of a record that are an Array( of T ) -- what a report's child source can follow as its
+' relation (Report Designer RD4): FieldPaths' entries with an element type, in the same order.
+function Database.RelationPaths( byref typeName as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) out_
+    for each p as ustring in this.FieldPaths( typeName )
+        if len( this.ElementType( typeName, p ) ) then out_.Push( p )
     next
     return out_
 end function

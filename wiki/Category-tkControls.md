@@ -8,7 +8,7 @@ Each control is driven through procedures and callbacks: setters change it silen
 
 Every control draws itself. There is no system control underneath, so a window looks the same on every machine and can be themed to any palette, dark ones included.
 
-To draw a window instead of coding it, see the [Form Designer](Form-Designer). To give a program a
+To draw a window instead of coding it, see the [Form Designer](Form-Designer). To draw a report, see the [Report Designer](Report-Designer). To give a program a
 colour scheme, styles and light/dark switching, see the [Themes Tutorial](Themes-Tutorial). The
 [Contacts Tutorial](Contacts-Tutorial) builds a complete program in the designer, with SQLite.
 
@@ -87,7 +87,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner), [tkInfoBar](tkInfoBar), [tkToast](tkToast) |
 | Static display | [tkLabel](tkLabel), [tkPicture](tkPicture), [tkBadge](tkBadge), [tkAvatar](tkAvatar), [tkAvatarGroup](tkAvatarGroup), [tkBarcode](tkBarcode) |
 | Data display | [tkChart](tkChart) |
-| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer), [tkReport](tkReport), [tkReportBarcode](tkBarcode#reports) |
+| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer), [tkReport](tkReport), [Report Designer](Report-Designer), [tkReportBarcode](tkBarcode#reports) |
 | Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
 
 ## Support modules

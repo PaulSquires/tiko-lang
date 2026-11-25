@@ -109,6 +109,7 @@ public sub Run( byref c as tally.Checker )
     c.Same( sdb.ElementType( "shopdata.Shop", "Lines" ), "OrderLine", "ElementType: an Array( of T ) field" )
     c.Same( sdb.ElementType( "Doc", "Body.Lines" ), "OrderLine", "ElementType: one level into a TYPE field" )
     c.Same( sdb.ElementType( "Shop", "Owner" ) & "|" & sdb.ElementType( "Shop", "Nope" ), "|", "ElementType: not an array, not a field" )
+    c.Same( Joined( sdb.RelationPaths( "shopdata.Shop" ) ) & "/" & Joined( sdb.RelationPaths( "Doc" ) ), "Lines/Body.Lines", "RelationPaths: the Array( of T ) fields, also one level in (RD4)" )
     dim as symboldb.Database fdb
     fdb.Install( frm )
     c.Same( Joined( fdb.MemberNames( "Timer1", "c:\p\form.tiko", 7 ) ), "Enabled|Interval", "Timer1. inside sub Form.Go: its own type's field, an implicit this" )

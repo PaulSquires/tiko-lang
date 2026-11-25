@@ -28,6 +28,15 @@
 #import "tkd/edits"
 #import "tkd/reconcile"
 #import "tkd/catalog"
+#import "tkd/rcodegen"
+#import "tkd/redits"
+#import "tkd/rmodel"
+#import "tkd/rrecords"
+#import "tkd/rwizard"
+#import "tkd/rpreview"
+#import "vendor/tkControls/tkReportDef"
+#import "vendor/tkControls/tkBind"
+#import "vendor/tkControls/tkPrint"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkMeta"
@@ -38,6 +47,9 @@ using tkLayout
 using tkTheme
 using tkMeta
 using tkIconPanel
+using tkReportDef
+using tkBind
+using tkPrint
 
 const as string LF = chr( 10 )
 const as string CRLF = chr( 13, 10 )
@@ -1301,6 +1313,24 @@ sub ReportViewerSuite( )
         & "        next" & LF & "        tkReportViewer_RefreshReport( rv.Handle )" & LF ) > 0, "viewer report: Fill, a value per Field, then RefreshReport", gr )
     Check( (instr( gr, "#import ""vendor/tkControls/tkReport""" ) > 0) andalso (reconcile.ImportsFor( "byval rpt as TK_REPORT ptr", "tkReportViewer" ).Count( ) = 1) _
         andalso (reconcile.ImportsFor( "byval rpt as TK_REPORT ptr", "tkReportViewer" )[0] = "tkReport"), "viewer report: BuildReport's TK_REPORT brings tkReport, to both files" )
+
+    ' RD4: a designed report -- its module imported once, a member per viewer of the report's own type
+    dim as ustring two = Header( ) & Ctl( "rvA", "ReportViewer", "report = ""../rptOrders""" & LF ) _
+        & Ctl( "rvB", "ReportViewer", "report = ""../rptOrders""" & LF ) & Ctl( "rvC", "ReportViewer", "report = ""rptMixed""" & LF )
+    Accepted( two, "designed report: viewers showing report modules" )
+    dim as FormDoc dd
+    ReadForm( two, dd )
+    Check( dd.Controls[0].Report = "../rptOrders", "designed report: read from the form" )
+    dim as ustring gd = codegen.Generate( dd, "frmD", "frmD.tkform", two )
+    Check( (instr( gd, "#import ""../rptOrders""" & LF ) > 0) andalso (instr( gd, "#import ""../rptOrders""" & LF ) = instrrev( gd, "#import ""../rptOrders""" & LF )) _
+        andalso (instr( gd, "#import ""rptMixed""" & LF ) > 0), "designed report: each report module imported once", gd )
+    HasLine( gd, "rvAReport as rptOrders.Report", "designed report: the member, of the report's type" )
+    HasLine( gd, "rvCReport as rptMixed.Report", "designed report: a second report's member" )
+    Check( instr( formfile.Render( dd ), "report = ""../rptOrders""" & LF ) > 0, "designed report: written back" )
+    Refused( Header( ) & Ctl( "b", "Button", "report = ""rptOrders""" & LF ), "only a ReportViewer shows a report" )
+    Refused( Header( ) & Ctl( "rv", "ReportViewer", "report = ""../rpt Orders""" & LF ), "is not a report module" )
+    Refused( Header( ) & Ctl( "rv", "ReportViewer", "report = ""rptOrders""" & LF ) & Ctl( "rvReport", "Button" ), "rvReport is the name of a control" )
+    Refused( Header( ) & Ctl( "rv", "ReportViewer", "report = ""rptOrders""" & LF & "items_source = ""S""" & LF & "item_type = ""T""" & LF ), "not both" )
 end sub
 
 sub SliderSuite( )
@@ -3157,6 +3187,8 @@ sub DataGridSuite( byval bAccept as boolean )
     HasLine( tn, "if tkDataGrid_IsEditing( grdLines.Handle ) then return true", "datagrid: IsDirty counts a grid's open edit" )
 end sub
 
+#include once "designrpt.tiko"
+
 dim as boolean bAccept = (command( 1 ) = "--accept")
 dim as ustring none
 dim as ustring source = fs.ReadAllText( "tests/golden/frmGolden/frmGolden.tkform" ).ValueOr( none )
@@ -3227,5 +3259,10 @@ AutoCompleteSuite( )
 RbacSuite( )
 NavSuite( )
 DataGridSuite( bAccept )
+ReportCodegenSuite( bAccept )
+ReportEditsSuite( )
+ReportPalettesSuite( )
+ReportDialogsSuite( )
+ReportWizardSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

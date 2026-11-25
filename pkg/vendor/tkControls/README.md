@@ -60,10 +60,13 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkPdf` | a print document as a PDF file: vector shapes, real (searchable) text in embedded fonts, images, links; no library linked |
 | `tkPrinter` | printers and print jobs: Windows (winspool, raster at the printer's resolution), CUPS on Linux / macOS (a PDF job; libcups loaded at run time, `lp` without it) |
 | `tkPrintDialog` | the Print and Page Setup dialogs, tk-drawn on every OS |
-| `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar |
-| `tkReport` | banded reports (report / page / group headers and footers, detail, summaries, page info) over callback, ListTree or custom sources; the table printer for a ListTree |
-| `tkReportSqlite` | an SQLite query as a tkReport's data |
+| `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar; a tkReportDef shown with a parameter strip (a control per parameter, and Run) |
+| `tkReport` | banded reports (report / page / group headers and footers, detail, no-data, summaries, page info) over callback, table, ListTree or custom sources; expressions (tkRExpr): calculated fields, filters, groups, items, totals with their scope, late values, rules and visibility; the table printer for a ListTree |
+| `tkReportSqlite` | an SQLite query as a tkReport's data: positional or named parameters; sorts by wrapping the query |
 | `tkReportBarcode` | barcodes in tkReport bands: `tkRBand_AddBarcode` draws a field's text as any tkBarcode symbology at its physical size (vector in PDF); `tkReportBarcode_Install` registers the painter, so a report without barcodes links no libzint |
+| `tkReportGrid` | a tkDataGrid as a tkReport's data: its visible columns in display order, its rows in view order, typed values |
+| `tkReportDef` | a report defined in a `.tkreport` file (TOML): read strictly, written back canonically, laid out by tkReport over the sources bound to it by name (SQLite, a DataGrid, the host's own), master-detail by a join, each source's fields checked against the file |
+| `tkRExpr` | the report expression language: typed, sandboxed expressions over `TK_VALUE` (fields, parameters, totals, report values, text / number / date functions, `Format` masks), compiled once and evaluated per row |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |

@@ -16,12 +16,20 @@
 ' the queue while they fit above the page footer's reserved height. A band never splits (one taller
 ' than the page is cut, with a warning). A group header is kept with what follows it down to the
 ' first Detail (no header alone at the bottom of a page). PageBreakBefore / After force a new page.
+' A footer still queued when a page fills goes to the top of the next, under the repeated headers
+' (decided 2026-11-25, Report Designer RD2: it prints where it falls, as DevExpress's does).
+'
+' EXPRESSIONS (rpExpr.tiko): a row read gets its calculated fields, then the filter; the
+' expressions' totals are fed as rows are read (group, report) or drawn (page); late items print
+' into slots filled when their scope closes.
 #module "tkReport"
 
 #import "../tkPrint"
 #import "../tkBind"
+#import "../tkRExpr"
 using tkPrint
 using tkBind
+using tkRExpr
 using tkHost
 using tkPaint
 
@@ -46,10 +54,21 @@ private function KeyEq( byref a as TK_VALUE, byref b as TK_VALUE ) as boolean
 end function
 
 private sub ReadRow( byval r as TK_REPORT ptr )
-    for f as long = 0 to ubound( r->cur )
+    for f as long = 0 to r->nSrcF - 1
         r->src.GetValue( r->src.pCtx, f, r->cur(f) )
     next
+    RpCalcRow( r )
 end sub
+
+' The next row that passes the filter into cur; FALSE at the end of the rows.
+private function NextRow( byval r as TK_REPORT ptr ) as boolean
+    do
+        if r->src.MoveNext( r->src.pCtx ) = false then return false
+        ReadRow( r )
+        if RpPasses( r ) then return true
+        r->nFiltered += 1
+    loop
+end function
 
 private function SumOf( byval r as TK_REPORT ptr, byval i as long ) as double
     dim byref as RP_ACC a = r->acc(i)
@@ -92,7 +111,9 @@ private sub AccAdd( byval r as TK_REPORT ptr )
 end sub
 
 ' Queue a band (when the report has one) with these values and the summaries as they stand.
-private sub QPush( byval r as TK_REPORT ptr, byval kind as long, byval level as long, vals() as TK_VALUE, byval open_ as long = -1 )
+' rowNo / grpRowNo: what RowNumber / GroupRowNumber read in its expressions (-1 = the current row's).
+private sub QPush( byval r as TK_REPORT ptr, byval kind as long, byval level as long, vals() as TK_VALUE, _
+                   byval open_ as long = -1, byval rowNo as integer = -1, byval grpRowNo as integer = -1 )
     dim as TKREPORT_BAND ptr b = FindBand( r, kind, level )
     if b = 0 then exit sub
     if r->nQ > ubound( r->q ) then redim preserve r->q( 0 to r->nQ * 2 + 7 )
@@ -103,6 +124,9 @@ private sub QPush( byval r as TK_REPORT ptr, byval kind as long, byval level as 
     for f as long = 0 to ubound( vals ) : it.vals(f) = vals(f) : next
     redim it.sums( 0 to iif( r->nSum > 0, r->nSum - 1, 0 ) )
     for i as long = 0 to r->nSum - 1 : it.sums(i) = SumOf( r, i ) : next
+    RpXaSnapshot( r, it.xv() )
+    it.rowNo = iif( rowNo >= 0, rowNo, r->nRead )
+    it.grpRowNo = iif( grpRowNo >= 0, grpRowNo, r->grpRow )
     r->nQ += 1
 end sub
 
@@ -116,36 +140,61 @@ end sub
 private sub Advance( byval r as TK_REPORT ptr )
     dim as TK_VALUE prev( 0 to ubound( r->cur ) )
     for f as long = 0 to ubound( r->cur ) : prev(f) = r->cur(f) : next
-    if r->src.MoveNext( r->src.pCtx ) then
-        ReadRow( r )
+    dim as integer prevRow = r->nRead, prevGrpRow = r->grpRow
+    if NextRow( r ) then
         r->nRead += 1
         dim as long k = r->nGroups
         for L as long = 0 to r->nGroups - 1
             if KeyEq( r->cur(r->groupKey(L)), r->keys(L) ) = false then k = L : exit for
         next
         for L as long = r->nGroups - 1 to k step -1
-            QPush( r, TKRB_GROUP_FOOTER, L, prev(), L )
+            QPush( r, TKRB_GROUP_FOOTER, L, prev(), L, prevRow, prevGrpRow )
         next
+        if k < r->nGroups then RpLateClose( r, RP_LATE_GROUP, k )
         AccReset( r, k )
+        RpXaReset( r, k )
+        r->grpRow = iif( k < r->nGroups, 1, r->grpRow + 1 )
         for L as long = k to r->nGroups - 1
             r->keys(L) = r->cur(r->groupKey(L))
             QPush( r, TKRB_GROUP_HEADER, L, r->cur(), L )
         next
         AccAdd( r )
+        RpXaAddRow( r, k )
         QPush( r, TKRB_DETAIL, 0, r->cur() )
     else
         r->eof = true
         for L as long = r->nGroups - 1 to 0 step -1
-            QPush( r, TKRB_GROUP_FOOTER, L, prev(), L )
+            QPush( r, TKRB_GROUP_FOOTER, L, prev(), L, prevRow, prevGrpRow )
         next
-        QPush( r, TKRB_REPORT_FOOTER, 0, prev() )
+        RpLateClose( r, RP_LATE_GROUP, 0 )
+        RpLateClose( r, RP_LATE_REPORT )
+        QPush( r, TKRB_REPORT_FOOTER, 0, prev(), -1, prevRow, prevGrpRow )
     end if
 end sub
 
-' Start (again): rewind, index the summaries, read the first row.
+' Start (again): compile what needs it, sort, rewind, index the summaries, read the first row.
 private sub RpInit( byval r as TK_REPORT ptr, byval doc as TK_PRINTDOC ptr )
-    r->nQ = 0 : r->openLevels = 0 : r->eof = false : r->nRead = 0
+    r->nQ = 0 : r->openLevels = 0 : r->eof = false : r->nRead = 0 : r->nFiltered = 0 : r->grpRow = 0
+    r->nLate = 0 : r->doc = doc : r->curPage = 0
+    r->ctx.pageCount = 1
+    r->ctx.printDate.wYear = 0                 ' the print moment: read again for this layout
+    r->ctx.printTime.wHour = -1
     if r->bSrc = false then r->eof = true : exit sub
+    if r->prepared = false then
+        dim as ustring errs
+        if tkReport_Prepare( r, errs ) = false then tkPrintDoc_Warn( doc, errs )
+    elseif len( r->prepErrors ) then
+        tkPrintDoc_Warn( doc, r->prepErrors )
+    end if
+    if (r->nSortK > 0) andalso (r->sortDone = false) then
+        if r->src.Sort = 0 then
+            tkPrintDoc_Warn( doc, "the report's data can't be sorted by its source: rows are in the source's order" )
+        elseif r->src.Sort( r->src.pCtx, @r->sortK(0), r->nSortK ) = false then
+            tkPrintDoc_Warn( doc, "the report's data could not be sorted: rows are in the source's order" )
+        end if
+        r->sortDone = true
+        r->started = false
+    end if
     if r->started andalso (r->src.Rewind( r->src.pCtx ) = false) then
         tkPrintDoc_Warn( doc, "the report's data cannot be read twice: lay it out once" )
         r->eof = true
@@ -155,7 +204,7 @@ private sub RpInit( byval r as TK_REPORT ptr, byval doc as TK_PRINTDOC ptr )
     r->started = true
     ' rows advance when a Detail is drawn: a report with none gets an empty one
     if FindBand( r, TKRB_DETAIL, 0 ) = 0 then tkRBand_SetHeight( tkReport_GetBand( r, TKRB_DETAIL ), 0 )
-    dim as long nF = r->src.FieldCount( r->src.pCtx )
+    dim as long nF = r->nSrcF + r->nCalc
     redim r->cur( 0 to iif( nF > 0, nF - 1, 0 ) )
     redim r->keys( 0 to iif( r->nGroups > 0, r->nGroups - 1, 0 ) )
     for L as long = 0 to r->nGroups - 1
@@ -175,10 +224,12 @@ private sub RpInit( byval r as TK_REPORT ptr, byval doc as TK_PRINTDOC ptr )
         next
     next
     redim r->acc( 0 to iif( r->nSum > 0, r->nSum - 1, 0 ) )
-    if r->src.MoveNext( r->src.pCtx ) then
-        ReadRow( r )
+    RpXaResetAll( r )
+    if NextRow( r ) then
         r->nRead = 1
+        r->grpRow = 1
         AccAdd( r )
+        RpXaAddRow( r, 0 )
         QPush( r, TKRB_REPORT_HEADER, 0, r->cur() )
         for L as long = 0 to r->nGroups - 1
             r->keys(L) = r->cur(r->groupKey(L))
@@ -187,7 +238,9 @@ private sub RpInit( byval r as TK_REPORT ptr, byval doc as TK_PRINTDOC ptr )
         QPush( r, TKRB_DETAIL, 0, r->cur() )
     else
         r->eof = true
+        for f as long = 0 to ubound( r->cur ) : r->cur(f).Clear( ) : next
         QPush( r, TKRB_REPORT_HEADER, 0, r->cur() )
+        QPush( r, TKRB_NO_DATA, 0, r->cur() )
         QPush( r, TKRB_REPORT_FOOTER, 0, r->cur() )
     end if
 end sub
@@ -205,12 +258,45 @@ private function ItemText( byval r as TK_REPORT ptr, byref it as TKREPORT_ITEM, 
         if it.fn = TKRS_COUNT then v.SetInt( clngint( q.sums(it.sumIdx) ) ) else v.SetFloat( q.sums(it.sumIdx) )
         if (len( it.fmt ) = 0) andalso (v.kind = TKV_FLOAT) then return RpNumber( v.f, 2, false )
         return tkReport_FormatValue( v, it.fmt, r->boolText )
+    case TKRI_EXPR, TKRI_TEXT
+        if it.px = 0 then return ""
+        RpCtxFor( r, q, it.aggBase )
+        if (len( it.fmt ) = 0) andalso (tkRExpr_Kind( it.px ) = TKV_BOOL) then
+            dim as TK_VALUE v
+            tkRExpr_Eval( it.px, r->ctx, v )
+            return tkReport_FormatValue( v, "", r->boolText )
+        end if
+        return tkRExpr_EvalText( it.px, r->ctx, it.fmt )
     end select
     return ""
 end function
 
 private function IsTextItem( byval kind as long ) as boolean
-    return (kind = TKRI_LABEL) orelse (kind = TKRI_FIELD) orelse (kind = TKRI_SUMMARY)
+    return (kind = TKRI_LABEL) orelse (kind = TKRI_FIELD) orelse (kind = TKRI_SUMMARY) orelse _
+           (kind = TKRI_EXPR) orelse (kind = TKRI_TEXT)
+end function
+
+' Whether item it shows for q, and its font and colours after its rules (the first true one applies).
+private function ItemStyle( byval r as TK_REPORT ptr, byref it as TKREPORT_ITEM, byref q as RP_QITEM, _
+                            byref fnt as TKFONTSPEC, byref fore as ulong, byref back as ulong ) as boolean
+    fnt = it.font : fore = it.fore : back = it.back
+    if it.pvis then
+        RpCtxFor( r, q, it.visBase )
+        if tkRExpr_EvalBool( it.pvis, r->ctx ) = false then return false
+    end if
+    for k as long = 0 to it.nRules - 1
+        dim byref as TKREPORT_RULE ru = it.rules(k)
+        if ru.px = 0 then continue for
+        RpCtxFor( r, q, ru.aggBase )
+        if tkRExpr_EvalBool( ru.px, r->ctx ) = false then continue for
+        if ru.hide then return false
+        if ru.setFore then fore = ru.fore
+        if ru.setBack then back = ru.back
+        if ru.setBold then fnt.bold = ru.bold
+        if ru.setItalic then fnt.italic = ru.italic
+        exit for
+    next
+    return true
 end function
 
 ' The band's height for these values: canGrow items wrapped to their width.
@@ -220,14 +306,88 @@ private function Measure( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byr
     if b->canGrow = false then return h
     for i as long = 0 to b->nItems - 1
         dim byref as TKREPORT_ITEM it = b->items(i)
-        if (it.canGrow = false) orelse (IsTextItem( it.kind ) = false) then continue for
-        tkPage_SetFont( pg, it.font )
+        if (it.canGrow = false) orelse (IsTextItem( it.kind ) = false) orelse (it.late <> 0) then continue for
+        dim as TKFONTSPEC fnt
+        dim as ulong fore, back
+        if ItemStyle( r, it, q, fnt, fore, back ) = false then continue for
+        tkPage_SetFont( pg, fnt )
         dim as single th = tkPage_MeasureWrapped( pg, ItemText( r, it, q ), it.rc.right - it.rc.left )
         dim as single need = it.rc.top + th + (b->height - it.rc.bottom)
         if need > h then h = need
     next
     return h
 end function
+
+' An item's background (a box fills its own, inside its rect, in tkReport_PaintItem).
+public sub tkReport_PaintItemBack( byval pg as TK_PAGE ptr, byref it as TKREPORT_ITEM, byref rc as TKRECTF, byval back as ulong )
+    if ((back shr 24) <> 0) andalso (it.kind <> TKRI_BOX) then
+        tkPage_SetFillColor( pg, back )
+        tkPage_FillRect( pg, rc )
+    end if
+end sub
+
+' An item's content and borders, after tkReport_PaintItemBack: what the engine prints and what the
+' Report Designer's canvas shows (WYSIWYG by construction). text is a text item's text, a page
+' item's text with {title} {date} {time} replaced, or an image's file; ticked is a check's value.
+' A late text item (it.late) and a custom item are the caller's; their borders are drawn here.
+public sub tkReport_PaintItem( byval pg as TK_PAGE ptr, byref it as TKREPORT_ITEM, byref rc as TKRECTF, byref fnt as TKFONTSPEC, _
+                               byval fore as ulong, byval back as ulong, byval text as ustring, byval ticked as boolean )
+    select case it.kind
+    case TKRI_LABEL, TKRI_FIELD, TKRI_SUMMARY, TKRI_EXPR, TKRI_TEXT
+        if it.late = 0 then
+            tkPage_SetFont( pg, fnt )
+            tkPage_SetTextColor( pg, fore )
+            dim as long fl = it.flags
+            if it.canGrow then fl or= TK_DT_WORDBREAK
+            tkPage_Text( pg, text, rc, fl )
+        end if
+    case TKRI_PAGEINFO
+        tkPage_SetFont( pg, fnt )
+        tkPage_SetTextColor( pg, fore )
+        if (instr( text, "{p}" ) > 0) orelse (instr( text, "{n}" ) > 0) then
+            tkPage_LateText( pg, rc, text, it.flags )
+        else
+            tkPage_Text( pg, text, rc, it.flags )
+        end if
+    case TKRI_LINE
+        tkPage_SetLineColor( pg, it.lineColor )
+        tkPage_SetPen( pg, it.penPt )
+        tkPage_Line( pg, rc.left, rc.top, rc.right, rc.bottom )
+    case TKRI_BOX
+        if (back shr 24) <> 0 then tkPage_SetFillColor( pg, back ) : tkPage_FillRect( pg, rc )
+        if it.penPt > 0 then
+            tkPage_SetLineColor( pg, it.lineColor )
+            tkPage_SetPen( pg, it.penPt )
+            tkPage_StrokeRect( pg, rc )
+        end if
+    case TKRI_IMAGE
+        if len( text ) then tkPage_Image( pg, text, rc )
+    case TKRI_CHECK
+        dim as single side = iif( rc.right - rc.left < rc.bottom - rc.top, rc.right - rc.left, rc.bottom - rc.top )
+        if side > 10 then side = 10
+        dim as TKRECTF bx
+        tkRectF_Set( bx, rc.left, rc.top + (rc.bottom - rc.top - side) / 2, rc.left + side, rc.top + (rc.bottom - rc.top + side) / 2 )
+        tkPage_SetLineColor( pg, fore )
+        tkPage_SetPen( pg, 0.75 )
+        tkPage_StrokeRect( pg, bx )
+        if ticked then
+            dim as TKPOINTF pts(0 to 2)
+            pts(0).x = bx.left + side * 0.2 : pts(0).y = bx.top + side * 0.55
+            pts(1).x = bx.left + side * 0.42 : pts(1).y = bx.top + side * 0.78
+            pts(2).x = bx.left + side * 0.82 : pts(2).y = bx.top + side * 0.25
+            tkPage_SetPen( pg, 1.2 )
+            tkPage_Polyline( pg, @pts(0), 3 )
+        end if
+    end select
+    if it.borders then
+        tkPage_SetLineColor( pg, it.lineColor )
+        tkPage_SetPen( pg, it.penPt )
+        if it.borders and TKRI_BORDER_LEFT then tkPage_Line( pg, rc.left, rc.top, rc.left, rc.bottom )
+        if it.borders and TKRI_BORDER_TOP then tkPage_Line( pg, rc.left, rc.top, rc.right, rc.top )
+        if it.borders and TKRI_BORDER_RIGHT then tkPage_Line( pg, rc.right, rc.top, rc.right, rc.bottom )
+        if it.borders and TKRI_BORDER_BOTTOM then tkPage_Line( pg, rc.left, rc.bottom, rc.right, rc.bottom )
+    end if
+end sub
 
 private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q as RP_QITEM, byval x0 as single, _
                       byval y as single, byval h as single, byval w as single )
@@ -240,64 +400,43 @@ private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q
     end if
     for i as long = 0 to b->nItems - 1
         dim byref as TKREPORT_ITEM it = b->items(i)
+        dim as TKFONTSPEC fnt
+        dim as ulong fore, back
+        if ItemStyle( r, it, q, fnt, fore, back ) = false then continue for
         tkRectF_Set( rc, x0 + it.rc.left, y + it.rc.top, x0 + it.rc.right, y + it.rc.bottom )
-        if it.canGrow andalso IsTextItem( it.kind ) then rc.bottom = y + h - (b->height - it.rc.bottom)
-        if ((it.back shr 24) <> 0) andalso (it.kind <> TKRI_BOX) then
-            tkPage_SetFillColor( pg, it.back )
-            tkPage_FillRect( pg, rc )
-        end if
+        if it.canGrow andalso IsTextItem( it.kind ) andalso (it.late = 0) then rc.bottom = y + h - (b->height - it.rc.bottom)
+        tkReport_PaintItemBack( pg, it, rc, back )
+        dim as ustring text
+        dim as boolean ticked
         select case it.kind
-        case TKRI_LABEL, TKRI_FIELD, TKRI_SUMMARY
-            tkPage_SetFont( pg, it.font )
-            tkPage_SetTextColor( pg, it.fore )
-            dim as long fl = it.flags
-            if it.canGrow then fl or= TK_DT_WORDBREAK
-            tkPage_Text( pg, ItemText( r, it, q ), rc, fl )
-        case TKRI_PAGEINFO
-            dim as string s = it.text
-            dim as long k = instr( s, "{title}" )
-            if k then s = left( s, k - 1 ) & r->title & mid( s, k + 7 )
-            k = instr( s, "{date}" )
-            if k then s = left( s, k - 1 ) & date & mid( s, k + 6 )
-            k = instr( s, "{time}" )
-            if k then s = left( s, k - 1 ) & left( time, 5 ) & mid( s, k + 6 )
-            tkPage_SetFont( pg, it.font )
-            tkPage_SetTextColor( pg, it.fore )
-            if (instr( s, "{p}" ) > 0) orelse (instr( s, "{n}" ) > 0) then
-                tkPage_LateText( pg, rc, s, it.flags )
+        case TKRI_LABEL, TKRI_FIELD, TKRI_SUMMARY, TKRI_EXPR, TKRI_TEXT
+            if it.late <> 0 then
+                tkPage_SetFont( pg, fnt )
+                tkPage_SetTextColor( pg, fore )
+                RpLateItem( r, pg, it, q, rc, it.flags )
             else
-                tkPage_Text( pg, s, rc, it.flags )
+                text = ItemText( r, it, q )
             end if
-        case TKRI_LINE
-            tkPage_SetLineColor( pg, it.lineColor )
-            tkPage_SetPen( pg, it.penPt )
-            tkPage_Line( pg, rc.left, rc.top, rc.right, rc.bottom )
-        case TKRI_BOX
-            if (it.back shr 24) <> 0 then tkPage_SetFillColor( pg, it.back ) : tkPage_FillRect( pg, rc )
-            if it.penPt > 0 then
-                tkPage_SetLineColor( pg, it.lineColor )
-                tkPage_SetPen( pg, it.penPt )
-                tkPage_StrokeRect( pg, rc )
-            end if
+        case TKRI_PAGEINFO
+            text = it.text
+            dim as long k = instr( text, "{title}" )
+            if k then text = left( text, k - 1 ) & r->title & mid( text, k + 7 )
+            k = instr( text, "{date}" )
+            if k then text = left( text, k - 1 ) & date & mid( text, k + 6 )
+            k = instr( text, "{time}" )
+            if k then text = left( text, k - 1 ) & left( time, 5 ) & mid( text, k + 6 )
         case TKRI_IMAGE
-            dim as ustring file = it.text
-            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then file = tkReport_FormatValue( q.vals(it.field) )
-            if len( file ) then tkPage_Image( pg, file, rc )
+            text = it.text
+            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then text = tkReport_FormatValue( q.vals(it.field) )
+            if it.px then
+                RpCtxFor( r, q, it.aggBase )
+                text = tkRExpr_EvalText( it.px, r->ctx )
+            end if
         case TKRI_CHECK
-            dim as single side = iif( rc.right - rc.left < rc.bottom - rc.top, rc.right - rc.left, rc.bottom - rc.top )
-            if side > 10 then side = 10
-            dim as TKRECTF bx
-            tkRectF_Set( bx, rc.left, rc.top + (rc.bottom - rc.top - side) / 2, rc.left + side, rc.top + (rc.bottom - rc.top + side) / 2 )
-            tkPage_SetLineColor( pg, it.fore )
-            tkPage_SetPen( pg, 0.75 )
-            tkPage_StrokeRect( pg, bx )
-            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) andalso q.vals(it.field).b then
-                dim as TKPOINTF pts(0 to 2)
-                pts(0).x = bx.left + side * 0.2 : pts(0).y = bx.top + side * 0.55
-                pts(1).x = bx.left + side * 0.42 : pts(1).y = bx.top + side * 0.78
-                pts(2).x = bx.left + side * 0.82 : pts(2).y = bx.top + side * 0.25
-                tkPage_SetPen( pg, 1.2 )
-                tkPage_Polyline( pg, @pts(0), 3 )
+            if (it.field >= 0) andalso (it.field <= ubound( q.vals )) then ticked = q.vals(it.field).b
+            if it.px then
+                RpCtxFor( r, q, it.aggBase )
+                ticked = tkRExpr_EvalBool( it.px, r->ctx )
             end if
         case TKRI_CUSTOM
             if r->PaintItem then r->PaintItem( r, @it, pg, rc, @q.vals(0) )
@@ -315,14 +454,7 @@ private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q
                 tkPage_StrokeRect( pg, rc )
             end if
         end select
-        if it.borders then
-            tkPage_SetLineColor( pg, it.lineColor )
-            tkPage_SetPen( pg, it.penPt )
-            if it.borders and TKRI_BORDER_LEFT then tkPage_Line( pg, rc.left, rc.top, rc.left, rc.bottom )
-            if it.borders and TKRI_BORDER_TOP then tkPage_Line( pg, rc.left, rc.top, rc.right, rc.top )
-            if it.borders and TKRI_BORDER_RIGHT then tkPage_Line( pg, rc.right, rc.top, rc.right, rc.bottom )
-            if it.borders and TKRI_BORDER_BOTTOM then tkPage_Line( pg, rc.left, rc.bottom, rc.right, rc.bottom )
-        end if
+        tkReport_PaintItem( pg, it, rc, fnt, fore, back, text, ticked )
     next
 end sub
 
@@ -335,11 +467,18 @@ private function Loose( byval r as TK_REPORT ptr, byval b as TKREPORT_BAND ptr, 
     for f as long = 0 to ubound( vals ) : q.vals(f) = vals(f) : next
     redim q.sums( 0 to iif( r->nSum > 0, r->nSum - 1, 0 ) )
     for i as long = 0 to r->nSum - 1 : q.sums(i) = SumOf( r, i ) : next
+    RpXaSnapshot( r, q.xv() )
+    q.rowNo = r->nRead
+    q.grpRowNo = r->grpRow
     return q
 end function
 
 private function Shown( byval r as TK_REPORT ptr, byref q as RP_QITEM ) as boolean
     if q.band->visible = false then return false
+    if q.band->pvis then
+        RpCtxFor( r, q, q.band->visBase )
+        if tkRExpr_EvalBool( q.band->pvis, r->ctx ) = false then return false
+    end if
     if r->BeforePrint = 0 then return true
     return r->BeforePrint( r, q.band, @q.vals(0) )
 end function
@@ -349,6 +488,9 @@ function RpPrintPage( byval doc as TK_PRINTDOC ptr, byval pg as TK_PAGE ptr, byv
     dim as TK_REPORT ptr r = tkPrintDoc_GetUserData( doc )
     if r = 0 then return false
     if page = 0 then RpInit( r, doc )
+    r->doc = doc
+    r->curPage = page
+    RpXaPageReset( r )
     dim as TKRECTF m
     tkPage_GetMarginRect( pg, m )
     dim as single x0 = m.left, w = m.right - m.left, y = m.top
@@ -382,6 +524,7 @@ function RpPrintPage( byval doc as TK_PRINTDOC ptr, byval pg as TK_PAGE ptr, byv
         dim as TKREPORT_BAND ptr b = q.band
         if Shown( r, q ) = false then
             QPop( r )
+            RpXaPageAdd( r, q )
             if b->kind = TKRB_GROUP_HEADER then r->openLevels = b->level + 1
             if b->kind = TKRB_GROUP_FOOTER then r->openLevels = b->level
             if b->kind = TKRB_DETAIL then Advance( r )
@@ -399,6 +542,10 @@ function RpPrintPage( byval doc as TK_PRINTDOC ptr, byval pg as TK_PAGE ptr, byv
         end if
         if b->pageBreakBefore andalso (y > contentTop) then exit while
         if (y + need > bottom) andalso (y > contentTop) then exit while
+        ' the report footer at the bottom of the last page, when asked
+        if b->printAtBottom andalso (b->kind = TKRB_REPORT_FOOTER) andalso (bottom - h > y) then y = bottom - h
+        ' a page's totals count the rows drawn on it
+        RpXaPageAdd( r, q )
         if y + h > bottom then
             tkPrintDoc_Warn( doc, "a band taller than the page was cut" )
             dim as TKRECTF clipRc
@@ -420,5 +567,8 @@ function RpPrintPage( byval doc as TK_PRINTDOC ptr, byval pg as TK_PAGE ptr, byv
         dim as RP_QITEM q = Loose( r, pf, r->cur() )
         if Shown( r, q ) then DrawBand( r, pg, q, x0, bottom, pf->height, w )
     end if
-    return (r->nQ > 0) orelse (r->eof = false)
+    RpLateClose( r, RP_LATE_PAGE, 0, page )
+    dim as boolean more = (r->nQ > 0) orelse (r->eof = false)
+    if more = false then RpLateFinish( r, page + 1 )
+    return more
 end function

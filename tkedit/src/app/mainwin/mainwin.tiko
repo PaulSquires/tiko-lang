@@ -60,11 +60,14 @@
 #import "tkd/canvas"
 #import "tkd/edits"
 #import "tkd/panels"
+#import "tkd/rpanels"
+#import "tkd/rcanvas"
 #import "tkd/itemsdlg"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
 #import "tkd/resdlg"
 #import "tkd/langdlg"
+#import "tkd/rdialogs"
 #import "tkd/codegen"
 #import "tkd/resfile"
 #import "tkd/glyphdlg"
@@ -682,12 +685,21 @@ public type Window
     declare function HandlerRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring ) as boolean
     declare sub ControlRenamed( byval c as canvas.FormCanvas ptr, byref oldName as const ustring, byref newName as const ustring )
     declare sub ReconcileDesigner( byval d as DocRef )
+    declare function ReportActs( byval id as Cmd ) as boolean
+    declare function ReportCommand( byval id as Cmd ) as boolean
+    declare function WriteReportGenerated( byval d as DocRef ) as boolean
+    declare sub ReportDialog( byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
+    declare function NewReport( byref wanted as const ustring ) as boolean
     declare function WriteGenerated( byval d as DocRef ) as boolean
     declare function WriteThemeGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare function ResourcesPath( ) as ustring
     declare function WriteResourcesGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare sub CopyResourceFiles( byref exePath as const ustring )
     LangDlg as langdlg.LanguagesDialog ptr
+    RptRecDlg as rdialogs.RecordDialog ptr  ' the Report Designer's dialogs while open (RD7; tests find them here)
+    RptExprDlg as rdialogs.ExprDialog ptr
+    RptPageDlg as TK_HOST ptr
+    RptWizDlg as rdialogs.WizardDialog ptr
     declare function LanguagesPath( ) as ustring
     declare function TextOf( byref path as const ustring ) as ustring
     declare function PutText( byref path as const ustring, byref text as const ustring ) as boolean
@@ -704,6 +716,7 @@ public type Window
     declare function OpenCodeDocOf( byval formDoc as DocRef ) as DocRef
     declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     Palettes as panels.DesignPanels
+    RPalettes as rpanels.ReportPanels       ' the Report Designer's (RD6)
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
     declare function KeepTheme( byref nm as const ustring, byref mode as const ustring ) as boolean
@@ -1242,6 +1255,13 @@ function Window.Create( byval forcedScale as single ) as boolean
     this.Touch( d )
 
     Palettes.Init( form, @this )
+    RPalettes.Init( form, @this )
+    RPalettes.OnMessage = sub( byval o as any ptr, byref t as const ustring )
+        cast( Window ptr, o )->SetMessage( t )
+    end sub
+    RPalettes.OnDialog = sub( byval o as any ptr, byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
+        cast( Window ptr, o )->ReportDialog( which, target, key_ )
+    end sub
     Palettes.OnLayout = sub( byval o as any ptr )
         cast( Window ptr, o )->Layout( )
     end sub
@@ -1340,6 +1360,7 @@ sub Window.Destroy( )
     this.CloseTestForm( )
     if KeysDlg then this.FinishKeys( false )
     Palettes.Destroy( )
+    RPalettes.Destroy( )
     this.DropOutputFloat( )                      ' the pane back on the main window, which destroys it
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
@@ -1449,10 +1470,8 @@ sub Window.Layout( )
     for each d as DocRef in Docs
         dim as TK_WIDGET ptr w = d->Main.Widget( )
         if (w <> 0) andalso (w <> v1) andalso (w <> v2) then tkWidget_Show( w, false )
-        if d->Designer then
-            w = d->Designer->Frame
-            if (w <> v1) andalso (w <> v2) then tkWidget_Show( w, false )
-        end if
+        w = d->Surface( )
+        if (w <> 0) andalso (w <> v1) andalso (w <> v2) then tkWidget_Show( w, false )
     next
     tkWidget_Show( status2, split_ )
     if splitBar then tkWidget_Show( splitBar, split_ )
@@ -1822,7 +1841,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.FormAlignLefts, Cmd.FormAlignCenters, Cmd.FormAlignRights, Cmd.FormAlignTops, Cmd.FormAlignMiddles, _
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormSnapToGrid, Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormToggleView, _
-         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormPreviewVariant, _
+         Cmd.FormTest, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormPreviewVariant, _
          Cmd.FormHSpaceEqual, Cmd.FormHSpaceIncrease, Cmd.FormHSpaceDecrease, Cmd.FormHSpaceRemove, _
          Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove, _
          Cmd.FormCenterHorz, Cmd.FormCenterVert, Cmd.FormLockControls, Cmd.FormTabOrder
@@ -1870,7 +1889,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     case Cmd.FileRename, Cmd.FileDuplicate
         ' a buffer with a file. Not a form: its .tiko and generated file are named after it
         dim as DocRef d = this.Active( )
-        if (d = 0) orelse (len( d->Path ) = 0) orelse (d->Designer <> 0) then return false
+        if (d = 0) orelse (len( d->Path ) = 0) orelse (d->Surface( ) <> 0) then return false
         ' the open project's tiko.toml is what the project is
         if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
         return true
@@ -1881,7 +1900,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     ' no file open: only what would still do something
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
-         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.BuildConfig
+         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.BuildConfig
         return true
     case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
@@ -1905,6 +1924,12 @@ sub Window.SyncPanels( )
     if (d <> 0) andalso (this.ShowsStart( ) = false) then c = d->Designer
     Palettes.Bind( c )
     if (c <> 0) <> Palettes.IsShown then Palettes.ShowAll( c <> 0 )
+    ' a report's own palettes (RD6)
+    dim as rcanvas.ReportCanvas ptr rc = 0
+    if (d <> 0) andalso (this.ShowsStart( ) = false) then rc = d->Report
+    if (rc <> 0) andalso rc->Previewing then rc = 0      ' the Preview has the whole pane
+    RPalettes.Bind( rc )
+    if (rc <> 0) <> RPalettes.IsShown then RPalettes.ShowAll( rc <> 0 )
 end sub
 
 ' With a form on its design surface the hidden TOML is not what the person is editing: commands that
@@ -1912,8 +1937,9 @@ end sub
 function Window.DesignerActs( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
     dim as boolean noForm = (d = 0) orelse this.ShowsStart( )
+    if (noForm = false) andalso (d->Report <> 0) then return this.ReportActs( id )
     if noForm = false then noForm = (d->Designer = 0)
-    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (id = Cmd.FormLanguages) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Design)   ' New Form makes one; the theme is the project's
+    if noForm then return (id = Cmd.FormNewForm) orelse (id = Cmd.FormNewReport) orelse (id = Cmd.FormTheme) orelse (id = Cmd.FormResources) orelse (id = Cmd.FormLanguages) orelse (Keys.Commands( ).Info( id ).Group <> MenuGroup.Design)   ' New Form makes one; the theme is the project's
     select case id
     case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, _
          Cmd.SearchSymbol, Cmd.FindInProject, Cmd.GoBack, Cmd.GoForward
@@ -1930,6 +1956,7 @@ end function
 function Window.DesignerCommand( byval id as Cmd ) as boolean
     dim as DocRef d = this.Active( )
     if (d = 0) orelse this.ShowsStart( ) then return false
+    if d->Report then return this.ReportCommand( id )
     if d->Designer = 0 then return false
     select case id
     case Cmd.Undo
@@ -2125,6 +2152,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ZoomReset : v->ZoomReset( )
     case Cmd.FormToggleView : this.ToggleFormView( )
     case Cmd.FormNewForm : this.NewForm( "" )
+    case Cmd.FormNewReport : this.NewReport( "" )
     case Cmd.FormTheme : this.OpenThemeCenter( )
     case Cmd.FormResources
         dim as ustring none
@@ -2826,6 +2854,8 @@ sub Window.AfterSave( byval d as DocRef )
     dim as ustring p = lcase( d->Path )
     if d->Designer then
         this.WriteGenerated( d )
+    elseif d->Report then
+        this.WriteReportGenerated( d )
     elseif (p = lcase( Theme.Path )) orelse (lcase( fs.PathParent( d->Path ) ) = lcase( fs.PathJoin( ConfigDir, themes.THEME_DIR ) )) then
         this.ReloadTheme( )                     ' tkEdit's own theme, or one of the user's
     elseif right( p, 8 ) = ".tktheme" then
@@ -2980,10 +3010,11 @@ end function
 sub Window.PlacePane( byval pane as long, byval x as long, byval y as long, byval cx as long, byval cy as long )
     dim as DocRef d = this.PaneDoc( pane )
     if d = 0 then exit sub
-    if d->Designer then
+    if d->Surface( ) then
         ' the palettes sit beside the surface of the form being worked on; it has its own scroll bars
-        if d = this.Active( ) then Palettes.PlaceDocked( x, y, cx, cy )
-        tkWidget_SetPos( d->Designer->Frame, x, y, cx, cy )
+        if (d->Designer <> 0) andalso (d = this.Active( )) then Palettes.PlaceDocked( x, y, cx, cy )
+        if (d->Report <> 0) andalso (d = this.Active( )) then RPalettes.PlaceDocked( x, y, cx, cy )
+        tkWidget_SetPos( d->Surface( ), x, y, cx, cy )
         tkWidget_Show( vbar( pane ), false )
         tkWidget_Show( hbar( pane ), false )
         exit sub
@@ -3004,7 +3035,7 @@ sub Window.SyncBars( )
     for pane as long = 0 to 1
         dim as DocRef d = this.PaneDoc( pane )
         dim as boolean noBars = (d = 0)
-        if noBars = false then noBars = (d->Designer <> 0)
+        if noBars = false then noBars = (d->Surface( ) <> 0)
         if noBars then
             tkWidget_Show( vbar( pane ), false )
             tkWidget_Show( hbar( pane ), false )
@@ -3031,7 +3062,7 @@ sub Window.SyncHover( )
     for pane as long = 0 to 1
         dim as DocRef d = this.PaneDoc( pane )
         dim as boolean show_ = false
-        if (d <> 0) andalso (d->Designer = 0) then
+        if (d <> 0) andalso (d->Surface( ) = 0) then
             dim as boolean over = (hot <> 0) andalso ((hot = d->Main.Widget( )) orelse (hot = hbar( pane )))
             show_ = (over andalso tkScrollBar_NeedsThumb( hbar( pane ) )) orelse tkScrollBar_IsDragging( hbar( pane ) )
         end if
@@ -3209,8 +3240,8 @@ sub Window.FocusEditor( )
     end if
     if this.ShowsStart( ) then
         tkHost_SetFocus( tkForm_Host( form ), Start.frame )
-    elseif (this.Active( ) <> 0) andalso (this.Active( )->Designer <> 0) then
-        tkHost_SetFocus( tkForm_Host( form ), this.Active( )->Designer->Glass )
+    elseif (this.Active( ) <> 0) andalso (this.Active( )->SurfaceFocus( ) <> 0) then
+        tkHost_SetFocus( tkForm_Host( form ), this.Active( )->SurfaceFocus( ) )
     else
         this.View( ).Focus( )
     end if
@@ -3369,6 +3400,8 @@ function Window.OpenText( byref path as const ustring ) as boolean
             end function
         end if
     end if
+    dim as boolean badReport = false
+    if documents.IsReportFile( path ) then badReport = (d->AttachReport( tkForm_Widget( form ), 0 ) = false)
     this.ShowDoc( d )
     this.QueueScan( d )
     if cur andalso cur->IsNew( ) andalso (cur->IsModified( ) = false) andalso (cur->Main.Length( ) = 0) _
@@ -3377,6 +3410,7 @@ function Window.OpenText( byref path as const ustring ) as boolean
     end if
     Message = ""
     if badForm then Message = fs.PathFileName( path ) & ": " & i18n.Tr( "message.form_as_text", "can't be shown as a form; opened as text" )
+    if badReport then Message = fs.PathFileName( path ) & ": " & i18n.Tr( "message.report_as_text", "can't be shown as a report; opened as text" )
     this.ShowStatus( )
     return true
 end function
@@ -3691,9 +3725,9 @@ sub Window.CheckDisk( )
     for each d as DocRef in Docs
         if d->ChangedOnDisk( ) = false then continue for
         if fs.IsFile( d->Path ) then
-            dim as boolean wasForm = (d->Designer <> 0)
+            dim as boolean wasForm = (d->Surface( ) <> 0)
             d->Reload( )
-            if wasForm andalso (d->Designer = 0) then this.Layout( )   ' it no longer reads as a form: its text shows
+            if wasForm andalso (d->Surface( ) = 0) then this.Layout( )   ' it no longer reads as a form: its text shows
         else
             d->Ignored = documents.StampOf( d->Path )
         end if

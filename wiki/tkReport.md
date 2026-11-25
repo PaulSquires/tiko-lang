@@ -165,3 +165,5 @@ The types (`TKREPORT_SOURCE`, `TKREPORT_ITEM`, `TKREPORT_BAND`, `TKTABLEPRINT_OP
 
 - [tkReportViewer](tkReportViewer)
 - [tkPrint](tkPrint)
+
+To draw a report instead of building it in code, see the [Report Designer](Report-Designer).

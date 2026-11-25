@@ -126,9 +126,21 @@ private function TexOf( byval rp as TK_PRINTREPLAY ptr, byval doc as TK_PRINTDOC
 end function
 
 ' Late text: {p} -> page number (from 1), {n} -> page count.
-public function PrLateText( byref fmt as string, byval page as long, byval count as long ) as string
+public function PrLateText( byref fmt as string, byval page as long, byval count as long, byval doc as TK_PRINTDOC ptr = 0 ) as string
     dim as string s = fmt
-    dim as long i = instr( s, "{p}" )
+    dim as long i
+    if doc then                                ' {s:N} = late slot N (tkPrintDoc_SetSlot)
+        i = instr( s, "{s:" )
+        while i
+            dim as long e = instr( i, s, "}" )
+            dim as long n = valint( mid( s, i + 3, e - i - 3 ) )
+            dim as string v
+            if (n >= 0) andalso (n < doc->nSlots) then v = doc->slots(n)
+            s = left( s, i - 1 ) & v & mid( s, e + 1 )
+            i = instr( s, "{s:" )
+        wend
+    end if
+    i = instr( s, "{p}" )
     while i
         s = left( s, i - 1 ) & (page + 1) & mid( s, i + 3 )
         i = instr( s, "{p}" )
@@ -202,7 +214,7 @@ public function tkPrintReplay_Page( byval rp as TK_PRINTREPLAY ptr, byval doc as
         case PR_LATE
             dim as TTF_Font ptr f = FontAt( rp, doc, q.font, q.size * s )
             if f = 0 then continue for
-            dim as string u8 = PrLateText( pp->strs(q.i0), page, doc->nPages )
+            dim as string u8 = PrLateText( pp->strs(q.i0), page, doc->nPages, doc )
             dim as single tw = tkText_WidthU8( f, u8 ), fh = TTF_GetFontHeight( f )
             dim as single bx = q.x * s + x, by = q.y * s + y, bw = q.cw * s, bh = q.ch * s
             o.op = TKREC_TEXT : o.pFont = f : o.sText = u8
@@ -282,3 +294,22 @@ public function tkPrintDoc_ExportPng( byval doc as TK_PRINTDOC ptr, byref pathPa
     next
     return true
 end function
+
+' ---- late slots (Report Designer RD2) -----------------------------------------------------------
+' A slot is text known only when its scope closes (a group's total printed in its header). A
+' LATE text names it as {s:N}; replay and the PDF read the slot when they draw.
+public function tkPrintDoc_NewSlot( byval doc as TK_PRINTDOC ptr ) as long
+    if doc = 0 then return -1
+    if doc->nSlots > ubound( doc->slots ) then redim preserve doc->slots( 0 to doc->nSlots * 2 + 15 )
+    doc->slots(doc->nSlots) = ""
+    doc->nSlots += 1
+    return doc->nSlots - 1
+end function
+
+' Set slot n's text: every LATE text that names it shows it from now on.
+public sub tkPrintDoc_SetSlot( byval doc as TK_PRINTDOC ptr, byval n as long, byref text as string )
+    if (doc = 0) orelse (n < 0) orelse (n >= doc->nSlots) then exit sub
+    if doc->slots(n) = text then exit sub
+    doc->slots(n) = text
+    doc->serial += 1             ' pages already shown are drawn again (the preview caches by serial)
+end sub
