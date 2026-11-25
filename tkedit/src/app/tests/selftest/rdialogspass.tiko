@@ -265,6 +265,16 @@ public sub RDialogsPass( byref t as Tally, byval sc as single )
     t.Check( (rb <> 0) andalso OneStep( mw, h, 4, c, rb, -1 ) andalso (c->Def->items(tkReportDef_FindItem( c->Def, "amt" )).nRules = 1), _
              P( sc, "rdialogs: the rules row's ... : a conditional style, one undo step" ) )
     dim as TK_WIDGET ptr xb = RdRowBtn( ps, "expr" )
+    if xb then
+        ' its dots drawn: the button's middle is more than its fill (the default padding left them no room)
+        tkHost_RenderTo( h, false )
+        dim as TKRECT xr
+        tkWidget_AbsRect( xb, xr )
+        dim as ulong xbg
+        dim as long tones = tkTest_TonesIn( h, xr.left + (xr.right - xr.left) \ 4, xr.top + (xr.bottom - xr.top) \ 4, _
+                                            (xr.right - xr.left) \ 2, (xr.bottom - xr.top) \ 2, xbg )
+        t.Check( tones > 2, P( sc, strings.Format( "rdialogs: the ... button shows its dots ({} tones)", tones ) ) )
+    end if
     gRdSeen = ""
     t.Check( (xb <> 0) andalso OneStep( mw, h, 5, c, xb, -1 ) andalso (c->Def->items(tkReportDef_FindItem( c->Def, "amt" )).expr = "[Amount] * @MinAmt"), _
              P( sc, "rdialogs: the expression row's ... : an expression, one undo step" ) )

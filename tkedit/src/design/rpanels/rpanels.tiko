@@ -836,6 +836,7 @@ sub ReportPanels.BuildRows( )
             if rmodel.IsExprKey( C->Subject( ), pr.Key, noAgg ) then
                 r.Btn = tkButton_Create( panel_, Rows.Count( ) + 500 )
                 tkButton_SetText( r.Btn, "..." )
+        tkButton_SetPadding( r.Btn, 0, 0, 0, 0 )   ' a row high and square: the default padding leaves the dots no room
                 tkButton_SetClickCallback( r.Btn, @OnRowButton )
             end if
         end select
@@ -851,6 +852,7 @@ sub ReportPanels.BuildRows( )
         r.Edit = tkLabel_Create( panel_, Rows.Count( ) + 10 )
         r.Btn = tkButton_Create( panel_, Rows.Count( ) + 500 )
         tkButton_SetText( r.Btn, "..." )
+        tkButton_SetPadding( r.Btn, 0, 0, 0, 0 )   ' a row high and square: the default padding leaves the dots no room
         tkButton_SetClickCallback( r.Btn, @OnRowButton )
         Rows.Push( r )
     end if

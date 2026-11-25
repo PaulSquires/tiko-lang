@@ -925,11 +925,16 @@ end sub
 
 ' ---- painting ------------------------------------------------------------------------------------
 ' A band's caption: its id, kind, and what it shows or groups on (the file's own words).
-private function CaptionText_( byref b as TKRD_BAND ) as ustring
-    dim as ustring s = b.id & "  " & b.kind
-    if len( b.source ) then s &= "  " & b.source
-    if len( b.group_ ) then s &= "  " & b.group_
-    return s
+' A band's caption bar: its kind first, then its id and what it reads or groups by --
+' "detail (d:Orders)", "group_header (g1h:[Customer])", "report_header (title)" (author 2026-11-25).
+public function BandCaption( byref b as TKRD_BAND ) as ustring
+    dim as ustring extra = b.source
+    if len( b.group_ ) then
+        if len( extra ) then extra &= ", "
+        extra &= b.group_
+    end if
+    if len( extra ) then return b.kind & " (" & b.id & ":" & extra & ")"
+    return b.kind & " (" & b.id & ")"
 end function
 
 sub ReportCanvas.Paint( byval b as TK_PAINT ptr )
@@ -967,7 +972,7 @@ sub ReportCanvas.Paint( byval b as TK_PAINT ptr )
         dim as TKRECT tr = cap
         tr.left += this.Sc( 6 ) + Depths[k] * this.Sc( INDENT )
         if picked then b->SetForeColor( t.SelectedText ) else b->SetForeColor( t.TextDim )
-        b->PaintText( CaptionText_( Def->bands(bi) ), @tr, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        b->PaintText( BandCaption( Def->bands(bi) ), @tr, TK_DT_LEFT or TK_DT_ELLIPSIS )
         ' the paper, the margins as faint lines, the band as recorded
         dim as TKRECT paper
         tkRect_Set( paper, pl, body.top, pl + pw, body.bottom )

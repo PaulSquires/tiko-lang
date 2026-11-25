@@ -207,6 +207,8 @@ public sub RPanelsPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 30 )
     RpTypeIn( h, ps, "group", "[Customer]" )
     t.Check( c->Def->bands(tkReportDef_FindBand( c->Def, gh )).group_ = "[Customer]", P( sc, "rpanels: the inspector sets the band's group" ) )
+    t.Check( rcanvas.BandCaption( c->Def->bands(tkReportDef_FindBand( c->Def, gh )) ) = "group_header (" & gh & ":[Customer])", _
+             P( sc, "rpanels: the band's caption: kind (id:group): " & rcanvas.BandCaption( c->Def->bands(tkReportDef_FindBand( c->Def, gh )) ) ) )
 
     ' the field list: Customer into the group header, Amount into the detail (its caption above)
     RpClickRow( h, ps->FieldTree, RpRowOf( ps->FieldTree, "Customer" ) )
