@@ -175,7 +175,18 @@ public function tkPrintReplay_Page( byval rp as TK_PRINTREPLAY ptr, byval doc as
             next
             o.pts = @buf(0)
             p.PlayOp( o )
-        case TKREC_FILLRECT, TKREC_GRADRECT, TKREC_CLIP
+        case TKREC_FILLRECT
+            ' EDGES, NOT ORIGIN + SIZE: SDL's software renderer truncates x and w (y and h)
+            ' separately, so abutting rects opened 1-px gaps and bars lost a pixel (measured with
+            ' tkBarcode, BC2: 700 white hairlines through a Data Matrix at 600 dpi, unreadable).
+            ' Round both edges to the pixel grid; a rect that had any width keeps one pixel.
+            dim as single ex1 = int( o.rc.x + 0.5 ), ex2 = int( o.rc.x + o.rc.w + 0.5 )
+            dim as single ey1 = int( o.rc.y + 0.5 ), ey2 = int( o.rc.y + o.rc.h + 0.5 )
+            if (o.rc.w > 0) andalso (ex2 <= ex1) then ex2 = ex1 + 1
+            if (o.rc.h > 0) andalso (ey2 <= ey1) then ey2 = ey1 + 1
+            o.rc.x = ex1 : o.rc.w = ex2 - ex1 : o.rc.y = ey1 : o.rc.h = ey2 - ey1
+            p.PlayOp( o )
+        case TKREC_GRADRECT, TKREC_CLIP
             p.PlayOp( o )
         case TKREC_TEXT
             o.pFont = FontAt( rp, doc, q.font, q.size * s )

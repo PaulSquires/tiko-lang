@@ -9,9 +9,10 @@
 ' human-readable text (HRT) in the control's font, an explicit error state for data the symbology
 ' refuses. The design is C:\dev\docs\tkControls\BARCODE.md; this is phase BC1.
 '
-' THREE FILES, ONE MODULE (they sort in this order, and each needs the one before):
+' FOUR FILES, ONE MODULE (they sort in this order, and each needs the ones before):
 '   tkBarcode.tiko         the types, the symbologies, and the zint adapter (spec + data -> symbol)
-'   tkBarcodeLayout.tiko   layout (FitMode, rotation, bar height, HRT) and painting, widgetless
+'   tkBarcodeLayout.tiko   screen: layout (FitMode, rotation, bar height, HRT) and painting, widgetless
+'   tkBarcodePage.tiko     paper: physical size, dot-snap, and the PDF / PNG / SVG / clipboard exports
 '   tkBarcodeWidget.tiko   the control and its public API
 '
 ' ONLY THIS FILE SEES ZINT. Everything else works on TKBARCODE_SYMBOL: the symbol in MODULE UNITS
@@ -22,11 +23,15 @@
 #import "../tkHost" public
 #import "../tkTheme" public
 #import "../tkTooltip" public
+#import "../tkPrint" public
+#import "../tkPdf" public
 #import "vendor/zint"
 using tkHost
 using tkPaint
 using tkTheme
 using tkTooltip
+using tkPrint
+using tkPdf
 
 ' ==========================================================================================
 ' Symbologies: tkBarcode's own numbering (BARCODE.md §3.1, D-2). zint's ids never leak out.
@@ -144,6 +149,9 @@ end type
 public type TKBARCODE_SYMBOL
     nStatus    as int32 = TKBC_EMPTY
     wszError   as ustring                     ' zint's message, verbatim (untranslated)
+    nZintId    as int32                       ' the zint symbology used
+    fDefaultXdimMm as float32                 ' zint's default X-dimension for it, mm (paper)
+    fTextBottom as float32                    ' the lowest HRT descent, module units (0 = no HRT)
     nW         as float32                     ' size in modules, quiet zones included, HRT not
     nH         as float32
     b2D        as boolean
@@ -292,7 +300,7 @@ end function
 private sub ClearSymbol( byref sym as TKBARCODE_SYMBOL )
     sym.wszError = ""
     sym.nW = 0 : sym.nH = 0 : sym.fBarTop = 0 : sym.fBarH = 0
-    sym.nCols = 0 : sym.nRows = 0 : sym.fQzLeft = 0 : sym.fQzTop = 0
+    sym.nCols = 0 : sym.nRows = 0 : sym.fQzLeft = 0 : sym.fQzTop = 0 : sym.nZintId = 0 : sym.fTextBottom = 0
     erase sym.bits, sym.rects, sym.hexes, sym.rings, sym.texts
     sym.nRects = 0 : sym.nHexes = 0 : sym.nRings = 0 : sym.nTexts = 0
 end sub
@@ -319,6 +327,8 @@ public function tkBarcode_Encode( byref spec as TKBARCODE_SPEC, byref sData as u
     end if
     if spec.nZintRaw <> 0 then sym.b2D = false : sym.bEanUpc = false
 
+    sym.nZintId = id
+    sym.fDefaultXdimMm = ZBarcode_Default_Xdim( id )
     dim as string s8 = sData                ' UTF-16 -> UTF-8
     dim as zint_symbol ptr z = ZBarcode_Create( )
     if z = 0 then sym.nStatus = TKBC_ERR_OTHER : return false
@@ -420,6 +430,7 @@ public function tkBarcode_Encode( byref spec as TKBARCODE_SPEC, byref sData as u
     while st
         sym.texts(n).x = st->x : sym.texts(n).y = st->y : sym.texts(n).size = st->fsize
         sym.texts(n).halign = st->halign : sym.texts(n).s = U8ToUstring( st->text )
+        if st->y + st->fsize * 0.25 > sym.fTextBottom then sym.fTextBottom = st->y + st->fsize * 0.25
         n += 1 : st = st->next
     wend
 

@@ -1,4 +1,4 @@
-' tkBarcode self-test (phase BC1, docs/tkControls/BARCODE.md §12). The encoder against zint's own
+' tkBarcode self-test (phases BC1 + BC2, docs/tkControls/BARCODE.md §12). The encoder against zint's own
 ' module matrix; then real windows, two passes with the scale pinned at 1.0 and 1.75, geometry
 ' ASSERTED from pixels: every module of a QR code its exact size and colour, bar edges, quiet zones,
 ' the fit modes, rotation, HRT placement, the error state, colours, widgetless painting.
@@ -6,11 +6,14 @@
 '   selftest            exit code = number of failures
 #import "vendor/tkControls/tkBarcode"
 #import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkPdf"
 using tkBarcode
 using tkTheme
 using tkTest
 using tkHost
 using tkPaint
+using tkPrint
+using tkPdf
 
 ' ---- a grab of one widget's pixels (RGB), one readback per check ---------------------------------
 dim shared as ulong gPix(any)
@@ -460,8 +463,219 @@ sub RunPass( byval fScale as single )
 end sub
 
 ' ==========================================================================================
+' Paper and exports (BC2): positions in points from the recorded page, the PDF's own content
+' stream, dot-snap measured in rendered pixels, PNG / SVG / clipboard
+' ==========================================================================================
+' Black runs along row y of a surface: their lengths, in pixels.
+function RunsOf( byval s as SDL_Surface ptr, byval y as int32, runs() as int32 ) as int32
+    dim as SDL_Surface ptr a = SDL_ConvertSurface( s, SDL_PIXELFORMAT_ARGB8888 )
+    dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, a->pixels ) + y * a->pitch )
+    dim as int32 n = 0, cur = 0
+    redim runs( 0 to a->w )
+    for x as int32 = 0 to a->w - 1
+        dim as boolean dark = ( row[x] and &h00FFFFFFul ) = 0
+        if dark then
+            cur += 1
+        elseif cur > 0 then
+            runs(n) = cur : n += 1 : cur = 0
+        end if
+    next
+    if cur > 0 then runs(n) = cur : n += 1
+    SDL_DestroySurface( a )
+    return n
+end function
+
+' The row through the bars: the one (every third) with the most dark runs.
+function BarRow( byval s as SDL_Surface ptr ) as int32
+    dim as int32 runs()
+    dim as int32 best = 0, yb = 0
+    for y as int32 = 0 to s->h - 1 step 3
+        dim as int32 n = RunsOf( s, y, runs() )
+        if n > best then best = n : yb = y
+    next
+    return yb
+end function
+
+function CountOf( byref hay as string, byref needle as string ) as int32
+    dim as int32 n = 0, p = 1
+    do
+        p = instr( p, hay, needle )
+        if p = 0 then exit do
+        n += 1 : p += len( needle )
+    loop
+    return n
+end function
+
+sub PaperChecks( )
+    tkTest_Begin( "paper" )
+    dim as TKBARCODE_SPEC spec
+    spec.nSymbology = TKBC_EAN13
+    dim as TKBARCODE_SYMBOL sym
+    tkBarcode_Encode( spec, "5901234123457", sym )
+    dim as TKBARCODE_PAGELOOK pl
+    dim as TKBC_PAGEGEOM pgg
+    dim as TKRECTF rc
+    tkRectF_Set( rc, 100, 100, 400, 300 )
+    tkBarcode_PageGeometry( sym, spec, pl, rc, pgg )
+    dim as float32 X = 0.33 * TK_PT_PER_MM
+    tkTest_Check( "EAN-13 on paper: X = zint's 0.33 mm (0.9354 pt), 113 modules wide, bars 50 X, centred in the rect", _
+                  abs( pgg.xdim - X ) < 0.0001 andalso abs( pgg.wPt - 113 * X ) < 0.001 andalso abs( pgg.barPt - 50 * X ) < 0.001 _
+                  andalso abs( pgg.x - ( 100 + ( 300 - 113 * X ) / 2 ) ) < 0.001 andalso pgg.y = 100 andalso pgg.bFits, "X=" & pgg.xdim & " w=" & pgg.wPt )
+
+    ' ---- recorded ops: every bar exactly where computed (no 0.1 pt snap) ---------------------------
+    dim as TK_PRINTDOC ptr doc = tkPrintDoc_Create( "t" )
+    dim as TKPAGESETUP ps
+    ps.paper = TK_PAPER_A4
+    dim as TK_PAGE ptr pg = tkPrintDoc_AddPageEx( doc, ps )
+    dim as boolean drawn = tkBarcode_PaintPage( pg, rc, sym, spec, pl )
+    dim as int32 nBars = 0, nOff = 0
+    dim as float32 maxSnap = 0
+    for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
+        dim as TKPRINT_OPINFO oi
+        tkPrintDoc_GetOp( doc, 0, i, oi )
+        if (oi.op = TKREC_FILLRECT) andalso ( ( oi.c and &h00FFFFFFul ) = 0 ) andalso (nBars < sym.nRects) then
+            dim as float32 wantX = pgg.x + sym.rects(nBars).x * X, wantW = sym.rects(nBars).w * X
+            if abs( oi.x - wantX ) > 0.0005 orelse abs( oi.cw - wantW ) > 0.0005 then nOff += 1
+            ' what tkPage_FillRect's 0.1 pt grid would have made of this bar's width
+            dim as float32 snapW = int( ( wantX + wantW ) * 10 + 0.5 ) / 10 - int( wantX * 10 + 0.5 ) / 10
+            if abs( snapW - wantW ) > maxSnap then maxSnap = abs( snapW - wantW )
+            nBars += 1
+        end if
+    next
+    tkTest_Check( "PaintPage: one exact rect per bar run (30), each at its computed x and width to 0.0005 pt", _
+                  drawn andalso nBars = sym.nRects andalso nBars = 30 andalso nOff = 0, nBars & " bars, " & nOff & " off" )
+    print "  measured: tkPage_FillRect's 0.1 pt grid would change an EAN-13 bar's width by up to " & ( int( maxSnap * 1000 ) / 1000 ) & " pt (" & int( maxSnap / X * 100 ) & " % of X)"
+    tkTest_Check( "measured: the 0.1 pt page grid would have changed a bar's width by up to " & ( int( maxSnap * 1000 ) / 1000 ) & " pt (" & int( maxSnap / X * 100 ) & " % of X)", maxSnap > 0.05 )
+
+    ' ---- the PDF itself: uncompressed, its re f operators -------------------------------------------
+    dim as string pdfPath = "bc2-test.pdf"
+    dim as TKPDF_OPTIONS po
+    po.bCompress = false
+    dim as boolean pdfOk = tkPrintDoc_ExportPdf( doc, pdfPath, @po )
+    tkPrintDoc_Destroy( doc )
+    dim as uinteger nb
+    dim as ubyte ptr fb = SDL_LoadFile( strptr( pdfPath ), @nb )
+    dim as string pdf = space( nb )
+    for i as integer = 0 to nb - 1 : pdf[i] = fb[i] : next
+    SDL_free( fb )
+    dim as int32 nRe = 0, nReOff = 0, p0 = 1
+    do
+        dim as int32 q = instr( p0, pdf, " re f" )
+        if q = 0 then exit do
+        dim as int32 ls = q
+        while (ls > 1) andalso (mid( pdf, ls - 1, 1 ) <> chr( 10 )) : ls -= 1 : wend
+        dim as string ln = mid( pdf, ls, q - ls )             ' "0 0 0 rg x y w h"
+        if left( ln, 9 ) = "0 0 0 rg " then
+            dim as string rest = mid( ln, 10 ) & " "
+            dim as float32 v(0 to 3)
+            for k as int32 = 0 to 3
+                dim as int32 sp = instr( rest, " " )
+                v(k) = val( left( rest, sp - 1 ) )
+                rest = mid( rest, sp + 1 )
+            next
+            if nRe < sym.nRects then
+                if abs( v(0) - ( pgg.x + sym.rects(nRe).x * X ) ) > 0.0015 orelse abs( v(2) - sym.rects(nRe).w * X ) > 0.0015 then nReOff += 1
+            end if
+            nRe += 1
+        end if
+        p0 = q + 5
+    loop
+    tkTest_Check( "the PDF: 30 black 're f' rects, x and width as computed to 0.001 pt (vector, not raster)", pdfOk andalso nRe = 30 andalso nReOff = 0, nRe & " / " & nReOff & " off" )
+    kill pdfPath
+
+    ' ---- dot-snap ----------------------------------------------------------------------------------
+    dim as TKBARCODE_PAGELOOK pl6 = pl
+    pl6.fDpi = 600
+    tkBarcode_PageGeometry( sym, spec, pl6, rc, pgg )
+    dim as float32 dot = 72 / 600
+    tkTest_Check( "dot-snap at 600 dpi: X = 8 dots (0.96 pt, 0.339 mm), the origin on the dot grid", _
+                  abs( pgg.xdim - 8 * dot ) < 0.0001 andalso abs( pgg.x / dot - int( pgg.x / dot + 0.5 ) ) < 0.001, "X=" & pgg.xdim )
+    dim as SDL_Surface ptr s6 = tkBarcode_RenderSymbolSurface( sym, spec, pl, 600 )
+    dim as int32 runs()
+    dim as int32 nr = RunsOf( s6, BarRow( s6 ), runs() ), nBadRun = 0
+    for i as int32 = 0 to nr - 1
+        if runs(i) mod 8 <> 0 then nBadRun += 1
+    next
+    tkTest_Check( "rendered at 600 dpi with dot-snap: every bar a whole number of 8-dot modules", nr >= 25 andalso nBadRun = 0, nr & " runs, " & nBadRun & " not x8" )
+    SDL_DestroySurface( s6 )
+    ' without the snap, at the same dpi (X = 7.8 dots): how far the runs wander
+    doc = tkBarcode_MakeDocument( sym, spec, pl )
+    s6 = tkPrintDoc_RenderSurface( doc, 0, 600 )
+    tkPrintDoc_Destroy( doc )
+    nr = RunsOf( s6, BarRow( s6 ), runs() )
+    dim as int32 wMin = 999, wMaxU = 0
+    for i as int32 = 0 to nr - 1
+        if runs(i) < wMin then wMin = runs(i)
+        if runs(i) > wMaxU then wMaxU = runs(i)
+    next
+    print "  measured: unsnapped (X = 7.8 dots) at 600 dpi the bar runs are " & wMin & ".." & wMaxU & " dots"
+    tkTest_Check( "measured: unsnapped at 600 dpi the narrowest bar is " & wMin & " dots (X = 7.8 dots)", nr >= 25 )
+    SDL_DestroySurface( s6 )
+
+    ' ---- PNG, SVG, clipboard -------------------------------------------------------------------------
+    dim as string pngPath = "bc2-test.png"
+    dim as boolean pngOk = tkBarcode_ExportPngSymbol( sym, spec, pl, pngPath, 300 )
+    dim as SDL_Surface ptr sp = IMG_Load( strptr( pngPath ) )
+    dim as int32 nBad4 = 0
+    nr = 0
+    if sp then
+        nr = RunsOf( sp, BarRow( sp ), runs() )
+        for i as int32 = 0 to nr - 1
+            if runs(i) mod 4 <> 0 then nBad4 += 1
+        next
+    end if
+    tkTest_Check( "PNG at 300 dpi: written, every bar whole 4-pixel modules (X 3.9 px snapped)", pngOk andalso sp <> 0 andalso nr >= 25 andalso nBad4 = 0, nr & " runs, " & nBad4 & " bad" )
+    if sp then SDL_DestroySurface( sp )
+    kill pngPath
+    dim as string svg = tkBarcode_SvgSymbol( sym, spec, pl )
+    dim as int32 nRect = CountOf( svg, "<rect " ), nText = CountOf( svg, "<text " )
+    tkTest_Check( "SVG: 37.29 mm wide, viewBox in modules, a rect per run + the ground, a text per HRT run", _
+                  instr( svg, "width=""37.29mm""" ) > 0 andalso instr( svg, "viewBox=""0 0 113 " ) > 0 andalso nRect = 31 andalso nText = 3, _
+                  nRect & " rects, " & nText & " texts" )
+    dim as TKBARCODE_SPEC sq
+    sq.nSymbology = TKBC_QR
+    dim as TKBARCODE_SYMBOL yq
+    tkBarcode_Encode( sq, "https://tiko-lang.net", yq )
+    dim as boolean clipOk = tkBarcode_CopySymbolToClipboard( yq, sq, pl, "https://tiko-lang.net", 300 )
+    dim as uinteger nc
+    dim as ubyte ptr pc = SDL_GetClipboardData( "image/png", @nc )
+    dim as boolean isPng = (pc <> 0) andalso (nc > 8) andalso (pc[1] = asc( "P" )) andalso (pc[2] = asc( "N" )) andalso (pc[3] = asc( "G" ))
+    if pc then SDL_free( pc )
+    pc = SDL_GetClipboardData( "text/plain;charset=utf-8", @nc )
+    dim as string ct = ""
+    if pc then
+        ct = space( nc )
+        for i as integer = 0 to nc - 1 : ct[i] = pc[i] : next
+        SDL_free( pc )
+    end if
+    tkTest_Check( "clipboard: a PNG (read back) and the data as text", clipOk andalso isPng andalso left( ct, 21 ) = "https://tiko-lang.net", "png=" & isPng & " text='" & ct & "'" )
+
+    ' ---- the error state on paper ------------------------------------------------------------------------
+    dim as TKBARCODE_SYMBOL ye
+    tkBarcode_Encode( spec, "5901234123458", ye )
+    doc = tkPrintDoc_Create( "e" )
+    pg = tkPrintDoc_AddPageEx( doc, ps )
+    dim as boolean eDrawn = tkBarcode_PaintPage( pg, rc, ye, spec, pl )
+    dim as int32 nBlack = 0, nStroke = 0
+    for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
+        dim as TKPRINT_OPINFO oi
+        tkPrintDoc_GetOp( doc, 0, i, oi )
+        if (oi.op = TKREC_FILLRECT) andalso ( ( oi.c and &h00FFFFFFul ) = 0 ) then nBlack += 1
+        if (oi.op = TKREC_STROKE) orelse (oi.op = TKREC_FILLPOLY) then nStroke += 1
+    next
+    tkPrintDoc_Destroy( doc )
+    tkTest_Check( "error state on paper: a thin frame, no bar", eDrawn = false andalso nBlack = 0 andalso nStroke >= 1, nBlack & " black, " & nStroke & " strokes" )
+
+    ' ---- a QR on paper ----------------------------------------------------------------------------------
+    tkBarcode_PageGeometry( yq, sq, pl, rc, pgg )
+    tkTest_Check( "QR on paper: X = 0.625 mm, 33 modules square", abs( pgg.xdim - 0.625 * TK_PT_PER_MM ) < 0.0001 andalso abs( pgg.wPt - 33 * pgg.xdim ) < 0.001 _
+                  andalso abs( pgg.hPt - 33 * pgg.xdim ) < 0.001, pgg.wPt & "x" & pgg.hPt )
+end sub
+
+' ==========================================================================================
 if tkTest_Init() = false then end 99
 EncoderChecks( )
+PaperChecks( )
 RunPass( 1.0 )
 RunPass( 1.75 )
 dim as long nFail = tkTest_Report( "tkBarcode" )

@@ -15,10 +15,14 @@
 #import "../tkHost" public
 #import "../tkTheme" public
 #import "../tkTooltip" public
+#import "../tkPrint" public
+#import "../tkPdf" public
 using tkHost
 using tkPaint
 using tkTheme
 using tkTooltip
+using tkPrint
+using tkPdf
 
 public enum
     TKBC_FIT_NORMAL = 0     ' ModuleWidth pixels per module, centred, clipped when too big

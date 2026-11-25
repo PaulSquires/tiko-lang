@@ -13,10 +13,14 @@
 #import "../tkHost" public
 #import "../tkTheme" public
 #import "../tkTooltip" public
+#import "../tkPrint" public
+#import "../tkPdf" public
 using tkHost
 using tkPaint
 using tkTheme
 using tkTooltip
+using tkPrint
+using tkPdf
 
 public type TKBARCODE_PAINTINFO
     hBarcode  as TK_WIDGET ptr
@@ -54,6 +58,8 @@ public type TKBARCODE_STATE
     bShowErrors     as boolean = true
     bBorder         as boolean
     pFont           as TTF_Font ptr
+    fXdimMm         as float32                ' paper: the module; 0 = zint's default (BC2)
+    fBarHeightMm    as float32                ' paper: 1D bars; 0 = BarHeight modules, else zint's
     wszTooltip      as ustring
     tip             as TKTIPHOST_STATE
     bPressed        as boolean
@@ -569,3 +575,90 @@ public sub tkBarcode_SetClickCallback( byval hBarcode as TK_WIDGET ptr, byval us
     dim as TKBARCODE_STATE ptr p = BC( hBarcode )
     if p then p->ClickCallback = usersub
 end sub
+
+' ==========================================================================================
+' Paper and exports (BC2): the control's symbol at its physical size
+' ==========================================================================================
+' The module on paper, millimetres; 0 (the default) = zint's for the symbology (EAN 0.33, QR 0.625).
+public sub tkBarcode_SetXDimension( byval hBarcode as TK_WIDGET ptr, byval fMm as float32 )
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if (p <> 0) andalso (fMm >= 0) then p->fXdimMm = fMm
+end sub
+
+public function tkBarcode_GetXDimension( byval hBarcode as TK_WIDGET ptr ) as float32
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    return iif( p <> 0, p->fXdimMm, 0 )
+end function
+
+' 1D bars on paper, millimetres; 0 = BarHeight (modules), else zint's 50 modules.
+public sub tkBarcode_SetBarHeightMm( byval hBarcode as TK_WIDGET ptr, byval fMm as float32 )
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if (p <> 0) andalso (fMm >= 0) then p->fBarHeightMm = fMm
+end sub
+
+public function tkBarcode_GetBarHeightMm( byval hBarcode as TK_WIDGET ptr ) as float32
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    return iif( p <> 0, p->fBarHeightMm, 0 )
+end function
+
+' The control's paper look: its X-dimension, bar height, colours; fDpi 0 (exact).
+public sub tkBarcode_GetPageLook( byval hBarcode as TK_WIDGET ptr, byref pl as TKBARCODE_PAGELOOK )
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if p = 0 then exit sub
+    dim as TKBARCODE_PAGELOOK z
+    pl = z
+    pl.fXdimMm = p->fXdimMm
+    pl.fBarHeightMm = p->fBarHeightMm
+    pl.pColors = @p->colors
+end sub
+
+' The control's symbol on a page, in rc (points), at its physical size; fDpi > 0 snaps to a device's
+' dots (a raster printer). TRUE when drawn and it fits.
+public function tkBarcode_PrintTo( byval hBarcode as TK_WIDGET ptr, byval pg as TK_PAGE ptr, byref rc as TKRECTF, _
+                                   byval fDpi as float32 = 0, byval nAlign as int32 = TKBC_ALIGN_CENTER ) as boolean
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if p = 0 then return false
+    Ensure( p )
+    dim as TKBARCODE_PAGELOOK pl
+    tkBarcode_GetPageLook( hBarcode, pl )
+    pl.fDpi = fDpi : pl.nAlign = nAlign
+    return tkBarcode_PaintPage( pg, rc, p->sym, p->spec, pl )
+end function
+
+public function tkBarcode_ExportPdf( byval hBarcode as TK_WIDGET ptr, byref path as ustring ) as boolean
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if p = 0 then return false
+    Ensure( p )
+    dim as TKBARCODE_PAGELOOK pl
+    tkBarcode_GetPageLook( hBarcode, pl )
+    return tkBarcode_ExportPdfSymbol( p->sym, p->spec, pl, path )
+end function
+
+' A PNG at dpi, every module whole pixels (the X-dimension rounded to dots).
+public function tkBarcode_ExportPng( byval hBarcode as TK_WIDGET ptr, byref path as ustring, byval dpi as float32 = 300 ) as boolean
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if p = 0 then return false
+    Ensure( p )
+    dim as TKBARCODE_PAGELOOK pl
+    tkBarcode_GetPageLook( hBarcode, pl )
+    return tkBarcode_ExportPngSymbol( p->sym, p->spec, pl, path, dpi )
+end function
+
+public function tkBarcode_ExportSvg( byval hBarcode as TK_WIDGET ptr, byref path as ustring ) as boolean
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if p = 0 then return false
+    Ensure( p )
+    dim as TKBARCODE_PAGELOOK pl
+    tkBarcode_GetPageLook( hBarcode, pl )
+    return tkBarcode_ExportSvgSymbol( p->sym, p->spec, pl, path )
+end function
+
+' The symbol as an image (PNG + BMP, at dpi) and its data as text, on the clipboard.
+public function tkBarcode_CopyToClipboard( byval hBarcode as TK_WIDGET ptr, byval dpi as float32 = 300 ) as boolean
+    dim as TKBARCODE_STATE ptr p = BC( hBarcode )
+    if p = 0 then return false
+    Ensure( p )
+    dim as TKBARCODE_PAGELOOK pl
+    tkBarcode_GetPageLook( hBarcode, pl )
+    return tkBarcode_CopySymbolToClipboard( p->sym, p->spec, pl, p->sData, dpi )
+end function
