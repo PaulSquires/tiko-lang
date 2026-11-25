@@ -62,6 +62,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar |
 | `tkReport` | banded reports (report / page / group headers and footers, detail, summaries, page info) over callback, ListTree or custom sources; the table printer for a ListTree |
 | `tkReportSqlite` | an SQLite query as a tkReport's data |
+| `tkRExpr` | the report expression language: typed, sandboxed expressions over `TK_VALUE` (fields, parameters, totals, report values, text / number / date functions, `Format` masks), compiled once and evaluated per row |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
