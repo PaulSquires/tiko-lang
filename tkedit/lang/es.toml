@@ -601,6 +601,7 @@ not_a_key = "Esa tecla no puede usarse como atajo."
 needs_modifier = "Una letra o un dígito necesita Primary, Alt o Shift."
 
 [report]
+delete_band = "Eliminar banda"
 fields = "Campos"
 parameters = "Parámetros"
 builtin = "Integrados"

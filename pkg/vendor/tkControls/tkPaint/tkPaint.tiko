@@ -264,6 +264,7 @@ public type TK_PAINT
     ' text and images
     declare sub PaintText( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
     declare sub PaintTextEx( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
+    declare sub PaintTextRotated( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
     declare sub PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval clr as ulong )
     declare sub PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
     ' replay one recorded primitive (window pixels; a TEXT op's font must belong to this renderer's scale)
@@ -1341,6 +1342,65 @@ sub TK_PAINT.PaintText( byref s as ustring, byval rc as TKRECT ptr, byval flags 
     if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( rc )
     DrawU8( this, u8, x, y )
     if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( 0 )
+end sub
+
+' Single line turned a quarter left, reading bottom to top (a band's label down a gutter). Along the
+' rect's height as PaintText along its width -- TK_DT_LEFT starts at the bottom, TK_DT_CENTER, TK_DT_RIGHT
+' ends at the top; TK_DT_ELLIPSIS against the height -- and centred across its width. The run is
+' rendered by SDL_ttf (white), made a texture and drawn as one quad whose vertices carry the colour:
+' no render-target switch, so the software renderer the tests read draws it too. SCREEN ONLY: while
+' recording (the print path) the run goes upright through PaintText -- no print op has an angle.
+sub TK_PAINT.PaintTextRotated( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
+    if (rc = 0) orelse (this.pFont = 0) orelse (len( s ) = 0) then exit sub
+    if this.pfnRec then
+        this.PaintText( s, rc, flags )
+        exit sub
+    end if
+    dim as long availW = rc->right - rc->left, availH = rc->bottom - rc->top
+    if (availW <= 0) orelse (availH <= 0) then exit sub
+
+    dim as string u8 = s
+    dim as long tw = tkText_WidthU8( this.pFont, u8 )
+    if ((flags and TK_DT_ELLIPSIS) <> 0) andalso (tw > availH) then
+        dim as string ell = TK_ELLIPSIS_UTF8
+        dim as long ew = tkText_WidthU8( this.pFont, ell )
+        dim as long fitW = 0
+        dim as uinteger fitBytes = 0
+        if availH > ew then
+            TTF_MeasureString( this.pFont, strptr( u8 ), len( u8 ), availH - ew, @fitW, @fitBytes )
+        end if
+        u8 = left( u8, fitBytes ) & ell
+    end if
+
+    dim as SDL_Color white
+    white.r = 255 : white.g = 255 : white.b = 255 : white.a = 255
+    dim as SDL_Surface ptr sf = TTF_RenderText_Blended( this.pFont, strptr( u8 ), len( u8 ), white )
+    if sf = 0 then exit sub
+    dim as long sw = sf->w, sh = sf->h          ' the run upright: its length, its height
+    dim as SDL_Texture ptr tex = SDL_CreateTextureFromSurface( this.renderer, sf )
+    SDL_DestroySurface( sf )
+    if tex = 0 then exit sub
+    SDL_SetTextureBlendMode( tex, SDL_BLENDMODE_BLEND )
+
+    dim as long y0 = rc->bottom - sw            ' TK_DT_LEFT: from the bottom
+    select case flags and 3
+    case TK_DT_CENTER : y0 = rc->top + (availH - sw) \ 2
+    case TK_DT_RIGHT : y0 = rc->top
+    end select
+    dim as long x0 = rc->left + (availW - sh) \ 2
+    dim as single fx0 = x0 + this.ox, fy0 = y0 + this.oy
+    dim as single fx1 = fx0 + sh, fy1 = fy0 + sw
+    ' the run's start (texture x 0) at the bottom, its top (texture y 0) to the left
+    dim as SDL_Vertex v(0 to 3)
+    SetVert( v(0), fx0, fy0, this.clrFore, 1 ) : v(0).tex_coord.x = 1 : v(0).tex_coord.y = 0
+    SetVert( v(1), fx1, fy0, this.clrFore, 1 ) : v(1).tex_coord.x = 1 : v(1).tex_coord.y = 1
+    SetVert( v(2), fx1, fy1, this.clrFore, 1 ) : v(2).tex_coord.x = 0 : v(2).tex_coord.y = 1
+    SetVert( v(3), fx0, fy1, this.clrFore, 1 ) : v(3).tex_coord.x = 0 : v(3).tex_coord.y = 0
+    dim as long ix(0 to 5) = { 0, 1, 2, 0, 2, 3 }
+    if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( rc )
+    SDL_RenderGeometry( this.renderer, tex, @v(0), 4, @ix(0), 6 )
+    if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( 0 )
+    SDL_DestroyTexture( tex )
 end sub
 
 ' Multi-line: hard newlines always break; TK_DT_WORDBREAK also wraps to the rect's width.

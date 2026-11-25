@@ -601,6 +601,7 @@ not_a_key = "Cette touche ne peut pas servir de raccourci."
 needs_modifier = "Une lettre ou un chiffre exige Primary, Alt ou Shift."
 
 [report]
+delete_band = "Supprimer la bande"
 fields = "Champs"
 parameters = "Paramètres"
 builtin = "Intégrés"

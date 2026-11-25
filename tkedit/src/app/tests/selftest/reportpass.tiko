@@ -24,7 +24,11 @@
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkPrint"
 #import "vendor/tkControls/tkReportDef"
+#import "vendor/tkControls/tkTooltip"
+#import "vendor/tkControls/tkScrollBar"
 using containers
+using tkTooltip
+using tkScrollBar
 using cmdids
 using tkApp
 using tkHost
@@ -119,8 +123,9 @@ public sub ReportPass( byref t as Tally, byval sc as single )
     dim as TKRECT bd = c->BandBodyRect( tkReportDef_FindBand( c->Def, "d" ) )
     dim as TKRECT cd = c->CaptionRect( tkReportDef_FindBand( c->Def, "d" ) )
     t.Check( (bt.bottom - bt.top = cint( 30 * s )) andalso (bd.right - bd.left = cint( tkReportDef_ContentWidth( c->Def ) * s )) _
-             andalso (cd.top = bt.bottom) andalso (cd.bottom = bd.top) andalso (cd.bottom - cd.top = tkHost_Scale( h, 18 )), _
-             P( sc, strings.Format( "report: bands stacked under captions, {}x{} px", bd.right - bd.left, bd.bottom - bd.top ) ) )
+             andalso (bd.top = bt.bottom) andalso (cd.top = bd.top) andalso (cd.bottom = bd.bottom) andalso (cd.right <= c->PaperLeft( )) _
+             andalso (cd.right - cd.left = c->GutterW( )), _
+             P( sc, strings.Format( "report: bands back to back, each beside its gutter cell, {}x{} px", bd.right - bd.left, bd.bottom - bd.top ) ) )
     t.Check( RpAt_( c, "fld", sc ) andalso RpAt_( c, "lbl", sc ), P( sc, "report: an item's rect is its band's origin plus its points" ) )
 
     ' WYSIWYG: the band as the engine's painter records it -- the field's expression, at its place
@@ -178,6 +183,55 @@ public sub ReportPass( byref t as Tally, byval sc as single )
     bt = RpAbs_( c, c->BandBodyRect( tkReportDef_FindBand( c->Def, "title" ) ) )
     DragPx( h, bt.left + cint( 200 * s ), bt.top + cint( 2 * s ), bt.left + cint( 5 * s ), bt.top + cint( 25 * s ) )
     t.Check( RpSel_( c ) = "lbl", P( sc, "report: a rubber band selects what it touches: " & RpSel_( c ) ) )
+
+    ' ---- the gutter (author 2026-11-25): each band's name written up its cell; a press there picks the
+    ' band; the cell's bottom edge sets the band's height as the paper's does
+    scope
+        tkTest_PumpFor( h, 20 )
+        tkHost_RenderTo( h, false )
+        dim as TKRECT gt = RpAbs_( c, c->CaptionRect( tkReportDef_FindBand( c->Def, "title" ) ) )
+        dim as ulong gbg
+        dim as long tones = tkTest_TonesIn( h, gt.left + 2, gt.top + (gt.bottom - gt.top) \ 4, gt.right - gt.left - 4, (gt.bottom - gt.top) \ 2, gbg )
+        t.Check( tones > 2, P( sc, strings.Format( "report: the gutter writes the band's name up its cell ({} tones)", tones ) ) )
+        dim as TKRECT gf = RpAbs_( c, c->CaptionRect( tkReportDef_FindBand( c->Def, "rf" ) ) )
+        tkTest_Click( h, (gf.left + gf.right) \ 2, (gf.top + gf.bottom) \ 2 )
+        tkTest_PumpFor( h, 20 )
+        t.Check( (c->SelBand = "rf") andalso (c->Selected.Count( ) = 0), P( sc, "report: a press in the gutter picks the band: " & c->SelBand ) )
+        dim as TKRECT gl = c->CaptionRect( tkReportDef_FindBand( c->Def, "d" ) )
+        c->OnHover( (gl.left + gl.right) \ 2, (gl.top + gl.bottom) \ 2 )
+        t.Check( tkTooltip_GetToolIndex( tkTipHost_Tip( @c->Tip ) ) = tkReportDef_FindBand( c->Def, "d" ), _
+                 P( sc, "report: over a gutter cell, the band's tip is offered" ) )
+        dim as float32 h0 = c->Def->bands(tkReportDef_FindBand( c->Def, "rf" )).height
+        DragPx( h, (gf.left + gf.right) \ 2, gf.bottom - 1, (gf.left + gf.right) \ 2, gf.bottom - 1 + 2 * stp )
+        dim as float32 hw = redits.Snap( h0 + 2 * g, g )
+        t.Check( c->Def->bands(tkReportDef_FindBand( c->Def, "rf" )).height = hw, _
+                 P( sc, strings.Format( "report: the gutter cell's bottom edge sets the height ({} -> {})", h0, c->Def->bands(tkReportDef_FindBand( c->Def, "rf" )).height ) ) )
+        c->SelectOnly( "lbl" )                  ' as the rubber band left it, for the keys below
+        tkTest_PumpFor( h, 20 )
+    end scope
+
+    ' ---- the margin lines (author 2026-11-25): each dragged sets its margin, snapped; the selection stays
+    scope
+        dim as float32 ml0 = c->Def->mL, mr0 = c->Def->mR
+        dim as TKRECT tb = RpAbs_( c, c->BandBodyRect( tkReportDef_FindBand( c->Def, "title" ) ) )
+        dim as long my = tb.top + (tb.bottom - tb.top) \ 2, rx = tb.right
+        DragPx( h, tb.left, my, tb.left + 2 * stp, my )
+        ' the right line: scrolled into view first (the paper is wider than the test's canvas)
+        dim as TKRECT ga
+        tkWidget_AbsRect( c->Glass, ga )
+        if (rx > ga.right - tkHost_Scale( h, 40 )) andalso c->HBar->isVisible then
+            tkScrollBar_SetPos( c->HBar, tkScrollBar_GetPos( c->HBar ) + rx - (ga.right - tkHost_Scale( h, 40 )) )
+            tkWidget_Invalidate( c->Glass )
+            tkTest_PumpFor( h, 20 )
+            rx = RpAbs_( c, c->BandBodyRect( tkReportDef_FindBand( c->Def, "title" ) ) ).right
+        end if
+        DragPx( h, rx, my, rx - 2 * stp, my )
+        tkScrollBar_SetPos( c->HBar, 0 )
+        tkWidget_Invalidate( c->Glass )
+        tkTest_PumpFor( h, 20 )
+        t.Check( (c->Def->mL = redits.Snap( ml0 + 2 * g, g )) andalso (c->Def->mR = redits.Snap( mr0 + 2 * g, g )) andalso (RpSel_( c ) = "lbl"), _
+                 P( sc, strings.Format( "report: the margin lines set the margins (L {} -> {}, R {} -> {})", ml0, c->Def->mL, mr0, c->Def->mR ) ) )
+    end scope
 
     ' keys: an arrow moves a grid step, Primary+arrow 0.1 pt, Del deletes, Esc deselects
     dim as float32 x0 = RpIt_( c, "lbl" ).x

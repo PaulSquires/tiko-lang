@@ -170,6 +170,10 @@ const TABMENU_LEFT = 9002
 const TABMENU_RIGHT = 9003
 const TABMENU_ALL = 9004                  ' Close All Files: the buffers only, an open project stays open
 const DESIGNMENU_DELETE = 9010            ' the designer menu's row that is no command of the table
+const RPTMENU_DELETE = 9020               ' the report menu's rows that are no command of the table
+const RPTMENU_SOURCES = 9021
+const RPTMENU_GROUPS = 9022
+const RPTMENU_PAGE = 9023
 const ID_SIDE = 117                       ' the explorer ([ui] explorer)
 const ID_SIDEBAR = 118                    ' the bar between it and everything else
 const SIDE_MIN_PANES_CX = 200             ' what the explorer leaves the editors, unscaled
@@ -584,6 +588,7 @@ public type Window
     editMenu as TK_MENU ptr             ' a view's right-click menu
     tabMenu as TK_MENU ptr              ' a tab's right-click menu
     designMenu as TK_MENU ptr           ' the form designer's right-click menu
+    reportMenu as TK_MENU ptr           ' the Report Designer's: the canvas and the Object Tree (author 2026-11-25)
     accel as TK_KEYMAP ptr
     diskTimer as long
     inboxTimer as long                  ' reads <config>/inbox while this window is the first tkEdit
@@ -778,6 +783,8 @@ public type Window
     declare sub DuplicateActive( )
     declare sub ShowTabMenu( byval idx as long, byval x as long, byval y as long )
     declare sub ShowDesignMenu( byval c as canvas.FormCanvas ptr, byval x as long, byval y as long )
+    declare sub ShowReportMenu( byval h as TK_HOST ptr, byval x as long, byval y as long )
+    declare sub LabelReportMenu( )
     declare function SaveAll( ) as boolean
     declare sub ToggleSplit( byval mode as session.SplitMode )
     declare sub FocusPane( byval second as boolean )
@@ -1166,6 +1173,34 @@ function Window.Create( byval forcedScale as single ) as boolean
         end if
     end sub )
 
+    reportMenu = tkPopupMenu_Create( tkForm_Host( form ) )
+    tkPopupMenu_AddItem( reportMenu, clng( Cmd.Cut ), "" )
+    tkPopupMenu_AddItem( reportMenu, clng( Cmd.Copy ), "" )
+    tkPopupMenu_AddItem( reportMenu, clng( Cmd.Paste ), "" )
+    tkPopupMenu_AddItem( reportMenu, RPTMENU_DELETE, "" )
+    tkPopupMenu_AddSeparator( reportMenu )
+    tkPopupMenu_AddItem( reportMenu, clng( Cmd.SelectAll ), "" )
+    tkPopupMenu_AddSeparator( reportMenu )
+    tkPopupMenu_AddItem( reportMenu, clng( Cmd.FormBringToFront ), "" )
+    tkPopupMenu_AddItem( reportMenu, clng( Cmd.FormSendToBack ), "" )
+    tkPopupMenu_AddSeparator( reportMenu )
+    tkPopupMenu_AddItem( reportMenu, RPTMENU_SOURCES, "" )
+    tkPopupMenu_AddItem( reportMenu, RPTMENU_GROUPS, "" )
+    tkPopupMenu_AddItem( reportMenu, RPTMENU_PAGE, "" )
+    tkPopupMenu_SetSelectCallback( reportMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
+        dim as Window ptr mw = WindowOfHost( hPopup->pOwner )   ' the main window, or a floated tree's (Tag)
+        if mw = 0 then exit sub
+        dim as DocRef d = mw->Active( )
+        if (d = 0) orelse (d->Report = 0) then exit sub
+        select case id
+        case RPTMENU_DELETE : d->Report->DeleteSubject( )
+        case RPTMENU_SOURCES : mw->ReportDialog( "sources", "", "" )
+        case RPTMENU_GROUPS : mw->ReportDialog( "groups", "", "" )
+        case RPTMENU_PAGE : mw->ReportDialog( "page", "", "" )
+        case else : mw->Execute( cast( Cmd, id ) )
+        end select
+    end sub )
+
     Out.Create( root, ID_OUTPUT, @this )
     Out.OnActivate = sub( byval owner as any ptr, byval tab_ as outputpane.OutputTab, byval itemIndex as long )
         dim as Window ptr mw = owner
@@ -1266,6 +1301,9 @@ function Window.Create( byval forcedScale as single ) as boolean
     end sub
     RPalettes.OnLayout = sub( byval o as any ptr )
         cast( Window ptr, o )->Layout( )
+    end sub
+    RPalettes.OnTreeMenu = sub( byval o as any ptr, byval h as TK_HOST ptr, byval x as long, byval y as long )
+        cast( Window ptr, o )->ShowReportMenu( h, x, y )
     end sub
     RPalettes.OnFloatMade = sub( byval o as any ptr, byval f as TK_FORM ptr )
         dim as Window ptr mw = o
@@ -1414,6 +1452,11 @@ sub Window.Destroy( )
     tabMenu = 0
     if designMenu then tkPopupMenu_Destroy( designMenu )
     designMenu = 0
+    if reportMenu then
+        reportMenu->pOwner = tkForm_Host( form )    ' it may have last shown on a float, gone by now
+        tkPopupMenu_Destroy( reportMenu )
+    end if
+    reportMenu = 0
     for pane as long = 0 to 1                    ' unwrapped: HoverProc finds its Window through the form
         if hbar( pane ) then hbar( pane )->proc = hbarProc
     next
@@ -2548,6 +2591,7 @@ sub Window.ReloadLanguage( )
     this.LabelEditMenu( )
     this.LabelTabMenu( )
     this.LabelDesignMenu( )
+    this.LabelReportMenu( )
     this.BuildMenus( )
     Finder.Relabel( )
     Out.Relabel( )
@@ -2593,6 +2637,20 @@ sub Window.LabelEditMenu( )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.CommentBlock ), i18n.Tr( "menu.CommentBlock", "Comment Block" ) )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.UncommentBlock ), i18n.Tr( "menu.UncommentBlock", "UnComment Block" ) )
     tkPopupMenu_SetItemText( editMenu, clng( Cmd.SelectAll ), i18n.Tr( "menu.SelectAll", "Select All" ) )
+end sub
+
+sub Window.LabelReportMenu( )
+    if reportMenu = 0 then exit sub
+    tkPopupMenu_SetItemText( reportMenu, clng( Cmd.Cut ), i18n.Tr( "menu.Cut", "Cut" ) )
+    tkPopupMenu_SetItemText( reportMenu, clng( Cmd.Copy ), i18n.Tr( "menu.Copy", "Copy" ) )
+    tkPopupMenu_SetItemText( reportMenu, clng( Cmd.Paste ), i18n.Tr( "menu.Paste", "Paste" ) )
+    tkPopupMenu_SetItemText( reportMenu, RPTMENU_DELETE, i18n.Tr( "designer.delete", "Delete" ) )
+    tkPopupMenu_SetItemText( reportMenu, clng( Cmd.SelectAll ), i18n.Tr( "menu.SelectAll", "Select All" ) )
+    tkPopupMenu_SetItemText( reportMenu, clng( Cmd.FormBringToFront ), i18n.Tr( "commands.FormBringToFront", "Bring to Front" ) )
+    tkPopupMenu_SetItemText( reportMenu, clng( Cmd.FormSendToBack ), i18n.Tr( "commands.FormSendToBack", "Send to Back" ) )
+    tkPopupMenu_SetItemText( reportMenu, RPTMENU_SOURCES, i18n.Tr( "report.dlg_sources", "Data sources..." ) )
+    tkPopupMenu_SetItemText( reportMenu, RPTMENU_GROUPS, i18n.Tr( "report.dlg_groups", "Group and sort..." ) )
+    tkPopupMenu_SetItemText( reportMenu, RPTMENU_PAGE, i18n.Tr( "report.dlg_page", "Page setup..." ) )
 end sub
 
 sub Window.LabelDesignMenu( )
@@ -3422,7 +3480,18 @@ function Window.OpenText( byref path as const ustring ) as boolean
         end if
     end if
     dim as boolean badReport = false
-    if documents.IsReportFile( path ) then badReport = (d->AttachReport( tkForm_Widget( form ), 0 ) = false)
+    if documents.IsReportFile( path ) then
+        badReport = (d->AttachReport( tkForm_Widget( form ), 0 ) = false)
+        if d->Report then
+            d->Report->MenuOwner = @this
+            d->Report->OnContextMenu = sub( byval o as any ptr, byval c as any ptr, byval x as long, byval y as long )
+                dim as Window ptr mw = o
+                dim as TKRECT a
+                tkWidget_AbsRect( cast( rcanvas.ReportCanvas ptr, c )->Glass, a )
+                mw->ShowReportMenu( tkForm_Host( mw->form ), a.left + x, a.top + y )
+            end sub
+        end if
+    end if
     this.ShowDoc( d )
     this.QueueScan( d )
     if cur andalso cur->IsNew( ) andalso (cur->IsModified( ) = false) andalso (cur->Main.Length( ) = 0) _
@@ -3645,6 +3714,27 @@ sub Window.ShowDesignMenu( byval c as canvas.FormCanvas ptr, byval x as long, by
     dim as TKRECT a
     tkWidget_AbsRect( c->Glass, a )
     tkPopupMenu_Show( designMenu, a.left + x, a.top + y )
+end sub
+
+' A right click on the report canvas or an Object Tree row (what it landed on already picked): rows
+' that need items grey without them; Delete says Delete Band when a band is picked. Shown on host h --
+' the main window, or a floated tree's -- at x, y in its window pixels.
+sub Window.ShowReportMenu( byval h as TK_HOST ptr, byval x as long, byval y as long )
+    dim as DocRef d = this.Active( )
+    if (reportMenu = 0) orelse (d = 0) orelse (d->Report = 0) orelse (h = 0) then exit sub
+    dim as rcanvas.ReportCanvas ptr c = d->Report
+    dim as boolean sel = c->Selected.Count( ) > 0
+    tkPopupMenu_SetItemEnabled( reportMenu, clng( Cmd.Cut ), sel )
+    tkPopupMenu_SetItemEnabled( reportMenu, clng( Cmd.Copy ), sel )
+    tkPopupMenu_SetItemEnabled( reportMenu, clng( Cmd.Paste ), c->CanPaste( ) )
+    tkPopupMenu_SetItemEnabled( reportMenu, RPTMENU_DELETE, c->CanDelete( ) )
+    tkPopupMenu_SetItemText( reportMenu, RPTMENU_DELETE, iif( len( c->SelBand ) > 0, _
+                             i18n.Tr( "report.delete_band", "Delete Band" ), i18n.Tr( "designer.delete", "Delete" ) ) )
+    tkPopupMenu_SetItemEnabled( reportMenu, clng( Cmd.SelectAll ), (c->Def <> 0) andalso (c->Def->nItems > 0) )
+    tkPopupMenu_SetItemEnabled( reportMenu, clng( Cmd.FormBringToFront ), sel )
+    tkPopupMenu_SetItemEnabled( reportMenu, clng( Cmd.FormSendToBack ), sel )
+    reportMenu->pOwner = h
+    tkPopupMenu_Show( reportMenu, x, y )
 end sub
 
 ' A right click on a tab makes it the active buffer, as tiko-editor's does, and every row then acts

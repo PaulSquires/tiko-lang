@@ -29,6 +29,7 @@
 #import "vendor/tkControls/tkPrint"
 #import "vendor/tkControls/tkReportDef"
 #import "vendor/tkControls/tkBind"
+#import "vendor/tkControls/tkPopupMenu"
 using containers
 using cmdids
 using tkApp
@@ -41,6 +42,7 @@ using tkPaint
 using tkReportDef
 using tkReport
 using tkBind
+using tkPopupMenu
 
 const as string RPANELS_TEXT = _
     !"format = 1\n\n[report]\ntitle = \"G\"\n\n[[source]]\nname = \"Orders\"\n\n" & _
@@ -78,6 +80,14 @@ end function
 private function RpRowOf( byval list as TK_WIDGET ptr, byref text as const ustring ) as long
     for r as long = 0 to tkListTree_GetCount( list ) - 1
         if tkListTree_GetText( list, r ) = text then return r
+    next
+    return -1
+end function
+
+' An Object Tree row by its name (the second column).
+private function RpTreeRow( byval list as TK_WIDGET ptr, byref name_ as const ustring ) as long
+    for r as long = 0 to tkListTree_GetCount( list ) - 1
+        if tkListTree_GetCellText( list, r, 1 ) = name_ then return r
     next
     return -1
 end function
@@ -232,9 +242,20 @@ public sub RPanelsPass( byref t as Tally, byval sc as single )
     dim as ustring tot = RpSel0( c )
     c->SelectNone( )
     tkTest_PumpFor( h, 40 )
-    RpClickRow( h, ps->Tree, RpRowOf( ps->Tree, tot ) )
+    RpClickRow( h, ps->Tree, RpTreeRow( ps->Tree, tot ) )
     t.Check( (c->Selected.Count( ) = 1) andalso (RpSel0( c ) = tot) andalso (RpEditOf( ps, "expr" ) <> 0), P( sc, "rpanels: the tree picks an item, the inspector shows it" ) )
-    t.Check( tkListTree_GetCellText( ps->Tree, RpRowOf( ps->Tree, tot ), 1 ) = "field", P( sc, "rpanels: the tree's second column is the type" ) )
+    t.Check( tkListTree_GetText( ps->Tree, RpTreeRow( ps->Tree, tot ) ) = "field", P( sc, "rpanels: the tree's first column is the type, the second the name" ) )
+    ' a right click on a band's caption: the band picked, the menu up, Delete live, Cut grey
+    scope
+        dim as TKRECT cr = c->CaptionRect( tkReportDef_FindBand( c->Def, gf ) )
+        c->OnRightPress( (cr.left + cr.right) \ 2, (cr.top + cr.bottom) \ 2 )
+        tkTest_PumpFor( h, 30 )
+        t.Check( (c->SelBand = gf) andalso tkPopupMenu_IsOpen( mw.reportMenu ) andalso tkPopupMenu_GetItemEnabled( mw.reportMenu, 9020 ) _
+                 andalso (tkPopupMenu_GetItemEnabled( mw.reportMenu, clng( Cmd.Cut ) ) = false), P( sc, "rpanels: a right click on a band picks it and opens the menu, Delete live" ) )
+        tkPopupMenu_Hide( mw.reportMenu )
+        c->SelectOnly( tot )                     ' back to the item the inspector checks below
+        tkTest_PumpFor( h, 40 )
+    end scope
     RpTypeIn( h, ps, "expr", "Sum([Amount])" )
     t.Check( RpExpr( c, tot ) = "Sum([Amount])", P( sc, "rpanels: the inspector sets its expression" ) )
     dim as ustring before = d->Text( )
@@ -308,7 +329,7 @@ public sub RPanelsPass( byref t as Tally, byval sc as single )
     mw.Execute( Cmd.FormFloatProperties )
     tkTest_PumpFor( h, 120 )
     t.Check( (ps->Pal( 1 ).Float <> 0) andalso (ps->FrameR->pHost = tkForm_Host( ps->Pal( 1 ).Float )) andalso (c->Frame->cw > wide0) _
-             andalso (tkWidget_IsVisible( ps->BarR ) = false) andalso (RpRowOf( ps->Tree, tot ) >= 0), _
+             andalso (tkWidget_IsVisible( ps->BarR ) = false) andalso (RpTreeRow( ps->Tree, tot ) >= 0), _
              P( sc, strings.Format( "rpanels: the tree palette floats with its tree, the canvas wider ({} -> {})", wide0, c->Frame->cw ) ) )
     mw.Execute( Cmd.FormFloatProperties )
     tkTest_PumpFor( h, 120 )

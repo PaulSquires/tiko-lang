@@ -603,6 +603,7 @@ not_a_key = "该键不能用作快捷键。"
 needs_modifier = "字母或数字需要配合 Primary、Alt 或 Shift。"
 
 [report]
+delete_band = "删除区段"
 fields = "字段"
 parameters = "参数"
 builtin = "内置"

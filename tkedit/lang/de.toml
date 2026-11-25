@@ -601,6 +601,7 @@ not_a_key = "Diese Taste kann nicht als Tastenkürzel dienen."
 needs_modifier = "Ein Buchstabe oder eine Ziffer braucht Primary, Alt oder Shift."
 
 [report]
+delete_band = "Bereich löschen"
 fields = "Felder"
 parameters = "Parameter"
 builtin = "Eingebaut"

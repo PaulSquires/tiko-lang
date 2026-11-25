@@ -65,7 +65,7 @@ const as long MIN_PALETTE_CX = 100
 const as long MIN_CANVAS_CX = 200
 const as long MIN_PANE_CY = 60
 const as long PALETTE_SPLIT = 400   ' the upper list's share of a palette, in thousandths, by default
-const as long TYPE_CX = 110         ' the Object Tree's type column
+const as long TYPE_CX = 150         ' the Object Tree's type column (its first: the indent is in it)
 const as long HEADER_CY = 28
 const as long ROW_CY = 28
 const as long LABEL_CX = 120
@@ -84,6 +84,8 @@ public type RMessageSub as sub( byval owner as any ptr, byref text as const ustr
 public type RDialogSub as sub( byval owner as any ptr, byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
 public type RNotifySub as sub( byval owner as any ptr )
 public type RFloatSub as sub( byval owner as any ptr, byval f as TK_FORM ptr )
+' A right click on a tree row, the row picked: the menu at x, y in host h's window pixels.
+public type RTreeMenuSub as sub( byval owner as any ptr, byval h as TK_HOST ptr, byval x as long, byval y as long )
 
 ' A palette's float state, its header button and its own bar (0 the toolbox's, 1 the tree's).
 public type RPalette
@@ -111,6 +113,7 @@ public type ReportPanels
     OnDialog   as RDialogSub
     OnFloatMade as RFloatSub          ' give a new float window its Tag, keys and close handling
     OnLayout   as RNotifySub          ' the panes need placing again
+    OnTreeMenu as RTreeMenuSub        ' a right click on an Object Tree row
     C          as rcanvas.ReportCanvas ptr
     Pal( 0 to 1 ) as RPalette
     BarL       as TK_WIDGET ptr       ' the bars either side of the canvas
@@ -301,6 +304,23 @@ private sub OnTreeSel( byval hList as TK_WIDGET ptr, byval row as integer )
     dim as ReportPanels ptr p = RPanelsOf( hList )
     if (p <> 0) andalso (p->Updating = false) andalso (p->C <> 0) then p->TreePicked( row )
 end sub
+
+' A right click on an Object Tree row: the row picked (the canvas selects it), then the menu there.
+private function OnTreeMessage( byval mi as TKLISTTREE_MESSAGEINFO ptr ) as boolean
+    if (mi->msg <> TKM_RBUTTONDOWN) orelse (mi->idx < 0) then return false
+    dim as ReportPanels ptr p = RPanelsOf( mi->hList )
+    if (p = 0) orelse (p->C = 0) then return false
+    p->Updating = true
+    tkListTree_SetCurSel( p->Tree, mi->idx )
+    p->Updating = false
+    p->TreePicked( mi->idx )
+    if p->OnTreeMenu then
+        dim as TKRECT a
+        tkWidget_AbsRect( mi->hList, a )
+        p->OnTreeMenu( p->Owner, mi->hList->pHost, a.left + cint( mi->x ), a.top + cint( mi->y ) )
+    end if
+    return true
+end function
 
 private sub OnTextEnter( byval h as TK_WIDGET ptr )
     dim as ReportPanels ptr p = RPanelsOf( h )
@@ -504,10 +524,12 @@ sub ReportPanels.BuildPalette( byval which as long, byval parent as TK_WIDGET pt
         Tree = tkListTree_Create( f, 2 )
         tkListTree_SetPaintCallback( Tree, @tkListTree_PaintRowDefault )
         tkListTree_SetSelChangeCallback( Tree, @OnTreeSel )
-        ' two columns, no header: the name (the rest of the width), the type (author 2026-11-25)
-        tkListTree_AddColumn( Tree, "", tkHost_Scale( f->pHost, RIGHT_CX - TYPE_CX ) )
+        tkListTree_SetMessageCallback( Tree, @OnTreeMessage )
+        ' two columns, no header: the type (the tree's indent with it), the name the rest of the width
+        ' (author 2026-11-25)
         tkListTree_AddColumn( Tree, "", tkHost_Scale( f->pHost, TYPE_CX ) )
-        tkListTree_SetFillColumn( Tree, 0 )
+        tkListTree_AddColumn( Tree, "", tkHost_Scale( f->pHost, RIGHT_CX - TYPE_CX ) )
+        tkListTree_SetFillColumn( Tree, 1 )
         TitleProps = tkLabel_Create( f, 3 )
         tkLabel_SetText( TitleProps, i18n.Tr( "designer.properties", "Properties" ) )
         Scroll = tkScrollPanel_Create( f, 4 )
@@ -633,7 +655,7 @@ sub ReportPanels.LayoutPalette( byval which as long )
     if t2 then tkWidget_SetPos( t2, p_, below, f->cw - 2 * p_, hh )
     if l2 then tkWidget_SetPos( l2, 0, below + hh, f->cw, listH )
     if which = 1 then
-        if Tree then tkListTree_SetColumnWidth( Tree, 1, tkHost_Scale( h, TYPE_CX ) )
+        if Tree then tkListTree_SetColumnWidth( Tree, 0, tkHost_Scale( h, TYPE_CX ) )
         this.LayoutRows( )
     end if
 end sub
@@ -764,14 +786,14 @@ sub ReportPanels.BuildFields( )
     Updating = false
 end sub
 
-' The report, its bands as the canvas stacks them (nested), each band's items: the name, then the
-' type in the second column. Row data: 0 the report, 1 a band (extra: its index), 2 an item (extra:
+' The report, its bands as the canvas stacks them (nested), each band's items: the type, then the
+' name in the second column. Row data: 0 the report, 1 a band (extra: its index), 2 an item (extra:
 ' its index).
 sub ReportPanels.BuildTree( )
     Updating = true
     tkListTree_BeginUpdate( Tree )
     tkListTree_Clear( Tree )
-    dim as integer root = tkListTree_AddNode( Tree, -1, "report", 0, 0 )
+    dim as integer root = tkListTree_AddNode( Tree, -1, "report", 0, 0 )      ' the report: no name of its own
     dim as Array( of int32 ) stack_, depths
     redits.BandOrder( C->Def, stack_, depths )
     dim as integer parents(0 to 9)
@@ -782,12 +804,12 @@ sub ReportPanels.BuildTree( )
         dim as integer par = root
         if dp > 0 then par = parents(dp - 1)
         dim byref as TKRD_BAND b = C->Def->bands(bi)
-        parents(dp) = tkListTree_AddNode( Tree, par, b.id, 1, bi )
-        tkListTree_SetCellText( Tree, parents(dp), 1, b.kind )
+        parents(dp) = tkListTree_AddNode( Tree, par, b.kind, 1, bi )
+        tkListTree_SetCellText( Tree, parents(dp), 1, b.id )
         for i as int32 = 0 to C->Def->nItems - 1
             if lcase( C->Def->items(i).band ) = lcase( b.id ) then
-                dim as integer row = tkListTree_AddNode( Tree, parents(dp), C->Def->items(i).id, 2, i )
-                tkListTree_SetCellText( Tree, row, 1, C->Def->items(i).kind )
+                dim as integer row = tkListTree_AddNode( Tree, parents(dp), C->Def->items(i).kind, 2, i )
+                tkListTree_SetCellText( Tree, row, 1, C->Def->items(i).id )
             end if
         next
     next
