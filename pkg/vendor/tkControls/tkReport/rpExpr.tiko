@@ -42,13 +42,15 @@ using tkPaint
 ' A field computed per row from the others (and the calculated fields before it). No totals. Its
 ' field index is the source's field count + its order among the calculated fields.
 public function tkReport_AddCalcField( byval rpt as TK_REPORT ptr, byref name_ as const ustring, _
-                                       byref expr as const ustring ) as long
+                                       byref expr as const ustring, byref defaultSource as const ustring = "" ) as long
     if rpt = 0 then return -1
     dim as long c = rpt->nCalcUser
     redim preserve rpt->calcName( 0 to c )
     redim preserve rpt->calcSrc( 0 to c )
+    redim preserve rpt->calcDef( 0 to c )
     rpt->calcName(c) = name_
     rpt->calcSrc(c) = expr
+    rpt->calcDef(c) = defaultSource
     rpt->nCalcUser += 1
     rpt->nCalc = rpt->nCalcUser
     rpt->prepared = false
@@ -56,9 +58,10 @@ public function tkReport_AddCalcField( byval rpt as TK_REPORT ptr, byref name_ a
 end function
 
 ' Rows for which expr is not true are left out (before groups, totals and RowNumber). "" = none.
-public sub tkReport_SetFilter( byval rpt as TK_REPORT ptr, byref expr as const ustring )
+public sub tkReport_SetFilter( byval rpt as TK_REPORT ptr, byref expr as const ustring, byref defaultSource as const ustring = "" )
     if rpt = 0 then exit sub
     rpt->filterSrc = expr
+    rpt->filterDef = defaultSource
     rpt->prepared = false
 end sub
 
@@ -303,6 +306,7 @@ public function tkReport_Prepare( byval rpt as TK_REPORT ptr, byref errors as us
     redim preserve r.calcX( 0 to iif( r.nCalc > 0, r.nCalc - 1, 0 ) )
     r.sch.noAggregates = true
     for c as long = 0 to r.nCalcUser - 1
+        r.sch.defaultSource = r.calcDef(c)
         r.calcX(c) = CompileOne( rpt, r.calcSrc(c), "calculated field '" & r.calcName(c) & "'", errors )
         r.sch.AddField( r.calcName(c), iif( r.calcX(c), tkRExpr_Kind( r.calcX(c) ), TKV_TEXT ) )
     next
@@ -314,12 +318,15 @@ public function tkReport_Prepare( byval rpt as TK_REPORT ptr, byref errors as us
         redim preserve r.calcX( 0 to c )
         r.calcName(c) = "__group" & L
         r.calcSrc(c) = r.groupExpr(L)
+        r.sch.defaultSource = r.groupDef(L)
         r.calcX(c) = CompileOne( rpt, r.groupExpr(L), "group " & L & "'s expression", errors )
         r.sch.AddField( r.calcName(c), iif( r.calcX(c), tkRExpr_Kind( r.calcX(c) ), TKV_TEXT ) )
         r.groupKey(L) = r.nSrcF + c
         r.nCalc += 1
     next
+    r.sch.defaultSource = r.filterDef
     r.filterX = CompileOne( rpt, r.filterSrc, "the filter", errors )
+    r.sch.defaultSource = ""
     if (r.filterX <> 0) andalso (tkRExpr_Kind( r.filterX ) <> TKV_BOOL) then
         if len( errors ) then errors &= chr( 10 )
         errors &= "the filter: it must be true / false"

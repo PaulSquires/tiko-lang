@@ -21,8 +21,10 @@
 
 #import "../tkReport" public
 #import "../tkDataGrid"
+#import "../tkReportDef"
 using tkReport
 using tkDataGrid
+using tkReportDef
 using tkBind
 using tkHost
 
@@ -76,9 +78,9 @@ private sub GGet( byval p as any ptr, byval f as long, byref v as TK_VALUE )
     tkDataGrid_GetCell( c->hGrid, row, c->cols(f), v )   ' TKDG_VALUE is TK_VALUE (P-16)
 end sub
 
-' The grid as the report's source. FALSE when there is no grid or it shows no column.
-public function tkReportGrid_Open( byval rpt as TK_REPORT ptr, byval hGrid as TK_WIDGET ptr ) as boolean
-    if (rpt = 0) orelse (hGrid = 0) then return false
+' The grid's visible columns and view as a source: its context (0 when it shows no column).
+private function MakeGridSource( byval hGrid as TK_WIDGET ptr, byref src as TKREPORT_SOURCE ) as RGRID_CTX ptr
+    if hGrid = 0 then return 0
     dim as RGRID_CTX ptr c = new RGRID_CTX
     c->hGrid = hGrid
     dim as integer n = tkDataGrid_GetColumnCount( hGrid )
@@ -98,13 +100,20 @@ public function tkReportGrid_Open( byval rpt as TK_REPORT ptr, byval hGrid as TK
     next
     if c->nCols = 0 then
         delete c
-        return false
+        return 0
     end if
     c->nView = tkDataGrid_GetViewCount( hGrid )
-    dim as TKREPORT_SOURCE src
     src.pCtx = c
     src.FieldCount = @GFieldCount : src.FieldName = @GFieldName : src.FieldKind = @GFieldKind
     src.RowCount = @GRowCount : src.MoveNext = @GNext : src.GetValue = @GGet : src.Rewind = @GRewind
+    return c
+end function
+
+' The grid as the report's source. FALSE when there is no grid or it shows no column.
+public function tkReportGrid_Open( byval rpt as TK_REPORT ptr, byval hGrid as TK_WIDGET ptr ) as boolean
+    if rpt = 0 then return false
+    dim as TKREPORT_SOURCE src
+    if MakeGridSource( hGrid, src ) = 0 then return false
     tkReport_SetSource( rpt, src )
     return true
 end function
@@ -117,3 +126,48 @@ public sub tkReportGrid_Close( byval rpt as TK_REPORT ptr )
     rpt->src = none_
     rpt->bSrc = false
 end sub
+
+' ---- a report definition's grid source (Report Designer RD3) --------------------------------------
+type RGRID_BIND
+    hGrid       as TK_WIDGET ptr
+    opened(any) as RGRID_CTX ptr
+    nOpen       as long
+end type
+
+private sub GBClose( byval p as any ptr, byval bFinal as boolean )
+    dim as RGRID_BIND ptr b = p
+    if b = 0 then exit sub
+    for i as long = 0 to b->nOpen - 1
+        delete b->opened(i)
+    next
+    b->nOpen = 0
+    if bFinal then delete b
+end sub
+
+private function GBOpenRows( byval def as TK_REPORTDEF ptr, byval si as int32, byval p as any ptr, _
+                             byref src as TKREPORT_SOURCE ) as boolean
+    dim as RGRID_BIND ptr b = p
+    dim as RGRID_CTX ptr c = MakeGridSource( b->hGrid, src )
+    if c = 0 then return false
+    redim preserve b->opened( 0 to b->nOpen )
+    b->opened(b->nOpen) = c
+    b->nOpen += 1
+    return true
+end function
+
+' Source 'name' of the definition is the grid as shown (a master or single source; a grid is not a
+' child). The grid must outlive the definition's reports.
+public function tkReportGrid_BindDef( byval def as TK_REPORTDEF ptr, byref name_ as const ustring, byval hGrid as TK_WIDGET ptr ) as boolean
+    if (def = 0) orelse (hGrid = 0) then return false
+    dim as RGRID_BIND ptr b = new RGRID_BIND
+    b->hGrid = hGrid
+    dim as TKRD_BINDING bd
+    bd.pCtx = b
+    bd.OpenRows = @GBOpenRows
+    bd.CloseAll = @GBClose
+    if tkReportDef_Bind( def, name_, bd ) = false then
+        delete b
+        return false
+    end if
+    return true
+end function

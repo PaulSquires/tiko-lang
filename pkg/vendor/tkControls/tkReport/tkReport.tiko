@@ -286,13 +286,16 @@ public type TK_REPORT_
     nRead       as integer
     ' ---- expressions (rpExpr.tiko) ----
     groupExpr(any) as ustring            ' per group level: "" = groupKey's field, else this expression
+    groupDef(any) as ustring             ' its default source
     calcName(any) as ustring             ' calculated fields: the user's, then the group expressions'
     calcSrc(any)  as ustring
+    calcDef(any)  as ustring             ' each one's default source ([X] = "<it>.X")
     calcX(any)    as TK_REXPR ptr
     nCalc       as long                  ' all calculated fields
     nCalcUser   as long                  ' of which the host's (AddCalcField)
     nSrcF       as long                  ' fields the source gives; calculated ones follow
     filterSrc   as ustring
+    filterDef   as ustring               ' the filter's default source
     filterX     as TK_REXPR ptr
     pName(any)  as ustring               ' parameters
     pKind(any)  as long
@@ -365,6 +368,7 @@ public function tkReport_AddGroup( byval rpt as TK_REPORT ptr, byval keyField as
     if rpt = 0 then return -1
     redim preserve rpt->groupKey( 0 to rpt->nGroups )
     redim preserve rpt->groupExpr( 0 to rpt->nGroups )
+    redim preserve rpt->groupDef( 0 to rpt->nGroups )
     rpt->groupKey(rpt->nGroups) = keyField
     rpt->groupExpr(rpt->nGroups) = ""
     rpt->nGroups += 1
@@ -374,9 +378,13 @@ end function
 
 ' A group on an expression's value ("Left([Customer], 1)", "Year([Date])"): rows must arrive in
 ' its order (sort the source by what it reads). Its level.
-public function tkReport_AddGroupExpr( byval rpt as TK_REPORT ptr, byref expr as const ustring ) as long
+public function tkReport_AddGroupExpr( byval rpt as TK_REPORT ptr, byref expr as const ustring, _
+                                       byref defaultSource as const ustring = "" ) as long
     dim as long L = tkReport_AddGroup( rpt, -1 )
-    if L >= 0 then rpt->groupExpr(L) = expr
+    if L >= 0 then
+        rpt->groupExpr(L) = expr
+        rpt->groupDef(L) = defaultSource
+    end if
     return L
 end function
 
@@ -537,7 +545,7 @@ private sub CbGet( byval p as any ptr, byval f as long, byref v as TK_VALUE )
 end sub
 
 ' Two values in sort order: -1 / 0 / 1. Empty first; numbers by value; text by character code.
-function RpCompareValues( byref a as TK_VALUE, byref b as TK_VALUE ) as long
+public function tkReport_CompareValues( byref a as TK_VALUE, byref b as TK_VALUE ) as long
     if a.kind = TKV_EMPTY then return iif( b.kind = TKV_EMPTY, 0, -1 )
     if b.kind = TKV_EMPTY then return 1
     dim as boolean na = (a.kind = TKV_INT) orelse (a.kind = TKV_FLOAT), nb = (b.kind = TKV_INT) orelse (b.kind = TKV_FLOAT)
@@ -600,7 +608,7 @@ private function CbSort( byval p as any ptr, byval keys as TKREPORT_SORTKEY ptr,
                 if (takeLeft = false) andalso (i < mid_) then
                     dim as long c = 0
                     for k as long = 0 to nKeys - 1
-                        c = RpCompareValues( kv(a(i) * nKeys + k), kv(a(j) * nKeys + k) )
+                        c = tkReport_CompareValues( kv(a(i) * nKeys + k), kv(a(j) * nKeys + k) )
                         if keys[k].desc then c = -c
                         if c <> 0 then exit for
                     next
