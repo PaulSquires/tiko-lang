@@ -168,6 +168,7 @@ const OUTPUT_MIN_CY = 80                  ' unscaled
 const TABMENU_OTHERS = 9001               ' the tab menu's rows that are no command of the table
 const TABMENU_LEFT = 9002
 const TABMENU_RIGHT = 9003
+const TABMENU_ALL = 9004                  ' Close All Files: the buffers only, an open project stays open
 const DESIGNMENU_DELETE = 9010            ' the designer menu's row that is no command of the table
 const ID_SIDE = 117                       ' the explorer ([ui] explorer)
 const ID_SIDEBAR = 118                    ' the bar between it and everything else
@@ -1126,7 +1127,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileRename ), "" )
     tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileDuplicate ), "" )
     tkPopupMenu_AddSeparator( tabMenu )
-    tkPopupMenu_AddItem( tabMenu, clng( Cmd.FileCloseAll ), "" )
+    tkPopupMenu_AddItem( tabMenu, TABMENU_ALL, "" )
     tkPopupMenu_AddItem( tabMenu, TABMENU_OTHERS, "" )
     tkPopupMenu_AddItem( tabMenu, TABMENU_LEFT, "" )
     tkPopupMenu_AddItem( tabMenu, TABMENU_RIGHT, "" )
@@ -1135,6 +1136,7 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw = 0 then exit sub
         select case id
         case TABMENU_OTHERS, TABMENU_LEFT, TABMENU_RIGHT : mw->CloseTabs( id )
+        case TABMENU_ALL : mw->CloseAll( )
         case else : mw->Execute( cast( Cmd, id ) )
         end select
         mw->FocusEditor( )
@@ -1862,7 +1864,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
         return true
     case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, _
          Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectSaveAs, _
-         Cmd.ProjectClose, Cmd.RunArguments
+         Cmd.RunArguments
         return true
     case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, _
          Cmd.RunToCursor, Cmd.ToggleBreakpoint, Cmd.DeleteAllBreakpoints
@@ -1893,8 +1895,8 @@ function Window.CanRun( byval id as Cmd ) as boolean
         ' the open project's tiko.toml is what the project is
         if (id = Cmd.FileRename) andalso ProjOpen andalso fs.PathEquals( d->Path, Proj.Path ) then return false
         return true
-    case Cmd.ProjectClose : return ProjOpen
     case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
+    case Cmd.FileCloseAll : if ProjOpen then return true   ' it closes the project too, files open or not
     end select
     if this.ShowsStart( ) = false then return true
     ' no file open: only what would still do something
@@ -2042,7 +2044,10 @@ function Window.Execute( byval id as Cmd ) as boolean
         next
     case Cmd.FileRecent : this.OpenChooser( PickKind.Recent, true )   ' where Ctrl+P opens (author)
     case Cmd.FileClose : this.CloseDoc( this.Active( ) )
-    case Cmd.FileCloseAll : this.CloseAll( )
+    case Cmd.FileCloseAll
+        ' every buffer, and the project when one is open (author 2026-11-25); the tab menu's
+        ' Close All Files leaves the project open
+        if ProjOpen then this.CloseProject( ) else this.CloseAll( )
     case Cmd.FileSave : this.SaveDoc( this.Active( ), false )
     case Cmd.FileSaveAs : this.SaveDoc( this.Active( ), true )
     case Cmd.FileSaveAll : this.SaveAll( )
@@ -2102,7 +2107,6 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.NextDiagnostic : this.StepDiagnostic( true )
     case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
     case Cmd.ProjectSaveAs : this.SaveAsProject( )
-    case Cmd.ProjectClose : this.CloseProject( )
     case Cmd.RunArguments : this.OpenStrip( findstrip.StripMode.Args )
     case Cmd.StartDebugging, Cmd.DebugBreak, Cmd.StopDebugging, Cmd.StepInto, Cmd.StepOver, Cmd.StepOut, Cmd.RunToCursor
         this.DebugCommand( id )
@@ -2200,7 +2204,6 @@ public function MenuSub( byval id as Cmd ) as long
     case Cmd.FormVSpaceEqual, Cmd.FormVSpaceIncrease, Cmd.FormVSpaceDecrease, Cmd.FormVSpaceRemove : return 5
     case Cmd.FormCenterHorz, Cmd.FormCenterVert : return 6
     ' File
-    case Cmd.ProjectSaveAs, Cmd.ProjectClose : return 7
     case Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile : return 8
     ' Edit
     case Cmd.SelectLine, Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, _
@@ -2236,7 +2239,6 @@ private function MenuSubTitle( byval n as long ) as ustring
     case 4 : return i18n.Tr( "menubar.h_spacing", "Horizontal Spacing" )
     case 5 : return i18n.Tr( "menubar.v_spacing", "Vertical Spacing" )
     case 6 : return i18n.Tr( "menubar.center_form", "Center in Form" )
-    case 7 : return i18n.Tr( "menubar.project", "Project" )
     case 8 : return i18n.Tr( "menubar.options", "Options" )
     case 9 : return i18n.Tr( "menubar.line", "Line" )
     case 10 : return i18n.Tr( "menubar.block", "Block" )
@@ -2592,7 +2594,7 @@ sub Window.LabelTabMenu( )
     tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileSaveAs ), i18n.Tr( "tabmenu.save_as", "Save As" ) )
     tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileRename ), i18n.Tr( "tabmenu.rename", "Rename" ) )
     tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileDuplicate ), i18n.Tr( "tabmenu.duplicate", "Duplicate" ) )
-    tkPopupMenu_SetItemText( tabMenu, clng( Cmd.FileCloseAll ), i18n.Tr( "tabmenu.close_all", "Close All Files" ) )
+    tkPopupMenu_SetItemText( tabMenu, TABMENU_ALL, i18n.Tr( "tabmenu.close_all", "Close All Files" ) )
     tkPopupMenu_SetItemText( tabMenu, TABMENU_OTHERS, i18n.Tr( "tabmenu.close_others", "Close Others" ) )
     tkPopupMenu_SetItemText( tabMenu, TABMENU_LEFT, i18n.Tr( "tabmenu.close_left", "Close Tabs on the Left" ) )
     tkPopupMenu_SetItemText( tabMenu, TABMENU_RIGHT, i18n.Tr( "tabmenu.close_right", "Close Tabs on the Right" ) )
@@ -3634,7 +3636,7 @@ sub Window.ShowTabMenu( byval idx as long, byval x as long, byval y as long )
     dim as long n = tkTabBar_GetCount( tabs )
     tkPopupMenu_SetItemEnabled( tabMenu, clng( Cmd.FileRename ), this.CanRun( Cmd.FileRename ) )
     tkPopupMenu_SetItemEnabled( tabMenu, clng( Cmd.FileDuplicate ), this.CanRun( Cmd.FileDuplicate ) )
-    tkPopupMenu_SetItemEnabled( tabMenu, clng( Cmd.FileCloseAll ), n > 1 )
+    tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_ALL, n > 1 )
     tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_OTHERS, n > 1 )
     tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_LEFT, idx > 0 )
     tkPopupMenu_SetItemEnabled( tabMenu, TABMENU_RIGHT, idx < n - 1 )

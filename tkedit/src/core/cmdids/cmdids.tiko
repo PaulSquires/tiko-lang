@@ -131,7 +131,6 @@ public enum Cmd explicit
     UnfoldAll
     ' Project
     ProjectSaveAs
-    ProjectClose
     ' Build
     BuildExecute
     Compile
@@ -273,8 +272,7 @@ constructor CommandTable( )
     this.Def( Cmd.FileSave, "FileSave", g, "Save", "Primary+S", true )
     this.Def( Cmd.FileSaveAs, "FileSaveAs", g, "Save As...", "Primary+Alt+S" )
     this.Def( Cmd.FileSaveAll, "FileSaveAll", g, "Save All", "Primary+Shift+S" )
-    this.Def( Cmd.ProjectSaveAs, "ProjectSaveAs", g, "Save As Project", "Primary+Alt+N", true )
-    this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
+    this.Def( Cmd.ProjectSaveAs, "ProjectSaveAs", g, "Save As Project", "Primary+Alt+N" )
     this.Def( Cmd.FileRename, "FileRename", g, "Rename...", "", true )
     this.Def( Cmd.FileDuplicate, "FileDuplicate", g, "Duplicate", "" )
     this.Def( Cmd.Settings, "Settings", g, "Settings (settings.toml)", "Primary+Comma", true )

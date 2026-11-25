@@ -3398,7 +3398,7 @@ public sub TabMenuPass( byref t as Tally, byval sc as single )
     PickTabRow( mw, 9 )
     t.Check( TabNames( mw ) = "c.tiko,", P( sc, "tab menu: Close Others: " & TabNames( mw ) ) )
     RightClickTab( mw, 0 )
-    t.Check( (tkPopupMenu_GetItemEnabled( mw.tabMenu, Cmd.FileCloseAll ) = false) andalso (tkPopupMenu_GetItemEnabled( mw.tabMenu, 9003 ) = false), P( sc, "tab menu: one tab: Close All and Right greyed" ) )
+    t.Check( (tkPopupMenu_GetItemEnabled( mw.tabMenu, 9004 ) = false) andalso (tkPopupMenu_GetItemEnabled( mw.tabMenu, 9003 ) = false), P( sc, "tab menu: one tab: Close All and Right greyed" ) )
 
     ' ---- Rename, through the menu: the file moves, the buffer follows with its edits
     gPickPath = fs.PathJoin( dir_, "renamed.tiko" )
@@ -3728,7 +3728,7 @@ public sub StartPass( byref t as Tally, byval sc as single )
     ' ---- nothing open, no project: a row is live only if it would do something
     dim as Cmd liveIds( 0 to 11 ) = { Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
                                       Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.BuildConfig }
-    dim as Cmd deadIds( 0 to 18 ) = { Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.FileRecent, Cmd.ProjectSaveAs, Cmd.ProjectClose, Cmd.SearchSymbol, Cmd.FindInProject, _
+    dim as Cmd deadIds( 0 to 17 ) = { Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.FileRecent, Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, _
                                       Cmd.GoBack, Cmd.GoForward, Cmd.CycleFocus, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, _
                                       Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.StartDebugging, Cmd.DeleteAllBreakpoints }
     dim as cmdids.CommandTable startTable
@@ -3736,7 +3736,7 @@ public sub StartPass( byref t as Tally, byval sc as single )
     for i as long = 0 to 11
         if mw.CanRun( liveIds( i ) ) = false then wrongLive &= startTable.Info( liveIds( i ) ).Name & " "
     next
-    for i as long = 0 to 18
+    for i as long = 0 to 17
         if mw.CanRun( deadIds( i ) ) then wrongDead &= startTable.Info( deadIds( i ) ).Name & " "
     next
     t.Check( len( wrongLive ) = 0, P( sc, "start: what still acts is enabled; not: " & wrongLive ) )
