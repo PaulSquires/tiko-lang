@@ -38,17 +38,6 @@ public enum
     TKBC_ROT_270
 end enum
 
-' Pinned black on white by default (D-7): scanners need dark bars on a light ground, so a dark theme
-' does not invert the symbol. Border and Error follow the theme.
-public type TKBARCODE_COLORS
-    BackColor       as ulong = &hFFFFFFFFul
-    BarColor        as ulong = &hFF000000ul
-    TextColor       as ulong = &hFF000000ul
-    BorderColor     as ulong = &hFF969CA6ul
-    ErrorColor      as ulong = &hFFE06C75ul
-    ErrorBackColor  as ulong = &hFFFFFFFFul
-end type
-
 ' How a symbol is drawn: everything that is not WHAT is encoded.
 public type TKBARCODE_LOOK
     nFit        as int32 = TKBC_FIT_NORMAL

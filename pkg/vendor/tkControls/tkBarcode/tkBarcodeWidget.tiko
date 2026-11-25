@@ -662,3 +662,74 @@ public function tkBarcode_CopyToClipboard( byval hBarcode as TK_WIDGET ptr, byva
     tkBarcode_GetPageLook( hBarcode, pl )
     return tkBarcode_CopySymbolToClipboard( p->sym, p->spec, pl, p->sData, dpi )
 end function
+
+' ==========================================================================================
+' Named options (BC3): one setter per option, so the designer's inspector rows (h, value) reach
+' them. Each is tkBarcode_SetOption( h, TKBC_OPT_*, value ); 0 is always zint's default.
+' ==========================================================================================
+' 0 default; QR / Micro QR 1-4 = L M Q H; PDF417 1-9 = level 0-8; Aztec 1-4.
+public sub tkBarcode_SetEccLevel( byval hBarcode as TK_WIDGET ptr, byval n as int32 )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_ECC, n )
+end sub
+public function tkBarcode_GetEccLevel( byval hBarcode as TK_WIDGET ptr ) as int32
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_ECC )
+end function
+
+' 0 automatic; QR / Micro QR version, Data Matrix / Aztec size, PDF417 columns.
+public sub tkBarcode_SetSymbolSize( byval hBarcode as TK_WIDGET ptr, byval n as int32 )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_SIZE, n )
+end sub
+public function tkBarcode_GetSymbolSize( byval hBarcode as TK_WIDGET ptr ) as int32
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_SIZE )
+end function
+
+' 0 automatic; QR / Micro QR 1-8 = mask 0-7.
+public sub tkBarcode_SetMask( byval hBarcode as TK_WIDGET ptr, byval n as int32 )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_MASK, n )
+end sub
+public function tkBarcode_GetMask( byval hBarcode as TK_WIDGET ptr ) as int32
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_MASK )
+end function
+
+public sub tkBarcode_SetSquareOnly( byval hBarcode as TK_WIDGET ptr, byval bOn as boolean )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_DM_SQUARE, iif( bOn, 1, 0 ) )
+end sub
+public function tkBarcode_GetSquareOnly( byval hBarcode as TK_WIDGET ptr ) as boolean
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_DM_SQUARE ) <> 0
+end function
+
+public sub tkBarcode_SetCheckDigit( byval hBarcode as TK_WIDGET ptr, byval bOn as boolean )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_CHECK_DIGIT, iif( bOn, 1, 0 ) )
+end sub
+public function tkBarcode_GetCheckDigit( byval hBarcode as TK_WIDGET ptr ) as boolean
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_CHECK_DIGIT ) <> 0
+end function
+
+public sub tkBarcode_SetGs1( byval hBarcode as TK_WIDGET ptr, byval bOn as boolean )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_GS1, iif( bOn, 1, 0 ) )
+end sub
+public function tkBarcode_GetGs1( byval hBarcode as TK_WIDGET ptr ) as boolean
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_GS1 ) <> 0
+end function
+
+public sub tkBarcode_SetEscapes( byval hBarcode as TK_WIDGET ptr, byval bOn as boolean )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_ESCAPES, iif( bOn, 1, 0 ) )
+end sub
+public function tkBarcode_GetEscapes( byval hBarcode as TK_WIDGET ptr ) as boolean
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_ESCAPES ) <> 0
+end function
+
+public sub tkBarcode_SetEci( byval hBarcode as TK_WIDGET ptr, byval n as int32 )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_ECI, n )
+end sub
+public function tkBarcode_GetEci( byval hBarcode as TK_WIDGET ptr ) as int32
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_ECI )
+end function
+
+' TKBC_BEARER_*: ITF / ITF-14.
+public sub tkBarcode_SetBearer( byval hBarcode as TK_WIDGET ptr, byval n as int32 )
+    tkBarcode_SetOption( hBarcode, TKBC_OPT_BEARER, n )
+end sub
+public function tkBarcode_GetBearer( byval hBarcode as TK_WIDGET ptr ) as int32
+    return tkBarcode_GetOption( hBarcode, TKBC_OPT_BEARER )
+end function

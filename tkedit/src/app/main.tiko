@@ -27,6 +27,8 @@
 #import "vendor/SDL3/ttf" link static
 #import "vendor/SDL3/image" link static
 #import "vendor/tkControls/tkCodeEdit" link static
+' libzint: the designer's Barcode (tkMeta imports tkBarcode, which imports vendor/zint)
+#import "vendor/zint" link static
 #import "tka/assets"
 #import "tka/mainwin"
 #import "./tests/selftest"

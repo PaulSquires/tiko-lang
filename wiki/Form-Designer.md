@@ -362,6 +362,7 @@ end sub
 | Badge | the count, in only |
 | Avatar | the display name, in only (the initials and the colour come from it); **BindImage** moves the image file's path both ways |
 | Chip | selected or not |
+| Barcode | the data, in only, as text: a number field is drawn as its digits (keep an EAN with leading zeros in a text field). Data the symbology refuses shows the control's error state; loading never fails |
 | ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives. With **AllowReorder**, BindItems saves the order the user left |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |

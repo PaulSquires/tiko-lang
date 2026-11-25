@@ -979,7 +979,8 @@ private function AnyList_( byref doc as FormDoc ) as boolean
     for each c as FormControl in doc.Controls
         if catalog.ListReady( c ) then return true
     next
-    return false
+    ' a wired navigator steps through an Array( of DataType ) even with no list beside it
+    return catalog.NavReady( doc ) >= 0
 end function
 
 ' A list the inspector has left half filled in: the build stops on it, saying what it still needs.

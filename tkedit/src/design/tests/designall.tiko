@@ -1324,6 +1324,34 @@ sub SliderSuite( )
     HasLine( g, "tkSlider_SetValueCommittedCallback( sld.Handle, @Thunk_sld_ValueCommitted )", "slider: ValueCommitted installed" )
 end sub
 
+' A Barcode (BARCODE.md BC3): its symbology at creation, the paper and option rows, a load-only Bind
+' (LoadFrom sets the data; SaveTo leaves it), and a dropped one seeded with data the canvas can show.
+sub BarcodeSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Product""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring src = hdr & Ctl( "bcSku", "Barcode", "bind = ""Sku""" & LF ) & "[control.props]" & LF _
+        & "Symbology = ""EAN13""" & LF & "FitMode = ""Fit""" & LF & "XDimension = 0.4" & LF & "Gs1 = true" & LF _
+        & LF & Ctl( "txtName", "TextBox", "bind = ""Name""" & LF )
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "barcode: the form parses" )
+    Accepted( src, "barcode: bound, its rows" )
+    dim as ustring g = codegen.Generate( d, "frmB", "frmB.tkform", src )
+    Check( instr( g, "TKBC_EAN13" ) > 0, "barcode: the symbology is its constant", LineWith( g, "bcSku" ) )
+    HasLine( g, "bcSku.FitMode = TKBC_FIT_FIT", "barcode: an enum row" )
+    HasLine( g, "bcSku.Gs1 = true", "barcode: an option row" )
+    HasLine( g, "tkBarcode_SetData( bcSku.Handle, tkBind_Text( r.Sku ) )", "barcode: LoadFrom sets the data" )
+    dim as long nSave = instr( g, "function Form.SaveTo" )
+    Check( (nSave > 0) andalso (instr( nSave, g, "bcSku" ) = 0), "barcode: load only, SaveTo leaves it" )
+    ' a navigator with no list to follow still steps an Array: the file imports std/containers (B4)
+    dim as FormDoc dn
+    ReadForm( hdr & Ctl( "bcSku", "Barcode", "bind = ""Sku""" & LF ) & Ctl( "nav", "Navigator", "items_source = ""Products""" & LF ), dn )
+    dim as ustring gn = codegen.Generate( dn, "frmN", "frmN.tkform", "" )
+    Check( (instr( gn, "#import ""std/containers""" ) > 0) andalso (instr( gn, LF & "using containers" & LF ) > 0), "a navigator alone imports std/containers" )
+    dim as FormDoc nd
+    ReadForm( Header( ), nd )
+    dim as long i = edits.AddControl( nd, "Barcode", "", -1, 8, 8, 200, 80 )
+    Check( (i >= 0) andalso (FindSetting( nd.Controls[i].Props, "Data" ) >= 0), "barcode: a dropped one has Data = its name" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -3149,6 +3177,7 @@ TextBoxEventsSuite( )
 NumericUpDownSuite( )
 PropOrderSuite( )
 SliderSuite( )
+BarcodeSuite( )
 PrintPreviewSuite( )
 ReportViewerSuite( )
 NotifySuite( )

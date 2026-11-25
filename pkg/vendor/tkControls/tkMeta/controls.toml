@@ -2424,3 +2424,59 @@ events = [
   { name="ItemMoved", set="tkChipGroup_SetItemMovedCallback", type="CHG_ItemMovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long", params="byval nFrom as long, byval nTo as long", args="nFrom, nTo" },
   { name="Message", set="tkChipGroup_SetMessageCallback", type="CHG_MessageCallbackFunc", sig="byval m as TKCHIPGRP_MESSAGEINFO ptr", params="byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGroup", returns="boolean", result="Handled" },
 ]
+
+# tkBarcode (docs/tkControls/BARCODE.md, BC3): a 1D or 2D barcode, encoded by vendor/zint. Its value
+# is the data, bound load-only as text, as a Label's (§9.1). A dropped Barcode starts with Data =
+# its name (a Code 128 the canvas can show), as a dropped Button starts with Text = its name.
+# The symbol is black on white whatever the theme (D-7): Back / Bar / Text are not theme roles.
+[[control]]
+name = "Barcode"
+module = "tkBarcode"
+category = "Common"
+width = 200
+height = 80
+create_arg = "Symbology"
+create_arg_kind = "enum"
+create_arg_enum = "EAN13=TKBC_EAN13,EAN8=TKBC_EAN8,UPCA=TKBC_UPCA,UPCE=TKBC_UPCE,ISBN=TKBC_ISBN,Code128=TKBC_CODE128,GS1_128=TKBC_GS1_128,Code39=TKBC_CODE39,Code39Ext=TKBC_CODE39_EXT,Code93=TKBC_CODE93,ITF=TKBC_ITF,ITF14=TKBC_ITF14,Codabar=TKBC_CODABAR,QR=TKBC_QR,MicroQR=TKBC_MICRO_QR,DataMatrix=TKBC_DATAMATRIX,GS1DataMatrix=TKBC_GS1_DATAMATRIX,PDF417=TKBC_PDF417,PDF417Compact=TKBC_PDF417_COMPACT,Aztec=TKBC_AZTEC"
+create_arg_default = "Code128"
+bind = { kind="text", set="tkBarcode_SetData", load_only=true }
+default_event = "Click"
+colors = { struct="TKBARCODE_COLORS", get="tkBarcode_GetColors", theme="tkBarcode_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="BarColor", part="Bar", state="Normal" },
+  { field="TextColor", part="Text", state="Normal", ink=true },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="ErrorColor" },
+  { field="ErrorBackColor" },
+]
+props = [
+  { name="Data", kind="text", set="tkBarcode_SetData", get="tkBarcode_GetData" },
+  { name="Caption", kind="text", set="tkBarcode_SetCaption", get="tkBarcode_GetCaption" },
+  { name="TextMode", kind="enum", enum="None=TKBC_TEXT_NONE,Below=TKBC_TEXT_BELOW,Above=TKBC_TEXT_ABOVE", set="tkBarcode_SetTextMode", get="tkBarcode_GetTextMode", default="Below" },
+  { name="FitMode", kind="enum", enum="Normal=TKBC_FIT_NORMAL,Fit=TKBC_FIT_FIT,Proportional=TKBC_FIT_PROPORTIONAL,Stretch=TKBC_FIT_STRETCH", set="tkBarcode_SetFitMode", get="tkBarcode_GetFitMode", default="Normal" },
+  { name="ModuleWidth", kind="int", set="tkBarcode_SetModuleWidth", get="tkBarcode_GetModuleWidth", default="2" },
+  { name="BarHeight", kind="float", set="tkBarcode_SetBarHeight", get="tkBarcode_GetBarHeight", default="0" },
+  { name="QuietZone", kind="bool", set="tkBarcode_SetQuietZone", get="tkBarcode_GetQuietZone", default="true" },
+  { name="Rotation", kind="enum", enum="Deg0=TKBC_ROT_0,Deg90=TKBC_ROT_90,Deg180=TKBC_ROT_180,Deg270=TKBC_ROT_270", set="tkBarcode_SetRotation", get="tkBarcode_GetRotation", default="Deg0" },
+  { name="ShowErrors", kind="bool", set="tkBarcode_SetShowErrors", get="tkBarcode_GetShowErrors", default="true" },
+  { name="Border", kind="bool", set="tkBarcode_SetBorder", get="tkBarcode_GetBorder", default="false" },
+  { name="EccLevel", kind="int", set="tkBarcode_SetEccLevel", get="tkBarcode_GetEccLevel", default="0" },
+  { name="SymbolSize", kind="int", set="tkBarcode_SetSymbolSize", get="tkBarcode_GetSymbolSize", default="0" },
+  { name="Mask", kind="int", set="tkBarcode_SetMask", get="tkBarcode_GetMask", default="0" },
+  { name="SquareOnly", kind="bool", set="tkBarcode_SetSquareOnly", get="tkBarcode_GetSquareOnly", default="false" },
+  { name="CheckDigit", kind="bool", set="tkBarcode_SetCheckDigit", get="tkBarcode_GetCheckDigit", default="false" },
+  { name="Gs1", kind="bool", set="tkBarcode_SetGs1", get="tkBarcode_GetGs1", default="false" },
+  { name="Escapes", kind="bool", set="tkBarcode_SetEscapes", get="tkBarcode_GetEscapes", default="false" },
+  { name="Eci", kind="int", set="tkBarcode_SetEci", get="tkBarcode_GetEci", default="0" },
+  { name="Bearer", kind="enum", enum="Default=TKBC_BEARER_DEFAULT,Box=TKBC_BEARER_BOX,TopBottom=TKBC_BEARER_TOPBOTTOM,None=TKBC_BEARER_NONE", set="tkBarcode_SetBearer", get="tkBarcode_GetBearer", default="Default" },
+  { name="XDimension", kind="float", set="tkBarcode_SetXDimension", get="tkBarcode_GetXDimension", default="0" },
+  { name="BarHeightMm", kind="float", set="tkBarcode_SetBarHeightMm", get="tkBarcode_GetBarHeightMm", default="0" },
+  { name="Font", kind="font", set="tkBarcode_SetFont", get="tkBarcode_GetFont" },
+  { name="TooltipText", kind="text", set="tkBarcode_SetTooltipText", get="tkBarcode_GetTooltipText" },
+]
+events = [
+  { name="Click", set="tkBarcode_SetClickCallback", type="BC_ClickCallbackSub", sig="byval hBarcode as TK_WIDGET ptr, byval id as int32", params="", args="" },
+  { name="Paint", set="tkBarcode_SetPaintCallback", type="BC_PaintCallbackSub", sig="byval p as TKBARCODE_PAINTINFO ptr", params="byval p as TKBARCODE_PAINTINFO ptr", args="p", widget="p->hBarcode" },
+  { name="Message", set="tkBarcode_SetMessageCallback", type="BC_MessageCallbackFunc", sig="byval m as TKBARCODE_MESSAGEINFO ptr", params="byval m as TKBARCODE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hBarcode", returns="boolean", result="Handled" },
+]
