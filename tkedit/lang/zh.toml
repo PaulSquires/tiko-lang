@@ -601,3 +601,10 @@ none = "无"
 press = "请按下新的快捷键"
 not_a_key = "该键不能用作快捷键。"
 needs_modifier = "字母或数字需要配合 Primary、Alt 或 Shift。"
+
+[report]
+fields = "字段"
+parameters = "参数"
+builtin = "内置"
+band_exists = "{}：已有"
+need_number = "请输入数字"

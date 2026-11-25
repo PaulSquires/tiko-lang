@@ -306,3 +306,171 @@ public function PasteText( byval def as TK_REPORTDEF ptr, byref text as const us
     tkReportDef_Destroy( c )
     return true
 end function
+
+' ---- adding to a report (RD6: the toolbox, the field list, Insert band) --------------------------
+' A new item of kind (text field line box image check custom) in band bandId at x, y (points), at its
+' kind's size; its id ("text1", "field2" ...). "" when there is no such band or kind.
+public function AddItem( byval def as TK_REPORTDEF ptr, byref kind as const ustring, byref bandId as const ustring, _
+                         byval x as float32, byval y as float32 ) as ustring
+    dim as int32 bi = tkReportDef_FindBand( def, bandId )
+    if bi < 0 then return ""
+    dim as TKRD_ITEM it
+    select case kind
+    case "text" : it.text = "Text"
+    case "field"
+    case "line" : it.w = 100 : it.h = 0
+    case "box" : it.w = 60 : it.h = 30
+    case "image" : it.w = 48 : it.h = 48
+    case "check" : it.w = 12 : it.h = 12
+    case "custom" : it.w = 60 : it.h = 30
+    case else : return ""
+    end select
+    it.kind = kind
+    it.id = NewItemId( def, kind & "1" )
+    it.band = def->bands(bi).id
+    it.x = Round2( x )
+    it.y = Round2( y )
+    tkReportDef_AddItem( def, it )
+    return it.id
+end function
+
+' The source a band shows: its own; inside a detail_report, that one's; else the top-level detail's.
+public function SourceOfBand( byval def as TK_REPORTDEF ptr, byref bandId as const ustring ) as ustring
+    dim as int32 bi = tkReportDef_FindBand( def, bandId )
+    if bi < 0 then return ""
+    if len( def->bands(bi).source ) then return def->bands(bi).source
+    dim as int32 pb = tkReportDef_FindBand( def, def->bands(bi).parent )
+    if (pb >= 0) andalso (def->bands(pb).kind = "detail_report") then return def->bands(pb).source
+    for i as int32 = 0 to def->nBands - 1
+        if (def->bands(i).kind = "detail") andalso (len( def->bands(i).parent ) = 0) then return def->bands(i).source
+    next
+    return ""
+end function
+
+' How a band refers to field fieldName of source: [Field] in its own source, else [Source.Field].
+public function FieldExpr( byval def as TK_REPORTDEF ptr, byref bandId as const ustring, byref source as const ustring, _
+                           byref fieldName as const ustring ) as ustring
+    if lcase( SourceOfBand( def, bandId ) ) = lcase( source ) then return "[" & fieldName & "]"
+    return "[" & source & "." & fieldName & "]"
+end function
+
+' The nearest header band above bandId as the canvas stacks them (a group, page or report header at
+' the same nesting); "" for none.
+public function CaptionBandOf( byval def as TK_REPORTDEF ptr, byref bandId as const ustring ) as ustring
+    dim as Array( of int32 ) stack_, depths
+    BandOrder( def, stack_, depths )
+    dim as int32 k = -1
+    for j as int32 = 0 to stack_.Count( ) - 1
+        if lcase( def->bands(stack_[j]).id ) = lcase( bandId ) then k = j
+    next
+    if k < 0 then return ""
+    for j as int32 = k - 1 to 0 step -1
+        if depths[j] < depths[k] then exit for
+        if depths[j] > depths[k] then continue for
+        select case def->bands(stack_[j]).kind
+        case "group_header", "page_header", "report_header" : return def->bands(stack_[j]).id
+        end select
+    next
+    return ""
+end function
+
+' A field of source dropped in band bandId at x, y: a field item ([Field]); with a caption, a bold text
+' item of the field's name in the header band above, at the same x and width, at that band's foot.
+' Its id; captionId gets the caption's ("" when there is none, or no header above).
+public function PlaceField( byval def as TK_REPORTDEF ptr, byref bandId as const ustring, byval x as float32, byval y as float32, _
+                            byref source as const ustring, byref fieldName as const ustring, byval withCaption as boolean, _
+                            byref captionId as ustring ) as ustring
+    captionId = ""
+    dim as ustring id = AddItem( def, "field", bandId, x, y )
+    if len( id ) = 0 then return ""
+    dim as int32 fi = tkReportDef_FindItem( def, id )
+    def->items(fi).expr = FieldExpr( def, bandId, source, fieldName )
+    if withCaption = false then return id
+    dim as ustring hb = CaptionBandOf( def, bandId )
+    if len( hb ) = 0 then return id
+    dim as int32 hbi = tkReportDef_FindBand( def, hb )
+    dim as float32 fx = def->items(fi).x, fw = def->items(fi).w, fh = def->items(fi).h
+    dim as float32 cy = def->bands(hbi).height - fh - 2
+    if cy < 0 then cy = 0
+    captionId = AddItem( def, "text", hb, fx, cy )
+    dim as int32 ci = tkReportDef_FindItem( def, captionId )
+    def->items(ci).text = fieldName
+    def->items(ci).w = fw
+    def->items(ci).bold = true
+    return id
+end function
+
+private function NewBandId_( byval def as TK_REPORTDEF ptr, byref stem as const ustring ) as ustring
+    if tkReportDef_FindBand( def, stem ) < 0 then return stem
+    dim as int32 n = 2
+    while tkReportDef_FindBand( def, stem & n ) >= 0
+        n += 1
+    wend
+    return stem & n
+end function
+
+private function TopLevelCount_( byval def as TK_REPORTDEF ptr, byref kind as const ustring ) as int32
+    dim as int32 n = 0
+    for i as int32 = 0 to def->nBands - 1
+        if (def->bands(i).kind = kind) andalso (len( def->bands(i).parent ) = 0) then n += 1
+    next
+    return n
+end function
+
+' The group level a new footer closes: the innermost header without one; -1 for none.
+private function OpenGroupLevel_( byval def as TK_REPORTDEF ptr ) as int32
+    for lvl as int32 = TopLevelCount_( def, "group_header" ) - 1 to 0 step -1
+        dim as boolean hasFooter = false
+        for i as int32 = 0 to def->nBands - 1
+            if (def->bands(i).kind = "group_footer") andalso (len( def->bands(i).parent ) = 0) andalso (def->bands(i).level = lvl) then hasFooter = true
+        next
+        if hasFooter = false then return lvl
+    next
+    return -1
+end function
+
+' Whether Insert band can add one of kind: a group header always (the new innermost level), a group
+' footer for a header that has none, any other kind when the report has none yet.
+public function CanInsertBand( byval def as TK_REPORTDEF ptr, byref kind as const ustring ) as boolean
+    select case kind
+    case "group_header" : return true
+    case "group_footer" : return OpenGroupLevel_( def ) >= 0
+    case "report_header", "page_header", "detail", "report_footer", "page_footer", "no_data"
+        return TopLevelCount_( def, kind ) = 0
+    end select
+    return false
+end function
+
+' Adds a top-level band of kind; its id, "" when CanInsertBand says no.
+public function InsertBand( byval def as TK_REPORTDEF ptr, byref kind as const ustring ) as ustring
+    if CanInsertBand( def, kind ) = false then return ""
+    dim as TKRD_BAND b
+    b.kind = kind
+    select case kind
+    case "group_header"
+        b.level = TopLevelCount_( def, "group_header" )
+        b.id = NewBandId_( def, "groupHeader" & (b.level + 1) )
+    case "group_footer"
+        b.level = OpenGroupLevel_( def )
+        b.id = NewBandId_( def, "groupFooter" & (b.level + 1) )
+    case "report_header" : b.id = NewBandId_( def, "reportHeader" )
+    case "page_header" : b.id = NewBandId_( def, "pageHeader" )
+    case "detail"
+        b.id = NewBandId_( def, "detail" )
+        if def->nSources > 0 then b.source = def->sources(0).name_
+    case "report_footer" : b.id = NewBandId_( def, "reportFooter" )
+    case "page_footer" : b.id = NewBandId_( def, "pageFooter" )
+    case "no_data" : b.id = NewBandId_( def, "noData" )
+    end select
+    tkReportDef_AddBand( def, b )
+    return b.id
+end function
+
+' Band bandId, its items, and the bands inside it (a detail's detail_report and its bands).
+public sub DeleteBand( byval def as TK_REPORTDEF ptr, byref bandId as const ustring )
+    for i as int32 = def->nBands - 1 to 0 step -1
+        if i >= def->nBands then continue for
+        if lcase( def->bands(i).parent ) = lcase( bandId ) then DeleteBand( def, def->bands(i).id )
+    next
+    tkReportDef_RemoveBand( def, tkReportDef_FindBand( def, bandId ) )
+end sub

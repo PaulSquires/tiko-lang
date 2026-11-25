@@ -30,6 +30,7 @@
 #import "tkd/catalog"
 #import "tkd/rcodegen"
 #import "tkd/redits"
+#import "tkd/rmodel"
 #import "vendor/tkControls/tkReportDef"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
@@ -3224,5 +3225,6 @@ NavSuite( )
 DataGridSuite( bAccept )
 ReportCodegenSuite( bAccept )
 ReportEditsSuite( )
+ReportPalettesSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

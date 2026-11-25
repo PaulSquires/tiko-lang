@@ -60,6 +60,8 @@
 #import "tkd/canvas"
 #import "tkd/edits"
 #import "tkd/panels"
+#import "tkd/rpanels"
+#import "tkd/rcanvas"
 #import "tkd/itemsdlg"
 #import "tkd/themecenter"
 #import "tkd/colorsdlg"
@@ -707,6 +709,7 @@ public type Window
     declare function OpenCodeDocOf( byval formDoc as DocRef ) as DocRef
     declare sub AddFormOverlay( byval d as DocRef, byref o as parser.ScanOptions )
     Palettes as panels.DesignPanels
+    RPalettes as rpanels.ReportPanels       ' the Report Designer's (RD6)
     declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
     declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
     declare function KeepTheme( byref nm as const ustring, byref mode as const ustring ) as boolean
@@ -1245,6 +1248,10 @@ function Window.Create( byval forcedScale as single ) as boolean
     this.Touch( d )
 
     Palettes.Init( form, @this )
+    RPalettes.Init( form, @this )
+    RPalettes.OnMessage = sub( byval o as any ptr, byref t as const ustring )
+        cast( Window ptr, o )->SetMessage( t )
+    end sub
     Palettes.OnLayout = sub( byval o as any ptr )
         cast( Window ptr, o )->Layout( )
     end sub
@@ -1343,6 +1350,7 @@ sub Window.Destroy( )
     this.CloseTestForm( )
     if KeysDlg then this.FinishKeys( false )
     Palettes.Destroy( )
+    RPalettes.Destroy( )
     this.DropOutputFloat( )                      ' the pane back on the main window, which destroys it
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
@@ -1906,6 +1914,11 @@ sub Window.SyncPanels( )
     if (d <> 0) andalso (this.ShowsStart( ) = false) then c = d->Designer
     Palettes.Bind( c )
     if (c <> 0) <> Palettes.IsShown then Palettes.ShowAll( c <> 0 )
+    ' a report's own palettes (RD6)
+    dim as rcanvas.ReportCanvas ptr rc = 0
+    if (d <> 0) andalso (this.ShowsStart( ) = false) then rc = d->Report
+    RPalettes.Bind( rc )
+    if (rc <> 0) <> RPalettes.IsShown then RPalettes.ShowAll( rc <> 0 )
 end sub
 
 ' With a form on its design surface the hidden TOML is not what the person is editing: commands that
@@ -2982,6 +2995,7 @@ sub Window.PlacePane( byval pane as long, byval x as long, byval y as long, byva
     if d->Surface( ) then
         ' the palettes sit beside the surface of the form being worked on; it has its own scroll bars
         if (d->Designer <> 0) andalso (d = this.Active( )) then Palettes.PlaceDocked( x, y, cx, cy )
+        if (d->Report <> 0) andalso (d = this.Active( )) then RPalettes.PlaceDocked( x, y, cx, cy )
         tkWidget_SetPos( d->Surface( ), x, y, cx, cy )
         tkWidget_Show( vbar( pane ), false )
         tkWidget_Show( hbar( pane ), false )

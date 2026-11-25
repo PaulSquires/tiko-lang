@@ -360,6 +360,30 @@ public sub tkReportDef_RemoveItem( byval def as TK_REPORTDEF ptr, byval i as int
     def->nItems -= 1
 end sub
 
+' Appends a copy of b; its index.
+public function tkReportDef_AddBand( byval def as TK_REPORTDEF ptr, byref b as TKRD_BAND ) as int32
+    if def = 0 then return -1
+    if def->nBands > ubound( def->bands ) then redim preserve def->bands( 0 to def->nBands * 2 + 7 )
+    def->bands(def->nBands) = b
+    def->nBands += 1
+    return def->nBands - 1
+end function
+
+' Band i and the items in it.
+public sub tkReportDef_RemoveBand( byval def as TK_REPORTDEF ptr, byval i as int32 )
+    if (def = 0) orelse (i < 0) orelse (i >= def->nBands) then exit sub
+    dim as ustring id = lcase( def->bands(i).id )
+    for k as int32 = def->nItems - 1 to 0 step -1
+        if lcase( def->items(k).band ) = id then tkReportDef_RemoveItem( def, k )
+    next
+    for k as int32 = i to def->nBands - 2
+        def->bands(k) = def->bands(k + 1)
+    next
+    dim as TKRD_BAND blank
+    def->bands(def->nBands - 1) = blank
+    def->nBands -= 1
+end sub
+
 ' Item from goes to index to_; the ones between shift by one.
 public sub tkReportDef_MoveItem( byval def as TK_REPORTDEF ptr, byval from as int32, byval to_ as int32 )
     if (def = 0) orelse (from < 0) orelse (from >= def->nItems) orelse (to_ < 0) orelse (to_ >= def->nItems) orelse (from = to_) then exit sub

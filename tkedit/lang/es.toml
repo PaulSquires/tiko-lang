@@ -599,3 +599,10 @@ none = "Ninguna"
 press = "Pulse el nuevo atajo"
 not_a_key = "Esa tecla no puede usarse como atajo."
 needs_modifier = "Una letra o un dígito necesita Primary, Alt o Shift."
+
+[report]
+fields = "Campos"
+parameters = "Parámetros"
+builtin = "Integrados"
+band_exists = "{}: el informe ya tiene uno"
+need_number = "un número, por favor"

@@ -599,3 +599,10 @@ none = "Keine"
 press = "Neues Tastenkürzel drücken"
 not_a_key = "Diese Taste kann nicht als Tastenkürzel dienen."
 needs_modifier = "Ein Buchstabe oder eine Ziffer braucht Primary, Alt oder Shift."
+
+[report]
+fields = "Felder"
+parameters = "Parameter"
+builtin = "Eingebaut"
+band_exists = "{}: der Bericht hat schon einen"
+need_number = "eine Zahl, bitte"

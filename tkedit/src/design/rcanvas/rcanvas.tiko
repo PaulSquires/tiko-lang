@@ -33,6 +33,7 @@
 #import "vendor/tkControls/tkPrint"
 #import "vendor/tkControls/tkReportDef"
 #import "../redits"
+#import "../rmodel"
 using containers
 using tkReportDef
 using tkHost
@@ -79,6 +80,9 @@ end type
 public type ReportCanvas
     Def        as TK_REPORTDEF ptr
     Selected   as Array( of ustring )     ' item ids; the first is the anchor (the one with grips)
+    SelBand    as ustring                 ' a band picked by its caption (no item is selected then)
+    Tool       as ustring                 ' what a click in a band places: an item kind, or
+                                          ' "field:<kind>|<source>|<name>" from the field list; "" = select
     SnapToGrid as boolean = true
     Frame      as TK_WIDGET ptr
     Glass      as TK_WIDGET ptr
@@ -130,6 +134,11 @@ public type ReportCanvas
     declare function HitGrip( byval x as long, byval y as long ) as long
     declare function IsSelected( byref id as const ustring ) as boolean
     declare sub SelectOnly( byref id as const ustring )
+    declare sub SelectBand( byref id as const ustring )
+    declare function Subject( ) as ustring
+    declare function ApplyProp( byref target as const ustring, byref key_ as const ustring, byref value as const ustring ) as ustring
+    declare function InsertBand( byref kind as const ustring ) as boolean
+    declare function PlaceTool( byval x as long, byval y as long, byval mods as long ) as boolean
     declare sub SelectNone( )
     declare sub SelectAll( )
     declare sub Toggle( byref id as const ustring )
@@ -281,6 +290,7 @@ function ReportCanvas.LoadText( byref text as const ustring ) as boolean
         if tkReportDef_FindItem( Def, s ) >= 0 then keep.Push( s )
     next
     Selected = keep
+    if tkReportDef_FindBand( Def, SelBand ) < 0 then SelBand = ""
     this.Relayout( )
     this.Changed( )
     return true
@@ -498,6 +508,7 @@ function ReportCanvas.IsSelected( byref id as const ustring ) as boolean
 end function
 
 sub ReportCanvas.SelectOnly( byref id as const ustring )
+    SelBand = ""
     Selected.Clear( )
     dim as ustring v = id
     if len( v ) then Selected.Push( v )
@@ -505,11 +516,13 @@ sub ReportCanvas.SelectOnly( byref id as const ustring )
 end sub
 
 sub ReportCanvas.SelectNone( )
+    SelBand = ""
     Selected.Clear( )
     this.Changed( )
 end sub
 
 sub ReportCanvas.SelectAll( )
+    SelBand = ""
     Selected.Clear( )
     for i as int32 = 0 to Def->nItems - 1
         Selected.Push( Def->items(i).id )
@@ -519,6 +532,7 @@ end sub
 
 ' In or out of the selection; an item added becomes the anchor.
 sub ReportCanvas.Toggle( byref id as const ustring )
+    SelBand = ""
     dim as Array( of ustring ) keep
     dim as boolean was = false
     for each s as ustring in Selected
@@ -558,6 +572,11 @@ end sub
 sub ReportCanvas.OnPress( byval x as long, byval y as long, byval mods as long )
     if Def = 0 then exit sub
     StartX = x : StartY = y : NowX = x : NowY = y
+    if len( Tool ) then
+        this.PlaceTool( x, y, mods )
+        Drag = RDragNone
+        exit sub
+    end if
     Grip = this.HitGrip( x, y )
     if Grip >= 0 then
         TakeBases_( @this )
@@ -573,6 +592,14 @@ sub ReportCanvas.OnPress( byval x as long, byval y as long, byval mods as long )
     end if
     dim as int32 i = this.HitItem( x, y )
     PressBand = this.HitBand( x, y )
+    ' a caption picks its band
+    if (i < 0) andalso (PressBand >= 0) then
+        if y < this.BandBodyRect( PressBand ).top then
+            this.SelectBand( Def->bands(PressBand).id )
+            Drag = RDragNone
+            exit sub
+        end if
+    end if
     if i >= 0 then
         dim as ustring id = Def->items(i).id
         if (mods and (SDL_KMOD_SHIFT or TK_KMOD_PRIMARY)) <> 0 then
@@ -730,9 +757,23 @@ function ReportCanvas.OnKey( byval key as long, byval mods as long ) as boolean
     case SDLK_RIGHT : this.Nudge( stp, 0, sz )
     case SDLK_UP : this.Nudge( 0, -stp, sz )
     case SDLK_DOWN : this.Nudge( 0, stp, sz )
-    case SDLK_DELETE : this.DeleteSelection( )
+    case SDLK_DELETE
+        if len( SelBand ) then
+            redits.DeleteBand( Def, SelBand )
+            SelBand = ""
+            this.DirtyAll( )
+            this.Relayout( )
+            this.Commit( )
+        else
+            this.DeleteSelection( )
+        end if
     case SDLK_ESCAPE
-        if Selected.Count( ) = 0 then return false
+        if len( Tool ) then
+            Tool = ""
+            this.Changed( )
+            return true
+        end if
+        if (Selected.Count( ) = 0) andalso (len( SelBand ) = 0) then return false
         this.SelectNone( )
     case SDLK_TAB
         if Def->nItems = 0 then return true
@@ -877,8 +918,9 @@ sub ReportCanvas.Paint( byval b as TK_PAINT ptr )
         dim as int32 bi = Order[k]
         dim as TKRECT cap = this.CaptionRect( bi ), body = this.BandBodyRect( bi )
         if (body.bottom < view_.top) orelse (cap.top > view_.bottom) then continue for
-        ' the caption bar
-        b->SetBackColor( t.Surface )
+        ' the caption bar; the band picked shows it
+        dim as boolean picked = (len( SelBand ) > 0) andalso (lcase( SelBand ) = lcase( Def->bands(bi).id ))
+        if picked then b->SetBackColor( t.Selected ) else b->SetBackColor( t.Surface )
         b->PaintRect( @cap )
         b->SetBackColor( t.Border )
         dim as TKRECT ln
@@ -886,7 +928,7 @@ sub ReportCanvas.Paint( byval b as TK_PAINT ptr )
         b->PaintRect( @ln )
         dim as TKRECT tr = cap
         tr.left += this.Sc( 6 ) + Depths[k] * this.Sc( INDENT )
-        b->SetForeColor( t.TextDim )
+        if picked then b->SetForeColor( t.SelectedText ) else b->SetForeColor( t.TextDim )
         b->PaintText( CaptionText_( Def->bands(bi) ), @tr, TK_DT_LEFT or TK_DT_ELLIPSIS )
         ' the paper, the margins as faint lines, the band as recorded
         dim as TKRECT paper
@@ -1000,3 +1042,121 @@ sub ReportCanvas.PaintRulers( byval b as TK_PAINT ptr )
     tkRect_Set( rc, rl - 1, 0, rl, Glass->ch ) : b->SetBackColor( t.Border ) : b->PaintRect( @rc )
     tkRect_Set( rc, 0, rl - 1, Glass->cw, rl ) : b->PaintRect( @rc )
 end sub
+
+' ---- the palettes' side (RD6) --------------------------------------------------------------------
+sub ReportCanvas.SelectBand( byref id as const ustring )
+    Selected.Clear( )
+    SelBand = id
+    this.Changed( )
+end sub
+
+' What the inspector shows: the anchor item, else the band picked, else the report.
+function ReportCanvas.Subject( ) as ustring
+    if Selected.Count( ) then return "item:" & Selected[0]
+    if len( SelBand ) then return "band:" & SelBand
+    return ""
+end function
+
+' One property, as the inspector edits it. The report must still read back as a .tkreport (the
+' file's reader decides what a colour, a level or a reset may be); else nothing changes and the
+' answer is why. "" = done, as one undoable edit.
+function ReportCanvas.ApplyProp( byref target as const ustring, byref key_ as const ustring, byref value as const ustring ) as ustring
+    if Def = 0 then return "?"
+    dim as ustring before = tkReportDef_SaveText( Def )
+    dim as ustring fault = rmodel.SetProp( Def, target, key_, value )
+    if len( fault ) = 0 then
+        dim as ustring e
+        dim as TK_REPORTDEF ptr t = tkReportDef_LoadText( tkReportDef_SaveText( Def ), e )
+        if t then
+            tkReportDef_Destroy( t )
+        else
+            fault = e
+            dim as long nl = instr( fault, wchr( 10 ) )
+            if nl > 0 then fault = left( fault, nl - 1 )
+        end if
+    end if
+    if len( fault ) then
+        ' back to how it was: the model, not just the one field
+        dim as ustring e
+        dim as TK_REPORTDEF ptr t = tkReportDef_LoadText( before, e )
+        if t then
+            tkReportDef_Destroy( Def )
+            Def = t
+        end if
+        this.DirtyAll( )
+        this.Relayout( )
+        this.Changed( )
+        return fault
+    end if
+    ' a renamed item or band keeps its selection
+    if (key_ = "id") andalso (left( target, 5 ) = "item:") andalso (Selected.Count( ) > 0) then
+        dim as ustring v = value
+        Selected[0] = v
+    end if
+    if (key_ = "id") andalso (left( target, 5 ) = "band:") then SelBand = value
+    this.DirtyAll( )
+    this.Relayout( )
+    this.Commit( )
+    return ""
+end function
+
+' Insert band: a band of kind, selected. False when the report cannot take one (redits.CanInsertBand).
+function ReportCanvas.InsertBand( byref kind as const ustring ) as boolean
+    if Def = 0 then return false
+    dim as ustring id = redits.InsertBand( Def, kind )
+    if len( id ) = 0 then return false
+    Selected.Clear( )
+    SelBand = id
+    this.DirtyAll( )
+    this.Relayout( )
+    this.Commit( )
+    return true
+end function
+
+' A click with a tool: what the tool places, in the band's body under the click, snapped. A field
+' from the field list brings its caption into the header above unless Shift is down. False (the
+' tool stays) when the click is not in a band's body.
+function ReportCanvas.PlaceTool( byval x as long, byval y as long, byval mods as long ) as boolean
+    dim as int32 bi = this.HitBand( x, y )
+    if bi < 0 then return false
+    dim as TKRECT body = this.BandBodyRect( bi )
+    if y < body.top then return false
+    dim as single s = this.PxPerPt( )
+    dim as float32 g = 0
+    if SnapToGrid then g = redits.GridPt( Def )
+    dim as float32 px = redits.Snap( (x - body.left) / s, g ), py = redits.Snap( (y - body.top) / s, g )
+    if px < 0 then px = 0
+    if py < 0 then py = 0
+    dim as ustring band = Def->bands(bi).id, id, caption
+    if left( Tool, 6 ) = "field:" then
+        dim as ustring t = mid( Tool, 7 )
+        dim as long a = instr( t, "|" )
+        dim as long b = instr( a + 1, t, "|" )
+        dim as ustring kind_ = left( t, a - 1 ), src = mid( t, a + 1, b - a - 1 ), nm = mid( t, b + 1 )
+        select case kind_
+        case "f"
+            id = redits.PlaceField( Def, band, px, py, src, nm, (mods and SDL_KMOD_SHIFT) = 0, caption )
+        case "p", "b"
+            id = redits.AddItem( Def, "field", band, px, py )
+            if len( id ) then
+                dim as ustring ex = nm
+                if kind_ = "p" then ex = "@" & nm
+                Def->items(tkReportDef_FindItem( Def, id )).expr = ex
+            end if
+        end select
+    else
+        id = redits.AddItem( Def, Tool, band, px, py )
+    end if
+    Tool = ""
+    if len( id ) = 0 then
+        this.Changed( )
+        return false
+    end if
+    Selected.Clear( )
+    SelBand = ""
+    Selected.Push( id )
+    this.DirtyAll( )
+    this.Relayout( )
+    this.Commit( )
+    return true
+end function

@@ -176,3 +176,33 @@ sub ReportEditsSuite( )
     Check( RptIds( d ) = "c b", "redits: delete", RptIds( d ) )
     tkReportDef_Destroy( d )
 end sub
+
+' ---- the palettes' model (RD6): rmodel and redits' placing, GUI-free --------------------------------
+sub ReportPalettesSuite( )
+    dim as ustring src = "format = 1" & LF & "[[source]]" & LF & "name = ""O""" & LF _
+        & "[[source]]" & LF & "name = ""L""" & LF & "parent = ""O""" & LF & "  [[source.field]]" & LF & "  name = ""Qty""" & LF & "  kind = ""int""" & LF _
+        & "[[band]]" & LF & "id = ""d""" & LF & "kind = ""detail""" & LF & "source = ""O""" & LF _
+        & "[[band]]" & LF & "id = ""dr""" & LF & "kind = ""detail_report""" & LF & "parent = ""d""" & LF & "source = ""L""" & LF _
+        & "[[band]]" & LF & "id = ""ld""" & LF & "kind = ""detail""" & LF & "parent = ""dr""" & LF _
+        & "[[item]]" & LF & "id = ""a""" & LF & "band = ""d""" & LF
+    dim as TK_REPORTDEF ptr d = LoadRpt( src )
+    if d = 0 then exit sub
+    Check( (redits.FieldExpr( d, "ld", "L", "Qty" ) = "[Qty]") andalso (redits.FieldExpr( d, "d", "L", "Qty" ) = "[L.Qty]"), _
+           "rpalettes: a field is [Field] in its own source's band, [Source.Field] elsewhere" )
+    Check( redits.InsertBand( d, "group_footer" ) = "", "rpalettes: no group footer without a header" )
+    Check( (redits.InsertBand( d, "group_header" ) = "groupHeader1") andalso (redits.InsertBand( d, "group_header" ) = "groupHeader2") _
+           andalso (redits.InsertBand( d, "group_footer" ) = "groupFooter2"), "rpalettes: a footer closes the innermost open group" )
+    Check( (rmodel.SetProp( d, "band:d", "id", "body" ) = "") andalso (d->items(0).band = "body") andalso (d->bands(tkReportDef_FindBand( d, "dr" )).parent = "body"), _
+           "rpalettes: a band renamed takes its items and its bands along" )
+    Check( (rmodel.SetProp( d, "band:body", "height", "x" ) <> "") andalso (rmodel.SetProp( d, "item:a", "id", "dr" ) = "") _
+           andalso (rmodel.SetProp( d, "item:a", "id", "1a" ) <> ""), "rpalettes: a number and a name are checked" )
+    Check( (rmodel.NumText( 19.84 ) = "19.84") andalso (rmodel.NumText( 20 ) = "20") andalso (rmodel.NumText( 2.5 ) = "2.5"), "rpalettes: numbers shown to 0.01, no trailing zeros" )
+    dim as Array( of rmodel.RField ) f
+    rmodel.FieldList( d, f )
+    Check( (f[0].Label = "O") andalso (f[1].Label = "L") andalso (f[1].Level = 1) andalso (f[2].Label = "Qty") andalso (f[2].Level = 2), _
+           "rpalettes: a child source and its fields sit under the master" )
+    redits.DeleteBand( d, "body" )
+    Check( (tkReportDef_FindBand( d, "dr" ) < 0) andalso (tkReportDef_FindBand( d, "ld" ) < 0) andalso (d->nItems = 0), _
+           "rpalettes: deleting a band takes its items and its own bands" )
+    tkReportDef_Destroy( d )
+end sub

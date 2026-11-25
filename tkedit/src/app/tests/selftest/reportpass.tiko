@@ -161,7 +161,7 @@ public sub ReportPass( byref t as Tally, byval sc as single )
     ' a band's height, from its bottom edge; the bands below move down
     dim as TKRECT rf0 = c->BandBodyRect( tkReportDef_FindBand( c->Def, "rf" ) )
     bd = RpAbs_( c, c->BandBodyRect( tkReportDef_FindBand( c->Def, "d" ) ) )
-    x = bd.left + cint( 300 * s )
+    x = bd.left + cint( 4 * s )
     DragPx( h, x, bd.bottom, x, bd.bottom + 4 * stp )
     dim as TKRECT rf1 = c->BandBodyRect( tkReportDef_FindBand( c->Def, "rf" ) )
     dim as float32 want = redits.Snap( 20 + 4 * g, g )

@@ -599,3 +599,10 @@ none = "Aucune"
 press = "Appuyez sur le nouveau raccourci"
 not_a_key = "Cette touche ne peut pas servir de raccourci."
 needs_modifier = "Une lettre ou un chiffre exige Primary, Alt ou Shift."
+
+[report]
+fields = "Champs"
+parameters = "Paramètres"
+builtin = "Intégrés"
+band_exists = "{} : le rapport en a déjà un"
+need_number = "un nombre, s'il vous plaît"

@@ -1,0 +1,626 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' rpanels -- the Report Designer's palettes (RD6), docked beside a report's canvas: on the left the
+' toolbox (the item kinds, then Insert band) over the field list; on the right the report's tree
+' (bands and their items) over the inspector.
+'
+' A SIBLING OF tkd/panels, NOT A USER OF IT: the form palettes are typed to the form canvas, its
+' FormDoc and tkMeta's tables throughout. The idioms are copied -- a palette frame that finds its
+' owner by walking up (RPanelsOf), rows rebuilt on a timer when the selection's shape changes, never
+' inside the canvas's callback, a row's edit applied on Enter, focus lost, a pick or a toggle and
+' reverted with the canvas's answer when refused -- and each copied comment checked.
+'
+' PLACING: a click on a toolbox kind or a field arms the canvas (ReportCanvas.Tool) and gives it the
+' keyboard; the next click in a band places it (RD13). A field brings its caption (rcanvas.PlaceTool).
+#module "rpanels"
+
+#import "std/containers"
+#import "std/strings"
+#import "tkc/i18n"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkLabel"
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkCheckBox"
+#import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkReportDef"
+#import "../redits"
+#import "../rmodel"
+#import "../rcanvas"
+using containers
+using tkApp
+using tkListTree
+using tkLabel
+using tkTextBox
+using tkComboBox
+using tkCheckBox
+using tkScrollPanel
+using tkTheme
+using tkHost
+using tkPaint
+using tkReportDef
+using tkReport
+
+const as long LEFT_CX = 190         ' the toolbox and field list palette
+const as long RIGHT_CX = 290        ' the tree and inspector palette
+const as long GAP = 4               ' between a palette and the canvas
+const as long HEADER_CY = 28
+const as long ROW_CY = 28
+const as long LABEL_CX = 120
+const as long PAD = 4
+const as long TIMER_REBUILD = 1
+
+' Toolbox rows: 0 the pointer, 1 to 7 the item kinds, then a band kind each (BAND_BASE + its place).
+const as long BAND_BASE = 100
+
+public type RMessageSub as sub( byval owner as any ptr, byref text as const ustring )
+
+public type RRow
+    Key   as ustring
+    Kind  as rmodel.RPropKind
+    Label as TK_WIDGET ptr
+    Edit  as TK_WIDGET ptr
+    Text  as ustring            ' the value last shown or applied
+end type
+
+public type ReportPanels
+    Host       as TK_FORM ptr
+    Owner      as any ptr
+    OnMessage  as RMessageSub
+    C          as rcanvas.ReportCanvas ptr
+    IsShown    as boolean
+    Ticker     as TK_WIDGET ptr
+    FrameL     as TK_WIDGET ptr
+    FrameR     as TK_WIDGET ptr
+    TitleTools as TK_WIDGET ptr
+    TitleFields as TK_WIDGET ptr
+    TitleTree  as TK_WIDGET ptr
+    TitleProps as TK_WIDGET ptr
+    ToolList   as TK_WIDGET ptr
+    FieldTree  as TK_WIDGET ptr
+    Tree       as TK_WIDGET ptr
+    Scroll     as TK_WIDGET ptr
+    Rows       as Array( of RRow )
+    Fields     as Array( of rmodel.RField )
+    RowSig     as ustring
+    TreeSig    as ustring
+    FieldSig   as ustring
+    Updating   as boolean
+
+    declare sub Init( byval hostForm as TK_FORM ptr, byval owner_ as any ptr )
+    declare sub Destroy( )
+    declare sub Bind( byval canvas_ as rcanvas.ReportCanvas ptr )
+    declare sub ShowAll( byval onOff as boolean )
+    declare sub PlaceDocked( byref x as long, byref y as long, byref cx as long, byref cy as long )
+    declare sub Refresh( )
+    declare sub RebuildContent( )
+    declare sub Build( )
+    declare sub LayoutPalette( byval which as long )
+    declare sub LayoutRows( )
+    declare sub FillToolbox( )
+    declare sub BuildFields( )
+    declare sub BuildTree( )
+    declare sub BuildRows( )
+    declare sub UpdateValues( )
+    declare sub CommitRow( byval r as long )
+    declare function RowOf( byval w as TK_WIDGET ptr ) as long
+    declare sub ToolPicked( byval row as long )
+    declare sub FieldPicked( byval row as long )
+    declare sub TreePicked( byval row as long )
+end type
+
+' The band kinds Insert band offers, in the order a report prints them.
+private function BandKind_( byval k as long ) as ustring
+    select case k
+    case 0 : return "report_header"
+    case 1 : return "page_header"
+    case 2 : return "group_header"
+    case 3 : return "detail"
+    case 4 : return "group_footer"
+    case 5 : return "report_footer"
+    case 6 : return "page_footer"
+    case 7 : return "no_data"
+    end select
+    return ""
+end function
+
+private function ItemKind_( byval k as long ) as ustring
+    select case k
+    case 1 : return "text"
+    case 2 : return "field"
+    case 3 : return "line"
+    case 4 : return "box"
+    case 5 : return "image"
+    case 6 : return "check"
+    case 7 : return "custom"
+    end select
+    return ""
+end function
+
+' ---- the widgets' procedures ------------------------------------------------------------------
+private function TickerProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg = TKM_TIMER then
+        tkWidget_KillTimer( w, m->timerId )
+        cast( ReportPanels ptr, w->pData )->RebuildContent( )
+        return true
+    end if
+    return false
+end function
+
+private function RPaletteProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as ReportPanels ptr p = w->pData
+    select case m->msg
+    case TKM_PAINT
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( tkTheme_Get( ).Surface )
+        m->pPaint->PaintRect( @rc )
+        return true
+    case TKM_SIZE
+        p->LayoutPalette( w->ctrlId )
+        return true
+    end select
+    return false
+end function
+
+private function RPanelsOf( byval w as TK_WIDGET ptr ) as ReportPanels ptr
+    while w
+        if w->proc = @RPaletteProc then return w->pData
+        w = w->pParent
+    wend
+    return 0
+end function
+
+private sub OnCanvasChanged( byval owner as any ptr )
+    cast( ReportPanels ptr, owner )->Refresh( )
+end sub
+
+private sub OnToolSel( byval hList as TK_WIDGET ptr, byval row as integer )
+    dim as ReportPanels ptr p = RPanelsOf( hList )
+    if (p <> 0) andalso (p->Updating = false) andalso (p->C <> 0) then p->ToolPicked( row )
+end sub
+
+private sub OnFieldSel( byval hList as TK_WIDGET ptr, byval row as integer )
+    dim as ReportPanels ptr p = RPanelsOf( hList )
+    if (p <> 0) andalso (p->Updating = false) andalso (p->C <> 0) then p->FieldPicked( row )
+end sub
+
+private sub OnTreeSel( byval hList as TK_WIDGET ptr, byval row as integer )
+    dim as ReportPanels ptr p = RPanelsOf( hList )
+    if (p <> 0) andalso (p->Updating = false) andalso (p->C <> 0) then p->TreePicked( row )
+end sub
+
+private sub OnTextEnter( byval h as TK_WIDGET ptr )
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p then p->CommitRow( p->RowOf( h ) )
+end sub
+
+private sub OnTextFocus( byval h as TK_WIDGET ptr, byval bGotFocus as boolean )
+    if bGotFocus then exit sub
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p then p->CommitRow( p->RowOf( h ) )
+end sub
+
+private sub OnComboPicked( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p then p->CommitRow( p->RowOf( h ) )
+end sub
+
+private sub OnCheckToggled( byval h as TK_WIDGET ptr, byval isChecked as boolean )
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p then p->CommitRow( p->RowOf( h ) )
+end sub
+
+' ---- life ------------------------------------------------------------------------------------
+sub ReportPanels.Init( byval hostForm as TK_FORM ptr, byval owner_ as any ptr )
+    Host = hostForm
+    Owner = owner_
+    Ticker = tkWidget_CreateChild( tkForm_Widget( Host ), 9911, @TickerProc, @this )
+    tkWidget_Show( Ticker, false )
+end sub
+
+sub ReportPanels.Destroy( )
+    C = 0
+    FrameL = 0
+    FrameR = 0
+end sub
+
+sub ReportPanels.Bind( byval canvas_ as rcanvas.ReportCanvas ptr )
+    dim as boolean changed = (C <> canvas_)
+    C = canvas_
+    if canvas_ then
+        canvas_->Listener = @this
+        canvas_->OnChanged = @OnCanvasChanged
+    end if
+    if changed then
+        RowSig = "?"
+        TreeSig = "?"
+        FieldSig = "?"
+    end if
+    if (canvas_ <> 0) andalso (FrameL = 0) then this.Build( )
+    if changed andalso (canvas_ <> 0) then this.RebuildContent( )
+end sub
+
+sub ReportPanels.ShowAll( byval onOff as boolean )
+    IsShown = onOff
+    if FrameL then tkWidget_Show( FrameL, onOff )
+    if FrameR then tkWidget_Show( FrameR, onOff )
+end sub
+
+' The palettes out of the pane x, y, cx, cy: left and right strips; what is left is the canvas's.
+sub ReportPanels.PlaceDocked( byref x as long, byref y as long, byref cx as long, byref cy as long )
+    if (FrameL = 0) orelse (IsShown = false) then exit sub
+    dim as TK_HOST ptr h = tkForm_Host( Host )
+    dim as long wL = tkHost_Scale( h, LEFT_CX ), wR = tkHost_Scale( h, RIGHT_CX ), g = tkHost_Scale( h, GAP )
+    ' a narrow window: the palettes give way to a third each
+    if wL + wR + 2 * g > cx * 2 \ 3 then
+        wL = cx \ 3 - g
+        wR = cx \ 3 - g
+        if wL < 0 then wL = 0
+        if wR < 0 then wR = 0
+    end if
+    tkWidget_SetPos( FrameL, x, y, wL, cy )
+    tkWidget_SetPos( FrameR, x + cx - wR, y, wR, cy )
+    x += wL + g
+    cx -= wL + wR + 2 * g
+    if cx < 0 then cx = 0
+end sub
+
+' ---- building --------------------------------------------------------------------------------
+sub ReportPanels.Build( )
+    dim as TK_WIDGET ptr parent = tkForm_Widget( Host )
+    FrameL = tkWidget_CreateChild( parent, 0, @RPaletteProc, @this )
+    FrameR = tkWidget_CreateChild( parent, 1, @RPaletteProc, @this )
+    TitleTools = tkLabel_Create( FrameL, 1 )
+    tkLabel_SetText( TitleTools, i18n.Tr( "designer.toolbox", "Toolbox" ) )
+    ToolList = tkListTree_Create( FrameL, 2 )
+    tkListTree_SetPaintCallback( ToolList, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+    tkListTree_SetSelChangeCallback( ToolList, @OnToolSel )
+    TitleFields = tkLabel_Create( FrameL, 3 )
+    tkLabel_SetText( TitleFields, i18n.Tr( "report.fields", "Fields" ) )
+    FieldTree = tkListTree_Create( FrameL, 4 )
+    tkListTree_SetPaintCallback( FieldTree, @tkListTree_PaintRowDefault )
+    tkListTree_SetSelChangeCallback( FieldTree, @OnFieldSel )
+    TitleTree = tkLabel_Create( FrameR, 1 )
+    tkLabel_SetText( TitleTree, i18n.Tr( "designer.objects", "Object Tree" ) )
+    Tree = tkListTree_Create( FrameR, 2 )
+    tkListTree_SetPaintCallback( Tree, @tkListTree_PaintRowDefault )
+    tkListTree_SetSelChangeCallback( Tree, @OnTreeSel )
+    TitleProps = tkLabel_Create( FrameR, 3 )
+    tkLabel_SetText( TitleProps, i18n.Tr( "designer.properties", "Properties" ) )
+    Scroll = tkScrollPanel_Create( FrameR, 4 )
+    this.FillToolbox( )
+    tkWidget_Show( FrameL, IsShown )
+    tkWidget_Show( FrameR, IsShown )
+end sub
+
+' Each palette: its title, a list, the second title, the second list; the upper list 40 %.
+sub ReportPanels.LayoutPalette( byval which as long )
+    dim as TK_WIDGET ptr f = iif( which = 0, FrameL, FrameR )
+    if f = 0 then exit sub
+    dim as TK_HOST ptr h = f->pHost
+    dim as long hh = tkHost_Scale( h, HEADER_CY ), p_ = tkHost_Scale( h, PAD )
+    dim as long avail = f->ch - 2 * hh
+    if avail < 0 then avail = 0
+    dim as long topH = avail * 40 \ 100
+    dim as TK_WIDGET ptr t1 = iif( which = 0, TitleTools, TitleTree ), l1 = iif( which = 0, ToolList, Tree )
+    dim as TK_WIDGET ptr t2 = iif( which = 0, TitleFields, TitleProps ), l2 = iif( which = 0, FieldTree, Scroll )
+    if t1 then tkWidget_SetPos( t1, p_, 0, f->cw - 2 * p_, hh )
+    if l1 then tkWidget_SetPos( l1, 0, hh, f->cw, topH )
+    if t2 then tkWidget_SetPos( t2, p_, hh + topH, f->cw - 2 * p_, hh )
+    if l2 then tkWidget_SetPos( l2, 0, 2 * hh + topH, f->cw, avail - topH )
+    if which = 1 then this.LayoutRows( )
+end sub
+
+sub ReportPanels.LayoutRows( )
+    if Scroll = 0 then exit sub
+    dim as TK_HOST ptr h = Scroll->pHost
+    dim as long lw = tkHost_Scale( h, LABEL_CX ), p_ = tkHost_Scale( h, PAD ), rh = tkHost_Scale( h, ROW_CY )
+    dim as long w = tkScrollPanel_GetPanelWidth( Scroll )
+    if w <= 0 then w = Scroll->cw
+    dim as long y = p_
+    for i as long = 0 to Rows.Count( ) - 1
+        tkWidget_SetPos( Rows[i].Label, p_, y, lw - p_, rh - p_ )
+        tkWidget_SetPos( Rows[i].Edit, lw, y, w - lw - p_, rh - p_ )
+        y += rh
+    next
+    tkScrollPanel_SetContentHeight( Scroll, y + p_ )
+end sub
+
+' The pointer, the item kinds (the file's words), then "+ <band kind>" for Insert band.
+sub ReportPanels.FillToolbox( )
+    Updating = true
+    tkListTree_BeginUpdate( ToolList )
+    tkListTree_Clear( ToolList )
+    tkListTree_AddString( ToolList, i18n.Tr( "designer.pointer", "Pointer" ), 0 )
+    for k as long = 1 to 7
+        tkListTree_AddString( ToolList, ItemKind_( k ), k )
+    next
+    for k as long = 0 to 7
+        tkListTree_AddString( ToolList, "+ " & BandKind_( k ), BAND_BASE + k )
+    next
+    tkListTree_EndUpdate( ToolList )
+    tkListTree_SetCurSel( ToolList, 0 )
+    Updating = false
+end sub
+
+private function FieldSignature_( byval c as rcanvas.ReportCanvas ptr ) as ustring
+    dim as Array( of rmodel.RField ) f
+    rmodel.FieldList( c->Def, f )
+    dim as ustring s
+    for each x as rmodel.RField in f
+        s &= x.Kind & ":" & x.Level & ":" & x.Source & "." & x.Name & "|"
+    next
+    return s
+end function
+
+private function TreeSignature_( byval c as rcanvas.ReportCanvas ptr ) as ustring
+    dim as ustring s
+    for i as int32 = 0 to c->Def->nBands - 1
+        s &= c->Def->bands(i).id & ":" & c->Def->bands(i).kind & ":" & c->Def->bands(i).parent & "|"
+    next
+    for i as int32 = 0 to c->Def->nItems - 1
+        s &= c->Def->items(i).id & ":" & c->Def->items(i).band & "|"
+    next
+    return s
+end function
+
+' The inspector's shape: what it shows, and of what kind.
+private function RowSignature_( byval c as rcanvas.ReportCanvas ptr ) as ustring
+    dim as ustring t = c->Subject( ), k
+    if left( t, 5 ) = "item:" then
+        dim as int32 i = tkReportDef_FindItem( c->Def, mid( t, 6 ) )
+        if i >= 0 then k = c->Def->items(i).kind
+    elseif left( t, 5 ) = "band:" then
+        dim as int32 b = tkReportDef_FindBand( c->Def, mid( t, 6 ) )
+        if b >= 0 then k = c->Def->bands(b).kind
+    end if
+    return t & "|" & k
+end function
+
+sub ReportPanels.Refresh( )
+    if (C = 0) orelse (FrameL = 0) then exit sub
+    if (RowSignature_( C ) <> RowSig) orelse (TreeSignature_( C ) <> TreeSig) orelse (FieldSignature_( C ) <> FieldSig) then
+        tkWidget_SetTimer( Ticker, TIMER_REBUILD, 1 )
+    end if
+    this.UpdateValues( )
+end sub
+
+sub ReportPanels.RebuildContent( )
+    if (C = 0) orelse (FrameL = 0) then exit sub
+    dim as ustring s = FieldSignature_( C )
+    if s <> FieldSig then
+        FieldSig = s
+        this.BuildFields( )
+    end if
+    s = TreeSignature_( C )
+    if s <> TreeSig then
+        TreeSig = s
+        this.BuildTree( )
+    end if
+    s = RowSignature_( C )
+    if s <> RowSig then
+        RowSig = s
+        this.BuildRows( )
+    end if
+    this.UpdateValues( )
+end sub
+
+sub ReportPanels.BuildFields( )
+    Updating = true
+    rmodel.FieldList( C->Def, Fields )
+    tkListTree_BeginUpdate( FieldTree )
+    tkListTree_Clear( FieldTree )
+    dim as integer parents(0 to 9)
+    for i as long = 0 to Fields.Count( ) - 1
+        dim as rmodel.RField f = Fields[i]
+        dim as ustring label = f.Label
+        if f.Kind = 2 then label = i18n.Tr( "report.parameters", "Parameters" )
+        if f.Kind = 4 then label = i18n.Tr( "report.builtin", "Built-in" )
+        dim as long lv = f.Level
+        if lv > 9 then lv = 9
+        dim as integer par = -1
+        if lv > 0 then par = parents(lv - 1)
+        parents(lv) = tkListTree_AddNode( FieldTree, par, label, i + 1 )
+    next
+    tkListTree_ExpandAll( FieldTree )
+    tkListTree_EndUpdate( FieldTree )
+    Updating = false
+end sub
+
+' The report, its bands as the canvas stacks them (nested), each band's items. Row data: 0 the
+' report, 1 a band (extra: its index), 2 an item (extra: its index).
+sub ReportPanels.BuildTree( )
+    Updating = true
+    tkListTree_BeginUpdate( Tree )
+    tkListTree_Clear( Tree )
+    dim as integer root = tkListTree_AddNode( Tree, -1, "report", 0, 0 )
+    dim as Array( of int32 ) stack_, depths
+    redits.BandOrder( C->Def, stack_, depths )
+    dim as integer parents(0 to 9)
+    for k as long = 0 to stack_.Count( ) - 1
+        dim as int32 bi = stack_[k]
+        dim as long dp = depths[k]
+        if dp > 8 then dp = 8
+        dim as integer par = root
+        if dp > 0 then par = parents(dp - 1)
+        dim byref as TKRD_BAND b = C->Def->bands(bi)
+        parents(dp) = tkListTree_AddNode( Tree, par, b.id & "  " & b.kind, 1, bi )
+        for i as int32 = 0 to C->Def->nItems - 1
+            if lcase( C->Def->items(i).band ) = lcase( b.id ) then
+                tkListTree_AddNode( Tree, parents(dp), C->Def->items(i).id & "  " & C->Def->items(i).kind, 2, i )
+            end if
+        next
+    next
+    tkListTree_ExpandAll( Tree )
+    tkListTree_EndUpdate( Tree )
+    Updating = false
+end sub
+
+' The inspector's rows for what is selected: made again (the old ones go with their panel).
+sub ReportPanels.BuildRows( )
+    Updating = true
+    if Scroll then tkWidget_Destroy( Scroll )
+    Rows.Clear( )
+    Scroll = tkScrollPanel_Create( FrameR, 4 )
+    dim as TK_WIDGET ptr panel_ = tkScrollPanel_GetPanel( Scroll )
+    dim as Array( of rmodel.RProp ) props
+    rmodel.PropsOf( C->Def, C->Subject( ), props )
+    for each pr as rmodel.RProp in props
+        dim as RRow r
+        r.Key = pr.Key
+        r.Kind = pr.Kind
+        r.Label = tkLabel_Create( panel_, 1 )
+        tkLabel_SetText( r.Label, pr.Key )        ' the file's own key: what the .tkreport says
+        select case pr.Kind
+        case rmodel.RPropKind.RPropBool
+            r.Edit = tkCheckBox_Create( panel_, Rows.Count( ) + 10 )
+            tkCheckBox_SetCheckChangedCallback( r.Edit, @OnCheckToggled )
+        case rmodel.RPropKind.RPropEnum
+            r.Edit = tkComboBox_Create( panel_, Rows.Count( ) + 10 )
+            dim as ustring t = pr.Items & ","
+            dim as long a = 1
+            dim as long b = instr( a, t, "," )
+            while b > 0
+                tkComboBox_AddItem( r.Edit, mid( t, a, b - a ) )
+                a = b + 1
+                b = instr( a, t, "," )
+            wend
+            tkComboBox_SetSelChangeCallback( r.Edit, @OnComboPicked )
+        case rmodel.RPropKind.RPropFixed
+            r.Edit = tkLabel_Create( panel_, Rows.Count( ) + 10 )
+        case else
+            r.Edit = tkTextBox_Create( panel_, Rows.Count( ) + 10, false )
+            tkTextBox_SetEnterPressedCallback( r.Edit, @OnTextEnter )
+            tkTextBox_SetFocusCallback( r.Edit, @OnTextFocus )
+        end select
+        Rows.Push( r )
+    next
+    this.LayoutPalette( 1 )
+    tkWidget_Show( Scroll, IsShown )
+    Updating = false
+end sub
+
+' Every row's value from the model (a text box being typed in keeps what is typed); the trees'
+' selection from the canvas's; the toolbox and the field list back to nothing armed.
+sub ReportPanels.UpdateValues( )
+    if (C = 0) orelse (FrameL = 0) then exit sub
+    Updating = true
+    dim as ustring target = C->Subject( )
+    dim as TK_WIDGET ptr focus = tkHost_GetFocus( tkForm_Host( Host ) )
+    for i as long = 0 to Rows.Count( ) - 1
+        dim as ustring v = rmodel.GetProp( C->Def, target, Rows[i].Key )
+        dim as TK_WIDGET ptr ed = Rows[i].Edit
+        select case Rows[i].Kind
+        case rmodel.RPropKind.RPropBool : tkCheckBox_SetChecked( ed, v = "true" )
+        case rmodel.RPropKind.RPropEnum : tkComboBox_SetCurSel( ed, tkComboBox_FindItemByText( ed, v ) )
+        case rmodel.RPropKind.RPropFixed : tkLabel_SetText( ed, v )
+        case else
+            if ed = focus then continue for
+            tkTextBox_SetText( ed, v )
+        end select
+        Rows[i].Text = v
+    next
+    ' the tree follows the selection
+    dim as integer want = 0
+    for r as long = 0 to tkListTree_GetCount( Tree ) - 1
+        dim as long kind_ = tkListTree_GetItemData( Tree, r )
+        dim as long idx = tkListTree_GetItemDataExtra( Tree, r )
+        if (kind_ = 2) andalso (C->Selected.Count( ) > 0) andalso (idx < C->Def->nItems) then
+            if lcase( C->Def->items(idx).id ) = lcase( C->Selected[0] ) then want = r
+        elseif (kind_ = 1) andalso (C->Selected.Count( ) = 0) andalso (len( C->SelBand ) > 0) andalso (idx < C->Def->nBands) then
+            if lcase( C->Def->bands(idx).id ) = lcase( C->SelBand ) then want = r
+        end if
+    next
+    if tkListTree_GetCurSel( Tree ) <> want then tkListTree_SetCurSel( Tree, want )
+    if len( C->Tool ) = 0 then
+        if tkListTree_GetCurSel( ToolList ) <> 0 then tkListTree_SetCurSel( ToolList, 0 )
+        if tkListTree_GetCurSel( FieldTree ) <> -1 then tkListTree_SetCurSel( FieldTree, -1 )
+    end if
+    Updating = false
+end sub
+
+function ReportPanels.RowOf( byval w as TK_WIDGET ptr ) as long
+    for i as long = 0 to Rows.Count( ) - 1
+        if Rows[i].Edit = w then return i
+    next
+    return -1
+end function
+
+sub ReportPanels.CommitRow( byval r as long )
+    if (r < 0) orelse (r >= Rows.Count( )) orelse Updating orelse (C = 0) then exit sub
+    dim as TK_WIDGET ptr ed = Rows[r].Edit
+    dim as ustring v
+    select case Rows[r].Kind
+    case rmodel.RPropKind.RPropFixed : exit sub
+    case rmodel.RPropKind.RPropBool : if tkCheckBox_GetChecked( ed ) then v = "true" else v = "false"
+    case rmodel.RPropKind.RPropEnum : v = tkComboBox_GetText( ed )
+    case else : v = tkTextBox_GetText( ed )
+    end select
+    if v = Rows[r].Text then exit sub
+    dim as ustring key_ = Rows[r].Key, was = Rows[r].Text
+    Rows[r].Text = v
+    dim as ustring fault = C->ApplyProp( C->Subject( ), key_, v )
+    if len( fault ) = 0 then exit sub
+    if OnMessage then OnMessage( Owner, key_ & ": " & fault )
+    ' refused: the row shows what the report still has
+    if r >= Rows.Count( ) then exit sub
+    Updating = true
+    Rows[r].Text = was
+    select case Rows[r].Kind
+    case rmodel.RPropKind.RPropBool : tkCheckBox_SetChecked( ed, was = "true" )
+    case rmodel.RPropKind.RPropEnum : tkComboBox_SetCurSel( ed, tkComboBox_FindItemByText( ed, was ) )
+    case else : tkTextBox_SetText( ed, was )
+    end select
+    Updating = false
+end sub
+
+' A toolbox row: the pointer, a kind to place (the canvas then takes the keyboard), or Insert band.
+sub ReportPanels.ToolPicked( byval row as long )
+    dim as long d = tkListTree_GetItemData( ToolList, row )
+    if d >= BAND_BASE then
+        dim as ustring kind_ = BandKind_( d - BAND_BASE )
+        if C->InsertBand( kind_ ) = false then
+            if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "report.band_exists", "{}: the report has one already" ), kind_ ) )
+        end if
+        C->Tool = ""
+        this.UpdateValues( )
+    else
+        C->Tool = ItemKind_( d )
+    end if
+    tkHost_SetFocus( C->Glass->pHost, C->Glass )
+end sub
+
+' A field list row: a field, a parameter or a built-in to place; a heading arms nothing.
+sub ReportPanels.FieldPicked( byval row as long )
+    dim as long i = tkListTree_GetItemData( FieldTree, row ) - 1
+    if (i < 0) orelse (i >= Fields.Count( )) then exit sub
+    dim as rmodel.RField f = Fields[i]
+    select case f.Kind
+    case 1 : C->Tool = "field:f|" & f.Source & "|" & f.Name
+    case 3 : C->Tool = "field:p||" & f.Name
+    case 5 : C->Tool = "field:b||" & f.Name
+    case else : C->Tool = ""
+    end select
+    if len( C->Tool ) then tkHost_SetFocus( C->Glass->pHost, C->Glass )
+end sub
+
+sub ReportPanels.TreePicked( byval row as long )
+    dim as long kind_ = tkListTree_GetItemData( Tree, row )
+    dim as long idx = tkListTree_GetItemDataExtra( Tree, row )
+    select case kind_
+    case 1
+        if idx < C->Def->nBands then C->SelectBand( C->Def->bands(idx).id )
+    case 2
+        if idx < C->Def->nItems then C->SelectOnly( C->Def->items(idx).id )
+    case else
+        C->SelectNone( )
+    end select
+end sub
