@@ -29,6 +29,7 @@
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkCheckBox"
 #import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkButton"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkReportDef"
 #import "../redits"
@@ -42,6 +43,7 @@ using tkTextBox
 using tkComboBox
 using tkCheckBox
 using tkScrollPanel
+using tkButton
 using tkTheme
 using tkHost
 using tkPaint
@@ -59,8 +61,13 @@ const as long TIMER_REBUILD = 1
 
 ' Toolbox rows: 0 the pointer, 1 to 7 the item kinds, then a band kind each (BAND_BASE + its place).
 const as long BAND_BASE = 100
+' then the dialogs (DLG_BASE + 0 sources, 1 parameters, 2 group and sort, 3 page setup)
+const as long DLG_BASE = 200
 
 public type RMessageSub as sub( byval owner as any ptr, byref text as const ustring )
+' A dialog asked for (RD7): which is sources params groups page expr rules; target and key as the
+' inspector names them (an expression row's), else "".
+public type RDialogSub as sub( byval owner as any ptr, byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
 
 public type RRow
     Key   as ustring
@@ -68,12 +75,14 @@ public type RRow
     Label as TK_WIDGET ptr
     Edit  as TK_WIDGET ptr
     Text  as ustring            ' the value last shown or applied
+    Btn   as TK_WIDGET ptr      ' "...": an expression row's editor, the rules row's dialog
 end type
 
 public type ReportPanels
     Host       as TK_FORM ptr
     Owner      as any ptr
     OnMessage  as RMessageSub
+    OnDialog   as RDialogSub
     C          as rcanvas.ReportCanvas ptr
     IsShown    as boolean
     Ticker     as TK_WIDGET ptr
@@ -114,6 +123,7 @@ public type ReportPanels
     declare sub ToolPicked( byval row as long )
     declare sub FieldPicked( byval row as long )
     declare sub TreePicked( byval row as long )
+    declare sub RowButton( byval h as TK_WIDGET ptr )
 end type
 
 ' The band kinds Insert band offers, in the order a report prints them.
@@ -211,6 +221,11 @@ end sub
 private sub OnComboPicked( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
     dim as ReportPanels ptr p = RPanelsOf( h )
     if p then p->CommitRow( p->RowOf( h ) )
+end sub
+
+private sub OnRowButton( byval h as TK_WIDGET ptr, byval id as long )
+    dim as ReportPanels ptr p = RPanelsOf( h )
+    if p then p->RowButton( h )
 end sub
 
 private sub OnCheckToggled( byval h as TK_WIDGET ptr, byval isChecked as boolean )
@@ -326,9 +341,15 @@ sub ReportPanels.LayoutRows( )
     dim as long w = tkScrollPanel_GetPanelWidth( Scroll )
     if w <= 0 then w = Scroll->cw
     dim as long y = p_
+    dim as long bw = rh
     for i as long = 0 to Rows.Count( ) - 1
         tkWidget_SetPos( Rows[i].Label, p_, y, lw - p_, rh - p_ )
-        tkWidget_SetPos( Rows[i].Edit, lw, y, w - lw - p_, rh - p_ )
+        if Rows[i].Btn then
+            tkWidget_SetPos( Rows[i].Edit, lw, y, w - lw - p_ - bw - p_, rh - p_ )
+            tkWidget_SetPos( Rows[i].Btn, w - p_ - bw, y, bw, rh - p_ )
+        else
+            tkWidget_SetPos( Rows[i].Edit, lw, y, w - lw - p_, rh - p_ )
+        end if
         y += rh
     next
     tkScrollPanel_SetContentHeight( Scroll, y + p_ )
@@ -346,6 +367,10 @@ sub ReportPanels.FillToolbox( )
     for k as long = 0 to 7
         tkListTree_AddString( ToolList, "+ " & BandKind_( k ), BAND_BASE + k )
     next
+    tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_sources", "Data sources..." ), DLG_BASE + 0 )
+    tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_params", "Parameters..." ), DLG_BASE + 1 )
+    tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_groups", "Group and sort..." ), DLG_BASE + 2 )
+    tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_page", "Page setup..." ), DLG_BASE + 3 )
     tkListTree_EndUpdate( ToolList )
     tkListTree_SetCurSel( ToolList, 0 )
     Updating = false
@@ -500,9 +525,28 @@ sub ReportPanels.BuildRows( )
             r.Edit = tkTextBox_Create( panel_, Rows.Count( ) + 10, false )
             tkTextBox_SetEnterPressedCallback( r.Edit, @OnTextEnter )
             tkTextBox_SetFocusCallback( r.Edit, @OnTextFocus )
+            dim as boolean noAgg
+            if rmodel.IsExprKey( C->Subject( ), pr.Key, noAgg ) then
+                r.Btn = tkButton_Create( panel_, Rows.Count( ) + 500 )
+                tkButton_SetText( r.Btn, "..." )
+                tkButton_SetClickCallback( r.Btn, @OnRowButton )
+            end if
         end select
         Rows.Push( r )
     next
+    ' an item's conditional styles: a dialog of their own
+    if left( C->Subject( ), 5 ) = "item:" then
+        dim as RRow r
+        r.Key = "rules"
+        r.Kind = rmodel.RPropKind.RPropFixed
+        r.Label = tkLabel_Create( panel_, 1 )
+        tkLabel_SetText( r.Label, "rules" )
+        r.Edit = tkLabel_Create( panel_, Rows.Count( ) + 10 )
+        r.Btn = tkButton_Create( panel_, Rows.Count( ) + 500 )
+        tkButton_SetText( r.Btn, "..." )
+        tkButton_SetClickCallback( r.Btn, @OnRowButton )
+        Rows.Push( r )
+    end if
     this.LayoutPalette( 1 )
     tkWidget_Show( Scroll, IsShown )
     Updating = false
@@ -521,7 +565,13 @@ sub ReportPanels.UpdateValues( )
         select case Rows[i].Kind
         case rmodel.RPropKind.RPropBool : tkCheckBox_SetChecked( ed, v = "true" )
         case rmodel.RPropKind.RPropEnum : tkComboBox_SetCurSel( ed, tkComboBox_FindItemByText( ed, v ) )
-        case rmodel.RPropKind.RPropFixed : tkLabel_SetText( ed, v )
+        case rmodel.RPropKind.RPropFixed
+            if Rows[i].Key = "rules" then
+                dim as int32 ii = tkReportDef_FindItem( C->Def, mid( target, 6 ) )
+                v = ""
+                if ii >= 0 then v = str( C->Def->items(ii).nRules )
+            end if
+            tkLabel_SetText( ed, v )
         case else
             if ed = focus then continue for
             tkTextBox_SetText( ed, v )
@@ -585,7 +635,19 @@ end sub
 ' A toolbox row: the pointer, a kind to place (the canvas then takes the keyboard), or Insert band.
 sub ReportPanels.ToolPicked( byval row as long )
     dim as long d = tkListTree_GetItemData( ToolList, row )
-    if d >= BAND_BASE then
+    if d >= DLG_BASE then
+        C->Tool = ""
+        this.UpdateValues( )
+        dim as ustring which
+        select case d - DLG_BASE
+        case 0 : which = "sources"
+        case 1 : which = "params"
+        case 2 : which = "groups"
+        case 3 : which = "page"
+        end select
+        if OnDialog then OnDialog( Owner, which, "", "" )
+        exit sub
+    elseif d >= BAND_BASE then
         dim as ustring kind_ = BandKind_( d - BAND_BASE )
         if C->InsertBand( kind_ ) = false then
             if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "report.band_exists", "{}: the report has one already" ), kind_ ) )
@@ -623,4 +685,21 @@ sub ReportPanels.TreePicked( byval row as long )
     case else
         C->SelectNone( )
     end select
+end sub
+
+' A row's "...": what is typed counts first; then the expression editor on the row, or the rules.
+sub ReportPanels.RowButton( byval h as TK_WIDGET ptr )
+    if (C = 0) orelse (OnDialog = 0) then exit sub
+    dim as long r = -1
+    for i as long = 0 to Rows.Count( ) - 1
+        if Rows[i].Btn = h then r = i
+    next
+    if r < 0 then exit sub
+    dim as ustring key_ = Rows[r].Key, target = C->Subject( )
+    if key_ = "rules" then
+        OnDialog( Owner, "rules", target, "" )
+    else
+        this.CommitRow( r )
+        OnDialog( Owner, "expr", target, key_ )
+    end if
 end sub

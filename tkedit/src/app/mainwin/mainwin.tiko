@@ -67,6 +67,7 @@
 #import "tkd/colorsdlg"
 #import "tkd/resdlg"
 #import "tkd/langdlg"
+#import "tkd/rdialogs"
 #import "tkd/codegen"
 #import "tkd/resfile"
 #import "tkd/glyphdlg"
@@ -687,12 +688,16 @@ public type Window
     declare function ReportActs( byval id as Cmd ) as boolean
     declare function ReportCommand( byval id as Cmd ) as boolean
     declare function WriteReportGenerated( byval d as DocRef ) as boolean
+    declare sub ReportDialog( byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
     declare function WriteGenerated( byval d as DocRef ) as boolean
     declare function WriteThemeGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare function ResourcesPath( ) as ustring
     declare function WriteResourcesGenerated( byref path as const ustring, byref text as const ustring ) as boolean
     declare sub CopyResourceFiles( byref exePath as const ustring )
     LangDlg as langdlg.LanguagesDialog ptr
+    RptRecDlg as rdialogs.RecordDialog ptr  ' the Report Designer's dialogs while open (RD7; tests find them here)
+    RptExprDlg as rdialogs.ExprDialog ptr
+    RptPageDlg as TK_HOST ptr
     declare function LanguagesPath( ) as ustring
     declare function TextOf( byref path as const ustring ) as ustring
     declare function PutText( byref path as const ustring, byref text as const ustring ) as boolean
@@ -1251,6 +1256,9 @@ function Window.Create( byval forcedScale as single ) as boolean
     RPalettes.Init( form, @this )
     RPalettes.OnMessage = sub( byval o as any ptr, byref t as const ustring )
         cast( Window ptr, o )->SetMessage( t )
+    end sub
+    RPalettes.OnDialog = sub( byval o as any ptr, byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
+        cast( Window ptr, o )->ReportDialog( which, target, key_ )
     end sub
     Palettes.OnLayout = sub( byval o as any ptr )
         cast( Window ptr, o )->Layout( )

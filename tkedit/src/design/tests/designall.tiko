@@ -31,7 +31,10 @@
 #import "tkd/rcodegen"
 #import "tkd/redits"
 #import "tkd/rmodel"
+#import "tkd/rrecords"
 #import "vendor/tkControls/tkReportDef"
+#import "vendor/tkControls/tkBind"
+#import "vendor/tkControls/tkPrint"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkMeta"
@@ -43,6 +46,8 @@ using tkTheme
 using tkMeta
 using tkIconPanel
 using tkReportDef
+using tkBind
+using tkPrint
 
 const as string LF = chr( 10 )
 const as string CRLF = chr( 13, 10 )
@@ -3226,5 +3231,6 @@ DataGridSuite( bAccept )
 ReportCodegenSuite( bAccept )
 ReportEditsSuite( )
 ReportPalettesSuite( )
+ReportDialogsSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"
 end gFail

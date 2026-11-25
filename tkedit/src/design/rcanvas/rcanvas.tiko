@@ -138,6 +138,8 @@ public type ReportCanvas
     declare function Subject( ) as ustring
     declare function ApplyProp( byref target as const ustring, byref key_ as const ustring, byref value as const ustring ) as ustring
     declare function InsertBand( byref kind as const ustring ) as boolean
+    declare function AdoptDef( byval nd as TK_REPORTDEF ptr ) as ustring
+    declare function ApplyPageSetup( byref ps as TKPAGESETUP ) as ustring
     declare function PlaceTool( byval x as long, byval y as long, byval mods as long ) as boolean
     declare sub SelectNone( )
     declare sub SelectAll( )
@@ -1159,4 +1161,41 @@ function ReportCanvas.PlaceTool( byval x as long, byval y as long, byval mods as
     this.Relayout( )
     this.Commit( )
     return true
+end function
+
+' A dialog's edited copy of the report in place of the canvas's, as ONE undoable edit (RD7). The copy
+' must read back as a .tkreport; else it is dropped and the answer is why. The canvas owns nd after.
+function ReportCanvas.AdoptDef( byval nd as TK_REPORTDEF ptr ) as ustring
+    if nd = 0 then return "?"
+    dim as ustring e
+    dim as TK_REPORTDEF ptr t = tkReportDef_LoadText( tkReportDef_SaveText( nd ), e )
+    if t = 0 then
+        tkReportDef_Destroy( nd )
+        dim as long nl = instr( e, wchr( 10 ) )
+        if nl > 0 then e = left( e, nl - 1 )
+        return e
+    end if
+    tkReportDef_Destroy( t )
+    this.DirtyAll( )
+    if Def then tkReportDef_Destroy( Def )
+    Def = nd
+    dim as Array( of ustring ) keep
+    for each s as ustring in Selected
+        if tkReportDef_FindItem( Def, s ) >= 0 then keep.Push( s )
+    next
+    Selected = keep
+    if tkReportDef_FindBand( Def, SelBand ) < 0 then SelBand = ""
+    this.Relayout( )
+    this.Commit( )
+    return ""
+end function
+
+' Page setup's answer: paper, orientation, margins (tkReportDef_SetPageSetup), one undoable edit.
+function ReportCanvas.ApplyPageSetup( byref ps as TKPAGESETUP ) as ustring
+    if Def = 0 then return "?"
+    dim as ustring e
+    dim as TK_REPORTDEF ptr nd = tkReportDef_LoadText( tkReportDef_SaveText( Def ), e )
+    if nd = 0 then return e
+    tkReportDef_SetPageSetup( nd, ps )
+    return this.AdoptDef( nd )
 end function

@@ -18,13 +18,23 @@
 #import "tkd/rcanvas"
 #import "tkd/redits"
 #import "tkd/rcodegen"
+#import "tkd/rmodel"
+#import "tkd/rrecords"
+#import "tkd/rdialogs"
 #import "tkd/codegen"
 #import "vendor/tkControls/tkReportDef"
 #import "vendor/tkControls/tkHost"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkPrintDialog"
+#import "vendor/tkControls/tkPrint"
 using containers
 using tkReportDef
 using tkHost
 using cmdids
+using tkApp
+using tkPrint
+using tkPrintDialog
+using tkReport
 
 private function ReportDesignPathOf_( byref reportPath as const ustring ) as ustring
     return left( reportPath, len( reportPath ) - 9 ) & ".design.tiko"
@@ -114,3 +124,83 @@ function Window.WriteReportGenerated( byval d as DocRef ) as boolean
     end if
     return true
 end function
+
+' A dialog's title: its toolbox row's words without the dots.
+private function DialogTitle_( byref s as const ustring ) as ustring
+    dim as ustring t = s
+    while (right( t, 1 ) = ".") orelse (right( t, 1 ) = wchr( &h2026 ))
+        t = left( t, len( t ) - 1 )
+    wend
+    return trim( t )
+end function
+
+' A Report Designer dialog over the active report (RD7). Each OK is ONE undoable edit: a list
+' dialog's copy is adopted whole, the expression editor's text applied as its row's edit, Page setup's
+' answer as the report's page. What is refused says why in the status bar.
+sub Window.ReportDialog( byref which as const ustring, byref target as const ustring, byref key_ as const ustring )
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse (d->Report = 0) then exit sub
+    dim as rcanvas.ReportCanvas ptr c = d->Report
+    dim as ustring fault
+    select case which
+    case "sources", "params", "groups", "rules"
+        dim as rrecords.RSet k
+        dim as ustring title, item_
+        select case which
+        case "sources"
+            k = rrecords.RSet.RSetSources
+            title = DialogTitle_( i18n.Tr( "report.dlg_sources", "Data sources..." ) )
+        case "params"
+            k = rrecords.RSet.RSetParams
+            title = DialogTitle_( i18n.Tr( "report.dlg_params", "Parameters..." ) )
+        case "groups"
+            k = rrecords.RSet.RSetGroups
+            title = DialogTitle_( i18n.Tr( "report.dlg_groups", "Group and sort..." ) )
+        case else
+            k = rrecords.RSet.RSetRules
+            title = i18n.Tr( "report.rules", "Conditional styles" )
+            item_ = mid( target, 6 )
+        end select
+        RptRecDlg = new rdialogs.RecordDialog
+        RptRecDlg->Open( form, title, c->Def, k, item_ )
+        if RptRecDlg->Win then
+            dim as boolean ok = RptRecDlg->RunModal( )
+            dim as TK_REPORTDEF ptr nd = RptRecDlg->TakeWork( )
+            if ok andalso (nd <> 0) then fault = c->AdoptDef( nd )
+        end if
+        RptRecDlg->Close( )
+        delete RptRecDlg
+        RptRecDlg = 0
+    case "expr"
+        dim as ustring band
+        if left( target, 5 ) = "item:" then
+            dim as int32 ii = tkReportDef_FindItem( c->Def, mid( target, 6 ) )
+            if ii >= 0 then band = c->Def->items(ii).band
+        else
+            band = mid( target, 6 )
+        end if
+        dim as boolean noAgg
+        rmodel.IsExprKey( target, key_, noAgg )
+        RptExprDlg = new rdialogs.ExprDialog
+        RptExprDlg->Open( form, c->Def, band, noAgg, rmodel.GetProp( c->Def, target, key_ ) )
+        if RptExprDlg->Win then
+            dim as boolean ok = RptExprDlg->RunModal( )
+            if ok then fault = c->ApplyProp( target, key_, RptExprDlg->Text )
+        end if
+        RptExprDlg->Close( )
+        delete RptExprDlg
+        RptExprDlg = 0
+    case "page"
+        dim as TKPAGESETUP ps
+        tkReportDef_PageSetup( c->Def, ps )
+        RptPageDlg = tkPageSetupDialog_Create( tkForm_Host( form ), ps )
+        if RptPageDlg then
+            dim as boolean ok = tkPageSetupDialog_Run( RptPageDlg, ps )
+            RptPageDlg = 0
+            if ok then fault = c->ApplyPageSetup( ps )
+        end if
+    end select
+    if len( fault ) then this.SetMessage( fault )
+    this.ShowTitle( )
+    this.ShowStatus( )
+end sub

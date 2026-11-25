@@ -22,6 +22,8 @@
 using containers
 using tkReportDef
 using tkReport
+using tkRExpr
+using tkBind
 
 public enum RPropKind
     RPropText
@@ -410,3 +412,107 @@ public sub FieldList( byval def as TK_REPORTDEF ptr, byref out_ as Array( of RFi
     F_( out_, 5, 1, "GroupRowNumber", "", "GroupRowNumber" )
     F_( out_, 5, 1, "PrintDate", "", "PrintDate" )
 end sub
+
+' ---- the expression editor's side (RD7) -----------------------------------------------------------
+' What an expression in band bandId can name: every source's fields as "Source.Field" (and plain
+' [Field] for the band's own source), the calculated fields (their kind found by compiling them),
+' the parameters. noAggregates: a group key or a filter, where totals mean nothing.
+public sub SchemaFor( byval def as TK_REPORTDEF ptr, byref bandId as const ustring, byval noAggregates as boolean, byref sch as TKREXPR_SCHEMA )
+    sch.Clear( )
+    if def = 0 then exit sub
+    for i as int32 = 0 to def->nSources - 1
+        for k as int32 = 0 to def->sources(i).nFields - 1
+            sch.AddField( def->sources(i).name_ & "." & def->sources(i).fields(k).name_, def->sources(i).fields(k).kind )
+        next
+    next
+    for i as int32 = 0 to def->nParams - 1
+        sch.AddParam( def->params(i).name_, def->params(i).kind )
+    next
+    for i as int32 = 0 to def->nCalcs - 1
+        dim as TKREXPR_ERROR e
+        sch.defaultSource = def->calcs(i).source
+        sch.noAggregates = true
+        dim as TK_REXPR ptr x = tkRExpr_Compile( def->calcs(i).expr, sch, e )
+        dim as int32 k = TKV_TEXT
+        if x then
+            k = tkRExpr_Kind( x )
+            tkRExpr_Destroy( x )
+        end if
+        sch.AddField( def->calcs(i).source & "." & def->calcs(i).name_, k )
+    next
+    sch.defaultSource = redits.SourceOfBand( def, bandId )
+    sch.noAggregates = noAggregates
+end sub
+
+' The expression text checked where it is used: "" and its kind's name ("float", "text" ...), or
+' the first error, with col its 1-based column (0 = none).
+public function CheckExpr( byval def as TK_REPORTDEF ptr, byref bandId as const ustring, byval noAggregates as boolean, _
+                           byref text as const ustring, byref kindName as ustring, byref col as int32 ) as ustring
+    kindName = ""
+    col = 0
+    dim as TKREXPR_SCHEMA sch
+    SchemaFor( def, bandId, noAggregates, sch )
+    dim as TKREXPR_ERROR e
+    dim as TK_REXPR ptr x = tkRExpr_Compile( text, sch, e )
+    if x = 0 then
+        col = e.col
+        return e.msg
+    end if
+    kindName = tkReportDef_KindName( tkRExpr_Kind( x ) )
+    tkRExpr_Destroy( x )
+    return ""
+end function
+
+' What the expression editor offers to insert: the fields ([Field] in the band's own source, else
+' [Source.Field]), the parameters (@Name), the report values, the functions (Name( )).
+public sub Insertables( byval def as TK_REPORTDEF ptr, byref bandId as const ustring, byref out_ as Array( of ustring ) )
+    out_.Clear( )
+    if def = 0 then exit sub
+    for i as int32 = 0 to def->nSources - 1
+        for k as int32 = 0 to def->sources(i).nFields - 1
+            out_.Push( redits.FieldExpr( def, bandId, def->sources(i).name_, def->sources(i).fields(k).name_ ) )
+        next
+    next
+    for i as int32 = 0 to def->nCalcs - 1
+        out_.Push( redits.FieldExpr( def, bandId, def->calcs(i).source, def->calcs(i).name_ ) )
+    next
+    for i as int32 = 0 to def->nParams - 1
+        out_.Push( "@" & def->params(i).name_ )
+    next
+    dim as ustring fixed = "PageNumber PageCount RowNumber GroupRowNumber PrintDate ReportTitle " & _
+        "Sum( ) Count( ) Avg( ) Min( ) Max( ) First( ) Last( ) GroupCount( ) I" & "If( ) IsEmpty( ) Between( ) " & _   ' split: the idiom gate reads a quoted iif( as code
+        "Format( ) Len( ) Left( ) Right( ) Mid( ) UCase( ) LCase( ) Trim( ) InStr( ) Replace( ) Str( ) Val( ) " & _
+        "PadLeft( ) PadRight( ) Abs( ) Int( ) Round( ) Choose( ) Year( ) Month( ) Day( ) DateAdd( ) DateDiff( ) " & _
+        "DateSerial( ) MonthName( ) CInt( ) CFloat( ) CBool( ) CDate( )"
+    dim as long a = 1
+    while a <= len( fixed )
+        dim as long b = instr( a, fixed, " " )
+        if b = 0 then b = len( fixed ) + 1
+        dim as ustring w = mid( fixed, a, b - a )
+        ' "Sum(" and ")" were split by the space inside "( )"
+        if w = ")" then
+            out_[out_.Count( ) - 1] = out_[out_.Count( ) - 1] & " )"
+        elseif len( w ) then
+            out_.Push( w )
+        end if
+        a = b + 1
+    wend
+end sub
+
+' The inspector's rows the expression editor opens on ("..."), and whether totals are refused there.
+public function IsExprKey( byref target as const ustring, byref key_ as const ustring, byref noAggregates as boolean ) as boolean
+    noAggregates = false
+    if left( target, 5 ) = "item:" then
+        select case key_
+        case "expr", "visible" : return true
+        end select
+    elseif left( target, 5 ) = "band:" then
+        select case key_
+        case "group"
+            noAggregates = true
+            return true
+        case "visible" : return true
+        end select
+    end if
+    return false
+end function

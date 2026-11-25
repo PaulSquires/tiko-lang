@@ -206,3 +206,74 @@ sub ReportPalettesSuite( )
            "rpalettes: deleting a band takes its items and its own bands" )
     tkReportDef_Destroy( d )
 end sub
+
+' ---- the dialogs' models (RD7): rrecords and the expression check, GUI-free ---------------------------
+sub ReportDialogsSuite( )
+    dim as ustring src = "format = 1" & LF & "[[source]]" & LF & "name = ""O""" & LF _
+        & "  [[source.field]]" & LF & "  name = ""Customer""" & LF _
+        & "  [[source.field]]" & LF & "  name = ""Amount""" & LF & "  kind = ""int""" & LF _
+        & "[[band]]" & LF & "id = ""d""" & LF & "kind = ""detail""" & LF & "source = ""O""" & LF _
+        & "[[item]]" & LF & "id = ""a""" & LF & "band = ""d""" & LF & "kind = ""field""" & LF & "expr = ""[Amount]""" & LF
+    dim as TK_REPORTDEF ptr d = LoadRpt( src )
+    if d = 0 then exit sub
+    dim as Array( of ustring ) keys
+    rrecords.SplitSort( "[A], Format([B], "",""), [C] desc", keys )
+    Check( (keys.Count( ) = 3) andalso (keys[1] = "Format([B], "","")"), "rdialogs: a sort splits at its top-level commas only" )
+
+    ' Group and sort: a level with its footer, its group descending, extra keys after; read back
+    dim as rrecords.RecordSet g
+    g.Init( d, rrecords.RSet.RSetGroups )
+    g.Add( )
+    g.SetValue( 0, "group", "[Customer]" )
+    g.SetValue( 0, "descending", "true" )
+    g.SetValue( -1, "sort", "[Amount]" )
+    Check( (g.Count( ) = 1) andalso (g.FooterOf( 0 ) >= 0) andalso (d->sources(0).sort = "[Customer] desc, [Amount]"), _
+           "rdialogs: a group level brings its footer, and the sort that orders the rows by it", d->sources(0).sort )
+    dim as rrecords.RecordSet g2
+    g2.Init( d, rrecords.RSet.RSetGroups )
+    Check( (g2.GetValue( 0, "descending" ) = "true") andalso (g2.GetValue( -1, "sort" ) = "[Amount]"), "rdialogs: the sort read back into levels and extra keys" )
+    g.Add( )
+    g.SetValue( 1, "group", "[Amount]" )
+    g.Move( 1, -1 )
+    Check( (d->bands(g.HeaderOf( 0 )).group_ = "[Amount]") andalso (left( d->sources(0).sort, 26 ) = "[Amount], [Customer] desc,"), _
+           "rdialogs: moving a level swaps the bands' levels and the sort", d->sources(0).sort )
+    g.Remove( 0 )
+    Check( (g.Count( ) = 1) andalso (d->bands(g.HeaderOf( 0 )).group_ = "[Customer]") andalso (g.FooterOf( 0 ) >= 0), "rdialogs: removing a level moves the inner ones up" )
+
+    ' sources: the snapshot as one line; a rename followed; a source in use stays
+    dim as rrecords.RecordSet so
+    so.Init( d, rrecords.RSet.RSetSources )
+    Check( (so.GetValue( 0, "fields" ) = "Customer, Amount:int") andalso (so.SetValue( 0, "fields", "Customer, Amount:float, Paid:bool" ) = "") _
+           andalso (d->sources(0).nFields = 3) andalso (so.SetValue( 0, "fields", "X:money" ) <> ""), "rdialogs: a source's fields as one line, kinds checked" )
+    Check( (so.SetValue( 0, "name", "Orders" ) = "") andalso (d->bands(tkReportDef_FindBand( d, "d" )).source = "Orders") _
+           andalso (len( so.Remove( 0 ) ) > 0), "rdialogs: a source renamed in its bands; one in use is not removed" )
+
+    ' parameters and rules
+    dim as rrecords.RecordSet pa
+    pa.Init( d, rrecords.RSet.RSetParams )
+    pa.Add( )
+    Check( (pa.SetValue( 0, "type", "int" ) = "") andalso (pa.SetValue( 0, "name", "Min" ) = "") andalso (d->params(0).kind = TKV_INT), "rdialogs: a parameter added and typed" )
+    dim as rrecords.RecordSet ru
+    ru.Init( d, rrecords.RSet.RSetRules, "a" )
+    ru.Add( )
+    ru.SetValue( 0, "when", "[Amount] > @Min" )
+    ru.SetValue( 0, "bold", "true" )
+    Check( (d->items(0).nRules = 1) andalso (d->items(0).rules(0).bold = 1) andalso (ru.GetValue( 0, "italic" ) = ""), "rdialogs: a rule added, a style set, the rest unchanged" )
+
+    ' the expression check: a type, an error with its column, no totals in a group key
+    dim as ustring kindName
+    dim as int32 col
+    Check( (rmodel.CheckExpr( d, "d", false, "[Amount] * 2", kindName, col ) = "") andalso (kindName = "float"), "rdialogs: an expression's type", kindName )
+    Check( (rmodel.CheckExpr( d, "d", false, "1 + [Nope]", kindName, col ) <> "") andalso (col = 5), "rdialogs: an error and its column", str( col ) )
+    Check( (rmodel.CheckExpr( d, "d", true, "Sum([Amount])", kindName, col ) <> "") andalso (rmodel.CheckExpr( d, "d", false, "Sum([Amount])", kindName, col ) = ""), _
+           "rdialogs: no totals where they mean nothing" )
+
+    ' the page from a page setup
+    dim as TKPAGESETUP ps
+    ps.paper = TK_PAPER_LETTER
+    ps.landscape = true
+    ps.marginL = 36
+    tkReportDef_SetPageSetup( d, ps )
+    Check( (d->paper = "Letter") andalso d->landscape andalso (d->mL = 36), "rdialogs: the page from a page setup" )
+    tkReportDef_Destroy( d )
+end sub
