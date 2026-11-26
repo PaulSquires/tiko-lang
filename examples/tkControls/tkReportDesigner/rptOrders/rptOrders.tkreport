@@ -2,6 +2,7 @@ format = 1
 
 [report]
 title = "Orders by customer"
+margins = [56.69, 56.69, 65.2, 56.69]
 data_module = "../orderdb"
 
 [report.events]
@@ -64,12 +65,13 @@ expr = "[Qty] * [Price]"
 [[band]]
 id = "title"
 kind = "report_header"
+height = 25.51
 
 [[band]]
 id = "g1h"
 kind = "group_header"
 group = "[Customer]"
-height = 18
+height = 65.2
 
 [[band]]
 id = "d"
@@ -87,22 +89,23 @@ source = "Lines"
 id = "ld"
 kind = "detail"
 parent = "lines"
-height = 14
+height = 53.86
 
 [[band]]
 id = "lf"
 kind = "report_footer"
 parent = "lines"
-height = 16
+height = 73.7
 
 [[band]]
 id = "g1f"
 kind = "group_footer"
-height = 18
+height = 93.54
 
 [[band]]
 id = "rf"
 kind = "report_footer"
+height = 164.41
 
 [[item]]
 id = "titleText"
