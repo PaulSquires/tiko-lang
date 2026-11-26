@@ -44,7 +44,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkButton`, `tkCheckBox`, `tkOptionButton`, `tkToggle` | buttons and switches |
 | `tkTextBox`, `tkNumericUpDown`, `tkDatePicker`, `tkCalendar`, `tkCodeEdit` | text, numbers, dates, code |
 | `tkListTree`, `tkComboBox`, `tkSelectBar`, `tkTabBar`, `tkColumnHeader` | lists and selection |
-| `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel (phase G0: no selection or editing yet) |
+| `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel -- selection, editing, sort and filter, totals, and masked columns (a tkMaskEdit mask per column, M6) |
 | `tkMenuBar`, `tkPopupMenu`, `tkToolbar`, `tkIconPanel`, `tkStatusBar` | command surfaces |
 | `tkLayout` | automatic position and size: Anchor and Dock, in design units; a hidden docked control takes no space, and a dock can take its height from the control |
 | `tkStack` | a column or a row of controls, one after another, for a phone screen: fixed, own-size (a callback) or FILL items, padding and gaps in design units, a hidden item taking no space, nested stacks (cards); `Measure` gives a scroll panel its content height |

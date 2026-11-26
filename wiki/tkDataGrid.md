@@ -70,13 +70,21 @@ tkDataGrid_SetRowCommittedCallback( g, @Grid_RowCommitted )
 
 - `AddColumnEx( h, caption, kind, width, valueKind )` is the common case; `AddColumn` /
   `InsertColumn` take a whole `TKDATAGRID_COLUMN` (key, caption, kind, valueKind, width, minWidth,
-  maxWidth, fillWeight, align, readOnly, visible, sortable, resizable, itemData). `GetColumnInfo` /
+  maxWidth, fillWeight, align, readOnly, visible, sortable, resizable, itemData, summary, maskKind,
+  mask). `GetColumnInfo` /
   `SetColumnInfo` read and change one; `FindColumn( key )`. With no valueKind, a number or progress
   column holds floats, a check column booleans, a date column dates, the rest text.
 - **Column kinds**: `TKDG_COL_TEXT`, `_NUMBER` (right-aligned), `_CHECK` (a check box from the value
   as a boolean), `_COMBO` (edited in a combo box filled by `SetColumnItems`), `_DATE` (edited in a
   date picker), `_BUTTON` and `_LINK` (they fire ButtonClick), `_PROGRESS` (a bar, 0..100), `_ICON`
   (text), `_CUSTOM` (the CellPaint callback's).
+- **A masked column** (`maskKind` and `mask`, a tkMaskEdit mask: `TKMASK_FIXED` with
+  `"(999) 000-0000"`, `TKMASK_NUMERIC` with `"$#,##0.00"`, `TKMASK_DATE` with `"dd/mm/yyyy"` ...) on a text
+  or number column shows each value through the mask, edits it in a tkMaskEdit, and takes typed and
+  pasted values through the mask into the column's kind: a phone as raw digits, a price as a float,
+  a date as a date. An incomplete value, one that does not match, or a date that does not exist is
+  refused ("Incomplete", "Does not match the pattern", "Not a real date"). `GetCellDisplayText` is
+  what a cell shows before CellFormatting. A REGEX mask needs `tkMaskEditRegex_Enable( )` first.
 - A column with `fillWeight > 0` shares the width the others leave; `minWidth` stops a drag;
   `SetFrozenColumns( n )` keeps the first n display positions from scrolling sideways.
   `SetDisplayIndex` moves a column on screen without renumbering it.
@@ -437,7 +445,8 @@ AllowColumnReorder, ColumnHeaderSelects, TabWraps, Virtual, ColumnChooser, Froze
 SummaryScope, ShowFilterRow, BackColor, BorderWidth, ScrollBarWidth,
 Font, HeaderFont and HoverTime, the colours above, and the events in the table (CurrentCellChanged
 by default). Its **Columns** editor gives each column Text, Width, Kind, Field, Align, MinWidth,
-Fill, ReadOnly, Visible and Summary (the footer's total: none, sum, count, avg, min, max).
+Fill, ReadOnly, Visible, Summary (the footer's total: none, sum, count, avg, min, max), and MaskKind
+and Mask (none, fixed, numeric, date, time, datetime, regex, and the pattern).
 
 **Binding** a grid to an `Array( of T )`:
 

@@ -39,6 +39,11 @@ sub OnCommit( byval hCtrl as TK_WIDGET ptr )
     gCommits += 1
 end sub
 
+dim shared as int32 gEnters
+sub OnEnterPressed( byval hCtrl as TK_WIDGET ptr )
+    gEnters += 1
+end sub
+
 sub OnFocus( byval hCtrl as TK_WIDGET ptr, byval bGot as boolean )
     if bGot then gFocusIn += 1 else gFocusOut += 1
 end sub
@@ -457,6 +462,21 @@ sub RunPass( byval fScale as float32 )
         tkMaskEdit_GetBindText( w ) )
     tkMaskEdit_SetBindText( w, "2027-01-02" )
     tkTest_Check( "... a date alone is that day at 00:00", TextOf( w ) = "2027-01-02 00:00", TextOf( w ) )
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
+
+    ' ---- for a host that drives the field (M6) -------------------------------------------------------
+    Reset_()
+    gEnters = 0
+    tkMaskEdit_SetEnterPressedCallback( w, @OnEnterPressed )
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, "(999) 000-0000" )
+    tkHost_SetFocus( h, w )
+    tkTextBox_SetSel( e, 1, 1 )
+    tkMaskEdit_TypeText( w, "55512" )
+    tkTest_Check( "TypeText types through the mask, silently", (TextOf( w ) = "(555) 12*-****") andalso (gChanges = 0), TextOf( w ) )   ' the prompt is still "*"
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter: Commit, then EnterPressed", (gCommits = 1) andalso (gEnters = 1) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "focus loss commits without EnterPressed", (gCommits = 2) andalso (gEnters = 1) )
     tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
 
     ' ---- colours are the field's -----------------------------------------------------------------

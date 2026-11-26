@@ -289,6 +289,9 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         this.AddCheck( "Visible", "Visible" )
         ' G7b: the column's total in the grid's footer (ShowFooter)
         this.AddField( "Summary", "Summary", "none,sum,count,avg,min,max" )
+        ' M6: the column's mask (MASKEDIT.md 9): edited in a MaskEdit, shown and pasted through it
+        this.AddField( "MaskKind", "MaskKind", "none,fixed,numeric,date,time,datetime,regex" )
+        this.AddField( "Mask", "Mask" )
     case catalog.ItemsKind.ItemsPages, catalog.ItemsKind.ItemsTabs
         ' a tab: its caption and the glyph before it (the control's GlyphSize sizes every tab's)
         this.AddField( "Text", textLabel )
@@ -537,6 +540,10 @@ sub ItemsEditor.ShowItem( byval i as long )
             case "Summary"
                 v = Items[i].Summary
                 if len( v ) = 0 then v = "none"
+            case "MaskKind"
+                v = Items[i].MaskKind
+                if len( v ) = 0 then v = "none"
+            case "Mask" : v = Items[i].Mask
             end select
         end if
         if f.IsCheck then
@@ -622,6 +629,10 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
             case "Summary"
                 Items[Current].Summary = v
                 if v = "none" then Items[Current].Summary = ""
+            case "MaskKind"
+                Items[Current].MaskKind = v
+                if v = "none" then Items[Current].MaskKind = ""
+            case "Mask" : Items[Current].Mask = v
             end select
         end if
     next

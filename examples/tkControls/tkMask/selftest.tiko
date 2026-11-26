@@ -370,6 +370,31 @@ scope
 end scope
 
 ' ==========================================================================================
+tkTest_Begin( "canonical text (M6)" )
+scope
+    dim as TKMASK_SPEC ph = Spec( TKMASK_FIXED, "(999) 000-0000" )
+    dim as TKMASK_SPEC pr = Spec( TKMASK_NUMERIC, "$#,##0.00" )
+    dim as TKMASK_SPEC dm = Spec( TKMASK_DATE, "dd/mm/yyyy" )
+    dim as TKMASK_SPEC tm = Spec( TKMASK_TIME, "hh:nn" )
+    dim as TKMASK_SPEC dtm = Spec( TKMASK_DATETIME, "yyyy-mm-dd hh:nn" )
+    tkTest_Check( "FIXED: the value text in fmt", (tkMask_CanonicalText( ph, "(555) 123-4567", TKMASK_FMT_RAW ) = "5551234567") _
+        andalso (tkMask_CanonicalText( ph, "(555) 123-4567", TKMASK_FMT_LITERALS ) = "(555) 123-4567") )
+    tkTest_Check( "NUMERIC: the plain number", tkMask_CanonicalText( pr, "$1,234.50", TKMASK_FMT_RAW ) = "1234.50" )
+    tkTest_Check( "DATE / TIME / DATETIME: ISO", (tkMask_CanonicalText( dm, "25/12/2026", 0 ) = "2026-12-25") _
+        andalso (tkMask_CanonicalText( tm, "09:05", 0 ) = "09:05:00") andalso (tkMask_CanonicalText( dtm, "2026-12-25 14:30", 0 ) = "2026-12-25T14:30:00") )
+    tkTest_Check( "empty is empty; not real is as it is", (tkMask_CanonicalText( dm, "__/__/____", 0 ) = "") _
+        andalso (tkMask_CanonicalText( dm, "31/02/2026", 0 ) = "31/02/2026") )
+    tkTest_Check( "back from ISO", (tkMask_TextOfCanonical( dm, "2026-12-25" ) = "25/12/2026") andalso (tkMask_TextOfCanonical( tm, "14:30:00" ) = "14:30") _
+        andalso (tkMask_TextOfCanonical( dtm, "2026-12-25T14:30:00" ) = "2026-12-25 14:30") )
+    tkTest_Check( "a DATETIME takes a date alone at 00:00", tkMask_TextOfCanonical( dtm, "2027-01-02" ) = "2027-01-02 00:00" )
+    tkTest_Check( "back from the mask's own form and from raw", (tkMask_TextOfCanonical( dm, "05/06/2027" ) = "05/06/2027") _
+        andalso (tkMask_TextOfCanonical( ph, "5551234567" ) = "(555) 123-4567") )
+    tkTest_Check( "a number, plain or str( )'s exponent", (tkMask_TextOfCanonical( pr, "1234.5" ) = "$1,234.50") _
+        andalso (tkMask_TextOfCanonical( pr, "1e+3" ) = "$1,000.00"), tkMask_TextOfCanonical( pr, "1e+3" ) )
+    tkTest_Check( "nothing that fits: the template", tkMask_TextOfCanonical( ph, "abc" ) = tkMask_Template( ph ) )
+end scope
+
+' ==========================================================================================
 ' REGEX through a provider: a stand-in that knows one pattern, "abc" (text that starts "abc" is
 ' partial, "abc" itself full), and refuses "bad" -- so the engine's rules are checked without PCRE2.
 function FakeCheck( byref pattern as const ustring, byref errText as ustring ) as boolean

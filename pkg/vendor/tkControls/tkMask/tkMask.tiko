@@ -497,3 +497,85 @@ public function tkMask_Display( byref m as TKMASK_SPEC, byref text as const stri
     if hidePrompts andalso MskIsSlotKind( m ) then return MskSlotsValue( m, text, TKMASK_FMT_LITERALS )
     return text
 end function
+
+' ==========================================================================================
+' The canonical text (MASKEDIT D-16 as revised): one text per kind that a record field, a grid cell
+' or a file holds -- a number "1234.50", ISO 2026-12-25 / 14:30:00 / 2026-12-25T14:30:00, the value
+' text in fmt for FIXED and REGEX. tkMaskEdit's bind text and tkDataGrid's masked columns.
+' ==========================================================================================
+private function MskPad( byval n as int32, byval w as int32 ) as string
+    return right( string( w, "0" ) & n, w )
+end function
+
+' text (any form the box holds) as canonical text; "" when empty. A value that is not complete or
+' real comes back as it is, so a strict check refuses it.
+public function tkMask_CanonicalText( byref m as TKMASK_SPEC, byref text as const string, byval fmt as int32 ) as string
+    if tkMask_IsEmpty( m, text ) then return ""
+    dim as TKMASK_DT dt
+    select case m.kind
+    case TKMASK_DATE
+        if tkMask_GetDT( m, text, dt ) then return MskPad( dt.y, 4 ) & "-" & MskPad( dt.mo, 2 ) & "-" & MskPad( dt.d, 2 )
+    case TKMASK_TIME
+        if tkMask_GetDT( m, text, dt ) then return MskPad( dt.h, 2 ) & ":" & MskPad( dt.mi, 2 ) & ":" & MskPad( dt.s, 2 )
+    case TKMASK_DATETIME
+        if tkMask_GetDT( m, text, dt ) then
+            return MskPad( dt.y, 4 ) & "-" & MskPad( dt.mo, 2 ) & "-" & MskPad( dt.d, 2 ) & "T" & _
+                   MskPad( dt.h, 2 ) & ":" & MskPad( dt.mi, 2 ) & ":" & MskPad( dt.s, 2 )
+        end if
+    case else
+        return tkMask_ValueText( m, text, fmt )
+    end select
+    return text
+end function
+
+' Digits at s[i, i + n), as a number; -1 when they are not all digits.
+private function MskDigitsAt( byref s as const string, byval i as int32, byval n as int32 ) as int32
+    if i + n > len( s ) then return -1
+    dim as int32 v = 0
+    for k as int32 = i to i + n - 1
+        if (s[k] < 48) orelse (s[k] > 57) then return -1
+        v = v * 10 + (s[k] - 48)
+    next
+    return v
+end function
+
+' ISO "yyyy-mm-dd", "HH:mm[:ss]" or both (a "T" or a space between) at the start of s.
+private function MskIsoDate( byref s as const string, byref dt as TKMASK_DT ) as boolean
+    if (len( s ) < 10) orelse (mid( s, 5, 1 ) <> "-") orelse (mid( s, 8, 1 ) <> "-") then return false
+    dt.y = MskDigitsAt( s, 0, 4 ) : dt.mo = MskDigitsAt( s, 5, 2 ) : dt.d = MskDigitsAt( s, 8, 2 )
+    return (dt.y >= 0) andalso (dt.mo >= 0) andalso (dt.d >= 0)
+end function
+
+private function MskIsoTime( byref s as const string, byval i as int32, byref dt as TKMASK_DT ) as boolean
+    if (len( s ) < i + 5) orelse (mid( s, i + 3, 1 ) <> ":") then return false
+    dt.h = MskDigitsAt( s, i, 2 ) : dt.mi = MskDigitsAt( s, i + 3, 2 ) : dt.s = 0
+    if (len( s ) >= i + 8) andalso (mid( s, i + 6, 1 ) = ":") then dt.s = MskDigitsAt( s, i + 6, 2 )
+    return (dt.h >= 0) andalso (dt.mi >= 0) andalso (dt.s >= 0)
+end function
+
+' The text for a canonical value (or for any form of one TextOfValue maps: a pasted "5551234567", a
+' formatted "$1,234.50", "25/12/2026" in a dd/mm/yyyy mask). The template when nothing fits.
+public function tkMask_TextOfCanonical( byref m as TKMASK_SPEC, byref s as const string ) as string
+    dim as string t = trim( s )
+    if len( t ) = 0 then return tkMask_Template( m )
+    dim as TKMASK_DT dt
+    select case m.kind
+    case TKMASK_DATE
+        if MskIsoDate( t, dt ) then return tkMask_TextOfDT( m, dt )
+    case TKMASK_TIME
+        if MskIsoTime( t, 0, dt ) then return tkMask_TextOfDT( m, dt )
+    case TKMASK_DATETIME
+        if MskIsoDate( t, dt ) then
+            if (len( t ) > 10) andalso MskIsoTime( t, 11, dt ) then return tkMask_TextOfDT( m, dt )
+            dt.h = 0 : dt.mi = 0 : dt.s = 0
+            return tkMask_TextOfDT( m, dt )
+        end if
+    case TKMASK_NUMERIC
+        dim as string r = tkMask_TextOfValue( m, t )
+        if len( r ) then return r
+        ' str( ) of a float64 may be "1e+20": not a mask's text, but a number
+        if (instr( t, "e" ) > 0) orelse (instr( t, "E" ) > 0) then return tkMask_TextOfNumber( m, val( t ) )
+        return r
+    end select
+    return tkMask_TextOfValue( m, t )
+end function

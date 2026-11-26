@@ -8,6 +8,8 @@
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkComboBox"
 #import "vendor/tkControls/tkDatePicker"
+#import "vendor/tkControls/tkMask"
+#import "vendor/tkControls/tkMaskEdit"
 #import "std/fs"
 #import "std/containers"
 using tkDataGrid
@@ -23,6 +25,8 @@ using tkTextBox
 using tkComboBox
 using tkDatePicker
 using tkPopupMenu
+using tkMask
+using tkMaskEdit
 
 dim shared as long gCells, gMinRow, gMaxRow, gMinCol, gMaxCol, gFmt, gMsgs, gLastMsgRow
 dim shared as boolean gRedFirstCell
@@ -1396,6 +1400,7 @@ end sub
 #include once "selftest_g7.tiko"
 #include once "selftest_g7b.tiko"
 #include once "selftest_g7c.tiko"
+#include once "selftest_m6.tiko"
 
 if tkTest_Init() = false then end 99
 RunPass( 1.0 )
@@ -1409,6 +1414,8 @@ RunG7a( 1.75 )
 RunG7b( 1.0 )
 RunG7b( 1.75 )
 RunG7c( 1.75 )
+RunM6( 1.0 )
+RunM6( 1.75 )
 dim as long nFail = tkTest_Report( "tkDataGrid" )
 tkTest_Quit()
 end nFail

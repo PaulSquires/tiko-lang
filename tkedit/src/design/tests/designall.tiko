@@ -3170,6 +3170,22 @@ sub DataGridSuite( byval bAccept as boolean )
     dim as ustring tsum = codegen.Generate( ds, "frmS", "frmS.tkform", "" )
     Check( (instr( tsum, "c_.summary = TKDG_SUM_AVG" ) > 0) andalso (instr( tsum, "tkDataGrid_SetColumnInfo( g.Handle, 0, c_ )" ) > 0), _
         "datagrid: ... and set on the column", tsum )
+    ' M6 (MASKEDIT.md 9): a column's mask
+    Refused( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "mask_kind = ""phone""" & LF & "mask = ""000""" & LF, _
+        "no DataGrid column mask kind 'phone'" )
+    Refused( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""N""" & LF & "mask_kind = ""date""" & LF, "MaskKind needs a Mask" )
+    dim as FormDoc dmk
+    Check( ReadForm( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""Due""" & LF & "mask_kind = ""date""" & LF _
+        & "mask = ""dd/mm/yyyy""" & LF, dmk ) andalso (dmk.Controls[0].Items[0].MaskKind = "date") andalso (dmk.Controls[0].Items[0].Mask = "dd/mm/yyyy"), _
+        "datagrid: a column's mask read" )
+    Check( (instr( formfile.Render( dmk ), "mask_kind = ""date""" ) > 0) andalso (instr( formfile.Render( dmk ), "mask = ""dd/mm/yyyy""" ) > 0), _
+        "datagrid: ... and written back" )
+    dim as ustring tmk = codegen.Generate( dmk, "frmK", "frmK.tkform", "" )
+    Check( (instr( tmk, "c_.maskKind = tkMask.TKMASK_DATE" ) > 0) andalso (instr( tmk, "c_.mask = ""dd/mm/yyyy""" ) > 0) _
+        andalso (instr( tmk, "tkDataGrid_SetColumnInfo( g.Handle, 0, c_ )" ) > 0), "datagrid: ... and set on the column", tmk )
+    dim as FormDoc dmf
+    ReadForm( hdr & Ctl( "g", "DataGrid" ) & LF & "[[control.items]]" & LF & "text = ""P""" & LF & "mask = ""(999) 000-0000""" & LF, dmf )
+    Check( instr( codegen.Generate( dmf, "frmF", "frmF.tkform", "" ), "c_.maskKind = tkMask.TKMASK_FIXED" ) > 0, "datagrid: a Mask alone is FIXED" )
 
     ' G5b: ItemsLive -- the grid shows the array in place, through generated source procedures
     Refused( hdr & Ctl( "l", "ListTree", "items_live = true" & LF ), "only a DataGrid shows its array in place" )

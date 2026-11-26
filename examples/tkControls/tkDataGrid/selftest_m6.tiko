@@ -1,0 +1,103 @@
+' tkDataGrid self-test, M6 of docs/tkControls/MASKEDIT.md: masked columns -- a column's maskKind / mask
+' shows its values through the mask, edits them in a tkMaskEdit, commits them through the mask to the
+' column's value kind (text raw, a number, a date), refuses what is incomplete or not real, opens on
+' a typed key as typing, and pastes through the mask. Included by selftest.tiko.
+
+sub SetMask_( byval g as TK_WIDGET ptr, byval col as integer, byval kind as int32, byref pat as const ustring )
+    dim as TKDATAGRID_COLUMN c
+    tkDataGrid_GetColumnInfo( g, col, c )
+    c.maskKind = kind
+    c.mask = pat
+    tkDataGrid_SetColumnInfo( g, col, c )
+end sub
+
+sub RunM6( byval fScale as float32 )
+    tkTest_Begin( "M6 masked columns " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDataGrid selftest M6", 640, 360, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 200 )
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkHost_Root( h ), 900 )
+    tkDataGrid_SetFont( g, f10 )
+    tkWidget_SetPos( g, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 560 ), tkHost_Scale( h, 300 ) )
+    dim as integer cPhone = tkDataGrid_AddColumnEx( g, "Phone", TKDG_COL_TEXT, 150 )
+    dim as integer cPrice = tkDataGrid_AddColumnEx( g, "Price", TKDG_COL_NUMBER, 110 )
+    dim as integer cDue = tkDataGrid_AddColumnEx( g, "Due", TKDG_COL_TEXT, 110, TKDG_DATE )
+    dim as integer cNote = tkDataGrid_AddColumnEx( g, "Note", TKDG_COL_TEXT, 110 )
+    SetMask_( g, cPhone, TKMASK_FIXED, "(999) 000-0000" )
+    SetMask_( g, cPrice, TKMASK_NUMERIC, "$#,##0.00" )
+    SetMask_( g, cDue, TKMASK_DATE, "dd/mm/yyyy" )
+    dim as integer r = tkDataGrid_AddRow( g )
+    tkDataGrid_SetCellText( g, r, cPhone, "5551234567" )
+    tkDataGrid_SetCellFloat( g, r, cPrice, 1234.5 )
+    tkDataGrid_SetCellText( g, r, cDue, "2026-12-25" )
+    tkDataGrid_SetCellText( g, r, cNote, "(plain)" )
+    tkTest_PumpFor( h, 30 )
+
+    tkTest_Check( "shown through the mask", (tkDataGrid_GetCellDisplayText( g, r, cPhone ) = "(555) 123-4567") _
+        andalso (tkDataGrid_GetCellDisplayText( g, r, cPrice ) = "$1,234.50") andalso (tkDataGrid_GetCellDisplayText( g, r, cDue ) = "25/12/2026"), _
+        tkDataGrid_GetCellDisplayText( g, r, cPhone ) & " | " & tkDataGrid_GetCellDisplayText( g, r, cPrice ) & " | " & tkDataGrid_GetCellDisplayText( g, r, cDue ) )
+    tkTest_Check( "a plain column is not", tkDataGrid_GetCellDisplayText( g, r, cNote ) = "(plain)" )
+    tkTest_Check( "the stored value stays the column's kind", (tkDataGrid_GetCellText( g, r, cPhone ) = "5551234567") _
+        andalso (tkDataGrid_GetCellFloat( g, r, cPrice ) = 1234.5) andalso (tkDataGrid_GetCellDate( g, r, cDue ).wDay = 25) )
+
+    ' the editor: a tkMaskEdit set to the column's mask, showing the value as the mask does
+    tkTest_Check( "BeginEdit", tkDataGrid_BeginEdit( g, r, cPhone ) )
+    dim as TK_WIDGET ptr ed = tkDataGrid_GetEditor( g )
+    tkTest_Check( "the editor is a MaskEdit with the column's mask, the value in it", (tkMaskEdit_GetEdit( ed ) <> 0) _
+        andalso (tkMaskEdit_GetMask( ed ) = "(999) 000-0000") andalso (tkMaskEdit_GetText( ed ) = "(555) 123-4567"), tkMaskEdit_GetText( ed ) )
+    tkTest_Check( "it has the focus", tkHost_GetFocus( h ) = tkMaskEdit_GetEdit( ed ) )
+    tkTextBox_SetSel( tkMaskEdit_GetEdit( ed ), 0, -1 )
+    tkTest_PushKey( h, SDLK_DELETE )
+    for k as int32 = 1 to 3
+        tkTest_PushText( h, "4" )
+    next
+    tkTest_Check( "typing through the mask", tkMaskEdit_GetText( ed ) = "(444) ___-____", tkMaskEdit_GetText( ed ) )
+    tkTest_Check( "an incomplete value is refused, the edit stays open", (tkDataGrid_EndEdit( g, true ) = false) _
+        andalso (tkDataGrid_GetEditError( g ) = "Incomplete") andalso tkDataGrid_IsEditing( g ), tkDataGrid_GetEditError( g ) )
+    for k as int32 = 1 to 7
+        tkTest_PushText( h, "5" )
+    next
+    tkTest_Check( "a complete one commits, stored raw", tkDataGrid_EndEdit( g, true ) andalso (tkDataGrid_GetCellText( g, r, cPhone ) = "4445555555"), _
+        tkDataGrid_GetCellText( g, r, cPhone ) )
+
+    tkDataGrid_BeginEdit( g, r, cPrice )
+    ed = tkDataGrid_GetEditor( g )
+    tkTest_Check( "a number column's editor shows the formatted value", tkMaskEdit_GetText( ed ) = "$1,234.50", tkMaskEdit_GetText( ed ) )
+    tkMaskEdit_SetValue( ed, 99.5 )
+    tkTest_Check( "... and commits a float64", tkDataGrid_EndEdit( g, true ) andalso (tkDataGrid_GetCellFloat( g, r, cPrice ) = 99.5) )
+
+    tkDataGrid_BeginEdit( g, r, cDue )
+    ed = tkDataGrid_GetEditor( g )
+    tkTest_Check( "a date column's editor", tkMaskEdit_GetText( ed ) = "25/12/2026", tkMaskEdit_GetText( ed ) )
+    tkMaskEdit_SetText( ed, "31022026" )
+    tkTest_Check( "31/02 is refused: not a real date", (tkDataGrid_EndEdit( g, true ) = false) andalso (tkDataGrid_GetEditError( g ) = "Not a real date"), _
+        tkDataGrid_GetEditError( g ) )
+    tkMaskEdit_SetText( ed, "01032027" )
+    tkTest_Check( "a real one commits as a date", tkDataGrid_EndEdit( g, true ) andalso (tkDataGrid_GetCellDate( g, r, cDue ).wYear = 2027) _
+        andalso (tkDataGrid_GetCellDate( g, r, cDue ).wMonth = 3) )
+
+    ' a key typed on the cell opens the editor with that key, as typing
+    tkDataGrid_SetCurrentCell( g, r, cPhone )
+    tkHost_SetFocus( h, tkDataGrid_GetSurface( g ) )
+    tkTest_PushText( h, "7" )
+    ed = tkDataGrid_GetEditor( g )
+    tkTest_Check( "a typed key opens the editor, typed into the mask", tkDataGrid_IsEditing( g ) andalso (ed <> 0) _
+        andalso (tkMaskEdit_GetText( ed ) = "(7__) ___-____"), tkMaskEdit_GetText( ed ) )
+    tkDataGrid_EndEdit( g, false )
+    tkTest_Check( "Esc-style cancel leaves the value", tkDataGrid_GetCellText( g, r, cPhone ) = "4445555555" )
+
+    ' paste: through the mask, one that does not fit skipped
+    tkDataGrid_SetCurrentCell( g, r, cPhone )
+    tkTest_Check( "a paste through the mask", (tkDataGrid_PasteText( g, "(555) 000-1111" ) = 1) andalso (tkDataGrid_GetCellText( g, r, cPhone ) = "5550001111"), _
+        tkDataGrid_GetCellText( g, r, cPhone ) )
+    tkTest_Check( "a paste that does not fit changes nothing", (tkDataGrid_PasteText( g, "abc" ) = 0) andalso (tkDataGrid_GetCellText( g, r, cPhone ) = "5550001111") )
+    tkDataGrid_SetCurrentCell( g, r, cDue )
+    tkTest_Check( "a pasted date in the mask's own form", (tkDataGrid_PasteText( g, "05/06/2027" ) = 1) andalso (tkDataGrid_GetCellDate( g, r, cDue ).wMonth = 6) )
+
+    ' the mask off: the column is plain again
+    SetMask_( g, cPhone, TKMASK_NONE, "" )
+    tkTest_Check( "the mask removed: the raw value shows", tkDataGrid_GetCellDisplayText( g, r, cPhone ) = "5550001111" )
+    tkHost_Destroy( h )
+end sub

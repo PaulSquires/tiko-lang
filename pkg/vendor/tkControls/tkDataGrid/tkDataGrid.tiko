@@ -60,6 +60,7 @@
 #import "../tkTooltip" public
 #import "../tkPopupMenu" public
 #import "../tkBind" public
+#import "../tkMask" public
 using tkHost
 using tkPaint
 using tkTheme
@@ -71,6 +72,7 @@ using tkCalendar
 using tkTooltip
 using tkPopupMenu
 using tkBind
+using tkMask
 
 ' ---- constants --------------------------------------------------------------------------
 public const CDATAGRID_DEFAULT_ROWHEIGHT = 24       ' unscaled
@@ -186,6 +188,8 @@ public type TKDATAGRID_COLUMN
     resizable  as boolean = true      ' the header gutter resizes it (and SetAllowColumnResize)
     itemData   as integer
     summary    as long = TKDG_SUM_NONE ' G7b: the footer's total for it (TKDG_SUM_*)
+    maskKind   as int32 = 0           ' M6 (MASKEDIT.md 9): a tkMask kind (TKMASK_FIXED ...); 0 = none. Text and number
+    mask       as ustring             ' columns: edited in a tkMaskEdit, shown and pasted through the mask
 end type
 
 public type TKDG_HITTEST
@@ -325,6 +329,9 @@ type TKDG_COLINFO
     disp as integer                  ' laid out: its display position
     items(any) as ustring            ' a COMBO column's choices (SetColumnItems)
     nItems as integer
+    mspec as TKMASK_SPEC             ' maskKind / mask compiled (DgMaskOf, on use)
+    mSig as ustring                  ' what mspec was compiled from
+    bMasked as boolean
 end type
 
 type TKDG_SPAN                       ' rows a .. b, a <= b
@@ -429,6 +436,7 @@ type TKDATAGRID_STATE
     editCol        as integer = -1
     wEditor        as TK_WIDGET ptr      ' the editor in use (one of the three), 0 when none
     wEdText        as TK_WIDGET ptr      ' created on first use, hidden between edits, never destroyed
+    wEdMask        as TK_WIDGET ptr      ' a masked column's editor (M6): the same lifetime
     wEdCombo       as TK_WIDGET ptr
     wEdDate        as TK_WIDGET ptr
     editError      as ustring            ' why the last commit was refused

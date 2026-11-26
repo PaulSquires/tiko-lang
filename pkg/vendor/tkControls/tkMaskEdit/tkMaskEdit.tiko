@@ -59,6 +59,7 @@ public type MSK_RejectedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval 
                                             byref sText as const ustring )
 public type MSK_CommitCallbackSub as sub( byval hCtrl as TK_WIDGET ptr )
 public type MSK_FocusCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval bGotFocus as boolean )
+public type MSK_EnterPressedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr )
 
 public type TKMASKEDIT_STATE
     hWin          as TK_WIDGET ptr
@@ -84,6 +85,8 @@ public type TKMASKEDIT_STATE
     RejectedCallback as MSK_RejectedCallbackSub
     CommitCallback   as MSK_CommitCallbackSub
     FocusCallback    as MSK_FocusCallbackSub
+    EnterPressedCallback as MSK_EnterPressedCallbackSub
+    bTypeNext     as boolean             ' TypeText: the next ReplaceSel is typing
 end type
 
 private function ME( byval h as TK_WIDGET ptr ) as TKMASKEDIT_STATE ptr
@@ -194,7 +197,7 @@ private function MeFilter( byval e as TKTEXTBOX_EDITINFO ptr ) as boolean
     case TXT_EDIT_DELETE : reason = TKMASK_EDIT_DELETE
     case TXT_EDIT_PASTE : reason = TKMASK_EDIT_PASTE
     case TXT_EDIT_CUT : reason = TKMASK_EDIT_CUT
-    case TXT_EDIT_REPLACE : reason = TKMASK_EDIT_REPLACE
+    case TXT_EDIT_REPLACE : reason = iif( p->bTypeNext, TKMASK_EDIT_TYPE, TKMASK_EDIT_REPLACE )
     case else : reason = TKMASK_EDIT_TYPE
     end select
     dim as string s = e->text
@@ -269,7 +272,9 @@ end sub
 
 private sub MeOnEditEnter( byval hEdit as TK_WIDGET ptr )
     dim as TKMASKEDIT_STATE ptr p = MeOfEdit( hEdit )
-    if p then MeCommit( p )
+    if p = 0 then exit sub
+    MeCommit( p )
+    if p->EnterPressedCallback then p->EnterPressedCallback( p->hWin )
 end sub
 
 ' Insert toggles insert mode; a click never leaves the caret past the first empty slot (D-5).
@@ -938,14 +943,6 @@ public sub tkMaskEdit_SetMaskPattern( byval hCtrl as TK_WIDGET ptr, byref sMask 
     if len( sMask ) then tkMaskEdit_SetMask( hCtrl, p->nKindWanted, sMask )
 end sub
 
-private function MePad4( byval n as int32 ) as string
-    return right( "000" & n, 4 )
-end function
-
-private function MePad2( byval n as int32 ) as string
-    return right( "0" & n, 2 )
-end function
-
 ' THE BIND TEXT (MASKEDIT D-16, revised 2026-11-26): one canonical text per kind, which tkBind turns
 ' into any field -- a number "1234.50" (VAL / STR), a date "2026-12-25", a time "14:30:00", a date and
 ' time "2026-12-25T14:30:00" (ISO, as tkBind reads and writes them), the value text (ValueFormat)
@@ -956,21 +953,7 @@ public function tkMaskEdit_GetBindText( byval hCtrl as TK_WIDGET ptr ) as ustrin
     if p = 0 then return ""
     if p->bFocused then p->sEdit = MeEditText( p )
     if p->bMasked = false then return tkMaskEdit_GetText( hCtrl )
-    if tkMask_IsEmpty( p->spec, p->sEdit ) then return ""
-    dim as TKMASK_DT dt
-    select case p->spec.kind
-    case TKMASK_DATE
-        if tkMask_GetDT( p->spec, p->sEdit, dt ) then return MePad4( dt.y ) & "-" & MePad2( dt.mo ) & "-" & MePad2( dt.d )
-    case TKMASK_TIME
-        if tkMask_GetDT( p->spec, p->sEdit, dt ) then return MePad2( dt.h ) & ":" & MePad2( dt.mi ) & ":" & MePad2( dt.s )
-    case TKMASK_DATETIME
-        if tkMask_GetDT( p->spec, p->sEdit, dt ) then
-            return MePad4( dt.y ) & "-" & MePad2( dt.mo ) & "-" & MePad2( dt.d ) & "T" & MePad2( dt.h ) & ":" & MePad2( dt.mi ) & ":" & MePad2( dt.s )
-        end if
-    case else
-        return tkMaskEdit_GetValueText( hCtrl )
-    end select
-    dim as ustring u = p->sEdit
+    dim as ustring u = tkMask_CanonicalText( p->spec, p->sEdit, p->nValueFormat )
     return u
 end function
 
@@ -1036,3 +1019,21 @@ private function MeValidate( byval w as TK_WIDGET ptr, byref msg as ustring ) as
     msg = "is not valid"
     return TKBIND_ERR_INCOMPLETE
 end function
+
+' ---- for a host that drives the field (tkDataGrid's masked columns, M6) ---------------------------
+' Enter in the field, after its Commit (Commit also comes on focus loss; this only on Enter).
+public sub tkMaskEdit_SetEnterPressedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as MSK_EnterPressedCallbackSub )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->EnterPressedCallback = usersub
+end sub
+
+' sText at the caret as if typed (the mask's typing rules, one undo step); silent, as ReplaceSel is.
+' A grid that opens the editor with the key that started the edit.
+public sub tkMaskEdit_TypeText( byval hCtrl as TK_WIDGET ptr, byref sText as const ustring )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (p = 0) orelse (len( sText ) = 0) then exit sub
+    p->bTypeNext = true
+    tkTextBox_ReplaceSel( p->hEdit, sText )
+    p->bTypeNext = false
+    p->sEdit = MeEditText( p )
+end sub

@@ -407,6 +407,20 @@ public function GridAlignConst( byref a as const ustring ) as ustring
     return ""
 end function
 
+' M6: a DataGrid column's mask kind ("" = none; fixed when only a Mask is given); "" when the name is not one.
+public function GridMaskKindConst( byref s as const ustring ) as ustring
+    select case s
+    case ""         : return "tkMask.TKMASK_FIXED"
+    case "fixed"    : return "tkMask.TKMASK_FIXED"
+    case "numeric"  : return "tkMask.TKMASK_NUMERIC"
+    case "date"     : return "tkMask.TKMASK_DATE"
+    case "time"     : return "tkMask.TKMASK_TIME"
+    case "datetime" : return "tkMask.TKMASK_DATETIME"
+    case "regex"    : return "tkMask.TKMASK_REGEX"
+    end select
+    return ""
+end function
+
 ' G7b: a DataGrid column's footer total ("" = none); "" when the name is not one.
 public function GridSummaryConst( byref s as const ustring ) as ustring
     select case s

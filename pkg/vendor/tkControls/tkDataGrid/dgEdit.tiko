@@ -39,12 +39,16 @@
 #import "../tkComboBox"
 #import "../tkDatePicker"
 #import "../tkCalendar"
+#import "../tkMask"
+#import "../tkMaskEdit"
 using tkHost
 using tkPaint
 using tkTextBox
 using tkComboBox
 using tkDatePicker
 using tkCalendar
+using tkMask
+using tkMaskEdit
 
 const DG_TIMER_EDITFOCUS = TK_TIMER_APP + 10
 const DG_EDITFOCUS_MS = 50
@@ -96,8 +100,30 @@ function DgCellHasEditor( byval p as TKDATAGRID_STATE ptr, byval col as integer 
     return false
 end function
 
+' M6: a column's mask, compiled on first use and again when maskKind / mask change. FALSE: none (or
+' one tkMask refuses -- a REGEX before tkMaskEditRegex_Enable): the column is plain.
+function DgMaskOf( byval p as TKDATAGRID_STATE ptr, byval col as integer ) as boolean
+    dim as ustring sig = p->cols(col).c.maskKind & ":" & p->cols(col).c.mask
+    if sig <> p->cols(col).mSig then
+        p->cols(col).mSig = sig
+        p->cols(col).bMasked = (p->cols(col).c.maskKind <> TKMASK_NONE) andalso (len( p->cols(col).c.mask ) > 0) _
+            andalso tkMask_Compile( p->cols(col).mspec, p->cols(col).c.maskKind, p->cols(col).c.mask )
+    end if
+    return p->cols(col).bMasked
+end function
+
+' A masked cell's value as its mask shows it (prompts as spaces); "" when empty.
+function DgMaskShown( byval p as TKDATAGRID_STATE ptr, byval col as integer, byref v as const TKDG_VALUE ) as ustring
+    dim as string s = DgDefaultText( v )
+    dim as string t = tkMask_TextOfCanonical( p->cols(col).mspec, s )
+    if (len( s ) > 0) andalso tkMask_IsEmpty( p->cols(col).mspec, t ) then return DgDefaultText( v )   ' a value the mask cannot show: as it is
+    dim as ustring u = tkMask_Display( p->cols(col).mspec, t, true )
+    return u
+end function
+
 ' A combo cell's shown text: the item an INT value indexes.
 function DgDisplayText( byval p as TKDATAGRID_STATE ptr, byval col as integer, byref v as const TKDG_VALUE ) as ustring
+    if DgMaskOf( p, col ) then return DgMaskShown( p, col, v )
     if (p->cols(col).c.kind = TKDG_COL_COMBO) andalso (v.kind = TKDG_INT) then
         if (v.i >= 0) andalso (v.i < p->cols(col).nItems) then return p->cols(col).items( v.i )
     end if
@@ -108,7 +134,30 @@ end function
 private function DgParseCell( byval p as TKDATAGRID_STATE ptr, byval col as integer, byref text as const ustring, _
                               byref v as TKDG_VALUE, byref errText as ustring ) as boolean
     dim as TKDG_VALUE t
-    t.SetText( text )
+    if DgMaskOf( p, col ) andalso (len( trim( text ) ) > 0) then
+        ' M6: any form of the value (the editor's, a paste's, the canonical one) through the mask, then
+        ' its canonical text through the column's strict rules
+        dim byref as TKMASK_SPEC ms = p->cols(col).mspec
+        dim as string t8 = text
+        dim as string mt = tkMask_TextOfCanonical( ms, t8 )
+        if tkMask_IsEmpty( ms, mt ) then errText = "Does not fit the mask" : return false
+        if tkMask_IsValid( ms, mt ) = false then
+            if ms.kind = TKMASK_REGEX then
+                errText = "Does not match the pattern"
+            elseif tkMask_IsComplete( ms, mt ) = false then
+                errText = "Incomplete"
+            elseif (ms.kind = TKMASK_DATE) orelse (ms.kind = TKMASK_DATETIME) then
+                errText = "Not a real date"
+            else
+                errText = "Out of range"
+            end if
+            return false
+        end if
+        dim as ustring canon = tkMask_CanonicalText( ms, mt, TKMASK_FMT_RAW )
+        t.SetText( canon )
+    else
+        t.SetText( text )
+    end if
     if DgConvert( t, p->cols(col).c.valueKind ) then
         v = t
         errText = ""
@@ -239,6 +288,11 @@ sub DgEdTextEnter( byval hTextBox as TK_WIDGET ptr )
     if p then DgEditorEnter( p )
 end sub
 
+sub DgEdMaskEnter( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATAGRID_STATE ptr p = DgFromEditorChild( hCtrl )
+    if p then DgEditorEnter( p )
+end sub
+
 function DgEdComboMessage( byval m as TKCOMBOBOX_MESSAGEINFO ptr ) as boolean
     if m->msg <> TKM_KEYDOWN then return false
     dim as TKDATAGRID_STATE ptr p = DgFromEditorChild( m->hCombo )
@@ -296,6 +350,27 @@ private function DgEditorFor( byval p as TKDATAGRID_STATE ptr, byval col as inte
         tkDatePicker_SetFont( p->wEdDate, DgGridFont( p ) )
         return p->wEdDate
     case else
+        if DgMaskOf( p, col ) then
+            ' M6: a masked column edits in a tkMaskEdit, set to the column's mask for each edit
+            if p->wEdMask = 0 then
+                p->wEdMask = tkMaskEdit_Create( p->wSurf, id + 13 )
+                tkMaskEdit_SetEnterPressedCallback( p->wEdMask, @DgEdMaskEnter )
+                tkMaskEdit_SetBorderWidth( p->wEdMask, 1 )
+                tkTextBox_SetSelectOnFocus( tkMaskEdit_GetEdit( p->wEdMask ), false )
+                tkWidget_Show( p->wEdMask, false )
+            end if
+            tkMaskEdit_SetShowError( p->wEdMask, false )            ' the grid shows its own error
+            tkMaskEdit_SetMask( p->wEdMask, p->cols(col).c.maskKind, p->cols(col).c.mask )
+            tkMaskEdit_SetFont( p->wEdMask, DgGridFont( p ) )
+            dim as integer mm_ = DgScale( p, CDATAGRID_CELL_PAD ) - 1
+            tkTextBox_SetMargins( tkMaskEdit_GetEdit( p->wEdMask ), iif( mm_ < 0, 0, mm_ ), iif( mm_ < 0, 0, mm_ ) )
+            select case DgAlignOf( p->cols(col).c )
+            case TKDG_ALIGN_RIGHT : tkMaskEdit_SetTextAlign( p->wEdMask, TXT_ALIGN_RIGHT )
+            case TKDG_ALIGN_CENTER : tkMaskEdit_SetTextAlign( p->wEdMask, TXT_ALIGN_CENTER )
+            case else : tkMaskEdit_SetTextAlign( p->wEdMask, TXT_ALIGN_LEFT )
+            end select
+            return p->wEdMask
+        end if
         if p->wEdText = 0 then
             p->wEdText = tkTextBox_Create( p->wSurf, id + 10, false )
             tkTextBox_SetEnterPressedCallback( p->wEdText, @DgEdTextEnter )
@@ -317,6 +392,7 @@ end function
 
 ' Where the focus goes inside an editor.
 private function DgEditorFocusTarget( byval p as TKDATAGRID_STATE ptr ) as TK_WIDGET ptr
+    if (p->wEditor <> 0) andalso (p->wEditor = p->wEdMask) then return tkMaskEdit_GetEdit( p->wEdMask )
     if (p->wEditor <> 0) andalso (p->wEditor = p->wEdDate) then return tkDatePicker_GetTextBoxHandle( p->wEdDate )
     return p->wEditor
 end function
@@ -329,13 +405,21 @@ private function DgEditorDropped( byval p as TKDATAGRID_STATE ptr ) as boolean
 end function
 
 private sub DgShowEditError( byval p as TKDATAGRID_STATE ptr, byval bOn as boolean )
-    if (p->wEditor = 0) orelse (p->wEditor <> p->wEdText) then exit sub
+    if p->wEditor = 0 then exit sub
+    dim as TK_WIDGET ptr tb
+    if p->wEditor = p->wEdText then
+        tb = p->wEdText
+    elseif p->wEditor = p->wEdMask then
+        tb = tkMaskEdit_GetEdit( p->wEdMask )
+    else
+        exit sub
+    end if
     if bOn then
-        tkTextBox_SetBorderColor( p->wEdText, p->colors.ErrorColor )
-        tkTextBox_SetFocusBorderColor( p->wEdText, p->colors.ErrorColor )
+        tkTextBox_SetBorderColor( tb, p->colors.ErrorColor )
+        tkTextBox_SetFocusBorderColor( tb, p->colors.ErrorColor )
         p->bErrorShown = true
     elseif p->bErrorShown then
-        tkTextBox_UnpinColors( p->wEdText )
+        tkTextBox_UnpinColors( tb )
         p->bErrorShown = false
     end if
 end sub
@@ -425,7 +509,15 @@ function DgBeginEdit( byval p as TKDATAGRID_STATE ptr, byval row as integer, byv
         dim as TKDG_VALUE dv = v
         if DgConvert( dv, TKDG_DATE ) andalso (dv.kind = TKDG_DATE) then tkDatePicker_SetDate( ed, dv.d ) else tkDatePicker_ClearDate( ed )
     case else
-        tkTextBox_SetText( ed, iif( bReplace, initText, DgDefaultText( v ) ) )
+        if ed = p->wEdMask then
+            ' the value as its mask shows it; a typed start goes in after the focus, as typing
+            dim as string s8 = DgDefaultText( v )
+            dim as ustring shown = tkMask_TextOfCanonical( p->cols(col).mspec, s8 )
+            if bReplace then shown = ""
+            tkMaskEdit_SetText( ed, shown )
+        else
+            tkTextBox_SetText( ed, iif( bReplace, initText, DgDefaultText( v ) ) )
+        end if
     end select
     p->curRow = row : p->curCol = col
     DgEnsureVisible( p, row, col )
@@ -436,6 +528,12 @@ function DgBeginEdit( byval p as TKDATAGRID_STATE ptr, byval row as integer, byv
     if ed = p->wEdText then
         dim as integer n = tkTextBox_GetTextLength( ed )
         if bSelectAll andalso (bReplace = false) then tkTextBox_SelectAll( ed ) else tkTextBox_SetSel( ed, n, n )
+    elseif ed = p->wEdMask then
+        if bReplace then
+            tkMaskEdit_TypeText( ed, initText )
+        elseif bSelectAll then
+            tkTextBox_SelectAll( tkMaskEdit_GetEdit( ed ) )
+        end if
     elseif (ed = p->wEdDate) andalso bReplace then
         dim as TK_WIDGET ptr fld = tkDatePicker_GetTextBoxHandle( ed )
         tkTextBox_SetText( fld, initText )
@@ -473,6 +571,10 @@ function DgEndEdit( byval p as TKDATAGRID_STATE ptr, byval bCommit as boolean ) 
             text = tkTextBox_GetText( tkDatePicker_GetTextBoxHandle( ed ) )
             if tkDatePicker_HasDate( ed ) andalso tkDatePicker_GetDate( ed, d ) then v.SetDate( d ) else v.Clear( )
             if DgConvert( v, p->cols(col).c.valueKind ) = false then ok = false : errText = "Not a valid value"
+        elseif ed = p->wEdMask then
+            text = tkMaskEdit_GetText( ed )
+            if tkMaskEdit_IsEmpty( ed ) then text = ""
+            ok = DgParseCell( p, col, text, v, errText )
         else
             text = tkTextBox_GetText( ed )
             ok = DgParseCell( p, col, text, v, errText )
@@ -800,7 +902,17 @@ public function tkDataGrid_GetEditCol( byval hGrid as TK_WIDGET ptr ) as integer
     return iif( p <> 0, p->editCol, -1 )
 end function
 
-' The editor in use (a tkTextBox, tkComboBox or tkDatePicker), 0 when none.
+' What the cell shows before CellFormatting: a combo's item, a masked column's value through its mask
+' (M6), else the default text (tkDataGrid_GetCellText's).
+public function tkDataGrid_GetCellDisplayText( byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidRow( p, row ) = false) orelse (DgValidCol( p, col ) = false) then return ""
+    dim as TKDG_VALUE v
+    DgRead( p, row, col, v )
+    return DgDisplayText( p, col, v )
+end function
+
+' The editor in use (a tkTextBox, tkMaskEdit, tkComboBox or tkDatePicker), 0 when none.
 public function tkDataGrid_GetEditor( byval hGrid as TK_WIDGET ptr ) as TK_WIDGET ptr
     dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
     return iif( p <> 0, p->wEditor, cast( TK_WIDGET ptr, 0 ) )

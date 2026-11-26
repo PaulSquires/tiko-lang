@@ -689,6 +689,12 @@ public sub Check( byref doc as FormDoc, byref moduleName as const ustring, byref
             if (kind_ = catalog.ItemsKind.ItemsGridColumns) andalso (len( catalog.GridSummaryConst( it.Summary ) ) = 0) then
                 out_.Push( c.Name & ": no DataGrid column summary '" & it.Summary & "' (sum count avg min max, or none)" )
             end if
+            if (kind_ = catalog.ItemsKind.ItemsGridColumns) andalso (len( catalog.GridMaskKindConst( it.MaskKind ) ) = 0) then
+                out_.Push( c.Name & ": no DataGrid column mask kind '" & it.MaskKind & "' (fixed numeric date time datetime regex, or none)" )
+            end if
+            if (kind_ = catalog.ItemsKind.ItemsGridColumns) andalso (len( it.MaskKind ) > 0) andalso (len( it.Mask ) = 0) then
+                out_.Push( c.Name & ": a column's MaskKind needs a Mask" )
+            end if
             if (it.MinWidth < 0) orelse (it.Fill < 0) then out_.Push( c.Name & ": a column's MinWidth and Fill are 0 or more" )
             if len( it.Handler ) then AddHandler_( handlers, c.Name, it.Handler, "", doc, out_ )
         next
