@@ -1,0 +1,108 @@
+'' queries -- the everyday calls: a statement with parameters, a result walked row by row and
+'' column by column, NULL, a bytea value in binary, a prepared statement run more than once, a
+'' transaction rolled back, and an error with its SQLSTATE. Everything happens in a TEMP table,
+'' which goes away with the connection.
+''
+''     TIKO_PG_DSN="host=localhost dbname=app user=app" queries
+''
+'' With TIKO_PG_DSN unset the program says so and exits 0. Build it with 'tiko queries.tiko'.
+#import "vendor/libpq" link dynamic
+
+dim shared as PGconn ptr c
+
+'' Run SQL that returns nothing to look at; stop the program if it fails.
+sub RunSql( byval sql as string )
+    dim as PGresult ptr r = PQexec( c, sql )
+    dim as ExecStatusType st = PQresultStatus( r )
+    if st <> PGRES_COMMAND_OK andalso st <> PGRES_TUPLES_OK then
+        print sql; ": "; *PQresultErrorMessage( r )
+        PQclear( r ) : PQfinish( c )
+        end 1
+    end if
+    PQclear( r )
+end sub
+
+dim as string dsn = environ( "TIKO_PG_DSN" )
+if len( dsn ) = 0 then
+    print "skipped: set TIKO_PG_DSN to a libpq connection string"
+    end 0
+end if
+c = PQconnectdb( dsn )
+if PQstatus( c ) <> CONNECTION_OK then print *PQerrorMessage( c ) : PQfinish( c ) : end 1
+
+RunSql( "create temp table item (id int primary key, name text not null, price numeric(8,2), photo bytea)" )
+
+'' PARAMETERS: $1, $2 ... in the SQL, the values beside it as text. Never paste a value into the
+'' SQL string -- a quote in it would change the statement. nullptr in the array is SQL NULL.
+dim as const zstring ptr vals( 0 to 2 )
+dim as string names( 0 to 2 ) = { "tea", !"caf\xC3\xA9 cr\xC3\xA8me", "it's a test" }
+dim as string prices( 0 to 2 ) = { "3.50", "4.25", "" }
+for i as int32 = 0 to 2
+    dim as string id = str( i + 1 )
+    vals( 0 ) = strptr( id )
+    vals( 1 ) = strptr( names( i ) )
+    vals( 2 ) = nullptr
+    if len( prices( i ) ) then vals( 2 ) = strptr( prices( i ) )
+    dim as PGresult ptr r = PQexecParams( c, "insert into item (id, name, price) values ($1, $2, $3)", _
+                                          3, nullptr, @vals( 0 ), nullptr, nullptr, 0 )
+    if PQresultStatus( r ) <> PGRES_COMMAND_OK then print *PQresultErrorMessage( r )
+    print "insert   "; *PQcmdTuples( r ); " row"
+    PQclear( r )
+next
+
+'' A RESULT: PQntuples rows by PQnfields columns, every value text (result format 0).
+dim as PGresult ptr r = PQexec( c, "select id, name, price from item order by id" )
+for col as int32 = 0 to PQnfields( r ) - 1
+    print *PQfname( r, col ); chr( 9 );
+next
+print
+for row as int32 = 0 to PQntuples( r ) - 1
+    for col as int32 = 0 to PQnfields( r ) - 1
+        if PQgetisnull( r, row, col ) then print "NULL"; else print *PQgetvalue( r, row, col );
+        print chr( 9 );
+    next
+    print
+next
+PQclear( r )
+
+'' BINARY: a bytea parameter sent as raw bytes (format 1, with its length) and read back the
+'' same way (result format 1) -- no hex or escaping either way.
+dim as string photo = chr( 0, 255, 0, 137 ) & "PNG"
+dim as const zstring ptr bvals( 0 to 0 ) = { strptr( photo ) }
+dim as int32 blens( 0 to 0 ) = { len( photo ) }, bfmts( 0 to 0 ) = { 1 }
+r = PQexecParams( c, "update item set photo = $1 where id = 1", 1, nullptr, @bvals( 0 ), @blens( 0 ), @bfmts( 0 ), 0 )
+PQclear( r )
+r = PQexecParams( c, "select photo from item where id = 1", 0, nullptr, nullptr, nullptr, nullptr, 1 )
+dim as ubyte ptr p = cast( ubyte ptr, PQgetvalue( r, 0, 0 ) )
+print "photo    "; PQgetlength( r, 0, 0 ); " bytes:";
+for i as int32 = 0 to PQgetlength( r, 0, 0 ) - 1
+    print " "; hex( p[i], 2 );
+next
+print
+PQclear( r )
+
+'' PREPARED: parsed and planned once by the server, then run with new values each time.
+PQclear( PQprepare( c, "price_of", "select price from item where name = $1", 1, nullptr ) )
+for i as int32 = 0 to 2
+    vals( 0 ) = strptr( names( i ) )
+    r = PQexecPrepared( c, "price_of", 1, @vals( 0 ), nullptr, nullptr, 0 )
+    print names( i ); " costs "; iif( PQgetisnull( r, 0, 0 ), "nothing yet", *PQgetvalue( r, 0, 0 ) )
+    PQclear( r )
+next
+
+'' A TRANSACTION: nothing between begin and rollback stays.
+RunSql( "begin" )
+RunSql( "delete from item" )
+RunSql( "rollback" )
+r = PQexec( c, "select count(*) from item" )
+print "after rollback: "; *PQgetvalue( r, 0, 0 ); " rows"
+PQclear( r )
+
+'' AN ERROR: PGRES_FATAL_ERROR, the message, and the SQLSTATE -- the code to test, not the text,
+'' which the server translates. 23505 is unique_violation.
+r = PQexec( c, "insert into item (id, name) values (1, 'again')" )
+if PQresultStatus( r ) = PGRES_FATAL_ERROR then
+    print "error    "; *PQresultErrorField( r, PG_DIAG_SQLSTATE ); " "; *PQresultErrorField( r, PG_DIAG_MESSAGE_PRIMARY )
+end if
+PQclear( r )
+PQfinish( c )

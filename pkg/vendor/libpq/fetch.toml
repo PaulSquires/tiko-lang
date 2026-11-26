@@ -1,0 +1,43 @@
+# vendor/libpq's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# PostgreSQL publishes no client library a tiko program can link, so every host builds libpq --
+# with OpenSSL folded in, static and hidden (claude-docs docs/tiko-vendor RFC-0003 DB-3, DB-10)
+# -- by build/build.sh from these two pinned sources: OpenSSL 3.5.9 (the 3.5 LTS line) and
+# PostgreSQL 19.0. One build makes both files; each entry copies one (the script returns at
+# once when its stamp matches). Both SHA-256s are the ones upstream publishes beside its tarball.
+# An OpenSSL security release is a new pin here and a rebuild.
+#
+# THE NAMES are what '#foreignlib PQ ... "lib/libpq"' probes: libpq_<os>_<arch>.a for static;
+# for dynamic libpq.dll on Windows -- the name inside it, which a program's import names --
+# and libpq_linux_x86_64.so on Linux, its soname its own file name. macOS and linux-arm64 are
+# RFC-0003 P4: no entries yet.
+version = "19.0"
+
+[windows.1]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://ftp.postgresql.org/pub/source/v19.0/postgresql-19.0.tar.bz2 a89fd70efbad6a08c7dbed8d4872e3af30170d9e5ca9dc7906523be95b4e692d"
+from = "build/bin/windows/libpq.dll"
+to = "lib/libpq.dll"
+
+[windows.2]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://ftp.postgresql.org/pub/source/v19.0/postgresql-19.0.tar.bz2 a89fd70efbad6a08c7dbed8d4872e3af30170d9e5ca9dc7906523be95b4e692d"
+from = "build/bin/windows/libpq_windows_x86_64.a"
+to = "lib/libpq_windows_x86_64.a"
+
+[linux.1]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://ftp.postgresql.org/pub/source/v19.0/postgresql-19.0.tar.bz2 a89fd70efbad6a08c7dbed8d4872e3af30170d9e5ca9dc7906523be95b4e692d"
+from = "build/bin/linux/libpq_linux_x86_64.so"
+to = "lib/libpq_linux_x86_64.so"
+
+[linux.2]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://ftp.postgresql.org/pub/source/v19.0/postgresql-19.0.tar.bz2 a89fd70efbad6a08c7dbed8d4872e3af30170d9e5ca9dc7906523be95b4e692d"
+from = "build/bin/linux/libpq_linux_x86_64.a"
+to = "lib/libpq_linux_x86_64.a"

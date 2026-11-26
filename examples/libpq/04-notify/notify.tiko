@@ -1,0 +1,47 @@
+'' notify -- LISTEN / NOTIFY between two connections: one listens on a channel, the other sends
+'' on it with a payload, and the listener picks the notifications up without polling a table.
+''
+''     TIKO_PG_DSN="host=localhost dbname=app user=app" notify
+''
+'' With TIKO_PG_DSN unset the program says so and exits 0. Build it with 'tiko notify.tiko'.
+#import "vendor/libpq" link dynamic
+
+dim as string dsn = environ( "TIKO_PG_DSN" )
+if len( dsn ) = 0 then
+    print "skipped: set TIKO_PG_DSN to a libpq connection string"
+    end 0
+end if
+dim as PGconn ptr listener = PQconnectdb( dsn ), sender = PQconnectdb( dsn )
+if PQstatus( listener ) <> CONNECTION_OK orelse PQstatus( sender ) <> CONNECTION_OK then
+    print *PQerrorMessage( listener ); *PQerrorMessage( sender )
+    end 1
+end if
+PQclear( PQexec( listener, "listen orders" ) )
+
+'' NOTIFY's payload is a string literal; pg_notify() takes it as a parameter instead.
+dim as const zstring ptr vals( 0 to 0 )
+for i as int32 = 1 to 3
+    dim as string payload = "order " & str( 1000 + i )
+    vals( 0 ) = strptr( payload )
+    PQclear( PQexecParams( sender, "select pg_notify('orders', $1)", 1, nullptr, @vals( 0 ), nullptr, nullptr, 0 ) )
+next
+
+'' A notification arrives as input on the listener's socket: PQconsumeInput reads what is
+'' there without blocking, then PQnotifies hands out one record at a time (PQfreemem each). A
+'' real program waits on PQsocket( listener ) in its event loop instead of sleeping.
+dim as int32 got
+for tries as int32 = 1 to 50
+    if PQconsumeInput( listener ) = 0 then print *PQerrorMessage( listener ) : exit for
+    dim as PGnotify ptr n = PQnotifies( listener )
+    while n
+        got += 1
+        print "channel "; *n->relname; ", payload '"; *n->extra; "', from the sender's backend: "; iif( n->be_pid = PQbackendPID( sender ), "yes", "no" )
+        PQfreemem( n )
+        n = PQnotifies( listener )
+    wend
+    if got = 3 then exit for
+    sleep 100, 1
+next
+print got; " of 3 received"
+PQfinish( sender ) : PQfinish( listener )
+end iif( got = 3, 0, 1 )

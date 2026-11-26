@@ -1,0 +1,94 @@
+'' =============================================================================
+'' postgres_ext.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "postgres_ext.h"
+''   source sha256 : 7f2d7945243abf649e0c574457db63abd3b704603db245e15f2268e823154322
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../../macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 3 items need manual translation:
+''   line 51  postgres_ext.h:35  C2T-TODO(macro)  InvalidOid
+''   line 58  postgres_ext.h:40  C2T-TODO(macro)  OID_MAX
+''   line 62  postgres_ext.h:43  C2T-TODO(function-like-macro)  atooid
+'' =============================================================================
+
+/'-------------------------------------------------------------------------
+ *
+ * postgres_ext.h
+ *
+ *	   This file contains declarations of things that are visible everywhere
+ *	in PostgreSQL *and* are visible to clients of frontend interface libraries.
+ *	For example, the Oid type is part of the API of libpq and other libraries.
+ *
+ *	   Declarations which are specific to a particular interface should
+ *	go in the header file for that interface (such as libpq-fe.h).  This
+ *	file is only for fundamental Postgres declarations.
+ *
+ *	   User-written C functions don't count as "external to Postgres."
+ *	Those function much as local modifications to the backend itself, and
+ *	use header files that are otherwise internal to Postgres to interface
+ *	with the backend.
+ *
+ * src/include/postgres_ext.h
+ *
+ *-------------------------------------------------------------------------
+ '/
+/' IWYU pragma: always_keep '/
+
+#pragma once
+
+extern "C"
+
+'' <stdint.h>: built into tiko
+
+/'
+ * Object ID is a fundamental type in Postgres.
+ '/
+type Oid as uint32
+
+#if 0
+'' C2T-TODO(macro) postgres_ext.h:35 -- 'InvalidOid': clang finds no value for it (a pointer, or not an expression)
+'' #define InvalidOid		(Oid(0))
+#else
+'' C2T-NOTE(value) postgres_ext.h:37 -- clang's value; a cast, which tiko's preprocessor does not evaluate
+#define InvalidOid 0
+#endif
+
+'' C2T-TODO(macro) postgres_ext.h:40 -- 'OID_MAX': 'UINT_MAX' is nothing tiko declares
+'' #define OID_MAX  UINT_MAX
+/' you will need to include <limits.h> to use the above #define '/
+
+'' C2T-TODO(function-like-macro) postgres_ext.h:43 -- 'NULL' is nothing tiko declares
+'' #define atooid(x) ((Oid) strtoul((x), NULL, 10))
+/' the above needs <stdlib.h> '/
+
+
+/' deprecated name for int64_t, formerly used in client API declarations '/
+type pg_int64 as int64
+
+/'
+ * Identifiers of error message fields.  Kept here to keep common
+ * between frontend and backend, and also to export them to libpq
+ * applications.
+ '/
+#define PG_DIAG_SEVERITY 83
+#define PG_DIAG_SEVERITY_NONLOCALIZED 86
+#define PG_DIAG_SQLSTATE 67
+#define PG_DIAG_MESSAGE_PRIMARY 77
+#define PG_DIAG_MESSAGE_DETAIL 68
+#define PG_DIAG_MESSAGE_HINT 72
+#define PG_DIAG_STATEMENT_POSITION 80
+#define PG_DIAG_INTERNAL_POSITION 112
+#define PG_DIAG_INTERNAL_QUERY 113
+#define PG_DIAG_CONTEXT 87
+#define PG_DIAG_SCHEMA_NAME 115
+#define PG_DIAG_TABLE_NAME 116
+#define PG_DIAG_COLUMN_NAME 99
+#define PG_DIAG_DATATYPE_NAME 100
+#define PG_DIAG_CONSTRAINT_NAME 110
+#define PG_DIAG_SOURCE_FILE 70
+#define PG_DIAG_SOURCE_LINE 76
+#define PG_DIAG_SOURCE_FUNCTION 82
+
+end extern

@@ -39,6 +39,10 @@ links = ["static", "dynamic"]
 [vendor.zint]
 links = ["static", "dynamic"]
 
+# vendor/libpq: PostgreSQL's client library, OpenSSL folded inside (claude-docs RFC-0003 DB-3).
+[vendor.libpq]
+links = ["static", "dynamic"]
+
 # vendor/tkControls (SDL3 controls in tiko, source only) links nothing of its own -- vendor/SDL3
 # does -- but needs files at run time, copied beside every program that imports the module:
 # tkHost's bundled fonts and their licences (every tk program imports tkHost), and the scintk

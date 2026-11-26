@@ -1,0 +1,53 @@
+'' vendor/libpq -- libpq, PostgreSQL's C client library (PostgreSQL 19.0), with TLS through
+'' OpenSSL 3.5, as one import:
+''
+''     #import "vendor/libpq" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of libpq-fe.h (and postgres_ext.h, which it includes) is
+'' then callable as PostgreSQL documents it, unqualified -- PQconnectdb, PQexecParams,
+'' CONNECTION_OK, PGRES_TUPLES_OK.
+''
+'' THE HEADERS are libpq-fe.ti and postgres_ext.ti, translated by 'tiko c2t' and committed; their
+'' banners name the C headers and their SHA-256. libpq-residue.ti holds by hand what the
+'' translation could not carry: OID_MAX, atooid, PQsetdb.
+''
+'' A query with a parameter -- never splice values into SQL text:
+''
+''     dim as PGconn ptr c = PQconnectdb( "host=db.example.com dbname=app user=app sslmode=verify-full" )
+''     if PQstatus( c ) <> CONNECTION_OK then print *PQerrorMessage( c ) : end 1
+''     dim as const zstring ptr vals( 0 to 0 ) = { strptr( "42" ) }
+''     dim as PGresult ptr r = PQexecParams( c, "select name from item where id = $1", 1, _
+''                                           nullptr, @vals( 0 ), nullptr, nullptr, 0 )
+''     if PQresultStatus( r ) = PGRES_TUPLES_OK andalso PQntuples( r ) > 0 then print *PQgetvalue( r, 0, 0 )
+''     PQclear( r ) : PQfinish( c )
+''
+'' What libpq allocates, libpq frees: PQclear for a PGresult, PQfinish for a connection (also one
+'' that failed), PQfreemem for PQnotifies' records, PQescapeLiteral's and PQunescapeBytea's
+'' results. A value from PQgetvalue lives as long as its PGresult.
+''
+'' TLS: OpenSSL is inside the library -- nothing else to ship. 'sslmode=verify-full' checks the
+'' server's certificate chain and its name; give the roots with 'sslrootcert=<file>', or
+'' 'sslrootcert=system' for the operating system's. libpq's default, 'prefer', encrypts when the
+'' server offers it and verifies nothing.
+''
+'' THE LIBRARY: with 'link static' libpq and OpenSSL are linked into the program; with 'link
+'' dynamic' -- and when no '#import' says, which is this package's default -- the shared library,
+'' which tiko copies beside the program: libpq.dll on Windows, libpq_linux_x86_64.so on Linux.
+'' macOS and linux-arm64 have no library yet (claude-docs docs/tiko-vendor RFC-0003 P4).
+#module "libpq"
+
+public #include once "postgres_ext.ti"
+public #include once "libpq-fe.ti"
+public #include once "libpq-residue.ti"
+
+#ifdef TIKO_LINK_STATIC
+    '' A static libpq on Windows needs what its OpenSSL and libpq.dll would have imported.
+    #ifdef TIKO_OS_WINDOWS
+        #foreignlib PQ static "lib/libpq", "system:ws2_32", "system:secur32", "system:crypt32", _
+                              "system:advapi32", "system:user32", "system:shell32"
+    #else
+        #foreignlib PQ static "lib/libpq", "system:m"
+    #endif
+#else
+    #foreignlib PQ dynamic "lib/libpq"
+#endif
