@@ -21,7 +21,11 @@
 ' paste that stopped part-way (after its Change); Commit on Enter and on focus loss, after which an
 ' invalid value turns the border to ErrorColor (ShowError); Focus. Every setter is silent.
 '
-' M1 takes FIXED masks; NUMERIC (M2), DATE / TIME / DATETIME (M3) and REGEX (M4) are refused here
+' NUMERIC (M2): the text is always the display form ("$1,234.50"), regrouped as typed; the value is
+' GetValue / SetValue, clamped into [Min, Max] on commit (Change when that moves it), never while
+' typing; right-aligned when the mask is set.
+'
+' FIXED (M1) and NUMERIC (M2) are taken; DATE / TIME / DATETIME (M3) and REGEX (M4) are refused
 ' until their phase.
 #module "tkMaskEdit"
 
@@ -55,6 +59,7 @@ public type TKMASKEDIT_STATE
     nValueFormat  as long = TKMASK_FMT_RAW
     nCopyFormat   as long = TKMASK_FMT_LITERALS
     bShowError    as boolean = true
+    bZeroWhenEmpty as boolean            ' NUMERIC: an empty box commits as 0
     nPendingRej   as long                ' a partial paste's reason, reported after its Change
     nPendingPos   as long
     sPendingIns   as string
@@ -101,7 +106,9 @@ end sub
 ' The screen keyboard: a number pad when every editable slot takes digits (0 9 #).
 private sub MeTextKind( byval p as TKMASKEDIT_STATE ptr )
     dim as long k = TK_TEXT_LINE
-    if p->bMasked andalso (p->spec.kind = TKMASK_FIXED) then
+    if p->bMasked andalso (p->spec.kind = TKMASK_NUMERIC) then
+        k = iif( p->spec.fmt.dec > 0, TK_TEXT_DECIMAL, TK_TEXT_INTEGER )
+    elseif p->bMasked andalso (p->spec.kind = TKMASK_FIXED) then
         k = TK_TEXT_INTEGER
         for i as long = 0 to p->spec.nSlots - 1
             select case p->spec.slots(i).kind
@@ -119,8 +126,24 @@ private sub MeFireRejected( byval p as TKMASKEDIT_STATE ptr, byval nPos as long,
     p->RejectedCallback( p->hWin, nPos, nReason, u )
 end sub
 
-' Enter or focus loss: the error tint for an invalid value, then Commit.
+' Enter or focus loss. NUMERIC: the value clamped into [Min, Max] (Change when that moves it), an
+' empty box stamped 0 with ZeroWhenEmpty (silently, as tkTextBox's). Then the error tint for an
+' invalid value, then Commit.
 private sub MeCommit( byval p as TKMASKEDIT_STATE ptr )
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if p->bMasked andalso (p->spec.kind = TKMASK_NUMERIC) then
+        dim as float64 v
+        if tkMask_GetNumber( p->spec, p->sEdit, v ) then
+            dim as float64 c = tkMask_Clamp( p->spec, v )
+            if c <> v then
+                p->sEdit = tkMask_TextOfNumber( p->spec, c )
+                MeSync( p )
+                if p->ChangeCallback then p->ChangeCallback( p->hWin )
+            end if
+        elseif p->bZeroWhenEmpty andalso (p->bFocused = false) then
+            p->sEdit = tkMask_TextOfNumber( p->spec, tkMask_Clamp( p->spec, 0 ) )
+        end if
+    end if
     if p->bMasked andalso p->bShowError then
         if tkMask_IsValid( p->spec, p->sEdit ) = false then tkTextBox_SetError( p->hEdit, true )
     end if
@@ -286,8 +309,13 @@ end function
 public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as long, byref sMask as const ustring ) as boolean
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return false
-    if nKind <> TKMASK_FIXED then return false
+    if (nKind <> TKMASK_FIXED) andalso (nKind <> TKMASK_NUMERIC) then return false
+    dim as long oldKind = iif( p->bMasked, p->spec.kind, TKMASK_NONE )
     if tkMask_Compile( p->spec, nKind, sMask ) = false then return false
+    ' a number reads from the right; the alignment follows only a change of kind, so a host's
+    ' own SetTextAlign survives a new pattern of the same kind
+    if (nKind = TKMASK_NUMERIC) andalso (oldKind <> TKMASK_NUMERIC) then tkTextBox_SetTextAlign( p->hEdit, TXT_ALIGN_RIGHT )
+    if (nKind <> TKMASK_NUMERIC) andalso (oldKind = TKMASK_NUMERIC) then tkTextBox_SetTextAlign( p->hEdit, TXT_ALIGN_LEFT )
     p->bMasked = true
     p->sEdit = tkMask_Template( p->spec )
     tkTextBox_SetError( p->hEdit, false )
@@ -365,7 +393,91 @@ public function tkMaskEdit_IsComplete( byval hCtrl as TK_WIDGET ptr ) as boolean
     return tkMask_IsComplete( p->spec, p->sEdit )
 end function
 
-' Empty, or complete (FIXED).
+' ---- NUMERIC --------------------------------------------------------------------------------------
+' The number shown (a percent mask's divided by 100); 0 when empty or not NUMERIC.
+public function tkMaskEdit_GetValue( byval hCtrl as TK_WIDGET ptr ) as float64
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return 0
+    if p->bFocused then p->sEdit = MeEditText( p )
+    dim as float64 v
+    if p->bMasked andalso (p->spec.kind = TKMASK_NUMERIC) then tkMask_GetNumber( p->spec, p->sEdit, v )
+    return v
+end function
+
+' v as the mask formats it (tkFormat_Number's text), as given: not clamped -- IsValid says when it is
+' outside [Min, Max], and the next commit clamps it. Silent; clears the error tint.
+public sub tkMaskEdit_SetValue( byval hCtrl as TK_WIDGET ptr, byval v as float64 )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (p = 0) orelse (p->bMasked = false) orelse (p->spec.kind <> TKMASK_NUMERIC) then exit sub
+    p->sEdit = tkMask_TextOfNumber( p->spec, v )
+    tkTextBox_SetError( p->hEdit, false )
+    MeSync( p )
+end sub
+
+' The lowest value a commit leaves (each bound is off until set; ClearRange turns both off).
+public sub tkMaskEdit_SetMin( byval hCtrl as TK_WIDGET ptr, byval v as float64 )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->spec.hasMin = true
+    p->spec.minV = v
+end sub
+
+public sub tkMaskEdit_SetMax( byval hCtrl as TK_WIDGET ptr, byval v as float64 )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->spec.hasMax = true
+    p->spec.maxV = v
+end sub
+
+public sub tkMaskEdit_ClearRange( byval hCtrl as TK_WIDGET ptr )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->spec.hasMin = false
+    p->spec.hasMax = false
+end sub
+
+' TRUE (and v) when the bound is set.
+public function tkMaskEdit_GetMin( byval hCtrl as TK_WIDGET ptr, byref v as float64 ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    v = 0
+    if (p = 0) orelse (p->spec.hasMin = false) then return false
+    v = p->spec.minV
+    return true
+end function
+
+public function tkMaskEdit_GetMax( byval hCtrl as TK_WIDGET ptr, byref v as float64 ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    v = 0
+    if (p = 0) orelse (p->spec.hasMax = false) then return false
+    v = p->spec.maxV
+    return true
+end function
+
+' "-" toggles the sign (default on); off refuses it, typed or pasted.
+public sub tkMaskEdit_SetAllowNegative( byval hCtrl as TK_WIDGET ptr, byval bAllow as boolean )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->spec.allowNeg = bAllow
+end sub
+
+public function tkMaskEdit_GetAllowNegative( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return true
+    return p->spec.allowNeg
+end function
+
+' An empty box commits as 0 (clamped) when it loses the focus; off (default), empty stays empty.
+public sub tkMaskEdit_SetZeroWhenEmpty( byval hCtrl as TK_WIDGET ptr, byval bZero as boolean )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->bZeroWhenEmpty = bZero
+end sub
+
+public function tkMaskEdit_GetZeroWhenEmpty( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return p->bZeroWhenEmpty
+end function
+
+' Empty, or complete (FIXED); empty, or inside [Min, Max] (NUMERIC).
 public function tkMaskEdit_IsValid( byval hCtrl as TK_WIDGET ptr ) as boolean
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return false
