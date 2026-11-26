@@ -210,6 +210,7 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 | [tkSpinner](tkSpinner) | Shows a small animation while something takes its time. | `vendor/tkControls/tkSpinner` |
 | [tkChart](tkChart) | Draws line, column, HLOC and pie charts from series of labelled values. | `vendor/tkControls/tkChart` |
 | [tkPicture](tkPicture) | Shows an image, scaled or clipped to its area. | `vendor/tkControls/tkPicture` |
+| [tkBarcode](tkBarcode) | Draws 1D and 2D barcodes: EAN, UPC, Code 128, Code 39, QR, Data Matrix, PDF417, Aztec. | `vendor/tkControls/tkBarcode` |
 | [tkBadge](tkBadge) | Draws a badge: a dot, a count, a short text or a presence mark, alone or on a control. | `vendor/tkControls/tkBadge` |
 | [tkAvatar](tkAvatar) | Draws a person's avatar: their photo, or their initials on a colour of their own. | `vendor/tkControls/tkAvatar` |
 | [tkAvatarGroup](tkAvatarGroup) | Draws a row of avatars, overlapping or apart, with a +N disc for the rest. | `vendor/tkControls/tkAvatarGroup` |

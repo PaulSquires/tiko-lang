@@ -43,6 +43,7 @@ ignore	Android	an overview page, not a function
 ignore	Android-Setup-Tutorial	a tutorial, not a function
 ignore	Android-Fasting-App-Tutorial	a tutorial, not a function
 ignore	Contacts-Tutorial	a tutorial, not a function
+ignore	Report-Designer	a guide, not a function
 ignore	Orders-Tutorial	a tutorial, not a function
 ignore	SDL3-Tutorial	a tutorial, not a function
 seealso	Category-tkControls	tkControls guide
@@ -120,4 +121,5 @@ from	vendor/tkControls/tkPrinter	import	tkPrinter
 from	vendor/tkControls/tkPrintDialog	import	tkPrintDialog
 from	vendor/tkControls/tkReportViewer	import	tkReportViewer
 from	vendor/tkControls/tkReport	import	tkReport
+from	vendor/tkControls/tkBarcode	import	tkBarcode
 from	vendor/tkControls/tkLanguage	import	tkLanguage

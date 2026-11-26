@@ -2,7 +2,7 @@
 
 # tkBarcode
 
-Draws a 1D or 2D barcode: EAN and UPC, Code 128, Code 39, QR codes, Data Matrix, PDF417, Aztec and more.
+Draws 1D and 2D barcodes: EAN, UPC, Code 128, Code 39, QR, Data Matrix, PDF417, Aztec.
 
 `tkBarcode` is the [tkControls](Category-tkControls) barcode. You give it a symbology and the data, and
 it shows a symbol a scanner reads. The encoding is libzint's, from [`vendor/zint`](Vendor-Packages);
