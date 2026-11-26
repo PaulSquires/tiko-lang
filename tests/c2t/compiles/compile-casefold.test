@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/casefold.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-casefold
+'' STEP-EXIT: 0
+'' STEP: c2t tests/c2t/src/casefold.h -o build/.c2t/compile-casefold/casefold.ti
+'' ARGS: -c build/.c2t/compile-casefold/casefold.ti -o build/.c2t/compile-casefold/casefold.o
+'' EXPECT-EXIT: 0

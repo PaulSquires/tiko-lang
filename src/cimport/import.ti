@@ -119,7 +119,7 @@ type CImp
     '' because FreeBASIC is case-insensitive.
     as Tko.Interner strs
     as containers.Array( of uint8 ) claimType       '' folded id -> 1 when a type holds that name
-    as containers.Array( of uint8 ) claimValue      '' folded id -> 1 when a value does
+    as containers.Array( of uint8 ) claimValue      '' folded id -> 1 when a value does, 2 a procedure
     as containers.Array( of int32 )  usrName         '' USR id -> index into fbNames plus one
     as containers.Array( of uint8 ) usrState        '' USR id -> US_* bits
     as Tko.StrVec           fbNames
@@ -174,6 +174,9 @@ type CImp
     as Tko.StrVec c2tFwd
     as Tko.StrVec c2tTdName
     as Tko.StrVec c2tTdText
+    '' ...and the records pass 1 named that had no definition yet: one never defined is an
+    '' opaque 'type X__fwd as X', which tiko cannot have beside a procedure named like it.
+    as containers.Array( of int32 ) c2tOpaque
     '' ...and for the record RecordEmit wrote last: the C source offset each member line came
     '' from (-1 for a line C has no counterpart for), and the fields it renamed, as
     '' 'record.cname -> fbname' -- c2t lays the record out by them and lists the renames.
@@ -221,6 +224,9 @@ declare sub MacroPass( byref x as CImp )
 declare sub MacroValuesFor( byref x as CImp, byref names as Tko.StrVec, byref values as Tko.StrVec )
 declare sub MacroSeen( byref x as CImp, byref n as string )
 declare sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
+'' A name claimed in the value namespace marked as a procedure's; and the test for one.
+declare sub NameMarkProc( byref x as CImp, byref n as string )
+declare function NameIsProc( byref x as CImp, byref n as string ) as boolean
 declare function StateExport( byref x as CImp ) as string
 declare function StateSeed( byref x as CImp, byref state as string ) as boolean
 declare function StateConflict( byref x as CImp ) as string

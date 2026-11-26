@@ -165,6 +165,21 @@ private sub Take_( byref x as CImp, byval ns as CImpNs, byref n as string )
     end if
 end sub
 
+'' A PROCEDURE'S NAME, among the values: tiko resolves a type that is never defined -- c2t's
+'' opaque 'type X__fwd as X' -- to a procedure spelled like it ('curl_url' is a procedure,
+'' not a type: TKO0997), where a defined type, a variable or a constant beside one is fine
+'' (measured, tiko 0.1.8; fbc 1.10 takes all four).
+sub NameMarkProc( byref x as CImp, byref n as string )
+    dim as int32 f = cast( int32, x.strs.Fold( x.strs.GetString( n ) ) )
+    if f < x.claimValue.Count then x.claimValue[f] = 2
+end sub
+
+function NameIsProc( byref x as CImp, byref n as string ) as boolean
+    dim as int32 f = cast( int32, x.strs.Fold( x.strs.GetString( n ) ) )
+    if f < x.claimValue.Count then return (x.claimValue[f] = 2)
+    return false
+end function
+
 '' A name an earlier import claimed (state.tiko): taken, with no ledger line.
 sub NameSeedClaim( byref x as CImp, byval ns as CImpNs, byref n as string )
     Take_( x, ns, n )

@@ -1,0 +1,10 @@
+'' tiko c2t: enumerators a function-like macro writes -- curl's CURLOPT(na, t, nu), 'na = t + nu' -- keep clang's value; a bare one after them is numbered on, and --verify asserts every enumerator against clang.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/enummacro
+'' ARGS: c2t tests/c2t/src/enummacro.h --verify -o build/.c2t/enummacro/enummacro.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/enummacro/enummacro.ti :: '' enummacro.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/enummacro/enummacro.ti :: ) from the C header "enummacro.h"\n''   source sha256 : 0cee3775ee9395d8619672d412a50b20297167b09bcfdde67ef17b87cff955f9\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/enummacro/enummacro.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 1 item needs manual translation:\n''   line 19  enummacro.h:4  C2T-TODO(function-like-macro)  OPT\n'' =============================================================================\n\n/' enummacro.h -- enumerators a function-like macro writes, numbered as clang numbers them. '/\nextern "C"\n\n#define OPTTYPE_LONG 0\n#define OPTTYPE_STRING 10000\n'' C2T-TODO(function-like-macro) enummacro.h:4 -- an assignment\n'' #define OPT(na, t, nu) na = t + nu\n\n#if defined(TIKO_OS_WINDOWS)\ntype Option as int32\nenum\n    OPT_PORT = 3\n    OPT_URL = 10002\n    OPT_NEXT\n    OPT_LAST = 20000\nend enum\n#elseif defined(TIKO_OS_LINUX)\ntype Option as uint32\nenum\n    OPT_PORT = 3\n    OPT_URL = 10002\n    OPT_NEXT\n    OPT_LAST = 20000\nend enum\n#endif\n\nend extern\n

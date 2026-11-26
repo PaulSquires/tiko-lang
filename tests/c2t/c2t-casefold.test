@@ -1,0 +1,10 @@
+'' tiko c2t: an opaque record named like a procedure but for case -- curl's 'struct Curl_URL' beside curl_url() -- is renamed '_2', as two constants are; the translation compiles (--verify).
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/casefold
+'' ARGS: c2t tests/c2t/src/casefold.h --verify -o build/.c2t/casefold/casefold.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/casefold/casefold.ti :: '' casefold.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/casefold/casefold.ti :: ) from the C header "casefold.h"\n''   source sha256 : c3adb0d7fc85b2c0b22e80440d6eb3f1bb7780b0978368c3f311a4e1887fde3e\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/casefold/casefold.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Renamed:\n''   type       Thing_URL -> Thing_URL_2   (case-insensitive collision)\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' casefold.h -- an opaque record and a procedure that differ only in case. '/\ntype Thing_URL_2__fwd as Thing_URL_2\ntype THINGU as Thing_URL_2\n\nextern "C"\n\ndeclare function thing_url( ) as THINGU ptr\ndeclare sub thing_url_cleanup( byval handle as THINGU ptr )\n\nend extern\n

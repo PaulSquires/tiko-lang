@@ -1,0 +1,7 @@
+'' The translation of tests/c2t/src/enummacro.h compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-enummacro
+'' STEP-EXIT: 2
+'' STEP: c2t tests/c2t/src/enummacro.h -o build/.c2t/compile-enummacro/enummacro.ti
+'' ARGS: -c build/.c2t/compile-enummacro/enummacro.ti -o build/.c2t/compile-enummacro/enummacro.o
+'' EXPECT-EXIT: 0

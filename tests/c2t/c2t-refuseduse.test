@@ -1,0 +1,10 @@
+'' tiko c2t: a record left as a TODO declares nothing, so a pointer to it later is the record's own name behind the hidden alias -- not its typedef's, which nothing declares (libssh2's LIBSSH2_POLLFD, TKO0808).
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/refuseduse
+'' ARGS: c2t tests/c2t/src/refuseduse.h --verify -o build/.c2t/refuseduse/refuseduse.ti
+'' EXPECT-EXIT: 2
+'' EXPECT-FILE-HAS: build/.c2t/refuseduse/refuseduse.ti :: '' refuseduse.ti -- tiko header translated by c2t (tiko 
+'' EXPECT-FILE-HAS: build/.c2t/refuseduse/refuseduse.ti :: ) from the C header "refuseduse.h"\n''   source sha256 : 15b251f5f29edc7b30ac739b9d63fed92693ecd6034bbe604df5cac6d4ee8837\n''   clang         : 
+'' EXPECT-FILE-HAS: build/.c2t/refuseduse/refuseduse.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' 1 item needs manual translation:\n''   line 19  refuseduse.h:4  C2T-TODO(refused-type)  _POLLER, POLLER\n'' =============================================================================\n\n/' refuseduse.h -- a record left as a TODO, and a declaration that points to it. '/\nextern "C"\n\n'' <stddef.h>: built into tiko\n\n'' C2T-TODO(refused-type) refuseduse.h:4 -- record '_POLLER': field 'pad': 'max_align_t' is a system header's type\n'' typedef struct _POLLER {\n''     max_align_t pad;\n''     int events;\n'' } POLLER;\n\ntype _POLLER__fwd as _POLLER\ndeclare function poller_wait( byval fds as _POLLER ptr, byval nfds as uint32 ) as int32\n\nend extern\n
