@@ -47,6 +47,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel (phase G0: no selection or editing yet) |
 | `tkMenuBar`, `tkPopupMenu`, `tkToolbar`, `tkIconPanel`, `tkStatusBar` | command surfaces |
 | `tkLayout` | automatic position and size: Anchor and Dock, in design units; a hidden docked control takes no space, and a dock can take its height from the control |
+| `tkStack` | a column or a row of controls, one after another, for a phone screen: fixed, own-size (a callback) or FILL items, padding and gaps in design units, a hidden item taking no space, nested stacks (cards); `Measure` gives a scroll panel its content height |
 | `tkLabel`, `tkPanel`, `tkGroupBox`, `tkPicture`, `tkTabControl` | text, containers, images and tabbed pages |
 | `tkSplitter`, `tkScrollPanel`, `tkScrollBar`, `tkVScrollBar`, `tkHScrollBar` | layout and scrolling |
 | `tkMessageBox`, `tkColorPicker`, `tkTooltip`, `tkProgressBar`, `tkSpinner`, `tkFileDialog` | popups and feedback |
@@ -59,9 +60,13 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkPdf` | a print document as a PDF file: vector shapes, real (searchable) text in embedded fonts, images, links; no library linked |
 | `tkPrinter` | printers and print jobs: Windows (winspool, raster at the printer's resolution), CUPS on Linux / macOS (a PDF job; libcups loaded at run time, `lp` without it) |
 | `tkPrintDialog` | the Print and Page Setup dialogs, tk-drawn on every OS |
-| `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar |
-| `tkReport` | banded reports (report / page / group headers and footers, detail, summaries, page info) over callback, ListTree or custom sources; the table printer for a ListTree |
-| `tkReportSqlite` | an SQLite query as a tkReport's data |
+| `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar; a tkReportDef shown with a parameter strip (a control per parameter, and Run) |
+| `tkReport` | banded reports (report / page / group headers and footers, detail, no-data, summaries, page info) over callback, table, ListTree or custom sources; expressions (tkRExpr): calculated fields, filters, groups, items, totals with their scope, late values, rules and visibility; the table printer for a ListTree |
+| `tkReportSqlite` | an SQLite query as a tkReport's data: positional or named parameters; sorts by wrapping the query |
+| `tkReportBarcode` | barcodes in tkReport bands: `tkRBand_AddBarcode` draws a field's text as any tkBarcode symbology at its physical size (vector in PDF); `tkReportBarcode_Install` registers the painter, so a report without barcodes links no libzint |
+| `tkReportGrid` | a tkDataGrid as a tkReport's data: its visible columns in display order, its rows in view order, typed values |
+| `tkReportDef` | a report defined in a `.tkreport` file (TOML): read strictly, written back canonically, laid out by tkReport over the sources bound to it by name (SQLite, a DataGrid, the host's own), master-detail by a join, each source's fields checked against the file |
+| `tkRExpr` | the report expression language: typed, sandboxed expressions over `TK_VALUE` (fields, parameters, totals, report values, text / number / date functions, `Format` masks), compiled once and evaluated per row |
 | `tkTimer` | a component: calls a procedure every so many milliseconds |
 | `tkContextMenu` | a component: a right-click menu attached to widgets (the designer's PopupMenu) |
 | `tkImage`, `tkFontList` | image files; the fonts installed on the machine |
@@ -76,7 +81,8 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkRating` | a rating: a row of stars (or hearts, circles, diamonds, a glyph) set by click, drag or keys; half or tenth steps, read-only display, a caption; the designer's Rating, bound as a number |
 | `tkBadge`, `tkAvatar`, `tkAvatarGroup` | status marks: a count, dot, text, glyph or presence badge, standalone or attached to a corner of another control; a picture, initials or glyph in a circle or rounded square, with a presence badge; a row of overlapping avatars ending in `+N`. The designer's Badge, Avatar and AvatarGroup |
 | `tkChip`, `tkChipGroup` | compact choices and tags: an action, toggle or removable input chip with avatar, glyph, check, count and remove button; a wrapping or one-row group with none, single or multiple selection, veto-able removal and reordering (Shift+arrows, drag). Chip binds its selected state, ChipGroup its selected keys and its items |
+| `tkBarcode` | a 1D or 2D barcode -- EAN / UPC / ISBN, Code 128 / GS1-128, Code 39, Code 93, ITF / ITF-14, Codabar, QR / Micro QR, Data Matrix, PDF417, Aztec -- encoded by libzint (`vendor/zint`): whole-pixel modules, quiet zones, the human-readable text, fit modes, rotation, an error state for data the symbology refuses; also painted widgetless (`tkBarcode_PaintInto`). Design: docs/tkControls/BARCODE.md |
 
 The controls are under the [Mozilla Public License 2.0](LICENSE). The fonts keep their own
 licences (SIL OFL 1.1, MIT), shipped beside them in `fonts/`; scintk's Scintilla and Lexilla
-keep theirs in `tkCodeEdit/scintk/vendor/`.
+keep theirs in `tkCodeEdit/scintk/vendor/`. tkBarcode links libzint, BSD-3 (`vendor/zint/LICENSE`).

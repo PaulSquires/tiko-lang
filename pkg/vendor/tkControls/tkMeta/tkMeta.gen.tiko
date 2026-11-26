@@ -56,6 +56,7 @@
 #import "../tkAvatarGroup"
 #import "../tkChip"
 #import "../tkChipGroup"
+#import "../tkBarcode"
 using tkHost
 using tkPaint
 using tkLabel
@@ -112,6 +113,7 @@ using tkAvatar
 using tkAvatarGroup
 using tkChip
 using tkChipGroup
+using tkBarcode
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -5757,6 +5759,262 @@ private sub A_ChipGroup_MaxLabelWidth( byval w as TK_WIDGET ptr, byref v as cons
     tkChipGroup_SetMaxLabelWidth( w, clng( val( v ) ) )
 end sub
 
+private function C_Barcode( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    select case arg
+    case "EAN13" : return tkBarcode_Create( hParent, id, TKBC_EAN13 )
+    case "EAN8" : return tkBarcode_Create( hParent, id, TKBC_EAN8 )
+    case "UPCA" : return tkBarcode_Create( hParent, id, TKBC_UPCA )
+    case "UPCE" : return tkBarcode_Create( hParent, id, TKBC_UPCE )
+    case "ISBN" : return tkBarcode_Create( hParent, id, TKBC_ISBN )
+    case "Code128" : return tkBarcode_Create( hParent, id, TKBC_CODE128 )
+    case "GS1_128" : return tkBarcode_Create( hParent, id, TKBC_GS1_128 )
+    case "Code39" : return tkBarcode_Create( hParent, id, TKBC_CODE39 )
+    case "Code39Ext" : return tkBarcode_Create( hParent, id, TKBC_CODE39_EXT )
+    case "Code93" : return tkBarcode_Create( hParent, id, TKBC_CODE93 )
+    case "ITF" : return tkBarcode_Create( hParent, id, TKBC_ITF )
+    case "ITF14" : return tkBarcode_Create( hParent, id, TKBC_ITF14 )
+    case "Codabar" : return tkBarcode_Create( hParent, id, TKBC_CODABAR )
+    case "QR" : return tkBarcode_Create( hParent, id, TKBC_QR )
+    case "MicroQR" : return tkBarcode_Create( hParent, id, TKBC_MICRO_QR )
+    case "DataMatrix" : return tkBarcode_Create( hParent, id, TKBC_DATAMATRIX )
+    case "GS1DataMatrix" : return tkBarcode_Create( hParent, id, TKBC_GS1_DATAMATRIX )
+    case "PDF417" : return tkBarcode_Create( hParent, id, TKBC_PDF417 )
+    case "PDF417Compact" : return tkBarcode_Create( hParent, id, TKBC_PDF417_COMPACT )
+    case "Aztec" : return tkBarcode_Create( hParent, id, TKBC_AZTEC )
+    end select
+    return tkBarcode_Create( hParent, id )
+end function
+
+private sub G_Barcode( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkBarcode_GetColors( w, cast( TKBARCODE_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Barcode( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKBARCODE_COLORS ptr, pSlots ) = tkBarcode_ThemeColors( t )
+end sub
+
+private sub A_Barcode_Data( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetData( w, v )
+end sub
+
+private function R_Barcode_Data( byval w as TK_WIDGET ptr ) as ustring
+    return tkBarcode_GetData( w )
+end function
+
+private sub A_Barcode_Caption( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetCaption( w, v )
+end sub
+
+private function R_Barcode_Caption( byval w as TK_WIDGET ptr ) as ustring
+    return tkBarcode_GetCaption( w )
+end function
+
+private sub A_Barcode_TextMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "None" : tkBarcode_SetTextMode( w, TKBC_TEXT_NONE )
+    case "Below" : tkBarcode_SetTextMode( w, TKBC_TEXT_BELOW )
+    case "Above" : tkBarcode_SetTextMode( w, TKBC_TEXT_ABOVE )
+    end select
+end sub
+
+private function R_Barcode_TextMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBarcode_GetTextMode( w )
+    case TKBC_TEXT_NONE : return "None"
+    case TKBC_TEXT_BELOW : return "Below"
+    case TKBC_TEXT_ABOVE : return "Above"
+    end select
+    return ""
+end function
+
+private sub A_Barcode_FitMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Normal" : tkBarcode_SetFitMode( w, TKBC_FIT_NORMAL )
+    case "Fit" : tkBarcode_SetFitMode( w, TKBC_FIT_FIT )
+    case "Proportional" : tkBarcode_SetFitMode( w, TKBC_FIT_PROPORTIONAL )
+    case "Stretch" : tkBarcode_SetFitMode( w, TKBC_FIT_STRETCH )
+    end select
+end sub
+
+private function R_Barcode_FitMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBarcode_GetFitMode( w )
+    case TKBC_FIT_NORMAL : return "Normal"
+    case TKBC_FIT_FIT : return "Fit"
+    case TKBC_FIT_PROPORTIONAL : return "Proportional"
+    case TKBC_FIT_STRETCH : return "Stretch"
+    end select
+    return ""
+end function
+
+private sub A_Barcode_ModuleWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetModuleWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_Barcode_ModuleWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetModuleWidth( w ) )
+end function
+
+private sub A_Barcode_BarHeight( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetBarHeight( w, val( v ) )
+end sub
+
+private function R_Barcode_BarHeight( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetBarHeight( w ) )
+end function
+
+private sub A_Barcode_QuietZone( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetQuietZone( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_QuietZone( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetQuietZone( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_Rotation( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Deg0" : tkBarcode_SetRotation( w, TKBC_ROT_0 )
+    case "Deg90" : tkBarcode_SetRotation( w, TKBC_ROT_90 )
+    case "Deg180" : tkBarcode_SetRotation( w, TKBC_ROT_180 )
+    case "Deg270" : tkBarcode_SetRotation( w, TKBC_ROT_270 )
+    end select
+end sub
+
+private function R_Barcode_Rotation( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBarcode_GetRotation( w )
+    case TKBC_ROT_0 : return "Deg0"
+    case TKBC_ROT_90 : return "Deg90"
+    case TKBC_ROT_180 : return "Deg180"
+    case TKBC_ROT_270 : return "Deg270"
+    end select
+    return ""
+end function
+
+private sub A_Barcode_ShowErrors( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetShowErrors( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_ShowErrors( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetShowErrors( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_Border( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetBorder( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_Border( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetBorder( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_EccLevel( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetEccLevel( w, clng( val( v ) ) )
+end sub
+
+private function R_Barcode_EccLevel( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetEccLevel( w ) )
+end function
+
+private sub A_Barcode_SymbolSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetSymbolSize( w, clng( val( v ) ) )
+end sub
+
+private function R_Barcode_SymbolSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetSymbolSize( w ) )
+end function
+
+private sub A_Barcode_Mask( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetMask( w, clng( val( v ) ) )
+end sub
+
+private function R_Barcode_Mask( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetMask( w ) )
+end function
+
+private sub A_Barcode_SquareOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetSquareOnly( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_SquareOnly( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetSquareOnly( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_CheckDigit( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetCheckDigit( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_CheckDigit( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetCheckDigit( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_Gs1( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetGs1( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_Gs1( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetGs1( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_Escapes( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetEscapes( w, cbool( v = "true" ) )
+end sub
+
+private function R_Barcode_Escapes( byval w as TK_WIDGET ptr ) as ustring
+    if tkBarcode_GetEscapes( w ) then return "true" else return "false"
+end function
+
+private sub A_Barcode_Eci( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetEci( w, clng( val( v ) ) )
+end sub
+
+private function R_Barcode_Eci( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetEci( w ) )
+end function
+
+private sub A_Barcode_Bearer( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Default" : tkBarcode_SetBearer( w, TKBC_BEARER_DEFAULT )
+    case "Box" : tkBarcode_SetBearer( w, TKBC_BEARER_BOX )
+    case "TopBottom" : tkBarcode_SetBearer( w, TKBC_BEARER_TOPBOTTOM )
+    case "None" : tkBarcode_SetBearer( w, TKBC_BEARER_NONE )
+    end select
+end sub
+
+private function R_Barcode_Bearer( byval w as TK_WIDGET ptr ) as ustring
+    select case tkBarcode_GetBearer( w )
+    case TKBC_BEARER_DEFAULT : return "Default"
+    case TKBC_BEARER_BOX : return "Box"
+    case TKBC_BEARER_TOPBOTTOM : return "TopBottom"
+    case TKBC_BEARER_NONE : return "None"
+    end select
+    return ""
+end function
+
+private sub A_Barcode_XDimension( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetXDimension( w, val( v ) )
+end sub
+
+private function R_Barcode_XDimension( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetXDimension( w ) )
+end function
+
+private sub A_Barcode_BarHeightMm( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetBarHeightMm( w, val( v ) )
+end sub
+
+private function R_Barcode_BarHeightMm( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkBarcode_GetBarHeightMm( w ) )
+end function
+
+private sub F_Barcode_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkBarcode_SetFont( w, f )
+end sub
+
+private sub A_Barcode_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkBarcode_SetTooltipText( w, v )
+end sub
+
+private function R_Barcode_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkBarcode_GetTooltipText( w )
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -7474,5 +7732,41 @@ sub Fill_( )
     Event_( "OverflowClick", "tkChipGroup_SetOverflowClickCallback", "CHG_OverflowClickCallbackSub", "byval hGroup as TK_WIDGET ptr", "", "" )
     Event_( "ItemMoved", "tkChipGroup_SetItemMovedCallback", "CHG_ItemMovedCallbackSub", "byval hGroup as TK_WIDGET ptr, byval nFrom as int32, byval nTo as int32", "byval nFrom as int32, byval nTo as int32", "nFrom, nTo" )
     Event_( "Message", "tkChipGroup_SetMessageCallback", "CHG_MessageCallbackFunc", "byval m as TKCHIPGRP_MESSAGEINFO ptr", "byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hGroup", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Barcode", "tkBarcode", "Common", 200, 80, "Click", "", @C_Barcode, "Symbology", "enum", "EAN13=TKBC_EAN13,EAN8=TKBC_EAN8,UPCA=TKBC_UPCA,UPCE=TKBC_UPCE,ISBN=TKBC_ISBN,Code128=TKBC_CODE128,GS1_128=TKBC_GS1_128,Code39=TKBC_CODE39,Code39Ext=TKBC_CODE39_EXT,Code93=TKBC_CODE93,ITF=TKBC_ITF,ITF14=TKBC_ITF14,Codabar=TKBC_CODABAR,QR=TKBC_QR,MicroQR=TKBC_MICRO_QR,DataMatrix=TKBC_DATAMATRIX,GS1DataMatrix=TKBC_GS1_DATAMATRIX,PDF417=TKBC_PDF417,PDF417Compact=TKBC_PDF417_COMPACT,Aztec=TKBC_AZTEC", "Code128" )
+    Bind_( "text", "", "tkBarcode_SetData", true )
+    Colors_( "TKBARCODE_COLORS", "tkBarcode_GetColors", "tkBarcode_ThemeColors", @G_Barcode, @T_Barcode )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "BarColor", "Bar", "Normal", "", false )
+    Color_( "TextColor", "Text", "Normal", "", true )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "ErrorColor", "", "", "", false )
+    Color_( "ErrorBackColor", "", "", "", false )
+    Prop_( "Data", "text", "", "", "tkBarcode_SetData", "tkBarcode_GetData", @A_Barcode_Data, @R_Barcode_Data, 0, true, true, "", 0 )
+    Prop_( "Caption", "text", "", "", "tkBarcode_SetCaption", "tkBarcode_GetCaption", @A_Barcode_Caption, @R_Barcode_Caption, 0, true, true, "", 0 )
+    Prop_( "TextMode", "enum", "Below", "None=TKBC_TEXT_NONE,Below=TKBC_TEXT_BELOW,Above=TKBC_TEXT_ABOVE", "tkBarcode_SetTextMode", "tkBarcode_GetTextMode", @A_Barcode_TextMode, @R_Barcode_TextMode, 0, true, true, "", 0 )
+    Prop_( "FitMode", "enum", "Normal", "Normal=TKBC_FIT_NORMAL,Fit=TKBC_FIT_FIT,Proportional=TKBC_FIT_PROPORTIONAL,Stretch=TKBC_FIT_STRETCH", "tkBarcode_SetFitMode", "tkBarcode_GetFitMode", @A_Barcode_FitMode, @R_Barcode_FitMode, 0, true, true, "", 0 )
+    Prop_( "ModuleWidth", "int", "2", "", "tkBarcode_SetModuleWidth", "tkBarcode_GetModuleWidth", @A_Barcode_ModuleWidth, @R_Barcode_ModuleWidth, 0, true, true, "", 0 )
+    Prop_( "BarHeight", "float", "0", "", "tkBarcode_SetBarHeight", "tkBarcode_GetBarHeight", @A_Barcode_BarHeight, @R_Barcode_BarHeight, 0, true, true, "", 0 )
+    Prop_( "QuietZone", "bool", "true", "", "tkBarcode_SetQuietZone", "tkBarcode_GetQuietZone", @A_Barcode_QuietZone, @R_Barcode_QuietZone, 0, true, true, "", 0 )
+    Prop_( "Rotation", "enum", "Deg0", "Deg0=TKBC_ROT_0,Deg90=TKBC_ROT_90,Deg180=TKBC_ROT_180,Deg270=TKBC_ROT_270", "tkBarcode_SetRotation", "tkBarcode_GetRotation", @A_Barcode_Rotation, @R_Barcode_Rotation, 0, true, true, "", 0 )
+    Prop_( "ShowErrors", "bool", "true", "", "tkBarcode_SetShowErrors", "tkBarcode_GetShowErrors", @A_Barcode_ShowErrors, @R_Barcode_ShowErrors, 0, true, true, "", 0 )
+    Prop_( "Border", "bool", "false", "", "tkBarcode_SetBorder", "tkBarcode_GetBorder", @A_Barcode_Border, @R_Barcode_Border, 0, true, true, "", 0 )
+    Prop_( "EccLevel", "int", "0", "", "tkBarcode_SetEccLevel", "tkBarcode_GetEccLevel", @A_Barcode_EccLevel, @R_Barcode_EccLevel, 0, true, true, "", 0 )
+    Prop_( "SymbolSize", "int", "0", "", "tkBarcode_SetSymbolSize", "tkBarcode_GetSymbolSize", @A_Barcode_SymbolSize, @R_Barcode_SymbolSize, 0, true, true, "", 0 )
+    Prop_( "Mask", "int", "0", "", "tkBarcode_SetMask", "tkBarcode_GetMask", @A_Barcode_Mask, @R_Barcode_Mask, 0, true, true, "", 0 )
+    Prop_( "SquareOnly", "bool", "false", "", "tkBarcode_SetSquareOnly", "tkBarcode_GetSquareOnly", @A_Barcode_SquareOnly, @R_Barcode_SquareOnly, 0, true, true, "", 0 )
+    Prop_( "CheckDigit", "bool", "false", "", "tkBarcode_SetCheckDigit", "tkBarcode_GetCheckDigit", @A_Barcode_CheckDigit, @R_Barcode_CheckDigit, 0, true, true, "", 0 )
+    Prop_( "Gs1", "bool", "false", "", "tkBarcode_SetGs1", "tkBarcode_GetGs1", @A_Barcode_Gs1, @R_Barcode_Gs1, 0, true, true, "", 0 )
+    Prop_( "Escapes", "bool", "false", "", "tkBarcode_SetEscapes", "tkBarcode_GetEscapes", @A_Barcode_Escapes, @R_Barcode_Escapes, 0, true, true, "", 0 )
+    Prop_( "Eci", "int", "0", "", "tkBarcode_SetEci", "tkBarcode_GetEci", @A_Barcode_Eci, @R_Barcode_Eci, 0, true, true, "", 0 )
+    Prop_( "Bearer", "enum", "Default", "Default=TKBC_BEARER_DEFAULT,Box=TKBC_BEARER_BOX,TopBottom=TKBC_BEARER_TOPBOTTOM,None=TKBC_BEARER_NONE", "tkBarcode_SetBearer", "tkBarcode_GetBearer", @A_Barcode_Bearer, @R_Barcode_Bearer, 0, true, true, "", 0 )
+    Prop_( "XDimension", "float", "0", "", "tkBarcode_SetXDimension", "tkBarcode_GetXDimension", @A_Barcode_XDimension, @R_Barcode_XDimension, 0, true, true, "", 0 )
+    Prop_( "BarHeightMm", "float", "0", "", "tkBarcode_SetBarHeightMm", "tkBarcode_GetBarHeightMm", @A_Barcode_BarHeightMm, @R_Barcode_BarHeightMm, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkBarcode_SetFont", "tkBarcode_GetFont", 0, 0, @F_Barcode_Font, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkBarcode_SetTooltipText", "tkBarcode_GetTooltipText", @A_Barcode_TooltipText, @R_Barcode_TooltipText, 0, true, true, "", 0 )
+    Event_( "Click", "tkBarcode_SetClickCallback", "BC_ClickCallbackSub", "byval hBarcode as TK_WIDGET ptr, byval id as int32", "", "" )
+    Event_( "Paint", "tkBarcode_SetPaintCallback", "BC_PaintCallbackSub", "byval p as TKBARCODE_PAINTINFO ptr", "byval p as TKBARCODE_PAINTINFO ptr", "p", "p->hBarcode", "", "" )
+    Event_( "Message", "tkBarcode_SetMessageCallback", "BC_MessageCallbackFunc", "byval m as TKBARCODE_MESSAGEINFO ptr", "byval m as TKBARCODE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hBarcode", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub

@@ -979,7 +979,8 @@ private function AnyList_( byref doc as FormDoc ) as boolean
     for each c as FormControl in doc.Controls
         if catalog.ListReady( c ) then return true
     next
-    return false
+    ' a wired navigator steps through an Array( of DataType ) even with no list beside it
+    return catalog.NavReady( doc ) >= 0
 end function
 
 ' A list the inspector has left half filled in: the build stops on it, saying what it still needs.
@@ -1692,6 +1693,20 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
     for each mo as ustring in customMods
         o &= "#import """ & mo & """" & NL
     next
+    ' the report modules ReportViewers show (Report Designer RD4), each once
+    dim as Array( of ustring ) rptMods
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        dim as ustring rm = doc.Controls[i].Report
+        if len( rm ) = 0 then continue for
+        dim as boolean seen = false
+        for each x as ustring in rptMods
+            if x = rm then seen = true
+        next
+        if seen = false then
+            rptMods.Push( rm )
+            o &= "#import " & Literal_( rm ) & NL
+        end if
+    next
     o &= NL & "using tkForms" & NL & "using tkApp" & NL & "using tkLayout" & NL
     for each mo as ustring in mods
         o &= "using " & mo & NL
@@ -1716,6 +1731,9 @@ public function Generate( byref doc as FormDoc, byref moduleName as const ustrin
         dim as ustring typeName_ = doc.Controls[i].TypeName
         if len( doc.Controls[i].CustomType ) then typeName_ = doc.Controls[i].CustomType
         o &= "    " & doc.Controls[i].Name & " as " & typeName_ & NL
+    next
+    for i as long = 0 to doc.Controls.Count( ) - 1
+        if len( doc.Controls[i].Report ) then o &= "    " & doc.Controls[i].Name & "Report as " & LastPart_( doc.Controls[i].Report ) & ".Report" & NL
     next
     o &= "    declare sub Build( byval owner as TK_FORM ptr = nullptr )" & NL
     ListDecls_( doc, o )

@@ -7,7 +7,8 @@
 '
 ' bindpass -- data binding in the inspector (Form Designer B1): the form's DataType and DataModule
 ' rows, a TextBox's Bind row and its "...", which offers the DataType's fields as the scans know
-' them (a hand-made set stands in for a scan here); a pick goes in through the row.
+' them (a hand-made set stands in for a scan here); a pick goes in through the row. A ReportViewer's
+' Report row, whose "..." offers the project's report modules.
 #module "selftest"
 
 #import "std/containers"
@@ -257,6 +258,32 @@ public sub BindPass( byref t as Tally, byval sc as single )
     t.Check( len( ps->Apply( "@Follows", "ComboBox1" ) ) = 0, P( sc, "nav: following the combo on Staff is taken" ) )
     dim as long nv = FindControl( c->Doc, "Navigator1" )
     t.Check( (nv >= 0) andalso (c->Doc.Controls[nv].Follows = "ComboBox1") andalso (ps->ValueOf( "@Follows" ) = "ComboBox1"), P( sc, "nav: in the model and the row" ) )
+
+    ' ---- RD4: a ReportViewer's Report row; its "..." lists the project's .tkreport modules, a pick sets it
+    dim as ustring rptDir = fs.PathJoin( proj, "rptSales" )
+    fs.CreateDirAll( rptDir )
+    fs.WriteAllText( fs.PathJoin( rptDir, "rptSales.tkreport" ), "format = 1" & chr( 10 ) )
+    trial = c->Doc
+    edits.AddControl( trial, "ReportViewer", "", -1, 300, 20, 300, 200 )
+    c->ApplyEdit( trial, true, "" )
+    c->SelectOnly( "ReportViewer1" )
+    tkTest_PumpFor( h, 60 )
+    dim as long rr = BindRow_( ps, "@Report" )
+    dim as ustring rn
+    if (rr >= 0) andalso (ps->Rows[rr].Btn <> 0) then
+        ps->ShowFields( ps->Rows[rr].Btn )
+        tkTest_PumpFor( h, 30 )
+        for i as long = 0 to ps->FieldNames.Count( ) - 1
+            if i then rn &= "|"
+            rn &= ps->FieldNames[i]
+        next
+        if ps->FieldMenu then tkPopupMenu_Hide( ps->FieldMenu )
+        ps->PickField( 0 )
+        tkTest_PumpFor( h, 30 )
+    end if
+    dim as long rvi = FindControl( c->Doc, "ReportViewer1" )
+    t.Check( (rn = "../rptSales") andalso (rvi >= 0) andalso (c->Doc.Controls[rvi].Report = "../rptSales"), _
+        P( sc, "report: a ReportViewer's Report row offers the project's reports; a pick sets it: " & rn ) )
 
     mw.Db.Remove( "c:\bindpass\people.tiko" )
     mw.Destroy( )

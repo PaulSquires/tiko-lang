@@ -40,6 +40,7 @@ from	fbgfx.bi	include	-
 ignore	Notepad2-Tutorial	a tutorial, not a function
 ignore	Themes-Tutorial	a tutorial, not a function
 ignore	Contacts-Tutorial	a tutorial, not a function
+ignore	Orders-Tutorial	a tutorial, not a function
 ignore	SDL3-Tutorial	a tutorial, not a function
 seealso	Category-tkControls	tkControls guide
 from	vendor/tkControls/tkApp	import	tkApp
@@ -63,6 +64,7 @@ from	vendor/tkControls/tkIconPanel	import	tkIconPanel
 from	vendor/tkControls/tkStatusBar	import	tkStatusBar
 from	vendor/tkControls/tkSplitter	import	tkSplitter
 from	vendor/tkControls/tkScrollPanel	import	tkScrollPanel
+from	vendor/tkControls/tkStack	import	tkStack
 from	vendor/tkControls/tkVScrollBar	import	tkVScrollBar
 from	vendor/tkControls/tkHScrollBar	import	tkHScrollBar
 from	vendor/tkControls/tkMessageBox	import	tkMessageBox

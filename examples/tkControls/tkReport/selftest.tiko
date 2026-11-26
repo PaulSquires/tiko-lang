@@ -10,6 +10,8 @@
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkReportSqlite"
 #import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkReportGrid"
+#import "vendor/tkControls/tkDataGrid"
 #import "vendor/sqlite3"
 using tkTest
 using tkReportSqlite
@@ -20,6 +22,8 @@ using tkListTree
 using tkPrint
 using tkHost
 using tkPaint
+using tkReportGrid
+using tkDataGrid
 
 ' 60 rows: region A (rows 0..24), region B (25..59)
 const NROWS = 60
@@ -280,8 +284,11 @@ sub RunPass( )
     tkReport_Destroy( tr )
 end sub
 
+#include once "selftest_rd2.tiko"
+
 if tkTest_Init() = false then end 1
 RunPass( )
+RunRd2Pass( )
 dim as long nFail = tkTest_Report( "tkReport" )
 tkTest_Quit()
 end nFail

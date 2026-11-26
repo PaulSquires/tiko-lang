@@ -196,6 +196,7 @@ public type FormCanvas
     OnPickGlyph as CanvasGlyphFunc      ' a glyph property's "...": the Glyph Picker
     OnFields as CanvasFieldsFunc        ' a Bind row's "...": the fields of the form's DataType
     OnElementType as CanvasElementTypeFunc  ' a list's field rows: the element type of its ItemsField
+    OnReports as CanvasFieldsFunc       ' a ReportViewer's Report row "...": the project's report modules (typeName unused)
     OnHandlerGone as CanvasGoneFunc     ' true: the body has code, so keep its declaration
     OnHandlerRenamed as CanvasHandlerRenameFunc ' true: the code's body (and its uses) now go by the new name
     OnContextMenu as CanvasMenuSub      ' a right click at x, y in Glass pixels, the selection already set

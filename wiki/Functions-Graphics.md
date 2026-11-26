@@ -183,6 +183,7 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 |---|---|---|
 | [tkSplitter](tkSplitter) | Draws a draggable divider bar between two panes and reports where the user drags it. | `vendor/tkControls/tkSplitter` |
 | [tkScrollPanel](tkScrollPanel) | Scrolls a page of ordinary child widgets that is taller than the space it is shown in. | `vendor/tkControls/tkScrollPanel` |
+| [tkStack](tkStack) | Lays out controls one after another in a column or a row, the layout of a phone screen. | `vendor/tkControls/tkStack` |
 | [tkVScrollBar](tkVScrollBar) | Draws a vertical scrollbar that you size, feed a range, and listen to. | `vendor/tkControls/tkVScrollBar` |
 | [tkHScrollBar](tkHScrollBar) | Draws a horizontal scrollbar that you size, feed a range, and listen to. | `vendor/tkControls/tkHScrollBar` |
 | [tkPanel](tkPanel) | Groups controls on a plain background, with an optional border. | `vendor/tkControls/tkPanel` |

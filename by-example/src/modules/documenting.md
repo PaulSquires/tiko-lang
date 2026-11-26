@@ -16,9 +16,9 @@ A module, `money/money.tiko`, in a project whose `tiko.toml` names the package
 
 **Output**
 
-```text
+````text
 {{#include ../../examples/modules/documented/main.out}}
-```
+````
 
 - **The `''` lines directly above a public name document it.** A blank line
   ends the block.

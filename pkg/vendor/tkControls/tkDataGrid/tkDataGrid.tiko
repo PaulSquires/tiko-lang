@@ -59,6 +59,7 @@
 #import "../tkCalendar" public
 #import "../tkTooltip" public
 #import "../tkPopupMenu" public
+#import "../tkBind" public
 using tkHost
 using tkPaint
 using tkTheme
@@ -69,6 +70,7 @@ using tkScrollBar
 using tkCalendar
 using tkTooltip
 using tkPopupMenu
+using tkBind
 
 ' ---- constants --------------------------------------------------------------------------
 public const CDATAGRID_DEFAULT_ROWHEIGHT = 24       ' unscaled
@@ -80,14 +82,13 @@ public const CDATAGRID_CELL_PAD = 6                 ' unscaled: text inset from 
 public const CDATAGRID_DIVIDER_GUTTER = 3           ' unscaled: half the header's resize zone
 
 ' Value kinds: exactly tkBind's (text bool int float date), plus EMPTY.
-public enum
-    TKDG_EMPTY = 0           ' no value: a database NULL, a new row's cell
-    TKDG_TEXT
-    TKDG_INT
-    TKDG_FLOAT
-    TKDG_BOOL
-    TKDG_DATE
-end enum
+' The value kinds and the value ARE tkBind's (PRINTING.md decision P-16): one type for grid and report.
+public const TKDG_EMPTY = TKV_EMPTY
+public const TKDG_TEXT = TKV_TEXT
+public const TKDG_INT = TKV_INT
+public const TKDG_FLOAT = TKV_FLOAT
+public const TKDG_BOOL = TKV_BOOL
+public const TKDG_DATE = TKV_DATE
 
 ' Column kinds: how a column paints (and, from G2, edits).
 public enum
@@ -165,20 +166,7 @@ public enum                  ' tkDataGrid_SetSelectionUnit
 end enum
 
 ' ---- types ------------------------------------------------------------------------------
-public type TKDG_VALUE
-    kind as long = TKDG_EMPTY
-    s    as ustring          ' TKDG_TEXT
-    i    as longint          ' TKDG_INT
-    f    as float64          ' TKDG_FLOAT
-    b    as boolean          ' TKDG_BOOL
-    d    as TKDATE           ' TKDG_DATE (wYear = 0 never stored: that is EMPTY)
-    declare sub SetText( byref v as const ustring )
-    declare sub SetInt( byval v as longint )
-    declare sub SetFloat( byval v as float64 )
-    declare sub SetBool( byval v as boolean )
-    declare sub SetDate( byref v as const TKDATE )
-    declare sub Clear( )
-end type
+public type TKDG_VALUE as TK_VALUE
 
 ' What AddColumn takes and GetColumnInfo / SetColumnInfo move. Widths are design units.
 public type TKDATAGRID_COLUMN
@@ -545,31 +533,6 @@ end type
 
 
 
-' ==========================================================================================
-' TKDG_VALUE
-' ==========================================================================================
-sub TKDG_VALUE.SetText( byref v as const ustring )
-    this.Clear( ) : this.kind = TKDG_TEXT : this.s = v
-end sub
-sub TKDG_VALUE.SetInt( byval v as longint )
-    this.Clear( ) : this.kind = TKDG_INT : this.i = v
-end sub
-sub TKDG_VALUE.SetFloat( byval v as float64 )
-    this.Clear( ) : this.kind = TKDG_FLOAT : this.f = v
-end sub
-sub TKDG_VALUE.SetBool( byval v as boolean )
-    this.Clear( ) : this.kind = TKDG_BOOL : this.b = v
-end sub
-' An all-zero TKDATE (wYear = 0) is no date: the value becomes EMPTY.
-sub TKDG_VALUE.SetDate( byref v as const TKDATE )
-    this.Clear( )
-    if v.wYear = 0 then exit sub
-    this.kind = TKDG_DATE : this.d = v
-end sub
-sub TKDG_VALUE.Clear( )
-    dim as TKDATE none_
-    this.kind = TKDG_EMPTY : this.s = "" : this.i = 0 : this.f = 0 : this.b = false : this.d = none_
-end sub
 
 
 ' ==========================================================================================

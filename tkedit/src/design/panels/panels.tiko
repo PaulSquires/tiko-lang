@@ -150,7 +150,7 @@ public type DesignPanels
     Rows as Array( of PanelRow )
     FieldMenu as TK_MENU ptr            ' a Bind row's "...": the DataType's fields (B1)
     FieldNames as Array( of ustring )   ' ...and what its items stand for, item id - 1
-    FieldKey as ustring                 ' ...and the row it fills: "@Bind", "@Bind2", "@ItemsField", or a list's
+    FieldKey as ustring                 ' ...and the row it fills: "@Bind", "@Bind2", "@ItemsField", "@Report", or a list's
                                         ' element field ("@Display", "@Value", "@Check")
     RowSig as ustring
     TreeSig as ustring
@@ -181,7 +181,7 @@ public type DesignPanels
     declare sub FillToolbox( )
     declare sub AddRow( byref key_ as const ustring, byref caption as const ustring, byval kind_ as long, byref items as const ustring = "" )
     declare sub AddFileButton( )
-    declare sub AddFieldButton( )
+    declare sub AddFieldButton( byref tip as const ustring = "" )
     declare sub ShowFields( byval btn as TK_WIDGET ptr )
     declare sub PickField( byval i as long )
     declare sub AddLangButton( )
@@ -1030,13 +1030,16 @@ sub DesignPanels.AddGlyphButton( )
     end with
 end sub
 
-' The last row added (a Bind row) gets a "..." that offers the DataType's fields.
-sub DesignPanels.AddFieldButton( )
+' The last row added (a Bind row) gets a "..." that offers the DataType's fields (a Report row: the
+' project's reports; tip, its tooltip, else "Pick a field").
+sub DesignPanels.AddFieldButton( byref tip as const ustring = "" )
     with Rows[Rows.Count( ) - 1]
         .Btn = tkToolbar_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
         tkToolbar_SetGlyphFont( .Btn, tkForm_Font( tkForm_FromWidget( Scroll ), TKFONT_GLYPH ) )
         tkToolbar_AddItem( .Btn, TBR_KIND_COMMAND, wchr( TK_ICON_MORE ), "", 0 )
-        tkToolbar_SetTooltipText( .Btn, 0, i18n.Tr( "designer.bind_pick", "Pick a field" ) )
+        dim as ustring t_ = tip
+        if len( t_ ) = 0 then t_ = i18n.Tr( "designer.bind_pick", "Pick a field" )
+        tkToolbar_SetTooltipText( .Btn, 0, t_ )
         tkToolbar_SetClickCallback( .Btn, @OnFieldGo )
     end with
 end sub
@@ -1050,7 +1053,10 @@ sub DesignPanels.ShowFields( byval btn as TK_WIDGET ptr )
     next
     ' a list's element fields (B3): its ItemType, else what its ItemsField holds
     dim as ustring typeName = C->Doc.DataType
-    if (FieldKey = "@Display") orelse (FieldKey = "@Value") orelse (FieldKey = "@Check") then
+    if FieldKey = "@Report" then
+        ' not fields: the project's report modules, as the form's folder imports them
+        typeName = ""
+    elseif (FieldKey = "@Display") orelse (FieldKey = "@Value") orelse (FieldKey = "@Check") then
         dim as long ci = -1
         if C->Selected.Count( ) = 1 then ci = FindControl( C->Doc, C->Selected[0] )
         if ci < 0 then exit sub
@@ -1071,7 +1077,11 @@ sub DesignPanels.ShowFields( byval btn as TK_WIDGET ptr )
         exit sub
     end if
     dim as ustring list
-    if C->OnFields then list = C->OnFields( C->Host, C, typeName )
+    if FieldKey = "@Report" then
+        if C->OnReports then list = C->OnReports( C->Host, C, "" )
+    elseif C->OnFields then
+        list = C->OnFields( C->Host, C, typeName )
+    end if
     FieldNames.Clear( )
     dim as ustring t = list & ","
     dim as long a = 1
@@ -1082,7 +1092,12 @@ sub DesignPanels.ShowFields( byval btn as TK_WIDGET ptr )
         b = instr( a, t, "," )
     wend
     if FieldNames.Count( ) = 0 then
-        if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "designer.bind_no_fields", "No fields of {} are known: type the field's name." ), typeName ) )
+        if OnMessage = 0 then
+        elseif FieldKey = "@Report" then
+            OnMessage( Owner, i18n.Tr( "designer.no_reports", "No .tkreport in this project: type the report module's path." ) )
+        else
+            OnMessage( Owner, strings.Format( i18n.Tr( "designer.bind_no_fields", "No fields of {} are known: type the field's name." ), typeName ) )
+        end if
         exit sub
     end if
     ' made again each time: the panels may have moved to a float window since
@@ -1298,6 +1313,11 @@ sub DesignPanels.BuildRows( )
             this.AddRow( "@AttachOffset", "AttachOffset", RowKind.RowText )
             this.AddRow( "@AttachOverlap", "AttachOverlap", RowKind.RowCombo, catalog.BADGE_OVERLAPS )
         end if
+        ' a ReportViewer's designed report (Report Designer RD4): the module, its "..." the project's
+        if (n = 1) andalso (m0->Name = "ReportViewer") then
+            this.AddRow( "@Report", "Report", RowKind.RowText )
+            if C->OnReports then this.AddFieldButton( i18n.Tr( "designer.report_pick", "Pick a report" ) )
+        end if
         ' its list from an array (B3): where it comes from, and the element fields it shows
         if (n = 1) andalso (m0->ItemsBind = "records") then
             ' a navigator (B4): its records, and the list that follows them
@@ -1398,6 +1418,7 @@ function DesignPanels.ControlValue( byval i as long, byref key_ as const ustring
     case "@Fmt"   : return c_.Format
     case "@ItemsField"  : return c_.ItemsField
     case "@ItemsSource" : return c_.ItemsSource
+    case "@Report" : return c_.Report
     case "@ItemType"    : return c_.ItemType
     case "@Live"        : if c_.ItemsLive then return "true" else return "false"
     case "@Display"     : return c_.DisplayField
@@ -1699,6 +1720,7 @@ function DesignPanels.Apply( byref key_ as const ustring, byref text as const us
         rebuild = false
     case "@ItemsField"  : trial.Controls[i].ItemsField = trim( text ) : rebuild = false
     case "@ItemsSource" : trial.Controls[i].ItemsSource = trim( text ) : rebuild = false
+    case "@Report"      : trial.Controls[i].Report = trim( text ) : rebuild = false
     case "@ItemType"    : trial.Controls[i].ItemType = trim( text ) : rebuild = false
     case "@Display"     : trial.Controls[i].DisplayField = trim( text ) : rebuild = false
     case "@Value"       : trial.Controls[i].ValueField = trim( text ) : rebuild = false

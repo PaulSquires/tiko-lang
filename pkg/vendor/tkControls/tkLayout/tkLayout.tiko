@@ -20,8 +20,11 @@
 ' gets two lines. Both are set by tkLayout_Apply; tkLayout_Compute's own callers (a designer
 ' canvas) leave them at their defaults and see the rule they always had -- so for a HIDDEN docked
 ' control the canvas (which shows it) and the running form (which gives its space away) differ,
-' as WinForms' designer and runtime do. Showing or hiding a docked control at run time takes
-' effect at the next tkLayout_Apply.
+' as WinForms' designer and runtime do. Showing or hiding a docked control at run time
+' (tkWidget_Show) applies its layout again at once, as WinForms does: tkLayout watches every
+' visibility change through tkHost_SetShowChangedHook, and a layout made by tkLayout_Create is
+' watched until tkLayout_Destroy. So a form designed with a docked control hidden at start can
+' show it later (a 0.1.7 form's Label1.Visible = true showed nothing: its dock had no slice).
 #module "tkLayout"
 
 #import "../tkHost" public
@@ -84,7 +87,14 @@ public type TK_LAYOUT
     nEntries          as long
     containers( any ) as TKLAYOUT_CONTAINER
     nContainers       as long
+    bApplying         as boolean        ' inside tkLayout_Apply
+    bAgain            as boolean        ' a dock was shown or hidden meanwhile: place once more
 end type
+
+' Every live layout, for the visibility watcher (OnShowChanged_).
+dim shared as TK_LAYOUT ptr gLayouts( any )
+dim shared as int32 gnLayouts
+dim shared as boolean gShowHooked
 
 type TKLAYOUT_BIND
     l     as TK_LAYOUT ptr
@@ -176,12 +186,27 @@ public sub tkLayout_Compute( byval items as TKLAYOUT_ITEM ptr, byval n as long, 
     next
 end sub
 
+declare sub OnShowChanged_( byval w as TK_WIDGET ptr, byval bShow as boolean )
+
 public function tkLayout_Create( ) as TK_LAYOUT ptr
-    return new TK_LAYOUT
+    dim as TK_LAYOUT ptr l = new TK_LAYOUT
+    redim preserve gLayouts( 0 to gnLayouts )
+    gLayouts(gnLayouts) = l
+    gnLayouts += 1
+    if gShowHooked = false then tkHost_SetShowChangedHook( @OnShowChanged_ ) : gShowHooked = true
+    return l
 end function
 
 public sub tkLayout_Destroy( byval l as TK_LAYOUT ptr )
     if l = 0 then exit sub
+    dim as int32 n = 0
+    for i as int32 = 0 to gnLayouts - 1
+        if gLayouts(i) <> l then
+            gLayouts(n) = gLayouts(i)
+            n += 1
+        end if
+    next
+    gnLayouts = n
     dim as long k = 0
     for i as long = 0 to gnBinds - 1
         if gBinds(i).l <> l then
@@ -304,9 +329,7 @@ public function tkLayout_GetDesignRect( byval l as TK_LAYOUT ptr, byval w as TK_
     return true
 end function
 
-' Places every control. Call it from the form's size and scale-changed handlers.
-public sub tkLayout_Apply( byval l as TK_LAYOUT ptr )
-    if l = 0 then exit sub
+private sub Place_( byval l as TK_LAYOUT ptr )
     for c as long = 0 to l->nContainers - 1
         dim as TK_WIDGET ptr parent = l->containers(c).w
         if (parent = 0) orelse (parent->pHost = 0) then continue for
@@ -336,6 +359,39 @@ public sub tkLayout_Apply( byval l as TK_LAYOUT ptr )
             tkWidget_SetPos( who(i), rects(i).left, rects(i).top, _
                              rects(i).right - rects(i).left, rects(i).bottom - rects(i).top )
         next
+    next
+end sub
+
+' Places every control. Call it from the form's size and scale-changed handlers; showing or hiding
+' a docked control calls it too. A dock shown or hidden while it runs (a control that hides a
+' docked sibling as it is sized) is placed by one more pass, not by a nested one.
+public sub tkLayout_Apply( byval l as TK_LAYOUT ptr )
+    if l = 0 then exit sub
+    dim as boolean bOuter = (l->bApplying = false)
+    l->bApplying = true
+    dim as int32 nPass = 0
+    do
+        l->bAgain = false
+        Place_( l )
+        nPass += 1
+    loop while bOuter andalso l->bAgain andalso (nPass < 4)
+    if bOuter then l->bApplying = false
+end sub
+
+' tkHost's visibility hook: a docked control of a live layout was shown or hidden, so that layout
+' is placed again (a hidden dock takes no slice). An anchored control moves nothing else.
+private sub OnShowChanged_( byval w as TK_WIDGET ptr, byval bShow as boolean )
+    for j as int32 = 0 to gnLayouts - 1
+        if j >= gnLayouts then exit for          ' an Apply's callbacks destroyed a layout
+        dim as TK_LAYOUT ptr l = gLayouts(j)
+        dim as int32 i = FindEntry_( l, w )
+        if (i < 0) orelse (l->entries(i).item.dock = TK_DOCK_NONE) then continue for
+        if FindContainer_( l, w->pParent ) < 0 then continue for
+        if l->bApplying then
+            l->bAgain = true
+        else
+            tkLayout_Apply( l )
+        end if
     next
 end sub
 

@@ -8,9 +8,10 @@ Each control is driven through procedures and callbacks: setters change it silen
 
 Every control draws itself. There is no system control underneath, so a window looks the same on every machine and can be themed to any palette, dark ones included.
 
-To draw a window instead of coding it, see the [Form Designer](Form-Designer). To give a program a
+To draw a window instead of coding it, see the [Form Designer](Form-Designer). To draw a report, see the [Report Designer](Report-Designer). To give a program a
 colour scheme, styles and light/dark switching, see the [Themes Tutorial](Themes-Tutorial). The
-[Contacts Tutorial](Contacts-Tutorial) builds a complete program in the designer, with SQLite.
+[Contacts Tutorial](Contacts-Tutorial) builds a complete program in the designer, with SQLite. The
+[Orders Tutorial](Orders-Tutorial) binds forms and DataGrids to records and prints designed reports from them.
 
 ## Importing a control
 
@@ -85,9 +86,9 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Containers and layout | [tkPanel](tkPanel), [tkGroupBox](tkGroupBox), [tkTabControl](tkTabControl), [tkSplitter](tkSplitter) |
 | Scrolling | [tkScrollPanel](tkScrollPanel), [tkVScrollBar](tkVScrollBar), [tkHScrollBar](tkHScrollBar) |
 | Popups and feedback | [tkMessageBox](tkMessageBox), [tkColorPicker](tkColorPicker), [tkFileDialog](tkFileDialog), [tkTooltip](tkTooltip), [tkProgressBar](tkProgressBar), [tkSpinner](tkSpinner), [tkInfoBar](tkInfoBar), [tkToast](tkToast) |
-| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture), [tkBadge](tkBadge), [tkAvatar](tkAvatar), [tkAvatarGroup](tkAvatarGroup) |
+| Static display | [tkLabel](tkLabel), [tkPicture](tkPicture), [tkBadge](tkBadge), [tkAvatar](tkAvatar), [tkAvatarGroup](tkAvatarGroup), [tkBarcode](tkBarcode) |
 | Data display | [tkChart](tkChart) |
-| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer), [tkReport](tkReport) |
+| Printing | [tkPrint](tkPrint), [tkPrintPreview](tkPrintPreview), [tkPdf](tkPdf), [tkPrinter](tkPrinter), [tkPrintDialog](tkPrintDialog), [tkReportViewer](tkReportViewer), [tkReport](tkReport), [Report Designer](Report-Designer), [tkReportBarcode](tkBarcode#reports) |
 | Components | [tkTimer](tkTimer), [tkContextMenu](tkContextMenu) |
 
 ## Support modules
@@ -95,6 +96,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 | Module | What it is |
 |---|---|
 | [tkLayout](tkLayout) | Automatic placement by anchor and dock, in design units, shared with the form designer |
+| [tkStack](tkStack) | A column or a row of controls, one after another: a phone screen's layout, with cards and a scroll panel's content height |
 | [tkForms](tkForms) | `FormBase`, the base a designed form extends: a window, a layout, modal and modeless show, caption translation |
 | [tkLanguage](tkLanguage) | Captions in another language: TOML catalogs built in with `#embed` or read from files, the user's language picked at start-up |
 | [tkImage](tkImage) | Image files (`.png`, `.bmp`, `.jpg`, `.gif`, `.ico`, ...) for icon slots, through SDL_image |

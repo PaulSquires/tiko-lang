@@ -221,6 +221,15 @@ namespace Tko
         '' registers, a 32-byte va_list record, an unsigned plain char. APPENDED, so the
         '' values above do not move.
         TARGET_LINUX_ARM64
+        '' ANDROID ON x86-64 (docs/tiko-android A1): the emulator's ABI. linux-x86_64's
+        '' layout and calling convention exactly (the datalayout is the same string), with
+        '' Bionic for libc, an API level in the triple, and the NDK's sysroot for the link.
+        '' Appended, so no existing value moves.
+        TARGET_ANDROID_X86_64
+        '' ANDROID ON ARM64 (docs/tiko-android A3): linux-arm64's layout and generic AAPCS64
+        '' (the datalayout is 'aarch64-linux-gnu''s string, probed), under OS_ANDROID -- Bionic,
+        '' an API level in the triple, the NDK's sysroot for the link. Appended.
+        TARGET_ANDROID_ARM64
     end enum
 
     '' Target facts, injected. The frontend never hard-codes a size.

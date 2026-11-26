@@ -239,6 +239,8 @@ public type TK_PRINTDOC_
     warnings as ustring
     serial   as long              ' +1 whenever a page is added or the pages are cleared
     nGenNext as long = -1         ' the page index GenerateStep calls back for next; -1 = not generating
+    slots(any) as string          ' late slots: text filled when its scope closes ({s:N} in a LATE text)
+    nSlots   as long
 end type
 
 sub PrWarn( byval doc as TK_PRINTDOC ptr, byref s as ustring )
@@ -279,6 +281,8 @@ public sub tkPrintDoc_Clear( byval doc as TK_PRINTDOC ptr )
     doc->nFonts = 0
     doc->serial += 1
     doc->nGenNext = -1
+    erase doc->slots
+    doc->nSlots = 0
     doc->warnings = ""
 end sub
 

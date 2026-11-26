@@ -66,7 +66,7 @@
 #ifdef __FB_UNIX__
 
 '' The parallel-port device node's name: TKORT_LPT_DEVFMT, one per OS.
-#if defined( __FB_LINUX__ )
+#if defined( __FB_LINUX__ ) or defined( __FB_ANDROID__ )
 	#include once "printerlinux.tiko"
 #elseif defined( __FB_DARWIN__ )
 	#include once "printerdarwin.tiko"

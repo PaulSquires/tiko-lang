@@ -131,7 +131,6 @@ public enum Cmd explicit
     UnfoldAll
     ' Project
     ProjectSaveAs
-    ProjectClose
     ' Build
     BuildExecute
     Compile
@@ -151,6 +150,7 @@ public enum Cmd explicit
     RunToCursor
     ToggleBreakpoint
     DeleteAllBreakpoints
+    FormNewReport           ' the Report Designer's New Report (RD8)
     Last_                   ' not a command: the count
 end enum
 
@@ -272,8 +272,7 @@ constructor CommandTable( )
     this.Def( Cmd.FileSave, "FileSave", g, "Save", "Primary+S", true )
     this.Def( Cmd.FileSaveAs, "FileSaveAs", g, "Save As...", "Primary+Alt+S" )
     this.Def( Cmd.FileSaveAll, "FileSaveAll", g, "Save All", "Primary+Shift+S" )
-    this.Def( Cmd.ProjectSaveAs, "ProjectSaveAs", g, "Save As Project", "Primary+Alt+N", true )
-    this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
+    this.Def( Cmd.ProjectSaveAs, "ProjectSaveAs", g, "Save As Project", "Primary+Alt+N" )
     this.Def( Cmd.FileRename, "FileRename", g, "Rename...", "", true )
     this.Def( Cmd.FileDuplicate, "FileDuplicate", g, "Duplicate", "" )
     this.Def( Cmd.Settings, "Settings", g, "Settings (settings.toml)", "Primary+Comma", true )
@@ -346,11 +345,12 @@ constructor CommandTable( )
 
     g = MenuGroup.Design
     this.Def( Cmd.FormNewForm, "FormNewForm", g, "New Form...", "" )
+    this.Def( Cmd.FormNewReport, "FormNewReport", g, "New Report...", "" )
     this.Def( Cmd.FormTheme, "FormTheme", g, "Project Theme...", "" )
     this.Def( Cmd.FormResources, "FormResources", g, "Resource Center...", "" )
     this.Def( Cmd.FormLanguages, "FormLanguages", g, "Languages...", "" )
     this.Def( Cmd.FormPreviewVariant, "FormPreviewVariant", g, "Preview Light / Dark", "" )
-    this.Def( Cmd.FormTest, "FormTest", g, "Test Form", "Alt+F5", true )
+    this.Def( Cmd.FormTest, "FormTest", g, "Test Form / Report", "Alt+F5", true )   ' the menu says which (SyncDesignLabels)
     this.Def( Cmd.FormAlignLefts, "FormAlignLefts", g, "Align Lefts", "", true )
     this.Def( Cmd.FormAlignCenters, "FormAlignCenters", g, "Align Centers", "" )
     this.Def( Cmd.FormAlignRights, "FormAlignRights", g, "Align Rights", "" )

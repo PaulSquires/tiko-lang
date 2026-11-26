@@ -139,7 +139,7 @@ private sub MapChecks( byref c as tally.Checker )
     next
     c.Check( allParse, "every default chord parses and is written canonically:" & odd )
     c.Check( unique, "no two defaults share a chord" )
-    c.SameNum( withKeys, 88, "88 defaults" )
+    c.SameNum( withKeys, 87, "87 defaults" )
     c.Same( m.Effective( cmdids.Cmd.IndentBlock ), "Tab", "the default Tab is held canonically" )
     c.Same( m.Effective( cmdids.Cmd.FileSave ), "Primary+S", "FileSave default" )
     c.Same( m.Effective( cmdids.Cmd.ShowMenu ), "Primary+Shift+M", "the menu bar key" )
