@@ -464,19 +464,18 @@ Toolbox, press **+**, and make a second source:
 Its fields are `Product`, `Qty:int` and `UnitPrice:float`.
 
 A line's amount is not a field of `OrderLine` (`Total( )` is a method, and a report reads fields). It
-is a **calculated field** of the `Lines` source, `LineTotal = [Qty] * [UnitPrice]`. The designer lists
-calculated fields under **Fields** and in the expression editor, but has no dialog to add one yet:
-add it to the `.tkreport` file as text (it is TOML; close the report in tkEdit first), after the
-sources:
+is a **calculated field** of the `Lines` source. Open **Calculated fields...** in the Toolbox, press
+**+**, and fill it in:
 
-```toml
-[[calc]]
-source = "Lines"
-name = "LineTotal"
-expr = "[Qty] * [UnitPrice]"
-```
+| Property | Value |
+| --- | --- |
+| source | `Lines` |
+| name | `LineTotal` |
+| expr | `[Qty] * [UnitPrice]` |
 
-(Or skip it, and write `[Qty] * [UnitPrice]` into the items that need it.)
+The expression is checked as you enter it, against the source's fields and the report's parameters.
+`LineTotal` is then listed under **Fields** with the source's own fields and offered in the
+expression editor; a band of `Lines` names it `[LineTotal]`, like a field.
 
 ### The bands
 
@@ -494,38 +493,14 @@ expr = "[Qty] * [UnitPrice]"
 
 The wizard made the top-level bands: a report header, the detail, a report footer and a page footer.
 The example renamed them `rh`, `d` and `pf` (click a band's caption; its **id** is in Properties) and
-deleted the report footer (Del). The Toolbox's **+** entries add top-level bands only: the designer
-has no entry for the master-detail bands yet, so `lines` and the three bands inside it go into the
-`.tkreport` as text, after the `d` band (a `parent` names the band each one belongs to):
+deleted the report footer (Del).
 
-```toml
-[[band]]
-id = "lines"
-kind = "detail_report"
-parent = "d"
-source = "Lines"
-
-[[band]]
-id = "lh"
-kind = "report_header"
-parent = "lines"
-height = 22
-
-[[band]]
-id = "ld"
-kind = "detail"
-parent = "lines"
-height = 18
-
-[[band]]
-id = "lf"
-kind = "report_footer"
-parent = "lines"
-height = 30
-```
-
-Reopen the report and the canvas shows them under the detail band, one step in; from then on they are
-edited like any other band. Click a field in **Fields**, then click in a band: a field placed in a
+The master-detail bands come from the Toolbox too. Click the detail band's caption, then
+**+ detail_report**: it adds a `detail_report` under the selected detail, over the child source of
+the detail's source (`Lines`, the child of `Orders`), with its own report header, detail and report
+footer inside it. The canvas shows them under the detail band, one step in, and they are edited like
+any other band. The example renamed them `lines`, `lh`, `ld` and `lf` and set their heights (22, 18
+and 30). With no child source left to show, the entry says so in the status bar. Click a field in **Fields**, then click in a band: a field placed in a
 detail band also places its bold caption in the header band above (hold Shift to place it alone).
 
 Three item settings worth knowing, all in Properties:
@@ -567,24 +542,12 @@ array must outlive the report's use of it.
 
 ### A form to show it in
 
-Make a form, `frmInvoice`, with one **ReportViewer** (in Other), Dock Fill. A ReportViewer has a
-`report` property that names a report module: the form then gets a member of that report's type. The
-Properties panel has no row for it yet, so add it to the control's table in `frmInvoice.tkform`
-(TOML, any text editor), then reopen the form in tkEdit and save it:
+Make a form, `frmInvoice`, with one **ReportViewer** (in Other), Dock Fill, named `rvInvoice`. A
+ReportViewer has a **Report** property that names a report module: the form then gets a member of
+that report's type. Its `...` lists the project's reports as the form's folder imports them; pick
+`../rptInvoice` (or type it). In the `.tkform` it is the control's `report = "../rptInvoice"`.
 
-```toml
-[[control]]
-name = "rvInvoice"
-type = "ReportViewer"
-x = 0
-y = 0
-w = 760
-h = 720
-dock = "fill"
-report = "../rptInvoice"
-```
-
-The generated half now declares `rvInvoiceReport as rptInvoice.Report`. Your half gives it the order:
+Save, and the generated half declares `rvInvoiceReport as rptInvoice.Report`. Your half gives it the order:
 
 ```freebasic
 #module "frmInvoice"
@@ -648,8 +611,8 @@ in as `yyyy-mm-dd`, the way the table stores it. The fields are `Company`, `Coun
 table's declared type, so name table columns, not expressions.
 
 The parameters, in **Parameters...**: `FromDate` (date, default `#2025-01-01#`, prompt `From`) and
-`ToDate` (date, default `#2025-12-31#`, prompt `To`). Don't name a parameter after a keyword (`To`):
-it becomes a field of the generated `Report`, and the compiler refuses it.
+`ToDate` (date, default `#2025-12-31#`, prompt `To`). A parameter becomes a field of the generated
+`Report`, so it can't be named after a keyword: the Parameters dialog refuses `To`, and says why.
 
 ![The Report Designer with rptSales.tkreport: the report header with the title, the period line and the column captions; the page header with the same captions; the group header [Company] and [Country]; the detail band [OrderId] [OrderDate] [Status] [Total] with the Status item selected; the group footer {Count()} orders and Sum([Total]); the report footer "All customers: {Count()} orders" and Sum([Total]); the page footer; the no_data band. Fields lists Sales with its six fields, then Parameters FromDate and ToDate.](Orders-Tutorial-designer-sales.png)
 

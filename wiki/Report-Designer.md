@@ -67,8 +67,11 @@ rptSales/
 - **Toolbox:**
   - The item kinds (text, field, line, box, image, check, custom). Click one, then click in a band.
   - `+ <band kind>` inserts a band. A group header adds a new innermost group level.
-  - **Data sources...**, **Parameters...**, **Group and sort...** and **Page setup...** open their
-    dialogs.
+    `+ detail_report` adds a master-detail section under the selected detail band, over its source's
+    child source, with its own report header, detail and report footer.
+  - **Data sources...**, **Parameters...**, **Calculated fields...**, **Group and sort...** and
+    **Page setup...** open their dialogs. A parameter becomes a field of the generated `Report`, so a
+    keyword can't name it.
 - **Fields:**
   - Each source's fields, with its child sources under it, then the parameters and the built-in
     values: PageNumber, PageCount, RowNumber, GroupRowNumber and PrintDate.
@@ -104,6 +107,10 @@ it.
 A child source (master-detail) names its master. For arrays, the master's field that holds the
 child rows is its `relation`.
 
+A calculated field (**Calculated fields...**) belongs to a source: a name and an expression over the
+source's fields and the parameters, such as `LineTotal` = `[Qty] * [UnitPrice]`. It is listed under
+**Fields** with the source's own fields and named like one, `[LineTotal]`.
+
 ## Preview
 
 **Shift+F7** switches between the bands and a Preview of the report. Nothing is compiled: the
@@ -125,8 +132,8 @@ r.ShowIn( viewer.Handle )            ' a tkReportViewer: parameter strip, Run, P
 ' or: dim as ustring errs : r.ExportPdf( "sales.pdf", errs )
 ```
 
-On a form, a ReportViewer's `report` property names the report module. The form then has a member
-`<viewer>Report` of that report's type.
+On a form, a ReportViewer's **Report** property names the report module; its `...` lists the
+project's reports. The form then has a member `<viewer>Report` of that report's type.
 
 The sample `examples/tkControls/tkReportDesigner` builds `orders`, a program showing a designed
 report in a designed form. Its selftest covers arrays with master-detail, SQLite, a DataGrid,

@@ -91,7 +91,7 @@ differs) or `tkedit --check-forms <this folder>` (reports drift).
   ...SETDATABASE(SQLITE3*)`): an opaque C type such as `sqlite3` that a module only sees through
   another module's `#import ... public` is mangled differently from the module that defines the
   procedure. Importing it directly fixes it.
-- **A report parameter named like a keyword** (`To`, `From` is fine) generates a field the compiler
-  refuses (`To = v_.d`: TKO0408). Hence `FromDate` / `ToDate`.
+- **A report parameter becomes a field of the generated report**, so it can't be named like a keyword
+  (`To`): the Report Designer's Parameters dialog refuses it. Hence `FromDate` / `ToDate`.
 - **A DataGrid "number" column is `float` to a report**, whatever the database column was: the grid
   source's field `Order` is `kind = "float"`, printed with `format = "0"`.
