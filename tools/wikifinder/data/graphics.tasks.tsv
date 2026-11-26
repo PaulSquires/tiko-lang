@@ -101,6 +101,7 @@ from	vendor/tkControls/tkTimePicker	import	tkTimePicker
 from	vendor/tkControls/tkDateTimePicker	import	tkDateTimePicker
 from	vendor/tkControls/tkTimePanel	import	tkTimePanel
 from	vendor/tkControls/tkAutoComplete	import	tkAutoComplete
+from	vendor/tkControls/tkMaskEdit	import	tkMaskEdit
 from	vendor/tkControls/tkDataGrid	import	tkDataGrid
 from	vendor/tkControls/tkCheckedList	import	tkCheckedList
 from	vendor/tkControls/tkCheckedCombo	import	tkCheckedCombo

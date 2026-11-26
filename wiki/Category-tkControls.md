@@ -79,7 +79,7 @@ The toolchain's `examples/tkControls/tkApp` is a starter to copy: a form with a 
 
 | Group | Pages |
 |---|---|
-| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkTimePicker](tkTimePicker), [tkDateTimePicker](tkDateTimePicker), [tkTimePanel](tkTimePanel), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit), [tkAutoComplete](tkAutoComplete) |
+| Text, numbers and dates | [tkTextBox](tkTextBox), [tkNumericUpDown](tkNumericUpDown), [tkSlider](tkSlider), [tkDatePicker](tkDatePicker), [tkTimePicker](tkTimePicker), [tkDateTimePicker](tkDateTimePicker), [tkTimePanel](tkTimePanel), [tkCalendar](tkCalendar), [tkCodeEdit](tkCodeEdit), [tkAutoComplete](tkAutoComplete), [tkMaskEdit](tkMaskEdit) |
 | Buttons and switches | [tkButton](tkButton), [tkCheckBox](tkCheckBox), [tkOptionButton](tkOptionButton), [tkToggle](tkToggle) |
 | Lists and selection | [tkListTree](tkListTree), [tkDataGrid](tkDataGrid) (with tkDataGridSqlite), [tkComboBox](tkComboBox), [tkSelectBar](tkSelectBar), [tkTabBar](tkTabBar), [tkCheckedList](tkCheckedList), [tkCheckedCombo](tkCheckedCombo), [tkTokenBox](tkTokenBox), [tkChip](tkChip), [tkChipGroup](tkChipGroup), [tkRating](tkRating) |
 | Command surfaces | [tkMenuBar](tkMenuBar), [tkToolbar](tkToolbar), [tkIconPanel](tkIconPanel), [tkStatusBar](tkStatusBar), [tkNavigator](tkNavigator) |

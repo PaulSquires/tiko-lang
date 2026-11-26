@@ -141,6 +141,7 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 | [tkDateTimePicker](tkDateTimePicker) | Shows one field holding a date and a time, with a calendar and time columns beside it. | `vendor/tkControls/tkDateTimePicker` |
 | [tkTimePanel](tkTimePanel) | Draws a time chooser: a column each for the hours, minutes, seconds and AM/PM. | `vendor/tkControls/tkTimePanel` |
 | [tkAutoComplete](tkAutoComplete) | Draws a text box whose typing narrows a dropped list of suggestions, or a search box. | `vendor/tkControls/tkAutoComplete` |
+| [tkMaskEdit](tkMaskEdit) | Draws a text box whose input follows a mask: a phone number, a price, a date or a pattern. | `vendor/tkControls/tkMaskEdit` |
 
 ## Add buttons and switches
 

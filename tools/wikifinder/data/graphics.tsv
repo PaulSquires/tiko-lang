@@ -107,6 +107,7 @@ tkTimePicker	tkTimePicker	-	ctl-text	vendor/tkControls/tkTimePicker	-	Shows an e
 tkDateTimePicker	tkDateTimePicker	-	ctl-text	vendor/tkControls/tkDateTimePicker	-	Shows one field holding a date and a time, with a calendar and time columns beside it.
 tkTimePanel	tkTimePanel	-	ctl-text	vendor/tkControls/tkTimePanel	-	Draws a time chooser: a column each for the hours, minutes, seconds and AM/PM.
 tkAutoComplete	tkAutoComplete	-	ctl-text	vendor/tkControls/tkAutoComplete	-	Draws a text box whose typing narrows a dropped list of suggestions, or a search box.
+tkMaskEdit	tkMaskEdit	-	ctl-text	vendor/tkControls/tkMaskEdit	-	Draws a text box whose input follows a mask: a phone number, a price, a date or a pattern.
 tkDataGrid	tkDataGrid	-	ctl-list	vendor/tkControls/tkDataGrid	-	Draws a data grid of typed columns, edited in place, sorted, filtered and totalled.
 tkCheckedList	tkCheckedList	-	ctl-list	vendor/tkControls/tkCheckedList	-	Shows a list with a check box on each item, so several can be picked at once.
 tkCheckedCombo	tkCheckedCombo	-	ctl-list	vendor/tkControls/tkCheckedCombo	-	Draws a combo button whose dropdown is a checked list of several picked values.

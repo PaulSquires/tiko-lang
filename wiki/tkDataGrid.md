@@ -78,7 +78,7 @@ tkDataGrid_SetRowCommittedCallback( g, @Grid_RowCommitted )
   as a boolean), `_COMBO` (edited in a combo box filled by `SetColumnItems`), `_DATE` (edited in a
   date picker), `_BUTTON` and `_LINK` (they fire ButtonClick), `_PROGRESS` (a bar, 0..100), `_ICON`
   (text), `_CUSTOM` (the CellPaint callback's).
-- **A masked column** (`maskKind` and `mask`, a tkMaskEdit mask: `TKMASK_FIXED` with
+- **A masked column** (`maskKind` and `mask`, a [tkMaskEdit](tkMaskEdit) mask: `TKMASK_FIXED` with
   `"(999) 000-0000"`, `TKMASK_NUMERIC` with `"$#,##0.00"`, `TKMASK_DATE` with `"dd/mm/yyyy"` ...) on a text
   or number column shows each value through the mask, edits it in a tkMaskEdit, and takes typed and
   pasted values through the mask into the column's kind: a phone as raw digits, a price as a float,
