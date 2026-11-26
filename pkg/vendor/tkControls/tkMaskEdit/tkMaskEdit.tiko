@@ -1,0 +1,590 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMaskEdit -- a single-line text box whose input is shaped by a mask (docs/tkControls/MASKEDIT.md).
+' The rules are tkMask's; this control is the box around them.
+'
+' THE SHAPE: a container (not a tab stop; a programmatic focus lands on the field) holding one
+' tkTextBox child that fills it and keeps tkTextBox's whole look, theme and DPI handling. The
+' child's edit filter is tkMask_Apply, so typing, Backspace / Delete, Cut / Copy / Paste and the
+' context menu all pass through the mask while undo, the IME and the clipboard stay tkTextBox's.
+'
+' THE TEXT has two forms: the EDIT form (the template's shape: literals, prompts in empty slots)
+' while focused, and what an unfocused box SHOWS: nothing when empty (the cue banner's turn, D-4),
+' the prompts as spaces with HidePromptOnLeave, else the edit form. The swap is a silent SetText,
+' so it resets the child's undo history (D-4); a box that shows its edit form unfocused never swaps.
+'
+' NOTIFICATIONS: Change on every user edit; Rejected( pos, reason, text ) for a refused edit or a
+' paste that stopped part-way (after its Change); Commit on Enter and on focus loss, after which an
+' invalid value turns the border to ErrorColor (ShowError); Focus. Every setter is silent.
+'
+' M1 takes FIXED masks; NUMERIC (M2), DATE / TIME / DATETIME (M3) and REGEX (M4) are refused here
+' until their phase.
+#module "tkMaskEdit"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTextBox" public
+#import "../tkMask" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTextBox
+using tkMask
+
+public type TKMASKEDIT_COLORS as TKTEXTBOX_COLORS
+
+public type MSK_ChangeCallbackSub as sub( byval hCtrl as TK_WIDGET ptr )
+public type MSK_RejectedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval nPos as long, byval nReason as long, _
+                                            byref sText as const ustring )
+public type MSK_CommitCallbackSub as sub( byval hCtrl as TK_WIDGET ptr )
+public type MSK_FocusCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval bGotFocus as boolean )
+
+public type TKMASKEDIT_STATE
+    hWin          as TK_WIDGET ptr
+    hEdit         as TK_WIDGET ptr       ' the tkTextBox child
+    id            as long
+    spec          as TKMASK_SPEC
+    bMasked       as boolean             ' a mask is set (no mask: a plain text box)
+    sEdit         as string              ' the edit form, UTF-8: the value while unfocused
+    bFocused      as boolean
+    bHidePrompt   as boolean
+    nValueFormat  as long = TKMASK_FMT_RAW
+    nCopyFormat   as long = TKMASK_FMT_LITERALS
+    bShowError    as boolean = true
+    nPendingRej   as long                ' a partial paste's reason, reported after its Change
+    nPendingPos   as long
+    sPendingIns   as string
+    ChangeCallback   as MSK_ChangeCallbackSub
+    RejectedCallback as MSK_RejectedCallbackSub
+    CommitCallback   as MSK_CommitCallbackSub
+    FocusCallback    as MSK_FocusCallbackSub
+end type
+
+private function ME( byval h as TK_WIDGET ptr ) as TKMASKEDIT_STATE ptr
+    if h = 0 then return 0
+    return cast( TKMASKEDIT_STATE ptr, h->pData )
+end function
+
+private function MeOfEdit( byval hEdit as TK_WIDGET ptr ) as TKMASKEDIT_STATE ptr
+    return ME( tkWidget_Parent( hEdit ) )
+end function
+
+private function MeEditText( byval p as TKMASKEDIT_STATE ptr ) as string
+    dim as ustring u = tkTextBox_GetText( p->hEdit )
+    dim as string s = u
+    return s
+end function
+
+private sub MeSetEditText( byval p as TKMASKEDIT_STATE ptr, byref s as const string )
+    dim as ustring u = s
+    tkTextBox_SetText( p->hEdit, u )
+end sub
+
+' What the child should hold now: the edit form while focused, the shown form otherwise.
+private function MeShown( byval p as TKMASKEDIT_STATE ptr ) as string
+    if p->bMasked = false then return p->sEdit
+    if p->bFocused then return p->sEdit
+    return tkMask_Display( p->spec, p->sEdit, p->bHidePrompt )
+end function
+
+' The child brought in line with sEdit and the focus (silent). Unchanged text is left alone, so
+' its undo history survives.
+private sub MeSync( byval p as TKMASKEDIT_STATE ptr )
+    dim as string want = MeShown( p )
+    if MeEditText( p ) <> want then MeSetEditText( p, want )
+end sub
+
+' The screen keyboard: a number pad when every editable slot takes digits (0 9 #).
+private sub MeTextKind( byval p as TKMASKEDIT_STATE ptr )
+    dim as long k = TK_TEXT_LINE
+    if p->bMasked andalso (p->spec.kind = TKMASK_FIXED) then
+        k = TK_TEXT_INTEGER
+        for i as long = 0 to p->spec.nSlots - 1
+            select case p->spec.slots(i).kind
+            case TKMS_LITERAL, TKMS_DIGIT, TKMS_DIGITSPACE, TKMS_DIGITSIGN
+            case else : k = TK_TEXT_LINE : exit for
+            end select
+        next
+    end if
+    tkWidget_SetTextKind( p->hEdit, k )
+end sub
+
+private sub MeFireRejected( byval p as TKMASKEDIT_STATE ptr, byval nPos as long, byval nReason as long, byref ins as const string )
+    if p->RejectedCallback = 0 then exit sub
+    dim as ustring u = ins
+    p->RejectedCallback( p->hWin, nPos, nReason, u )
+end sub
+
+' Enter or focus loss: the error tint for an invalid value, then Commit.
+private sub MeCommit( byval p as TKMASKEDIT_STATE ptr )
+    if p->bMasked andalso p->bShowError then
+        if tkMask_IsValid( p->spec, p->sEdit ) = false then tkTextBox_SetError( p->hEdit, true )
+    end if
+    if p->CommitCallback then p->CommitCallback( p->hWin )
+end sub
+
+' ---- the child's callbacks ----------------------------------------------------------------------
+private function MeFilter( byval e as TKTEXTBOX_EDITINFO ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = cast( TKMASKEDIT_STATE ptr, e->pUser )
+    if (p = 0) orelse (p->bMasked = false) then
+        e->outText = left( e->text, e->lo ) & e->ins & mid( e->text, e->hi + 1 )
+        e->outCaret = e->lo + len( e->ins )
+        return true
+    end if
+    if e->reason = TXT_EDIT_COPY then
+        e->outText = tkMask_ValueTextRange( p->spec, e->text, e->lo, e->hi, p->nCopyFormat )
+        return true
+    end if
+    dim as long reason
+    select case e->reason
+    case TXT_EDIT_BACKSPACE : reason = TKMASK_EDIT_BACKSPACE
+    case TXT_EDIT_DELETE : reason = TKMASK_EDIT_DELETE
+    case TXT_EDIT_PASTE : reason = TKMASK_EDIT_PASTE
+    case TXT_EDIT_CUT : reason = TKMASK_EDIT_CUT
+    case TXT_EDIT_REPLACE : reason = TKMASK_EDIT_REPLACE
+    case else : reason = TKMASK_EDIT_TYPE
+    end select
+    dim as string s = e->text
+    dim as int32 caret, rej
+    if tkMask_Apply( p->spec, s, e->lo, e->hi, e->ins, reason, caret, rej ) = false then
+        MeFireRejected( p, e->lo, rej, e->ins )
+        return false
+    end if
+    if rej <> TKMASK_REJ_NONE then
+        p->nPendingRej = rej : p->nPendingPos = caret : p->sPendingIns = e->ins
+    end if
+    e->outText = s
+    e->outCaret = caret
+    return true
+end function
+
+private sub MeOnEditChange( byval hEdit as TK_WIDGET ptr )
+    dim as TKMASKEDIT_STATE ptr p = MeOfEdit( hEdit )
+    if p = 0 then exit sub
+    p->sEdit = MeEditText( p )
+    if p->ChangeCallback then p->ChangeCallback( p->hWin )
+    if p->nPendingRej <> TKMASK_REJ_NONE then
+        dim as long r = p->nPendingRej
+        p->nPendingRej = TKMASK_REJ_NONE
+        MeFireRejected( p, p->nPendingPos, r, p->sPendingIns )
+    end if
+end sub
+
+private sub MeOnEditFocus( byval hEdit as TK_WIDGET ptr, byval bGot as boolean )
+    dim as TKMASKEDIT_STATE ptr p = MeOfEdit( hEdit )
+    if p = 0 then exit sub
+    if bGot then
+        p->bFocused = true
+        if p->bMasked then
+            if tkMask_IsEmpty( p->spec, p->sEdit ) then
+                p->sEdit = tkMask_Template( p->spec )
+                MeSync( p )
+                dim as long f = tkMask_FirstEmpty( p->spec, p->sEdit )
+                if f < 0 then f = 0
+                tkTextBox_SetSel( p->hEdit, f, f )
+            elseif MeEditText( p ) <> p->sEdit then
+                MeSync( p )
+                if tkTextBox_GetSelectOnFocus( p->hEdit ) then tkTextBox_SetSel( p->hEdit, 0, -1 )
+            end if
+        end if
+    else
+        p->bFocused = false
+        if p->bMasked then p->sEdit = MeEditText( p )
+        MeCommit( p )
+        if p->bMasked then MeSync( p )
+    end if
+    if p->FocusCallback then p->FocusCallback( p->hWin, bGot )
+end sub
+
+private sub MeOnEditEnter( byval hEdit as TK_WIDGET ptr )
+    dim as TKMASKEDIT_STATE ptr p = MeOfEdit( hEdit )
+    if p then MeCommit( p )
+end sub
+
+' Insert toggles insert mode; a click never leaves the caret past the first empty slot (D-5).
+private function MeOnEditMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = MeOfEdit( m->hTextBox )
+    if (p = 0) orelse (p->bMasked = false) then return false
+    select case m->msg
+    case TKM_KEYDOWN
+        if (m->key = SDLK_INSERT) andalso ((m->mods and (SDL_KMOD_SHIFT or TK_KMOD_PRIMARY or SDL_KMOD_ALT)) = 0) then
+            p->spec.overwrite = (p->spec.overwrite = false)
+            return true
+        end if
+    case TKM_LBUTTONUP
+        dim as integer a, b
+        tkTextBox_GetSel( p->hEdit, a, b )
+        if a = b then
+            dim as long f = tkMask_FirstEmpty( p->spec, MeEditText( p ) )
+            if (f >= 0) andalso (a > f) then tkTextBox_SetSel( p->hEdit, f, f )
+        end if
+    end select
+    return false
+end function
+
+private function MeProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( w )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        return true                          ' the field covers the control
+    case TKM_SIZE
+        tkWidget_SetPos( p->hEdit, 0, 0, w->cw, w->ch )
+        return true
+    case TKM_SETFOCUS
+        ' the container is not a tab stop; a programmatic focus lands on the field
+        tkHost_SetFocus( w->pHost, p->hEdit )
+        return true
+    case TKM_DESTROY
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API
+' ==========================================================================================
+public function tkMaskEdit_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKMASKEDIT_STATE ptr p = new TKMASKEDIT_STATE
+    p->id = CtrlID
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @MeProc, p )
+    p->hWin = w
+    p->hEdit = tkTextBox_Create( w, CtrlID )
+    tkTextBox_SetChangeCallback( p->hEdit, @MeOnEditChange )
+    tkTextBox_SetFocusCallback( p->hEdit, @MeOnEditFocus )
+    tkTextBox_SetEnterPressedCallback( p->hEdit, @MeOnEditEnter )
+    tkTextBox_SetMessageCallback( p->hEdit, @MeOnEditMessage )
+    tkTextBox_SetEditFilter( p->hEdit, @MeFilter, p )
+    MeTextKind( p )
+    return w
+end function
+
+' The tkTextBox inside: its look (font, colours, margins, cue banner, menu text) is set there.
+' Its change / focus / enter / message callbacks and its edit filter belong to this control.
+public function tkMaskEdit_GetEdit( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return 0
+    return p->hEdit
+end function
+
+public function tkMaskEdit_GetID( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return 0
+    return p->id
+end function
+
+' The mask (TKMASK_*, a pattern). FALSE, and the old mask kept, when the pattern does not compile
+' or the kind is not available yet (M1: FIXED only). A new mask clears the value. Silent.
+public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as long, byref sMask as const ustring ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    if nKind <> TKMASK_FIXED then return false
+    if tkMask_Compile( p->spec, nKind, sMask ) = false then return false
+    p->bMasked = true
+    p->sEdit = tkMask_Template( p->spec )
+    tkTextBox_SetError( p->hEdit, false )
+    MeSync( p )
+    MeTextKind( p )
+    return true
+end function
+
+public function tkMaskEdit_GetMaskKind( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (p = 0) orelse (p->bMasked = false) then return TKMASK_NONE
+    return p->spec.kind
+end function
+
+public function tkMaskEdit_GetMask( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (p = 0) orelse (p->bMasked = false) then return ""
+    return p->spec.pattern
+end function
+
+' The text in its edit form (literals, prompts in empty slots) -- also while unfocused.
+public function tkMaskEdit_GetText( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return ""
+    if p->bFocused then p->sEdit = MeEditText( p )
+    dim as ustring u = p->sEdit
+    return u
+end function
+
+' Any form of the value (edit form, value form, raw), mapped into the mask as a paste would be;
+' what does not fit is left out. Silent; clears the error tint.
+public sub tkMaskEdit_SetText( byval hCtrl as TK_WIDGET ptr, byref sText as const ustring )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as string s = sText
+    if p->bMasked then p->sEdit = tkMask_TextOfValue( p->spec, s ) else p->sEdit = s
+    tkTextBox_SetError( p->hEdit, false )
+    MeSync( p )
+end sub
+
+' The value in ValueFormat (TKMASK_FMT_*, default RAW); "" when empty.
+public function tkMaskEdit_GetValueText( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return ""
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if p->bMasked = false then
+        dim as ustring u0 = p->sEdit
+        return u0
+    end if
+    dim as ustring u = tkMask_ValueText( p->spec, p->sEdit, p->nValueFormat )
+    return u
+end function
+
+public sub tkMaskEdit_SetValueText( byval hCtrl as TK_WIDGET ptr, byref sValue as const ustring )
+    tkMaskEdit_SetText( hCtrl, sValue )
+end sub
+
+public sub tkMaskEdit_Clear( byval hCtrl as TK_WIDGET ptr )
+    tkMaskEdit_SetText( hCtrl, "" )
+end sub
+
+public function tkMaskEdit_IsEmpty( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return true
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if p->bMasked = false then return len( p->sEdit ) = 0
+    return tkMask_IsEmpty( p->spec, p->sEdit )
+end function
+
+public function tkMaskEdit_IsComplete( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if p->bMasked = false then return true
+    return tkMask_IsComplete( p->spec, p->sEdit )
+end function
+
+' Empty, or complete (FIXED).
+public function tkMaskEdit_IsValid( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if p->bMasked = false then return true
+    return tkMask_IsValid( p->spec, p->sEdit )
+end function
+
+' The character shown in an empty slot (default "_"; its first character counts).
+public sub tkMaskEdit_SetPromptChar( byval hCtrl as TK_WIDGET ptr, byref sPrompt as const ustring )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    if p->bFocused then p->sEdit = MeEditText( p )
+    dim as string s = sPrompt
+    tkMask_ChangePrompt( p->spec, p->sEdit, s )
+    MeSync( p )
+end sub
+
+public function tkMaskEdit_GetPromptChar( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return ""
+    dim as ustring u = p->spec.prompt
+    return u
+end function
+
+' Unfocused, the prompts show as spaces.
+public sub tkMaskEdit_SetHidePromptOnLeave( byval hCtrl as TK_WIDGET ptr, byval bHide as boolean )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->bHidePrompt = bHide
+    MeSync( p )
+end sub
+
+public function tkMaskEdit_GetHidePromptOnLeave( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return p->bHidePrompt
+end function
+
+' The form GetValueText returns (TKMASK_FMT_*; default RAW).
+public sub tkMaskEdit_SetValueFormat( byval hCtrl as TK_WIDGET ptr, byval nFormat as long )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (p = 0) orelse (nFormat < TKMASK_FMT_RAW) orelse (nFormat > TKMASK_FMT_BOTH) then exit sub
+    p->nValueFormat = nFormat
+end sub
+
+public function tkMaskEdit_GetValueFormat( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return TKMASK_FMT_RAW
+    return p->nValueFormat
+end function
+
+' The form Copy and Cut put on the clipboard (default LITERALS: literals kept, empty slots as spaces).
+public sub tkMaskEdit_SetCopyFormat( byval hCtrl as TK_WIDGET ptr, byval nFormat as long )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (p = 0) orelse (nFormat < TKMASK_FMT_RAW) orelse (nFormat > TKMASK_FMT_BOTH) then exit sub
+    p->nCopyFormat = nFormat
+end sub
+
+public function tkMaskEdit_GetCopyFormat( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return TKMASK_FMT_LITERALS
+    return p->nCopyFormat
+end function
+
+' Insert mode: typing shifts the filled slots right (WinForms); off (default) typing overwrites
+' (D-3). The Insert key toggles it.
+public sub tkMaskEdit_SetInsertMode( byval hCtrl as TK_WIDGET ptr, byval bInsert as boolean )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->spec.overwrite = (bInsert = false)
+end sub
+
+public function tkMaskEdit_GetInsertMode( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return p->spec.overwrite = false
+end function
+
+' The border turns ErrorColor when a committed value is not valid (default on).
+public sub tkMaskEdit_SetShowError( byval hCtrl as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->bShowError = bShow
+    if bShow = false then tkTextBox_SetError( p->hEdit, false )
+end sub
+
+public function tkMaskEdit_GetShowError( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return p->bShowError
+end function
+
+public function tkMaskEdit_GetError( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return tkTextBox_GetError( p->hEdit )
+end function
+
+public function tkMaskEdit_HasFocus( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return tkTextBox_HasFocus( p->hEdit )
+end function
+
+' ---- the field's look, passed through ------------------------------------------------------------
+public sub tkMaskEdit_SetReadOnly( byval hCtrl as TK_WIDGET ptr, byval bReadOnly as boolean )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_SetReadOnly( p->hEdit, bReadOnly )
+end sub
+
+public function tkMaskEdit_GetReadOnly( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return tkTextBox_GetReadOnly( p->hEdit )
+end function
+
+public function tkMaskEdit_SetFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return false
+    return tkTextBox_SetFont( p->hEdit, f )
+end function
+
+public function tkMaskEdit_GetFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return 0
+    return tkTextBox_GetFont( p->hEdit )
+end function
+
+public sub tkMaskEdit_ApplyFonts( byval hCtrl as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_ApplyFonts( p->hEdit, fText, fGlyph )
+end sub
+
+public sub tkMaskEdit_SetCueBannerText( byval hCtrl as TK_WIDGET ptr, byref sText as const ustring )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_SetCueBannerText( p->hEdit, sText )
+end sub
+
+public function tkMaskEdit_GetCueBannerText( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return ""
+    return tkTextBox_GetCueBannerText( p->hEdit )
+end function
+
+public sub tkMaskEdit_SetTextAlign( byval hCtrl as TK_WIDGET ptr, byval nAlign as long )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_SetTextAlign( p->hEdit, nAlign )
+end sub
+
+public function tkMaskEdit_GetTextAlign( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return TXT_ALIGN_LEFT
+    return tkTextBox_GetTextAlign( p->hEdit )
+end function
+
+public sub tkMaskEdit_SetBorderWidth( byval hCtrl as TK_WIDGET ptr, byval nWidth as integer )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_SetBorderWidth( p->hEdit, nWidth )
+end sub
+
+public function tkMaskEdit_GetBorderWidth( byval hCtrl as TK_WIDGET ptr ) as integer
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return 0
+    return tkTextBox_GetBorderWidth( p->hEdit )
+end function
+
+public sub tkMaskEdit_SetCornerRadius( byval hCtrl as TK_WIDGET ptr, byval nRadius as integer )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_SetCornerRadius( p->hEdit, nRadius )
+end sub
+
+public function tkMaskEdit_GetCornerRadius( byval hCtrl as TK_WIDGET ptr ) as integer
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return 0
+    return tkTextBox_GetCornerRadius( p->hEdit )
+end function
+
+' ---- colours: the field's (TKMASKEDIT_COLORS is TKTEXTBOX_COLORS) ----------------------------------
+public sub tkMaskEdit_GetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKMASKEDIT_COLORS ptr )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_GetColors( p->hEdit, pColors )
+end sub
+
+public sub tkMaskEdit_SetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKMASKEDIT_COLORS ptr )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_SetColors( p->hEdit, pColors )
+end sub
+
+public function tkMaskEdit_ThemeColors( byref t as TKTHEME_COLORS ) as TKMASKEDIT_COLORS
+    return tkTextBox_ThemeColors( t )
+end function
+
+public sub tkMaskEdit_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_ApplyTheme( p->hEdit, t )
+end sub
+
+public sub tkMaskEdit_UnpinColors( byval hCtrl as TK_WIDGET ptr )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then tkTextBox_UnpinColors( p->hEdit )
+end sub
+
+' ---- callbacks -------------------------------------------------------------------------------------
+public sub tkMaskEdit_SetChangeCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as MSK_ChangeCallbackSub )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->ChangeCallback = usersub
+end sub
+
+public sub tkMaskEdit_SetRejectedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as MSK_RejectedCallbackSub )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->RejectedCallback = usersub
+end sub
+
+public sub tkMaskEdit_SetCommitCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as MSK_CommitCallbackSub )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->CommitCallback = usersub
+end sub
+
+public sub tkMaskEdit_SetFocusCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as MSK_FocusCallbackSub )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p then p->FocusCallback = usersub
+end sub

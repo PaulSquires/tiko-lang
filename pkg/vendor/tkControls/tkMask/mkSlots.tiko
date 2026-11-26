@@ -430,6 +430,38 @@ function MskSlotsValue( byref m as TKMASK_SPEC, byref text as const string, byva
     return s
 end function
 
+' The byte offset of the first empty editable slot (the text's length when none is empty).
+function MskFirstEmpty( byref m as TKMASK_SPEC, byref text as const string ) as int32
+    dim as string cur()
+    MskShape( m, text, cur() )
+    for i as int32 = 0 to m.nSlots - 1
+        if (m.slots(i).kind <> TKMS_LITERAL) andalso (len( cur(i) ) = 0) then return MskSlotOffset( m, cur(), i )
+    next
+    return MskSlotOffset( m, cur(), m.nSlots )
+end function
+
+' The slots in bytes [lo, hi) of text, in fmt (Copy / Cut of a selection).
+function MskSlotsRange( byref m as TKMASK_SPEC, byref text as const string, byval lo as int32, byval hi as int32, _
+                        byval fmt as int32 ) as string
+    dim as string cur(), s, ch()
+    MskShape( m, text, cur() )
+    dim as int32 n = MskSplit( MskRender( m, cur(), m.prompt ), ch() )
+    dim as int32 a = MskIndexAt( ch(), n, lo ), b = MskIndexAt( ch(), n, hi )
+    for i as int32 = a to b - 1
+        if m.slots(i).kind = TKMS_LITERAL then
+            if (fmt = TKMASK_FMT_LITERALS) orelse (fmt = TKMASK_FMT_BOTH) then s &= m.slots(i).lit
+        elseif len( cur(i) ) then
+            s &= cur(i)
+        else
+            select case fmt
+            case TKMASK_FMT_LITERALS : s &= " "
+            case TKMASK_FMT_PROMPTS, TKMASK_FMT_BOTH : s &= m.prompt
+            end select
+        end if
+    next
+    return s
+end function
+
 ' ---- spin and the typed value ---------------------------------------------------------------------
 function MskSpin( byref m as TKMASK_SPEC, byref text as string, byref caret as int32, byval delta as int32 ) as boolean
     dim as string cur()

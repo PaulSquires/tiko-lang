@@ -1,0 +1,240 @@
+' tkMaskEdit self-test (MASKEDIT.md M1: FIXED masks). Real windows, real SDL event queue: typing is
+' pushed as the SDL text events a keyboard produces, keys and clicks as SDL key and button events.
+' The mask rules themselves are tkMask's suite; this one checks the box around them -- the filter
+' wiring, the edit / shown forms and the focus swap, the notifications and their order, the
+' caret rules, the clipboard forms, insert mode, the error tint, silent setters, the keyboard kind.
+' Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkMaskEdit"
+#import "vendor/tkControls/tkTest"
+using tkMaskEdit
+using tkMask
+using tkTextBox
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as int32 gChanges, gRejects, gCommits, gFocusIn, gFocusOut, gLastReason
+dim shared as string gOrder
+
+sub OnChange( byval hCtrl as TK_WIDGET ptr )
+    gChanges += 1
+    gOrder &= "C"
+end sub
+
+sub OnRejected( byval hCtrl as TK_WIDGET ptr, byval nPos as long, byval nReason as long, byref sText as const ustring )
+    gRejects += 1
+    gLastReason = nReason
+    gOrder &= "R"
+end sub
+
+sub OnCommit( byval hCtrl as TK_WIDGET ptr )
+    gCommits += 1
+end sub
+
+sub OnFocus( byval hCtrl as TK_WIDGET ptr, byval bGot as boolean )
+    if bGot then gFocusIn += 1 else gFocusOut += 1
+end sub
+
+sub Reset_()
+    gChanges = 0 : gRejects = 0 : gCommits = 0 : gFocusIn = 0 : gFocusOut = 0 : gLastReason = -1 : gOrder = ""
+end sub
+
+function Sel( byval w as TK_WIDGET ptr ) as string
+    dim as integer a, b
+    tkTextBox_GetSel( tkMaskEdit_GetEdit( w ), a, b )
+    return a & "," & b
+end function
+
+function Shown( byval w as TK_WIDGET ptr ) as string
+    dim as ustring u = tkTextBox_GetText( tkMaskEdit_GetEdit( w ) )
+    dim as string s = u
+    return s
+end function
+
+function TextOf( byval w as TK_WIDGET ptr ) as string
+    dim as ustring u = tkMaskEdit_GetText( w )
+    dim as string s = u
+    return s
+end function
+
+' One character per text event, as a keyboard types.
+sub TypeEach( byval h as TK_HOST ptr, byref s as const string )
+    for i as int32 = 1 to len( s )
+        tkTest_PushText( h, mid( s, i, 1 ) )
+    next
+end sub
+
+' Click at the caret point of byte offset off in the field.
+sub ClickOffset( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval off as int32 )
+    dim as TK_WIDGET ptr e = tkMaskEdit_GetEdit( w )
+    dim as long px, py
+    tkTextBox_PosFromChar( e, off, px, py )
+    dim as TKRECT a
+    tkWidget_AbsRect( e, a )
+    tkTest_Click( h, a.left + px + 1, a.top + py + tkHost_Scale( h, 6 ), SDL_BUTTON_LEFT )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkMaskEdit selftest", 520, 260, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TK_WIDGET ptr root = tkHost_Root( h )
+    dim as TK_WIDGET ptr w = tkMaskEdit_Create( root, 100 )
+    dim as TK_WIDGET ptr other = tkTextBox_Create( root, 101 )
+    dim as int32 ww = tkHost_Scale( h, 220 ), wh = tkHost_Scale( h, 28 )
+    tkWidget_SetPos( w, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), ww, wh )
+    tkWidget_SetPos( other, tkHost_Scale( h, 20 ), tkHost_Scale( h, 80 ), ww, wh )
+    tkMaskEdit_SetChangeCallback( w, @OnChange )
+    tkMaskEdit_SetRejectedCallback( w, @OnRejected )
+    tkMaskEdit_SetCommitCallback( w, @OnCommit )
+    tkMaskEdit_SetFocusCallback( w, @OnFocus )
+    tkHost_Pump( h )
+    dim as TK_WIDGET ptr e = tkMaskEdit_GetEdit( w )
+
+    ' ---- shape ---------------------------------------------------------------------------------
+    dim as TKRECT ra, rb
+    tkWidget_AbsRect( w, ra ) : tkWidget_AbsRect( e, rb )
+    tkTest_Check( "the field fills the control", (ra.left = rb.left) andalso (ra.top = rb.top) andalso _
+        (ra.right = rb.right) andalso (ra.bottom = rb.bottom) andalso (ra.right - ra.left = ww) )
+    tkTest_Check( "the control is not a tab stop, the field is", (w->isFocusable = false) andalso e->isFocusable )
+
+    ' ---- no mask: a plain text box ----------------------------------------------------------------
+    tkHost_SetFocus( h, w )
+    tkTest_Check( "a programmatic focus lands on the field", tkHost_GetFocus( h ) = e )
+    Reset_()
+    TypeEach( h, "ab" )
+    tkTest_Check( "no mask: typing is plain", (TextOf( w ) = "ab") andalso (gChanges = 2) andalso (gRejects = 0), TextOf( w ) )
+    tkHost_SetFocus( h, other )
+
+    ' ---- SetMask -------------------------------------------------------------------------------------
+    Reset_()
+    tkTest_Check( "SetMask FIXED", tkMaskEdit_SetMask( w, TKMASK_FIXED, "(999) 000-0000" ) )
+    tkTest_Check( "M1: NUMERIC is refused", tkMaskEdit_SetMask( w, TKMASK_NUMERIC, "#,##0.00" ) = false )
+    tkTest_Check( "a bad pattern is refused, the mask kept", (tkMaskEdit_SetMask( w, TKMASK_FIXED, "99\" ) = false) _
+        andalso (tkMaskEdit_GetMask( w ) = "(999) 000-0000") andalso (tkMaskEdit_GetMaskKind( w ) = TKMASK_FIXED) )
+    tkTest_Check( "unfocused and empty: nothing shown (the cue banner's turn)", Shown( w ) = "", Shown( w ) )
+    tkTest_Check( "GetText is the edit form: the template", TextOf( w ) = "(___) ___-____" )
+    tkTest_Check( "empty", tkMaskEdit_IsEmpty( w ) andalso tkMaskEdit_IsValid( w ) andalso (tkMaskEdit_IsComplete( w ) = false) )
+    tkTest_Check( "a digits-only mask asks for a number pad", tkWidget_GetTextKind( e ) = TK_TEXT_INTEGER, "" & tkWidget_GetTextKind( e ) )
+
+    ' ---- focus in, typing --------------------------------------------------------------------------
+    tkHost_SetFocus( h, w )
+    tkTest_Check( "focus shows the template, the caret in the first slot", (Shown( w ) = "(___) ___-____") andalso (Sel( w ) = "1,1"), _
+        Shown( w ) & " " & Sel( w ) )
+    TypeEach( h, "5551234567" )
+    tkTest_Check( "typing through the mask", (TextOf( w ) = "(555) 123-4567") andalso (gChanges = 10), TextOf( w ) & " " & gChanges )
+    tkTest_Check( "complete", tkMaskEdit_IsComplete( w ) andalso tkMaskEdit_IsValid( w ) )
+    tkTest_Check( "GetValueText RAW", tkMaskEdit_GetValueText( w ) = "5551234567" )
+    Reset_()
+    tkTextBox_SetSel( e, 1, 1 )
+    TypeEach( h, "a" )
+    tkTest_Check( "a refused character: Rejected, no change", (gRejects = 1) andalso (gChanges = 0) andalso _
+        (gLastReason = TKMASK_REJ_CLASS) andalso (TextOf( w ) = "(555) 123-4567") )
+    TypeEach( h, "9" )
+    tkTest_Check( "typing overwrites", (TextOf( w ) = "(955) 123-4567") andalso (Sel( w ) = "2,2"), TextOf( w ) & " " & Sel( w ) )
+    tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkTest_Check( "Backspace leaves a prompt", (TextOf( w ) = "(_55) 123-4567") andalso (Sel( w ) = "1,1"), TextOf( w ) & " " & Sel( w ) )
+    tkTest_PushKey( h, SDLK_Z, TK_KMOD_PRIMARY )
+    tkTest_Check( "Undo", TextOf( w ) = "(955) 123-4567", TextOf( w ) )
+
+    ' ---- insert mode -----------------------------------------------------------------------------
+    tkTextBox_SetSel( e, 0, -1 )
+    tkTest_PushKey( h, SDLK_DELETE )
+    tkTest_Check( "Delete over everything empties every slot", TextOf( w ) = "(___) ___-____", TextOf( w ) )
+    TypeEach( h, "123" )
+    tkTest_PushKey( h, SDLK_INSERT )
+    tkTest_Check( "Insert turns insert mode on", tkMaskEdit_GetInsertMode( w ) )
+    tkTextBox_SetSel( e, 1, 1 )
+    TypeEach( h, "9" )
+    tkTest_Check( "insert mode shifts the filled slots", TextOf( w ) = "(912) 3__-____", TextOf( w ) )
+    tkTest_PushKey( h, SDLK_INSERT )
+    tkTest_Check( "Insert again: overwrite", tkMaskEdit_GetInsertMode( w ) = false )
+
+    ' ---- paste, copy ---------------------------------------------------------------------------------
+    Reset_()
+    tkHost_SetClipboardText( "555x67" )
+    tkTextBox_SetSel( e, 0, -1 )
+    tkTest_PushKey( h, SDLK_V, TK_KMOD_PRIMARY )
+    tkTest_Check( "a paste stops at the refused character", TextOf( w ) = "(555) ___-____", TextOf( w ) )
+    tkTest_Check( "... Change, then Rejected", (gOrder = "CR") andalso (gLastReason = TKMASK_REJ_CLASS), gOrder )
+    tkTextBox_SetSel( e, 0, -1 )
+    tkTest_PushKey( h, SDLK_C, TK_KMOD_PRIMARY )
+    tkTest_Check( "Copy: literals, empty slots as spaces", tkHost_GetClipboardText() = "(555)    -    ", "[" & tkHost_GetClipboardText() & "]" )
+    tkMaskEdit_SetCopyFormat( w, TKMASK_FMT_RAW )
+    tkTest_PushKey( h, SDLK_C, TK_KMOD_PRIMARY )
+    tkTest_Check( "Copy in RAW", tkHost_GetClipboardText() = "555" )
+    tkMaskEdit_SetCopyFormat( w, TKMASK_FMT_LITERALS )
+
+    ' ---- the caret after a click (D-5) -----------------------------------------------------------
+    tkTextBox_SetSel( e, 0, 0 )
+    ClickOffset( h, w, 12 )
+    tkTest_Check( "a click past the first empty slot lands there", Sel( w ) = "6,6", Sel( w ) )
+    ClickOffset( h, w, 2 )
+    tkTest_Check( "a click before it stays", Sel( w ) = "2,2", Sel( w ) )
+
+    ' ---- commit, error tint, focus out ---------------------------------------------------------------
+    Reset_()
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter commits; incomplete shows the error", (gCommits = 1) andalso tkMaskEdit_GetError( w ) )
+    tkTextBox_SetSel( e, 6, 6 )
+    TypeEach( h, "1234567" )
+    tkTest_Check( "the next change clears the error", tkMaskEdit_GetError( w ) = false )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "focus out commits a valid value, no error", (gCommits = 2) andalso (tkMaskEdit_GetError( w ) = false) _
+        andalso (gFocusOut = 1) )
+    tkTest_Check( "unfocused, a filled box shows its edit form", Shown( w ) = "(555) 123-4567", Shown( w ) )
+    tkMaskEdit_SetText( w, "555123" )
+    tkMaskEdit_SetHidePromptOnLeave( w, true )
+    tkTest_Check( "HidePromptOnLeave: prompts as spaces", Shown( w ) = "(555) 123-    ", "[" & Shown( w ) & "]" )
+    tkHost_SetFocus( h, w )
+    tkTest_Check( "focus brings the prompts back", Shown( w ) = "(555) 123-____", Shown( w ) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "focus out with an incomplete value: the error", tkMaskEdit_GetError( w ) )
+    tkMaskEdit_SetHidePromptOnLeave( w, false )
+
+    ' ---- silent setters, value forms, prompt ---------------------------------------------------------
+    Reset_()
+    tkMaskEdit_SetText( w, "(444) 555-6666" )
+    tkTest_Check( "SetText clears the error", tkMaskEdit_GetError( w ) = false )
+    tkMaskEdit_SetValueText( w, "4445556666" )
+    tkMaskEdit_SetPromptChar( w, "*" )
+    tkMaskEdit_Clear( w )
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, ">LL-000" )
+    tkTest_Check( "every setter is silent", (gChanges = 0) andalso (gRejects = 0) andalso (gCommits = 0), gChanges & gRejects & gCommits )
+    tkTest_Check( "a letter mask asks for a line keyboard", tkWidget_GetTextKind( e ) = TK_TEXT_LINE )
+    tkTest_Check( "the prompt survives a new mask", TextOf( w ) = "**-***", TextOf( w ) )
+    tkMaskEdit_SetText( w, "ab123" )
+    tkTest_Check( "SetText maps a raw value, upper-cased", TextOf( w ) = "AB-123", TextOf( w ) )
+    tkMaskEdit_SetValueFormat( w, TKMASK_FMT_LITERALS )
+    tkTest_Check( "GetValueText LITERALS", tkMaskEdit_GetValueText( w ) = "AB-123" )
+    tkMaskEdit_SetValueFormat( w, TKMASK_FMT_RAW )
+    tkMaskEdit_SetReadOnly( w, true )
+    tkHost_SetFocus( h, w )
+    tkTextBox_SetSel( e, 0, 0 )
+    TypeEach( h, "z" )
+    tkTest_Check( "read-only refuses typing", (TextOf( w ) = "AB-123") andalso (gChanges = 0) )
+    tkMaskEdit_SetReadOnly( w, false )
+    tkHost_SetFocus( h, other )
+
+    ' ---- colours are the field's -----------------------------------------------------------------
+    dim as TKMASKEDIT_COLORS c1, c2
+    tkMaskEdit_GetColors( w, @c1 )
+    tkTextBox_GetColors( e, @c2 )
+    tkTest_Check( "colours are the field's", (c1.BackColor = c2.BackColor) andalso (c1.FocusBorderColor = c2.FocusBorderColor) )
+    dim as TKTHEME_COLORS th = tkTheme_Of( w )
+    tkTest_Check( "ThemeColors is tkTextBox's", tkMaskEdit_ThemeColors( th ).ErrorColor = tkTextBox_ThemeColors( th ).ErrorColor )
+
+    tkHost_Destroy( h )
+end sub
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as int32 nFail = tkTest_Report( "tkMaskEdit" )
+tkTest_Quit()
+end nFail

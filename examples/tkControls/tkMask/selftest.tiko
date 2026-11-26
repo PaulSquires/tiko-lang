@@ -224,6 +224,16 @@ scope
                   (tkMask_IsValid( m, t ) = false) andalso tkMask_IsValid( m, "(555) 123-4567" ) )
     tkTest_Check( "Display of an empty box is empty", tkMask_Display( m, tkMask_Template( m ), false ) = "" )
     tkTest_Check( "Display hides prompts", tkMask_Display( m, t, true ) = "(555) 123-45  " )
+    tkTest_Check( "FirstEmpty: the first empty slot's offset", tkMask_FirstEmpty( m, t ) = 12, "" & tkMask_FirstEmpty( m, t ) )
+    tkTest_Check( "FirstEmpty: the end when full", tkMask_FirstEmpty( m, "(555) 123-4567" ) = 14 )
+    tkTest_Check( "ValueTextRange: a selection in LITERALS", tkMask_ValueTextRange( m, t, 4, 8, TKMASK_FMT_LITERALS ) = ") 12", _
+                  tkMask_ValueTextRange( m, t, 4, 8, TKMASK_FMT_LITERALS ) )
+    tkTest_Check( "ValueTextRange: a selection RAW", tkMask_ValueTextRange( m, t, 4, 14, TKMASK_FMT_RAW ) = "12345" )
+    dim as string tp = t
+    tkMask_ChangePrompt( m, tp, "*" )
+    tkTest_Check( "ChangePrompt", (tp = "(555) 123-45**") andalso (m.prompt = "*") andalso (tkMask_Template( m ) = "(***) ***-****"), tp )
+    dim as TKMASK_SPEC nm = Spec( TKMASK_NUMERIC, "#,##0" )
+    tkTest_Check( "FirstEmpty: NUMERIC has none", tkMask_FirstEmpty( nm, "1,234" ) = -1 )
 end scope
 
 ' ==========================================================================================

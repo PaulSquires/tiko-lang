@@ -85,6 +85,35 @@ public type TKTEXTBOX_MESSAGEINFO
     text     as string                  ' TKM_CHAR / TKM_IMECOMPOSE: UTF-8
 end type
 
+' THE EDIT FILTER (docs/tkControls/MASKEDIT.md section 8): what an edit was, for a filter that
+' reshapes every user edit (tkMaskEdit's masks). COPY asks for the clipboard text of a selection.
+public enum
+    TXT_EDIT_TYPE = 0            ' typed text (one TKM_CHAR, maybe several characters), Enter / Tab in multiline
+    TXT_EDIT_BACKSPACE
+    TXT_EDIT_DELETE
+    TXT_EDIT_PASTE
+    TXT_EDIT_CUT
+    TXT_EDIT_REPLACE             ' tkTextBox_ReplaceSel
+    TXT_EDIT_COPY                ' not an edit: outText is what goes on the clipboard
+end enum
+
+' An edit about to happen: text with bytes [lo, hi) replaced by ins. The filter answers TRUE with
+' outText (the whole new text) and outCaret (a byte offset; the selection collapses there), or
+' FALSE to refuse it (nothing changes, nothing notifies, no undo step). outText = text moves only
+' the caret. Undo / Redo and the silent setters (SetText, SetValue) never pass through it.
+public type TKTEXTBOX_EDITINFO
+    hTextBox as TK_WIDGET ptr
+    reason   as long                    ' TXT_EDIT_*
+    text     as string                  ' the text before, UTF-8
+    lo       as long                    ' the bytes being replaced: [lo, hi)
+    hi       as long
+    ins      as string                  ' what would go in their place, UTF-8 (cleaned, limited)
+    outText  as string                  ' the filter's answer: the whole new text
+    outCaret as long                    ' ... and the caret
+    pUser    as any ptr                 ' tkTextBox_SetEditFilter's
+end type
+public type TXT_EditFilterFunc as function( byval e as TKTEXTBOX_EDITINFO ptr ) as boolean
+
 public type TXT_ChangeCallbackSub as sub( byval hTextBox as TK_WIDGET ptr )
 public type TXT_FocusCallbackSub as sub( byval hTextBox as TK_WIDGET ptr, byval bGotFocus as boolean )
 public type TXT_EnterPressedCallbackSub as sub( byval hTextBox as TK_WIDGET ptr )
@@ -162,6 +191,8 @@ public type TKTEXTBOX_STATE
     EnterPressedCallback  as TXT_EnterPressedCallbackSub
     MessageCallback       as TXT_MessageCallbackFunc
     ScrollChangedCallback as TXT_ScrollChangedCallbackSub
+    EditFilter            as TXT_EditFilterFunc
+    pFilterUser           as any ptr
 end type
 
 dim shared as TKTEXTBOX_STATE ptr gMenuTarget      ' whose menu is open (vendor gTB_ContextMenuTarget)
@@ -718,10 +749,11 @@ private sub TbPushUndo( byval t as TKTEXTBOX_STATE ptr, byval bTyping as boolean
     t->nUndoPos = t->nUndoCount
 end sub
 
-' THE EDIT PRIMITIVE: replace the selection with ins (UTF-8). Clean, limit, numeric vet,
-' undo snapshot, caret, scroll, notify. FALSE when nothing changed (or the edit was refused).
+' THE EDIT PRIMITIVE: replace the selection with ins (UTF-8). Clean, limit, numeric vet or the
+' edit filter, undo snapshot, caret, scroll, notify. FALSE when nothing changed (or the edit was
+' refused).
 private function TbReplace( byval t as TKTEXTBOX_STATE ptr, byref insIn as string, byval bNotify as boolean, _
-                            byval bTyping as boolean = false ) as boolean
+                            byval bTyping as boolean = false, byval nReason as long = TXT_EDIT_REPLACE ) as boolean
     dim as string ins = TbClean( t, insIn )
     dim as long lo = iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor )
     dim as long hi = iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor )
@@ -731,6 +763,42 @@ private function TbReplace( byval t as TKTEXTBOX_STATE ptr, byref insIn as strin
         if TbCount( ins, 0, len( ins ) ) > room then ins = left( ins, TbTakeChars( ins, room ) )
     end if
     if (hi = lo) andalso (len( ins ) = 0) then return false
+    if t->EditFilter then
+        dim as TKTEXTBOX_EDITINFO e
+        e.hTextBox = t->hWin : e.reason = nReason
+        e.text = t->sText : e.lo = lo : e.hi = hi : e.ins = ins
+        e.outText = t->sText : e.outCaret = t->nCaret
+        e.pUser = t->pFilterUser
+        if t->EditFilter( @e ) = false then return false
+        dim as string sNew = TbClean( t, e.outText )
+        dim as long nTo = e.outCaret
+        if nTo < 0 then nTo = 0
+        if nTo > len( sNew ) then nTo = len( sNew )
+        nTo = TbSnap( sNew, nTo )
+        if sNew = t->sText then
+            ' the filter only moved the caret (a literal stepped over)
+            t->nCaret = nTo
+            t->nAnchor = nTo
+            t->nDesiredX = -1
+            t->bTypingRun = false
+            TbEnsureCaretVisible( t )
+            tkWidget_Invalidate( t->hWin )
+            TbScrollState( t, true )
+            return true
+        end if
+        TbPushUndo( t, bTyping )
+        t->sText = sNew
+        t->nCaret = nTo
+        t->nAnchor = nTo
+        t->bTypingRun = bTyping andalso (len( ins ) > 0) andalso (TbClass( ins, len( ins ) - 1 ) <> 0)
+        t->bModified = true
+        TbTextChanged( t )
+        TbEnsureCaretVisible( t )
+        tkWidget_Invalidate( t->hWin )
+        TbScrollState( t, true )
+        if bNotify then TbNotifyChange( t )
+        return true
+    end if
     if t->bNumeric then
         dim as string pro = left( t->sText, lo ) & ins & mid( t->sText, hi + 1 )
         if TbIsNumeric( t, pro ) = false then return false
@@ -775,10 +843,22 @@ private sub TbBreakRun( byval t as TKTEXTBOX_STATE ptr )
     t->bTypingRun = false
 end sub
 
-' A password field does not copy (RichEdit's ES_PASSWORD rule, and PsPlatform's).
+' A password field does not copy (RichEdit's ES_PASSWORD rule, and PsPlatform's). An edit
+' filter decides the clipboard text (TXT_EDIT_COPY): its outText, nothing when it refuses.
 private function TbCopy( byval t as TKTEXTBOX_STATE ptr ) as boolean
     if (TbHasSel( t ) = false) orelse (t->chPassword <> 0) then return false
     dim as ustring u = TbSelText( t )
+    if t->EditFilter then
+        dim as TKTEXTBOX_EDITINFO e
+        e.hTextBox = t->hWin : e.reason = TXT_EDIT_COPY
+        e.text = t->sText
+        e.lo = iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor )
+        e.hi = iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor )
+        e.outText = TbSelText( t ) : e.outCaret = t->nCaret
+        e.pUser = t->pFilterUser
+        if (t->EditFilter( @e ) = false) orelse (len( e.outText ) = 0) then return false
+        u = e.outText
+    end if
     tkHost_SetClipboardText( u )
     return true
 end function
@@ -787,7 +867,7 @@ private function TbCut( byval t as TKTEXTBOX_STATE ptr ) as boolean
     if t->bReadOnly then return false
     if TbCopy( t ) = false then return false
     TbBreakRun( t )
-    return TbReplace( t, "", true )
+    return TbReplace( t, "", true, false, TXT_EDIT_CUT )
 end function
 
 ' Numeric mode vets the whole paste (first line only, as a single-line control keeps): the
@@ -799,7 +879,7 @@ private function TbPaste( byval t as TKTEXTBOX_STATE ptr ) as boolean
     dim as string s = u
     if len( s ) = 0 then return false
     TbBreakRun( t )
-    return TbReplace( t, s, true )
+    return TbReplace( t, s, true, false, TXT_EDIT_PASTE )
 end function
 
 private function TbUndo( byval t as TKTEXTBOX_STATE ptr ) as boolean
@@ -1193,14 +1273,14 @@ private function TbOnKey( byval t as TKTEXTBOX_STATE ptr, byval m as TK_MSG ptr 
         if t->bReadOnly then return true
         TbBreakRun( t )
         if TbHasSel( t ) = false then t->nAnchor = iif( bCtrl, TbWordStart( t->sText, t->nCaret ), TbPrev( t->sText, t->nCaret ) )
-        TbReplace( t, "", true )
+        TbReplace( t, "", true, false, TXT_EDIT_BACKSPACE )
         return true
     case SDLK_DELETE
         if bShift then TbCut( t ) : return true              ' Shift+Delete is Cut
         if t->bReadOnly then return true
         TbBreakRun( t )
         if TbHasSel( t ) = false then t->nAnchor = iif( bCtrl, TbWordEnd( t->sText, t->nCaret ), TbNext( t->sText, t->nCaret ) )
-        TbReplace( t, "", true )
+        TbReplace( t, "", true, false, TXT_EDIT_DELETE )
         return true
     case SDLK_INSERT
         if bCtrl then TbCopy( t ) : return true
@@ -1210,7 +1290,7 @@ private function TbOnKey( byval t as TKTEXTBOX_STATE ptr, byval m as TK_MSG ptr 
         if t->bMultiline then
             if t->bReadOnly then return true
             TbBreakRun( t )
-            TbReplace( t, chr( 10 ), true )
+            TbReplace( t, chr( 10 ), true, false, TXT_EDIT_TYPE )
             return true
         end if
         ' single-line: ALWAYS claimed, callback or not (vendor)
@@ -1220,7 +1300,7 @@ private function TbOnKey( byval t as TKTEXTBOX_STATE ptr, byval m as TK_MSG ptr 
         ' single-line: unclaimed, so the host moves focus; multiline inserts a tab character
         if (t->bMultiline = false) orelse t->bReadOnly orelse bCtrl then return false
         TbBreakRun( t )
-        TbReplace( t, chr( 9 ), true )
+        TbReplace( t, chr( 9 ), true, false, TXT_EDIT_TYPE )
         return true
     case SDLK_APPLICATION
         dim as long cx, cy
@@ -1415,7 +1495,7 @@ private function TbProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
         for i as long = 0 to len( m->text ) - 1
             if (m->text[i] >= 32) andalso (m->text[i] <> 127) then s &= chr( m->text[i] )
         next
-        if len( s ) then TbReplace( t, s, true, true )
+        if len( s ) then TbReplace( t, s, true, true, TXT_EDIT_TYPE )
         TbSyncInputArea( t )
         return true
 
@@ -1730,6 +1810,27 @@ public sub tkTextBox_SetNumericMode( byval hTextBox as TK_WIDGET ptr, byval bEna
     t->bNumeric = bEnable
     TbTextKind( t )
 end sub
+
+' The edit filter (TKTEXTBOX_EDITINFO): every user edit and every Copy passes through fn, which
+' may refuse or reshape it -- tkMaskEdit's masks. 0 removes it. It replaces numeric mode, which
+' it turns off. pUser comes back in every call.
+public sub tkTextBox_SetEditFilter( byval hTextBox as TK_WIDGET ptr, byval fn as TXT_EditFilterFunc, _
+                                    byval pUser as any ptr = 0 )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->EditFilter = fn
+    t->pFilterUser = pUser
+    if fn then
+        t->bNumeric = false
+        TbTextKind( t )
+    end if
+end sub
+
+public function tkTextBox_GetEditFilter( byval hTextBox as TK_WIDGET ptr ) as TXT_EditFilterFunc
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->EditFilter
+end function
 
 public function tkTextBox_GetDecimalPlaces( byval hTextBox as TK_WIDGET ptr ) as integer
     dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )

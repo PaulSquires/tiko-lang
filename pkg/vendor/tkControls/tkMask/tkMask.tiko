@@ -420,6 +420,38 @@ public function tkMask_TextOfValue( byref m as TKMASK_SPEC, byref value as const
     return t
 end function
 
+' Where a click may put the caret at most (D-5): the byte offset of the first empty slot, the
+' text's length when all are filled; -1 for kinds without slots (NUMERIC: anywhere).
+public function tkMask_FirstEmpty( byref m as TKMASK_SPEC, byref text as const string ) as int32
+    if MskIsSlotKind( m ) = false then return -1
+    return MskFirstEmpty( m, text )
+end function
+
+' The value text of the bytes [lo, hi) of text in fmt -- what Copy / Cut of a selection puts on the
+' clipboard. NUMERIC: the selected characters as they are.
+public function tkMask_ValueTextRange( byref m as TKMASK_SPEC, byref text as const string, byval lo as int32, _
+                                       byval hi as int32, byval fmt as int32 ) as string
+    if lo > hi then swap lo, hi
+    if lo < 0 then lo = 0
+    if hi > len( text ) then hi = len( text )
+    if MskIsSlotKind( m ) = false then return mid( text, lo + 1, hi - lo )
+    return MskSlotsRange( m, text, lo, hi, fmt )
+end function
+
+' A new prompt character (its first character) for m and for text, whose empty slots change with it.
+public sub tkMask_ChangePrompt( byref m as TKMASK_SPEC, byref text as string, byref newPrompt as const string )
+    dim as string ch()
+    if MskSplit( newPrompt, ch() ) = 0 then exit sub
+    if MskIsSlotKind( m ) = false then
+        m.prompt = ch(0)
+        exit sub
+    end if
+    dim as string cur()
+    MskShape( m, text, cur() )
+    m.prompt = ch(0)
+    text = MskRender( m, cur(), m.prompt )
+end sub
+
 ' What an unfocused control shows: "" when empty (the cue banner's turn, D-4); FIXED / DATE with
 ' hidePrompts: the prompts as spaces.
 public function tkMask_Display( byref m as TKMASK_SPEC, byref text as const string, byval hidePrompts as boolean ) as string

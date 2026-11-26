@@ -60,6 +60,10 @@ last space that fits. The API, the defaults and "Behaviour and limits" are vendo
 - `GetTextRect`, `PosFromChar`, `CharFromPos`, `GetCaretRect`, `GetCaret`, `GetCaretVisible`,
   `SetCaretBlink` / `GetCaretBlink` (530 ms, 0 = steady), `ShowsCue`, `GetPasswordChar`, `GetID`.
 - Legacy clipboard keys: Ctrl+Insert, Shift+Insert, Shift+Delete.
+- The edit filter (`SetEditFilter`, `TKTEXTBOX_EDITINFO`, `TXT_EDIT_*`): every user edit and Copy
+  passes through a host function that may refuse it or answer the whole new text and caret
+  (tkMaskEdit's masks; docs/tkControls/MASKEDIT.md section 8). Undo / Redo and the silent setters
+  bypass it; it replaces numeric mode.
 
 **Dropped (Win32-only):** `GetRichEditHandle`, the message door (EM_* / WM_SETTEXT forwarding),
 `FilterMessage` (the host routes the menu's keys and dismisses it), `WM_GETDLGCODE`, the WM_CHAR

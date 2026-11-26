@@ -44,6 +44,28 @@ function OnMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
     return false
 end function
 
+' An edit filter: upper-cases what goes in, refuses an "x", a "." only moves the caret to the end,
+' Copy brackets the selection.
+dim shared as long gFilterReason, gFilterTag
+dim shared as any ptr gFilterUser
+function UpperFilter( byval e as TKTEXTBOX_EDITINFO ptr ) as boolean
+    gFilterReason = e->reason
+    gFilterUser = e->pUser
+    if e->reason = TXT_EDIT_COPY then
+        e->outText = "<" & mid( e->text, e->lo + 1, e->hi - e->lo ) & ">"
+        return true
+    end if
+    if instr( e->ins, "x" ) then return false
+    if e->ins = "." then
+        e->outText = e->text
+        e->outCaret = len( e->text )
+        return true
+    end if
+    e->outText = left( e->text, e->lo ) & ucase( e->ins ) & mid( e->text, e->hi + 1 )
+    e->outCaret = e->lo + len( e->ins )
+    return true
+end function
+
 ' Window pixels of a widget-local point.
 sub AbsPt( byval w as TK_WIDGET ptr, byval lx as long, byval ly as long, byref x as single, byref y as single )
     dim as TKRECT a
@@ -580,6 +602,53 @@ sub RunPass( byval fScale as single )
     dim as TKTHEME_COLORS th = tkTheme_Of( er )
     tkTest_Check( "error: the theme's Error", tkTextBox_ThemeColors( th ).ErrorColor = th.Error )
     tkWidget_Destroy( er )
+
+    ' ---- the edit filter (MASKEDIT.md section 8): refuse, reshape, caret-only, reasons, copy ----
+    dim as TK_WIDGET ptr fb = tkTextBox_Create( tkHost_Root( h ), 111 )
+    tkWidget_SetPos( fb, tkHost_Scale( h, 20 ), tkHost_Scale( h, 400 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 28 ) )
+    tkTextBox_SetChangeCallback( fb, @OnChange )
+    tkTextBox_SetNumericMode( fb, true )
+    tkTextBox_SetEditFilter( fb, @UpperFilter, @gFilterTag )
+    tkTest_Check( "filter: replaces numeric mode", (tkTextBox_GetNumericMode( fb ) = false) _
+        andalso (tkWidget_GetTextKind( fb ) = TK_TEXT_LINE) andalso (tkTextBox_GetEditFilter( fb ) = @UpperFilter) )
+    tkHost_SetFocus( h, fb )
+    gChanges = 0 : gFilterReason = -1 : gFilterUser = 0
+    TypeKeys( h, "ab" )
+    tkTest_Check( "filter: typing reshaped, notified once", (tkTextBox_GetText( fb ) = "AB") andalso (gChanges = 1) _
+        andalso (gFilterReason = TXT_EDIT_TYPE) andalso (gFilterUser = @gFilterTag), _
+        tkTextBox_GetText( fb ) & " " & gChanges & " " & gFilterReason )
+    TypeKeys( h, "x" )
+    tkTest_Check( "filter: a refused edit changes and notifies nothing", (tkTextBox_GetText( fb ) = "AB") andalso (gChanges = 1) )
+    tkTextBox_SetSel( fb, 0, 0 )
+    TypeKeys( h, "." )
+    tkTest_Check( "filter: outText = text moves only the caret", (tkTextBox_GetText( fb ) = "AB") andalso (Sel( fb ) = "2,2") _
+        andalso (gChanges = 1), Sel( fb ) )
+    tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkTest_Check( "filter: Backspace's reason and range", (gFilterReason = TXT_EDIT_BACKSPACE) andalso (tkTextBox_GetText( fb ) = "A") )
+    tkTextBox_SetSel( fb, 0, 0 )
+    tkTest_PushKey( h, SDLK_DELETE )
+    tkTest_Check( "filter: Delete's reason", (gFilterReason = TXT_EDIT_DELETE) andalso (tkTextBox_GetText( fb ) = "") )
+    tkTextBox_ReplaceSel( fb, "q" )
+    tkTest_Check( "filter: ReplaceSel's reason", (gFilterReason = TXT_EDIT_REPLACE) andalso (tkTextBox_GetText( fb ) = "Q") )
+    tkHost_SetClipboardText( "pp" )
+    tkTest_PushKey( h, SDLK_V, TK_KMOD_PRIMARY )
+    tkTest_Check( "filter: Paste's reason", (gFilterReason = TXT_EDIT_PASTE) andalso (tkTextBox_GetText( fb ) = "QPP"), tkTextBox_GetText( fb ) )
+    tkTextBox_SetSel( fb, 0, 1 )
+    tkTest_PushKey( h, SDLK_C, TK_KMOD_PRIMARY )
+    tkTest_Check( "filter: Copy takes the filter's text", (gFilterReason = TXT_EDIT_COPY) andalso (tkHost_GetClipboardText() = "<Q>"), _
+        tkHost_GetClipboardText() )
+    tkHost_SetClipboardText( "" )
+    tkTest_PushKey( h, SDLK_X, TK_KMOD_PRIMARY )
+    tkTest_Check( "filter: Cut copies the filter's text, then edits as CUT", (gFilterReason = TXT_EDIT_CUT) _
+        andalso (tkHost_GetClipboardText() = "<Q>") andalso (tkTextBox_GetText( fb ) = "PP"), tkTextBox_GetText( fb ) )
+    tkTest_PushKey( h, SDLK_Z, TK_KMOD_PRIMARY )
+    tkTest_Check( "filter: Undo restores the text before the reshaped edit", tkTextBox_GetText( fb ) = "QPP", tkTextBox_GetText( fb ) )
+    tkTextBox_SetEditFilter( fb, 0 )
+    tkTest_PushKey( h, SDLK_END )
+    TypeKeys( h, "x" )
+    tkTest_Check( "filter: removed, typing is plain again", tkTextBox_GetText( fb ) = "QPPx", tkTextBox_GetText( fb ) )
+    tkHost_SetFocus( h, 0 )
+    tkWidget_Destroy( fb )
 
     ' ---- the screen keyboard each mode asks for (docs/fasting-android F4 X1) ------------------
     dim as TK_WIDGET ptr kl = tkTextBox_Create( tkHost_Root( h ), 107 )
