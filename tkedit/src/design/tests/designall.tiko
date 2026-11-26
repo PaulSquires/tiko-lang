@@ -1382,6 +1382,28 @@ sub BarcodeSuite( )
     Check( (i >= 0) andalso (FindSetting( nd.Controls[i].Props, "Data" ) >= 0), "barcode: a dropped one has Data = its name" )
 end sub
 
+' A MaskEdit (MASKEDIT.md M5): MaskKind before Mask, and bound as text through the canonical bind text
+' (D-16 revised), so a number, a date and a phone bind with codegen's ordinary text lines.
+sub MaskEditSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Order""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring src = hdr & Ctl( "mePhone", "MaskEdit", "bind = ""Phone""" & LF ) & "[control.props]" & LF _
+        & "Mask = ""(999) 000-0000""" & LF & "ValueFormat = ""Literals""" & LF _
+        & LF & Ctl( "mePrice", "MaskEdit", "bind = ""Price""" & LF ) & "[control.props]" & LF _
+        & "MaskKind = ""Numeric""" & LF & "Mask = ""$#,##0.00""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "maskedit: the form parses" )
+    Accepted( src, "maskedit: bound, its rows" )
+    dim as ustring g = codegen.Generate( d, "frmM", "frmM.tkform", src )
+    HasLine( g, "mePrice.MaskKind = tkMask.TKMASK_NUMERIC", "maskedit: MaskKind is tkMask's constant" )
+    Check( instr( g, "mePrice.MaskKind" ) < instr( g, "mePrice.Mask = " ), "maskedit: MaskKind before Mask", LineWith( g, "mePrice" ) )
+    HasLine( g, "mePhone.ValueFormat = tkMask.TKMASK_FMT_LITERALS", "maskedit: ValueFormat" )
+    HasLine( g, "tkMaskEdit_SetBindText( mePrice.Handle, tkBind_Text( r.Price ) )", "maskedit: LoadFrom sets the bind text" )
+    dim as int32 nSave = instr( g, "function Form.SaveTo" )
+    Check( (nSave > 0) andalso (instr( nSave, g, "tkBind_Check( bindErrors_, mePhone.Handle, ""Phone"", r.Phone, tkMaskEdit_GetBindText( mePhone.Handle )" ) > 0), _
+        "maskedit: SaveTo checks the bind text (the validator's turn)" )
+    Check( instr( nSave, g, "tkBind_Put( r.Price, tkMaskEdit_GetBindText( mePrice.Handle ) )" ) > 0, "maskedit: SaveTo puts the bind text" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -3210,6 +3232,7 @@ NumericUpDownSuite( )
 PropOrderSuite( )
 SliderSuite( )
 BarcodeSuite( )
+MaskEditSuite( )
 PrintPreviewSuite( )
 ReportViewerSuite( )
 NotifySuite( )

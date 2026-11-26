@@ -342,6 +342,47 @@ sub Strict_( )
     tkTest_Check( "Has finds the control", e.Has( fake ) andalso (e.Has( cast( TK_WIDGET ptr, 32 ) ) = false) )
 end sub
 
+' A validator that refuses everything as incomplete (a masked box's, MASKEDIT M5).
+dim shared as int32 gValidated
+function NotYet( byval w as TK_WIDGET ptr, byref msg as ustring ) as int32
+    gValidated += 1
+    msg = "is incomplete"
+    return TKBIND_ERR_INCOMPLETE
+end function
+
+sub Validator_( )
+    tkTest_Begin( "validator and time text (M5)" )
+    dim as TKBIND_ERRORS e
+    dim as TKBIND_RULE no = tkBind_Rule( ), req = tkBind_Rule( true )
+    dim as TK_WIDGET ptr w = cast( TK_WIDGET ptr, 48 )
+    dim as ustring us
+    dim as float64 d
+    tkBind_SetValidator( w, @NotYet )
+    gValidated = 0
+    e.Clear( ) : tkBind_Check( e, w, "Phone", us, "555", no )
+    tkTest_Check( "the validator's code and message", (Codes( e ) = str( TKBIND_ERR_INCOMPLETE )) andalso (e.Text( ) = "Phone: is incomplete"), e.Text( ) )
+    e.Clear( ) : tkBind_Check( e, w, "Price", d, "12.5", no )
+    tkTest_Check( "it is asked before a number field's parsing", Codes( e ) = str( TKBIND_ERR_INCOMPLETE ), Codes( e ) )
+    gValidated = 0
+    e.Clear( ) : tkBind_Check( e, w, "Phone", us, "", req )
+    tkTest_Check( "not asked for an empty value: Required is", (Codes( e ) = str( TKBIND_ERR_REQUIRED )) andalso (gValidated = 0), Codes( e ) )
+    e.Clear( ) : tkBind_Check( e, cast( TK_WIDGET ptr, 64 ), "Phone", us, "555", no )
+    tkTest_Check( "another widget has none", e.Count = 0 )
+    tkBind_SetValidator( w, 0 )
+    e.Clear( ) : tkBind_Check( e, w, "Phone", us, "555", no )
+    tkTest_Check( "removed", e.Count = 0 )
+    dim as TKTIME t
+    dim as TKDATETIME x
+    CHK( t, "14:30:00", no )
+    tkTest_Check( "a time field takes ISO time text", e.Count = 0, e.Text( ) )
+    CHK( t, "25:00", no )
+    tkTest_Check( "... and refuses what is no time", Codes( e ) = str( TKBIND_ERR_NOTTIME ), e.Text( ) )
+    CHK( x, "2026-12-25T14:30:00", no )
+    tkTest_Check( "a TKDATETIME field takes ISO date-time text", e.Count = 0, e.Text( ) )
+    CHK( x, "2026-12-25 99", no )
+    tkTest_Check( "... and refuses what is none", Codes( e ) = str( TKBIND_ERR_NOTDATE ), e.Text( ) )
+end sub
+
 ' ---- B3: a ComboBox bound by its items' ValueField ----------------------------------------------
 sub Pick_( )
     tkTest_Begin( "pick (B3)" )
@@ -461,6 +502,7 @@ Int_( )
 Float_( )
 Date_( )
 Strict_( )
+Validator_( )
 Pick_( )
 Differs_( )
 Controls_( )

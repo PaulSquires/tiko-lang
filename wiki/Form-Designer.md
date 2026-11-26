@@ -370,6 +370,7 @@ end sub
 | Avatar | the display name, in only (the initials and the colour come from it); **BindImage** moves the image file's path both ways |
 | Chip | selected or not |
 | Barcode | the data, in only, as text: a number field is drawn as its digits (keep an EAN with leading zeros in a text field). Data the symbology refuses shows the control's error state; loading never fails |
+| MaskEdit | the value by its **MaskKind**: Fixed and Regex as text (**ValueFormat**: Raw, Literals, Prompts or Both); Numeric as a number; Date, Time and DateTime as a date, a time or both (a text field gets ISO `2026-12-25`, `14:30:00`). An incomplete value, one that does not match, or a date that does not exist stops **SaveTo** with "is incomplete" or "is not a real date". A Regex mask needs `tkMaskEditRegex_Enable( )` once in the program, before the form is built |
 | ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives. With **AllowReorder**, BindItems saves the order the user left |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |

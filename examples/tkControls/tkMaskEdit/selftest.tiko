@@ -15,6 +15,7 @@ using tkMaskEditRegex
 using tkTextBox
 using tkCalendar
 using tkTimePanel
+using tkBind
 using tkTheme
 using tkTest
 using tkHost
@@ -28,7 +29,7 @@ sub OnChange( byval hCtrl as TK_WIDGET ptr )
     gOrder &= "C"
 end sub
 
-sub OnRejected( byval hCtrl as TK_WIDGET ptr, byval nPos as long, byval nReason as long, byref sText as const ustring )
+sub OnRejected( byval hCtrl as TK_WIDGET ptr, byval nPos as int32, byval nReason as int32, byref sText as const ustring )
     gRejects += 1
     gLastReason = nReason
     gOrder &= "R"
@@ -74,7 +75,7 @@ end sub
 ' Click at the caret point of byte offset off in the field.
 sub ClickOffset( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval off as int32 )
     dim as TK_WIDGET ptr e = tkMaskEdit_GetEdit( w )
-    dim as long px, py
+    dim as int32 px, py
     tkTextBox_PosFromChar( e, off, px, py )
     dim as TKRECT a
     tkWidget_AbsRect( e, a )
@@ -82,7 +83,7 @@ sub ClickOffset( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval off as 
 end sub
 
 ' ==========================================================================================
-sub RunPass( byval fScale as single )
+sub RunPass( byval fScale as float32 )
     tkTest_Begin( "scale " & fScale )
     dim as TK_HOST ptr h = tkHost_Create( "tkMaskEdit selftest", 520, 260, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
@@ -402,6 +403,60 @@ sub RunPass( byval fScale as single )
     TypeEach( h, "1" )
     tkTest_Check( "... takes an upper-case E-acute then a digit", (TextOf( w ) = chr( &hC3, &h89 ) & "1") andalso tkMaskEdit_IsComplete( w ) )
     tkHost_SetFocus( h, other )
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
+
+    ' ---- the designer's two properties and the bind text (M5) ------------------------------------
+    Reset_()
+    dim as TK_WIDGET ptr w2 = tkMaskEdit_Create( root, 102 )
+    tkMaskEdit_SetMaskPattern( w2, "dd/mm/yyyy" )
+    tkTest_Check( "Mask before MaskKind: no mask yet (not a FIXED pattern)", (tkMaskEdit_GetMask( w2 ) = "dd/mm/yyyy") _
+        andalso (tkMaskEdit_GetMaskKind( w2 ) = TKMASK_FIXED) andalso (TextOf( w2 ) = "") )
+    tkMaskEdit_SetMaskKind( w2, TKMASK_DATE )
+    tkTest_Check( "... MaskKind after it sets the mask", (tkMaskEdit_GetMaskKind( w2 ) = TKMASK_DATE) andalso (TextOf( w2 ) = "__/__/____") )
+    tkMaskEdit_SetMaskKind( w2, TKMASK_NUMERIC )
+    tkMaskEdit_SetMaskPattern( w2, "$#,##0.00" )
+    tkTest_Check( "MaskKind then Mask", (tkMaskEdit_GetMaskKind( w2 ) = TKMASK_NUMERIC) andalso (tkMaskEdit_GetMask( w2 ) = "$#,##0.00") )
+    tkWidget_Destroy( w2 )
+
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, "(999) 000-0000" )
+    tkMaskEdit_SetBindText( w, "5551234567" )
+    tkTest_Check( "FIXED bind text: the value text", (TextOf( w ) = "(555) 123-4567") andalso (tkMaskEdit_GetBindText( w ) = "5551234567") )
+    dim as TKBIND_ERRORS be
+    dim as ustring us
+    tkMaskEdit_SetText( w, "555123" )
+    tkBind_Check( be, w, "Phone", us, tkMaskEdit_GetBindText( w ), tkBind_Rule( ) )
+    tkTest_Check( "an incomplete value: the validator's INCOMPLETE", (be.Count = 1) andalso (be.Items( 0 ).Code = TKBIND_ERR_INCOMPLETE) _
+        andalso (be.Text( ) = "Phone: is incomplete"), be.Text( ) )
+    be.Clear( )
+    tkMaskEdit_Clear( w )
+    tkBind_Check( be, w, "Phone", us, tkMaskEdit_GetBindText( w ), tkBind_Rule( true ) )
+    tkTest_Check( "empty: Required, not the validator", (be.Count = 1) andalso (be.Items( 0 ).Code = TKBIND_ERR_REQUIRED) )
+    be.Clear( )
+    tkMaskEdit_SetMask( w, TKMASK_NUMERIC, "$#,##0.00" )
+    dim as float64 price = 99.5
+    tkMaskEdit_SetBindText( w, tkBind_Text( price ) )
+    tkTest_Check( "NUMERIC bind text in: tkBind_Text of a double", (TextOf( w ) = "$99.50") andalso (tkMaskEdit_GetBindText( w ) = "99.50") )
+    tkBind_Put( price, tkMaskEdit_GetBindText( w ) )
+    tkTest_Check( "... and out into the double", price = 99.5 )
+    tkMaskEdit_SetMask( w, TKMASK_DATE, "dd/mm/yyyy" )
+    dim as TKDATE bd
+    bd.wYear = 2026 : bd.wMonth = 12 : bd.wDay = 25
+    tkMaskEdit_SetBindText( w, tkBind_Text( bd ) )
+    tkTest_Check( "DATE bind text: ISO both ways", (TextOf( w ) = "25/12/2026") andalso (tkMaskEdit_GetBindText( w ) = "2026-12-25") )
+    tkMaskEdit_SetText( w, "31022026" )
+    tkBind_Check( be, w, "Born", bd, tkMaskEdit_GetBindText( w ), tkBind_Rule( ) )
+    tkTest_Check( "31/02: the bind text is as shown, the validator refuses it", (tkMaskEdit_GetBindText( w ) = "31/02/2026") _
+        andalso (be.Count = 1) andalso (be.Items( 0 ).Code = TKBIND_ERR_NOTDATE), be.Text( ) )
+    be.Clear( )
+    tkMaskEdit_SetMask( w, TKMASK_TIME, "hh:nn" )
+    tkMaskEdit_SetBindText( w, "14:30:00" )
+    tkTest_Check( "TIME bind text", (TextOf( w ) = "14:30") andalso (tkMaskEdit_GetBindText( w ) = "14:30:00") )
+    tkMaskEdit_SetMask( w, TKMASK_DATETIME, "yyyy-mm-dd hh:nn" )
+    tkMaskEdit_SetBindText( w, "2026-12-25T14:30:00" )
+    tkTest_Check( "DATETIME bind text", (TextOf( w ) = "2026-12-25 14:30") andalso (tkMaskEdit_GetBindText( w ) = "2026-12-25T14:30:00"), _
+        tkMaskEdit_GetBindText( w ) )
+    tkMaskEdit_SetBindText( w, "2027-01-02" )
+    tkTest_Check( "... a date alone is that day at 00:00", TextOf( w ) = "2027-01-02 00:00", TextOf( w ) )
     tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
 
     ' ---- colours are the field's -----------------------------------------------------------------

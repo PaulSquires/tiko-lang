@@ -1,0 +1,92 @@
+format = 1
+
+[form]
+caption = "Order"
+width = 420
+height = 300
+data_type = "orderdata.Order"
+data_module = "../orderdata"
+
+[[control]]
+name = "mePhone"
+type = "MaskEdit"
+parent = ""
+x = 16
+y = 16
+w = 200
+h = 28
+bind = "Phone"
+required = true
+
+[control.props]
+Mask = "(999) 000-0000"
+ValueFormat = "Literals"
+
+[[control]]
+name = "mePost"
+type = "MaskEdit"
+parent = ""
+x = 16
+y = 56
+w = 120
+h = 28
+bind = "Postcode"
+
+[control.props]
+Mask = ">L0L 0L0"
+
+[[control]]
+name = "meCode"
+type = "MaskEdit"
+parent = ""
+x = 16
+y = 96
+w = 160
+h = 28
+bind = "Code"
+
+[control.props]
+MaskKind = "Regex"
+Mask = "[A-Z]{2}\\d{6}"
+
+[[control]]
+name = "mePrice"
+type = "MaskEdit"
+parent = ""
+x = 16
+y = 136
+w = 140
+h = 28
+bind = "Price"
+
+[control.props]
+MaskKind = "Numeric"
+Mask = "$#,##0.00"
+
+[[control]]
+name = "meBorn"
+type = "MaskEdit"
+parent = ""
+x = 16
+y = 176
+w = 140
+h = 28
+bind = "Born"
+
+[control.props]
+MaskKind = "Date"
+Mask = "dd/mm/yyyy"
+
+[[control]]
+name = "meAppt"
+type = "MaskEdit"
+parent = ""
+x = 16
+y = 216
+w = 100
+h = 28
+bind = "Appt"
+
+[control.props]
+MaskKind = "Time"
+Mask = "hh:nn"

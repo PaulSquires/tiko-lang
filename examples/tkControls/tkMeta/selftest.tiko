@@ -93,8 +93,9 @@ sub CheckControl( byval c as TKMETA_CONTROL ptr, byval h as TK_HOST ptr, byval p
             tkTest_Check( c->Name & "." & p->Name & " has a font thunk", p->ApplyFont <> 0 )
             p->ApplyFont( w, h->pDefaultFont )
         case "text"
-            ' a ChipGroup splits its Items and SelectedKeys by KeySeparator: "abc" there would swallow them
-            TryValue( c, p, w, iif( c->Name & "." & p->Name = "ChipGroup.KeySeparator", ",", "abc" ) )
+            ' a ChipGroup splits its Items and SelectedKeys by KeySeparator: "abc" there would swallow them;
+            ' a MaskEdit's PromptChar keeps one character
+            TryValue( c, p, w, iif( c->Name & "." & p->Name = "ChipGroup.KeySeparator", ",", iif( c->Name & "." & p->Name = "MaskEdit.PromptChar", "*", "abc" ) ) )
         case "glyph"
             p->Apply( w, "A" )
         case "file"
@@ -145,7 +146,7 @@ sub RunPass( byval fScale as single )
     tkHost_Show( h )
     tkTest_PumpFor( h, 50 )
     dim as TK_WIDGET ptr root_ = tkHost_Root( h )
-    tkTest_Check( "the table is populated", tkMeta_Count( ) = 54, str( tkMeta_Count( ) ) )
+    tkTest_Check( "the table is populated", tkMeta_Count( ) = 55, str( tkMeta_Count( ) ) )
     tkTest_Check( "find by name", tkMeta_Find( "Button" ) <> 0 )
     tkTest_Check( "find misses", tkMeta_Find( "NoSuchControl" ) = 0 )
     tkTest_Check( "find a property", tkMeta_FindProp( tkMeta_Find( "Button" ), "Text" ) <> 0 )
@@ -162,8 +163,8 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "42 controls describe a colour struct, 600 fields", (nColors = 42) andalso (nSlots = 600), nColors & " / " & nSlots )
-    tkTest_Check( "26 shape properties, 18 hidden colour properties", (nShape = 26) andalso (nHidden = 18), nShape & " / " & nHidden )
+    tkTest_Check( "43 controls describe a colour struct, 610 fields", (nColors = 43) andalso (nSlots = 610), nColors & " / " & nSlots )
+    tkTest_Check( "28 shape properties, 18 hidden colour properties", (nShape = 28) andalso (nHidden = 18), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
         andalso (tkMeta_ColorCell( btn, "", "Back", "Hot" ) = 4) andalso (tkMeta_ColorCell( btn, "", "Back", "Open" ) = -1) )
@@ -181,9 +182,9 @@ sub RunPass( byval fScale as single )
         dim as TKMETA_CONTROL ptr c = tkMeta_At( i )
         if len( c->BindKind ) then bound &= c->Name & ":" & c->BindKind & iif( c->BindLoadOnly, "!", "" ) & " "
     next
-    tkTest_Check( "twenty-four bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
+    tkTest_Check( "twenty-five bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
         & "NumericUpDown:float Slider:float ComboBox:int DatePicker:date TimePicker:time DateTimePicker:datetime ColorPicker:int CodeEdit:text InfoBar:text! " _
-        & "CheckedList:text CheckedComboBox:text TokenBox:text AutoComplete:text Rating:float Badge:int! Avatar:text! Chip:bool ChipGroup:text Barcode:text! ", bound )
+        & "CheckedList:text CheckedComboBox:text TokenBox:text AutoComplete:text Rating:float Badge:int! Avatar:text! Chip:bool ChipGroup:text Barcode:text! MaskEdit:text ", bound )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )

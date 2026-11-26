@@ -42,6 +42,7 @@
 #import "../tkMask" public
 #import "../tkCalendar" public
 #import "../tkTimePanel" public
+#import "../tkBind" public
 using tkHost
 using tkPaint
 using tkTheme
@@ -49,11 +50,12 @@ using tkTextBox
 using tkMask
 using tkCalendar
 using tkTimePanel
+using tkBind
 
 public type TKMASKEDIT_COLORS as TKTEXTBOX_COLORS
 
 public type MSK_ChangeCallbackSub as sub( byval hCtrl as TK_WIDGET ptr )
-public type MSK_RejectedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval nPos as long, byval nReason as long, _
+public type MSK_RejectedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval nPos as int32, byval nReason as int32, _
                                             byref sText as const ustring )
 public type MSK_CommitCallbackSub as sub( byval hCtrl as TK_WIDGET ptr )
 public type MSK_FocusCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval bGotFocus as boolean )
@@ -61,21 +63,23 @@ public type MSK_FocusCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval bGo
 public type TKMASKEDIT_STATE
     hWin          as TK_WIDGET ptr
     hEdit         as TK_WIDGET ptr       ' the tkTextBox child
-    id            as long
+    id            as int32
     spec          as TKMASK_SPEC
     bMasked       as boolean             ' a mask is set (no mask: a plain text box)
     sEdit         as string              ' the edit form, UTF-8: the value while unfocused
     bFocused      as boolean
     bHidePrompt   as boolean
-    nValueFormat  as long = TKMASK_FMT_RAW
-    nCopyFormat   as long = TKMASK_FMT_LITERALS
+    nValueFormat  as int32 = TKMASK_FMT_RAW
+    nCopyFormat   as int32 = TKMASK_FMT_LITERALS
     bShowError    as boolean = true
     bZeroWhenEmpty as boolean            ' NUMERIC: an empty box commits as 0
-    nPendingRej   as long                ' a partial paste's reason, reported after its Change
-    nPendingPos   as long
+    nPendingRej   as int32                ' a partial paste's reason, reported after its Change
+    nPendingPos   as int32
     sPendingIns   as string
     bRaw          as boolean             ' a spin: the filter takes the next ReplaceSel as it is
-    nRawCaret     as long
+    nRawCaret     as int32
+    nKindWanted   as int32 = TKMASK_FIXED  ' the designer's MaskKind / Mask, set in either order
+    sPatternWanted as ustring
     ChangeCallback   as MSK_ChangeCallbackSub
     RejectedCallback as MSK_RejectedCallbackSub
     CommitCallback   as MSK_CommitCallbackSub
@@ -118,14 +122,14 @@ end sub
 
 ' The screen keyboard: a number pad when every editable slot takes digits (0 9 #).
 private sub MeTextKind( byval p as TKMASKEDIT_STATE ptr )
-    dim as long k = TK_TEXT_LINE
+    dim as int32 k = TK_TEXT_LINE
     if p->bMasked andalso (p->spec.kind = TKMASK_NUMERIC) then
         k = iif( p->spec.fmt.dec > 0, TK_TEXT_DECIMAL, TK_TEXT_INTEGER )
     elseif p->bMasked andalso (p->spec.kind >= TKMASK_DATE) andalso (p->spec.kind <= TKMASK_DATETIME) then
         k = TK_TEXT_INTEGER                    ' digits only: the separators come by themselves
     elseif p->bMasked andalso (p->spec.kind = TKMASK_FIXED) then
         k = TK_TEXT_INTEGER
-        for i as long = 0 to p->spec.nSlots - 1
+        for i as int32 = 0 to p->spec.nSlots - 1
             select case p->spec.slots(i).kind
             case TKMS_LITERAL, TKMS_DIGIT, TKMS_DIGITSPACE, TKMS_DIGITSIGN
             case else : k = TK_TEXT_LINE : exit for
@@ -135,7 +139,7 @@ private sub MeTextKind( byval p as TKMASKEDIT_STATE ptr )
     tkWidget_SetTextKind( p->hEdit, k )
 end sub
 
-private sub MeFireRejected( byval p as TKMASKEDIT_STATE ptr, byval nPos as long, byval nReason as long, byref ins as const string )
+private sub MeFireRejected( byval p as TKMASKEDIT_STATE ptr, byval nPos as int32, byval nReason as int32, byref ins as const string )
     if p->RejectedCallback = 0 then exit sub
     dim as ustring u = ins
     p->RejectedCallback( p->hWin, nPos, nReason, u )
@@ -184,7 +188,7 @@ private function MeFilter( byval e as TKTEXTBOX_EDITINFO ptr ) as boolean
         e->outCaret = p->nRawCaret
         return true
     end if
-    dim as long reason
+    dim as int32 reason
     select case e->reason
     case TXT_EDIT_BACKSPACE : reason = TKMASK_EDIT_BACKSPACE
     case TXT_EDIT_DELETE : reason = TKMASK_EDIT_DELETE
@@ -213,7 +217,7 @@ private sub MeOnEditChange( byval hEdit as TK_WIDGET ptr )
     p->sEdit = MeEditText( p )
     if p->ChangeCallback then p->ChangeCallback( p->hWin )
     if p->nPendingRej <> TKMASK_REJ_NONE then
-        dim as long r = p->nPendingRej
+        dim as int32 r = p->nPendingRej
         p->nPendingRej = TKMASK_REJ_NONE
         MeFireRejected( p, p->nPendingPos, r, p->sPendingIns )
     end if
@@ -228,7 +232,7 @@ private sub MeOnEditFocus( byval hEdit as TK_WIDGET ptr, byval bGot as boolean )
             if tkMask_IsEmpty( p->spec, p->sEdit ) then
                 p->sEdit = tkMask_Template( p->spec )
                 MeSync( p )
-                dim as long f = tkMask_FirstEmpty( p->spec, p->sEdit )
+                dim as int32 f = tkMask_FirstEmpty( p->spec, p->sEdit )
                 if f < 0 then f = 0
                 tkTextBox_SetSel( p->hEdit, f, f )
             elseif MeEditText( p ) <> p->sEdit then
@@ -247,7 +251,7 @@ end sub
 
 ' A spin: the segment at the caret stepped by tkMask_Spin, landed through ReplaceSel (one undo
 ' step, the caret kept), then Change -- a user's edit.
-private sub MeSpin( byval p as TKMASKEDIT_STATE ptr, byval delta as long )
+private sub MeSpin( byval p as TKMASKEDIT_STATE ptr, byval delta as int32 )
     dim as string s = MeEditText( p )
     dim as integer a, b
     tkTextBox_GetSel( p->hEdit, a, b )
@@ -282,7 +286,7 @@ private function MeOnEditMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as bool
         ' DATE / TIME / DATETIME: Up / Down step the segment at the caret, PgUp / PgDn by 10 (D-12)
         select case p->spec.kind
         case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
-            dim as long delta = 0
+            dim as int32 delta = 0
             select case m->key
             case SDLK_UP : delta = 1
             case SDLK_DOWN : delta = -1
@@ -298,7 +302,7 @@ private function MeOnEditMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as bool
         dim as integer a, b
         tkTextBox_GetSel( p->hEdit, a, b )
         if a = b then
-            dim as long f = tkMask_FirstEmpty( p->spec, MeEditText( p ) )
+            dim as int32 f = tkMask_FirstEmpty( p->spec, MeEditText( p ) )
             if (f >= 0) andalso (a > f) then tkTextBox_SetSel( p->hEdit, f, f )
         end if
     end select
@@ -319,6 +323,7 @@ private function MeProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as bo
         tkHost_SetFocus( w->pHost, p->hEdit )
         return true
     case TKM_DESTROY
+        tkBind_SetValidator( w, 0 )
         delete p
         w->pData = 0
         return true
@@ -330,7 +335,9 @@ end function
 ' ==========================================================================================
 ' Public API
 ' ==========================================================================================
-public function tkMaskEdit_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+declare function MeValidate( byval w as TK_WIDGET ptr, byref msg as ustring ) as int32
+
+public function tkMaskEdit_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as int32 ) as TK_WIDGET ptr
     if hParent = 0 then return 0
     dim as TKMASKEDIT_STATE ptr p = new TKMASKEDIT_STATE
     p->id = CtrlID
@@ -342,6 +349,7 @@ public function tkMaskEdit_Create( byval hParent as TK_WIDGET ptr, byval CtrlID 
     tkTextBox_SetEnterPressedCallback( p->hEdit, @MeOnEditEnter )
     tkTextBox_SetMessageCallback( p->hEdit, @MeOnEditMessage )
     tkTextBox_SetEditFilter( p->hEdit, @MeFilter, p )
+    tkBind_SetValidator( w, @MeValidate )
     MeTextKind( p )
     return w
 end function
@@ -354,7 +362,7 @@ public function tkMaskEdit_GetEdit( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET 
     return p->hEdit
 end function
 
-public function tkMaskEdit_GetID( byval hCtrl as TK_WIDGET ptr ) as long
+public function tkMaskEdit_GetID( byval hCtrl as TK_WIDGET ptr ) as int32
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return 0
     return p->id
@@ -363,10 +371,12 @@ end function
 ' The mask (TKMASK_*, a pattern). FALSE, and the old mask kept, when the pattern does not compile
 ' (REGEX: also when no provider is registered -- tkMaskEditRegex_Enable -- or PCRE2 refuses the
 ' pattern; tkMask_RegexError says why). A new mask clears the value. Silent.
-public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as long, byref sMask as const ustring ) as boolean
+public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as int32, byref sMask as const ustring ) as boolean
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return false
-    dim as long oldKind = iif( p->bMasked, p->spec.kind, TKMASK_NONE )
+    p->nKindWanted = nKind
+    p->sPatternWanted = sMask
+    dim as int32 oldKind = iif( p->bMasked, p->spec.kind, TKMASK_NONE )
     if tkMask_Compile( p->spec, nKind, sMask ) = false then return false
     ' an empty year spins to this year
     dim as TKDATETIME now_ = tkTimePanel_LocalNowDateTime( )
@@ -383,15 +393,17 @@ public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as
     return true
 end function
 
-public function tkMaskEdit_GetMaskKind( byval hCtrl as TK_WIDGET ptr ) as long
+public function tkMaskEdit_GetMaskKind( byval hCtrl as TK_WIDGET ptr ) as int32
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
-    if (p = 0) orelse (p->bMasked = false) then return TKMASK_NONE
+    if p = 0 then return TKMASK_NONE
+    if p->bMasked = false then return p->nKindWanted
     return p->spec.kind
 end function
 
 public function tkMaskEdit_GetMask( byval hCtrl as TK_WIDGET ptr ) as ustring
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
-    if (p = 0) orelse (p->bMasked = false) then return ""
+    if p = 0 then return ""
+    if p->bMasked = false then return p->sPatternWanted
     return p->spec.pattern
 end function
 
@@ -726,26 +738,26 @@ public function tkMaskEdit_GetHidePromptOnLeave( byval hCtrl as TK_WIDGET ptr ) 
 end function
 
 ' The form GetValueText returns (TKMASK_FMT_*; default RAW).
-public sub tkMaskEdit_SetValueFormat( byval hCtrl as TK_WIDGET ptr, byval nFormat as long )
+public sub tkMaskEdit_SetValueFormat( byval hCtrl as TK_WIDGET ptr, byval nFormat as int32 )
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if (p = 0) orelse (nFormat < TKMASK_FMT_RAW) orelse (nFormat > TKMASK_FMT_BOTH) then exit sub
     p->nValueFormat = nFormat
 end sub
 
-public function tkMaskEdit_GetValueFormat( byval hCtrl as TK_WIDGET ptr ) as long
+public function tkMaskEdit_GetValueFormat( byval hCtrl as TK_WIDGET ptr ) as int32
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return TKMASK_FMT_RAW
     return p->nValueFormat
 end function
 
 ' The form Copy and Cut put on the clipboard (default LITERALS: literals kept, empty slots as spaces).
-public sub tkMaskEdit_SetCopyFormat( byval hCtrl as TK_WIDGET ptr, byval nFormat as long )
+public sub tkMaskEdit_SetCopyFormat( byval hCtrl as TK_WIDGET ptr, byval nFormat as int32 )
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if (p = 0) orelse (nFormat < TKMASK_FMT_RAW) orelse (nFormat > TKMASK_FMT_BOTH) then exit sub
     p->nCopyFormat = nFormat
 end sub
 
-public function tkMaskEdit_GetCopyFormat( byval hCtrl as TK_WIDGET ptr ) as long
+public function tkMaskEdit_GetCopyFormat( byval hCtrl as TK_WIDGET ptr ) as int32
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return TKMASK_FMT_LITERALS
     return p->nCopyFormat
@@ -830,12 +842,12 @@ public function tkMaskEdit_GetCueBannerText( byval hCtrl as TK_WIDGET ptr ) as u
     return tkTextBox_GetCueBannerText( p->hEdit )
 end function
 
-public sub tkMaskEdit_SetTextAlign( byval hCtrl as TK_WIDGET ptr, byval nAlign as long )
+public sub tkMaskEdit_SetTextAlign( byval hCtrl as TK_WIDGET ptr, byval nAlign as int32 )
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p then tkTextBox_SetTextAlign( p->hEdit, nAlign )
 end sub
 
-public function tkMaskEdit_GetTextAlign( byval hCtrl as TK_WIDGET ptr ) as long
+public function tkMaskEdit_GetTextAlign( byval hCtrl as TK_WIDGET ptr ) as int32
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return TXT_ALIGN_LEFT
     return tkTextBox_GetTextAlign( p->hEdit )
@@ -908,3 +920,119 @@ public sub tkMaskEdit_SetFocusCallback( byval hCtrl as TK_WIDGET ptr, byval user
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p then p->FocusCallback = usersub
 end sub
+
+' ---- the designer and data binding (M5) -----------------------------------------------------------
+' The designer sets MaskKind and Mask as two properties, in either order: each keeps its value and
+' sets the mask once both are there (a kind alone keeps the box plain). Code calls SetMask.
+public sub tkMaskEdit_SetMaskKind( byval hCtrl as TK_WIDGET ptr, byval nKind as int32 )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->nKindWanted = nKind
+    if len( p->sPatternWanted ) then tkMaskEdit_SetMask( hCtrl, nKind, p->sPatternWanted )
+end sub
+
+public sub tkMaskEdit_SetMaskPattern( byval hCtrl as TK_WIDGET ptr, byref sMask as const ustring )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->sPatternWanted = sMask
+    if len( sMask ) then tkMaskEdit_SetMask( hCtrl, p->nKindWanted, sMask )
+end sub
+
+private function MePad4( byval n as int32 ) as string
+    return right( "000" & n, 4 )
+end function
+
+private function MePad2( byval n as int32 ) as string
+    return right( "0" & n, 2 )
+end function
+
+' THE BIND TEXT (MASKEDIT D-16, revised 2026-11-26): one canonical text per kind, which tkBind turns
+' into any field -- a number "1234.50" (VAL / STR), a date "2026-12-25", a time "14:30:00", a date and
+' time "2026-12-25T14:30:00" (ISO, as tkBind reads and writes them), the value text (ValueFormat)
+' for FIXED and REGEX. "" when empty. A value that is not complete or real comes back as the box
+' shows it, so the bound field's strict check -- or the validator below -- refuses it.
+public function tkMaskEdit_GetBindText( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then return ""
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if p->bMasked = false then return tkMaskEdit_GetText( hCtrl )
+    if tkMask_IsEmpty( p->spec, p->sEdit ) then return ""
+    dim as TKMASK_DT dt
+    select case p->spec.kind
+    case TKMASK_DATE
+        if tkMask_GetDT( p->spec, p->sEdit, dt ) then return MePad4( dt.y ) & "-" & MePad2( dt.mo ) & "-" & MePad2( dt.d )
+    case TKMASK_TIME
+        if tkMask_GetDT( p->spec, p->sEdit, dt ) then return MePad2( dt.h ) & ":" & MePad2( dt.mi ) & ":" & MePad2( dt.s )
+    case TKMASK_DATETIME
+        if tkMask_GetDT( p->spec, p->sEdit, dt ) then
+            return MePad4( dt.y ) & "-" & MePad2( dt.mo ) & "-" & MePad2( dt.d ) & "T" & MePad2( dt.h ) & ":" & MePad2( dt.mi ) & ":" & MePad2( dt.s )
+        end if
+    case else
+        return tkMaskEdit_GetValueText( hCtrl )
+    end select
+    dim as ustring u = p->sEdit
+    return u
+end function
+
+' The bind text back (tkBind_Text of the field): a number, an ISO date / time / date and time, or
+' the value text. Silent; clears the error tint. Text the kind cannot read is mapped as SetText does.
+public sub tkMaskEdit_SetBindText( byval hCtrl as TK_WIDGET ptr, byref sText as const ustring )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    if (p->bMasked = false) orelse (len( trim( sText ) ) = 0) then tkMaskEdit_SetText( hCtrl, sText ) : exit sub
+    select case p->spec.kind
+    case TKMASK_NUMERIC
+        tkMaskEdit_SetValue( hCtrl, val( sText ) )
+    case TKMASK_DATE
+        dim as TKDATE d = tkBind_Date( sText )
+        if d.wYear > 0 then tkMaskEdit_SetDateValue( hCtrl, d ) else tkMaskEdit_SetText( hCtrl, sText )
+    case TKMASK_TIME
+        dim as TKTIME t = tkBind_Time( sText )
+        if t.wHour >= 0 then tkMaskEdit_SetTimeValue( hCtrl, t ) else tkMaskEdit_SetText( hCtrl, sText )
+    case TKMASK_DATETIME
+        dim as TKDATETIME x = tkBind_DateTime( sText )
+        if x.wYear > 0 then
+            tkMaskEdit_SetDateTimeValue( hCtrl, x )
+        else
+            dim as TKDATE d = tkBind_Date( sText )
+            if d.wYear > 0 then tkMaskEdit_SetDateTimeValue( hCtrl, tkTimePanel_MakeDateTime( d.wYear, d.wMonth, d.wDay ) ) _
+            else tkMaskEdit_SetText( hCtrl, sText )
+        end if
+    case else
+        tkMaskEdit_SetText( hCtrl, sText )
+    end select
+end sub
+
+' tkBind's validator for this control: a designed form's SaveTo asks it before the field's own check,
+' for a non-empty value. Incomplete, not a real date or time, outside the range, not matching.
+private function MeValidate( byval w as TK_WIDGET ptr, byref msg as ustring ) as int32
+    dim as TKMASKEDIT_STATE ptr p = ME( w )
+    if (p = 0) orelse (p->bMasked = false) then return TKBIND_ERR_NONE
+    if p->bFocused then p->sEdit = MeEditText( p )
+    if tkMask_IsEmpty( p->spec, p->sEdit ) orelse tkMask_IsValid( p->spec, p->sEdit ) then return TKBIND_ERR_NONE
+    select case p->spec.kind
+    case TKMASK_REGEX
+        msg = "does not match its pattern"
+        return TKBIND_ERR_INCOMPLETE
+    case TKMASK_NUMERIC
+        dim as float64 v
+        tkMask_GetNumber( p->spec, p->sEdit, v )
+        if p->spec.hasMin andalso (v < p->spec.minV) then msg = "is below " & tkMask_TextOfNumber( p->spec, p->spec.minV ) : return TKBIND_ERR_BELOWMIN
+        msg = "is above " & tkMask_TextOfNumber( p->spec, p->spec.maxV )
+        return TKBIND_ERR_ABOVEMAX
+    end select
+    if tkMask_IsComplete( p->spec, p->sEdit ) = false then
+        msg = "is incomplete"
+        return TKBIND_ERR_INCOMPLETE
+    end if
+    select case p->spec.kind
+    case TKMASK_DATE, TKMASK_DATETIME
+        msg = "is not a real date, or is outside its range"
+        return TKBIND_ERR_NOTDATE
+    case TKMASK_TIME
+        msg = "is outside its range"
+        return TKBIND_ERR_NOTTIME
+    end select
+    msg = "is not valid"
+    return TKBIND_ERR_INCOMPLETE
+end function

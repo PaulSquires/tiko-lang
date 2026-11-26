@@ -29,11 +29,13 @@
 #import "std/containers"
 #import "std/chrono"
 #import "../tkCalendar" public
+#import "../tkTimePanel" public
 #import "../tkApp"
 #import "../tkMessageBox"
 using chrono
 using containers
 using tkCalendar
+using tkTimePanel
 using tkApp
 using tkMessageBox
 using tkHost
@@ -51,6 +53,8 @@ public enum
     TKBIND_ERR_ABOVEMAX         ' above the rule's Maximum
     TKBIND_ERR_CLAMPED          ' LoadFrom: the control shows something else than the field holds
     TKBIND_ERR_NOTINLIST        ' LoadFrom: a ComboBox has no item with the field's value (B3)
+    TKBIND_ERR_INCOMPLETE       ' a control's own verdict (a mask with empty required slots, MASKEDIT M5)
+    TKBIND_ERR_NOTTIME          ' text that is no time, into a time field
 end enum
 
 ' One problem with one bound control.
@@ -298,7 +302,56 @@ private function Quoted_( byref s as const ustring ) as ustring
     return "'" & trim( s ) & "'"
 end function
 
-' The rules every text value meets first: Required, MaxLength. True when it is empty.
+' ---- a control's own verdict (MASKEDIT M5) ---------------------------------------------------------
+' A control that knows more than its text says -- a masked box that is incomplete, or holds no
+' real date -- registers a validator for its widget. Every text check asks it first, for a
+' non-empty value: a non-zero TKBIND_ERR_* (and msg) is the error, and the field's own parsing is
+' skipped. fn = 0 removes it; a control removes its own when it is destroyed.
+public type TKBIND_ValidatorFunc as function( byval w as TK_WIDGET ptr, byref msg as ustring ) as int32
+
+type TKBIND_VALIDATOR_
+    w  as TK_WIDGET ptr
+    fn as TKBIND_ValidatorFunc
+end type
+dim shared as TKBIND_VALIDATOR_ gBindValidators( any )
+dim shared as int32 gnBindValidators
+
+public sub tkBind_SetValidator( byval w as TK_WIDGET ptr, byval fn as TKBIND_ValidatorFunc )
+    for i as int32 = 0 to gnBindValidators - 1
+        if gBindValidators( i ).w = w then
+            if fn then
+                gBindValidators( i ).fn = fn
+            else
+                gnBindValidators -= 1
+                gBindValidators( i ) = gBindValidators( gnBindValidators )
+            end if
+            exit sub
+        end if
+    next
+    if fn = 0 then exit sub
+    redim preserve gBindValidators( 0 to gnBindValidators )
+    gBindValidators( gnBindValidators ).w = w
+    gBindValidators( gnBindValidators ).fn = fn
+    gnBindValidators += 1
+end sub
+
+private function Validated_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, _
+                             byref v as const ustring ) as boolean
+    for i as int32 = 0 to gnBindValidators - 1
+        if gBindValidators( i ).w = w then
+            dim as TKBIND_ValidatorFunc fn = gBindValidators( i ).fn
+            dim as ustring msg
+            dim as int32 code = fn( w, msg )
+            if code = TKBIND_ERR_NONE then return true
+            e.Add( w, fld, code, v, msg )
+            return false
+        end if
+    next
+    return true
+end function
+
+' The rules every text value meets first: Required, MaxLength, the control's own validator. True when
+' the field's own parsing has nothing (more) to do: the value is empty, or the validator refused it.
 private function TextRules_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, _
                              byref v as const ustring, byref ru as const TKBIND_RULE ) as boolean
     dim as boolean empty_ = (len( trim( v ) ) = 0)
@@ -306,7 +359,8 @@ private function TextRules_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr,
     if (ru.MaxLength > 0) andalso (len( v ) > ru.MaxLength) then
         e.Add( w, fld, TKBIND_ERR_TOOLONG, v, "is longer than " & ru.MaxLength & " characters" )
     end if
-    return empty_
+    if empty_ then return true
+    return Validated_( e, w, fld, v ) = false
 end function
 
 private function FieldRange_( byval bUnsigned as boolean, byval nBytes as long ) as ustring
@@ -387,6 +441,20 @@ private sub CheckTextDate_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, 
         if IsDatePattern_( ru.Format ) then want = ru.Format
         e.Add( w, fld, TKBIND_ERR_NOTDATE, v, Quoted_( v ) & " is not a date (" & want & ")" )
     end if
+end sub
+
+' A time as text (ISO HH:mm[:ss[.fff]], a masked box's bind text), into a time field.
+private sub CheckTextTime_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref v as const ustring, byref ru as const TKBIND_RULE )
+    if TextRules_( e, w, fld, v, ru ) then exit sub
+    dim as TKTIME t
+    if tkTimePanel_ParseIso( trim( v ), t ) = false then e.Add( w, fld, TKBIND_ERR_NOTTIME, v, Quoted_( v ) & " is not a time (HH:mm:ss)" )
+end sub
+
+' A date and time as text (ISO yyyy-mm-ddTHH:mm:ss), into a TKDATETIME field.
+private sub CheckTextDateTime_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref v as const ustring, byref ru as const TKBIND_RULE )
+    if TextRules_( e, w, fld, v, ru ) then exit sub
+    dim as TKDATETIME dt
+    if tkTimePanel_ParseIsoDateTime( trim( v ), dt ) = false then e.Add( w, fld, TKBIND_ERR_NOTDATE, v, Quoted_( v ) & " is not a date and time (yyyy-mm-ddTHH:mm:ss)" )
 end sub
 
 private sub CheckRequiredInt_( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byval v as longint, byref ru as const TKBIND_RULE )
@@ -554,6 +622,9 @@ public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byr
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as string, byref v as const ustring, byref ru as const TKBIND_RULE ) : CheckTextText_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKDATE, byref v as const ustring, byref ru as const TKBIND_RULE ) : CheckTextDate_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as LocalDate, byref v as const ustring, byref ru as const TKBIND_RULE ) : CheckTextDate_( e, w, fld, v, ru ) : end sub
+public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKTIME, byref v as const ustring, byref ru as const TKBIND_RULE ) : CheckTextTime_( e, w, fld, v, ru ) : end sub
+public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as chrono.LocalTime, byref v as const ustring, byref ru as const TKBIND_RULE ) : CheckTextTime_( e, w, fld, v, ru ) : end sub
+public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as TKDATETIME, byref v as const ustring, byref ru as const TKBIND_RULE ) : CheckTextDateTime_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as boolean, byval v as longint, byref ru as const TKBIND_RULE ) : CheckRequiredInt_( e, w, fld, v, ru ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as byte, byval v as longint, byref ru as const TKBIND_RULE ) : CheckIntWhole_( e, w, fld, v, ru, false, 1 ) : end sub
 public sub tkBind_Check( byref e as TKBIND_ERRORS, byval w as TK_WIDGET ptr, byref fld as const ustring, byref f as ubyte, byval v as longint, byref ru as const TKBIND_RULE ) : CheckIntWhole_( e, w, fld, v, ru, true, 1 ) : end sub

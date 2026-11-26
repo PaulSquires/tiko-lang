@@ -2487,3 +2487,53 @@ events = [
   { name="Paint", set="tkBarcode_SetPaintCallback", type="BC_PaintCallbackSub", sig="byval p as TKBARCODE_PAINTINFO ptr", params="byval p as TKBARCODE_PAINTINFO ptr", args="p", widget="p->hBarcode" },
   { name="Message", set="tkBarcode_SetMessageCallback", type="BC_MessageCallbackFunc", sig="byval m as TKBARCODE_MESSAGEINFO ptr", params="byval m as TKBARCODE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hBarcode", returns="boolean", result="Handled" },
 ]
+
+[[control]]
+# docs/tkControls/MASKEDIT.md (M5). Bound as TEXT through the canonical bind text (D-16 revised): a
+# number "1234.50", an ISO date / time / date-time, the value text for Fixed and Regex -- tkBind turns
+# it into any field. A Regex mask needs tkMaskEditRegex_Enable( ) once in the program.
+name = "MaskEdit"
+module = "tkMaskEdit"
+category = "Common"
+width = 160
+height = 28
+bind = { kind="text", get="tkMaskEdit_GetBindText", set="tkMaskEdit_SetBindText" }
+default_event = "Change"
+colors = { struct="TKTEXTBOX_COLORS", struct_module="tkTextBox", get="tkMaskEdit_GetColors", theme="tkMaskEdit_ThemeColors" }
+color_fields = [
+  { field="ForeColor", part="Fore", state="Normal", ink=true },
+  { field="BackColor", part="Back", state="Normal" },
+  { field="CueColor" },
+  { field="BorderColor", part="Border", state="Normal" },
+  { field="FocusBorderColor" },
+  { field="OuterBackColor" },
+  { field="SelBackColor" },
+  { field="SelForeColor" },
+  { field="ForeColorDisabled", part="Fore", state="Disabled", ink=true },
+  { field="ErrorColor" },
+]
+props = [
+  { name="MaskKind", kind="enum", enum="Fixed=tkMask.TKMASK_FIXED,Numeric=tkMask.TKMASK_NUMERIC,Date=tkMask.TKMASK_DATE,Time=tkMask.TKMASK_TIME,DateTime=tkMask.TKMASK_DATETIME,Regex=tkMask.TKMASK_REGEX", set="tkMaskEdit_SetMaskKind", get="tkMaskEdit_GetMaskKind", default="Fixed" },
+  { name="Mask", kind="text", set="tkMaskEdit_SetMaskPattern", get="tkMaskEdit_GetMask" },
+  { name="Text", kind="text", set="tkMaskEdit_SetText", get="tkMaskEdit_GetText" },
+  { name="PromptChar", kind="text", set="tkMaskEdit_SetPromptChar", get="tkMaskEdit_GetPromptChar" },
+  { name="HidePromptOnLeave", kind="bool", set="tkMaskEdit_SetHidePromptOnLeave", get="tkMaskEdit_GetHidePromptOnLeave", default="false" },
+  { name="ValueFormat", kind="enum", enum="Raw=tkMask.TKMASK_FMT_RAW,Literals=tkMask.TKMASK_FMT_LITERALS,Prompts=tkMask.TKMASK_FMT_PROMPTS,Both=tkMask.TKMASK_FMT_BOTH", set="tkMaskEdit_SetValueFormat", get="tkMaskEdit_GetValueFormat", default="Raw" },
+  { name="CopyFormat", kind="enum", enum="Raw=tkMask.TKMASK_FMT_RAW,Literals=tkMask.TKMASK_FMT_LITERALS,Prompts=tkMask.TKMASK_FMT_PROMPTS,Both=tkMask.TKMASK_FMT_BOTH", set="tkMaskEdit_SetCopyFormat", get="tkMaskEdit_GetCopyFormat", default="Literals" },
+  { name="InsertMode", kind="bool", set="tkMaskEdit_SetInsertMode", get="tkMaskEdit_GetInsertMode", default="false" },
+  { name="ShowError", kind="bool", set="tkMaskEdit_SetShowError", get="tkMaskEdit_GetShowError", default="true" },
+  { name="AllowNegative", kind="bool", set="tkMaskEdit_SetAllowNegative", get="tkMaskEdit_GetAllowNegative", default="true" },
+  { name="ZeroWhenEmpty", kind="bool", set="tkMaskEdit_SetZeroWhenEmpty", get="tkMaskEdit_GetZeroWhenEmpty", default="false" },
+  { name="ReadOnly", kind="bool", set="tkMaskEdit_SetReadOnly", get="tkMaskEdit_GetReadOnly", default="false" },
+  { name="TextAlign", kind="enum", enum="Left=tkTextBox.TXT_ALIGN_LEFT,Center=tkTextBox.TXT_ALIGN_CENTER,Right=tkTextBox.TXT_ALIGN_RIGHT", set="tkMaskEdit_SetTextAlign", get="tkMaskEdit_GetTextAlign", default="Left" },
+  { name="CueBannerText", kind="text", set="tkMaskEdit_SetCueBannerText", get="tkMaskEdit_GetCueBannerText" },
+  { name="Font", kind="font", set="tkMaskEdit_SetFont", get="tkMaskEdit_GetFont" },
+  { name="BorderWidth", kind="int", set="tkMaskEdit_SetBorderWidth", get="tkMaskEdit_GetBorderWidth", theme="BorderWidth", scale=1 },
+  { name="CornerRadius", kind="int", set="tkMaskEdit_SetCornerRadius", get="tkMaskEdit_GetCornerRadius", theme="CornerRadius", scale=1 },
+]
+events = [
+  { name="Change", set="tkMaskEdit_SetChangeCallback", type="MSK_ChangeCallbackSub", sig="byval hCtrl as TK_WIDGET ptr", params="", args="" },
+  { name="Rejected", set="tkMaskEdit_SetRejectedCallback", type="MSK_RejectedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval nPos as int32, byval nReason as int32, byref sText as const ustring", params="byval nPos as int32, byval nReason as int32, byref sText as const ustring", args="nPos, nReason, sText" },
+  { name="Commit", set="tkMaskEdit_SetCommitCallback", type="MSK_CommitCallbackSub", sig="byval hCtrl as TK_WIDGET ptr", params="", args="" },
+  { name="FocusChanged", set="tkMaskEdit_SetFocusCallback", type="MSK_FocusCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval bGotFocus as boolean", params="byval bGotFocus as boolean", args="bGotFocus" },
+]

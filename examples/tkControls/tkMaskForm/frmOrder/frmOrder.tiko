@@ -1,0 +1,5 @@
+' frmOrder's own code: nothing beyond the designed form.
+#module "frmOrder"
+
+public partial type Form
+end type

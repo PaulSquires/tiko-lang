@@ -1,0 +1,17 @@
+' The record frmOrder binds (MASKEDIT.md M5): each field a different type, each bound to a MaskEdit
+' through its canonical bind text, which tkBind turns into the field.
+#module "orderdata"
+
+#import "vendor/tkControls/tkCalendar" public
+#import "vendor/tkControls/tkTimePanel" public
+using tkCalendar
+using tkTimePanel
+
+public type Order
+    Phone    as ustring       ' mePhone: (999) 000-0000, the value text with its literals
+    Postcode as ustring       ' mePost: >L0L 0L0, raw
+    Code     as ustring       ' meCode: [A-Z]{2}\d{6}, a regex
+    Price    as float64       ' mePrice: $#,##0.00, a number
+    Born     as TKDATE        ' meBorn: dd/mm/yyyy, ISO through tkBind
+    Appt     as TKTIME        ' meAppt: hh:nn, ISO through tkBind
+end type

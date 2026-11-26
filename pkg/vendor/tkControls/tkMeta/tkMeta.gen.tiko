@@ -57,6 +57,7 @@
 #import "../tkChip"
 #import "../tkChipGroup"
 #import "../tkBarcode"
+#import "../tkMaskEdit"
 using tkHost
 using tkPaint
 using tkLabel
@@ -114,6 +115,7 @@ using tkAvatarGroup
 using tkChip
 using tkChipGroup
 using tkBarcode
+using tkMaskEdit
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -6072,6 +6074,196 @@ private function R_Barcode_TooltipText( byval w as TK_WIDGET ptr ) as ustring
     return tkBarcode_GetTooltipText( w )
 end function
 
+private function C_MaskEdit( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkMaskEdit_Create( hParent, id )
+end function
+
+private sub G_MaskEdit( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkMaskEdit_GetColors( w, cast( TKTEXTBOX_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_MaskEdit( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKTEXTBOX_COLORS ptr, pSlots ) = tkMaskEdit_ThemeColors( t )
+end sub
+
+private sub A_MaskEdit_MaskKind( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Fixed" : tkMaskEdit_SetMaskKind( w, tkMask.TKMASK_FIXED )
+    case "Numeric" : tkMaskEdit_SetMaskKind( w, tkMask.TKMASK_NUMERIC )
+    case "Date" : tkMaskEdit_SetMaskKind( w, tkMask.TKMASK_DATE )
+    case "Time" : tkMaskEdit_SetMaskKind( w, tkMask.TKMASK_TIME )
+    case "DateTime" : tkMaskEdit_SetMaskKind( w, tkMask.TKMASK_DATETIME )
+    case "Regex" : tkMaskEdit_SetMaskKind( w, tkMask.TKMASK_REGEX )
+    end select
+end sub
+
+private function R_MaskEdit_MaskKind( byval w as TK_WIDGET ptr ) as ustring
+    select case tkMaskEdit_GetMaskKind( w )
+    case tkMask.TKMASK_FIXED : return "Fixed"
+    case tkMask.TKMASK_NUMERIC : return "Numeric"
+    case tkMask.TKMASK_DATE : return "Date"
+    case tkMask.TKMASK_TIME : return "Time"
+    case tkMask.TKMASK_DATETIME : return "DateTime"
+    case tkMask.TKMASK_REGEX : return "Regex"
+    end select
+    return ""
+end function
+
+private sub A_MaskEdit_Mask( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetMaskPattern( w, v )
+end sub
+
+private function R_MaskEdit_Mask( byval w as TK_WIDGET ptr ) as ustring
+    return tkMaskEdit_GetMask( w )
+end function
+
+private sub A_MaskEdit_Text( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetText( w, v )
+end sub
+
+private function R_MaskEdit_Text( byval w as TK_WIDGET ptr ) as ustring
+    return tkMaskEdit_GetText( w )
+end function
+
+private sub A_MaskEdit_PromptChar( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetPromptChar( w, v )
+end sub
+
+private function R_MaskEdit_PromptChar( byval w as TK_WIDGET ptr ) as ustring
+    return tkMaskEdit_GetPromptChar( w )
+end function
+
+private sub A_MaskEdit_HidePromptOnLeave( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetHidePromptOnLeave( w, cbool( v = "true" ) )
+end sub
+
+private function R_MaskEdit_HidePromptOnLeave( byval w as TK_WIDGET ptr ) as ustring
+    if tkMaskEdit_GetHidePromptOnLeave( w ) then return "true" else return "false"
+end function
+
+private sub A_MaskEdit_ValueFormat( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Raw" : tkMaskEdit_SetValueFormat( w, tkMask.TKMASK_FMT_RAW )
+    case "Literals" : tkMaskEdit_SetValueFormat( w, tkMask.TKMASK_FMT_LITERALS )
+    case "Prompts" : tkMaskEdit_SetValueFormat( w, tkMask.TKMASK_FMT_PROMPTS )
+    case "Both" : tkMaskEdit_SetValueFormat( w, tkMask.TKMASK_FMT_BOTH )
+    end select
+end sub
+
+private function R_MaskEdit_ValueFormat( byval w as TK_WIDGET ptr ) as ustring
+    select case tkMaskEdit_GetValueFormat( w )
+    case tkMask.TKMASK_FMT_RAW : return "Raw"
+    case tkMask.TKMASK_FMT_LITERALS : return "Literals"
+    case tkMask.TKMASK_FMT_PROMPTS : return "Prompts"
+    case tkMask.TKMASK_FMT_BOTH : return "Both"
+    end select
+    return ""
+end function
+
+private sub A_MaskEdit_CopyFormat( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Raw" : tkMaskEdit_SetCopyFormat( w, tkMask.TKMASK_FMT_RAW )
+    case "Literals" : tkMaskEdit_SetCopyFormat( w, tkMask.TKMASK_FMT_LITERALS )
+    case "Prompts" : tkMaskEdit_SetCopyFormat( w, tkMask.TKMASK_FMT_PROMPTS )
+    case "Both" : tkMaskEdit_SetCopyFormat( w, tkMask.TKMASK_FMT_BOTH )
+    end select
+end sub
+
+private function R_MaskEdit_CopyFormat( byval w as TK_WIDGET ptr ) as ustring
+    select case tkMaskEdit_GetCopyFormat( w )
+    case tkMask.TKMASK_FMT_RAW : return "Raw"
+    case tkMask.TKMASK_FMT_LITERALS : return "Literals"
+    case tkMask.TKMASK_FMT_PROMPTS : return "Prompts"
+    case tkMask.TKMASK_FMT_BOTH : return "Both"
+    end select
+    return ""
+end function
+
+private sub A_MaskEdit_InsertMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetInsertMode( w, cbool( v = "true" ) )
+end sub
+
+private function R_MaskEdit_InsertMode( byval w as TK_WIDGET ptr ) as ustring
+    if tkMaskEdit_GetInsertMode( w ) then return "true" else return "false"
+end function
+
+private sub A_MaskEdit_ShowError( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetShowError( w, cbool( v = "true" ) )
+end sub
+
+private function R_MaskEdit_ShowError( byval w as TK_WIDGET ptr ) as ustring
+    if tkMaskEdit_GetShowError( w ) then return "true" else return "false"
+end function
+
+private sub A_MaskEdit_AllowNegative( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetAllowNegative( w, cbool( v = "true" ) )
+end sub
+
+private function R_MaskEdit_AllowNegative( byval w as TK_WIDGET ptr ) as ustring
+    if tkMaskEdit_GetAllowNegative( w ) then return "true" else return "false"
+end function
+
+private sub A_MaskEdit_ZeroWhenEmpty( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetZeroWhenEmpty( w, cbool( v = "true" ) )
+end sub
+
+private function R_MaskEdit_ZeroWhenEmpty( byval w as TK_WIDGET ptr ) as ustring
+    if tkMaskEdit_GetZeroWhenEmpty( w ) then return "true" else return "false"
+end function
+
+private sub A_MaskEdit_ReadOnly( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetReadOnly( w, cbool( v = "true" ) )
+end sub
+
+private function R_MaskEdit_ReadOnly( byval w as TK_WIDGET ptr ) as ustring
+    if tkMaskEdit_GetReadOnly( w ) then return "true" else return "false"
+end function
+
+private sub A_MaskEdit_TextAlign( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Left" : tkMaskEdit_SetTextAlign( w, tkTextBox.TXT_ALIGN_LEFT )
+    case "Center" : tkMaskEdit_SetTextAlign( w, tkTextBox.TXT_ALIGN_CENTER )
+    case "Right" : tkMaskEdit_SetTextAlign( w, tkTextBox.TXT_ALIGN_RIGHT )
+    end select
+end sub
+
+private function R_MaskEdit_TextAlign( byval w as TK_WIDGET ptr ) as ustring
+    select case tkMaskEdit_GetTextAlign( w )
+    case tkTextBox.TXT_ALIGN_LEFT : return "Left"
+    case tkTextBox.TXT_ALIGN_CENTER : return "Center"
+    case tkTextBox.TXT_ALIGN_RIGHT : return "Right"
+    end select
+    return ""
+end function
+
+private sub A_MaskEdit_CueBannerText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetCueBannerText( w, v )
+end sub
+
+private function R_MaskEdit_CueBannerText( byval w as TK_WIDGET ptr ) as ustring
+    return tkMaskEdit_GetCueBannerText( w )
+end function
+
+private sub F_MaskEdit_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkMaskEdit_SetFont( w, f )
+end sub
+
+private sub A_MaskEdit_BorderWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetBorderWidth( w, clng( val( v ) ) )
+end sub
+
+private function R_MaskEdit_BorderWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkMaskEdit_GetBorderWidth( w ) )
+end function
+
+private sub A_MaskEdit_CornerRadius( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkMaskEdit_SetCornerRadius( w, clng( val( v ) ) )
+end sub
+
+private function R_MaskEdit_CornerRadius( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkMaskEdit_GetCornerRadius( w ) )
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -7832,5 +8024,40 @@ sub Fill_( )
     Event_( "Click", "tkBarcode_SetClickCallback", "BC_ClickCallbackSub", "byval hBarcode as TK_WIDGET ptr, byval id as int32", "", "" )
     Event_( "Paint", "tkBarcode_SetPaintCallback", "BC_PaintCallbackSub", "byval p as TKBARCODE_PAINTINFO ptr", "byval p as TKBARCODE_PAINTINFO ptr", "p", "p->hBarcode", "", "" )
     Event_( "Message", "tkBarcode_SetMessageCallback", "BC_MessageCallbackFunc", "byval m as TKBARCODE_MESSAGEINFO ptr", "byval m as TKBARCODE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hBarcode", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "MaskEdit", "tkMaskEdit", "Common", 160, 28, "Change", "", @C_MaskEdit, "", "", "", "" )
+    Bind_( "text", "tkMaskEdit_GetBindText", "tkMaskEdit_SetBindText", false )
+    Colors_( "TKTEXTBOX_COLORS", "tkMaskEdit_GetColors", "tkMaskEdit_ThemeColors", @G_MaskEdit, @T_MaskEdit )
+    Color_( "ForeColor", "Fore", "Normal", "", true )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "CueColor", "", "", "", false )
+    Color_( "BorderColor", "Border", "Normal", "", false )
+    Color_( "FocusBorderColor", "", "", "", false )
+    Color_( "OuterBackColor", "", "", "", false )
+    Color_( "SelBackColor", "", "", "", false )
+    Color_( "SelForeColor", "", "", "", false )
+    Color_( "ForeColorDisabled", "Fore", "Disabled", "", true )
+    Color_( "ErrorColor", "", "", "", false )
+    Prop_( "MaskKind", "enum", "Fixed", "Fixed=tkMask.TKMASK_FIXED,Numeric=tkMask.TKMASK_NUMERIC,Date=tkMask.TKMASK_DATE,Time=tkMask.TKMASK_TIME,DateTime=tkMask.TKMASK_DATETIME,Regex=tkMask.TKMASK_REGEX", "tkMaskEdit_SetMaskKind", "tkMaskEdit_GetMaskKind", @A_MaskEdit_MaskKind, @R_MaskEdit_MaskKind, 0, true, true, "", 0 )
+    Prop_( "Mask", "text", "", "", "tkMaskEdit_SetMaskPattern", "tkMaskEdit_GetMask", @A_MaskEdit_Mask, @R_MaskEdit_Mask, 0, true, true, "", 0 )
+    Prop_( "Text", "text", "", "", "tkMaskEdit_SetText", "tkMaskEdit_GetText", @A_MaskEdit_Text, @R_MaskEdit_Text, 0, true, true, "", 0 )
+    Prop_( "PromptChar", "text", "", "", "tkMaskEdit_SetPromptChar", "tkMaskEdit_GetPromptChar", @A_MaskEdit_PromptChar, @R_MaskEdit_PromptChar, 0, true, true, "", 0 )
+    Prop_( "HidePromptOnLeave", "bool", "false", "", "tkMaskEdit_SetHidePromptOnLeave", "tkMaskEdit_GetHidePromptOnLeave", @A_MaskEdit_HidePromptOnLeave, @R_MaskEdit_HidePromptOnLeave, 0, true, true, "", 0 )
+    Prop_( "ValueFormat", "enum", "Raw", "Raw=tkMask.TKMASK_FMT_RAW,Literals=tkMask.TKMASK_FMT_LITERALS,Prompts=tkMask.TKMASK_FMT_PROMPTS,Both=tkMask.TKMASK_FMT_BOTH", "tkMaskEdit_SetValueFormat", "tkMaskEdit_GetValueFormat", @A_MaskEdit_ValueFormat, @R_MaskEdit_ValueFormat, 0, true, true, "", 0 )
+    Prop_( "CopyFormat", "enum", "Literals", "Raw=tkMask.TKMASK_FMT_RAW,Literals=tkMask.TKMASK_FMT_LITERALS,Prompts=tkMask.TKMASK_FMT_PROMPTS,Both=tkMask.TKMASK_FMT_BOTH", "tkMaskEdit_SetCopyFormat", "tkMaskEdit_GetCopyFormat", @A_MaskEdit_CopyFormat, @R_MaskEdit_CopyFormat, 0, true, true, "", 0 )
+    Prop_( "InsertMode", "bool", "false", "", "tkMaskEdit_SetInsertMode", "tkMaskEdit_GetInsertMode", @A_MaskEdit_InsertMode, @R_MaskEdit_InsertMode, 0, true, true, "", 0 )
+    Prop_( "ShowError", "bool", "true", "", "tkMaskEdit_SetShowError", "tkMaskEdit_GetShowError", @A_MaskEdit_ShowError, @R_MaskEdit_ShowError, 0, true, true, "", 0 )
+    Prop_( "AllowNegative", "bool", "true", "", "tkMaskEdit_SetAllowNegative", "tkMaskEdit_GetAllowNegative", @A_MaskEdit_AllowNegative, @R_MaskEdit_AllowNegative, 0, true, true, "", 0 )
+    Prop_( "ZeroWhenEmpty", "bool", "false", "", "tkMaskEdit_SetZeroWhenEmpty", "tkMaskEdit_GetZeroWhenEmpty", @A_MaskEdit_ZeroWhenEmpty, @R_MaskEdit_ZeroWhenEmpty, 0, true, true, "", 0 )
+    Prop_( "ReadOnly", "bool", "false", "", "tkMaskEdit_SetReadOnly", "tkMaskEdit_GetReadOnly", @A_MaskEdit_ReadOnly, @R_MaskEdit_ReadOnly, 0, true, true, "", 0 )
+    Prop_( "TextAlign", "enum", "Left", "Left=tkTextBox.TXT_ALIGN_LEFT,Center=tkTextBox.TXT_ALIGN_CENTER,Right=tkTextBox.TXT_ALIGN_RIGHT", "tkMaskEdit_SetTextAlign", "tkMaskEdit_GetTextAlign", @A_MaskEdit_TextAlign, @R_MaskEdit_TextAlign, 0, true, true, "", 0 )
+    Prop_( "CueBannerText", "text", "", "", "tkMaskEdit_SetCueBannerText", "tkMaskEdit_GetCueBannerText", @A_MaskEdit_CueBannerText, @R_MaskEdit_CueBannerText, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkMaskEdit_SetFont", "tkMaskEdit_GetFont", 0, 0, @F_MaskEdit_Font, true, true, "", 0 )
+    Prop_( "BorderWidth", "int", "", "", "tkMaskEdit_SetBorderWidth", "tkMaskEdit_GetBorderWidth", @A_MaskEdit_BorderWidth, @R_MaskEdit_BorderWidth, 0, true, true, "BorderWidth", 1 )
+    Prop_( "CornerRadius", "int", "", "", "tkMaskEdit_SetCornerRadius", "tkMaskEdit_GetCornerRadius", @A_MaskEdit_CornerRadius, @R_MaskEdit_CornerRadius, 0, true, true, "CornerRadius", 1 )
+    Event_( "Change", "tkMaskEdit_SetChangeCallback", "MSK_ChangeCallbackSub", "byval hCtrl as TK_WIDGET ptr", "", "" )
+    Event_( "Rejected", "tkMaskEdit_SetRejectedCallback", "MSK_RejectedCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval nPos as int32, byval nReason as int32, byref sText as const ustring", "byval nPos as int32, byval nReason as int32, byref sText as const ustring", "nPos, nReason, sText" )
+    Event_( "Commit", "tkMaskEdit_SetCommitCallback", "MSK_CommitCallbackSub", "byval hCtrl as TK_WIDGET ptr", "", "" )
+    Event_( "FocusChanged", "tkMaskEdit_SetFocusCallback", "MSK_FocusCallbackSub", "byval hCtrl as TK_WIDGET ptr, byval bGotFocus as boolean", "byval bGotFocus as boolean", "bGotFocus" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub
