@@ -35,9 +35,11 @@
 
 #import "../tkBind" public
 #import "std/chrono"
+#import "../tkFormat" public
 using tkBind
 using tkCalendar
 using tkTimePanel
+using tkFormat
 
 ' ---- aggregates ------------------------------------------------------------------------------
 public enum
@@ -94,16 +96,8 @@ public type RX_OP
     d  as float64
 end type
 
-' A compiled number mask ("$#,##0.00", "0.0%"): parsed once, at compile time.
-public type RX_FMT
-    mask     as ustring                 ' the mask as written
-    pre      as ustring                 ' text before the number pattern
-    post     as ustring                 ' text after it
-    dec      as int32                   ' decimals
-    grouped  as boolean                 ' thousands with ","
-    percent  as boolean                 ' x 100
-    hasNum   as boolean                 ' a number pattern was found
-end type
+' A compiled number mask ("$#,##0.00", "0.0%"): parsed once, at compile time, by tkFormat.
+public type RX_FMT as TKFMT
 
 public type TK_REXPR_
     src          as ustring

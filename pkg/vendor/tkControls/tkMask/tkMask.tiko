@@ -1,0 +1,429 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMask -- the input-mask engine behind tkMaskEdit and tkDataGrid's masked columns
+' (docs/tkControls/MASKEDIT.md). No window, no SDL: text in, text and caret out, so a console
+' suite drives every rule and the control and the grid apply the same ones.
+'
+' THE MODEL: a mask is compiled once into a TKMASK_SPEC. An edit is the edit tkTextBox was about to
+' make -- the text (UTF-8), the byte range [lo, hi) being replaced, the text inserted and why
+' (TKMASK_EDIT_*) -- and tkMask_Apply answers with the whole new text and the caret (a byte
+' offset), or refuses it. A refusal, or a partial paste, names its reason (TKMASK_REJ_*).
+'
+' KINDS (TKMASK_*):
+'   FIXED     WinForms / VB6 picture characters (docs section 4.1):
+'               0 digit   9 digit or space   # digit, space, + or -        (0: required)
+'               L letter  ? letter           A letter or digit  a letter or digit
+'               & any     C any              < lower  > upper  | as typed  \ next is literal
+'             Letters are ASCII (D-7); . , : / $ are literal (D-6). The text always has one
+'             character per slot: literals in place, the prompt character in empty slots.
+'             Typing overwrites (D-3; overwrite = false: WinForms' insert-shift), steps over a
+'             literal typed at it, ignores one typed just behind the caret, and lands in the next
+'             editable slot; Backspace / Delete leave prompts and shift nothing.
+'   NUMERIC   tkFormat's number patterns ("$#,##0.00", "0.0%"): the text is always the display
+'             form, regrouped after every edit, the caret kept by its place among the digits.
+'             Decimals are fixed: typed digits overwrite them, deleted ones become 0. "-" toggles
+'             the sign, "." jumps to the decimals. At most 15 significant digits (float64's).
+'   DATE / TIME / DATETIME
+'             tkFormat's letters: yyyy mm dd hh nn ss, each at most once, other characters literal.
+'             Two-digit segments range-checked as typed (month 01-12, day 01-31, hour 00-23,
+'             minute / second 00-59); a first digit that cannot lead pads ("4" in a month is 04)
+'             and moves on; the separator pads a one-digit segment ("3/" is 03/). A real date
+'             (no 31/02) is checked by IsValid, not by refusing keys.
+'   REGEX     M4: tkMaskEditRegex's provider. Compile refuses it until then.
+#module "tkMask"
+
+#import "../tkFormat" public
+using tkFormat
+
+public enum
+    TKMASK_NONE = 0
+    TKMASK_FIXED
+    TKMASK_NUMERIC
+    TKMASK_DATE
+    TKMASK_TIME
+    TKMASK_DATETIME
+    TKMASK_REGEX
+end enum
+
+' What the edit was (tkTextBox's edit reasons map onto these).
+public enum
+    TKMASK_EDIT_TYPE = 0
+    TKMASK_EDIT_BACKSPACE
+    TKMASK_EDIT_DELETE
+    TKMASK_EDIT_PASTE
+    TKMASK_EDIT_CUT
+    TKMASK_EDIT_REPLACE          ' a programmatic ReplaceSel: as a paste
+end enum
+
+' Why a character was refused.
+public enum
+    TKMASK_REJ_NONE = 0
+    TKMASK_REJ_CLASS             ' the slot does not take this character
+    TKMASK_REJ_FULL              ' no slot left / no room (insert shift, digit cap, decimals)
+    TKMASK_REJ_RANGE             ' a date / time segment out of range
+    TKMASK_REJ_PATTERN           ' a regex no longer matches (M4)
+    TKMASK_REJ_SIGN              ' a sign where AllowNegative is off
+    TKMASK_REJ_NOTNUMBER         ' a paste that is not a number
+end enum
+
+' The value as text (WinForms' TextMaskFormat).
+public enum
+    TKMASK_FMT_RAW = 0           ' the filled slots only
+    TKMASK_FMT_LITERALS          ' literals kept, empty slots as spaces
+    TKMASK_FMT_PROMPTS           ' editable slots only, empty ones as the prompt
+    TKMASK_FMT_BOTH              ' the text as shown
+end enum
+
+' Slot classes.
+public enum
+    TKMS_LITERAL = 0
+    TKMS_DIGIT                   ' 0, and date / time digits
+    TKMS_DIGITSPACE              ' 9
+    TKMS_DIGITSIGN               ' #
+    TKMS_LETTER                  ' L ?
+    TKMS_ANY                     ' & C
+    TKMS_ALNUM                   ' A a
+end enum
+
+' Date / time segments.
+public enum
+    TKMS_SEG_NONE = 0
+    TKMS_SEG_YEAR
+    TKMS_SEG_MONTH
+    TKMS_SEG_DAY
+    TKMS_SEG_HOUR
+    TKMS_SEG_MINUTE
+    TKMS_SEG_SECOND
+end enum
+
+public const TKMASK_MAXDIGITS = 15       ' a NUMERIC's significant digits (float64 holds 15 exactly)
+
+public type TKMASK_SLOT
+    kind     as int32                ' TKMS_*
+    lit      as string               ' a literal's character (UTF-8)
+    required as boolean
+    caseMode as int32                ' 0 as typed, 1 lower, 2 upper
+    seg      as int32 = -1           ' date / time: the segment (index into segs), else -1
+end type
+
+public type TKMASK_SEG
+    part   as int32                  ' TKMS_SEG_*
+    first  as int32                  ' its first slot
+    count  as int32                  ' its digits (4 for the year, else 2)
+end type
+
+' A date, a time or both. TIME leaves y / mo / d at 0; DATE leaves h / mi / s at 0.
+public type TKMASK_DT
+    y  as int32
+    mo as int32
+    d  as int32
+    h  as int32
+    mi as int32
+    s  as int32
+end type
+
+' A compiled mask. The fields after 'pattern' are settings a control sets directly.
+public type TKMASK_SPEC
+    kind       as int32 = TKMASK_NONE
+    pattern    as ustring
+    prompt     as string = "_"       ' FIXED / DATE: an empty slot (one character, UTF-8)
+    overwrite  as boolean = true     ' FIXED: typing replaces; false = insert, shifting right
+    allowNeg   as boolean = true     ' NUMERIC
+    hasMin     as boolean
+    hasMax     as boolean
+    minV       as float64
+    maxV       as float64
+    hasMinDT   as boolean
+    hasMaxDT   as boolean
+    minDT      as TKMASK_DT
+    maxDT      as TKMASK_DT
+    spinYear   as int32 = 2000       ' the year an empty year segment spins to (a control: this year)
+    ' compiled
+    nSlots     as int32
+    slots(any) as TKMASK_SLOT
+    nSegs      as int32
+    segs(any)  as TKMASK_SEG
+    fmt        as TKFMT              ' NUMERIC
+end type
+
+' ==========================================================================================
+' UTF-8 characters
+' ==========================================================================================
+function MskCpLen( byref s as const string, byval i as int32 ) as int32
+    dim as int32 b = s[i]
+    if b < &hC0 then return 1
+    if b < &hE0 then return 2
+    if b < &hF0 then return 3
+    return 4
+end function
+
+' s as characters: ch(0 .. n-1), each UTF-8; returns n. ch() is sized n + 1 (never empty).
+function MskSplit( byref s as const string, ch() as string ) as int32
+    dim as int32 n = 0, i = 0, L = len( s )
+    redim ch( 0 to L )
+    while i < L
+        dim as int32 k = MskCpLen( s, i )
+        if i + k > L then k = L - i
+        ch(n) = mid( s, i + 1, k )
+        n += 1
+        i += k
+    wend
+    return n
+end function
+
+' The character index at byte offset off (snapped down to a character start).
+function MskIndexAt( ch() as string, byval n as int32, byval off as int32 ) as int32
+    dim as int32 acc = 0
+    for i as int32 = 0 to n - 1
+        if acc + len( ch(i) ) > off then return i
+        acc += len( ch(i) )
+    next
+    return n
+end function
+
+' The byte offset of character idx.
+function MskOffsetOf( ch() as string, byval n as int32, byval idx as int32 ) as int32
+    dim as int32 acc = 0
+    if idx > n then idx = n
+    for i as int32 = 0 to idx - 1
+        acc += len( ch(i) )
+    next
+    return acc
+end function
+
+function MskIsDigit( byref c as const string ) as boolean
+    return (len( c ) = 1) andalso (c >= "0") andalso (c <= "9")
+end function
+
+function MskIsLetter( byref c as const string ) as boolean
+    if len( c ) <> 1 then return false
+    return ((c >= "A") andalso (c <= "Z")) orelse ((c >= "a") andalso (c <= "z"))
+end function
+
+' ==========================================================================================
+' Compile
+' ==========================================================================================
+sub MskAddSlot( byref m as TKMASK_SPEC, byval k as int32, byref lit as const string, _
+                byval req as boolean, byval cm as int32, byval sg as int32 = -1 )
+    if m.nSlots > ubound( m.slots ) then redim preserve m.slots( 0 to m.nSlots * 2 + 8 )
+    with m.slots(m.nSlots)
+        .kind = k
+        .lit = lit
+        .required = req
+        .caseMode = cm
+        .seg = sg
+    end with
+    m.nSlots += 1
+end sub
+
+function MskCompileFixed( byref m as TKMASK_SPEC, byref pat as const string ) as boolean
+    dim as string ch()
+    dim as int32 n = MskSplit( pat, ch() ), cm = 0, editable = 0, i = 0
+    while i < n
+        dim as string c = ch(i)
+        select case c
+        case "\"
+            if i + 1 >= n then return false
+            MskAddSlot( m, TKMS_LITERAL, ch(i + 1), false, 0 )
+            i += 2
+            continue while
+        case "<" : cm = 1
+        case ">" : cm = 2
+        case "|" : cm = 0
+        case "0" : MskAddSlot( m, TKMS_DIGIT, "", true, cm ) : editable += 1
+        case "9" : MskAddSlot( m, TKMS_DIGITSPACE, "", false, cm ) : editable += 1
+        case "#" : MskAddSlot( m, TKMS_DIGITSIGN, "", false, cm ) : editable += 1
+        case "L" : MskAddSlot( m, TKMS_LETTER, "", true, cm ) : editable += 1
+        case "?" : MskAddSlot( m, TKMS_LETTER, "", false, cm ) : editable += 1
+        case "&" : MskAddSlot( m, TKMS_ANY, "", true, cm ) : editable += 1
+        case "C" : MskAddSlot( m, TKMS_ANY, "", false, cm ) : editable += 1
+        case "A" : MskAddSlot( m, TKMS_ALNUM, "", true, cm ) : editable += 1
+        case "a" : MskAddSlot( m, TKMS_ALNUM, "", false, cm ) : editable += 1
+        case else : MskAddSlot( m, TKMS_LITERAL, c, false, 0 )
+        end select
+        i += 1
+    wend
+    return editable > 0
+end function
+
+function MskCompileDate( byref m as TKMASK_SPEC, byref pat as const string ) as boolean
+    dim as string ch()
+    dim as int32 n = MskSplit( pat, ch() ), i = 0
+    dim as boolean seen(1 to 6)
+    while i < n
+        dim as string c = ch(i)
+        dim as int32 p = instr( "ymdhns", c )
+        if (len( c ) <> 1) orelse (p = 0) then
+            MskAddSlot( m, TKMS_LITERAL, c, false, 0 )
+            i += 1
+            continue while
+        end if
+        dim as int32 r = 1
+        while (i + r < n) andalso (ch(i + r) = c)
+            r += 1
+        wend
+        if r <> iif( c = "y", 4, 2 ) then return false
+        if seen(p) then return false
+        seen(p) = true
+        if m.nSegs > ubound( m.segs ) then redim preserve m.segs( 0 to m.nSegs + 6 )
+        m.segs(m.nSegs).part = p
+        m.segs(m.nSegs).first = m.nSlots
+        m.segs(m.nSegs).count = r
+        for k as int32 = 1 to r
+            MskAddSlot( m, TKMS_DIGIT, "", true, 0, m.nSegs )
+        next
+        m.nSegs += 1
+        i += r
+    wend
+    dim as boolean hasDate = seen(1) orelse seen(2) orelse seen(3)
+    dim as boolean hasTime = seen(4) orelse seen(5) orelse seen(6)
+    dim as boolean fullDate = seen(1) andalso seen(2) andalso seen(3)
+    dim as boolean fullTime = seen(4) andalso seen(5)
+    select case m.kind
+    case TKMASK_DATE : return fullDate andalso (hasTime = false)
+    case TKMASK_TIME : return fullTime andalso (hasDate = false)
+    case else : return fullDate andalso fullTime
+    end select
+end function
+
+' Compiles pattern as kind into m. FALSE (m unchanged) when the pattern does not fit the kind:
+' a trailing "\", no editable slot, no number pattern, a date letter run of the wrong length or
+' repeated, a segment the kind needs missing or one it must not have, REGEX before M4.
+public function tkMask_Compile( byref m as TKMASK_SPEC, byval kind as int32, byref pattern as const ustring ) as boolean
+    dim as TKMASK_SPEC t = m
+    t.kind = kind
+    t.pattern = pattern
+    t.nSlots = 0
+    t.nSegs = 0
+    erase t.slots
+    erase t.segs
+    t.fmt = tkFormat_Parse( "" )
+    dim as string pat = pattern
+    dim as boolean ok = false
+    select case kind
+    case TKMASK_FIXED : ok = MskCompileFixed( t, pat )
+    case TKMASK_NUMERIC
+        t.fmt = tkFormat_Parse( pattern )
+        ok = t.fmt.hasNum
+    case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME : ok = MskCompileDate( t, pat )
+    end select
+    if ok = false then return false
+    m = t
+    return true
+end function
+
+' ==========================================================================================
+' The public calls (by kind)
+' ==========================================================================================
+function MskIsSlotKind( byref m as TKMASK_SPEC ) as boolean
+    select case m.kind
+    case TKMASK_FIXED, TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME : return true
+    end select
+    return false
+end function
+
+' The empty text: literals and prompts (FIXED / DATE), "" otherwise.
+public function tkMask_Template( byref m as TKMASK_SPEC ) as string
+    if MskIsSlotKind( m ) = false then return ""
+    dim as string s
+    for i as int32 = 0 to m.nSlots - 1
+        if m.slots(i).kind = TKMS_LITERAL then s &= m.slots(i).lit else s &= m.prompt
+    next
+    return s
+end function
+
+' THE EDIT: text with bytes [lo, hi) replaced by ins, for reason. TRUE: text and caret (a byte
+' offset) are the result -- which may only move the caret -- and rej may still name a character
+' a paste or a multi-character input stopped at. FALSE: refused, text unchanged, rej says why.
+public function tkMask_Apply( byref m as TKMASK_SPEC, byref text as string, byval lo as int32, byval hi as int32, _
+                              byref ins as const string, byval reason as int32, byref caret as int32, _
+                              byref rej as int32 ) as boolean
+    rej = TKMASK_REJ_NONE
+    if lo > hi then swap lo, hi
+    if lo < 0 then lo = 0
+    if hi > len( text ) then hi = len( text )
+    if lo > hi then lo = hi
+    select case m.kind
+    case TKMASK_FIXED, TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
+        return MskApplySlots( m, text, lo, hi, ins, reason, caret, rej )
+    case TKMASK_NUMERIC
+        return MskApplyNumber( m, text, lo, hi, ins, reason, caret, rej )
+    end select
+    rej = TKMASK_REJ_CLASS
+    return false
+end function
+
+' Up / Down on a date / time segment: the segment at the caret moves by delta, wrapping inside its
+' range (the year clamps to 1..9999); an empty one takes its first value. FALSE for other kinds.
+public function tkMask_Spin( byref m as TKMASK_SPEC, byref text as string, byref caret as int32, _
+                             byval delta as int32 ) as boolean
+    select case m.kind
+    case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME : return MskSpin( m, text, caret, delta )
+    end select
+    return false
+end function
+
+public function tkMask_IsEmpty( byref m as TKMASK_SPEC, byref text as const string ) as boolean
+    if MskIsSlotKind( m ) then return MskSlotsEmpty( m, text )
+    if m.kind = TKMASK_NUMERIC then return MskNumEmpty( m, text )
+    return len( text ) = 0
+end function
+
+' Every required slot filled (FIXED), every segment (DATE), a digit (NUMERIC).
+public function tkMask_IsComplete( byref m as TKMASK_SPEC, byref text as const string ) as boolean
+    if MskIsSlotKind( m ) then return MskSlotsComplete( m, text )
+    if m.kind = TKMASK_NUMERIC then return MskNumEmpty( m, text ) = false
+    return len( text ) > 0
+end function
+
+' Empty, or complete and (DATE) a real date / time inside the range, or (NUMERIC) inside the range.
+public function tkMask_IsValid( byref m as TKMASK_SPEC, byref text as const string ) as boolean
+    if tkMask_IsEmpty( m, text ) then return true
+    select case m.kind
+    case TKMASK_FIXED : return MskSlotsComplete( m, text )
+    case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
+        dim as TKMASK_DT dt
+        if tkMask_GetDT( m, text, dt ) = false then return false
+        if m.hasMinDT andalso (MskDTCompare( dt, m.minDT ) < 0) then return false
+        if m.hasMaxDT andalso (MskDTCompare( dt, m.maxDT ) > 0) then return false
+        return true
+    case TKMASK_NUMERIC
+        dim as float64 v
+        if tkMask_GetNumber( m, text, v ) = false then return false
+        if m.hasMin andalso (v < m.minV) then return false
+        if m.hasMax andalso (v > m.maxV) then return false
+        return true
+    end select
+    return true
+end function
+
+' The value as text in fmt (TKMASK_FMT_*); "" when empty. NUMERIC: the plain number ("-1234.50").
+public function tkMask_ValueText( byref m as TKMASK_SPEC, byref text as const string, byval fmt as int32 ) as string
+    if tkMask_IsEmpty( m, text ) then return ""
+    if MskIsSlotKind( m ) then return MskSlotsValue( m, text, fmt )
+    if m.kind = TKMASK_NUMERIC then return MskNumPlain( m, text )
+    return text
+end function
+
+' The text for a value given in any of the forms ValueText returns (mapped like a paste into the
+' empty template; NUMERIC: a plain or formatted number). "" or an unmappable value: the template.
+public function tkMask_TextOfValue( byref m as TKMASK_SPEC, byref value as const string ) as string
+    dim as string t = tkMask_Template( m )
+    if len( value ) = 0 then return t
+    dim as int32 caret, rej
+    dim as int32 reason = TKMASK_EDIT_PASTE
+    if tkMask_Apply( m, t, 0, len( t ), value, reason, caret, rej ) = false then return tkMask_Template( m )
+    return t
+end function
+
+' What an unfocused control shows: "" when empty (the cue banner's turn, D-4); FIXED / DATE with
+' hidePrompts: the prompts as spaces.
+public function tkMask_Display( byref m as TKMASK_SPEC, byref text as const string, byval hidePrompts as boolean ) as string
+    if tkMask_IsEmpty( m, text ) then return ""
+    if hidePrompts andalso MskIsSlotKind( m ) then return MskSlotsValue( m, text, TKMASK_FMT_LITERALS )
+    return text
+end function

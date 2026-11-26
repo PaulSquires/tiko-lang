@@ -1,0 +1,128 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkFormat -- values as text by a display mask: the one formatter behind tkReport_FormatValue,
+' tkRExpr's Format( ), tkMask's numeric and date/time kinds (docs/tkControls/MASKEDIT.md D-2).
+' Moved out of tkRExpr's rxFormat.tiko unchanged, so a report, a grid column and a MaskEdit show a
+' value identically. No window, no SDL, no other module.
+'
+' THE MASKS:
+'   numbers   a pattern of # 0 , . with literal text around it: "$#,##0.00", "0.0%", "#,##0 kg".
+'             The decimals are the characters after the ".", "," groups thousands, a "%" anywhere
+'             in the mask shows the value x 100. Rounded half away from zero. A negative number
+'             shows "-" right before the digits, after the prefix: "$-1,234.00".
+'   dates     "dd/mm/yyyy": yyyy, mm and dd, each replaced once; the year is not padded.
+'   times     "hh:nn:ss": hh, nn (minutes) and ss, each replaced once, two digits.
+'   booleans  "Yes|No": the text before the bar for true, after it for false.
+#module "tkFormat"
+
+' A parsed number mask ("$#,##0.00", "0.0%"): parse once, format many.
+public type TKFMT
+    mask     as ustring                 ' the mask as written
+    pre      as ustring                 ' text before the number pattern
+    post     as ustring                 ' text after it
+    dec      as int32                   ' decimals
+    grouped  as boolean                 ' thousands with ","
+    percent  as boolean                 ' x 100
+    hasNum   as boolean                 ' a number pattern was found
+end type
+
+' x with 'dec' decimals, thousands grouped with ',' when asked; rounded half away from zero.
+public function tkFormat_Fixed( byval x as float64, byval dec as int32, byval grouped as boolean ) as string
+    dim as float64 p10 = 10 ^ dec
+    dim as int64 n = clngint( int( abs( x ) * p10 + 0.5 ) )
+    dim as string ip = str( n \ clngint( p10 ) ), fp
+    if dec > 0 then fp = "." & right( string( dec, "0" ) & str( n mod clngint( p10 ) ), dec )
+    if grouped then
+        dim as string g
+        dim as int32 c = 0
+        for i as int32 = len( ip ) to 1 step -1
+            g = mid( ip, i, 1 ) & g
+            c += 1
+            if (c mod 3 = 0) andalso (i > 1) then g = "," & g
+        next
+        ip = g
+    end if
+    if (x < 0) andalso (n <> 0) then return "-" & ip & fp
+    return ip & fp
+end function
+
+' A number mask parsed: the first run of # 0 , . is the pattern, the text around it pre / post.
+public function tkFormat_Parse( byref mask as const ustring ) as TKFMT
+    dim as TKFMT f
+    f.mask = mask
+    dim as string m = mask
+    dim as int32 a = 0, b = 0
+    for i as int32 = 1 to len( m )
+        if instr( "#0,.", mid( m, i, 1 ) ) then
+            if a = 0 then a = i
+            b = i
+        elseif a then
+            exit for
+        end if
+    next
+    if a = 0 then return f
+    f.hasNum = true
+    dim as string pat = mid( m, a, b - a + 1 )
+    dim as int32 dot = instr( pat, "." )
+    if dot then f.dec = len( pat ) - dot
+    f.grouped = instr( pat, "," ) > 0
+    f.percent = instr( m, "%" ) > 0
+    f.pre = left( m, a - 1 )
+    f.post = mid( m, b + 1 )
+    return f
+end function
+
+private function Pad2F( byval n as int64 ) as string
+    return right( "0" & n, 2 )
+end function
+
+' A number by a parsed mask; no mask = str( x ); a mask without a pattern is a prefix.
+public function tkFormat_Number( byval x as float64, byref f as TKFMT ) as string
+    if len( f.mask ) = 0 then return str( x )
+    if f.hasNum = false then return f.mask & str( x )
+    if f.percent then x *= 100
+    return f.pre & tkFormat_Fixed( x, f.dec, f.grouped ) & f.post
+end function
+
+' True / false by "Yes|No" (mask first, else boolText); a mask without a bar is the true text.
+public function tkFormat_Bool( byval b as boolean, byref mask as const ustring, byref boolText as const ustring ) as string
+    dim as string bt = boolText
+    if len( mask ) then bt = mask
+    dim as int32 bar = instr( bt, "|" )
+    if bar = 0 then
+        if b then return bt
+        return ""
+    end if
+    if b then return left( bt, bar - 1 )
+    return mid( bt, bar + 1 )
+end function
+
+' A date by "dd/mm/yyyy" (default "yyyy-mm-dd").
+public function tkFormat_Date( byval y as int64, byval m as int64, byval d as int64, byref mask as const ustring ) as string
+    dim as string s = mask
+    if len( s ) = 0 then s = "yyyy-mm-dd"
+    dim as int32 k = instr( s, "yyyy" )
+    if k then s = left( s, k - 1 ) & y & mid( s, k + 4 )
+    k = instr( s, "mm" )
+    if k then s = left( s, k - 1 ) & Pad2F( m ) & mid( s, k + 2 )
+    k = instr( s, "dd" )
+    if k then s = left( s, k - 1 ) & Pad2F( d ) & mid( s, k + 2 )
+    return s
+end function
+
+' A time of day in seconds by "hh:nn:ss" (default "hh:nn").
+public function tkFormat_Time( byval secs as int64, byref mask as const ustring ) as string
+    dim as string s = mask
+    if len( s ) = 0 then s = "hh:nn"
+    dim as int32 k = instr( s, "hh" )
+    if k then s = left( s, k - 1 ) & Pad2F( secs \ 3600 ) & mid( s, k + 2 )
+    k = instr( s, "nn" )
+    if k then s = left( s, k - 1 ) & Pad2F( (secs \ 60) mod 60 ) & mid( s, k + 2 )
+    k = instr( s, "ss" )
+    if k then s = left( s, k - 1 ) & Pad2F( secs mod 60 ) & mid( s, k + 2 )
+    return s
+end function

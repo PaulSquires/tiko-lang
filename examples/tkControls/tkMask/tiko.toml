@@ -1,0 +1,7 @@
+# tkMask: selftest (console; the mask engine's rules, one check per rule). tiko build (writes selftest.exe here; out/ is the cache)
+[package]
+name = "tkmask-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"

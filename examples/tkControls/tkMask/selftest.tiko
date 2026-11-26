@@ -1,0 +1,362 @@
+' tkMask self-test (MASKEDIT.md M0): the engine's rules, one check each, driven through tkMask_Apply
+' the way tkTextBox's edit filter will drive it. Edits are written as marked text: "|" is the caret,
+' "[...]" a selection; the expected result is the text with "|" at the returned caret, or REFUSED.
+' Console only: no window, no SDL (so it runs on any host; tkTest's checker is copied below).
+#import "vendor/tkControls/tkMask"
+#import "vendor/tkControls/tkFormat"
+using tkMask
+using tkFormat
+
+' ---- the checker: tkTest's three calls and summary line, without tkTest (which needs SDL) ------
+dim shared as int32 gPass, gFail
+dim shared as string gPassName
+private sub tkTest_Begin( byref passName as const string )
+    gPassName = passName
+end sub
+private sub tkTest_Check( byref name_ as const string, byval ok as boolean, byref detail as const string = "" )
+    if ok then
+        gPass += 1
+    else
+        gFail += 1
+        print "FAIL  [" & gPassName & "] " & name_ & "   " & detail
+    end if
+end sub
+private function tkTest_Report( byref title as string ) as int32
+    print title & " selftest: " & gPass & " passed, " & gFail & " failed"
+    return gFail
+end function
+
+' ---- marked text ------------------------------------------------------------------------------
+const BS = chr( 8 )          ' in a key sequence: Backspace
+const DEL = chr( 127 )       ' Delete
+
+' "ab|c" -> "abc", lo = hi = 2; "a[bc]" -> lo 1, hi 3; no marker: the caret at the end.
+private sub Unmark( byref s as const string, byref text as string, byref lo as int32, byref hi as int32 )
+    dim as int32 a = instr( s, "[" ), b = instr( s, "]" ), c = instr( s, "|" )
+    if (a > 0) andalso (b > a) then
+        text = left( s, a - 1 ) & mid( s, a + 1, b - a - 1 ) & mid( s, b + 1 )
+        lo = a - 1 : hi = b - 2
+    elseif c > 0 then
+        text = left( s, c - 1 ) & mid( s, c + 1 )
+        lo = c - 1 : hi = lo
+    else
+        text = s : lo = len( s ) : hi = lo
+    end if
+end sub
+
+private function Mark( byref text as const string, byval caret as int32 ) as string
+    return left( text, caret ) & "|" & mid( text, caret + 1 )
+end function
+
+' The byte range tkTextBox hands over for Backspace / Delete with no selection: one character.
+private sub KeyRange( byref text as const string, byval reason as int32, byref lo as int32, byref hi as int32 )
+    if lo <> hi then exit sub
+    if reason = TKMASK_EDIT_BACKSPACE then
+        if lo > 0 then
+            lo -= 1
+            while (lo > 0) andalso ((text[lo] and &hC0) = &h80)
+                lo -= 1
+            wend
+        end if
+    elseif reason = TKMASK_EDIT_DELETE then
+        if hi < len( text ) then
+            hi += 1
+            while (hi < len( text )) andalso ((text[hi] and &hC0) = &h80)
+                hi += 1
+            wend
+        end if
+    end if
+end sub
+
+' One edit: the result marked, or "REFUSED"; rej out.
+private function Edit1( byref m as TKMASK_SPEC, byref marked as const string, byref ins as const string, _
+                        byval reason as int32, byref rej as int32 ) as string
+    dim as string text
+    dim as int32 lo, hi, caret
+    Unmark( marked, text, lo, hi )
+    KeyRange( text, reason, lo, hi )
+    if tkMask_Apply( m, text, lo, hi, ins, reason, caret, rej ) = false then return "REFUSED"
+    return Mark( text, caret )
+end function
+
+' One check of one edit.
+private sub Ed( byref nm as const string, byref m as TKMASK_SPEC, byref marked as const string, byref ins as const string, _
+                byval reason as int32, byref expect as const string, byval expRej as int32 = TKMASK_REJ_NONE )
+    dim as int32 rej
+    dim as string got = Edit1( m, marked, ins, reason, rej )
+    tkTest_Check( nm, (got = expect) andalso (rej = expRej), _
+                  "got '" & got & "' rej " & rej & ", want '" & expect & "' rej " & expRej )
+end sub
+
+' A key sequence typed one character at a time (BS / DEL as the keys), from marked; the result
+' marked, or REFUSED at the first refusal.
+private function Keys( byref m as TKMASK_SPEC, byref marked as const string, byref seq as const string ) as string
+    dim as string cur = marked
+    for i as int32 = 1 to len( seq )
+        dim as string k = mid( seq, i, 1 )
+        dim as int32 rej
+        if k = BS then
+            cur = Edit1( m, cur, "", TKMASK_EDIT_BACKSPACE, rej )
+        elseif k = DEL then
+            cur = Edit1( m, cur, "", TKMASK_EDIT_DELETE, rej )
+        else
+            cur = Edit1( m, cur, k, TKMASK_EDIT_TYPE, rej )
+        end if
+        if cur = "REFUSED" then return cur
+    next
+    return cur
+end function
+
+private sub Ks( byref nm as const string, byref m as TKMASK_SPEC, byref marked as const string, byref seq as const string, _
+                byref expect as const string )
+    dim as string got = Keys( m, marked, seq )
+    tkTest_Check( nm, got = expect, "got '" & got & "', want '" & expect & "'" )
+end sub
+
+private function Spec( byval kind as int32, byref pat as const ustring ) as TKMASK_SPEC
+    dim as TKMASK_SPEC m
+    tkTest_Check( "compiles: " & pat, tkMask_Compile( m, kind, pat ) )
+    return m
+end function
+
+' ==========================================================================================
+tkTest_Begin( "tkFormat" )
+scope
+    dim as TKFMT f = tkFormat_Parse( "$#,##0.00" )
+    tkTest_Check( "number", tkFormat_Number( 1234567.891, f ) = "$1,234,567.89", tkFormat_Number( 1234567.891, f ) )
+    tkTest_Check( "negative: the sign after the prefix", tkFormat_Number( -5, f ) = "$-5.00", tkFormat_Number( -5, f ) )
+    dim as TKFMT p = tkFormat_Parse( "0.0%" )
+    tkTest_Check( "percent", tkFormat_Number( 0.125, p ) = "12.5%", tkFormat_Number( 0.125, p ) )
+    tkTest_Check( "date", tkFormat_Date( 2026, 2, 8, "dd/mm/yyyy" ) = "08/02/2026", tkFormat_Date( 2026, 2, 8, "dd/mm/yyyy" ) )
+    tkTest_Check( "time", tkFormat_Time( 14 * 3600 + 5 * 60 + 9, "hh:nn:ss" ) = "14:05:09" )
+    tkTest_Check( "bool", (tkFormat_Bool( true, "", "Yes|No" ) = "Yes") andalso (tkFormat_Bool( false, "Y|N", "Yes|No" ) = "N") )
+end scope
+
+' ==========================================================================================
+tkTest_Begin( "compile" )
+scope
+    dim as TKMASK_SPEC m
+    tkTest_Check( "a trailing backslash is refused", tkMask_Compile( m, TKMASK_FIXED, "99\" ) = false )
+    tkTest_Check( "no editable slot is refused", tkMask_Compile( m, TKMASK_FIXED, "()-" ) = false )
+    tkTest_Check( "a number mask needs a pattern", tkMask_Compile( m, TKMASK_NUMERIC, "kg" ) = false )
+    tkTest_Check( "yy is refused", tkMask_Compile( m, TKMASK_DATE, "dd/mm/yy" ) = false )
+    tkTest_Check( "a repeated segment is refused", tkMask_Compile( m, TKMASK_DATE, "dd/dd/yyyy" ) = false )
+    tkTest_Check( "DATE without a day is refused", tkMask_Compile( m, TKMASK_DATE, "mm/yyyy" ) = false )
+    tkTest_Check( "DATE with a time is refused", tkMask_Compile( m, TKMASK_DATE, "dd/mm/yyyy hh:nn" ) = false )
+    tkTest_Check( "TIME without minutes is refused", tkMask_Compile( m, TKMASK_TIME, "hh" ) = false )
+    tkTest_Check( "DATETIME needs both", tkMask_Compile( m, TKMASK_DATETIME, "yyyy-mm-dd" ) = false )
+    tkTest_Check( "REGEX waits for M4", tkMask_Compile( m, TKMASK_REGEX, "[A-Z]+" ) = false )
+    tkTest_Check( "a good mask compiles", tkMask_Compile( m, TKMASK_FIXED, "000" ) )
+    tkMask_Compile( m, TKMASK_FIXED, "\" )
+    tkTest_Check( "a refused compile keeps the old mask", (m.pattern = "000") andalso (m.kind = TKMASK_FIXED) andalso (m.nSlots = 3) )
+    tkTest_Check( "recompiling replaces the slots", tkMask_Compile( m, TKMASK_FIXED, "00" ) andalso (m.nSlots = 2) )
+end scope
+
+' ==========================================================================================
+tkTest_Begin( "fixed" )
+scope
+    dim as TKMASK_SPEC m = Spec( TKMASK_FIXED, "(999) 000-0000" )
+    tkTest_Check( "template", tkMask_Template( m ) = "(___) ___-____", tkMask_Template( m ) )
+    Ed( "typing lands in the first editable slot", m, "|(___) ___-____", "5", TKMASK_EDIT_TYPE, "(5|__) ___-____" )
+    Ks( "typing skips literals", m, "|(___) ___-____", "5551234567", "(555) 123-4567|" )
+    Ed( "an empty box takes the template", m, "|", "5", TKMASK_EDIT_TYPE, "(5|__) ___-____" )
+    Ed( "a literal typed at it is stepped over", m, "|(___) ___-____", "(", TKMASK_EDIT_TYPE, "(|___) ___-____" )
+    Ed( "a literal just behind the caret is ignored", m, "(555) |___-____", ")", TKMASK_EDIT_TYPE, "(555) |___-____" )
+    Ks( "typing the literals too works", m, "|(___) ___-____", "(555) 123-4567", "(555) 123-4567|" )
+    Ed( "a refused class", m, "(|___) ___-____", "a", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_CLASS )
+    Ed( "full", m, "(555) 123-4567|", "8", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_FULL )
+    Ed( "overwrite", m, "(5|55) ___-____", "9", TKMASK_EDIT_TYPE, "(59|5) ___-____" )
+    Ed( "Backspace leaves a prompt", m, "(555) 12|3-4567", "", TKMASK_EDIT_BACKSPACE, "(555) 1|_3-4567" )
+    Ed( "Backspace over literals clears the slot before them", m, "(555) |123-4567", "", TKMASK_EDIT_BACKSPACE, "(55|_) 123-4567" )
+    Ed( "Delete leaves a prompt, the caret stays", m, "(555) |123-4567", "", TKMASK_EDIT_DELETE, "(555) |_23-4567" )
+    Ed( "Delete at a literal clears the next slot", m, "(555|) 123-4567", "", TKMASK_EDIT_DELETE, "(555|) _23-4567" )
+    Ed( "a selection cleared, nothing shifts", m, "(5[55) 1]23-4567", "", TKMASK_EDIT_DELETE, "(5|__) _23-4567" )
+    Ed( "a whole-template paste", m, "[(___) ___-____]", "(555) 123-4567", TKMASK_EDIT_PASTE, "(555) 123-4567|" )
+    Ed( "a raw paste", m, "[(___) ___-____]", "5551234567", TKMASK_EDIT_PASTE, "(555) 123-4567|" )
+    Ed( "a paste stops at the first refused character", m, "|(___) ___-____", "555x67", TKMASK_EDIT_PASTE, _
+        "(555) |___-____", TKMASK_REJ_CLASS )
+    Ed( "the prompt character empties a slot", m, "(5|55) ___-____", "_", TKMASK_EDIT_TYPE, "(5_|5) ___-____" )
+    Ed( "9 takes a space", m, "|(___) ___-____", " ", TKMASK_EDIT_TYPE, "( |__) ___-____" )
+    m.overwrite = false
+    Ed( "insert mode shifts right", m, "(5|55) ___-____", "9", TKMASK_EDIT_TYPE, "(59|5) 5__-____" )
+    Ed( "insert mode refuses when the last slot would fall off", m, "(5|55) 123-4567", "9", TKMASK_EDIT_TYPE, _
+        "REFUSED", TKMASK_REJ_FULL )
+    m.overwrite = true
+
+    dim as TKMASK_SPEC c = Spec( TKMASK_FIXED, ">LL<LL|L" )
+    Ks( "case conversion", c, "|", "abCDe", "ABcde|" )
+    dim as TKMASK_SPEC s = Spec( TKMASK_FIXED, "###" )
+    Ks( "# takes signs", s, "|", "+-5", "+-5|" )
+    dim as TKMASK_SPEC e = Spec( TKMASK_FIXED, "\0-0" )
+    tkTest_Check( "an escaped literal", tkMask_Template( e ) = "0-_", tkMask_Template( e ) )
+    Ed( "an escaped literal is skipped", e, "|0-_", "7", TKMASK_EDIT_TYPE, "0-7|" )
+    dim as TKMASK_SPEC a = Spec( TKMASK_FIXED, "&&" )
+    dim as string eAcute = chr( &hC3, &hA9 ), euro = chr( &hE2, &h82, &hAC ), dot = chr( &hC2, &hB7 )
+    Ed( "& takes any character, UTF-8 (one multi-character input)", a, "|__", eAcute & euro, TKMASK_EDIT_TYPE, eAcute & euro & "|" )
+    Ed( "& refuses a control character (skipped)", a, "|__", chr( 9 ), TKMASK_EDIT_TYPE, "|__" )
+
+    dim as string up8 = euro & " 000"
+    dim as ustring upat = up8                                  ' string -> ustring decodes UTF-8
+    dim as TKMASK_SPEC u = Spec( TKMASK_FIXED, upat )
+    u.prompt = dot
+    tkTest_Check( "a UTF-8 literal and prompt", tkMask_Template( u ) = euro & " " & dot & dot & dot )
+    Ed( "byte offsets around UTF-8", u, "|" & euro & " " & dot & dot & dot, "5", TKMASK_EDIT_TYPE, euro & " 5|" & dot & dot )
+    Ed( "Backspace across a UTF-8 prompt", u, euro & " 5" & dot & "|" & dot, "", TKMASK_EDIT_BACKSPACE, euro & " 5|" & dot & dot )
+end scope
+
+tkTest_Begin( "fixed values" )
+scope
+    dim as TKMASK_SPEC m = Spec( TKMASK_FIXED, "(999) 000-0000" )
+    dim as string t = "(555) 123-45__"
+    tkTest_Check( "RAW", tkMask_ValueText( m, t, TKMASK_FMT_RAW ) = "55512345", tkMask_ValueText( m, t, TKMASK_FMT_RAW ) )
+    tkTest_Check( "LITERALS", tkMask_ValueText( m, t, TKMASK_FMT_LITERALS ) = "(555) 123-45  " )
+    tkTest_Check( "PROMPTS", tkMask_ValueText( m, t, TKMASK_FMT_PROMPTS ) = "55512345__" )
+    tkTest_Check( "BOTH", tkMask_ValueText( m, t, TKMASK_FMT_BOTH ) = t )
+    tkTest_Check( "empty is empty in every form", tkMask_ValueText( m, tkMask_Template( m ), TKMASK_FMT_BOTH ) = "" )
+    tkTest_Check( "TextOfValue from RAW", tkMask_TextOfValue( m, "5551234567" ) = "(555) 123-4567" )
+    tkTest_Check( "TextOfValue from LITERALS", tkMask_TextOfValue( m, "(555) 123-45  " ) = "(555) 123-45__", _
+                  tkMask_TextOfValue( m, "(555) 123-45  " ) )
+    tkTest_Check( "TextOfValue of nothing is the template", tkMask_TextOfValue( m, "" ) = tkMask_Template( m ) )
+    tkTest_Check( "IsEmpty", tkMask_IsEmpty( m, tkMask_Template( m ) ) andalso (tkMask_IsEmpty( m, t ) = false) )
+    tkTest_Check( "IsComplete needs the required slots", (tkMask_IsComplete( m, t ) = false) andalso _
+                  tkMask_IsComplete( m, "(___) 123-4567" ) )
+    tkTest_Check( "IsValid: empty or complete", tkMask_IsValid( m, tkMask_Template( m ) ) andalso _
+                  (tkMask_IsValid( m, t ) = false) andalso tkMask_IsValid( m, "(555) 123-4567" ) )
+    tkTest_Check( "Display of an empty box is empty", tkMask_Display( m, tkMask_Template( m ), false ) = "" )
+    tkTest_Check( "Display hides prompts", tkMask_Display( m, t, true ) = "(555) 123-45  " )
+end scope
+
+' ==========================================================================================
+tkTest_Begin( "numeric" )
+scope
+    dim as TKMASK_SPEC m = Spec( TKMASK_NUMERIC, "$#,##0.00" )
+    Ed( "the first digit shows the whole form", m, "|", "1", TKMASK_EDIT_TYPE, "$1|.00" )
+    Ks( "live grouping, the caret among the digits", m, "|", "1234567", "$1,234,567|.00" )
+    Ed( "'.' jumps to the decimals", m, "$12|.00", ".", TKMASK_EDIT_TYPE, "$12.|00" )
+    Ks( "decimals overwrite", m, "$12.|00", "57", "$12.57|" )
+    Ed( "no third decimal", m, "$12.57|", "1", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_FULL )
+    Ed( "'.' first gives 0.", m, "|", ".", TKMASK_EDIT_TYPE, "$0.|00" )
+    Ed( "'-' toggles the sign on", m, "$12|.00", "-", TKMASK_EDIT_TYPE, "$-12|.00" )
+    Ed( "'-' toggles it off", m, "$-12|.00", "-", TKMASK_EDIT_TYPE, "$12|.00" )
+    Ks( "a lone sign, then digits", m, "|", "-5", "$-5|.00" )
+    Ed( "a letter is refused", m, "$12|.00", "x", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_CLASS )
+    Ed( "Backspace a digit regroups", m, "$1,234|.00", "", TKMASK_EDIT_BACKSPACE, "$123|.00" )
+    Ed( "Backspace over a comma deletes the digit before it", m, "$1,|234.00", "", TKMASK_EDIT_BACKSPACE, "$|234.00" )
+    Ed( "Backspace over the point only moves", m, "$12.|00", "", TKMASK_EDIT_BACKSPACE, "$12|.00" )
+    Ed( "Delete over the point only moves", m, "$12|.00", "", TKMASK_EDIT_DELETE, "$12.|00" )
+    Ed( "a deleted decimal becomes 0", m, "$12.5|7", "", TKMASK_EDIT_BACKSPACE, "$12.|07" )
+    Ks( "leading zeros go", m, "|", "007", "$7|.00" )
+    Ed( "the last digit deleted empties the box", m, "$7|.00", "", TKMASK_EDIT_BACKSPACE, "|" )
+    Ed( "typing over all the digits replaces the value", m, "[$1,234.50]", "9", TKMASK_EDIT_TYPE, "$9|.00" )
+    Ed( "a paste is parsed", m, "|", "1,234.5", TKMASK_EDIT_PASTE, "$1,234.5|0" )
+    Ed( "a paste of a formatted value", m, "[$9.00]", "$-42.10", TKMASK_EDIT_PASTE, "$-42.10|" )
+    Ed( "a paste that is not a number is refused whole", m, "$1|.00", "12a", TKMASK_EDIT_PASTE, "REFUSED", TKMASK_REJ_NOTNUMBER )
+    Ks( "15 significant digits", m, "|", "1234567890123", "$1,234,567,890,123|.00" )
+    Ed( "no 16th", m, "$1,234,567,890,123|.00", "4", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_FULL )
+    m.allowNeg = false
+    Ed( "AllowNegative off refuses '-'", m, "$12|.00", "-", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_SIGN )
+    Ed( "... and a negative paste", m, "|", "-3", TKMASK_EDIT_PASTE, "REFUSED", TKMASK_REJ_SIGN )
+    m.allowNeg = true
+
+    dim as TKMASK_SPEC i = Spec( TKMASK_NUMERIC, "#,##0 kg" )
+    Ed( "no decimals: '.' is refused", i, "12| kg", ".", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_CLASS )
+    Ed( "Delete at the suffix does nothing", i, "12| kg", "", TKMASK_EDIT_DELETE, "12| kg" )
+    Ks( "a suffix stays after the number", i, "|", "1500", "1,500| kg" )
+
+    dim as float64 v
+    tkTest_Check( "GetNumber", tkMask_GetNumber( m, "$1,234.50", v ) andalso (v = 1234.5), str( v ) )
+    tkTest_Check( "GetNumber of an empty box is false", tkMask_GetNumber( m, "", v ) = false )
+    dim as TKMASK_SPEC p = Spec( TKMASK_NUMERIC, "0.0%" )
+    tkTest_Check( "a percent mask divides by 100", tkMask_GetNumber( p, "12.5%", v ) andalso (abs( v - 0.125 ) < 1e-12), str( v ) )
+    tkTest_Check( "TextOfNumber is tkFormat's", tkMask_TextOfNumber( m, -1234.5 ) = tkFormat_Number( -1234.5, m.fmt ) )
+    ' typed text equals the formatter's text for the value it holds
+    dim as string typed(0 to 3) = { "1234567", "-5", "007.5", ".25" }
+    for k as int32 = 0 to 3
+        dim as string got = Keys( m, "|", typed(k) )
+        dim as string txt
+        dim as int32 lo, hi
+        Unmark( got, txt, lo, hi )
+        tkMask_GetNumber( m, txt, v )
+        tkTest_Check( "typed '" & typed(k) & "' = tkFormat's text", txt = tkMask_TextOfNumber( m, v ), txt & " vs " & tkMask_TextOfNumber( m, v ) )
+    next
+    tkTest_Check( "ValueText is the plain number", tkMask_ValueText( m, "$-1,234.50", TKMASK_FMT_RAW ) = "-1234.50", _
+                  tkMask_ValueText( m, "$-1,234.50", TKMASK_FMT_RAW ) )
+    tkTest_Check( "TextOfValue from a plain number", tkMask_TextOfValue( m, "1234.5" ) = "$1,234.50", tkMask_TextOfValue( m, "1234.5" ) )
+    m.hasMin = true : m.minV = 0 : m.hasMax = true : m.maxV = 100
+    tkTest_Check( "Clamp", (tkMask_Clamp( m, 150 ) = 100) andalso (tkMask_Clamp( m, -1 ) = 0) andalso (tkMask_Clamp( m, 50 ) = 50) )
+    tkTest_Check( "IsValid checks the range", (tkMask_IsValid( m, "$150.00" ) = false) andalso tkMask_IsValid( m, "$99.00" ) _
+                  andalso tkMask_IsValid( m, "" ) )
+    tkTest_Check( "IsEmpty / IsComplete", tkMask_IsEmpty( m, "" ) andalso tkMask_IsEmpty( m, "$-" ) andalso _
+                  tkMask_IsComplete( m, "$1.00" ) )
+end scope
+
+' ==========================================================================================
+tkTest_Begin( "date" )
+scope
+    dim as TKMASK_SPEC m = Spec( TKMASK_DATE, "dd/mm/yyyy" )
+    tkTest_Check( "template", tkMask_Template( m ) = "__/__/____" )
+    Ks( "typing a whole date", m, "|", "25122026", "25/12/2026|" )
+    Ed( "a first digit that cannot lead pads and moves on", m, "|__/__/____", "4", TKMASK_EDIT_TYPE, "04/|__/____" )
+    Ed( "a month's 2 pads", m, "25/|__/____", "2", TKMASK_EDIT_TYPE, "25/02/|____" )
+    Ks( "the separator pads a one-digit segment", m, "|__/__/____", "3/4/", "03/04/|____" )
+    Ed( "month 13 is refused", m, "25/1|_/____", "3", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_RANGE )
+    Ed( "day 00 is refused", m, "0|_/__/____", "0", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_RANGE )
+    Ed( "a separator after 0 is refused", m, "0|_/__/____", "/", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_RANGE )
+    Ed( "year 0000 is refused", m, "01/01/000|_", "0", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_RANGE )
+    Ed( "a letter is refused", m, "|__/__/____", "a", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_CLASS )
+    Ed( "a first digit over a full segment clears an impossible second", m, "|19/12/2026", "3", TKMASK_EDIT_TYPE, "3|_/12/2026" )
+    Ed( "Backspace over the separator", m, "25/|12/2026", "", TKMASK_EDIT_BACKSPACE, "2|_/12/2026" )
+    Ed( "a paste of groups", m, "[__/__/____]", "3/4/2026", TKMASK_EDIT_PASTE, "03/04/2026|" )
+    Ed( "a paste of digits", m, "[__/__/____]", "03042026", TKMASK_EDIT_PASTE, "03/04/2026|" )
+    Ed( "a paste out of range is refused whole", m, "[__/__/____]", "32/4/2026", TKMASK_EDIT_PASTE, "REFUSED", TKMASK_REJ_RANGE )
+    tkTest_Check( "31/02 is not valid", tkMask_IsValid( m, "31/02/2026" ) = false )
+    tkTest_Check( "29/02 in a leap year is", tkMask_IsValid( m, "29/02/2024" ) )
+    tkTest_Check( "29/02 in a common year is not", tkMask_IsValid( m, "29/02/2026" ) = false )
+    tkTest_Check( "an incomplete date is not valid", tkMask_IsValid( m, "25/12/20__" ) = false )
+    dim as TKMASK_DT dt
+    tkTest_Check( "GetDT", tkMask_GetDT( m, "25/12/2026", dt ) andalso (dt.y = 2026) andalso (dt.mo = 12) andalso (dt.d = 25) )
+    tkTest_Check( "TextOfDT", tkMask_TextOfDT( m, dt ) = "25/12/2026" )
+    tkTest_Check( "the text is tkFormat's", tkMask_TextOfDT( m, dt ) = tkFormat_Date( dt.y, dt.mo, dt.d, m.pattern ) )
+    m.hasMinDT = true : m.minDT.y = 2026 : m.minDT.mo = 1 : m.minDT.d = 1
+    tkTest_Check( "MinDate", (tkMask_IsValid( m, "31/12/2025" ) = false) andalso tkMask_IsValid( m, "01/01/2026" ) )
+    m.hasMinDT = false
+end scope
+
+tkTest_Begin( "spin" )
+scope
+    dim as TKMASK_SPEC m = Spec( TKMASK_DATE, "dd/mm/yyyy" )
+    dim as string t
+    dim as int32 c
+    t = "25/12/2026" : c = 4
+    tkTest_Check( "Up wraps a month", tkMask_Spin( m, t, c, 1 ) andalso (t = "25/01/2026") andalso (c = 4), t )
+    t = "28/02/2026" : c = 1
+    tkTest_Check( "a day wraps at the month's end", tkMask_Spin( m, t, c, 1 ) andalso (t = "01/02/2026"), t )
+    t = "01/02/2026" : c = 0
+    tkTest_Check( "Down wraps the other way", tkMask_Spin( m, t, c, -1 ) andalso (t = "28/02/2026"), t )
+    t = "25/__/2026" : c = 3
+    tkTest_Check( "an empty segment takes its first value", tkMask_Spin( m, t, c, 1 ) andalso (t = "25/01/2026"), t )
+    t = "25/12/____" : c = 6
+    tkTest_Check( "an empty year takes spinYear", tkMask_Spin( m, t, c, 1 ) andalso (t = "25/12/2000"), t )
+    t = "25/12/9999" : c = 7
+    tkTest_Check( "the year clamps", (tkMask_Spin( m, t, c, 1 ) = false) andalso (t = "25/12/9999"), t )
+    t = "25/12/2026" : c = 3
+    tkTest_Check( "x10 (PgUp)", tkMask_Spin( m, t, c, 10 ) andalso (t = "25/10/2026"), t )
+    dim as TKMASK_SPEC f = Spec( TKMASK_FIXED, "000" )
+    t = "123" : c = 0
+    tkTest_Check( "FIXED does not spin", tkMask_Spin( f, t, c, 1 ) = false )
+end scope
+
+tkTest_Begin( "time" )
+scope
+    dim as TKMASK_SPEC m = Spec( TKMASK_TIME, "hh:nn" )
+    Ed( "an hour's 9 pads", m, "|__:__", "9", TKMASK_EDIT_TYPE, "09:|__" )
+    Ed( "hour 25 is refused", m, "2|_:__", "5", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_RANGE )
+    Ed( "minute 6x pads", m, "14:|__", "7", TKMASK_EDIT_TYPE, "14:07|" )
+    dim as TKMASK_DT dt
+    tkTest_Check( "GetDT of a time", tkMask_GetDT( m, "14:07", dt ) andalso (dt.h = 14) andalso (dt.mi = 7) andalso (dt.y = 0) )
+    dim as TKMASK_SPEC d = Spec( TKMASK_DATETIME, "yyyy-mm-dd hh:nn" )
+    Ks( "a date and time typed", d, "|", "202612251430", "2026-12-25 14:30|" )
+    tkTest_Check( "GetDT of both", tkMask_GetDT( d, "2026-12-25 14:30", dt ) andalso (dt.d = 25) andalso (dt.h = 14) andalso (dt.mi = 30) )
+end scope
+
+end tkTest_Report( "tkMask" )

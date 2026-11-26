@@ -1,0 +1,312 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMask -- the NUMERIC kind (docs/tkControls/MASKEDIT.md 5.2). The text is read into a CORE --
+' an optional "-", the integer digits, and "." plus the decimals -- edited there with the caret as
+' an index into it, normalised (leading zeros, "0" before the point, decimals padded to the mask's
+' count) and rendered back the way tkFormat_Number renders the same value.
+#module "tkMask"
+
+#import "../tkFormat"
+using tkFormat
+
+' text -> core. offA / offB (byte offsets in text) come back as core indexes in coreA / coreB.
+' FALSE when text holds anything but the prefix, the suffix, digits, one "-", one ".", "," and spaces.
+function MskNumCore( byref m as TKMASK_SPEC, byref text as const string, byref core as string, _
+                     byval offA as int32, byref coreA as int32, byval offB as int32, byref coreB as int32 ) as boolean
+    dim as string pre = m.fmt.pre, post = m.fmt.post
+    dim as int32 L = len( text ), bStart = 0, bEnd = L
+    if (len( pre ) > 0) andalso (left( text, len( pre ) ) = pre) then bStart = len( pre )
+    if (len( post ) > 0) andalso (L - len( post ) >= bStart) andalso (right( text, len( post ) ) = post) then bEnd = L - len( post )
+    core = ""
+    coreA = -1 : coreB = -1
+    for i as int32 = 0 to L - 1
+        if i = offA then coreA = len( core )
+        if i = offB then coreB = len( core )
+        if (i >= bStart) andalso (i < bEnd) then
+            dim as string c = chr( text[i] )
+            if MskIsDigit( c ) then
+                core &= c
+            elseif (c = "-") andalso (len( core ) = 0) then
+                core = "-"
+            elseif (c = ".") andalso (instr( core, "." ) = 0) then
+                core &= "."
+            elseif (c <> ",") andalso (c <> " ") then
+                core = "" : coreA = 0 : coreB = 0
+                return false
+            end if
+        end if
+    next
+    if coreA < 0 then coreA = len( core )
+    if coreB < 0 then coreB = len( core )
+    return true
+end function
+
+function MskCoreHasDigit( byref core as const string ) as boolean
+    for i as int32 = 0 to len( core ) - 1
+        if (core[i] >= 48) andalso (core[i] <= 57) then return true
+    next
+    return false
+end function
+
+' The core normalised (k follows the characters it sat between) and rendered; caret = k's byte
+' offset in the result.
+function MskNumRender( byref m as TKMASK_SPEC, byref coreIn as const string, byval k as int32, byref caret as int32 ) as string
+    dim as string core = coreIn
+    if MskCoreHasDigit( core ) = false then
+        ' no digits: "" or a lone sign
+        if left( core, 1 ) = "-" then
+            caret = len( m.fmt.pre ) + 1
+            return m.fmt.pre & "-" & m.fmt.post
+        end if
+        caret = 0
+        return ""
+    end if
+    dim as boolean neg = left( core, 1 ) = "-"
+    dim as int32 base_ = iif( neg, 1, 0 )
+    dim as string body = mid( core, base_ + 1 ), ip, fp
+    dim as int32 kb = k - base_                             ' the caret inside body
+    if kb < 0 then kb = 0
+    dim as int32 dot = instr( body, "." )
+    if dot then
+        ip = left( body, dot - 1 )
+        fp = mid( body, dot + 1 )
+    else
+        ip = body
+    end if
+    ' no integer digit and only zero decimals left (the last digit deleted): empty, or a lone sign
+    if (len( ip ) = 0) andalso (val( "0." & fp ) = 0) then
+        if neg then
+            caret = len( m.fmt.pre ) + 1
+            return m.fmt.pre & "-" & m.fmt.post
+        end if
+        caret = 0
+        return ""
+    end if
+    ' leading zeros
+    dim as int32 z = 0
+    while (z < len( ip ) - 1) andalso (ip[z] = 48)
+        z += 1
+    wend
+    if z > 0 then
+        ip = mid( ip, z + 1 )
+        if kb > z then kb -= z else kb = 0
+    end if
+    if len( ip ) = 0 then
+        ip = "0"
+        if dot andalso (kb >= dot - 1) then kb += 1       ' at or past the point: after the new 0
+    end if
+    if m.fmt.dec > 0 then
+        fp = left( fp & string( m.fmt.dec, "0" ), m.fmt.dec )
+    else
+        fp = ""
+    end if
+    ' kb as an index into ip & "." & fp
+    dim as int32 maxK = len( ip ) + iif( m.fmt.dec > 0, 1 + len( fp ), 0 )
+    if kb > maxK then kb = maxK
+    ' render: grouping, then find kb among the non-comma characters
+    dim as string g
+    if m.fmt.grouped then
+        dim as int32 cnt = 0
+        for i as int32 = len( ip ) to 1 step -1
+            g = mid( ip, i, 1 ) & g
+            cnt += 1
+            if (cnt mod 3 = 0) andalso (i > 1) then g = "," & g
+        next
+    else
+        g = ip
+    end if
+    dim as string num = g
+    if m.fmt.dec > 0 then num &= "." & fp
+    dim as int32 off = 0, seen = 0
+    while (off < len( num )) andalso (seen < kb)
+        if num[off] <> 44 then seen += 1
+        off += 1
+    wend
+    caret = len( m.fmt.pre ) + iif( neg, 1, 0 ) + off
+    return m.fmt.pre & iif( neg, "-", "" ) & num & m.fmt.post
+end function
+
+' Deletes core[a, b): integer digits go, the point stays, decimal digits become 0 (fixed width).
+function MskNumDelete( byref core as const string, byval a as int32, byval b as int32 ) as string
+    dim as int32 dot = instr( core, "." ) - 1             ' -1 none
+    dim as string r = left( core, a )
+    for i as int32 = a to b - 1
+        if i = dot then
+            r &= "."
+        elseif (dot >= 0) andalso (i > dot) then
+            r &= "0"
+        elseif core[i] = 45 then
+            ' the sign goes
+        end if
+    next
+    return r & mid( core, b + 1 )
+end function
+
+' Typing one character into the core at k. FALSE (rej) when refused.
+function MskNumType( byref m as TKMASK_SPEC, byref core as string, byref k as int32, byref ch as const string, _
+                     byref rej as int32 ) as boolean
+    dim as int32 dot = instr( core, "." ) - 1
+    dim as int32 base_ = iif( left( core, 1 ) = "-", 1, 0 )
+    if k < base_ then k = base_
+    if MskIsDigit( ch ) then
+        if (dot >= 0) andalso (k > dot) then
+            dim as int32 j = k - dot - 1
+            if j >= m.fmt.dec then rej = TKMASK_REJ_FULL : return false
+            if j < len( core ) - dot - 1 then
+                core = left( core, k ) & ch & mid( core, k + 2 )
+            else
+                core &= ch
+            end if
+            k += 1
+            return true
+        end if
+        dim as int32 nInt = iif( dot >= 0, dot, len( core ) ) - base_
+        if nInt + m.fmt.dec >= TKMASK_MAXDIGITS then rej = TKMASK_REJ_FULL : return false
+        core = left( core, k ) & ch & mid( core, k + 1 )
+        k += 1
+        return true
+    end if
+    select case ch
+    case "."
+        if m.fmt.dec = 0 then rej = TKMASK_REJ_CLASS : return false
+        if dot >= 0 then
+            k = dot + 1
+        elseif MskCoreHasDigit( core ) = false then
+            core = left( core, base_ ) & "0."               ' "." first: 0.00, the caret after the point
+            k = base_ + 2
+        else
+            if len( core ) - k > m.fmt.dec then rej = TKMASK_REJ_FULL : return false
+            core = left( core, k ) & "." & mid( core, k + 1 )
+            k += 1
+        end if
+        return true
+    case ","
+        return true
+    case "-"
+        if m.allowNeg = false then rej = TKMASK_REJ_SIGN : return false
+        if base_ then
+            core = mid( core, 2 )
+            k -= 1
+        else
+            core = "-" & core
+            k += 1
+        end if
+        return true
+    case "+"
+        if base_ then
+            core = mid( core, 2 )
+            k -= 1
+        end if
+        return true
+    end select
+    rej = TKMASK_REJ_CLASS
+    return false
+end function
+
+function MskApplyNumber( byref m as TKMASK_SPEC, byref text as string, byval lo as int32, byval hi as int32, _
+                         byref ins as const string, byval reason as int32, byref caret as int32, byref rej as int32 ) as boolean
+    dim as string core
+    dim as int32 clo, chi
+    MskNumCore( m, text, core, lo, clo, hi, chi )
+    dim as int32 k = clo
+    select case reason
+    case TKMASK_EDIT_BACKSPACE, TKMASK_EDIT_DELETE, TKMASK_EDIT_CUT
+        if chi = clo then
+            ' the range held only grouping or the affixes: the character beyond it
+            if (reason = TKMASK_EDIT_BACKSPACE) andalso (clo > 0) then
+                clo -= 1
+            elseif (reason = TKMASK_EDIT_DELETE) andalso (chi < len( core )) then
+                chi += 1
+            end if
+        end if
+        if (chi - clo = 1) andalso (mid( core, clo + 1, 1 ) = ".") then
+            ' the point alone is not deleted: the caret steps over it
+            k = iif( reason = TKMASK_EDIT_BACKSPACE, clo, chi )
+        else
+            core = MskNumDelete( core, clo, chi )
+            k = clo
+        end if
+    case else
+        dim as string src = ins
+        if reason <> TKMASK_EDIT_TYPE then
+            ' a paste is a number or nothing
+            dim as string pc
+            dim as int32 a_, b_
+            if (MskNumCore( m, ins, pc, 0, a_, 0, b_ ) = false) orelse (MskCoreHasDigit( pc ) = false) then
+                rej = TKMASK_REJ_NOTNUMBER
+                return false
+            end if
+            if (left( pc, 1 ) = "-") andalso (m.allowNeg = false) then rej = TKMASK_REJ_SIGN : return false
+            src = pc
+        end if
+        ' a selection over every digit (or an empty box) is replaced whole; a part of one is deleted
+        ' (its decimals zeroed in place) and typing starts at its first character
+        dim as boolean whole = (chi > clo) andalso MskCoreHasDigit( core ) andalso _
+                               (MskCoreHasDigit( left( core, clo ) ) = false) andalso _
+                               (MskCoreHasDigit( mid( core, chi + 1 ) ) = false)
+        if (reason <> TKMASK_EDIT_TYPE) andalso (MskCoreHasDigit( core ) = false) then whole = true
+        if whole then
+            core = ""
+        elseif chi > clo then
+            core = MskNumDelete( core, clo, chi )
+        end if
+        k = iif( whole, 0, clo )
+        dim as string before = core
+        for i as int32 = 0 to len( src ) - 1
+            if MskNumType( m, core, k, chr( src[i] ), rej ) = false then exit for
+        next
+        if (rej <> TKMASK_REJ_NONE) andalso (core = before) andalso (chi = clo) then return false
+    end select
+    dim as string after = MskNumRender( m, core, k, caret )
+    text = after
+    return true
+end function
+
+function MskNumEmpty( byref m as TKMASK_SPEC, byref text as const string ) as boolean
+    dim as string core
+    dim as int32 a, b
+    if MskNumCore( m, text, core, 0, a, 0, b ) = false then return true
+    return MskCoreHasDigit( core ) = false
+end function
+
+' The plain number: "-1234.50" (the digits shown; a percent mask's shown number).
+function MskNumPlain( byref m as TKMASK_SPEC, byref text as const string ) as string
+    dim as string core
+    dim as int32 a, b, c
+    if MskNumCore( m, text, core, 0, a, 0, b ) = false then return ""
+    if MskCoreHasDigit( core ) = false then return ""
+    dim as string r = MskNumRender( m, core, 0, c )
+    dim as string pc
+    MskNumCore( m, r, pc, 0, a, 0, b )
+    return pc
+end function
+
+' The number in text (a percent mask divides by 100). FALSE when empty or not a number.
+public function tkMask_GetNumber( byref m as TKMASK_SPEC, byref text as const string, byref v as float64 ) as boolean
+    v = 0
+    if m.kind <> TKMASK_NUMERIC then return false
+    dim as string core
+    dim as int32 a, b
+    if MskNumCore( m, text, core, 0, a, 0, b ) = false then return false
+    if MskCoreHasDigit( core ) = false then return false
+    v = val( core )
+    if m.fmt.percent then v /= 100
+    return true
+end function
+
+' The text for v: tkFormat_Number's, the same characters a report prints.
+public function tkMask_TextOfNumber( byref m as TKMASK_SPEC, byval v as float64 ) as string
+    if m.kind <> TKMASK_NUMERIC then return ""
+    return tkFormat_Number( v, m.fmt )
+end function
+
+' v inside [minV, maxV] (each when set).
+public function tkMask_Clamp( byref m as TKMASK_SPEC, byval v as float64 ) as float64
+    if m.hasMin andalso (v < m.minV) then v = m.minV
+    if m.hasMax andalso (v > m.maxV) then v = m.maxV
+    return v
+end function

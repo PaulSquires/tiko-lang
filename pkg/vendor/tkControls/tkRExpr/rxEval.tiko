@@ -12,10 +12,12 @@
 
 #import "../tkBind"
 #import "std/chrono"
+#import "../tkFormat"
 
 using tkBind
 using tkCalendar
 using tkTimePanel
+using tkFormat
 
 declare function RxCompare( byref a as RX_SLOT, byref b as RX_SLOT ) as int32
 declare function RxLike( byref s as const ustring, byref pat as const ustring ) as boolean

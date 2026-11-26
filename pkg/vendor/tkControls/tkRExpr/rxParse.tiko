@@ -15,10 +15,12 @@
 
 #import "../tkBind"
 #import "std/chrono"
+#import "../tkFormat"
 
 using tkBind
 using tkCalendar
 using tkTimePanel
+using tkFormat
 
 const RXK_ERR = -1
 const RX_MAX_NEST = 48

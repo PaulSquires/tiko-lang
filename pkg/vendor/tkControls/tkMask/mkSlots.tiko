@@ -1,0 +1,535 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMask -- the slot kinds: FIXED and DATE / TIME / DATETIME (docs/tkControls/MASKEDIT.md 5.1, 5.3).
+' The text is read into cur(): one entry per slot, "" for an empty editable slot (literals unused),
+' edited there and rendered back, so every result has the template's shape.
+#module "tkMask"
+
+#import "../tkFormat"
+using tkFormat
+
+' ---- the text as slots --------------------------------------------------------------------------
+' cur() from text. TRUE when text had the template's shape (a character per slot, the literals in
+' place); otherwise cur() starts empty and text is mapped in like a paste.
+function MskShape( byref m as TKMASK_SPEC, byref text as const string, cur() as string ) as boolean
+    redim cur( 0 to m.nSlots )
+    dim as string ch()
+    dim as int32 n = MskSplit( text, ch() )
+    dim as boolean shaped = (n = m.nSlots)
+    if shaped then
+        for i as int32 = 0 to n - 1
+            if (m.slots(i).kind = TKMS_LITERAL) andalso (ch(i) <> m.slots(i).lit) then shaped = false : exit for
+        next
+    end if
+    if shaped then
+        for i as int32 = 0 to n - 1
+            if (m.slots(i).kind <> TKMS_LITERAL) andalso (ch(i) <> m.prompt) then cur(i) = ch(i)
+        next
+        return true
+    end if
+    if n > 0 then
+        dim as int32 c = 0, rej
+        MskPlace( m, cur(), c, text, rej )
+    end if
+    return false
+end function
+
+function MskRender( byref m as TKMASK_SPEC, cur() as string, byref emptyCh as const string ) as string
+    dim as string s
+    for i as int32 = 0 to m.nSlots - 1
+        if m.slots(i).kind = TKMS_LITERAL then
+            s &= m.slots(i).lit
+        elseif len( cur(i) ) then
+            s &= cur(i)
+        else
+            s &= emptyCh
+        end if
+    next
+    return s
+end function
+
+' The byte offset of slot idx in the rendered text.
+function MskSlotOffset( byref m as TKMASK_SPEC, cur() as string, byval idx as int32 ) as int32
+    dim as int32 acc = 0
+    if idx > m.nSlots then idx = m.nSlots
+    for i as int32 = 0 to idx - 1
+        if m.slots(i).kind = TKMS_LITERAL then
+            acc += len( m.slots(i).lit )
+        elseif len( cur(i) ) then
+            acc += len( cur(i) )
+        else
+            acc += len( m.prompt )
+        end if
+    next
+    return acc
+end function
+
+function MskNextEdit( byref m as TKMASK_SPEC, byval i as int32 ) as int32
+    if i < 0 then i = 0
+    while (i < m.nSlots) andalso (m.slots(i).kind = TKMS_LITERAL)
+        i += 1
+    wend
+    return i
+end function
+
+function MskSkipLit( byref m as TKMASK_SPEC, byval i as int32 ) as int32
+    return MskNextEdit( m, i )
+end function
+
+' Does c fit slot i? cv = c after the slot's case conversion.
+function MskFits( byref m as TKMASK_SPEC, byval i as int32, byref c as const string, byref cv as string ) as boolean
+    cv = c
+    if len( c ) = 0 then return false
+    dim as boolean ok = false
+    select case m.slots(i).kind
+    case TKMS_DIGIT : ok = MskIsDigit( c )
+    case TKMS_DIGITSPACE : ok = MskIsDigit( c ) orelse (c = " ")
+    case TKMS_DIGITSIGN : ok = MskIsDigit( c ) orelse (c = " ") orelse (c = "+") orelse (c = "-")
+    case TKMS_LETTER : ok = MskIsLetter( c )
+    case TKMS_ALNUM : ok = MskIsLetter( c ) orelse MskIsDigit( c )
+    case TKMS_ANY : ok = (c[0] >= 32) andalso (c[0] <> 127)
+    end select
+    if ok = false then return false
+    select case m.slots(i).caseMode
+    case 1 : cv = lcase( c )
+    case 2 : cv = ucase( c )
+    end select
+    return true
+end function
+
+' A literal typed at the caret: TRUE and c moved past it when it is one of the literals starting
+' at c; TRUE and c unchanged when it is one of the literals just behind c (typed after the caret
+' already skipped it).
+function MskLiteralStep( byref m as TKMASK_SPEC, byref c as int32, byref ch as const string ) as boolean
+    dim as int32 j = c
+    while (j < m.nSlots) andalso (m.slots(j).kind = TKMS_LITERAL)
+        if m.slots(j).lit = ch then
+            c = MskSkipLit( m, j + 1 )
+            return true
+        end if
+        j += 1
+    wend
+    j = c - 1
+    while (j >= 0) andalso (m.slots(j).kind = TKMS_LITERAL)
+        if m.slots(j).lit = ch then return true
+        j -= 1
+    wend
+    return false
+end function
+
+' Insert mode: cv into slot p, the filled slots from p on moving one editable slot right.
+' FALSE (rej set) when the last one would fall off or a moved character does not fit its slot.
+function MskInsertShift( byref m as TKMASK_SPEC, cur() as string, byval p as int32, byref cv as const string, _
+                         byref rej as int32 ) as boolean
+    dim as int32 e( 0 to m.nSlots ), ne = 0
+    for i as int32 = p to m.nSlots - 1
+        if m.slots(i).kind <> TKMS_LITERAL then e(ne) = i : ne += 1
+    next
+    if len( cur(e(ne - 1)) ) then rej = TKMASK_REJ_FULL : return false
+    dim as string nv( 0 to ne )
+    nv(0) = cv
+    for q as int32 = 1 to ne - 1
+        nv(q) = cur(e(q - 1))
+        if len( nv(q) ) then
+            dim as string conv
+            if MskFits( m, e(q), nv(q), conv ) = false then rej = TKMASK_REJ_CLASS : return false
+            nv(q) = conv
+        end if
+    next
+    for q as int32 = 0 to ne - 1
+        cur(e(q)) = nv(q)
+    next
+    return true
+end function
+
+' Characters of ins into the slots from c on (typing, a paste, a value): literals stepped over or
+' echoed, the prompt character empties a slot, control characters skipped. Stops at the first
+' character that cannot go in (rej set). c ends after the last slot written.
+sub MskPlace( byref m as TKMASK_SPEC, cur() as string, byref c as int32, byref ins as const string, byref rej as int32 )
+    dim as string chs()
+    dim as int32 nn = MskSplit( ins, chs() )
+    for t as int32 = 0 to nn - 1
+        dim as string ch = chs(t)
+        if ch[0] < 32 then continue for
+        if MskLiteralStep( m, c, ch ) then continue for
+        dim as int32 p = MskNextEdit( m, c )
+        if p >= m.nSlots then rej = TKMASK_REJ_FULL : exit sub
+        if ch = m.prompt then
+            cur(p) = ""
+            c = MskSkipLit( m, p + 1 )
+            continue for
+        end if
+        dim as string cv
+        if MskFits( m, p, ch, cv ) = false then rej = TKMASK_REJ_CLASS : exit sub
+        if m.overwrite orelse (len( cur(p) ) = 0) orelse (m.kind <> TKMASK_FIXED) then
+            cur(p) = cv
+        elseif MskInsertShift( m, cur(), p, cv, rej ) = false then
+            exit sub
+        end if
+        c = MskSkipLit( m, p + 1 )
+    next
+end sub
+
+sub MskClear( byref m as TKMASK_SPEC, cur() as string, byval a as int32, byval b as int32 )
+    for i as int32 = a to b - 1
+        if m.slots(i).kind <> TKMS_LITERAL then cur(i) = ""
+    next
+end sub
+
+function MskHasEdit( byref m as TKMASK_SPEC, byval a as int32, byval b as int32 ) as boolean
+    for i as int32 = a to b - 1
+        if m.slots(i).kind <> TKMS_LITERAL then return true
+    next
+    return false
+end function
+
+' ---- date / time segments -------------------------------------------------------------------------
+sub MskSegRange( byval part as int32, byref lo as int32, byref hi as int32 )
+    select case part
+    case TKMS_SEG_YEAR : lo = 1 : hi = 9999
+    case TKMS_SEG_MONTH : lo = 1 : hi = 12
+    case TKMS_SEG_DAY : lo = 1 : hi = 31
+    case TKMS_SEG_HOUR : lo = 0 : hi = 23
+    case else : lo = 0 : hi = 59
+    end select
+end sub
+
+' A segment's value; -1 unless every digit is there.
+function MskSegValue( byref m as TKMASK_SPEC, cur() as string, byval s as int32 ) as int32
+    dim as int32 v = 0
+    for i as int32 = m.segs(s).first to m.segs(s).first + m.segs(s).count - 1
+        if len( cur(i) ) = 0 then return -1
+        v = v * 10 + (cur(i)[0] - 48)
+    next
+    return v
+end function
+
+sub MskSegWrite( byref m as TKMASK_SPEC, cur() as string, byval s as int32, byval v as int32 )
+    dim as string t = right( string( m.segs(s).count, "0" ) & v, m.segs(s).count )
+    for k as int32 = 0 to m.segs(s).count - 1
+        cur(m.segs(s).first + k) = mid( t, k + 1, 1 )
+    next
+end sub
+
+' Every filled segment inside its range.
+function MskSegsInRange( byref m as TKMASK_SPEC, cur() as string ) as boolean
+    for s as int32 = 0 to m.nSegs - 1
+        dim as int32 v = MskSegValue( m, cur(), s ), lo, hi
+        if v >= 0 then
+            MskSegRange( m.segs(s).part, lo, hi )
+            if (v < lo) orelse (v > hi) then return false
+        end if
+    next
+    return true
+end function
+
+public function tkMask_DaysInMonth( byval y as int32, byval mo as int32 ) as int32
+    select case mo
+    case 4, 6, 9, 11 : return 30
+    case 2
+        if ((y mod 4 = 0) andalso (y mod 100 <> 0)) orelse (y mod 400 = 0) then return 29
+        return 28
+    end select
+    return 31
+end function
+
+' Typing in a date / time mask: digits range-checked per segment, padding and moving on; a
+' separator pads a one-digit segment.
+sub MskTypeDate( byref m as TKMASK_SPEC, cur() as string, byref c as int32, byref ins as const string, byref rej as int32 )
+    dim as string chs()
+    dim as int32 nn = MskSplit( ins, chs() )
+    for t as int32 = 0 to nn - 1
+        dim as string ch = chs(t)
+        if MskIsDigit( ch ) then
+            dim as int32 p = MskNextEdit( m, c )
+            if p >= m.nSlots then rej = TKMASK_REJ_FULL : exit sub
+            dim as int32 s = m.slots(p).seg, j = p - m.segs(s).first, dg = ch[0] - 48, lo, hi
+            MskSegRange( m.segs(s).part, lo, hi )
+            if m.segs(s).count = 4 then
+                cur(p) = ch
+                if (j = 3) andalso (MskSegValue( m, cur(), s ) = 0) then cur(p) = "" : rej = TKMASK_REJ_RANGE : exit sub
+                c = MskSkipLit( m, p + 1 )
+            elseif j = 0 then
+                if dg * 10 <= hi then
+                    cur(p) = ch
+                    dim as int32 v = MskSegValue( m, cur(), s )
+                    if (v >= 0) andalso ((v < lo) orelse (v > hi)) then cur(p + 1) = ""
+                    c = p + 1
+                else
+                    cur(p) = "0"
+                    cur(p + 1) = ch
+                    c = MskSkipLit( m, p + 2 )
+                end if
+            else
+                dim as int32 first_ = iif( len( cur(p - 1) ), cur(p - 1)[0] - 48, 0 )
+                dim as int32 v = first_ * 10 + dg
+                if (v < lo) orelse (v > hi) then rej = TKMASK_REJ_RANGE : exit sub
+                if len( cur(p - 1) ) = 0 then cur(p - 1) = "0"
+                cur(p) = ch
+                c = MskSkipLit( m, p + 1 )
+            end if
+        else
+            ' a separator: inside a segment with k digits typed, pad them right-aligned and move on
+            dim as int32 handled = 0
+            if (c > 0) andalso (c < m.nSlots) andalso (m.slots(c - 1).seg >= 0) andalso (m.slots(c).seg = m.slots(c - 1).seg) then
+                dim as int32 s = m.slots(c - 1).seg
+                dim as int32 a = m.segs(s).first, e = a + m.segs(s).count
+                if (e < m.nSlots) andalso (m.slots(e).kind = TKMS_LITERAL) andalso (m.slots(e).lit = ch) then
+                    dim as string digs
+                    dim as boolean all_ = true
+                    for i as int32 = a to c - 1
+                        if len( cur(i) ) = 0 then all_ = false : exit for
+                        digs &= cur(i)
+                    next
+                    if all_ then
+                        dim as int32 v = valint( digs ), lo, hi
+                        MskSegRange( m.segs(s).part, lo, hi )
+                        if (v < lo) orelse (v > hi) then rej = TKMASK_REJ_RANGE : exit sub
+                        MskSegWrite( m, cur(), s, v )
+                        c = MskSkipLit( m, e )
+                        handled = 1
+                    end if
+                end if
+            end if
+            if handled = 0 then
+                if MskLiteralStep( m, c, ch ) = false then rej = TKMASK_REJ_CLASS : exit sub
+            end if
+        end if
+    next
+end sub
+
+' A paste into a date / time mask: digit groups one per segment ("3/4/2026"), or all the digits
+' at once ("03042026"), else slot by slot. Refused whole when a segment ends up out of range.
+function MskPasteDate( byref m as TKMASK_SPEC, cur() as string, byref c as int32, byref ins as const string, _
+                       byref rej as int32 ) as boolean
+    dim as string g( 0 to len( ins ) ), digs
+    dim as int32 ng = 0, total = 0
+    dim as boolean inG = false
+    for i as int32 = 0 to len( ins ) - 1
+        dim as string ch = chr( ins[i] )
+        if MskIsDigit( ch ) then
+            if inG = false then ng += 1 : inG = true
+            g(ng - 1) &= ch
+            digs &= ch
+        else
+            inG = false
+        end if
+    next
+    for s as int32 = 0 to m.nSegs - 1
+        total += m.segs(s).count
+    next
+    dim as string w( 0 to m.nSlots )
+    for i as int32 = 0 to m.nSlots
+        w(i) = cur(i)
+    next
+    dim as int32 wc = c
+    if (ng = m.nSegs) andalso (ng > 0) then
+        for s as int32 = 0 to m.nSegs - 1
+            if len( g(s) ) > m.segs(s).count then rej = TKMASK_REJ_RANGE : return false
+            MskSegWrite( m, w(), s, valint( g(s) ) )
+        next
+        wc = m.nSlots
+    elseif len( digs ) = total then
+        wc = 0
+        MskPlace( m, w(), wc, digs, rej )
+    else
+        MskPlace( m, w(), wc, ins, rej )
+    end if
+    if MskSegsInRange( m, w() ) = false then rej = TKMASK_REJ_RANGE : return false
+    for i as int32 = 0 to m.nSlots
+        cur(i) = w(i)
+    next
+    c = wc
+    return true
+end function
+
+' ---- the edit ---------------------------------------------------------------------------------------
+function MskApplySlots( byref m as TKMASK_SPEC, byref text as string, byval lo as int32, byval hi as int32, _
+                        byref ins as const string, byval reason as int32, byref caret as int32, byref rej as int32 ) as boolean
+    dim as string cur()
+    dim as int32 clo = 0, chi = 0
+    if MskShape( m, text, cur() ) then
+        dim as string ch()
+        dim as int32 n = MskSplit( text, ch() )
+        clo = MskIndexAt( ch(), n, lo )
+        chi = MskIndexAt( ch(), n, hi )
+        if (hi > lo) andalso (chi = clo) then chi = clo + 1
+    end if
+    dim as string before = text
+    dim as int32 c = clo
+    select case reason
+    case TKMASK_EDIT_BACKSPACE, TKMASK_EDIT_DELETE, TKMASK_EDIT_CUT
+        if MskHasEdit( m, clo, chi ) then
+            MskClear( m, cur(), clo, chi )
+        elseif reason = TKMASK_EDIT_BACKSPACE then
+            ' only literals behind the caret: the editable slot before them
+            dim as int32 j = clo - 1
+            while (j >= 0) andalso (m.slots(j).kind = TKMS_LITERAL)
+                j -= 1
+            wend
+            if j >= 0 then cur(j) = "" : c = j
+        elseif reason = TKMASK_EDIT_DELETE then
+            dim as int32 j = MskNextEdit( m, chi )
+            if j < m.nSlots then cur(j) = ""
+        end if
+    case else
+        MskClear( m, cur(), clo, chi )
+        if (m.kind <> TKMASK_FIXED) andalso (reason <> TKMASK_EDIT_TYPE) then
+            if MskPasteDate( m, cur(), c, ins, rej ) = false then return false
+        elseif m.kind <> TKMASK_FIXED then
+            MskTypeDate( m, cur(), c, ins, rej )
+        else
+            MskPlace( m, cur(), c, ins, rej )
+        end if
+    end select
+    dim as string after = MskRender( m, cur(), m.prompt )
+    if (after = before) andalso (rej <> TKMASK_REJ_NONE) then return false
+    text = after
+    caret = MskSlotOffset( m, cur(), c )
+    return true
+end function
+
+' ---- reading the slots ----------------------------------------------------------------------------
+function MskSlotsEmpty( byref m as TKMASK_SPEC, byref text as const string ) as boolean
+    dim as string cur()
+    MskShape( m, text, cur() )
+    for i as int32 = 0 to m.nSlots - 1
+        if len( cur(i) ) then return false
+    next
+    return true
+end function
+
+function MskSlotsComplete( byref m as TKMASK_SPEC, byref text as const string ) as boolean
+    dim as string cur()
+    MskShape( m, text, cur() )
+    for i as int32 = 0 to m.nSlots - 1
+        if m.slots(i).required andalso (len( cur(i) ) = 0) then return false
+    next
+    return true
+end function
+
+function MskSlotsValue( byref m as TKMASK_SPEC, byref text as const string, byval fmt as int32 ) as string
+    dim as string cur(), s
+    MskShape( m, text, cur() )
+    for i as int32 = 0 to m.nSlots - 1
+        if m.slots(i).kind = TKMS_LITERAL then
+            if (fmt = TKMASK_FMT_LITERALS) orelse (fmt = TKMASK_FMT_BOTH) then s &= m.slots(i).lit
+        elseif len( cur(i) ) then
+            s &= cur(i)
+        else
+            select case fmt
+            case TKMASK_FMT_LITERALS : s &= " "
+            case TKMASK_FMT_PROMPTS, TKMASK_FMT_BOTH : s &= m.prompt
+            end select
+        end if
+    next
+    return s
+end function
+
+' ---- spin and the typed value ---------------------------------------------------------------------
+function MskSpin( byref m as TKMASK_SPEC, byref text as string, byref caret as int32, byval delta as int32 ) as boolean
+    dim as string cur()
+    MskShape( m, text, cur() )
+    dim as string before = MskRender( m, cur(), m.prompt )
+    dim as string ch()
+    dim as int32 n = MskSplit( before, ch() )
+    dim as int32 ci = MskIndexAt( ch(), n, caret ), s = -1
+    if (ci < m.nSlots) andalso (m.slots(ci).seg >= 0) then
+        s = m.slots(ci).seg
+    elseif (ci > 0) andalso (ci - 1 < m.nSlots) andalso (m.slots(ci - 1).seg >= 0) then
+        s = m.slots(ci - 1).seg
+    else
+        dim as int32 j = MskNextEdit( m, ci )
+        if j < m.nSlots then s = m.slots(j).seg else s = m.nSegs - 1
+    end if
+    if s < 0 then return false
+    dim as int32 lo, hi, v = MskSegValue( m, cur(), s )
+    MskSegRange( m.segs(s).part, lo, hi )
+    if m.segs(s).part = TKMS_SEG_DAY then
+        dim as int32 ys = -1, ms = -1
+        for k as int32 = 0 to m.nSegs - 1
+            if m.segs(k).part = TKMS_SEG_YEAR then ys = MskSegValue( m, cur(), k )
+            if m.segs(k).part = TKMS_SEG_MONTH then ms = MskSegValue( m, cur(), k )
+        next
+        if (ms >= 1) andalso (ms <= 12) then hi = tkMask_DaysInMonth( iif( ys > 0, ys, 2000 ), ms )
+    end if
+    if v < 0 then
+        v = iif( m.segs(s).part = TKMS_SEG_YEAR, m.spinYear, lo )
+    elseif m.segs(s).part = TKMS_SEG_YEAR then
+        v += delta
+        if v < lo then v = lo
+        if v > hi then v = hi
+    else
+        dim as int32 r = hi - lo + 1
+        v = lo + (((v - lo + delta) mod r) + r) mod r
+    end if
+    MskSegWrite( m, cur(), s, v )
+    text = MskRender( m, cur(), m.prompt )
+    caret = MskSlotOffset( m, cur(), ci )
+    return text <> before
+end function
+
+function MskDTCompare( byref a as const TKMASK_DT, byref b as const TKMASK_DT ) as int32
+    dim as int64 x = ((((clngint( a.y ) * 13 + a.mo) * 32 + a.d) * 24 + a.h) * 60 + a.mi) * 60 + a.s
+    dim as int64 z = ((((clngint( b.y ) * 13 + b.mo) * 32 + b.d) * 24 + b.h) * 60 + b.mi) * 60 + b.s
+    return sgn( x - z )
+end function
+
+' The date / time in text: TRUE when every segment is filled, in range, and the day exists.
+public function tkMask_GetDT( byref m as TKMASK_SPEC, byref text as const string, byref dt as TKMASK_DT ) as boolean
+    dim as TKMASK_DT r
+    dt = r
+    select case m.kind
+    case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
+    case else : return false
+    end select
+    dim as string cur()
+    MskShape( m, text, cur() )
+    if MskSegsInRange( m, cur() ) = false then return false
+    for s as int32 = 0 to m.nSegs - 1
+        dim as int32 v = MskSegValue( m, cur(), s )
+        if v < 0 then return false
+        select case m.segs(s).part
+        case TKMS_SEG_YEAR : r.y = v
+        case TKMS_SEG_MONTH : r.mo = v
+        case TKMS_SEG_DAY : r.d = v
+        case TKMS_SEG_HOUR : r.h = v
+        case TKMS_SEG_MINUTE : r.mi = v
+        case TKMS_SEG_SECOND : r.s = v
+        end select
+    next
+    if (m.kind <> TKMASK_TIME) andalso (r.d > tkMask_DaysInMonth( r.y, r.mo )) then return false
+    dt = r
+    return true
+end function
+
+' The text for a date / time (fields the mask has no segment for are ignored); the template when
+' a field it has is out of range.
+public function tkMask_TextOfDT( byref m as TKMASK_SPEC, byref dt as const TKMASK_DT ) as string
+    select case m.kind
+    case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
+    case else : return ""
+    end select
+    dim as string cur()
+    redim cur( 0 to m.nSlots )
+    for s as int32 = 0 to m.nSegs - 1
+        dim as int32 v
+        select case m.segs(s).part
+        case TKMS_SEG_YEAR : v = dt.y
+        case TKMS_SEG_MONTH : v = dt.mo
+        case TKMS_SEG_DAY : v = dt.d
+        case TKMS_SEG_HOUR : v = dt.h
+        case TKMS_SEG_MINUTE : v = dt.mi
+        case TKMS_SEG_SECOND : v = dt.s
+        end select
+        dim as int32 lo, hi
+        MskSegRange( m.segs(s).part, lo, hi )
+        if (v < lo) orelse (v > hi) then return tkMask_Template( m )
+        MskSegWrite( m, cur(), s, v )
+    next
+    return MskRender( m, cur(), m.prompt )
+end function
