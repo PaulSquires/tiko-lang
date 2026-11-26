@@ -244,6 +244,10 @@ type C2tEmit
     '' For --verify: '#assert NAME = value' for each integer macro kept as an expression, so
     '' tiko's own preprocessor checks what cexpr's folder concluded (D17).
     asserts as Tko.StrVec
+    '' ...and '#assert NAME = value' for each enumerator, with its line: kept only outside a
+    '' group that tests the compiler (TranslatePass_), as for a macro.
+    enumAsserts as Tko.StrVec
+    enumAssertLine as C2tIntVec
     as int32 decls                 '' declarations written
     typeMacros as Tko.StrVec       '' C2tOptions.typeMacros, for the pass being emitted
 end type
@@ -367,6 +371,8 @@ declare sub UnreachedBranches( byref src as C2tSource, byref dirs as C2tDirVec, 
 declare function IsCompilerName( byref n as string ) as boolean
 '' The #if group opened by directive g tests one, in any of its branches.
 declare function GroupTestsCompiler( byref src as C2tSource, byref dirs as C2tDirVec, byval g as int32 ) as boolean
+'' True when physical line n is inside an #if group that tests the compiler.
+declare function LineInCompilerGroup( byref src as C2tSource, byref dirs as C2tDirVec, byval n as int32 ) as boolean
 '' The header's text with each branch in 'forced' taken and each directive in 'blankDirs' gone,
 '' same length, same lines; "" when a directive leaves no room to rewrite.
 declare function ForceText( byref src as C2tSource, byref dirs as C2tDirVec, byref forced as C2tIntVec, _

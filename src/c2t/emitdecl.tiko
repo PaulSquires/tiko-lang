@@ -574,22 +574,32 @@ private function Enum_( byref e as C2tEmit, byval ec as Tko.CImport.CXCursor, by
         if api->getCursorKind( kids[i] ) <> CK_ENUMCONST then continue for
         dim as string s = FbName_( e, kids[i] )
         Ren_( e, "constant", Tko.CImport.CursorName( *e.x, kids[i] ), s )
-        '' A VALUE WHERE C WROTE ONE: clang's, until P4 translates the expression.
+        '' A VALUE WHERE C WROTE ONE: clang's, until P4 translates the expression. C wrote
+        '' none only where the enumerator is its name alone; a macro invocation that makes it
+        '' -- curl's CURLOPT(CURLOPT_URL, CURLOPTTYPE_STRINGPOINT, 2), 'na = t + nu' -- holds
+        '' its '=' in the macro's body, out of this span, and was numbered by its place.
         dim as int32 a, b
         CursorSpan( *api, kids[i], a, b )
-        dim as boolean init_ = false
-        for t as int32 = TokAt( *e.src, a ) to TokAt( *e.src, b ) - 1
-            if TokText( *e.src, t ) = "=" then
-                init_ = true
-                exit for
-            end if
+        dim as int32 t1 = TokAt( *e.src, a ), t2 = TokAt( *e.src, b )
+        dim as boolean init_ = true
+        if (t2 = t1 + 1) andalso (t1 < e.src->toks.Count) then
+            init_ = (TokText( *e.src, t1 ) <> Tko.CImport.CursorName( *e.x, kids[i] ))
+        end if
+        for t as int32 = t1 to t2 - 1
+            if TokText( *e.src, t ) = "=" then init_ = true
         next
-        if init_ then
-            if uns then
-                s &= " = " & api->getEnumConstantDeclUnsignedValue( kids[i] )
-            else
-                s &= " = " & api->getEnumConstantDeclValue( kids[i] )
-            end if
+        dim as string v
+        if uns then
+            v = str( api->getEnumConstantDeclUnsignedValue( kids[i] ) )
+        else
+            v = str( api->getEnumConstantDeclValue( kids[i] ) )
+        end if
+        if init_ then s &= " = " & v
+        '' --verify CHECKS EVERY ONE against clang's value, written or numbered by tiko. One
+        '' past int64 has no literal both sides read alike: not asserted.
+        if (uns = false) orelse (api->getEnumConstantDeclUnsignedValue( kids[i] ) <= 9223372036854775807ull) then
+            e.enumAsserts.Push( "#assert (" & FbName_( e, kids[i] ) & ") = (" & v & ")" )
+            e.enumAssertLine.Push( LineOf_( e, a ) )
         end if
         ct.Push( s )
         cl.Push( LineOf_( e, a ) )
@@ -750,7 +760,10 @@ private function PtrTypedefs_( byref e as C2tEmit, byref p as C2tPass, byref ptr
         end if
         if len( text ) then text &= chr( 10 )
         text &= ind & "type " & tn & " as " & ty
-        Written_( e, c )
+    next
+    '' WRITTEN ONLY WHEN ALL ARE: one refused leaves the declaration a TODO.
+    for i as int32 = 0 to ptrTd.Count - 1
+        Written_( e, p.segs[ptrTd[i]].cur )
     next
     return true
 end function
@@ -820,6 +833,7 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
     dim as Tko.CImport.ClangApi ptr api = e.api
     dim as int32 n0 = e.x->c2tFwd.Count
     dim as int32 ren0 = e.renames.Count
+    dim as int32 ea0 = e.enumAsserts.Count
     text = ""
 
     '' COMMENT LINES THE SPAN WAS WIDENED OVER (output.tiko, Widen_): a block comment that
@@ -897,6 +911,7 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
         if len( dcn ) then Ren_( e, "type", dcn, nm )
         dim as string tail
         dim as C2tIntVec ptrTd                 '' 'typedef struct X *Y': after the record
+        dim as C2tIntVec named                 '' the typedefs that name it: written with it
         for i as int32 = 0 to segIdx.Count - 1
             dim as C2tSegment s = p.segs[segIdx[i]]
             if s.kind = CK_TYPEDEF then
@@ -910,7 +925,7 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
                 dim as string tn = FbName_( e, s.cur )
                 if len( nm ) = 0 then nm = tn
                 if tn <> nm then tail &= chr( 10 ) & ind & "type " & tn & " as " & nm
-                Written_( e, s.cur )
+                named.Push( segIdx[i] )
             end if
         next
         if (len( nm ) = 0) andalso (ptrTd.Count > 0) then
@@ -918,7 +933,15 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
             why = "typedef '" & FbName_( e, p.segs[ptrTd[0]].cur ) & "' points to a record with no name"
             return false
         end if
+        '' A TYPEDEF IS WRITTEN ONLY WITH ITS RECORD: one marked written before a record that
+        '' is then refused is a name nothing declares, and every pointer to it later was spelled
+        '' with it -- libssh2_poll's 'LIBSSH2_POLLFD ptr' on Windows, where _LIBSSH2_POLLFD's
+        '' SOCKET refuses it (TKO0808). Unwritten, such a pointer is the record's, behind the
+        '' hidden alias, as for an opaque one (types.tiko, C2tPtrToRecord_).
         if def_ = false then
+            for i as int32 = 0 to named.Count - 1
+                Written_( e, p.segs[named[i]].cur )
+            next
             '' 'struct X;' -- a forward declaration: the hidden alias (D18).
             if (nRec > 0) andalso (AliasDone_( e, nm ) = false) then
                 e.aliasDone.Push( nm )
@@ -941,6 +964,11 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
             ok = Enum_( e, d, l1, l2, nm, text, reason, why )
             if ok andalso len( tail ) then text &= tail
             if ok then ok = PtrTypedefs_( e, p, ptrTd, ind, text, reason, why )
+        end if
+        if ok then
+            for i as int32 = 0 to named.Count - 1
+                Written_( e, p.segs[named[i]].cur )
+            next
         end if
     elseif nFn > 0 then
         if segIdx.Count > 1 then
@@ -979,6 +1007,10 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
         Forget_( e, n0 )
         while e.renames.Count > ren0
             e.renames.Pop( )
+        wend
+        while e.enumAsserts.Count > ea0
+            e.enumAsserts.Pop( )
+            e.enumAssertLine.Pop( )
         wend
         return false
     end if

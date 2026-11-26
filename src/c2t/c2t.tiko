@@ -181,6 +181,11 @@ private function TranslatePass_( byref ctx as Tko.CompilerContext, byref api as 
     for i as int32 = 0 to e.asserts.Count - 1
         po.asserts &= e.asserts[i] & chr( 10 )
     next
+    for i as int32 = 0 to e.enumAsserts.Count - 1
+        if LineInCompilerGroup( src, dirs, e.enumAssertLine[i] ) = false then
+            po.asserts &= e.enumAsserts[i] & chr( 10 )
+        end if
+    next
     return true
 end function
 

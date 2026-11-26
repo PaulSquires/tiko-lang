@@ -101,6 +101,21 @@ function GroupTestsCompiler( byref src as C2tSource, byref dirs as C2tDirVec, by
     return false
 end function
 
+'' INSIDE A GROUP THAT TESTS THE COMPILER: any enclosing #if* whose group names one. Such a
+'' group's text is the program's choice, not clang's, so no value from clang checks it.
+function LineInCompilerGroup( byref src as C2tSource, byref dirs as C2tDirVec, byval n as int32 ) as boolean
+    for g as int32 = 0 to dirs.Count - 1
+        select case dirs[g].kind
+        case DK_IF, DK_IFDEF, DK_IFNDEF
+        case else : continue for
+        end select
+        if dirs[g].line1 >= n then exit for
+        if (dirs[g].endif_ >= 0) andalso (dirs[dirs[g].endif_].line1 <= n) then continue for
+        if GroupTestsCompiler( src, dirs, g ) then return true
+    next
+    return false
+end function
+
 sub UnreachedBranches( byref src as C2tSource, byref dirs as C2tDirVec, byref outs as C2tPassOutVec, _
                        byref idiomLine as C2tIntVec, byval l1 as int32, byval l2 as int32, _
                        byref found as C2tIntVec, byval compilerOnly as boolean )

@@ -69,6 +69,7 @@ private sub NameRecord_( byref x as CImp, byval c as CXCursor )
     if (len( nm ) > 0) andalso ((UsrState( x, id ) and US_NAMED) = 0) then
         UsrSetName( x, id, NameClaim( x, NS_TYPE, nm, RK_TYPE ) )
         NoteDecl( x, nm, id )
+        if x.c2t andalso (def_ = false) then x.c2tOpaque.Push( id )
     end if
     if def_ then NameNested_( x, c )
 end sub
@@ -169,6 +170,7 @@ private function Pass1_ cdecl _
         if (UsrState( *xp, id ) and US_NAMED) = 0 then
             dim as boolean noSym = NoSymbol_( *xp, c )
             UsrSetName( *xp, id, NameClaim( *xp, NS_VALUE, CursorName( *xp, c ), RK_PROC, noSym = false ) )
+            if noSym = false then NameMarkProc( *xp, UsrFbName( *xp, id ) )
             if noSym = false then NoteDecl( *xp, CursorName( *xp, c ), id )
         end if
     case CXCursor_VarDecl
@@ -187,6 +189,15 @@ end function
 
 sub DeclPassNames( byref x as CImp )
     x.api->visitChildren( x.api->getTranslationUnitCursor( x.tu ), @Pass1_, @x )
+    '' c2t: A RECORD NEVER DEFINED, NAMED LIKE A PROCEDURE, takes the next free '_N' --
+    '' curl's opaque 'struct Curl_URL' beside curl_url() is Curl_URL_2 -- as two constants
+    '' differing in case do. Only now is it known that no definition followed.
+    for i as int32 = 0 to x.c2tOpaque.Count - 1
+        dim as int32 id = x.c2tOpaque[i]
+        if (UsrState( x, id ) and US_DEFINED) <> 0 then continue for
+        dim as string fb = UsrFbName( x, id )
+        if NameIsProc( x, fb ) then UsrSetName( x, id, NameClaim( x, NS_TYPE, fb, RK_TYPE ) )
+    next
 end sub
 
 '' ---------------------------------------------------------------- pass 2: emit
