@@ -1,0 +1,154 @@
+'' player -- an MPEG-1 file played with sound: pl_mpeg decodes, an SDL3 window shows the frames,
+'' miniaudio plays the audio. Three vendor packages in one program.
+''
+'' pl_mpeg drives the clock: each pass of the loop hands plm_decode the time since the last, and
+'' it calls back with every video frame and audio block that falls due -- frames go straight into
+'' a YUV texture, audio blocks into a ring buffer that miniaudio's device drains on its own
+'' thread. (pl_mpeg's own SDL player works the same way.)
+''
+'' Build it with 'tiko player.tiko'; run 'player [FILE.mpg] [VOLUME] [SNAPSHOT.bmp]' -- by default
+'' ../media/clip.mpg at full volume. Space pauses, Escape or closing the window quits; it quits
+'' by itself at the end. With SNAPSHOT.bmp it saves what the window shows at 1 s -- the rendered
+'' result, read back from the renderer -- which is how this example was checked.
+''
+'' pl_mpeg is MIT-licensed, miniaudio public domain or MIT-0, SDL3 zlib (pkg/vendor/*/LICENSE);
+'' this is MIT-licensed.
+#import "vendor/pl_mpeg" link dynamic
+#import "vendor/miniaudio" link dynamic
+#import "vendor/SDL3" link dynamic
+
+'' THE RING BUFFER between the two threads: pl_mpeg's audio callback (this thread, inside
+'' plm_decode) writes, miniaudio's data callback (the audio thread) reads. ma_pcm_rb is safe for
+'' exactly one writer and one reader. Interleaved stereo float32, a second of room.
+dim shared as ma_pcm_rb g_ring
+dim shared as SDL_Texture ptr g_texture
+dim shared as integer g_frames, g_dropped
+dim shared as ma_uint64 g_played
+
+'' pl_mpeg's video callback: the frame's three planes into the texture. IYUV is Y, then U (Cb),
+'' then V (Cr), each with its own pitch -- the plane's width in bytes.
+sub OnVideo cdecl( byval plm as plm_t ptr, byval frame as plm_frame_t ptr, byval user as any ptr )
+    SDL_UpdateYUVTexture( g_texture, nullptr, frame->y.data, frame->y.width, _
+                          frame->cb.data, frame->cb.width, frame->cr.data, frame->cr.width )
+    g_frames += 1
+end sub
+
+'' pl_mpeg's audio callback: one block of 1152 frames into the ring, in as many pieces as the
+'' ring hands out. What does not fit is dropped (it does not happen at this lead time).
+sub OnAudio cdecl( byval plm as plm_t ptr, byval samples as plm_samples_t ptr, byval user as any ptr )
+    dim as ma_uint32 remaining = samples->count, done = 0
+    while remaining > 0
+        dim as ma_uint32 n = remaining
+        dim as any ptr dst
+        ma_pcm_rb_acquire_write( @g_ring, @n, @dst )
+        if n = 0 then g_dropped += remaining : exit while
+        memcpy( dst, @samples->interleaved(done * 2), n * 2 * sizeof( float32 ) )
+        ma_pcm_rb_commit_write( @g_ring, n )
+        done += n : remaining -= n
+    wend
+end sub
+
+'' miniaudio's data callback, ON THE AUDIO THREAD: copy what the ring holds, silence for the rest.
+'' Nothing here allocates, prints or touches a string.
+sub OnDevice cdecl( byval device as ma_device ptr, byval output_ as any ptr, byval input_ as const any ptr, byval frames as ma_uint32 )
+    dim as float32 ptr dst = output_
+    while frames > 0
+        dim as ma_uint32 n = frames
+        dim as any ptr src
+        ma_pcm_rb_acquire_read( @g_ring, @n, @src )
+        if n = 0 then exit while
+        memcpy( dst, src, n * 2 * sizeof( float32 ) )
+        ma_pcm_rb_commit_read( @g_ring, n )
+        dst += n * 2 : frames -= n : g_played += n
+    wend
+    if frames > 0 then memset( dst, 0, frames * 2 * sizeof( float32 ) )
+end sub
+
+dim as string path = command( 1 ), snapshot = command( 3 )
+if len( path ) = 0 then path = exepath( ) & "/../media/clip.mpg"
+dim as float32 volume = 1
+if len( command( 2 ) ) then volume = val( command( 2 ) )
+
+dim as plm_t ptr plm = plm_create_with_filename( path )
+if plm = nullptr orelse plm_probe( plm, 5000 * 1024 ) = 0 then print "cannot play "; path : end 1
+dim as integer w = plm_get_width( plm ), h = plm_get_height( plm )
+dim as integer rate = plm_get_samplerate( plm )
+print path & ": " & w & "x" & h & " at " & plm_get_framerate( plm ) & " fps, " & rate & " Hz, " & _
+      plm_get_duration( plm ) & " s"
+
+'' THE WINDOW: twice the video's size, the video letterboxed into it at any window size.
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL: "; *SDL_GetError( ) : end 1
+dim as SDL_Window ptr win
+dim as SDL_Renderer ptr renderer
+if SDL_CreateWindowAndRenderer( "player", w * 2, h * 2, SDL_WINDOW_RESIZABLE, @win, @renderer ) = false then
+    print "SDL: "; *SDL_GetError( ) : end 1
+end if
+SDL_SetRenderLogicalPresentation( renderer, w, h, SDL_LOGICAL_PRESENTATION_LETTERBOX )
+g_texture = SDL_CreateTexture( renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, w, h )
+
+'' THE SOUND: the ring, then a device at the clip's own rate, so nothing is resampled.
+dim as ma_device device
+dim as boolean sound = plm_get_num_audio_streams( plm ) > 0
+if sound then
+    ma_pcm_rb_init( ma_format_f32, 2, rate, nullptr, nullptr, @g_ring )
+    dim as ma_device_config config = ma_device_config_init( ma_device_type_playback )
+    config.playback.format = ma_format_f32
+    config.playback.channels = 2
+    config.sampleRate = rate
+    config.dataCallback = @OnDevice
+    if ma_device_init( nullptr, @config, @device ) <> MA_SUCCESS then
+        print "no audio device: playing without sound"
+        sound = false
+        ma_pcm_rb_uninit( @g_ring )
+    else
+        ma_device_set_master_volume( @device, volume )
+        ma_device_start( @device )
+        '' Decode audio this far ahead of the picture, so the ring is never empty.
+        plm_set_audio_lead_time( plm, 4096 / rate )
+    end if
+end if
+plm_set_audio_enabled( plm, iif( sound, 1, 0 ) )
+plm_set_video_decode_callback( plm, @OnVideo, nullptr )
+plm_set_audio_decode_callback( plm, @OnAudio, nullptr )
+
+dim as boolean quit, paused, snapped
+dim as SDL_Event e
+dim as Uint64 last = SDL_GetTicksNS( )
+while quit = false andalso plm_has_ended( plm ) = 0
+    while SDL_PollEvent( @e )
+        if e.type = SDL_EVENT_QUIT then quit = true
+        if e.type = SDL_EVENT_KEY_DOWN then
+            if e.key.key = SDLK_ESCAPE then quit = true
+            if e.key.key = SDLK_SPACE then paused = not paused
+        end if
+    wend
+    dim as Uint64 now = SDL_GetTicksNS( )
+    if paused = false then plm_decode( plm, (now - last) / 1e9 )
+    last = now
+    SDL_RenderClear( renderer )
+    SDL_RenderTexture( renderer, g_texture, nullptr, nullptr )
+    if len( snapshot ) andalso snapped = false andalso plm_get_time( plm ) >= 1 then
+        dim as SDL_Surface ptr shot = SDL_RenderReadPixels( renderer, nullptr )
+        if shot then SDL_SaveBMP( shot, snapshot ) : SDL_DestroySurface( shot ) : snapped = true
+    end if
+    SDL_RenderPresent( renderer )
+    SDL_Delay( 1 )
+wend
+
+if sound then
+    '' Let the ring play out, then stop: ma_device_stop returns after the callback's last call.
+    while ma_pcm_rb_available_read( @g_ring ) > 0 andalso quit = false
+        SDL_Delay( 10 )
+    wend
+    ma_device_stop( @device )
+    ma_device_uninit( @device )
+    ma_pcm_rb_uninit( @g_ring )
+end if
+print g_frames & " frames shown, " & g_played & " sample frames played, " & g_dropped & " dropped" & _
+      iif( snapped, ", snapshot in " & snapshot, "" )
+
+SDL_DestroyTexture( g_texture )
+SDL_DestroyRenderer( renderer )
+SDL_DestroyWindow( win )
+SDL_Quit( )
+plm_destroy( plm )

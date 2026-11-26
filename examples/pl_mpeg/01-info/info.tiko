@@ -1,0 +1,94 @@
+'' info -- what an MPEG-1 file holds, and every frame and sample of it decoded: its size, frame
+'' rate, sample rate and duration; the video decoded frame by frame, the audio block by block,
+'' each with the high-level plm_decode_video / plm_decode_audio; then a seek.
+''
+'' Run on ../media/clip.mpg (the default) it checks what it finds against what that clip is --
+'' 50 frames of 320x240 at 25 fps, 77 blocks of MP2 at 44.1 kHz, one known frame by its checksum
+'' -- and exits 1 if anything is off. On any other file it only reports.
+''
+'' Build it with 'tiko info.tiko'; run 'info [FILE.mpg]'.
+''
+'' pl_mpeg is MIT-licensed (pkg/vendor/pl_mpeg/LICENSE); so is this.
+
+'' pl_mpeg linked DYNAMICALLY: pl_mpeg.dll is copied beside the program (on Linux the program gets
+'' pl_mpeg_linux_x86_64.so beside it). Write 'link static' to build it into the program.
+#import "vendor/pl_mpeg" link dynamic
+
+dim shared as integer g_failed
+dim shared as boolean g_check
+
+sub Check( byval ok as boolean, byref what as const string )
+    if g_check = false then exit sub
+    print iif( ok, "  ok    ", "  FAIL  " ); what
+    if ok = false then g_failed += 1
+end sub
+
+'' FNV-1a over a plane: a fingerprint of one frame's pixels.
+function Fnv( byval p as const uint8 ptr, byval n as uint32 ) as uint32
+    dim as uint32 h = 2166136261u
+    for i as uint32 = 1 to n
+        h xor= p[i - 1] : h *= 16777619u
+    next
+    return h
+end function
+
+dim as string path = command( 1 )
+g_check = len( path ) = 0
+if g_check then path = exepath( ) & "/../media/clip.mpg"
+
+'' Open by name: pl_mpeg opens the file itself. (Never hand pl_mpeg.dll a FILE ptr of the
+'' program's: the module's banner says why.)
+dim as plm_t ptr plm = plm_create_with_filename( path )
+if plm = nullptr then print "cannot open "; path : end 1
+if plm_probe( plm, 5000 * 1024 ) = 0 then print path; " has no MPEG-1 video or MP2 audio" : end 1
+
+print path
+print "  video: " & plm_get_num_video_streams( plm ) & " stream, " & plm_get_width( plm ) & "x" & _
+      plm_get_height( plm ) & " at " & plm_get_framerate( plm ) & " fps"
+print "  audio: " & plm_get_num_audio_streams( plm ) & " stream, " & plm_get_samplerate( plm ) & " Hz"
+print "  duration " & plm_get_duration( plm ) & " s"
+Check( plm_get_width( plm ) = 320 andalso plm_get_height( plm ) = 240, "320x240" )
+Check( plm_get_framerate( plm ) = 25 andalso plm_get_samplerate( plm ) = 44100, "25 fps, 44100 Hz" )
+
+'' VIDEO: decoding one stream at a time, the other is switched off -- plm_decode_video skips
+'' audio packets only if audio is disabled. A frame is pl_mpeg's until the next call.
+plm_set_audio_enabled( plm, 0 )
+dim as integer frames = 0
+dim as uint32 fp10
+dim as plm_frame_t ptr frame = plm_decode_video( plm )
+while frame
+    if frames = 10 then fp10 = Fnv( frame->y.data, frame->y.width * frame->y.height )
+    frames += 1
+    frame = plm_decode_video( plm )
+wend
+print "  " & frames & " frames; frame 10's Y plane fingerprints as " & hex( fp10, 8 )
+Check( frames = 50, "50 frames" )
+Check( fp10 = &h9D38F157u, "frame 10 is the pixels it was made with" )
+
+'' SEEK: to the frame at 1 s, exactly (the second argument), not just the nearest key frame.
+frame = plm_seek_frame( plm, 1.0, 1 )
+if frame then print "  seek to 1 s lands on " & frame->time & " s"
+Check( frame <> nullptr andalso abs( frame->time - 1 ) < 0.001, "a seek to 1 s lands on 1 s" )
+
+'' AUDIO: from the start again, video off. Interleaved stereo float32, 1152 frames a block.
+plm_rewind( plm )
+plm_set_audio_enabled( plm, 1 )
+plm_set_video_enabled( plm, 0 )
+dim as integer blocks = 0
+dim as ulongint samples = 0
+dim as float32 peak = 0
+dim as plm_samples_t ptr block = plm_decode_audio( plm )
+while block
+    for i as uint32 = 1 to block->count * 2
+        if abs( block->interleaved(i - 1) ) > peak then peak = abs( block->interleaved(i - 1) )
+    next
+    blocks += 1 : samples += block->count
+    block = plm_decode_audio( plm )
+wend
+print "  " & blocks & " audio blocks, " & samples & " sample frames (" & samples / 44100 & " s), peak " & peak
+Check( blocks = 77 andalso samples = 88704, "77 blocks, 88704 sample frames" )
+Check( peak > 0.05 andalso peak < 0.2, "the tone is there (peak between 0.05 and 0.2)" )
+plm_destroy( plm )
+
+if g_check then print iif( g_failed = 0, "all ok", g_failed & " FAILED" )
+end iif( g_failed = 0, 0, 1 )

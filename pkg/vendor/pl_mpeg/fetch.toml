@@ -1,0 +1,97 @@
+# vendor/pl_mpeg's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# pl_mpeg publishes no releases and no binaries, so every host builds it from a pinned commit:
+# c871f2b (2025-12-30, upstream master). It is one header, pl_mpeg.h -- copied to pl_mpeg.c
+# ('copies') and compiled with PL_MPEG_IMPLEMENTATION -- PATCHED (patches/0001, which says why):
+# as shipped it does not compile, and it has no export macro for a DLL. On Windows the DLL is
+# built with PLM_API as __declspec(dllexport); the archive with PLM_API empty.
+#
+# THE NAMES are what '#foreignlib PLM ... "lib/pl_mpeg"' probes: pl_mpeg_<os>_<arch>.a for
+# static; for dynamic pl_mpeg.dll on Windows -- the name inside it, which a program's import
+# names -- pl_mpeg_linux_x86_64.so on Linux and pl_mpeg_macos_arm64.dylib on macOS.
+version = "c871f2b"
+
+[windows.1]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -D_CRT_SECURE_NO_WARNINGS -DPL_MPEG_IMPLEMENTATION -DPLM_API=__declspec(dllexport)"
+shared = "lib/pl_mpeg.dll"
+
+[windows.2]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -D_CRT_SECURE_NO_WARNINGS -DPL_MPEG_IMPLEMENTATION"
+static = "lib/pl_mpeg_windows_x86_64.a"
+
+[linux.1]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -fPIC -DPL_MPEG_IMPLEMENTATION"
+static = "lib/pl_mpeg_linux_x86_64.a"
+shared = "lib/pl_mpeg_linux_x86_64.so"
+libs = "-lm"
+
+[linux-arm64.1]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -fPIC -DPL_MPEG_IMPLEMENTATION"
+static = "lib/pl_mpeg_linux_arm64.a"
+shared = "lib/pl_mpeg_linux_arm64.so"
+libs = "-lm"
+
+[macos.1]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -DPL_MPEG_IMPLEMENTATION"
+static = "lib/pl_mpeg_macos_arm64.a"
+shared = "lib/pl_mpeg_macos_arm64.dylib"
+
+# ANDROID: static only, cross-built on Windows by 'vendorfetch.sh --target android-x86_64' (and
+# android-arm64) against the NDK's sysroot, as cJSON is.
+[android.1]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -fPIC -DPL_MPEG_IMPLEMENTATION"
+static = "lib/pl_mpeg_android_x86_64.a"
+
+[android-arm64.1]
+kind = "cbuild"
+url = "https://github.com/phoboslab/pl_mpeg/archive/c871f2be022ece7ef4f64230b4fb8e1fb9eb6023.tar.gz"
+sha256 = "7caee5a96118afde256146556f3f207b41d85b8c4f55fa5fb6b4759b06470fd1"
+dir = "pl_mpeg-c871f2be022ece7ef4f64230b4fb8e1fb9eb6023"
+patches = "patches/0001-pl_mpeg-stdio-and-PLM_API.patch"
+copies = "pl_mpeg.h:pl_mpeg.c"
+sources = "pl_mpeg.c"
+cflags = "-O2 -fPIC -DPL_MPEG_IMPLEMENTATION"
+static = "lib/pl_mpeg_android_arm64.a"

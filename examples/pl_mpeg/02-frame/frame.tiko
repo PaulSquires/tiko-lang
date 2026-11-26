@@ -1,0 +1,57 @@
+'' frame -- one frame of a video as a picture: seek to a time, convert the frame's YCbCr planes to
+'' 24-bit BGR with plm_frame_to_bgr, and write that as a .bmp any image viewer opens.
+''
+'' Build it with 'tiko frame.tiko'; run 'frame [FILE.mpg] [SECONDS] [OUT.bmp]' -- by default the
+'' frame at 1 s of ../media/clip.mpg, into frame.bmp.
+''
+'' pl_mpeg is MIT-licensed (pkg/vendor/pl_mpeg/LICENSE); so is this.
+#import "vendor/pl_mpeg" link dynamic
+
+dim as string path = command( 1 ), outPath = command( 3 )
+if len( path ) = 0 then path = exepath( ) & "/../media/clip.mpg"
+if len( outPath ) = 0 then outPath = "frame.bmp"
+dim as float64 at = 1
+if len( command( 2 ) ) then at = val( command( 2 ) )
+
+dim as plm_t ptr plm = plm_create_with_filename( path )
+if plm = nullptr then print "cannot open "; path : end 1
+plm_set_audio_enabled( plm, 0 )
+
+'' seek_exact = 1: decode forward from the key frame before 'at' to the frame AT it.
+dim as plm_frame_t ptr frame = plm_seek_frame( plm, at, 1 )
+if frame = nullptr then print "no frame at "; at; " s" : plm_destroy( plm ) : end 1
+dim as integer w = frame->width, h = frame->height
+
+'' A BMP row is padded to 4 bytes and stored bottom-up; plm_frame_to_bgr writes top-down rows of
+'' 'stride' bytes. So: convert into a buffer with the BMP's stride, then write its rows last first.
+dim as integer stride = (w * 3 + 3) and not 3
+dim as uint8 ptr pixels = allocate( stride * h )
+plm_frame_to_bgr( frame, pixels, stride )
+print "frame at " & frame->time & " s, " & w & "x" & h
+
+'' The 54-byte header: BITMAPFILEHEADER (14) + BITMAPINFOHEADER (40), little-endian.
+dim as integer f = freefile( )
+if open( outPath for binary access write as #f ) <> 0 then print "cannot write "; outPath : end 1
+dim as uint32 imageSize = stride * h
+dim as uint16 u16 : dim as uint32 u32 : dim as int32 i32
+u16 = &h4D42 : put #f, , u16                  '' "BM"
+u32 = 54 + imageSize : put #f, , u32          '' file size
+u32 = 0 : put #f, , u32                       '' reserved
+u32 = 54 : put #f, , u32                      '' where the pixels start
+u32 = 40 : put #f, , u32                      '' BITMAPINFOHEADER's size
+i32 = w : put #f, , i32
+i32 = h : put #f, , i32                       '' positive: bottom-up
+u16 = 1 : put #f, , u16                       '' planes
+u16 = 24 : put #f, , u16                      '' bits per pixel
+u32 = 0 : put #f, , u32                       '' BI_RGB
+put #f, , imageSize
+i32 = 2835 : put #f, , i32 : put #f, , i32    '' 72 dpi, both ways
+u32 = 0 : put #f, , u32 : put #f, , u32       '' palette: none
+for y as integer = h - 1 to 0 step -1
+    put #f, , pixels[y * stride], stride
+next
+close #f
+print "wrote " & outPath & " (" & 54 + imageSize & " bytes)"
+
+deallocate( pixels )
+plm_destroy( plm )
