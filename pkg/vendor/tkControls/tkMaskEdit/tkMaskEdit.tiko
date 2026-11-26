@@ -25,19 +25,27 @@
 ' GetValue / SetValue, clamped into [Min, Max] on commit (Change when that moves it), never while
 ' typing; right-aligned when the mask is set.
 '
-' FIXED (M1) and NUMERIC (M2) are taken; DATE / TIME / DATETIME (M3) and REGEX (M4) are refused
-' until their phase.
+' DATE / TIME / DATETIME (M3): segments typed with auto-advance (tkMask), Up / Down / PgUp / PgDn
+' step the segment at the caret (one undo step, a Change); the value is TKDATE / TKTIME / TKDATETIME
+' (Get/SetDateValue, Get/SetTimeValue, Get/SetDateTimeValue); a date outside its range, or one that
+' does not exist (31/02), is flagged by IsValid and the error border on commit, never changed (D-13).
+'
+' REGEX (M4) is refused until its phase.
 #module "tkMaskEdit"
 
 #import "../tkHost" public
 #import "../tkTheme" public
 #import "../tkTextBox" public
 #import "../tkMask" public
+#import "../tkCalendar" public
+#import "../tkTimePanel" public
 using tkHost
 using tkPaint
 using tkTheme
 using tkTextBox
 using tkMask
+using tkCalendar
+using tkTimePanel
 
 public type TKMASKEDIT_COLORS as TKTEXTBOX_COLORS
 
@@ -63,6 +71,8 @@ public type TKMASKEDIT_STATE
     nPendingRej   as long                ' a partial paste's reason, reported after its Change
     nPendingPos   as long
     sPendingIns   as string
+    bRaw          as boolean             ' a spin: the filter takes the next ReplaceSel as it is
+    nRawCaret     as long
     ChangeCallback   as MSK_ChangeCallbackSub
     RejectedCallback as MSK_RejectedCallbackSub
     CommitCallback   as MSK_CommitCallbackSub
@@ -108,6 +118,8 @@ private sub MeTextKind( byval p as TKMASKEDIT_STATE ptr )
     dim as long k = TK_TEXT_LINE
     if p->bMasked andalso (p->spec.kind = TKMASK_NUMERIC) then
         k = iif( p->spec.fmt.dec > 0, TK_TEXT_DECIMAL, TK_TEXT_INTEGER )
+    elseif p->bMasked andalso (p->spec.kind >= TKMASK_DATE) andalso (p->spec.kind <= TKMASK_DATETIME) then
+        k = TK_TEXT_INTEGER                    ' digits only: the separators come by themselves
     elseif p->bMasked andalso (p->spec.kind = TKMASK_FIXED) then
         k = TK_TEXT_INTEGER
         for i as long = 0 to p->spec.nSlots - 1
@@ -160,6 +172,13 @@ private function MeFilter( byval e as TKTEXTBOX_EDITINFO ptr ) as boolean
     end if
     if e->reason = TXT_EDIT_COPY then
         e->outText = tkMask_ValueTextRange( p->spec, e->text, e->lo, e->hi, p->nCopyFormat )
+        return true
+    end if
+    if p->bRaw then
+        ' a spin's whole new text, through ReplaceSel so it is one undo step
+        p->bRaw = false
+        e->outText = e->ins
+        e->outCaret = p->nRawCaret
         return true
     end if
     dim as long reason
@@ -223,6 +242,24 @@ private sub MeOnEditFocus( byval hEdit as TK_WIDGET ptr, byval bGot as boolean )
     if p->FocusCallback then p->FocusCallback( p->hWin, bGot )
 end sub
 
+' A spin: the segment at the caret stepped by tkMask_Spin, landed through ReplaceSel (one undo
+' step, the caret kept), then Change -- a user's edit.
+private sub MeSpin( byval p as TKMASKEDIT_STATE ptr, byval delta as long )
+    dim as string s = MeEditText( p )
+    dim as integer a, b
+    tkTextBox_GetSel( p->hEdit, a, b )
+    dim as int32 caret = b
+    if tkMask_Spin( p->spec, s, caret, delta ) = false then exit sub
+    p->bRaw = true
+    p->nRawCaret = caret
+    tkTextBox_SetSel( p->hEdit, 0, -1 )
+    dim as ustring u = s
+    tkTextBox_ReplaceSel( p->hEdit, u )
+    p->bRaw = false
+    p->sEdit = MeEditText( p )
+    if p->ChangeCallback then p->ChangeCallback( p->hWin )
+end sub
+
 private sub MeOnEditEnter( byval hEdit as TK_WIDGET ptr )
     dim as TKMASKEDIT_STATE ptr p = MeOfEdit( hEdit )
     if p then MeCommit( p )
@@ -234,10 +271,26 @@ private function MeOnEditMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as bool
     if (p = 0) orelse (p->bMasked = false) then return false
     select case m->msg
     case TKM_KEYDOWN
-        if (m->key = SDLK_INSERT) andalso ((m->mods and (SDL_KMOD_SHIFT or TK_KMOD_PRIMARY or SDL_KMOD_ALT)) = 0) then
+        dim as boolean bPlain = (m->mods and (SDL_KMOD_SHIFT or TK_KMOD_PRIMARY or SDL_KMOD_ALT)) = 0
+        if (m->key = SDLK_INSERT) andalso bPlain then
             p->spec.overwrite = (p->spec.overwrite = false)
             return true
         end if
+        ' DATE / TIME / DATETIME: Up / Down step the segment at the caret, PgUp / PgDn by 10 (D-12)
+        select case p->spec.kind
+        case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
+            dim as long delta = 0
+            select case m->key
+            case SDLK_UP : delta = 1
+            case SDLK_DOWN : delta = -1
+            case SDLK_PAGEUP : delta = 10
+            case SDLK_PAGEDOWN : delta = -10
+            end select
+            if (delta <> 0) andalso bPlain then
+                if tkTextBox_GetReadOnly( p->hEdit ) = false then MeSpin( p, delta )
+                return true
+            end if
+        end select
     case TKM_LBUTTONUP
         dim as integer a, b
         tkTextBox_GetSel( p->hEdit, a, b )
@@ -305,13 +358,16 @@ public function tkMaskEdit_GetID( byval hCtrl as TK_WIDGET ptr ) as long
 end function
 
 ' The mask (TKMASK_*, a pattern). FALSE, and the old mask kept, when the pattern does not compile
-' or the kind is not available yet (M1: FIXED only). A new mask clears the value. Silent.
+' or the kind is not available yet (REGEX: M4). A new mask clears the value. Silent.
 public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as long, byref sMask as const ustring ) as boolean
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return false
-    if (nKind <> TKMASK_FIXED) andalso (nKind <> TKMASK_NUMERIC) then return false
+    if nKind = TKMASK_REGEX then return false                    ' M4
     dim as long oldKind = iif( p->bMasked, p->spec.kind, TKMASK_NONE )
     if tkMask_Compile( p->spec, nKind, sMask ) = false then return false
+    ' an empty year spins to this year
+    dim as TKDATETIME now_ = tkTimePanel_LocalNowDateTime( )
+    if now_.wYear > 0 then p->spec.spinYear = now_.wYear
     ' a number reads from the right; the alignment follows only a change of kind, so a host's
     ' own SetTextAlign survives a new pattern of the same kind
     if (nKind = TKMASK_NUMERIC) andalso (oldKind <> TKMASK_NUMERIC) then tkTextBox_SetTextAlign( p->hEdit, TXT_ALIGN_RIGHT )
@@ -477,7 +533,156 @@ public function tkMaskEdit_GetZeroWhenEmpty( byval hCtrl as TK_WIDGET ptr ) as b
     return p->bZeroWhenEmpty
 end function
 
-' Empty, or complete (FIXED); empty, or inside [Min, Max] (NUMERIC).
+' ---- DATE / TIME / DATETIME ---------------------------------------------------------------------
+private function MeIsDT( byval p as TKMASKEDIT_STATE ptr ) as boolean
+    if (p = 0) orelse (p->bMasked = false) then return false
+    return (p->spec.kind >= TKMASK_DATE) andalso (p->spec.kind <= TKMASK_DATETIME)
+end function
+
+' The value in the box; FALSE unless it is complete and real.
+private function MeDT( byval p as TKMASKEDIT_STATE ptr, byref dt as TKMASK_DT ) as boolean
+    if p->bFocused then p->sEdit = MeEditText( p )
+    return tkMask_GetDT( p->spec, p->sEdit, dt )
+end function
+
+private sub MeSetDT( byval p as TKMASKEDIT_STATE ptr, byref dt as const TKMASK_DT, byval bEmpty as boolean )
+    if bEmpty then p->sEdit = tkMask_Template( p->spec ) else p->sEdit = tkMask_TextOfDT( p->spec, dt )
+    tkTextBox_SetError( p->hEdit, false )
+    MeSync( p )
+end sub
+
+' The date (DATE, DATETIME); all zero (wYear = 0, DatePicker's "no date") unless complete and real.
+public function tkMaskEdit_GetDateValue( byval hCtrl as TK_WIDGET ptr ) as TKDATE
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    dim as TKDATE r
+    if (MeIsDT( p ) = false) orelse (p->spec.kind = TKMASK_TIME) then return r
+    dim as TKMASK_DT dt
+    if MeDT( p, dt ) = false then return r
+    r.wYear = dt.y : r.wMonth = dt.mo : r.wDay = dt.d
+    r.wDayOfWeek = tkTimePanel_DayOfWeek( dt.y, dt.mo, dt.d )
+    return r
+end function
+
+' wYear = 0 empties the box; a DATETIME keeps its time part. Silent; clears the error tint.
+public sub tkMaskEdit_SetDateValue( byval hCtrl as TK_WIDGET ptr, byval d as TKDATE )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (MeIsDT( p ) = false) orelse (p->spec.kind = TKMASK_TIME) then exit sub
+    dim as TKMASK_DT dt
+    MeDT( p, dt )
+    dt.y = d.wYear : dt.mo = d.wMonth : dt.d = d.wDay
+    MeSetDT( p, dt, d.wYear = 0 )
+end sub
+
+' The time (TIME, DATETIME); wHour = -1 (no time) unless complete and real.
+public function tkMaskEdit_GetTimeValue( byval hCtrl as TK_WIDGET ptr ) as TKTIME
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    dim as TKTIME r
+    if (MeIsDT( p ) = false) orelse (p->spec.kind = TKMASK_DATE) then return r
+    dim as TKMASK_DT dt
+    if MeDT( p, dt ) = false then return r
+    r.wHour = dt.h : r.wMinute = dt.mi : r.wSecond = dt.s
+    return r
+end function
+
+' wHour < 0 empties the box; a DATETIME keeps its date part. Silent; clears the error tint.
+public sub tkMaskEdit_SetTimeValue( byval hCtrl as TK_WIDGET ptr, byval t as TKTIME )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (MeIsDT( p ) = false) orelse (p->spec.kind = TKMASK_DATE) then exit sub
+    dim as TKMASK_DT dt
+    MeDT( p, dt )
+    dt.h = t.wHour : dt.mi = t.wMinute : dt.s = t.wSecond
+    MeSetDT( p, dt, t.wHour < 0 )
+end sub
+
+' DATETIME (DATE: the date at 00:00); wYear = 0 (no value) unless complete and real.
+public function tkMaskEdit_GetDateTimeValue( byval hCtrl as TK_WIDGET ptr ) as TKDATETIME
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    dim as TKDATETIME r
+    if (MeIsDT( p ) = false) orelse (p->spec.kind = TKMASK_TIME) then return r
+    dim as TKMASK_DT dt
+    if MeDT( p, dt ) = false then return r
+    return tkTimePanel_MakeDateTime( dt.y, dt.mo, dt.d, dt.h, dt.mi, dt.s )
+end function
+
+' wYear = 0 empties the box. Silent; clears the error tint.
+public sub tkMaskEdit_SetDateTimeValue( byval hCtrl as TK_WIDGET ptr, byval v as TKDATETIME )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if (MeIsDT( p ) = false) orelse (p->spec.kind = TKMASK_TIME) then exit sub
+    dim as TKMASK_DT dt
+    dt.y = v.wYear : dt.mo = v.wMonth : dt.d = v.wDay
+    dt.h = v.wHour : dt.mi = v.wMinute : dt.s = v.wSecond
+    MeSetDT( p, dt, v.wYear = 0 )
+end sub
+
+' The range IsValid checks (no clamping, D-13). The date setters set y / mo / d with 00:00:00, the
+' time setters h / mi / s with no date, the DateTime setters both; wYear = 0 / wHour < 0 turns
+' that bound off. One range is kept: the last setter of each bound wins.
+private sub MeBound( byval p as TKMASKEDIT_STATE ptr, byval bMax as boolean, byval bOn as boolean, byref dt as const TKMASK_DT )
+    if bMax then
+        p->spec.hasMaxDT = bOn : p->spec.maxDT = dt
+    else
+        p->spec.hasMinDT = bOn : p->spec.minDT = dt
+    end if
+end sub
+
+public sub tkMaskEdit_SetMinDate( byval hCtrl as TK_WIDGET ptr, byval d as TKDATE )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as TKMASK_DT dt
+    dt.y = d.wYear : dt.mo = d.wMonth : dt.d = d.wDay
+    MeBound( p, false, d.wYear > 0, dt )
+end sub
+
+public sub tkMaskEdit_SetMaxDate( byval hCtrl as TK_WIDGET ptr, byval d as TKDATE )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as TKMASK_DT dt
+    dt.y = d.wYear : dt.mo = d.wMonth : dt.d = d.wDay
+    dt.h = 23 : dt.mi = 59 : dt.s = 59               ' a DATETIME on the last day is still inside
+    MeBound( p, true, d.wYear > 0, dt )
+end sub
+
+public sub tkMaskEdit_SetMinTime( byval hCtrl as TK_WIDGET ptr, byval t as TKTIME )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as TKMASK_DT dt
+    dt.h = t.wHour : dt.mi = t.wMinute : dt.s = t.wSecond
+    MeBound( p, false, t.wHour >= 0, dt )
+end sub
+
+public sub tkMaskEdit_SetMaxTime( byval hCtrl as TK_WIDGET ptr, byval t as TKTIME )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as TKMASK_DT dt
+    dt.h = t.wHour : dt.mi = t.wMinute : dt.s = t.wSecond
+    MeBound( p, true, t.wHour >= 0, dt )
+end sub
+
+public sub tkMaskEdit_SetMinDateTime( byval hCtrl as TK_WIDGET ptr, byval v as TKDATETIME )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as TKMASK_DT dt
+    dt.y = v.wYear : dt.mo = v.wMonth : dt.d = v.wDay : dt.h = v.wHour : dt.mi = v.wMinute : dt.s = v.wSecond
+    MeBound( p, false, v.wYear > 0, dt )
+end sub
+
+public sub tkMaskEdit_SetMaxDateTime( byval hCtrl as TK_WIDGET ptr, byval v as TKDATETIME )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    dim as TKMASK_DT dt
+    dt.y = v.wYear : dt.mo = v.wMonth : dt.d = v.wDay : dt.h = v.wHour : dt.mi = v.wMinute : dt.s = v.wSecond
+    MeBound( p, true, v.wYear > 0, dt )
+end sub
+
+public sub tkMaskEdit_ClearDateRange( byval hCtrl as TK_WIDGET ptr )
+    dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
+    if p = 0 then exit sub
+    p->spec.hasMinDT = false
+    p->spec.hasMaxDT = false
+end sub
+
+' Empty, or complete (FIXED); empty, or inside [Min, Max] (NUMERIC); empty, or complete, real and
+' inside the range (DATE / TIME / DATETIME).
 public function tkMaskEdit_IsValid( byval hCtrl as TK_WIDGET ptr ) as boolean
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return false

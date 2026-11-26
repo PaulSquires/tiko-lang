@@ -11,6 +11,8 @@
 using tkMaskEdit
 using tkMask
 using tkTextBox
+using tkCalendar
+using tkTimePanel
 using tkTheme
 using tkTest
 using tkHost
@@ -113,7 +115,7 @@ sub RunPass( byval fScale as single )
     ' ---- SetMask -------------------------------------------------------------------------------------
     Reset_()
     tkTest_Check( "SetMask FIXED", tkMaskEdit_SetMask( w, TKMASK_FIXED, "(999) 000-0000" ) )
-    tkTest_Check( "DATE is refused until M3", tkMaskEdit_SetMask( w, TKMASK_DATE, "dd/mm/yyyy" ) = false )
+    tkTest_Check( "REGEX is refused until M4", tkMaskEdit_SetMask( w, TKMASK_REGEX, "[A-Z]+" ) = false )
     tkTest_Check( "a bad pattern is refused, the mask kept", (tkMaskEdit_SetMask( w, TKMASK_FIXED, "99\" ) = false) _
         andalso (tkMaskEdit_GetMask( w ) = "(999) 000-0000") andalso (tkMaskEdit_GetMaskKind( w ) = TKMASK_FIXED) )
     tkTest_Check( "unfocused and empty: nothing shown (the cue banner's turn)", Shown( w ) = "", Shown( w ) )
@@ -274,6 +276,79 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "... shows x 100, reads / 100", (Shown( w ) = "12.5%") andalso (abs( tkMaskEdit_GetValue( w ) - 0.125 ) < 1e-12) )
     tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
     tkTest_Check( "back to FIXED: left-aligned", tkMaskEdit_GetTextAlign( w ) = TXT_ALIGN_LEFT )
+
+    ' ---- DATE / TIME / DATETIME (M3) ---------------------------------------------------------------
+    Reset_()
+    tkTest_Check( "SetMask DATE", tkMaskEdit_SetMask( w, TKMASK_DATE, "dd/mm/yyyy" ) )
+    tkTest_Check( "a date is left-aligned and asks for a number pad", (tkMaskEdit_GetTextAlign( w ) = TXT_ALIGN_LEFT) _
+        andalso (tkWidget_GetTextKind( e ) = TK_TEXT_INTEGER) )
+    tkHost_SetFocus( h, w )
+    TypeEach( h, "25122026" )
+    dim as TKDATE dv = tkMaskEdit_GetDateValue( w )
+    tkTest_Check( "typing a date, the separators by themselves", (TextOf( w ) = "25/12/2026") andalso (gChanges = 8) _
+        andalso (dv.wYear = 2026) andalso (dv.wMonth = 12) andalso (dv.wDay = 25) andalso (dv.wDayOfWeek = 5), TextOf( w ) )
+    Reset_()
+    tkTextBox_SetSel( e, 4, 4 )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up steps the segment at the caret, wrapping; one Change; the caret kept", (TextOf( w ) = "25/01/2026") _
+        andalso (gChanges = 1) andalso (Sel( w ) = "4,4"), TextOf( w ) & " " & Sel( w ) )
+    tkTest_PushKey( h, SDLK_Z, TK_KMOD_PRIMARY )
+    tkTest_Check( "a spin is one undo step", TextOf( w ) = "25/12/2026", TextOf( w ) )
+    tkTextBox_SetSel( e, 4, 4 )
+    tkTest_PushKey( h, SDLK_PAGEUP )
+    tkTest_Check( "PgUp steps by 10", TextOf( w ) = "25/10/2026", TextOf( w ) )
+    tkTextBox_SetSel( e, 0, 0 )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down on the day", TextOf( w ) = "24/10/2026", TextOf( w ) )
+    tkMaskEdit_SetReadOnly( w, true )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "read-only does not spin", TextOf( w ) = "24/10/2026" )
+    tkMaskEdit_SetReadOnly( w, false )
+    Reset_()
+    tkMaskEdit_SetText( w, "31022026" )
+    tkTest_Check( "31/02 is not valid, and there is no date value", (TextOf( w ) = "31/02/2026") andalso _
+        (tkMaskEdit_IsValid( w ) = false) andalso (tkMaskEdit_GetDateValue( w ).wYear = 0) andalso tkMaskEdit_IsComplete( w ) )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "... Enter shows the error, the text unchanged", tkMaskEdit_GetError( w ) andalso (TextOf( w ) = "31/02/2026") _
+        andalso (gCommits = 1) )
+    dim as TKDATE dmin, dset
+    dmin.wYear = 2026 : dmin.wMonth = 1 : dmin.wDay = 1
+    tkMaskEdit_SetMinDate( w, dmin )
+    dset.wYear = 2025 : dset.wMonth = 12 : dset.wDay = 31
+    tkMaskEdit_SetDateValue( w, dset )
+    tkTest_Check( "SetDateValue, silently; MinDate makes it invalid", (TextOf( w ) = "31/12/2025") andalso _
+        (tkMaskEdit_IsValid( w ) = false) andalso (gChanges = 0) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "focus out flags a date before MinDate, never changes it (D-13)", tkMaskEdit_GetError( w ) _
+        andalso (TextOf( w ) = "31/12/2025") andalso (gChanges = 0) )
+    tkMaskEdit_ClearDateRange( w )
+    tkTest_Check( "ClearDateRange", tkMaskEdit_IsValid( w ) )
+    dset.wYear = 0
+    tkMaskEdit_SetDateValue( w, dset )
+    tkTest_Check( "wYear = 0 empties the box", tkMaskEdit_IsEmpty( w ) andalso (Shown( w ) = "") )
+
+    tkTest_Check( "SetMask TIME", tkMaskEdit_SetMask( w, TKMASK_TIME, "hh:nn" ) )
+    dim as TKTIME tv = tkTimePanel_MakeTime( 23, 5 )
+    tkMaskEdit_SetTimeValue( w, tv )
+    tkTest_Check( "SetTimeValue / GetTimeValue", (TextOf( w ) = "23:05") andalso (tkMaskEdit_GetTimeValue( w ).wHour = 23) _
+        andalso (tkMaskEdit_GetTimeValue( w ).wMinute = 5) )
+    tkHost_SetFocus( h, w )
+    tkTextBox_SetSel( e, 0, 0 )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up wraps an hour 23 to 00", TextOf( w ) = "00:05", TextOf( w ) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "a TIME has no date value", tkMaskEdit_GetDateValue( w ).wYear = 0 )
+
+    tkTest_Check( "SetMask DATETIME", tkMaskEdit_SetMask( w, TKMASK_DATETIME, "yyyy-mm-dd hh:nn" ) )
+    dim as TKDATETIME xv = tkTimePanel_MakeDateTime( 2026, 11, 26, 9, 30 )
+    tkMaskEdit_SetDateTimeValue( w, xv )
+    dim as TKDATETIME xg = tkMaskEdit_GetDateTimeValue( w )
+    tkTest_Check( "SetDateTimeValue / GetDateTimeValue", (TextOf( w ) = "2026-11-26 09:30") andalso (xg.wYear = 2026) _
+        andalso (xg.wDay = 26) andalso (xg.wHour = 9) andalso (xg.wMinute = 30), TextOf( w ) )
+    dset.wYear = 2027 : dset.wMonth = 1 : dset.wDay = 2
+    tkMaskEdit_SetDateValue( w, dset )
+    tkTest_Check( "SetDateValue keeps a DATETIME's time", TextOf( w ) = "2027-01-02 09:30", TextOf( w ) )
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
 
     ' ---- colours are the field's -----------------------------------------------------------------
     dim as TKMASKEDIT_COLORS c1, c2
