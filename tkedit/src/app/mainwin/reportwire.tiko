@@ -171,7 +171,7 @@ sub Window.ReportDialog( byref which as const ustring, byref target as const ust
     dim as rcanvas.ReportCanvas ptr c = d->Report
     dim as ustring fault
     select case which
-    case "sources", "params", "groups", "rules"
+    case "sources", "params", "calcs", "groups", "rules"
         dim as rrecords.RSet k
         dim as ustring title, item_
         select case which
@@ -181,6 +181,9 @@ sub Window.ReportDialog( byref which as const ustring, byref target as const ust
         case "params"
             k = rrecords.RSet.RSetParams
             title = DialogTitle_( i18n.Tr( "report.dlg_params", "Parameters..." ) )
+        case "calcs"
+            k = rrecords.RSet.RSetCalcs
+            title = DialogTitle_( i18n.Tr( "report.dlg_calcs", "Calculated fields..." ) )
         case "groups"
             k = rrecords.RSet.RSetGroups
             title = DialogTitle_( i18n.Tr( "report.dlg_groups", "Group and sort..." ) )

@@ -1344,9 +1344,15 @@ function ReportCanvas.ApplyProp( byref target as const ustring, byref key_ as co
 end function
 
 ' Insert band: a band of kind, selected. False when the report cannot take one (redits.CanInsertBand).
+' A detail_report goes under the detail of the band selected, or of the first item selected.
 function ReportCanvas.InsertBand( byref kind as const ustring ) as boolean
     if Def = 0 then return false
-    dim as ustring id = redits.InsertBand( Def, kind )
+    dim as ustring under = SelBand
+    if (len( under ) = 0) andalso (Selected.Count( ) > 0) then
+        dim as int32 ii = tkReportDef_FindItem( Def, Selected[0] )
+        if ii >= 0 then under = Def->items(ii).band
+    end if
+    dim as ustring id = redits.InsertBand( Def, kind, under )
     if len( id ) = 0 then return false
     Selected.Clear( )
     SelBand = id

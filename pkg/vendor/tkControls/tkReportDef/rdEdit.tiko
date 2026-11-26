@@ -5,8 +5,9 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' tkReportDef -- editing the model's lists (Report Designer RD7): parameters, sources and their
-' field snapshots, an item's rules; the page from a TKPAGESETUP; kinds by name. The Report Designer
-' (tkEdit) changes the model's arrays only through these, so the redim stays in the vendor module.
+' field snapshots, calculated fields, an item's rules; the page from a TKPAGESETUP; kinds by name.
+' The Report Designer (tkEdit) changes the model's arrays only through these, so the redim stays in
+' the vendor module.
 #module "tkReportDef"
 
 #import "../tkReport"
@@ -92,6 +93,32 @@ public sub tkReportDef_AddField( byval def as TK_REPORTDEF ptr, byval si as int3
     s.fields(s.nFields).name_ = name_
     s.fields(s.nFields).kind = kind
     s.nFields += 1
+end sub
+
+' ---- calculated fields ([[calc]]) ----
+public function tkReportDef_AddCalc( byval def as TK_REPORTDEF ptr, byref c as TKRD_CALC ) as int32
+    if def = 0 then return -1
+    if def->nCalcs > ubound( def->calcs ) then redim preserve def->calcs( 0 to def->nCalcs * 2 + 7 )
+    def->calcs(def->nCalcs) = c
+    def->nCalcs += 1
+    return def->nCalcs - 1
+end function
+
+public sub tkReportDef_RemoveCalc( byval def as TK_REPORTDEF ptr, byval i as int32 )
+    if (def = 0) orelse (i < 0) orelse (i >= def->nCalcs) then exit sub
+    for k as int32 = i to def->nCalcs - 2
+        def->calcs(k) = def->calcs(k + 1)
+    next
+    dim as TKRD_CALC blank
+    def->calcs(def->nCalcs - 1) = blank
+    def->nCalcs -= 1
+end sub
+
+public sub tkReportDef_SwapCalcs( byval def as TK_REPORTDEF ptr, byval a as int32, byval b as int32 )
+    if (def = 0) orelse (a < 0) orelse (b < 0) orelse (a >= def->nCalcs) orelse (b >= def->nCalcs) then exit sub
+    dim as TKRD_CALC t = def->calcs(a)
+    def->calcs(a) = def->calcs(b)
+    def->calcs(b) = t
 end sub
 
 ' ---- an item's rules (the first that holds applies) ----

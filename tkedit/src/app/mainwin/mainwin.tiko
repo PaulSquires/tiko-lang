@@ -691,6 +691,7 @@ public type Window
     declare sub RegisterProjectResources( )
     SaveNote as ustring
     declare function DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef
+    declare function ReportModules( byval c as canvas.FormCanvas ptr ) as ustring
     declare function OpenQuietly( byref path as const ustring ) as DocRef
     declare function CodeDocOf( byval formDoc as DocRef ) as DocRef
     declare sub PutCodeText( byval d as DocRef, byref newText as const ustring )
@@ -3489,6 +3490,10 @@ function Window.OpenText( byref path as const ustring ) as boolean
                     list &= f
                 next
                 return list
+            end function
+            ' a ReportViewer's Report row "...": the project's .tkreport modules (RD4)
+            d->Designer->OnReports = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref unused as const ustring ) as ustring
+                return cast( Window ptr, o )->ReportModules( c )
             end function
             d->Designer->OnElementType = function( byval o as any ptr, byval c as canvas.FormCanvas ptr, byref typeName as const ustring, _
                                                    byref path as const ustring ) as ustring

@@ -429,21 +429,83 @@ private function OpenGroupLevel_( byval def as TK_REPORTDEF ptr ) as int32
     return -1
 end function
 
+' The detail band a detail_report goes under: bandId when it is a detail, else the first detail up
+' its parents (a band inside a detail_report: the detail that report hangs on), else the top-level detail.
+private function DetailFor_( byval def as TK_REPORTDEF ptr, byref bandId as const ustring ) as int32
+    dim as int32 bi = tkReportDef_FindBand( def, bandId )
+    for guard as int32 = 0 to 8
+        if bi < 0 then exit for
+        if def->bands(bi).kind = "detail" then return bi
+        bi = tkReportDef_FindBand( def, def->bands(bi).parent )
+    next
+    for i as int32 = 0 to def->nBands - 1
+        if (def->bands(i).kind = "detail") andalso (len( def->bands(i).parent ) = 0) then return i
+    next
+    return -1
+end function
+
+' A child source of what detail band bandId shows (a source whose parent it is) that no
+' detail_report under that band shows yet; "" when there is none.
+public function ChildSourceFor( byval def as TK_REPORTDEF ptr, byref bandId as const ustring ) as ustring
+    dim as int32 di = DetailFor_( def, bandId )
+    if di < 0 then return ""
+    dim as ustring master = lcase( SourceOfBand( def, def->bands(di).id ) )
+    if len( master ) = 0 then return ""
+    for k as int32 = 0 to def->nSources - 1
+        if lcase( def->sources(k).parent ) <> master then continue for
+        dim as boolean used = false
+        for i as int32 = 0 to def->nBands - 1
+            if (def->bands(i).kind = "detail_report") andalso (lcase( def->bands(i).parent ) = lcase( def->bands(di).id )) _
+               andalso (lcase( def->bands(i).source ) = lcase( def->sources(k).name_ )) then used = true
+        next
+        if used = false then return def->sources(k).name_
+    next
+    return ""
+end function
+
 ' Whether Insert band can add one of kind: a group header always (the new innermost level), a group
-' footer for a header that has none, any other kind when the report has none yet.
-public function CanInsertBand( byval def as TK_REPORTDEF ptr, byref kind as const ustring ) as boolean
+' footer for a header that has none, a detail_report under the detail band of under (the band
+' selected) while its source has a child source not shown yet, any other kind when the report has
+' none yet.
+public function CanInsertBand( byval def as TK_REPORTDEF ptr, byref kind as const ustring, byref under as const ustring = "" ) as boolean
     select case kind
     case "group_header" : return true
     case "group_footer" : return OpenGroupLevel_( def ) >= 0
+    case "detail_report" : return len( ChildSourceFor( def, under ) ) > 0
     case "report_header", "page_header", "detail", "report_footer", "page_footer", "no_data"
         return TopLevelCount_( def, kind ) = 0
     end select
     return false
 end function
 
-' Adds a top-level band of kind; its id, "" when CanInsertBand says no.
-public function InsertBand( byval def as TK_REPORTDEF ptr, byref kind as const ustring ) as ustring
-    if CanInsertBand( def, kind ) = false then return ""
+' A master-detail section: a detail_report under the detail band of under, over the child source,
+' with its own report header, detail and report footer. The detail_report's id.
+private function InsertDetailReport_( byval def as TK_REPORTDEF ptr, byref under as const ustring ) as ustring
+    dim as ustring src = ChildSourceFor( def, under )
+    dim as TKRD_BAND r
+    r.kind = "detail_report"
+    r.parent = def->bands(DetailFor_( def, under )).id
+    r.source = src
+    dim as ustring stem = lcase( left( src, 1 ) ) & mid( src, 2 )
+    r.id = NewBandId_( def, stem )
+    tkReportDef_AddBand( def, r )
+    dim as string kinds(0 to 2) = { "report_header", "detail", "report_footer" }
+    dim as string tails(0 to 2) = { "Header", "Detail", "Footer" }
+    for k as int32 = 0 to 2
+        dim as TKRD_BAND c
+        c.kind = kinds(k)
+        c.parent = r.id
+        c.id = NewBandId_( def, stem & tails(k) )
+        tkReportDef_AddBand( def, c )
+    next
+    return r.id
+end function
+
+' Adds a band of kind -- top-level, or a detail_report section under under's detail; its id, ""
+' when CanInsertBand says no.
+public function InsertBand( byval def as TK_REPORTDEF ptr, byref kind as const ustring, byref under as const ustring = "" ) as ustring
+    if CanInsertBand( def, kind, under ) = false then return ""
+    if kind = "detail_report" then return InsertDetailReport_( def, under )
     dim as TKRD_BAND b
     b.kind = kind
     select case kind

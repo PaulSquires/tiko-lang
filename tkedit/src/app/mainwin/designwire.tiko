@@ -66,6 +66,52 @@ function Window.DocOfCanvas( byval c as canvas.FormCanvas ptr ) as DocRef
     return 0
 end function
 
+private sub CollectReports_( byref dir_ as const ustring, byref out_ as Array( of ustring ), byval depth as long )
+    if (depth > 8) orelse (out_.Count( ) >= 500) then exit sub
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        dim as ustring nm = e.Name( )
+        if e.IsDirectory( ) then
+            if (left( nm, 1 ) <> ".") andalso (lcase( nm ) <> "out") then CollectReports_( fs.PathJoin( dir_, nm ), out_, depth + 1 )
+        elseif e.IsFile( ) andalso (lcase( right( nm, 9 ) ) = ".tkreport") then
+            out_.Push( fs.PathJoin( dir_, nm ) )
+        end if
+    next
+end sub
+
+' The report modules a form's ReportViewer can show, as its folder imports them, comma-separated and
+' sorted: every .tkreport under the project (no project: under the form's parent folder). A report in
+' a folder of its own name is the folder ("../rptSales"), else the folder and its name.
+function Window.ReportModules( byval c as canvas.FormCanvas ptr ) as ustring
+    dim as DocRef d = this.DocOfCanvas( c )
+    if (d = 0) orelse (len( d->Path ) = 0) then return ""
+    dim as ustring formDir = fs.PathParent( d->Path ), root = fs.PathParent( formDir )
+    if ProjOpen then root = Proj.Dir_( )
+    dim as Array( of ustring ) files, mods
+    CollectReports_( root, files, 0 )
+    for each f as ustring in files
+        dim as ustring rd = fs.PathParent( f ), stem = fs.PathStem( f ), m = rd
+        if lcase( fs.PathFileName( rd ) ) <> lcase( stem ) then m = fs.PathJoin( rd, stem )
+        dim as ustring none_, rel = fs.PathRelativeTo( m, formDir ).ValueOr( none_ )
+        if len( rel ) = 0 then continue for
+        rel = strings.Replace( rel, "\", "/" )
+        if left( rel, 1 ) <> "." then rel = "./" & rel
+        ' sorted as it goes in (a project has a handful)
+        dim as long at = mods.Count( )
+        while (at > 0) andalso (lcase( mods[at - 1] ) > lcase( rel ))
+            at -= 1
+        wend
+        mods.Insert( at, rel )
+    next
+    dim as ustring list
+    for each m as ustring in mods
+        if len( list ) then list &= ","
+        list &= m
+    next
+    return list
+end function
+
 ' Opens path in a buffer without showing it, or finds the one it's in.
 function Window.OpenQuietly( byref path as const ustring ) as DocRef
     dim as DocRef have = this.FindOpen( path )

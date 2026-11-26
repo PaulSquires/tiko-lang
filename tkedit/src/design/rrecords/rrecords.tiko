@@ -6,8 +6,8 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' rrecords -- the Report Designer's list editors as models (RD7), without a window: the data sources,
-' the parameters, the group levels (with the sort that brings the rows in group order) and one item's
-' conditional styles. Each is a list of records with fields, Add / Remove / Move, and a few fields of
+' the parameters, the group levels (with the sort that brings the rows in group order), one item's
+' conditional styles and the calculated fields. Each is a list of records with fields, Add / Remove / Move, and a few fields of
 ' the whole list (Extras, record -1). rdialogs.RecordDialog shows any of them; it works on a copy of
 ' the report, and its OK is one undoable edit.
 '
@@ -19,9 +19,11 @@
 #import "vendor/tkControls/tkReportDef"
 #import "../redits"
 #import "../rmodel"
+#import "../validate"
 using containers
 using tkReportDef
 using tkReport
+using tkRExpr
 using tkBind
 
 public enum RSet
@@ -29,6 +31,7 @@ public enum RSet
     RSetParams
     RSetGroups
     RSetRules
+    RSetCalcs
 end enum
 
 public type RecordSet
@@ -192,6 +195,7 @@ function RecordSet.Count( ) as int32
         dim as int32 ii = tkReportDef_FindItem( Def, Item )
         if ii < 0 then return 0
         return Def->items(ii).nRules
+    case RSet.RSetCalcs : return Def->nCalcs
     end select
     return 0
 end function
@@ -205,6 +209,7 @@ function RecordSet.Label( byval i as int32 ) as ustring
     case RSet.RSetRules
         dim as ustring w = Def->items(tkReportDef_FindItem( Def, Item )).rules(i).when_
         return (i + 1) & "  " & w
+    case RSet.RSetCalcs : return Def->calcs(i).source & "." & Def->calcs(i).name_
     end select
     return ""
 end function
@@ -256,6 +261,16 @@ sub RecordSet.FieldsOf( byval i as int32, byref out_ as Array( of rmodel.RProp )
         P_( out_, "bold", rmodel.RPropKind.RPropEnum, ",true,false" )
         P_( out_, "italic", rmodel.RPropKind.RPropEnum, ",true,false" )
         P_( out_, "hide", rmodel.RPropKind.RPropBool )
+    case RSet.RSetCalcs
+        if i < 0 then exit sub
+        dim as ustring names
+        for k as int32 = 0 to Def->nSources - 1
+            if len( names ) then names &= ","
+            names &= Def->sources(k).name_
+        next
+        P_( out_, "source", rmodel.RPropKind.RPropEnum, names )
+        P_( out_, "name", rmodel.RPropKind.RPropText )
+        P_( out_, "expr", rmodel.RPropKind.RPropText )
     end select
 end sub
 
@@ -331,6 +346,13 @@ function RecordSet.GetValue( byval i as int32, byref key_ as const ustring ) as 
         case "italic" : return Tri_( r.italic )
         case "hide" : return B_( r.hide )
         end select
+    case RSet.RSetCalcs
+        if (i < 0) orelse (i >= Def->nCalcs) then return ""
+        select case key_
+        case "source" : return Def->calcs(i).source
+        case "name" : return Def->calcs(i).name_
+        case "expr" : return Def->calcs(i).expr
+        end select
     end select
     return ""
 end function
@@ -348,6 +370,20 @@ private sub RenameSource_( byval def as TK_REPORTDEF ptr, byref was as const ust
         if lcase( def->calcs(k).source ) = w then def->calcs(k).source = now_
     next
 end sub
+
+' Whether source src already has a field or another calculated field (not calc self) named n.
+private function CalcNameTaken_( byval def as TK_REPORTDEF ptr, byref src as const ustring, byref n as const ustring, byval self as int32 ) as boolean
+    dim as int32 si = tkReportDef_FindSource( def, src )
+    if si >= 0 then
+        for k as int32 = 0 to def->sources(si).nFields - 1
+            if lcase( def->sources(si).fields(k).name_ ) = lcase( n ) then return true
+        next
+    end if
+    for k as int32 = 0 to def->nCalcs - 1
+        if (k <> self) andalso (lcase( def->calcs(k).source ) = lcase( src )) andalso (lcase( def->calcs(k).name_ ) = lcase( n )) then return true
+    next
+    return false
+end function
 
 function RecordSet.SetValue( byval i as int32, byref key_ as const ustring, byref value as const ustring ) as ustring
     dim as boolean b = (lcase( trim( value ) ) = "true")
@@ -406,6 +442,8 @@ function RecordSet.SetValue( byval i as int32, byref key_ as const ustring, byre
         select case key_
         case "name"
             if IsName_( value ) = false then return value & ": not a name"
+            ' the generated report has a field of that name (rcodegen): a keyword would not compile
+            if validate.IsReserved( value ) then return value & ": a reserved word of tiko, not a parameter's name"
             dim as int32 o = tkReportDef_FindParam( Def, value )
             if (o >= 0) andalso (o <> i) then return value & ": a parameter has that name"
             p.name_ = value
@@ -472,6 +510,31 @@ function RecordSet.SetValue( byval i as int32, byref key_ as const ustring, byre
         case "hide" : r.hide = b
         case else : return "?"
         end select
+    case RSet.RSetCalcs
+        if (i < 0) orelse (i >= Def->nCalcs) then return "?"
+        dim byref as TKRD_CALC c = Def->calcs(i)
+        select case key_
+        case "source"
+            if tkReportDef_FindSource( Def, value ) < 0 then return value & ": not a source"
+            if CalcNameTaken_( Def, value, c.name_, i ) then return value & ": has a field named " & c.name_
+            c.source = value
+        case "name"
+            if IsName_( value ) = false then return value & ": not a name"
+            if CalcNameTaken_( Def, c.source, value, i ) then return value & ": " & c.source & " has a field of that name"
+            c.name_ = value
+        case "expr"
+            ' compiled as the report will: over the source's own fields, the parameters, the other calcs
+            if len( trim( value ) ) = 0 then return "a calculated field needs an expression"
+            dim as TKREXPR_SCHEMA sch
+            rmodel.SchemaFor( Def, "", true, sch )
+            sch.defaultSource = c.source
+            dim as TKREXPR_ERROR e
+            dim as TK_REXPR ptr x = tkRExpr_Compile( value, sch, e )
+            if x = 0 then return e.msg
+            tkRExpr_Destroy( x )
+            c.expr = value
+        case else : return "?"
+        end select
     end select
     return ""
 end function
@@ -509,6 +572,21 @@ function RecordSet.Add( ) as ustring
         if ii < 0 then return "?"
         dim as TKRD_RULE r
         tkReportDef_AddRule( Def, ii, r )
+    case RSet.RSetCalcs
+        ' on the top-level detail's source (else the first), a name it has no field of, a 0 to edit
+        if Def->nSources = 0 then return "a calculated field needs a data source first"
+        dim as TKRD_CALC c
+        dim as int32 si = this.DetailSource( )
+        if si < 0 then si = 0
+        c.source = Def->sources(si).name_
+        c.name_ = "Calc1"
+        dim as int32 n = 2
+        while CalcNameTaken_( Def, c.source, c.name_, -1 )
+            c.name_ = "Calc" & n
+            n += 1
+        wend
+        c.expr = "0"
+        tkReportDef_AddCalc( Def, c )
     end select
     return ""
 end function
@@ -523,6 +601,9 @@ function RecordSet.Remove( byval i as int32 ) as ustring
         next
         for k as int32 = 0 to Def->nSources - 1
             if lcase( Def->sources(k).parent ) = nm then return Def->sources(i).name_ & ": source '" & Def->sources(k).name_ & "' is its child"
+        next
+        for k as int32 = 0 to Def->nCalcs - 1
+            if lcase( Def->calcs(k).source ) = nm then return Def->sources(i).name_ & ": calculated field '" & Def->calcs(k).name_ & "' is on it"
         next
         tkReportDef_RemoveSource( Def, i )
     case RSet.RSetParams
@@ -541,6 +622,8 @@ function RecordSet.Remove( byval i as int32 ) as ustring
         this.ApplySort( )
     case RSet.RSetRules
         tkReportDef_RemoveRule( Def, tkReportDef_FindItem( Def, Item ), i )
+    case RSet.RSetCalcs
+        tkReportDef_RemoveCalc( Def, i )
     end select
     return ""
 end function
@@ -567,6 +650,7 @@ function RecordSet.Move( byval i as int32, byval delta as int32 ) as boolean
         Desc[j] = t
         this.ApplySort( )
     case RSet.RSetRules : tkReportDef_SwapRules( Def, tkReportDef_FindItem( Def, Item ), i, j )
+    case RSet.RSetCalcs : tkReportDef_SwapCalcs( Def, i, j )
     end select
     return true
 end function

@@ -73,9 +73,10 @@ const as long PAD = 4
 const as long TIMER_REBUILD = 1
 const as long TIMER_DOCK = 2
 
-' Toolbox rows: 0 the pointer, 1 to 7 the item kinds, then a band kind each (BAND_BASE + its place).
+' Toolbox rows: 0 the pointer, 1 to 7 the item kinds, then a band kind each (BAND_BASE + its place;
+' the last, detail_report, a master-detail section under the selected detail).
 const as long BAND_BASE = 100
-' then the dialogs (DLG_BASE + 0 sources, 1 parameters, 2 group and sort, 3 page setup)
+' then the dialogs (DLG_BASE + 0 sources, 1 parameters, 2 group and sort, 3 page setup, 4 calculated fields)
 const as long DLG_BASE = 200
 
 public type RMessageSub as sub( byval owner as any ptr, byref text as const ustring )
@@ -183,6 +184,7 @@ private function BandKind_( byval k as long ) as ustring
     case 5 : return "report_footer"
     case 6 : return "page_footer"
     case 7 : return "no_data"
+    case 8 : return "detail_report"
     end select
     return ""
 end function
@@ -690,11 +692,12 @@ sub ReportPanels.FillToolbox( )
     for k as long = 1 to 7
         tkListTree_AddString( ToolList, ItemKind_( k ), k )
     next
-    for k as long = 0 to 7
+    for k as long = 0 to 8
         tkListTree_AddString( ToolList, "+ " & BandKind_( k ), BAND_BASE + k )
     next
     tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_sources", "Data sources..." ), DLG_BASE + 0 )
     tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_params", "Parameters..." ), DLG_BASE + 1 )
+    tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_calcs", "Calculated fields..." ), DLG_BASE + 4 )
     tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_groups", "Group and sort..." ), DLG_BASE + 2 )
     tkListTree_AddString( ToolList, i18n.Tr( "report.dlg_page", "Page setup..." ), DLG_BASE + 3 )
     tkListTree_EndUpdate( ToolList )
@@ -975,13 +978,19 @@ sub ReportPanels.ToolPicked( byval row as long )
         case 1 : which = "params"
         case 2 : which = "groups"
         case 3 : which = "page"
+        case 4 : which = "calcs"
         end select
         if OnDialog then OnDialog( Owner, which, "", "" )
         exit sub
     elseif d >= BAND_BASE then
         dim as ustring kind_ = BandKind_( d - BAND_BASE )
         if C->InsertBand( kind_ ) = false then
-            if OnMessage then OnMessage( Owner, strings.Format( i18n.Tr( "report.band_exists", "{}: the report has one already" ), kind_ ) )
+            if OnMessage = 0 then
+            elseif kind_ = "detail_report" then
+                OnMessage( Owner, strings.Format( i18n.Tr( "report.no_child_source", "{}: the selected detail's source has no child source left to show" ), kind_ ) )
+            else
+                OnMessage( Owner, strings.Format( i18n.Tr( "report.band_exists", "{}: the report has one already" ), kind_ ) )
+            end if
         end if
         C->Tool = ""
         this.UpdateValues( )

@@ -201,6 +201,23 @@ sub ReportPalettesSuite( )
     rmodel.FieldList( d, f )
     Check( (f[0].Label = "O") andalso (f[1].Label = "L") andalso (f[1].Level = 1) andalso (f[2].Label = "Qty") andalso (f[2].Level = 2), _
            "rpalettes: a child source and its fields sit under the master" )
+    ' a master-detail section from the toolbox: under the detail, over its child source, with its own bands; once per child
+    dim as ustring ee
+    dim as TK_REPORTDEF ptr m = LoadRpt( "format = 1" & LF & "[[source]]" & LF & "name = ""O""" & LF & "[[source]]" & LF & "name = ""Lines""" & LF _
+        & "parent = ""O""" & LF & "[[band]]" & LF & "id = ""d""" & LF & "kind = ""detail""" & LF & "source = ""O""" & LF )
+    if m then
+        dim as ustring dr = redits.InsertBand( m, "detail_report", "d" )
+        dim as int32 dri = tkReportDef_FindBand( m, dr ), lhi = tkReportDef_FindBand( m, "linesHeader" )
+        dim as int32 ldi = tkReportDef_FindBand( m, "linesDetail" ), lfi = tkReportDef_FindBand( m, "linesFooter" )
+        dim as TK_REPORTDEF ptr back = tkReportDef_LoadText( tkReportDef_SaveText( m ), ee )
+        Check( (dr = "lines") andalso (dri >= 0) andalso (m->bands(dri).parent = "d") andalso (m->bands(dri).source = "Lines") _
+               andalso (lhi >= 0) andalso (ldi >= 0) andalso (lfi >= 0) andalso (m->bands(lhi).kind = "report_header") _
+               andalso (m->bands(ldi).parent = "lines") andalso (m->bands(lfi).kind = "report_footer") _
+               andalso (redits.InsertBand( m, "detail_report", "d" ) = "") andalso (back <> 0), _
+               "rpalettes: + detail_report adds a section under the detail over its child source, with its header, detail, footer; once per child", dr & " " & ee )
+        if back then tkReportDef_Destroy( back )
+        tkReportDef_Destroy( m )
+    end if
     redits.DeleteBand( d, "body" )
     Check( (tkReportDef_FindBand( d, "dr" ) < 0) andalso (tkReportDef_FindBand( d, "ld" ) < 0) andalso (d->nItems = 0), _
            "rpalettes: deleting a band takes its items and its own bands" )
@@ -253,6 +270,10 @@ sub ReportDialogsSuite( )
     pa.Init( d, rrecords.RSet.RSetParams )
     pa.Add( )
     Check( (pa.SetValue( 0, "type", "int" ) = "") andalso (pa.SetValue( 0, "name", "Min" ) = "") andalso (d->params(0).kind = TKV_INT), "rdialogs: a parameter added and typed" )
+    ' a keyword names no field of the generated report ("To = v_.d" is TKO0408): the dialog and the generator refuse it
+    Check( (pa.SetValue( 0, "name", "To" ) <> "") andalso (d->params(0).name_ = "Min") _
+           andalso (instr( CheckProblems( "format = 1" & LF & "[[parameter]]" & LF & "name = ""To""" & LF ), "reserved word" ) > 0), _
+           "rdialogs: a parameter named like a keyword is refused, in the dialog and by the generator" )
     dim as rrecords.RecordSet ru
     ru.Init( d, rrecords.RSet.RSetRules, "a" )
     ru.Add( )

@@ -7,9 +7,9 @@
 '
 ' rdialogspass -- the Report Designer's dialogs in the real window (RD7). Its "done when": each
 ' dialog's OK is one undo step, and the generated output compiles. A report in a small project is
-' opened; Data sources, Parameters, Group and sort, Page setup (from the toolbox), the conditional
-' styles and the expression editor (from the inspector's "...") each make their edit; each OK is
-' checked to be one Undo away from the text before and one Redo from the text after. Then the report
+' opened; Data sources, Parameters, Group and sort, Page setup, Calculated fields (from the toolbox),
+' the conditional styles and the expression editor (from the inspector's "...") each make their edit;
+' each OK is checked to be one Undo away from the text before and one Redo from the text after. Then the report
 ' is saved -- its module generated -- and the project built with the test's tiko and run.
 ' A dialog is modal: the step's work is posted before it opens and done from inside its loop.
 #module "selftest"
@@ -158,6 +158,12 @@ private sub DriveRpt( byval payload as any ptr )
             gRdRefused &= tkLabel_GetText( x->LblStatus ) & " "
             x->Finish( false )
         end if
+    case 7          ' Calculated fields: one on the detail's source, named and computed
+        dim as rdialogs.RecordDialog ptr d = w->RptRecDlg
+        d->AddRecord( )
+        RdText( d, "name", "Twice" )
+        RdText( d, "expr", "[Amount] * 2" )
+        RdOk( d )
     case 6          ' Page setup: landscape, OK -- clicked, on the dialog's own window
         dim as TK_HOST ptr dh = w->RptPageDlg
         tkOptionButton_SetChecked( tkPrintDialog_GetControl( dh, TKPD_ID_LANDSCAPE ), true )
@@ -282,6 +288,9 @@ public sub RDialogsPass( byref t as Tally, byval sc as single )
              P( sc, "rdialogs: the editor shows an error at its column and keeps OK back; an insert; the type: " & gRdSeen ) )
     t.Check( OneStep( mw, h, 6, c, ps->ToolList, RpRowOf( ps->ToolList, "Page setup..." ) ) andalso c->Def->landscape, _
              P( sc, "rdialogs: Page setup: landscape, one undo step" ) )
+    t.Check( OneStep( mw, h, 7, c, ps->ToolList, RpRowOf( ps->ToolList, "Calculated fields..." ) ) andalso (c->Def->nCalcs = 1) _
+             andalso (c->Def->calcs(0).source = "Orders") andalso (c->Def->calcs(0).name_ = "Twice") andalso (c->Def->calcs(0).expr = "[Amount] * 2"), _
+             P( sc, "rdialogs: Calculated fields: one added on the detail's source, one undo step" ) )
 
     ' the generated output compiles, and the program built from it runs
     t.Check( mw.SaveDoc( d, false ) andalso fs.IsFile( fs.PathJoin( dir_, "rptD", "rptD.design.tiko" ) ), P( sc, "rdialogs: saved, its module generated" ) )

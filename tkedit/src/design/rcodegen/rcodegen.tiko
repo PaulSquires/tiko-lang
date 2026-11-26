@@ -22,6 +22,7 @@
 #import "std/containers"
 #import "vendor/tkControls/tkReportDef"
 #import "../codegen"
+#import "../validate"
 using containers
 using tkReportDef
 using tkReport
@@ -128,6 +129,9 @@ public sub Check( byval def as TK_REPORTDEF ptr, byref moduleName as const ustri
         dim as ustring n = def->params(i).name_
         if IsIdent_( n ) = false then
             problems.Push( "parameter '" & n & "': not a name a field can have" )
+        elseif validate.IsReserved( n ) then
+            ' its field would not compile ("To = v_.d": TKO0408)
+            problems.Push( "parameter '" & n & "': a reserved word of tiko can't name the report's field" )
         elseif Reserved_( n ) orelse SetterName_( def, n ) then
             problems.Push( "parameter '" & n & "': the name is a member the report already has" )
         end if

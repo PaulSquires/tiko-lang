@@ -111,6 +111,10 @@ public type TKREPORTVIEWER_STATE
     nPar         as long
     hRun         as TK_WIDGET ptr
     stripH       as long
+    ' what Sync last showed: a document the preview is still generating is synced again at a paint
+    ' once its page count or completion differs (tkPrintPreview generates it on a timer, silently)
+    syncN        as long = -1
+    syncDone     as boolean
 end type
 
 function RV( byval w as TK_WIDGET ptr ) as TKREPORTVIEWER_STATE ptr
@@ -150,6 +154,8 @@ end sub
 private sub Sync( byval p as TKREPORTVIEWER_STATE ptr )
     dim as long n = tkPrintPreview_GetPageCount( p->hPv ), pg = tkPrintPreview_GetPage( p->hPv )
     dim as boolean done_ = tkPrintDoc_IsComplete( p->doc )
+    p->syncN = n
+    p->syncDone = done_
     tkTextBox_SetText( p->hPage, iif( n > 0, str( pg + 1 ), "" ) )
     tkToolbar_SetText( p->hBar, p->ofIdx, "of " & n & iif( done_, "", "+" ) )
     dim as ustring st = iif( n > 0, "Page " & (pg + 1) & " of " & n & iif( done_, "", "+" ), "No pages" )
@@ -290,6 +296,8 @@ function RvProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
         Arrange( p )
         return true
     case TKM_PAINT
+        ' a lazily generated document: "of N" and the status follow the pages as they are made
+        if p->doc andalso ((tkPrintPreview_GetPageCount( p->hPv ) <> p->syncN) orelse (tkPrintDoc_IsComplete( p->doc ) <> p->syncDone)) then Sync( p )
         return true
     case TKM_DESTROY
         ' the preview (a child) is gone already
