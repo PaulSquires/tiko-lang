@@ -28,6 +28,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [tiko c2t Tutorial](C2t-Tutorial) | Translate a C library's header with `tiko c2t`, then use it with `#include` and `#foreignlib` |
 | [Notepad Tutorial](Notepad2-Tutorial) | A text editor from tkControls and tkApp, built from one source for Windows, Linux and macOS: menus, status bar, Find, unsaved-changes prompt, and a self-test that drives the window |
 | [Contacts Tutorial](Contacts-Tutorial) | An address book drawn in tkEdit's Form Designer: menus, toolbar, status bar, a list, a modal entry form with tabs, a right-click menu, the Resource Center and project theme, SQLite storage and CSV export |
+| [Orders Tutorial](Orders-Tutorial) | Customers and orders over SQLite: forms bound to records, a navigator, bound DataGrids and a grid that is a query, then three reports drawn in the Report Designer, fed by an array, an SQL query and a DataGrid |
 
 ## The book
 

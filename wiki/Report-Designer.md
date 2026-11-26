@@ -132,6 +132,11 @@ The sample `examples/tkControls/tkReportDesigner` builds `orders`, a program sho
 report in a designed form. Its selftest covers arrays with master-detail, SQLite, a DataGrid,
 parameters, events, the viewer and PDF.
 
+The [Orders Tutorial](Orders-Tutorial) adds three designed reports to a data-bound program, one per
+kind of data: an invoice from an array of records with a child array, sales by customer from an
+SQL query with date parameters, and an order list from a DataGrid as the user filtered it. It is
+finished in the toolchain's `examples/tkControls/tkOrders`.
+
 ## See also
 
-[tkReport](tkReport) · [tkReportViewer](tkReportViewer) · [Form Designer](Form-Designer) · [tkPrint](tkPrint) · [tkPdf](tkPdf)
+[tkReport](tkReport) · [tkReportViewer](tkReportViewer) · [Form Designer](Form-Designer) · [Orders Tutorial](Orders-Tutorial) · [tkPrint](tkPrint) · [tkPdf](tkPdf)

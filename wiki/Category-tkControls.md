@@ -10,7 +10,8 @@ Every control draws itself. There is no system control underneath, so a window l
 
 To draw a window instead of coding it, see the [Form Designer](Form-Designer). To draw a report, see the [Report Designer](Report-Designer). To give a program a
 colour scheme, styles and light/dark switching, see the [Themes Tutorial](Themes-Tutorial). The
-[Contacts Tutorial](Contacts-Tutorial) builds a complete program in the designer, with SQLite.
+[Contacts Tutorial](Contacts-Tutorial) builds a complete program in the designer, with SQLite. The
+[Orders Tutorial](Orders-Tutorial) binds forms and DataGrids to records and prints designed reports from them.
 
 ## Importing a control
 

@@ -5,7 +5,9 @@
 Draw a window in tkEdit, double-click a control, write the handler, press Run.
 
 New to it? The [Contacts Tutorial](Contacts-Tutorial) builds a whole program step by step: menus, a
-toolbar, a status bar, a list, a dialog with tabs, a popup menu, the Resource Center and SQLite.
+toolbar, a status bar, a list, a dialog with tabs, a popup menu, the Resource Center and SQLite. The
+[Orders Tutorial](Orders-Tutorial) is about data: forms bound to records, a navigator, bound grids
+and designed reports.
 
 The Form Designer is part of tkEdit. A form is a `.tkform` file. Open one and it appears on a design
 surface of real [tkControls](Category-tkControls), so what you see is what the program will show. The
@@ -332,6 +334,11 @@ so on), `mods` the modifier keys, as KeyDown's.
 
 ## Data binding
 
+The [Orders Tutorial](Orders-Tutorial) builds a program around everything in this section: bound
+boxes of every common kind, a ComboBox with a ValueField, a DataGrid bound to the form's array and
+one bound to a field of the record, a live grid, a navigator that follows a list, and saving to
+SQLite as the user moves on.
+
 A form can move a record in and out of its controls for you. Click the empty form and set
 **DataType** to the record's type, `contactdb.Contact`, and **DataModule** to the module it comes
 from, `../contactdb` (leave it blank when the form's own module already sees the type). Then select
@@ -534,3 +541,5 @@ lists any that are stale and exits with the count, which suits a build check.
 - [partial type](Partial)
 - [Contacts Tutorial](Contacts-Tutorial): an address book built step by step, finished in the
   toolchain's `examples/tkControls/tkContacts`
+- [Orders Tutorial](Orders-Tutorial): data binding and designed reports over SQLite, finished in the
+  toolchain's `examples/tkControls/tkOrders`
