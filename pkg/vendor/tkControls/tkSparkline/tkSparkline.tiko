@@ -1,0 +1,552 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkSparkline -- a word-sized chart of one series: LINE, AREA, COLUMN or WINLOSS. New in tkControls;
+' the design is C:\dev\docs\tkControls\GAUGE-SPARKLINE.md §4 (phase GS1).
+'
+' THIS FILE is everything that draws one, with or without a widget: the spec, the text form of a
+' series, the layout (one SP_GEOM that the painter, the hit test and the probes all read), the
+' painter, tkSparkline_PaintInto (any TK_PAINT: a grid cell, a list row) and tkSparkline_PaintPage
+' (a print page, through tkPage_BeginCanvas: the same painter). The widget is tkSparklineWidget.tiko.
+'
+' THE RULES (§4): a series is values plus a "present" flag each -- a missing point is a gap, a
+' zero or skipped (EmptyMode). The range is the data's own min / max (no nice rounding; a flat
+' series opens +-10 %, or +-1 at zero) unless set. LINE / AREA put the first point on the plot's
+' left edge and the last on its right; COLUMN / WINLOSS give each point a slot, bars on whole
+' pixels. Markers: high / low / first / last (the first found wins a tie), negative, all.
+#module "tkSparkline"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkPrint" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkPrint
+
+public enum
+    TKSPARK_LINE = 0
+    TKSPARK_AREA
+    TKSPARK_COLUMN
+    TKSPARK_WINLOSS
+end enum
+
+' A missing point: break the line, draw it as zero, or join its neighbours (Excel's three).
+public enum
+    TKSPARK_EMPTY_GAP = 0
+    TKSPARK_EMPTY_ZERO
+    TKSPARK_EMPTY_CONNECT
+end enum
+
+' Markers, a bit set.
+public const as int32 TKSPARK_MK_NONE     = 0
+public const as int32 TKSPARK_MK_HIGH     = 1
+public const as int32 TKSPARK_MK_LOW      = 2
+public const as int32 TKSPARK_MK_FIRST    = 4
+public const as int32 TKSPARK_MK_LAST     = 8
+public const as int32 TKSPARK_MK_NEGATIVE = 16
+public const as int32 TKSPARK_MK_ALL      = 32
+
+public const as int32 TKSPARK_DECIMALS_AUTO = -1
+' Design units (DIP); every one is multiplied by the scale at layout, so a rescale needs no state.
+public const as float32 TKSPARK_DEFAULT_LINEWIDTH  = 1.5
+public const as float32 TKSPARK_DEFAULT_MARKERSIZE = 5       ' diameter
+public const as int32 TKSPARK_DEFAULT_COLUMNGAP  = 1
+public const as int32 TKSPARK_DEFAULT_PADDING    = 2
+public const as int32 TKSPARK_DEFAULT_TEXTGAP    = 4
+' Above this many points the line is one mitred band, not a disc per join (GS0: ~23x cheaper).
+public const as int32 TKSPARK_ROUNDJOIN_MAX = 200
+
+public type TKSPARK_COLORS
+    BackColor         as uint32 = &hFF21252Bul
+    LineColor         as uint32 = &hFF569CD6ul     ' the line, columns, wins
+    FillColor         as uint32 = &h40569CD6ul     ' the area (its alpha is the fill's)
+    NegativeColor     as uint32 = &hFFE06C75ul     ' negative columns, losses, negative markers
+    AxisColor         as uint32 = &hFF3E444Eul
+    ReferenceColor    as uint32 = &hFF969CA6ul
+    BandColor         as uint32 = &hFF2C313Aul     ' the normal band
+    HighColor         as uint32 = &hFF48970Dul
+    LowColor          as uint32 = &hFFE5C07Bul
+    FirstColor        as uint32 = &hFF969CA6ul
+    LastColor         as uint32 = &hFF569CD6ul
+    HotColor          as uint32 = &hFFFFFFFFul
+    TextColor         as uint32 = &hFFC8CDD6ul
+    ForeColorDisabled as uint32 = &hFF606670ul
+end type
+
+' Everything that decides a sparkline's look, with or without a widget. The series is borrowed:
+' pValues / pHas point at the caller's arrays (pHas = 0: every point present).
+public type TKSPARK_SPEC
+    nKind        as int32 = TKSPARK_LINE
+    nEmpty       as int32 = TKSPARK_EMPTY_GAP
+    pValues      as float64 ptr
+    pHas         as boolean ptr
+    nCount       as int32
+    bAutoRange   as boolean = true
+    fMin         as float64
+    fMax         as float64
+    nMarkers     as int32 = TKSPARK_MK_NONE
+    fMarkerSize  as float32 = TKSPARK_DEFAULT_MARKERSIZE
+    fLineWidth   as float32 = TKSPARK_DEFAULT_LINEWIDTH
+    nColumnGap   as int32 = TKSPARK_DEFAULT_COLUMNGAP
+    nPadding     as int32 = TKSPARK_DEFAULT_PADDING
+    bShowAxis    as boolean
+    bHasRef      as boolean
+    fRef         as float64
+    bHasBand     as boolean
+    fBandLo      as float64
+    fBandHi      as float64
+    bShowLast    as boolean
+    nDecimals    as int32 = TKSPARK_DECIMALS_AUTO
+    sLastText    as ustring              ' "" = the last value formatted (the widget's format callback fills it)
+    nHot         as int32 = -1
+    bEnabled     as boolean = true
+    fText        as TTF_Font ptr         ' 0 = no last-value text
+    fScale       as float32              ' 0 = the painter's
+    pColors      as TKSPARK_COLORS ptr   ' 0 = the app theme's
+end type
+
+' The layout: widget-local EDGE coordinates (floats), one for painter, hit test and probes.
+public type SP_GEOM
+    pl       as float32            ' the plot rect
+    pt       as float32
+    pr       as float32
+    pb       as float32
+    lo       as float64            ' the range in force
+    hi       as float64
+    axisV    as float64            ' the baseline: 0 when in range, else lo
+    slotW    as float32            ' COLUMN / WINLOSS: one point's slot
+    mr       as float32            ' the marker radius reserved round the plot (LINE / AREA)
+    rcText   as TKRECT             ' the last value; empty when not shown
+    sText    as ustring
+    iHigh    as int32 = -1
+    iLow     as int32 = -1
+    iFirst   as int32 = -1
+    iLast    as int32 = -1
+    nPresent as int32
+    fScale   as float32
+end type
+
+
+' ==========================================================================================
+' The series: present flags, the text form, number formatting
+' ==========================================================================================
+private function SpHas( byref s as TKSPARK_SPEC, byval i as int32 ) as boolean
+    if (i < 0) orelse (i >= s.nCount) orelse (s.pValues = 0) then return false
+    if s.pHas = 0 then return true
+    return s.pHas[i]
+end function
+
+' A point's value as drawn: a missing one is 0 under EMPTY_ZERO, else not drawn at all.
+private function SpDrawn( byref s as TKSPARK_SPEC, byval i as int32, byref v as float64 ) as boolean
+    if SpHas( s, i ) then v = s.pValues[i] : return true
+    if (s.nEmpty = TKSPARK_EMPTY_ZERO) andalso (i >= 0) andalso (i < s.nCount) then v = 0 : return true
+    return false
+end function
+
+' v with d decimals (TKSPARK_DECIMALS_AUTO: up to 2, trailing zeros dropped). No "-0".
+public function tkSparkline_FormatValue( byval v as float64, byval nDecimals as int32 = TKSPARK_DECIMALS_AUTO ) as string
+    dim as int32 d = iif( nDecimals < 0, 2, nDecimals )
+    if d > 9 then d = 9
+    dim as int64 m = 1
+    for k as int32 = 1 to d : m *= 10 : next
+    dim as int64 n = clngint( v * m )
+    dim as string s = iif( n < 0, "-", "" )
+    n = abs( n )
+    s &= str( n \ m )
+    if d > 0 then
+        dim as string fr = right( string( d, "0" ) & str( n mod m ), d )
+        if nDecimals < 0 then
+            while (len( fr ) > 0) andalso (right( fr, 1 ) = "0") : fr = left( fr, len( fr ) - 1 ) : wend
+        end if
+        if len( fr ) then s &= "." & fr
+    end if
+    return s
+end function
+
+private function SpNumeric( byref f as string ) as boolean
+    if len( f ) = 0 then return false
+    return instr( "+-.0123456789", left( f, 1 ) ) > 0
+end function
+
+' "3,5,,2 4;7": separators are "," ";" and runs of blanks; a blank beside "," or ";" is not one.
+' An empty or non-numeric field is a missing point. Returns the count; vals() / has() resized.
+public function tkSparkline_ParseText( byref sText as string, vals() as float64, has() as boolean ) as int32
+    ' blanks -> one space; spaces beside a hard separator dropped; the rest become ","
+    dim as string t = ""
+    dim as boolean bBlank = false
+    for i as int32 = 1 to len( sText )
+        dim as string c = mid( sText, i, 1 )
+        if (c = " ") orelse (c = chr( 9 )) orelse (c = chr( 10 )) orelse (c = chr( 13 )) then
+            bBlank = true
+        else
+            if c = ";" then c = ","
+            if bBlank andalso (len( t ) > 0) andalso (right( t, 1 ) <> ",") andalso (c <> ",") then t &= ","
+            bBlank = false
+            t &= c
+        end if
+    next
+    if len( t ) = 0 then
+        erase vals : erase has
+        return 0
+    end if
+    dim as int32 n = 1
+    for i as int32 = 1 to len( t )
+        if mid( t, i, 1 ) = "," then n += 1
+    next
+    redim vals( 0 to n - 1 ) : redim has( 0 to n - 1 )
+    dim as int32 k = 0, a = 1
+    for i as int32 = 1 to len( t ) + 1
+        if (i > len( t )) orelse (mid( t, i, 1 ) = ",") then
+            dim as string f = mid( t, a, i - a )
+            has(k) = SpNumeric( f )
+            vals(k) = iif( has(k), val( f ), 0.0 )
+            k += 1 : a = i + 1
+        end if
+    next
+    return n
+end function
+
+' The text form back: present values by str(), missing ones empty ("3,5,,2,4,7").
+public function tkSparkline_FormatText( byval pValues as float64 ptr, byval pHas as boolean ptr, byval n as int32 ) as string
+    dim as string s = ""
+    for i as int32 = 0 to n - 1
+        if i > 0 then s &= ","
+        if (pValues <> 0) andalso ((pHas = 0) orelse pHas[i]) then s &= str( pValues[i] )
+    next
+    return s
+end function
+
+
+' ==========================================================================================
+' Layout
+' ==========================================================================================
+private function SpScale( byref s as TKSPARK_SPEC, byval b as TK_PAINT ptr ) as float32
+    if s.fScale > 0 then return s.fScale
+    if (b <> 0) andalso (b->fScale > 0) then return b->fScale
+    return 1
+end function
+
+' The range in force: manual, or the drawn values' min / max; a flat one opened.
+private sub SpRange( byref s as TKSPARK_SPEC, byref lo as float64, byref hi as float64 )
+    if s.bAutoRange = false then
+        lo = s.fMin : hi = s.fMax
+        if lo > hi then swap lo, hi
+    else
+        dim as boolean bAny = false
+        for i as int32 = 0 to s.nCount - 1
+            dim as float64 v
+            if SpDrawn( s, i, v ) then
+                if bAny = false then lo = v : hi = v : bAny = true
+                if v < lo then lo = v
+                if v > hi then hi = v
+            end if
+        next
+        if bAny = false then lo = 0 : hi = 1
+    end if
+    if hi - lo < 1e-12 then
+        dim as float64 d = abs( lo ) * 0.1
+        if d < 1e-12 then d = 1
+        lo -= d : hi += d
+    end if
+end sub
+
+public sub tkSparkline_Layout( byref s as TKSPARK_SPEC, byref rc as TKRECT, byval fScale as float32, byref g as SP_GEOM )
+    dim as SP_GEOM blank
+    g = blank
+    g.fScale = iif( fScale > 0, fScale, 1 )
+    SpRange( s, g.lo, g.hi )
+    g.axisV = iif( (g.lo <= 0) andalso (g.hi >= 0), 0.0, iif( g.lo > 0, g.lo, g.hi ) )
+    ' the extremes, first found wins a tie
+    for i as int32 = 0 to s.nCount - 1
+        if SpHas( s, i ) = false then continue for
+        g.nPresent += 1
+        dim as float64 v = s.pValues[i]
+        if g.iFirst < 0 then g.iFirst = i
+        g.iLast = i
+        if (g.iHigh < 0) orelse (v > s.pValues[g.iHigh]) then g.iHigh = i
+        if (g.iLow < 0) orelse (v < s.pValues[g.iLow]) then g.iLow = i
+    next
+    dim as float32 pad = s.nPadding * g.fScale
+    g.pl = rc.left + pad : g.pt = rc.top + pad
+    g.pr = rc.right - pad : g.pb = rc.bottom - pad
+    ' the last value, at the right, its width reserved
+    tkRect_SetEmpty( g.rcText )
+    if s.bShowLast andalso (s.fText <> 0) andalso (g.iLast >= 0) then
+        g.sText = s.sLastText
+        if len( g.sText ) = 0 then g.sText = tkSparkline_FormatValue( s.pValues[g.iLast], s.nDecimals )
+        dim as int32 tw = tkText_Width( s.fText, g.sText )
+        dim as int32 tr = cint( g.pr )
+        tkRect_Set( g.rcText, tr - tw, rc.top, tr, rc.bottom )
+        g.pr -= tw + TKSPARK_DEFAULT_TEXTGAP * g.fScale
+    end if
+    ' LINE / AREA: room for a marker (and the hot one, 1 px bigger) round the plot
+    if (s.nKind = TKSPARK_LINE) orelse (s.nKind = TKSPARK_AREA) then
+        g.mr = s.fMarkerSize * g.fScale / 2 + 1
+        dim as float32 lw = s.fLineWidth * g.fScale / 2
+        if lw > g.mr then g.mr = lw
+        g.pl += g.mr : g.pr -= g.mr : g.pt += g.mr : g.pb -= g.mr
+    end if
+    if g.pr < g.pl then g.pr = g.pl
+    if g.pb < g.pt then g.pb = g.pt
+    g.slotW = iif( s.nCount > 0, (g.pr - g.pl) / s.nCount, 0.0 )
+end sub
+
+public function tkSparkline_GeomIndexToX( byref s as TKSPARK_SPEC, byref g as SP_GEOM, byval i as int32 ) as float32
+    if (s.nKind = TKSPARK_COLUMN) orelse (s.nKind = TKSPARK_WINLOSS) then return g.pl + g.slotW * (i + 0.5)
+    if s.nCount <= 1 then return (g.pl + g.pr) / 2
+    return g.pl + (g.pr - g.pl) * i / (s.nCount - 1)
+end function
+
+public function tkSparkline_GeomValueToY( byref g as SP_GEOM, byval v as float64 ) as float32
+    return g.pb - (v - g.lo) / (g.hi - g.lo) * (g.pb - g.pt)
+end function
+
+' The point whose slot / nearest x is under x, if it is drawn; else -1.
+public function tkSparkline_GeomHitTest( byref s as TKSPARK_SPEC, byref g as SP_GEOM, byval x as float32 ) as int32
+    if s.nCount <= 0 then return -1
+    dim as int32 i
+    if (s.nKind = TKSPARK_COLUMN) orelse (s.nKind = TKSPARK_WINLOSS) then
+        if g.slotW <= 0 then return -1
+        i = int( (x - g.pl) / g.slotW )
+    elseif s.nCount = 1 then
+        i = 0
+    else
+        i = cint( (x - g.pl) / (g.pr - g.pl) * (s.nCount - 1) )
+    end if
+    if i < 0 then i = 0
+    if i > s.nCount - 1 then i = s.nCount - 1
+    dim as float64 v
+    return iif( SpDrawn( s, i, v ), i, -1 )
+end function
+
+
+' ==========================================================================================
+' The painter
+' ==========================================================================================
+private sub SpDisc( byval b as TK_PAINT ptr, byval cx as float32, byval cy as float32, byval r as float32, byval c as uint32 )
+    if r <= 0 then exit sub
+    dim as SDL_FPoint pts(0 to 15)
+    for k as int32 = 0 to 15
+        pts(k).x = cx + r * cos( k * 3.14159265358979 / 8 ) : pts(k).y = cy + r * sin( k * 3.14159265358979 / 8 )
+    next
+    b->SetBackColor( c )
+    b->PaintPolygonF( @pts(0), 16 )
+end sub
+
+' A crisp horizontal rule, 1 px (a hairline: never scaled).
+private sub SpRule( byval b as TK_PAINT ptr, byref g as SP_GEOM, byval y as float32, byval c as uint32 )
+    dim as TKRECT r
+    dim as int32 yy = int( y )
+    tkRect_Set( r, int( g.pl - g.mr ), yy, cint( g.pr + g.mr ), yy + 1 )
+    b->SetBackColor( c )
+    b->PaintRect( @r )
+end sub
+
+' AREA: the run's points down to the baseline, cut where the line crosses it, so every polygon is
+' simple (one side, monotone in x) -- tkPaint ear-clips (tkChart's CHT_FillBetween lesson).
+private sub SpFillRun( byval b as TK_PAINT ptr, pts() as SDL_FPoint, byval n as int32, byval yBase as float32, _
+                       byval c as uint32 )
+    if n < 2 then exit sub
+    dim as SDL_FPoint poly(0 to n * 2 + 3)
+    dim as int32 k = 0
+    poly(0).x = pts(0).x : poly(0).y = yBase : k = 1
+    for i as int32 = 0 to n - 1
+        if i > 0 then
+            dim as float32 d0 = pts(i - 1).y - yBase, d1 = pts(i).y - yBase
+            if ((d0 < 0) andalso (d1 > 0)) orelse ((d0 > 0) andalso (d1 < 0)) then
+                dim as float32 xc = pts(i - 1).x + (pts(i).x - pts(i - 1).x) * d0 / (d0 - d1)
+                poly(k).x = xc : poly(k).y = yBase : k += 1
+                if k >= 3 then b->PaintPolygonF( @poly(0), k )
+                poly(0).x = xc : poly(0).y = yBase : k = 1
+            end if
+        end if
+        poly(k) = pts(i) : k += 1
+    next
+    poly(k).x = pts(n - 1).x : poly(k).y = yBase : k += 1
+    if k >= 3 then b->PaintPolygonF( @poly(0), k )
+end sub
+
+private sub SpDrawLine( byval b as TK_PAINT ptr, byref s as TKSPARK_SPEC, byref g as SP_GEOM, byval clrLine as uint32, _
+                        byval clrFill as uint32 )
+    ' runs of drawn points; CONNECT skips the missing ones, GAP breaks at them
+    dim as SDL_FPoint pts(0 to iif( s.nCount > 0, s.nCount - 1, 0 ))
+    dim as float32 pen = s.fLineWidth * g.fScale / iif( b->fScale > 0, b->fScale, 1 )
+    dim as boolean bRound = ((clrLine shr 24) = 255) andalso (s.nCount <= TKSPARK_ROUNDJOIN_MAX)
+    dim as float32 yBase = tkSparkline_GeomValueToY( g, g.axisV )
+    dim as int32 i = 0
+    while i < s.nCount
+        dim as int32 n = 0
+        while i < s.nCount
+            dim as float64 v
+            if SpDrawn( s, i, v ) then
+                pts(n).x = tkSparkline_GeomIndexToX( s, g, i ) : pts(n).y = tkSparkline_GeomValueToY( g, v ) : n += 1
+            elseif s.nEmpty <> TKSPARK_EMPTY_CONNECT then
+                i += 1 : exit while
+            end if
+            i += 1
+        wend
+        if n = 0 then continue while
+        if s.nKind = TKSPARK_AREA then
+            b->SetBackColor( clrFill )
+            SpFillRun( b, pts(), n, yBase, clrFill )
+        end if
+        b->SetPenColor( clrLine )
+        if n = 1 then
+            SpDisc( b, pts(0).x, pts(0).y, s.fLineWidth * g.fScale / 2 + 0.5, clrLine )     ' a lone point stays visible
+        else
+            b->PaintPolylineF( @pts(0), n, pen, false, bRound )
+        end if
+    wend
+end sub
+
+private sub SpDrawBars( byval b as TK_PAINT ptr, byref s as TKSPARK_SPEC, byref g as SP_GEOM, byval clrPos as uint32, _
+                        byval clrNeg as uint32, byval clrHot as uint32 )
+    dim as int32 gap = cint( s.nColumnGap * g.fScale )
+    dim as int32 yAxis = cint( tkSparkline_GeomValueToY( g, g.axisV ) )
+    dim as int32 yMid = cint( (g.pt + g.pb) / 2 ), half = iif( g.fScale > 1, cint( g.fScale ), 1 )
+    for i as int32 = 0 to s.nCount - 1
+        dim as float64 v
+        if SpDrawn( s, i, v ) = false then continue for
+        dim as int32 x0 = cint( g.pl + g.slotW * i ), x1 = cint( g.pl + g.slotW * (i + 1) ) - gap
+        if x1 <= x0 then x1 = x0 + 1
+        dim as TKRECT r
+        if s.nKind = TKSPARK_WINLOSS then
+            if v = 0 then continue for
+            if v > 0 then tkRect_Set( r, x0, cint( g.pt ), x1, yMid - half ) else tkRect_Set( r, x0, yMid + half, x1, cint( g.pb ) )
+        else
+            dim as int32 y = cint( tkSparkline_GeomValueToY( g, v ) )
+            if y = yAxis then y = iif( v >= g.axisV, yAxis - 1, yAxis + 1 )      ' a value is never invisible
+            if y < yAxis then tkRect_Set( r, x0, y, x1, yAxis ) else tkRect_Set( r, x0, yAxis, x1, y )
+        end if
+        b->SetBackColor( iif( i = s.nHot, clrHot, iif( v < 0, clrNeg, clrPos ) ) )
+        b->PaintRect( @r )
+    next
+end sub
+
+private function SpMarkerColor( byref s as TKSPARK_SPEC, byref g as SP_GEOM, byref c as TKSPARK_COLORS, byval i as int32, _
+                                byref clr as uint32 ) as boolean
+    dim as int32 mk = s.nMarkers
+    ' precedence: high, low, last, first, negative, all
+    if ((mk and TKSPARK_MK_HIGH) <> 0) andalso (i = g.iHigh) then clr = c.HighColor : return true
+    if ((mk and TKSPARK_MK_LOW) <> 0) andalso (i = g.iLow) then clr = c.LowColor : return true
+    if ((mk and TKSPARK_MK_LAST) <> 0) andalso (i = g.iLast) then clr = c.LastColor : return true
+    if ((mk and TKSPARK_MK_FIRST) <> 0) andalso (i = g.iFirst) then clr = c.FirstColor : return true
+    if ((mk and TKSPARK_MK_NEGATIVE) <> 0) andalso SpHas( s, i ) andalso (s.pValues[i] < 0) then clr = c.NegativeColor : return true
+    if ((mk and TKSPARK_MK_ALL) <> 0) andalso SpHas( s, i ) then clr = c.LineColor : return true
+    return false
+end function
+
+' The whole sparkline into rc (widget-local), background not filled.
+public sub tkSparkline_PaintSpec( byval b as TK_PAINT ptr, byref rc as TKRECT, byref s as TKSPARK_SPEC, byref g as SP_GEOM )
+    if (b = 0) orelse (s.pColors = 0) then exit sub
+    dim as TKSPARK_COLORS ptr c = s.pColors
+    dim as boolean en = s.bEnabled
+    dim as uint32 dis = c->ForeColorDisabled
+    dim as uint32 clrLine = iif( en, c->LineColor, dis )
+    dim as uint32 clrNeg = iif( en, c->NegativeColor, dis )
+    dim as uint32 clrFill = iif( en, c->FillColor, tkColor_WithAlpha( dis, (c->FillColor shr 24) and 255 ) )
+    ' data is clipped to the plot plus the marker margin (a manual range may cut it)
+    dim as TKRECT rcClip
+    tkRect_Set( rcClip, int( g.pl - g.mr ), int( g.pt - g.mr ), cint( g.pr + g.mr + 0.5 ), cint( g.pb + g.mr + 0.5 ) )
+    b->PushClip( @rcClip )
+    if s.bHasBand then
+        dim as float32 y0 = tkSparkline_GeomValueToY( g, s.fBandHi ), y1 = tkSparkline_GeomValueToY( g, s.fBandLo )
+        if y0 > y1 then swap y0, y1
+        dim as TKRECT r
+        tkRect_Set( r, int( g.pl - g.mr ), cint( y0 ), cint( g.pr + g.mr ), cint( y1 ) )
+        if r.bottom = r.top then r.bottom += 1
+        b->SetBackColor( c->BandColor )
+        b->PaintRect( @r )
+    end if
+    if s.bShowAxis andalso (g.lo <= 0) andalso (g.hi >= 0) andalso (s.nKind <> TKSPARK_WINLOSS) then
+        SpRule( b, g, tkSparkline_GeomValueToY( g, 0 ), c->AxisColor )
+    end if
+    if s.bHasRef then SpRule( b, g, tkSparkline_GeomValueToY( g, s.fRef ), c->ReferenceColor )
+    select case s.nKind
+    case TKSPARK_COLUMN, TKSPARK_WINLOSS
+        SpDrawBars( b, s, g, clrLine, clrNeg, iif( en, c->HotColor, dis ) )
+    case else
+        SpDrawLine( b, s, g, clrLine, clrFill )
+        dim as float32 rad = s.fMarkerSize * g.fScale / 2
+        for i as int32 = 0 to s.nCount - 1
+            dim as uint32 clr
+            if SpMarkerColor( s, g, *c, i, clr ) then
+                SpDisc( b, tkSparkline_GeomIndexToX( s, g, i ), tkSparkline_GeomValueToY( g, s.pValues[i] ), rad, iif( en, clr, dis ) )
+            end if
+        next
+        dim as float64 hv
+        if en andalso SpDrawn( s, s.nHot, hv ) then
+            SpDisc( b, tkSparkline_GeomIndexToX( s, g, s.nHot ), tkSparkline_GeomValueToY( g, hv ), rad + 1, c->HotColor )
+        end if
+    end select
+    b->PopClip()
+    if (tkRect_IsEmpty( g.rcText ) = false) andalso (s.fText <> 0) then
+        dim as TTF_Font ptr fWas = b->pFont
+        dim as uint32 inkWas = b->clrFore
+        b->SetFont( s.fText )
+        b->SetForeColor( iif( en, c->TextColor, dis ) )
+        dim as TKRECT r = g.rcText
+        b->PaintText( g.sText, @r, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_NOCLIP )
+        b->SetFont( fWas )
+        b->SetForeColor( inkWas )
+    end if
+end sub
+
+public declare function tkSparkline_ThemeColors( byref t as TKTHEME_COLORS ) as TKSPARK_COLORS
+
+' Widgetless: the sparkline in rc on any TK_PAINT (a grid cell, a list row). No background.
+public sub tkSparkline_PaintInto( byval b as TK_PAINT ptr, byref rc as TKRECT, byref s as TKSPARK_SPEC )
+    if b = 0 then exit sub
+    dim as TKSPARK_SPEC ss = s
+    dim as TKSPARK_COLORS cTheme
+    if ss.pColors = 0 then
+        cTheme = tkSparkline_ThemeColors( tkTheme_Get() )
+        ss.pColors = @cTheme
+    end if
+    dim as SP_GEOM g
+    tkSparkline_Layout( ss, rc, SpScale( ss, b ), g )
+    tkSparkline_PaintSpec( b, rc, ss, g )
+end sub
+
+' On a print page, in rc (points): a canvas of one design unit per pixel (1 DIP = 0.75 pt), the
+' same painter. Text needs spec.fText opened at scale 1 (or none). FALSE: nothing drawn.
+public function tkSparkline_PaintPage( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref s as TKSPARK_SPEC ) as boolean
+    dim as int32 w = cint( (rc.right - rc.left) * 96 / 72 ), h = cint( (rc.bottom - rc.top) * 96 / 72 )
+    if (w <= 0) orelse (h <= 0) then return false
+    dim as TK_PAINT cp
+    if tkPage_BeginCanvas( pg, rc, w, h, 1, cp ) = false then return false
+    dim as TKSPARK_SPEC ss = s
+    ss.fScale = 1
+    ss.nHot = -1
+    dim as TKRECT r
+    tkRect_Set( r, 0, 0, w, h )
+    tkSparkline_PaintInto( @cp, r, ss )
+    tkPage_EndCanvas( pg )
+    return true
+end function
+
+' The colours from the theme's roles: the line in Accent, losses / negatives in Error.
+public function tkSparkline_ThemeColors( byref t as TKTHEME_COLORS ) as TKSPARK_COLORS
+    dim as TKSPARK_COLORS c
+    c.BackColor = t.Window
+    c.LineColor = t.Accent
+    c.FillColor = tkColor_WithAlpha( t.Accent, &h40 )
+    c.NegativeColor = t.Error
+    c.AxisColor = t.Divider
+    c.ReferenceColor = t.TextDim
+    c.BandColor = tkColor_Lerp( t.Window, t.TextDim, 0.15 )
+    c.HighColor = t.Success
+    c.LowColor = t.Warning
+    c.FirstColor = t.TextDim
+    c.LastColor = t.Accent
+    c.HotColor = t.TextStrong
+    c.TextColor = t.Text
+    c.ForeColorDisabled = t.TextDisabled
+    return c
+end function

@@ -1,0 +1,348 @@
+' tkSparkline self-test (phase GS1, GAUGE-SPARKLINE.md §4), one check per distinct behaviour. Real
+' windows; two passes, scale pinned at 1.0 and 1.75. Scale-independent rules (the text form, the
+' range, the markers' indices, the tooltip order, the page) run in the first pass only; geometry and
+' pixels in both. Colours are pinned to distinct values so a pixel names its part.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkSparkline"
+#import "vendor/tkControls/tkTest"
+using tkSparkline
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+using tkTooltip
+using tkPrint
+
+const C_BACK = &hFF101010ul
+const C_LINE = &hFF00FF00ul
+const C_FILL = &h8000FF00ul
+const C_NEG  = &hFFFF0000ul
+const C_AXIS = &hFF404040ul
+const C_REF  = &hFF808080ul
+const C_BAND = &hFF202060ul
+const C_HIGH = &hFF00FFFFul
+const C_LOW  = &hFFFF00FFul
+const C_FRST = &hFFFFFF00ul
+const C_LAST = &hFF0000FFul
+const C_HOT  = &hFFFFFFFFul
+const C_TEXT = &hFFC0C0C0ul
+const C_DIS  = &hFF505050ul
+
+dim shared as TK_HOST ptr gH
+dim shared as int32 gClicks
+dim shared as TKSPARK_SPEC gPiSpec
+dim shared as TKRECT gPiRc
+dim shared as float64 gPiVals(0 to 3) = { 1, 3, 2, 4 }
+
+function Pinned( ) as TKSPARK_COLORS
+    dim as TKSPARK_COLORS c
+    c.BackColor = C_BACK : c.LineColor = C_LINE : c.FillColor = C_FILL : c.NegativeColor = C_NEG
+    c.AxisColor = C_AXIS : c.ReferenceColor = C_REF : c.BandColor = C_BAND : c.HighColor = C_HIGH
+    c.LowColor = C_LOW : c.FirstColor = C_FRST : c.LastColor = C_LAST : c.HotColor = C_HOT
+    c.TextColor = C_TEXT : c.ForeColorDisabled = C_DIS
+    return c
+end function
+
+function Near( byval a as float64, byval b as float64, byval tol as float64 = 0.01 ) as boolean
+    return abs( a - b ) <= tol
+end function
+
+' A pixel of widget w (widget-local), after a fresh render.
+function Px( byval w as TK_WIDGET ptr, byval x as float32, byval y as float32 ) as uint32
+    tkHost_RenderTo( gH, false )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return tkTest_PixelAt( gH, a.left + int( x ), a.top + int( y ) ) or &hFF000000ul
+end function
+
+function X_( byval w as TK_WIDGET ptr, byval i as int32 ) as float32
+    return tkSparkline_IndexToX( w, i )
+end function
+
+function Y_( byval w as TK_WIDGET ptr, byval v as float64 ) as float32
+    return tkSparkline_ValueToY( w, v )
+end function
+
+sub Hover( byval w as TK_WIDGET ptr, byval x as float32, byval y as float32 )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    tkTest_PushMotion( gH, a.left + x, a.top + y )
+end sub
+
+function WaitTip( byval w as TK_WIDGET ptr, byval want as boolean, byval ms as int32 ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( gH, @e )
+        if gH->bDirty then tkHost_Render( gH )
+        if tkTooltip_IsVisible( tkSparkline_GetTooltipHandle( w ) ) = want then return true
+    wend
+    return false
+end function
+
+sub OnClick( byval hSpark as TK_WIDGET ptr, byval id as int32 )
+    gClicks += 1
+end sub
+
+function OnTip( byval hSpark as TK_WIDGET ptr, byval i as int32, byval v as float64 ) as ustring
+    return "#" & i & "=" & v
+end function
+
+' A plain canvas painting a widgetless sparkline into gPiRc.
+function CanvasProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg <> TKM_PAINT then return false
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, w->cw, w->ch )
+    m->pPaint->SetBackColor( C_BACK )
+    m->pPaint->PaintRect( @rc )
+    tkSparkline_PaintInto( m->pPaint, gPiRc, gPiSpec )
+    return true
+end function
+
+function Make( byval nKind as int32, byref sData as ustring, byval x as int32, byval y as int32 ) as TK_WIDGET ptr
+    static as int32 nId = 100
+    nId += 1
+    dim as TK_WIDGET ptr w = tkSparkline_Create( tkHost_Root( gH ), nId, nKind )
+    tkWidget_SetPos( w, tkHost_Scale( gH, x ), tkHost_Scale( gH, y ), tkHost_Scale( gH, 240 ), tkHost_Scale( gH, 60 ) )
+    dim as TKSPARK_COLORS c = Pinned( )
+    tkSparkline_SetColors( w, @c )
+    tkSparkline_SetLineWidth( w, 3 )
+    tkSparkline_SetDataText( w, sData )
+    return w
+end function
+
+
+' ==========================================================================================
+sub RunPure( )
+    tkTest_Begin( "pure" )
+    tkTest_Check( "FormatValue: auto up to 2 decimals, trailing zeros dropped, fixed, no -0", _
+                  (tkSparkline_FormatValue( 3.14159 ) = "3.14") andalso (tkSparkline_FormatValue( 2.5 ) = "2.5") _
+                  andalso (tkSparkline_FormatValue( 2 ) = "2") andalso (tkSparkline_FormatValue( 12.3456, 1 ) = "12.3") _
+                  andalso (tkSparkline_FormatValue( -0.001, 2 ) = "0.00") andalso (tkSparkline_FormatValue( -1.5, 2 ) = "-1.50"), _
+                  tkSparkline_FormatValue( 3.14159 ) & " " & tkSparkline_FormatValue( -1.5, 2 ) )
+    dim as float64 v()
+    dim as boolean hs()
+    dim as int32 n = tkSparkline_ParseText( "3,5,,2 4;7", v(), hs() )
+    dim as boolean ok = (n = 6) andalso (hs(2) = false) andalso hs(0) andalso hs(5) andalso (v(3) = 2) andalso (v(4) = 4) andalso (v(5) = 7)
+    ok = ok andalso (tkSparkline_ParseText( " 1 , 2 ", v(), hs() ) = 2) andalso (v(1) = 2)
+    ok = ok andalso (tkSparkline_ParseText( "", v(), hs() ) = 0)
+    ok = ok andalso (tkSparkline_ParseText( "1,x,3", v(), hs() ) = 3) andalso (hs(1) = false)
+    tkTest_Check( "ParseText: , ; and blanks separate; blanks beside , are not one; empty / non-numeric = missing", ok )
+end sub
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    gH = tkHost_Create( "tkSparkline selftest", 900, 700, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if gH = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr fText = tkHost_OpenFont( gH, tkHost_FontDir() & TK_FONT_UI, 9 )
+    tkTooltip_SetDefaultFonts( fText )
+    tkHost_Show( gH )
+    tkTest_PumpFor( gH, 400 )                 ' the X11 settle
+    dim as boolean once = (fScale = 1.0)
+    dim as SDL_FRect pr
+    dim as float64 lo, hi
+
+    ' ---- the series: text form, rolling window, range, markers (scale-free) --------------------
+    dim as TK_WIDGET ptr w = Make( TKSPARK_LINE, "3,5,,2 4;7", 10, 10 )
+    if once then
+        tkTest_Check( "DataText round-trips (missing stays empty)", tkSparkline_GetDataText( w ) = "3,5,,2,4,7", tkSparkline_GetDataText( w ) )
+        tkSparkline_SetMaxPoints( w, 3 )
+        tkSparkline_Clear( w )
+        for i as int32 = 1 to 5 : tkSparkline_AddValue( w, i ) : next
+        dim as boolean b1 = (tkSparkline_GetCount( w ) = 3) andalso (tkSparkline_GetValue( w, 0 ) = 3) andalso (tkSparkline_GetValue( w, 2 ) = 5)
+        tkSparkline_AddGap( w )
+        tkTest_Check( "MaxPoints keeps the newest; AddGap adds a missing point", b1 andalso (tkSparkline_GetValue( w, 1 ) = 5) _
+                      andalso (tkSparkline_IsPresent( w, 2 ) = false), tkSparkline_GetDataText( w ) )
+        tkSparkline_SetMaxPoints( w, 0 )
+        tkSparkline_SetDataText( w, "2,8,4" )
+        tkSparkline_GetRange( w, lo, hi )
+        dim as boolean bAuto = (lo = 2) andalso (hi = 8)
+        tkSparkline_SetDataText( w, "5,5" )
+        tkSparkline_GetRange( w, lo, hi )
+        dim as boolean bFlat = Near( lo, 4.5 ) andalso Near( hi, 5.5 )
+        tkSparkline_SetDataText( w, "0,0" )
+        tkSparkline_GetRange( w, lo, hi )
+        bFlat = bFlat andalso (lo = -1) andalso (hi = 1)
+        tkTest_Check( "auto range: the data's min / max, no rounding; a flat series opens +-10 % (+-1 at 0)", bAuto andalso bFlat, lo & ".." & hi )
+        tkSparkline_SetRange( w, 10, 0 )
+        tkSparkline_GetRange( w, lo, hi )
+        dim as boolean bMan = (lo = 0) andalso (hi = 10) andalso (tkSparkline_GetAutoRange( w ) = false)
+        tkSparkline_SetAutoRange( w, true )
+        tkSparkline_GetRange( w, lo, hi )
+        tkTest_Check( "manual range: swapped, autoscale off; SetAutoRange reverts", bMan andalso (lo = -1) andalso (hi = 1) )
+        tkSparkline_SetDataText( w, "1,9,3,9,1" )
+        dim as boolean bMk = (tkSparkline_GetMarkerIndex( w, TKSPARK_MK_HIGH ) = 1) andalso (tkSparkline_GetMarkerIndex( w, TKSPARK_MK_LOW ) = 0) _
+                             andalso (tkSparkline_GetMarkerIndex( w, TKSPARK_MK_LAST ) = 4)
+        tkSparkline_SetDataText( w, ",4,2," )
+        tkTest_Check( "high / low: the first found wins a tie; first / last skip missing ends", bMk _
+                      andalso (tkSparkline_GetMarkerIndex( w, TKSPARK_MK_FIRST ) = 1) andalso (tkSparkline_GetMarkerIndex( w, TKSPARK_MK_LAST ) = 2) )
+    end if
+
+    ' ---- geometry -------------------------------------------------------------------------------
+    tkSparkline_SetDataText( w, "1,4,2,5,3" )
+    tkSparkline_GetPlotRect( w, pr )
+    dim as float32 inset = TKSPARK_DEFAULT_PADDING * fScale + TKSPARK_DEFAULT_MARKERSIZE * fScale / 2 + 1
+    tkTest_Check( "LINE plot rect: padding + the marker radius in from every side", Near( pr.x, inset, 0.01 ) _
+                  andalso Near( pr.y, inset, 0.01 ) andalso Near( pr.x + pr.w, w->cw - inset, 0.01 ), pr.x & "," & pr.y & " w " & pr.w )
+    tkTest_Check( "LINE: first point on the plot's left, last on its right; high at the top, low at the bottom", _
+                  Near( X_( w, 0 ), pr.x ) andalso Near( X_( w, 4 ), pr.x + pr.w ) andalso Near( Y_( w, 5 ), pr.y ) andalso Near( Y_( w, 1 ), pr.y + pr.h ) )
+    tkSparkline_SetKind( w, TKSPARK_COLUMN )
+    tkSparkline_GetPlotRect( w, pr )
+    dim as float32 slot = pr.w / 5
+    tkTest_Check( "COLUMN: padding only; each point at its slot's centre", Near( pr.x, TKSPARK_DEFAULT_PADDING * fScale ) _
+                  andalso Near( X_( w, 0 ), pr.x + slot / 2 ) andalso Near( X_( w, 4 ), pr.x + slot * 4.5 ), pr.x & " slot " & slot )
+    tkSparkline_SetKind( w, TKSPARK_LINE )
+    tkSparkline_SetShowLastValue( w, true )
+    tkSparkline_SetFont( w, fText )
+    dim as SDL_FRect pr2
+    tkSparkline_GetPlotRect( w, pr2 )
+    dim as int32 tw = tkText_Width( fText, "3" )
+    tkTest_Check( "ShowLastValue reserves the text's width + gap at the right", _
+                  Near( (pr.x + pr.w) - (pr2.x + pr2.w), 0 ) = false andalso Near( (w->cw - TKSPARK_DEFAULT_PADDING * fScale) - (pr2.x + pr2.w), _
+                  tw + TKSPARK_DEFAULT_TEXTGAP * fScale + TKSPARK_DEFAULT_MARKERSIZE * fScale / 2 + 1, 0.6 ), (pr2.x + pr2.w) & " tw " & tw )
+    tkSparkline_SetShowLastValue( w, false )
+
+    ' ---- LINE pixels: the line, empty modes ------------------------------------------------------
+    tkTest_Check( "LINE: the line passes through a vertex", Px( w, X_( w, 2 ), Y_( w, 2 ) ) = C_LINE, hex( Px( w, X_( w, 2 ), Y_( w, 2 ) ) ) )
+    tkSparkline_SetDataText( w, "1,5,,5,1" )
+    dim as float32 mx = X_( w, 2 ), my = Y_( w, 5 )
+    tkTest_Check( "EMPTY_GAP: the line breaks at a missing point", Px( w, mx, my ) = C_BACK, hex( Px( w, mx, my ) ) )
+    tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_CONNECT )
+    tkTest_Check( "EMPTY_CONNECT: the neighbours are joined", Px( w, mx, my ) = C_LINE, hex( Px( w, mx, my ) ) )
+    tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_ZERO )
+    tkTest_Check( "EMPTY_ZERO: the missing point is drawn at 0", Px( w, X_( w, 2 ), Y_( w, 0 ) ) = C_LINE, hex( Px( w, X_( w, 2 ), Y_( w, 0 ) ) ) )
+    tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_GAP )
+
+    ' ---- AREA: both sides of the axis, nothing beyond the line -----------------------------------
+    tkSparkline_SetKind( w, TKSPARK_AREA )
+    tkSparkline_SetDataText( w, "-2,3,-1,4" )
+    ' the negative side: a fifth of the way along 0 -> 1, where the line is at -1, halfway to the axis
+    dim as float32 xn = X_( w, 0 ) + (X_( w, 1 ) - X_( w, 0 )) * 0.2
+    dim as uint32 cPos = Px( w, X_( w, 1 ), (Y_( w, 3 ) + Y_( w, 0 )) / 2 ), cNeg = Px( w, xn, Y_( w, -0.5 ) )
+    dim as uint32 cOut = Px( w, X_( w, 1 ), Y_( w, 3 ) - 6 * fScale )
+    tkTest_Check( "AREA fills between the line and the axis on both sides, nothing above the line", _
+                  (cPos <> C_BACK) andalso (cPos <> C_LINE) andalso (cNeg = cPos) andalso (cOut = C_BACK), hex( cPos ) & " " & hex( cNeg ) & " " & hex( cOut ) )
+
+    ' ---- COLUMN / WINLOSS ---------------------------------------------------------------------------
+    tkSparkline_SetKind( w, TKSPARK_COLUMN )
+    tkSparkline_SetDataText( w, "3,-2,5" )
+    tkSparkline_GetPlotRect( w, pr )
+    dim as int32 x0 = cint( pr.x ), yA = cint( Y_( w, 0 ) )
+    tkTest_Check( "COLUMN: bars on whole pixels (the slot's first column ink, the one before it not)", _
+                  (Px( w, x0, yA - 2 ) = C_LINE) andalso (Px( w, x0 - 1, yA - 2 ) = C_BACK), hex( Px( w, x0, yA - 2 ) ) & " " & hex( Px( w, x0 - 1, yA - 2 ) ) )
+    tkTest_Check( "COLUMN: a negative bar hangs below the axis in NegativeColor", _
+                  (Px( w, X_( w, 1 ), yA + 3 ) = C_NEG) andalso (Px( w, X_( w, 1 ), yA - 3 ) = C_BACK) )
+    tkSparkline_SetKind( w, TKSPARK_WINLOSS )
+    tkSparkline_SetDataText( w, "1,-1,0,2" )
+    tkSparkline_GetPlotRect( w, pr )
+    dim as float32 yTop = pr.y + 2, yBot = pr.y + pr.h - 2
+    tkTest_Check( "WINLOSS: wins up, losses down, zero nothing", (Px( w, X_( w, 0 ), yTop ) = C_LINE) andalso (Px( w, X_( w, 0 ), yBot ) = C_BACK) _
+                  andalso (Px( w, X_( w, 1 ), yBot ) = C_NEG) andalso (Px( w, X_( w, 2 ), yTop ) = C_BACK) andalso (Px( w, X_( w, 2 ), yBot ) = C_BACK) )
+
+    ' ---- markers, axis, reference, band --------------------------------------------------------------
+    tkSparkline_SetKind( w, TKSPARK_LINE )
+    tkSparkline_SetDataText( w, "2,6,1,4" )
+    tkSparkline_SetMarkers( w, TKSPARK_MK_HIGH or TKSPARK_MK_LOW or TKSPARK_MK_LAST )
+    tkTest_Check( "markers: high, low and last in their colours", (Px( w, X_( w, 1 ), Y_( w, 6 ) ) = C_HIGH) _
+                  andalso (Px( w, X_( w, 2 ), Y_( w, 1 ) ) = C_LOW) andalso (Px( w, X_( w, 3 ), Y_( w, 4 ) ) = C_LAST), _
+                  hex( Px( w, X_( w, 1 ), Y_( w, 6 ) ) ) & " " & hex( Px( w, X_( w, 2 ), Y_( w, 1 ) ) ) & " " & hex( Px( w, X_( w, 3 ), Y_( w, 4 ) ) ) )
+    tkSparkline_SetMarkers( w, TKSPARK_MK_NONE )
+    tkSparkline_SetDataText( w, "1,2,1,2" )
+    tkSparkline_SetRange( w, -1, 3 )
+    tkSparkline_SetShowAxis( w, true )
+    tkSparkline_SetReference( w, 2.5 )
+    tkSparkline_SetNormalBand( w, 0.25, 0.75 )
+    dim as float32 xm = (X_( w, 0 ) + X_( w, 1 )) / 2
+    tkTest_Check( "axis at 0, reference line and normal band at their values", (Px( w, xm, Y_( w, 0 ) ) = C_AXIS) _
+                  andalso (Px( w, xm, Y_( w, 2.5 ) ) = C_REF) andalso (Px( w, xm, Y_( w, 0.5 ) ) = C_BAND), _
+                  hex( Px( w, xm, Y_( w, 0 ) ) ) & " " & hex( Px( w, xm, Y_( w, 2.5 ) ) ) & " " & hex( Px( w, xm, Y_( w, 0.5 ) ) ) )
+    tkSparkline_SetShowAxis( w, false ) : tkSparkline_ClearReference( w ) : tkSparkline_ClearNormalBand( w )
+    tkSparkline_SetAutoRange( w, true )
+
+    ' ---- hover, tooltip, click, disabled --------------------------------------------------------------
+    tkSparkline_SetDataText( w, "2,6,1,4" )
+    Hover( w, X_( w, 3 ) - 1, w->ch / 2 )
+    dim as int32 hot = tkSparkline_GetHotPoint( w )
+    tkTest_Check( "hover: the nearest point is hot and drawn in HotColor", (hot = 3) andalso (Px( w, X_( w, 3 ), Y_( w, 4 ) ) = C_HOT), _
+                  hot & " " & hex( Px( w, X_( w, 3 ), Y_( w, 4 ) ) ) )
+    if once then
+        dim as boolean t1 = (tkSparkline_ResolveTooltipText( w ) = "4")
+        tkSparkline_SetTooltipCallback( w, @OnTip )
+        dim as boolean t2 = (tkSparkline_ResolveTooltipText( w ) = "#3=4")
+        tkSparkline_SetTooltipText( w, "Fixed" )
+        dim as boolean t3 = (tkSparkline_ResolveTooltipText( w ) = "Fixed")
+        tkSparkline_SetTooltipText( w, "" ) : tkSparkline_SetTooltipCallback( w, 0 )
+        tkTest_Check( "tooltip: own text, then the callback, then the hot value", t1 andalso t2 andalso t3 )
+        tkTest_Check( "tooltip: the popup appears over a point", WaitTip( w, true, 1500 ) )
+    end if
+    Hover( w, w->cw + tkHost_Scale( gH, 20 ), w->ch + tkHost_Scale( gH, 200 ) )
+    tkTest_Check( "leaving clears the hot point", tkSparkline_GetHotPoint( w ) = -1 )
+    tkSparkline_SetClickCallback( w, @OnClick )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    tkTest_Click( gH, a.left + w->cw / 2, a.top + w->ch / 2 )
+    dim as int32 nAfter = gClicks
+    tkSparkline_SetEnabled( w, false )
+    tkTest_Click( gH, a.left + w->cw / 2, a.top + w->ch / 2 )
+    Hover( w, X_( w, 1 ), w->ch / 2 )
+    tkTest_Check( "Click notifies; disabled: no click, no hot point, the line in ForeColorDisabled", (nAfter = 1) andalso (gClicks = 1) _
+                  andalso (tkSparkline_GetHotPoint( w ) = -1) andalso (Px( w, X_( w, 0 ), Y_( w, 2 ) ) = C_DIS), _
+                  nAfter & " " & gClicks & " " & hex( Px( w, X_( w, 0 ), Y_( w, 2 ) ) ) )
+    tkSparkline_SetEnabled( w, true )
+    gClicks = 0
+
+    ' ---- widgetless, page, theme ---------------------------------------------------------------------
+    dim as TK_WIDGET ptr cv = tkWidget_CreateChild( tkHost_Root( gH ), 900, @CanvasProc, 0 )
+    tkWidget_SetPos( cv, tkHost_Scale( gH, 10 ), tkHost_Scale( gH, 300 ), tkHost_Scale( gH, 300 ), tkHost_Scale( gH, 80 ) )
+    dim as TKSPARK_COLORS pc = Pinned( )
+    gPiSpec.pValues = @gPiVals(0) : gPiSpec.nCount = 4 : gPiSpec.pColors = @pc : gPiSpec.fLineWidth = 3
+    tkRect_Set( gPiRc, tkHost_Scale( gH, 20 ), tkHost_Scale( gH, 10 ), tkHost_Scale( gH, 220 ), tkHost_Scale( gH, 60 ) )
+    dim as SP_GEOM gg
+    tkSparkline_Layout( gPiSpec, gPiRc, fScale, gg )
+    tkTest_Check( "PaintInto: the same painter in a rect of any TK_PAINT", _
+                  Px( cv, tkSparkline_GeomIndexToX( gPiSpec, gg, 2 ), tkSparkline_GeomValueToY( gg, 2 ) ) = C_LINE _
+                  andalso (Px( cv, gPiRc.left - 2, gPiRc.top + 10 ) = C_BACK) )
+    if once then
+        dim as TK_PRINTDOC ptr doc = tkPrintDoc_Create( "spark" )
+        dim as TK_PAGE ptr pg = tkPrintDoc_AddPage( doc )
+        dim as TKRECTF rf
+        tkRectF_Set( rf, 72, 72, 222, 102 )               ' 150 x 30 pt -> a 200 x 40 canvas, k = 0.75
+        dim as float64 two(0 to 1) = { 0, 10 }
+        dim as TKSPARK_SPEC ps
+        ps.pValues = @two(0) : ps.nCount = 2 : ps.pColors = @pc
+        dim as boolean bOk = tkSparkline_PaintPage( pg, rf, ps )
+        dim as TKPRINT_OPINFO oi
+        dim as boolean bFound = false
+        for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
+            tkPrintDoc_GetOp( doc, 0, i, oi )
+            if (oi.op = TKREC_STROKEOPEN) andalso (oi.c = C_LINE) then bFound = true : exit for
+        next
+        ' the first point: x = 72 + (2 + 3.5) * 0.75, y = 72 + (40 - 5.5) * 0.75; the pen 1.5 * 0.75
+        tkTest_Check( "PaintPage: the line on the page at its unsnapped point, pen in points", bOk andalso bFound _
+                      andalso Near( oi.x0, 76.125, 0.001 ) andalso Near( oi.y0, 97.875, 0.001 ) andalso Near( oi.w, 1.125, 0.001 ), _
+                      bOk & " " & bFound & " p0 " & oi.x0 & "," & oi.y0 & " w " & oi.w )
+        tkPrintDoc_Destroy( doc )
+
+        dim as TKSPARK_COLORS cNow
+        tkSparkline_ApplyTheme( w, tkTheme_Light( ) )
+        tkSparkline_GetColors( w, @cNow )
+        dim as boolean bPinned = (cNow.LineColor = C_LINE)
+        tkSparkline_UnpinColors( w )
+        tkSparkline_ApplyTheme( w, tkTheme_Light( ) )
+        tkSparkline_GetColors( w, @cNow )
+        tkTest_Check( "SetColors pins against a theme; UnpinColors takes the theme's roles", bPinned _
+                      andalso (cNow.LineColor = tkTheme_Light( ).Accent) andalso (cNow.NegativeColor = tkTheme_Light( ).Error) )
+    end if
+
+    tkHost_Destroy( gH )
+    gH = 0
+end sub
+
+if tkTest_Init() = false then end 99
+RunPure( )
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as int32 nFail = tkTest_Report( "tkSparkline" )
+tkTest_Quit()
+end nFail
