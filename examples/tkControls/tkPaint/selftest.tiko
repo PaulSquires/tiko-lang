@@ -84,6 +84,24 @@ function CanvasProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolea
         tkRect_Set( rc, 20, 20, 100, 100 ) : p->PaintImage( gTex, @rc, TK_IMGFIT_ASPECT )
     case 22     ' a rounded rect (curvature 20) in a wide box, stretch
         tkRect_Set( rc, 20, 20, 180, 60 ) : p->PaintImageShape( gTex, @rc, 20, TK_IMGFIT_STRETCH )
+    case 23     ' PaintPolylineF: a vertical line centred on x = 60.5 (pen 1), a horizontal one on the
+                ' row EDGE y = 40 (pen 2): fractional points used as given, the pen DPI-scaled
+        dim as SDL_FPoint v(0 to 1), hz(0 to 1)
+        v(0).x = 60.5 : v(0).y = 60 : v(1).x = 60.5 : v(1).y = 140
+        hz(0).x = 80 : hz(0).y = 40 : hz(1).x = 200 : hz(1).y = 40
+        p->PaintPolylineF( @v(0), 2, 1 )
+        p->PaintPolylineF( @hz(0), 2, 2 )
+    case 24     ' PaintPolylineF closed: a whole ring, pen 4, centre (70, 70) radius 40, joined at 0 deg
+        dim as SDL_FPoint ring(0 to 71)
+        for i as long = 0 to 71
+            ring(i).x = 70 + 40 * cos( i * 3.14159265 / 36 ) : ring(i).y = 70 + 40 * sin( i * 3.14159265 / 36 )
+        next
+        p->PaintPolylineF( @ring(0), 72, 4, true )
+    case 25     ' PaintPolylineF mitred: a translucent pen 6 over a join
+        dim as SDL_FPoint zz(0 to 2)
+        zz(0).x = 20 : zz(0).y = 100 : zz(1).x = 100 : zz(1).y = 40 : zz(2).x = 180 : zz(2).y = 100
+        p->SetPenColor( &h8000FF00ul )
+        p->PaintPolylineF( @zz(0), 3, 6, false, false )
     case 15     ' an icon centred: its ink in the middle (its left bearing kept, which SDL_ttf drops)
         if gIcons then p->SetFont( gIcons )
         tkRect_Set( rc, 20, 10, 120, 50 ) : p->PaintText( wchr( TK_ICON_MORE ), @rc, TK_DT_CENTER )
@@ -232,6 +250,27 @@ sub RunPass( byval fScale as single )
     next
     dim as long pw = cint( 2 * fScale ), expectRuns = 290 \ (7 * pw)
     tkTest_Check( "dash: on/off runs match 4-on 3-off in pen widths", (nRuns >= expectRuns - 1) andalso (nRuns <= expectRuns + 2), nRuns & " runs, ~" & expectRuns & " expected" )
+
+    ' ---- PaintPolylineF ------------------------------------------------------------------------------
+    Scene( h, 23 )
+    tkTest_Check( "PaintPolylineF: points used as given (a pen-1 line on x = 60.5 fills column 60)", _
+                  Px( h, cv, 60, 100 ) = PEN, hex( Px( h, cv, 59, 100 ) ) & " " & hex( Px( h, cv, 60, 100 ) ) & " " & hex( Px( h, cv, 61, 100 ) ) )
+    tkTest_Check( "PaintPolylineF: a pen-2 line on edge y = 40 fills rows 39-40, DPI-scaled", _
+                  (Px( h, cv, 140, 39 ) = PEN) andalso (Px( h, cv, 140, 40 ) = PEN) andalso (Px( h, cv, 140, 37 ) = BG) andalso (Px( h, cv, 140, 42 ) = BG), _
+                  hex( Px( h, cv, 140, 37 ) ) & " " & hex( Px( h, cv, 140, 38 ) ) & " " & hex( Px( h, cv, 140, 41 ) ) & " " & hex( Px( h, cv, 140, 42 ) ) )
+
+    Scene( h, 24 )
+    dim as long nJoin = 0
+    for y as long = 69 to 71
+        for x as long = 109 to 110
+            if Px( h, cv, x, y ) <> PEN then nJoin += 1
+        next
+    next
+    tkTest_Check( "PaintPolylineF closed: no seam where the ring joins", nJoin = 0, nJoin & " core pixels not the pen" )
+    Scene( h, 25 )
+    tkTest_Check( "PaintPolylineF mitred: a translucent pen is even at the join (no bead)", _
+                  (Px( h, cv, 100, 42 ) = Px( h, cv, 60, 70 )) andalso (Px( h, cv, 60, 70 ) <> BG), _
+                  "join " & hex( Px( h, cv, 100, 42 ) ) & " mid " & hex( Px( h, cv, 60, 70 ) ) )
 
     ' ---- curve passes through its points ---------------------------------------------------------
     Scene( h, 10 )

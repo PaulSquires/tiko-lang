@@ -49,6 +49,13 @@ function CanvasProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolea
         p->PaintCurve( @cv(0), 3, 2 )
         p->PaintLine( 1, 180, 230, 370, 230 )
         p->PaintLine( 1, 180, 240, 370, 290 )
+        ' the float shapes: PaintPolygonF once drew straight to the renderer, past the recorder
+        dim as SDL_FPoint tri(0 to 2) = { (380.5, 10.25), (398, 10.25), (389.25, 40.5) }
+        p->PaintPolygonF( @tri(0), 3, 1 )
+        dim as SDL_FPoint zz(0 to 3) = { (381, 60.5), (397.5, 75), (381.25, 90), (397, 105.75) }
+        p->PaintPolylineF( @zz(0), 4, 1.5 )
+        dim as SDL_FPoint mz(0 to 3) = { (381, 120.5), (397.5, 135), (381.25, 150), (397, 165.75) }
+        p->PaintPolylineF( @mz(0), 4, 3, false, false )          ' the mitred band
     case else
         tkRect_Set( rc, 50, 20, 100, 70 ) : p->PushClip( @rc )
         tkRect_Set( rc, 0, 0, 200, 200 ) : p->SetBackColor( PEN ) : p->PaintRect( @rc )
@@ -251,6 +258,27 @@ sub RunPass( byval fScale as single )
         tkPage_Text( pg, "Bold", tr, TK_DT_LEFT )
         LastOp( doc, 0, TKREC_TEXT, oi )
         tkTest_Check( "bold on the UI font is the bundled bold face", instr( oi.font, TK_FONT_UI_BOLD ) > 0, oi.font )
+
+        ' ---- a canvas: a TK_PAINT on the page, unsnapped -------------------------------------------
+        ' 400 x 100 px into 200 x 100 pt: k = 0.5, centred vertically (y + 25)
+        dim as TKRECTF cr
+        tkRectF_Set( cr, 100, 100, 300, 200 )
+        dim as TK_PAINT cp
+        dim as boolean bBegin = tkPage_BeginCanvas( pg, cr, 400, 100, 1, cp )
+        dim as TK_PAINT cp2
+        dim as boolean bNested = tkPage_BeginCanvas( pg, cr, 400, 100, 1, cp2 )
+        dim as SDL_FPoint cl(0 to 1) = { (10.25, 20), (390, 20) }
+        cp.SetPenColor( PEN )
+        cp.PaintPolylineF( @cl(0), 2, 2 )
+        dim as TKPRINT_OPINFO lo
+        LastOp( doc, 0, TKREC_STROKEOPEN, lo )
+        tkPage_EndCanvas( pg )
+        tkPage_FillRect( pg, r1 )
+        tkPrintDoc_GetOp( doc, 0, tkPrintDoc_GetOpCount( doc, 0 ) - 1, oi )
+        tkTest_Check( "canvas: float points map by k, centred, off the 0.1 pt grid; one at a time; End restores the page", _
+                      bBegin andalso (bNested = false) andalso Near( lo.x0, 105.125, 0.0001 ) andalso Near( lo.y0, 135, 0.0001 ) _
+                      andalso Near( lo.w, 1, 0.0001 ) andalso (oi.op = TKREC_FILLRECT) andalso Near( oi.x, 72 ) andalso Near( oi.cw, 72 ), _
+                      bBegin & " " & bNested & " p0 " & lo.x0 & "," & lo.y0 & " w " & lo.w & " then rect " & oi.x & " " & oi.cw )
     end if
 
     ' ---- the widget recorder: mapping (k = 0.5) ------------------------------------------------

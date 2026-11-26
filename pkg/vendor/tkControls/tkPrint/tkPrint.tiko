@@ -219,6 +219,10 @@ public type TK_PAGE_
     mx      as single
     my      as single
     pCapR   as SDL_Renderer ptr   ' the renderer an IMAGE op's texture belongs to
+    bCanvas as boolean            ' inside tkPage_BeginCanvas: the page mapping below is saved
+    cvK     as single
+    cvX     as single
+    cvY     as single
 end type
 
 public type TK_PRINTDOC_
@@ -361,7 +365,7 @@ public function tkPrintDoc_AddPageEx( byval doc as TK_PRINTDOC ptr, byref ps as 
     doc->serial += 1
     dim as TK_PAGE ptr pg = @doc->pen
     pg->index = doc->nPages - 1
-    pg->mk = 1 / PR_PXPERPT : pg->mx = 0 : pg->my = 0
+    pg->mk = 1 / PR_PXPERPT : pg->mx = 0 : pg->my = 0 : pg->bCanvas = false
     pg->pCapR = 0
     ' the page API's painter: the whole page, at PR_PXPERPT pixels per point
     dim as TK_PAINT blank
@@ -657,6 +661,44 @@ public function tkPrintDoc_GetOp( byval doc as TK_PRINTDOC ptr, byval page as lo
     end select
     return true
 end function
+
+' ---- a canvas: TK_PAINT drawing on a page --------------------------------------------------------
+' A recording painter p for a w x h pixel canvas shown in rc (points), scaled uniformly to fit and
+' centred, as tkPrint_PaintWidget maps a widget. Draw with p exactly as on screen -- every tkPaint
+' shape, at fScale for its DPI-scaled pens -- and the page keeps the outlines in floating points:
+' no 0.1 pt grid (the tkPage_* shapes snap to it). One canvas at a time; tkPage_EndCanvas ends it.
+' A painter that draws on a TK_PAINT (a gauge, a sparkline) prints through this, unchanged.
+public function tkPage_BeginCanvas( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byval w as int32, _
+                                    byval h as int32, byval fScale as float32, byref p as TK_PAINT ) as boolean
+    if (pg = 0) orelse (pg->doc = 0) orelse pg->bCanvas then return false
+    if (pg->index < 0) orelse (pg->index >= pg->doc->nPages) orelse (w <= 0) orelse (h <= 0) then return false
+    dim as float32 rw = rc.right - rc.left, rh = rc.bottom - rc.top
+    if (rw <= 0) orelse (rh <= 0) then return false
+    dim as float32 k = rw / w
+    if rh / h < k then k = rh / h
+    pg->cvK = pg->mk : pg->cvX = pg->mx : pg->cvY = pg->my
+    pg->bCanvas = true
+    pg->mk = k
+    pg->mx = rc.left + (rw - w * k) / 2
+    pg->my = rc.top + (rh - h * k) / 2
+    pg->pCapR = 0
+    dim as TK_PAINT blank
+    p = blank
+    p.pfnRec = @PrRecSub
+    p.pRecCtx = pg
+    p.fScale = iif( fScale > 0, fScale, 1 )
+    p.pFont = pg->pFont
+    p.Begin( 0, 0, w, h )                 ' records the canvas's clip
+    return true
+end function
+
+' The page's own mapping and clip again.
+public sub tkPage_EndCanvas( byval pg as TK_PAGE ptr )
+    if (pg = 0) orelse (pg->bCanvas = false) then exit sub
+    pg->mk = pg->cvK : pg->mx = pg->cvX : pg->my = pg->cvY
+    pg->bCanvas = false
+    pg->p.ApplyClip( 0 )
+end sub
 
 ' ---- printing a widget -----------------------------------------------------------------------
 private sub PaintWidgetTree( byval pg as TK_PAGE ptr, byval w as TK_WIDGET ptr, byval ax as long, _
