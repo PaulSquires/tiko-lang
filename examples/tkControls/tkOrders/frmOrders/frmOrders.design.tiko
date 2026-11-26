@@ -30,7 +30,7 @@ public partial type Form extends FormBase
     declare sub grdAll_CellActivate( byval row as integer, byval col as integer )
     declare sub grdAll_FilterChanged( )
     declare sub grdAll_CellFormatting( byval p as TKDATAGRID_FORMATINFO ptr )
-    declare sub grdAll_SummaryFormatting( byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring )
+    declare sub grdAll_SummaryFormatting( byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring )
     declare sub btnOpen_Click( )
     declare sub btnClearFilters_Click( )
     declare sub btnPrintList_Click( )
@@ -47,7 +47,7 @@ private sub Thunk_grdAll_FilterChanged( byval hGrid as TK_WIDGET ptr )
     if f then f->grdAll_FilterChanged( )
 end sub
 
-private sub Thunk_grdAll_SummaryFormatting( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring )
+private sub Thunk_grdAll_SummaryFormatting( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring )
     dim as Form ptr f = tkForms_ObjectOf( hGrid )
     if f then f->grdAll_SummaryFormatting( col, kind, v, text )
 end sub

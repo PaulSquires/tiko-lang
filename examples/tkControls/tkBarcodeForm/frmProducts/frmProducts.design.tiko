@@ -28,10 +28,10 @@ public partial type Form extends FormBase
     navProducts as Navigator
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare function IsDirty( byref r as productdata.Product ) as boolean
-    declare function navProducts_MoveTo( byval i as long ) as boolean
+    declare function navProducts_MoveTo( byval i as int32 ) as boolean
     declare sub navProducts_Refresh( )
-    declare function navProducts_Current( ) as long
-    declare function navProducts_Go_( byval action as long, byval target as long ) as boolean
+    declare function navProducts_Current( ) as int32
+    declare function navProducts_Go_( byval action as int32, byval target as int32 ) as boolean
     declare function LoadFrom( byref r as productdata.Product ) as boolean
     declare function SaveTo( byref r as productdata.Product ) as boolean
 end type
@@ -95,10 +95,10 @@ function Form.IsDirty( byref r as productdata.Product ) as boolean
     return false
 end function
 
-function Form.navProducts_MoveTo( byval i as long ) as boolean
+function Form.navProducts_MoveTo( byval i as int32 ) as boolean
     dim byref as Array( of productdata.Product ) a_ = Products
     if (i < 0) orelse (i >= a_.Count( )) then return false
-    dim as long cur = tkNavigator_GetPosition( navProducts.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navProducts.Handle )
     if (cur >= 0) andalso (cur < a_.Count( )) then
         if cur = i then return true
         if IsDirty( a_[cur] ) then
@@ -120,19 +120,19 @@ sub Form.navProducts_Refresh( )
         LoadFrom( blank_ )
         exit sub
     end if
-    dim as long cur = tkNavigator_GetPosition( navProducts.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navProducts.Handle )
     if cur < 0 then cur = 0
     tkNavigator_SetPosition( navProducts.Handle, cur )
     LoadFrom( a_[cur] )
 end sub
 
-function Form.navProducts_Current( ) as long
+function Form.navProducts_Current( ) as int32
     return tkNavigator_GetPosition( navProducts.Handle )
 end function
 
-function Form.navProducts_Go_( byval action as long, byval target as long ) as boolean
+function Form.navProducts_Go_( byval action as int32, byval target as int32 ) as boolean
     dim byref as Array( of productdata.Product ) a_ = Products
-    dim as long cur = tkNavigator_GetPosition( navProducts.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navProducts.Handle )
     select case action
     case TKNAV_NEW
         if (cur >= 0) andalso (cur < a_.Count( )) then

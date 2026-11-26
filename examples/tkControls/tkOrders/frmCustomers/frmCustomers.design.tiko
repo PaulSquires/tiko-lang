@@ -75,17 +75,17 @@ public partial type Form extends FormBase
     sbMain as StatusBar
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub grdCustomers_Fill( )
-    declare function grdCustomers_Item( ) as long
+    declare function grdCustomers_Item( ) as int32
     cboTier_Values_ as Array( of ustring )
     declare sub cboTier_Fill( )
-    declare function grdOrders_Item( ) as long
+    declare function grdOrders_Item( ) as int32
     declare function IsDirty( byref r as orderdb.Customer ) as boolean
-    declare function navCustomers_MoveTo( byval i as long ) as boolean
+    declare function navCustomers_MoveTo( byval i as int32 ) as boolean
     declare sub navCustomers_Refresh( )
-    declare function navCustomers_Current( ) as long
-    declare function navCustomers_Go_( byval action as long, byval target as long ) as boolean
+    declare function navCustomers_Current( ) as int32
+    declare function navCustomers_Go_( byval action as int32, byval target as int32 ) as boolean
     declare sub navCustomers_FromList_( )
-    declare sub navCustomers_ListRow_( byval i as long )
+    declare sub navCustomers_ListRow_( byval i as int32 )
     declare function LoadFrom( byref r as orderdb.Customer ) as boolean
     declare function SaveTo( byref r as orderdb.Customer ) as boolean
     declare sub Form_Load( )
@@ -97,7 +97,7 @@ public partial type Form extends FormBase
     declare sub btnRevert_Click( )
     declare sub grdOrders_CellActivate( byval row as integer, byval col as integer )
     declare sub grdOrders_CellFormatting( byval p as TKDATAGRID_FORMATINFO ptr )
-    declare sub grdOrders_SummaryFormatting( byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring )
+    declare sub grdOrders_SummaryFormatting( byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring )
     declare sub btnNewOrder_Click( )
     declare sub btnOpenOrder_Click( )
     declare sub btnSalesReport_Click( )
@@ -135,7 +135,7 @@ private sub Thunk_grdOrders_CellActivate( byval hGrid as TK_WIDGET ptr, byval ro
     if f then f->grdOrders_CellActivate( row, col )
 end sub
 
-private sub Thunk_grdOrders_SummaryFormatting( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring )
+private sub Thunk_grdOrders_SummaryFormatting( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring )
     dim as Form ptr f = tkForms_ObjectOf( hGrid )
     if f then f->grdOrders_SummaryFormatting( col, kind, v, text )
 end sub
@@ -370,7 +370,7 @@ function Form.LoadFrom( byref r as orderdb.Customer ) as boolean
         tkDataGrid_BeginUpdate( grdOrders.Handle )
         tkDataGrid_SetRowCount( grdOrders.Handle, 0 )
         tkDataGrid_SetRowCount( grdOrders.Handle, a_.Count( ) )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             tkDataGrid_SetCellFloat( grdOrders.Handle, i_, 0, tkBind_Float( a_[i_].Id ) )
             tkDataGrid_SetCellDate( grdOrders.Handle, i_, 1, tkBind_Date( a_[i_].OrderDate ) )
             tkDataGrid_SetCellText( grdOrders.Handle, i_, 2, tkBind_Text( a_[i_].Status ) )
@@ -428,13 +428,13 @@ function Form.SaveTo( byref r as orderdb.Customer ) as boolean
     tkBind_Put( r.Notes, tkTextBox_GetText( txtNotes.Handle ) )
     scope
         dim byref as Array( of orderdb.Order ) a_ = r.Orders
-        dim as long n_ = tkDataGrid_GetRowCount( grdOrders.Handle )
+        dim as int32 n_ = tkDataGrid_GetRowCount( grdOrders.Handle )
         if a_.Count( ) > n_ then a_.SetCount( n_ )
         while a_.Count( ) < n_
             dim as orderdb.Order new_
             a_.Push( new_ )
         wend
-        for i_ as long = 0 to n_ - 1
+        for i_ as int32 = 0 to n_ - 1
             tkBind_Put( a_[i_].Id, tkDataGrid_GetCellFloat( grdOrders.Handle, i_, 0 ) )
             tkBind_Put( a_[i_].OrderDate, tkDataGrid_GetCellDate( grdOrders.Handle, i_, 1 ) )
             tkBind_Put( a_[i_].Status, tkDataGrid_GetCellText( grdOrders.Handle, i_, 2 ) )
@@ -452,7 +452,7 @@ sub Form.grdCustomers_Fill( )
         tkDataGrid_BeginUpdate( grdCustomers.Handle )
         tkDataGrid_SetRowCount( grdCustomers.Handle, 0 )
         tkDataGrid_SetRowCount( grdCustomers.Handle, a_.Count( ) )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             tkDataGrid_SetCellText( grdCustomers.Handle, i_, 0, tkBind_Text( a_[i_].Company ) )
             tkDataGrid_SetCellText( grdCustomers.Handle, i_, 1, tkBind_Text( a_[i_].Country ) )
         next
@@ -460,7 +460,7 @@ sub Form.grdCustomers_Fill( )
     end scope
 end sub
 
-function Form.grdCustomers_Item( ) as long
+function Form.grdCustomers_Item( ) as int32
     dim as integer r_, c_
     if tkDataGrid_GetCurrentCell( grdCustomers.Handle, r_, c_ ) = false then return -1
     if r_ >= tkDataGrid_GetRowCount( grdCustomers.Handle ) then return -1
@@ -472,14 +472,14 @@ sub Form.cboTier_Fill( )
         dim as Array( of orderdb.Choice ) a_ = orderdb.Tiers( )
         tkComboBox_Clear( cboTier.Handle )
         cboTier_Values_.Clear( )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             tkComboBox_AddItem( cboTier.Handle, tkBind_Text( a_[i_].Name ) )
             cboTier_Values_.Push( tkBind_Text( a_[i_].Name ) )
         next
     end scope
 end sub
 
-function Form.grdOrders_Item( ) as long
+function Form.grdOrders_Item( ) as int32
     dim as integer r_, c_
     if tkDataGrid_GetCurrentCell( grdOrders.Handle, r_, c_ ) = false then return -1
     if r_ >= tkDataGrid_GetRowCount( grdOrders.Handle ) then return -1
@@ -503,7 +503,7 @@ function Form.IsDirty( byref r as orderdb.Customer ) as boolean
     scope
         dim byref as Array( of orderdb.Order ) a_ = r.Orders
         if tkDataGrid_GetRowCount( grdOrders.Handle ) <> a_.Count( ) then return true
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             if tkBind_Differs( a_[i_].Id, tkDataGrid_GetCellFloat( grdOrders.Handle, i_, 0 ) ) then return true
             if tkBind_Differs( a_[i_].OrderDate, tkDataGrid_GetCellDate( grdOrders.Handle, i_, 1 ) ) then return true
             if tkBind_Differs( a_[i_].Status, tkDataGrid_GetCellText( grdOrders.Handle, i_, 2 ), "" ) then return true
@@ -515,10 +515,10 @@ function Form.IsDirty( byref r as orderdb.Customer ) as boolean
     return false
 end function
 
-function Form.navCustomers_MoveTo( byval i as long ) as boolean
+function Form.navCustomers_MoveTo( byval i as int32 ) as boolean
     dim byref as Array( of orderdb.Customer ) a_ = Customers
     if (i < 0) orelse (i >= a_.Count( )) then return false
-    dim as long cur = tkNavigator_GetPosition( navCustomers.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navCustomers.Handle )
     if (cur >= 0) andalso (cur < a_.Count( )) then
         if cur = i then return true
         if IsDirty( a_[cur] ) then
@@ -547,7 +547,7 @@ sub Form.navCustomers_Refresh( )
         LoadFrom( blank_ )
         exit sub
     end if
-    dim as long cur = tkNavigator_GetPosition( navCustomers.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navCustomers.Handle )
     if cur < 0 then cur = 0
     tkNavigator_SetPosition( navCustomers.Handle, cur )
     LoadFrom( a_[cur] )
@@ -558,13 +558,13 @@ sub Form.navCustomers_Refresh( )
     end scope
 end sub
 
-function Form.navCustomers_Current( ) as long
+function Form.navCustomers_Current( ) as int32
     return tkNavigator_GetPosition( navCustomers.Handle )
 end function
 
-function Form.navCustomers_Go_( byval action as long, byval target as long ) as boolean
+function Form.navCustomers_Go_( byval action as int32, byval target as int32 ) as boolean
     dim byref as Array( of orderdb.Customer ) a_ = Customers
-    dim as long cur = tkNavigator_GetPosition( navCustomers.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navCustomers.Handle )
     select case action
     case TKNAV_NEW
         if (cur >= 0) andalso (cur < a_.Count( )) then
@@ -589,8 +589,8 @@ function Form.navCustomers_Go_( byval action as long, byval target as long ) as 
 end function
 
 sub Form.navCustomers_FromList_( )
-    dim as long i = grdCustomers_Item( )
-    dim as long cur = tkNavigator_GetPosition( navCustomers.Handle )
+    dim as int32 i = grdCustomers_Item( )
+    dim as int32 cur = tkNavigator_GetPosition( navCustomers.Handle )
     if (i < 0) orelse (i = cur) then exit sub
     if navCustomers_MoveTo( i ) = false then
         scope
@@ -601,7 +601,7 @@ sub Form.navCustomers_FromList_( )
     end if
 end sub
 
-sub Form.navCustomers_ListRow_( byval i as long )
+sub Form.navCustomers_ListRow_( byval i as int32 )
     dim byref as Array( of orderdb.Customer ) a_ = Customers
     if (i < 0) orelse (i >= a_.Count( )) then exit sub
     tkDataGrid_SetCellText( grdCustomers.Handle, i, 0, tkBind_Text( a_[i].Company ) )

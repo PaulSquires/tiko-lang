@@ -52,20 +52,20 @@ public partial type Form extends FormBase
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
     cboStatus_Values_ as Array( of ustring )
     declare sub cboStatus_Fill( )
-    declare function grdLines_Item( ) as long
+    declare function grdLines_Item( ) as int32
     cboProduct_Values_ as Array( of ustring )
     declare sub cboProduct_Fill( )
     declare function LoadFrom( byref r as orderdb.Order ) as boolean
     declare function SaveTo( byref r as orderdb.Order ) as boolean
     declare sub grdLines_CellFormatting( byval p as TKDATAGRID_FORMATINFO ptr )
-    declare sub grdLines_SummaryFormatting( byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring )
+    declare sub grdLines_SummaryFormatting( byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring )
     declare sub btnAddLine_Click( )
     declare sub btnPrint_Click( )
     declare sub btnOK_Click( )
     declare sub btnCancel_Click( )
 end type
 
-private sub Thunk_grdLines_SummaryFormatting( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring )
+private sub Thunk_grdLines_SummaryFormatting( byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring )
     dim as Form ptr f = tkForms_ObjectOf( hGrid )
     if f then f->grdLines_SummaryFormatting( col, kind, v, text )
 end sub
@@ -278,13 +278,13 @@ function Form.SaveTo( byref r as orderdb.Order ) as boolean
     scope
         dim byref as Array( of orderdb.OrderLine ) a_ = r.Lines
         if tkDataGrid_GetSourceContext( grdLines.Handle ) <> cptr( any ptr, @a_ ) then
-            dim as long n_ = tkDataGrid_GetRowCount( grdLines.Handle )
+            dim as int32 n_ = tkDataGrid_GetRowCount( grdLines.Handle )
             if a_.Count( ) > n_ then a_.SetCount( n_ )
             while a_.Count( ) < n_
                 dim as orderdb.OrderLine new_
                 a_.Push( new_ )
             wend
-            for i_ as long = 0 to n_ - 1
+            for i_ as int32 = 0 to n_ - 1
                 tkBind_Put( a_[i_].Product, tkDataGrid_GetCellText( grdLines.Handle, i_, 0 ) )
                 tkBind_Put( a_[i_].Qty, tkDataGrid_GetCellFloat( grdLines.Handle, i_, 1 ) )
                 tkBind_Put( a_[i_].UnitPrice, tkDataGrid_GetCellFloat( grdLines.Handle, i_, 2 ) )
@@ -299,14 +299,14 @@ sub Form.cboStatus_Fill( )
         dim as Array( of orderdb.Choice ) a_ = orderdb.Statuses( )
         tkComboBox_Clear( cboStatus.Handle )
         cboStatus_Values_.Clear( )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             tkComboBox_AddItem( cboStatus.Handle, tkBind_Text( a_[i_].Name ) )
             cboStatus_Values_.Push( tkBind_Text( a_[i_].Name ) )
         next
     end scope
 end sub
 
-function Form.grdLines_Item( ) as long
+function Form.grdLines_Item( ) as int32
     dim as integer r_, c_
     if tkDataGrid_GetCurrentCell( grdLines.Handle, r_, c_ ) = false then return -1
     if r_ >= tkDataGrid_GetRowCount( grdLines.Handle ) then return -1
@@ -318,7 +318,7 @@ sub Form.cboProduct_Fill( )
         dim byref as Array( of orderdb.Product ) a_ = Products
         tkComboBox_Clear( cboProduct.Handle )
         cboProduct_Values_.Clear( )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             tkComboBox_AddItem( cboProduct.Handle, tkBind_Text( a_[i_].Name ) )
             cboProduct_Values_.Push( tkBind_Text( a_[i_].Id ) )
         next
