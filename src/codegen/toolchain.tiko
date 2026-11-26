@@ -489,12 +489,45 @@ end function
 '' '-fo' AND NOT '/fo'. llvm-rc accepts both, and the dash form is the one that
 '' survives being pasted into a shell: MSYS rewrote '/fo' into a path and llvm-rc
 '' then complained that exactly one input file should be provided, naming neither.
+''
+'' THE BUNDLED win/rc HEADERS ARE THE FALLBACK, not the first choice. llvm-rc finds
+'' <windows.h> only in a Windows SDK, so on a machine without one every '.rc' that
+'' includes it failed. fbc points INCLUDE at <inc>/win/rc before GoRC, but those
+'' headers SHADOW an SDK's: measured, an SDK user's 'LANGUAGE LANG_ENGLISH,...' then
+'' failed. llvm-rc's own -I and INCLUDE both search before the SDK and it has no
+'' -idirafter (its '--preprocessor-arg' is windres-only, silently ignored), so tiko
+'' runs llvm-rc's preprocess step itself -- the same clang command line 'llvm-rc -v'
+'' prints, plus '-idirafter' -- and hands llvm-rc the result. '-I <rc's dir>' keeps
+'' an ICON or MANIFEST path resolving where llvm-rc looked for it before: beside the
+'' '.rc', which the preprocessed file is not.
+private function RcHeaderDir_( byref incPaths as Tko.StrVec ) as string
+    for i as int32 = incPaths.Count - 1 to 0 step -1
+        dim as string d = incPaths[i] & "/win/rc"
+        if FileExists_( d & "/windows.h" ) then return d
+    next
+    return ""
+end function
+
 function CompileRc _
     ( byref t as ToolPaths, byref rcPath as string, _
-      byref resPath as string ) as int32
+      byref resPath as string, byref incPaths as Tko.StrVec ) as int32
 
     if FileExists_( t.rcExe ) = false then return -1
-    return Exec_( t, t.rcExe, "-fo " & Q( resPath ) & " " & Q( rcPath ) )
+    dim as string hdrDir = RcHeaderDir_( incPaths )
+    if len( hdrDir ) = 0 then return Exec_( t, t.rcExe, "-fo " & Q( resPath ) & " " & Q( rcPath ) )
+
+    dim as string rcDir = "."
+    for i as int32 = len( rcPath ) to 1 step -1
+        dim as string ch = mid( rcPath, i, 1 )
+        if (ch = "/") orelse (ch = "\") then rcDir = left( rcPath, i - 1 ) : exit for
+    next
+    dim as string ppPath = resPath & ".i"
+    dim as int32 rc = Exec_( t, t.clangExe, "--driver-mode=gcc -target x86_64-pc-windows-msvc-coff -E -xc " & _
+                                             "-DRC_INVOKED -idirafter " & Q( hdrDir ) & " " & Q( rcPath ) & _
+                                             " -o " & Q( ppPath ) )
+    if rc = 0 then rc = Exec_( t, t.rcExe, "-no-preprocess -I " & Q( rcDir ) & " -fo " & Q( resPath ) & " " & Q( ppPath ) )
+    kill( ppPath )
+    return rc
 end function
 
 '' WHY THERE IS NO ARCHIVER, or "" when there is one. 'exit -1' named nothing: a missing

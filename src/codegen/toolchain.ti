@@ -118,10 +118,11 @@ namespace Tko.Codegen
 
     '' A RESOURCE SCRIPT TO A '.res'. Windows only: there is no such thing to link
     '' into an ELF binary, and a '.rc' passed with a Linux target is a mistake worth
-    '' reporting rather than a file to ignore.
+    '' reporting rather than a file to ignore. 'incPaths' is the -i search, whose
+    '' bundled inc/ supplies win/rc's headers where no Windows SDK does.
     declare function CompileRc _
         ( byref t as ToolPaths, byref rcPath as string, _
-          byref resPath as string ) as int32
+          byref resPath as string, byref incPaths as Tko.StrVec ) as int32
 
     '' OBJECTS TO A STATIC LIBRARY -- fbc's '-lib'. No link runs: an archive is not
     '' linked, it is collected, and every unresolved symbol in it stays unresolved

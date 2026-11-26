@@ -1117,7 +1117,7 @@ function Run _
             '' (audit F-74, CG-16).
             dim as string resPath = StripExt_( rcInputs[i] ) & ".res"
             if len( ctx.options.outputPath ) then resPath = ctx.options.outputPath & ".rc" & str( i + 1 ) & ".res"
-            dim as int32 rrc = Tko.Codegen.CompileRc( rt_, rcInputs[i], resPath )
+            dim as int32 rrc = Tko.Codegen.CompileRc( rt_, rcInputs[i], resPath, ctx.options.includePaths )
             if rrc <> 0 then
                 ctx.diags.ReportGlobal( Tko.TKO0110, rcInputs[i], str( rrc ) )
             else
