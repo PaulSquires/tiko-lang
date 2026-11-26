@@ -1,0 +1,6 @@
+'' THE COMMITTED vendor/mxml HEADER: mxml.ti, translated by 'tiko c2t' from Mini-XML 4.0.6's mxml.h,
+'' compiles for macos-arm64 as an importer reads it. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target macos-arm64 -c tests/modules/src/vmxml/hdr.tiko -o build/.vmxh-macos-arm64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vmxh-macos-arm64.o

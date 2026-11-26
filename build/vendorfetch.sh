@@ -27,7 +27,9 @@
 # inside 'dir' before compiling -- carry upstream fixes no release has yet. Its optional
 # 'copies' -- 'from:to' pairs, both relative to 'dir' -- are copied after the patches: the
 # files a library ships under one name for builds without its own build system to rename
-# (PCRE2's config.h.generic, pcre2.h.generic, pcre2_chartables.c.dist).
+# (PCRE2's config.h.generic, pcre2.h.generic, pcre2_chartables.c.dist). Its optional 'def' --
+# a module-definition file committed in the package, relative to it -- names what a Windows DLL
+# exports, for sources that dllexport nothing (Mini-XML); like a patch, it is an input.
 #
 #   TIKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
@@ -196,10 +198,16 @@ entry( ) {
         [ -f "$ROOT/pkg/vendor/$_mod/$_p" ] || die "$_mod [$_tab]: patch '$_p' is not in the package"
         _pats="$_pats $ROOT/pkg/vendor/$_mod/$_p"
     done
+    _def=$(_get def)
+    if [ -n "$_def" ]; then
+        [ "$_kind" = cbuild ] || die "$_mod [$_tab]: 'def' is for 'cbuild' entries"
+        [ -f "$ROOT/pkg/vendor/$_mod/$_def" ] || die "$_mod [$_tab]: def '$_def' is not in the package"
+        _def="$ROOT/pkg/vendor/$_mod/$_def"
+    fi
     _fresh=1
     for _o in $_outs; do
         if [ ! -f "$_mdir/$_o" ] || [ "$_toml" -nt "$_mdir/$_o" ]; then _fresh=0; fi
-        for _p in $_pats; do [ "$_p" -nt "$_mdir/$_o" ] && _fresh=0; done
+        for _p in $_pats $_def; do [ "$_p" -nt "$_mdir/$_o" ] && _fresh=0; done
     done
     if [ "$_fresh" = 1 ]; then note "$_mod [$_tab]: up to date"; return; fi
     _dl=$(fetch "$_url" "$_sha")
@@ -254,12 +262,15 @@ entry( ) {
             if [ "$HOST" = windows ]; then
                 # A DLL, with lld. Its import library and .exp stay in the unpack directory:
                 # beside the DLL, '#foreignlib ... dynamic' would find the .lib first. The
-                # sources must dllexport what the DLL exports -- their cflags say how.
+                # sources must dllexport what the DLL exports -- their cflags say how -- or
+                # the entry's 'def' must list it.
                 # -implib:, not /implib: -- MSYS would rewrite a leading slash as a path.
                 _imp="$(cygpath -m "$_x" 2>/dev/null || printf '%s' "$_x")/$(basename "$_sh" .dll).lib"
+                _defopt=
+                [ -z "$_def" ] || _defopt="-Wl,-def:$(cygpath -m "$_def" 2>/dev/null || printf '%s' "$_def")"
                 # shellcheck disable=SC2086
                 "$CLANG" --target=$TRIPLE -shared -fuse-ld=lld -o "$_mdir/$_sh" \
-                    -Wl,-implib:"$_imp" \
+                    -Wl,-implib:"$_imp" $_defopt \
                     $_objs $(_get libs) || die "$_mod: linking $_sh failed"
             elif [ "$HOST" = macos ]; then
                 # THE INSTALL NAME IS @rpath/<its own name>, the soname's counterpart: a program
