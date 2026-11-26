@@ -1,0 +1,8 @@
+'' THE COMMITTED vendor/libpq HEADERS (claude-docs docs/tiko-vendor RFC-0003 P2): libpq-fe.ti and
+'' postgres_ext.ti, translated by 'tiko c2t' from PostgreSQL 19.0's headers, and the hand-written
+'' libpq-residue.ti compile for linux-x86_64 as an importer reads them. The library is not needed:
+'' nothing is linked.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vlibpq/hdr.tiko -o build/.vlibpqh-linux-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vlibpqh-linux-x86_64.o

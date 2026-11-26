@@ -1,0 +1,19 @@
+'' The committed vendor/libpq headers -- libpq-fe.ti and postgres_ext.ti, translated by 'tiko c2t'
+'' from PostgreSQL 19.0's libpq-fe.h and postgres_ext.h -- and the hand-written libpq-residue.ti,
+'' as an importer reads them: no library needed. Names every residue macro, one record from each
+'' OS-dependent block and the case-insensitive pgNotify / PGnotify pair.
+#include once "../../../../pkg/vendor/libpq/postgres_ext.ti"
+#include once "../../../../pkg/vendor/libpq/libpq-fe.ti"
+#include once "../../../../pkg/vendor/libpq/libpq-residue.ti"
+dim as PGconn ptr c = PQsetdb( "localhost", "5432", nullptr, nullptr, "postgres" )
+dim as ConnStatusType st = PQstatus( c )
+dim as const zstring ptr vals( 0 to 0 ) = { strptr( "1" ) }
+dim as PGresult ptr r = PQexecParams( c, "select $1::int", 1, nullptr, @vals( 0 ), nullptr, nullptr, 0 )
+dim as ExecStatusType es = PQresultStatus( r )
+dim as PGnotify ptr n = PQnotifies( c )
+dim as pgNotify ptr n2 = n
+dim as Oid o = atooid( strptr( "16384" ) )
+dim as PGoauthBearerRequest req
+print st = CONNECTION_OK, es = PGRES_TUPLES_OK, o, OID_MAX, InvalidOid, n2 = n, sizeof( req )
+print *PQresultErrorField( r, PG_DIAG_SQLSTATE ), PQlibVersion( ), PQisthreadsafe( )
+PQclear( r ) : PQfinish( c )

@@ -1,0 +1,23 @@
+'' libpq-residue.ti -- what libpq-fe.ti and postgres_ext.ti could not carry, written by hand.
+'' Against PostgreSQL 19.0's libpq-fe.h and postgres_ext.h, the files the two banners name by
+'' SHA-256.
+''
+'' Five TODOs; three are here:
+''   OID_MAX    postgres_ext.h's UINT_MAX: the largest Oid.
+''   atooid     strtoul( x, NULL, 10 ) cast to Oid. Here valuint, which reads the same decimal
+''              prefix (leading blanks skipped, stops at the first non-digit).
+''   PQsetdb    PQsetdbLogin without a login and password: C's NULL is tiko's nullptr.
+'' The other two need nothing: InvalidOid's TODO is the C++ branch of an '#if' whose C branch c2t
+'' translated (0), and PQ_SOCKTYPE's is the non-Windows spelling of a macro libpq-fe.h #undefs
+'' again at once, after the one record that uses it.
+''
+'' NAMES. tiko's names are case-insensitive, so libpq-fe.h's 'typedef struct pgNotify {...}
+'' PGnotify' is one name twice: libpq-fe.ti declares the record as pgNotify, and c2t's alias of
+'' it is PGnotify_2. A program writes PGnotify or pgNotify -- the same record. Parameters named
+'' after tiko words gained a '_' (PQexecParams' command_, PQfreemem's ptr_): see the banner.
+#pragma once
+
+#define OID_MAX &hFFFFFFFFu
+#define atooid( x ) cast( Oid, valuint( *( x ) ) )
+#define PQsetdb( M_PGHOST, M_PGPORT, M_PGOPT, M_PGTTY, M_DBNAME ) _
+    PQsetdbLogin( M_PGHOST, M_PGPORT, M_PGOPT, M_PGTTY, M_DBNAME, nullptr, nullptr )

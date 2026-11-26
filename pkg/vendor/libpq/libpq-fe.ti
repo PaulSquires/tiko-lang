@@ -1,0 +1,1096 @@
+'' =============================================================================
+'' libpq-fe.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "libpq-fe.h"
+''   source sha256 : 28761fd46ceb0cbb21371638750f5ac04d426a44ce2bac2e1d36379c27ec28ed
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../../macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  PQsetClientEncoding.encoding -> PQsetClientEncoding.encoding_   (tiko reserved word)
+''   parameter  PQexecParams.command -> PQexecParams.command_   (tiko reserved word)
+''   parameter  PQsendQueryParams.command -> PQsendQueryParams.command_   (tiko reserved word)
+''   parameter  PQputline.string -> PQputline.string_   (tiko reserved word)
+''   parameter  PQfreemem.ptr -> PQfreemem.ptr_   (tiko reserved word)
+''   parameter  PQsetvalue.len -> PQsetvalue.len_   (tiko reserved word)
+''   parameter  PQescapeStringConn.to -> PQescapeStringConn.to_   (tiko reserved word)
+''   parameter  PQescapeStringConn.error -> PQescapeStringConn.error_   (tiko reserved word)
+''   parameter  PQescapeLiteral.str -> PQescapeLiteral.str_   (tiko reserved word)
+''   parameter  PQescapeLiteral.len -> PQescapeLiteral.len_   (tiko reserved word)
+''   parameter  PQescapeIdentifier.str -> PQescapeIdentifier.str_   (tiko reserved word)
+''   parameter  PQescapeIdentifier.len -> PQescapeIdentifier.len_   (tiko reserved word)
+''   parameter  PQescapeString.to -> PQescapeString.to_   (tiko reserved word)
+''   parameter  lo_read.len -> lo_read.len_   (tiko reserved word)
+''   parameter  lo_write.len -> lo_write.len_   (tiko reserved word)
+''   parameter  lo_truncate.len -> lo_truncate.len_   (tiko reserved word)
+''   parameter  lo_truncate64.len -> lo_truncate64.len_   (tiko reserved word)
+''   parameter  PQmblen.encoding -> PQmblen.encoding_   (tiko reserved word)
+''   parameter  PQmblenBounded.encoding -> PQmblenBounded.encoding_   (tiko reserved word)
+''   parameter  PQdsplen.encoding -> PQdsplen.encoding_   (tiko reserved word)
+''   parameter  PQdefaultAuthDataHook.type -> PQdefaultAuthDataHook.type_   (tiko reserved word)
+''   parameter  PQdefaultAuthDataHook.data -> PQdefaultAuthDataHook.data_   (tiko reserved word)
+''   parameter  pg_char_to_encoding.name -> pg_char_to_encoding.name_   (tiko reserved word)
+''   parameter  pg_encoding_to_char.encoding -> pg_encoding_to_char.encoding_   (tiko reserved word)
+''   parameter  pg_valid_server_encoding_id.encoding -> pg_valid_server_encoding_id.encoding_   (tiko reserved word)
+''
+'' 2 items need manual translation:
+''   line 521  libpq-fe.h:352  C2T-TODO(function-like-macro)  PQsetdb
+''   line 936  libpq-fe.h:767  C2T-TODO(macro)  PQ_SOCKTYPE
+'' =============================================================================
+
+/'-------------------------------------------------------------------------
+ *
+ * libpq-fe.h
+ *	  This file contains definitions for structures and
+ *	  externs for functions used by frontend postgres applications.
+ *
+ * Portions Copyright (c) 1996-2026, PostgreSQL Global Development Group
+ * Portions Copyright (c) 1994, Regents of the University of California
+ *
+ * src/interfaces/libpq/libpq-fe.h
+ *
+ *-------------------------------------------------------------------------
+ '/
+
+#pragma once
+
+extern "C"
+
+'' <stdint.h>: built into tiko
+#include once "crt/stdio.bi"
+
+/'
+ * postgres_ext.h defines the backend's externally visible types,
+ * such as Oid.
+ '/
+#include once "postgres_ext.ti"
+
+/'
+ * These symbols may be used in compile-time #ifdef tests for the availability
+ * of v14-and-newer libpq features.
+ '/
+/' Features added in PostgreSQL v14: '/
+/' Indicates presence of PQenterPipelineMode and friends '/
+#define LIBPQ_HAS_PIPELINING 1
+/' Indicates presence of PQsetTraceFlags; also new PQtrace output format '/
+#define LIBPQ_HAS_TRACE_FLAGS 1
+
+/' Features added in PostgreSQL v15: '/
+/' Indicates that PQsslAttribute(NULL, "library") is useful '/
+#define LIBPQ_HAS_SSL_LIBRARY_DETECTION 1
+
+/' Features added in PostgreSQL v17: '/
+/' Indicates presence of PGcancelConn typedef and associated routines '/
+#define LIBPQ_HAS_ASYNC_CANCEL 1
+/' Indicates presence of PQchangePassword '/
+#define LIBPQ_HAS_CHANGE_PASSWORD 1
+/' Indicates presence of PQsetChunkedRowsMode, PGRES_TUPLES_CHUNK '/
+#define LIBPQ_HAS_CHUNK_MODE 1
+/' Indicates presence of PQclosePrepared, PQclosePortal, etc '/
+#define LIBPQ_HAS_CLOSE_PREPARED 1
+/' Indicates presence of PQsendPipelineSync '/
+#define LIBPQ_HAS_SEND_PIPELINE_SYNC 1
+/' Indicates presence of PQsocketPoll, PQgetCurrentTimeUSec '/
+#define LIBPQ_HAS_SOCKET_POLL 1
+
+/' Features added in PostgreSQL v18: '/
+/' Indicates presence of PQfullProtocolVersion '/
+#define LIBPQ_HAS_FULL_PROTOCOL_VERSION 1
+/' Indicates presence of the PQAUTHDATA_PROMPT_OAUTH_DEVICE authdata hook '/
+#define LIBPQ_HAS_PROMPT_OAUTH_DEVICE 1
+
+/' Features added in PostgreSQL v19: '/
+/' Indicates presence of PQgetThreadLock '/
+#define LIBPQ_HAS_GET_THREAD_LOCK 1
+/' Indicates presence of the PQAUTHDATA_OAUTH_BEARER_TOKEN_V2 authdata hook '/
+#define LIBPQ_HAS_OAUTH_BEARER_TOKEN_V2 1
+
+/'
+ * Option flags for PQcopyResult
+ '/
+#define PG_COPYRES_ATTRS &h01
+#define PG_COPYRES_TUPLES &h02    /' Implies PG_COPYRES_ATTRS '/
+#define PG_COPYRES_EVENTS &h04
+#define PG_COPYRES_NOTICEHOOKS &h08
+
+/' Application-visible enum types '/
+
+/'
+ * Although it is okay to add to these lists, values which become unused
+ * should never be removed, nor should constants be redefined - that would
+ * break compatibility with existing code.
+ '/
+
+#if defined(TIKO_OS_WINDOWS)
+type ConnStatusType as int32
+enum
+	CONNECTION_OK
+	CONNECTION_BAD
+	/' Non-blocking mode only below here '/
+
+	/'
+	 * The existence of these should never be relied upon - they should only
+	 * be used for user feedback or similar purposes.
+	 '/
+	CONNECTION_STARTED    /' Waiting for connection to be made.  '/
+	CONNECTION_MADE    /' Connection OK; waiting to send.     '/
+	CONNECTION_AWAITING_RESPONSE  /' Waiting for a response from the
+									 * postmaster.        '/
+	CONNECTION_AUTH_OK    /' Received authentication; waiting for
+								 * backend startup. '/
+	CONNECTION_SETENV    /' This state is no longer used. '/
+	CONNECTION_SSL_STARTUP   /' Performing SSL handshake. '/
+	CONNECTION_NEEDED    /' Internal state: connect() needed. '/
+	CONNECTION_CHECK_WRITABLE  /' Checking if session is read-write. '/
+	CONNECTION_CONSUME    /' Consuming any extra messages. '/
+	CONNECTION_GSS_STARTUP   /' Negotiating GSSAPI. '/
+	CONNECTION_CHECK_TARGET  /' Internal state: checking target server
+								 * properties. '/
+	CONNECTION_CHECK_STANDBY  /' Checking if server is in standby mode. '/
+	CONNECTION_ALLOCATED   /' Waiting for connection attempt to be
+								 * started.  '/
+	CONNECTION_AUTHENTICATING  /' Authentication is in progress with some
+								 * external system. '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type ConnStatusType as uint32
+enum
+	CONNECTION_OK
+	CONNECTION_BAD
+	/' Non-blocking mode only below here '/
+
+	/'
+	 * The existence of these should never be relied upon - they should only
+	 * be used for user feedback or similar purposes.
+	 '/
+	CONNECTION_STARTED    /' Waiting for connection to be made.  '/
+	CONNECTION_MADE    /' Connection OK; waiting to send.     '/
+	CONNECTION_AWAITING_RESPONSE  /' Waiting for a response from the
+									 * postmaster.        '/
+	CONNECTION_AUTH_OK    /' Received authentication; waiting for
+								 * backend startup. '/
+	CONNECTION_SETENV    /' This state is no longer used. '/
+	CONNECTION_SSL_STARTUP   /' Performing SSL handshake. '/
+	CONNECTION_NEEDED    /' Internal state: connect() needed. '/
+	CONNECTION_CHECK_WRITABLE  /' Checking if session is read-write. '/
+	CONNECTION_CONSUME    /' Consuming any extra messages. '/
+	CONNECTION_GSS_STARTUP   /' Negotiating GSSAPI. '/
+	CONNECTION_CHECK_TARGET  /' Internal state: checking target server
+								 * properties. '/
+	CONNECTION_CHECK_STANDBY  /' Checking if server is in standby mode. '/
+	CONNECTION_ALLOCATED   /' Waiting for connection attempt to be
+								 * started.  '/
+	CONNECTION_AUTHENTICATING  /' Authentication is in progress with some
+								 * external system. '/
+end enum
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+type PostgresPollingStatusType as int32
+enum
+	PGRES_POLLING_FAILED = 0
+	PGRES_POLLING_READING   /' These two indicate that one may	  '/
+	PGRES_POLLING_WRITING   /' use select before polling again.   '/
+	PGRES_POLLING_OK
+	PGRES_POLLING_ACTIVE  /' unused; keep for backwards compatibility '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PostgresPollingStatusType as uint32
+enum
+	PGRES_POLLING_FAILED = 0
+	PGRES_POLLING_READING   /' These two indicate that one may	  '/
+	PGRES_POLLING_WRITING   /' use select before polling again.   '/
+	PGRES_POLLING_OK
+	PGRES_POLLING_ACTIVE  /' unused; keep for backwards compatibility '/
+end enum
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+type ExecStatusType as int32
+enum
+	PGRES_EMPTY_QUERY = 0   /' empty query string was executed '/
+	PGRES_COMMAND_OK    /' a query command that doesn't return
+								 * anything was executed properly by the
+								 * backend '/
+	PGRES_TUPLES_OK    /' a query command that returns tuples was
+								 * executed properly by the backend, PGresult
+								 * contains the result tuples '/
+	PGRES_COPY_OUT     /' Copy Out data transfer in progress '/
+	PGRES_COPY_IN     /' Copy In data transfer in progress '/
+	PGRES_BAD_RESPONSE    /' an unexpected response was recv'd from the
+								 * backend '/
+	PGRES_NONFATAL_ERROR   /' notice or warning message '/
+	PGRES_FATAL_ERROR    /' query failed '/
+	PGRES_COPY_BOTH    /' Copy In/Out data transfer in progress '/
+	PGRES_SINGLE_TUPLE    /' single tuple from larger resultset '/
+	PGRES_PIPELINE_SYNC   /' pipeline synchronization point '/
+	PGRES_PIPELINE_ABORTED   /' Command didn't run because of an abort
+								 * earlier in a pipeline '/
+	PGRES_TUPLES_CHUNK   /' chunk of tuples from larger resultset '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type ExecStatusType as uint32
+enum
+	PGRES_EMPTY_QUERY = 0   /' empty query string was executed '/
+	PGRES_COMMAND_OK    /' a query command that doesn't return
+								 * anything was executed properly by the
+								 * backend '/
+	PGRES_TUPLES_OK    /' a query command that returns tuples was
+								 * executed properly by the backend, PGresult
+								 * contains the result tuples '/
+	PGRES_COPY_OUT     /' Copy Out data transfer in progress '/
+	PGRES_COPY_IN     /' Copy In data transfer in progress '/
+	PGRES_BAD_RESPONSE    /' an unexpected response was recv'd from the
+								 * backend '/
+	PGRES_NONFATAL_ERROR   /' notice or warning message '/
+	PGRES_FATAL_ERROR    /' query failed '/
+	PGRES_COPY_BOTH    /' Copy In/Out data transfer in progress '/
+	PGRES_SINGLE_TUPLE    /' single tuple from larger resultset '/
+	PGRES_PIPELINE_SYNC   /' pipeline synchronization point '/
+	PGRES_PIPELINE_ABORTED   /' Command didn't run because of an abort
+								 * earlier in a pipeline '/
+	PGRES_TUPLES_CHUNK   /' chunk of tuples from larger resultset '/
+end enum
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+type PGTransactionStatusType as int32
+enum
+	PQTRANS_IDLE     /' connection idle '/
+	PQTRANS_ACTIVE     /' command in progress '/
+	PQTRANS_INTRANS    /' idle, within transaction block '/
+	PQTRANS_INERROR    /' idle, within failed transaction '/
+	PQTRANS_UNKNOWN    /' cannot determine status '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGTransactionStatusType as uint32
+enum
+	PQTRANS_IDLE     /' connection idle '/
+	PQTRANS_ACTIVE     /' command in progress '/
+	PQTRANS_INTRANS    /' idle, within transaction block '/
+	PQTRANS_INERROR    /' idle, within failed transaction '/
+	PQTRANS_UNKNOWN    /' cannot determine status '/
+end enum
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+type PGVerbosity as int32
+enum
+	PQERRORS_TERSE     /' single-line error messages '/
+	PQERRORS_DEFAULT    /' recommended style '/
+	PQERRORS_VERBOSE    /' all the facts, ma'am '/
+	PQERRORS_SQLSTATE   /' only error severity and SQLSTATE code '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGVerbosity as uint32
+enum
+	PQERRORS_TERSE     /' single-line error messages '/
+	PQERRORS_DEFAULT    /' recommended style '/
+	PQERRORS_VERBOSE    /' all the facts, ma'am '/
+	PQERRORS_SQLSTATE   /' only error severity and SQLSTATE code '/
+end enum
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+type PGContextVisibility as int32
+enum
+	PQSHOW_CONTEXT_NEVER   /' never show CONTEXT field '/
+	PQSHOW_CONTEXT_ERRORS   /' show CONTEXT for errors only (default) '/
+	PQSHOW_CONTEXT_ALWAYS  /' always show CONTEXT field '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGContextVisibility as uint32
+enum
+	PQSHOW_CONTEXT_NEVER   /' never show CONTEXT field '/
+	PQSHOW_CONTEXT_ERRORS   /' show CONTEXT for errors only (default) '/
+	PQSHOW_CONTEXT_ALWAYS  /' always show CONTEXT field '/
+end enum
+#endif
+
+/'
+ * PGPing - The ordering of this enum should not be altered because the
+ * values are exposed externally via pg_isready.
+ '/
+
+#if defined(TIKO_OS_WINDOWS)
+type PGPing as int32
+enum
+	PQPING_OK      /' server is accepting connections '/
+	PQPING_REJECT     /' server is alive but rejecting connections '/
+	PQPING_NO_RESPONSE    /' could not establish connection '/
+	PQPING_NO_ATTEMPT   /' connection not attempted (bad params) '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGPing as uint32
+enum
+	PQPING_OK      /' server is accepting connections '/
+	PQPING_REJECT     /' server is alive but rejecting connections '/
+	PQPING_NO_RESPONSE    /' could not establish connection '/
+	PQPING_NO_ATTEMPT   /' connection not attempted (bad params) '/
+end enum
+#endif
+
+/'
+ * PGpipelineStatus - Current status of pipeline mode
+ '/
+#if defined(TIKO_OS_WINDOWS)
+type PGpipelineStatus as int32
+enum
+	PQ_PIPELINE_OFF
+	PQ_PIPELINE_ON
+	PQ_PIPELINE_ABORTED
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGpipelineStatus as uint32
+enum
+	PQ_PIPELINE_OFF
+	PQ_PIPELINE_ON
+	PQ_PIPELINE_ABORTED
+end enum
+#endif
+
+#if defined(TIKO_OS_WINDOWS)
+type PGauthData as int32
+enum
+	PQAUTHDATA_PROMPT_OAUTH_DEVICE  /' user must visit a device-authorization
+									 * URL '/
+	PQAUTHDATA_OAUTH_BEARER_TOKEN  /' server requests an OAuth Bearer token
+									 * (v2 is preferred; see below) '/
+	PQAUTHDATA_OAUTH_BEARER_TOKEN_V2  /' newest API for OAuth Bearer tokens '/
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGauthData as uint32
+enum
+	PQAUTHDATA_PROMPT_OAUTH_DEVICE  /' user must visit a device-authorization
+									 * URL '/
+	PQAUTHDATA_OAUTH_BEARER_TOKEN  /' server requests an OAuth Bearer token
+									 * (v2 is preferred; see below) '/
+	PQAUTHDATA_OAUTH_BEARER_TOKEN_V2  /' newest API for OAuth Bearer tokens '/
+end enum
+#endif
+
+/'
+ * PGconn encapsulates a connection to the backend.
+ * The contents of this struct are not supposed to be known to applications.
+ '/
+type pg_conn__fwd as pg_conn
+type PGconn as pg_conn
+
+/'
+ * PGcancelConn encapsulates a cancel connection to the backend.
+ * The contents of this struct are not supposed to be known to applications.
+ '/
+type pg_cancel_conn__fwd as pg_cancel_conn
+type PGcancelConn as pg_cancel_conn
+
+/'
+ * PGresult encapsulates the result of a query (or more precisely, of a single
+ * SQL command --- a query string given to PQsendQuery can contain multiple
+ * commands and thus return multiple PGresult objects).
+ * The contents of this struct are not supposed to be known to applications.
+ '/
+type pg_result__fwd as pg_result
+type PGresult as pg_result
+
+/'
+ * PGcancel encapsulates the information needed to cancel a running
+ * query on an existing connection.
+ * The contents of this struct are not supposed to be known to applications.
+ '/
+type pg_cancel__fwd as pg_cancel
+type PGcancel as pg_cancel
+
+/'
+ * PGnotify represents the occurrence of a NOTIFY message.
+ * Ideally this would be an opaque typedef, but it's so simple that it's
+ * unlikely to change.
+ * NOTE: in Postgres 6.4 and later, the be_pid is the notifying backend's,
+ * whereas in earlier versions it was always your own backend's PID.
+ '/
+type pgNotify
+	relname as zstring ptr  /' notification condition name '/
+	be_pid as int32 /' process ID of notifying server process '/
+	extra as zstring ptr   /' notification parameter '/
+	/' Fields below here are private to libpq; apps should not use 'em '/
+	next as pgNotify ptr    /' list link '/
+end type
+type PGnotify_2 as pgNotify
+
+/' pg_usec_time_t is like time_t, but with microsecond resolution '/
+type pg_usec_time_t as int64
+
+/' Function types for notice-handling callbacks '/
+type PQnoticeReceiver as sub cdecl( byval as any ptr, byval as const PGresult ptr )
+type PQnoticeProcessor as sub cdecl( byval as any ptr, byval as const zstring ptr )
+
+/' Print options for PQprint() '/
+type pqbool as byte
+
+type _PQprintOpt
+	header as pqbool  /' print output field headings and row count '/
+	align as pqbool  /' fill align the fields '/
+	standard as pqbool /' old brain dead format '/
+	html3 as pqbool  /' output html tables '/
+	expanded as pqbool /' expand tables '/
+	pager as pqbool  /' use pager for output if needed '/
+	fieldSep as zstring ptr  /' field separator '/
+	tableOpt as zstring ptr  /' insert to HTML <table ...> '/
+	caption as zstring ptr  /' HTML <caption> '/
+	fieldName as zstring ptr ptr  /' null terminated array of replacement field
+								 * names '/
+end type
+type PQprintOpt as _PQprintOpt
+
+/' ----------------
+ * Structure for the conninfo parameter definitions returned by PQconndefaults
+ * or PQconninfoParse.
+ *
+ * All fields except "val" point at static strings which must not be altered.
+ * "val" is either NULL or a malloc'd current-value string.  PQconninfoFree()
+ * will release both the val strings and the PQconninfoOption array itself.
+ * ----------------
+ '/
+type _PQconninfoOption
+	keyword as zstring ptr  /' The keyword of the option			'/
+	envvar as zstring ptr   /' Fallback environment variable name	'/
+	compiled as zstring ptr  /' Fallback compiled in default value	'/
+	val as zstring ptr   /' Option's current value, or NULL		 '/
+	label as zstring ptr   /' Label for field in connect dialog	'/
+	dispchar as zstring ptr  /' Indicates how to display this field in a
+								 * connect dialog. Values are: "" Display
+								 * entered value as is "*" Password field -
+								 * hide value "D"  Debug option - don't show
+								 * by default '/
+	dispsize as int32  /' Field size in characters for dialog	'/
+end type
+type PQconninfoOption as _PQconninfoOption
+
+/' ----------------
+ * PQArgBlock -- structure for PQfn() arguments
+ * ----------------
+ '/
+union PQArgBlock_u_t
+    ptr as int32 ptr
+    integer as int32
+end union
+type PQArgBlock
+	len as int32
+	isint as int32
+	u as PQArgBlock_u_t /' can't use void (dec compiler barfs)	 '/
+end type
+
+/' ----------------
+ * PGresAttDesc -- Data about a single attribute (column) of a query result
+ * ----------------
+ '/
+type pgresAttDesc
+	name as zstring ptr   /' column name '/
+	tableid as Oid  /' source table, if known '/
+	columnid as int32  /' source column, if known '/
+	format as int32 /' format code for value (text/binary) '/
+	typid as Oid   /' type id '/
+	typlen as int32 /' type size '/
+	atttypmod as int32  /' type-specific modifier info '/
+end type
+type PGresAttDesc_2 as pgresAttDesc
+
+/' ----------------
+ * Exported functions of libpq
+ * ----------------
+ '/
+
+/' === in fe-connect.c === '/
+
+/' make a new client connection to the backend '/
+/' Asynchronous (non-blocking) '/
+declare function PQconnectStart( byval conninfo as const zstring ptr ) as PGconn ptr
+declare function PQconnectStartParams( byval keywords as const zstring const ptr ptr, _
+									byval values as const zstring const ptr ptr, byval expand_dbname as int32 ) as PGconn ptr
+declare function PQconnectPoll( byval conn as PGconn ptr ) as PostgresPollingStatusType
+
+/' Synchronous (blocking) '/
+declare function PQconnectdb( byval conninfo as const zstring ptr ) as PGconn ptr
+declare function PQconnectdbParams( byval keywords as const zstring const ptr ptr, _
+								 byval values as const zstring const ptr ptr, byval expand_dbname as int32 ) as PGconn ptr
+declare function PQsetdbLogin( byval pghost as const zstring ptr, byval pgport as const zstring ptr, _
+							byval pgoptions as const zstring ptr, byval pgtty as const zstring ptr, _
+							byval dbName as const zstring ptr, _
+							byval login as const zstring ptr, byval pwd as const zstring ptr ) as PGconn ptr
+
+'' C2T-TODO(function-like-macro) libpq-fe.h:352 -- 'NULL' is nothing tiko declares
+'' #define PQsetdb(M_PGHOST,M_PGPORT,M_PGOPT,M_PGTTY,M_DBNAME)  \
+'' 	PQsetdbLogin(M_PGHOST, M_PGPORT, M_PGOPT, M_PGTTY, M_DBNAME, NULL, NULL)
+
+/' close the current connection and free the PGconn data structure '/
+declare sub PQfinish( byval conn as PGconn ptr )
+
+/' get info about connection options known to PQconnectdb '/
+declare function PQconndefaults( ) as PQconninfoOption ptr
+
+/' parse connection options in same way as PQconnectdb '/
+declare function PQconninfoParse( byval conninfo as const zstring ptr, byval errmsg as zstring ptr ptr ) as PQconninfoOption ptr
+
+/' return the connection options used by a live connection '/
+declare function PQconninfo( byval conn as PGconn ptr ) as PQconninfoOption ptr
+
+/' free the data structure returned by PQconndefaults() or PQconninfoParse() '/
+declare sub PQconninfoFree( byval connOptions as PQconninfoOption ptr )
+
+/'
+ * close the current connection and reestablish a new one with the same
+ * parameters
+ '/
+/' Asynchronous (non-blocking) '/
+declare function PQresetStart( byval conn as PGconn ptr ) as int32
+declare function PQresetPoll( byval conn as PGconn ptr ) as PostgresPollingStatusType
+
+/' Synchronous (blocking) '/
+declare sub PQreset( byval conn as PGconn ptr )
+
+/' Create a PGcancelConn that's used to cancel a query on the given PGconn '/
+declare function PQcancelCreate( byval conn as PGconn ptr ) as PGcancelConn ptr
+
+/' issue a cancel request in a non-blocking manner '/
+declare function PQcancelStart( byval cancelConn as PGcancelConn ptr ) as int32
+
+/' issue a blocking cancel request '/
+declare function PQcancelBlocking( byval cancelConn as PGcancelConn ptr ) as int32
+
+/' poll a non-blocking cancel request '/
+declare function PQcancelPoll( byval cancelConn as PGcancelConn ptr ) as PostgresPollingStatusType
+declare function PQcancelStatus( byval cancelConn as const PGcancelConn ptr ) as ConnStatusType
+declare function PQcancelSocket( byval cancelConn as const PGcancelConn ptr ) as int32
+declare function PQcancelErrorMessage( byval cancelConn as const PGcancelConn ptr ) as zstring ptr
+declare sub PQcancelReset( byval cancelConn as PGcancelConn ptr )
+declare sub PQcancelFinish( byval cancelConn as PGcancelConn ptr )
+
+
+/' request a cancel structure '/
+declare function PQgetCancel( byval conn as PGconn ptr ) as PGcancel ptr
+
+/' free a cancel structure '/
+declare sub PQfreeCancel( byval cancel as PGcancel ptr )
+
+/' deprecated version of PQcancelBlocking, but one which is signal-safe '/
+declare function PQcancel( byval cancel as PGcancel ptr, byval errbuf as zstring ptr, byval errbufsize as int32 ) as int32
+
+/' deprecated version of PQcancel; not thread-safe '/
+declare function PQrequestCancel( byval conn as PGconn ptr ) as int32
+
+/' Accessor functions for PGconn objects '/
+declare function PQdb( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQuser( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQpass( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQhost( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQhostaddr( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQport( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQtty( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQoptions( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQstatus( byval conn as const PGconn ptr ) as ConnStatusType
+declare function PQtransactionStatus( byval conn as const PGconn ptr ) as PGTransactionStatusType
+declare function PQparameterStatus( byval conn as const PGconn ptr, _
+									 byval paramName as const zstring ptr ) as const zstring ptr
+declare function PQprotocolVersion( byval conn as const PGconn ptr ) as int32
+declare function PQfullProtocolVersion( byval conn as const PGconn ptr ) as int32
+declare function PQserverVersion( byval conn as const PGconn ptr ) as int32
+declare function PQerrorMessage( byval conn as const PGconn ptr ) as zstring ptr
+declare function PQsocket( byval conn as const PGconn ptr ) as int32
+declare function PQbackendPID( byval conn as const PGconn ptr ) as int32
+declare function PQpipelineStatus( byval conn as const PGconn ptr ) as PGpipelineStatus
+declare function PQconnectionNeedsPassword( byval conn as const PGconn ptr ) as int32
+declare function PQconnectionUsedPassword( byval conn as const PGconn ptr ) as int32
+declare function PQconnectionUsedGSSAPI( byval conn as const PGconn ptr ) as int32
+declare function PQclientEncoding( byval conn as const PGconn ptr ) as int32
+declare function PQsetClientEncoding( byval conn as PGconn ptr, byval encoding_ as const zstring ptr ) as int32
+
+/' SSL information functions '/
+declare function PQsslInUse( byval conn as PGconn ptr ) as int32
+declare function PQsslStruct( byval conn as PGconn ptr, byval struct_name as const zstring ptr ) as any ptr
+declare function PQsslAttribute( byval conn as PGconn ptr, byval attribute_name as const zstring ptr ) as const zstring ptr
+declare function PQsslAttributeNames( byval conn as PGconn ptr ) as const zstring const ptr ptr
+
+/'
+ * Get the OpenSSL structure associated with a connection. Returns NULL for
+ * unencrypted connections or if any other TLS library is in use.
+ '/
+declare function PQgetssl( byval conn as PGconn ptr ) as any ptr
+
+/' Tell libpq whether it needs to initialize OpenSSL '/
+declare sub PQinitSSL( byval do_init as int32 )
+
+/' More detailed way to tell libpq whether it needs to initialize OpenSSL '/
+declare sub PQinitOpenSSL( byval do_ssl as int32, byval do_crypto as int32 )
+
+/' Return true if GSSAPI encryption is in use '/
+declare function PQgssEncInUse( byval conn as PGconn ptr ) as int32
+
+/' Returns GSSAPI context if GSSAPI is in use '/
+declare function PQgetgssctx( byval conn as PGconn ptr ) as any ptr
+
+/' Set verbosity for PQerrorMessage and PQresultErrorMessage '/
+declare function PQsetErrorVerbosity( byval conn as PGconn ptr, byval verbosity as PGVerbosity ) as PGVerbosity
+
+/' Set CONTEXT visibility for PQerrorMessage and PQresultErrorMessage '/
+declare function PQsetErrorContextVisibility( byval conn as PGconn ptr, _
+													   byval show_context as PGContextVisibility ) as PGContextVisibility
+
+/' Override default notice handling routines '/
+declare function PQsetNoticeReceiver( byval conn as PGconn ptr, _
+											byval proc as PQnoticeReceiver, _
+											byval arg as any ptr ) as PQnoticeReceiver
+declare function PQsetNoticeProcessor( byval conn as PGconn ptr, _
+											  byval proc as PQnoticeProcessor, _
+											  byval arg as any ptr ) as PQnoticeProcessor
+
+/'
+ *	   Used to set callback that prevents concurrent access to
+ *	   non-thread safe functions that libpq needs.
+ *	   The default implementation uses a libpq internal mutex.
+ *	   Only required for multithreaded apps that use Kerberos or
+ *	   older (non-threadsafe) versions of Curl both within their
+ *	   app and for postgresql connections.
+ '/
+type pgthreadlock_t as sub cdecl( byval as int32 )
+
+declare function PQregisterThreadLock( byval newhandler as pgthreadlock_t ) as pgthreadlock_t
+declare function PQgetThreadLock( ) as pgthreadlock_t
+
+/' === in fe-trace.c === '/
+declare sub PQtrace( byval conn as PGconn ptr, byval debug_port as FILE ptr )
+declare sub PQuntrace( byval conn as PGconn ptr )
+
+/' flags controlling trace output: '/
+/' omit timestamps from each line '/
+#define PQTRACE_SUPPRESS_TIMESTAMPS (1 shl 0)
+/' redact portions of some messages, for testing frameworks '/
+#define PQTRACE_REGRESS_MODE (1 shl 1)
+declare sub PQsetTraceFlags( byval conn as PGconn ptr, byval flags as int32 )
+
+/' === in fe-exec.c === '/
+
+/' Simple synchronous query '/
+declare function PQexec( byval conn as PGconn ptr, byval query as const zstring ptr ) as PGresult ptr
+declare function PQexecParams( byval conn as PGconn ptr, _
+							  byval command_ as const zstring ptr, _
+							  byval nParams as int32, _
+							  byval paramTypes as const Oid ptr, _
+							  byval paramValues as const zstring const ptr ptr, _
+							  byval paramLengths as const int32 ptr, _
+							  byval paramFormats as const int32 ptr, _
+							  byval resultFormat as int32 ) as PGresult ptr
+declare function PQprepare( byval conn as PGconn ptr, byval stmtName as const zstring ptr, _
+						   byval query as const zstring ptr, byval nParams as int32, _
+						   byval paramTypes as const Oid ptr ) as PGresult ptr
+declare function PQexecPrepared( byval conn as PGconn ptr, _
+								byval stmtName as const zstring ptr, _
+								byval nParams as int32, _
+								byval paramValues as const zstring const ptr ptr, _
+								byval paramLengths as const int32 ptr, _
+								byval paramFormats as const int32 ptr, _
+								byval resultFormat as int32 ) as PGresult ptr
+
+/' Interface for multiple-result or asynchronous queries '/
+#define PQ_QUERY_PARAM_MAX_LIMIT 65535
+
+declare function PQsendQuery( byval conn as PGconn ptr, byval query as const zstring ptr ) as int32
+declare function PQsendQueryParams( byval conn as PGconn ptr, _
+							  byval command_ as const zstring ptr, _
+							  byval nParams as int32, _
+							  byval paramTypes as const Oid ptr, _
+							  byval paramValues as const zstring const ptr ptr, _
+							  byval paramLengths as const int32 ptr, _
+							  byval paramFormats as const int32 ptr, _
+							  byval resultFormat as int32 ) as int32
+declare function PQsendPrepare( byval conn as PGconn ptr, byval stmtName as const zstring ptr, _
+						  byval query as const zstring ptr, byval nParams as int32, _
+						  byval paramTypes as const Oid ptr ) as int32
+declare function PQsendQueryPrepared( byval conn as PGconn ptr, _
+								byval stmtName as const zstring ptr, _
+								byval nParams as int32, _
+								byval paramValues as const zstring const ptr ptr, _
+								byval paramLengths as const int32 ptr, _
+								byval paramFormats as const int32 ptr, _
+								byval resultFormat as int32 ) as int32
+declare function PQsetSingleRowMode( byval conn as PGconn ptr ) as int32
+declare function PQsetChunkedRowsMode( byval conn as PGconn ptr, byval chunkSize as int32 ) as int32
+declare function PQgetResult( byval conn as PGconn ptr ) as PGresult ptr
+
+/' Routines for managing an asynchronous query '/
+declare function PQisBusy( byval conn as PGconn ptr ) as int32
+declare function PQconsumeInput( byval conn as PGconn ptr ) as int32
+
+/' Routines for pipeline mode management '/
+declare function PQenterPipelineMode( byval conn as PGconn ptr ) as int32
+declare function PQexitPipelineMode( byval conn as PGconn ptr ) as int32
+declare function PQpipelineSync( byval conn as PGconn ptr ) as int32
+declare function PQsendFlushRequest( byval conn as PGconn ptr ) as int32
+declare function PQsendPipelineSync( byval conn as PGconn ptr ) as int32
+
+/' LISTEN/NOTIFY support '/
+declare function PQnotifies( byval conn as PGconn ptr ) as PGnotify_2 ptr
+
+/' Routines for copy in/out '/
+declare function PQputCopyData( byval conn as PGconn ptr, byval buffer as const zstring ptr, byval nbytes as int32 ) as int32
+declare function PQputCopyEnd( byval conn as PGconn ptr, byval errormsg as const zstring ptr ) as int32
+declare function PQgetCopyData( byval conn as PGconn ptr, byval buffer as zstring ptr ptr, byval async as int32 ) as int32
+
+/' Deprecated routines for copy in/out '/
+declare function PQgetline( byval conn as PGconn ptr, byval buffer as zstring ptr, byval length as int32 ) as int32
+declare function PQputline( byval conn as PGconn ptr, byval string_ as const zstring ptr ) as int32
+declare function PQgetlineAsync( byval conn as PGconn ptr, byval buffer as zstring ptr, byval bufsize as int32 ) as int32
+declare function PQputnbytes( byval conn as PGconn ptr, byval buffer as const zstring ptr, byval nbytes as int32 ) as int32
+declare function PQendcopy( byval conn as PGconn ptr ) as int32
+
+/' Set blocking/nonblocking connection to the backend '/
+declare function PQsetnonblocking( byval conn as PGconn ptr, byval arg as int32 ) as int32
+declare function PQisnonblocking( byval conn as const PGconn ptr ) as int32
+declare function PQisthreadsafe( ) as int32
+declare function PQping( byval conninfo as const zstring ptr ) as PGPing
+declare function PQpingParams( byval keywords as const zstring const ptr ptr, _
+						   byval values as const zstring const ptr ptr, byval expand_dbname as int32 ) as PGPing
+
+/' Force the write buffer to be written (or at least try) '/
+declare function PQflush( byval conn as PGconn ptr ) as int32
+
+/'
+ * "Fast path" interface --- not really recommended for application
+ * use
+ '/
+declare function PQfn( byval conn as PGconn ptr, _
+					  byval fnid as int32, _
+					  byval result_buf as int32 ptr, _
+					  byval result_len as int32 ptr, _
+					  byval result_is_int as int32, _
+					  byval args as const PQArgBlock ptr, _
+					  byval nargs as int32 ) as PGresult ptr
+
+/' Accessor functions for PGresult objects '/
+declare function PQresultStatus( byval res as const PGresult ptr ) as ExecStatusType
+declare function PQresStatus( byval status as ExecStatusType ) as zstring ptr
+declare function PQresultErrorMessage( byval res as const PGresult ptr ) as zstring ptr
+declare function PQresultVerboseErrorMessage( byval res as const PGresult ptr, _
+										 byval verbosity as PGVerbosity, _
+										 byval show_context as PGContextVisibility ) as zstring ptr
+declare function PQresultErrorField( byval res as const PGresult ptr, byval fieldcode as int32 ) as zstring ptr
+declare function PQntuples( byval res as const PGresult ptr ) as int32
+declare function PQnfields( byval res as const PGresult ptr ) as int32
+declare function PQbinaryTuples( byval res as const PGresult ptr ) as int32
+declare function PQfname( byval res as const PGresult ptr, byval field_num as int32 ) as zstring ptr
+declare function PQfnumber( byval res as const PGresult ptr, byval field_name as const zstring ptr ) as int32
+declare function PQftable( byval res as const PGresult ptr, byval field_num as int32 ) as Oid
+declare function PQftablecol( byval res as const PGresult ptr, byval field_num as int32 ) as int32
+declare function PQfformat( byval res as const PGresult ptr, byval field_num as int32 ) as int32
+declare function PQftype( byval res as const PGresult ptr, byval field_num as int32 ) as Oid
+declare function PQfsize( byval res as const PGresult ptr, byval field_num as int32 ) as int32
+declare function PQfmod( byval res as const PGresult ptr, byval field_num as int32 ) as int32
+declare function PQcmdStatus( byval res as PGresult ptr ) as zstring ptr
+declare function PQoidStatus( byval res as const PGresult ptr ) as zstring ptr /' old and ugly '/
+declare function PQoidValue( byval res as const PGresult ptr ) as Oid /' new and improved '/
+declare function PQcmdTuples( byval res as PGresult ptr ) as zstring ptr
+declare function PQgetvalue( byval res as const PGresult ptr, byval tup_num as int32, byval field_num as int32 ) as zstring ptr
+declare function PQgetlength( byval res as const PGresult ptr, byval tup_num as int32, byval field_num as int32 ) as int32
+declare function PQgetisnull( byval res as const PGresult ptr, byval tup_num as int32, byval field_num as int32 ) as int32
+declare function PQnparams( byval res as const PGresult ptr ) as int32
+declare function PQparamtype( byval res as const PGresult ptr, byval param_num as int32 ) as Oid
+
+/' Describe prepared statements and portals '/
+declare function PQdescribePrepared( byval conn as PGconn ptr, byval stmt as const zstring ptr ) as PGresult ptr
+declare function PQdescribePortal( byval conn as PGconn ptr, byval portal as const zstring ptr ) as PGresult ptr
+declare function PQsendDescribePrepared( byval conn as PGconn ptr, byval stmt as const zstring ptr ) as int32
+declare function PQsendDescribePortal( byval conn as PGconn ptr, byval portal as const zstring ptr ) as int32
+
+/' Close prepared statements and portals '/
+declare function PQclosePrepared( byval conn as PGconn ptr, byval stmt as const zstring ptr ) as PGresult ptr
+declare function PQclosePortal( byval conn as PGconn ptr, byval portal as const zstring ptr ) as PGresult ptr
+declare function PQsendClosePrepared( byval conn as PGconn ptr, byval stmt as const zstring ptr ) as int32
+declare function PQsendClosePortal( byval conn as PGconn ptr, byval portal as const zstring ptr ) as int32
+
+/' Delete a PGresult '/
+declare sub PQclear( byval res as PGresult ptr )
+
+/' For freeing other alloc'd results, such as PGnotify structs '/
+declare sub PQfreemem( byval ptr_ as any ptr )
+
+/' Exists for backward compatibility.  bjm 2003-03-24 '/
+#define PQfreeNotify(ptr) PQfreemem((ptr))
+
+/' Error when no password was given. '/
+/' Note: depending on this is deprecated; use PQconnectionNeedsPassword(). '/
+#define PQnoPasswordSupplied !"fe_sendauth: no password supplied\n"
+
+/' Create and manipulate PGresults '/
+declare function PQmakeEmptyPGresult( byval conn as PGconn ptr, byval status as ExecStatusType ) as PGresult ptr
+declare function PQcopyResult( byval src as const PGresult ptr, byval flags as int32 ) as PGresult ptr
+declare function PQsetResultAttrs( byval res as PGresult ptr, byval numAttributes as int32, byval attDescs as PGresAttDesc_2 ptr ) as int32
+declare function PQresultAlloc( byval res as PGresult ptr, byval nBytes as uinteger ) as any ptr
+declare function PQresultMemorySize( byval res as const PGresult ptr ) as uinteger
+declare function PQsetvalue( byval res as PGresult ptr, byval tup_num as int32, byval field_num as int32, byval value as zstring ptr, byval len_ as int32 ) as int32
+
+/' Quoting strings before inclusion in queries. '/
+declare function PQescapeStringConn( byval conn as PGconn ptr, _
+								 byval to_ as zstring ptr, byval from as const zstring ptr, byval length as uinteger, _
+								 byval error_ as int32 ptr ) as uinteger
+declare function PQescapeLiteral( byval conn as PGconn ptr, byval str_ as const zstring ptr, byval len_ as uinteger ) as zstring ptr
+declare function PQescapeIdentifier( byval conn as PGconn ptr, byval str_ as const zstring ptr, byval len_ as uinteger ) as zstring ptr
+declare function PQescapeByteaConn( byval conn as PGconn ptr, _
+										byval from as const uint8 ptr, byval from_length as uinteger, _
+										byval to_length as uinteger ptr ) as uint8 ptr
+declare function PQunescapeBytea( byval strtext as const uint8 ptr, _
+									  byval retbuflen as uinteger ptr ) as uint8 ptr
+
+/' These forms are deprecated! '/
+declare function PQescapeString( byval to_ as zstring ptr, byval from as const zstring ptr, byval length as uinteger ) as uinteger
+declare function PQescapeBytea( byval from as const uint8 ptr, byval from_length as uinteger, _
+									byval to_length as uinteger ptr ) as uint8 ptr
+
+
+
+/' === in fe-print.c === '/
+
+declare sub PQprint( byval fout as FILE ptr, _ /' output stream '/
+					byval res as const PGresult ptr, _
+					byval po as const PQprintOpt ptr ) /' option structure '/
+
+/'
+ * really old printing routines
+ '/
+declare sub PQdisplayTuples( byval res as const PGresult ptr, _
+							byval fp as FILE ptr, _ /' where to send the output '/
+							byval fillAlign as int32, _ /' pad the fields with spaces '/
+							byval fieldSep as const zstring ptr, _ /' field separator '/
+							byval printHeader as int32, _ /' display headers? '/
+							byval quiet as int32 )
+
+declare sub PQprintTuples( byval res as const PGresult ptr, _
+						  byval fout as FILE ptr, _ /' output stream '/
+						  byval PrintAttNames as int32, _ /' print attribute names '/
+						  byval TerseOutput as int32, _ /' delimiter bars '/
+						  byval colWidth as int32 )
+
+
+/' === in fe-lobj.c === '/
+
+/' Large-object access routines '/
+declare function lo_open( byval conn as PGconn ptr, byval lobjId as Oid, byval mode as int32 ) as int32
+declare function lo_close( byval conn as PGconn ptr, byval fd as int32 ) as int32
+declare function lo_read( byval conn as PGconn ptr, byval fd as int32, byval buf as zstring ptr, byval len_ as uinteger ) as int32
+declare function lo_write( byval conn as PGconn ptr, byval fd as int32, byval buf as const zstring ptr, byval len_ as uinteger ) as int32
+declare function lo_lseek( byval conn as PGconn ptr, byval fd as int32, byval offset as int32, byval whence as int32 ) as int32
+declare function lo_lseek64( byval conn as PGconn ptr, byval fd as int32, byval offset as int64, byval whence as int32 ) as int64
+declare function lo_creat( byval conn as PGconn ptr, byval mode as int32 ) as Oid
+declare function lo_create( byval conn as PGconn ptr, byval lobjId as Oid ) as Oid
+declare function lo_tell( byval conn as PGconn ptr, byval fd as int32 ) as int32
+declare function lo_tell64( byval conn as PGconn ptr, byval fd as int32 ) as int64
+declare function lo_truncate( byval conn as PGconn ptr, byval fd as int32, byval len_ as uinteger ) as int32
+declare function lo_truncate64( byval conn as PGconn ptr, byval fd as int32, byval len_ as int64 ) as int32
+declare function lo_unlink( byval conn as PGconn ptr, byval lobjId as Oid ) as int32
+declare function lo_import( byval conn as PGconn ptr, byval filename as const zstring ptr ) as Oid
+declare function lo_import_with_oid( byval conn as PGconn ptr, byval filename as const zstring ptr, byval lobjId as Oid ) as Oid
+declare function lo_export( byval conn as PGconn ptr, byval lobjId as Oid, byval filename as const zstring ptr ) as int32
+
+/' === in fe-misc.c === '/
+
+/' Get the version of the libpq library in use '/
+declare function PQlibVersion( ) as int32
+
+/' Poll a socket for reading and/or writing with an optional timeout '/
+declare function PQsocketPoll( byval sock as int32, byval forRead as int32, byval forWrite as int32, _
+						 byval end_time as pg_usec_time_t ) as int32
+
+/' Get current time in the form PQsocketPoll wants '/
+declare function PQgetCurrentTimeUSec( ) as pg_usec_time_t
+
+/' Determine length of multibyte encoded char at *s '/
+declare function PQmblen( byval s as const zstring ptr, byval encoding_ as int32 ) as int32
+
+/' Same, but not more than the distance to the end of string s '/
+declare function PQmblenBounded( byval s as const zstring ptr, byval encoding_ as int32 ) as int32
+
+/' Determine display length of multibyte encoded char at *s '/
+declare function PQdsplen( byval s as const zstring ptr, byval encoding_ as int32 ) as int32
+
+/' Get encoding id from environment variable PGCLIENTENCODING '/
+declare function PQenv2encoding( ) as int32
+
+/' === in fe-auth.c === '/
+
+/' Authdata for PQAUTHDATA_PROMPT_OAUTH_DEVICE '/
+type _PGpromptOAuthDevice
+	verification_uri as const zstring ptr /' verification URI to visit '/
+	user_code as const zstring ptr  /' user code to enter '/
+	verification_uri_complete as const zstring ptr /' optional combination of URI and
+											 * code, or NULL '/
+	expires_in as int32  /' seconds until user code expires '/
+end type
+type PGpromptOAuthDevice as _PGpromptOAuthDevice
+
+/'
+ * For PGoauthBearerRequest.async(). This macro just allows clients to avoid
+ * depending on libpq-int.h or Winsock for the "socket" type; it's undefined
+ * immediately below.
+ '/
+#ifdef TIKO_OS_WINDOWS
+#define PQ_SOCKTYPE uintptr_t /' avoids depending on winsock2.h for SOCKET '/
+#else
+'' C2T-TODO(macro) libpq-fe.h:767 -- 'PQ_SOCKTYPE': 'int' is nothing tiko declares
+'' #define PQ_SOCKTYPE int
+#endif
+
+/' Authdata for PQAUTHDATA_OAUTH_BEARER_TOKEN '/
+#if defined(TIKO_OS_WINDOWS)
+type PGoauthBearerRequest
+	/' Hook inputs (constant across all calls) '/
+	openid_configuration as const zstring ptr /' OIDC discovery URI '/
+	scope as const zstring ptr   /' required scope(s), or NULL '/
+
+	/' Hook outputs '/
+
+	/'---------
+	 * Callback implementing a custom asynchronous OAuth flow.
+	 *
+	 * The callback may return
+	 * - PGRES_POLLING_READING/WRITING, to indicate that a socket descriptor
+	 *   has been stored in *altsock and libpq should wait until it is
+	 *   readable or writable before calling back;
+	 * - PGRES_POLLING_OK, to indicate that the flow is complete and
+	 *   request->token has been set; or
+	 * - PGRES_POLLING_FAILED, to indicate that token retrieval has failed.
+	 *
+	 * This callback is optional. If the token can be obtained without
+	 * blocking during the original call to the PQAUTHDATA_OAUTH_BEARER_TOKEN
+	 * hook, it may be returned directly, but one of request->async or
+	 * request->token must be set by the hook.
+	 *
+	 * The (PQ_SOCKTYPE *) in the signature is a placeholder for the platform's
+	 * native socket type: (SOCKET *) on Windows, and (int *) everywhere else.
+	 '/
+	async as function cdecl( byval as PGconn ptr, byval as PGoauthBearerRequest ptr, byval as uinteger ptr ) as PostgresPollingStatusType
+
+	/'
+	 * Callback to clean up custom allocations. A hook implementation may use
+	 * this to free request->token and any resources in request->user. V2
+	 * implementations should additionally free request->error, if set.
+	 *
+	 * This is technically optional, but highly recommended, because there is
+	 * no other indication as to when it is safe to free the token.
+	 '/
+	cleanup as sub cdecl( byval as PGconn ptr, byval as PGoauthBearerRequest ptr )
+
+	/'
+	 * The hook should set this to the Bearer token contents for the
+	 * connection, once the flow is completed.  The token contents must remain
+	 * available to libpq until the hook's cleanup callback is called.
+	 '/
+	token as zstring ptr
+
+	/'
+	 * Hook-defined data. libpq will not modify this pointer across calls to
+	 * the async callback, so it can be used to keep track of
+	 * application-specific state. Resources allocated here should be freed by
+	 * the cleanup callback.
+	 '/
+	user as any ptr
+end type
+#elseif not (defined(TIKO_OS_WINDOWS))
+type PGoauthBearerRequest
+	/' Hook inputs (constant across all calls) '/
+	openid_configuration as const zstring ptr /' OIDC discovery URI '/
+	scope as const zstring ptr   /' required scope(s), or NULL '/
+
+	/' Hook outputs '/
+
+	/'---------
+	 * Callback implementing a custom asynchronous OAuth flow.
+	 *
+	 * The callback may return
+	 * - PGRES_POLLING_READING/WRITING, to indicate that a socket descriptor
+	 *   has been stored in *altsock and libpq should wait until it is
+	 *   readable or writable before calling back;
+	 * - PGRES_POLLING_OK, to indicate that the flow is complete and
+	 *   request->token has been set; or
+	 * - PGRES_POLLING_FAILED, to indicate that token retrieval has failed.
+	 *
+	 * This callback is optional. If the token can be obtained without
+	 * blocking during the original call to the PQAUTHDATA_OAUTH_BEARER_TOKEN
+	 * hook, it may be returned directly, but one of request->async or
+	 * request->token must be set by the hook.
+	 *
+	 * The (PQ_SOCKTYPE *) in the signature is a placeholder for the platform's
+	 * native socket type: (SOCKET *) on Windows, and (int *) everywhere else.
+	 '/
+	async as function cdecl( byval as PGconn ptr, byval as PGoauthBearerRequest ptr, byval as int32 ptr ) as PostgresPollingStatusType
+
+	/'
+	 * Callback to clean up custom allocations. A hook implementation may use
+	 * this to free request->token and any resources in request->user. V2
+	 * implementations should additionally free request->error, if set.
+	 *
+	 * This is technically optional, but highly recommended, because there is
+	 * no other indication as to when it is safe to free the token.
+	 '/
+	cleanup as sub cdecl( byval as PGconn ptr, byval as PGoauthBearerRequest ptr )
+
+	/'
+	 * The hook should set this to the Bearer token contents for the
+	 * connection, once the flow is completed.  The token contents must remain
+	 * available to libpq until the hook's cleanup callback is called.
+	 '/
+	token as zstring ptr
+
+	/'
+	 * Hook-defined data. libpq will not modify this pointer across calls to
+	 * the async callback, so it can be used to keep track of
+	 * application-specific state. Resources allocated here should be freed by
+	 * the cleanup callback.
+	 '/
+	user as any ptr
+end type
+#endif
+
+#undef PQ_SOCKTYPE
+
+/' Authdata for PQAUTHDATA_OAUTH_BEARER_TOKEN_V2 '/
+type PGoauthBearerRequestV2
+	v1 as PGoauthBearerRequest /' see the PGoauthBearerRequest struct, above '/
+
+	/' Hook inputs (constant across all calls) '/
+	issuer as const zstring ptr   /' the issuer identifier (RFC 9207) in use, as
+								 * derived from the connection's oauth_issuer '/
+
+	/' Hook outputs '/
+
+	/'
+	 * Hook-defined error message which will be included in the connection's
+	 * PQerrorMessage() output when the flow fails. libpq does not take
+	 * ownership of this pointer; any allocations should be freed during the
+	 * cleanup callback.
+	 '/
+	error as const zstring ptr
+end type
+
+declare function PQencryptPassword( byval passwd as const zstring ptr, byval user as const zstring ptr ) as zstring ptr
+declare function PQencryptPasswordConn( byval conn as PGconn ptr, byval passwd as const zstring ptr, byval user as const zstring ptr, byval algorithm as const zstring ptr ) as zstring ptr
+declare function PQchangePassword( byval conn as PGconn ptr, byval user as const zstring ptr, byval passwd as const zstring ptr ) as PGresult ptr
+
+type PQauthDataHook_type as function cdecl( byval as PGauthData, byval as PGconn ptr, byval as any ptr ) as int32
+declare sub PQsetAuthDataHook( byval hook as PQauthDataHook_type )
+declare function PQgetAuthDataHook( ) as PQauthDataHook_type
+declare function PQdefaultAuthDataHook( byval type_ as PGauthData, byval conn as PGconn ptr, byval data_ as any ptr ) as int32
+
+/' === in encnames.c === '/
+
+declare function pg_char_to_encoding( byval name_ as const zstring ptr ) as int32
+declare function pg_encoding_to_char( byval encoding_ as int32 ) as const zstring ptr
+declare function pg_valid_server_encoding_id( byval encoding_ as int32 ) as int32
+
+/' === in fe-secure-openssl.c === '/
+
+/' Support for overriding sslpassword handling with a callback '/
+type PQsslKeyPassHook_OpenSSL_type as function cdecl( byval as zstring ptr, byval as int32, byval as PGconn ptr ) as int32
+declare function PQgetSSLKeyPassHook_OpenSSL( ) as PQsslKeyPassHook_OpenSSL_type
+declare sub PQsetSSLKeyPassHook_OpenSSL( byval hook as PQsslKeyPassHook_OpenSSL_type )
+declare function PQdefaultSSLKeyPassHook_OpenSSL( byval buf as zstring ptr, byval size as int32, byval conn as PGconn ptr ) as int32
+
+end extern
+

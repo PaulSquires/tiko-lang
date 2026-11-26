@@ -1,0 +1,49 @@
+'' connect -- open a PostgreSQL connection, check it, and report what it is: the server's
+'' version, the TLS in use, the session's encoding. Then a connection that cannot work, to show
+'' where libpq puts the reason.
+''
+''     TIKO_PG_DSN="host=db.example.com dbname=app user=app sslmode=verify-full sslrootcert=ca.crt" connect
+''
+'' The connection string is libpq's own (keyword=value pairs, or a postgresql:// URI). With
+'' TIKO_PG_DSN unset the program says so and exits 0. Build it with 'tiko connect.tiko'.
+
+'' libpq linked DYNAMICALLY: libpq.dll (libpq_linux_x86_64.so on Linux) is copied beside the
+'' program, OpenSSL inside it. Write 'link static' to build libpq into the program instead.
+#import "vendor/libpq" link dynamic
+
+'' libpq's version numbers are major * 10000 + minor (190000 is 19.0, 140024 is 14.24).
+function Version( byval v as int32 ) as string
+    return str( v \ 10000 ) & "." & str( v mod 10000 )
+end function
+
+dim as string dsn = environ( "TIKO_PG_DSN" )
+if len( dsn ) = 0 then
+    print "skipped: set TIKO_PG_DSN to a libpq connection string"
+    end 0
+end if
+
+print "libpq    "; Version( PQlibVersion( ) )
+
+'' PQconnectdb always returns a connection object -- also when it failed -- and it always needs
+'' PQfinish. PQstatus says which; PQerrorMessage why.
+dim as PGconn ptr c = PQconnectdb( dsn )
+if PQstatus( c ) <> CONNECTION_OK then
+    print "connection failed: "; *PQerrorMessage( c )
+    PQfinish( c )
+    end 1
+end if
+
+print "server   "; Version( PQserverVersion( c ) )
+print "database "; *PQdb( c ); " as "; *PQuser( c ); " on "; *PQhost( c ); ":"; *PQport( c )
+print "encoding "; *PQparameterStatus( c, "server_encoding" ); " (server), "; *PQparameterStatus( c, "client_encoding" ); " (client)"
+if PQsslInUse( c ) then
+    print "tls      "; *PQsslAttribute( c, "protocol" ); " "; *PQsslAttribute( c, "cipher" )
+else
+    print "tls      none -- add sslmode=verify-full to the connection string"
+end if
+PQfinish( c )
+
+'' A port nothing listens on: the reason is in PQerrorMessage, ending in a newline.
+c = PQconnectdb( "host=127.0.0.1 port=1 connect_timeout=2" )
+print "bad port "; iif( PQstatus( c ) = CONNECTION_BAD, "CONNECTION_BAD", "?" ); " -- "; rtrim( *PQerrorMessage( c ), !"\n" )
+PQfinish( c )

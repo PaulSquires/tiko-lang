@@ -1,0 +1,56 @@
+'' copy -- COPY, PostgreSQL's bulk path: rows streamed into a table with PQputCopyData, far
+'' faster than an INSERT each, and streamed back out with PQgetCopyData.
+''
+''     TIKO_PG_DSN="host=localhost dbname=app user=app" copy
+''
+'' With TIKO_PG_DSN unset the program says so and exits 0. Build it with 'tiko copy.tiko'.
+#import "vendor/libpq" link dynamic
+
+dim as string dsn = environ( "TIKO_PG_DSN" )
+if len( dsn ) = 0 then
+    print "skipped: set TIKO_PG_DSN to a libpq connection string"
+    end 0
+end if
+dim as PGconn ptr c = PQconnectdb( dsn )
+if PQstatus( c ) <> CONNECTION_OK then print *PQerrorMessage( c ) : PQfinish( c ) : end 1
+
+PQclear( PQexec( c, "create temp table reading (at int, celsius real)" ) )
+
+'' IN: the statement answers PGRES_COPY_IN, then the data goes in text format -- a tab between
+'' columns, a newline after each row, \N for NULL -- in pieces of any size, then PQputCopyEnd.
+'' The statement's own result comes after, from PQgetResult.
+dim as PGresult ptr r = PQexec( c, "copy reading from stdin" )
+if PQresultStatus( r ) <> PGRES_COPY_IN then print *PQresultErrorMessage( r ) : end 1
+PQclear( r )
+dim as string chunk
+for i as int32 = 0 to 9999
+    chunk &= str( i ) & !"\t" & iif( i mod 1000 = 999, "\N", str( 20 + ( i mod 7 ) / 2 ) ) & !"\n"
+    if len( chunk ) > 8192 orelse i = 9999 then
+        if PQputCopyData( c, strptr( chunk ), len( chunk ) ) <> 1 then print *PQerrorMessage( c ) : end 1
+        chunk = ""
+    end if
+next
+if PQputCopyEnd( c, nullptr ) <> 1 then print *PQerrorMessage( c ) : end 1
+r = PQgetResult( c )
+print "copy in  "; *PQcmdStatus( r ); " -- "; iif( PQresultStatus( r ) = PGRES_COMMAND_OK, "ok", *PQresultErrorMessage( r ) )
+PQclear( r )
+PQclear( PQgetResult( c ) )      ' nullptr: the command is over
+
+r = PQexec( c, "select count(*), count(celsius), round(avg(celsius)::numeric, 3) from reading" )
+print "rows     "; *PQgetvalue( r, 0, 0 ); ", with a value "; *PQgetvalue( r, 0, 1 ); ", mean "; *PQgetvalue( r, 0, 2 )
+PQclear( r )
+
+'' OUT: PGRES_COPY_OUT, then one row per PQgetCopyData -- a buffer libpq allocates and the
+'' program frees with PQfreemem -- until it returns -1.
+PQclear( PQexec( c, "copy (select * from reading where at < 3 or celsius is null order by at limit 5) to stdout with (format csv, header)" ) )
+dim as zstring ptr buf
+dim as int32 n = PQgetCopyData( c, @buf, 0 )
+while n > 0
+    print "  "; rtrim( left( *buf, n ), !"\n" )
+    PQfreemem( buf )
+    n = PQgetCopyData( c, @buf, 0 )
+wend
+r = PQgetResult( c )
+print "copy out "; *PQcmdStatus( r )
+PQclear( r )
+PQfinish( c )
