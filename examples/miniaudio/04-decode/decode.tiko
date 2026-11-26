@@ -1,0 +1,87 @@
+'' decode -- sound files to samples with no device at all: ma_decoder reads WAV, FLAC, MP3 and Ogg
+'' Vorbis, converting to the format asked for (32-bit float here). Then the engine on miniaudio's
+'' NULL backend -- a device that consumes audio in real time and plays it nowhere -- to show the
+'' whole playback path running on a machine with no sound card.
+''
+'' It checks what it finds, and exits 1 if anything is off: each of ../media's four files is one
+'' second of the same 440 Hz stereo tone, so each must decode to 44100 frames of 2 channels; the
+'' two lossless ones (WAV, FLAC) to exactly the same samples; the two lossy ones close to them.
+''
+'' Build it with 'tiko decode.tiko'; run 'decode'.
+''
+'' miniaudio is public domain or MIT-0 (pkg/vendor/miniaudio/LICENSE); so is this.
+#import "vendor/miniaudio" link dynamic
+
+dim shared as integer g_failed
+
+sub Check( byval ok as boolean, byref what as const string )
+    print iif( ok, "  ok    ", "  FAIL  " ); what
+    if ok = false then g_failed += 1
+end sub
+
+'' One file's samples, summed as energy (the sum of squares), with its frame count.
+function Decode( byref path as const string, byref frames as ma_uint64, byref channels as ma_uint32, _
+                 byref rate as ma_uint32 ) as float64
+    dim as ma_decoder_config config = ma_decoder_config_init( ma_format_f32, 0, 0 )   '' 0: the file's own
+    dim as ma_decoder decoder
+    dim as ma_result r = ma_decoder_init_file( path, @config, @decoder )
+    if r <> MA_SUCCESS then print "  cannot decode "; path; ": "; *ma_result_description( r ) : return -1
+    dim as ma_format format
+    ma_decoder_get_data_format( @decoder, @format, @channels, @rate, nullptr, 0 )
+    dim as float32 buffer(0 to 4096 * 8 - 1)          '' 4096 frames of up to 8 channels
+    dim as float64 energy = 0
+    dim as ma_uint64 got
+    frames = 0
+    do
+        got = 0
+        ma_decoder_read_pcm_frames( @decoder, @buffer(0), 4096, @got )
+        '' 1 to n, not 0 to n - 1: got is unsigned, and 0 - 1 is its maximum.
+        for i as ma_uint64 = 1 to got * channels
+            energy += cast( float64, buffer(i - 1) ) * buffer(i - 1)
+        next
+        frames += got
+    loop while got > 0
+    ma_decoder_uninit( @decoder )
+    return energy
+end function
+
+dim as string media = exepath( ) & "/../media/"
+dim as string names(0 to 3) = { "tone.wav", "tone.flac", "tone.mp3", "tone.ogg" }
+dim as float64 energy(0 to 3)
+print "decoding ("; *ma_version_string( ); ")"
+for i as integer = 0 to 3
+    dim as ma_uint64 frames
+    dim as ma_uint32 channels, rate
+    energy(i) = Decode( media & names(i), frames, channels, rate )
+    print "  " & names(i) & ": " & frames & " frames, " & channels & " channels, " & rate & " Hz, energy " & energy(i)
+    Check( frames = 44100 andalso channels = 2 andalso rate = 44100, names(i) & " is 44100 frames of 2 channels at 44100 Hz" )
+next
+Check( energy(0) = energy(1), "WAV and FLAC decode to the same samples" )
+for i as integer = 2 to 3
+    Check( abs( energy(i) / energy(0) - 1 ) < 0.15, names(i) & " is within 15% of the WAV's energy" )
+next
+
+'' THE NULL BACKEND: a context limited to it, an engine on that context, and a sound played to its
+'' end -- one second, in real time.
+print "playing on the null backend"
+dim as ma_backend backends(0 to 0) = { ma_backend_null }
+dim as ma_context context
+Check( ma_context_init( @backends(0), 1, nullptr, @context ) = MA_SUCCESS, "a null-backend context" )
+dim as ma_engine_config config = ma_engine_config_init( )
+config.pContext = @context
+dim as ma_engine engine
+Check( ma_engine_init( @config, @engine ) = MA_SUCCESS, "an engine on it" )
+dim as ma_sound snd
+Check( ma_sound_init_from_file( @engine, media & "tone.ogg", 0, nullptr, nullptr, @snd ) = MA_SUCCESS, "tone.ogg loaded" )
+ma_sound_start( @snd )
+dim as float64 started = timer
+while ma_sound_at_end( @snd ) = 0 andalso timer - started < 5
+    sleep 20, 1
+wend
+Check( ma_sound_at_end( @snd ) <> 0, "played to its end, in " & str( int( (timer - started) * 10 ) / 10 ) & " s" )
+ma_sound_uninit( @snd )
+ma_engine_uninit( @engine )
+ma_context_uninit( @context )
+
+print iif( g_failed = 0, "all ok", g_failed & " FAILED" )
+end iif( g_failed = 0, 0, 1 )

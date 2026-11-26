@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/miniaudio HEADER: miniaudio.ti, translated by 'tiko c2t' from miniaudio
+'' 0.11.26's miniaudio.h as src/prepare.py makes it, and its residue, compile for linux-x86_64 as an
+'' importer reads them. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vminiaudio/hdr.tiko -o build/.vmah-linux-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vmah-linux-x86_64.o
