@@ -463,7 +463,8 @@ rm -rf "$OUT"/pkg/vendor/*/patches     # fetch.toml's too: vendorfetch.sh reads 
 # tree's build output is not shipped, only its source and what vendorfetch.sh copies to lib/.
 rm -rf "$OUT/pkg/vendor/tkControls/fonts" "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/bin" \
        "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/out" "$OUT/pkg/vendor/SDL3/static/bin" \
-       "$OUT/pkg/vendor/raylib6/shared/bin" "$OUT/pkg/vendor/libpq/build/bin"
+       "$OUT/pkg/vendor/raylib6/shared/bin" "$OUT/pkg/vendor/libpq/build/bin" \
+       "$OUT/pkg/vendor/mariadb/build/bin"
 sh "$ROOT/build/vendorfetch.sh" --out "$OUT/pkg" || die "vendorfetch.sh failed: the vendor packages have no binaries"
 for t in $TARGETS; do
     is_android "$t" || continue

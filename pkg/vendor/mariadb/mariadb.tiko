@@ -1,0 +1,47 @@
+'' vendor/mariadb -- MariaDB Connector/C 3.4.11, the C client library for MySQL and MariaDB
+'' servers (the mysql.h API), as one import:
+''
+''     #import "vendor/mariadb" link dynamic        (or no 'link': there is only a shared library)
+''
+'' Every routine, type and constant of mysql.h is then callable as MariaDB and MySQL document
+'' it, unqualified -- mysql_init, mysql_real_connect, mysql_stmt_prepare, MYSQL_BIND,
+'' MYSQL_OPT_SSL_CA. It connects to MariaDB and to MySQL 5.7, 8 and later: every login plugin
+'' is built in -- mysql_native_password, caching_sha2_password (MySQL 8's default) and
+'' sha256_password, client_ed25519 and parsec (MariaDB's).
+''
+'' THE HEADER is mariadb.ti, translated by 'tiko c2t' and committed. mysql.h is six headers
+'' that only work together, so flatten.py first writes them as one -- mariadb.h, the file the
+'' banner names by SHA-256 -- and c2t translates that. mariadb-residue.ti holds by hand what the
+'' translation could not carry; above all MYSQL, which is OPAQUE here: hold the MYSQL ptr that
+'' mysql_init returns and ask the API for what is in it.
+''
+'' A query with a parameter, through a prepared statement -- never splice values into SQL text:
+''
+''     dim as MYSQL ptr m = mysql_init( nullptr )
+''     if mysql_real_connect( m, "db.example.com", "app", pw, "app", 3306, nullptr, 0 ) = nullptr then
+''         print *mysql_error( m ) : end 1
+''     end if
+''     mysql_set_character_set( m, "utf8mb4" )
+''     dim as MYSQL_STMT ptr st = mysql_stmt_init( m )
+''     dim as string sql = "update item set price = ? where id = ?"
+''     mysql_stmt_prepare( st, strptr( sql ), len( sql ) )
+''     ... a MYSQL_BIND per '?', mysql_stmt_bind_param, mysql_stmt_execute ...
+''     mysql_stmt_close( st ) : mysql_close( m )
+''
+'' What the library allocates, the library frees: mysql_close (also after a failed connect),
+'' mysql_free_result, mysql_stmt_close. A MYSQL_ROW lives as long as its MYSQL_RES.
+''
+'' TLS: Connector/C 3.4 uses TLS whenever the server offers it, and checks the server's
+'' certificate against MYSQL_OPT_SSL_CA when that is set (with MYSQL_OPT_SSL_VERIFY_SERVER_CERT).
+'' On Windows it is Schannel's; on Linux, OpenSSL's, inside the library -- nothing else to ship.
+''
+'' THE LIBRARY is shared only -- Connector/C is LGPL-2.1, so a program's user must be able to
+'' replace it -- and tiko copies it beside the program: libmariadb.dll on Windows,
+'' libmariadb_linux_x86_64.so on Linux. 'link static' is refused (pkg/vendor/tiko.toml). macOS and
+'' linux-arm64 have no library yet (claude-docs docs/tiko-vendor RFC-0003 P4).
+#module "mariadb"
+
+public #include once "mariadb-residue.ti"
+public #include once "mariadb.ti"
+
+#foreignlib MARIADB dynamic "lib/libmariadb"
