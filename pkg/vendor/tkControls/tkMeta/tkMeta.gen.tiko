@@ -3867,6 +3867,13 @@ private function C_Chart( byval hParent as TK_WIDGET ptr, byval id as int32, byr
     case "Column" : return tkChart_Create( hParent, id, TKCHART_TYPE_COLUMN )
     case "Hloc" : return tkChart_Create( hParent, id, TKCHART_TYPE_HLOC )
     case "Pie" : return tkChart_Create( hParent, id, TKCHART_TYPE_PIE )
+    case "Area" : return tkChart_Create( hParent, id, TKCHART_TYPE_AREA )
+    case "Scatter" : return tkChart_Create( hParent, id, TKCHART_TYPE_SCATTER )
+    case "Bubble" : return tkChart_Create( hParent, id, TKCHART_TYPE_BUBBLE )
+    case "Donut" : return tkChart_Create( hParent, id, TKCHART_TYPE_DONUT )
+    case "Bar" : return tkChart_Create( hParent, id, TKCHART_TYPE_BAR )
+    case "Combo" : return tkChart_Create( hParent, id, TKCHART_TYPE_COMBO )
+    case "Candlestick" : return tkChart_Create( hParent, id, TKCHART_TYPE_CANDLESTICK )
     end select
     return tkChart_Create( hParent, id )
 end function
@@ -3912,6 +3919,7 @@ private sub A_Chart_ColumnMode( byval w as TK_WIDGET ptr, byref v as const ustri
     select case v
     case "Grouped" : tkChart_SetColumnMode( w, CHT_COL_GROUPED )
     case "Stacked" : tkChart_SetColumnMode( w, CHT_COL_STACKED )
+    case "Percent" : tkChart_SetColumnMode( w, CHT_COL_PERCENT )
     end select
 end sub
 
@@ -3919,6 +3927,7 @@ private function R_Chart_ColumnMode( byval w as TK_WIDGET ptr ) as ustring
     select case tkChart_GetColumnMode( w )
     case CHT_COL_GROUPED : return "Grouped"
     case CHT_COL_STACKED : return "Stacked"
+    case CHT_COL_PERCENT : return "Percent"
     end select
     return ""
 end function
@@ -4005,6 +4014,46 @@ private sub A_Chart_PieSliceGap( byval w as TK_WIDGET ptr, byref v as const ustr
     tkChart_SetPieSliceGap( w, clng( val( v ) ) )
 end sub
 
+private sub A_Chart_CenterText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetCenterText( w, v )
+end sub
+
+private function R_Chart_CenterText( byval w as TK_WIDGET ptr ) as ustring
+    return tkChart_GetCenterText( w )
+end function
+
+private sub A_Chart_CenterTotal( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetCenterTotal( w, cbool( v = "true" ) )
+end sub
+
+private function R_Chart_CenterTotal( byval w as TK_WIDGET ptr ) as ustring
+    if tkChart_GetCenterTotal( w ) then return "true" else return "false"
+end function
+
+private sub A_Chart_BubbleMaxSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetBubbleMaxSize( w, clng( val( v ) ) )
+end sub
+
+private function R_Chart_BubbleMaxSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkChart_GetBubbleMaxSize( w ) )
+end function
+
+private sub A_Chart_XAutoScale( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetXAutoScale( w, cbool( v = "true" ) )
+end sub
+
+private function R_Chart_XAutoScale( byval w as TK_WIDGET ptr ) as ustring
+    if tkChart_GetXAutoScale( w ) then return "true" else return "false"
+end function
+
+private sub A_Chart_SecondaryAutoScale( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetSecondaryAutoScale( w, cbool( v = "true" ) )
+end sub
+
+private function R_Chart_SecondaryAutoScale( byval w as TK_WIDGET ptr ) as ustring
+    if tkChart_GetSecondaryAutoScale( w ) then return "true" else return "false"
+end function
+
 private sub A_Chart_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkChart_SetTooltipText( w, v )
 end sub
@@ -4019,6 +4068,14 @@ end sub
 
 private sub A_Chart_ValueRange( byval w as TK_WIDGET ptr, byref v as const ustring )
     tkChart_SetValueRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Chart_XRange( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetXRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Chart_SecondaryValueRange( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkChart_SetSecondaryValueRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
 end sub
 
 private sub A_Chart_GridLines( byval w as TK_WIDGET ptr, byref v as const ustring )
@@ -7187,7 +7244,7 @@ sub Fill_( )
     Event_( "Scroll", "tkHScrollBar_SetScrollCallback", "HScrollCallbackSub", "byval hSB as TK_WIDGET ptr, byval newPos as integer", "byval newPos as integer", "newPos" )
     Event_( "Paint", "tkHScrollBar_SetPaintCallback", "HScrollPaintCallbackSub", "byval p as TKHSCROLLBAR_PAINTINFO ptr", "byval p as TKHSCROLLBAR_PAINTINFO ptr", "p", "p->hScrollBar", "", "" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
-    Add_( "Chart", "tkChart", "Other", 320, 220, "", "", @C_Chart, "ChartType", "enum", "Line=TKCHART_TYPE_LINE,Column=TKCHART_TYPE_COLUMN,Hloc=TKCHART_TYPE_HLOC,Pie=TKCHART_TYPE_PIE", "Line" )
+    Add_( "Chart", "tkChart", "Other", 320, 220, "", "", @C_Chart, "ChartType", "enum", "Line=TKCHART_TYPE_LINE,Column=TKCHART_TYPE_COLUMN,Hloc=TKCHART_TYPE_HLOC,Pie=TKCHART_TYPE_PIE,Area=TKCHART_TYPE_AREA,Scatter=TKCHART_TYPE_SCATTER,Bubble=TKCHART_TYPE_BUBBLE,Donut=TKCHART_TYPE_DONUT,Bar=TKCHART_TYPE_BAR,Combo=TKCHART_TYPE_COMBO,Candlestick=TKCHART_TYPE_CANDLESTICK", "Line" )
     Colors_( "TKCHART_COLORS", "tkChart_GetColors", "tkChart_ThemeColors", @G_Chart, @T_Chart )
     Color_( "BackColor", "Back", "Normal", "", false )
     Color_( "PlotBackColor", "", "", "", false )
@@ -7208,7 +7265,7 @@ sub Fill_( )
     Prop_( "Subtitle", "text", "", "", "tkChart_SetSubtitle", "tkChart_GetSubtitle", @A_Chart_Subtitle, @R_Chart_Subtitle, 0, true, true, "", 0 )
     Prop_( "LegendVisible", "bool", "true", "", "tkChart_SetLegendVisible", "", @A_Chart_LegendVisible, 0, 0, true, true, "", 0 )
     Prop_( "LegendPosition", "enum", "Bottom", "Bottom=CHT_LEGEND_BOTTOM,Top=CHT_LEGEND_TOP,Left=CHT_LEGEND_LEFT,Right=CHT_LEGEND_RIGHT", "tkChart_SetLegendPosition", "", @A_Chart_LegendPosition, 0, 0, true, true, "", 0 )
-    Prop_( "ColumnMode", "enum", "Grouped", "Grouped=CHT_COL_GROUPED,Stacked=CHT_COL_STACKED", "tkChart_SetColumnMode", "tkChart_GetColumnMode", @A_Chart_ColumnMode, @R_Chart_ColumnMode, 0, true, true, "", 0 )
+    Prop_( "ColumnMode", "enum", "Grouped", "Grouped=CHT_COL_GROUPED,Stacked=CHT_COL_STACKED,Percent=CHT_COL_PERCENT", "tkChart_SetColumnMode", "tkChart_GetColumnMode", @A_Chart_ColumnMode, @R_Chart_ColumnMode, 0, true, true, "", 0 )
     Prop_( "AutoScale", "bool", "true", "", "tkChart_SetAutoScale", "tkChart_GetAutoScale", @A_Chart_AutoScale, @R_Chart_AutoScale, 0, true, true, "", 0 )
     Prop_( "Font", "font", "", "", "tkChart_SetFont", "tkChart_GetFont", 0, 0, @F_Chart_Font, true, true, "", 0 )
     Prop_( "TickCountHint", "int", "", "", "tkChart_SetTickCountHint", "", @A_Chart_TickCountHint, 0, 0, true, true, "", 0 )
@@ -7225,9 +7282,16 @@ sub Fill_( )
     Prop_( "PieLabelPlacement", "enum", "", "Inside=CHT_PIEPLACE_INSIDE,Outside=CHT_PIEPLACE_OUTSIDE,Auto=CHT_PIEPLACE_AUTO", "tkChart_SetPieLabelPlacement", "", @A_Chart_PieLabelPlacement, 0, 0, true, true, "", 0 )
     Prop_( "PieStartAngle", "float", "", "", "tkChart_SetPieStartAngle", "", @A_Chart_PieStartAngle, 0, 0, true, true, "", 0 )
     Prop_( "PieSliceGap", "int", "", "", "tkChart_SetPieSliceGap", "", @A_Chart_PieSliceGap, 0, 0, true, true, "", 0 )
+    Prop_( "CenterText", "text", "", "", "tkChart_SetCenterText", "tkChart_GetCenterText", @A_Chart_CenterText, @R_Chart_CenterText, 0, true, true, "", 0 )
+    Prop_( "CenterTotal", "bool", "true", "", "tkChart_SetCenterTotal", "tkChart_GetCenterTotal", @A_Chart_CenterTotal, @R_Chart_CenterTotal, 0, true, true, "", 0 )
+    Prop_( "BubbleMaxSize", "int", "", "", "tkChart_SetBubbleMaxSize", "tkChart_GetBubbleMaxSize", @A_Chart_BubbleMaxSize, @R_Chart_BubbleMaxSize, 0, true, true, "", 0 )
+    Prop_( "XAutoScale", "bool", "true", "", "tkChart_SetXAutoScale", "tkChart_GetXAutoScale", @A_Chart_XAutoScale, @R_Chart_XAutoScale, 0, true, true, "", 0 )
+    Prop_( "SecondaryAutoScale", "bool", "true", "", "tkChart_SetSecondaryAutoScale", "tkChart_GetSecondaryAutoScale", @A_Chart_SecondaryAutoScale, @R_Chart_SecondaryAutoScale, 0, true, true, "", 0 )
     Prop_( "TooltipText", "text", "", "", "tkChart_SetTooltipText", "tkChart_GetTooltipText", @A_Chart_TooltipText, @R_Chart_TooltipText, 0, true, true, "", 0 )
     Prop_( "HoverTime", "int", "", "", "tkChart_SetHoverTime", "", @A_Chart_HoverTime, 0, 0, true, true, "", 0 )
     Prop_( "ValueRange", "list", "", "Lo:float,Hi:float", "tkChart_SetValueRange", "", @A_Chart_ValueRange, 0, 0, true, true, "", 0 )
+    Prop_( "XRange", "list", "", "Lo:float,Hi:float", "tkChart_SetXRange", "", @A_Chart_XRange, 0, 0, true, true, "", 0 )
+    Prop_( "SecondaryValueRange", "list", "", "Lo:float,Hi:float", "tkChart_SetSecondaryValueRange", "", @A_Chart_SecondaryValueRange, 0, 0, true, true, "", 0 )
     Prop_( "GridLines", "list", "", "Horz:bool,Vert:bool", "tkChart_SetGridLines", "", @A_Chart_GridLines, 0, 0, true, true, "", 0 )
     Prop_( "ValueFormat", "list", "", "Decimals:int,Thousands:bool", "tkChart_SetValueFormat", "", @A_Chart_ValueFormat, 0, 0, true, true, "", 0 )
     Event_( "HotChange", "tkChart_SetHotChangeCallback", "CHT_HotChangeCallbackSub", "byval hChart as TK_WIDGET ptr, byval iSeries as int32, byval iPoint as int32", "byval iSeries as int32, byval iPoint as int32", "iSeries, iPoint" )

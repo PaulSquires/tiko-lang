@@ -730,11 +730,281 @@ end sub
 
 
 ' ==========================================================================================
+' The types added after the port: AREA, SCATTER, BUBBLE, DONUT, BAR, COMBO, CANDLESTICK, and
+' the 100 % stack mode. Geometry against the formulas, pixels through the probes.
+function TextW( byval f as TTF_Font ptr, byref s as ustring ) as long
+    return tkText_Width( f, s )
+end function
+
+sub RunAdded( byval fScale as single )
+    tkTest_Begin( "added types, scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkChart selftest (added)", 900, 700, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, 14 )
+    tkTooltip_SetDefaultFonts( fText )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    dim as long W = tkHost_Scale( h, 600 ), HH = tkHost_Scale( h, 400 )
+    dim as long P = tkHost_Scale( h, 10 ), TICK = tkHost_Scale( h, 4 )
+    dim as long LH = tkText_Height( fText )
+    dim as TKCHART_COLORS cc
+    dim as TKRECT rc, rp
+    dim as TKPOINT a
+    dim as long iSr, iPn
+    dim as double lo, hi
+    const as ulong FILLC = &hFF00C000ul, MAG = &hFFFF00FFul
+
+    ' ---- AREA ---------------------------------------------------------------------------------
+    dim as TK_WIDGET ptr c = tkChart_Create( tkHost_Root( h ), 301, TKCHART_TYPE_AREA )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    dim as long s0 = tkChart_AddSeries( c, "A" ), s1 = tkChart_AddSeries( c, "B" )
+    for j as long = 0 to 3
+        tkChart_AddPoint( c, s0, "Q" & str( j + 1 ), 10 * (j + 1) )
+        tkChart_AddPoint( c, s1, "Q" & str( j + 1 ), 5 )
+    next
+    tkTest_Check( "AREA type", tkChart_GetChartType( c ) = TKCHART_TYPE_AREA )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "AREA range includes zero (0..40)", Near( lo, 0 ) andalso Near( hi, 40 ), lo & ".." & hi )
+    a = Anchor( c, s0, 2 )
+    rp = PlotR( c )
+    tkTest_Check( "AREA vertex at the slot centre and the value", a.x = rp.left + clng( 2.5 * csng( rp.right - rp.left ) / 4.0 ) andalso a.y = tkChart_ValueToY( c, 30 ) )
+    tkChart_SetSeriesFill( c, s0, FILLC, 255 )
+    dim as long yMid = (tkChart_ValueToY( c, 30 ) + tkChart_ValueToY( c, 5 )) \ 2
+    tkTest_Check( "AREA fills under its edge down to zero, not above", Pix( c, a.x, yMid ) = FILLC andalso Pix( c, a.x, a.y - tkHost_Scale( h, 8 ) ) <> FILLC, hex( Pix( c, a.x, yMid ) ) )
+    tkChart_SetColumnMode( c, CHT_COL_STACKED )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "stacked AREA: scaled by the totals (0..50)", Near( lo, 0 ) andalso Near( hi, 50 ), lo & ".." & hi )
+    tkTest_Check( "stacked AREA: B's vertex sits on A's", Anchor( c, s1, 2 ).y = tkChart_ValueToY( c, 35 ) )
+    tkTest_Check( "stacked AREA: A's fill reaches zero, B's from A's edge", Pix( c, a.x, (tkChart_ValueToY( c, 30 ) + tkChart_ValueToY( c, 0 )) \ 2 ) = FILLC )
+    tkChart_SetColumnMode( c, CHT_COL_PERCENT )
+    tkTest_Check( "100 % mode reads back", tkChart_GetColumnMode( c ) = CHT_COL_PERCENT )
+    tkChart_GetValueRange( c, lo, hi )
+    rp = PlotR( c )
+    tkTest_Check( "100 % AREA: 0..100", Near( lo, 0 ) andalso Near( hi, 100 ), lo & ".." & hi )
+    tkTest_Check( "100 % AREA: the gutter fits 100%", rp.left = P + TextW( fText, "100%" ) + TICK, rp.left & " vs " & (P + TextW( fText, "100%" ) + TICK) )
+    tkTest_Check( "100 % AREA: shares of the category", Anchor( c, s0, 0 ).y = tkChart_ValueToY( c, 10.0 / 15.0 * 100.0 ) andalso Anchor( c, s1, 0 ).y = rp.top )
+    a = Anchor( c, s0, 0 )
+    Hover( h, a.x, a.y )
+    tkTest_Check( "100 % tooltip: the value and its share", tkChart_ResolveTooltipText( c ) = "Q1: A 10 (67%)", tkChart_ResolveTooltipText( c ) )
+    Hover( h, rp.left + 2, rp.bottom - 2 )
+    tkWidget_Destroy( c )
+
+    ' ---- COLUMN at 100 % -----------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 302, TKCHART_TYPE_COLUMN )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "A" ) : s1 = tkChart_AddSeries( c, "B" )
+    tkChart_AddPoint( c, s0, "X", 30 ) : tkChart_AddPoint( c, s1, "X", 10 )
+    tkChart_SetColumnMode( c, CHT_COL_PERCENT )
+    rp = PlotR( c )
+    rc = PRect( c, s0, 0 )
+    tkTest_Check( "100 % COLUMN: A is 75 % of the bar, B tops it at 100", rc.bottom = rp.bottom andalso rc.top = tkChart_ValueToY( c, 75 ) andalso PRect( c, s1, 0 ).top = rp.top, tkRect_Str( rc ) )
+    tkWidget_Destroy( c )
+
+    ' ---- SCATTER ------------------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 303, TKCHART_TYPE_SCATTER )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "P" )
+    tkTest_Check( "AddXYPoint returns the index", tkChart_AddXYPoint( c, s0, 1, 10, "A" ) = 0 andalso tkChart_AddXYPoint( c, s0, 5, 30, "B" ) = 1 )
+    tkChart_AddXYPoint( c, s0, 9, 20, "C" )
+    tkTest_Check( "X reads back", tkChart_GetPointX( c, s0, 1 ) = 5 andalso tkChart_GetPointValue( c, s0, 1 ) = 30 )
+    tkChart_GetXRange( c, lo, hi )
+    tkTest_Check( "X autoscale 0..10 step 2 (no forced zero needed)", Near( lo, 0 ) andalso Near( hi, 10 ) andalso Near( tkChart_GetXStep( c ), 2 ), lo & ".." & hi )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "Y autoscale 10..30 (scatter does not force zero)", Near( lo, 10 ) andalso Near( hi, 30 ), lo & ".." & hi )
+    rp = PlotR( c )
+    dim as long gwS = TextW( fText, "10" )
+    if TextW( fText, "15" ) > gwS then gwS = TextW( fText, "15" )
+    if TextW( fText, "20" ) > gwS then gwS = TextW( fText, "20" )
+    if TextW( fText, "25" ) > gwS then gwS = TextW( fText, "25" )
+    if TextW( fText, "30" ) > gwS then gwS = TextW( fText, "30" )
+    tkTest_Check( "XY plot: left = padding + widest value label + tick", rp.left = P + gwS + TICK, rp.left & " vs " & (P + gwS + TICK) )
+    tkTest_Check( "XY plot: right leaves half the last X label", rp.right = W - P - TextW( fText, "10" ) \ 2, rp.right & " vs " & (W - P - TextW( fText, "10" ) \ 2) )
+    tkTest_Check( "XY plot: bottom leaves the X strip", rp.bottom = HH - P - (LH + TICK) )
+    a = Anchor( c, s0, 1 )
+    tkTest_Check( "XY anchor at (ValueToX(x), ValueToY(y))", a.x = rp.left + clng( int( 0.5 * (rp.right - rp.left) + 0.5 ) ) andalso a.x = tkChart_ValueToX( c, 5 ) andalso a.y = tkChart_ValueToY( c, 30 ) )
+    tkTest_Check( "XToValue inverts at the edges", Near( tkChart_XToValue( c, rp.left ), 0, 0.0001 ) andalso Near( tkChart_XToValue( c, rp.right ), 10, 0.0001 ) )
+    tkTest_Check( "HitTest a scatter point", tkChart_HitTest( c, a.x, a.y, iSr, iPn ) andalso iSr = s0 andalso iPn = 1 )
+    tkTest_Check( "no symbol set: a circle marker in the series colour", Pix( c, a.x, a.y ) = tkChart_GetPaletteColor( c, 0 ), hex( Pix( c, a.x, a.y ) ) )
+    Hover( h, a.x, a.y )
+    tkTest_Check( "scatter tooltip: label, x, y", tkChart_ResolveTooltipText( c ) = "B: 5, 30", tkChart_ResolveTooltipText( c ) )
+    Hover( h, rp.left + 2, rp.bottom - 2 )
+    tkChart_SetXRange( c, 0, 20 )
+    tkChart_GetXRange( c, lo, hi )
+    tkTest_Check( "SetXRange: manual, autoscale off", (tkChart_GetXAutoScale( c ) = false) andalso Near( lo, 0 ) andalso Near( hi, 20 ) )
+    tkWidget_Destroy( c )
+
+    ' ---- BUBBLE -------------------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 304, TKCHART_TYPE_BUBBLE )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "B" )
+    tkChart_AddBubblePoint( c, s0, 5, 5, 100, "big" )
+    tkChart_AddBubblePoint( c, s0, 2, 8, 25, "small" )
+    tkChart_AddBubblePoint( c, s0, 8, 2, 1, "tiny" )
+    dim as long BM = tkHost_Scale( h, 24 )
+    tkTest_Check( "bubble max radius default (scaled)", tkChart_GetBubbleMaxSize( c ) = BM )
+    tkTest_Check( "bubble radius by AREA: largest = max, a quarter the size = half", tkChart_GetPointRadius( c, s0, 0 ) = BM andalso tkChart_GetPointRadius( c, s0, 1 ) = clng( csng( BM ) * 0.5 ), tkChart_GetPointRadius( c, s0, 0 ) & " " & tkChart_GetPointRadius( c, s0, 1 ) )
+    tkTest_Check( "bubble radius floors at the minimum", tkChart_GetPointRadius( c, s0, 2 ) = tkHost_Scale( h, 3 ) )
+    tkTest_Check( "size reads back", tkChart_GetPointSize( c, s0, 1 ) = 25 )
+    a = Anchor( c, s0, 0 )
+    dim as long rB = BM - 2
+    tkTest_Check( "bubble hit is the disc, not its box", tkChart_HitTest( c, a.x + rB, a.y, iSr, iPn ) andalso iPn = 0 andalso (tkChart_HitTest( c, a.x + rB, a.y + rB, iSr, iPn ) = false) )
+    tkChart_SetSeriesFill( c, s0, FILLC, 255 )
+    tkTest_Check( "bubble disc in the series fill", Pix( c, a.x, a.y + BM \ 2 ) = FILLC, hex( Pix( c, a.x, a.y + BM \ 2 ) ) )
+    rp = PlotR( c )
+    Hover( h, a.x, a.y )
+    tkTest_Check( "bubble tooltip: x, y (size)", tkChart_ResolveTooltipText( c ) = "big: 5, 5 (100)", tkChart_ResolveTooltipText( c ) )
+    Hover( h, rp.left + 2, rp.top + 2 )
+    tkChart_SetBubbleMaxSize( c, 10 )
+    tkTest_Check( "SetBubbleMaxSize resizes the largest", tkChart_GetPointRadius( c, s0, 0 ) = 10 )
+    tkWidget_Destroy( c )
+
+    ' ---- DONUT --------------------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 305, TKCHART_TYPE_DONUT )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "D" )
+    tkChart_AddPoint( c, s0, "a", 50 ) : tkChart_AddPoint( c, s0, "b", 30 ) : tkChart_AddPoint( c, s0, "c", 20 )
+    tkChart_SetPieLabelMode( c, CHT_PIELABEL_NONE )
+    tkTest_Check( "DONUT opens with a hole", Near( tkChart_GetDoughnutRatio( c ), TKCHART_DEFAULT_DONUTRATIO, 0.0001 ) )
+    tkChart_GetPieRect( c, rc )
+    dim as long dcx = (rc.left + rc.right) \ 2, dcy = (rc.top + rc.bottom) \ 2, dr = (rc.right - rc.left) \ 2
+    tkTest_Check( "DONUT: the hole is a hole, the ring is hit", (tkChart_HitTest( c, dcx, dcy, iSr, iPn ) = false) andalso tkChart_HitTest( c, dcx + clng( dr * 0.8 ), dcy, iSr, iPn ) andalso iPn = 0 )
+    tkChart_SetTitleFont( c, fBig )         ' the centre text's font: solid pixels to count
+    tkChart_GetColors( c, @cc )
+    cc.TitleColor = MAG
+    tkChart_SetColors( c, @cc )
+    dim as long nTot = CountColor( h, c, MAG )
+    tkChart_SetCenterTotal( c, false )
+    dim as long nOff = CountColor( h, c, MAG )
+    tkChart_SetCenterText( c, "Hi" )
+    dim as long nTxt = CountColor( h, c, MAG )
+    tkTest_Check( "DONUT centre: the total, nothing when off, the authored text", nTot > 0 andalso nOff = 0 andalso nTxt > 0 andalso tkChart_GetCenterText( c ) = "Hi" andalso tkChart_GetCenterTotal( c ) = false, nTot & " / " & nOff & " / " & nTxt )
+    tkWidget_Destroy( c )
+
+    ' ---- BAR ----------------------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 306, TKCHART_TYPE_BAR )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "S" )
+    tkChart_AddPoint( c, s0, "Apples", 10 ) : tkChart_AddPoint( c, s0, "B", -5 ) : tkChart_AddPoint( c, s0, "C", 30 )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "BAR range includes zero (-10..30)", Near( lo, -10 ) andalso Near( hi, 30 ), lo & ".." & hi )
+    rp = PlotR( c )
+    dim as long gwV = 0
+    for v as long = -10 to 30 step 10
+        if TextW( fText, str( v ) ) > gwV then gwV = TextW( fText, str( v ) )
+    next
+    tkTest_Check( "BAR plot: left = padding + widest category + tick", rp.left = P + TextW( fText, "Apples" ) + TICK, rp.left & " vs " & (P + TextW( fText, "Apples" ) + TICK) )
+    tkTest_Check( "BAR plot: right leaves half the widest value label, bottom the value strip", rp.right = W - P - gwV \ 2 andalso rp.bottom = HH - P - (LH + TICK) andalso rp.top = P, tkRect_Str( rp ) )
+    tkTest_Check( "BAR ValueToX: min -> left, max -> right", tkChart_ValueToX( c, -10 ) = rp.left andalso tkChart_ValueToX( c, 30 ) = rp.right )
+    dim as single slotH = csng( rp.bottom - rp.top ) / 3.0
+    dim as single groupH = slotH * 0.75
+    rc = PRect( c, s0, 0 )
+    dim as long cy0 = rp.top + clng( 0.5 * slotH )
+    tkTest_Check( "BAR category 0 at the top: its slot, the group's height", rc.top = clng( csng( cy0 ) - groupH / 2.0 ) andalso tkRect_Height( rc ) = clng( groupH ), tkRect_Str( rc ) )
+    tkTest_Check( "BAR runs right from zero to the value", rc.left = tkChart_ValueToX( c, 0 ) andalso rc.right = tkChart_ValueToX( c, 10 ) )
+    rc = PRect( c, s0, 1 )
+    tkTest_Check( "a negative BAR runs left from zero", rc.right = tkChart_ValueToX( c, 0 ) andalso rc.left = tkChart_ValueToX( c, -5 ), tkRect_Str( rc ) )
+    rc = PRect( c, s0, 2 )
+    tkTest_Check( "BAR pixel in the series colour; HitTest it", Pix( c, (rc.left + rc.right) \ 2, (rc.top + rc.bottom) \ 2 ) = tkChart_GetPaletteColor( c, 0 ) andalso tkChart_HitTest( c, (rc.left + rc.right) \ 2, (rc.top + rc.bottom) \ 2, iSr, iPn ) andalso iPn = 2 )
+    s1 = tkChart_AddSeries( c, "T" )
+    for j as long = 0 to 2
+        tkChart_AddPoint( c, s1, "", 5 )
+    next
+    tkTest_Check( "grouped BAR: series 0 above series 1 in a slot", PRect( c, s0, 2 ).bottom <= PRect( c, s1, 2 ).top andalso PRect( c, s0, 2 ).top < PRect( c, s1, 2 ).top )
+    tkChart_SetColumnMode( c, CHT_COL_STACKED )
+    rc = PRect( c, s1, 2 )
+    tkTest_Check( "stacked BAR: T starts where S ends", rc.left = tkChart_ValueToX( c, 30 ) andalso rc.right = tkChart_ValueToX( c, 35 ), tkRect_Str( rc ) )
+    tkChart_SetTapToInspect( c, true )
+    rp = PlotR( c )
+    tkTest_Click( h, X0 + rp.left + 1, Y0 + rp.top + clng( 2.5 * csng( rp.bottom - rp.top ) / 3.0 ) )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "BAR tap off every bar: the nearest DOWN the categories", iPn = 2, iSr & "/" & iPn )
+    tkWidget_Destroy( c )
+
+    ' ---- COMBO --------------------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 307, TKCHART_TYPE_COMBO )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "Sales" ) : s1 = tkChart_AddSeries( c, "Margin" )
+    dim as ustring mon(0 to 2) = { "Jan", "Feb", "Mar" }
+    dim as double sales(0 to 2) = { 100, 250, 400 }, marg(0 to 2) = { 0.1, 0.3, 0.5 }
+    for j as long = 0 to 2
+        tkChart_AddPoint( c, s0, mon(j), sales(j) )
+        tkChart_AddPoint( c, s1, mon(j), marg(j) )
+    next
+    tkTest_Check( "series kind and axis default to LINE, PRIMARY", tkChart_GetSeriesKind( c, s0 ) = CHT_KIND_LINE andalso tkChart_GetSeriesAxis( c, s1 ) = CHT_AXIS_PRIMARY )
+    tkTest_Check( "a bad kind or axis is refused", (tkChart_SetSeriesKind( c, s0, 7 ) = false) andalso (tkChart_SetSeriesAxis( c, s1, 5 ) = false) andalso (tkChart_SetSeriesKind( c, 9, CHT_KIND_AREA ) = false) )
+    tkChart_SetSeriesKind( c, s0, CHT_KIND_COLUMN )
+    tkChart_SetSeriesAxis( c, s1, CHT_AXIS_SECONDARY )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "COMBO primary: a column series forces zero (0..400)", Near( lo, 0 ) andalso Near( hi, 400 ), lo & ".." & hi )
+    tkChart_GetSecondaryValueRange( c, lo, hi )
+    tkTest_Check( "COMBO secondary: its own nice range (0.1..0.5 step 0.1)", Near( lo, 0.1, 1e-9 ) andalso Near( hi, 0.5, 1e-9 ) andalso Near( tkChart_GetSecondaryValueStep( c ), 0.1, 1e-9 ), lo & ".." & hi )
+    rp = PlotR( c )
+    tkChart_GetAxisY2Rect( c, rc )
+    dim as long gw2 = 0
+    for k as long = 1 to 5
+        if TextW( fText, "0." & str( k ) ) > gw2 then gw2 = TextW( fText, "0." & str( k ) )
+    next
+    tkTest_Check( "secondary gutter: widest label + tick, the plot ends at it", tkRect_Width( rc ) = gw2 + TICK andalso rc.right = W - P andalso rp.right = rc.left, tkRect_Str( rc ) & " plot " & tkRect_Str( rp ) )
+    tkTest_Check( "a secondary series reads its own axis", Anchor( c, s1, 1 ).y = tkChart_SecondaryValueToY( c, 0.3 ) andalso tkChart_SecondaryValueToY( c, 0.5 ) = rp.top )
+    dim as single slotC = csng( rp.right - rp.left ) / 3.0
+    rc = PRect( c, s0, 1 )
+    dim as single groupC = slotC * 0.75
+    tkTest_Check( "the only column series takes the whole group", tkRect_Width( rc ) = clng( groupC ) andalso rc.top = tkChart_ValueToY( c, 250 ) andalso rc.bottom = rp.bottom, tkRect_Str( rc ) & " w " & clng( groupC ) )
+    tkTest_Check( "column in its colour under the line", Pix( c, (rc.left + rc.right) \ 2, rc.bottom - 3 ) = tkChart_GetPaletteColor( c, 0 ) )
+    a = Anchor( c, s1, 2 )
+    tkTest_Check( "a line vertex over a column: the line answers", tkChart_HitTest( c, a.x, a.y + 1, iSr, iPn ) andalso iSr = s1 andalso iPn = 2 )
+    Hover( h, a.x, a.y + 1 )
+    tkTest_Check( "secondary tooltip at the secondary axis' precision", tkChart_ResolveTooltipText( c ) = "Mar: Margin 0.5", tkChart_ResolveTooltipText( c ) )
+    Hover( h, rp.left + 2, rp.top + 2 )
+    tkChart_SetSeriesKind( c, s1, CHT_KIND_AREA )
+    tkChart_SetSeriesFill( c, s1, FILLC, 255 )
+    tkTest_Check( "an area series fills on a COMBO", CountColor( h, c, FILLC ) > 0 )
+    tkChart_SetSeriesAxis( c, s1, CHT_AXIS_PRIMARY )
+    tkChart_GetAxisY2Rect( c, rc )
+    tkTest_Check( "no secondary series: no right gutter", tkRect_IsEmpty( rc ) andalso PlotR( c ).right = W - P )
+    tkWidget_Destroy( c )
+
+    ' ---- CANDLESTICK --------------------------------------------------------------------------
+    c = tkChart_Create( tkHost_Root( h ), 308, TKCHART_TYPE_CANDLESTICK )
+    tkChart_SetFont( c, fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    s0 = tkChart_AddSeries( c, "K" )
+    tkChart_AddHlocPoint( c, s0, "U", 10, 20, 5, 15 )
+    tkChart_AddHlocPoint( c, s0, "D", 15, 18, 8, 9 )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "CANDLESTICK range from low/high (5..20)", Near( lo, 5 ) andalso Near( hi, 20 ), lo & ".." & hi )
+    tkChart_GetColors( c, @cc )
+    rp = PlotR( c )
+    dim as long half = clng( csng( rp.right - rp.left ) / 2.0 * 0.75 / 2.0 )
+    dim as TKPOINT u = Anchor( c, s0, 0 ), d = Anchor( c, s0, 1 )
+    dim as long yU = tkChart_ValueToY( c, 12.5 ), yD = tkChart_ValueToY( c, 12 )
+    tkTest_Check( "up body in UpColor, down body in DownColor", Pix( c, u.x, yU ) = (cc.UpColor or &hFF000000ul) andalso Pix( c, d.x, yD ) = (cc.DownColor or &hFF000000ul), hex( Pix( c, u.x, yU ) ) & " " & hex( Pix( c, d.x, yD ) ) )
+    tkTest_Check( "body as wide as a grouped column", Pix( c, u.x + half, yU ) = (cc.UpColor or &hFF000000ul) andalso Pix( c, u.x + half + 2, yU ) <> (cc.UpColor or &hFF000000ul) )
+    tkTest_Check( "the wick above the body", Pix( c, u.x, tkChart_ValueToY( c, 19 ) ) = (cc.UpColor or &hFF000000ul) andalso Pix( c, u.x + 2, tkChart_ValueToY( c, 19 ) ) <> (cc.UpColor or &hFF000000ul) )
+    Hover( h, u.x, u.y )
+    tkTest_Check( "CANDLESTICK tooltip: O H L C", tkChart_ResolveTooltipText( c ) = "U: O 10  H 20  L 5  C 15", tkChart_ResolveTooltipText( c ) )
+    tkWidget_Destroy( c )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
 if tkTest_Init() = false then end 99
 
 RunPure()
 RunPass( 1.0 )
 RunPass( 1.75 )
+RunAdded( 1.0 )
+RunAdded( 1.75 )
 
 dim as long nFail = tkTest_Report( "tkChart" )
 tkTest_Quit()

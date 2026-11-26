@@ -2,14 +2,27 @@
 
 # tkChart
 
-Draws line, column, HLOC and pie charts from series of labelled values.
+Draws line, area, column, bar, combo, HLOC, candlestick, scatter, bubble and pie charts.
 
-tkChart is a display control with four chart types, chosen at create and fixed after:
-`TKCHART_TYPE_LINE` (smoothing, symbols, dash styles, area fills and a shaded band between two
-series), `TKCHART_TYPE_COLUMN` (grouped or stacked), `TKCHART_TYPE_HLOC` (high, low, open,
-close) and `TKCHART_TYPE_PIE` (a pie or, with `tkChart_SetDoughnutRatio`, a doughnut, with
-exploded slices and labels inside, outside on leader lines, or placed automatically). Value axes
-scale themselves to 1-2-5 ticks; a legend, title and subtitle are optional.
+tkChart is a display control with eleven chart types, chosen at create and fixed after:
+
+- `TKCHART_TYPE_LINE`: smoothing, symbols, dash styles, area fills and a shaded band between two
+  series.
+- `TKCHART_TYPE_AREA`: each series a filled region under its line, overlapping, stacked or
+  stacked to 100 %.
+- `TKCHART_TYPE_COLUMN`: vertical bars, grouped, stacked or stacked to 100 %.
+- `TKCHART_TYPE_BAR`: the same, horizontal: categories down the left, values along the bottom.
+- `TKCHART_TYPE_COMBO`: line, column and area series on one chart, each on the left (primary) or
+  the right (secondary) value axis.
+- `TKCHART_TYPE_HLOC`: high, low, open, close bars.
+- `TKCHART_TYPE_CANDLESTICK`: the same data as candles, a wick and an up or down body.
+- `TKCHART_TYPE_SCATTER`: points on a numeric X axis.
+- `TKCHART_TYPE_BUBBLE`: the same, each point a disc whose area follows a third number.
+- `TKCHART_TYPE_PIE`: a pie or, with `tkChart_SetDoughnutRatio`, a doughnut, with exploded
+  slices and labels inside, outside on leader lines, or placed automatically.
+- `TKCHART_TYPE_DONUT`: a pie that opens with a hole and shows the total (or your text) in it.
+
+Value axes scale themselves to 1-2-5 ticks; a legend, title and subtitle are optional.
 
 You hand it series and points; it works out everything else. It picks readable gridline values,
 measures the widest axis label and reserves a gutter for it, spaces the categories evenly and
@@ -83,9 +96,19 @@ frees the chart's state and its tooltip.
 
 ### The chart type is fixed at creation
 
-`tkChart_Create` takes the type and there is no setter for it. The four types do not share a data
-shape: a pie has no value axis, and an HLOC point carries four numbers where a column point
-carries one. To show the same data another way, create a second chart.
+`tkChart_Create` takes the type and there is no setter for it. The types do not share a data
+shape: a pie has no value axis, an HLOC or candlestick point carries four numbers where a column
+point carries one, and a scatter point carries an X of its own. To show the same data another
+way, create a second chart.
+
+Which call adds a point:
+
+| Types | Add points with |
+|---|---|
+| LINE, AREA, COLUMN, BAR, COMBO, PIE, DONUT | `tkChart_AddPoint( hChart, iSeries, label, value )` |
+| HLOC, CANDLESTICK | `tkChart_AddHlocPoint( hChart, iSeries, label, open, high, low, close )` |
+| SCATTER | `tkChart_AddXYPoint( hChart, iSeries, x, y, label = "" )` |
+| BUBBLE | `tkChart_AddBubblePoint( hChart, iSeries, x, y, size, label = "" )` |
 
 ### Series and points
 
@@ -96,7 +119,11 @@ A **point** is one datum in a series. Series are indexed from 0 in creation orde
 Categories along the X axis are **positional**: point 3 of every series lines up, whatever its
 label says. Only series 0's labels are drawn on the axis; a second series' labels are still
 carried, and a tooltip can use them. The number of categories is the length of the **longest**
-visible series, so a series with fewer points simply stops early.
+visible series, so a series with fewer points simply stops early. On a **bar** chart the
+categories run down the left edge instead, category 0 at the top.
+
+**Scatter** and **bubble** charts have no categories: each point has its own X, and the X axis is
+a second value axis, scaled the same 1-2-5 way. A point's label is for its tooltip only.
 
 A **pie** reads only series 0, and enumerates the palette per *point* rather than per series: on a
 pie the slices are what the colours have to distinguish. Its legend lists those points.
@@ -119,14 +146,21 @@ the same) opens a window of ±10 % around it, or −1 … 1 around zero.
 
 Type-specific rules ride on top:
 
-- A **column** chart forces zero into the range, because bars are drawn from a baseline. If the
-  data straddles zero the origin therefore sits inside the plot and negative bars hang below it.
-  A **stacked** column chart scales to the stack totals, positives and negatives totalled
-  separately.
-- A **line** or **HLOC** chart does **not** force zero. A price series trading at 1,120 plotted
-  against a zero baseline is a flat line across the top of the plot.
-- An HLOC chart takes its range from the **low** and **high** of each point, never from the close.
-- A **pie** has no value axis.
+- A **column**, **bar** or **area** chart forces zero into the range, because bars and fills are
+  drawn from a baseline. If the data straddles zero the origin therefore sits inside the plot and
+  negative bars hang below it (on a bar chart, run left of it). A **stacked** chart scales to the
+  stack totals, positives and negatives totalled separately; a **100 %** chart to the shares of
+  each category's absolute sum, 0 … 100 (−100 … 100 when a category mixes signs).
+- A **line**, **HLOC**, **candlestick**, **scatter** or **bubble** chart does **not** force zero.
+  A price series trading at 1,120 plotted against a zero baseline is a flat line across the top of
+  the plot.
+- An HLOC or candlestick chart takes its range from the **low** and **high** of each point, never
+  from the close.
+- A **scatter** or **bubble** chart scales its X axis the same way, separately, and never forces
+  zero into it either.
+- A **combo** chart scales each value axis over the series that read it; an axis that a column or
+  area series reads includes zero.
+- A **pie** or **donut** has no value axis.
 
 `CHT_NiceRange`, `CHT_AutoDecimals` and `CHT_FormatNumber` are public: they are the functions the
 chart itself uses to pick the range, the decimal count and the label text, so code drawing its
@@ -174,11 +208,21 @@ label font.
 ## Behaviour and limits
 
 - **The chart type cannot change** after `tkChart_Create`.
-- **Column charts are grouped or stacked** (`tkChart_SetColumnMode`), but there is no horizontal
-  (bar) orientation. Stacking totals positives and negatives separately: a category holding both
-  reads as two piles meeting at zero, not as one pile that cancels itself out.
-- **Area fills, bands, smoothing, line styles and symbols are line-chart features.** Column, HLOC
-  and pie charts ignore them.
+- **Column, bar and area charts are grouped, stacked or 100 %** (`tkChart_SetColumnMode`; on an
+  area chart "grouped" means the regions overlap). Stacking totals positives and negatives
+  separately: a category holding both reads as two piles meeting at zero, not as one pile that
+  cancels itself out.
+- **Bands and smoothing are line-chart features.** A combo chart's line series draw their line
+  styles and symbols; an area series draws its edge in its line width and style, with symbols,
+  but never smoothed, so the edge stays on its fill. Column, bar, HLOC, candlestick and pie charts
+  ignore them.
+- **A combo chart's column series are always grouped**: the column mode is not read there. Only
+  the column series share a category's slot; line and area series take no room in it.
+- **The secondary axis exists only while a visible series reads it.** Until then a combo chart has
+  no right gutter, and `tkChart_GetSecondaryValueRange` reports 0 … 0.
+- **Bubbles are clipped at the plot's edge** like every series: the axis is scaled to the points'
+  centres, not to their discs. Widen the range with `tkChart_SetXRange` / `tkChart_SetValueRange`
+  when an edge bubble matters.
 - **Area fills and bands paint under every line.** `tkChart_SetSeriesFill` fills between a line
   series and the value baseline; `tkChart_SetSeriesBand` fills the ribbon between two line series,
   which is how a projection shows an uncertainty *range* rather than two unrelated forecast lines.
@@ -203,8 +247,9 @@ label font.
 - **A zero-valued column draws nothing** (a zero-height bar would put a stray hairline on the
   baseline where the data says there is nothing) and therefore cannot be hit-tested.
 - **A zero-valued pie slice draws nothing**, has no sweep and cannot be hit.
-- **The X axis is categorical.** Points are evenly spaced whatever their labels say, so a gap in
-  a date sequence is not a gap on the axis.
+- **The X axis is categorical**, except on scatter and bubble charts. Points are evenly spaced
+  whatever their labels say, so a gap in a date sequence is not a gap on the axis; plot dates as
+  numbers on a scatter chart when the gaps matter.
 - **A paint callback replaces the entire renderer**: plot, axes, legend and chrome. Call
   `tkChart_PaintDefault` from it to draw the built-in chart and then add to it.
 - **A disabled chart stops tracking the mouse.** `tkWidget_Enable( h, false )` clears the hot
@@ -218,7 +263,7 @@ label font.
 
 | Function | Behaviour |
 |---|---|
-| `tkChart_Create( hParent, ctrlId, nChartType = TKCHART_TYPE_LINE ) as TK_WIDGET ptr` | Creates the chart as a child of `hParent`; position it with `tkWidget_SetPos`. An unrecognised `nChartType` falls back to `TKCHART_TYPE_LINE`. Returns 0 when `hParent` is 0. |
+| `tkChart_Create( hParent, ctrlId, nChartType = TKCHART_TYPE_LINE ) as TK_WIDGET ptr` | Creates the chart as a child of `hParent`; position it with `tkWidget_SetPos`. An unrecognised `nChartType` falls back to `TKCHART_TYPE_LINE`. A `TKCHART_TYPE_DONUT` opens with a doughnut ratio of `TKCHART_DEFAULT_DONUTRATIO`. Returns 0 when `hParent` is 0. |
 | `tkChart_GetChartType( hChart ) as long` | The `TKCHART_TYPE_*` fixed at creation. −1 for a handle that is not a chart. |
 
 ### Series
@@ -243,13 +288,22 @@ label font.
 | `tkChart_SetSeriesSmooth( hChart, iSeries, bSmooth ) as boolean` | Draws the series as a cardinal spline through its points instead of straight segments. |
 | `tkChart_SetSeriesVisible( hChart, iSeries, bVisible ) as boolean` | Hiding a series removes it from the **axis range** and the legend as well as from the drawing, so hiding an outlier rescales the chart. Also clears the hot point if it was in that series. |
 | `tkChart_IsSeriesVisible( hChart, iSeries ) as boolean` | False for a bad index as well as for a hidden series. |
+| `tkChart_SetSeriesKind( hChart, iSeries, nKind ) as boolean` | Combo charts: draw the series as `CHT_KIND_LINE` (the default), `CHT_KIND_COLUMN` or `CHT_KIND_AREA`. Stored on any chart, read only by a combo. False for a bad index or an unrecognised kind. |
+| `tkChart_GetSeriesKind( hChart, iSeries ) as long` | −1 for a bad index. |
+| `tkChart_SetSeriesAxis( hChart, iSeries, nAxis ) as boolean` | Combo charts: `CHT_AXIS_PRIMARY` (left, the default) or `CHT_AXIS_SECONDARY` (right). False for a bad index or an unrecognised axis. |
+| `tkChart_GetSeriesAxis( hChart, iSeries ) as long` | −1 for a bad index. |
 
 ### Points
 
 | Function | Behaviour |
 |---|---|
 | `tkChart_AddPoint( hChart, iSeries, wszLabel, fValue ) as long` | Appends a point; returns its index within the series, or −1. For line, column and pie charts. The slot is fully reset. |
-| `tkChart_AddHlocPoint( hChart, iSeries, wszLabel, fOpenVal, fHighVal, fLowVal, fCloseVal ) as long` | Appends an HLOC point. A high below its low is swapped into order. The point's value is set to the close, so a value query has one number without switching on the chart type. |
+| `tkChart_AddHlocPoint( hChart, iSeries, wszLabel, fOpenVal, fHighVal, fLowVal, fCloseVal ) as long` | Appends an HLOC or candlestick point. A high below its low is swapped into order. The point's value is set to the close, so a value query has one number without switching on the chart type. |
+| `tkChart_AddXYPoint( hChart, iSeries, fX, fY, wszLabel = "" ) as long` | Scatter and bubble charts: a point at `fX`, `fY`. The value is `fY`; the label is for the tooltip. |
+| `tkChart_AddBubblePoint( hChart, iSeries, fX, fY, fSize, wszLabel = "" ) as long` | Bubble charts: the same, with a size. The disc's **area** follows `abs( fSize )`. |
+| `tkChart_SetPointX( hChart, iSeries, iPoint, fX ) as boolean` / `tkChart_GetPointX( ... ) as double` | A scatter or bubble point's X. |
+| `tkChart_SetPointSize( hChart, iSeries, iPoint, fSize ) as boolean` / `tkChart_GetPointSize( ... ) as double` | A bubble point's size. |
+| `tkChart_GetPointRadius( hChart, iSeries, iPoint ) as long` | A bubble's resolved radius in pixels; 0 on any other chart. Forces a pending layout. |
 | `tkChart_GetPointCount( hChart, iSeries ) as long` | Points in that series; 0 for a bad index. |
 | `tkChart_SetPointValue( hChart, iSeries, iPoint, fValue ) as boolean` | Line, column and pie value. Does not touch the four HLOC numbers. |
 | `tkChart_GetPointValue( hChart, iSeries, iPoint ) as double` | 0 for a bad index. For an HLOC point this is the close. |
@@ -287,6 +341,33 @@ label font.
 | `tkChart_GetAxisLabelSkip( hChart ) as long` | The **resolved** stride actually in use, never 0. Forces a pending layout. |
 | `tkChart_ValueToY( hChart, fValue ) as long` | The pixel row for a value, in the chart's own coordinates. The axis minimum maps exactly to the plot's bottom edge and the maximum exactly to its top. Values outside the range map outside the plot. |
 | `tkChart_YToValue( hChart, y ) as double` | The inverse, to within a pixel. |
+| `tkChart_ValueToX( hChart, fValue ) as long` | The horizontal value axis: an X value on a scatter or bubble chart, a value on a bar chart. The minimum maps exactly to the plot's left edge and the maximum to its right. |
+| `tkChart_XToValue( hChart, x ) as double` | The inverse. |
+
+### X axis (scatter and bubble)
+
+| Function | Behaviour |
+|---|---|
+| `tkChart_SetXAutoScale( hChart, bAuto )` / `tkChart_GetXAutoScale( hChart ) as boolean` | On by default. |
+| `tkChart_SetXRange( hChart, fLo, fHi )` | Fixes the X range and turns X autoscaling **off**. An inverted or empty range is corrected to `fLo` … `fLo + 1`. |
+| `tkChart_GetXRange( hChart, byref fLo, byref fHi )` | The resolved X range. Forces a pending layout. |
+| `tkChart_GetXStep( hChart ) as double` | The resolved X step. The X labels' decimals always follow it; `tkChart_SetValueFormat`'s count is for the value axis. |
+
+The X labels are centred under their ticks, so the plot stops half the widest X label short of
+the right padding to leave the last one room.
+
+### Secondary value axis (combo)
+
+| Function | Behaviour |
+|---|---|
+| `tkChart_SetSecondaryAutoScale( hChart, bAuto )` / `tkChart_GetSecondaryAutoScale( hChart ) as boolean` | On by default. |
+| `tkChart_SetSecondaryValueRange( hChart, fLo, fHi )` | Fixes the secondary range and turns its autoscaling **off**. |
+| `tkChart_GetSecondaryValueRange( hChart, byref fLo, byref fHi )` | The resolved range; 0 … 0 while no visible series reads the secondary axis. |
+| `tkChart_GetSecondaryValueStep( hChart ) as double` | 0 while no visible series reads it. |
+| `tkChart_SecondaryValueToY( hChart, fValue ) as long` | The secondary axis' row for a value; the primary's while no series reads the secondary. |
+
+The secondary labels sit in a gutter right of the plot, left-aligned, as wide as the widest of
+them. Gridlines follow the primary axis only.
 
 ### Title, subtitle, legend and fonts
 
@@ -306,17 +387,26 @@ label font.
 | `tkChart_SetSubtitleFont( hChart, f )` | Same. |
 | `tkChart_ApplyFonts( hChart, fText, fGlyph )` | Sets the label font from `fText` (when not 0). The chart uses no glyph font, so `fGlyph` is ignored. This is how [tkApp](tkApp) hands a form's fonts to its controls. |
 
-### Column charts
+### Column, bar and area charts
 
 | Function | Behaviour |
 |---|---|
-| `tkChart_SetColumnMode( hChart, nMode ) as boolean` | `CHT_COL_GROUPED` (the default) or `CHT_COL_STACKED`. An unrecognised mode falls back to grouped. Stacking rescales the value axis to the **stack totals**; hit testing and `tkChart_GetPointRect` follow the segments, because they read the same rects the renderer draws. |
+| `tkChart_SetColumnMode( hChart, nMode ) as boolean` | `CHT_COL_GROUPED` (the default), `CHT_COL_STACKED` or `CHT_COL_PERCENT`. An unrecognised mode falls back to grouped. Stacking rescales the value axis to the **stack totals**, 100 % to the category shares (the value-axis labels then carry a `%`); hit testing and `tkChart_GetPointRect` follow the segments, because they read the same rects the renderer draws. Read by column, bar and area charts. |
 | `tkChart_GetColumnMode( hChart ) as long` | `CHT_COL_GROUPED` for a handle that is not a chart. |
 | `tkChart_SetBarGap( hChart, nGap )` | Pixels between bars **within** one category group. Ignored when stacked: a stack is one bar however many series are piled up it. Clamped at 0. |
 | `tkChart_SetGroupGapPercent( hChart, nPct )` | Percent of each category slot left empty between groups. Clamped 0…90. Default 25. |
 
 A bar narrower than one pixel is drawn as a one-pixel hairline rather than vanishing: the chart
 is too narrow for the data, and a hairline says so where nothing does not.
+
+A **bar** chart is a column chart turned on its side: the category labels sit in a gutter left of
+the plot, right-aligned (the stride now measured against the label's height), and the value
+labels along the bottom. `tkChart_SetGridLines( h, bValue, bCategory )` keeps its meaning by
+role, so the value gridlines run **down** the plot and the category ones across it.
+
+An **area** series fills from its line down to zero (overlapping), or down to the pile beneath it
+(stacked, 100 %). The fill is `tkChart_SetSeriesFill`'s colour when one is set, else the series
+colour at alpha `TKCHART_DEFAULT_AREAALPHA`. Every fill is drawn before every edge.
 
 ### HLOC charts
 
@@ -327,6 +417,27 @@ is too narrow for the data, and a hairline says so where nothing does not.
 
 Each bar is a vertical high-to-low line with the open ticked to the left and the close ticked to
 the right. The hit band is the whole category slot, not the one-pixel line.
+
+A **candlestick** chart reads the same points. Each is a high-to-low wick and a body from the open
+to the close, as wide as one grouped column (the group gap applies). A body closing at or above
+its open is `UpColor`, one below `DownColor`, always; a per-point colour still wins. A doji (open
+equal to close) is a 1 px body. The hit band and tooltip are the HLOC ones.
+
+### Scatter and bubble charts
+
+| Function | Behaviour |
+|---|---|
+| `tkChart_SetBubbleMaxSize( hChart, nRadius )` / `tkChart_GetBubbleMaxSize( hChart ) as long` | The largest bubble's radius in pixels at the current scale, rescaled with it. Default `TKCHART_DEFAULT_BUBBLEMAX` (24), scaled; clamped to a minimum of 1. |
+
+A scatter point is a marker: the series' `tkChart_SetSeriesSymbol` symbol and size, or a circle
+when the series has none. A bubble's radius is `nBubbleMax * sqr( abs( size ) / largest )`, the
+largest `abs( size )` among the visible points, never under `TKCHART_DEFAULT_BUBBLEMIN` (3,
+scaled). Each disc is filled translucent (`tkChart_SetSeriesFill`, else the series colour at alpha
+`TKCHART_DEFAULT_BUBBLEALPHA`) and ringed in the series colour. A bubble is hit on its **disc**, not
+its box, the last drawn first.
+
+`tkChart_SetGridLines`' vertical flag draws gridlines at the X ticks, and a vertical zero rule is
+drawn when X = 0 falls inside the plot.
 
 ### Pie charts
 
@@ -339,6 +450,12 @@ the right. The hit band is the whole category slot, not the one-pixel line.
 | `tkChart_SetPieStartAngle( hChart, fDegrees )` | Degrees: 0 is 3 o'clock and positive runs **clockwise**. Default −90, i.e. 12 o'clock. |
 | `tkChart_SetPieSliceGap( hChart, nGap )` | Width of the separator stroked between wedges, in `SliceGapColor`. Default 1; 0 removes it. |
 | `tkChart_GetSliceInfo( hChart, iPoint, byref fStart, byref fSweep, byref bLabelOut, byref bLabelHid ) as boolean` | Slice `iPoint`'s start and sweep in degrees, whether its label went outside on a leader, and whether it was dropped. Forces a pending layout. False for a bad index. |
+
+| `tkChart_SetCenterText( hChart, wszText )` / `tkChart_GetCenterText( hChart ) as ustring` | Donut charts: the text in the hole, in the title font and `TitleColor`, centred in the square inscribed in the hole. `""` (the default) shows the total instead, formatted as a pie label (`CHT_FMT_PIELABEL`). |
+| `tkChart_SetCenterTotal( hChart, bShow )` / `tkChart_GetCenterTotal( hChart ) as boolean` | Whether an empty centre text shows the total. On by default. Nothing is drawn while the ratio is 0. |
+
+Everything else on this list applies to a **donut** exactly as to a pie: it *is* a pie that opens
+with `TKCHART_DEFAULT_DONUTRATIO` and has a centre text.
 
 Wedge sweeps come from the **absolute** value of each point over the sum of absolute values, so a
 negative datum still gets a proportional slice instead of making the remaining wedges add up to
@@ -363,13 +480,14 @@ All coordinates are the chart's own, with 0, 0 at its top-left corner.
 
 | Function | Behaviour |
 |---|---|
-| `tkChart_HitTest( hChart, x, y, byref iSeries, byref iPoint ) as boolean` | Both indices are set to −1 when nothing is there. Forces a pending layout. On the axis charts, later series are tested first so the series drawn on top answers. On a pie, the test accounts for the doughnut hole and for each slice's explode offset. |
+| `tkChart_HitTest( hChart, x, y, byref iSeries, byref iPoint ) as boolean` | Both indices are set to −1 when nothing is there. Forces a pending layout. On the axis charts, later series are tested first so the series drawn on top answers; on a combo, lines before columns before areas, as they are drawn. On a pie or donut, the test accounts for the hole and for each slice's explode offset. |
 | `tkChart_GetPlotRect( hChart, byref rc ) as boolean` | The plot area. |
 | `tkChart_GetLegendRect`, `tkChart_GetTitleRect`, `tkChart_GetSubtitleRect` `( hChart, byref rc ) as boolean` | The legend block and the title and subtitle strips; empty when that part is off. |
-| `tkChart_GetAxisYRect`, `tkChart_GetAxisXRect` `( hChart, byref rc ) as boolean` | The value-label gutter left of the plot and the category-label strip below it. Empty on a pie. |
+| `tkChart_GetAxisYRect`, `tkChart_GetAxisXRect` `( hChart, byref rc ) as boolean` | The gutter left of the plot and the strip below it: value labels left and category labels below, or on a bar chart the reverse, or on a scatter chart value labels left and X labels below. Empty on a pie. |
+| `tkChart_GetAxisY2Rect( hChart, byref rc ) as boolean` | A combo chart's secondary-axis gutter, right of the plot. Empty while no series reads that axis, and on every other type. |
 | `tkChart_GetPieRect( hChart, byref rc ) as boolean` | The pie's square. Empty on every other type. |
-| `tkChart_GetPointRect( hChart, iSeries, iPoint, byref rc ) as boolean` | The bar (or stacked segment) for a column point, the full column band for an HLOC point, the hit box around the vertex for a line point, and the label box for a pie slice. Empty for a hidden series. |
-| `tkChart_GetPointAnchor( hChart, iSeries, iPoint, byref pt ) as boolean` | The point's anchor: a line point's vertex, a bar's value end, an HLOC bar's close on its centre line, a pie slice's outer rim midpoint. |
+| `tkChart_GetPointRect( hChart, iSeries, iPoint, byref rc ) as boolean` | The bar (or stacked segment) for a column or bar point, the full column band for an HLOC or candlestick point, the hit box around the vertex for a line, area or scatter point, the disc's box for a bubble, and the label box for a pie slice. Empty for a hidden series. |
+| `tkChart_GetPointAnchor( hChart, iSeries, iPoint, byref pt ) as boolean` | The point's anchor: a line or area point's vertex (the top of its pile when stacked), a bar's value end, an HLOC or candle's close on its centre line, a scatter point's or bubble's centre, a pie slice's outer rim midpoint. |
 | `tkChart_GetHotPoint( hChart, byref iSeries, byref iPoint ) as boolean` | The point currently under the mouse. Returns false when nothing is hot. Does **not** force a layout: it reports state, not geometry. |
 
 The chart-part rect queries return false only for a handle that is not a chart;
@@ -384,9 +502,11 @@ each point the mouse moves to: moving to another point takes the tip down and br
 with the new text.
 
 The chart's own description is the point's label, a colon, and its value (just the value when
-the point has no label). On a line or column chart with more than one series, a named series'
-name precedes the value; on a pie the share follows it
-as a percentage, `(23%)`; on an HLOC chart the value is all four numbers, `O … H … L … C …`.
+the point has no label). On a chart with more than one series, a named series' name precedes the
+value; on a pie or a 100 % chart the share follows it as a percentage, `(23%)`; on an HLOC or
+candlestick chart the value is all four numbers, `O … H … L … C …`; on a scatter chart it is
+`x, y`, and a bubble adds its size, `x, y (size)`. A combo series on the secondary axis is
+formatted at that axis' precision.
 
 | Function | Behaviour |
 |---|---|
@@ -395,7 +515,7 @@ as a percentage, `(23%)`; on an HLOC chart the value is all four numbers, `O …
 | `tkChart_ResolveTooltipText( hChart ) as ustring` | What the tip would say now, by the order above. |
 | `tkChart_GetTooltipHandle( hChart ) as TK_TIP ptr` | The chart's tip, for the tooltip's own styling functions. |
 | `tkChart_SetHoverTime( hChart, ms )` | How long the mouse rests before the tip appears. |
-| `tkChart_SetTapToInspect( hChart, bOn as boolean )` / `Get...` | Default FALSE. TRUE is for a touch screen, which has no hover: a tap picks the point under it -- or, off every point, the nearest one across inside the plot (a bar's column, a line's vertex) -- makes it the hot point (`HotChange` fires) and shows its tip at once, until the next tap (on another point, on the same one, which lets it go, or off the plot). Moves and the leave are ignored meanwhile. Turning it off lets the point go. |
+| `tkChart_SetTapToInspect( hChart, bOn as boolean )` / `Get...` | Default FALSE. TRUE is for a touch screen, which has no hover: a tap picks the point under it -- or, off every point, the nearest one across inside the plot (a column's column, a line's vertex; on a bar chart the nearest **down** the categories, on a scatter or bubble chart the nearest by distance) -- makes it the hot point (`HotChange` fires) and shows its tip at once, until the next tap (on another point, on the same one, which lets it go, or off the plot). Moves and the leave are ignored meanwhile. Turning it off lets the point go. |
 
 ### Callback registration
 
@@ -446,18 +566,18 @@ A new chart takes its colours from its [tkTheme](tkTheme) and recolours itself o
 |---|---|---|
 | `BackColor` | The whole chart. | `Window` |
 | `PlotBackColor` | The plot rect, and only when it differs from `BackColor`: set it apart to make the plot area stand out. | `Window` |
-| `GridColor` | Value gridlines, and category gridlines when those are on. | `Divider` |
-| `AxisColor` | The baseline rule under the plot, and the zero rule when zero falls inside the plot. | `Border` |
-| `LabelColor` | Both axes' text. | `TextDim` |
-| `TitleColor` | The title. | `Text` |
+| `GridColor` | Value gridlines, and category (or X) gridlines when those are on. | `Divider` |
+| `AxisColor` | The baseline rule under the plot (left of it on a bar chart), and the zero rule when zero falls inside the plot. | `Border` |
+| `LabelColor` | Every axis' text. | `TextDim` |
+| `TitleColor` | The title, and a donut's centre text. | `Text` |
 | `SubtitleColor` | The subtitle. | `TextDim` |
 | `LegendTextColor` | Legend entry names. Swatches take the series or slice colour. | `Text` |
 | `SliceLabelColor` | Pie labels drawn **inside** a wedge. | `SelectedText` |
 | `SliceLabelOutColor` | Pie labels drawn **outside**, over the chart background. | `Text` |
 | `LeaderColor` | Leader lines to outside pie labels. | `TextDim` |
 | `SliceGapColor` | The separator stroked between pie wedges. Normally equal to the background. | `Window` |
-| `UpColor` | HLOC bars closing at or above their open, only when `tkChart_SetHlocUpDownColors` turned them on. | `Success` |
-| `DownColor` | HLOC bars closing below their open, same condition. | `Error` |
+| `UpColor` | Candles closing at or above their open; HLOC bars too, when `tkChart_SetHlocUpDownColors` turned them on. | `Success` |
+| `DownColor` | Candles and (same condition) HLOC bars closing below their open. | `Error` |
 | `ForeColorDisabled` | Not consulted by the built-in renderer; a paint callback can use it, and sees the state in `isEnabled`. | `TextDisabled` |
 
 `SliceGapColor` takes the same role as `BackColor`, which is what makes the default pie read as
@@ -500,8 +620,8 @@ skip and never 0.
 | `rcTitle` | The title strip; empty when there is no title. |
 | `rcSubtitle` | The subtitle strip; empty when there is none. |
 | `rcLegend` | The legend block; empty when the legend is off. |
-| `rcAxisX` | The category-label strip below the plot. Empty on a pie. |
-| `rcAxisY` | The value-label gutter left of the plot. Empty on a pie. |
+| `rcAxisX` | The strip below the plot: category labels, or the value labels on a bar chart, or the X labels on a scatter chart. Empty on a pie. |
+| `rcAxisY` | The gutter left of the plot: value labels, or the category labels on a bar chart. Empty on a pie. |
 | `rcPie` | The pie's square. Empty on every other type. |
 | `nChartType` | The `TKCHART_TYPE_*`. |
 | `fMin`, `fMax`, `fStep` | The resolved value axis. |
@@ -512,6 +632,10 @@ skip and never 0.
 | `nHotSeries`, `nHotPoint` | The point under the mouse; −1 when none. |
 | `isEnabled` | False while the chart is disabled. |
 | `wszTitle`, `wszSubtitle` | The strings, so you need not query them. |
+| `rcAxisY2` | A combo chart's secondary gutter, right of the plot; empty otherwise. |
+| `fMin2`, `fMax2`, `fStep2`, `nOriginY2` | The secondary axis, resolved, and its zero row, clamped. Only meaningful while `rcAxisY2` is not empty. |
+| `fXMin`, `fXMax`, `fXStep` | A scatter or bubble chart's X axis, resolved. |
+| `nOriginX` | The pixel column of 0 on the horizontal value axis (bar, scatter, bubble), clamped into the plot. |
 
 ### Message
 
@@ -554,9 +678,12 @@ type CHT_ValueLabelCallbackFunc as function( byval hChart as TK_WIDGET ptr, byva
                                              byval nContext as long ) as ustring
 ```
 
-Formats one number. `nContext` is `CHT_FMT_AXIS`, `CHT_FMT_PIELABEL` or `CHT_FMT_TOOLTIP`, so one
-function can format an axis tick and a tooltip differently. Return `""` to fall back to the
-chart's own formatting, which lets you special-case a few values without formatting all of them.
+Formats one number. `nContext` is `CHT_FMT_AXIS`, `CHT_FMT_PIELABEL`, `CHT_FMT_TOOLTIP`,
+`CHT_FMT_XAXIS` (a scatter chart's X labels) or `CHT_FMT_AXIS2` (a combo chart's secondary
+labels), so one function can format an axis tick and a tooltip differently. Return `""` to fall
+back to the chart's own formatting, which lets you special-case a few values without formatting
+all of them. A 100 % chart's value axis gets the share (0 … 100) and adds no `%` to what you
+return.
 
 Axis labels are measured to size the value gutter, so a callback that returns much wider strings
 widens the gutter rather than overlapping the plot.
@@ -580,19 +707,34 @@ the data or the chart, or the chart is disabled. Hiding a series, clearing its p
 | Constant | Meaning |
 |---|---|
 | `TKCHART_TYPE_LINE` | Polyline or spline per series. The default. |
-| `TKCHART_TYPE_COLUMN` | Vertical bars, series grouped (or stacked) per category. |
+| `TKCHART_TYPE_COLUMN` | Vertical bars, series grouped, stacked or 100 % per category. |
 | `TKCHART_TYPE_HLOC` | High-low-open-close price bars. |
 | `TKCHART_TYPE_PIE` | Wedges from series 0; optionally a doughnut. |
+| `TKCHART_TYPE_AREA` | A filled region per series, overlapping, stacked or 100 %. |
+| `TKCHART_TYPE_SCATTER` | Markers on a numeric X axis. |
+| `TKCHART_TYPE_BUBBLE` | Discs on a numeric X axis, area by a third number. |
+| `TKCHART_TYPE_DONUT` | A pie with a hole and a centre total. |
+| `TKCHART_TYPE_BAR` | Horizontal bars, grouped, stacked or 100 %. |
+| `TKCHART_TYPE_COMBO` | Line, column and area series together, on two value axes. |
+| `TKCHART_TYPE_CANDLESTICK` | HLOC data as candles. |
+
+The first four values are the port's and keep their numbers; the rest follow them.
 
 ### Line symbols
 
 `CHT_SYM_NONE` (the default), `CHT_SYM_CIRCLE`, `CHT_SYM_SQUARE`, `CHT_SYM_DIAMOND`,
-`CHT_SYM_TRIANGLE`. Default size `TKCHART_DEFAULT_SYMBOLSIZE`, scaled.
+`CHT_SYM_TRIANGLE`. Default size `TKCHART_DEFAULT_SYMBOLSIZE`, scaled. A scatter series with
+`CHT_SYM_NONE` draws circles.
 
 ### Column mode
 
-`CHT_COL_GROUPED` (the default) and `CHT_COL_STACKED`. Column charts only. A stacked line chart is
-an area chart; the way to that here is `tkChart_SetSeriesFill`.
+`CHT_COL_GROUPED` (the default), `CHT_COL_STACKED` and `CHT_COL_PERCENT`. Column, bar and area
+charts.
+
+### Series kind and axis (combo)
+
+`CHT_KIND_LINE` (the default), `CHT_KIND_COLUMN`, `CHT_KIND_AREA`; `CHT_AXIS_PRIMARY` (the default,
+left) and `CHT_AXIS_SECONDARY` (right).
 
 ### Line styles
 
@@ -626,7 +768,7 @@ Top and bottom lay the entries out in one row; left and right in a column.
 
 ### Value-label context
 
-`CHT_FMT_AXIS`, `CHT_FMT_PIELABEL`, `CHT_FMT_TOOLTIP`.
+`CHT_FMT_AXIS`, `CHT_FMT_PIELABEL`, `CHT_FMT_TOOLTIP`, `CHT_FMT_XAXIS`, `CHT_FMT_AXIS2`.
 
 ### Sentinels
 
@@ -651,7 +793,12 @@ Top and bottom lay the entries out in one row; left and right in a column.
 | `TKCHART_DEFAULT_PIEGAP` | 1 | Pie slice separator width. |
 | `TKCHART_DEFAULT_TICKHINT` | 5 | Gridlines to aim for. |
 | `TKCHART_DEFAULT_LABELGAP` | 8 | Minimum space between category labels when the stride is worked out. |
-| `TKCHART_DEFAULT_HITRADIUS` | 8 | Half-size of a line point's hit box. |
+| `TKCHART_DEFAULT_HITRADIUS` | 8 | Half-size of a line, area or scatter point's hit box. |
+| `TKCHART_DEFAULT_BUBBLEMAX` | 24 | The largest bubble's radius. |
+| `TKCHART_DEFAULT_BUBBLEMIN` | 3 | The smallest bubble's radius. |
+| `TKCHART_DEFAULT_AREAALPHA` | 140 | An area series' fill alpha when it has no fill of its own. Not a size. |
+| `TKCHART_DEFAULT_BUBBLEALPHA` | 170 | A bubble's fill alpha, likewise. |
+| `TKCHART_DEFAULT_DONUTRATIO` | 0.55 | A donut's hole, as a fraction of its radius. Not a size. |
 
 The pixel sizes are multiplied by the host's scale, except `TKCHART_DEFAULT_LINEWIDTH` and
 `TKCHART_DEFAULT_PIEGAP`, whose pens the drawing surface scales when it draws them.
@@ -675,6 +822,11 @@ const TKCHART_DEFAULT_PIEGAP = 1 ' a hairline: never scaled
 const TKCHART_DEFAULT_TICKHINT = 5
 const TKCHART_DEFAULT_LABELGAP = 8
 const TKCHART_DEFAULT_HITRADIUS = 8
+const TKCHART_DEFAULT_BUBBLEMAX = 24 ' the largest bubble's radius, px
+const TKCHART_DEFAULT_BUBBLEMIN = 3 ' the smallest one's, px
+const TKCHART_DEFAULT_AREAALPHA = 140 ' an AREA series' fill unless SetSeriesFill says
+const TKCHART_DEFAULT_BUBBLEALPHA = 170
+const TKCHART_DEFAULT_DONUTRATIO = 0.55
 const TKCHART_PALETTE_COUNT = 10
 const TKCHART_DECIMALS_AUTO = -1
 const TKCHART_SKIP_AUTO = 0
@@ -684,6 +836,13 @@ enum
     TKCHART_TYPE_COLUMN
     TKCHART_TYPE_HLOC
     TKCHART_TYPE_PIE
+    TKCHART_TYPE_AREA
+    TKCHART_TYPE_SCATTER
+    TKCHART_TYPE_BUBBLE
+    TKCHART_TYPE_DONUT
+    TKCHART_TYPE_BAR
+    TKCHART_TYPE_COMBO
+    TKCHART_TYPE_CANDLESTICK
 end enum
 
 enum
@@ -697,6 +856,18 @@ end enum
 enum
     CHT_COL_GROUPED = 0
     CHT_COL_STACKED
+    CHT_COL_PERCENT
+end enum
+
+enum
+    CHT_KIND_LINE = 0
+    CHT_KIND_COLUMN
+    CHT_KIND_AREA
+end enum
+
+enum
+    CHT_AXIS_PRIMARY = 0
+    CHT_AXIS_SECONDARY
 end enum
 
 enum
@@ -731,6 +902,8 @@ enum
     CHT_FMT_AXIS = 0
     CHT_FMT_PIELABEL
     CHT_FMT_TOOLTIP
+    CHT_FMT_XAXIS
+    CHT_FMT_AXIS2
 end enum
 ```
 
@@ -757,7 +930,9 @@ end type
 
 type TKCHART_POINT
     Text       as ustring      ' only series 0's labels drive the X axis
-    Value      as double       ' line / column / pie; the close for HLOC
+    Value      as double       ' line / column / pie / Y of scatter; the close for HLOC
+    XVal       as double       ' SCATTER / BUBBLE
+    SizeVal    as double       ' BUBBLE
     OpenVal    as double
     HighVal    as double
     LowVal     as double
@@ -772,6 +947,10 @@ type TKCHART_POINT
     fSweep     as single
     bLabelOut  as boolean
     bLabelHid  as boolean
+    fStackFrom as double       ' column / bar / area: the span in value space -- 0 to the value,
+    fStackTo   as double       ' or where it sits on its category's pile (stacked, 100 %)
+    ptBase     as TKPOINT      ' area: the vertex on the lower edge
+    nRadius    as long         ' bubble: px
 end type
 
 type TKCHART_SERIES
@@ -787,6 +966,8 @@ type TKCHART_SERIES
     FillColor   as ulong
     nFillAlpha  as long = 255
     bVisible    as boolean = true
+    nKind       as long = CHT_KIND_LINE         ' COMBO only
+    nAxis       as long = CHT_AXIS_PRIMARY      ' COMBO only
     points(any) as TKCHART_POINT
     pointCount  as long
     declare sub EnsurePoints( byval n as long )
@@ -823,6 +1004,15 @@ type TKCHART_PAINTINFO
     isEnabled     as boolean
     wszTitle      as ustring
     wszSubtitle   as ustring
+    rcAxisY2      as TKRECT       ' COMBO: the secondary axis gutter, right
+    fMin2         as double
+    fMax2         as double
+    fStep2        as double
+    nOriginY2     as long
+    fXMin         as double       ' SCATTER / BUBBLE
+    fXMax         as double
+    fXStep        as double
+    nOriginX      as long         ' BAR / SCATTER / BUBBLE: 0 on the horizontal axis, clamped
 end type
 
 type TKCHART_MESSAGEINFO
@@ -872,8 +1062,19 @@ function tkChart_SetSeriesSymbol( byval hChart as TK_WIDGET ptr, byval iSeries a
 function tkChart_SetSeriesSmooth( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval bSmooth as boolean ) as boolean
 function tkChart_SetSeriesVisible( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval bVisible as boolean ) as boolean
 function tkChart_IsSeriesVisible( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as boolean
+function tkChart_SetSeriesKind( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval nKind as long ) as boolean
+function tkChart_GetSeriesKind( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as long
+function tkChart_SetSeriesAxis( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval nAxis as long ) as boolean
+function tkChart_GetSeriesAxis( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as long
 function tkChart_AddPoint( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval wszLabel as ustring, byval fValue as double ) as long
 function tkChart_AddHlocPoint( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval wszLabel as ustring, byval fOpenVal as double, byval fHighVal as double, byval fLowVal as double, byval fCloseVal as double ) as long
+function tkChart_AddXYPoint( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval fX as double, byval fY as double, byval wszLabel as ustring = "" ) as long
+function tkChart_AddBubblePoint( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval fX as double, byval fY as double, byval fSize as double, byval wszLabel as ustring = "" ) as long
+function tkChart_SetPointX( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval fX as double ) as boolean
+function tkChart_GetPointX( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as double
+function tkChart_SetPointSize( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval fSize as double ) as boolean
+function tkChart_GetPointSize( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as double
+function tkChart_GetPointRadius( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as long
 function tkChart_GetPointCount( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as long
 function tkChart_SetPointValue( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval fValue as double ) as boolean
 function tkChart_GetPointValue( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as double
@@ -901,6 +1102,19 @@ sub tkChart_SetAxisLabelSkip( byval hChart as TK_WIDGET ptr, byval nSkip as long
 function tkChart_GetAxisLabelSkip( byval hChart as TK_WIDGET ptr ) as long
 function tkChart_ValueToY( byval hChart as TK_WIDGET ptr, byval fValue as double ) as long
 function tkChart_YToValue( byval hChart as TK_WIDGET ptr, byval y as long ) as double
+function tkChart_ValueToX( byval hChart as TK_WIDGET ptr, byval fValue as double ) as long
+function tkChart_XToValue( byval hChart as TK_WIDGET ptr, byval x as long ) as double
+sub tkChart_SetXAutoScale( byval hChart as TK_WIDGET ptr, byval bAuto as boolean )
+function tkChart_GetXAutoScale( byval hChart as TK_WIDGET ptr ) as boolean
+sub tkChart_SetXRange( byval hChart as TK_WIDGET ptr, byval fLo as double, byval fHi as double )
+sub tkChart_GetXRange( byval hChart as TK_WIDGET ptr, byref fLo as double, byref fHi as double )
+function tkChart_GetXStep( byval hChart as TK_WIDGET ptr ) as double
+sub tkChart_SetSecondaryAutoScale( byval hChart as TK_WIDGET ptr, byval bAuto as boolean )
+function tkChart_GetSecondaryAutoScale( byval hChart as TK_WIDGET ptr ) as boolean
+sub tkChart_SetSecondaryValueRange( byval hChart as TK_WIDGET ptr, byval fLo as double, byval fHi as double )
+sub tkChart_GetSecondaryValueRange( byval hChart as TK_WIDGET ptr, byref fLo as double, byref fHi as double )
+function tkChart_GetSecondaryValueStep( byval hChart as TK_WIDGET ptr ) as double
+function tkChart_SecondaryValueToY( byval hChart as TK_WIDGET ptr, byval fValue as double ) as long
 sub tkChart_SetTitle( byval hChart as TK_WIDGET ptr, byval wszText as ustring )
 function tkChart_GetTitle( byval hChart as TK_WIDGET ptr ) as ustring
 sub tkChart_SetSubtitle( byval hChart as TK_WIDGET ptr, byval wszText as ustring )
@@ -927,6 +1141,12 @@ sub tkChart_SetPieLabelPlacement( byval hChart as TK_WIDGET ptr, byval nPlace as
 sub tkChart_SetPieStartAngle( byval hChart as TK_WIDGET ptr, byval fDegrees as single )
 sub tkChart_SetPieSliceGap( byval hChart as TK_WIDGET ptr, byval nGap as long )
 function tkChart_GetSliceInfo( byval hChart as TK_WIDGET ptr, byval iPoint as long, byref fStart as single, byref fSweep as single, byref bLabelOut as boolean, byref bLabelHid as boolean ) as boolean
+sub tkChart_SetCenterText( byval hChart as TK_WIDGET ptr, byval wszText as ustring )
+function tkChart_GetCenterText( byval hChart as TK_WIDGET ptr ) as ustring
+sub tkChart_SetCenterTotal( byval hChart as TK_WIDGET ptr, byval bShow as boolean )
+function tkChart_GetCenterTotal( byval hChart as TK_WIDGET ptr ) as boolean
+sub tkChart_SetBubbleMaxSize( byval hChart as TK_WIDGET ptr, byval nRadius as long )
+function tkChart_GetBubbleMaxSize( byval hChart as TK_WIDGET ptr ) as long
 sub tkChart_GetColors( byval hChart as TK_WIDGET ptr, byval pColors as TKCHART_COLORS ptr )
 sub tkChart_SetColors( byval hChart as TK_WIDGET ptr, byval pColors as TKCHART_COLORS ptr )
 function tkChart_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHART_COLORS
@@ -942,6 +1162,7 @@ function tkChart_GetSubtitleRect( byval hChart as TK_WIDGET ptr, byref rc as TKR
 function tkChart_GetAxisYRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
 function tkChart_GetAxisXRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
 function tkChart_GetPieRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+function tkChart_GetAxisY2Rect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
 function tkChart_GetPointRect( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byref rc as TKRECT ) as boolean
 function tkChart_GetPointAnchor( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byref pt as TKPOINT ) as boolean
 function tkChart_GetHotPoint( byval hChart as TK_WIDGET ptr, byref iSeries as long, byref iPoint as long ) as boolean
@@ -949,6 +1170,8 @@ sub tkChart_SetTooltipText( byval hChart as TK_WIDGET ptr, byval wszText as ustr
 function tkChart_GetTooltipText( byval hChart as TK_WIDGET ptr ) as ustring
 function tkChart_ResolveTooltipText( byval hChart as TK_WIDGET ptr ) as ustring
 function tkChart_GetTooltipHandle( byval hChart as TK_WIDGET ptr ) as TK_TIP ptr
+sub tkChart_SetTapToInspect( byval hChart as TK_WIDGET ptr, byval bOn as boolean )
+function tkChart_GetTapToInspect( byval hChart as TK_WIDGET ptr ) as boolean
 sub tkChart_SetHoverTime( byval hChart as TK_WIDGET ptr, byval ms as long )
 sub tkChart_PaintDefault( byval p as TKCHART_PAINTINFO ptr )
 sub tkChart_SetPaintCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_PaintCallbackSub )

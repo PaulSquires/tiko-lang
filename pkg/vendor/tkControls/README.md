@@ -54,7 +54,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkInfoBar` | an inline message bar in the layout: severity, title, message, actions, close |
 | `tkToast` | toasts: transient cards in a corner of a window, queued, timed, with actions; one toaster per window |
 | `tkNotify` | what the info bar and the toasts share: severities, colours, the item painter |
-| `tkChart` | line, column, HLOC and pie charts |
+| `tkChart` | line, area, column, bar, combo, HLOC, candlestick, scatter, bubble, pie and donut charts |
 | `tkPrint` | print documents: pages recorded once in points (the `tkPage_*` API, or any widget's own painting), replayed to the screen, PNG and (later) PDF and printers |
 | `tkPrintPreview` | a print document's pages as paper: fit / custom zoom, columns, continuous or single view, links, pages generated while shown |
 | `tkPdf` | a print document as a PDF file: vector shapes, real (searchable) text in embedded fonts, images, links; no library linked |

@@ -208,7 +208,7 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 |---|---|---|
 | [tkProgressBar](tkProgressBar) | Draws a horizontal or vertical progress bar, determinate or with a running marquee. | `vendor/tkControls/tkProgressBar` |
 | [tkSpinner](tkSpinner) | Shows a small animation while something takes its time. | `vendor/tkControls/tkSpinner` |
-| [tkChart](tkChart) | Draws line, column, HLOC and pie charts from series of labelled values. | `vendor/tkControls/tkChart` |
+| [tkChart](tkChart) | Draws line, area, column, bar, combo, HLOC, candlestick, scatter, bubble and pie charts. | `vendor/tkControls/tkChart` |
 | [tkPicture](tkPicture) | Shows an image, scaled or clipped to its area. | `vendor/tkControls/tkPicture` |
 | [tkBarcode](tkBarcode) | Draws 1D and 2D barcodes: EAN, UPC, Code 128, Code 39, QR, Data Matrix, PDF417, Aztec. | `vendor/tkControls/tkBarcode` |
 | [tkBadge](tkBadge) | Draws a badge: a dot, a count, a short text or a presence mark, alone or on a control. | `vendor/tkControls/tkBadge` |

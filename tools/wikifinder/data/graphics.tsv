@@ -82,7 +82,7 @@ tkFileDialog	tkFileDialog	-	ctl-popup	vendor/tkControls/tkFileDialog	-	Shows the
 tkTooltip	tkTooltip	-	ctl-popup	vendor/tkControls/tkTooltip	-	Shows an owner-drawn tooltip for a widget after the mouse rests on it.
 tkProgressBar	tkProgressBar	-	ctl-progress	vendor/tkControls/tkProgressBar	-	Draws a horizontal or vertical progress bar, determinate or with a running marquee.
 tkSpinner	tkSpinner	-	ctl-progress	vendor/tkControls/tkSpinner	-	Shows a small animation while something takes its time.
-tkChart	tkChart	-	ctl-progress	vendor/tkControls/tkChart	-	Draws line, column, HLOC and pie charts from series of labelled values.
+tkChart	tkChart	-	ctl-progress	vendor/tkControls/tkChart	-	Draws line, area, column, bar, combo, HLOC, candlestick, scatter, bubble and pie charts.
 tkHost	tkHost	-	ctl-support	vendor/tkControls/tkHost	-	Runs every tkControls widget: SDL windows, the widget tree, input, timers and fonts.
 tkPaint	tkPaint	-	ctl-support	vendor/tkControls/tkPaint	-	Paints shapes, text and images for tkControls widgets on SDL_Renderer and SDL_ttf.
 tkKeys	tkKeys	-	ctl-support	vendor/tkControls/tkKeys	-	Parses, formats and dispatches keyboard shortcuts for tkControls surfaces.

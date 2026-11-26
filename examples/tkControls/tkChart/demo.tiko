@@ -1,7 +1,10 @@
-' tkChart demo: the same eight charts as the Win32 demo
-' (tiko-lang/examples/PsControls/PsChart/frmMain.tiko), so the two can be put side by side.
+' tkChart demo. Sheet 1 is the same eight charts as the Win32 demo
+' (tiko-lang/examples/PsControls/PsChart/frmMain.tiko), so the two can be put side by side;
+' sheet 2 is the types added since the port (area, scatter, bubble, donut, bar, combo,
+' candlestick). Tab flips between them.
 '
-'   demo                     interactive (hover a point for its tooltip)
+'   demo                     interactive (hover a point for its tooltip, Tab for the other sheet)
+'   demo --sheet 2           open on sheet 2
 '   demo --shot out.bmp      render once, save the window, exit
 '   demo --scale 1.75        pin the scale instead of asking the display
 #import "vendor/tkControls/tkChart"
@@ -20,8 +23,20 @@ enum
     CHART_NEGATIVE
     CHART_FORECAST
     CHART_STACKED
+    ' sheet 2: the added types
+    CHART_AREA_STACKED
+    CHART_AREA_PERCENT
+    CHART_SCATTER
+    CHART_BUBBLE
+    CHART_DONUT
+    CHART_BAR
+    CHART_COMBO
+    CHART_CANDLE
     CHART_COUNT
 end enum
+
+const as long SHEET_CHARTS = 8
+dim shared as long gSheet
 
 const as long CELL_COLS = 4, CELL_ROWS = 2, SHEET_MARGIN = 14, CAPTION_HEIGHT = 22, CELL_GAP = 14
 
@@ -50,7 +65,7 @@ end function
 sub Form_Size( byval h as TK_HOST ptr )
     dim as long capH = tkHost_Scale( h, CAPTION_HEIGHT )
     for i as long = 0 to CHART_COUNT - 1
-        dim as TKRECT rc = CellRect( i )
+        dim as TKRECT rc = CellRect( i mod SHEET_CHARTS )
         tkWidget_SetPos( gChart(i), rc.left, rc.top + capH, tkRect_Width( rc ), tkRect_Height( rc ) - capH )
     next
 end sub
@@ -59,12 +74,27 @@ sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
     dim as long capH = tkHost_Scale( h, CAPTION_HEIGHT )
     b->SetFont( gFontBold9 )
     b->SetForeColor( tkRGB( 30, 30, 30 ) )
-    for i as long = 0 to CHART_COUNT - 1
-        dim as TKRECT rc = CellRect( i )
+    for k as long = 0 to SHEET_CHARTS - 1
+        dim as TKRECT rc = CellRect( k )
         rc.bottom = rc.top + capH
-        b->PaintText( gCaptions(i), @rc, TK_DT_LEFT )
+        b->PaintText( gCaptions(gSheet * SHEET_CHARTS + k), @rc, TK_DT_LEFT )
     next
 end sub
+
+private sub ShowSheet( byval nSheet as long )
+    gSheet = nSheet
+    for i as long = 0 to CHART_COUNT - 1
+        tkWidget_Show( gChart(i), (i \ SHEET_CHARTS) = nSheet )
+    next
+    gHost->bDirty = true
+end sub
+
+' Tab flips the sheet.
+function Form_PreKey( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+    if m->key <> SDLK_TAB then return false
+    ShowSheet( 1 - gSheet )
+    return true
+end function
 
 ' The light palette the reference screenshots use, through the read-modify-write pair.
 private sub ApplyLightTheme( byval hChart as TK_WIDGET ptr )
@@ -100,12 +130,12 @@ private sub LoadFruitSeries( byval hChart as TK_WIDGET ptr )
 end sub
 
 ' Sixty deterministic bars: the point is the axis at that density, not the prices.
-private sub LoadHlocSeries( byval hChart as TK_WIDGET ptr )
+private sub LoadHlocSeries( byval hChart as TK_WIDGET ptr, byval nBars as long = 60 )
     dim as ustring months(0 to 2) = { "Jan", "Feb", "Mar" }
     tkChart_BeginUpdate( hChart )
     dim as long si = tkChart_AddSeries( hChart, "Index" )
     dim as double startPrice = 1030.0
-    for i as long = 0 to 59
+    for i as long = 0 to nBars - 1
         dim as double drift = sin( i / 7.0 ) * 55.0 + sin( i / 2.3 ) * 12.0
         dim as double o = startPrice + drift
         dim as double c = o + sin( i / 1.7 ) * 14.0
@@ -165,6 +195,52 @@ private sub LoadForecastSeries( byval hChart as TK_WIDGET ptr )
     tkChart_EndUpdate( hChart )
 end sub
 
+' Two clusters, deterministic: a scatter is about the shape of the cloud.
+private sub LoadScatterSeries( byval hChart as TK_WIDGET ptr )
+    tkChart_BeginUpdate( hChart )
+    dim as long sA = tkChart_AddSeries( hChart, "Group A" )
+    dim as long sB = tkChart_AddSeries( hChart, "Group B" )
+    for i as long = 0 to 29
+        dim as double t = i * 0.73
+        tkChart_AddXYPoint( hChart, sA, 2.0 + 1.6 * sin( t * 1.9 ) + i * 0.08, 30.0 + 9.0 * cos( t * 2.7 ) + i * 0.6 )
+        tkChart_AddXYPoint( hChart, sB, 7.0 + 1.4 * cos( t * 1.3 ), 18.0 + 7.0 * sin( t * 3.1 ) - i * 0.2 )
+    next
+    tkChart_SetSeriesSymbol( hChart, sB, CHT_SYM_DIAMOND, tkHost_Scale( gHost, 8 ) )
+    tkChart_EndUpdate( hChart )
+end sub
+
+' Life expectancy against income, sized by population: made-up, plausible numbers.
+private sub LoadBubbleSeries( byval hChart as TK_WIDGET ptr )
+    dim as ustring names(0 to 7) = { "Avalon", "Brask", "Corvin", "Delmar", "Estor", "Farrow", "Galen", "Hollis" }
+    dim as double inc(0 to 7) = { 12, 48, 31, 6, 55, 22, 40, 17 }
+    dim as double life(0 to 7) = { 68, 82, 77, 61, 83, 72, 80, 70 }
+    dim as double pop(0 to 7) = { 140, 25, 60, 90, 8, 210, 45, 30 }
+    tkChart_BeginUpdate( hChart )
+    dim as long s0 = tkChart_AddSeries( hChart, "Countries" )
+    for j as long = 0 to 7
+        tkChart_AddBubblePoint( hChart, s0, inc(j), life(j), pop(j), names(j) )
+    next
+    tkChart_EndUpdate( hChart )
+end sub
+
+' Revenue as columns on the left axis, margin % as a line on the right one.
+private sub LoadComboSeries( byval hChart as TK_WIDGET ptr )
+    dim as ustring cats(0 to 5) = { "Jan", "Feb", "Mar", "Apr", "May", "Jun" }
+    dim as double rev(0 to 5) = { 120, 135, 128, 162, 171, 190 }
+    dim as double marg(0 to 5) = { 18.5, 21.0, 17.2, 24.8, 26.1, 23.4 }
+    tkChart_BeginUpdate( hChart )
+    dim as long sRev = tkChart_AddSeries( hChart, "Revenue" )
+    dim as long sMar = tkChart_AddSeries( hChart, "Margin %" )
+    for j as long = 0 to 5
+        tkChart_AddPoint( hChart, sRev, cats(j), rev(j) )
+        tkChart_AddPoint( hChart, sMar, cats(j), marg(j) )
+    next
+    tkChart_SetSeriesKind( hChart, sRev, CHT_KIND_COLUMN )
+    tkChart_SetSeriesAxis( hChart, sMar, CHT_AXIS_SECONDARY )
+    tkChart_SetSeriesSymbol( hChart, sMar, CHT_SYM_CIRCLE, tkHost_Scale( gHost, 7 ) )
+    tkChart_EndUpdate( hChart )
+end sub
+
 private function ArgValue( byref name_ as string ) as string
     for i as long = 1 to 20
         if command( i ) = "" then exit for
@@ -207,9 +283,19 @@ gCaptions(CHART_DOUGHNUT) = "Doughnut -- exploded slice, name + percent on leade
 gCaptions(CHART_NEGATIVE) = "Column -- negative values below the origin"
 gCaptions(CHART_FORECAST) = "Line -- dashed forecast, area fill, uncertainty band"
 gCaptions(CHART_STACKED)  = "Column -- stacked, axis scaled to the stack totals"
+gCaptions(CHART_AREA_STACKED) = "Area -- stacked"
+gCaptions(CHART_AREA_PERCENT) = "Area -- 100 %, each category a whole"
+gCaptions(CHART_SCATTER)  = "Scatter -- two groups on a numeric X axis"
+gCaptions(CHART_BUBBLE)   = "Bubble -- disc area by population"
+gCaptions(CHART_DONUT)    = "Donut -- the total in the hole"
+gCaptions(CHART_BAR)      = "Bar -- horizontal, grouped"
+gCaptions(CHART_COMBO)    = "Combo -- columns left axis, line right axis"
+gCaptions(CHART_CANDLE)   = "Candlestick -- 30 sessions, up / down bodies"
 
 dim as long types(0 to CHART_COUNT - 1) = { TKCHART_TYPE_LINE, TKCHART_TYPE_COLUMN, TKCHART_TYPE_HLOC, _
-        TKCHART_TYPE_PIE, TKCHART_TYPE_PIE, TKCHART_TYPE_COLUMN, TKCHART_TYPE_LINE, TKCHART_TYPE_COLUMN }
+        TKCHART_TYPE_PIE, TKCHART_TYPE_PIE, TKCHART_TYPE_COLUMN, TKCHART_TYPE_LINE, TKCHART_TYPE_COLUMN, _
+        TKCHART_TYPE_AREA, TKCHART_TYPE_AREA, TKCHART_TYPE_SCATTER, TKCHART_TYPE_BUBBLE, _
+        TKCHART_TYPE_DONUT, TKCHART_TYPE_BAR, TKCHART_TYPE_COMBO, TKCHART_TYPE_CANDLESTICK }
 for i as long = 0 to CHART_COUNT - 1
     gChart(i) = tkChart_Create( tkHost_Root( gHost ), 100 + i, types(i) )
     tkChart_SetFont( gChart(i), gFont9 )
@@ -273,9 +359,50 @@ LoadFruitSeries( gChart(CHART_STACKED) )
 tkChart_SetColumnMode( gChart(CHART_STACKED), CHT_COL_STACKED )
 tkChart_SetLegendVisible( gChart(CHART_STACKED), true )
 
+' ---- sheet 2 ----
+' 8: the fruit, stacked as areas
+LoadFruitSeries( gChart(CHART_AREA_STACKED) )
+tkChart_SetColumnMode( gChart(CHART_AREA_STACKED), CHT_COL_STACKED )
+tkChart_SetLegendVisible( gChart(CHART_AREA_STACKED), true )
+
+' 9: the same, each category scaled to 100 %
+LoadFruitSeries( gChart(CHART_AREA_PERCENT) )
+tkChart_SetColumnMode( gChart(CHART_AREA_PERCENT), CHT_COL_PERCENT )
+tkChart_SetLegendVisible( gChart(CHART_AREA_PERCENT), true )
+
+' 10: scatter, vertical gridlines at the X ticks
+LoadScatterSeries( gChart(CHART_SCATTER) )
+tkChart_SetGridLines( gChart(CHART_SCATTER), true, true )
+tkChart_SetLegendVisible( gChart(CHART_SCATTER), true )
+
+' 11: bubbles
+LoadBubbleSeries( gChart(CHART_BUBBLE) )
+tkChart_SetGridLines( gChart(CHART_BUBBLE), true, true )
+tkChart_SetBubbleMaxSize( gChart(CHART_BUBBLE), tkHost_Scale( gHost, 28 ) )
+
+' 12: donut, percent labels, the total in the hole
+LoadPieSeries( gChart(CHART_DONUT) )
+tkChart_SetPieLabelMode( gChart(CHART_DONUT), CHT_PIELABEL_PERCENT )
+tkChart_SetPieLabelPlacement( gChart(CHART_DONUT), CHT_PIEPLACE_AUTO )
+tkChart_SetPieSliceGap( gChart(CHART_DONUT), 2 )
+tkChart_SetTitleFont( gChart(CHART_DONUT), gFontBold9 )
+
+' 13: bars, the fruit on its side
+LoadFruitSeries( gChart(CHART_BAR) )
+tkChart_SetLegendVisible( gChart(CHART_BAR), true )
+
+' 14: combo
+LoadComboSeries( gChart(CHART_COMBO) )
+tkChart_SetLegendVisible( gChart(CHART_COMBO), true )
+
+' 15: candlesticks
+LoadHlocSeries( gChart(CHART_CANDLE), 30 )
+
 dim as string shot = ArgValue( "--shot" )
 gHost->OnPaint = @Form_Paint
 gHost->OnSize = @Form_Size
+gHost->OnPreKey = @Form_PreKey
+ShowSheet( iif( ArgValue( "--sheet" ) = "2", 1, 0 ) )
 Form_Size( gHost )
 tkHost_Show( gHost )
 

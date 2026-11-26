@@ -41,10 +41,22 @@ public type Chart
     declare property PieLabelPlacement( byval v as int32 )
     declare property PieStartAngle( byval v as float64 )
     declare property PieSliceGap( byval v as int32 )
+    declare property CenterText( ) as ustring
+    declare property CenterText( byref v as const ustring )
+    declare property CenterTotal( ) as boolean
+    declare property CenterTotal( byval v as boolean )
+    declare property BubbleMaxSize( ) as int32
+    declare property BubbleMaxSize( byval v as int32 )
+    declare property XAutoScale( ) as boolean
+    declare property XAutoScale( byval v as boolean )
+    declare property SecondaryAutoScale( ) as boolean
+    declare property SecondaryAutoScale( byval v as boolean )
     declare property TooltipText( ) as ustring
     declare property TooltipText( byref v as const ustring )
     declare property HoverTime( byval v as int32 )
     declare sub ValueRange( byval a0 as float64, byval a1 as float64 )
+    declare sub XRange( byval a0 as float64, byval a1 as float64 )
+    declare sub SecondaryValueRange( byval a0 as float64, byval a1 as float64 )
     declare sub GridLines( byval a0 as boolean, byval a1 as boolean )
     declare sub ValueFormat( byval a0 as int32, byval a1 as boolean )
 end type
@@ -181,6 +193,46 @@ property Chart.PieSliceGap( byval v as int32 )
     tkChart_SetPieSliceGap( Handle, v )
 end property
 
+property Chart.CenterText( ) as ustring
+    return tkChart_GetCenterText( Handle )
+end property
+
+property Chart.CenterText( byref v as const ustring )
+    tkChart_SetCenterText( Handle, v )
+end property
+
+property Chart.CenterTotal( ) as boolean
+    return tkChart_GetCenterTotal( Handle )
+end property
+
+property Chart.CenterTotal( byval v as boolean )
+    tkChart_SetCenterTotal( Handle, v )
+end property
+
+property Chart.BubbleMaxSize( ) as int32
+    return tkChart_GetBubbleMaxSize( Handle )
+end property
+
+property Chart.BubbleMaxSize( byval v as int32 )
+    tkChart_SetBubbleMaxSize( Handle, v )
+end property
+
+property Chart.XAutoScale( ) as boolean
+    return tkChart_GetXAutoScale( Handle )
+end property
+
+property Chart.XAutoScale( byval v as boolean )
+    tkChart_SetXAutoScale( Handle, v )
+end property
+
+property Chart.SecondaryAutoScale( ) as boolean
+    return tkChart_GetSecondaryAutoScale( Handle )
+end property
+
+property Chart.SecondaryAutoScale( byval v as boolean )
+    tkChart_SetSecondaryAutoScale( Handle, v )
+end property
+
 property Chart.TooltipText( ) as ustring
     return tkChart_GetTooltipText( Handle )
 end property
@@ -195,6 +247,14 @@ end property
 
 sub Chart.ValueRange( byval a0 as float64, byval a1 as float64 )
     tkChart_SetValueRange( Handle, a0, a1 )
+end sub
+
+sub Chart.XRange( byval a0 as float64, byval a1 as float64 )
+    tkChart_SetXRange( Handle, a0, a1 )
+end sub
+
+sub Chart.SecondaryValueRange( byval a0 as float64, byval a1 as float64 )
+    tkChart_SetSecondaryValueRange( Handle, a0, a1 )
 end sub
 
 sub Chart.GridLines( byval a0 as boolean, byval a1 as boolean )

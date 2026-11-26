@@ -1656,7 +1656,7 @@ width = 320
 height = 220
 create_arg = "ChartType"
 create_arg_kind = "enum"
-create_arg_enum = "Line=TKCHART_TYPE_LINE,Column=TKCHART_TYPE_COLUMN,Hloc=TKCHART_TYPE_HLOC,Pie=TKCHART_TYPE_PIE"
+create_arg_enum = "Line=TKCHART_TYPE_LINE,Column=TKCHART_TYPE_COLUMN,Hloc=TKCHART_TYPE_HLOC,Pie=TKCHART_TYPE_PIE,Area=TKCHART_TYPE_AREA,Scatter=TKCHART_TYPE_SCATTER,Bubble=TKCHART_TYPE_BUBBLE,Donut=TKCHART_TYPE_DONUT,Bar=TKCHART_TYPE_BAR,Combo=TKCHART_TYPE_COMBO,Candlestick=TKCHART_TYPE_CANDLESTICK"
 create_arg_default = "Line"
 colors = { struct="TKCHART_COLORS", get="tkChart_GetColors", theme="tkChart_ThemeColors" }
 color_fields = [
@@ -1681,7 +1681,7 @@ props = [
   { name="Subtitle", kind="text", set="tkChart_SetSubtitle", get="tkChart_GetSubtitle" },
   { name="LegendVisible", kind="bool", set="tkChart_SetLegendVisible", get="", default="true" },
   { name="LegendPosition", kind="enum", enum="Bottom=CHT_LEGEND_BOTTOM,Top=CHT_LEGEND_TOP,Left=CHT_LEGEND_LEFT,Right=CHT_LEGEND_RIGHT", set="tkChart_SetLegendPosition", get="", default="Bottom" },
-  { name="ColumnMode", kind="enum", enum="Grouped=CHT_COL_GROUPED,Stacked=CHT_COL_STACKED", set="tkChart_SetColumnMode", get="tkChart_GetColumnMode", default="Grouped" },
+  { name="ColumnMode", kind="enum", enum="Grouped=CHT_COL_GROUPED,Stacked=CHT_COL_STACKED,Percent=CHT_COL_PERCENT", set="tkChart_SetColumnMode", get="tkChart_GetColumnMode", default="Grouped" },
   { name="AutoScale", kind="bool", set="tkChart_SetAutoScale", get="tkChart_GetAutoScale", default="true" },
   { name="Font", kind="font", set="tkChart_SetFont", get="tkChart_GetFont" },
   { name="TickCountHint", kind="int", set="tkChart_SetTickCountHint", get="" },
@@ -1698,9 +1698,16 @@ props = [
   { name="PieLabelPlacement", kind="enum", enum="Inside=CHT_PIEPLACE_INSIDE,Outside=CHT_PIEPLACE_OUTSIDE,Auto=CHT_PIEPLACE_AUTO", set="tkChart_SetPieLabelPlacement", get="" },
   { name="PieStartAngle", kind="float", set="tkChart_SetPieStartAngle", get="" },
   { name="PieSliceGap", kind="int", set="tkChart_SetPieSliceGap", get="" },
+  { name="CenterText", kind="text", set="tkChart_SetCenterText", get="tkChart_GetCenterText" },
+  { name="CenterTotal", kind="bool", set="tkChart_SetCenterTotal", get="tkChart_GetCenterTotal", default="true" },
+  { name="BubbleMaxSize", kind="int", set="tkChart_SetBubbleMaxSize", get="tkChart_GetBubbleMaxSize" },
+  { name="XAutoScale", kind="bool", set="tkChart_SetXAutoScale", get="tkChart_GetXAutoScale", default="true" },
+  { name="SecondaryAutoScale", kind="bool", set="tkChart_SetSecondaryAutoScale", get="tkChart_GetSecondaryAutoScale", default="true" },
   { name="TooltipText", kind="text", set="tkChart_SetTooltipText", get="tkChart_GetTooltipText" },
   { name="HoverTime", kind="int", set="tkChart_SetHoverTime", get="" },
   { name="ValueRange", kind="list", enum="Lo:float,Hi:float", set="tkChart_SetValueRange", get="" },
+  { name="XRange", kind="list", enum="Lo:float,Hi:float", set="tkChart_SetXRange", get="" },
+  { name="SecondaryValueRange", kind="list", enum="Lo:float,Hi:float", set="tkChart_SetSecondaryValueRange", get="" },
   { name="GridLines", kind="list", enum="Horz:bool,Vert:bool", set="tkChart_SetGridLines", get="" },
   { name="ValueFormat", kind="list", enum="Decimals:int,Thousands:bool", set="tkChart_SetValueFormat", get="" },
 ]

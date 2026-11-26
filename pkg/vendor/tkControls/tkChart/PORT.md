@@ -57,6 +57,21 @@ sweep, label out / dropped), `GetPointAnchor`, the rect queries `GetLegendRect`,
 `SetHoverTime`; `PaintDefault( p )`, the built-in chart over the filled background, for a paint
 callback (the form designer's Paint event).
 
+**Added after the port (no vendor counterpart):** seven chart types, appended to the enum so
+vendor's four keep their numbers. `TKCHART_TYPE_AREA` (a filled region per series: overlapping,
+stacked or 100 %), `TKCHART_TYPE_BAR` (COLUMN on its side: categories down the left gutter, values
+along the bottom, `ValueToX`), `TKCHART_TYPE_COMBO` (`SetSeriesKind` line / column / area and
+`SetSeriesAxis` primary / secondary per series; the secondary axis has its own range, gutter on
+the right, `CHT_FMT_AXIS2` labels, and exists only while a visible series reads it),
+`TKCHART_TYPE_CANDLESTICK` (HLOC points as wick + body, always up / down coloured),
+`TKCHART_TYPE_SCATTER` and `TKCHART_TYPE_BUBBLE` (`AddXYPoint` / `AddBubblePoint`, a numeric X
+axis with its own nice range and `CHT_FMT_XAXIS` labels, bubble radius by area, hit on the disc),
+`TKCHART_TYPE_DONUT` (a pie opening at ratio 0.55 with the total or `SetCenterText` in the hole).
+`CHT_COL_PERCENT` stacks column, bar and area charts to 100 %. The vendor code paths are kept: a
+stacked column's pile is now computed once (`ComputeStacks`, the same accumulation in value space)
+and read by `LayoutStackedColumns`; everything else the new types need is beside vendor's, not in
+it. `TKCHART_PAINTINFO` gains the secondary axis, the X axis and `nOriginX` at its end.
+
 **Dropped (Win32-only):** the hot-poll timer and `TrackMouseEvent` (the host guarantees the leave),
 `WM_SETFONT` / `WM_GETFONT`, `WM_GETDLGCODE`, `TTN_GETDISPINFOW` and the comctl32 tooltip backend,
 PsRegistry, `PsChart_Rescale` (now `TKM_SCALECHANGED`), `PsChart_RunSelfTest` (now
@@ -78,3 +93,12 @@ the paint callback; theme and pinning; rescale; label stride; grouped, negative 
 columns; slice sweeps, label placement in AUTO / INSIDE / OUTSIDE / NONE; Clear and recycled
 slots. A/B: dropping the column chart's forced zero fails the range check and the two bar-pixel
 checks at both scales (311/317).
+The suite is now 465: the above, the later tap-to-inspect checks (335 in all), and 65 more at
+each scale for the added types: AREA (range, fill under the edge,
+stacked, 100 % with its gutter and tooltip), 100 % COLUMN, SCATTER (both ranges, the plot against
+the formulas, anchors, default marker, tooltip, manual X range), BUBBLE (radius by area, the floor,
+the disc hit, fill, tooltip), DONUT (default hole, hole / ring hit, centre total / off / text), BAR
+(range, plot, ValueToX, slot geometry, negative bars, grouped / stacked order, tap-nearest down the
+categories), COMBO (defaults, refusals, both ranges, the secondary gutter, axis mapping, the one
+column's width, line-over-column hit, secondary tooltip precision, area kind, no gutter without a
+secondary series) and CANDLESTICK (range, up / down bodies, body width, wick, tooltip).
