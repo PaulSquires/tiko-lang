@@ -473,13 +473,15 @@ is a **calculated field** of the `Lines` source. Open **Calculated fields...** i
 | name | `LineTotal` |
 | expr | `[Qty] * [UnitPrice]` |
 
+![The Calculated fields dialog: the list on the left holds Lines.LineTotal, with +, -, up and down buttons under it; on the right, source Lines, name LineTotal and expr [Qty] * [UnitPrice]; OK and Cancel.](Orders-Tutorial-designer-calc.png)
+
 The expression is checked as you enter it, against the source's fields and the report's parameters.
 `LineTotal` is then listed under **Fields** with the source's own fields and offered in the
 expression editor; a band of `Lines` names it `[LineTotal]`, like a field.
 
 ### The bands
 
-![The Report Designer with rptInvoice.tkreport: the Toolbox and Fields palettes on the left, the bands in the middle (report header with the company and INVOICE, the detail band with BILL TO [Customer], Invoice no. [Id], Date [OrderDate], Status and Notes, the detail report with its header row of captions, a detail row [Product] [Qty] [UnitPrice] [LineTotal] and a footer with Total Sum([LineTotal]), and the page footer), and on the right the Object Tree with the [LineTotal] field item selected and its Properties: expr [LineTotal], format #,##0.00, align right.](Orders-Tutorial-designer-report.png)
+![The Report Designer with rptInvoice.tkreport: the Toolbox on the left with its + band entries (+ detail_report among them) and Data sources, Parameters, Calculated fields, Group and sort and Page setup, the Fields palette under it (LineTotal listed with the Lines fields), the bands in the middle (report header with the company and INVOICE, the detail band with BILL TO [Customer], Invoice no. [Id], Date [OrderDate], Status and Notes, the detail report with its header row of captions, a detail row [Product] [Qty] [UnitPrice] [LineTotal] and a footer with Total Sum([LineTotal]), and the page footer), and on the right the Object Tree with the [LineTotal] field item selected and its Properties: expr [LineTotal], format #,##0.00, align right.](Orders-Tutorial-designer-report.png)
 
 | Band | Kind | Shows |
 | --- | --- | --- |
@@ -500,8 +502,10 @@ The master-detail bands come from the Toolbox too. Click the detail band's capti
 the detail's source (`Lines`, the child of `Orders`), with its own report header, detail and report
 footer inside it. The canvas shows them under the detail band, one step in, and they are edited like
 any other band. The example renamed them `lines`, `lh`, `ld` and `lf` and set their heights (22, 18
-and 30). With no child source left to show, the entry says so in the status bar. Click a field in **Fields**, then click in a band: a field placed in a
-detail band also places its bold caption in the header band above (hold Shift to place it alone).
+and 30). With no child source left to show, the entry says so in the status bar.
+
+Click a field in **Fields**, then click in a band: a field placed in a detail band also places its
+bold caption in the header band above (hold Shift to place it alone).
 
 Three item settings worth knowing, all in Properties:
 
@@ -547,7 +551,10 @@ ReportViewer has a **Report** property that names a report module: the form then
 that report's type. Its `...` lists the project's reports as the form's folder imports them; pick
 `../rptInvoice` (or type it). In the `.tkform` it is the control's `report = "../rptInvoice"`.
 
-Save, and the generated half declares `rvInvoiceReport as rptInvoice.Report`. Your half gives it the order:
+![tkEdit with frmInvoice.tkform: the form holds one ReportViewer, rvInvoice, docked to fill it. The Properties panel shows Dock fill and the Report row set to ../rptInvoice, with its "..." list open: ../rptInvoice (ticked), ../rptOrderList and ../rptSales.](Orders-Tutorial-designer-reportrow.png)
+
+Save, and the generated half declares `rvInvoiceReport as rptInvoice.Report`. Your half gives it the
+order:
 
 ```freebasic
 #module "frmInvoice"
@@ -768,7 +775,7 @@ end tkApp_Run( mainForm.Handle )
 | Symptom | Cause and fix |
 | --- | --- |
 | `lld-link: undefined symbol: ...SETDATABASE(SQLITE3*)` (or `TKDATAGRIDSQLITE_OPEN`) | A module that passes an `sqlite3 ptr` sees `sqlite3` only through `orderdb`'s `#import "vendor/sqlite3" public`. Add `#import "vendor/sqlite3"` to that module itself. |
-| `error TKO0408: expected a statement` at `To = v_.d` in a `.design.tiko` | A report parameter is named after a keyword. Rename it (`ToDate`). |
+| `parameter 'To': a reserved word of tiko can't name the report's field` when the report is generated | A parameter named in the `.tkreport` text after a keyword (the Parameters dialog refuses one). Rename it (`ToDate`). |
 | The viewer says `source 'Orders': field 'Order' is float in the data and int in the report` | The data's kind and the source's field list disagree. A grid's number column is `float`; make the field `float` and give its item a format. |
 | A report's column captions print above its title on page 1 | The page header prints before the report header. Repeat the captions in the report header and turn the page header's **print_on_first_page** off. |
 | An edit made in the designer doesn't show in the program | The `.tkreport` / `.tkform` is embedded in the generated `.design.tiko`: save in tkEdit (or `tkedit --generate-forms <folder>`), then rebuild. |
