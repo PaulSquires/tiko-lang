@@ -369,4 +369,40 @@ scope
     tkTest_Check( "GetDT of both", tkMask_GetDT( d, "2026-12-25 14:30", dt ) andalso (dt.d = 25) andalso (dt.h = 14) andalso (dt.mi = 30) )
 end scope
 
+' ==========================================================================================
+' REGEX through a provider: a stand-in that knows one pattern, "abc" (text that starts "abc" is
+' partial, "abc" itself full), and refuses "bad" -- so the engine's rules are checked without PCRE2.
+function FakeCheck( byref pattern as const ustring, byref errText as ustring ) as boolean
+    if pattern = "bad" then errText = "fake: bad pattern" : return false
+    return true
+end function
+function FakeTest( byref pattern as const ustring, byref text as const string ) as int32
+    if text = "abc" then return 2
+    if left( "abc", len( text ) ) = text then return 1
+    return 0
+end function
+
+tkTest_Begin( "regex" )
+scope
+    dim as TKMASK_SPEC m
+    tkTest_Check( "no provider: REGEX refused, and why", (tkMask_Compile( m, TKMASK_REGEX, "abc" ) = false) _
+        andalso (instr( tkMask_RegexError( ), "provider" ) > 0), tkMask_RegexError( ) )
+    tkMask_SetRegexProvider( @FakeCheck, @FakeTest )
+    tkTest_Check( "the provider's refusal and its message", (tkMask_Compile( m, TKMASK_REGEX, "bad" ) = false) _
+        andalso (tkMask_RegexError( ) = "fake: bad pattern") )
+    tkTest_Check( "REGEX compiles", tkMask_Compile( m, TKMASK_REGEX, "abc" ) andalso (tkMask_RegexError( ) = "") )
+    tkTest_Check( "no template", tkMask_Template( m ) = "" )
+    Ks( "a partial match is kept", m, "|", "ab", "ab|" )
+    Ed( "a character that cannot lead to a match is refused", m, "ab|", "x", TKMASK_EDIT_TYPE, "REFUSED", TKMASK_REJ_PATTERN )
+    Ed( "a paste is judged whole", m, "|", "abx", TKMASK_EDIT_PASTE, "REFUSED", TKMASK_REJ_PATTERN )
+    Ed( "deleting is always kept (D-14)", m, "a|bc", "", TKMASK_EDIT_BACKSPACE, "|bc" )
+    Ed( "the empty text is kept", m, "[ab]", "", TKMASK_EDIT_DELETE, "|" )
+    tkTest_Check( "complete = a full match", tkMask_IsComplete( m, "abc" ) andalso (tkMask_IsComplete( m, "ab" ) = false) )
+    tkTest_Check( "valid = empty or full", tkMask_IsValid( m, "" ) andalso tkMask_IsValid( m, "abc" ) _
+        andalso (tkMask_IsValid( m, "ab" ) = false) andalso (tkMask_IsValid( m, "bc" ) = false) )
+    tkTest_Check( "TextOfValue keeps a value as given", tkMask_TextOfValue( m, "zz" ) = "zz" )
+    tkTest_Check( "ValueText is the text", tkMask_ValueText( m, "ab", TKMASK_FMT_RAW ) = "ab" )
+    tkTest_Check( "no first empty slot", tkMask_FirstEmpty( m, "ab" ) = -1 )
+end scope
+
 end tkTest_Report( "tkMask" )

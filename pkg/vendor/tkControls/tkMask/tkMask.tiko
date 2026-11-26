@@ -33,7 +33,10 @@
 '             minute / second 00-59); a first digit that cannot lead pads ("4" in a month is 04)
 '             and moves on; the separator pads a one-digit segment ("3/" is 03/). A real date
 '             (no 31/02) is checked by IsValid, not by refusing keys.
-'   REGEX     M4: tkMaskEditRegex's provider. Compile refuses it until then.
+'   REGEX     a pattern matched by a PROVIDER (tkMaskEditRegex_Enable registers PCRE2's), so tkMask
+'             links no regex library: an edit is kept when the result can still become a match
+'             (partial) or is one (full); deleting is always kept (D-14); empty is always kept.
+'             Complete = a full match. Compile refuses REGEX while no provider is registered.
 #module "tkMask"
 
 #import "../tkFormat" public
@@ -101,6 +104,29 @@ public enum
 end enum
 
 public const TKMASK_MAXDIGITS = 15       ' a NUMERIC's significant digits (float64 holds 15 exactly)
+
+' THE REGEX PROVIDER (tkMaskEditRegex): Check compiles pattern (FALSE + errText when it cannot);
+' Test answers for text: 0 cannot become a match, 1 can (a partial match), 2 is one, -1 bad pattern.
+public type TKMASK_RXCHECK as function( byref pattern as const ustring, byref errText as ustring ) as boolean
+public type TKMASK_RXTEST as function( byref pattern as const ustring, byref text as const string ) as int32
+dim shared as TKMASK_RXCHECK gMskRxCheck
+dim shared as TKMASK_RXTEST gMskRxTest
+dim shared as ustring gMskRxError
+
+public sub tkMask_SetRegexProvider( byval fnCheck as TKMASK_RXCHECK, byval fnTest as TKMASK_RXTEST )
+    gMskRxCheck = fnCheck
+    gMskRxTest = fnTest
+end sub
+
+' Why the last REGEX compile failed ("" after a good one; "no regex provider" when none is registered).
+public function tkMask_RegexError( ) as ustring
+    return gMskRxError
+end function
+
+function MskRxTest( byref m as TKMASK_SPEC, byref text as const string ) as int32
+    if gMskRxTest = 0 then return -1
+    return gMskRxTest( m.pattern, text )
+end function
 
 public type TKMASK_SLOT
     kind     as int32                ' TKMS_*
@@ -292,7 +318,7 @@ end function
 
 ' Compiles pattern as kind into m. FALSE (m unchanged) when the pattern does not fit the kind:
 ' a trailing "\", no editable slot, no number pattern, a date letter run of the wrong length or
-' repeated, a segment the kind needs missing or one it must not have, REGEX before M4.
+' repeated, a segment the kind needs missing or one it must not have, REGEX with no provider or a pattern it refuses (tkMask_RegexError says why).
 public function tkMask_Compile( byref m as TKMASK_SPEC, byval kind as int32, byref pattern as const ustring ) as boolean
     dim as TKMASK_SPEC t = m
     t.kind = kind
@@ -310,6 +336,13 @@ public function tkMask_Compile( byref m as TKMASK_SPEC, byval kind as int32, byr
         t.fmt = tkFormat_Parse( pattern )
         ok = t.fmt.hasNum
     case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME : ok = MskCompileDate( t, pat )
+    case TKMASK_REGEX
+        gMskRxError = ""
+        if gMskRxCheck = 0 then
+            gMskRxError = "no regex provider (tkMaskEditRegex_Enable)"
+        else
+            ok = gMskRxCheck( pattern, gMskRxError )
+        end if
     end select
     if ok = false then return false
     m = t
@@ -352,6 +385,8 @@ public function tkMask_Apply( byref m as TKMASK_SPEC, byref text as string, byva
         return MskApplySlots( m, text, lo, hi, ins, reason, caret, rej )
     case TKMASK_NUMERIC
         return MskApplyNumber( m, text, lo, hi, ins, reason, caret, rej )
+    case TKMASK_REGEX
+        return MskApplyRegex( m, text, lo, hi, ins, reason, caret, rej )
     end select
     rej = TKMASK_REJ_CLASS
     return false
@@ -377,6 +412,7 @@ end function
 public function tkMask_IsComplete( byref m as TKMASK_SPEC, byref text as const string ) as boolean
     if MskIsSlotKind( m ) then return MskSlotsComplete( m, text )
     if m.kind = TKMASK_NUMERIC then return MskNumEmpty( m, text ) = false
+    if m.kind = TKMASK_REGEX then return MskRxTest( m, text ) = 2
     return len( text ) > 0
 end function
 
@@ -385,6 +421,7 @@ public function tkMask_IsValid( byref m as TKMASK_SPEC, byref text as const stri
     if tkMask_IsEmpty( m, text ) then return true
     select case m.kind
     case TKMASK_FIXED : return MskSlotsComplete( m, text )
+    case TKMASK_REGEX : return MskRxTest( m, text ) = 2
     case TKMASK_DATE, TKMASK_TIME, TKMASK_DATETIME
         dim as TKMASK_DT dt
         if tkMask_GetDT( m, text, dt ) = false then return false
@@ -412,6 +449,7 @@ end function
 ' The text for a value given in any of the forms ValueText returns (mapped like a paste into the
 ' empty template; NUMERIC: a plain or formatted number). "" or an unmappable value: the template.
 public function tkMask_TextOfValue( byref m as TKMASK_SPEC, byref value as const string ) as string
+    if m.kind = TKMASK_REGEX then return value          ' as given: IsValid says whether it matches
     dim as string t = tkMask_Template( m )
     if len( value ) = 0 then return t
     dim as int32 caret, rej

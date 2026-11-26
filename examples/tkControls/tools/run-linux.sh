@@ -50,6 +50,12 @@ case " ${names[*]} " in
         TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module sqlite3 \
             || { echo "vendorfetch.sh failed: no sqlite3"; exit 1; } ;;
 esac
+# tkMaskEdit's REGEX masks link PCRE2 (vendor/pcre2 through tkMaskEditRegex, built from source once, then cached).
+case " ${names[*]} " in
+    *" tkMaskEdit "*|"  ")
+        TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module pcre2 \
+            || { echo "vendorfetch.sh failed: no pcre2"; exit 1; } ;;
+esac
 # tkBarcode links libzint (vendor/zint, built from source once, then cached); tkMeta's table, and so
 # every designed form, imports it.
 TIKO_VENDOR_CACHE=${TIKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module zint \

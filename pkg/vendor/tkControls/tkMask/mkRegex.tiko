@@ -1,0 +1,32 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMask -- the REGEX kind (docs/tkControls/MASKEDIT.md 4.4, 5.4). The text is free; an edit is
+' judged by the provider's Test on the text it would leave: kept when that can still become a
+' match or is one, refused otherwise (TKMASK_REJ_PATTERN, whole -- a paste too). Deleting is
+' always kept, so the user cannot get stuck (D-14); the empty text is always kept.
+#module "tkMask"
+
+function MskApplyRegex( byref m as TKMASK_SPEC, byref text as string, byval lo as int32, byval hi as int32, _
+                        byref ins as const string, byval reason as int32, byref caret as int32, byref rej as int32 ) as boolean
+    dim as string cand
+    select case reason
+    case TKMASK_EDIT_BACKSPACE, TKMASK_EDIT_DELETE, TKMASK_EDIT_CUT
+        cand = left( text, lo ) & mid( text, hi + 1 )
+        caret = lo
+    case else
+        cand = left( text, lo ) & ins & mid( text, hi + 1 )
+        caret = lo + len( ins )
+        if len( cand ) > 0 then
+            if MskRxTest( m, cand ) < 1 then
+                rej = TKMASK_REJ_PATTERN
+                return false
+            end if
+        end if
+    end select
+    text = cand
+    return true
+end function

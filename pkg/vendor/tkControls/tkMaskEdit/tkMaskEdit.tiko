@@ -30,7 +30,10 @@
 ' (Get/SetDateValue, Get/SetTimeValue, Get/SetDateTimeValue); a date outside its range, or one that
 ' does not exist (31/02), is flagged by IsValid and the error border on commit, never changed (D-13).
 '
-' REGEX (M4) is refused until its phase.
+' REGEX (M4): free text kept only while it can still become a match of the pattern (PCRE2, through
+' tkMaskEditRegex -- the host calls tkMaskEditRegex_Enable once, so a program without regex masks
+' links no PCRE2); deleting is always allowed (D-14); complete = a full match; SetText keeps a
+' value as given and IsValid says whether it matches.
 #module "tkMaskEdit"
 
 #import "../tkHost" public
@@ -358,11 +361,11 @@ public function tkMaskEdit_GetID( byval hCtrl as TK_WIDGET ptr ) as long
 end function
 
 ' The mask (TKMASK_*, a pattern). FALSE, and the old mask kept, when the pattern does not compile
-' or the kind is not available yet (REGEX: M4). A new mask clears the value. Silent.
+' (REGEX: also when no provider is registered -- tkMaskEditRegex_Enable -- or PCRE2 refuses the
+' pattern; tkMask_RegexError says why). A new mask clears the value. Silent.
 public function tkMaskEdit_SetMask( byval hCtrl as TK_WIDGET ptr, byval nKind as long, byref sMask as const ustring ) as boolean
     dim as TKMASKEDIT_STATE ptr p = ME( hCtrl )
     if p = 0 then return false
-    if nKind = TKMASK_REGEX then return false                    ' M4
     dim as long oldKind = iif( p->bMasked, p->spec.kind, TKMASK_NONE )
     if tkMask_Compile( p->spec, nKind, sMask ) = false then return false
     ' an empty year spins to this year

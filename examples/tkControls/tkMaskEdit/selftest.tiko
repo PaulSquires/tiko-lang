@@ -8,8 +8,10 @@
 '   selftest            exit code = number of failures
 #import "vendor/tkControls/tkMaskEdit"
 #import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkMaskEditRegex"
 using tkMaskEdit
 using tkMask
+using tkMaskEditRegex
 using tkTextBox
 using tkCalendar
 using tkTimePanel
@@ -115,7 +117,8 @@ sub RunPass( byval fScale as single )
     ' ---- SetMask -------------------------------------------------------------------------------------
     Reset_()
     tkTest_Check( "SetMask FIXED", tkMaskEdit_SetMask( w, TKMASK_FIXED, "(999) 000-0000" ) )
-    tkTest_Check( "REGEX is refused until M4", tkMaskEdit_SetMask( w, TKMASK_REGEX, "[A-Z]+" ) = false )
+    tkMask_SetRegexProvider( 0, 0 )                           ' as a program that never enables it
+    tkTest_Check( "REGEX is refused while no provider is registered", tkMaskEdit_SetMask( w, TKMASK_REGEX, "[A-Z]+" ) = false )
     tkTest_Check( "a bad pattern is refused, the mask kept", (tkMaskEdit_SetMask( w, TKMASK_FIXED, "99\" ) = false) _
         andalso (tkMaskEdit_GetMask( w ) = "(999) 000-0000") andalso (tkMaskEdit_GetMaskKind( w ) = TKMASK_FIXED) )
     tkTest_Check( "unfocused and empty: nothing shown (the cue banner's turn)", Shown( w ) = "", Shown( w ) )
@@ -348,6 +351,57 @@ sub RunPass( byval fScale as single )
     dset.wYear = 2027 : dset.wMonth = 1 : dset.wDay = 2
     tkMaskEdit_SetDateValue( w, dset )
     tkTest_Check( "SetDateValue keeps a DATETIME's time", TextOf( w ) = "2027-01-02 09:30", TextOf( w ) )
+    tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
+
+    ' ---- REGEX (M4), through tkMaskEditRegex / PCRE2 -----------------------------------------------
+    Reset_()
+    tkMaskEditRegex_Enable( )
+    tkTest_Check( "a pattern PCRE2 refuses: FALSE and its message", (tkMaskEdit_SetMask( w, TKMASK_REGEX, "(ab" ) = false) _
+        andalso (instr( tkMaskEditRegex_LastError( ), "missing closing parenthesis" ) > 0), tkMaskEditRegex_LastError( ) )
+    tkTest_Check( "SetMask REGEX", tkMaskEdit_SetMask( w, TKMASK_REGEX, "[A-Z]{2}\d{6,8}" ) )
+    tkTest_Check( "a regex asks for a line keyboard, left-aligned", (tkWidget_GetTextKind( e ) = TK_TEXT_LINE) _
+        andalso (tkMaskEdit_GetTextAlign( w ) = TXT_ALIGN_LEFT) )
+    tkHost_SetFocus( h, w )
+    TypeEach( h, "a" )
+    tkTest_Check( "a character that cannot lead to a match: Rejected", (gRejects = 1) andalso (gLastReason = TKMASK_REJ_PATTERN) _
+        andalso (TextOf( w ) = "") )
+    TypeEach( h, "AB12345" )
+    tkTest_Check( "a partial match is not complete", (TextOf( w ) = "AB12345") andalso (tkMaskEdit_IsComplete( w ) = false) )
+    TypeEach( h, "678" )
+    tkTest_Check( "eight digits: complete", (TextOf( w ) = "AB12345678") andalso tkMaskEdit_IsComplete( w ) andalso tkMaskEdit_IsValid( w ) )
+    TypeEach( h, "9" )
+    tkTest_Check( "a ninth digit is refused", (TextOf( w ) = "AB12345678") andalso (gRejects = 2) )
+    tkTextBox_SetSel( e, 1, 2 )
+    tkTest_PushKey( h, SDLK_DELETE )
+    tkTest_Check( "deleting is allowed even when it breaks the match (D-14)", (TextOf( w ) = "A12345678") _
+        andalso (tkMaskEdit_IsValid( w ) = false) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "... and the commit shows the error", tkMaskEdit_GetError( w ) )
+    tkMaskEdit_SetText( w, "XY123" )
+    tkTest_Check( "SetText keeps a value as given; IsValid says it is incomplete", (TextOf( w ) = "XY123") _
+        andalso (tkMaskEdit_IsValid( w ) = false) andalso (tkMaskEdit_GetError( w ) = false) )
+    tkHost_SetClipboardText( "CD7654321" )
+    tkHost_SetFocus( h, w )
+    tkTextBox_SetSel( e, 0, -1 )
+    tkTest_PushKey( h, SDLK_V, TK_KMOD_PRIMARY )
+    tkTest_Check( "a matching paste", TextOf( w ) = "CD7654321" )
+    tkHost_SetClipboardText( "cd1" )
+    tkTextBox_SetSel( e, 0, -1 )
+    tkTest_PushKey( h, SDLK_V, TK_KMOD_PRIMARY )
+    tkTest_Check( "a paste that cannot match is refused whole", (TextOf( w ) = "CD7654321") andalso (gLastReason = TKMASK_REJ_PATTERN) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "a (?x) pattern with a # comment at its end", tkMaskEdit_SetMask( w, TKMASK_REGEX, "(?x) [a-c]+  # letters" ) )
+    tkHost_SetFocus( h, w )
+    TypeEach( h, "cab" )
+    TypeEach( h, "d" )
+    tkTest_Check( "... works as the pattern says", (TextOf( w ) = "cab") andalso tkMaskEdit_IsComplete( w ), TextOf( w ) )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "a Unicode class", tkMaskEdit_SetMask( w, TKMASK_REGEX, "\p{Lu}\d" ) )
+    tkHost_SetFocus( h, w )
+    tkTest_PushText( h, chr( &hC3, &h89 ) )
+    TypeEach( h, "1" )
+    tkTest_Check( "... takes an upper-case E-acute then a digit", (TextOf( w ) = chr( &hC3, &h89 ) & "1") andalso tkMaskEdit_IsComplete( w ) )
+    tkHost_SetFocus( h, other )
     tkMaskEdit_SetMask( w, TKMASK_FIXED, "000" )
 
     ' ---- colours are the field's -----------------------------------------------------------------

@@ -1,0 +1,130 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMaskEditRegex -- REGEX masks for tkMask / tkMaskEdit / tkDataGrid on vendor/pcre2
+' (docs/tkControls/MASKEDIT.md 4.4, D-8). The only tkControls module that links PCRE2: a program
+' that never calls tkMaskEditRegex_Enable links none of it.
+'
+'     #import "vendor/tkControls/tkMaskEditRegex"
+'     tkMaskEditRegex_Enable( )                        ' once, before the first REGEX SetMask
+'     tkMaskEdit_SetMask( h, TKMASK_REGEX, "[A-Z]{2}\d{6,8}" )
+'
+' THE RULES were measured first (M4-RESULTS.md, a probe on PCRE2 10.49):
+'   - the whole text must match, so the pattern P is compiled as (?:P)\z and matched ANCHORED;
+'   - FULL is a plain match of that;
+'   - PARTIAL ("can still become a match") is PCRE2_ERROR_PARTIAL with PCRE2_PARTIAL_HARD. P alone
+'     with PARTIAL_HARD is wrong ("abc" against ab|abcd is a match of "ab", not a partial), and
+'     PCRE2_ENDANCHORED with PARTIAL_HARD is refused (-34, at compile and at match time). A full
+'     match also answers PARTIAL under PARTIAL_HARD, so FULL is asked first;
+'   - an empty subject never answers PARTIAL (tkMask keeps the empty text by itself);
+'   - a (?x) "# comment" would swallow the ")\z": when P compiles alone but (?:P)\z does not,
+'     the wrap is retried with a newline before the ")".
+' UTF and UCP are on: the text is UTF-8, \w \d \p{..} are Unicode's. A match context bounds each
+' match at 100,000 steps (a pattern that runs away answers "no match").
+' Compiled patterns are cached by their text (up to 32; the oldest goes) and live until the program ends.
+#module "tkMaskEditRegex"
+
+#import "vendor/pcre2"
+#import "../tkMask" public
+using tkMask
+
+const RX_CACHE = 32
+const RX_MATCH_LIMIT = 100000
+
+type RX_ENTRY
+    pattern as ustring
+    code    as pcre2_code ptr
+    md      as pcre2_match_data ptr
+end type
+
+dim shared as RX_ENTRY gRx( 0 to RX_CACHE - 1 )
+dim shared as int32 gRxCount, gRxNext
+dim shared as pcre2_match_context ptr gRxCtx
+dim shared as ustring gRxLastError
+
+private function RxCompile( byref s as const string, byref errText as ustring ) as pcre2_code ptr
+    dim as int32 errc
+    dim as PCRE2_SIZE erroff
+    dim as pcre2_code ptr re = pcre2_compile( strptr( s ), len( s ), PCRE2_UTF or PCRE2_UCP, @errc, @erroff, 0 )
+    if re = 0 then
+        dim as zstring * 256 buf
+        pcre2_get_error_message( errc, cast( PCRE2_UCHAR8 ptr, @buf ), 256 )
+        errText = buf & " (at " & erroff & ")"
+    end if
+    return re
+end function
+
+' The cached entry for pattern, compiled on first use; -1 (and errText) when it does not compile.
+private function RxEntry( byref pattern as const ustring, byref errText as ustring ) as int32
+    for i as int32 = 0 to gRxCount - 1
+        if gRx(i).pattern = pattern then return i
+    next
+    dim as string p = pattern
+    ' the error a user should see is the one for their own pattern, at their own offset
+    dim as pcre2_code ptr plain = RxCompile( p, errText )
+    if plain = 0 then return -1
+    pcre2_code_free( plain )
+    dim as ustring dummy
+    dim as pcre2_code ptr re = RxCompile( "(?:" & p & ")\z", dummy )
+    if re = 0 then re = RxCompile( "(?:" & p & chr( 10 ) & ")\z", dummy )      ' a (?x) comment at the end
+    if re = 0 then
+        errText = "the pattern cannot be anchored at the end"
+        return -1
+    end if
+    dim as int32 k
+    if gRxCount < RX_CACHE then
+        k = gRxCount
+        gRxCount += 1
+    else
+        k = gRxNext
+        gRxNext = (gRxNext + 1) mod RX_CACHE
+        pcre2_match_data_free( gRx(k).md )
+        pcre2_code_free( gRx(k).code )
+    end if
+    gRx(k).pattern = pattern
+    gRx(k).code = re
+    gRx(k).md = pcre2_match_data_create_from_pattern( re, 0 )
+    errText = ""
+    return k
+end function
+
+private function RxCheck( byref pattern as const ustring, byref errText as ustring ) as boolean
+    dim as boolean ok = RxEntry( pattern, errText ) >= 0
+    gRxLastError = errText
+    return ok
+end function
+
+private function RxTest( byref pattern as const ustring, byref text as const string ) as int32
+    dim as ustring e
+    dim as int32 k = RxEntry( pattern, e )
+    if k < 0 then return -1
+    dim as string s = text
+    dim as int32 rc = pcre2_match( gRx(k).code, strptr( s ), len( s ), 0, PCRE2_ANCHORED, gRx(k).md, gRxCtx )
+    if rc > 0 then return 2
+    rc = pcre2_match( gRx(k).code, strptr( s ), len( s ), 0, PCRE2_ANCHORED or PCRE2_PARTIAL_HARD, gRx(k).md, gRxCtx )
+    if rc = PCRE2_ERROR_PARTIAL then return 1
+    return 0
+end function
+
+' Registers PCRE2 as tkMask's regex provider. Call once, before the first REGEX mask.
+public sub tkMaskEditRegex_Enable( )
+    if gRxCtx = 0 then
+        gRxCtx = pcre2_match_context_create( 0 )
+        if gRxCtx then pcre2_set_match_limit( gRxCtx, RX_MATCH_LIMIT )
+    end if
+    tkMask_SetRegexProvider( @RxCheck, @RxTest )
+end sub
+
+' Why the last pattern checked did not compile ("" when it did): PCRE2's message and offset.
+public function tkMaskEditRegex_LastError( ) as ustring
+    return gRxLastError
+end function
+
+' The answer for text: 0 cannot become a match, 1 can (partial), 2 is one; -1 the pattern is bad.
+public function tkMaskEditRegex_Test( byref pattern as const ustring, byref text as const ustring ) as int32
+    dim as string s = text
+    return RxTest( pattern, s )
+end function
