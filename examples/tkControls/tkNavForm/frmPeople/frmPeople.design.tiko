@@ -31,14 +31,14 @@ public partial type Form extends FormBase
     navPeople as Navigator
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
     declare sub lstPeople_Fill( )
-    declare function lstPeople_Item( ) as long
+    declare function lstPeople_Item( ) as int32
     declare function IsDirty( byref r as peopledata.Person ) as boolean
-    declare function navPeople_MoveTo( byval i as long ) as boolean
+    declare function navPeople_MoveTo( byval i as int32 ) as boolean
     declare sub navPeople_Refresh( )
-    declare function navPeople_Current( ) as long
-    declare function navPeople_Go_( byval action as long, byval target as long ) as boolean
+    declare function navPeople_Current( ) as int32
+    declare function navPeople_Go_( byval action as int32, byval target as int32 ) as boolean
     declare sub navPeople_FromList_( )
-    declare sub navPeople_ListRow_( byval i as long )
+    declare sub navPeople_ListRow_( byval i as int32 )
     declare function LoadFrom( byref r as peopledata.Person ) as boolean
     declare function SaveTo( byref r as peopledata.Person ) as boolean
     declare sub navPeople_Navigate( byval action as int32, byval target as int32, byref Allow as boolean )
@@ -121,7 +121,7 @@ sub Form.lstPeople_Fill( )
         dim byref as Array( of peopledata.Person ) a_ = People
         tkListTree_BeginUpdate( lstPeople.Handle )
         tkListTree_Clear( lstPeople.Handle )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             dim as integer row_ = tkListTree_AddString( lstPeople.Handle, tkBind_Text( a_[i_].Name ) )
             tkListTree_SetCellText( lstPeople.Handle, row_, 1, tkBind_Text( a_[i_].Age ) )
             tkListTree_SetItemData( lstPeople.Handle, row_, i_ )
@@ -130,8 +130,8 @@ sub Form.lstPeople_Fill( )
     end scope
 end sub
 
-function Form.lstPeople_Item( ) as long
-    dim as long row_ = tkListTree_GetCurSel( lstPeople.Handle )
+function Form.lstPeople_Item( ) as int32
+    dim as int32 row_ = tkListTree_GetCurSel( lstPeople.Handle )
     if row_ < 0 then return -1
     return tkListTree_GetItemData( lstPeople.Handle, row_ )
 end function
@@ -143,10 +143,10 @@ function Form.IsDirty( byref r as peopledata.Person ) as boolean
     return false
 end function
 
-function Form.navPeople_MoveTo( byval i as long ) as boolean
+function Form.navPeople_MoveTo( byval i as int32 ) as boolean
     dim byref as Array( of peopledata.Person ) a_ = People
     if (i < 0) orelse (i >= a_.Count( )) then return false
-    dim as long cur = tkNavigator_GetPosition( navPeople.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navPeople.Handle )
     if (cur >= 0) andalso (cur < a_.Count( )) then
         if cur = i then return true
         if IsDirty( a_[cur] ) then
@@ -171,20 +171,20 @@ sub Form.navPeople_Refresh( )
         LoadFrom( blank_ )
         exit sub
     end if
-    dim as long cur = tkNavigator_GetPosition( navPeople.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navPeople.Handle )
     if cur < 0 then cur = 0
     tkNavigator_SetPosition( navPeople.Handle, cur )
     LoadFrom( a_[cur] )
     tkListTree_SetCurSel( lstPeople.Handle, cur )
 end sub
 
-function Form.navPeople_Current( ) as long
+function Form.navPeople_Current( ) as int32
     return tkNavigator_GetPosition( navPeople.Handle )
 end function
 
-function Form.navPeople_Go_( byval action as long, byval target as long ) as boolean
+function Form.navPeople_Go_( byval action as int32, byval target as int32 ) as boolean
     dim byref as Array( of peopledata.Person ) a_ = People
-    dim as long cur = tkNavigator_GetPosition( navPeople.Handle )
+    dim as int32 cur = tkNavigator_GetPosition( navPeople.Handle )
     select case action
     case TKNAV_NEW
         if (cur >= 0) andalso (cur < a_.Count( )) then
@@ -209,15 +209,15 @@ function Form.navPeople_Go_( byval action as long, byval target as long ) as boo
 end function
 
 sub Form.navPeople_FromList_( )
-    dim as long i = lstPeople_Item( )
-    dim as long cur = tkNavigator_GetPosition( navPeople.Handle )
+    dim as int32 i = lstPeople_Item( )
+    dim as int32 cur = tkNavigator_GetPosition( navPeople.Handle )
     if (i < 0) orelse (i = cur) then exit sub
     if navPeople_MoveTo( i ) = false then
         tkListTree_SetCurSel( lstPeople.Handle, cur )
     end if
 end sub
 
-sub Form.navPeople_ListRow_( byval i as long )
+sub Form.navPeople_ListRow_( byval i as int32 )
     dim byref as Array( of peopledata.Person ) a_ = People
     if (i < 0) orelse (i >= a_.Count( )) then exit sub
     tkListTree_SetCellText( lstPeople.Handle, i, 0, tkBind_Text( a_[i].Name ) )

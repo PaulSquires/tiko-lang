@@ -20,7 +20,7 @@ using tkPaint
 public partial type Form extends FormBase
     grdLines as DataGrid
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
-    declare function grdLines_Item( ) as long
+    declare function grdLines_Item( ) as int32
     declare function LoadFrom( byref r as griddata.Order ) as boolean
     declare function SaveTo( byref r as griddata.Order ) as boolean
 end type
@@ -49,7 +49,7 @@ function Form.LoadFrom( byref r as griddata.Order ) as boolean
         tkDataGrid_BeginUpdate( grdLines.Handle )
         tkDataGrid_SetRowCount( grdLines.Handle, 0 )
         tkDataGrid_SetRowCount( grdLines.Handle, a_.Count( ) )
-        for i_ as long = 0 to a_.Count( ) - 1
+        for i_ as int32 = 0 to a_.Count( ) - 1
             tkDataGrid_SetCellText( grdLines.Handle, i_, 0, tkBind_Text( a_[i_].Item ) )
             tkDataGrid_SetCellFloat( grdLines.Handle, i_, 1, tkBind_Float( a_[i_].Qty ) )
             tkDataGrid_SetCellFloat( grdLines.Handle, i_, 2, tkBind_Float( a_[i_].Price ) )
@@ -77,13 +77,13 @@ function Form.SaveTo( byref r as griddata.Order ) as boolean
     end if
     scope
         dim byref as Array( of griddata.Line ) a_ = r.Lines
-        dim as long n_ = tkDataGrid_GetRowCount( grdLines.Handle )
+        dim as int32 n_ = tkDataGrid_GetRowCount( grdLines.Handle )
         if a_.Count( ) > n_ then a_.SetCount( n_ )
         while a_.Count( ) < n_
             dim as griddata.Line new_
             a_.Push( new_ )
         wend
-        for i_ as long = 0 to n_ - 1
+        for i_ as int32 = 0 to n_ - 1
             tkBind_Put( a_[i_].Item, tkDataGrid_GetCellText( grdLines.Handle, i_, 0 ) )
             tkBind_Put( a_[i_].Qty, tkDataGrid_GetCellFloat( grdLines.Handle, i_, 1 ) )
             tkBind_Put( a_[i_].Price, tkDataGrid_GetCellFloat( grdLines.Handle, i_, 2 ) )
@@ -94,7 +94,7 @@ function Form.SaveTo( byref r as griddata.Order ) as boolean
     return true
 end function
 
-function Form.grdLines_Item( ) as long
+function Form.grdLines_Item( ) as int32
     dim as integer r_, c_
     if tkDataGrid_GetCurrentCell( grdLines.Handle, r_, c_ ) = false then return -1
     if r_ >= tkDataGrid_GetRowCount( grdLines.Handle ) then return -1

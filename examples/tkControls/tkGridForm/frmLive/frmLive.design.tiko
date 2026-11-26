@@ -21,9 +21,9 @@ public partial type Form extends FormBase
     grdLines as DataGrid
     grdStock as DataGrid
     declare sub Build( byval owner as TK_FORM ptr = nullptr )
-    declare function grdLines_Item( ) as long
+    declare function grdLines_Item( ) as int32
     declare sub grdStock_Fill( )
-    declare function grdStock_Item( ) as long
+    declare function grdStock_Item( ) as int32
     declare function LoadFrom( byref r as griddata.Order ) as boolean
     declare function SaveTo( byref r as griddata.Order ) as boolean
 end type
@@ -162,13 +162,13 @@ function Form.SaveTo( byref r as griddata.Order ) as boolean
     scope
         dim byref as Array( of griddata.Line ) a_ = r.Lines
         if tkDataGrid_GetSourceContext( grdLines.Handle ) <> cptr( any ptr, @a_ ) then
-            dim as long n_ = tkDataGrid_GetRowCount( grdLines.Handle )
+            dim as int32 n_ = tkDataGrid_GetRowCount( grdLines.Handle )
             if a_.Count( ) > n_ then a_.SetCount( n_ )
             while a_.Count( ) < n_
                 dim as griddata.Line new_
                 a_.Push( new_ )
             wend
-            for i_ as long = 0 to n_ - 1
+            for i_ as int32 = 0 to n_ - 1
                 tkBind_Put( a_[i_].Item, tkDataGrid_GetCellText( grdLines.Handle, i_, 0 ) )
                 tkBind_Put( a_[i_].Qty, tkDataGrid_GetCellFloat( grdLines.Handle, i_, 1 ) )
                 tkBind_Put( a_[i_].Due, tkDataGrid_GetCellDate( grdLines.Handle, i_, 2 ) )
@@ -178,7 +178,7 @@ function Form.SaveTo( byref r as griddata.Order ) as boolean
     return true
 end function
 
-function Form.grdLines_Item( ) as long
+function Form.grdLines_Item( ) as int32
     dim as integer r_, c_
     if tkDataGrid_GetCurrentCell( grdLines.Handle, r_, c_ ) = false then return -1
     if r_ >= tkDataGrid_GetRowCount( grdLines.Handle ) then return -1
@@ -199,7 +199,7 @@ sub Form.grdStock_Fill( )
     end scope
 end sub
 
-function Form.grdStock_Item( ) as long
+function Form.grdStock_Item( ) as int32
     dim as integer r_, c_
     if tkDataGrid_GetCurrentCell( grdStock.Handle, r_, c_ ) = false then return -1
     if r_ >= tkDataGrid_GetRowCount( grdStock.Handle ) then return -1

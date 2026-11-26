@@ -762,7 +762,7 @@ props = [
 events = [
   { name="TimeChanged", set="tkTimePicker_SetTimeChangedCallback", type="TPK_TimeChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byval bHasTime as boolean", params="byval pTime as TKTIME ptr, byval bHasTime as boolean", args="pTime, bHasTime" },
   { name="DropDown", set="tkTimePicker_SetDropDownCallback", type="TPK_DropDownCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
-  { name="ItemDisabled", set="tkTimePicker_SetItemDisabledCallback", type="TPK_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
+  { name="ItemDisabled", set="tkTimePicker_SetItemDisabledCallback", type="TPK_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as int32, byval nValue as int32", params="byval nKind as int32, byval nValue as int32, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
   { name="Paint", set="tkTimePicker_SetPaintCallback", type="TPK_PaintCallbackSub", sig="byval p as TKTIMEPICKER_PAINTINFO ptr", params="byval p as TKTIMEPICKER_PAINTINFO ptr", args="p", widget="p->hCtrl" },
   { name="Message", set="tkTimePicker_SetMessageCallback", type="TPK_MessageCallbackFunc", sig="byval m as TKTIMEPICKER_MESSAGEINFO ptr", params="byval m as TKTIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
   { name="FormatTime", set="tkTimePicker_SetFormatCallback", type="TPK_FormatCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pTime as TKTIME ptr, byref sOut as ustring", params="byval pTime as TKTIME ptr, byref sOut as ustring", args="pTime, sOut" },
@@ -850,7 +850,7 @@ props = [
 events = [
   { name="DateTimeChanged", set="tkDateTimePicker_SetDateTimeChangedCallback", type="DTM_DateTimeChangedCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byval bHasValue as boolean", params="byval pDT as TKDATETIME ptr, byval bHasValue as boolean", args="pDT, bHasValue" },
   { name="DropDown", set="tkDateTimePicker_SetDropDownCallback", type="DTM_DropDownCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
-  { name="ItemDisabled", set="tkDateTimePicker_SetItemDisabledCallback", type="DTM_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
+  { name="ItemDisabled", set="tkDateTimePicker_SetItemDisabledCallback", type="DTM_ItemDisabledCallbackFunc", sig="byval hCtrl as TK_WIDGET ptr, byval nKind as int32, byval nValue as int32", params="byval nKind as int32, byval nValue as int32, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
   { name="Paint", set="tkDateTimePicker_SetPaintCallback", type="DTM_PaintCallbackSub", sig="byval p as TKDATETIMEPICKER_PAINTINFO ptr", params="byval p as TKDATETIMEPICKER_PAINTINFO ptr", args="p", widget="p->hCtrl" },
   { name="Message", set="tkDateTimePicker_SetMessageCallback", type="DTM_MessageCallbackFunc", sig="byval m as TKDATETIMEPICKER_MESSAGEINFO ptr", params="byval m as TKDATETIMEPICKER_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCtrl", returns="boolean", result="Handled" },
   { name="FormatDateTime", set="tkDateTimePicker_SetFormatCallback", type="DTM_FormatCallbackSub", sig="byval hCtrl as TK_WIDGET ptr, byval pDT as TKDATETIME ptr, byref sOut as ustring", params="byval pDT as TKDATETIME ptr, byref sOut as ustring", args="pDT, sOut" },
@@ -889,7 +889,7 @@ events = [
   { name="SelChange", set="tkTimePanel_SetSelChangeCallback", type="TP_SelChangeCallbackSub", sig="byval hPanel as TK_WIDGET ptr, byval pTime as TKTIME ptr", params="byval pTime as TKTIME ptr", args="pTime" },
   { name="Accept", set="tkTimePanel_SetAcceptCallback", type="TP_AcceptCallbackSub", sig="byval hPanel as TK_WIDGET ptr, byval pTime as TKTIME ptr", params="byval pTime as TKTIME ptr", args="pTime" },
   { name="Dismiss", set="tkTimePanel_SetDismissCallback", type="TP_DismissCallbackSub", sig="byval hPanel as TK_WIDGET ptr", params="", args="" },
-  { name="ItemDisabled", set="tkTimePanel_SetItemDisabledCallback", type="TP_ItemDisabledCallbackFunc", sig="byval hPanel as TK_WIDGET ptr, byval nKind as long, byval nValue as long", params="byval nKind as long, byval nValue as long, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
+  { name="ItemDisabled", set="tkTimePanel_SetItemDisabledCallback", type="TP_ItemDisabledCallbackFunc", sig="byval hPanel as TK_WIDGET ptr, byval nKind as int32, byval nValue as int32", params="byval nKind as int32, byval nValue as int32, byref Disabled as boolean", args="nKind, nValue, Disabled", returns="boolean", result="Disabled" },
   { name="ItemPaint", set="tkTimePanel_SetItemPaintCallback", type="TP_ItemPaintCallbackSub", sig="byval p as TKTIMEPANEL_ITEMPAINTINFO ptr", params="byval p as TKTIMEPANEL_ITEMPAINTINFO ptr", args="p", widget="p->hPanel" },
   { name="Message", set="tkTimePanel_SetMessageCallback", type="TP_MessageCallbackFunc", sig="byval m as TKTIMEPANEL_MESSAGEINFO ptr", params="byval m as TKTIMEPANEL_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hPanel", returns="boolean", result="Handled" },
 ]
@@ -1218,8 +1218,8 @@ events = [
   { name="ColumnResize", set="tkListTree_SetColumnResizeCallback", type="HDR_WidthChangedCallbackSub", sig="byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean", params="byval idx as integer, byval nWidth as integer, byval bLive as boolean", args="idx, nWidth, bLive" },
   { name="DragDrop", set="tkListTree_SetDragDropCallback", type="LT_DragDropCallbackSub", sig="byval hList as TK_WIDGET ptr, byval newFirstRow as integer, byval count as integer", params="byval newFirstRow as integer, byval count as integer", args="newFirstRow, count" },
   { name="ExpandCollapse", set="tkListTree_SetExpandCollapseCallback", type="LT_ExpandCollapseCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean", params="byval row as integer, byval bExpanded as boolean", args="row, bExpanded" },
-  { name="ItemCheck", set="tkListTree_SetItemCheckCallback", type="LT_ItemCheckCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval oldState as long, byref newState as long", params="byval row as integer, byval oldState as long, byref newState as long, byref Allow as boolean", args="row, oldState, newState, Allow", returns="boolean", result="Allow", result_init="true" },
-  { name="ItemChecked", set="tkListTree_SetItemCheckedCallback", type="LT_ItemCheckedCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval newState as long", params="byval row as integer, byval newState as long", args="row, newState" },
+  { name="ItemCheck", set="tkListTree_SetItemCheckCallback", type="LT_ItemCheckCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval oldState as int32, byref newState as int32", params="byval row as integer, byval oldState as int32, byref newState as int32, byref Allow as boolean", args="row, oldState, newState, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="ItemChecked", set="tkListTree_SetItemCheckedCallback", type="LT_ItemCheckedCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer, byval newState as int32", params="byval row as integer, byval newState as int32", args="row, newState" },
   { name="SelChange", set="tkListTree_SetSelChangeCallback", type="LT_SelChangeCallbackSub", sig="byval hList as TK_WIDGET ptr, byval row as integer", params="byval row as integer", args="row" },
   { name="Paint", set="tkListTree_SetPaintCallback", type="LT_PaintCallbackSub", sig="byval p as TKLISTTREE_PAINTINFO ptr", params="byval p as TKLISTTREE_PAINTINFO ptr", args="p", widget="p->hList", fallback="tkListTree_PaintRowDefault" },
   { name="Message", set="tkListTree_SetMessageCallback", type="LT_MessageCallbackFunc", sig="byval m as TKLISTTREE_MESSAGEINFO ptr", params="byval m as TKLISTTREE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hList", returns="boolean", result="Handled" },
@@ -1313,8 +1313,8 @@ events = [
   { name="SortChanged", set="tkDataGrid_SetSortChangedCallback", type="DG_GridSub", sig="byval hGrid as TK_WIDGET ptr", params="", args="" },
   { name="FilterChanged", set="tkDataGrid_SetFilterChangedCallback", type="DG_GridSub", sig="byval hGrid as TK_WIDGET ptr", params="", args="" },
   { name="ColumnVisibilityChanged", set="tkDataGrid_SetColumnVisibilityChangedCallback", type="DG_ColumnVisibleSub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval bVisible as boolean", params="byval col as integer, byval bVisible as boolean", args="col, bVisible" },
-  { name="SummaryFormatting", set="tkDataGrid_SetSummaryFormattingCallback", type="DG_SummarySub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring", params="byval col as integer, byval kind as long, byref v as TKDG_VALUE, byref text as ustring", args="col, kind, v, text" },
-  { name="ContextMenu", set="tkDataGrid_SetContextMenuCallback", type="DG_ContextMenuSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval x as long, byval y as long, byval bKeyboard as boolean", params="byval row as integer, byval col as integer, byval x as long, byval y as long, byval bKeyboard as boolean", args="row, col, x, y, bKeyboard" },
+  { name="SummaryFormatting", set="tkDataGrid_SetSummaryFormattingCallback", type="DG_SummarySub", sig="byval hGrid as TK_WIDGET ptr, byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring", params="byval col as integer, byval kind as int32, byref v as TKDG_VALUE, byref text as ustring", args="col, kind, v, text" },
+  { name="ContextMenu", set="tkDataGrid_SetContextMenuCallback", type="DG_ContextMenuSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval x as int32, byval y as int32, byval bKeyboard as boolean", params="byval row as integer, byval col as integer, byval x as int32, byval y as int32, byval bKeyboard as boolean", args="row, col, x, y, bKeyboard" },
   { name="CellBeginEdit", set="tkDataGrid_SetCellBeginEditCallback", type="DG_CellBeginEditFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer", params="byval row as integer, byval col as integer, byref Allow as boolean", args="row, col, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="CellEndEdit", set="tkDataGrid_SetCellEndEditCallback", type="DG_CellEndEditSub", sig="byval hGrid as TK_WIDGET ptr, byval row as integer, byval col as integer, byval bCommitted as boolean", params="byval row as integer, byval col as integer, byval bCommitted as boolean", args="row, col, bCommitted" },
   { name="RowValidating", set="tkDataGrid_SetRowValidatingCallback", type="DG_RowFunc", sig="byval hGrid as TK_WIDGET ptr, byval row as integer", params="byval row as integer, byref Allow as boolean", args="row, Allow", returns="boolean", result="Allow", result_init="true" },
@@ -1894,9 +1894,9 @@ props = [
 ]
 events = [
   { name="CheckedChanged", set="tkCheckedList_SetCheckedChangedCallback", type="CKL_CheckedChangedCallbackSub", sig="byval hList as TK_WIDGET ptr", params="", args="" },
-  { name="ItemCheck", set="tkCheckedList_SetItemCheckCallback", type="CKL_ItemCheckCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval idx as long, byref bNewChecked as boolean", params="byval idx as long, byref bNewChecked as boolean, byref Allow as boolean", args="idx, bNewChecked, Allow", returns="boolean", result="Allow", result_init="true" },
-  { name="SelChange", set="tkCheckedList_SetSelChangeCallback", type="CKL_SelChangeCallbackSub", sig="byval hList as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
-  { name="Activate", set="tkCheckedList_SetActivateCallback", type="CKL_ActivateCallbackSub", sig="byval hList as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="ItemCheck", set="tkCheckedList_SetItemCheckCallback", type="CKL_ItemCheckCallbackFunc", sig="byval hList as TK_WIDGET ptr, byval idx as int32, byref bNewChecked as boolean", params="byval idx as int32, byref bNewChecked as boolean, byref Allow as boolean", args="idx, bNewChecked, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="SelChange", set="tkCheckedList_SetSelChangeCallback", type="CKL_SelChangeCallbackSub", sig="byval hList as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
+  { name="Activate", set="tkCheckedList_SetActivateCallback", type="CKL_ActivateCallbackSub", sig="byval hList as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
 ]
 
 [[control]]
@@ -1949,7 +1949,7 @@ props = [
 ]
 events = [
   { name="CheckedChanged", set="tkCheckedCombo_SetCheckedChangedCallback", type="CCB_CheckedChangedCallbackSub", sig="byval hCombo as TK_WIDGET ptr", params="", args="" },
-  { name="ItemCheck", set="tkCheckedCombo_SetItemCheckCallback", type="CCB_ItemCheckCallbackFunc", sig="byval hCombo as TK_WIDGET ptr, byval idx as long, byval bNewChecked as boolean", params="byval idx as long, byval bNewChecked as boolean, byref Allow as boolean", args="idx, bNewChecked, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="ItemCheck", set="tkCheckedCombo_SetItemCheckCallback", type="CCB_ItemCheckCallbackFunc", sig="byval hCombo as TK_WIDGET ptr, byval idx as int32, byval bNewChecked as boolean", params="byval idx as int32, byval bNewChecked as boolean, byref Allow as boolean", args="idx, bNewChecked, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="DropDown", set="tkCheckedCombo_SetDropDownCallback", type="CCB_DropDownCallbackSub", sig="byval hCombo as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
   { name="Paint", set="tkCheckedCombo_SetPaintCallback", type="CCB_PaintCallbackSub", sig="byval p as TKCHECKEDCOMBO_PAINTINFO ptr", params="byval p as TKCHECKEDCOMBO_PAINTINFO ptr", args="p", widget="p->hCombo" },
   { name="Message", set="tkCheckedCombo_SetMessageCallback", type="CCB_MessageCallbackFunc", sig="byval m as TKCHECKEDCOMBO_MESSAGEINFO ptr", params="byval m as TKCHECKEDCOMBO_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hCombo", returns="boolean", result="Handled" },
@@ -1999,9 +1999,9 @@ props = [
 events = [
   { name="TokensChanged", set="tkTokenBox_SetTokensChangedCallback", type="TKB_NotifyCallbackSub", sig="byval hBox as TK_WIDGET ptr", params="", args="" },
   { name="TokenAdding", set="tkTokenBox_SetTokenAddingCallback", type="TKB_TokenAddingCallbackFunc", sig="byval hBox as TK_WIDGET ptr, byref Text as ustring, byref Key as ustring", params="byref Text as ustring, byref Key as ustring, byref Allow as boolean", args="Text, Key, Allow", returns="boolean", result="Allow", result_init="true" },
-  { name="TokenRemoving", set="tkTokenBox_SetTokenRemovingCallback", type="TKB_TokenRemovingCallbackFunc", sig="byval hBox as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="TokenRemoving", set="tkTokenBox_SetTokenRemovingCallback", type="TKB_TokenRemovingCallbackFunc", sig="byval hBox as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="InputChanged", set="tkTokenBox_SetInputChangedCallback", type="TKB_NotifyCallbackSub", sig="byval hBox as TK_WIDGET ptr", params="", args="" },
-  { name="ChipClick", set="tkTokenBox_SetChipClickCallback", type="TKB_ChipClickCallbackSub", sig="byval hBox as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="ChipClick", set="tkTokenBox_SetChipClickCallback", type="TKB_ChipClickCallbackSub", sig="byval hBox as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
   { name="Suggest", set="tkTokenBox_SetSuggestCallback", type="TKB_SuggestCallbackSub", sig="byval hBox as TK_WIDGET ptr, byval Text as ustring", params="byval Text as ustring", args="Text" },
   { name="Paint", set="tkTokenBox_SetPaintCallback", type="TKB_ChipPaintCallbackSub", sig="byval ci as TKTOKENBOX_CHIPINFO ptr", params="byval ci as TKTOKENBOX_CHIPINFO ptr", args="ci", widget="ci->hBox" },
 ]
@@ -2059,15 +2059,15 @@ props = [
   { name="Font", kind="font", set="tkAutoComplete_SetFont", get="tkAutoComplete_GetFont" },
 ]
 events = [
-  { name="ItemSelected", set="tkAutoComplete_SetItemSelectedCallback", type="AC_ItemSelectedSub", sig="byval hAC as TK_WIDGET ptr, byval index as long, byval id as longint", params="byval index as long, byval id as longint", args="index, id" },
+  { name="ItemSelected", set="tkAutoComplete_SetItemSelectedCallback", type="AC_ItemSelectedSub", sig="byval hAC as TK_WIDGET ptr, byval index as int32, byval id as int64", params="byval index as int32, byval id as int64", args="index, id" },
   { name="TextChanged", set="tkAutoComplete_SetTextChangedCallback", type="AC_TextChangedSub", sig="byval hAC as TK_WIDGET ptr, byval bFromList as boolean", params="byval bFromList as boolean", args="bFromList" },
-  { name="Submit", set="tkAutoComplete_SetSubmitCallback", type="AC_SubmitSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring, byval index as long", params="byref text as const ustring, byval index as long", args="text, index" },
+  { name="Submit", set="tkAutoComplete_SetSubmitCallback", type="AC_SubmitSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring, byval index as int32", params="byref text as const ustring, byval index as int32", args="text, index" },
   { name="Search", set="tkAutoComplete_SetSearchCallback", type="AC_SearchSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring", params="byref text as const ustring", args="text" },
-  { name="Highlight", set="tkAutoComplete_SetHighlightCallback", type="AC_HighlightSub", sig="byval hAC as TK_WIDGET ptr, byval index as long", params="byval index as long", args="index" },
+  { name="Highlight", set="tkAutoComplete_SetHighlightCallback", type="AC_HighlightSub", sig="byval hAC as TK_WIDGET ptr, byval index as int32", params="byval index as int32", args="index" },
   { name="DropDown", set="tkAutoComplete_SetDropDownCallback", type="AC_DropDownSub", sig="byval hAC as TK_WIDGET ptr, byval isOpen as boolean", params="byval isOpen as boolean", args="isOpen" },
-  { name="NotInList", set="tkAutoComplete_SetNotInListCallback", type="AC_NotInListSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as long", params="byref text as const ustring, byref action as long", args="text, action" },
+  { name="NotInList", set="tkAutoComplete_SetNotInListCallback", type="AC_NotInListSub", sig="byval hAC as TK_WIDGET ptr, byref text as const ustring, byref action as int32", params="byref text as const ustring, byref action as int32", args="text, action" },
   { name="ItemsNeeded", set="tkAutoComplete_SetItemsNeededCallback", type="AC_ItemsNeededSub", sig="byval hAC as TK_WIDGET ptr, byref query as const ustring", params="byref query as const ustring", args="query" },
-  { name="Populate", set="tkAutoComplete_SetPopulateCallback", type="AC_PopulateSub", sig="byval hAC as TK_WIDGET ptr, byref query as const ustring, byval requestId as long", params="byref query as const ustring, byval requestId as long", args="query, requestId" },
+  { name="Populate", set="tkAutoComplete_SetPopulateCallback", type="AC_PopulateSub", sig="byval hAC as TK_WIDGET ptr, byref query as const ustring, byval requestId as int32", params="byref query as const ustring, byval requestId as int32", args="query, requestId" },
 ]
 
 [[control]]
@@ -2094,8 +2094,8 @@ props = [
 ]
 events = [
   { name="PageChanged", set="tkPrintPreview_SetPageChangedCallback", type="PV_PageChangedSub", sig="byval hPreview as TK_WIDGET ptr, byval nPage as int32", params="byval nPage as int32", args="nPage" },
-  { name="ZoomChanged", set="tkPrintPreview_SetZoomChangedCallback", type="PV_ZoomChangedSub", sig="byval hPreview as TK_WIDGET ptr, byval fZoom as single", params="byval fZoom as single", args="fZoom" },
-  { name="LinkClick", set="tkPrintPreview_SetLinkClickCallback", type="PV_LinkClickFunc", sig="byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single", params="byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as single, byref Handled as boolean", args="nPage, url, nTargetPage, fTargetY, Handled", returns="boolean", result="Handled" },
+  { name="ZoomChanged", set="tkPrintPreview_SetZoomChangedCallback", type="PV_ZoomChangedSub", sig="byval hPreview as TK_WIDGET ptr, byval fZoom as float32", params="byval fZoom as float32", args="fZoom" },
+  { name="LinkClick", set="tkPrintPreview_SetLinkClickCallback", type="PV_LinkClickFunc", sig="byval hPreview as TK_WIDGET ptr, byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as float32", params="byval nPage as int32, byref url as ustring, byval nTargetPage as int32, byval fTargetY as float32, byref Handled as boolean", args="nPage, url, nTargetPage, fTargetY, Handled", returns="boolean", result="Handled" },
 ]
 
 [[control]]
@@ -2170,9 +2170,9 @@ props = [
   { name="ReshowTime", kind="int", set="tkRating_SetReshowTime", get="" },
 ]
 events = [
-  { name="ValueChanged", set="tkRating_SetValueChangedCallback", type="RTG_ValueChangedCallbackSub", sig="byval hRating as TK_WIDGET ptr, byval nValue as double", params="byval nValue as double", args="nValue" },
-  { name="HoverChanged", set="tkRating_SetHoverChangedCallback", type="RTG_HoverChangedCallbackSub", sig="byval hRating as TK_WIDGET ptr, byval nHover as double", params="byval nHover as double", args="nHover" },
-  { name="FormatCaption", set="tkRating_SetFormatCaptionCallback", type="RTG_FormatCaptionCallbackFunc", sig="byval hRating as TK_WIDGET ptr, byval nValue as double, byval nHover as double", params="byval nValue as double, byval nHover as double, byref Text as ustring", args="nValue, nHover, Text", returns="ustring", result="Text" },
+  { name="ValueChanged", set="tkRating_SetValueChangedCallback", type="RTG_ValueChangedCallbackSub", sig="byval hRating as TK_WIDGET ptr, byval nValue as float64", params="byval nValue as float64", args="nValue" },
+  { name="HoverChanged", set="tkRating_SetHoverChangedCallback", type="RTG_HoverChangedCallbackSub", sig="byval hRating as TK_WIDGET ptr, byval nHover as float64", params="byval nHover as float64", args="nHover" },
+  { name="FormatCaption", set="tkRating_SetFormatCaptionCallback", type="RTG_FormatCaptionCallbackFunc", sig="byval hRating as TK_WIDGET ptr, byval nValue as float64, byval nHover as float64", params="byval nValue as float64, byval nHover as float64, byref Text as ustring", args="nValue, nHover, Text", returns="ustring", result="Text" },
   { name="PaintItem", set="tkRating_SetPaintItemCallback", type="RTG_PaintItemCallbackSub", sig="byval p as TKRATING_ITEMPAINTINFO ptr", params="byval p as TKRATING_ITEMPAINTINFO ptr", args="p", widget="p->hRating" },
   { name="Paint", set="tkRating_SetPaintCallback", type="RTG_PaintCallbackSub", sig="byval p as TKRATING_PAINTINFO ptr", params="byval p as TKRATING_PAINTINFO ptr", args="p", widget="p->hRating" },
   { name="Message", set="tkRating_SetMessageCallback", type="RTG_MessageCallbackFunc", sig="byval m as TKRATING_MESSAGEINFO ptr", params="byval m as TKRATING_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hRating", returns="boolean", result="Handled" },
@@ -2303,7 +2303,7 @@ props = [
   { name="Interactive", kind="bool", set="tkAvatarGroup_SetInteractive", get="", default="false" },
 ]
 events = [
-  { name="ItemClick", set="tkAvatarGroup_SetItemClickCallback", type="AVG_ItemClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
+  { name="ItemClick", set="tkAvatarGroup_SetItemClickCallback", type="AVG_ItemClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
   { name="OverflowClick", set="tkAvatarGroup_SetOverflowClickCallback", type="AVG_OverflowClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr", params="", args="" },
   { name="Message", set="tkAvatarGroup_SetMessageCallback", type="AVG_MessageCallbackFunc", sig="byval m as TKAVGROUP_MESSAGEINFO ptr", params="byval m as TKAVGROUP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGroup", returns="boolean", result="Handled" },
 ]
@@ -2416,12 +2416,12 @@ props = [
   { name="MaxLabelWidth", kind="int", set="tkChipGroup_SetMaxLabelWidth", get="", default="200" },
 ]
 events = [
-  { name="ItemClick", set="tkChipGroup_SetItemClickCallback", type="CHG_ItemClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long", args="idx" },
-  { name="SelChange", set="tkChipGroup_SetSelChangeCallback", type="CHG_SelChangeCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean", params="byval idx as long, byval isSelected as boolean", args="idx, isSelected" },
-  { name="ItemRemoving", set="tkChipGroup_SetItemRemovingCallback", type="CHG_ItemRemovingCallbackFunc", sig="byval hGroup as TK_WIDGET ptr, byval idx as long", params="byval idx as long, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
+  { name="ItemClick", set="tkChipGroup_SetItemClickCallback", type="CHG_ItemClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32", args="idx" },
+  { name="SelChange", set="tkChipGroup_SetSelChangeCallback", type="CHG_SelChangeCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval idx as int32, byval isSelected as boolean", params="byval idx as int32, byval isSelected as boolean", args="idx, isSelected" },
+  { name="ItemRemoving", set="tkChipGroup_SetItemRemovingCallback", type="CHG_ItemRemovingCallbackFunc", sig="byval hGroup as TK_WIDGET ptr, byval idx as int32", params="byval idx as int32, byref Allow as boolean", args="idx, Allow", returns="boolean", result="Allow", result_init="true" },
   { name="ItemRemoved", set="tkChipGroup_SetItemRemovedCallback", type="CHG_ItemRemovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval Key as ustring", params="byval Key as ustring", args="Key" },
   { name="OverflowClick", set="tkChipGroup_SetOverflowClickCallback", type="CHG_OverflowClickCallbackSub", sig="byval hGroup as TK_WIDGET ptr", params="", args="" },
-  { name="ItemMoved", set="tkChipGroup_SetItemMovedCallback", type="CHG_ItemMovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval nFrom as long, byval nTo as long", params="byval nFrom as long, byval nTo as long", args="nFrom, nTo" },
+  { name="ItemMoved", set="tkChipGroup_SetItemMovedCallback", type="CHG_ItemMovedCallbackSub", sig="byval hGroup as TK_WIDGET ptr, byval nFrom as int32, byval nTo as int32", params="byval nFrom as int32, byval nTo as int32", args="nFrom, nTo" },
   { name="Message", set="tkChipGroup_SetMessageCallback", type="CHG_MessageCallbackFunc", sig="byval m as TKCHIPGRP_MESSAGEINFO ptr", params="byval m as TKCHIPGRP_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGroup", returns="boolean", result="Handled" },
 ]
 
