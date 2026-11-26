@@ -107,7 +107,7 @@ end type
 
 public type SettingsResult as Result( of EditorSettings, config.ConfigError )
 
-' The shipped builds: Debug (the default) and Release.
+' The shipped builds: Debug (the default), Release and MinSizeRel (-Os, the smallest binary).
 public function DefaultBuilds( ) as Array( of BuildConfig )
     dim as Array( of BuildConfig ) a
     dim as BuildConfig d
@@ -116,6 +116,9 @@ public function DefaultBuilds( ) as Array( of BuildConfig )
     dim as BuildConfig r
     r.Name = "Release" : r.Options = "-O2"
     a.Push( r )
+    dim as BuildConfig m
+    m.Name = "MinSizeRel" : m.Options = "-Os"
+    a.Push( m )
     return a
 end function
 

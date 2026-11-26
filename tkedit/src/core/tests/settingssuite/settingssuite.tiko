@@ -36,7 +36,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.Check( d.DoubleComment, "double_comment default: on (tiko style)" )
     c.Check( d.MarginClick = settings.MarginAction.Bookmark, "margin_click default: bookmark" )
     c.Same( d.DebugAdapter, "", "[debug] adapter default: found" )
-    c.SameNum( d.Builds.Count( ), 2, "two default builds" )
+    c.SameNum( d.Builds.Count( ), 3, "three default builds: Debug, Release, MinSizeRel" )
     c.Same( d.DefaultBuild( ), "Debug", "Debug is the default build" )
 
     ' the defaults' file: every key set, none commented out; it reads back as the defaults
@@ -58,7 +58,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.Check( t.IsOk( ), "the defaults' file is TOML" )
     if t.IsOk( ) then
         dim as settings.EditorSettings v = t.Value( )
-        c.Check( (v.FontSize = 11) andalso (v.Theme = "Default") andalso (v.ThemeMode = "system") andalso (v.Builds.Count( ) = 2) andalso v.AutoEnd, _
+        c.Check( (v.FontSize = 11) andalso (v.Theme = "Default") andalso (v.ThemeMode = "system") andalso (v.Builds.Count( ) = 3) andalso v.AutoEnd, _
                  "and reads as the defaults" )
         c.Same( settings.ToToml( v ), dt, "and writes the same file again" )
     end if
