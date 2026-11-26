@@ -80,7 +80,7 @@ parameters, usable in module-level code only), an empty `__FB_BUILD_SHA1__`, eve
 | Define | fbc | tiko |
 |---|---|---|
 | `__TIKO_COMPILER__` | not defined | `1`: how a source tree asks "is this tiko?" |
-| `__TIKO_VERSION__` | not defined | `"0.1.7"` |
+| `__TIKO_VERSION__` | not defined | `"0.1.8"` |
 | `TIKO_OS_WINDOWS`, `TIKO_OS_LINUX`, `TIKO_OS_MACOS` | not defined | `1` on that target: tiko's own names for the platform, the ones tiko code tests |
 | `TIKO_ARCH_X86_64`, `TIKO_ARCH_ARM64` | not defined | `1` on that target |
 | `__FB_SIGNATURE__` | `"FreeBASIC 1.20.0"` | `"tiko-lang"` |
