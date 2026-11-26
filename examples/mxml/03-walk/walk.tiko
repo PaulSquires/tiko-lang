@@ -1,0 +1,110 @@
+'' walk -- every node of any document, in order, with its type, its depth and its attributes:
+'' mxmlWalkNext for the whole tree in one loop, and a recursive walk over children and siblings
+'' that skips the whitespace between tags.
+''
+''     walk                  walks a document of its own
+''     walk FILE.xml         walks a file
+''
+'' Build it with 'tiko walk.tiko'.
+''
+'' Mini-XML is Apache-2.0-licensed (pkg/vendor/mxml/LICENSE); so is this.
+
+'' Mini-XML linked DYNAMICALLY: mxml.dll is copied beside the program (on Linux the program gets
+'' mxml_linux_x86_64.so beside it). Write 'link static' instead to build it into the program.
+#import "vendor/mxml" link dynamic
+
+'' One line for a node: what it is and what it holds. Every string Mini-XML returns belongs to
+'' the tree; '*' copies it.
+function Describe( byval node as mxml_node_t ptr ) as ustring
+    select case mxmlGetType( node )
+    case MXML_TYPE_ELEMENT
+        dim as ustring s = "<" & *mxmlGetElement( node )
+        '' Attributes by index: the value is returned, the name through the last argument. The
+        '' count is a C size_t, unsigned: 'count - 1' of none would be huge, so count as int64.
+        dim as int64 count = mxmlElementGetAttrCount( node )
+        for i as int64 = 0 to count - 1
+            dim as const zstring ptr attrName
+            dim as const zstring ptr value = mxmlElementGetAttrByIndex( node, i, @attrName )
+            s &= " " & *attrName & "=""" & *value & """"
+        next
+        return s & ">"
+    case MXML_TYPE_OPAQUE:      return "text """ & *mxmlGetOpaque( node ) & """"
+    case MXML_TYPE_COMMENT:     return "comment """ & *mxmlGetComment( node ) & """"
+    case MXML_TYPE_CDATA:       return "cdata """ & *mxmlGetCDATA( node ) & """"
+    case MXML_TYPE_DIRECTIVE:   return "directive <?" & *mxmlGetDirective( node ) & "?>"
+    case MXML_TYPE_DECLARATION: return "declaration <!" & *mxmlGetDeclaration( node ) & ">"
+    case else:                  return "type " & mxmlGetType( node )
+    end select
+end function
+
+'' Text that is nothing but the line breaks and indentation between tags.
+function IsBlank( byval node as mxml_node_t ptr ) as boolean
+    if mxmlGetType( node ) <> MXML_TYPE_OPAQUE then return false
+    return trim( *mxmlGetOpaque( node ), any !" \t\r\n" ) = ""
+end function
+
+function DepthOf( byval node as mxml_node_t ptr, byval top as mxml_node_t ptr ) as int32
+    dim as int32 d = 0
+    while node <> top
+        d += 1
+        node = mxmlGetParent( node )
+    wend
+    return d
+end function
+
+'' RECURSIVE: a node, then its children one level deeper, then its next sibling.
+sub WalkTree( byval node as mxml_node_t ptr, byval depth as int32 )
+    while node
+        if IsBlank( node ) = false then
+            print space( depth * 2 ) & Describe( node )
+            WalkTree( mxmlGetFirstChild( node ), depth + 1 )
+        end if
+        node = mxmlGetNextSibling( node )
+    wend
+end sub
+
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )
+
+dim as mxml_node_t ptr xml
+if len( command( 1 ) ) then
+    '' mxmlLoadFilename reads the file itself; a file that cannot be opened or parsed is null.
+    xml = mxmlLoadFilename( nullptr, opts, command( 1 ) )
+    if xml = nullptr then
+        print "cannot load " & command( 1 )
+        end 1
+    end if
+else
+    xml = mxmlLoadString( nullptr, opts, _
+        !"<?xml version=\"1.0\"?>\n" & _
+        !"<!DOCTYPE note>\n" & _
+        !"<note priority=\"high\" lang=\"en\">\n" & _
+        !"  <!-- written by hand -->\n" & _
+        !"  <to>Ana</to>\n" & _
+        !"  <from>Bo</from>\n" & _
+        !"  <body>Bring <b>the</b> keys</body>\n" & _
+        !"  <raw><![CDATA[if a < b && c > d]]></raw>\n" & _
+        !"</note>\n" )
+end if
+
+print "-- recursive, blank text skipped"
+WalkTree( xml, 0 )
+
+'' ONE LOOP: mxmlWalkNext gives the node after 'node' in document order -- its first child, else
+'' its next sibling, else the next sibling of the nearest parent that has one -- and null after
+'' the last node under 'top'. Here every node is counted, blank text included.
+print "-- mxmlWalkNext, element nodes only"
+dim as int32 nodes = 0, elements = 0
+dim as mxml_node_t ptr node = xml
+while node
+    nodes += 1
+    if mxmlGetType( node ) = MXML_TYPE_ELEMENT then
+        elements += 1
+        print space( DepthOf( node, xml ) * 2 ) & Describe( node )
+    end if
+    node = mxmlWalkNext( node, xml, MXML_DESCEND_ALL )
+wend
+print nodes & " nodes, " & elements & " elements"
+
+mxmlDelete( xml )
+mxmlOptionsDelete( opts )

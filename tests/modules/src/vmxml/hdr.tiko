@@ -1,0 +1,37 @@
+'' The committed vendor/mxml header -- mxml.ti, translated by 'tiko c2t' from Mini-XML 4.0.6's
+'' mxml.h -- as an importer reads it: no library needed. It names a type from each per-target
+'' enum group (mxml_add_t, mxml_descend_t, mxml_sax_event_t, mxml_ws_t), a clong, a FILE ptr,
+'' callbacks of each shape and a variadic routine.
+#include once "../../../../pkg/vendor/mxml/mxml.ti"
+
+private function OnWs cdecl( byval cbdata as any ptr, byval node as mxml_node_t ptr, byval when as mxml_ws_t ) as const zstring ptr
+    if when = MXML_WS_AFTER_CLOSE then return @!"\n"
+    return 0
+end function
+
+private function OnSax cdecl( byval cbdata as any ptr, byval node as mxml_node_t ptr, byval ev as mxml_sax_event_t ) as boolean
+    return ev <> MXML_SAX_EVENT_COMMENT
+end function
+
+private sub OnError cdecl( byval cbdata as any ptr, byval message as const zstring ptr )
+    print *message
+end sub
+
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )
+mxmlOptionsSetWhitespaceCallback( opts, @OnWs, 0 )
+mxmlOptionsSetSAXCallback( opts, @OnSax, 0 )
+mxmlOptionsSetErrorCallback( opts, @OnError, 0 )
+dim as mxml_node_t ptr xml = mxmlLoadString( 0, opts, "<a><b id=""1"">hi</b></a>" )
+dim as mxml_node_t ptr b = mxmlFindElement( xml, xml, "b", 0, 0, MXML_DESCEND_ALL )
+dim as mxml_node_t ptr n = mxmlNewInteger( b, 42 )
+dim as clong v = mxmlGetInteger( n )
+mxmlAdd( xml, MXML_ADD_AFTER, 0, mxmlNewElement( 0, "c" ) )
+mxmlElementSetAttrf( b, "n", "%d-%s", 7, strptr( "x" ) )
+dim as FILE ptr fp = fopen( "out.xml", "w" )
+mxmlSaveFile( xml, opts, fp )
+dim as zstring * 64 buf
+print mxmlSaveString( xml, opts, @buf, sizeof( buf ) ), mxmlElementGetAttrCount( b ), v
+print MXML_MAJOR_VERSION, MXML_TYPE_IGNORE, MXML_DESCEND_FIRST, sizeof( mxml_add_t ), sizeof( mxml_sax_event_t )
+mxmlDelete( xml )
+mxmlOptionsDelete( opts )

@@ -1,0 +1,321 @@
+'' =============================================================================
+'' mxml.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "mxml.h"
+''   source sha256 : 7ba5156ec4bbfe47a11f05dbb6f3939b3981588516fe2e064a073410dbba2022
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  mxmlElementClearAttr.name -> mxmlElementClearAttr.name_   (tiko reserved word)
+''   parameter  mxmlElementGetAttr.name -> mxmlElementGetAttr.name_   (tiko reserved word)
+''   parameter  mxmlElementGetAttrByIndex.name -> mxmlElementGetAttrByIndex.name_   (tiko reserved word)
+''   parameter  mxmlElementSetAttr.name -> mxmlElementSetAttr.name_   (tiko reserved word)
+''   parameter  mxmlElementSetAttrf.name -> mxmlElementSetAttrf.name_   (tiko reserved word)
+''   parameter  mxmlOptionsSetTypeValue.type -> mxmlOptionsSetTypeValue.type_   (tiko reserved word)
+''   parameter  mxmlNewCDATA.string -> mxmlNewCDATA.string_   (tiko reserved word)
+''   parameter  mxmlNewCustom.data -> mxmlNewCustom.data_   (tiko reserved word)
+''   parameter  mxmlNewElement.name -> mxmlNewElement.name_   (tiko reserved word)
+''   parameter  mxmlNewInteger.integer -> mxmlNewInteger.integer_   (tiko reserved word)
+''   parameter  mxmlNewText.string -> mxmlNewText.string_   (tiko reserved word)
+''   parameter  mxmlSetCDATA.data -> mxmlSetCDATA.data_   (tiko reserved word)
+''   parameter  mxmlSetCustom.data -> mxmlSetCustom.data_   (tiko reserved word)
+''   parameter  mxmlSetElement.name -> mxmlSetElement.name_   (tiko reserved word)
+''   parameter  mxmlSetInteger.integer -> mxmlSetInteger.integer_   (tiko reserved word)
+''   parameter  mxmlSetText.string -> mxmlSetText.string_   (tiko reserved word)
+''   parameter  mxmlSetUserData.data -> mxmlSetUserData.data_   (tiko reserved word)
+''
+'' 1 item needs manual translation:
+''   line 66  mxml.h:35  C2T-TODO(function-like-macro)  MXML_FORMAT
+'' =============================================================================
+
+''
+'' Header file for Mini-XML, a small XML file parsing library.
+''
+'' https://www.msweet.org/mxml
+''
+'' Copyright © 2003-2024 by Michael R Sweet.
+''
+'' Licensed under Apache License v2.0.  See the file "LICENSE" for more
+'' information.
+''
+
+#pragma once
+
+#include once "crt/long.bi"
+#  include once "crt/stdio.bi"
+#  include once "crt/stdlib.bi"
+'' <stdbool.h>: built into tiko
+'' <stdint.h>: built into tiko
+#  include once "crt/string.bi"
+#  include once "crt/ctype.bi"
+#  include once "crt/errno.bi"
+'' <limits.h>: built into tiko
+extern "C"
+
+
+''
+'' Constants...
+''
+
+#  define MXML_MAJOR_VERSION 4 '' Major version number
+#  define MXML_MINOR_VERSION 0 '' Minor version number
+
+#  ifdef __GNUC__
+'' C2T-TODO(function-like-macro) mxml.h:35 -- '__printf__' is nothing tiko declares
+'' #    define MXML_FORMAT(a,b)	__attribute__ ((__format__ (__printf__, a, b)))
+#  else
+#    define MXML_FORMAT(a, b)
+#  endif '' __GNUC__
+
+
+''
+'' Data types...
+''
+
+#if defined(TIKO_OS_WINDOWS)
+type mxml_add_e as int32
+enum                      '' @link mxmlAdd@ add values
+  MXML_ADD_BEFORE    '' Add node before specified node
+  MXML_ADD_AFTER   '' Add node after specified node
+end enum
+type mxml_add_t as mxml_add_e
+#elseif not (defined(TIKO_OS_WINDOWS))
+type mxml_add_e as uint32
+enum                      '' @link mxmlAdd@ add values
+  MXML_ADD_BEFORE    '' Add node before specified node
+  MXML_ADD_AFTER   '' Add node after specified node
+end enum
+type mxml_add_t as mxml_add_e
+#endif
+
+type mxml_descend_e as int32
+enum                         '' @link mxmlFindElement@, @link mxmlWalkNext@, and @link mxmlWalkPrev@ descend values
+  MXML_DESCEND_FIRST = -1   '' Descend for first find
+  MXML_DESCEND_NONE = 0   '' Don't descend when finding/walking
+  MXML_DESCEND_ALL = 1   '' Descend when finding/walking
+end enum
+type mxml_descend_t as mxml_descend_e
+
+#if defined(TIKO_OS_WINDOWS)
+type mxml_sax_event_e as int32
+enum                           '' SAX event type.
+  MXML_SAX_EVENT_CDATA    '' CDATA node
+  MXML_SAX_EVENT_COMMENT   '' Comment node
+  MXML_SAX_EVENT_DATA    '' Data node
+  MXML_SAX_EVENT_DECLARATION   '' Declaration node
+  MXML_SAX_EVENT_DIRECTIVE   '' Processing instruction node
+  MXML_SAX_EVENT_ELEMENT_CLOSE   '' Element closed
+  MXML_SAX_EVENT_ELEMENT_OPEN  '' Element opened
+end enum
+type mxml_sax_event_t as mxml_sax_event_e
+#elseif not (defined(TIKO_OS_WINDOWS))
+type mxml_sax_event_e as uint32
+enum                           '' SAX event type.
+  MXML_SAX_EVENT_CDATA    '' CDATA node
+  MXML_SAX_EVENT_COMMENT   '' Comment node
+  MXML_SAX_EVENT_DATA    '' Data node
+  MXML_SAX_EVENT_DECLARATION   '' Declaration node
+  MXML_SAX_EVENT_DIRECTIVE   '' Processing instruction node
+  MXML_SAX_EVENT_ELEMENT_CLOSE   '' Element closed
+  MXML_SAX_EVENT_ELEMENT_OPEN  '' Element opened
+end enum
+type mxml_sax_event_t as mxml_sax_event_e
+#endif
+
+type mxml_type_e as int32
+enum                      '' The XML node type.
+  MXML_TYPE_IGNORE = -1   '' Ignore/throw away node
+  MXML_TYPE_CDATA    '' CDATA value ("<[CDATA[...]]>")
+  MXML_TYPE_COMMENT    '' Comment ("<!--...-->")
+  MXML_TYPE_DECLARATION   '' Declaration ("<!...>")
+  MXML_TYPE_DIRECTIVE    '' Processing instruction ("<?...?>")
+  MXML_TYPE_ELEMENT    '' XML element with attributes
+  MXML_TYPE_INTEGER    '' Integer value
+  MXML_TYPE_OPAQUE    '' Opaque string
+  MXML_TYPE_REAL    '' Real value
+  MXML_TYPE_TEXT    '' Text fragment
+  MXML_TYPE_CUSTOM   '' Custom data
+end enum
+type mxml_type_t as mxml_type_e
+
+#if defined(TIKO_OS_WINDOWS)
+type mxml_ws_e as int32
+enum                     '' Whitespace periods
+  MXML_WS_BEFORE_OPEN    '' Callback for before open tag
+  MXML_WS_AFTER_OPEN    '' Callback for after open tag
+  MXML_WS_BEFORE_CLOSE    '' Callback for before close tag
+  MXML_WS_AFTER_CLOSE    '' Callback for after close tag
+end enum
+type mxml_ws_t as mxml_ws_e
+#elseif not (defined(TIKO_OS_WINDOWS))
+type mxml_ws_e as uint32
+enum                     '' Whitespace periods
+  MXML_WS_BEFORE_OPEN    '' Callback for before open tag
+  MXML_WS_AFTER_OPEN    '' Callback for after open tag
+  MXML_WS_BEFORE_CLOSE    '' Callback for before close tag
+  MXML_WS_AFTER_CLOSE    '' Callback for after close tag
+end enum
+type mxml_ws_t as mxml_ws_e
+#endif
+
+type mxml_error_cb_t as sub cdecl( byval as any ptr, byval as const zstring ptr )
+					'' Error callback function
+
+type _mxml_node_s__fwd as _mxml_node_s  '' An XML node
+type mxml_node_t as _mxml_node_s
+
+type _mxml_index_s__fwd as _mxml_index_s
+type mxml_index_t as _mxml_index_s
+					'' An XML node index
+
+type _mxml_options_s__fwd as _mxml_options_s
+type mxml_options_t as _mxml_options_s
+					'' XML options
+
+type mxml_custfree_cb_t as sub cdecl( byval as any ptr, byval as any ptr )
+					'' Custom data destructor
+
+type mxml_custload_cb_t as function cdecl( byval as any ptr, byval as mxml_node_t ptr, byval as const zstring ptr ) as boolean
+					'' Custom data load callback function
+
+type mxml_custsave_cb_t as function cdecl( byval as any ptr, byval as mxml_node_t ptr ) as zstring ptr
+					'' Custom data save callback function
+
+type mxml_entity_cb_t as function cdecl( byval as any ptr, byval as const zstring ptr ) as int32
+					'' Entity callback function
+
+type mxml_io_cb_t as function cdecl( byval as any ptr, byval as any ptr, byval as uinteger ) as uinteger
+					'' Read/write callback function
+
+type mxml_sax_cb_t as function cdecl( byval as any ptr, byval as mxml_node_t ptr, byval as mxml_sax_event_t ) as boolean
+					'' SAX callback function
+
+type mxml_strcopy_cb_t as function cdecl( byval as any ptr, byval as const zstring ptr ) as zstring ptr
+					'' String copy/allocation callback
+type mxml_strfree_cb_t as sub cdecl( byval as any ptr, byval as zstring ptr )
+					'' String free callback
+
+type mxml_type_cb_t as function cdecl( byval as any ptr, byval as mxml_node_t ptr ) as mxml_type_t
+					'' Type callback function
+
+type mxml_ws_cb_t as function cdecl( byval as any ptr, byval as mxml_node_t ptr, byval as mxml_ws_t ) as const zstring ptr
+					'' Whitespace callback function
+
+
+
+''
+'' Prototypes...
+''
+
+declare sub mxmlAdd( byval parent as mxml_node_t ptr, byval add as mxml_add_t, byval child as mxml_node_t ptr, byval node as mxml_node_t ptr )
+
+declare sub mxmlDelete( byval node as mxml_node_t ptr )
+
+declare sub mxmlElementClearAttr( byval node as mxml_node_t ptr, byval name_ as const zstring ptr )
+declare function mxmlElementGetAttr( byval node as mxml_node_t ptr, byval name_ as const zstring ptr ) as const zstring ptr
+declare function mxmlElementGetAttrByIndex( byval node as mxml_node_t ptr, byval idx as uinteger, byval name_ as const zstring ptr ptr ) as const zstring ptr
+declare function mxmlElementGetAttrCount( byval node as mxml_node_t ptr ) as uinteger
+declare sub mxmlElementSetAttr( byval node as mxml_node_t ptr, byval name_ as const zstring ptr, byval value as const zstring ptr )
+declare sub mxmlElementSetAttrf( byval node as mxml_node_t ptr, byval name_ as const zstring ptr, byval format as const zstring ptr, ... )
+
+declare function mxmlFindElement( byval node as mxml_node_t ptr, byval top as mxml_node_t ptr, byval element as const zstring ptr, byval attr as const zstring ptr, byval value as const zstring ptr, byval descend as mxml_descend_t ) as mxml_node_t ptr
+declare function mxmlFindPath( byval node as mxml_node_t ptr, byval path as const zstring ptr ) as mxml_node_t ptr
+
+declare function mxmlGetCDATA( byval node as mxml_node_t ptr ) as const zstring ptr
+declare function mxmlGetComment( byval node as mxml_node_t ptr ) as const zstring ptr
+declare function mxmlGetCustom( byval node as mxml_node_t ptr ) as const any ptr
+declare function mxmlGetDeclaration( byval node as mxml_node_t ptr ) as const zstring ptr
+declare function mxmlGetDirective( byval node as mxml_node_t ptr ) as const zstring ptr
+declare function mxmlGetElement( byval node as mxml_node_t ptr ) as const zstring ptr
+declare function mxmlGetFirstChild( byval node as mxml_node_t ptr ) as mxml_node_t ptr
+declare function mxmlGetInteger( byval node as mxml_node_t ptr ) as clong
+declare function mxmlGetLastChild( byval node as mxml_node_t ptr ) as mxml_node_t ptr
+declare function mxmlGetNextSibling( byval node as mxml_node_t ptr ) as mxml_node_t ptr
+declare function mxmlGetOpaque( byval node as mxml_node_t ptr ) as const zstring ptr
+declare function mxmlGetParent( byval node as mxml_node_t ptr ) as mxml_node_t ptr
+declare function mxmlGetPrevSibling( byval node as mxml_node_t ptr ) as mxml_node_t ptr
+declare function mxmlGetReal( byval node as mxml_node_t ptr ) as float64
+declare function mxmlGetRefCount( byval node as mxml_node_t ptr ) as uinteger
+declare function mxmlGetText( byval node as mxml_node_t ptr, byval whitespace as boolean ptr ) as const zstring ptr
+declare function mxmlGetType( byval node as mxml_node_t ptr ) as mxml_type_t
+declare function mxmlGetUserData( byval node as mxml_node_t ptr ) as any ptr
+
+declare sub mxmlIndexDelete( byval ind as mxml_index_t ptr )
+declare function mxmlIndexEnum( byval ind as mxml_index_t ptr ) as mxml_node_t ptr
+declare function mxmlIndexFind( byval ind as mxml_index_t ptr, byval element as const zstring ptr, byval value as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlIndexGetCount( byval ind as mxml_index_t ptr ) as uinteger
+declare function mxmlIndexNew( byval node as mxml_node_t ptr, byval element as const zstring ptr, byval attr as const zstring ptr ) as mxml_index_t ptr
+declare function mxmlIndexReset( byval ind as mxml_index_t ptr ) as mxml_node_t ptr
+
+declare function mxmlLoadFd( byval top as mxml_node_t ptr, byval options as mxml_options_t ptr, byval fd as int32 ) as mxml_node_t ptr
+declare function mxmlLoadFile( byval top as mxml_node_t ptr, byval options as mxml_options_t ptr, byval fp as FILE ptr ) as mxml_node_t ptr
+declare function mxmlLoadFilename( byval top as mxml_node_t ptr, byval options as mxml_options_t ptr, byval filename as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlLoadIO( byval top as mxml_node_t ptr, byval options as mxml_options_t ptr, byval io_cb as mxml_io_cb_t, byval io_cbdata as any ptr ) as mxml_node_t ptr
+declare function mxmlLoadString( byval top as mxml_node_t ptr, byval options as mxml_options_t ptr, byval s as const zstring ptr ) as mxml_node_t ptr
+
+declare sub mxmlOptionsDelete( byval options as mxml_options_t ptr )
+declare function mxmlOptionsNew( ) as mxml_options_t ptr
+declare sub mxmlOptionsSetCustomCallbacks( byval options as mxml_options_t ptr, byval load_cb as mxml_custload_cb_t, byval save_cb as mxml_custsave_cb_t, byval cbdata as any ptr )
+declare sub mxmlOptionsSetEntityCallback( byval options as mxml_options_t ptr, byval cb as mxml_entity_cb_t, byval cbdata as any ptr )
+declare sub mxmlOptionsSetErrorCallback( byval options as mxml_options_t ptr, byval cb as mxml_error_cb_t, byval cbdata as any ptr )
+declare sub mxmlOptionsSetSAXCallback( byval options as mxml_options_t ptr, byval cb as mxml_sax_cb_t, byval cbdata as any ptr )
+declare sub mxmlOptionsSetTypeCallback( byval options as mxml_options_t ptr, byval cb as mxml_type_cb_t, byval cbdata as any ptr )
+declare sub mxmlOptionsSetTypeValue( byval options as mxml_options_t ptr, byval type_ as mxml_type_t )
+declare sub mxmlOptionsSetWhitespaceCallback( byval options as mxml_options_t ptr, byval cb as mxml_ws_cb_t, byval cbdata as any ptr )
+declare sub mxmlOptionsSetWrapMargin( byval options as mxml_options_t ptr, byval column as int32 )
+
+declare function mxmlNewCDATA( byval parent as mxml_node_t ptr, byval string_ as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewCDATAf( byval parent as mxml_node_t ptr, byval format as const zstring ptr, ... ) as mxml_node_t ptr
+declare function mxmlNewComment( byval parent as mxml_node_t ptr, byval comment as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewCommentf( byval parent as mxml_node_t ptr, byval format as const zstring ptr, ... ) as mxml_node_t ptr
+declare function mxmlNewCustom( byval parent as mxml_node_t ptr, byval data_ as any ptr, byval free_cb as mxml_custfree_cb_t, byval free_cbdata as any ptr ) as mxml_node_t ptr
+declare function mxmlNewDeclaration( byval parent as mxml_node_t ptr, byval declaration as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewDeclarationf( byval parent as mxml_node_t ptr, byval format as const zstring ptr, ... ) as mxml_node_t ptr
+declare function mxmlNewDirective( byval parent as mxml_node_t ptr, byval directive as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewDirectivef( byval parent as mxml_node_t ptr, byval format as const zstring ptr, ... ) as mxml_node_t ptr
+declare function mxmlNewElement( byval parent as mxml_node_t ptr, byval name_ as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewInteger( byval parent as mxml_node_t ptr, byval integer_ as clong ) as mxml_node_t ptr
+declare function mxmlNewOpaque( byval parent as mxml_node_t ptr, byval opaque as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewOpaquef( byval parent as mxml_node_t ptr, byval format as const zstring ptr, ... ) as mxml_node_t ptr
+declare function mxmlNewReal( byval parent as mxml_node_t ptr, byval real as float64 ) as mxml_node_t ptr
+declare function mxmlNewText( byval parent as mxml_node_t ptr, byval whitespace as boolean, byval string_ as const zstring ptr ) as mxml_node_t ptr
+declare function mxmlNewTextf( byval parent as mxml_node_t ptr, byval whitespace as boolean, byval format as const zstring ptr, ... ) as mxml_node_t ptr
+declare function mxmlNewXML( byval version as const zstring ptr ) as mxml_node_t ptr
+
+declare function mxmlRelease( byval node as mxml_node_t ptr ) as int32
+declare sub mxmlRemove( byval node as mxml_node_t ptr )
+declare function mxmlRetain( byval node as mxml_node_t ptr ) as int32
+
+declare function mxmlSaveAllocString( byval node as mxml_node_t ptr, byval options as mxml_options_t ptr ) as zstring ptr
+declare function mxmlSaveFd( byval node as mxml_node_t ptr, byval options as mxml_options_t ptr, byval fd as int32 ) as boolean
+declare function mxmlSaveFile( byval node as mxml_node_t ptr, byval options as mxml_options_t ptr, byval fp as FILE ptr ) as boolean
+declare function mxmlSaveFilename( byval node as mxml_node_t ptr, byval options as mxml_options_t ptr, byval filename as const zstring ptr ) as boolean
+declare function mxmlSaveIO( byval node as mxml_node_t ptr, byval options as mxml_options_t ptr, byval io_cb as mxml_io_cb_t, byval io_cbdata as any ptr ) as boolean
+declare function mxmlSaveString( byval node as mxml_node_t ptr, byval options as mxml_options_t ptr, byval buffer as zstring ptr, byval bufsize as uinteger ) as uinteger
+
+declare function mxmlSetCDATA( byval node as mxml_node_t ptr, byval data_ as const zstring ptr ) as boolean
+declare function mxmlSetCDATAf( byval node as mxml_node_t ptr, byval format as const zstring ptr, ... ) as boolean
+declare function mxmlSetComment( byval node as mxml_node_t ptr, byval comment as const zstring ptr ) as boolean
+declare function mxmlSetCommentf( byval node as mxml_node_t ptr, byval format as const zstring ptr, ... ) as boolean
+declare function mxmlSetDeclaration( byval node as mxml_node_t ptr, byval declaration as const zstring ptr ) as boolean
+declare function mxmlSetDeclarationf( byval node as mxml_node_t ptr, byval format as const zstring ptr, ... ) as boolean
+declare function mxmlSetDirective( byval node as mxml_node_t ptr, byval directive as const zstring ptr ) as boolean
+declare function mxmlSetDirectivef( byval node as mxml_node_t ptr, byval format as const zstring ptr, ... ) as boolean
+declare function mxmlSetCustom( byval node as mxml_node_t ptr, byval data_ as any ptr, byval free_cb as mxml_custfree_cb_t, byval free_cbdata as any ptr ) as boolean
+declare function mxmlSetElement( byval node as mxml_node_t ptr, byval name_ as const zstring ptr ) as boolean
+declare function mxmlSetInteger( byval node as mxml_node_t ptr, byval integer_ as clong ) as boolean
+declare function mxmlSetOpaque( byval node as mxml_node_t ptr, byval opaque as const zstring ptr ) as boolean
+declare function mxmlSetOpaquef( byval node as mxml_node_t ptr, byval format as const zstring ptr, ... ) as boolean
+declare function mxmlSetReal( byval node as mxml_node_t ptr, byval real as float64 ) as boolean
+declare sub mxmlSetStringCallbacks( byval strcopy_cb as mxml_strcopy_cb_t, byval strfree_cb as mxml_strfree_cb_t, byval str_cbdata as any ptr )
+declare function mxmlSetText( byval node as mxml_node_t ptr, byval whitespace as boolean, byval string_ as const zstring ptr ) as boolean
+declare function mxmlSetTextf( byval node as mxml_node_t ptr, byval whitespace as boolean, byval format as const zstring ptr, ... ) as boolean
+declare function mxmlSetUserData( byval node as mxml_node_t ptr, byval data_ as any ptr ) as boolean
+
+declare function mxmlWalkNext( byval node as mxml_node_t ptr, byval top as mxml_node_t ptr, byval descend as mxml_descend_t ) as mxml_node_t ptr
+declare function mxmlWalkPrev( byval node as mxml_node_t ptr, byval top as mxml_node_t ptr, byval descend as mxml_descend_t ) as mxml_node_t ptr
+
+
+end extern

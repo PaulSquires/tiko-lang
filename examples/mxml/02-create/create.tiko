@@ -1,0 +1,122 @@
+'' create -- writing XML with Mini-XML: build a document node by node -- elements, attributes,
+'' text, numbers, a comment, CDATA -- indent it with a whitespace callback, and save it into a
+'' tiko string, into a buffer, and into memory Mini-XML allocates.
+''
+'' Build it with 'tiko create.tiko'.
+''
+'' Mini-XML is Apache-2.0-licensed (pkg/vendor/mxml/LICENSE); so is this.
+
+'' Mini-XML linked DYNAMICALLY: mxml.dll is copied beside the program (on Linux the program gets
+'' mxml_linux_x86_64.so beside it). Write 'link static' instead to build it into the program.
+#import "vendor/mxml" link dynamic
+
+'' THE DOCUMENT. mxmlNewXML makes the <?xml version="1.0" encoding="utf-8"?> root; every
+'' mxmlNew... takes the parent it is added to, last.
+dim as mxml_node_t ptr xml = mxmlNewXML( "1.0" )
+dim as mxml_node_t ptr order = mxmlNewElement( xml, "order" )
+mxmlElementSetAttr( order, "id", "A-1027" )
+mxmlNewComment( order, " prices in euros " )
+
+dim as mxml_node_t ptr customer = mxmlNewElement( order, "customer" )
+'' Text is UTF-8; special characters are escaped on saving (&amp; &lt; ...).
+mxmlNewOpaque( customer, "Zoë & Søren" )
+
+dim as string items(0 to 2) = { "Kettle", "Mug", "Teapot" }
+dim as int32 quantities(0 to 2) = { 1, 4, 2 }
+dim as float64 prices(0 to 2) = { 39.9, 6.5, 24.0 }
+dim as mxml_node_t ptr lines = mxmlNewElement( order, "lines" )
+for i as int32 = 0 to 2
+    dim as mxml_node_t ptr ln = mxmlNewElement( lines, "line" )
+    '' The ...f routines are C's printf: an int32 for %d, a float64 for %.2f, and for %s a
+    '' zstring ptr -- strptr( s ) of a string, never the string itself.
+    mxmlElementSetAttrf( ln, "n", "%d", i + 1 )
+    mxmlNewOpaque( mxmlNewElement( ln, "item" ), items(i) )
+    '' Numbers are nodes of their own: an integer (a C long) and a real (a float64).
+    mxmlNewInteger( mxmlNewElement( ln, "qty" ), quantities(i) )
+    mxmlNewReal( mxmlNewElement( ln, "price" ), prices(i) )
+    mxmlNewOpaquef( mxmlNewElement( ln, "label" ), "%s x%d", strptr( items(i) ), quantities(i) )
+next
+'' CDATA is saved as written, <, & and all.
+mxmlNewCDATA( mxmlNewElement( order, "note" ), "Ring twice <then wait>" )
+
+'' INDENTING. Mini-XML adds no whitespace of its own; a whitespace callback says what goes before
+'' and after each tag. Here: a newline after each tag that holds only elements, and two spaces per
+'' level before each tag.
+function Depth( byval node as mxml_node_t ptr ) as int32
+    dim as int32 d = 0
+    node = mxmlGetParent( node )
+    while node andalso mxmlGetType( node ) = MXML_TYPE_ELEMENT
+        d += 1
+        node = mxmlGetParent( node )
+    wend
+    return d
+end function
+
+function HoldsElements( byval node as mxml_node_t ptr ) as boolean
+    dim as mxml_node_t ptr child = mxmlGetFirstChild( node )
+    if child = nullptr then return false
+    return mxmlGetType( child ) = MXML_TYPE_ELEMENT orelse mxmlGetType( child ) = MXML_TYPE_COMMENT
+end function
+
+'' The strings returned must outlive the call: they are kept in statics. The callback is asked
+'' about every node it could put whitespace beside: a comment's "open" and "after open" are
+'' before and after the whole comment; text, numbers and CDATA are left as they are.
+function OnWhitespace cdecl( byval cbdata as any ptr, byval node as mxml_node_t ptr, byval when as mxml_ws_t ) as const zstring ptr
+    static as zstring * 64 indent
+    static as zstring * 2 newline = !"\n"
+    if mxmlGetType( node ) = MXML_TYPE_DIRECTIVE then          ' <?xml ...?>
+        if when = MXML_WS_AFTER_OPEN then return @newline
+        return nullptr
+    end if
+    if mxmlGetType( node ) = MXML_TYPE_COMMENT then
+        if when = MXML_WS_BEFORE_OPEN then indent = space( Depth( node ) * 2 ) : return @indent
+        if when = MXML_WS_AFTER_OPEN then return @newline
+        return nullptr
+    end if
+    if mxmlGetType( node ) <> MXML_TYPE_ELEMENT then return nullptr
+    select case when
+    case MXML_WS_BEFORE_OPEN
+        indent = space( Depth( node ) * 2 )
+        return @indent
+    case MXML_WS_BEFORE_CLOSE
+        if HoldsElements( node ) = false then return nullptr
+        indent = space( Depth( node ) * 2 )
+        return @indent
+    case MXML_WS_AFTER_OPEN
+        if HoldsElements( node ) then return @newline
+    case MXML_WS_AFTER_CLOSE
+        return @newline
+    end select
+    return nullptr
+end function
+
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetWhitespaceCallback( opts, @OnWhitespace, nullptr )
+mxmlOptionsSetWrapMargin( opts, 0 )           ' never wrap long lines
+
+'' SAVING INTO A TIKO STRING: mxmlSaveIO hands each piece to a callback, which appends it.
+function AppendBytes cdecl( byval cbdata as any ptr, byval bytes as any ptr, byval count as uinteger ) as uinteger
+    dim as string piece = space( count )
+    memcpy( strptr( piece ), bytes, count )
+    *cast( string ptr, cbdata ) &= piece
+    return count
+end function
+
+dim as string saved
+mxmlSaveIO( xml, opts, @AppendBytes, @saved )
+print saved
+
+'' SAVING INTO A BUFFER: mxmlSaveString fills a buffer of yours, and gives 0 when the document
+'' does not fit -- it does not say how much room it needed.
+dim as zstring * 64 small
+print "into 64 bytes: " & mxmlSaveString( xml, opts, @small, sizeof( small ) )
+dim as zstring * 2048 big
+print "into 2048 bytes: " & mxmlSaveString( xml, opts, @big, sizeof( big ) ) & " bytes"
+
+'' SAVING INTO MEMORY MINI-XML ALLOCATES: the text is malloc'd, and yours to free( ).
+dim as zstring ptr text = mxmlSaveAllocString( xml, opts )
+print "allocated: " & len( *text ) & " bytes, same as the string: " & iif( *text = saved, "yes", "no" )
+free( text )
+
+mxmlOptionsDelete( opts )
+mxmlDelete( xml )

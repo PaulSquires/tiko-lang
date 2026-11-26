@@ -1,0 +1,73 @@
+'' parse -- reading XML with Mini-XML: load a document from a string, find elements by name and
+'' by path, read their attributes and text, and report where a broken document stops.
+''
+'' Build it with 'tiko parse.tiko'.
+''
+'' Mini-XML is Apache-2.0-licensed (pkg/vendor/mxml/LICENSE); so is this.
+
+'' Mini-XML linked DYNAMICALLY: mxml.dll is copied beside the program (on Linux the program gets
+'' mxml_linux_x86_64.so beside it). Write 'link static' instead to build it into the program.
+#import "vendor/mxml" link dynamic
+
+dim as ustring catalog = _
+    !"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" & _
+    !"<catalog>\n" & _
+    !"  <book id=\"bk101\" lang=\"en\">\n" & _
+    !"    <title>XML Developer's Guide</title>\n" & _
+    !"    <price>44.95</price>\n" & _
+    !"  </book>\n" & _
+    !"  <book id=\"bk102\" lang=\"fr\">\n" & _
+    !"    <title>Le Petit Prince</title>\n" & _
+    !"    <price>12.50</price>\n" & _
+    !"  </book>\n" & _
+    !"</catalog>\n"
+
+'' OPAQUE: each element's text is one string, spaces and all. Without it Mini-XML splits text
+'' into MXML_TYPE_TEXT nodes, one per word.
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )
+
+'' The root of what mxmlLoadString returns is the <?xml ...?> directive, a node of its own type
+'' (mxmlGetElement gives null for it); <catalog> is its child. Text is UTF-8, as a ustring is.
+dim as mxml_node_t ptr xml = mxmlLoadString( nullptr, opts, catalog )
+print "root: <?" & *mxmlGetDirective( xml ) & "?>"
+print "its element: <" & *mxmlGetElement( mxmlFindElement( xml, xml, nullptr, nullptr, nullptr, MXML_DESCEND_FIRST ) ) & ">"
+
+'' mxmlFindElement walks the tree from 'node' to the next element called "book", descending into
+'' children; passing what it found as 'node' again finds the one after.
+dim as mxml_node_t ptr book = mxmlFindElement( xml, xml, "book", nullptr, nullptr, MXML_DESCEND_ALL )
+while book
+    dim as mxml_node_t ptr title = mxmlFindElement( book, book, "title", nullptr, nullptr, MXML_DESCEND_ALL )
+    dim as mxml_node_t ptr price = mxmlFindElement( book, book, "price", nullptr, nullptr, MXML_DESCEND_ALL )
+    '' An element's opaque value is its first child's: mxmlGetOpaque( title ) reads the text.
+    print *mxmlElementGetAttr( book, "id" ) & "  " & *mxmlGetOpaque( title ) & _
+          "  (" & *mxmlElementGetAttr( book, "lang" ) & ")  " & val( *mxmlGetOpaque( price ) )
+    book = mxmlFindElement( book, xml, "book", nullptr, nullptr, MXML_DESCEND_ALL )
+wend
+
+'' An attribute value narrows the search: the book whose lang is "fr".
+dim as mxml_node_t ptr fr = mxmlFindElement( xml, xml, "book", "lang", "fr", MXML_DESCEND_ALL )
+print "French: " & *mxmlElementGetAttr( fr, "id" )
+
+'' mxmlFindPath follows element names; "*" stands for any one level. When the element found
+'' holds a value, the value node is returned -- here the title's text.
+dim as mxml_node_t ptr t = mxmlFindPath( xml, "catalog/*/title" )
+print "first title: " & *mxmlGetOpaque( t )
+
+'' A missing attribute, element or path is a null pointer.
+print "missing attribute: " & iif( mxmlElementGetAttr( fr, "year" ) = nullptr, "null", "found" )
+print "missing path: " & iif( mxmlFindPath( xml, "catalog/magazine" ) = nullptr, "null", "found" )
+mxmlDelete( xml )
+
+'' A broken document gives a null pointer. The error callback receives the message; without
+'' one Mini-XML prints it to stderr.
+sub OnError cdecl( byval cbdata as any ptr, byval message as const zstring ptr )
+    *cast( ustring ptr, cbdata ) = *message
+end sub
+
+dim as ustring lastError
+mxmlOptionsSetErrorCallback( opts, @OnError, @lastError )
+xml = mxmlLoadString( nullptr, opts, "<catalog><book></catalog>" )
+print "broken: " & iif( xml = nullptr, "null", "loaded" ) & " -- " & lastError
+
+mxmlOptionsDelete( opts )

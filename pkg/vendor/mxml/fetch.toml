@@ -1,0 +1,102 @@
+# vendor/mxml's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# Mini-XML publishes no binaries, so every host builds its nine library sources (Makefile.in's
+# LIBOBJS) from a pinned source archive. config.h is vcnet/config.h, copied into place: it
+# defines MXML_VERSION alone, and the flags below say the rest. Per-thread state (the string
+# callbacks of mxmlSetStringCallbacks) is pthread TLS where HAVE_PTHREAD_H is defined; on
+# Windows the DLL is built with MXML1_EXPORTS, which gives it a DllMain and Win32 TLS, and the
+# archive without it, which keeps that state process-wide. mxml.h dllexports nothing, so the
+# DLL's exports are mxml.def (the 95 routines mxml.h declares; upstream's vcnet/mxml4.def lists
+# the same ones but names the DLL MXML4).
+#
+# THE SOURCE IS A PINNED COMMIT (2026-11-26): 4.0.6, the last release, lacks three memory-safety
+# fixes on master -- a use-after-free in mxml_load_data's error cleanup on malformed XML (issue
+# #358, CVE-2026-112094), a double free when a SAX callback stops on a fragment (#362), and a
+# use-after-free in mxmlElementClearAttr (#363). Master at a8a3b774e carries all three. Move to
+# 4.0.7 once it is tagged.
+#
+# THE NAMES are what '#foreignlib MXML ... "lib/mxml"' probes: mxml_<os>_<arch>.a for static;
+# for dynamic mxml.dll on Windows -- the name inside it (mxml.def's LIBRARY), which a program's
+# import names -- mxml_linux_x86_64.so on Linux and mxml_macos_arm64.dylib on macOS.
+version = "4.0.6+a8a3b77"
+
+[windows.1]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2 -DMXML1_EXPORTS"
+def = "mxml.def"
+shared = "lib/mxml.dll"
+
+[windows.2]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2"
+static = "lib/mxml_windows_x86_64.a"
+
+[linux.1]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2 -fPIC -DHAVE_PTHREAD_H"
+static = "lib/mxml_linux_x86_64.a"
+shared = "lib/mxml_linux_x86_64.so"
+libs = "-lpthread"
+
+[linux-arm64.1]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2 -fPIC -DHAVE_PTHREAD_H"
+static = "lib/mxml_linux_arm64.a"
+shared = "lib/mxml_linux_arm64.so"
+libs = "-lpthread"
+
+[macos.1]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2 -DHAVE_PTHREAD_H"
+static = "lib/mxml_macos_arm64.a"
+shared = "lib/mxml_macos_arm64.dylib"
+
+# ANDROID: the same pinned source and flags as [linux.1], cross-built on Windows by
+# 'vendorfetch.sh --target android-x86_64' against the NDK's sysroot (bionic's libc has the
+# pthread routines). Static only, as for cJSON.
+[android.1]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2 -fPIC -DHAVE_PTHREAD_H"
+static = "lib/mxml_android_x86_64.a"
+
+# ...and arm64: the same entry for aarch64-linux-android29.
+[android-arm64.1]
+kind = "cbuild"
+url = "https://github.com/michaelrsweet/mxml/archive/a8a3b774e07105189ed60cf860c6376bec91d096.tar.gz"
+sha256 = "daa387cd7672b6d05b49e522f0f3ae30d204939d3400cb461d1ef29165b9904b"
+dir = "mxml-a8a3b774e07105189ed60cf860c6376bec91d096"
+sources = "mxml-attr.c mxml-file.c mxml-get.c mxml-index.c mxml-node.c mxml-options.c mxml-search.c mxml-set.c mxml-private.c"
+copies = "vcnet/config.h:config.h"
+cflags = "-O2 -fPIC -DHAVE_PTHREAD_H"
+static = "lib/mxml_android_arm64.a"

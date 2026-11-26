@@ -1,0 +1,118 @@
+'' files -- XML on disk: save a settings file, load it back, change it and save it again; text
+'' in any language, as UTF-8; the line breaks between tags a load keeps; and what a missing or a
+'' broken file gives.
+''
+''     files                 settings.xml, written and read in the current directory
+''
+'' Build it with 'tiko files.tiko'.
+''
+'' Mini-XML is Apache-2.0-licensed (pkg/vendor/mxml/LICENSE); so is this.
+
+'' Mini-XML linked DYNAMICALLY: mxml.dll is copied beside the program (on Linux the program gets
+'' mxml_linux_x86_64.so beside it). Write 'link static' instead to build it into the program.
+#import "vendor/mxml" link dynamic
+
+const SETTINGS_FILE = "settings.xml"
+
+'' A newline after every close tag, and after the <?xml ...?> line: one element per line.
+function OnWhitespace cdecl( byval cbdata as any ptr, byval node as mxml_node_t ptr, byval when as mxml_ws_t ) as const zstring ptr
+    static as zstring * 2 newline = !"\n"
+    if when = MXML_WS_AFTER_CLOSE then return @newline
+    if when = MXML_WS_AFTER_OPEN andalso mxmlGetType( node ) = MXML_TYPE_DIRECTIVE then return @newline
+    if when = MXML_WS_AFTER_OPEN andalso mxmlGetElement( node ) andalso *mxmlGetElement( node ) = "settings" then return @newline
+    return nullptr
+end function
+
+'' A loaded tree keeps the line breaks and indentation between tags as text nodes of their own,
+'' and a save writes them out again -- with the whitespace callback's newlines as well, every
+'' line would be doubled. This deletes every text node that is only whitespace.
+sub StripBlank( byval top as mxml_node_t ptr )
+    dim as mxml_node_t ptr node = top
+    while node
+        '' The next node is found first: a node deleted cannot be walked from. A text node has
+        '' no children, so the next one is never inside it.
+        dim as mxml_node_t ptr nxt = mxmlWalkNext( node, top, MXML_DESCEND_ALL )
+        if mxmlGetType( node ) = MXML_TYPE_OPAQUE andalso _
+           trim( *mxmlGetOpaque( node ), any !" \t\r\n" ) = "" then mxmlDelete( node )
+        node = nxt
+    wend
+end sub
+
+'' An element's text, or 'default' when there is no such element or it is empty.
+function Setting( byval xml as mxml_node_t ptr, byval path as zstring ptr, byval default as ustring ) as ustring
+    dim as const zstring ptr text = mxmlGetOpaque( mxmlFindPath( xml, path ) )
+    if text = nullptr then return default
+    return *text
+end function
+
+sub OnError cdecl( byval cbdata as any ptr, byval message as const zstring ptr )
+    *cast( ustring ptr, cbdata ) = *message
+end sub
+
+dim as ustring lastError
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )
+mxmlOptionsSetWhitespaceCallback( opts, @OnWhitespace, nullptr )
+mxmlOptionsSetErrorCallback( opts, @OnError, @lastError )
+
+'' SAVE. Text is UTF-8: a ustring passes as one.
+kill SETTINGS_FILE
+dim as mxml_node_t ptr xml = mxmlNewXML( "1.0" )
+dim as mxml_node_t ptr settings = mxmlNewElement( xml, "settings" )
+mxmlNewOpaque( mxmlNewElement( settings, "theme" ), "dark" )
+mxmlNewOpaque( mxmlNewElement( settings, "fontSize" ), "12" )
+mxmlNewOpaque( mxmlNewElement( settings, "greeting" ), "Bonjour, 世界 — ¡hola!" )
+print "saved:  " & iif( mxmlSaveFilename( xml, opts, SETTINGS_FILE ), "yes", "no" )
+mxmlDelete( xml )
+
+'' LOAD: mxmlLoadFilename opens, reads and closes the file itself.
+xml = mxmlLoadFilename( nullptr, opts, SETTINGS_FILE )
+if xml = nullptr then
+    print "cannot load " & SETTINGS_FILE & ": " & lastError
+    end 1
+end if
+StripBlank( xml )
+dim as ustring greeting = Setting( xml, "settings/greeting", "" )
+print "theme:    " & Setting( xml, "settings/theme", "light" )
+print "fontSize: " & val( Setting( xml, "settings/fontSize", "10" ) )
+print "greeting: " & greeting & " (" & len( greeting ) & " characters)"
+print "missing:  " & Setting( xml, "settings/language", "en (the default)" )
+
+'' CHANGE AND SAVE AGAIN.
+mxmlSetOpaque( mxmlFindPath( xml, "settings/fontSize" ), "14" )
+mxmlNewOpaque( mxmlNewElement( mxmlFindElement( xml, xml, "settings", nullptr, nullptr, MXML_DESCEND_ALL ), "language" ), "fr" )
+mxmlSaveFilename( xml, opts, SETTINGS_FILE )
+mxmlDelete( xml )
+
+'' The file as it is on disk.
+dim as int32 f = freefile
+open SETTINGS_FILE for binary access read as #f
+dim as string bytes = space( lof( f ) )
+get #f, , bytes
+close #f
+'' mxmlSaveFilename opens the file with C's fopen in text mode, so on Windows each line ends
+'' with CR LF, and with LF elsewhere; mxmlLoadFilename reads either. (The file name goes to
+'' fopen as it is: on Windows, a name in the ANSI code page.)
+dim as boolean crlf = instr( bytes, !"\r\n" ) > 0
+print "-- " & SETTINGS_FILE & ", lines end with " & iif( crlf, "CR LF", "LF" )
+dim as string lf
+for i as int32 = 1 to len( bytes )
+    if mid( bytes, i, 1 ) <> !"\r" then lf &= mid( bytes, i, 1 )
+next
+print rtrim( lf, any !"\n" )
+
+'' MISSING AND BROKEN FILES: both give a null pointer. Only a broken one reaches the error
+'' callback: a file fopen cannot open gives null at once, with no message.
+print "-- errors"
+lastError = ""
+xml = mxmlLoadFilename( nullptr, opts, "no-such-file.xml" )
+print "missing: " & iif( xml = nullptr, "null", "loaded" ) & ", message """ & lastError & """"
+f = freefile
+open "broken.xml" for output as #f
+print #f, "<settings><theme>dark</settings>"
+close #f
+xml = mxmlLoadFilename( nullptr, opts, "broken.xml" )
+print "broken:  " & iif( xml = nullptr, "null", "loaded" ) & " -- " & lastError
+kill "broken.xml"
+
+mxmlOptionsDelete( opts )

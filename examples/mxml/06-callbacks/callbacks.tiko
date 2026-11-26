@@ -1,0 +1,134 @@
+'' callbacks -- Mini-XML's load callbacks, written in tiko: a type callback that reads numbers as
+'' numbers, an entity callback for named characters beyond XML's five, and a SAX callback that
+'' streams a document and keeps only what it asks for.
+''
+'' Build it with 'tiko callbacks.tiko'.
+''
+'' Mini-XML is Apache-2.0-licensed (pkg/vendor/mxml/LICENSE); so is this.
+
+'' Mini-XML linked DYNAMICALLY: mxml.dll is copied beside the program (on Linux the program gets
+'' mxml_linux_x86_64.so beside it). Write 'link static' instead to build it into the program.
+#import "vendor/mxml" link dynamic
+
+'' Every callback is cdecl, and gets back the 'cbdata' pointer it was registered with.
+
+'' THE TYPE CALLBACK says what the values inside an element are made into; 'node' is that
+'' element. <qty> holds an integer, <price> a real, anything else one opaque string.
+function OnType cdecl( byval cbdata as any ptr, byval node as mxml_node_t ptr ) as mxml_type_t
+    dim as const zstring ptr elementName = mxmlGetElement( node )
+    if elementName then
+        if *elementName = "qty" then return MXML_TYPE_INTEGER
+        if *elementName = "price" then return MXML_TYPE_REAL
+    end if
+    return MXML_TYPE_OPAQUE
+end function
+
+'' THE ENTITY CALLBACK gives the Unicode character a named entity stands for, or -1 for none.
+'' Mini-XML knows amp, apos, gt, lt and quot itself.
+function OnEntity cdecl( byval cbdata as any ptr, byval entityName as const zstring ptr ) as int32
+    select case *entityName
+    case "euro": return &h20AC
+    case "copy": return &hA9
+    case "nbsp": return &hA0
+    end select
+    return -1
+end function
+
+sub OnError cdecl( byval cbdata as any ptr, byval message as const zstring ptr )
+    print "  error: " & *message
+end sub
+
+dim as string order = _
+    "<order><line><item>Tea &amp; cake</item><qty>2</qty><price>4.75</price></line>" & _
+    "<line><item>Coffee &copy; 2026, 3&euro;</item><qty>1</qty><price>3</price></line></order>"
+
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetTypeCallback( opts, @OnType, nullptr )
+mxmlOptionsSetEntityCallback( opts, @OnEntity, nullptr )
+mxmlOptionsSetErrorCallback( opts, @OnError, nullptr )
+
+print "-- type and entity callbacks"
+dim as mxml_node_t ptr xml = mxmlLoadString( nullptr, opts, order )
+dim as float64 total = 0
+dim as mxml_node_t ptr ln = mxmlFindElement( xml, xml, "line", nullptr, nullptr, MXML_DESCEND_ALL )
+while ln
+    '' The values are nodes of the types the callback chose: read with mxmlGetInteger and
+    '' mxmlGetReal from the value node, the element's first child.
+    dim as mxml_node_t ptr item = mxmlFindElement( ln, ln, "item", nullptr, nullptr, MXML_DESCEND_ALL )
+    dim as mxml_node_t ptr qty = mxmlFindElement( ln, ln, "qty", nullptr, nullptr, MXML_DESCEND_ALL )
+    dim as mxml_node_t ptr price = mxmlFindElement( ln, ln, "price", nullptr, nullptr, MXML_DESCEND_ALL )
+    dim as clong q = mxmlGetInteger( mxmlGetFirstChild( qty ) )
+    dim as float64 p = mxmlGetReal( mxmlGetFirstChild( price ) )
+    dim as ustring itemText = *mxmlGetOpaque( item )
+    print "  " & q & " x " & itemText & " at " & p
+    total += q * p
+    ln = mxmlFindElement( ln, xml, "line", nullptr, nullptr, MXML_DESCEND_ALL )
+wend
+print "  total " & total
+mxmlDelete( xml )
+
+'' An entity neither Mini-XML nor the callback knows is an error.
+print "-- an unknown entity"
+xml = mxmlLoadString( nullptr, opts, "<p>5 &yen;</p>" )
+print "  loaded: " & iif( xml, "yes", "no" )
+if xml then mxmlDelete( xml )
+
+'' THE SAX CALLBACK sees each node as it is read: an element when it opens and when it closes,
+'' and each value. Each node is released once it has been seen -- a value at once, an element
+'' at its close tag -- so a document far larger than memory streams through. Returning false
+'' stops the load.
+''
+'' KEEPING A PART takes three steps. mxmlRetain the element when it opens, AND every node read
+'' inside it (a value or child element not retained is deleted after the callback, and taken
+'' out of it). Then, at its close tag, mxmlRemove it from its parent: deleting an element frees
+'' everything under it whatever its retain count, so when the parent's own close tag comes, a
+'' part still inside it would be freed with it. The part is then the program's, to mxmlDelete.
+type Stream
+    elements as int32
+    lines as int32
+    kept as mxml_node_t ptr      ' the second <line>, once it has opened
+end type
+
+'' True for the kept element and every node inside it.
+function InKept( byval st as Stream ptr, byval node as mxml_node_t ptr ) as boolean
+    while node
+        if node = st->kept then return true
+        node = mxmlGetParent( node )
+    wend
+    return false
+end function
+
+function OnSax cdecl( byval cbdata as any ptr, byval node as mxml_node_t ptr, byval ev as mxml_sax_event_t ) as boolean
+    dim as Stream ptr st = cbdata
+    select case ev
+    case MXML_SAX_EVENT_ELEMENT_OPEN
+        st->elements += 1
+        if *mxmlGetElement( node ) = "line" then
+            st->lines += 1
+            if st->lines = 2 then st->kept = node
+        end if
+        if InKept( st, node ) then mxmlRetain( node )
+    case MXML_SAX_EVENT_DATA
+        if InKept( st, node ) then mxmlRetain( node )
+    case MXML_SAX_EVENT_ELEMENT_CLOSE
+        if node = st->kept then mxmlRemove( node )
+    end select
+    return true
+end function
+
+print "-- SAX"
+dim as Stream st
+mxmlOptionsSetSAXCallback( opts, @OnSax, @st )
+xml = mxmlLoadString( nullptr, opts, order )
+'' The root was released at its close tag too, so the load gives back nothing.
+print "  elements read: " & st.elements & ", tree returned: " & iif( xml, "yes", "no" )
+if st.kept then
+    dim as zstring * 256 text
+    mxmlSaveString( st.kept, opts, @text, sizeof( text ) )
+    print "  kept: " & rtrim( text, any !"\r\n" )
+    print "  its parent now: " & iif( mxmlGetParent( st.kept ), "a node", "none" )
+    mxmlDelete( st.kept )
+end if
+if xml then mxmlDelete( xml )
+
+mxmlOptionsDelete( opts )

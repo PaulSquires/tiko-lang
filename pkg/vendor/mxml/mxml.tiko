@@ -1,0 +1,52 @@
+'' vendor/mxml -- Mini-XML 4.0.6 (built from master past it: fetch.toml), Michael R Sweet's small
+'' XML library in C (Apache-2.0: LICENSE), as one import:
+''
+''     #import "vendor/mxml" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of mxml.h is then callable as Mini-XML documents it,
+'' unqualified -- mxmlLoadString, mxmlFindPath, mxmlElementGetAttr, mxmlNewElement,
+'' mxmlSaveString, mxmlDelete. The header is mxml.ti, translated from mxml.h by 'tiko c2t' and
+'' committed; its banner names the C header and its SHA-256. Nothing needed translating by hand:
+'' its one TODO, MXML_FORMAT, is a GCC printf-checking attribute tiko takes as empty.
+''
+''     dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+''     mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )      ' text as one string per element
+''     dim as mxml_node_t ptr xml = mxmlLoadString( 0, opts, "<a><b id=""1"">hi</b></a>" )
+''     dim as mxml_node_t ptr b = mxmlFindElement( xml, xml, "b", 0, 0, MXML_DESCEND_ALL )
+''     print *mxmlElementGetAttr( b, "id" ), *mxmlGetOpaque( b )
+''     mxmlDelete( xml )
+''     mxmlOptionsDelete( opts )
+''
+'' A tree is freed once, from its root: mxmlDelete. Strings mxml returns (const zstring ptr) are
+'' the tree's -- copy them before the tree goes. mxmlSaveAllocString's text is malloc'd: free( )
+'' it (crt/stdlib.bi, which mxml.ti includes). mxmlSaveString writes into a buffer of yours and
+'' gives 0 when the document does not fit -- it does not say how much room was needed; to save
+'' into a tiko string, hand mxmlSaveIO a callback that appends (examples/mxml/02-create). Without
+'' a type value or a type callback a load makes MXML_TYPE_TEXT nodes, one per
+'' whitespace-separated word.
+''
+'' The ...f routines (mxmlNewTextf, mxmlElementSetAttrf) are C's printf: a %s argument is a
+'' zstring ptr -- strptr( s ) of a string, not the string.
+''
+'' THE HEADER'S macOS PASS was made on Windows against a stand-in SDK: five libc headers that
+'' declare only what mxml.h uses (size_t through clang's <stddef.h>, FILE as an incomplete
+'' struct), because c2t on the Mac has no Windows libc for its Windows pass. Its body is the
+'' Windows/Linux translation byte for byte; the macOS pass changed only the guards ('#elseif not
+'' (defined(TIKO_OS_WINDOWS))'), which give macOS the Linux enum widths, as clang's arm64-apple
+'' target does.
+''
+'' THE LIBRARY: with 'link static' Mini-XML is linked into the program; with 'link dynamic' --
+'' and when no '#import' says, which is this package's default -- the shared library, which tiko
+'' copies beside the program: mxml.dll, mxml_linux_x86_64.so on Linux, mxml_linux_arm64.so on
+'' arm64 Linux, or mxml_macos_arm64.dylib on macOS. On Windows the static archive keeps
+'' mxmlSetStringCallbacks' callbacks process-wide; everywhere else, and in the DLL, per thread.
+#module "mxml"
+
+public #include once "mxml.ti"
+
+'' ANDROID IS STATIC ALWAYS: vendorfetch builds only the archive there, as for cJSON.
+#if defined( TIKO_LINK_STATIC ) or defined( TIKO_OS_ANDROID )
+    #foreignlib MXML static "lib/mxml"
+#else
+    #foreignlib MXML dynamic "lib/mxml"
+#endif

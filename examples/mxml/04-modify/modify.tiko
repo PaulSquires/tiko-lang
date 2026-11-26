@@ -1,0 +1,91 @@
+'' modify -- changing a loaded document: set, change and remove attributes; rename an element;
+'' replace text; insert, move and delete elements; and find elements by attribute through an
+'' index.
+''
+'' Build it with 'tiko modify.tiko'.
+''
+'' Mini-XML is Apache-2.0-licensed (pkg/vendor/mxml/LICENSE); so is this.
+
+'' Mini-XML linked DYNAMICALLY: mxml.dll is copied beside the program (on Linux the program gets
+'' mxml_linux_x86_64.so beside it). Write 'link static' instead to build it into the program.
+#import "vendor/mxml" link dynamic
+
+dim as mxml_options_t ptr opts = mxmlOptionsNew( )
+mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )
+mxmlOptionsSetWrapMargin( opts, 0 )
+
+'' The document, saved without the whitespace between tags, so each step's result is one line.
+sub Show( byval label as string, byval xml as mxml_node_t ptr, byval opts as mxml_options_t ptr )
+    dim as zstring * 1024 text
+    mxmlSaveString( xml, opts, @text, sizeof( text ) )
+    print label; ": "; rtrim( text, any !"\r\n" )
+end sub
+
+dim as mxml_node_t ptr xml = mxmlLoadString( nullptr, opts, _
+    "<tasks><task id=""t1"" done=""no"">Write the spec</task>" & _
+    "<task id=""t2"" done=""no"">Draft</task>" & _
+    "<task id=""t3"" done=""yes"">Old idea</task></tasks>" )
+'' With no <?xml ...?> line the root is <tasks> itself. mxmlFindElement( xml, xml, "tasks", ... )
+'' would NOT find it: a search starts after the node it is given, never at it.
+dim as mxml_node_t ptr tasks = xml
+Show( "loaded ", xml, opts )
+
+'' ATTRIBUTES: mxmlElementSetAttr adds or replaces; mxmlElementClearAttr removes.
+dim as mxml_node_t ptr t1 = mxmlFindElement( xml, xml, "task", "id", "t1", MXML_DESCEND_ALL )
+mxmlElementSetAttr( t1, "done", "yes" )
+mxmlElementSetAttrf( t1, "hours", "%d", 3 )
+mxmlElementClearAttr( t1, "id" )
+mxmlElementSetAttr( t1, "id", "t1" )        ' a cleared attribute can be set again
+Show( "attrs  ", xml, opts )
+
+'' TEXT: an element's text is its opaque child; mxmlSetOpaque changes the child, not the element.
+dim as mxml_node_t ptr t2 = mxmlFindElement( xml, xml, "task", "id", "t2", MXML_DESCEND_ALL )
+mxmlSetOpaque( mxmlGetFirstChild( t2 ), "Draft the plan" )
+'' RENAMING: the element keeps its attributes and children.
+mxmlSetElement( t2, "todo" )
+Show( "text   ", xml, opts )
+
+'' INSERTING: a new node is made with no parent, then put in place with mxmlAdd -- before or
+'' after a sibling, or first or last when the sibling is null.
+dim as mxml_node_t ptr t0 = mxmlNewElement( nullptr, "task" )
+mxmlElementSetAttr( t0, "id", "t0" )
+mxmlNewOpaque( t0, "Read the brief" )
+mxmlAdd( tasks, MXML_ADD_BEFORE, nullptr, t0 )                  ' first child of <tasks>
+dim as mxml_node_t ptr t4 = mxmlNewElement( nullptr, "task" )
+mxmlElementSetAttr( t4, "id", "t4" )
+mxmlAdd( tasks, MXML_ADD_AFTER, t1, t4 )                        ' just after t1
+Show( "insert ", xml, opts )
+
+'' MOVING: mxmlAdd of a node that already has a parent takes it out of its old place first.
+dim as mxml_node_t ptr archive = mxmlNewElement( tasks, "archive" )
+dim as mxml_node_t ptr t3 = mxmlFindElement( xml, xml, "task", "id", "t3", MXML_DESCEND_ALL )
+mxmlAdd( archive, MXML_ADD_AFTER, nullptr, t3 )
+Show( "move   ", xml, opts )
+
+'' DELETING: mxmlDelete takes the node out of its parent and frees it with everything under it.
+mxmlDelete( t4 )
+Show( "delete ", xml, opts )
+
+'' DETACHING: mxmlRemove only takes it out; it is then yours, to add elsewhere or delete.
+mxmlRemove( t0 )
+Show( "remove ", xml, opts )
+mxmlDelete( t0 )
+
+'' AN INDEX: every element with an "id" (a null element name: any element), sorted by element
+'' name and then by the value -- many lookups without walking the tree each time. It points into
+'' the tree: delete it before changing the tree.
+dim as mxml_index_t ptr ind = mxmlIndexNew( xml, nullptr, "id" )
+print "indexed: " & mxmlIndexGetCount( ind )
+dim as mxml_node_t ptr found = mxmlIndexFind( ind, nullptr, "t3" )
+print "t3 is <" & *mxmlGetElement( found ) & "> under <" & *mxmlGetElement( mxmlGetParent( found ) ) & ">: " & *mxmlGetOpaque( found )
+'' mxmlIndexEnum walks it in order.
+mxmlIndexReset( ind )
+dim as mxml_node_t ptr e = mxmlIndexEnum( ind )
+while e
+    print "  " & *mxmlElementGetAttr( e, "id" ) & " <" & *mxmlGetElement( e ) & ">"
+    e = mxmlIndexEnum( ind )
+wend
+mxmlIndexDelete( ind )
+
+mxmlDelete( xml )
+mxmlOptionsDelete( opts )
