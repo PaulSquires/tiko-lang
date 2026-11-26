@@ -55,6 +55,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkToast` | toasts: transient cards in a corner of a window, queued, timed, with actions; one toaster per window |
 | `tkNotify` | what the info bar and the toasts share: severities, colours, the item painter |
 | `tkChart` | line, column, HLOC and pie charts |
+| `tkGauge` | a radial gauge (linear from GS3): one scale with 1-2-5 ticks and labels, coloured (optionally tapered) ranges, needle / bar / marker pointers, the value as text and a caption; any start and sweep, fitted to its arc; values drawn clamped; optional eased animation; also painted widgetless (`tkGauge_PaintInto`) and on a print page (`tkGauge_PaintPage`). Design: docs/tkControls/GAUGE-SPARKLINE.md |
 | `tkSparkline` | a word-sized chart of one series -- line, area, column or win/loss; gaps (break, zero, connect), high / low / first / last / negative markers, a zero axis, a reference line and a normal band, auto or manual range, a rolling window for live data, the last value as text; hover tip per point; also painted widgetless (`tkSparkline_PaintInto`) and on a print page (`tkSparkline_PaintPage`). Design: docs/tkControls/GAUGE-SPARKLINE.md |
 | `tkPrint` | print documents: pages recorded once in points (the `tkPage_*` API, or any widget's own painting), replayed to the screen, PNG and (later) PDF and printers |
 | `tkPrintPreview` | a print document's pages as paper: fit / custom zoom, columns, continuous or single view, links, pages generated while shown |
