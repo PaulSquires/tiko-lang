@@ -635,6 +635,14 @@ public type Window
     declare sub TestForm( )
     declare sub CloseTestForm( )
     declare sub TestFormGone( )
+    TestRpt as rcanvas.ReportCanvas ptr     ' Test Report's (author 2026-11-25): a canvas showing its Preview
+    TestRptForm as TK_FORM ptr
+    declare sub TestReport( )
+    declare sub CloseTestReport( )
+    declare sub TestReportTeardown( )
+    declare sub TestReportGone( )
+    DesignLabels as long = -1               ' the Design menu's labels as last set: 1 a report's, 0 a form's
+    declare sub SyncDesignLabels( )
     declare function NewForm( byref wanted as const ustring ) as boolean
     declare function IsFormFile( byref path as const ustring ) as boolean
     declare function FormInFront( ) as ustring
@@ -1413,6 +1421,7 @@ end sub
 
 sub Window.Destroy( )
     this.CloseTestForm( )
+    this.CloseTestReport( )
     if KeysDlg then this.FinishKeys( false )
     Palettes.Destroy( )
     RPalettes.Destroy( )
@@ -1990,6 +1999,28 @@ sub Window.SyncPanels( )
     if (rc <> 0) andalso rc->Previewing then rc = 0      ' the Preview has the whole pane
     RPalettes.Bind( rc )
     if (rc <> 0) <> RPalettes.IsShown then RPalettes.ShowAll( rc <> 0 )
+    this.SyncDesignLabels( )
+end sub
+
+' The Design menu says what its rows do to the document in front: Test Report and Toggle Design /
+' Preview for a report, Test Form and Toggle Form / Code otherwise (author 2026-11-25).
+sub Window.SyncDesignLabels( )
+    if menuBar = 0 then exit sub
+    dim as TK_MENU ptr dm = tkMenuBar_GetDropDown( menuBar, clng( MenuGroup.Design ) )
+    if dm = 0 then exit sub
+    dim as DocRef d = this.Active( )
+    dim as long rep = iif( (d <> 0) andalso (d->Report <> 0) andalso (this.ShowsStart( ) = false), 1, 0 )
+    if rep = DesignLabels then exit sub
+    DesignLabels = rep
+    ' SetItemText clears a row's shortcut unless it is given again
+    dim as ustring testKeys = this.ShortcutText( Cmd.FormTest ), viewKeys = this.ShortcutText( Cmd.FormToggleView )
+    if rep then
+        tkPopupMenu_SetItemText( dm, clng( Cmd.FormTest ), i18n.Tr( "menubar.test_report", "Test Report" ), testKeys )
+        tkPopupMenu_SetItemText( dm, clng( Cmd.FormToggleView ), i18n.Tr( "menubar.toggle_preview", "Toggle Design / Preview" ), viewKeys )
+    else
+        tkPopupMenu_SetItemText( dm, clng( Cmd.FormTest ), i18n.Tr( "menubar.test_form", "Test Form" ), testKeys )
+        tkPopupMenu_SetItemText( dm, clng( Cmd.FormToggleView ), i18n.Tr( "menubar.toggle_form_code", "Toggle Form / Code" ), viewKeys )
+    end if
 end sub
 
 ' With a form on its design surface the hidden TOML is not what the person is editing: commands that
@@ -2380,6 +2411,8 @@ sub Window.BuildMenus( )
                                  this.ShortcutText( id ), this.IsImplemented( id ) = false )
         next
     next
+    DesignLabels = -1                           ' the rows were labelled from the table: say them again
+    this.SyncDesignLabels( )
 end sub
 
 ' Ctrl+Shift+M: the menu bar comes or goes now, and settings.toml's [ui] show_menu says so from now

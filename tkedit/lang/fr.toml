@@ -24,6 +24,10 @@ UncommentBlock = "Décommenter le bloc"
 SelectAll = "Tout sélectionner"
 
 [menubar]
+test_form = "Tester le formulaire"
+test_report = "Tester l'état"
+toggle_form_code = "Basculer formulaire / code"
+toggle_preview = "Basculer conception / aperçu"
 Design = "Conception"
 align = "Aligner"
 same_size = "Uniformiser la taille"
@@ -195,7 +199,7 @@ compiler = "le compilateur tiko : {}"
 no_definition = "aucune définition trouvée pour {}"
 
 [commands]
-FormTest = "Tester le formulaire"
+FormTest = "Tester le formulaire / l'état"
 FormNewForm = "Nouveau formulaire..."
 FormNewReport = "Nouveau rapport..."
 FormTheme = "Thème du projet..."

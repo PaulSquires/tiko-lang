@@ -24,6 +24,10 @@ UncommentBlock = "Kommentar entfernen"
 SelectAll = "Alles auswählen"
 
 [menubar]
+test_form = "Formular testen"
+test_report = "Bericht testen"
+toggle_form_code = "Formular / Code umschalten"
+toggle_preview = "Entwurf / Vorschau umschalten"
 Design = "Entwurf"
 align = "Ausrichten"
 same_size = "Gleiche Größe"
@@ -195,7 +199,7 @@ compiler = "der tiko-Compiler: {}"
 no_definition = "keine Definition für {} gefunden"
 
 [commands]
-FormTest = "Formular testen"
+FormTest = "Formular / Bericht testen"
 FormNewForm = "Neues Formular..."
 FormNewReport = "Neuer Bericht..."
 FormTheme = "Projektdesign..."

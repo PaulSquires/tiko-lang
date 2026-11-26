@@ -66,7 +66,7 @@ function Window.ReportActs( byval id as Cmd ) as boolean
          Cmd.FormAlignBottoms, Cmd.FormSameWidth, Cmd.FormSameHeight, Cmd.FormSameSize, Cmd.FormBringToFront, _
          Cmd.FormSendToBack, Cmd.FormHSpaceEqual, Cmd.FormVSpaceEqual, Cmd.FormSnapToGrid, _
          Cmd.FormNewForm, Cmd.FormNewReport, Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages, Cmd.FormToggleView, _
-         Cmd.FormFloatToolbox, Cmd.FormFloatProperties
+         Cmd.FormFloatToolbox, Cmd.FormFloatProperties, Cmd.FormTest
         return true
     end select
     select case Keys.Commands( ).Info( id ).Group
@@ -109,6 +109,7 @@ function Window.ReportCommand( byval id as Cmd ) as boolean
     case Cmd.FormSnapToGrid
         c->SnapToGrid = (c->SnapToGrid = false)
         tkWidget_Invalidate( c->Frame )
+    case Cmd.FormTest : this.TestReport( )                       ' Test Report: its Preview in a window
     case Cmd.FormFloatToolbox : RPalettes.ToggleFloat( 0 )      ' the toolbox and fields palette
     case Cmd.FormFloatProperties : RPalettes.ToggleFloat( 1 )   ' the object tree and properties palette
     case Cmd.FormToggleView
@@ -279,3 +280,64 @@ function Window.NewReport( byref wanted as const ustring ) as boolean
     end if
     return this.OpenFile( path )
 end function
+
+' ---- Test Report (Alt+F5 on a report; author 2026-11-25) -----------------------------------------
+' The report's Preview in a window of its own, beside the designer: a second canvas, given the
+' report as it stands (unsaved edits too) and put straight into its Preview -- the same design data
+' (live SQLite, else the sample rows), the same parameter strip. Esc or its close button closes it;
+' Alt+F5 again makes it anew from the report as it is then.
+sub Window.TestReport( )
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse (d->Report = 0) then exit sub
+    this.CloseTestReport( )
+    dim as TK_HOST ptr mh = tkForm_Host( form )
+    TestRptForm = tkApp_NewForm( fs.PathFileName( d->Path ), 820, 720, form, mh->fScaleForced )
+    if TestRptForm = 0 then exit sub
+    TestRptForm->Tag = @this
+    TestRpt = new rcanvas.ReportCanvas
+    TestRpt->Create( tkForm_Widget( TestRptForm ), 1 )
+    dim as TK_WIDGET ptr r = tkForm_Widget( TestRptForm )
+    tkWidget_SetPos( TestRpt->Frame, 0, 0, r->cw, r->ch )
+    TestRpt->ReportPath = d->Path
+    TestRpt->LoadText( d->Text( ) )
+    dim as ustring errs = TestRpt->SetPreview( true )
+    tkForm_OnSize( TestRptForm, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+        dim as Window ptr mw = f->Tag
+        if (mw->TestRpt <> 0) andalso (mw->TestRpt->Frame <> 0) then tkWidget_SetPos( mw->TestRpt->Frame, 0, 0, cx, cy )
+    end sub )
+    tkForm_OnClose( TestRptForm, function( byval f as TK_FORM ptr ) as boolean
+        cast( Window ptr, f->Tag )->TestReportTeardown( )   ' while its window still stands
+        return true
+    end function )
+    tkForm_OnDestroy( TestRptForm, sub( byval f as TK_FORM ptr )
+        cast( Window ptr, f->Tag )->TestReportGone( )
+    end sub )
+    tkForm_Host( TestRptForm )->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+        if m->key <> SDLK_ESCAPE then return false
+        tkForm_Close( tkForm_FromHost( h ) )
+        return true
+    end function
+    tkForm_Show( TestRptForm )
+    if len( errs ) then this.SetMessage( fs.PathFileName( d->Path ) & ": " & errs )
+end sub
+
+' The canvas and its Preview (the report copy, the design data) taken down, its window still there.
+sub Window.TestReportTeardown( )
+    if TestRpt = 0 then exit sub
+    TestRpt->Destroy( )
+    delete TestRpt
+    TestRpt = 0
+end sub
+
+sub Window.CloseTestReport( )
+    this.TestReportTeardown( )
+    if TestRptForm then tkForm_Destroy( TestRptForm )   ' TestReportGone from its OnDestroy
+    TestRptForm = 0
+end sub
+
+' Its window is gone. Closed the usual ways the canvas went first; else its widgets went with the
+' window, and the canvas (whose Destroy would reach them) is let go as it is.
+sub Window.TestReportGone( )
+    TestRpt = 0
+    TestRptForm = 0
+end sub

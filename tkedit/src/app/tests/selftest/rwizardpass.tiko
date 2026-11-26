@@ -29,6 +29,8 @@
 #import "vendor/tkControls/tkPrint"
 #import "vendor/tkControls/tkReportViewer"
 #import "vendor/tkControls/tkReportDef"
+#import "vendor/tkControls/tkMenuBar"
+#import "vendor/tkControls/tkPopupMenu"
 using containers
 using cmdids
 using tkApp
@@ -42,6 +44,8 @@ using tkPaint
 using tkReportViewer
 using tkReportDef
 using tkReport
+using tkMenuBar
+using tkPopupMenu
 
 dim shared as long gWzStep
 dim shared as double gWzStart
@@ -178,6 +182,30 @@ public sub RWizardPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 80 )
     t.Check( (c->Previewing = false) andalso c->Glass->isVisible andalso (c->Viewer->isVisible = false) andalso mw.RPalettes.IsShown, _
              P( sc, "rwizard: Shift+F7 again: the bands and the palettes" ) )
+
+    ' ---- Test Report (Alt+F5, author 2026-11-25): the Preview in a window of its own, the bands left
+    ' as they are; the Design menu says Test Report while a report is in front
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_ALT )
+    tkTest_PumpFor( h, 120 )
+    doc = 0
+    if (mw.TestRpt <> 0) andalso (mw.TestRpt->Viewer <> 0) then doc = tkReportViewer_GetDocument( mw.TestRpt->Viewer )
+    s = WzRuns( doc )
+    t.Check( (mw.TestRptForm <> 0) andalso (instr( s, "|Customer 1|" ) > 0) andalso (c->Previewing = false) andalso c->Glass->isVisible _
+             andalso (mw.DesignLabels = 1), P( sc, "rwizard: Alt+F5 tests the report in a window of its own, the bands stay, the menu says Test Report: " & left( s, 60 ) ) )
+    scope
+        ' the relabelled row keeps its shortcut
+        dim as TK_MENU ptr dm = tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.Design ) )
+        dim as ustring acc = "?"
+        if dm then
+            for i as long = 0 to dm->itemCount - 1
+                if dm->items(i).id = clng( Cmd.FormTest ) then acc = dm->items(i).wszAccel
+            next
+        end if
+        t.Check( (len( acc ) > 0) andalso (acc = mw.ShortcutText( Cmd.FormTest )), P( sc, "rwizard: the Test Report row still shows its shortcut: " & acc ) )
+    end scope
+    mw.CloseTestReport( )
+    tkTest_PumpFor( h, 30 )
+    t.Check( (mw.TestRptForm = 0) andalso (mw.TestRpt = 0), P( sc, "rwizard: and the test window closes" ) )
 
     ' ---- SQLite live: a design database beside the report, read by the Preview
     dim as ustring live = fs.PathJoin( dir_, "rptLive" )
