@@ -1,0 +1,64 @@
+'' mariadb-residue.ti -- what mariadb.ti could not carry, written by hand. Against MariaDB
+'' Connector/C 3.4.11's mysql.h, flattened by flatten.py into the mariadb.h that mariadb.ti's
+'' banner names by SHA-256. INCLUDED BEFORE mariadb.ti (mariadb.tiko): my_socket must be settled
+'' before the header's own '#ifndef my_socket_defined' block.
+''
+'' MYSQL IS OPAQUE. c2t refused the record st_mysql (its 'options' member, st_mysql_options, has
+'' a layout c2t could not reproduce -- claude-docs docs/tiko-vendor RFC-0003 P0, F2), so it
+'' declares the routines against a forward st_mysql and never declares the typedef MYSQL. Here it
+'' is, as the same forward type: a program holds a MYSQL ptr from mysql_init and passes it on,
+'' which is all MariaDB documents -- its members are private. Read what a member would say through
+'' the API instead: mysql_get_server_info, mysql_errno, mysql_get_host_info, mysql_get_optionv,
+'' mariadb_get_infov.
+''
+'' my_socket: mysql.h's is a macro of a C type on Windows (unsigned long long), which c2t cannot
+'' name; it is the socket's integer here on each target.
+''
+'' What mysql.h's banner-listed TODOs need, beyond the two above:
+''   IS_NUM( t )          here, as a tiko boolean (-1 / 0, where C's is 1 / 0)
+''   NULL_LENGTH          here: C's (unsigned long) ~0, which is 32-bit on Windows, 64 elsewhere
+''   mariadb_connect      here: mysql_real_connect with a connection string as its host
+''   MARIADB_SYSTEM_TYPE, MARIADB_MACHINE_TYPE
+''                        here, per target (flatten.py drops the build host's lines)
+'' and nothing for the rest, which reach into MYSQL's or MYSQL_STMT's private members or are
+'' Connector/C's own internals: IS_MARIADB_EXTENDED_SERVER, MARIADB_STMT_BULK_SUPPORTED and
+'' MARIADB_STMT_BULK_UNIT_RESULTS_SUPPORTED (ask mariadb_get_infov(
+'' MARIADB_CONNECTION_SERVER_CAPABILITIES / _EXTENDED_SERVER_CAPABILITIES ) instead),
+'' INTERNAL_NUM_FIELD, SET_CLIENT_ERROR, CLEAR_CLIENT_ERROR, CLEAR_CLIENT_STMT_ERROR,
+'' net_new_transaction, list_push, list_pop, list_rest, MYSQL_CLIENT_PLUGIN_HEADER (for writing
+'' a client plugin), mariadb_compiled_charsets (an array of no stated size). The conditional
+'' TODOs are mysql.h's '#ifndef X / #define X' defaults; each value is translated.
+''
+'' NAMES. tiko's names are case-insensitive: mysql.h's constant MYSQL_PORT and its variable
+'' mysql_port are one name, so the constant is MYSQL_PORT_2 -- or write MARIADB_PORT (3306).
+#pragma once
+
+#ifdef TIKO_OS_WINDOWS
+    type my_socket as uint64
+    #define NULL_LENGTH &hFFFFFFFFu
+    #define MARIADB_SYSTEM_TYPE "Windows"
+    #define MARIADB_MACHINE_TYPE "AMD64"
+#else
+    type my_socket as int32
+    #define NULL_LENGTH &hFFFFFFFFFFFFFFFFull
+    '' CMake's CMAKE_SYSTEM_NAME and CMAKE_SYSTEM_PROCESSOR, which mariadb_version.h's two are.
+    #ifdef TIKO_OS_MACOS
+        #define MARIADB_SYSTEM_TYPE "Darwin"
+        #define MARIADB_MACHINE_TYPE "arm64"
+    #else
+        #define MARIADB_SYSTEM_TYPE "Linux"
+        #ifdef TIKO_ARCH_ARM64
+            #define MARIADB_MACHINE_TYPE "aarch64"
+        #else
+            #define MARIADB_MACHINE_TYPE "x86_64"
+        #endif
+    #endif
+#endif
+#define my_socket_defined
+
+type MYSQL as st_mysql
+
+#define IS_NUM( t ) ( ( ( t ) <= MYSQL_TYPE_INT24 andalso ( t ) <> MYSQL_TYPE_TIMESTAMP ) _
+                      orelse ( t ) = MYSQL_TYPE_YEAR orelse ( t ) = MYSQL_TYPE_NEWDECIMAL )
+#define mariadb_connect( hdl, conn_str ) _
+    mysql_real_connect( hdl, conn_str, nullptr, nullptr, nullptr, 0, nullptr, 0 )

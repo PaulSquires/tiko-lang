@@ -1,0 +1,60 @@
+'' connect -- open a connection to a MySQL or MariaDB server, check it, and report what it is:
+'' the server's version, the TLS in use, the session's character set. Then a connection that
+'' cannot work, to show where Connector/C puts the reason.
+''
+''     TIKO_MYSQL_HOST=db.example.com TIKO_MYSQL_USER=app TIKO_MYSQL_PASSWORD=... TIKO_MYSQL_DB=app connect
+''
+'' TIKO_MYSQL_PORT (3306) and TIKO_MYSQL_CA -- a CA certificate file; when given, the server's
+'' certificate is verified against it -- are optional. With TIKO_MYSQL_HOST unset the program
+'' says so and exits 0. Build it with 'tiko connect.tiko'.
+
+'' The library is SHARED (Connector/C is LGPL): libmariadb.dll (libmariadb_linux_x86_64.so on
+'' Linux) is copied beside the program.
+#import "vendor/mariadb" link dynamic
+
+'' mysql_init, the TLS options, mysql_real_connect. The connection is UTF-8 (utf8mb4) from the
+'' start: MYSQL_SET_CHARSET_NAME before connecting, so the handshake already uses it.
+function Connect( ) as MYSQL ptr
+    dim as string host = environ( "TIKO_MYSQL_HOST" ), ca = environ( "TIKO_MYSQL_CA" )
+    if len( host ) = 0 then
+        print "skipped: set TIKO_MYSQL_HOST (and TIKO_MYSQL_USER, _PASSWORD, _DB, _PORT, _CA)"
+        end 0
+    end if
+    dim as int32 port = valint( environ( "TIKO_MYSQL_PORT" ) )
+    if port = 0 then port = MARIADB_PORT
+    dim as MYSQL ptr m = mysql_init( nullptr )
+    mysql_optionsv( m, MYSQL_SET_CHARSET_NAME, strptr( "utf8mb4" ) )
+    if len( ca ) then
+        dim as my_bool yes = 1
+        mysql_optionsv( m, MYSQL_OPT_SSL_CA, strptr( ca ) )
+        mysql_optionsv( m, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, @yes )
+    end if
+    if mysql_real_connect( m, host, environ( "TIKO_MYSQL_USER" ), environ( "TIKO_MYSQL_PASSWORD" ), _
+                           environ( "TIKO_MYSQL_DB" ), port, nullptr, 0 ) = nullptr then
+        print "connection failed: "; mysql_errno( m ); " "; *mysql_error( m )
+        mysql_close( m )
+        end 1
+    end if
+    return m
+end function
+
+print "client   "; *mysql_get_client_info( )
+dim as MYSQL ptr m = Connect( )
+print "server   "; *mysql_get_server_info( m ); " ("; *mysql_get_host_info( m ); ")"
+print "charset  "; *mysql_character_set_name( m )
+dim as const zstring ptr cipher = mysql_get_ssl_cipher( m )
+if cipher then
+    print "tls      "; *cipher; iif( len( environ( "TIKO_MYSQL_CA" ) ), " (certificate verified)", " (certificate NOT verified: set TIKO_MYSQL_CA)" )
+else
+    print "tls      none"
+end if
+mysql_close( m )
+
+'' A port nothing listens on. mysql_close is needed after a failed connect too.
+m = mysql_init( nullptr )
+dim as uint32 timeout = 2
+mysql_optionsv( m, MYSQL_OPT_CONNECT_TIMEOUT, @timeout )
+if mysql_real_connect( m, "127.0.0.1", "nobody", "", "", 1, nullptr, 0 ) = nullptr then
+    print "bad port "; mysql_errno( m ); " -- "; *mysql_error( m )
+end if
+mysql_close( m )

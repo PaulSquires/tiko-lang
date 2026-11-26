@@ -1,0 +1,112 @@
+'' prepared -- prepared statements: '?' in the SQL, the values beside it in MYSQL_BIND records
+'' (an integer, a string, a double that may be NULL, a DATETIME, a BLOB), the statement run
+'' again with new values, and a result fetched into bound variables. Values never become SQL
+'' text, so nothing needs escaping.
+''
+''     TIKO_MYSQL_HOST=localhost TIKO_MYSQL_USER=app TIKO_MYSQL_PASSWORD=... TIKO_MYSQL_DB=app prepared
+''
+'' With TIKO_MYSQL_HOST unset the program says so and exits 0. Build it with 'tiko prepared.tiko'.
+#import "vendor/mariadb" link dynamic
+
+function Connect( ) as MYSQL ptr
+    dim as string host = environ( "TIKO_MYSQL_HOST" ), ca = environ( "TIKO_MYSQL_CA" )
+    if len( host ) = 0 then
+        print "skipped: set TIKO_MYSQL_HOST (and TIKO_MYSQL_USER, _PASSWORD, _DB, _PORT, _CA)"
+        end 0
+    end if
+    dim as int32 port = valint( environ( "TIKO_MYSQL_PORT" ) )
+    if port = 0 then port = MARIADB_PORT
+    dim as MYSQL ptr c = mysql_init( nullptr )
+    mysql_optionsv( c, MYSQL_SET_CHARSET_NAME, strptr( "utf8mb4" ) )
+    if len( ca ) then
+        dim as my_bool yes = 1
+        mysql_optionsv( c, MYSQL_OPT_SSL_CA, strptr( ca ) )
+        mysql_optionsv( c, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, @yes )
+    end if
+    if mysql_real_connect( c, host, environ( "TIKO_MYSQL_USER" ), environ( "TIKO_MYSQL_PASSWORD" ), _
+                           environ( "TIKO_MYSQL_DB" ), port, nullptr, 0 ) = nullptr then
+        print "connection failed: "; *mysql_error( c )
+        mysql_close( c )
+        end 1
+    end if
+    return c
+end function
+
+'' A statement's failure: its own errno and message, not the connection's.
+sub Check( byval st as MYSQL_STMT ptr, byval failed as boolean, byval what as string )
+    if failed then
+        print what; ": "; mysql_stmt_errno( st ); " "; *mysql_stmt_error( st )
+        end 1
+    end if
+end sub
+
+dim as MYSQL ptr m = Connect( )
+dim as string ddl = "create temporary table reading (id int primary key, label varchar(40), " & _
+                    "celsius double, taken datetime, raw blob) character set utf8mb4"
+if mysql_real_query( m, strptr( ddl ), len( ddl ) ) then print *mysql_error( m ) : end 1
+
+'' INSERT: one MYSQL_BIND per '?'. Each says the C type of the program's variable (buffer_type),
+'' where it is (buffer) and, for strings and blobs, how long (length). is_null points at a flag.
+dim as MYSQL_STMT ptr st = mysql_stmt_init( m )
+dim as string sql = "insert into reading values (?, ?, ?, ?, ?)"
+Check( st, mysql_stmt_prepare( st, strptr( sql ), len( sql ) ) <> 0, "prepare" )
+print "insert has "; mysql_stmt_param_count( st ); " parameters"
+
+dim as int32 id
+dim as string label
+dim as culong labellen, rawlen
+dim as double celsius
+dim as my_bool nocelsius
+dim as MYSQL_TIME taken
+dim as string raw
+dim as MYSQL_BIND p( 0 to 4 )
+p( 0 ).buffer_type = MYSQL_TYPE_LONG     : p( 0 ).buffer = @id
+p( 1 ).buffer_type = MYSQL_TYPE_STRING   : p( 1 ).length = @labellen
+p( 2 ).buffer_type = MYSQL_TYPE_DOUBLE   : p( 2 ).buffer = @celsius : p( 2 ).is_null = @nocelsius
+p( 3 ).buffer_type = MYSQL_TYPE_DATETIME : p( 3 ).buffer = @taken
+p( 4 ).buffer_type = MYSQL_TYPE_BLOB     : p( 4 ).length = @rawlen
+
+'' Run it three times; only the variables change. A string's buffer moves when it is assigned,
+'' so its pointer is set again (and mysql_stmt_bind_param called again) before each run.
+dim as string labels( 0 to 2 ) = { "kitchen", !"caf\xC3\xA9", "garage" }
+for i as int32 = 0 to 2
+    id = i + 1
+    label = labels( i ) : labellen = len( label ) : p( 1 ).buffer = strptr( label )
+    celsius = 19.5 + i : nocelsius = iif( i = 2, 1, 0 )
+    taken.year = 2026 : taken.month = 11 : taken.day = 26 : taken.hour = 9 + i
+    taken.time_type = MYSQL_TIMESTAMP_DATETIME
+    raw = chr( 0, 255, i ) : rawlen = len( raw ) : p( 4 ).buffer = strptr( raw )
+    Check( st, mysql_stmt_bind_param( st, @p( 0 ) ) <> 0, "bind" )
+    Check( st, mysql_stmt_execute( st ) <> 0, "execute" )
+    print "insert   "; mysql_stmt_affected_rows( st ); " row, id"; id
+next
+mysql_stmt_close( st )
+
+'' SELECT: the parameter as before; the result's columns bound to variables, then
+'' mysql_stmt_fetch fills them row by row until MYSQL_NO_DATA. A string column needs a buffer
+'' of its own and gets its true length back.
+st = mysql_stmt_init( m )
+sql = "select id, label, celsius, taken from reading where id >= ? order by id"
+Check( st, mysql_stmt_prepare( st, strptr( sql ), len( sql ) ) <> 0, "prepare" )
+dim as int32 since = 2
+dim as MYSQL_BIND q( 0 to 0 )
+q( 0 ).buffer_type = MYSQL_TYPE_LONG : q( 0 ).buffer = @since
+Check( st, mysql_stmt_bind_param( st, @q( 0 ) ) <> 0, "bind" )
+Check( st, mysql_stmt_execute( st ) <> 0, "execute" )
+
+dim as zstring * 41 labelbuf
+dim as MYSQL_BIND res( 0 to 3 )
+res( 0 ).buffer_type = MYSQL_TYPE_LONG     : res( 0 ).buffer = @id
+res( 1 ).buffer_type = MYSQL_TYPE_STRING   : res( 1 ).buffer = @labelbuf
+res( 1 ).buffer_length = sizeof( labelbuf ) : res( 1 ).length = @labellen
+res( 2 ).buffer_type = MYSQL_TYPE_DOUBLE   : res( 2 ).buffer = @celsius : res( 2 ).is_null = @nocelsius
+res( 3 ).buffer_type = MYSQL_TYPE_DATETIME : res( 3 ).buffer = @taken
+Check( st, mysql_stmt_bind_result( st, @res( 0 ) ) <> 0, "bind result" )
+Check( st, mysql_stmt_store_result( st ) <> 0, "store" )
+print mysql_stmt_num_rows( st ); " rows with id >="; since
+while mysql_stmt_fetch( st ) = 0
+    print id; "  "; left( labelbuf, labellen ); "  "; iif( nocelsius, "NULL", str( celsius ) ); _
+          "  "; taken.year; "-"; taken.month; "-"; taken.day; " "; taken.hour; "h"
+wend
+mysql_stmt_close( st )
+mysql_close( m )

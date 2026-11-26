@@ -1,0 +1,8 @@
+'' THE COMMITTED vendor/mariadb HEADER (claude-docs docs/tiko-vendor RFC-0003 P3): mariadb.ti,
+'' translated by 'tiko c2t' from MariaDB Connector/C 3.4.11's mysql.h as flatten.py writes it out,
+'' and the hand-written mariadb-residue.ti compile for linux-x86_64 as an importer reads them. The
+'' library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vmariadb/hdr.tiko -o build/.vmariadbh-linux-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vmariadbh-linux-x86_64.o

@@ -1,0 +1,21 @@
+'' The committed vendor/mariadb header -- mariadb.ti, translated by 'tiko c2t' from MariaDB
+'' Connector/C 3.4.11's mysql.h as flatten.py writes it out -- and the hand-written
+'' mariadb-residue.ti before it, as an importer reads them: no library needed. Names the opaque
+'' MYSQL, every residue macro, a prepared statement's MYSQL_BIND and MYSQL_TIME, and my_socket.
+#include once "../../../../pkg/vendor/mariadb/mariadb-residue.ti"
+#include once "../../../../pkg/vendor/mariadb/mariadb.ti"
+dim as MYSQL ptr m = mysql_init( nullptr )
+dim as byte yes = 1
+mysql_optionsv( m, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, @yes )
+if mariadb_connect( m, "host=localhost;user=app" ) = nullptr then print *mysql_error( m ), mysql_errno( m )
+dim as MYSQL_STMT ptr st = mysql_stmt_init( m )
+dim as MYSQL_BIND b( 0 to 1 )
+dim as MYSQL_TIME t
+dim as int32 v = 42
+b( 0 ).buffer_type = MYSQL_TYPE_LONG : b( 0 ).buffer = @v
+b( 1 ).buffer_type = MYSQL_TYPE_DATETIME : b( 1 ).buffer = @t
+mysql_stmt_bind_param( st, @b( 0 ) )
+dim as my_socket s = mysql_get_socket( m )
+print IS_NUM( MYSQL_TYPE_LONG ), IS_NUM( MYSQL_TYPE_STRING ), NULL_LENGTH, MARIADB_PORT, MYSQL_PORT_2
+print MARIADB_SYSTEM_TYPE, MARIADB_MACHINE_TYPE, MARIADB_PACKAGE_VERSION, sizeof( MYSQL_BIND ), sizeof( MYSQL_TIME ), s
+mysql_stmt_close( st ) : mysql_close( m )

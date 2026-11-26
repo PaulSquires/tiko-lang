@@ -39,6 +39,10 @@ links = ["static", "dynamic"]
 [vendor.zint]
 links = ["static", "dynamic"]
 
+# vendor/mariadb: MariaDB Connector/C (MySQL + MariaDB), LGPL-2.1 -- shared only (claude-docs RFC-0003 DB-2).
+[vendor.mariadb]
+links = ["dynamic"]
+
 [vendor.mxml]
 links = ["static", "dynamic"]
 

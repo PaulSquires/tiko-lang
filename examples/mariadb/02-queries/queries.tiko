@@ -1,0 +1,117 @@
+'' queries -- the text protocol: mysql_query, a result walked by row and column with its field
+'' names and types, NULL, a binary column read by its length, the id an insert made, a
+'' transaction rolled back, and an error with its number and SQLSTATE. Everything happens in a
+'' TEMPORARY table, which goes away with the connection.
+''
+''     TIKO_MYSQL_HOST=localhost TIKO_MYSQL_USER=app TIKO_MYSQL_PASSWORD=... TIKO_MYSQL_DB=app queries
+''
+'' A value from outside the program goes into SQL text only through mysql_real_escape_string,
+'' shown here; 03-prepared passes values beside the SQL instead, which is the better habit.
+'' With TIKO_MYSQL_HOST unset the program says so and exits 0. Build it with 'tiko queries.tiko'.
+#import "vendor/mariadb" link dynamic
+
+dim shared as MYSQL ptr m
+
+function Connect( ) as MYSQL ptr
+    dim as string host = environ( "TIKO_MYSQL_HOST" ), ca = environ( "TIKO_MYSQL_CA" )
+    if len( host ) = 0 then
+        print "skipped: set TIKO_MYSQL_HOST (and TIKO_MYSQL_USER, _PASSWORD, _DB, _PORT, _CA)"
+        end 0
+    end if
+    dim as int32 port = valint( environ( "TIKO_MYSQL_PORT" ) )
+    if port = 0 then port = MARIADB_PORT
+    dim as MYSQL ptr c = mysql_init( nullptr )
+    mysql_optionsv( c, MYSQL_SET_CHARSET_NAME, strptr( "utf8mb4" ) )
+    if len( ca ) then
+        dim as my_bool yes = 1
+        mysql_optionsv( c, MYSQL_OPT_SSL_CA, strptr( ca ) )
+        mysql_optionsv( c, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, @yes )
+    end if
+    if mysql_real_connect( c, host, environ( "TIKO_MYSQL_USER" ), environ( "TIKO_MYSQL_PASSWORD" ), _
+                           environ( "TIKO_MYSQL_DB" ), port, nullptr, 0 ) = nullptr then
+        print "connection failed: "; *mysql_error( c )
+        mysql_close( c )
+        end 1
+    end if
+    return c
+end function
+
+'' Run SQL that returns no rows; stop the program if it fails.
+sub RunSql( byval sql as string )
+    if mysql_real_query( m, strptr( sql ), len( sql ) ) <> 0 then
+        print sql; ": "; mysql_errno( m ); " "; *mysql_error( m )
+        mysql_close( m )
+        end 1
+    end if
+end sub
+
+'' A string as an SQL literal, quotes included: what mysql_real_escape_string makes of it for
+'' this connection's character set, which it needs a buffer twice the length (plus one) for.
+function Quoted( byval s as string ) as string
+    dim as string buf = space( 2 * len( s ) + 1 )
+    dim as culong n = mysql_real_escape_string( m, strptr( buf ), strptr( s ), len( s ) )
+    return "'" & left( buf, n ) & "'"
+end function
+
+m = Connect( )
+RunSql( "create temporary table item (id int auto_increment primary key, name varchar(60) not null, " & _
+        "price decimal(8,2), photo blob) character set utf8mb4" )
+
+'' INSERT: three rows, the names escaped; the second has no price (NULL).
+dim as string names( 0 to 2 ) = { "tea", !"caf\xC3\xA9 cr\xC3\xA8me", "it's a test" }
+dim as string prices( 0 to 2 ) = { "3.50", "NULL", "4.25" }
+for i as int32 = 0 to 2
+    RunSql( "insert into item (name, price) values (" & Quoted( names( i ) ) & ", " & prices( i ) & ")" )
+    print "insert   id "; mysql_insert_id( m ); ", "; mysql_affected_rows( m ); " row"
+next
+RunSql( "update item set photo = unhex('00FF00894E47') where id = 1" )
+
+'' A RESULT: mysql_store_result reads it all; each row is an array of zstring ptr, nullptr for
+'' NULL, and mysql_fetch_lengths gives each value's byte count -- the only right length for a
+'' binary column, which may hold zero bytes.
+RunSql( "select id, name, price, photo from item order by id" )
+dim as MYSQL_RES ptr r = mysql_store_result( m )
+dim as uint32 nf = mysql_num_fields( r )
+dim as MYSQL_FIELD ptr f = mysql_fetch_fields( r )
+for i as uint32 = 0 to nf - 1
+    print *f[i].name; iif( IS_NUM( f[i].type ), " (number)", "" ); chr( 9 );
+next
+print
+dim as MYSQL_ROW row = mysql_fetch_row( r )
+while row
+    dim as culong ptr lens = mysql_fetch_lengths( r )
+    for i as uint32 = 0 to nf - 1
+        if row[i] = nullptr then
+            print "NULL";
+        elseif i = 3 then
+            for b as int32 = 0 to lens[i] - 1
+                print hex( cast( ubyte ptr, row[i] )[b], 2 );
+            next
+        else
+            print *row[i];
+        end if
+        print chr( 9 );
+    next
+    print
+    row = mysql_fetch_row( r )
+wend
+print mysql_num_rows( r ); " rows"
+mysql_free_result( r )
+
+'' A TRANSACTION: with autocommit off, nothing before mysql_rollback stays.
+mysql_autocommit( m, 0 )
+RunSql( "delete from item" )
+mysql_rollback( m )
+mysql_autocommit( m, 1 )
+RunSql( "select count(*) from item" )
+r = mysql_store_result( m )
+print "after rollback: "; *mysql_fetch_row( r )[0]; " rows"
+mysql_free_result( r )
+
+'' AN ERROR: mysql_errno (1062 is a duplicate key) and the SQLSTATE -- test those, not the
+'' message.
+dim as string dup = "insert into item (id, name) values (1, 'again')"
+if mysql_real_query( m, strptr( dup ), len( dup ) ) <> 0 then
+    print "error    "; mysql_errno( m ); " "; *mysql_sqlstate( m ); " "; *mysql_error( m )
+end if
+mysql_close( m )
