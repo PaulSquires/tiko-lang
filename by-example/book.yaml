@@ -11,22 +11,22 @@ pin:
   windows:
     root: "../toolchains/tiko-windows"      # relative to this directory
     exe: "tiko.exe"
-    commit: "e59e3b2dd"
-    packaged: "2026-11-24"
+    commit: "01c1f625e"
+    packaged: "2026-11-26"
   linux:
     root: "../toolchains/tiko-linux"        # same path, reached through WSL
     exe: "bin/tiko"
-    commit: "e59e3b2dd"
-    packaged: "2026-11-24"
+    commit: "01c1f625e"
+    packaged: "2026-11-26"
     wsl_distro: "Ubuntu"
   macos:
     root: "../toolchains/tiko-macos"        # on the Mac: the harness runs there (ssh mac)
     exe: "bin/tiko"
-    commit: "e59e3b2dd"
-    packaged: "2026-11-24"
+    commit: "01c1f625e"
+    packaged: "2026-11-26"
   linux_arm64:
     root: "../toolchains/tiko-linux-arm64"  # in the arm64 VM (TIKO_ARM_VM, default tk22): the harness runs there
     exe: "bin/tiko"
-    commit: "e59e3b2dd"
-    packaged: "2026-11-24"
+    commit: "01c1f625e"
+    packaged: "2026-11-26"
   targets: [windows-x86_64, linux-x86_64, macos-arm64, linux-arm64]
