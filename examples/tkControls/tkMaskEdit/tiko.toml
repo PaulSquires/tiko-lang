@@ -1,7 +1,11 @@
-# tkMaskEdit: selftest. tiko build (writes selftest.exe here; out/ is the cache)
+# tkMaskEdit: selftest + demo. tiko build (writes selftest.exe and demo.exe here; out/ is the cache)
 [package]
 name = "tkmaskedit-tests"
 
 [target.selftest]
 main   = "selftest.tiko"
 output = "selftest.exe"
+
+[target.demo]
+main   = "demo.tiko"
+output = "demo.exe"

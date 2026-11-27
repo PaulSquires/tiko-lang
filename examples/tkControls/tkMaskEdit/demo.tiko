@@ -1,0 +1,150 @@
+' tkMaskEdit demo: one box per mask kind, with a label saying what it takes.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (the product key focused part-typed, the ZIP code in
+'                            its error state), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkMaskEdit"
+#import "vendor/tkControls/tkMaskEditRegex"
+using tkMaskEdit
+using tkMask
+using tkMaskEditRegex
+using tkTextBox
+using tkHost
+using tkPaint
+
+const as int32 ROWS = 8, ROW_HEIGHT = 48, ROW_TOP = 14, ROW_MARGIN = 22, BOX_WIDTH = 210
+const as ulong T_FORE = &hFFBEC4CEul, T_BACK = &hFF21252Bul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBox(0 to ROWS - 1)
+dim shared as ustring gLabel(0 to ROWS - 1)
+dim shared as TTF_Font ptr gFont10
+
+private function RowTop( byval i as int32 ) as int32
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as int32 margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    b->SetFont( gFont10 )
+    b->SetColors( T_FORE, T_BACK )
+    dim as TKRECT rc
+    for i as int32 = 0 to ROWS - 1
+        tkRect_Set( rc, margin, RowTop( i ), pw - margin, RowTop( i ) + rh )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as int32 margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    dim as int32 w = tkHost_Scale( h, BOX_WIDTH ), bh = tkHost_Scale( h, 30 )
+    for i as int32 = 0 to ROWS - 1
+        tkWidget_SetPos( gBox(i), pw - margin - w, RowTop( i ) + (rh - bh) \ 2, w, bh )
+    next
+end sub
+
+sub OnCommit( byval hCtrl as TK_WIDGET ptr )
+    print "Commit  ctrl=" & tkMaskEdit_GetID( hCtrl ) & "  value=""" & tkMaskEdit_GetBindText( hCtrl ) _
+        & """  valid=" & tkMaskEdit_IsValid( hCtrl )
+end sub
+
+sub OnRejected( byval hCtrl as TK_WIDGET ptr, byval nPos as int32, byval nReason as int32, _
+                byref sText as const ustring )
+    print "Rejected  ctrl=" & tkMaskEdit_GetID( hCtrl ) & "  at " & nPos & "  reason=" & nReason
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as int32 = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr sf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if sf then
+        SDL_SaveBMP( sf, strptr( path ) )
+        print "shot: " & path & "  " & sf->w & "x" & sf->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( sf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+tkMaskEditRegex_Enable( )
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkMaskEdit on SDL3", 660, 410, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+dim as TK_WIDGET ptr root = tkHost_Root( gHost )
+for i as int32 = 0 to ROWS - 1
+    gBox(i) = tkMaskEdit_Create( root, 1000 + i )
+    tkMaskEdit_SetFont( gBox(i), gFont10 )
+    tkTextBox_SetMargins( tkMaskEdit_GetEdit( gBox(i) ), tkHost_Scale( gHost, 6 ), tkHost_Scale( gHost, 6 ) )
+    tkMaskEdit_SetCommitCallback( gBox(i), @OnCommit )
+    tkMaskEdit_SetRejectedCallback( gBox(i), @OnRejected )
+next
+
+gLabel(0) = "Phone   (fixed:  (999) 000-0000)"
+tkMaskEdit_SetMask( gBox(0), TKMASK_FIXED, "(999) 000-0000" )
+tkMaskEdit_SetValueText( gBox(0), "5551234567" )
+gLabel(1) = "Price   (numeric:  $#,##0.00, 0 .. 99,999)"
+tkMaskEdit_SetMask( gBox(1), TKMASK_NUMERIC, "$#,##0.00" )
+tkMaskEdit_SetMin( gBox(1), 0 )
+tkMaskEdit_SetMax( gBox(1), 99999 )
+tkMaskEdit_SetValue( gBox(1), 1234.5 )
+gLabel(2) = "Discount   (numeric:  0.0%)"
+tkMaskEdit_SetMask( gBox(2), TKMASK_NUMERIC, "0.0%" )
+tkMaskEdit_SetValue( gBox(2), 0.125 )
+gLabel(3) = "Delivery date   (date:  dd/mm/yyyy, real dates only)"
+tkMaskEdit_SetMask( gBox(3), TKMASK_DATE, "dd/mm/yyyy" )
+tkMaskEdit_SetBindText( gBox(3), "2026-12-25" )
+gLabel(4) = "Opens at   (time:  hh:nn)"
+tkMaskEdit_SetMask( gBox(4), TKMASK_TIME, "hh:nn" )
+tkMaskEdit_SetBindText( gBox(4), "14:30:00" )
+gLabel(5) = "Part code   (regex:  [A-Z]{2}\d{6,8})"
+tkMaskEdit_SetMask( gBox(5), TKMASK_REGEX, "[A-Z]{2}\d{6,8}" )
+tkMaskEdit_SetText( gBox(5), "TK2026114" )
+gLabel(6) = "Product key   (fixed:  >AAAAA-AAAAA, upper case)"
+tkMaskEdit_SetMask( gBox(6), TKMASK_FIXED, ">AAAAA-AAAAA" )
+gLabel(7) = "ZIP code   (fixed:  00000-9999; left incomplete)"
+tkMaskEdit_SetMask( gBox(7), TKMASK_FIXED, "00000-9999" )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    ' the ZIP code typed short and left (its error state), then the product key part-typed
+    tkHost_SetFocus( gHost, tkMaskEdit_GetEdit( gBox(7) ) )
+    tkHost_Pump( gHost )
+    tkMaskEdit_TypeText( gBox(7), "123" )
+    tkHost_SetFocus( gHost, tkMaskEdit_GetEdit( gBox(6) ) )
+    tkHost_Pump( gHost )
+    tkMaskEdit_TypeText( gBox(6), "k7q2mx9" )
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_SetFocus( gHost, tkMaskEdit_GetEdit( gBox(0) ) )
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()
