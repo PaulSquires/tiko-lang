@@ -1,33 +1,31 @@
 '' =============================================================================
 '' ioapi.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "ioapi.h"
-''   source sha256 : 56713a3aa2a771267045b731d2b7fa0719bbb922b278662deebd6fa0fb22cc59
+''   source sha256 : 94bef1b1b0a865502c34bc6dc26de23b29071c45eff6265fc691ef552e209c0e
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
 ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
 ''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
-'' 20 items need manual translation:
-''   line 57  ioapi.h:24  C2T-TODO(conditional)  #if
-''   line 65  ioapi.h:31  C2T-TODO(conditional)  #endif
-''   line 73  ioapi.h:38  C2T-TODO(macro)  fopen64
-''   line 75  ioapi.h:39  C2T-TODO(macro)  ftello64
-''   line 77  ioapi.h:40  C2T-TODO(macro)  fseeko64
-''   line 81  ioapi.h:43  C2T-TODO(macro)  fopen64
-''   line 83  ioapi.h:44  C2T-TODO(macro)  ftello64
-''   line 85  ioapi.h:45  C2T-TODO(macro)  fseeko64
-''   line 89  ioapi.h:48  C2T-TODO(macro)  fopen64
-''   line 92  ioapi.h:50  C2T-TODO(macro)  ftello64
-''   line 94  ioapi.h:51  C2T-TODO(macro)  fseeko64
-''   line 97  ioapi.h:53  C2T-TODO(macro)  ftello64
-''   line 99  ioapi.h:54  C2T-TODO(macro)  fseeko64
-''   line 189  ioapi.h:151  C2T-TODO(function-like-macro)  ZREAD64
-''   line 191  ioapi.h:152  C2T-TODO(function-like-macro)  ZWRITE64
-''   line 195  ioapi.h:155  C2T-TODO(function-like-macro)  ZCLOSE64
-''   line 197  ioapi.h:156  C2T-TODO(function-like-macro)  ZERROR64
-''   line 206  ioapi.h:164  C2T-TODO(function-like-macro)  ZOPEN64
-''   line 208  ioapi.h:165  C2T-TODO(function-like-macro)  ZTELL64
-''   line 210  ioapi.h:166  C2T-TODO(function-like-macro)  ZSEEK64
+'' 18 items need manual translation:
+''   line 80  ioapi.h:49  C2T-TODO(conditional)  fopen64
+''   line 82  ioapi.h:50  C2T-TODO(conditional)  ftello64
+''   line 84  ioapi.h:51  C2T-TODO(conditional)  fseeko64
+''   line 88  ioapi.h:54  C2T-TODO(conditional)  fopen64
+''   line 90  ioapi.h:55  C2T-TODO(macro)  ftello64
+''   line 92  ioapi.h:56  C2T-TODO(macro)  fseeko64
+''   line 96  ioapi.h:59  C2T-TODO(conditional)  fopen64
+''   line 99  ioapi.h:61  C2T-TODO(macro)  ftello64
+''   line 101  ioapi.h:62  C2T-TODO(macro)  fseeko64
+''   line 104  ioapi.h:64  C2T-TODO(conditional)  ftello64
+''   line 106  ioapi.h:65  C2T-TODO(conditional)  fseeko64
+''   line 196  ioapi.h:162  C2T-TODO(function-like-macro)  ZREAD64
+''   line 198  ioapi.h:163  C2T-TODO(function-like-macro)  ZWRITE64
+''   line 202  ioapi.h:166  C2T-TODO(function-like-macro)  ZCLOSE64
+''   line 204  ioapi.h:167  C2T-TODO(function-like-macro)  ZERROR64
+''   line 213  ioapi.h:175  C2T-TODO(function-like-macro)  ZOPEN64
+''   line 215  ioapi.h:176  C2T-TODO(function-like-macro)  ZTELL64
+''   line 217  ioapi.h:177  C2T-TODO(function-like-macro)  ZSEEK64
 '' =============================================================================
 
 /' ioapi.h -- IO base function header for compress/uncompress .zip
@@ -54,49 +52,58 @@
 
 #include once "crt/long.bi"
 
-'' C2T-TODO(conditional) ioapi.h:24 -- an empty branch: c2t cannot tell which one clang took
-'' #if (!defined(_WIN32)) && (!defined(WIN32)) && (!defined(__APPLE__)) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 24)
+#if (((((defined(TIKO_OS_WINDOWS)) = 0) andalso ((defined(TIKO_OS_WINDOWS)) = 0)) andalso ((defined(TIKO_OS_MACOS)) = 0)) andalso (((defined(__ANDROID_API__)) = 0) orelse (__ANDROID_API__ >= 24)))
 
   /' Linux needs this to support file operation on files larger then 4+GB '/
   /' But might need better if/def to select just the platforms that needs them.'/
 
-        /' (large-file defines: dropped by prepare.py) '/
+        #ifndef __USE_FILE_OFFSET64
+                #define __USE_FILE_OFFSET64
+        #endif
+        #ifndef __USE_LARGEFILE64
+                #define __USE_LARGEFILE64
+        #endif
+        #ifndef _LARGEFILE64_SOURCE
+                #define _LARGEFILE64_SOURCE
+        #endif
+        #ifndef _FILE_OFFSET_BIT
+                #define _FILE_OFFSET_BIT 64
+        #endif
 
-'' C2T-TODO(conditional) ioapi.h:31 -- an empty branch: c2t cannot tell which one clang took
-'' #endif
+#endif
 
 #include once "crt/stdio.bi"
 #include once "crt/stdlib.bi"
 #include once "zlib.ti"
 
 #if defined(USE_FILE32API)
-'' C2T-TODO(macro) ioapi.h:38 -- 'fopen64': 'fopen' is nothing tiko declares
+'' C2T-TODO(conditional) ioapi.h:49 -- the passes translate it differently
 '' #define fopen64 fopen
-'' C2T-TODO(macro) ioapi.h:39 -- 'ftello64': 'ftell' is nothing tiko declares
+'' C2T-TODO(conditional) ioapi.h:50 -- the passes translate it differently
 '' #define ftello64 ftell
-'' C2T-TODO(macro) ioapi.h:40 -- 'fseeko64': 'fseek' is nothing tiko declares
+'' C2T-TODO(conditional) ioapi.h:51 -- the passes translate it differently
 '' #define fseeko64 fseek
 #else
 #if ((((0 orelse 0) orelse 0) orelse 0) orelse defined(MINIZIP_FOPEN_NO_64))
-'' C2T-TODO(macro) ioapi.h:43 -- 'fopen64': 'fopen' is nothing tiko declares
+'' C2T-TODO(conditional) ioapi.h:54 -- the passes translate it differently
 '' #define fopen64 fopen
-'' C2T-TODO(macro) ioapi.h:44 -- 'ftello64': 'ftello' is nothing tiko declares
+'' C2T-TODO(macro) ioapi.h:55 -- 'ftello64': 'ftello' is nothing tiko declares
 '' #define ftello64 ftello
-'' C2T-TODO(macro) ioapi.h:45 -- 'fseeko64': 'fseeko' is nothing tiko declares
+'' C2T-TODO(macro) ioapi.h:56 -- 'fseeko64': 'fseeko' is nothing tiko declares
 '' #define fseeko64 fseeko
 #endif
 #ifdef _MSC_VER
- '' C2T-TODO(macro) ioapi.h:48 -- 'fopen64': 'fopen' is nothing tiko declares
+ '' C2T-TODO(conditional) ioapi.h:59 -- the passes translate it differently
 ''  #define fopen64 fopen
  #if ((_MSC_VER >= 1400) andalso ((defined(NO_MSCVER_FILE64_FUNC)) = 0))
-  '' C2T-TODO(macro) ioapi.h:50 -- 'ftello64': '_ftelli64' is nothing tiko declares
+  '' C2T-TODO(macro) ioapi.h:61 -- 'ftello64': '_ftelli64' is nothing tiko declares
 ''   #define ftello64 _ftelli64
-  '' C2T-TODO(macro) ioapi.h:51 -- 'fseeko64': '_fseeki64' is nothing tiko declares
+  '' C2T-TODO(macro) ioapi.h:62 -- 'fseeko64': '_fseeki64' is nothing tiko declares
 ''   #define fseeko64 _fseeki64
  #else '' old MSC
-  '' C2T-TODO(macro) ioapi.h:53 -- 'ftello64': 'ftell' is nothing tiko declares
+  '' C2T-TODO(conditional) ioapi.h:64 -- the passes translate it differently
 ''   #define ftello64 ftell
-  '' C2T-TODO(macro) ioapi.h:54 -- 'fseeko64': 'fseek' is nothing tiko declares
+  '' C2T-TODO(conditional) ioapi.h:65 -- the passes translate it differently
 ''   #define fseeko64 fseek
  #endif
 #endif
@@ -186,15 +193,15 @@ end type
 type zlib_filefunc64_32_def as zlib_filefunc64_32_def_s
 
 
-'' C2T-TODO(function-like-macro) ioapi.h:151 -- '*' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:162 -- '*' as a prefix
 '' #define ZREAD64(filefunc,filestream,buf,size)     ((*((filefunc).zfile_func64.zread_file))   ((filefunc).zfile_func64.opaque,filestream,buf,size))
-'' C2T-TODO(function-like-macro) ioapi.h:152 -- '*' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:163 -- '*' as a prefix
 '' #define ZWRITE64(filefunc,filestream,buf,size)    ((*((filefunc).zfile_func64.zwrite_file))  ((filefunc).zfile_func64.opaque,filestream,buf,size))
 /'#define ZTELL64(filefunc,filestream)            ((*((filefunc).ztell64_file)) ((filefunc).opaque,filestream)) '/
 /'#define ZSEEK64(filefunc,filestream,pos,mode)   ((*((filefunc).zseek64_file)) ((filefunc).opaque,filestream,pos,mode)) '/
-'' C2T-TODO(function-like-macro) ioapi.h:155 -- '*' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:166 -- '*' as a prefix
 '' #define ZCLOSE64(filefunc,filestream)             ((*((filefunc).zfile_func64.zclose_file))  ((filefunc).zfile_func64.opaque,filestream))
-'' C2T-TODO(function-like-macro) ioapi.h:156 -- '*' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:167 -- '*' as a prefix
 '' #define ZERROR64(filefunc,filestream)             ((*((filefunc).zfile_func64.zerror_file))  ((filefunc).zfile_func64.opaque,filestream))
 
 declare function call_zopen64( byval pfilefunc as const zlib_filefunc64_32_def ptr, byval filename as const any ptr, byval mode as int32 ) as voidpf
@@ -203,11 +210,11 @@ declare function call_ztell64( byval pfilefunc as const zlib_filefunc64_32_def p
 
 declare sub fill_zlib_filefunc64_32_def_from_filefunc32( byval p_filefunc64_32 as zlib_filefunc64_32_def ptr, byval p_filefunc32 as const zlib_filefunc_def ptr )
 
-'' C2T-TODO(function-like-macro) ioapi.h:164 -- '&' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:175 -- '&' as a prefix
 '' #define ZOPEN64(filefunc,filename,mode)         (call_zopen64((&(filefunc)),(filename),(mode)))
-'' C2T-TODO(function-like-macro) ioapi.h:165 -- '&' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:176 -- '&' as a prefix
 '' #define ZTELL64(filefunc,filestream)            (call_ztell64((&(filefunc)),(filestream)))
-'' C2T-TODO(function-like-macro) ioapi.h:166 -- '&' as a prefix
+'' C2T-TODO(function-like-macro) ioapi.h:177 -- '&' as a prefix
 '' #define ZSEEK64(filefunc,filestream,pos,mode)   (call_zseek64((&(filefunc)),(filestream),(pos),(mode)))
 
 end extern

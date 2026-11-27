@@ -440,6 +440,46 @@ The first two rows are not security tools: anyone can make two different files w
 or FNV value on purpose, and MD5 and SHA-1 have the same weakness. To compare two MACs, use
 `hash.ConstantTimeEquals`, which takes the same time whatever the first differing byte is.
 
+### Compressed files
+
+`vendor/compression` is seven C compression libraries in one import — zlib (deflate, zlib and
+gzip, with its minizip for `.zip`), zstd, xz's liblzma, brotli, lz4 and bzip2 — each called by
+its own C API, as its documentation has it:
+
+```admonish warning title="Status in this version"
+`vendor/compression` comes after tiko 0.1.8, the toolchain this book is checked with: the listing
+below was compiled and run with the development compiler, on Windows and Linux.
+```
+
+```tiko
+{{#include ../examples/ch25/compress.tiko}}
+```
+
+```text
+{{#include ../examples/ch25/compress.out}}
+```
+
+**`gzopen`** takes a path and a mode — `"wb9"` writes at level 9, `"rb"` reads — and `gzputs`,
+`gzgets`, `gzwrite` and `gzread` work like C's file calls, compressing on the way out and
+decompressing on the way in. The file is an ordinary `.gz` that any tool reads.
+
+The zstd half works on whole buffers: **`ZSTD_compressBound`** is the most a frame can need,
+**`ZSTD_compress2`** fills it from a context set up with **`ZSTD_CCtx_setParameter`**, and
+**`ZSTD_decompress`** needs room for the whole original. Its sizes are `size_t`, which carry an
+error too: **`ZSTD_isError`** tells which, **`ZSTD_getErrorName`** what.
+
+```admonish danger title="Pitfall"
+**A default zstd frame has no checksum**, and neither does a raw LZ4 block: damage to the data
+can decode to different bytes and report success. The listing asks for the checksum
+(`ZSTD_c_checksumFlag`), so its damaged copy is refused. zlib, gzip, xz and bzip2 always check.
+```
+
+Which format to choose is mostly a question of who reads the data: gzip when anything else must,
+zstd for a program's own files, xz when size is all that matters, brotli for the web, lz4 for
+speed. The [Compression tutorial](https://github.com/PaulSquires/tiko-lang/wiki/Compression-Tutorial)
+compares them on the same text, streams a file of any size through a `z_stream`, and writes and
+reads a `.zip`.
+
 ## Configuration files and CSV
 
 A program that people install needs settings they can edit, and a program that produces data is
@@ -896,6 +936,8 @@ followed for you, up to ten.
   `ReadAllText`/`ReadAllLines`/`WriteAllText`; `WriteAtomic`.
 - `ConfigDir`, `DataDir`, `CacheDir`, `StateDir`, `HomeDir` and `ExecutablePath` say where a program
   keeps its files.
+- `#import "vendor/compression"` gives zlib's `gzopen` family for `.gz` files, `ZSTD_compress2` and
+  the other libraries' own calls; ask zstd for a checksum when damage must be noticed.
 - **`PathJoin` with an absolute second part discards the first** — check containment with
   `PathStartsWith` before using a path built from input.
 - The file statements (`open`, `print #`, `kill`, `mkdir`, `dir` …) still compile for older

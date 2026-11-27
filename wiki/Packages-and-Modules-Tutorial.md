@@ -400,6 +400,7 @@ the whole library.
 | `vendor/mxml` | Mini-XML, reading and writing XML ([tutorial](MXML-Tutorial)) |
 | `vendor/libpq` | libpq, PostgreSQL's client library ([tutorial](PostgreSQL-Tutorial)) |
 | `vendor/mariadb` | MariaDB Connector/C, for MySQL and MariaDB servers ([tutorial](MySQL-Tutorial)) |
+| `vendor/compression` | zlib, minizip, zstd, xz, brotli, lz4 and bzip2 in one library ([tutorial](Compression-Tutorial)) |
 
 The full list, with the versions and the link modes each one ships, is on
 [Vendor Packages](Vendor-Packages).

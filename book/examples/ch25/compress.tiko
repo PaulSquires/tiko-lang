@@ -1,0 +1,41 @@
+#import "vendor/compression"
+
+'' A log of 2,000 lines, written straight to a .gz file and read back a line at a time.
+dim g as gzFile = gzopen( "app.log.gz", "wb9" )
+for i as integer = 1 to 2000
+    gzputs( g, "INFO request " & i & " served in " & ( i mod 17 ) & " ms" & !"\n" )
+next
+gzclose( g )
+
+dim f as integer = freefile
+open "app.log.gz" for binary access read as #f
+print "app.log.gz:"; lof( f ); " bytes on disk"
+close #f
+
+g = gzopen( "app.log.gz", "rb" )
+dim lines as integer = 0, last as zstring * 128
+while gzgets( g, @last, 128 )
+    lines += 1
+wend
+gzclose( g )
+print "read back:"; lines; " lines, the last "; last;
+kill "app.log.gz"
+
+'' A buffer through zstd, with a checksum in the frame, and the same frame damaged.
+dim text as string
+for i as integer = 1 to 800
+    text &= "tiko "
+next
+dim cc as ZSTD_CCtx ptr = ZSTD_createCCtx( )
+ZSTD_CCtx_setParameter( cc, ZSTD_c_checksumFlag, 1 )
+dim packed as string = space( ZSTD_compressBound( len( text ) ) )
+dim n as uinteger = ZSTD_compress2( cc, strptr( packed ), len( packed ), strptr( text ), len( text ) )
+ZSTD_freeCCtx( cc )
+print "zstd:"; len( text ); " bytes ->"; n
+
+dim back as string = space( len( text ) )
+dim r as uinteger = ZSTD_decompress( strptr( back ), len( back ), strptr( packed ), n )
+print "back: "; iif( ZSTD_isError( r ) = 0 andalso back = text, "the same", "different" )
+packed[n \ 2] xor= 1
+r = ZSTD_decompress( strptr( back ), len( back ), strptr( packed ), n )
+print "damaged: "; iif( ZSTD_isError( r ), *ZSTD_getErrorName( r ), "not noticed" )
