@@ -44,7 +44,7 @@ print "server   "; *mysql_get_server_info( m ); " ("; *mysql_get_host_info( m );
 print "charset  "; *mysql_character_set_name( m )
 dim as const zstring ptr cipher = mysql_get_ssl_cipher( m )
 if cipher then
-    print "tls      "; *cipher; iif( len( environ( "TIKO_MYSQL_CA" ) ), " (certificate verified)", " (certificate NOT verified: set TIKO_MYSQL_CA)" )
+    print "tls      "; *cipher; iif( len( environ( "TIKO_MYSQL_CA" ) ), " (certificate verified)", " (no CA given: set TIKO_MYSQL_CA to check the certificate)" )
 else
     print "tls      none"
 end if

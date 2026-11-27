@@ -1,0 +1,4 @@
+last id:3
+2  Ada  ada@example.org
+1  Grace  grace@example.org
+refused:1048 Column 'name' cannot be null

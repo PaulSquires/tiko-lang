@@ -2,7 +2,7 @@
 
 # Using C Libraries Tutorial
 
-> 📘 **Step by step, one library each:** [SQLite](SQLite-Tutorial) · [PCRE2](PCRE2-Tutorial) · [Mini-XML](MXML-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial)
+> 📘 **Step by step, one library each:** [SQLite](SQLite-Tutorial) · [PCRE2](PCRE2-Tutorial) · [Mini-XML](MXML-Tutorial) · [PostgreSQL](PostgreSQL-Tutorial) · [MySQL](MySQL-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial)
 >
 > 📖 **In the book:** [Chapter 30, Using C Libraries](https://tiko-lang.net/book/ch30-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko.
 
