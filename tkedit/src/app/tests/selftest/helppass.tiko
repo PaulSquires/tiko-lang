@@ -53,16 +53,16 @@ public sub HelpPass( byref t as Tally, byval sc as single )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
 
-    ' ---- the last menu: Keyword Help (F1), the web site, the wiki, a separator, About
+    ' ---- the last menu: Keyword Help (F1), a separator, the web site, the wiki, a separator, About
     dim as long gHelp = clng( MenuGroup.Help )
     t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = gHelp + 1) andalso (tkMenuBar_GetItemText( mw.menuBar, gHelp ) = "Help"), _
              P( sc, strings.Format( "help: Help is the last of {} menus", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     ClickMenuTitle( mw, gHelp )
     dim as TK_MENU ptr hm = tkMenuBar_GetDropDown( mw.menuBar, gHelp )
     dim as long ki = iif( hm <> 0, hm->FindItem( clng( Cmd.HelpKeyword ) ), -1 )
-    t.Check( (hm <> 0) andalso tkPopupMenu_IsOpen( hm ) andalso (tkPopupMenu_GetItemCount( hm ) = 5) andalso (ki = 0) andalso _
-             (hm->items(ki).wszAccel = "F1") andalso (MenuRow( Cmd.HelpAbout ) = 4), _
-             P( sc, "help: the menu holds Keyword Help (F1), Website, Wiki, a separator, About" ) )
+    t.Check( (hm <> 0) andalso tkPopupMenu_IsOpen( hm ) andalso (tkPopupMenu_GetItemCount( hm ) = 6) andalso (ki = 0) andalso _
+             (hm->items(ki).wszAccel = "F1") andalso (MenuRow( Cmd.HelpWebsite ) = 2) andalso (MenuRow( Cmd.HelpAbout ) = 5), _
+             P( sc, "help: the menu holds Keyword Help (F1), a separator, Website, Wiki, a separator, About" ) )
     t.Check( tkPopupMenu_GetItemEnabled( hm, Cmd.HelpKeyword ) andalso tkPopupMenu_GetItemEnabled( hm, Cmd.HelpWebsite ) andalso _
              tkPopupMenu_GetItemEnabled( hm, Cmd.HelpWiki ) andalso tkPopupMenu_GetItemEnabled( hm, Cmd.HelpAbout ), _
              P( sc, "help: every row works on the start panel" ) )

@@ -411,7 +411,7 @@ constructor CommandTable( )
     ' Keyword Help opens the wiki page of the word at the caret (tkc/wikihelp)
     g = MenuGroup.Help
     this.Def( Cmd.HelpKeyword, "HelpKeyword", g, "Keyword Help", "F1" )
-    this.Def( Cmd.HelpWebsite, "HelpWebsite", g, "tiko-lang Website", "" )
+    this.Def( Cmd.HelpWebsite, "HelpWebsite", g, "tiko-lang Website", "", true )
     this.Def( Cmd.HelpWiki, "HelpWiki", g, "tiko-lang Wiki", "" )
     this.Def( Cmd.HelpAbout, "HelpAbout", g, "About tkEdit...", "", true )
 end constructor
