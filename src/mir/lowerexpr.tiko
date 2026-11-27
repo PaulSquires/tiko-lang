@@ -1343,6 +1343,21 @@ function LowerExpr _
         ins.b = r
         dim as MirValue res = Emit( c, ins )
 
+        '' TWO BOOLEANS UNDER XOR ANSWER IN THE LOW BIT, as EmitImpEqv_'s imp and eqv do. A boolean
+        '' variable holds 1, but a boolean CONSTANT or comparison is -1 (the comparison note above),
+        '' so 'true xor b' over a true b was -1 xor 1, -2: TRUE. fbc prints false, measured, and
+        '' works the pair as 0 and 1 -- '(boolean)(B$0 ^ (boolean)1ll)'. AND and OR need nothing:
+        '' their low bit and their zero-ness are both right over -1 and 1 already.
+        if (tk = Tko.KW_XOR) andalso IsBooleanType( c, lt ) andalso IsBooleanType( c, rt ) then
+            dim as MirInst xm
+            xm.op = cast( uint16, M_AND )
+            xm.ty = ins.ty
+            xm.a = res
+            xm.b = ConstInt( c, 1, cast( MirType, ins.ty ) )
+            res = Emit( c, xm )
+            if res.kind = cast( uint8, MV_NONE ) then return v
+        end if
+
         '' ...AND THE DIFFERENCE OF TWO POINTERS IS DIVIDED by the element size,
         '' which is the one shape that scales the RESULT rather than an operand.
         dim as boolean isSub = (tk = Tko.TK_MINUS)
