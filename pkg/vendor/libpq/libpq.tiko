@@ -32,8 +32,8 @@
 ''
 '' THE LIBRARY: with 'link static' libpq and OpenSSL are linked into the program; with 'link
 '' dynamic' -- and when no '#import' says, which is this package's default -- the shared library,
-'' which tiko copies beside the program: libpq.dll on Windows, libpq_linux_x86_64.so on Linux.
-'' macOS and linux-arm64 have no library yet (claude-docs docs/tiko-vendor RFC-0003 P4).
+'' which tiko copies beside the program: libpq.dll on Windows, libpq_linux_x86_64.so or
+'' libpq_linux_arm64.so on Linux, libpq_macos_arm64.dylib on macOS.
 #module "libpq"
 
 public #include once "postgres_ext.ti"
