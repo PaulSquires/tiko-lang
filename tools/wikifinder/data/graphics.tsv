@@ -98,6 +98,8 @@ tkForms	tkForms	-	ctl-app	vendor/tkControls/tkForms	-	Provides the base a design
 tkLabel	tkLabel	-	ctl-text	vendor/tkControls/tkLabel	-	Shows a line or block of text that the user can't edit.
 tkPicture	tkPicture	-	ctl-progress	vendor/tkControls/tkPicture	-	Shows an image, scaled or clipped to its area.
 tkBarcode	tkBarcode	-	ctl-progress	vendor/tkControls/tkBarcode	-	Draws 1D and 2D barcodes: EAN, UPC, Code 128, Code 39, QR, Data Matrix, PDF417, Aztec.
+tkGauge	tkGauge	-	ctl-progress	vendor/tkControls/tkGauge	-	Draws a radial or linear gauge, or a bullet graph: a value on a scale with ranges.
+tkSparkline	tkSparkline	-	ctl-progress	vendor/tkControls/tkSparkline	-	Draws a word-sized chart of one series: a line, an area, columns or win / loss.
 tkPanel	tkPanel	-	ctl-layout	vendor/tkControls/tkPanel	-	Groups controls on a plain background, with an optional border.
 tkGroupBox	tkGroupBox	-	ctl-layout	vendor/tkControls/tkGroupBox	-	Frames a set of controls under a caption.
 tkTabControl	tkTabControl	-	ctl-layout	vendor/tkControls/tkTabControl	-	Shows one page of controls at a time under a strip of tabs.

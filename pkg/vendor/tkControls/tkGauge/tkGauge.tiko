@@ -963,8 +963,8 @@ public function tkGauge_OptsToSpec( byref opts as const ustring, byref s as TKGA
             end select
         case "reverse" : s.bReverse = (val( v ) <> 0) orelse (lv = "true")
         case "step" : s.fMajorStep = val( v )
-        case "minor" : s.nMinorCount = val( v )
-        case "hint" : s.nTickHint = val( v )
+        case "minor" : s.nMinorCount = iif( val( v ) < 0, 0, iif( val( v ) > 20, 20, val( v ) ) )   ' as the widget clamps
+        case "hint" : s.nTickHint = iif( val( v ) < 1, 1, val( v ) )
         case "dec" : s.nDecimals = val( v )
         case "scale"
             select case lv
@@ -974,7 +974,7 @@ public function tkGauge_OptsToSpec( byref opts as const ustring, byref s as TKGA
             case "both" : s.nScale = TKGAUGE_SCALE_BOTH
             case else : ok = false
             end select
-        case "track" : s.fTrackWidth = val( v )
+        case "track" : s.fTrackWidth = iif( val( v ) < 0.02, 0.02, iif( val( v ) > 0.5, 0.5, val( v ) ) )
         case "face" : s.bShowFace = (val( v ) <> 0) orelse (lv = "true")
         case "ranges" : tkGauge_ParseRanges( v, rg() )
         case "pointer"

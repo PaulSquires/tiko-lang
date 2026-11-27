@@ -123,4 +123,6 @@ from	vendor/tkControls/tkPrintDialog	import	tkPrintDialog
 from	vendor/tkControls/tkReportViewer	import	tkReportViewer
 from	vendor/tkControls/tkReport	import	tkReport
 from	vendor/tkControls/tkBarcode	import	tkBarcode
+from	vendor/tkControls/tkGauge	import	tkGauge
+from	vendor/tkControls/tkSparkline	import	tkSparkline
 from	vendor/tkControls/tkLanguage	import	tkLanguage
