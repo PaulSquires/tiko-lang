@@ -1,0 +1,10 @@
+'' io.h's empty _LARGEFILE64_SOURCE reaches zc.h's '-X - -1' test as C reads it: '- - -1',
+'' which is -1 -- the second branch, ZC_EMPTY.
+#include once "../../../build/.c2t/emptyneg-run/io.ti"
+#if defined(ZC_ZERO)
+print "zero"
+#elseif defined(ZC_EMPTY)
+print "empty"
+#else
+print "neither"
+#endif

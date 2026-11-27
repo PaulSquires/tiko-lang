@@ -1,0 +1,11 @@
+'' io.h's empty _LARGEFILE64_SOURCE reaches zc.h's translated '-X - -1' tests as C reads them:
+'' '- - -1' is -1, so the second branch (ZC_EMPTY) is the one taken -- as clang takes it.
+'' TEST: cli
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' CLEAN: build/.c2t/emptyneg-run
+'' STEP: c2t tests/c2t/src/emptyneg/zc.h -o build/.c2t/emptyneg-run/zc.ti
+'' STEP: c2t tests/c2t/src/emptyneg/io.h -o build/.c2t/emptyneg-run/io.ti
+'' ARGS: -target windows-x86_64 tests/c2t/src/emptyneg-use.tiko -o build/.c2t/emptyneg-run/use.exe
+'' EXPECT-EXIT: 0
+'' RUN: build/.c2t/emptyneg-run/use.exe
+'' EXPECT-RUN-OUT: empty

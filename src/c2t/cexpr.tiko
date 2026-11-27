@@ -707,7 +707,18 @@ private function Print_( byref c as CExpr, byval n as int32, byval cond as boole
         return "cast(" & x.text & ", " & Print_( c, x.a, false ) & ")"
     case NK_UNARY
         select case x.op
-        case "-" : return "(-" & Print_( c, x.a, false ) & ")"
+        case "-"
+            dim as string s = Print_( c, x.a, false )
+            '' IN AN #if, A BARE NAME KEEPS NO PARENTHESES OF ITS OWN: an includer may define it
+            '' empty, and C then reads the tokens around it -- zconf.h's
+            '' '-_LARGEFILE64_SOURCE - -1 == 1' under minizip's empty '#define _LARGEFILE64_SOURCE'
+            '' is '- - -1 == 1', which '(-)' is not. Tiko's negation binds tighter than every
+            '' binary operator c2t writes, so '-NAME' needs none.
+            if c.cond andalso (c.nodes[x.a].kind = NK_IDENT) andalso (left( s, 1 ) <> "(") then
+                return "-" & s
+            end if
+            if left( s, 1 ) = "-" then return "(- " & s & ")"
+            return "(-" & s & ")"
         case "+" : return Print_( c, x.a, false )
         case "~" : return "(not " & Print_( c, x.a, false ) & ")"
         case "!" : return "((" & Print_( c, x.a, true ) & ") = 0)"

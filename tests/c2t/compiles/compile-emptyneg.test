@@ -1,0 +1,8 @@
+'' The translation of tests/c2t/src/emptyneg/io.h -- an empty _LARGEFILE64_SOURCE, then zc.h's
+'' '-_LARGEFILE64_SOURCE - -1' test -- compiles, for each target in TARGETS.
+'' TEST: cli
+'' CLEAN: build/.c2t/compile-emptyneg
+'' STEP: c2t tests/c2t/src/emptyneg/zc.h -o build/.c2t/compile-emptyneg/zc.ti
+'' STEP: c2t tests/c2t/src/emptyneg/io.h -o build/.c2t/compile-emptyneg/io.ti
+'' ARGS: -c build/.c2t/compile-emptyneg/io.ti -o build/.c2t/compile-emptyneg/io.o
+'' EXPECT-EXIT: 0
