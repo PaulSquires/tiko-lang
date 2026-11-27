@@ -1,0 +1,6 @@
+'' tiko c2t: a #define named like a record member or a parameter but for case would rewrite it too -- mysql.h's CHARSET_DIR took the member charset_dir out of st_mysql_options (claude-docs RFC-0003 P0, F2) -- so the macro is renamed '_2' and listed; the record keeps its member and --verify's layout check passes.
+'' TEST: cli
+'' CLEAN: build/.c2t/membermacro
+'' ARGS: c2t tests/c2t/src/membermacro.h --verify -o build/.c2t/membermacro/membermacro.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/membermacro/membermacro.ti :: '' Renamed:\n''   constant   CHARSET_DIR -> CHARSET_DIR_2   (case-insensitive collision)\n''   constant   BUFSIZE -> BUFSIZE_2   (case-insensitive collision)\n''   constant   PORTNO -> PORTNO_2   (case-insensitive collision)\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' membermacro.h -- macros named like a record member or a parameter, but for case. '/\nextern "C"\n\n#define CHARSET_DIR_2 "charsets/"\n#define BUFSIZE_2 16\n#define PORTNO_2 5432\ntype mm_opts\n    host as zstring ptr\n    charset_dir as zstring ptr\n    bufsize as uint32\nend type\ndeclare function mm_set( byval o as mm_opts ptr, byval bufsize as int32 ) as int32\ndeclare function mm_connect( byval host as const zstring ptr, byval portno as int32 ) as int32\n\nend extern\n

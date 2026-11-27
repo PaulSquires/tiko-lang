@@ -1,6 +1,6 @@
 '' The committed vendor/mariadb header -- mariadb.ti, translated by 'tiko c2t' from MariaDB
 '' Connector/C 3.4.11's mysql.h as flatten.py writes it out -- and the hand-written
-'' mariadb-residue.ti before it, as an importer reads them: no library needed. Names the opaque
+'' mariadb-residue.ti before it, as an importer reads them: no library needed. Names
 '' MYSQL, every residue macro, a prepared statement's MYSQL_BIND and MYSQL_TIME, and my_socket.
 #include once "../../../../pkg/vendor/mariadb/mariadb-residue.ti"
 #include once "../../../../pkg/vendor/mariadb/mariadb.ti"

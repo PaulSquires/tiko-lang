@@ -24,8 +24,8 @@ Each works in TEMPORARY tables, so it leaves nothing behind in the database.
 
 ## Things to know
 
-- **`MYSQL` is opaque**: hold the `MYSQL ptr` from `mysql_init`, pass it to every call, and ask
-  the API for what it knows (`mysql_get_server_info`, `mysql_error`, `mysql_get_host_info`).
+- **`MYSQL`'s members are Connector/C's own**, documented nowhere: hold the `MYSQL ptr` from
+  `mysql_init`, pass it to every call, and ask the API for what it knows (`mysql_get_server_info`, `mysql_error`, `mysql_get_host_info`).
 - **`mysql_close` after a failed connect too** -- `mysql_init` allocated the handle.
 - **Values go in as prepared-statement parameters** (`03-prepared`). If SQL text must be built,
   `mysql_real_escape_string` is the only safe way to put a string in it.

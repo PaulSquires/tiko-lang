@@ -3,11 +3,13 @@
 ''   source sha256 : 28761fd46ceb0cbb21371638750f5ac04d426a44ce2bac2e1d36379c27ec28ed
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
 ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
-''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../../macos-libc --verify
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
 '' Renamed:
+''   type       PGnotify -> PGnotify_2   (case-insensitive collision)
+''   type       PGresAttDesc -> PGresAttDesc_2   (case-insensitive collision)
 ''   parameter  PQsetClientEncoding.encoding -> PQsetClientEncoding.encoding_   (tiko reserved word)
 ''   parameter  PQexecParams.command -> PQexecParams.command_   (tiko reserved word)
 ''   parameter  PQsendQueryParams.command -> PQsendQueryParams.command_   (tiko reserved word)
@@ -35,8 +37,8 @@
 ''   parameter  pg_valid_server_encoding_id.encoding -> pg_valid_server_encoding_id.encoding_   (tiko reserved word)
 ''
 '' 2 items need manual translation:
-''   line 521  libpq-fe.h:352  C2T-TODO(function-like-macro)  PQsetdb
-''   line 936  libpq-fe.h:767  C2T-TODO(macro)  PQ_SOCKTYPE
+''   line 523  libpq-fe.h:352  C2T-TODO(function-like-macro)  PQsetdb
+''   line 938  libpq-fe.h:767  C2T-TODO(macro)  PQ_SOCKTYPE
 '' =============================================================================
 
 /'-------------------------------------------------------------------------

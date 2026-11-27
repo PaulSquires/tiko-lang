@@ -3,18 +3,15 @@
 '' banner names by SHA-256. INCLUDED BEFORE mariadb.ti (mariadb.tiko): my_socket must be settled
 '' before the header's own '#ifndef my_socket_defined' block.
 ''
-'' MYSQL IS OPAQUE. c2t refused the record st_mysql (its 'options' member, st_mysql_options, has
-'' a layout c2t could not reproduce -- claude-docs docs/tiko-vendor RFC-0003 P0, F2), so it
-'' declares the routines against a forward st_mysql and never declares the typedef MYSQL. Here it
-'' is, as the same forward type: a program holds a MYSQL ptr from mysql_init and passes it on,
-'' which is all MariaDB documents -- its members are private. Read what a member would say through
-'' the API instead: mysql_get_server_info, mysql_errno, mysql_get_host_info, mysql_get_optionv,
-'' mariadb_get_infov.
+'' MYSQL'S MEMBERS ARE CONNECTOR/C'S OWN. mariadb.ti declares the record (st_mysql, and MYSQL as
+'' it), but MariaDB documents none of its members: a program holds the MYSQL ptr from mysql_init,
+'' passes it on, and reads what a member would say through the API -- mysql_get_server_info,
+'' mysql_errno, mysql_get_host_info, mysql_get_optionv, mariadb_get_infov.
 ''
 '' my_socket: mysql.h's is a macro of a C type on Windows (unsigned long long), which c2t cannot
 '' name; it is the socket's integer here on each target.
 ''
-'' What mysql.h's banner-listed TODOs need, beyond the two above:
+'' What mysql.h's banner-listed TODOs need, beyond my_socket above:
 ''   IS_NUM( t )          here, as a tiko boolean (-1 / 0, where C's is 1 / 0)
 ''   NULL_LENGTH          here: C's (unsigned long) ~0, which is 32-bit on Windows, 64 elsewhere
 ''   mariadb_connect      here: mysql_real_connect with a connection string as its host
@@ -33,6 +30,9 @@
 '' mysql_port are one name, so the constant is MYSQL_PORT_2 -- or write MARIADB_PORT (3306).
 '' Written MYSQL_PORT, the name is the variable, which the library does not export: the link
 '' fails, 'undefined symbol: mysql_port' (measured on Windows; the Linux library has none either).
+'' Two macros are renamed for a member of the same name: CHARSET_DIR is CHARSET_DIR_2
+'' (st_mysql_options' charset_dir) and PROTOCOL_VERSION is PROTOCOL_VERSION_2 (st_mysql's
+'' protocol_version) -- left alone, the #define would rewrite the member (the banner lists both).
 #pragma once
 
 #ifdef TIKO_OS_WINDOWS
@@ -57,8 +57,6 @@
     #endif
 #endif
 #define my_socket_defined
-
-type MYSQL as st_mysql
 
 #define IS_NUM( t ) ( ( ( t ) <= MYSQL_TYPE_INT24 andalso ( t ) <> MYSQL_TYPE_TIMESTAMP ) _
                       orelse ( t ) = MYSQL_TYPE_YEAR orelse ( t ) = MYSQL_TYPE_NEWDECIMAL )
