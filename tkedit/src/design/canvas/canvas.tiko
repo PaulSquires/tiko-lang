@@ -192,6 +192,7 @@ public type FormCanvas
     OnEditItems as CanvasWireSub        ' name_: the control whose entries to edit
     OnEditColors as CanvasWireSub       ' name_: the control whose [control.colors] to edit
     OnEditLanguages as CanvasWireSub    ' Translatable's "...": the project's Languages, this form's keys first
+    OnEditLinks as CanvasWireSub        ' a Label's Links "...": name_, the label whose links to edit
     OnPickResource as CanvasPickFunc    ' a file property's "...": the Resource Center
     OnPickGlyph as CanvasGlyphFunc      ' a glyph property's "...": the Glyph Picker
     OnFields as CanvasFieldsFunc        ' a Bind row's "...": the fields of the form's DataType
@@ -638,7 +639,10 @@ sub FormCanvas.Rebuild( )
                 end if
             next
         end if
-        for each s as Setting in c.Props
+        ' in the generated code's order: a later row may build on an earlier one (a Label's Links on its Text)
+        dim as Array( of long ) order_ = codegen.PropOrder( c, m )
+        for each pi_ as long in order_
+            dim as Setting s = c.Props[pi_]
             dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, s.Key )
             if p then
                 if s.Key = "GlyphFont" then

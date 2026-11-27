@@ -182,8 +182,8 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "45 controls describe a colour struct, 636 fields", (nColors = 45) andalso (nSlots = 636), nColors & " / " & nSlots )
-    tkTest_Check( "28 shape properties, 18 hidden colour properties", (nShape = 28) andalso (nHidden = 18), nShape & " / " & nHidden )
+    tkTest_Check( "45 controls describe a colour struct, 638 fields", (nColors = 45) andalso (nSlots = 638), nColors & " / " & nSlots )
+    tkTest_Check( "28 shape properties, 20 hidden colour properties", (nShape = 28) andalso (nHidden = 20), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
         andalso (tkMeta_ColorCell( btn, "", "Back", "Hot" ) = 4) andalso (tkMeta_ColorCell( btn, "", "Back", "Open" ) = -1) )

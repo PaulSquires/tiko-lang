@@ -217,9 +217,9 @@ end function
 const as long ITEM_ID_BASE = 1000
 
 ' Has this menu or toolbar anything to dispatch?
-' Indices into c.Props in the order Build sets them: Enabled, Visible, then the control table's
+' Indices into c.Props in the order Build sets them (the canvas too): Enabled, Visible, then the control table's
 ' order (formfile's WriteProps_ order), then any key the table doesn't know, as found.
-private function PropOrder_( byref c as FormControl, byval m as TKMETA_CONTROL ptr ) as Array( of long )
+public function PropOrder( byref c as FormControl, byval m as TKMETA_CONTROL ptr ) as Array( of long )
     dim as Array( of long ) order_
     dim as Array( of boolean ) done
     done.Reserve( c.Props.Count( ) )
@@ -849,7 +849,7 @@ private sub CreateControl_( byref doc as FormDoc, byval idx as long, byref sz as
 
     ' In the control table's order, not the file's: setters clamp and snap, so a Range must reach the
     ' control before the Value it bounds (controls.toml lists them so). The writer saves this order too.
-    dim as Array( of long ) order_ = PropOrder_( c, m )
+    dim as Array( of long ) order_ = PropOrder( c, m )
     for each pi_ as long in order_
         dim byref as Setting s = c.Props[pi_]
         if (s.Key = "Enabled") orelse (s.Key = "Visible") then

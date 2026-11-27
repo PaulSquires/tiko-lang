@@ -130,6 +130,16 @@ never accepted. `Accepted = tkDatePicker_ParseIso( sText, pDate )` takes ISO dat
 day under the pointer (`Show` starts true), and **DayPaint** draws a calendar day, with
 `tkDatePicker_PaintDayDefault( d )` for the stock cell.
 
+A Label's **Links** row makes words of its text into links. Its **...** opens the links editor: add
+a link, type its **Words** (as the label's Text has them) and its **URL**. A link is the first place
+those words appear that isn't a link already, so to link the same words twice, add them twice; words
+the Text doesn't have are marked *not in the text*. A link with no URL opens nothing: only your
+**LinkClick** handler acts on it. The row holds them as one text, `words=url;words=url`, which you
+can also type (`\` before `;`, `=` or `\` makes it plain text). Links are drawn in the theme's
+accent colour; the **Colors** row's Link colours (Normal, and Hot under the pointer) change them for
+one label. A **LinkClick** handler is told the link (`nLink`, its place in Links) and its `url`; set
+`Handled` to keep the label from opening the url in the browser.
+
 Your file and the generated one are the same module, joined by a [partial type](Partial). A file's own
 `#import` and `using` lines apply only to it, so add those your code needs.
 

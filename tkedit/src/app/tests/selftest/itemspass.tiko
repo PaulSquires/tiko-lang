@@ -37,6 +37,7 @@
 #import "vendor/tkControls/tkGroupBox"
 #import "vendor/tkControls/tkCheckBox"
 #import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkScrollPanel"
 using containers
 using cmdids
 using tkApp
@@ -47,6 +48,7 @@ using tkListTree
 using tkGroupBox
 using tkCheckBox
 using tkButton
+using tkScrollPanel
 using tkTextBox
 using tkLabel
 using tkMenuBar
@@ -537,6 +539,97 @@ public sub ItemsPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_DELETE, SDL_SCANCODE_DELETE, 0 )
     t.Check( instr( code->Text( ), "OnOpen" ) = 0, P( sc, "deleting a menu removes its empty handlers" ) )
     c->OnEditItems = keepPlace
+
+    for each dd as DocRef in mw.Docs
+        dd->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
+' A Label's Links row: its "..." asks for the links editor, which lists each link (flagging words
+' the text hasn't), takes a new one through its Words and URL fields, and writes them back as one
+' change the canvas label shows.
+public sub LinksPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "links: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "links" & cint( sc * 100 ) )
+    fs.RemoveDirAll( dir_ )
+    fs.CreateDirAll( dir_ )
+    dim as ustring path = fs.PathJoin( dir_, "frmK.tkform" )
+    dim as ustring nl = wchr( 10 )
+    fs.WriteAllText( path, "format = 1" & nl & nl & "[form]" & nl & "caption = ""K""" & nl & "width = 400" & nl & "height = 300" & nl _
+        & nl & "[[control]]" & nl & "name = ""lblK""" & nl & "type = ""Label""" & nl & "x = 10" & nl & "y = 10" & nl & "w = 300" & nl & "h = 28" & nl _
+        & nl & "[control.props]" & nl & "Text = ""See tiko and the wiki""" & nl & "Links = ""tiko=https://tiko-lang.net""" & nl )
+    mw.OpenFile( path )
+    tkTest_PumpFor( h, 100 )
+    dim as DocRef d = mw.FindOpen( path )
+    dim as canvas.FormCanvas ptr c = iif( d <> 0, d->Designer, cast( canvas.FormCanvas ptr, 0 ) )
+    if c = 0 then
+        t.Check( false, P( sc, "links: a surface" ) )
+        mw.Destroy( )
+        exit sub
+    end if
+    dim as panels.DesignPanels ptr ps = @mw.Palettes
+    c->SelectOnly( "lblK" )
+    tkTest_PumpFor( h, 60 )
+    dim as long row = -1
+    for r as long = 0 to ps->Rows.Count( ) - 1
+        if ps->Rows[r].Key = "Links" then row = r
+    next
+    t.Check( (row >= 0) andalso (ps->Rows[row].Btn <> 0), P( sc, "links: the Links row has a ""...""" ) )
+    if row < 0 then
+        mw.Destroy( )
+        exit sub
+    end if
+    dim as canvas.CanvasWireSub keep = c->OnEditLinks
+    c->OnEditLinks = @RecordItems
+    gItemsAsked = ""
+    tkScrollPanel_EnsureVisible( ps->Scroll, ps->Rows[row].Btn )
+    tkTest_PumpFor( h, 30 )
+    PressIn( h, ps->Rows[row].Btn )
+    t.Check( gItemsAsked = "lblK", P( sc, "links: it asks for that label's links: " & gItemsAsked ) )
+    c->OnEditLinks = keep
+
+    dim as ustring text0 = d->Text( )
+    mw.OpenLinks( c, "lblK" )
+    tkTest_PumpFor( h, 80 )
+    dim as itemsdlg.ItemsEditor ptr dlg = mw.ItemsDlg
+    t.Check( (dlg <> 0) andalso (dlg->Items.Count( ) = 1) andalso (tkListTree_GetText( dlg->List, 0 ) = "tiko  " & wchr( &h2192 ) & "  https://tiko-lang.net"), _
+             P( sc, "links: the editor lists the link, words and url" ) )
+    if dlg = 0 then
+        mw.Destroy( )
+        exit sub
+    end if
+    t.Check( (dlg->Note <> 0) andalso (dlg->Note->y >= dlg->Group->y + dlg->Group->ch) andalso (dlg->Note->x = dlg->Group->x) andalso (dlg->Note->ch > 0), _
+             P( sc, "links: the note sits under the fields" ) )
+    dim as TK_HOST ptr dh = tkForm_Host( dlg->Win )
+    PressIn( dh, dlg->BtnAdd )
+    dim as ustring s = "wiki"
+    TypeField( dh, dlg, "Text", s )
+    s = "https://x/w?a=1;b"
+    TypeField( dh, dlg, "Url", s )
+    PressIn( dh, dlg->BtnAdd )
+    s = "nowhere"
+    TypeField( dh, dlg, "Text", s )
+    t.Check( instr( tkListTree_GetText( dlg->List, 2 ), "not in the text" ) > 0, P( sc, "links: words the text hasn't are flagged: " & tkListTree_GetText( dlg->List, 2 ) ) )
+    PressIn( dh, dlg->BtnDel )
+    PressIn( dh, dlg->BtnOk )
+    mw.FinishItems( true )
+    tkTest_PumpFor( h, 80 )
+    dim as long i = FindControl( c->Doc, "lblK" )
+    t.Check( (i >= 0) andalso (SettingOr( c->Doc.Controls[i].Props, "Links" ) = "tiko=https://tiko-lang.net;wiki=https://x/w?a=1\;b") _
+             andalso (tkLabel_GetLinkCount( c->WidgetOf( "lblK" ) ) = 2), _
+             P( sc, "links: OK writes them back, the label shows both: " & SettingOr( c->Doc.Controls[i].Props, "Links" ) ) )
+    Chord( h, SDLK_Z, SDL_SCANCODE_Z, TK_KMOD_PRIMARY )
+    tkTest_PumpFor( h, 50 )
+    t.Check( d->Text( ) = text0, P( sc, "links: one undo takes it back" ) )
 
     for each dd as DocRef in mw.Docs
         dd->Main.SetSavePoint( )

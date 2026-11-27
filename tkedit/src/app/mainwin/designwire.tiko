@@ -261,6 +261,31 @@ sub Window.OpenItems( byval c as canvas.FormCanvas ptr, byref name_ as const ust
     ItemsDlg->Open( form, kind_, items, name_ )
 end sub
 
+' A Label's Links "...": the links editor (the entries editor's ItemsLinks), its text as the
+' entries, the label's Text to say which words are in it. FinishItems writes them back.
+sub Window.OpenLinks( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    dim as long i = FindControl( c->Doc, name_ )
+    if i < 0 then exit sub
+    dim as TKMETA_CONTROL ptr m = catalog.Find( c->Doc.Controls[i].TypeName )
+    if (m = 0) orelse (tkMeta_FindProp( m, "Links" ) = 0) then exit sub
+    dim as Array( of FormItem ) items = itemsdlg.LinksToItems( SettingOr( c->Doc.Controls[i].Props, "Links" ) )
+    dim as ustring dflt
+    dim as TKMETA_PROP ptr tp = tkMeta_FindProp( m, "Text" )
+    if tp then dflt = tp->DefaultValue
+    ItemsDlg = new itemsdlg.ItemsEditor
+    ItemsOf = c
+    ItemsName = name_
+    ItemsDlg->C = c
+    ItemsDlg->LinkText = SettingOr( c->Doc.Controls[i].Props, "Text", dflt )
+    ItemsDlg->Open( form, catalog.ItemsKind.ItemsLinks, items, strings.Format( i18n.Tr( "designer.links_title", "{}: links" ), name_ ) )
+end sub
+
+sub Window.EditLinks( byval c as canvas.FormCanvas ptr, byref name_ as const ustring )
+    this.OpenLinks( c, name_ )
+    if ItemsDlg = 0 then exit sub
+    this.FinishItems( ItemsDlg->RunModal( ) )
+end sub
+
 ' The editor's OK or Cancel: its entries into the form, as one change, and bodies for new handlers.
 sub Window.FinishItems( byval apply_ as boolean )
     if ItemsDlg = 0 then exit sub
@@ -278,6 +303,20 @@ sub Window.FinishItems( byval apply_ as boolean )
     dim as long i = FindControl( c->Doc, ItemsName )
     if i < 0 then exit sub
     dim as FormDoc trial = c->Doc
+    if kind_ = catalog.ItemsKind.ItemsLinks then
+        ' the links back into the Links row: one change, none at all when they are as they were
+        dim as ustring links = itemsdlg.ItemsToLinks( items )
+        if links = SettingOr( trial.Controls[i].Props, "Links" ) then exit sub
+        dim as long k = FindSetting( trial.Controls[i].Props, "Links" )
+        if len( links ) then
+            PutSetting( trial.Controls[i].Props, "Links", links )
+        elseif k >= 0 then
+            trial.Controls[i].Props.Remove( k )
+        end if
+        dim as ustring why = c->ApplyEdit( trial, true, "" )
+        if len( why ) then this.SetMessage( why )
+        exit sub
+    end if
     if kind_ = catalog.ItemsKind.ItemsPages then
         dim as ustring why = edits.ApplyPages( trial, i, items )
         if len( why ) then

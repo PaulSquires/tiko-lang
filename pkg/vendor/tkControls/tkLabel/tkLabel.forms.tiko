@@ -34,6 +34,12 @@ public type Label
     declare property Transparent( byval v as boolean )
     declare property Font( ) as TTF_Font ptr
     declare property Font( byval v as TTF_Font ptr )
+    declare property Links( ) as ustring
+    declare property Links( byref v as const ustring )
+    declare property LinkColor( ) as uint32
+    declare property LinkColor( byval v as uint32 )
+    declare property LinkColorHot( ) as uint32
+    declare property LinkColorHot( byval v as uint32 )
 end type
 
 sub Label.Create( byval hParent as TK_WIDGET ptr, byval id as int32 )
@@ -138,4 +144,28 @@ end property
 
 property Label.Font( byval v as TTF_Font ptr )
     tkLabel_SetFont( Handle, v )
+end property
+
+property Label.Links( ) as ustring
+    return tkLabel_GetLinksText( Handle )
+end property
+
+property Label.Links( byref v as const ustring )
+    tkLabel_SetLinksText( Handle, v )
+end property
+
+property Label.LinkColor( ) as uint32
+    return tkLabel_GetLinkColor( Handle )
+end property
+
+property Label.LinkColor( byval v as uint32 )
+    tkLabel_SetLinkColor( Handle, v )
+end property
+
+property Label.LinkColorHot( ) as uint32
+    return tkLabel_GetLinkColorHot( Handle )
+end property
+
+property Label.LinkColorHot( byval v as uint32 )
+    tkLabel_SetLinkColorHot( Handle, v )
 end property

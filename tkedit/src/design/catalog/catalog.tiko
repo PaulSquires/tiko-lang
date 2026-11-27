@@ -114,6 +114,7 @@ public enum ItemsKind explicit
     ItemsPopup
     ItemsTabs       ' a TabBar's tabs: a caption and a glyph each
     ItemsGridColumns ' a DataGrid's columns: caption, width, kind, field (G5)
+    ItemsLinks      ' a Label's links: words and a url each -- its Links row's editor, not entries
 end enum
 
 ' An entry handler's parameters, by the kind of control: a status bar panel's is told how many clicks
