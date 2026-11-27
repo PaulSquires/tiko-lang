@@ -186,6 +186,7 @@ public type DesignPanels
     declare sub PickField( byval i as long )
     declare sub AddLangButton( )
     declare sub AddGlyphButton( )
+    declare sub AddLinksButton( )
     declare sub AddPropRow( byval p as TKMETA_PROP ptr )
     ImagesHere as boolean     ' while the rows are made: the control takes an image (IconSize is ImageSize)
     declare sub AddEventRow( byref event_ as const ustring )
@@ -434,6 +435,17 @@ private sub OnGlyphGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as
         exit sub
     end if
     if r < p->Rows.Count( ) then p->Rows[r].Text = GlyphShown( picked )
+end sub
+
+' A Label's Links "...": the links editor on the selected label (what the row holds, entered first).
+private sub OnLinksGo( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+    dim as DesignPanels ptr p = PanelsOf( h )
+    if (p = 0) orelse (p->C = 0) orelse (p->C->OnEditLinks = 0) orelse (p->C->Selected.Count( ) <> 1) then exit sub
+    for i as long = 0 to p->Rows.Count( ) - 1
+        if p->Rows[i].Btn = h then p->CommitRow( i )
+    next
+    if p->C->Selected.Count( ) <> 1 then exit sub
+    p->C->OnEditLinks( p->C->Host, p->C, p->C->Selected[0], "", true )
 end sub
 
 ' Translatable's "...": the project's Languages, this form's texts to translate.
@@ -1136,6 +1148,17 @@ sub DesignPanels.AddFileButton( )
     end with
 end sub
 
+' The last row added (a Label's Links) gets a "..." that opens the links editor.
+sub DesignPanels.AddLinksButton( )
+    with Rows[Rows.Count( ) - 1]
+        .Btn = tkToolbar_Create( tkScrollPanel_GetPanel( Scroll ), 1 )
+        tkToolbar_SetGlyphFont( .Btn, tkForm_Font( tkForm_FromWidget( Scroll ), TKFONT_GLYPH ) )
+        tkToolbar_AddItem( .Btn, TBR_KIND_COMMAND, wchr( TK_ICON_MORE ), "", 0 )
+        tkToolbar_SetTooltipText( .Btn, 0, i18n.Tr( "designer.links_edit", "Edit links" ) )
+        tkToolbar_SetClickCallback( .Btn, @OnLinksGo )
+    end with
+end sub
+
 ' The last row added gets a "..." that opens Languages (the form's Translatable).
 sub DesignPanels.AddLangButton( )
     with Rows[Rows.Count( ) - 1]
@@ -1209,7 +1232,14 @@ sub DesignPanels.AddPropRow( byval p as TKMETA_PROP ptr )
         this.AddRow( p->Name, shown, RowKind.RowText )
         tkTextBox_SetCueBannerText( Rows[Rows.Count( ) - 1].Edit, tkMeta_ListCue( p->EnumPairs ) )
         tkTextBox_SetCueBannerColor( Rows[Rows.Count( ) - 1].Edit, HintColor_( ) )
-    case else   : this.AddRow( p->Name, shown, RowKind.RowText )
+    case else
+        this.AddRow( p->Name, shown, RowKind.RowText )
+        ' a Label's links: typed as "words=url;...", or edited one by one behind the "..."
+        if p->Name = "Links" then
+            this.AddLinksButton( )
+            tkTextBox_SetCueBannerText( Rows[Rows.Count( ) - 1].Edit, "words=url;words=url" )
+            tkTextBox_SetCueBannerColor( Rows[Rows.Count( ) - 1].Edit, HintColor_( ) )
+        end if
     end select
 end sub
 

@@ -53,6 +53,7 @@ public type FormItem
     Summary as ustring      ' G7b: the footer's total: "" (none) sum count avg min max
     MaskKind as ustring     ' M6 (MASKEDIT.md 9): "" (none) fixed numeric date time datetime regex
     Mask as ustring         ' ... its pattern ("(999) 000-0000", "$#,##0.00", "dd/mm/yyyy")
+    Url as ustring          ' a Label's link (the Links editor): where its words (Text) go
 end type
 
 public type FormControl

@@ -66,6 +66,8 @@ color_fields = [
   { field="TextColor", part="Text", state="Normal", ink=true },
   { field="TextColorDisabled", part="Text", state="Disabled", ink=true },
   { field="BackColor", part="Back", state="Normal" },
+  { field="LinkColor", part="Link", state="Normal" },
+  { field="LinkColorHot", part="Link", state="Hot" },
 ]
 props = [
   { name="Text", kind="text", set="tkLabel_SetText", get="tkLabel_GetText", default="Label" },
@@ -78,9 +80,13 @@ props = [
   { name="BackColor", kind="color", set="tkLabel_SetBackColor", get="tkLabel_GetBackColor", inspector=false },
   { name="Transparent", kind="bool", set="tkLabel_SetTransparent", get="tkLabel_GetTransparent", default="true" },
   { name="Font", kind="font", set="tkLabel_SetFont", get="tkLabel_GetFont" },
+  { name="Links", kind="text", set="tkLabel_SetLinksText", get="tkLabel_GetLinksText" },
+  { name="LinkColor", kind="color", set="tkLabel_SetLinkColor", get="tkLabel_GetLinkColor", inspector=false },
+  { name="LinkColorHot", kind="color", set="tkLabel_SetLinkColorHot", get="tkLabel_GetLinkColorHot", inspector=false },
 ]
 events = [
   { name="Click", set="tkLabel_SetClickCallback", type="LBL_ClickCallbackSub", sig="byval hLabel as TK_WIDGET ptr, byval id as int32", params="", args="" },
+  { name="LinkClick", set="tkLabel_SetLinkClickCallback", type="LBL_LinkClickFunc", sig="byval hLabel as TK_WIDGET ptr, byval id as int32, byval nLink as int32, byref url as ustring", params="byval nLink as int32, byref url as ustring, byref Handled as boolean", args="nLink, url, Handled", returns="boolean", result="Handled" },
 ]
 
 [[control]]

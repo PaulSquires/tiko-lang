@@ -13,6 +13,7 @@
 ' to the link callback; unhandled, its URL opens in the browser (SDL_OpenURL). A label with links
 ' lays its text out itself -- hard newlines and, with word wrap, the control's width -- and never
 ' cuts it with an ellipsis. Links are not tab stops: a keyboard user reaches the URL some other way.
+' tkLabel_SetLinksText sets them all from one "words=url;words=url" text (the Form Designer's Links).
 #module "tkLabel"
 
 #import "../tkHost" public
@@ -37,6 +38,8 @@ public type TKLABEL_COLORS
     TextColor         as ulong
     TextColorDisabled as ulong
     BackColor         as ulong
+    LinkColor         as ulong      ' a link's words and underline (the theme's Accent)
+    LinkColorHot      as ulong      ' ... under the mouse (AccentHot)
 end type
 
 public type LBL_ClickCallbackSub as sub( byval hLabel as TK_WIDGET ptr, byval id as long )
@@ -76,9 +79,6 @@ public type TKLABEL_STATE
     ClickCallback as LBL_ClickCallbackSub
     links(any)    as TKLABEL_LINK
     nLinks        as long
-    clrLink       as ulong
-    clrLinkHot    as ulong
-    bLinkPinned   as boolean
     nHotLink      as long = -1
     nPressedLink  as long = -1
     LinkClick     as LBL_LinkClickFunc
@@ -202,7 +202,7 @@ private sub PaintLinked( byval p as TKLABEL_STATE ptr, byval b as TK_PAINT ptr, 
         if bEnabled = false then
             clr = p->colors.TextColorDisabled
         elseif runs(i).nLink >= 0 then
-            clr = iif( runs(i).nLink = p->nHotLink, p->clrLinkHot, p->clrLink )
+            clr = iif( runs(i).nLink = p->nHotLink, p->colors.LinkColorHot, p->colors.LinkColor )
         end if
         dim as string seg = mid( u8, runs(i).nStart + 1, runs(i).nEnd - runs(i).nStart )
         dim as ustring useg = seg
@@ -330,8 +330,6 @@ public function tkLabel_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as 
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkLabel_Proc, p )
     p->hWin = w
     p->colors = tkLabel_ThemeColors( tkTheme_Of( w ) )
-    p->clrLink = tkTheme_Of( w ).Accent
-    p->clrLinkHot = tkTheme_Of( w ).AccentHot
     ' the theme's recipes for this type apply from the start, not just after a theme change
     tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKLABEL_COLORS ) \ 4, "Label" )
     return w
@@ -488,6 +486,8 @@ public function tkLabel_ThemeColors( byref t as TKTHEME_COLORS ) as TKLABEL_COLO
     c.TextColor = t.Text
     c.TextColorDisabled = t.TextDisabled
     c.BackColor = t.Window
+    c.LinkColor = t.Accent
+    c.LinkColorHot = t.AccentHot
     return c
 end function
 
@@ -495,10 +495,6 @@ public sub tkLabel_ApplyTheme( byval h as TK_WIDGET ptr, byref t as TKTHEME_COLO
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
     if (p = 0) orelse p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( h, t )
-    if p->bLinkPinned = false then
-        p->clrLink = tr.Accent
-        p->clrLinkHot = tr.AccentHot
-    end if
     p->colors = tkLabel_ThemeColors( tr )
     tkTheme_ResolveInto( h, tr, cast( ulong ptr, @p->colors ), sizeof( TKLABEL_COLORS ) \ 4, "Label" )
     tkWidget_Invalidate( h )
@@ -515,7 +511,6 @@ public sub tkLabel_UnpinColors( byval h as TK_WIDGET ptr )
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
     if p = 0 then exit sub
     p->bColorsPinned = false
-    p->bLinkPinned = false
     tkLabel_ApplyTheme( h, tkTheme_Of( h ) )
 end sub
 
@@ -608,15 +603,114 @@ end sub
 
 public function tkLabel_GetLinkColor( byval h as TK_WIDGET ptr ) as ulong
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
-    return iif( p <> 0, p->clrLink, 0ul )
+    return iif( p <> 0, p->colors.LinkColor, 0ul )
 end function
 
 ' The links' colour, and under the mouse clrHot (0 = the same). Pinned until tkLabel_UnpinColors.
 public sub tkLabel_SetLinkColor( byval h as TK_WIDGET ptr, byval clr as ulong, byval clrHot as ulong = 0 )
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
     if p = 0 then exit sub
-    p->clrLink = clr
-    p->clrLinkHot = iif( clrHot <> 0, clrHot, clr )
-    p->bLinkPinned = true
+    p->colors.LinkColor = clr
+    p->colors.LinkColorHot = iif( clrHot <> 0, clrHot, clr )
+    p->bColorsPinned = true
     tkWidget_Invalidate( h )
 end sub
+
+public function tkLabel_GetLinkColorHot( byval h as TK_WIDGET ptr ) as ulong
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    return iif( p <> 0, p->colors.LinkColorHot, 0ul )
+end function
+
+' The links' colour under the mouse alone. Pinned until tkLabel_UnpinColors.
+public sub tkLabel_SetLinkColorHot( byval h as TK_WIDGET ptr, byval clr as ulong )
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if p = 0 then exit sub
+    p->colors.LinkColorHot = clr
+    p->bColorsPinned = true
+    tkWidget_Invalidate( h )
+end sub
+
+' ---- links as one text (a form designer's Links row) -------------------------------------------
+
+' "words=url;words=url": each entry a tkLabel_AddLink, in order. Within an entry the first "=" parts
+' the words from the url (a url may hold more); words alone are a link with no url (the callback's).
+' "\" makes the next character plain ("\;" "\=" "\\"). An entry without words is skipped.
+' The entries into words() and urls() (0-based, resized); returns their count.
+public function tkLabel_ParseLinks( byref sText as const ustring, words() as ustring, urls() as ustring ) as long
+    erase words, urls
+    dim as long n = 0
+    dim as string t = sText, w8 = "", u8 = ""
+    dim as boolean bUrl = false
+    dim as long i = 1
+    while i <= len( t ) + 1
+        dim as string ch = iif( i <= len( t ), mid( t, i, 1 ), ";" )
+        if (ch = "\") andalso (i < len( t )) then
+            i += 1
+            if bUrl then u8 &= mid( t, i, 1 ) else w8 &= mid( t, i, 1 )
+        elseif ch = ";" then
+            dim as ustring w = trim( w8 ), u = trim( u8 )
+            if len( w ) then
+                redim preserve words( 0 to n ), urls( 0 to n )
+                words(n) = w : urls(n) = u
+                n += 1
+            end if
+            w8 = "" : u8 = "" : bUrl = false
+        elseif (ch = "=") andalso (bUrl = false) then
+            bUrl = true
+        elseif bUrl then
+            u8 &= ch
+        else
+            w8 &= ch
+        end if
+        i += 1
+    wend
+    return n
+end function
+
+private function LinkEsc_( byref s as const string, byval bWords as boolean ) as string
+    dim as string o = ""
+    for i as long = 1 to len( s )
+        dim as string ch = mid( s, i, 1 )
+        if (ch = "\") orelse (ch = ";") orelse (bWords andalso (ch = "=")) then o &= "\"
+        o &= ch
+    next
+    return o
+end function
+
+' The first n entries of words() and urls() as tkLabel_ParseLinks reads them (an empty url: the words alone).
+public function tkLabel_FormatLinks( words() as ustring, urls() as ustring, byval n as long ) as ustring
+    dim as string o = ""
+    for k as long = 0 to n - 1
+        dim as string w8 = words(k), u8 = urls(k)
+        if k > 0 then o &= ";"
+        o &= LinkEsc_( w8, true )
+        if len( u8 ) then o &= "=" & LinkEsc_( u8, false )
+    next
+    dim as ustring s = o
+    return s
+end function
+
+' Replaces the links with the ones sText names (tkLabel_ParseLinks), each the first free run of its
+' words; words the text has no free run of are skipped. Call it after tkLabel_SetText.
+public sub tkLabel_SetLinksText( byval h as TK_WIDGET ptr, byref sText as const ustring )
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if p = 0 then exit sub
+    tkLabel_ClearLinks( h )
+    dim as ustring words(), urls()
+    dim as long n = tkLabel_ParseLinks( sText, words(), urls() )
+    for k as long = 0 to n - 1
+        tkLabel_AddLink( h, words(k), urls(k) )
+    next
+end sub
+
+' The links as tkLabel_SetLinksText reads them, in index order ("" for none).
+public function tkLabel_GetLinksText( byval h as TK_WIDGET ptr ) as ustring
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if (p = 0) orelse (p->nLinks = 0) then return ""
+    dim as ustring words( 0 to p->nLinks - 1 ), urls( 0 to p->nLinks - 1 )
+    for k as long = 0 to p->nLinks - 1
+        words(k) = tkLabel_GetLinkText( h, k )
+        urls(k) = p->links(k).url
+    next
+    return tkLabel_FormatLinks( words(), urls(), p->nLinks )
+end function

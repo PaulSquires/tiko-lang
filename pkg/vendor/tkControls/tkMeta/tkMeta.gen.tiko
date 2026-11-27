@@ -228,6 +228,30 @@ private sub F_Label_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
     tkLabel_SetFont( w, f )
 end sub
 
+private sub A_Label_Links( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkLabel_SetLinksText( w, v )
+end sub
+
+private function R_Label_Links( byval w as TK_WIDGET ptr ) as ustring
+    return tkLabel_GetLinksText( w )
+end function
+
+private sub A_Label_LinkColor( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkLabel_SetLinkColor( w, cast( uint32, valulng( v ) ) )
+end sub
+
+private function R_Label_LinkColor( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkLabel_GetLinkColor( w ), 8 )
+end function
+
+private sub A_Label_LinkColorHot( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkLabel_SetLinkColorHot( w, cast( uint32, valulng( v ) ) )
+end sub
+
+private function R_Label_LinkColorHot( byval w as TK_WIDGET ptr ) as ustring
+    return "&h" & hex( tkLabel_GetLinkColorHot( w ), 8 )
+end function
+
 private function C_Button( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
     return tkButton_Create( hParent, id )
 end function
@@ -6651,6 +6675,8 @@ sub Fill_( )
     Color_( "TextColor", "Text", "Normal", "", true )
     Color_( "TextColorDisabled", "Text", "Disabled", "", true )
     Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "LinkColor", "Link", "Normal", "", false )
+    Color_( "LinkColorHot", "Link", "Hot", "", false )
     Prop_( "Text", "text", "Label", "", "tkLabel_SetText", "tkLabel_GetText", @A_Label_Text, @R_Label_Text, 0, true, true, "", 0 )
     Prop_( "Align", "enum", "Left", "Left=LBL_ALIGN_LEFT,Center=LBL_ALIGN_CENTER,Right=LBL_ALIGN_RIGHT", "tkLabel_SetAlign", "tkLabel_GetAlign", @A_Label_Align, @R_Label_Align, 0, true, true, "", 0 )
     Prop_( "VAlign", "enum", "Center", "Top=LBL_VALIGN_TOP,Center=LBL_VALIGN_CENTER,Bottom=LBL_VALIGN_BOTTOM", "tkLabel_SetVAlign", "tkLabel_GetVAlign", @A_Label_VAlign, @R_Label_VAlign, 0, true, true, "", 0 )
@@ -6661,7 +6687,11 @@ sub Fill_( )
     Prop_( "BackColor", "color", "", "", "tkLabel_SetBackColor", "tkLabel_GetBackColor", @A_Label_BackColor, @R_Label_BackColor, 0, true, false, "", 0 )
     Prop_( "Transparent", "bool", "true", "", "tkLabel_SetTransparent", "tkLabel_GetTransparent", @A_Label_Transparent, @R_Label_Transparent, 0, true, true, "", 0 )
     Prop_( "Font", "font", "", "", "tkLabel_SetFont", "tkLabel_GetFont", 0, 0, @F_Label_Font, true, true, "", 0 )
+    Prop_( "Links", "text", "", "", "tkLabel_SetLinksText", "tkLabel_GetLinksText", @A_Label_Links, @R_Label_Links, 0, true, true, "", 0 )
+    Prop_( "LinkColor", "color", "", "", "tkLabel_SetLinkColor", "tkLabel_GetLinkColor", @A_Label_LinkColor, @R_Label_LinkColor, 0, true, false, "", 0 )
+    Prop_( "LinkColorHot", "color", "", "", "tkLabel_SetLinkColorHot", "tkLabel_GetLinkColorHot", @A_Label_LinkColorHot, @R_Label_LinkColorHot, 0, true, false, "", 0 )
     Event_( "Click", "tkLabel_SetClickCallback", "LBL_ClickCallbackSub", "byval hLabel as TK_WIDGET ptr, byval id as int32", "", "" )
+    Event_( "LinkClick", "tkLabel_SetLinkClickCallback", "LBL_LinkClickFunc", "byval hLabel as TK_WIDGET ptr, byval id as int32, byval nLink as int32, byref url as ustring", "byval nLink as int32, byref url as ustring, byref Handled as boolean", "nLink, url, Handled", "", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
     Add_( "Button", "tkButton", "Common", 88, 30, "Click", "", @C_Button, "", "", "", "" )
     Colors_( "TKBUTTON_COLORS", "tkButton_GetColors", "tkButton_ThemeColors", @G_Button, @T_Button )

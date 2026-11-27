@@ -95,9 +95,10 @@ lbl.Align = LBL_ALIGN_RIGHT
 - `tkLabel_SetFont` borrows the font: it must outlive the label. Pass 0 to return to the surface's default font.
 - A disabled label draws its text in `TextColorDisabled`, links included, and its links take no clicks.
 - `tkLabel_AddLink` returns the link's index, or -1 when the text has no free run of those words. Call it after `tkLabel_SetText`: new text drops every link, since the links named runs of the old text.
+- `tkLabel_SetLinksText` replaces every link from one text, `words=url;words=url`, each entry an `AddLink` in order (the Form Designer's **Links**); `tkLabel_ParseLinks` and `tkLabel_FormatLinks` turn that text into words and urls and back, with no label. The first `=` parts the words from the URL, words alone are a link with no URL, and `\` makes the next `;`, `=` or `\` plain. `tkLabel_GetLinksText` writes the links back in that form.
 - A link may have an empty URL. Its clicks then do nothing unless the link callback acts on them.
 - A label with links lays its text out itself: hard line breaks always, and with word wrap the control's width. It ignores the ellipsis setting. A link that wraps is underlined on each of its lines and can be clicked on any of them.
-- The link colour is the theme's `Accent`, and `AccentHot` under the mouse. `tkLabel_SetLinkColor` pins both until `tkLabel_UnpinColors`.
+- The link colour is `LinkColor` in the colour struct, the theme's `Accent` (`LinkColorHot`, `AccentHot`, under the mouse), so a theme or a recipe sets it as it sets the text colour. `tkLabel_SetLinkColor` sets both and `tkLabel_SetLinkColorHot` the one under the mouse alone; like the other colour setters they pin the colours until `tkLabel_UnpinColors`.
 - Links are not tab stops, and a key press does not follow one. Give keyboard users another way to reach the address.
 - `tkLabel_LinkAt` and `tkLabel_GetLinkRect` work in the label's client coordinates. `tkLabel_GetLinkRect` gives the rectangle of the link's first line.
 
@@ -128,6 +129,8 @@ type TKLABEL_COLORS
     TextColor         as ulong
     TextColorDisabled as ulong
     BackColor         as ulong
+    LinkColor         as ulong
+    LinkColorHot      as ulong
 end type
 
 type TKLABEL_STATE   ' per-instance state; reach it through the procedures
@@ -192,6 +195,12 @@ function tkLabel_GetLinkRect( byval h as TK_WIDGET ptr, byval nLink as long, byr
 sub tkLabel_SetLinkClickCallback( byval h as TK_WIDGET ptr, byval cb as LBL_LinkClickFunc )
 function tkLabel_GetLinkColor( byval h as TK_WIDGET ptr ) as ulong
 sub tkLabel_SetLinkColor( byval h as TK_WIDGET ptr, byval clr as ulong, byval clrHot as ulong = 0 )
+function tkLabel_GetLinkColorHot( byval h as TK_WIDGET ptr ) as ulong
+sub tkLabel_SetLinkColorHot( byval h as TK_WIDGET ptr, byval clr as ulong )
+function tkLabel_ParseLinks( byref sText as const ustring, words() as ustring, urls() as ustring ) as long
+function tkLabel_FormatLinks( words() as ustring, urls() as ustring, byval n as long ) as ustring
+sub tkLabel_SetLinksText( byval h as TK_WIDGET ptr, byref sText as const ustring )
+function tkLabel_GetLinksText( byval h as TK_WIDGET ptr ) as ustring
 ```
 
 ### See also

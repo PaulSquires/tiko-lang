@@ -1437,6 +1437,33 @@ sub GaugeSuite( )
            andalso (FindSetting( nd.Controls[j].Props, "Data" ) >= 0), "gauge, sparkline: a dropped one has something to draw" )
 end sub
 
+' A Label's links: the Links text, the link colours (its colour struct's) and LinkClick, which answers Handled. The file
+' names Links before Text: the generated code (and the canvas, through PropOrder) sets Text first,
+' since new text drops the links.
+sub LabelLinksSuite( )
+    dim as ustring src = Header( ) & Ctl( "lbl", "Label" ) & "[control.props]" & LF _
+        & "Links = ""tiko=https://tiko-lang.net;wiki=https://example.com/w?a=1""" & LF _
+        & "Text = ""See tiko and its wiki""" & LF & "LinkColor = ""&hFF1565C0""" & LF & "LinkColorHot = ""&hFF0D47A1""" & LF _
+        & LF & "[control.events]" & LF & "LinkClick = ""lbl_LinkClick""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "label links: the form parses" )
+    Accepted( src, "label links: its rows" )
+    dim as ustring g = codegen.Generate( d, "frmK", "frmK.tkform", src )
+    HasLine( g, "lbl.Links = ""tiko=https://tiko-lang.net;wiki=https://example.com/w?a=1""", "label links: the links' text" )
+    dim as long nText = instr( g, "lbl.Text = " ), nLinks = instr( g, "lbl.Links = " )
+    Check( (nText > 0) andalso (nText < nLinks), "label links: Text is set before Links", LineWith( g, "lbl.Text" ) )
+    ' the link colours are the colour struct's: an old form's rows move into [control.colors]
+    Check( (FindSetting( d.Controls[0].Colors, "LinkColor" ) >= 0) andalso (FindSetting( d.Controls[0].Colors, "LinkColorHot" ) >= 0) _
+           andalso (FindSetting( d.Controls[0].Props, "LinkColor" ) < 0), "label links: LinkColor rows become its colours" )
+    Check( (instr( g, "' LinkColor" & LF ) > 0) andalso (instr( g, "' LinkColorHot" & LF ) > 0), "label links: the colours' recipe", LineWith( g, "LinkColor" ) )
+    Check( instr( g, "private function Thunk_lbl_LinkClick( byval hLabel as TK_WIDGET ptr, byval id as int32, byval nLink as int32, byref url as ustring ) as boolean" & LF _
+        & "    dim as boolean Handled" & LF ) > 0, "label links: LinkClick's thunk answers Handled", LineWith( g, "Thunk_lbl_LinkClick" ) )
+    HasLine( g, "declare sub lbl_LinkClick( byval nLink as int32, byref url as ustring, byref Handled as boolean )", "label links: LinkClick declared" )
+    dim as Array( of long ) o = codegen.PropOrder( d.Controls[0], catalog.Find( "Label" ) )
+    Check( (o.Count( ) = 2) andalso (d.Controls[0].Props[o[0]].Key = "Text") andalso (d.Controls[0].Props[o[1]].Key = "Links"), _
+           "label links: PropOrder puts Text before Links" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -3283,6 +3310,7 @@ SliderSuite( )
 BarcodeSuite( )
 MaskEditSuite( )
 GaugeSuite( )
+LabelLinksSuite( )
 PrintPreviewSuite( )
 ReportViewerSuite( )
 NotifySuite( )

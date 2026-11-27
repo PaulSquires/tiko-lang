@@ -238,7 +238,16 @@ private function MakeSample_( byval m as TKMETA_CONTROL ptr, byval parent as TK_
     dim as TK_WIDGET ptr w = m->Create( parent, 1, arg )
     if w = 0 then return 0
     dim as TKMETA_PROP ptr p = tkMeta_FindProp( m, "Text" )
-    if (p <> 0) andalso (p->Apply <> 0) then p->Apply( w, m->Name )
+    ' a control with Links (a Label): a link too, so its Link colours show
+    dim as TKMETA_PROP ptr pl = tkMeta_FindProp( m, "Links" )
+    if (p <> 0) andalso (p->Apply <> 0) then
+        if (pl <> 0) andalso (pl->Apply <> 0) then
+            p->Apply( w, m->Name & " link" )
+            pl->Apply( w, "link" )
+        else
+            p->Apply( w, m->Name )
+        end if
+    end if
     return w
 end function
 

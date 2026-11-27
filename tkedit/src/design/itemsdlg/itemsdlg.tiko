@@ -9,6 +9,7 @@
 ' and tab pages: a list on the left with its order buttons under it, Add and Remove on the right above
 ' a group box (titled with the selected item's text) of its fields. What the fields are depends on the
 ' control; everything else is the same. The small buttons are glyphs, their words in tooltips.
+' A Label's Links row opens it too (ItemsLinks): a link's words and url, kept as the Links text.
 #module "itemsdlg"
 
 #import "std/containers"
@@ -83,6 +84,8 @@ public type ItemsEditor
     GlyphPreview as TK_WIDGET ptr
     BtnGlyph as TK_WIDGET ptr
     Fields as Array( of ItemField )
+    LinkText as ustring         ' the Links editor: the label's text, which each link's words must be in
+    Note as TK_WIDGET ptr       ' ... and its words on how a link is found, under the fields
     ControlName as ustring      ' whose entries these are
     GoToHandler as ustring      ' set by the pencil: the handler to show once the entries are in
     Current as long = -1
@@ -292,6 +295,14 @@ sub ItemsEditor.Open( byval owner as TK_FORM ptr, byval kind_ as long, byref ite
         ' M6: the column's mask (MASKEDIT.md 9): edited in a MaskEdit, shown and pasted through it
         this.AddField( "MaskKind", "MaskKind", "none,fixed,numeric,date,time,datetime,regex" )
         this.AddField( "Mask", "Mask" )
+    case catalog.ItemsKind.ItemsLinks
+        ' a link: the words of the label's text it is, and where it goes
+        this.AddField( "Text", i18n.Tr( "designer.link_words", "Words" ) )
+        this.AddField( "Url", i18n.Tr( "designer.link_url", "URL" ) )
+        Note = tkLabel_Create( root_, 1 )
+        tkLabel_SetWordWrap( Note, true )
+        tkLabel_SetVAlign( Note, LBL_VALIGN_TOP )
+        tkLabel_SetText( Note, i18n.Tr( "designer.links_note", "Each link is words of the label's text, the first place they appear that isn't a link yet. With no URL, only the LinkClick handler acts on it." ) )
     case catalog.ItemsKind.ItemsPages, catalog.ItemsKind.ItemsTabs
         ' a tab: its caption and the glyph before it (the control's GlyphSize sizes every tab's)
         this.AddField( "Text", textLabel )
@@ -370,6 +381,10 @@ sub ItemsEditor.Layout( )
     tkGroupBox_GetClientRect( Group, inner )
     dim as long frameH = 4 * rh - (inner.bottom - inner.top)
     tkWidget_SetPos( Group, fx, gy, fw, frameH + n * rh )
+    if Note then
+        dim as long ny = gy + frameH + n * rh + g
+        tkWidget_SetPos( Note, fx, ny, fw, bottom - g - ny )
+    end if
     tkGroupBox_GetClientRect( Group, inner )
     dim as long lw = tkForm_Scale( Win, LABEL_CX ), fy = inner.top
     for each f as ItemField in Fields
@@ -481,7 +496,9 @@ end sub
 ' The group box's title: the selected item's text, as the list shows it but not indented.
 sub ItemsEditor.ShowCaption( )
     if Group = 0 then exit sub
-    if (Current >= 0) andalso (Current < Items.Count( )) then
+    if (Current >= 0) andalso (Current < Items.Count( )) andalso (Kind = catalog.ItemsKind.ItemsLinks) then
+        tkGroupBox_SetText( Group, Items[Current].Text )
+    elseif (Current >= 0) andalso (Current < Items.Count( )) then
         tkGroupBox_SetText( Group, ltrim( this.RowText( Current ) ) )
     else
         tkGroupBox_SetText( Group, "" )
@@ -494,6 +511,14 @@ function ItemsEditor.RowText( byval i as long ) as ustring
         s &= "    "
     next
     if Items[i].Kind = "separator" then return s & "---"
+    ' a link: its words, where it goes, and a warning when the label's text hasn't the words
+    if Kind = catalog.ItemsKind.ItemsLinks then
+        if len( Items[i].Text ) = 0 then return "(" & i18n.Tr( "designer.item_empty", "empty" ) & ")"
+        s = Items[i].Text
+        if len( Items[i].Url ) then s &= "  " & wchr( &h2192 ) & "  " & Items[i].Url
+        if instr( LinkText, Items[i].Text ) = 0 then s &= "  (" & i18n.Tr( "designer.link_missing", "not in the text" ) & ")"
+        return s
+    end if
     ' an icon has no caption: its kind, and its handler once it has one
     if Kind = catalog.ItemsKind.ItemsIcons then
         if len( Items[i].Handler ) then return s & Items[i].Kind & "  " & Items[i].Handler
@@ -544,6 +569,7 @@ sub ItemsEditor.ShowItem( byval i as long )
                 v = Items[i].MaskKind
                 if len( v ) = 0 then v = "none"
             case "Mask" : v = Items[i].Mask
+            case "Url"  : v = Items[i].Url
             end select
         end if
         if f.IsCheck then
@@ -633,6 +659,7 @@ sub ItemsEditor.FieldChanged( byval w as TK_WIDGET ptr )
                 Items[Current].MaskKind = v
                 if v = "none" then Items[Current].MaskKind = ""
             case "Mask" : Items[Current].Mask = v
+            case "Url"  : Items[Current].Url = v
             end select
         end if
     next
@@ -740,6 +767,7 @@ sub ItemsEditor.AddItem( )
     it.Origin = -1
     if Kind = catalog.ItemsKind.ItemsToolbar then it.Kind = "command"
     if Kind = catalog.ItemsKind.ItemsIcons then it.Kind = "toggle" : it.Text = ""
+    if Kind = catalog.ItemsKind.ItemsLinks then it.Text = ""
     dim as long at_ = Items.Count( )
     if (Current >= 0) andalso (Current < Items.Count( )) then
         at_ = Current + 1
@@ -749,7 +777,42 @@ sub ItemsEditor.AddItem( )
     Current = at_
     this.FillList( )
     this.ShowItem( at_ )
+    ' a new link's words are typed next
+    if (Kind = catalog.ItemsKind.ItemsLinks) andalso (Fields.Count( ) > 0) then tkHost_SetFocus( Fields[0].Edit->pHost, Fields[0].Edit )
 end sub
+
+' ---- a Label's Links text as the editor's entries (Text = the words, Url), and back ------------
+
+public function LinksToItems( byref links as const ustring ) as Array( of FormItem )
+    dim as Array( of FormItem ) a
+    dim as ustring words(), urls()
+    dim as long n = tkLabel_ParseLinks( links, words(), urls() )
+    for k as long = 0 to n - 1
+        dim as FormItem it
+        it.Text = words(k)
+        it.Url = urls(k)
+        a.Push( it )
+    next
+    return a
+end function
+
+' An entry without words is left out.
+public function ItemsToLinks( byref items as Array( of FormItem ) ) as ustring
+    dim as long n = 0
+    for each it as FormItem in items
+        if len( trim( it.Text ) ) then n += 1
+    next
+    if n = 0 then return ""
+    dim as ustring words( 0 to n - 1 ), urls( 0 to n - 1 )
+    dim as long k = 0
+    for each it as FormItem in items
+        if len( trim( it.Text ) ) then
+            words(k) = trim( it.Text ) : urls(k) = trim( it.Url )
+            k += 1
+        end if
+    next
+    return tkLabel_FormatLinks( words(), urls(), n )
+end function
 
 ' A menu with items under it takes them along.
 sub ItemsEditor.DeleteItem( )
