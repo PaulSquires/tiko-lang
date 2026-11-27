@@ -10,6 +10,7 @@ the toolchain. Each example is one `.tiko` program, built on its own with `tiko 
 | `02-zstd` | buffers through `ZSTD_compress` / `ZSTD_decompress` at five levels, with sizes and times -- `zstd [FILE]` |
 | `03-zip` | a `.zip` written with minizip and listed back, every entry's CRC checked -- `zip ARCHIVE.zip FILE...`, `zip -l ARCHIVE.zip` |
 | `04-xz` | a file to `FILE.xz` and back as a stream: liblzma's `lzma_stream` through 64 KB buffers -- `xz FILE`, `xz -d FILE.xz` |
+| `05-codecs` | the tiko layer, `vendor/compression/codecs`: a file packed in any format and unpacked with the format read from the file -- `codecs pack FILE [FORMAT [LEVEL]]`, `codecs unpack FILE.EXT`, `codecs info FILE` |
 | `selftest` | every codec round-tripped, one corrupt input each, and the files in `fixtures/` -- made by the reference tools -- decoded exactly. Exits 1 if anything is off |
 
 `fixtures/` holds `sample.txt` and that text as `gzip`, `zstd`, `xz`, `bzip2` and Python's
@@ -17,6 +18,17 @@ the toolchain. Each example is one `.tiko` program, built on its own with `tiko 
 formats rather than the library against itself. `brotli` and `lz4` fixtures are made when those
 tools are installed (`sudo apt install brotli lz4`); until then the selftest names them as
 skipped.
+
+## The C APIs or the tiko layer
+
+Examples 01 to 04 call the libraries' own C APIs, as their documentation has them. `05-codecs` uses
+**`vendor/compression/codecs`** instead, the tiko layer over all seven: `codecs.CompressBytes` /
+`DecompressBytes` on `Array( of ubyte )`, `CompressText` / `DecompressText` on `ustring`,
+`CompressFile` / `DecompressFile`, and `CompressWriter` / `DecompressReader`, which are
+`fs.Stream`s. The format is a `codecs.Codec` (`CODEC_GZIP`, `CODEC_ZSTD`, ...); `CODEC_DETECT`
+reads it from the data (every format but brotli and raw deflate has a magic number). Errors are
+`fs.FsError`s (`FS_INVALID_DATA`, `FS_UNEXPECTED_EOF`, `FS_TOO_LARGE`), and zstd and LZ4 frames get
+their checksums, so damage is refused. `DecompressBytes` stops at 1 GiB unless given another limit.
 
 ## Things to know
 

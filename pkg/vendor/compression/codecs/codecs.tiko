@@ -1,0 +1,118 @@
+#module "codecs"
+#import "std/fs"
+#import "std/outcome"
+#import "std/containers"
+#import "vendor/compression"
+using outcome
+using containers
+using fs
+'' vendor/compression/codecs -- the seven compression libraries of vendor/compression the tiko
+'' way (claude-docs docs/tiko-vendor/RFC-0008-compression-layer.md):
+''
+''     #import "vendor/compression/codecs"
+''
+''     dim packed as codecs.BytesResult = codecs.CompressBytes( bytes, codecs.CODEC_ZSTD )
+''     dim back as codecs.BytesResult = codecs.DecompressBytes( packed.Value( ) )   '' format detected
+''
+''     dim f as fs.File
+''     f.Create( "app.log.gz" )
+''     dim w as codecs.CompressWriter = codecs.CompressWriter( f, codecs.CODEC_GZIP )
+''     w.WriteUtf8( "a line" & !"\n" )          '' any fs.Stream call
+''     w.Finish( )
+''
+'' THE FILES: codecs.tiko (this: Codec, the levels, DetectFormat), cdcoder.tiko (one coder over each C
+'' library, the engine of everything else), cdstream.tiko (CompressWriter, DecompressReader:
+'' fs.Streams), cdcalls.tiko (CompressBytes / DecompressBytes, CompressText / DecompressText,
+'' CompressFile / DecompressFile).
+''
+'' ERRORS are std/fs's: every call returns a Result whose failure is an fs.FsError. A corrupt input
+'' is FS_INVALID_DATA, one that ends too soon FS_UNEXPECTED_EOF, a decompressed size past the limit
+'' FS_TOO_LARGE, a bad argument FS_INVALID_ARGUMENT, a codec that needs a name (Brotli) and was not
+'' given one FS_UNSUPPORTED. Operation( ) names the codec and step and carries the library's own
+'' words: "zstd decompress: Data corruption detected".
+''
+'' CHECKSUMS ARE ON: zstd frames carry their content checksum, LZ4 frames theirs, xz CRC64 -- so a
+'' damaged input is refused, not decoded into different bytes (zstd and LZ4 leave them off by
+'' default; RFC-0008 CZ-5). gzip, zlib and bzip2 always check; raw DEFLATE has nothing to check.
+''
+'' THE LIBRARY is vendor/compression's. The seven C APIs come along with this module: their headers
+'' are vendor/compression's 'public #include's, which travel to every importer of a module that
+'' imports it (tiko-vendor RFC-0002 V1), so a program importing only codecs can still call
+'' zlibVersion( ) -- measured; RFC-0008 CZ-8 hoped to hide them. The link mode is chosen on
+'' vendor/compression (CZ-9): write '#import "vendor/compression" link static' beside this import
+'' for a static build; with neither, the shared library is linked and copied beside the program,
+'' as vendor/compression's default.
+''
+'' NAMES: CompressBytes, not Compress, and CODEC_GZIP, not GZIP, because the C names share the
+'' scope and tiko's names are case-blind: zlib's compress( ) and deflate( ) would collide.
+
+'' The formats. CODEC_DETECT asks DecompressBytes / DecompressReader to read it from the data's first
+'' bytes.
+public enum Codec
+    CODEC_DETECT = 0
+    CODEC_GZIP           '' RFC 1952: .gz files, HTTP Content-Encoding: gzip
+    CODEC_ZLIB           '' RFC 1950: zlib's own wrapper (PNG, PDF)
+    CODEC_DEFLATE        '' RFC 1951, raw: what a .zip entry or HTTP 'deflate' holds; no checksum
+    CODEC_ZSTD           '' Zstandard frames (.zst), content checksum on
+    CODEC_XZ             '' .xz, CRC64
+    CODEC_BROTLI         '' .br, HTTP 'br' -- no magic number: DetectFormat cannot find it
+    CODEC_LZ4            '' LZ4 frames (.lz4), content checksum on
+    CODEC_BZIP2          '' .bz2
+end enum
+
+'' Levels: each codec's own number (zlib 0..9, zstd 1..22, xz 0..9, brotli 0..11, lz4 0..12,
+'' bzip2 1..9), or one of these, which every codec maps to its own.
+public const LEVEL_DEFAULT = -1000     '' the library's default (zlib 6, zstd 3, xz 6, brotli 11, lz4 0, bzip2 9)
+public const LEVEL_FAST    = -1001     '' its fastest
+public const LEVEL_BEST    = -1002     '' its smallest (zstd 19: 20..22 need much more memory)
+
+'' Decompress's default cap on what one call may produce (CZ-6): 1 GiB.
+public const DEFAULT_LIMIT = 1073741824
+
+public type BytesResult as Result( of Array( of ubyte ), FsError )
+
+'' The codec's name, for messages: "gzip", "zstd", ...
+public function CodecName( byval c as Codec ) as ustring
+    select case c
+    case CODEC_GZIP    : return "gzip"
+    case CODEC_ZLIB    : return "zlib"
+    case CODEC_DEFLATE : return "deflate"
+    case CODEC_ZSTD    : return "zstd"
+    case CODEC_XZ      : return "xz"
+    case CODEC_BROTLI  : return "brotli"
+    case CODEC_LZ4     : return "lz4"
+    case CODEC_BZIP2   : return "bzip2"
+    end select
+    return "detect"
+end function
+
+'' The format of data that starts at p (n bytes), from its magic number; CODEC_DETECT when none fits.
+'' zlib is tried last: its two-byte header is a weak signature, and a wrong guess fails later as
+'' FS_INVALID_DATA rather than producing anything.
+function DetectBytes( byval p as const ubyte ptr, byval n as longint ) as Codec
+    if n >= 2 andalso p[0] = &h1F andalso p[1] = &h8B then return CODEC_GZIP
+    if n >= 4 andalso p[0] = &h28 andalso p[1] = &hB5 andalso p[2] = &h2F andalso p[3] = &hFD then return CODEC_ZSTD
+    if n >= 6 andalso p[0] = &hFD andalso p[1] = &h37 andalso p[2] = &h7A andalso p[3] = &h58 _
+              andalso p[4] = &h5A andalso p[5] = 0 then return CODEC_XZ
+    if n >= 4 andalso p[0] = &h04 andalso p[1] = &h22 andalso p[2] = &h4D andalso p[3] = &h18 then return CODEC_LZ4
+    if n >= 4 andalso p[0] = asc( "B" ) andalso p[1] = asc( "Z" ) andalso p[2] = asc( "h" ) _
+              andalso p[3] >= asc( "1" ) andalso p[3] <= asc( "9" ) then return CODEC_BZIP2
+    if n >= 2 andalso ( p[0] and &h0F ) = 8 andalso ( p[0] shr 4 ) <= 7 _
+              andalso ( ( cint( p[0] ) * 256 + p[1] ) mod 31 ) = 0 then return CODEC_ZLIB
+    return CODEC_DETECT
+end function
+
+'' The format of bytes, from its first bytes; none when nothing fits (Brotli never does).
+public function DetectFormat( bytes as Array( of ubyte ) ) as Optional( of Codec )
+    dim as Codec c = DetectBytes( bytes.Data( ), bytes.Count( ) )
+    if c = CODEC_DETECT then return None( of Codec )( )
+    return Some( of Codec )( c )
+end function
+
+'' A failure of codec c's step, with the library's own words when it has some.
+function CodecFail( of T )( byval code as FsErrorCode, byval c as Codec, byref stp as const ustring, _
+                            byref detail as const ustring ) as Result( of T, FsError )
+    dim as ustring op = CodecName( c ) & " " & stp
+    if len( detail ) then op &= ": " & detail
+    return Fail( of T, FsError )( FsError( code, 0, op, "" ) )
+end function
