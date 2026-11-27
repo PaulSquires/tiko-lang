@@ -51,6 +51,7 @@ namespace Tko.Scan
     const SF_ARRAY      = &h0100    '' an array variable or field, or an array parameter
     const SF_REFTRACKED = &h0200    '' reads/writes are MEANINGFUL; when clear, UNKNOWN
     const SF_EXPORT     = &h0400    '' an EXPORTed procedure
+    const SF_GENERIC    = &h0800    '' a generic's INSTANCE, or a member of one: never listed
 
     type ScanSym
         as int32   kind

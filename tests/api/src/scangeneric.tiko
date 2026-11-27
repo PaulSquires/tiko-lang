@@ -1,0 +1,13 @@
+#import "std/containers"
+
+type Box( of T )
+    v as T
+    declare function Get( ) as T
+end type
+
+function Box( of T ).Get( ) as T
+    return this.v
+end function
+
+dim shared b as Box( of Box( of long ) )
+dim shared m as containers.Map( of string, long )

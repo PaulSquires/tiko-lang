@@ -155,6 +155,39 @@ public sub Run( byref c as tally.Checker )
     c.Check( symboldb.TipHasParams( intr.CallTip( "Left" ) ), "TipHasParams: Left(string, n)" )
     c.Check( symboldb.TipHasParams( intr.CallTip( "TIMER" ) ) = false, "TipHasParams: Timer() takes none" )
     c.Same( symboldb.BaseTypeName( "const Node ptr" ), "Node", "BaseTypeName" )
+    ' a generic's instance, as tikoParser writes one: its own record named as the variable's type
+    ' says, its members' types substituted, FLAG_GENERIC; an instance not scanned falls back to the
+    ' generic's own record
+    dim as symboldb.SymbolSet gen
+    gen.Root = "c:\p\gen.tiko"
+    dim as long gf = symboldb.FLAG_GENERIC
+    gen.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Map", "", -1, 1 ) )                                    ' 0
+    gen.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Count", "long", 0, 2 ) )                          ' 1
+    gen.Syms.Push( Mk( symboldb.SymKind.Variable, "myMap", "Map( of string, Set( of long ) )", -1, 10 ) ) ' 2
+    gen.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Map( of string, Set( of long ) )", "", -1, 10, 0, 0, gf ) ) ' 3
+    gen.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Keys", "Array( of string )", 3, 2, 0, 0, gf ) )  ' 4
+    gen.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "[]", "Set( of long )", 3, 3, 0, 0, gf ) )        ' 5
+    gen.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Set( of long )", "", -1, 10, 0, 0, gf ) )             ' 6
+    gen.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Contains", "boolean", 6, 4, 0, 0, gf ) )         ' 7
+    gen.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Array", "", -1, 20 ) )                                 ' 8
+    gen.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Count", "long", 8, 21 ) )                         ' 9
+    gen.Syms.Push( Mk( symboldb.SymKind.Variable, "old", "Map( of ustring, long )", -1, 11 ) )          ' 10
+    dim as symboldb.Database gdb
+    gdb.Install( gen )
+    dim as ustring gp = "c:\p\gen.tiko"
+    c.Same( symboldb.BaseTypeName( "const Map( of string, Set( of long ) ) ptr" ), "Map( of string, Set( of long ) )", _
+            "BaseTypeName: an instance keeps its argument list" )
+    c.Same( Joined( symboldb.ChainBefore( "x = a.b( 1, "")"" ).c[ k ]" ) ) & "/" & Joined( symboldb.ChainBefore( "p->q" ) ) _
+            & "/" & Joined( symboldb.ChainBefore( "( a + b )" ) ), "a|b()|c[]/p|q/", "ChainBefore: calls, indexes, ->; none for an expression" )
+    c.Same( Joined( symboldb.CompletionNames( gdb.ChainMemberItems( symboldb.ChainBefore( "myMap" ), gp, 30 ) ) ), "[]|Keys", _
+            "myMap.: the instance's members" )
+    c.Same( Joined( symboldb.CompletionNames( gdb.ChainMemberItems( symboldb.ChainBefore( "myMap[ ""k"" ]" ), gp, 30 ) ) ), "Contains", _
+            "myMap[ k ].: through operator [], to Set( of long )" )
+    c.Same( Joined( symboldb.CompletionNames( gdb.ChainMemberItems( symboldb.ChainBefore( "myMap.Keys( )" ), gp, 30 ) ) ), "Count", _
+            "myMap.Keys( ).: a call's type, an unscanned instance by its generic" )
+    c.Same( Joined( gdb.MemberNames( "old", gp, 30 ) ), "Count", "old.: no instance record, the generic's members" )
+    c.Same( Joined( gdb.Completions( "", gp, 30 ) ) & "/" & Joined( gdb.TypeNames( "" ) ), "Array|Map|myMap|old/Array|Map", _
+            "instances are never listed" )
     ' long calltips one parameter per line (tiko-editor-tiko's FormatCodetip)
     c.Same( symboldb.FormatCallTip( "Foo(x as long) as long" ), "Foo(x as long) as long", "a short calltip as it is" )
     c.Same( symboldb.FormatCallTip( "Foo(" & space( 80 ) & ") as long" ), "Foo( ) as long", "no parameters: not broken (blanks made one)" )

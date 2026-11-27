@@ -47,6 +47,7 @@ public const FLAG_LOCAL = &h0020
 public const FLAG_INSTANCE = &h0040
 public const FLAG_OPTIONAL = &h0080
 public const FLAG_ARRAY = &h0100
+public const FLAG_GENERIC = &h0800       ' a generic's instance ("Map( of string, long )") or its member: never listed
 
 public type Sym
     Kind        as SymKind
@@ -149,15 +150,107 @@ function SymbolSet.NextSibling( byval i as long ) as long
     return m_sibling[i]
 end function
 
-' The bare type name of a type text: "const Node ptr" -> "Node", "string * 20" -> "string".
+' The bare type name of a type text: "const Node ptr" -> "Node", "string * 20" -> "string". A
+' generic's instance keeps its argument list: "Map( of string, Set( of long ) ) ptr" ->
+' "Map( of string, Set( of long ) )", the name of the instance's own record.
 public function BaseTypeName( byref typeText as const ustring ) as ustring
     dim as Array( of ustring ) words = strings.Split( trim( typeText ), " " )
-    for each w as ustring in words
+    for i as long = 0 to words.Count( ) - 1
+        dim as ustring w = words[i]
         dim as ustring l = lcase( w )
-        if (len( w ) > 0) andalso (l <> "const") andalso (l <> "byref") then return w
+        if (len( w ) = 0) orelse (l = "const") orelse (l = "byref") then continue for
+        ' "Map(" opens a list: the words up to the one that closes it belong to the name
+        dim as long depth = 0
+        dim as ustring out_ = w
+        do
+            for k as long = 1 to len( words[i] )
+                select case mid( words[i], k, 1 )
+                case "(" : depth += 1
+                case ")" : depth -= 1
+                end select
+            next
+            if (depth <= 0) orelse (i >= words.Count( ) - 1) then exit do
+            i += 1
+            out_ &= " " & words[i]
+        loop
+        return out_
     next
     return ""
 end function
+
+' A generic's instance name without its argument list: "Map( of string, long )" -> "Map"; "" when
+' it has none.
+private function GenericBase( byref tn as const ustring ) as ustring
+    dim as long p = instr( tn, "(" )
+    if p <= 1 then return ""
+    return rtrim( left( tn, p - 1 ) )
+end function
+
+private function IsIdentChar_( byval c as ulong ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95) orelse (c >= 128)
+end function
+
+' The member chain before the "." or "->" the caret follows, root first, each a name with what
+' was applied to it -- "()" for a call or an array's element, "[]" for an index:
+' "a.b( 1, ""x)"" ).c[ k ]" -> "a", "b()", "c[]"; "p->q" -> "p", "q". Empty when it does not
+' end in one (a literal, a WITH block's ".x", a parenthesised expression).
+public function ChainBefore( byref s as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) parts, none_
+    dim as long i = len( s )
+    do
+        dim as ustring suffix
+        while (i > 0) andalso ((s[i - 1] = 41) orelse (s[i - 1] = 93))      ' ")" "]"
+            dim as ustring closer = iif( s[i - 1] = 41, "()", "[]" )
+            dim as long depth = 0, j = i
+            do
+                if j < 1 then return none_
+                dim as ulong c = s[j - 1]
+                if c = 34 then                                                 ' back over a string
+                    j -= 1
+                    while (j > 0) andalso (s[j - 1] <> 34)
+                        j -= 1
+                    wend
+                    if j < 1 then return none_
+                elseif (c = 41) orelse (c = 93) then
+                    depth += 1
+                elseif (c = 40) orelse (c = 91) then
+                    depth -= 1
+                    if depth = 0 then exit do
+                end if
+                j -= 1
+            loop
+            suffix = closer & suffix
+            i = j - 1
+        wend
+        dim as long k = i
+        while (k > 0) andalso IsIdentChar_( s[k - 1] )
+            k -= 1
+        wend
+        if k = i then return none_
+        parts.Insert( 0, mid( s, k + 1, i - k ) & suffix )
+        i = k
+        if (i > 0) andalso (s[i - 1] = 46) then
+            i -= 1
+        elseif (i > 1) andalso (s[i - 1] = 62) andalso (s[i - 2] = 45) then
+            i -= 2
+        else
+            exit do
+        end if
+    loop
+    return parts
+end function
+
+' A chain part's name and what was applied to it: "b()" -> "b", "()".
+private sub SplitPart( byref part as const ustring, byref name_ as ustring, byref applied as ustring )
+    dim as long p = len( part )
+    while (p > 0) andalso ((mid( part, p, 1 ) = ")") orelse (mid( part, p, 1 ) = "]") _
+                           orelse (mid( part, p, 1 ) = "(") orelse (mid( part, p, 1 ) = "["))
+        p -= 1
+    wend
+    name_ = left( part, p )
+    applied = mid( part, p + 1 )
+end sub
 
 ' What the parser's uppercased path is on disk: on a case-sensitive file system each part is
 ' matched against the folder's entries, case-insensitively. "" when nothing matches.
@@ -207,6 +300,11 @@ public type Database
     declare function CompletionItems( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of Completion )
     declare function MemberItems( byref qualifier as const ustring, byref file as const ustring, byval ln as long, _
                                   byref outer as const ustring = "" ) as Array( of Completion )
+    ' what follows a chain's "." (ChainBefore's parts): "myMap.Keys( )." -> an Array( of string )'s members
+    declare function ChainTypeRef( byref parts as const Array( of ustring ), byref file as const ustring, _
+                                   byval ln as long ) as SymRef
+    declare function ChainMemberItems( byref parts as const Array( of ustring ), byref file as const ustring, _
+                                       byval ln as long ) as Array( of Completion )
     declare function TypeItems( byref prefix as const ustring ) as Array( of Completion )
     declare function ItemOf( byval setNo as long, byval i as long ) as Completion
     declare function EnclosingProc( byval setNo as long, byref file as const ustring, byval ln as long ) as long
@@ -262,6 +360,7 @@ function Database.EnclosingProc( byval setNo as long, byref file as const ustrin
     for i as long = 0 to s.Syms.Count( ) - 1
         dim byref as Sym y = s.Syms[i]
         if ((y.Kind = SymKind.SubProc) orelse (y.Kind = SymKind.FunctionProc)) andalso (y.BodyLine > 0) _
+           andalso ((y.Flags and FLAG_GENERIC) = 0) _
            andalso (y.BodyLine <= ln) andalso (y.BodyEndLine >= ln) andalso (y.File = f) then
             ' the innermost: the latest-starting body that still holds the line
             if (best < 0) orelse (y.BodyLine > s.Syms[best].BodyLine) then best = i
@@ -353,7 +452,7 @@ function Database.Definition( byref name_ as const ustring, byref file as const 
         dim as long i = m_sets[k].First( name_ )
         while i >= 0
             dim byref as Sym y = m_sets[k].Syms[i]
-            if IsGlobalKind( y.Kind ) andalso ((y.Flags and FLAG_LOCAL) = 0) then
+            if IsGlobalKind( y.Kind ) andalso ((y.Flags and (FLAG_LOCAL or FLAG_GENERIC)) = 0) then
                 if (best.IsValid( ) = false) orelse Better( y, this.Item( best ), f ) then
                     best.SetNo = k : best.Index = i
                 end if
@@ -374,22 +473,13 @@ function Database.TypeRefOf( byref name_ as const ustring, byref file as const u
     if (y.Kind = SymKind.TypeDef) orelse (y.Kind = SymKind.UnionDef) then return v
     dim as ustring tn = BaseTypeName( y.TypeText )
     if len( tn ) = 0 then return none_
-    for k as long = 0 to m_sets.Count( ) - 1
-        dim as long i = m_sets[k].First( tn )
-        while i >= 0
-            dim as SymKind kk = m_sets[k].Syms[i].Kind
-            if (kk = SymKind.TypeDef) orelse (kk = SymKind.UnionDef) then
-                none_.SetNo = k : none_.Index = i
-                return none_
-            end if
-            i = m_sets[k].NextSame( i )
-        wend
-    next
-    return none_
+    return this.TypeByName( tn )
 end function
 
 ' A type's fields and methods, then its base's (EXTENDS), deepest last; ten levels at most.
-' The first TYPE or UNION of this name in any set (any case); invalid when none is scanned.
+' The first TYPE or UNION of this name in any set (any case); invalid when none is scanned. A
+' generic's instance ("Map( of string, long )") is its own record when the scan has it, else the
+' generic's ("Map"), whose members name TK and TV.
 function Database.TypeByName( byref name_ as const ustring ) as SymRef
     dim as SymRef r
     for k as long = 0 to m_sets.Count( ) - 1
@@ -403,6 +493,8 @@ function Database.TypeByName( byref name_ as const ustring ) as SymRef
             i = m_sets[k].NextSame( i )
         wend
     next
+    dim as ustring g = GenericBase( name_ )
+    if len( g ) then return this.TypeByName( g )
     return r
 end function
 
@@ -430,6 +522,7 @@ function Database.FieldPaths( byref typeName as const ustring ) as Array( of ust
         out_.Push( y.Name )
         dim as ustring sub_ = BaseTypeName( y.TypeText )
         if (len( sub_ ) = 0) orelse (lcase( sub_ ) = lcase( tn )) then continue for
+        if instr( sub_, "(" ) then continue for         ' a container's insides are not a record's fields
         dim as SymRef st = this.TypeByName( sub_ )
         if st.IsValid( ) = false then continue for
         for each r2 as SymRef in this.Members( st )
@@ -501,18 +594,7 @@ function Database.Members( byref typeRef as const SymRef ) as Array( of SymRef )
         ' methods defined outside the TYPE block are children too; the base comes next
         dim as ustring base_ = BaseTypeName( this.Item( t ).TypeText )
         dim as SymRef nextT
-        if len( base_ ) andalso (lcase( base_ ) <> "object") then
-            for k as long = 0 to m_sets.Count( ) - 1
-                dim as long i = m_sets[k].First( base_ )
-                while i >= 0
-                    if m_sets[k].Syms[i].Kind = SymKind.TypeDef then
-                        nextT.SetNo = k : nextT.Index = i
-                        exit for
-                    end if
-                    i = m_sets[k].NextSame( i )
-                wend
-            next
-        end if
+        if len( base_ ) andalso (lcase( base_ ) <> "object") then nextT = this.TypeByName( base_ )
         t = nextT
     next
     return out_
@@ -586,7 +668,7 @@ function Database.CompletionItems( byref prefix as const ustring, byref file as 
         end if
         for i as long = 0 to m_sets[k].Syms.Count( ) - 1
             dim byref as Sym y = m_sets[k].Syms[i]
-            if IsGlobalKind( y.Kind ) andalso ((y.Flags and FLAG_LOCAL) = 0) andalso (y.Parent < 0) _
+            if IsGlobalKind( y.Kind ) andalso ((y.Flags and (FLAG_LOCAL or FLAG_GENERIC)) = 0) andalso (y.Parent < 0) _
                andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( this.ItemOf( k, i ) )
         next
     next
@@ -629,6 +711,86 @@ function Database.MemberNames( byref qualifier as const ustring, byref file as c
     return CompletionNames( this.MemberItems( qualifier, file, ln ) )
 end function
 
+' A type after what a chain part applied to it: each "[]" is the type's operator [] result; a
+' "()" is a call or an array's element, already the part's own type.
+private function Applied_( byref db as Database, byval t as SymRef, byref applied as const ustring ) as SymRef
+    dim as SymRef none_
+    for p as long = 1 to len( applied ) - 1 step 2
+        if mid( applied, p, 2 ) <> "[]" then continue for
+        if t.IsValid( ) = false then return none_
+        dim as SymRef op
+        for each m as SymRef in db.Members( t )
+            if db.Item( m ).Name = "[]" then
+                op = m
+                exit for
+            end if
+        next
+        if op.IsValid( ) = false then return none_
+        dim as ustring tn = BaseTypeName( db.Item( op ).TypeText )
+        if len( tn ) = 0 then return none_
+        t = db.TypeByName( tn )
+    next
+    return t
+end function
+
+' The TYPE a member chain ends in: its root as TypeRefOf finds it (a variable, a parameter, THIS,
+' a member of the enclosing method's type; a namespace's member when the root is a namespace),
+' then each part a member of the type before it, its declared type followed. Invalid when a
+' part is not there or has no scanned type.
+function Database.ChainTypeRef( byref parts as const Array( of ustring ), byref file as const ustring, _
+                                byval ln as long ) as SymRef
+    dim as SymRef none_
+    if parts.Count( ) = 0 then return none_
+    dim as ustring nm, applied
+    SplitPart( parts[0], nm, applied )
+    dim as long at = 1
+    dim as SymRef t = this.TypeRefOf( nm, file, ln )
+    if (t.IsValid( ) = false) andalso (len( applied ) = 0) andalso (parts.Count( ) > 1) then
+        ' "ns.var": the root is a namespace
+        dim as ustring ns = nm
+        SplitPart( parts[1], nm, applied )
+        t = this.TypeRefOf( nm, file, ln, ns )
+        at = 2
+    end if
+    t = Applied_( this, t, applied )
+    for i as long = at to parts.Count( ) - 1
+        if t.IsValid( ) = false then return none_
+        SplitPart( parts[i], nm, applied )
+        dim as SymRef m
+        for each r as SymRef in this.Members( t )
+            if Key( this.Item( r ).Name ) = Key( nm ) then
+                m = r
+                exit for
+            end if
+        next
+        if m.IsValid( ) = false then return none_
+        dim as ustring tn = BaseTypeName( this.Item( m ).TypeText )
+        if len( tn ) = 0 then return none_
+        t = Applied_( this, this.TypeByName( tn ), applied )
+    next
+    return t
+end function
+
+' What follows a chain's "." -- the members of the type it ends in. A plain "a." or "a.b." is
+' MemberItems' (a namespace's children too).
+function Database.ChainMemberItems( byref parts as const Array( of ustring ), byref file as const ustring, _
+                                    byval ln as long ) as Array( of Completion )
+    dim as Array( of Completion ) found
+    if parts.Count( ) = 0 then return found
+    dim as boolean plain = true
+    for each p as ustring in parts
+        if (right( p, 1 ) = ")") orelse (right( p, 1 ) = "]") then plain = false
+    next
+    if plain andalso (parts.Count( ) = 1) then return this.MemberItems( parts[0], file, ln )
+    if plain andalso (parts.Count( ) = 2) then return this.MemberItems( parts[1], file, ln, parts[0] )
+    dim as SymRef t = this.ChainTypeRef( parts, file, ln )
+    if t.IsValid( ) = false then return found
+    for each m as SymRef in this.Members( t )
+        found.Push( this.ItemOf( m.SetNo, m.Index ) )
+    next
+    return SortCompletions( found )
+end function
+
 ' The TYPE / UNION / ENUM / alias names starting with prefix (what follows "as ").
 function Database.TypeItems( byref prefix as const ustring ) as Array( of Completion )
     dim as Array( of Completion ) found
@@ -636,6 +798,7 @@ function Database.TypeItems( byref prefix as const ustring ) as Array( of Comple
     for k as long = 0 to m_sets.Count( ) - 1
         for i as long = 0 to m_sets[k].Syms.Count( ) - 1
             dim byref as Sym y = m_sets[k].Syms[i]
+            if y.Flags and FLAG_GENERIC then continue for
             select case y.Kind
             case SymKind.TypeDef, SymKind.UnionDef, SymKind.EnumDef, SymKind.TypeAlias
                 if lcase( left( y.Name, len( pre ) ) ) = pre then found.Push( this.ItemOf( k, i ) )
@@ -770,6 +933,7 @@ end function
 ' ---------------------------------------------------------------- tkEdit's lists
 
 private function IsListed( byref y as const Sym ) as boolean
+    if y.Flags and FLAG_GENERIC then return false
     select case y.Kind
     case SymKind.SubProc, SymKind.FunctionProc
         return y.BodyLine > 0                        ' a declaration alone is not where to go
@@ -848,7 +1012,7 @@ function Database.HasFile( byref file as const ustring ) as boolean
     for k as long = 0 to m_sets.Count( ) - 1
         if m_sets[k].Root = want then return true
         for each y as Sym in m_sets[k].Syms
-            if ucase( y.File ) = want then return true
+            if ((y.Flags and FLAG_GENERIC) = 0) andalso (ucase( y.File ) = want) then return true
         next
     next
     return false
