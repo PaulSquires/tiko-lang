@@ -1,0 +1,36 @@
+' tkReportKpi demo (GAUGE-SPARKLINE.md GS5): the KPI report written to a PDF and, given a folder and
+' a dpi, to page images.
+'
+'   demo [out.pdf] [dir dpi]
+#import "vendor/tkControls/tkReport"
+#import "vendor/tkControls/tkPdf"
+#import "./kpireport"
+using tkReport
+using tkPrint
+using tkPdf
+using tkHost
+using tkPaint
+using kpireport
+
+dim as string pdfPath = iif( len( command( 1 ) ), command( 1 ), "kpis.pdf" )
+dim as string pngDir = command( 2 )
+dim as int32 dpi = val( command( 3 ) )
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+dim as TK_REPORT ptr r = KpiMakeReport( )
+dim as TK_PRINTDOC ptr doc = tkReport_Run( r )
+print "pages: " & tkPrintDoc_GetPageCount( doc ) & "  pdf: " & tkPrintDoc_ExportPdf( doc, pdfPath )
+if (len( pngDir ) > 0) andalso (dpi > 0) then
+    for pgi as int32 = 0 to tkPrintDoc_GetPageCount( doc ) - 1
+        dim as SDL_Surface ptr s = tkPrintDoc_RenderSurface( doc, pgi, dpi )
+        dim as SDL_Surface ptr x = SDL_ConvertSurface( s, SDL_PIXELFORMAT_XRGB8888 )
+        dim as string path = pngDir & "/kpis-page" & (pgi + 1) & "_" & dpi & "dpi.bmp"
+        SDL_SaveBMP( x, strptr( path ) )
+        SDL_DestroySurface( x ) : SDL_DestroySurface( s )
+        print "page image: " & path
+    next
+end if
+tkPrintDoc_Destroy( doc )
+tkReport_Destroy( r )
+TTF_Quit( )
+SDL_Quit( )

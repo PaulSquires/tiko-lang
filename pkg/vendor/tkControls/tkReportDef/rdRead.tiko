@@ -367,10 +367,10 @@ function RdRead( byval def as TK_REPORTDEF ptr, byref root as config.TomlValue, 
             dim as ustring where = "item " & (i + 1)
             GStr( e, "id", it.id, where, errs )
             if len( it.id ) then where = "item '" & it.id & "'"
-            OnlyKeys( e, " id band kind rect text expr format align valign wrap can_grow font fore back border line_color pen visible reset running incr tag rule ", where, errs )
+            OnlyKeys( e, " id band kind rect text expr format align valign wrap can_grow font fore back border line_color pen visible reset running incr tag opts rule ", where, errs )
             GStr( e, "band", it.band, where, errs )
             GStr( e, "kind", it.kind, where, errs )
-            if IsOneOf( it.kind, " text field line box image check custom " ) = false then Er( errs, where & ": kind """ & it.kind & """ is not text, field, line, box, image, check or custom" )
+            if IsOneOf( it.kind, " text field line box image check custom gauge sparkline " ) = false then Er( errs, where & ": kind """ & it.kind & """ is not text, field, line, box, image, check, custom, gauge or sparkline" )
             dim as config.TomlValue ptr rc = e->Find( "rect" )
             if rc then
                 if (rc->Kind( ) <> config.TOML_ARRAY) orelse (rc->Count( ) <> 4) then
@@ -428,6 +428,7 @@ function RdRead( byval def as TK_REPORTDEF ptr, byref root as config.TomlValue, 
             GStr( e, "incr", it.incr, where, errs )
             if (IsOneOf( it.incr, " row master " ) = false) andalso (GroupRef( it.incr ) = false) then Er( errs, where & ": incr must be row, master or group:N" )
             GI64( e, "tag", it.tag, where, errs )
+            GStr( e, "opts", it.opts, where, errs )
             dim as config.TomlValue ptr rl = Tables( e, "rule", where, errs )
             if rl then
                 redim it.rules( 0 to rl->Count( ) - 1 )

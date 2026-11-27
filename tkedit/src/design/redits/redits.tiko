@@ -308,7 +308,7 @@ public function PasteText( byval def as TK_REPORTDEF ptr, byref text as const us
 end function
 
 ' ---- adding to a report (RD6: the toolbox, the field list, Insert band) --------------------------
-' A new item of kind (text field line box image check custom) in band bandId at x, y (points), at its
+' A new item of kind (text field line box image check custom gauge sparkline) in band bandId at x, y (points), at its
 ' kind's size; its id ("text1", "field2" ...). "" when there is no such band or kind.
 public function AddItem( byval def as TK_REPORTDEF ptr, byref kind as const ustring, byref bandId as const ustring, _
                          byval x as float32, byval y as float32 ) as ustring
@@ -323,6 +323,8 @@ public function AddItem( byval def as TK_REPORTDEF ptr, byref kind as const ustr
     case "image" : it.w = 48 : it.h = 48
     case "check" : it.w = 12 : it.h = 12
     case "custom" : it.w = 60 : it.h = 30
+    case "gauge" : it.w = 120 : it.h = 80 : it.opts = "min=0;max=100"
+    case "sparkline" : it.w = 100 : it.h = 20
     case else : return ""
     end select
     it.kind = kind

@@ -163,7 +163,9 @@ private sub DgSortRows( byval p as TKDATAGRID_STATE ptr, cand() as integer, byva
         dim as integer col = p->sortKeys(k).col
         if DgValidCol( p, col ) = false then continue for
         with keys(kk)
-            .kind = p->cols(col).c.valueKind
+            ' a SPARKLINE column (D-10): by its series' last value, as a number
+            dim as boolean bSpk = (p->cols(col).c.kind = TKDG_COL_SPARKLINE)
+            .kind = iif( bSpk, TKDG_FLOAT, p->cols(col).c.valueKind )
             .bDesc = p->sortKeys(k).bDescending
             redim .e( 0 to n - 1 )
             select case .kind
@@ -174,6 +176,10 @@ private sub DgSortRows( byval p as TKDATAGRID_STATE ptr, cand() as integer, byva
             for j as integer = 0 to n - 1
                 dim as TKDG_VALUE v
                 DgRead( p, cand(j), col, v )
+                if bSpk then
+                    if DgSparkLast( v, .f(j) ) = false then .e(j) = 1
+                    continue for
+                end if
                 if (DgConvert( v, .kind ) = false) orelse (v.kind = TKDG_EMPTY) then .e(j) = 1 : continue for
                 select case .kind
                 case TKDG_TEXT  : .s(j) = lcase( v.s )

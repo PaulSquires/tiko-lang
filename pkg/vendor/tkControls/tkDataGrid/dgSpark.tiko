@@ -1,0 +1,126 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkDataGrid -- the SPARKLINE column (GAUGE-SPARKLINE.md §9.2, phase GS5).
+'
+' A TKDG_COL_SPARKLINE column keeps TEXT: a cell's text is a series in tkSparkline_SetDataText's
+' syntax ("3,5,,2"), drawn by tkSparkline_PaintInto in the cell rect minus the cell padding. It is
+' not editable and shows no text tip. SetColumnSparkline gives the column its look (kind, markers,
+' reference, band ...); the colours are the theme's, with the cell's back and, on a selected row,
+' its fore colour for the line. A SHARED range puts every row on the min / max over all the
+' column's rows, worked out once per data change (DgSumInvalidate bumps the serial), so rows
+' compare. Sorting a sparkline column sorts by each series' LAST present value (D-10). The series
+' is parsed per paint; no per-row cache.
+#module "tkDataGrid"
+
+#import "../tkHost"
+#import "../tkTheme"
+#import "../tkSparkline"
+using tkHost
+using tkPaint
+using tkTheme
+using tkSparkline
+
+' A cell value's series, parsed. The count.
+private function DgSparkParse( byref v as const TKDG_VALUE, vals() as float64, has() as boolean ) as int32
+    dim as TKDG_VALUE t = v
+    if (DgConvert( t, TKDG_TEXT ) = false) orelse (t.kind <> TKDG_TEXT) then return 0
+    dim as string s8 = t.s
+    return tkSparkline_ParseText( s8, vals(), has() )
+end function
+
+' The series' last present value; FALSE when it has none (the sort's EMPTY).
+function DgSparkLast( byref v as const TKDG_VALUE, byref fLast as float64 ) as boolean
+    dim as float64 vals()
+    dim as boolean has()
+    dim as int32 n = DgSparkParse( v, vals(), has() )
+    for i as int32 = n - 1 to 0 step -1
+        if has(i) then fLast = vals(i) : return true
+    next
+    return false
+end function
+
+' A shared range, worked out again when the data changed since.
+private sub DgSparkShared( byval p as TKDATAGRID_STATE ptr, byval col as integer )
+    with p->cols(col)
+        if .sparkSerial = p->sparkSerial then exit sub
+        .bSparkHas = false
+        for r as integer = 0 to p->rowCount - 1
+            dim as TKDG_VALUE v
+            DgRead( p, r, col, v )
+            dim as float64 vals()
+            dim as boolean has()
+            dim as int32 n = DgSparkParse( v, vals(), has() )
+            for i as int32 = 0 to n - 1
+                if has(i) = false then continue for
+                if .bSparkHas = false then
+                    .sparkLo = vals(i) : .sparkHi = vals(i) : .bSparkHas = true
+                else
+                    if vals(i) < .sparkLo then .sparkLo = vals(i)
+                    if vals(i) > .sparkHi then .sparkHi = vals(i)
+                end if
+            next
+        next
+        .sparkSerial = p->sparkSerial
+    end with
+end sub
+
+' The default painter's SPARKLINE cell (the background is painted).
+sub DgPaintSpark( byval p as TKDATAGRID_STATE ptr, byval pi as TKDATAGRID_CELLPAINTINFO ptr )
+    if (pi->value = 0) orelse (DgValidCol( p, pi->col ) = false) then exit sub
+    dim as float64 vals()
+    dim as boolean has()
+    dim as int32 n = DgSparkParse( *pi->value, vals(), has() )
+    if n = 0 then exit sub
+    dim as TKSPARK_SPEC s = p->cols(pi->col).spark
+    s.pValues = @vals(0) : s.pHas = @has(0) : s.nCount = n
+    if p->cols(pi->col).bSparkShared then
+        DgSparkShared( p, pi->col )
+        if p->cols(pi->col).bSparkHas then
+            s.bAutoRange = false
+            s.fMin = p->cols(pi->col).sparkLo : s.fMax = p->cols(pi->col).sparkHi
+        end if
+    end if
+    dim as TKSPARK_COLORS c = tkSparkline_ThemeColors( tkTheme_Of( p->hWin ) )
+    c.BackColor = pi->backColor
+    if pi->isSelected then c.LineColor = pi->foreColor : c.TextColor = pi->foreColor
+    s.pColors = @c
+    s.fScale = iif( p->hWin->pHost <> 0, p->hWin->pHost->fScale, 1 )
+    if s.bShowLast andalso (s.fText = 0) then s.fText = iif( p->pFont <> 0, p->pFont, p->hWin->pHost->pDefaultFont )
+    dim as integer pad = DgScale( p, CDATAGRID_CELL_PAD )
+    dim as TKRECT rc = pi->rc
+    rc.left += pad : rc.right -= pad
+    if rc.right <= rc.left then exit sub
+    tkSparkline_PaintInto( pi->b, rc, s )
+end sub
+
+' A SPARKLINE column's look: kind, empty mode, markers, sizes, axis, reference, band, last value,
+' decimals (the series and the colours are not taken: the cells and the theme give them).
+' bSharedRange: every row on one range, the min / max over all the column's rows. Silent.
+public function tkDataGrid_SetColumnSparkline( byval hGrid as TK_WIDGET ptr, byval col as int32, _
+                                               byref spec as TKSPARK_SPEC, byval bSharedRange as boolean ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
+    dim as TKSPARK_SPEC s = spec
+    s.pValues = 0 : s.pHas = 0 : s.nCount = 0 : s.pColors = 0 : s.nHot = -1 : s.sLastText = ""
+    p->cols(col).spark = s
+    p->cols(col).bSparkShared = bSharedRange
+    p->cols(col).sparkSerial = -1
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+' The column's shared range (FALSE: not shared, or no value in any row).
+public function tkDataGrid_GetColumnSparkRange( byval hGrid as TK_WIDGET ptr, byval col as int32, _
+                                                byref lo as float64, byref hi as float64 ) as boolean
+    dim as TKDATAGRID_STATE ptr p = DgState( hGrid )
+    if (p = 0) orelse (DgValidCol( p, col ) = false) then return false
+    if p->cols(col).bSparkShared = false then return false
+    DgSparkShared( p, col )
+    if p->cols(col).bSparkHas = false then return false
+    lo = p->cols(col).sparkLo : hi = p->cols(col).sparkHi
+    return true
+end function

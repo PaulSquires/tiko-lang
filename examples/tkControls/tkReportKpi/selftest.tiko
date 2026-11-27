@@ -1,0 +1,119 @@
+' tkReportKpi self-test (GAUGE-SPARKLINE.md GS5, §9.3): gauge and sparkline items in a report,
+' drawn by tkReport through tkGauge_PaintPage / tkSparkline_PaintPage. One check per behaviour,
+' asserted on the recorded page ops: the opts parsers; a linear needle per row at its value, to the
+' page's 0.01 pt; an expression's value; the value text in the item's font, bold at 1.5 x; a
+' sparkline per row with its last value. One pass (pages are points, not screen pixels).
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkReport"
+#import "vendor/tkControls/tkGauge"
+#import "vendor/tkControls/tkSparkline"
+#import "./kpireport"
+using tkTest
+using tkReport
+using tkGauge
+using tkSparkline
+using tkTheme
+using tkBind
+using tkPrint
+using tkHost
+using tkPaint
+using kpireport
+
+function Near( byval a as float64, byval b as float64, byval tol as float64 = 0.01 ) as boolean
+    return abs( a - b ) <= tol
+end function
+
+' Where a linear needle gauge of KpiLinearOpts( fMax ), KPI_LIN_W x 20 pt, puts value v's tip, in
+' points from the item's left edge: the painter's own layout on PaintPage's canvas (10 px / pt).
+function TipX( byval fMax as float64, byval v as float64 ) as float64
+    dim as TKGAUGE_SPEC s
+    dim as TKGAUGE_RANGE rg()
+    dim as TKGAUGE_POINTER ptrs()
+    tkGauge_OptsToSpec( KpiLinearOpts( fMax ), s, rg(), ptrs() )
+    ptrs(0).fValue = v
+    s.fScale = 7.5
+    dim as TKRECT cr
+    tkRect_Set( cr, 0, 0, KPI_LIN_W * 10, 200 )
+    dim as GG_GEOM geo
+    tkGauge_Layout( s, cr, 7.5, geo )
+    return tkGauge_GeomValueToPos( s, geo, v ) * 0.1
+end function
+
+sub RunPure( )
+    tkTest_Begin( "opts" )
+    dim as TKGAUGE_SPEC s
+    dim as TKGAUGE_RANGE rg()
+    dim as TKGAUGE_POINTER ptrs()
+    dim as boolean ok1 = tkGauge_OptsToSpec( "shape=linear;max=50;ranges=0..10=#FF0000%3B10..50=#00FF00;target=40;caption=a%3Db", s, rg(), ptrs() )
+    dim as boolean ok2 = tkGauge_OptsToSpec( "max=5;nosuch=1", s, rg(), ptrs() )
+    tkTest_Check( "gauge opts: shape, range, escaped ranges, a target marker, an escaped caption; an unknown key flagged, the rest read", _
+                  ok1 andalso (ok2 = false) andalso (s.fMax = 5), ok1 & " " & ok2 & " " & s.fMax )
+    tkGauge_OptsToSpec( "shape=linear;max=50;ranges=0..10=#FF0000%3B10..50=#00FF00;target=40;caption=a%3Db", s, rg(), ptrs() )
+    tkTest_Check( "gauge opts read back into the spec", (s.nShape = TKGAUGE_LINEAR) andalso (s.fMax = 50) andalso (s.nRanges = 2) _
+                  andalso (rg(1).fTo = 50) andalso (s.nPointers = 2) andalso (ptrs(0).nKind = TKGAUGE_PTR_BAR) _
+                  andalso (ptrs(1).nKind = TKGAUGE_PTR_MARKER) andalso (ptrs(1).fValue = 40) andalso (s.sCaption = "a=b"), _
+                  s.nRanges & " " & s.nPointers & " " & s.sCaption )
+    dim as TKSPARK_SPEC sp
+    dim as boolean ok3 = tkSparkline_OptsToSpec( "kind=column;min=0;max=20;markers=high,last;band=4..9;last=1", sp )
+    tkTest_Check( "sparkline opts: kind, a manual range from min and max, markers, band, last", ok3 andalso (sp.nKind = TKSPARK_COLUMN) _
+                  andalso (sp.bAutoRange = false) andalso (sp.fMax = 20) andalso (sp.nMarkers = (TKSPARK_MK_HIGH or TKSPARK_MK_LAST)) _
+                  andalso sp.bHasBand andalso (sp.fBandHi = 9) andalso sp.bShowLast )
+end sub
+
+sub RunReport( )
+    tkTest_Begin( "report" )
+    dim as TK_REPORT ptr r = KpiMakeReport( )
+    dim as TK_PRINTDOC ptr doc = tkReport_Run( r )
+    dim as TKPAGESETUP ps = tkPrintDoc_GetPageSetup( doc )
+    dim as single mL = ps.marginL
+    dim as TKGAUGE_COLORS gc = tkGauge_ThemeColors( tkTheme_Light( ) )
+    dim as TKSPARK_COLORS sc = tkSparkline_ThemeColors( tkTheme_Light( ) )
+    dim as float64 tipsA(0 to 9), tipsB(0 to 9)
+    dim as int32 nA = 0, nB = 0, nLine = 0
+    dim as boolean bValueText = false, bCaption = false, bLast(0 to 2)
+    dim as ustring lastTexts(0 to 2) = { "9", "2", "8" }
+    dim as TKPRINT_OPINFO oi
+    for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
+        tkPrintDoc_GetOp( doc, 0, i, oi )
+        if (oi.op = TKREC_FILLPOLY) andalso (oi.c = gc.NeedleColor) andalso (oi.n = 3) then     ' a needle triangle, not a marker disc
+            if (oi.x0 >= mL + KPI_X_A) andalso (oi.x0 <= mL + KPI_X_A + KPI_LIN_W) andalso (nA <= 9) then tipsA(nA) = oi.x0 : nA += 1
+            if (oi.x0 >= mL + KPI_X_B) andalso (oi.x0 <= mL + KPI_X_B + KPI_LIN_W) andalso (nB <= 9) then tipsB(nB) = oi.x0 : nB += 1
+        end if
+        if (oi.op = TKREC_STROKEOPEN) andalso (oi.c = sc.LineColor) then nLine += 1
+        if oi.op = TKREC_TEXT then
+            if (oi.text = "7.5") andalso Near( oi.size, 15, 0.01 ) then bValueText = true
+            if (oi.text = "Score") andalso Near( oi.size, 10, 0.01 ) then bCaption = true
+            for k as int32 = 0 to 2
+                if oi.text = lastTexts(k) then bLast(k) = true
+            next
+        end if
+    next
+    dim as float64 scores(0 to 2) = { 7.5, 4.25, 9 }
+    dim as boolean bAtValue = (nA = 3)
+    for k as int32 = 0 to iif( nA < 3, nA, 3 ) - 1
+        if Near( tipsA(k), mL + KPI_X_A + TipX( 10, scores(k) ) ) = false then bAtValue = false
+    next
+    tkTest_Check( "a linear needle per row, its tip at the row's value (to 0.01 pt)", bAtValue, _
+                  nA & " tips: " & tipsA(0) & " want " & (mL + KPI_X_A + TipX( 10, scores(0) )) )
+    dim as boolean bExpr = (nB = 3)
+    for k as int32 = 0 to iif( nB < 3, nB, 3 ) - 1
+        if Near( tipsB(k) - (KPI_X_B - KPI_X_A), tipsA(k) ) = false then bExpr = false
+    next
+    tkTest_Check( "an expression's value ([Score] * 10 on 0..100) lands where the field's does on 0..10", bExpr, _
+                  nB & " tips: " & tipsB(0) & " / " & tipsA(0) )
+    tkTest_Check( "the value text in the item's font, bold at 1.5 x (15 pt); the caption at 10 pt", bValueText andalso bCaption, _
+                  bValueText & " " & bCaption )
+    tkTest_Check( "a sparkline per row (a gap splits one), with its last value as text", (nLine >= 4) andalso bLast(0) _
+                  andalso bLast(1) andalso bLast(2), nLine & " lines, last " & bLast(0) & bLast(1) & bLast(2) )
+    tkPrintDoc_Destroy( doc )
+    tkReport_Destroy( r )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPure( )
+RunReport( )
+dim as int32 nFail = tkTest_Report( "tkReportKpi" )
+tkTest_Quit()
+end nFail

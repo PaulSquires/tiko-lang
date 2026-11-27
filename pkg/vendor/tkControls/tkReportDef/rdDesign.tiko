@@ -84,6 +84,8 @@ public function tkReportDef_RecordBand( byval def as TK_REPORTDEF ptr, byval bi 
             tkPage_Text( pg, text, rc, TK_DT_CENTER )
             text = ""
         end if
+        ' a gauge or a sparkline: the real painter, on a stand-in value
+        if (e.kind = TKRI_GAUGE) orelse (e.kind = TKRI_SPARKLINE) then tkReport_PaintDataSample( pg, e, rc, e.font )
         tkReport_PaintItem( pg, e, rc, e.font, e.fore, e.back, text, false )
     next
     return doc

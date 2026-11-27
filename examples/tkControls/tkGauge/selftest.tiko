@@ -418,7 +418,7 @@ sub RunPass( byval fScale as single )
         dim as TK_PRINTDOC ptr doc = tkPrintDoc_Create( "gauge" )
         dim as TK_PAGE ptr pg = tkPrintDoc_AddPage( doc )
         dim as TKRECTF rf
-        tkRectF_Set( rf, 72, 72, 222, 222 )               ' 150 pt square -> a 200 px canvas, k = 0.75
+        tkRectF_Set( rf, 72, 72, 222, 222 )               ' 150 pt square -> a 1500 px canvas (10 px / pt), design unit 7.5 px
         dim as TKGAUGE_POINTER pp
         pp.fValue = 25
         dim as TKGAUGE_COLORS pc = Pinned( )
@@ -427,13 +427,15 @@ sub RunPass( byval fScale as single )
         dim as boolean bOk = tkGauge_PaintPage( pg, rf, ps )
         ' where the needle's tip must land: the same layout on the canvas, mapped by k
         dim as TKRECT cr
-        tkRect_Set( cr, 0, 0, 200, 200 )
-        ps.fScale = 1
-        tkGauge_Layout( ps, cr, 1, geo )
+        tkRect_Set( cr, 0, 0, 1500, 1500 )
+        ps.fScale = 7.5
+        tkGauge_Layout( ps, cr, 7.5, geo )
         dim as float64 ta = tkGauge_SpecValueToAngle( ps, 25 ) * PI_ / 180
-        ' the blunt tip's first corner: 0.75 px across (the needle's half width 3 x 0.15 is less)
-        dim as float32 tx = 72 + (geo.cx + (geo.r - geo.tw * 0.3) * cos( ta ) - sin( ta ) * 0.75) * 0.75
-        dim as float32 ty = 72 + (geo.cy + (geo.r - geo.tw * 0.3) * sin( ta ) + cos( ta ) * 0.75) * 0.75
+        ' the blunt tip's first corner: half its width across (0.15 x the needle's half width, 0.75 px least)
+        dim as float32 tb = geo.nw * 0.15
+        if tb < 0.75 then tb = 0.75
+        dim as float32 tx = 72 + (geo.cx + (geo.r - geo.tw * 0.3) * cos( ta ) - sin( ta ) * tb) * 0.1
+        dim as float32 ty = 72 + (geo.cy + (geo.r - geo.tw * 0.3) * sin( ta ) + cos( ta ) * tb) * 0.1
         dim as TKPRINT_OPINFO oi
         dim as boolean bNeedle = false, bTrack = false
         for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
@@ -447,15 +449,15 @@ sub RunPass( byval fScale as single )
         ' a linear gauge on a page: a needle's tip lands at its unsnapped along position
         doc = tkPrintDoc_Create( "linear" )
         pg = tkPrintDoc_AddPage( doc )
-        tkRectF_Set( rf, 72, 72, 372, 102 )               ' 300 x 30 pt -> a 400 x 40 px canvas, k = 0.75
+        tkRectF_Set( rf, 72, 72, 372, 102 )               ' 300 x 30 pt -> a 3000 x 300 px canvas
         pp.fValue = 37 : pp.nKind = TKGAUGE_PTR_NEEDLE
         dim as TKGAUGE_SPEC pl
         pl.nShape = TKGAUGE_LINEAR : pl.pPointers = @pp : pl.nPointers = 1 : pl.pColors = @pc : pl.nScale = TKGAUGE_SCALE_NONE
         bOk = tkGauge_PaintPage( pg, rf, pl )
-        tkRect_Set( cr, 0, 0, 400, 40 )
-        pl.fScale = 1
-        tkGauge_Layout( pl, cr, 1, geo )
-        tx = 72 + tkGauge_GeomValueToPos( pl, geo, 37 ) * 0.75 : ty = 72 + geo.c0 * 0.75
+        tkRect_Set( cr, 0, 0, 3000, 300 )
+        pl.fScale = 7.5
+        tkGauge_Layout( pl, cr, 7.5, geo )
+        tx = 72 + tkGauge_GeomValueToPos( pl, geo, 37 ) * 0.1 : ty = 72 + geo.c0 * 0.1
         dim as boolean bTip = false, bLTrack = false
         for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
             tkPrintDoc_GetOp( doc, 0, i, oi )

@@ -116,7 +116,7 @@ private function DgTipFor( byval p as TKDATAGRID_STATE ptr, byval tipRow as inte
     end if
     if DgValidRow( p, tipRow ) = false then return ""
     select case p->cols(tipCol).c.kind
-    case TKDG_COL_CHECK, TKDG_COL_PROGRESS : return ""
+    case TKDG_COL_CHECK, TKDG_COL_PROGRESS, TKDG_COL_SPARKLINE : return ""
     end select
     dim as TTF_Font ptr f = iif( p->pFont <> 0, p->pFont, hh->pDefaultFont )
     dim as ustring s = DgShownText( p, tipRow, tipCol )

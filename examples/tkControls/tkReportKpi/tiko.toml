@@ -1,0 +1,12 @@
+# tkReportKpi: selftest + demo (GAUGE-SPARKLINE.md GS5): gauge and sparkline items in a tkReport.
+# tiko build (writes selftest.exe and demo.exe here)
+[package]
+name = "tkreportkpi-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"
+
+[target.demo]
+main   = "demo.tiko"
+output = "demo.exe"
