@@ -3544,15 +3544,16 @@ public sub MenuPass( byref t as Tally, byval sc as single )
     dim as long cx = h->root->cw, cy = h->root->ch, sh = mw.StatusHeight( )
     dim as long mh = tkForm_Scale( mw.form, 26 )
 
-    ' ---- on by default (a new settings.toml): along the top, seven menus, the start panel below it
+    ' ---- on by default (a new settings.toml): along the top, eight menus, the start panel below it
     t.Check( instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "show_menu = true" ) > 0, _
              P( sc, "menu: a new settings.toml says show_menu = true" ) )
     t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (mw.menuBar->x = 0) andalso (mw.menuBar->y = 0) andalso _
              (mw.menuBar->cw = cx) andalso (mw.menuBar->ch = mh) andalso (mw.MenuHeight( ) = mh), _
              P( sc, strings.Format( "menu: the bar at {},{} {}x{}, want 0,0 {}x{}", mw.menuBar->x, mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
-    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 7) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
-             (tkMenuBar_GetItemText( mw.menuBar, 4 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Debug"), _
-             P( sc, strings.Format( "menu: seven menus, File .. Debug, Design ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 8) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
+             (tkMenuBar_GetItemText( mw.menuBar, 4 ) = "Build") andalso (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Debug") andalso _
+             (tkMenuBar_GetItemText( mw.menuBar, 7 ) = "Help"), _
+             P( sc, strings.Format( "menu: eight menus, File .. Debug, Design, Help ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     dim as cmdids.CommandTable ct
     dim as boolean rowsOk = true
     for g as long = 0 to clng( MenuGroup.Count_ ) - 1

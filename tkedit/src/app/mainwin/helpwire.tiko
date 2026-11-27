@@ -1,0 +1,73 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' helpwire -- the Help menu (author 2026-11-27): Keyword Help (F1) opens the wiki page of the word
+' at the caret or the selection (tkc/wikihelp, keywords/wikihelp.txt), the web site and GitHub open
+' in the browser, About shows tka/aboutdlg.
+#module "mainwin"
+
+#import "std/strings"
+#import "tkc/bundled"
+#import "tkc/i18n"
+#import "tkc/wikihelp"
+#import "tka/aboutdlg"
+#import "tka/editor"
+#import "vendor/tkControls/tkApp"
+using tkApp
+using tkHost
+
+' What F1 asks about: the selection (its first line), else the word at the caret. Nothing on the
+' start panel or a designer's surface: no text has the caret there.
+function Window.KeywordHelpQuery( ) as wikihelp.HelpQuery
+    dim as wikihelp.HelpQuery q
+    if this.ShowsStart( ) then return q
+    dim as DocRef d = this.Active( )
+    if (d = 0) orelse (d->Surface( ) <> 0) then return q
+    dim as editor.CodeView ptr v = @this.View( )
+    if v->SelectionLength( ) > 0 then return wikihelp.QueryOfSelection( v->SelectedText( ) )
+    return wikihelp.QueryAt( v->LineTextAt( v->CaretLine( ) - 1 ), len( v->TextBeforeCaret( ) ) )
+end function
+
+' The page F1 opens. keywords/wikihelp.txt is read the first time: the config folder's copy when
+' there is one (a newer wiki's), else the bundled one. A word with no page opens the Keyword Index
+' at its letter, and the status bar says so; no word at all opens the wiki's home.
+function Window.KeywordHelpUrl( ) as ustring
+    if HelpLoaded = false then
+        HelpIdx.Load( bundled.ReadAllText( bundled.Locate( "keywords/wikihelp.txt", ConfigDir ) ).ValueOr( "" ) )
+        HelpLoaded = true
+    end if
+    dim as wikihelp.HelpQuery q = this.KeywordHelpQuery( )
+    dim as ustring page = HelpIdx.PageFor( q )
+    if (len( q.Word ) > 0) andalso (len( page ) = 0) then
+        this.SetMessage( strings.Format( i18n.Tr( "message.help_no_page", "No wiki page for {}: the Keyword Index instead" ), q.Word ) )
+    end if
+    return wikihelp.PageUrl( page, q.Word )
+end function
+
+' The address in the browser. NoBrowser (the self-test) only records it in LastUrl.
+sub Window.OpenWebPage( byref url as const ustring )
+    LastUrl = url
+    if NoBrowser orelse (len( url ) = 0) then exit sub
+    dim as string u8 = url
+    if SDL_OpenURL( strptr( u8 ) ) = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.open_url_failed", "Could not open {}" ), url ) )
+    end if
+end sub
+
+' Help > About, shown but not yet modal (the self-test reads it as it is).
+sub Window.OpenAbout( )
+    this.CloseAbout( )
+    AboutDlg = new aboutdlg.AboutDialog
+    AboutDlg->Open( form )
+end sub
+
+sub Window.CloseAbout( )
+    if AboutDlg = 0 then exit sub
+    AboutDlg->Close( )
+    delete AboutDlg
+    AboutDlg = 0
+end sub

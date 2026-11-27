@@ -1,0 +1,76 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' wikisuite -- tkc/wikihelp: the word F1 asks about (caret or selection) and the wiki page it opens,
+' against a small table and against the bundled keywords/wikihelp.txt.
+#module "wikisuite"
+
+#import "std/fs"
+#import "tkp/platform"
+#import "tkc/wikihelp"
+#import "../tally"
+
+private function W( byref line_ as const ustring, byval nCaret as long ) as ustring
+    return wikihelp.QueryAt( line_, nCaret ).Word
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "wikihelp" )
+    ' the word at the caret
+    c.Same( W( "    print x", 6 ), "print", "inside a word" )
+    c.Same( W( "    print x", 4 ), "print", "at a word's start" )
+    c.Same( W( "    print x", 9 ), "print", "just past its end" )
+    c.Same( W( "a  b", 2 ), "", "between words: none" )
+    c.Same( W( "#include ""x""", 0 ), "#include", "on the # of a directive" )
+    c.Same( W( "#include ""x""", 4 ), "#include", "a directive keeps its #" )
+    c.Same( W( "s = Left$( t, 2 )", 6 ), "Left$", "a $ suffix is kept" )
+    c.Same( W( "", 0 ), "", "an empty line" )
+    c.Check( wikihelp.QueryAt( "m.Put( k, v )", 3 ).Member, "after a dot: a member" )
+    c.Check( wikihelp.QueryAt( "p->Count", 4 ).Member, "after ->: a member" )
+    c.Check( wikihelp.QueryAt( "print x", 2 ).Member = false, "alone: not a member" )
+    c.Check( wikihelp.QueryAt( "for i = 1 to ... step", 18 ).Member = false, "after ... : not a member" )
+    c.Same( wikihelp.QueryOfSelection( "  Select   Case" & wchr( 10 ) & "x" ).Word, "Select Case", "a selection: first line, trimmed, spaces made one" )
+
+    ' the table: a member prefers the library page
+    dim as wikihelp.HelpIndex ix
+    ix.Load( "add" & wchr( 9 ) & "Add" & wchr( 9 ) & "Modern-Map-Add" & wchr( 13, 10 ) & _
+             "left" & wchr( 9 ) & "Left" & wchr( 9 ) & wchr( 10 ) & _
+             "select" & wchr( 9 ) & "procedures-Select-Case" & wchr( 9 ) & wchr( 10 ) & "junk" & wchr( 10 ) )
+    c.SameNum( ix.Count( ), 3, "three rows; a line without a page is skipped" )
+    dim as wikihelp.HelpQuery q
+    q.Word = "ADD"
+    c.Same( ix.PageFor( q ), "Add", "any case; alone: its own page" )
+    q.Member = true
+    c.Same( ix.PageFor( q ), "Modern-Map-Add", "a member: the library page" )
+    q.Word = "Left" : q.Member = true
+    c.Same( ix.PageFor( q ), "Left", "a member with no library page: the page" )
+    q.Word = "Left$" : q.Member = false
+    c.Same( ix.PageFor( q ), "Left", "Left$ is Left" )
+    q.Word = "myMap.Add"
+    c.Same( ix.PageFor( q ), "Modern-Map-Add", "a selected a.b asks about member b" )
+    q.Word = "Select Case"
+    c.Same( ix.PageFor( q ), "procedures-Select-Case", "two words: the first's page when they have none" )
+    q.Word = "nosuchword"
+    c.Same( ix.PageFor( q ), "", "unknown: none" )
+
+    c.Same( wikihelp.PageUrl( "Print" ), wikihelp.WIKI_URL & "/Print", "a page's address" )
+    c.Same( wikihelp.PageUrl( "", "Zork" ), wikihelp.WIKI_URL & "/Keyword-Index#z", "none: the index at the word's letter" )
+    c.Same( wikihelp.PageUrl( "", "" ), wikihelp.WIKI_URL, "no word: the wiki's home" )
+    c.Same( wikihelp.PageUrl( "", "#!" ), wikihelp.WIKI_URL & "/Keyword-Index", "a word with no letter: the index" )
+
+    ' the shipped table (tree = 4 levels above tests/bin)
+    dim as ustring root = platform.ExeDir( )
+    for k as long = 1 to 4
+        root = fs.PathParent( root )
+    next
+    dim as ustring txt = fs.ReadAllText( fs.PathJoin( root, "keywords/wikihelp.txt" ) ).ValueOr( "" )
+    dim as wikihelp.HelpIndex real
+    real.Load( txt )
+    c.Check( real.Count( ) > 1000, "keywords/wikihelp.txt loads: " & real.Count( ) & " keys" )
+    q.Member = false
+    q.Word = "Print" : c.Same( real.PageFor( q ), "Print", "Print" )
+    q.Word = "#include" : c.Same( real.PageFor( q ), "procedures-Include", "#include" )
+    q.Word = "If" : c.Same( real.PageFor( q ), "If-Then", "If" )
+    q.Word = "Put" : q.Member = true
+    c.Check( left( real.PageFor( q ), 7 ) = "Modern-", "m.Put: a library page (" & real.PageFor( q ) & ")" )
+end sub

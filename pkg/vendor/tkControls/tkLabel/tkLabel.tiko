@@ -7,6 +7,12 @@
 ' tkLabel -- static text. One line (cut with an ellipsis when it does not fit, if asked) or wrapped
 ' to the control's width. Never a tab stop. A click is reported when a callback is set; without one
 ' the label takes no mouse input of its own.
+'
+' LINKS: any run of the text can be a link (tkLabel_AddLink names it by its words), drawn in the
+' link colour (the theme's Accent) and underlined, with the hand cursor over it. A click on one goes
+' to the link callback; unhandled, its URL opens in the browser (SDL_OpenURL). A label with links
+' lays its text out itself -- hard newlines and, with word wrap, the control's width -- and never
+' cuts it with an ellipsis. Links are not tab stops: a keyboard user reaches the URL some other way.
 #module "tkLabel"
 
 #import "../tkHost" public
@@ -34,6 +40,24 @@ public type TKLABEL_COLORS
 end type
 
 public type LBL_ClickCallbackSub as sub( byval hLabel as TK_WIDGET ptr, byval id as long )
+' A link was clicked: TRUE = handled. Unhandled, its URL (when it has one) opens in the browser.
+public type LBL_LinkClickFunc as function( byval hLabel as TK_WIDGET ptr, byval id as long, _
+                                           byval nLink as long, byref url as ustring ) as boolean
+
+' One link: a run of the text's UTF-8 bytes, [nStart, nEnd).
+public type TKLABEL_LINK
+    nStart as long
+    nEnd   as long
+    url    as ustring
+end type
+
+' One piece of a laid-out line: plain text, or (nLink >= 0) all or part of a link.
+public type TKLABEL_RUN
+    nStart as long
+    nEnd   as long
+    nLink  as long
+    rc     as TKRECT        ' client coordinates
+end type
 
 public type TKLABEL_STATE
     hWin          as TK_WIDGET ptr
@@ -50,7 +74,17 @@ public type TKLABEL_STATE
     nAlign        as long = LBL_ALIGN_LEFT
     nVAlign       as long = LBL_VALIGN_CENTER
     ClickCallback as LBL_ClickCallbackSub
+    links(any)    as TKLABEL_LINK
+    nLinks        as long
+    clrLink       as ulong
+    clrLinkHot    as ulong
+    bLinkPinned   as boolean
+    nHotLink      as long = -1
+    nPressedLink  as long = -1
+    LinkClick     as LBL_LinkClickFunc
     declare function Font() as TTF_Font ptr
+    declare function Layout( runs() as TKLABEL_RUN ) as long
+    declare function LinkAt( byval x as long, byval y as long ) as long
     declare sub Ideal( byref nW as long, byref nH as long )
     declare sub Changed()
 end type
@@ -92,6 +126,99 @@ sub TKLABEL_STATE.Changed()
     tkWidget_Invalidate( this.hWin )
 end sub
 
+' A label with links: its lines (hard newlines; word wrap at the control's width when on), each cut
+' where a link starts or ends, placed by the alignments. runs() receives them; the count is returned.
+function TKLABEL_STATE.Layout( runs() as TKLABEL_RUN ) as long
+    dim as TTF_Font ptr f = this.Font()
+    if (f = 0) orelse (len( this.text ) = 0) then return 0
+    dim as string u8 = this.text
+    dim as long st(), en()
+    dim as long nLines = tkText_Wrap( f, u8, iif( this.bWrap, this.hWin->cw, &h3FFFFFFF ), st(), en() )
+    if nLines <= 0 then return 0
+    dim as long skip = tkText_LineSkip( f ), fh = tkText_Height( f )
+    dim as long blockH = (nLines - 1) * skip + fh
+    dim as long y = 0
+    select case this.nVAlign
+    case LBL_VALIGN_CENTER : y = (this.hWin->ch - blockH) \ 2
+    case LBL_VALIGN_BOTTOM : y = this.hWin->ch - blockH
+    end select
+    dim as long n = 0
+    redim runs( 0 to 7 )
+    for i as long = 0 to nLines - 1
+        dim as string ln = mid( u8, st(i) + 1, en(i) - st(i) )
+        dim as long lw = tkText_WidthU8( f, ln ), x0 = 0
+        select case this.nAlign
+        case LBL_ALIGN_CENTER : x0 = (this.hWin->cw - lw) \ 2
+        case LBL_ALIGN_RIGHT : x0 = this.hWin->cw - lw
+        end select
+        dim as long a = st(i)
+        while a < en(i)
+            ' the run from a: to the next link boundary inside this line
+            dim as long b = en(i), nLink = -1
+            for k as long = 0 to this.nLinks - 1
+                dim as long ls = this.links(k).nStart, le = this.links(k).nEnd
+                if (a >= ls) andalso (a < le) then
+                    nLink = k
+                    if le < b then b = le
+                elseif (ls > a) andalso (ls < b) then
+                    b = ls
+                end if
+            next
+            if n > ubound( runs ) then redim preserve runs( 0 to n * 2 )
+            runs(n).nStart = a : runs(n).nEnd = b : runs(n).nLink = nLink
+            dim as long xa = tkText_IndexToX( f, ln, a - st(i) ), xb = tkText_IndexToX( f, ln, b - st(i) )
+            tkRect_Set( runs(n).rc, x0 + xa, y, x0 + xb, y + fh )
+            n += 1
+            a = b
+        wend
+        y += skip
+    next
+    return n
+end function
+
+' The link under client point (x, y), or -1.
+function TKLABEL_STATE.LinkAt( byval x as long, byval y as long ) as long
+    if this.nLinks = 0 then return -1
+    dim as TKLABEL_RUN runs()
+    dim as long n = this.Layout( runs() )
+    for i as long = 0 to n - 1
+        if runs(i).nLink < 0 then continue for
+        if (x >= runs(i).rc.left) andalso (x < runs(i).rc.right) andalso _
+           (y >= runs(i).rc.top) andalso (y < runs(i).rc.bottom) then return runs(i).nLink
+    next
+    return -1
+end function
+
+private sub PaintLinked( byval p as TKLABEL_STATE ptr, byval b as TK_PAINT ptr, byval f as TTF_Font ptr )
+    dim as TKLABEL_RUN runs()
+    dim as long n = p->Layout( runs() )
+    if n = 0 then exit sub
+    dim as string u8 = p->text
+    dim as boolean bEnabled = tkWidget_IsEnabled( p->hWin )
+    ' the underline: just below the baseline, thicker for a large font
+    dim as long ul = TTF_GetFontAscent( f ) + 1, ulH = iif( tkText_Height( f ) >= 24, 2, 1 )
+    for i as long = 0 to n - 1
+        dim as ulong clr = p->colors.TextColor
+        if bEnabled = false then
+            clr = p->colors.TextColorDisabled
+        elseif runs(i).nLink >= 0 then
+            clr = iif( runs(i).nLink = p->nHotLink, p->clrLinkHot, p->clrLink )
+        end if
+        dim as string seg = mid( u8, runs(i).nStart + 1, runs(i).nEnd - runs(i).nStart )
+        dim as ustring useg = seg
+        dim as TKRECT rc
+        tkRect_Set( rc, runs(i).rc.left, runs(i).rc.top, p->hWin->cw, runs(i).rc.bottom )
+        b->SetForeColor( clr )
+        b->PaintText( useg, @rc, TK_DT_LEFT or TK_DT_TOP )
+        if runs(i).nLink >= 0 then
+            dim as TKRECT rU
+            tkRect_Set( rU, runs(i).rc.left, runs(i).rc.top + ul, runs(i).rc.right, runs(i).rc.top + ul + ulH )
+            b->SetBackColor( clr )
+            b->PaintRect( @rU )
+        end if
+    next
+end sub
+
 private sub tkLabel_OnPaint( byval p as TKLABEL_STATE ptr, byval b as TK_PAINT ptr )
     dim as TKRECT rc
     tkRect_Set( rc, 0, 0, p->hWin->cw, p->hWin->ch )
@@ -102,6 +229,10 @@ private sub tkLabel_OnPaint( byval p as TKLABEL_STATE ptr, byval b as TK_PAINT p
     dim as TTF_Font ptr f = p->Font()
     if (f = 0) orelse (len( p->text ) = 0) then exit sub
     b->SetFont( f )
+    if p->nLinks > 0 then
+        PaintLinked( p, b, f )
+        exit sub
+    end if
     b->SetForeColor( iif( tkWidget_IsEnabled( p->hWin ), p->colors.TextColor, p->colors.TextColorDisabled ) )
     dim as long flags = p->nAlign
     select case p->nVAlign
@@ -130,12 +261,49 @@ private function tkLabel_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr )
     case TKM_THEMECHANGED
         tkLabel_ApplyTheme( w, tkTheme_Of( w ) )
         return true
+    case TKM_MOUSEMOVE
+        if (p->nLinks = 0) orelse (p->nPressedLink >= 0) then return false
+        dim as long k = p->LinkAt( m->x, m->y )
+        if k <> p->nHotLink then
+            p->nHotLink = k
+            tkWidget_SetCursor( w, iif( k >= 0, TK_CURSOR_HAND, TK_CURSOR_ARROW ) )
+            tkWidget_Invalidate( w )
+        end if
+        return false
+    case TKM_MOUSELEAVE
+        if p->nHotLink >= 0 then
+            p->nHotLink = -1
+            tkWidget_SetCursor( w, TK_CURSOR_ARROW )
+            tkWidget_Invalidate( w )
+        end if
+        return false
     case TKM_LBUTTONDOWN
+        dim as long k = p->LinkAt( m->x, m->y )
+        if k >= 0 then
+            tkHost_SetCapture( w )
+            p->nPressedLink = k
+            return true
+        end if
         if p->ClickCallback = 0 then return false
         tkHost_SetCapture( w )
         p->bPressed = true
         return true
     case TKM_LBUTTONUP
+        if p->nPressedLink >= 0 then
+            dim as long k = p->nPressedLink
+            p->nPressedLink = -1
+            if tkHost_GetCapture( w->pHost ) = w then tkHost_ReleaseCapture( w->pHost )
+            if p->LinkAt( m->x, m->y ) = k then
+                dim as ustring url = p->links(k).url
+                dim as boolean handled = false
+                if p->LinkClick then handled = p->LinkClick( w, p->id, k, url )
+                if (handled = false) andalso (len( url ) > 0) then
+                    dim as string u8 = url
+                    SDL_OpenURL( strptr( u8 ) )
+                end if
+            end if
+            return true
+        end if
         if p->bPressed = false then return false
         p->bPressed = false
         if tkHost_GetCapture( w->pHost ) = w then tkHost_ReleaseCapture( w->pHost )
@@ -145,6 +313,7 @@ private function tkLabel_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr )
         return true
     case TKM_CAPTURECHANGED
         p->bPressed = false
+        p->nPressedLink = -1
         return true
     case TKM_DESTROY
         delete p
@@ -161,6 +330,8 @@ public function tkLabel_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as 
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkLabel_Proc, p )
     p->hWin = w
     p->colors = tkLabel_ThemeColors( tkTheme_Of( w ) )
+    p->clrLink = tkTheme_Of( w ).Accent
+    p->clrLinkHot = tkTheme_Of( w ).AccentHot
     ' the theme's recipes for this type apply from the start, not just after a theme change
     tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKLABEL_COLORS ) \ 4, "Label" )
     return w
@@ -172,10 +343,17 @@ public function tkLabel_GetText( byval h as TK_WIDGET ptr ) as ustring
     return p->text
 end function
 
+' New text drops the links: they named runs of the old one.
 public sub tkLabel_SetText( byval h as TK_WIDGET ptr, byref s as const ustring )
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
     if p = 0 then exit sub
     p->text = s
+    if p->nLinks then
+        erase p->links
+        p->nLinks = 0
+        p->nHotLink = -1 : p->nPressedLink = -1
+        tkWidget_SetCursor( h, TK_CURSOR_ARROW )
+    end if
     p->Changed()
 end sub
 
@@ -317,6 +495,10 @@ public sub tkLabel_ApplyTheme( byval h as TK_WIDGET ptr, byref t as TKTHEME_COLO
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
     if (p = 0) orelse p->bColorsPinned then exit sub
     dim as TKTHEME_COLORS tr = tkTheme_Styled( h, t )
+    if p->bLinkPinned = false then
+        p->clrLink = tr.Accent
+        p->clrLinkHot = tr.AccentHot
+    end if
     p->colors = tkLabel_ThemeColors( tr )
     tkTheme_ResolveInto( h, tr, cast( ulong ptr, @p->colors ), sizeof( TKLABEL_COLORS ) \ 4, "Label" )
     tkWidget_Invalidate( h )
@@ -333,5 +515,108 @@ public sub tkLabel_UnpinColors( byval h as TK_WIDGET ptr )
     dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
     if p = 0 then exit sub
     p->bColorsPinned = false
+    p->bLinkPinned = false
     tkLabel_ApplyTheme( h, tkTheme_Of( h ) )
+end sub
+
+' ---- links ------------------------------------------------------------------------------------
+
+' Makes the first run of the text that reads sWords, and is not a link yet, a link to url (url
+' may be "" for a link only the callback handles). Returns the link's index, or -1 when the text
+' has no such free run. Call it after tkLabel_SetText: new text drops every link.
+public function tkLabel_AddLink( byval h as TK_WIDGET ptr, byref sWords as const ustring, _
+                                 byref url as const ustring ) as long
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if (p = 0) orelse (len( sWords ) = 0) then return -1
+    dim as string u8 = p->text, w8 = sWords
+    dim as long at = instr( u8, w8 )
+    while at > 0
+        dim as long s0 = at - 1, e0 = s0 + len( w8 ), k = 0
+        for k = 0 to p->nLinks - 1
+            if (s0 < p->links(k).nEnd) andalso (e0 > p->links(k).nStart) then exit for
+        next
+        if k = p->nLinks then
+            redim preserve p->links( 0 to p->nLinks )
+            p->links(p->nLinks).nStart = s0
+            p->links(p->nLinks).nEnd = e0
+            p->links(p->nLinks).url = url
+            p->nLinks += 1
+            tkWidget_Invalidate( h )
+            return p->nLinks - 1
+        end if
+        at = instr( at + 1, u8, w8 )
+    wend
+    return -1
+end function
+
+public sub tkLabel_ClearLinks( byval h as TK_WIDGET ptr )
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if (p = 0) orelse (p->nLinks = 0) then exit sub
+    erase p->links
+    p->nLinks = 0
+    p->nHotLink = -1 : p->nPressedLink = -1
+    tkWidget_SetCursor( h, TK_CURSOR_ARROW )
+    tkWidget_Invalidate( h )
+end sub
+
+public function tkLabel_GetLinkCount( byval h as TK_WIDGET ptr ) as long
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    return iif( p <> 0, p->nLinks, 0 )
+end function
+
+public function tkLabel_GetLinkUrl( byval h as TK_WIDGET ptr, byval nLink as long ) as ustring
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if (p = 0) orelse (nLink < 0) orelse (nLink >= p->nLinks) then return ""
+    return p->links(nLink).url
+end function
+
+' The link's words, as the label shows them.
+public function tkLabel_GetLinkText( byval h as TK_WIDGET ptr, byval nLink as long ) as ustring
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if (p = 0) orelse (nLink < 0) orelse (nLink >= p->nLinks) then return ""
+    dim as string u8 = p->text
+    dim as ustring s = mid( u8, p->links(nLink).nStart + 1, p->links(nLink).nEnd - p->links(nLink).nStart )
+    return s
+end function
+
+' The link under client point (x, y), or -1.
+public function tkLabel_LinkAt( byval h as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    return iif( p <> 0, p->LinkAt( x, y ), -1 )
+end function
+
+' The client rectangle of the link's first piece (a wrapped link has one per line). FALSE when the
+' link is not laid out (no such link, or no font).
+public function tkLabel_GetLinkRect( byval h as TK_WIDGET ptr, byval nLink as long, byref rc as TKRECT ) as boolean
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if (p = 0) orelse (nLink < 0) orelse (nLink >= p->nLinks) then return false
+    dim as TKLABEL_RUN runs()
+    dim as long n = p->Layout( runs() )
+    for i as long = 0 to n - 1
+        if runs(i).nLink = nLink then
+            rc = runs(i).rc
+            return true
+        end if
+    next
+    return false
+end function
+
+public sub tkLabel_SetLinkClickCallback( byval h as TK_WIDGET ptr, byval cb as LBL_LinkClickFunc )
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if p then p->LinkClick = cb
+end sub
+
+public function tkLabel_GetLinkColor( byval h as TK_WIDGET ptr ) as ulong
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    return iif( p <> 0, p->clrLink, 0ul )
+end function
+
+' The links' colour, and under the mouse clrHot (0 = the same). Pinned until tkLabel_UnpinColors.
+public sub tkLabel_SetLinkColor( byval h as TK_WIDGET ptr, byval clr as ulong, byval clrHot as ulong = 0 )
+    dim as TKLABEL_STATE ptr p = GetLabelPointer( h )
+    if p = 0 then exit sub
+    p->clrLink = clr
+    p->clrLinkHot = iif( clrHot <> 0, clrHot, clr )
+    p->bLinkPinned = true
+    tkWidget_Invalidate( h )
 end sub

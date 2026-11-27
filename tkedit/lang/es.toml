@@ -67,6 +67,7 @@ Search = "Buscar"
 View = "Ver"
 Build = "Compilar"
 Debug = "Depurar"
+Help = "Ayuda"
 
 [cue]
 symbol = "Buscar símbolo o archivo"
@@ -197,6 +198,8 @@ args_save_first = "Argumentos de ejecución: guarde antes el archivo"
 no_compiler = "no hay compilador tiko: fije [compiler] tiko en {}"
 compiler = "el compilador tiko: {}"
 no_definition = "no se encontró la definición de {}"
+help_no_page = "No hay página del wiki para {}: se abre el índice de palabras clave"
+open_url_failed = "No se pudo abrir {}"
 
 [commands]
 FormTest = "Probar formulario / informe"
@@ -321,6 +324,10 @@ StepOut = "Paso para salir"
 RunToCursor = "Ejecutar hasta el cursor"
 ToggleBreakpoint = "Alternar punto de interrupción"
 DeleteAllBreakpoints = "Eliminar todos los puntos de interrupción"
+HelpKeyword = "Ayuda de palabra clave"
+HelpWebsite = "Sitio web de tiko-lang"
+HelpGitHub = "tiko-lang en GitHub"
+HelpAbout = "Acerca de tkEdit..."
 
 [start]
 new_file = "Nuevo archivo"
@@ -621,3 +628,10 @@ dlg_groups = "Agrupar y ordenar..."
 dlg_page = "Configurar página..."
 rules = "Estilos condicionales"
 expression = "Expresión"
+
+[about]
+title = "Acerca de tkEdit"
+version = "Versión {}"
+tagline = "Un editor manejado con el teclado para el lenguaje de programación tiko."
+website = "Sitio web: {}"
+source = "Código fuente: {}"
