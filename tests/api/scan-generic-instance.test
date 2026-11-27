@@ -1,0 +1,17 @@
+'' A GENERIC'S INSTANCE in the editor scan. A variable's type text names it as the source
+'' does -- not by its cache key, 'map<15,8>', which no record had -- and the instance is
+'' a record of that name, its members' types substituted, flagged GENERIC (&h800) so the
+'' editor never lists it. Wherever it lives: std's Map is declared in an imported
+'' module's interface namespace, Box in the root's own scope.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scangeneric.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: var b as Box( of Box( of long ) )  @0:12:12  parent=-1
+'' EXPECT-OUT: var m as Map( of string, long )  @0:13:12  parent=-1
+'' EXPECT-OUT: type Box( of Box( of long ) )  @0:12:17  parent=-1  flags=&h800
+'' EXPECT-OUT: field v as Box( of long )  @0:4:5  parent=
+'' EXPECT-OUT: function Get as Box( of long )  @0:8:22  parent=
+'' EXPECT-OUT: type Map( of string, long )  @0:13:
+'' EXPECT-OUT: function [] as long  @
+'' EXPECT-NOT: box<
+'' EXPECT-NOT: map<

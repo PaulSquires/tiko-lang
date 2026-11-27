@@ -53,6 +53,7 @@ type Harvest_
     as boolean scopeLocal( any )   '' ScopeId -> inside a procedure body
     as string  typeName( any )     '' TypeId -> its spelling, once found
     as boolean typeNamed( any )
+    as boolean instances           '' HarvestInstances_ is running
 end type
 
 private function Spell_( byref h as Harvest_, byval nm as Tko.InternId ) as string
@@ -119,8 +120,20 @@ private function FileOf_( byref h as Harvest_, byref d as Tko.DecodedLoc ) as in
     return h.fileMap( fid ) - 1
 end function
 
+declare function TypeText_ _
+    ( byref h as Harvest_, byval t as Tko.TypeId, byref flags as int32, _
+      byval depth as int32 = 0 ) as string
+
 '' A UDT, enum or typedef by its source spelling: the declaring symbol's line, searched.
-private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId ) as string
+''
+'' A GENERIC'S INSTANCE is named by its cache key, 'map<15,202>' -- the generic's folded
+'' name and its arguments' TypeIds (symbols/generic) -- which no source can spell and no
+'' editor can look up. It is written as the source would: 'Map( of string, Set( of
+'' integer ) )', the generic's own casing, each argument by this renderer. The instance's
+'' own record (HarvestInstances_) has the same name, so the editor finds its members --
+'' with TK and TV already substituted -- by the variable's type text.
+private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId, _
+                                 byval depth as int32 = 0 ) as string
     dim as int32 ti = cast( int32, t )
     if ti > ubound( h.typeNamed ) then
         redim preserve h.typeNamed( ti + 256 )
@@ -129,6 +142,23 @@ private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId ) as
     if h.typeNamed( ti ) then return h.typeName( ti )
     dim as Tko.InternId nm = h.ctx->types.NameOf( t )
     dim as string folded = Spell_( h, nm )
+    dim as string args = ""
+    dim as int32 lt = instr( folded, "<" )
+    if (lt > 1) andalso (right( folded, 1 ) = ">") then
+        dim as string ids = mid( folded, lt + 1, len( folded ) - lt - 1 ) & ","
+        folded = left( folded, lt - 1 )
+        nm = h.ctx->names.GetString( folded )
+        dim as int32 p = 1
+        while p <= len( ids )
+            dim as int32 q = instr( p, ids, "," )
+            dim as int32 ignore = 0
+            dim as string a = TypeText_( h, cast( Tko.TypeId, valint( mid( ids, p, q - p ) ) ), ignore, depth + 1 )
+            if len( a ) = 0 then a = "any"
+            if len( args ) > 0 then args &= ", "
+            args &= a
+            p = q + 1
+        wend
+    end if
     dim as string outs = folded
     dim as Tko.ScopeId sc = cast( Tko.ScopeId, h.ctx->types.DeclScopeOf( t ) )
     dim as Tko.SymbolId sid = h.syms->LookupLocalTyped( sc, nm, true )
@@ -137,6 +167,7 @@ private function NamedTypeText_( byref h as Harvest_, byval t as Tko.TypeId ) as
         dim as int32 c
         if s <> nullptr then outs = CasedName_( h, s->loc, folded, c )
     end if
+    if len( args ) > 0 then outs &= "( of " & args & " )"
     h.typeNamed( ti ) = true
     h.typeName( ti ) = outs
     return outs
@@ -183,7 +214,7 @@ private function TypeText_ _
         end if
         dim as string pre = ""
         if h.ctx->types.IsConst( t ) then pre = "const "
-        return pre & NamedTypeText_( h, t )
+        return pre & NamedTypeText_( h, t, depth )
     end select
     return h.ctx->types.Name( t )
 end function
@@ -257,10 +288,14 @@ private function Skip_( byref h as Harvest_, byval sid as Tko.SymbolId, byval s 
     if h.ctx->sources.IsBuiltin( s->loc ) then return true
     if cast( Tko.SymbolKind, s->kind ) = Tko.SYM_LABEL then return true
     dim as uint32 gone = Tko.SYMF_SUPERSEDED or Tko.SYMF_GENERIC_INST or Tko.SYMF_IMPORTED
+    if h.instances then gone and= not Tko.SYMF_GENERIC_INST
     if (s->flags and gone) <> 0 then return true
     if h.syms->IsImportNs( sid ) then return true
     dim as string nm = Spell_( h, s->name )
     if len( nm ) = 0 then return true
+    '' A GENERIC'S INSTANCE, 'box<6>': HarvestInstances_'s, wherever it was declared.
+    if (h.instances = false) andalso (cast( Tko.SymbolKind, s->kind ) = Tko.SYM_UDT) _
+       andalso (instr( nm, "<" ) > 0) then return true
     if left( nm, 6 ) = "__tko_" then return true
     return (instr( nm, "$" ) > 0)
 end function
@@ -593,6 +628,79 @@ private sub HarvestExports_( byref h as Harvest_, byref pr as Tko.PpResult )
     next
 end sub
 
+'' A GENERIC'S INSTANCES, which the scopes above never reach: each is declared in its
+'' generic's home -- an imported module's interface namespace for std's Map -- so a
+'' variable's type named a type no record had. One record per instance, at top level,
+'' named as NamedTypeText_ spells the variable's type ('Map( of string, Set( of integer
+'' ) )'), and its members one level down with their types substituted: what the editor
+'' completes after 'myMap.' and follows through 'myMap.Keys( ).'. A method's parameters
+'' come too, for its call tip; nothing inside a body. All SF_GENERIC: reachable by a
+'' type's text, never listed. The root's only -- a module unit's instances are its own
+'' business, and the root instantiates whatever it uses.
+private sub HarvestInstances_( byref h as Harvest_ )
+    if h.r->importing then return
+    dim as int32 first_ = h.r->syms.Count
+    h.instances = true
+    for sc as int32 = 1 to h.syms->ScopeCount( )
+        if h.scopeOk( sc ) then continue for
+        dim as Tko.SymScope ptr scp = h.syms->ScopeAt( cast( Tko.ScopeId, sc ) )
+        if scp = nullptr then continue for
+        if cast( Tko.ScopeKind, scp->kind ) <> Tko.SCOPEK_TYPE then continue for
+        dim as int32 own = cast( int32, scp->owner )
+        if (own <= 0) orelse (own > ubound( h.symRec )) then continue for
+        if h.symRec( own ) > 0 then continue for
+        dim as Tko.Symbol ptr os = h.syms->SymbolAt( scp->owner )
+        if os = nullptr then continue for
+        if cast( Tko.SymbolKind, os->kind ) <> Tko.SYM_UDT then continue for
+        if os->inner <> cast( Tko.ScopeId, sc ) then continue for
+        if instr( Spell_( h, os->name ), "<" ) = 0 then continue for
+        if os->type_ = Tko.TYPE_NONE then continue for
+        dim as int32 ignore = 0
+        dim as string shown = TypeText_( h, os->type_, ignore )
+        if len( shown ) = 0 then continue for
+        dim as int32 kind = SK_TYPE
+        if (os->flags and Tko.SYMF_UNION_KIND) <> 0 then kind = SK_UNION
+        dim as int32 ri = AddRec_( h, kind, shown, -1, os->loc, shown )
+        h.r->syms[ri].name = shown
+        dim as Tko.TypeId bt = h.ctx->types.BaseOf( os->type_ )
+        if bt <> Tko.TYPE_NONE then h.r->syms[ri].typeText = TypeText_( h, bt, ignore )
+        h.symRec( own ) = ri + 1
+        h.scopeOk( sc ) = true
+        h.scopeParent( sc ) = ri + 1
+        h.scopeLocal( sc ) = false
+        dim as Tko.SymbolId sid = scp->firstSym
+        while sid <> Tko.SYMBOL_NONE
+            HarvestSymbol_( h, sid, sc )
+            '' a method's parameters, under its record
+            dim as Tko.Symbol ptr ms = h.syms->SymbolAt( sid )
+            dim as int32 mrec = 0
+            if cast( int32, sid ) <= ubound( h.symRec ) then mrec = h.symRec( sid )
+            if (mrec > 0) andalso (cast( Tko.SymbolKind, ms->kind ) = Tko.SYM_PROC) _
+               andalso (ms->inner <> Tko.SCOPE_NONE) then
+                dim as int32 isc = cast( int32, ms->inner )
+                if (isc > 0) andalso (isc <= ubound( h.scopeOk )) then
+                    h.scopeOk( isc ) = true
+                    h.scopeParent( isc ) = mrec
+                    h.scopeLocal( isc ) = false
+                    dim as Tko.SymbolId pid = h.syms->ScopeAt( ms->inner )->firstSym
+                    while pid <> Tko.SYMBOL_NONE
+                        dim as Tko.Symbol ptr ps = h.syms->SymbolAt( pid )
+                        if (ps <> nullptr) andalso (cast( Tko.SymbolKind, ps->kind ) = Tko.SYM_PARAMETER) then
+                            HarvestSymbol_( h, pid, isc )
+                        end if
+                        pid = ps->nextInScope
+                    wend
+                end if
+            end if
+            sid = ms->nextInScope
+        wend
+    next
+    h.instances = false
+    for i as int32 = first_ to h.r->syms.Count - 1
+        h.r->syms[i].flags = (h.r->syms[i].flags or SF_GENERIC) and (not SF_REFTRACKED)
+    next
+end sub
+
 private sub Harvest_Unit _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, _
       byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
@@ -655,6 +763,7 @@ private sub Harvest_Unit _
     next
     HarvestExports_( h, pr )
 
+    HarvestInstances_( h )
     CountRefs_( h )
 end sub
 

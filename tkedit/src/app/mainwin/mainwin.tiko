@@ -5970,9 +5970,9 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
     if (ch = 46) orelse (ch = 62) then
         dim as ustring before = v->TextBeforeCaret( )
         if (ch = 62) andalso (right( before, 2 ) <> "->") then exit sub    ' a comparison's ">"
-        dim as ustring word, qual
-        SplitQualified( left( before, len( before ) - iif( ch = 62, 2, 1 ) ), word, qual )
-        if len( word ) then this.OpenCompletions( v, Db.MemberItems( word, d->Path, ln, qual ), 0 )
+        ' the chain before it: "myMap.", "a.b.", "myMap.Keys( ).", "myMap[ k ]."
+        dim as Array( of ustring ) parts = symboldb.ChainBefore( left( before, len( before ) - iif( ch = 62, 2, 1 ) ) )
+        if parts.Count( ) then this.OpenCompletions( v, Db.ChainMemberItems( parts, d->Path, ln ), 0 )
         exit sub
     end if
     if ch = 32 then
@@ -6025,12 +6025,17 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
     SplitQualified( before, word, qual )
     if len( word ) < minLen then exit sub
     dim as Array( of symboldb.Completion ) items
-    if len( qual ) then
-        ' the qualifier's own qualifier, for a chain: this.Timer1.En_
-        dim as long sepLen = iif( mid( before, len( before ) - len( word ), 1 ) = ".", 1, 2 )
-        dim as ustring q2, outer
-        SplitQualified( left( before, len( before ) - len( word ) - sepLen ), q2, outer )
-        items = Db.MemberItems( qual, d->Path, v->CaretLine( ), outer )
+    ' after a "." or "->": the members of what the chain before it ends in (this.Timer1.En_,
+    ' myMap.Keys( ).Co_) -- also when that ends in ")" or "]", which leaves qual empty
+    dim as long ws = len( before ) - len( word )
+    dim as long sepLen = 0
+    if (ws > 0) andalso (mid( before, ws, 1 ) = ".") then
+        sepLen = 1
+    elseif (ws > 1) andalso (mid( before, ws - 1, 2 ) = "->") then
+        sepLen = 2
+    end if
+    if sepLen > 0 then
+        items = Db.ChainMemberItems( symboldb.ChainBefore( left( before, ws - sepLen ) ), d->Path, v->CaretLine( ) )
     elseif AfterTypeIntro( left( before, len( before ) - len( word ) ) ) then
         items = this.TypeCompletions( word )
     else

@@ -73,6 +73,10 @@ const TKP_SYMBFLAG_REFTRACKED = &h0200   '' readCount/writeCount are MEANINGFUL 
                                          ''   an overload set: a call binds the set's head.
 const TKP_SYMBFLAG_EXPORT     = &h0400   '' an EXPORTed procedure: callable from outside
                                          ''   anything this scan can see
+const TKP_SYMBFLAG_GENERIC    = &h0800   '' a generic's INSTANCE, named as the source spells
+                                         ''   it -- 'Map( of string, long )' -- or a member
+                                         ''   of one, its types substituted. A variable's
+                                         ''   type text names the instance; never list these.
 
 type TKP_SYMBOL
     kind         as long       '' TKP_KIND
