@@ -1,0 +1,371 @@
+#module "codecs"
+#import "std/fs"
+#import "std/outcome"
+#import "std/containers"
+#import "vendor/compression"
+#include once "crt/time.bi"
+using outcome
+using containers
+using fs
+'' vendor/compression/codecs: cdzip -- ZipReader and ZipWriter, .zip archives over minizip
+'' (claude-docs RFC-0008 P2, CZ-7).
+''
+'' NAMES ARE ustring. A writer stores each name as UTF-8 and sets the zip format's "language
+'' encoding" flag (general-purpose bit 11), so every unzip, 7-Zip and Python reads it right; a
+'' reader takes a name as UTF-8 when the flag is set and as code page 437 -- the zip format's
+'' original -- when it is not.
+''
+'' ANY PATH: on Windows the archive is opened through minizip's wide-character file functions
+'' (iowin32's fill_win32_filefunc64W) with the ustring itself, so a path outside the ANSI code
+'' page works -- minizip's plain zipOpen64 cannot open one. Elsewhere the path goes as UTF-8.
+''
+'' ExtractAll REFUSES AN UNSAFE ARCHIVE before writing anything: an entry that is absolute, has a
+'' drive or a '..' part, would land outside the destination ("zip slip") -- FS_INVALID_PATH.
+
+'' One entry of an archive, as ZipReader.List gives it.
+public type ZipEntry
+    name as ustring             '' as stored, '/' between folders; a folder ends with '/'
+    size as longint             '' uncompressed
+    packed as longint           '' as stored
+    crc as ulong
+    stored as boolean           '' not compressed (method 0); otherwise deflated
+    isDir as boolean
+    year as integer             '' the entry's time, as the archive records it (local, 2 s steps)
+    month as integer            '' 1..12
+    day as integer
+    hour as integer
+    minute as integer
+    second as integer
+end type
+
+'' Reads a .zip archive: its list of entries, one entry's bytes, or all of them into a folder.
+public type ZipReader
+    declare constructor( )
+    declare destructor( )
+    declare function Open( byref path as const ustring ) as FsResultBool
+    declare function Close( ) as FsResultBool
+    declare function List( entries as Array( of ZipEntry ) ) as FsResultBool
+    '' One entry's bytes (its name exactly as List gives it). A CRC that does not match is
+    '' FS_INVALID_DATA; more than limit bytes FS_TOO_LARGE.
+    declare function Read( byref entryName as const ustring, byval limit as longint = DEFAULT_LIMIT ) as BytesResult
+    '' Every entry into dir (created if missing), folders included; returns the files written.
+    declare function ExtractAll( byref dir as const ustring ) as FsResultI64
+private:
+    declare constructor( byref other as const ZipReader )
+    declare operator let( byref other as const ZipReader )
+    declare function Current( byref e as ZipEntry ) as FsResultBool
+    declare function ReadCurrent( out_ as Array( of ubyte ), byval limit as longint ) as FsResultBool
+    m_uf as unzFile
+    m_path as ustring
+end type
+
+'' Writes a .zip archive. Close( ) writes its central directory and must be called for a
+'' complete file: the destructor calls it too, but cannot report what went wrong.
+public type ZipWriter
+    declare constructor( )
+    declare destructor( )
+    declare function Create( byref path as const ustring ) as FsResultBool
+    '' An entry named name holding bytes, deflated at level (0: stored).
+    declare function Add( byref entryName as const ustring, bytes as Array( of ubyte ), byval level as integer = 6 ) as FsResultBool
+    declare function AddText( byref entryName as const ustring, byref text as const ustring, byval level as integer = 6 ) as FsResultBool
+    '' An entry named name holding the file at path, read in pieces (any size: zip64 when needed).
+    declare function AddFile( byref entryName as const ustring, byref path as const ustring, byval level as integer = 6 ) as FsResultBool
+    '' A folder entry (name gets a trailing '/').
+    declare function AddDir( byref entryName as const ustring ) as FsResultBool
+    declare function Close( ) as FsResultBool
+private:
+    declare constructor( byref other as const ZipWriter )
+    declare operator let( byref other as const ZipWriter )
+    declare function StartEntry( byref entryName as const ustring, byval level as integer, byval big as boolean ) as FsResultBool
+    m_zf as zipFile
+    m_path as ustring
+end type
+
+extern "C"
+    declare function cdz_time alias "time" ( byval t as longint ptr ) as longint
+end extern
+
+private function ZipFail( of T )( byval code as FsErrorCode, byref stp as const ustring, byref p as const ustring ) as Result( of T, FsError )
+    return Fail( of T, FsError )( FsError( code, 0, "zip " & stp, p ) )
+end function
+
+'' ---- ZipReader ---------------------------------------------------------------------------------
+
+constructor ZipReader( )
+end constructor
+
+constructor ZipReader( byref other as const ZipReader )
+end constructor
+
+operator ZipReader.let( byref other as const ZipReader )
+end operator
+
+destructor ZipReader( )
+    this.Close( )
+end destructor
+
+function ZipReader.Open( byref path as const ustring ) as FsResultBool
+    this.Close( )
+#ifdef TIKO_OS_WINDOWS
+    dim as zlib_filefunc64_def ff
+    fill_win32_filefunc64W( @ff )
+    m_uf = unzOpen2_64( strptr( path ), @ff )             '' a ustring is UTF-16 here, as CreateFileW wants
+#else
+    dim as string p8 = path
+    m_uf = unzOpen64( strptr( p8 ) )
+#endif
+    if m_uf = nullptr then
+        if Exists( path ) = false then return ZipFail( of boolean )( FS_NOT_FOUND, "open", path )
+        return ZipFail( of boolean )( FS_INVALID_DATA, "open: not a zip archive", path )
+    end if
+    m_path = path
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipReader.Close( ) as FsResultBool
+    if m_uf then unzClose( m_uf ) : m_uf = nullptr
+    return Ok( of boolean, FsError )( true )
+end function
+
+'' The entry the archive is positioned at.
+function ZipReader.Current( byref e as ZipEntry ) as FsResultBool
+    dim as unz_file_info64 fi
+    if unzGetCurrentFileInfo64( m_uf, @fi, nullptr, 0, nullptr, 0, nullptr, 0 ) <> UNZ_OK then
+        return ZipFail( of boolean )( FS_INVALID_DATA, "list", m_path )
+    end if
+    dim as string raw = space( fi.size_filename + 1 )
+    unzGetCurrentFileInfo64( m_uf, @fi, strptr( raw ), fi.size_filename + 1, nullptr, 0, nullptr, 0 )
+    raw = left( raw, fi.size_filename )
+    if ( fi.flag and &h800 ) <> 0 then
+        e.name = raw                                       '' UTF-8 (bit 11)
+    else
+        dim as containers.Array( of ubyte ) b
+        for i as integer = 0 to len( raw ) - 1 : b.Push( raw[i] ) : next
+        dim as MemoryStream ms = MemoryStream( b )
+        dim as FsResultUStr t = ms.ToText( CodePage( 437 ) )
+        if t.IsOk( ) then e.name = t.Value( ) else e.name = raw
+    end if
+    e.size = fi.uncompressed_size : e.packed = fi.compressed_size : e.crc = fi.crc
+    e.stored = ( fi.compression_method = 0 )
+    e.isDir = ( right( e.name, 1 ) = "/" )
+    e.year = fi.tmu_date.tm_year : e.month = fi.tmu_date.tm_mon + 1 : e.day = fi.tmu_date.tm_mday
+    e.hour = fi.tmu_date.tm_hour : e.minute = fi.tmu_date.tm_min : e.second = fi.tmu_date.tm_sec
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipReader.List( entries as Array( of ZipEntry ) ) as FsResultBool
+    if m_uf = nullptr then return ZipFail( of boolean )( FS_CLOSED, "list", "" )
+    entries.Clear( )
+    dim as integer r = unzGoToFirstFile( m_uf )
+    while r = UNZ_OK
+        dim as ZipEntry e
+        dim as FsResultBool c = Current( e )
+        if c.IsOk( ) = false then return c
+        entries.Push( e )
+        r = unzGoToNextFile( m_uf )
+    wend
+    if r <> UNZ_END_OF_LIST_OF_FILE then return ZipFail( of boolean )( FS_INVALID_DATA, "list", m_path )
+    return Ok( of boolean, FsError )( true )
+end function
+
+'' The bytes of the entry the archive is positioned at; its CRC is checked at the end.
+function ZipReader.ReadCurrent( out_ as Array( of ubyte ), byval limit as longint ) as FsResultBool
+    if unzOpenCurrentFile( m_uf ) <> UNZ_OK then return ZipFail( of boolean )( FS_INVALID_DATA, "read", m_path )
+    out_.Clear( )
+    dim as long got
+    do
+        dim as long have = out_.Count( )
+        if out_.Capacity( ) < have + CD_CHUNK then out_.Reserve( iif( have > CD_CHUNK, have * 2, have + CD_CHUNK ) )
+        got = unzReadCurrentFile( m_uf, out_.Data( ) + have, CD_CHUNK )
+        if got < 0 then exit do
+        if have + got > limit then
+            unzCloseCurrentFile( m_uf )
+            return ZipFail( of boolean )( FS_TOO_LARGE, "read: more than " & limit & " bytes (the limit)", m_path )
+        end if
+        out_.SetCount( have + got )
+    loop while got > 0
+    dim as integer c = unzCloseCurrentFile( m_uf )
+    if got < 0 then return ZipFail( of boolean )( FS_INVALID_DATA, "read: damaged entry (" & got & ")", m_path )
+    if c = UNZ_CRCERROR then return ZipFail( of boolean )( FS_INVALID_DATA, "read: the CRC does not match", m_path )
+    if c <> UNZ_OK then return ZipFail( of boolean )( FS_INVALID_DATA, "read (" & c & ")", m_path )
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipReader.Read( byref entryName as const ustring, byval limit as longint ) as BytesResult
+    if m_uf = nullptr then return ZipFail( of Array( of ubyte ) )( FS_CLOSED, "read", "" )
+    '' entries are matched as List names them, so a name stored in code page 437 is found too
+    dim as integer r = unzGoToFirstFile( m_uf )
+    while r = UNZ_OK
+        dim as ZipEntry e
+        dim as FsResultBool c = Current( e )
+        if c.IsOk( ) = false then return Fail( of Array( of ubyte ), FsError )( c.Failure( ) )
+        if e.name = entryName then
+            dim as Array( of ubyte ) bytes
+            dim as FsResultBool d = ReadCurrent( bytes, limit )
+            if d.IsOk( ) = false then return Fail( of Array( of ubyte ), FsError )( d.Failure( ) )
+            return Ok( of Array( of ubyte ), FsError )( bytes )
+        end if
+        r = unzGoToNextFile( m_uf )
+    wend
+    return ZipFail( of Array( of ubyte ) )( FS_NOT_FOUND, "read: no entry " & entryName, m_path )
+end function
+
+'' A relative path of plain parts: no root, drive, '.' or '..'.
+private function SafeName( byref n as const ustring ) as boolean
+    if len( n ) = 0 then return false
+    dim as string s = n
+    if s[0] = asc( "/" ) orelse s[0] = asc( "\" ) then return false
+    if len( s ) >= 2 andalso s[1] = asc( ":" ) then return false
+    dim as integer start = 0
+    for i as integer = 0 to len( s )
+        if i = len( s ) orelse s[i] = asc( "/" ) orelse s[i] = asc( "\" ) then
+            dim as string part = mid( s, start + 1, i - start )
+            if part = ".." orelse part = "." then return false
+            start = i + 1
+        end if
+    next
+    return true
+end function
+
+function ZipReader.ExtractAll( byref dir as const ustring ) as FsResultI64
+    dim as Array( of ZipEntry ) entries
+    dim as FsResultBool l = List( entries )
+    if l.IsOk( ) = false then return Fail( of longint, FsError )( l.Failure( ) )
+    '' every name is checked before anything is written
+    for i as long = 0 to entries.Count( ) - 1
+        if SafeName( entries[i].name ) = false then
+            return ZipFail( of longint )( FS_INVALID_PATH, "extract: an entry outside the folder: " & entries[i].name, m_path )
+        end if
+    next
+    dim as FsResultBool md = CreateDirAll( dir )
+    if md.IsOk( ) = false then return Fail( of longint, FsError )( md.Failure( ) )
+    dim as longint files = 0
+    dim as integer r = unzGoToFirstFile( m_uf )
+    dim as long k = 0
+    while r = UNZ_OK
+        dim as ZipEntry e = entries[k]
+        dim as ustring target = PathJoin( dir, e.name )
+        if e.isDir then
+            md = CreateDirAll( target )
+            if md.IsOk( ) = false then return Fail( of longint, FsError )( md.Failure( ) )
+        else
+            md = CreateDirAll( PathParent( target ) )
+            if md.IsOk( ) = false then return Fail( of longint, FsError )( md.Failure( ) )
+            dim as Array( of ubyte ) bytes
+            dim as FsResultBool d = ReadCurrent( bytes, &h7FFFFFFF )
+            if d.IsOk( ) = false then return Fail( of longint, FsError )( d.Failure( ) )
+            dim as fs.File f
+            dim as FsResultBool w = f.Create( target )
+            if w.IsOk( ) then w = f.WriteAll( bytes.Data( ), bytes.Count( ) )
+            if w.IsOk( ) then w = f.Close( )
+            if w.IsOk( ) = false then return Fail( of longint, FsError )( w.Failure( ) )
+            files += 1
+        end if
+        k += 1
+        r = unzGoToNextFile( m_uf )
+    wend
+    return Ok( of longint, FsError )( files )
+end function
+
+'' ---- ZipWriter ---------------------------------------------------------------------------------
+
+constructor ZipWriter( )
+end constructor
+
+constructor ZipWriter( byref other as const ZipWriter )
+end constructor
+
+operator ZipWriter.let( byref other as const ZipWriter )
+end operator
+
+destructor ZipWriter( )
+    this.Close( )
+end destructor
+
+function ZipWriter.Create( byref path as const ustring ) as FsResultBool
+    this.Close( )
+#ifdef TIKO_OS_WINDOWS
+    dim as zlib_filefunc64_def ff
+    fill_win32_filefunc64W( @ff )
+    m_zf = zipOpen2_64( strptr( path ), APPEND_STATUS_CREATE, nullptr, @ff )
+#else
+    dim as string p8 = path
+    m_zf = zipOpen64( strptr( p8 ), APPEND_STATUS_CREATE )
+#endif
+    if m_zf = nullptr then return ZipFail( of boolean )( FS_ACCESS_DENIED, "create", path )
+    m_path = path
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipWriter.Close( ) as FsResultBool
+    if m_zf = nullptr then return Ok( of boolean, FsError )( true )
+    dim as integer r = zipClose( m_zf, nullptr )
+    m_zf = nullptr
+    if r <> ZIP_OK then return ZipFail( of boolean )( FS_INVALID_DATA, "close (" & r & ")", m_path )
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipWriter.StartEntry( byref entryName as const ustring, byval level as integer, byval big as boolean ) as FsResultBool
+    if m_zf = nullptr then return ZipFail( of boolean )( FS_CLOSED, "add", entryName )
+    if len( entryName ) = 0 then return ZipFail( of boolean )( FS_INVALID_ARGUMENT, "add: an empty entryName", m_path )
+    dim as zip_fileinfo info
+    '' the time: now, local, as the zip format records it
+    dim as longint t = cdz_time( nullptr )
+    dim as tm ptr lt = localtime( cast( time_t ptr, @t ) )
+    if lt then
+        info.tmz_date.tm_sec = lt->tm_sec : info.tmz_date.tm_min = lt->tm_min : info.tmz_date.tm_hour = lt->tm_hour
+        info.tmz_date.tm_mday = lt->tm_mday : info.tmz_date.tm_mon = lt->tm_mon : info.tmz_date.tm_year = lt->tm_year + 1900
+    end if
+    dim as string n8 = entryName                                '' UTF-8, flagged as such (bit 11)
+    dim as integer lv = iif( level < 0, 6, iif( level > 9, 9, level ) )
+    dim as integer r = zipOpenNewFileInZip4_64( m_zf, strptr( n8 ), @info, nullptr, 0, nullptr, 0, nullptr, _
+                         iif( lv = 0, 0, Z_DEFLATED ), lv, 0, -15, 8, Z_DEFAULT_STRATEGY, _
+                         nullptr, 0, 0, &h800, iif( big, 1, 0 ) )
+    if r <> ZIP_OK then return ZipFail( of boolean )( FS_INVALID_DATA, "add (" & r & ")", entryName )
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipWriter.Add( byref entryName as const ustring, bytes as Array( of ubyte ), byval level as integer ) as FsResultBool
+    dim as FsResultBool s = StartEntry( entryName, level, bytes.Count( ) >= &hFFFFFFFF )
+    if s.IsOk( ) = false then return s
+    dim as integer r = ZIP_OK
+    if bytes.Count( ) > 0 then r = zipWriteInFileInZip( m_zf, bytes.Data( ), bytes.Count( ) )
+    dim as integer c = zipCloseFileInZip( m_zf )
+    if r <> ZIP_OK orelse c <> ZIP_OK then return ZipFail( of boolean )( FS_INVALID_DATA, "add: write failed", entryName )
+    return Ok( of boolean, FsError )( true )
+end function
+
+function ZipWriter.AddText( byref entryName as const ustring, byref text as const ustring, byval level as integer ) as FsResultBool
+    dim as MemoryStream ms = MemoryStream( text )
+    dim as Array( of ubyte ) bytes
+    ms.ToBytes( bytes )
+    return Add( entryName, bytes, level )
+end function
+
+function ZipWriter.AddDir( byref entryName as const ustring ) as FsResultBool
+    dim as ustring n = entryName
+    if right( n, 1 ) <> "/" then n &= "/"
+    dim as Array( of ubyte ) none_
+    return Add( n, none_, 0 )
+end function
+
+function ZipWriter.AddFile( byref entryName as const ustring, byref path as const ustring, byval level as integer ) as FsResultBool
+    dim as fs.File f
+    dim as FsResultBool o = f.OpenRead( path )
+    if o.IsOk( ) = false then return o
+    dim as FsResultI64 size = f.Seek( 0, SEEK_FROM_END )
+    f.Seek( 0 )
+    dim as FsResultBool s = StartEntry( entryName, level, size.IsOk( ) andalso size.Value( ) >= &hFFFFFFFF )
+    if s.IsOk( ) = false then return s
+    dim as ubyte buf( 0 to CD_CHUNK - 1 )
+    do
+        dim as FsResultI64 n = f.Read( @buf(0), CD_CHUNK )
+        if n.IsOk( ) = false then zipCloseFileInZip( m_zf ) : return Fail( of boolean, FsError )( n.Failure( ) )
+        if n.Value( ) = 0 then exit do
+        if zipWriteInFileInZip( m_zf, @buf(0), n.Value( ) ) <> ZIP_OK then
+            zipCloseFileInZip( m_zf ) : return ZipFail( of boolean )( FS_INVALID_DATA, "add: write failed", entryName )
+        end if
+    loop
+    if zipCloseFileInZip( m_zf ) <> ZIP_OK then return ZipFail( of boolean )( FS_INVALID_DATA, "add: write failed", entryName )
+    return Ok( of boolean, FsError )( true )
+end function

@@ -23,7 +23,8 @@ using fs
 '' THE FILES: codecs.tiko (this: Codec, the levels, DetectFormat), cdcoder.tiko (one coder over each C
 '' library, the engine of everything else), cdstream.tiko (CompressWriter, DecompressReader:
 '' fs.Streams), cdcalls.tiko (CompressBytes / DecompressBytes, CompressText / DecompressText,
-'' CompressFile / DecompressFile).
+'' CompressFile / DecompressFile). cdzip.tiko (ZipReader, ZipWriter: .zip
+'' archives).
 ''
 '' ERRORS are std/fs's: every call returns a Result whose failure is an fs.FsError. A corrupt input
 '' is FS_INVALID_DATA, one that ends too soon FS_UNEXPECTED_EOF, a decompressed size past the limit
