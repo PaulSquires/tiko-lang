@@ -2,8 +2,8 @@
 '' decode.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "decode.h"
 ''   source sha256 : c0ca6bf4f35340aa13e19938fa7001de627384537369cc83a100911c9b886f5d
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.2dXCtSDJnC/h
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.DT2yvK9dWL/h
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -65,7 +65,7 @@ enum
   /'* Partially done; should be called again with more output. '/
   BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT = 3
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type BrotliDecoderResult as uint32
 enum
   /'* Decoding error, e.g. corrupted input or memory allocation problem. '/
@@ -153,7 +153,7 @@ enum
    '/
   BROTLI_DECODER_PARAM_LARGE_WINDOW = 1
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type BrotliDecoderParameter as uint32
 enum
   /'*

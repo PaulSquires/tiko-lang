@@ -2,8 +2,8 @@
 '' lzma.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "lzma.h"
 ''   source sha256 : 064c07054cb2c86536ee0b35918d8c5457dcecee38549cbfb7f115a85b506895
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify -D LZMA_API_IMPORT=
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -D LZMA_API_IMPORT=
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -32,89 +32,90 @@
 ''   parameter  lzma_block_buffer_decode.out -> lzma_block_buffer_decode.out_   (tiko reserved word)
 ''   parameter  lzma_index_buffer_encode.out -> lzma_index_buffer_encode.out_   (tiko reserved word)
 ''
-'' 82 items need manual translation:
-''   line 243  lzma.h:124  C2T-TODO(system-header)  <inttypes.h>
-''   line 255  lzma.h:135  C2T-TODO(conditional)  UINT32_C
-''   line 257  lzma.h:136  C2T-TODO(conditional)  #if
-''   line 259  lzma.h:137  C2T-TODO(conditional)  UINT32_C
-''   line 261  lzma.h:138  C2T-TODO(conditional)  #else
-''   line 263  lzma.h:139  C2T-TODO(conditional)  UINT32_C
-''   line 265  lzma.h:140  C2T-TODO(conditional)  #endif
-''   line 267  lzma.h:141  C2T-TODO(conditional)  #endif
-''   line 270  lzma.h:143  C2T-TODO(conditional)  UINT64_C
-''   line 272  lzma.h:144  C2T-TODO(conditional)  #if
-''   line 274  lzma.h:145  C2T-TODO(conditional)  UINT64_C
-''   line 276  lzma.h:146  C2T-TODO(conditional)  #else
-''   line 279  lzma.h:148  C2T-TODO(conditional)  <limits.h>
-''   line 281  lzma.h:149  C2T-TODO(conditional)  #if
-''   line 283  lzma.h:150  C2T-TODO(conditional)  UINT64_C
-''   line 285  lzma.h:151  C2T-TODO(conditional)  #else
-''   line 287  lzma.h:152  C2T-TODO(conditional)  UINT64_C
-''   line 289  lzma.h:153  C2T-TODO(conditional)  #endif
-''   line 291  lzma.h:154  C2T-TODO(conditional)  #endif
-''   line 293  lzma.h:155  C2T-TODO(conditional)  #endif
-''   line 296  lzma.h:157  C2T-TODO(conditional)  UINT32_MAX
-''   line 298  lzma.h:158  C2T-TODO(conditional)  UINT32_MAX
-''   line 300  lzma.h:159  C2T-TODO(conditional)  #endif
-''   line 303  lzma.h:161  C2T-TODO(conditional)  UINT64_MAX
-''   line 305  lzma.h:162  C2T-TODO(conditional)  UINT64_MAX
-''   line 307  lzma.h:163  C2T-TODO(conditional)  #endif
-''   line 347  lzma.h:207  C2T-TODO(function-like-macro)  LZMA_API
-''   line 364  lzma.h:224  C2T-TODO(macro)  lzma_nothrow
-''   line 367  lzma.h:226  C2T-TODO(macro)  lzma_nothrow
-''   line 409  lzma.h:266  C2T-TODO(macro)  lzma_attr_pure
-''   line 414  lzma.h:270  C2T-TODO(macro)  lzma_attr_const
-''   line 419  lzma.h:274  C2T-TODO(macro)  lzma_attr_warn_unused_result
-''   line 435  lzma.h:291  C2T-TODO(macro)  LZMA_H_INTERNAL
-''   line 452  lzma.h:307  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 454  lzma.h:308  C2T-TODO(conditional)  #error
-''   line 456  lzma.h:309  C2T-TODO(conditional)  #endif
-''   line 527  lzma.h:380  C2T-TODO(function-like-macro)  LZMA_VERSION_STRING_C_
-''   line 544  lzma.h:396  C2T-TODO(macro)  LZMA_VERSION_STRING
-''   line 590  lzma.h:441  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 592  lzma.h:442  C2T-TODO(conditional)  #error
-''   line 594  lzma.h:443  C2T-TODO(conditional)  #endif
-''   line 1522  lzma.h:1038  C2T-TODO(macro)  LZMA_STREAM_INIT
-''   line 1684  lzma.h:1200  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 1686  lzma.h:1201  C2T-TODO(conditional)  #error
-''   line 1688  lzma.h:1202  C2T-TODO(conditional)  #endif
-''   line 1739  lzma.h:1249  C2T-TODO(function-like-macro)  lzma_vli_is_valid
-''   line 1846  lzma.h:1355  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 1848  lzma.h:1356  C2T-TODO(conditional)  #error
-''   line 1850  lzma.h:1357  C2T-TODO(conditional)  #endif
-''   line 2043  lzma.h:1517  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 2045  lzma.h:1518  C2T-TODO(conditional)  #error
-''   line 2047  lzma.h:1519  C2T-TODO(conditional)  #endif
-''   line 2802  lzma.h:2274  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 2804  lzma.h:2275  C2T-TODO(conditional)  #error
-''   line 2806  lzma.h:2276  C2T-TODO(conditional)  #endif
-''   line 3004  lzma.h:2471  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 3006  lzma.h:2472  C2T-TODO(conditional)  #error
-''   line 3008  lzma.h:2473  C2T-TODO(conditional)  #endif
-''   line 3111  lzma.h:2568  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 3113  lzma.h:2569  C2T-TODO(conditional)  #error
-''   line 3115  lzma.h:2570  C2T-TODO(conditional)  #endif
-''   line 3708  lzma.h:3087  C2T-TODO(function-like-macro)  lzma_set_ext_size
-''   line 3759  lzma.h:3138  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 3761  lzma.h:3139  C2T-TODO(conditional)  #error
-''   line 3763  lzma.h:3140  C2T-TODO(conditional)  #endif
-''   line 4745  lzma.h:4122  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 4747  lzma.h:4123  C2T-TODO(conditional)  #error
-''   line 4749  lzma.h:4124  C2T-TODO(conditional)  #endif
-''   line 5003  lzma.h:4384  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 5005  lzma.h:4385  C2T-TODO(conditional)  #error
-''   line 5007  lzma.h:4386  C2T-TODO(conditional)  #endif
-''   line 5684  lzma.h:5068  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 5686  lzma.h:5069  C2T-TODO(conditional)  #error
-''   line 5688  lzma.h:5070  C2T-TODO(conditional)  #endif
-''   line 5717  lzma.h:5096  C2T-TODO(refused-type)  lzma_index_iter
-''   line 5931  lzma.h:5096  C2T-TODO(refused-type)  lzma_index_iter
-''   line 6814  lzma.h:5934  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 6816  lzma.h:5935  C2T-TODO(conditional)  #error
-''   line 6818  lzma.h:5936  C2T-TODO(conditional)  #endif
-''   line 6948  lzma.h:6067  C2T-TODO(conditional)  LZMA_H_INTERNAL
-''   line 6950  lzma.h:6068  C2T-TODO(conditional)  #error
-''   line 6952  lzma.h:6069  C2T-TODO(conditional)  #endif
+'' 83 items need manual translation:
+''   line 244  lzma.h:124  C2T-TODO(system-header)  <inttypes.h>
+''   line 256  lzma.h:135  C2T-TODO(conditional)  UINT32_C
+''   line 258  lzma.h:136  C2T-TODO(conditional)  #if
+''   line 260  lzma.h:137  C2T-TODO(conditional)  UINT32_C
+''   line 262  lzma.h:138  C2T-TODO(conditional)  #else
+''   line 264  lzma.h:139  C2T-TODO(conditional)  UINT32_C
+''   line 266  lzma.h:140  C2T-TODO(conditional)  #endif
+''   line 268  lzma.h:141  C2T-TODO(conditional)  #endif
+''   line 271  lzma.h:143  C2T-TODO(conditional)  UINT64_C
+''   line 273  lzma.h:144  C2T-TODO(conditional)  #if
+''   line 275  lzma.h:145  C2T-TODO(conditional)  UINT64_C
+''   line 277  lzma.h:146  C2T-TODO(conditional)  #else
+''   line 280  lzma.h:148  C2T-TODO(conditional)  <limits.h>
+''   line 282  lzma.h:149  C2T-TODO(conditional)  #if
+''   line 284  lzma.h:150  C2T-TODO(conditional)  UINT64_C
+''   line 286  lzma.h:151  C2T-TODO(conditional)  #else
+''   line 288  lzma.h:152  C2T-TODO(conditional)  UINT64_C
+''   line 290  lzma.h:153  C2T-TODO(conditional)  #endif
+''   line 292  lzma.h:154  C2T-TODO(conditional)  #endif
+''   line 294  lzma.h:155  C2T-TODO(conditional)  #endif
+''   line 297  lzma.h:157  C2T-TODO(conditional)  UINT32_MAX
+''   line 299  lzma.h:158  C2T-TODO(conditional)  UINT32_MAX
+''   line 301  lzma.h:159  C2T-TODO(conditional)  #endif
+''   line 304  lzma.h:161  C2T-TODO(conditional)  UINT64_MAX
+''   line 306  lzma.h:162  C2T-TODO(conditional)  UINT64_MAX
+''   line 308  lzma.h:163  C2T-TODO(conditional)  #endif
+''   line 348  lzma.h:207  C2T-TODO(function-like-macro)  LZMA_API
+''   line 365  lzma.h:224  C2T-TODO(macro)  lzma_nothrow
+''   line 368  lzma.h:226  C2T-TODO(macro)  lzma_nothrow
+''   line 410  lzma.h:266  C2T-TODO(macro)  lzma_attr_pure
+''   line 415  lzma.h:270  C2T-TODO(macro)  lzma_attr_const
+''   line 420  lzma.h:274  C2T-TODO(macro)  lzma_attr_warn_unused_result
+''   line 436  lzma.h:291  C2T-TODO(macro)  LZMA_H_INTERNAL
+''   line 453  lzma.h:307  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 455  lzma.h:308  C2T-TODO(conditional)  #error
+''   line 457  lzma.h:309  C2T-TODO(conditional)  #endif
+''   line 528  lzma.h:380  C2T-TODO(function-like-macro)  LZMA_VERSION_STRING_C_
+''   line 545  lzma.h:396  C2T-TODO(macro)  LZMA_VERSION_STRING
+''   line 591  lzma.h:441  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 593  lzma.h:442  C2T-TODO(conditional)  #error
+''   line 595  lzma.h:443  C2T-TODO(conditional)  #endif
+''   line 1523  lzma.h:1038  C2T-TODO(macro)  LZMA_STREAM_INIT
+''   line 1685  lzma.h:1200  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 1687  lzma.h:1201  C2T-TODO(conditional)  #error
+''   line 1689  lzma.h:1202  C2T-TODO(conditional)  #endif
+''   line 1740  lzma.h:1249  C2T-TODO(function-like-macro)  lzma_vli_is_valid
+''   line 1847  lzma.h:1355  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 1849  lzma.h:1356  C2T-TODO(conditional)  #error
+''   line 1851  lzma.h:1357  C2T-TODO(conditional)  #endif
+''   line 2044  lzma.h:1517  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 2046  lzma.h:1518  C2T-TODO(conditional)  #error
+''   line 2048  lzma.h:1519  C2T-TODO(conditional)  #endif
+''   line 2803  lzma.h:2274  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 2805  lzma.h:2275  C2T-TODO(conditional)  #error
+''   line 2807  lzma.h:2276  C2T-TODO(conditional)  #endif
+''   line 3005  lzma.h:2471  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 3007  lzma.h:2472  C2T-TODO(conditional)  #error
+''   line 3009  lzma.h:2473  C2T-TODO(conditional)  #endif
+''   line 3112  lzma.h:2568  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 3114  lzma.h:2569  C2T-TODO(conditional)  #error
+''   line 3116  lzma.h:2570  C2T-TODO(conditional)  #endif
+''   line 3709  lzma.h:3087  C2T-TODO(function-like-macro)  lzma_set_ext_size
+''   line 3760  lzma.h:3138  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 3762  lzma.h:3139  C2T-TODO(conditional)  #error
+''   line 3764  lzma.h:3140  C2T-TODO(conditional)  #endif
+''   line 4746  lzma.h:4122  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 4748  lzma.h:4123  C2T-TODO(conditional)  #error
+''   line 4750  lzma.h:4124  C2T-TODO(conditional)  #endif
+''   line 5004  lzma.h:4384  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 5006  lzma.h:4385  C2T-TODO(conditional)  #error
+''   line 5008  lzma.h:4386  C2T-TODO(conditional)  #endif
+''   line 5685  lzma.h:5068  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 5687  lzma.h:5069  C2T-TODO(conditional)  #error
+''   line 5689  lzma.h:5070  C2T-TODO(conditional)  #endif
+''   line 5718  lzma.h:5096  C2T-TODO(refused-type)  lzma_index_iter
+''   line 5932  lzma.h:5096  C2T-TODO(refused-type)  lzma_index_iter
+''   line 6146  lzma.h:5096  C2T-TODO(refused-type)  lzma_index_iter
+''   line 7029  lzma.h:5934  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 7031  lzma.h:5935  C2T-TODO(conditional)  #error
+''   line 7033  lzma.h:5936  C2T-TODO(conditional)  #endif
+''   line 7163  lzma.h:6067  C2T-TODO(conditional)  LZMA_H_INTERNAL
+''   line 7165  lzma.h:6068  C2T-TODO(conditional)  #error
+''   line 7167  lzma.h:6069  C2T-TODO(conditional)  #endif
 '' =============================================================================
 
 /' SPDX-License-Identifier: 0BSD '/
@@ -624,7 +625,7 @@ type lzma_reserved_enum as int32
 enum
 	LZMA_RESERVED_ENUM = 0
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_reserved_enum as uint32
 enum
 	LZMA_RESERVED_ENUM = 0
@@ -859,7 +860,7 @@ enum
 	LZMA_RET_INTERNAL7 = 107
 	LZMA_RET_INTERNAL8 = 108
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_ret as uint32
 enum
 	LZMA_OK = 0
@@ -1189,7 +1190,7 @@ enum
 		 * be changed just like in the encoder.
 		 '/
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_action as uint32
 enum
 	LZMA_RUN = 0
@@ -1889,7 +1890,7 @@ enum
 		 * Size of the Check field: 32 bytes
 		 '/
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_check as uint32
 enum
 	LZMA_CHECK_NONE = 0
@@ -3030,7 +3031,7 @@ type lzma_delta_type as int32
 enum
 	LZMA_DELTA_TYPE_BYTE
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_delta_type as uint32
 enum
 	LZMA_DELTA_TYPE_BYTE
@@ -3236,7 +3237,7 @@ enum
 		 *  - dict_size > 32 MiB: dict_size * 10.5
 		 '/
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_match_finder as uint32
 enum
 	LZMA_MF_HC3 = 3
@@ -3342,7 +3343,7 @@ enum
 		 * full potential of the LZMA1 or LZMA2 encoder.
 		 '/
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_mode as uint32
 enum
 	LZMA_MODE_FAST = 1
@@ -6141,6 +6142,220 @@ type lzma_index as lzma_index_s
 '' 		lzma_vli v;
 '' 	} internal[6];
 '' } lzma_index_iter;
+#elseif defined(TIKO_OS_MACOS)
+'' C2T-TODO(refused-type) lzma.h:5096 -- record 'lzma_index_iter': field 'stream': tiko's layout differs from clang's on macos-arm64: tiko did not lay it out
+'' typedef struct {
+'' 	struct {
+'' 		/**
+'' 		 * \brief       Pointer to Stream Flags
+'' 		 *
+'' 		 * This is NULL if Stream Flags have not been set for
+'' 		 * this Stream with lzma_index_stream_flags().
+'' 		 */
+'' 		const lzma_stream_flags *flags;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr1;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr2;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr3;
+''
+'' 		/**
+'' 		 * \brief       Stream number in the lzma_index
+'' 		 *
+'' 		 * The first Stream is 1.
+'' 		 */
+'' 		lzma_vli number;
+''
+'' 		/**
+'' 		 * \brief       Number of Blocks in the Stream
+'' 		 *
+'' 		 * If this is zero, the block structure below has
+'' 		 * undefined values.
+'' 		 */
+'' 		lzma_vli block_count;
+''
+'' 		/**
+'' 		 * \brief       Compressed start offset of this Stream
+'' 		 *
+'' 		 * The offset is relative to the beginning of the lzma_index
+'' 		 * (i.e. usually the beginning of the .xz file).
+'' 		 */
+'' 		lzma_vli compressed_offset;
+''
+'' 		/**
+'' 		 * \brief       Uncompressed start offset of this Stream
+'' 		 *
+'' 		 * The offset is relative to the beginning of the lzma_index
+'' 		 * (i.e. usually the beginning of the .xz file).
+'' 		 */
+'' 		lzma_vli uncompressed_offset;
+''
+'' 		/**
+'' 		 * \brief       Compressed size of this Stream
+'' 		 *
+'' 		 * This includes all headers except the possible
+'' 		 * Stream Padding after this Stream.
+'' 		 */
+'' 		lzma_vli compressed_size;
+''
+'' 		/**
+'' 		 * \brief       Uncompressed size of this Stream
+'' 		 */
+'' 		lzma_vli uncompressed_size;
+''
+'' 		/**
+'' 		 * \brief       Size of Stream Padding after this Stream
+'' 		 *
+'' 		 * If it hasn't been set with lzma_index_stream_padding(),
+'' 		 * this defaults to zero. Stream Padding is always
+'' 		 * a multiple of four bytes.
+'' 		 */
+'' 		lzma_vli padding;
+''
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli1;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli2;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli3;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli4;
+'' 	} stream;
+''
+'' 	struct {
+'' 		/**
+'' 		 * \brief       Block number in the file
+'' 		 *
+'' 		 * The first Block is 1.
+'' 		 */
+'' 		lzma_vli number_in_file;
+''
+'' 		/**
+'' 		 * \brief       Compressed start offset of this Block
+'' 		 *
+'' 		 * This offset is relative to the beginning of the
+'' 		 * lzma_index (i.e. usually the beginning of the .xz file).
+'' 		 * Normally this is where you should seek in the .xz file
+'' 		 * to start decompressing this Block.
+'' 		 */
+'' 		lzma_vli compressed_file_offset;
+''
+'' 		/**
+'' 		 * \brief       Uncompressed start offset of this Block
+'' 		 *
+'' 		 * This offset is relative to the beginning of the lzma_index
+'' 		 * (i.e. usually the beginning of the .xz file).
+'' 		 *
+'' 		 * When doing random-access reading, it is possible that
+'' 		 * the target offset is not exactly at Block boundary. One
+'' 		 * will need to compare the target offset against
+'' 		 * uncompressed_file_offset or uncompressed_stream_offset,
+'' 		 * and possibly decode and throw away some amount of data
+'' 		 * before reaching the target offset.
+'' 		 */
+'' 		lzma_vli uncompressed_file_offset;
+''
+'' 		/**
+'' 		 * \brief       Block number in this Stream
+'' 		 *
+'' 		 * The first Block is 1.
+'' 		 */
+'' 		lzma_vli number_in_stream;
+''
+'' 		/**
+'' 		 * \brief       Compressed start offset of this Block
+'' 		 *
+'' 		 * This offset is relative to the beginning of the Stream
+'' 		 * containing this Block.
+'' 		 */
+'' 		lzma_vli compressed_stream_offset;
+''
+'' 		/**
+'' 		 * \brief       Uncompressed start offset of this Block
+'' 		 *
+'' 		 * This offset is relative to the beginning of the Stream
+'' 		 * containing this Block.
+'' 		 */
+'' 		lzma_vli uncompressed_stream_offset;
+''
+'' 		/**
+'' 		 * \brief       Uncompressed size of this Block
+'' 		 *
+'' 		 * You should pass this to the Block decoder if you will
+'' 		 * decode this Block. It will allow the Block decoder to
+'' 		 * validate the uncompressed size.
+'' 		 */
+'' 		lzma_vli uncompressed_size;
+''
+'' 		/**
+'' 		 * \brief       Unpadded size of this Block
+'' 		 *
+'' 		 * You should pass this to the Block decoder if you will
+'' 		 * decode this Block. It will allow the Block decoder to
+'' 		 * validate the unpadded size.
+'' 		 */
+'' 		lzma_vli unpadded_size;
+''
+'' 		/**
+'' 		 * \brief       Total compressed size
+'' 		 *
+'' 		 * This includes all headers and padding in this Block.
+'' 		 * This is useful if you need to know how many bytes
+'' 		 * the Block decoder will actually read.
+'' 		 */
+'' 		lzma_vli total_size;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli1;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli2;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli3;
+''
+'' 		/** \private     Reserved member. */
+'' 		lzma_vli reserved_vli4;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr1;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr2;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr3;
+''
+'' 		/** \private     Reserved member. */
+'' 		const void *reserved_ptr4;
+'' 	} block;
+''
+'' 	/**
+'' 	 * \private     Internal data
+'' 	 *
+'' 	 * Internal data which is used to store the state of the iterator.
+'' 	 * The exact format may vary between liblzma versions, so don't
+'' 	 * touch these in any way.
+'' 	 */
+'' 	union {
+'' 		/** \private     Internal member. */
+'' 		const void *p;
+''
+'' 		/** \private     Internal member. */
+'' 		size_t s;
+''
+'' 		/** \private     Internal member. */
+'' 		lzma_vli v;
+'' 	} internal[6];
+'' } lzma_index_iter;
 #endif
 
 
@@ -6192,7 +6407,7 @@ enum
 		 '/
 
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type lzma_index_iter_mode as uint32
 enum
 	LZMA_INDEX_ITER_ANY = 0

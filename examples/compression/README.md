@@ -55,7 +55,8 @@ The examples import the package with
 ```
 
 which links the shared library and copies it beside the program -- `compression.dll` on Windows,
-`compression_linux_x86_64.so` on Linux (~2.2 MB: all seven libraries). With `link static`
+`compression_linux_x86_64.so` / `compression_linux_arm64.so` on Linux, `compression_macos_arm64.dylib`
+on macOS (~2 MB: all seven libraries). On Android the package is always static. With `link static`
 instead, only what a program calls is built into it: a program using zlib alone grows by about
 46 KB. The selftest links statically.
 

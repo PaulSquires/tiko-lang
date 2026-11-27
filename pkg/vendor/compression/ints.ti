@@ -2,8 +2,8 @@
 '' ints.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "ints.h"
 ''   source sha256 : 4397ab032db87bcdcb4eacd01886c2a75166a09cf2b99a1739ebce3c811f581a
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -103,16 +103,16 @@ extern "C"
 '' #endif
 '' C2T-TODO(conditional) ints.h:39 -- tiko would take another branch where clang does not
 '' #if defined(ULONG_MAX) && ULONG_MAX == 0xffffffffffffffff
-    #if defined(TIKO_OS_LINUX)
+    #if not (defined(TIKO_OS_WINDOWS))
     type i64_t as clong
     #endif
-    #if defined(TIKO_OS_LINUX)
+    #if not (defined(TIKO_OS_WINDOWS))
     type ui64_t as culong
     #endif
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 #   define PI64 "ld"
 #endif
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 #   define PUI64 "lu"
 #endif
 '' C2T-TODO(conditional) ints.h:44 -- tiko would take another branch where clang does not

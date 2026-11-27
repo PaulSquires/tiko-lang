@@ -2,25 +2,32 @@
 '' ioapi.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "ioapi.h"
 ''   source sha256 : 56713a3aa2a771267045b731d2b7fa0719bbb922b278662deebd6fa0fb22cc59
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
-'' 13 items need manual translation:
-''   line 50  ioapi.h:24  C2T-TODO(conditional)  #if
-''   line 58  ioapi.h:31  C2T-TODO(conditional)  #endif
-''   line 72  ioapi.h:44  C2T-TODO(macro)  ftello64
-''   line 74  ioapi.h:45  C2T-TODO(macro)  fseeko64
-''   line 80  ioapi.h:50  C2T-TODO(macro)  ftello64
-''   line 82  ioapi.h:51  C2T-TODO(macro)  fseeko64
-''   line 175  ioapi.h:151  C2T-TODO(function-like-macro)  ZREAD64
-''   line 177  ioapi.h:152  C2T-TODO(function-like-macro)  ZWRITE64
-''   line 181  ioapi.h:155  C2T-TODO(function-like-macro)  ZCLOSE64
-''   line 183  ioapi.h:156  C2T-TODO(function-like-macro)  ZERROR64
-''   line 192  ioapi.h:164  C2T-TODO(function-like-macro)  ZOPEN64
-''   line 194  ioapi.h:165  C2T-TODO(function-like-macro)  ZTELL64
-''   line 196  ioapi.h:166  C2T-TODO(function-like-macro)  ZSEEK64
+'' 20 items need manual translation:
+''   line 57  ioapi.h:24  C2T-TODO(conditional)  #if
+''   line 65  ioapi.h:31  C2T-TODO(conditional)  #endif
+''   line 73  ioapi.h:38  C2T-TODO(macro)  fopen64
+''   line 75  ioapi.h:39  C2T-TODO(macro)  ftello64
+''   line 77  ioapi.h:40  C2T-TODO(macro)  fseeko64
+''   line 81  ioapi.h:43  C2T-TODO(macro)  fopen64
+''   line 83  ioapi.h:44  C2T-TODO(macro)  ftello64
+''   line 85  ioapi.h:45  C2T-TODO(macro)  fseeko64
+''   line 89  ioapi.h:48  C2T-TODO(macro)  fopen64
+''   line 92  ioapi.h:50  C2T-TODO(macro)  ftello64
+''   line 94  ioapi.h:51  C2T-TODO(macro)  fseeko64
+''   line 97  ioapi.h:53  C2T-TODO(macro)  ftello64
+''   line 99  ioapi.h:54  C2T-TODO(macro)  fseeko64
+''   line 189  ioapi.h:151  C2T-TODO(function-like-macro)  ZREAD64
+''   line 191  ioapi.h:152  C2T-TODO(function-like-macro)  ZWRITE64
+''   line 195  ioapi.h:155  C2T-TODO(function-like-macro)  ZCLOSE64
+''   line 197  ioapi.h:156  C2T-TODO(function-like-macro)  ZERROR64
+''   line 206  ioapi.h:164  C2T-TODO(function-like-macro)  ZOPEN64
+''   line 208  ioapi.h:165  C2T-TODO(function-like-macro)  ZTELL64
+''   line 210  ioapi.h:166  C2T-TODO(function-like-macro)  ZSEEK64
 '' =============================================================================
 
 /' ioapi.h -- IO base function header for compress/uncompress .zip
@@ -63,27 +70,34 @@
 #include once "zlib.ti"
 
 #if defined(USE_FILE32API)
-#define fopen64 fopen
-#define ftello64 ftell
-#define fseeko64 fseek
+'' C2T-TODO(macro) ioapi.h:38 -- 'fopen64': 'fopen' is nothing tiko declares
+'' #define fopen64 fopen
+'' C2T-TODO(macro) ioapi.h:39 -- 'ftello64': 'ftell' is nothing tiko declares
+'' #define ftello64 ftell
+'' C2T-TODO(macro) ioapi.h:40 -- 'fseeko64': 'fseek' is nothing tiko declares
+'' #define fseeko64 fseek
 #else
 #if ((((0 orelse 0) orelse 0) orelse 0) orelse defined(MINIZIP_FOPEN_NO_64))
-#define fopen64 fopen
+'' C2T-TODO(macro) ioapi.h:43 -- 'fopen64': 'fopen' is nothing tiko declares
+'' #define fopen64 fopen
 '' C2T-TODO(macro) ioapi.h:44 -- 'ftello64': 'ftello' is nothing tiko declares
 '' #define ftello64 ftello
 '' C2T-TODO(macro) ioapi.h:45 -- 'fseeko64': 'fseeko' is nothing tiko declares
 '' #define fseeko64 fseeko
 #endif
 #ifdef _MSC_VER
- #define fopen64 fopen
+ '' C2T-TODO(macro) ioapi.h:48 -- 'fopen64': 'fopen' is nothing tiko declares
+''  #define fopen64 fopen
  #if ((_MSC_VER >= 1400) andalso ((defined(NO_MSCVER_FILE64_FUNC)) = 0))
   '' C2T-TODO(macro) ioapi.h:50 -- 'ftello64': '_ftelli64' is nothing tiko declares
 ''   #define ftello64 _ftelli64
   '' C2T-TODO(macro) ioapi.h:51 -- 'fseeko64': '_fseeki64' is nothing tiko declares
 ''   #define fseeko64 _fseeki64
  #else '' old MSC
-  #define ftello64 ftell
-  #define fseeko64 fseek
+  '' C2T-TODO(macro) ioapi.h:53 -- 'ftello64': 'ftell' is nothing tiko declares
+''   #define ftello64 ftell
+  '' C2T-TODO(macro) ioapi.h:54 -- 'fseeko64': 'fseek' is nothing tiko declares
+''   #define fseeko64 fseek
  #endif
 #endif
 #endif

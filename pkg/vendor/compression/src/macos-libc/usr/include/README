@@ -1,0 +1,6 @@
+A stand-in for the macOS SDK's C library headers, for 'tiko c2t's macOS pass run on Windows by
+../translate.sh (claude-docs RFC-0006 P2; the approach of RFC-0003 P2 / RFC-0004 P1). Apple's SDK
+files never leave the Mac, so nothing here is copied from them: each header declares only what
+the seven libraries' public headers use, with Darwin's types spelled from clang's own
+predefines or Darwin's documented ABI (LP64: long and pointers 64-bit, off_t long long). The
+translations are then checked on the Mac itself against Apple's clang (P2-RESULTS.md).

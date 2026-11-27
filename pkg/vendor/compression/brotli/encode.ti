@@ -2,8 +2,8 @@
 '' encode.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "encode.h"
 ''   source sha256 : f1842e38da557efac517a35f1b27d288d464a723ef50316d3d20fe03f6046c06
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.2dXCtSDJnC/h
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.DT2yvK9dWL/h
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -78,7 +78,7 @@ enum
   /'* Compression mode used in WOFF 2.0. '/
   BROTLI_MODE_FONT = 2
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type BrotliEncoderMode as uint32
 enum
   /'*
@@ -170,7 +170,7 @@ enum
    '/
   BROTLI_OPERATION_EMIT_METADATA = 3
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type BrotliEncoderOperation as uint32
 enum
   /'*
@@ -330,7 +330,7 @@ enum
    '/
   BROTLI_PARAM_STREAM_OFFSET = 9
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type BrotliEncoderParameter as uint32
 enum
   /'*

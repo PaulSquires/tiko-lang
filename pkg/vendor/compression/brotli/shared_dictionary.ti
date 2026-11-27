@@ -2,8 +2,8 @@
 '' shared_dictionary.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "shared_dictionary.h"
 ''   source sha256 : 86230f0aaf533044d85d92f84b5aec8b7e4e231d4b64b098604083e7866e8097
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.2dXCtSDJnC/h
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.DT2yvK9dWL/h
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -64,7 +64,7 @@ enum
    '/
   BROTLI_SHARED_DICTIONARY_SERIALIZED = 1
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type BrotliSharedDictionaryType as uint32
 enum
   /'* Raw LZ77 prefix dictionary. '/

@@ -60,16 +60,14 @@
 '' THE LIBRARY: with 'link static' only what a program calls is linked in (a zlib-only program
 '' grows ~46 KB); with 'link dynamic' -- and when no '#import' says, which is this package's
 '' default -- the whole shared library (~2.2 MB), which tiko copies beside the program:
-'' compression.dll on Windows, compression_linux_x86_64.so on Linux. It needs no other library:
-'' on Windows the archive needs only ucrtbase.dll and KERNEL32.dll, as every tiko program does.
+'' compression.dll on Windows, compression_linux_x86_64.so on Linux, compression_linux_arm64.so
+'' on arm64 Linux, compression_macos_arm64.dylib on macOS. It needs no other library: on Windows
+'' the archive needs only ucrtbase.dll and KERNEL32.dll, as every tiko program does. Android is
+'' static always (the archive goes into the app's own library).
 ''
-'' TARGETS: windows-x86_64 and linux-x86_64 (RFC-0006 P1). Every other target stops with #error
-'' until P2 builds and runs it.
+'' TARGETS: windows-x86_64, linux-x86_64, linux-arm64, macos-arm64, android-x86_64 and
+'' android-arm64 (claude-docs RFC-0006 P1, P2).
 #module "compression"
-
-#if not ( ( defined( TIKO_OS_WINDOWS ) orelse defined( TIKO_OS_LINUX ) ) andalso defined( TIKO_ARCH_X86_64 ) )
-    #error "vendor/compression: built for windows-x86_64 and linux-x86_64 only so far (RFC-0006 P2 adds Linux arm64, macOS and Android)"
-#endif
 
 public #include once "zconf.ti"
 public #include once "zlib.ti"
@@ -91,7 +89,8 @@ public #include once "lz4frame.ti"
 public #include once "bzlib.ti"
 public #include once "compression-residue.ti"
 
-#ifdef TIKO_LINK_STATIC
+'' ANDROID IS STATIC ALWAYS: vendorfetch builds only the archive there, as for cJSON.
+#if defined( TIKO_LINK_STATIC ) or defined( TIKO_OS_ANDROID )
     #foreignlib COMPRESSION static "lib/compression"
 #else
     #foreignlib COMPRESSION dynamic "lib/compression"

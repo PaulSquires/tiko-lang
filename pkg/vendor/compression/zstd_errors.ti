@@ -2,8 +2,8 @@
 '' zstd_errors.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "zstd_errors.h"
 ''   source sha256 : 66a8c3f71d12ea6e797e4f622f31f3f8f81c41b36f48cad4f5de7d8bfb6aac0a
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -93,7 +93,7 @@ enum
   ZSTD_error_externalSequences_invalid = 107
   ZSTD_error_maxCode = 120  /' never EVER use this value directly, it can change in future versions! Use ZSTD_isError() instead '/
 end enum
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type ZSTD_ErrorCode as uint32
 enum
   ZSTD_error_no_error = 0

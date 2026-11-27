@@ -2,8 +2,8 @@
 '' zlib.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "zlib.h"
 ''   source sha256 : 2c404dcaa08709c2a129aea18f3dad4fb5acc5cb52ef12b6223bf8e78c195801
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -2038,7 +2038,7 @@ type gzFile_s
     next as uint8 ptr
     pos as int64
 end type
-#elseif defined(TIKO_OS_LINUX)
+#elseif not (defined(TIKO_OS_WINDOWS))
 type gzFile_s
     have as uint32
     next as uint8 ptr
@@ -2068,32 +2068,32 @@ declare function gzgetc_( byval file as gzFile ) as int32       /' backward comp
    declare function gzopen64( byval as const zstring ptr, byval as const zstring ptr ) as gzFile
    #if defined(TIKO_OS_WINDOWS)
    declare function gzseek64( byval as gzFile, byval as int64, byval as int32 ) as int64
-   #elseif defined(TIKO_OS_LINUX)
+   #elseif not (defined(TIKO_OS_WINDOWS))
    declare function gzseek64( byval as gzFile, byval as clong, byval as int32 ) as clong
    #endif
    #if defined(TIKO_OS_WINDOWS)
    declare function gztell64( byval as gzFile ) as int64
-   #elseif defined(TIKO_OS_LINUX)
+   #elseif not (defined(TIKO_OS_WINDOWS))
    declare function gztell64( byval as gzFile ) as clong
    #endif
    #if defined(TIKO_OS_WINDOWS)
    declare function gzoffset64( byval as gzFile ) as int64
-   #elseif defined(TIKO_OS_LINUX)
+   #elseif not (defined(TIKO_OS_WINDOWS))
    declare function gzoffset64( byval as gzFile ) as clong
    #endif
    #if defined(TIKO_OS_WINDOWS)
    declare function adler32_combine64( byval as uLong_, byval as uLong_, byval as int64 ) as uLong_
-   #elseif defined(TIKO_OS_LINUX)
+   #elseif not (defined(TIKO_OS_WINDOWS))
    declare function adler32_combine64( byval as uLong_, byval as uLong_, byval as clong ) as uLong_
    #endif
    #if defined(TIKO_OS_WINDOWS)
    declare function crc32_combine64( byval as uLong_, byval as uLong_, byval as int64 ) as uLong_
-   #elseif defined(TIKO_OS_LINUX)
+   #elseif not (defined(TIKO_OS_WINDOWS))
    declare function crc32_combine64( byval as uLong_, byval as uLong_, byval as clong ) as uLong_
    #endif
    #if defined(TIKO_OS_WINDOWS)
    declare function crc32_combine_gen64( byval as int64 ) as uLong_
-   #elseif defined(TIKO_OS_LINUX)
+   #elseif not (defined(TIKO_OS_WINDOWS))
    declare function crc32_combine_gen64( byval as clong ) as uLong_
    #endif
 #endif
@@ -2130,17 +2130,17 @@ declare function gzgetc_( byval file as gzFile ) as int32       /' backward comp
      declare function gzoffset64( byval as gzFile ) as clong
      #if defined(TIKO_OS_WINDOWS)
      declare function adler32_combine64( byval as uLong_, byval as uLong_, byval as int64 ) as uLong_
-     #elseif defined(TIKO_OS_LINUX)
+     #elseif not (defined(TIKO_OS_WINDOWS))
      declare function adler32_combine64( byval as uLong_, byval as uLong_, byval as clong ) as uLong_
      #endif
      #if defined(TIKO_OS_WINDOWS)
      declare function crc32_combine64( byval as uLong_, byval as uLong_, byval as int64 ) as uLong_
-     #elseif defined(TIKO_OS_LINUX)
+     #elseif not (defined(TIKO_OS_WINDOWS))
      declare function crc32_combine64( byval as uLong_, byval as uLong_, byval as clong ) as uLong_
      #endif
      #if defined(TIKO_OS_WINDOWS)
      declare function crc32_combine_gen64( byval as int64 ) as uLong_
-     #elseif defined(TIKO_OS_LINUX)
+     #elseif not (defined(TIKO_OS_WINDOWS))
      declare function crc32_combine_gen64( byval as clong ) as uLong_
      #endif
 #  endif

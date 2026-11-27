@@ -31,8 +31,9 @@
 # THE COMPILER is chosen as vendorfetch chooses its own: TIKO_CLANG, else the LLVM install on
 # Windows, else clang on PATH. TIKO_AR and TIKO_NM likewise.
 #
-# Output: bin/<os>-<arch>/ beside this script -- compression_<os>_<arch>.a, and compression.dll
-# or compression_<os>_<arch>.so; each fetch.toml entry copies one. Built in a scratch directory; a
+# Output: bin/<os>-<arch>/ beside this script -- compression_<os>_<arch>.a, and compression.dll,
+# compression_<os>_<arch>.so or compression_macos_arm64.dylib (none for Android: static only);
+# each fetch.toml entry copies one. Built in a scratch directory; a
 # finished build is kept in TIKO_VENDOR_CACHE and copied, not redone. Incremental: a stamp of the
 # inputs, this script, xz/config.h and win/builtin-setjmp.h.
 set -e
@@ -45,24 +46,39 @@ die( ) { echo "compression build: $*" >&2; exit 1; }
 set -- $TIKO_VENDOR_INPUTS
 [ $# -eq 6 ] || die "expected 6 inputs (zlib, zstd, xz, brotli, lz4, bzip2), got $#"
 
-HID=-fvisibility=hidden; WIN=0; SHF=; LIBS=
+HID=-fvisibility=hidden; WIN=0; SHF=; LIBS=; SYS=; SH=
 case $HOST-$ARCH in
     windows-x86_64)
         CC=${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}; T=x86_64-pc-windows-msvc; WIN=1
         BASE="-O2 -DNDEBUG -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_WARNINGS"; HID=
         SH=compression.dll ;;
-    linux-x86_64)
+    linux-x86_64|linux-arm64)
         CC=${TIKO_CLANG:-${CLANG:-clang}}; T=x86_64-pc-linux-gnu
+        [ "$ARCH" = arm64 ] && T=aarch64-unknown-linux-gnu
         BASE="-O2 -DNDEBUG -fPIC"
-        SH=compression_linux_x86_64.so; SHF="-shared -Wl,-soname,$SH"; LIBS="-lm -lpthread" ;;
-    *) die "no build for '$HOST-$ARCH' yet (RFC-0006 P2: Linux arm64, macOS, Android)" ;;
+        SH=compression_${HOST}_$ARCH.so; SHF="-shared -Wl,-soname,$SH"; LIBS="-lm -lpthread" ;;
+    macos-arm64)
+        # Never Apple's /usr/bin/clang by accident: TIKO_CLANG, else Homebrew's LLVM.
+        CC=${TIKO_CLANG:-${CLANG:-/opt/homebrew/opt/llvm/bin/clang}}; T=arm64-apple-macosx13.0
+        BASE="-O2 -DNDEBUG -fPIC"
+        SH=compression_macos_arm64.dylib; SHF="-dynamiclib -Wl,-install_name,@rpath/$SH" ;;
+    android-x86_64|android-arm64)
+        # Static only, as every vendor package on Android: the archive goes into the app's own
+        # shared library. Cross-built on Windows against the NDK's sysroot (vendorfetch --target).
+        CC=${TIKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}; T=x86_64-linux-android29
+        [ "$ARCH" = arm64 ] && T=aarch64-linux-android29
+        SYS="--sysroot=${TIKO_ANDROID_NDK:?no TIKO_ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot"
+        BASE="-O2 -DNDEBUG -fPIC $SYS" ;;
+    *) die "no build for '$HOST-$ARCH'" ;;
 esac
 LLVMBIN=$(dirname "$CC")
 if [ -n "$TIKO_AR" ]; then AR=$TIKO_AR
-elif [ $WIN = 1 ]; then AR="$LLVMBIN/llvm-ar.exe"
+elif [ $WIN = 1 ] || [ "$HOST" = android ]; then AR="$LLVMBIN/llvm-ar.exe"
+elif [ -x "$LLVMBIN/llvm-ar" ]; then AR="$LLVMBIN/llvm-ar"
 else AR=$(command -v llvm-ar || command -v ar); fi
 if [ -n "$TIKO_NM" ]; then NM=$TIKO_NM
-elif [ $WIN = 1 ]; then NM="$LLVMBIN/llvm-nm.exe"
+elif [ $WIN = 1 ] || [ "$HOST" = android ]; then NM="$LLVMBIN/llvm-nm.exe"
+elif [ -x "$LLVMBIN/llvm-nm" ]; then NM="$LLVMBIN/llvm-nm"
 else NM=$(command -v llvm-nm || command -v nm); fi
 ST=compression_${HOST}_$ARCH.a
 OUT=$HERE/bin/$HOST-$ARCH
@@ -94,6 +110,7 @@ compile( ) {
         o=${codec}__$(echo "$f" | tr '/' '_' | sed 's/\.c$//').o
         # shellcheck disable=SC2086
         "$CC" --target=$T $BASE $common $sflags -c "$dir/$f" -o "$W/s/$o" || die "compiling $codec $f failed"
+        [ -n "$SH" ] || continue                        # Android: no shared library
         # shellcheck disable=SC2086
         "$CC" --target=$T $BASE $common $dflags -c "$dir/$f" -o "$W/d/$o" || die "compiling $codec $f (shared) failed"
     done
@@ -151,7 +168,7 @@ if [ $WIN = 1 ]; then
     # find the .lib first. -implib:, not /implib: -- MSYS would rewrite a leading slash.
     "$CC" --target=$T -shared -fuse-ld=lld -o "$SH" -Wl,-def:compression.def \
         -Wl,-implib:"$(cygpath -m "$W" 2>/dev/null || printf '%s' "$W")/compression.lib" d/*.o || die "linking $SH failed"
-else
+elif [ -n "$SH" ]; then
     # shellcheck disable=SC2086
     "$CC" --target=$T $SHF -o "$SH" d/*.o $LIBS || die "linking $SH failed"
 fi

@@ -2,7 +2,7 @@
 '' as an importer reads them: no library needed. Names one routine, type and constant of each
 '' codec, each residue macro, and asserts the caller-allocated records' sizes per OS: clang's,
 '' measured in claude-docs RFC-0006 P0 (P0-RESULTS.md section 4). zlib's follow C's 'unsigned
-'' long' (32 bits on Windows); the rest are the same on both.
+'' long' (32 bits on Windows, 64 on every LP64 target); the rest are the same everywhere.
 #include once "../../../../pkg/vendor/compression/zconf.ti"
 #include once "../../../../pkg/vendor/compression/zlib.ti"
 #include once "../../../../pkg/vendor/compression/ioapi.ti"

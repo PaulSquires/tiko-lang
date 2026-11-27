@@ -7,8 +7,11 @@
 #
 # ARCHIVES is a directory holding the six archives under their own names (build/.vendorfetch/
 # after 'sh build/vendorfetch.sh --module compression' has them); TIKO is the compiler whose c2t
-# translates (default the tree's bin/tiko.exe). Both passes are made -- Windows, and Linux
-# against WSL's system headers (SYSROOT, default //wsl.localhost/Ubuntu) -- each with --verify.
+# translates (default the tree's bin/tiko.exe). Three passes are made -- Windows; Linux against
+# WSL's system headers (SYSROOT, default //wsl.localhost/Ubuntu); macOS against macos-libc/, a
+# stand-in for Apple's (its README says why and how it is checked) -- each with --verify. The
+# macOS pass is what makes every per-OS block end '#else' rather than '#elseif defined(
+# TIKO_OS_LINUX)', which macOS and Android (neither Windows nor TIKO_OS_LINUX) would miss.
 # Prints 'rc=<c2t exit> header TODOs' per header: 0 clean, 2 translated with TODOs, 1 failed.
 #
 # THE STEPS: unpack; prepare.py writes the headers c2t reads (five rewritten, the rest copied, all
@@ -30,7 +33,7 @@ python -I "$HERE/prepare.py" "$W" "$W/h" || exit 1
 cd "$PKG" || exit 1
 one( ) {  # one <header in $W/h> <output .ti> [c2t options]
     local name=$1 h=$W/h/$1 o=$2; shift 2; mkdir -p "$(dirname "$o")"
-    "$T" c2t "$h" -o "$o" --sysroot "$SR" --verify "$@" > "$W/c2t.log" 2>&1; local rc=$?
+    "$T" c2t "$h" -o "$o" --sysroot "$SR" --macos-sysroot "$HERE/macos-libc" --verify "$@" > "$W/c2t.log" 2>&1; local rc=$?
     local n=$(grep -m1 -oE "^'' [0-9]+ items? needs? manual" "$o" 2>/dev/null | grep -oE "[0-9]+")
     echo "rc=$rc $name ${n:-0}"; [ $rc != 1 ] || tail -6 "$W/c2t.log"
 }

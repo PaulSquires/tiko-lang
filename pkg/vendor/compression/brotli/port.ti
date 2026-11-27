@@ -2,8 +2,8 @@
 '' port.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "port.h"
 ''   source sha256 : 72b484d7a2561f3a9ad35ebd0d4f97f7a2d9863b619782ada5b083a4b6f40df5
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --sysroot //wsl.localhost/Ubuntu --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.2dXCtSDJnC/h
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.DT2yvK9dWL/h
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -350,7 +350,7 @@ extern "C"
 ''     BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0) ||                        \
 ''     (BROTLI_TI_VERSION_CHECK(7, 3, 0) &&                            \
 ''      defined(__TI_GNU_ATTRIBUTE_SUPPORT__) && defined(__TI_EABI__))
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 '' C2T-NOTE(decoration) port.h:237 -- '__attribute__' means nothing to tiko: defined, empty
 #define BROTLI_PUBLIC
 #endif
@@ -375,7 +375,7 @@ extern "C"
 ''     BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0) ||                        \
 ''     (BROTLI_TI_VERSION_CHECK(7, 3, 0) &&                            \
 ''      defined(__TI_GNU_ATTRIBUTE_SUPPORT__) && defined(__TI_EABI__))
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 '' C2T-NOTE(decoration) port.h:252 -- '__attribute__' means nothing to tiko: defined, empty
 #define BROTLI_INTERNAL
 #endif
