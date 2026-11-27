@@ -65,8 +65,8 @@ A solution is one way to do the exercise, not the only one. Several build on a c
 | 26.2 | Dates and Times | Read a list of lap times written as ISO 8601 durations, report any that do not parse, and print the total and the mean. | `ch26/solutions/ex26-02.tiko` |
 | 27.1 | Numbers | Put 1000.00 in a savings account at 4% a year, credit and round the interest to cents each year, and print the balance for ten years in `Decimal`. | `ch27/solutions/ex27-01.tiko` |
 | 27.2 | Numbers | Estimate π by throwing a million random points at a unit square and counting how many land inside the quarter circle. | `ch27/solutions/ex27-02.tiko` |
-| 28.1 | Logging, Terminal UIs, SQLite and Regular Expressions | Store a list of sales in a table, then print each region's total and number of sales, largest first, with one SQL query. | `ch28/solutions/ex28-01.tiko` |
-| 28.2 | Logging, Terminal UIs, SQLite and Regular Expressions | Set a logger's minimum level from a level name given on the command line, falling back to `INFO` for a name that is not a level. | `ch28/solutions/ex28-02.tiko` |
+| 28.1 | Logging, Terminal UIs, Databases and Regular Expressions | Store a list of sales in a table, then print each region's total and number of sales, largest first, with one SQL query. | `ch28/solutions/ex28-01.tiko` |
+| 28.2 | Logging, Terminal UIs, Databases and Regular Expressions | Set a logger's minimum level from a level name given on the command line, falling back to `INFO` for a name that is not a level. | `ch28/solutions/ex28-02.tiko` |
 | 29.1 | Interfacing with C | Bind C's `bsearch` and use it to look values up in a sorted array, with a `cdecl` comparison function. | `ch29/solutions/ex29-01.tiko` |
 | 29.2 | Interfacing with C | Bind `strtol`, using its end pointer to read every number at the start of a string and report where the numbers stopped. | `ch29/solutions/ex29-02.tiko` |
 | 31.1 | Building and Shipping | Build a static library with `Gcd` and an `Lcm` built on it, and use it to find the smallest number that every number from 1 to 20 divides. | `ch31/solutions/ex31-01.tiko` |

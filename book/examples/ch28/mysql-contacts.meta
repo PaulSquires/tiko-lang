@@ -1,0 +1,2 @@
+blocked: pin-0.1.8
+env: TIKO_MYSQL_HOST=127.0.0.1 TIKO_MYSQL_USER=tiko TIKO_MYSQL_PASSWORD=tikotest TIKO_MYSQL_DB=tikotest

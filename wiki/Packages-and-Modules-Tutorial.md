@@ -46,7 +46,7 @@ was compiled and run on windows-x86_64, and the output shown is the real output.
 - The toolchain ships two packages:
   - **`std`**, the standard library: strings, files, containers, dates, concurrency and more. It is
     written in tiko.
-  - **`vendor`**, popular C libraries — SQLite, raylib, SDL3, cJSON, PCRE2, zint, Mini-XML — ready to use, with the
+  - **`vendor`**, popular C libraries — SQLite, raylib, SDL3, cJSON, PCRE2, zint, Mini-XML, PostgreSQL's libpq, MariaDB Connector/C — ready to use, with the
     library files included.
 
 You do not install, download or configure either of them. If tiko is installed, `std` and `vendor`
@@ -398,6 +398,8 @@ the whole library.
 | `vendor/pcre2` | PCRE2, Perl-compatible regular expressions ([tutorial](PCRE2-Tutorial)) |
 | `vendor/zint` | libzint, 1D and 2D barcodes (the [tkBarcode](tkBarcode) control is built on it) |
 | `vendor/mxml` | Mini-XML, reading and writing XML ([tutorial](MXML-Tutorial)) |
+| `vendor/libpq` | libpq, PostgreSQL's client library ([tutorial](PostgreSQL-Tutorial)) |
+| `vendor/mariadb` | MariaDB Connector/C, for MySQL and MariaDB servers ([tutorial](MySQL-Tutorial)) |
 
 The full list, with the versions and the link modes each one ships, is on
 [Vendor Packages](Vendor-Packages).

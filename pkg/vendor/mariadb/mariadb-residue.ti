@@ -31,6 +31,8 @@
 ''
 '' NAMES. tiko's names are case-insensitive: mysql.h's constant MYSQL_PORT and its variable
 '' mysql_port are one name, so the constant is MYSQL_PORT_2 -- or write MARIADB_PORT (3306).
+'' Written MYSQL_PORT, the name is the variable, which the library does not export: the link
+'' fails, 'undefined symbol: mysql_port' (measured on Windows; the Linux library has none either).
 #pragma once
 
 #ifdef TIKO_OS_WINDOWS

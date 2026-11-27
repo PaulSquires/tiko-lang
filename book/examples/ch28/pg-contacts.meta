@@ -1,0 +1,2 @@
+blocked: pin-0.1.8
+env: TIKO_PG_DSN='host=127.0.0.1 dbname=tikotest user=tiko password=tikotest'

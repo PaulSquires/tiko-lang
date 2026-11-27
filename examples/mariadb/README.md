@@ -36,7 +36,9 @@ Each works in TEMPORARY tables, so it leaves nothing behind in the database.
 - **Test the error number or SQLSTATE**, not the message: `mysql_errno` (1062 duplicate key,
   1146 no such table), `mysql_sqlstate`; a statement's own are `mysql_stmt_errno` /
   `mysql_stmt_error`.
-- **TLS**: Connector/C uses it whenever the server offers it, but verifies the certificate only
-  when told to: `MYSQL_OPT_SSL_CA` plus `MYSQL_OPT_SSL_VERIFY_SERVER_CERT`.
-- **`MYSQL_PORT` is `MYSQL_PORT_2`**: tiko's names are case-insensitive, and mysql.h also has a
-  variable `mysql_port`. `MARIADB_PORT` is the same 3306.
+- **TLS**: Connector/C uses it whenever the server offers it. To be sure the server's certificate
+  is checked, give the CA that signed it, `MYSQL_OPT_SSL_CA`, and set
+  `MYSQL_OPT_SSL_VERIFY_SERVER_CERT` (`TIKO_MYSQL_CA` does both in these examples).
+- **Write `MARIADB_PORT`, not `MYSQL_PORT`** (both 3306): tiko's names are case-insensitive, so
+  `MYSQL_PORT` is mysql.h's variable `mysql_port`, which the library does not export -- the link
+  fails, `undefined symbol: mysql_port`. The constant itself is `MYSQL_PORT_2`.
