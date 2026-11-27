@@ -1,0 +1,5 @@
+app.log.gz: 6387 bytes on disk
+read back: 2000 lines, the last INFO request 2000 served in 11 ms
+zstd: 4000 bytes ->26
+back: the same
+damaged: Restored data doesn't match checksum

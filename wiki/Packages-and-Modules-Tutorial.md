@@ -402,6 +402,7 @@ the whole library.
 | `vendor/mariadb` | MariaDB Connector/C, for MySQL and MariaDB servers ([tutorial](MySQL-Tutorial)) |
 | `vendor/miniaudio` | miniaudio, sound playback, capture and decoding ([tutorial](Miniaudio-Tutorial)) |
 | `vendor/pl_mpeg` | pl_mpeg, MPEG-1 video decoding ([tutorial](PL-MPEG-Tutorial)) |
+| `vendor/compression` | zlib, minizip, zstd, xz, brotli, lz4 and bzip2 in one library ([tutorial](Compression-Tutorial)) |
 
 The full list, with the versions and the link modes each one ships, is on
 [Vendor Packages](Vendor-Packages).
