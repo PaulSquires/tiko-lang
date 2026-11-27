@@ -1954,7 +1954,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
          Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
         return true
-    case Cmd.HelpKeyword, Cmd.HelpWebsite, Cmd.HelpGitHub, Cmd.HelpAbout
+    case Cmd.HelpKeyword, Cmd.HelpWebsite, Cmd.HelpWiki, Cmd.HelpAbout
         return true
     end select
     return false
@@ -1987,7 +1987,7 @@ function Window.CanRun( byval id as Cmd ) as boolean
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
          Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.BuildConfig, _
-         Cmd.HelpKeyword, Cmd.HelpWebsite, Cmd.HelpGitHub, Cmd.HelpAbout
+         Cmd.HelpKeyword, Cmd.HelpWebsite, Cmd.HelpWiki, Cmd.HelpAbout
         return true
     case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
@@ -2173,7 +2173,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.AppExit : tkForm_Close( form )
     case Cmd.HelpKeyword : this.OpenWebPage( this.KeywordHelpUrl( ) )
     case Cmd.HelpWebsite : this.OpenWebPage( wikihelp.SITE_URL )
-    case Cmd.HelpGitHub : this.OpenWebPage( wikihelp.REPO_URL )
+    case Cmd.HelpWiki : this.OpenWebPage( wikihelp.WIKI_URL )
     case Cmd.HelpAbout
         this.OpenAbout( )
         if AboutDlg then AboutDlg->RunModal( )

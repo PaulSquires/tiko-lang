@@ -326,7 +326,7 @@ ToggleBreakpoint = "Alternar punto de interrupción"
 DeleteAllBreakpoints = "Eliminar todos los puntos de interrupción"
 HelpKeyword = "Ayuda de palabra clave"
 HelpWebsite = "Sitio web de tiko-lang"
-HelpGitHub = "tiko-lang en GitHub"
+HelpWiki = "Wiki de tiko-lang"
 HelpAbout = "Acerca de tkEdit..."
 
 [start]

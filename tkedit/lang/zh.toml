@@ -328,7 +328,7 @@ ToggleBreakpoint = "切换断点"
 DeleteAllBreakpoints = "删除所有断点"
 HelpKeyword = "关键字帮助"
 HelpWebsite = "tiko-lang.net"
-HelpGitHub = "tiko-lang GitHub"
+HelpWiki = "tiko-lang Wiki"
 HelpAbout = "关于 tkEdit..."
 
 [start]
