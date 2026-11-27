@@ -1,0 +1,149 @@
+'' =============================================================================
+'' ints.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "ints.h"
+''   source sha256 : 4397ab032db87bcdcb4eacd01886c2a75166a09cf2b99a1739ebce3c811f581a
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 30 items need manual translation:
+''   line 56  ints.h:11  C2T-TODO(conditional)  #if
+''   line 60  ints.h:14  C2T-TODO(conditional)  #else
+''   line 62  ints.h:15  C2T-TODO(conditional)  #error
+''   line 64  ints.h:16  C2T-TODO(conditional)  #endif
+''   line 66  ints.h:17  C2T-TODO(conditional)  #if
+''   line 70  ints.h:20  C2T-TODO(conditional)  #elif
+''   line 72  ints.h:21  C2T-TODO(conditional)  i16_t
+''   line 74  ints.h:22  C2T-TODO(conditional)  ui16_t
+''   line 76  ints.h:23  C2T-TODO(conditional)  #else
+''   line 78  ints.h:24  C2T-TODO(conditional)  #error
+''   line 80  ints.h:25  C2T-TODO(conditional)  #endif
+''   line 82  ints.h:26  C2T-TODO(conditional)  #if
+''   line 88  ints.h:31  C2T-TODO(conditional)  #elif
+''   line 90  ints.h:32  C2T-TODO(conditional)  i32_t
+''   line 92  ints.h:33  C2T-TODO(conditional)  ui32_t
+''   line 94  ints.h:34  C2T-TODO(conditional)  PI32
+''   line 96  ints.h:35  C2T-TODO(conditional)  PUI32
+''   line 98  ints.h:36  C2T-TODO(conditional)  #else
+''   line 100  ints.h:37  C2T-TODO(conditional)  #error
+''   line 102  ints.h:38  C2T-TODO(conditional)  #endif
+''   line 104  ints.h:39  C2T-TODO(conditional)  #if
+''   line 118  ints.h:44  C2T-TODO(conditional)  #elif
+''   line 132  ints.h:49  C2T-TODO(conditional)  #elif
+''   line 134  ints.h:50  C2T-TODO(conditional)  i64_t
+''   line 136  ints.h:51  C2T-TODO(conditional)  ui64_t
+''   line 138  ints.h:52  C2T-TODO(conditional)  PI64
+''   line 140  ints.h:53  C2T-TODO(conditional)  PUI64
+''   line 142  ints.h:54  C2T-TODO(conditional)  #else
+''   line 144  ints.h:55  C2T-TODO(conditional)  #error
+''   line 146  ints.h:56  C2T-TODO(conditional)  #endif
+'' =============================================================================
+
+/' ints.h -- create integer types for 8, 16, 32, and 64 bits
+ * Copyright (C) 2024 Mark Adler
+ * For conditions of distribution and use, see the copyright notice in zlib.h
+ *
+ * There exist compilers with limits.h, but not stdint.h or inttypes.h.
+ '/
+
+#pragma once
+
+#include once "crt/long.bi"
+extern "C"
+
+'' <limits.h>: built into tiko
+'' C2T-TODO(conditional) ints.h:11 -- tiko would take another branch where clang does not
+'' #if defined(UCHAR_MAX) && UCHAR_MAX == 0xff
+    type i8_t as int8
+    type ui8_t as uint8
+'' C2T-TODO(conditional) ints.h:14 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) ints.h:15 -- inside a conditional that stays a TODO
+'' #   error "no 8-bit integer"
+'' C2T-TODO(conditional) ints.h:16 -- tiko would take another branch where clang does not
+'' #endif
+'' C2T-TODO(conditional) ints.h:17 -- tiko would take another branch where clang does not
+'' #if defined(USHRT_MAX) && USHRT_MAX == 0xffff
+    type i16_t as int16
+    type ui16_t as uint16
+'' C2T-TODO(conditional) ints.h:20 -- tiko would take another branch where clang does not
+'' #elif defined(UINT_MAX) && UINT_MAX == 0xffff
+    '' C2T-TODO(conditional) ints.h:21 -- inside a conditional that stays a TODO
+''     typedef int i16_t;
+    '' C2T-TODO(conditional) ints.h:22 -- inside a conditional that stays a TODO
+''     typedef unsigned ui16_t;
+'' C2T-TODO(conditional) ints.h:23 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) ints.h:24 -- inside a conditional that stays a TODO
+'' #   error "no 16-bit integer"
+'' C2T-TODO(conditional) ints.h:25 -- tiko would take another branch where clang does not
+'' #endif
+'' C2T-TODO(conditional) ints.h:26 -- tiko would take another branch where clang does not
+'' #if defined(UINT_MAX) && UINT_MAX == 0xffffffff
+    type i32_t as int32
+    type ui32_t as uint32
+#   define PI32 "d"
+#   define PUI32 "u"
+'' C2T-TODO(conditional) ints.h:31 -- tiko would take another branch where clang does not
+'' #elif defined(ULONG_MAX) && ULONG_MAX == 0xffffffff
+    '' C2T-TODO(conditional) ints.h:32 -- inside a conditional that stays a TODO
+''     typedef long i32_t;
+    '' C2T-TODO(conditional) ints.h:33 -- inside a conditional that stays a TODO
+''     typedef unsigned long ui32_t;
+'' C2T-TODO(conditional) ints.h:34 -- inside a conditional that stays a TODO
+'' #   define PI32 "ld"
+'' C2T-TODO(conditional) ints.h:35 -- inside a conditional that stays a TODO
+'' #   define PUI32 "lu"
+'' C2T-TODO(conditional) ints.h:36 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) ints.h:37 -- inside a conditional that stays a TODO
+'' #   error "no 32-bit integer"
+'' C2T-TODO(conditional) ints.h:38 -- tiko would take another branch where clang does not
+'' #endif
+'' C2T-TODO(conditional) ints.h:39 -- tiko would take another branch where clang does not
+'' #if defined(ULONG_MAX) && ULONG_MAX == 0xffffffffffffffff
+    #if defined(TIKO_OS_LINUX)
+    type i64_t as clong
+    #endif
+    #if defined(TIKO_OS_LINUX)
+    type ui64_t as culong
+    #endif
+#if defined(TIKO_OS_LINUX)
+#   define PI64 "ld"
+#endif
+#if defined(TIKO_OS_LINUX)
+#   define PUI64 "lu"
+#endif
+'' C2T-TODO(conditional) ints.h:44 -- tiko would take another branch where clang does not
+'' #elif defined(ULLONG_MAX) && ULLONG_MAX == 0xffffffffffffffff
+    #if defined(TIKO_OS_WINDOWS)
+    type i64_t as int64
+    #endif
+    #if defined(TIKO_OS_WINDOWS)
+    type ui64_t as uint64
+    #endif
+#if defined(TIKO_OS_WINDOWS)
+#   define PI64 "lld"
+#endif
+#if defined(TIKO_OS_WINDOWS)
+#   define PUI64 "llu"
+#endif
+'' C2T-TODO(conditional) ints.h:49 -- tiko would take another branch where clang does not
+'' #elif defined(ULONG_LONG_MAX) && ULONG_LONG_MAX == 0xffffffffffffffff
+    '' C2T-TODO(conditional) ints.h:50 -- inside a conditional that stays a TODO
+''     typedef long long i64_t;
+    '' C2T-TODO(conditional) ints.h:51 -- inside a conditional that stays a TODO
+''     typedef unsigned long long ui64_t;
+'' C2T-TODO(conditional) ints.h:52 -- inside a conditional that stays a TODO
+'' #   define PI64 "lld"
+'' C2T-TODO(conditional) ints.h:53 -- inside a conditional that stays a TODO
+'' #   define PUI64 "llu"
+'' C2T-TODO(conditional) ints.h:54 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) ints.h:55 -- inside a conditional that stays a TODO
+'' #   error "no 64-bit integer"
+'' C2T-TODO(conditional) ints.h:56 -- tiko would take another branch where clang does not
+'' #endif
+
+end extern

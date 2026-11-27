@@ -1,0 +1,200 @@
+'' =============================================================================
+'' ioapi.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "ioapi.h"
+''   source sha256 : 56713a3aa2a771267045b731d2b7fa0719bbb922b278662deebd6fa0fb22cc59
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 13 items need manual translation:
+''   line 50  ioapi.h:24  C2T-TODO(conditional)  #if
+''   line 58  ioapi.h:31  C2T-TODO(conditional)  #endif
+''   line 72  ioapi.h:44  C2T-TODO(macro)  ftello64
+''   line 74  ioapi.h:45  C2T-TODO(macro)  fseeko64
+''   line 80  ioapi.h:50  C2T-TODO(macro)  ftello64
+''   line 82  ioapi.h:51  C2T-TODO(macro)  fseeko64
+''   line 175  ioapi.h:151  C2T-TODO(function-like-macro)  ZREAD64
+''   line 177  ioapi.h:152  C2T-TODO(function-like-macro)  ZWRITE64
+''   line 181  ioapi.h:155  C2T-TODO(function-like-macro)  ZCLOSE64
+''   line 183  ioapi.h:156  C2T-TODO(function-like-macro)  ZERROR64
+''   line 192  ioapi.h:164  C2T-TODO(function-like-macro)  ZOPEN64
+''   line 194  ioapi.h:165  C2T-TODO(function-like-macro)  ZTELL64
+''   line 196  ioapi.h:166  C2T-TODO(function-like-macro)  ZSEEK64
+'' =============================================================================
+
+/' ioapi.h -- IO base function header for compress/uncompress .zip
+   part of the MiniZip project - ( https://www.winimage.com/zLibDll/minizip.html )
+
+         Copyright (C) 1998-2026 Gilles Vollant (minizip) ( https://www.winimage.com/zLibDll/minizip.html )
+
+         Modifications for Zip64 support
+         Copyright (C) 2009-2010 Mathias Svensson ( https://result42.com )
+
+         For more info read MiniZip_info.txt
+
+         Changes
+
+    Oct-2009 - Defined ZPOS64_T to fpos_t on windows and u_int64_t on linux. (might need to find a better why for this)
+    Oct-2009 - Change to fseeko64, ftello64 and fopen64 so large files would work on linux.
+               More if/def section may be needed to support other platforms
+    Oct-2009 - Defined fxxxx64 calls to normal fopen/ftell/fseek so they would compile on windows.
+                          (but you should use iowin32.c for windows instead)
+
+'/
+
+#pragma once
+
+#include once "crt/long.bi"
+
+'' C2T-TODO(conditional) ioapi.h:24 -- an empty branch: c2t cannot tell which one clang took
+'' #if (!defined(_WIN32)) && (!defined(WIN32)) && (!defined(__APPLE__)) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 24)
+
+  /' Linux needs this to support file operation on files larger then 4+GB '/
+  /' But might need better if/def to select just the platforms that needs them.'/
+
+        /' (large-file defines: dropped by prepare.py) '/
+
+'' C2T-TODO(conditional) ioapi.h:31 -- an empty branch: c2t cannot tell which one clang took
+'' #endif
+
+#include once "crt/stdio.bi"
+#include once "crt/stdlib.bi"
+#include once "zlib.ti"
+
+#if defined(USE_FILE32API)
+#define fopen64 fopen
+#define ftello64 ftell
+#define fseeko64 fseek
+#else
+#if ((((0 orelse 0) orelse 0) orelse 0) orelse defined(MINIZIP_FOPEN_NO_64))
+#define fopen64 fopen
+'' C2T-TODO(macro) ioapi.h:44 -- 'ftello64': 'ftello' is nothing tiko declares
+'' #define ftello64 ftello
+'' C2T-TODO(macro) ioapi.h:45 -- 'fseeko64': 'fseeko' is nothing tiko declares
+'' #define fseeko64 fseeko
+#endif
+#ifdef _MSC_VER
+ #define fopen64 fopen
+ #if ((_MSC_VER >= 1400) andalso ((defined(NO_MSCVER_FILE64_FUNC)) = 0))
+  '' C2T-TODO(macro) ioapi.h:50 -- 'ftello64': '_ftelli64' is nothing tiko declares
+''   #define ftello64 _ftelli64
+  '' C2T-TODO(macro) ioapi.h:51 -- 'fseeko64': '_fseeki64' is nothing tiko declares
+''   #define fseeko64 _fseeki64
+ #else '' old MSC
+  #define ftello64 ftell
+  #define fseeko64 fseek
+ #endif
+#endif
+#endif
+
+#ifdef HAVE_MINIZIP64_CONF_H
+#include once "mz64conf.ti"
+#endif
+
+#include once "ints.ti"
+type ZPOS64_T as ui64_t
+
+/' Maximum unsigned 32-bit value used as placeholder for zip64 '/
+#ifndef MAXU32
+#define MAXU32 &hFFFFFFFF
+#endif
+
+extern "C"
+
+
+#define ZLIB_FILEFUNC_SEEK_CUR 1
+#define ZLIB_FILEFUNC_SEEK_END 2
+#define ZLIB_FILEFUNC_SEEK_SET 0
+
+#define ZLIB_FILEFUNC_MODE_READ 1
+#define ZLIB_FILEFUNC_MODE_WRITE 2
+#define ZLIB_FILEFUNC_MODE_READWRITEFILTER 3
+
+#define ZLIB_FILEFUNC_MODE_EXISTING 4
+#define ZLIB_FILEFUNC_MODE_CREATE 8
+
+
+'' c2t: export macro ZCALLBACK (decoration, stripped where used)
+
+
+
+
+type open_file_func as function cdecl( byval as voidpf, byval as const zstring ptr, byval as int32 ) as voidpf
+type read_file_func as function cdecl( byval as voidpf, byval as voidpf, byval as any ptr, byval as uLong_ ) as uLong_
+type write_file_func as function cdecl( byval as voidpf, byval as voidpf, byval as const any ptr, byval as uLong_ ) as uLong_
+type close_file_func as function cdecl( byval as voidpf, byval as voidpf ) as int32
+type testerror_file_func as function cdecl( byval as voidpf, byval as voidpf ) as int32
+
+type tell_file_func as function cdecl( byval as voidpf, byval as voidpf ) as clong
+type seek_file_func as function cdecl( byval as voidpf, byval as voidpf, byval as uLong_, byval as int32 ) as clong
+
+
+/' here is the "old" 32 bits structure '/
+type zlib_filefunc_def_s
+    zopen_file as open_file_func
+    zread_file as read_file_func
+    zwrite_file as write_file_func
+    ztell_file as tell_file_func
+    zseek_file as seek_file_func
+    zclose_file as close_file_func
+    zerror_file as testerror_file_func
+    opaque as voidpf
+end type
+type zlib_filefunc_def as zlib_filefunc_def_s
+
+type tell64_file_func as function cdecl( byval as voidpf, byval as voidpf ) as ZPOS64_T
+type seek64_file_func as function cdecl( byval as voidpf, byval as voidpf, byval as ZPOS64_T, byval as int32 ) as clong
+type open64_file_func as function cdecl( byval as voidpf, byval as const any ptr, byval as int32 ) as voidpf
+
+type zlib_filefunc64_def_s
+    zopen64_file as open64_file_func
+    zread_file as read_file_func
+    zwrite_file as write_file_func
+    ztell64_file as tell64_file_func
+    zseek64_file as seek64_file_func
+    zclose_file as close_file_func
+    zerror_file as testerror_file_func
+    opaque as voidpf
+end type
+type zlib_filefunc64_def as zlib_filefunc64_def_s
+
+declare sub fill_fopen64_filefunc( byval pzlib_filefunc_def as zlib_filefunc64_def ptr )
+declare sub fill_fopen_filefunc( byval pzlib_filefunc_def as zlib_filefunc_def ptr )
+
+/' now internal definition, only for zip.c and unzip.h '/
+type zlib_filefunc64_32_def_s
+    zfile_func64 as zlib_filefunc64_def
+    zopen32_file as open_file_func
+    ztell32_file as tell_file_func
+    zseek32_file as seek_file_func
+end type
+type zlib_filefunc64_32_def as zlib_filefunc64_32_def_s
+
+
+'' C2T-TODO(function-like-macro) ioapi.h:151 -- '*' as a prefix
+'' #define ZREAD64(filefunc,filestream,buf,size)     ((*((filefunc).zfile_func64.zread_file))   ((filefunc).zfile_func64.opaque,filestream,buf,size))
+'' C2T-TODO(function-like-macro) ioapi.h:152 -- '*' as a prefix
+'' #define ZWRITE64(filefunc,filestream,buf,size)    ((*((filefunc).zfile_func64.zwrite_file))  ((filefunc).zfile_func64.opaque,filestream,buf,size))
+/'#define ZTELL64(filefunc,filestream)            ((*((filefunc).ztell64_file)) ((filefunc).opaque,filestream)) '/
+/'#define ZSEEK64(filefunc,filestream,pos,mode)   ((*((filefunc).zseek64_file)) ((filefunc).opaque,filestream,pos,mode)) '/
+'' C2T-TODO(function-like-macro) ioapi.h:155 -- '*' as a prefix
+'' #define ZCLOSE64(filefunc,filestream)             ((*((filefunc).zfile_func64.zclose_file))  ((filefunc).zfile_func64.opaque,filestream))
+'' C2T-TODO(function-like-macro) ioapi.h:156 -- '*' as a prefix
+'' #define ZERROR64(filefunc,filestream)             ((*((filefunc).zfile_func64.zerror_file))  ((filefunc).zfile_func64.opaque,filestream))
+
+declare function call_zopen64( byval pfilefunc as const zlib_filefunc64_32_def ptr, byval filename as const any ptr, byval mode as int32 ) as voidpf
+declare function call_zseek64( byval pfilefunc as const zlib_filefunc64_32_def ptr, byval filestream as voidpf, byval offset as ZPOS64_T, byval origin as int32 ) as clong
+declare function call_ztell64( byval pfilefunc as const zlib_filefunc64_32_def ptr, byval filestream as voidpf ) as ZPOS64_T
+
+declare sub fill_zlib_filefunc64_32_def_from_filefunc32( byval p_filefunc64_32 as zlib_filefunc64_32_def ptr, byval p_filefunc32 as const zlib_filefunc_def ptr )
+
+'' C2T-TODO(function-like-macro) ioapi.h:164 -- '&' as a prefix
+'' #define ZOPEN64(filefunc,filename,mode)         (call_zopen64((&(filefunc)),(filename),(mode)))
+'' C2T-TODO(function-like-macro) ioapi.h:165 -- '&' as a prefix
+'' #define ZTELL64(filefunc,filestream)            (call_ztell64((&(filefunc)),(filestream)))
+'' C2T-TODO(function-like-macro) ioapi.h:166 -- '&' as a prefix
+'' #define ZSEEK64(filefunc,filestream,pos,mode)   (call_zseek64((&(filefunc)),(filestream),(pos),(mode)))
+
+end extern
+

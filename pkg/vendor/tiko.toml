@@ -39,6 +39,9 @@ links = ["static", "dynamic"]
 [vendor.zint]
 links = ["static", "dynamic"]
 
+[vendor.compression]
+links = ["static", "dynamic"]
+
 [vendor.mxml]
 links = ["static", "dynamic"]
 

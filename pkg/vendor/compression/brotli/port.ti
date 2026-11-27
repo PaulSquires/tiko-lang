@@ -1,0 +1,437 @@
+'' =============================================================================
+'' port.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "port.h"
+''   source sha256 : 72b484d7a2561f3a9ad35ebd0d4f97f7a2d9863b619782ada5b083a4b6f40df5
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --sysroot //wsl.localhost/Ubuntu --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.2dXCtSDJnC/h
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 55 items need manual translation:
+''   line 88  port.h:21  C2T-TODO(macro)  BROTLI_GNUC_VERSION
+''   line 92  port.h:24  C2T-TODO(macro)  BROTLI_GNUC_VERSION
+''   line 97  port.h:28  C2T-TODO(function-like-macro)  BROTLI_GNUC_VERSION_CHECK
+''   line 105  port.h:35  C2T-TODO(macro)  BROTLI_MSVC_VERSION
+''   line 111  port.h:40  C2T-TODO(macro)  BROTLI_MSVC_VERSION
+''   line 117  port.h:45  C2T-TODO(macro)  BROTLI_MSVC_VERSION
+''   line 125  port.h:52  C2T-TODO(function-like-macro)  BROTLI_MSVC_VERSION_CHECK
+''   line 129  port.h:55  C2T-TODO(function-like-macro)  BROTLI_MSVC_VERSION_CHECK
+''   line 133  port.h:58  C2T-TODO(function-like-macro)  BROTLI_MSVC_VERSION_CHECK
+''   line 139  port.h:63  C2T-TODO(macro)  BROTLI_INTEL_VERSION
+''   line 145  port.h:68  C2T-TODO(macro)  BROTLI_INTEL_VERSION
+''   line 151  port.h:73  C2T-TODO(function-like-macro)  BROTLI_INTEL_VERSION_CHECK
+''   line 159  port.h:81  C2T-TODO(macro)  BROTLI_PGI_VERSION
+''   line 165  port.h:86  C2T-TODO(function-like-macro)  BROTLI_PGI_VERSION_CHECK
+''   line 173  port.h:93  C2T-TODO(macro)  BROTLI_SUNPRO_VERSION
+''   line 180  port.h:99  C2T-TODO(macro)  BROTLI_SUNPRO_VERSION
+''   line 186  port.h:104  C2T-TODO(macro)  BROTLI_SUNPRO_VERSION
+''   line 193  port.h:110  C2T-TODO(macro)  BROTLI_SUNPRO_VERSION
+''   line 201  port.h:117  C2T-TODO(function-like-macro)  BROTLI_SUNPRO_VERSION_CHECK
+''   line 209  port.h:124  C2T-TODO(macro)  BROTLI_ARM_VERSION
+''   line 215  port.h:129  C2T-TODO(macro)  BROTLI_ARM_VERSION
+''   line 223  port.h:136  C2T-TODO(function-like-macro)  BROTLI_ARM_VERSION_CHECK
+''   line 231  port.h:143  C2T-TODO(macro)  BROTLI_IBM_VERSION
+''   line 237  port.h:148  C2T-TODO(macro)  BROTLI_IBM_VERSION
+''   line 241  port.h:151  C2T-TODO(macro)  BROTLI_IBM_VERSION
+''   line 246  port.h:155  C2T-TODO(function-like-macro)  BROTLI_IBM_VERSION_CHECK
+''   line 254  port.h:162  C2T-TODO(macro)  BROTLI_TI_VERSION
+''   line 262  port.h:169  C2T-TODO(function-like-macro)  BROTLI_TI_VERSION_CHECK
+''   line 271  port.h:177  C2T-TODO(macro)  BROTLI_IAR_VERSION
+''   line 277  port.h:182  C2T-TODO(macro)  BROTLI_IAR_VERSION
+''   line 283  port.h:187  C2T-TODO(function-like-macro)  BROTLI_IAR_VERSION_CHECK
+''   line 291  port.h:194  C2T-TODO(macro)  BROTLI_TINYC_VERSION
+''   line 297  port.h:199  C2T-TODO(function-like-macro)  BROTLI_TINYC_VERSION_CHECK
+''   line 304  port.h:205  C2T-TODO(conditional)  #if
+''   line 308  port.h:208  C2T-TODO(conditional)  #else
+''   line 310  port.h:209  C2T-TODO(conditional)  BROTLI_GNUC_HAS_ATTRIBUTE
+''   line 313  port.h:211  C2T-TODO(conditional)  #endif
+''   line 316  port.h:213  C2T-TODO(conditional)  #if
+''   line 320  port.h:216  C2T-TODO(conditional)  #else
+''   line 322  port.h:217  C2T-TODO(conditional)  BROTLI_GNUC_HAS_BUILTIN
+''   line 325  port.h:219  C2T-TODO(conditional)  #endif
+''   line 328  port.h:221  C2T-TODO(conditional)  #if
+''   line 332  port.h:223  C2T-TODO(conditional)  #else
+''   line 334  port.h:224  C2T-TODO(conditional)  BROTLI_HAS_FEATURE
+''   line 336  port.h:225  C2T-TODO(conditional)  #endif
+''   line 339  port.h:227  C2T-TODO(conditional)  #if
+''   line 344  port.h:229  C2T-TODO(conditional)  #elif
+''   line 357  port.h:238  C2T-TODO(conditional)  #else
+''   line 359  port.h:239  C2T-TODO(conditional)  BROTLI_PUBLIC
+''   line 361  port.h:240  C2T-TODO(conditional)  #endif
+''   line 364  port.h:242  C2T-TODO(conditional)  #if
+''   line 369  port.h:244  C2T-TODO(conditional)  #elif
+''   line 382  port.h:253  C2T-TODO(conditional)  #else
+''   line 384  port.h:254  C2T-TODO(conditional)  BROTLI_INTERNAL
+''   line 386  port.h:255  C2T-TODO(conditional)  #endif
+'' =============================================================================
+
+/' Copyright 2016 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+'/
+
+/' Macros for compiler / platform specific API declarations. '/
+
+#pragma once
+
+/' The following macros were borrowed from https://github.com/nemequ/hedley
+ * with permission of original author - Evan Nemerson <evan@nemerson.com> '/
+
+/' >>> >>> >>> hedley macros '/
+
+extern "C"
+
+#define BROTLI_MAKE_VERSION(major, minor, revision) ((((major) * 1000000) + ((minor) * 1000)) + (revision))
+
+#if (defined(__GNUC__) andalso defined(__GNUC_PATCHLEVEL__))
+'' C2T-TODO(macro) port.h:21 -- 'BROTLI_GNUC_VERSION': '__GNUC__' is nothing tiko declares
+'' #define BROTLI_GNUC_VERSION \
+''   BROTLI_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
+#elseif defined(__GNUC__)
+'' C2T-TODO(macro) port.h:24 -- 'BROTLI_GNUC_VERSION': '__GNUC__' is nothing tiko declares
+'' #define BROTLI_GNUC_VERSION BROTLI_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, 0)
+#endif
+
+#if defined(BROTLI_GNUC_VERSION)
+'' C2T-TODO(function-like-macro) port.h:28 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_GNUC_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_GNUC_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_GNUC_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if (defined(_MSC_FULL_VER) andalso (_MSC_FULL_VER >= 140000000))
+'' C2T-TODO(macro) port.h:35 -- 'BROTLI_MSVC_VERSION': '_MSC_FULL_VER' is nothing tiko declares
+'' #define BROTLI_MSVC_VERSION                                \
+''   BROTLI_MAKE_VERSION((_MSC_FULL_VER / 10000000),          \
+''                       (_MSC_FULL_VER % 10000000) / 100000, \
+''                       (_MSC_FULL_VER % 100000) / 100)
+#elseif defined(_MSC_FULL_VER)
+'' C2T-TODO(macro) port.h:40 -- 'BROTLI_MSVC_VERSION': '_MSC_FULL_VER' is nothing tiko declares
+'' #define BROTLI_MSVC_VERSION                              \
+''   BROTLI_MAKE_VERSION((_MSC_FULL_VER / 1000000),         \
+''                       (_MSC_FULL_VER % 1000000) / 10000, \
+''                       (_MSC_FULL_VER % 10000) / 10)
+#elseif defined(_MSC_VER)
+'' C2T-TODO(macro) port.h:45 -- 'BROTLI_MSVC_VERSION': '_MSC_VER' is nothing tiko declares
+'' #define BROTLI_MSVC_VERSION \
+''   BROTLI_MAKE_VERSION(_MSC_VER / 100, _MSC_VER % 100, 0)
+#endif
+
+#if ((defined(_MSC_VER)) = 0)
+#define BROTLI_MSVC_VERSION_CHECK(major, minor, patch) 0
+#elseif (defined(_MSC_VER) andalso (_MSC_VER >= 1400))
+'' C2T-TODO(function-like-macro) port.h:52 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_MSVC_VERSION_CHECK(major, minor, patch) \
+''   (_MSC_FULL_VER >= ((major * 10000000) + (minor * 100000) + (patch)))
+#elseif (defined(_MSC_VER) andalso (_MSC_VER >= 1200))
+'' C2T-TODO(function-like-macro) port.h:55 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_MSVC_VERSION_CHECK(major, minor, patch) \
+''   (_MSC_FULL_VER >= ((major * 1000000) + (minor * 10000) + (patch)))
+#else
+'' C2T-TODO(function-like-macro) port.h:58 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_MSVC_VERSION_CHECK(major, minor, patch) \
+''   (_MSC_VER >= ((major * 100) + (minor)))
+#endif
+
+#if (defined(__INTEL_COMPILER) andalso defined(__INTEL_COMPILER_UPDATE))
+'' C2T-TODO(macro) port.h:63 -- 'BROTLI_INTEL_VERSION': '__INTEL_COMPILER' is nothing tiko declares
+'' #define BROTLI_INTEL_VERSION                   \
+''   BROTLI_MAKE_VERSION(__INTEL_COMPILER / 100,  \
+''                       __INTEL_COMPILER % 100,  \
+''                       __INTEL_COMPILER_UPDATE)
+#elseif defined(__INTEL_COMPILER)
+'' C2T-TODO(macro) port.h:68 -- 'BROTLI_INTEL_VERSION': '__INTEL_COMPILER' is nothing tiko declares
+'' #define BROTLI_INTEL_VERSION \
+''   BROTLI_MAKE_VERSION(__INTEL_COMPILER / 100, __INTEL_COMPILER % 100, 0)
+#endif
+
+#if defined(BROTLI_INTEL_VERSION)
+'' C2T-TODO(function-like-macro) port.h:73 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_INTEL_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_INTEL_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_INTEL_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if (((defined(__PGI) andalso defined(__PGIC__)) andalso defined(__PGIC_MINOR__)) andalso defined(__PGIC_PATCHLEVEL__))
+'' C2T-TODO(macro) port.h:81 -- 'BROTLI_PGI_VERSION': '__PGIC__' is nothing tiko declares
+'' #define BROTLI_PGI_VERSION \
+''   BROTLI_MAKE_VERSION(__PGIC__, __PGIC_MINOR__, __PGIC_PATCHLEVEL__)
+#endif
+
+#if defined(BROTLI_PGI_VERSION)
+'' C2T-TODO(function-like-macro) port.h:86 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_PGI_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_PGI_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_PGI_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if (defined(__SUNPRO_C) andalso (__SUNPRO_C > &h1000))
+'' C2T-TODO(macro) port.h:93 -- 'BROTLI_SUNPRO_VERSION': '__SUNPRO_C' is nothing tiko declares
+'' #define BROTLI_SUNPRO_VERSION                                       \
+''   BROTLI_MAKE_VERSION(                                              \
+''     (((__SUNPRO_C >> 16) & 0xf) * 10) + ((__SUNPRO_C >> 12) & 0xf), \
+''     (((__SUNPRO_C >> 8) & 0xf) * 10) + ((__SUNPRO_C >> 4) & 0xf),   \
+''     (__SUNPRO_C & 0xf) * 10)
+#elseif defined(__SUNPRO_C)
+'' C2T-TODO(macro) port.h:99 -- 'BROTLI_SUNPRO_VERSION': '__SUNPRO_C' is nothing tiko declares
+'' #define BROTLI_SUNPRO_VERSION                  \
+''   BROTLI_MAKE_VERSION((__SUNPRO_C >> 8) & 0xf, \
+''                       (__SUNPRO_C >> 4) & 0xf, \
+''                       (__SUNPRO_C) & 0xf)
+#elseif (defined(__SUNPRO_CC) andalso (__SUNPRO_CC > &h1000))
+'' C2T-TODO(macro) port.h:104 -- 'BROTLI_SUNPRO_VERSION': '__SUNPRO_CC' is nothing tiko declares
+'' #define BROTLI_SUNPRO_VERSION                                         \
+''   BROTLI_MAKE_VERSION(                                                \
+''     (((__SUNPRO_CC >> 16) & 0xf) * 10) + ((__SUNPRO_CC >> 12) & 0xf), \
+''     (((__SUNPRO_CC >> 8) & 0xf) * 10) + ((__SUNPRO_CC >> 4) & 0xf),   \
+''     (__SUNPRO_CC & 0xf) * 10)
+#elseif defined(__SUNPRO_CC)
+'' C2T-TODO(macro) port.h:110 -- 'BROTLI_SUNPRO_VERSION': '__SUNPRO_CC' is nothing tiko declares
+'' #define BROTLI_SUNPRO_VERSION                   \
+''   BROTLI_MAKE_VERSION((__SUNPRO_CC >> 8) & 0xf, \
+''                       (__SUNPRO_CC >> 4) & 0xf, \
+''                       (__SUNPRO_CC) & 0xf)
+#endif
+
+#if defined(BROTLI_SUNPRO_VERSION)
+'' C2T-TODO(function-like-macro) port.h:117 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_SUNPRO_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_SUNPRO_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_SUNPRO_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if (defined(__CC_ARM) andalso defined(__ARMCOMPILER_VERSION))
+'' C2T-TODO(macro) port.h:124 -- 'BROTLI_ARM_VERSION': '__ARMCOMPILER_VERSION' is nothing tiko declares
+'' #define BROTLI_ARM_VERSION                                       \
+''   BROTLI_MAKE_VERSION((__ARMCOMPILER_VERSION / 1000000),         \
+''                       (__ARMCOMPILER_VERSION % 1000000) / 10000, \
+''                       (__ARMCOMPILER_VERSION % 10000) / 100)
+#elseif (defined(__CC_ARM) andalso defined(__ARMCC_VERSION))
+'' C2T-TODO(macro) port.h:129 -- 'BROTLI_ARM_VERSION': '__ARMCC_VERSION' is nothing tiko declares
+'' #define BROTLI_ARM_VERSION                                 \
+''   BROTLI_MAKE_VERSION((__ARMCC_VERSION / 1000000),         \
+''                       (__ARMCC_VERSION % 1000000) / 10000, \
+''                       (__ARMCC_VERSION % 10000) / 100)
+#endif
+
+#if defined(BROTLI_ARM_VERSION)
+'' C2T-TODO(function-like-macro) port.h:136 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_ARM_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_ARM_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_ARM_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if defined(__ibmxl__)
+'' C2T-TODO(macro) port.h:143 -- 'BROTLI_IBM_VERSION': '__ibmxl_version__' is nothing tiko declares
+'' #define BROTLI_IBM_VERSION                    \
+''   BROTLI_MAKE_VERSION(__ibmxl_version__,      \
+''                       __ibmxl_release__,      \
+''                       __ibmxl_modification__)
+#elseif (defined(__xlC__) andalso defined(__xlC_ver__))
+'' C2T-TODO(macro) port.h:148 -- 'BROTLI_IBM_VERSION': '__xlC__' is nothing tiko declares
+'' #define BROTLI_IBM_VERSION \
+''   BROTLI_MAKE_VERSION(__xlC__ >> 8, __xlC__ & 0xff, (__xlC_ver__ >> 8) & 0xff)
+#elseif defined(__xlC__)
+'' C2T-TODO(macro) port.h:151 -- 'BROTLI_IBM_VERSION': '__xlC__' is nothing tiko declares
+'' #define BROTLI_IBM_VERSION BROTLI_MAKE_VERSION(__xlC__ >> 8, __xlC__ & 0xff, 0)
+#endif
+
+#if defined(BROTLI_IBM_VERSION)
+'' C2T-TODO(function-like-macro) port.h:155 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_IBM_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_IBM_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_IBM_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if defined(__TI_COMPILER_VERSION__)
+'' C2T-TODO(macro) port.h:162 -- 'BROTLI_TI_VERSION': '__TI_COMPILER_VERSION__' is nothing tiko declares
+'' #define BROTLI_TI_VERSION                                         \
+''   BROTLI_MAKE_VERSION((__TI_COMPILER_VERSION__ / 1000000),        \
+''                       (__TI_COMPILER_VERSION__ % 1000000) / 1000, \
+''                       (__TI_COMPILER_VERSION__ % 1000))
+#endif
+
+#if defined(BROTLI_TI_VERSION)
+'' C2T-TODO(function-like-macro) port.h:169 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_TI_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_TI_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_TI_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if defined(__IAR_SYSTEMS_ICC__)
+#if (__VER__ > 1000)
+'' C2T-TODO(macro) port.h:177 -- 'BROTLI_IAR_VERSION': '__VER__' is nothing tiko declares
+'' #define BROTLI_IAR_VERSION                     \
+''   BROTLI_MAKE_VERSION((__VER__ / 1000000),     \
+''                       (__VER__ / 1000) % 1000, \
+''                       (__VER__ % 1000))
+#else
+'' C2T-TODO(macro) port.h:182 -- 'BROTLI_IAR_VERSION': 'VER' is nothing tiko declares
+'' #define BROTLI_IAR_VERSION BROTLI_MAKE_VERSION(VER / 100, __VER__ % 100, 0)
+#endif
+#endif
+
+#if defined(BROTLI_IAR_VERSION)
+'' C2T-TODO(function-like-macro) port.h:187 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_IAR_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_IAR_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_IAR_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+#if defined(__TINYC__)
+'' C2T-TODO(macro) port.h:194 -- 'BROTLI_TINYC_VERSION': '__TINYC__' is nothing tiko declares
+'' #define BROTLI_TINYC_VERSION \
+''   BROTLI_MAKE_VERSION(__TINYC__ / 1000, (__TINYC__ / 100) % 10, __TINYC__ % 100)
+#endif
+
+#if defined(BROTLI_TINYC_VERSION)
+'' C2T-TODO(function-like-macro) port.h:199 -- a C truth value (1) used as a number; tiko's is -1
+'' #define BROTLI_TINYC_VERSION_CHECK(major, minor, patch) \
+''   (BROTLI_TINYC_VERSION >= BROTLI_MAKE_VERSION(major, minor, patch))
+#else
+#define BROTLI_TINYC_VERSION_CHECK(major, minor, patch) 0
+#endif
+
+'' C2T-TODO(conditional) port.h:205 -- tiko would take another branch where clang does not
+'' #if defined(__has_attribute)
+'' C2T-NOTE(unchecked) port.h:206 -- '__has_attribute' not declared here: a program using the macro declares it
+#define BROTLI_GNUC_HAS_ATTRIBUTE(attribute, major, minor, patch) __has_attribute((attribute))
+'' C2T-TODO(conditional) port.h:208 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) port.h:209 -- inside a conditional that stays a TODO
+'' #define BROTLI_GNUC_HAS_ATTRIBUTE(attribute, major, minor, patch) \
+''   BROTLI_GNUC_VERSION_CHECK(major, minor, patch)
+'' C2T-TODO(conditional) port.h:211 -- tiko would take another branch where clang does not
+'' #endif
+
+'' C2T-TODO(conditional) port.h:213 -- tiko would take another branch where clang does not
+'' #if defined(__has_builtin)
+'' C2T-NOTE(unchecked) port.h:214 -- '__has_builtin' not declared here: a program using the macro declares it
+#define BROTLI_GNUC_HAS_BUILTIN(builtin, major, minor, patch) __has_builtin((builtin))
+'' C2T-TODO(conditional) port.h:216 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) port.h:217 -- inside a conditional that stays a TODO
+'' #define BROTLI_GNUC_HAS_BUILTIN(builtin, major, minor, patch) \
+''   BROTLI_GNUC_VERSION_CHECK(major, minor, patch)
+'' C2T-TODO(conditional) port.h:219 -- tiko would take another branch where clang does not
+'' #endif
+
+'' C2T-TODO(conditional) port.h:221 -- tiko would take another branch where clang does not
+'' #if defined(__has_feature)
+'' C2T-NOTE(unchecked) port.h:222 -- '__has_feature' not declared here: a program using the macro declares it
+#define BROTLI_HAS_FEATURE(feature) __has_feature((feature))
+'' C2T-TODO(conditional) port.h:223 -- tiko would take another branch where clang does not
+'' #else
+'' C2T-TODO(conditional) port.h:224 -- inside a conditional that stays a TODO
+'' #define BROTLI_HAS_FEATURE(feature) (0)
+'' C2T-TODO(conditional) port.h:225 -- tiko would take another branch where clang does not
+'' #endif
+
+'' C2T-TODO(conditional) port.h:227 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(TIKO_OS_WINDOWS)
+#define BROTLI_PUBLIC
+#endif
+'' C2T-TODO(conditional) port.h:229 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #elif BROTLI_GNUC_VERSION_CHECK(3, 3, 0) ||                         \
+''     BROTLI_TI_VERSION_CHECK(8, 0, 0) ||                             \
+''     BROTLI_INTEL_VERSION_CHECK(16, 0, 0) ||                         \
+''     BROTLI_ARM_VERSION_CHECK(4, 1, 0) ||                            \
+''     BROTLI_IBM_VERSION_CHECK(13, 1, 0) ||                           \
+''     BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0) ||                        \
+''     (BROTLI_TI_VERSION_CHECK(7, 3, 0) &&                            \
+''      defined(__TI_GNU_ATTRIBUTE_SUPPORT__) && defined(__TI_EABI__))
+#if defined(TIKO_OS_LINUX)
+'' C2T-NOTE(decoration) port.h:237 -- '__attribute__' means nothing to tiko: defined, empty
+#define BROTLI_PUBLIC
+#endif
+'' C2T-TODO(conditional) port.h:238 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #else
+'' C2T-TODO(conditional) port.h:239 -- inside a conditional that stays a TODO
+'' #define BROTLI_PUBLIC
+'' C2T-TODO(conditional) port.h:240 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #endif
+
+'' C2T-TODO(conditional) port.h:242 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #if defined(_WIN32) || defined(__CYGWIN__)
+#if defined(TIKO_OS_WINDOWS)
+#define BROTLI_INTERNAL
+#endif
+'' C2T-TODO(conditional) port.h:244 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #elif BROTLI_GNUC_VERSION_CHECK(3, 3, 0) ||                         \
+''     BROTLI_TI_VERSION_CHECK(8, 0, 0) ||                             \
+''     BROTLI_INTEL_VERSION_CHECK(16, 0, 0) ||                         \
+''     BROTLI_ARM_VERSION_CHECK(4, 1, 0) ||                            \
+''     BROTLI_IBM_VERSION_CHECK(13, 1, 0) ||                           \
+''     BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0) ||                        \
+''     (BROTLI_TI_VERSION_CHECK(7, 3, 0) &&                            \
+''      defined(__TI_GNU_ATTRIBUTE_SUPPORT__) && defined(__TI_EABI__))
+#if defined(TIKO_OS_LINUX)
+'' C2T-NOTE(decoration) port.h:252 -- '__attribute__' means nothing to tiko: defined, empty
+#define BROTLI_INTERNAL
+#endif
+'' C2T-TODO(conditional) port.h:253 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #else
+'' C2T-TODO(conditional) port.h:254 -- inside a conditional that stays a TODO
+'' #define BROTLI_INTERNAL
+'' C2T-TODO(conditional) port.h:255 -- c2t cannot evaluate '((((((BROTLI_GNUC_VERSION_CHECK(3, 3, 0) orelse BROTLI_TI_VERSION_CHECK(8, 0, 0)) orelse BROTLI_INTEL_VERSION_CHECK(16, 0, 0)) orelse BROTLI_ARM_VERSION_CHECK(4, 1, 0)) orelse BROTLI_IBM_VERSION_CHECK(13, 1, 0)) orelse BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0)) orelse ((BROTLI_TI_VERSION_CHECK(7, 3, 0) andalso defined(__TI_GNU_ATTRIBUTE_SUPPORT__)) andalso defined(__TI_EABI__)))' to check it
+'' #endif
+
+#if (((((((201112 andalso (201112 >= 199901)) andalso ((defined(__STDC_NO_VLA__)) = 0)) andalso ((0) = 0)) andalso ((defined(__PGI)) = 0)) andalso ((defined(__PGIC__)) = 0)) andalso ((defined(__TINYC__)) = 0)) andalso ((defined(__clang__)) = 0))
+#define BROTLI_ARRAY_PARAM(name) (name)
+#else
+#define BROTLI_ARRAY_PARAM(name)
+#endif
+
+/' <<< <<< <<< end of hedley macros. '/
+
+#if defined(BROTLI_SHARED_COMPILATION)
+#if defined(TIKO_OS_WINDOWS)
+#if defined(BROTLICOMMON_SHARED_COMPILATION)
+'' C2T-NOTE(decoration) port.h:271 -- '__declspec' means nothing to tiko: defined, empty
+#define BROTLI_COMMON_API
+#else  /' !BROTLICOMMON_SHARED_COMPILATION '/
+'' C2T-NOTE(decoration) port.h:273 -- '__declspec' means nothing to tiko: defined, empty
+#define BROTLI_COMMON_API
+#endif  /' BROTLICOMMON_SHARED_COMPILATION '/
+#if defined(BROTLIDEC_SHARED_COMPILATION)
+'' C2T-NOTE(decoration) port.h:276 -- '__declspec' means nothing to tiko: defined, empty
+#define BROTLI_DEC_API
+#else   /' !BROTLIDEC_SHARED_COMPILATION '/
+'' C2T-NOTE(decoration) port.h:278 -- '__declspec' means nothing to tiko: defined, empty
+#define BROTLI_DEC_API
+#endif  /' BROTLIDEC_SHARED_COMPILATION '/
+#if defined(BROTLIENC_SHARED_COMPILATION)
+'' C2T-NOTE(decoration) port.h:281 -- '__declspec' means nothing to tiko: defined, empty
+#define BROTLI_ENC_API
+#else  /' !BROTLIENC_SHARED_COMPILATION '/
+'' C2T-NOTE(decoration) port.h:283 -- '__declspec' means nothing to tiko: defined, empty
+#define BROTLI_ENC_API
+#endif  /' BROTLIENC_SHARED_COMPILATION '/
+#else  /' !_WIN32 '/
+#define BROTLI_COMMON_API BROTLI_PUBLIC
+#define BROTLI_DEC_API BROTLI_PUBLIC
+#define BROTLI_ENC_API BROTLI_PUBLIC
+#endif  /' _WIN32 '/
+#else  /' BROTLI_SHARED_COMPILATION '/
+#define BROTLI_COMMON_API
+#define BROTLI_DEC_API
+#define BROTLI_ENC_API
+#endif
+
+#if defined(BROTLI_BUILD_ENC_EXTRA_API)
+#define BROTLI_ENC_EXTRA_API BROTLI_ENC_API
+#else
+#define BROTLI_ENC_EXTRA_API BROTLI_INTERNAL
+#endif
+
+end extern

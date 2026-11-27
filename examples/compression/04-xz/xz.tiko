@@ -1,0 +1,75 @@
+'' xz -- a file to FILE.xz and back as a STREAM: liblzma's lzma_stream reads from one fixed buffer
+'' and writes to another, so a file of any size goes through 64 KB of memory each way. The loop is
+'' the same for every liblzma coder: refill next_in when avail_in is 0, call lzma_code, write out
+'' what filled next_out, until it returns LZMA_STREAM_END. zlib's z_stream and bzip2's bz_stream
+'' work the same way.
+''
+''     xz FILE         writes FILE.xz (preset 6, CRC64 check), keeps FILE
+''     xz -d FILE.xz   writes FILE (without .xz)
+''
+'' Build it with 'tiko xz.tiko'. liblzma's licence (0BSD) is in pkg/vendor/compression/LICENSE;
+'' this example is public domain.
+#import "vendor/compression" link dynamic
+
+const CHUNK = 65536
+
+'' One stream from file to file; the coder is already set up in s.
+function Pump( byref s as lzma_stream, byval fin as integer, byval fout as integer ) as lzma_ret
+    dim as uint8 inbuf( 0 to CHUNK - 1 ), outbuf( 0 to CHUNK - 1 )
+    dim as integer left_ = lof( fin )
+    dim as lzma_action action = LZMA_RUN
+    s.next_out = @outbuf(0) : s.avail_out = CHUNK
+    do
+        if s.avail_in = 0 andalso action = LZMA_RUN then
+            dim as integer n = iif( left_ < CHUNK, left_, CHUNK )
+            if n then get #fin, , inbuf(0), n
+            left_ -= n
+            s.next_in = @inbuf(0) : s.avail_in = n
+            if left_ = 0 then action = LZMA_FINISH       '' all input given: finish the stream
+        end if
+        dim as lzma_ret r = lzma_code( @s, action )
+        if s.avail_out = 0 orelse r = LZMA_STREAM_END then
+            put #fout, , outbuf(0), CHUNK - s.avail_out
+            s.next_out = @outbuf(0) : s.avail_out = CHUNK
+        end if
+        if r <> LZMA_OK then return r                  '' LZMA_STREAM_END, or an error
+    loop
+end function
+
+function Convert( byval decompress as boolean, byref src as const string, byref dst as const string ) as boolean
+    dim as integer fin = freefile
+    if open( src for binary access read as #fin ) <> 0 then print "cannot read "; src : return false
+    dim as integer fout = freefile
+    if open( dst for binary access write as #fout ) <> 0 then print "cannot write "; dst : close #fin : return false
+    dim as lzma_stream s                             '' all zeros: what LZMA_STREAM_INIT asks for
+    dim as lzma_ret r
+    if decompress then
+        r = lzma_stream_decoder( @s, &hFFFFFFFFFFFFFFFFull, LZMA_CONCATENATED )   '' no memory limit
+    else
+        r = lzma_easy_encoder( @s, 6, LZMA_CHECK_CRC64 )
+    end if
+    if r = LZMA_OK then r = Pump( s, fin, fout )
+    print src; " ("; lof( fin ); " bytes) -> "; dst; " ("; lof( fout ); " bytes)";
+    lzma_end( @s )
+    close #fin, #fout
+    select case r
+    case LZMA_STREAM_END : print ", xz "; *lzma_version_string( ) : return true
+    case LZMA_FORMAT_ERROR : print ": not an .xz file"
+    case LZMA_DATA_ERROR : print ": corrupt input"
+    case LZMA_BUF_ERROR : print ": truncated input"            '' it ended before the stream did
+    case LZMA_MEM_ERROR : print ": out of memory"
+    case else : print ": liblzma error"; r
+    end select
+    return false
+end function
+
+if command( 1 ) = "" orelse ( command( 1 ) = "-d" andalso command( 2 ) = "" ) then
+    print "usage: xz FILE | xz -d FILE.xz"
+    end 1
+end if
+if command( 1 ) = "-d" then
+    dim as string src = command( 2 )
+    if lcase( right( src, 3 ) ) <> ".xz" then print src; " does not end in .xz" : end 1
+    end iif( Convert( true, src, left( src, len( src ) - 3 ) ), 0, 1 )
+end if
+end iif( Convert( false, command( 1 ), command( 1 ) & ".xz" ), 0, 1 )

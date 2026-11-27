@@ -1,0 +1,1018 @@
+'' =============================================================================
+'' zconf.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "zconf.h"
+''   source sha256 : 1e91041e94e3f13a12b770be849c4c674e37caddf94e37acddf853bb54a09adf
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
+''   options       : --sysroot //wsl.localhost/Ubuntu --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   type       Byte -> Byte_   (tiko reserved word)
+''   type       uLong -> uLong_   (tiko reserved word)
+''   constant   Byte -> Byte_   (tiko reserved word)
+''   constant   uLong -> uLong_   (tiko reserved word)
+''   constant   STDC -> STDC_2   (case-insensitive collision)
+''
+'' 219 items need manual translation:
+''   line 262  zconf.h:21  C2T-TODO(macro)  _dist_code
+''   line 264  zconf.h:22  C2T-TODO(macro)  _length_code
+''   line 266  zconf.h:23  C2T-TODO(macro)  _tr_align
+''   line 268  zconf.h:24  C2T-TODO(macro)  _tr_flush_bits
+''   line 270  zconf.h:25  C2T-TODO(macro)  _tr_flush_block
+''   line 272  zconf.h:26  C2T-TODO(macro)  _tr_init
+''   line 274  zconf.h:27  C2T-TODO(macro)  _tr_stored_block
+''   line 276  zconf.h:28  C2T-TODO(macro)  _tr_tally
+''   line 278  zconf.h:29  C2T-TODO(macro)  adler32
+''   line 280  zconf.h:30  C2T-TODO(macro)  adler32_combine
+''   line 282  zconf.h:31  C2T-TODO(macro)  adler32_combine64
+''   line 284  zconf.h:32  C2T-TODO(macro)  adler32_z
+''   line 287  zconf.h:34  C2T-TODO(macro)  compress
+''   line 289  zconf.h:35  C2T-TODO(macro)  compress2
+''   line 291  zconf.h:36  C2T-TODO(macro)  compress_z
+''   line 293  zconf.h:37  C2T-TODO(macro)  compress2_z
+''   line 295  zconf.h:38  C2T-TODO(macro)  compressBound
+''   line 297  zconf.h:39  C2T-TODO(macro)  compressBound_z
+''   line 300  zconf.h:41  C2T-TODO(macro)  crc32
+''   line 302  zconf.h:42  C2T-TODO(macro)  crc32_combine
+''   line 304  zconf.h:43  C2T-TODO(macro)  crc32_combine64
+''   line 306  zconf.h:44  C2T-TODO(macro)  crc32_combine_gen
+''   line 308  zconf.h:45  C2T-TODO(macro)  crc32_combine_gen64
+''   line 310  zconf.h:46  C2T-TODO(macro)  crc32_combine_op
+''   line 312  zconf.h:47  C2T-TODO(macro)  crc32_z
+''   line 314  zconf.h:48  C2T-TODO(macro)  deflate
+''   line 316  zconf.h:49  C2T-TODO(macro)  deflateBound
+''   line 318  zconf.h:50  C2T-TODO(macro)  deflateBound_z
+''   line 320  zconf.h:51  C2T-TODO(macro)  deflateCopy
+''   line 322  zconf.h:52  C2T-TODO(macro)  deflateEnd
+''   line 324  zconf.h:53  C2T-TODO(macro)  deflateGetDictionary
+''   line 326  zconf.h:54  C2T-TODO(macro)  deflateInit
+''   line 328  zconf.h:55  C2T-TODO(macro)  deflateInit2
+''   line 330  zconf.h:56  C2T-TODO(macro)  deflateInit2_
+''   line 332  zconf.h:57  C2T-TODO(macro)  deflateInit_
+''   line 334  zconf.h:58  C2T-TODO(macro)  deflateParams
+''   line 336  zconf.h:59  C2T-TODO(macro)  deflatePending
+''   line 338  zconf.h:60  C2T-TODO(macro)  deflatePrime
+''   line 340  zconf.h:61  C2T-TODO(macro)  deflateReset
+''   line 342  zconf.h:62  C2T-TODO(macro)  deflateResetKeep
+''   line 344  zconf.h:63  C2T-TODO(macro)  deflateSetDictionary
+''   line 346  zconf.h:64  C2T-TODO(macro)  deflateSetHeader
+''   line 348  zconf.h:65  C2T-TODO(macro)  deflateTune
+''   line 350  zconf.h:66  C2T-TODO(macro)  deflateUsed
+''   line 352  zconf.h:67  C2T-TODO(macro)  deflate_copyright
+''   line 354  zconf.h:68  C2T-TODO(macro)  get_crc_table
+''   line 357  zconf.h:70  C2T-TODO(macro)  gz_error
+''   line 359  zconf.h:71  C2T-TODO(macro)  gz_intmax
+''   line 361  zconf.h:72  C2T-TODO(macro)  gz_strwinerror
+''   line 363  zconf.h:73  C2T-TODO(macro)  gzbuffer
+''   line 365  zconf.h:74  C2T-TODO(macro)  gzclearerr
+''   line 367  zconf.h:75  C2T-TODO(macro)  gzclose
+''   line 369  zconf.h:76  C2T-TODO(macro)  gzclose_r
+''   line 371  zconf.h:77  C2T-TODO(macro)  gzclose_w
+''   line 373  zconf.h:78  C2T-TODO(macro)  gzdirect
+''   line 375  zconf.h:79  C2T-TODO(macro)  gzdopen
+''   line 377  zconf.h:80  C2T-TODO(macro)  gzeof
+''   line 379  zconf.h:81  C2T-TODO(macro)  gzerror
+''   line 381  zconf.h:82  C2T-TODO(macro)  gzflush
+''   line 383  zconf.h:83  C2T-TODO(macro)  gzfread
+''   line 385  zconf.h:84  C2T-TODO(macro)  gzfwrite
+''   line 387  zconf.h:85  C2T-TODO(macro)  gzgetc
+''   line 389  zconf.h:86  C2T-TODO(macro)  gzgetc_
+''   line 391  zconf.h:87  C2T-TODO(macro)  gzgets
+''   line 393  zconf.h:88  C2T-TODO(macro)  gzoffset
+''   line 395  zconf.h:89  C2T-TODO(macro)  gzoffset64
+''   line 397  zconf.h:90  C2T-TODO(macro)  gzopen
+''   line 399  zconf.h:91  C2T-TODO(macro)  gzopen64
+''   line 402  zconf.h:93  C2T-TODO(macro)  gzopen_w
+''   line 405  zconf.h:95  C2T-TODO(macro)  gzprintf
+''   line 407  zconf.h:96  C2T-TODO(macro)  gzputc
+''   line 409  zconf.h:97  C2T-TODO(macro)  gzputs
+''   line 411  zconf.h:98  C2T-TODO(macro)  gzread
+''   line 413  zconf.h:99  C2T-TODO(macro)  gzrewind
+''   line 415  zconf.h:100  C2T-TODO(macro)  gzseek
+''   line 417  zconf.h:101  C2T-TODO(macro)  gzseek64
+''   line 419  zconf.h:102  C2T-TODO(macro)  gzsetparams
+''   line 421  zconf.h:103  C2T-TODO(macro)  gztell
+''   line 423  zconf.h:104  C2T-TODO(macro)  gztell64
+''   line 425  zconf.h:105  C2T-TODO(macro)  gzungetc
+''   line 427  zconf.h:106  C2T-TODO(macro)  gzvprintf
+''   line 429  zconf.h:107  C2T-TODO(macro)  gzwrite
+''   line 432  zconf.h:109  C2T-TODO(macro)  inflate
+''   line 434  zconf.h:110  C2T-TODO(macro)  inflateBack
+''   line 436  zconf.h:111  C2T-TODO(macro)  inflateBackEnd
+''   line 438  zconf.h:112  C2T-TODO(macro)  inflateBackInit
+''   line 440  zconf.h:113  C2T-TODO(macro)  inflateBackInit_
+''   line 442  zconf.h:114  C2T-TODO(macro)  inflateCodesUsed
+''   line 444  zconf.h:115  C2T-TODO(macro)  inflateCopy
+''   line 446  zconf.h:116  C2T-TODO(macro)  inflateEnd
+''   line 448  zconf.h:117  C2T-TODO(macro)  inflateGetDictionary
+''   line 450  zconf.h:118  C2T-TODO(macro)  inflateGetHeader
+''   line 452  zconf.h:119  C2T-TODO(macro)  inflateInit
+''   line 454  zconf.h:120  C2T-TODO(macro)  inflateInit2
+''   line 456  zconf.h:121  C2T-TODO(macro)  inflateInit2_
+''   line 458  zconf.h:122  C2T-TODO(macro)  inflateInit_
+''   line 460  zconf.h:123  C2T-TODO(macro)  inflateMark
+''   line 462  zconf.h:124  C2T-TODO(macro)  inflatePrime
+''   line 464  zconf.h:125  C2T-TODO(macro)  inflateReset
+''   line 466  zconf.h:126  C2T-TODO(macro)  inflateReset2
+''   line 468  zconf.h:127  C2T-TODO(macro)  inflateResetKeep
+''   line 470  zconf.h:128  C2T-TODO(macro)  inflateSetDictionary
+''   line 472  zconf.h:129  C2T-TODO(macro)  inflateSync
+''   line 474  zconf.h:130  C2T-TODO(macro)  inflateSyncPoint
+''   line 476  zconf.h:131  C2T-TODO(macro)  inflateUndermine
+''   line 478  zconf.h:132  C2T-TODO(macro)  inflateValidate
+''   line 480  zconf.h:133  C2T-TODO(macro)  inflate_copyright
+''   line 482  zconf.h:134  C2T-TODO(macro)  inflate_fast
+''   line 484  zconf.h:135  C2T-TODO(macro)  inflate_table
+''   line 486  zconf.h:136  C2T-TODO(macro)  inflate_fixed
+''   line 489  zconf.h:138  C2T-TODO(macro)  uncompress
+''   line 491  zconf.h:139  C2T-TODO(macro)  uncompress2
+''   line 493  zconf.h:140  C2T-TODO(macro)  uncompress_z
+''   line 495  zconf.h:141  C2T-TODO(macro)  uncompress2_z
+''   line 498  zconf.h:143  C2T-TODO(macro)  zError
+''   line 501  zconf.h:145  C2T-TODO(macro)  zcalloc
+''   line 503  zconf.h:146  C2T-TODO(macro)  zcfree
+''   line 506  zconf.h:148  C2T-TODO(macro)  zlibCompileFlags
+''   line 508  zconf.h:149  C2T-TODO(macro)  zlibVersion
+''   line 512  zconf.h:152  C2T-TODO(macro)  Byte
+''   line 514  zconf.h:153  C2T-TODO(macro)  Bytef
+''   line 516  zconf.h:154  C2T-TODO(macro)  alloc_func
+''   line 518  zconf.h:155  C2T-TODO(macro)  charf
+''   line 520  zconf.h:156  C2T-TODO(macro)  free_func
+''   line 523  zconf.h:158  C2T-TODO(macro)  gzFile
+''   line 526  zconf.h:160  C2T-TODO(macro)  gz_header
+''   line 528  zconf.h:161  C2T-TODO(macro)  gz_headerp
+''   line 530  zconf.h:162  C2T-TODO(macro)  in_func
+''   line 532  zconf.h:163  C2T-TODO(macro)  intf
+''   line 534  zconf.h:164  C2T-TODO(macro)  out_func
+''   line 536  zconf.h:165  C2T-TODO(macro)  uInt
+''   line 538  zconf.h:166  C2T-TODO(macro)  uIntf
+''   line 540  zconf.h:167  C2T-TODO(macro)  uLong
+''   line 542  zconf.h:168  C2T-TODO(macro)  uLongf
+''   line 544  zconf.h:169  C2T-TODO(macro)  voidp
+''   line 546  zconf.h:170  C2T-TODO(macro)  voidpc
+''   line 548  zconf.h:171  C2T-TODO(macro)  voidpf
+''   line 552  zconf.h:174  C2T-TODO(macro)  gz_header_s
+''   line 554  zconf.h:175  C2T-TODO(macro)  internal_state
+''   line 569  zconf.h:189  C2T-TODO(conditional)  WIN32
+''   line 574  zconf.h:191  C2T-TODO(conditional)  #endif
+''   line 577  zconf.h:193  C2T-TODO(conditional)  #if
+''   line 579  zconf.h:194  C2T-TODO(conditional)  #if
+''   line 581  zconf.h:195  C2T-TODO(conditional)  SYS16BIT
+''   line 583  zconf.h:196  C2T-TODO(conditional)  SYS16BIT
+''   line 585  zconf.h:197  C2T-TODO(conditional)  #endif
+''   line 587  zconf.h:198  C2T-TODO(conditional)  #endif
+''   line 589  zconf.h:199  C2T-TODO(conditional)  #endif
+''   line 619  zconf.h:228  C2T-TODO(conditional)  #if
+''   line 621  zconf.h:229  C2T-TODO(conditional)  STDC
+''   line 623  zconf.h:230  C2T-TODO(conditional)  #endif
+''   line 637  zconf.h:247  C2T-TODO(macro)  z_const
+''   line 651  zconf.h:260  C2T-TODO(macro)  z_longlong
+''   line 654  zconf.h:262  C2T-TODO(branch-unparsed)
+''   line 702  zconf.h:309  C2T-TODO(function-like-macro)  OF
+''   line 716  zconf.h:322  C2T-TODO(branch-unparsed)  SMALL_MEDIUM
+''   line 722  zconf.h:331  C2T-TODO(branch-unparsed)  SMALL_MEDIUM
+''   line 728  zconf.h:340  C2T-TODO(conditional)  #if
+''   line 734  zconf.h:344  C2T-TODO(conditional)  ZLIB_DLL
+''   line 737  zconf.h:345  C2T-TODO(conditional)  #if
+''   line 739  zconf.h:346  C2T-TODO(conditional)  ZLIB_INTERNAL
+''   line 741  zconf.h:347  C2T-TODO(conditional)  ZEXTERN
+''   line 743  zconf.h:348  C2T-TODO(conditional)  #else
+''   line 745  zconf.h:349  C2T-TODO(conditional)  ZEXTERN
+''   line 747  zconf.h:350  C2T-TODO(conditional)  #endif
+''   line 749  zconf.h:351  C2T-TODO(conditional)  #endif
+''   line 752  zconf.h:352  C2T-TODO(conditional)  #endif
+''   line 760  zconf.h:357  C2T-TODO(conditional)  ZLIB_WINAPI
+''   line 763  zconf.h:358  C2T-TODO(conditional)  FAR
+''   line 765  zconf.h:359  C2T-TODO(conditional)  FAR
+''   line 767  zconf.h:360  C2T-TODO(conditional)  #endif
+''   line 769  zconf.h:361  C2T-TODO(conditional)  WIN32_LEAN_AND_MEAN
+''   line 771  zconf.h:362  C2T-TODO(conditional)  WIN32_LEAN_AND_MEAN
+''   line 773  zconf.h:363  C2T-TODO(conditional)  #endif
+''   line 775  zconf.h:364  C2T-TODO(conditional)  <windows.h>
+''   line 779  zconf.h:367  C2T-TODO(conditional)  ZEXPORT
+''   line 781  zconf.h:368  C2T-TODO(conditional)  WIN32
+''   line 783  zconf.h:369  C2T-TODO(conditional)  ZEXPORTVA
+''   line 785  zconf.h:370  C2T-TODO(conditional)  #else
+''   line 787  zconf.h:371  C2T-TODO(conditional)  ZEXPORTVA
+''   line 789  zconf.h:372  C2T-TODO(conditional)  #endif
+''   line 792  zconf.h:373  C2T-TODO(conditional)  #endif
+''   line 795  zconf.h:374  C2T-TODO(conditional)  #endif
+''   line 815  zconf.h:389  C2T-TODO(macro)  ZEXTERN
+''   line 835  zconf.h:410  C2T-TODO(macro)  Bytef
+''   line 857  zconf.h:431  C2T-TODO(conditional)  #if
+''   line 859  zconf.h:432  C2T-TODO(macro)  Z_U4
+''   line 861  zconf.h:433  C2T-TODO(conditional)  #elif
+''   line 863  zconf.h:434  C2T-TODO(conditional)  Z_U4
+''   line 865  zconf.h:435  C2T-TODO(conditional)  #elif
+''   line 867  zconf.h:436  C2T-TODO(conditional)  Z_U4
+''   line 869  zconf.h:437  C2T-TODO(conditional)  #endif
+''   line 873  zconf.h:440  C2T-TODO(conditional)  Z_U4
+''   line 876  zconf.h:442  C2T-TODO(conditional)  #else
+''   line 878  zconf.h:443  C2T-TODO(conditional)  z_crc_t
+''   line 880  zconf.h:444  C2T-TODO(conditional)  #endif
+''   line 893  zconf.h:456  C2T-TODO(system-header)  <sys/types.h>
+''   line 927  zconf.h:490  C2T-TODO(system-header)  <unistd.h>
+''   line 930  zconf.h:492  C2T-TODO(system-header)  <unixio.h>
+''   line 961  zconf.h:523  C2T-TODO(macro)  z_off_t
+''   line 966  zconf.h:527  C2T-TODO(macro)  z_off64_t
+''   line 969  zconf.h:529  C2T-TODO(macro)  z_off64_t
+''   line 972  zconf.h:531  C2T-TODO(macro)  z_off64_t
+''   line 975  zconf.h:533  C2T-TODO(macro)  z_off64_t
+''   line 978  zconf.h:535  C2T-TODO(macro)  z_off64_t
+''   line 984  zconf.h:540  C2T-TODO(macro)  z_off_t
+''   line 990  zconf.h:545  C2T-TODO(unsupported)  #pragma
+''   line 992  zconf.h:546  C2T-TODO(unsupported)  #pragma
+''   line 994  zconf.h:547  C2T-TODO(unsupported)  #pragma
+''   line 996  zconf.h:548  C2T-TODO(unsupported)  #pragma
+''   line 998  zconf.h:549  C2T-TODO(unsupported)  #pragma
+''   line 1000  zconf.h:550  C2T-TODO(unsupported)  #pragma
+''   line 1002  zconf.h:551  C2T-TODO(unsupported)  #pragma
+''   line 1004  zconf.h:552  C2T-TODO(unsupported)  #pragma
+''   line 1006  zconf.h:553  C2T-TODO(unsupported)  #pragma
+''   line 1008  zconf.h:554  C2T-TODO(unsupported)  #pragma
+''   line 1010  zconf.h:555  C2T-TODO(unsupported)  #pragma
+''   line 1012  zconf.h:556  C2T-TODO(unsupported)  #pragma
+''   line 1014  zconf.h:557  C2T-TODO(unsupported)  #pragma
+'' =============================================================================
+
+/' zconf.h -- configuration of the zlib compression library
+ * Copyright (C) 1995-2026 Jean-loup Gailly, Mark Adler
+ * For conditions of distribution and use, see copyright notice in zlib.h
+ '/
+
+/' @(#) $Id$ '/
+
+#pragma once
+
+#include once "crt/long.bi"
+
+/'
+ * If you *really* need a unique prefix for all types and library functions,
+ * compile with -DZ_PREFIX. The "standard" zlib should be compiled without it.
+ * Even better than compiling with -DZ_PREFIX would be to use configure to set
+ * this permanently in zconf.h using "./configure --zprefix".
+ '/
+extern "C"
+
+#ifdef Z_PREFIX     /' may be set to #if 1 by ./configure '/
+#  define Z_PREFIX_SET
+
+/' all linked symbols and init macros '/
+'' C2T-TODO(macro) zconf.h:21 -- '_dist_code': 'z__dist_code' is nothing tiko declares
+'' #  define _dist_code            z__dist_code
+'' C2T-TODO(macro) zconf.h:22 -- '_length_code': 'z__length_code' is nothing tiko declares
+'' #  define _length_code          z__length_code
+'' C2T-TODO(macro) zconf.h:23 -- '_tr_align': 'z__tr_align' is nothing tiko declares
+'' #  define _tr_align             z__tr_align
+'' C2T-TODO(macro) zconf.h:24 -- '_tr_flush_bits': 'z__tr_flush_bits' is nothing tiko declares
+'' #  define _tr_flush_bits        z__tr_flush_bits
+'' C2T-TODO(macro) zconf.h:25 -- '_tr_flush_block': 'z__tr_flush_block' is nothing tiko declares
+'' #  define _tr_flush_block       z__tr_flush_block
+'' C2T-TODO(macro) zconf.h:26 -- '_tr_init': 'z__tr_init' is nothing tiko declares
+'' #  define _tr_init              z__tr_init
+'' C2T-TODO(macro) zconf.h:27 -- '_tr_stored_block': 'z__tr_stored_block' is nothing tiko declares
+'' #  define _tr_stored_block      z__tr_stored_block
+'' C2T-TODO(macro) zconf.h:28 -- '_tr_tally': 'z__tr_tally' is nothing tiko declares
+'' #  define _tr_tally             z__tr_tally
+'' C2T-TODO(macro) zconf.h:29 -- 'adler32': 'z_adler32' is nothing tiko declares
+'' #  define adler32               z_adler32
+'' C2T-TODO(macro) zconf.h:30 -- 'adler32_combine': 'z_adler32_combine' is nothing tiko declares
+'' #  define adler32_combine       z_adler32_combine
+'' C2T-TODO(macro) zconf.h:31 -- 'adler32_combine64': 'z_adler32_combine64' is nothing tiko declares
+'' #  define adler32_combine64     z_adler32_combine64
+'' C2T-TODO(macro) zconf.h:32 -- 'adler32_z': 'z_adler32_z' is nothing tiko declares
+'' #  define adler32_z             z_adler32_z
+#  ifndef Z_SOLO
+'' C2T-TODO(macro) zconf.h:34 -- 'compress': 'z_compress' is nothing tiko declares
+'' #    define compress              z_compress
+'' C2T-TODO(macro) zconf.h:35 -- 'compress2': 'z_compress2' is nothing tiko declares
+'' #    define compress2             z_compress2
+'' C2T-TODO(macro) zconf.h:36 -- 'compress_z': 'z_compress_z' is nothing tiko declares
+'' #    define compress_z            z_compress_z
+'' C2T-TODO(macro) zconf.h:37 -- 'compress2_z': 'z_compress2_z' is nothing tiko declares
+'' #    define compress2_z           z_compress2_z
+'' C2T-TODO(macro) zconf.h:38 -- 'compressBound': 'z_compressBound' is nothing tiko declares
+'' #    define compressBound         z_compressBound
+'' C2T-TODO(macro) zconf.h:39 -- 'compressBound_z': 'z_compressBound_z' is nothing tiko declares
+'' #    define compressBound_z       z_compressBound_z
+#  endif
+'' C2T-TODO(macro) zconf.h:41 -- 'crc32': 'z_crc32' is nothing tiko declares
+'' #  define crc32                 z_crc32
+'' C2T-TODO(macro) zconf.h:42 -- 'crc32_combine': 'z_crc32_combine' is nothing tiko declares
+'' #  define crc32_combine         z_crc32_combine
+'' C2T-TODO(macro) zconf.h:43 -- 'crc32_combine64': 'z_crc32_combine64' is nothing tiko declares
+'' #  define crc32_combine64       z_crc32_combine64
+'' C2T-TODO(macro) zconf.h:44 -- 'crc32_combine_gen': 'z_crc32_combine_gen' is nothing tiko declares
+'' #  define crc32_combine_gen     z_crc32_combine_gen
+'' C2T-TODO(macro) zconf.h:45 -- 'crc32_combine_gen64': 'z_crc32_combine_gen64' is nothing tiko declares
+'' #  define crc32_combine_gen64   z_crc32_combine_gen64
+'' C2T-TODO(macro) zconf.h:46 -- 'crc32_combine_op': 'z_crc32_combine_op' is nothing tiko declares
+'' #  define crc32_combine_op      z_crc32_combine_op
+'' C2T-TODO(macro) zconf.h:47 -- 'crc32_z': 'z_crc32_z' is nothing tiko declares
+'' #  define crc32_z               z_crc32_z
+'' C2T-TODO(macro) zconf.h:48 -- 'deflate': 'z_deflate' is nothing tiko declares
+'' #  define deflate               z_deflate
+'' C2T-TODO(macro) zconf.h:49 -- 'deflateBound': 'z_deflateBound' is nothing tiko declares
+'' #  define deflateBound          z_deflateBound
+'' C2T-TODO(macro) zconf.h:50 -- 'deflateBound_z': 'z_deflateBound_z' is nothing tiko declares
+'' #  define deflateBound_z        z_deflateBound_z
+'' C2T-TODO(macro) zconf.h:51 -- 'deflateCopy': 'z_deflateCopy' is nothing tiko declares
+'' #  define deflateCopy           z_deflateCopy
+'' C2T-TODO(macro) zconf.h:52 -- 'deflateEnd': 'z_deflateEnd' is nothing tiko declares
+'' #  define deflateEnd            z_deflateEnd
+'' C2T-TODO(macro) zconf.h:53 -- 'deflateGetDictionary': 'z_deflateGetDictionary' is nothing tiko declares
+'' #  define deflateGetDictionary  z_deflateGetDictionary
+'' C2T-TODO(macro) zconf.h:54 -- 'deflateInit': 'z_deflateInit' is nothing tiko declares
+'' #  define deflateInit           z_deflateInit
+'' C2T-TODO(macro) zconf.h:55 -- 'deflateInit2': 'z_deflateInit2' is nothing tiko declares
+'' #  define deflateInit2          z_deflateInit2
+'' C2T-TODO(macro) zconf.h:56 -- 'deflateInit2_': 'z_deflateInit2_' is nothing tiko declares
+'' #  define deflateInit2_         z_deflateInit2_
+'' C2T-TODO(macro) zconf.h:57 -- 'deflateInit_': 'z_deflateInit_' is nothing tiko declares
+'' #  define deflateInit_          z_deflateInit_
+'' C2T-TODO(macro) zconf.h:58 -- 'deflateParams': 'z_deflateParams' is nothing tiko declares
+'' #  define deflateParams         z_deflateParams
+'' C2T-TODO(macro) zconf.h:59 -- 'deflatePending': 'z_deflatePending' is nothing tiko declares
+'' #  define deflatePending        z_deflatePending
+'' C2T-TODO(macro) zconf.h:60 -- 'deflatePrime': 'z_deflatePrime' is nothing tiko declares
+'' #  define deflatePrime          z_deflatePrime
+'' C2T-TODO(macro) zconf.h:61 -- 'deflateReset': 'z_deflateReset' is nothing tiko declares
+'' #  define deflateReset          z_deflateReset
+'' C2T-TODO(macro) zconf.h:62 -- 'deflateResetKeep': 'z_deflateResetKeep' is nothing tiko declares
+'' #  define deflateResetKeep      z_deflateResetKeep
+'' C2T-TODO(macro) zconf.h:63 -- 'deflateSetDictionary': 'z_deflateSetDictionary' is nothing tiko declares
+'' #  define deflateSetDictionary  z_deflateSetDictionary
+'' C2T-TODO(macro) zconf.h:64 -- 'deflateSetHeader': 'z_deflateSetHeader' is nothing tiko declares
+'' #  define deflateSetHeader      z_deflateSetHeader
+'' C2T-TODO(macro) zconf.h:65 -- 'deflateTune': 'z_deflateTune' is nothing tiko declares
+'' #  define deflateTune           z_deflateTune
+'' C2T-TODO(macro) zconf.h:66 -- 'deflateUsed': 'z_deflateUsed' is nothing tiko declares
+'' #  define deflateUsed           z_deflateUsed
+'' C2T-TODO(macro) zconf.h:67 -- 'deflate_copyright': 'z_deflate_copyright' is nothing tiko declares
+'' #  define deflate_copyright     z_deflate_copyright
+'' C2T-TODO(macro) zconf.h:68 -- 'get_crc_table': 'z_get_crc_table' is nothing tiko declares
+'' #  define get_crc_table         z_get_crc_table
+#  ifndef Z_SOLO
+'' C2T-TODO(macro) zconf.h:70 -- 'gz_error': 'z_gz_error' is nothing tiko declares
+'' #    define gz_error              z_gz_error
+'' C2T-TODO(macro) zconf.h:71 -- 'gz_intmax': 'z_gz_intmax' is nothing tiko declares
+'' #    define gz_intmax             z_gz_intmax
+'' C2T-TODO(macro) zconf.h:72 -- 'gz_strwinerror': 'z_gz_strwinerror' is nothing tiko declares
+'' #    define gz_strwinerror        z_gz_strwinerror
+'' C2T-TODO(macro) zconf.h:73 -- 'gzbuffer': 'z_gzbuffer' is nothing tiko declares
+'' #    define gzbuffer              z_gzbuffer
+'' C2T-TODO(macro) zconf.h:74 -- 'gzclearerr': 'z_gzclearerr' is nothing tiko declares
+'' #    define gzclearerr            z_gzclearerr
+'' C2T-TODO(macro) zconf.h:75 -- 'gzclose': 'z_gzclose' is nothing tiko declares
+'' #    define gzclose               z_gzclose
+'' C2T-TODO(macro) zconf.h:76 -- 'gzclose_r': 'z_gzclose_r' is nothing tiko declares
+'' #    define gzclose_r             z_gzclose_r
+'' C2T-TODO(macro) zconf.h:77 -- 'gzclose_w': 'z_gzclose_w' is nothing tiko declares
+'' #    define gzclose_w             z_gzclose_w
+'' C2T-TODO(macro) zconf.h:78 -- 'gzdirect': 'z_gzdirect' is nothing tiko declares
+'' #    define gzdirect              z_gzdirect
+'' C2T-TODO(macro) zconf.h:79 -- 'gzdopen': 'z_gzdopen' is nothing tiko declares
+'' #    define gzdopen               z_gzdopen
+'' C2T-TODO(macro) zconf.h:80 -- 'gzeof': 'z_gzeof' is nothing tiko declares
+'' #    define gzeof                 z_gzeof
+'' C2T-TODO(macro) zconf.h:81 -- 'gzerror': 'z_gzerror' is nothing tiko declares
+'' #    define gzerror               z_gzerror
+'' C2T-TODO(macro) zconf.h:82 -- 'gzflush': 'z_gzflush' is nothing tiko declares
+'' #    define gzflush               z_gzflush
+'' C2T-TODO(macro) zconf.h:83 -- 'gzfread': 'z_gzfread' is nothing tiko declares
+'' #    define gzfread               z_gzfread
+'' C2T-TODO(macro) zconf.h:84 -- 'gzfwrite': 'z_gzfwrite' is nothing tiko declares
+'' #    define gzfwrite              z_gzfwrite
+'' C2T-TODO(macro) zconf.h:85 -- 'gzgetc': 'z_gzgetc' is nothing tiko declares
+'' #    define gzgetc                z_gzgetc
+'' C2T-TODO(macro) zconf.h:86 -- 'gzgetc_': 'z_gzgetc_' is nothing tiko declares
+'' #    define gzgetc_               z_gzgetc_
+'' C2T-TODO(macro) zconf.h:87 -- 'gzgets': 'z_gzgets' is nothing tiko declares
+'' #    define gzgets                z_gzgets
+'' C2T-TODO(macro) zconf.h:88 -- 'gzoffset': 'z_gzoffset' is nothing tiko declares
+'' #    define gzoffset              z_gzoffset
+'' C2T-TODO(macro) zconf.h:89 -- 'gzoffset64': 'z_gzoffset64' is nothing tiko declares
+'' #    define gzoffset64            z_gzoffset64
+'' C2T-TODO(macro) zconf.h:90 -- 'gzopen': 'z_gzopen' is nothing tiko declares
+'' #    define gzopen                z_gzopen
+'' C2T-TODO(macro) zconf.h:91 -- 'gzopen64': 'z_gzopen64' is nothing tiko declares
+'' #    define gzopen64              z_gzopen64
+#    ifdef TIKO_OS_WINDOWS
+'' C2T-TODO(macro) zconf.h:93 -- 'gzopen_w': 'z_gzopen_w' is nothing tiko declares
+'' #      define gzopen_w              z_gzopen_w
+#    endif
+'' C2T-TODO(macro) zconf.h:95 -- 'gzprintf': 'z_gzprintf' is nothing tiko declares
+'' #    define gzprintf              z_gzprintf
+'' C2T-TODO(macro) zconf.h:96 -- 'gzputc': 'z_gzputc' is nothing tiko declares
+'' #    define gzputc                z_gzputc
+'' C2T-TODO(macro) zconf.h:97 -- 'gzputs': 'z_gzputs' is nothing tiko declares
+'' #    define gzputs                z_gzputs
+'' C2T-TODO(macro) zconf.h:98 -- 'gzread': 'z_gzread' is nothing tiko declares
+'' #    define gzread                z_gzread
+'' C2T-TODO(macro) zconf.h:99 -- 'gzrewind': 'z_gzrewind' is nothing tiko declares
+'' #    define gzrewind              z_gzrewind
+'' C2T-TODO(macro) zconf.h:100 -- 'gzseek': 'z_gzseek' is nothing tiko declares
+'' #    define gzseek                z_gzseek
+'' C2T-TODO(macro) zconf.h:101 -- 'gzseek64': 'z_gzseek64' is nothing tiko declares
+'' #    define gzseek64              z_gzseek64
+'' C2T-TODO(macro) zconf.h:102 -- 'gzsetparams': 'z_gzsetparams' is nothing tiko declares
+'' #    define gzsetparams           z_gzsetparams
+'' C2T-TODO(macro) zconf.h:103 -- 'gztell': 'z_gztell' is nothing tiko declares
+'' #    define gztell                z_gztell
+'' C2T-TODO(macro) zconf.h:104 -- 'gztell64': 'z_gztell64' is nothing tiko declares
+'' #    define gztell64              z_gztell64
+'' C2T-TODO(macro) zconf.h:105 -- 'gzungetc': 'z_gzungetc' is nothing tiko declares
+'' #    define gzungetc              z_gzungetc
+'' C2T-TODO(macro) zconf.h:106 -- 'gzvprintf': 'z_gzvprintf' is nothing tiko declares
+'' #    define gzvprintf             z_gzvprintf
+'' C2T-TODO(macro) zconf.h:107 -- 'gzwrite': 'z_gzwrite' is nothing tiko declares
+'' #    define gzwrite               z_gzwrite
+#  endif
+'' C2T-TODO(macro) zconf.h:109 -- 'inflate': 'z_inflate' is nothing tiko declares
+'' #  define inflate               z_inflate
+'' C2T-TODO(macro) zconf.h:110 -- 'inflateBack': 'z_inflateBack' is nothing tiko declares
+'' #  define inflateBack           z_inflateBack
+'' C2T-TODO(macro) zconf.h:111 -- 'inflateBackEnd': 'z_inflateBackEnd' is nothing tiko declares
+'' #  define inflateBackEnd        z_inflateBackEnd
+'' C2T-TODO(macro) zconf.h:112 -- 'inflateBackInit': 'z_inflateBackInit' is nothing tiko declares
+'' #  define inflateBackInit       z_inflateBackInit
+'' C2T-TODO(macro) zconf.h:113 -- 'inflateBackInit_': 'z_inflateBackInit_' is nothing tiko declares
+'' #  define inflateBackInit_      z_inflateBackInit_
+'' C2T-TODO(macro) zconf.h:114 -- 'inflateCodesUsed': 'z_inflateCodesUsed' is nothing tiko declares
+'' #  define inflateCodesUsed      z_inflateCodesUsed
+'' C2T-TODO(macro) zconf.h:115 -- 'inflateCopy': 'z_inflateCopy' is nothing tiko declares
+'' #  define inflateCopy           z_inflateCopy
+'' C2T-TODO(macro) zconf.h:116 -- 'inflateEnd': 'z_inflateEnd' is nothing tiko declares
+'' #  define inflateEnd            z_inflateEnd
+'' C2T-TODO(macro) zconf.h:117 -- 'inflateGetDictionary': 'z_inflateGetDictionary' is nothing tiko declares
+'' #  define inflateGetDictionary  z_inflateGetDictionary
+'' C2T-TODO(macro) zconf.h:118 -- 'inflateGetHeader': 'z_inflateGetHeader' is nothing tiko declares
+'' #  define inflateGetHeader      z_inflateGetHeader
+'' C2T-TODO(macro) zconf.h:119 -- 'inflateInit': 'z_inflateInit' is nothing tiko declares
+'' #  define inflateInit           z_inflateInit
+'' C2T-TODO(macro) zconf.h:120 -- 'inflateInit2': 'z_inflateInit2' is nothing tiko declares
+'' #  define inflateInit2          z_inflateInit2
+'' C2T-TODO(macro) zconf.h:121 -- 'inflateInit2_': 'z_inflateInit2_' is nothing tiko declares
+'' #  define inflateInit2_         z_inflateInit2_
+'' C2T-TODO(macro) zconf.h:122 -- 'inflateInit_': 'z_inflateInit_' is nothing tiko declares
+'' #  define inflateInit_          z_inflateInit_
+'' C2T-TODO(macro) zconf.h:123 -- 'inflateMark': 'z_inflateMark' is nothing tiko declares
+'' #  define inflateMark           z_inflateMark
+'' C2T-TODO(macro) zconf.h:124 -- 'inflatePrime': 'z_inflatePrime' is nothing tiko declares
+'' #  define inflatePrime          z_inflatePrime
+'' C2T-TODO(macro) zconf.h:125 -- 'inflateReset': 'z_inflateReset' is nothing tiko declares
+'' #  define inflateReset          z_inflateReset
+'' C2T-TODO(macro) zconf.h:126 -- 'inflateReset2': 'z_inflateReset2' is nothing tiko declares
+'' #  define inflateReset2         z_inflateReset2
+'' C2T-TODO(macro) zconf.h:127 -- 'inflateResetKeep': 'z_inflateResetKeep' is nothing tiko declares
+'' #  define inflateResetKeep      z_inflateResetKeep
+'' C2T-TODO(macro) zconf.h:128 -- 'inflateSetDictionary': 'z_inflateSetDictionary' is nothing tiko declares
+'' #  define inflateSetDictionary  z_inflateSetDictionary
+'' C2T-TODO(macro) zconf.h:129 -- 'inflateSync': 'z_inflateSync' is nothing tiko declares
+'' #  define inflateSync           z_inflateSync
+'' C2T-TODO(macro) zconf.h:130 -- 'inflateSyncPoint': 'z_inflateSyncPoint' is nothing tiko declares
+'' #  define inflateSyncPoint      z_inflateSyncPoint
+'' C2T-TODO(macro) zconf.h:131 -- 'inflateUndermine': 'z_inflateUndermine' is nothing tiko declares
+'' #  define inflateUndermine      z_inflateUndermine
+'' C2T-TODO(macro) zconf.h:132 -- 'inflateValidate': 'z_inflateValidate' is nothing tiko declares
+'' #  define inflateValidate       z_inflateValidate
+'' C2T-TODO(macro) zconf.h:133 -- 'inflate_copyright': 'z_inflate_copyright' is nothing tiko declares
+'' #  define inflate_copyright     z_inflate_copyright
+'' C2T-TODO(macro) zconf.h:134 -- 'inflate_fast': 'z_inflate_fast' is nothing tiko declares
+'' #  define inflate_fast          z_inflate_fast
+'' C2T-TODO(macro) zconf.h:135 -- 'inflate_table': 'z_inflate_table' is nothing tiko declares
+'' #  define inflate_table         z_inflate_table
+'' C2T-TODO(macro) zconf.h:136 -- 'inflate_fixed': 'z_inflate_fixed' is nothing tiko declares
+'' #  define inflate_fixed         z_inflate_fixed
+#  ifndef Z_SOLO
+'' C2T-TODO(macro) zconf.h:138 -- 'uncompress': 'z_uncompress' is nothing tiko declares
+'' #    define uncompress            z_uncompress
+'' C2T-TODO(macro) zconf.h:139 -- 'uncompress2': 'z_uncompress2' is nothing tiko declares
+'' #    define uncompress2           z_uncompress2
+'' C2T-TODO(macro) zconf.h:140 -- 'uncompress_z': 'z_uncompress_z' is nothing tiko declares
+'' #    define uncompress_z          z_uncompress_z
+'' C2T-TODO(macro) zconf.h:141 -- 'uncompress2_z': 'z_uncompress2_z' is nothing tiko declares
+'' #    define uncompress2_z         z_uncompress2_z
+#  endif
+'' C2T-TODO(macro) zconf.h:143 -- 'zError': 'z_zError' is nothing tiko declares
+'' #  define zError                z_zError
+#  ifndef Z_SOLO
+'' C2T-TODO(macro) zconf.h:145 -- 'zcalloc': 'z_zcalloc' is nothing tiko declares
+'' #    define zcalloc               z_zcalloc
+'' C2T-TODO(macro) zconf.h:146 -- 'zcfree': 'z_zcfree' is nothing tiko declares
+'' #    define zcfree                z_zcfree
+#  endif
+'' C2T-TODO(macro) zconf.h:148 -- 'zlibCompileFlags': 'z_zlibCompileFlags' is nothing tiko declares
+'' #  define zlibCompileFlags      z_zlibCompileFlags
+'' C2T-TODO(macro) zconf.h:149 -- 'zlibVersion': 'z_zlibVersion' is nothing tiko declares
+'' #  define zlibVersion           z_zlibVersion
+
+/' all zlib typedefs in zlib.h and zconf.h '/
+'' C2T-TODO(macro) zconf.h:152 -- 'Byte': 'z_Byte' is nothing tiko declares
+'' #  define Byte                  z_Byte
+'' C2T-TODO(macro) zconf.h:153 -- 'Bytef': 'z_Bytef' is nothing tiko declares
+'' #  define Bytef                 z_Bytef
+'' C2T-TODO(macro) zconf.h:154 -- 'alloc_func': 'z_alloc_func' is nothing tiko declares
+'' #  define alloc_func            z_alloc_func
+'' C2T-TODO(macro) zconf.h:155 -- 'charf': 'z_charf' is nothing tiko declares
+'' #  define charf                 z_charf
+'' C2T-TODO(macro) zconf.h:156 -- 'free_func': 'z_free_func' is nothing tiko declares
+'' #  define free_func             z_free_func
+#  ifndef Z_SOLO
+'' C2T-TODO(macro) zconf.h:158 -- 'gzFile': 'z_gzFile' is nothing tiko declares
+'' #    define gzFile                z_gzFile
+#  endif
+'' C2T-TODO(macro) zconf.h:160 -- 'gz_header': 'z_gz_header' is nothing tiko declares
+'' #  define gz_header             z_gz_header
+'' C2T-TODO(macro) zconf.h:161 -- 'gz_headerp': 'z_gz_headerp' is nothing tiko declares
+'' #  define gz_headerp            z_gz_headerp
+'' C2T-TODO(macro) zconf.h:162 -- 'in_func': 'z_in_func' is nothing tiko declares
+'' #  define in_func               z_in_func
+'' C2T-TODO(macro) zconf.h:163 -- 'intf': 'z_intf' is nothing tiko declares
+'' #  define intf                  z_intf
+'' C2T-TODO(macro) zconf.h:164 -- 'out_func': 'z_out_func' is nothing tiko declares
+'' #  define out_func              z_out_func
+'' C2T-TODO(macro) zconf.h:165 -- 'uInt': 'z_uInt' is nothing tiko declares
+'' #  define uInt                  z_uInt
+'' C2T-TODO(macro) zconf.h:166 -- 'uIntf': 'z_uIntf' is nothing tiko declares
+'' #  define uIntf                 z_uIntf
+'' C2T-TODO(macro) zconf.h:167 -- 'uLong': 'z_uLong' is nothing tiko declares
+'' #  define uLong                 z_uLong
+'' C2T-TODO(macro) zconf.h:168 -- 'uLongf': 'z_uLongf' is nothing tiko declares
+'' #  define uLongf                z_uLongf
+'' C2T-TODO(macro) zconf.h:169 -- 'voidp': 'z_voidp' is nothing tiko declares
+'' #  define voidp                 z_voidp
+'' C2T-TODO(macro) zconf.h:170 -- 'voidpc': 'z_voidpc' is nothing tiko declares
+'' #  define voidpc                z_voidpc
+'' C2T-TODO(macro) zconf.h:171 -- 'voidpf': 'z_voidpf' is nothing tiko declares
+'' #  define voidpf                z_voidpf
+
+/' all zlib structs in zlib.h and zconf.h '/
+'' C2T-TODO(macro) zconf.h:174 -- 'gz_header_s': 'z_gz_header_s' is nothing tiko declares
+'' #  define gz_header_s           z_gz_header_s
+'' C2T-TODO(macro) zconf.h:175 -- 'internal_state': 'z_internal_state' is nothing tiko declares
+'' #  define internal_state        z_internal_state
+
+#endif
+
+#if (defined(__MSDOS__) andalso ((defined(MSDOS)) = 0))
+#  define MSDOS
+#endif
+#if ((defined(OS_2) orelse defined(__OS2__)) andalso ((defined(OS2)) = 0))
+#  define OS2
+#endif
+#if (defined(_WINDOWS) andalso ((defined(WINDOWS)) = 0))
+#  define WINDOWS
+#endif
+#if ((defined(TIKO_OS_WINDOWS) orelse defined(_WIN32_WCE)) orelse defined(TIKO_OS_WINDOWS))
+'' C2T-TODO(conditional) zconf.h:189 -- tiko would take another branch where clang does not
+'' #  ifndef WIN32
+#if defined(TIKO_OS_WINDOWS)
+#    define WIN32
+#endif
+'' C2T-TODO(conditional) zconf.h:191 -- tiko would take another branch where clang does not
+'' #  endif
+#endif
+'' C2T-TODO(conditional) zconf.h:193 -- the passes translate it differently
+'' #if (defined(MSDOS) || defined(OS2) || defined(WINDOWS)) && !defined(WIN32)
+'' C2T-TODO(conditional) zconf.h:194 -- inside a conditional that stays a TODO
+'' #  if !defined(__GNUC__) && !defined(__FLAT__) && !defined(__386__)
+'' C2T-TODO(conditional) zconf.h:195 -- inside a conditional that stays a TODO
+'' #    ifndef SYS16BIT
+'' C2T-TODO(conditional) zconf.h:196 -- inside a conditional that stays a TODO
+'' #      define SYS16BIT
+'' C2T-TODO(conditional) zconf.h:197 -- inside a conditional that stays a TODO
+'' #    endif
+'' C2T-TODO(conditional) zconf.h:198 -- inside a conditional that stays a TODO
+'' #  endif
+'' C2T-TODO(conditional) zconf.h:199 -- the passes translate it differently
+'' #endif
+
+/'
+ * Compile with -DMAXSEG_64K if the alloc function cannot allocate more
+ * than 64k bytes at a time (needed on systems with 16-bit int).
+ '/
+#ifdef SYS16BIT
+#  define MAXSEG_64K
+#endif
+#ifdef MSDOS
+#  define UNALIGNED_OK
+#endif
+
+#if 1
+#  ifndef STDC
+#    define STDC
+#  endif
+#  if (201112 >= 199901)
+#    ifndef STDC99
+#      define STDC99
+#    endif
+#  endif
+#endif
+#if (((defined(STDC)) = 0) andalso (1 orelse 0))
+#  define STDC_2
+#endif
+#if (((defined(STDC)) = 0) andalso (defined(__GNUC__) orelse defined(__BORLANDC__)))
+#  define STDC_2
+#endif
+'' C2T-TODO(conditional) zconf.h:228 -- the passes translate it differently
+'' #if !defined(STDC) && (defined(MSDOS) || defined(WINDOWS) || defined(WIN32))
+'' C2T-TODO(conditional) zconf.h:229 -- inside a conditional that stays a TODO
+'' #  define STDC
+'' C2T-TODO(conditional) zconf.h:230 -- the passes translate it differently
+'' #endif
+#if (((defined(STDC)) = 0) andalso (defined(OS2) orelse defined(__HOS_AIX__)))
+#  define STDC_2
+#endif
+
+#if (defined(__OS400__) andalso ((defined(STDC)) = 0))    /' iSeries (formerly AS/400). '/
+#  define STDC_2
+#endif
+
+'' c2t: export macro const (decoration, stripped where used)
+
+#ifndef z_const
+#  ifdef ZLIB_CONST
+'' C2T-TODO(macro) zconf.h:247 -- 'z_const': 'const' is nothing tiko declares
+'' #    define z_const const
+#  else
+#    define z_const
+#  endif
+#endif
+
+#ifdef Z_SOLO
+#  ifdef TIKO_OS_WINDOWS
+     type z_size_t as uint64
+#  else
+     type z_size_t as culong
+#  endif
+#else
+'' C2T-TODO(macro) zconf.h:260 -- 'z_longlong': 'long' after the expression
+'' #  define z_longlong long long
+#  if defined(NO_SIZE_T)
+     '' C2T-TODO(branch-unparsed) zconf.h:262 -- clang cannot parse the branch: expected ';' after top level declarator
+''      typedef unsigned NO_SIZE_T z_size_t;
+#  elseif defined(STDC)
+'' <stddef.h>: built into tiko
+     type z_size_t as uinteger
+#  else
+     type z_size_t as culong
+#  endif
+#  undef z_longlong
+#endif
+
+/' Maximum value for memLevel in deflateInit2 '/
+#ifndef MAX_MEM_LEVEL
+#  ifdef MAXSEG_64K
+#    define MAX_MEM_LEVEL 8
+#  else
+#    define MAX_MEM_LEVEL 9
+#  endif
+#endif
+
+/' Maximum value for windowBits in deflateInit2 and inflateInit2.
+ * WARNING: reducing MAX_WBITS makes minigzip unable to extract .gz files
+ * created by gzip. (Files created by minigzip can still be extracted by
+ * gzip.)
+ '/
+#ifndef MAX_WBITS
+#  define MAX_WBITS 15   /' 32K LZ77 window '/
+#endif
+
+/' The memory requirements for deflate are (in bytes):
+            (1 << (windowBits+2)) +  (1 << (memLevel+9))
+ that is: 128K for windowBits=15  +  128K for memLevel = 8  (default values)
+ plus a few kilobytes for small objects. For example, if you want to reduce
+ the default memory requirements from 256K to 128K, compile with
+     make CFLAGS="-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7"
+ Of course this will generally degrade compression (there's no free lunch).
+
+   The memory requirements for inflate are (in bytes) 1 << windowBits
+ that is, 32K for windowBits=15 (default value) plus about 7 kilobytes
+ for small objects.
+'/
+
+                        /' Type declarations '/
+
+#ifndef OF /' function prototypes '/
+#  ifdef STDC
+#    define OF(args) (args)
+#  else
+'' C2T-TODO(function-like-macro) zconf.h:309 -- ')' cannot start an expression
+'' #    define OF(args)  ()
+#  endif
+#endif
+
+/' The following definitions for FAR are needed only for MSDOS mixed
+ * model programming (small or medium model with some far allocations).
+ * This was tested only with MSC; for other MSDOS compilers you may have
+ * to define NO_MEMCPY in zutil.h.  If you don't need the mixed model,
+ * just define FAR to be empty.
+ '/
+#ifdef SYS16BIT
+#  if (defined(M_I86SM) orelse defined(M_I86MM))
+     /' MSC small or medium model '/
+'' C2T-TODO(branch-unparsed) zconf.h:322 -- clang cannot parse the branch: expected ';' after top level declarator
+'' #    define SMALL_MEDIUM
+'' c2t: export macro FAR (decoration, stripped where used)
+#  endif
+#  if (defined(__SMALL__) orelse defined(__MEDIUM__))
+     /' Turbo C small or medium model '/
+'' C2T-TODO(branch-unparsed) zconf.h:331 -- clang cannot parse the branch: expected ';' after top level declarator
+'' #    define SMALL_MEDIUM
+'' c2t: export macro FAR (decoration, stripped where used)
+#  endif
+#endif
+
+'' C2T-TODO(conditional) zconf.h:340 -- the passes translate it differently
+'' #if defined(WINDOWS) || defined(WIN32)
+   /' If building or using zlib as a DLL, define ZLIB_DLL.
+    * This is not mandatory, but it offers a little performance increase.
+    '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) zconf.h:344 -- inside a conditional that stays a TODO
+'' #  ifdef ZLIB_DLL
+#endif
+'' C2T-TODO(conditional) zconf.h:345 -- inside a conditional that stays a TODO
+'' #    if defined(WIN32) && (!defined(__BORLANDC__) || (__BORLANDC__ >= 0x500))
+'' C2T-TODO(conditional) zconf.h:346 -- inside a conditional that stays a TODO
+'' #      ifdef ZLIB_INTERNAL
+'' C2T-TODO(conditional) zconf.h:347 -- inside a conditional that stays a TODO
+'' #        define ZEXTERN extern __declspec(dllexport)
+'' C2T-TODO(conditional) zconf.h:348 -- inside a conditional that stays a TODO
+'' #      else
+'' C2T-TODO(conditional) zconf.h:349 -- inside a conditional that stays a TODO
+'' #        define ZEXTERN extern __declspec(dllimport)
+'' C2T-TODO(conditional) zconf.h:350 -- inside a conditional that stays a TODO
+'' #      endif
+'' C2T-TODO(conditional) zconf.h:351 -- inside a conditional that stays a TODO
+'' #    endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) zconf.h:352 -- inside a conditional that stays a TODO
+'' #  endif  /* ZLIB_DLL */
+#endif
+   /' If building or using zlib with the WINAPI/WINAPIV calling convention,
+    * define ZLIB_WINAPI.
+    * Caution: the standard ZLIB1.DLL is NOT compiled using ZLIB_WINAPI.
+    '/
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) zconf.h:357 -- inside a conditional that stays a TODO
+'' #  ifdef ZLIB_WINAPI
+#endif
+'' C2T-TODO(conditional) zconf.h:358 -- inside a conditional that stays a TODO
+'' #    ifdef FAR
+'' C2T-TODO(conditional) zconf.h:359 -- inside a conditional that stays a TODO
+'' #      undef FAR
+'' C2T-TODO(conditional) zconf.h:360 -- inside a conditional that stays a TODO
+'' #    endif
+'' C2T-TODO(conditional) zconf.h:361 -- inside a conditional that stays a TODO
+'' #    ifndef WIN32_LEAN_AND_MEAN
+'' C2T-TODO(conditional) zconf.h:362 -- inside a conditional that stays a TODO
+'' #      define WIN32_LEAN_AND_MEAN
+'' C2T-TODO(conditional) zconf.h:363 -- inside a conditional that stays a TODO
+'' #    endif
+'' C2T-TODO(conditional) zconf.h:364 -- inside a conditional that stays a TODO
+'' #    include <windows.h>
+     /' No need for _export, use ZLIB.DEF instead. '/
+     /' For complete Windows compatibility, use WINAPI, not __stdcall. '/
+'' C2T-TODO(conditional) zconf.h:367 -- inside a conditional that stays a TODO
+'' #    define ZEXPORT WINAPI
+'' C2T-TODO(conditional) zconf.h:368 -- inside a conditional that stays a TODO
+'' #    ifdef WIN32
+'' C2T-TODO(conditional) zconf.h:369 -- inside a conditional that stays a TODO
+'' #      define ZEXPORTVA WINAPIV
+'' C2T-TODO(conditional) zconf.h:370 -- inside a conditional that stays a TODO
+'' #    else
+'' C2T-TODO(conditional) zconf.h:371 -- inside a conditional that stays a TODO
+'' #      define ZEXPORTVA FAR CDECL
+'' C2T-TODO(conditional) zconf.h:372 -- inside a conditional that stays a TODO
+'' #    endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(conditional) zconf.h:373 -- inside a conditional that stays a TODO
+'' #  endif
+#endif
+'' C2T-TODO(conditional) zconf.h:374 -- the passes translate it differently
+'' #endif
+
+#if defined(__BEOS__)
+#  ifdef ZLIB_DLL
+#    ifdef ZLIB_INTERNAL
+'' C2T-NOTE(decoration) zconf.h:379 -- '__declspec' means nothing to tiko: defined, empty
+#      define ZEXPORT
+'' C2T-NOTE(decoration) zconf.h:380 -- '__declspec' means nothing to tiko: defined, empty
+#      define ZEXPORTVA
+#    else
+'' C2T-NOTE(decoration) zconf.h:382 -- '__declspec' means nothing to tiko: defined, empty
+#      define ZEXPORT
+'' C2T-NOTE(decoration) zconf.h:383 -- '__declspec' means nothing to tiko: defined, empty
+#      define ZEXPORTVA
+#    endif
+#  endif
+#endif
+
+#ifndef ZEXTERN
+'' C2T-TODO(macro) zconf.h:389 -- 'ZEXTERN': 'extern' is nothing tiko declares
+'' #  define ZEXTERN extern
+#endif
+#ifndef ZEXPORT
+#  define ZEXPORT
+#endif
+#ifndef ZEXPORTVA
+#  define ZEXPORTVA
+#endif
+
+'' c2t: export macro FAR (decoration, stripped where used)
+
+#if ((defined(__MACTYPES__)) = 0)
+type Byte_ as uint8           /' 8 bits '/
+#endif
+type uInt as uint32           /' 16 bits or more '/
+type uLong_ as culong         /' 32 bits or more '/
+
+#ifdef SMALL_MEDIUM
+   /' Borland C/C++ and some old MSC versions ignore FAR inside typedef '/
+'' C2T-TODO(macro) zconf.h:410 -- 'Bytef': 'FAR' after the expression
+'' #  define Bytef Byte FAR
+#else
+   type Bytef as Byte_
+#endif
+type charf as byte
+type intf as int32
+type uIntf as uInt
+type uLongf as uLong_
+
+#ifdef STDC
+   type voidpc as const any ptr
+   type voidpf as any ptr
+   type voidp as any ptr
+#else
+   type voidpc as const Byte_ ptr
+   type voidpf as Byte_ ptr
+   type voidp as Byte_ ptr
+#endif
+
+#if ((((defined(Z_U4)) = 0) andalso ((defined(Z_SOLO)) = 0)) andalso defined(STDC))
+'' <limits.h>: built into tiko
+'' C2T-TODO(conditional) zconf.h:431 -- tiko would take another branch where clang does not
+'' #  if (UINT_MAX == 0xffffffffUL)
+'' C2T-TODO(macro) zconf.h:432 -- 'Z_U4': 'unsigned' is nothing tiko declares
+'' #    define Z_U4 unsigned
+'' C2T-TODO(conditional) zconf.h:433 -- tiko would take another branch where clang does not
+'' #  elif (ULONG_MAX == 0xffffffffUL)
+'' C2T-TODO(conditional) zconf.h:434 -- inside a conditional that stays a TODO
+'' #    define Z_U4 unsigned long
+'' C2T-TODO(conditional) zconf.h:435 -- tiko would take another branch where clang does not
+'' #  elif (USHRT_MAX == 0xffffffffUL)
+'' C2T-TODO(conditional) zconf.h:436 -- inside a conditional that stays a TODO
+'' #    define Z_U4 unsigned short
+'' C2T-TODO(conditional) zconf.h:437 -- tiko would take another branch where clang does not
+'' #  endif
+#endif
+
+'' C2T-TODO(conditional) zconf.h:440 -- tiko would take another branch where clang does not
+'' #ifdef Z_U4
+   type z_crc_t as uint32
+'' C2T-TODO(conditional) zconf.h:442 -- tiko would take another branch where clang does not
+'' #else
+   '' C2T-TODO(conditional) zconf.h:443 -- inside a conditional that stays a TODO
+''    typedef unsigned long z_crc_t;
+'' C2T-TODO(conditional) zconf.h:444 -- tiko would take another branch where clang does not
+'' #endif
+
+#if (HAVE_UNISTD_H - 0) /' may be set to #if 1 by ./configure '/
+#  define Z_HAVE_UNISTD_H
+#endif
+
+#if (HAVE_STDARG_H - 0) /' may be set to #if 1 by ./configure '/
+#  define Z_HAVE_STDARG_H
+#endif
+
+#ifdef STDC
+#  ifndef Z_SOLO
+'' C2T-TODO(system-header) zconf.h:456 -- <sys/types.h> has no tiko counterpart in c2t's table
+'' #    include <sys/types.h>      /* for off_t */
+#  endif
+#endif
+
+#if (defined(STDC) orelse defined(Z_HAVE_STDARG_H))
+#  ifndef Z_SOLO
+'' <stdarg.h>: built into tiko  /' for va_list '/
+#  endif
+#endif
+
+#ifdef TIKO_OS_WINDOWS
+#  ifndef Z_SOLO
+'' <stddef.h>: built into tiko  /' for wchar_t '/
+#  endif
+#endif
+
+/' a little trick to accommodate both "#define _LARGEFILE64_SOURCE" and
+ * "#define _LARGEFILE64_SOURCE 1" as requesting 64-bit operations, (even
+ * though the former does not conform to the LFS document), but considering
+ * both "#undef _LARGEFILE64_SOURCE" and "#define _LARGEFILE64_SOURCE 0" as
+ * equivalently requesting no 64-bit operations
+ '/
+#if (defined(_LARGEFILE64_SOURCE) andalso (((-_LARGEFILE64_SOURCE) - (-1)) = 1))
+#  undef _LARGEFILE64_SOURCE
+#endif
+
+#ifndef Z_HAVE_UNISTD_H
+#  if ((defined(__WATCOMC__) orelse defined(__GO32__)) orelse (defined(_LARGEFILE64_SOURCE) andalso ((defined(TIKO_OS_WINDOWS)) = 0)))
+#    define Z_HAVE_UNISTD_H
+#  endif
+#endif
+#ifndef Z_SOLO
+#  if defined(Z_HAVE_UNISTD_H)
+'' C2T-TODO(system-header) zconf.h:490 -- <unistd.h> has no tiko counterpart in c2t's table
+'' #    include <unistd.h>         /* for SEEK_*, off_t, and _LFS64_LARGEFILE */
+#    ifdef VMS
+'' C2T-TODO(system-header) zconf.h:492 -- <unixio.h> has no tiko counterpart in c2t's table
+'' #      include <unixio.h>       /* for off_t */
+#    endif
+#    ifndef z_off_t
+#      define z_off_t off_t
+#    endif
+#  endif
+#endif
+
+#if (defined(_LFS64_LARGEFILE) andalso (_LFS64_LARGEFILE - 0))
+#  define Z_LFS64
+#elseif ((((defined(TIKO_OS_WINDOWS) andalso ((0) = 0)) andalso ((defined(__BORLANDC__)) = 0)) andalso ((defined(UNDER_CE)) = 0)) andalso (0 orelse ((defined(__GNUC__)) = 0)))
+#  define Z_LFS64       /' native Windows has 64-bit file offsets '/
+#  define Z_WINLFS
+#endif
+
+#if (defined(_LARGEFILE64_SOURCE) andalso defined(Z_LFS64))
+#  define Z_LARGE64
+#endif
+
+#if ((defined(_FILE_OFFSET_BITS) andalso ((_FILE_OFFSET_BITS - 0) = 64)) andalso defined(Z_LFS64))
+#  define Z_WANT64
+#endif
+
+#if (((defined(SEEK_SET)) = 0) andalso ((defined(Z_SOLO)) = 0))
+#  define SEEK_SET 0              /' Seek from beginning of file.  '/
+#  define SEEK_CUR 1              /' Seek from current position.  '/
+#  define SEEK_END 2              /' Set file pointer to EOF plus "offset" '/
+#endif
+
+#ifndef z_off_t
+'' C2T-TODO(macro) zconf.h:523 -- 'z_off_t': 'long' is nothing tiko declares
+'' #  define z_off_t long
+#endif
+
+#if (((defined(TIKO_OS_WINDOWS)) = 0) andalso defined(Z_LARGE64))
+'' C2T-TODO(macro) zconf.h:527 -- 'z_off64_t': 'off64_t' is nothing tiko declares
+'' #  define z_off64_t off64_t
+#elseif 0
+'' C2T-TODO(macro) zconf.h:529 -- 'z_off64_t': 'long' after the expression
+'' #  define z_off64_t long long
+#elseif (defined(TIKO_OS_WINDOWS) andalso ((defined(__GNUC__)) = 0))
+'' C2T-TODO(macro) zconf.h:531 -- 'z_off64_t': '__int64' is nothing tiko declares
+'' #  define z_off64_t __int64
+#elseif defined(__GO32__)
+'' C2T-TODO(macro) zconf.h:533 -- 'z_off64_t': 'offset_t' is nothing tiko declares
+'' #  define z_off64_t offset_t
+#else
+'' C2T-TODO(macro) zconf.h:535 -- 'z_off64_t': 'z_off_t' is nothing tiko declares
+'' #  define z_off64_t z_off_t
+#endif
+
+#if ((defined(Z_WINLFS) andalso defined(Z_WANT64)) andalso ((defined(Z_SOLO)) = 0))
+#  undef z_off_t
+'' C2T-TODO(macro) zconf.h:540 -- 'z_off_t': 'z_off64_t' is nothing tiko declares
+'' #  define z_off_t z_off64_t
+#endif
+
+/' MVS linker does not support external names larger than 8 bytes '/
+#if defined(__MVS__)
+  '' C2T-TODO(unsupported) zconf.h:545 -- #pragma has no tiko translation
+''   #pragma map(deflateInit_,"DEIN")
+  '' C2T-TODO(unsupported) zconf.h:546 -- #pragma has no tiko translation
+''   #pragma map(deflateInit2_,"DEIN2")
+  '' C2T-TODO(unsupported) zconf.h:547 -- #pragma has no tiko translation
+''   #pragma map(deflateEnd,"DEEND")
+  '' C2T-TODO(unsupported) zconf.h:548 -- #pragma has no tiko translation
+''   #pragma map(deflateBound,"DEBND")
+  '' C2T-TODO(unsupported) zconf.h:549 -- #pragma has no tiko translation
+''   #pragma map(inflateInit_,"ININ")
+  '' C2T-TODO(unsupported) zconf.h:550 -- #pragma has no tiko translation
+''   #pragma map(inflateInit2_,"ININ2")
+  '' C2T-TODO(unsupported) zconf.h:551 -- #pragma has no tiko translation
+''   #pragma map(inflateEnd,"INEND")
+  '' C2T-TODO(unsupported) zconf.h:552 -- #pragma has no tiko translation
+''   #pragma map(inflateSync,"INSY")
+  '' C2T-TODO(unsupported) zconf.h:553 -- #pragma has no tiko translation
+''   #pragma map(inflateSetDictionary,"INSEDI")
+  '' C2T-TODO(unsupported) zconf.h:554 -- #pragma has no tiko translation
+''   #pragma map(compressBound,"CMBND")
+  '' C2T-TODO(unsupported) zconf.h:555 -- #pragma has no tiko translation
+''   #pragma map(inflate_table,"INTABL")
+  '' C2T-TODO(unsupported) zconf.h:556 -- #pragma has no tiko translation
+''   #pragma map(inflate_fast,"INFA")
+  '' C2T-TODO(unsupported) zconf.h:557 -- #pragma has no tiko translation
+''   #pragma map(inflate_copyright,"INCOPY")
+#endif
+
+end extern
