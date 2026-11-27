@@ -2,8 +2,8 @@
 '' pl_mpeg.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "pl_mpeg.h"
 ''   source sha256 : cd95fa11ca96bac03b76222a5eed819358a8b37ca49b680c899b0680330d5c34
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --verify --sysroot //wsl.localhost/Ubuntu
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --verify --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/docs/tiko-vendor/probes/av0/work/p3/macsdk
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''

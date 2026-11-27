@@ -2,7 +2,10 @@
 
     patch -p1 -i patches/0001-pl_mpeg-stdio-and-PLM_API.patch     (in the unpacked c871f2b)
     python -I prepare.py <patched pl_mpeg.h> pl_mpeg.h
-    tiko c2t pl_mpeg.h -o pl_mpeg.ti --verify --sysroot //wsl.localhost/Ubuntu
+    tiko c2t pl_mpeg.h -o pl_mpeg.ti --verify --sysroot //wsl.localhost/Ubuntu --macos-sysroot c2t-macsdk
+
+(the macOS pass, on Windows, against c2t-macsdk: a stand-in for the SDK's <stdio.h>, declaring
+FILE alone, as an incomplete type -- no Apple file may leave the Mac).
 
 (the output keeps the name pl_mpeg.h, so the translation's banner and TODO lines name it).
 

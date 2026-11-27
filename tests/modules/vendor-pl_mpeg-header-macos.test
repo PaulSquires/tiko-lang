@@ -1,0 +1,6 @@
+'' THE COMMITTED vendor/pl_mpeg HEADER and its residue compile for macos-arm64 as an importer reads
+'' them -- the translation's macOS pass (RFC-0005 P3). The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target macos-arm64 -c tests/modules/src/vplmpeg/hdr.tiko -o build/.vplh-macos-arm64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vplh-macos-arm64.o

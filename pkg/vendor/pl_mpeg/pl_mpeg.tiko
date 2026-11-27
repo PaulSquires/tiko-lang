@@ -47,8 +47,9 @@
 '' copies beside the program: pl_mpeg.dll, pl_mpeg_linux_x86_64.so on Linux, pl_mpeg_linux_arm64.so
 '' on arm64 Linux, or pl_mpeg_macos_arm64.dylib on macOS.
 ''
-'' TARGETS: windows-x86_64 and linux-x86_64 are translated, built and run (RFC-0005 P2); the
-'' macOS pass and Linux arm64 are P3; Android's static archives are built, not yet linked or run.
+'' TARGETS: windows-x86_64, linux-x86_64, linux-arm64 and macos-arm64 are translated, built and
+'' run (RFC-0005 P2, P3). Android: the header compiles for both Android targets and the static
+'' archives are built (its records measure the same as Linux's); nothing has been linked or run.
 #module "pl_mpeg"
 
 public #include once "pl_mpeg.ti"

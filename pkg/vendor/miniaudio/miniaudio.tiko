@@ -39,17 +39,26 @@
 '' and when no '#import' says, which is this package's default -- the shared library, which tiko
 '' copies beside the program: miniaudio.dll, miniaudio_linux_x86_64.so on Linux,
 '' miniaudio_linux_arm64.so on arm64 Linux, or miniaudio_macos_arm64.dylib on macOS. It needs no
-'' system libraries: every audio backend is loaded when a device is opened.
+'' system libraries on Windows and Linux: every audio backend is loaded when a device is opened.
+'' On macOS it links CoreAudio's frameworks (CoreFoundation, CoreAudio, AudioToolbox).
 ''
-'' TARGETS: windows-x86_64 and linux-x86_64 are translated, built and run (RFC-0005 P1). The
-'' header stops with #error on every other target until P3 measures its pthread sizes
-'' (src/prepare.py); Android's static archives are built, not yet linked or run.
+'' TARGETS: windows-x86_64, linux-x86_64, linux-arm64 and macos-arm64 -- translated, built and run
+'' (RFC-0005 P1, P3), tiko's sizeof of 33 records checked against C's on each. NOT ANDROID: five
+'' records (ma_context, ma_device, ma_event, ma_fence, ma_semaphore) are laid out differently
+'' there -- its own audio backends and pthread alignment -- and 'tiko c2t' has no Android pass to
+'' carry them, so an Android import stops here rather than corrupt memory. The Android archives
+'' are built all the same.
 #module "miniaudio"
+
+#ifdef TIKO_OS_ANDROID
+    #error "vendor/miniaudio is not translated for Android: 'tiko c2t' has no Android pass, and five of its records differ there"
+#endif
 
 public #include once "miniaudio.ti"
 public #include once "miniaudio-residue.ti"
 
-'' ANDROID IS STATIC ALWAYS: vendorfetch builds only the archive there, as for cJSON.
+'' (Android is static always -- vendorfetch builds only the archive there, as for cJSON -- were it
+'' translated: see TARGETS.)
 #if defined( TIKO_LINK_STATIC ) or defined( TIKO_OS_ANDROID )
     #ifdef TIKO_OS_MACOS
         #foreignlib MINIAUDIO static "lib/miniaudio", "framework:CoreFoundation", _
