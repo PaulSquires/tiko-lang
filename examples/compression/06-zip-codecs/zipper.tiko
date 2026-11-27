@@ -1,0 +1,81 @@
+'' zipper -- .zip archives with vendor/compression/codecs' ZipWriter and ZipReader: names in any
+'' language (stored as UTF-8, and flagged so), paths in any language, and an extraction that
+'' refuses an archive whose entries would land outside the folder ("zip slip").
+''
+''     zipper create ARCHIVE.zip FILE...   each FILE added under its own name ('\' becomes '/')
+''     zipper list ARCHIVE.zip             names, sizes, ratios and times
+''     zipper extract ARCHIVE.zip DIR      every entry into DIR (made if missing)
+''
+'' Compare 03-zip, which calls minizip's C API itself.
+''
+'' Build it with 'tiko zipper.tiko'. zlib's and minizip's licences are in
+'' pkg/vendor/compression/LICENSE; this example is public domain.
+#import "vendor/compression/codecs"
+#import "std/fs"
+#import "std/containers"
+
+function Two( byval n as integer ) as string
+    return right( "0" & n, 2 )
+end function
+
+sub Usage( )
+    print "usage: zipper create ARCHIVE.zip FILE... | zipper list ARCHIVE.zip | zipper extract ARCHIVE.zip DIR"
+    end 1
+end sub
+
+sub Fail( byval e as fs.FsError )
+    print e.Message( ); " -- "; e.Operation( );
+    if len( e.Path( ) ) then print " ("; e.Path( ); ")" else print
+    end 1
+end sub
+
+dim as string verb = command( 1 ), archive = command( 2 )
+if archive = "" then Usage( )
+
+select case verb
+case "create"
+    if command( 3 ) = "" then Usage( )
+    dim as codecs.ZipWriter w
+    dim as fs.FsResultBool r = w.Create( archive )
+    if r.IsOk( ) = false then Fail( r.Failure( ) )
+    dim as integer i = 3
+    while command( i ) <> ""
+        dim as string nm = command( i )
+        for k as integer = 0 to len( nm ) - 1
+            if nm[k] = asc( "\" ) then nm[k] = asc( "/" )
+        next
+        r = w.AddFile( nm, command( i ) )
+        if r.IsOk( ) = false then Fail( r.Failure( ) )
+        print "  added "; nm
+        i += 1
+    wend
+    r = w.Close( )                               '' writes the central directory: check it
+    if r.IsOk( ) = false then Fail( r.Failure( ) )
+
+case "list"
+    dim as codecs.ZipReader z
+    dim as fs.FsResultBool r = z.Open( archive )
+    if r.IsOk( ) = false then Fail( r.Failure( ) )
+    dim as containers.Array( of codecs.ZipEntry ) es
+    r = z.List( es )
+    if r.IsOk( ) = false then Fail( r.Failure( ) )
+    print archive; ": "; es.Count( ); " entries"
+    for i as long = 0 to es.Count( ) - 1
+        dim as codecs.ZipEntry e = es[i]
+        dim as string ratio = iif( e.size > 0, str( ( 1000 * e.packed \ e.size ) \ 10 ) & "%", "-" )
+        print using "##########  #########  \  \  &"; e.size; e.packed; ratio; _
+            e.year & "-" & Two( e.month ) & "-" & Two( e.day ) & " " & Two( e.hour ) & ":" & Two( e.minute ) & "  " & e.name
+    next
+
+case "extract"
+    dim as string dir_ = command( 3 )
+    if dir_ = "" then Usage( )
+    dim as codecs.ZipReader z
+    dim as fs.FsResultBool r = z.Open( archive )
+    if r.IsOk( ) = false then Fail( r.Failure( ) )
+    dim as fs.FsResultI64 n = z.ExtractAll( dir_ )
+    if n.IsOk( ) then print n.Value( ); " files into "; dir_ else Fail( n.Failure( ) )
+
+case else
+    Usage( )
+end select

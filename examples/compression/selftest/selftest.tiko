@@ -7,7 +7,9 @@
 ''   CODECS       the tiko layer, vendor/compression/codecs: every format through CompressBytes /
 ''                DecompressBytes and through CompressWriter / DecompressReader in small pieces,
 ''                DetectFormat, a mid-stream Flush, damage refused (the checksums it turns on),
-''                a cut stream, the size limit, bad arguments, text, files, the fixtures.
+''                a cut stream, the size limit, bad arguments, text, files, the fixtures; and
+''                ZipReader / ZipWriter: UTF-8 and code-page-437 names, a non-ASCII archive
+''                path, ExtractAll and the zip-slip entries it refuses, a CRC error.
 ''   FIXTURES     ../fixtures/sample.txt as the REFERENCE tools compressed it (make-fixtures.sh:
 ''                gzip, zstd, xz, bzip2, Python's zipfile; brotli and lz4 when they were installed)
 ''                decodes to sample.txt exactly. A fixture that is not there is named and skipped.
@@ -410,6 +412,149 @@ sub CodecsLayer( byref dir_ as const string, byref fixdir as const string )
     end if
 end sub
 
+'' ---- the codecs layer: zip --------------------------------------------------------------------
+function ZipNames( byref zr as codecs.ZipReader ) as string
+    dim as containers.Array( of codecs.ZipEntry ) es
+    zr.List( es )
+    dim as string s = ""
+    for i as long = 0 to es.Count( ) - 1
+        s &= iif( i, "|", "" ) & es[i].name
+    next
+    return s
+end function
+
+sub ZipLayer( byref dir_ as const string, byref fixdir as const string )
+    print "codecs layer, zip:"
+    dim as ustring cafe = "caf" & wchr( &hE9 )
+    dim as ustring uname = cafe & "/na" & wchr( &hEF ) & "ve " & wchr( &h2713 ) & ".txt"
+    dim as ustring utext = "Unicode " & wchr( &h2713 ) & " inside"
+    dim as ustring zpath = dir_ & "/" & cafe & "-" & wchr( &h2713 ) & ".zip"   '' a path outside any ANSI code page
+
+    '' write: a UTF-8 name, a folder, a stored file, a deflated 256 KB file from disk
+    dim as string plain = dir_ & "/zip-corpus.bin"
+    dim as integer ff = freefile
+    open plain for binary access write as #ff : put #ff, , src() : close #ff
+    scope
+        dim as codecs.ZipWriter w
+        dim as boolean ok = w.Create( zpath ).IsOk( )
+        ok = ok andalso w.AddText( uname, utext ).IsOk( )
+        ok = ok andalso w.AddDir( "empty" ).IsOk( )
+        ok = ok andalso w.AddText( "stored.txt", "kept as it is", 0 ).IsOk( )
+        ok = ok andalso w.AddFile( "data/corpus.bin", plain ).IsOk( )
+        ok = ok andalso w.Close( ).IsOk( )
+        '' std/fs finds it under its real name (CreateFileW on Windows): not a code-page mangling of it
+        Check( ok andalso fs.IsFile( zpath ), "zip     ZipWriter: a UTF-8 name, a folder, a stored entry, AddFile, at a non-ASCII path" )
+    end scope
+
+    '' read it back
+    scope
+        dim as codecs.ZipReader zr
+        dim as boolean ok = zr.Open( zpath ).IsOk( )
+        dim as containers.Array( of codecs.ZipEntry ) es
+        ok = ok andalso zr.List( es ).IsOk( ) andalso es.Count( ) = 4
+        Check( ok andalso es[0].name = uname andalso es[1].isDir andalso es[2].stored andalso es[3].size = NB _
+               andalso es[3].year >= 2026, "zip     List: names, the folder, stored, size, time" )
+        dim as codecs.BytesResult t = zr.Read( uname )
+        dim as boolean textOk = false
+        if t.IsOk( ) then
+            dim as fs.MemoryStream tm_ = fs.MemoryStream( t.Value( ) )
+            textOk = ( tm_.ToUtf8Text( ) = utext )
+        end if
+        Check( textOk, "zip     Read the UTF-8-named entry" )
+        dim as codecs.BytesResult c = zr.Read( "data/corpus.bin" )
+        Check( c.IsOk( ) andalso SameAs( c.Value( ), @src(0), NB ), "zip     Read the 256 KB entry AddFile wrote" )
+        dim as codecs.BytesResult l = zr.Read( "data/corpus.bin", 1000 )
+        Check( l.IsOk( ) = false andalso l.Failure( ).Code( ) = fs.FS_TOO_LARGE, "zip     Read past its limit: FS_TOO_LARGE" )
+        dim as codecs.BytesResult m = zr.Read( "no such entry" )
+        Check( m.IsOk( ) = false andalso m.Failure( ).Code( ) = fs.FS_NOT_FOUND, "zip     Read a name not there: FS_NOT_FOUND" )
+
+        '' ExtractAll: every file, folders made
+        dim as string outdir = dir_ & "/zip-out"
+        dim as fs.FsResultI64 x = zr.ExtractAll( outdir )
+        dim as string one, two
+        LoadFile( plain, one ) : LoadFile( outdir & "/data/corpus.bin", two )
+        Check( x.IsOk( ) andalso x.Value( ) = 3 andalso one = two andalso fs.IsDir( outdir & "/empty" ) _
+               andalso fs.IsFile( fs.PathJoin( outdir, uname ) ), "zip     ExtractAll: 3 files and the empty folder" )
+        zr.Close( )
+        fs.RemoveDirAll( outdir )
+    end scope
+
+    '' a name stored without the UTF-8 flag is code page 437 (0x82 is e-acute there)
+    scope
+        dim as string p = dir_ & "/cp437.zip"
+        dim as zipFile zf = zipOpen64( strptr( p ), APPEND_STATUS_CREATE )
+        dim as zip_fileinfo zi
+        zipOpenNewFileInZip64( zf, !"caf\&h82.txt", @zi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, 6, 0 )
+        zipWriteInFileInZip( zf, @"x", 1 ) : zipCloseFileInZip( zf ) : zipClose( zf, nullptr )
+        dim as codecs.ZipReader zr
+        zr.Open( p )
+        Check( ZipNames( zr ) = cafe & ".txt", "zip     a name without the UTF-8 flag read as code page 437" )
+        zr.Close( )
+        kill p
+    end scope
+
+    '' zip slip: an entry that would land outside the folder -- nothing is written
+    dim as const zstring ptr evil(0 to 2) = { @"../evil.txt", @"/abs/evil.txt", @"ok/../../evil.txt" }
+    for i as integer = 0 to 2
+        dim as string p = dir_ & "/slip.zip", outdir = dir_ & "/slip-out"
+        scope
+            dim as codecs.ZipWriter w
+            w.Create( p ) : w.AddText( "fine.txt", "fine" ) : w.AddText( *evil(i), "evil" ) : w.Close( )
+        end scope
+        dim as codecs.ZipReader zr
+        zr.Open( p )
+        dim as fs.FsResultI64 x = zr.ExtractAll( outdir )
+        Check( x.IsOk( ) = false andalso x.Failure( ).Code( ) = fs.FS_INVALID_PATH andalso fs.Exists( outdir & "/fine.txt" ) = false, _
+               "zip     ExtractAll refuses '" & *evil(i) & "', writing nothing" )
+        zr.Close( )
+        kill p
+        if fs.Exists( outdir ) then fs.RemoveDirAll( outdir )
+    next
+
+    '' a damaged stored entry: its CRC
+    scope
+        dim as string p = dir_ & "/crc.zip"
+        scope
+            dim as codecs.ZipWriter w
+            w.Create( p ) : w.AddText( "s.txt", "stored, so a changed byte decodes; only the CRC can tell", 0 ) : w.Close( )
+        end scope
+        dim as string bytes
+        LoadFile( p, bytes )
+        dim as integer at = instr( bytes, "only the CRC" )
+        bytes[at - 1] = asc( "O" )
+        dim as integer g = freefile
+        open p for binary access write as #g : put #g, 1, bytes : close #g
+        dim as codecs.ZipReader zr
+        zr.Open( p )
+        dim as codecs.BytesResult r = zr.Read( "s.txt" )
+        Check( r.IsOk( ) = false andalso r.Failure( ).Code( ) = fs.FS_INVALID_DATA, "zip     a changed byte in a stored entry: FS_INVALID_DATA (the CRC)" )
+        zr.Close( )
+        kill p
+    end scope
+
+    '' errors opening
+    scope
+        dim as codecs.ZipReader zr
+        dim as fs.FsResultBool a = zr.Open( dir_ & "/no-such.zip" )
+        Check( a.IsOk( ) = false andalso a.Failure( ).Code( ) = fs.FS_NOT_FOUND, "zip     Open a missing file: FS_NOT_FOUND" )
+        dim as fs.FsResultBool b = zr.Open( plain )
+        Check( b.IsOk( ) = false andalso b.Failure( ).Code( ) = fs.FS_INVALID_DATA, "zip     Open a file that is not a zip: FS_INVALID_DATA" )
+    end scope
+
+    '' Python's zipfile wrote the fixture
+    scope
+        dim as string want
+        dim as codecs.ZipReader zr
+        dim as boolean ok = LoadFile( fixdir & "/sample.txt", want ) andalso zr.Open( fixdir & "/sample.zip" ).IsOk( )
+        dim as codecs.BytesResult r = zr.Read( "sample.txt" )
+        Check( ok andalso r.IsOk( ) andalso SameAs( r.Value( ), strptr( want ), len( want ) ), _
+               "zip     the fixture Python's zipfile wrote, through ZipReader" )
+    end scope
+
+    kill plain
+    fs.RemoveFile( zpath )
+end sub
+
 dim as string fixdir = command( 1 )
 if fixdir = "" then fixdir = exepath( ) & "/../fixtures"
 print "vendor/compression: zlib "; *zlibVersion( ); ", zstd "; *ZSTD_versionString( ); ", xz "; *lzma_version_string( ); _
@@ -419,5 +564,6 @@ RoundTrips( exepath( ) )
 CorruptInputs( )
 Fixtures( fixdir )
 CodecsLayer( exepath( ), fixdir )
+ZipLayer( exepath( ), fixdir )
 print "selftest: "; g_pass; " passed, "; g_fail; " failed"
 end iif( g_fail = 0, 0, 1 )
