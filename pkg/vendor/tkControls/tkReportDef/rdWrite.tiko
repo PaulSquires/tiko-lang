@@ -198,6 +198,7 @@ function RdWrite( byval def as TK_REPORTDEF ptr ) as ustring
         if it.running then KB( o, "running", true )
         if it.incr <> "row" then KS( o, "incr", it.incr )
         if it.tag <> 0 then o &= "tag = " & it.tag & nl
+        KS( o, "opts", it.opts )
         for j as int32 = 0 to it.nRules - 1
             dim byref as TKRD_RULE ru = it.rules(j)
             o &= nl & "  [[item.rule]]" & nl

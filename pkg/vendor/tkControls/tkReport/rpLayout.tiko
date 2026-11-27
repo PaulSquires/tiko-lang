@@ -440,6 +440,18 @@ private sub DrawBand( byval r as TK_REPORT ptr, byval pg as TK_PAGE ptr, byref q
             end if
         case TKRI_CUSTOM
             if r->PaintItem then r->PaintItem( r, @it, pg, rc, @q.vals(0) )
+        case TKRI_GAUGE, TKRI_SPARKLINE
+            ' the expression's value, else the field's, else the item's Text
+            dim as TK_VALUE dv
+            if it.px then
+                RpCtxFor( r, q, it.aggBase )
+                tkRExpr_Eval( it.px, r->ctx, dv )
+            elseif (it.field >= 0) andalso (it.field <= ubound( q.vals )) then
+                dv = q.vals(it.field)
+            else
+                dv.SetText( it.text )
+            end if
+            RpDataItem( pg, it, rc, fnt, dv )
         case is > TKRI_CUSTOM
             ' an installed kind: its registered painter, given the field's text (or the item's Text)
             dim as ustring value = it.text

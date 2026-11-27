@@ -61,6 +61,7 @@
 #import "../tkPopupMenu" public
 #import "../tkBind" public
 #import "../tkMask" public
+#import "../tkSparkline" public
 using tkHost
 using tkPaint
 using tkTheme
@@ -73,6 +74,7 @@ using tkTooltip
 using tkPopupMenu
 using tkBind
 using tkMask
+using tkSparkline
 
 ' ---- constants --------------------------------------------------------------------------
 public const CDATAGRID_DEFAULT_ROWHEIGHT = 24       ' unscaled
@@ -104,6 +106,7 @@ public enum
     TKDG_COL_ICON            ' painted as text in G0
     TKDG_COL_PROGRESS        ' a bar: the value as a float, 0..100
     TKDG_COL_CUSTOM          ' the CellPaint callback paints it; text if it does not
+    TKDG_COL_SPARKLINE       ' GS5: the cell's text as a sparkline ("3,5,,2"); not editable, sorts by the last value
 end enum
 
 public enum
@@ -332,6 +335,12 @@ type TKDG_COLINFO
     mspec as TKMASK_SPEC             ' maskKind / mask compiled (DgMaskOf, on use)
     mSig as ustring                  ' what mspec was compiled from
     bMasked as boolean
+    spark as TKSPARK_SPEC            ' GS5: a SPARKLINE column's look (SetColumnSparkline; no series, no colours)
+    bSparkShared as boolean          ' every row on one range: sparkLo .. sparkHi over all the column's rows
+    sparkLo as float64
+    sparkHi as float64
+    bSparkHas as boolean             ' the shared range found a value
+    sparkSerial as integer = -1      ' the data serial the shared range was taken at
 end type
 
 type TKDG_SPAN                       ' rows a .. b, a <= b
@@ -537,6 +546,8 @@ type TKDATAGRID_STATE
     fltEditOrig    as ustring            ' its text when opened (Esc puts it back)
     bFltLoading    as boolean            ' setting the editor's text: not a user change
     FilterChangedCallback as DG_GridSub
+    ' --- GS5: SPARKLINE columns (dgSpark.tiko) ---
+    sparkSerial    as integer            ' bumped with every data change (DgSumInvalidate): shared ranges are stale
 end type
 
 

@@ -198,6 +198,8 @@ private function ItemKind_( byval k as long ) as ustring
     case 5 : return "image"
     case 6 : return "check"
     case 7 : return "custom"
+    case 8 : return "gauge"
+    case 9 : return "sparkline"
     end select
     return ""
 end function
@@ -689,7 +691,7 @@ sub ReportPanels.FillToolbox( )
     tkListTree_BeginUpdate( ToolList )
     tkListTree_Clear( ToolList )
     tkListTree_AddString( ToolList, i18n.Tr( "designer.pointer", "Pointer" ), 0 )
-    for k as long = 1 to 7
+    for k as long = 1 to 9
         tkListTree_AddString( ToolList, ItemKind_( k ), k )
     next
     for k as long = 0 to 8

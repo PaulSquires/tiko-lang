@@ -38,6 +38,9 @@ public const TK_PT_PER_MM = 2.834645669
 
 ' The page API's recording resolution: pixels per point under tkPage_* (720 dpi).
 const PR_PXPERPT = 10.0
+' The same, public: a page font (tkPage_SetFont) is opened at pt x this many pixels, so a canvas of
+' this many pixels per point (tkPage_BeginCanvas) draws it at its point size.
+public const as single TKPAGE_PXPERPT = PR_PXPERPT
 
 public type TKRECTF
     left   as single
@@ -690,6 +693,12 @@ public function tkPage_BeginCanvas( byval pg as TK_PAGE ptr, byref rc as TKRECTF
     p.pFont = pg->pFont
     p.Begin( 0, 0, w, h )                 ' records the canvas's clip
     return true
+end function
+
+' The page's current font (tkPage_SetFont), opened at TKPAGE_PXPERPT pixels per point; 0 = none set.
+public function tkPage_GetFont( byval pg as TK_PAGE ptr ) as TTF_Font ptr
+    if pg = 0 then return 0
+    return pg->pFont
 end function
 
 ' The page's own mapping and clip again.

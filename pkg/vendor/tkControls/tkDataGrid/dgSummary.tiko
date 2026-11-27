@@ -48,6 +48,7 @@ end type
 ' The totals are stale.
 sub DgSumInvalidate( byval p as TKDATAGRID_STATE ptr )
     p->bSumValid = false
+    p->sparkSerial += 1                  ' GS5: and a SPARKLINE column's shared range
 end sub
 
 ' -1 / 0 / 1 for two values of one kind (the sort's order).

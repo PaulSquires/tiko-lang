@@ -111,7 +111,7 @@ end type
 public type TKRD_ITEM
     id        as ustring
     band      as ustring
-    kind      as ustring = "text"       ' text field line box image check custom
+    kind      as ustring = "text"       ' text field line box image check custom gauge sparkline
     x         as float32
     y         as float32
     w         as float32 = 100
@@ -137,6 +137,7 @@ public type TKRD_ITEM
     running   as boolean
     incr      as ustring = "row"        ' row master group:N
     tag       as int64                  ' custom: what the PaintItem callback is told
+    opts      as ustring                ' gauge / sparkline: settings, "key=value;..." (tkReport's rpData)
     rules(any) as TKRD_RULE
     nRules    as int32
 end type
