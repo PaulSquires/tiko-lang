@@ -1,0 +1,4 @@
+finished: true
+read: 65714 bytes of gzip
+zstd: 4000 bytes -> 25
+damaged: invalid data (zstd decompress: Restored data doesn't match checksum)

@@ -443,13 +443,40 @@ or FNV value on purpose, and MD5 and SHA-1 have the same weakness. To compare tw
 ### Compressed files
 
 `vendor/compression` is seven C compression libraries in one import — zlib (deflate, zlib and
-gzip, with its minizip for `.zip`), zstd, xz's liblzma, brotli, lz4 and bzip2 — each called by
-its own C API, as its documentation has it:
+gzip, with its minizip for `.zip`), zstd, xz's liblzma, brotli, lz4 and bzip2 — and
+`vendor/compression/codecs` is the tiko way to them: byte arrays, files and `fs.Stream`s, the
+format read from the data, `std/fs` errors.
 
 ```admonish warning title="Status in this version"
-`vendor/compression` comes after tiko 0.1.8, the toolchain this book is checked with: the listing
-below was compiled and run with the development compiler, on Windows and Linux.
+`vendor/compression` comes after tiko 0.1.8, the toolchain this book is checked with: the two
+listings below were compiled and run with the development compiler, on Windows and Linux.
 ```
+
+```tiko
+{{#include ../examples/ch25/compress-codecs.tiko}}
+```
+
+```text
+{{#include ../examples/ch25/compress-codecs.out}}
+```
+
+A **`CompressWriter`** is an `fs.Stream` that compresses what is written to it into the stream it
+was given — here a `File` — so `WriteUtf8`, `WriteAll` and every other stream call work through
+it, and a file of any size passes through a few kilobytes. **`Finish`** ends the compressed data
+and says whether it all reached the file. A **`DecompressReader`** reads the other way, and with
+no format given reads it from the data's first bytes: gzip, zlib, zstd, xz, lz4 and bzip2 each
+start with their own signature. Like `TextWriter`, both borrow the stream they wrap, which must
+outlive them.
+
+**`CompressBytes`** and **`DecompressBytes`** do the same to an `Array( of ubyte )` in one call;
+`CompressText`, `CompressFile` and `DecompressFile` are their siblings, and `ZipReader` and
+`ZipWriter` handle `.zip` archives. A failure is an `fs.FsError`: damaged data is
+`FS_INVALID_DATA`, data cut short `FS_UNEXPECTED_EOF`, and `Operation( )` carries the library's own
+words. The damaged copy is refused because the layer always writes zstd's checksum, which zstd
+itself leaves off by default.
+
+Underneath are the libraries' own C APIs, which `#import "vendor/compression"` gives directly,
+named and used as each library's documentation has them:
 
 ```tiko
 {{#include ../examples/ch25/compress.tiko}}
@@ -984,8 +1011,10 @@ progress and resuming a large download; the
   `ReadAllText`/`ReadAllLines`/`WriteAllText`; `WriteAtomic`.
 - `ConfigDir`, `DataDir`, `CacheDir`, `StateDir`, `HomeDir` and `ExecutablePath` say where a program
   keeps its files.
-- `#import "vendor/compression"` gives zlib's `gzopen` family for `.gz` files, `ZSTD_compress2` and
-  the other libraries' own calls; ask zstd for a checksum when damage must be noticed.
+- `#import "vendor/compression/codecs"`: `CompressBytes` / `DecompressBytes` (the format read from
+  the data), `CompressWriter` / `DecompressReader` as `fs.Stream`s, `ZipReader` / `ZipWriter`;
+  failures are `fs.FsError`s. `vendor/compression` gives the seven libraries' own C APIs, such as
+  zlib's `gzopen` and `ZSTD_compress2` — ask zstd for a checksum there when damage must be noticed.
 - **`PathJoin` with an absolute second part discards the first** — check containment with
   `PathStartsWith` before using a path built from input.
 - The file statements (`open`, `print #`, `kill`, `mkdir`, `dir` …) still compile for older

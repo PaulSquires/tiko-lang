@@ -18,17 +18,231 @@ tiko ships seven compression libraries as one [vendor package](Vendor-Packages),
 | **lz4** | LZ4 blocks and frames (`.lz4`) | games, real-time data |
 | **bzip2** | `.bz2` | older tarballs |
 
-One line gives a program all of their C APIs and links the library:
+There are two ways in, and a program can use both:
+
+- **`vendor/compression/codecs`**, the tiko way: byte arrays, text, files, `fs.Stream`s and `.zip`
+  archives, the format detected from the data, `std/fs` errors, checksums always on. Sections 1-4.
+- **The libraries' own C APIs**, called as their documentation has them -- zlib's
+  [manual](https://zlib.net/manual.html), `zstd.h`, liblzma's `lzma/*.h`, brotli's `encode.h` and
+  `decode.h`, `lz4.h` and `lz4frame.h`, bzip2's [manual](https://sourceware.org/bzip2/manual/manual.html):
+  every option each library has. Sections 5-10.
+
+There is nothing to download or install. More programs are in the toolchain's `examples/compression`.
+
+---
+
+## 1. Compressing bytes
+
+```freebasic
+#import "vendor/compression/codecs"
+```
+
+gives `codecs.CompressBytes( bytes, format )` and `codecs.DecompressBytes( bytes )` on
+`Array( of ubyte )`. The format is a `codecs.Codec` -- `CODEC_GZIP`, `CODEC_ZLIB`, `CODEC_DEFLATE`
+(raw), `CODEC_ZSTD`, `CODEC_XZ`, `CODEC_BROTLI`, `CODEC_LZ4`, `CODEC_BZIP2` -- and
+`DecompressBytes` reads it from the data's first bytes unless told:
+
+```freebasic
+#import "vendor/compression/codecs"
+#import "std/containers"
+
+' Some bytes: a repetitive text, as an Array( of ubyte )
+dim as containers.Array( of ubyte ) original
+for i as integer = 1 to 3000
+    dim as string ln = "row " & i & " of a table that repeats itself a lot" & !"\n"
+    for k as integer = 0 to len( ln ) - 1 : original.Push( ln[k] ) : next
+next
+print "original:"; original.Count( ); " bytes"
+
+dim as codecs.Codec formats(0 to 3) = { codecs.CODEC_GZIP, codecs.CODEC_ZSTD, codecs.CODEC_XZ, codecs.CODEC_BZIP2 }
+for i as integer = 0 to 3
+    dim as codecs.BytesResult packed = codecs.CompressBytes( original, formats(i) )
+    if packed.IsOk( ) = false then print "failed: "; packed.Failure( ).Operation( ) : continue for
+    ' DecompressBytes reads the format from the data itself
+    dim as codecs.BytesResult back = codecs.DecompressBytes( packed.Value( ) )
+    print codecs.CodecName( formats(i) ); ":"; packed.Value( ).Count( ); " bytes, back:"; _
+          iif( back.IsOk( ), back.Value( ).Count( ), -1 )
+next
+```
+```text
+original: 136893 bytes
+gzip: 7752 bytes, back: 136893
+zstd: 2792 bytes, back: 136893
+xz: 1444 bytes, back: 136893
+bzip2: 4027 bytes, back: 136893
+```
+
+- **Every call returns a Result**: test `IsOk( )` before `Value( )` (tiko warns, TKO1150, when a
+  `Value( )` has no test in front of it).
+- A third argument sets the level: a number in that library's own range, or `codecs.LEVEL_FAST`,
+  `LEVEL_DEFAULT`, `LEVEL_BEST`, which each library maps to its own.
+- `codecs.DetectFormat( bytes )` says what format data is in. Brotli and raw deflate have no magic
+  number, so they are never detected: name them (`DecompressBytes( bytes, codecs.CODEC_BROTLI )`).
+- `CompressText( s, format )` and `DecompressText( bytes )` do the same for a `ustring`, as UTF-8.
+- The names are `CompressBytes` and `CODEC_*` because zlib's own `compress( )` and `deflate( )`
+  share the scope, and tiko's names are case-blind.
+
+## 2. When something is wrong
+
+A failure is an `fs.FsError`, as in `std/fs`: a code to test, and the library's own words in
+`Operation( )`:
+
+```freebasic
+#import "vendor/compression/codecs"
+#import "std/containers"
+#import "std/fs"
+
+dim as containers.Array( of ubyte ) original
+for i as integer = 1 to 2000 : original.Push( i mod 7 ) : next
+dim as codecs.BytesResult packed = codecs.CompressBytes( original, codecs.CODEC_ZSTD )
+if packed.IsOk( ) = false then end 1
+dim as containers.Array( of ubyte ) damaged = packed.Value( )
+damaged[ damaged.Count( ) \ 2 ] xor= &h40
+
+' Every failure is an fs.FsError: a code to test, and the library's own words in Operation( )
+dim as codecs.BytesResult r = codecs.DecompressBytes( damaged )
+if r.IsOk( ) = false then
+    dim as fs.FsError e = r.Failure( )
+    print "damaged: "; e.Message( ); " -- "; e.Operation( )
+    print "is FS_INVALID_DATA: "; iif( e.Code( ) = fs.FS_INVALID_DATA, "yes", "no" )
+end if
+
+' A limit on what one call may produce
+dim as codecs.BytesResult big = codecs.DecompressBytes( packed.Value( ), codecs.CODEC_DETECT, 1000 )
+if big.IsOk( ) = false then print "limited: "; big.Failure( ).Message( ); " -- "; big.Failure( ).Operation( )
+```
+```text
+damaged: invalid data -- zstd decompress: Restored data doesn't match checksum
+is FS_INVALID_DATA: yes
+limited: too large -- zstd decompress: more than 1000 bytes (the limit)
+```
+
+| Code | Means |
+| --- | --- |
+| `FS_INVALID_DATA` | damaged data, or not in any format the layer knows |
+| `FS_UNEXPECTED_EOF` | the data stops before its end: a cut file or download |
+| `FS_TOO_LARGE` | more than the limit came out: `DecompressBytes`' third argument, 1 GiB unless given |
+| `FS_INVALID_ARGUMENT` | `CompressBytes` given `CODEC_DETECT` |
+
+The damage was caught because the layer always writes **zstd's and LZ4's checksums**, which those
+libraries leave off by default (section 10 shows what happens without one). The limit matters
+for data from outside: a few kilobytes can expand to gigabytes.
+
+## 3. Streams and files
+
+`codecs.CompressWriter` and `codecs.DecompressReader` are `fs.Stream`s that sit in front of
+another stream -- an `fs.File`, a `MemoryStream`, a network stream -- so every `std/fs` call that
+takes a stream works through them, and data of any size goes through a few kilobytes of memory:
+
+```freebasic
+#import "vendor/compression/codecs"
+#import "std/fs"
+#import "std/containers"
+
+' A log written straight into a .zst file: the CompressWriter sits between the program and the file
+scope
+    dim as fs.File f
+    f.Create( "app.log.zst" )
+    dim as codecs.CompressWriter w = codecs.CompressWriter( f, codecs.CODEC_ZSTD )
+    for i as integer = 1 to 10000
+        w.WriteUtf8( "event " & i & ": request served" & !"\n" )
+    next
+    dim as fs.FsResultBool done = w.Finish( )        ' the end of the stream: check it
+    print "finished: "; iif( done.IsOk( ), "yes", "no" ); ", file:"; f.Seek( 0, fs.SEEK_FROM_END ).ValueOr( -1 ); " bytes"
+end scope
+
+' Read back through a DecompressReader: the format is read from the file
+dim as fs.File f
+f.OpenRead( "app.log.zst" )
+dim as codecs.DecompressReader r = codecs.DecompressReader( f )
+dim as containers.Array( of ubyte ) text
+dim as fs.FsResultI64 n = r.ReadToEnd( text )
+print "read back:"; n.ValueOr( -1 ); " bytes of "; codecs.CodecName( r.Format( ) )
+f.Close( )
+
+' Whole files, one call each way
+print "CompressFile: "; iif( codecs.CompressFile( "app.log.zst", "copy.zst.xz", codecs.CODEC_XZ ).IsOk( ), "ok", "failed" )
+print "DecompressFile: "; iif( codecs.DecompressFile( "copy.zst.xz", "copy.zst" ).IsOk( ), "ok", "failed" )
+```
+```text
+finished: yes, file: 6672 bytes
+read back: 268894 bytes of zstd
+CompressFile: ok
+DecompressFile: ok
+```
+
+- **`Finish( )` ends the compressed stream**, and its Result says whether the last bytes reached
+  the file. The destructor finishes too, but cannot report a failure.
+- `Flush( )` pushes out everything written so far, so a reader of the file can decode it all.
+- A writer and a reader **borrow** the stream they are given, as `std/fs`'s `TextWriter` does: it
+  must outlive them.
+- `CompressFile( src, dst, format )` and `DecompressFile( src, dst )` are those streams over two
+  files; a failure removes the half-written `dst`.
+
+## 4. Zip archives
+
+`codecs.ZipWriter` and `codecs.ZipReader`:
+
+```freebasic
+#import "vendor/compression/codecs"
+#import "std/containers"
+
+' Write an archive: text, a folder, and a file from disk
+scope
+    dim as codecs.ZipWriter w
+    w.Create( "notes.zip" )
+    w.AddText( "readme.txt", "Read me first." )
+    w.AddText( "docs/caf" & wchr( &hE9 ) & ".txt", "Names in any language." )
+    w.AddDir( "empty" )
+    w.AddFile( "copy/easyzip.tiko", "easyzip.tiko" )
+    print "closed: "; iif( w.Close( ).IsOk( ), "yes", "no" )
+end scope
+
+' List it, read one entry, extract it all
+dim as codecs.ZipReader z
+z.Open( "notes.zip" )
+dim as containers.Array( of codecs.ZipEntry ) entries
+z.List( entries )
+for i as integer = 0 to entries.Count( ) - 1
+    dim as codecs.ZipEntry e = entries[i]
+    print e.name; iif( e.isDir, " (folder)", ":" & e.size & " bytes" )
+next
+dim as codecs.BytesResult readme = z.Read( "readme.txt" )
+if readme.IsOk( ) then print "readme.txt holds"; readme.Value( ).Count( ); " bytes"
+print "extracted"; z.ExtractAll( "notes" ).ValueOr( -1 ); " files"
+```
+```text
+closed: yes
+readme.txt:14 bytes
+docs/café.txt:22 bytes
+empty/ (folder)
+copy/easyzip.tiko:992 bytes
+readme.txt holds 14 bytes
+extracted 3 files
+```
+
+- Names and paths can be in any language: names are stored as UTF-8 and flagged so, which
+  `unzip`, 7-Zip, Windows Explorer and Python read; an archive's own path works on Windows outside
+  the ANSI code page. Names in older archives without the flag are read as code page 437.
+- **`ExtractAll` refuses an unsafe archive** before writing anything: an entry with `..` in it, or
+  an absolute path, would land outside the folder -- `FS_INVALID_PATH`.
+- `Read( name )` checks the entry's CRC: a damaged entry is `FS_INVALID_DATA`.
+- `ZipEntry` gives each entry's `name`, `size`, `packed`, `crc`, `isDir`, `stored` and its time.
+
+---
+
+## The C APIs
+
+Under the layer are the seven libraries' own C APIs, which `#import "vendor/compression"` gives a
+program directly (the layer's import gives them too). Nothing is wrapped: each library's names,
+types and error codes, as its documentation has them.
 
 ```freebasic
 #import "vendor/compression"
 ```
 
-There is nothing to download or install. The names are each library's own, as its documentation has them -- zlib's [manual](https://zlib.net/manual.html), `zstd.h`, liblzma's `lzma/*.h`, brotli's `encode.h` and `decode.h`, `lz4.h` and `lz4frame.h`, bzip2's [manual](https://sourceware.org/bzip2/manual/manual.html). Nothing is wrapped. More programs are in the toolchain's `examples/compression`.
 
----
-
-## 1. A first program
+## 5. A first program
 
 The simplest calls are zlib's `compress2` and `uncompress`, which work on whole buffers. A tiko `string` is a buffer: `strptr` is its address, and `space( n )` makes room for `n` bytes.
 
@@ -66,7 +280,7 @@ zlib 1.4
 
 `uLongf` is zlib's own type for those lengths: C's `unsigned long`, which is 32 bits on Windows and 64 on Linux and macOS. Declare them as `uLongf` (or `uLong_`; `ulong` itself is a tiko keyword), never as a fixed width.
 
-## 2. `.gz` files
+## 6. `.gz` files
 
 zlib also reads and writes `.gz` files directly. `gzopen` takes a path and a mode -- `"wb9"` writes at level 9, `"rb"` reads -- and the rest look like C's file calls: `gzwrite`, `gzread`, `gzputs`, `gzgets`, `gzclose`.
 
@@ -97,7 +311,7 @@ note 3: compressed on the way to the disk
 
 The file is an ordinary `.gz`: `gzip -d`, 7-Zip and browsers read it. `gzread` on a file that is not compressed at all just returns its bytes, so the same code reads `notes.txt` and `notes.txt.gz`.
 
-## 3. Which format?
+## 7. Which format?
 
 The same text through each library at a high setting, with the size it came out and a check that it came back:
 
@@ -161,7 +375,7 @@ On this text brotli is smallest and lz4 largest, the usual order. Which one to u
 - **lz4** when speed matters more than size: it is built to be fast, at a modest ratio.
 - **bzip2** to read old `.bz2` files.
 
-## 4. Streams: files of any size
+## 8. Streams: files of any size
 
 Whole-buffer calls need the whole input and output in memory. For a large file every library has a **stream**: a record holding the coder's state, fed a buffer at a time. zlib's is `z_stream`; liblzma's `lzma_stream` and bzip2's `bz_stream` work the same way, and zstd's `ZSTD_compressStream2` very nearly. This program gzips a 2.3 MB file through two 16 KB buffers:
 
@@ -216,7 +430,7 @@ The pattern is the same for each library: point `next_in` / `avail_in` at the ne
 - **The stream is yours.** `dim as z_stream z` gives a record of zeros, which is what zlib (and liblzma's `LZMA_STREAM_INIT`) ask a new stream to be. Its init routine sets it up, its end routine frees what that allocated, and you must not copy it in between.
 - **`deflateInit2( @z, level, Z_DEFLATED, windowBits, memLevel, strategy )`** picks the wrapper by `windowBits`: 15 for a zlib stream, 16 + 15 for gzip, -15 for raw deflate (as inside a `.zip`). `inflateInit2( @z, 16 + 15 )` reads gzip, and `32 + 15` either. In C these are macros, and here too: they pass zlib's version and the size of `z_stream` for it to check.
 
-## 5. Zip archives
+## 9. Zip archives
 
 minizip writes and reads `.zip` files: `zipOpen64` creates one, `zipOpenNewFileInZip64` starts each entry, `zipWriteInFileInZip` fills it; `unzOpen64` opens one, and `unzGoToFirstFile` / `unzGoToNextFile` walk its entries.
 
@@ -256,7 +470,7 @@ docs/howto.txt: 501 bytes, stored in 9
 - The short entry came out *larger* than it went in: deflate cannot shrink 15 bytes and adds a few of its own. The 501 dashes became 9.
 - On Windows minizip opens files through the C runtime, so a name must be in the ANSI code page. For any Unicode path, open the archive with `fill_win32_filefunc64W` and `zipOpen2_64` / `unzOpen2_64` (`iowin32.h`).
 
-## 6. Noticing damage
+## 10. Noticing damage
 
 Every library reports a corrupt input as an error rather than crashing -- **if the format checks.** zlib, gzip, xz and bzip2 always carry a checksum. A zstd frame carries one only when asked, and a raw LZ4 block never does (an LZ4 frame does, with `contentChecksumFlag`). Here one byte of zstd data is damaged, with the checksum off and on:
 
@@ -293,7 +507,7 @@ checksum on:  error -- Restored data doesn't match checksum
 
 Without the checksum the damaged byte decoded to different text and **reported success**. Turn the checksum on (`ZSTD_c_checksumFlag`, through a `ZSTD_CCtx` and `ZSTD_compress2`) for anything stored or sent where it can be damaged; it costs four bytes a frame.
 
-## 7. More programs
+## 11. More programs
 
 The toolchain's `examples/compression`, each built with `tiko <name>.tiko`:
 
@@ -303,13 +517,15 @@ The toolchain's `examples/compression`, each built with `tiko <name>.tiko`:
 | `02-zstd` | buffers through `ZSTD_compress` / `ZSTD_decompress` at five levels, with sizes and times |
 | `03-zip` | a `.zip` written and listed back, every entry's CRC checked -- `zip ARCHIVE.zip FILE...`, `zip -l ARCHIVE.zip` |
 | `04-xz` | a file to `FILE.xz` and back through liblzma's `lzma_stream`; a corrupt or truncated file reported |
+| `05-codecs` | the layer: `codecs pack FILE [FORMAT [LEVEL]]`, `codecs unpack FILE.EXT` (the format read from the file), `codecs info FILE` |
+| `06-zip-codecs` | the layer's zip: `zipper create ARCHIVE.zip FILE...`, `zipper list`, `zipper extract ARCHIVE.zip DIR` |
 | `selftest` | every format round-tripped, one corrupt input each, and files made by the reference tools (gzip, zstd, xz, bzip2, Python's zipfile) decoded exactly |
 
-## 8. In a project
+## 12. In a project
 
 A [`tiko build`](Category-Tiko-Build) project needs nothing in its `tiko.toml` for this package: the import says it all. `tiko build`'s `copy_to` copies the shared library along with the program.
 
-## 9. Shipping the program
+## 13. Shipping the program
 
 - **Linked dynamically** (the default): ship the library the build put beside the program -- `compression.dll` on Windows, `compression_linux_x86_64.so` or `compression_linux_arm64.so` on Linux, `compression_macos_arm64.dylib` on macOS. It holds all seven libraries, about 2 MB, and needs nothing else (on Windows, only `KERNEL32.dll`).
 - **Linked statically** (`#import "vendor/compression" link static`): the program alone, carrying only what it calls -- a program that uses zlib alone grows by about 46 KB. Android is always static.
@@ -317,14 +533,18 @@ A [`tiko build`](Category-Tiko-Build) project needs nothing in its `tiko.toml` f
 
 The licences are all permissive, in full in the toolchain's `pkg/vendor/compression/LICENSE`. zstd's and lz4's BSD licences, brotli's MIT licence and minizip's Info-ZIP part ask for their notices to go with a program you distribute: shipping that file with it does. zlib's, liblzma's and bzip2's ask nothing of a binary.
 
-## 10. Troubleshooting
+## 14. Troubleshooting
 
 | Symptom | Cause and fix |
 | --- | --- |
+| `TKO1150: 'x.Value( )' may raise runtime error 1` | a Result used without testing `IsOk( )` first |
+| `TKO0600: 'compress' is already declared` | a procedure of your own named like a C function of the libraries, case-blind: `Compress`, `Deflate`, `Inflate`, ... -- rename it |
+| `DecompressBytes` fails with `FS_INVALID_DATA` on brotli or raw deflate data | neither has a magic number: name the format |
+| `ExtractAll` fails with `FS_INVALID_PATH` | the archive holds an entry outside its folder (`..`, an absolute path): refused on purpose |
 | `TKO0698: this argument does not convert` on `zipOpen64` or `unzOpen64` | their path is `const void *`: pass `@"name.zip"` or `strptr( path )` |
 | `uncompress` returns `Z_BUF_ERROR` (-5) | the output room is smaller than the original: store the original length with the data |
 | `inflate` returns `Z_DATA_ERROR` (-3) on a `.gz` | it was set up for a zlib stream: `inflateInit2( @z, 16 + 15 )` for gzip, `32 + 15` for either |
-| a damaged zstd or LZ4 input decodes "successfully" to wrong data | no checksum: section 6 |
+| a damaged zstd or LZ4 input decodes "successfully" to wrong data | no checksum: section 10 |
 | `lzma_code` returns `LZMA_BUF_ERROR` (10) | the input ended before the stream did: a truncated file |
 | a name outside the ANSI code page cannot be opened by `zipOpen64` / `unzOpen64` (Windows) | they go through the C runtime's `fopen`: open with `fill_win32_filefunc64W` |
 | the program exits at once with `-1073741515` (Windows) | `compression.dll` is not beside the program |

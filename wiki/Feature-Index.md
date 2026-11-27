@@ -73,7 +73,7 @@ Libraries the toolchain ships in `vendor/`, each reached with one `#import` and 
 | [mariadb](MySQL-Tutorial) | MariaDB Connector/C, the `mysql.h` client API for MySQL and MariaDB servers: queries, prepared statements, transactions, TLS. Shared library only (LGPL). |
 | [miniaudio](Miniaudio-Tutorial) | miniaudio: play, record and decode sound (WAV, FLAC, MP3, Ogg Vorbis), an engine with mixing and effects. |
 | [pl_mpeg](PL-MPEG-Tutorial) | pl_mpeg: MPEG-1 video and MP2 audio decoding, for cutscenes and intros. |
-| [compression](Compression-Tutorial) | zlib (deflate, zlib, gzip and .gz files) with minizip (.zip), zstd, xz (liblzma), brotli, lz4 and bzip2, as one library: buffers, streams and archives. |
+| [compression](Compression-Tutorial) | zlib (deflate, zlib, gzip and .gz files) with minizip (.zip), zstd, xz (liblzma), brotli, lz4 and bzip2, as one library: buffers, streams and archives -- through their C APIs or the tiko layer `vendor/compression/codecs`. |
 | [libssh2](SSH-Tutorial) | libssh2, the SSH client library, with its cryptography inside: a session with the host key checked, SFTP, SCP, remote commands. |
 | [libcurl](FTP-Tutorial) | libcurl: files over FTP, FTPS, SFTP and SCP by URL, with libssh2 and the encryption inside; typed option setters. |
 | [Android](Android) | *Experimental.* `-target android-arm64` (phones) and `android-x86_64` (the emulator), built from Windows with the NDK; `-app` packs an SDL3 or tkControls program as a signed APK or an App Bundle; `TIKO_OS_ANDROID`; tkControls with touch, the safe area, BACK and the screen keyboard. Start with the [setup tutorial](Android-Setup-Tutorial). |
