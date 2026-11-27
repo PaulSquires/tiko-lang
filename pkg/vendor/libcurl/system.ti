@@ -1,0 +1,34 @@
+'' system.ti -- curl/system.h for tiko, WRITTEN BY HAND (vendor/libcurl, claude-docs
+'' docs/tiko-vendor RFC-0004 P2). system.h is a chain of compiler tests -- __GNUC__, _MSC_VER,
+'' __WATCOMC__, __POCC__, ... -- whose whole output is two types and their printf formats. c2t
+'' keeps those tests as text (146 TODOs, three passes) and tiko defines none of them, so on macOS
+'' curl_off_t's records were not laid out. The answers, as clang gave them on each pass:
+''
+''   curl_off_t        64-bit signed on every target (curl requires it; Windows' __int64,
+''                     Linux's and macOS's long)
+''   curl_socklen_t    Windows: int (c2t's Windows pass, clang's own answer). Linux, macOS:
+''                     socklen_t, an unsigned 32-bit int (4 bytes on the Mac, measured)
+''
+'' Not carried: CURL_SUFFIX_CURL_OFF_T(U) and CURL_OFF_T_C (C literal suffixes) and the
+'' CURL_PULL_* include switches; a tiko literal needs no suffix.
+#pragma once
+
+extern "C"
+
+type curl_off_t as int64
+
+#ifdef TIKO_OS_WINDOWS
+    type curl_socklen_t as int32
+    #define CURL_FORMAT_CURL_OFF_T "I64d"
+    #define CURL_FORMAT_CURL_OFF_TU "I64u"
+#else
+    type curl_socklen_t as uint32
+    #define CURL_FORMAT_CURL_OFF_T "ld"
+    #define CURL_FORMAT_CURL_OFF_TU "lu"
+#endif
+
+#define CURL_TYPEOF_CURL_OFF_T int64
+#define CURL_SIZEOF_CURL_OFF_T 8
+#define CURL_SIZEOF_CURL_SOCKLEN_T 4
+
+end extern

@@ -1,0 +1,143 @@
+'' sftp -- SFTP and SCP through libcurl (libssh2, inside it): upload, list, download and compare,
+'' rename and remove with SFTP commands, an SCP download -- with the server's host key checked
+'' against known_hosts, and a server that is not in it refused.
+''
+''     TIKO_SSH_HOST=files.example.com TIKO_SSH_USER=me TIKO_SSH_KEY=~/.ssh/id_ed25519 sftp
+''
+'' The environment is vendor/libssh2's examples': TIKO_SSH_HOST, TIKO_SSH_PORT (22), TIKO_SSH_USER,
+'' TIKO_SSH_KEY (its .pub beside it) and TIKO_SSH_PASSPHRASE, or TIKO_SSH_PASSWORD, and
+'' TIKO_SSH_KNOWN_HOSTS. Unset TIKO_SSH_HOST and the program says so and exits 0. The file is
+'' 'tiko-curl-example.bin' in the account's home; it is removed again. Build it with
+'' 'tiko sftp.tiko'.
+
+#import "vendor/libcurl" link dynamic
+#include once "crt/string.bi"                '' memcpy
+
+function OnData cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as string ptr s = ud
+    dim as uinteger n = size * nmemb, had = len( *s )
+    *s &= space( n )
+    memcpy( strptr( *s ) + had, p, n )
+    return n
+end function
+
+type Source
+    as string body
+    as uinteger sent
+end type
+function OnRead cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as Source ptr src = ud
+    dim as uinteger n = len( src->body ) - src->sent
+    if n > size * nmemb then n = size * nmemb
+    memcpy( p, strptr( src->body ) + src->sent, n )
+    src->sent += n
+    return n
+end function
+
+dim shared as string gBase, gUser, gKey, gPass, gKnown
+
+'' SFTP URLs name a path from the root; '/~/' is the account's home directory.
+function Handle( byref scheme as string, byref path as string, byval sink as string ptr ) as CURL ptr
+    dim as CURL ptr h = curl_easy_init( )
+    curl_setopt_str( h, CURLOPT_URL, scheme & "://" & gBase & "/~/" & path )
+    curl_setopt_str( h, CURLOPT_USERNAME, gUser )
+    curl_setopt_long( h, CURLOPT_CONNECTTIMEOUT, 10 )
+    curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) )
+    curl_setopt_ptr( h, CURLOPT_WRITEDATA, sink )
+    '' THE HOST KEY: without CURLOPT_SSH_KNOWNHOSTS curl accepts any server. With it, a key not
+    '' in the file -- or a different one -- fails the transfer (CURLE_PEER_FAILED_VERIFICATION).
+    curl_setopt_str( h, CURLOPT_SSH_KNOWNHOSTS, gKnown )
+    if len( gKey ) then
+        curl_setopt_long( h, CURLOPT_SSH_AUTH_TYPES, CURLSSH_AUTH_PUBLICKEY )
+        curl_setopt_str( h, CURLOPT_SSH_PRIVATE_KEYFILE, gKey )
+        curl_setopt_str( h, CURLOPT_SSH_PUBLIC_KEYFILE, gKey & ".pub" )
+        dim as string pp = environ( "TIKO_SSH_PASSPHRASE" )
+        if len( pp ) then curl_setopt_str( h, CURLOPT_KEYPASSWD, pp )
+    else
+        curl_setopt_long( h, CURLOPT_SSH_AUTH_TYPES, CURLSSH_AUTH_PASSWORD )
+        curl_setopt_str( h, CURLOPT_PASSWORD, gPass )
+    end if
+    return h
+end function
+
+function Result( byval rc as CURLcode ) as string
+    return iif( rc = CURLE_OK, "ok", "failed: " & *curl_easy_strerror( rc ) & " (" & rc & ")" )
+end function
+
+dim as string host = environ( "TIKO_SSH_HOST" ), port = environ( "TIKO_SSH_PORT" )
+if len( host ) = 0 then
+    print "skipped: set TIKO_SSH_HOST (and TIKO_SSH_USER, TIKO_SSH_KEY or TIKO_SSH_PASSWORD, TIKO_SSH_KNOWN_HOSTS)"
+    end 0
+end if
+gBase = host & iif( len( port ), ":" & port, "" )
+gUser = environ( "TIKO_SSH_USER" ) : gKey = environ( "TIKO_SSH_KEY" )
+gPass = environ( "TIKO_SSH_PASSWORD" ) : gKnown = environ( "TIKO_SSH_KNOWN_HOSTS" )
+curl_global_init( CURL_GLOBAL_DEFAULT )
+dim as boolean ok = true
+dim as string file_ = "tiko-curl-example.bin", sink
+
+'' 100 000 bytes holding every byte value.
+dim as Source src
+src.body = space( 100000 )
+for i as integer = 0 to len( src.body ) - 1
+    src.body[i] = ( i * 13 ) and 255
+next
+
+dim as CURL ptr h = Handle( "sftp", file_, @sink )
+curl_setopt_long( h, CURLOPT_UPLOAD, 1 )
+curl_setopt_fn( h, CURLOPT_READFUNCTION, procptr( OnRead ) )
+curl_setopt_ptr( h, CURLOPT_READDATA, @src )
+curl_setopt_off( h, CURLOPT_INFILESIZE_LARGE, len( src.body ) )
+dim as CURLcode rc = curl_easy_perform( h )
+print "upload   "; src.sent; " bytes, "; Result( rc )
+ok = ok andalso rc = CURLE_OK
+curl_easy_cleanup( h )
+
+'' A directory URL (ending in '/') lists it, one line per entry as 'ls -l' writes it.
+sink = ""
+h = Handle( "sftp", "", @sink )
+rc = curl_easy_perform( h )
+print "list     "; Result( rc ); ", "; iif( instr( sink, file_ ), "has " & file_, "NO " & file_ )
+curl_easy_cleanup( h )
+
+sink = ""
+h = Handle( "sftp", file_, @sink )
+rc = curl_easy_perform( h )
+print "download "; len( sink ); " bytes, "; Result( rc ); ", "; iif( sink = src.body, "identical", "DIFFERENT" )
+ok = ok andalso sink = src.body
+curl_easy_cleanup( h )
+
+'' SCP: the same file through the older protocol (download only here).
+sink = ""
+h = Handle( "scp", file_, @sink )
+rc = curl_easy_perform( h )
+print "scp      "; len( sink ); " bytes, "; Result( rc ); ", "; iif( sink = src.body, "identical", "DIFFERENT" )
+ok = ok andalso sink = src.body
+curl_easy_cleanup( h )
+
+'' SFTP commands after a transfer of nothing: rename, then remove. Paths are the server's: '~/'
+'' is not expanded here, so they are relative to the home directory SFTP starts in.
+dim as curl_slist ptr cmds = curl_slist_append( nullptr, "rename " & file_ & " renamed-" & file_ )
+cmds = curl_slist_append( cmds, "rm renamed-" & file_ )
+h = Handle( "sftp", "", @sink )
+curl_setopt_long( h, CURLOPT_NOBODY, 1 )
+curl_setopt_ptr( h, CURLOPT_POSTQUOTE, cmds )
+rc = curl_easy_perform( h )
+print "commands rename + rm, "; Result( rc )
+ok = ok andalso rc = CURLE_OK
+curl_easy_cleanup( h )
+curl_slist_free_all( cmds )
+
+'' A server whose key is not in known_hosts: an empty file as the list.
+dim as string empty = "tiko-empty-known_hosts"
+open empty for output as #1 : close #1
+gKnown = empty
+h = Handle( "sftp", "", @sink )
+rc = curl_easy_perform( h )
+print "unknown  "; iif( rc = CURLE_PEER_FAILED_VERIFICATION, "refused, as it should be", "UNEXPECTED: " & Result( rc ) )
+ok = ok andalso rc = CURLE_PEER_FAILED_VERIFICATION
+curl_easy_cleanup( h )
+kill empty
+
+curl_global_cleanup( )
+end iif( ok, 0, 1 )

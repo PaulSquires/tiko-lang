@@ -1,0 +1,40 @@
+'' libcurl-types.ti -- the records curl.ti uses but c2t could not declare, written by hand and
+'' included BEFORE curl.ti: the translation names a refused record as one that is never defined
+'' ('curl_waitfd ptr'), which tiko accepts for an opaque record and refuses once a later file
+'' defines it (TKO0784, "used above its declaration"). libcurl-residue.ti, after curl.ti, has the
+'' rest. Layouts MEASURED (claude-docs docs/tiko-vendor/probes/ft2/layout: Windows clang and
+'' Linux gcc against curl 8.23.0's curl.h; struct sockaddr also on the Mac):
+''
+''   curl_socket_t, curl_waitfd   Windows only: SOCKET is UINT_PTR. curl_waitfd 16 bytes, fd @0,
+''                                events @8, revents @10. Linux and macOS: c2t declares both (int).
+''   curl_sockaddr                every target: it holds a struct sockaddr, a system type on all
+''                                three. 32 bytes, addr @16.
+''   curl_sys_sockaddr            that struct sockaddr, 16 bytes: Windows and Linux sa_family
+''                                uint16 @0, sa_data @2; macOS sa_len @0 and sa_family @1 (uint8).
+#pragma once
+
+#ifdef TIKO_OS_WINDOWS
+    type curl_socket_t as uinteger
+    type curl_waitfd                            '' 16 bytes, measured
+        as curl_socket_t fd
+        as int16 events
+        as int16 revents
+    end type
+#endif
+
+type curl_sys_sockaddr                          '' struct sockaddr: 16 bytes, measured
+#ifdef TIKO_OS_MACOS
+    as ubyte sa_len
+    as ubyte sa_family
+#else
+    as uint16 sa_family
+#endif
+    as byte sa_data(0 to 13)
+end type
+type curl_sockaddr                              '' 32 bytes, measured
+    as int32 family
+    as int32 socktype
+    as int32 protocol
+    as uint32 addrlen
+    as curl_sys_sockaddr addr
+end type

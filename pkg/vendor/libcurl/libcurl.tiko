@@ -1,0 +1,61 @@
+'' vendor/libcurl -- curl 8.23.0's libcurl: files over FTP, FTPS, SFTP and SCP (and HTTP, HTTPS,
+'' FILE), one URL-driven API, as one import:
+''
+''     #import "vendor/libcurl" link static        (or 'link dynamic', or neither)
+''
+'' Every routine, type and constant of curl/curl.h (and the headers it includes: easy, multi,
+'' urlapi, options, header, websockets, mprintf) is then callable as curl documents it
+'' (https://curl.se/libcurl/c/), unqualified -- curl_easy_init, curl_easy_perform, CURLOPT_URL.
+''
+'' THE HEADERS are curl.ti and curlver.ti, translated by 'tiko c2t' from curl.h flattened by
+'' flatten.sh, and committed; the banners name the C headers and their SHA-256. system.ti and
+'' libcurl-residue.ti are written by hand: curl's compiler-test types, the Windows socket
+'' declarations, curl_sockaddr on Unix, and THE TYPED SETTERS.
+''
+'' SET OPTIONS WITH THE TYPED SETTERS, not curl_easy_setopt: that is variadic, curl reads the
+'' argument as the type its option names, and C's long is 32 bits on Windows, 64 elsewhere.
+''
+''     dim as CURL ptr h = curl_easy_init( )
+''     curl_setopt_str ( h, CURLOPT_URL, "sftp://files.example.com/in/report.csv" )
+''     curl_setopt_str ( h, CURLOPT_SSH_KNOWNHOSTS, knownHostsFile )      '' the host key, checked
+''     curl_setopt_fn  ( h, CURLOPT_WRITEFUNCTION, @OnData )              '' a cdecl proc
+''     curl_setopt_ptr ( h, CURLOPT_WRITEDATA, @sink )
+''     curl_setopt_long( h, CURLOPT_FTP_USE_EPSV, 0 )                     '' a C long
+''     curl_setopt_off ( h, CURLOPT_RESUME_FROM_LARGE, offset )           '' a curl_off_t
+''     dim as CURLcode rc = curl_easy_perform( h )
+''     if rc <> CURLE_OK then print *curl_easy_strerror( rc )
+''     curl_easy_cleanup( h )
+''
+'' A curl_easy_* handle is one transfer at a time; reuse it, then curl_easy_cleanup it. Call
+'' curl_global_init( CURL_GLOBAL_DEFAULT ) once before any handle, curl_global_cleanup once at
+'' the end. A string option is copied by curl; a slist (CURLOPT_QUOTE) must live until the
+'' transfer ends -- curl_slist_free_all after it.
+''
+'' TLS: Schannel on Windows (the system's roots; a private CA without a CRL needs
+'' CURLSSLOPT_REVOKE_BEST_EFFORT in CURLOPT_SSL_OPTIONS), OpenSSL on Linux (give the roots with
+'' CURLOPT_CAINFO). SSH (SFTP, SCP): libssh2, inside -- verify the server with
+'' CURLOPT_SSH_KNOWNHOSTS; without it curl checks no host key.
+''
+'' THE LIBRARY carries libssh2 and OpenSSL inside it -- nothing else to ship, and it imports no
+'' other vendor package: vendor/libssh2 beside it, in any link mode, is a separate copy. With
+'' 'link static' libcurl is linked into the program; with 'link dynamic' -- and when no '#import'
+'' says, which is this package's default -- the shared library, which tiko copies beside the
+'' program: libcurl.dll on Windows, libcurl_linux_x86_64.so on Linux. macOS and linux-arm64 have
+'' no library yet (claude-docs docs/tiko-vendor RFC-0004 P3).
+#module "libcurl"
+
+public #include once "libcurl-types.ti"
+public #include once "curl.ti"
+public #include once "libcurl-residue.ti"
+
+#ifdef TIKO_LINK_STATIC
+    '' A static libcurl on Windows needs what libcurl.dll imports.
+    #ifdef TIKO_OS_WINDOWS
+        #foreignlib CURL static "lib/libcurl", "system:ws2_32", "system:crypt32", "system:secur32", _
+                                "system:bcrypt", "system:iphlpapi", "system:advapi32", "system:user32"
+    #else
+        #foreignlib CURL static "lib/libcurl", "system:pthread", "system:dl"
+    #endif
+#else
+    #foreignlib CURL dynamic "lib/libcurl"
+#endif

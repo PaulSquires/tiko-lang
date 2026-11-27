@@ -121,6 +121,7 @@ tests/vendor/**/*.o
 /pkg/vendor/tkControls/glyphfonts/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/bin/
 /pkg/vendor/libssh2/build/bin/
+/pkg/vendor/libcurl/build/bin/
 /pkg/vendor/SDL3/static/bin/
 /pkg/vendor/raylib6/shared/bin/
 /pkg/vendor/libpq/build/bin/

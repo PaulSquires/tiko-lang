@@ -1,0 +1,113 @@
+'' libcurl-residue.ti -- what curl.ti could not carry, and the typed option setters, written by
+'' hand. Against curl 8.23.0's curl.h (flattened by ../flatten.sh), the file curl.ti's banner
+'' names by SHA-256; system.ti is hand-written too (its own header says why).
+''
+'' 41 TODOs. What a program can call is here:
+''
+'' THE TYPED SETTERS (claude-docs docs/tiko-vendor RFC-0004 FT-6). curl_easy_setopt is variadic:
+'' curl reads its third argument as the type the option names -- long, curl_off_t, a pointer, a
+'' function pointer -- and C's long is 32 bits on Windows, 64 elsewhere. A variadic call passes
+'' what the caller wrote, and tiko widens nothing to 64 bits (an int32 -1 arrives as 4294967295
+'' where a curl_off_t is read -- RFC-0004 P0 section 5). Each setter takes exactly the type its
+'' kind of option reads, so no program depends on a variadic argument's width:
+''
+''   curl_setopt_long( h, CURLOPT_xxx, v )   options documented 'long'        (CURLOPTTYPE_LONG)
+''   curl_setopt_off ( h, CURLOPT_xxx, v )   options documented 'curl_off_t'  (CURLOPTTYPE_OFF_T)
+''   curl_setopt_str ( h, CURLOPT_xxx, s )   a string option: curl copies it  (CURLOPTTYPE_STRINGPOINT)
+''   curl_setopt_ptr ( h, CURLOPT_xxx, p )   any other pointer: data, slist, blob
+''   curl_setopt_fn  ( h, CURLOPT_xxx, @f )  a callback: a cdecl proc with the C signature
+''   curl_getinfo_long / _off / _str / _float64 ( h, CURLINFO_xxx, v ) -- the same for reads:
+''                       CURLINFO_RESPONSE_CODE writes a C long, which is not an int64 on Windows
+''   curl_multi_setopt_long / _ptr, curl_share_setopt_long / _ptr -- the multi and share options
+'' Each returns curl's code. curl_easy_setopt stays declared, for those who know the width.
+''
+'' WINDOWS ONLY (c2t refused them: curl_socket_t is SOCKET, a system header's type):
+''   curl_socket_t (UINT_PTR), curl_waitfd -- MEASURED, claude-docs probes/ft2/layout: 16 bytes,
+''   fd @0, events @8, revents @10 -- and what uses them: curl_multi_wait, curl_multi_poll,
+''   curl_multi_socket_action, curl_multi_socket, curl_multi_assign, and the callback types
+''   curl_sockopt_callback, curl_opensocket_callback, curl_closesocket_callback,
+''   curl_socket_callback. On Linux and macOS curl_socket_t is int and c2t translated them all.
+'' EVERY TARGET (c2t refused it: struct sockaddr is a system header's type on all three):
+''   curl_sockaddr -- 32 bytes, addr @16, MEASURED on Windows (clang) and Linux (gcc) -- holding
+''   curl_sys_sockaddr, 16 bytes: Windows and Linux sa_family uint16 @0, sa_data @2; macOS sa_len
+''   @0, sa_family @1 (uint8 each), sa_data @2 (measured on the Mac). curl_opensocket_callback's
+''   address points at one. Both are in libcurl-types.ti.
+''
+'' The other TODOs need nothing: curl_easy_setopt / getinfo / multi_setopt / share_setopt are
+'' C macros that check there are three arguments; CURL_DEPRECATED, CURL_IGNORE_DEPRECATION and
+'' CURL_TEMP_PRINTF are attributes; CURLOPT / CURLOPTDEPRECATED build the enum, which c2t wrote
+'' with its values; the system headers are winsock2's and the Unix socket headers; curl_ftpssl is
+'' a pre-7.17 name (CURL_NO_OLDIES); curl_ssls_export_cb is a function TYPE (use 'any ptr' for
+'' CURLOPT_SSL_... export callbacks); curl_multi_fdset takes fd_set, a system type -- use
+'' curl_multi_poll, which needs none.
+'' The RECORDS -- curl_socket_t and curl_waitfd on Windows, curl_sockaddr everywhere -- are in
+'' libcurl-types.ti, which comes BEFORE curl.ti: the translation names them as records never
+'' defined, and tiko refuses a definition that follows such a use (TKO0784).
+#pragma once
+
+#ifdef TIKO_OS_WINDOWS
+    extern "C"
+    type curl_sockopt_callback as function cdecl( byval clientp as any ptr, byval curlfd as curl_socket_t, _
+                                                  byval purpose as curlsocktype ) as int32
+    type curl_opensocket_callback as function cdecl( byval clientp as any ptr, byval purpose as curlsocktype, _
+                                                     byval address as curl_sockaddr ptr ) as curl_socket_t
+    type curl_closesocket_callback as function cdecl( byval clientp as any ptr, byval item as curl_socket_t ) as int32
+    type curl_socket_callback as function cdecl( byval easy as CURL ptr, byval s as curl_socket_t, byval what as int32, _
+                                                 byval userp as any ptr, byval socketp as any ptr ) as int32
+    declare function curl_multi_wait( byval m as CURLM ptr, byval extra_fds as curl_waitfd ptr, byval extra_nfds as uint32, _
+                                      byval timeout_ms as int32, byval ret as int32 ptr ) as CURLMcode
+    declare function curl_multi_poll( byval m as CURLM ptr, byval extra_fds as curl_waitfd ptr, byval extra_nfds as uint32, _
+                                      byval timeout_ms as int32, byval ret as int32 ptr ) as CURLMcode
+    declare function curl_multi_socket_action( byval m as CURLM ptr, byval s as curl_socket_t, byval ev_bitmask as int32, _
+                                               byval running_handles as int32 ptr ) as CURLMcode
+    declare function curl_multi_socket( byval m as CURLM ptr, byval s as curl_socket_t, byval running_handles as int32 ptr ) as CURLMcode
+    declare function curl_multi_assign( byval m as CURLM ptr, byval sockfd as curl_socket_t, byval sockp as any ptr ) as CURLMcode
+    end extern
+#endif
+
+'' -- the typed setters (FT-6) -------------------------------------------------------------
+private function curl_setopt_long( byval h as CURL ptr, byval opt as CURLoption, byval v as clong ) as CURLcode
+    return curl_easy_setopt( h, opt, v )
+end function
+private function curl_setopt_off( byval h as CURL ptr, byval opt as CURLoption, byval v as curl_off_t ) as CURLcode
+    return curl_easy_setopt( h, opt, v )
+end function
+private function curl_setopt_str( byval h as CURL ptr, byval opt as CURLoption, byref s as const string ) as CURLcode
+    return curl_easy_setopt( h, opt, cast( const zstring ptr, strptr( s ) ) )
+end function
+private function curl_setopt_ptr( byval h as CURL ptr, byval opt as CURLoption, byval p as const any ptr ) as CURLcode
+    return curl_easy_setopt( h, opt, p )
+end function
+private function curl_setopt_fn( byval h as CURL ptr, byval opt as CURLoption, byval f as const any ptr ) as CURLcode
+    return curl_easy_setopt( h, opt, f )
+end function
+
+private function curl_getinfo_long( byval h as CURL ptr, byval info as CURLINFO, byref v as clong ) as CURLcode
+    return curl_easy_getinfo( h, info, @v )
+end function
+private function curl_getinfo_off( byval h as CURL ptr, byval info as CURLINFO, byref v as curl_off_t ) as CURLcode
+    return curl_easy_getinfo( h, info, @v )
+end function
+private function curl_getinfo_float64( byval h as CURL ptr, byval info as CURLINFO, byref v as float64 ) as CURLcode
+    return curl_easy_getinfo( h, info, @v )
+end function
+'' A string curl owns: valid until the handle is cleaned up or reused. "" when curl has none.
+private function curl_getinfo_str( byval h as CURL ptr, byval info as CURLINFO, byref v as string ) as CURLcode
+    dim as zstring ptr z
+    dim as CURLcode rc = curl_easy_getinfo( h, info, @z )
+    if z <> nullptr then v = *z else v = ""
+    return rc
+end function
+
+private function curl_multi_setopt_long( byval m as CURLM ptr, byval opt as CURLMoption, byval v as clong ) as CURLMcode
+    return curl_multi_setopt( m, opt, v )
+end function
+private function curl_multi_setopt_ptr( byval m as CURLM ptr, byval opt as CURLMoption, byval p as const any ptr ) as CURLMcode
+    return curl_multi_setopt( m, opt, p )
+end function
+private function curl_share_setopt_long( byval sh as CURLSH ptr, byval opt as CURLSHoption, byval v as clong ) as CURLSHcode
+    return curl_share_setopt( sh, opt, v )
+end function
+private function curl_share_setopt_ptr( byval sh as CURLSH ptr, byval opt as CURLSHoption, byval p as const any ptr ) as CURLSHcode
+    return curl_share_setopt( sh, opt, p )
+end function
