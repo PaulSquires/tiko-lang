@@ -1,0 +1,884 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkGauge -- the widget (GAUGE-SPARKLINE.md §3, A-2): a display control. Not focusable, no keys,
+' no capture; a tooltip and Click are its only interaction. Setters are silent.
+'
+' POINTERS: pointer 0 always exists and is "the value" (SetValue, the bind target). Each pointer
+' has a TARGET (what was set) and a DISPLAYED value (what is drawn). With SetAnimation( ms ) > 0 a
+' new target eases the displayed value there (ease-out cubic) on one timer, which runs only while
+' the gauge is enabled AND shown (tkProgressBar's marquee rule); hidden or disabled, the motion
+' pauses where it is and resumes from there. No notification on arrival. PaintInto / PaintPage
+' draw what their spec says (no animation).
+#module "tkGauge"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkPrint" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkPrint
+
+const GG_TIMER_ANIM = TK_TIMER_APP + 1
+const GG_TICK_MS = 16
+
+public type TKGAUGE_PAINTINFO
+    hGauge    as TK_WIDGET ptr
+    b         as TK_PAINT ptr
+    rcClient  as TKRECT
+    isEnabled as boolean
+end type
+
+public type TKGAUGE_MESSAGEINFO
+    hGauge as TK_WIDGET ptr
+    msg    as int32
+    x      as single
+    y      as single
+end type
+
+public type GGE_ClickCallbackSub as sub( byval hGauge as TK_WIDGET ptr, byval id as int32 )
+' The tip; "" falls through to the value text.
+public type GGE_TooltipCallbackFunc as function( byval hGauge as TK_WIDGET ptr, byval v as float64 ) as ustring
+' Pointer 0's value as the gauge shows it (prefix and suffix are yours to add); "" = the default.
+public type GGE_ValueFormatCallbackFunc as function( byval hGauge as TK_WIDGET ptr, byval v as float64 ) as ustring
+public type GGE_PaintCallbackSub as sub( byval p as TKGAUGE_PAINTINFO ptr )
+public type GGE_MessageCallbackFunc as function( byval m as TKGAUGE_MESSAGEINFO ptr ) as boolean
+
+public type TKGAUGE_STATE
+    hWin            as TK_WIDGET ptr
+    id              as int32
+    spec            as TKGAUGE_SPEC
+    ptrs(any)       as TKGAUGE_POINTER     ' fValue = the DISPLAYED value
+    target(any)     as float64
+    animFrom(any)   as float64
+    nPtr            as int32
+    ranges(any)     as TKGAUGE_RANGE
+    nRanges         as int32
+    colors          as TKGAUGE_COLORS
+    bColorsPinned   as boolean
+    fFont           as TTF_Font ptr
+    fValueFont      as TTF_Font ptr
+    nAnimMs         as int32
+    t0              as uint64
+    bTimer          as boolean
+    bHidden         as boolean             ' from TKM_SHOW; FALSE = "assume shown"
+    wszTooltip      as ustring
+    tip             as TKTIPHOST_STATE
+    bDown           as boolean
+    ClickCallback   as GGE_ClickCallbackSub
+    TooltipCallback as GGE_TooltipCallbackFunc
+    FormatCallback  as GGE_ValueFormatCallbackFunc
+    PaintCallback   as GGE_PaintCallbackSub
+    MessageCallback as GGE_MessageCallbackFunc
+end type
+
+private function GState( byval w as TK_WIDGET ptr ) as TKGAUGE_STATE ptr
+    if w = 0 then return 0
+    return cast( TKGAUGE_STATE ptr, w->pData )
+end function
+
+private sub Refresh( byval p as TKGAUGE_STATE ptr )
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+' The value text: the callback's, else Prefix + the value + Suffix.
+private function ValueText( byval p as TKGAUGE_STATE ptr, byval v as float64 ) as ustring
+    if p->FormatCallback then
+        dim as ustring s = p->FormatCallback( p->hWin, v )
+        if len( s ) then return s
+    end if
+    return p->spec.sPrefix & tkGauge_FormatValue( v, p->spec.nDecimals ) & p->spec.sSuffix
+end function
+
+private function LiveSpec( byval p as TKGAUGE_STATE ptr ) as TKGAUGE_SPEC
+    dim as TKGAUGE_SPEC s = p->spec
+    s.pPointers = iif( p->nPtr > 0, @p->ptrs(0), cast( TKGAUGE_POINTER ptr, 0 ) )
+    s.nPointers = p->nPtr
+    s.pRanges = iif( p->nRanges > 0, @p->ranges(0), cast( TKGAUGE_RANGE ptr, 0 ) )
+    s.nRanges = p->nRanges
+    s.fText = p->fFont
+    if (s.fText = 0) andalso (p->hWin->pHost <> 0) then s.fText = p->hWin->pHost->pDefaultFont
+    s.fValueFont = p->fValueFont
+    s.fScale = iif( p->hWin->pHost <> 0, p->hWin->pHost->fScale, 1 )
+    s.bEnabled = tkWidget_IsEnabled( p->hWin )
+    s.pColors = @p->colors
+    s.sValueText = ""
+    if p->nPtr > 0 then s.sValueText = ValueText( p, p->ptrs(0).fValue )
+    return s
+end function
+
+private sub Geom( byval p as TKGAUGE_STATE ptr, byref s as TKGAUGE_SPEC, byref geo as GG_GEOM )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, p->hWin->cw, p->hWin->ch )
+    tkGauge_Layout( s, rc, s.fScale, geo )
+end sub
+
+
+' ---- animation -------------------------------------------------------------------------------
+private function Moving( byval p as TKGAUGE_STATE ptr ) as boolean
+    for i as int32 = 0 to p->nPtr - 1
+        if p->ptrs(i).fValue <> p->target(i) then return true
+    next
+    return false
+end function
+
+private function CanRun( byval p as TKGAUGE_STATE ptr ) as boolean
+    return (p->nAnimMs > 0) andalso (p->bHidden = false) andalso tkWidget_IsEnabled( p->hWin )
+end function
+
+private sub StopTimer( byval p as TKGAUGE_STATE ptr )
+    if p->bTimer then tkWidget_KillTimer( p->hWin, GG_TIMER_ANIM ) : p->bTimer = false
+end sub
+
+' (Re)start every moving pointer from where it is drawn now.
+private sub StartMotion( byval p as TKGAUGE_STATE ptr )
+    for i as int32 = 0 to p->nPtr - 1
+        p->animFrom(i) = p->ptrs(i).fValue
+    next
+    p->t0 = SDL_GetTicks( )
+    if p->bTimer = false then tkWidget_SetTimer( p->hWin, GG_TIMER_ANIM, GG_TICK_MS ) : p->bTimer = true
+end sub
+
+private sub Tick( byval p as TKGAUGE_STATE ptr )
+    dim as float64 t = (SDL_GetTicks( ) - p->t0) / iif( p->nAnimMs > 0, p->nAnimMs, 1 )
+    if t >= 1 then
+        for i as int32 = 0 to p->nPtr - 1 : p->ptrs(i).fValue = p->target(i) : next
+        StopTimer( p )
+    else
+        dim as float64 e = 1 - (1 - t) ^ 3
+        for i as int32 = 0 to p->nPtr - 1
+            p->ptrs(i).fValue = p->animFrom(i) + (p->target(i) - p->animFrom(i)) * e
+        next
+    end if
+    Refresh( p )
+end sub
+
+' A target changed: jump, or start (or restart) the motion.
+private sub Retarget( byval p as TKGAUGE_STATE ptr )
+    if (p->nAnimMs <= 0) then
+        for i as int32 = 0 to p->nPtr - 1 : p->ptrs(i).fValue = p->target(i) : next
+        StopTimer( p )
+    elseif Moving( p ) andalso CanRun( p ) then
+        StartMotion( p )
+    end if
+    Refresh( p )
+end sub
+
+' Shown / enabled changed: pause where the pointers are, or resume from there.
+private sub RunState( byval p as TKGAUGE_STATE ptr )
+    if CanRun( p ) andalso Moving( p ) then
+        StartMotion( p )
+    else
+        StopTimer( p )
+    end if
+end sub
+
+
+' ---- the proc ---------------------------------------------------------------------------------
+private function CallMessage( byval p as TKGAUGE_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKGAUGE_MESSAGEINFO mi
+    mi.hGauge = p->hWin
+    mi.msg = m->msg
+    mi.x = m->x : mi.y = m->y
+    return p->MessageCallback( @mi )
+end function
+
+private sub RenderDefault( byval p as TKGAUGE_STATE ptr, byval pi as TKGAUGE_PAINTINFO ptr )
+    dim as TKGAUGE_SPEC s = LiveSpec( p )
+    dim as GG_GEOM geo
+    tkGauge_Layout( s, pi->rcClient, s.fScale, geo )
+    tkGauge_PaintSpec( pi->b, s, geo )
+end sub
+
+private sub OnPaint( byval p as TKGAUGE_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TKGAUGE_PAINTINFO pi
+    pi.hGauge = p->hWin
+    pi.b = b
+    tkRect_Set( pi.rcClient, 0, 0, p->hWin->cw, p->hWin->ch )
+    b->SetBackColor( p->colors.BackColor )
+    b->PaintRect( @pi.rcClient )
+    pi.isEnabled = tkWidget_IsEnabled( p->hWin )
+    if p->PaintCallback then p->PaintCallback( @pi ) else RenderDefault( p, @pi )
+end sub
+
+public declare sub tkGauge_ApplyTheme( byval hGauge as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+
+private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKGAUGE_STATE ptr p = GState( w )
+    if p = 0 then return false
+    if m->msg <> TKM_DESTROY then
+        dim as boolean bEat = CallMessage( p, m )
+        if bEat andalso (m->msg <> TKM_LBUTTONUP) then return true
+    end if
+    select case m->msg
+    case TKM_PAINT
+        OnPaint( p, m->pPaint )
+        return true
+    case TKM_TIMER
+        if m->timerId = GG_TIMER_ANIM then Tick( p ) : return true
+    case TKM_SIZE, TKM_SCALECHANGED
+        Refresh( p )
+        return true
+    case TKM_SHOW
+        p->bHidden = (m->bFlag = false)
+        RunState( p )
+        return true
+    case TKM_ENABLE
+        if m->bFlag = false then tkTipHost_Pop( @p->tip )
+        RunState( p )
+        Refresh( p )
+        return true
+    case TKM_THEMECHANGED
+        tkGauge_ApplyTheme( w, tkTheme_Of( w ) )
+        return true
+    case TKM_LBUTTONDOWN
+        p->bDown = true
+        return true
+    case TKM_LBUTTONUP
+        dim as boolean bClick = p->bDown andalso tkWidget_IsEnabled( w ) andalso (m->x >= 0) andalso (m->y >= 0) _
+                                andalso (m->x < w->cw) andalso (m->y < w->ch)
+        p->bDown = false
+        if bClick andalso (p->ClickCallback <> 0) then p->ClickCallback( w, p->id )
+        return true
+    case TKM_MOUSELEAVE
+        p->bDown = false
+        return true
+    case TKM_MOUSEMOVE, TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        return true
+    case TKM_DESTROY
+        StopTimer( p )
+        tkTipHost_Destroy( @p->tip )
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+public declare function tkGauge_ResolveTooltipText( byval hGauge as TK_WIDGET ptr ) as ustring
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return tkGauge_ResolveTooltipText( a )
+end function
+
+
+' ==========================================================================================
+' Create, pointers
+' ==========================================================================================
+private function AddPtr( byval p as TKGAUGE_STATE ptr, byval nKind as int32 ) as int32
+    dim as int32 i = p->nPtr
+    redim preserve p->ptrs( 0 to i ) : redim preserve p->target( 0 to i ) : redim preserve p->animFrom( 0 to i )
+    dim as TKGAUGE_POINTER blank
+    p->ptrs(i) = blank
+    p->ptrs(i).nKind = nKind
+    p->ptrs(i).fValue = p->spec.fMin
+    p->target(i) = p->spec.fMin
+    p->animFrom(i) = p->spec.fMin
+    p->nPtr += 1
+    return i
+end function
+
+public function tkGauge_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as int32, _
+                                byval nShape as int32 = TKGAUGE_RADIAL ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKGAUGE_STATE ptr p = new TKGAUGE_STATE
+    p->id = ctrlId
+    p->spec.nShape = iif( nShape = TKGAUGE_LINEAR, TKGAUGE_LINEAR, TKGAUGE_RADIAL )
+    AddPtr( p, iif( p->spec.nShape = TKGAUGE_LINEAR, TKGAUGE_PTR_BAR, TKGAUGE_PTR_NEEDLE ) )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @Proc, p )
+    p->hWin = w
+    p->colors = tkGauge_ThemeColors( tkTheme_Of( w ) )
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKGAUGE_COLORS ) \ 4, "Gauge" )
+    tkTipHost_Ensure( @p->tip, w, @TipText )
+    return w
+end function
+
+public function tkGauge_GetID( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->id
+end function
+
+public function tkGauge_GetShape( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_RADIAL
+    return p->spec.nShape
+end function
+
+public sub tkGauge_SetEnabled( byval hGauge as TK_WIDGET ptr, byval isEnabled as boolean )
+    if hGauge then tkWidget_Enable( hGauge, isEnabled )
+end sub
+
+' The scale; an inverted pair is swapped. Pointers keep their values (drawn clamped).
+public sub tkGauge_SetRange( byval hGauge as TK_WIDGET ptr, byval lo as float64, byval hi as float64 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    if lo > hi then swap lo, hi
+    p->spec.fMin = lo : p->spec.fMax = hi
+    Refresh( p )
+end sub
+
+public function tkGauge_GetMin( byval hGauge as TK_WIDGET ptr ) as float64
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->spec.fMin
+end function
+
+public function tkGauge_GetMax( byval hGauge as TK_WIDGET ptr ) as float64
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 100
+    return p->spec.fMax
+end function
+
+public function tkGauge_AddPointer( byval hGauge as TK_WIDGET ptr, byval nKind as int32 ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (nKind < TKGAUGE_PTR_NEEDLE) orelse (nKind > TKGAUGE_PTR_MARKER) then return -1
+    dim as int32 i = AddPtr( p, nKind )
+    Refresh( p )
+    return i
+end function
+
+public function tkGauge_GetPointerCount( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->nPtr
+end function
+
+' Stored as given; drawn clamped to the scale (IsOverRange tells).
+public sub tkGauge_SetPointerValue( byval hGauge as TK_WIDGET ptr, byval i as int32, byval v as float64 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) orelse (p->target(i) = v) then exit sub
+    p->target(i) = v
+    Retarget( p )
+end sub
+
+public function tkGauge_GetPointerValue( byval hGauge as TK_WIDGET ptr, byval i as int32 ) as float64
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) then return 0
+    return p->target(i)
+end function
+
+' What is drawn now: the target, or on its way there while animating.
+public function tkGauge_GetDisplayedValue( byval hGauge as TK_WIDGET ptr, byval i as int32 ) as float64
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) then return 0
+    return p->ptrs(i).fValue
+end function
+
+public sub tkGauge_SetValue( byval hGauge as TK_WIDGET ptr, byval v as float64 )
+    tkGauge_SetPointerValue( hGauge, 0, v )
+end sub
+
+public function tkGauge_GetValue( byval hGauge as TK_WIDGET ptr ) as float64
+    return tkGauge_GetPointerValue( hGauge, 0 )
+end function
+
+' TRUE when pointer i's value lies outside the scale (it is drawn at the end).
+public function tkGauge_IsOverRange( byval hGauge as TK_WIDGET ptr, byval i as int32 ) as boolean
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) then return false
+    dim as float64 lo = p->spec.fMin, hi = p->spec.fMax
+    if lo > hi then swap lo, hi
+    return (p->target(i) < lo) orelse (p->target(i) > hi)
+end function
+
+public sub tkGauge_SetPointerKind( byval hGauge as TK_WIDGET ptr, byval i as int32, byval nKind as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) orelse (nKind < TKGAUGE_PTR_NEEDLE) orelse (nKind > TKGAUGE_PTR_MARKER) then exit sub
+    p->ptrs(i).nKind = nKind
+    Refresh( p )
+end sub
+
+public function tkGauge_GetPointerKind( byval hGauge as TK_WIDGET ptr, byval i as int32 ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) then return TKGAUGE_PTR_NEEDLE
+    return p->ptrs(i).nKind
+end function
+
+' Pointer 0's kind (the value's): the Designer's PointerKind.
+public sub tkGauge_SetValueKind( byval hGauge as TK_WIDGET ptr, byval nKind as int32 )
+    tkGauge_SetPointerKind( hGauge, 0, nKind )
+end sub
+
+public function tkGauge_GetValueKind( byval hGauge as TK_WIDGET ptr ) as int32
+    return tkGauge_GetPointerKind( hGauge, 0 )
+end function
+
+' 0 = the kind's colour from the gauge's colours.
+public sub tkGauge_SetPointerColor( byval hGauge as TK_WIDGET ptr, byval i as int32, byval clr as uint32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) then exit sub
+    p->ptrs(i).clr = clr
+    Refresh( p )
+end sub
+
+' A multiple of the kind's width (BAR: a fraction of the track); <= 0 ignored.
+public sub tkGauge_SetPointerWidth( byval hGauge as TK_WIDGET ptr, byval i as int32, byval fWidth as float32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) orelse (fWidth <= 0) then exit sub
+    p->ptrs(i).fWidth = fWidth
+    Refresh( p )
+end sub
+
+public sub tkGauge_SetPointerVisible( byval hGauge as TK_WIDGET ptr, byval i as int32, byval bVisible as boolean )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nPtr) then exit sub
+    p->ptrs(i).bVisible = bVisible
+    Refresh( p )
+end sub
+
+public sub tkGauge_SetAnimation( byval hGauge as TK_WIDGET ptr, byval nMs as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->nAnimMs = iif( nMs < 0, 0, nMs )
+    if p->nAnimMs = 0 then Retarget( p )                ' anything in flight lands now
+end sub
+
+public function tkGauge_GetAnimation( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->nAnimMs
+end function
+
+
+' ==========================================================================================
+' Ranges
+' ==========================================================================================
+public function tkGauge_AddRange( byval hGauge as TK_WIDGET ptr, byval lo as float64, byval hi as float64, byval clr as uint32 ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return -1
+    dim as int32 i = p->nRanges
+    redim preserve p->ranges( 0 to i )
+    dim as TKGAUGE_RANGE blank
+    p->ranges(i) = blank
+    p->ranges(i).fFrom = lo : p->ranges(i).fTo = hi : p->ranges(i).clr = clr
+    p->nRanges += 1
+    Refresh( p )
+    return i
+end function
+
+' Fractions of the track's width at the range's two ends (a taper); <= 0 ignored.
+public sub tkGauge_SetRangeWidth( byval hGauge as TK_WIDGET ptr, byval i as int32, byval fStart as float32, byval fEnd as float32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nRanges) orelse (fStart <= 0) orelse (fEnd <= 0) then exit sub
+    p->ranges(i).fStartW = iif( fStart > 1, 1.0, fStart ) : p->ranges(i).fEndW = iif( fEnd > 1, 1.0, fEnd )
+    Refresh( p )
+end sub
+
+public sub tkGauge_ClearRanges( byval hGauge as TK_WIDGET ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->nRanges = 0
+    Refresh( p )
+end sub
+
+public function tkGauge_GetRangeCount( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->nRanges
+end function
+
+' "0..60=#2E7D32;60..85=#F9A825" replaces every range (widths back to full).
+public sub tkGauge_SetRangesText( byval hGauge as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    dim as TKGAUGE_RANGE rg()
+    dim as string t = Text
+    dim as int32 n = tkGauge_ParseRanges( t, rg() )
+    if n > 0 then
+        redim p->ranges( 0 to n - 1 )
+        for i as int32 = 0 to n - 1 : p->ranges(i) = rg(i) : next
+    end if
+    p->nRanges = n
+    Refresh( p )
+end sub
+
+public function tkGauge_GetRangesText( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (p->nRanges = 0) then return ""
+    return tkGauge_FormatRanges( @p->ranges(0), p->nRanges )
+end function
+
+
+' ==========================================================================================
+' Arc, scale, look
+' ==========================================================================================
+' Degrees, tkPaint's convention (0 = 3 o'clock, + clockwise). A sweep is clamped to +-360.
+public sub tkGauge_SetAngles( byval hGauge as TK_WIDGET ptr, byval fStart as float32, byval fSweep as float32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (abs( fSweep ) < 1) then exit sub
+    if fSweep > 360 then fSweep = 360
+    if fSweep < -360 then fSweep = -360
+    p->spec.fStart = fStart : p->spec.fSweep = fSweep
+    Refresh( p )
+end sub
+
+public function tkGauge_GetStartAngle( byval hGauge as TK_WIDGET ptr ) as float32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DEFAULT_START
+    return p->spec.fStart
+end function
+
+public function tkGauge_GetSweepAngle( byval hGauge as TK_WIDGET ptr ) as float32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DEFAULT_SWEEP
+    return p->spec.fSweep
+end function
+
+' Linear: TKGAUGE_HORIZONTAL (Min at the left) or TKGAUGE_VERTICAL (Min at the bottom).
+public sub tkGauge_SetOrientation( byval hGauge as TK_WIDGET ptr, byval nOrient as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (nOrient < TKGAUGE_HORIZONTAL) orelse (nOrient > TKGAUGE_VERTICAL) then exit sub
+    p->spec.nOrient = nOrient
+    Refresh( p )
+end sub
+
+public function tkGauge_GetOrientation( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_HORIZONTAL
+    return p->spec.nOrient
+end function
+
+' Linear: the scale runs the other way (Max at the left, or at the bottom). The caption and the
+' value text stay where they are.
+public sub tkGauge_SetReverse( byval hGauge as TK_WIDGET ptr, byval bReverse as boolean )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.bReverse = bReverse
+    Refresh( p )
+end sub
+
+public function tkGauge_GetReverse( byval hGauge as TK_WIDGET ptr ) as boolean
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return false
+    return p->spec.bReverse
+end function
+
+' 0 = auto (1-2-5 for about TickHint intervals).
+public sub tkGauge_SetMajorStep( byval hGauge as TK_WIDGET ptr, byval fStep as float64 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.fMajorStep = iif( fStep < 0, 0.0, fStep )
+    Refresh( p )
+end sub
+
+public function tkGauge_GetMajorStep( byval hGauge as TK_WIDGET ptr ) as float64
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->spec.fMajorStep
+end function
+
+public sub tkGauge_SetMinorCount( byval hGauge as TK_WIDGET ptr, byval n as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.nMinorCount = iif( n < 0, 0, iif( n > 20, 20, n ) )
+    Refresh( p )
+end sub
+
+public function tkGauge_GetMinorCount( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DEFAULT_MINORCOUNT
+    return p->spec.nMinorCount
+end function
+
+public sub tkGauge_SetTickHint( byval hGauge as TK_WIDGET ptr, byval n as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (n < 1) then exit sub
+    p->spec.nTickHint = n
+    Refresh( p )
+end sub
+
+public function tkGauge_GetTickHint( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DEFAULT_TICKHINT
+    return p->spec.nTickHint
+end function
+
+' TKGAUGE_DECIMALS_AUTO: labels from the step, the value up to 2 with trailing zeros dropped.
+public sub tkGauge_SetDecimals( byval hGauge as TK_WIDGET ptr, byval nDecimals as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.nDecimals = iif( nDecimals < 0, TKGAUGE_DECIMALS_AUTO, iif( nDecimals > 9, 9, nDecimals ) )
+    Refresh( p )
+end sub
+
+public function tkGauge_GetDecimals( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DECIMALS_AUTO
+    return p->spec.nDecimals
+end function
+
+public sub tkGauge_SetScalePlacement( byval hGauge as TK_WIDGET ptr, byval nPlace as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (nPlace < TKGAUGE_SCALE_INSIDE) orelse (nPlace > TKGAUGE_SCALE_BOTH) then exit sub
+    p->spec.nScale = nPlace
+    Refresh( p )
+end sub
+
+public function tkGauge_GetScalePlacement( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_SCALE_INSIDE
+    return p->spec.nScale
+end function
+
+' A fraction of the radius, 0.02 .. 0.5.
+public sub tkGauge_SetTrackWidth( byval hGauge as TK_WIDGET ptr, byval fFrac as float32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.fTrackWidth = iif( fFrac < 0.02, 0.02, iif( fFrac > 0.5, 0.5, fFrac ) )
+    Refresh( p )
+end sub
+
+public function tkGauge_GetTrackWidth( byval hGauge as TK_WIDGET ptr ) as float32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DEFAULT_TRACKWIDTH
+    return p->spec.fTrackWidth
+end function
+
+public sub tkGauge_SetShowFace( byval hGauge as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.bShowFace = bShow
+    Refresh( p )
+end sub
+
+public function tkGauge_GetShowFace( byval hGauge as TK_WIDGET ptr ) as boolean
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return false
+    return p->spec.bShowFace
+end function
+
+' Bars grow from here (0 on a -50..50 scale); ClearBarOrigin: from Min.
+public sub tkGauge_SetBarOrigin( byval hGauge as TK_WIDGET ptr, byval v as float64 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.fBarOrigin = v : p->spec.bBarOrigin = true
+    Refresh( p )
+end sub
+
+public sub tkGauge_ClearBarOrigin( byval hGauge as TK_WIDGET ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.bBarOrigin = false
+    Refresh( p )
+end sub
+
+public sub tkGauge_SetCaption( byval hGauge as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.sCaption = Text
+    Refresh( p )
+end sub
+
+public function tkGauge_GetCaption( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return ""
+    return p->spec.sCaption
+end function
+
+public sub tkGauge_SetPrefix( byval hGauge as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.sPrefix = Text
+    Refresh( p )
+end sub
+
+public function tkGauge_GetPrefix( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return ""
+    return p->spec.sPrefix
+end function
+
+public sub tkGauge_SetSuffix( byval hGauge as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.sSuffix = Text
+    Refresh( p )
+end sub
+
+public function tkGauge_GetSuffix( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return ""
+    return p->spec.sSuffix
+end function
+
+public sub tkGauge_SetValueTextPos( byval hGauge as TK_WIDGET ptr, byval nPos as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (nPos < TKGAUGE_VALUE_AUTO) orelse (nPos > TKGAUGE_VALUE_END) then exit sub
+    p->spec.nValueText = nPos
+    Refresh( p )
+end sub
+
+public function tkGauge_GetValueTextPos( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_VALUE_AUTO
+    return p->spec.nValueText
+end function
+
+' The labels and caption's font; 0 = the host's default.
+public sub tkGauge_SetFont( byval hGauge as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->fFont = f
+    Refresh( p )
+end sub
+
+public function tkGauge_GetFont( byval hGauge as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->fFont
+end function
+
+' The value text's font; 0 = the labels'.
+public sub tkGauge_SetValueFont( byval hGauge as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->fValueFont = f
+    Refresh( p )
+end sub
+
+public function tkGauge_GetValueFont( byval hGauge as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->fValueFont
+end function
+
+
+' ==========================================================================================
+' Probes
+' ==========================================================================================
+public function tkGauge_ValueToAngle( byval hGauge as TK_WIDGET ptr, byval v as float64 ) as float32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return tkGauge_SpecValueToAngle( p->spec, v )
+end function
+
+' Linear: the along position (x when horizontal, y when vertical) value v is drawn at, clamped;
+' radial: 0.
+public function tkGauge_ValueToPos( byval hGauge as TK_WIDGET ptr, byval v as float64 ) as float32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (p->spec.nShape <> TKGAUGE_LINEAR) then return 0
+    dim as TKGAUGE_SPEC s = LiveSpec( p )
+    dim as GG_GEOM geo
+    Geom( p, s, geo )
+    return tkGauge_GeomValueToPos( s, geo, v )
+end function
+
+' The layout as painted now: centre, radii, the majors and their label boxes, the text boxes.
+public sub tkGauge_GetGeom( byval hGauge as TK_WIDGET ptr, byref geo as GG_GEOM )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    dim as TKGAUGE_SPEC s = LiveSpec( p )
+    Geom( p, s, geo )
+end sub
+
+public sub tkGauge_GetSpec( byval hGauge as TK_WIDGET ptr, byref s as TKGAUGE_SPEC )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p then s = LiveSpec( p )
+end sub
+
+
+' ==========================================================================================
+' Tooltip, colours, callbacks
+' ==========================================================================================
+public sub tkGauge_SetTooltipText( byval hGauge as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p then p->wszTooltip = Text
+end sub
+
+public function tkGauge_GetTooltipText( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return ""
+    return p->wszTooltip
+end function
+
+public sub tkGauge_SetTooltipCallback( byval hGauge as TK_WIDGET ptr, byval userfunc as GGE_TooltipCallbackFunc )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p then p->TooltipCallback = userfunc
+end sub
+
+' Own text, then the callback, then the value text (pointer 0's target).
+public function tkGauge_ResolveTooltipText( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (p->nPtr = 0) then return ""
+    if len( p->wszTooltip ) then return p->wszTooltip
+    if p->TooltipCallback then
+        dim as ustring s = p->TooltipCallback( hGauge, p->target(0) )
+        if len( s ) then return s
+    end if
+    return ValueText( p, p->target(0) )
+end function
+
+public function tkGauge_GetTooltipHandle( byval hGauge as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return tkTipHost_Tip( @p->tip )
+end function
+
+public sub tkGauge_GetColors( byval hGauge as TK_WIDGET ptr, byval pColors as TKGAUGE_COLORS ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this gauge alone until UnpinColors.
+public sub tkGauge_SetColors( byval hGauge as TK_WIDGET ptr, byval pColors as TKGAUGE_COLORS ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->colors = *pColors
+    p->bColorsPinned = true
+    Refresh( p )
+end sub
+
+public sub tkGauge_ApplyTheme( byval hGauge as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    dim as TKTHEME_COLORS tr = tkTheme_Styled( hGauge, t )
+    p->colors = tkGauge_ThemeColors( tr )
+    tkTheme_ResolveInto( hGauge, tr, cast( ulong ptr, @p->colors ), sizeof( TKGAUGE_COLORS ) \ 4, "Gauge" )
+    Refresh( p )
+end sub
+
+public sub tkGauge_UnpinColors( byval hGauge as TK_WIDGET ptr )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkGauge_ApplyTheme( hGauge, tkTheme_Of( hGauge ) )
+end sub
+
+public sub tkGauge_SetClickCallback( byval hGauge as TK_WIDGET ptr, byval usersub as GGE_ClickCallbackSub )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p then p->ClickCallback = usersub
+end sub
+
+public sub tkGauge_SetValueFormatCallback( byval hGauge as TK_WIDGET ptr, byval userfunc as GGE_ValueFormatCallbackFunc )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->FormatCallback = userfunc
+    Refresh( p )
+end sub
+
+public sub tkGauge_PaintDefault( byval pi as TKGAUGE_PAINTINFO ptr )
+    if pi = 0 then exit sub
+    dim as TKGAUGE_STATE ptr p = GState( pi->hGauge )
+    if p then RenderDefault( p, pi )
+end sub
+
+public sub tkGauge_SetPaintCallback( byval hGauge as TK_WIDGET ptr, byval usersub as GGE_PaintCallbackSub )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    Refresh( p )
+end sub
+
+public sub tkGauge_SetMessageCallback( byval hGauge as TK_WIDGET ptr, byval userfunc as GGE_MessageCallbackFunc )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p then p->MessageCallback = userfunc
+end sub

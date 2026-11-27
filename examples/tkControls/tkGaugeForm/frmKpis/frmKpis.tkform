@@ -1,0 +1,72 @@
+format = 1
+
+[form]
+caption = "KPIs"
+width = 520
+height = 300
+data_type = "kpidata.Kpi"
+data_module = "../kpidata"
+
+[[control]]
+name = "txtName"
+type = "TextBox"
+parent = ""
+x = 16
+y = 16
+w = 240
+h = 28
+bind = "Name"
+
+[[control]]
+name = "ggScore"
+type = "Gauge"
+parent = ""
+x = 16
+y = 56
+w = 180
+h = 150
+bind = "Score"
+
+[control.props]
+Range = "0,10"
+Ranges = "0..5=#C62828;5..8=#F9A825;8..10=#2E7D32"
+Caption = "Score"
+
+[[control]]
+name = "ggFill"
+type = "Gauge"
+parent = ""
+x = 216
+y = 56
+w = 280
+h = 56
+bind = "Fill"
+
+[control.props]
+Shape = "Linear"
+Suffix = " %"
+Decimals = 0
+
+[[control]]
+name = "spTrend"
+type = "Sparkline"
+parent = ""
+x = 216
+y = 130
+w = 280
+h = 48
+bind = "Trend"
+
+[control.props]
+Kind = "Column"
+Markers = "high,last"
+
+[[control]]
+name = "navKpis"
+type = "Navigator"
+parent = ""
+x = 16
+y = 250
+w = 300
+h = 30
+items_source = "Kpis"

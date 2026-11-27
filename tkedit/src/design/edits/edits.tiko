@@ -139,6 +139,10 @@ public function AddControl( byref doc as FormDoc, byref typeName as const ustrin
     if (p <> 0) andalso (p->Kind = "text") then PutSetting( c.Props, "Text", c.Name )
     ' a barcode starts with data the canvas can show -- its name, as a Code 128 (BARCODE.md §10.3)
     if m->Name = "Barcode" then PutSetting( c.Props, "Data", c.Name )
+    ' a gauge and a sparkline likewise start with something to draw: a value off Min, a short series
+    ' (GAUGE-SPARKLINE.md §9.1); both are ordinary rows, cleared like any other
+    if m->Name = "Gauge" then PutSetting( c.Props, "Value", "60" )
+    if m->Name = "Sparkline" then PutSetting( c.Props, "Data", "4,6,5,8,7,9,6,10,8,11,9,12" )
     ' an option button joins the group of the last one placed beside it (same parent, same page):
     ' a column of them drawn one after another is one group without setting each one's GroupID
     if m->Name = "OptionButton" then

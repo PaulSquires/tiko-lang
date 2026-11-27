@@ -1,0 +1,795 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkSparkline -- the widget (GAUGE-SPARKLINE.md §4, A-2): a display control. Not focusable, no
+' keys, no capture. The point under the mouse is "hot" (a marker, the tooltip); Click is the only
+' event. Setters are silent. Sizes are design units scaled at layout, so TKM_SCALECHANGED only
+' repaints. The spec, layout and painter are tkSparkline.tiko.
+#module "tkSparkline"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkPrint" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkPrint
+
+public type TKSPARK_PAINTINFO
+    hSpark    as TK_WIDGET ptr
+    b         as TK_PAINT ptr
+    rcClient  as TKRECT
+    rcPlot    as TKRECT            ' the plot rect, rounded out
+    isEnabled as boolean
+    nHot      as int32
+end type
+
+public type TKSPARK_MESSAGEINFO
+    hSpark as TK_WIDGET ptr
+    msg    as int32
+    x      as single
+    y      as single
+    nHot   as int32
+end type
+
+public type SPK_ClickCallbackSub as sub( byval hSpark as TK_WIDGET ptr, byval id as int32 )
+' The tip for point i (value v); "" falls through to the formatted value.
+public type SPK_TooltipCallbackFunc as function( byval hSpark as TK_WIDGET ptr, byval i as int32, byval v as float64 ) as ustring
+' A value as text: the last value and the default tip. "" falls back to the Decimals format.
+public type SPK_FormatCallbackFunc as function( byval hSpark as TK_WIDGET ptr, byval v as float64 ) as ustring
+public type SPK_PaintCallbackSub as sub( byval p as TKSPARK_PAINTINFO ptr )
+public type SPK_MessageCallbackFunc as function( byval m as TKSPARK_MESSAGEINFO ptr ) as boolean
+
+public type TKSPARK_STATE
+    hWin            as TK_WIDGET ptr
+    id              as int32
+    spec            as TKSPARK_SPEC
+    vals(any)       as float64
+    has(any)        as boolean
+    nCount          as int32
+    nMaxPoints      as int32
+    colors          as TKSPARK_COLORS
+    bColorsPinned   as boolean
+    fFont           as TTF_Font ptr
+    wszTooltip      as ustring
+    tip             as TKTIPHOST_STATE
+    bDown           as boolean
+    ClickCallback   as SPK_ClickCallbackSub
+    TooltipCallback as SPK_TooltipCallbackFunc
+    FormatCallback  as SPK_FormatCallbackFunc
+    PaintCallback   as SPK_PaintCallbackSub
+    MessageCallback as SPK_MessageCallbackFunc
+end type
+
+private function SP( byval w as TK_WIDGET ptr ) as TKSPARK_STATE ptr
+    if w = 0 then return 0
+    return cast( TKSPARK_STATE ptr, w->pData )
+end function
+
+private function SpFormat( byval p as TKSPARK_STATE ptr, byval v as float64 ) as ustring
+    if p->FormatCallback then
+        dim as ustring s = p->FormatCallback( p->hWin, v )
+        if len( s ) then return s
+    end if
+    return tkSparkline_FormatValue( v, p->spec.nDecimals )
+end function
+
+' The spec as painted now: the series, the font, the scale, enabled, the colours.
+private function LiveSpec( byval p as TKSPARK_STATE ptr ) as TKSPARK_SPEC
+    dim as TKSPARK_SPEC s = p->spec
+    s.nCount = p->nCount
+    s.pValues = iif( p->nCount > 0, @p->vals(0), cast( float64 ptr, 0 ) )
+    s.pHas = iif( p->nCount > 0, @p->has(0), cast( boolean ptr, 0 ) )
+    s.fText = p->fFont
+    if (s.fText = 0) andalso (p->hWin->pHost <> 0) then s.fText = p->hWin->pHost->pDefaultFont
+    s.fScale = iif( p->hWin->pHost <> 0, p->hWin->pHost->fScale, 1 )
+    s.bEnabled = tkWidget_IsEnabled( p->hWin )
+    s.pColors = @p->colors
+    s.sLastText = ""
+    if s.bShowLast andalso (p->FormatCallback <> 0) then
+        for i as int32 = p->nCount - 1 to 0 step -1
+            if p->has(i) then s.sLastText = SpFormat( p, p->vals(i) ) : exit for
+        next
+    end if
+    return s
+end function
+
+private sub Geom( byval p as TKSPARK_STATE ptr, byref s as TKSPARK_SPEC, byref g as SP_GEOM )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, p->hWin->cw, p->hWin->ch )
+    tkSparkline_Layout( s, rc, s.fScale, g )
+end sub
+
+private sub Refresh( byval p as TKSPARK_STATE ptr )
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+' The tool index follows the hot point, so a tip up for the previous point goes down (tkChart).
+private sub SetHot( byval p as TKSPARK_STATE ptr, byval i as int32 )
+    if p->spec.nHot = i then exit sub
+    p->spec.nHot = i
+    tkTipHost_SetToolIndex( @p->tip, i )
+    Refresh( p )
+end sub
+
+' After the series changed: a hot point past the end is gone.
+private sub DataChanged( byval p as TKSPARK_STATE ptr )
+    if p->spec.nHot >= p->nCount then SetHot( p, -1 )
+    Refresh( p )
+end sub
+
+private function CallMessage( byval p as TKSPARK_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKSPARK_MESSAGEINFO mi
+    mi.hSpark = p->hWin
+    mi.msg = m->msg
+    mi.x = m->x : mi.y = m->y
+    mi.nHot = p->spec.nHot
+    return p->MessageCallback( @mi )
+end function
+
+private sub RenderDefault( byval p as TKSPARK_STATE ptr, byval pi as TKSPARK_PAINTINFO ptr )
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    tkSparkline_Layout( s, pi->rcClient, s.fScale, g )
+    tkSparkline_PaintSpec( pi->b, pi->rcClient, s, g )
+end sub
+
+private sub OnPaint( byval p as TKSPARK_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TKSPARK_PAINTINFO pi
+    pi.hSpark = p->hWin
+    pi.b = b
+    tkRect_Set( pi.rcClient, 0, 0, p->hWin->cw, p->hWin->ch )
+    b->SetBackColor( p->colors.BackColor )
+    b->PaintRect( @pi.rcClient )
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    tkRect_Set( pi.rcPlot, int( g.pl ), int( g.pt ), cint( g.pr + 0.5 ), cint( g.pb + 0.5 ) )
+    pi.isEnabled = s.bEnabled
+    pi.nHot = p->spec.nHot
+    if p->PaintCallback then
+        p->PaintCallback( @pi )
+    else
+        tkSparkline_PaintSpec( b, pi.rcClient, s, g )
+    end if
+end sub
+
+public declare sub tkSparkline_ApplyTheme( byval hSpark as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+
+private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( w )
+    if p = 0 then return false
+    if m->msg <> TKM_DESTROY then
+        dim as boolean bEat = CallMessage( p, m )
+        if bEat andalso (m->msg <> TKM_LBUTTONUP) then return true
+    end if
+    select case m->msg
+    case TKM_PAINT
+        OnPaint( p, m->pPaint )
+        return true
+    case TKM_SIZE, TKM_SCALECHANGED
+        Refresh( p )
+        return true
+    case TKM_ENABLE
+        if m->bFlag = false then
+            SetHot( p, -1 )
+            tkTipHost_Pop( @p->tip )
+        end if
+        Refresh( p )
+        return true
+    case TKM_THEMECHANGED
+        tkSparkline_ApplyTheme( w, tkTheme_Of( w ) )
+        return true
+    case TKM_MOUSEMOVE
+        if tkWidget_IsEnabled( w ) = false then return true
+        dim as TKSPARK_SPEC s = LiveSpec( p )
+        dim as SP_GEOM g
+        Geom( p, s, g )
+        SetHot( p, tkSparkline_GeomHitTest( s, g, m->x ) )
+        return true
+    case TKM_MOUSELEAVE
+        SetHot( p, -1 )
+        p->bDown = false
+        return true
+    case TKM_LBUTTONDOWN
+        p->bDown = true
+        return true
+    case TKM_LBUTTONUP
+        dim as boolean bClick = p->bDown andalso tkWidget_IsEnabled( w ) andalso (m->x >= 0) andalso (m->y >= 0) _
+                                andalso (m->x < w->cw) andalso (m->y < w->ch)
+        p->bDown = false
+        if bClick andalso (p->ClickCallback <> 0) then p->ClickCallback( w, p->id )
+        return true
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        return true
+    case TKM_DESTROY
+        tkTipHost_Destroy( @p->tip )
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+public declare function tkSparkline_ResolveTooltipText( byval hSpark as TK_WIDGET ptr ) as ustring
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return tkSparkline_ResolveTooltipText( a )
+end function
+
+
+' ==========================================================================================
+' Create, the series
+' ==========================================================================================
+public function tkSparkline_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as int32, _
+                                    byval nKind as int32 = TKSPARK_LINE ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKSPARK_STATE ptr p = new TKSPARK_STATE
+    p->id = ctrlId
+    if (nKind >= TKSPARK_LINE) andalso (nKind <= TKSPARK_WINLOSS) then p->spec.nKind = nKind
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @Proc, p )
+    p->hWin = w
+    p->colors = tkSparkline_ThemeColors( tkTheme_Of( w ) )
+    tkTheme_ResolveInto( w, tkTheme_Of( w ), cast( ulong ptr, @p->colors ), sizeof( TKSPARK_COLORS ) \ 4, "Sparkline" )
+    tkTipHost_Ensure( @p->tip, w, @TipText )
+    return w
+end function
+
+public function tkSparkline_GetID( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    return p->id
+end function
+
+public sub tkSparkline_SetEnabled( byval hSpark as TK_WIDGET ptr, byval isEnabled as boolean )
+    if hSpark then tkWidget_Enable( hSpark, isEnabled )
+end sub
+
+public sub tkSparkline_SetKind( byval hSpark as TK_WIDGET ptr, byval nKind as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (nKind < TKSPARK_LINE) orelse (nKind > TKSPARK_WINLOSS) orelse (p->spec.nKind = nKind) then exit sub
+    p->spec.nKind = nKind
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetKind( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return TKSPARK_LINE
+    return p->spec.nKind
+end function
+
+' Keep the newest nMaxPoints (0 = all).
+private sub Trim_( byval p as TKSPARK_STATE ptr )
+    if (p->nMaxPoints <= 0) orelse (p->nCount <= p->nMaxPoints) then exit sub
+    dim as int32 drop = p->nCount - p->nMaxPoints
+    for i as int32 = 0 to p->nMaxPoints - 1
+        p->vals(i) = p->vals(i + drop) : p->has(i) = p->has(i + drop)
+    next
+    p->nCount = p->nMaxPoints
+end sub
+
+private sub Reserve( byval p as TKSPARK_STATE ptr, byval n as int32 )
+    if n <= 0 then exit sub
+    if (ubound( p->vals ) < 0) orelse (ubound( p->vals ) < n - 1) then
+        dim as int32 cap = iif( n < 16, 16, n * 2 )
+        redim preserve p->vals( 0 to cap - 1 )
+        redim preserve p->has( 0 to cap - 1 )
+    end if
+end sub
+
+' Every point present. n <= 0 or pValues = 0 clears.
+public sub tkSparkline_SetData( byval hSpark as TK_WIDGET ptr, byval pValues as float64 ptr, byval n as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    if (pValues = 0) orelse (n <= 0) then n = 0
+    Reserve( p, n )
+    for i as int32 = 0 to n - 1
+        p->vals(i) = pValues[i] : p->has(i) = true
+    next
+    p->nCount = n
+    Trim_( p )
+    DataChanged( p )
+end sub
+
+' tkSparkline_ParseText's syntax: "3,5,,2 4;7" (an empty field is a missing point).
+public sub tkSparkline_SetDataText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    dim as float64 v()
+    dim as boolean hs()
+    dim as string t = Text
+    dim as int32 n = tkSparkline_ParseText( t, v(), hs() )
+    Reserve( p, n )
+    for i as int32 = 0 to n - 1
+        p->vals(i) = v(i) : p->has(i) = hs(i)
+    next
+    p->nCount = n
+    Trim_( p )
+    DataChanged( p )
+end sub
+
+public function tkSparkline_GetDataText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (p->nCount = 0) then return ""
+    return tkSparkline_FormatText( @p->vals(0), @p->has(0), p->nCount )
+end function
+
+public sub tkSparkline_AddValue( byval hSpark as TK_WIDGET ptr, byval v as float64 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    Reserve( p, p->nCount + 1 )
+    p->vals(p->nCount) = v : p->has(p->nCount) = true
+    p->nCount += 1
+    Trim_( p )
+    DataChanged( p )
+end sub
+
+' A missing point at the end (a sample that did not arrive).
+public sub tkSparkline_AddGap( byval hSpark as TK_WIDGET ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    Reserve( p, p->nCount + 1 )
+    p->vals(p->nCount) = 0 : p->has(p->nCount) = false
+    p->nCount += 1
+    Trim_( p )
+    DataChanged( p )
+end sub
+
+public sub tkSparkline_Clear( byval hSpark as TK_WIDGET ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->nCount = 0
+    DataChanged( p )
+end sub
+
+public sub tkSparkline_SetMaxPoints( byval hSpark as TK_WIDGET ptr, byval n as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->nMaxPoints = iif( n < 0, 0, n )
+    Trim_( p )
+    DataChanged( p )
+end sub
+
+public function tkSparkline_GetMaxPoints( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    return p->nMaxPoints
+end function
+
+public function tkSparkline_GetCount( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    return p->nCount
+end function
+
+' A missing point reads 0; IsPresent tells them apart.
+public function tkSparkline_GetValue( byval hSpark as TK_WIDGET ptr, byval i as int32 ) as float64
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nCount) then return 0
+    return iif( p->has(i), p->vals(i), 0.0 )
+end function
+
+public function tkSparkline_IsPresent( byval hSpark as TK_WIDGET ptr, byval i as int32 ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (i < 0) orelse (i >= p->nCount) then return false
+    return p->has(i)
+end function
+
+
+' ==========================================================================================
+' Range, kind options, decoration
+' ==========================================================================================
+' A manual range (autoscale off); an inverted pair is swapped.
+public sub tkSparkline_SetRange( byval hSpark as TK_WIDGET ptr, byval lo as float64, byval hi as float64 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    if lo > hi then swap lo, hi
+    p->spec.fMin = lo : p->spec.fMax = hi : p->spec.bAutoRange = false
+    Refresh( p )
+end sub
+
+public sub tkSparkline_SetAutoRange( byval hSpark as TK_WIDGET ptr, byval bAuto as boolean )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.bAutoRange = bAuto
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetAutoRange( byval hSpark as TK_WIDGET ptr ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return true
+    return p->spec.bAutoRange
+end function
+
+' The range in force (auto or manual, a flat one opened).
+public sub tkSparkline_GetRange( byval hSpark as TK_WIDGET ptr, byref lo as float64, byref hi as float64 )
+    lo = 0 : hi = 1
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    lo = g.lo : hi = g.hi
+end sub
+
+public sub tkSparkline_SetEmptyMode( byval hSpark as TK_WIDGET ptr, byval nMode as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (nMode < TKSPARK_EMPTY_GAP) orelse (nMode > TKSPARK_EMPTY_CONNECT) then exit sub
+    p->spec.nEmpty = nMode
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetEmptyMode( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return TKSPARK_EMPTY_GAP
+    return p->spec.nEmpty
+end function
+
+public sub tkSparkline_SetMarkers( byval hSpark as TK_WIDGET ptr, byval nMarkers as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.nMarkers = nMarkers and 63
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetMarkers( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    return p->spec.nMarkers
+end function
+
+' "high,low,last": the Designer's form of SetMarkers ("" = none).
+public sub tkSparkline_SetMarkersText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as string t = Text
+    tkSparkline_SetMarkers( hSpark, tkSparkline_ParseMarkers( t ) )
+end sub
+
+public function tkSparkline_GetMarkersText( byval hSpark as TK_WIDGET ptr ) as ustring
+    return tkSparkline_FormatMarkers( tkSparkline_GetMarkers( hSpark ) )
+end function
+
+' Design units; <= 0 ignored.
+public sub tkSparkline_SetMarkerSize( byval hSpark as TK_WIDGET ptr, byval fSize as float32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (fSize <= 0) then exit sub
+    p->spec.fMarkerSize = fSize
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetMarkerSize( byval hSpark as TK_WIDGET ptr ) as float32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return TKSPARK_DEFAULT_MARKERSIZE
+    return p->spec.fMarkerSize
+end function
+
+public sub tkSparkline_SetLineWidth( byval hSpark as TK_WIDGET ptr, byval fWidth as float32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (fWidth <= 0) then exit sub
+    p->spec.fLineWidth = fWidth
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetLineWidth( byval hSpark as TK_WIDGET ptr ) as float32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return TKSPARK_DEFAULT_LINEWIDTH
+    return p->spec.fLineWidth
+end function
+
+public sub tkSparkline_SetColumnGap( byval hSpark as TK_WIDGET ptr, byval nGap as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.nColumnGap = iif( nGap < 0, 0, nGap )
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetColumnGap( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return TKSPARK_DEFAULT_COLUMNGAP
+    return p->spec.nColumnGap
+end function
+
+public sub tkSparkline_SetShowAxis( byval hSpark as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.bShowAxis = bShow
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetShowAxis( byval hSpark as TK_WIDGET ptr ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return false
+    return p->spec.bShowAxis
+end function
+
+public sub tkSparkline_SetReference( byval hSpark as TK_WIDGET ptr, byval v as float64 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.fRef = v : p->spec.bHasRef = true
+    Refresh( p )
+end sub
+
+public sub tkSparkline_ClearReference( byval hSpark as TK_WIDGET ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.bHasRef = false
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetReference( byval hSpark as TK_WIDGET ptr, byref v as float64 ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (p->spec.bHasRef = false) then return false
+    v = p->spec.fRef
+    return true
+end function
+
+public sub tkSparkline_SetNormalBand( byval hSpark as TK_WIDGET ptr, byval lo as float64, byval hi as float64 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    if lo > hi then swap lo, hi
+    p->spec.fBandLo = lo : p->spec.fBandHi = hi : p->spec.bHasBand = true
+    Refresh( p )
+end sub
+
+public sub tkSparkline_ClearNormalBand( byval hSpark as TK_WIDGET ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.bHasBand = false
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetNormalBand( byval hSpark as TK_WIDGET ptr, byref lo as float64, byref hi as float64 ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (p->spec.bHasBand = false) then return false
+    lo = p->spec.fBandLo : hi = p->spec.fBandHi
+    return true
+end function
+
+' The Designer's text forms: a reference "50" ("" clears it), a band "40..60" ("" clears it; a
+' malformed text clears it too).
+public sub tkSparkline_SetReferenceText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as string t = trim( Text )
+    if len( t ) = 0 then tkSparkline_ClearReference( hSpark ) else tkSparkline_SetReference( hSpark, val( t ) )
+end sub
+
+public function tkSparkline_GetReferenceText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as float64 v
+    if tkSparkline_GetReference( hSpark, v ) = false then return ""
+    return str( v )
+end function
+
+public sub tkSparkline_SetNormalBandText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as string t = trim( Text )
+    dim as int32 d = instr( t, ".." )
+    if d < 2 then tkSparkline_ClearNormalBand( hSpark ) : exit sub
+    tkSparkline_SetNormalBand( hSpark, val( left( t, d - 1 ) ), val( mid( t, d + 2 ) ) )
+end sub
+
+public function tkSparkline_GetNormalBandText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as float64 lo, hi
+    if tkSparkline_GetNormalBand( hSpark, lo, hi ) = false then return ""
+    return str( lo ) & ".." & str( hi )
+end function
+
+public sub tkSparkline_SetShowLastValue( byval hSpark as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.bShowLast = bShow
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetShowLastValue( byval hSpark as TK_WIDGET ptr ) as boolean
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return false
+    return p->spec.bShowLast
+end function
+
+' TKSPARK_DECIMALS_AUTO (-1): up to 2, trailing zeros dropped.
+public sub tkSparkline_SetDecimals( byval hSpark as TK_WIDGET ptr, byval nDecimals as int32 )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->spec.nDecimals = iif( nDecimals < 0, TKSPARK_DECIMALS_AUTO, iif( nDecimals > 9, 9, nDecimals ) )
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetDecimals( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return TKSPARK_DECIMALS_AUTO
+    return p->spec.nDecimals
+end function
+
+' The last value's font; 0 = the host's default.
+public sub tkSparkline_SetFont( byval hSpark as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->fFont = f
+    Refresh( p )
+end sub
+
+public function tkSparkline_GetFont( byval hSpark as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    return p->fFont
+end function
+
+
+' ==========================================================================================
+' Geometry probes, the hot point
+' ==========================================================================================
+public sub tkSparkline_GetPlotRect( byval hSpark as TK_WIDGET ptr, byref rc as SDL_FRect )
+    rc.x = 0 : rc.y = 0 : rc.w = 0 : rc.h = 0
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    rc.x = g.pl : rc.y = g.pt : rc.w = g.pr - g.pl : rc.h = g.pb - g.pt
+end sub
+
+' Point i's x (widget-local edge coordinates): LINE / AREA at the plot's ends, else slot centres.
+public function tkSparkline_IndexToX( byval hSpark as TK_WIDGET ptr, byval i as int32 ) as float32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    return tkSparkline_GeomIndexToX( s, g, i )
+end function
+
+public function tkSparkline_ValueToY( byval hSpark as TK_WIDGET ptr, byval v as float64 ) as float32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    return tkSparkline_GeomValueToY( g, v )
+end function
+
+' The point under x (any y): -1 when none is drawn there.
+public function tkSparkline_HitTest( byval hSpark as TK_WIDGET ptr, byval x as float32, byval y as float32 ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (x < 0) orelse (y < 0) orelse (x >= hSpark->cw) orelse (y >= hSpark->ch) then return -1
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    return tkSparkline_GeomHitTest( s, g, x )
+end function
+
+' The high / low / first / last point (TKSPARK_MK_*), -1 with no data.
+public function tkSparkline_GetMarkerIndex( byval hSpark as TK_WIDGET ptr, byval nWhich as int32 ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return -1
+    dim as TKSPARK_SPEC s = LiveSpec( p )
+    dim as SP_GEOM g
+    Geom( p, s, g )
+    select case nWhich
+    case TKSPARK_MK_HIGH  : return g.iHigh
+    case TKSPARK_MK_LOW   : return g.iLow
+    case TKSPARK_MK_FIRST : return g.iFirst
+    case TKSPARK_MK_LAST  : return g.iLast
+    end select
+    return -1
+end function
+
+public function tkSparkline_GetHotPoint( byval hSpark as TK_WIDGET ptr ) as int32
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return -1
+    return p->spec.nHot
+end function
+
+' The spec as painted now (its series pointers are the widget's: valid until the data changes).
+public sub tkSparkline_GetSpec( byval hSpark as TK_WIDGET ptr, byref s as TKSPARK_SPEC )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p then s = LiveSpec( p )
+end sub
+
+
+' ==========================================================================================
+' Tooltip
+' ==========================================================================================
+public sub tkSparkline_SetTooltipText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p then p->wszTooltip = Text
+end sub
+
+public function tkSparkline_GetTooltipText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return ""
+    return p->wszTooltip
+end function
+
+public sub tkSparkline_SetTooltipCallback( byval hSpark as TK_WIDGET ptr, byval userfunc as SPK_TooltipCallbackFunc )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p then p->TooltipCallback = userfunc
+end sub
+
+' Own text, then the callback for the hot point, then its value formatted; "" with no hot point.
+public function tkSparkline_ResolveTooltipText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return ""
+    if len( p->wszTooltip ) then return p->wszTooltip
+    dim as int32 i = p->spec.nHot
+    if (i < 0) orelse (i >= p->nCount) then return ""
+    dim as float64 v = iif( p->has(i), p->vals(i), 0.0 )
+    if p->TooltipCallback then
+        dim as ustring s = p->TooltipCallback( hSpark, i, v )
+        if len( s ) then return s
+    end if
+    return SpFormat( p, v )
+end function
+
+public function tkSparkline_GetTooltipHandle( byval hSpark as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then return 0
+    return tkTipHost_Tip( @p->tip )
+end function
+
+
+' ==========================================================================================
+' Colours, callbacks
+' ==========================================================================================
+public sub tkSparkline_GetColors( byval hSpark as TK_WIDGET ptr, byval pColors as TKSPARK_COLORS ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this sparkline alone until UnpinColors.
+public sub tkSparkline_SetColors( byval hSpark as TK_WIDGET ptr, byval pColors as TKSPARK_COLORS ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->colors = *pColors
+    p->bColorsPinned = true
+    Refresh( p )
+end sub
+
+public sub tkSparkline_ApplyTheme( byval hSpark as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    dim as TKTHEME_COLORS tr = tkTheme_Styled( hSpark, t )
+    p->colors = tkSparkline_ThemeColors( tr )
+    tkTheme_ResolveInto( hSpark, tr, cast( ulong ptr, @p->colors ), sizeof( TKSPARK_COLORS ) \ 4, "Sparkline" )
+    Refresh( p )
+end sub
+
+public sub tkSparkline_UnpinColors( byval hSpark as TK_WIDGET ptr )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkSparkline_ApplyTheme( hSpark, tkTheme_Of( hSpark ) )
+end sub
+
+public sub tkSparkline_SetClickCallback( byval hSpark as TK_WIDGET ptr, byval usersub as SPK_ClickCallbackSub )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p then p->ClickCallback = usersub
+end sub
+
+public sub tkSparkline_SetFormatCallback( byval hSpark as TK_WIDGET ptr, byval userfunc as SPK_FormatCallbackFunc )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->FormatCallback = userfunc
+    Refresh( p )
+end sub
+
+public sub tkSparkline_PaintDefault( byval pi as TKSPARK_PAINTINFO ptr )
+    if pi = 0 then exit sub
+    dim as TKSPARK_STATE ptr p = SP( pi->hSpark )
+    if p then RenderDefault( p, pi )
+end sub
+
+public sub tkSparkline_SetPaintCallback( byval hSpark as TK_WIDGET ptr, byval usersub as SPK_PaintCallbackSub )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    Refresh( p )
+end sub
+
+public sub tkSparkline_SetMessageCallback( byval hSpark as TK_WIDGET ptr, byval userfunc as SPK_MessageCallbackFunc )
+    dim as TKSPARK_STATE ptr p = SP( hSpark )
+    if p then p->MessageCallback = userfunc
+end sub

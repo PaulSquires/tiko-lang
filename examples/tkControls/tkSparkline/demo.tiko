@@ -1,0 +1,162 @@
+' tkSparkline demo (phase GS1): the four kinds, markers, the normal band and reference line, the
+' three empty modes, a live feed (a rolling 60-point window fed every 100 ms), and a table of rows
+' drawn widgetless with tkSparkline_PaintInto. Hover a sparkline for its point's tip; click one to
+' cycle its kind.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkSparkline"
+using tkSparkline
+using tkTheme
+using tkHost
+using tkPaint
+
+const TIMER_FEED = TK_TIMER_APP + 1
+
+dim shared as TK_HOST ptr gHost
+dim shared as TTF_Font ptr gFont
+dim shared as TK_WIDGET ptr gLive
+dim shared as float64 gPhase
+dim shared as int32 gTick
+
+' The table: three rows of a stock-like series, drawn into the form by PaintInto.
+
+dim shared as float64 gRows(0 to 2, 0 to 11) = { _
+    { 12, 14, 13, 17, 16, 19, 22, 21, 24, 23, 26, 28 }, _
+    { 30, 28, 29, 25, 24, 26, 22, 20, 21, 19, 18, 17 }, _
+    { 15, 18, 14, 19, 13, 20, 12, 21, 16, 17, 15, 18 } }
+
+function Y( byval v as int32 ) as int32
+    return tkHost_Scale( gHost, v )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as TKTHEME_COLORS t = tkTheme_Of( tkHost_Root( h ) )
+    dim as TKRECT rc
+    b->SetFont( gFont )
+    b->SetColors( t.TextDim, t.Window )
+    dim as ustring caps(0 to 7) = { "LINE, high / low / last markers", "AREA, a normal band", "COLUMN, axis", _
+                                    "WINLOSS", "EMPTY_GAP", "EMPTY_ZERO", "EMPTY_CONNECT", "Live: 60 points, every 100 ms" }
+    for i as int32 = 0 to 7
+        tkRect_Set( rc, Y( 20 ), Y( 14 + i * 44 ), Y( 230 ), Y( 44 + i * 44 ) )
+        b->PaintText( caps(i), @rc, TK_DT_LEFT or TK_DT_VCENTER )
+    next
+    ' the table, widgetless
+    tkRect_Set( rc, Y( 480 ), Y( 14 ), Y( 760 ), Y( 36 ) )
+    b->PaintText( "PaintInto (no widgets): a table", @rc, TK_DT_LEFT or TK_DT_VCENTER )
+    dim as TKSPARK_SPEC s
+    s.nMarkers = TKSPARK_MK_LAST
+    s.bShowLast = true
+    s.fText = gFont
+    s.fScale = h->fScale
+    for r as int32 = 0 to 2
+        dim as float64 v(0 to 11)
+        for k as int32 = 0 to 11 : v(k) = gRows(r, k) : next
+        s.pValues = @v(0) : s.nCount = 12
+        tkRect_Set( rc, Y( 480 ), Y( 44 + r * 30 ), Y( 540 ), Y( 70 + r * 30 ) )
+        b->SetForeColor( t.Text )
+        dim as ustring nm = iif( r = 0, "North", iif( r = 1, "South", "West" ) )
+        b->PaintText( nm, @rc, TK_DT_LEFT or TK_DT_VCENTER )
+        tkRect_Set( rc, Y( 540 ), Y( 44 + r * 30 ), Y( 700 ), Y( 70 + r * 30 ) )
+        tkSparkline_PaintInto( b, rc, s )
+    next
+end sub
+
+sub Spark_Click( byval hSpark as TK_WIDGET ptr, byval id as int32 )
+    tkSparkline_SetKind( hSpark, (tkSparkline_GetKind( hSpark ) + 1) mod 4 )
+    print "sparkline " & id & ": kind " & tkSparkline_GetKind( hSpark )
+end sub
+
+' The feed: a wandering signal with a dropped sample now and then.
+sub Feed( )
+    gTick += 1
+    gPhase += 0.25
+    if (gTick mod 23) = 0 then
+        tkSparkline_AddGap( gLive )
+    else
+        tkSparkline_AddValue( gLive, 50 + 30 * sin( gPhase ) + 12 * sin( gPhase * 3.1 ) + (rnd * 8 - 4) )
+    end if
+end sub
+
+function FeedProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if (m->msg <> TKM_TIMER) orelse (m->timerId <> TIMER_FEED) then return false
+    Feed( )
+    return true
+end function
+
+private function ArgValue( byref name_ as string ) as string
+    for i as int32 = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+function Add( byval id as int32, byval nKind as int32, byref sData as ustring, byval row as int32 ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr w = tkSparkline_Create( tkHost_Root( gHost ), id, nKind )
+    tkWidget_SetPos( w, Y( 240 ), Y( 14 + row * 44 ), Y( 200 ), Y( 30 ) )
+    tkSparkline_SetDataText( w, sData )
+    tkSparkline_SetClickCallback( w, @Spark_Click )
+    return w
+end function
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+randomize 7
+gHost = tkHost_Create( "tkSparkline on SDL3", 780, 370, tkHost_FontDir() & TK_FONT_UI, val( ArgValue( "--scale" ) ) )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Of( tkHost_Root( gHost ) ).Window
+gFont = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+
+dim as TK_WIDGET ptr w
+w = Add( 1, TKSPARK_LINE, "5,7,6,9,8,12,10,7,9,11,14,13", 0 )
+tkSparkline_SetMarkers( w, TKSPARK_MK_HIGH or TKSPARK_MK_LOW or TKSPARK_MK_LAST )
+tkSparkline_SetShowLastValue( w, true )
+w = Add( 2, TKSPARK_AREA, "62,64,61,68,70,66,72,75,71,69,74,78", 1 )
+tkSparkline_SetNormalBand( w, 64, 72 )
+tkSparkline_SetReference( w, 70 )
+w = Add( 3, TKSPARK_COLUMN, "4,-2,6,3,-5,7,2,-1,5,8,-3,4", 2 )
+tkSparkline_SetShowAxis( w, true )
+w = Add( 4, TKSPARK_WINLOSS, "1,1,-1,1,-1,-1,1,0,1,1,-1,1", 3 )
+w = Add( 5, TKSPARK_LINE, "3,5,4,,,6,7,5,,8,6,7", 4 )
+w = Add( 6, TKSPARK_LINE, "3,5,4,,,6,7,5,,8,6,7", 5 )
+tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_ZERO )
+w = Add( 7, TKSPARK_LINE, "3,5,4,,,6,7,5,,8,6,7", 6 )
+tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_CONNECT )
+gLive = Add( 8, TKSPARK_AREA, "", 7 )
+tkSparkline_SetMaxPoints( gLive, 60 )
+tkSparkline_SetRange( gLive, 0, 100 )
+tkSparkline_SetMarkers( gLive, TKSPARK_MK_LAST )
+tkSparkline_SetShowLastValue( gLive, true )
+tkSparkline_SetDecimals( gLive, 0 )
+for i as int32 = 1 to 60 : Feed( ) : next              ' a full window at once
+
+dim as TK_WIDGET ptr feeder = tkWidget_CreateChild( tkHost_Root( gHost ), 99, @FeedProc, 0 )
+tkWidget_SetPos( feeder, 0, 0, 0, 0 )
+tkWidget_SetTimer( feeder, TIMER_FEED, 100 )
+
+gHost->OnPaint = @Form_Paint
+tkHost_Show( gHost )
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

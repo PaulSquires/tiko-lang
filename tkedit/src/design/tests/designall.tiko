@@ -1404,6 +1404,38 @@ sub MaskEditSuite( )
     Check( instr( nSave, g, "tkBind_Put( r.Price, tkMaskEdit_GetBindText( mePrice.Handle ) )" ) > 0, "maskedit: SaveTo puts the bind text" )
 end sub
 
+' A Gauge (its shape at creation, float bind) and a Sparkline (text bind) on a bound form (GS4).
+sub GaugeSuite( )
+    dim as ustring hdr = Header( ) & "data_type = ""shop.Product""" & LF & "data_module = ""../shop""" & LF
+    dim as ustring src = hdr & Ctl( "ggStock", "Gauge", "bind = ""Stock""" & LF ) & "[control.props]" & LF _
+        & "Shape = ""Linear""" & LF & "Range = ""0,500""" & LF & "Orientation = ""Vertical""" & LF _
+        & "Ranges = ""0..100=#C62828""" & LF & "Animation = 400" & LF _
+        & LF & Ctl( "spSales", "Sparkline", "bind = ""Sales""" & LF ) & "[control.props]" & LF _
+        & "Kind = ""Column""" & LF & "Markers = ""high,last""" & LF & "NormalBand = ""40..60""" & LF _
+        & LF & "[control.events]" & LF & "Tooltip = ""spSales_Tooltip""" & LF
+    dim as FormDoc d
+    Check( ReadForm( src, d ), "gauge: the form parses" )
+    Accepted( src, "gauge: bound, its rows" )
+    dim as ustring g = codegen.Generate( d, "frmG", "frmG.tkform", src )
+    Check( instr( g, "TKGAUGE_LINEAR" ) > 0, "gauge: the shape is its constant", LineWith( g, "ggStock" ) )
+    HasLine( g, "ggStock.Range( 0, 500 )", "gauge: the range row" )
+    HasLine( g, "ggStock.Orientation = TKGAUGE_VERTICAL", "gauge: an enum row" )
+    HasLine( g, "ggStock.Ranges = ""0..100=#C62828""", "gauge: the ranges' text" )
+    HasLine( g, "spSales.Kind = TKSPARK_COLUMN", "sparkline: its kind" )
+    HasLine( g, "spSales.Markers = ""high,last""", "sparkline: the markers' text" )
+    HasLine( g, "tkGauge_SetValue( ggStock.Handle, tkBind_Float( r.Stock ) )", "gauge: LoadFrom sets the value" )
+    HasLine( g, "tkSparkline_SetDataText( spSales.Handle, tkBind_Text( r.Sales ) )", "sparkline: LoadFrom sets the series" )
+    HasLine( g, "declare sub spSales_Tooltip( byval i as int32, byval v as float64, byref Text as ustring )", "sparkline: Tooltip declared" )
+    dim as long nSave = instr( g, "function Form.SaveTo" )
+    Check( (nSave > 0) andalso (instr( nSave, g, "ggStock" ) = 0) andalso (instr( nSave, g, "spSales" ) = 0), "gauge, sparkline: load only, SaveTo leaves them" )
+    dim as FormDoc nd
+    ReadForm( Header( ), nd )
+    dim as long i = edits.AddControl( nd, "Gauge", "", -1, 8, 8, 160, 160 )
+    dim as long j = edits.AddControl( nd, "Sparkline", "", -1, 8, 180, 120, 32 )
+    Check( (i >= 0) andalso (j >= 0) andalso (FindSetting( nd.Controls[i].Props, "Value" ) >= 0) _
+           andalso (FindSetting( nd.Controls[j].Props, "Data" ) >= 0), "gauge, sparkline: a dropped one has something to draw" )
+end sub
+
 ' A DatePicker's date rows and its six new events, one answering from a starting value.
 sub DatePickerSuite( )
     dim as ustring src = "format = 1" & LF & LF & "[form]" & LF & "caption = ""D""" & LF & "width = 300" & LF & "height = 200" & LF _
@@ -3249,6 +3281,7 @@ PropOrderSuite( )
 SliderSuite( )
 BarcodeSuite( )
 MaskEditSuite( )
+GaugeSuite( )
 PrintPreviewSuite( )
 ReportViewerSuite( )
 NotifySuite( )

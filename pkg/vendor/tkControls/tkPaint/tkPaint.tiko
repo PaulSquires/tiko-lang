@@ -258,6 +258,8 @@ public type TK_PAINT
     declare sub PaintPieRing( byval rc as TKRECT ptr, byval nInnerRatio as single, byval startAngle as single, _
                               byval sweepAngle as single, byval nPenWidth as long = 0 )
     declare sub PaintPolyline( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 1 )
+    declare sub PaintPolylineF( byval pts as SDL_FPoint ptr, byval nCount as int32, byval fPenWidth as float32 = 1, _
+                                byval bClosed as boolean = false, byval bRoundJoins as boolean = true )
     declare sub PaintCurve( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 1, _
                             byval nTension as single = 0.5 )
     declare sub PaintLine( byval nWidth as long, byval l as long, byval t as long, byval r as long, byval b as long )
@@ -846,8 +848,70 @@ private sub DiscAA( byval r as SDL_Renderer ptr, byval cx as single, byval cy as
     FillPolyAA( r, pts(), n, c, gr )
 end sub
 
+' An OPEN polyline as ONE band (window pixels), width t, mitred joins (VertexNormals' clamp), butt
+' ends with an AA fringe as SegmentAA's. One geometry for the whole line: no overlap at the joins,
+' so a translucent pen does not bead, and one draw however many points. Solid only.
+private sub StripOpenAA( byref g as GEOM, pts() as SDL_FPoint, byval n as int32, byval t as float32, byval c as uint32 )
+    n = Dedupe( pts(), n )
+    if n < 2 then exit sub
+    dim as float32 cov = 1
+    if t < 1 then cov = t : t = 1
+    dim as float32 hw = t / 2
+    dim as float32 ac(0 to 3) = { -(hw + 0.5), -(hw - 0.5), hw - 0.5, hw + 0.5 }
+    dim as float32 al(0 to 3) = { 0, cov, cov, 0 }
+    ' rows: the start fringe, the start, every inner vertex, the end, the end fringe
+    dim as int32 nRow = n + 2
+    dim as float32 rx(0 to nRow - 1), ry(0 to nRow - 1), qx(0 to nRow - 1), qy(0 to nRow - 1)
+    dim as boolean rOn(0 to nRow - 1)
+    for i as int32 = 0 to n - 1
+        dim as int32 ip = iif( i > 0, i - 1, 0 ), inx = iif( i < n - 1, i + 1, n - 1 )
+        dim as float32 e1x = pts(i).x - pts(ip).x, e1y = pts(i).y - pts(ip).y
+        dim as float32 e2x = pts(inx).x - pts(i).x, e2y = pts(inx).y - pts(i).y
+        dim as float32 l1 = sqr( e1x * e1x + e1y * e1y ), l2 = sqr( e2x * e2x + e2y * e2y )
+        if l1 > 0 then e1x /= l1 : e1y /= l1
+        if l2 > 0 then e2x /= l2 : e2y /= l2
+        if l1 = 0 then e1x = e2x : e1y = e2y
+        if l2 = 0 then e2x = e1x : e2y = e1y
+        ' the left normals of the two edges, and their miter
+        dim as float32 mx = -e1y - e2y, my = e1x + e2x
+        dim as float32 ml = sqr( mx * mx + my * my )
+        dim as float32 nx = -e2y, ny = e2x
+        if ml >= 0.0001 then
+            mx /= ml : my /= ml
+            dim as float32 cosh = mx * (-e2y) + my * e2x
+            dim as float32 k = iif( cosh > 0.25, 1.0 / cosh, 4.0 )
+            nx = mx * k : ny = my * k
+        end if
+        rx(i + 1) = pts(i).x : ry(i + 1) = pts(i).y : qx(i + 1) = nx : qy(i + 1) = ny : rOn(i + 1) = true
+    next
+    ' the ends move 0.5 px in; their fringe rows sit 0.5 px out (SegmentAA's butt end)
+    dim as float32 sx = pts(1).x - pts(0).x, sy = pts(1).y - pts(0).y, sl = sqr( sx * sx + sy * sy )
+    sx /= sl : sy /= sl
+    dim as float32 ex = pts(n - 1).x - pts(n - 2).x, ey = pts(n - 1).y - pts(n - 2).y, el = sqr( ex * ex + ey * ey )
+    ex /= el : ey /= el
+    dim as float32 hs = iif( sl < 1, sl / 2, 0.5 ), he = iif( el < 1, el / 2, 0.5 )
+    rx(0) = pts(0).x - sx * 0.5 : ry(0) = pts(0).y - sy * 0.5 : qx(0) = qx(1) : qy(0) = qy(1)
+    rx(1) += sx * hs : ry(1) += sy * hs
+    rx(nRow - 1) = pts(n - 1).x + ex * 0.5 : ry(nRow - 1) = pts(n - 1).y + ey * 0.5
+    qx(nRow - 1) = qx(nRow - 2) : qy(nRow - 1) = qy(nRow - 2)
+    rx(nRow - 2) -= ex * he : ry(nRow - 2) -= ey * he
+    dim as int32 base0 = g.nv
+    for i as int32 = 0 to nRow - 1
+        for b as int32 = 0 to 3
+            g.AddV( rx(i) + qx(i) * ac(b), ry(i) + qy(i) * ac(b), c, iif( rOn(i), al(b), 0.0 ) )
+        next
+    next
+    for i as int32 = 0 to nRow - 2
+        for b as int32 = 0 to 2
+            dim as int32 v0 = base0 + i * 4 + b
+            g.AddTri( v0, v0 + 4, v0 + 5 ) : g.AddTri( v0, v0 + 5, v0 + 1 )
+        next
+    next
+end sub
+
 ' An OPEN polyline (window pixels), width t, optional dash pattern in pen-width units, round
-' joins (vendor's LineJoinRound for chart series).
+' joins (vendor's LineJoinRound for chart series). Solid without round joins, three points or
+' more: one mitred band (StripOpenAA) -- the PDF's "0 J 0 j" for the same op.
 private sub StrokeOpenAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byval n as long, byval t as single, _
                           byval c as ulong, byval nDash as long, byval bRoundJoins as boolean )
     if (n < 2) orelse (t <= 0) then exit sub
@@ -862,6 +926,11 @@ private sub StrokeOpenAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byva
         pat(0) = 4.0 : pat(1) = 2.5 : pat(2) = 1.0 : pat(3) = 2.5 : np = 4
     end select
     dim as GEOM g
+    if (np = 0) andalso (bRoundJoins = false) andalso (n > 2) then
+        StripOpenAA( g, pts(), n, t, c )
+        g.Flush( r )
+        exit sub
+    end if
     dim as single unit = iif( t < 1, 1.0, t )
     dim as long ip = 0
     dim as single left_ = iif( np > 0, pat(0) * unit, 0.0 )
@@ -1141,8 +1210,8 @@ sub TK_PAINT.PaintPolygonF( byval pts as SDL_FPoint ptr, byval nCount as long, b
         p(i).x = pts[i].x + this.ox : p(i).y = pts[i].y + this.oy
     next
     dim as GRAD gr
-    FillPolyAA( this.renderer, p(), nCount, this.clrBack, gr )
-    if nPenWidth > 0 then StrokeClosedAA( this.renderer, p(), nCount, nPenWidth, this.clrPen )
+    FillPolyP( this, p(), nCount, this.clrBack, gr )
+    if nPenWidth > 0 then StrokeClosedP( this, p(), nCount, nPenWidth, this.clrPen )
 end sub
 
 ' A wedge of the ellipse in rc, filled with the back colour; a pen (DPI-scaled) centred on the
@@ -1226,6 +1295,29 @@ sub TK_PAINT.PaintPolyline( byval pts as TKPOINT ptr, byval nCount as long, byva
         p(i).x = pts[i].x + this.ox + 0.5 : p(i).y = pts[i].y + this.oy + 0.5
     next
     StrokeOpenP( this, p(), nCount, pw, this.clrPen, this.nDash, true )
+end sub
+
+' PaintPolyline with fractional points: widget-local EDGE coordinates, used as given (no +0.5), as
+' PaintPolygonF. A fractional pen (1.5), DPI-scaled and never below 1 px; the dash style in force,
+' round joins. For data lines whose x steps are not whole pixels (a sparkline, a gauge's arcs).
+' bClosed joins the last point to the first with no seam (a whole ring at any thickness, which
+' PaintPieRing's 0.9 hole limit cannot draw thinner than a tenth of its radius); always solid.
+' bRoundJoins = FALSE on a solid pen: one mitred band, ~20x cheaper on a many-point curve (an arc)
+' than a disc per join, and a translucent pen does not bead at the joins.
+sub TK_PAINT.PaintPolylineF( byval pts as SDL_FPoint ptr, byval nCount as int32, byval fPenWidth as float32 = 1, _
+                             byval bClosed as boolean = false, byval bRoundJoins as boolean = true )
+    if (pts = 0) orelse (nCount < iif( bClosed, 3, 2 )) orelse (fPenWidth <= 0) then exit sub
+    dim as float32 pw = fPenWidth * this.fScale
+    if pw < 1 then pw = 1
+    dim as SDL_FPoint p(0 to nCount - 1)
+    for i as int32 = 0 to nCount - 1
+        p(i).x = pts[i].x + this.ox : p(i).y = pts[i].y + this.oy
+    next
+    if bClosed then
+        StrokeClosedP( this, p(), nCount, pw, this.clrPen )
+    else
+        StrokeOpenP( this, p(), nCount, pw, this.clrPen, this.nDash, bRoundJoins )
+    end if
 end sub
 
 ' A cardinal spline through the points (GDI+'s DrawCurve), tension 0..1.

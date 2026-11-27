@@ -1,0 +1,10 @@
+' frmKpis's own code: the records its navigator steps through.
+#module "frmKpis"
+
+#import "../kpidata"
+#import "std/containers"
+using containers
+
+public partial type Form
+    Kpis as Array( of kpidata.Kpi )
+end type

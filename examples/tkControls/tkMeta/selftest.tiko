@@ -42,6 +42,27 @@ function IntValue( byref who as const ustring ) as ustring
     return "3"
 end function
 
+' A text the control keeps as given: most take anything; these parse theirs (a ChipGroup splits its
+' Items and SelectedKeys by KeySeparator, so "abc" there would swallow them).
+function TextValue( byref who as const ustring ) as ustring
+    select case who
+    case "ChipGroup.KeySeparator" : return ","
+    case "MaskEdit.PromptChar" : return "*"
+    case "Gauge.Ranges" : return "0..60=#2E7D32;60..100=#80C62828"
+    case "Sparkline.Data" : return "3,5,,2.5,-1"
+    case "Sparkline.Markers" : return "high,low,last"
+    case "Sparkline.Reference" : return "50"
+    case "Sparkline.NormalBand" : return "40..60"
+    end select
+    return "abc"
+end function
+
+' A float the control keeps as given (a gauge's TrackWidth is a fraction, 0.02 to 0.5).
+function FloatValue( byref who as const ustring ) as ustring
+    if who = "Gauge.TrackWidth" then return "0.25"
+    return "2"
+end function
+
 ' A value for a "list" property: one per slot, of the slot's kind.
 function ListValue( byref pairs as const ustring ) as ustring
     dim as ustring o
@@ -93,9 +114,7 @@ sub CheckControl( byval c as TKMETA_CONTROL ptr, byval h as TK_HOST ptr, byval p
             tkTest_Check( c->Name & "." & p->Name & " has a font thunk", p->ApplyFont <> 0 )
             p->ApplyFont( w, h->pDefaultFont )
         case "text"
-            ' a ChipGroup splits its Items and SelectedKeys by KeySeparator: "abc" there would swallow them;
-            ' a MaskEdit's PromptChar keeps one character
-            TryValue( c, p, w, iif( c->Name & "." & p->Name = "ChipGroup.KeySeparator", ",", iif( c->Name & "." & p->Name = "MaskEdit.PromptChar", "*", "abc" ) ) )
+            TryValue( c, p, w, TextValue( c->Name & "." & p->Name ) )
         case "glyph"
             p->Apply( w, "A" )
         case "file"
@@ -106,7 +125,7 @@ sub CheckControl( byval c as TKMETA_CONTROL ptr, byval h as TK_HOST ptr, byval p
             TryValue( c, p, w, "true" )
             TryValue( c, p, w, "false" )
         case "float"
-            TryValue( c, p, w, "2" )
+            TryValue( c, p, w, FloatValue( c->Name & "." & p->Name ) )
         case "color"
             TryValue( c, p, w, "&hFF112233" )
         case "enum"
@@ -146,7 +165,7 @@ sub RunPass( byval fScale as single )
     tkHost_Show( h )
     tkTest_PumpFor( h, 50 )
     dim as TK_WIDGET ptr root_ = tkHost_Root( h )
-    tkTest_Check( "the table is populated", tkMeta_Count( ) = 55, str( tkMeta_Count( ) ) )
+    tkTest_Check( "the table is populated", tkMeta_Count( ) = 57, str( tkMeta_Count( ) ) )
     tkTest_Check( "find by name", tkMeta_Find( "Button" ) <> 0 )
     tkTest_Check( "find misses", tkMeta_Find( "NoSuchControl" ) = 0 )
     tkTest_Check( "find a property", tkMeta_FindProp( tkMeta_Find( "Button" ), "Text" ) <> 0 )
@@ -163,7 +182,7 @@ sub RunPass( byval fScale as single )
             if c->Props( k ).bInspector = false then nHidden += 1
         next
     next
-    tkTest_Check( "43 controls describe a colour struct, 610 fields", (nColors = 43) andalso (nSlots = 610), nColors & " / " & nSlots )
+    tkTest_Check( "45 controls describe a colour struct, 636 fields", (nColors = 45) andalso (nSlots = 636), nColors & " / " & nSlots )
     tkTest_Check( "28 shape properties, 18 hidden colour properties", (nShape = 28) andalso (nHidden = 18), nShape & " / " & nHidden )
     dim as TKMETA_CONTROL ptr btn = tkMeta_Find( "Button" )
     tkTest_Check( "Button: slot by name, cell by part and state", (tkMeta_ColorSlot( btn, "FocusRingColor" ) = 16) _
@@ -182,9 +201,9 @@ sub RunPass( byval fScale as single )
         dim as TKMETA_CONTROL ptr c = tkMeta_At( i )
         if len( c->BindKind ) then bound &= c->Name & ":" & c->BindKind & iif( c->BindLoadOnly, "!", "" ) & " "
     next
-    tkTest_Check( "twenty-five bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
+    tkTest_Check( "twenty-seven bindable controls, each of its kind", bound = "Label:text! CheckBox:bool OptionButton:bool Toggle:bool TextBox:text " _
         & "NumericUpDown:float Slider:float ComboBox:int DatePicker:date TimePicker:time DateTimePicker:datetime ColorPicker:int CodeEdit:text InfoBar:text! " _
-        & "CheckedList:text CheckedComboBox:text TokenBox:text AutoComplete:text Rating:float Badge:int! Avatar:text! Chip:bool ChipGroup:text Barcode:text! MaskEdit:text ", bound )
+        & "CheckedList:text CheckedComboBox:text TokenBox:text AutoComplete:text Rating:float Badge:int! Avatar:text! Chip:bool ChipGroup:text Barcode:text! MaskEdit:text Gauge:float! Sparkline:text! ", bound )
     dim as TKMETA_CONTROL ptr tb = tkMeta_Find( "TextBox" )
     tkTest_Check( "TextBox binds through GetText / SetText", (tb->BindGet = "tkTextBox_GetText") andalso (tb->BindSet = "tkTextBox_SetText") )
     tkTest_Check( "a load-only bind has no get", len( tkMeta_Find( "Label" )->BindGet ) = 0 )
