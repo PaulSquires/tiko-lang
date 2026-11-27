@@ -1,0 +1,110 @@
+'' connect -- open an SSH session the safe way: connect, exchange keys, CHECK THE SERVER'S HOST
+'' KEY against known_hosts before sending anything secret, then authenticate. Reports what was
+'' negotiated and which authentication the server offers.
+''
+''     TIKO_SSH_HOST=files.example.com TIKO_SSH_USER=me TIKO_SSH_KEY=~/.ssh/id_ed25519 connect
+''
+'' The environment, shared by every example here:
+''   TIKO_SSH_HOST         the server (a name or an address); unset: the program says so, exits 0
+''   TIKO_SSH_PORT         its port, 22 when unset
+''   TIKO_SSH_USER         the account
+''   TIKO_SSH_KEY          a private key file (OpenSSH or PEM; ed25519, ECDSA, RSA), its public
+''                         half beside it as <key>.pub; TIKO_SSH_PASSPHRASE if it has one
+''   TIKO_SSH_PASSWORD     instead of a key
+''   TIKO_SSH_KNOWN_HOSTS  the known_hosts file the server's key must be in
+''
+'' Build it with 'tiko connect.tiko'.
+
+'' libssh2 linked DYNAMICALLY: libssh2.dll (libssh2_linux_x86_64.so on Linux) is copied beside
+'' the program, OpenSSL inside it. Write 'link static' to build libssh2 into the program instead.
+#import "vendor/libssh2" link dynamic
+#import "std/net"
+#import "std/codec"
+
+dim shared as LIBSSH2_SESSION ptr gS
+
+function LastError( ) as string
+    dim as zstring ptr m
+    dim as int32 n = libssh2_session_last_error( gS, @m, nullptr, 0 )
+    return *m & " (" & n & ")"
+end function
+
+'' OpenSSH's own spelling of a fingerprint: SHA256: and the unpadded base64 of the 32 bytes.
+function Fingerprint( ) as string
+    dim as const ubyte ptr h = cast( const ubyte ptr, libssh2_hostkey_hash( gS, LIBSSH2_HOSTKEY_HASH_SHA256 ) )
+    if h = nullptr then return "(none)"
+    dim as string raw = space( 32 )
+    for i as integer = 0 to 31
+        raw[i] = h[i]
+    next
+    return "SHA256:" & codec.Base64Encode( raw, codec.B64_STANDARD, false )
+end function
+
+dim as string host = environ( "TIKO_SSH_HOST" ), user = environ( "TIKO_SSH_USER" )
+dim as string keyFile = environ( "TIKO_SSH_KEY" ), knownFile = environ( "TIKO_SSH_KNOWN_HOSTS" )
+dim as integer port = valint( environ( "TIKO_SSH_PORT" ) )
+if port = 0 then port = 22
+if len( host ) = 0 then
+    print "skipped: set TIKO_SSH_HOST (and TIKO_SSH_USER, TIKO_SSH_KEY or TIKO_SSH_PASSWORD, TIKO_SSH_KNOWN_HOSTS)"
+    end 0
+end if
+
+print "libssh2  "; *libssh2_version( 0 )
+if libssh2_init( 0 ) <> 0 then print "libssh2_init failed" : end 1
+
+'' 1. A TCP connection -- std/net's, so names, IPv6 and a timeout come with it. libssh2 is given
+''    the socket itself: hFd is the SOCKET on Windows, the descriptor elsewhere.
+dim as net.TcpStream tcp
+dim as net.NetResultBool cr = tcp.ConnectHost( host, port, 10000 )
+if cr.IsOk( ) = false then print "connect failed: "; cr.Failure( ).Message( ) : end 1
+
+'' 2. The SSH handshake: key exchange, ciphers. Nothing is trusted yet.
+gS = libssh2_session_init( )
+if libssh2_session_handshake( gS, tcp.hFd ) <> 0 then print "handshake failed: "; LastError( ) : end 1
+print "kex      "; *libssh2_session_methods( gS, LIBSSH2_METHOD_KEX )
+print "host key "; *libssh2_session_methods( gS, LIBSSH2_METHOD_HOSTKEY ); "  "; Fingerprint( )
+print "cipher   "; *libssh2_session_methods( gS, LIBSSH2_METHOD_CRYPT_CS ); " / "; *libssh2_session_methods( gS, LIBSSH2_METHOD_MAC_CS )
+
+'' 3. THE HOST KEY, checked before any credential leaves this machine. known_hosts stores a
+''    non-22 port as [host]:port; libssh2_knownhost_checkp does that matching.
+dim as uinteger klen
+dim as int32 ktype
+dim as const zstring ptr key_ = libssh2_session_hostkey( gS, @klen, @ktype )
+dim as LIBSSH2_KNOWNHOSTS ptr kh = libssh2_knownhost_init( gS )
+dim as int32 nKnown = iif( len( knownFile ), libssh2_knownhost_readfile( kh, knownFile, LIBSSH2_KNOWNHOST_FILE_OPENSSH ), 0 )
+dim as libssh2_knownhost ptr found
+dim as int32 check = libssh2_knownhost_checkp( kh, host, port, key_, klen, _
+                                               LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW, @found )
+libssh2_knownhost_free( kh )
+select case check
+case LIBSSH2_KNOWNHOST_CHECK_MATCH
+    print "known    yes ("; nKnown; " entries read)"
+case LIBSSH2_KNOWNHOST_CHECK_MISMATCH
+    print "known    NO -- known_hosts has a DIFFERENT key for this host. Stopping."
+    end 1
+case else
+    print "known    NO -- this host is not in known_hosts. Stopping: check the fingerprint"
+    print "         with the server's administrator, then add it (ssh-keyscan)."
+    end 1
+end select
+
+'' 4. Authentication. The methods the server offers come back as text: "publickey,password".
+dim as zstring ptr methods = libssh2_userauth_list( gS, user, len( user ) )
+print "offers   "; iif( methods, *methods, "(none: authenticated already)" )
+dim as int32 rc
+if len( keyFile ) then
+    dim as string pass_ = environ( "TIKO_SSH_PASSPHRASE" )
+    dim as zstring ptr pp = nullptr                   '' no passphrase: NULL, not ""
+    if len( pass_ ) then pp = strptr( pass_ )
+    rc = libssh2_userauth_publickey_fromfile_ex( gS, user, len( user ), keyFile & ".pub", keyFile, pp )
+    '' -19 is also what an unreadable key file and a wrong passphrase give.
+    print "auth     key "; iif( rc = 0, "accepted", "refused: " & LastError( ) )
+else
+    rc = libssh2_userauth_password( gS, user, environ( "TIKO_SSH_PASSWORD" ) )
+    print "auth     password "; iif( rc = 0, "accepted", "refused: " & LastError( ) )
+end if
+
+libssh2_session_disconnect_ex( gS, SSH_DISCONNECT_BY_APPLICATION, "done", "" )
+libssh2_session_free( gS )
+libssh2_exit( )
+end iif( rc = 0, 0, 1 )

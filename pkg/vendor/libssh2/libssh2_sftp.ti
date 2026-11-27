@@ -1,0 +1,387 @@
+'' =============================================================================
+'' libssh2_sftp.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "libssh2_sftp.h"
+''   source sha256 : b5d864f19af69521278ed953b20b76a32cfdc08014da81d38f59964e7e2e2575
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   constant   LIBSSH2_FX_LOCK_CONFLICT -> LIBSSH2_FX_LOCK_CONFLICT_2   (case-insensitive collision)
+''   constant   libssh2_sftp_opendir -> libssh2_sftp_opendir_2   (case-insensitive collision)
+''   constant   libssh2_sftp_stat -> libssh2_sftp_stat_2   (case-insensitive collision)
+''   constant   libssh2_sftp_lstat -> libssh2_sftp_lstat_2   (case-insensitive collision)
+''   constant   libssh2_sftp_setstat -> libssh2_sftp_setstat_2   (case-insensitive collision)
+''   constant   libssh2_sftp_symlink -> libssh2_sftp_symlink_2   (case-insensitive collision)
+''   constant   libssh2_sftp_readlink -> libssh2_sftp_readlink_2   (case-insensitive collision)
+''   constant   libssh2_sftp_realpath -> libssh2_sftp_realpath_2   (case-insensitive collision)
+''
+'' 9 items need manual translation:
+''   line 79  libssh2_sftp.h:46  C2T-TODO(system-header)  <unistd.h>
+''   line 207  libssh2_sftp.h:169  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISLNK
+''   line 210  libssh2_sftp.h:171  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISREG
+''   line 213  libssh2_sftp.h:173  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISDIR
+''   line 216  libssh2_sftp.h:175  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISCHR
+''   line 219  libssh2_sftp.h:177  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISBLK
+''   line 222  libssh2_sftp.h:179  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISFIFO
+''   line 225  libssh2_sftp.h:181  C2T-TODO(function-like-macro)  LIBSSH2_SFTP_S_ISSOCK
+''   line 300  libssh2_sftp.h:263  C2T-TODO(function-like-macro)  libssh2_sftp_readdir
+'' =============================================================================
+
+#include once "crt/long.bi"
+
+/' Copyright (C) Sara Golemon <sarag@libssh2.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms,
+ * with or without modification, are permitted provided
+ * that the following conditions are met:
+ *
+ *   Redistributions of source code must retain the above
+ *   copyright notice, this list of conditions and the
+ *   following disclaimer.
+ *
+ *   Redistributions in binary form must reproduce the above
+ *   copyright notice, this list of conditions and the following
+ *   disclaimer in the documentation and/or other materials
+ *   provided with the distribution.
+ *
+ *   Neither the name of the copyright holder nor the names
+ *   of any other contributors may be used to endorse or
+ *   promote products derived from this software without
+ *   specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ '/
+
+#ifndef LIBSSH2_SFTP_H
+#define LIBSSH2_SFTP_H 1
+
+#include once "libssh2.ti"
+
+#ifndef TIKO_OS_WINDOWS
+'' C2T-TODO(system-header) libssh2_sftp.h:46 -- <unistd.h> has no tiko counterpart in c2t's table
+'' #include <unistd.h>
+#endif
+
+extern "C"
+
+/' Note: Version 6 was documented at the time of writing
+ * However it was marked as "DO NOT IMPLEMENT" due to pending changes
+ *
+ * Let's start with Version 3 (The version found in OpenSSH) and go from there
+ '/
+#define LIBSSH2_SFTP_VERSION 3
+
+type _LIBSSH2_SFTP__fwd as _LIBSSH2_SFTP
+type LIBSSH2_SFTP as _LIBSSH2_SFTP
+type _LIBSSH2_SFTP_HANDLE__fwd as _LIBSSH2_SFTP_HANDLE
+type LIBSSH2_SFTP_HANDLE as _LIBSSH2_SFTP_HANDLE
+type _LIBSSH2_SFTP_ATTRIBUTES__fwd as _LIBSSH2_SFTP_ATTRIBUTES
+type LIBSSH2_SFTP_ATTRIBUTES as _LIBSSH2_SFTP_ATTRIBUTES
+type _LIBSSH2_SFTP_STATVFS__fwd as _LIBSSH2_SFTP_STATVFS
+type LIBSSH2_SFTP_STATVFS as _LIBSSH2_SFTP_STATVFS
+
+/' Flags for open_ex() '/
+#define LIBSSH2_SFTP_OPENFILE 0
+#define LIBSSH2_SFTP_OPENDIR 1
+
+/' Flags for rename_ex() '/
+#define LIBSSH2_SFTP_RENAME_OVERWRITE &h00000001
+#define LIBSSH2_SFTP_RENAME_ATOMIC &h00000002
+#define LIBSSH2_SFTP_RENAME_NATIVE &h00000004
+
+/' Flags for stat_ex() '/
+#define LIBSSH2_SFTP_STAT 0
+#define LIBSSH2_SFTP_LSTAT 1
+#define LIBSSH2_SFTP_SETSTAT 2
+
+/' Flags for symlink_ex() '/
+#define LIBSSH2_SFTP_SYMLINK 0
+#define LIBSSH2_SFTP_READLINK 1
+#define LIBSSH2_SFTP_REALPATH 2
+
+/' Flags for sftp_mkdir() '/
+#define LIBSSH2_SFTP_DEFAULT_MODE (-1)
+
+/' SFTP attribute flag bits '/
+#define LIBSSH2_SFTP_ATTR_SIZE &h00000001
+#define LIBSSH2_SFTP_ATTR_UIDGID &h00000002
+#define LIBSSH2_SFTP_ATTR_PERMISSIONS &h00000004
+#define LIBSSH2_SFTP_ATTR_ACMODTIME &h00000008
+#define LIBSSH2_SFTP_ATTR_EXTENDED &h80000000
+
+/' SFTP statvfs flag bits '/
+#define LIBSSH2_SFTP_ST_RDONLY &h00000001
+#define LIBSSH2_SFTP_ST_NOSUID &h00000002
+
+type _LIBSSH2_SFTP_ATTRIBUTES
+    /' If flags & ATTR_* bit is set, then the value in this struct will be
+     * meaningful Otherwise it should be ignored
+     '/
+    flags as culong
+
+    filesize as libssh2_uint64_t
+    uid as culong
+    gid as culong
+    permissions as culong
+    atime as culong
+    mtime as culong
+end type
+
+type _LIBSSH2_SFTP_STATVFS
+    f_bsize as libssh2_uint64_t   /' file system block size '/
+    f_frsize as libssh2_uint64_t  /' fragment size '/
+    f_blocks as libssh2_uint64_t  /' size of fs in f_frsize units '/
+    f_bfree as libssh2_uint64_t   /' # free blocks '/
+    f_bavail as libssh2_uint64_t  /' # free blocks for non-root '/
+    f_files as libssh2_uint64_t   /' # inodes '/
+    f_ffree as libssh2_uint64_t   /' # free inodes '/
+    f_favail as libssh2_uint64_t  /' # free inodes for non-root '/
+    f_fsid as libssh2_uint64_t    /' file system ID '/
+    f_flag as libssh2_uint64_t    /' mount flags '/
+    f_namemax as libssh2_uint64_t /' maximum filename length '/
+end type
+
+/' SFTP filetypes '/
+#define LIBSSH2_SFTP_TYPE_REGULAR 1
+#define LIBSSH2_SFTP_TYPE_DIRECTORY 2
+#define LIBSSH2_SFTP_TYPE_SYMLINK 3
+#define LIBSSH2_SFTP_TYPE_SPECIAL 4
+#define LIBSSH2_SFTP_TYPE_UNKNOWN 5
+#define LIBSSH2_SFTP_TYPE_SOCKET 6
+#define LIBSSH2_SFTP_TYPE_CHAR_DEVICE 7
+#define LIBSSH2_SFTP_TYPE_BLOCK_DEVICE 8
+#define LIBSSH2_SFTP_TYPE_FIFO 9
+
+/'
+ * Reproduce the POSIX file modes here for systems that are not POSIX
+ * compliant.
+ *
+ * These is used in "permissions" of "struct _LIBSSH2_SFTP_ATTRIBUTES"
+ '/
+/' File type '/
+#define LIBSSH2_SFTP_S_IFMT &o170000            /' type of file mask '/
+#define LIBSSH2_SFTP_S_IFIFO &o010000           /' named pipe (fifo) '/
+#define LIBSSH2_SFTP_S_IFCHR &o020000           /' character special '/
+#define LIBSSH2_SFTP_S_IFDIR &o040000           /' directory '/
+#define LIBSSH2_SFTP_S_IFBLK &o060000           /' block special '/
+#define LIBSSH2_SFTP_S_IFREG &o100000           /' regular '/
+#define LIBSSH2_SFTP_S_IFLNK &o120000           /' symbolic link '/
+#define LIBSSH2_SFTP_S_IFSOCK &o140000          /' socket '/
+
+/' File mode '/
+/' Read, write, execute/search by owner '/
+#define LIBSSH2_SFTP_S_IRWXU &o000700           /' RWX mask for owner '/
+#define LIBSSH2_SFTP_S_IRUSR &o000400           /' R for owner '/
+#define LIBSSH2_SFTP_S_IWUSR &o000200           /' W for owner '/
+#define LIBSSH2_SFTP_S_IXUSR &o000100           /' X for owner '/
+/' Read, write, execute/search by group '/
+#define LIBSSH2_SFTP_S_IRWXG &o000070           /' RWX mask for group '/
+#define LIBSSH2_SFTP_S_IRGRP &o000040           /' R for group '/
+#define LIBSSH2_SFTP_S_IWGRP &o000020           /' W for group '/
+#define LIBSSH2_SFTP_S_IXGRP &o000010           /' X for group '/
+/' Read, write, execute/search by others '/
+#define LIBSSH2_SFTP_S_IRWXO &o000007           /' RWX mask for other '/
+#define LIBSSH2_SFTP_S_IROTH &o000004           /' R for other '/
+#define LIBSSH2_SFTP_S_IWOTH &o000002           /' W for other '/
+#define LIBSSH2_SFTP_S_IXOTH &o000001           /' X for other '/
+
+/' macros to check for specific file types, added in 1.2.5 '/
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:169 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISLNK(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFLNK)
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:171 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISREG(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFREG)
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:173 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISDIR(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFDIR)
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:175 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISCHR(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFCHR)
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:177 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISBLK(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFBLK)
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:179 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISFIFO(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFIFO)
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:181 -- a C truth value (1) used as a number; tiko's is -1
+'' #define LIBSSH2_SFTP_S_ISSOCK(m) \
+''     (((m) & LIBSSH2_SFTP_S_IFMT) == LIBSSH2_SFTP_S_IFSOCK)
+
+/' SFTP File Transfer Flags -- (e.g. flags parameter to sftp_open())
+ * Danger will robinson... APPEND doesn't have any effect on OpenSSH servers '/
+#define LIBSSH2_FXF_READ &h00000001
+#define LIBSSH2_FXF_WRITE &h00000002
+#define LIBSSH2_FXF_APPEND &h00000004
+#define LIBSSH2_FXF_CREAT &h00000008
+#define LIBSSH2_FXF_TRUNC &h00000010
+#define LIBSSH2_FXF_EXCL &h00000020
+
+/' SFTP Status Codes (returned by libssh2_sftp_last_error() ) '/
+#define LIBSSH2_FX_OK 0u
+#define LIBSSH2_FX_EOF 1u
+#define LIBSSH2_FX_NO_SUCH_FILE 2u
+#define LIBSSH2_FX_PERMISSION_DENIED 3u
+#define LIBSSH2_FX_FAILURE 4u
+#define LIBSSH2_FX_BAD_MESSAGE 5u
+#define LIBSSH2_FX_NO_CONNECTION 6u
+#define LIBSSH2_FX_CONNECTION_LOST 7u
+#define LIBSSH2_FX_OP_UNSUPPORTED 8u
+#define LIBSSH2_FX_INVALID_HANDLE 9u
+#define LIBSSH2_FX_NO_SUCH_PATH 10u
+#define LIBSSH2_FX_FILE_ALREADY_EXISTS 11u
+#define LIBSSH2_FX_WRITE_PROTECT 12u
+#define LIBSSH2_FX_NO_MEDIA 13u
+#define LIBSSH2_FX_NO_SPACE_ON_FILESYSTEM 14u
+#define LIBSSH2_FX_QUOTA_EXCEEDED 15u
+#define LIBSSH2_FX_UNKNOWN_PRINCIPLE 16u         /' Initial mis-spelling '/
+#define LIBSSH2_FX_UNKNOWN_PRINCIPAL 16u
+#define LIBSSH2_FX_LOCK_CONFlICT 17u             /' Initial mis-spelling '/
+#define LIBSSH2_FX_LOCK_CONFLICT_2 17u
+#define LIBSSH2_FX_DIR_NOT_EMPTY 18u
+#define LIBSSH2_FX_NOT_A_DIRECTORY 19u
+#define LIBSSH2_FX_INVALID_FILENAME 20u
+#define LIBSSH2_FX_LINK_LOOP 21u
+
+/' Returned by any function that would block during a read/write operation '/
+'' C2T-NOTE(value) libssh2_sftp.h:220 -- clang's value; 'LIBSSH2_ERROR_EAGAIN' is nothing tiko declares
+#define LIBSSH2SFTP_EAGAIN (-37)
+
+/' SFTP API '/
+declare function libssh2_sftp_init( byval session as LIBSSH2_SESSION ptr ) as LIBSSH2_SFTP ptr
+declare function libssh2_sftp_shutdown( byval sftp as LIBSSH2_SFTP ptr ) as int32
+declare function libssh2_sftp_last_error( byval sftp as LIBSSH2_SFTP ptr ) as culong
+declare function libssh2_sftp_get_channel( byval sftp as LIBSSH2_SFTP ptr ) as LIBSSH2_CHANNEL ptr
+
+/' File / Directory Ops '/
+declare function libssh2_sftp_open_ex( byval sftp as LIBSSH2_SFTP ptr, _
+_
+                                       byval filename as const zstring ptr, _
+                                       byval filename_len as uint32, _
+                                       byval flags as culong, _
+                                       byval mode as clong, byval open_type as int32 ) as LIBSSH2_SFTP_HANDLE ptr
+#define libssh2_sftp_open(sftp, filename, flags, mode) libssh2_sftp_open_ex((sftp), (filename), cast(uint32, strlen((filename))), (flags), (mode), LIBSSH2_SFTP_OPENFILE)
+#define libssh2_sftp_opendir_2(sftp, path) libssh2_sftp_open_ex((sftp), (path), cast(uint32, strlen((path))), 0, 0, LIBSSH2_SFTP_OPENDIR)
+declare function libssh2_sftp_open_ex_r( byval sftp as LIBSSH2_SFTP ptr, _
+_
+                                         byval filename as const zstring ptr, _
+                                         byval filename_len as uinteger, _
+                                         byval flags as culong, _
+                                         byval mode as clong, byval open_type as int32, _
+                                         byval attrs as LIBSSH2_SFTP_ATTRIBUTES ptr ) as LIBSSH2_SFTP_HANDLE ptr
+#define libssh2_sftp_open_r(sftp, filename, flags, mode, attrs) libssh2_sftp_open_ex_r((sftp), (filename), strlen((filename)), (flags), (mode), LIBSSH2_SFTP_OPENFILE, (attrs))
+
+declare function libssh2_sftp_read( byval handle as LIBSSH2_SFTP_HANDLE ptr, _
+                                    byval buffer as zstring ptr, byval buffer_maxlen as uinteger ) as integer
+
+declare function libssh2_sftp_readdir_ex( byval handle as LIBSSH2_SFTP_HANDLE ptr, _
+                                          byval buffer as zstring ptr, byval buffer_maxlen as uinteger, _
+                                          byval longentry as zstring ptr, _
+                                          byval longentry_maxlen as uinteger, _
+                                          byval attrs as LIBSSH2_SFTP_ATTRIBUTES ptr ) as int32
+'' C2T-TODO(function-like-macro) libssh2_sftp.h:263 -- 'NULL' is nothing tiko declares
+'' #define libssh2_sftp_readdir(handle, buffer, buffer_maxlen, attrs) \
+''     libssh2_sftp_readdir_ex((handle), (buffer), (buffer_maxlen), NULL, 0, \
+''                             (attrs))
+
+declare function libssh2_sftp_write( byval handle as LIBSSH2_SFTP_HANDLE ptr, _
+                                     byval buffer as const zstring ptr, byval count as uinteger ) as integer
+declare function libssh2_sftp_fsync( byval handle as LIBSSH2_SFTP_HANDLE ptr ) as int32
+
+declare function libssh2_sftp_close_handle( byval handle as LIBSSH2_SFTP_HANDLE ptr ) as int32
+#define libssh2_sftp_close(handle) libssh2_sftp_close_handle((handle))
+#define libssh2_sftp_closedir(handle) libssh2_sftp_close_handle((handle))
+
+declare sub libssh2_sftp_seek( byval handle as LIBSSH2_SFTP_HANDLE ptr, byval offset as uinteger )
+declare sub libssh2_sftp_seek64( byval handle as LIBSSH2_SFTP_HANDLE ptr, _
+                                 byval offset as libssh2_uint64_t )
+#define libssh2_sftp_rewind(handle) libssh2_sftp_seek64((handle), 0)
+
+declare function libssh2_sftp_tell( byval handle as LIBSSH2_SFTP_HANDLE ptr ) as uinteger
+declare function libssh2_sftp_tell64( byval handle as LIBSSH2_SFTP_HANDLE ptr ) as libssh2_uint64_t
+
+declare function libssh2_sftp_fstat_ex( byval handle as LIBSSH2_SFTP_HANDLE ptr, _
+                                        byval attrs as LIBSSH2_SFTP_ATTRIBUTES ptr, _
+                                        byval setstat as int32 ) as int32
+#define libssh2_sftp_fstat(handle, attrs) libssh2_sftp_fstat_ex((handle), (attrs), 0)
+#define libssh2_sftp_fsetstat(handle, attrs) libssh2_sftp_fstat_ex((handle), (attrs), 1)
+
+/' Miscellaneous Ops '/
+declare function libssh2_sftp_rename_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                         byval source_filename as const zstring ptr, _
+                                         byval srouce_filename_len as uint32, _
+                                         byval dest_filename as const zstring ptr, _
+                                         byval dest_filename_len as uint32, _
+                                         byval flags as clong ) as int32
+#define libssh2_sftp_rename(sftp, sourcefile, destfile) libssh2_sftp_rename_ex((sftp), (sourcefile), cast(uint32, strlen((sourcefile))), (destfile), cast(uint32, strlen((destfile))), ((LIBSSH2_SFTP_RENAME_OVERWRITE or LIBSSH2_SFTP_RENAME_ATOMIC) or LIBSSH2_SFTP_RENAME_NATIVE))
+
+declare function libssh2_sftp_posix_rename_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                               byval source_filename as const zstring ptr, _
+                                               byval srouce_filename_len as uinteger, _
+                                               byval dest_filename as const zstring ptr, _
+                                               byval dest_filename_len as uinteger ) as int32
+#define libssh2_sftp_posix_rename(sftp, sourcefile, destfile) libssh2_sftp_posix_rename_ex((sftp), (sourcefile), strlen((sourcefile)), (destfile), strlen((destfile)))
+
+declare function libssh2_sftp_unlink_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                         byval filename as const zstring ptr, _
+                                         byval filename_len as uint32 ) as int32
+#define libssh2_sftp_unlink(sftp, filename) libssh2_sftp_unlink_ex((sftp), (filename), cast(uint32, strlen((filename))))
+
+declare function libssh2_sftp_fstatvfs( byval handle as LIBSSH2_SFTP_HANDLE ptr, _
+                                        byval st as LIBSSH2_SFTP_STATVFS ptr ) as int32
+
+declare function libssh2_sftp_statvfs( byval sftp as LIBSSH2_SFTP ptr, _
+                                       byval path as const zstring ptr, _
+                                       byval path_len as uinteger, _
+                                       byval st as LIBSSH2_SFTP_STATVFS ptr ) as int32
+
+declare function libssh2_sftp_mkdir_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                        byval path as const zstring ptr, _
+                                        byval path_len as uint32, byval mode as clong ) as int32
+#define libssh2_sftp_mkdir(sftp, path, mode) libssh2_sftp_mkdir_ex((sftp), (path), cast(uint32, strlen((path))), (mode))
+
+declare function libssh2_sftp_rmdir_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                        byval path as const zstring ptr, _
+                                        byval path_len as uint32 ) as int32
+#define libssh2_sftp_rmdir(sftp, path) libssh2_sftp_rmdir_ex((sftp), (path), cast(uint32, strlen((path))))
+
+declare function libssh2_sftp_stat_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                       byval path as const zstring ptr, _
+                                       byval path_len as uint32, _
+                                       byval stat_type as int32, _
+                                       byval attrs as LIBSSH2_SFTP_ATTRIBUTES ptr ) as int32
+#define libssh2_sftp_stat_2(sftp, path, attrs) libssh2_sftp_stat_ex((sftp), (path), cast(uint32, strlen((path))), LIBSSH2_SFTP_STAT, (attrs))
+#define libssh2_sftp_lstat_2(sftp, path, attrs) libssh2_sftp_stat_ex((sftp), (path), cast(uint32, strlen((path))), LIBSSH2_SFTP_LSTAT, (attrs))
+#define libssh2_sftp_setstat_2(sftp, path, attrs) libssh2_sftp_stat_ex((sftp), (path), cast(uint32, strlen((path))), LIBSSH2_SFTP_SETSTAT, (attrs))
+
+declare function libssh2_sftp_symlink_ex( byval sftp as LIBSSH2_SFTP ptr, _
+                                          byval path as const zstring ptr, _
+                                          byval path_len as uint32, _
+                                          byval target as zstring ptr, _
+                                          byval target_len as uint32, _
+                                          byval link_type as int32 ) as int32
+#define libssh2_sftp_symlink_2(sftp, orig, linkpath) libssh2_sftp_symlink_ex((sftp), (orig), cast(uint32, strlen((orig))), (linkpath), cast(uint32, strlen((linkpath))), LIBSSH2_SFTP_SYMLINK)
+#define libssh2_sftp_readlink_2(sftp, path, target, maxlen) libssh2_sftp_symlink_ex((sftp), (path), cast(uint32, strlen((path))), (target), (maxlen), LIBSSH2_SFTP_READLINK)
+#define libssh2_sftp_realpath_2(sftp, path, target, maxlen) libssh2_sftp_symlink_ex((sftp), (path), cast(uint32, strlen((path))), (target), (maxlen), LIBSSH2_SFTP_REALPATH)
+
+end extern
+
+#endif /' LIBSSH2_SFTP_H '/

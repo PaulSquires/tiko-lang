@@ -1,0 +1,137 @@
+'' sftp -- files over SFTP: make a directory, upload a file into it, stat it, list the
+'' directory, download the file back and compare, rename it, then remove both again.
+''
+''     TIKO_SSH_HOST=files.example.com TIKO_SSH_USER=me TIKO_SSH_KEY=~/.ssh/id_ed25519 sftp
+''
+'' The environment is 01-connect's (TIKO_SSH_HOST, _PORT, _USER, _KEY, _PASSPHRASE, _PASSWORD,
+'' _KNOWN_HOSTS); unset TIKO_SSH_HOST and the program says so and exits 0. It works in a
+'' directory 'tiko-sftp-example' in the account's home and leaves nothing behind.
+'' Build it with 'tiko sftp.tiko'.
+
+#import "vendor/libssh2" link dynamic
+#import "std/net"
+
+dim shared as LIBSSH2_SESSION ptr gS
+
+function LastError( ) as string
+    dim as zstring ptr m
+    dim as int32 n = libssh2_session_last_error( gS, @m, nullptr, 0 )
+    return *m & " (" & n & ")"
+end function
+
+'' 01-connect's sequence, without its commentary: TCP, handshake, the host key against
+'' known_hosts (refused unless it matches), then a key or a password.
+function Connect( byref tcp as net.TcpStream ) as boolean
+    dim as string host = environ( "TIKO_SSH_HOST" ), user = environ( "TIKO_SSH_USER" ), keyFile = environ( "TIKO_SSH_KEY" )
+    dim as integer port = valint( environ( "TIKO_SSH_PORT" ) )
+    if port = 0 then port = 22
+    dim as net.NetResultBool cr = tcp.ConnectHost( host, port, 10000 )
+    if cr.IsOk( ) = false then print "connect failed: "; cr.Failure( ).Message( ) : return false
+    gS = libssh2_session_init( )
+    if libssh2_session_handshake( gS, tcp.hFd ) <> 0 then print "handshake failed: "; LastError( ) : return false
+    dim as uinteger klen
+    dim as int32 ktype
+    dim as const zstring ptr key_ = libssh2_session_hostkey( gS, @klen, @ktype )
+    dim as LIBSSH2_KNOWNHOSTS ptr kh = libssh2_knownhost_init( gS )
+    libssh2_knownhost_readfile( kh, environ( "TIKO_SSH_KNOWN_HOSTS" ), LIBSSH2_KNOWNHOST_FILE_OPENSSH )
+    dim as libssh2_knownhost ptr found
+    dim as int32 check = libssh2_knownhost_checkp( kh, host, port, key_, klen, _
+                                                   LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW, @found )
+    libssh2_knownhost_free( kh )
+    if check <> LIBSSH2_KNOWNHOST_CHECK_MATCH then print "host key not in known_hosts: stopping" : return false
+    dim as int32 rc
+    if len( keyFile ) then
+        dim as string pass_ = environ( "TIKO_SSH_PASSPHRASE" )
+        dim as zstring ptr pp = nullptr                   '' no passphrase: NULL, not ""
+        if len( pass_ ) then pp = strptr( pass_ )
+        rc = libssh2_userauth_publickey_fromfile_ex( gS, user, len( user ), keyFile & ".pub", keyFile, pp )
+    else
+        rc = libssh2_userauth_password( gS, user, environ( "TIKO_SSH_PASSWORD" ) )
+    end if
+    if rc <> 0 then print "authentication failed: "; LastError( ) : return false
+    return true
+end function
+
+if len( environ( "TIKO_SSH_HOST" ) ) = 0 then
+    print "skipped: set TIKO_SSH_HOST (see 01-connect for the rest)"
+    end 0
+end if
+libssh2_init( 0 )
+dim as net.TcpStream tcp
+if Connect( tcp ) = false then end 1
+
+dim as LIBSSH2_SFTP ptr sf = libssh2_sftp_init( gS )
+if sf = nullptr then print "sftp_init failed: "; LastError( ) : end 1
+
+'' Paths are the server's: relative ones start in the account's home directory. Every routine
+'' takes the length beside the text, so a name need not end in a zero byte.
+dim as string d = "tiko-sftp-example", f = d & "/hello.txt", g = d & "/renamed.txt"
+dim as boolean ok = true
+
+if libssh2_sftp_mkdir_ex( sf, d, len( d ), &o755 ) <> 0 then
+    '' An SFTP status (LIBSSH2_FX_*) says why: FAILURE is what most servers give for "exists".
+    print "mkdir "; d; ": SFTP status "; libssh2_sftp_last_error( sf ) : end 1
+end if
+print "mkdir    "; d
+
+'' Upload: open for writing (created, truncated), write until everything is sent.
+dim as string body = "Written over SFTP by tiko." & chr( 10 )
+for i as integer = 1 to 5 : body &= body : next                   '' 864 bytes
+dim as LIBSSH2_SFTP_HANDLE ptr h = libssh2_sftp_open_ex( sf, f, len( f ), _
+    LIBSSH2_FXF_WRITE or LIBSSH2_FXF_CREAT or LIBSSH2_FXF_TRUNC, &o644, LIBSSH2_SFTP_OPENFILE )
+dim as integer sent = 0
+while h <> nullptr andalso sent < len( body )
+    dim as integer n = libssh2_sftp_write( h, strptr( body ) + sent, len( body ) - sent )
+    if n < 0 then exit while
+    sent += n
+wend
+if h then libssh2_sftp_close_handle( h )
+print "upload   "; f; " -- "; sent; " bytes"
+ok = ok andalso sent = len( body )
+
+'' stat: size and permission bits, each present only when its flag says so.
+dim as LIBSSH2_SFTP_ATTRIBUTES at
+if libssh2_sftp_stat_ex( sf, f, len( f ), LIBSSH2_SFTP_STAT, @at ) = 0 then
+    print "stat     size "; at.filesize; ", mode "; oct( at.permissions and &o777 ); _
+          iif( LIBSSH2_SFTP_S_ISREG( at.permissions ), ", a regular file", "" )
+    ok = ok andalso at.filesize = len( body )
+else
+    ok = false
+end if
+
+'' The directory, entry by entry. readdir returns the name's length, 0 at the end.
+dim as LIBSSH2_SFTP_HANDLE ptr dh = libssh2_sftp_open_ex( sf, d, len( d ), 0, 0, LIBSSH2_SFTP_OPENDIR )
+dim as zstring * 512 nm
+while dh <> nullptr andalso libssh2_sftp_readdir( dh, @nm, 512, @at ) > 0
+    print "list     "; iif( LIBSSH2_SFTP_S_ISDIR( at.permissions ), "d ", "- " ); nm; "  "; at.filesize
+wend
+if dh then libssh2_sftp_close_handle( dh )
+
+'' Download and compare. The bytes are copied, not read as text: a file may hold zero bytes.
+dim as string back
+h = libssh2_sftp_open_ex( sf, f, len( f ), LIBSSH2_FXF_READ, 0, LIBSSH2_SFTP_OPENFILE )
+dim as ubyte buf( 0 to 4095 )
+while h <> nullptr
+    dim as integer n = libssh2_sftp_read( h, cast( zstring ptr, @buf( 0 ) ), 4096 )
+    if n <= 0 then exit while
+    dim as integer had = len( back )
+    back &= space( n )
+    memcpy( strptr( back ) + had, @buf( 0 ), n )
+wend
+if h then libssh2_sftp_close_handle( h )
+print "download "; len( back ); " bytes, "; iif( back = body, "identical", "DIFFERENT" )
+ok = ok andalso back = body
+
+'' Rename (replacing a file of that name if the server allows), then clean up.
+ok = ok andalso libssh2_sftp_rename_ex( sf, f, len( f ), g, len( g ), _
+    LIBSSH2_SFTP_RENAME_OVERWRITE or LIBSSH2_SFTP_RENAME_ATOMIC or LIBSSH2_SFTP_RENAME_NATIVE ) = 0
+print "rename   "; g
+ok = ok andalso libssh2_sftp_unlink_ex( sf, g, len( g ) ) = 0
+ok = ok andalso libssh2_sftp_rmdir_ex( sf, d, len( d ) ) = 0
+print "cleanup  "; iif( ok, "done", "something failed: " & LastError( ) )
+
+libssh2_sftp_shutdown( sf )
+libssh2_session_disconnect_ex( gS, SSH_DISCONNECT_BY_APPLICATION, "done", "" )
+libssh2_session_free( gS )
+libssh2_exit( )
+end iif( ok, 0, 1 )

@@ -1,0 +1,1636 @@
+'' =============================================================================
+'' libssh2.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "libssh2.h"
+''   source sha256 : 86cc9fcfd0daa10ba25442e5ecea23db618027362bc85fdc591ec7f5d9d39a91
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  libssh2_sign_sk.data -> libssh2_sign_sk.data_   (tiko reserved word)
+''   parameter  libssh2_sign_sk.abstract -> libssh2_sign_sk.abstract_   (tiko reserved word)
+''   parameter  libssh2_free.ptr -> libssh2_free.ptr_   (tiko reserved word)
+''   parameter  libssh2_session_init_ex.abstract -> libssh2_session_init_ex.abstract_   (tiko reserved word)
+''   parameter  libssh2_session_hostkey.len -> libssh2_session_hostkey.len_   (tiko reserved word)
+''   parameter  libssh2_session_hostkey.type -> libssh2_session_hostkey.type_   (tiko reserved word)
+''   parameter  libssh2_userauth_publickey.abstract -> libssh2_userauth_publickey.abstract_   (tiko reserved word)
+''   parameter  libssh2_userauth_publickey_sk.abstract -> libssh2_userauth_publickey_sk.abstract_   (tiko reserved word)
+''   parameter  libssh2_channel_request_pty_ex.width -> libssh2_channel_request_pty_ex.width_   (tiko reserved word)
+''   parameter  libssh2_channel_request_pty_size_ex.width -> libssh2_channel_request_pty_size_ex.width_   (tiko reserved word)
+''   parameter  libssh2_knownhost_readline.line -> libssh2_knownhost_readline.line_   (tiko reserved word)
+''   parameter  libssh2_knownhost_readline.len -> libssh2_knownhost_readline.len_   (tiko reserved word)
+''   parameter  libssh2_knownhost_readline.type -> libssh2_knownhost_readline.type_   (tiko reserved word)
+''   parameter  libssh2_knownhost_readfile.type -> libssh2_knownhost_readfile.type_   (tiko reserved word)
+''   parameter  libssh2_knownhost_writeline.type -> libssh2_knownhost_writeline.type_   (tiko reserved word)
+''   parameter  libssh2_knownhost_writefile.type -> libssh2_knownhost_writefile.type_   (tiko reserved word)
+''   parameter  libssh2_agent_sign.data -> libssh2_agent_sign.data_   (tiko reserved word)
+''   constant   LIBSSH2_VERSION -> LIBSSH2_VERSION_2   (case-insensitive collision)
+''   constant   LIBSSH2_USE_WIN32_LARGE_FILES -> LIBSSH2_USE_WIN32_LARGE_FILES_2   (case-insensitive collision)
+''
+'' 58 items need manual translation:
+''   line 185  libssh2.h:94  C2T-TODO(system-header)  <basetsd.h>
+''   line 187  libssh2.h:95  C2T-TODO(system-header)  <winsock2.h>
+''   line 193  libssh2.h:100  C2T-TODO(system-header)  <sys/stat.h>
+''   line 195  libssh2.h:101  C2T-TODO(system-header)  <sys/types.h>
+''   line 202  libssh2.h:121  C2T-TODO(system-header)  <sys/uio.h>
+''   line 216  libssh2.h:134  C2T-TODO(refused-type)  ssize_t
+''   line 227  libssh2.h:144  C2T-TODO(refused-type)  libssh2_socket_t
+''   line 235  libssh2.h:150  C2T-TODO(function-like-macro)  LIBSSH2_SOCKET_CLOSE
+''   line 243  libssh2.h:157  C2T-TODO(function-like-macro)  LIBSSH2_DEPRECATED
+''   line 247  libssh2.h:160  C2T-TODO(function-like-macro)  LIBSSH2_DEPRECATED
+''   line 253  libssh2.h:166  C2T-TODO(function-like-macro)  LIBSSH2_DEPRECATED
+''   line 257  libssh2.h:169  C2T-TODO(function-like-macro)  LIBSSH2_DEPRECATED
+''   line 262  libssh2.h:173  C2T-TODO(function-like-macro)  LIBSSH2_DEPRECATED
+''   line 268  libssh2.h:178  C2T-TODO(conditional)  LIBSSH2_DEPRECATED
+''   line 270  libssh2.h:179  C2T-TODO(conditional)  LIBSSH2_DEPRECATED
+''   line 272  libssh2.h:180  C2T-TODO(conditional)  #endif
+''   line 308  libssh2.h:216  C2T-TODO(system-header)  <io.h>
+''   line 324  libssh2.h:230  C2T-TODO(refused-type)  libssh2_struct_stat_size
+''   line 342  libssh2.h:247  C2T-TODO(refused-type)  libssh2_struct_stat_size
+''   line 347  libssh2.h:251  C2T-TODO(macro)  LIBSSH2_SSH_BANNER
+''   line 350  libssh2.h:253  C2T-TODO(macro)  LIBSSH2_SSH_DEFAULT_BANNER
+''   line 352  libssh2.h:254  C2T-TODO(macro)  LIBSSH2_SSH_DEFAULT_BANNER_WITH_CRLF
+''   line 379  libssh2.h:280  C2T-TODO(function-like-macro)  LIBSSH2_ALLOC_FUNC
+''   line 381  libssh2.h:281  C2T-TODO(function-like-macro)  LIBSSH2_REALLOC_FUNC
+''   line 384  libssh2.h:283  C2T-TODO(function-like-macro)  LIBSSH2_FREE_FUNC
+''   line 411  libssh2.h:308  C2T-TODO(function-like-macro)  LIBSSH2_USERAUTH_PUBLICKEY_SIGN_FUNC
+''   line 418  libssh2.h:314  C2T-TODO(function-like-macro)  LIBSSH2_USERAUTH_KBDINT_RESPONSE_FUNC
+''   line 426  libssh2.h:321  C2T-TODO(function-like-macro)  LIBSSH2_USERAUTH_SK_SIGN_FUNC
+''   line 442  libssh2.h:336  C2T-TODO(function-like-macro)  LIBSSH2_IGNORE_FUNC
+''   line 447  libssh2.h:340  C2T-TODO(function-like-macro)  LIBSSH2_DEBUG_FUNC
+''   line 454  libssh2.h:346  C2T-TODO(function-like-macro)  LIBSSH2_DISCONNECT_FUNC
+''   line 461  libssh2.h:352  C2T-TODO(function-like-macro)  LIBSSH2_PASSWD_CHANGEREQ_FUNC
+''   line 466  libssh2.h:356  C2T-TODO(function-like-macro)  LIBSSH2_MACERROR_FUNC
+''   line 471  libssh2.h:360  C2T-TODO(function-like-macro)  LIBSSH2_X11_OPEN_FUNC
+''   line 476  libssh2.h:364  C2T-TODO(function-like-macro)  LIBSSH2_AUTHAGENT_FUNC
+''   line 481  libssh2.h:368  C2T-TODO(function-like-macro)  LIBSSH2_ADD_IDENTITIES_FUNC
+''   line 486  libssh2.h:372  C2T-TODO(function-like-macro)  LIBSSH2_AUTHAGENT_SIGN_FUNC
+''   line 495  libssh2.h:380  C2T-TODO(function-like-macro)  LIBSSH2_CHANNEL_CLOSE_FUNC
+''   line 501  libssh2.h:385  C2T-TODO(function-like-macro)  LIBSSH2_RECV_FUNC
+''   line 506  libssh2.h:389  C2T-TODO(function-like-macro)  LIBSSH2_SEND_FUNC
+''   line 574  libssh2.h:449  C2T-TODO(refused-type)  _LIBSSH2_POLLFD, LIBSSH2_POLLFD
+''   line 785  libssh2.h:649  C2T-TODO(function-like-macro)  libssh2_session_init
+''   line 790  libssh2.h:653  C2T-TODO(unsupported)  libssh2_cb_generic
+''   line 810  libssh2.h:672  C2T-TODO(refused-type)  libssh2_session_handshake
+''   line 865  libssh2.h:725  C2T-TODO(function-like-macro)  libssh2_userauth_password
+''   line 972  libssh2.h:844  C2T-TODO(function-like-macro)  libssh2_channel_open_session
+''   line 992  libssh2.h:864  C2T-TODO(function-like-macro)  libssh2_channel_forward_listen
+''   line 1017  libssh2.h:892  C2T-TODO(function-like-macro)  libssh2_channel_request_pty
+''   line 1038  libssh2.h:913  C2T-TODO(function-like-macro)  libssh2_channel_x11_req
+''   line 1052  libssh2.h:927  C2T-TODO(function-like-macro)  libssh2_channel_shell
+''   line 1056  libssh2.h:930  C2T-TODO(function-like-macro)  libssh2_channel_exec
+''   line 1060  libssh2.h:933  C2T-TODO(function-like-macro)  libssh2_channel_subsystem
+''   line 1079  libssh2.h:955  C2T-TODO(function-like-macro)  libssh2_channel_window_read
+''   line 1106  libssh2.h:985  C2T-TODO(function-like-macro)  libssh2_channel_window_write
+''   line 1168  libssh2.h:1050  C2T-TODO(refused-type)  libssh2_scp_recv
+''   line 1182  libssh2.h:1063  C2T-TODO(refused-type)  libssh2_scp_send64
+''   line 1194  libssh2.h:1075  C2T-TODO(unrecognised)
+''   line 1220  libssh2.h:1087  C2T-TODO(unrecognised)
+'' =============================================================================
+
+#include once "crt/long.bi"
+
+/' Copyright (C) Sara Golemon <sarag@libssh2.org>
+ * Copyright (C) Daniel Stenberg
+ * Copyright (C) Simon Josefsson <simon@josefsson.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms,
+ * with or without modification, are permitted provided
+ * that the following conditions are met:
+ *
+ *   Redistributions of source code must retain the above
+ *   copyright notice, this list of conditions and the
+ *   following disclaimer.
+ *
+ *   Redistributions in binary form must reproduce the above
+ *   copyright notice, this list of conditions and the following
+ *   disclaimer in the documentation and/or other materials
+ *   provided with the distribution.
+ *
+ *   Neither the name of the copyright holder nor the names
+ *   of any other contributors may be used to endorse or
+ *   promote products derived from this software without
+ *   specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ '/
+
+#ifndef LIBSSH2_H
+#define LIBSSH2_H 1
+
+#define LIBSSH2_COPYRIGHT "The libssh2 project and its contributors."
+
+/' We use underscore instead of dash when appending DEV in dev versions just
+   to make the BANNER define (used by src/session.c) be a valid SSH
+   banner. Release versions have no appended strings and may of course not
+   have dashes either. '/
+#define LIBSSH2_VERSION_2 "1.11.1"
+
+/' The numeric version number is also available "in parts" by using these
+   defines: '/
+#define LIBSSH2_VERSION_MAJOR 1
+#define LIBSSH2_VERSION_MINOR 11
+#define LIBSSH2_VERSION_PATCH 1
+
+/' This is the numeric version of the libssh2 version number, meant for easier
+   parsing and comparisons by programs. The LIBSSH2_VERSION_NUM define will
+   always follow this syntax:
+
+         0xXXYYZZ
+
+   Where XX, YY and ZZ are the main version, release and patch numbers in
+   hexadecimal (using 8 bits each). All three numbers are always represented
+   using two digits.  1.2 would appear as "0x010200" while version 9.11.7
+   appears as "0x090b07".
+
+   This 6-digit (24 bits) hexadecimal number does not show pre-release number,
+   and it is always a greater number in a more recent release. It makes
+   comparisons with greater than and less than work.
+'/
+#define LIBSSH2_VERSION_NUM &h010B01
+
+/'
+ * This is the date and time when the full source package was created. The
+ * timestamp is not stored in the source code repo, as the timestamp is
+ * properly set in the tarballs by the maketgz script.
+ *
+ * The format of the date should follow this template:
+ *
+ * "Mon Feb 12 11:35:33 UTC 2007"
+ '/
+#define LIBSSH2_TIMESTAMP "Wed Oct 16 08:03:21 UTC 2024"
+
+#ifndef RC_INVOKED
+
+extern "C"
+
+#ifdef TIKO_OS_WINDOWS
+'' C2T-TODO(system-header) libssh2.h:94 -- <basetsd.h> has no tiko counterpart in c2t's table
+'' # include <basetsd.h>
+'' C2T-TODO(system-header) libssh2.h:95 -- <winsock2.h> has no tiko counterpart in c2t's table
+'' # include <winsock2.h>
+#endif
+
+'' <stddef.h>: built into tiko
+#include once "crt/string.bi"
+'' C2T-TODO(system-header) libssh2.h:100 -- <sys/stat.h> has no tiko counterpart in c2t's table
+'' #include <sys/stat.h>
+'' C2T-TODO(system-header) libssh2.h:101 -- <sys/types.h> has no tiko counterpart in c2t's table
+'' #include <sys/types.h>
+
+/' Allow alternate API prefix from CFLAGS or calling app '/
+'' c2t: export macro LIBSSH2_API (decoration, stripped where used)
+
+#ifdef HAVE_SYS_UIO_H
+'' C2T-TODO(system-header) libssh2.h:121 -- <sys/uio.h> has no tiko counterpart in c2t's table
+'' # include <sys/uio.h>
+#endif
+
+#ifdef _MSC_VER
+type uint8_t as uint8
+type uint16_t as uint16
+type uint32_t as uint32
+type int32_t as int32
+type int64_t as int64
+type uint64_t as uint64
+type libssh2_uint64_t as uint64
+type libssh2_int64_t as int64
+#if (((defined(HAVE_SSIZE_T)) = 0) andalso ((defined(ssize_t)) = 0))
+'' C2T-TODO(refused-type) libssh2.h:134 -- typedef 'ssize_t_2': 'SSIZE_T' is a system header's type
+'' typedef SSIZE_T ssize_t;
+#define HAVE_SSIZE_T
+#endif
+#else
+'' <stdint.h>: built into tiko
+type libssh2_uint64_t as uint64
+type libssh2_int64_t as int64
+#endif
+
+#ifdef TIKO_OS_WINDOWS
+'' C2T-TODO(refused-type) libssh2.h:144 -- typedef 'libssh2_socket_t': 'SOCKET' is a system header's type
+'' typedef SOCKET libssh2_socket_t;
+'' C2T-NOTE(value) libssh2.h:145 -- clang's value; 'INVALID_SOCKET' is nothing tiko declares
+#define LIBSSH2_INVALID_SOCKET 18446744073709551615ull
+#define LIBSSH2_SOCKET_CLOSE(s) closesocket((s))
+#else /' !_WIN32 '/
+type libssh2_socket_t as int32
+#define LIBSSH2_INVALID_SOCKET (-1)
+'' C2T-TODO(function-like-macro) libssh2.h:150 -- 'close' is a tiko word, so tiko cannot call a C function by that name
+'' #define LIBSSH2_SOCKET_CLOSE(s) close(s)
+#endif /' _WIN32 '/
+
+/' Compile-time deprecation macros '/
+#if (((defined(LIBSSH2_DISABLE_DEPRECATION)) = 0) andalso ((defined(LIBSSH2_LIBRARY)) = 0))
+#  if defined(_MSC_VER)
+#    if (_MSC_VER >= 1400)
+'' C2T-TODO(function-like-macro) libssh2.h:157 -- a call's ')' is missing
+'' #      define LIBSSH2_DEPRECATED(version, message) \
+''          __declspec(deprecated("since libssh2 " # version ". " message))
+#    elseif (_MSC_VER >= 1310)
+'' C2T-TODO(function-like-macro) libssh2.h:160 -- 'deprecated' is nothing tiko declares
+'' #      define LIBSSH2_DEPRECATED(version, message) \
+''          __declspec(deprecated)
+#   endif
+#  elseif (defined(__GNUC__) andalso ((defined(__INTEL_COMPILER)) = 0))
+#    if ((defined(__clang__) andalso (__clang_major__ >= 3)) orelse ((__GNUC__ > 4) orelse ((__GNUC__ = 4) andalso (__GNUC_MINOR__ >= 5))))
+'' C2T-TODO(function-like-macro) libssh2.h:166 -- a call's ')' is missing
+'' #      define LIBSSH2_DEPRECATED(version, message) \
+''          __attribute__((deprecated("since libssh2 " # version ". " message)))
+#    elseif ((__GNUC__ > 3) orelse ((__GNUC__ = 3) andalso (__GNUC_MINOR__ > 0)))
+'' C2T-TODO(function-like-macro) libssh2.h:169 -- 'deprecated' is nothing tiko declares
+'' #      define LIBSSH2_DEPRECATED(version, message) \
+''          __attribute__((deprecated))
+#    endif
+#  elseif (defined(__SUNPRO_C) andalso (__SUNPRO_C >= &h5130))
+'' C2T-TODO(function-like-macro) libssh2.h:173 -- 'deprecated' is nothing tiko declares
+'' #    define LIBSSH2_DEPRECATED(version, message) \
+''        __attribute__((deprecated))
+#  endif
+#endif
+
+'' C2T-TODO(conditional) libssh2.h:178 -- tiko would take this branch where clang does not
+'' #ifndef LIBSSH2_DEPRECATED
+'' C2T-TODO(conditional) libssh2.h:179 -- inside a conditional that stays a TODO
+'' #define LIBSSH2_DEPRECATED(version, message)
+'' C2T-TODO(conditional) libssh2.h:180 -- tiko would take this branch where clang does not
+'' #endif
+
+/'
+ * Determine whether there is small or large file support on windows.
+ '/
+
+#if (defined(_MSC_VER) andalso ((defined(_WIN32_WCE)) = 0))
+#  if ((_MSC_VER >= 900) andalso (_INTEGRAL_MAX_BITS >= 64))
+#    define LIBSSH2_USE_WIN32_LARGE_FILES
+#  else
+#    define LIBSSH2_USE_WIN32_SMALL_FILES
+#  endif
+#endif
+
+#if (0 andalso ((defined(LIBSSH2_USE_WIN32_LARGE_FILES)) = 0))
+#  define LIBSSH2_USE_WIN32_LARGE_FILES_2
+#endif
+
+#if (defined(__WATCOMC__) andalso ((defined(LIBSSH2_USE_WIN32_LARGE_FILES)) = 0))
+#  define LIBSSH2_USE_WIN32_LARGE_FILES_2
+#endif
+
+#if defined(__POCC__)
+#  undef LIBSSH2_USE_WIN32_LARGE_FILES
+#endif
+
+#if ((defined(TIKO_OS_WINDOWS) andalso ((defined(LIBSSH2_USE_WIN32_LARGE_FILES)) = 0)) andalso ((defined(LIBSSH2_USE_WIN32_SMALL_FILES)) = 0))
+#  define LIBSSH2_USE_WIN32_SMALL_FILES
+#endif
+
+/'
+ * Large file (>2Gb) support using WIN32 functions.
+ '/
+
+#ifdef LIBSSH2_USE_WIN32_LARGE_FILES
+'' C2T-TODO(system-header) libssh2.h:216 -- <io.h> has no tiko counterpart in c2t's table
+'' #  include <io.h>
+#  define LIBSSH2_STRUCT_STAT_SIZE_FORMAT "%I64d"
+type libssh2_struct_stat as _stat64
+type libssh2_struct_stat_size as int64
+#endif
+
+/'
+ * Small file (<2Gb) support using WIN32 functions.
+ '/
+
+#ifdef LIBSSH2_USE_WIN32_SMALL_FILES
+#  ifndef _WIN32_WCE
+#    define LIBSSH2_STRUCT_STAT_SIZE_FORMAT "%d"
+type _stat__fwd as _stat
+type libssh2_struct_stat as _stat
+'' C2T-TODO(refused-type) libssh2.h:230 -- typedef 'libssh2_struct_stat_size': 'off_t' is a system header's type
+'' typedef off_t libssh2_struct_stat_size;
+#  endif
+#endif
+
+#ifndef LIBSSH2_STRUCT_STAT_SIZE_FORMAT
+#  ifdef __VMS
+/' We have to roll our own format here because %z is a C99-ism we don't
+   have. '/
+#    if (__USE_OFF64_T orelse __USING_STD_STAT)
+#      define LIBSSH2_STRUCT_STAT_SIZE_FORMAT "%Ld"
+#    else
+#      define LIBSSH2_STRUCT_STAT_SIZE_FORMAT "%d"
+#    endif
+#  else
+#    define LIBSSH2_STRUCT_STAT_SIZE_FORMAT "%zd"
+#  endif
+type libssh2_struct_stat as stat
+'' C2T-TODO(refused-type) libssh2.h:247 -- typedef 'libssh2_struct_stat_size': 'off_t' is a system header's type
+'' typedef off_t libssh2_struct_stat_size;
+#endif
+
+/' Part of every banner, user specified or not '/
+'' C2T-TODO(macro) libssh2.h:251 -- 'LIBSSH2_SSH_BANNER': 'LIBSSH2_VERSION' after the expression
+'' #define LIBSSH2_SSH_BANNER                  "SSH-2.0-libssh2_" LIBSSH2_VERSION
+
+'' C2T-TODO(macro) libssh2.h:253 -- 'LIBSSH2_SSH_DEFAULT_BANNER': 'LIBSSH2_SSH_BANNER' is nothing tiko declares
+'' #define LIBSSH2_SSH_DEFAULT_BANNER            LIBSSH2_SSH_BANNER
+'' C2T-TODO(macro) libssh2.h:254 -- 'LIBSSH2_SSH_DEFAULT_BANNER_WITH_CRLF': '"\r\n"' after the expression
+'' #define LIBSSH2_SSH_DEFAULT_BANNER_WITH_CRLF  LIBSSH2_SSH_DEFAULT_BANNER "\r\n"
+
+/' Defaults for pty requests '/
+#define LIBSSH2_TERM_WIDTH 80
+#define LIBSSH2_TERM_HEIGHT 24
+#define LIBSSH2_TERM_WIDTH_PX 0
+#define LIBSSH2_TERM_HEIGHT_PX 0
+
+/' 1/4 second '/
+#define LIBSSH2_SOCKET_POLL_UDELAY 250000
+/' 0.25 * 120 == 30 seconds '/
+#define LIBSSH2_SOCKET_POLL_MAXLOOPS 120
+
+/' Maximum size to allow a payload to compress to, plays it safe by falling
+   short of spec limits '/
+#define LIBSSH2_PACKET_MAXCOMP 32000
+
+/' Maximum size to allow a payload to deccompress to, plays it safe by
+   allowing more than spec requires '/
+#define LIBSSH2_PACKET_MAXDECOMP 40000
+
+/' Maximum size for an inbound compressed payload, plays it safe by
+   overshooting spec limits '/
+#define LIBSSH2_PACKET_MAXPAYLOAD 40000
+
+/' Malloc callbacks '/
+'' C2T-TODO(function-like-macro) libssh2.h:280 -- a call's ')' is missing
+'' #define LIBSSH2_ALLOC_FUNC(name)   void *name(size_t count, void **abstract)
+'' C2T-TODO(function-like-macro) libssh2.h:281 -- a call's ')' is missing
+'' #define LIBSSH2_REALLOC_FUNC(name) void *name(void *ptr, size_t count, \
+''                                               void **abstract)
+'' C2T-TODO(function-like-macro) libssh2.h:283 -- 'name' after the expression
+'' #define LIBSSH2_FREE_FUNC(name)    void name(void *ptr, void **abstract)
+
+type _LIBSSH2_USERAUTH_KBDINT_PROMPT
+    text as uint8 ptr
+    length as uinteger
+    echo as uint8
+end type
+type LIBSSH2_USERAUTH_KBDINT_PROMPT as _LIBSSH2_USERAUTH_KBDINT_PROMPT
+
+type _LIBSSH2_USERAUTH_KBDINT_RESPONSE
+    text as zstring ptr
+    length as uint32      /' FIXME: change type to size_t '/
+end type
+type LIBSSH2_USERAUTH_KBDINT_RESPONSE as _LIBSSH2_USERAUTH_KBDINT_RESPONSE
+
+type _LIBSSH2_SK_SIG_INFO
+    flags as uint8
+    counter as uint32
+    sig_r as uint8 ptr
+    sig_r_len as uinteger
+    sig_s as uint8 ptr
+    sig_s_len as uinteger
+end type
+type LIBSSH2_SK_SIG_INFO as _LIBSSH2_SK_SIG_INFO
+
+/' 'publickey' authentication callback '/
+'' C2T-TODO(function-like-macro) libssh2.h:308 -- 'name' after the expression
+'' #define LIBSSH2_USERAUTH_PUBLICKEY_SIGN_FUNC(name) \
+''     int name(LIBSSH2_SESSION *session, unsigned char **sig, size_t *sig_len, \
+''              const unsigned char *data, size_t data_len, void **abstract)
+
+/' 'keyboard-interactive' authentication callback '/
+/' FIXME: name_len, instruction_len -> size_t, num_prompts -> unsigned int? '/
+'' C2T-TODO(function-like-macro) libssh2.h:314 -- 'name_' after the expression
+'' #define LIBSSH2_USERAUTH_KBDINT_RESPONSE_FUNC(name_) \
+''     void name_(const char *name, int name_len, const char *instruction, \
+''                int instruction_len, int num_prompts, \
+''                const LIBSSH2_USERAUTH_KBDINT_PROMPT *prompts, \
+''                LIBSSH2_USERAUTH_KBDINT_RESPONSE *responses, void **abstract)
+
+/' SK authentication callback '/
+'' C2T-TODO(function-like-macro) libssh2.h:321 -- 'name' after the expression
+'' #define LIBSSH2_USERAUTH_SK_SIGN_FUNC(name) \
+''     int name(LIBSSH2_SESSION *session, LIBSSH2_SK_SIG_INFO *sig_info, \
+''              const unsigned char *data, size_t data_len, \
+''              int algorithm, uint8_t flags, \
+''              const char *application, const unsigned char *key_handle, \
+''              size_t handle_len, \
+''              void **abstract)
+
+/' Flags for SK authentication '/
+#define LIBSSH2_SK_PRESENCE_REQUIRED &h01
+#define LIBSSH2_SK_VERIFICATION_REQUIRED &h04
+
+/' FIXME: update lengths to size_t (or ssize_t): '/
+
+/' Callbacks for special SSH packets '/
+'' C2T-TODO(function-like-macro) libssh2.h:336 -- 'name' after the expression
+'' #define LIBSSH2_IGNORE_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, const char *message, int message_len, \
+''               void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:340 -- 'name' after the expression
+'' #define LIBSSH2_DEBUG_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, int always_display, \
+''               const char *message, int message_len, \
+''               const char *language, int language_len, \
+''               void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:346 -- 'name' after the expression
+'' #define LIBSSH2_DISCONNECT_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, int reason, \
+''               const char *message, int message_len, \
+''               const char *language, int language_len, \
+''               void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:352 -- 'name' after the expression
+'' #define LIBSSH2_PASSWD_CHANGEREQ_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, char **newpw, int *newpw_len, \
+''               void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:356 -- 'name' after the expression
+'' #define LIBSSH2_MACERROR_FUNC(name) \
+''     int name(LIBSSH2_SESSION *session, const char *packet, int packet_len, \
+''              void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:360 -- 'name' after the expression
+'' #define LIBSSH2_X11_OPEN_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, LIBSSH2_CHANNEL *channel, \
+''               const char *shost, int sport, void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:364 -- 'name' after the expression
+'' #define LIBSSH2_AUTHAGENT_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, LIBSSH2_CHANNEL *channel, \
+''               void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:368 -- 'name' after the expression
+'' #define LIBSSH2_ADD_IDENTITIES_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, void *buffer, \
+''               const char *agent_path, void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:372 -- 'name' after the expression
+'' #define LIBSSH2_AUTHAGENT_SIGN_FUNC(name) \
+''     int name(LIBSSH2_SESSION* session, \
+''              unsigned char *blob, unsigned int blen, \
+''              const unsigned char *data, unsigned int dlen, \
+''              unsigned char **signature, unsigned int *sigLen, \
+''              const char *agentPath, \
+''              void **abstract)
+
+'' C2T-TODO(function-like-macro) libssh2.h:380 -- 'name' after the expression
+'' #define LIBSSH2_CHANNEL_CLOSE_FUNC(name) \
+''     void name(LIBSSH2_SESSION *session, void **session_abstract, \
+''               LIBSSH2_CHANNEL *channel, void **channel_abstract)
+
+/' I/O callbacks '/
+'' C2T-TODO(function-like-macro) libssh2.h:385 -- 'name' after the expression
+'' #define LIBSSH2_RECV_FUNC(name)                                         \
+''     ssize_t name(libssh2_socket_t socket,                               \
+''                  void *buffer, size_t length,                           \
+''                  int flags, void **abstract)
+'' C2T-TODO(function-like-macro) libssh2.h:389 -- 'name' after the expression
+'' #define LIBSSH2_SEND_FUNC(name)                                         \
+''     ssize_t name(libssh2_socket_t socket,                               \
+''                  const void *buffer, size_t length,                     \
+''                  int flags, void **abstract)
+
+/' libssh2_session_callback_set() constants '/
+#define LIBSSH2_CALLBACK_IGNORE 0
+#define LIBSSH2_CALLBACK_DEBUG 1
+#define LIBSSH2_CALLBACK_DISCONNECT 2
+#define LIBSSH2_CALLBACK_MACERROR 3
+#define LIBSSH2_CALLBACK_X11 4
+#define LIBSSH2_CALLBACK_SEND 5
+#define LIBSSH2_CALLBACK_RECV 6
+#define LIBSSH2_CALLBACK_AUTHAGENT 7
+#define LIBSSH2_CALLBACK_AUTHAGENT_IDENTITIES 8
+#define LIBSSH2_CALLBACK_AUTHAGENT_SIGN 9
+
+/' libssh2_session_method_pref() constants '/
+#define LIBSSH2_METHOD_KEX 0
+#define LIBSSH2_METHOD_HOSTKEY 1
+#define LIBSSH2_METHOD_CRYPT_CS 2
+#define LIBSSH2_METHOD_CRYPT_SC 3
+#define LIBSSH2_METHOD_MAC_CS 4
+#define LIBSSH2_METHOD_MAC_SC 5
+#define LIBSSH2_METHOD_COMP_CS 6
+#define LIBSSH2_METHOD_COMP_SC 7
+#define LIBSSH2_METHOD_LANG_CS 8
+#define LIBSSH2_METHOD_LANG_SC 9
+#define LIBSSH2_METHOD_SIGN_ALGO 10
+
+/' flags '/
+#define LIBSSH2_FLAG_SIGPIPE 1
+#define LIBSSH2_FLAG_COMPRESS 2
+#define LIBSSH2_FLAG_QUOTE_PATHS 3
+
+type _LIBSSH2_SESSION__fwd as _LIBSSH2_SESSION
+type LIBSSH2_SESSION as _LIBSSH2_SESSION
+type _LIBSSH2_CHANNEL__fwd as _LIBSSH2_CHANNEL
+type LIBSSH2_CHANNEL as _LIBSSH2_CHANNEL
+type _LIBSSH2_LISTENER__fwd as _LIBSSH2_LISTENER
+type LIBSSH2_LISTENER as _LIBSSH2_LISTENER
+type _LIBSSH2_KNOWNHOSTS__fwd as _LIBSSH2_KNOWNHOSTS
+type LIBSSH2_KNOWNHOSTS as _LIBSSH2_KNOWNHOSTS
+type _LIBSSH2_AGENT__fwd as _LIBSSH2_AGENT
+type LIBSSH2_AGENT as _LIBSSH2_AGENT
+
+/' SK signature callback '/
+type _LIBSSH2_PRIVKEY_SK
+    algorithm as int32
+    flags as uint8
+    application as const zstring ptr
+    key_handle as const uint8 ptr
+    handle_len as uinteger
+    sign_callback as function cdecl( byval as LIBSSH2_SESSION ptr, byval as LIBSSH2_SK_SIG_INFO ptr, byval as const uint8 ptr, byval as uinteger, byval as int32, byval as uint8, byval as const zstring ptr, byval as const uint8 ptr, byval as uinteger, byval as any ptr ptr ) as int32
+    orig_abstract as any ptr ptr
+end type
+type LIBSSH2_PRIVKEY_SK as _LIBSSH2_PRIVKEY_SK
+
+declare function libssh2_sign_sk( byval session as LIBSSH2_SESSION ptr, _
+_
+                                  byval sig as uint8 ptr ptr, _
+                                  byval sig_len as uinteger ptr, _
+                                  byval data_ as const uint8 ptr, _
+                                  byval data_len as uinteger, _
+                                  byval abstract_ as any ptr ptr ) as int32
+
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(refused-type) libssh2.h:449 -- record '_LIBSSH2_POLLFD': field 'fd': field 'socket': 'SOCKET' is a system header's type
+'' typedef struct _LIBSSH2_POLLFD {
+''     unsigned char type; /* LIBSSH2_POLLFD_* below */
+''
+''     union {
+''         libssh2_socket_t socket; /* File descriptors -- examined with
+''                                     system select() call */
+''         LIBSSH2_CHANNEL *channel; /* Examined by checking internal state */
+''         LIBSSH2_LISTENER *listener; /* Read polls only -- are inbound
+''                                        connections waiting to be accepted? */
+''     } fd;
+''
+''     unsigned long events; /* Requested Events */
+''     unsigned long revents; /* Returned Events */
+'' } LIBSSH2_POLLFD;
+#elseif not (defined(TIKO_OS_WINDOWS))
+union _LIBSSH2_POLLFD_fd_t
+    socket as libssh2_socket_t
+    channel as LIBSSH2_CHANNEL ptr
+    listener as LIBSSH2_LISTENER ptr
+end union
+type _LIBSSH2_POLLFD
+    type as uint8       /' LIBSSH2_POLLFD_* below '/
+
+    fd as _LIBSSH2_POLLFD_fd_t /' File descriptors -- examined with
+                                    system select() call '/ /' Examined by checking internal state '/ /' Read polls only -- are inbound
+                                       connections waiting to be accepted? '/
+
+    events as culong      /' Requested Events '/
+    revents as culong      /' Returned Events '/
+end type
+type LIBSSH2_POLLFD as _LIBSSH2_POLLFD
+#endif
+
+/' Poll FD Descriptor Types '/
+#define LIBSSH2_POLLFD_SOCKET 1
+#define LIBSSH2_POLLFD_CHANNEL 2
+#define LIBSSH2_POLLFD_LISTENER 3
+
+/' Note: Win32 Doesn't actually have a poll() implementation, so some of these
+   values are faked with select() data '/
+/' Poll FD events/revents -- Match sys/poll.h where possible '/
+#define LIBSSH2_POLLFD_POLLIN &h0001
+#define LIBSSH2_POLLFD_POLLPRI &h0002
+#define LIBSSH2_POLLFD_POLLEXT &h0002
+#define LIBSSH2_POLLFD_POLLOUT &h0004
+/' revents only '/
+#define LIBSSH2_POLLFD_POLLERR &h0008          /' Error Condition -- Socket '/
+#define LIBSSH2_POLLFD_POLLHUP &h0010          /' HangUp/EOF -- Socket '/
+#define LIBSSH2_POLLFD_SESSION_CLOSED &h0010   /' Session Disconnect '/
+#define LIBSSH2_POLLFD_POLLNVAL &h0020
+#define LIBSSH2_POLLFD_POLLEX &h0040
+#define LIBSSH2_POLLFD_CHANNEL_CLOSED &h0080   /' Channel Disconnect '/
+#define LIBSSH2_POLLFD_LISTENER_CLOSED &h0080  /' Listener Disconnect '/
+
+#define HAVE_LIBSSH2_SESSION_BLOCK_DIRECTION
+/' Block Direction Types '/
+#define LIBSSH2_SESSION_BLOCK_INBOUND &h0001
+#define LIBSSH2_SESSION_BLOCK_OUTBOUND &h0002
+
+/' Hash Types '/
+#define LIBSSH2_HOSTKEY_HASH_MD5 1
+#define LIBSSH2_HOSTKEY_HASH_SHA1 2
+#define LIBSSH2_HOSTKEY_HASH_SHA256 3
+
+/' Hostkey Types '/
+#define LIBSSH2_HOSTKEY_TYPE_UNKNOWN 0
+#define LIBSSH2_HOSTKEY_TYPE_RSA 1
+#define LIBSSH2_HOSTKEY_TYPE_DSS 2                 /' deprecated '/
+#define LIBSSH2_HOSTKEY_TYPE_ECDSA_256 3
+#define LIBSSH2_HOSTKEY_TYPE_ECDSA_384 4
+#define LIBSSH2_HOSTKEY_TYPE_ECDSA_521 5
+#define LIBSSH2_HOSTKEY_TYPE_ED25519 6
+
+/' Disconnect Codes (defined by SSH protocol) '/
+#define SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT 1
+#define SSH_DISCONNECT_PROTOCOL_ERROR 2
+#define SSH_DISCONNECT_KEY_EXCHANGE_FAILED 3
+#define SSH_DISCONNECT_RESERVED 4
+#define SSH_DISCONNECT_MAC_ERROR 5
+#define SSH_DISCONNECT_COMPRESSION_ERROR 6
+#define SSH_DISCONNECT_SERVICE_NOT_AVAILABLE 7
+#define SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED 8
+#define SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE 9
+#define SSH_DISCONNECT_CONNECTION_LOST 10
+#define SSH_DISCONNECT_BY_APPLICATION 11
+#define SSH_DISCONNECT_TOO_MANY_CONNECTIONS 12
+#define SSH_DISCONNECT_AUTH_CANCELLED_BY_USER 13
+#define SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE 14
+#define SSH_DISCONNECT_ILLEGAL_USER_NAME 15
+
+/' Error Codes (defined by libssh2) '/
+#define LIBSSH2_ERROR_NONE 0
+
+/' The library once used -1 as a generic error return value on numerous places
+   through the code, which subsequently was converted to
+   LIBSSH2_ERROR_SOCKET_NONE uses over time. As this is a generic error code,
+   the goal is to never ever return this code but instead make sure that a
+   more accurate and descriptive error code is used. '/
+#define LIBSSH2_ERROR_SOCKET_NONE (-1)
+
+#define LIBSSH2_ERROR_BANNER_RECV (-2)
+#define LIBSSH2_ERROR_BANNER_SEND (-3)
+#define LIBSSH2_ERROR_INVALID_MAC (-4)
+#define LIBSSH2_ERROR_KEX_FAILURE (-5)
+#define LIBSSH2_ERROR_ALLOC (-6)
+#define LIBSSH2_ERROR_SOCKET_SEND (-7)
+#define LIBSSH2_ERROR_KEY_EXCHANGE_FAILURE (-8)
+#define LIBSSH2_ERROR_TIMEOUT (-9)
+#define LIBSSH2_ERROR_HOSTKEY_INIT (-10)
+#define LIBSSH2_ERROR_HOSTKEY_SIGN (-11)
+#define LIBSSH2_ERROR_DECRYPT (-12)
+#define LIBSSH2_ERROR_SOCKET_DISCONNECT (-13)
+#define LIBSSH2_ERROR_PROTO (-14)
+#define LIBSSH2_ERROR_PASSWORD_EXPIRED (-15)
+#define LIBSSH2_ERROR_FILE (-16)
+#define LIBSSH2_ERROR_METHOD_NONE (-17)
+#define LIBSSH2_ERROR_AUTHENTICATION_FAILED (-18)
+#define LIBSSH2_ERROR_PUBLICKEY_UNRECOGNIZED LIBSSH2_ERROR_AUTHENTICATION_FAILED
+#define LIBSSH2_ERROR_PUBLICKEY_UNVERIFIED (-19)
+#define LIBSSH2_ERROR_CHANNEL_OUTOFORDER (-20)
+#define LIBSSH2_ERROR_CHANNEL_FAILURE (-21)
+#define LIBSSH2_ERROR_CHANNEL_REQUEST_DENIED (-22)
+#define LIBSSH2_ERROR_CHANNEL_UNKNOWN (-23)
+#define LIBSSH2_ERROR_CHANNEL_WINDOW_EXCEEDED (-24)
+#define LIBSSH2_ERROR_CHANNEL_PACKET_EXCEEDED (-25)
+#define LIBSSH2_ERROR_CHANNEL_CLOSED (-26)
+#define LIBSSH2_ERROR_CHANNEL_EOF_SENT (-27)
+#define LIBSSH2_ERROR_SCP_PROTOCOL (-28)
+#define LIBSSH2_ERROR_ZLIB (-29)
+#define LIBSSH2_ERROR_SOCKET_TIMEOUT (-30)
+#define LIBSSH2_ERROR_SFTP_PROTOCOL (-31)
+#define LIBSSH2_ERROR_REQUEST_DENIED (-32)
+#define LIBSSH2_ERROR_METHOD_NOT_SUPPORTED (-33)
+#define LIBSSH2_ERROR_INVAL (-34)
+#define LIBSSH2_ERROR_INVALID_POLL_TYPE (-35)
+#define LIBSSH2_ERROR_PUBLICKEY_PROTOCOL (-36)
+#define LIBSSH2_ERROR_EAGAIN (-37)
+#define LIBSSH2_ERROR_BUFFER_TOO_SMALL (-38)
+#define LIBSSH2_ERROR_BAD_USE (-39)
+#define LIBSSH2_ERROR_COMPRESS (-40)
+#define LIBSSH2_ERROR_OUT_OF_BOUNDARY (-41)
+#define LIBSSH2_ERROR_AGENT_PROTOCOL (-42)
+#define LIBSSH2_ERROR_SOCKET_RECV (-43)
+#define LIBSSH2_ERROR_ENCRYPT (-44)
+#define LIBSSH2_ERROR_BAD_SOCKET (-45)
+#define LIBSSH2_ERROR_KNOWN_HOSTS (-46)
+#define LIBSSH2_ERROR_CHANNEL_WINDOW_FULL (-47)
+#define LIBSSH2_ERROR_KEYFILE_AUTH_FAILED (-48)
+#define LIBSSH2_ERROR_RANDGEN (-49)
+#define LIBSSH2_ERROR_MISSING_USERAUTH_BANNER (-50)
+#define LIBSSH2_ERROR_ALGO_UNSUPPORTED (-51)
+#define LIBSSH2_ERROR_MAC_FAILURE (-52)
+#define LIBSSH2_ERROR_HASH_INIT (-53)
+#define LIBSSH2_ERROR_HASH_CALC (-54)
+
+/' this is a define to provide the old (<= 1.2.7) name '/
+#define LIBSSH2_ERROR_BANNER_NONE LIBSSH2_ERROR_BANNER_RECV
+
+/' Global API '/
+#define LIBSSH2_INIT_NO_CRYPTO &h0001
+
+/'
+ * libssh2_init()
+ *
+ * Initialize the libssh2 functions.  This typically initialize the
+ * crypto library.  It uses a global state, and is not thread safe --
+ * you must make sure this function is not called concurrently.
+ *
+ * Flags can be:
+ * 0:                              Normal initialize
+ * LIBSSH2_INIT_NO_CRYPTO:         Do not initialize the crypto library (ie.
+ *                                 OPENSSL_add_cipher_algoritms() for OpenSSL
+ *
+ * Returns 0 if succeeded, or a negative value for error.
+ '/
+declare function libssh2_init( byval flags as int32 ) as int32
+
+/'
+ * libssh2_exit()
+ *
+ * Exit the libssh2 functions and free's all memory used internal.
+ '/
+declare sub libssh2_exit( )
+
+/'
+ * libssh2_free()
+ *
+ * Deallocate memory allocated by earlier call to libssh2 functions.
+ '/
+declare sub libssh2_free( byval session as LIBSSH2_SESSION ptr, byval ptr_ as any ptr )
+
+/'
+ * libssh2_session_supported_algs()
+ *
+ * Fills algs with a list of supported acryptographic algorithms. Returns a
+ * non-negative number (number of supported algorithms) on success or a
+ * negative number (an error code) on failure.
+ *
+ * NOTE: on success, algs must be deallocated (by calling libssh2_free) when
+ * not needed anymore
+ '/
+declare function libssh2_session_supported_algs( byval session as LIBSSH2_SESSION ptr, _
+                                                 byval method_type as int32, _
+                                                 byval algs as const zstring ptr ptr ptr ) as int32
+
+/' Session API '/
+declare function libssh2_session_init_ex( byval my_alloc as function cdecl( byval as uinteger, byval as any ptr ptr ) as any ptr, _
+_
+                                          byval my_free as sub cdecl( byval as any ptr, byval as any ptr ptr ), _
+                                          byval my_realloc as function cdecl( byval as any ptr, byval as uinteger, byval as any ptr ptr ) as any ptr, byval abstract_ as any ptr ) as LIBSSH2_SESSION ptr
+'' C2T-TODO(function-like-macro) libssh2.h:649 -- 'NULL' is nothing tiko declares
+'' #define libssh2_session_init() libssh2_session_init_ex(NULL, NULL, NULL, NULL)
+
+declare function libssh2_session_abstract( byval session as LIBSSH2_SESSION ptr ) as any ptr ptr
+
+'' C2T-TODO(unsupported) libssh2.h:653 -- typedef 'libssh2_cb_generic' names a function type, not a pointer to one
+'' typedef void (libssh2_cb_generic)(void);
+
+declare function libssh2_session_callback_set2( byval session as LIBSSH2_SESSION ptr, byval cbtype as int32, _
+_
+                                                byval callback as sub cdecl(  ) ptr ) as sub cdecl(  ) ptr
+
+declare function libssh2_session_callback_set( byval session as LIBSSH2_SESSION ptr, _
+_
+                                               byval cbtype as int32, byval callback as any ptr ) as any ptr
+declare function libssh2_session_banner_set( byval session as LIBSSH2_SESSION ptr, _
+                                             byval banner as const zstring ptr ) as int32
+#ifndef LIBSSH2_NO_DEPRECATED
+declare function libssh2_banner_set( byval session as LIBSSH2_SESSION ptr, _
+_
+                                   byval banner as const zstring ptr ) as int32
+
+declare function libssh2_session_startup( byval session as LIBSSH2_SESSION ptr, byval sock as int32 ) as int32
+#endif
+#if defined(TIKO_OS_WINDOWS)
+'' C2T-TODO(refused-type) libssh2.h:672 -- 'libssh2_session_handshake' parameter 2: 'SOCKET' is a system header's type
+'' LIBSSH2_API int libssh2_session_handshake(LIBSSH2_SESSION *session,
+''                                           libssh2_socket_t sock);
+#elseif not (defined(TIKO_OS_WINDOWS))
+declare function libssh2_session_handshake( byval session as LIBSSH2_SESSION ptr, _
+                                            byval sock as libssh2_socket_t ) as int32
+#endif
+declare function libssh2_session_disconnect_ex( byval session as LIBSSH2_SESSION ptr, _
+                                                byval reason as int32, _
+                                                byval description as const zstring ptr, _
+                                                byval lang as const zstring ptr ) as int32
+#define libssh2_session_disconnect(session, description) libssh2_session_disconnect_ex((session), SSH_DISCONNECT_BY_APPLICATION, (description), "")
+
+declare function libssh2_session_free( byval session as LIBSSH2_SESSION ptr ) as int32
+
+declare function libssh2_hostkey_hash( byval session as LIBSSH2_SESSION ptr, _
+                                       byval hash_type as int32 ) as const zstring ptr
+
+declare function libssh2_session_hostkey( byval session as LIBSSH2_SESSION ptr, _
+                                          byval len_ as uinteger ptr, byval type_ as int32 ptr ) as const zstring ptr
+
+declare function libssh2_session_method_pref( byval session as LIBSSH2_SESSION ptr, _
+                                              byval method_type as int32, _
+                                              byval prefs as const zstring ptr ) as int32
+declare function libssh2_session_methods( byval session as LIBSSH2_SESSION ptr, _
+                                          byval method_type as int32 ) as const zstring ptr
+declare function libssh2_session_last_error( byval session as LIBSSH2_SESSION ptr, _
+                                             byval errmsg as zstring ptr ptr, _
+                                             byval errmsg_len as int32 ptr, byval want_buf as int32 ) as int32
+declare function libssh2_session_last_errno( byval session as LIBSSH2_SESSION ptr ) as int32
+declare function libssh2_session_set_last_error( byval session as LIBSSH2_SESSION ptr, _
+                                                 byval errcode as int32, _
+                                                 byval errmsg as const zstring ptr ) as int32
+declare function libssh2_session_block_directions( byval session as LIBSSH2_SESSION ptr ) as int32
+
+declare function libssh2_session_flag( byval session as LIBSSH2_SESSION ptr, byval flag as int32, _
+                                       byval value as int32 ) as int32
+declare function libssh2_session_banner_get( byval session as LIBSSH2_SESSION ptr ) as const zstring ptr
+
+/' Userauth API '/
+declare function libssh2_userauth_list( byval session as LIBSSH2_SESSION ptr, _
+                                        byval username as const zstring ptr, _
+                                        byval username_len as uint32 ) as zstring ptr
+declare function libssh2_userauth_banner( byval session as LIBSSH2_SESSION ptr, _
+                                          byval banner as zstring ptr ptr ) as int32
+declare function libssh2_userauth_authenticated( byval session as LIBSSH2_SESSION ptr ) as int32
+
+declare function libssh2_userauth_password_ex( byval session as LIBSSH2_SESSION ptr, _
+_
+                                               byval username as const zstring ptr, _
+                                               byval username_len as uint32, _
+                                               byval password as const zstring ptr, _
+                                               byval password_len as uint32, _
+                                               byval passwd_change_cb as sub cdecl( byval as LIBSSH2_SESSION ptr, byval as zstring ptr ptr, byval as int32 ptr, byval as any ptr ptr ) ) as int32
+
+'' C2T-TODO(function-like-macro) libssh2.h:725 -- 'NULL' is nothing tiko declares
+'' #define libssh2_userauth_password(session, username, password) \
+''     libssh2_userauth_password_ex((session), (username), \
+''                                  (unsigned int)strlen(username), \
+''                                  (password), (unsigned int)strlen(password), \
+''                                  NULL)
+
+declare function libssh2_userauth_publickey_fromfile_ex( byval session as LIBSSH2_SESSION ptr, _
+_
+                                                         byval username as const zstring ptr, _
+                                                         byval username_len as uint32, _
+                                                         byval publickey as const zstring ptr, _
+                                                         byval privatekey as const zstring ptr, _
+                                                         byval passphrase as const zstring ptr ) as int32
+
+#define libssh2_userauth_publickey_fromfile(session, username, publickey, privatekey, passphrase) libssh2_userauth_publickey_fromfile_ex((session), (username), cast(uint32, strlen((username))), (publickey), (privatekey), (passphrase))
+
+declare function libssh2_userauth_publickey( byval session as LIBSSH2_SESSION ptr, _
+_
+                                             byval username as const zstring ptr, _
+                                             byval pubkeydata as const uint8 ptr, _
+                                             byval pubkeydata_len as uinteger, _
+                                             byval sign_callback as function cdecl( byval as LIBSSH2_SESSION ptr, byval as uint8 ptr ptr, byval as uinteger ptr, byval as const uint8 ptr, byval as uinteger, byval as any ptr ptr ) as int32, _
+                               _
+                                             byval abstract_ as any ptr ptr ) as int32
+
+declare function libssh2_userauth_hostbased_fromfile_ex( byval session as LIBSSH2_SESSION ptr, _
+_
+                                                         byval username as const zstring ptr, _
+                                                         byval username_len as uint32, _
+                                                         byval publickey as const zstring ptr, _
+                                                         byval privatekey as const zstring ptr, _
+                                                         byval passphrase as const zstring ptr, _
+                                                         byval hostname as const zstring ptr, _
+                                                         byval hostname_len as uint32, _
+                                                         byval local_username as const zstring ptr, _
+                                                         byval local_username_len as uint32 ) as int32
+
+#define libssh2_userauth_hostbased_fromfile(session, username, publickey, privatekey, passphrase, hostname) libssh2_userauth_hostbased_fromfile_ex((session), (username), cast(uint32, strlen((username))), (publickey), (privatekey), (passphrase), (hostname), cast(uint32, strlen((hostname))), (username), cast(uint32, strlen((username))))
+
+declare function libssh2_userauth_publickey_frommemory( byval session as LIBSSH2_SESSION ptr, _
+_
+                                                        byval username as const zstring ptr, _
+                                                        byval username_len as uinteger, _
+                                                        byval publickeyfiledata as const zstring ptr, _
+                                                        byval publickeyfiledata_len as uinteger, _
+                                                        byval privatekeyfiledata as const zstring ptr, _
+                                                        byval privatekeyfiledata_len as uinteger, _
+                                                        byval passphrase as const zstring ptr ) as int32
+
+/'
+ * response_callback is provided with filled by library prompts array,
+ * but client must allocate and fill individual responses. Responses
+ * array is already allocated. Responses data will be freed by libssh2
+ * after callback return, but before subsequent callback invocation.
+ '/
+declare function libssh2_userauth_keyboard_interactive_ex( byval session as LIBSSH2_SESSION ptr, _
+_
+                                                           byval username as const zstring ptr, _
+                                                           byval username_len as uint32, _
+                                                           byval response_callback as sub cdecl( byval as const zstring ptr, byval as int32, byval as const zstring ptr, byval as int32, byval as int32, byval as const LIBSSH2_USERAUTH_KBDINT_PROMPT ptr, byval as LIBSSH2_USERAUTH_KBDINT_RESPONSE ptr, byval as any ptr ptr ) ) as int32
+
+#define libssh2_userauth_keyboard_interactive(session, username, response_callback) libssh2_userauth_keyboard_interactive_ex((session), (username), cast(uint32, strlen((username))), (response_callback))
+
+declare function libssh2_userauth_publickey_sk( byval session as LIBSSH2_SESSION ptr, _
+_
+                                                byval username as const zstring ptr, _
+                                                byval username_len as uinteger, _
+                                                byval pubkeydata as const uint8 ptr, _
+                                                byval pubkeydata_len as uinteger, _
+                                                byval privatekeydata as const zstring ptr, _
+                                                byval privatekeydata_len as uinteger, _
+                                                byval passphrase as const zstring ptr, _
+                                                byval sign_callback as function cdecl( byval as LIBSSH2_SESSION ptr, byval as LIBSSH2_SK_SIG_INFO ptr, byval as const uint8 ptr, byval as uinteger, byval as int32, byval as uint8, byval as const zstring ptr, byval as const uint8 ptr, byval as uinteger, byval as any ptr ptr ) as int32, _
+                                  _
+                                                byval abstract_ as any ptr ptr ) as int32
+
+#if defined(TIKO_OS_WINDOWS)
+type _LIBSSH2_POLLFD__fwd as _LIBSSH2_POLLFD
+declare function libssh2_poll( byval fds as _LIBSSH2_POLLFD ptr, byval nfds as uint32, _
+                               byval timeout as clong ) as int32
+#elseif not (defined(TIKO_OS_WINDOWS))
+declare function libssh2_poll( byval fds as LIBSSH2_POLLFD ptr, byval nfds as uint32, _
+                               byval timeout as clong ) as int32
+#endif
+
+/' Channel API '/
+#define LIBSSH2_CHANNEL_WINDOW_DEFAULT ((2 * 1024) * 1024)
+#define LIBSSH2_CHANNEL_PACKET_DEFAULT 32768
+#define LIBSSH2_CHANNEL_MINADJUST 1024
+
+/' Extended Data Handling '/
+#define LIBSSH2_CHANNEL_EXTENDED_DATA_NORMAL 0
+#define LIBSSH2_CHANNEL_EXTENDED_DATA_IGNORE 1
+#define LIBSSH2_CHANNEL_EXTENDED_DATA_MERGE 2
+
+#define SSH_EXTENDED_DATA_STDERR 1
+
+/' Returned by any function that would block during a read/write operation '/
+#define LIBSSH2CHANNEL_EAGAIN LIBSSH2_ERROR_EAGAIN
+
+declare function libssh2_channel_open_ex( byval session as LIBSSH2_SESSION ptr, byval channel_type as const zstring ptr, _
+_
+                                          byval channel_type_len as uint32, _
+                                          byval window_size as uint32, byval packet_size as uint32, _
+                                          byval message as const zstring ptr, byval message_len as uint32 ) as LIBSSH2_CHANNEL ptr
+
+'' C2T-TODO(function-like-macro) libssh2.h:844 -- 'sizeof'
+'' #define libssh2_channel_open_session(session) \
+''     libssh2_channel_open_ex((session), "session", sizeof("session") - 1, \
+''                             LIBSSH2_CHANNEL_WINDOW_DEFAULT, \
+''                             LIBSSH2_CHANNEL_PACKET_DEFAULT, NULL, 0)
+
+declare function libssh2_channel_direct_tcpip_ex( byval session as LIBSSH2_SESSION ptr, byval host as const zstring ptr, _
+_
+                                                  byval port as int32, byval shost as const zstring ptr, byval sport as int32 ) as LIBSSH2_CHANNEL ptr
+#define libssh2_channel_direct_tcpip(session, host, port) libssh2_channel_direct_tcpip_ex((session), (host), (port), "127.0.0.1", 22)
+
+declare function libssh2_channel_direct_streamlocal_ex( byval session as LIBSSH2_SESSION ptr, _
+_
+                                                        byval socket_path as const zstring ptr, _
+                                                        byval shost as const zstring ptr, byval sport as int32 ) as LIBSSH2_CHANNEL ptr
+
+declare function libssh2_channel_forward_listen_ex( byval session as LIBSSH2_SESSION ptr, byval host as const zstring ptr, _
+_
+                                                    byval port as int32, byval bound_port as int32 ptr, _
+                                                    byval queue_maxsize as int32 ) as LIBSSH2_LISTENER ptr
+'' C2T-TODO(function-like-macro) libssh2.h:864 -- 'NULL' is nothing tiko declares
+'' #define libssh2_channel_forward_listen(session, port) \
+''     libssh2_channel_forward_listen_ex((session), NULL, (port), NULL, 16)
+
+declare function libssh2_channel_forward_cancel( byval listener as LIBSSH2_LISTENER ptr ) as int32
+
+declare function libssh2_channel_forward_accept( byval listener as LIBSSH2_LISTENER ptr ) as LIBSSH2_CHANNEL ptr
+
+declare function libssh2_channel_setenv_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                            byval varname as const zstring ptr, _
+                                            byval varname_len as uint32, _
+                                            byval value as const zstring ptr, _
+                                            byval value_len as uint32 ) as int32
+
+#define libssh2_channel_setenv(channel, varname, value) libssh2_channel_setenv_ex((channel), (varname), cast(uint32, strlen((varname))), (value), cast(uint32, strlen((value))))
+
+declare function libssh2_channel_request_auth_agent( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+
+declare function libssh2_channel_request_pty_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                                 byval term as const zstring ptr, _
+                                                 byval term_len as uint32, _
+                                                 byval modes as const zstring ptr, _
+                                                 byval modes_len as uint32, _
+                                                 byval width_ as int32, byval height as int32, _
+                                                 byval width_px as int32, byval height_px as int32 ) as int32
+'' C2T-TODO(function-like-macro) libssh2.h:892 -- 'NULL' is nothing tiko declares
+'' #define libssh2_channel_request_pty(channel, term)                      \
+''     libssh2_channel_request_pty_ex((channel), (term),                   \
+''                                    (unsigned int)strlen(term),          \
+''                                    NULL, 0,                             \
+''                                    LIBSSH2_TERM_WIDTH,                  \
+''                                    LIBSSH2_TERM_HEIGHT,                 \
+''                                    LIBSSH2_TERM_WIDTH_PX,               \
+''                                    LIBSSH2_TERM_HEIGHT_PX)
+
+declare function libssh2_channel_request_pty_size_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                                      byval width_ as int32, byval height as int32, _
+                                                      byval width_px as int32, _
+                                                      byval height_px as int32 ) as int32
+#define libssh2_channel_request_pty_size(channel, width, height) libssh2_channel_request_pty_size_ex((channel), (width), (height), 0, 0)
+
+declare function libssh2_channel_x11_req_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                             byval single_connection as int32, _
+                                             byval auth_proto as const zstring ptr, _
+                                             byval auth_cookie as const zstring ptr, _
+                                             byval screen_number as int32 ) as int32
+'' C2T-TODO(function-like-macro) libssh2.h:913 -- 'NULL' is nothing tiko declares
+'' #define libssh2_channel_x11_req(channel, screen_number) \
+''     libssh2_channel_x11_req_ex((channel), 0, NULL, NULL, (screen_number))
+
+declare function libssh2_channel_signal_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                            byval signame as const zstring ptr, _
+                                            byval signame_len as uinteger ) as int32
+#define libssh2_channel_signal(channel, signame) libssh2_channel_signal_ex((channel), (signame), strlen((signame)))
+
+declare function libssh2_channel_process_startup( byval channel as LIBSSH2_CHANNEL ptr, _
+                                                  byval request as const zstring ptr, _
+                                                  byval request_len as uint32, _
+                                                  byval message as const zstring ptr, _
+                                                  byval message_len as uint32 ) as int32
+'' C2T-TODO(function-like-macro) libssh2.h:927 -- 'sizeof'
+'' #define libssh2_channel_shell(channel) \
+''     libssh2_channel_process_startup((channel), "shell", sizeof("shell") - 1, \
+''                                     NULL, 0)
+'' C2T-TODO(function-like-macro) libssh2.h:930 -- 'sizeof'
+'' #define libssh2_channel_exec(channel, command) \
+''     libssh2_channel_process_startup((channel), "exec", sizeof("exec") - 1, \
+''                                     (command), (unsigned int)strlen(command))
+'' C2T-TODO(function-like-macro) libssh2.h:933 -- 'sizeof'
+'' #define libssh2_channel_subsystem(channel, subsystem) \
+''     libssh2_channel_process_startup((channel), "subsystem", \
+''                                     sizeof("subsystem") - 1, (subsystem), \
+''                                     (unsigned int)strlen(subsystem))
+
+declare function libssh2_channel_read_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                          byval stream_id as int32, byval buf as zstring ptr, _
+                                          byval buflen as uinteger ) as integer
+#define libssh2_channel_read(channel, buf, buflen) libssh2_channel_read_ex((channel), 0, (buf), (buflen))
+#define libssh2_channel_read_stderr(channel, buf, buflen) libssh2_channel_read_ex((channel), SSH_EXTENDED_DATA_STDERR, (buf), (buflen))
+
+declare function libssh2_poll_channel_read( byval channel as LIBSSH2_CHANNEL ptr, _
+                                            byval extended as int32 ) as int32
+
+declare function libssh2_channel_window_read_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+_
+                                                 byval read_avail as culong ptr, _
+                                                 byval window_size_initial as culong ptr ) as culong
+'' C2T-TODO(function-like-macro) libssh2.h:955 -- 'NULL' is nothing tiko declares
+'' #define libssh2_channel_window_read(channel) \
+''     libssh2_channel_window_read_ex((channel), NULL, NULL)
+
+#ifndef LIBSSH2_NO_DEPRECATED
+declare function libssh2_channel_receive_window_adjust( byval channel as LIBSSH2_CHANNEL ptr, _
+_
+_
+                                      byval adjustment as culong, _
+                                      byval force as uint8 ) as culong
+#endif
+declare function libssh2_channel_receive_window_adjust2( byval channel as LIBSSH2_CHANNEL ptr, _
+_
+                                                         byval adjustment as culong, _
+                                                         byval force as uint8, _
+                                                         byval storewindow as uint32 ptr ) as int32
+
+declare function libssh2_channel_write_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                           byval stream_id as int32, byval buf as const zstring ptr, _
+                                           byval buflen as uinteger ) as integer
+
+#define libssh2_channel_write(channel, buf, buflen) libssh2_channel_write_ex((channel), 0, (buf), (buflen))
+#define libssh2_channel_write_stderr(channel, buf, buflen) libssh2_channel_write_ex((channel), SSH_EXTENDED_DATA_STDERR, (buf), (buflen))
+
+declare function libssh2_channel_window_write_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+_
+                                                  byval window_size_initial as culong ptr ) as culong
+'' C2T-TODO(function-like-macro) libssh2.h:985 -- 'NULL' is nothing tiko declares
+'' #define libssh2_channel_window_write(channel) \
+''     libssh2_channel_window_write_ex((channel), NULL)
+
+declare sub libssh2_session_set_blocking( byval session as LIBSSH2_SESSION ptr, _
+                                          byval blocking as int32 )
+declare function libssh2_session_get_blocking( byval session as LIBSSH2_SESSION ptr ) as int32
+
+declare sub libssh2_channel_set_blocking( byval channel as LIBSSH2_CHANNEL ptr, _
+                                          byval blocking as int32 )
+
+declare sub libssh2_session_set_timeout( byval session as LIBSSH2_SESSION ptr, _
+                                         byval timeout as clong )
+declare function libssh2_session_get_timeout( byval session as LIBSSH2_SESSION ptr ) as clong
+
+declare sub libssh2_session_set_read_timeout( byval session as LIBSSH2_SESSION ptr, _
+                                              byval timeout as clong )
+declare function libssh2_session_get_read_timeout( byval session as LIBSSH2_SESSION ptr ) as clong
+
+#ifndef LIBSSH2_NO_DEPRECATED
+declare sub libssh2_channel_handle_extended_data( byval channel as LIBSSH2_CHANNEL ptr, _
+_
+                                                      byval ignore_mode as int32 )
+#endif
+declare function libssh2_channel_handle_extended_data2( byval channel as LIBSSH2_CHANNEL ptr, _
+                                                        byval ignore_mode as int32 ) as int32
+
+#ifndef LIBSSH2_NO_DEPRECATED
+/' libssh2_channel_ignore_extended_data() is defined below for BC with version
+ * 0.1
+ *
+ * Future uses should use libssh2_channel_handle_extended_data() directly if
+ * LIBSSH2_CHANNEL_EXTENDED_DATA_MERGE is passed, extended data will be read
+ * (FIFO) from the standard data channel
+ '/
+/' DEPRECATED since 0.3.0. Use libssh2_channel_handle_extended_data2(). '/
+#define libssh2_channel_ignore_extended_data(channel, ignore) libssh2_channel_handle_extended_data((channel), iif((ignore), LIBSSH2_CHANNEL_EXTENDED_DATA_IGNORE, LIBSSH2_CHANNEL_EXTENDED_DATA_NORMAL))
+#endif
+
+#define LIBSSH2_CHANNEL_FLUSH_EXTENDED_DATA (-1)
+#define LIBSSH2_CHANNEL_FLUSH_ALL (-2)
+declare function libssh2_channel_flush_ex( byval channel as LIBSSH2_CHANNEL ptr, _
+                                           byval streamid as int32 ) as int32
+#define libssh2_channel_flush(channel) libssh2_channel_flush_ex((channel), 0)
+#define libssh2_channel_flush_stderr(channel) libssh2_channel_flush_ex((channel), SSH_EXTENDED_DATA_STDERR)
+
+declare function libssh2_channel_get_exit_status( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+declare function libssh2_channel_get_exit_signal( byval channel as LIBSSH2_CHANNEL ptr, _
+                                                  byval exitsignal as zstring ptr ptr, _
+                                                  byval exitsignal_len as uinteger ptr, _
+                                                  byval errmsg as zstring ptr ptr, _
+                                                  byval errmsg_len as uinteger ptr, _
+                                                  byval langtag as zstring ptr ptr, _
+                                                  byval langtag_len as uinteger ptr ) as int32
+declare function libssh2_channel_send_eof( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+declare function libssh2_channel_eof( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+declare function libssh2_channel_wait_eof( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+declare function libssh2_channel_close( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+declare function libssh2_channel_wait_closed( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+declare function libssh2_channel_free( byval channel as LIBSSH2_CHANNEL ptr ) as int32
+
+#ifndef LIBSSH2_NO_DEPRECATED
+'' C2T-TODO(refused-type) libssh2.h:1050 -- 'libssh2_scp_recv' parameter 3: 'struct stat' is a system header's type
+'' LIBSSH2_DEPRECATED(1.7.0, "Use libssh2_scp_recv2()")
+'' LIBSSH2_API LIBSSH2_CHANNEL *libssh2_scp_recv(LIBSSH2_SESSION *session,
+''                                               const char *path,
+''                                               struct stat *sb);
+#endif
+/' Use libssh2_scp_recv2() for large (> 2GB) file support on windows '/
+declare function libssh2_scp_recv2( byval session as LIBSSH2_SESSION ptr, _
+                                    byval path as const zstring ptr, _
+                                    byval sb as libssh2_struct_stat ptr ) as LIBSSH2_CHANNEL ptr
+declare function libssh2_scp_send_ex( byval session as LIBSSH2_SESSION ptr, _
+                                      byval path as const zstring ptr, byval mode as int32, _
+                                      byval size as uinteger, byval mtime as clong, _
+                                      byval atime as clong ) as LIBSSH2_CHANNEL ptr
+'' C2T-TODO(refused-type) libssh2.h:1063 -- 'libssh2_scp_send64' parameter 5: 'time_t' is a system header's type
+'' LIBSSH2_API LIBSSH2_CHANNEL *
+'' libssh2_scp_send64(LIBSSH2_SESSION *session, const char *path, int mode,
+''                    libssh2_int64_t size, time_t mtime, time_t atime);
+
+#define libssh2_scp_send(session, path, mode, size) libssh2_scp_send_ex((session), (path), (mode), (size), 0, 0)
+
+/' DEPRECATED '/
+declare function libssh2_base64_decode( byval session as LIBSSH2_SESSION ptr, byval dest as zstring ptr ptr, _
+                                        byval dest_len as uint32 ptr, _
+                                        byval src as const zstring ptr, byval src_len as uint32 ) as int32
+
+'' C2T-TODO(unrecognised) libssh2.h:1075 -- C text no clang declaration covers
+'' LIBSSH2_API
+declare function libssh2_version( byval req_version_num as int32 ) as const zstring ptr
+
+#if defined(TIKO_OS_WINDOWS)
+type libssh2_crypto_engine_t as int32
+enum
+    libssh2_no_crypto = 0
+    libssh2_openssl
+    libssh2_gcrypt
+    libssh2_mbedtls
+    libssh2_wincng
+    libssh2_os400qc3
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type libssh2_crypto_engine_t as uint32
+enum
+    libssh2_no_crypto = 0
+    libssh2_openssl
+    libssh2_gcrypt
+    libssh2_mbedtls
+    libssh2_wincng
+    libssh2_os400qc3
+end enum
+#endif
+
+'' C2T-TODO(unrecognised) libssh2.h:1087 -- C text no clang declaration covers
+'' LIBSSH2_API
+declare function libssh2_crypto_engine( ) as libssh2_crypto_engine_t
+
+#define HAVE_LIBSSH2_KNOWNHOST_API &h010101 /' since 1.1.1 '/
+#define HAVE_LIBSSH2_VERSION_API &h010100   /' libssh2_version since 1.1 '/
+#define HAVE_LIBSSH2_CRYPTOENGINE_API &h011100
+
+type libssh2_knownhost
+    magic as uint32      /' magic stored by the library '/
+    node as any ptr /' handle to the internal representation of this host '/
+    name as zstring ptr /' this is NULL if no plain text host name exists '/
+    key as zstring ptr  /' key in base64/printable format '/
+    typemask as int32
+end type
+
+/'
+ * libssh2_knownhost_init()
+ *
+ * Init a collection of known hosts. Returns the pointer to a collection.
+ *
+ '/
+declare function libssh2_knownhost_init( byval session as LIBSSH2_SESSION ptr ) as LIBSSH2_KNOWNHOSTS ptr
+
+/'
+ * libssh2_knownhost_add()
+ *
+ * Add a host and its associated key to the collection of known hosts.
+ *
+ * The 'type' argument specifies on what format the given host and keys are:
+ *
+ * plain  - ascii "hostname.domain.tld"
+ * sha1   - SHA1(<salt> <host>) base64-encoded!
+ * custom - another hash
+ *
+ * If 'sha1' is selected as type, the salt must be provided to the salt
+ * argument. This too base64 encoded.
+ *
+ * The SHA-1 hash is what OpenSSH can be told to use in known_hosts files.  If
+ * a custom type is used, salt is ignored and you must provide the host
+ * pre-hashed when checking for it in the libssh2_knownhost_check() function.
+ *
+ * The keylen parameter may be omitted (zero) if the key is provided as a
+ * NULL-terminated base64-encoded string.
+ '/
+
+/' host format (2 bits) '/
+#define LIBSSH2_KNOWNHOST_TYPE_MASK &hFFFF
+#define LIBSSH2_KNOWNHOST_TYPE_PLAIN 1
+#define LIBSSH2_KNOWNHOST_TYPE_SHA1 2    /' always base64 encoded '/
+#define LIBSSH2_KNOWNHOST_TYPE_CUSTOM 3
+
+/' key format (2 bits) '/
+#define LIBSSH2_KNOWNHOST_KEYENC_MASK (3 shl 16)
+#define LIBSSH2_KNOWNHOST_KEYENC_RAW (1 shl 16)
+#define LIBSSH2_KNOWNHOST_KEYENC_BASE64 (2 shl 16)
+
+/' type of key (4 bits) '/
+#define LIBSSH2_KNOWNHOST_KEY_MASK (15 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_SHIFT 18
+#define LIBSSH2_KNOWNHOST_KEY_RSA1 (1 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_SSHRSA (2 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_SSHDSS (3 shl 18)     /' deprecated '/
+#define LIBSSH2_KNOWNHOST_KEY_ECDSA_256 (4 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_ECDSA_384 (5 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_ECDSA_521 (6 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_ED25519 (7 shl 18)
+#define LIBSSH2_KNOWNHOST_KEY_UNKNOWN (15 shl 18)
+
+declare function libssh2_knownhost_add( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                        byval host as const zstring ptr, _
+                                        byval salt as const zstring ptr, _
+                                        byval key as const zstring ptr, byval keylen as uinteger, byval typemask as int32, _
+                                        byval store as libssh2_knownhost ptr ptr ) as int32
+
+/'
+ * libssh2_knownhost_addc()
+ *
+ * Add a host and its associated key to the collection of known hosts.
+ *
+ * Takes a comment argument that may be NULL.  A NULL comment indicates
+ * there is no comment and the entry will end directly after the key
+ * when written out to a file.  An empty string "" comment will indicate an
+ * empty comment which will cause a single space to be written after the key.
+ *
+ * The 'type' argument specifies on what format the given host and keys are:
+ *
+ * plain  - ascii "hostname.domain.tld"
+ * sha1   - SHA1(<salt> <host>) base64-encoded!
+ * custom - another hash
+ *
+ * If 'sha1' is selected as type, the salt must be provided to the salt
+ * argument. This too base64 encoded.
+ *
+ * The SHA-1 hash is what OpenSSH can be told to use in known_hosts files.
+ * If a custom type is used, salt is ignored and you must provide the host
+ * pre-hashed when checking for it in the libssh2_knownhost_check() function.
+ *
+ * The keylen parameter may be omitted (zero) if the key is provided as a
+ * NULL-terminated base64-encoded string.
+ '/
+
+declare function libssh2_knownhost_addc( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                         byval host as const zstring ptr, _
+                                         byval salt as const zstring ptr, _
+                                         byval key as const zstring ptr, byval keylen as uinteger, _
+                                         byval comment as const zstring ptr, byval commentlen as uinteger, byval typemask as int32, _
+                                         byval store as libssh2_knownhost ptr ptr ) as int32
+
+/'
+ * libssh2_knownhost_check()
+ *
+ * Check a host and its associated key against the collection of known hosts.
+ *
+ * The type is the type/format of the given host name.
+ *
+ * plain  - ascii "hostname.domain.tld"
+ * custom - prehashed base64 encoded. Note that this cannot use any salts.
+ *
+ *
+ * 'knownhost' may be set to NULL if you don't care about that info.
+ *
+ * Returns:
+ *
+ * LIBSSH2_KNOWNHOST_CHECK_* values, see below
+ *
+ '/
+
+#define LIBSSH2_KNOWNHOST_CHECK_MATCH 0
+#define LIBSSH2_KNOWNHOST_CHECK_MISMATCH 1
+#define LIBSSH2_KNOWNHOST_CHECK_NOTFOUND 2
+#define LIBSSH2_KNOWNHOST_CHECK_FAILURE 3
+
+declare function libssh2_knownhost_check( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                          byval host as const zstring ptr, byval key as const zstring ptr, byval keylen as uinteger, _
+                                          byval typemask as int32, _
+                                          byval knownhost as libssh2_knownhost ptr ptr ) as int32
+
+/' this function is identital to the above one, but also takes a port
+   argument that allows libssh2 to do a better check '/
+declare function libssh2_knownhost_checkp( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                           byval host as const zstring ptr, byval port as int32, _
+                                           byval key as const zstring ptr, byval keylen as uinteger, _
+                                           byval typemask as int32, _
+                                           byval knownhost as libssh2_knownhost ptr ptr ) as int32
+
+/'
+ * libssh2_knownhost_del()
+ *
+ * Remove a host from the collection of known hosts. The 'entry' struct is
+ * retrieved by a call to libssh2_knownhost_check().
+ *
+ '/
+declare function libssh2_knownhost_del( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                        byval entry as libssh2_knownhost ptr ) as int32
+
+/'
+ * libssh2_knownhost_free()
+ *
+ * Free an entire collection of known hosts.
+ *
+ '/
+declare sub libssh2_knownhost_free( byval hosts as LIBSSH2_KNOWNHOSTS ptr )
+
+/'
+ * libssh2_knownhost_readline()
+ *
+ * Pass in a line of a file of 'type'. It makes libssh2 read this line.
+ *
+ * LIBSSH2_KNOWNHOST_FILE_OPENSSH is the only supported type.
+ *
+ '/
+declare function libssh2_knownhost_readline( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                             byval line_ as const zstring ptr, byval len_ as uinteger, byval type_ as int32 ) as int32
+
+/'
+ * libssh2_knownhost_readfile()
+ *
+ * Add hosts+key pairs from a given file.
+ *
+ * Returns a negative value for error or number of successfully added hosts.
+ *
+ * This implementation currently only knows one 'type' (openssh), all others
+ * are reserved for future use.
+ '/
+
+#define LIBSSH2_KNOWNHOST_FILE_OPENSSH 1
+
+declare function libssh2_knownhost_readfile( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                             byval filename as const zstring ptr, byval type_ as int32 ) as int32
+
+/'
+ * libssh2_knownhost_writeline()
+ *
+ * Ask libssh2 to convert a known host to an output line for storage.
+ *
+ * Note that this function returns LIBSSH2_ERROR_BUFFER_TOO_SMALL if the given
+ * output buffer is too small to hold the desired output.
+ *
+ * This implementation currently only knows one 'type' (openssh), all others
+ * are reserved for future use.
+ *
+ '/
+declare function libssh2_knownhost_writeline( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                              byval known as libssh2_knownhost ptr, _
+                                              byval buffer as zstring ptr, byval buflen as uinteger, _
+                                              byval outlen as uinteger ptr, _ /' the amount of written data '/
+                                              byval type_ as int32 ) as int32
+
+/'
+ * libssh2_knownhost_writefile()
+ *
+ * Write hosts+key pairs to a given file.
+ *
+ * This implementation currently only knows one 'type' (openssh), all others
+ * are reserved for future use.
+ '/
+
+declare function libssh2_knownhost_writefile( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                              byval filename as const zstring ptr, byval type_ as int32 ) as int32
+
+/'
+ * libssh2_knownhost_get()
+ *
+ * Traverse the internal list of known hosts. Pass NULL to 'prev' to get
+ * the first one. Or pass a pointer to the previously returned one to get the
+ * next.
+ *
+ * Returns:
+ * 0 if a fine host was stored in 'store'
+ * 1 if end of hosts
+ * [negative] on errors
+ '/
+declare function libssh2_knownhost_get( byval hosts as LIBSSH2_KNOWNHOSTS ptr, _
+_
+                                        byval store as libssh2_knownhost ptr ptr, _
+                                        byval prev as libssh2_knownhost ptr ) as int32
+
+#define HAVE_LIBSSH2_AGENT_API &h010202 /' since 1.2.2 '/
+
+type libssh2_agent_publickey
+    magic as uint32                  /' magic stored by the library '/
+    node as any ptr /' handle to the internal representation of key '/
+    blob as uint8 ptr              /' public key blob '/
+    blob_len as uinteger           /' length of the public key blob '/
+    comment as zstring ptr         /' comment in printable format '/
+end type
+
+/'
+ * libssh2_agent_init()
+ *
+ * Init an ssh-agent handle. Returns the pointer to the handle.
+ *
+ '/
+declare function libssh2_agent_init( byval session as LIBSSH2_SESSION ptr ) as LIBSSH2_AGENT ptr
+
+/'
+ * libssh2_agent_connect()
+ *
+ * Connect to an ssh-agent.
+ *
+ * Returns 0 if succeeded, or a negative value for error.
+ '/
+declare function libssh2_agent_connect( byval agent as LIBSSH2_AGENT ptr ) as int32
+
+/'
+ * libssh2_agent_list_identities()
+ *
+ * Request an ssh-agent to list identities.
+ *
+ * Returns 0 if succeeded, or a negative value for error.
+ '/
+declare function libssh2_agent_list_identities( byval agent as LIBSSH2_AGENT ptr ) as int32
+
+/'
+ * libssh2_agent_get_identity()
+ *
+ * Traverse the internal list of public keys. Pass NULL to 'prev' to get
+ * the first one. Or pass a pointer to the previously returned one to get the
+ * next.
+ *
+ * Returns:
+ * 0 if a fine public key was stored in 'store'
+ * 1 if end of public keys
+ * [negative] on errors
+ '/
+declare function libssh2_agent_get_identity( byval agent as LIBSSH2_AGENT ptr, _
+_
+                                             byval store as libssh2_agent_publickey ptr ptr, _
+                                             byval prev as libssh2_agent_publickey ptr ) as int32
+
+/'
+ * libssh2_agent_userauth()
+ *
+ * Do publickey user authentication with the help of ssh-agent.
+ *
+ * Returns 0 if succeeded, or a negative value for error.
+ '/
+declare function libssh2_agent_userauth( byval agent as LIBSSH2_AGENT ptr, _
+_
+                                         byval username as const zstring ptr, _
+                                         byval identity as libssh2_agent_publickey ptr ) as int32
+
+/'
+ * libssh2_agent_sign()
+ *
+ * Sign a payload using a system-installed ssh-agent.
+ *
+ * Returns 0 if succeeded, or a negative value for error.
+ '/
+declare function libssh2_agent_sign( byval agent as LIBSSH2_AGENT ptr, _
+_
+                                     byval identity as libssh2_agent_publickey ptr, _
+                                     byval sig as uint8 ptr ptr, _
+                                     byval s_len as uinteger ptr, _
+                                     byval data_ as const uint8 ptr, _
+                                     byval d_len as uinteger, _
+                                     byval method as const zstring ptr, _
+                                     byval method_len as uint32 ) as int32
+
+/'
+ * libssh2_agent_disconnect()
+ *
+ * Close a connection to an ssh-agent.
+ *
+ * Returns 0 if succeeded, or a negative value for error.
+ '/
+declare function libssh2_agent_disconnect( byval agent as LIBSSH2_AGENT ptr ) as int32
+
+/'
+ * libssh2_agent_free()
+ *
+ * Free an ssh-agent handle.  This function also frees the internal
+ * collection of public keys.
+ '/
+declare sub libssh2_agent_free( byval agent as LIBSSH2_AGENT ptr )
+
+/'
+ * libssh2_agent_set_identity_path()
+ *
+ * Allows a custom agent identity socket path beyond SSH_AUTH_SOCK env
+ *
+ '/
+declare sub libssh2_agent_set_identity_path( byval agent as LIBSSH2_AGENT ptr, _
+_
+                                             byval path as const zstring ptr )
+
+/'
+ * libssh2_agent_get_identity_path()
+ *
+ * Returns the custom agent identity socket path if set
+ *
+ '/
+declare function libssh2_agent_get_identity_path( byval agent as LIBSSH2_AGENT ptr ) as const zstring ptr
+
+/'
+ * libssh2_keepalive_config()
+ *
+ * Set how often keepalive messages should be sent.  WANT_REPLY
+ * indicates whether the keepalive messages should request a response
+ * from the server.  INTERVAL is number of seconds that can pass
+ * without any I/O, use 0 (the default) to disable keepalives.  To
+ * avoid some busy-loop corner-cases, if you specify an interval of 1
+ * it will be treated as 2.
+ *
+ * Note that non-blocking applications are responsible for sending the
+ * keepalive messages using libssh2_keepalive_send().
+ '/
+declare sub libssh2_keepalive_config( byval session as LIBSSH2_SESSION ptr, _
+                                      byval want_reply as int32, _
+                                      byval interval as uint32 )
+
+/'
+ * libssh2_keepalive_send()
+ *
+ * Send a keepalive message if needed.  SECONDS_TO_NEXT indicates how
+ * many seconds you can sleep after this call before you need to call
+ * it again.  Returns 0 on success, or LIBSSH2_ERROR_SOCKET_SEND on
+ * I/O errors.
+ '/
+declare function libssh2_keepalive_send( byval session as LIBSSH2_SESSION ptr, _
+                                         byval seconds_to_next as int32 ptr ) as int32
+
+/' NOTE NOTE NOTE
+   libssh2_trace() has no function in builds that aren't built with debug
+   enabled
+ '/
+declare function libssh2_trace( byval session as LIBSSH2_SESSION ptr, byval bitmask as int32 ) as int32
+#define LIBSSH2_TRACE_TRANS (1 shl 1)
+#define LIBSSH2_TRACE_KEX (1 shl 2)
+#define LIBSSH2_TRACE_AUTH (1 shl 3)
+#define LIBSSH2_TRACE_CONN (1 shl 4)
+#define LIBSSH2_TRACE_SCP (1 shl 5)
+#define LIBSSH2_TRACE_SFTP (1 shl 6)
+#define LIBSSH2_TRACE_ERROR (1 shl 7)
+#define LIBSSH2_TRACE_PUBLICKEY (1 shl 8)
+#define LIBSSH2_TRACE_SOCKET (1 shl 9)
+
+type libssh2_trace_handler_func as sub cdecl( byval as LIBSSH2_SESSION ptr, byval as any ptr, byval as const zstring ptr, byval as uinteger )
+declare function libssh2_trace_sethandler( byval session as LIBSSH2_SESSION ptr, _
+                                           byval context as any ptr, _
+                                           byval callback as libssh2_trace_handler_func ) as int32
+
+end extern
+
+#endif /' !RC_INVOKED '/
+
+#endif /' LIBSSH2_H '/

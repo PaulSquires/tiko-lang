@@ -11,6 +11,9 @@ version = "0.1.0"
 [vendor.sqlite3]
 links = ["static", "dynamic"]
 
+[vendor.libssh2]
+links = ["static", "dynamic"]
+
 [vendor.SDL3]
 links = ["static", "dynamic"]
 

@@ -256,6 +256,23 @@ int __cdecl atexit( tkort_pvfv fn )
     return _crt_atexit( fn );
 }
 
+/* _onexit IS atexit WITH AN int RESULT, and ucrtbase.dll does not export it: MSVC's
+** lives in libcmt.lib's utility.obj, which defines atexit TOO. A static MSVC library
+** that calls it -- OpenSSL's crypto/init.c, MariaDB Connector/C's win_crypt.c -- made
+** lld pull that member and stop on 'duplicate symbol: atexit' against this file
+** (claude-docs docs/tiko-vendor RFC-0003 P0, F1). Registered through atexit above, so
+** the order with atexit's own entries is kept and a DLL's stays its own. The function's
+** int is ignored, as MSVC's is. Returns fn, or NULL when it could not be registered. */
+typedef int ( __cdecl *tkort_onexit_t )( void );
+
+tkort_onexit_t __cdecl _onexit( tkort_onexit_t fn )
+{
+    /* Through void *: an int-returning function called as a void one is sound on
+    ** x64 (the result is in RAX and nobody reads it), and the detour keeps
+    ** -Wcast-function-type quiet about the one conversion that is meant. */
+    return atexit( (tkort_pvfv)(void *)fn ) == 0 ? fn : 0;
+}
+
 TKORT_UCRT_INLINE int __cdecl sprintf( char *buffer, char const *format, ... )
 {
     int result;

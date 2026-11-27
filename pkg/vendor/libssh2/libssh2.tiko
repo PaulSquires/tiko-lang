@@ -1,0 +1,57 @@
+'' vendor/libssh2 -- libssh2 1.11.1, the SSH-2 client library: SFTP, SCP, remote commands and
+'' port forwarding, with its cryptography through OpenSSL 3.5, as one import:
+''
+''     #import "vendor/libssh2" link static        (or 'link dynamic', or neither)
+''
+'' Every routine, type and constant of libssh2.h, libssh2_sftp.h and libssh2_publickey.h is then
+'' callable as libssh2 documents it (https://libssh2.org/docs.html), unqualified --
+'' libssh2_session_handshake, libssh2_sftp_open_ex, LIBSSH2_FXF_READ.
+''
+'' THE HEADERS are libssh2.ti, libssh2_sftp.ti and libssh2_publickey.ti, translated by 'tiko c2t'
+'' and committed; their banners name the C headers and their SHA-256. libssh2-residue.ti holds by
+'' hand what the translation could not carry: libssh2_session_handshake and libssh2_socket_t on
+'' Windows, libssh2_scp_send64, the record libssh2_scp_recv2 fills (libssh2_scp_stat), the banner
+'' strings and the convenience macros over the _ex routines (libssh2_userauth_password,
+'' libssh2_channel_exec, libssh2_sftp_readdir, ...).
+''
+'' libssh2 runs over a socket the program connects itself -- std/net's, or the OS's -- and hands
+'' to libssh2_session_handshake. Then, in this order, which is the security of it:
+''
+''     dim as LIBSSH2_SESSION ptr s = libssh2_session_init( )
+''     if libssh2_session_handshake( s, sock ) <> 0 then ...           '' key exchange
+''     '' 1. THE SERVER'S HOST KEY -- check it before sending any credential:
+''     ''    libssh2_session_hostkey, then libssh2_knownhost_checkp against known_hosts.
+''     ''    A key not found is not a key to trust.
+''     '' 2. authenticate: libssh2_userauth_publickey_fromfile_ex (OpenSSH-format and PEM keys,
+''     ''    ed25519, ECDSA, RSA; a passphrase as the last argument) or libssh2_userauth_password
+''     dim as LIBSSH2_SFTP ptr sftp = libssh2_sftp_init( s )
+''
+'' What libssh2 allocates, libssh2 frees: libssh2_sftp_close_handle for an SFTP handle,
+'' libssh2_sftp_shutdown, libssh2_channel_free, libssh2_knownhost_free, libssh2_session_free --
+'' and libssh2_free for the buffers some routines return. An error is a negative return; the
+'' text is libssh2_session_last_error's. LIBSSH2_ERROR_PUBLICKEY_UNVERIFIED (-19) covers both a
+'' key file libssh2 cannot read and a wrong passphrase.
+''
+'' THE LIBRARY: OpenSSL's libcrypto is inside it -- nothing else to ship. With 'link static'
+'' libssh2 and libcrypto are linked into the program; with 'link dynamic' -- and when no
+'' '#import' says, which is this package's default -- the shared library, which tiko copies
+'' beside the program: libssh2.dll on Windows, libssh2_linux_x86_64.so on Linux. macOS and
+'' linux-arm64 have no library yet (claude-docs docs/tiko-vendor RFC-0004 P3).
+#module "libssh2"
+
+public #include once "libssh2.ti"
+public #include once "libssh2_sftp.ti"
+public #include once "libssh2_publickey.ti"
+public #include once "libssh2-residue.ti"
+
+#ifdef TIKO_LINK_STATIC
+    '' A static libssh2 on Windows needs what its OpenSSL and libssh2.dll would have imported.
+    #ifdef TIKO_OS_WINDOWS
+        #foreignlib SSH2 static "lib/libssh2", "system:ws2_32", "system:crypt32", _
+                                "system:advapi32", "system:user32"
+    #else
+        #foreignlib SSH2 static "lib/libssh2", "system:pthread", "system:dl"
+    #endif
+#else
+    #foreignlib SSH2 dynamic "lib/libssh2"
+#endif
