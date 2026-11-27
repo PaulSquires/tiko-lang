@@ -1,0 +1,57 @@
+'' PostgreSQL through libpq, from the toolchain's vendor package.
+'' The connection string comes from the environment, TIKO_PG_DSN.
+#import "vendor/libpq"
+
+dim shared c as PGconn ptr
+
+'' Run SQL with parameters; stop on a failure. The caller clears.
+function Query( byval sql as string, byval n as int32, _
+                byval vals as const zstring ptr ptr ) as PGresult ptr
+    var r = PQexecParams( c, sql, n, nullptr, vals, nullptr, _
+                          nullptr, 0 )
+    var st = PQresultStatus( r )
+    if st <> PGRES_COMMAND_OK andalso st <> PGRES_TUPLES_OK then
+        print "PostgreSQL error: "; *PQresultErrorMessage( r )
+        end 1
+    end if
+    return r
+end function
+
+c = PQconnectdb( environ( "TIKO_PG_DSN" ) )
+if PQstatus( c ) <> CONNECTION_OK then
+    print "cannot connect: "; *PQerrorMessage( c )
+    end 1
+end if
+PQclear( Query( "create temp table contact( id serial primary " & _
+    "key, name text not null, email text )", 0, nullptr ) )
+
+'' Values go in as $1, $2 beside the SQL; nullptr is NULL.
+dim as string names( ... ) = { "Grace", "Ada", "Edsger" }
+dim as string emails( ... ) = { "grace@example.org", _
+                                "ada@example.org", "" }
+dim as const zstring ptr vals( 0 to 1 )
+for i as int32 = 0 to ubound( names )
+    vals( 0 ) = strptr( names( i ) )
+    vals( 1 ) = nullptr
+    if len( emails( i ) ) then vals( 1 ) = strptr( emails( i ) )
+    PQclear( Query( "insert into contact( name, email ) " & _
+        "values( $1, $2 )", 2, @vals( 0 ) ) )
+next
+
+'' A result holds every row; each value is text.
+var r = Query( "select id, name, email from contact " & _
+    "where email is not null order by name", 0, nullptr )
+for row as int32 = 0 to PQntuples( r ) - 1
+    print *PQgetvalue( r, row, 0 ); "  "; *PQgetvalue( r, row, 1 ); _
+          "  "; *PQgetvalue( r, row, 2 )
+next
+PQclear( r )
+
+'' A failure carries its SQLSTATE: 23502 is not_null_violation.
+vals( 0 ) = nullptr
+r = PQexecParams( c, "insert into contact( name ) values( $1 )", _
+                  1, nullptr, @vals( 0 ), nullptr, nullptr, 0 )
+print "refused: "; *PQresultErrorField( r, PG_DIAG_SQLSTATE ); _
+      " "; *PQresultErrorField( r, PG_DIAG_MESSAGE_PRIMARY )
+PQclear( r )
+PQfinish( c )

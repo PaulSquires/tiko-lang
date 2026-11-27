@@ -1,0 +1,60 @@
+'' MySQL or MariaDB through Connector/C, from the vendor package.
+'' The server and account come from TIKO_MYSQL_HOST, _USER,
+'' _PASSWORD and _DB.
+#import "vendor/mariadb"
+
+var m = mysql_init( nullptr )
+mysql_optionsv( m, MYSQL_SET_CHARSET_NAME, strptr( "utf8mb4" ) )
+if mysql_real_connect( m, environ( "TIKO_MYSQL_HOST" ), _
+        environ( "TIKO_MYSQL_USER" ), _
+        environ( "TIKO_MYSQL_PASSWORD" ), _
+        environ( "TIKO_MYSQL_DB" ), 0, nullptr, 0 ) = nullptr then
+    print "cannot connect: "; *mysql_error( m )
+    end 1
+end if
+mysql_query( m, "create temporary table contact( id int " & _
+    "auto_increment primary key, name varchar(40) not null, " & _
+    "email varchar(80) )" )
+
+'' A prepared statement: '?' in the SQL, a MYSQL_BIND per value.
+var st = mysql_stmt_init( m )
+dim as string sql = "insert into contact( name, email ) " & _
+                    "values( ?, ? )"
+mysql_stmt_prepare( st, strptr( sql ), len( sql ) )
+dim as string names( ... ) = { "Grace", "Ada", "Edsger" }
+dim as string emails( ... ) = { "grace@example.org", _
+                                "ada@example.org", "" }
+dim as culong lens( 0 to 1 )
+dim as my_bool noemail
+dim as MYSQL_BIND p( 0 to 1 )
+p( 0 ).buffer_type = MYSQL_TYPE_STRING : p( 0 ).length = @lens( 0 )
+p( 1 ).buffer_type = MYSQL_TYPE_STRING : p( 1 ).length = @lens( 1 )
+p( 1 ).is_null = @noemail
+for i as int32 = 0 to ubound( names )
+    p( 0 ).buffer = strptr( names( i ) )
+    lens( 0 ) = len( names( i ) )
+    p( 1 ).buffer = strptr( emails( i ) )
+    lens( 1 ) = len( emails( i ) )
+    noemail = iif( len( emails( i ) ), 0, 1 )
+    mysql_stmt_bind_param( st, @p( 0 ) )
+    if mysql_stmt_execute( st ) then print *mysql_stmt_error( st )
+next
+mysql_stmt_close( st )
+print "last id:"; mysql_insert_id( m )
+
+'' A stored result: each row an array of zstring ptr.
+mysql_query( m, "select id, name, email from contact " & _
+                "where email is not null order by name" )
+var res = mysql_store_result( m )
+var row = mysql_fetch_row( res )
+while row
+    print *row[0]; "  "; *row[1]; "  "; *row[2]
+    row = mysql_fetch_row( res )
+wend
+mysql_free_result( res )
+
+'' A failure carries its number: 1048 is "column cannot be null".
+if mysql_query( m, "insert into contact( name ) values( null )" ) then
+    print "refused:"; mysql_errno( m ); " "; *mysql_error( m )
+end if
+mysql_close( m )

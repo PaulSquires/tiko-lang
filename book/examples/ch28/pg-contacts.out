@@ -1,0 +1,3 @@
+2  Ada  ada@example.org
+1  Grace  grace@example.org
+refused: 23502 null value in column "name" of relation "contact" violates not-null constraint

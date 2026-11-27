@@ -1,4 +1,4 @@
-# Logging, Terminal UIs, SQLite and Regular Expressions
+# Logging, Terminal UIs, Databases and Regular Expressions
 
 Four libraries cover four things most programs end up doing. A program that runs for any length
 of time needs to say what it did, and **`std/logs`** writes that record properly: with levels,
@@ -397,6 +397,99 @@ depth and heap limits do not apply to machine code, which has a stack of its own
 default, `link dynamic`, copies `pcre2.dll` (on Linux `pcre2_linux_x86_64.so`, on macOS
 `pcre2_macos_arm64.dylib`) beside it.
 
+## Database servers: PostgreSQL and MySQL
+
+SQLite keeps a database in the program. When several programs, on several machines, share one
+database, the database is a **server** instead, and a program reaches it over the network through
+a client library. tiko ships the two most common as vendor packages: **`vendor/libpq`**, libpq,
+PostgreSQL's own client library, and **`vendor/mariadb`**, MariaDB's Connector/C, which speaks to
+both MySQL and MariaDB through the `mysql.h` interface. As with SQLite, what you call is the
+library's own C interface, written as its documentation writes it.
+
+Both listings do what `contacts-db.tiko` did, so the three can be read side by side. A program
+should not carry a database password in its source, so they take the connection from the
+environment.
+
+```admonish warning title="Status in this version"
+`vendor/libpq` and `vendor/mariadb` come after tiko 0.1.8, the toolchain this book is checked
+with: the two listings below were compiled and run with the development compiler, on Windows and
+Linux, against PostgreSQL 14 and MySQL 8.0. Neither package has a library for macOS or
+linux-arm64 yet.
+```
+
+### PostgreSQL
+
+```tiko
+{{#include ../examples/ch28/pg-contacts.tiko}}
+```
+
+```text
+{{#include ../examples/ch28/pg-contacts.out}}
+```
+
+**`PQconnectdb`** takes a connection string, keyword=value pairs such as
+`host=db.example.com dbname=app user=app`, and always returns a `PGconn ptr`, also when it
+failed: **`PQstatus`** says which, `PQerrorMessage` says why, and **`PQfinish`** frees it either
+way.
+
+**`PQexecParams`** runs one statement. The values go beside the SQL, not in it: `$1`, `$2` in the
+text, and an array of `const zstring ptr`, one per parameter, with `nullptr` for SQL's `NULL`. The
+`nullptr` before the array lets the server work out each parameter's type; the two after it and
+the `0` say that every value, and the result, is text. The answer is a **`PGresult ptr`**: `PQresultStatus` says whether it is rows
+(`PGRES_TUPLES_OK`), a statement done (`PGRES_COMMAND_OK`) or a failure, and **every one, a
+failure's too, is freed with `PQclear`**. `Query` folds the check into one place.
+
+A result holds all its rows at once: `PQntuples` of them, `PQnfields` columns each, every value a
+string from **`PQgetvalue( r, row, column )`**, which belongs to the result and lives as long as
+it. A failure carries its **SQLSTATE**, `PQresultErrorField( r, PG_DIAG_SQLSTATE )`, a
+five-character code that is the same in every language the server speaks: test it, not the
+message. `23502` is a `not null` constraint refusing a row.
+
+```admonish danger title="Pitfall"
+**A `NULL` comes back from `PQgetvalue` as an empty string**, indistinguishable from a value
+that really is empty. Test **`PQgetisnull( r, row, column )`** first wherever a column can be
+`NULL`; the listing's query avoids the question by asking only for contacts with an email.
+```
+
+### MySQL and MariaDB
+
+```tiko
+{{#include ../examples/ch28/mysql-contacts.tiko}}
+```
+
+```text
+{{#include ../examples/ch28/mysql-contacts.out}}
+```
+
+**`mysql_init`** makes the connection handle, a `MYSQL ptr`, and **`mysql_close`** frees it,
+after a failed connect too. `MYSQL` is opaque: the program holds the pointer and asks the library
+for what is in it. **`MYSQL_SET_CHARSET_NAME`** asks for `utf8mb4` before connecting, so text
+crosses as UTF-8 bytes in both directions; MySQL's older `utf8` is a three-byte subset.
+
+A **prepared statement** takes its values through **`MYSQL_BIND`** records, one per `?`. Each says
+what kind of variable holds the value (`buffer_type`), where it is (`buffer`), how long it is
+(`length`, for text) and whether it is `NULL` (`is_null`). The records are read when
+**`mysql_stmt_execute`** runs, so the loop points them at the next row's strings, binds them again
+with `mysql_stmt_bind_param` and executes again. Rows come back from `mysql_store_result` as
+arrays of `zstring ptr`, `nullptr` for `NULL`, until `mysql_fetch_row` returns `nullptr`.
+
+A failure is a **number**: `mysql_errno`, 1048 for a `NULL` where one is not allowed. MySQL's
+SQLSTATE is often only the generic `HY000`, so the number is what a program tests.
+
+### Encrypted connections and linking
+
+Both libraries encrypt a connection when the server offers it, but encryption that does not
+check the server's certificate accepts anyone who answers. With libpq, add
+`sslmode=verify-full sslrootcert=ca.crt` to the connection string; with Connector/C, set
+`MYSQL_OPT_SSL_CA` and `MYSQL_OPT_SSL_VERIFY_SERVER_CERT` with `mysql_optionsv` before connecting.
+The TLS library is inside each package -- OpenSSL, or on Windows the system's own for Connector/C
+-- so there is nothing else to install.
+
+`vendor/libpq` links either way, as SQLite does. **`vendor/mariadb` is a shared library only**:
+Connector/C is under the GNU LGPL, which lets any program use it as long as the library stays a
+separate file its user could replace, so `link static` is refused (`TKO0156`). The build copies
+`libmariadb.dll` (on Linux `libmariadb_linux_x86_64.so`) beside the program, to ship with it.
+
 ## The finance library
 
 Chapter 27 used `Decimal`, `Currency` and loan schedules from **`#import "std/money"`**. The same
@@ -429,6 +522,10 @@ every function, and all of them are reached as `money.`.
 - **`vendor/sqlite3` costs a second file or a larger program.** Linked dynamically, SQLite's
   shared library, 3.5 MB on Windows, travels beside the program; linked statically, the program
   grows by about 1.1 MB. Either way nothing needs installing on the machine that runs it.
+- **A database server costs a network round trip per statement.** Many rows belong in one
+  transaction, or in PostgreSQL's `COPY`. The client libraries carry their TLS with them:
+  `libpq.dll` is 5.4 MB on Windows, most of it OpenSSL, and a static libpq adds about 5 MB there;
+  `libmariadb.dll` is 0.7 MB on Windows, where TLS is the system's, and 8 MB on Linux.
 
 ## Summary
 
@@ -456,6 +553,16 @@ every function, and all of them are reached as `money.`.
 - A pattern from outside the program gets a match context with `pcre2_set_match_limit`; a
   match that reaches it returns `PCRE2_ERROR_MATCHLIMIT`. After `pcre2_jit_compile`, matching
   runs machine code and still keeps to the match limit.
+- `#import "vendor/libpq"`: `PQconnectdb` with a connection string, then `PQstatus`;
+  `PQexecParams` with `$1`, `$2` and an array of values, `nullptr` for `NULL`; rows from
+  `PQgetvalue`, `NULL` told apart by `PQgetisnull`; every `PGresult` freed with `PQclear`, the
+  connection with `PQfinish`. A failure's SQLSTATE comes from `PQresultErrorField`.
+- `#import "vendor/mariadb"`: `mysql_init`, `mysql_real_connect`, `mysql_close`; `utf8mb4` asked
+  for before connecting; prepared statements with `?` and a `MYSQL_BIND` per value; errors by
+  `mysql_errno`. It links dynamically only.
+- A connection to a server across a network checks the server's certificate:
+  `sslmode=verify-full` for libpq, `MYSQL_OPT_SSL_CA` with `MYSQL_OPT_SSL_VERIFY_SERVER_CERT` for
+  Connector/C.
 - `std/money` also carries rates, the time value of money, loans, cash flows, depreciation and
   portfolio measures.
 
@@ -476,3 +583,8 @@ every function, and all of them are reached as `money.`.
    `pattern`, and use it to split `"a, b ,c,,d"` on `\s*,\s*`. Which pieces are empty, and why?
 7. Make `regex-find.tiko` print each name with the character position it starts at in `text`,
    computed from the byte offset PCRE2 gives.
+8. Make `pg-contacts.tiko` list every contact, printing `(none)` for one without an email. Which
+   call tells a `NULL` email from an empty one?
+9. Read the rows of `mysql-contacts.tiko` through a prepared statement as well:
+   `mysql_stmt_bind_result` with a buffer per column, then `mysql_stmt_fetch` until it returns
+   `MYSQL_NO_DATA`.

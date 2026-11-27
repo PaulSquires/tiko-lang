@@ -280,6 +280,6 @@ Both paths are relative to **the file that holds them**, and `#foreignlib` picks
 
 ---
 
-**Next:** [PCRE2](PCRE2-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial) · [Vendor Packages](Vendor-Packages)
+**Next:** [PostgreSQL](PostgreSQL-Tutorial) · [MySQL and MariaDB](MySQL-Tutorial) · [PCRE2](PCRE2-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial) · [Vendor Packages](Vendor-Packages)
 
 [Home](Home)

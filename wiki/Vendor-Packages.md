@@ -48,6 +48,8 @@ Every routine, type and constant of the library's C header is callable as the li
 | `vendor/pcre2` | PCRE2 10.49, the 8-bit library (UTF-8), with Unicode support and the JIT | `static`, `dynamic` (the default) |
 | `vendor/zint` | libzint 2.16.0, the barcode library: its BSD-3 backend, built without PNG output | `static`, `dynamic` (the default) |
 | `vendor/mxml` | Mini-XML 4.0.6, the small XML library, built from master past it for three memory-safety fixes | `static`, `dynamic` (the default) |
+| `vendor/libpq` | libpq from PostgreSQL 19.0, PostgreSQL's client library, with OpenSSL 3.5.9 inside | `static`, `dynamic` (the default) |
+| `vendor/mariadb` | MariaDB Connector/C 3.4.11, the `mysql.h` client API for MySQL and MariaDB servers (OpenSSL 3.5.9 inside on Linux) | `dynamic` (the default; Connector/C is LGPL) |
 
 **`vendor/tkControls/<control>`** is tiko source, not a C library: owner-drawn controls on SDL3 for Windows, Linux and macOS, one module each. On macOS they run with Homebrew's SDL3. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. `vendor/tkControls/tkCodeEdit` takes `link static`, which puts scintk inside the program. See [tkControls](Category-tkControls).
 
@@ -63,7 +65,11 @@ Every routine, type and constant of the library's C header is callable as the li
 
 **`vendor/zint` is libzint alone** (zint's command line and GUI are GPL and not shipped): `ZBarcode_Create`, `ZBarcode_Encode_and_Buffer_Vector`, `ZBarcode_Delete` and the rest, as its manual has them. Data is bytes; with `UNICODE_MODE` a `string` holding UTF-8 (assign a `ustring` to one). Empty data is an error. `encoded_data` is bit-packed: module (row, col) is `( encoded_data(row, col shr 3) shr ( col and 7 ) ) and 1`. With `scale = 0.5` the vector's units are modules. `ZBarcode_Print` writes BMP, EMF, GIF, PCX, EPS, SVG and TIF files, not PNG. [tkBarcode](tkBarcode) is the control built on it.
 
-**`vendor/mxml` is Mini-XML's C API** -- `mxmlLoadString`, `mxmlFindElement`, `mxmlElementGetAttr`, `mxmlNewElement`, `mxmlSaveFilename`, `mxmlDelete` -- as its documentation has it. Load with `mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )` to get each element's text as one string. Strings it returns belong to the tree; `mxmlSaveAllocString`'s text is `malloc`'d, freed with `free( )`. A search (`mxmlFindElement`, `mxmlWalkNext`) starts after the node it is given, never at it. A SAX callback (`mxmlOptionsSetSAXCallback`) streams a document without keeping it. Its files go through C's `fopen` in text mode, so on Windows they are saved with CR LF line ends. See the [Mini-XML tutorial](MXML-Tutorial).
+**`vendor/mxml` is Mini-XML's C API** -- `mxmlLoadString`, `mxmlFindElement`, `mxmlElementGetAttr`, `mxmlNewElement`, `mxmlSaveFilename`, `mxmlDelete` -- as its documentation has it. Load with `mxmlOptionsSetTypeValue( opts, MXML_TYPE_OPAQUE )` to get each element's text as one string. Strings it returns belong to the tree; `mxmlSaveAllocString`'s text is `malloc`'d, freed with `free(**`vendor/libpq` is libpq's C API** -- `PQconnectdb`, `PQexecParams`, `PQgetvalue`, `PQclear`, `PQfinish` -- as PostgreSQL's documentation has it, with OpenSSL linked inside it for TLS: nothing else to install or ship. `PQconnectdb` returns a connection also when it fails, so test `PQstatus` and `PQfinish` it either way; every `PGresult`, an error's too, is freed with `PQclear`. libpq's default `sslmode=prefer` encrypts and verifies nothing: use `sslmode=verify-full` with `sslrootcert`. macOS and linux-arm64 have no `vendor/libpq` yet. See the [PostgreSQL tutorial](PostgreSQL-Tutorial).
+
+**`vendor/mariadb` is the `mysql.h` C API** -- `mysql_init`, `mysql_real_connect`, `mysql_query`, `mysql_stmt_prepare`, `MYSQL_BIND` -- from MariaDB's Connector/C, for MySQL and MariaDB servers alike, with every login plugin built in (MySQL 8's `caching_sha2_password` among them). It is **shared only**: Connector/C is under the LGPL 2.1, so the library stays a file of its own beside the program, and `link static` is `TKO0156`. `MYSQL` is opaque: hold the `MYSQL ptr` and ask the API. tiko's names are case-insensitive, so `MYSQL_PORT` is the library's unexported variable `mysql_port` (a link error): write `MARIADB_PORT`. TLS is Schannel's on Windows and OpenSSL's, inside the library, on Linux. macOS and linux-arm64 have no `vendor/mariadb` yet. See the [MySQL and MariaDB tutorial](MySQL-Tutorial).
+
+ )`. A search (`mxmlFindElement`, `mxmlWalkNext`) starts after the node it is given, never at it. A SAX callback (`mxmlOptionsSetSAXCallback`) streams a document without keeping it. Its files go through C's `fopen` in text mode, so on Windows they are saved with CR LF line ends. See the [Mini-XML tutorial](MXML-Tutorial).
 
 **`vendor/SDL3` declares `SDL_main.h`'s routines but not its `main`**: `SDL_EnterAppMainCallbacks`, `SDL_RunApp` and `SDL_SetMainReady` (and on Windows `SDL_RegisterApp` and `SDL_UnregisterApp`), as C has them with `SDL_MAIN_HANDLED`. A program written with SDL's main callbacks calls `SDL_EnterAppMainCallbacks` itself; see the [SDL3 tutorial](SDL3-Tutorial).
 
@@ -178,4 +184,6 @@ A public header is read twice: once in the module, and again in every program th
 - [SQLite Tutorial](SQLite-Tutorial)
 - [PCRE2 Tutorial](PCRE2-Tutorial)
 - [Mini-XML Tutorial](MXML-Tutorial)
+- [PostgreSQL Tutorial](PostgreSQL-Tutorial)
+- [MySQL and MariaDB Tutorial](MySQL-Tutorial)
 - [tkControls](Category-tkControls)
