@@ -1,0 +1,11 @@
+'' 's &= s' -- a string appended to itself -- is fb_StrConcat into a temporary and one assign,
+'' as fbc emits it; the in-place fb_StrConcatAssign copied from a freed block. See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/concat-assign-self.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_StrConcat(
+'' EXPECT-OUT: fb_UStrConcat(
+'' EXPECT-NOT: fb_StrConcatAssign(
+'' EXPECT-NOT: fb_UStrConcatAssign(
