@@ -1,9 +1,9 @@
 '' =============================================================================
 '' miniaudio.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "miniaudio.h"
-''   source sha256 : 01960705c93f07a099baafd34b2ca09fe31b2e1334d15c8f7a858b20841df716
+''   source sha256 : 6e1ed4c7cd0bfb9ba8a01b3a04adb9cf77dc71912c8c95b1fee49b3bba172959
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0, x86_64-pc-windows-msvc -DMA_DLL, x86_64-pc-linux-gnu -DMA_DLL, arm64-apple-macosx13.0 -DMA_DLL
-''   options       : --verify --shared-macro MA_DLL --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/docs/tiko-vendor/probes/av0/work/p3/macsdk
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0, x86_64-linux-android29, aarch64-linux-android29, x86_64-pc-windows-msvc -DMA_DLL, x86_64-pc-linux-gnu -DMA_DLL, arm64-apple-macosx13.0 -DMA_DLL, x86_64-linux-android29 -DMA_DLL, aarch64-linux-android29 -DMA_DLL
+''   options       : --verify --shared-macro MA_DLL --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/docs/tiko-vendor/probes/av0/work/p3/macsdk --android-sysroot C:/dev/docs/tiko-vendor/probes/av0/work/p3/ndk-sysroot
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -20,81 +20,79 @@
 ''   type       wchar_t -> wchar_t_2   (case-insensitive collision)
 ''   constant   MA_FALLTHROUGH -> MA_FALLTHROUGH_2   (case-insensitive collision)
 ''
-'' 74 items need manual translation:
-''   line 3844  miniaudio.h:3745  C2T-TODO(function-like-macro)  MA_STRINGIFY
-''   line 3852  miniaudio.h:3751  C2T-TODO(macro)  MA_VERSION_STRING
-''   line 3856  miniaudio.h:3754  C2T-TODO(unreached-branch)  #pragma
-''   line 3858  miniaudio.h:3755  C2T-TODO(unreached-branch)  #pragma
-''   line 3860  miniaudio.h:3756  C2T-TODO(unreached-branch)  #pragma
-''   line 3862  miniaudio.h:3757  C2T-TODO(unreached-branch)  #pragma
-''   line 3865  miniaudio.h:3759  C2T-TODO(unsupported)  #pragma
-''   line 3867  miniaudio.h:3760  C2T-TODO(unsupported)  #pragma
-''   line 3870  miniaudio.h:3762  C2T-TODO(unsupported)  #pragma
-''   line 3907  miniaudio.h:3798  C2T-TODO(unsupported)  #pragma
-''   line 3909  miniaudio.h:3799  C2T-TODO(unsupported)  #pragma
-''   line 3912  miniaudio.h:3801  C2T-TODO(unsupported)  #pragma
-''   line 3919  miniaudio.h:3807  C2T-TODO(unsupported)  #pragma
-''   line 3960  miniaudio.h:3847  C2T-TODO(conditional)  NULL
-''   line 3962  miniaudio.h:3848  C2T-TODO(conditional)  NULL
-''   line 3964  miniaudio.h:3849  C2T-TODO(conditional)  #endif
-''   line 3968  miniaudio.h:3852  C2T-TODO(macro)  MA_SIZE_MAX
-''   line 4001  miniaudio.h:3883  C2T-TODO(branch-unparsed)  MA_DOS
-''   line 4005  miniaudio.h:3886  C2T-TODO(branch-unparsed)  MA_NO_THREADING
-''   line 4007  miniaudio.h:3887  C2T-TODO(branch-unparsed)  MA_NO_THREADING
-''   line 4009  miniaudio.h:3888  C2T-TODO(branch-unparsed)  #endif
-''   line 4013  miniaudio.h:3891  C2T-TODO(branch-unparsed)  MA_NO_RUNTIME_LINKING
-''   line 4015  miniaudio.h:3892  C2T-TODO(branch-unparsed)  MA_NO_RUNTIME_LINKING
-''   line 4017  miniaudio.h:3893  C2T-TODO(branch-unparsed)  #endif
-''   line 4045  miniaudio.h:3920  C2T-TODO(branch-unparsed)  #error
-''   line 4075  miniaudio.h:3931  C2T-TODO(branch-unparsed)  #error
-''   line 4119  miniaudio.h:3974  C2T-TODO(macro)  MA_FALLTHROUGH
-''   line 4123  miniaudio.h:3977  C2T-TODO(macro)  MA_FALLTHROUGH
-''   line 4126  miniaudio.h:3979  C2T-TODO(conditional)  #if
-''   line 4128  miniaudio.h:3980  C2T-TODO(conditional)  #if
-''   line 4132  miniaudio.h:3982  C2T-TODO(conditional)  #endif
-''   line 4134  miniaudio.h:3983  C2T-TODO(conditional)  #endif
-''   line 4159  miniaudio.h:4005  C2T-TODO(conditional)  #if
-''   line 4162  miniaudio.h:4006  C2T-TODO(macro)  MA_GNUC_INLINE_HINT
-''   line 4166  miniaudio.h:4007  C2T-TODO(conditional)  #else
-''   line 4169  miniaudio.h:4008  C2T-TODO(conditional)  MA_GNUC_INLINE_HINT
-''   line 4171  miniaudio.h:4009  C2T-TODO(conditional)  #endif
-''   line 4191  miniaudio.h:4027  C2T-TODO(conditional)  #if
-''   line 4194  miniaudio.h:4028  C2T-TODO(conditional)  #if
-''   line 4200  miniaudio.h:4031  C2T-TODO(macro)  MA_DLL_PRIVATE
-''   line 4204  miniaudio.h:4032  C2T-TODO(conditional)  #else
-''   line 4207  miniaudio.h:4033  C2T-TODO(guard-unstatable)  #if
-''   line 4211  miniaudio.h:4036  C2T-TODO(guard-unstatable)  MA_DLL_PRIVATE
-''   line 4213  miniaudio.h:4037  C2T-TODO(guard-unstatable)  #else
-''   line 4221  miniaudio.h:4040  C2T-TODO(conditional)  MA_DLL_PRIVATE
-''   line 4223  miniaudio.h:4041  C2T-TODO(guard-unstatable)  #endif
-''   line 4226  miniaudio.h:4042  C2T-TODO(conditional)  #endif
-''   line 4229  miniaudio.h:4043  C2T-TODO(conditional)  #endif
-''   line 4235  miniaudio.h:4058  C2T-TODO(conditional)  #if
-''   line 4238  miniaudio.h:4059  C2T-TODO(macro)  MA_PRIVATE
-''   line 4241  miniaudio.h:4060  C2T-TODO(conditional)  #else
-''   line 4244  miniaudio.h:4061  C2T-TODO(macro)  MA_PRIVATE
-''   line 4247  miniaudio.h:4062  C2T-TODO(conditional)  #endif
-''   line 4326  miniaudio.h:4130  C2T-TODO(function-like-macro)  MA_ATOMIC
-''   line 4331  miniaudio.h:4134  C2T-TODO(function-like-macro)  MA_ATOMIC
-''   line 4335  miniaudio.h:4137  C2T-TODO(function-like-macro)  MA_ATOMIC
-''   line 4810  miniaudio.h:4445  C2T-TODO(function-like-macro)  MA_ATOMIC_SAFE_TYPE_DECL
-''   line 4817  miniaudio.h:4451  C2T-TODO(function-like-macro)  MA_ATOMIC_SAFE_TYPE_DECL_PTR
-''   line 4891  miniaudio.h:4516  C2T-TODO(branch-unparsed)  MA_NO_DEVICE_IO
-''   line 4893  miniaudio.h:4517  C2T-TODO(branch-unparsed)  #error
-''   line 4895  miniaudio.h:4518  C2T-TODO(branch-unparsed)  #endif
-''   line 4918  miniaudio.h:4540  C2T-TODO(conditional)  #if
-''   line 4920  miniaudio.h:4541  C2T-TODO(conditional)  #if
-''   line 4922  miniaudio.h:4542  C2T-TODO(function-like-macro)  MA_ATTRIBUTE_FORMAT
-''   line 4924  miniaudio.h:4543  C2T-TODO(conditional)  #endif
-''   line 4926  miniaudio.h:4544  C2T-TODO(conditional)  #endif
-''   line 4928  miniaudio.h:4545  C2T-TODO(conditional)  MA_ATTRIBUTE_FORMAT
-''   line 4930  miniaudio.h:4546  C2T-TODO(conditional)  MA_ATTRIBUTE_FORMAT
-''   line 4932  miniaudio.h:4547  C2T-TODO(conditional)  #endif
-''   line 6591  miniaudio.h:6188  C2T-TODO(static-inline)  ma_get_bytes_per_frame
-''   line 8788  miniaudio.h:8099  C2T-TODO(unreached-branch)  #pragma
-''   line 8791  miniaudio.h:8101  C2T-TODO(unsupported)  #pragma
-''   line 10500  miniaudio.h:9809  C2T-TODO(static-inline)  ma_offset_pcm_frames_ptr_f32
-''   line 10502  miniaudio.h:9810  C2T-TODO(static-inline)  ma_offset_pcm_frames_const_ptr_f32
+'' 72 items need manual translation:
+''   line 3842  miniaudio.h:3745  C2T-TODO(function-like-macro)  MA_STRINGIFY
+''   line 3850  miniaudio.h:3751  C2T-TODO(macro)  MA_VERSION_STRING
+''   line 3854  miniaudio.h:3754  C2T-TODO(unreached-branch)  #pragma
+''   line 3856  miniaudio.h:3755  C2T-TODO(unreached-branch)  #pragma
+''   line 3858  miniaudio.h:3756  C2T-TODO(unreached-branch)  #pragma
+''   line 3860  miniaudio.h:3757  C2T-TODO(unreached-branch)  #pragma
+''   line 3863  miniaudio.h:3759  C2T-TODO(unsupported)  #pragma
+''   line 3865  miniaudio.h:3760  C2T-TODO(unsupported)  #pragma
+''   line 3868  miniaudio.h:3762  C2T-TODO(unsupported)  #pragma
+''   line 3905  miniaudio.h:3798  C2T-TODO(unsupported)  #pragma
+''   line 3907  miniaudio.h:3799  C2T-TODO(unsupported)  #pragma
+''   line 3910  miniaudio.h:3801  C2T-TODO(unsupported)  #pragma
+''   line 3917  miniaudio.h:3807  C2T-TODO(unsupported)  #pragma
+''   line 3958  miniaudio.h:3847  C2T-TODO(conditional)  NULL
+''   line 3960  miniaudio.h:3848  C2T-TODO(conditional)  NULL
+''   line 3962  miniaudio.h:3849  C2T-TODO(conditional)  #endif
+''   line 3966  miniaudio.h:3852  C2T-TODO(macro)  MA_SIZE_MAX
+''   line 3999  miniaudio.h:3883  C2T-TODO(branch-unparsed)  MA_DOS
+''   line 4003  miniaudio.h:3886  C2T-TODO(branch-unparsed)  MA_NO_THREADING
+''   line 4005  miniaudio.h:3887  C2T-TODO(branch-unparsed)  MA_NO_THREADING
+''   line 4007  miniaudio.h:3888  C2T-TODO(branch-unparsed)  #endif
+''   line 4011  miniaudio.h:3891  C2T-TODO(branch-unparsed)  MA_NO_RUNTIME_LINKING
+''   line 4013  miniaudio.h:3892  C2T-TODO(branch-unparsed)  MA_NO_RUNTIME_LINKING
+''   line 4015  miniaudio.h:3893  C2T-TODO(branch-unparsed)  #endif
+''   line 4076  miniaudio.h:3929  C2T-TODO(branch-unparsed)  #error
+''   line 4120  miniaudio.h:3972  C2T-TODO(macro)  MA_FALLTHROUGH
+''   line 4124  miniaudio.h:3975  C2T-TODO(macro)  MA_FALLTHROUGH
+''   line 4127  miniaudio.h:3977  C2T-TODO(conditional)  #if
+''   line 4129  miniaudio.h:3978  C2T-TODO(conditional)  #if
+''   line 4133  miniaudio.h:3980  C2T-TODO(conditional)  #endif
+''   line 4135  miniaudio.h:3981  C2T-TODO(conditional)  #endif
+''   line 4160  miniaudio.h:4003  C2T-TODO(conditional)  #if
+''   line 4163  miniaudio.h:4004  C2T-TODO(macro)  MA_GNUC_INLINE_HINT
+''   line 4167  miniaudio.h:4005  C2T-TODO(conditional)  #else
+''   line 4170  miniaudio.h:4006  C2T-TODO(conditional)  MA_GNUC_INLINE_HINT
+''   line 4172  miniaudio.h:4007  C2T-TODO(conditional)  #endif
+''   line 4192  miniaudio.h:4025  C2T-TODO(conditional)  #if
+''   line 4195  miniaudio.h:4026  C2T-TODO(conditional)  #if
+''   line 4201  miniaudio.h:4029  C2T-TODO(macro)  MA_DLL_PRIVATE
+''   line 4205  miniaudio.h:4030  C2T-TODO(conditional)  #else
+''   line 4209  miniaudio.h:4031  C2T-TODO(conditional)  #if
+''   line 4219  miniaudio.h:4035  C2T-TODO(conditional)  #else
+''   line 4228  miniaudio.h:4038  C2T-TODO(conditional)  MA_DLL_PRIVATE
+''   line 4231  miniaudio.h:4039  C2T-TODO(conditional)  #endif
+''   line 4235  miniaudio.h:4040  C2T-TODO(conditional)  #endif
+''   line 4238  miniaudio.h:4041  C2T-TODO(conditional)  #endif
+''   line 4244  miniaudio.h:4056  C2T-TODO(conditional)  #if
+''   line 4247  miniaudio.h:4057  C2T-TODO(macro)  MA_PRIVATE
+''   line 4250  miniaudio.h:4058  C2T-TODO(conditional)  #else
+''   line 4253  miniaudio.h:4059  C2T-TODO(macro)  MA_PRIVATE
+''   line 4256  miniaudio.h:4060  C2T-TODO(conditional)  #endif
+''   line 4335  miniaudio.h:4128  C2T-TODO(function-like-macro)  MA_ATOMIC
+''   line 4340  miniaudio.h:4132  C2T-TODO(function-like-macro)  MA_ATOMIC
+''   line 4344  miniaudio.h:4135  C2T-TODO(function-like-macro)  MA_ATOMIC
+''   line 4819  miniaudio.h:4443  C2T-TODO(function-like-macro)  MA_ATOMIC_SAFE_TYPE_DECL
+''   line 4826  miniaudio.h:4449  C2T-TODO(function-like-macro)  MA_ATOMIC_SAFE_TYPE_DECL_PTR
+''   line 4900  miniaudio.h:4514  C2T-TODO(branch-unparsed)  MA_NO_DEVICE_IO
+''   line 4902  miniaudio.h:4515  C2T-TODO(branch-unparsed)  #error
+''   line 4904  miniaudio.h:4516  C2T-TODO(branch-unparsed)  #endif
+''   line 4927  miniaudio.h:4538  C2T-TODO(conditional)  #if
+''   line 4929  miniaudio.h:4539  C2T-TODO(conditional)  #if
+''   line 4931  miniaudio.h:4540  C2T-TODO(function-like-macro)  MA_ATTRIBUTE_FORMAT
+''   line 4933  miniaudio.h:4541  C2T-TODO(conditional)  #endif
+''   line 4935  miniaudio.h:4542  C2T-TODO(conditional)  #endif
+''   line 4937  miniaudio.h:4543  C2T-TODO(conditional)  MA_ATTRIBUTE_FORMAT
+''   line 4939  miniaudio.h:4544  C2T-TODO(conditional)  MA_ATTRIBUTE_FORMAT
+''   line 4941  miniaudio.h:4545  C2T-TODO(conditional)  #endif
+''   line 6600  miniaudio.h:6186  C2T-TODO(static-inline)  ma_get_bytes_per_frame
+''   line 9010  miniaudio.h:8097  C2T-TODO(unreached-branch)  #pragma
+''   line 9013  miniaudio.h:8099  C2T-TODO(unsupported)  #pragma
+''   line 10722  miniaudio.h:9807  C2T-TODO(static-inline)  ma_offset_pcm_frames_ptr_f32
+''   line 10724  miniaudio.h:9808  C2T-TODO(static-inline)  ma_offset_pcm_frames_const_ptr_f32
 '' =============================================================================
 
 #include once "crt/long.bi"
@@ -4038,12 +4036,15 @@ type wchar_t_2 as ma_uint16
            pthread_t is 8/8 on all of them. '/
         type ma_pthread_t as ma_uintptr
         #if defined(TIKO_OS_ANDROID)
-            /' tiko's own name, not __ANDROID__: c2t takes __ANDROID__ as never true, having no
-               Android pass. And Android is not translated: five records -- ma_context, ma_device,
-               ma_event, ma_fence, ma_semaphore -- are laid out differently there (its backends,
-               and these 4-byte alignments), which only an Android pass would carry. '/
-            '' C2T-TODO(branch-unparsed) miniaudio.h:3920 -- clang cannot parse the branch: unknown type name 'ma_pthread_mutex_t'
-''             #error "vendor/miniaudio is not translated for Android: c2t has no Android pass (RFC-0005 P3)"
+            /' First: Android defines __linux__ too. Bionic's are int32_t arrays, 4-aligned. '/
+            union ma_pthread_mutex_t
+                __data as zstring * 40
+                __alignment as ma_int32
+            end union
+            union ma_pthread_cond_t
+                __data as zstring * 48
+                __alignment as ma_int32
+            end union
         #elseif defined(TIKO_OS_MACOS)
             union ma_pthread_mutex_t
                 __data as zstring * 64
@@ -4053,7 +4054,7 @@ type wchar_t_2 as ma_uint16
                 __data as zstring * 48
                 __alignment as ma_uint64
             end union
-        #elseif (defined(TIKO_OS_LINUX) andalso defined(TIKO_ARCH_ARM64))
+        #elseif ((defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_ANDROID)) andalso defined(TIKO_ARCH_ARM64))
             union ma_pthread_mutex_t
                 __data as zstring * 48
                 __alignment as ma_uint64
@@ -4062,7 +4063,7 @@ type wchar_t_2 as ma_uint16
                 __data as zstring * 48
                 __alignment as ma_uint64
             end union
-        #elseif (defined(TIKO_OS_LINUX) andalso defined(TIKO_ARCH_X86_64))
+        #elseif ((defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_ANDROID)) andalso defined(TIKO_ARCH_X86_64))
             union ma_pthread_mutex_t
                 __data as zstring * 40
                 __alignment as ma_uint64
@@ -4072,15 +4073,15 @@ type wchar_t_2 as ma_uint16
                 __alignment as ma_uint64
             end union
         #else
-            '' C2T-TODO(branch-unparsed) miniaudio.h:3931 -- clang cannot parse the branch: unknown type name 'ma_pthread_mutex_t'
+            '' C2T-TODO(branch-unparsed) miniaudio.h:3929 -- clang cannot parse the branch: unknown type name 'ma_pthread_mutex_t'
 ''             #error "vendor/miniaudio: pthread sizes not measured for this target"
         #endif
     #endif
 
-    #if defined(TIKO_OS_LINUX)
+    #if (defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_ANDROID))
         #define MA_UNIX
     #endif
-    #if defined(TIKO_OS_LINUX)
+    #if (defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_ANDROID))
         #define MA_LINUX
     #endif
     #if defined(TIKO_OS_MACOS)
@@ -4089,7 +4090,7 @@ type wchar_t_2 as ma_uint16
     #if (((0 orelse 0) orelse 0) orelse 0)
         #define MA_BSD
     #endif
-    #if 0
+    #if defined(TIKO_OS_ANDROID)
         #define MA_ANDROID
     #endif
     #if 0
@@ -4116,25 +4117,25 @@ type wchar_t_2 as ma_uint16
 #endif
 
 #if ((((defined(MA_FALLTHROUGH)) = 0) andalso 0) andalso (0 >= 201703))
-    '' C2T-TODO(macro) miniaudio.h:3974 -- 'MA_FALLTHROUGH': '[' cannot start an expression
+    '' C2T-TODO(macro) miniaudio.h:3972 -- 'MA_FALLTHROUGH': '[' cannot start an expression
 ''     #define MA_FALLTHROUGH [[fallthrough]]
 #endif
 #if ((((defined(MA_FALLTHROUGH)) = 0) andalso 201112) andalso (201112 >= 202000))
-    '' C2T-TODO(macro) miniaudio.h:3977 -- 'MA_FALLTHROUGH': '[' cannot start an expression
+    '' C2T-TODO(macro) miniaudio.h:3975 -- 'MA_FALLTHROUGH': '[' cannot start an expression
 ''     #define MA_FALLTHROUGH [[fallthrough]]
 #endif
-'' C2T-TODO(conditional) miniaudio.h:3979 -- tiko would take another branch where clang does not
+'' C2T-TODO(conditional) miniaudio.h:3977 -- tiko would take another branch where clang does not
 '' #if !defined(MA_FALLTHROUGH) && defined(__has_attribute)
-    '' C2T-TODO(conditional) miniaudio.h:3980 -- '__has_attribute()' is nothing tiko declares
+    '' C2T-TODO(conditional) miniaudio.h:3978 -- '__has_attribute()' is nothing tiko declares
 ''     #if __has_attribute(fallthrough)
-        '' C2T-NOTE(decoration) miniaudio.h:3981 -- '__attribute__' means nothing to tiko: defined, empty
+        '' C2T-NOTE(decoration) miniaudio.h:3979 -- '__attribute__' means nothing to tiko: defined, empty
         #define MA_FALLTHROUGH
-    '' C2T-TODO(conditional) miniaudio.h:3982 -- '__has_attribute()' is nothing tiko declares
+    '' C2T-TODO(conditional) miniaudio.h:3980 -- '__has_attribute()' is nothing tiko declares
 ''     #endif
-'' C2T-TODO(conditional) miniaudio.h:3983 -- tiko would take another branch where clang does not
+'' C2T-TODO(conditional) miniaudio.h:3981 -- tiko would take another branch where clang does not
 '' #endif
 #if ((defined(MA_FALLTHROUGH)) = 0)
-    '' C2T-NOTE(pointer) miniaudio.h:3985 -- a pointer value, translated but not checked against clang
+    '' C2T-NOTE(pointer) miniaudio.h:3983 -- a pointer value, translated but not checked against clang
     #define MA_FALLTHROUGH_2 cast(any, 0)
 #endif
 
@@ -4143,7 +4144,7 @@ type wchar_t_2 as ma_uint16
 
     /' noinline was introduced in Visual Studio 2005. '/
     #if (_MSC_VER >= 1400)
-        '' C2T-NOTE(decoration) miniaudio.h:3993 -- '__declspec' means nothing to tiko: defined, empty
+        '' C2T-NOTE(decoration) miniaudio.h:3991 -- '__declspec' means nothing to tiko: defined, empty
         #define MA_NO_INLINE
     #else
         #define MA_NO_INLINE
@@ -4156,24 +4157,24 @@ type wchar_t_2 as ma_uint16
     command line, we cannot use the "inline" keyword and instead need to use "__inline__". In an attempt to work around this issue
     I am using "__inline__" only when we're compiling in strict ANSI mode.
     '/
-    '' C2T-TODO(conditional) miniaudio.h:4005 -- tiko would take another branch where clang does not
+    '' C2T-TODO(conditional) miniaudio.h:4003 -- tiko would take another branch where clang does not
 ''     #if defined(__STRICT_ANSI__)
         #if not (defined(TIKO_OS_WINDOWS))
-        '' C2T-TODO(macro) miniaudio.h:4006 -- 'MA_GNUC_INLINE_HINT': '__inline__' is nothing tiko declares
+        '' C2T-TODO(macro) miniaudio.h:4004 -- 'MA_GNUC_INLINE_HINT': '__inline__' is nothing tiko declares
 ''         #define MA_GNUC_INLINE_HINT __inline__
         #endif
     #if not (defined(TIKO_OS_WINDOWS))
-    '' C2T-TODO(conditional) miniaudio.h:4007 -- tiko would take another branch where clang does not
+    '' C2T-TODO(conditional) miniaudio.h:4005 -- tiko would take another branch where clang does not
 ''     #else
     #endif
-        '' C2T-TODO(conditional) miniaudio.h:4008 -- inside a conditional that stays a TODO
+        '' C2T-TODO(conditional) miniaudio.h:4006 -- inside a conditional that stays a TODO
 ''         #define MA_GNUC_INLINE_HINT inline
-    '' C2T-TODO(conditional) miniaudio.h:4009 -- tiko would take another branch where clang does not
+    '' C2T-TODO(conditional) miniaudio.h:4007 -- tiko would take another branch where clang does not
 ''     #endif
 
     #if (((__GNUC__ > 3) orelse ((__GNUC__ = 3) andalso (__GNUC_MINOR__ >= 2))) orelse defined(__clang__))
 '' c2t: export macro MA_INLINE (decoration, stripped where used)
-        '' C2T-NOTE(decoration) miniaudio.h:4013 -- '__attribute__' means nothing to tiko: defined, empty
+        '' C2T-NOTE(decoration) miniaudio.h:4011 -- '__attribute__' means nothing to tiko: defined, empty
         #define MA_NO_INLINE
     #else
 '' c2t: export macro MA_INLINE (decoration, stripped where used)
@@ -4188,63 +4189,71 @@ type wchar_t_2 as ma_uint16
 #endif
 
 /' MA_DLL is not officially supported. You're on your own if you want to use this. '/
-'' C2T-TODO(conditional) miniaudio.h:4027 -- the passes translate it differently
+'' C2T-TODO(conditional) miniaudio.h:4025 -- the passes translate it differently
 '' #if defined(MA_DLL)
     #if defined(TIKO_LINK_DYNAMIC)
-    '' C2T-TODO(conditional) miniaudio.h:4028 -- inside a conditional that stays a TODO
+    '' C2T-TODO(conditional) miniaudio.h:4026 -- inside a conditional that stays a TODO
 ''     #if defined(_WIN32)
     #endif
 '' c2t: export macro MA_DLL_IMPORT (decoration, stripped where used)
 '' c2t: export macro MA_DLL_EXPORT (decoration, stripped where used)
         #if (defined(TIKO_OS_WINDOWS) andalso defined(TIKO_LINK_DYNAMIC))
-        '' C2T-TODO(macro) miniaudio.h:4031 -- 'MA_DLL_PRIVATE': 'static' is nothing tiko declares
+        '' C2T-TODO(macro) miniaudio.h:4029 -- 'MA_DLL_PRIVATE': 'static' is nothing tiko declares
 ''         #define MA_DLL_PRIVATE static
         #endif
     #if defined(TIKO_LINK_DYNAMIC)
-    '' C2T-TODO(conditional) miniaudio.h:4032 -- inside a conditional that stays a TODO
+    '' C2T-TODO(conditional) miniaudio.h:4030 -- inside a conditional that stays a TODO
 ''     #else
     #endif
-        '' C2T-TODO(guard-unstatable) miniaudio.h:4033 -- the passes that write this cannot be told apart by a tiko #if
+        #if ((defined(TIKO_OS_LINUX) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_MACOS) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_ANDROID) andalso defined(TIKO_LINK_DYNAMIC)))
+        '' C2T-TODO(conditional) miniaudio.h:4031 -- inside a conditional that stays a TODO
 ''         #if defined(__GNUC__) && __GNUC__ >= 4
+        #endif
 '' c2t: export macro MA_DLL_IMPORT (decoration, stripped where used)
 '' c2t: export macro MA_DLL_EXPORT (decoration, stripped where used)
-            '' C2T-TODO(guard-unstatable) miniaudio.h:4036 -- the passes that write this cannot be told apart by a tiko #if
-''             #define MA_DLL_PRIVATE __attribute__((visibility("hidden")))
-        '' C2T-TODO(guard-unstatable) miniaudio.h:4037 -- the passes that write this cannot be told apart by a tiko #if
+            #if ((defined(TIKO_OS_LINUX) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_MACOS) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_ANDROID) andalso defined(TIKO_LINK_DYNAMIC)))
+            '' C2T-NOTE(decoration) miniaudio.h:4034 -- '__attribute__' means nothing to tiko: defined, empty
+            #define MA_DLL_PRIVATE
+            #endif
+        #if ((defined(TIKO_OS_LINUX) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_MACOS) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_ANDROID) andalso defined(TIKO_LINK_DYNAMIC)))
+        '' C2T-TODO(conditional) miniaudio.h:4035 -- inside a conditional that stays a TODO
 ''         #else
+        #endif
             #if defined(TIKO_LINK_DYNAMIC)
 '' c2t: export macro MA_DLL_IMPORT (decoration, stripped where used)
             #endif
             #if defined(TIKO_LINK_DYNAMIC)
 '' c2t: export macro MA_DLL_EXPORT (decoration, stripped where used)
             #endif
-            '' C2T-TODO(conditional) miniaudio.h:4040 -- inside a conditional that stays a TODO
+            '' C2T-TODO(conditional) miniaudio.h:4038 -- inside a conditional that stays a TODO
 ''             #define MA_DLL_PRIVATE static
-        '' C2T-TODO(guard-unstatable) miniaudio.h:4041 -- the passes that write this cannot be told apart by a tiko #if
+        #if ((defined(TIKO_OS_LINUX) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_MACOS) andalso defined(TIKO_LINK_DYNAMIC)) orelse (defined(TIKO_OS_ANDROID) andalso defined(TIKO_LINK_DYNAMIC)))
+        '' C2T-TODO(conditional) miniaudio.h:4039 -- inside a conditional that stays a TODO
 ''         #endif
+        #endif
     #if defined(TIKO_LINK_DYNAMIC)
-    '' C2T-TODO(conditional) miniaudio.h:4042 -- inside a conditional that stays a TODO
+    '' C2T-TODO(conditional) miniaudio.h:4040 -- inside a conditional that stays a TODO
 ''     #endif
     #endif
-'' C2T-TODO(conditional) miniaudio.h:4043 -- the passes translate it differently
+'' C2T-TODO(conditional) miniaudio.h:4041 -- the passes translate it differently
 '' #endif
 
 '' c2t: export macro MA_API (decoration, stripped where used)
 
 #if ((defined(MA_STATIC)) = 0)
-    '' C2T-TODO(conditional) miniaudio.h:4058 -- the passes translate it differently
+    '' C2T-TODO(conditional) miniaudio.h:4056 -- the passes translate it differently
 ''     #if defined(MA_DLL)
         #if defined(TIKO_LINK_DYNAMIC)
-        '' C2T-TODO(macro) miniaudio.h:4059 -- 'MA_PRIVATE': 'MA_DLL_PRIVATE' is nothing tiko declares
+        '' C2T-TODO(macro) miniaudio.h:4057 -- 'MA_PRIVATE': 'MA_DLL_PRIVATE' is nothing tiko declares
 ''         #define MA_PRIVATE MA_DLL_PRIVATE
         #endif
-    '' C2T-TODO(conditional) miniaudio.h:4060 -- the passes translate it differently
+    '' C2T-TODO(conditional) miniaudio.h:4058 -- the passes translate it differently
 ''     #else
         #if ((not defined(TIKO_LINK_DYNAMIC)))
-        '' C2T-TODO(macro) miniaudio.h:4061 -- 'MA_PRIVATE': 'static' is nothing tiko declares
+        '' C2T-TODO(macro) miniaudio.h:4059 -- 'MA_PRIVATE': 'static' is nothing tiko declares
 ''         #define MA_PRIVATE static
         #endif
-    '' C2T-TODO(conditional) miniaudio.h:4062 -- the passes translate it differently
+    '' C2T-TODO(conditional) miniaudio.h:4060 -- the passes translate it differently
 ''     #endif
 #endif
 
@@ -4323,16 +4332,16 @@ versions of Visual Studio, which I've confirmed with at least VC6.
 '/
 #if ((((defined(_MSC_VER)) = 0) andalso 201112) andalso (201112 >= 201112))
     '' <stdalign.h>: built into tiko
-    '' C2T-TODO(function-like-macro) miniaudio.h:4130 -- 'type' after the expression
+    '' C2T-TODO(function-like-macro) miniaudio.h:4128 -- 'type' after the expression
 ''     #define MA_ATOMIC(alignment, type)            _Alignas(alignment) type
 #else
     #if defined(__GNUC__)
         /' GCC-style compilers. '/
-        '' C2T-TODO(function-like-macro) miniaudio.h:4134 -- '__attribute__' after the expression
+        '' C2T-TODO(function-like-macro) miniaudio.h:4132 -- '__attribute__' after the expression
 ''         #define MA_ATOMIC(alignment, type)        type __attribute__((aligned(alignment)))
     #elseif (defined(_MSC_VER) andalso (_MSC_VER > 1200))  /' 1200 = VC6. Alignment not supported, but not necessary because x86 is the only supported target. '/
         /' MSVC. '/
-        '' C2T-TODO(function-like-macro) miniaudio.h:4137 -- 'type' after the expression
+        '' C2T-TODO(function-like-macro) miniaudio.h:4135 -- 'type' after the expression
 ''         #define MA_ATOMIC(alignment, type)        __declspec(align(alignment)) type
     #else
         /' Other compilers. '/
@@ -4807,14 +4816,14 @@ the name of the struct. For example:
 For pointer types it's the same, which makes them a bit messy to use due to the length of each function name, but in
 return you get type safety and enforcement of atomic operations.
 '/
-'' C2T-TODO(function-like-macro) miniaudio.h:4445 -- 'struct' after the expression
+'' C2T-TODO(function-like-macro) miniaudio.h:4443 -- 'struct' after the expression
 '' #define MA_ATOMIC_SAFE_TYPE_DECL(c89TypeExtension, typeSize, type) \
 ''     typedef struct \
 ''     { \
 ''         MA_ATOMIC(typeSize, ma_##type) value; \
 ''     } ma_atomic_##type; \
 
-'' C2T-TODO(function-like-macro) miniaudio.h:4451 -- 'struct' after the expression
+'' C2T-TODO(function-like-macro) miniaudio.h:4449 -- 'struct' after the expression
 '' #define MA_ATOMIC_SAFE_TYPE_DECL_PTR(type) \
 ''     typedef struct \
 ''     { \
@@ -4888,11 +4897,11 @@ type ma_spinlock as ma_uint32
     #endif
 #else
     /' MA_NO_THREADING is set which means threading is disabled. Threading is required by some API families. If any of these are enabled we need to throw an error. '/
-    '' C2T-TODO(branch-unparsed) miniaudio.h:4516 -- clang cannot parse the branch: unknown type name 'ma_mutex'
+    '' C2T-TODO(branch-unparsed) miniaudio.h:4514 -- clang cannot parse the branch: unknown type name 'ma_mutex'
 ''     #ifndef MA_NO_DEVICE_IO
-        '' C2T-TODO(branch-unparsed) miniaudio.h:4517 -- clang cannot parse the branch: unknown type name 'ma_mutex'
+        '' C2T-TODO(branch-unparsed) miniaudio.h:4515 -- clang cannot parse the branch: unknown type name 'ma_mutex'
 ''         #error "MA_NO_THREADING cannot be used without MA_NO_DEVICE_IO";
-    '' C2T-TODO(branch-unparsed) miniaudio.h:4518 -- clang cannot parse the branch: unknown type name 'ma_mutex'
+    '' C2T-TODO(branch-unparsed) miniaudio.h:4516 -- clang cannot parse the branch: unknown type name 'ma_mutex'
 ''     #endif
 #endif  /' MA_NO_THREADING '/
 
@@ -4915,21 +4924,21 @@ Logging
 *************************************************************************************************************************************************************'/
 '' <stdarg.h>: built into tiko /' For va_list. '/
 
-'' C2T-TODO(conditional) miniaudio.h:4540 -- tiko would take another branch where clang does not
+'' C2T-TODO(conditional) miniaudio.h:4538 -- tiko would take another branch where clang does not
 '' #if defined(__has_attribute)
-    '' C2T-TODO(conditional) miniaudio.h:4541 -- '__has_attribute()' is nothing tiko declares
+    '' C2T-TODO(conditional) miniaudio.h:4539 -- '__has_attribute()' is nothing tiko declares
 ''     #if __has_attribute(format)
-        '' C2T-TODO(function-like-macro) miniaudio.h:4542 -- 'printf' is nothing tiko declares
+        '' C2T-TODO(function-like-macro) miniaudio.h:4540 -- 'printf' is nothing tiko declares
 ''         #define MA_ATTRIBUTE_FORMAT(fmt, va) __attribute__((format(printf, fmt, va)))
-    '' C2T-TODO(conditional) miniaudio.h:4543 -- '__has_attribute()' is nothing tiko declares
+    '' C2T-TODO(conditional) miniaudio.h:4541 -- '__has_attribute()' is nothing tiko declares
 ''     #endif
-'' C2T-TODO(conditional) miniaudio.h:4544 -- tiko would take another branch where clang does not
+'' C2T-TODO(conditional) miniaudio.h:4542 -- tiko would take another branch where clang does not
 '' #endif
-'' C2T-TODO(conditional) miniaudio.h:4545 -- tiko would take this branch where clang does not
+'' C2T-TODO(conditional) miniaudio.h:4543 -- tiko would take this branch where clang does not
 '' #ifndef MA_ATTRIBUTE_FORMAT
-'' C2T-TODO(conditional) miniaudio.h:4546 -- inside a conditional that stays a TODO
+'' C2T-TODO(conditional) miniaudio.h:4544 -- inside a conditional that stays a TODO
 '' #define MA_ATTRIBUTE_FORMAT(fmt, va)
-'' C2T-TODO(conditional) miniaudio.h:4547 -- tiko would take this branch where clang does not
+'' C2T-TODO(conditional) miniaudio.h:4545 -- tiko would take this branch where clang does not
 '' #endif
 
 #ifndef MA_MAX_LOG_CALLBACKS
@@ -6588,7 +6597,7 @@ Thread Safety: SAFE
   This API is pure.
 '/
 declare function ma_get_bytes_per_sample( byval format as ma_format ) as ma_uint32
-'' C2T-TODO(static-inline) miniaudio.h:6188 -- static inline function 'ma_get_bytes_per_frame': no symbol to link against; port the body by hand
+'' C2T-TODO(static-inline) miniaudio.h:6186 -- static inline function 'ma_get_bytes_per_frame': no symbol to link against; port the body by hand
 '' static MA_INLINE ma_uint32 ma_get_bytes_per_frame(ma_format format, ma_uint32 channels) { return ma_get_bytes_per_sample(format) * channels; }
 
 /'
@@ -7208,7 +7217,7 @@ enum
 end enum
 #endif
 
-'' C2T-NOTE(value) miniaudio.h:6759 -- clang's value; c2t cannot evaluate '(ma_backend_null + 1)' to check it
+'' C2T-NOTE(value) miniaudio.h:6757 -- clang's value; c2t cannot evaluate '(ma_backend_null + 1)' to check it
 #define MA_BACKEND_COUNT 15
 
 
@@ -7977,7 +7986,7 @@ type ma_context_command__wasapi
 end type
 
 #if defined(TIKO_OS_WINDOWS)
-'' C2T-NOTE(branch) miniaudio.h:7389 -- an #if inside: the members are the ones this target's preprocessor keeps
+'' C2T-NOTE(branch) miniaudio.h:7387 -- an #if inside: the members are the ones this target's preprocessor keeps
 type ma_context_wasapi_t
     commandThread as ma_thread
     commandLock as ma_mutex
@@ -8095,7 +8104,7 @@ type ma_context
     end union
 end type
 #elseif defined(TIKO_OS_LINUX)
-'' C2T-NOTE(branch) miniaudio.h:7389 -- an #if inside: the members are the ones this target's preprocessor keeps
+'' C2T-NOTE(branch) miniaudio.h:7387 -- an #if inside: the members are the ones this target's preprocessor keeps
 type ma_context_alsa_t
     asoundSO as ma_handle
     snd_pcm_open as ma_proc
@@ -8295,7 +8304,7 @@ type ma_context
     end union
 end type
 #elseif defined(TIKO_OS_MACOS)
-'' C2T-NOTE(branch) miniaudio.h:7389 -- an #if inside: the members are the ones this target's preprocessor keeps
+'' C2T-NOTE(branch) miniaudio.h:7387 -- an #if inside: the members are the ones this target's preprocessor keeps
 type ma_context_coreaudio_t
     hCoreFoundation as ma_handle
     CFStringGetCString as ma_proc
@@ -8356,10 +8365,89 @@ type ma_context
         _unused as int32
     end union
 end type
+#elseif defined(TIKO_OS_ANDROID)
+'' C2T-NOTE(branch) miniaudio.h:7387 -- an #if inside: the members are the ones this target's preprocessor keeps
+type ma_context_aaudio_t
+    hAAudio as ma_handle
+    AAudio_createStreamBuilder as ma_proc
+    AAudioStreamBuilder_delete as ma_proc
+    AAudioStreamBuilder_setDeviceId as ma_proc
+    AAudioStreamBuilder_setDirection as ma_proc
+    AAudioStreamBuilder_setSharingMode as ma_proc
+    AAudioStreamBuilder_setFormat as ma_proc
+    AAudioStreamBuilder_setChannelCount as ma_proc
+    AAudioStreamBuilder_setSampleRate as ma_proc
+    AAudioStreamBuilder_setBufferCapacityInFrames as ma_proc
+    AAudioStreamBuilder_setFramesPerDataCallback as ma_proc
+    AAudioStreamBuilder_setDataCallback as ma_proc
+    AAudioStreamBuilder_setErrorCallback as ma_proc
+    AAudioStreamBuilder_setPerformanceMode as ma_proc
+    AAudioStreamBuilder_setUsage as ma_proc
+    AAudioStreamBuilder_setContentType as ma_proc
+    AAudioStreamBuilder_setInputPreset as ma_proc
+    AAudioStreamBuilder_setAllowedCapturePolicy as ma_proc
+    AAudioStreamBuilder_openStream as ma_proc
+    AAudioStream_close as ma_proc
+    AAudioStream_getState as ma_proc
+    AAudioStream_waitForStateChange as ma_proc
+    AAudioStream_getFormat as ma_proc
+    AAudioStream_getChannelCount as ma_proc
+    AAudioStream_getSampleRate as ma_proc
+    AAudioStream_getBufferCapacityInFrames as ma_proc
+    AAudioStream_getFramesPerDataCallback as ma_proc
+    AAudioStream_getFramesPerBurst as ma_proc
+    AAudioStream_requestStart as ma_proc
+    AAudioStream_requestStop as ma_proc
+    jobThread as ma_device_job_thread
+end type
+type ma_context_opensl_t
+    libOpenSLES as ma_handle
+    SL_IID_ENGINE as ma_handle
+    SL_IID_AUDIOIODEVICECAPABILITIES as ma_handle
+    SL_IID_ANDROIDSIMPLEBUFFERQUEUE as ma_handle
+    SL_IID_RECORD as ma_handle
+    SL_IID_PLAY as ma_handle
+    SL_IID_OUTPUTMIX as ma_handle
+    SL_IID_ANDROIDCONFIGURATION as ma_handle
+    slCreateEngine as ma_proc
+end type
+type ma_context_null_backend_t
+    _unused as int32
+end type
+type ma_context_posix_t
+    _unused as int32
+end type
+type ma_context
+    callbacks as ma_backend_callbacks
+    backend as ma_backend               /' DirectSound, ALSA, etc. '/
+    pLog as ma_log ptr
+    log as ma_log /' Only used if the log is owned by the context. The pLog member will be set to &log in this case. '/
+    threadPriority as ma_thread_priority
+    threadStackSize as uinteger
+    pUserData as any ptr
+    allocationCallbacks as ma_allocation_callbacks
+    deviceEnumLock as ma_mutex          /' Used to make ma_context_get_devices() thread safe. '/
+    deviceInfoLock as ma_mutex          /' Used to make ma_context_get_device_info() thread safe. '/
+    deviceInfoCapacity as ma_uint32     /' Total capacity of pDeviceInfos. '/
+    playbackDeviceInfoCount as ma_uint32
+    captureDeviceInfoCount as ma_uint32
+    pDeviceInfos as ma_device_info ptr  /' Playback devices first, then capture. '/
+
+    union
+        aaudio as ma_context_aaudio_t /' libaaudio.so '/ /' For processing operations outside of the error callback, specifically device disconnections and rerouting. '/
+        opensl as ma_context_opensl_t
+        null_backend as ma_context_null_backend_t
+    end union
+
+    union
+        posix as ma_context_posix_t
+        _unused as int32
+    end union
+end type
 #endif
 
 #if defined(TIKO_OS_WINDOWS)
-'' C2T-NOTE(branch) miniaudio.h:7798 -- an #if inside: the members are the ones this target's preprocessor keeps
+'' C2T-NOTE(branch) miniaudio.h:7796 -- an #if inside: the members are the ones this target's preprocessor keeps
 type ma_device_resampling_t_linear_t
     lpfOrder as ma_uint32
 end type
@@ -8533,7 +8621,7 @@ type ma_device
     end union
 end type
 #elseif defined(TIKO_OS_LINUX)
-'' C2T-NOTE(branch) miniaudio.h:7798 -- an #if inside: the members are the ones this target's preprocessor keeps
+'' C2T-NOTE(branch) miniaudio.h:7796 -- an #if inside: the members are the ones this target's preprocessor keeps
 type ma_device_resampling_t_linear_t
     lpfOrder as ma_uint32
 end type
@@ -8663,7 +8751,7 @@ type ma_device
     end union
 end type
 #elseif defined(TIKO_OS_MACOS)
-'' C2T-NOTE(branch) miniaudio.h:7798 -- an #if inside: the members are the ones this target's preprocessor keeps
+'' C2T-NOTE(branch) miniaudio.h:7796 -- an #if inside: the members are the ones this target's preprocessor keeps
 type ma_device_resampling_t_linear_t
     lpfOrder as ma_uint32
 end type
@@ -8783,12 +8871,146 @@ type ma_device
         null_device as ma_device_null_device_t /' Read and written by multiple threads. Must be used atomically, and must be 32-bit for compiler compatibility. '/
     end union
 end type
+#elseif defined(TIKO_OS_ANDROID)
+'' C2T-NOTE(branch) miniaudio.h:7796 -- an #if inside: the members are the ones this target's preprocessor keeps
+type ma_device_resampling_t_linear_t
+    lpfOrder as ma_uint32
+end type
+type ma_device_resampling_t
+    algorithm as ma_resample_algorithm
+    pBackendVTable as ma_resampling_backend_vtable ptr
+    pBackendUserData as any ptr
+    linear as ma_device_resampling_t_linear_t
+end type
+type ma_device_playback_t
+    pID as ma_device_id ptr
+    id as ma_device_id
+    name as zstring * 256
+    shareMode as ma_share_mode
+    format as ma_format
+    channels as ma_uint32
+    channelMap(0 to 253) as ma_channel
+    internalFormat as ma_format
+    internalChannels as ma_uint32
+    internalSampleRate as ma_uint32
+    internalChannelMap(0 to 253) as ma_channel
+    internalPeriodSizeInFrames as ma_uint32
+    internalPeriods as ma_uint32
+    channelMixMode as ma_channel_mix_mode
+    calculateLFEFromSpatialChannels as ma_bool32
+    converter as ma_data_converter
+    pIntermediaryBuffer as any ptr
+    intermediaryBufferCap as ma_uint32
+    intermediaryBufferLen as ma_uint32
+    pInputCache as any ptr
+    inputCacheCap as ma_uint64
+    inputCacheConsumed as ma_uint64
+    inputCacheRemaining as ma_uint64
+end type
+type ma_device_capture_t
+    pID as ma_device_id ptr
+    id as ma_device_id
+    name as zstring * 256
+    shareMode as ma_share_mode
+    format as ma_format
+    channels as ma_uint32
+    channelMap(0 to 253) as ma_channel
+    internalFormat as ma_format
+    internalChannels as ma_uint32
+    internalSampleRate as ma_uint32
+    internalChannelMap(0 to 253) as ma_channel
+    internalPeriodSizeInFrames as ma_uint32
+    internalPeriods as ma_uint32
+    channelMixMode as ma_channel_mix_mode
+    calculateLFEFromSpatialChannels as ma_bool32
+    converter as ma_data_converter
+    pIntermediaryBuffer as any ptr
+    intermediaryBufferCap as ma_uint32
+    intermediaryBufferLen as ma_uint32
+end type
+type ma_device_aaudio_t
+    pStreamPlayback as ma_ptr
+    pStreamCapture as ma_ptr
+    rerouteLock as ma_mutex
+    isTearingDown as ma_atomic_bool32
+    pendingReroutes as ma_uint32
+    usage as ma_aaudio_usage
+    contentType as ma_aaudio_content_type
+    inputPreset as ma_aaudio_input_preset
+    allowedCapturePolicy as ma_aaudio_allowed_capture_policy
+    noAutoStartAfterReroute as ma_bool32
+    enableCompatibilityWorkarounds as ma_bool32
+    allowSetBufferCapacity as ma_bool32
+end type
+type ma_device_opensl_t
+    pOutputMixObj as ma_ptr
+    pOutputMix as ma_ptr
+    pAudioPlayerObj as ma_ptr
+    pAudioPlayer as ma_ptr
+    pAudioRecorderObj as ma_ptr
+    pAudioRecorder as ma_ptr
+    pBufferQueuePlayback as ma_ptr
+    pBufferQueueCapture as ma_ptr
+    isDrainingCapture as ma_bool32
+    isDrainingPlayback as ma_bool32
+    currentBufferIndexPlayback as ma_uint32
+    currentBufferIndexCapture as ma_uint32
+    pBufferPlayback as ma_uint8 ptr
+    pBufferCapture as ma_uint8 ptr
+end type
+type ma_device_null_device_t
+    deviceThread as ma_thread
+    operationEvent as ma_event
+    operationCompletionEvent as ma_event
+    operationSemaphore as ma_semaphore
+    operation as ma_uint32
+    operationResult as ma_result
+    timer as ma_timer
+    priorRunTime as float64
+    currentPeriodFramesRemainingPlayback as ma_uint32
+    currentPeriodFramesRemainingCapture as ma_uint32
+    lastProcessedFramePlayback as ma_uint64
+    lastProcessedFrameCapture as ma_uint64
+    isStarted as ma_atomic_bool32
+end type
+type ma_device
+    pContext as ma_context ptr
+    type as ma_device_type
+    sampleRate as ma_uint32
+    state as ma_atomic_device_state             /' The state of the device is variable and can change at any time on any thread. Must be used atomically. '/
+    onData as ma_device_data_proc               /' Set once at initialization time and should not be changed after. '/
+    onNotification as ma_device_notification_proc /' Set once at initialization time and should not be changed after. '/
+    onStop as ma_stop_proc                      /' DEPRECATED. Use the notification callback instead. Set once at initialization time and should not be changed after. '/
+    pUserData as any ptr                        /' Application defined data. '/
+    startStopLock as ma_mutex
+    wakeupEvent as ma_event
+    startEvent as ma_event
+    stopEvent as ma_event
+    thread as ma_thread
+    workResult as ma_result                     /' This is set by the worker thread after it's finished doing a job. '/
+    isOwnerOfContext as ma_bool8                /' When set to true, uninitializing the device will also uninitialize the context. Set to true when NULL is passed into ma_device_init(). '/
+    noPreSilencedOutputBuffer as ma_bool8
+    noClip as ma_bool8
+    noDisableDenormals as ma_bool8
+    noFixedSizedCallback as ma_bool8
+    masterVolumeFactor as ma_atomic_float       /' Linear 0..1. Can be read and written simultaneously by different threads. Must be used atomically. '/
+    duplexRB as ma_duplex_rb                    /' Intermediary buffer for duplex device on asynchronous backends. '/
+    resampling as ma_device_resampling_t
+    playback as ma_device_playback_t /' Set to NULL if using default ID, otherwise set to the address of "id". '/ /' If using an explicit device, will be set to a copy of the ID used for initialization. Otherwise cleared to 0. '/ /' Maybe temporary. Likely to be replaced with a query API. '/ /' Set to whatever was passed in when the device was initialized. '/ /' For implementing fixed sized buffer callbacks. Will be null if using variable sized callbacks. '/ /' How many valid frames are sitting in the intermediary buffer. '/ /' In external format. Can be null. '/
+    capture as ma_device_capture_t /' Set to NULL if using default ID, otherwise set to the address of "id". '/ /' If using an explicit device, will be set to a copy of the ID used for initialization. Otherwise cleared to 0. '/ /' Maybe temporary. Likely to be replaced with a query API. '/ /' Set to whatever was passed in when the device was initialized. '/ /' For implementing fixed sized buffer callbacks. Will be null if using variable sized callbacks. '/ /' How many valid frames are sitting in the intermediary buffer. '/
+
+    union
+        aaudio as ma_device_aaudio_t /'AAudioStream*'/ /'AAudioStream*'/ /' Reroute jobs posted and not yet finished. Must be used atomically. ma_device_uninit() waits for this to reach zero. '/
+        opensl as ma_device_opensl_t /'SLObjectItf'/ /'SLOutputMixItf'/ /'SLObjectItf'/ /'SLPlayItf'/ /'SLObjectItf'/ /'SLRecordItf'/ /'SLAndroidSimpleBufferQueueItf'/ /'SLAndroidSimpleBufferQueueItf'/ /' This is malloc()'d and is used for storing audio data. Typed as ma_uint8 for easy offsetting. '/
+        null_device as ma_device_null_device_t /' Read and written by multiple threads. Must be used atomically, and must be 32-bit for compiler compatibility. '/
+    end union
+end type
 #endif
 #if (defined(_MSC_VER) andalso ((defined(__clang__)) = 0))
-    '' C2T-TODO(unreached-branch) miniaudio.h:8099 -- inside a branch no pass takes
+    '' C2T-TODO(unreached-branch) miniaudio.h:8097 -- inside a branch no pass takes
 ''     #pragma warning(pop)
 #elseif (defined(__clang__) orelse (defined(__GNUC__) andalso ((__GNUC__ > 4) orelse ((__GNUC__ = 4) andalso (__GNUC_MINOR__ >= 8)))))
-    '' C2T-TODO(unsupported) miniaudio.h:8101 -- #pragma has no tiko translation
+    '' C2T-TODO(unsupported) miniaudio.h:8099 -- #pragma has no tiko translation
 ''     #pragma GCC diagnostic pop  /* For ISO C99 doesn't support unnamed structs/unions [-Wpedantic] */
 #endif
 
@@ -10497,9 +10719,9 @@ Offsets a pointer by the specified number of PCM frames.
 '/
 declare function ma_offset_pcm_frames_ptr( byval p as any ptr, byval offsetInFrames as ma_uint64, byval format as ma_format, byval channels as ma_uint32 ) as any ptr
 declare function ma_offset_pcm_frames_const_ptr( byval p as const any ptr, byval offsetInFrames as ma_uint64, byval format as ma_format, byval channels as ma_uint32 ) as const any ptr
-'' C2T-TODO(static-inline) miniaudio.h:9809 -- static inline function 'ma_offset_pcm_frames_ptr_f32': no symbol to link against; port the body by hand
+'' C2T-TODO(static-inline) miniaudio.h:9807 -- static inline function 'ma_offset_pcm_frames_ptr_f32': no symbol to link against; port the body by hand
 '' static MA_INLINE float* ma_offset_pcm_frames_ptr_f32(float* p, ma_uint64 offsetInFrames, ma_uint32 channels) { return (float*)ma_offset_pcm_frames_ptr((void*)p, offsetInFrames, ma_format_f32, channels); }
-'' C2T-TODO(static-inline) miniaudio.h:9810 -- static inline function 'ma_offset_pcm_frames_const_ptr_f32': no symbol to link against; port the body by hand
+'' C2T-TODO(static-inline) miniaudio.h:9808 -- static inline function 'ma_offset_pcm_frames_const_ptr_f32': no symbol to link against; port the body by hand
 '' static MA_INLINE const float* ma_offset_pcm_frames_const_ptr_f32(const float* p, ma_uint64 offsetInFrames, ma_uint32 channels) { return (const float*)ma_offset_pcm_frames_const_ptr((const void*)p, offsetInFrames, ma_format_f32, channels); }
 
 
@@ -11923,7 +12145,7 @@ end enum
 #define MA_ENGINE_MAX_LISTENERS 4
 #endif
 
-'' C2T-NOTE(value) miniaudio.h:11171 -- clang's value; a cast, which tiko's preprocessor does not evaluate
+'' C2T-NOTE(value) miniaudio.h:11169 -- clang's value; a cast, which tiko's preprocessor does not evaluate
 #define MA_LISTENER_INDEX_CLOSEST 255
 
 #if defined(TIKO_OS_WINDOWS)

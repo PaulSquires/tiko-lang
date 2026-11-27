@@ -180,13 +180,16 @@ end function
 '' A tiko #if condition true for exactly the passes in 'mask', or "" when none can say it.
 private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as string
     dim as int32 n = outs.Count
-    dim as uint32 winM = 0, linM = 0, macM = 0
+    dim as uint32 winM = 0, linM = 0, macM = 0, andM = 0, andX64 = 0, andArm = 0
     dim as int32 maxExtra = 0
     for p as int32 = 0 to n - 1
         select case outs[p].osKind
         case Tko.OS_WINDOWS : winM or= (1u shl p)
         case Tko.OS_LINUX   : linM or= (1u shl p)
         case Tko.OS_DARWIN  : macM or= (1u shl p)
+        case Tko.OS_ANDROID
+            andM or= (1u shl p)
+            if instr( outs[p].triple, "aarch64" ) > 0 then andArm or= (1u shl p) else andX64 or= (1u shl p)
         case else           : Tko.TargetIce( "c2t Guard_", outs[p].osKind )
         end select
         if outs[p].extraNo > maxExtra then maxExtra = outs[p].extraNo
@@ -238,6 +241,21 @@ private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as 
             expr.Push( "(defined(TIKO_OS_MACOS) andalso " & dexpr[i] & ")" ) : em.Push( macM and dm[i] )
         end if
     next
+    '' ANDROID'S (RFC-0007), only when Android passes ran, and after all of the above, so a
+    '' translation without them guards exactly as it did: the OS, each architecture of it (the
+    '' two passes can differ -- a plain char is unsigned on aarch64), and each with a define.
+    const AND_X64 = "(defined(TIKO_OS_ANDROID) andalso defined(TIKO_ARCH_X86_64))"
+    const AND_ARM = "(defined(TIKO_OS_ANDROID) andalso defined(TIKO_ARCH_ARM64))"
+    if andM <> 0 then
+        expr.Push( "defined(TIKO_OS_ANDROID)" ) : em.Push( andM )
+        expr.Push( AND_X64 ) : em.Push( andX64 )
+        expr.Push( AND_ARM ) : em.Push( andArm )
+        for i as int32 = 0 to dexpr.Count - 1
+            expr.Push( "(defined(TIKO_OS_ANDROID) andalso " & dexpr[i] & ")" ) : em.Push( andM and dm[i] )
+            expr.Push( "(" & AND_X64 & " andalso " & dexpr[i] & ")" ) : em.Push( andX64 and dm[i] )
+            expr.Push( "(" & AND_ARM & " andalso " & dexpr[i] & ")" ) : em.Push( andArm and dm[i] )
+        next
+    end if
     for i as int32 = 0 to expr.Count - 1
         if em[i] = mask then return expr[i]
     next
@@ -247,7 +265,23 @@ private function Guard_( byref outs as C2tPassOutVec, byval mask as uint32 ) as 
     for i as int32 = 0 to expr.Count - 1
         if (full xor em[i]) = mask then return "not (" & expr[i] & ")"
     next
-    return ""
+    '' ...AND, WITH ANDROID, A UNION of them: four OSes leave masks no one candidate states --
+    '' Linux and Android sharing a text Windows and macOS do not. Candidates are taken in
+    '' order, the widest first, each inside the mask and apart from those already taken.
+    if andM = 0 then return ""
+    dim as uint32 left_ = mask
+    dim as string u
+    dim as int32 parts = 0
+    for i as int32 = 0 to expr.Count - 1
+        if (em[i] = 0) orelse ((em[i] and (not mask)) <> 0) orelse ((em[i] and left_) <> em[i]) then continue for
+        if len( u ) then u &= " orelse "
+        u &= expr[i]
+        parts += 1
+        left_ and= (not em[i])
+        if left_ = 0 then exit for
+    next
+    if (left_ <> 0) orelse (parts < 2) then return ""
+    return "(" & u & ")"
 end function
 
 '' ---------------------------------------------------------------- the walk

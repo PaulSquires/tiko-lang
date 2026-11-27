@@ -6,6 +6,46 @@
 #include once "../../../../pkg/vendor/miniaudio/miniaudio.ti"
 #include once "../../../../pkg/vendor/miniaudio/miniaudio-residue.ti"
 
+'' ANDROID (both architectures alike): the 33 records' sizes, clang's -- llvm-nm -S of claude-docs
+'' docs/tiko-vendor/probes/av0/layout-check-obj.c built with the NDK 30 sysroot for x86_64- and
+'' aarch64-linux-android29 (RFC-0007). Five differ from Linux's: ma_context, ma_device, ma_event,
+'' ma_fence, ma_semaphore.
+#ifdef TIKO_OS_ANDROID
+    #assert sizeof( ma_context ) = 880
+    #assert sizeof( ma_device ) = 3760
+    #assert sizeof( ma_device_config ) = 296
+    #assert sizeof( ma_device_info ) = 1544
+    #assert sizeof( ma_engine ) = 1360
+    #assert sizeof( ma_engine_config ) = 264
+    #assert sizeof( ma_sound ) = 1024
+    #assert sizeof( ma_sound_config ) = 208
+    #assert sizeof( ma_sound_group ) = 1024
+    #assert sizeof( ma_decoder ) = 552
+    #assert sizeof( ma_decoder_config ) = 144
+    #assert sizeof( ma_encoder ) = 120
+    #assert sizeof( ma_resource_manager ) = 1144
+    #assert sizeof( ma_resource_manager_data_source ) = 744
+    #assert sizeof( ma_node_graph ) = 752
+    #assert sizeof( ma_log ) = 144
+    #assert sizeof( ma_mutex ) = 40
+    #assert sizeof( ma_event ) = 92
+    #assert sizeof( ma_semaphore ) = 92
+    #assert sizeof( ma_thread ) = 8
+    #assert sizeof( ma_fence ) = 96
+    #assert sizeof( ma_job_queue ) = 192
+    #assert sizeof( ma_pcm_rb ) = 152
+    #assert sizeof( ma_rb ) = 64
+    #assert sizeof( ma_audio_buffer ) = 152
+    #assert sizeof( ma_waveform ) = 120
+    #assert sizeof( ma_noise ) = 152
+    #assert sizeof( ma_data_converter ) = 312
+    #assert sizeof( ma_resampler ) = 192
+    #assert sizeof( ma_atomic_uint64 ) = 8
+    #assert sizeof( ma_spatializer ) = 200
+    #assert sizeof( ma_engine_node ) = 952
+    #assert sizeof( ma_sound_inlined ) = 1040
+#endif
+
 private sub OnData cdecl( byval d as ma_device ptr, byval pout as any ptr, byval pin as const any ptr, byval n as ma_uint32 )
     dim as ma_waveform ptr w = d->pUserData
     ma_waveform_read_pcm_frames( w, pout, n, nullptr )

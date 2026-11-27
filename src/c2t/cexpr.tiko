@@ -678,6 +678,9 @@ private function Print_( byref c as CExpr, byval n as int32, byval cond as boole
                 return ""
             end if
             if (tn[0] >= 48) andalso (tn[0] <= 57) then return tn
+            '' ...and one spelled as an expression is that expression: __linux__ in a run with
+            '' Android passes, '(defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_ANDROID))'.
+            if tn[0] = 40 then return tn
             return "defined(" & tn & ")"
         end if
         if Tko.CImport.NameReservedValue( x.text ) then
