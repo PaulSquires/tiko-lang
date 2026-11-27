@@ -74,6 +74,8 @@ public enum
                             ' installs (tkReport_SetItemPainter); with none, a thin red frame
     TKRI_EXPR               ' an expression's value (tkRExpr), formatted by fmt
     TKRI_TEXT               ' text with {expression} parts: "Total for {[Customer]}: {Sum([Amount])}"
+    TKRI_GAUGE              ' a gauge of the field's (or expression's) number, settings in opts (rpData)
+    TKRI_SPARKLINE          ' a sparkline of the field's (or expression's) series text, settings in opts
 end enum
 
 public enum
@@ -156,7 +158,7 @@ public type TKREPORT_ITEM
     canGrow   as boolean               ' text wraps and the band grows
     tag       as integer
     sumIdx    as long = -1             ' the engine's accumulator
-    opts      as ustring               ' an installed kind's settings, "key=value;..." (BARCODE: tkReportBarcode)
+    opts      as ustring               ' settings, "key=value;...": BARCODE (tkReportBarcode), GAUGE, SPARKLINE (rpData)
     ' ---- expressions (Report Designer RD2; compiled by tkReport_Prepare) ----
     name_     as ustring               ' named in tkReport_Prepare's errors
     expr      as ustring               ' EXPR: the value; TEXT: the template; IMAGE / CHECK: in place of field

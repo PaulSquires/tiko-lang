@@ -585,6 +585,17 @@ public sub tkGauge_Layout( byref s as TKGAUGE_SPEC, byref rc as TKRECT, byval fS
             tkRect_Set( geo.labRc(i), cint( lx - lw / 2 ), cint( ly - lh / 2 ), cint( lx - lw / 2 ) + cint( lw ), cint( ly - lh / 2 ) + cint( lh ) )
         next
         GgThin( geo )
+        ' on a small gauge an inside label at the arc's ends can reach the hub: it goes (the hub is drawn
+        ' over it, and half a "0" reads as a stray mark)
+        if s.nScale <> TKGAUGE_SCALE_OUTSIDE then
+            dim as TKRECT hub
+            tkRect_Set( hub, cint( geo.cx - geo.hubR ), cint( geo.cy - geo.hubR ), cint( geo.cx + geo.hubR ), cint( geo.cy + geo.hubR ) )
+            for i as int32 = 0 to geo.nMajor - 1
+                if geo.labOn(i) andalso (tkRect_IsEmpty( tkRect_Intersect( geo.labRc(i), hub ) ) = false) then
+                    geo.labOn(i) = false : geo.nLabShown -= 1
+                end if
+            next
+        end if
     end if
     ' ---- the value text and caption ------------------------------------------------------------------
     if blockH > 0 then
@@ -887,6 +898,123 @@ end sub
 
 public declare function tkGauge_ThemeColors( byref t as TKTHEME_COLORS ) as TKGAUGE_COLORS
 
+' ---- the opts text: a report item's settings, "key=value;..." (tkReport's channel) ------------------
+' A value escapes "%", ";" and "=" as %25, %3B, %3D (the barcode item's rule).
+private function GgUnesc( byref s as const string ) as string
+    dim as string o = ""
+    dim as int32 i = 1
+    while i <= len( s )
+        if (mid( s, i, 1 ) = "%") andalso (i + 2 <= len( s )) then
+            o &= chr( val( "&h" & mid( s, i + 1, 2 ) ) ) : i += 3
+        else
+            o &= mid( s, i, 1 ) : i += 1
+        end if
+    wend
+    return o
+end function
+
+' The next "key=value" of rest (consumed); FALSE when rest is empty.
+private function GgNextOpt( byref rest as string, byref k as string, byref v as string ) as boolean
+    while len( rest )
+        dim as int32 sc = instr( rest, ";" )
+        dim as string kv = iif( sc > 0, left( rest, sc - 1 ), rest )
+        rest = iif( sc > 0, mid( rest, sc + 1 ), "" )
+        dim as int32 eq = instr( kv, "=" )
+        if eq = 0 then continue while
+        k = lcase( trim( left( kv, eq - 1 ) ) ) : v = GgUnesc( trim( mid( kv, eq + 1 ) ) )
+        return true
+    wend
+    return false
+end function
+
+' Opts into a spec (defaults for what is absent). rg() and ptrs() hold what the spec points at; ptrs(0)
+' is the value (its fValue the caller's). Keys: shape (radial linear) min max start sweep orient
+' (horizontal vertical) reverse step minor hint dec scale (inside outside none both) track face
+' ranges (the SetRangesText form, escaped) pointer (needle bar marker) width (pointer 0's) origin
+' target (a MARKER pointer at that value) caption prefix suffix value (auto center below none end).
+' FALSE for an unknown key or word; the spec then as far as it was read.
+public function tkGauge_OptsToSpec( byref opts as const ustring, byref s as TKGAUGE_SPEC, rg() as TKGAUGE_RANGE, _
+                                    ptrs() as TKGAUGE_POINTER ) as boolean
+    dim as TKGAUGE_SPEC s0
+    s = s0
+    erase rg
+    redim ptrs( 0 to 0 )
+    dim as boolean ok = true, bShape = false, bKind = false
+    dim as string rest = opts, k, v
+    while GgNextOpt( rest, k, v )
+        dim as string lv = lcase( v )
+        select case k
+        case "shape"
+            bShape = true
+            select case lv
+            case "radial" : s.nShape = TKGAUGE_RADIAL
+            case "linear" : s.nShape = TKGAUGE_LINEAR
+            case else : ok = false
+            end select
+        case "min" : s.fMin = val( v )
+        case "max" : s.fMax = val( v )
+        case "start" : s.fStart = val( v )
+        case "sweep" : s.fSweep = val( v )
+        case "orient"
+            select case lv
+            case "horizontal", "h" : s.nOrient = TKGAUGE_HORIZONTAL
+            case "vertical", "v" : s.nOrient = TKGAUGE_VERTICAL
+            case else : ok = false
+            end select
+        case "reverse" : s.bReverse = (val( v ) <> 0) orelse (lv = "true")
+        case "step" : s.fMajorStep = val( v )
+        case "minor" : s.nMinorCount = val( v )
+        case "hint" : s.nTickHint = val( v )
+        case "dec" : s.nDecimals = val( v )
+        case "scale"
+            select case lv
+            case "inside", "near" : s.nScale = TKGAUGE_SCALE_INSIDE
+            case "outside", "far" : s.nScale = TKGAUGE_SCALE_OUTSIDE
+            case "none" : s.nScale = TKGAUGE_SCALE_NONE
+            case "both" : s.nScale = TKGAUGE_SCALE_BOTH
+            case else : ok = false
+            end select
+        case "track" : s.fTrackWidth = val( v )
+        case "face" : s.bShowFace = (val( v ) <> 0) orelse (lv = "true")
+        case "ranges" : tkGauge_ParseRanges( v, rg() )
+        case "pointer"
+            bKind = true
+            select case lv
+            case "needle" : ptrs(0).nKind = TKGAUGE_PTR_NEEDLE
+            case "bar" : ptrs(0).nKind = TKGAUGE_PTR_BAR
+            case "marker" : ptrs(0).nKind = TKGAUGE_PTR_MARKER
+            case else : ok = false
+            end select
+        case "width" : if val( v ) > 0 then ptrs(0).fWidth = val( v )
+        case "origin" : s.bBarOrigin = true : s.fBarOrigin = val( v )
+        case "target"
+            dim as int32 n = ubound( ptrs ) + 1
+            redim preserve ptrs( 0 to n )
+            ptrs(n).nKind = TKGAUGE_PTR_MARKER : ptrs(n).fValue = val( v )
+        case "caption" : s.sCaption = v
+        case "prefix" : s.sPrefix = v
+        case "suffix" : s.sSuffix = v
+        case "value"
+            select case lv
+            case "auto" : s.nValueText = TKGAUGE_VALUE_AUTO
+            case "center" : s.nValueText = TKGAUGE_VALUE_CENTER
+            case "below" : s.nValueText = TKGAUGE_VALUE_BELOW
+            case "none" : s.nValueText = TKGAUGE_VALUE_NONE
+            case "end" : s.nValueText = TKGAUGE_VALUE_END
+            case else : ok = false
+            end select
+        case else : ok = false
+        end select
+    wend
+    ' a linear gauge's value is a bar unless the opts name its pointer (as tkGauge_Create does)
+    if bShape andalso (s.nShape = TKGAUGE_LINEAR) andalso (bKind = false) then ptrs(0).nKind = TKGAUGE_PTR_BAR
+    if s.fMin > s.fMax then swap s.fMin, s.fMax
+    s.pPointers = @ptrs(0) : s.nPointers = ubound( ptrs ) + 1
+    s.nRanges = ubound( rg ) + 1
+    s.pRanges = iif( s.nRanges > 0, @rg(0), cast( TKGAUGE_RANGE ptr, 0 ) )
+    return ok
+end function
+
 ' Widgetless: the gauge fitted into rc on any TK_PAINT. No background.
 public sub tkGauge_PaintInto( byval b as TK_PAINT ptr, byref rc as TKRECT, byref s as TKGAUGE_SPEC )
     if b = 0 then exit sub
@@ -901,15 +1029,24 @@ public sub tkGauge_PaintInto( byval b as TK_PAINT ptr, byref rc as TKRECT, byref
     tkGauge_PaintSpec( b, ss, geo )
 end sub
 
-' On a print page, in rc (points): a canvas of one design unit per pixel (1 DIP = 0.75 pt), the
-' same painter. Text needs fonts opened at scale 1 (or none). FALSE: nothing drawn.
+' On a print page, in rc (points): the same painter on a canvas of TKPAGE_PXPERPT pixels per point,
+' a design unit 1/96 inch (0.75 pt) as on a 96 dpi screen. Text: the spec's fonts must be page fonts;
+' 0 = the page's current font (tkPage_SetFont), none set = no text. Colours: 0 = tkTheme_Light's, for
+' paper. FALSE: nothing drawn.
 public function tkGauge_PaintPage( byval pg as TK_PAGE ptr, byref rc as TKRECTF, byref s as TKGAUGE_SPEC ) as boolean
-    dim as int32 w = cint( (rc.right - rc.left) * 96 / 72 ), h = cint( (rc.bottom - rc.top) * 96 / 72 )
+    dim as int32 w = cint( (rc.right - rc.left) * TKPAGE_PXPERPT ), h = cint( (rc.bottom - rc.top) * TKPAGE_PXPERPT )
     if (w <= 0) orelse (h <= 0) then return false
     dim as TK_PAINT cp
-    if tkPage_BeginCanvas( pg, rc, w, h, 1, cp ) = false then return false
+    dim as float32 k = TKPAGE_PXPERPT * 72 / 96           ' a design unit is 1/96 inch on paper
+    if tkPage_BeginCanvas( pg, rc, w, h, k, cp ) = false then return false
     dim as TKGAUGE_SPEC ss = s
-    ss.fScale = 1
+    ss.fScale = k
+    if ss.fText = 0 then ss.fText = tkPage_GetFont( pg )
+    dim as TKGAUGE_COLORS cPaper
+    if ss.pColors = 0 then
+        cPaper = tkGauge_ThemeColors( tkTheme_Light( ) )
+        ss.pColors = @cPaper
+    end if
     dim as TKRECT r
     tkRect_Set( r, 0, 0, w, h )
     tkGauge_PaintInto( @cp, r, ss )

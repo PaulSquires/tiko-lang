@@ -224,6 +224,48 @@ sub ReportPalettesSuite( )
     tkReportDef_Destroy( d )
 end sub
 
+' ---- gauge and sparkline items (GAUGE-SPARKLINE.md GS5): placed, inspected, saved, drawn on the canvas ----
+sub ReportDataItemsSuite( )
+    dim as ustring src = "format = 1" & LF & "[[source]]" & LF & "name = ""S""" & LF _
+        & "[[band]]" & LF & "id = ""d""" & LF & "kind = ""detail""" & LF & "source = ""S""" & LF & "height = 90" & LF
+    dim as TK_REPORTDEF ptr d = LoadRpt( src )
+    if d = 0 then exit sub
+    dim as ustring g = redits.AddItem( d, "gauge", "d", 10, 4 )
+    dim as ustring s = redits.AddItem( d, "sparkline", "d", 150, 4 )
+    dim as int32 gi = tkReportDef_FindItem( d, g ), si = tkReportDef_FindItem( d, s )
+    Check( (g = "gauge1") andalso (s = "sparkline1") andalso (gi >= 0) andalso (si >= 0) andalso (d->items(gi).w = 120) _
+           andalso (d->items(gi).opts = "min=0;max=100") andalso (d->items(si).h = 20), "rdata: the toolbox places a gauge and a sparkline at their sizes", g & " " & s )
+    dim as Array( of rmodel.RProp ) rows
+    rmodel.PropsOf( d, "item:gauge1", rows )
+    dim as ustring rowKeys
+    for each r as rmodel.RProp in rows
+        rowKeys &= r.Key & " "
+    next
+    Check( (instr( rowKeys, "expr opts " ) > 0) andalso (instr( rowKeys, "font size " ) > 0) andalso (instr( rowKeys, "align" ) = 0), _
+           "rdata: the inspector rows: the value's expr, the opts, the font", rowKeys )
+    Check( (rmodel.SetProp( d, "item:gauge1", "expr", "[Score]" ) = "") andalso (rmodel.SetProp( d, "item:gauge1", "opts", "min=0;max=10;shape=linear" ) = "") _
+           andalso (rmodel.GetProp( d, "item:gauge1", "opts" ) = "min=0;max=10;shape=linear"), "rdata: opts set and read back" )
+    dim as ustring ee
+    dim as TK_REPORTDEF ptr back = tkReportDef_LoadText( tkReportDef_SaveText( d ), ee )
+    Check( (back <> 0) andalso (back->items(0).kind = "gauge") andalso (back->items(0).opts = "min=0;max=10;shape=linear") _
+           andalso (back->items(0).expr = "[Score]") andalso (back->items(1).kind = "sparkline"), "rdata: a .tkreport keeps the kinds, expr and opts", ee )
+    if back then tkReportDef_Destroy( back )
+    ' the canvas: the band recorded through tkReport's own painter, on a stand-in value
+    dim as TK_PRINTDOC ptr doc = tkReportDef_RecordBand( d, tkReportDef_FindBand( d, "d" ), 300 )
+    dim as int32 nPoly = 0, nStroke = 0
+    dim as TKPRINT_OPINFO oi
+    if doc then
+        for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
+            tkPrintDoc_GetOp( doc, 0, i, oi )
+            if oi.op = tkPaint.TKREC_FILLPOLY then nPoly += 1
+            if oi.op = tkPaint.TKREC_STROKEOPEN then nStroke += 1
+        next
+        tkPrintDoc_Destroy( doc )
+    end if
+    Check( (nPoly >= 2) andalso (nStroke >= 1), "rdata: the canvas draws the gauge (track, bar) and the sparkline (a line)", nPoly & " polys, " & nStroke & " strokes" )
+    tkReportDef_Destroy( d )
+end sub
+
 ' ---- the dialogs' models (RD7): rrecords and the expression check, GUI-free ---------------------------
 sub ReportDialogsSuite( )
     dim as ustring src = "format = 1" & LF & "[[source]]" & LF & "name = ""O""" & LF _

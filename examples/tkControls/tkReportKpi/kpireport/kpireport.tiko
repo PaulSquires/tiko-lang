@@ -1,0 +1,62 @@
+' The KPI report shared by the selftest and the demo (GAUGE-SPARKLINE.md GS5): a row per region, its
+' score on a semicircle gauge and on a linear needle gauge, the same value through an expression on
+' a second linear gauge (a 0..100 scale), and its monthly trend as a sparkline with the last value.
+#module "kpireport"
+
+#import "vendor/tkControls/tkReport"
+using tkReport
+using tkBind
+using tkPrint
+
+public const KPI_ROWS = 3
+public const KPI_X_A = 190                 ' the linear gauges: the field's, then the expression's
+public const KPI_X_B = 330
+public const KPI_LIN_W = 130
+
+dim shared as ustring gNames(0 to KPI_ROWS - 1)
+dim shared as float64 gScores(0 to KPI_ROWS - 1)
+dim shared as ustring gTrends(0 to KPI_ROWS - 1)
+
+private sub GetRow( byval rpt as TK_REPORT ptr, byval row as integer, byval f as long, byref v as TK_VALUE )
+    select case f
+    case 0 : v.SetText( gNames(row) )
+    case 1 : v.SetFloat( gScores(row) )
+    case 2 : v.SetText( gTrends(row) )
+    end select
+end sub
+
+public function KpiRF( byval l as single, byval t as single, byval r as single, byval b as single ) as TKRECTF
+    dim as TKRECTF rc
+    tkRectF_Set( rc, l, t, r, b )
+    return rc
+end function
+
+' The linear gauges' opts; max 10 for the field, 100 for the expression.
+public function KpiLinearOpts( byval fMax as float64 ) as ustring
+    return "min=0;max=" & fMax & ";shape=linear;pointer=needle;scale=none;value=none"
+end function
+
+public function KpiMakeReport( ) as TK_REPORT ptr
+    gNames(0) = "North" : gScores(0) = 7.5 : gTrends(0) = "3,5,4,6,8,7,9"
+    gNames(1) = "South" : gScores(1) = 4.25 : gTrends(1) = "6,5,,4,3,4,2"
+    gNames(2) = "West" : gScores(2) = 9 : gTrends(2) = "5,5,6,6,7,8,8"
+    dim as TK_REPORT ptr r = tkReport_Create( "KPIs" )
+    dim as ustring names(0 to 2) = { "Region", "Score", "Trend" }
+    dim as long kinds(0 to 2) = { TKV_TEXT, TKV_FLOAT, TKV_TEXT }
+    tkReport_SetFields( r, names(), kinds() )
+    tkReport_SetRowCount( r, KPI_ROWS )
+    tkReport_SetGetValueCallback( r, @GetRow )
+    dim as TK_RBAND ptr ph = tkReport_GetBand( r, TKRB_PAGE_HEADER )
+    tkRBand_SetHeight( ph, 24 )
+    tkRBand_AddLabel( ph, KpiRF( 0, 0, 300, 18 ), "Regional KPIs" )
+    dim as TK_RBAND ptr d = tkReport_GetBand( r, TKRB_DETAIL )
+    tkRBand_SetHeight( d, 70 )
+    tkRBand_AddField( d, KpiRF( 0, 4, 80, 18 ), 0 )
+    tkRBand_AddGauge( d, KpiRF( 85, 2, 180, 68 ), 1, "min=0;max=10;start=180;sweep=180;caption=Score;" _
+                      & "ranges=0..5=#C62828%3B5..8=#F9A825%3B8..10=#2E7D32" )
+    tkRBand_AddGauge( d, KpiRF( KPI_X_A, 8, KPI_X_A + KPI_LIN_W, 28 ), 1, KpiLinearOpts( 10 ) )
+    dim as TKREPORT_ITEM ptr ex = tkRBand_AddGauge( d, KpiRF( KPI_X_B, 8, KPI_X_B + KPI_LIN_W, 28 ), -1, KpiLinearOpts( 100 ) )
+    ex->expr = "[Score] * 10"
+    tkRBand_AddSparkline( d, KpiRF( KPI_X_A, 38, KPI_X_A + KPI_LIN_W, 62 ), 2, "kind=line;markers=last;last=1" )
+    return r
+end function

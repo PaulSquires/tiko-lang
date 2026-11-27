@@ -44,7 +44,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkButton`, `tkCheckBox`, `tkOptionButton`, `tkToggle` | buttons and switches |
 | `tkTextBox`, `tkNumericUpDown`, `tkDatePicker`, `tkCalendar`, `tkCodeEdit` | text, numbers, dates, code |
 | `tkListTree`, `tkComboBox`, `tkSelectBar`, `tkTabBar`, `tkColumnHeader` | lists and selection |
-| `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel -- selection, editing, sort and filter, totals, and masked columns (a tkMaskEdit mask per column, M6) |
+| `tkDataGrid` | a data grid: typed columns over stored rows, painted for the visible cells only, scrolled by the pixel -- selection, editing, sort and filter, totals, masked columns (a tkMaskEdit mask per column, M6) and sparkline columns (a series per cell, an optional range shared by all rows, sorted by the last value) |
 | `tkMenuBar`, `tkPopupMenu`, `tkToolbar`, `tkIconPanel`, `tkStatusBar` | command surfaces |
 | `tkLayout` | automatic position and size: Anchor and Dock, in design units; a hidden docked control takes no space, and a dock can take its height from the control |
 | `tkStack` | a column or a row of controls, one after another, for a phone screen: fixed, own-size (a callback) or FILL items, padding and gaps in design units, a hidden item taking no space, nested stacks (cards); `Measure` gives a scroll panel its content height |
@@ -63,7 +63,7 @@ Each directory is one module, `vendor/tkControls/<name>`.
 | `tkPrinter` | printers and print jobs: Windows (winspool, raster at the printer's resolution), CUPS on Linux / macOS (a PDF job; libcups loaded at run time, `lp` without it) |
 | `tkPrintDialog` | the Print and Page Setup dialogs, tk-drawn on every OS |
 | `tkReportViewer` | a print document with its tools: toolbar (print, page setup, PDF, pages, zoom), preview, status bar; a tkReportDef shown with a parameter strip (a control per parameter, and Run) |
-| `tkReport` | banded reports (report / page / group headers and footers, detail, no-data, summaries, page info) over callback, table, ListTree or custom sources; expressions (tkRExpr): calculated fields, filters, groups, items, totals with their scope, late values, rules and visibility; the table printer for a ListTree |
+| `tkReport` | banded reports (report / page / group headers and footers, detail, no-data, summaries, page info) over callback, table, ListTree or custom sources; expressions (tkRExpr): calculated fields, filters, groups, items, totals with their scope, late values, rules and visibility; gauge and sparkline items (drawn by tkGauge / tkSparkline, settings in the item's opts); the table printer for a ListTree |
 | `tkReportSqlite` | an SQLite query as a tkReport's data: positional or named parameters; sorts by wrapping the query |
 | `tkReportBarcode` | barcodes in tkReport bands: `tkRBand_AddBarcode` draws a field's text as any tkBarcode symbology at its physical size (vector in PDF); `tkReportBarcode_Install` registers the painter, so a report without barcodes links no libzint |
 | `tkReportGrid` | a tkDataGrid as a tkReport's data: its visible columns in display order, its rows in view order, typed values |
