@@ -1,0 +1,2 @@
+A stand-in sysroot for c2t-android.test: android.h includes only clang's own <stdint.h>, so the
+Android and macOS passes need no NDK or SDK, and the test runs on every host. Empty on purpose.

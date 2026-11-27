@@ -16,7 +16,7 @@ tiko ships miniaudio 0.11.26 as a [vendor package](Vendor-Packages), with stb_vo
 
 There is nothing to download, no header to translate, no `#foreignlib` and nothing on the command line. miniaudio needs no system audio library either: it loads the platform's backend when a device is opened. The names are the ones [miniaudio's documentation](https://miniaud.io/docs/manual/) uses -- `ma_engine_init`, `ma_sound_start`, `ma_decoder_read_pcm_frames`. More programs are in the toolchain's `examples/miniaudio`, with the sound files these use in `examples/miniaudio/media`.
 
-> ⚠️ **Not on Android yet.** `#import "vendor/miniaudio"` stops with an error on the Android targets: five of miniaudio's records are laid out differently there, and the header translator has no Android pass yet.
+> ℹ️ **On Android** (`-target android-x86_64` / `android-arm64`) miniaudio links static, whatever the `#import` says. Five of its records are laid out differently there from Linux (its AAudio and OpenSL backends, Bionic's threads); the header is translated for Android and those layouts are checked against C's, but no program has been run on a device yet.
 
 ---
 
@@ -245,7 +245,6 @@ miniaudio and stb_vorbis are each public domain, or MIT-0 / MIT where public dom
 | `ma_sound_get_length_in_seconds` says 0 for an `.ogg` | a streamed Ogg Vorbis file's length is not known before it plays; load it without `MA_SOUND_FLAG_STREAM` to know it first |
 | clicks and gaps from a data callback | the callback waits for something, allocates or prints. Prepare everything before `ma_device_start` |
 | `ma_device_init` / `ma_engine_init` fails | no device (a server, a container), or the program may not use the microphone. A context limited to `ma_backend_null` runs without one (`examples/miniaudio/04-decode`) |
-| `TKO0309: #error: "vendor/miniaudio is not translated for Android..."` | as it says: not on Android yet |
 | the program exits at once with `-1073741515` (Windows) | `miniaudio.dll` is not beside the program |
 
 ---

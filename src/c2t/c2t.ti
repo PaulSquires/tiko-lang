@@ -120,6 +120,9 @@ type C2tPass
     as string triple
     args as Tko.StrVec             '' the clang arguments the pass parsed with (macro probes)
     as string sharedMacro          '' --shared-macro: the name printed as TIKO_LINK_DYNAMIC
+    '' THE RUN HAS ANDROID PASSES (--android-sysroot): __ANDROID__ and __linux__ are then
+    '' spelled for Android in every pass of it (emitmacro.tiko Platform_, RFC-0007 AN-2).
+    as boolean android
     as any ptr idx                 '' kept open until ClosePass: the emitter reads cursors
     as any ptr tu
     segs as C2tSegVec
@@ -173,6 +176,10 @@ type C2tOptions
     '' '-isysroot' (docs/tiko-macos RFC-0001 section 5); absent, the two passes are as they
     '' were. Opt-in because the SDK exists only on a Mac, and its headers never leave it.
     as string macSysroot
+    '' --android-sysroot: the NDK's sysroot. Given, TWO more targets are translated,
+    '' android-x86_64 and android-arm64, each with '--sysroot' (claude-docs
+    '' docs/tiko-vendor/RFC-0007); absent, every pass and spelling is as it was.
+    as string androidSysroot
     '' --shared-macro NAME (D25): the library's shared-build macro, USE_LIBTYPE_SHARED. A pass
     '' is made with it defined, and whatever it changes -- an 'extern import' variable -- is
     '' guarded by TIKO_LINK_DYNAMIC, the link mode an '#import ... link dynamic' defines.

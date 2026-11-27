@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/miniaudio HEADER and its residue compile for android-x86_64 as an importer
+'' reads them -- the translation's Android passes (claude-docs docs/tiko-vendor/RFC-0007) -- with
+'' the 33 records' sizes asserted against clang's. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target android-x86_64 -c tests/modules/src/vminiaudio/hdr.tiko -o build/.vmah-android-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vmah-android-x86_64.o
