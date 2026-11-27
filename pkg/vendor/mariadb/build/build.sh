@@ -8,7 +8,7 @@
 #
 # DYNAMIC ONLY (RFC-0003 DB-2): Connector/C is LGPL-2.1, so it ships as a shared library a
 # program's user can replace. Every host builds it with CMake and Ninja:
-#   - TLS: Schannel on Windows (no OpenSSL there at all); on Linux OpenSSL 3.5, built here
+#   - TLS: Schannel on Windows (no OpenSSL there at all); on Linux and macOS OpenSSL 3.5, built here
 #     STATIC ('no-shared', -fPIC) and folded into the library, hidden (RFC-0003 DB-3) -- the
 #     openssl input is fetched on every host and unused on Windows.
 #   - EVERY AUTH PLUGIN BUILT IN (CLIENT_PLUGIN_*=STATIC): mysql_native_password,
@@ -23,10 +23,14 @@
 #   - Linux: gcc; CMake's libmariadb.so.3 is NOT what ships. The library is linked again here
 #     from CMake's libmariadbclient.a and the static OpenSSL, through CMake's own export list
 #     (mariadbclient.def, a VERSION script: the libmysqlclient_18 / libmariadb_3 symbol versions
-#     MySQL programs expect), so its soname is its own file name, libmariadb_linux_x86_64.so.
+#     MySQL programs expect), so its soname is its own file name, libmariadb_linux_<arch>.so
+#     (x86_64, or arm64 with OpenSSL's linux-aarch64).
+#   - macOS: Apple's clang, arm64, macOS 13.0, OpenSSL folded in as on Linux; the dylib is linked
+#     here too, with the names of mariadbclient.def as its exported-symbols list.
 #
-# Output: bin/<host>/ beside this script -- Windows libmariadb.dll, Linux
-# libmariadb_linux_x86_64.so. The build trees live under TIKO_VENDOR_CACHE. Incremental: a stamp
+# Output: bin/<host>/ beside this script (bin/linux-arm64/ on arm64 Linux) -- Windows
+# libmariadb.dll, Linux libmariadb_linux_<arch>.so, macOS libmariadb_macos_arm64.dylib. The build
+# trees live under TIKO_VENDOR_CACHE. Incremental: a stamp
 # of the inputs and this script; a finished build in the cache is copied, not redone.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -39,11 +43,14 @@ SRC_CC=$1; SRC_OSSL=$2
 case $HOST in
     windows) ARCH=x86_64; OUTS=libmariadb.dll ;;
     linux)   ARCH=${TIKO_VENDOR_ARCH:-x86_64}
-             [ "$ARCH" = x86_64 ] || { echo "mariadb: linux-$ARCH is not built yet (RFC-0003 P4)" >&2; exit 1; }
+             case $ARCH in x86_64) OSSL_TARGET=linux-x86_64 ;; arm64) OSSL_TARGET=linux-aarch64 ;;
+                 *) echo "mariadb: no recipe for linux-$ARCH" >&2; exit 1 ;; esac
              OUTS=libmariadb_linux_$ARCH.so ;;
-    *) echo "mariadb: host '$HOST' is not built yet (RFC-0003 P4)" >&2; exit 1 ;;
+    macos)   ARCH=arm64; OSSL_TARGET=darwin64-arm64-cc; OUTS=libmariadb_macos_arm64.dylib ;;
+    *) echo "mariadb: no recipe for host '$HOST'" >&2; exit 1 ;;
 esac
 OUT=$HERE/bin/$HOST
+[ "$HOST" = linux ] && [ "$ARCH" != x86_64 ] && OUT=$HERE/bin/linux-$ARCH
 
 digest() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
 STAMP=$( { for f in "$@"; do basename "$f"; done; cat "$0"; echo "$HOST $ARCH"; } | digest | cut -c1-16 )
@@ -85,11 +92,38 @@ if [ "$HOST" = windows ]; then
     if llvm-readobj --coff-imports "$W/done/libmariadb.dll" | grep -qi 'vcruntime\|api-ms-win-crt\|libssl\|libcrypto'; then
         echo "mariadb: libmariadb.dll imports a C runtime or OpenSSL DLL -- not self-contained" >&2; exit 1
     fi
+elif [ "$HOST" = macos ]; then
+    # Apple's clang and ld64, arm64, macOS 13.0, as vendor/libpq. The dylib is linked here from
+    # CMake's libmariadbclient.a and the static OpenSSL, exporting exactly the names of CMake's
+    # mariadbclient.def (ld64 has no symbol versions: each name, '_'-prefixed, in a list), so
+    # OpenSSL stays hidden; install name @rpath/libmariadb_macos_arm64.dylib.
+    export MACOSX_DEPLOYMENT_TARGET=13.0
+    MCC=/usr/bin/clang
+    J=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    tar -xzf "$SRC_OSSL" -C "$W/src"
+    S_OSSL=$(ls -d "$W"/src/openssl-*); OSSL=$W/ossl
+    ( cd "$S_OSSL" && ./Configure $OSSL_TARGET no-shared no-tests no-docs CC=$MCC --prefix="$OSSL" --libdir=lib \
+        && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
+    cmake -S "$S_CC" -B "$W/b" "${C[@]}" -DWITH_SSL=OPENSSL -DOPENSSL_ROOT_DIR="$OSSL" \
+        -DOPENSSL_USE_STATIC_LIBS=ON -DCMAKE_C_COMPILER=$MCC \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        >> "$LOG" 2>&1 || fail "configure"
+    cmake --build "$W/b" --target mariadbclient >> "$LOG" 2>&1 || fail "the build"
+    L=$W/b/libmariadb; DY=libmariadb_macos_arm64.dylib
+    [ -f "$L/mariadbclient.def" ] || { echo "mariadb: CMake wrote no mariadbclient.def" >&2; exit 1; }
+    sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*);[[:space:]]*$/_\1/p' "$L/mariadbclient.def" | sort -u > "$W/exports.list"
+    $MCC -dynamiclib -o "$W/done/$DY" -install_name "@rpath/$DY" \
+        -Wl,-exported_symbols_list,"$W/exports.list" -Wl,-force_load,"$L/libmariadbclient.a" \
+        "$OSSL/lib/libssl.a" "$OSSL/lib/libcrypto.a" \
+        >> "$LOG" 2>&1 || fail "the shared library"
+    nm -gU "$W/done/$DY" > "$W/exports.txt"
+    grep -q ' _mysql_real_connect$' "$W/exports.txt" || { echo "mariadb: $DY does not export mysql_real_connect" >&2; exit 1; }
+    if grep -q ' _SSL_\| _EVP_' "$W/exports.txt"; then echo "mariadb: $DY exports OpenSSL" >&2; exit 1; fi
 else
     J=$(nproc 2>/dev/null || echo 4)
     tar -xzf "$SRC_OSSL" -C "$W/src"
     S_OSSL=$(ls -d "$W"/src/openssl-*); OSSL=$W/ossl
-    ( cd "$S_OSSL" && ./Configure linux-x86_64 no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
+    ( cd "$S_OSSL" && ./Configure $OSSL_TARGET no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
         && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
     cmake -S "$S_CC" -B "$W/b" "${C[@]}" -DWITH_SSL=OPENSSL -DOPENSSL_ROOT_DIR="$OSSL" \
         -DOPENSSL_USE_STATIC_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_COMPILER=gcc \

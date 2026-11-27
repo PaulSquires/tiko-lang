@@ -9,7 +9,8 @@
 # Neither project publishes what a tiko program can link, so every host builds:
 #   1. OpenSSL, STATIC ONLY ('no-shared'): its VC targets then compile /MT /Zl -- the static C
 #      runtime, no default library named -- where a shared build is /MD and imports VCRUNTIME140
-#      (RFC-0003 P0, F7). Windows: VC-WIN64A with clang-cl and NASM; Linux: gcc, -fPIC.
+#      (RFC-0003 P0, F7). Windows: VC-WIN64A with clang-cl and NASM; Linux: gcc, -fPIC
+#      (linux-x86_64 or linux-aarch64); macOS: Apple's clang, darwin64-arm64-cc, macOS 13.0.
 #   2. libpq with Meson and Ninja, every optional feature off but OpenSSL, only libpq's targets
 #      built. Windows: MSVC's cl, NOT clang-cl -- PostgreSQL's Meson applies its MSVC setup (the
 #      win32_msvc headers: dirent.h, unistd.h) only when the compiler id is 'msvc' (P0, F6).
@@ -17,7 +18,8 @@
 #   3. The SHARED LIBRARY. Windows: Meson's libpq.dll, which links the static OpenSSL in, /MT --
 #      it imports only system DLLs. Linux: linked here, not by Meson, so its soname is its own
 #      file name (libpq_linux_x86_64.so; a Meson build names itself libpq.so.5) and only libpq's
-#      API is exported (Meson's exports.list): OpenSSL is inside and invisible.
+#      API is exported (Meson's exports.list): OpenSSL is inside and invisible. macOS: the same,
+#      libpq_macos_arm64.dylib, install name @rpath/libpq_macos_arm64.dylib.
 #   4. The STATIC ARCHIVE: libpq.a with what it needs and Meson leaves apart -- PostgreSQL's
 #      libpgcommon_shlib.a and libpgport_shlib.a, then libssl and libcrypto -- merged into one
 #      (P0, F9). A program linking it on Windows also needs ws2_32, secur32, crypt32, advapi32,
@@ -26,11 +28,13 @@
 # Host tools beyond vendorfetch's: Windows -- Visual Studio's C tools (vcvars64.bat), Meson and
 # Ninja, a NATIVE Perl (Strawberry: OpenSSL's Configure refuses MSYS perl for VC targets), NASM,
 # win_flex / win_bison (WinFlexBison); Linux -- gcc, make, perl, meson >= 0.57.2, ninja, flex,
-# bison. TIKO_VCVARS, TIKO_PERL_DIR, TIKO_NASM_DIR and TIKO_FLEXBISON_DIR override where the
-# Windows ones are looked for.
+# bison; macOS -- the Command Line Tools (clang, make, perl, flex, bison, libtool) and Homebrew's
+# meson and ninja. TIKO_VCVARS, TIKO_PERL_DIR, TIKO_NASM_DIR and TIKO_FLEXBISON_DIR override
+# where the Windows ones are looked for.
 #
-# Output: bin/<host>/ beside this script -- Windows libpq.dll and libpq_windows_x86_64.a; Linux
-# libpq_linux_x86_64.so and libpq_linux_x86_64.a. The build trees live under TIKO_VENDOR_CACHE
+# Output: bin/<host>/ beside this script (bin/linux-arm64/ on arm64 Linux) -- Windows libpq.dll
+# and libpq_windows_x86_64.a; Linux libpq_linux_<arch>.so and .a; macOS libpq_macos_arm64.dylib
+# and .a. The build trees live under TIKO_VENDOR_CACHE
 # (OpenSSL's Windows build is about half an hour: nmake is serial). Incremental: a stamp of the
 # inputs and this script; a finished build in the cache is copied, not redone.
 set -e
@@ -44,13 +48,17 @@ SRC_OSSL=$1; SRC_PG=$2
 case $HOST in
     windows) ARCH=x86_64 ;;
     linux)   ARCH=${TIKO_VENDOR_ARCH:-x86_64}
-             [ "$ARCH" = x86_64 ] || { echo "libpq: linux-$ARCH is not built yet (RFC-0003 P4)" >&2; exit 1; } ;;
-    *) echo "libpq: host '$HOST' is not built yet (RFC-0003 P4)" >&2; exit 1 ;;
+             case $ARCH in x86_64) OSSL_TARGET=linux-x86_64 ;; arm64) OSSL_TARGET=linux-aarch64 ;;
+                 *) echo "libpq: no recipe for linux-$ARCH" >&2; exit 1 ;; esac ;;
+    macos)   ARCH=arm64 ;;
+    *) echo "libpq: no recipe for host '$HOST'" >&2; exit 1 ;;
 esac
 OUT=$HERE/bin/$HOST
+[ "$HOST" = linux ] && [ "$ARCH" != x86_64 ] && OUT=$HERE/bin/linux-$ARCH
 case $HOST in
     windows) OUTS="$OUT/libpq.dll $OUT/libpq_windows_x86_64.a" ;;
     linux)   OUTS="$OUT/libpq_linux_$ARCH.so $OUT/libpq_linux_$ARCH.a" ;;
+    macos)   OUTS="$OUT/libpq_macos_arm64.dylib $OUT/libpq_macos_arm64.a" ;;
 esac
 
 digest() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
@@ -127,10 +135,42 @@ EOF
     llvm-lib /out:"$(winpath "$W/done/libpq_windows_x86_64.a")" "$(winpath "$L/libpq.a")" \
         "$(winpath "$W/b/src/common/libpgcommon_shlib.a")" "$(winpath "$W/b/src/port/libpgport_shlib.a")" \
         "$(winpath "$OSSL/lib/libssl.lib")" "$(winpath "$OSSL/lib/libcrypto.lib")" >> "$LOG" 2>&1 || fail "the merged archive"
+elif [ "$HOST" = macos ]; then
+    # Apple's clang and ld64 (never bare 'clang' from a PATH that may hold Homebrew's LLVM), arm64,
+    # macOS 13.0 -- the floor tiko targets -- for OpenSSL, Meson's libpq and the link alike.
+    export MACOSX_DEPLOYMENT_TARGET=13.0
+    MCC=/usr/bin/clang
+    J=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    OSSL=$W/ossl
+    ( cd "$S_OSSL" && ./Configure darwin64-arm64-cc no-shared no-tests no-docs CC=$MCC --prefix="$OSSL" --libdir=lib \
+        && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
+    ( cd "$S_PG" && CC=$MCC meson setup "$W/b" --buildtype=release --auto-features=disabled -Dssl=openssl \
+        -Dextra_include_dirs="$OSSL/include" -Dextra_lib_dirs="$OSSL/lib" \
+        -Dtap_tests=disabled -Ddocs=disabled \
+        && ninja -C "$W/b" src/interfaces/libpq/libpq.a src/interfaces/libpq/exports.list \
+             src/common/libpgcommon_shlib.a src/port/libpgport_shlib.a ) >> "$LOG" 2>&1 || fail "libpq (Meson)"
+    L=$W/b/src/interfaces/libpq
+    DY=libpq_macos_arm64.dylib
+    # Meson writes exports.list in ld64's form on macOS (one _name a line), which
+    # -exported_symbols_list takes as it is: everything else, OpenSSL included, stays hidden.
+    # The install name is @rpath/ and the file's own name, so the copy beside a program is the
+    # one it loads.
+    $MCC -dynamiclib -o "$W/done/$DY" -install_name "@rpath/$DY" \
+        -Wl,-exported_symbols_list,"$L/exports.list" -Wl,-force_load,"$L/libpq.a" \
+        "$W/b/src/common/libpgcommon_shlib.a" "$W/b/src/port/libpgport_shlib.a" \
+        "$OSSL/lib/libssl.a" "$OSSL/lib/libcrypto.a" >> "$LOG" 2>&1 || fail "the shared library"
+    nm -gU "$W/done/$DY" > "$W/exports.txt"
+    grep -q ' _PQconnectdb$' "$W/exports.txt" || { echo "libpq: $DY does not export PQconnectdb" >&2; exit 1; }
+    if grep -q ' _SSL_\| _EVP_' "$W/exports.txt"; then
+        echo "libpq: $DY exports OpenSSL" >&2; exit 1
+    fi
+    /usr/bin/libtool -static -o "$W/done/libpq_macos_arm64.a" "$L/libpq.a" \
+        "$W/b/src/common/libpgcommon_shlib.a" "$W/b/src/port/libpgport_shlib.a" \
+        "$OSSL/lib/libssl.a" "$OSSL/lib/libcrypto.a" >> "$LOG" 2>&1 || fail "the merged archive"
 else
     J=$(nproc 2>/dev/null || echo 4)
     OSSL=$W/ossl
-    ( cd "$S_OSSL" && ./Configure linux-x86_64 no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
+    ( cd "$S_OSSL" && ./Configure $OSSL_TARGET no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
         && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
     ( cd "$S_PG" && meson setup "$W/b" --buildtype=release --auto-features=disabled -Dssl=openssl \
         -Dextra_include_dirs="$OSSL/include" -Dextra_lib_dirs="$OSSL/lib" \

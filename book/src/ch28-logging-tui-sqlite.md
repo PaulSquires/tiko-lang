@@ -412,9 +412,8 @@ environment.
 
 ```admonish warning title="Status in this version"
 `vendor/libpq` and `vendor/mariadb` come after tiko 0.1.8, the toolchain this book is checked
-with: the two listings below were compiled and run with the development compiler, on Windows and
-Linux, against PostgreSQL 14 and MySQL 8.0. Neither package has a library for macOS or
-linux-arm64 yet.
+with: the two listings below were compiled and run with the development compiler, on Windows,
+Linux (x86-64 and arm64) and macOS, against PostgreSQL 14 and MySQL 8.0.
 ```
 
 ### PostgreSQL
@@ -488,7 +487,8 @@ The TLS library is inside each package -- OpenSSL, or on Windows the system's ow
 `vendor/libpq` links either way, as SQLite does. **`vendor/mariadb` is a shared library only**:
 Connector/C is under the GNU LGPL, which lets any program use it as long as the library stays a
 separate file its user could replace, so `link static` is refused (`TKO0156`). The build copies
-`libmariadb.dll` (on Linux `libmariadb_linux_x86_64.so`) beside the program, to ship with it.
+`libmariadb.dll` (on Linux `libmariadb_linux_x86_64.so` or `_arm64.so`, on macOS
+`libmariadb_macos_arm64.dylib`) beside the program, to ship with it.
 
 ## The finance library
 

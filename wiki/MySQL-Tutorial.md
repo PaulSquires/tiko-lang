@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Vendor Packages](Vendor-Packages), what a vendor package is and how `link dynamic` works.
 >
-> 📖 **In the book:** [Chapter 28, Database servers](https://tiko-lang.net/book/ch28-logging-tui-sqlite.html#database-servers-postgresql-and-mysql). Measured with MariaDB Connector/C 3.4.11 and tiko, against a MySQL 8.0 server, on Windows and Linux.
+> 📖 **In the book:** [Chapter 28, Database servers](https://tiko-lang.net/book/ch28-logging-tui-sqlite.html#database-servers-postgresql-and-mysql). Measured with MariaDB Connector/C 3.4.11 and tiko, against a MySQL 8.0 server, on Windows, Linux (x86-64 and arm64) and macOS.
 
 [MySQL](https://www.mysql.com) and [MariaDB](https://mariadb.org) are SQL database servers that speak the same protocol. A program talks to either through the **`mysql.h` client API**: `mysql_init`, `mysql_real_connect`, `mysql_query`, the `mysql_stmt_*` prepared statements.
 
@@ -256,7 +256,7 @@ mysql_optionsv( m, MYSQL_OPT_SSL_CA, strptr( "ca.pem" ) )
 mysql_optionsv( m, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, @yes )
 ```
 
-Measured with a CA that did not sign the server's certificate, the connection is refused: error 2026, `TLS/SSL error: Server certificate validation failed ... CERT_E_UNTRUSTEDROOT` on Windows, `self-signed certificate in certificate chain` on Linux. **`mysql_get_ssl_cipher( m )`** gives the connection's cipher, or `nullptr` when it is not encrypted. Windows' TLS is the system's own (Schannel); on Linux OpenSSL is inside `vendor/mariadb`, so there is nothing else to install either way.
+Measured with a CA that did not sign the server's certificate, the connection is refused: error 2026, `TLS/SSL error: Server certificate validation failed ... CERT_E_UNTRUSTEDROOT` on Windows, `self-signed certificate in certificate chain` on Linux. **`mysql_get_ssl_cipher( m )`** gives the connection's cipher, or `nullptr` when it is not encrypted. Windows' TLS is the system's own (Schannel); on Linux and macOS OpenSSL is inside `vendor/mariadb`, so there is nothing else to install either way.
 
 ## 5. More programs
 
@@ -274,11 +274,9 @@ A [`tiko build`](Category-Tiko-Build) project needs nothing in its `tiko.toml` f
 
 ## 7. Shipping the program
 
-`vendor/mariadb` is **a shared library only**: `#import "vendor/mariadb" link static` is refused (`TKO0156: 'link static': package 'vendor' ships no static link of module 'vendor.mariadb'`). Ship the library the build put beside the program: `libmariadb.dll` on Windows, `libmariadb_linux_x86_64.so` on Linux. It is the only file.
+`vendor/mariadb` is **a shared library only**: `#import "vendor/mariadb" link static` is refused (`TKO0156: 'link static': package 'vendor' ships no static link of module 'vendor.mariadb'`). Ship the library the build put beside the program: `libmariadb.dll` on Windows, `libmariadb_linux_x86_64.so` or `libmariadb_linux_arm64.so` on Linux, `libmariadb_macos_arm64.dylib` on macOS. It is the only file.
 
 That is the licence's doing. Connector/C is under the **GNU LGPL 2.1**, which lets a program under any licence use it, as long as the library stays a separate file its user could replace, the licence goes with it, and the library's source is available -- Connector/C 3.4.11's, from [MariaDB's repository](https://github.com/mariadb-corporation/mariadb-connector-c/tree/v3.4.11). The texts, and OpenSSL's (Apache 2.0, inside the Linux library), are in `pkg/vendor/mariadb/LICENSE` in the toolchain.
-
-macOS and Linux on arm64 have no `vendor/mariadb` yet.
 
 ## 8. Troubleshooting
 

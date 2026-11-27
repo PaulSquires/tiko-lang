@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Vendor Packages](Vendor-Packages), what a vendor package is and how `link static` and `link dynamic` work.
 >
-> 📖 **In the book:** [Chapter 28, Database servers](https://tiko-lang.net/book/ch28-logging-tui-sqlite.html#database-servers-postgresql-and-mysql). Measured with libpq from PostgreSQL 19.0 and tiko, against a PostgreSQL 14 server, on Windows and Linux.
+> 📖 **In the book:** [Chapter 28, Database servers](https://tiko-lang.net/book/ch28-logging-tui-sqlite.html#database-servers-postgresql-and-mysql). Measured with libpq from PostgreSQL 19.0 and tiko, against a PostgreSQL 14 server, on Windows, Linux (x86-64 and arm64) and macOS.
 
 [PostgreSQL](https://www.postgresql.org) is an SQL database server. A program talks to it over the network through **libpq**, PostgreSQL's own client library in C, which every other PostgreSQL driver is measured against.
 
@@ -250,12 +250,10 @@ A [`tiko build`](Category-Tiko-Build) project needs nothing in its `tiko.toml` f
 
 ## 7. Shipping the program
 
-- **Linked dynamically** (the default): ship the library the build put beside the program -- `libpq.dll` on Windows, `libpq_linux_x86_64.so` on Linux. It is the only file: OpenSSL is inside it.
+- **Linked dynamically** (the default): ship the library the build put beside the program -- `libpq.dll` on Windows, `libpq_linux_x86_64.so` or `libpq_linux_arm64.so` on Linux, `libpq_macos_arm64.dylib` on macOS. It is the only file: OpenSSL is inside it.
 - **Linked statically** (`#import "vendor/libpq" link static`): the program alone. It grows by about 5 MB on Windows, most of it OpenSSL.
 
 libpq is under the PostgreSQL Licence and OpenSSL under the Apache License 2.0; both texts are in `pkg/vendor/libpq/LICENSE` in the toolchain, to go with a program you distribute.
-
-macOS and Linux on arm64 have no `vendor/libpq` yet.
 
 ## 8. Troubleshooting
 
