@@ -1,0 +1,2 @@
+BUILD FAILED rc=1
+tests\semantic\moves\noncopyable.bas(31) error 205: Constructor has no public access, found ''' in 'return h                      '' V4: a move. Today: rejected.'
