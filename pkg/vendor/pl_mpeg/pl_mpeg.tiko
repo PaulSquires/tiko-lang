@@ -1,0 +1,63 @@
+'' vendor/pl_mpeg -- pl_mpeg (commit c871f2b, patched: fetch.toml), Dominic Szablewski's MPEG-1
+'' video and MP2 audio decoder in one C file (MIT: LICENSE), as one import:
+''
+''     #import "vendor/pl_mpeg" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of pl_mpeg.h is then callable as its header documents it,
+'' unqualified: the high-level plm_* player (open a file, decode frames and samples, seek, loop)
+'' and the pieces under it (plm_buffer_*, plm_demux_*, plm_video_*, plm_audio_*).
+''
+''     dim as plm_t ptr plm = plm_create_with_filename( "intro.mpg" )
+''     plm_set_audio_enabled( plm, 0 )
+''     dim as plm_frame_t ptr frame = plm_decode_video( plm )
+''     while frame
+''         ' frame->y, frame->cb, frame->cr: the YCbCr planes, each width x height bytes
+''         frame = plm_decode_video( plm )
+''     wend
+''     plm_destroy( plm )
+''
+'' IT PLAYS ONE FORMAT: MPEG-1 video with MP2 audio in an MPEG program stream (.mpg). Anything
+'' else is converted first, for example with
+''
+''     ffmpeg -i in.mp4 -c:v mpeg1video -q:v 4 -c:a mp2 -format mpeg out.mpg
+''
+'' The header is pl_mpeg.ti, translated by 'tiko c2t' from the declaration half of the patched
+'' pl_mpeg.h (prepare.py); its banner names that header and its SHA-256. pl_mpeg-residue.ti holds
+'' by hand the six PLM_DEMUX_PACKET_* types, 'static const int' in C.
+''
+'' THINGS TO KNOW:
+'' - A frame or sample block pl_mpeg returns is valid until the next decode call: copy what you
+''   keep. Frames are planar YCbCr 4:2:0 -- straight into an SDL_PIXELFORMAT_IYUV texture with
+''   SDL_UpdateYUVTexture -- or plm_frame_to_rgb / _rgba / _bgr... into a buffer of yours.
+'' - Audio is interleaved stereo float32, PLM_AUDIO_SAMPLES_PER_FRAME (1152) frames a block.
+'' - Callbacks set with plm_set_video_decode_callback / plm_set_audio_decode_callback are 'cdecl'
+''   subs with the C signature; pl_mpeg calls them from plm_decode, on the caller's own thread.
+'' - WITH 'link dynamic' ON WINDOWS NEVER HAND THE LIBRARY A FILE *: pl_mpeg.dll has its own C
+''   runtime, and plm_create_with_file / plm_buffer_create_with_file with the program's FILE ptr
+''   end the process (0xC0000409, measured). Open by name -- plm_create_with_filename -- or from
+''   memory. Memory crosses safely: plm_create_with_memory's free_when_done may free a block
+''   the program allocated. 'link static' has one runtime and neither limit.
+'' - pl_mpeg ignores the stream's own timestamps; a file with gaps drifts. ffmpeg's output as
+''   above is constant-rate.
+'' - The examples in examples/pl_mpeg: 01-info (a file's streams, checked decode), 02-frame (one
+''   frame to a .bmp), 03-player (an SDL3 window, sound through vendor/miniaudio).
+''
+'' THE LIBRARY: with 'link static' pl_mpeg is linked into the program; with 'link dynamic' -- and
+'' when no '#import' says, which is this package's default -- the shared library, which tiko
+'' copies beside the program: pl_mpeg.dll, pl_mpeg_linux_x86_64.so on Linux, pl_mpeg_linux_arm64.so
+'' on arm64 Linux, or pl_mpeg_macos_arm64.dylib on macOS.
+''
+'' TARGETS: windows-x86_64, linux-x86_64, linux-arm64 and macos-arm64 are translated, built and
+'' run (RFC-0005 P2, P3). Android: the header compiles for both Android targets and the static
+'' archives are built (its records measure the same as Linux's); nothing has been linked or run.
+#module "pl_mpeg"
+
+public #include once "pl_mpeg.ti"
+public #include once "pl_mpeg-residue.ti"
+
+'' ANDROID IS STATIC ALWAYS: vendorfetch builds only the archive there, as for cJSON.
+#if defined( TIKO_LINK_STATIC ) or defined( TIKO_OS_ANDROID )
+    #foreignlib PLM static "lib/pl_mpeg"
+#else
+    #foreignlib PLM dynamic "lib/pl_mpeg"
+#endif

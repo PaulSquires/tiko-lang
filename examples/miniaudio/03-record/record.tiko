@@ -1,0 +1,51 @@
+'' record -- a capture device: the default microphone, written to a WAV file as it arrives, by
+'' miniaudio's encoder, from the data callback.
+''
+'' Build it with 'tiko record.tiko'; run 'record [FILE] [SECONDS]' -- by default three seconds
+'' into recording.wav. On a machine with no microphone (or none it may use) it says so.
+''
+'' miniaudio is public domain or MIT-0 (pkg/vendor/miniaudio/LICENSE); so is this.
+#import "vendor/miniaudio" link dynamic
+
+'' On MINIAUDIO'S AUDIO THREAD: the captured frames arrive in input_ (output_ is unused for a
+'' capture device), and go straight to the encoder the main program opened before starting.
+dim shared as ma_uint64 g_frames
+
+sub OnData cdecl( byval device as ma_device ptr, byval output_ as any ptr, byval input_ as const any ptr, byval frames as ma_uint32 )
+    ma_encoder_write_pcm_frames( device->pUserData, input_, frames, nullptr )
+    g_frames += frames
+end sub
+
+dim as string path = command( 1 )
+if len( path ) = 0 then path = "recording.wav"
+dim as float64 seconds = 3
+if len( command( 2 ) ) then seconds = val( command( 2 ) )
+
+'' 16-bit stereo at 44.1 kHz, as a WAV file: the encoder writes what the device delivers, so the
+'' two configs agree.
+dim as ma_encoder_config econfig = ma_encoder_config_init( ma_encoding_format_wav, ma_format_s16, 2, 44100 )
+dim as ma_encoder encoder
+if ma_encoder_init_file( path, @econfig, @encoder ) <> MA_SUCCESS then print "cannot write "; path : end 1
+
+dim as ma_device_config config = ma_device_config_init( ma_device_type_capture )
+config.capture.format = ma_format_s16
+config.capture.channels = 2
+config.sampleRate = 44100
+config.dataCallback = @OnData
+config.pUserData = @encoder
+
+dim as ma_device device
+dim as ma_result r = ma_device_init( nullptr, @config, @device )
+if r <> MA_SUCCESS then
+    print "no capture device: "; *ma_result_description( r )
+    ma_encoder_uninit( @encoder )
+    end 1
+end if
+print "recording " & seconds & " s from " & *ma_get_backend_name( device.pContext->backend ) & " into " & path
+ma_device_start( @device )
+sleep seconds * 1000, 1          '' ', 1': not cut short by a key press (02-tone says why)
+ma_device_stop( @device )
+print g_frames & " frames (" & g_frames / 44100 & " s) written"
+
+ma_device_uninit( @device )
+ma_encoder_uninit( @encoder )      '' finishes the WAV header

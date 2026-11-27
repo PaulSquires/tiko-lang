@@ -1,0 +1,32 @@
+'' miniaudio-residue.ti -- what miniaudio.ti could not carry, written by hand. Against miniaudio
+'' 0.11.26's miniaudio.h (as src/prepare.py makes it), the header miniaudio.ti's banner names by
+'' SHA-256.
+''
+'' Three static inline helpers (no symbol to link against) and MA_SIZE_MAX.
+'' The translation's other TODOs are not API: compiler tests, #pragmas, MA_PRIVATE / MA_DLL_*
+'' (the library's own build), MA_ATOMIC and its kin (src/prepare.py flattens every use), and
+'' MA_ATTRIBUTE_FORMAT / MA_FALLTHROUGH (GCC attributes).
+#pragma once
+
+'' MA_SIZE_MAX: miniaudio.h tests C's SIZE_MAX, which tiko does not define, so the translation
+'' takes the header's fallback, the 32-bit maximum -- wrong on every target tiko has. size_t is
+'' 64 bits on all of them.
+#undef MA_SIZE_MAX
+#define MA_SIZE_MAX 18446744073709551615ull
+
+'' MA_VERSION_STRING has no tiko form: tiko's names are case-blind, and it would be the routine
+'' ma_version_string( ), which returns the same text ("0.11.26"). Use that.
+
+'' ma_get_bytes_per_frame(format, channels): one frame is one sample per channel.
+private function ma_get_bytes_per_frame( byval format as ma_format, byval channels as ma_uint32 ) as ma_uint32
+    return ma_get_bytes_per_sample( format ) * channels
+end function
+
+'' ma_offset_pcm_frames_ptr_f32 / _const_ptr_f32: ma_offset_pcm_frames_ptr for f32 frames.
+private function ma_offset_pcm_frames_ptr_f32( byval p as float32 ptr, byval offsetInFrames as ma_uint64, byval channels as ma_uint32 ) as float32 ptr
+    return cast( float32 ptr, ma_offset_pcm_frames_ptr( p, offsetInFrames, ma_format_f32, channels ) )
+end function
+
+private function ma_offset_pcm_frames_const_ptr_f32( byval p as const float32 ptr, byval offsetInFrames as ma_uint64, byval channels as ma_uint32 ) as const float32 ptr
+    return cast( const float32 ptr, ma_offset_pcm_frames_const_ptr( p, offsetInFrames, ma_format_f32, channels ) )
+end function

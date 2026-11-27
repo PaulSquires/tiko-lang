@@ -126,6 +126,7 @@ tests/vendor/**/*.o
 /pkg/vendor/libpq/build/bin/
 /pkg/vendor/mariadb/build/bin/
 /pkg/vendor/compression/src/bin/
+/pkg/vendor/miniaudio/src/bin/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/out/
 /examples/tkControls/out/
 /examples/tkControls/linux-lib/

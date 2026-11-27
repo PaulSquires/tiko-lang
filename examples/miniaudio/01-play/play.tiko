@@ -1,0 +1,50 @@
+'' play -- miniaudio's engine: play a sound file to its end. The engine opens the default playback
+'' device, decodes the file (WAV, FLAC, MP3 or Ogg Vorbis) on its own thread and mixes it; the
+'' program only starts the sound and waits.
+''
+'' Build it with 'tiko play.tiko'; run 'play [FILE] [VOLUME]' -- by default ../media/tone.ogg at
+'' full volume. A volume of 0 plays silently: the whole path runs, nothing is heard.
+''
+'' miniaudio is public domain or MIT-0 (pkg/vendor/miniaudio/LICENSE); so is this.
+
+'' miniaudio linked DYNAMICALLY: miniaudio.dll is copied beside the program (on Linux the program
+'' gets miniaudio_linux_x86_64.so beside it). Write 'link static' to build it into the program.
+#import "vendor/miniaudio" link dynamic
+
+dim as string path = command( 1 )
+if len( path ) = 0 then path = exepath( ) & "/../media/tone.ogg"
+dim as float32 volume = 1
+if len( command( 2 ) ) then volume = val( command( 2 ) )
+
+'' The engine and the sound are the caller's memory, and miniaudio's threads point into them:
+'' they stay where they are, never copied, until uninit.
+dim as ma_engine engine
+dim as ma_result r = ma_engine_init( nullptr, @engine )
+if r <> MA_SUCCESS then print "no audio device: "; *ma_result_description( r ) : end 1
+ma_engine_set_volume( @engine, volume )
+
+'' MA_SOUND_FLAG_STREAM decodes as it plays instead of all at once first -- right for music.
+dim as ma_sound snd
+r = ma_sound_init_from_file( @engine, path, MA_SOUND_FLAG_STREAM, nullptr, nullptr, @snd )
+if r <> MA_SUCCESS then
+    print "cannot open "; path; ": "; *ma_result_description( r )
+    ma_engine_uninit( @engine )
+    end 1
+end if
+
+dim as ma_device ptr device = ma_engine_get_device( @engine )
+print "playing " & path & " on " & *ma_get_backend_name( device->pContext->backend ) & ", " & _
+      device->sampleRate & " Hz, volume " & volume
+'' A streamed Ogg Vorbis file's length is not known before it has played (stb_vorbis decodes it
+'' pushed, a page at a time): miniaudio reports 0 for it.
+dim as float32 seconds
+ma_sound_get_length_in_seconds( @snd, @seconds )
+if seconds > 0 then print "  " & seconds & " s"
+ma_sound_start( @snd )
+while ma_sound_at_end( @snd ) = 0
+    sleep 50, 1
+wend
+print "done"
+
+ma_sound_uninit( @snd )
+ma_engine_uninit( @engine )

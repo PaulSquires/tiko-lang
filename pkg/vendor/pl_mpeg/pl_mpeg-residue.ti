@@ -1,0 +1,14 @@
+'' pl_mpeg-residue.ti -- what pl_mpeg.ti could not carry, written by hand. Against pl_mpeg.h at
+'' c871f2b, patched and prepared (prepare.py), the header pl_mpeg.ti's banner names by SHA-256.
+''
+'' The demuxer's packet types are 'static const int' in C -- a variable in every C file that
+'' includes the header, with no symbol to link against -- so c2t leaves them; they are the
+'' values plm_demux_decode / plm_demux_get_start_time / plm_demux_seek take, here as constants.
+#pragma once
+
+const PLM_DEMUX_PACKET_PRIVATE as int32 = &hBD
+const PLM_DEMUX_PACKET_AUDIO_1 as int32 = &hC0
+const PLM_DEMUX_PACKET_AUDIO_2 as int32 = &hC1
+const PLM_DEMUX_PACKET_AUDIO_3 as int32 = &hC2
+const PLM_DEMUX_PACKET_AUDIO_4 as int32 = &hC3
+const PLM_DEMUX_PACKET_VIDEO_1 as int32 = &hE0

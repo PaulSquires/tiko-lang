@@ -1,0 +1,86 @@
+# vendor/miniaudio's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# miniaudio publishes no binaries, so every host builds them, with src/build.sh: miniaudio 0.11.26
+# (the release of 2026-10-31) and stb_vorbis 1.25 (stb at 033efa1, 2026-11-19) as its Ogg Vorbis
+# decoder -- not the 1.22 miniaudio bundles in extras/ (src/build.sh says why). One build makes
+# both libraries of a host; each entry copies one (the script returns at once when its stamp
+# matches). Pinned and probed by RFC-0005 P0 (claude-docs docs/tiko-vendor/probes/av0).
+#
+# THE NAMES are what '#foreignlib MINIAUDIO ... "lib/miniaudio"' probes: miniaudio_<os>_<arch>.a
+# for static; for dynamic miniaudio.dll on Windows -- the name inside it, which a program's import
+# names -- miniaudio_linux_x86_64.so on Linux and miniaudio_macos_arm64.dylib on macOS.
+version = "0.11.26+stb_vorbis-1.25"
+
+[windows.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/windows-x86_64/miniaudio.dll"
+to = "lib/miniaudio.dll"
+
+[windows.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/windows-x86_64/miniaudio_windows_x86_64.a"
+to = "lib/miniaudio_windows_x86_64.a"
+
+[linux.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/linux-x86_64/miniaudio_linux_x86_64.a"
+to = "lib/miniaudio_linux_x86_64.a"
+
+[linux.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/linux-x86_64/miniaudio_linux_x86_64.so"
+to = "lib/miniaudio_linux_x86_64.so"
+
+[linux-arm64.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/linux-arm64/miniaudio_linux_arm64.a"
+to = "lib/miniaudio_linux_arm64.a"
+
+[linux-arm64.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/linux-arm64/miniaudio_linux_arm64.so"
+to = "lib/miniaudio_linux_arm64.so"
+
+[macos.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/macos-arm64/miniaudio_macos_arm64.a"
+to = "lib/miniaudio_macos_arm64.a"
+
+[macos.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/macos-arm64/miniaudio_macos_arm64.dylib"
+to = "lib/miniaudio_macos_arm64.dylib"
+
+# ANDROID: static only, cross-built on Windows by 'vendorfetch.sh --target android-x86_64' (and
+# android-arm64) against the NDK's sysroot, as cJSON is. A shared library comes with the APK.
+
+[android.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/android-x86_64/miniaudio_android_x86_64.a"
+to = "lib/miniaudio_android_x86_64.a"
+
+[android-arm64.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/mackron/miniaudio/archive/refs/tags/0.11.26.tar.gz 838ba55a21c9142adf7b76bdc4351e5cd8b7ae128f46b25ec25f94ae9969c600 https://github.com/nothings/stb/archive/033efa1bcb750136ac98e997d53833b758e0089b.tar.gz bd07d2d5afbcfc0fe07b314ff9db0ae73047f92534937530d83a12aaf362b17f"
+from = "src/bin/android-arm64/miniaudio_android_arm64.a"
+to = "lib/miniaudio_android_arm64.a"

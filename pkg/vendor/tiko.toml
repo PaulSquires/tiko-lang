@@ -56,6 +56,12 @@ links = ["static", "dynamic"]
 [vendor.mariadb]
 links = ["dynamic"]
 
+[vendor.miniaudio]
+links = ["static", "dynamic"]
+
+[vendor.pl_mpeg]
+links = ["static", "dynamic"]
+
 # vendor/tkControls (SDL3 controls in tiko, source only) links nothing of its own -- vendor/SDL3
 # does -- but needs files at run time, copied beside every program that imports the module:
 # tkHost's bundled fonts and their licences (every tk program imports tkHost), and the scintk

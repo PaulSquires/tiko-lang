@@ -1,0 +1,51 @@
+'' tone -- a playback device and a data callback: miniaudio asks for frames, the program makes
+'' them. Here a sine wave from ma_waveform, the generator miniaudio has built in; a synthesiser
+'' or a game's own mixer would fill the buffer the same way.
+''
+'' Build it with 'tiko tone.tiko'; run 'tone [SECONDS] [HERTZ] [AMPLITUDE]' -- by default two
+'' seconds of 440 Hz at 0.2. An amplitude of 0 is silence: the callback still runs.
+''
+'' miniaudio is public domain or MIT-0 (pkg/vendor/miniaudio/LICENSE); so is this.
+#import "vendor/miniaudio" link dynamic
+
+'' THE DATA CALLBACK RUNS ON MINIAUDIO'S AUDIO THREAD, many times a second, while the main program
+'' sleeps. It touches only what it is handed -- the device (whose pUserData is the waveform, set
+'' up before the device started) and the output buffer -- and the frame counter. No strings, no
+'' allocation, no printing here: a callback that is late is heard as a click.
+dim shared as ma_uint64 g_frames
+
+sub OnData cdecl( byval device as ma_device ptr, byval output_ as any ptr, byval input_ as const any ptr, byval frames as ma_uint32 )
+    ma_waveform_read_pcm_frames( device->pUserData, output_, frames, nullptr )
+    g_frames += frames
+end sub
+
+dim as float64 seconds = 2, hertz = 440, amplitude = 0.2
+if len( command( 1 ) ) then seconds = val( command( 1 ) )
+if len( command( 2 ) ) then hertz = val( command( 2 ) )
+if len( command( 3 ) ) then amplitude = val( command( 3 ) )
+
+'' The device's format is the program's choice; miniaudio converts to what the hardware wants.
+'' Channels and rate here must be the waveform's, since the callback writes its frames unchanged.
+dim as ma_device_config config = ma_device_config_init( ma_device_type_playback )
+config.playback.format = ma_format_f32
+config.playback.channels = 2
+config.sampleRate = 48000
+config.dataCallback = @OnData
+
+dim as ma_waveform_config wconfig = ma_waveform_config_init( ma_format_f32, 2, 48000, ma_waveform_type_sine, amplitude, hertz )
+dim as ma_waveform wave
+ma_waveform_init( @wconfig, @wave )
+config.pUserData = @wave
+
+dim as ma_device device
+dim as ma_result r = ma_device_init( nullptr, @config, @device )
+if r <> MA_SUCCESS then print "no audio device: "; *ma_result_description( r ) : end 1
+print "a " & hertz & " Hz tone for " & seconds & " s on " & *ma_get_backend_name( device.pContext->backend )
+ma_device_start( @device )
+'' ', 1': a plain 'sleep' ends early at a key press -- and at once when stdin is not a terminal.
+sleep seconds * 1000, 1
+ma_device_stop( @device )      '' returns once the callback has finished its last call
+print g_frames & " frames made"
+
+ma_device_uninit( @device )
+ma_waveform_uninit( @wave )

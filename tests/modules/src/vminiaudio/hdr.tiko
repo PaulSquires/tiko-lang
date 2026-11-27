@@ -1,0 +1,44 @@
+'' The committed vendor/miniaudio header -- miniaudio.ti, translated by 'tiko c2t' from the header
+'' pkg/vendor/miniaudio/src/prepare.py makes of miniaudio 0.11.26's miniaudio.h, and its residue --
+'' as an importer reads it: no library needed. It names the records prepare.py rewrites for c2t
+'' (ma_context and ma_device, which hold pthread types on Linux and atomics; ma_device_info's
+'' tagged member struct), a data callback, the engine, a decoder, and each residue item.
+#include once "../../../../pkg/vendor/miniaudio/miniaudio.ti"
+#include once "../../../../pkg/vendor/miniaudio/miniaudio-residue.ti"
+
+private sub OnData cdecl( byval d as ma_device ptr, byval pout as any ptr, byval pin as const any ptr, byval n as ma_uint32 )
+    dim as ma_waveform ptr w = d->pUserData
+    ma_waveform_read_pcm_frames( w, pout, n, nullptr )
+end sub
+
+dim as ma_context ctx
+dim as ma_backend nb(0 to 0) = { ma_backend_null }
+ma_context_init( @nb(0), 1, nullptr, @ctx )
+dim as ma_device_info ptr infos
+dim as ma_uint32 count
+ma_context_get_devices( @ctx, @infos, @count, nullptr, nullptr )
+if count then print *cast( zstring ptr, @infos[0].name ), infos[0].nativeDataFormats(0).sampleRate
+dim as ma_waveform_config wc = ma_waveform_config_init( ma_format_f32, 2, 48000, ma_waveform_type_sine, 0.2, 440 )
+dim as ma_waveform w
+ma_waveform_init( @wc, @w )
+dim as ma_device_config dc = ma_device_config_init( ma_device_type_playback )
+dc.playback.format = ma_format_f32 : dc.playback.channels = 2 : dc.dataCallback = @OnData : dc.pUserData = @w
+dim as ma_device dev
+ma_device_init( @ctx, @dc, @dev )
+print ma_device_get_state( @dev ), dev.state.value, ma_get_backend_name( ctx.backend )
+ma_device_uninit( @dev )
+dim as ma_engine eng
+ma_engine_init( nullptr, @eng )
+dim as ma_sound snd
+ma_sound_init_from_file( @eng, "x.ogg", MA_SOUND_FLAG_STREAM, nullptr, nullptr, @snd )
+ma_sound_set_volume( @snd, 0.5 ) : ma_sound_start( @snd )
+print ma_sound_at_end( @snd ), ma_engine_get_time_in_pcm_frames( @eng )
+ma_sound_uninit( @snd ) : ma_engine_uninit( @eng )
+dim as ma_decoder dec
+dim as ma_decoder_config cfg = ma_decoder_config_init( ma_format_f32, 0, 0 )
+ma_decoder_init_file( "x.flac", @cfg, @dec )
+dim as float32 buf(0 to 255)
+print ma_get_bytes_per_frame( ma_format_f32, 2 ), ma_offset_pcm_frames_ptr_f32( @buf(0), 4, 2 ) - @buf(0)
+print MA_SIZE_MAX, *ma_version_string( ), MA_VERSION_MINOR, sizeof( ma_device ), sizeof( ma_atomic_uint64 )
+ma_decoder_uninit( @dec )
+ma_context_uninit( @ctx )

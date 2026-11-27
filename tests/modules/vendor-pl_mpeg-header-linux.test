@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/pl_mpeg HEADER: pl_mpeg.ti, translated by 'tiko c2t' from the declaration
+'' half of pl_mpeg.h (c871f2b, patched), and its residue, compile for linux-x86_64 as an importer
+'' reads them. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vplmpeg/hdr.tiko -o build/.vplh-linux-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vplh-linux-x86_64.o

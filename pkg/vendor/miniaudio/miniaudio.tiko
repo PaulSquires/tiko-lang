@@ -1,0 +1,71 @@
+'' vendor/miniaudio -- miniaudio 0.11.26, David Reid's audio library in C (public domain or MIT-0:
+'' LICENSE), with stb_vorbis 1.25 as its Ogg Vorbis decoder, as one import:
+''
+''     #import "vendor/miniaudio" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of miniaudio.h is then callable as miniaudio documents it
+'' (https://miniaud.io/docs), unqualified. Playback, capture and duplex devices on WASAPI,
+'' DirectSound, WinMM, ALSA, PulseAudio, JACK and CoreAudio, all loaded at run time; decoders for
+'' WAV, FLAC, MP3 and Ogg Vorbis; the high-level engine (ma_engine, ma_sound: mixing, groups,
+'' fades, spatialisation, streaming) and the low-level pieces under it (ma_device, ma_decoder,
+'' ma_encoder, ma_data_converter, ma_resampler, ma_pcm_rb, ma_waveform, ma_noise, the node graph).
+''
+''     dim as ma_engine engine
+''     if ma_engine_init( nullptr, @engine ) <> MA_SUCCESS then print "no audio device" : end 1
+''     ma_engine_play_sound( @engine, "chime.ogg", nullptr )
+''     sleep 2000, 1                     ' ', 1': a plain 'sleep' ends at a key press
+''     ma_engine_uninit( @engine )
+''
+'' The header is miniaudio.ti, translated by 'tiko c2t' from the header src/prepare.py makes of
+'' miniaudio.h (its declarations, with its atomics, pthread types and one unnamed struct written
+'' so c2t can take them, every layout unchanged: prepare.py says how it was checked); its banner
+'' names that header and its SHA-256. miniaudio-residue.ti holds by hand what the translation
+'' could not carry: three static inline helpers and MA_SIZE_MAX. MA_VERSION_STRING is the routine
+'' ma_version_string( ): tiko's names are case-blind, so the macro cannot be both.
+''
+'' THINGS TO KNOW:
+'' - The caller allocates miniaudio's objects -- 'dim as ma_engine engine', then ma_engine_init
+''   on its address -- and must keep them where they are until uninit: miniaudio's own threads
+''   hold pointers into them. Never copy an initialised ma_engine, ma_sound or ma_device.
+'' - A data callback (ma_device_config.dataCallback, a custom ma_data_source) is a 'cdecl' proc
+''   with the C signature, and RUNS ON MINIAUDIO'S AUDIO THREAD: touch only its arguments and
+''   memory set aside before the device started -- no strings, no allocation, no printing.
+'' - Frame counts are unsigned (ma_uint32, ma_uint64): 'for i = 0 to n - 1' with n = 0 runs to
+''   the type's maximum. Count from 1, or test n first.
+'' - The examples in examples/miniaudio: 01-play (the engine), 02-tone (a device and a callback),
+''   03-record (capture to a WAV file), 04-decode (files to PCM, no device).
+''
+'' THE LIBRARY: with 'link static' miniaudio is linked into the program; with 'link dynamic' --
+'' and when no '#import' says, which is this package's default -- the shared library, which tiko
+'' copies beside the program: miniaudio.dll, miniaudio_linux_x86_64.so on Linux,
+'' miniaudio_linux_arm64.so on arm64 Linux, or miniaudio_macos_arm64.dylib on macOS. It needs no
+'' system libraries on Windows and Linux: every audio backend is loaded when a device is opened.
+'' On macOS it links CoreAudio's frameworks (CoreFoundation, CoreAudio, AudioToolbox).
+''
+'' TARGETS: windows-x86_64, linux-x86_64, linux-arm64 and macos-arm64 -- translated, built and run
+'' (RFC-0005 P1, P3), tiko's sizeof of 33 records checked against C's on each. NOT ANDROID: five
+'' records (ma_context, ma_device, ma_event, ma_fence, ma_semaphore) are laid out differently
+'' there -- its own audio backends and pthread alignment -- and 'tiko c2t' has no Android pass to
+'' carry them, so an Android import stops here rather than corrupt memory. The Android archives
+'' are built all the same.
+#module "miniaudio"
+
+#ifdef TIKO_OS_ANDROID
+    #error "vendor/miniaudio is not translated for Android: 'tiko c2t' has no Android pass, and five of its records differ there"
+#endif
+
+public #include once "miniaudio.ti"
+public #include once "miniaudio-residue.ti"
+
+'' (Android is static always -- vendorfetch builds only the archive there, as for cJSON -- were it
+'' translated: see TARGETS.)
+#if defined( TIKO_LINK_STATIC ) or defined( TIKO_OS_ANDROID )
+    #ifdef TIKO_OS_MACOS
+        #foreignlib MINIAUDIO static "lib/miniaudio", "framework:CoreFoundation", _
+            "framework:CoreAudio", "framework:AudioToolbox"
+    #else
+        #foreignlib MINIAUDIO static "lib/miniaudio"
+    #endif
+#else
+    #foreignlib MINIAUDIO dynamic "lib/miniaudio"
+#endif
