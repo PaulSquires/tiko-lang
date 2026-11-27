@@ -10,6 +10,7 @@ Each says `skipped` and exits 0 when its host is not set:
 ```
 TIKO_FTP_HOST=files.example.com    TIKO_FTP_USER=me    TIKO_FTP_PASSWORD=...
 TIKO_FTP_CA=ca.crt                 the CA a private FTPS server's certificate chains to
+TIKO_FTPS_IMPLICIT_PORT=990        02-ftps's implicit port (TIKO_FTP_HOST may carry the explicit one: host:2121)
 TIKO_SSH_HOST=files.example.com    TIKO_SSH_PORT=22    TIKO_SSH_USER=me
 TIKO_SSH_KEY=/home/me/.ssh/id_ed25519 (its .pub beside it; or TIKO_SSH_PASSWORD)
 TIKO_SSH_PASSPHRASE=...            TIKO_SSH_KNOWN_HOSTS=/home/me/.ssh/known_hosts

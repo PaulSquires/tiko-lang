@@ -9,30 +9,33 @@
 #
 #   1. libssh2 + libcrypto: vendor/libssh2's own build/build.sh, given the first two inputs and
 #      the same cache -- the same bytes as that package's static archive, built once.
-#   2. Linux only: OpenSSL again, STATIC, for libssl (curl's TLS there; Windows' is Schannel). The
-#      same pin and Configure line as libssh2's, so libssl's libcrypto references resolve to the
-#      libcrypto already in the libssh2 archive: ONE libcrypto in the library. (Two identical
-#      static libcryptos in one program also link and run -- RFC-0004 P2 section 1 -- but there is
-#      no need for two here.)
+#   2. Linux and macOS: OpenSSL again, STATIC, for libssl (curl's TLS there; Windows' is
+#      Schannel). The same pin and Configure line as libssh2's (RFC-0004 FT-12), so libssl's
+#      libcrypto references resolve to the libcrypto already in the libssh2 archive: ONE libcrypto
+#      in the library. (Two identical static libcryptos in one program also link and run --
+#      RFC-0004 P2 section 1 -- but there is no need for two here.)
 #   3. curl with CMake: every optional dependency off, the protocols of RFC-0004 FT-5 on (FTP,
 #      FTPS, SFTP, SCP, HTTP, HTTPS, FILE). Windows: clang (MSVC target, static CRT: tiko links
 #      libcmt), Schannel, a static and a shared tree. Linux: gcc, OpenSSL, the static tree only.
+#      macOS: Apple's clang, arm64, macOS 13.0, OpenSSL, the static tree only.
 #   4. The SHARED LIBRARY. Windows: CMake's libcurl.dll, libssh2 and libcrypto linked in; it exports
 #      what curl's headers dllexport (curl_*) and imports only system DLLs. Linux:
-#      libcurl_linux_x86_64.so linked here (CMake's names itself libcurl.so.4): soname its own file
-#      name, a version script exporting curl_* alone.
+#      libcurl_linux_<arch>.so linked here (CMake's names itself libcurl.so.4): soname its own
+#      file name, a version script exporting curl_* alone. macOS: libcurl_macos_arm64.dylib, install
+#      name @rpath/ and its file name, an exported-symbols list of curl's _curl_* functions, the
+#      CoreFoundation and SystemConfiguration frameworks (curl's macos.c).
 #   5. The STATIC ARCHIVE: curl's objects with libssh2's archive (libssh2 + libcrypto) and, on
-#      Linux, libssl -- merged into one. A Windows program linking it needs ws2_32, crypt32,
-#      secur32, bcrypt, iphlpapi, advapi32 and user32 (../libcurl.tiko names them) and tiko's
-#      runtime's _onexit (RFC-0003 DB-11).
+#      Linux and macOS, libssl -- merged into one. A Windows program linking it needs ws2_32,
+#      crypt32, secur32, bcrypt, iphlpapi, advapi32 and user32, a macOS one curl's frameworks
+#      (../libcurl.tiko names them), and a Windows one tiko's runtime's _onexit (RFC-0003 DB-11).
 #
 # Host tools beyond vendorfetch's: vendor/libssh2's (Visual Studio's C tools, Strawberry Perl, NASM
-# on Windows; gcc, make, perl on Linux), CMake and Ninja (Windows: C:\Program Files\CMake and
-# Meson's ninja), LLVM on Windows.
+# on Windows; gcc, make, perl on Linux; the Command Line Tools on macOS), CMake (Windows: C:\Program
+# Files\CMake; macOS: Homebrew's) and Ninja on Windows (Meson's), LLVM on Windows.
 #
-# Output: bin/<host>/ beside this script -- Windows libcurl.dll and libcurl_windows_x86_64.a;
-# Linux libcurl_linux_x86_64.so and libcurl_linux_x86_64.a. Incremental: a stamp of the inputs,
-# this script and libssh2's.
+# Output: bin/<host>/ beside this script (bin/linux-arm64/ on arm64 Linux) -- Windows libcurl.dll
+# and libcurl_windows_x86_64.a; Linux libcurl_linux_<arch>.so and .a; macOS
+# libcurl_macos_arm64.dylib and .a. Incremental: a stamp of the inputs, this script and libssh2's.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 SSH2_BUILD=$HERE/../../libssh2/build/build.sh
@@ -45,13 +48,17 @@ SRC_OSSL=$1; SRC_SSH2=$2; SRC_CURL=$3
 case $HOST in
     windows) ARCH=x86_64 ;;
     linux)   ARCH=${TIKO_VENDOR_ARCH:-x86_64}
-             [ "$ARCH" = x86_64 ] || { echo "libcurl: linux-$ARCH is not built yet (RFC-0004 P3)" >&2; exit 1; } ;;
-    *) echo "libcurl: host '$HOST' is not built yet (RFC-0004 P3)" >&2; exit 1 ;;
+             case $ARCH in x86_64) OSSL_TARGET=linux-x86_64 ;; arm64) OSSL_TARGET=linux-aarch64 ;;
+                 *) echo "libcurl: no recipe for linux-$ARCH" >&2; exit 1 ;; esac ;;
+    macos)   ARCH=arm64 ;;
+    *) echo "libcurl: no recipe for host '$HOST'" >&2; exit 1 ;;
 esac
 OUT=$HERE/bin/$HOST
+[ "$HOST" = linux ] && [ "$ARCH" != x86_64 ] && OUT=$HERE/bin/linux-$ARCH
 case $HOST in
     windows) OUTS="$OUT/libcurl.dll $OUT/libcurl_windows_x86_64.a" ;;
     linux)   OUTS="$OUT/libcurl_linux_$ARCH.so $OUT/libcurl_linux_$ARCH.a" ;;
+    macos)   OUTS="$OUT/libcurl_macos_arm64.dylib $OUT/libcurl_macos_arm64.a" ;;
 esac
 
 digest() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
@@ -70,6 +77,7 @@ fi
 # 1. libssh2 + libcrypto, by vendor/libssh2's script (incremental: a no-op when it is built).
 TIKO_VENDOR_INPUTS="$SRC_OSSL $SRC_SSH2" bash "$SSH2_BUILD"
 SSH2_OUT=$HERE/../../libssh2/build/bin/$HOST
+[ "$HOST" = linux ] && [ "$ARCH" != x86_64 ] && SSH2_OUT=$HERE/../../libssh2/build/bin/linux-$ARCH
 SSH2_A=$SSH2_OUT/libssh2_${HOST}_$ARCH.a
 [ -f "$SSH2_A" ] || { echo "libcurl: vendor/libssh2's build made no $SSH2_A" >&2; exit 1; }
 
@@ -127,12 +135,47 @@ if [ "$HOST" = windows ]; then
     fi
     llvm-lib /out:"$(winpath "$W/done/libcurl_windows_x86_64.a")" "$(winpath "$W/st/lib/libcurl.lib")" \
         "$(winpath "$SSH2_A")" >> "$LOG" 2>&1 || fail "the merged archive"
+elif [ "$HOST" = macos ]; then
+    # Apple's clang and ld64, arm64, macOS 13.0; OpenSSL's Configure line is vendor/libpq's and
+    # vendor/libssh2's for this host (RFC-0004 FT-12), so libssl's libcrypto references resolve in
+    # the libssh2 archive. TLS is OpenSSL: curl has no other backend on macOS.
+    export MACOSX_DEPLOYMENT_TARGET=13.0
+    MCC=/usr/bin/clang
+    J=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    OSSL=$W/ossl
+    tar -xzf "$SRC_OSSL" -C "$W/src"
+    S_OSSL=$(ls -d "$W"/src/openssl-*)
+    ( cd "$S_OSSL" && ./Configure darwin64-arm64-cc no-shared no-tests no-docs CC=$MCC --prefix="$OSSL" --libdir=lib \
+        && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
+    cmake -S "$S_CURL" -B "$W/st" $COMMON -DCMAKE_C_COMPILER=$MCC -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR="$OSSL" \
+        -DOPENSSL_USE_STATIC_LIBS=ON -DLIBSSH2_LIBRARY="$SSH2_A" -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
+        > "$W/st.cfg.log" 2>&1 || fail "CMake"
+    check_protocols "$W/st.cfg.log"
+    cmake --build "$W/st" -j"$J" >> "$LOG" 2>&1 || fail "curl"
+    # The two frameworks curl's lib/macos.c (Curl_macos_init: the system's proxy settings) needs,
+    # MEASURED from the link without them: CFRelease (CoreFoundation), SCDynamicStoreCopyProxies
+    # (SystemConfiguration). Nothing else is undefined. A static program needs them too
+    # (../libcurl.tiko names them).
+    SYSL="-framework CoreFoundation -framework SystemConfiguration"
+    DY=libcurl_macos_arm64.dylib
+    nm -gU "$W/st/lib/libcurl.a" 2>/dev/null | awk '$2 == "T" && $3 ~ /^_curl_/ { print $3 }' | sort -u > "$W/exports.list"
+    $MCC -dynamiclib -o "$W/done/$DY" -install_name "@rpath/$DY" \
+        -Wl,-exported_symbols_list,"$W/exports.list" -Wl,-force_load,"$W/st/lib/libcurl.a" \
+        "$OSSL/lib/libssl.a" "$SSH2_A" $SYSL >> "$LOG" 2>&1 || fail "the shared library"
+    nm -gU "$W/done/$DY" > "$W/exports.txt"
+    grep -q ' _curl_easy_perform$' "$W/exports.txt" || { echo "libcurl: $DY does not export curl_easy_perform" >&2; exit 1; }
+    if grep -q ' _libssh2_\| _SSL_\| _EVP_\| _OPENSSL_' "$W/exports.txt"; then
+        echo "libcurl: $DY exports libssh2 or OpenSSL" >&2; exit 1
+    fi
+    /usr/bin/libtool -static -no_warning_for_no_symbols -o "$W/done/libcurl_macos_arm64.a" \
+        "$W/st/lib/libcurl.a" "$OSSL/lib/libssl.a" "$SSH2_A" >> "$LOG" 2>&1 || fail "the merged archive"
 else
     J=$(nproc 2>/dev/null || echo 4)
     OSSL=$W/ossl
     tar -xzf "$SRC_OSSL" -C "$W/src"
     S_OSSL=$(ls -d "$W"/src/openssl-*)
-    ( cd "$S_OSSL" && ./Configure linux-x86_64 no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
+    ( cd "$S_OSSL" && ./Configure $OSSL_TARGET no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
         && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
     cmake -S "$S_CURL" -B "$W/st" $COMMON -DCMAKE_C_COMPILER=gcc -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCURL_USE_OPENSSL=ON -DOPENSSL_ROOT_DIR="$OSSL" -DOPENSSL_USE_STATIC_LIBS=ON \
