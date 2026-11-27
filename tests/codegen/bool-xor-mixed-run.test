@@ -1,0 +1,17 @@
+'' XOR OVER A BOOLEAN CONSTANT OR COMPARISON AND A BOOLEAN VARIABLE. The constant is -1 and the
+'' variable 1, so the pair xored to -2 -- true -- and 'b xor= true' stored it. Expected output is
+'' fbc 1.10.1's, probed on the same source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/bool-xor-mixed.bas -o tests/codegen/boolxormixed.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/boolxormixed.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: falsefalsefalsefalse
+'' EXPECT-RUN-OUT: truetruetruefalse
+'' EXPECT-RUN-OUT: false 0-1
+'' EXPECT-RUN-OUT: F
+'' EXPECT-RUN-OUT: truetrue
+'' EXPECT-RUN-OUT: falsefalsefalse
+'' EXPECT-RUN-OUT: falsefalse
+'' EXPECT-RUN-OUT:  0

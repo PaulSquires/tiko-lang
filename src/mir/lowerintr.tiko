@@ -454,6 +454,7 @@ function LowerCompoundAssign _
     else
         rhs = CoerceTy( c, rhs, wt, c.info->TypeOf_( value ))
     end if
+    if IsBooleanType( c, rt ) andalso IsBooleanType( c, c.info->TypeOf_( value ) ) then rhs = NormaliseBool( c, rhs )   '' 0/1 as the loaded target is: 'true' is -1, so 'b xor= true' stored -2 (fbc: false)
 
     '' POINTER ARITHMETIC IS SCALED BY THE POINTEE HERE TOO. 'p += 1' over a
     '' 'short ptr' is '(uint8*)P$0 + 2ll' to fbc and was a one-BYTE add here --
