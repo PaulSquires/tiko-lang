@@ -222,6 +222,38 @@ public function tkSparkline_FormatText( byval pValues as float64 ptr, byval pHas
     return s
 end function
 
+' The markers as words: "high,low,first,last,negative,all" (any order, case-blind, unknown words
+' ignored) <-> the TKSPARK_MK_* bits. The Designer's and a report's text form.
+public function tkSparkline_ParseMarkers( byref sText as string ) as int32
+    dim as int32 n = TKSPARK_MK_NONE
+    dim as string t = lcase( sText ) & ","
+    dim as int32 a = 1
+    for i as int32 = 1 to len( t )
+        if mid( t, i, 1 ) <> "," then continue for
+        select case trim( mid( t, a, i - a ) )
+        case "high" : n or= TKSPARK_MK_HIGH
+        case "low" : n or= TKSPARK_MK_LOW
+        case "first" : n or= TKSPARK_MK_FIRST
+        case "last" : n or= TKSPARK_MK_LAST
+        case "negative" : n or= TKSPARK_MK_NEGATIVE
+        case "all" : n or= TKSPARK_MK_ALL
+        end select
+        a = i + 1
+    next
+    return n
+end function
+
+public function tkSparkline_FormatMarkers( byval nMarkers as int32 ) as string
+    dim as string s = ""
+    if nMarkers and TKSPARK_MK_HIGH then s &= ",high"
+    if nMarkers and TKSPARK_MK_LOW then s &= ",low"
+    if nMarkers and TKSPARK_MK_FIRST then s &= ",first"
+    if nMarkers and TKSPARK_MK_LAST then s &= ",last"
+    if nMarkers and TKSPARK_MK_NEGATIVE then s &= ",negative"
+    if nMarkers and TKSPARK_MK_ALL then s &= ",all"
+    return mid( s, 2 )
+end function
+
 
 ' ==========================================================================================
 ' Layout

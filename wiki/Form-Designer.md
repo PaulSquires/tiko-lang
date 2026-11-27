@@ -230,13 +230,13 @@ The Toolbox's **Custom** row places a labelled stand-in. In the Properties panel
 your type and the module it's in. Your type needs:
 
 ```freebasic
-public type Gauge
+public type Dial
     Handle as TK_WIDGET ptr
     declare sub Create( byval hParent as TK_WIDGET ptr, byval id as long )
 end type
 ```
 
-The module is imported as written, so a path like `../gauges` is relative to the form's folder. The type
+The module is imported as written, so a path like `../dials` is relative to the form's folder. The type
 can't have the same name as its module.
 
 ## Resources: images and fonts
@@ -370,6 +370,8 @@ end sub
 | Avatar | the display name, in only (the initials and the colour come from it); **BindImage** moves the image file's path both ways |
 | Chip | selected or not |
 | Barcode | the data, in only, as text: a number field is drawn as its digits (keep an EAN with leading zeros in a text field). Data the symbology refuses shows the control's error state; loading never fails |
+| Gauge | the value (pointer 0's), in only, a number: a value past the scale is drawn at its end and still shown as text |
+| Sparkline | the series, in only, as text: numbers between commas or blanks, an empty entry a missing point (`3,5,,2`); an empty field clears it |
 | ChipGroup | the selected keys as text, `;` between them (the group's KeySeparator); **BindItems** moves the items the same way. The two load in either order: a key not yet among the items stays selected until its item arrives. With **AllowReorder**, BindItems saves the order the user left |
 | ComboBox | the selected item's index (-1 for none) |
 | ColorPicker | the colour |

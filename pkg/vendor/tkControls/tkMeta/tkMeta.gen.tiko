@@ -57,6 +57,8 @@
 #import "../tkChip"
 #import "../tkChipGroup"
 #import "../tkBarcode"
+#import "../tkGauge"
+#import "../tkSparkline"
 using tkHost
 using tkPaint
 using tkLabel
@@ -114,6 +116,8 @@ using tkAvatarGroup
 using tkChip
 using tkChipGroup
 using tkBarcode
+using tkGauge
+using tkSparkline
 using tkTheme
 
 private function C_Label( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
@@ -6015,6 +6019,382 @@ private function R_Barcode_TooltipText( byval w as TK_WIDGET ptr ) as ustring
     return tkBarcode_GetTooltipText( w )
 end function
 
+private function C_Gauge( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    select case arg
+    case "Radial" : return tkGauge_Create( hParent, id, TKGAUGE_RADIAL )
+    case "Linear" : return tkGauge_Create( hParent, id, TKGAUGE_LINEAR )
+    end select
+    return tkGauge_Create( hParent, id )
+end function
+
+private sub G_Gauge( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkGauge_GetColors( w, cast( TKGAUGE_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Gauge( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKGAUGE_COLORS ptr, pSlots ) = tkGauge_ThemeColors( t )
+end sub
+
+private sub A_Gauge_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Gauge_Value( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetValue( w, val( v ) )
+end sub
+
+private function R_Gauge_Value( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetValue( w ) )
+end function
+
+private sub A_Gauge_PointerKind( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Needle" : tkGauge_SetValueKind( w, TKGAUGE_PTR_NEEDLE )
+    case "Bar" : tkGauge_SetValueKind( w, TKGAUGE_PTR_BAR )
+    case "Marker" : tkGauge_SetValueKind( w, TKGAUGE_PTR_MARKER )
+    end select
+end sub
+
+private function R_Gauge_PointerKind( byval w as TK_WIDGET ptr ) as ustring
+    select case tkGauge_GetValueKind( w )
+    case TKGAUGE_PTR_NEEDLE : return "Needle"
+    case TKGAUGE_PTR_BAR : return "Bar"
+    case TKGAUGE_PTR_MARKER : return "Marker"
+    end select
+    return ""
+end function
+
+private sub A_Gauge_Angles( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetAngles( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Gauge_Orientation( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Horizontal" : tkGauge_SetOrientation( w, TKGAUGE_HORIZONTAL )
+    case "Vertical" : tkGauge_SetOrientation( w, TKGAUGE_VERTICAL )
+    end select
+end sub
+
+private function R_Gauge_Orientation( byval w as TK_WIDGET ptr ) as ustring
+    select case tkGauge_GetOrientation( w )
+    case TKGAUGE_HORIZONTAL : return "Horizontal"
+    case TKGAUGE_VERTICAL : return "Vertical"
+    end select
+    return ""
+end function
+
+private sub A_Gauge_Reverse( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetReverse( w, cbool( v = "true" ) )
+end sub
+
+private function R_Gauge_Reverse( byval w as TK_WIDGET ptr ) as ustring
+    if tkGauge_GetReverse( w ) then return "true" else return "false"
+end function
+
+private sub A_Gauge_MajorStep( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetMajorStep( w, val( v ) )
+end sub
+
+private function R_Gauge_MajorStep( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetMajorStep( w ) )
+end function
+
+private sub A_Gauge_MinorCount( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetMinorCount( w, clng( val( v ) ) )
+end sub
+
+private function R_Gauge_MinorCount( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetMinorCount( w ) )
+end function
+
+private sub A_Gauge_TickHint( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetTickHint( w, clng( val( v ) ) )
+end sub
+
+private function R_Gauge_TickHint( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetTickHint( w ) )
+end function
+
+private sub A_Gauge_Decimals( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetDecimals( w, clng( val( v ) ) )
+end sub
+
+private function R_Gauge_Decimals( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetDecimals( w ) )
+end function
+
+private sub A_Gauge_ScalePlacement( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Inside" : tkGauge_SetScalePlacement( w, TKGAUGE_SCALE_INSIDE )
+    case "Outside" : tkGauge_SetScalePlacement( w, TKGAUGE_SCALE_OUTSIDE )
+    case "None" : tkGauge_SetScalePlacement( w, TKGAUGE_SCALE_NONE )
+    case "Both" : tkGauge_SetScalePlacement( w, TKGAUGE_SCALE_BOTH )
+    end select
+end sub
+
+private function R_Gauge_ScalePlacement( byval w as TK_WIDGET ptr ) as ustring
+    select case tkGauge_GetScalePlacement( w )
+    case TKGAUGE_SCALE_INSIDE : return "Inside"
+    case TKGAUGE_SCALE_OUTSIDE : return "Outside"
+    case TKGAUGE_SCALE_NONE : return "None"
+    case TKGAUGE_SCALE_BOTH : return "Both"
+    end select
+    return ""
+end function
+
+private sub A_Gauge_TrackWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetTrackWidth( w, val( v ) )
+end sub
+
+private function R_Gauge_TrackWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetTrackWidth( w ) )
+end function
+
+private sub A_Gauge_ShowFace( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetShowFace( w, cbool( v = "true" ) )
+end sub
+
+private function R_Gauge_ShowFace( byval w as TK_WIDGET ptr ) as ustring
+    if tkGauge_GetShowFace( w ) then return "true" else return "false"
+end function
+
+private sub A_Gauge_Ranges( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetRangesText( w, v )
+end sub
+
+private function R_Gauge_Ranges( byval w as TK_WIDGET ptr ) as ustring
+    return tkGauge_GetRangesText( w )
+end function
+
+private sub A_Gauge_Caption( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetCaption( w, v )
+end sub
+
+private function R_Gauge_Caption( byval w as TK_WIDGET ptr ) as ustring
+    return tkGauge_GetCaption( w )
+end function
+
+private sub A_Gauge_Prefix( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetPrefix( w, v )
+end sub
+
+private function R_Gauge_Prefix( byval w as TK_WIDGET ptr ) as ustring
+    return tkGauge_GetPrefix( w )
+end function
+
+private sub A_Gauge_Suffix( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetSuffix( w, v )
+end sub
+
+private function R_Gauge_Suffix( byval w as TK_WIDGET ptr ) as ustring
+    return tkGauge_GetSuffix( w )
+end function
+
+private sub A_Gauge_ValueTextPos( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Auto" : tkGauge_SetValueTextPos( w, TKGAUGE_VALUE_AUTO )
+    case "Center" : tkGauge_SetValueTextPos( w, TKGAUGE_VALUE_CENTER )
+    case "Below" : tkGauge_SetValueTextPos( w, TKGAUGE_VALUE_BELOW )
+    case "None" : tkGauge_SetValueTextPos( w, TKGAUGE_VALUE_NONE )
+    case "End" : tkGauge_SetValueTextPos( w, TKGAUGE_VALUE_END )
+    end select
+end sub
+
+private function R_Gauge_ValueTextPos( byval w as TK_WIDGET ptr ) as ustring
+    select case tkGauge_GetValueTextPos( w )
+    case TKGAUGE_VALUE_AUTO : return "Auto"
+    case TKGAUGE_VALUE_CENTER : return "Center"
+    case TKGAUGE_VALUE_BELOW : return "Below"
+    case TKGAUGE_VALUE_NONE : return "None"
+    case TKGAUGE_VALUE_END : return "End"
+    end select
+    return ""
+end function
+
+private sub A_Gauge_Animation( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetAnimation( w, clng( val( v ) ) )
+end sub
+
+private function R_Gauge_Animation( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkGauge_GetAnimation( w ) )
+end function
+
+private sub F_Gauge_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkGauge_SetFont( w, f )
+end sub
+
+private sub F_Gauge_ValueFont( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkGauge_SetValueFont( w, f )
+end sub
+
+private sub A_Gauge_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkGauge_SetTooltipText( w, v )
+end sub
+
+private function R_Gauge_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkGauge_GetTooltipText( w )
+end function
+
+private function C_Sparkline( byval hParent as TK_WIDGET ptr, byval id as int32, byref arg as const ustring ) as TK_WIDGET ptr
+    return tkSparkline_Create( hParent, id )
+end function
+
+private sub G_Sparkline( byval w as TK_WIDGET ptr, byval pSlots as uint32 ptr )
+    tkSparkline_GetColors( w, cast( TKSPARK_COLORS ptr, pSlots ) )
+end sub
+
+private sub T_Sparkline( byref t as TKTHEME_COLORS, byval pSlots as uint32 ptr )
+    *cast( TKSPARK_COLORS ptr, pSlots ) = tkSparkline_ThemeColors( t )
+end sub
+
+private sub A_Sparkline_Kind( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Line" : tkSparkline_SetKind( w, TKSPARK_LINE )
+    case "Area" : tkSparkline_SetKind( w, TKSPARK_AREA )
+    case "Column" : tkSparkline_SetKind( w, TKSPARK_COLUMN )
+    case "WinLoss" : tkSparkline_SetKind( w, TKSPARK_WINLOSS )
+    end select
+end sub
+
+private function R_Sparkline_Kind( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSparkline_GetKind( w )
+    case TKSPARK_LINE : return "Line"
+    case TKSPARK_AREA : return "Area"
+    case TKSPARK_COLUMN : return "Column"
+    case TKSPARK_WINLOSS : return "WinLoss"
+    end select
+    return ""
+end function
+
+private sub A_Sparkline_Data( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetDataText( w, v )
+end sub
+
+private function R_Sparkline_Data( byval w as TK_WIDGET ptr ) as ustring
+    return tkSparkline_GetDataText( w )
+end function
+
+private sub A_Sparkline_MaxPoints( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetMaxPoints( w, clng( val( v ) ) )
+end sub
+
+private function R_Sparkline_MaxPoints( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSparkline_GetMaxPoints( w ) )
+end function
+
+private sub A_Sparkline_Range( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetRange( w, val( tkMeta_ListItem( v, 0 ) ), val( tkMeta_ListItem( v, 1 ) ) )
+end sub
+
+private sub A_Sparkline_AutoRange( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetAutoRange( w, cbool( v = "true" ) )
+end sub
+
+private function R_Sparkline_AutoRange( byval w as TK_WIDGET ptr ) as ustring
+    if tkSparkline_GetAutoRange( w ) then return "true" else return "false"
+end function
+
+private sub A_Sparkline_EmptyMode( byval w as TK_WIDGET ptr, byref v as const ustring )
+    select case v
+    case "Gap" : tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_GAP )
+    case "Zero" : tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_ZERO )
+    case "Connect" : tkSparkline_SetEmptyMode( w, TKSPARK_EMPTY_CONNECT )
+    end select
+end sub
+
+private function R_Sparkline_EmptyMode( byval w as TK_WIDGET ptr ) as ustring
+    select case tkSparkline_GetEmptyMode( w )
+    case TKSPARK_EMPTY_GAP : return "Gap"
+    case TKSPARK_EMPTY_ZERO : return "Zero"
+    case TKSPARK_EMPTY_CONNECT : return "Connect"
+    end select
+    return ""
+end function
+
+private sub A_Sparkline_Markers( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetMarkersText( w, v )
+end sub
+
+private function R_Sparkline_Markers( byval w as TK_WIDGET ptr ) as ustring
+    return tkSparkline_GetMarkersText( w )
+end function
+
+private sub A_Sparkline_MarkerSize( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetMarkerSize( w, val( v ) )
+end sub
+
+private function R_Sparkline_MarkerSize( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSparkline_GetMarkerSize( w ) )
+end function
+
+private sub A_Sparkline_LineWidth( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetLineWidth( w, val( v ) )
+end sub
+
+private function R_Sparkline_LineWidth( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSparkline_GetLineWidth( w ) )
+end function
+
+private sub A_Sparkline_ColumnGap( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetColumnGap( w, clng( val( v ) ) )
+end sub
+
+private function R_Sparkline_ColumnGap( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSparkline_GetColumnGap( w ) )
+end function
+
+private sub A_Sparkline_ShowAxis( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetShowAxis( w, cbool( v = "true" ) )
+end sub
+
+private function R_Sparkline_ShowAxis( byval w as TK_WIDGET ptr ) as ustring
+    if tkSparkline_GetShowAxis( w ) then return "true" else return "false"
+end function
+
+private sub A_Sparkline_Reference( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetReferenceText( w, v )
+end sub
+
+private function R_Sparkline_Reference( byval w as TK_WIDGET ptr ) as ustring
+    return tkSparkline_GetReferenceText( w )
+end function
+
+private sub A_Sparkline_NormalBand( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetNormalBandText( w, v )
+end sub
+
+private function R_Sparkline_NormalBand( byval w as TK_WIDGET ptr ) as ustring
+    return tkSparkline_GetNormalBandText( w )
+end function
+
+private sub A_Sparkline_ShowLastValue( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetShowLastValue( w, cbool( v = "true" ) )
+end sub
+
+private function R_Sparkline_ShowLastValue( byval w as TK_WIDGET ptr ) as ustring
+    if tkSparkline_GetShowLastValue( w ) then return "true" else return "false"
+end function
+
+private sub A_Sparkline_Decimals( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetDecimals( w, clng( val( v ) ) )
+end sub
+
+private function R_Sparkline_Decimals( byval w as TK_WIDGET ptr ) as ustring
+    return str( tkSparkline_GetDecimals( w ) )
+end function
+
+private sub F_Sparkline_Font( byval w as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    tkSparkline_SetFont( w, f )
+end sub
+
+private sub A_Sparkline_TooltipText( byval w as TK_WIDGET ptr, byref v as const ustring )
+    tkSparkline_SetTooltipText( w, v )
+end sub
+
+private function R_Sparkline_TooltipText( byval w as TK_WIDGET ptr ) as ustring
+    return tkSparkline_GetTooltipText( w )
+end function
+
 sub Fill_( )
     Add_( "Label", "tkLabel", "Common", 100, 24, "Click", "", @C_Label, "", "", "", "" )
     Bind_( "text", "", "tkLabel_SetText", true )
@@ -7768,5 +8148,88 @@ sub Fill_( )
     Event_( "Click", "tkBarcode_SetClickCallback", "BC_ClickCallbackSub", "byval hBarcode as TK_WIDGET ptr, byval id as int32", "", "" )
     Event_( "Paint", "tkBarcode_SetPaintCallback", "BC_PaintCallbackSub", "byval p as TKBARCODE_PAINTINFO ptr", "byval p as TKBARCODE_PAINTINFO ptr", "p", "p->hBarcode", "", "" )
     Event_( "Message", "tkBarcode_SetMessageCallback", "BC_MessageCallbackFunc", "byval m as TKBARCODE_MESSAGEINFO ptr", "byval m as TKBARCODE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hBarcode", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Gauge", "tkGauge", "Data", 160, 160, "Click", "", @C_Gauge, "Shape", "enum", "Radial=TKGAUGE_RADIAL,Linear=TKGAUGE_LINEAR", "Radial" )
+    Bind_( "float", "", "tkGauge_SetValue", true )
+    Colors_( "TKGAUGE_COLORS", "tkGauge_GetColors", "tkGauge_ThemeColors", @G_Gauge, @T_Gauge )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "FaceColor", "Face", "Normal", "", false )
+    Color_( "TrackColor", "Track", "Normal", "", false )
+    Color_( "TickColor", "Tick", "Normal", "", false )
+    Color_( "LabelColor", "Label", "Normal", "", true )
+    Color_( "NeedleColor", "Needle", "Normal", "", false )
+    Color_( "HubColor", "Hub", "Normal", "", false )
+    Color_( "BarColor", "Bar", "Normal", "", false )
+    Color_( "MarkerColor", "Marker", "Normal", "", false )
+    Color_( "ValueTextColor", "ValueText", "Normal", "", true )
+    Color_( "CaptionColor", "Caption", "Normal", "", true )
+    Color_( "ForeColorDisabled", "", "", "", false )
+    Prop_( "Range", "list", "", "Min:float,Max:float", "tkGauge_SetRange", "", @A_Gauge_Range, 0, 0, true, true, "", 0 )
+    Prop_( "Value", "float", "0", "", "tkGauge_SetValue", "tkGauge_GetValue", @A_Gauge_Value, @R_Gauge_Value, 0, true, true, "", 0 )
+    Prop_( "PointerKind", "enum", "", "Needle=TKGAUGE_PTR_NEEDLE,Bar=TKGAUGE_PTR_BAR,Marker=TKGAUGE_PTR_MARKER", "tkGauge_SetValueKind", "tkGauge_GetValueKind", @A_Gauge_PointerKind, @R_Gauge_PointerKind, 0, true, true, "", 0 )
+    Prop_( "Angles", "list", "", "Start:float,Sweep:float", "tkGauge_SetAngles", "", @A_Gauge_Angles, 0, 0, true, true, "", 0 )
+    Prop_( "Orientation", "enum", "Horizontal", "Horizontal=TKGAUGE_HORIZONTAL,Vertical=TKGAUGE_VERTICAL", "tkGauge_SetOrientation", "tkGauge_GetOrientation", @A_Gauge_Orientation, @R_Gauge_Orientation, 0, true, true, "", 0 )
+    Prop_( "Reverse", "bool", "false", "", "tkGauge_SetReverse", "tkGauge_GetReverse", @A_Gauge_Reverse, @R_Gauge_Reverse, 0, true, true, "", 0 )
+    Prop_( "MajorStep", "float", "0", "", "tkGauge_SetMajorStep", "tkGauge_GetMajorStep", @A_Gauge_MajorStep, @R_Gauge_MajorStep, 0, true, true, "", 0 )
+    Prop_( "MinorCount", "int", "4", "", "tkGauge_SetMinorCount", "tkGauge_GetMinorCount", @A_Gauge_MinorCount, @R_Gauge_MinorCount, 0, true, true, "", 0 )
+    Prop_( "TickHint", "int", "5", "", "tkGauge_SetTickHint", "tkGauge_GetTickHint", @A_Gauge_TickHint, @R_Gauge_TickHint, 0, true, true, "", 0 )
+    Prop_( "Decimals", "int", "-1", "", "tkGauge_SetDecimals", "tkGauge_GetDecimals", @A_Gauge_Decimals, @R_Gauge_Decimals, 0, true, true, "", 0 )
+    Prop_( "ScalePlacement", "enum", "Inside", "Inside=TKGAUGE_SCALE_INSIDE,Outside=TKGAUGE_SCALE_OUTSIDE,None=TKGAUGE_SCALE_NONE,Both=TKGAUGE_SCALE_BOTH", "tkGauge_SetScalePlacement", "tkGauge_GetScalePlacement", @A_Gauge_ScalePlacement, @R_Gauge_ScalePlacement, 0, true, true, "", 0 )
+    Prop_( "TrackWidth", "float", "0.12", "", "tkGauge_SetTrackWidth", "tkGauge_GetTrackWidth", @A_Gauge_TrackWidth, @R_Gauge_TrackWidth, 0, true, true, "", 0 )
+    Prop_( "ShowFace", "bool", "false", "", "tkGauge_SetShowFace", "tkGauge_GetShowFace", @A_Gauge_ShowFace, @R_Gauge_ShowFace, 0, true, true, "", 0 )
+    Prop_( "Ranges", "text", "", "", "tkGauge_SetRangesText", "tkGauge_GetRangesText", @A_Gauge_Ranges, @R_Gauge_Ranges, 0, true, true, "", 0 )
+    Prop_( "Caption", "text", "", "", "tkGauge_SetCaption", "tkGauge_GetCaption", @A_Gauge_Caption, @R_Gauge_Caption, 0, true, true, "", 0 )
+    Prop_( "Prefix", "text", "", "", "tkGauge_SetPrefix", "tkGauge_GetPrefix", @A_Gauge_Prefix, @R_Gauge_Prefix, 0, true, true, "", 0 )
+    Prop_( "Suffix", "text", "", "", "tkGauge_SetSuffix", "tkGauge_GetSuffix", @A_Gauge_Suffix, @R_Gauge_Suffix, 0, true, true, "", 0 )
+    Prop_( "ValueTextPos", "enum", "Auto", "Auto=TKGAUGE_VALUE_AUTO,Center=TKGAUGE_VALUE_CENTER,Below=TKGAUGE_VALUE_BELOW,None=TKGAUGE_VALUE_NONE,End=TKGAUGE_VALUE_END", "tkGauge_SetValueTextPos", "tkGauge_GetValueTextPos", @A_Gauge_ValueTextPos, @R_Gauge_ValueTextPos, 0, true, true, "", 0 )
+    Prop_( "Animation", "int", "0", "", "tkGauge_SetAnimation", "tkGauge_GetAnimation", @A_Gauge_Animation, @R_Gauge_Animation, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkGauge_SetFont", "tkGauge_GetFont", 0, 0, @F_Gauge_Font, true, true, "", 0 )
+    Prop_( "ValueFont", "font", "", "", "tkGauge_SetValueFont", "tkGauge_GetValueFont", 0, 0, @F_Gauge_ValueFont, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkGauge_SetTooltipText", "tkGauge_GetTooltipText", @A_Gauge_TooltipText, @R_Gauge_TooltipText, 0, true, true, "", 0 )
+    Event_( "Click", "tkGauge_SetClickCallback", "GGE_ClickCallbackSub", "byval hGauge as TK_WIDGET ptr, byval id as int32", "", "" )
+    Event_( "Tooltip", "tkGauge_SetTooltipCallback", "GGE_TooltipCallbackFunc", "byval hGauge as TK_WIDGET ptr, byval v as float64", "byval v as float64, byref Text as ustring", "v, Text", "", "ustring", "Text" )
+    Event_( "ValueFormat", "tkGauge_SetValueFormatCallback", "GGE_ValueFormatCallbackFunc", "byval hGauge as TK_WIDGET ptr, byval v as float64", "byval v as float64, byref Text as ustring", "v, Text", "", "ustring", "Text" )
+    Event_( "Paint", "tkGauge_SetPaintCallback", "GGE_PaintCallbackSub", "byval p as TKGAUGE_PAINTINFO ptr", "byval p as TKGAUGE_PAINTINFO ptr", "p", "p->hGauge", "", "" )
+    Event_( "Message", "tkGauge_SetMessageCallback", "GGE_MessageCallbackFunc", "byval m as TKGAUGE_MESSAGEINFO ptr", "byval m as TKGAUGE_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hGauge", "boolean", "Handled" )
+    Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
+    Add_( "Sparkline", "tkSparkline", "Data", 120, 32, "Click", "", @C_Sparkline, "", "", "", "" )
+    Bind_( "text", "", "tkSparkline_SetDataText", true )
+    Colors_( "TKSPARK_COLORS", "tkSparkline_GetColors", "tkSparkline_ThemeColors", @G_Sparkline, @T_Sparkline )
+    Color_( "BackColor", "Back", "Normal", "", false )
+    Color_( "LineColor", "Line", "Normal", "", false )
+    Color_( "FillColor", "Fill", "Normal", "", false )
+    Color_( "NegativeColor", "Negative", "Normal", "", false )
+    Color_( "AxisColor", "Axis", "Normal", "", false )
+    Color_( "ReferenceColor", "Reference", "Normal", "", false )
+    Color_( "BandColor", "Band", "Normal", "", false )
+    Color_( "HighColor", "High", "Normal", "", false )
+    Color_( "LowColor", "Low", "Normal", "", false )
+    Color_( "FirstColor", "First", "Normal", "", false )
+    Color_( "LastColor", "Last", "Normal", "", false )
+    Color_( "HotColor", "Hot", "Normal", "", false )
+    Color_( "TextColor", "Text", "Normal", "", true )
+    Color_( "ForeColorDisabled", "", "", "", false )
+    Prop_( "Kind", "enum", "Line", "Line=TKSPARK_LINE,Area=TKSPARK_AREA,Column=TKSPARK_COLUMN,WinLoss=TKSPARK_WINLOSS", "tkSparkline_SetKind", "tkSparkline_GetKind", @A_Sparkline_Kind, @R_Sparkline_Kind, 0, true, true, "", 0 )
+    Prop_( "Data", "text", "", "", "tkSparkline_SetDataText", "tkSparkline_GetDataText", @A_Sparkline_Data, @R_Sparkline_Data, 0, true, true, "", 0 )
+    Prop_( "MaxPoints", "int", "0", "", "tkSparkline_SetMaxPoints", "tkSparkline_GetMaxPoints", @A_Sparkline_MaxPoints, @R_Sparkline_MaxPoints, 0, true, true, "", 0 )
+    Prop_( "Range", "list", "", "Min:float,Max:float", "tkSparkline_SetRange", "", @A_Sparkline_Range, 0, 0, true, true, "", 0 )
+    Prop_( "AutoRange", "bool", "true", "", "tkSparkline_SetAutoRange", "tkSparkline_GetAutoRange", @A_Sparkline_AutoRange, @R_Sparkline_AutoRange, 0, true, true, "", 0 )
+    Prop_( "EmptyMode", "enum", "Gap", "Gap=TKSPARK_EMPTY_GAP,Zero=TKSPARK_EMPTY_ZERO,Connect=TKSPARK_EMPTY_CONNECT", "tkSparkline_SetEmptyMode", "tkSparkline_GetEmptyMode", @A_Sparkline_EmptyMode, @R_Sparkline_EmptyMode, 0, true, true, "", 0 )
+    Prop_( "Markers", "text", "", "", "tkSparkline_SetMarkersText", "tkSparkline_GetMarkersText", @A_Sparkline_Markers, @R_Sparkline_Markers, 0, true, true, "", 0 )
+    Prop_( "MarkerSize", "float", "5", "", "tkSparkline_SetMarkerSize", "tkSparkline_GetMarkerSize", @A_Sparkline_MarkerSize, @R_Sparkline_MarkerSize, 0, true, true, "", 0 )
+    Prop_( "LineWidth", "float", "1.5", "", "tkSparkline_SetLineWidth", "tkSparkline_GetLineWidth", @A_Sparkline_LineWidth, @R_Sparkline_LineWidth, 0, true, true, "", 0 )
+    Prop_( "ColumnGap", "int", "1", "", "tkSparkline_SetColumnGap", "tkSparkline_GetColumnGap", @A_Sparkline_ColumnGap, @R_Sparkline_ColumnGap, 0, true, true, "", 0 )
+    Prop_( "ShowAxis", "bool", "false", "", "tkSparkline_SetShowAxis", "tkSparkline_GetShowAxis", @A_Sparkline_ShowAxis, @R_Sparkline_ShowAxis, 0, true, true, "", 0 )
+    Prop_( "Reference", "text", "", "", "tkSparkline_SetReferenceText", "tkSparkline_GetReferenceText", @A_Sparkline_Reference, @R_Sparkline_Reference, 0, true, true, "", 0 )
+    Prop_( "NormalBand", "text", "", "", "tkSparkline_SetNormalBandText", "tkSparkline_GetNormalBandText", @A_Sparkline_NormalBand, @R_Sparkline_NormalBand, 0, true, true, "", 0 )
+    Prop_( "ShowLastValue", "bool", "false", "", "tkSparkline_SetShowLastValue", "tkSparkline_GetShowLastValue", @A_Sparkline_ShowLastValue, @R_Sparkline_ShowLastValue, 0, true, true, "", 0 )
+    Prop_( "Decimals", "int", "-1", "", "tkSparkline_SetDecimals", "tkSparkline_GetDecimals", @A_Sparkline_Decimals, @R_Sparkline_Decimals, 0, true, true, "", 0 )
+    Prop_( "Font", "font", "", "", "tkSparkline_SetFont", "tkSparkline_GetFont", 0, 0, @F_Sparkline_Font, true, true, "", 0 )
+    Prop_( "TooltipText", "text", "", "", "tkSparkline_SetTooltipText", "tkSparkline_GetTooltipText", @A_Sparkline_TooltipText, @R_Sparkline_TooltipText, 0, true, true, "", 0 )
+    Event_( "Click", "tkSparkline_SetClickCallback", "SPK_ClickCallbackSub", "byval hSpark as TK_WIDGET ptr, byval id as int32", "", "" )
+    Event_( "Tooltip", "tkSparkline_SetTooltipCallback", "SPK_TooltipCallbackFunc", "byval hSpark as TK_WIDGET ptr, byval i as int32, byval v as float64", "byval i as int32, byval v as float64, byref Text as ustring", "i, v, Text", "", "ustring", "Text" )
+    Event_( "Format", "tkSparkline_SetFormatCallback", "SPK_FormatCallbackFunc", "byval hSpark as TK_WIDGET ptr, byval v as float64", "byval v as float64, byref Text as ustring", "v, Text", "", "ustring", "Text" )
+    Event_( "Paint", "tkSparkline_SetPaintCallback", "SPK_PaintCallbackSub", "byval p as TKSPARK_PAINTINFO ptr", "byval p as TKSPARK_PAINTINFO ptr", "p", "p->hSpark", "", "" )
+    Event_( "Message", "tkSparkline_SetMessageCallback", "SPK_MessageCallbackFunc", "byval m as TKSPARK_MESSAGEINFO ptr", "byval m as TKSPARK_MESSAGEINFO ptr, byref Handled as boolean", "m, Handled", "m->hSpark", "boolean", "Handled" )
     Event_( "MouseMove", "tkWidget_SetMouseMoveCallback", "TK_MouseMoveSub", "byval hWidget as TK_WIDGET ptr, byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "byval x as int32, byval y as int32, byval buttons as int32, byval mods as int32", "x, y, buttons, mods" )
 end sub

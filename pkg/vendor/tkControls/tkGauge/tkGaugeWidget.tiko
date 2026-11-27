@@ -402,6 +402,15 @@ public function tkGauge_GetPointerKind( byval hGauge as TK_WIDGET ptr, byval i a
     return p->ptrs(i).nKind
 end function
 
+' Pointer 0's kind (the value's): the Designer's PointerKind.
+public sub tkGauge_SetValueKind( byval hGauge as TK_WIDGET ptr, byval nKind as int32 )
+    tkGauge_SetPointerKind( hGauge, 0, nKind )
+end sub
+
+public function tkGauge_GetValueKind( byval hGauge as TK_WIDGET ptr ) as int32
+    return tkGauge_GetPointerKind( hGauge, 0 )
+end function
+
 ' 0 = the kind's colour from the gauge's colours.
 public sub tkGauge_SetPointerColor( byval hGauge as TK_WIDGET ptr, byval i as int32, byval clr as uint32 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
@@ -586,6 +595,12 @@ public sub tkGauge_SetTickHint( byval hGauge as TK_WIDGET ptr, byval n as int32 
     Refresh( p )
 end sub
 
+public function tkGauge_GetTickHint( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_DEFAULT_TICKHINT
+    return p->spec.nTickHint
+end function
+
 ' TKGAUGE_DECIMALS_AUTO: labels from the step, the value up to 2 with trailing zeros dropped.
 public sub tkGauge_SetDecimals( byval hGauge as TK_WIDGET ptr, byval nDecimals as int32 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
@@ -634,6 +649,12 @@ public sub tkGauge_SetShowFace( byval hGauge as TK_WIDGET ptr, byval bShow as bo
     Refresh( p )
 end sub
 
+public function tkGauge_GetShowFace( byval hGauge as TK_WIDGET ptr ) as boolean
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return false
+    return p->spec.bShowFace
+end function
+
 ' Bars grow from here (0 on a -50..50 scale); ClearBarOrigin: from Min.
 public sub tkGauge_SetBarOrigin( byval hGauge as TK_WIDGET ptr, byval v as float64 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
@@ -669,6 +690,12 @@ public sub tkGauge_SetPrefix( byval hGauge as TK_WIDGET ptr, byval Text as ustri
     Refresh( p )
 end sub
 
+public function tkGauge_GetPrefix( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return ""
+    return p->spec.sPrefix
+end function
+
 public sub tkGauge_SetSuffix( byval hGauge as TK_WIDGET ptr, byval Text as ustring )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
     if p = 0 then exit sub
@@ -676,12 +703,24 @@ public sub tkGauge_SetSuffix( byval hGauge as TK_WIDGET ptr, byval Text as ustri
     Refresh( p )
 end sub
 
+public function tkGauge_GetSuffix( byval hGauge as TK_WIDGET ptr ) as ustring
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return ""
+    return p->spec.sSuffix
+end function
+
 public sub tkGauge_SetValueTextPos( byval hGauge as TK_WIDGET ptr, byval nPos as int32 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
     if (p = 0) orelse (nPos < TKGAUGE_VALUE_AUTO) orelse (nPos > TKGAUGE_VALUE_END) then exit sub
     p->spec.nValueText = nPos
     Refresh( p )
 end sub
+
+public function tkGauge_GetValueTextPos( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_VALUE_AUTO
+    return p->spec.nValueText
+end function
 
 ' The labels and caption's font; 0 = the host's default.
 public sub tkGauge_SetFont( byval hGauge as TK_WIDGET ptr, byval f as TTF_Font ptr )
@@ -691,6 +730,12 @@ public sub tkGauge_SetFont( byval hGauge as TK_WIDGET ptr, byval f as TTF_Font p
     Refresh( p )
 end sub
 
+public function tkGauge_GetFont( byval hGauge as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->fFont
+end function
+
 ' The value text's font; 0 = the labels'.
 public sub tkGauge_SetValueFont( byval hGauge as TK_WIDGET ptr, byval f as TTF_Font ptr )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
@@ -698,6 +743,12 @@ public sub tkGauge_SetValueFont( byval hGauge as TK_WIDGET ptr, byval f as TTF_F
     p->fValueFont = f
     Refresh( p )
 end sub
+
+public function tkGauge_GetValueFont( byval hGauge as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return 0
+    return p->fValueFont
+end function
 
 
 ' ==========================================================================================

@@ -2480,3 +2480,118 @@ events = [
   { name="Paint", set="tkBarcode_SetPaintCallback", type="BC_PaintCallbackSub", sig="byval p as TKBARCODE_PAINTINFO ptr", params="byval p as TKBARCODE_PAINTINFO ptr", args="p", widget="p->hBarcode" },
   { name="Message", set="tkBarcode_SetMessageCallback", type="BC_MessageCallbackFunc", sig="byval m as TKBARCODE_MESSAGEINFO ptr", params="byval m as TKBARCODE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hBarcode", returns="boolean", result="Handled" },
 ]
+
+[[control]]
+name = "Gauge"
+module = "tkGauge"
+category = "Data"
+width = 160
+height = 160
+create_arg = "Shape"
+create_arg_kind = "enum"
+create_arg_enum = "Radial=TKGAUGE_RADIAL,Linear=TKGAUGE_LINEAR"
+create_arg_default = "Radial"
+bind = { kind="float", set="tkGauge_SetValue", load_only=true }
+default_event = "Click"
+colors = { struct="TKGAUGE_COLORS", get="tkGauge_GetColors", theme="tkGauge_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="FaceColor", part="Face", state="Normal" },
+  { field="TrackColor", part="Track", state="Normal" },
+  { field="TickColor", part="Tick", state="Normal" },
+  { field="LabelColor", part="Label", state="Normal", ink=true },
+  { field="NeedleColor", part="Needle", state="Normal" },
+  { field="HubColor", part="Hub", state="Normal" },
+  { field="BarColor", part="Bar", state="Normal" },
+  { field="MarkerColor", part="Marker", state="Normal" },
+  { field="ValueTextColor", part="ValueText", state="Normal", ink=true },
+  { field="CaptionColor", part="Caption", state="Normal", ink=true },
+  { field="ForeColorDisabled" },
+]
+# Radial-only rows (Angles, TrackWidth) and linear-only rows (Orientation, Reverse) are shown for
+# both shapes and ignored where they do not apply. ScalePlacement on a linear gauge: Inside = near
+# (below / left), Outside = far.
+props = [
+  { name="Range", kind="list", enum="Min:float,Max:float", set="tkGauge_SetRange", get="" },
+  { name="Value", kind="float", set="tkGauge_SetValue", get="tkGauge_GetValue", default="0" },
+  { name="PointerKind", kind="enum", enum="Needle=TKGAUGE_PTR_NEEDLE,Bar=TKGAUGE_PTR_BAR,Marker=TKGAUGE_PTR_MARKER", set="tkGauge_SetValueKind", get="tkGauge_GetValueKind" },
+  { name="Angles", kind="list", enum="Start:float,Sweep:float", set="tkGauge_SetAngles", get="" },
+  { name="Orientation", kind="enum", enum="Horizontal=TKGAUGE_HORIZONTAL,Vertical=TKGAUGE_VERTICAL", set="tkGauge_SetOrientation", get="tkGauge_GetOrientation", default="Horizontal" },
+  { name="Reverse", kind="bool", set="tkGauge_SetReverse", get="tkGauge_GetReverse", default="false" },
+  { name="MajorStep", kind="float", set="tkGauge_SetMajorStep", get="tkGauge_GetMajorStep", default="0" },
+  { name="MinorCount", kind="int", set="tkGauge_SetMinorCount", get="tkGauge_GetMinorCount", default="4" },
+  { name="TickHint", kind="int", set="tkGauge_SetTickHint", get="tkGauge_GetTickHint", default="5" },
+  { name="Decimals", kind="int", set="tkGauge_SetDecimals", get="tkGauge_GetDecimals", default="-1" },
+  { name="ScalePlacement", kind="enum", enum="Inside=TKGAUGE_SCALE_INSIDE,Outside=TKGAUGE_SCALE_OUTSIDE,None=TKGAUGE_SCALE_NONE,Both=TKGAUGE_SCALE_BOTH", set="tkGauge_SetScalePlacement", get="tkGauge_GetScalePlacement", default="Inside" },
+  { name="TrackWidth", kind="float", set="tkGauge_SetTrackWidth", get="tkGauge_GetTrackWidth", default="0.12" },
+  { name="ShowFace", kind="bool", set="tkGauge_SetShowFace", get="tkGauge_GetShowFace", default="false" },
+  { name="Ranges", kind="text", set="tkGauge_SetRangesText", get="tkGauge_GetRangesText" },
+  { name="Caption", kind="text", set="tkGauge_SetCaption", get="tkGauge_GetCaption" },
+  { name="Prefix", kind="text", set="tkGauge_SetPrefix", get="tkGauge_GetPrefix" },
+  { name="Suffix", kind="text", set="tkGauge_SetSuffix", get="tkGauge_GetSuffix" },
+  { name="ValueTextPos", kind="enum", enum="Auto=TKGAUGE_VALUE_AUTO,Center=TKGAUGE_VALUE_CENTER,Below=TKGAUGE_VALUE_BELOW,None=TKGAUGE_VALUE_NONE,End=TKGAUGE_VALUE_END", set="tkGauge_SetValueTextPos", get="tkGauge_GetValueTextPos", default="Auto" },
+  { name="Animation", kind="int", set="tkGauge_SetAnimation", get="tkGauge_GetAnimation", default="0" },
+  { name="Font", kind="font", set="tkGauge_SetFont", get="tkGauge_GetFont" },
+  { name="ValueFont", kind="font", set="tkGauge_SetValueFont", get="tkGauge_GetValueFont" },
+  { name="TooltipText", kind="text", set="tkGauge_SetTooltipText", get="tkGauge_GetTooltipText" },
+]
+events = [
+  { name="Click", set="tkGauge_SetClickCallback", type="GGE_ClickCallbackSub", sig="byval hGauge as TK_WIDGET ptr, byval id as int32", params="", args="" },
+  { name="Tooltip", set="tkGauge_SetTooltipCallback", type="GGE_TooltipCallbackFunc", sig="byval hGauge as TK_WIDGET ptr, byval v as float64", params="byval v as float64, byref Text as ustring", args="v, Text", returns="ustring", result="Text" },
+  { name="ValueFormat", set="tkGauge_SetValueFormatCallback", type="GGE_ValueFormatCallbackFunc", sig="byval hGauge as TK_WIDGET ptr, byval v as float64", params="byval v as float64, byref Text as ustring", args="v, Text", returns="ustring", result="Text" },
+  { name="Paint", set="tkGauge_SetPaintCallback", type="GGE_PaintCallbackSub", sig="byval p as TKGAUGE_PAINTINFO ptr", params="byval p as TKGAUGE_PAINTINFO ptr", args="p", widget="p->hGauge" },
+  { name="Message", set="tkGauge_SetMessageCallback", type="GGE_MessageCallbackFunc", sig="byval m as TKGAUGE_MESSAGEINFO ptr", params="byval m as TKGAUGE_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hGauge", returns="boolean", result="Handled" },
+]
+
+[[control]]
+name = "Sparkline"
+module = "tkSparkline"
+category = "Data"
+width = 120
+height = 32
+bind = { kind="text", set="tkSparkline_SetDataText", load_only=true }
+default_event = "Click"
+colors = { struct="TKSPARK_COLORS", get="tkSparkline_GetColors", theme="tkSparkline_ThemeColors" }
+color_fields = [
+  { field="BackColor", part="Back", state="Normal" },
+  { field="LineColor", part="Line", state="Normal" },
+  { field="FillColor", part="Fill", state="Normal" },
+  { field="NegativeColor", part="Negative", state="Normal" },
+  { field="AxisColor", part="Axis", state="Normal" },
+  { field="ReferenceColor", part="Reference", state="Normal" },
+  { field="BandColor", part="Band", state="Normal" },
+  { field="HighColor", part="High", state="Normal" },
+  { field="LowColor", part="Low", state="Normal" },
+  { field="FirstColor", part="First", state="Normal" },
+  { field="LastColor", part="Last", state="Normal" },
+  { field="HotColor", part="Hot", state="Normal" },
+  { field="TextColor", part="Text", state="Normal", ink=true },
+  { field="ForeColorDisabled" },
+]
+# ORDER MATTERS: Range turns AutoRange off, so AutoRange comes after it.
+props = [
+  { name="Kind", kind="enum", enum="Line=TKSPARK_LINE,Area=TKSPARK_AREA,Column=TKSPARK_COLUMN,WinLoss=TKSPARK_WINLOSS", set="tkSparkline_SetKind", get="tkSparkline_GetKind", default="Line" },
+  { name="Data", kind="text", set="tkSparkline_SetDataText", get="tkSparkline_GetDataText" },
+  { name="MaxPoints", kind="int", set="tkSparkline_SetMaxPoints", get="tkSparkline_GetMaxPoints", default="0" },
+  { name="Range", kind="list", enum="Min:float,Max:float", set="tkSparkline_SetRange", get="" },
+  { name="AutoRange", kind="bool", set="tkSparkline_SetAutoRange", get="tkSparkline_GetAutoRange", default="true" },
+  { name="EmptyMode", kind="enum", enum="Gap=TKSPARK_EMPTY_GAP,Zero=TKSPARK_EMPTY_ZERO,Connect=TKSPARK_EMPTY_CONNECT", set="tkSparkline_SetEmptyMode", get="tkSparkline_GetEmptyMode", default="Gap" },
+  { name="Markers", kind="text", set="tkSparkline_SetMarkersText", get="tkSparkline_GetMarkersText" },
+  { name="MarkerSize", kind="float", set="tkSparkline_SetMarkerSize", get="tkSparkline_GetMarkerSize", default="5" },
+  { name="LineWidth", kind="float", set="tkSparkline_SetLineWidth", get="tkSparkline_GetLineWidth", default="1.5" },
+  { name="ColumnGap", kind="int", set="tkSparkline_SetColumnGap", get="tkSparkline_GetColumnGap", default="1" },
+  { name="ShowAxis", kind="bool", set="tkSparkline_SetShowAxis", get="tkSparkline_GetShowAxis", default="false" },
+  { name="Reference", kind="text", set="tkSparkline_SetReferenceText", get="tkSparkline_GetReferenceText" },
+  { name="NormalBand", kind="text", set="tkSparkline_SetNormalBandText", get="tkSparkline_GetNormalBandText" },
+  { name="ShowLastValue", kind="bool", set="tkSparkline_SetShowLastValue", get="tkSparkline_GetShowLastValue", default="false" },
+  { name="Decimals", kind="int", set="tkSparkline_SetDecimals", get="tkSparkline_GetDecimals", default="-1" },
+  { name="Font", kind="font", set="tkSparkline_SetFont", get="tkSparkline_GetFont" },
+  { name="TooltipText", kind="text", set="tkSparkline_SetTooltipText", get="tkSparkline_GetTooltipText" },
+]
+events = [
+  { name="Click", set="tkSparkline_SetClickCallback", type="SPK_ClickCallbackSub", sig="byval hSpark as TK_WIDGET ptr, byval id as int32", params="", args="" },
+  { name="Tooltip", set="tkSparkline_SetTooltipCallback", type="SPK_TooltipCallbackFunc", sig="byval hSpark as TK_WIDGET ptr, byval i as int32, byval v as float64", params="byval i as int32, byval v as float64, byref Text as ustring", args="i, v, Text", returns="ustring", result="Text" },
+  { name="Format", set="tkSparkline_SetFormatCallback", type="SPK_FormatCallbackFunc", sig="byval hSpark as TK_WIDGET ptr, byval v as float64", params="byval v as float64, byref Text as ustring", args="v, Text", returns="ustring", result="Text" },
+  { name="Paint", set="tkSparkline_SetPaintCallback", type="SPK_PaintCallbackSub", sig="byval p as TKSPARK_PAINTINFO ptr", params="byval p as TKSPARK_PAINTINFO ptr", args="p", widget="p->hSpark" },
+  { name="Message", set="tkSparkline_SetMessageCallback", type="SPK_MessageCallbackFunc", sig="byval m as TKSPARK_MESSAGEINFO ptr", params="byval m as TKSPARK_MESSAGEINFO ptr, byref Handled as boolean", args="m, Handled", widget="m->hSpark", returns="boolean", result="Handled" },
+]

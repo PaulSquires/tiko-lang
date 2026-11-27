@@ -1,0 +1,10 @@
+' The record frmKpis steps through (GAUGE-SPARKLINE.md GS4): DataType kpidata.Kpi, the form's Kpis
+' an Array of them.
+#module "kpidata"
+
+public type Kpi
+    Name as ustring         ' txtName
+    Score as float64        ' ggScore: a radial gauge, 0..10
+    Fill as int32           ' ggFill: a linear gauge, an integer field through tkBind's float conversion
+    Trend as ustring        ' spTrend: a series as text ("3,5,,2")
+end type

@@ -444,6 +444,16 @@ public function tkSparkline_GetMarkers( byval hSpark as TK_WIDGET ptr ) as int32
     return p->spec.nMarkers
 end function
 
+' "high,low,last": the Designer's form of SetMarkers ("" = none).
+public sub tkSparkline_SetMarkersText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as string t = Text
+    tkSparkline_SetMarkers( hSpark, tkSparkline_ParseMarkers( t ) )
+end sub
+
+public function tkSparkline_GetMarkersText( byval hSpark as TK_WIDGET ptr ) as ustring
+    return tkSparkline_FormatMarkers( tkSparkline_GetMarkers( hSpark ) )
+end function
+
 ' Design units; <= 0 ignored.
 public sub tkSparkline_SetMarkerSize( byval hSpark as TK_WIDGET ptr, byval fSize as float32 )
     dim as TKSPARK_STATE ptr p = SP( hSpark )
@@ -538,6 +548,32 @@ public function tkSparkline_GetNormalBand( byval hSpark as TK_WIDGET ptr, byref 
     if (p = 0) orelse (p->spec.bHasBand = false) then return false
     lo = p->spec.fBandLo : hi = p->spec.fBandHi
     return true
+end function
+
+' The Designer's text forms: a reference "50" ("" clears it), a band "40..60" ("" clears it; a
+' malformed text clears it too).
+public sub tkSparkline_SetReferenceText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as string t = trim( Text )
+    if len( t ) = 0 then tkSparkline_ClearReference( hSpark ) else tkSparkline_SetReference( hSpark, val( t ) )
+end sub
+
+public function tkSparkline_GetReferenceText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as float64 v
+    if tkSparkline_GetReference( hSpark, v ) = false then return ""
+    return str( v )
+end function
+
+public sub tkSparkline_SetNormalBandText( byval hSpark as TK_WIDGET ptr, byval Text as ustring )
+    dim as string t = trim( Text )
+    dim as int32 d = instr( t, ".." )
+    if d < 2 then tkSparkline_ClearNormalBand( hSpark ) : exit sub
+    tkSparkline_SetNormalBand( hSpark, val( left( t, d - 1 ) ), val( mid( t, d + 2 ) ) )
+end sub
+
+public function tkSparkline_GetNormalBandText( byval hSpark as TK_WIDGET ptr ) as ustring
+    dim as float64 lo, hi
+    if tkSparkline_GetNormalBand( hSpark, lo, hi ) = false then return ""
+    return str( lo ) & ".." & str( hi )
 end function
 
 public sub tkSparkline_SetShowLastValue( byval hSpark as TK_WIDGET ptr, byval bShow as boolean )
