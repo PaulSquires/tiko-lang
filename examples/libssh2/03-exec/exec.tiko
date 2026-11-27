@@ -1,0 +1,99 @@
+'' exec -- run a command on the server: its standard output, its standard error kept apart,
+'' and its exit status.
+''
+''     TIKO_SSH_HOST=build.example.com TIKO_SSH_USER=me TIKO_SSH_KEY=~/.ssh/id_ed25519 exec "uname -a"
+''
+'' The environment is 01-connect's; unset TIKO_SSH_HOST and the program says so and exits 0.
+'' Without an argument it runs a command that writes to both streams and exits 3.
+'' Build it with 'tiko exec.tiko'.
+
+#import "vendor/libssh2" link dynamic
+#import "std/net"
+
+dim shared as LIBSSH2_SESSION ptr gS
+
+function LastError( ) as string
+    dim as zstring ptr m
+    dim as int32 n = libssh2_session_last_error( gS, @m, nullptr, 0 )
+    return *m & " (" & n & ")"
+end function
+
+'' 01-connect's sequence, without its commentary.
+function Connect( byref tcp as net.TcpStream ) as boolean
+    dim as string host = environ( "TIKO_SSH_HOST" ), user = environ( "TIKO_SSH_USER" ), keyFile = environ( "TIKO_SSH_KEY" )
+    dim as integer port = valint( environ( "TIKO_SSH_PORT" ) )
+    if port = 0 then port = 22
+    dim as net.NetResultBool cr = tcp.ConnectHost( host, port, 10000 )
+    if cr.IsOk( ) = false then print "connect failed: "; cr.Failure( ).Message( ) : return false
+    gS = libssh2_session_init( )
+    if libssh2_session_handshake( gS, tcp.hFd ) <> 0 then print "handshake failed: "; LastError( ) : return false
+    dim as uinteger klen
+    dim as int32 ktype
+    dim as const zstring ptr key_ = libssh2_session_hostkey( gS, @klen, @ktype )
+    dim as LIBSSH2_KNOWNHOSTS ptr kh = libssh2_knownhost_init( gS )
+    libssh2_knownhost_readfile( kh, environ( "TIKO_SSH_KNOWN_HOSTS" ), LIBSSH2_KNOWNHOST_FILE_OPENSSH )
+    dim as libssh2_knownhost ptr found
+    dim as int32 check = libssh2_knownhost_checkp( kh, host, port, key_, klen, _
+                                                   LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW, @found )
+    libssh2_knownhost_free( kh )
+    if check <> LIBSSH2_KNOWNHOST_CHECK_MATCH then print "host key not in known_hosts: stopping" : return false
+    dim as int32 rc
+    if len( keyFile ) then
+        dim as string pass_ = environ( "TIKO_SSH_PASSPHRASE" )
+        dim as zstring ptr pp = nullptr                   '' no passphrase: NULL, not ""
+        if len( pass_ ) then pp = strptr( pass_ )
+        rc = libssh2_userauth_publickey_fromfile_ex( gS, user, len( user ), keyFile & ".pub", keyFile, pp )
+    else
+        rc = libssh2_userauth_password( gS, user, environ( "TIKO_SSH_PASSWORD" ) )
+    end if
+    if rc <> 0 then print "authentication failed: "; LastError( ) : return false
+    return true
+end function
+
+'' Everything one stream of the channel holds, until the command closes it.
+function ReadAll( byval ch as LIBSSH2_CHANNEL ptr, byval stream_id as int32 ) as string
+    dim as string s
+    dim as zstring * 1025 buf
+    do
+        dim as integer n = libssh2_channel_read_ex( ch, stream_id, @buf, 1024 )
+        if n <= 0 then exit do
+        buf[n] = 0
+        s &= buf
+    loop
+    return s
+end function
+
+if len( environ( "TIKO_SSH_HOST" ) ) = 0 then
+    print "skipped: set TIKO_SSH_HOST (see 01-connect for the rest)"
+    end 0
+end if
+dim as string cmd = command( 1 )
+if len( cmd ) = 0 then cmd = "echo out: $(uname -s); echo err: to stderr 1>&2; exit 3"
+libssh2_init( 0 )
+dim as net.TcpStream tcp
+if Connect( tcp ) = false then end 1
+
+'' A command runs on a channel of its own: one per command.
+dim as LIBSSH2_CHANNEL ptr ch = libssh2_channel_open_session( gS )
+if ch = nullptr then print "channel failed: "; LastError( ) : end 1
+if libssh2_channel_exec( ch, cmd ) <> 0 then print "exec failed: "; LastError( ) : end 1
+
+'' Blocking reads: standard output to its end, then standard error. Fine for a command whose
+'' error output is small; one that fills the error stream while its output is still open needs
+'' the two read in turn (libssh2_session_set_blocking( s, 0 ) and LIBSSH2_ERROR_EAGAIN).
+dim as string out_ = ReadAll( ch, 0 ), err_ = ReadAll( ch, SSH_EXTENDED_DATA_STDERR )
+
+'' The exit status arrives as the channel closes: close, wait, then ask.
+libssh2_channel_close( ch )
+libssh2_channel_wait_closed( ch )
+dim as int32 status = libssh2_channel_get_exit_status( ch )
+libssh2_channel_free( ch )
+
+print "command  "; cmd
+print "stdout   "; rtrim( out_, any !"\r\n" )
+print "stderr   "; rtrim( err_, any !"\r\n" )
+print "exit     "; status
+
+libssh2_session_disconnect_ex( gS, SSH_DISCONNECT_BY_APPLICATION, "done", "" )
+libssh2_session_free( gS )
+libssh2_exit( )

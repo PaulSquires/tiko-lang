@@ -1,0 +1,140 @@
+'' =============================================================================
+'' libssh2_publickey.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "libssh2_publickey.h"
+''   source sha256 : f1cd086f3950e65635827ee3332c1c6ca62887c0f84369ec58e31974debb36e9
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  libssh2_publickey_add_ex.name -> libssh2_publickey_add_ex.name_   (tiko reserved word)
+''   parameter  libssh2_publickey_remove_ex.name -> libssh2_publickey_remove_ex.name_   (tiko reserved word)
+''
+'' 2 items need manual translation:
+''   line 99  libssh2_publickey.h:76  C2T-TODO(function-like-macro)  libssh2_publickey_attribute
+''   line 102  libssh2_publickey.h:78  C2T-TODO(function-like-macro)  libssh2_publickey_attribute_fast
+'' =============================================================================
+
+#include once "crt/long.bi"
+
+/' Copyright (C) Sara Golemon <sarag@libssh2.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms,
+ * with or without modification, are permitted provided
+ * that the following conditions are met:
+ *
+ *   Redistributions of source code must retain the above
+ *   copyright notice, this list of conditions and the
+ *   following disclaimer.
+ *
+ *   Redistributions in binary form must reproduce the above
+ *   copyright notice, this list of conditions and the following
+ *   disclaimer in the documentation and/or other materials
+ *   provided with the distribution.
+ *
+ *   Neither the name of the copyright holder nor the names
+ *   of any other contributors may be used to endorse or
+ *   promote products derived from this software without
+ *   specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+ * OF SUCH DAMAGE.
+ '/
+
+/' Note: This include file is only needed for using the
+ * publickey SUBSYSTEM which is not the same as publickey
+ * authentication.  For authentication you only need libssh2.h
+ *
+ * For more information on the publickey subsystem,
+ * refer to IETF draft: secsh-publickey
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ '/
+
+#ifndef LIBSSH2_PUBLICKEY_H
+#define LIBSSH2_PUBLICKEY_H 1
+
+#include once "libssh2.ti"
+
+type _LIBSSH2_PUBLICKEY__fwd as _LIBSSH2_PUBLICKEY
+type LIBSSH2_PUBLICKEY as _LIBSSH2_PUBLICKEY
+
+type _libssh2_publickey_attribute
+    name as const zstring ptr
+    name_len as culong
+    value as const zstring ptr
+    value_len as culong
+    mandatory as byte
+end type
+type libssh2_publickey_attribute as _libssh2_publickey_attribute
+
+type _libssh2_publickey_list
+    packet as uint8 ptr    /' For freeing '/
+
+    name as const uint8 ptr
+    name_len as culong
+    blob as const uint8 ptr
+    blob_len as culong
+    num_attrs as culong
+    attrs as libssh2_publickey_attribute ptr /' free me '/
+end type
+type libssh2_publickey_list as _libssh2_publickey_list
+
+/' Generally use the first macro here, but if both name and value are string
+   literals, you can use _fast() to take advantage of preprocessing '/
+'' C2T-TODO(function-like-macro) libssh2_publickey.h:76 -- '{' cannot start an expression
+'' #define libssh2_publickey_attribute(name, value, mandatory) \
+''     { (name), strlen(name), (value), strlen(value), (mandatory) },
+'' C2T-TODO(function-like-macro) libssh2_publickey.h:78 -- '{' cannot start an expression
+'' #define libssh2_publickey_attribute_fast(name, value, mandatory) \
+''     { (name), sizeof(name) - 1, (value), sizeof(value) - 1, (mandatory) },
+
+extern "C"
+
+/' Publickey Subsystem '/
+declare function libssh2_publickey_init( byval session as LIBSSH2_SESSION ptr ) as LIBSSH2_PUBLICKEY ptr
+
+declare function libssh2_publickey_add_ex( byval pkey as LIBSSH2_PUBLICKEY ptr, _
+_
+                                           byval name_ as const uint8 ptr, _
+                                           byval name_len as culong, _
+                                           byval blob as const uint8 ptr, _
+                                           byval blob_len as culong, byval overwrite as byte, _
+                                           byval num_attrs as culong, _
+                                           byval attrs as const libssh2_publickey_attribute ptr ) as int32
+#define libssh2_publickey_add(pkey, name, blob, blob_len, overwrite, num_attrs, attrs) libssh2_publickey_add_ex((pkey), (name), strlen((name)), (blob), (blob_len), (overwrite), (num_attrs), (attrs))
+
+declare function libssh2_publickey_remove_ex( byval pkey as LIBSSH2_PUBLICKEY ptr, _
+                                              byval name_ as const uint8 ptr, _
+                                              byval name_len as culong, _
+                                              byval blob as const uint8 ptr, _
+                                              byval blob_len as culong ) as int32
+#define libssh2_publickey_remove(pkey, name, blob, blob_len) libssh2_publickey_remove_ex((pkey), (name), strlen((name)), (blob), (blob_len))
+
+declare function libssh2_publickey_list_fetch( byval pkey as LIBSSH2_PUBLICKEY ptr, _
+_
+                                               byval num_keys as culong ptr, _
+                                               byval pkey_list as libssh2_publickey_list ptr ptr ) as int32
+declare sub libssh2_publickey_list_free( byval pkey as LIBSSH2_PUBLICKEY ptr, _
+_
+                                         byval pkey_list as libssh2_publickey_list ptr )
+
+declare function libssh2_publickey_shutdown( byval pkey as LIBSSH2_PUBLICKEY ptr ) as int32
+
+end extern
+
+#endif /' LIBSSH2_PUBLICKEY_H '/

@@ -1,0 +1,107 @@
+'' scp -- one file up and back down over SCP: libssh2_scp_send64 sends it with its size and
+'' mode, libssh2_scp_recv2 fetches it and says its size, mode and time first.
+''
+''     TIKO_SSH_HOST=files.example.com TIKO_SSH_USER=me TIKO_SSH_KEY=~/.ssh/id_ed25519 scp
+''
+'' The environment is 01-connect's; unset TIKO_SSH_HOST and the program says so and exits 0.
+'' The file is 'tiko-scp-example.bin' in the account's home; it is removed again. SCP is the old
+'' protocol, one file per command, and some servers have turned it off: prefer SFTP (02-sftp).
+'' Build it with 'tiko scp.tiko'. Windows and Linux: libssh2_scp_stat, the record scp_recv2
+'' fills, is not declared for macOS yet.
+
+#import "vendor/libssh2" link dynamic
+#import "std/net"
+
+dim shared as LIBSSH2_SESSION ptr gS
+
+function LastError( ) as string
+    dim as zstring ptr m
+    dim as int32 n = libssh2_session_last_error( gS, @m, nullptr, 0 )
+    return *m & " (" & n & ")"
+end function
+
+'' 01-connect's sequence, without its commentary.
+function Connect( byref tcp as net.TcpStream ) as boolean
+    dim as string host = environ( "TIKO_SSH_HOST" ), user = environ( "TIKO_SSH_USER" ), keyFile = environ( "TIKO_SSH_KEY" )
+    dim as integer port = valint( environ( "TIKO_SSH_PORT" ) )
+    if port = 0 then port = 22
+    dim as net.NetResultBool cr = tcp.ConnectHost( host, port, 10000 )
+    if cr.IsOk( ) = false then print "connect failed: "; cr.Failure( ).Message( ) : return false
+    gS = libssh2_session_init( )
+    if libssh2_session_handshake( gS, tcp.hFd ) <> 0 then print "handshake failed: "; LastError( ) : return false
+    dim as uinteger klen
+    dim as int32 ktype
+    dim as const zstring ptr key_ = libssh2_session_hostkey( gS, @klen, @ktype )
+    dim as LIBSSH2_KNOWNHOSTS ptr kh = libssh2_knownhost_init( gS )
+    libssh2_knownhost_readfile( kh, environ( "TIKO_SSH_KNOWN_HOSTS" ), LIBSSH2_KNOWNHOST_FILE_OPENSSH )
+    dim as libssh2_knownhost ptr found
+    dim as int32 check = libssh2_knownhost_checkp( kh, host, port, key_, klen, _
+                                                   LIBSSH2_KNOWNHOST_TYPE_PLAIN or LIBSSH2_KNOWNHOST_KEYENC_RAW, @found )
+    libssh2_knownhost_free( kh )
+    if check <> LIBSSH2_KNOWNHOST_CHECK_MATCH then print "host key not in known_hosts: stopping" : return false
+    dim as int32 rc
+    if len( keyFile ) then
+        dim as string pass_ = environ( "TIKO_SSH_PASSPHRASE" )
+        dim as zstring ptr pp = nullptr                   '' no passphrase: NULL, not ""
+        if len( pass_ ) then pp = strptr( pass_ )
+        rc = libssh2_userauth_publickey_fromfile_ex( gS, user, len( user ), keyFile & ".pub", keyFile, pp )
+    else
+        rc = libssh2_userauth_password( gS, user, environ( "TIKO_SSH_PASSWORD" ) )
+    end if
+    if rc <> 0 then print "authentication failed: "; LastError( ) : return false
+    return true
+end function
+
+if len( environ( "TIKO_SSH_HOST" ) ) = 0 then
+    print "skipped: set TIKO_SSH_HOST (see 01-connect for the rest)"
+    end 0
+end if
+libssh2_init( 0 )
+dim as net.TcpStream tcp
+if Connect( tcp ) = false then end 1
+
+dim as string path = "tiko-scp-example.bin"
+'' 300 000 bytes holding every byte value, zero included.
+dim as string body = space( 300000 )
+for i as integer = 0 to len( body ) - 1
+    body[i] = ( i * 7 ) and 255
+next
+
+'' Up: SCP sends the size and mode first, so the whole length is known before a byte goes.
+dim as LIBSSH2_CHANNEL ptr ch = libssh2_scp_send64( gS, path, &o640, len( body ), 0, 0 )
+if ch = nullptr then print "scp_send64 failed: "; LastError( ) : end 1
+dim as integer sent = 0
+while sent < len( body )
+    dim as integer n = libssh2_channel_write_ex( ch, 0, strptr( body ) + sent, len( body ) - sent )
+    if n < 0 then print "write failed: "; LastError( ) : end 1
+    sent += n
+wend
+libssh2_channel_send_eof( ch ) : libssh2_channel_wait_eof( ch )
+libssh2_channel_wait_closed( ch ) : libssh2_channel_free( ch )
+print "sent     "; path; "  "; sent; " bytes"
+
+'' Down: scp_recv2 fills the file's stat record first. Read exactly st_size bytes, as libssh2's
+'' own scp example does -- the size, not the channel's end, is where the file stops.
+dim as libssh2_scp_stat st
+ch = libssh2_scp_recv2( gS, path, cast( libssh2_struct_stat ptr, @st ) )
+if ch = nullptr then print "scp_recv2 failed: "; LastError( ) : end 1
+print "stat     size "; st.st_size; ", mode "; oct( st.st_mode and &o777 ); ", mtime "; st.st_mtime
+dim as string back = space( st.st_size )
+dim as integer got = 0
+while got < st.st_size
+    dim as integer n = libssh2_channel_read_ex( ch, 0, strptr( back ) + got, st.st_size - got )
+    if n <= 0 then exit while
+    got += n
+wend
+libssh2_channel_free( ch )
+print "received "; got; " bytes, "; iif( back = body, "identical", "DIFFERENT" )
+
+'' SCP has no delete: an exec channel removes the file.
+ch = libssh2_channel_open_session( gS )
+libssh2_channel_exec( ch, "rm -f " & path )
+libssh2_channel_close( ch ) : libssh2_channel_wait_closed( ch ) : libssh2_channel_free( ch )
+
+libssh2_session_disconnect_ex( gS, SSH_DISCONNECT_BY_APPLICATION, "done", "" )
+libssh2_session_free( gS )
+libssh2_exit( )
+end iif( back = body andalso ( st.st_mode and &o777 ) = &o640, 0, 1 )

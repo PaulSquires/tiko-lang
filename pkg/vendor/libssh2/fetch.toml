@@ -1,0 +1,41 @@
+# vendor/libssh2's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# libssh2 publishes no library binaries, and its crypto backend must be OpenSSL on every host
+# (claude-docs docs/tiko-vendor RFC-0004 FT-4: Windows' WinCNG has no ed25519, no curve25519 and
+# reads no OpenSSH-format key). So every host builds, through build/build.sh: OpenSSL 3.5.9 (the
+# 3.5 LTS, as vendor/libpq's) static, then libssh2 1.11.1 with libcrypto folded in and hidden --
+# one library per link mode, nothing else to ship.
+#
+# THE NAMES are what '#foreignlib SSH2 ... "lib/libssh2"' probes: libssh2_<os>_<arch>.a for
+# static; for dynamic libssh2.dll on Windows (the name inside it, which a program's import
+# names) and libssh2_linux_x86_64.so on Linux. macOS and linux-arm64: RFC-0004 P3.
+version = "1.11.1"
+
+[windows.1]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://libssh2.org/download/libssh2-1.11.1.tar.gz d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7"
+from = "build/bin/windows/libssh2.dll"
+to = "lib/libssh2.dll"
+
+[windows.2]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://libssh2.org/download/libssh2-1.11.1.tar.gz d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7"
+from = "build/bin/windows/libssh2_windows_x86_64.a"
+to = "lib/libssh2_windows_x86_64.a"
+
+[linux.1]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://libssh2.org/download/libssh2-1.11.1.tar.gz d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7"
+from = "build/bin/linux/libssh2_linux_x86_64.so"
+to = "lib/libssh2_linux_x86_64.so"
+
+[linux.2]
+kind = "script"
+script = "build/build.sh"
+inputs = "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a https://libssh2.org/download/libssh2-1.11.1.tar.gz d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7"
+from = "build/bin/linux/libssh2_linux_x86_64.a"
+to = "lib/libssh2_linux_x86_64.a"
