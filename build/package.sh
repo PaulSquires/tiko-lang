@@ -459,7 +459,7 @@ note "packages -> pkg/ ($( ls "$OUT/pkg" | tr '\n' ' '))"
 rm -rf "$OUT"/pkg/vendor/*/lib
 rm -f "$OUT"/pkg/vendor/*/fetch.toml
 rm -rf "$OUT"/pkg/vendor/*/patches     # fetch.toml's too: vendorfetch.sh reads both from the tree
-rm -rf "$OUT/pkg/vendor/libssh2/build/bin"     # vendor/libssh2's build output, as the list below
+rm -rf "$OUT/pkg/vendor/libssh2/build/bin" "$OUT/pkg/vendor/libcurl/build/bin"   # their build output, as below
 # vendor/tkControls also fetches fonts/, and builds scintk (tkCodeEdit/scintk) in place: the
 # tree's build output is not shipped, only its source and what vendorfetch.sh copies to lib/.
 rm -rf "$OUT/pkg/vendor/tkControls/fonts" "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/bin" \

@@ -1,0 +1,87 @@
+'' ftps -- FTP over TLS, both kinds: EXPLICIT (an ftp:// URL that must upgrade with AUTH TLS,
+'' port 21) and IMPLICIT (ftps://, TLS from the first byte, port 990). The server's certificate is
+'' checked against a CA file, and a check that fails is shown failing.
+''
+''     TIKO_FTP_HOST=files.example.com TIKO_FTP_USER=me TIKO_FTP_PASSWORD=... TIKO_FTP_CA=ca.crt ftps
+''
+'' TIKO_FTP_CA is the CA certificate (PEM) the server's certificate must chain to; unset, the
+'' operating system's roots are used (Windows) or OpenSSL's default paths (Linux). The host name
+'' in TIKO_FTP_HOST must be one the certificate names. With TIKO_FTP_HOST unset the program says
+'' so and exits 0. Build it with 'tiko ftps.tiko'.
+
+#import "vendor/libcurl" link dynamic
+#include once "crt/string.bi"                '' memcpy
+
+function OnData cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as string ptr s = ud
+    dim as uinteger n = size * nmemb, had = len( *s )
+    *s &= space( n )
+    memcpy( strptr( *s ) + had, p, n )
+    return n
+end function
+
+dim shared as string gHost, gUser, gPass, gCA
+
+function Handle( byref url as string, byval sink as string ptr, byval errbuf as zstring ptr ) as CURL ptr
+    dim as CURL ptr h = curl_easy_init( )
+    curl_setopt_str( h, CURLOPT_URL, url )
+    curl_setopt_str( h, CURLOPT_USERNAME, gUser )
+    curl_setopt_str( h, CURLOPT_PASSWORD, gPass )
+    curl_setopt_long( h, CURLOPT_CONNECTTIMEOUT, 10 )
+    curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) )
+    curl_setopt_ptr( h, CURLOPT_WRITEDATA, sink )
+    curl_setopt_ptr( h, CURLOPT_ERRORBUFFER, errbuf )
+    '' THE CERTIFICATE CHECK is on by default (CURLOPT_SSL_VERIFYPEER, _VERIFYHOST = 1, 2):
+    '' never turn it off. Name the CA the server's certificate chains to, if it is a private one.
+    if len( gCA ) then curl_setopt_str( h, CURLOPT_CAINFO, gCA )
+#ifdef TIKO_OS_WINDOWS
+    '' Schannel asks whether the certificate was revoked, and a private CA publishes no
+    '' revocation list: without this the check fails "revocation status is unknown" (curl 60).
+    '' BEST_EFFORT still refuses a certificate a reachable list says is revoked.
+    curl_setopt_long( h, CURLOPT_SSL_OPTIONS, CURLSSLOPT_REVOKE_BEST_EFFORT )
+#endif
+    return h
+end function
+
+gHost = environ( "TIKO_FTP_HOST" ) : gUser = environ( "TIKO_FTP_USER" )
+gPass = environ( "TIKO_FTP_PASSWORD" ) : gCA = environ( "TIKO_FTP_CA" )
+if len( gHost ) = 0 then
+    print "skipped: set TIKO_FTP_HOST, TIKO_FTP_USER, TIKO_FTP_PASSWORD (and TIKO_FTP_CA for a private CA)"
+    end 0
+end if
+curl_global_init( CURL_GLOBAL_DEFAULT )
+dim as boolean ok = true
+dim as string sink
+dim as zstring * CURL_ERROR_SIZE errbuf
+
+'' EXPLICIT: an ftp:// URL, and CURLUSESSL_ALL -- TLS for the commands AND the data, or fail.
+'' (CURLUSESSL_TRY would quietly carry on in the clear if the server refused.)
+dim as CURL ptr h = Handle( "ftp://" & gHost & "/", @sink, @errbuf )
+curl_setopt_long( h, CURLOPT_USE_SSL, CURLUSESSL_ALL )
+curl_setopt_long( h, CURLOPT_DIRLISTONLY, 1 )
+dim as CURLcode rc = curl_easy_perform( h )
+print "explicit "; iif( rc = CURLE_OK, "ok, listing of " & len( sink ) & " bytes", "failed: " & errbuf )
+ok = ok andalso rc = CURLE_OK
+curl_easy_cleanup( h )
+
+'' IMPLICIT: ftps:// -- port 990 by default, encrypted from the start.
+sink = ""
+h = Handle( "ftps://" & gHost & "/", @sink, @errbuf )
+curl_setopt_long( h, CURLOPT_DIRLISTONLY, 1 )
+rc = curl_easy_perform( h )
+print "implicit "; iif( rc = CURLE_OK, "ok, listing of " & len( sink ) & " bytes", "failed: " & errbuf )
+ok = ok andalso rc = CURLE_OK
+curl_easy_cleanup( h )
+
+'' What a failed check looks like: the same server, but a CA it does not chain to -- this
+'' program itself as the "CA file" is no certificate at all.
+h = Handle( "ftp://" & gHost & "/", @sink, @errbuf )
+curl_setopt_long( h, CURLOPT_USE_SSL, CURLUSESSL_ALL )
+curl_setopt_str( h, CURLOPT_CAINFO, command( 0 ) )
+rc = curl_easy_perform( h )
+print "wrong CA "; iif( rc <> CURLE_OK, "refused, as it should be: " & *curl_easy_strerror( rc ), "ACCEPTED -- wrong" )
+ok = ok andalso rc <> CURLE_OK
+curl_easy_cleanup( h )
+
+curl_global_cleanup( )
+end iif( ok, 0, 1 )

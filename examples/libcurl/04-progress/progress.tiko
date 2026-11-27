@@ -1,0 +1,147 @@
+'' progress -- a large transfer the way a program shows one: 32 MiB uploaded and downloaded again
+'' over FTP, a progress callback that prints a line every quarter, the totals curl measured
+'' (CURLINFO_*), and a transfer the callback stops halfway.
+''
+''     TIKO_FTP_HOST=files.example.com TIKO_FTP_USER=me TIKO_FTP_PASSWORD=... progress
+''
+'' The environment is 01-ftp's; with TIKO_FTP_HOST unset the program says so and exits 0. The file
+'' is 'tiko-curl-progress.bin' in the login directory; it is removed again. Build it with
+'' 'tiko progress.tiko'.
+
+#import "vendor/libcurl" link dynamic
+
+const SIZE_ = 32 * 1024 * 1024
+
+'' The body is made, not stored: byte i is i * 31 mod 256, so a download is checked as it arrives.
+type Stream
+    as curl_off_t pos_
+    as boolean good
+end type
+
+function OnRead cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as Stream ptr st = ud
+    dim as curl_off_t n = SIZE_ - st->pos_
+    if n > size * nmemb then n = size * nmemb
+    dim as ubyte ptr b = cast( ubyte ptr, p )
+    for i as integer = 0 to n - 1
+        b[i] = ( ( st->pos_ + i ) * 31 ) and 255
+    next
+    st->pos_ += n
+    return n
+end function
+
+function OnData cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as Stream ptr st = ud
+    dim as uinteger n = size * nmemb
+    dim as ubyte ptr b = cast( ubyte ptr, p )
+    for i as integer = 0 to n - 1
+        if b[i] <> ( ( ( st->pos_ + i ) * 31 ) and 255 ) then st->good = false
+    next
+    st->pos_ += n
+    return n
+end function
+
+'' The progress callback: called often (about every second, and as data moves). Totals are 0
+'' until curl knows them. A non-zero return stops the transfer: CURLE_ABORTED_BY_CALLBACK.
+type Meter
+    as integer quarter                          '' the last quarter printed
+    as curl_off_t stopAt                        '' > 0: stop once this much has moved
+end type
+
+function OnProgress cdecl ( byval ud as any ptr, byval dltotal as curl_off_t, byval dlnow as curl_off_t, _
+                            byval ultotal as curl_off_t, byval ulnow as curl_off_t ) as int32
+    dim as Meter ptr m = ud
+    dim as curl_off_t total = iif( ultotal > 0, ultotal, dltotal ), now_ = iif( ultotal > 0, ulnow, dlnow )
+    if m->stopAt > 0 andalso now_ >= m->stopAt then return 1
+    if total > 0 then
+        dim as integer q = ( now_ * 4 ) \ total
+        if q > m->quarter then
+            m->quarter = q
+            print "         "; q * 25; "%  "; now_ \ 1024; " KiB"
+        end if
+    end if
+    return 0
+end function
+
+dim shared as string gHost, gUser, gPass
+
+function Handle( byref file_ as string, byval m as Meter ptr ) as CURL ptr
+    dim as CURL ptr h = curl_easy_init( )
+    curl_setopt_str( h, CURLOPT_URL, "ftp://" & gHost & "/" & file_ )
+    curl_setopt_str( h, CURLOPT_USERNAME, gUser )
+    curl_setopt_str( h, CURLOPT_PASSWORD, gPass )
+    curl_setopt_long( h, CURLOPT_CONNECTTIMEOUT, 10 )
+    curl_setopt_long( h, CURLOPT_NOPROGRESS, 0 )                        '' progress callbacks on
+    curl_setopt_fn( h, CURLOPT_XFERINFOFUNCTION, procptr( OnProgress ) )
+    curl_setopt_ptr( h, CURLOPT_XFERINFODATA, m )
+    return h
+end function
+
+'' What curl measured: bytes as a curl_off_t, times in microseconds (also curl_off_t).
+sub Totals( byval h as CURL ptr, byval upload as boolean )
+    dim as curl_off_t bytes, us, speed
+    curl_getinfo_off( h, iif( upload, CURLINFO_SIZE_UPLOAD_T, CURLINFO_SIZE_DOWNLOAD_T ), bytes )
+    curl_getinfo_off( h, CURLINFO_TOTAL_TIME_T, us )
+    curl_getinfo_off( h, iif( upload, CURLINFO_SPEED_UPLOAD_T, CURLINFO_SPEED_DOWNLOAD_T ), speed )
+    print "         "; bytes; " bytes in "; us \ 1000; " ms, "; speed \ 1024; " KiB/s"
+end sub
+
+gHost = environ( "TIKO_FTP_HOST" ) : gUser = environ( "TIKO_FTP_USER" ) : gPass = environ( "TIKO_FTP_PASSWORD" )
+if len( gHost ) = 0 then
+    print "skipped: set TIKO_FTP_HOST, TIKO_FTP_USER and TIKO_FTP_PASSWORD"
+    end 0
+end if
+curl_global_init( CURL_GLOBAL_DEFAULT )
+dim as string file_ = "tiko-curl-progress.bin"
+dim as boolean ok = true
+
+print "upload   "; SIZE_ \ ( 1024 * 1024 ); " MiB"
+dim as Stream up
+dim as Meter m
+dim as CURL ptr h = Handle( file_, @m )
+curl_setopt_long( h, CURLOPT_UPLOAD, 1 )
+curl_setopt_fn( h, CURLOPT_READFUNCTION, procptr( OnRead ) )
+curl_setopt_ptr( h, CURLOPT_READDATA, @up )
+curl_setopt_off( h, CURLOPT_INFILESIZE_LARGE, SIZE_ )
+dim as CURLcode rc = curl_easy_perform( h )
+if rc <> CURLE_OK then print "upload failed: "; *curl_easy_strerror( rc ) : end 1
+Totals( h, true )
+curl_easy_cleanup( h )
+
+print "download"
+dim as Stream dn
+dn.good = true
+m.quarter = 0
+h = Handle( file_, @m )
+curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) )
+curl_setopt_ptr( h, CURLOPT_WRITEDATA, @dn )
+rc = curl_easy_perform( h )
+Totals( h, false )
+print "         "; iif( rc = CURLE_OK andalso dn.pos_ = SIZE_ andalso dn.good, "every byte as sent", "WRONG" )
+ok = ok andalso rc = CURLE_OK andalso dn.pos_ = SIZE_ andalso dn.good
+curl_easy_cleanup( h )
+
+'' Stopped by the program: the callback returns 1 after 8 MiB.
+dim as Stream part
+part.good = true
+m.quarter = 4 : m.stopAt = 8 * 1024 * 1024
+h = Handle( file_, @m )
+curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) )
+curl_setopt_ptr( h, CURLOPT_WRITEDATA, @part )
+rc = curl_easy_perform( h )
+print "stopped  "; iif( rc = CURLE_ABORTED_BY_CALLBACK, "by the callback after " & part.pos_ \ ( 1024 * 1024 ) & " MiB", "UNEXPECTED: " & *curl_easy_strerror( rc ) )
+ok = ok andalso rc = CURLE_ABORTED_BY_CALLBACK
+curl_easy_cleanup( h )
+
+'' Remove the file: a DELE before a transfer of nothing.
+dim as curl_slist ptr cmds = curl_slist_append( nullptr, "DELE " & file_ )
+h = Handle( "", @m )
+m.stopAt = 0
+curl_setopt_long( h, CURLOPT_NOBODY, 1 )
+curl_setopt_ptr( h, CURLOPT_QUOTE, cmds )
+ok = ok andalso curl_easy_perform( h ) = CURLE_OK
+curl_easy_cleanup( h )
+curl_slist_free_all( cmds )
+
+curl_global_cleanup( )
+end iif( ok, 0, 1 )

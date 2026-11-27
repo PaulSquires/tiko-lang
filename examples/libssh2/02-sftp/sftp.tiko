@@ -76,7 +76,9 @@ print "mkdir    "; d
 
 '' Upload: open for writing (created, truncated), write until everything is sent.
 dim as string body = "Written over SFTP by tiko." & chr( 10 )
-for i as integer = 1 to 5 : body &= body : next                   '' 864 bytes
+'' Doubled five times, as 's = s & s': NOT 's &= s', which tiko (unlike fbc) corrupts when the
+'' string is appended to itself (claude-docs docs/tiko-vendor/RFC-0004-P2-RESULTS.md).
+for i as integer = 1 to 5 : body = body & body : next             '' 864 bytes
 dim as LIBSSH2_SFTP_HANDLE ptr h = libssh2_sftp_open_ex( sf, f, len( f ), _
     LIBSSH2_FXF_WRITE or LIBSSH2_FXF_CREAT or LIBSSH2_FXF_TRUNC, &o644, LIBSSH2_SFTP_OPENFILE )
 dim as integer sent = 0

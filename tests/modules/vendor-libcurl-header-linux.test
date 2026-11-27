@@ -1,0 +1,8 @@
+'' THE COMMITTED vendor/libcurl HEADERS (claude-docs docs/tiko-vendor RFC-0004 P2): curl.ti and
+'' curlver.ti, translated by 'tiko c2t' from curl 8.23.0's headers, and the hand-written system.ti
+'' and libcurl-residue.ti compile for linux-x86_64 as an importer reads them. The library is not needed:
+'' nothing is linked.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 -c tests/modules/src/vlibcurl/hdr.tiko -o build/.vlibcurlh-linux-x86_64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vlibcurlh-linux-x86_64.o

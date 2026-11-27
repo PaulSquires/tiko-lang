@@ -1,0 +1,139 @@
+'' ftp -- plain FTP with libcurl: upload a file, list the directory, download it back and compare,
+'' download only its end (a resume), rename it and delete it with FTP commands, and a login that
+'' is refused.
+''
+''     TIKO_FTP_HOST=files.example.com TIKO_FTP_USER=me TIKO_FTP_PASSWORD=... ftp
+''
+'' Plain FTP sends the password and the data UNENCRYPTED: use it on a network you trust, or use
+'' FTPS (02-ftps) or SFTP (03-sftp). With TIKO_FTP_HOST unset the program says so and exits 0.
+'' The file is 'tiko-curl-example.txt' in the account's login directory; it is removed again.
+'' Build it with 'tiko ftp.tiko'.
+
+'' libcurl linked DYNAMICALLY: libcurl.dll (libcurl_linux_x86_64.so on Linux) is copied beside the
+'' program, libssh2 and OpenSSL inside it. Write 'link static' to build libcurl into the program.
+#import "vendor/libcurl" link dynamic
+#include once "crt/string.bi"                '' memcpy
+
+'' What a transfer receives: curl calls the write callback with each piece. The bytes are copied,
+'' not read as text -- a file may hold zero bytes.
+function OnData cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as string ptr s = ud
+    dim as uinteger n = size * nmemb, had = len( *s )
+    *s &= space( n )
+    memcpy( strptr( *s ) + had, p, n )
+    return n                                    '' anything else stops the transfer
+end function
+
+'' What an upload sends: curl asks for at most size * nmemb bytes; 0 means the end.
+type Source
+    as string body
+    as uinteger sent
+end type
+function OnRead cdecl ( byval p as zstring ptr, byval size as uinteger, byval nmemb as uinteger, byval ud as any ptr ) as uinteger
+    dim as Source ptr src = ud
+    dim as uinteger n = len( src->body ) - src->sent
+    if n > size * nmemb then n = size * nmemb
+    memcpy( p, strptr( src->body ) + src->sent, n )
+    src->sent += n
+    return n
+end function
+
+dim shared as string gHost, gUser, gPass
+
+'' A handle with what every transfer here shares: the URL, the account, a timeout, the sink.
+function Handle( byref path as string, byval sink as string ptr ) as CURL ptr
+    dim as CURL ptr h = curl_easy_init( )
+    curl_setopt_str( h, CURLOPT_URL, "ftp://" & gHost & "/" & path )
+    curl_setopt_str( h, CURLOPT_USERNAME, gUser )
+    curl_setopt_str( h, CURLOPT_PASSWORD, gPass )
+    curl_setopt_long( h, CURLOPT_CONNECTTIMEOUT, 10 )
+    curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) )
+    curl_setopt_ptr( h, CURLOPT_WRITEDATA, sink )
+    return h
+end function
+
+function Result( byval rc as CURLcode ) as string
+    return iif( rc = CURLE_OK, "ok", "failed: " & *curl_easy_strerror( rc ) & " (" & rc & ")" )
+end function
+
+gHost = environ( "TIKO_FTP_HOST" ) : gUser = environ( "TIKO_FTP_USER" ) : gPass = environ( "TIKO_FTP_PASSWORD" )
+if len( gHost ) = 0 then
+    print "skipped: set TIKO_FTP_HOST, TIKO_FTP_USER and TIKO_FTP_PASSWORD"
+    end 0
+end if
+
+curl_global_init( CURL_GLOBAL_DEFAULT )         '' once, before any handle
+print "libcurl  "; *curl_version( )
+dim as string file_ = "tiko-curl-example.txt", sink
+dim as boolean ok = true
+
+'' Upload: CURLOPT_UPLOAD with a read callback, and the size up front.
+dim as Source src
+src.body = "Sent over FTP by tiko." & chr( 10 )
+'' Doubled six times, as 's = s & s': NOT 's &= s', which tiko (unlike fbc) corrupts when the
+'' string is appended to itself (claude-docs docs/tiko-vendor/RFC-0004-P2-RESULTS.md).
+for i as integer = 1 to 6 : src.body = src.body & src.body : next     '' 1472 bytes
+dim as CURL ptr h = Handle( file_, @sink )
+curl_setopt_long( h, CURLOPT_UPLOAD, 1 )
+curl_setopt_fn( h, CURLOPT_READFUNCTION, procptr( OnRead ) )
+curl_setopt_ptr( h, CURLOPT_READDATA, @src )
+curl_setopt_off( h, CURLOPT_INFILESIZE_LARGE, len( src.body ) )
+dim as CURLcode rc = curl_easy_perform( h )
+print "upload   "; file_; " -- "; src.sent; " bytes, "; Result( rc )
+ok = ok andalso rc = CURLE_OK
+curl_easy_cleanup( h )
+
+'' The directory: a URL ending in '/' lists it; DIRLISTONLY gives names only (NLST).
+sink = ""
+h = Handle( "", @sink )
+curl_setopt_long( h, CURLOPT_DIRLISTONLY, 1 )
+rc = curl_easy_perform( h )
+print "list     "; Result( rc ); ": "; iif( instr( sink, file_ ), "has " & file_, "NO " & file_ )
+curl_easy_cleanup( h )
+
+'' Download, then compare. CURLINFO_SIZE_DOWNLOAD_T is a curl_off_t: the typed getter.
+sink = ""
+h = Handle( file_, @sink )
+rc = curl_easy_perform( h )
+dim as curl_off_t got
+curl_getinfo_off( h, CURLINFO_SIZE_DOWNLOAD_T, got )
+print "download "; got; " bytes, "; Result( rc ); ", "; iif( sink = src.body, "identical", "DIFFERENT" )
+ok = ok andalso rc = CURLE_OK andalso sink = src.body
+curl_easy_cleanup( h )
+
+'' Resume: start at an offset -- a curl_off_t, so curl_setopt_off, never a bare number through
+'' curl_easy_setopt (on Windows a 32-bit value there is read as 64 bits).
+sink = ""
+h = Handle( file_, @sink )
+curl_setopt_off( h, CURLOPT_RESUME_FROM_LARGE, len( src.body ) - 23 )
+rc = curl_easy_perform( h )
+print "resume   last "; len( sink ); " bytes, "; Result( rc ); ": "; rtrim( sink, chr( 10 ) )
+ok = ok andalso sink = right( src.body, 23 )
+curl_easy_cleanup( h )
+
+'' FTP commands: CURLOPT_POSTQUOTE runs them after the transfer -- here a 'transfer' of nothing
+'' (NOBODY). The list must live until the transfer ends.
+dim as curl_slist ptr cmds = curl_slist_append( nullptr, "RNFR " & file_ )
+cmds = curl_slist_append( cmds, "RNTO renamed-" & file_ )
+cmds = curl_slist_append( cmds, "DELE renamed-" & file_ )
+h = Handle( "", @sink )
+curl_setopt_long( h, CURLOPT_NOBODY, 1 )
+curl_setopt_ptr( h, CURLOPT_POSTQUOTE, cmds )
+rc = curl_easy_perform( h )
+print "commands rename + delete, "; Result( rc )
+ok = ok andalso rc = CURLE_OK
+curl_easy_cleanup( h )
+curl_slist_free_all( cmds )
+
+'' A wrong password: CURLE_LOGIN_DENIED, with the server's reply in CURLOPT_ERRORBUFFER.
+dim as zstring * CURL_ERROR_SIZE errbuf
+h = Handle( file_, @sink )
+curl_setopt_str( h, CURLOPT_PASSWORD, "not the password" )
+curl_setopt_ptr( h, CURLOPT_ERRORBUFFER, @errbuf )
+rc = curl_easy_perform( h )
+print "bad login "; iif( rc = CURLE_LOGIN_DENIED, "refused, as it should be: ", "UNEXPECTED: " ); errbuf
+ok = ok andalso rc = CURLE_LOGIN_DENIED
+curl_easy_cleanup( h )
+
+curl_global_cleanup( )
+end iif( ok, 0, 1 )

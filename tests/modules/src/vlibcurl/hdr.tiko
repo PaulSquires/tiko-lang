@@ -1,0 +1,33 @@
+'' The committed vendor/libcurl headers -- curl.ti and curlver.ti, translated by 'tiko c2t' from
+'' curl 8.23.0's curl.h (flattened) and curlver.h -- and the hand-written system.ti and
+'' libcurl-residue.ti, as an importer reads them: no library needed. Names every typed setter and
+'' getter, the residue's records where each OS declares them, an option of each kind, and the
+'' multi, share and URL APIs.
+#include once "../../../../pkg/vendor/libcurl/libcurl-types.ti"
+#include once "../../../../pkg/vendor/libcurl/curl.ti"
+#include once "../../../../pkg/vendor/libcurl/libcurl-residue.ti"
+function OnData cdecl ( byval p as zstring ptr, byval size as uinteger, byval n as uinteger, byval ud as any ptr ) as uinteger
+    return size * n
+end function
+dim as CURL ptr h = curl_easy_init( )
+dim as CURLcode rc = curl_setopt_str( h, CURLOPT_URL, "sftp://example.com/x" )
+rc = curl_setopt_long( h, CURLOPT_FTP_USE_EPSV, 0 ) + curl_setopt_off( h, CURLOPT_RESUME_FROM_LARGE, 6 )
+rc = curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) ) + curl_setopt_ptr( h, CURLOPT_WRITEDATA, nullptr )
+dim as clong code_ : dim as curl_off_t n : dim as float64 t : dim as string s
+rc = curl_getinfo_long( h, CURLINFO_RESPONSE_CODE, code_ ) + curl_getinfo_off( h, CURLINFO_SIZE_DOWNLOAD_T, n )
+rc = curl_getinfo_float64( h, CURLINFO_TOTAL_TIME, t ) + curl_getinfo_str( h, CURLINFO_EFFECTIVE_URL, s )
+dim as CURLM ptr m = curl_multi_init( )
+dim as CURLMcode mc = curl_multi_setopt_long( m, CURLMOPT_MAXCONNECTS, 4 ) + curl_multi_setopt_ptr( m, CURLMOPT_SOCKETDATA, nullptr )
+dim as int32 running, numfds
+mc = curl_multi_add_handle( m, h ) + curl_multi_perform( m, @running ) + curl_multi_poll( m, nullptr, 0, 100, @numfds )
+dim as CURLSH ptr sh = curl_share_init( )
+dim as CURLSHcode shc = curl_share_setopt_long( sh, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS ) + curl_share_setopt_ptr( sh, CURLSHOPT_USERDATA, nullptr )
+dim as CURLU ptr u = curl_url( )
+dim as curl_socket_t sock = CURL_SOCKET_BAD
+dim as curl_waitfd wfd
+dim as curl_sockaddr sa
+print sizeof( wfd ), offsetof( curl_waitfd, events ), curl_multi_socket_action( m, sock, 0, @running )
+print sizeof( sa ), offsetof( curl_sockaddr, addr ), sa.addr.sa_family
+dim as curl_slist ptr q = curl_slist_append( nullptr, "NOOP" )
+print *curl_version( ), LIBCURL_VERSION, CURLOPT_URL, sizeof( curl_off_t ), *curl_easy_strerror( rc )
+curl_slist_free_all( q ) : curl_url_cleanup( u ) : curl_share_cleanup( sh ) : curl_multi_cleanup( m ) : curl_easy_cleanup( h )
