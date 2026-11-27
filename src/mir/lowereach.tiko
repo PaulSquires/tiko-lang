@@ -10,6 +10,7 @@
 #include once "lowerctl.ti"
 #include once "lowerstore.ti"
 #include once "lowerslice.ti"
+#include once "mir/lowercall.ti"
 
 namespace Tko.Mir
 
@@ -101,7 +102,13 @@ function LowerForEachIter _
     dim as MirValue vaddr = LowerAddr( c, sp->a )
     if vaddr.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as MirValue cAddr = LowerAddr( c, seqE )
+    '' A PAREN-LESS CALL IS A CALL. 'for each k in m.Keys' over 'function Keys( ) as
+    '' Array( of TK )': LowerAddr answered the METHOD'S CODE ADDRESS, GetIterator ran on
+    '' it as 'this', and the loop walked garbage or crashed -- compiled clean, said
+    '' nothing. fbc-modern walks the call's result, as with 'm.Keys( )' (2026-11-27).
+    '' UdtSelfAddr_ calls it and gives the result a temporary.
+    dim as MirValue cAddr
+    if UdtSelfAddr_( c, seqE, cAddr ) = false then return false
     if cAddr.kind = cast( uint8, MV_NONE ) then return false
 
     '' The ITERATOR, in a temporary of its own. GetIterator returns it by value, so the
