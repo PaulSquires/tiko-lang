@@ -30,6 +30,8 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [miniaudio Tutorial](Miniaudio-Tutorial) | Sound from `vendor/miniaudio`: play a file, read its samples, make a tone in a callback on the audio thread, record the microphone |
 | [pl_mpeg Tutorial](PL-MPEG-Tutorial) | Video from `vendor/pl_mpeg`: what a file holds, converting to MPEG-1, a frame as a picture, a player with SDL3 and miniaudio |
 | [Compression Tutorial](Compression-Tutorial) | gzip, zip, zstd, xz, brotli, lz4 and bzip2 from `vendor/compression`: compress a string and a file, choose a format, stream a large file, write and read a .zip, notice damage, and ship the program |
+| [SSH Tutorial](SSH-Tutorial) | An SSH server from `vendor/libssh2`: connect and check the host key, log in with a key, files over SFTP, run a command, and ship the program |
+| [FTP, FTPS and SFTP Tutorial](FTP-Tutorial) | Files over FTP, FTPS, SFTP and SCP from `vendor/libcurl`: upload, list, download, the typed option setters, encryption, host keys, progress and resume, and ship the program |
 | [Packages and Modules Tutorial](Packages-and-Modules-Tutorial) | `#import` the standard library, a C library from `vendor` with `link static` or `link dynamic`, and modules of your own |
 | [tiko c2t Tutorial](C2t-Tutorial) | Translate a C library's header with `tiko c2t`, then use it with `#include` and `#foreignlib` |
 | [Notepad Tutorial](Notepad2-Tutorial) | A text editor from tkControls and tkApp, built from one source for Windows, Linux and macOS: menus, status bar, Find, unsaved-changes prompt, and a self-test that drives the window |

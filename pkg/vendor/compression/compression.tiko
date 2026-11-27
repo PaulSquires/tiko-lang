@@ -54,8 +54,11 @@
 ''   The path-taking calls -- gzopen, BZ2_bzopen, zipOpen64, unzOpen64 -- and every buffer and
 ''   stream API are fine, and so is everything under 'link static'.
 '' - The examples in examples/compression: 01-gzip (a .gz file), 02-zstd (buffers, every level),
-''   03-zip (write and list a .zip), 04-xz (a streamed .xz file), and selftest (every codec,
-''   against fixtures the reference tools made).
+''   03-zip (write and list a .zip), 04-xz (a streamed .xz file), 05-codecs (the tiko layer), and
+''   selftest (every codec, against fixtures the reference tools made, and the layer).
+'' - THE TIKO LAYER over all seven is vendor/compression/codecs (RFC-0008): CompressBytes /
+''   DecompressBytes, CompressText, CompressFile, and CompressWriter / DecompressReader, which are
+''   fs.Streams; format detection, std/fs errors, checksums on.
 ''
 '' THE LIBRARY: with 'link static' only what a program calls is linked in (a zlib-only program
 '' grows ~46 KB); with 'link dynamic' -- and when no '#import' says, which is this package's

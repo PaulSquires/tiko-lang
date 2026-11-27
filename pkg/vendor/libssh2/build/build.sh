@@ -13,29 +13,34 @@
 #
 #   1. OpenSSL, STATIC ONLY ('no-shared'): its VC targets then compile /MT /Zl -- the static C
 #      runtime, no default library -- where a shared build is /MD and imports VCRUNTIME140.
-#      Windows: VC-WIN64A with clang-cl and NASM; Linux: gcc, -fPIC. The same Configure lines as
-#      vendor/libpq's. libssh2 needs libcrypto only.
-#   2. libssh2 with clang (Windows) / gcc (Linux) over src/*.c -- no CMake. libssh2_setup.h has a
-#      hand-written Windows config, and elsewhere, with no HAVE_CONFIG_H, defines nothing: the
-#      -D flags below ARE the Linux config (P0 section 3).
+#      Windows: VC-WIN64A with clang-cl and NASM; Linux: gcc, -fPIC (linux-x86_64 or
+#      linux-aarch64); macOS: Apple's clang, darwin64-arm64-cc, macOS 13.0. The same Configure
+#      lines as vendor/libpq's (RFC-0004 FT-12). libssh2 needs libcrypto only.
+#   2. libssh2 with clang (Windows), gcc (Linux) or Apple's clang (macOS) over src/*.c -- no
+#      CMake. libssh2_setup.h has a hand-written Windows config, and elsewhere, with no
+#      HAVE_CONFIG_H, defines nothing: the -D flags below ARE the Linux and macOS configs (P0
+#      section 3; macOS as libssh2's CMakeLists decides it: no poll, memset_s).
 #   3. The SHARED LIBRARY. Windows: libssh2.dll, exporting what libssh2.h dllexports
 #      (LIBSSH2_EXPORTS; libssh2_priv.h defines LIBSSH2_LIBRARY itself) and nothing of
 #      OpenSSL's, linked with the static CRT, as tiko links. Linux: libssh2_linux_x86_64.so,
 #      its soname its own file name, a version script exporting libssh2_* alone -- OpenSSL is
 #      inside and invisible. (So Linux also exports four names libssh2.h does not mark
 #      LIBSSH2_API: libssh2_sign_sk -- declared there without it, so libssh2.dll lacks it --
-#      and three internal ones.)
+#      and three internal ones.) macOS: libssh2_macos_arm64.dylib, install name @rpath/ and its
+#      file name, an exported-symbols list of libssh2's own _libssh2_* functions.
 #   4. The STATIC ARCHIVE: libssh2's objects and libcrypto merged into one. A program linking it
 #      on Windows also needs ws2_32, crypt32, user32 and advapi32 (../libssh2.tiko names them) and
 #      tiko's runtime's _onexit (RFC-0003 DB-11: OpenSSL's crypto/init.c calls it).
 #
 # Host tools beyond vendorfetch's: Windows -- Visual Studio's C tools (vcvars64.bat, for nmake
 # and OpenSSL's link checks), a NATIVE Perl (Strawberry: OpenSSL's Configure refuses MSYS perl
-# for VC targets), NASM, LLVM; Linux -- gcc, make, perl. TIKO_VCVARS, TIKO_PERL_DIR and
-# TIKO_NASM_DIR override where the Windows ones are looked for.
+# for VC targets), NASM, LLVM; Linux -- gcc, make, perl; macOS -- the Command Line Tools (clang,
+# make, perl, libtool). TIKO_VCVARS, TIKO_PERL_DIR and TIKO_NASM_DIR override where the Windows
+# ones are looked for.
 #
-# Output: bin/<host>/ beside this script -- Windows libssh2.dll and libssh2_windows_x86_64.a;
-# Linux libssh2_linux_x86_64.so and libssh2_linux_x86_64.a. The build trees live under
+# Output: bin/<host>/ beside this script (bin/linux-arm64/ on arm64 Linux) -- Windows libssh2.dll
+# and libssh2_windows_x86_64.a; Linux libssh2_linux_<arch>.so and .a; macOS
+# libssh2_macos_arm64.dylib and .a. The build trees live under
 # TIKO_VENDOR_CACHE (OpenSSL's Windows build is about half an hour: nmake is serial).
 # Incremental: a stamp of the inputs and this script; a finished build in the cache is copied.
 set -e
@@ -49,13 +54,17 @@ SRC_OSSL=$1; SRC_SSH2=$2
 case $HOST in
     windows) ARCH=x86_64 ;;
     linux)   ARCH=${TIKO_VENDOR_ARCH:-x86_64}
-             [ "$ARCH" = x86_64 ] || { echo "libssh2: linux-$ARCH is not built yet (RFC-0004 P3)" >&2; exit 1; } ;;
-    *) echo "libssh2: host '$HOST' is not built yet (RFC-0004 P3)" >&2; exit 1 ;;
+             case $ARCH in x86_64) OSSL_TARGET=linux-x86_64 ;; arm64) OSSL_TARGET=linux-aarch64 ;;
+                 *) echo "libssh2: no recipe for linux-$ARCH" >&2; exit 1 ;; esac ;;
+    macos)   ARCH=arm64 ;;
+    *) echo "libssh2: no recipe for host '$HOST'" >&2; exit 1 ;;
 esac
 OUT=$HERE/bin/$HOST
+[ "$HOST" = linux ] && [ "$ARCH" != x86_64 ] && OUT=$HERE/bin/linux-$ARCH
 case $HOST in
     windows) OUTS="$OUT/libssh2.dll $OUT/libssh2_windows_x86_64.a" ;;
     linux)   OUTS="$OUT/libssh2_linux_$ARCH.so $OUT/libssh2_linux_$ARCH.a" ;;
+    macos)   OUTS="$OUT/libssh2_macos_arm64.dylib $OUT/libssh2_macos_arm64.a" ;;
 esac
 
 digest() { if command -v sha256sum >/dev/null; then sha256sum; else shasum -a 256; fi; }
@@ -123,9 +132,41 @@ EOF
     llvm-ar rcs "$W/ssh2.a" "$W"/o-static/*.o >> "$LOG" 2>&1 || fail "the archive"
     llvm-lib /out:"$(winpath "$W/done/libssh2_windows_x86_64.a")" "$(winpath "$W/ssh2.a")" \
         "$(winpath "$OSSL/lib/libcrypto.lib")" >> "$LOG" 2>&1 || fail "the merged archive"
+elif [ "$HOST" = macos ]; then
+    # Apple's clang and ld64 (never bare 'clang': Homebrew's LLVM may be on PATH), arm64, macOS
+    # 13.0 -- tiko's floor. OpenSSL's Configure line is vendor/libpq's for this host (RFC-0004
+    # FT-12: one OpenSSL build for every package that folds it).
+    export MACOSX_DEPLOYMENT_TARGET=13.0
+    MCC=/usr/bin/clang
+    J=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    ( cd "$S_OSSL" && ./Configure darwin64-arm64-cc no-shared no-tests no-docs CC=$MCC --prefix="$OSSL" --libdir=lib \
+        && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
+    # The Darwin config, as libssh2's own CMakeLists decides it there: no poll() (it disables
+    # poll on Darwin), select(); memset_s for the secure zeroing (no explicit_bzero).
+    CF="-O2 -DLIBSSH2_OPENSSL -DHAVE_UNISTD_H -DHAVE_INTTYPES_H -DHAVE_SYS_SELECT_H
+        -DHAVE_SYS_UIO_H -DHAVE_SYS_SOCKET_H -DHAVE_SYS_IOCTL_H -DHAVE_SYS_TIME_H -DHAVE_SYS_UN_H
+        -DHAVE_ARPA_INET_H -DHAVE_NETINET_IN_H -DHAVE_GETTIMEOFDAY -DHAVE_STRTOLL -DHAVE_SNPRINTF
+        -DHAVE_MEMSET_S -DHAVE_SELECT -DHAVE_O_NONBLOCK
+        -I$S_SSH2/include -I$OSSL/include"
+    for f in "$S_SSH2"/src/*.c; do
+        $MCC $CF -c "$f" -o "$W/o-static/$(basename "$f" .c).o" >> "$LOG" 2>&1 || fail "libssh2 ($(basename "$f"))"
+    done
+    DY=libssh2_macos_arm64.dylib
+    # libssh2's own functions alone, as Linux's version script: ld64 takes the list as it is.
+    nm -gU "$W"/o-static/*.o | awk '$2 == "T" && $3 ~ /^_libssh2_/ { print $3 }' | sort -u > "$W/exports.list"
+    $MCC -dynamiclib -o "$W/done/$DY" -install_name "@rpath/$DY" \
+        -Wl,-exported_symbols_list,"$W/exports.list" "$W"/o-static/*.o "$OSSL/lib/libcrypto.a" \
+        >> "$LOG" 2>&1 || fail "the shared library"
+    nm -gU "$W/done/$DY" > "$W/exports.txt"
+    grep -q ' _libssh2_init$' "$W/exports.txt" || { echo "libssh2: $DY does not export libssh2_init" >&2; exit 1; }
+    if grep -q ' _EVP_\| _OPENSSL_\| _CRYPTO_' "$W/exports.txt"; then
+        echo "libssh2: $DY exports OpenSSL" >&2; exit 1
+    fi
+    /usr/bin/libtool -static -no_warning_for_no_symbols -o "$W/done/libssh2_macos_arm64.a" "$W"/o-static/*.o "$OSSL/lib/libcrypto.a" \
+        >> "$LOG" 2>&1 || fail "the merged archive"
 else
     J=$(nproc 2>/dev/null || echo 4)
-    ( cd "$S_OSSL" && ./Configure linux-x86_64 no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
+    ( cd "$S_OSSL" && ./Configure $OSSL_TARGET no-shared no-tests no-docs -fPIC --prefix="$OSSL" --libdir=lib \
         && make -j"$J" build_libs && make install_dev ) >> "$LOG" 2>&1 || fail "OpenSSL"
     CF="-O2 -fPIC -DLIBSSH2_OPENSSL -DHAVE_UNISTD_H -DHAVE_INTTYPES_H -DHAVE_SYS_SELECT_H
         -DHAVE_SYS_UIO_H -DHAVE_SYS_SOCKET_H -DHAVE_SYS_IOCTL_H -DHAVE_SYS_TIME_H -DHAVE_SYS_UN_H

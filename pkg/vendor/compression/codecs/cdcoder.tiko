@@ -1,0 +1,412 @@
+#module "codecs"
+#import "std/fs"
+#import "vendor/compression"
+using fs
+'' vendor/compression/codecs: cdcoder -- Coder, one encoder or decoder over one C library.
+''
+'' ONE STEP, EVERY LIBRARY. Each library has its own streaming call -- deflate / inflate,
+'' ZSTD_compressStream2 / ZSTD_decompressStream, lzma_code, BrotliEncoderCompressStream /
+'' BrotliDecoderDecompressStream, LZ4F_compressUpdate / LZ4F_decompress, BZ2_bzCompress /
+'' BZ2_bzDecompress -- and its own words for "output full", "need input", "flushed", "ended".
+'' Coder.Advance makes them one: it takes from inp / inLeft and gives into outp / outLeft
+'' (moving both), and answers
+''
+''     STEP_MORE   it has more to give: drain the output and call again with the same action
+''     STEP_DONE   the action is complete -- RUN: every byte given was taken; FLUSH: everything
+''                 so far is out; a decoder: it needs more input
+''     STEP_END    the stream ended -- an encoder after FINISH; a decoder at the end of its data
+''     STEP_ERROR  errText says why
+''
+'' A caller gives at most CD_MAX_STEP bytes at a time (zlib's and bzip2's counts are 32 bits).
+''
+'' LZ4 FRAMES are not a give-and-take API -- LZ4F_compressUpdate wants room for its worst case
+'' -- so the LZ4 encoder compresses into a staging buffer of its own, which Advance drains.
+
+const CD_MAX_STEP = 1048576
+const CD_LZ4_BLOCK = 65536
+
+enum CoderAct
+    ACT_RUN
+    ACT_FLUSH
+    ACT_FINISH
+end enum
+
+enum CoderStep
+    STEP_MORE
+    STEP_DONE
+    STEP_END
+    STEP_ERROR
+end enum
+
+type Coder
+    declare constructor( )
+    declare destructor( )
+    '' encode: TRUE to compress. Returns FALSE with errText set when the library refuses.
+    declare function Open( byval c as Codec, byval encode as boolean, byval level as integer ) as boolean
+    declare function Advance( byref inp as const ubyte ptr, byref inLeft as uinteger, _
+                              byref outp as ubyte ptr, byref outLeft as uinteger, byval act as CoderAct ) as CoderStep
+    declare sub Close( )
+
+    codec as Codec
+    enc as boolean
+    live as boolean
+    errText as ustring
+
+private:
+    declare constructor( byref other as const Coder )      '' not copyable: it owns C state
+    declare operator let( byref other as const Coder )
+    declare function Lz4Encode( byref inp as const ubyte ptr, byref inLeft as uinteger, _
+                                byref outp as ubyte ptr, byref outLeft as uinteger, byval act as CoderAct ) as CoderStep
+    z as z_stream
+    zc as ZSTD_CCtx ptr
+    zd as ZSTD_DCtx ptr
+    x as lzma_stream
+    be as BrotliEncoderState ptr
+    bd as BrotliDecoderState ptr
+    lc as LZ4F_cctx ptr
+    ld as LZ4F_dctx ptr
+    lprefs as LZ4F_preferences_t
+    stage as ubyte ptr
+    stageCap as uinteger
+    stageLen as uinteger
+    stagePos as uinteger
+    lzBegun as boolean
+    lzActed as boolean                  '' the FLUSH / FINISH call has been made
+    b as bz_stream
+end type
+
+extern "C"
+    declare function cd_malloc alias "malloc" ( byval n as uinteger ) as any ptr
+    declare sub cd_free alias "free" ( byval p as any ptr )
+    declare function cd_memcpy alias "memcpy" ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+constructor Coder( )
+end constructor
+
+constructor Coder( byref other as const Coder )
+    '' a copy owns nothing and does nothing (never live)
+end constructor
+
+operator Coder.let( byref other as const Coder )
+end operator
+
+destructor Coder( )
+    this.Close( )
+end destructor
+
+'' Each codec's level from a LEVEL_* or its own number, clamped to its range.
+private function PickLevel( byval c as Codec, byval level as integer ) as integer
+    dim as integer dflt, fast, best, lo, hi
+    select case c
+    case CODEC_GZIP, CODEC_ZLIB, CODEC_DEFLATE : dflt = 6  : fast = 1 : best = 9  : lo = 0 : hi = 9
+    case CODEC_ZSTD                : dflt = 3  : fast = 1 : best = 19 : lo = 1 : hi = ZSTD_maxCLevel( )
+    case CODEC_XZ                  : dflt = 6  : fast = 0 : best = 9  : lo = 0 : hi = 9
+    case CODEC_BROTLI              : dflt = 11 : fast = 1 : best = 11 : lo = 0 : hi = 11
+    case CODEC_LZ4                 : dflt = 0  : fast = 0 : best = 12 : lo = 0 : hi = 12
+    case CODEC_BZIP2               : dflt = 9  : fast = 1 : best = 9  : lo = 1 : hi = 9
+    end select
+    select case level
+    case LEVEL_DEFAULT : return dflt
+    case LEVEL_FAST    : return fast
+    case LEVEL_BEST    : return best
+    end select
+    if level < lo then return lo
+    if level > hi then return hi
+    return level
+end function
+
+private function WindowBits( byval c as Codec ) as integer
+    select case c
+    case CODEC_GZIP    : return 16 + 15
+    case CODEC_DEFLATE : return -15
+    end select
+    return 15
+end function
+
+function Coder.Open( byval c as Codec, byval encode as boolean, byval level as integer ) as boolean
+    this.Close( )
+    codec = c : enc = encode : errText = ""
+    dim as integer lv = PickLevel( c, level )
+    dim as integer r
+    select case c
+    case CODEC_GZIP, CODEC_ZLIB, CODEC_DEFLATE
+        if encode then
+            r = deflateInit2( @z, lv, Z_DEFLATED, WindowBits( c ), 8, Z_DEFAULT_STRATEGY )
+        else
+            r = inflateInit2( @z, WindowBits( c ) )
+        end if
+        if r <> Z_OK then errText = "init failed (" & r & ")" : return false
+    case CODEC_ZSTD
+        if encode then
+            zc = ZSTD_createCCtx( )
+            if zc = nullptr then errText = "out of memory" : return false
+            ZSTD_CCtx_setParameter( zc, ZSTD_c_compressionLevel, lv )
+            ZSTD_CCtx_setParameter( zc, ZSTD_c_checksumFlag, 1 )
+        else
+            zd = ZSTD_createDCtx( )
+            if zd = nullptr then errText = "out of memory" : return false
+        end if
+    case CODEC_XZ
+        if encode then
+            r = lzma_easy_encoder( @x, lv, LZMA_CHECK_CRC64 )
+        else
+            r = lzma_stream_decoder( @x, &hFFFFFFFFFFFFFFFFull, LZMA_CONCATENATED )
+        end if
+        if r <> LZMA_OK then errText = "init failed (" & r & ")" : return false
+    case CODEC_BROTLI
+        if encode then
+            be = BrotliEncoderCreateInstance( nullptr, nullptr, nullptr )
+            if be = nullptr then errText = "out of memory" : return false
+            BrotliEncoderSetParameter( be, BROTLI_PARAM_QUALITY, lv )
+        else
+            bd = BrotliDecoderCreateInstance( nullptr, nullptr, nullptr )
+            if bd = nullptr then errText = "out of memory" : return false
+        end if
+    case CODEC_LZ4
+        if encode then
+            if LZ4F_isError( LZ4F_createCompressionContext( @lc, LZ4F_VERSION ) ) then errText = "init failed" : return false
+            lprefs.frameInfo.contentChecksumFlag = LZ4F_contentChecksumEnabled
+            lprefs.compressionLevel = lv
+            stageCap = LZ4F_compressBound( CD_LZ4_BLOCK, @lprefs ) + 64
+            stage = cd_malloc( stageCap )
+            if stage = nullptr then errText = "out of memory" : return false
+            stageLen = 0 : stagePos = 0 : lzBegun = false : lzActed = false
+        else
+            if LZ4F_isError( LZ4F_createDecompressionContext( @ld, LZ4F_VERSION ) ) then errText = "init failed" : return false
+        end if
+    case CODEC_BZIP2
+        if encode then
+            r = BZ2_bzCompressInit( @b, lv, 0, 30 )
+        else
+            r = BZ2_bzDecompressInit( @b, 0, 0 )
+        end if
+        if r <> BZ_OK then errText = "init failed (" & r & ")" : return false
+    case else
+        errText = "no codec" : return false
+    end select
+    live = true
+    return true
+end function
+
+sub Coder.Close( )
+    if live = false then exit sub
+    select case codec
+    case CODEC_GZIP, CODEC_ZLIB, CODEC_DEFLATE
+        if enc then deflateEnd( @z ) else inflateEnd( @z )
+    case CODEC_ZSTD
+        if zc then ZSTD_freeCCtx( zc )
+        if zd then ZSTD_freeDCtx( zd )
+    case CODEC_XZ
+        lzma_end( @x )
+    case CODEC_BROTLI
+        if be then BrotliEncoderDestroyInstance( be )
+        if bd then BrotliDecoderDestroyInstance( bd )
+    case CODEC_LZ4
+        if lc then LZ4F_freeCompressionContext( lc )
+        if ld then LZ4F_freeDecompressionContext( ld )
+        if stage then cd_free( stage )
+    case CODEC_BZIP2
+        if enc then BZ2_bzCompressEnd( @b ) else BZ2_bzDecompressEnd( @b )
+    end select
+    zc = nullptr : zd = nullptr : be = nullptr : bd = nullptr : lc = nullptr : ld = nullptr : stage = nullptr
+    live = false
+end sub
+
+function Coder.Lz4Encode( byref inp as const ubyte ptr, byref inLeft as uinteger, _
+                          byref outp as ubyte ptr, byref outLeft as uinteger, byval act as CoderAct ) as CoderStep
+    dim as uinteger r
+    if lzBegun = false then
+        r = LZ4F_compressBegin( lc, stage, stageCap, @lprefs )
+        if LZ4F_isError( r ) then errText = *LZ4F_getErrorName( r ) : return STEP_ERROR
+        stageLen = r : stagePos = 0 : lzBegun = true
+    end if
+    do
+        '' drain the staging buffer first
+        if stagePos < stageLen then
+            dim as uinteger k = stageLen - stagePos
+            if k > outLeft then k = outLeft
+            cd_memcpy( outp, stage + stagePos, k )
+            outp += k : outLeft -= k : stagePos += k
+            if stagePos < stageLen then return STEP_MORE
+        end if
+        if inLeft > 0 then
+            dim as uinteger k = iif( inLeft < CD_LZ4_BLOCK, inLeft, CD_LZ4_BLOCK )
+            r = LZ4F_compressUpdate( lc, stage, stageCap, inp, k, nullptr )
+            if LZ4F_isError( r ) then errText = *LZ4F_getErrorName( r ) : return STEP_ERROR
+            inp += k : inLeft -= k : stageLen = r : stagePos = 0
+            continue do
+        end if
+        select case act
+        case ACT_RUN
+            return STEP_DONE
+        case ACT_FLUSH
+            if lzActed then lzActed = false : return STEP_DONE
+            r = LZ4F_flush( lc, stage, stageCap, nullptr )
+            if LZ4F_isError( r ) then errText = *LZ4F_getErrorName( r ) : return STEP_ERROR
+            stageLen = r : stagePos = 0 : lzActed = true
+        case ACT_FINISH
+            if lzActed then return STEP_END
+            r = LZ4F_compressEnd( lc, stage, stageCap, nullptr )
+            if LZ4F_isError( r ) then errText = *LZ4F_getErrorName( r ) : return STEP_ERROR
+            stageLen = r : stagePos = 0 : lzActed = true
+        end select
+    loop
+end function
+
+function Coder.Advance( byref inp as const ubyte ptr, byref inLeft as uinteger, _
+                        byref outp as ubyte ptr, byref outLeft as uinteger, byval act as CoderAct ) as CoderStep
+    if live = false then errText = "not open" : return STEP_ERROR
+    dim as uinteger inStart = inLeft, outStart = outLeft
+    dim as integer r
+    dim as CoderStep st
+
+    select case codec
+    case CODEC_GZIP, CODEC_ZLIB, CODEC_DEFLATE
+        z.next_in = cast( Bytef ptr, inp ) : z.avail_in = inLeft
+        z.next_out = outp : z.avail_out = outLeft
+        if enc then
+            r = deflate( @z, iif( act = ACT_FINISH, Z_FINISH, iif( act = ACT_FLUSH, Z_SYNC_FLUSH, Z_NO_FLUSH ) ) )
+            if r = Z_STREAM_ERROR then errText = "stream error" : return STEP_ERROR
+            if act = ACT_FINISH then
+                st = iif( r = Z_STREAM_END, STEP_END, STEP_MORE )
+            else
+                st = iif( z.avail_out = 0, STEP_MORE, STEP_DONE )
+            end if
+        else
+            r = inflate( @z, Z_NO_FLUSH )
+            select case r
+            case Z_STREAM_END : st = STEP_END
+            case Z_OK, Z_BUF_ERROR : st = iif( z.avail_out = 0, STEP_MORE, STEP_DONE )
+            case else
+                errText = iif( z.msg, *z.msg, "error " & r ) : return STEP_ERROR
+            end select
+        end if
+        inLeft = z.avail_in : outLeft = z.avail_out
+
+    case CODEC_ZSTD
+        dim as ZSTD_inBuffer ib
+        dim as ZSTD_outBuffer ob
+        ib.src = inp : ib.size = inLeft : ib.pos = 0
+        ob.dst = outp : ob.size = outLeft : ob.pos = 0
+        dim as uinteger rem_
+        if enc then
+            rem_ = ZSTD_compressStream2( zc, @ob, @ib, iif( act = ACT_FINISH, ZSTD_e_end, iif( act = ACT_FLUSH, ZSTD_e_flush, ZSTD_e_continue ) ) )
+            if ZSTD_isError( rem_ ) then errText = *ZSTD_getErrorName( rem_ ) : return STEP_ERROR
+            select case act
+            case ACT_RUN    : st = iif( ob.pos = ob.size orelse ib.pos < ib.size, STEP_MORE, STEP_DONE )
+            case ACT_FLUSH  : st = iif( rem_ = 0, STEP_DONE, STEP_MORE )
+            case ACT_FINISH : st = iif( rem_ = 0, STEP_END, STEP_MORE )
+            end select
+        else
+            rem_ = ZSTD_decompressStream( zd, @ob, @ib )
+            if ZSTD_isError( rem_ ) then errText = *ZSTD_getErrorName( rem_ ) : return STEP_ERROR
+            if rem_ = 0 then
+                st = STEP_END
+            else
+                st = iif( ob.pos = ob.size, STEP_MORE, STEP_DONE )
+            end if
+        end if
+        inLeft = inStart - ib.pos : outLeft = outStart - ob.pos
+
+    case CODEC_XZ
+        x.next_in = inp : x.avail_in = inLeft
+        x.next_out = outp : x.avail_out = outLeft
+        dim as lzma_action a = LZMA_RUN
+        if act = ACT_FINISH then a = LZMA_FINISH
+        if act = ACT_FLUSH andalso enc then a = LZMA_SYNC_FLUSH
+        r = lzma_code( @x, a )
+        select case r
+        case LZMA_STREAM_END
+            st = iif( enc andalso act = ACT_FLUSH, STEP_DONE, STEP_END )
+        case LZMA_OK
+            st = iif( x.avail_out = 0 orelse a <> LZMA_RUN, STEP_MORE, STEP_DONE )
+        case LZMA_BUF_ERROR
+            st = STEP_DONE                        '' no progress possible: it needs input
+        case else
+            select case r
+            case LZMA_DATA_ERROR    : errText = "corrupt data"
+            case LZMA_FORMAT_ERROR  : errText = "not .xz data"
+            case LZMA_MEM_ERROR     : errText = "out of memory"
+            case LZMA_OPTIONS_ERROR : errText = "unsupported options"
+            case else               : errText = "error " & r
+            end select
+            return STEP_ERROR
+        end select
+        inLeft = x.avail_in : outLeft = x.avail_out
+        '' a decoder told LZMA_FINISH with no input left that is not at its end has been cut short
+        if enc = false andalso a = LZMA_FINISH andalso st = STEP_MORE andalso outLeft > 0 then st = STEP_DONE
+
+    case CODEC_BROTLI
+        dim as uinteger ai = inLeft, ao = outLeft
+        dim as const uint8 ptr ni = inp
+        dim as uint8 ptr no = outp
+        if enc then
+            dim as BrotliEncoderOperation op = BROTLI_OPERATION_PROCESS
+            if act = ACT_FLUSH then op = BROTLI_OPERATION_FLUSH
+            if act = ACT_FINISH then op = BROTLI_OPERATION_FINISH
+            if BrotliEncoderCompressStream( be, op, @ai, @ni, @ao, @no, nullptr ) = 0 then errText = "encoder error" : return STEP_ERROR
+            select case act
+            case ACT_FINISH : st = iif( BrotliEncoderIsFinished( be ), STEP_END, STEP_MORE )
+            case else       : st = iif( ao = 0 orelse ai > 0 orelse BrotliEncoderHasMoreOutput( be ), STEP_MORE, STEP_DONE )
+            end select
+        else
+            select case BrotliDecoderDecompressStream( bd, @ai, @ni, @ao, @no, nullptr )
+            case BROTLI_DECODER_RESULT_SUCCESS           : st = STEP_END
+            case BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT : st = STEP_MORE
+            case BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT  : st = STEP_DONE
+            case else
+                errText = *BrotliDecoderErrorString( BrotliDecoderGetErrorCode( bd ) ) : return STEP_ERROR
+            end select
+        end if
+        inLeft = ai : outLeft = ao
+
+    case CODEC_LZ4
+        if enc then
+            st = Lz4Encode( inp, inLeft, outp, outLeft, act )
+            return st                              '' Lz4Encode moved the pointers itself
+        end if
+        dim as uinteger dl = outLeft, sl = inLeft
+        dim as uinteger hint = LZ4F_decompress( ld, outp, @dl, inp, @sl, nullptr )
+        if LZ4F_isError( hint ) then errText = *LZ4F_getErrorName( hint ) : return STEP_ERROR
+        if hint = 0 then
+            st = STEP_END
+        elseif dl = outLeft then
+            st = STEP_MORE
+        elseif sl = inLeft then
+            st = STEP_DONE
+        else
+            st = STEP_MORE
+        end if
+        inLeft = inLeft - sl : outLeft = outLeft - dl
+
+    case CODEC_BZIP2
+        b.next_in = cast( zstring ptr, inp ) : b.avail_in = inLeft
+        b.next_out = cast( zstring ptr, outp ) : b.avail_out = outLeft
+        if enc then
+            r = BZ2_bzCompress( @b, iif( act = ACT_FINISH, BZ_FINISH, iif( act = ACT_FLUSH, BZ_FLUSH, BZ_RUN ) ) )
+            select case r
+            case BZ_RUN_OK    : st = iif( b.avail_out = 0, STEP_MORE, STEP_DONE )
+            case BZ_FLUSH_OK  : st = STEP_MORE
+            case BZ_FINISH_OK : st = STEP_MORE
+            case BZ_STREAM_END : st = STEP_END
+            case else : errText = "error " & r : return STEP_ERROR
+            end select
+        else
+            r = BZ2_bzDecompress( @b )
+            select case r
+            case BZ_STREAM_END : st = STEP_END
+            case BZ_OK         : st = iif( b.avail_out = 0, STEP_MORE, STEP_DONE )
+            case BZ_DATA_ERROR, BZ_DATA_ERROR_MAGIC : errText = "corrupt data" : return STEP_ERROR
+            case BZ_MEM_ERROR  : errText = "out of memory" : return STEP_ERROR
+            case else          : errText = "error " & r : return STEP_ERROR
+            end select
+        end if
+        inLeft = b.avail_in : outLeft = b.avail_out
+    end select
+
+    '' move the caller's pointers by what was taken and given
+    inp += inStart - inLeft
+    outp += outStart - outLeft
+    return st
+end function

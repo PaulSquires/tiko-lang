@@ -893,6 +893,51 @@ at, so it comes back as a `Response`. An `HttpError` means there was no answer: 
 trusted, out of date, or for another name — the error's `TlsCode( )` says which. Redirects are
 followed for you, up to ten.
 
+### Files over the network: FTP and SFTP
+
+Files that live on another computer travel over **FTP** — encrypted, **FTPS** — or over SSH as
+**SFTP** and **SCP**. `vendor/libcurl` is curl's library, which speaks all four by URL, with libssh2
+and the encryption inside it:
+
+```admonish warning title="Status in this version"
+`vendor/libcurl` comes after tiko 0.1.8, the toolchain this book is checked with: the listing
+below was compiled and run with the development compiler, on Windows and Linux, against a test
+SSH server.
+```
+
+```tiko
+{{#include ../examples/ch25/transfer.tiko}}
+```
+
+```text
+{{#include ../examples/ch25/transfer.out}}
+```
+
+A **handle** from `curl_easy_init` is one transfer: options say what and how, `curl_easy_perform`
+does it and returns a `CURLcode`, which `curl_easy_strerror` puts into words. A download arrives
+through a **write callback** — a `cdecl` procedure with curl's signature, handed each piece, which
+must return the count it was given or curl stops; an upload is taken from a **read callback**, with
+its size given first. The same `Transfer` would do FTP with an `ftp://` URL, and FTPS by adding
+`CURLOPT_USE_SSL`.
+
+**Set options with the typed setters** — `curl_setopt_long`, `curl_setopt_off`, `curl_setopt_str`,
+`curl_setopt_ptr`, `curl_setopt_fn` — not with C's `curl_easy_setopt`. That is variadic: curl reads
+the value as the type its option names, and C's `long` is 32 bits on Windows and 64 elsewhere, so
+a value of the wrong width arrives wrong without a word. Each setter takes exactly one kind.
+
+```admonish danger title="Pitfall"
+**Without `CURLOPT_SSH_KNOWNHOSTS`, curl accepts any server** that answers — the password goes to
+whoever is listening. Give it a `known_hosts` file holding the server's key (`ssh-keyscan` writes
+the line; check the fingerprint with the server's owner), and a server not in it is refused, as the
+last line of the output shows. FTPS checks the server's certificate by default; never turn that off.
+```
+
+For a session held open — directories walked, files opened at an offset, commands run on the
+other computer — `vendor/libssh2` is libssh2's own interface. The
+[FTP tutorial](https://github.com/PaulSquires/tiko-lang/wiki/FTP-Tutorial) covers FTPS, SCP,
+progress and resuming a large download; the
+[SSH tutorial](https://github.com/PaulSquires/tiko-lang/wiki/SSH-Tutorial) covers libssh2.
+
 ## What it costs
 
 - **A `File` holds an operating-system handle until it is closed or goes out of scope.** Keep it
@@ -915,6 +960,9 @@ followed for you, up to ten.
 - **A socket holds an operating-system handle and, while a call waits, a thread.** Close
   connections in the narrowest scope that needs them, and give every network read a timeout:
   without one a peer that stops answering stops the program with it.
+- **`vendor/libcurl` is about 5 MB** — libssh2 and the encryption are inside it — whether shipped
+  beside the program or linked into it. `curl_easy_perform` blocks until the transfer ends; a
+  write callback that writes to a file keeps memory small however large the download.
 
 ## Summary
 
@@ -961,6 +1009,10 @@ followed for you, up to ten.
 - `std/http`: `http.Fetch`, or an `http.Client` that reuses connections and follows redirects;
   `Send` a `Request`, read a `Response` — a 404 is a response, not an error. `std/tls` encrypts
   `https`, and checks the server's certificate against the system's trusted roots.
+- `#import "vendor/libcurl"` moves files by URL over FTP, FTPS, SFTP and SCP: a handle, options
+  through the typed `curl_setopt_*` setters, `curl_easy_perform`, callbacks for the bytes. Give an
+  SSH transfer `CURLOPT_SSH_KNOWNHOSTS`, or any server is trusted. `vendor/libssh2` holds an SSH
+  session open for SFTP and remote commands.
 
 ## Exercises
 
@@ -994,3 +1046,6 @@ followed for you, up to ten.
 13. Make `httpget.tiko`'s server answer `/old` with `302 Found` and a `Location: /notes` header, and
     fetch `/old`. What does `r.Value( ).Url` hold afterwards? Set `c.MaxRedirects = 0` and fetch it
     again.
+14. Give `transfer.tiko`'s `Transfer` a `CURLOPT_POSTQUOTE` list holding `rm note.txt`, so that
+    the fetch also removes the file from the server. Why must the list still exist when
+    `curl_easy_perform` runs, and who frees it?

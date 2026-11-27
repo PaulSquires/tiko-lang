@@ -1,0 +1,250 @@
+#module "codecs"
+#import "std/fs"
+#import "std/outcome"
+#import "vendor/compression"
+using outcome
+using fs
+'' vendor/compression/codecs: cdstream -- CompressWriter and DecompressReader, fs.Streams.
+''
+'' A WRAPPER DOES NOT OWN WHAT IT WRAPS, as std/fs's BufferedWriter and TextWriter: each keeps a
+'' pointer to the Stream it was given, which must outlive it, and neither is copyable (a copy
+'' is inert: it owns no coder and every call on it fails with FS_CLOSED).
+''
+'' fs.Stream's contract holds: Read may return fewer bytes than asked and Ok( 0 ) is the end;
+'' Write takes every byte or fails; neither stream seeks. A failure is sticky: once a coder has
+'' refused, every later call returns the same failure.
+
+const CD_CHUNK = 65536
+
+'' Writes compressed bytes into another stream. Finish( ) ends the compressed stream and must be
+'' called for a complete file: the destructor calls it too, but cannot report what went wrong.
+public type CompressWriter extends Stream
+    declare constructor( byref inner as Stream, byval c as Codec, byval level as integer = LEVEL_DEFAULT )
+    declare destructor( ) override
+    declare const function CanWrite( ) as boolean override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64 override
+    '' Everything written so far, out to inner and inner flushed: a reader of what inner holds can
+    '' decode it all. Costs a little ratio each time.
+    declare function Flush( ) as FsResultBool override
+    '' The end of the compressed stream; later writes fail with FS_CLOSED. Calling it twice is
+    '' harmless.
+    declare function Finish( ) as FsResultBool
+private:
+    declare constructor( byref other as const CompressWriter )
+    declare operator let( byref other as const CompressWriter )
+    declare function Drain( byval act as CoderAct, byval wantEnd as boolean ) as FsResultBool
+    m_inner as Stream ptr
+    m_coder as Coder
+    m_out( 0 to CD_CHUNK - 1 ) as ubyte
+    m_finished as boolean
+    m_failed as boolean
+    m_err as FsError
+    m_codec as Codec
+end type
+
+constructor CompressWriter( byref inner as Stream, byval c as Codec, byval level as integer )
+    m_inner = @inner : m_codec = c
+    if c = CODEC_DETECT then
+        m_failed = true : m_err = FsError( FS_INVALID_ARGUMENT, 0, "compress: name a codec, not CODEC_DETECT", "" )
+    elseif m_coder.Open( c, true, level ) = false then
+        m_failed = true : m_err = FsError( FS_UNSUPPORTED, 0, CodecName( c ) & " compress: " & m_coder.errText, "" )
+    end if
+end constructor
+
+constructor CompressWriter( byref other as const CompressWriter )
+    m_failed = true : m_err = FsError( FS_CLOSED, 0, "a copied CompressWriter", "" )
+end constructor
+
+operator CompressWriter.let( byref other as const CompressWriter )
+end operator
+
+destructor CompressWriter( )
+    if m_inner then Finish( )
+end destructor
+
+const function CompressWriter.CanWrite( ) as boolean
+    return m_failed = false andalso m_finished = false
+end function
+
+'' Run the coder with no new input until it says the action is complete.
+function CompressWriter.Drain( byval act as CoderAct, byval wantEnd as boolean ) as FsResultBool
+    dim as const ubyte ptr ip = nullptr
+    dim as uinteger il = 0
+    do
+        dim as ubyte ptr op = @m_out(0)
+        dim as uinteger ol = CD_CHUNK
+        dim as CoderStep st = m_coder.Advance( ip, il, op, ol, act )
+        if st = STEP_ERROR then
+            m_failed = true : m_err = FsError( FS_INVALID_DATA, 0, CodecName( m_codec ) & " compress: " & m_coder.errText, "" )
+            return Fail( of boolean, FsError )( m_err )
+        end if
+        if ol < CD_CHUNK then
+            dim as FsResultBool w = m_inner->WriteAll( @m_out(0), CD_CHUNK - ol )
+            if w.IsOk( ) = false then m_failed = true : m_err = w.Failure( ) : return w
+        end if
+        if st = STEP_END then exit do
+        if st = STEP_DONE andalso wantEnd = false then exit do
+    loop
+    return Ok( of boolean, FsError )( true )
+end function
+
+function CompressWriter.Write( byval buf as const ubyte ptr, byval n as longint ) as FsResultI64
+    if n < 0 orelse ( buf = nullptr andalso n > 0 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Write", "" )
+    if m_failed then return Fail( of longint, FsError )( m_err )
+    if m_finished then return FsFail( of longint )( FS_CLOSED, CodecName( m_codec ) & " compress", "" )
+    dim as const ubyte ptr ip = buf
+    dim as longint left_ = n
+    while left_ > 0
+        dim as uinteger il = iif( left_ < CD_MAX_STEP, left_, CD_MAX_STEP )
+        dim as uinteger given = il
+        do
+            dim as ubyte ptr op = @m_out(0)
+            dim as uinteger ol = CD_CHUNK
+            dim as CoderStep st = m_coder.Advance( ip, il, op, ol, ACT_RUN )
+            if st = STEP_ERROR then
+                m_failed = true : m_err = FsError( FS_INVALID_DATA, 0, CodecName( m_codec ) & " compress: " & m_coder.errText, "" )
+                return Fail( of longint, FsError )( m_err )
+            end if
+            if ol < CD_CHUNK then
+                dim as FsResultBool w = m_inner->WriteAll( @m_out(0), CD_CHUNK - ol )
+                if w.IsOk( ) = false then m_failed = true : m_err = w.Failure( ) : return Fail( of longint, FsError )( m_err )
+            end if
+            if st = STEP_DONE andalso il = 0 then exit do
+        loop
+        left_ -= given
+    wend
+    return Ok( of longint, FsError )( n )
+end function
+
+function CompressWriter.Flush( ) as FsResultBool
+    if m_failed then return Fail( of boolean, FsError )( m_err )
+    if m_finished then return m_inner->Flush( )
+    dim as FsResultBool d = Drain( ACT_FLUSH, false )
+    if d.IsOk( ) = false then return d
+    return m_inner->Flush( )
+end function
+
+function CompressWriter.Finish( ) as FsResultBool
+    if m_failed then return Fail( of boolean, FsError )( m_err )
+    if m_finished then return Ok( of boolean, FsError )( true )
+    dim as FsResultBool d = Drain( ACT_FINISH, true )
+    m_finished = true
+    m_coder.Close( )
+    if d.IsOk( ) = false then return d
+    return m_inner->Flush( )
+end function
+
+'' Reads decompressed bytes out of another stream. CODEC_DETECT reads the format from the first bytes
+'' (Brotli has none: name it). The compressed stream's end is the reader's end (Ok( 0 )); bytes
+'' after it in inner are left unread past the reader's buffer. Data that stops before its end is
+'' FS_UNEXPECTED_EOF, damaged data FS_INVALID_DATA.
+public type DecompressReader extends Stream
+    declare constructor( byref inner as Stream, byval c as Codec = CODEC_DETECT )
+    declare destructor( ) override
+    declare const function CanRead( ) as boolean override
+    declare function Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64 override
+    '' The codec read from the data (or the one given) -- CODEC_DETECT until the first Read.
+    declare const function Format( ) as Codec
+private:
+    declare constructor( byref other as const DecompressReader )
+    declare operator let( byref other as const DecompressReader )
+    declare function Start( ) as FsResultBool
+    declare function Refill( ) as FsResultBool
+    m_inner as Stream ptr
+    m_coder as Coder
+    m_in( 0 to CD_CHUNK - 1 ) as ubyte
+    m_ip as const ubyte ptr
+    m_il as uinteger
+    m_eof as boolean
+    m_ended as boolean
+    m_started as boolean
+    m_failed as boolean
+    m_err as FsError
+    m_codec as Codec
+end type
+
+constructor DecompressReader( byref inner as Stream, byval c as Codec )
+    m_inner = @inner : m_codec = c : m_ip = @m_in(0)
+end constructor
+
+constructor DecompressReader( byref other as const DecompressReader )
+    m_failed = true : m_err = FsError( FS_CLOSED, 0, "a copied DecompressReader", "" )
+end constructor
+
+operator DecompressReader.let( byref other as const DecompressReader )
+end operator
+
+destructor DecompressReader( )
+end destructor
+
+const function DecompressReader.CanRead( ) as boolean
+    return m_failed = false
+end function
+
+const function DecompressReader.Format( ) as Codec
+    return m_codec
+end function
+
+'' Top up the input buffer from inner (moving what is left to its front).
+function DecompressReader.Refill( ) as FsResultBool
+    if m_eof then return Ok( of boolean, FsError )( true )
+    if m_il > 0 andalso m_ip <> @m_in(0) then cd_memcpy( @m_in(0), m_ip, m_il )
+    m_ip = @m_in(0)
+    dim as FsResultI64 r = m_inner->Read( @m_in(0) + m_il, CD_CHUNK - m_il )
+    if r.IsOk( ) = false then return Fail( of boolean, FsError )( r.Failure( ) )
+    if r.Value( ) = 0 then m_eof = true
+    m_il += r.Value( )
+    return Ok( of boolean, FsError )( true )
+end function
+
+'' Read enough to know the format, then open the decoder.
+function DecompressReader.Start( ) as FsResultBool
+    m_started = true
+    if m_codec = CODEC_DETECT then
+        while m_il < 6 andalso m_eof = false
+            dim as FsResultBool f = Refill( )
+            if f.IsOk( ) = false then return f
+        wend
+        m_codec = DetectBytes( m_ip, m_il )
+        if m_codec = CODEC_DETECT then
+            if m_il = 0 then return Fail( of boolean, FsError )( FsError( FS_UNEXPECTED_EOF, 0, "decompress: no data", "" ) )
+            return Fail( of boolean, FsError )( FsError( FS_INVALID_DATA, 0, _
+                "decompress: not gzip, zlib, zstd, xz, lz4 or bzip2 data (brotli must be named)", "" ) )
+        end if
+    end if
+    if m_coder.Open( m_codec, false, LEVEL_DEFAULT ) = false then
+        return Fail( of boolean, FsError )( FsError( FS_UNSUPPORTED, 0, CodecName( m_codec ) & " decompress: " & m_coder.errText, "" ) )
+    end if
+    return Ok( of boolean, FsError )( true )
+end function
+
+function DecompressReader.Read( byval buf as ubyte ptr, byval n as longint ) as FsResultI64
+    if n < 0 orelse ( buf = nullptr andalso n > 0 ) then return FsFail( of longint )( FS_INVALID_ARGUMENT, "Read", "" )
+    if m_failed then return Fail( of longint, FsError )( m_err )
+    if n = 0 orelse m_ended then return Ok( of longint, FsError )( 0 )
+    if m_started = false then
+        dim as FsResultBool s = Start( )
+        if s.IsOk( ) = false then m_failed = true : m_err = s.Failure( ) : return Fail( of longint, FsError )( m_err )
+    end if
+    dim as uinteger want = iif( n < CD_MAX_STEP, n, CD_MAX_STEP )
+    dim as ubyte ptr op = buf
+    dim as uinteger ol = want
+    do
+        if m_il = 0 andalso m_eof = false then
+            dim as FsResultBool f = Refill( )
+            if f.IsOk( ) = false then m_failed = true : m_err = f.Failure( ) : return Fail( of longint, FsError )( m_err )
+        end if
+        dim as CoderStep st = m_coder.Advance( m_ip, m_il, op, ol, iif( m_eof, ACT_FINISH, ACT_RUN ) )
+        if st = STEP_ERROR then
+            m_failed = true : m_err = FsError( FS_INVALID_DATA, 0, CodecName( m_codec ) & " decompress: " & m_coder.errText, "" )
+            return Fail( of longint, FsError )( m_err )
+        end if
+        if st = STEP_END then m_ended = true : m_coder.Close( ) : exit do
+        if ol < want then exit do                   '' something came out: return it
+        if st = STEP_DONE andalso m_il = 0 andalso m_eof then
+            m_failed = true : m_err = FsError( FS_UNEXPECTED_EOF, 0, CodecName( m_codec ) & " decompress: the data ends before the stream does", "" )
+            return Fail( of longint, FsError )( m_err )
+        end if
+    loop
+    return Ok( of longint, FsError )( want - ol )
+end function

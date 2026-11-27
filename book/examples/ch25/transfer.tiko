@@ -1,0 +1,75 @@
+'' Files over SFTP with libcurl: send a file, read it back, and
+'' refuse a server whose key is not in known_hosts.
+#import "vendor/libcurl"
+#include once "crt/string.bi"
+
+type Buffer
+    as string bytes
+    as uinteger sent
+end type
+
+'' A download arrives here, a piece at a time.
+function OnData cdecl ( byval p as zstring ptr, _
+        byval size as uinteger, byval n as uinteger, _
+        byval b as any ptr ) as uinteger
+    dim as Buffer ptr buf = b
+    dim as uinteger had = len( buf->bytes )
+    buf->bytes &= space( size * n )
+    memcpy( strptr( buf->bytes ) + had, p, size * n )
+    return size * n
+end function
+
+'' An upload is taken from here; 0 means the end.
+function OnRead cdecl ( byval p as zstring ptr, _
+        byval size as uinteger, byval n as uinteger, _
+        byval b as any ptr ) as uinteger
+    dim as Buffer ptr buf = b
+    dim as uinteger k = len( buf->bytes ) - buf->sent
+    if k > size * n then k = size * n
+    memcpy( p, strptr( buf->bytes ) + buf->sent, k )
+    buf->sent += k
+    return k
+end function
+
+function Transfer( byref file_ as string, byref known as string, _
+                   byval buf as Buffer ptr, _
+                   byval upload as boolean ) as CURLcode
+    dim as CURL ptr h = curl_easy_init( )
+    curl_setopt_str( h, CURLOPT_URL, "sftp://" & _
+        environ( "TIKO_SFTP_SERVER" ) & "/~/" & file_ )
+    curl_setopt_str( h, CURLOPT_USERNAME, environ( "TIKO_SFTP_USER" ) )
+    curl_setopt_str( h, CURLOPT_PASSWORD, _
+                     environ( "TIKO_SFTP_PASSWORD" ) )
+    curl_setopt_str( h, CURLOPT_SSH_KNOWNHOSTS, known )
+    if upload then
+        curl_setopt_long( h, CURLOPT_UPLOAD, 1 )
+        curl_setopt_fn( h, CURLOPT_READFUNCTION, procptr( OnRead ) )
+        curl_setopt_ptr( h, CURLOPT_READDATA, buf )
+        curl_setopt_off( h, CURLOPT_INFILESIZE_LARGE, _
+                         len( buf->bytes ) )
+    else
+        curl_setopt_fn( h, CURLOPT_WRITEFUNCTION, procptr( OnData ) )
+        curl_setopt_ptr( h, CURLOPT_WRITEDATA, buf )
+    end if
+    dim as CURLcode rc = curl_easy_perform( h )
+    curl_easy_cleanup( h )
+    return rc
+end function
+
+curl_global_init( CURL_GLOBAL_DEFAULT )
+dim as string known = environ( "TIKO_SSH_KNOWN_HOSTS" )
+dim as Buffer note, back
+note.bytes = "Meeting moved to Thursday." & chr( 10 )
+print "send:     "; *curl_easy_strerror( Transfer( "note.txt", _
+                                          known, @note, true ) )
+print "fetch:    "; *curl_easy_strerror( Transfer( "note.txt", _
+                                          known, @back, false ) )
+print "contents: "; back.bytes;
+
+'' A known_hosts file without this server in it.
+open "nobody_known" for output as #1 : close #1
+dim as Buffer none
+print "stranger: "; *curl_easy_strerror( Transfer( "note.txt", _
+                                    "nobody_known", @none, false ) )
+kill "nobody_known"
+curl_global_cleanup( )
