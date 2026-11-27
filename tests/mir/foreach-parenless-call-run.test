@@ -1,0 +1,12 @@
+'' RUN: FOR EACH over a PAREN-LESS method call ('for each k in m.Keys') walks the call's
+'' result, as with parentheses. It compiled clean and handed GetIterator the METHOD'S
+'' CODE ADDRESS as 'this' -- garbage or a crash. fbc-modern 2026-11-27: both loops walk
+'' 7, 17, 27 -- 51 each.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/foreach-parenless-call.bas -o tests/mir/foreachparenless.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/foreachparenless.exe
+'' RUN: tests/mir/foreachparenless.exe
+'' EXPECT-RUN-OUT:  51
+'' EXPECT-RUN-OUT:  51
