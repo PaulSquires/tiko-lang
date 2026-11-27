@@ -1,4 +1,4 @@
-# Logging, Terminal UIs, SQLite and Regular Expressions
+# Logging, Terminal UIs, SQLite, Regular Expressions, Sound and Video
 
 Four libraries cover four things most programs end up doing. A program that runs for any length
 of time needs to say what it did, and **`std/logs`** writes that record properly: with levels,
@@ -9,7 +9,8 @@ between runs usually wants a database rather than files of its own invention, an
 **`vendor/sqlite3`** puts SQLite, the most widely deployed database there is, an `#import` away.
 Text that has to be searched for a shape rather than for fixed words — a date, an amount, the
 fields of a log line — wants a regular expression, and **`vendor/pcre2`** brings PCRE2, the
-library PHP's `preg_` functions are built on.
+library PHP's `preg_` functions are built on. And a program that makes a sound or shows a video
+has **`vendor/miniaudio`** and **`vendor/pl_mpeg`**, two small C libraries for exactly that.
 
 The chapter ends with a map of the finance library, the rest of the `std/money` module from
 Chapter 27.
@@ -397,6 +398,80 @@ depth and heap limits do not apply to machine code, which has a stack of its own
 default, `link dynamic`, copies `pcre2.dll` (on Linux `pcre2_linux_x86_64.so`, on macOS
 `pcre2_macos_arm64.dylib`) beside it.
 
+## Sound and video
+
+Sound needs the operating system's audio — WASAPI on Windows, PulseAudio or ALSA on Linux, Core
+Audio on macOS — and every one of them is different. **`vendor/miniaudio`** is miniaudio, an audio
+library in one C file that speaks all of them, decodes WAV, FLAC, MP3 and Ogg Vorbis, records as
+well as plays, and has a mixing engine on top. Like SQLite and PCRE2, what you call is its own C
+interface: `ma_engine_init`, `ma_sound_start`, `ma_decoder_read_pcm_frames`.
+
+The simplest use plays a file through the default device:
+
+```tiko
+#import "vendor/miniaudio"
+
+dim engine as ma_engine
+if ma_engine_init( nullptr, @engine ) = MA_SUCCESS then
+    ma_engine_play_sound( @engine, "chime.ogg", nullptr )
+    sleep 2000, 1
+    ma_engine_uninit( @engine )
+end if
+```
+
+Two details carry over to everything else in the library. **The engine is the program's memory,
+and must stay where it is**: `dim engine as ma_engine` reserves it, `ma_engine_init` fills it in,
+and miniaudio's own threads keep pointers into it until `ma_engine_uninit`, so it is never copied
+and never goes out of scope while it plays. And **the wait is `sleep 2000, 1`**: a plain `sleep`
+ends early at a key press, and at once when the program's input is not a terminal, which would
+stop the sound before it was heard.
+
+Playing needs a device; reading a sound file does not. **`ma_decoder`** turns a file into samples
+in whatever format the program asks for, here 32-bit float at the file's own rate:
+
+```tiko
+{{#include ../examples/ch28/sound-decode.tiko}}
+```
+
+```text
+{{#include ../examples/ch28/sound-decode.out}}
+```
+
+The three files hold the same second of a 440 Hz tone, compressed three ways. Frame counts are
+`ma_uint64`, and unsigned: the loop runs from 1 to `got * channels`, because `0 to n - 1` with an
+`n` of zero would run to the type's maximum. A program that makes its own sound, a synthesiser or
+a game's mixer, opens an **`ma_device`** with a **data callback**: a `cdecl` sub that miniaudio
+calls on its own audio thread, many times a second, to fill a buffer. Such a callback touches only
+what it is given and memory prepared before the device started; Chapter 23's rules for threads
+apply, with a deadline added. The toolchain's `examples/miniaudio` has one, and records from the
+microphone as well.
+
+Video is a harder problem, and the small answer is a narrow one. **`vendor/pl_mpeg`** is pl_mpeg,
+a decoder in one C file for MPEG-1 video with MP2 audio in an MPEG program stream, an old format
+that any video converts to (`ffmpeg -i in.mp4 -c:v mpeg1video -c:a mp2 -format mpeg out.mpg`) and
+that decodes fast with nothing else installed — the right size for an intro or a cutscene:
+
+```tiko
+{{#include ../examples/ch28/video-info.tiko}}
+```
+
+```text
+{{#include ../examples/ch28/video-info.out}}
+```
+
+A frame is three planes of bytes, Y, Cb and Cr, valid until the next decode call; SDL's
+`SDL_UpdateYUVTexture` takes them as they are, and `plm_frame_to_rgb` converts them for anything
+else. The toolchain's `examples/pl_mpeg/03-player` puts the three packages together: pl_mpeg
+decodes, an SDL3 window shows the frames, and miniaudio plays the sound, the samples handed
+between threads through `ma_pcm_rb`, miniaudio's ring buffer.
+
+Both link as SQLite does, `link static` or `link dynamic`, and the dynamic default copies
+`miniaudio.dll` or `pl_mpeg.dll` (`.so` on Linux, `.dylib` on macOS) beside the program. miniaudio
+loads the platform's audio when a device opens, so it needs nothing installed either way. It does
+not yet run on Android, where five of its records are laid out differently from Linux's and the
+header translator has no Android pass to carry them; `#import "vendor/miniaudio"` there stops with
+an error that says so.
+
 ## The finance library
 
 Chapter 27 used `Decimal`, `Currency` and loan schedules from **`#import "std/money"`**. The same
@@ -456,6 +531,13 @@ every function, and all of them are reached as `money.`.
 - A pattern from outside the program gets a match context with `pcre2_set_match_limit`; a
   match that reaches it returns `PCRE2_ERROR_MATCHLIMIT`. After `pcre2_jit_compile`, matching
   runs machine code and still keeps to the match limit.
+- `#import "vendor/miniaudio"`: `ma_engine_init` and `ma_engine_play_sound` to play, `ma_sound`
+  for a sound you control, `ma_decoder` to read a file's samples with no device, `ma_device` with
+  a `cdecl` data callback that runs on the audio thread. Its objects stay in place until uninit;
+  wait with `sleep ms, 1`.
+- `#import "vendor/pl_mpeg"`: MPEG-1 video and MP2 audio only. `plm_create_with_filename`, then
+  `plm_decode_video` / `plm_decode_audio`, or `plm_decode` with callbacks to play; a frame's Y,
+  Cb and Cr planes last until the next call.
 - `std/money` also carries rates, the time value of money, loans, cash flows, depreciation and
   portfolio measures.
 
@@ -476,3 +558,6 @@ every function, and all of them are reached as `money.`.
    `pattern`, and use it to split `"a, b ,c,,d"` on `\s*,\s*`. Which pieces are empty, and why?
 7. Make `regex-find.tiko` print each name with the character position it starts at in `text`,
    computed from the byte offset PCRE2 gives.
+8. Make `sound-decode.tiko` print each file's loudness as well as its peak: the square root of
+   the mean of the squared samples (RMS). Which of the three files comes out quietest, and why
+   might a lossy format change it at all?

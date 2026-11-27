@@ -1,0 +1,4 @@
+tone.flac: 44100 frames, 2 channels, 44100 Hz, peak 9% of full scale
+tone.mp3: 44100 frames, 2 channels, 44100 Hz, peak 8% of full scale
+tone.ogg: 44100 frames, 2 channels, 44100 Hz, peak 9% of full scale
+people.csv: not a sound file miniaudio reads

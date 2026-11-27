@@ -1,0 +1,41 @@
+'' Sound files to samples with miniaudio, a vendor package. No sound
+'' card needed: decoding is not playing.
+#import "vendor/miniaudio"
+
+'' Decode one file to 32-bit float, and say what is in it.
+sub Describe( byref path as const string )
+    '' float samples, at the file's own channels and rate (0 and 0)
+    dim config as ma_decoder_config = _
+        ma_decoder_config_init( ma_format_f32, 0, 0 )
+    dim decoder as ma_decoder
+    if ma_decoder_init_file( path, @config, @decoder ) _
+            <> MA_SUCCESS then
+        print path; ": not a sound file miniaudio reads"
+        exit sub
+    end if
+    dim sampleFormat as ma_format
+    dim channels as ma_uint32, rate as ma_uint32
+    ma_decoder_get_data_format( @decoder, @sampleFormat, _
+        @channels, @rate, nullptr, 0 )
+
+    dim buffer( 0 to 4096 * 2 - 1 ) as float32   '' 4096 stereo frames
+    dim frames as ma_uint64, got as ma_uint64
+    dim peak as float32
+    do
+        ma_decoder_read_pcm_frames( @decoder, @buffer( 0 ), 4096, @got )
+        for i as ma_uint64 = 1 to got * channels '' got is unsigned
+            dim v as float32 = abs( buffer( i - 1 ) )
+            if v > peak then peak = v
+        next
+        frames += got
+    loop while got > 0
+    ma_decoder_uninit( @decoder )
+    print path & ": " & frames & " frames, " & channels & _
+          " channels, " & rate & " Hz, peak " & _
+          cint( peak * 100 ) & "% of full scale"
+end sub
+
+Describe( "tone.flac" )
+Describe( "tone.mp3" )
+Describe( "tone.ogg" )
+Describe( "people.csv" )

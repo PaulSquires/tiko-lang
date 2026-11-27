@@ -684,7 +684,7 @@ Import with `#import "std/<name>"` and call as `<name>.Function( )`.
 | `std/logs` | `Logger`, sinks, levels, structured fields |
 | `std/net`, `std/http`, `std/tls` | TCP and UDP, `http.Fetch`, TLS |
 | `std/tui` | terminal UI toolkit |
-| `vendor/sqlite3`, `vendor/cJSON`, `vendor/pcre2` | C libraries shipped with the toolchain, used through their C API |
+| `vendor/sqlite3`, `vendor/cJSON`, `vendor/pcre2`, `vendor/miniaudio`, `vendor/pl_mpeg` | C libraries shipped with the toolchain, used through their C API |
 | `vendor/tkControls`, `vendor/SDL3`, `vendor/raylib6` | cross-platform GUI and graphics |
 | `sys/win` | the Windows API |
 

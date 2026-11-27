@@ -41,7 +41,7 @@
 - [25. Files, Processes and the Environment](ch25-files-processes.md)
 - [26. Dates and Times](ch26-dates-times.md)
 - [27. Numbers](ch27-numbers.md)
-- [28. Logging, Terminal UIs, SQLite and Regular Expressions](ch28-logging-tui-sqlite.md)
+- [28. Logging, Terminal UIs, SQLite, Regular Expressions, Sound and Video](ch28-logging-tui-sqlite.md)
 
 # Systems Programming
 

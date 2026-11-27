@@ -47,6 +47,8 @@ Every routine, type and constant of the library's C header is callable as the li
 | `vendor/cJSON/utils` | cJSON_Utils: JSON Pointer, Patch, Merge Patch (brings `vendor/cJSON`) | chosen on `vendor/cJSON` |
 | `vendor/pcre2` | PCRE2 10.49, the 8-bit library (UTF-8), with Unicode support and the JIT | `static`, `dynamic` (the default) |
 | `vendor/zint` | libzint 2.16.0, the barcode library: its BSD-3 backend, built without PNG output | `static`, `dynamic` (the default) |
+| `vendor/miniaudio` | miniaudio 0.11.26, audio playback, capture and decoding, with stb_vorbis 1.25 for Ogg Vorbis. Not on Android | `static`, `dynamic` (the default) |
+| `vendor/pl_mpeg` | pl_mpeg (c871f2b, patched): MPEG-1 video, MP2 audio, the MPEG program stream | `static`, `dynamic` (the default) |
 
 **`vendor/tkControls/<control>`** is tiko source, not a C library: owner-drawn controls on SDL3 for Windows, Linux and macOS, one module each. On macOS they run with Homebrew's SDL3. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. `vendor/tkControls/tkCodeEdit` takes `link static`, which puts scintk inside the program. See [tkControls](Category-tkControls).
 
@@ -61,6 +63,10 @@ Every routine, type and constant of the library's C header is callable as the li
 **`vendor/pcre2` is PCRE2's 8-bit library only**, so a pattern and a subject are bytes, or UTF-8 with `PCRE2_UTF`: assign a `ustring` to a `string` to get its UTF-8. Its names are the generic ones PCRE2 documents -- `pcre2_compile`, `pcre2_match`, `pcre2_match_data` -- each a `#define` of the `_8` name the library exports. A pattern or subject is a `PCRE2_SPTR`: `strptr( s )` of a `string` passes as one, a string literal does not. PCRE2 backtracks, so a pattern from outside the program can take exponential time: give `pcre2_match` a match context with `pcre2_set_match_limit` (and `pcre2_set_depth_limit`, `pcre2_set_heap_limit`). `pcre2_dfa_match` is no way out: it does not backtrack, but its time still grows steeply and the match limit does not stop it. See the [PCRE2 tutorial](PCRE2-Tutorial).
 
 **`vendor/zint` is libzint alone** (zint's command line and GUI are GPL and not shipped): `ZBarcode_Create`, `ZBarcode_Encode_and_Buffer_Vector`, `ZBarcode_Delete` and the rest, as its manual has them. Data is bytes; with `UNICODE_MODE` a `string` holding UTF-8 (assign a `ustring` to one). Empty data is an error. `encoded_data` is bit-packed: module (row, col) is `( encoded_data(row, col shr 3) shr ( col and 7 ) ) and 1`. With `scale = 0.5` the vector's units are modules. `ZBarcode_Print` writes BMP, EMF, GIF, PCX, EPS, SVG and TIF files, not PNG. [tkBarcode](tkBarcode) is the control built on it.
+
+**`vendor/miniaudio` is miniaudio's whole C API** -- the engine (`ma_engine`, `ma_sound`), devices with data callbacks (`ma_device`), decoders and encoders -- as [miniaudio's manual](https://miniaud.io/docs/manual/) has it. Its objects are the caller's memory and must not move while they run; a data callback is a `cdecl` sub run on miniaudio's audio thread. It loads each platform's audio backend at run time, so it links no system library on Windows and Linux (CoreAudio's frameworks on macOS). **Not on Android**: an Android import stops with `#error`, because five of its records differ there and `tiko c2t` has no Android pass. See the [miniaudio Tutorial](Miniaudio-Tutorial).
+
+**`vendor/pl_mpeg` plays one format**, MPEG-1 video with MP2 audio in an MPEG program stream: convert anything else with ffmpeg first. Its header is patched (pl_mpeg.h as published does not compile, and has no export macro for a DLL). With `link dynamic` on Windows never give it a `FILE ptr` of the program's: `pl_mpeg.dll` has its own C runtime, and the process ends. See the [pl_mpeg Tutorial](PL-MPEG-Tutorial).
 
 **`vendor/SDL3` declares `SDL_main.h`'s routines but not its `main`**: `SDL_EnterAppMainCallbacks`, `SDL_RunApp` and `SDL_SetMainReady` (and on Windows `SDL_RegisterApp` and `SDL_UnregisterApp`), as C has them with `SDL_MAIN_HANDLED`. A program written with SDL's main callbacks calls `SDL_EnterAppMainCallbacks` itself; see the [SDL3 tutorial](SDL3-Tutorial).
 
@@ -174,4 +180,6 @@ A public header is read twice: once in the module, and again in every program th
 - [Foreign Library Linking](Category-Foreign-Library-Linking)
 - [SQLite Tutorial](SQLite-Tutorial)
 - [PCRE2 Tutorial](PCRE2-Tutorial)
+- [miniaudio Tutorial](Miniaudio-Tutorial)
+- [pl_mpeg Tutorial](PL-MPEG-Tutorial)
 - [tkControls](Category-tkControls)
