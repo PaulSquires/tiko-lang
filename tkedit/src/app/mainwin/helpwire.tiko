@@ -6,7 +6,7 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' helpwire -- the Help menu (author 2026-11-27): Keyword Help (F1) opens the wiki page of the word
-' at the caret or the selection (tkc/wikihelp, keywords/wikihelp.txt), the web site and GitHub open
+' at the caret or the selection (tkc/wikihelp, keywords/wikihelp.txt), the web site and the wiki open
 ' in the browser, About shows tka/aboutdlg.
 #module "mainwin"
 

@@ -326,7 +326,7 @@ ToggleBreakpoint = "Haltepunkt umschalten"
 DeleteAllBreakpoints = "Alle Haltepunkte löschen"
 HelpKeyword = "Hilfe zum Schlüsselwort"
 HelpWebsite = "tiko-lang-Website"
-HelpGitHub = "tiko-lang auf GitHub"
+HelpWiki = "tiko-lang-Wiki"
 HelpAbout = "Über tkEdit..."
 
 [start]

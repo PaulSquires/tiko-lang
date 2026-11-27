@@ -154,7 +154,7 @@ public enum Cmd explicit
     ' Help
     HelpKeyword
     HelpWebsite
-    HelpGitHub
+    HelpWiki
     HelpAbout
     Last_                   ' not a command: the count
 end enum
@@ -168,7 +168,7 @@ public enum MenuGroup explicit
     Build
     Debug
     Design                  ' the Form Designer's (was Form; author 2026-11-14)
-    Help                    ' author 2026-11-27: keyword help, the web site, GitHub, About
+    Help                    ' author 2026-11-27: keyword help, the web site, the wiki, About
     Count_                  ' not a menu
 end enum
 
@@ -412,6 +412,6 @@ constructor CommandTable( )
     g = MenuGroup.Help
     this.Def( Cmd.HelpKeyword, "HelpKeyword", g, "Keyword Help", "F1" )
     this.Def( Cmd.HelpWebsite, "HelpWebsite", g, "tiko-lang Website", "" )
-    this.Def( Cmd.HelpGitHub, "HelpGitHub", g, "tiko-lang GitHub", "" )
+    this.Def( Cmd.HelpWiki, "HelpWiki", g, "tiko-lang Wiki", "" )
     this.Def( Cmd.HelpAbout, "HelpAbout", g, "About tkEdit...", "", true )
 end constructor

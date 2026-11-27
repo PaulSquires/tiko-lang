@@ -7,7 +7,7 @@
 '
 ' helppass -- the Help menu in the real window (author 2026-11-27): the last menu, its four rows and
 ' F1; Keyword Help's address from the selection or the word at the caret (pressed as F1); the web
-' site and GitHub rows; About's dialog laid out (the bird, the version, the two link lines, OK).
+' site and wiki rows; About's dialog laid out (the bird, the version, the two link lines, OK).
 ' NoBrowser: every address is only recorded (mw.LastUrl), no browser opens.
 #module "selftest"
 
@@ -53,7 +53,7 @@ public sub HelpPass( byref t as Tally, byval sc as single )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
 
-    ' ---- the last menu: Keyword Help (F1), the web site, GitHub, a separator, About
+    ' ---- the last menu: Keyword Help (F1), the web site, the wiki, a separator, About
     dim as long gHelp = clng( MenuGroup.Help )
     t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = gHelp + 1) andalso (tkMenuBar_GetItemText( mw.menuBar, gHelp ) = "Help"), _
              P( sc, strings.Format( "help: Help is the last of {} menus", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
@@ -62,12 +62,12 @@ public sub HelpPass( byref t as Tally, byval sc as single )
     dim as long ki = iif( hm <> 0, hm->FindItem( clng( Cmd.HelpKeyword ) ), -1 )
     t.Check( (hm <> 0) andalso tkPopupMenu_IsOpen( hm ) andalso (tkPopupMenu_GetItemCount( hm ) = 5) andalso (ki = 0) andalso _
              (hm->items(ki).wszAccel = "F1") andalso (MenuRow( Cmd.HelpAbout ) = 4), _
-             P( sc, "help: the menu holds Keyword Help (F1), Website, GitHub, a separator, About" ) )
+             P( sc, "help: the menu holds Keyword Help (F1), Website, Wiki, a separator, About" ) )
     t.Check( tkPopupMenu_GetItemEnabled( hm, Cmd.HelpKeyword ) andalso tkPopupMenu_GetItemEnabled( hm, Cmd.HelpWebsite ) andalso _
-             tkPopupMenu_GetItemEnabled( hm, Cmd.HelpGitHub ) andalso tkPopupMenu_GetItemEnabled( hm, Cmd.HelpAbout ), _
+             tkPopupMenu_GetItemEnabled( hm, Cmd.HelpWiki ) andalso tkPopupMenu_GetItemEnabled( hm, Cmd.HelpAbout ), _
              P( sc, "help: every row works on the start panel" ) )
-    ClickMenuRow( mw, hm, Cmd.HelpGitHub )
-    t.Check( mw.LastUrl = wikihelp.REPO_URL, P( sc, "help: the GitHub row opens the repository (" & mw.LastUrl & ")" ) )
+    ClickMenuRow( mw, hm, Cmd.HelpWiki )
+    t.Check( mw.LastUrl = wikihelp.WIKI_URL, P( sc, "help: the Wiki row opens the wiki (" & mw.LastUrl & ")" ) )
     mw.Execute( Cmd.HelpWebsite )
     t.Check( mw.LastUrl = "https://tiko-lang.net", P( sc, "help: Website opens tiko-lang.net (" & mw.LastUrl & ")" ) )
     mw.Execute( Cmd.HelpKeyword )
