@@ -69,6 +69,7 @@ Search = "搜索"
 View = "视图"
 Build = "生成"
 Debug = "调试"
+Help = "帮助"
 
 [cue]
 symbol = "搜索符号或文件"
@@ -199,6 +200,8 @@ args_save_first = "运行参数：请先保存文件"
 no_compiler = "没有 tiko 编译器：请在 {} 中设置 [compiler] tiko"
 compiler = "tiko 编译器：{}"
 no_definition = "未找到 {} 的定义"
+help_no_page = "{} 没有 wiki 条目：改为打开关键字索引"
+open_url_failed = "无法打开 {}"
 
 [commands]
 FormTest = "测试窗体 / tkreport"
@@ -323,6 +326,10 @@ StepOut = "跳出"
 RunToCursor = "运行到光标处"
 ToggleBreakpoint = "切换断点"
 DeleteAllBreakpoints = "删除所有断点"
+HelpKeyword = "关键字帮助"
+HelpWebsite = "tiko-lang.net"
+HelpGitHub = "tiko-lang GitHub"
+HelpAbout = "关于 tkEdit..."
 
 [start]
 new_file = "新建文件"
@@ -623,3 +630,10 @@ dlg_groups = "分类 / 顺序..."
 dlg_page = "大小 / 边距..."
 rules = "条件样式"
 expression = "表达式"
+
+[about]
+title = "关于 tkEdit"
+version = "v{}"
+tagline = "以键盘操作为主的 tiko 编程语言编辑器。"
+website = "网上：{}"
+source = "源代码：{}"

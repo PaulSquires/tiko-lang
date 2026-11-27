@@ -14,6 +14,16 @@ sub OnClick( byval h as TK_WIDGET ptr, byval id as long )
     gLastId = id
 end sub
 
+dim shared as long gLinkClicks, gLastLink
+dim shared as ustring gLastUrl
+
+function OnLink( byval hL as TK_WIDGET ptr, byval id as long, byval nLink as long, byref url as ustring ) as boolean
+    gLinkClicks += 1
+    gLastLink = nLink
+    gLastUrl = url
+    return true
+end function
+
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
     dim as TK_HOST ptr h = tkHost_Create( "tkLabel selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
@@ -92,6 +102,59 @@ sub RunPass( byval fScale as single )
     tkTest_PumpFor( h, 20 )
     tkTest_Check( "a press released outside is not a click", gClicks = 1, str( gClicks ) )
     tkTest_Check( "capture released", tkHost_GetCapture( h ) = 0 )
+
+    ' Links: a run of the text, named by its words; the rest stays plain text.
+    tkLabel_SetClickCallback( L, 0 )
+    tkWidget_SetPos( L, 20, 20, 400, 40 )
+    tkLabel_SetText( L, "See tiko-lang.net or GitHub for more" )
+    tkTest_Check( "a link by its words", tkLabel_AddLink( L, "tiko-lang.net", "https://tiko-lang.net" ) = 0 )
+    tkTest_Check( "a second link", tkLabel_AddLink( L, "GitHub", "" ) = 1 )
+    tkTest_Check( "words not in the text: no link", tkLabel_AddLink( L, "nowhere", "x" ) = -1 )
+    tkTest_Check( "a run already linked is not linked twice", tkLabel_AddLink( L, "GitHub", "y" ) = -1 )
+    tkTest_Check( "link words read back", tkLabel_GetLinkText( L, 0 ) = "tiko-lang.net", tkLabel_GetLinkText( L, 0 ) )
+    dim as TKRECT rL
+    tkTest_Check( "link rect", tkLabel_GetLinkRect( L, 0, rL ) )
+    dim as long xSee = tkText_Width( h->pDefaultFont, "See " )
+    tkTest_Check( "link starts after the plain words", rL.left = xSee, rL.left & " vs " & xSee )
+    tkTest_Check( "link is as wide as its words", rL.right - rL.left = tkText_Width( h->pDefaultFont, "tiko-lang.net" ), str( rL.right - rL.left ) )
+    tkTest_Check( "LinkAt: on the link", tkLabel_LinkAt( L, (rL.left + rL.right) \ 2, (rL.top + rL.bottom) \ 2 ) = 0 )
+    tkTest_Check( "LinkAt: on plain text", tkLabel_LinkAt( L, 2, (rL.top + rL.bottom) \ 2 ) = -1 )
+    tkLabel_SetLinkColor( L, &hFF00FF00ul )
+    tkHost_RenderTo( h, false )
+    dim as long nGreen = 0
+    for yy as long = 20 + rL.top to 20 + rL.bottom - 1
+        if (tkTest_PixelAt( h, 20 + (rL.left + rL.right) \ 2, yy ) and &hFFFFFFul) = &h00FF00ul then nGreen += 1
+    next
+    tkTest_Check( "link drawn in its colour, underlined", nGreen > 0, str( nGreen ) )
+    ' a click on a link goes to the callback (no browser: it says handled)
+    gLinkClicks = 0
+    tkLabel_SetLinkClickCallback( L, @OnLink )
+    tkTest_Click( h, 20 + (rL.left + rL.right) \ 2, 20 + (rL.top + rL.bottom) \ 2 )
+    tkTest_PumpFor( h, 20 )
+    tkTest_Check( "link click reports the link and URL", (gLinkClicks = 1) andalso (gLastLink = 0) andalso (gLastUrl = "https://tiko-lang.net"), _
+                  gLinkClicks & " " & gLastLink & " " & gLastUrl )
+    tkTest_Check( "link click releases capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_Click( h, 22, 20 + (rL.top + rL.bottom) \ 2 )
+    tkTest_PumpFor( h, 20 )
+    tkTest_Check( "a click on plain words is not a link click", gLinkClicks = 1, str( gLinkClicks ) )
+    tkTest_PushMotion( h, 20 + (rL.left + rL.right) \ 2, 20 + (rL.top + rL.bottom) \ 2 )
+    tkTest_PumpFor( h, 20 )
+    tkTest_Check( "hand cursor over a link", L->cursor = TK_CURSOR_HAND, str( L->cursor ) )
+    tkTest_PushMotion( h, 22, 20 + (rL.top + rL.bottom) \ 2 )
+    tkTest_PumpFor( h, 20 )
+    tkTest_Check( "arrow off it", L->cursor = TK_CURSOR_ARROW, str( L->cursor ) )
+    ' wrapped: a link that falls on the second line is found there
+    tkWidget_SetPos( L, 20, 20, 120, 200 )
+    tkLabel_SetWordWrap( L, true )
+    tkLabel_SetVAlign( L, LBL_VALIGN_TOP )
+    tkLabel_SetText( L, "one two three four five six seven" )
+    tkLabel_AddLink( L, "seven", "" )
+    tkTest_Check( "wrapped link on a later line", tkLabel_GetLinkRect( L, 0, rL ) andalso (rL.top > 0), str( rL.top ) )
+    tkLabel_SetText( L, "new text" )
+    tkTest_Check( "new text drops the links", tkLabel_GetLinkCount( L ) = 0 )
+    tkLabel_SetWordWrap( L, false )
+    tkLabel_SetVAlign( L, LBL_VALIGN_CENTER )
+    tkWidget_SetPos( L, 20, 20, 200, 40 )
 
     tkWidget_Enable( L, false )
     tkLabel_SetTextColor( L, &hFFFFFFFFul )

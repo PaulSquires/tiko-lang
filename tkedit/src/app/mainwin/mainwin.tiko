@@ -53,6 +53,8 @@
 #import "tkc/textsearch"
 #import "tkc/textstream"
 #import "tkc/themes"
+#import "tkc/wikihelp"
+#import "tka/aboutdlg"
 #import "tka/chrome"
 #import "tka/completion"
 #import "tka/debugpane"
@@ -655,6 +657,17 @@ public type Window
     declare sub OpenKeys( )                                      ' the Keyboard Shortcuts dialog, not yet modal
     declare sub FinishKeys( byval apply_ as boolean )
     ThemeDlg as themecenter.ThemeDialog ptr
+    ' ---- the Help menu (helpwire)
+    AboutDlg as aboutdlg.AboutDialog ptr
+    HelpIdx as wikihelp.HelpIndex       ' keywords/wikihelp.txt, read on the first F1
+    HelpLoaded as boolean
+    NoBrowser as boolean                ' set before Create: OpenWebPage only records (the self-test)
+    LastUrl as ustring                  ' what OpenWebPage was last given
+    declare function KeywordHelpQuery( ) as wikihelp.HelpQuery
+    declare function KeywordHelpUrl( ) as ustring
+    declare sub OpenWebPage( byref url as const ustring )
+    declare sub OpenAbout( )                                     ' Help > About, not yet modal
+    declare sub CloseAbout( )
     declare sub OpenThemeCenter( )
     declare sub OpenThemeCenterOn( byref path as const ustring, byval forEditor as boolean )
     declare function SaveTheme( byval tc as themecenter.ThemeDialog ptr ) as boolean
@@ -1424,6 +1437,7 @@ sub Window.Destroy( )
     this.CloseTestForm( )
     this.CloseTestReport( )
     if KeysDlg then this.FinishKeys( false )
+    this.CloseAbout( )
     Palettes.Destroy( )
     RPalettes.Destroy( )
     this.DropOutputFloat( )                      ' the pane back on the main window, which destroys it
@@ -1940,6 +1954,8 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
          Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
         return true
+    case Cmd.HelpKeyword, Cmd.HelpWebsite, Cmd.HelpGitHub, Cmd.HelpAbout
+        return true
     end select
     return false
 end function
@@ -1970,7 +1986,8 @@ function Window.CanRun( byval id as Cmd ) as boolean
     ' no file open: only what would still do something
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, _
-         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.BuildConfig
+         Cmd.ShowMenu, Cmd.ShowExplorer, Cmd.OutputPane, Cmd.OutputFloat, Cmd.FormNewForm, Cmd.FormNewReport, Cmd.BuildConfig, _
+         Cmd.HelpKeyword, Cmd.HelpWebsite, Cmd.HelpGitHub, Cmd.HelpAbout
         return true
     case Cmd.FormTheme, Cmd.FormResources, Cmd.FormLanguages : return ProjOpen
     case Cmd.ProjectSaveAs, Cmd.SearchSymbol, Cmd.FindInProject, Cmd.Compile, Cmd.BuildExecute, Cmd.RebuildAll, Cmd.RunArguments
@@ -2154,6 +2171,13 @@ function Window.Execute( byval id as Cmd ) as boolean
         dim as ustring f = this.EditableThemeFile( )
         if len( f ) then this.OpenThemeCenterOn( f, true )
     case Cmd.AppExit : tkForm_Close( form )
+    case Cmd.HelpKeyword : this.OpenWebPage( this.KeywordHelpUrl( ) )
+    case Cmd.HelpWebsite : this.OpenWebPage( wikihelp.SITE_URL )
+    case Cmd.HelpGitHub : this.OpenWebPage( wikihelp.REPO_URL )
+    case Cmd.HelpAbout
+        this.OpenAbout( )
+        if AboutDlg then AboutDlg->RunModal( )
+        this.CloseAbout( )
     case Cmd.ShowMenu : this.SetShowMenu( Prefs.ShowMenu = false )
     case Cmd.ShowExplorer : this.SetShowExplorer( Prefs.ShowExplorer = false )
     case Cmd.BufferList : this.OpenChooser( PickKind.Buffers, true )   ' Ctrl+E: where Ctrl+P opens (author)
@@ -2274,6 +2298,7 @@ private function MenuTitle( byval g as MenuGroup ) as ustring
     case MenuGroup.Build : return i18n.Tr( "menubar.Build", "Build" )
     case MenuGroup.Debug : return i18n.Tr( "menubar.Debug", "Debug" )
     case MenuGroup.Design : return i18n.Tr( "menubar.Design", "Design" )
+    case MenuGroup.Help : return i18n.Tr( "menubar.Help", "Help" )
     end select
     return GroupName( g )
 end function

@@ -151,6 +151,11 @@ public enum Cmd explicit
     ToggleBreakpoint
     DeleteAllBreakpoints
     FormNewReport           ' the Report Designer's New Report (RD8)
+    ' Help
+    HelpKeyword
+    HelpWebsite
+    HelpGitHub
+    HelpAbout
     Last_                   ' not a command: the count
 end enum
 
@@ -163,6 +168,7 @@ public enum MenuGroup explicit
     Build
     Debug
     Design                  ' the Form Designer's (was Form; author 2026-11-14)
+    Help                    ' author 2026-11-27: keyword help, the web site, GitHub, About
     Count_                  ' not a menu
 end enum
 
@@ -175,6 +181,7 @@ public function GroupName( byval g as MenuGroup ) as ustring
     case MenuGroup.View : return "View"
     case MenuGroup.Build : return "Build"
     case MenuGroup.Debug : return "Debug"
+    case MenuGroup.Help : return "Help"
     end select
     return ""
 end function
@@ -400,4 +407,11 @@ constructor CommandTable( )
     this.Def( Cmd.RunToCursor, "RunToCursor", g, "Run to Cursor", "Primary+F10" )
     this.Def( Cmd.ToggleBreakpoint, "ToggleBreakpoint", g, "Toggle Breakpoint", "F9", true )
     this.Def( Cmd.DeleteAllBreakpoints, "DeleteAllBreakpoints", g, "Delete All Breakpoints", "Primary+Shift+F9" )
+
+    ' Keyword Help opens the wiki page of the word at the caret (tkc/wikihelp)
+    g = MenuGroup.Help
+    this.Def( Cmd.HelpKeyword, "HelpKeyword", g, "Keyword Help", "F1" )
+    this.Def( Cmd.HelpWebsite, "HelpWebsite", g, "tiko-lang Website", "" )
+    this.Def( Cmd.HelpGitHub, "HelpGitHub", g, "tiko-lang GitHub", "" )
+    this.Def( Cmd.HelpAbout, "HelpAbout", g, "About tkEdit...", "", true )
 end constructor

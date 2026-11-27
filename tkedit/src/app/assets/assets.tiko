@@ -52,6 +52,8 @@ using tkHost
 #embed Asset31 "../../../themes/Ember.tktheme"  ' themes/Ember.tktheme
 #embed Asset32 "../../../themes/Violet.tktheme"  ' themes/Violet.tktheme
 #embed Asset33 "../../../themes/Classic.tktheme"  ' themes/Classic.tktheme
+#embed Asset34 "../../../icons/tiko-mascot.png"  ' icons/tiko-mascot.png
+#embed Asset35 "../../../keywords/wikihelp.txt"  ' keywords/wikihelp.txt
 
 ' Every bundled file and font, once, first thing in the program.
 public sub Register( )
@@ -97,4 +99,7 @@ public sub Register( )
     bundled.Add( "themes/Ember.tktheme", @Asset31(0), ubound( Asset31 ) + 1 )
     bundled.Add( "themes/Violet.tktheme", @Asset32(0), ubound( Asset32 ) + 1 )
     bundled.Add( "themes/Classic.tktheme", @Asset33(0), ubound( Asset33 ) + 1 )
+    bundled.Add( "icons/tiko-mascot.png", @Asset34(0), ubound( Asset34 ) + 1 )      ' Help > About
+    tkHost_AddResourceData( "mem:tiko-mascot.png", @Asset34(0), ubound( Asset34 ) + 1 )   ' aboutdlg.MASCOT_RES
+    bundled.Add( "keywords/wikihelp.txt", @Asset35(0), ubound( Asset35 ) + 1 )      ' Help > Keyword Help (F1)
 end sub

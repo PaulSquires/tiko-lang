@@ -1,0 +1,149 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' aboutdlg -- Help > About: Tiko the bird (icons/tiko-mascot.png, registered as MASCOT_RES), the
+' version, and the web site and GitHub as links inside their lines (tkLabel links: a click opens
+' the browser). OK, Enter or Esc closes it.
+#module "aboutdlg"
+
+#import "std/strings"
+#import "tkc/appinfo"
+#import "tkc/i18n"
+#import "tkc/wikihelp"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkLabel"
+#import "vendor/tkControls/tkPicture"
+using tkApp
+using tkButton
+using tkLabel
+using tkPicture
+using tkHost
+using tkPaint
+
+' The mascot's registered name (tka/assets registers the embedded PNG under it).
+public const MASCOT_RES = "mem:tiko-mascot.png"
+
+const as long DLG_CX = 500
+const as long DLG_CY = 270
+const as long PIC_CX = 128
+
+public type AboutDialog
+    Win as TK_FORM ptr
+    Pic as TK_WIDGET ptr
+    Title as TK_WIDGET ptr          ' "tkEdit"
+    Version as TK_WIDGET ptr        ' "Version 0.1.8"
+    Tagline as TK_WIDGET ptr
+    Copyright as TK_WIDGET ptr
+    Site as TK_WIDGET ptr           ' "Website: tiko-lang.net", the address a link
+    Repo as TK_WIDGET ptr           ' "Source code: github.com/PaulSquires/tiko-lang", likewise
+    BtnOk as TK_WIDGET ptr
+    IsModal as boolean
+
+    declare sub Open( byval owner as TK_FORM ptr )
+    declare sub RunModal( )
+    declare sub Close( )
+    declare sub Layout( )
+end type
+
+' The owner to the front BEFORE the dialog's window is hidden (itemsdlg's reason).
+private sub RaiseOwner_( byval f as TK_FORM ptr )
+    if (f <> 0) andalso (f->pOwner <> 0) then SDL_RaiseWindow( f->pOwner->host->win )
+end sub
+
+private sub OnOk( byval h as TK_WIDGET ptr, byval id as long )
+    dim as TK_FORM ptr f = tkForm_FromWidget( h )
+    if f = 0 then exit sub
+    dim as AboutDialog ptr d = f->Tag
+    if (d <> 0) andalso d->IsModal then
+        RaiseOwner_( f )
+        tkForm_EndModal( f, TKAPP_IDOK )
+    end if
+end sub
+
+private function NewLabel_( byval parent as TK_WIDGET ptr, byref text as const ustring ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr L = tkLabel_Create( parent, 1 )
+    tkLabel_SetText( L, text )
+    tkLabel_SetWordWrap( L, true )
+    tkLabel_SetVAlign( L, LBL_VALIGN_TOP )
+    return L
+end function
+
+' "Website: tiko-lang.net": the line in the interface's language, its address a link.
+private function NewLinkLine_( byval parent as TK_WIDGET ptr, byref fmt as const ustring, _
+                               byref shown as const ustring, byref url as const ustring ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr L = NewLabel_( parent, strings.Format( fmt, shown ) )
+    tkLabel_AddLink( L, shown, url )
+    return L
+end function
+
+sub AboutDialog.Open( byval owner as TK_FORM ptr )
+    dim as ustring t = i18n.Tr( "about.title", "About tkEdit" )
+    Win = tkApp_NewForm( t, DLG_CX, DLG_CY, owner, tkForm_Host( owner )->fScaleForced )
+    if Win = 0 then exit sub
+    Win->Tag = @this
+    tkForm_OnClose( Win, function( byval f as TK_FORM ptr ) as boolean
+        RaiseOwner_( f )
+        return true
+    end function )
+    dim as TK_WIDGET ptr root_ = tkForm_Widget( Win )
+    Pic = tkPicture_Create( root_, 1 )
+    tkPicture_SetTransparent( Pic, true )
+    tkPicture_SetFit( Pic, TK_IMGFIT_ASPECT )
+    tkPicture_SetFile( Pic, MASCOT_RES )
+    Title = NewLabel_( root_, "tkEdit" )
+    tkLabel_SetFont( Title, tkForm_Font( Win, TKFONT_UI_LARGE ) )
+    Version = NewLabel_( root_, strings.Format( i18n.Tr( "about.version", "Version {}" ), appinfo.VersionText( ) ) )
+    Tagline = NewLabel_( root_, i18n.Tr( "about.tagline", "A keyboard-driven editor for the tiko programming language." ) )
+    Copyright = NewLabel_( root_, "Copyright " & wchr( &hA9 ) & " 2026 Paul Squires, PlanetSquires Software" )
+    Site = NewLinkLine_( root_, i18n.Tr( "about.website", "Website: {}" ), "tiko-lang.net", wikihelp.SITE_URL )
+    Repo = NewLinkLine_( root_, i18n.Tr( "about.source", "Source code: {}" ), "github.com/PaulSquires/tiko-lang", wikihelp.REPO_URL )
+    BtnOk = tkButton_Create( root_, 1 )
+    dim as ustring ok_ = i18n.Tr( "button.ok", "OK" )
+    tkButton_SetText( BtnOk, ok_ )
+    tkButton_SetDefault( BtnOk, true )
+    tkButton_SetClickCallback( BtnOk, @OnOk )
+    tkForm_OnSize( Win, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+        if f->Tag then cast( AboutDialog ptr, f->Tag )->Layout( )
+    end sub )
+    tkForm_Show( Win )
+    this.Layout( )
+    tkHost_SetFocus( tkForm_Host( Win ), BtnOk )
+end sub
+
+' The bird at the left, the lines down the right, OK at the bottom right. Each line is as tall as
+' its wrapped text at the column's width.
+sub AboutDialog.Layout( )
+    if Win = 0 then exit sub
+    dim as TK_WIDGET ptr root_ = tkForm_Widget( Win )
+    dim as long g = tkForm_Scale( Win, 20 ), gap = tkForm_Scale( Win, 6 ), picW = tkForm_Scale( Win, PIC_CX )
+    dim as long bw = tkForm_Scale( Win, 88 ), bh = tkForm_Scale( Win, 28 )
+    dim as long cw = root_->cw, ch = root_->ch
+    tkWidget_SetPos( Pic, g, g, picW, picW )
+    dim as long x = g + picW + g, colW = cw - x - g, y = g
+    dim as TK_WIDGET ptr lines_(0 to 5) = { Title, Version, Tagline, Copyright, Site, Repo }
+    for i as long = 0 to 5
+        dim as long iw, ih
+        tkWidget_SetPos( lines_(i), x, y, colW, 1 )
+        tkLabel_GetIdealSize( lines_(i), iw, ih )
+        tkWidget_SetPos( lines_(i), x, y, colW, ih )
+        y += ih + iif( (i = 1) orelse (i = 3), gap * 3, gap )   ' a wider gap after the version and the copyright
+    next
+    tkWidget_SetPos( BtnOk, cw - g - bw, ch - g - bh, bw, bh )
+end sub
+
+sub AboutDialog.RunModal( )
+    if Win = 0 then exit sub
+    IsModal = true
+    tkForm_ShowModalKeep( Win )
+    IsModal = false
+end sub
+
+sub AboutDialog.Close( )
+    if Win then tkForm_Destroy( Win )
+    Win = 0
+end sub

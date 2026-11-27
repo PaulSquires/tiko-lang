@@ -1,0 +1,156 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' wikihelp -- Help > Keyword Help (F1): the word at the caret (or the selection) and its page in
+' tiko-lang's public wiki, from keywords/wikihelp.txt (tools/make-wikihelp.py writes it from the
+' wiki's Keyword-Index). Also the Help menu's other addresses. No window: console-tested (wikisuite).
+#module "wikihelp"
+
+#import "std/containers"
+#import "std/strings"
+using containers
+
+public const SITE_URL = "https://tiko-lang.net"
+public const REPO_URL = "https://github.com/PaulSquires/tiko-lang"
+public const WIKI_URL = "https://github.com/PaulSquires/tiko-lang/wiki"
+
+' What F1 asks about: a word, and whether it follows a "." or "->" (a member: "m.Put").
+public type HelpQuery
+    Word   as ustring
+    Member as boolean
+end type
+
+private function IsWordChar( byval ch as ulong ) as boolean
+    return ((ch >= 65) andalso (ch <= 90)) orelse ((ch >= 97) andalso (ch <= 122)) orelse _
+           ((ch >= 48) andalso (ch <= 57)) orelse (ch = 95)
+end function
+
+private function CharAt( byref s as const ustring, byval i as long ) as ulong
+    if (i < 1) orelse (i > len( s )) then return 0
+    return asc( mid( s, i, 1 ) )
+end function
+
+' The word around caret index nCaret (0 = before the line's first character) of lineText: letters,
+' digits and "_", with a "#" just before it ("#include") and a "$" just after it ("Left$"). A caret
+' just past a word's end is in it. An empty Word when the caret touches no word.
+public function QueryAt( byref lineText as const ustring, byval nCaret as long ) as HelpQuery
+    dim as HelpQuery q
+    dim as long n = len( lineText )
+    if nCaret < 0 then nCaret = 0
+    if nCaret > n then nCaret = n
+    ' 1-based characters: the one after the caret is nCaret + 1
+    dim as long a = nCaret + 1
+    if IsWordChar( CharAt( lineText, a ) ) = false then
+        if (CharAt( lineText, a ) = 36) andalso IsWordChar( CharAt( lineText, a - 1 ) ) then
+            a -= 1                                   ' on the "$" of Left$
+        elseif IsWordChar( CharAt( lineText, a - 1 ) ) then
+            a -= 1                                   ' just past the word
+        elseif (CharAt( lineText, a ) = 35) andalso IsWordChar( CharAt( lineText, a + 1 ) ) then
+            a += 1                                   ' on the "#" of #include
+        else
+            return q
+        end if
+    end if
+    dim as long z = a
+    while IsWordChar( CharAt( lineText, a - 1 ) )
+        a -= 1
+    wend
+    while IsWordChar( CharAt( lineText, z + 1 ) )
+        z += 1
+    wend
+    if CharAt( lineText, z + 1 ) = 36 then z += 1
+    if CharAt( lineText, a - 1 ) = 35 then a -= 1
+    q.Word = mid( lineText, a, z - a + 1 )
+    ' a member: after "." (not "..."), or "->", spaces allowed between
+    dim as long b = a - 1
+    while CharAt( lineText, b ) = 32
+        b -= 1
+    wend
+    if (CharAt( lineText, b ) = 46) andalso (CharAt( lineText, b - 1 ) <> 46) then q.Member = true
+    if (CharAt( lineText, b ) = 62) andalso (CharAt( lineText, b - 1 ) = 45) then q.Member = true
+    return q
+end function
+
+' A selection asked about: trimmed, its first line, runs of spaces made one ("Select   Case").
+' "a.b" asks about member b when no page is named "a.b" (Lookup does that).
+public function QueryOfSelection( byref sel as const ustring ) as HelpQuery
+    dim as HelpQuery q
+    dim as ustring s = sel
+    dim as long nl = instr( s, wchr( 10 ) )
+    if nl > 0 then s = left( s, nl - 1 )
+    s = trim( strings.Replace( s, wchr( 9 ), " " ) )
+    if right( s, 1 ) = wchr( 13 ) then s = trim( left( s, len( s ) - 1 ) )
+    while instr( s, "  " ) > 0
+        s = strings.Replace( s, "  ", " " )
+    wend
+    q.Word = s
+    return q
+end function
+
+public type HelpIndex
+    declare sub Load( byref text as const ustring )      ' wikihelp.txt's lines
+    declare function Count( ) as long
+    declare function PageFor( byref q as const HelpQuery ) as ustring   ' "" = none
+  private:
+    declare function Find( byval key as ustring, byval member as boolean ) as ustring
+    m_page   as Map( of ustring, ustring )
+    m_member as Map( of ustring, ustring )
+end type
+
+sub HelpIndex.Load( byref text as const ustring )
+    m_page.Clear( )
+    m_member.Clear( )
+    for each ln as ustring in strings.Split( text, wchr( 10 ) )
+        if right( ln, 1 ) = wchr( 13 ) then ln = left( ln, len( ln ) - 1 )
+        dim as Array( of ustring ) f = strings.Split( ln, wchr( 9 ) )
+        if (f.Count( ) < 2) orelse (len( f[0] ) = 0) orelse (len( f[1] ) = 0) then continue for
+        m_page.Put( f[0], f[1] )
+        if (f.Count( ) >= 3) andalso (len( f[2] ) > 0) then m_member.Put( f[0], f[2] )
+    next
+end sub
+
+function HelpIndex.Count( ) as long
+    return m_page.Count( )
+end function
+
+' A member prefers a library page ("m.Put" is Map.Put); a word alone its own page.
+function HelpIndex.Find( byval key as ustring, byval member as boolean ) as ustring
+    dim as ustring pg
+    if member andalso m_member.TryGet( key, pg ) then return pg
+    if m_page.TryGet( key, pg ) then return pg
+    return ""
+end function
+
+function HelpIndex.PageFor( byref q as const HelpQuery ) as ustring
+    dim as ustring key = lcase( q.Word )
+    if len( key ) = 0 then return ""
+    dim as ustring pg = this.Find( key, q.Member )
+    if len( pg ) then return pg
+    ' Left$ is Left; "#if" as typed with a space after the "#"; "a.b" asks about b
+    if right( key, 1 ) = "$" then
+        pg = this.Find( left( key, len( key ) - 1 ), q.Member )
+        if len( pg ) then return pg
+    end if
+    dim as long dot = instrrev( key, "." )
+    if (dot > 0) andalso (dot < len( key )) then
+        pg = this.Find( mid( key, dot + 1 ), true )
+        if len( pg ) then return pg
+    end if
+    dim as long sp = instr( key, " " )
+    if sp > 0 then return this.Find( left( key, sp - 1 ), q.Member )
+    return ""
+end function
+
+' A wiki page's address. No page: the Keyword Index at the word's letter; no word either: the
+' wiki's home.
+public function PageUrl( byref page as const ustring, byref word as const ustring = "" ) as ustring
+    if len( page ) then return WIKI_URL & "/" & page
+    if len( word ) = 0 then return WIKI_URL
+    dim as ustring first = lcase( left( ltrim( word, "#" ), 1 ) )
+    if (len( first ) = 1) andalso (first >= "a") andalso (first <= "z") then return WIKI_URL & "/Keyword-Index#" & first
+    return WIKI_URL & "/Keyword-Index"
+end function
