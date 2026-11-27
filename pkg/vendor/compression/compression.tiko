@@ -1,0 +1,97 @@
+'' vendor/compression -- seven reference compression libraries in C, compiled into one library,
+'' as one import (claude-docs RFC-0006):
+''
+''     #import "vendor/compression" link dynamic        (or 'link static', or neither)
+''
+'' Every routine, type and constant of their public headers is then callable as each library
+'' documents it, unqualified:
+''
+''   zlib 1.4      deflate, zlib and gzip streams (deflate*, inflate*, compress2, uncompress),
+''                 .gz files (gzopen, gzread, gzwrite, ...), crc32, adler32 -- zlib.h
+''   minizip       .zip archives, read and write, zip64 (zipOpen64, zipOpenNewFileInZip64,
+''                 unzOpen64, unzLocateFile, unzReadCurrentFile, ...) -- zip.h, unzip.h; on
+''                 Windows also iowin32.h (fill_win32_filefunc64W: Unicode file names)
+''   zstd 1.6.0    Zstandard: one-shot (ZSTD_compress, ZSTD_decompress), streaming
+''                 (ZSTD_compressStream2, ZSTD_decompressStream), contexts, dictionaries
+''                 (zdict.h); the experimental API under ZSTD_STATIC_LINKING_ONLY too
+''   xz 5.8.4      liblzma: .xz and .lzma streams, raw LZMA1/LZMA2, BCJ and delta filters,
+''                 multithreaded encoding (lzma_easy_encoder, lzma_stream_decoder, lzma_code,
+''                 lzma_easy_buffer_encode, ...) -- lzma.h
+''   brotli 1.2.1  BrotliEncoderCompress, BrotliDecoderDecompress and their streaming forms
+''   lz4 1.11.1    LZ4 blocks (LZ4_compress_default, LZ4_compress_HC, LZ4_decompress_safe) and
+''                 frames (LZ4F_compressFrame, LZ4F_decompress) -- lz4.h, lz4hc.h, lz4frame.h
+''   bzip2 1.0.8   BZ2_bzBuffToBuff*, the bz_stream API, BZ2_bzopen -- bzlib.h
+''
+''     dim as uLongf n = compressBound( len( text ) )
+''     dim as uint8 buf( 0 to n - 1 )
+''     compress2( @buf(0), @n, cast( Bytef ptr, strptr( text ) ), len( text ), 9 )
+''
+'' THE HEADERS are translated by 'tiko c2t' and committed, one .ti per C header with its banner
+'' naming the header and its SHA-256: src/translate.sh remakes them, from the headers
+'' src/prepare.py makes of the upstream ones (five needed rewriting for c2t: prepare.py says
+'' which and why). compression-residue.ti holds by hand what the translation could not carry --
+'' zlib's deflateInit / inflateInit macros, lzma_vli_is_valid -- and lists what it leaves out.
+''
+'' THINGS TO KNOW:
+'' - Streams are the caller's: 'dim as z_stream z' (or lzma_stream, bz_stream), then its init
+''   on the address. A tiko 'dim' is all zeros, which is what LZMA_STREAM_INIT and zlib's
+''   Z_NULL fields ask for.
+'' - zlib's uLong is C's 'unsigned long': 32 bits on Windows, 64 elsewhere, and z_stream's
+''   layout follows (88 bytes on Windows, 112 on Linux). The translation has both; declare
+''   counts as uLong_ / uLongf, not as a fixed width. (uLong is a tiko keyword: c2t named the
+''   type uLong_.)
+'' - zipOpen64 and unzOpen64 (and their _2_64 forms) take C's 'const void *' path, so a tiko
+''   string goes in as strptr( path ).
+'' - Sizes (size_t) are uinteger, and unsigned: 'for i = 0 to n - 1' with n = 0 runs to the
+''   type's maximum.
+'' - Errors are each library's own: zlib's Z_* (negative), ZSTD_isError( r ) and
+''   ZSTD_getErrorName( r ), lzma_ret, BrotliDecoderResult, a negative LZ4 count or
+''   LZ4F_isError, bzip2's BZ_* (negative). A corrupt input is reported, never a crash -- if
+''   the format checks: a zstd frame has a checksum only with ZSTD_c_checksumFlag, a raw LZ4
+''   block never (an LZ4 frame with contentChecksumFlag). zlib, gzip, xz and bzip2 always do.
+'' - WITH 'link dynamic' ON WINDOWS the DLL has its own C runtime: never hand it the program's
+''   FILE * (BZ2_bzReadOpen, BZ2_bzWriteOpen) or a C file descriptor (gzdopen, BZ2_bzdopen).
+''   The path-taking calls -- gzopen, BZ2_bzopen, zipOpen64, unzOpen64 -- and every buffer and
+''   stream API are fine, and so is everything under 'link static'.
+'' - The examples in examples/compression: 01-gzip (a .gz file), 02-zstd (buffers, every level),
+''   03-zip (write and list a .zip), 04-xz (a streamed .xz file), and selftest (every codec,
+''   against fixtures the reference tools made).
+''
+'' THE LIBRARY: with 'link static' only what a program calls is linked in (a zlib-only program
+'' grows ~46 KB); with 'link dynamic' -- and when no '#import' says, which is this package's
+'' default -- the whole shared library (~2.2 MB), which tiko copies beside the program:
+'' compression.dll on Windows, compression_linux_x86_64.so on Linux, compression_linux_arm64.so
+'' on arm64 Linux, compression_macos_arm64.dylib on macOS. It needs no other library: on Windows
+'' the archive needs only ucrtbase.dll and KERNEL32.dll, as every tiko program does. Android is
+'' static always (the archive goes into the app's own library).
+''
+'' TARGETS: windows-x86_64, linux-x86_64, linux-arm64, macos-arm64, android-x86_64 and
+'' android-arm64 (claude-docs RFC-0006 P1, P2).
+#module "compression"
+
+public #include once "zconf.ti"
+public #include once "zlib.ti"
+public #include once "ioapi.ti"
+public #include once "zip.ti"
+public #include once "unzip.ti"
+#ifdef TIKO_OS_WINDOWS
+    public #include once "iowin32.ti"
+#endif
+public #include once "zstd_errors.ti"
+public #include once "zstd.ti"
+public #include once "zdict.ti"
+public #include once "lzma.ti"
+public #include once "brotli/encode.ti"
+public #include once "brotli/decode.ti"
+public #include once "lz4.ti"
+public #include once "lz4hc.ti"
+public #include once "lz4frame.ti"
+public #include once "bzlib.ti"
+public #include once "compression-residue.ti"
+
+'' ANDROID IS STATIC ALWAYS: vendorfetch builds only the archive there, as for cJSON.
+#if defined( TIKO_LINK_STATIC ) or defined( TIKO_OS_ANDROID )
+    #foreignlib COMPRESSION static "lib/compression"
+#else
+    #foreignlib COMPRESSION dynamic "lib/compression"
+#endif

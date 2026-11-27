@@ -1,0 +1,134 @@
+'' =============================================================================
+'' shared_dictionary.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "shared_dictionary.h"
+''   source sha256 : 86230f0aaf533044d85d92f84b5aec8b7e4e231d4b64b098604083e7866e8097
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.DT2yvK9dWL/h
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  BrotliSharedDictionaryAttach.type -> BrotliSharedDictionaryAttach.type_   (tiko reserved word)
+''   parameter  BrotliSharedDictionaryAttach.data -> BrotliSharedDictionaryAttach.data_   (tiko reserved word)
+''
+'' 2 items need manual translation:
+''   line 35  shared_dictionary.h:16  C2T-TODO(branch-unparsed)
+''   line 130  shared_dictionary.h:97  C2T-TODO(branch-unparsed)
+'' =============================================================================
+
+/' Copyright 2017 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+'/
+
+/' (Opaque) Shared Dictionary definition and utilities. '/
+
+#pragma once
+
+extern "C"
+
+#include once "port.ti"
+#include once "types.ti"
+
+#if (0 orelse defined(c_plusplus))
+'' C2T-TODO(branch-unparsed) shared_dictionary.h:16 -- clang cannot parse the branch: expected identifier or '('
+'' extern "C" {
+#endif
+
+#define SHARED_BROTLI_MIN_DICTIONARY_WORD_LENGTH 4
+#define SHARED_BROTLI_MAX_DICTIONARY_WORD_LENGTH 31
+#define SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS 64
+#define SHARED_BROTLI_MAX_COMPOUND_DICTS 15
+
+/'*
+ * Opaque structure that holds shared dictionary data.
+ *
+ * Allocated and initialized with ::BrotliSharedDictionaryCreateInstance.
+ * Cleaned up and deallocated with ::BrotliSharedDictionaryDestroyInstance.
+ '/
+type BrotliSharedDictionaryStruct__fwd as BrotliSharedDictionaryStruct
+type BrotliSharedDictionary as BrotliSharedDictionaryStruct
+
+/'*
+ * Input data type for ::BrotliSharedDictionaryAttach.
+ '/
+#if defined(TIKO_OS_WINDOWS)
+type BrotliSharedDictionaryType as int32
+enum
+  /'* Raw LZ77 prefix dictionary. '/
+  BROTLI_SHARED_DICTIONARY_RAW = 0
+  /'* Serialized shared dictionary.
+   *
+   * DO NOT USE: methods accepting this value will fail.
+   '/
+  BROTLI_SHARED_DICTIONARY_SERIALIZED = 1
+end enum
+#elseif not (defined(TIKO_OS_WINDOWS))
+type BrotliSharedDictionaryType as uint32
+enum
+  /'* Raw LZ77 prefix dictionary. '/
+  BROTLI_SHARED_DICTIONARY_RAW = 0
+  /'* Serialized shared dictionary.
+   *
+   * DO NOT USE: methods accepting this value will fail.
+   '/
+  BROTLI_SHARED_DICTIONARY_SERIALIZED = 1
+end enum
+#endif
+
+/'*
+ * Creates an instance of ::BrotliSharedDictionary.
+ *
+ * Fresh instance has default word dictionary and transforms
+ * and no LZ77 prefix dictionary.
+ *
+ * @p alloc_func and @p free_func @b MUST be both zero or both non-zero. In the
+ * case they are both zero, default memory allocators are used. @p opaque is
+ * passed to @p alloc_func and @p free_func when they are called. @p free_func
+ * has to return without doing anything when asked to free a NULL pointer.
+ *
+ * @param alloc_func custom memory allocation function
+ * @param free_func custom memory free function
+ * @param opaque custom memory manager handle
+ * @returns @c 0 if instance can not be allocated or initialized
+ * @returns pointer to initialized ::BrotliSharedDictionary otherwise
+ '/
+declare function BrotliSharedDictionaryCreateInstance( byval alloc_func as brotli_alloc_func, byval free_func as brotli_free_func, byval opaque as any ptr ) as BrotliSharedDictionary ptr
+
+/'*
+ * Deinitializes and frees ::BrotliSharedDictionary instance.
+ *
+ * @param dict shared dictionary instance to be cleaned up and deallocated
+ '/
+declare sub BrotliSharedDictionaryDestroyInstance( byval dict as BrotliSharedDictionary ptr )
+
+/'*
+ * Attaches dictionary to a given instance of ::BrotliSharedDictionary.
+ *
+ * Dictionary to be attached is represented in a serialized format as a region
+ * of memory.
+ *
+ * Provided data it partially referenced by a resulting (compound) dictionary,
+ * and should be kept untouched, while at least one compound dictionary uses it.
+ * This way memory overhead is kept minimal by the cost of additional resource
+ * management.
+ *
+ * @param dict dictionary to extend
+ * @param type type of dictionary to attach
+ * @param data_size size of @p data
+ * @param data serialized dictionary of type @p type, with at least @p data_size
+ *        addressable bytes
+ * @returns ::BROTLI_TRUE if provided dictionary is successfully attached
+ * @returns ::BROTLI_FALSE otherwise
+ '/
+declare function BrotliSharedDictionaryAttach( byval dict as BrotliSharedDictionary ptr, byval type_ as BrotliSharedDictionaryType, _
+    _
+    byval data_size as uinteger, byval data_ as const uint8 ptr ) as int32
+
+#if (0 orelse defined(c_plusplus))
+'' C2T-TODO(branch-unparsed) shared_dictionary.h:97 -- clang cannot parse the branch: extraneous closing brace ('}')
+'' }  /* extern "C" */
+#endif
+
+end extern

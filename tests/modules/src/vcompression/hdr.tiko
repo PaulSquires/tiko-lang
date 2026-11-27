@@ -1,0 +1,70 @@
+'' The committed vendor/compression headers -- every .ti the module includes, and the residue --
+'' as an importer reads them: no library needed. Names one routine, type and constant of each
+'' codec, each residue macro, and asserts the caller-allocated records' sizes per OS: clang's,
+'' measured in claude-docs RFC-0006 P0 (P0-RESULTS.md section 4). zlib's follow C's 'unsigned
+'' long' (32 bits on Windows, 64 on every LP64 target); the rest are the same everywhere.
+#include once "../../../../pkg/vendor/compression/zconf.ti"
+#include once "../../../../pkg/vendor/compression/zlib.ti"
+#include once "../../../../pkg/vendor/compression/ioapi.ti"
+#include once "../../../../pkg/vendor/compression/zip.ti"
+#include once "../../../../pkg/vendor/compression/unzip.ti"
+#ifdef TIKO_OS_WINDOWS
+    #include once "../../../../pkg/vendor/compression/iowin32.ti"
+#endif
+#include once "../../../../pkg/vendor/compression/zstd_errors.ti"
+#include once "../../../../pkg/vendor/compression/zstd.ti"
+#include once "../../../../pkg/vendor/compression/zdict.ti"
+#include once "../../../../pkg/vendor/compression/lzma.ti"
+#include once "../../../../pkg/vendor/compression/brotli/encode.ti"
+#include once "../../../../pkg/vendor/compression/brotli/decode.ti"
+#include once "../../../../pkg/vendor/compression/lz4.ti"
+#include once "../../../../pkg/vendor/compression/lz4hc.ti"
+#include once "../../../../pkg/vendor/compression/lz4frame.ti"
+#include once "../../../../pkg/vendor/compression/bzlib.ti"
+#include once "../../../../pkg/vendor/compression/compression-residue.ti"
+
+#ifdef TIKO_OS_WINDOWS
+    #assert sizeof( z_stream ) = 88
+    #assert sizeof( gz_header ) = 72
+    #assert sizeof( zip_fileinfo ) = 36
+    #assert sizeof( unz_file_info64 ) = 88
+#else
+    #assert sizeof( z_stream ) = 112
+    #assert sizeof( gz_header ) = 80
+    #assert sizeof( zip_fileinfo ) = 48
+    #assert sizeof( unz_file_info64 ) = 136
+#endif
+#assert sizeof( lzma_stream ) = 136
+#assert sizeof( lzma_options_lzma ) = 112
+#assert sizeof( bz_stream ) = 80
+#assert sizeof( LZ4F_preferences_t ) = 56
+#assert sizeof( LZ4_stream_t ) = 16416
+#assert sizeof( ZSTD_inBuffer ) = 24
+
+dim as uint8 a(0 to 63), b(0 to 255)
+dim as uLongf n = 256
+print compress2( @b(0), @n, @a(0), 64, Z_BEST_COMPRESSION ), crc32( 0, @a(0), 64 ), *zlibVersion( )
+dim as z_stream z
+print deflateInit( @z, 6 ), deflateInit2( @z, 6, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY ), inflateInit( @z ), inflateInit2( @z, 31 )
+dim as gzFile g = gzopen( "x.gz", "wb" )
+gzclose( g )
+dim as zipFile zf = zipOpen64( @"x.zip", APPEND_STATUS_CREATE )
+dim as unzFile uf = unzOpen64( @"x.zip" )
+dim as unz_global_info64 gi
+print unzGetGlobalInfo64( uf, @gi ), zipClose( zf, nullptr ), UNZ_OK
+#ifdef TIKO_OS_WINDOWS
+    dim as zlib_filefunc64_def ff
+    fill_win32_filefunc64W( @ff )
+#endif
+dim as uinteger c = ZSTD_compress( @b(0), 256, @a(0), 64, ZSTD_CLEVEL_DEFAULT )
+print ZSTD_isError( c ), *ZSTD_getErrorName( c ), ZSTD_maxCLevel( ), ZDICT_isError( c )
+dim as ZSTD_inBuffer ib
+dim as lzma_stream s
+print lzma_easy_encoder( @s, 6, LZMA_CHECK_CRC64 ), LZMA_STREAM_END, lzma_vli_is_valid( 5ull ), *lzma_version_string( )
+dim as uinteger bn = 256
+print BrotliEncoderCompress( BROTLI_DEFAULT_QUALITY, BROTLI_DEFAULT_WINDOW, BROTLI_MODE_TEXT, 64, @a(0), @bn, @b(0) )
+print BrotliDecoderDecompress( bn, @b(0), @bn, @a(0) ), BROTLI_DECODER_ERROR_UNREACHABLE
+print LZ4_compress_HC( cast( zstring ptr, @a(0) ), cast( zstring ptr, @b(0) ), 64, 256, LZ4HC_CLEVEL_MAX ), LZ4_compressBound( 64 )
+print LZ4F_compressFrameBound( 64, nullptr ), LZ4F_VERSION
+dim as uint32 bz = 256
+print BZ2_bzBuffToBuffCompress( cast( zstring ptr, @b(0) ), @bz, cast( zstring ptr, @a(0) ), 64, 9, 0, 0 ), BZ_OK, *BZ2_bzlibVersion( )

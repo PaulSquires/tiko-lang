@@ -1,0 +1,8 @@
+'' THE COMMITTED vendor/compression HEADERS: every .ti 'tiko c2t' translated from the seven
+'' libraries' headers (as pkg/vendor/compression/src/prepare.py makes them) and the hand-written
+'' compression-residue.ti compile for macos-arm64 as an importer reads them, with the records'
+'' sizes asserted against clang's. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target macos-arm64 -c tests/modules/src/vcompression/hdr.tiko -o build/.vcmph-macos-arm64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vcmph-macos-arm64.o

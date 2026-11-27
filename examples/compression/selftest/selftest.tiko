@@ -1,0 +1,256 @@
+'' selftest -- vendor/compression checked end to end, one check per behaviour:
+''
+''   ROUND TRIP   each codec compresses a deterministic 256 KB buffer (half text, half binary)
+''                and decompresses it back, byte for byte: zlib, gzip through z_stream, zstd, xz,
+''                brotli, lz4 (block and frame), bzip2, and a .zip written and read with minizip.
+''   CORRUPT      one flipped byte in a valid stream: each codec reports an error, no crash.
+''   FIXTURES     ../fixtures/sample.txt as the REFERENCE tools compressed it (make-fixtures.sh:
+''                gzip, zstd, xz, bzip2, Python's zipfile; brotli and lz4 when they were installed)
+''                decodes to sample.txt exactly. A fixture that is not there is named and skipped.
+''
+'' Prints one line per check and 'selftest: N passed, M failed'; exits 1 if any failed. Run it
+'' from anywhere: 'selftest [FIXTURES-DIR]' (default: ../fixtures beside this source).
+''
+'' Build it with 'tiko selftest.tiko' ('link static' below: change it to try the other mode).
+'' The libraries' licences are in pkg/vendor/compression/LICENSE; this program is public domain.
+#import "vendor/compression" link static
+#include once "crt/string.bi"     '' memcmp
+
+const NB = 1 shl 18
+dim shared as uint8 src( 0 to NB - 1 ), cmp( 0 to NB * 2 - 1 ), outb( 0 to NB - 1 )
+const CAP = NB * 2
+dim shared as integer g_pass, g_fail
+
+sub Check( byval ok as boolean, byref what as const string )
+    print iif( ok, "  ok    ", "  FAIL  " ); what
+    if ok then g_pass += 1 else g_fail += 1
+end sub
+
+function Same( byval n as uinteger ) as boolean
+    return n = NB andalso memcmp( @outb(0), @src(0), NB ) = 0
+end function
+
+sub MakeCorpus( )
+    dim as uint32 s = 12345
+    for i as integer = 0 to NB - 1
+        s = s * 1103515245u + 12345u
+        if i < NB \ 2 then
+            src(i) = asc( "abcdefgh ijklmnop" & !"\n", 1 + ( ( s shr 16 ) mod 18 ) )
+        else
+            src(i) = iif( ( ( s shr 16 ) and 255 ) < 64, ( s shr 16 ) and 255, i and 255 )
+        end if
+    next
+end sub
+
+function LoadFile( byref path as const string, byref data_ as string ) as boolean
+    dim as integer f = freefile
+    if open( path for binary access read as #f ) <> 0 then return false
+    data_ = space( lof( f ) )
+    if len( data_ ) then get #f, , data_
+    close #f
+    return true
+end function
+
+'' ---- round trips -----------------------------------------------------------------------------
+sub RoundTrips( byref dir_ as const string )
+    print "round trip ("; NB; " bytes):"
+    scope
+        dim as uLongf c = CAP, d = NB
+        dim as int32 r1 = compress2( @cmp(0), @c, @src(0), NB, 9 ), r2 = uncompress( @outb(0), @d, @cmp(0), c )
+        Check( r1 = Z_OK andalso r2 = Z_OK andalso Same( d ), "zlib    compress2 / uncompress, " & c & " bytes" )
+    end scope
+    scope
+        dim as z_stream z
+        dim as int32 r = deflateInit2( @z, 6, Z_DEFLATED, 16 + 15, 8, Z_DEFAULT_STRATEGY )   '' 16+: gzip wrapper
+        z.next_in = @src(0) : z.avail_in = NB : z.next_out = @cmp(0) : z.avail_out = CAP
+        dim as int32 r1 = deflate( @z, Z_FINISH )
+        dim as uinteger c = z.total_out
+        deflateEnd( @z )
+        dim as z_stream y
+        inflateInit2( @y, 16 + 15 )
+        y.next_in = @cmp(0) : y.avail_in = c : y.next_out = @outb(0) : y.avail_out = NB
+        dim as int32 r2 = inflate( @y, Z_FINISH )
+        dim as uinteger d = y.total_out
+        inflateEnd( @y )
+        Check( r = Z_OK andalso r1 = Z_STREAM_END andalso r2 = Z_STREAM_END andalso Same( d ), "gzip    z_stream deflate / inflate, " & c & " bytes" )
+    end scope
+    scope
+        dim as uinteger c = ZSTD_compress( @cmp(0), CAP, @src(0), NB, 19 )
+        dim as uinteger d = ZSTD_decompress( @outb(0), NB, @cmp(0), c )
+        Check( ZSTD_isError( c ) = 0 andalso ZSTD_isError( d ) = 0 andalso Same( d ), "zstd    level 19, " & c & " bytes" )
+    end scope
+    scope
+        dim as uinteger c = 0, ip = 0, op = 0
+        dim as lzma_ret r1 = lzma_easy_buffer_encode( 6, LZMA_CHECK_CRC64, nullptr, @src(0), NB, @cmp(0), @c, CAP )
+        dim as uint64 lim = &hFFFFFFFFFFFFFFFFull
+        dim as lzma_ret r2 = lzma_stream_buffer_decode( @lim, 0, nullptr, @cmp(0), @ip, c, @outb(0), @op, NB )
+        Check( r1 = LZMA_OK andalso r2 = LZMA_OK andalso Same( op ), "xz      preset 6, " & c & " bytes" )
+    end scope
+    scope
+        dim as uinteger c = CAP, d = NB
+        dim as int32 r1 = BrotliEncoderCompress( 9, BROTLI_DEFAULT_WINDOW, BROTLI_MODE_GENERIC, NB, @src(0), @c, @cmp(0) )
+        dim as int32 r2 = BrotliDecoderDecompress( c, @cmp(0), @d, @outb(0) )
+        Check( r1 = BROTLI_TRUE andalso r2 = BROTLI_DECODER_RESULT_SUCCESS andalso Same( d ), "brotli  quality 9, " & c & " bytes" )
+    end scope
+    scope
+        dim as int32 c = LZ4_compress_HC( cast( zstring ptr, @src(0) ), cast( zstring ptr, @cmp(0) ), NB, CAP, 9 )
+        dim as int32 d = LZ4_decompress_safe( cast( zstring ptr, @cmp(0) ), cast( zstring ptr, @outb(0) ), c, NB )
+        Check( c > 0 andalso d > 0 andalso Same( d ), "lz4     HC block, " & c & " bytes" )
+    end scope
+    scope
+        dim as uinteger c = LZ4F_compressFrame( @cmp(0), CAP, @src(0), NB, nullptr )
+        dim as LZ4F_dctx ptr dc
+        LZ4F_createDecompressionContext( @dc, LZ4F_VERSION )
+        dim as uinteger dl = NB, cl = c
+        dim as uinteger r = LZ4F_decompress( dc, @outb(0), @dl, @cmp(0), @cl, nullptr )
+        LZ4F_freeDecompressionContext( dc )
+        Check( LZ4F_isError( c ) = 0 andalso r = 0 andalso Same( dl ), "lz4     frame, " & c & " bytes" )
+    end scope
+    scope
+        dim as uint32 c = CAP, d = NB
+        dim as int32 r1 = BZ2_bzBuffToBuffCompress( cast( zstring ptr, @cmp(0) ), @c, cast( zstring ptr, @src(0) ), NB, 9, 0, 0 )
+        dim as int32 r2 = BZ2_bzBuffToBuffDecompress( cast( zstring ptr, @outb(0) ), @d, cast( zstring ptr, @cmp(0) ), c, 0, 0 )
+        Check( r1 = BZ_OK andalso r2 = BZ_OK andalso Same( d ), "bzip2   level 9, " & c & " bytes" )
+    end scope
+    scope
+        dim as string path = dir_ & "/selftest.zip"
+        dim as zipFile zf = zipOpen64( strptr( path ), APPEND_STATUS_CREATE )
+        dim as zip_fileinfo zi
+        dim as int32 r1 = zipOpenNewFileInZip64( zf, "corpus.bin", @zi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, 6, 0 )
+        dim as int32 r2 = zipWriteInFileInZip( zf, @src(0), NB )
+        zipCloseFileInZip( zf ) : zipClose( zf, nullptr )
+        dim as unzFile uf = unzOpen64( strptr( path ) )
+        dim as int32 r3 = unzLocateFile( uf, "corpus.bin", 0 )
+        unzOpenCurrentFile( uf )
+        dim as int32 d = unzReadCurrentFile( uf, @outb(0), NB )
+        dim as int32 r4 = unzCloseCurrentFile( uf )                  '' UNZ_CRCERROR on a mismatch
+        unzClose( uf )
+        kill path
+        Check( r1 = ZIP_OK andalso r2 = ZIP_OK andalso r3 = UNZ_OK andalso r4 = UNZ_OK andalso d > 0 andalso Same( d ), "zip     minizip write / read" )
+    end scope
+end sub
+
+'' ---- corrupt input ---------------------------------------------------------------------------
+sub CorruptInputs( )
+    print "corrupt input (one flipped byte):"
+    scope
+        dim as uLongf c = CAP, d = NB
+        compress2( @cmp(0), @c, @src(0), NB, 9 ) : cmp(c \ 2) xor= &h55
+        Check( uncompress( @outb(0), @d, @cmp(0), c ) = Z_DATA_ERROR, "zlib    Z_DATA_ERROR" )
+    end scope
+    scope
+        '' A zstd frame carries a checksum of its content only when asked (ZSTD_c_checksumFlag):
+        '' without one a flipped byte can decode, silently, to different bytes -- measured.
+        dim as ZSTD_CCtx ptr cc = ZSTD_createCCtx( )
+        ZSTD_CCtx_setParameter( cc, ZSTD_c_checksumFlag, 1 )
+        dim as uinteger c = ZSTD_compress2( cc, @cmp(0), CAP, @src(0), NB )
+        ZSTD_freeCCtx( cc )
+        cmp(c \ 2) xor= &h55
+        Check( ZSTD_isError( ZSTD_decompress( @outb(0), NB, @cmp(0), c ) ) <> 0, "zstd    an error code (frame with a checksum)" )
+    end scope
+    scope
+        dim as uinteger c = 0, ip = 0, op = 0
+        lzma_easy_buffer_encode( 6, LZMA_CHECK_CRC64, nullptr, @src(0), NB, @cmp(0), @c, CAP ) : cmp(c \ 2) xor= &h55
+        dim as uint64 lim = &hFFFFFFFFFFFFFFFFull
+        Check( lzma_stream_buffer_decode( @lim, 0, nullptr, @cmp(0), @ip, c, @outb(0), @op, NB ) = LZMA_DATA_ERROR, "xz      LZMA_DATA_ERROR" )
+    end scope
+    scope
+        dim as uinteger c = CAP, d = NB
+        BrotliEncoderCompress( 5, BROTLI_DEFAULT_WINDOW, BROTLI_MODE_GENERIC, NB, @src(0), @c, @cmp(0) ) : cmp(c \ 2) xor= &h55
+        Check( BrotliDecoderDecompress( c, @cmp(0), @d, @outb(0) ) = BROTLI_DECODER_RESULT_ERROR, "brotli  BROTLI_DECODER_RESULT_ERROR" )
+    end scope
+    scope
+        '' A raw LZ4 block has no checksum: a flipped byte is caught only when it breaks the
+        '' block's structure. Two bytes are flipped; the frame format's content checksum
+        '' (LZ4F_preferences_t.frameInfo.contentChecksumFlag) is the way to catch any change.
+        dim as int32 c = LZ4_compress_default( cast( zstring ptr, @src(0) ), cast( zstring ptr, @cmp(0) ), NB, CAP )
+        cmp(c \ 2) xor= &h55 : cmp(c \ 2 + 1) xor= &hFF
+        dim as int32 d = LZ4_decompress_safe( cast( zstring ptr, @cmp(0) ), cast( zstring ptr, @outb(0) ), c, NB )
+        Check( d < 0 orelse Same( d ) = false, "lz4     a negative count or different bytes" )
+    end scope
+    scope
+        dim as uint32 c = CAP, d = NB
+        BZ2_bzBuffToBuffCompress( cast( zstring ptr, @cmp(0) ), @c, cast( zstring ptr, @src(0) ), NB, 9, 0, 0 ) : cmp(c \ 2) xor= &h55
+        '' Its block CRC catches it -- or, when the damage makes the output longer first, the
+        '' size does (BZ_OUTBUFF_FULL, measured): either way a negative BZ_* code.
+        Check( BZ2_bzBuffToBuffDecompress( cast( zstring ptr, @outb(0) ), @d, cast( zstring ptr, @cmp(0) ), c, 0, 0 ) < 0, "bzip2   a negative BZ_* code" )
+    end scope
+end sub
+
+'' ---- fixtures from the reference tools -------------------------------------------------------
+function Decode( byref kind as const string, byref packed as string, byref plain as string ) as boolean
+    dim as uinteger room = len( plain ) + 1                    '' one more: a longer result shows
+    dim as string o = space( room )
+    dim as uinteger n = 0
+    select case kind
+    case "gz"
+        dim as z_stream z
+        inflateInit2( @z, 16 + 15 )
+        z.next_in = strptr( packed ) : z.avail_in = len( packed ) : z.next_out = strptr( o ) : z.avail_out = room
+        dim as int32 r = inflate( @z, Z_FINISH )
+        n = z.total_out : inflateEnd( @z )
+        if r <> Z_STREAM_END then return false
+    case "zst"
+        n = ZSTD_decompress( strptr( o ), room, strptr( packed ), len( packed ) )
+        if ZSTD_isError( n ) then return false
+    case "xz"
+        dim as uint64 lim = &hFFFFFFFFFFFFFFFFull
+        dim as uinteger ip = 0
+        if lzma_stream_buffer_decode( @lim, 0, nullptr, strptr( packed ), @ip, len( packed ), strptr( o ), @n, room ) <> LZMA_OK then return false
+    case "bz2"
+        dim as uint32 d = room
+        if BZ2_bzBuffToBuffDecompress( strptr( o ), @d, strptr( packed ), len( packed ), 0, 0 ) <> BZ_OK then return false
+        n = d
+    case "br"
+        n = room
+        if BrotliDecoderDecompress( len( packed ), strptr( packed ), @n, strptr( o ) ) <> BROTLI_DECODER_RESULT_SUCCESS then return false
+    case "lz4"
+        dim as LZ4F_dctx ptr dc
+        LZ4F_createDecompressionContext( @dc, LZ4F_VERSION )
+        dim as uinteger ol = room, il = len( packed )
+        dim as uinteger r = LZ4F_decompress( dc, strptr( o ), @ol, strptr( packed ), @il, nullptr )
+        LZ4F_freeDecompressionContext( dc )
+        if LZ4F_isError( r ) orelse r <> 0 then return false
+        n = ol
+    end select
+    return n = len( plain ) andalso left( o, n ) = plain
+end function
+
+sub Fixtures( byref dir_ as const string )
+    print "fixtures from the reference tools ("; dir_; "):"
+    dim as string plain, packed
+    if LoadFile( dir_ & "/sample.txt", plain ) = false then Check( false, "sample.txt is missing" ) : exit sub
+    dim as const zstring ptr kinds(0 to 5) = { @"gz", @"zst", @"xz", @"bz2", @"br", @"lz4" }
+    for i as integer = 0 to 5
+        dim as string k = *kinds(i), nm = "sample.txt." & k
+        if LoadFile( dir_ & "/" & nm, packed ) = false then
+            print "  skip  "; nm; " (not made: its tool was not installed -- make-fixtures.sh)"
+        else
+            Check( Decode( k, packed, plain ), nm & " -> sample.txt" )
+        end if
+    next
+    scope
+        dim as unzFile uf = unzOpen64( strptr( dir_ & "/sample.zip" ) )
+        dim as boolean ok = false
+        if uf then
+            if unzLocateFile( uf, "sample.txt", 0 ) = UNZ_OK andalso unzOpenCurrentFile( uf ) = UNZ_OK then
+                dim as string o = space( len( plain ) + 1 )
+                dim as int32 n = unzReadCurrentFile( uf, strptr( o ), len( o ) )
+                ok = unzCloseCurrentFile( uf ) = UNZ_OK andalso n = len( plain ) andalso left( o, n ) = plain
+            end if
+            unzClose( uf )
+        end if
+        Check( ok, "sample.zip (Python zipfile) -> sample.txt" )
+    end scope
+end sub
+
+dim as string fixdir = command( 1 )
+if fixdir = "" then fixdir = exepath( ) & "/../fixtures"
+print "vendor/compression: zlib "; *zlibVersion( ); ", zstd "; *ZSTD_versionString( ); ", xz "; *lzma_version_string( ); _
+      ", lz4 "; *LZ4_versionString( ); ", bzip2 "; left( *BZ2_bzlibVersion( ), 5 )
+MakeCorpus( )
+RoundTrips( exepath( ) )
+CorruptInputs( )
+Fixtures( fixdir )
+print "selftest: "; g_pass; " passed, "; g_fail; " failed"
+end iif( g_fail = 0, 0, 1 )

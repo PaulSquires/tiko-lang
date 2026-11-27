@@ -1,0 +1,247 @@
+'' =============================================================================
+'' bzlib.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "bzlib.h"
+''   source sha256 : 18cee97d887a58fb469d7a713d52e3f0ac6796947c018f1456c28b9aea6ed118
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  BZ2_bzRead.len -> BZ2_bzRead.len_   (tiko reserved word)
+''   parameter  BZ2_bzWrite.len -> BZ2_bzWrite.len_   (tiko reserved word)
+''   procedure  BZ2_bzread -> BZ2_bzread_2   (case-insensitive collision)
+''   parameter  BZ2_bzread.len -> BZ2_bzread.len_   (tiko reserved word)
+''   procedure  BZ2_bzwrite -> BZ2_bzwrite_2   (case-insensitive collision)
+''   parameter  BZ2_bzwrite.len -> BZ2_bzwrite.len_   (tiko reserved word)
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+
+/'-------------------------------------------------------------'/
+/'--- Public header file for the library.                   ---'/
+/'---                                               bzlib.h ---'/
+/'-------------------------------------------------------------'/
+
+/' ------------------------------------------------------------------
+   This file is part of bzip2/libbzip2, a program and library for
+   lossless, block-sorting data compression.
+
+   bzip2/libbzip2 version 1.0.8 of 13 July 2019
+   Copyright (C) 1996-2019 Julian Seward <jseward@acm.org>
+
+   Please read the WARNING, DISCLAIMER and PATENTS sections in the
+   README file.
+
+   This program is released under the terms of the license contained
+   in the file LICENSE.
+   ------------------------------------------------------------------ '/
+
+
+#pragma once
+
+extern "C"
+
+#define BZ_RUN 0
+#define BZ_FLUSH 1
+#define BZ_FINISH 2
+
+#define BZ_OK 0
+#define BZ_RUN_OK 1
+#define BZ_FLUSH_OK 2
+#define BZ_FINISH_OK 3
+#define BZ_STREAM_END 4
+#define BZ_SEQUENCE_ERROR (-1)
+#define BZ_PARAM_ERROR (-2)
+#define BZ_MEM_ERROR (-3)
+#define BZ_DATA_ERROR (-4)
+#define BZ_DATA_ERROR_MAGIC (-5)
+#define BZ_IO_ERROR (-6)
+#define BZ_UNEXPECTED_EOF (-7)
+#define BZ_OUTBUFF_FULL (-8)
+#define BZ_CONFIG_ERROR (-9)
+
+type bz_stream
+      next_in as zstring ptr
+      avail_in as uint32
+      total_in_lo32 as uint32
+      total_in_hi32 as uint32
+
+      next_out as zstring ptr
+      avail_out as uint32
+      total_out_lo32 as uint32
+      total_out_hi32 as uint32
+
+      state as any ptr
+
+      bzalloc as function cdecl( byval as any ptr, byval as int32, byval as int32 ) as any ptr
+      bzfree as sub cdecl( byval as any ptr, byval as any ptr )
+      opaque as any ptr
+end type
+
+
+#ifndef BZ_IMPORT
+#define BZ_EXPORT
+#endif
+
+#ifndef BZ_NO_STDIO
+/' Need a definitition for FILE '/
+#include once "crt/stdio.bi"
+#endif
+
+
+
+/'-- Core (low-level) library functions --'/
+
+declare function BZ2_bzCompressInit( byval strm as bz_stream ptr, _
+      _
+      byval blockSize100k as int32, _
+      byval verbosity as int32, _
+      byval workFactor as int32 ) as int32
+
+declare function BZ2_bzCompress( byval strm as bz_stream ptr, _
+      _
+      byval action as int32 ) as int32
+
+declare function BZ2_bzCompressEnd( byval strm as bz_stream ptr ) as int32
+
+declare function BZ2_bzDecompressInit( byval strm as bz_stream ptr, _
+      _
+      byval verbosity as int32, _
+      byval small as int32 ) as int32
+
+declare function BZ2_bzDecompress( byval strm as bz_stream ptr ) as int32
+
+declare function BZ2_bzDecompressEnd( byval strm as bz_stream ptr ) as int32
+
+
+
+/'-- High(er) level library functions --'/
+
+#ifndef BZ_NO_STDIO
+#define BZ_MAX_UNUSED 5000
+
+type BZFILE as any
+
+declare function BZ2_bzReadOpen( byval bzerror as int32 ptr, _
+      _
+      byval f as FILE ptr, _
+      byval verbosity as int32, _
+      byval small as int32, _
+      byval unused as any ptr, _
+      byval nUnused as int32 ) as BZFILE ptr
+
+declare sub BZ2_bzReadClose( byval bzerror as int32 ptr, _
+      _
+      byval b as BZFILE ptr )
+
+declare sub BZ2_bzReadGetUnused( byval bzerror as int32 ptr, _
+      _
+      byval b as BZFILE ptr, _
+      byval unused as any ptr ptr, _
+      byval nUnused as int32 ptr )
+
+declare function BZ2_bzRead( byval bzerror as int32 ptr, _
+      _
+      byval b as BZFILE ptr, _
+      byval buf as any ptr, _
+      byval len_ as int32 ) as int32
+
+declare function BZ2_bzWriteOpen( byval bzerror as int32 ptr, _
+      _
+      byval f as FILE ptr, _
+      byval blockSize100k as int32, _
+      byval verbosity as int32, _
+      byval workFactor as int32 ) as BZFILE ptr
+
+declare sub BZ2_bzWrite( byval bzerror as int32 ptr, _
+      _
+      byval b as BZFILE ptr, _
+      byval buf as any ptr, _
+      byval len_ as int32 )
+
+declare sub BZ2_bzWriteClose( byval bzerror as int32 ptr, _
+      _
+      byval b as BZFILE ptr, _
+      byval abandon as int32, _
+      byval nbytes_in as uint32 ptr, _
+      byval nbytes_out as uint32 ptr )
+
+declare sub BZ2_bzWriteClose64( byval bzerror as int32 ptr, _
+      _
+      byval b as BZFILE ptr, _
+      byval abandon as int32, _
+      byval nbytes_in_lo32 as uint32 ptr, _
+      byval nbytes_in_hi32 as uint32 ptr, _
+      byval nbytes_out_lo32 as uint32 ptr, _
+      byval nbytes_out_hi32 as uint32 ptr )
+#endif
+
+
+/'-- Utility functions --'/
+
+declare function BZ2_bzBuffToBuffCompress( byval dest as zstring ptr, _
+      _
+      byval destLen as uint32 ptr, _
+      byval source as zstring ptr, _
+      byval sourceLen as uint32, _
+      byval blockSize100k as int32, _
+      byval verbosity as int32, _
+      byval workFactor as int32 ) as int32
+
+declare function BZ2_bzBuffToBuffDecompress( byval dest as zstring ptr, _
+      _
+      byval destLen as uint32 ptr, _
+      byval source as zstring ptr, _
+      byval sourceLen as uint32, _
+      byval small as int32, _
+      byval verbosity as int32 ) as int32
+
+
+/'--
+   Code contributed by Yoshioka Tsuneo (tsuneo@rr.iij4u.or.jp)
+   to support better zlib compatibility.
+   This code is not _officially_ part of libbzip2 (yet);
+   I haven't tested it, documented it, or considered the
+   threading-safeness of it.
+   If this code breaks, please contact both Yoshioka and me.
+--'/
+
+declare function BZ2_bzlibVersion( ) as const zstring ptr
+
+#ifndef BZ_NO_STDIO
+declare function BZ2_bzopen( byval path as const zstring ptr, _
+      _
+      byval mode as const zstring ptr ) as BZFILE ptr
+
+declare function BZ2_bzdopen( byval fd as int32, _
+      _
+      byval mode as const zstring ptr ) as BZFILE ptr
+
+declare function BZ2_bzread_2 alias "BZ2_bzread"( byval b as BZFILE ptr, _
+      _
+      byval buf as any ptr, _
+      byval len_ as int32 ) as int32
+
+declare function BZ2_bzwrite_2 alias "BZ2_bzwrite"( byval b as BZFILE ptr, _
+      _
+      byval buf as any ptr, _
+      byval len_ as int32 ) as int32
+
+declare function BZ2_bzflush( byval b as BZFILE ptr ) as int32
+
+declare sub BZ2_bzclose( byval b as BZFILE ptr )
+
+declare function BZ2_bzerror( byval b as BZFILE ptr, _
+      _
+      byval errnum as int32 ptr ) as const zstring ptr
+#endif
+
+end extern
+
+
+/'-------------------------------------------------------------'/
+/'--- end                                           bzlib.h ---'/
+/'-------------------------------------------------------------'/
+

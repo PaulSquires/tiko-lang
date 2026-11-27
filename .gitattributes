@@ -75,3 +75,9 @@ pkg/std/tzdata/*.tzdb binary
 
 # vendor packages' upstream patches: applied with patch -p1 to LF sources on every host
 pkg/vendor/*/patches/*.patch text eol=lf
+
+# vendor/compression: its build and translate scripts run under bash on every host (vendorfetch
+# runs src/build.sh in WSL from a Windows checkout too), and the selftest's fixtures are compared
+# byte for byte -- sample.txt with CRLF would no longer be what the reference tools compressed.
+pkg/vendor/compression/src/*.sh text eol=lf
+examples/compression/fixtures/** -text

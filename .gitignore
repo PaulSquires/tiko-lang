@@ -125,6 +125,7 @@ tests/vendor/**/*.o
 /pkg/vendor/raylib6/shared/bin/
 /pkg/vendor/libpq/build/bin/
 /pkg/vendor/mariadb/build/bin/
+/pkg/vendor/compression/src/bin/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/out/
 /examples/tkControls/out/
 /examples/tkControls/linux-lib/

@@ -1,0 +1,100 @@
+'' =============================================================================
+'' types.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "types.h"
+''   source sha256 : ebbd136dc411cc8167636d6f54b66ad0c234dc18989265c37a28c242eaae2efd
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify -I C:/Users/RAMBOT~1/AppData/Local/Temp/tmp.DT2yvK9dWL/h
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' 1 item needs manual translation:
+''   line 63  types.h:49  C2T-TODO(macro)  BROTLI_BOOL
+'' =============================================================================
+
+/' Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+'/
+
+/'*
+ * @file
+ * Common types used in decoder and encoder API.
+ '/
+
+#pragma once
+
+extern "C"
+
+'' <stddef.h>: built into tiko  /' IWYU pragma: export '/
+
+#if (defined(_MSC_VER) andalso (_MSC_VER < 1600))
+type int8_t as byte
+type uint8_t as uint8
+type int16_t as int16
+type uint16_t as uint16
+type int32_t as int32
+type uint32_t as uint32
+type uint64_t as uint64
+type int64_t as int64
+#else
+'' <stdint.h>: built into tiko  /' IWYU pragma: export '/
+#endif  /' defined(_MSC_VER) && (_MSC_VER < 1600) '/
+
+/'*
+ * A portable @c bool replacement.
+ *
+ * ::BROTLI_BOOL is a "documentation" type: actually it is @c int, but in API it
+ * denotes a type, whose only values are ::BROTLI_TRUE and ::BROTLI_FALSE.
+ *
+ * ::BROTLI_BOOL values passed to Brotli should either be ::BROTLI_TRUE or
+ * ::BROTLI_FALSE, or be a result of ::TO_BROTLI_BOOL macros.
+ *
+ * ::BROTLI_BOOL values returned by Brotli should not be tested for equality
+ * with @c true, @c false, ::BROTLI_TRUE, ::BROTLI_FALSE, but rather should be
+ * evaluated, for example: @code{.cpp}
+ * if (SomeBrotliFunction(encoder, BROTLI_TRUE) &&
+ *     !OtherBrotliFunction(decoder, BROTLI_FALSE)) {
+ *   bool x = !!YetAnotherBrotliFunction(encoder, TO_BROLTI_BOOL(2 * 2 == 4));
+ *   DoSomething(x);
+ * }
+ * @endcode
+ '/
+'' C2T-TODO(macro) types.h:49 -- 'BROTLI_BOOL': 'int' is nothing tiko declares
+'' #define BROTLI_BOOL int
+/'* Portable @c true replacement. '/
+#define BROTLI_TRUE 1
+/'* Portable @c false replacement. '/
+#define BROTLI_FALSE 0
+/'* @c bool to ::BROTLI_BOOL conversion macros. '/
+#define TO_BROTLI_BOOL(X) iif((((((X)) = 0)) = 0), BROTLI_TRUE, BROTLI_FALSE)
+
+#define BROTLI_MAKE_UINT64_T(high, low) ((cast(uint64, (high)) shl 32) or (low))
+
+'' C2T-NOTE(value) types.h:59 -- clang's value; a cast, which tiko's preprocessor does not evaluate
+#define BROTLI_UINT32_MAX 4294967295ull
+'' C2T-NOTE(value) types.h:60 -- clang's value; a cast, which tiko's preprocessor does not evaluate
+#define BROTLI_SIZE_MAX 18446744073709551615ull
+
+/'*
+ * Allocating function pointer type.
+ *
+ * @param opaque custom memory manager handle provided by client
+ * @param size requested memory region size; can not be @c 0
+ * @returns @c 0 in the case of failure
+ * @returns a valid pointer to a memory region of at least @p size bytes
+ *          long otherwise
+ '/
+type brotli_alloc_func as function cdecl( byval as any ptr, byval as uinteger ) as any ptr
+
+/'*
+ * Deallocating function pointer type.
+ *
+ * This function @b SHOULD do nothing if @p address is @c 0.
+ *
+ * @param opaque custom memory manager handle provided by client
+ * @param address memory region pointer returned by ::brotli_alloc_func, or @c 0
+ '/
+type brotli_free_func as sub cdecl( byval as any ptr, byval as any ptr )
+
+end extern

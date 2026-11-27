@@ -1,0 +1,29 @@
+'' compression-residue.ti -- by hand, what 'tiko c2t' left as TODO in vendor/compression's
+'' translations and a caller needs (claude-docs RFC-0006 P0, P0-RESULTS.md section 3). Read
+'' after them, by compression.tiko.
+''
+'' LEFT OUT ON PURPOSE -- each has a routine or a tiko spelling that does the same:
+''   zlib_version          zlibVersion( )
+''   ZSTD_VERSION_STRING   ZSTD_versionString( )
+''   LZ4_VERSION_STRING    LZ4_versionString( )
+''   LZMA_VERSION_STRING   lzma_version_string( ) (and tiko's names are case-blind: the macro
+''                         and the routine cannot both exist)
+''   LZ4_COMPRESSBOUND     LZ4_compressBound( ) (case-blind, likewise)
+''   LZMA_STREAM_INIT, LZ4F_INIT_PREFERENCES, LZ4F_INIT_FRAMEINFO
+''                         all zeros: a tiko 'dim' already is
+''   lzma_index_iter       refused by c2t (a union inside a struct): the .xz index-walking API,
+''                         lzma_index_iter_*, is not callable from tiko yet
+
+'' zlib's init "functions" are macros in C over the underscore routines, passing the header's
+'' version and the size of z_stream, so the library can check the caller was built against a
+'' compatible zlib. The same here.
+#define deflateInit( strm, level ) deflateInit_( (strm), (level), ZLIB_VERSION, cint( sizeof( z_stream ) ) )
+#define inflateInit( strm ) inflateInit_( (strm), ZLIB_VERSION, cint( sizeof( z_stream ) ) )
+#define deflateInit2( strm, level, method, windowBits, memLevel, strategy ) _
+    deflateInit2_( (strm), (level), (method), (windowBits), (memLevel), (strategy), ZLIB_VERSION, cint( sizeof( z_stream ) ) )
+#define inflateInit2( strm, windowBits ) inflateInit2_( (strm), (windowBits), ZLIB_VERSION, cint( sizeof( z_stream ) ) )
+#define inflateBackInit( strm, windowBits, window ) _
+    inflateBackInit_( (strm), (windowBits), (window), ZLIB_VERSION, cint( sizeof( z_stream ) ) )
+
+'' liblzma: a variable-length integer is valid when it fits or is the "unknown" marker.
+#define lzma_vli_is_valid( vli ) ( (vli) <= LZMA_VLI_MAX orelse (vli) = LZMA_VLI_UNKNOWN )

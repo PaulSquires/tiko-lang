@@ -1,0 +1,93 @@
+'' zip -- write a .zip archive with minizip and list it back: zipOpen64 creates the archive,
+'' zipOpenNewFileInZip64 starts each entry (deflated, level 6; zip64 when a file is 4 GB or more),
+'' zipWriteInFileInZip fills it; then unzOpen64 walks the central directory -- unzGoToFirstFile,
+'' unzGoToNextFile, unzGetCurrentFileInfo64 -- and each entry is read back to check its CRC.
+''
+''     zip ARCHIVE.zip FILE...    writes ARCHIVE.zip from the files, then lists it
+''     zip -l ARCHIVE.zip         lists an archive (and checks every entry's CRC)
+''
+'' zipOpen64 and unzOpen64 take C's 'const void *' (the path's encoding is the I/O layer's
+'' business), so a tiko string goes in as strptr( path ). Names are stored as given, '/' between folders. minizip opens files through the C runtime's
+'' fopen, so on Windows a name must be in the ANSI code page; for any Unicode path, open with
+'' fill_win32_filefunc64W and zipOpen2_64 / unzOpen2_64 (iowin32.h).
+''
+'' Build it with 'tiko zip.tiko'. zlib's and minizip's licences are in
+'' pkg/vendor/compression/LICENSE; this example is public domain.
+#import "vendor/compression" link dynamic
+
+const CHUNK = 65536
+
+function AddFile( byval zf as zipFile, byref path as const string ) as boolean
+    dim as integer f = freefile
+    if open( path for binary access read as #f ) <> 0 then print "cannot read "; path : return false
+    dim as integer size = lof( f )
+    dim as zip_fileinfo info                         '' all zeros: no date, no attributes
+    dim as string nm = path
+    for i as integer = 0 to len( nm ) - 1
+        if nm[i] = asc( "\" ) then nm[i] = asc( "/" )
+    next
+    if zipOpenNewFileInZip64( zf, nm, @info, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, 6, _
+                              iif( size >= &hFFFFFFFFll, 1, 0 ) ) <> ZIP_OK then
+        print "cannot add "; path : close #f : return false
+    end if
+    dim as uint8 buf( 0 to CHUNK - 1 )
+    dim as integer done = 0
+    while done < size
+        dim as integer n = iif( size - done < CHUNK, size - done, CHUNK )
+        get #f, , buf(0), n
+        if zipWriteInFileInZip( zf, @buf(0), n ) <> ZIP_OK then print "write failed: "; path : exit while
+        done += n
+    wend
+    close #f
+    return zipCloseFileInZip( zf ) = ZIP_OK andalso done = size
+end function
+
+'' List an archive; read every entry to its end, which is where minizip checks the CRC.
+function ListArchive( byref path as const string ) as boolean
+    dim as unzFile uf = unzOpen64( strptr( path ) )
+    if uf = nullptr then print "not a zip archive: "; path : return false
+    dim as unz_global_info64 gi
+    unzGetGlobalInfo64( uf, @gi )
+    print path; ": "; gi.number_entry; " entries"
+    print "      size    packed  ratio  name"
+    dim as boolean ok = true
+    dim as int32 r = unzGoToFirstFile( uf )
+    dim as uint8 buf( 0 to CHUNK - 1 )
+    while r = UNZ_OK
+        dim as unz_file_info64 fi
+        dim as zstring * 512 nm
+        unzGetCurrentFileInfo64( uf, @fi, @nm, 512, nullptr, 0, nullptr, 0 )
+        dim as int32 got, total = 0
+        if unzOpenCurrentFile( uf ) = UNZ_OK then
+            do
+                got = unzReadCurrentFile( uf, @buf(0), CHUNK )
+                if got > 0 then total += got
+            loop while got > 0
+            '' UNZ_CRCERROR here when the bytes do not match the entry's CRC.
+            if unzCloseCurrentFile( uf ) <> UNZ_OK orelse got < 0 then ok = false : nm &= "  (CORRUPT)"
+        end if
+        print using "##########  ########  ###.#%  &"; fi.uncompressed_size; fi.compressed_size; _
+            iif( fi.uncompressed_size, 100 * fi.compressed_size / fi.uncompressed_size, 0 ); nm
+        r = unzGoToNextFile( uf )
+    wend
+    unzClose( uf )
+    return ok andalso r = UNZ_END_OF_LIST_OF_FILE
+end function
+
+if command( 1 ) = "" orelse command( 2 ) = "" then
+    print "usage: zip ARCHIVE.zip FILE... | zip -l ARCHIVE.zip"
+    end 1
+end if
+if command( 1 ) = "-l" then end iif( ListArchive( command( 2 ) ), 0, 1 )
+
+dim as zipFile zf = zipOpen64( strptr( command( 1 ) ), APPEND_STATUS_CREATE )
+if zf = nullptr then print "cannot create "; command( 1 ) : end 1
+dim as boolean ok = true
+dim as integer i = 2
+while command( i ) <> ""
+    if AddFile( zf, command( i ) ) = false then ok = false
+    i += 1
+wend
+zipClose( zf, "made by tiko's examples/compression/03-zip" )
+if ListArchive( command( 1 ) ) = false then ok = false
+end iif( ok, 0, 1 )

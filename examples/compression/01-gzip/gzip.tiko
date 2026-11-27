@@ -1,0 +1,72 @@
+'' gzip -- a file to FILE.gz and back, through zlib's gz* file API: gzopen takes a path and a
+'' mode ("wb9": write, level 9), gzwrite and gzread move bytes, gzclose finishes the file. The
+'' result is an ordinary .gz that gzip, 7-Zip or any browser reads.
+''
+''     gzip FILE         writes FILE.gz, keeps FILE
+''     gzip -d FILE.gz   writes FILE (without .gz)
+''
+'' Build it with 'tiko gzip.tiko'. zlib's licence is in pkg/vendor/compression/LICENSE; this
+'' example is public domain.
+#import "vendor/compression" link dynamic
+
+const CHUNK = 65536
+
+'' Copy everything from one open stream to another, one chunk at a time.
+function GzCompress( byref src as const string, byref dst as const string ) as boolean
+    dim as integer fin = freefile
+    if open( src for binary access read as #fin ) <> 0 then print "cannot read "; src : return false
+    dim as gzFile g = gzopen( dst, "wb9" )
+    if g = nullptr then print "cannot write "; dst : close #fin : return false
+    dim as uint8 buf( 0 to CHUNK - 1 )
+    dim as integer total = lof( fin ), done = 0
+    while done < total
+        dim as integer n = iif( total - done < CHUNK, total - done, CHUNK )
+        get #fin, , buf(0), n
+        if gzwrite( g, @buf(0), n ) <> n then print "gzwrite failed" : exit while
+        done += n
+    wend
+    close #fin
+    return gzclose( g ) = Z_OK andalso done = total
+end function
+
+function GzDecompress( byref src as const string, byref dst as const string ) as boolean
+    dim as gzFile g = gzopen( src, "rb" )
+    if g = nullptr then print "cannot read "; src : return false
+    dim as integer fout = freefile
+    if open( dst for binary access write as #fout ) <> 0 then print "cannot write "; dst : gzclose( g ) : return false
+    dim as uint8 buf( 0 to CHUNK - 1 )
+    dim as int32 n
+    do
+        n = gzread( g, @buf(0), CHUNK )
+        if n > 0 then put #fout, , buf(0), n
+    loop while n > 0
+    dim as int32 err_
+    if n < 0 then print "corrupt input: "; *gzerror( g, @err_ )
+    close #fout
+    return gzclose( g ) = Z_OK andalso n = 0
+end function
+
+function FileSize( byref path as const string ) as integer
+    dim as integer f = freefile
+    if open( path for binary access read as #f ) <> 0 then return -1
+    function = lof( f )
+    close #f
+end function
+
+if command( 1 ) = "" orelse ( command( 1 ) = "-d" andalso command( 2 ) = "" ) then
+    print "usage: gzip FILE | gzip -d FILE.gz"
+    end 1
+end if
+dim as boolean ok
+dim as string src, dst
+if command( 1 ) = "-d" then
+    src = command( 2 )
+    if lcase( right( src, 3 ) ) <> ".gz" then print src; " does not end in .gz" : end 1
+    dst = left( src, len( src ) - 3 )
+    ok = GzDecompress( src, dst )
+else
+    src = command( 1 ) : dst = src & ".gz"
+    ok = GzCompress( src, dst )
+end if
+if ok = false then end 1
+print src; " ("; FileSize( src ); " bytes) -> "; dst; " ("; FileSize( dst ); " bytes), zlib "; *zlibVersion( )

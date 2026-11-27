@@ -1,0 +1,91 @@
+# vendor/compression's binaries, for build/vendorfetch.sh. Read by that script alone and never
+# shipped; the entry format is described in ../sqlite3/fetch.toml.
+#
+# None of the six upstreams publishes the library this package is -- seven codecs in one -- so
+# every host builds it, with src/build.sh, from six pinned source archives (the newest releases
+# on 2026-11-26): zlib 1.4 (and its contrib/minizip), zstd 1.6.0, xz 5.8.4 (its GitHub tag
+# archive, not a release tarball: none of xz's autotools files is used), brotli 1.2.1, lz4 1.11.1
+# and bzip2 1.0.8. One build makes both libraries of a host; each entry copies one (the script
+# returns at once when its stamp matches). Pinned and probed by RFC-0006 P0 (claude-docs
+# docs/tiko-vendor/probes/cp0).
+#
+# THE NAMES are what '#foreignlib COMPRESSION ... "lib/compression"' probes:
+# compression_<os>_<arch>.a for static; for dynamic compression.dll on Windows -- the name inside
+# it, which a program's import names -- compression_linux_x86_64.so on Linux,
+# compression_linux_arm64.so on arm64 Linux and compression_macos_arm64.dylib on macOS.
+#
+# HOSTS: Windows x64 and Linux x64 (RFC-0006 P1); Linux arm64, macOS arm64 and Android (P2).
+version = "zlib-1.4+zstd-1.6.0+xz-5.8.4+brotli-1.2.1+lz4-1.11.1+bzip2-1.0.8"
+
+[windows.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/windows-x86_64/compression.dll"
+to = "lib/compression.dll"
+
+[windows.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/windows-x86_64/compression_windows_x86_64.a"
+to = "lib/compression_windows_x86_64.a"
+
+[linux.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/linux-x86_64/compression_linux_x86_64.a"
+to = "lib/compression_linux_x86_64.a"
+
+[linux.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/linux-x86_64/compression_linux_x86_64.so"
+to = "lib/compression_linux_x86_64.so"
+
+[linux-arm64.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/linux-arm64/compression_linux_arm64.a"
+to = "lib/compression_linux_arm64.a"
+
+[linux-arm64.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/linux-arm64/compression_linux_arm64.so"
+to = "lib/compression_linux_arm64.so"
+
+[macos.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/macos-arm64/compression_macos_arm64.a"
+to = "lib/compression_macos_arm64.a"
+
+[macos.2]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/macos-arm64/compression_macos_arm64.dylib"
+to = "lib/compression_macos_arm64.dylib"
+
+# ANDROID: static only, cross-built on Windows by 'vendorfetch.sh --target android-x86_64' (and
+# android-arm64) against the NDK's sysroot, as cJSON is. A shared library comes with the APK.
+
+[android.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/android-x86_64/compression_android_x86_64.a"
+to = "lib/compression_android_x86_64.a"
+
+[android-arm64.1]
+kind = "script"
+script = "src/build.sh"
+inputs = "https://github.com/madler/zlib/archive/refs/tags/v1.4.tar.gz 4331355048e286908260fdbeaa0b8cf75ceaf2907c75855a093a6487c7032aaa https://github.com/facebook/zstd/archive/refs/tags/v1.6.0.tar.gz 289bb207935e5b4f241239f9832e665fa6b9636c3f87f479e125371e13842b8e https://github.com/tukaani-project/xz/archive/refs/tags/v5.8.4.tar.gz b6b34c52e672e810d339db14e0c10b5b6f5f67a30d8d05cdac5d8cb4d82f78d5 https://github.com/google/brotli/archive/refs/tags/v1.2.1.tar.gz 98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f https://github.com/lz4/lz4/archive/refs/tags/v1.11.1.tar.gz 683fed08a844ad012196381e40badf80c0bbe4962959761416d41c9e67d77ec7 https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269"
+from = "src/bin/android-arm64/compression_android_arm64.a"
+to = "lib/compression_android_arm64.a"

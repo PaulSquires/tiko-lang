@@ -1,0 +1,47 @@
+'' zstd -- Zstandard on buffers: one text compressed at several levels with ZSTD_compress, each
+'' result decompressed with ZSTD_decompress and compared with the original. The frame records
+'' the original size, so ZSTD_getFrameContentSize tells the reader how much room to make.
+''
+''     zstd [FILE]       FILE's bytes, or a generated text when none is given
+''
+'' Errors come back in the size: ZSTD_isError( r ) says whether r is one, ZSTD_getErrorName( r )
+'' what it is.
+''
+'' Build it with 'tiko zstd.tiko'. zstd's licence is in pkg/vendor/compression/LICENSE; this
+'' example is public domain.
+#import "vendor/compression" link dynamic
+
+dim as string text
+if command( 1 ) <> "" then
+    dim as integer f = freefile
+    if open( command( 1 ) for binary access read as #f ) <> 0 then print "cannot read "; command( 1 ) : end 1
+    text = space( lof( f ) )
+    if len( text ) then get #f, , text
+    close #f
+else
+    for i as integer = 1 to 4000
+        text &= "line " & i & ": zstandard is a fast lossless compression algorithm" & !"\n"
+    next
+end if
+if len( text ) = 0 then print "nothing to compress" : end 1
+
+dim as uinteger bound = ZSTD_compressBound( len( text ) )
+dim as uint8 packed( 0 to bound - 1 )
+dim as integer failures = 0
+print "zstd "; *ZSTD_versionString( ); ", "; len( text ); " bytes in, levels 1 to "; ZSTD_maxCLevel( )
+for each_ as integer = 0 to 4
+    dim as int32 level = iif( each_ = 0, 1, iif( each_ = 1, 3, iif( each_ = 2, 9, iif( each_ = 3, 15, ZSTD_maxCLevel( ) ) ) ) )
+    dim as double t0 = timer
+    dim as uinteger n = ZSTD_compress( @packed(0), bound, strptr( text ), len( text ), level )
+    dim as double t1 = timer
+    if ZSTD_isError( n ) then print "level"; level; ": "; *ZSTD_getErrorName( n ) : failures += 1 : continue for
+    '' The reader learns the size from the frame itself.
+    dim as ulongint size = ZSTD_getFrameContentSize( @packed(0), n )
+    dim as string back = space( size )
+    dim as uinteger m = ZSTD_decompress( strptr( back ), size, @packed(0), n )
+    dim as boolean same = ZSTD_isError( m ) = 0 andalso back = text
+    if same = false then failures += 1
+    print using "  level ##: ######## bytes (##.#%) in ####.# ms  ->  &"; level; n; 100 * n / len( text ); _
+        1000 * ( t1 - t0 ); iif( same, "round trip ok", "ROUND TRIP FAILED" )
+next
+end iif( failures = 0, 0, 1 )

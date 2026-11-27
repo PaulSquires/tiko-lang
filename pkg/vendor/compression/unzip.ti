@@ -1,0 +1,462 @@
+'' =============================================================================
+'' unzip.ti -- tiko header translated by c2t (tiko 0.1.8) from the C header "unzip.h"
+''   source sha256 : eb7b9dcc117c9866e1142a4b4a12dc84e07d0ec1105bfbedcfbade44b6d7d9ba
+''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot C:/dev/wt/vendor-compression/pkg/vendor/compression/src/macos-libc --verify
+''
+'' Generated from C. Search for C2T-TODO and translate those parts by hand.
+''
+'' Renamed:
+''   parameter  unzReadCurrentFile.len -> unzReadCurrentFile.len_   (tiko reserved word)
+''   parameter  unzGetLocalExtrafield.len -> unzGetLocalExtrafield.len_   (tiko reserved word)
+''   parameter  unzSetOffset64.pos -> unzSetOffset64.pos_   (tiko reserved word)
+''   parameter  unzSetOffset.pos -> unzSetOffset.pos_   (tiko reserved word)
+''
+'' Nothing needs manual translation.
+'' =============================================================================
+
+/' unzip.h -- IO for uncompress .zip files using zlib
+   part of the MiniZip project - ( https://www.winimage.com/zLibDll/minizip.html )
+
+         Copyright (C) 1998-2026 Gilles Vollant (minizip) ( https://www.winimage.com/zLibDll/minizip.html )
+
+         Modifications of Unzip for Zip64
+         Copyright (C) 2007-2008 Even Rouault
+
+         Modifications for Zip64 support on both zip and unzip
+         Copyright (C) 2009-2010 Mathias Svensson ( https://result42.com )
+
+         For more info read MiniZip_info.txt
+
+         ---------------------------------------------------------------------------------
+
+        Condition of use and distribution are the same than zlib :
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+
+  ---------------------------------------------------------------------------------
+
+        Changes
+
+        See header of unzip64.c
+
+'/
+
+#pragma once
+
+#include once "crt/long.bi"
+
+extern "C"
+
+#ifndef _ZLIB_H
+#include once "zlib.ti"
+#endif
+
+#ifndef _ZLIBIOAPI_H
+#include once "ioapi.ti"
+#endif
+
+#ifdef HAVE_BZIP2
+#include once "bzlib.ti"
+#endif
+
+#define Z_BZIP2ED 12
+
+#if (defined(STRICTUNZIP) orelse defined(STRICTZIPUNZIP))
+/' like the STRICT of WIN32, we define a pointer that cannot be converted
+    from (void*) without cast '/
+type TagunzFile__
+    unused as int32
+end type
+type unzFile__ as TagunzFile__
+type unzFile as unzFile__ ptr
+#else
+type unzFile as voidp
+#endif
+
+'' C2T-NOTE(unsized-array) unzip.h:72 -- 'unz_copyright[]' has no size in C: '* 1' is nominal, the string reads to its NUL
+extern unz_copyright as const zstring * 1
+
+
+#define UNZ_OK 0
+#define UNZ_END_OF_LIST_OF_FILE (-100)
+'' C2T-NOTE(value) unzip.h:77 -- clang's value; 'Z_ERRNO' is nothing tiko declares
+#define UNZ_ERRNO (-1)
+#define UNZ_EOF 0
+#define UNZ_PARAMERROR (-102)
+#define UNZ_BADZIPFILE (-103)
+#define UNZ_INTERNALERROR (-104)
+#define UNZ_CRCERROR (-105)
+
+/' tm_unz contain date/time info '/
+type tm_unz_s
+    tm_sec as int32         /' seconds after the minute - [0,59] '/
+    tm_min as int32         /' minutes after the hour - [0,59] '/
+    tm_hour as int32        /' hours since midnight - [0,23] '/
+    tm_mday as int32        /' day of the month - [1,31] '/
+    tm_mon as int32         /' months since January - [0,11] '/
+    tm_year as int32        /' years - [1980..2044] '/
+end type
+type tm_unz as tm_unz_s
+
+/' unz_global_info structure contain global data about the ZIPfile
+   These data comes from the end of central dir '/
+type unz_global_info64_s
+    number_entry as ZPOS64_T       /' total number of entries in
+                                     the central dir on this disk '/
+    size_comment as uLong_      /' size of the global comment of the zipfile '/
+end type
+type unz_global_info64 as unz_global_info64_s
+
+type unz_global_info_s
+    number_entry as uLong_      /' total number of entries in
+                                     the central dir on this disk '/
+    size_comment as uLong_      /' size of the global comment of the zipfile '/
+end type
+type unz_global_info as unz_global_info_s
+
+/' unz_file_info contain information about a file in the zipfile '/
+type unz_file_info64_s
+    version as uLong_           /' version made by                 2 bytes '/
+    version_needed as uLong_    /' version needed to extract       2 bytes '/
+    flag as uLong_              /' general purpose bit flag        2 bytes '/
+    compression_method as uLong_   /' compression method              2 bytes '/
+    dosDate as uLong_           /' last mod file date in Dos fmt   4 bytes '/
+    crc as uLong_               /' crc-32                          4 bytes '/
+    compressed_size as ZPOS64_T /' compressed size                 8 bytes '/
+    uncompressed_size as ZPOS64_T /' uncompressed size               8 bytes '/
+    size_filename as uLong_     /' filename length                 2 bytes '/
+    size_file_extra as uLong_   /' extra field length              2 bytes '/
+    size_file_comment as uLong_ /' file comment length             2 bytes '/
+
+    disk_num_start as uLong_    /' disk number start               2 bytes '/
+    internal_fa as uLong_       /' internal file attributes        2 bytes '/
+    external_fa as uLong_       /' external file attributes        4 bytes '/
+
+    tmu_date as tm_unz
+end type
+type unz_file_info64 as unz_file_info64_s
+
+type unz_file_info_s
+    version as uLong_           /' version made by                 2 bytes '/
+    version_needed as uLong_    /' version needed to extract       2 bytes '/
+    flag as uLong_              /' general purpose bit flag        2 bytes '/
+    compression_method as uLong_   /' compression method              2 bytes '/
+    dosDate as uLong_           /' last mod file date in Dos fmt   4 bytes '/
+    crc as uLong_               /' crc-32                          4 bytes '/
+    compressed_size as uLong_   /' compressed size                 4 bytes '/
+    uncompressed_size as uLong_ /' uncompressed size               4 bytes '/
+    size_filename as uLong_     /' filename length                 2 bytes '/
+    size_file_extra as uLong_   /' extra field length              2 bytes '/
+    size_file_comment as uLong_ /' file comment length             2 bytes '/
+
+    disk_num_start as uLong_    /' disk number start               2 bytes '/
+    internal_fa as uLong_       /' internal file attributes        2 bytes '/
+    external_fa as uLong_       /' external file attributes        4 bytes '/
+
+    tmu_date as tm_unz
+end type
+type unz_file_info as unz_file_info_s
+
+declare function unzStringFileNameCompare( byval fileName1 as const zstring ptr, _
+                                           byval fileName2 as const zstring ptr, _
+                                           byval iCaseSensitivity as int32 ) as int32
+/'
+   Compare two filenames (fileName1,fileName2).
+   If iCaseSensitivity = 1, comparison is case sensitive (like strcmp)
+   If iCaseSensitivity = 2, comparison is not case sensitive (like strcmpi
+                                or strcasecmp)
+   If iCaseSensitivity = 0, case sensitivity is default of your operating system
+    (like 1 on Unix, 2 on Windows)
+'/
+
+
+declare function unzOpen( byval path as const zstring ptr ) as unzFile
+declare function unzOpen64( byval path as const any ptr ) as unzFile
+/'
+  Open a Zip file. path contain the full pathname (by example,
+     on a Windows XP computer "c:\\zlib\\zlib113.zip" or on an Unix computer
+     "zlib/zlib113.zip".
+     If the zipfile cannot be opened (file don't exist or in not valid), the
+       return value is NULL.
+     Else, the return value is a unzFile Handle, usable with other function
+       of this unzip package.
+     the "64" function take a const void* pointer, because the path is just the
+       value passed to the open64_file_func callback.
+     Under Windows, if UNICODE is defined, using fill_fopen64_filefunc, the path
+       is a pointer to a wide unicode string (LPCTSTR is LPCWSTR), so const char*
+       does not describe the reality
+'/
+
+
+declare function unzOpen2( byval path as const zstring ptr, _
+                           byval pzlib_filefunc_def as zlib_filefunc_def ptr ) as unzFile
+/'
+   Open a Zip file, like unzOpen, but provide a set of file low level API
+      for read/write the zip file (see ioapi.h)
+'/
+
+declare function unzOpen2_64( byval path as const any ptr, _
+                              byval pzlib_filefunc_def as zlib_filefunc64_def ptr ) as unzFile
+/'
+   Open a Zip file, like unz64Open, but provide a set of file low level API
+      for read/write the zip file (see ioapi.h)
+'/
+
+declare function unzClose( byval file as unzFile ) as int32
+/'
+  Close a ZipFile opened with unzOpen.
+  If there is files inside the .Zip opened with unzOpenCurrentFile (see later),
+    these files MUST be closed with unzCloseCurrentFile before call unzClose.
+  return UNZ_OK if there is no problem. '/
+
+declare function unzGetGlobalInfo( byval file as unzFile, _
+                                   byval pglobal_info as unz_global_info ptr ) as int32
+
+declare function unzGetGlobalInfo64( byval file as unzFile, _
+                                     byval pglobal_info as unz_global_info64 ptr ) as int32
+/'
+  Write info about the ZipFile in the *pglobal_info structure.
+  No preparation of the structure is needed
+  return UNZ_OK if there is no problem. '/
+
+
+declare function unzGetGlobalComment( byval file as unzFile, _
+                                      byval szComment as zstring ptr, _
+                                      byval uSizeBuf as uLong_ ) as int32
+/'
+  Get the global comment string of the ZipFile, in the szComment buffer.
+  uSizeBuf is the size of the szComment buffer.
+  return the number of byte copied or an error code <0
+'/
+
+
+/'*************************************************************************'/
+/' Unzip package allow you browse the directory of the zipfile '/
+
+declare function unzGoToFirstFile( byval file as unzFile ) as int32
+/'
+  Set the current file of the zipfile to the first file.
+  return UNZ_OK if there is no problem
+'/
+
+declare function unzGoToNextFile( byval file as unzFile ) as int32
+/'
+  Set the current file of the zipfile to the next file.
+  return UNZ_OK if there is no problem
+  return UNZ_END_OF_LIST_OF_FILE if the actual file was the latest.
+'/
+
+declare function unzLocateFile( byval file as unzFile, _
+                                byval szFileName as const zstring ptr, _
+                                byval iCaseSensitivity as int32 ) as int32
+/'
+  Try locate the file szFileName in the zipfile.
+  For the iCaseSensitivity signification, see unzStringFileNameCompare
+
+  return value :
+  UNZ_OK if the file is found. It becomes the current file.
+  UNZ_END_OF_LIST_OF_FILE if the file is not found
+'/
+
+
+/' ****************************************** '/
+/' Ryan supplied functions '/
+/' unz_file_info contain information about a file in the zipfile '/
+type unz_file_pos_s
+    pos_in_zip_directory as uLong_   /' offset in zip file directory '/
+    num_of_file as uLong_         /' # of file '/
+end type
+type unz_file_pos as unz_file_pos_s
+
+declare function unzGetFilePos( byval file as unzFile, _
+    _
+    byval file_pos as unz_file_pos ptr ) as int32
+
+declare function unzGoToFilePos( byval file as unzFile, _
+    _
+    byval file_pos as unz_file_pos ptr ) as int32
+
+type unz64_file_pos_s
+    pos_in_zip_directory as ZPOS64_T /' offset in zip file directory '/
+    num_of_file as ZPOS64_T          /' # of file '/
+end type
+type unz64_file_pos as unz64_file_pos_s
+
+declare function unzGetFilePos64( byval file as unzFile, _
+    _
+    byval file_pos as unz64_file_pos ptr ) as int32
+
+declare function unzGoToFilePos64( byval file as unzFile, _
+    _
+    byval file_pos as const unz64_file_pos ptr ) as int32
+
+/' ****************************************** '/
+
+declare function unzGetCurrentFileInfo64( byval file as unzFile, _
+                                          byval pfile_info as unz_file_info64 ptr, _
+                                          byval szFileName as zstring ptr, _
+                                          byval fileNameBufferSize as uLong_, _
+                                          byval extraField as any ptr, _
+                                          byval extraFieldBufferSize as uLong_, _
+                                          byval szComment as zstring ptr, _
+                                          byval commentBufferSize as uLong_ ) as int32
+
+declare function unzGetCurrentFileInfo( byval file as unzFile, _
+                                        byval pfile_info as unz_file_info ptr, _
+                                        byval szFileName as zstring ptr, _
+                                        byval fileNameBufferSize as uLong_, _
+                                        byval extraField as any ptr, _
+                                        byval extraFieldBufferSize as uLong_, _
+                                        byval szComment as zstring ptr, _
+                                        byval commentBufferSize as uLong_ ) as int32
+/'
+  Get Info about the current file
+  if pfile_info!=NULL, the *pfile_info structure will contain some info about
+        the current file
+  if szFileName!=NULL, the filename string will be copied in szFileName
+            (fileNameBufferSize is the size of the buffer)
+  if extraField!=NULL, the extra field information will be copied in extraField
+            (extraFieldBufferSize is the size of the buffer).
+            This is the Central-header version of the extra field
+  if szComment!=NULL, the comment string of the file will be copied in szComment
+            (commentBufferSize is the size of the buffer)
+  The file name and comment will be zero-terminated if there is room in the
+  provided buffer. Otherwise the buffer will contain as much as will fit. It is
+  up to the application to zero-terminate the string in that case, if it plans
+  to use the truncated result. If at least 65537 bytes of room is provided, then
+  the result will always be complete and zero-terminated.
+'/
+
+
+/'* Addition for GDAL : START '/
+
+declare function unzGetCurrentFileZStreamPos64( byval file as unzFile ) as ZPOS64_T
+
+/'* Addition for GDAL : END '/
+
+
+/'*************************************************************************'/
+/' for reading the content of the current zipfile, you can open it, read data
+   from it, and close it (you can close it before reading all the file)
+   '/
+
+declare function unzOpenCurrentFile( byval file as unzFile ) as int32
+/'
+  Open for reading data the current file in the zipfile.
+  If there is no error, the return value is UNZ_OK.
+'/
+
+declare function unzOpenCurrentFilePassword( byval file as unzFile, _
+                                             byval password as const zstring ptr ) as int32
+/'
+  Open for reading data the current file in the zipfile.
+  password is a crypting password
+  If there is no error, the return value is UNZ_OK.
+'/
+
+declare function unzOpenCurrentFile2( byval file as unzFile, _
+                                      byval method as int32 ptr, _
+                                      byval level as int32 ptr, _
+                                      byval raw as int32 ) as int32
+/'
+  Same than unzOpenCurrentFile, but open for read raw the file (not uncompress)
+    if raw==1
+  *method will receive method of compression, *level will receive level of
+     compression
+  note : you can set level parameter as NULL (if you did not want known level,
+         but you CANNOT set method parameter as NULL
+'/
+
+declare function unzOpenCurrentFile3( byval file as unzFile, _
+                                      byval method as int32 ptr, _
+                                      byval level as int32 ptr, _
+                                      byval raw as int32, _
+                                      byval password as const zstring ptr ) as int32
+/'
+  Same than unzOpenCurrentFile, but open for read raw the file (not uncompress)
+    if raw==1
+  *method will receive method of compression, *level will receive level of
+     compression
+  note : you can set level parameter as NULL (if you did not want known level,
+         but you CANNOT set method parameter as NULL
+'/
+
+
+declare function unzCloseCurrentFile( byval file as unzFile ) as int32
+/'
+  Close the file in zip opened with unzOpenCurrentFile
+  Return UNZ_CRCERROR if all the file was read but the CRC is not good
+'/
+
+declare function unzReadCurrentFile( byval file as unzFile, _
+                                     byval buf as voidp, _
+                                     byval len_ as uint32 ) as int32
+/'
+  Read bytes from the current file (opened by unzOpenCurrentFile)
+  buf contain buffer where data must be copied
+  len the size of buf.
+
+  return the number of byte copied if some bytes are copied
+  return 0 if the end of file was reached
+  return <0 with error code if there is an error
+    (UNZ_ERRNO for IO error, or zLib error for uncompress error)
+'/
+
+declare function unztell( byval file as unzFile ) as clong
+
+declare function unztell64( byval file as unzFile ) as ZPOS64_T
+/'
+  Give the current position in uncompressed data
+'/
+
+declare function unzeof( byval file as unzFile ) as int32
+/'
+  return 1 if the end of file was reached, 0 elsewhere
+'/
+
+declare function unzGetLocalExtrafield( byval file as unzFile, _
+                                        byval buf as voidp, _
+                                        byval len_ as uint32 ) as int32
+/'
+  Read extra field from the current file (opened by unzOpenCurrentFile)
+  This is the local-header version of the extra field (sometimes, there is
+    more info in the local-header version than in the central-header)
+
+  if buf==NULL, it return the size of the local extra field
+
+  if buf!=NULL, len is the size of the buffer, the extra header is copied in
+    buf.
+  the return value is the number of bytes copied in buf, or (if <0)
+    the error code
+'/
+
+/'*************************************************************************'/
+
+/' Get the current file offset '/
+declare function unzGetOffset64( byval file as unzFile ) as ZPOS64_T
+declare function unzGetOffset( byval file as unzFile ) as uLong_
+
+/' Set the current file offset '/
+declare function unzSetOffset64( byval file as unzFile, byval pos_ as ZPOS64_T ) as int32
+declare function unzSetOffset( byval file as unzFile, byval pos_ as uLong_ ) as int32
+
+
+
+end extern
+
