@@ -30,6 +30,18 @@ private function IsHash_( byref src as C2tSource, byval i as int32 ) as boolean
     return TokText( src, i ) = "#"
 end function
 
+'' Bytes a .. b-1 (whitespace between two tokens) hold no newline outside a backslash-newline:
+'' the two tokens are on one logical line.
+private function Spliced_( byref src as C2tSource, byval a as int32, byval b as int32 ) as boolean
+    for k as int32 = a to b - 1
+        if src.bytes[k] <> 10 then continue for
+        if (k - 1 >= a) andalso (src.bytes[k - 1] = 92) then continue for
+        if (k - 2 >= a) andalso (src.bytes[k - 1] = 13) andalso (src.bytes[k - 2] = 92) then continue for
+        return false
+    next
+    return true
+end function
+
 sub ScanDirectives( byref src as C2tSource, byref dirs as C2tDirVec )
     dim as C2tIntVec stack
     dim as int32 i = 0
@@ -44,15 +56,16 @@ sub ScanDirectives( byref src as C2tSource, byref dirs as C2tDirVec )
         d.cond = -1
         d.endif_ = -1
         '' THE LOGICAL LINE: every token up to the next one that starts a line. A comment on
-        '' the NEXT physical line also has bol = false, so comments are taken only while they
-        '' start on a line the directive already reached.
+        '' the NEXT logical line also has bol = false, so comments are taken only while no
+        '' newline but a backslash-newline lies before them -- brotli's error-code list has a
+        '' comment on a continuation line of its #define.
         dim as int32 last = i
         dim as int32 lastLine = src.toks[i].endLine
         dim as int32 j = i + 1
         while j < src.toks.Count
             dim as C2tTok t = src.toks[j]
             if t.kind = CT_COMMENT then
-                if t.line_ > lastLine then exit while
+                if Spliced_( src, src.toks[last].ofs + src.toks[last].len_, t.ofs ) = false then exit while
             else
                 if t.bol then exit while
             end if

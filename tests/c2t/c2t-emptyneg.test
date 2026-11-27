@@ -1,0 +1,10 @@
+'' tiko c2t: in an #if a bare name keeps no parentheses of its own, so an includer that defines it empty gets C's reading -- zconf.h's '-_LARGEFILE64_SOURCE - -1 == 1' under minizip's empty '#define _LARGEFILE64_SOURCE' is '- - -1', not '(-)'; io.h, which includes it so, verifies.
+'' Everything after the clang line is asserted byte for byte; the tiko and clang versions
+'' in the banner depend on the host, so only the lines around them are.
+'' TEST: cli
+'' CLEAN: build/.c2t/emptyneg
+'' STEP: c2t tests/c2t/src/emptyneg/zc.h --verify -o build/.c2t/emptyneg/zc.ti
+'' ARGS: c2t tests/c2t/src/emptyneg/io.h --verify -o build/.c2t/emptyneg/io.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/emptyneg/zc.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' zc.h -- zconf.h's test of _LARGEFILE64_SOURCE, which an includer may define empty. '/\nextern "C"\n\n#if (defined(_LARGEFILE64_SOURCE) andalso ((-_LARGEFILE64_SOURCE - (-1)) = 1))\n#  define ZC_ZERO 1\n#elseif (defined(_LARGEFILE64_SOURCE) andalso ((-_LARGEFILE64_SOURCE - (-1)) = (-1)))\n#  define ZC_EMPTY 1\n#endif\ndeclare function zc_f( ) as int32\n\nend extern\n
+'' EXPECT-FILE-HAS: build/.c2t/emptyneg/io.ti :: ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu\n''   options       : --verify\n''\n'' Generated from C. Search for C2T-TODO and translate those parts by hand.\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' io.h -- minizip's ioapi.h: _LARGEFILE64_SOURCE defined empty before zconf.h is included. '/\nextern "C"\n\n#ifndef _LARGEFILE64_SOURCE\n#define _LARGEFILE64_SOURCE\n#endif\n#include once "zc.ti"\ndeclare function io_f( ) as int32\n\nend extern\n
