@@ -342,6 +342,28 @@ function LowerConcatAssignStmt _
             if isU then return LowerNarrowChainToU_( c, dst, two, false )
             return false
         end if
+        '' A VALUE THAT READS THE TARGET IS BUILT IN A TEMPORARY AND ASSIGNED, never appended in
+        '' place. 's &= s' went to fb_StrConcatAssign( &S, -1, &S, -1, 0 ), which reallocs S and
+        '' then copies from the source pointer it read BEFORE the realloc -- a freed block: six
+        '' doublings of 23 bytes held 272 wrong bytes on Windows, 992 on Linux (glibc's tcache
+        '' pointer in the first 16), and 'u &= u' over a ustring the same. Measured, fbc 1.10.1
+        '' (-gen gcc -r, and gas64's calls) emits, for every target the value reads:
+        ''
+        ''     s &= s            vr = fb_StrConcat( &TMP, &S, -1, &S, -1 )   fb_StrAssign( &S, -1, vr, -1, 0 )
+        ''     s += s            the same
+        ''     x.s &= x.s        the same, over &X
+        ''     r &= r, *p &= *p  the same, over R / P (a byref, a deref)
+        ''     s &= s & "x"      vr = fb_StrConcat( s, "x" ), vr2 = fb_StrConcat( s, vr ), assign
+        ''     s &= left( s, 3 ) vr2 = fb_StrConcat( &S, vr ), assign
+        ''
+        '' and fb_StrConcatAssign only when it does not ('s &= t'). The last two were already
+        '' right -- the value went to a temporary of its own first -- and fold the same way now.
+        if TermReadsLValue_( c, target, value ) then
+            dim as containers.Array( of uint32 ) selfc
+            selfc.Push( cast( uint32, target ) )
+            FlattenConcat( c, value, selfc )
+            return LowerConcatViaTemp( c, dst, selfc )
+        end if
         dim as containers.Array( of uint32 ) args
         PushStrArg( args, dst )
         if EmitStrTerm( c, args, value, isU ) = false then return false

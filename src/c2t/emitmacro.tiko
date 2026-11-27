@@ -115,14 +115,28 @@ end function
 '' architecture tiko has is a TIKO_OS_* / TIKO_ARCH_* name, true in the passes for it: the
 '' Apple and arm64 spellings are macOS's, measured from clang's '-dM -E' for
 '' arm64-apple-macosx13.0 (__APPLE__ __MACH__ __aarch64__ __arm64__, and no __unix__).
-private sub Platform_( byref env as CxEnv, byval os_ as Tko.TargetOsKind, byval arch_ as Tko.TargetArchKind )
+''
+'' ANDROID (RFC-0007), only in a run that has Android passes ('android'): clang defines
+'' __linux__ __linux __unix__ __unix there as on Linux, __ANDROID__, and not __gnu_linux__
+'' (measured, '-std=c11 -dM -E', clang 23.1.5, x86_64- and aarch64-linux-android29). tiko
+'' defines TIKO_OS_ANDROID and not TIKO_OS_LINUX there (as fbc), so "a Linux kernel" is
+'' both names, an EXPRESSION spelling (cexpr.tiko prints it as it is). Without Android passes
+'' every spelling is as it was, so a header translated without them reads byte for byte the
+'' same (AN-2) -- and __ANDROID__ stays 0: its branches are no pass's.
+private sub Platform_( byref env as CxEnv, byval os_ as Tko.TargetOsKind, byval arch_ as Tko.TargetArchKind, _
+                       byval android as boolean )
     dim as string win( 0 to 4 ) = { "_WIN32", "_WIN64", "WIN32", "__WIN32__", "__WINDOWS__" }
     for i as int32 = 0 to 4
         CxEnvAdd( env, win( i ), "TIKO_OS_WINDOWS", CXV_INT, os_ = Tko.OS_WINDOWS, 1 )
     next
     dim as string lin( 0 to 5 ) = { "__linux__", "__linux", "linux", "__gnu_linux__", "__unix__", "__unix" }
     for i as int32 = 0 to 5
-        CxEnvAdd( env, lin( i ), "TIKO_OS_LINUX", CXV_INT, os_ = Tko.OS_LINUX, 1 )
+        if android andalso (lin( i ) <> "linux") andalso (lin( i ) <> "__gnu_linux__") then
+            CxEnvAdd( env, lin( i ), "(defined(TIKO_OS_LINUX) orelse defined(TIKO_OS_ANDROID))", CXV_INT, _
+                      (os_ = Tko.OS_LINUX) orelse (os_ = Tko.OS_ANDROID), 1 )
+        else
+            CxEnvAdd( env, lin( i ), "TIKO_OS_LINUX", CXV_INT, os_ = Tko.OS_LINUX, 1 )
+        end if
     next
     dim as string mac( 0 to 1 ) = { "__APPLE__", "__MACH__" }
     for i as int32 = 0 to 1
@@ -138,7 +152,8 @@ private sub Platform_( byref env as CxEnv, byval os_ as Tko.TargetOsKind, byval 
     next
     '' NO tiko TARGET: always 0 -- and C++ never, for c2t reads C. MinGW and Cygwin too:
     '' tiko's one Windows target is the MSVC ABI, which is what c2t's Windows pass parses,
-    '' and _M_ARM64 is Windows on ARM, which tiko does not target.
+    '' and _M_ARM64 is Windows on ARM, which tiko does not target. (__ANDROID__ too, in a run
+    '' with no Android pass: with one, the entry below wins -- CxEnvFind takes the LAST.)
     dim as string never( 0 to 15 ) = { "__ANDROID__", "__EMSCRIPTEN__", _
         "__FreeBSD__", "__OpenBSD__", "__NetBSD__", "__DragonFly__", "__HAIKU__", "__sun", _
         "_M_ARM64", "__arm__", "_M_IX86", "__i386__", "__cplusplus", _
@@ -146,6 +161,14 @@ private sub Platform_( byref env as CxEnv, byval os_ as Tko.TargetOsKind, byval 
     for i as int32 = 0 to 15
         CxEnvAdd( env, never( i ), "0", CXV_INT, false, 0 )
     next
+    '' ANDROID ITSELF, with Android passes; and its API LEVEL, which has no tiko name (AN-3): a
+    '' conditional on it stays a TODO, in every pass, rather than read 0 in tiko where clang
+    '' read 29.
+    if android then
+        CxEnvAdd( env, "__ANDROID__", "TIKO_OS_ANDROID", CXV_INT, os_ = Tko.OS_ANDROID, 1 )
+        CxEnvAdd( env, "__ANDROID_API__", "", CXV_INT, os_ = Tko.OS_ANDROID, 29 )
+        CxEnvAdd( env, "__ANDROID_MIN_SDK_VERSION__", "", CXV_INT, os_ = Tko.OS_ANDROID, 29 )
+    end if
     CxEnvAdd( env, "__STDC__", "1", CXV_INT, true, 1 )
     CxEnvAdd( env, "__STDC_HOSTED__", "1", CXV_INT, true, 1 )
     CxEnvAdd( env, "__STDC_VERSION__", "201112", CXV_INT, true, 201112 )
@@ -290,6 +313,10 @@ private function Cond_( byref e as C2tEmit, byref env as CxEnv, byref d as C2tDi
     case DK_IFDEF, DK_IFNDEF
         if left( s, 8 ) = "defined(" then
             text = iif( d.kind = DK_IFDEF, "ifdef ", "ifndef " ) & mid( s, 9, len( s ) - 9 )
+        elseif left( s, 1 ) = "(" then
+            '' A NAME SPELLED AS AN EXPRESSION (__linux__ with Android passes): '#ifdef' cannot
+            '' say it; '#if' can -- negated by '= 0', for tiko's 'not' of a 1 is -2, still true.
+            text = iif( d.kind = DK_IFDEF, "if " & s, "if (" & s & " = 0)" )
         else
             text = "if " & iif( truth, "1", "0" )
         end if
@@ -352,7 +379,15 @@ end sub
 '' double', measured: TKO0808 on the next 'as double').
 private function UndefName_( byref env as CxEnv, byref d as C2tDirective, byref why as string ) as string
     dim as int32 f = CxEnvFind( env, d.name_ )
-    if f >= 0 then return env.tiko[f]
+    if f >= 0 then
+        '' A PLATFORM MACRO spelled as an expression (or not at all) has no name to #undef.
+        dim as string tn = env.tiko[f]
+        if (len( tn ) = 0) orelse (tn[0] = 40) then
+            why = "'" & d.name_ & "' is a platform macro: tiko's spelling of it is no name to #undef"
+            return ""
+        end if
+        return tn
+    end if
     if Tko.CImport.NameReservedValue( d.name_ ) then
         why = "'" & d.name_ & "' is a tiko keyword: #undef would remove it"
         return ""
@@ -619,15 +654,16 @@ sub MacroDirectives( byref e as C2tEmit, byref p as C2tPass, byref dirs as C2tDi
     env.owner = @e
     env.lookup = @LookupDecl_
     env.typeLookup = @LookupType_
-    '' The pass's target, from its triple: the three tiko translates for (c2t.tiko C2tTargets_).
+    '' The pass's target, from its triple: the ones tiko translates for (c2t.tiko C2tTargets_).
     dim as Tko.TargetOsKind pos_ = Tko.OS_LINUX
     dim as Tko.TargetArchKind parch = Tko.ARCH_X86_64
     if instr( p.triple, "windows" ) > 0 then pos_ = Tko.OS_WINDOWS
+    if instr( p.triple, "android" ) > 0 then pos_ = Tko.OS_ANDROID
     if instr( p.triple, "apple" ) > 0 then pos_ = Tko.OS_DARWIN : parch = Tko.ARCH_ARM64
     '' An aarch64 Linux triple is arm64 too, not x86-64 by default. c2t has no linux-arm64
     '' pass yet (docs/tiko-linux-arm64, L4); this keeps one from being judged as x86-64.
     if instr( p.triple, "aarch64" ) > 0 then parch = Tko.ARCH_ARM64
-    Platform_( env, pos_, parch )
+    Platform_( env, pos_, parch, p.android )
     '' THE PASS'S OWN DEFINES (-D, --pass "-DFOO"): clang parsed with them, so the conditions
     '' are judged with them -- and printed as the names they are, which a tiko program defines
     '' the same way before it includes the file.

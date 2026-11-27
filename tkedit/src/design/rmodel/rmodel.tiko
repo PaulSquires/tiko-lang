@@ -85,7 +85,15 @@ public sub PropsOf( byval def as TK_REPORTDEF ptr, byref target as const ustring
         case "image" : P_( out_, "text", RPropKind.RPropText ) : P_( out_, "expr", RPropKind.RPropText )
         case "check" : P_( out_, "expr", RPropKind.RPropText )
         case "custom" : P_( out_, "tag", RPropKind.RPropNumber )
+        case "gauge", "sparkline" : P_( out_, "expr", RPropKind.RPropText ) : P_( out_, "opts", RPropKind.RPropText )
         end select
+        if (k = "gauge") orelse (k = "sparkline") then
+            ' the labels' and caption's font (the gauge's value text in it, bold, at 1.5 x)
+            P_( out_, "font", RPropKind.RPropText )
+            P_( out_, "size", RPropKind.RPropNumber )
+            P_( out_, "bold", RPropKind.RPropBool )
+            P_( out_, "italic", RPropKind.RPropBool )
+        end if
         if (k = "text") orelse (k = "field") then
             P_( out_, "align", RPropKind.RPropEnum, "left,center,right" )
             P_( out_, "valign", RPropKind.RPropEnum, "top,middle,bottom" )
@@ -190,6 +198,7 @@ public function GetProp( byval def as TK_REPORTDEF ptr, byref target as const us
         case "running" : return B_( it.running )
         case "incr" : return it.incr
         case "tag" : return str( it.tag )
+        case "opts" : return it.opts
         end select
     elseif left( target, 5 ) = "band:" then
         dim as int32 b = tkReportDef_FindBand( def, mid( target, 6 ) )
@@ -306,6 +315,7 @@ public function SetProp( byval def as TK_REPORTDEF ptr, byref target as const us
         case "reset" : it.reset = value
         case "running" : it.running = b
         case "incr" : it.incr = value
+        case "opts" : it.opts = value
         case else : return "?"
         end select
         return ""

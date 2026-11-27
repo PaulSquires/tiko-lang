@@ -419,6 +419,8 @@ public sub tkReportDef_MakeItem( byref it as TKRD_ITEM, byref e as TKREPORT_ITEM
     case "image" : e.kind = TKRI_IMAGE : e.text = it.text : e.expr = it.expr
     case "check" : e.kind = TKRI_CHECK : e.expr = it.expr
     case "custom" : e.kind = TKRI_CUSTOM : e.tag = it.tag
+    case "gauge" : e.kind = TKRI_GAUGE : e.expr = it.expr : e.text = it.text : e.opts = it.opts
+    case "sparkline" : e.kind = TKRI_SPARKLINE : e.expr = it.expr : e.text = it.text : e.opts = it.opts
     end select
     select case it.align
     case "center" : e.flags = TK_DT_CENTER

@@ -1,0 +1,110 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkReport -- the data items (GAUGE-SPARKLINE.md §9.3, D-4): TKRI_GAUGE and TKRI_SPARKLINE, drawn
+' here, directly, through tkGauge_PaintPage / tkSparkline_PaintPage -- the same painter as the
+' controls. Neither links a vendor library, so no registration (the barcode's) is needed.
+'
+'   value     the item's field, or its expression (->expr): a number for a gauge, a series text
+'             ("3,5,,2") for a sparkline; with neither, the item's Text
+'   settings  ->opts, "key=value;..." (tkGauge_OptsToSpec / tkSparkline_OptsToSpec list the keys)
+'   text      the item's font for labels and caption, the gauge's value text in it bold at 1.5 x;
+'             colours tkTheme_Light's (paper)
+#module "tkReport"
+
+#import "../tkPrint"
+#import "../tkBind"
+#import "../tkGauge"
+#import "../tkSparkline"
+using tkPrint
+using tkBind
+using tkGauge
+using tkSparkline
+using tkHost
+using tkPaint
+
+' A value as a number: text through val, a boolean 0 / 1.
+private function RdNumOf( byref v as TK_VALUE ) as float64
+    select case v.kind
+    case TKV_INT : return v.i
+    case TKV_FLOAT : return v.f
+    case TKV_BOOL : return iif( v.b, 1, 0 )
+    case TKV_TEXT : return val( v.s )
+    end select
+    return 0
+end function
+
+' Draws a gauge / sparkline item in rc with its value v, in font fnt.
+sub RpDataItem( byval pg as TK_PAGE ptr, byref it as TKREPORT_ITEM, byref rc as TKRECTF, _
+                byref fnt as TKFONTSPEC, byref v as TK_VALUE )
+    if pg = 0 then exit sub
+    dim as TKFONTSPEC fv = fnt
+    fv.pt = iif( fnt.pt > 0, fnt.pt, 10.0 ) * 1.5 : fv.bold = true
+    dim as TTF_Font ptr fValue = 0
+    if (it.kind = TKRI_GAUGE) andalso tkPage_SetFont( pg, fv ) then fValue = tkPage_GetFont( pg )
+    dim as TTF_Font ptr fText = 0
+    if tkPage_SetFont( pg, fnt ) then fText = tkPage_GetFont( pg )
+    if it.kind = TKRI_GAUGE then
+        dim as TKGAUGE_SPEC s
+        dim as TKGAUGE_RANGE rg()
+        dim as TKGAUGE_POINTER ptrs()
+        tkGauge_OptsToSpec( it.opts, s, rg(), ptrs() )      ' an unknown key is ignored: the rest still draws
+        ptrs(0).fValue = RdNumOf( v )
+        s.fText = fText : s.fValueFont = fValue
+        tkGauge_PaintPage( pg, rc, s )
+    else
+        dim as TKSPARK_SPEC s
+        tkSparkline_OptsToSpec( it.opts, s )
+        dim as float64 vals()
+        dim as boolean has()
+        dim as string t = iif( v.kind = TKV_TEXT, v.s, tkReport_FormatValue( v ) )
+        s.nCount = tkSparkline_ParseText( t, vals(), has() )
+        if s.nCount > 0 then s.pValues = @vals(0) : s.pHas = @has(0)
+        s.fText = fText
+        tkSparkline_PaintPage( pg, rc, s )
+    end if
+end sub
+
+' The item drawn with a stand-in value, for a designer's canvas: a gauge at 60 % of its scale, a
+' sparkline of a fixed 12-point series. Nothing is evaluated.
+public sub tkReport_PaintDataSample( byval pg as TK_PAGE ptr, byref it as TKREPORT_ITEM, byref rc as TKRECTF, _
+                                     byref fnt as TKFONTSPEC )
+    dim as TK_VALUE v
+    if it.kind = TKRI_GAUGE then
+        dim as TKGAUGE_SPEC s
+        dim as TKGAUGE_RANGE rg()
+        dim as TKGAUGE_POINTER ptrs()
+        tkGauge_OptsToSpec( it.opts, s, rg(), ptrs() )
+        v.SetFloat( s.fMin + (s.fMax - s.fMin) * 0.6 )
+    elseif it.kind = TKRI_SPARKLINE then
+        v.SetText( "4,6,5,8,7,9,6,10,8,11,9,12" )
+    else
+        exit sub
+    end if
+    RpDataItem( pg, it, rc, fnt, v )
+end sub
+
+' A gauge item: field nField's value (-1: none; set ->expr for an expression), settings in opts.
+public function tkRBand_AddGauge( byval band as TK_RBAND ptr, byref rc as TKRECTF, byval nField as long, _
+                                  byref opts as ustring = "" ) as TKREPORT_ITEM ptr
+    dim as TKREPORT_ITEM it
+    it.kind = TKRI_GAUGE
+    it.rc = rc
+    it.field = nField
+    it.opts = opts
+    return tkRBand_AddItem( band, it )
+end function
+
+' A sparkline item: field nField's text is the series (-1: none; set ->expr for an expression).
+public function tkRBand_AddSparkline( byval band as TK_RBAND ptr, byref rc as TKRECTF, byval nField as long, _
+                                      byref opts as ustring = "" ) as TKREPORT_ITEM ptr
+    dim as TKREPORT_ITEM it
+    it.kind = TKRI_SPARKLINE
+    it.rc = rc
+    it.field = nField
+    it.opts = opts
+    return tkRBand_AddItem( band, it )
+end function

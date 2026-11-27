@@ -212,6 +212,8 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 | [tkChart](tkChart) | Draws line, area, column, bar, combo, HLOC, candlestick, scatter, bubble and pie charts. | `vendor/tkControls/tkChart` |
 | [tkPicture](tkPicture) | Shows an image, scaled or clipped to its area. | `vendor/tkControls/tkPicture` |
 | [tkBarcode](tkBarcode) | Draws 1D and 2D barcodes: EAN, UPC, Code 128, Code 39, QR, Data Matrix, PDF417, Aztec. | `vendor/tkControls/tkBarcode` |
+| [tkGauge](tkGauge) | Draws a radial or linear gauge, or a bullet graph: a value on a scale with ranges. | `vendor/tkControls/tkGauge` |
+| [tkSparkline](tkSparkline) | Draws a word-sized chart of one series: a line, an area, columns or win / loss. | `vendor/tkControls/tkSparkline` |
 | [tkBadge](tkBadge) | Draws a badge: a dot, a count, a short text or a presence mark, alone or on a control. | `vendor/tkControls/tkBadge` |
 | [tkAvatar](tkAvatar) | Draws a person's avatar: their photo, or their initials on a colour of their own. | `vendor/tkControls/tkAvatar` |
 | [tkAvatarGroup](tkAvatarGroup) | Draws a row of avatars, overlapping or apart, with a +N disc for the rest. | `vendor/tkControls/tkAvatarGroup` |

@@ -71,7 +71,7 @@ Libraries the toolchain ships in `vendor/`, each reached with one `#import` and 
 | [mxml](MXML-Tutorial) | Mini-XML, a small XML library: load a document into a tree, find, walk, change and build it, save it, or stream it through a SAX callback. |
 | [libpq](PostgreSQL-Tutorial) | libpq, PostgreSQL's client library, with TLS inside: connect, query with parameters, transactions, COPY, LISTEN / NOTIFY. |
 | [mariadb](MySQL-Tutorial) | MariaDB Connector/C, the `mysql.h` client API for MySQL and MariaDB servers: queries, prepared statements, transactions, TLS. Shared library only (LGPL). |
-| [miniaudio](Miniaudio-Tutorial) | miniaudio: play, record and decode sound (WAV, FLAC, MP3, Ogg Vorbis), an engine with mixing and effects. Not on Android. |
+| [miniaudio](Miniaudio-Tutorial) | miniaudio: play, record and decode sound (WAV, FLAC, MP3, Ogg Vorbis), an engine with mixing and effects. |
 | [pl_mpeg](PL-MPEG-Tutorial) | pl_mpeg: MPEG-1 video and MP2 audio decoding, for cutscenes and intros. |
 | [compression](Compression-Tutorial) | zlib (deflate, zlib, gzip and .gz files) with minizip (.zip), zstd, xz (liblzma), brotli, lz4 and bzip2, as one library: buffers, streams and archives. |
 | [Android](Android) | *Experimental.* `-target android-arm64` (phones) and `android-x86_64` (the emulator), built from Windows with the NDK; `-app` packs an SDL3 or tkControls program as a signed APK or an App Bundle; `TIKO_OS_ANDROID`; tkControls with touch, the safe area, BACK and the screen keyboard. Start with the [setup tutorial](Android-Setup-Tutorial). |

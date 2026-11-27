@@ -566,10 +566,8 @@ between threads through `ma_pcm_rb`, miniaudio's ring buffer.
 
 Both link as SQLite does, `link static` or `link dynamic`, and the dynamic default copies
 `miniaudio.dll` or `pl_mpeg.dll` (`.so` on Linux, `.dylib` on macOS) beside the program. miniaudio
-loads the platform's audio when a device opens, so it needs nothing installed either way. It does
-not yet run on Android, where five of its records are laid out differently from Linux's and the
-header translator has no Android pass to carry them; `#import "vendor/miniaudio"` there stops with
-an error that says so.
+loads the platform's audio when a device opens, so it needs nothing installed either way. On
+Android both are linked static.
 
 ## The finance library
 

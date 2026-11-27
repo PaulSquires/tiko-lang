@@ -1,10 +1,13 @@
 """vendor/miniaudio: the header 'tiko c2t' translates into ../miniaudio.ti, made from miniaudio.h.
 
     python -I prepare.py <miniaudio.h, 0.11.26> miniaudio.h
-    tiko c2t miniaudio.h -o ../miniaudio.ti --verify --shared-macro MA_DLL --sysroot //wsl.localhost/Ubuntu \n        --macos-sysroot ../../pl_mpeg/c2t-macsdk
+    tiko c2t miniaudio.h -o ../miniaudio.ti --verify --shared-macro MA_DLL --sysroot //wsl.localhost/Ubuntu
+        --macos-sysroot ../../pl_mpeg/c2t-macsdk
+        --android-sysroot <NDK>/toolchains/llvm/prebuilt/windows-x86_64/sysroot
 
-(the macOS pass, on Windows: the declaration half includes no system header but clang's own
-<stddef.h> and <stdarg.h>, so any sysroot serves -- pl_mpeg's stand-in is one).
+(one command line. The macOS pass, on Windows: the declaration half includes no system header
+but clang's own <stddef.h> and <stdarg.h>, so any sysroot serves -- pl_mpeg's stand-in is one.
+The Android passes, x86-64 and arm64, take the NDK's: claude-docs docs/tiko-vendor/RFC-0007).
 
 (the output keeps the name miniaudio.h, so the translation's banner and TODO lines name it).
 The library itself is built from the untouched header (build.sh); this one is c2t's alone.
@@ -19,8 +22,7 @@ RFC-0005 P0 (claude-docs docs/tiko-vendor/probes/av0, layout-check.*):
     the declarations MA_ATOMIC_SAFE_TYPE_DECL(...) invocations make; they become the typedef
     structs they expand to.
   - <pthread.h> -> opaque unions of the MEASURED sizes (pthread-sizes.c), per target -- the
-    table is in PTHREAD below; a target not measured is an #error, and so is Android (PTHREAD
-    says why). c2t maps no <pthread.h>, and without this every record holding a
+    table is in PTHREAD below; a target not measured is an #error. c2t maps no <pthread.h>, and without this every record holding a
     pthread type -- ma_context and ma_device among them -- is refused on the Linux pass.
     miniaudio's own MA_NO_PTHREAD_IN_HEADER is glibc x86-64's sizes for every POSIX target,
     which is wrong for glibc arm64 (mutex 48) and macOS (mutex 64).
@@ -56,12 +58,10 @@ PTHREAD = """        /* prepare.py (RFC-0005): pthread types as opaque unions of
                android         40/4    48/4    NDK 30, x86-64 and arm64
            pthread_t is 8/8 on all of them. */
         typedef ma_uintptr ma_pthread_t;
-        #if defined(TIKO_OS_ANDROID)
-            /* tiko's own name, not __ANDROID__: c2t takes __ANDROID__ as never true, having no
-               Android pass. And Android is not translated: five records -- ma_context, ma_device,
-               ma_event, ma_fence, ma_semaphore -- are laid out differently there (its backends,
-               and these 4-byte alignments), which only an Android pass would carry. */
-            #error "vendor/miniaudio is not translated for Android: c2t has no Android pass (RFC-0005 P3)"
+        #if defined(__ANDROID__)
+            /* First: Android defines __linux__ too. Bionic's are int32_t arrays, 4-aligned. */
+            typedef union ma_pthread_mutex_t { char __data[40]; ma_int32 __alignment; } ma_pthread_mutex_t;
+            typedef union ma_pthread_cond_t  { char __data[48]; ma_int32 __alignment; } ma_pthread_cond_t;
         #elif defined(__APPLE__)
             typedef union ma_pthread_mutex_t { char __data[64]; ma_uint64 __alignment; } ma_pthread_mutex_t;
             typedef union ma_pthread_cond_t  { char __data[48]; ma_uint64 __alignment; } ma_pthread_cond_t;

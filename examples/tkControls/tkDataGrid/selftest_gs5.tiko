@@ -1,0 +1,100 @@
+' tkDataGrid self-test, GS5 of docs/tkControls/GAUGE-SPARKLINE.md §9.2: SPARKLINE columns -- the cell's
+' text drawn as a sparkline (the theme's line colour; a selected row's fore colour), a shared range over
+' all the column's rows (worked out again when a cell changes), sorting by the last value (D-10), and
+' no editor. Included by selftest.tiko.
+
+' The cell's sparkline layout as the grid paints it: the cell rect minus the padding, the spec's kind,
+' n points, the range lo .. hi.
+sub SparkGeom_( byval g as TK_WIDGET ptr, byval row as integer, byval col as integer, byval nKind as int32, _
+                byval n as int32, byval lo as float64, byval hi as float64, byref s as TKSPARK_SPEC, byref geo as SP_GEOM )
+    dim as TKRECT rc
+    tkDataGrid_GetCellRect( g, row, col, rc )
+    dim as integer pad = tkHost_Scale( g->pHost, CDATAGRID_CELL_PAD )
+    rc.left += pad : rc.right -= pad
+    dim as TKSPARK_SPEC blank
+    s = blank
+    s.nKind = nKind : s.nCount = n : s.bAutoRange = false : s.fMin = lo : s.fMax = hi
+    tkSparkline_Layout( s, rc, g->pHost->fScale, geo )
+end sub
+
+sub RunGS5( byval fScale as float32 )
+    tkTest_Begin( "GS5 sparkline columns " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDataGrid selftest GS5", 640, 360, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 200 )
+    dim as boolean once = (fScale = 1.0)
+    dim as TK_WIDGET ptr g = tkDataGrid_Create( tkHost_Root( h ), 950 )
+    tkDataGrid_SetFont( g, f10 )
+    tkDataGrid_SetBorderWidth( g, 0 )
+    tkWidget_SetPos( g, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 560 ), tkHost_Scale( h, 300 ) )
+    ' a selected row's fore colour, pinned apart from anything the sparkline paints itself
+    const C_SELFORE = &hFFFF00FFul
+    dim as TKDATAGRID_COLORS gc
+    tkDataGrid_GetColors( g, @gc )
+    gc.ForeColor = C_SELFORE : gc.SelForeColor = C_SELFORE
+    tkDataGrid_SetColors( g, @gc )
+    dim as uint32 clrLine = tkSparkline_ThemeColors( tkTheme_Of( g ) ).LineColor and &hFFFFFFul
+    dim as integer cSpk = tkDataGrid_AddColumnEx( g, "Spark", TKDG_COL_SPARKLINE, 140 )
+    dim as integer cShr = tkDataGrid_AddColumnEx( g, "Shared", TKDG_COL_SPARKLINE, 140 )
+    dim as integer cSrt = tkDataGrid_AddColumnEx( g, "Sort", TKDG_COL_SPARKLINE, 140 )
+    dim as TKSPARK_SPEC sc
+    sc.nKind = TKSPARK_COLUMN
+    tkDataGrid_SetColumnSparkline( g, cSpk, sc, false )
+    tkDataGrid_SetColumnSparkline( g, cShr, sc, true )
+    tkDataGrid_SetRowCount( g, 3 )
+    for r as integer = 0 to 2 : tkDataGrid_SetCellText( g, r, cSpk, "0,10" ) : next
+    tkDataGrid_SetCellText( g, 0, cShr, "0,10" )
+    tkDataGrid_SetCellText( g, 1, cShr, "0,100" )
+    tkDataGrid_SetCellText( g, 0, cSrt, "5,1" )
+    tkDataGrid_SetCellText( g, 1, cSrt, "1,9" )
+    tkDataGrid_SetCellText( g, 2, cSrt, "3,3" )
+    tkDataGrid_SelectRows( g, 1, 1 )
+    tkTest_PumpFor( h, 60 )
+
+    if once then
+        dim as TKDATAGRID_COLUMN ci
+        tkDataGrid_GetColumnInfo( g, cSpk, ci )
+        dim as float64 lo, hi
+        dim as boolean b1 = tkDataGrid_GetColumnSparkRange( g, cShr, lo, hi ) andalso (lo = 0) andalso (hi = 100)
+        tkDataGrid_SetCellText( g, 1, cShr, "0,20" )
+        dim as boolean b2 = tkDataGrid_GetColumnSparkRange( g, cShr, lo, hi ) andalso (lo = 0) andalso (hi = 20)
+        tkDataGrid_SetCellText( g, 1, cShr, "0,100" )
+        tkTest_Check( "SPARKLINE: a text column; the shared range is the min / max over every row, again after a cell changes", _
+                      (ci.valueKind = TKDG_TEXT) andalso b1 andalso b2 andalso (tkDataGrid_GetColumnSparkRange( g, cSpk, lo, hi ) = false), _
+                      b1 & " " & b2 & " " & lo & ".." & hi )
+        dim as TKDG_SORTKEY k(0 to 0)
+        k(0).col = cSrt
+        tkDataGrid_SetSortKeys( g, k() )
+        tkTest_Check( "sorting a SPARKLINE column orders the rows by each series' last value (1, 3, 9)", _
+                      (tkDataGrid_ViewToModel( g, 0 ) = 0) andalso (tkDataGrid_ViewToModel( g, 1 ) = 2) andalso (tkDataGrid_ViewToModel( g, 2 ) = 1), _
+                      tkDataGrid_ViewToModel( g, 0 ) & " " & tkDataGrid_ViewToModel( g, 1 ) & " " & tkDataGrid_ViewToModel( g, 2 ) )
+        tkDataGrid_ClearSort( g )
+        tkTest_PumpFor( h, 30 )
+        dim as boolean bBegin = tkDataGrid_BeginEdit( g, 2, cSpk )
+        ClickCell( h, g, 2, cSpk, 0, 2 )
+        tkTest_PumpFor( h, 30 )
+        tkTest_Check( "a SPARKLINE cell is not editable: BeginEdit refuses, a double-click opens nothing", _
+                      (bBegin = false) andalso (tkDataGrid_IsEditing( g ) = false) )
+        tkDataGrid_SelectRows( g, 1, 1 )
+        tkTest_PumpFor( h, 30 )
+    end if
+
+    tkHost_RenderTo( h, false )
+    ' pixels: the second column of "0,10" fills the plot from its foot to its top
+    dim as TKSPARK_SPEC s
+    dim as SP_GEOM geo
+    SparkGeom_( g, 0, cSpk, TKSPARK_COLUMN, 2, 0, 10, s, geo )
+    dim as float32 x1 = tkSparkline_GeomIndexToX( s, geo, 1 ), yMid = tkSparkline_GeomValueToY( geo, 5 )
+    dim as uint32 p0 = Px( h, g, x1, yMid ), p1 = Px( h, g, x1, yMid + tkDataGrid_GetRowHeightPx( g ) )
+    tkTest_Check( "a SPARKLINE cell draws its series in the line colour; a selected row's in its fore colour", _
+                  (p0 = clrLine) andalso (p1 = (C_SELFORE and &hFFFFFFul)), hex( p0 ) & " " & hex( p1 ) & " want " & hex( clrLine ) )
+    ' shared: row 0's 10 on a 0..100 range is a short bar -- its middle is lit, the plot's middle is not
+    SparkGeom_( g, 0, cShr, TKSPARK_COLUMN, 2, 0, 100, s, geo )
+    x1 = tkSparkline_GeomIndexToX( s, geo, 1 )
+    dim as uint32 q0 = Px( h, g, x1, tkSparkline_GeomValueToY( geo, 5 ) ), q1 = Px( h, g, x1, tkSparkline_GeomValueToY( geo, 60 ) )
+    tkTest_Check( "a shared range draws each row on the column's range (10 of 100: a short bar)", (q0 = clrLine) andalso (q1 <> clrLine), _
+                  hex( q0 ) & " " & hex( q1 ) )
+    tkHost_Destroy( h )
+end sub

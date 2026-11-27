@@ -1,0 +1,17 @@
+'' RUN: 's &= s' -- a string appended to itself -- read the copy's source from the block the
+'' append had just reallocated away. Every row's differing-byte count is 0, as fbc's is.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/strcat-assign-self.bas -o tests/codegen/strcatassignself.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/strcatassignself.exe
+'' RUN: tests/codegen/strcatassignself.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: s &= s 1472 0
+'' EXPECT-RUN-OUT: s += s 1472 0
+'' EXPECT-RUN-OUT: s &= s & x 1535 0
+'' EXPECT-RUN-OUT: x.s &= x.s 1472 0
+'' EXPECT-RUN-OUT: r &= r 1472 0
+'' EXPECT-RUN-OUT: *p &= *p 1472 0
+'' EXPECT-RUN-OUT: u &= u 1472 0
+'' EXPECT-RUN-OUT: x.u &= x.u 1472 0

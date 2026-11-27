@@ -65,7 +65,8 @@ rptSales/
 ## The palettes
 
 - **Toolbox:**
-  - The item kinds (text, field, line, box, image, check, custom). Click one, then click in a band.
+  - The item kinds (text, field, line, box, image, check, custom, gauge, sparkline). Click one, then
+    click in a band.
   - `+ <band kind>` inserts a band. A group header adds a new innermost group level.
     `+ detail_report` adds a master-detail section under the selected detail band, over its source's
     child source, with its own report header, detail and report footer.
@@ -94,6 +95,25 @@ its group, and in the report footer the whole report.
 The expression editor checks as you type. It shows the expression's type (`= float`), or the first
 error and its column (`5: no field [Nope]`). Double-click a field, parameter or function to insert
 it.
+
+## Gauges and sparklines
+
+A **gauge** item shows a number and a **sparkline** item a series, from its `expr` (`[Score]`,
+`[Score] * 10`). A sparkline's series is text, numbers between commas or
+blanks with an empty entry for a missing point: `3,5,,2`. The item's font is used for the labels, the
+caption and a sparkline's last value. A gauge's value text is in that font, bold, at 1.5 times its
+size. On the canvas a gauge shows 60 % of its scale and a sparkline a sample series.
+
+Their settings are the `opts` property, `key=value` pairs separated by `;`:
+
+| Item | Keys |
+| --- | --- |
+| gauge | `shape` (radial, linear), `min`, `max`, `start`, `sweep`, `orient` (horizontal, vertical), `reverse`, `step`, `minor`, `hint`, `dec`, `scale` (inside, outside, none, both), `track`, `face`, `ranges`, `pointer` (needle, bar, marker), `width`, `origin`, `target`, `caption`, `prefix`, `suffix`, `value` (auto, center, below, none, end) |
+| sparkline | `kind` (line, area, column, winloss), `min` and `max` (both: a fixed range), `empty` (gap, zero, connect), `markers` (`high,low,first,last,negative,all`), `ref`, `band` (`40..60`), `last`, `dec`, `linewidth`, `markersize`, `gap`, `axis` |
+
+A value that holds `;` or `=` writes them as `%3B` and `%3D`, so a gauge's zones read
+`ranges=0..60=#2E7D32%3B60..100=#C62828`. `target` adds a marker at that value: a linear gauge with
+`pointer=bar;width=0.33`, zones and a `target` is a bullet graph.
 
 ## Data
 

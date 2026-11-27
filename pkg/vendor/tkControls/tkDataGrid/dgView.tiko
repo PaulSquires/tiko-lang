@@ -355,7 +355,7 @@ function DgAlignOf( byref c as const TKDATAGRID_COLUMN ) as long
     if c.align >= 0 then return c.align
     select case c.kind
     case TKDG_COL_NUMBER : return TKDG_ALIGN_RIGHT
-    case TKDG_COL_CHECK, TKDG_COL_PROGRESS, TKDG_COL_BUTTON : return TKDG_ALIGN_CENTER
+    case TKDG_COL_CHECK, TKDG_COL_PROGRESS, TKDG_COL_BUTTON, TKDG_COL_SPARKLINE : return TKDG_ALIGN_CENTER
     case TKDG_COL_TEXT
         if (c.valueKind = TKDG_INT) orelse (c.valueKind = TKDG_FLOAT) then return TKDG_ALIGN_RIGHT
     end select
@@ -375,7 +375,7 @@ function DgAutoWidth( byval p as TKDATAGRID_STATE ptr, byval col as integer, byv
     select case p->cols(col).c.kind
     case TKDG_COL_CHECK
         if DgScale( p, 14 ) + 2 * pad > wPx then wPx = DgScale( p, 14 ) + 2 * pad
-    case TKDG_COL_PROGRESS
+    case TKDG_COL_PROGRESS, TKDG_COL_SPARKLINE
         if p->cols(col).wPx > wPx then wPx = p->cols(col).wPx
     case else
         dim as integer first = DgFirstVisibleRow( p ), last = DgLastVisibleRow( p )
@@ -520,6 +520,8 @@ public sub tkDataGrid_PaintCellDefault( byval pi as TKDATAGRID_CELLPAINTINFO ptr
         DgPaintCheck( p, pi )
     case TKDG_COL_PROGRESS
         DgPaintProgress( p, pi )
+    case TKDG_COL_SPARKLINE
+        DgPaintSpark( p, pi )
     case TKDG_COL_BUTTON
         dim as TKRECT face = pi->rc
         dim as integer ins = DgScale( p, 3 )

@@ -37,6 +37,7 @@
 #import "vendor/tkControls/tkReportDef"
 #import "vendor/tkControls/tkBind"
 #import "vendor/tkControls/tkPrint"
+#import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkLayout"
 #import "vendor/tkControls/tkTheme"
 #import "vendor/tkControls/tkMeta"
@@ -3334,6 +3335,7 @@ DataGridSuite( bAccept )
 ReportCodegenSuite( bAccept )
 ReportEditsSuite( )
 ReportPalettesSuite( )
+ReportDataItemsSuite( )
 ReportDialogsSuite( )
 ReportWizardSuite( )
 print "designall selftest: "; gPass; " passed, "; gFail; " failed"

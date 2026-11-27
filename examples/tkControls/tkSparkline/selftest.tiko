@@ -307,7 +307,7 @@ sub RunPass( byval fScale as single )
         dim as TK_PRINTDOC ptr doc = tkPrintDoc_Create( "spark" )
         dim as TK_PAGE ptr pg = tkPrintDoc_AddPage( doc )
         dim as TKRECTF rf
-        tkRectF_Set( rf, 72, 72, 222, 102 )               ' 150 x 30 pt -> a 200 x 40 canvas, k = 0.75
+        tkRectF_Set( rf, 72, 72, 222, 102 )               ' 150 x 30 pt -> a 1500 x 300 canvas (10 px / pt), a design unit 7.5 px
         dim as float64 two(0 to 1) = { 0, 10 }
         dim as TKSPARK_SPEC ps
         ps.pValues = @two(0) : ps.nCount = 2 : ps.pColors = @pc
@@ -318,9 +318,10 @@ sub RunPass( byval fScale as single )
             tkPrintDoc_GetOp( doc, 0, i, oi )
             if (oi.op = TKREC_STROKEOPEN) andalso (oi.c = C_LINE) then bFound = true : exit for
         next
-        ' the first point: x = 72 + (2 + 3.5) * 0.75, y = 72 + (40 - 5.5) * 0.75; the pen 1.5 * 0.75
+        ' the first point: padding 2 + the LAST marker's radius 2.5 design units, plus the marker's one
+        ' canvas pixel (0.1 pt) of room: x = 72 + 4.5 * 0.75 + 0.1, y = 102 - that; the pen 1.5 * 0.75
         tkTest_Check( "PaintPage: the line on the page at its unsnapped point, pen in points", bOk andalso bFound _
-                      andalso Near( oi.x0, 76.125, 0.001 ) andalso Near( oi.y0, 97.875, 0.001 ) andalso Near( oi.w, 1.125, 0.001 ), _
+                      andalso Near( oi.x0, 75.475, 0.001 ) andalso Near( oi.y0, 98.525, 0.001 ) andalso Near( oi.w, 1.125, 0.001 ), _
                       bOk & " " & bFound & " p0 " & oi.x0 & "," & oi.y0 & " w " & oi.w )
         tkPrintDoc_Destroy( doc )
 
