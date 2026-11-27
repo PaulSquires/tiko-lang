@@ -1,0 +1,2 @@
+blocked: pin-0.1.8
+env: TIKO_SFTP_SERVER=127.0.0.1:2222 TIKO_SFTP_USER=tikoft TIKO_SFTP_PASSWORD=tikotest TIKO_SSH_KNOWN_HOSTS=known_hosts
