@@ -1,0 +1,127 @@
+#module "codecs"
+#import "std/fs"
+#import "std/outcome"
+#import "std/containers"
+using outcome
+using containers
+using fs
+'' vendor/compression/codecs: cdcalls -- one call: bytes, text and files.
+''
+'' (CompressBytes, not Compress: zlib's compress( ) is in the same scope, and tiko's names are
+'' case-blind.) Every one is the streams of cdstream.tiko over a MemoryStream or a File, so a buffer and a
+'' stream of the same data give the same bytes. The buffer calls copy (in and out); for data too
+'' large to hold twice, use the streams.
+
+'' bytes compressed with c (not CODEC_DETECT) at level.
+public function CompressBytes( bytes as Array( of ubyte ), byval c as Codec, byval level as integer = LEVEL_DEFAULT ) as BytesResult
+    dim as MemoryStream ms
+    scope
+        dim as CompressWriter w = CompressWriter( ms, c, level )
+        dim as FsResultBool r = w.WriteAll( bytes.Data( ), bytes.Count( ) )
+        if r.IsOk( ) = false then return Fail( of Array( of ubyte ), FsError )( r.Failure( ) )
+        r = w.Finish( )
+        if r.IsOk( ) = false then return Fail( of Array( of ubyte ), FsError )( r.Failure( ) )
+    end scope
+    dim as Array( of ubyte ) packed
+    ms.ToBytes( packed )
+    return Ok( of Array( of ubyte ), FsError )( packed )
+end function
+
+'' Read everything a DecompressReader gives into out, failing with FS_TOO_LARGE past limit bytes.
+private function ReadAll( byref r as DecompressReader, out_ as Array( of ubyte ), byval limit as longint ) as FsResultBool
+    do
+        dim as long have = out_.Count( )
+        if out_.Capacity( ) < have + CD_CHUNK then           '' grow by doubling, not by a chunk
+            out_.Reserve( iif( have > CD_CHUNK, have * 2, have + CD_CHUNK ) )
+        end if
+        dim as FsResultI64 n = r.Read( out_.Data( ) + have, CD_CHUNK )
+        if n.IsOk( ) = false then return Fail( of boolean, FsError )( n.Failure( ) )
+        if n.Value( ) = 0 then exit do
+        if have + n.Value( ) > limit then
+            return Fail( of boolean, FsError )( FsError( FS_TOO_LARGE, 0, _
+                CodecName( r.Format( ) ) & " decompress: more than " & limit & " bytes (the limit)", "" ) )
+        end if
+        out_.SetCount( have + n.Value( ) )
+    loop
+    return Ok( of boolean, FsError )( true )
+end function
+
+'' bytes decompressed; c = CODEC_DETECT reads the format from its first bytes. At most limit bytes come
+'' out (FS_TOO_LARGE past it): a small input can expand to gigabytes.
+public function DecompressBytes( bytes as Array( of ubyte ), byval c as Codec = CODEC_DETECT, _
+                            byval limit as longint = DEFAULT_LIMIT ) as BytesResult
+    dim as MemoryStream ms = MemoryStream( bytes )
+    dim as DecompressReader r = DecompressReader( ms, c )
+    dim as Array( of ubyte ) plain
+    dim as FsResultBool a = ReadAll( r, plain, limit )
+    if a.IsOk( ) = false then return Fail( of Array( of ubyte ), FsError )( a.Failure( ) )
+    return Ok( of Array( of ubyte ), FsError )( plain )
+end function
+
+'' s, as UTF-8, compressed.
+public function CompressText( byref s as const ustring, byval c as Codec, byval level as integer = LEVEL_DEFAULT ) as BytesResult
+    dim as MemoryStream ms = MemoryStream( s )
+    dim as Array( of ubyte ) bytes
+    ms.ToBytes( bytes )
+    return CompressBytes( bytes, c, level )
+end function
+
+'' bytes decompressed and read as UTF-8 text (invalid UTF-8 becomes U+FFFD, as ReadAllText does).
+public function DecompressText( bytes as Array( of ubyte ), byval c as Codec = CODEC_DETECT, _
+                                byval limit as longint = DEFAULT_LIMIT ) as FsResultUStr
+    dim as BytesResult b = DecompressBytes( bytes, c, limit )
+    if b.IsOk( ) = false then return Fail( of ustring, FsError )( b.Failure( ) )
+    dim as MemoryStream ms = MemoryStream( b.Value( ) )
+    return Ok( of ustring, FsError )( ms.ToUtf8Text( ) )
+end function
+
+'' The file src compressed into dst (created, or replaced). On a failure dst is removed.
+public function CompressFile( byref src as const ustring, byref dst as const ustring, byval c as Codec, _
+                              byval level as integer = LEVEL_DEFAULT ) as FsResultBool
+    dim as fs.File fin
+    dim as FsResultBool r = fin.OpenRead( src )
+    if r.IsOk( ) = false then return r
+    dim as fs.File fout
+    r = fout.Create( dst )
+    if r.IsOk( ) = false then return r
+    scope
+        dim as CompressWriter w = CompressWriter( fout, c, level )
+        dim as ubyte buf( 0 to CD_CHUNK - 1 )
+        do
+            dim as FsResultI64 n = fin.Read( @buf(0), CD_CHUNK )
+            if n.IsOk( ) = false then r = Fail( of boolean, FsError )( n.Failure( ) ) : exit do
+            if n.Value( ) = 0 then r = w.Finish( ) : exit do
+            r = w.WriteAll( @buf(0), n.Value( ) )
+            if r.IsOk( ) = false then exit do
+        loop
+    end scope
+    fout.Close( )
+    if r.IsOk( ) = false then RemoveFile( dst )
+    return r
+end function
+
+'' The compressed file src, decompressed into dst; c = CODEC_DETECT reads the format. No size limit: the
+'' output goes to disk, not memory. On a failure dst is removed.
+public function DecompressFile( byref src as const ustring, byref dst as const ustring, _
+                                byval c as Codec = CODEC_DETECT ) as FsResultBool
+    dim as fs.File fin
+    dim as FsResultBool r = fin.OpenRead( src )
+    if r.IsOk( ) = false then return r
+    dim as fs.File fout
+    r = fout.Create( dst )
+    if r.IsOk( ) = false then return r
+    scope
+        dim as DecompressReader d = DecompressReader( fin, c )
+        dim as ubyte buf( 0 to CD_CHUNK - 1 )
+        do
+            dim as FsResultI64 n = d.Read( @buf(0), CD_CHUNK )
+            if n.IsOk( ) = false then r = Fail( of boolean, FsError )( n.Failure( ) ) : exit do
+            if n.Value( ) = 0 then r = Ok( of boolean, FsError )( true ) : exit do
+            r = fout.WriteAll( @buf(0), n.Value( ) )
+            if r.IsOk( ) = false then exit do
+        loop
+    end scope
+    fout.Close( )
+    if r.IsOk( ) = false then RemoveFile( dst )
+    return r
+end function

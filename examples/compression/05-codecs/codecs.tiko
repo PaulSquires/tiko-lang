@@ -1,0 +1,113 @@
+'' codecs -- vendor/compression/codecs, the tiko layer over the seven libraries: a file packed in
+'' any format and unpacked again, with the format read from the file itself.
+''
+''     codecs pack FILE [FORMAT [LEVEL]]   FILE.gz, .zst, .xz, .br, .lz4 or .bz2 (default zstd)
+''     codecs unpack FILE.EXT              FILE, the format read from its first bytes (.br: by name)
+''     codecs info FILE                    what format a file is
+''
+'' FORMAT is gzip, zlib, zstd, xz, brotli, lz4 or bzip2; LEVEL a number, or fast or best.
+'' CompressFile and DecompressFile stream the file through 64 KB, so any size works; a damaged or
+'' cut file is reported, never unpacked into wrong bytes (zstd and lz4 frames carry checksums).
+''
+'' Build it with 'tiko codecs.tiko'. The libraries' licences are in
+'' pkg/vendor/compression/LICENSE; this example is public domain.
+#import "vendor/compression/codecs"
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+
+function FromName( byref s as const string, byref c as codecs.Codec ) as boolean
+    select case lcase( s )
+    case "gzip", "gz"   : c = codecs.CODEC_GZIP
+    case "zlib"         : c = codecs.CODEC_ZLIB
+    case "zstd", "zst"  : c = codecs.CODEC_ZSTD
+    case "xz"           : c = codecs.CODEC_XZ
+    case "brotli", "br" : c = codecs.CODEC_BROTLI
+    case "lz4"          : c = codecs.CODEC_LZ4
+    case "bzip2", "bz2" : c = codecs.CODEC_BZIP2
+    case else           : return false
+    end select
+    return true
+end function
+
+function Extension( byval c as codecs.Codec ) as string
+    select case c
+    case codecs.CODEC_GZIP   : return ".gz"
+    case codecs.CODEC_ZLIB   : return ".zz"
+    case codecs.CODEC_ZSTD   : return ".zst"
+    case codecs.CODEC_XZ     : return ".xz"
+    case codecs.CODEC_BROTLI : return ".br"
+    case codecs.CODEC_LZ4    : return ".lz4"
+    case codecs.CODEC_BZIP2  : return ".bz2"
+    end select
+    return ".bin"
+end function
+
+function FileBytes( byref path as const string ) as longint
+    dim as fs.File f
+    if f.OpenRead( path ).IsOk( ) = false then return -1
+    dim as fs.FsResultI64 n = f.Seek( 0, fs.SEEK_FROM_END )
+    return iif( n.IsOk( ), n.Value( ), -1 )
+end function
+
+function Percent( byval part as longint, byval whole as longint ) as string
+    if whole <= 0 then return "0.0"
+    dim as longint t = ( 1000 * part + whole \ 2 ) \ whole     '' tenths of a percent, rounded
+    return ( t \ 10 ) & "." & ( t mod 10 )
+end function
+
+sub Usage( )
+    print "usage: codecs pack FILE [gzip|zlib|zstd|xz|brotli|lz4|bzip2 [LEVEL|fast|best]]"
+    print "       codecs unpack FILE.EXT"
+    print "       codecs info FILE"
+    end 1
+end sub
+
+dim as string verb = command( 1 ), path = command( 2 )
+if path = "" then Usage( )
+
+select case verb
+case "pack"
+    dim as codecs.Codec c = codecs.CODEC_ZSTD
+    if command( 3 ) <> "" andalso FromName( command( 3 ), c ) = false then print "unknown format "; command( 3 ) : Usage( )
+    dim as integer level = codecs.LEVEL_DEFAULT
+    select case lcase( command( 4 ) )
+    case ""     :
+    case "fast" : level = codecs.LEVEL_FAST
+    case "best" : level = codecs.LEVEL_BEST
+    case else   : level = valint( command( 4 ) )
+    end select
+    dim as string dst = path & Extension( c )
+    dim as fs.FsResultBool r = codecs.CompressFile( path, dst, c, level )
+    if r.IsOk( ) = false then print "cannot pack "; path; ": "; r.Failure( ).Message( ); " -- "; r.Failure( ).Operation( ) : end 1
+    dim as longint a = FileBytes( path ), b = FileBytes( dst )
+    print path; " ("; a; " bytes) -> "; dst; " ("; b; " bytes, "; codecs.CodecName( c ); ", "; _
+          Percent( b, a ); "%)"
+
+case "unpack"
+    dim as integer dot = instrrev( path, "." )
+    if dot = 0 then print path; " has no extension to drop" : end 1
+    dim as string dst = left( path, dot - 1 )
+    '' Brotli has no magic number: its extension names it. Every other format is read from the data.
+    dim as codecs.Codec c = iif( lcase( mid( path, dot ) ) = ".br", codecs.CODEC_BROTLI, codecs.CODEC_DETECT )
+    dim as fs.FsResultBool r = codecs.DecompressFile( path, dst, c )
+    if r.IsOk( ) = false then print "cannot unpack "; path; ": "; r.Failure( ).Message( ); " -- "; r.Failure( ).Operation( ) : end 1
+    print path; " ("; FileBytes( path ); " bytes) -> "; dst; " ("; FileBytes( dst ); " bytes)"
+
+case "info"
+    dim as fs.File f
+    if f.OpenRead( path ).IsOk( ) = false then print "cannot read "; path : end 1
+    dim as containers.Array( of ubyte ) head
+    head.Reserve( 16 )
+    dim as fs.FsResultI64 n = f.Read( head.Data( ), 16 )
+    head.SetCount( iif( n.IsOk( ), n.Value( ), 0 ) )
+    dim as outcome.Optional( of codecs.Codec ) d = codecs.DetectFormat( head )
+    if d.HasValue( ) then
+        print path; ": "; codecs.CodecName( d.Value( ) ); " data"
+    else
+        print path; ": no format codecs can read from its first bytes (brotli has no magic number)"
+    end if
+
+case else
+    Usage( )
+end select

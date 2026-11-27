@@ -4,6 +4,10 @@
 ''                and decompresses it back, byte for byte: zlib, gzip through z_stream, zstd, xz,
 ''                brotli, lz4 (block and frame), bzip2, and a .zip written and read with minizip.
 ''   CORRUPT      one flipped byte in a valid stream: each codec reports an error, no crash.
+''   CODECS       the tiko layer, vendor/compression/codecs: every format through CompressBytes /
+''                DecompressBytes and through CompressWriter / DecompressReader in small pieces,
+''                DetectFormat, a mid-stream Flush, damage refused (the checksums it turns on),
+''                a cut stream, the size limit, bad arguments, text, files, the fixtures.
 ''   FIXTURES     ../fixtures/sample.txt as the REFERENCE tools compressed it (make-fixtures.sh:
 ''                gzip, zstd, xz, bzip2, Python's zipfile; brotli and lz4 when they were installed)
 ''                decodes to sample.txt exactly. A fixture that is not there is named and skipped.
@@ -14,6 +18,10 @@
 '' Build it with 'tiko selftest.tiko' ('link static' below: change it to try the other mode).
 '' The libraries' licences are in pkg/vendor/compression/LICENSE; this program is public domain.
 #import "vendor/compression" link static
+#import "vendor/compression/codecs"
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
 #include once "crt/string.bi"     '' memcmp
 
 const NB = 1 shl 18
@@ -244,6 +252,164 @@ sub Fixtures( byref dir_ as const string )
     end scope
 end sub
 
+'' ---- the codecs layer ------------------------------------------------------------------------
+function SameAs( byref a as containers.Array( of ubyte ), byval p as const ubyte ptr, byval n as longint ) as boolean
+    return a.Count( ) = n andalso memcmp( a.Data( ), p, n ) = 0
+end function
+
+function Pad8( byref s as const string ) as string
+    return left( s & "        ", 8 )
+end function
+
+sub CodecsLayer( byref dir_ as const string, byref fixdir as const string )
+    print "codecs layer:"
+    dim as containers.Array( of ubyte ) corpus
+    corpus.Reserve( NB )
+    memcpy( corpus.Data( ), @src(0), NB )
+    corpus.SetCount( NB )
+    dim as codecs.Codec all(0 to 7) = { codecs.CODEC_GZIP, codecs.CODEC_ZLIB, codecs.CODEC_DEFLATE, codecs.CODEC_ZSTD, _
+                                        codecs.CODEC_XZ, codecs.CODEC_BROTLI, codecs.CODEC_LZ4, codecs.CODEC_BZIP2 }
+    for k as integer = 0 to 7
+        dim as codecs.Codec c = all(k)
+        dim as string nm = codecs.CodecName( c )
+        '' named for the two with no magic number; detected for the rest
+        dim as codecs.Codec rd = iif( c = codecs.CODEC_DEFLATE orelse c = codecs.CODEC_BROTLI, c, codecs.CODEC_DETECT )
+        dim as codecs.BytesResult packed = codecs.CompressBytes( corpus, c )
+        dim as boolean ok = packed.IsOk( )
+        if packed.IsOk( ) then
+            dim as codecs.BytesResult back = codecs.DecompressBytes( packed.Value( ), rd )
+            ok = back.IsOk( ) andalso SameAs( back.Value( ), @src(0), NB )
+        end if
+        Check( ok, Pad8( nm ) & "CompressBytes / DecompressBytes" )
+
+        '' streams, written 1000 bytes and read 777 at a time
+        dim as fs.MemoryStream ms
+        scope
+            dim as codecs.CompressWriter w = codecs.CompressWriter( ms, c )
+            for i as integer = 0 to NB - 1 step 1000
+                w.WriteAll( @src(i), iif( NB - i < 1000, NB - i, 1000 ) )
+            next
+            ok = w.Finish( ).IsOk( )
+        end scope
+        ms.Seek( 0 )
+        dim as codecs.DecompressReader r = codecs.DecompressReader( ms, rd )
+        dim as containers.Array( of ubyte ) got
+        dim as ubyte piece( 0 to 776 )
+        do
+            dim as fs.FsResultI64 n = r.Read( @piece(0), 777 )
+            if n.IsOk( ) = false then ok = false : exit do
+            if n.Value( ) = 0 then exit do
+            for j as integer = 0 to n.Value( ) - 1 : got.Push( piece(j) ) : next
+        loop
+        Check( ok andalso SameAs( got, @src(0), NB ) andalso r.Format( ) = c, _
+               Pad8( nm ) & "CompressWriter / DecompressReader in pieces" )
+
+        if rd = codecs.CODEC_DETECT andalso packed.IsOk( ) then
+            dim as outcome.Optional( of codecs.Codec ) d = codecs.DetectFormat( packed.Value( ) )
+            Check( d.HasValue( ) andalso d.Value( ) = c, Pad8( nm ) & "DetectFormat" )
+        end if
+    next
+    scope
+        dim as codecs.BytesResult b = codecs.CompressBytes( corpus, codecs.CODEC_BROTLI )
+        Check( b.IsOk( ) andalso codecs.DetectFormat( b.Value( ) ).HasValue( ) = false, "brotli  DetectFormat finds nothing (no magic number)" )
+    end scope
+
+    '' a mid-stream Flush: what is in the stream so far decodes, then it is cut short
+    scope
+        dim as fs.MemoryStream ms
+        dim as codecs.CompressWriter w = codecs.CompressWriter( ms, codecs.CODEC_ZSTD )
+        w.WriteAll( @src(0), 5000 )
+        w.Flush( )
+        dim as containers.Array( of ubyte ) sofar
+        ms.ToBytes( sofar )
+        dim as fs.MemoryStream part = fs.MemoryStream( sofar )
+        dim as codecs.DecompressReader r = codecs.DecompressReader( part )
+        dim as containers.Array( of ubyte ) got
+        dim as ubyte piece( 0 to 9999 )
+        dim as fs.FsResultI64 n
+        do
+            n = r.Read( @piece(0), 10000 )
+            if n.IsOk( ) = false orelse n.Value( ) = 0 then exit do
+            for j as integer = 0 to n.Value( ) - 1 : got.Push( piece(j) ) : next
+        loop
+        Check( SameAs( got, @src(0), 5000 ) andalso n.IsOk( ) = false andalso n.Failure( ).Code( ) = fs.FS_UNEXPECTED_EOF, _
+               "zstd    after Flush: the 5000 bytes, then FS_UNEXPECTED_EOF" )
+        w.Finish( )
+    end scope
+
+    '' damage, with the checksums the layer turns on, and a cut stream
+    dim as codecs.Codec damaged(0 to 2) = { codecs.CODEC_ZSTD, codecs.CODEC_LZ4, codecs.CODEC_GZIP }
+    for k as integer = 0 to 2
+        dim as codecs.BytesResult b = codecs.CompressBytes( corpus, damaged(k) )
+        if b.IsOk( ) = false then Check( false, Pad8( codecs.CodecName( damaged(k) ) ) & "compress" ) : continue for
+        dim as containers.Array( of ubyte ) bad = b.Value( )
+        bad[ 40 ] xor= &h20                         '' inside the data: past every header
+        dim as codecs.BytesResult r = codecs.DecompressBytes( bad )
+        dim as string why = ""
+        if r.IsOk( ) = false then why = " (" & r.Failure( ).Operation( ) & ")"
+        Check( r.IsOk( ) = false andalso r.Failure( ).Code( ) = fs.FS_INVALID_DATA, _
+               Pad8( codecs.CodecName( damaged(k) ) ) & "one damaged byte: FS_INVALID_DATA" & why )
+    next
+    scope
+        dim as codecs.BytesResult b = codecs.CompressBytes( corpus, codecs.CODEC_XZ )
+        if b.IsOk( ) = false then Check( false, "xz      compress" ) : exit scope
+        dim as containers.Array( of ubyte ) cut_ = b.Value( )
+        cut_.SetCount( cut_.Count( ) \ 2 )
+        dim as codecs.BytesResult r = codecs.DecompressBytes( cut_ )
+        Check( r.IsOk( ) = false andalso r.Failure( ).Code( ) = fs.FS_UNEXPECTED_EOF, "xz      cut in half: FS_UNEXPECTED_EOF" )
+    end scope
+
+    '' the limit, and bad arguments
+    scope
+        dim as codecs.BytesResult b = codecs.CompressBytes( corpus, codecs.CODEC_ZSTD )
+        if b.IsOk( ) = false then Check( false, "limit   compress" ) : exit scope
+        dim as codecs.BytesResult r = codecs.DecompressBytes( b.Value( ), codecs.CODEC_DETECT, 100000 )
+        Check( r.IsOk( ) = false andalso r.Failure( ).Code( ) = fs.FS_TOO_LARGE, "limit   262144 bytes against a limit of 100000: FS_TOO_LARGE" )
+        dim as codecs.BytesResult d = codecs.CompressBytes( corpus, codecs.CODEC_DETECT )
+        Check( d.IsOk( ) = false andalso d.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT, "args    CompressBytes with CODEC_DETECT: FS_INVALID_ARGUMENT" )
+        dim as containers.Array( of ubyte ) junk
+        for i as integer = 1 to 100 : junk.Push( 7 ) : next
+        dim as codecs.BytesResult j = codecs.DecompressBytes( junk )
+        Check( j.IsOk( ) = false andalso j.Failure( ).Code( ) = fs.FS_INVALID_DATA, "args    DecompressBytes of no known format: FS_INVALID_DATA" )
+    end scope
+
+    '' text
+    scope
+        dim as ustring t = "na" & wchr( &hEF ) & "ve caf" & wchr( &hE9 ) & " " & wchr( &h2713 ) & " " & wstring( 200, wchr( asc( "z" ) ) )
+        dim as codecs.BytesResult b = codecs.CompressText( t, codecs.CODEC_BROTLI )
+        if b.IsOk( ) = false then Check( false, "text    compress" ) : exit scope
+        dim as fs.FsResultUStr back = codecs.DecompressText( b.Value( ), codecs.CODEC_BROTLI )
+        Check( back.IsOk( ) andalso back.Value( ) = t, "text    CompressText / DecompressText, non-ASCII through brotli" )
+    end scope
+
+    '' files
+    scope
+        dim as string plain = dir_ & "/codecs-plain.bin", packed = dir_ & "/codecs-plain.bin.xz", again = dir_ & "/codecs-again.bin"
+        dim as integer f = freefile
+        open plain for binary access write as #f : put #f, , src() : close #f
+        dim as fs.FsResultBool a = codecs.CompressFile( plain, packed, codecs.CODEC_XZ, codecs.LEVEL_FAST )
+        dim as fs.FsResultBool z = codecs.DecompressFile( packed, again )
+        dim as string one, two
+        LoadFile( plain, one ) : LoadFile( again, two )
+        Check( a.IsOk( ) andalso z.IsOk( ) andalso len( two ) = NB andalso one = two, "files   CompressFile / DecompressFile (xz, LEVEL_FAST)" )
+        kill plain : kill packed : kill again
+    end scope
+
+    '' the reference tools' files, through DecompressReader over an fs.File
+    dim as string want
+    if LoadFile( fixdir & "/sample.txt", want ) then
+        dim as const zstring ptr kinds(0 to 3) = { @"gz", @"zst", @"xz", @"bz2" }
+        for i as integer = 0 to 3
+            dim as fs.File f
+            dim as boolean ok = f.OpenRead( fixdir & "/sample.txt." & *kinds(i) ).IsOk( )
+            dim as codecs.DecompressReader r = codecs.DecompressReader( f )
+            dim as containers.Array( of ubyte ) got
+            ok = ok andalso r.ReadToEnd( got ).IsOk( )
+            Check( ok andalso SameAs( got, strptr( want ), len( want ) ), "fixture sample.txt." & *kinds(i) & " through DecompressReader" )
+        next
+    end if
+end sub
+
 dim as string fixdir = command( 1 )
 if fixdir = "" then fixdir = exepath( ) & "/../fixtures"
 print "vendor/compression: zlib "; *zlibVersion( ); ", zstd "; *ZSTD_versionString( ); ", xz "; *lzma_version_string( ); _
@@ -252,5 +418,6 @@ MakeCorpus( )
 RoundTrips( exepath( ) )
 CorruptInputs( )
 Fixtures( fixdir )
+CodecsLayer( exepath( ), fixdir )
 print "selftest: "; g_pass; " passed, "; g_fail; " failed"
 end iif( g_fail = 0, 0, 1 )
