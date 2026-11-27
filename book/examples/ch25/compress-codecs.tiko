@@ -1,0 +1,39 @@
+#import "vendor/compression/codecs"
+#import "std/fs"
+#import "std/containers"
+
+'' A log written through a CompressWriter: an fs.Stream in front of the file.
+scope
+    dim f as fs.File
+    f.Create( "app.log.gz" )
+    dim w as codecs.CompressWriter = codecs.CompressWriter( f, codecs.CODEC_GZIP )
+    for i as integer = 1 to 2000
+        w.WriteUtf8( "INFO request " & i & " served in " & ( i mod 17 ) & " ms" & !"\n" )
+    next
+    print "finished: "; w.Finish( ).IsOk( )
+end scope
+
+'' Read back through a DecompressReader: the format comes from the file's first bytes.
+scope
+    dim f as fs.File
+    f.OpenRead( "app.log.gz" )
+    dim r as codecs.DecompressReader = codecs.DecompressReader( f )
+    dim text as containers.Array( of ubyte )
+    dim n as fs.FsResultI64 = r.ReadToEnd( text )
+    if n.IsOk( ) then print "read:"; n.Value( ); " bytes of "; codecs.CodecName( r.Format( ) )
+end scope
+kill "app.log.gz"
+
+'' Bytes in one call, and a damaged copy refused: zstd frames carry a checksum here.
+dim plain as containers.Array( of ubyte )
+for i as integer = 1 to 4000
+    plain.Push( asc( "tiko " , 1 + i mod 5 ) )
+next
+dim packed as codecs.BytesResult = codecs.CompressBytes( plain, codecs.CODEC_ZSTD )
+if packed.IsOk( ) then
+    print "zstd:"; plain.Count( ); " bytes ->"; packed.Value( ).Count( )
+    dim bad as containers.Array( of ubyte ) = packed.Value( )
+    bad[ bad.Count( ) \ 2 ] xor= 1
+    dim back as codecs.BytesResult = codecs.DecompressBytes( bad )
+    if back.IsOk( ) = false then print "damaged: "; back.Failure( ).Message( ); " ("; back.Failure( ).Operation( ); ")"
+end if
