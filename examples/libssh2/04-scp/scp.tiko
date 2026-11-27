@@ -6,8 +6,7 @@
 '' The environment is 01-connect's; unset TIKO_SSH_HOST and the program says so and exits 0.
 '' The file is 'tiko-scp-example.bin' in the account's home; it is removed again. SCP is the old
 '' protocol, one file per command, and some servers have turned it off: prefer SFTP (02-sftp).
-'' Build it with 'tiko scp.tiko'. Windows and Linux: libssh2_scp_stat, the record scp_recv2
-'' fills, is not declared for macOS yet.
+'' Build it with 'tiko scp.tiko'.
 
 #import "vendor/libssh2" link dynamic
 #import "std/net"

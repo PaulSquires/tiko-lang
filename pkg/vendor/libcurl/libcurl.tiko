@@ -32,16 +32,16 @@
 '' transfer ends -- curl_slist_free_all after it.
 ''
 '' TLS: Schannel on Windows (the system's roots; a private CA without a CRL needs
-'' CURLSSLOPT_REVOKE_BEST_EFFORT in CURLOPT_SSL_OPTIONS), OpenSSL on Linux (give the roots with
-'' CURLOPT_CAINFO). SSH (SFTP, SCP): libssh2, inside -- verify the server with
+'' CURLSSLOPT_REVOKE_BEST_EFFORT in CURLOPT_SSL_OPTIONS), OpenSSL on Linux and macOS (give the
+'' roots with CURLOPT_CAINFO). SSH (SFTP, SCP): libssh2, inside -- verify the server with
 '' CURLOPT_SSH_KNOWNHOSTS; without it curl checks no host key.
 ''
 '' THE LIBRARY carries libssh2 and OpenSSL inside it -- nothing else to ship, and it imports no
 '' other vendor package: vendor/libssh2 beside it, in any link mode, is a separate copy. With
 '' 'link static' libcurl is linked into the program; with 'link dynamic' -- and when no '#import'
 '' says, which is this package's default -- the shared library, which tiko copies beside the
-'' program: libcurl.dll on Windows, libcurl_linux_x86_64.so on Linux. macOS and linux-arm64 have
-'' no library yet (claude-docs docs/tiko-vendor RFC-0004 P3).
+'' program: libcurl.dll on Windows, libcurl_linux_x86_64.so or libcurl_linux_arm64.so on Linux,
+'' libcurl_macos_arm64.dylib on macOS.
 #module "libcurl"
 
 public #include once "libcurl-types.ti"
@@ -53,6 +53,9 @@ public #include once "libcurl-residue.ti"
     #ifdef TIKO_OS_WINDOWS
         #foreignlib CURL static "lib/libcurl", "system:ws2_32", "system:crypt32", "system:secur32", _
                                 "system:bcrypt", "system:iphlpapi", "system:advapi32", "system:user32"
+    #elseifdef TIKO_OS_MACOS
+        '' curl's macos.c reads the system's proxy settings (RFC-0004 P3, measured).
+        #foreignlib CURL static "lib/libcurl", "framework:CoreFoundation", "framework:SystemConfiguration"
     #else
         #foreignlib CURL static "lib/libcurl", "system:pthread", "system:dl"
     #endif

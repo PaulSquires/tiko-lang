@@ -5,9 +5,10 @@
 ''     TIKO_FTP_HOST=files.example.com TIKO_FTP_USER=me TIKO_FTP_PASSWORD=... TIKO_FTP_CA=ca.crt ftps
 ''
 '' TIKO_FTP_CA is the CA certificate (PEM) the server's certificate must chain to; unset, the
-'' operating system's roots are used (Windows) or OpenSSL's default paths (Linux). The host name
-'' in TIKO_FTP_HOST must be one the certificate names. With TIKO_FTP_HOST unset the program says
-'' so and exits 0. Build it with 'tiko ftps.tiko'.
+'' operating system's roots are used (Windows) or OpenSSL's default paths (Linux, macOS). The host
+'' name in TIKO_FTP_HOST must be one the certificate names; it may carry the explicit port
+'' ('files.example.com:2121'). TIKO_FTPS_IMPLICIT_PORT is the implicit one, 990 when unset. With
+'' TIKO_FTP_HOST unset the program says so and exits 0. Build it with 'tiko ftps.tiko'.
 
 #import "vendor/libcurl" link dynamic
 #include once "crt/string.bi"                '' memcpy
@@ -64,9 +65,14 @@ print "explicit "; iif( rc = CURLE_OK, "ok, listing of " & len( sink ) & " bytes
 ok = ok andalso rc = CURLE_OK
 curl_easy_cleanup( h )
 
-'' IMPLICIT: ftps:// -- port 990 by default, encrypted from the start.
+'' IMPLICIT: ftps:// -- port 990 by default, encrypted from the start. The host without the
+'' explicit port TIKO_FTP_HOST may carry, then the implicit one if TIKO_FTPS_IMPLICIT_PORT gives it.
+dim as string host_ = gHost, iport = environ( "TIKO_FTPS_IMPLICIT_PORT" )
+dim as integer colon = instrrev( host_, ":" )
+if colon > 0 andalso instr( host_, ":" ) = colon then host_ = left( host_, colon - 1 )   '' one ':' -- not IPv6
+if len( iport ) then host_ &= ":" & iport
 sink = ""
-h = Handle( "ftps://" & gHost & "/", @sink, @errbuf )
+h = Handle( "ftps://" & host_ & "/", @sink, @errbuf )
 curl_setopt_long( h, CURLOPT_DIRLISTONLY, 1 )
 rc = curl_easy_perform( h )
 print "implicit "; iif( rc = CURLE_OK, "ok, listing of " & len( sink ) & " bytes", "failed: " & errbuf )

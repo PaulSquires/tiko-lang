@@ -21,7 +21,7 @@ TIKO_SSH_KNOWN_HOSTS=/home/me/.ssh/known_hosts
 | `01-connect` | TCP with `std/net`, the handshake and what it negotiated, the host key's fingerprint and its check against `known_hosts` (stopping when it does not match), the methods the server offers, key or password authentication |
 | `02-sftp` | `mkdir`, an upload, `stat`, a directory listing with each entry's attributes, a download compared with the upload, `rename`, `unlink`, `rmdir` |
 | `03-exec` | a remote command's standard output and standard error apart, and its exit status |
-| `04-scp` | a 300 000-byte binary file up with `libssh2_scp_send64` and down with `libssh2_scp_recv2` (its size, mode and time first); Windows and Linux |
+| `04-scp` | a 300 000-byte binary file up with `libssh2_scp_send64` and down with `libssh2_scp_recv2` (its size, mode and time first) |
 
 ## Things to know
 

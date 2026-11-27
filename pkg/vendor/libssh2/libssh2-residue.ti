@@ -9,10 +9,11 @@
 ''   libssh2_scp_send64  refused on every pass for time_t, which is 64 bits on all three targets
 ''                       (Windows' __time64_t, Linux's and macOS's long).
 ''   libssh2_scp_stat    the record libssh2_scp_recv2 fills -- c2t declares it only by name.
-''                       MEASURED (claude-docs probes/ft1/stat/statlayout.c): Windows _stati64,
-''                       56 bytes; Linux struct stat, 144. Only st_mode, st_size and st_mtime are
-''                       named; the rest is padding. Pass it as cast( libssh2_struct_stat ptr, @st ).
-''                       macOS: not measured yet (RFC-0004 P3) -- not declared there.
+''                       MEASURED (claude-docs probes/ft1/stat/statlayout.c, with each host's C
+''                       compiler): Windows _stati64 56 bytes; Linux x86-64 struct stat 144,
+''                       arm64 128 (glibc's generic layout: a different one); macOS 144, its
+''                       st_mtime before st_size (RFC-0004 P3). Only st_mode, st_size and st_mtime
+''                       are named; the rest is padding. Pass it as cast( libssh2_struct_stat ptr, @st ).
 ''   LIBSSH2_SSH_BANNER, LIBSSH2_SSH_DEFAULT_BANNER, LIBSSH2_SSH_DEFAULT_BANNER_WITH_CRLF
 ''                       C's string-literal concatenation, written with & (tiko joins no
 ''                       adjacent literals).
@@ -66,6 +67,16 @@ end extern
         as int64 st_mtime                       '' 40
         as ubyte _r3(0 to 7)
     end type
+#elseif defined(TIKO_OS_LINUX) and defined(TIKO_ARCH_ARM64)
+    type libssh2_scp_stat                       '' glibc aarch64 struct stat (the generic one): 128 bytes
+        as ubyte _r0(0 to 15)
+        as uint32 st_mode                       '' 16
+        as ubyte _r1(0 to 27)
+        as int64 st_size                        '' 48
+        as ubyte _r2(0 to 31)
+        as int64 st_mtime                       '' 88 (st_mtim.tv_sec)
+        as ubyte _r3(0 to 31)
+    end type
 #elseif defined(TIKO_OS_LINUX)
     type libssh2_scp_stat                       '' glibc x86-64 struct stat: 144 bytes
         as ubyte _r0(0 to 23)
@@ -75,6 +86,16 @@ end extern
         as ubyte _r2(0 to 31)
         as int64 st_mtime                       '' 88 (st_mtim.tv_sec)
         as ubyte _r3(0 to 47)
+    end type
+#elseif defined(TIKO_OS_MACOS)
+    type libssh2_scp_stat                       '' Darwin arm64 struct stat (64-bit inodes): 144 bytes
+        as ubyte _r0(0 to 3)
+        as uint16 st_mode                       '' 4
+        as ubyte _r1(0 to 41)
+        as int64 st_mtime                       '' 48 (st_mtimespec.tv_sec)
+        as ubyte _r2(0 to 39)
+        as int64 st_size                        '' 96
+        as ubyte _r3(0 to 39)
     end type
 #endif
 

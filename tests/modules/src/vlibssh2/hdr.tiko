@@ -17,11 +17,9 @@ rc += libssh2_channel_request_pty( ch, "vt100" ) + libssh2_channel_x11_req( ch, 
 dim as culong wr = libssh2_channel_window_read( ch ) + libssh2_channel_window_write( ch )
 dim as LIBSSH2_LISTENER ptr l = libssh2_channel_forward_listen( s, 8022 )
 ch = libssh2_scp_send64( s, "/tmp/x", &o644, 10, 0, 0 )
-#if defined(TIKO_OS_WINDOWS) or defined(TIKO_OS_LINUX)
 dim as libssh2_scp_stat st
 ch = libssh2_scp_recv2( s, "/tmp/x", cast( libssh2_struct_stat ptr, @st ) )
 print sizeof( st ), offsetof( libssh2_scp_stat, st_size ), st.st_mode, st.st_mtime
-#endif
 dim as LIBSSH2_SFTP ptr sf = libssh2_sftp_init( s )
 dim as LIBSSH2_SFTP_HANDLE ptr h = libssh2_sftp_open_ex( sf, "d", 1, 0, 0, LIBSSH2_SFTP_OPENDIR )
 dim as zstring * 256 nm

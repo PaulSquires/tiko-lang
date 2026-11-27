@@ -35,8 +35,8 @@
 '' THE LIBRARY: OpenSSL's libcrypto is inside it -- nothing else to ship. With 'link static'
 '' libssh2 and libcrypto are linked into the program; with 'link dynamic' -- and when no
 '' '#import' says, which is this package's default -- the shared library, which tiko copies
-'' beside the program: libssh2.dll on Windows, libssh2_linux_x86_64.so on Linux. macOS and
-'' linux-arm64 have no library yet (claude-docs docs/tiko-vendor RFC-0004 P3).
+'' beside the program: libssh2.dll on Windows, libssh2_linux_x86_64.so or libssh2_linux_arm64.so
+'' on Linux, libssh2_macos_arm64.dylib on macOS.
 #module "libssh2"
 
 public #include once "libssh2.ti"
