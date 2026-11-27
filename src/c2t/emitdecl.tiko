@@ -53,6 +53,30 @@ private sub Kids_( byref e as C2tEmit, byval c as Tko.CImport.CXCursor, byref v 
     dll = k.dll
 end sub
 
+'' THE SCOPED NAMES A #define MUST NOT TAKE. A record member or a parameter is no global name,
+'' so the name table never holds one; but tiko's preprocessor rewrites a name wherever it stands
+'' and without regard to case, so '#define CHARSET_DIR "charsets/"' turned mysql.h's member
+'' 'char *charset_dir' into a string and dropped it from the record (claude-docs RFC-0003 P0, F2).
+'' Every member and parameter of the header's own declarations, lower case, once each.
+const CK_PARM = 10
+
+private function MemberVisit_ cdecl _
+    ( byval c as Tko.CImport.CXCursor, byval parent as Tko.CImport.CXCursor, byval client as any ptr ) as int32
+    dim as C2tEmit ptr e = client
+    dim as int32 kind = e->api->getCursorKind( c )
+    if (kind = CK_FIELD) orelse (kind = CK_PARM) then
+        dim as string n = lcase( Tko.CImport.ClangText( *e->api, e->api->getCursorSpelling( c ) ) )
+        if len( n ) then
+            dim as boolean have = false
+            for i as int32 = 0 to e->memberNames.Count - 1
+                if e->memberNames[i] = n then have = true : exit for
+            next
+            if have = false then e->memberNames.Push( n )
+        end if
+    end if
+    return Tko.CImport.CXChildVisit_Recurse
+end function
+
 '' A NAME THE TRANSLATION CHANGED, for the banner (D19): kind, the C spelling, tiko's.
 private sub Ren_( byref e as C2tEmit, byref kind as string, byref cname as string, byref fb as string )
     if fb = cname then return
@@ -817,13 +841,16 @@ sub EmitInit( byref e as C2tEmit, byref api as Tko.CImport.ClangApi, byref x as 
     dim as boolean dll
     Kids_( e, api.getTranslationUnitCursor( p.tu ), top, dll )
     dim as any ptr mf = api.getFile( p.tu, strptr( src.path_ ) )
+    e.memberNames.Clear( )
     for i as int32 = 0 to top.Count - 1
         dim as Tko.CImport.CXSourceLocation loc = api.getCursorLocation( top[i] )
-        if api.Location_isFromMainFile( loc ) = 0 then
+        dim as boolean mine = (api.Location_isFromMainFile( loc ) <> 0)
+        if mine = false then
             dim as any ptr f = nullptr
             api.getExpansionLocation( loc, @f, nullptr, nullptr, nullptr )
-            if (f = nullptr) orelse (api.File_isEqual( f, mf ) = 0) then Written_( e, top[i] )
+            if (f = nullptr) orelse (api.File_isEqual( f, mf ) = 0) then Written_( e, top[i] ) else mine = true
         end if
+        if mine then api.visitChildren( top[i], @MemberVisit_, @e )
     next
 end sub
 
@@ -923,6 +950,10 @@ private function Translate_( byref e as C2tEmit, byref p as C2tPass, byref segId
                     continue for
                 end if
                 dim as string tn = FbName_( e, s.cur )
+                '' The typedef's own name may have moved too -- 'typedef struct pgNotify {...}
+                '' PGnotify' is one name twice to tiko, so the typedef is PGnotify_2 -- and the
+                '' banner says so (claude-docs RFC-0003 P0, F4).
+                Ren_( e, "type", Tko.CImport.CursorName( *e.x, s.cur ), tn )
                 if len( nm ) = 0 then nm = tn
                 if tn <> nm then tail &= chr( 10 ) & ind & "type " & tn & " as " & nm
                 named.Push( segIdx[i] )

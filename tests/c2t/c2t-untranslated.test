@@ -1,0 +1,6 @@
+'' tiko c2t: --verify of a header whose include has no translation yet is the user's next step, TKO0180, not the 'bug in tiko c2t' TKO0175 said (claude-docs RFC-0003 P0, F5).
+'' TEST: cli
+'' CLEAN: build/.c2t/untranslated
+'' ARGS: c2t tests/c2t/src/untranslated/top.h --verify -o build/.c2t/untranslated/top.ti
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0180: --verify: tests/c2t/src/untranslated/top.h includes 'inc/ext.ti', which has no translation yet; translate inc/ext.h into that place first

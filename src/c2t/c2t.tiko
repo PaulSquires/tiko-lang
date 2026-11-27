@@ -410,6 +410,26 @@ private function TargetIndex_( byref po as C2tPassOut ) as int32
     return 0
 end function
 
+'' THE TRANSLATION --verify COULD NOT OPEN, or "": the '...ti' a TKO0301 the check's compile
+'' reported since 'pend0' names. A header's includes are translated before it, into the same
+'' tree (D16); one that is not there yet is the user's next step, not a fault in the
+'' translation, so it is reported as such (TKO0180) rather than as the compile failure
+'' TKO0175 calls a bug in c2t (claude-docs RFC-0003 P0, F5: libpq-fe.h translated before
+'' postgres_ext.h). Only what the compile reached counts: an include under a branch it does
+'' not take is never opened.
+private function UntranslatedInclude_( byref ctx as Tko.CompilerContext, byval pend0 as int32 ) as string
+    for k as int32 = pend0 to ctx.diags.pending.Count - 1
+        if ctx.diags.pending[k].id <> Tko.TKO0301 then continue for
+        dim as string t = ctx.diags.pending[k].text
+        dim as int32 q2 = instrrev( t, "'" )
+        dim as int32 q1 = iif( q2 > 1, instrrev( t, "'", q2 - 1 ), 0 )
+        if q1 = 0 then continue for
+        dim as string inc = mid( t, q1 + 1, q2 - q1 - 1 )
+        if lcase( right( inc, 3 ) ) = ".ti" then return inc        '' not tiko's own crt/*.bi
+    next
+    return ""
+end function
+
 '' THE PASSES (D5): each target, Windows then Linux (then macOS), plain and then once per
 '' --pass. Their outputs merged into one file (merge.tiko); text 'todos' as Assemble counts them.
 private function Translate_( byref ctx as Tko.CompilerContext, byref api as Tko.CImport.ClangApi, _
@@ -641,8 +661,14 @@ private function Run_( byref args as Tko.StrVec, byref ctx as Tko.CompilerContex
             ctx.options.target = tg( ti )
             ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( tg( ti ) ) )
             dim as Tko.StrVec badName, badWhy
+            dim as int32 pend0 = ctx.diags.pending.Count
             if Tko.CImportDriver.VerifyLayout( ctx, text & chr( 10 ) & asserts, manifest, badName, badWhy ) = false then
-                ctx.diags.ReportGlobal( Tko.TKO0175, o.input_ & " (" & Tko.TargetName( tg( ti ) ) & ")" )
+                dim as string miss = UntranslatedInclude_( ctx, pend0 )
+                if len( miss ) then
+                    ctx.diags.ReportGlobal( Tko.TKO0180, o.input_, miss, left( miss, len( miss ) - 3 ) & ".h" )
+                else
+                    ctx.diags.ReportGlobal( Tko.TKO0175, o.input_ & " (" & Tko.TargetName( tg( ti ) ) & ")" )
+                end if
                 return 1
             end if
             for i as int32 = 0 to badName.Count - 1

@@ -1,0 +1,6 @@
+'' tiko c2t: a typedef named like its record but for case -- libpq-fe.h's 'typedef struct pgNotify {...} PGnotify' -- is renamed '_2', and the banner says so (claude-docs RFC-0003 P0, F4).
+'' TEST: cli
+'' CLEAN: build/.c2t/typedefcase
+'' ARGS: c2t tests/c2t/src/typedefcase.h --verify -o build/.c2t/typedefcase/typedefcase.ti
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.c2t/typedefcase/typedefcase.ti :: '' Renamed:\n''   type       PGnotify -> PGnotify_2   (case-insensitive collision)\n''\n'' Nothing needs manual translation.\n'' =============================================================================\n\n/' typedefcase.h -- a typedef named like its struct but for case: one name to tiko. '/\nextern "C"\n\ntype pgNotify\n    relname as zstring ptr\n    be_pid as int32\nend type\ntype PGnotify_2 as pgNotify\ndeclare function tc_notifies( ) as PGnotify_2 ptr\n\nend extern\n

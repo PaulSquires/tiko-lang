@@ -72,7 +72,7 @@ tls    TLS_AES_256_GCM_SHA384
 3. Untitled (unknown)
 ```
 
-- **`mysql_init`** makes the connection handle, a **`MYSQL ptr`**, and **`mysql_close`** frees it -- also after `mysql_real_connect` failed. `MYSQL` is opaque: hold the pointer, pass it on, and ask the API what it knows (`mysql_get_server_info`, `mysql_get_host_info`, `mysql_error`).
+- **`mysql_init`** makes the connection handle, a **`MYSQL ptr`**, and **`mysql_close`** frees it -- also after `mysql_real_connect` failed. `MYSQL`'s members are Connector/C's own, documented nowhere: hold the pointer, pass it on, and ask the API what it knows (`mysql_get_server_info`, `mysql_get_host_info`, `mysql_error`).
 - **Ask for `utf8mb4`**, with `MYSQL_SET_CHARSET_NAME` before connecting. Text then crosses as UTF-8 bytes: keep it in a `string`. MySQL's `utf8` is a three-byte subset that cannot hold every character.
 - **`mysql_query`** and `mysql_real_query` (which takes a length) return 0 for success; `mysql_errno` and `mysql_error` explain a failure. **`mysql_store_result`** reads a result into memory, `mysql_fetch_row` gives each row as an array of `zstring ptr`, `nullptr` for `NULL`, and `mysql_free_result` frees it. A row lives as long as its result.
 - A binary column can hold zero bytes, so its length is **`mysql_fetch_lengths( res )[column]`**, not the zstring's.
@@ -287,7 +287,7 @@ That is the licence's doing. Connector/C is under the **GNU LGPL 2.1**, which le
 | `2026 TLS/SSL error: ...` | the CA in `MYSQL_OPT_SSL_CA` did not sign the server's certificate, or the certificate's name does not match the host |
 | `3819 Check constraint ... is violated` (MySQL), `4025` (MariaDB) | a `check` refused the row; the transaction should roll back |
 | `lld-link: error: undefined symbol: mysql_port` | the program wrote `MYSQL_PORT`. tiko's names are case-insensitive, so that is `mysql.h`'s variable `mysql_port`, which the library does not export. Write `MARIADB_PORT` (3306); the constant itself is `MYSQL_PORT_2` |
-| the members of `MYSQL` are not declared | `MYSQL` is opaque in `vendor/mariadb`: use the API (`mysql_get_server_info`, `mysql_errno`, `mariadb_get_infov`) |
+| `TKO0743: 'protocol_version' is not declared` (or `'charset_dir'`) | each is named like a member of a `mysql.h` record, which a `#define` would rewrite (tiko's names are case-insensitive): they are `PROTOCOL_VERSION_2` and `CHARSET_DIR_2` |
 | the program exits at once with `-1073741515` (Windows) | `libmariadb.dll` is not beside the program; another copy on the `PATH`, from some other program, may be loaded in its place |
 
 ---

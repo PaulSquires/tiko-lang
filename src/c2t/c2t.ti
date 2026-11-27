@@ -230,6 +230,9 @@ type C2tEmit
     as string indOverride          '' see emitdecl.tiko, BaseIndent_
     as boolean useOverride
     renames as Tko.StrVec          '' the banner's rename list: 'kind  c -> tiko'
+    '' Every record member and parameter name the header itself declares, in lower case (EmitInit):
+    '' a #define may not take one, since it would rewrite the member or parameter too.
+    memberNames as Tko.StrVec
     '' emitmacro.tiko's verdict on each directive, by index: 0 untouched, 1 translated as
     '' dirText, 2 a TODO with dirReason/dirWhy.
     dirState as C2tIntVec

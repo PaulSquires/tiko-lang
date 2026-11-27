@@ -12,8 +12,8 @@
 '' THE HEADER is mariadb.ti, translated by 'tiko c2t' and committed. mysql.h is six headers
 '' that only work together, so flatten.py first writes them as one -- mariadb.h, the file the
 '' banner names by SHA-256 -- and c2t translates that. mariadb-residue.ti holds by hand what the
-'' translation could not carry; above all MYSQL, which is OPAQUE here: hold the MYSQL ptr that
-'' mysql_init returns and ask the API for what is in it.
+'' translation could not carry. MYSQL's members are Connector/C's own, documented nowhere: hold
+'' the MYSQL ptr that mysql_init returns and ask the API for what is in it.
 ''
 '' A query with a parameter, through a prepared statement -- never splice values into SQL text:
 ''

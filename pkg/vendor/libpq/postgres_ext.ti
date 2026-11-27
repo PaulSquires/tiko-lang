@@ -3,7 +3,7 @@
 ''   source sha256 : 7f2d7945243abf649e0c574457db63abd3b704603db245e15f2268e823154322
 ''   clang         : clang version 23.1.5 (https://github.com/llvm/llvm-project 392dfff97d29b59d77e5cac6d4b6ef2585fe7117)
 ''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
-''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../../macos-libc --verify
+''   options       : --sysroot //wsl.localhost/Ubuntu --macos-sysroot ../macos-libc --verify
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''

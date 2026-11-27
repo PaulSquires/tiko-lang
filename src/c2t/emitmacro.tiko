@@ -82,15 +82,24 @@ private function DecorationOnly_( byref e as C2tEmit, byval t1 as int32, byval t
     return any_
 end function
 
+'' A record member's or parameter's name, in any case (EmitInit's e.memberNames).
+private function MemberTaken_( byref e as C2tEmit, byref n as string ) as boolean
+    dim as string l = lcase( n )
+    for i as int32 = 0 to e.memberNames.Count - 1
+        if e.memberNames[i] = l then return true
+    next
+    return false
+end function
+
 '' A macro's tiko name: as C wrote it, '_' after a tiko word, '_2'... after a name anything
 '' holds -- a #define rewrites a name wherever it stands, so it may share it with nothing
-'' (TKO0371, P3's measurement).
+'' (TKO0371, P3's measurement): neither a global name nor a member or parameter one.
 private function MacroName_( byref e as C2tEmit, byref cname as string ) as string
     dim as string cand = cname
     if Tko.CImport.NameReservedValue( cname ) then cand = cname & "_"
-    if Tko.CImport.NameTaken( *e.x, cand ) then
+    if Tko.CImport.NameTaken( *e.x, cand ) orelse MemberTaken_( e, cand ) then
         dim as int32 k = 2
-        while Tko.CImport.NameTaken( *e.x, cname & "_" & k )
+        while Tko.CImport.NameTaken( *e.x, cname & "_" & k ) orelse MemberTaken_( e, cname & "_" & k )
             k += 1
         wend
         cand = cname & "_" & k

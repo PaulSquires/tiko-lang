@@ -462,8 +462,8 @@ that really is empty. Test **`PQgetisnull( r, row, column )`** first wherever a 
 ```
 
 **`mysql_init`** makes the connection handle, a `MYSQL ptr`, and **`mysql_close`** frees it,
-after a failed connect too. `MYSQL` is opaque: the program holds the pointer and asks the library
-for what is in it. **`MYSQL_SET_CHARSET_NAME`** asks for `utf8mb4` before connecting, so text
+after a failed connect too. Its members are Connector/C's own, documented nowhere: the program
+holds the pointer and asks the library for what is in it. **`MYSQL_SET_CHARSET_NAME`** asks for `utf8mb4` before connecting, so text
 crosses as UTF-8 bytes in both directions; MySQL's older `utf8` is a three-byte subset.
 
 A **prepared statement** takes its values through **`MYSQL_BIND`** records, one per `?`. Each says
