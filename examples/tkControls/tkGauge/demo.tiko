@@ -1,7 +1,9 @@
-' tkGauge demo (phase GS2, radial): a speedometer (270 degrees, ranges, needle, outside labels), a
-' 180-degree KPI (a bar and a target marker), a whole-circle progress ring (a bar, the value at the
-' centre, no scale), a +-50 bar from 0 with tapered ranges, and a small widgetless gauge. Values
-' move every 1.5 s, eased over 600 ms; click a gauge to send it a new value at once.
+' tkGauge demo (phases GS2, GS3). Radial: a speedometer (270 degrees, ranges, needle, outside
+' labels), a 180-degree KPI (a bar and a target marker), a whole-circle progress ring (a bar, the
+' value at the centre, no scale), a +-50 bar from 0 with tapered ranges, and a small widgetless
+' gauge. Linear: two bullet graphs (qualitative bands, a third-width bar, a target marker), a
+' needle over a tapered range with ticks both sides, a reversed bar, a vertical thermometer and a
+' vertical bullet. Values move every 1.5 s, eased over 600 ms; click a gauge for a new value.
 '
 '   demo                     interactive
 '   demo --shot out.bmp      render once, save the window, exit
@@ -16,14 +18,15 @@ const TIMER_MOVE = TK_TIMER_APP + 1
 
 dim shared as TK_HOST ptr gHost
 dim shared as TTF_Font ptr gFont, gBig
-dim shared as TK_WIDGET ptr gG(0 to 3)
+const NG = 10
+dim shared as TK_WIDGET ptr gG(0 to NG - 1)
 
 function S_( byval v as int32 ) as int32
     return tkHost_Scale( gHost, v )
 end function
 
 sub NewValues( byval only as TK_WIDGET ptr = 0 )
-    for i as int32 = 0 to 3
+    for i as int32 = 0 to NG - 1
         if (only <> 0) andalso (gG(i) <> only) then continue for
         dim as float64 lo = tkGauge_GetMin( gG(i) ), hi = tkGauge_GetMax( gG(i) )
         tkGauge_SetValue( gG(i), lo + rnd * (hi - lo) )
@@ -80,8 +83,9 @@ private sub SaveShot( byref path as string )
     end if
 end sub
 
-function Add( byval id as int32, byval x as int32, byval y as int32, byval cw as int32, byval ch as int32 ) as TK_WIDGET ptr
-    dim as TK_WIDGET ptr w = tkGauge_Create( tkHost_Root( gHost ), id )
+function Add( byval id as int32, byval x as int32, byval y as int32, byval cw as int32, byval ch as int32, _
+              byval nShape as int32 = TKGAUGE_RADIAL ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr w = tkGauge_Create( tkHost_Root( gHost ), id, nShape )
     tkWidget_SetPos( w, S_( x ), S_( y ), S_( cw ), S_( ch ) )
     tkGauge_SetFont( w, gFont )
     tkGauge_SetValueFont( w, gBig )
@@ -94,7 +98,7 @@ end function
 if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 randomize 11
-gHost = tkHost_Create( "tkGauge on SDL3", 880, 380, tkHost_FontDir() & TK_FONT_UI, val( ArgValue( "--scale" ) ) )
+gHost = tkHost_Create( "tkGauge on SDL3", 880, 670, tkHost_FontDir() & TK_FONT_UI, val( ArgValue( "--scale" ) ) )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 dim as TKTHEME_COLORS t = tkTheme_Of( tkHost_Root( gHost ) )
 gHost->clrBack = t.Window
@@ -145,13 +149,81 @@ tkGauge_AddRange( gG(3), 25, 50, tkRGB( 60, 140, 70 ) )
 tkGauge_SetRangeWidth( gG(3), 1, 0.3, 1 )
 tkGauge_SetCaption( gG(3), "Balance" )
 
+' ---- linear --------------------------------------------------------------------------------
+' a bullet graph: three grey bands, the measure a third-width bar, the target a marker
+sub Bullet( byval w as TK_WIDGET ptr, byval fMax as float64, byval fTarget as float64 )
+    tkGauge_SetRange( w, 0, fMax )
+    tkGauge_AddRange( w, 0, fMax * 0.5, tkRGB( 74, 80, 90 ) )
+    tkGauge_AddRange( w, fMax * 0.5, fMax * 0.8, tkRGB( 96, 102, 112 ) )
+    tkGauge_AddRange( w, fMax * 0.8, fMax, tkRGB( 120, 126, 136 ) )
+    tkGauge_SetPointerWidth( w, 0, 1 / 3 )
+    dim as int32 iT = tkGauge_AddPointer( w, TKGAUGE_PTR_MARKER )
+    tkGauge_SetPointerValue( w, iT, fTarget )
+    tkGauge_SetPointerColor( w, iT, tkRGB( 235, 235, 235 ) )
+    tkGauge_SetDecimals( w, 0 )
+end sub
+
+gG(4) = Add( 5, 10, 395, 420, 52, TKGAUGE_LINEAR )
+Bullet( gG(4), 300, 250 )
+tkGauge_SetCaption( gG(4), "Revenue" )
+tkGauge_SetPrefix( gG(4), "$" )
+tkGauge_SetSuffix( gG(4), "k" )
+
+gG(5) = Add( 6, 10, 455, 420, 52, TKGAUGE_LINEAR )
+Bullet( gG(5), 100, 80 )
+tkGauge_SetCaption( gG(5), "Satisfaction" )
+tkGauge_SetSuffix( gG(5), " %" )
+
+' a needle over a tapered "loudness" range, ticks above and below
+gG(6) = Add( 7, 10, 515, 420, 84, TKGAUGE_LINEAR )
+tkGauge_SetRange( gG(6), -60, 0 )
+tkGauge_SetPointerKind( gG(6), 0, TKGAUGE_PTR_NEEDLE )
+tkGauge_SetScalePlacement( gG(6), TKGAUGE_SCALE_BOTH )
+tkGauge_SetMajorStep( gG(6), 10 )
+tkGauge_AddRange( gG(6), -60, 0, tkRGB( 60, 140, 70 ) )
+tkGauge_SetRangeWidth( gG(6), 0, 0.15, 1 )
+tkGauge_AddRange( gG(6), -12, 0, tkRGB( 192, 70, 70 ) )
+tkGauge_SetRangeWidth( gG(6), 1, 0.8, 1 )
+tkGauge_SetCaption( gG(6), "Level" )
+tkGauge_SetSuffix( gG(6), " dB" )
+tkGauge_SetDecimals( gG(6), 0 )
+
+' a reversed bar: the scale runs right to left
+gG(7) = Add( 8, 10, 610, 420, 48, TKGAUGE_LINEAR )
+tkGauge_SetReverse( gG(7), true )
+tkGauge_SetCaption( gG(7), "Reversed" )
+tkGauge_SetDecimals( gG(7), 0 )
+
+' a vertical thermometer and a vertical bullet
+gG(8) = Add( 9, 560, 395, 100, 260, TKGAUGE_LINEAR )
+tkGauge_SetOrientation( gG(8), TKGAUGE_VERTICAL )
+tkGauge_SetRange( gG(8), -20, 40 )
+tkGauge_SetMajorStep( gG(8), 10 )
+tkGauge_SetBarOrigin( gG(8), 0 )
+tkGauge_SetPointerWidth( gG(8), 0, 0.5 )
+tkGauge_SetPointerColor( gG(8), 0, tkRGB( 210, 80, 70 ) )
+tkGauge_SetCaption( gG(8), "Outside" )
+tkGauge_SetSuffix( gG(8), " C" )
+tkGauge_SetShowFace( gG(8), true )
+
+gG(9) = Add( 10, 680, 395, 90, 260, TKGAUGE_LINEAR )
+tkGauge_SetOrientation( gG(9), TKGAUGE_VERTICAL )
+Bullet( gG(9), 10, 7 )
+tkGauge_SetCaption( gG(9), "Rating" )
+
 ' first values: no easing for the opening frame
-for i as int32 = 0 to 3 : tkGauge_SetAnimation( gG(i), 0 ) : next
+for i as int32 = 0 to NG - 1 : tkGauge_SetAnimation( gG(i), 0 ) : next
 tkGauge_SetValue( gG(0), 96 )
 tkGauge_SetValue( gG(1), 62 )
 tkGauge_SetValue( gG(2), 68 )
 tkGauge_SetValue( gG(3), 18 )
-for i as int32 = 0 to 3 : tkGauge_SetAnimation( gG(i), 600 ) : next
+tkGauge_SetValue( gG(4), 215 )
+tkGauge_SetValue( gG(5), 71 )
+tkGauge_SetValue( gG(6), -18 )
+tkGauge_SetValue( gG(7), 35 )
+tkGauge_SetValue( gG(8), 12.5 )
+tkGauge_SetValue( gG(9), 6.2 )
+for i as int32 = 0 to NG - 1 : tkGauge_SetAnimation( gG(i), 600 ) : next
 
 dim as TK_WIDGET ptr mover = tkWidget_CreateChild( tkHost_Root( gHost ), 99, @MoveProc, 0 )
 tkWidget_SetPos( mover, 0, 0, 0, 0 )

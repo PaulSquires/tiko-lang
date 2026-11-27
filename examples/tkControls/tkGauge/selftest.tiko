@@ -1,4 +1,4 @@
-' tkGauge self-test (phase GS2, radial; GAUGE-SPARKLINE.md §3, §6.1), one check per distinct
+' tkGauge self-test (phases GS2 radial, GS3 linear; GAUGE-SPARKLINE.md §3, §6), one check per distinct
 ' behaviour. Real windows; two passes, scale pinned at 1.0 and 1.75. Scale-free rules (the step,
 ' the ranges' text, angles, stored-as-given values, the tooltip order, animation, the page,
 ' pinning) run in the first pass only; geometry and pixels in both. Colours are pinned to distinct
@@ -78,14 +78,42 @@ function OnTip( byval hGauge as TK_WIDGET ptr, byval v as float64 ) as ustring
     return "v=" & v
 end function
 
-function Make( byval x as int32, byval y as int32, byval cw as int32, byval ch as int32 ) as TK_WIDGET ptr
+function Make( byval x as int32, byval y as int32, byval cw as int32, byval ch as int32, _
+               byval nShape as int32 = TKGAUGE_RADIAL ) as TK_WIDGET ptr
     static as int32 nId = 100
     nId += 1
-    dim as TK_WIDGET ptr w = tkGauge_Create( tkHost_Root( gH ), nId )
+    dim as TK_WIDGET ptr w = tkGauge_Create( tkHost_Root( gH ), nId, nShape )
     tkWidget_SetPos( w, tkHost_Scale( gH, x ), tkHost_Scale( gH, y ), tkHost_Scale( gH, cw ), tkHost_Scale( gH, ch ) )
     dim as TKGAUGE_COLORS c = Pinned( )
     tkGauge_SetColors( w, @c )
     return w
+end function
+
+function Pos_( byval w as TK_WIDGET ptr, byval v as float64 ) as float32
+    return tkGauge_ValueToPos( w, v )
+end function
+
+' Every shown label inside the control and apart from its neighbours.
+function LabelsOk( byval w as TK_WIDGET ptr, byref geo as GG_GEOM ) as boolean
+    dim as int32 prev = -1
+    for i as int32 = 0 to geo.nMajor - 1
+        if geo.labOn(i) = false then continue for
+        if (geo.labRc(i).left < 0) orelse (geo.labRc(i).top < 0) orelse (geo.labRc(i).right > w->cw) orelse (geo.labRc(i).bottom > w->ch) then return false
+        if (prev >= 0) andalso (tkRect_IsEmpty( tkRect_Intersect( geo.labRc(prev), geo.labRc(i) ) ) = false) then return false
+        prev = i
+    next
+    return geo.nLabShown >= 2
+end function
+
+' Every shown label wholly on one side of an across coordinate (+1: beyond c, -1: before it).
+function LabelsBeyond( byref geo as GG_GEOM, byval c as float32, byval sg as int32 ) as boolean
+    for i as int32 = 0 to geo.nMajor - 1
+        if geo.labOn(i) = false then continue for
+        dim as float32 lo = iif( geo.bVert, geo.labRc(i).left, geo.labRc(i).top ), hi = iif( geo.bVert, geo.labRc(i).right, geo.labRc(i).bottom )
+        if (sg > 0) andalso (lo < c) then return false
+        if (sg < 0) andalso (hi > c) then return false
+    next
+    return true
 end function
 
 function AnyInk( byval w as TK_WIDGET ptr, byref rc as TKRECT, byval clr as uint32 ) as boolean
@@ -277,6 +305,101 @@ sub RunPass( byval fScale as single )
                   andalso (geo.rcCaption.top >= geo.rcValue.bottom) andalso AnyInk( w, geo.rcValue, C_VAL ) andalso AnyInk( w, geo.rcCaption, C_CAP ), _
                   "value " & geo.rcValue.top & ".." & geo.rcValue.bottom & " hub " & (geo.cy + geo.hubR) & " caption " & geo.rcCaption.top )
 
+    ' ---- linear (GS3) ----------------------------------------------------------------------------------
+    dim as TK_WIDGET ptr wl = Make( 10, 240, 400, 70, TKGAUGE_LINEAR )
+    tkGauge_SetFont( wl, fText )
+    tkGauge_GetGeom( wl, geo )
+    dim as float32 gapT = TKGAUGE_TICKGAP * fScale
+    if once then
+        dim as float32 x0 = Pos_( wl, 0 ), x1 = Pos_( wl, 100 )
+        dim as boolean bH = (tkGauge_GetPointerKind( wl, 0 ) = TKGAUGE_PTR_BAR) andalso (tkGauge_GetOrientation( wl ) = TKGAUGE_HORIZONTAL) _
+                            andalso (x0 < x1) andalso Near( Pos_( wl, 50 ), (x0 + x1) / 2 ) andalso (Pos_( wl, 150 ) = x1) andalso (Pos_( wl, -5 ) = x0)
+        tkGauge_SetReverse( wl, true )
+        dim as boolean bR = (Pos_( wl, 0 ) = x1) andalso (Pos_( wl, 100 ) = x0)
+        tkGauge_SetReverse( wl, false )
+        tkGauge_SetOrientation( wl, TKGAUGE_VERTICAL )
+        dim as boolean bV = Pos_( wl, 0 ) > Pos_( wl, 100 )
+        tkGauge_SetOrientation( wl, TKGAUGE_HORIZONTAL )
+        tkTest_Check( "linear ValueToPos: a BAR by default, Min left, Max right, clamped; Reverse swaps the ends; vertical: Min at the bottom", _
+                      bH andalso bR andalso bV, x0 & ".." & x1 & " " & bH & bR & bV )
+    end if
+    tkTest_Check( "linear NEAR: the track inside the padding, labels below it, centred on their ticks, inside the control and apart", _
+                  geo.bLinear andalso (geo.c0 >= pad - 0.5) andalso (geo.c1 <= wl->ch - pad + 0.5) andalso LabelsBeyond( geo, geo.c1, 1 ) _
+                  andalso LabelsOk( wl, geo ) andalso Near( (geo.labRc(0).left + geo.labRc(0).right) / 2, geo.p0, 1 ), _
+                  "track " & geo.c0 & ".." & geo.c1 & " lab0 " & geo.labRc(0).left & ".." & geo.labRc(0).right & " p0 " & geo.p0 & " shown " & geo.nLabShown )
+    tkGauge_SetScalePlacement( wl, TKGAUGE_SCALE_FAR )
+    tkGauge_GetGeom( wl, geo )
+    dim as boolean bFar = LabelsBeyond( geo, geo.c0, -1 ) andalso LabelsOk( wl, geo )
+    tkGauge_SetScalePlacement( wl, TKGAUGE_SCALE_BOTH )
+    tkGauge_GetGeom( wl, geo )
+    dim as float32 xT = Pos_( wl, 20 ), dT = gapT + TKGAUGE_MAJORLEN * fScale / 2
+    tkTest_Check( "linear FAR: labels above the track; BOTH: ticks above and below, labels below", bFar _
+                  andalso (Px( wl, xT, geo.c0 - dT ) = C_TICK) andalso (Px( wl, xT, geo.c1 + dT ) = C_TICK) andalso LabelsBeyond( geo, geo.c1, 1 ), _
+                  bFar & " " & hex( Px( wl, xT, geo.c0 - dT ) ) & " " & hex( Px( wl, xT, geo.c1 + dT ) ) )
+    tkGauge_SetScalePlacement( wl, TKGAUGE_SCALE_NEAR )
+
+    dim as TK_WIDGET ptr wv = Make( 430, 240, 90, 300, TKGAUGE_LINEAR )
+    tkGauge_SetOrientation( wv, TKGAUGE_VERTICAL )
+    tkGauge_SetFont( wv, fText )
+    tkGauge_SetValueFont( wv, fBig )
+    tkGauge_SetCaption( wv, "Temp" )
+    tkGauge_SetValue( wv, 40 )
+    tkGauge_GetGeom( wv, geo )
+    tkTest_Check( "linear vertical: Min at the bottom, labels left of the track, the caption above it and the value text below", _
+                  (geo.p0 > geo.p1) andalso LabelsBeyond( geo, geo.c0, -1 ) andalso LabelsOk( wv, geo ) andalso (geo.rcCaption.bottom <= geo.p1) _
+                  andalso (geo.rcValue.top >= geo.p0) andalso (geo.rcValue.bottom <= wv->ch) andalso AnyInk( wv, geo.rcValue, C_VAL ), _
+                  "p " & geo.p0 & ".." & geo.p1 & " caption " & geo.rcCaption.bottom & " value " & geo.rcValue.top & ".." & geo.rcValue.bottom )
+
+    dim as TK_WIDGET ptr wb = Make( 10, 330, 400, 60, TKGAUGE_LINEAR )
+    tkGauge_SetFont( wb, fText )
+    tkGauge_AddRange( wb, 0, 60, C_RNG1 )
+    tkGauge_AddRange( wb, 60, 100, C_RNG2 )
+    tkGauge_SetPointerWidth( wb, 0, 1 / 3 )
+    tkGauge_SetValue( wb, 50 )
+    dim as int32 iTg = tkGauge_AddPointer( wb, TKGAUGE_PTR_MARKER )
+    tkGauge_SetPointerValue( wb, iTg, 75 )
+    tkGauge_GetGeom( wb, geo )
+    dim as float32 cc = (geo.c0 + geo.c1) / 2
+    tkTest_Check( "bullet graph: ranges fill the track, the BAR a third of it from Min, the target MARKER across two thirds", _
+                  (Px( wb, Pos_( wb, 30 ), cc ) = C_BAR) andalso (Px( wb, Pos_( wb, 30 ), geo.c0 + 1 ) = C_RNG1) _
+                  andalso (Px( wb, Pos_( wb, 85 ), cc ) = C_RNG2) andalso (Px( wb, Pos_( wb, 75 ), cc ) = C_MARK) _
+                  andalso (Px( wb, Pos_( wb, 75 ), geo.c0 + 1 ) = C_RNG2), hex( Px( wb, Pos_( wb, 30 ), cc ) ) & " " _
+                  & hex( Px( wb, Pos_( wb, 30 ), geo.c0 + 1 ) ) & " " & hex( Px( wb, Pos_( wb, 75 ), cc ) ) & " " & hex( Px( wb, Pos_( wb, 75 ), geo.c0 + 1 ) ) )
+    tkGauge_ClearRanges( wb )
+    dim as int32 iTr = tkGauge_AddRange( wb, 60, 100, C_RNG2 )
+    tkGauge_SetRangeWidth( wb, iTr, 0.3, 1 )
+    tkTest_Check( "linear taper: a range grows from the scale's edge (the track shows across its narrow end)", _
+                  (Px( wb, Pos_( wb, 62 ), geo.c1 - 1 ) = C_RNG2) andalso (Px( wb, Pos_( wb, 62 ), geo.c0 + 1 ) = C_TRCK), _
+                  hex( Px( wb, Pos_( wb, 62 ), geo.c1 - 1 ) ) & " " & hex( Px( wb, Pos_( wb, 62 ), geo.c0 + 1 ) ) )
+
+    dim as TK_WIDGET ptr wn = Make( 10, 410, 400, 70, TKGAUGE_LINEAR )
+    tkGauge_SetFont( wn, fText )
+    tkGauge_SetPointerKind( wn, 0, TKGAUGE_PTR_NEEDLE )
+    tkGauge_SetValue( wn, 40 )
+    tkGauge_GetGeom( wn, geo )
+    dim as float32 xn = Pos_( wn, 40 )
+    tkTest_Check( "linear NEEDLE: a triangle above the track (the side without labels), its tip on the track's edge", _
+                  (geo.needFar > 0) andalso (geo.needNear = 0) andalso (Px( wn, xn, geo.c0 - geo.needH * 0.6 ) = C_NEED) _
+                  andalso (Px( wn, xn, (geo.c0 + geo.c1) / 2 ) = C_TRCK) andalso (Px( wn, xn, geo.c0 - geo.needH - 2 ) = C_BACK), _
+                  hex( Px( wn, xn, geo.c0 - geo.needH * 0.6 ) ) & " " & hex( Px( wn, xn, (geo.c0 + geo.c1) / 2 ) ) & " " & hex( Px( wn, xn, geo.c0 - geo.needH - 2 ) ) )
+    tkGauge_SetValueFont( wn, fBig )
+    tkGauge_SetSuffix( wn, " %" )
+    tkGauge_SetCaption( wn, "Load" )
+    tkGauge_GetGeom( wn, geo )
+    dim as float32 pEnd = geo.p1
+    tkGauge_SetValue( wn, 100 )
+    tkGauge_GetGeom( wn, geo )
+    tkTest_Check( "linear text: the caption left of the track, the value text right of it, both inked; the track holds still as the value widens", _
+                  (geo.rcCaption.right <= geo.p0) andalso (geo.rcValue.left >= geo.p1) andalso AnyInk( wn, geo.rcCaption, C_CAP ) _
+                  andalso AnyInk( wn, geo.rcValue, C_VAL ) andalso (geo.p1 = pEnd) andalso (geo.rcValue.right <= wn->cw), _
+                  "caption .." & geo.rcCaption.right & " p " & geo.p0 & ".." & geo.p1 & " (was " & pEnd & ") value " & geo.rcValue.left & ".." & geo.rcValue.right )
+    tkGauge_SetValue( wn, 40 )
+    tkGauge_SetEnabled( wn, false )
+    tkGauge_GetGeom( wn, geo )
+    xn = Pos_( wn, 40 )
+    tkTest_Check( "linear disabled: the pointer in ForeColorDisabled", Px( wn, xn, geo.c0 - geo.needH * 0.6 ) = C_DIS, hex( Px( wn, xn, geo.c0 - geo.needH * 0.6 ) ) )
+    tkGauge_SetEnabled( wn, true )
+
     ' ---- click, disabled ---------------------------------------------------------------------------------
     tkGauge_SetClickCallback( w, @OnClick )
     dim as TKRECT a
@@ -320,6 +443,27 @@ sub RunPass( byval fScale as single )
         next
         tkTest_Check( "PaintPage: the track stroked and the needle's tip at its unsnapped point", bOk andalso bTrack andalso bNeedle, _
                       bOk & " track " & bTrack & " needle " & bNeedle & " want " & tx & "," & ty )
+        tkPrintDoc_Destroy( doc )
+        ' a linear gauge on a page: a needle's tip lands at its unsnapped along position
+        doc = tkPrintDoc_Create( "linear" )
+        pg = tkPrintDoc_AddPage( doc )
+        tkRectF_Set( rf, 72, 72, 372, 102 )               ' 300 x 30 pt -> a 400 x 40 px canvas, k = 0.75
+        pp.fValue = 37 : pp.nKind = TKGAUGE_PTR_NEEDLE
+        dim as TKGAUGE_SPEC pl
+        pl.nShape = TKGAUGE_LINEAR : pl.pPointers = @pp : pl.nPointers = 1 : pl.pColors = @pc : pl.nScale = TKGAUGE_SCALE_NONE
+        bOk = tkGauge_PaintPage( pg, rf, pl )
+        tkRect_Set( cr, 0, 0, 400, 40 )
+        pl.fScale = 1
+        tkGauge_Layout( pl, cr, 1, geo )
+        tx = 72 + tkGauge_GeomValueToPos( pl, geo, 37 ) * 0.75 : ty = 72 + geo.c0 * 0.75
+        dim as boolean bTip = false, bLTrack = false
+        for i as int32 = 0 to tkPrintDoc_GetOpCount( doc, 0 ) - 1
+            tkPrintDoc_GetOp( doc, 0, i, oi )
+            if (oi.op = TKREC_FILLPOLY) andalso (oi.c = C_TRCK) then bLTrack = true
+            if (oi.op = TKREC_FILLPOLY) andalso (oi.c = C_NEED) then bTip = Near( oi.x0, tx, 0.01 ) andalso Near( oi.y0, ty, 0.01 )
+        next
+        tkTest_Check( "PaintPage linear: the track filled and the needle's tip at its unsnapped point", bOk andalso bLTrack andalso bTip, _
+                      bOk & " track " & bLTrack & " tip " & bTip & " want " & tx & "," & ty )
         tkPrintDoc_Destroy( doc )
         dim as TKGAUGE_COLORS cNow
         tkGauge_ApplyTheme( w, tkTheme_Light( ) )

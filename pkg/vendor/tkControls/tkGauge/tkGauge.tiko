@@ -4,9 +4,9 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' tkGauge -- a radial (and, from GS3, linear) gauge: one scale, coloured ranges, several pointers
+' tkGauge -- a radial or linear gauge: one scale, coloured ranges, several pointers
 ' (needle, bar, marker), major / minor ticks with labels, the value as text and a caption. New in
-' tkControls; the design is C:\dev\docs\tkControls\GAUGE-SPARKLINE.md §3 and §6 (phase GS2).
+' tkControls; the design is C:\dev\docs\tkControls\GAUGE-SPARKLINE.md §3 and §6 (phases GS2, GS3).
 '
 ' THIS FILE draws one, with or without a widget: the spec, the 1-2-5 step, the ranges' text form,
 ' tkGauge_Layout (one GG_GEOM that the painter and the probes read), the painter,
@@ -41,19 +41,35 @@ public enum
     TKGAUGE_PTR_MARKER
 end enum
 
-' Radial: ticks and labels inside the track (toward the hub) or outside it.
+' A linear gauge's long axis. HORIZONTAL runs Min at the left, VERTICAL Min at the bottom
+' (SetReverse flips either).
+public enum
+    TKGAUGE_HORIZONTAL = 0
+    TKGAUGE_VERTICAL
+end enum
+
+' Radial: ticks and labels inside the track (toward the hub) or outside it; BOTH reads as INSIDE.
+' Linear: NEAR (= INSIDE) is below a horizontal track and left of a vertical one -- a chart's
+' axis sides; FAR (= OUTSIDE) the other side; BOTH ticks both sides, labels on the near one.
+' Needles (triangles) sit on the side without labels.
 public enum
     TKGAUGE_SCALE_INSIDE = 0
     TKGAUGE_SCALE_OUTSIDE
     TKGAUGE_SCALE_NONE
+    TKGAUGE_SCALE_BOTH
 end enum
+public const as int32 TKGAUGE_SCALE_NEAR = TKGAUGE_SCALE_INSIDE
+public const as int32 TKGAUGE_SCALE_FAR  = TKGAUGE_SCALE_OUTSIDE
 
-' AUTO: below the hub for an arc under 300 degrees, at the centre otherwise.
+' Radial AUTO: below the hub for an arc under 300 degrees, at the centre otherwise; END reads as
+' BELOW. Linear: anything but NONE is END -- right of a horizontal track, below a vertical one
+' (the caption is left of it / above it), whichever way the scale runs.
 public enum
     TKGAUGE_VALUE_AUTO = 0
     TKGAUGE_VALUE_CENTER
     TKGAUGE_VALUE_BELOW
     TKGAUGE_VALUE_NONE
+    TKGAUGE_VALUE_END
 end enum
 
 public const as int32 TKGAUGE_DECIMALS_AUTO = -1
@@ -110,6 +126,8 @@ end type
 ' borrowed arrays.
 public type TKGAUGE_SPEC
     nShape       as int32 = TKGAUGE_RADIAL
+    nOrient      as int32 = TKGAUGE_HORIZONTAL   ' linear
+    bReverse     as boolean                      ' linear: Max at the left / the bottom
     fMin         as float64 = 0
     fMax         as float64 = 100
     pPointers    as TKGAUGE_POINTER ptr
@@ -123,7 +141,7 @@ public type TKGAUGE_SPEC
     nMinorCount  as int32 = TKGAUGE_DEFAULT_MINORCOUNT
     nDecimals    as int32 = TKGAUGE_DECIMALS_AUTO
     nScale       as int32 = TKGAUGE_SCALE_INSIDE
-    fTrackWidth  as float32 = TKGAUGE_DEFAULT_TRACKWIDTH
+    fTrackWidth  as float32 = TKGAUGE_DEFAULT_TRACKWIDTH   ' radial; a linear track fills what its scale leaves
     bShowFace    as boolean
     bBarOrigin   as boolean               ' FALSE: bars grow from Min
     fBarOrigin   as float64
@@ -140,8 +158,23 @@ public type TKGAUGE_SPEC
     pColors      as TKGAUGE_COLORS ptr    ' 0 = the app theme's
 end type
 
-' The layout: widget-local EDGE coordinates. One for the painter and the probes.
+' The layout: widget-local EDGE coordinates. One for the painter and the probes. A linear gauge
+' is laid out on two axes: ALONG (x when horizontal, y when vertical) and ACROSS (the other).
 public type GG_GEOM
+    bLinear    as boolean
+    bVert      as boolean
+    p0         as float32           ' linear: Min's and Max's along positions (p0 > p1 when reversed / vertical)
+    p1         as float32
+    c0         as float32           ' linear: the track's across edges, c0 < c1 (tw = c1 - c0)
+    c1         as float32
+    nearSgn    as int32             ' linear: +1 when the near side is c1's (horizontal), -1 when c0's
+    bTickNear  as boolean           ' linear: ticks on the near / far side (labels: near only)
+    bTickFar   as boolean
+    needNear   as float32           ' linear: room kept for needle triangles on that side
+    needFar    as float32
+    needH      as float32           ' linear: a needle triangle's height and half base
+    needB      as float32
+    rcFace     as TKRECT            ' linear: the face's box
     cx         as float32
     cy         as float32
     r          as float32           ' the track's outer radius
@@ -275,9 +308,162 @@ private function GgFull( byref s as TKGAUGE_SPEC ) as boolean
 end function
 
 private function GgValueMode( byref s as TKGAUGE_SPEC ) as int32
+    if s.nValueText = TKGAUGE_VALUE_NONE then return TKGAUGE_VALUE_NONE
+    if s.nShape = TKGAUGE_LINEAR then return TKGAUGE_VALUE_END
+    if s.nValueText = TKGAUGE_VALUE_END then return TKGAUGE_VALUE_BELOW
     if s.nValueText <> TKGAUGE_VALUE_AUTO then return s.nValueText
     return iif( abs( s.fSweep ) < 300, TKGAUGE_VALUE_BELOW, TKGAUGE_VALUE_CENTER )
 end function
+
+' Linear: the along position of value v (clamped); a collapsed scale puts everything at Min.
+public function tkGauge_GeomValueToPos( byref s as TKGAUGE_SPEC, byref geo as GG_GEOM, byval v as float64 ) as float32
+    if abs( s.fMax - s.fMin ) < 1e-12 then return geo.p0
+    return geo.p0 + (geo.p1 - geo.p0) * (GgClamp( s, v ) - s.fMin) / (s.fMax - s.fMin)
+end function
+
+' Labels thinned to every n-th while neighbours overlap.
+private sub GgThin( byref geo as GG_GEOM )
+    dim as int32 stride = 1
+    while stride < geo.nMajor
+        dim as boolean bHit = false
+        dim as int32 prev = -1
+        for i as int32 = 0 to geo.nMajor - 1 step stride
+            if (prev >= 0) andalso (tkRect_IsEmpty( tkRect_Intersect( geo.labRc(prev), geo.labRc(i) ) ) = false) then bHit = true : exit for
+            prev = i
+        next
+        if bHit = false then exit while
+        stride += 1
+    wend
+    geo.nLabShown = 0
+    for i as int32 = 0 to geo.nMajor - 1
+        geo.labOn(i) = ((i mod stride) = 0)
+        if geo.labOn(i) then geo.nLabShown += 1
+    next
+end sub
+
+' A box from along a0..a1 and across b0..b1 (either order).
+private sub GgLinBox( byref geo as GG_GEOM, byref rc as TKRECT, byval a0 as float32, byval a1 as float32, byval b0 as float32, byval b1 as float32 )
+    if a0 > a1 then swap a0, a1
+    if b0 > b1 then swap b0, b1
+    if geo.bVert then
+        tkRect_Set( rc, cint( b0 ), cint( a0 ), cint( b1 ), cint( a1 ) )
+    else
+        tkRect_Set( rc, cint( a0 ), cint( b0 ), cint( a1 ), cint( b1 ) )
+    end if
+end sub
+
+' The linear layout (from tkGauge_Layout, the majors and the label strings made).
+private sub GgLayoutLinear( byref s as TKGAUGE_SPEC, byref rc as TKRECT, byref geo as GG_GEOM, byval vw as float32, _
+                            byval vh as float32, byval cw as float32, byval ch as float32 )
+    dim as float32 k = geo.fScale
+    dim as float32 gap = TKGAUGE_TICKGAP * k, majLen = TKGAUGE_MAJORLEN * k, tgap = TKGAUGE_TEXTGAP * k
+    geo.bLinear = true
+    geo.bVert = (s.nOrient = TKGAUGE_VERTICAL)
+    dim as boolean bv = geo.bVert
+    geo.nearSgn = iif( bv, -1, 1 )
+    geo.bTickNear = (s.nScale = TKGAUGE_SCALE_NEAR) orelse (s.nScale = TKGAUGE_SCALE_BOTH)
+    geo.bTickFar = (s.nScale = TKGAUGE_SCALE_FAR) orelse (s.nScale = TKGAUGE_SCALE_BOTH)
+    if geo.nMajor = 0 then geo.bTickNear = false : geo.bTickFar = false
+    ' the labels' extents: along (centred on their tick) and across (stacked beyond it)
+    dim as float32 labAlong = 0, labAcross = 0
+    dim as boolean bLabels = (s.fText <> 0) andalso (geo.bTickNear orelse geo.bTickFar)
+    if bLabels then
+        dim as float32 lh = tkText_Height( s.fText )
+        for i as int32 = 0 to geo.nMajor - 1
+            dim as float32 lw = tkText_Width( s.fText, geo.labS(i) )
+            dim as float32 la = iif( bv, lh, lw ), lc = iif( bv, lw, lh )
+            if la > labAlong then labAlong = la
+            if lc > labAcross then labAcross = lc
+        next
+    end if
+    ' needles: a triangle beside the track, on the side without labels
+    dim as float32 fwN = 0
+    for i as int32 = 0 to s.nPointers - 1
+        if s.pPointers[i].bVisible andalso (s.pPointers[i].nKind = TKGAUGE_PTR_NEEDLE) andalso (s.pPointers[i].fWidth > fwN) then fwN = s.pPointers[i].fWidth
+    next
+    geo.needH = 1.5 * TKGAUGE_NEEDLEWIDTH * k * fwN
+    geo.needB = 0.75 * TKGAUGE_NEEDLEWIDTH * k * fwN
+    dim as boolean bNeedNear = (geo.bTickNear = false) andalso geo.bTickFar
+    if bNeedNear then geo.needNear = geo.needH else geo.needFar = geo.needH
+    ' across: [low side][track][high side]; the near side is high when horizontal
+    dim as float32 sideNear = geo.needNear, sideFar = geo.needFar
+    if geo.bTickNear then sideNear += gap + majLen + iif( bLabels, gap + labAcross, 0 )
+    if geo.bTickFar then sideFar += gap + majLen + iif( bLabels andalso (geo.bTickNear = false), gap + labAcross, 0 )
+    dim as float32 m = s.nPadding * k
+    tkRect_Set( geo.rcFace, cint( rc.left + m ), cint( rc.top + m ), cint( rc.right - m ), cint( rc.bottom - m ) )
+    if s.bShowFace then m += 2 * k
+    dim as float32 xLo = rc.left + m, xHi = rc.right - m, yLo = rc.top + m, yHi = rc.bottom - m
+    dim as float32 aLo = iif( bv, yLo, xLo ), aHi = iif( bv, yHi, xHi )
+    dim as float32 bLo = iif( bv, xLo, yLo ), bHi = iif( bv, xHi, yHi )
+    dim as float32 lowW = iif( bv, sideNear, sideFar ), highW = iif( bv, sideFar, sideNear )
+    geo.c0 = cint( bLo + lowW )
+    geo.c1 = cint( bHi - highW )
+    if geo.c1 - geo.c0 < 1 then geo.c1 = geo.c0 + 1
+    geo.tw = geo.c1 - geo.c0
+    ' along: [caption][track][value text]; the end labels and needle bases kept inside
+    dim as float32 capA = iif( bv, ch, cw )
+    dim as float32 valA = 0
+    if vw > 0 then
+        valA = iif( bv, vh, vw )
+        if (bv = false) andalso (s.fValueFont <> 0 orelse s.fText <> 0) then
+            ' room for the widest value the scale can show, so the track does not move with it
+            dim as TTF_Font ptr fv = iif( s.fValueFont <> 0, s.fValueFont, s.fText )
+            dim as float32 w0 = tkText_Width( fv, s.sPrefix & tkGauge_FormatValue( s.fMin, s.nDecimals ) & s.sSuffix )
+            dim as float32 w1 = tkText_Width( fv, s.sPrefix & tkGauge_FormatValue( s.fMax, s.nDecimals ) & s.sSuffix )
+            if w0 > valA then valA = w0
+            if w1 > valA then valA = w1
+        end if
+    end if
+    dim as float32 tLo = aLo + iif( capA > 0, capA + tgap, 0 ), tHi = aHi - iif( valA > 0, valA + tgap, 0 )
+    dim as float32 inset = labAlong / 2
+    if geo.needB > inset then inset = geo.needB
+    if tLo < aLo + inset then tLo = aLo + inset
+    if tHi > aHi - inset then tHi = aHi - inset
+    tLo = cint( tLo ) : tHi = cint( tHi )
+    if tHi - tLo < 1 then tHi = tLo + 1
+    ' Min at the left (horizontal) or the bottom (vertical); Reverse flips
+    dim as boolean bMinLow = not bv
+    if s.bReverse then bMinLow = not bMinLow
+    geo.p0 = iif( bMinLow, tLo, tHi ) : geo.p1 = iif( bMinLow, tHi, tLo )
+    ' labels beyond the ticks: on the near side, or the far one for a FAR scale
+    if bLabels then
+        dim as float32 lh = tkText_Height( s.fText )
+        dim as int32 sg = iif( geo.bTickNear, geo.nearSgn, -geo.nearSgn )
+        dim as float32 edge = iif( sg > 0, geo.c1, geo.c0 )
+        dim as float32 st = edge + sg * (iif( geo.bTickNear, geo.needNear, geo.needFar ) + gap + majLen + gap)
+        for i as int32 = 0 to geo.nMajor - 1
+            dim as float32 lw = tkText_Width( s.fText, geo.labS(i) )
+            dim as float32 la = iif( bv, lh, lw ), lc = iif( bv, lw, lh )
+            dim as float32 pa = tkGauge_GeomValueToPos( s, geo, geo.majors(i) )
+            dim as float32 a0 = cint( pa - la / 2 )
+            GgLinBox( geo, geo.labRc(i), a0, a0 + cint( la ), st, st + sg * cint( lc ) )
+        next
+        GgThin( geo )
+    end if
+    ' the caption before the track, the value text after it, centred on the track across
+    dim as float32 cc = (geo.c0 + geo.c1) / 2
+    if capA > 0 then
+        if bv then
+            dim as float32 x0 = cc - cw / 2
+            if x0 < rc.left then x0 = rc.left
+            if x0 + cw > rc.right then x0 = rc.right - cw
+            GgLinBox( geo, geo.rcCaption, aLo, aLo + ch, cint( x0 ), cint( x0 ) + cint( cw ) )
+        else
+            GgLinBox( geo, geo.rcCaption, aLo, aLo + cint( cw ), cint( cc - ch / 2 ), cint( cc - ch / 2 ) + cint( ch ) )
+        end if
+    end if
+    if valA > 0 then
+        dim as float32 v0 = tHi + tgap
+        if bv then
+            dim as float32 x0 = cc - vw / 2
+            if x0 < rc.left then x0 = rc.left
+            if x0 + vw > rc.right then x0 = rc.right - vw
+            GgLinBox( geo, geo.rcValue, cint( v0 ), cint( v0 ) + cint( vh ), cint( x0 ), cint( x0 ) + cint( vw ) )
+        else
+            GgLinBox( geo, geo.rcValue, cint( v0 ), cint( v0 ) + cint( vw ), cint( cc - vh / 2 ), cint( cc - vh / 2 ) + cint( vh ) )
+        end if
+    end if
+end sub
 
 ' The unit arc's box (r = 1, centre 0,0) with the hub: the end points and every axis it crosses.
 private sub GgArcBox( byref s as TKGAUGE_SPEC, byref x0 as float32, byref x1 as float32, byref y0 as float32, byref y1 as float32 )
@@ -352,6 +538,8 @@ public sub tkGauge_Layout( byref s as TKGAUGE_SPEC, byref rc as TKRECT, byval fS
         vh = tkText_Height( fVal ) : vw = tkText_Width( fVal, geo.sValue )
     end if
     if (s.fText <> 0) andalso (len( s.sCaption ) > 0) then ch = tkText_Height( s.fText ) : cw = tkText_Width( s.fText, s.sCaption )
+    tkRect_SetEmpty( geo.rcValue ) : tkRect_SetEmpty( geo.rcCaption )
+    if s.nShape = TKGAUGE_LINEAR then GgLayoutLinear( s, rc, geo, vw, vh, cw, ch ) : exit sub
     dim as float32 blockH = vh + iif( (vh > 0) andalso (ch > 0), tgap, 0 ) + ch
     ' ---- fit the arc ------------------------------------------------------------------------------
     geo.nw = TKGAUGE_NEEDLEWIDTH * k / 2
@@ -396,24 +584,9 @@ public sub tkGauge_Layout( byref s as TKGAUGE_SPEC, byref rc as TKRECT, byval fS
             dim as float32 lx = geo.cx + rl * cos( ang ), ly = geo.cy + rl * sin( ang )
             tkRect_Set( geo.labRc(i), cint( lx - lw / 2 ), cint( ly - lh / 2 ), cint( lx - lw / 2 ) + cint( lw ), cint( ly - lh / 2 ) + cint( lh ) )
         next
-        dim as int32 stride = 1
-        while stride < geo.nMajor
-            dim as boolean bHit = false
-            dim as int32 prev = -1
-            for i as int32 = 0 to geo.nMajor - 1 step stride
-                if (prev >= 0) andalso (tkRect_IsEmpty( tkRect_Intersect( geo.labRc(prev), geo.labRc(i) ) ) = false) then bHit = true : exit for
-                prev = i
-            next
-            if bHit = false then exit while
-            stride += 1
-        wend
-        for i as int32 = 0 to geo.nMajor - 1
-            geo.labOn(i) = ((i mod stride) = 0)
-            if geo.labOn(i) then geo.nLabShown += 1
-        next
+        GgThin( geo )
     end if
     ' ---- the value text and caption ------------------------------------------------------------------
-    tkRect_SetEmpty( geo.rcValue ) : tkRect_SetEmpty( geo.rcCaption )
     if blockH > 0 then
         dim as float32 ty
         if vMode = TKGAUGE_VALUE_BELOW then ty = geo.cy + geo.hubR + tgap else ty = geo.cy - blockH / 2
@@ -519,9 +692,126 @@ private sub GgText( byval b as TK_PAINT ptr, byval f as TTF_Font ptr, byref s as
     b->SetForeColor( inkWas )
 end sub
 
+' ---- linear ----------------------------------------------------------------------------------
+private sub GgLinPt( byref geo as GG_GEOM, byref pt as SDL_FPoint, byval a as float32, byval c as float32 )
+    if geo.bVert then pt.x = c : pt.y = a else pt.x = a : pt.y = c
+end sub
+
+' A quad: along a0 across b0..e0, along a1 across b1..e1 (a taper when the two differ).
+private sub GgLinQuad( byval b as TK_PAINT ptr, byref geo as GG_GEOM, byval a0 as float32, byval b0 as float32, byval e0 as float32, _
+                       byval a1 as float32, byval b1 as float32, byval e1 as float32, byval clr as uint32 )
+    if abs( a1 - a0 ) < 0.01 then exit sub
+    dim as SDL_FPoint pts(0 to 3)
+    GgLinPt( geo, pts(0), a0, b0 ) : GgLinPt( geo, pts(1), a1, b1 )
+    GgLinPt( geo, pts(2), a1, e1 ) : GgLinPt( geo, pts(3), a0, e0 )
+    b->SetBackColor( clr )
+    b->PaintPolygonF( @pts(0), 4 )
+end sub
+
+' A tick across the track at along a, from across c0 to c1, butt ends. Its centre is snapped so
+' its edges land on whole pixels: a 1 px tick stays one crisp pixel.
+private sub GgLinTick( byval b as TK_PAINT ptr, byref geo as GG_GEOM, byval a as float32, byval c0 as float32, _
+                       byval c1 as float32, byval thick as float32, byval clr as uint32 )
+    a = int( a - thick / 2 + 0.5 ) + thick / 2
+    dim as SDL_FPoint pts(0 to 1)
+    GgLinPt( geo, pts(0), a, c0 ) : GgLinPt( geo, pts(1), a, c1 )
+    b->SetPenColor( clr )
+    b->PaintPolylineF( @pts(0), 2, GgPen( b, thick ), false, false )
+end sub
+
+private sub GgLinPaint( byval b as TK_PAINT ptr, byref s as TKGAUGE_SPEC, byref geo as GG_GEOM )
+    dim as TKGAUGE_COLORS ptr c = s.pColors
+    dim as boolean en = s.bEnabled
+    dim as uint32 dis = c->ForeColorDisabled
+    dim as float32 k = geo.fScale
+    if s.bShowFace then
+        dim as SDL_FPoint pts(0 to 3)
+        pts(0).x = geo.rcFace.left : pts(0).y = geo.rcFace.top
+        pts(1).x = geo.rcFace.right : pts(1).y = geo.rcFace.top
+        pts(2).x = geo.rcFace.right : pts(2).y = geo.rcFace.bottom
+        pts(3).x = geo.rcFace.left : pts(3).y = geo.rcFace.bottom
+        b->SetBackColor( c->FaceColor )
+        b->PaintPolygonF( @pts(0), 4 )
+    end if
+    GgLinQuad( b, geo, geo.p0, geo.c0, geo.c1, geo.p1, geo.c0, geo.c1, c->TrackColor )
+    ' ranges: anchored on the scale's edge (the near one unless the scale is FAR), later on top
+    dim as int32 sg = iif( s.nScale = TKGAUGE_SCALE_FAR, -geo.nearSgn, geo.nearSgn )
+    dim as float32 anc = iif( sg > 0, geo.c1, geo.c0 )
+    for i as int32 = 0 to s.nRanges - 1
+        dim as TKGAUGE_RANGE ptr rg = @s.pRanges[i]
+        dim as float32 a0 = tkGauge_GeomValueToPos( s, geo, rg->fFrom ), a1 = tkGauge_GeomValueToPos( s, geo, rg->fTo )
+        dim as uint32 clr = iif( en, rg->clr, tkColor_Lerp( rg->clr, c->TrackColor, 0.7 ) )
+        GgLinQuad( b, geo, a0, anc, anc - sg * geo.tw * rg->fStartW, a1, anc, anc - sg * geo.tw * rg->fEndW, clr )
+    next
+    ' ticks: minors, then majors, on each scale side beyond any needle room; then the labels
+    if geo.nMajor > 0 then
+        dim as uint32 clrTick = iif( en, c->TickColor, dis )
+        dim as float32 gap = TKGAUGE_TICKGAP * k
+        for side as int32 = 0 to 1
+            if (side = 0) andalso (geo.bTickNear = false) then continue for
+            if (side = 1) andalso (geo.bTickFar = false) then continue for
+            dim as int32 sd = iif( side = 0, geo.nearSgn, -geo.nearSgn )
+            dim as float32 st = iif( sd > 0, geo.c1, geo.c0 ) + sd * (iif( side = 0, geo.needNear, geo.needFar ) + gap)
+            if s.nMinorCount > 0 then
+                for i as int32 = 0 to geo.nMajor - 1
+                    for j as int32 = 1 to s.nMinorCount
+                        dim as float64 v = geo.majors(i) + geo.fStep * j / (s.nMinorCount + 1)
+                        if v > iif( s.fMax > s.fMin, s.fMax, s.fMin ) + 1e-9 then exit for
+                        GgLinTick( b, geo, tkGauge_GeomValueToPos( s, geo, v ), st, st + sd * TKGAUGE_MINORLEN * k, TKGAUGE_MINORTHICK * k, clrTick )
+                    next
+                next
+            end if
+            for i as int32 = 0 to geo.nMajor - 1
+                GgLinTick( b, geo, tkGauge_GeomValueToPos( s, geo, geo.majors(i) ), st, st + sd * TKGAUGE_MAJORLEN * k, TKGAUGE_MAJORTHICK * k, clrTick )
+            next
+        next
+        for i as int32 = 0 to geo.nMajor - 1
+            if geo.labOn(i) then GgText( b, s.fText, geo.labS(i), geo.labRc(i), iif( en, c->LabelColor, dis ) )
+        next
+    end if
+    ' pointers: bars, markers, needles
+    dim as float32 cc = (geo.c0 + geo.c1) / 2
+    dim as int32 order(0 to 2) = { TKGAUGE_PTR_BAR, TKGAUGE_PTR_MARKER, TKGAUGE_PTR_NEEDLE }
+    for pass as int32 = 0 to 2
+        for i as int32 = 0 to s.nPointers - 1
+            dim as TKGAUGE_POINTER ptr p = @s.pPointers[i]
+            if (p->bVisible = false) orelse (p->nKind <> order(pass)) then continue for
+            dim as float32 pa = tkGauge_GeomValueToPos( s, geo, p->fValue )
+            select case p->nKind
+            case TKGAUGE_PTR_BAR
+                dim as uint32 clr = iif( en, iif( p->clr <> 0, p->clr, c->BarColor ), dis )
+                dim as float32 a0 = tkGauge_GeomValueToPos( s, geo, iif( s.bBarOrigin, s.fBarOrigin, s.fMin ) )
+                dim as float32 hb = geo.tw * p->fWidth / 2
+                GgLinQuad( b, geo, a0, cc - hb, cc + hb, pa, cc - hb, cc + hb, clr )
+            case TKGAUGE_PTR_MARKER
+                ' the bullet graph's target: across two thirds of the track
+                dim as uint32 clr = iif( en, iif( p->clr <> 0, p->clr, c->MarkerColor ), dis )
+                dim as float32 hm = geo.tw / 3
+                if hm < 1.5 * k then hm = 1.5 * k
+                GgLinTick( b, geo, pa, cc - hm, cc + hm, TKGAUGE_MARKERWIDTH * k * p->fWidth, clr )
+            case else
+                ' a triangle beside the track, its tip on the track's edge
+                dim as uint32 clr = iif( en, iif( p->clr <> 0, p->clr, c->NeedleColor ), dis )
+                dim as int32 sn = iif( geo.needNear > 0, geo.nearSgn, -geo.nearSgn )
+                dim as float32 tip = iif( sn > 0, geo.c1, geo.c0 )
+                dim as float32 hgt = 1.5 * TKGAUGE_NEEDLEWIDTH * k * p->fWidth, hb = 0.75 * TKGAUGE_NEEDLEWIDTH * k * p->fWidth
+                dim as SDL_FPoint pts(0 to 2)
+                GgLinPt( geo, pts(0), pa, tip )
+                GgLinPt( geo, pts(1), pa + hb, tip + sn * hgt )
+                GgLinPt( geo, pts(2), pa - hb, tip + sn * hgt )
+                b->SetBackColor( clr )
+                b->PaintPolygonF( @pts(0), 3 )
+            end select
+        next
+    next
+    GgText( b, iif( s.fValueFont <> 0, s.fValueFont, s.fText ), geo.sValue, geo.rcValue, iif( en, c->ValueTextColor, dis ) )
+    GgText( b, s.fText, s.sCaption, geo.rcCaption, iif( en, c->CaptionColor, dis ) )
+end sub
+
 ' The whole gauge from its layout (background not filled; the face is).
 public sub tkGauge_PaintSpec( byval b as TK_PAINT ptr, byref s as TKGAUGE_SPEC, byref geo as GG_GEOM )
     if (b = 0) orelse (s.pColors = 0) then exit sub
+    if geo.bLinear then GgLinPaint( b, s, geo ) : exit sub
     dim as TKGAUGE_COLORS ptr c = s.pColors
     dim as boolean en = s.bEnabled
     dim as uint32 dis = c->ForeColorDisabled

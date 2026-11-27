@@ -523,6 +523,35 @@ public function tkGauge_GetSweepAngle( byval hGauge as TK_WIDGET ptr ) as float3
     return p->spec.fSweep
 end function
 
+' Linear: TKGAUGE_HORIZONTAL (Min at the left) or TKGAUGE_VERTICAL (Min at the bottom).
+public sub tkGauge_SetOrientation( byval hGauge as TK_WIDGET ptr, byval nOrient as int32 )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (nOrient < TKGAUGE_HORIZONTAL) orelse (nOrient > TKGAUGE_VERTICAL) then exit sub
+    p->spec.nOrient = nOrient
+    Refresh( p )
+end sub
+
+public function tkGauge_GetOrientation( byval hGauge as TK_WIDGET ptr ) as int32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return TKGAUGE_HORIZONTAL
+    return p->spec.nOrient
+end function
+
+' Linear: the scale runs the other way (Max at the left, or at the bottom). The caption and the
+' value text stay where they are.
+public sub tkGauge_SetReverse( byval hGauge as TK_WIDGET ptr, byval bReverse as boolean )
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then exit sub
+    p->spec.bReverse = bReverse
+    Refresh( p )
+end sub
+
+public function tkGauge_GetReverse( byval hGauge as TK_WIDGET ptr ) as boolean
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if p = 0 then return false
+    return p->spec.bReverse
+end function
+
 ' 0 = auto (1-2-5 for about TickHint intervals).
 public sub tkGauge_SetMajorStep( byval hGauge as TK_WIDGET ptr, byval fStep as float64 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
@@ -573,7 +602,7 @@ end function
 
 public sub tkGauge_SetScalePlacement( byval hGauge as TK_WIDGET ptr, byval nPlace as int32 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
-    if (p = 0) orelse (nPlace < TKGAUGE_SCALE_INSIDE) orelse (nPlace > TKGAUGE_SCALE_NONE) then exit sub
+    if (p = 0) orelse (nPlace < TKGAUGE_SCALE_INSIDE) orelse (nPlace > TKGAUGE_SCALE_BOTH) then exit sub
     p->spec.nScale = nPlace
     Refresh( p )
 end sub
@@ -649,7 +678,7 @@ end sub
 
 public sub tkGauge_SetValueTextPos( byval hGauge as TK_WIDGET ptr, byval nPos as int32 )
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
-    if (p = 0) orelse (nPos < TKGAUGE_VALUE_AUTO) orelse (nPos > TKGAUGE_VALUE_NONE) then exit sub
+    if (p = 0) orelse (nPos < TKGAUGE_VALUE_AUTO) orelse (nPos > TKGAUGE_VALUE_END) then exit sub
     p->spec.nValueText = nPos
     Refresh( p )
 end sub
@@ -678,6 +707,17 @@ public function tkGauge_ValueToAngle( byval hGauge as TK_WIDGET ptr, byval v as 
     dim as TKGAUGE_STATE ptr p = GState( hGauge )
     if p = 0 then return 0
     return tkGauge_SpecValueToAngle( p->spec, v )
+end function
+
+' Linear: the along position (x when horizontal, y when vertical) value v is drawn at, clamped;
+' radial: 0.
+public function tkGauge_ValueToPos( byval hGauge as TK_WIDGET ptr, byval v as float64 ) as float32
+    dim as TKGAUGE_STATE ptr p = GState( hGauge )
+    if (p = 0) orelse (p->spec.nShape <> TKGAUGE_LINEAR) then return 0
+    dim as TKGAUGE_SPEC s = LiveSpec( p )
+    dim as GG_GEOM geo
+    Geom( p, s, geo )
+    return tkGauge_GeomValueToPos( s, geo, v )
 end function
 
 ' The layout as painted now: centre, radii, the majors and their label boxes, the text boxes.
