@@ -89,7 +89,10 @@ sub DgPaintSpark( byval p as TKDATAGRID_STATE ptr, byval pi as TKDATAGRID_CELLPA
     if pi->isSelected then c.LineColor = pi->foreColor : c.TextColor = pi->foreColor
     s.pColors = @c
     s.fScale = iif( p->hWin->pHost <> 0, p->hWin->pHost->fScale, 1 )
-    if s.bShowLast andalso (s.fText = 0) then s.fText = iif( p->pFont <> 0, p->pFont, p->hWin->pHost->pDefaultFont )
+    if s.bShowLast andalso (s.fText = 0) then
+        s.fText = p->pFont
+        if (s.fText = 0) andalso (p->hWin->pHost <> 0) then s.fText = p->hWin->pHost->pDefaultFont
+    end if
     dim as integer pad = DgScale( p, CDATAGRID_CELL_PAD )
     dim as TKRECT rc = pi->rc
     rc.left += pad : rc.right -= pad

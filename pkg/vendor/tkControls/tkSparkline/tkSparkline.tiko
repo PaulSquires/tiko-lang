@@ -578,7 +578,8 @@ end function
 ' Opts into a spec (defaults for what is absent; the values are the caller's). Keys: kind (line area
 ' column winloss) min max (both: a manual range) empty (gap zero connect) markers ("high,low,last",
 ' SetMarkersText's words) ref band ("40..60") last (1: the last value as text) dec linewidth
-' markersize gap axis. FALSE for an unknown key or word; the spec then as far as it was read.
+' markersize gap axis. FALSE for an unknown key or word (an unknown marker word is ignored, as
+' SetMarkersText ignores it); the spec then as far as it was read.
 public function tkSparkline_OptsToSpec( byref opts as const ustring, byref s as TKSPARK_SPEC ) as boolean
     dim as TKSPARK_SPEC s0
     s = s0
