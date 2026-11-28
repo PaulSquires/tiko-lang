@@ -1,0 +1,24 @@
+'' TIKO-ONLY
+'' syntax.tiko -- RFC 0019 R1 and R9 as source: rejected today, compiled after P1 / P3.
+''
+'' At P0 the baseline is the compiler's diagnostics, as tests/semantic/moves/noncopyable.bas
+'' records its own. When P1 lands the derive line, this file builds, and the diff from
+'' .p0-trace is the expected one: diagnostics out, output in.
+
+type Cell
+    derive equal, hash, text
+    as int32 row, col
+end type
+
+enum Colour
+    RED = 1
+    GREEN = 2
+end enum
+
+dim as Cell a, b
+a.row = 2 : a.col = 3
+b = a
+print a = b
+print hashvalue( a ) = hashvalue( b )
+print a.ToText( )
+print enumname( GREEN ); " "; enumcount( Colour ); " "; enumvalue( Colour, 0 )

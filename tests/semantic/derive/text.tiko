@@ -1,0 +1,149 @@
+'' TIKO-ONLY
+'' text.tiko -- RFC 0019 R6's oracle: 'derive text', written out by hand as ToText( ).
+''
+'' THE FORMAT BEING PINNED (section 5.3):
+''
+''     Name(field=value, field=value)          the type's name as declared
+''     base=Base0(id=5)                        a base comes first, as a field named 'base'
+''     integer kinds, float kinds              str( v )
+''     boolean                                 true / false
+''     string, ustring                         in double quotes, a quote inside doubled
+''     pointer                                 &h and hex( p ); null is &h0
+''     enum                                    the first declared constant's name; the
+''                                             decimal value when no constant has it
+''     array, fixed or dynamic                 [a, b, c]; empty is []; a 2-D array nests
+''                                             by its first dimension: [[1, 2], [3, 4]]
+''     nested type                             its own ToText( )
+''     generic instance                        as written in source: Box(of int32)(value=3)
+''
+'' ToText( ) returns USTRING, so a USTRING field loses nothing. NaN is not printed here:
+'' str( NaN ) is spelled differently per target, and the derived member will spell it as
+'' str( ) does.
+''
+'' After P2 a twin of this file with 'derive text' in place of the hand-written members must
+'' print this file's .p0-trace exactly.
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+function Quote_( byref s as const ustring ) as ustring
+    dim as ustring r = """"
+    for i as integer = 1 to len( s )
+        dim as ustring ch = mid( s, i, 1 )
+        if ch = """" then r &= """""" else r &= ch
+    next
+    return r & """"
+end function
+
+function ColourText_( byval c as Colour ) as ustring
+    select case c
+    case RED   : return "RED"
+    case GREEN : return "GREEN"
+    case BLUE  : return "BLUE"
+    end select
+    return str( cast( int32, c ) )
+end function
+
+function PtrText_( byval p as any ptr ) as ustring
+    return "&h" & hex( p )
+end function
+
+function BoolText_( byval b as boolean ) as ustring
+    return iif( b, "true", "false" )
+end function
+
+'' ------------------------------------------------------------------------ types
+type Plain
+    as int32 a, b
+    declare function ToText( ) as ustring
+end type
+
+function Plain.ToText( ) as ustring
+    return "Plain(a=" & str( a ) & ", b=" & str( b ) & ")"
+end function
+
+type Base0 extends object
+    as int32 id
+    declare function ToText( ) as ustring
+end type
+
+function Base0.ToText( ) as ustring
+    return "Base0(id=" & str( id ) & ")"
+end function
+
+type Mixed extends Base0
+    as boolean flag
+    as int64 big
+    as float64 f
+    as string s
+    as ustring u
+    as int32 grid( 0 to 1, 0 to 1 )
+    as int32 dyn( any )
+    as Plain p
+    as Colour c
+    as any ptr q
+    declare function ToText( ) as ustring
+end type
+
+function Mixed.ToText( ) as ustring
+    dim as ustring r = "Mixed(base=" & base.ToText( )
+    r &= ", flag=" & BoolText_( flag )
+    r &= ", big=" & str( big )
+    r &= ", f=" & str( f )
+    r &= ", s=" & Quote_( s )
+    r &= ", u=" & Quote_( u )
+    r &= ", grid=[[" & str( grid( 0, 0 ) ) & ", " & str( grid( 0, 1 ) ) & "], [" & _
+                       str( grid( 1, 0 ) ) & ", " & str( grid( 1, 1 ) ) & "]]"
+    r &= ", dyn=["
+    for i as integer = lbound( dyn ) to ubound( dyn )
+        if i > lbound( dyn ) then r &= ", "
+        r &= str( dyn( i ) )
+    next
+    r &= "]"
+    r &= ", p=" & p.ToText( )
+    r &= ", c=" & ColourText_( c )
+    r &= ", q=" & PtrText_( q )
+    return r & ")"
+end function
+
+type Box( of T )
+    as T value
+    declare function ToText( ) as ustring
+end type
+
+function Box( of T ).ToText( ) as ustring
+    return "Box(of int32)(value=" & str( value ) & ")"
+end function
+
+'' ------------------------------------------------------------------------ output
+dim as Plain p
+p.a = 1 : p.b = -2
+print p.ToText( )
+
+dim as Mixed m
+m.id = 5
+m.flag = true
+m.big = -9000000000ll
+m.f = 1.5
+m.s = "say ""hi"""
+m.u = "héllo 日本"
+m.grid( 0, 0 ) = 1 : m.grid( 0, 1 ) = 2 : m.grid( 1, 0 ) = 3 : m.grid( 1, 1 ) = 4
+redim m.dyn( 0 to 2 ) : m.dyn( 0 ) = 7 : m.dyn( 1 ) = 8 : m.dyn( 2 ) = 9
+m.p = p
+m.c = GREEN
+m.q = cast( any ptr, &hDEADBEEF )
+print m.ToText( )
+
+'' The edges: an empty dynamic array, an enum value with no constant, a null pointer,
+'' false, an empty string, -0.0.
+dim as Mixed e
+e.c = cast( Colour, 3 )
+e.f = -0.0
+print e.ToText( )
+
+dim as Box( of int32 ) b
+b.value = 3
+print b.ToText( )

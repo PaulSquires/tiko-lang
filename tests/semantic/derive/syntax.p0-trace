@@ -1,0 +1,21 @@
+BUILD FAILED rc=1
+tests/semantic/derive/syntax.tiko(9,12): error TKO0420: expected the end of the statement
+     |
+   9 |     derive equal, hash, text
+     |            ^
+tests/semantic/derive/syntax.tiko(22,7): error TKO0743: 'hashvalue' is not declared
+     |
+  22 | print hashvalue( a ) = hashvalue( b )
+     |       ^
+tests/semantic/derive/syntax.tiko(24,7): error TKO0743: 'enumname' is not declared
+     |
+  24 | print enumname( GREEN ); " "; enumcount( Colour ); " "; enumvalue( Colour, 0 )
+     |       ^
+tests/semantic/derive/syntax.tiko(21,9): error TKO0720: no operator = compares this type
+     |
+  21 | print a = b
+     |         ^
+tests/semantic/derive/syntax.tiko(23,9): error TKO0739: 'cell' has no member named 'totext'
+     |
+  23 | print a.ToText( )
+     |         ^

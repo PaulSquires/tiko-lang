@@ -1,0 +1,205 @@
+'' TIKO-ONLY
+'' eqorder.tiko -- RFC 0019 R2/R3's oracle: 'derive equal, order', written out by hand.
+''
+'' THE RULE BEING PINNED. Fields are visited base first, then in declaration order; a fixed
+'' array element by element; a dynamic array as its lbound, its ubound, then its elements.
+'' The FIRST field whose own '=' is false DECIDES, and the operator asked for is applied to
+'' that field: so '<=' over a NaN field is false, as the language's own '<=' is. When every
+'' field is '=', the result is: '=' true, '<>' false, '<' false, '>' false, '<=' true,
+'' '>=' true.
+''
+'' After P1 and P2 a twin of this file with 'derive equal, order' in place of the hand-written
+'' operators must print this file's .p0-trace exactly.
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+enum Op_
+    OP_EQ
+    OP_NE
+    OP_LT
+    OP_GT
+    OP_LE
+    OP_GE
+end enum
+
+#macro APPLY_BODY_( a, b )
+    select case op
+    case OP_EQ : return a = b
+    case OP_NE : return a <> b
+    case OP_LT : return a < b
+    case OP_GT : return a > b
+    case OP_LE : return a <= b
+    case else  : return a >= b
+    end select
+#endmacro
+
+'' What the operators say when every field compared equal.
+function AllEqual_( byval op as Op_ ) as boolean
+    return ( op = OP_EQ ) orelse ( op = OP_LE ) orelse ( op = OP_GE )
+end function
+
+function Apply_ overload ( byval op as Op_, byval a as int32, byval b as int32 ) as boolean
+    APPLY_BODY_( a, b )
+end function
+function Apply_ overload ( byval op as Op_, byval a as integer, byval b as integer ) as boolean
+    APPLY_BODY_( a, b )
+end function
+function Apply_ overload ( byval op as Op_, byval a as float64, byval b as float64 ) as boolean
+    APPLY_BODY_( a, b )
+end function
+function Apply_ overload ( byval op as Op_, byref a as const string, byref b as const string ) as boolean
+    APPLY_BODY_( a, b )
+end function
+function Apply_ overload ( byval op as Op_, byref a as const ustring, byref b as const ustring ) as boolean
+    APPLY_BODY_( a, b )
+end function
+function Apply_ overload ( byval op as Op_, byval a as any ptr, byval b as any ptr ) as boolean
+    APPLY_BODY_( a, b )
+end function
+
+'' A field decides when its own '=' is false.
+#macro FIELD_( x, y )
+    if ( ( x ) = ( y ) ) = false then return Apply_( op, x, y )
+#endmacro
+
+'' ------------------------------------------------------------------------- Plain
+type Plain
+    as int32 a, b
+end type
+
+function DecidePlain_( byref l as const Plain, byref r as const Plain, byval op as Op_ ) as boolean
+    FIELD_( l.a, r.a )
+    FIELD_( l.b, r.b )
+    return AllEqual_( op )
+end function
+
+operator =  ( byref l as const Plain, byref r as const Plain ) as boolean : return DecidePlain_( l, r, OP_EQ ) : end operator
+operator <> ( byref l as const Plain, byref r as const Plain ) as boolean : return DecidePlain_( l, r, OP_NE ) : end operator
+operator <  ( byref l as const Plain, byref r as const Plain ) as boolean : return DecidePlain_( l, r, OP_LT ) : end operator
+operator >  ( byref l as const Plain, byref r as const Plain ) as boolean : return DecidePlain_( l, r, OP_GT ) : end operator
+operator <= ( byref l as const Plain, byref r as const Plain ) as boolean : return DecidePlain_( l, r, OP_LE ) : end operator
+operator >= ( byref l as const Plain, byref r as const Plain ) as boolean : return DecidePlain_( l, r, OP_GE ) : end operator
+
+function Apply_ overload ( byval op as Op_, byref a as const Plain, byref b as const Plain ) as boolean
+    APPLY_BODY_( a, b )
+end function
+
+'' -------------------------------------------------------------- Base0 and Mixed
+type Base0 extends object
+    as int32 id
+end type
+
+function DecideBase0_( byref l as const Base0, byref r as const Base0, byval op as Op_ ) as boolean
+    FIELD_( l.id, r.id )
+    return AllEqual_( op )
+end function
+
+operator =  ( byref l as const Base0, byref r as const Base0 ) as boolean : return DecideBase0_( l, r, OP_EQ ) : end operator
+operator <> ( byref l as const Base0, byref r as const Base0 ) as boolean : return DecideBase0_( l, r, OP_NE ) : end operator
+operator <  ( byref l as const Base0, byref r as const Base0 ) as boolean : return DecideBase0_( l, r, OP_LT ) : end operator
+operator >  ( byref l as const Base0, byref r as const Base0 ) as boolean : return DecideBase0_( l, r, OP_GT ) : end operator
+operator <= ( byref l as const Base0, byref r as const Base0 ) as boolean : return DecideBase0_( l, r, OP_LE ) : end operator
+operator >= ( byref l as const Base0, byref r as const Base0 ) as boolean : return DecideBase0_( l, r, OP_GE ) : end operator
+
+function Apply_ overload ( byval op as Op_, byref a as const Base0, byref b as const Base0 ) as boolean
+    APPLY_BODY_( a, b )
+end function
+
+type Mixed extends Base0
+    as float64 f
+    as string s
+    as ustring u
+    as int32 fixed( 0 to 1 )
+    as int32 dyn( any )
+    as Plain p
+    as Colour c
+    as any ptr q
+end type
+
+function DecideMixed_( byref l as const Mixed, byref r as const Mixed, byval op as Op_ ) as boolean
+    FIELD_( *cptr( const Base0 ptr, @l ), *cptr( const Base0 ptr, @r ) )
+    FIELD_( l.f, r.f )
+    FIELD_( l.s, r.s )
+    FIELD_( l.u, r.u )
+    for i as int32 = 0 to 1
+        FIELD_( l.fixed( i ), r.fixed( i ) )
+    next
+    FIELD_( lbound( l.dyn ), lbound( r.dyn ) )
+    FIELD_( ubound( l.dyn ), ubound( r.dyn ) )
+    for i as integer = lbound( l.dyn ) to ubound( l.dyn )
+        FIELD_( l.dyn( i ), r.dyn( i ) )
+    next
+    FIELD_( l.p, r.p )
+    FIELD_( cast( int32, l.c ), cast( int32, r.c ) )
+    FIELD_( l.q, r.q )
+    return AllEqual_( op )
+end function
+
+operator =  ( byref l as const Mixed, byref r as const Mixed ) as boolean : return DecideMixed_( l, r, OP_EQ ) : end operator
+operator <> ( byref l as const Mixed, byref r as const Mixed ) as boolean : return DecideMixed_( l, r, OP_NE ) : end operator
+operator <  ( byref l as const Mixed, byref r as const Mixed ) as boolean : return DecideMixed_( l, r, OP_LT ) : end operator
+operator >  ( byref l as const Mixed, byref r as const Mixed ) as boolean : return DecideMixed_( l, r, OP_GT ) : end operator
+operator <= ( byref l as const Mixed, byref r as const Mixed ) as boolean : return DecideMixed_( l, r, OP_LE ) : end operator
+operator >= ( byref l as const Mixed, byref r as const Mixed ) as boolean : return DecideMixed_( l, r, OP_GE ) : end operator
+
+'' ------------------------------------------------------------------------ output
+function Bits( byval eq as boolean, byval ne as boolean, byval lt as boolean, _
+               byval gt as boolean, byval le as boolean, byval ge as boolean ) as string
+    return iif( eq, "1", "0" ) & iif( ne, "1", "0" ) & iif( lt, "1", "0" ) & _
+           iif( gt, "1", "0" ) & iif( le, "1", "0" ) & iif( ge, "1", "0" )
+end function
+
+print "columns: = <> < > <= >="
+
+dim as Plain pv( 0 to 3 )
+pv( 0 ).a = 1 : pv( 0 ).b = 2
+pv( 1 ).a = 1 : pv( 1 ).b = 3
+pv( 2 ).a = 2 : pv( 2 ).b = 0
+pv( 3 ).a = 1 : pv( 3 ).b = 2
+for i as int32 = 0 to 3
+    for j as int32 = 0 to 3
+        print "P" & i & " P" & j & " "; Bits( pv( i ) = pv( j ), pv( i ) <> pv( j ), pv( i ) < pv( j ), _
+            pv( i ) > pv( j ), pv( i ) <= pv( j ), pv( i ) >= pv( j ) )
+    next
+next
+
+'' M0 is the reference; M1..M11 each differ from it in ONE field, so each row shows that
+'' field deciding. M12 equals M0 field for field, in a different variable.
+const NM = 12
+dim as Mixed m( 0 to NM )
+dim as uint64 nanbits = &h7FF8000000000000ull
+for i as int32 = 0 to NM
+    m( i ).id = 5
+    m( i ).f = 1.5
+    m( i ).s = "abc"
+    m( i ).u = "héllo"
+    m( i ).fixed( 0 ) = 10 : m( i ).fixed( 1 ) = 20
+    redim ( m( i ).dyn )( 0 to 1 ) : m( i ).dyn( 0 ) = 7 : m( i ).dyn( 1 ) = 8
+    m( i ).p.a = 1 : m( i ).p.b = 2
+    m( i ).c = GREEN
+    m( i ).q = cast( any ptr, &h1000 )
+next
+m( 1 ).id = 4                                    '' base decides
+m( 2 ).f = 2.5                                   '' float decides
+m( 3 ).s = "abd"                                 '' string decides
+m( 4 ).u = "hello"                               '' ustring decides
+m( 5 ).fixed( 1 ) = 19                           '' fixed array, second element
+redim ( m( 6 ).dyn )( 1 to 2 ) : m( 6 ).dyn( 1 ) = 7 : m( 6 ).dyn( 2 ) = 8   '' lbound decides
+redim preserve ( m( 7 ).dyn )( 0 to 2 )           '' ubound decides
+m( 8 ).dyn( 1 ) = 9                              '' a dynamic element decides
+m( 9 ).p.b = 1                                   '' nested type decides
+m( 10 ).c = BLUE                                 '' enum decides
+m( 11 ).f = *cptr( float64 ptr, @nanbits )       '' NaN: every operator but <> is false
+
+for i as int32 = 1 to NM
+    print "M0 M" & i & " "; Bits( m( 0 ) = m( i ), m( 0 ) <> m( i ), m( 0 ) < m( i ), _
+        m( 0 ) > m( i ), m( 0 ) <= m( i ), m( 0 ) >= m( i ) )
+    print "M" & i & " M0 "; Bits( m( i ) = m( 0 ), m( i ) <> m( 0 ), m( i ) < m( 0 ), _
+        m( i ) > m( 0 ), m( i ) <= m( 0 ), m( i ) >= m( 0 ) )
+next
+print "M11 M11 "; Bits( m( 11 ) = m( 11 ), m( 11 ) <> m( 11 ), m( 11 ) < m( 11 ), _
+    m( 11 ) > m( 11 ), m( 11 ) <= m( 11 ), m( 11 ) >= m( 11 ) )

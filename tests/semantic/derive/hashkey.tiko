@@ -1,0 +1,147 @@
+'' TIKO-ONLY
+'' hashkey.tiko -- RFC 0019 R4's oracle: 'derive hash', written out by hand, and used as a key.
+''
+'' THE RULE BEING PINNED: h starts at 0, and each field folds in as
+''
+''     h = containers.HashInt( h ) xor <the field's hash>
+''
+'' in the same order as eqorder.tiko (base first; a fixed array element by element; a
+'' dynamic array as lbound, ubound, then the elements). HashInt( 0 ) is 0, so for two fields
+'' this is exactly book ch24's hand-written key: HashInt( HashOf( row ) ) xor HashOf( col ).
+'' A field's hash is the built-in one (an enum as int32, lbound/ubound as integer), or a
+'' nested type's own derived hash.
+''
+'' After P1 a twin of this file with 'derive equal, hash' in place of the hand-written code --
+'' and NO 'extends containers.Hashable' -- must print this file's .p0-trace exactly.
+
+#import "std/containers"
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+#macro FOLD_( v )
+    h = containers.HashInt( h ) xor containers.HashOf( v )
+#endmacro
+
+'' ------------------------------------------------------------------- Cell, as book ch24
+type Cell extends containers.Hashable
+    as int32 row, col
+    declare function HashOf( ) as uint64 override
+end type
+
+function Cell.HashOf( ) as uint64
+    dim as uint64 h = 0
+    FOLD_( row )
+    FOLD_( col )
+    return h
+end function
+
+operator = ( byref a as Cell, byref b as Cell ) as boolean
+    return ( a.row = b.row ) andalso ( a.col = b.col )
+end operator
+
+'' ---------------------------------------------------------------------- Wide
+type Inner
+    as int32 a
+    as string t
+end type
+
+function InnerHash_( byref v as const Inner ) as uint64
+    dim as uint64 h = 0
+    FOLD_( v.a )
+    FOLD_( v.t )
+    return h
+end function
+
+operator = ( byref a as const Inner, byref b as const Inner ) as boolean
+    return ( a.a = b.a ) andalso ( a.t = b.t )
+end operator
+
+type Wide extends containers.Hashable
+    as boolean flag
+    as int64 big
+    as float64 f
+    as string s
+    as ustring u
+    as int32 fixed( 0 to 1 )
+    as int32 dyn( any )
+    as Inner nested
+    as Colour c
+    as any ptr q
+    declare function HashOf( ) as uint64 override
+end type
+
+function Wide.HashOf( ) as uint64
+    dim as uint64 h = 0
+    FOLD_( flag )
+    FOLD_( big )
+    FOLD_( f )
+    FOLD_( s )
+    FOLD_( u )
+    for i as int32 = 0 to 1
+        FOLD_( fixed( i ) )
+    next
+    FOLD_( lbound( dyn ) )
+    FOLD_( ubound( dyn ) )
+    for i as integer = lbound( dyn ) to ubound( dyn )
+        FOLD_( dyn( i ) )
+    next
+    h = containers.HashInt( h ) xor InnerHash_( nested )
+    FOLD_( cast( int32, c ) )
+    FOLD_( q )
+    return h
+end function
+
+operator = ( byref a as Wide, byref b as Wide ) as boolean
+    if a.flag <> b.flag orelse a.big <> b.big orelse a.f <> b.f then return false
+    if a.s <> b.s orelse a.u <> b.u then return false
+    if a.fixed( 0 ) <> b.fixed( 0 ) orelse a.fixed( 1 ) <> b.fixed( 1 ) then return false
+    if lbound( a.dyn ) <> lbound( b.dyn ) orelse ubound( a.dyn ) <> ubound( b.dyn ) then return false
+    for i as integer = lbound( a.dyn ) to ubound( a.dyn )
+        if a.dyn( i ) <> b.dyn( i ) then return false
+    next
+    if ( a.nested = b.nested ) = false then return false
+    return ( a.c = b.c ) andalso ( a.q = b.q )
+end operator
+
+'' ------------------------------------------------------------------------ output
+dim as Cell c1, c2, c3
+c1.row = 2 : c1.col = 3
+c2.row = 2 : c2.col = 3
+c3.row = 3 : c3.col = 2
+print "Cell(2,3) "; hex( c1.HashOf( ), 16 )
+print "Cell(3,2) "; hex( c3.HashOf( ), 16 )
+print "book ch24 "; hex( containers.HashInt( containers.HashOf( c1.row ) ) xor containers.HashOf( c1.col ), 16 )
+
+dim as containers.Map( of Cell, ustring ) terrain
+terrain[ c1 ] = "forest"
+print "Map finds an equal Cell: "; terrain.Contains( c2 )
+print "Map misses Cell(3,2):    "; terrain.Contains( c3 )
+
+dim as Wide w( 0 to 3 )
+for i as int32 = 0 to 3
+    w( i ).flag = true
+    w( i ).big = -9000000000ll
+    w( i ).f = -0.0
+    w( i ).s = "abc"
+    w( i ).u = "héllo"
+    w( i ).fixed( 0 ) = 10 : w( i ).fixed( 1 ) = 20
+    redim ( w( i ).dyn )( 1 to 2 ) : w( i ).dyn( 1 ) = 7 : w( i ).dyn( 2 ) = 8
+    w( i ).nested.a = 4 : w( i ).nested.t = "in"
+    w( i ).c = BLUE
+    w( i ).q = cast( any ptr, &h1000 )
+next
+w( 1 ).f = 0.0                       '' -0.0 = 0.0, so the hash must agree
+w( 2 ).nested.t = "IN"               '' a nested field differs
+redim ( w( 3 ).dyn )( 0 to 1 )       '' same elements count, other bounds
+w( 3 ).dyn( 0 ) = 7 : w( 3 ).dyn( 1 ) = 8
+
+dim as containers.Map( of Wide, int32 ) seen
+seen[ w( 0 ) ] = 1
+for i as int32 = 0 to 3
+    print "Wide" & i & " "; hex( w( i ).HashOf( ), 16 ); "  = Wide0: "; ( w( i ) = w( 0 ) ); _
+        "  in map: "; seen.Contains( w( i ) )
+next
