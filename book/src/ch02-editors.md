@@ -72,12 +72,15 @@ cannot, it asks for it once, when it starts.
 | `Shift+F5` | Run the last build |
 | `Ctrl+Alt+F5` | Rebuild everything |
 | `Ctrl+Shift+F5` | Set the arguments the program is run with |
-| `F7` | Choose a build configuration: *Debug* (`-g -exx`, the default) or *Release* (`-O2`) |
+| `F7` | Choose a build configuration: *Debug* (`-g -exx`, the default), *Release* (`-O2`) or *MinSizeRel* (`-Os`); a click on its name in the status line does the same |
 | `Alt+PgDn` / `Alt+PgUp` | Go to the next or previous error |
 
 What `F5` builds depends on what you have open. With a project — a folder with a `tiko.toml`,
-opened by opening that file — it builds the project's target, as `tiko build` would. Without
-one, it builds the file you are editing. Modified source files are saved first.
+opened by opening that file — it builds the project's target, as `tiko build` would: *Debug*
+as `tiko build`, into `out/debug`, and *Release* and *MinSizeRel* as
+`tiko build --profile release`, into `out/release` (Chapter 31). Without one, it builds the file
+you are editing. Modified source files are saved first. The configurations are the `[[builds]]`
+tables of `settings.toml`, and the one you choose is the one marked `default = true` there.
 
 When the build fails, the compiler's errors open in the output pane at the bottom of the window,
 each with its `TKOnnnn` identifier, and are underlined in the source; `Alt+PgDn` takes you from

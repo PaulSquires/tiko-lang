@@ -234,12 +234,25 @@ public function BuildArgs( byref mainFile as const ustring, byref modules as Arr
     return a
 end function
 
+' The tiko profile a target build names when tiko.toml has no [profile.editor] (author
+' 2026-11-28): "debug" when the flags carry -g, else "release". A build of a target always has a
+' profile -- tiko's default is debug, -g -exx -O0 -- and the flags in --options only come after
+' its own, so without this a Release configuration (-O2) built a checked program with debug
+' information into out/debug/. Now Release is tiko build --profile release (out/release/), Debug
+' and every Start Debugging (whose flags gain -g) the debug profile, and a configuration's -Os or
+' -O3, being later, is the -O that holds.
+public function ProfileFor( byref flags as const ustring ) as ustring
+    if instr( " " & flags & " ", " -g " ) then return "debug"
+    return "release"
+end function
+
 ' 'tiko build' of a TARGET of tiko.toml (BuildTikoTargetArgs): the manifest says what to build,
-' --profile editor adds nothing, and the flags plus the extra inputs (#LINKMODULES objects, a
-' #RESOURCE script the project does not already have) travel in --options -- each extra input
-' double-quoted there, since tiko splits that one argument again. A trailing '\' or '/' of the
-' manifest folder is dropped.
+' under profile_ ("" = none: tiko's default, debug), and the flags plus the extra inputs
+' (#LINKMODULES objects, a #RESOURCE script the project does not already have) travel in
+' --options -- each extra input double-quoted there, since tiko splits that one argument again.
+' A trailing '\' or '/' of the manifest folder is dropped.
 public function TargetArgs( byref targetName_ as const ustring, byref manifestDir as const ustring, _
+        byref profile_ as const ustring, _
         byref flags as const ustring, byref extraInputs as Array( of ustring ), _
         byref diagFile as const ustring, byval os_ as platform.Os ) as Array( of ustring )
     dim as ustring dir_ = manifestDir
@@ -253,8 +266,10 @@ public function TargetArgs( byref targetName_ as const ustring, byref manifestDi
     Add( a, targetName_ )
     a.Push( "--manifest" )
     a.Push( dir_ )
-    a.Push( "--profile" )
-    a.Push( "editor" )
+    if len( profile_ ) then
+        a.Push( "--profile" )
+        Add( a, profile_ )
+    end if
     Tail( a, trim( trim( flags ) & " " & trim( extra ) ), diagFile, os_ )
     return a
 end function
