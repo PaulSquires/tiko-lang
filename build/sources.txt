@@ -24,6 +24,7 @@ src/ast/astimpl.tiko
 src/parser/parser.tiko
 src/parser/parserend.tiko
 src/parser/declclass.tiko
+src/parser/derive.tiko
 src/parser/partialtype.tiko
 src/parser/autoprop.tiko
 src/parser/propblock.tiko
@@ -48,6 +49,7 @@ src/symbols/checkdump.tiko
 src/symbols/structpick.tiko
 src/symbols/formatcheck.tiko
 src/symbols/castpick.tiko
+src/symbols/derivetype.tiko
 src/symbols/checkslice.tiko
 src/symbols/checkspan.tiko
 src/symbols/semwalk.tiko
@@ -64,6 +66,7 @@ src/symbols/semint128.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko
 src/symbols/semiface.tiko
+src/symbols/derive.tiko
 src/symbols/semcva.tiko
 src/symbols/redimrank.tiko
 src/types/udtlayout.tiko
@@ -112,6 +115,7 @@ src/mir/lowervtab.tiko
 src/mir/loweritab.tiko
 src/mir/lowerfieldinit.tiko
 src/mir/lowerimpl.tiko
+src/mir/lowerderive.tiko
 src/mir/lowerindirect.tiko
 src/mir/lowermember.tiko
 src/mir/lowermodinit.tiko

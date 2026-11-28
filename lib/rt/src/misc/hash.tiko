@@ -1,0 +1,154 @@
+'' hash.tiko -- the built-in hashes, shared by the compiler's 'hashvalue( k )' and std/containers
+'' (RFC 0019 R5).
+''
+'' MOVED, NOT REWRITTEN: these are std/containers' HashBytes, HashInt and float HashOf
+'' bodies (pkg/std/containers/hash.tiko before P1), so every value is the same. The values
+'' are pinned by tests/semantic/derive/hashes.tiko and hashedge.tiko on every target; a
+'' change here that moves one of them is a bug, whatever it improves.
+''
+'' No fbc counterpart, so every name is 'tko_' (build/symbols.sh admits the prefix).
+'' No allocation, no global, no OS call. tko_HashStr and tko_HashUStr take a string the way
+'' fb_StrCompare / fb_UStrCompare do -- (pointer, size), size -1 for a var-len descriptor --
+'' and CONSUME a temporary descriptor, as those do.
+
+#include once "inc/descriptors.ti"
+#include once "inc/ustr.ti"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_StrLock alias "fb_StrLock" ( )
+		declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+	end extern
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+	declare function tkrt_DelTemp alias "fb_hStrDelTemp" ( byval s as FBSTRING ptr ) as int32
+	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
+		( byval s as FBUSTRING ptr ) as int32
+end extern
+
+extern "rtlib"
+
+'' FNV-1a, 64-bit.
+function tkort_HashBytes alias "tko_HashBytes" _
+	( byval p as const ubyte ptr, byval n as uinteger ) as uint64
+
+	dim as uint64 h = 14695981039346656037ull
+
+	'' n is UNSIGNED, so 'to n-1' with n = 0 would walk off the end.
+	if( (p = 0) orelse (n = 0) ) then
+		return h
+	end if
+
+	for i as uinteger = 0 to n - 1
+		h xor= p[i]
+		h *= 1099511628211ull
+	next
+
+	return h
+end function
+
+'' The bytes of a NUL-terminated string, up to the NUL. A STRING reaches the containers'
+'' hash through this shape: overload resolution gives a STRING argument the 'const zstring
+'' ptr' overload (fbc 1.20 does the same), so a STRING hashes up to its first NUL.
+function tkort_HashZ alias "tko_HashZ" ( byval p as const ubyte ptr ) as uint64
+	dim as uinteger n = 0
+	if( p <> 0 ) then
+		while( p[n] <> 0 )
+			n += 1
+		wend
+	end if
+	return tkort_HashBytes( p, n )
+end function
+
+'' A STRING: its bytes up to the first NUL, which is what the 'const zstring ptr' overload
+'' measured (strlen). Bounded by the length, so a descriptor's data is never over-read.
+function tkort_HashStr alias "tko_HashStr" _
+	( byval s as any ptr, byval s_size as integer ) as uint64
+
+	dim as zstring ptr p = any
+	dim as integer n = any
+	FB_STRSETUP_FIX( s, s_size, p, n )
+	dim as uinteger k = 0
+	if( p <> nullptr ) then
+		dim as const ubyte ptr b = cptr( const ubyte ptr, p )
+		while( (cast( integer, k ) < n) andalso (b[k] <> 0) )
+			k += 1
+		wend
+	end if
+	dim as uint64 h = tkort_HashBytes( cptr( const ubyte ptr, p ), k )
+	if( (s <> nullptr) andalso (s_size = FB_STRSIZEVARLEN) ) then
+		tkrt_DelTemp( cptr( FBSTRING ptr, s ) )
+	end if
+	return h
+end function
+
+'' A USTRING: every code unit, embedded NULs included, two bytes each on every target.
+function tkort_HashUStr alias "tko_HashUStr" _
+	( byval s as any ptr, byval s_size as integer ) as uint64
+
+	dim as FB_UCHAR ptr p = any
+	dim as integer l = any
+	FB_USTRSETUP( s, s_size, p, l )
+	dim as uint64 h = tkort_HashBytes( cptr( const ubyte ptr, p ), cast( uinteger, l ) * 2 )
+	if( s_size = FB_USTRSIZEVARLEN ) then
+		STRLOCK()
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, s ) )
+		STRUNLOCK()
+	end if
+	return h
+end function
+
+'' A WSTRING PTR (and a WSTRING * N by its address): its characters up to the NUL, at the
+'' target's WSTRING width -- 2 bytes on Windows, 4 on Linux, so this hash differs per target.
+function tkort_HashW alias "tko_HashW" ( byval p as const ubyte ptr ) as uint64
+	dim as uinteger n = 0
+	if( p <> 0 ) then
+#if sizeof( wstring ) = 2
+		dim as const ushort ptr q = cptr( const ushort ptr, p )
+#else
+		dim as const ulong ptr q = cptr( const ulong ptr, p )
+#endif
+		while( q[n] <> 0 )
+			n += 1
+		wend
+	end if
+	return tkort_HashBytes( p, n * sizeof( wstring ) )
+end function
+
+'' splitmix64's finaliser. HashInt( 0 ) is 0, which is what makes a derived hash's fold
+'' start cleanly (RFC 0019 R4).
+function tkort_HashInt alias "tko_HashInt" ( byval v as uint64 ) as uint64
+	dim as uint64 h = v
+	h xor= h shr 30
+	h *= 13787848793156543929ull
+	h xor= h shr 27
+	h *= 10723151780598845931ull
+	h xor= h shr 31
+	return h
+end function
+
+'' Floats hash by their bit pattern, with -0.0 folded into 0.0 because the two compare
+'' equal. NaN is left alone: NaN <> NaN, so a NaN key is never found whatever it hashes to.
+function tkort_HashF32 alias "tko_HashF32" ( byval v as single ) as uint64
+	dim as single f = v
+	if( f = 0.0f ) then
+		f = 0.0f
+	end if
+	return tkort_HashInt( culngint( *cptr( ulong ptr, @f ) ) )
+end function
+
+function tkort_HashF64 alias "tko_HashF64" ( byval v as double ) as uint64
+	dim as double d = v
+	if( d = 0.0 ) then
+		d = 0.0
+	end if
+	return tkort_HashInt( *cptr( ulongint ptr, @d ) )
+end function
+
+end extern

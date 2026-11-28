@@ -1,0 +1,290 @@
+'' derive.tiko -- Sem's judgement of 'derive' lines and of 'hashvalue( k )' (RFC 0019).
+''
+'' WHERE EACH ERROR IS REPORTED (R7, R8):
+''
+''   a type that is not generic    at its 'derive' line, once, whether or not anything is
+''                                 compared or hashed (CheckDerives_)
+''   a generic instance            at the comparison or the hashvalue( ) that needs it, with a
+''                                 note at the template's 'derive' line -- so Box( of Opaque_ )
+''                                 with 'derive equal' compiles until two of them are compared
+''   a type read from an interface never: the module that declares it judged it already
+''
+'' What a field may be is symbols/derivetype.tiko's, shared with Check and lowering.
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+private function UdtSymOfType_( byref c as Ctx, byval t as TypeId ) as Symbol ptr
+    if c.types->Kind( t ) <> TK_UDT then return nullptr
+    dim as InternId tn = c.types->NameOf( t )
+    if tn = 0 then return nullptr
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( t ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    return c.syms->SymbolAt( ts )
+end function
+
+private function IsGenericInst_( byref c as Ctx, byval t as TypeId ) as boolean
+    '' An instance's symbol carries its TEMPLATE's N_TYPE (generic.tiko), whose 'b' is the
+    '' parameter list; no flag marks the instance's own UDT symbol.
+    dim as Symbol ptr s = UdtSymOfType_( c, t )
+    if s = nullptr then return false
+    dim as NodeId tn = cast( NodeId, s->payload )
+    if (tn = NODE_NONE) orelse (c.ast->Kind( tn ) <> N_TYPE) then return false
+    return c.ast->StmtOf( tn )->b <> NODE_NONE
+end function
+
+private sub NoteDeriveLine_( byref c as Ctx, byval locNode as NodeId )
+    if locNode <> NODE_NONE then c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( locNode ) ) )
+end sub
+
+'' The gap kinds: what a field must have for each word.
+const GAP_EQUAL = 0, GAP_HASH = 1, GAP_ORDER = 2, GAP_TEXT = 3
+
+'' TKO1261 / 1262 / 1267 / 1270 for type t at 'at', with its first gap. True when one was reported.
+private function ReportGap_( byref c as Ctx, byval t as TypeId, byval kind_ as int32, _
+                             byval at as SourceLoc, byval locNode as NodeId, byval withNote as boolean ) as boolean
+    dim as SymbolId f = SYMBOL_NONE : dim as TypeId ft = TYPE_NONE
+    '' A BITFIELD IS NOT DERIVED in this build: its value is bits inside a shared unit, which the
+    '' lowering does not extract (RFC 0019 section 13, a P1 limit).
+    dim as containers.Array( of uint32 ) bfs, bft
+    Tko.Check.DeriveFields( *c.syms, *c.types, *c.names, t, bfs, bft )
+    for i as int32 = 0 to bfs.Count - 1
+        dim as Symbol ptr bs = c.syms->SymbolAt( cast( SymbolId, bfs[i] ) )
+        if bs = nullptr then continue for
+        if (bs->flags and SYMF_BITFIELD) = 0 then continue for
+        c.diags->Report( TKO0992, PointRange( at ), "derive over the bitfield '" & c.names->Spelling( bs->name ) & "'" )
+        if withNote then NoteDeriveLine_( c, locNode )
+        return true
+    next
+    dim as boolean gap
+    dim as DiagId did
+    select case kind_
+    case GAP_HASH
+        gap = Tko.Check.DeriveHashGap( *c.ast, *c.syms, *c.types, *c.names, t, f, ft ) : did = TKO1262
+    case GAP_ORDER
+        gap = Tko.Check.DeriveOrderGap( *c.ast, *c.syms, *c.types, *c.names, *c.info, t, f, ft ) : did = TKO1267
+    case GAP_TEXT
+        gap = Tko.Check.DeriveTextGap( *c.ast, *c.syms, *c.types, *c.names, t, f, ft ) : did = TKO1270
+    case else
+        gap = Tko.Check.DeriveEqualGap( *c.ast, *c.syms, *c.types, *c.names, *c.info, t, f, ft ) : did = TKO1261
+    end select
+    if gap = false then return false
+    dim as Symbol ptr fs = c.syms->SymbolAt( f )
+    dim as string fname = iif( fs <> nullptr, c.names->Spelling( fs->name ), "?" )
+    c.diags->Report( did, PointRange( at ), c.types->Name( t ), fname, c.types->Name( ft ) )
+    if withNote then NoteDeriveLine_( c, locNode )
+    return true
+end function
+
+'' Called from CheckUdtCompare_ (proccheck.tiko) for '=' / '<>' over two of one type with no
+'' operator bound: true when the comparison is a derived one, judged here.
+function DerivedCompareJudged_ _
+    ( byref c as Ctx, byval id as NodeId, byref opnm as string, byval lt as TypeId, byval rt as TypeId ) as boolean
+    dim as boolean ordOp = (opnm = "<") orelse (opnm = ">") orelse (opnm = "<=") orelse (opnm = ">=")
+    if (opnm <> "=") andalso (opnm <> "<>") andalso (ordOp = false) then return false
+    if (lt <> rt) orelse (c.types->Kind( lt ) <> TK_UDT) then return false
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return false
+    dim as NodeId ln
+    dim as uint32 need = iif( ordOp, DERIVE_ORDER, DERIVE_EQUAL )
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, lt, ln ) and need) = 0 then return false
+    if IsGenericInst_( c, lt ) then
+        if ReportGap_( c, lt, GAP_EQUAL, c.ast->Loc( id ), ln, true ) = false then
+            if ordOp then ReportGap_( c, lt, GAP_ORDER, c.ast->Loc( id ), ln, true )
+        end if
+    end if
+    return true
+end function
+
+'' 'hashvalue( k )', unbound (the program's own hashvalue is left alone). Called from
+'' CheckArgConversions_ (assigncheck.tiko) as TryCastJudged_ is: true when this is that call.
+function HashValueJudged_( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if (lp->count <> 1) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return false
+    if c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) ) <> "hashvalue" then return false
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
+    dim as NodeId an = c.ast->ChildAt( lp->first, 0 )
+    dim as TypeId at = c.info->TypeOf_( an )
+    if at = TYPE_NONE then return true                         '' already reported where it failed
+    dim as int32 hk = Tko.Check.HashKindOf( *c.ast, *c.syms, *c.types, *c.names, at )
+    if hk = Tko.Check.HK_NONE then
+        c.diags->Report( TKO1266, PointRange( c.ast->Loc( an ) ), c.types->Name( c.types->Unqualify( at ) ) )
+    elseif hk = Tko.Check.HK_DERIVED then
+        dim as TypeId ut = c.types->Unqualify( at )
+        if c.types->Kind( ut ) = TK_REFERENCE then ut = c.types->Unqualify( c.types->Inner( ut ) )
+        if IsGenericInst_( c, ut ) then
+            dim as NodeId ln
+            Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, ut, ln )
+            ReportGap_( c, ut, GAP_HASH, c.ast->Loc( an ), ln, true )
+        end if
+    end if
+    return true
+end function
+
+'' 'p.ToText( )' over a 'derive text' type, which binds no member: called from CheckMemberExists_
+'' (latesweeps2.tiko) so it is not TKO0739. A generic instance's fields are judged here (R8).
+function TextMemberJudged_( byref c as Ctx, byval id as NodeId, byval bt as TypeId ) as boolean
+    dim as NodeId ln
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, bt, ln ) and DERIVE_TEXT) = 0 then return false
+    '' PAREN-LESS 'p.ToText' IS A P2 LIMIT: print and the string paths reach a member by its
+    '' address, and this one has none. 'p.ToText( )' works everywhere.
+    if (c.ast->Flags( id ) and NF_CALL_TARGET) = 0 then
+        c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "'ToText' without parentheses: write ToText( )" )
+        return true
+    end if
+    if IsGenericInst_( c, bt ) then ReportGap_( c, bt, GAP_TEXT, c.ast->Loc( id ), ln, true )
+    return true
+end function
+
+'' After TKO0871 ('print p' over a type with no printable form): a type that derives text has
+'' its ToText( ), which print does not call on its own (R6).
+sub DeriveTextNote_( byref c as Ctx, byval t as TypeId )
+    dim as NodeId ln
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, t, ln ) and DERIVE_TEXT) = 0 then return
+    c.diags->AddNote( TKO0900, PointRange( c.ast->Loc( ln ) ), "'derive text' gives it a ToText( ) member, which print does not call: write .ToText( )" )
+end sub
+
+'' The SYM_ENUM an enum-intrinsic argument names, or nullptr.
+private function EnumSymOfArg_( byref c as Ctx, byval n as NodeId ) as Symbol ptr
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = nullptr then return nullptr
+    if s->kind <> cast( uint8, SYM_ENUM ) then return nullptr
+    return s
+end function
+
+'' 'enumname( v )', 'enumcount( E )', 'enumvalue( E, i )', unbound (R9). Called beside
+'' HashValueJudged_: true when this is one of them.
+function EnumIntrJudged_( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if c.ast->Kind( lp->target ) <> N_IDENT then return false
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
+    dim as string nm = c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) )
+    select case nm
+    case "enumname"
+        if lp->count <> 1 then return false
+        dim as NodeId an = c.ast->ChildAt( lp->first, 0 )
+        dim as TypeId at = c.types->Unqualify( c.info->TypeOf_( an ) )
+        if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+        dim as boolean named_ = (c.types->Kind( at ) = TK_ENUM)
+        if named_ then
+            dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( at ) )
+            dim as SymbolId es = c.syms->LookupLocalTyped( ds, c.types->NameOf( at ), true )
+            if es = SYMBOL_NONE then es = c.syms->LookupTyped( ds, c.types->NameOf( at ), true )
+            named_ = (es <> SYMBOL_NONE)
+        end if
+        if named_ = false then c.diags->Report( TKO1271, PointRange( c.ast->Loc( an ) ), iif( at <> TYPE_NONE, c.types->Name( at ), "?" ) )
+        return true
+    case "enumcount", "enumvalue"
+        if lp->count <> iif( nm = "enumcount", 1, 2 ) then return false
+        dim as NodeId en = c.ast->ChildAt( lp->first, 0 )
+        dim as Symbol ptr es = EnumSymOfArg_( c, en )
+        if es = nullptr then
+            '' ONLY WHEN IT NAMES SOMETHING ELSE: a field's array bound is evaluated by the constant
+            '' folder, which finds E by name in the field's own scope (constfold.tiko), and Resolve
+            '' binds nothing there. An unbound name is the undeclared-name and constant passes' to judge.
+            if c.info->RefOf( en ) <> SYMBOL_NONE then c.diags->Report( TKO1272, PointRange( c.ast->Loc( en ) ), nm )
+            return true
+        end if
+        if nm = "enumvalue" then
+            '' A CONSTANT index out of range is known now; a variable one is checked at run time
+            '' under -exx (mir/lowerderive.tiko).
+            dim as NodeId kn = c.ast->ChildAt( lp->first, 1 )
+            dim as Tko.Check.ConstVal kv = Tko.Check.ConstOf( *c.ast, kn, *c.srcMgr, *c.names, 64, c.syms, SCOPE_GLOBAL, 0, c.types, c.info )
+            if kv.known then
+                dim as int64 n = 0
+                dim as SymScope ptr sc = c.syms->ScopeAt( es->inner )
+                dim as SymbolId cur = iif( sc <> nullptr, sc->firstSym, SYMBOL_NONE )
+                for guard as int32 = 0 to 99999
+                    if cur = SYMBOL_NONE then exit for
+                    dim as Symbol ptr k = c.syms->SymbolAt( cur )
+                    if k = nullptr then exit for
+                    if k->kind = cast( uint8, SYM_ENUMCONST ) then n += 1
+                    cur = k->nextInScope
+                next
+                if (kv.value < 0) orelse (kv.value >= n) then
+                    c.diags->Report( TKO1273, PointRange( c.ast->Loc( kn ) ), c.types->Name( es->type_ ), str( kv.value ), str( n ) )
+                end if
+            end if
+        end if
+        return true
+    end select
+    return false
+end function
+
+'' Every type that is not generic and not read from an interface, judged at its 'derive' line.
+sub CheckDerives_( byref c as Ctx )
+    if c.ast->deriveLists.Count = 0 then return
+    for i as int32 = 1 to c.syms->Count( ) - 1
+        dim as Symbol ptr s = c.syms->SymbolAt( cast( SymbolId, i ) )
+        if s = nullptr then continue for
+        if s->kind <> cast( uint8, SYM_UDT ) then continue for
+        if (s->flags and SYMF_IMPORTED) <> 0 then continue for
+        dim as NodeId tn = cast( NodeId, s->payload )
+        if (tn = NODE_NONE) orelse (c.ast->Kind( tn ) <> N_TYPE) then continue for
+        if c.ast->StmtOf( tn )->b <> NODE_NONE then continue for   '' a template: its instances answer
+        dim as NodeId ln
+        dim as uint32 mask = DeriveOf( *c.ast, tn, ln )
+        if mask = 0 then continue for
+        dim as TypeId t = s->type_
+        if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then continue for
+        dim as SourceLoc at = c.ast->Loc( ln )
+        dim as string tname = c.types->Name( t )
+        '' A WRITTEN OPERATOR BESIDE THE WORD THAT DERIVES IT: '=' '<>' for equal, the four for order.
+        for k as int32 = 0 to 5
+            dim as string opn
+            select case k
+            case 0 : opn = "="
+            case 1 : opn = "<>"
+            case 2 : opn = "<"
+            case 3 : opn = ">"
+            case 4 : opn = "<="
+            case else : opn = ">="
+            end select
+            dim as uint32 word = iif( k < 2, DERIVE_EQUAL, DERIVE_ORDER )
+            if (mask and word) = 0 then continue for
+            dim as SymbolId w = Tko.Check.UdtWrittenCmpOp( *c.ast, *c.syms, *c.types, *c.names, *c.info, t, opn )
+            if w <> SYMBOL_NONE then
+                c.diags->Report( TKO1263, PointRange( at ), tname, opn, iif( k < 2, "equal", "order" ) )
+                dim as Symbol ptr ws = c.syms->SymbolAt( w )
+                if ws <> nullptr then
+                    if ws->payload <> 0 then c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( cast( NodeId, ws->payload ) ) ) )
+                end if
+            end if
+        next
+        if (mask and DERIVE_EQUAL) <> 0 then ReportGap_( c, t, GAP_EQUAL, at, ln, false )
+        if (mask and DERIVE_ORDER) <> 0 then
+            if (mask and DERIVE_EQUAL) = 0 then
+                c.diags->Report( TKO1268, PointRange( at ), tname )
+            else
+                ReportGap_( c, t, GAP_ORDER, at, ln, false )
+            end if
+        end if
+        if (mask and DERIVE_TEXT) <> 0 then
+            if Tko.Check.UdtToTextMethod( *c.ast, *c.syms, *c.types, *c.names, t ) <> SYMBOL_NONE then
+                c.diags->Report( TKO1269, PointRange( at ), tname )
+            else
+                ReportGap_( c, t, GAP_TEXT, at, ln, false )
+            end if
+        end if
+        if (mask and DERIVE_HASH) <> 0 then
+            if (mask and DERIVE_EQUAL) = 0 then
+                c.diags->Report( TKO1264, PointRange( at ), tname )
+            elseif Tko.Check.UdtHashOfMethod( *c.ast, *c.syms, *c.types, *c.names, t ) <> SYMBOL_NONE then
+                c.diags->Report( TKO1265, PointRange( at ), tname )
+            else
+                ReportGap_( c, t, GAP_HASH, at, ln, false )
+            end if
+        end if
+    next
+end sub
+
+end namespace

@@ -1,0 +1,6 @@
+'' TKO1271: enumname( ) over a value that is not of a named enum (RFC 0019 R9).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/enumname-not-enum.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: enumname-not-enum.bas(3,17): error TKO1271
+'' EXPECT-MAX-DIAG: 1

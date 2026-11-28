@@ -1,0 +1,32 @@
+'' derivemod -- a module whose public type derives (RFC 0019 R7), for ../module.tiko.
+#module "derivemod"
+
+public type Key
+    derive equal, hash
+    as int32 id
+    as string name
+private:
+    as int32 hidden_            '' private fields take part too (section 5.2)
+public:
+    declare sub SetHidden( byval v as int32 )
+end type
+
+public sub Key.SetHidden( byval v as int32 )
+    hidden_ = v
+end sub
+
+'' The module compares and hashes Keys itself, so it emits its own private copies too.
+public function SameKey( byref a as Key, byref b as Key ) as boolean
+    return a = b
+end function
+
+public function KeyHash( byref a as Key ) as ulongint
+    return hashvalue( a )
+end function
+
+'' P2: order and text, used from the importer.
+public type Ranked
+    derive equal, order, text
+    as int32 rank
+    as string name
+end type

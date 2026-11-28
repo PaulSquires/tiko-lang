@@ -21,6 +21,10 @@
 # trace must never change at all (R5). contextual's must never change at all (R1, R9).
 # syntax.tiko is rejected at P0; its baseline is the diagnostics.
 #
+# A probe whose header says '' TWIN-OF <oracle> [SED <expr>] is the derived twin of a
+# hand-written oracle: it gets no baseline of its own, and its output must equal the oracle's
+# latest trace (after the sed expression, when one is given), in every mode.
+#
 # A Linux baseline exists only where Linux prints something else (a WSTRING is 4 bytes
 # there). Without one, the Linux run is diffed against the Windows baseline.
 #
@@ -119,6 +123,27 @@ for src in "$DIR"/*.bas "$DIR"/*.tiko; do
     [ -f "$src" ] || continue
     n=$(basename "$src"); n=${n%.*}
     probe $kind "$src" "$n"
+    # A TWIN has no baseline of its own: its output must be its oracle's latest trace, after
+    # the optional sed expression ('' TWIN-OF <oracle> [SED <expr>]).
+    twin=$(sed -n "s/^'' TWIN-OF \([A-Za-z0-9_-]*\).*/\1/p" "$src" | head -1)
+    if [ -n "$twin" ]; then
+        tsed=$(sed -n "s/^'' TWIN-OF [A-Za-z0-9_-]* SED //p" "$src" | head -1)
+        base=$(latest "$twin")
+        if [ -z "$base" ]; then
+            echo "NO BASE   $n  (its oracle $twin has no trace)"
+            diffs=$((diffs + 1)); continue
+        fi
+        if [ -n "$tsed" ]; then sed "$tsed" "$base" > "$OUT/$n.oracle"; else cp "$base" "$OUT/$n.oracle"; fi
+        if cmp -s "$OUT/$n.$kind.trace" "$OUT/$n.oracle"; then
+            echo "same      $n  (twin of $(basename "$base"))"
+            same=$((same + 1))
+        else
+            echo "DIFF      $n  (twin of $(basename "$base"))"
+            diff "$OUT/$n.oracle" "$OUT/$n.$kind.trace" | head -20 | sed 's/^/          /'
+            diffs=$((diffs + 1))
+        fi
+        continue
+    fi
     if [ -n "$phase" ]; then
         if [ $linux -eq 1 ]; then
             if cmp -s "$OUT/$n.linux.trace" "$DIR/$n.$phase-trace"; then

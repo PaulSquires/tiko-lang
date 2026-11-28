@@ -551,6 +551,8 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
     select case lcase( c.names->Spelling( want ) )
     case "constructor", "destructor"
         return
+    case "totext"
+        if TextMemberJudged_( c, id, bu ) then return   '' 'derive text', derive.tiko (RFC 0019)
     end select
     dim as TypeId t = bu
     dim as int32 guard = 0

@@ -1,0 +1,71 @@
+HashInt 0                   0000000000000000
+HashInt 1                   5692161D100B05E5
+HashInt 2                   DBD238973A2B148A
+HashInt max                 B4D055FCF2CBBD7B
+HashBytes 0 bytes           CBF29CE484222325
+HashBytes 4 bytes           44A1DE7F9906B340
+HashBytes null              CBF29CE484222325
+int8 0                      0000000000000000
+int8 1                      0000000000000001
+int8 -1                     00000000000000FF
+int8 -128                   0000000000000080
+uint8 0                     0000000000000000
+uint8 1                     0000000000000001
+uint8 255                   00000000000000FF
+int16 0                     0000000000000000
+int16 1                     0000000000000001
+int16 -1                    000000000000FFFF
+int16 -32768                0000000000008000
+uint16 0                    0000000000000000
+uint16 1                    0000000000000001
+uint16 65535                000000000000FFFF
+int32 0                     0000000000000000
+int32 1                     0000000000000001
+int32 -1                    00000000FFFFFFFF
+int32 12345                 0000000000003039
+int32 -2147483648           0000000080000000
+uint32 0                    0000000000000000
+uint32 1                    0000000000000001
+uint32 4294967295           00000000FFFFFFFF
+integer 0                   0000000000000000
+integer 1                   0000000000000001
+integer -1                  FFFFFFFFFFFFFFFF
+uinteger 0                  0000000000000000
+uinteger 1                  0000000000000001
+int64 0                     0000000000000000
+int64 1                     0000000000000001
+int64 -1                    FFFFFFFFFFFFFFFF
+int64 -9223372036854775808  8000000000000000
+uint64 0                    0000000000000000
+uint64 1                    0000000000000001
+uint64 18446744073709551615 FFFFFFFFFFFFFFFF
+boolean true                0000000000000001
+boolean false               0000000000000000
+float32 0                   0000000000000000
+float32 -0                  0000000000000000
+float32 1.5                 95C1DE1967F3F56E
+float32 -2.25               D896316288030731
+float32 NaN                 1FAD214B82C89703
+float32 inf                 31D9A718EBD4713A
+float64 0                   0000000000000000
+float64 -0                  0000000000000000
+float64 1.5                 E72B41D4576E3468
+float64 -2.25               F410198F3476314A
+float64 NaN                 469BF2DCC1AA179B
+float64 inf                 CE5683AAAEDC68D0
+float64 1e300               A469536DDEC11AEA
+any ptr 0                   0000000000000000
+any ptr &h1000              F06041805D06B780
+any ptr &hDEADBEEF          4E062702EC929EEA
+string empty                CBF29CE484222325
+string a                    AF63DC4C8601EC8C
+string abc                  E71FA2190541574B
+string hello, world         17A1A4F267BE633D
+string nul+x                CBF29CE484222325
+string 1000 x               E1ADD1D93134D2C5
+zstring ptr abc             E71FA2190541574B
+zstring ptr literal         E71FA2190541574B
+wstring ptr abc             CEC64E155111225D
+ustring empty               CBF29CE484222325
+ustring abc                 CEC64E155111225D
+ustring non-ascii           D6A69EE0010C0A34

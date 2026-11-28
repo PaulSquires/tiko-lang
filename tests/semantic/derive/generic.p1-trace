@@ -1,0 +1,9 @@
+uncompared Box( of Opaque_ )  3
+Box( of int32 ) = true  <> false
+after change = false  hash differs -1
+Map( of Box( of string ) ) count  10  k7  49
+class = true  hash equal -1
+Hashable key still works true  hashvalue = HashOf -1
+Set( of Pair ) count  2  has p1 true
+NUL strings: hash equal -1  equal false  map count  2
+hashes 0000000000000005 08BE1107B5622827 02C0BDBF481420F9

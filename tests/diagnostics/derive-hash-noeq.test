@@ -1,0 +1,6 @@
+'' TKO1264: 'derive hash' without 'derive equal' (RFC 0019 R4).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-hash-noeq.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-hash-noeq.bas(3,5): error TKO1264
+'' EXPECT-MAX-DIAG: 1

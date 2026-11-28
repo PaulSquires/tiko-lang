@@ -584,6 +584,10 @@ namespace Tko
         '' ast/astimpl.tiko.
         as ChildPool   implementsLists
         as NodeSideIndex implementsAt
+        '' 'derive' LINES (RFC 0019): triples (N_TYPE, mask of DERIVE_*, the line's first token as
+        '' a node, for its location). A side table, as implementsLists is. ast/astimpl.tiko.
+        as ChildPool   deriveLists
+        as NodeSideIndex deriveAt
 
         '' WHICH PAYLOAD POOL EACH NODE KIND WAS BUILT IN, as the parser's constructors saw it:
         '' AstPool, POOL_MIXED for a kind built in two. Read only by the -g pool check below.
@@ -818,6 +822,16 @@ namespace Tko
     '' ast/astimpl.tiko: AstArena.implementsLists.
     declare sub RecordImplements( byref ast as AstArena, byval decl as NodeId, byval list as NodeId )
     declare function ImplementsOf( byref ast as AstArena, byval decl as NodeId ) as NodeId
+    '' ast/astimpl.tiko: AstArena.deriveLists (RFC 0019). DeriveOf is 0 for a type with no
+    '' derive line, and sets locNode to the first line's 'derive' token otherwise.
+    const DERIVE_EQUAL as uint32 = 1
+    const DERIVE_ORDER as uint32 = 2
+    const DERIVE_HASH  as uint32 = 4
+    const DERIVE_TEXT  as uint32 = 8
+    declare sub RecordDerive _
+        ( byref ast as AstArena, byval decl as NodeId, byval mask as uint32, byval locNode as NodeId )
+    declare function DeriveOf _
+        ( byref ast as AstArena, byval decl as NodeId, byref locNode as NodeId ) as uint32
     '' The index of the newest 'stride'-wide entry of 'pool' whose first element is id, or -1.
     declare function SideTableFind _
         ( byref ix as NodeSideIndex, byref pool as ChildPool, byval stride as int32, _

@@ -1,0 +1,106 @@
+'' derive.tiko -- the 'derive' body line of a TYPE or CLASS, for the parser (RFC 0019 R1).
+''
+''     type Cell
+''         derive equal, hash
+''         as int32 row, col
+''     end type
+''
+'' 'derive' IS CONTEXTUAL, as 'inherits' is: an identifier, recognised by spelling, only at
+'' the start of a line of an aggregate body, with no type suffix, and only when another
+'' identifier follows it. 'derive as int32' is still a field named derive, and 'as int32
+'' derive' never reaches here (tests/semantic/derive/contextual.bas pins both).
+''
+'' THE WORDS are equal, order, hash and text (P1 equal and hash, P2 order and text). Several
+'' lines merge. The line is recorded on the N_TYPE in AstArena.deriveLists (ast/astimpl.tiko),
+'' read by Collect, Check, Sem and lowering through DeriveOf; it makes no member and no
+'' node in the tree, so no walk meets it.
+''
+'' REFUSED HERE: a union (named or anonymous), an anonymous type, a type with an anonymous
+'' union member -- which member is live cannot be known -- and, in this build, a PARTIAL
+'' type, whose parts merge only after the whole unit is parsed (partialtype.tiko).
+
+#import "std/containers"
+#include once "parser/parser.ti"
+#include once "support/text.ti"
+
+namespace Tko.Parse
+
+declare sub EndOfStatement( byref p as Tko.ParserState )
+
+private sub Report_( byref p as Tko.ParserState, byval id as Tko.DiagId, byval loc as Tko.SourceLoc, _
+                     byval a0 as string = "" )
+    if p.silent then return
+    p.diags->Report( id, Tko.PointRange( loc ), a0 )
+end sub
+
+private function NextIsIdent_( byref p as Tko.ParserState ) as boolean
+    if HasTok( p, p.pos + 1 ) = false then return false
+    return cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) = Tko.TK_IDENT
+end function
+
+'' A 'derive' line at the cursor: read it, merge its words into mask, and say so. The first
+'' line's 'derive' token becomes locNode, the location every derive diagnostic points at.
+function DeriveBodyLine _
+    ( byref p as Tko.ParserState, byref mask as uint32, byref locNode as Tko.NodeId ) as boolean
+
+    if IdentSpelledAt( p, p.pos, "derive" ) = false then return false
+    dim as Tko.Token dt = Cur( p )
+    if (dt.flags and Tko.TF_HAS_SUFFIX) <> 0 then return false
+    if NextIsIdent_( p ) = false then return false
+
+    if locNode = Tko.NODE_NONE then locNode = MakeTokenNode( p, dt )
+    Advance( p )
+    do
+        dim as Tko.Token wt = Cur( p )
+        if Peek( p ) <> Tko.TK_IDENT then
+            Report_( p, Tko.TKO0406, wt.loc )
+            SkipRestOfLine( p )
+            return true
+        end if
+        dim as string w = Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, wt.literal ) ) )
+        select case w
+        case "equal" : mask or= Tko.DERIVE_EQUAL
+        case "hash"  : mask or= Tko.DERIVE_HASH
+        case "order" : mask or= Tko.DERIVE_ORDER
+        case "text"  : mask or= Tko.DERIVE_TEXT
+        case else
+            Report_( p, Tko.TKO1258, wt.loc, p.names->Spelling( cast( Tko.InternId, wt.literal ) ) )
+        end select
+        Advance( p )
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
+    loop
+    EndOfStatement( p )
+    return true
+end function
+
+'' After the body: refuse what cannot derive, and record the rest on the N_TYPE.
+sub DeriveFinish _
+    ( byref p as Tko.ParserState, byval n as Tko.NodeId, byref sp as Tko.StmtPayload, _
+      byval isUnion as boolean, byval mask as uint32, byval locNode as Tko.NodeId )
+
+    if locNode = Tko.NODE_NONE then return
+    dim as Tko.SourceLoc loc = p.ast->Loc( locNode )
+    if isUnion then
+        Report_( p, Tko.TKO1259, loc, "a union" )
+        return
+    end if
+    if sp.name = 0 then
+        Report_( p, Tko.TKO1259, loc, "an anonymous type" )
+        return
+    end if
+    if p.partialDepth = p.aggDepth then
+        Report_( p, Tko.TKO0992, loc, "derive in a partial type" )
+        return
+    end if
+    for i as int32 = 0 to sp.count - 1
+        dim as Tko.NodeId m = p.ast->ChildAt( sp.first, i )
+        if p.ast->Kind( m ) <> Tko.N_TYPE then continue for
+        if p.ast->StmtOf( m )->name <> 0 then continue for
+        if (p.ast->Flags( m ) and Tko.NF_IS_UNION) = 0 then continue for
+        Report_( p, Tko.TKO1260, loc )
+        return
+    next
+    Tko.RecordDerive( *p.ast, n, mask, locNode )
+end sub
+
+end namespace

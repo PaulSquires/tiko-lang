@@ -1249,6 +1249,23 @@
     DIAG( TKO1255, SEV_ERROR,   "'starts' needs a string, and the subject is '%0'" )
     DIAG( TKO1256, SEV_WARNING, "the binding '%0' hides the constant of the same name; qualify it to compare against it" )
     DIAG( TKO1257, SEV_ERROR,   "a tuple pattern needs a tuple, and the subject is '%0'" )
+    '' 1258-1273: 'derive', 'hashvalue' and the enum intrinsics (RFC 0019; parser/derive.tiko, symbols/derive.tiko).
+    DIAG( TKO1258, SEV_ERROR,   "unknown derive '%0': the words are equal, order, hash and text" )
+    DIAG( TKO1259, SEV_ERROR,   "'derive' needs a named type or class, not %0" )
+    DIAG( TKO1260, SEV_ERROR,   "'derive' in a type with an anonymous union: which member is live cannot be known" )
+    DIAG( TKO1261, SEV_ERROR,   "'derive equal' on '%0' needs '=' on every field, and field '%1' is '%2', which has none" )
+    DIAG( TKO1262, SEV_ERROR,   "'derive hash' on '%0' needs a hash for every field, and field '%1' is '%2', which has none" )
+    DIAG( TKO1263, SEV_ERROR,   "'%0' has 'derive %2' and a hand-written 'operator %1'; keep one of them" )
+    DIAG( TKO1264, SEV_ERROR,   "'derive hash' on '%0' needs 'derive equal' too: a hash must cover exactly the fields '=' compares" )
+    DIAG( TKO1265, SEV_ERROR,   "'derive hash' on '%0', which has its own HashOf( ); keep one of them" )
+    DIAG( TKO1266, SEV_ERROR,   "hashvalue( ) cannot hash '%0': it is not a built-in type, has no 'derive hash' and no HashOf( ) method" )
+    DIAG( TKO1267, SEV_ERROR,   "'derive order' on '%0' needs '<', '>', '<=' and '>=' on every field, and field '%1' is '%2', which has none" )
+    DIAG( TKO1268, SEV_ERROR,   "'derive order' on '%0' needs 'derive equal' too: a field decides only where its '=' is false" )
+    DIAG( TKO1269, SEV_ERROR,   "'derive text' on '%0', which has a member named ToText already; keep one of them" )
+    DIAG( TKO1270, SEV_ERROR,   "'derive text' on '%0' needs text for every field, and field '%1' is '%2', which has none" )
+    DIAG( TKO1271, SEV_ERROR,   "enumname( ) needs a value of a named enum, and this is '%0'" )
+    DIAG( TKO1272, SEV_ERROR,   "%0( ) needs an enum type as its first argument" )
+    DIAG( TKO1273, SEV_ERROR,   "enumvalue( %0, %1 ) is out of range: '%0' has %2 constants" )
 
 #endmacro
 

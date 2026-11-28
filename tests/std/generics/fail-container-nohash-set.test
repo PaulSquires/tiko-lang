@@ -4,4 +4,4 @@
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/fail-container-nohash-set.bas -o tests/std/generics/fail-container-nohash-set.exe
 '' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: error TKO0632
+'' EXPECT-OUT: error TKO1266

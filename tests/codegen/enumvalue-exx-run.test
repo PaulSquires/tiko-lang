@@ -1,0 +1,11 @@
+'' RUN: enumvalue( E, i ) with a variable index under -exx (RFC 0019 R9) is checked as an array
+'' index is: in range it is the constant, past the last one runtime error 6.
+'' TEST: cli
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/enumvalue-exx.bas -o tests/codegen/enumvalueexx.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/enumvalueexx.exe
+'' RUN: tests/codegen/enumvalueexx.exe
+'' EXPECT-RUN-EXIT: 6
+'' EXPECT-RUN-OUT: 2
+'' EXPECT-RUN-OUT: runtime error 6 (out of bounds array access) at line 9 of

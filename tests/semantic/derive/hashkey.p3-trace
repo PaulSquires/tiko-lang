@@ -1,0 +1,9 @@
+Cell(2,3) DBD238973A2B1489
+Cell(3,2) 1E535EEDE31428F2
+book ch24 DBD238973A2B1489
+Map finds an equal Cell: true
+Map misses Cell(3,2):    false
+Wide0 D59813578866B38E  = Wide0: true  in map: true
+Wide1 D59813578866B38E  = Wide0: true  in map: true
+Wide2 CB2DCA1D0F4EAE45  = Wide0: false  in map: false
+Wide3 601C10E79F5ED6E0  = Wide0: false  in map: false

@@ -1,0 +1,6 @@
+'' TKO1258, an unknown word on a 'derive' line (RFC 0019 R1).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-unknown-word.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-unknown-word.bas(3,19): error TKO1258
+'' EXPECT-MAX-DIAG: 1

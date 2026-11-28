@@ -1,0 +1,23 @@
+'' hashvalue-shadow.tiko -- see ../hashvalue-shadow-run.test
+#import "std/containers"
+
+'' The program's own hashvalue: it wins in the program's code (RFC 0019 R5)...
+function hashvalue( byval n as int32 ) as int32
+    return n * 2
+end function
+
+type Cell
+    derive equal, hash
+    as int32 row, col
+end type
+
+'' ...and Map's and Set's bodies, which are std/containers', still hash with the intrinsic.
+dim as containers.Map( of ustring, int32 ) m
+m[ "a" ] = 1 : m[ "b" ] = 2
+dim as containers.Map( of Cell, ustring ) sheet
+dim as Cell a = ( 2, 3 ), b = ( 2, 3 )
+sheet[ a ] = "x"
+dim as containers.Set( of int32 ) s
+s.Add( 7 ) : s.Add( 7 )
+
+print hashvalue( 21 ); m[ "b" ]; m.Count( ); " "; sheet.Contains( b ); s.Count( )

@@ -46,9 +46,10 @@ A hash map is faster on every single operation, allocates once instead of once p
 There is one case where they win outright: a key type that has '<' but no hash.
 
 ```freebasic
-Map                   needs K to extend containers.Hashable (or be a
-                      built-in type), and '=', and equal keys must
-                      hash equal
+Map                   needs K to be a built-in type, to have
+                      'derive equal, hash', or to extend
+                      containers.Hashable, and '=', and equal keys
+                      must hash equal
 OrderedMap            needs '<'. Nothing else.
 ```
 

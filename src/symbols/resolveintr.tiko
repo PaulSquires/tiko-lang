@@ -196,5 +196,25 @@ private function OffsetofFieldArg_ _
     return Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, lp->target ) ) ) = "offsetof"
 end function
 
+'' A MODULE'S 'hashvalue( k )' IS THE INTRINSIC (RFC 0019 R5, R9). A module's generic body is
+'' re-resolved in the importer's unit, and the walk out of its namespace reached the importer's
+'' own 'function hashvalue', so every Map and Set bound to it (TKO0698 in map.tiko). Inside an
+'' imported namespace a hit not the module's own is left unbound: the intrinsic.
+private function ModuleIntrinsicName_( byref c as Ctx, byval sid as Tko.SymbolId, _
+                                       byval scope_ as Tko.ScopeId, byval nm as Tko.InternId ) as Tko.SymbolId
+    if sid = Tko.SYMBOL_NONE then return sid
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if (s = nullptr) orelse ((s->flags and (Tko.SYMF_IMPORTED or Tko.SYMF_MODSRC)) <> 0) then return sid
+    dim as string w = Tko.Text.LowerAscii( c.names->Spelling( nm ) )
+    if (w <> "hashvalue") andalso (w <> "enumname") andalso (w <> "enumcount") andalso (w <> "enumvalue") then return sid
+    dim as Tko.SymScope ptr p = c.syms->ScopeAt( scope_ )
+    for guard as int32 = 0 to 1023
+        if p = nullptr then exit for
+        if (p->owner <> Tko.SYMBOL_NONE) andalso c.syms->IsImportNs( p->owner ) then return Tko.SYMBOL_NONE
+        p = c.syms->ScopeAt( p->parent )
+    next
+    return sid
+end function
+
 #include once "symbols/resolvertl.tiko"
 #include once "symbols/resolvestmt.tiko"

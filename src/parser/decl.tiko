@@ -1114,6 +1114,7 @@ private function ParseAggregateBody _
 
     p.aggDepth += 1
     dim as Tko.NodeIdVec members
+    dim as uint32 deriveMask = 0 : dim as Tko.NodeId deriveLoc = Tko.NODE_NONE   '' derive.tiko
 
     '' 'EXTENDS T' IS A FIELD, not a flag. fbc embeds the base as the first member --
     ''
@@ -1180,6 +1181,7 @@ private function ParseAggregateBody _
             continue do
         end if
         if LateBodyLine( p, sp ) then continue do   '' 'implements'/'inherits' after a member
+        if DeriveBodyLine( p, deriveMask, deriveLoc ) then continue do   '' RFC 0019
 
         dim as int32 before = p.pos
         dim as Tko.TokenKind k = Peek( p )
@@ -1448,6 +1450,7 @@ private function ParseAggregateBody _
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPE, t.loc, sp )
     if implList <> Tko.NODE_NONE then Tko.RecordImplements( *p.ast, n, implList )
     if isUnion then p.ast->OrFlags( n, Tko.NF_IS_UNION )
+    DeriveFinish( p, n, sp, isUnion, deriveMask, deriveLoc )
     '' THE DECREMENT USED TO SIT AFTER THE RETURN, so aggDepth only ever grew: once one
     '' TYPE had been seen anywhere in the unit, a bare anonymous 'union' at module level
     '' was accepted for the rest of the file rather than being the error fbc calls it.

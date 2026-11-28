@@ -14,8 +14,8 @@
 '' Add returns FALSE when the element was already present, which is what makes
 '' 'if seen.Add( x ) then' the natural spelling of "process each thing once".
 ''
-'' THE HASH CONTRACT is in hash.tiko: 'HashOf( v )' must resolve and 'v = v'
-'' must compare, and EQUAL ELEMENTS MUST HASH EQUAL.
+'' THE HASH CONTRACT is in hash.tiko: 'hashvalue( v )' must resolve (a built-in type, a
+'' 'derive equal, hash' type or a Hashable), 'v = v' must compare, EQUAL ELEMENTS MUST HASH EQUAL.
 ''
 '' Same implementation as Map -- open addressing, linear probing, power-of-two
 '' capacity, Fibonacci hashing for the home slot, a control byte per slot holding
@@ -110,7 +110,11 @@ end function
 '' HashOf( v ) times 2^64 / phi: the top bits are the home slot, the seven under them
 '' the fingerprint -- as Map.Mix.
 function Set( of T ).Mix( byref v as T ) as ulongint
+#ifdef __TIKO_HASHVALUE__
+    return hashvalue( v ) * CONTAINERS_FIB_MULT   '' as Map.Mix
+#else
     return HashOf( v ) * CONTAINERS_FIB_MULT
+#endif
 end function
 
 '' as Map.CtrlOf

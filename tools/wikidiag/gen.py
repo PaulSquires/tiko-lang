@@ -39,7 +39,8 @@ RANGES = [
     (1100, 1149, "int128 and uint128"),
     (1150, 1199, "Flow analysis"),
     (1200, 1239, "Tests and documentation"),
-    (1240, 1279, "Match"),
+    (1240, 1257, "Match"),
+    (1258, 1279, "Derive, hashvalue and enum intrinsics"),
 ]
 
 

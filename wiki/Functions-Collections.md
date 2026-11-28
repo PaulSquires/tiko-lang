@@ -9,7 +9,7 @@ The functions to keep lists, lookups and sets of values; sort and search them, g
 - `std/numeric`: `#import "std/numeric"`, then `using numeric` to call it by its bare name.
 - `fbc-int/array.bi`: `#include "fbc-int/array.bi"`, then `using FB`.
 
-Jump to: [Choose a container](#choose-a-container) · [Array: add and remove](#array-add-and-remove) · [Array: read, count and visit](#array-read-count-and-visit) · [Array: find a value](#array-find-a-value) · [Sort an Array or a LinkedList](#sort-an-array-or-a-linkedlist) · [Map: add and change](#map-add-and-change) · [Map: look up](#map-look-up) · [Map: list keys and values](#map-list-keys-and-values) · [Set: add, remove and test](#set-add-remove-and-test) · [Built-in arrays: bounds and size](#built-in-arrays-bounds-and-size) · [Built-in arrays: resize and erase](#built-in-arrays-resize-and-erase) · [Queues and stacks: LinkedList and Deque](#queues-and-stacks-linkedlist-and-deque) · [PriorityQueue: take the smallest first](#priorityqueue-take-the-smallest-first) · [Combine sets](#combine-sets) · [Find the first, last or nearest key](#find-the-first-last-or-nearest-key) · [BitSet: flags by number](#bitset-flags-by-number) · [Rearrange an Array](#rearrange-an-array) · [Walk a container step by step](#walk-a-container-step-by-step) · [Reserve room ahead of time](#reserve-room-ahead-of-time) · [Check a container's internals](#check-a-containers-internals)
+Jump to: [Choose a container](#choose-a-container) · [Array: add and remove](#array-add-and-remove) · [Array: read, count and visit](#array-read-count-and-visit) · [Array: find a value](#array-find-a-value) · [Sort an Array or a LinkedList](#sort-an-array-or-a-linkedlist) · [Map: add and change](#map-add-and-change) · [Map: look up](#map-look-up) · [Map: list keys and values](#map-list-keys-and-values) · [Set: add, remove and test](#set-add-remove-and-test) · [Make a type of your own a key](#make-a-type-of-your-own-a-key) · [Built-in arrays: bounds and size](#built-in-arrays-bounds-and-size) · [Built-in arrays: resize and erase](#built-in-arrays-resize-and-erase) · [Queues and stacks: LinkedList and Deque](#queues-and-stacks-linkedlist-and-deque) · [PriorityQueue: take the smallest first](#priorityqueue-take-the-smallest-first) · [Combine sets](#combine-sets) · [Find the first, last or nearest key](#find-the-first-last-or-nearest-key) · [BitSet: flags by number](#bitset-flags-by-number) · [Rearrange an Array](#rearrange-an-array) · [Walk a container step by step](#walk-a-container-step-by-step) · [Reserve room ahead of time](#reserve-room-ahead-of-time) · [Check a container's internals](#check-a-containers-internals)
 
 ## Choose a container
 
@@ -139,6 +139,13 @@ Jump to: [Choose a container](#choose-a-container) · [Array: add and remove](#a
 | [OrderedSet.IsEmpty](Modern-OrderedSet-IsEmpty) | Returns true if the set has no values. | `std/containers` |
 | [OrderedSet.Clear](Modern-OrderedSet-Clear) | Removes every value. | `std/containers` |
 | [OrderedSet.Items](Modern-OrderedSet-Items) | Returns a copy of all the values as an Array, already sorted. | `std/containers` |
+
+## Make a type of your own a key
+
+| Function | What it does | From |
+|---|---|---|
+| [derive](Derive) | Has the compiler write a type's comparisons, hash and `ToText( )` from its fields. | built-in |
+| [hashvalue](Hashvalue) | Returns the hash Map and Set use for a key: any built-in, derive hash or Hashable type. | built-in |
 
 ## Built-in arrays: bounds and size
 

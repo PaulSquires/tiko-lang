@@ -1,0 +1,6 @@
+'' TKO1273: a constant enumvalue( ) index past the last constant (RFC 0019 R9).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/enumvalue-range.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: enumvalue-range.bas(6,26): error TKO1273
+'' EXPECT-MAX-DIAG: 1

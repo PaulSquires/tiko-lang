@@ -81,8 +81,9 @@ Exactly one of the three is defined on every target.
 | `TIKO_ARCH_X86_64` | `1` on `windows-x86_64`, `linux-x86_64` and `android-x86_64`, otherwise not defined |
 | `TIKO_ARCH_ARM64` | `1` on `linux-arm64`, `macos-arm64` and `android-arm64`, otherwise not defined |
 | `__TIKO_CALLER_LOCATION__` | `1`: [`__CALLER_LINE__` and `__CALLER_FILE__`](Caller-Line) exist |
+| `__TIKO_HASHVALUE__` | `1`: [`hashvalue( k )`](Hashvalue) exists, and `std/containers`' Map and Set hash their keys through it |
 
-`__TIKO_COMPILER__` says **which compiler** is building; `__TIKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol. `__TIKO_CALLER_LOCATION__` is one such feature test.
+`__TIKO_COMPILER__` says **which compiler** is building; `__TIKO_VERSION__` says which version of it. Neither says which features it has, so code that must build with several versions still tests more than one symbol. `__TIKO_CALLER_LOCATION__` and `__TIKO_HASHVALUE__` are such feature tests.
 
 tests/pp/tiko-compiler-define.test holds the define and its value; tests/pp/tiko-target-defines.test holds the `TIKO_OS_` and `TIKO_ARCH_` names on each target.
 

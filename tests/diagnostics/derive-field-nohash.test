@@ -1,0 +1,6 @@
+'' TKO1262 at the 'derive' line: a field with no hash (RFC 0019 R4).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-field-nohash.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-field-nohash.bas(9,5): error TKO1262
+'' EXPECT-MAX-DIAG: 1

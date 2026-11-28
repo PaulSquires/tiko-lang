@@ -927,7 +927,7 @@ private function TypeOfUncached_ _
                 end if
             end if
         end if
-        if uop <> Tko.SYMBOL_NONE then exit select
+        if (uop <> Tko.SYMBOL_NONE) orelse DerivedCompareType_( c, op, lt, rt, t ) then exit select   '' RFC 0019, binresult.tiko
 
         '' ...AND WITH NO USER OPERATOR, A UDT OPERAND IS ITS 'operator cast' -- see
         '' UdtOperandBinaryType_.

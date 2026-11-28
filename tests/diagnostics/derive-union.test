@@ -1,0 +1,6 @@
+'' TKO1259, a 'derive' line in a union (RFC 0019 R1).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-union.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-union.bas(3,5): error TKO1259
+'' EXPECT-MAX-DIAG: 1

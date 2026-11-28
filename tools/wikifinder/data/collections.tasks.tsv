@@ -12,6 +12,7 @@ task	mapadd	Map: add and change
 task	mapget	Map: look up
 task	mapwalk	Map: list keys and values
 task	set	Set: add, remove and test
+task	keys	Make a type of your own a key
 task	builtin	Built-in arrays: bounds and size
 task	redim	Built-in arrays: resize and erase
 task	queue	Queues and stacks: LinkedList and Deque

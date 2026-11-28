@@ -276,7 +276,7 @@ tiko reports these, one case per file:
 
 Inside a generic body tiko reports the offending line and column itself -- `TKO0743: 'nosuchvar' is not declared` at the line that says it -- but without the instantiation chain. An undeclared type named in a generic TYPE's field is `TKO0808` at the field, once the generic is instantiated. One body error it does not report at all: an unknown field written through 'this' in a member body compiles, and the statement using it is left out.
 
-Across the 30 generics `fail-*.bas` files in `tests/vendor/fbc-tests/generics/`, tiko rejects 26 with a diagnostic, compiles 1 with no error, fails 2 only in code generation (an internal compiler error, TKO0993: `fail-container-nohash.bas` and `fail-container-nohash-set.bas`), and rejects `fail-instdepth.bas` with `TKO0829`. Each was compiled to an object. The 1 is `fail-lambda-capture-typaram`: a capturing lambda in a generic body that names T in its own parameter list, which tiko builds.
+Across the 30 generics `fail-*.bas` files in `tests/vendor/fbc-tests/generics/`, tiko rejects all 30 with a diagnostic: 21 compiled as they are, and the 9 that include fbc's `fb/*.bi` containers through their ports to the std modules in `tests/std/generics/`. `fail-container-nohash.bas` and `fail-container-nohash-set.bas` are `TKO1266: hashvalue( ) cannot hash 'nohash': it is not a built-in type, has no 'derive hash' and no HashOf( ) method`, `fail-lambda-capture-typaram` (a capturing lambda in a generic body that names T in its own parameter list) is `TKO0921`, and `fail-instdepth.bas` is `TKO0829`. Each was compiled to an object.
 
 A diagnostic raised inside an instantiated body -- `IndexOf` over a type with no `operator =` is array.tiko's own comparison failing -- is reported at the line in the generic that fails.
 
@@ -288,7 +288,7 @@ All measured, none blocking.
 
 - Generic procedures cannot be overloaded. One name, one generic procedure. A second generic procedure of the same name in the same scope, whether it differs in arity, in type-parameter count or in parameter type, is TKO0600 ("'f' is already declared in this scope"). The same name in two different namespaces is fine. This is why the sort library spells its variants SortBy, StableSort and SortList rather than overloading Sort.
 
-- typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is transparent to typeof; the one an instantiation binds is not, so a generic body cannot branch on what T is bound to. This is why the hash contract is an overloaded HashOf( ) rather than an #if dispatch.
+- typeof( T ) does not see through a type parameter. An ordinary TYPEDEF is transparent to typeof; the one an instantiation binds is not, so a generic body cannot branch on what T is bound to. This is why Map and Set hash a key through the compiler's hashvalue( k ) rather than an #if dispatch.
 
 - Debug names. Under -g a debugger shows an instantiation's fields, parameters and locals with their types, but names the instantiated type by an internal number rather than by its argument list: `Box( of long )` appears as `box<6>`, and its method's frame as `box<6>.SetV`.
 

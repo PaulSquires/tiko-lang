@@ -1,0 +1,14 @@
+copy is =                               ok
+copy is not <>                          ok
+copy hashes alike                       ok
+-0.0 = 0.0 field                        ok
+-0.0 and 0.0 hash alike                 ok
+zstring * 8 differs                     ok
+wstring * 8 differs                     ok
+procedure pointer differs               ok
+2-D grid last element differs           ok
+2-D grid changes the hash               ok
+ubyte differs                           ok
+string * 4 compares padded              ok
+string * 4 differs                      ok
+fold of ubyte, single = R4 by hand      ok

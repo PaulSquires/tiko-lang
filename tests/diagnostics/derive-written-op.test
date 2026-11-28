@@ -1,0 +1,6 @@
+'' TKO1263: 'derive equal' beside a hand-written 'operator =' for the type (RFC 0019 R2).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-written-op.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-written-op.bas(3,5): error TKO1263
+'' EXPECT-MAX-DIAG: 2

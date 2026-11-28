@@ -244,6 +244,47 @@ namespace Tko.Check
     declare function NumericCastPick _
         ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
           byval udt as Tko.TypeId, byval want as Tko.TypeId ) as Tko.SymbolId
+
+    '' WHAT 'derive' AND 'hashvalue' ASK OF A TYPE (RFC 0019) -- symbols/derivetype.tiko. HK_*:
+    '' how hashvalue( v ) hashes a value of the type; HK_NONE when it cannot.
+    const HK_NONE = 0, HK_U8 = 1, HK_U16 = 2, HK_U32 = 3, HK_U64 = 4, HK_UPTR = 5, HK_BOOL = 6
+    const HK_F32 = 7, HK_F64 = 8, HK_PTR = 9, HK_STRING = 10, HK_USTRING = 11, HK_ZPTR = 12
+    const HK_WPTR = 13, HK_ZFIX = 14, HK_WFIX = 15, HK_DERIVED = 16, HK_METHOD = 17
+    declare function DeriveMaskOf _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byval t as Tko.TypeId, byref locNode as Tko.NodeId ) as uint32
+    declare function HashKindOf _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId ) as int32
+    declare function UdtHashOfMethod _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function UdtWrittenCmpOp _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval ut as Tko.TypeId, _
+          byref nm as string ) as Tko.SymbolId
+    declare function DeriveEqualGap _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
+          byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function DeriveHashGap _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId, _
+          byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function DeriveOrderGap _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
+          byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function DeriveTextGap _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId, _
+          byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function UdtToTextMethod _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare sub DeriveFields _
+        ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
+          byval t as Tko.TypeId, byref fs as containers.Array( of uint32 ), byref ft as containers.Array( of uint32 ) )
     declare function PickStructor _
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byref info as Tko.SemanticInfo, _

@@ -257,6 +257,7 @@ Alphabetical listing of keywords, macros and procedures.
 - [Declare](Declare)
 - [defined](Defined)
 - [Delete (Statement)](Operator-Delete-Statement)
+- [Derive](Derive)
 - [Destructor](Destructor)
 - [Destructor (Module)](Destructor-Module)
 - [Dim](Dim)
@@ -280,6 +281,9 @@ Alphabetical listing of keywords, macros and procedures.
 - [End If](End-If)
 - [End While (Equivalent To 'Wend')](Wend-or-End-While)
 - [Enum](Enum)
+- [EnumCount](Enumcount)
+- [EnumName](Enumname)
+- [EnumValue](Enumvalue)
 - [Environ Statement](Setenviron)
 - [Environ](Environ)
 - [EOF](Eof)
@@ -343,6 +347,7 @@ Alphabetical listing of keywords, macros and procedures.
 
 ***H***
 
+- [HashValue](Hashvalue)
 - [Hex](Hex)
 - [HiByte](Hibyte)
 - [HiWord](Hiword)

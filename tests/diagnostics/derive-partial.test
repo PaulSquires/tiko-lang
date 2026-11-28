@@ -1,0 +1,6 @@
+'' TKO0992: 'derive' in a partial type is a P1 limit of RFC 0019 (the parts merge after parsing).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-partial.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-partial.bas(3,5): error TKO0992: not implemented in this build: derive in a partial type
+'' EXPECT-MAX-DIAG: 1

@@ -14,7 +14,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 |---|---|---|
 | `std/strings` | string algorithms: `Split`, `Join`, `Replace`, `Tally`, `PadLeft`, CSV, …; `Format` (C++ `std::format`) | |
 | `std/fs` | paths, directories, files, globs, links, volumes, and `std/path`'s old names | |
-| `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `PriorityQueue`, `Deque`, `BitSet`, `Sort`, `BinarySearch` and the other searches, `HashOf`, `Hashable` | |
+| `std/containers` | `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap`, `OrderedSet`, `PriorityQueue`, `Deque`, `BitSet`, `Sort`, `BinarySearch` and the other searches, `HashOf`, `Hashable`; Map and Set hash keys with the compiler's `hashvalue( k )` | |
 | `std/chrono` | `DateTime`, `LocalDate`, `TimeSpan`, `Instant`, `Stopwatch`, `WallClock`, the `DT_` constants | |
 | `std/tz` | `TimeZone`: a zone by IANA id (`FindById`, `$TZDIR` then the system tree), `Local`, `Utc`, `FixedOffset`, `AvailableIds`; offset, DST flag, abbreviation and transitions at any `Instant`; `MapLocal`/`Resolve` turn a wall-clock reading into an `Instant` under a `Disambiguation` policy. `TzRules`: one zone's rules from a TZif file or POSIX TZ string. `ZonedDateTime`: an instant in a zone, with exact and calendar arithmetic, `WithZoneSameInstant`/`SameLocal`, `StartOfDay`, RFC 9557 text (`2025-03-04T14:30:00+01:00[Europe/Paris]`) and the `VV`/`v` pattern letters. On Windows named zones need `std/tzdata` (or `$TZDIR`) | `std/chrono` |
 | `std/tzdata` | the IANA time zone database (2026f) inside the program, for `std/tz`: import it and named zones work on Windows and wherever a system's zone files are missing. About 250 KB | `std/tz` |
@@ -42,9 +42,10 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 - **Macros are exported and used qualified**: `logs.LogInfo( "started" )`,
   `logs.LogEventWarn( AddText( "path", p ), "write failed" )`, and std/fs's `JoinPath`, `DirName`,
   `BaseName`, `Extension`, `IsAbsolute`, `Separator`. `using` never makes a macro bare.
-- **A key type for `Map` or `Set`** extends `containers.Hashable` and overrides its
-  `HashOf( )`; it needs `=` too (and `OrderedMap`/`OrderedSet` need only `<`). Built-in types
-  are hashable already.
+- **A key type for `Map` or `Set`** has a `derive equal, hash` line, which writes `=` and the
+  hash from the same fields; or it extends `containers.Hashable`, overrides its `HashOf( )` and
+  writes `=` itself. `OrderedMap`/`OrderedSet` need only `<` (`derive equal, order` writes it).
+  Built-in types are hashable already: Map and Set hash every key with `hashvalue( k )`.
 - **`spawn` and `select channel` need `#import "std/tasks"`** in the file that uses them, and
   `-mt` (TKO0423 says so).
 
@@ -74,7 +75,7 @@ when unset); a module never sees its importer's `-d`, so it is set in a `tiko.to
 | `#include once "fb/string.bi"` + `using FB` | `#import "std/strings"` + `using strings` |
 | `#include once "containers.bi"`, `FB.Array( of T )` | `#import "std/containers"`, `containers.Array( of T )` |
 | `#import "std/x"` + `using FB` | `#import "std/x"` + `using x` |
-| `HashOf` overload added in `namespace FB` | `type K extends containers.Hashable` with a `HashOf( )` override |
+| `HashOf` overload added in `namespace FB` | a `derive equal, hash` line in `K`, or `type K extends containers.Hashable` with a `HashOf( )` override |
 | `FB_LOG_INFO( m )` and the other `FB_LOG_*` macros | `logs.LogInfo( m )`, `logs.LogEventWarn( f, m )`, ... |
 | `FB_LOG_IMPLEMENT( )` in one module | nothing: the default logger is std/logs' own |
 | `FB_LOG_MIN_LEVEL` | `LOG_MIN_LEVEL`, std/logs' setting |

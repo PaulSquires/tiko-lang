@@ -925,6 +925,18 @@ namespace Tko.Mir
         RTL( RTL_OBJ_IFACE_TRYCAST,     "tkort_ObjIfaceTryCast",   "v",   "ppp"       )
         RTL( RTL_IFACE_TYPECAST,        "tkort_IfaceTypeCast",     "p",   "ppp"       )
         RTL( RTL_OBJ_TYPECAST,          "tkort_ObjTypeCast",       "p",   "pp"        )
+        '' The built-in hashes (RFC 0019 R5): lib/rt/src/misc/hash.tiko. 'hashvalue( k )' and
+        '' std/containers both reach them, so the two can never disagree.
+        RTL( RTL_HASH_BYTES,            "tko_HashBytes",           "q",   "pz"        )
+        RTL( RTL_HASH_Z,                "tko_HashZ",               "q",   "p"         )
+        RTL( RTL_HASH_W,                "tko_HashW",               "q",   "p"         )
+        RTL( RTL_HASH_STR,              "tko_HashStr",             "q",   "pz"        )
+        RTL( RTL_HASH_USTR,             "tko_HashUStr",            "q",   "pz"        )
+        RTL( RTL_HASH_INT,              "tko_HashInt",             "q",   "q"         )
+        RTL( RTL_HASH_F32,              "tko_HashF32",             "q",   "f"         )
+        RTL( RTL_HASH_F64,              "tko_HashF64",             "q",   "d"         )
+        '' 'derive text' (RFC 0019 R6): a ustring in double quotes, a quote doubled. lib/rt/src/misc/text.tiko.
+        RTL( RTL_USTR_QUOTE,            "tko_UStrQuote",           "p",   "pz"        )
         RTL( RTL_LPRINT_BOOL,          "fb_LPrintBool",           "v",   "lbl"       )
         RTL( RTL_LPRINT_BYTE,          "fb_LPrintByte",           "v",   "lbl"       )
         RTL( RTL_LPRINT_DOUBLE,        "fb_LPrintDouble",         "v",   "ldl"       )

@@ -84,6 +84,8 @@ Modern-OrderedSet-Count	OrderedSet.Count	-	set	std/containers	-	Returns the numb
 Modern-OrderedSet-IsEmpty	OrderedSet.IsEmpty	-	set	std/containers	-	Returns true if the set has no values.
 Modern-OrderedSet-Clear	OrderedSet.Clear	-	set	std/containers	-	Removes every value.
 Modern-OrderedSet-Items	OrderedSet.Items	-	set	std/containers	-	Returns a copy of all the values as an Array, already sorted.
+Derive	derive	-	keys	built-in	-	Has the compiler write a type's comparisons, hash and `ToText( )` from its fields.
+Hashvalue	hashvalue	-	keys	built-in	-	Returns the hash Map and Set use for a key: any built-in, derive hash or Hashable type.
 Ubound	UBound	-	builtin	built-in	4	Returns the highest valid index of an array dimension, or -1 if there is none.
 Lbound	LBound	-	builtin	built-in	-	Returns the lowest valid index of an array dimension, or 0 if there is none.
 Arraylen	ArrayLen	-	builtin	fbc-int/array.bi	-	Returns the total number of elements in an array, counting every dimension.

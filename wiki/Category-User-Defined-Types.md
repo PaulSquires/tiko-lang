@@ -7,6 +7,7 @@
 - [Base (Member Access)](Base-Member-Access)
 - [Const (Member)](Const-Member)
 - [Constructor](Constructor)
+- [Derive](Derive)
 - [Destructor](Destructor)
 - [Enum](Enum)
 - [Extends](Extends)

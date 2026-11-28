@@ -1,0 +1,6 @@
+'' TKO1260, 'derive' over a type with an anonymous union member (RFC 0019 R1).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-anon-union.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-anon-union.bas(3,5): error TKO1260
+'' EXPECT-MAX-DIAG: 1

@@ -50,6 +50,12 @@ namespace Tko.Parse
 
     '' Advance to the end of the line, leaving the TK_EOL: recovery after a reported line.
     declare sub SkipRestOfLine( byref p as Tko.ParserState )
+    '' parser/derive.tiko (RFC 0019): the 'derive' body line, and recording it on the N_TYPE.
+    declare function DeriveBodyLine _
+        ( byref p as Tko.ParserState, byref mask as uint32, byref locNode as Tko.NodeId ) as boolean
+    declare sub DeriveFinish _
+        ( byref p as Tko.ParserState, byval n as Tko.NodeId, byref sp as Tko.StmtPayload, _
+          byval isUnion as boolean, byval mask as uint32, byval locNode as Tko.NodeId )
 
     '' The folded spelling at token 'i' is 'w' (an identifier only).
     declare function IdentSpelledAt _
