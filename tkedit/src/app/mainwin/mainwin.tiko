@@ -4992,18 +4992,12 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     dim as Array( of ustring ) args, none_
     dim as ustring workDir
     if useTarget then
-        args = build.TargetArgs( target, Proj.Dir_( ), BuildFlags, none_, BuildDiagFile, os_ )
-        ' --profile editor is tiko-editor's managed profile; tiko refuses an unknown one (TKO0163)
+        ' a [profile.editor] of tiko.toml is the editor's own (the configuration's flags on top of
+        ' it); without one, debug or release by the flags. tiko refuses an unknown profile (TKO0163).
         dim as ustring toml = fs.ReadAllText( Proj.Path ).ValueOr( "" )
-        if instr( toml, "[profile.editor]" ) = 0 then
-            for i as long = 0 to args.Count( ) - 2
-                if (args[i] = "--profile") andalso (args[i + 1] = "editor") then
-                    args.Remove( i )
-                    args.Remove( i )
-                    exit for
-                end if
-            next
-        end if
+        dim as ustring profile_ = "editor"
+        if instr( toml, "[profile.editor]" ) = 0 then profile_ = build.ProfileFor( BuildFlags )
+        args = build.TargetArgs( target, Proj.Dir_( ), profile_, BuildFlags, none_, BuildDiagFile, os_ )
         workDir = Proj.Dir_( )
         BuildMain = Proj.MainOf( target )
     else

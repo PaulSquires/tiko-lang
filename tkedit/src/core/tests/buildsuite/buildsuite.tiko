@@ -249,14 +249,26 @@ private sub CommandTests( byref c as tally.Checker )
     ' a target of tiko.toml: the trailing separator goes, the extra inputs join the flags
     dim as Array( of ustring ) extra
     extra.Push( "C:\lib\x.o" )
-    a = build.TargetArgs( "my-app", "C:\p q\", " -s gui -O2 ", extra, "", W )
+    a = build.TargetArgs( "my-app", "C:\p q\", "editor", " -s gui -O2 ", extra, "", W )
     c.Same( Joined( a ), "[build][my-app][--manifest][C:\p q][--profile][editor][--message-format][json][-target][windows-x86_64]" & _
         "[--options][-s gui -O2 ""C:\lib\x.o""]", "TargetArgs" )
-    c.Same( Joined( build.TargetArgs( "app", "/home/p/", "", none, "", L ) ), _
-        "[build][app][--manifest][/home/p][--profile][editor][--message-format][json][-target][" & LINUXT_ & "]", "TargetArgs, no flags, a POSIX folder" )
-    c.Same( Joined( build.TargetArgs( "app", "C:\p", "", extra, "", W ) ), _
-        "[build][app][--manifest][C:\p][--profile][editor][--message-format][json][-target][windows-x86_64][--options][""C:\lib\x.o""]", _
-        "TargetArgs, extra inputs only" )
+    c.Same( Joined( build.TargetArgs( "app", "/home/p/", "release", "", none, "", L ) ), _
+        "[build][app][--manifest][/home/p][--profile][release][--message-format][json][-target][" & LINUXT_ & "]", "TargetArgs, no flags, a POSIX folder" )
+    c.Same( Joined( build.TargetArgs( "app", "C:\p", "", "", extra, "", W ) ), _
+        "[build][app][--manifest][C:\p][--message-format][json][-target][windows-x86_64][--options][""C:\lib\x.o""]", _
+        "TargetArgs, extra inputs only, no profile" )
+
+    ' the profile of a target build: -g among the flags is debug, else release
+    c.Same( build.ProfileFor( "-g -exx" ), "debug", "ProfileFor: the Debug configuration" )
+    c.Same( build.ProfileFor( "-O2" ), "release", "ProfileFor: the Release configuration" )
+    c.Same( build.ProfileFor( "-Os" ), "release", "ProfileFor: MinSizeRel" )
+    c.Same( build.ProfileFor( "-exx -g" ), "debug", "ProfileFor: -g last" )
+    c.Same( build.ProfileFor( "-gen gcc -O2" ), "release", "ProfileFor: -gen is not -g" )
+    dim as build.BuildConfig rel
+    rel.Options = "-O2"
+    dim as Array( of build.Subsystem ) noDirs
+    c.Same( build.ProfileFor( build.ComposeFlags( rel, build.BuildAction.StartDebugging, "", "", noDirs ) ), "debug", _
+        "ProfileFor: Start Debugging of Release is debug" )
 
     ' output names, per OS (tiko's own rule)
     dim as ustring S = fs.PathSeparator( fs.FB_PATH_NATIVE )
