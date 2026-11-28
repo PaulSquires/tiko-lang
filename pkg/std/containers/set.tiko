@@ -110,7 +110,11 @@ end function
 '' HashOf( v ) times 2^64 / phi: the top bits are the home slot, the seven under them
 '' the fingerprint -- as Map.Mix.
 function Set( of T ).Mix( byref v as T ) as ulongint
+#ifdef __TIKO_HASHVALUE__
+    return hashvalue( v ) * CONTAINERS_FIB_MULT   '' as Map.Mix
+#else
     return HashOf( v ) * CONTAINERS_FIB_MULT
+#endif
 end function
 
 '' as Map.CtrlOf

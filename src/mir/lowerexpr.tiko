@@ -812,6 +812,7 @@ function LowerExpr _
         '' of two objects -- see LowerTupleCompare for the shape fbc emits.
         dim as MirValue tcv
         if LowerTupleCompare( c, id, bp, tk, tcv ) then return tcv
+        if LowerDerivedCompare_( c, id, bp, tk, mt, tcv ) then return tcv   '' 'derive equal': lowerderive.tiko
         if LowerIfaceCompare_( c, id, bp, tk, mt, tcv ) then return tcv   '' two references: loweritab.tiko
 
 

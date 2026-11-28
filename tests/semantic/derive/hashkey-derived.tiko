@@ -1,0 +1,79 @@
+'' TIKO-ONLY
+'' TWIN-OF hashkey
+'' hashkey-derived.tiko -- hashkey.tiko with 'derive equal, hash' in place of every hand-written
+'' '=' and HashOf( ), and NO 'extends containers.Hashable' (RFC 0019 P1). Its output must be
+'' hashkey.tiko's latest trace exactly: the same hashes, the same Map answers.
+
+#import "std/containers"
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+'' ------------------------------------------------------------------- Cell, as book ch24
+type Cell
+    derive equal, hash
+    as int32 row, col
+end type
+
+'' ---------------------------------------------------------------------- Wide
+type Inner
+    derive equal, hash
+    as int32 a
+    as string t
+end type
+
+type Wide
+    derive equal, hash
+    as boolean flag
+    as int64 big
+    as float64 f
+    as string s
+    as ustring u
+    as int32 fixed( 0 to 1 )
+    as int32 dyn( any )
+    as Inner nested
+    as Colour c
+    as any ptr q
+end type
+
+'' ------------------------------------------------------------------------ output
+dim as Cell c1, c2, c3
+c1.row = 2 : c1.col = 3
+c2.row = 2 : c2.col = 3
+c3.row = 3 : c3.col = 2
+print "Cell(2,3) "; hex( hashvalue( c1 ), 16 )
+print "Cell(3,2) "; hex( hashvalue( c3 ), 16 )
+print "book ch24 "; hex( containers.HashInt( containers.HashOf( c1.row ) ) xor containers.HashOf( c1.col ), 16 )
+
+dim as containers.Map( of Cell, ustring ) terrain
+terrain[ c1 ] = "forest"
+print "Map finds an equal Cell: "; terrain.Contains( c2 )
+print "Map misses Cell(3,2):    "; terrain.Contains( c3 )
+
+dim as Wide w( 0 to 3 )
+for i as int32 = 0 to 3
+    w( i ).flag = true
+    w( i ).big = -9000000000ll
+    w( i ).f = -0.0
+    w( i ).s = "abc"
+    w( i ).u = "héllo"
+    w( i ).fixed( 0 ) = 10 : w( i ).fixed( 1 ) = 20
+    redim ( w( i ).dyn )( 1 to 2 ) : w( i ).dyn( 1 ) = 7 : w( i ).dyn( 2 ) = 8
+    w( i ).nested.a = 4 : w( i ).nested.t = "in"
+    w( i ).c = BLUE
+    w( i ).q = cast( any ptr, &h1000 )
+next
+w( 1 ).f = 0.0                       '' -0.0 = 0.0, so the hash must agree
+w( 2 ).nested.t = "IN"               '' a nested field differs
+redim ( w( 3 ).dyn )( 0 to 1 )       '' same elements count, other bounds
+w( 3 ).dyn( 0 ) = 7 : w( 3 ).dyn( 1 ) = 8
+
+dim as containers.Map( of Wide, int32 ) seen
+seen[ w( 0 ) ] = 1
+for i as int32 = 0 to 3
+    print "Wide" & i & " "; hex( hashvalue( w( i ) ), 16 ); "  = Wide0: "; ( w( i ) = w( 0 ) ); _
+        "  in map: "; seen.Contains( w( i ) )
+next

@@ -1,0 +1,7 @@
+'' TKO1261 at the COMPARISON for a generic instance, with a note at the template's 'derive'
+'' line, and nothing for the instance that is never compared (RFC 0019 R8).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-generic-compare.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-generic-compare.bas(13,9): error TKO1261
+'' EXPECT-MAX-DIAG: 2

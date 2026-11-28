@@ -1,0 +1,20 @@
+'' TIKO-ONLY
+'' module.tiko -- a 'derive' type read from a module's interface (RFC 0019 R7): the importer
+'' compares and hashes it with its own private copies, and they agree with the module's.
+
+#import "std/containers"
+#import "./derivemod"
+
+dim as derivemod.Key a, b, c
+a.id = 1 : a.name = "one" : a.SetHidden( 7 )
+b.id = 1 : b.name = "one" : b.SetHidden( 7 )
+c.id = 1 : c.name = "one" : c.SetHidden( 8 )      '' differs only in a private field
+print "a = b "; a = b; "  a = c "; a = c; "  a <> c "; a <> c
+print "module agrees on =: "; derivemod.SameKey( a, b ) = (a = b); " "; derivemod.SameKey( a, c ) = (a = c)
+print "module agrees on hash: "; derivemod.KeyHash( a ) = hashvalue( a ); " "; derivemod.KeyHash( c ) = hashvalue( c )
+print "hash a "; hex( hashvalue( a ), 16 ); "  hash c "; hex( hashvalue( c ), 16 )
+
+dim as containers.Map( of derivemod.Key, int32 ) m
+m[ a ] = 10
+m[ c ] = 20
+print "Map count "; m.Count( ); "  m[ b ] "; m[ b ]; "  contains c "; m.Contains( c )

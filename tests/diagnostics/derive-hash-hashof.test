@@ -1,0 +1,6 @@
+'' TKO1265: 'derive hash' on a type with its own HashOf( ) (RFC 0019 R4).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-hash-hashof.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-hash-hashof.bas(3,5): error TKO1265
+'' EXPECT-MAX-DIAG: 1

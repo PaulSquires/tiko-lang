@@ -1,0 +1,97 @@
+'' TIKO-ONLY
+'' TWIN-OF hashes
+'' hashvalue.tiko -- hashes.tiko with every HashOf( x ) row as 'hashvalue( x )' (RFC 0019 R5): the
+'' intrinsic gives every built-in value std/containers gave. HashInt and HashBytes rows stay
+'' calls, being std's own public functions.
+''
+'' hashes.tiko -- RFC 0019 R5's baseline: every built-in hash std/containers computes today.
+''
+'' R5 moves HashInt, HashBytes and every built-in HashOf overload into the runtime, where
+'' 'hashvalue( k )' and std/containers both reach them. The values MUST NOT CHANGE: this
+'' probe prints each overload's hash for fixed inputs, and its .p0-trace is what every later
+'' phase is diffed against, on every target.
+''
+'' One row is per target BY DESIGN: a WSTRING is 2 bytes on Windows and 4 on Linux, and its
+'' hash covers len * sizeof( wstring ) bytes. That is why the Linux baseline is its own file.
+'' A STRING argument resolves to the CONST ZSTRING PTR overload, not BYREF CONST STRING (fbc
+'' 1.20 picks the same), so a string hashes up to its first NUL: 'nul+x' hashes as 'empty'.
+'' R5 keeps that, because it keeps every value.
+'' NaN and infinity are built from their bit patterns, because 0/0 gives a NaN whose sign bit
+'' differs between x86 and arm64.
+
+#import "std/containers"
+
+sub Row( byref label as const string, byval h as uint64 )
+    print label; space( 28 - len( label ) ); hex( h, 16 )
+end sub
+
+'' -------------------------------------------------------------- HashInt and HashBytes
+Row( "HashInt 0", containers.HashInt( 0 ) )
+Row( "HashInt 1", containers.HashInt( 1 ) )
+Row( "HashInt 2", containers.HashInt( 2 ) )
+Row( "HashInt max", containers.HashInt( &hFFFFFFFFFFFFFFFFull ) )
+dim as uint8 bytes( 0 to 3 ) = { 0, 1, 127, 255 }
+Row( "HashBytes 0 bytes", containers.HashBytes( @bytes( 0 ), 0 ) )
+Row( "HashBytes 4 bytes", containers.HashBytes( @bytes( 0 ), 4 ) )
+Row( "HashBytes null", containers.HashBytes( 0, 4 ) )
+
+'' ------------------------------------------------------------------- integer kinds
+dim as int8 i8( 0 to 3 ) = { 0, 1, -1, -128 }
+dim as uint8 u8( 0 to 2 ) = { 0, 1, 255 }
+dim as int16 i16( 0 to 3 ) = { 0, 1, -1, -32768 }
+dim as uint16 u16( 0 to 2 ) = { 0, 1, 65535 }
+dim as int32 i32( 0 to 4 ) = { 0, 1, -1, 12345, -2147483648 }
+dim as uint32 u32( 0 to 2 ) = { 0, 1, 4294967295 }
+dim as integer iN( 0 to 2 ) = { 0, 1, -1 }
+dim as uinteger uN( 0 to 1 ) = { 0, 1 }
+dim as int64 i64( 0 to 3 ) = { 0, 1, -1, -9223372036854775807ll - 1 }
+dim as uint64 u64( 0 to 2 ) = { 0, 1, &hFFFFFFFFFFFFFFFFull }
+
+for i as int32 = 0 to ubound( i8 ) : Row( "int8 " & i8( i ), hashvalue( i8( i ) ) ) : next
+for i as int32 = 0 to ubound( u8 ) : Row( "uint8 " & u8( i ), hashvalue( u8( i ) ) ) : next
+for i as int32 = 0 to ubound( i16 ) : Row( "int16 " & i16( i ), hashvalue( i16( i ) ) ) : next
+for i as int32 = 0 to ubound( u16 ) : Row( "uint16 " & u16( i ), hashvalue( u16( i ) ) ) : next
+for i as int32 = 0 to ubound( i32 ) : Row( "int32 " & i32( i ), hashvalue( i32( i ) ) ) : next
+for i as int32 = 0 to ubound( u32 ) : Row( "uint32 " & u32( i ), hashvalue( u32( i ) ) ) : next
+for i as int32 = 0 to ubound( iN ) : Row( "integer " & iN( i ), hashvalue( iN( i ) ) ) : next
+for i as int32 = 0 to ubound( uN ) : Row( "uinteger " & uN( i ), hashvalue( uN( i ) ) ) : next
+for i as int32 = 0 to ubound( i64 ) : Row( "int64 " & i64( i ), hashvalue( i64( i ) ) ) : next
+for i as int32 = 0 to ubound( u64 ) : Row( "uint64 " & u64( i ), hashvalue( u64( i ) ) ) : next
+Row( "boolean true", hashvalue( true ) )
+Row( "boolean false", hashvalue( false ) )
+
+'' --------------------------------------------------------------------------- floats
+dim as uint32 f32bits( 0 to 5 ) = { &h00000000, &h80000000, &h3FC00000, &hC0100000, &h7FC00000, &h7F800000 }
+dim as string f32name( 0 to 5 ) = { "0", "-0", "1.5", "-2.25", "NaN", "inf" }
+for i as int32 = 0 to 5
+    Row( "float32 " & f32name( i ), hashvalue( *cptr( float32 ptr, @f32bits( i ) ) ) )
+next
+dim as uint64 f64bits( 0 to 6 ) = { &h0ull, &h8000000000000000ull, &h3FF8000000000000ull, _
+    &hC002000000000000ull, &h7FF8000000000000ull, &h7FF0000000000000ull, &h7E37E43C8800759Cull }
+dim as string f64name( 0 to 6 ) = { "0", "-0", "1.5", "-2.25", "NaN", "inf", "1e300" }
+for i as int32 = 0 to 6
+    Row( "float64 " & f64name( i ), hashvalue( *cptr( float64 ptr, @f64bits( i ) ) ) )
+next
+
+'' ------------------------------------------------------------------------- pointers
+Row( "any ptr 0", hashvalue( cast( any ptr, 0 ) ) )
+Row( "any ptr &h1000", hashvalue( cast( any ptr, &h1000 ) ) )
+Row( "any ptr &hDEADBEEF", hashvalue( cast( any ptr, &hDEADBEEF ) ) )
+
+'' -------------------------------------------------------------------------- strings
+dim as string s( 0 to 4 ) = { "", "a", "abc", "hello, world", chr( 0 ) & "x" }
+dim as string sname( 0 to 4 ) = { "empty", "a", "abc", "hello, world", "nul+x" }
+for i as int32 = 0 to 4
+    Row( "string " & sname( i ), hashvalue( s( i ) ) )
+next
+Row( "string 1000 x", hashvalue( string( 1000, "x" ) ) )
+dim as zstring * 8 z = "abc"
+Row( "zstring ptr abc", hashvalue( @z ) )
+Row( "zstring ptr literal", hashvalue( "abc" ) )
+dim as wstring * 8 w = "abc"
+Row( "wstring ptr abc", hashvalue( @w ) )
+dim as ustring u( 0 to 2 ) = { "", "abc", "héllo 日本" }
+dim as string uname( 0 to 2 ) = { "empty", "abc", "non-ascii" }
+for i as int32 = 0 to 2
+    Row( "ustring " & uname( i ), hashvalue( u( i ) ) )
+next

@@ -1,0 +1,22 @@
+string ab+nul+cd                089C4407B545986A
+string ab                       089C4407B545986A
+ustring ab+nul+cd len 4
+ustring ab+nul+cd               CB77C06E71890621
+ustring ab                      AB40D7820D408076
+wstring*8 abc (by value)        CEC64E155111225D
+wstring*8 abc (@)               CEC64E155111225D
+zstring*8 abc (by value)        E71FA2190541574B
+zstring*8 abc (@)               E71FA2190541574B
+int32 ptr &h1000                F06041805D06B780
+enum GREEN (variable)           0000000000000002
+enum BLUE (constant)            0000000000000004
+float32 1.5                     95C1DE1967F3F56E
+float64 1.5                     E72B41D4576E3468
+Map(of string) keys: k2 k19 k10 k3 k8 k13 k18 k0 k9 k12 k1 k15 k6 k14 k7 k17 k4 k16 k5 k11
+Map(of ustring) keys: ü12 ü5 ü17 ü8 ü0 ü14 ü7 ü19 ü11 ü2 ü16 ü9 ü1 ü13 ü4 ü18 ü10 ü3 ü15 ü6
+Map(of int32) keys: 0 39595 150461 79190 118785 7919 47514 87109 126704 15838 55433 95028 134623 23757 63352 102947 142542 31676 71271 110866
+Map(of int64) keys: 14000000093 2000000009 15000000100 3000000016 16000000107 4000000023 17000000114 18000000121 5000000030 6000000037 19000000128 7000000044 8000000051 9000000058 10000000065 11000000072 12000000079 13000000086 -5 1000000002
+Map(of float64) keys: 0 -0.5 0.25 -1.25 -1.5 0.5 1 -2 1.5 1.75 2 -0.75 2.25 -0.25 2.5 0.75 2.75 -1.75 -1 1.25
+Map(of Colour) keys: 2 4 1
+Map(of any ptr) keys: 0 7000 6000 4000 E000 D000 12000 2000 8000 A000 F000 9000 5000 10000 1000 C000 B000 11000 3000 13000
+Set(of string): s4 s17 s5 s19 s2 s16 s11 s18 s3 s10 s0 s13 s8 s1 s12 s9 s6 s15 s7 s14

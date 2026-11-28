@@ -55,6 +55,23 @@
 public const FNV_OFFSET_BASIS as ulongint = 14695981039346656037ull
 public const FNV_PRIME        as ulongint = 1099511628211ull
 
+#ifdef __TIKO_HASHVALUE__
+'' THE RUNTIME'S, since RFC 0019 R5: lib/rt/src/misc/hash.tiko holds these two bodies, moved
+'' unchanged, so 'hashvalue( k )' and this module can never disagree. extern "C" for the
+'' reason std/chrono gives: at a module's scope an alias alone would be mangled.
+extern "C"
+declare function tko_HashBytes alias "tko_HashBytes" ( byval p as const ubyte ptr, byval n as uinteger ) as ulongint
+declare function tko_HashInt alias "tko_HashInt" ( byval v as ulongint ) as ulongint
+end extern
+
+public function HashBytes _
+    ( _
+        byval p as const ubyte ptr, _
+        byval n as uinteger _
+    ) as ulongint
+    return tko_HashBytes( p, n )
+end function
+#else
 public function HashBytes _
     ( _
         byval p as const ubyte ptr, _
@@ -78,6 +95,7 @@ public function HashBytes _
 
     function = h
 end function
+#endif
 
 '' 2^64 / phi, odd.  Map and Set take a key's home slot as the top bits of
 '' 'HashOf( k ) * CONTAINERS_FIB_MULT' (Fibonacci hashing, Map.Mix), so the
@@ -88,6 +106,11 @@ const CONTAINERS_FIB_MULT as ulongint = 11400714819323198485ull
 '' not call it -- see below -- but it is the tool for COMBINING hashes in
 '' a user type's HashOf( ), where a weak 'a xor ( b shl 1 )' of two identity
 '' hashes collides on small values.
+#ifdef __TIKO_HASHVALUE__
+public function HashInt( byval v as ulongint ) as ulongint
+    return tko_HashInt( v )
+end function
+#else
 public function HashInt( byval v as ulongint ) as ulongint
     dim as ulongint h = v
     h xor= h shr 30
@@ -97,6 +120,7 @@ public function HashInt( byval v as ulongint ) as ulongint
     h xor= h shr 31
     function = h
 end function
+#endif
 
 '' ---------------------------------------------------------------- integers
 ''

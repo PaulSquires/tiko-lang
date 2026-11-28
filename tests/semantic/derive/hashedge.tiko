@@ -1,0 +1,91 @@
+'' TIKO-ONLY
+'' hashedge.tiko -- RFC 0019 R5's edge cases: which overload today's containers.HashOf picks
+'' for each argument shape, and what a Map does with each key type.
+''
+'' Recorded at P1's start with the clean master compiler, BEFORE any compiler change.
+'' hashvalue( k ) must reproduce every row, because Map and Set switch to it (R5), and
+'' containers.HashOf becomes a wrapper over it. Two kinds of row:
+''
+''   HashOf( x )      the value today's overload resolution gives for this argument shape
+''   Map keys order   the order Map( of K ).Keys( ) returns, which follows the slots, and so
+''                    follows Mix( k ) = HashOf( k ) * 2^64/phi inside the generic body
+''
+'' Embedded NULs are the point of several rows: a STRING picks the 'const zstring ptr'
+'' overload today (hashes.tiko's 'nul+x'), and these rows show what a USTRING, a WSTRING * n
+'' and a ZSTRING * n do.
+
+#import "std/containers"
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+sub Row( byref label as const string, byval h as uint64 )
+    print label; space( 32 - len( label ) ); hex( h, 16 )
+end sub
+
+'' ------------------------------------------------------------ argument shapes
+dim as string s1 = "ab" & chr( 0 ) & "cd"
+dim as string s2 = "ab"
+Row( "string ab+nul+cd", containers.HashOf( s1 ) )
+Row( "string ab", containers.HashOf( s2 ) )
+
+dim as ustring u1 = "ab"
+u1 &= wchr( 0 )
+u1 &= "cd"
+dim as ustring u2 = "ab"
+print "ustring ab+nul+cd len"; len( u1 )
+Row( "ustring ab+nul+cd", containers.HashOf( u1 ) )
+Row( "ustring ab", containers.HashOf( u2 ) )
+
+dim as wstring * 8 w = "abc"
+Row( "wstring*8 abc (by value)", containers.HashOf( w ) )
+Row( "wstring*8 abc (@)", containers.HashOf( @w ) )
+dim as zstring * 8 z = "abc"
+Row( "zstring*8 abc (by value)", containers.HashOf( z ) )
+Row( "zstring*8 abc (@)", containers.HashOf( @z ) )
+
+dim as int32 ptr ip = cast( int32 ptr, &h1000 )
+Row( "int32 ptr &h1000", containers.HashOf( ip ) )
+dim as Colour c = GREEN
+Row( "enum GREEN (variable)", containers.HashOf( c ) )
+Row( "enum BLUE (constant)", containers.HashOf( BLUE ) )
+dim as float32 f = 1.5
+dim as float64 d = 1.5
+Row( "float32 1.5", containers.HashOf( f ) )
+Row( "float64 1.5", containers.HashOf( d ) )
+
+'' --------------------------------------------------- Map key order, per key type
+'' Twenty keys each, so the order exercises many slots.
+dim as containers.Map( of string, int32 ) ms
+dim as containers.Map( of ustring, int32 ) mu
+dim as containers.Map( of int32, int32 ) mi
+dim as containers.Map( of int64, int32 ) ml
+dim as containers.Map( of float64, int32 ) md
+dim as containers.Map( of Colour, int32 ) mc
+dim as containers.Map( of any ptr, int32 ) mp
+for i as int32 = 0 to 19
+    ms[ "k" & i ] = i
+    mu[ "ü" & i ] = i
+    mi[ i * 7919 ] = i
+    ml[ cast( int64, i ) * 1000000007ll - 5 ] = i
+    md[ i * 0.25 - 2 ] = i
+    mp[ cast( any ptr, cast( uinteger, i ) * 4096 ) ] = i
+next
+mc[ RED ] = 1 : mc[ GREEN ] = 2 : mc[ BLUE ] = 4
+
+dim as string line_
+line_ = "" : for each k as string in ms.Keys( ) : line_ &= " " & k : next : print "Map(of string) keys:"; line_
+dim as ustring uline = ""
+for each k as ustring in mu.Keys( ) : uline &= " " & k : next : print "Map(of ustring) keys:"; uline
+line_ = "" : for each k as int32 in mi.Keys( ) : line_ &= " " & k : next : print "Map(of int32) keys:"; line_
+line_ = "" : for each k as int64 in ml.Keys( ) : line_ &= " " & k : next : print "Map(of int64) keys:"; line_
+line_ = "" : for each k as float64 in md.Keys( ) : line_ &= " " & k : next : print "Map(of float64) keys:"; line_
+line_ = "" : for each k as Colour in mc.Keys( ) : line_ &= " " & cast( int32, k ) : next : print "Map(of Colour) keys:"; line_
+line_ = "" : for each k as any ptr in mp.Keys( ) : line_ &= " " & hex( k ) : next : print "Map(of any ptr) keys:"; line_
+
+dim as containers.Set( of string ) st
+for i as int32 = 0 to 19 : st.Add( "s" & i ) : next
+line_ = "" : for each k as string in st : line_ &= " " & k : next : print "Set(of string):"; line_

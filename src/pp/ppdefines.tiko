@@ -36,6 +36,10 @@ private sub PpDefineMore_( byref e as PpEngine )
     '' too, and a seed older than the feature must still build it. Bodied "1", as
     '' __TIKO_COMPILER__ is; the test can go once the seed has the feature.
     PpDefineValue( e, "__TIKO_CALLER_LOCATION__", "1" )
+    '' 'hashvalue( k )' and the runtime's tko_Hash* (RFC 0019 R5): std/containers' Map and Set
+    '' hash through them when this is defined, and keep HashOf( k ) for a seed that predates
+    '' them. Bodied "1"; the test goes at the next seed bump.
+    PpDefineValue( e, "__TIKO_HASHVALUE__", "1" )
     '' -fsanitize=address: the program is built with AddressSanitizer. tiko's own, bodied "1".
     if e.cfg <> nullptr then
         if e.cfg->sanitizeAddress then PpDefineValue( e, "__TIKO_ASAN__", "1" )

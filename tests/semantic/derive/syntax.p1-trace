@@ -1,0 +1,13 @@
+BUILD FAILED rc=1
+tests/semantic/derive/syntax.tiko(9,25): error TKO0992: not implemented in this build: derive text
+     |
+   9 |     derive equal, hash, text
+     |                         ^
+tests/semantic/derive/syntax.tiko(24,7): error TKO0743: 'enumname' is not declared
+     |
+  24 | print enumname( GREEN ); " "; enumcount( Colour ); " "; enumvalue( Colour, 0 )
+     |       ^
+tests/semantic/derive/syntax.tiko(23,9): error TKO0739: 'cell' has no member named 'totext'
+     |
+  23 | print a.ToText( )
+     |         ^

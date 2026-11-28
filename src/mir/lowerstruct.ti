@@ -201,6 +201,16 @@ declare function IsBaseOf_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
     declare sub WantImplicit_ _
         ( byref c as Ctx, byval t as Tko.TypeId, byval k as int32 )
+    '' lowerderive.tiko (RFC 0019): two more want-list kinds, the derived '=' and hash.
+    const DERIVED_EQ_KIND as int32 = 10
+    const DERIVED_HASH_KIND as int32 = 11
+    declare sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
+    declare function LowerDerivedCompare_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval tk as Tko.TokenKind, byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerHashValue_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function DynBoundInline_ _
+        ( byref c as Ctx, byref desc as MirValue, byval k as int32, byval isU as boolean ) as MirValue
     declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare sub EmitArrayElems_ _

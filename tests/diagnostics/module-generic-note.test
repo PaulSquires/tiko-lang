@@ -4,6 +4,7 @@
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/module-generic-note.bas
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: error TKO0632: no overload of 'hashof' matches these arguments
+'' Since RFC 0019 R5 the key's hash is 'hashvalue( k )', so the error is TKO1266, not TKO0632.
+'' EXPECT-OUT: error TKO1266: hashvalue( ) cannot hash 'cell'
 '' EXPECT-OUT: module-generic-note.bas(11,16): note: in instantiation of 'map( of cell, ustring )'
 '' EXPECT-MAX-DIAG: 3

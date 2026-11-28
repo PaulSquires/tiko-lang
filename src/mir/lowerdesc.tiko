@@ -1171,7 +1171,7 @@ end function
 '' read past its end; and DATA is tested first, because an unallocated array's table
 '' holds zeros, which would read as 'ubound = 0'. A dimension only known at run time
 '' stays a runtime call.
-private function DynBoundInline_ _
+function DynBoundInline_ _   '' public for lowerderive.tiko
     ( byref c as Ctx, byref desc as MirValue, byval k as int32, byval isU as boolean ) as MirValue
 
     dim as MirType zt = DescIntTy_( c )

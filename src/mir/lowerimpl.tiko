@@ -1455,6 +1455,7 @@ sub EmitImplicitStructors( byref c as Ctx )
         at += 1
         if t = Tko.TYPE_NONE then continue while
         if c.udts->Find( t ) < 0 then continue while
+        if kind_ >= DERIVED_EQ_KIND then EmitDerived_( c, t, kind_ ) : continue while   '' lowerderive.tiko (RFC 0019)
         '' OBJECT'S OWN STRUCTORS ARE THE RUNTIME'S, not this module's.
         if IsObjectT_( c, t ) then continue while
         '' A WRITTEN ONE WINS. fbc prepends the same body to it rather than emitting a

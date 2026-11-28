@@ -190,8 +190,15 @@ end function
 '' Benchmarks Game k-nucleotide port (875M 'm[ k ] += 1'): 8.02 s -> 7.18 s, and
 '' every k <= 6 pass flat.  It also rescues a user HashOf( ) that returns a bare id,
 '' whose low bits a mask would take as they are.
+'' THE KEY'S HASH IS 'hashvalue( k )' (RFC 0019 R5), which the compiler resolves for the real
+'' TK: a built-in type, a type that 'derive equal, hash', or one with a HashOf( ) -- the
+'' Hashable shape -- with the values HashOf( k ) gave. A seed that predates it keeps HashOf.
 function Map( of TK, TV ).Mix( byref k as TK ) as ulongint
+#ifdef __TIKO_HASHVALUE__
+    return hashvalue( k ) * CONTAINERS_FIB_MULT
+#else
     return HashOf( k ) * CONTAINERS_FIB_MULT
+#endif
 end function
 
 '' The control byte of a slot holding a key whose Mix is h: the USED bit, and under it

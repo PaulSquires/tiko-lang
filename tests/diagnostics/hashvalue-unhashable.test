@@ -1,0 +1,6 @@
+'' TKO1266: hashvalue( ) of a type with no hash (RFC 0019 R5).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/hashvalue-unhashable.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: hashvalue-unhashable.bas(6,18): error TKO1266
+'' EXPECT-MAX-DIAG: 1

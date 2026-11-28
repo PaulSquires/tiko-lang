@@ -1,0 +1,7 @@
+'' TKO0992: 'derive' over a bitfield is a P1 limit of RFC 0019 (section 13): its value is bits
+'' inside a shared unit, which the derived lowering does not extract.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-bitfield.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-bitfield.bas(3,5): error TKO0992: not implemented in this build: derive over the bitfield 'a'
+'' EXPECT-MAX-DIAG: 1

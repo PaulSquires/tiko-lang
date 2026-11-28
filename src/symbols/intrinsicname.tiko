@@ -187,6 +187,10 @@ private function IntrinsicCallType_ _
     dim as Tko.IdentPayload ptr ip = _
         c.ast->IdentOf( cp->target )
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    '' 'hashvalue( k )' (RFC 0019 R5) IS ONLY EVER THE NAME UNBOUND: not in the list above, so no
+    '' rule there can prefer it to a program's own hashvalue (tests/semantic/derive/contextual.bas).
+    '' A ulongint; what k may be is judged in Sem (symbols/derive.tiko).
+    if (nm = "hashvalue") andalso (cp->count = 1) andalso (c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE) then return c.types->Builtin( Tko.TY_ULONGINT )
     if IsTypedIntrinsicName( nm ) = false then return Tko.TYPE_NONE
 
     '' A PROCEDURE OF THE PROGRAM'S OWN IS NOT THE KEYWORD IT IS SPELLED LIKE. This

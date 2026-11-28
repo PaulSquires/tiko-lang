@@ -1,0 +1,84 @@
+'' TIKO-ONLY
+'' TWIN-OF eqorder SED s/^\([PM][0-9]* [PM][0-9]* [01][01]\)[01]*$/\1/;s/^columns: = <>.*/columns: = <>/
+'' eq-derived.tiko -- eqorder.tiko's '=' and '<>' columns with 'derive equal' in place of every
+'' hand-written operator (RFC 0019 P1). Its output must be eqorder.tiko's latest trace with only
+'' the first two columns kept; P2 widens it to all six when 'derive order' lands.
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+type Plain
+    derive equal
+    as int32 a, b
+end type
+
+type Base0 extends object
+    derive equal
+    as int32 id
+end type
+
+type Mixed extends Base0
+    derive equal
+    as float64 f
+    as string s
+    as ustring u
+    as int32 fixed( 0 to 1 )
+    as int32 dyn( any )
+    as Plain p
+    as Colour c
+    as any ptr q
+end type
+
+function Bits( byval eq as boolean, byval ne as boolean ) as string
+    return iif( eq, "1", "0" ) & iif( ne, "1", "0" )
+end function
+
+print "columns: = <>"
+
+dim as Plain pv( 0 to 3 )
+pv( 0 ).a = 1 : pv( 0 ).b = 2
+pv( 1 ).a = 1 : pv( 1 ).b = 3
+pv( 2 ).a = 2 : pv( 2 ).b = 0
+pv( 3 ).a = 1 : pv( 3 ).b = 2
+for i as int32 = 0 to 3
+    for j as int32 = 0 to 3
+        print "P" & i & " P" & j & " "; Bits( pv( i ) = pv( j ), pv( i ) <> pv( j ) )
+    next
+next
+
+'' M0 is the reference; M1..M11 each differ from it in ONE field, so each row shows that
+'' field deciding. M12 equals M0 field for field, in a different variable.
+const NM = 12
+dim as Mixed m( 0 to NM )
+dim as uint64 nanbits = &h7FF8000000000000ull
+for i as int32 = 0 to NM
+    m( i ).id = 5
+    m( i ).f = 1.5
+    m( i ).s = "abc"
+    m( i ).u = "héllo"
+    m( i ).fixed( 0 ) = 10 : m( i ).fixed( 1 ) = 20
+    redim ( m( i ).dyn )( 0 to 1 ) : m( i ).dyn( 0 ) = 7 : m( i ).dyn( 1 ) = 8
+    m( i ).p.a = 1 : m( i ).p.b = 2
+    m( i ).c = GREEN
+    m( i ).q = cast( any ptr, &h1000 )
+next
+m( 1 ).id = 4                                    '' base decides
+m( 2 ).f = 2.5                                   '' float decides
+m( 3 ).s = "abd"                                 '' string decides
+m( 4 ).u = "hello"                               '' ustring decides
+m( 5 ).fixed( 1 ) = 19                           '' fixed array, second element
+redim ( m( 6 ).dyn )( 1 to 2 ) : m( 6 ).dyn( 1 ) = 7 : m( 6 ).dyn( 2 ) = 8   '' lbound decides
+redim preserve ( m( 7 ).dyn )( 0 to 2 )           '' ubound decides
+m( 8 ).dyn( 1 ) = 9                              '' a dynamic element decides
+m( 9 ).p.b = 1                                   '' nested type decides
+m( 10 ).c = BLUE                                 '' enum decides
+m( 11 ).f = *cptr( float64 ptr, @nanbits )       '' NaN: every operator but <> is false
+
+for i as int32 = 1 to NM
+    print "M0 M" & i & " "; Bits( m( 0 ) = m( i ), m( 0 ) <> m( i ) )
+    print "M" & i & " M0 "; Bits( m( i ) = m( 0 ), m( i ) <> m( 0 ) )
+next
+print "M11 M11 "; Bits( m( 11 ) = m( 11 ), m( 11 ) <> m( 11 ) )

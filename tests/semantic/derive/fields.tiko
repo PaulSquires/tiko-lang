@@ -1,0 +1,77 @@
+'' TIKO-ONLY
+'' fields.tiko -- the field kinds the oracles do not cover (RFC 0019 section 5.2), each line
+'' checking itself: 'ok' when the derived '=' and hash agree with the language's own '=' and
+'' with R4's fold written out over containers.HashOf / hashvalue, 'BAD' otherwise.
+
+#import "std/containers"
+
+sub Unit_( )
+end sub
+sub Other_( )
+end sub
+
+type Kinds
+    derive equal, hash
+    as ubyte b
+    as single f
+    as zstring * 8 z
+    as wstring * 8 w
+    as sub( ) proc_
+    as int32 grid( 0 to 1, 0 to 2 )
+end type
+
+'' R4 written out: h = HashInt( h ) xor <field hash>, the grid element by element.
+function Fold_( byref k as Kinds ) as ulongint
+    dim as ulongint h = 0
+    h = containers.HashInt( h ) xor containers.HashOf( k.b )
+    h = containers.HashInt( h ) xor containers.HashOf( k.f )
+    return h
+end function
+
+sub Check_( byref label as string, byval good as boolean )
+    print label; space( 40 - len( label ) ); iif( good, "ok", "BAD" )
+end sub
+
+dim as Kinds a, b
+a.b = 200 : a.f = -0.0 : a.z = "zed" : a.w = "wide" : a.proc_ = @Unit_
+for r as int32 = 0 to 1 : for q as int32 = 0 to 2 : a.grid( r, q ) = r * 10 + q : next : next
+b = a
+Check_( "copy is =", a = b )
+Check_( "copy is not <>", (a <> b) = false )
+Check_( "copy hashes alike", hashvalue( a ) = hashvalue( b ) )
+b.f = 0.0
+Check_( "-0.0 = 0.0 field", a = b )
+Check_( "-0.0 and 0.0 hash alike", hashvalue( a ) = hashvalue( b ) )
+b = a : b.z = "zee"
+Check_( "zstring * 8 differs", a <> b )
+b = a : b.w = "wider"
+Check_( "wstring * 8 differs", a <> b )
+b = a : b.proc_ = @Other_
+Check_( "procedure pointer differs", a <> b )
+b = a : b.grid( 1, 2 ) = 99
+Check_( "2-D grid last element differs", a <> b )
+Check_( "2-D grid changes the hash", hashvalue( a ) <> hashvalue( b ) )
+b = a : b.b = 201
+Check_( "ubyte differs", a <> b )
+
+'' 'string * N' has no built-in hash (section 5.2), so it can only 'derive equal': space-padded.
+type Fixed
+    derive equal
+    as string * 4 fs
+end type
+dim as Fixed x1, x2
+x1.fs = "ab" : x2.fs = "ab  "
+Check_( "string * 4 compares padded", x1 = x2 )
+x2.fs = "ac"
+Check_( "string * 4 differs", x1 <> x2 )
+
+'' The hash of a ubyte and a single field, folded by hand, is the start of the derived fold:
+'' a type holding just those two must hash as Fold_ does.
+type Two
+    derive equal, hash
+    as ubyte b
+    as single f
+end type
+dim as Two t
+t.b = a.b : t.f = a.f
+Check_( "fold of ubyte, single = R4 by hand", hashvalue( t ) = Fold_( a ) )

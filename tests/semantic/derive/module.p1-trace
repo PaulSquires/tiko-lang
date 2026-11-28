@@ -1,0 +1,5 @@
+a = b true  a = c false  a <> c true
+module agrees on =: true true
+module agrees on hash: -1 -1
+hash a FEE33B752E61221C  hash c FEE33B752E612213
+Map count  2  m[ b ]  10  contains c true

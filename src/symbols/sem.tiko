@@ -65,6 +65,7 @@ sub Run( byref u as FrontUnit )
     CheckPrivateBaseStructor_( c )
     CheckExternInitAndDefaultCtor_( c )
     CheckUnionMembers_( c )
+    CheckDerives_( c )               '' derive.tiko (RFC 0019)
     CheckVirtualNeedsObject_( c )
     ApplyIfaceWraps_( c )            '' last: it grows the AST pools -- semiface.tiko
 end sub

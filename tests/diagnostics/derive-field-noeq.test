@@ -1,0 +1,6 @@
+'' TKO1261 at the 'derive' line: a field whose type has no '=' (RFC 0019 R2, R7).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-field-noeq.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-field-noeq.bas(6,5): error TKO1261
+'' EXPECT-MAX-DIAG: 1

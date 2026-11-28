@@ -1,0 +1,10 @@
+enumcount( Sparse ) =  5
+enumvalue( Sparse, 0 ) = -3  enumname = [Neg]
+enumvalue( Sparse, 1 ) = -2  enumname = [Next1]
+enumvalue( Sparse, 2 ) = 10  enumname = [Cc]
+enumvalue( Sparse, 3 ) = 10  enumname = [Cc]
+enumvalue( Sparse, 4 ) = 2147483647  enumname = [Big]
+enumname( cast( Sparse, 0 ) ) = []
+enumname( v ), v = Big: [Big]
+enumcount( Mode ) = 2; enumname( Mode.On_ ) = [On_]
+enumcount( Ns.Inner ) = 2; enumname( Ns.Second ) = [Second]

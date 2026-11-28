@@ -1,0 +1,94 @@
+'' TIKO-ONLY
+'' generic.tiko -- 'derive' over generic instances, classes and the containers (RFC 0019 R4,
+'' R5, R8). Its baseline is P1's own: there is no hand-written oracle for laziness.
+
+#import "std/containers"
+
+type Opaque_
+    as int32 x
+end type
+
+type Box( of T )
+    derive equal, hash
+    as T value
+end type
+
+'' A class extends object: its vptr is no field and takes no part.
+class Shape
+    derive equal, hash
+    as int32 sides
+    as string label
+    declare virtual function Area( ) as float64
+end class
+function Shape.Area( ) as float64
+    return 0
+end function
+
+'' A key in the Hashable shape, as before P1: it still works, and hashvalue( ) calls its HashOf( ).
+type OldKey extends containers.Hashable
+    as int32 v
+    declare function HashOf( ) as uint64 override
+end type
+function OldKey.HashOf( ) as uint64
+    return containers.HashInt( v )
+end function
+operator = ( byref a as OldKey, byref b as OldKey ) as boolean
+    return a.v = b.v
+end operator
+
+type Pair
+    derive equal, hash
+    as Box( of string ) first
+    as Box( of int32 ) second
+end type
+
+'' Box( of Opaque_ ) is declared and never compared or hashed: R8 says that compiles.
+dim as Box( of Opaque_ ) never
+never.value.x = 3
+print "uncompared Box( of Opaque_ ) "; never.value.x
+
+dim as Box( of int32 ) i1, i2
+i1.value = 5 : i2.value = 5
+print "Box( of int32 ) = "; i1 = i2; "  <> "; i1 <> i2
+i2.value = 6
+print "after change = "; i1 = i2; "  hash differs "; hashvalue( i1 ) <> hashvalue( i2 )
+
+dim as containers.Map( of Box( of string ), int32 ) bm
+for k as int32 = 0 to 9
+    dim as Box( of string ) bk
+    bk.value = "k" & k
+    bm[ bk ] = k * k
+next
+dim as Box( of string ) probe
+probe.value = "k7"
+print "Map( of Box( of string ) ) count "; bm.Count( ); "  k7 "; bm[ probe ]
+
+dim as Shape s1, s2
+s1.sides = 3 : s1.label = "tri"
+s2.sides = 3 : s2.label = "tri"
+print "class = "; s1 = s2; "  hash equal "; hashvalue( s1 ) = hashvalue( s2 )
+
+dim as containers.Map( of OldKey, int32 ) om
+dim as OldKey o1
+o1.v = 42
+om[ o1 ] = 1
+print "Hashable key still works "; om.Contains( o1 ); "  hashvalue = HashOf "; hashvalue( o1 ) = o1.HashOf( )
+
+dim as containers.Set( of Pair ) ps
+dim as Pair p1
+p1.first.value = "a" : p1.second.value = 1
+ps.Add( p1 )
+ps.Add( p1 )
+dim as Pair p2 = p1
+p2.second.value = 2
+ps.Add( p2 )
+print "Set( of Pair ) count "; ps.Count( ); "  has p1 "; ps.Contains( p1 )
+
+'' Two strings that differ only after a NUL hash alike (R5 keeps the containers' values) and
+'' compare unequal, so a Map keeps both.
+dim as Box( of string ) n1, n2
+n1.value = "ab" & chr( 0 ) & "x" : n2.value = "ab" & chr( 0 ) & "y"
+dim as containers.Map( of Box( of string ), int32 ) nm
+nm[ n1 ] = 1 : nm[ n2 ] = 2
+print "NUL strings: hash equal "; hashvalue( n1 ) = hashvalue( n2 ); "  equal "; n1 = n2; "  map count "; nm.Count( )
+print "hashes "; hex( hashvalue( i1 ), 16 ); " "; hex( hashvalue( probe ), 16 ); " "; hex( hashvalue( p1 ), 16 )

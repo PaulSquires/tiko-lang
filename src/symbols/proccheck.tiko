@@ -1313,6 +1313,7 @@ sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
     if c.types->Kind( rt ) = TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
     if IfaceCompareJudged_( c, id, opnm, lt, rt ) then return       '' semiface.tiko
+    if DerivedCompareJudged_( c, id, opnm, lt, rt ) then return     '' derive.tiko (RFC 0019)
     '' A TUPLE COMPARES ELEMENTWISE and is not this question -- this suite's own
     '' tuple-compare test writes 'if a = b' over two '(long, long)'. Its kind, or its
     '' synthesized name, is what tells one apart from a declared UDT.

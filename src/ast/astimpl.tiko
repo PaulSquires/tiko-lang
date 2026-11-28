@@ -1,4 +1,5 @@
-'' astimpl.tiko -- the AST side table for 'implements' LISTS (docs/tiko-interfaces).
+'' astimpl.tiko -- the AST side tables for 'implements' LISTS (docs/tiko-interfaces) and for
+'' 'derive' LINES (RFC 0019, below).
 ''
 ''     class Document
 ''         implements IPrintable, ISavable                      '' on the N_TYPE
@@ -27,6 +28,25 @@ function ImplementsOf( byref ast as AstArena, byval decl as NodeId ) as NodeId
     dim as int32 i = SideTableFind( ast.implementsAt, ast.implementsLists, 2, decl )
     if i < 0 then return NODE_NONE
     return cast( NodeId, ast.implementsLists[i + 1] )
+end function
+
+'' 'derive equal, hash' in a TYPE body (RFC 0019): triples (N_TYPE, mask, location node).
+'' The parser records one entry per type, after the body is read, with every line's words
+'' already merged, so the newest entry is the whole answer.
+sub RecordDerive( byref ast as AstArena, byval decl as NodeId, byval mask as uint32, byval locNode as NodeId )
+    if (decl = NODE_NONE) orelse (mask = 0) then return
+    ast.deriveLists.Push( cast( uint32, decl ) )
+    ast.deriveLists.Push( mask )
+    ast.deriveLists.Push( cast( uint32, locNode ) )
+end sub
+
+function DeriveOf( byref ast as AstArena, byval decl as NodeId, byref locNode as NodeId ) as uint32
+    locNode = NODE_NONE
+    if decl = NODE_NONE then return 0
+    dim as int32 i = SideTableFind( ast.deriveAt, ast.deriveLists, 3, decl )
+    if i < 0 then return 0
+    locNode = cast( NodeId, ast.deriveLists[i + 2] )
+    return ast.deriveLists[i + 1]
 end function
 
 end namespace

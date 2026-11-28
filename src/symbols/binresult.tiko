@@ -259,3 +259,22 @@ function IifResult _
     end if
     return BinaryResult( Tko.TK_PLUS, lhs, rhs, types )
 end function
+
+'' 'DERIVE EQUAL' (RFC 0019 R2): '=' and '<>' between two of one such type, with no operator
+'' written -- Check asks after UserBinaryOp_ found none. They are the compiler's own: boolean,
+'' as a written one returns, lowered by mir/lowerderive.tiko, fields checked by Sem
+'' (symbols/derive.tiko). True, with t set, when that is what this comparison is.
+private function DerivedCompareType_ _
+    ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, byval rt as Tko.TypeId, _
+      byref t as Tko.TypeId ) as boolean
+    if (op <> Tko.TK_EQ) andalso (op <> Tko.TK_NE) then return false
+    if (lt = Tko.TYPE_NONE) orelse (rt = Tko.TYPE_NONE) then return false
+    lt = c.types->Unqualify( lt ) : rt = c.types->Unqualify( rt )
+    if c.types->Kind( lt ) = Tko.TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
+    if (lt <> rt) orelse (c.types->Kind( lt ) <> Tko.TK_UDT) then return false
+    dim as Tko.NodeId ln
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, lt, ln ) and Tko.DERIVE_EQUAL) = 0 then return false
+    t = c.types->Builtin( Tko.TY_BOOLEAN )
+    return true
+end function
