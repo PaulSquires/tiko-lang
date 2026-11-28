@@ -1,0 +1,37 @@
+'' TIKO-ONLY
+'' TWIN-OF enums
+'' enums-derived.tiko -- enums.bas with enumname, enumcount and enumvalue (RFC 0019 R9, P3) in
+'' place of its hand-written select-case and tables. Its output must be enums.bas's latest trace
+'' exactly. Same enums: negative values, an implicit step, a duplicate value, an 'explicit' enum,
+'' a namespaced one.
+
+enum Sparse
+    Neg = -3
+    Next1
+    Cc = 10
+    Dup = 10
+    Big = 2147483647
+end enum
+
+enum Mode explicit
+    Off
+    On_
+end enum
+
+namespace Ns
+    enum Inner
+        First = 5
+        Second
+    end enum
+end namespace
+
+print "enumcount( Sparse ) = "; enumcount( Sparse )
+for i as int32 = 0 to enumcount( Sparse ) - 1
+    print "enumvalue( Sparse, " & i & " ) = " & enumvalue( Sparse, i ) & _
+        "  enumname = [" & enumname( enumvalue( Sparse, i ) ) & "]"
+next
+print "enumname( cast( Sparse, 0 ) ) = [" & enumname( cast( Sparse, 0 ) ) & "]"
+dim as Sparse v = Sparse.Big
+print "enumname( v ), v = Big: [" & enumname( v ) & "]"
+print "enumcount( Mode ) = " & enumcount( Mode ) & "; enumname( Mode.On_ ) = [" & enumname( Mode.On_ ) & "]"
+print "enumcount( Ns.Inner ) = " & enumcount( Ns.Inner ) & "; enumname( Ns.Second ) = [" & enumname( Ns.Second ) & "]"

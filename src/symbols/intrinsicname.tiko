@@ -179,6 +179,30 @@ private function BuiltinBesideUserProc_ _
     return true
 end function
 
+'' The enum TYPE an argument names (RFC 0019 R9): an identifier or 'Ns.E' that Resolve bound to the
+'' SYM_ENUM -- its TypeOf_ is the same as a value's, so the binding is what tells them apart.
+private function EnumTypeArg_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.TypeId
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = nullptr then return Tko.TYPE_NONE
+    if s->kind <> cast( uint8, Tko.SYM_ENUM ) then return Tko.TYPE_NONE
+    return s->type_
+end function
+
+'' The result type of an unbound enumname / enumcount / enumvalue call, or TYPE_NONE.
+private function EnumIntrType_( byref c as Ctx, byval cp as Tko.ListPayload ptr, byref nm as string ) as Tko.TypeId
+    select case nm
+    case "enumname"
+        if cp->count = 1 then return c.types->Builtin( Tko.TY_STRING )
+    case "enumcount"
+        if cp->count = 1 then
+            if EnumTypeArg_( c, c.ast->ChildAt( cp->first, 0 ) ) <> Tko.TYPE_NONE then return c.types->Builtin( Tko.TY_INTEGER )
+        end if
+    case "enumvalue"
+        if cp->count = 2 then return EnumTypeArg_( c, c.ast->ChildAt( cp->first, 0 ) )
+    end select
+    return Tko.TYPE_NONE
+end function
+
 private function IntrinsicCallType_ _
     ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
@@ -195,6 +219,11 @@ private function IntrinsicCallType_ _
     '' rule there can prefer it to a program's own hashvalue (tests/semantic/derive/contextual.bas).
     '' A ulongint; what k may be is judged in Sem (symbols/derive.tiko).
     if (nm = "hashvalue") andalso (cp->count = 1) andalso (c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE) then return c.types->Builtin( Tko.TY_ULONGINT )
+    '' 'enumname( v )', 'enumcount( E )', 'enumvalue( E, i )' (RFC 0019 R9), on the same terms.
+    if c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE then
+        dim as Tko.TypeId et = EnumIntrType_( c, cp, nm )
+        if et <> Tko.TYPE_NONE then return et
+    end if
     if IsTypedIntrinsicName( nm ) = false then return Tko.TYPE_NONE
 
     '' A PROCEDURE OF THE PROGRAM'S OWN IS NOT THE KEYWORD IT IS SPELLED LIKE. This

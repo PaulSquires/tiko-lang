@@ -1,0 +1,32 @@
+'' TIKO-ONLY
+'' enumextra.tiko -- the enum intrinsics past the oracle (RFC 0019 R9, P3): constant folding, so an
+'' array sized by enumcount is FIXED and a const is a constant; a constant enumvalue; enumname in a
+'' concatenation, a print and a ustring; a value no constant has.
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+const NCOLOURS = enumcount( Colour )
+const SECOND_ = enumvalue( Colour, 1 )
+dim as int32 counts( 0 to enumcount( Colour ) - 1 )
+'' A FIELD needs a constant bound, so this only compiles if enumcount folded: 3 * 4 bytes.
+type Tally
+    as int32 per( 0 to enumcount( Colour ) - 1 )
+end type
+print "NCOLOURS "; NCOLOURS; "  SECOND_ "; SECOND_; "  ubound "; ubound( counts ); "  sizeof( Tally ) "; sizeof( Tally )
+for i as int32 = 0 to NCOLOURS - 1
+    dim as Colour c = enumvalue( Colour, i )
+    print enumname( c ); " ";
+next
+print
+dim as Colour odd = cast( Colour, 3 )
+print "no constant has 3: [" & enumname( odd ) & "]  len "; len( enumname( odd ) )
+dim as ustring u = "colour " & enumname( BLUE )
+print u
+dim as string s = enumname( GREEN )
+s &= "!"
+print s
+print enumname( enumvalue( Colour, 2 ) ) = "BLUE"

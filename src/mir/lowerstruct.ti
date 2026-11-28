@@ -206,11 +206,16 @@ declare function IsBaseOf_ _
     const DERIVED_HASH_KIND as int32 = 11
     const DERIVED_TEXT_KIND as int32 = 12
     const DERIVED_ORD_KIND as int32 = 13
+    const DERIVED_ENUMNAME_KIND as int32 = 14
     declare sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
     declare function LowerDerivedCompare_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
           byval tk as Tko.TokenKind, byval mt as MirType, byref outv as MirValue ) as boolean
     declare function LowerHashValue_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerEnumIntr_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerEnumIntrParts_ _
+        ( byref c as Ctx, byval callee as Tko.NodeId, byval argFirst as int32, byval argCount as int32, _
+          byref outv as MirValue ) as boolean
     declare function LowerDeriveText_ _
         ( byref c as Ctx, byval member as Tko.NodeId, byval argCount as int32, byref outv as MirValue ) as boolean
     declare function DynBoundInline_ _

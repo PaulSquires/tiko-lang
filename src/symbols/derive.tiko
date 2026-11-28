@@ -153,6 +153,73 @@ sub DeriveTextNote_( byref c as Ctx, byval t as TypeId )
     c.diags->AddNote( TKO0900, PointRange( c.ast->Loc( ln ) ), "'derive text' gives it a ToText( ) member, which print does not call: write .ToText( )" )
 end sub
 
+'' The SYM_ENUM an enum-intrinsic argument names, or nullptr.
+private function EnumSymOfArg_( byref c as Ctx, byval n as NodeId ) as Symbol ptr
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = nullptr then return nullptr
+    if s->kind <> cast( uint8, SYM_ENUM ) then return nullptr
+    return s
+end function
+
+'' 'enumname( v )', 'enumcount( E )', 'enumvalue( E, i )', unbound (R9). Called beside
+'' HashValueJudged_: true when this is one of them.
+function EnumIntrJudged_( byref c as Ctx, byval id as NodeId ) as boolean
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if c.ast->Kind( lp->target ) <> N_IDENT then return false
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
+    dim as string nm = c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) )
+    select case nm
+    case "enumname"
+        if lp->count <> 1 then return false
+        dim as NodeId an = c.ast->ChildAt( lp->first, 0 )
+        dim as TypeId at = c.types->Unqualify( c.info->TypeOf_( an ) )
+        if c.types->Kind( at ) = TK_REFERENCE then at = c.types->Unqualify( c.types->Inner( at ) )
+        dim as boolean named_ = (c.types->Kind( at ) = TK_ENUM)
+        if named_ then
+            dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( at ) )
+            dim as SymbolId es = c.syms->LookupLocalTyped( ds, c.types->NameOf( at ), true )
+            if es = SYMBOL_NONE then es = c.syms->LookupTyped( ds, c.types->NameOf( at ), true )
+            named_ = (es <> SYMBOL_NONE)
+        end if
+        if named_ = false then c.diags->Report( TKO1271, PointRange( c.ast->Loc( an ) ), iif( at <> TYPE_NONE, c.types->Name( at ), "?" ) )
+        return true
+    case "enumcount", "enumvalue"
+        if lp->count <> iif( nm = "enumcount", 1, 2 ) then return false
+        dim as NodeId en = c.ast->ChildAt( lp->first, 0 )
+        dim as Symbol ptr es = EnumSymOfArg_( c, en )
+        if es = nullptr then
+            '' ONLY WHEN IT NAMES SOMETHING ELSE: a field's array bound is evaluated by the constant
+            '' folder, which finds E by name in the field's own scope (constfold.tiko), and Resolve
+            '' binds nothing there. An unbound name is the undeclared-name and constant passes' to judge.
+            if c.info->RefOf( en ) <> SYMBOL_NONE then c.diags->Report( TKO1272, PointRange( c.ast->Loc( en ) ), nm )
+            return true
+        end if
+        if nm = "enumvalue" then
+            '' A CONSTANT index out of range is known now; a variable one is checked at run time
+            '' under -exx (mir/lowerderive.tiko).
+            dim as NodeId kn = c.ast->ChildAt( lp->first, 1 )
+            dim as Tko.Check.ConstVal kv = Tko.Check.ConstOf( *c.ast, kn, *c.srcMgr, *c.names, 64, c.syms, SCOPE_GLOBAL, 0, c.types, c.info )
+            if kv.known then
+                dim as int64 n = 0
+                dim as SymScope ptr sc = c.syms->ScopeAt( es->inner )
+                dim as SymbolId cur = iif( sc <> nullptr, sc->firstSym, SYMBOL_NONE )
+                for guard as int32 = 0 to 99999
+                    if cur = SYMBOL_NONE then exit for
+                    dim as Symbol ptr k = c.syms->SymbolAt( cur )
+                    if k = nullptr then exit for
+                    if k->kind = cast( uint8, SYM_ENUMCONST ) then n += 1
+                    cur = k->nextInScope
+                next
+                if (kv.value < 0) orelse (kv.value >= n) then
+                    c.diags->Report( TKO1273, PointRange( c.ast->Loc( kn ) ), c.types->Name( es->type_ ), str( kv.value ), str( n ) )
+                end if
+            end if
+        end if
+        return true
+    end select
+    return false
+end function
+
 '' Every type that is not generic and not read from an interface, judged at its 'derive' line.
 sub CheckDerives_( byref c as Ctx )
     if c.ast->deriveLists.Count = 0 then return

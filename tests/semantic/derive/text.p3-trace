@@ -1,0 +1,4 @@
+Plain(a=1, b=-2)
+Mixed(base=Base0(id=5), flag=true, big=-9000000000, f=1.5, s="say ""hi""", u="héllo 日本", grid=[[1, 2], [3, 4]], dyn=[7, 8, 9], p=Plain(a=1, b=-2), c=GREEN, q=&hDEADBEEF)
+Mixed(base=Base0(id=0), flag=false, big=0, f=-0, s="", u="", grid=[[0, 0], [0, 0]], dyn=[], p=Plain(a=0, b=0), c=3, q=&h0)
+Box(of int32)(value=3)

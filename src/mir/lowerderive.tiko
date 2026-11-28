@@ -27,6 +27,7 @@
 #include once "mir/lowercall.ti"
 #include once "mir/lowerstruct.ti"
 #include once "mir/lowerexpr.ti"
+#include once "mir/lowerstore.ti"
 #include once "symbols/check.ti"
 
 namespace Tko.Mir
@@ -53,6 +54,7 @@ private function DerivedName_( byref c as Ctx, byval t as Tko.TypeId, byval kind
     case DERIVED_EQ_KIND : return "__tko_derive_eq$" & code
     case DERIVED_ORD_KIND : return "__tko_derive_ord$" & code
     case DERIVED_TEXT_KIND : return "__tko_derive_text$" & code
+    case DERIVED_ENUMNAME_KIND : return "__tko_enumname$" & code
     end select
     return "__tko_derive_hash$" & code
 end function
@@ -85,7 +87,7 @@ end function
 private function KindRet_( byval kind_ as int32 ) as MirType
     select case kind_
     case DERIVED_HASH_KIND : return MT_I64
-    case DERIVED_TEXT_KIND : return MT_PTR
+    case DERIVED_TEXT_KIND, DERIVED_ENUMNAME_KIND : return MT_PTR
     end select
     return MT_I32
 end function
@@ -888,6 +890,160 @@ sub TextAt_( byref c as Ctx, byref dst as MirValue, byref addr as MirValue, byva
     end select
 end sub
 
+'' ------------------------------------------------------------- enum names
+'' R9. 'enumname( v )' is a call to one private function per enum, 'enumcount' and 'enumvalue'
+'' are constants or a compare chain at the use site.
+
+'' The SYM_ENUM a TK_ENUM type belongs to, or nullptr (an anonymous enum has none).
+private function EnumSymOfType_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Symbol ptr
+    t = Bare_( c, t )
+    if c.types->Kind( t ) <> Tko.TK_ENUM then return nullptr
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId es = c.syms->LookupLocalTyped( ds, c.types->NameOf( t ), true )
+    if es = Tko.SYMBOL_NONE then es = c.syms->LookupTyped( ds, c.types->NameOf( t ), true )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( es )
+    if s = nullptr then return nullptr
+    if s->inner = Tko.SCOPE_NONE then return nullptr
+    return s
+end function
+
+'' The constants of the enum symbol es, in declaration order.
+private sub EnumConsts_( byref c as Ctx, byval es as Tko.Symbol ptr, byref ks as containers.Array( of uint32 ) )
+    if es = nullptr then return
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( es->inner )
+    dim as Tko.SymbolId cur = iif( sc <> nullptr, sc->firstSym, Tko.SYMBOL_NONE )
+    for guard as int32 = 0 to 99999
+        if cur = Tko.SYMBOL_NONE then exit for
+        dim as Tko.Symbol ptr k = c.syms->SymbolAt( cur )
+        if k = nullptr then exit for
+        if k->kind = cast( uint8, Tko.SYM_ENUMCONST ) then ks.Push( cast( uint32, cur ) )
+        cur = k->nextInScope
+    next
+end sub
+
+private function StrTempOf_( byref c as Ctx, byref text as string ) as MirValue
+    dim as containers.Array( of uint32 ) ta
+    ta.Push( cast( uint32, MV_GLOBAL ) ) : ta.Push( cast( uint32, c.m->AddStringLiteral( text, *c.names ) ) )
+    ta.Push( cast( uint32, MV_CONST_INT ) ) : ta.Push( cast( uint32, len( text ) ) )
+    return EmitRtl( c, RTL_STR_TEMPZ, ta )
+end function
+
+'' __tko_enumname$<code>( v as i64 ) as string: the first declared constant equal to v, else "".
+private sub EmitEnumName_( byref c as Ctx, byval t as Tko.TypeId, byval id as Tko.InternId )
+    dim as MirFunction ptr f = c.m->AddFunction( id, MT_PTR )
+    f->isDefinition = true
+    f->isPrivate = true
+    f->AddParam( MT_I64 )
+    dim as MirFunction ptr savedF = c.f
+    dim as int32 savedB = c.curBlock
+    c.f = f
+    c.st->functions += 1
+    c.curBlock = NewBlock( c, "entry" )
+    dim as MirValue v
+    v.kind = cast( uint8, MV_PARAM ) : v.ty = cast( uint8, MT_I64 ) : v.id = 0
+    dim as containers.Array( of uint32 ) ks
+    EnumConsts_( c, EnumSymOfType_( c, t ), ks )
+    for i as int32 = 0 to ks.Count - 1
+        dim as Tko.Symbol ptr k = c.syms->SymbolAt( cast( Tko.SymbolId, ks[i] ) )
+        dim as int32 hitB = NewBlock( c, "enum.hit" ), nextB = NewBlock( c, "enum.next" )
+        Terminate( c, MTERM_CONDBR, hitB, nextB, Op2_( c, M_ICMP_EQ, MT_I8, v, ConstInt( c, k->payload, MT_I64 ) ) )
+        c.curBlock = hitB
+        Terminate( c, MTERM_RET, -1, -1, StrTempOf_( c, RawNameOf_( c, cast( Tko.SymbolId, ks[i] ) ) ) )
+        c.curBlock = nextB
+    next
+    Terminate( c, MTERM_RET, -1, -1, StrTempOf_( c, "" ) )
+    c.f = savedF
+    c.curBlock = savedB
+end sub
+
+function LowerEnumIntrParts_ _
+    ( byref c as Ctx, byval callee as Tko.NodeId, byval argFirst as int32, byval argCount as int32, _
+      byref outv as MirValue ) as boolean
+    if callee = Tko.NODE_NONE then return false
+    if c.ast->Kind( callee ) <> Tko.N_IDENT then return false
+    if c.info->RefOf( callee ) <> Tko.SYMBOL_NONE then return false
+    dim as string nm = c.names->Spelling( c.names->Fold( c.ast->IdentOf( callee )->name ) )
+    select case nm
+    case "enumname"
+        if argCount <> 1 then return false
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
+        dim as Tko.TypeId at = Bare_( c, c.info->TypeOf_( an ) )
+        if EnumSymOfType_( c, at ) = nullptr then return false
+        dim as MirValue x = LowerExpr( c, an )
+        if x.kind = cast( uint8, MV_NONE ) then return false
+        x = CoerceTy( c, x, MT_I64, c.info->TypeOf_( an ) )
+        dim as string fnm = DerivedName_( c, at, DERIVED_ENUMNAME_KIND )
+        if len( fnm ) = 0 then return false
+        WantImplicit_( c, c.types->Unqualify( at ), DERIVED_ENUMNAME_KIND )
+        dim as Tko.InternId fid = c.names->GetString( fnm )
+        dim as int32 fidx = c.m->OldestFunctionNamed( fid )
+        if fidx < 0 then
+            dim as MirFunction ptr decl = c.m->AddFunction( fid, MT_PTR )
+            decl->isDefinition = false
+            decl->AddParam( MT_I64 )
+            fidx = c.m->functions.Count - 1
+        end if
+        dim as int32 first = c.m->argPool.Count \ 2
+        c.m->argPool.Push( cast( uint32, x.kind ) ) : c.m->argPool.Push( cast( uint32, x.id ) )
+        dim as MirInst ins
+        ins.op = cast( uint16, M_CALL ) : ins.ty = cast( uint8, MT_PTR )
+        ins.first = first : ins.count = 1 : ins.callee = fidx
+        outv = Emit( c, ins )
+        return true
+    case "enumcount", "enumvalue"
+        if argCount <> iif( nm = "enumcount", 1, 2 ) then return false
+        dim as Tko.NodeId en = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
+        dim as Tko.Symbol ptr es = c.syms->SymbolAt( c.info->RefOf( en ) )
+        if es = nullptr then return false
+        if es->kind <> cast( uint8, Tko.SYM_ENUM ) then return false
+        dim as containers.Array( of uint32 ) ks
+        EnumConsts_( c, es, ks )
+        if nm = "enumcount" then
+            outv = ConstInt( c, ks.Count, LowerType( c.types->Builtin( Tko.TY_INTEGER ), *c.types ) )
+            return true
+        end if
+        dim as MirType et = LowerType( es->type_, *c.types )
+        dim as Tko.NodeId kn = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + 1 ) )
+        dim as Tko.Check.ConstVal kv = Tko.Check.ConstOf( *c.ast, kn, *c.srcMgr, *c.names, 64, c.syms, Tko.SCOPE_GLOBAL, 0, c.types, c.info )
+        if kv.known then
+            if (kv.value < 0) orelse (kv.value >= ks.Count) then return false   '' Sem reported TKO1273
+            outv = ConstInt( c, c.syms->SymbolAt( cast( Tko.SymbolId, ks[kv.value] ) )->payload, et )
+            return true
+        end if
+        '' A VARIABLE INDEX: checked under -earray (-exx) as an array index is, then a chain.
+        dim as MirValue iv = LowerExpr( c, kn )
+        if iv.kind = cast( uint8, MV_NONE ) then return false
+        dim as MirType zt = iif( c.types->target.pointerBits = 32, MT_I32, MT_I64 )
+        iv = CoerceTy( c, iv, zt, c.info->TypeOf_( kn ) )
+        if (c.errFlags and 8) <> 0 then
+            dim as MirValue lov = ConstInt( c, 0, zt ), hiv = ConstInt( c, ks.Count - 1, zt )
+            EmitBoundsCheckRange_( c, callee, en, iv, lov, hiv )
+        end if
+        dim as int32 rslot = NewTempLocal( c, et, 8 )
+        StoreThrough( c, LocalAddr_( rslot ), ConstInt( c, 0, et ) )
+        dim as int32 doneB = NewBlock( c, "enum.done" )
+        for i as int32 = 0 to ks.Count - 1
+            dim as int32 hitB = NewBlock( c, "enum.hit" ), nextB = NewBlock( c, "enum.next" )
+            Terminate( c, MTERM_CONDBR, hitB, nextB, Op2_( c, M_ICMP_EQ, MT_I8, iv, ConstInt( c, i, zt ) ) )
+            c.curBlock = hitB
+            StoreThrough( c, LocalAddr_( rslot ), ConstInt( c, c.syms->SymbolAt( cast( Tko.SymbolId, ks[i] ) )->payload, et ) )
+            Terminate( c, MTERM_BR, doneB, -1, NoVal( ) )
+            c.curBlock = nextB
+        next
+        Terminate( c, MTERM_BR, doneB, -1, NoVal( ) )
+        c.curBlock = doneB
+        outv = LowerExprLoad( c, LocalAddr_( rslot ), et )
+        return true
+    end select
+    return false
+end function
+
+function LowerEnumIntr_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = c.ast->ListOf( id )
+    return LowerEnumIntrParts_( c, lp->target, lp->first, lp->count, outv )
+end function
+
 '' -------------------------------------------------------------- the functions
 '' Called from EmitImplicitStructors for a want-list entry of a derived kind.
 sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
@@ -902,6 +1058,10 @@ sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
     wend
     dim as boolean isEq = (kind_ = DERIVED_EQ_KIND), isOrd = (kind_ = DERIVED_ORD_KIND)
     dim as boolean isText = (kind_ = DERIVED_TEXT_KIND)
+    if kind_ = DERIVED_ENUMNAME_KIND then
+        EmitEnumName_( c, t, id )
+        return
+    end if
     dim as MirFunction ptr f = c.m->AddFunction( id, KindRet_( kind_ ) )
     f->isDefinition = true
     f->isPrivate = true

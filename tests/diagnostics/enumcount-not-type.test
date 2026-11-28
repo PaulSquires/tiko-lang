@@ -1,0 +1,6 @@
+'' TKO1272: enumcount( ) over something bound that is not an enum type (RFC 0019 R9).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/enumcount-not-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: enumcount-not-type.bas(6,18): error TKO1272
+'' EXPECT-MAX-DIAG: 1

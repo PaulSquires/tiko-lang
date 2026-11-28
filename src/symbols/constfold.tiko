@@ -684,6 +684,46 @@ private function ConstCall_ _
         ast.IdentOf( cp->target )
     dim as string nm = Tko.Text.LowerAscii( names.Spelling( ip->name ) )
 
+    '' 'enumcount( E )' AND 'enumvalue( E, k )', k constant (RFC 0019 R9): table lookups, so an array
+    '' sized by one is FIXED and 'const N = enumcount( E )' is a constant. Not a program's own name.
+    if ((nm = "enumcount") andalso (cp->count = 1)) orelse ((nm = "enumvalue") andalso (cp->count = 2)) then
+        dim as boolean own = false
+        if info <> nullptr then
+            own = (info->RefOf( cp->target ) <> Tko.SYMBOL_NONE)
+        elseif syms <> nullptr then
+            own = (syms->Lookup( scope_, ip->name ) <> Tko.SYMBOL_NONE)
+        end if
+        if (own = false) andalso (syms <> nullptr) then
+            dim as Tko.Symbol ptr es = syms->SymbolAt( QualifiedTypeSym_( ast, *syms, scope_, ast.ChildAt( cp->first, 0 ), true, 0 ) )
+            if es <> nullptr then
+                if (es->kind = cast( uint8, Tko.SYM_ENUM )) andalso (es->inner <> Tko.SCOPE_NONE) then
+                    dim as int64 want = -1
+                    if nm = "enumvalue" then
+                        dim as ConstVal kv = ConstOf128( ast, ast.ChildAt( cp->first, 1 ), src, names, 64, syms, scope_, depth + 1 )
+                        if kv.known = false then return CVNone_( )
+                        want = kv.value
+                        if want < 0 then return CVNone_( )
+                    end if
+                    dim as int64 n = 0
+                    dim as Tko.SymScope ptr esc = syms->ScopeAt( es->inner )
+                    dim as Tko.SymbolId cur = iif( esc <> nullptr, esc->firstSym, Tko.SYMBOL_NONE )
+                    for guard as int32 = 0 to 99999
+                        if cur = Tko.SYMBOL_NONE then exit for
+                        dim as Tko.Symbol ptr k = syms->SymbolAt( cur )
+                        if k = nullptr then exit for
+                        if k->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
+                            if n = want then return CVW_( k->payload, 64 )
+                            n += 1
+                        end if
+                        cur = k->nextInScope
+                    next
+                    if nm = "enumcount" then return CVW_( n, 64 )
+                    return CVNone_( )
+                end if
+            end if
+        end if
+    end if
+
     '' 'len' OF A COMPILE-TIME STRING. See ConstStrLen_ above for why -- 'string *
     '' len( K )' had no constant length and the field got a 24-byte descriptor.
     '' 'len' of a NUMBER is its type's size and folds too ('len( 1 )' is 8 on win64);
