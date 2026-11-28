@@ -187,6 +187,56 @@ private sub ProcHead_( byref sig as string, byref kind as string, byref nm as st
     end if
 end sub
 
+'' A 'derive equal, order, hash, text' body line (RFC 0019): the type's header shows it, as an
+'' 'inherits' line, and what it gives the type is listed as members the compiler wrote --
+'' '=' '<>', '<' '>' '<=' '>=', 'ToText( )'. 'derive as long' is a field and is not this.
+private sub DerivedMember_( byref it as DocItem, byref kind as string, byref nm as string, _
+                            byref sig as string, byref vis as string, byref why as string, _
+                            byref file_ as string, byval line_ as int32 )
+    for k as int32 = 0 to it.members.Count - 1
+        if (it.members[k].kind = kind) andalso (Lower_( it.members[k].name ) = Lower_( nm )) then return
+    next
+    dim as DocMember mb
+    mb.kind = kind
+    mb.name = nm
+    mb.vis = vis
+    mb.doc = "Written by the compiler: '" & why & "'."
+    AddSig_( mb.sigs, sig, file_, line_ )
+    it.members.Push( mb )
+end sub
+
+private function DeriveLine_( byref it as DocItem, byref lt as string, byref sig as string, _
+                              byref vis as string, byref file_ as string, byval line_ as int32 ) as boolean
+    if left( lt, 7 ) <> "derive " then return false
+    dim as string rest = trim( mid( lt, 8 ), any chr( 32, 9 ) )
+    if (len( rest ) = 0) orelse (left( rest, 3 ) = "as ") then return false
+    dim as string c0 = left( rest, 1 )
+    if (c0 < "a" orelse c0 > "z") andalso (c0 <> "_") then return false
+    AddSig_( it.sigs, sig, file_, line_ )
+    dim as string tn = it.name
+    dim as string two = "( byref a as " & tn & ", byref b as " & tn & " ) as boolean"
+    rest &= ","
+    do
+        dim as int32 cm = instr( rest, "," )
+        if cm = 0 then exit do
+        dim as string w = trim( left( rest, cm - 1 ), any chr( 32, 9 ) )
+        rest = mid( rest, cm + 1 )
+        select case w
+        case "equal"
+            DerivedMember_( it, "operator", "=", "operator = " & two, vis, "derive equal", file_, line_ )
+            DerivedMember_( it, "operator", "<>", "operator <> " & two, vis, "derive equal", file_, line_ )
+        case "order"
+            for k as int32 = 0 to 3
+                dim as string op = iif( k = 0, "<", iif( k = 1, ">", iif( k = 2, "<=", ">=" ) ) )
+                DerivedMember_( it, "operator", op, "operator " & op & " " & two, vis, "derive order", file_, line_ )
+            next
+        case "text"
+            DerivedMember_( it, "method", "ToText", "declare function ToText( ) as ustring", vis, "derive text", file_, line_ )
+        end select
+    loop
+    return true
+end function
+
 '' THE BODY OF A TYPE: members until its 'end', sections by label.
 private sub TypeMember_( byref m as DocModule, byref it as DocItem, byref ln as string, _
                          byref vis as string, byref file_ as string, byval line_ as int32, _
@@ -201,6 +251,7 @@ private sub TypeMember_( byref m as DocModule, byref it as DocItem, byref ln as 
         AddSig_( it.sigs, sig, file_, line_ )
         return
     end if
+    if DeriveLine_( it, lt, sig, vis, file_, line_ ) then return   '' RFC 0019
     if left( lt, 8 ) = "declare " then
         dim as string sh = mid( sig, 9 )
         dim as boolean had

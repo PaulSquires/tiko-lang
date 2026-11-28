@@ -1,0 +1,15 @@
+'' derivedoc: a type that derives, for ../../../emit-doc-derive.test (RFC 0019).
+#module "derivedoc"
+'' derivedoc: types that derive, the documentation fixture.
+
+'' A point on a grid.
+public type Cell
+    derive equal, order, hash, text
+    as int32 row       '' the row, from 0
+    as int32 col       '' the column, from 0
+end type
+
+'' A field named derive is a field, not a derive line.
+public type Odd
+    derive as int32
+end type

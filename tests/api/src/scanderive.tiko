@@ -1,0 +1,11 @@
+'' scanderive.tiko -- see ../scan-derive.test
+type Cell
+    derive equal, text
+    as long row
+end type
+type Plain
+    derive equal
+    as long a
+end type
+dim as Cell c
+print c.ToText( )
