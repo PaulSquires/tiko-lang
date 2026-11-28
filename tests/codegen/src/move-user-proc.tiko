@@ -1,0 +1,23 @@
+'' A program's own 'move' is not the builtin (RFC 0018 §10 Q1): a procedure named move binds the
+'' name and runs, a METHOD named Move is reached through its object, and a type's field may be
+'' called move too. None of them is reset or relocated.
+function move( byval n as long ) as long
+    return n * 2
+end function
+
+type Cursor
+    as long at
+    declare sub Move( byval by_ as long )
+end type
+type Step_
+    as long move
+end type
+sub Cursor.Move( byval by_ as long )
+    at += by_
+end sub
+
+dim as Cursor c
+dim as Step_ st
+c.Move( 3 ) : c.Move( 4 )
+st.move = 9
+print move( 21 ); c.at; st.move

@@ -31,6 +31,8 @@ private function BuiltinArity_ ( byref nm as string, byref lo as int32, byref hi
         lo = 1 : hi = 9999
     case "name"
         lo = 2 : hi = 2
+    case "move"   '' RFC 0018 V3 -- a tiko builtin, not fbc's
+        lo = 1 : hi = 1
     case else
         return false
     end select

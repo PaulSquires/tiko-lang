@@ -1,0 +1,14 @@
+'' RFC 0018 P4: a UniquePtr is never copied -- each line below is a copy. Lines asserted.
+#import "std/memory"
+#import "std/containers"
+
+sub Use( byval u as memory.UniquePtr( of long ) )
+end sub
+
+dim as memory.UniquePtr( of long ) a = memory.MakeUnique( of long )( )
+dim as memory.UniquePtr( of long ) b = a
+b = a
+Use( a )
+dim as containers.Array( of memory.UniquePtr( of long ) ) xs
+xs.Push( a )
+xs.Push( move( a ) )

@@ -487,48 +487,45 @@ func void MAIN() {
   local agg $tmp10 size 8
   local agg $tmp11 size 8
   local agg $tmp12 size 8
-  local agg $tmp13 size 8
+  local i64 $tmp13
   local agg $tmp14 size 8
-  local i64 $tmp15
+  local agg $tmp15 size 8
   local agg $tmp16 size 8
   local agg $tmp17 size 8
   local agg $tmp18 size 8
   local agg $tmp19 size 8
-  local agg $tmp20 size 8
+  local agg $tmp20 size 24
   local agg $tmp21 size 8
-  local agg $tmp22 size 24
+  local agg $tmp22 size 8
   local agg $tmp23 size 8
   local agg $tmp24 size 8
   local agg $tmp25 size 8
-  local agg $tmp26 size 8
-  local agg $tmp27 size 8
-  local agg $tmp28 size 8
-  local agg $tmp29 size 4
-  local agg $tmp30 size 4
-  local agg $tmp31 size 4
-  local i64 $tmp32
-  local agg $tmp33 size 8
+  local agg $tmp26 size 4
+  local agg $tmp27 size 4
+  local agg $tmp28 size 4
+  local i64 $tmp29
+  local agg $tmp30 size 8
   local i32 x1
-  local agg $tmp35 size 8
+  local agg $tmp32 size 8
   local i32 y1
+  local agg $tmp34 size 8
+  local agg $tmp35 size 8
+  local agg $tmp36 size 8
   local agg $tmp37 size 8
-  local agg $tmp38 size 8
+  local i32 $tmp38
   local agg $tmp39 size 8
-  local agg $tmp40 size 8
-  local i32 $tmp41
-  local agg $tmp42 size 8
-  local agg $tmp43 size 24
-  local agg $tmp44 size 24
-  local ptr $tmp45
+  local agg $tmp40 size 24
+  local agg $tmp41 size 24
+  local ptr $tmp42
   local i32 i
-  local agg $tmp47 size 8
-  local i32 $tmp48
-  local agg $tmp49 size 8
-  local i32 $tmp50
-  local agg $tmp51 size 8
-  local i8 $tmp52
+  local agg $tmp44 size 8
+  local i32 $tmp45
+  local agg $tmp46 size 8
+  local i32 $tmp47
+  local agg $tmp48 size 8
+  local i8 $tmp49
   local i32 k
-  local agg $tmp54 size 8
+  local agg $tmp51 size 8
   entry0:
     %1 = alloca ptr a
     %2 = const i64 1
@@ -600,583 +597,574 @@ func void MAIN() {
     %45 = const i64 7
     %46 = trunc %45
     %47 = call ptr MKH(@$tmp9, %46)
-    %48 = alloca ptr $tmp10
-    call void _ZN1HC1ERS_(@$tmp10, @$tmp9)
-    %49 = call ptr MKFROM(@$tmp8, @$tmp10)
-    %50 = alloca ptr $tmp11
-    call void _ZN1HC1ERS_(@$tmp11, @$tmp8)
-    %51 = call ptr MKFROM(@$tmp7, @$tmp11)
-    %52 = call i32 TAKER(@$tmp7)
-    call.rtl void fb_PrintInt(0, %52, 0)
-    call void _ZN1HD1Ev(@$tmp11)
-    call void _ZN1HD1Ev(@$tmp10)
+    %48 = call ptr MKFROM(@$tmp8, @$tmp9)
+    %49 = call ptr MKFROM(@$tmp7, @$tmp8)
+    %50 = call i32 TAKER(@$tmp7)
+    call.rtl void fb_PrintInt(0, %50, 0)
     call void _ZN1HD1Ev(@$tmp9)
     call void _ZN1HD1Ev(@$tmp8)
     call void _ZN1HD1Ev(@$tmp7)
-    %53 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %53, 0)
-    %54 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %54, 1)
-    %55 = const i64 0
-    %56 = trunc %55
-    store @@hdtor, %56
-    %57 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 3)
-    call.rtl void fb_PrintString(0, %57, 0)
-    %58 = alloca ptr $tmp12
-    %59 = const i64 1
-    %60 = trunc %59
-    %61 = call ptr MKH(@$tmp12, %60)
-    %62 = call i32 TAKER(@$tmp12)
-    %63 = alloca ptr $tmp13
-    %64 = const i64 2
-    %65 = trunc %64
-    %66 = call ptr MKH(@$tmp13, %65)
-    %67 = call i32 TAKER(@$tmp13)
-    %68 = sext %62
-    %69 = sext %67
-    %70 = add %68, %69
-    %71 = call i32 CNT()
-    %72 = sext %71
-    %73 = add %70, %72
-    call.rtl void fb_PrintLongint(0, %73, 0)
-    call void _ZN1HD1Ev(@$tmp13)
-    call void _ZN1HD1Ev(@$tmp12)
-    %74 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %74, 0)
-    %75 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %75, 1)
-    %76 = const i64 0
-    %77 = trunc %76
-    store @@hdtor, %77
-    %78 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 3)
-    call.rtl void fb_PrintString(0, %78, 0)
-    %79 = alloca ptr $tmp14
-    %80 = const i64 3
-    %81 = trunc %80
-    %82 = call ptr MKH(@$tmp14, %81)
-    %83 = call i32 TAKER(@$tmp14)
-    %84 = const i64 3
-    %85 = sext %83
-    %86 = icmp.eq %85, %84
-    %87 = alloca ptr $tmp15
-    %97 = alloca ptr $tmp16
-    %107 = alloca ptr $tmp17
-    %115 = alloca ptr $tmp18
-    %121 = alloca ptr $tmp19
-    %131 = alloca ptr $tmp20
-    %141 = alloca ptr $tmp21
-    %154 = alloca ptr $tmp22
-    %158 = alloca ptr $tmp23
-    %176 = alloca ptr $tmp24
-    %187 = alloca ptr $tmp25
-    %188 = alloca ptr $tmp26
-    %190 = alloca ptr $tmp27
-    %191 = alloca ptr $tmp28
-    %200 = alloca ptr $tmp29
-    %211 = alloca ptr $tmp30
-    %224 = alloca ptr $tmp31
-    %235 = alloca ptr $tmp32
-    %241 = alloca ptr $tmp33
-    %257 = alloca ptr x1
-    %258 = alloca ptr $tmp35
-    %263 = alloca ptr y1
-    %269 = alloca ptr $tmp37
-    %278 = alloca ptr $tmp38
-    %290 = alloca ptr $tmp39
-    %303 = alloca ptr $tmp40
-    %308 = alloca ptr $tmp41
-    %309 = alloca ptr $tmp42
-    %327 = alloca ptr $tmp43
-    %332 = alloca ptr $tmp44
-    %333 = field.addr @$tmp44, 0
-    store %333, 0
-    %334 = field.addr @$tmp44, 8
-    store %334, 0
-    %335 = field.addr @$tmp44, 16
-    store %335, 0
-    %337 = alloca ptr $tmp45
-    %346 = alloca ptr i
-    %347 = alloca ptr $tmp47
-    %352 = alloca ptr $tmp48
-    %353 = alloca ptr $tmp49
-    %363 = alloca ptr $tmp50
-    %364 = alloca ptr $tmp51
-    %374 = alloca ptr $tmp52
-    %392 = alloca ptr k
-    %395 = alloca ptr $tmp54
-    condbr %86, iif.then1, iif.else2
+    %51 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %51, 0)
+    %52 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %52, 1)
+    %53 = const i64 0
+    %54 = trunc %53
+    store @@hdtor, %54
+    %55 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 3)
+    call.rtl void fb_PrintString(0, %55, 0)
+    %56 = alloca ptr $tmp10
+    %57 = const i64 1
+    %58 = trunc %57
+    %59 = call ptr MKH(@$tmp10, %58)
+    %60 = call i32 TAKER(@$tmp10)
+    %61 = alloca ptr $tmp11
+    %62 = const i64 2
+    %63 = trunc %62
+    %64 = call ptr MKH(@$tmp11, %63)
+    %65 = call i32 TAKER(@$tmp11)
+    %66 = sext %60
+    %67 = sext %65
+    %68 = add %66, %67
+    %69 = call i32 CNT()
+    %70 = sext %69
+    %71 = add %68, %70
+    call.rtl void fb_PrintLongint(0, %71, 0)
+    call void _ZN1HD1Ev(@$tmp11)
+    call void _ZN1HD1Ev(@$tmp10)
+    %72 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %72, 0)
+    %73 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %73, 1)
+    %74 = const i64 0
+    %75 = trunc %74
+    store @@hdtor, %75
+    %76 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str12, 3)
+    call.rtl void fb_PrintString(0, %76, 0)
+    %77 = alloca ptr $tmp12
+    %78 = const i64 3
+    %79 = trunc %78
+    %80 = call ptr MKH(@$tmp12, %79)
+    %81 = call i32 TAKER(@$tmp12)
+    %82 = const i64 3
+    %83 = sext %81
+    %84 = icmp.eq %83, %82
+    %85 = alloca ptr $tmp13
+    %95 = alloca ptr $tmp14
+    %105 = alloca ptr $tmp15
+    %113 = alloca ptr $tmp16
+    %119 = alloca ptr $tmp17
+    %129 = alloca ptr $tmp18
+    %139 = alloca ptr $tmp19
+    %152 = alloca ptr $tmp20
+    %156 = alloca ptr $tmp21
+    %174 = alloca ptr $tmp22
+    %185 = alloca ptr $tmp23
+    %186 = alloca ptr $tmp24
+    %188 = alloca ptr $tmp25
+    %197 = alloca ptr $tmp26
+    %208 = alloca ptr $tmp27
+    %221 = alloca ptr $tmp28
+    %232 = alloca ptr $tmp29
+    %238 = alloca ptr $tmp30
+    %254 = alloca ptr x1
+    %255 = alloca ptr $tmp32
+    %260 = alloca ptr y1
+    %266 = alloca ptr $tmp34
+    %275 = alloca ptr $tmp35
+    %287 = alloca ptr $tmp36
+    %300 = alloca ptr $tmp37
+    %305 = alloca ptr $tmp38
+    %306 = alloca ptr $tmp39
+    %324 = alloca ptr $tmp40
+    %329 = alloca ptr $tmp41
+    %330 = field.addr @$tmp41, 0
+    store %330, 0
+    %331 = field.addr @$tmp41, 8
+    store %331, 0
+    %332 = field.addr @$tmp41, 16
+    store %332, 0
+    %334 = alloca ptr $tmp42
+    %343 = alloca ptr i
+    %344 = alloca ptr $tmp44
+    %349 = alloca ptr $tmp45
+    %350 = alloca ptr $tmp46
+    %360 = alloca ptr $tmp47
+    %361 = alloca ptr $tmp48
+    %371 = alloca ptr $tmp49
+    %389 = alloca ptr k
+    %392 = alloca ptr $tmp51
+    condbr %84, iif.then1, iif.else2
   iif.then1:
-    %88 = call i32 CNT()
-    %89 = sext %88
-    store @$tmp15, %89
+    %86 = call i32 CNT()
+    %87 = sext %86
+    store @$tmp13, %87
     br iif.join3
   iif.else2:
-    %90 = const i64 1
-    %91 = neg %90
-    store @$tmp15, %91
+    %88 = const i64 1
+    %89 = neg %88
+    store @$tmp13, %89
     br iif.join3
   iif.join3:
-    %92 = load @$tmp15
-    call.rtl void fb_PrintLongint(0, %92, 0)
+    %90 = load @$tmp13
+    call.rtl void fb_PrintLongint(0, %90, 0)
+    call void _ZN1HD1Ev(@$tmp12)
+    %91 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %91, 0)
+    %92 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %92, 1)
+    %93 = const i64 0
+    %94 = trunc %93
+    store @@hdtor, %94
+    %96 = const i64 0
+    %97 = trunc %96
+    %98 = call ptr MKH(@$tmp14, %97)
+    %99 = call i32 TAKER(@$tmp14)
     call void _ZN1HD1Ev(@$tmp14)
-    %93 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %93, 0)
-    %94 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %94, 1)
-    %95 = const i64 0
-    %96 = trunc %95
-    store @@hdtor, %96
-    %98 = const i64 0
-    %99 = trunc %98
-    %100 = call ptr MKH(@$tmp16, %99)
-    %101 = call i32 TAKER(@$tmp16)
+    %100 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 3)
+    call.rtl void fb_PrintString(%99, %100, 0)
+    %101 = call i32 CNT()
+    call.rtl void fb_PrintInt(%99, %101, 1)
+    %102 = const i64 0
+    %103 = trunc %102
+    store @@hdtor, %103
+    %104 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 3)
+    call.rtl void fb_PrintString(0, %104, 2)
+    %106 = const i64 5
+    %107 = trunc %106
+    %108 = call ptr MKH(@$tmp15, %107)
+    %109 = call i32 TAKER(@$tmp15)
+    call.rtl void fb_PrintInt(0, %109, 2)
+    call void _ZN1HD1Ev(@$tmp15)
+    %110 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %110, 1)
+    %111 = const i64 0
+    %112 = trunc %111
+    store @@hdtor, %112
+    %114 = const i64 1
+    %115 = trunc %114
+    %116 = call ptr MKH(@$tmp16, %115)
+    %117 = call i32 TAKER(@$tmp16)
+    call.rtl void fb_WriteInt(0, %117, 2)
     call void _ZN1HD1Ev(@$tmp16)
-    %102 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 3)
-    call.rtl void fb_PrintString(%101, %102, 0)
-    %103 = call i32 CNT()
-    call.rtl void fb_PrintInt(%101, %103, 1)
-    %104 = const i64 0
-    %105 = trunc %104
-    store @@hdtor, %105
-    %106 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 3)
-    call.rtl void fb_PrintString(0, %106, 2)
-    %108 = const i64 5
-    %109 = trunc %108
-    %110 = call ptr MKH(@$tmp17, %109)
-    %111 = call i32 TAKER(@$tmp17)
-    call.rtl void fb_PrintInt(0, %111, 2)
+    %118 = call i32 CNT()
+    call.rtl void fb_WriteInt(0, %118, 2)
+    %120 = const i64 2
+    %121 = trunc %120
+    %122 = call ptr MKH(@$tmp17, %121)
+    %123 = call i32 TAKER(@$tmp17)
+    call.rtl void fb_WriteInt(0, %123, 2)
     call void _ZN1HD1Ev(@$tmp17)
-    %112 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %112, 1)
-    %113 = const i64 0
-    %114 = trunc %113
-    store @@hdtor, %114
-    %116 = const i64 1
-    %117 = trunc %116
-    %118 = call ptr MKH(@$tmp18, %117)
-    %119 = call i32 TAKER(@$tmp18)
-    call.rtl void fb_WriteInt(0, %119, 2)
+    %124 = call i32 CNT()
+    call.rtl void fb_WriteInt(0, %124, 1)
+    %125 = const i64 0
+    %126 = trunc %125
+    store @@hdtor, %126
+    %127 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 14)
+    %128 = call.rtl i32 fb_PrintUsingInit(%127)
+    %130 = const i64 3
+    %131 = trunc %130
+    %132 = call ptr MKH(@$tmp18, %131)
+    %133 = call i32 TAKER(@$tmp18)
+    %134 = sext %133
+    %135 = call.rtl i32 fb_PrintUsingLongint(0, %134, 0)
     call void _ZN1HD1Ev(@$tmp18)
-    %120 = call i32 CNT()
-    call.rtl void fb_WriteInt(0, %120, 2)
-    %122 = const i64 2
-    %123 = trunc %122
-    %124 = call ptr MKH(@$tmp19, %123)
-    %125 = call i32 TAKER(@$tmp19)
-    call.rtl void fb_WriteInt(0, %125, 2)
+    %136 = call i32 CNT()
+    %137 = sext %136
+    %138 = call.rtl i32 fb_PrintUsingLongint(0, %137, 0)
+    %140 = const i64 4
+    %141 = trunc %140
+    %142 = call ptr MKH(@$tmp19, %141)
+    %143 = call i32 TAKER(@$tmp19)
+    %144 = sext %143
+    %145 = call.rtl i32 fb_PrintUsingLongint(0, %144, 0)
     call void _ZN1HD1Ev(@$tmp19)
-    %126 = call i32 CNT()
-    call.rtl void fb_WriteInt(0, %126, 1)
-    %127 = const i64 0
-    %128 = trunc %127
-    store @@hdtor, %128
-    %129 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 14)
-    %130 = call.rtl i32 fb_PrintUsingInit(%129)
-    %132 = const i64 3
-    %133 = trunc %132
-    %134 = call ptr MKH(@$tmp20, %133)
-    %135 = call i32 TAKER(@$tmp20)
-    %136 = sext %135
-    %137 = call.rtl i32 fb_PrintUsingLongint(0, %136, 0)
-    call void _ZN1HD1Ev(@$tmp20)
-    %138 = call i32 CNT()
-    %139 = sext %138
-    %140 = call.rtl i32 fb_PrintUsingLongint(0, %139, 0)
-    %142 = const i64 4
-    %143 = trunc %142
-    %144 = call ptr MKH(@$tmp21, %143)
-    %145 = call i32 TAKER(@$tmp21)
-    %146 = sext %145
-    %147 = call.rtl i32 fb_PrintUsingLongint(0, %146, 0)
-    call void _ZN1HD1Ev(@$tmp21)
-    %148 = call i32 CNT()
-    %149 = sext %148
-    %150 = call.rtl i32 fb_PrintUsingLongint(0, %149, -2147483647)
-    %151 = call.rtl i32 fb_PrintUsingEnd(0)
-    %152 = const i64 0
-    %153 = trunc %152
-    store @@hdtor, %153
-    %155 = field.addr @$tmp22, 0
+    %146 = call i32 CNT()
+    %147 = sext %146
+    %148 = call.rtl i32 fb_PrintUsingLongint(0, %147, -2147483647)
+    %149 = call.rtl i32 fb_PrintUsingEnd(0)
+    %150 = const i64 0
+    %151 = trunc %150
+    store @@hdtor, %151
+    %153 = field.addr @$tmp20, 0
+    store %153, 0
+    %154 = field.addr @$tmp20, 8
+    store %154, 0
+    %155 = field.addr @$tmp20, 16
     store %155, 0
-    %156 = field.addr @$tmp22, 8
-    store %156, 0
-    %157 = field.addr @$tmp22, 16
-    store %157, 0
-    %159 = const i64 5
-    %160 = trunc %159
-    %161 = call ptr MKH(@$tmp23, %160)
-    %162 = call i32 TAKER(@$tmp23)
-    %163 = call.rtl ptr fb_IntToStr(%162)
-    %164 = call.rtl ptr fb_StrConcat(@$tmp22, %163, -1, @@$str16, 7)
-    %165 = call.rtl i32 fb_PrintUsingInit(@$tmp22)
-    call void _ZN1HD1Ev(@$tmp23)
-    %166 = call i32 CNT()
-    %167 = sext %166
-    %168 = call.rtl i32 fb_PrintUsingLongint(0, %167, 0)
-    %169 = call i32 CNT()
-    %170 = sext %169
-    %171 = call.rtl i32 fb_PrintUsingLongint(0, %170, -2147483647)
-    %172 = call.rtl i32 fb_PrintUsingEnd(0)
-    %173 = const i64 0
-    %174 = trunc %173
-    store @@hdtor, %174
-    %175 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 3)
-    call.rtl void fb_PrintString(0, %175, 0)
-    call void _ZN1HC1ERS_(@$tmp24, @nm)
-    %177 = call i32 TAKEV(@$tmp24)
-    %178 = call i32 CNT()
-    %179 = sext %177
-    %180 = sext %178
-    %181 = add %179, %180
-    call.rtl void fb_PrintLongint(0, %181, 0)
+    %157 = const i64 5
+    %158 = trunc %157
+    %159 = call ptr MKH(@$tmp21, %158)
+    %160 = call i32 TAKER(@$tmp21)
+    %161 = call.rtl ptr fb_IntToStr(%160)
+    %162 = call.rtl ptr fb_StrConcat(@$tmp20, %161, -1, @@$str16, 7)
+    %163 = call.rtl i32 fb_PrintUsingInit(@$tmp20)
+    call void _ZN1HD1Ev(@$tmp21)
+    %164 = call i32 CNT()
+    %165 = sext %164
+    %166 = call.rtl i32 fb_PrintUsingLongint(0, %165, 0)
+    %167 = call i32 CNT()
+    %168 = sext %167
+    %169 = call.rtl i32 fb_PrintUsingLongint(0, %168, -2147483647)
+    %170 = call.rtl i32 fb_PrintUsingEnd(0)
+    %171 = const i64 0
+    %172 = trunc %171
+    store @@hdtor, %172
+    %173 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 3)
+    call.rtl void fb_PrintString(0, %173, 0)
+    call void _ZN1HC1ERS_(@$tmp22, @nm)
+    %175 = call i32 TAKEV(@$tmp22)
+    %176 = call i32 CNT()
+    %177 = sext %175
+    %178 = sext %176
+    %179 = add %177, %178
+    call.rtl void fb_PrintLongint(0, %179, 0)
+    call void _ZN1HD1Ev(@$tmp22)
+    %180 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %180, 0)
+    %181 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %181, 1)
+    %182 = const i64 0
+    %183 = trunc %182
+    store @@hdtor, %183
+    %184 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str18, 3)
+    call.rtl void fb_PrintString(0, %184, 0)
+    call void _ZN1HC1ERS_(@$tmp24, @b)
+    %187 = call ptr MKFROM(@$tmp23, @$tmp24)
+    call void _ZN1HC1ERS_(@$tmp25, @nm)
+    %189 = call i32 F2(@$tmp25, @$tmp23)
+    call.rtl void fb_PrintInt(0, %189, 0)
     call void _ZN1HD1Ev(@$tmp24)
-    %182 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %182, 0)
-    %183 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %183, 1)
-    %184 = const i64 0
-    %185 = trunc %184
-    store @@hdtor, %185
-    %186 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str18, 3)
-    call.rtl void fb_PrintString(0, %186, 0)
-    call void _ZN1HC1ERS_(@$tmp26, @b)
-    %189 = call ptr MKFROM(@$tmp25, @$tmp26)
-    call void _ZN1HC1ERS_(@$tmp27, @$tmp25)
-    call void _ZN1HC1ERS_(@$tmp28, @nm)
-    %192 = call i32 F2(@$tmp28, @$tmp27)
-    call.rtl void fb_PrintInt(0, %192, 0)
-    call void _ZN1HD1Ev(@$tmp27)
-    call void _ZN1HD1Ev(@$tmp26)
+    call void _ZN1HD1Ev(@$tmp23)
     call void _ZN1HD1Ev(@$tmp25)
-    call void _ZN1HD1Ev(@$tmp28)
-    %193 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %193, 0)
-    %194 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %194, 1)
-    %195 = const i64 0
+    %190 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %190, 0)
+    %191 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %191, 1)
+    %192 = const i64 0
+    %193 = trunc %192
+    store @@hdtor, %193
+    %194 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 3)
+    call.rtl void fb_PrintString(0, %194, 0)
+    %195 = const i64 5
     %196 = trunc %195
-    store @@hdtor, %196
-    %197 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 3)
-    call.rtl void fb_PrintString(0, %197, 0)
-    %198 = const i64 5
-    %199 = trunc %198
-    call void _ZN1WC1Ei(@$tmp29, %199)
-    %201 = call i32 TAKEWV(@$tmp29)
-    %202 = call i32 CNT()
-    %203 = sext %201
-    %204 = sext %202
-    %205 = add %203, %204
-    call.rtl void fb_PrintLongint(0, %205, 0)
-    call void _ZN1WD1Ev(@$tmp29)
-    %206 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %206, 0)
-    %207 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %207, 1)
-    %208 = const i64 0
-    %209 = trunc %208
-    store @@hdtor, %209
-    %210 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str20, 3)
-    call.rtl void fb_PrintString(0, %210, 0)
-    call void _ZN2DWC1ER1H(@$tmp30, @a)
-    %212 = call i32 TAKEDW(@$tmp30)
-    %213 = call i32 CNT()
-    %214 = sext %212
-    %215 = sext %213
-    %216 = add %214, %215
-    call.rtl void fb_PrintLongint(0, %216, 0)
-    call void _ZN2DWD1Ev(@$tmp30)
-    %217 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %217, 0)
-    %218 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %218, 1)
-    %219 = const i64 0
+    call void _ZN1WC1Ei(@$tmp26, %196)
+    %198 = call i32 TAKEWV(@$tmp26)
+    %199 = call i32 CNT()
+    %200 = sext %198
+    %201 = sext %199
+    %202 = add %200, %201
+    call.rtl void fb_PrintLongint(0, %202, 0)
+    call void _ZN1WD1Ev(@$tmp26)
+    %203 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %203, 0)
+    %204 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %204, 1)
+    %205 = const i64 0
+    %206 = trunc %205
+    store @@hdtor, %206
+    %207 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str20, 3)
+    call.rtl void fb_PrintString(0, %207, 0)
+    call void _ZN2DWC1ER1H(@$tmp27, @a)
+    %209 = call i32 TAKEDW(@$tmp27)
+    %210 = call i32 CNT()
+    %211 = sext %209
+    %212 = sext %210
+    %213 = add %211, %212
+    call.rtl void fb_PrintLongint(0, %213, 0)
+    call void _ZN2DWD1Ev(@$tmp27)
+    %214 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %214, 0)
+    %215 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %215, 1)
+    %216 = const i64 0
+    %217 = trunc %216
+    store @@hdtor, %217
+    %218 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str21, 3)
+    call.rtl void fb_PrintString(0, %218, 0)
+    %219 = const i64 9
     %220 = trunc %219
-    store @@hdtor, %220
-    %221 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str21, 3)
-    call.rtl void fb_PrintString(0, %221, 0)
-    %222 = const i64 9
-    %223 = trunc %222
-    call void _ZN1WC1Ei(@$tmp31, %223)
-    %225 = call i32 _ZplR1WS0_(@w1, @$tmp31)
-    %226 = call i32 CNT()
-    %227 = sext %225
-    %228 = sext %226
-    %229 = add %227, %228
-    call.rtl void fb_PrintLongint(0, %229, 0)
-    call void _ZN1WD1Ev(@$tmp31)
-    %230 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %230, 0)
-    %231 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %231, 1)
-    %232 = const i64 0
-    %233 = trunc %232
-    store @@hdtor, %233
-    %234 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 3)
-    call.rtl void fb_PrintString(0, %234, 0)
-    %236 = call i32 CNT()
-    %237 = const i64 0
-    %238 = sext %236
-    %239 = icmp.eq %238, %237
-    %240 = neg %239
-    condbr %240, sc.rhs4, sc.short5
+    call void _ZN1WC1Ei(@$tmp28, %220)
+    %222 = call i32 _ZplR1WS0_(@w1, @$tmp28)
+    %223 = call i32 CNT()
+    %224 = sext %222
+    %225 = sext %223
+    %226 = add %224, %225
+    call.rtl void fb_PrintLongint(0, %226, 0)
+    call void _ZN1WD1Ev(@$tmp28)
+    %227 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %227, 0)
+    %228 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %228, 1)
+    %229 = const i64 0
+    %230 = trunc %229
+    store @@hdtor, %230
+    %231 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 3)
+    call.rtl void fb_PrintString(0, %231, 0)
+    %233 = call i32 CNT()
+    %234 = const i64 0
+    %235 = sext %233
+    %236 = icmp.eq %235, %234
+    %237 = neg %236
+    condbr %237, sc.rhs4, sc.short5
   sc.rhs4:
-    call void _ZN1HC1ERS_(@$tmp33, @nm)
-    %242 = call i32 TAKEV(@$tmp33)
-    %243 = const i64 7
-    %244 = sext %242
-    %245 = icmp.eq %244, %243
-    %246 = neg %245
-    %247 = const i64 0
-    %248 = icmp.ne %246, %247
-    %249 = sext %248
-    %250 = neg %249
-    store @$tmp32, %250
-    call void _ZN1HD1Ev(@$tmp33)
+    call void _ZN1HC1ERS_(@$tmp30, @nm)
+    %239 = call i32 TAKEV(@$tmp30)
+    %240 = const i64 7
+    %241 = sext %239
+    %242 = icmp.eq %241, %240
+    %243 = neg %242
+    %244 = const i64 0
+    %245 = icmp.ne %243, %244
+    %246 = sext %245
+    %247 = neg %246
+    store @$tmp29, %247
+    call void _ZN1HD1Ev(@$tmp30)
     br sc.join6
   sc.short5:
-    %251 = const i64 0
-    store @$tmp32, %251
+    %248 = const i64 0
+    store @$tmp29, %248
     br sc.join6
   sc.join6:
-    %252 = load @$tmp32
-    call.rtl void fb_PrintLongint(0, %252, 0)
-    %253 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %253, 0)
-    %254 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %254, 1)
-    %255 = const i64 0
-    %256 = trunc %255
-    store @@hdtor, %256
-    %259 = const i64 6
-    %260 = trunc %259
-    %261 = call ptr MKH(@$tmp35, %260)
-    %262 = call i32 TAKER(@$tmp35)
-    store @x1, %262
-    call void _ZN1HD1Ev(@$tmp35)
-    %264 = call i32 CNT()
-    store @y1, %264
-    %265 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str23, 7)
-    call.rtl void fb_PrintString(0, %265, 0)
-    %266 = load @y1
-    call.rtl void fb_PrintInt(0, %266, 1)
+    %249 = load @$tmp29
+    call.rtl void fb_PrintLongint(0, %249, 0)
+    %250 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %250, 0)
+    %251 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %251, 1)
+    %252 = const i64 0
+    %253 = trunc %252
+    store @@hdtor, %253
+    %256 = const i64 6
+    %257 = trunc %256
+    %258 = call ptr MKH(@$tmp32, %257)
+    %259 = call i32 TAKER(@$tmp32)
+    store @x1, %259
+    call void _ZN1HD1Ev(@$tmp32)
+    %261 = call i32 CNT()
+    store @y1, %261
+    %262 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str23, 7)
+    call.rtl void fb_PrintString(0, %262, 0)
+    %263 = load @y1
+    call.rtl void fb_PrintInt(0, %263, 1)
+    %264 = const i64 0
+    %265 = trunc %264
+    store @@hdtor, %265
     %267 = const i64 0
     %268 = trunc %267
-    store @@hdtor, %268
-    %270 = const i64 0
-    %271 = trunc %270
-    %272 = call ptr MKH(@$tmp37, %271)
-    %273 = call i32 TAKER(@$tmp37)
-    %274 = const i64 1
-    %275 = sext %273
-    %276 = icmp.eq %275, %274
-    call void _ZN1HD1Ev(@$tmp37)
-    condbr %276, if.then8, if.else9
+    %269 = call ptr MKH(@$tmp34, %268)
+    %270 = call i32 TAKER(@$tmp34)
+    %271 = const i64 1
+    %272 = sext %270
+    %273 = icmp.eq %272, %271
+    call void _ZN1HD1Ev(@$tmp34)
+    condbr %273, if.then8, if.else9
   if.join7:
+    %285 = const i64 0
+    %286 = trunc %285
+    store @@hdtor, %286
     %288 = const i64 0
     %289 = trunc %288
-    store @@hdtor, %289
-    %291 = const i64 0
-    %292 = trunc %291
-    %293 = call ptr MKH(@$tmp39, %292)
-    %294 = call i32 TAKER(@$tmp39)
-    %295 = const i64 1
-    %296 = sext %294
-    %297 = icmp.eq %296, %295
-    call void _ZN1HD1Ev(@$tmp39)
-    condbr %297, if.then13, if.else14
+    %290 = call ptr MKH(@$tmp36, %289)
+    %291 = call i32 TAKER(@$tmp36)
+    %292 = const i64 1
+    %293 = sext %291
+    %294 = icmp.eq %293, %292
+    call void _ZN1HD1Ev(@$tmp36)
+    condbr %294, if.then13, if.else14
   if.then8:
-    %277 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str24, 8)
-    call.rtl void fb_PrintString(0, %277, 1)
+    %274 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str24, 8)
+    call.rtl void fb_PrintString(0, %274, 1)
     br if.join7
   if.else9:
-    %279 = const i64 1
-    %280 = trunc %279
-    %281 = call ptr MKH(@$tmp38, %280)
-    %282 = call i32 TAKER(@$tmp38)
-    %283 = const i64 1
-    %284 = sext %282
-    %285 = icmp.eq %284, %283
-    call void _ZN1HD1Ev(@$tmp38)
-    condbr %285, if.then10, if.else11
+    %276 = const i64 1
+    %277 = trunc %276
+    %278 = call ptr MKH(@$tmp35, %277)
+    %279 = call i32 TAKER(@$tmp35)
+    %280 = const i64 1
+    %281 = sext %279
+    %282 = icmp.eq %281, %280
+    call void _ZN1HD1Ev(@$tmp35)
+    condbr %282, if.then10, if.else11
   if.then10:
-    %286 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str25, 13)
-    call.rtl void fb_PrintString(0, %286, 0)
-    %287 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %287, 1)
+    %283 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str25, 13)
+    call.rtl void fb_PrintString(0, %283, 0)
+    %284 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %284, 1)
     br if.join7
   if.else11:
     br if.join7
   if.join12:
-    %301 = const i64 0
+    %298 = const i64 0
+    %299 = trunc %298
+    store @@hdtor, %299
+    %301 = const i64 7
     %302 = trunc %301
-    store @@hdtor, %302
-    %304 = const i64 7
-    %305 = trunc %304
-    %306 = call ptr MKH(@$tmp40, %305)
-    %307 = call i32 TAKER(@$tmp40)
-    store @$tmp41, %307
-    call void _ZN1HD1Ev(@$tmp40)
-    %310 = const i64 7
-    %311 = trunc %310
-    %312 = call ptr MKH(@$tmp42, %311)
-    %313 = call i32 TAKER(@$tmp42)
-    %314 = call i32 CNT()
-    %315 = sext %313
-    %316 = sext %314
-    %317 = add %315, %316
-    %318 = const i64 1
-    %319 = sub %317, %318
-    %320 = load @$tmp41
-    %321 = sext %320
-    %322 = icmp.eq %321, %319
-    call void _ZN1HD1Ev(@$tmp42)
-    condbr %322, sel.body16, sel.next17
+    %303 = call ptr MKH(@$tmp37, %302)
+    %304 = call i32 TAKER(@$tmp37)
+    store @$tmp38, %304
+    call void _ZN1HD1Ev(@$tmp37)
+    %307 = const i64 7
+    %308 = trunc %307
+    %309 = call ptr MKH(@$tmp39, %308)
+    %310 = call i32 TAKER(@$tmp39)
+    %311 = call i32 CNT()
+    %312 = sext %310
+    %313 = sext %311
+    %314 = add %312, %313
+    %315 = const i64 1
+    %316 = sub %314, %315
+    %317 = load @$tmp38
+    %318 = sext %317
+    %319 = icmp.eq %318, %316
+    call void _ZN1HD1Ev(@$tmp39)
+    condbr %319, sel.body16, sel.next17
   if.then13:
-    %298 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str26, 8)
-    call.rtl void fb_PrintString(0, %298, 1)
+    %295 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str26, 8)
+    call.rtl void fb_PrintString(0, %295, 1)
     br if.join12
   if.else14:
-    %299 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str27, 11)
-    call.rtl void fb_PrintString(0, %299, 0)
-    %300 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %300, 1)
+    %296 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str27, 11)
+    call.rtl void fb_PrintString(0, %296, 0)
+    %297 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %297, 1)
     br if.join12
   sel.join15:
-    %325 = const i64 0
+    %322 = const i64 0
+    %323 = trunc %322
+    store @@hdtor, %323
+    %325 = const i64 5
     %326 = trunc %325
-    store @@hdtor, %326
-    %328 = const i64 5
-    %329 = trunc %328
-    %330 = call ptr MAKES(@$tmp43, %329)
-    %331 = field.addr @$tmp43, 0
-    %336 = call.rtl ptr fb_StrAssign(@$tmp44, -1, %331, -1, 0)
-    store @$tmp45, @$tmp44
-    call void _ZN1SD1Ev(@$tmp43)
-    %338 = load @$tmp45
-    %339 = call.rtl i32 fb_StrCompare(%338, -1, @@$str29, 3)
-    %340 = const i32 0
-    %341 = icmp.eq %339, %340
-    condbr %341, sel.body19, sel.next20
+    %327 = call ptr MAKES(@$tmp40, %326)
+    %328 = field.addr @$tmp40, 0
+    %333 = call.rtl ptr fb_StrAssign(@$tmp41, -1, %328, -1, 0)
+    store @$tmp42, @$tmp41
+    call void _ZN1SD1Ev(@$tmp40)
+    %335 = load @$tmp42
+    %336 = call.rtl i32 fb_StrCompare(%335, -1, @@$str29, 3)
+    %337 = const i32 0
+    %338 = icmp.eq %336, %337
+    condbr %338, sel.body19, sel.next20
   sel.body16:
-    %323 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str28, 11)
-    call.rtl void fb_PrintString(0, %323, 0)
-    %324 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %324, 1)
+    %320 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str28, 11)
+    call.rtl void fb_PrintString(0, %320, 0)
+    %321 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %321, 1)
     br sel.join15
   sel.next17:
     br sel.join15
   sel.join18:
-    %344 = const i64 0
-    %345 = trunc %344
-    store @@hdtor, %345
-    %348 = const i64 1
-    %349 = trunc %348
-    %350 = call ptr MKH(@$tmp47, %349)
-    %351 = call i32 TAKER(@$tmp47)
-    store @i, %351
-    call void _ZN1HD1Ev(@$tmp47)
-    %354 = const i64 5
-    %355 = trunc %354
-    %356 = call ptr MKH(@$tmp49, %355)
-    %357 = call i32 TAKER(@$tmp49)
-    %358 = call i32 CNT()
-    %359 = sext %357
-    %360 = sext %358
-    %361 = add %359, %360
-    %362 = trunc %361
-    store @$tmp48, %362
-    call void _ZN1HD1Ev(@$tmp49)
-    %365 = const i64 2
-    %366 = trunc %365
-    %367 = call ptr MKH(@$tmp51, %366)
-    %368 = call i32 TAKER(@$tmp51)
-    %369 = call i32 CNT()
-    %370 = sext %368
-    %371 = sext %369
-    %372 = add %370, %371
-    %373 = trunc %372
-    store @$tmp50, %373
-    call void _ZN1HD1Ev(@$tmp51)
-    %375 = load @$tmp50
-    %376 = const i32 0
-    %377 = icmp.sge %375, %376
-    store @$tmp52, %377
+    %341 = const i64 0
+    %342 = trunc %341
+    store @@hdtor, %342
+    %345 = const i64 1
+    %346 = trunc %345
+    %347 = call ptr MKH(@$tmp44, %346)
+    %348 = call i32 TAKER(@$tmp44)
+    store @i, %348
+    call void _ZN1HD1Ev(@$tmp44)
+    %351 = const i64 5
+    %352 = trunc %351
+    %353 = call ptr MKH(@$tmp46, %352)
+    %354 = call i32 TAKER(@$tmp46)
+    %355 = call i32 CNT()
+    %356 = sext %354
+    %357 = sext %355
+    %358 = add %356, %357
+    %359 = trunc %358
+    store @$tmp45, %359
+    call void _ZN1HD1Ev(@$tmp46)
+    %362 = const i64 2
+    %363 = trunc %362
+    %364 = call ptr MKH(@$tmp48, %363)
+    %365 = call i32 TAKER(@$tmp48)
+    %366 = call i32 CNT()
+    %367 = sext %365
+    %368 = sext %366
+    %369 = add %367, %368
+    %370 = trunc %369
+    store @$tmp47, %370
+    call void _ZN1HD1Ev(@$tmp48)
+    %372 = load @$tmp47
+    %373 = const i32 0
+    %374 = icmp.sge %372, %373
+    store @$tmp49, %374
     br for.head21
   sel.body19:
-    %342 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str30, 11)
-    call.rtl void fb_PrintString(0, %342, 0)
-    %343 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %343, 1)
+    %339 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str30, 11)
+    call.rtl void fb_PrintString(0, %339, 0)
+    %340 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %340, 1)
     br sel.join18
   sel.next20:
     br sel.join18
   for.head21:
-    %378 = load @i
-    %379 = load @$tmp48
-    %380 = load @$tmp52
-    condbr %380, for.up25, for.down26
+    %375 = load @i
+    %376 = load @$tmp45
+    %377 = load @$tmp49
+    condbr %377, for.up25, for.down26
   for.body22:
-    %383 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str31, 6)
-    call.rtl void fb_PrintString(0, %383, 0)
-    %384 = load @i
-    call.rtl void fb_PrintInt(0, %384, 0)
-    %385 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %385, 0)
-    %386 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %386, 1)
+    %380 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str31, 6)
+    call.rtl void fb_PrintString(0, %380, 0)
+    %381 = load @i
+    call.rtl void fb_PrintInt(0, %381, 0)
+    %382 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %382, 0)
+    %383 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %383, 1)
     br for.step23
   for.step23:
-    %387 = load @i
-    %388 = load @$tmp50
-    %389 = add %387, %388
-    store @i, %389
+    %384 = load @i
+    %385 = load @$tmp47
+    %386 = add %384, %385
+    store @i, %386
     br for.head21
   for.exit24:
+    %387 = const i64 0
+    %388 = trunc %387
+    store @@hdtor, %388
     %390 = const i64 0
     %391 = trunc %390
-    store @@hdtor, %391
-    %393 = const i64 0
-    %394 = trunc %393
-    store @k, %394
+    store @k, %391
     br while.head27
   for.up25:
-    %381 = icmp.sle %378, %379
-    condbr %381, for.body22, for.exit24
+    %378 = icmp.sle %375, %376
+    condbr %378, for.body22, for.exit24
   for.down26:
-    %382 = icmp.sge %378, %379
-    condbr %382, for.body22, for.exit24
+    %379 = icmp.sge %375, %376
+    condbr %379, for.body22, for.exit24
   while.head27:
-    %396 = load @k
-    %397 = call ptr MKH(@$tmp54, %396)
-    %398 = call i32 TAKER(@$tmp54)
-    %399 = const i64 2
-    %400 = sext %398
-    %401 = icmp.slt %400, %399
-    call void _ZN1HD1Ev(@$tmp54)
-    condbr %401, while.body28, while.exit29
+    %393 = load @k
+    %394 = call ptr MKH(@$tmp51, %393)
+    %395 = call i32 TAKER(@$tmp51)
+    %396 = const i64 2
+    %397 = sext %395
+    %398 = icmp.slt %397, %396
+    call void _ZN1HD1Ev(@$tmp51)
+    condbr %398, while.body28, while.exit29
   while.body28:
-    %402 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str32, 6)
-    call.rtl void fb_PrintString(0, %402, 0)
+    %399 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str32, 6)
+    call.rtl void fb_PrintString(0, %399, 0)
+    %400 = load @k
+    call.rtl void fb_PrintInt(0, %400, 0)
+    %401 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
+    call.rtl void fb_PrintString(0, %401, 0)
+    %402 = call i32 CNT()
+    call.rtl void fb_PrintInt(0, %402, 1)
     %403 = load @k
-    call.rtl void fb_PrintInt(0, %403, 0)
-    %404 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str7, 3)
-    call.rtl void fb_PrintString(0, %404, 0)
-    %405 = call i32 CNT()
-    call.rtl void fb_PrintInt(0, %405, 1)
-    %406 = load @k
-    %407 = sext %406
-    %408 = const i64 1
-    %409 = add %407, %408
-    %410 = trunc %409
-    store @k, %410
+    %404 = sext %403
+    %405 = const i64 1
+    %406 = add %404, %405
+    %407 = trunc %406
+    store @k, %407
     br while.head27
   while.exit29:
-    %411 = const i64 0
-    %412 = trunc %411
-    store @@hdtor, %412
-    %413 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str33, 3)
-    call.rtl void fb_PrintString(0, %413, 1)
-    call.rtl void fb_StrDelete(@$tmp44)
+    %408 = const i64 0
+    %409 = trunc %408
+    store @@hdtor, %409
+    %410 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str33, 3)
+    call.rtl void fb_PrintString(0, %410, 1)
+    call.rtl void fb_StrDelete(@$tmp41)
     call void _ZN1WD1Ev(@w1)
     call void _ZN1HD1Ev(@nm)
     call void _ZN1HD1Ev(@b)
@@ -1208,4 +1196,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 22 functions, 51 blocks, 912 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 22 functions, 51 blocks, 903 insts, 0 statements not lowered, 0 scope imbalance

@@ -142,7 +142,7 @@ Sorting is in its own file, with a comparer, a stable form and a LinkedList form
 
 The array owns its storage and cleans it up in its destructor.
 
-COPY AND ASSIGNMENT ARE DEEP. 'dim b = a' copies every element, invoking T's copy constructor; assignment destroys the old contents and deep-copies. That is the only rule consistent with tiko's value semantics for UDTs, and it is expensive -- there is no move constructor in the language to avoid it. Pass containers BYREF where it matters.
+COPY AND ASSIGNMENT ARE DEEP. 'dim b = a' copies every element, invoking T's copy constructor; assignment destroys the old contents and deep-copies. That is the only rule consistent with tiko's value semantics for UDTs, and it is expensive. A [move](Category-Move-Semantics) is not: an array returned from a function, or handed on with `move( a )`, keeps its storage. `Push` and `Insert` take their value by value and move it in, so a temporary or `move( x )` costs no copy. Pass an array BYREF when the callee only reads it.
 
 Containers of containers work: Array( of Array( of long ) ) copies correctly, because the inner array's copy constructor does the right thing.
 

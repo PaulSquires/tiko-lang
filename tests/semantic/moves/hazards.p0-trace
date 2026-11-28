@@ -1,0 +1,116 @@
+  ctor #1
+  ctor #2
+init (shared slots): ctor=2 copy=0 let=0 dtor=0 balance=ok
+
+H1 two returns
+  ctor #3 (1)
+  ctor #4 (2)
+  COPY #5 <- #3
+  dtor #4
+  dtor #3
+  got #5 t3
+  ctor #6 (1)
+  ctor #7 (2)
+  COPY #8 <- #7
+  dtor #7
+  dtor #6
+  got #8 t7
+  dtor #8
+  dtor #5
+H1: ctor=4 copy=2 let=0 dtor=6 balance=ok
+
+H2 return from a loop
+  ctor #9 (3)
+  ctor #10 (31)
+  dtor #10
+  ctor #11 (32)
+  COPY #12 <- #9
+  dtor #11
+  dtor #9
+  got t9
+  dtor #12
+H2: ctor=3 copy=1 let=0 dtor=4 balance=ok
+
+H3 pending defer
+  ctor #13 (4)
+  COPY #14 <- #13
+  (defer sees r.s=t13)
+  dtor #13
+  got t13
+  dtor #14
+H3: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+H4 guard destroyed after the return
+  ctor #15 (5)
+  COPY #16 <- #15
+  (guard sees s="t15")
+  dtor #15
+  got t15
+  dtor #16
+H4: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+H5 method result
+  ctor #17
+  ctor #18 (6)
+  COPY #19 <- #18
+  dtor #18
+  got t18
+  dtor #19
+  dtor #17
+H5: ctor=2 copy=1 let=0 dtor=3 balance=ok
+
+H6 b = Combine( b, a )  (the target is an argument)
+  ctor #20 (7)
+  ctor #21 (8)
+  ctor #22 (2120)
+  COPY #23 <- #22
+  dtor #22
+  LET  #21 <- #23
+  dtor #23
+  b=t21+t20
+  dtor #21
+  dtor #20
+H6: ctor=3 copy=1 let=1 dtor=4 balance=ok
+
+H7 element and field targets
+  ctor #24 (9)
+  COPY #25 <- #24
+  dtor #24
+  LET  #2 <- #25
+  dtor #25
+  slots(1)=t24
+  ctor #26
+  ctor #27 (10)
+  COPY #28 <- #27
+  dtor #27
+  LET  #26 <- #28
+  dtor #28
+  bx.held=t27
+  dtor #26
+H7: ctor=3 copy=2 let=2 dtor=5 balance=ok
+
+H8 Take( Pass2( Make( ) ) )
+  ctor #29 (11)
+  COPY #30 <- #29
+  dtor #29
+  COPY #31 <- #30
+  COPY #32 <- #31
+  COPY #33 <- #32
+  (in Take #33 t29)
+  dtor #33
+  dtor #31
+  dtor #30
+  dtor #32
+H8: ctor=1 copy=4 let=0 dtor=5 balance=ok
+
+H9 the temporary read in an expression
+  ctor #34 (12)
+  COPY #35 <- #34
+  dtor #34
+  len=3
+  dtor #35
+H9: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+-- end of main
+  dtor #2
+  dtor #1

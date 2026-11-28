@@ -26,6 +26,7 @@
 - [Tuples](Category-Tuples)
 - [Array Results](Category-Array-Results)
 - [Defer](Category-Defer)
+- [Move Semantics](Category-Move-Semantics)
 - [Match](Category-Match)
 - [Lambdas](Category-Lambdas)
 - [Block Strings](Category-Block-Strings)

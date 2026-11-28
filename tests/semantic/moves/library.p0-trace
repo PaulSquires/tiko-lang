@@ -1,0 +1,169 @@
+L1 Array.Push( Make( ) ), Push( T( n ) )
+  ctor #1
+  ctor #2
+  ctor #3
+  ctor #4
+  ctor #5
+  ctor #6
+  ctor #7
+  ctor #8
+  (reserve): ctor=8 copy=0 let=0 dtor=0 balance=-
+
+  ctor #9 (1)
+  COPY #10 <- #9
+  dtor #9
+  LET  #1 <- #10
+  dtor #10
+  ctor #11 (2)
+  LET  #2 <- #11
+  dtor #11
+L1: ctor=2 copy=1 let=2 dtor=3 balance=-
+
+  dtor #8
+  dtor #7
+  dtor #6
+  dtor #5
+  dtor #4
+  dtor #3
+  dtor #2
+  dtor #1
+L1 end: ctor=0 copy=0 let=0 dtor=8 balance=-
+
+L2 Array.Push( lvalue ): one copy, and the caller keeps its own
+  ctor #12
+  ctor #13
+  ctor #14
+  ctor #15
+  ctor #16
+  ctor #17
+  ctor #18
+  ctor #19
+  ctor #20 (3)
+  (setup): ctor=9 copy=0 let=0 dtor=0 balance=-
+
+  LET  #12 <- #20
+  x still t20
+L2: ctor=0 copy=0 let=1 dtor=0 balance=-
+
+  dtor #20
+  dtor #19
+  dtor #18
+  dtor #17
+  dtor #16
+  dtor #15
+  dtor #14
+  dtor #13
+  dtor #12
+L2 end: ctor=0 copy=0 let=0 dtor=9 balance=-
+
+L3 Array.Insert( 0, Make( ) )
+  ctor #21
+  ctor #22
+  ctor #23
+  ctor #24
+  ctor #25
+  ctor #26
+  ctor #27
+  ctor #28
+  ctor #29 (4)
+  COPY #30 <- #29
+  dtor #29
+  LET  #21 <- #30
+  dtor #30
+  (setup): ctor=9 copy=1 let=1 dtor=2 balance=-
+
+  ctor #31 (5)
+  COPY #32 <- #31
+  dtor #31
+  COPY #33 <- #32
+  dtor #22
+  dtor #32
+L3: ctor=1 copy=2 let=0 dtor=3 balance=-
+
+  dtor #28
+  dtor #27
+  dtor #26
+  dtor #25
+  dtor #24
+  dtor #23
+  dtor #21
+  dtor #33
+L3 end: ctor=0 copy=0 let=0 dtor=8 balance=-
+
+L4 Map.Put( k, Make( ) ), Put over an existing key
+  ctor #34 (6)
+  COPY #35 <- #34
+  dtor #34
+  COPY #36 <- #35
+  ctor #37
+  ctor #38
+  ctor #39
+  ctor #40
+  ctor #41
+  ctor #42
+  ctor #43
+  ctor #44
+  dtor #41
+  dtor #35
+  ctor #45 (7)
+  COPY #46 <- #45
+  dtor #45
+  LET  #36 <- #46
+  dtor #46
+  m[1] = t45
+L4: ctor=10 copy=3 let=1 dtor=5 balance=-
+
+  dtor #44
+  dtor #43
+  dtor #42
+  dtor #36
+  dtor #40
+  dtor #39
+  dtor #38
+  dtor #37
+L4 end: ctor=0 copy=0 let=0 dtor=8 balance=-
+
+L5 Deque.PushBack / PushFront, LinkedList.PushBack( Make( ) )
+  ctor #47
+  ctor #48
+  ctor #49
+  ctor #50
+  ctor #51
+  ctor #52
+  ctor #53
+  ctor #54
+  (reserve): ctor=8 copy=0 let=0 dtor=0 balance=-
+
+  ctor #55 (8)
+  COPY #56 <- #55
+  dtor #55
+  LET  #47 <- #56
+  dtor #56
+  ctor #57 (9)
+  COPY #58 <- #57
+  dtor #57
+  LET  #54 <- #58
+  dtor #58
+  ctor #59 (10)
+  COPY #60 <- #59
+  dtor #59
+  COPY #61 <- #60
+  ctor #62
+  LET  #62 <- #61
+  dtor #61
+  dtor #60
+L5: ctor=4 copy=4 let=3 dtor=7 balance=-
+
+  dtor #62
+  dtor #54
+  dtor #53
+  dtor #52
+  dtor #51
+  dtor #50
+  dtor #49
+  dtor #48
+  dtor #47
+L5 end: ctor=0 copy=0 let=0 dtor=9 balance=-
+
+all: made=62 destroyed=62 balance=ok
+-- end of main

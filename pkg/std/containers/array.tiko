@@ -32,9 +32,10 @@
 ''
 '' OWNERSHIP.  The array owns its storage.  Copy and assignment are DEEP, which
 '' is the only rule consistent with FreeBASIC's value semantics for UDTs, and is
-'' expensive -- there is no move constructor in the language to avoid it.  Pass
-'' containers BYREF where it matters.  An Array( of T ptr ) frees the array, not
-'' the pointees.
+'' expensive.  A MOVE is not (RFC 0018): an array returned from a function, or
+'' handed on with 'move( a )', keeps its storage and copies nothing.  Pass a
+'' container BYREF when the callee only reads it.  An Array( of T ptr ) frees the
+'' array, not the pointees.
 
 
 
@@ -81,9 +82,9 @@ public type Array( of T )
     '' releases them. Anything else is runtime error 6.
     declare sub SetCount( byval n as long )
 
-    declare sub Push( byref v as T )
+    declare sub Push( byval v as T )
     declare function Pop( ) as T
-    declare sub Insert( byval i as long, byref v as T )
+    declare sub Insert( byval i as long, byval v as T )
     declare sub Remove( byval i as long )
     declare sub RemoveSwap( byval i as long )
     declare sub Clear( )
@@ -178,24 +179,24 @@ end function
 
 sub Array( of T ).SetCount( byval n as long )
     if( cast( ulong, n ) > cast( ulong, this.cap_ ) ) then error( FB.FB_RTERROR_OUTOFBOUNDS )
-    dim as T blank
+    '' A FRESH blank SWAPPED in, not assigned: T needs no 'let', so a move-only T -- a
+    '' UniquePtr -- can be held (RFC 0018 V4). The old element leaves with blank.
     for k as long = n to this.num - 1
-        this.items( k ) = blank
+        dim as T blank
+        swap this.items( k ), blank
     next
     this.num = n
 end sub
 
-'' v may refer INTO this array -- 'a.Push( a[ 0 ] )' -- and a growing Reserve
-'' reallocates the storage it refers to, so on growth v is copied FIRST, as
-'' Insert does.  Only on growth: the common push pays no extra copy.
-sub Array( of T ).Push( byref v as T )
+'' v IS THE CONTAINER'S OWN (RFC 0018): a copy of an lvalue, or a temporary or 'move( x )'
+'' handed over with no copy at all. It is SWAPPED into place, so nothing is copied here --
+'' and because v is not the caller's object, it cannot point INTO this container when a
+'' growth reallocates.
+sub Array( of T ).Push( byval v as T )
     if( this.num >= this.Capacity( ) ) then
-        dim as T tmp = v
         this.Reserve( this.num + 1 )
-        swap this.items( this.num ), tmp
-    else
-        this.items( this.num ) = v
     end if
+    swap this.items( this.num ), v
     this.num += 1
 end sub
 
@@ -212,15 +213,11 @@ function Array( of T ).Pop( ) as T
     return r
 end function
 
-sub Array( of T ).Insert( byval i as long, byref v as T )
+'' v is the array's own, as Push's is -- so 'a.Insert( 0, a[ 3 ] )' means what it looks like.
+sub Array( of T ).Insert( byval i as long, byval v as T )
     if( (i < 0) orelse (i > this.num) ) then
         exit sub
     end if
-
-    '' Reserve FIRST: it may redim, and a byref v pointing INTO this array
-    '' would then dangle.  Copying v before the shift avoids that entirely, and
-    '' also makes 'a.Insert( 0, a[ 3 ] )' mean what it looks like.
-    dim as T tmp = v
 
     this.Reserve( this.num + 1 )
 
@@ -229,7 +226,7 @@ sub Array( of T ).Insert( byval i as long, byref v as T )
         swap this.items( k ), this.items( k-1 )
     next
 
-    swap this.items( i ), tmp
+    swap this.items( i ), v
     this.num += 1
 end sub
 
@@ -269,9 +266,9 @@ end sub
 '' string, another container -- releases it now rather than at the array's
 '' destruction.
 sub Array( of T ).Clear( )
-    dim as T blank
     for k as long = 0 to this.num-1
-        this.items( k ) = blank
+        dim as T blank   '' swapped, as SetCount does: no 'let' on T
+        swap this.items( k ), blank
     next
     this.num = 0
 end sub

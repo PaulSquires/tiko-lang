@@ -43,7 +43,10 @@ type WgWaiter
     as WgWaiter ptr   nextw
 end type
 
-public type WaitGroup
+'' NOMOVE (RFC 0018 V5): a WaitGroup is shared BY ADDRESS -- 'spawn Worker( i, @wg )' -- and a
+'' blocked Wait( ) holds 'this', so relocating one leaves every worker pointing at nothing.
+'' 'move( wg )', 'swap' and a container that grows by realloc are refused.
+public type WaitGroup nomove
 private:
     as any ptr       lok
     '' NOT named 'count': a field and a member differing only in case are the

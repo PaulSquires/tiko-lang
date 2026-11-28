@@ -1,0 +1,24 @@
+'' nomove.ti -- 'type T nomove' (RFC 0018 V5): a type whose objects must never be relocated.
+
+#ifndef __TKO_NOMOVE_BI__
+#define __TKO_NOMOVE_BI__
+
+#include once "ast/nodes.ti"
+#include once "symbols/symbol.ti"
+#include once "types/type.ti"
+#include once "support/intern.ti"
+
+namespace Tko.Moves
+
+    '' WHETHER AN OBJECT OF TYPE t MAY NOT BE RELOCATED: t's own declaration wrote 'nomove', or a
+    '' base or a field held INLINE does -- a fixed array of one included, a dynamic array not (its
+    '' elements live on the heap and stay where they are when the descriptor moves). Read off the
+    '' TYPE's declaration node, as IsViewType reads 'as view', so an importer sees it too: the
+    '' interface writes the declaration back verbatim.
+    declare function IsNoMoveType _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+          byref types as Tko.TypeContext, byval t as Tko.TypeId ) as boolean
+
+end namespace
+
+#endif

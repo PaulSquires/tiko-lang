@@ -1,0 +1,125 @@
+'' lowermove.tiko -- 'move( x )', RFC 0018 V3: an explicit move from an lvalue.
+''
+'' A MOVE IS A RELOCATION (V1). 'move( x )' builds a statement temporary holding x's bytes --
+'' the object itself, header and all, so whatever x owned now belongs to the temporary --
+'' and then RESETS x to its default state: zero-filled, then its default constructor, or the
+'' synthesised one, when it has either. x's destructor still runs at the end of its scope
+'' and finds an empty object.
+''
+'' The temporary is registered like any call's result (c.udtTemps), so every sink P1 taught
+'' to ADOPT a temporary takes it without a copy: 'dim b = move( a )', 'b = move( a )',
+'' 'Take( move( a ) )', 'return move( a )'. Each of those also asks IsMoveCall_ first, because
+'' a move must be adopted even where an ordinary temporary is not: over a type with a written
+'' 'let' (the programmer asked), and over a destroy-only type whose plain store would leave
+'' the temporary's destructor freeing what the destination now holds. Anywhere else -- 'print
+'' move( a ).s', a byref argument -- the temporary is used and dies with the statement.
+''
+'' Check (symbols/checkmove.tiko) has already refused what cannot be moved: no argument or
+'' more than one, a const, something that is not a UDT, and a value with no address. A
+'' TEMPORARY argument is only warned about; it is moved already, and passes straight through.
+
+#import "std/containers"
+#include once "mir/lowerall.ti"
+
+namespace Tko.Mir
+
+'' Is node 'id' the builtin 'move( x )' -- a call, one argument, its head the unbound name
+'' 'move'? A program's own procedure called Move binds its symbol and is not this; Check
+'' typed the call, or it would not have got this far.
+function IsMoveCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    if id = Tko.NODE_NONE then return false
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = c.ast->ListOf( id )
+    if lp->count <> 1 then return false
+    if (lp->target = Tko.NODE_NONE) orelse (c.ast->Kind( lp->target ) <> Tko.N_IDENT) then return false
+    if c.info->RefOf( lp->target ) <> Tko.SYMBOL_NONE then return false
+    if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then return false
+    if lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) <> "move" then return false
+    return (c.info->TypeOf_( id ) <> Tko.TYPE_NONE)
+end function
+
+'' The object 'move( x )' moves from: x, through any parentheses.
+private function MoveArg_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    dim as Tko.ListPayload ptr lp = c.ast->ListOf( id )
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
+    for guard as int32 = 0 to 31
+        if (a = Tko.NODE_NONE) orelse (c.ast->Kind( a ) <> Tko.N_PAREN) then exit for
+        dim as Tko.ListPayload ptr pp = c.ast->ListOf( a )
+        if pp->count <> 1 then exit for
+        a = cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) )
+    next
+    return a
+end function
+
+'' The type 'move( x )' yields -- x's, unqualified.
+function MoveType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    return c.types->Unqualify( c.info->TypeOf_( id ) )
+end function
+
+'' x RESET TO ITS DEFAULT STATE at 'addr': zeroed, then constructed by the constructor that
+'' takes no arguments (one whose parameters all have defaults counts), or by the one tiko
+'' synthesises -- which is also what stores a vptr.
+private sub ResetToDefault_( byref c as Ctx, byval t as Tko.TypeId, byref addr as MirValue, byval sz as int32 )
+    dim as containers.Array( of uint32 ) za
+    za.Push( cast( uint32, addr.kind ) ) : za.Push( cast( uint32, addr.id ) )
+    za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( 0 )
+    za.Push( cast( uint32, MV_CONST_INT ) ) : za.Push( cast( uint32, sz ) )
+    EmitRtl( c, RTL_MEMSET, za )
+    dim as Tko.SymbolId ctor = StructorWithArity( c, StructorOf( c, t, "__ctor" ), 0 )
+    if ctor <> Tko.SYMBOL_NONE then
+        dim as containers.Array( of uint32 ) none_
+        EmitStructorCall( c, ctor, -1, @addr, @none_ )
+    elseif TypeNeedsInit_( c, t ) then
+        CallImplicitCtor_( c, t, addr )
+    end if
+end sub
+
+'' 'move( x )' LOWERED: the ADDRESS of the statement temporary now holding x's object, with x
+'' reset. MV_NONE when it cannot be built, with nothing emitted that a decline would strand.
+'' A temporary argument is returned as it is: it is moved already.
+function LowerMoveTemp_( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+    dim as MirValue none_
+    dim as Tko.NodeId a = MoveArg_( c, id )
+    if a = Tko.NODE_NONE then return none_
+    dim as Tko.TypeId t = MoveType_( c, id )
+    dim as int32 sz = SizeOfType( c, t )
+    if sz <= 0 then return none_
+
+    '' THE SOURCE'S ADDRESS, and whether it is a temporary this expression just made.
+    dim as int32 tmark = c.udtTemps.Count
+    dim as MirValue src = InitSourceAddr_( c, a )
+    if src.kind = cast( uint8, MV_NONE ) then return none_
+    if UdtTempSince_( c, tmark, src, t ) then return src
+
+    dim as MirValue whole = LowerExprLoad( c, src, MT_AGG, sz )
+    if whole.kind = cast( uint8, MV_NONE ) then return none_
+    dim as int32 slot = NewTempLocal( c, MT_AGG, sz )
+    if slot < 0 then return none_
+    dim as MirValue dst
+    dst.kind = cast( uint8, MV_LOCAL )
+    dst.ty = cast( uint8, MT_PTR )
+    dst.id = slot
+    StoreThrough( c, dst, whole )
+    ResetToDefault_( c, t, src, sz )
+    if TypeNeedsDtor_( c, t ) then
+        c.udtTemps.Push( cast( uint32, slot ) )
+        c.udtTempTypes.Push( cast( uint32, t ) )
+    end if
+    return dst
+end function
+
+'' A SINK'S HALF: 'move( x )' as the source of an object at 'dst' that holds nothing yet --
+'' a variable being initialised, the hidden result pointer. The temporary's bytes are stored
+'' and the temporary forgotten. True when it did.
+function MoveCallInto_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, byref dst as MirValue ) as boolean
+    if IsMoveCall_( c, id ) = false then return false
+    if MoveType_( c, id ) <> c.types->Unqualify( t ) then return false
+    dim as MirValue tmp = LowerMoveTemp_( c, id )
+    if tmp.kind = cast( uint8, MV_NONE ) then return false
+    if RelocateUdt_( c, c.types->Unqualify( t ), dst, tmp ) = false then return false
+    ForgetUdtTemp_( c, tmp.id )
+    return true
+end function
+
+end namespace

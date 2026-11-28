@@ -1,0 +1,15 @@
+'' 'move( x )' (RFC 0018 V3, symbols/checkmove.tiko): TKO1274 a source that is not an object of a
+'' TYPE (a long, a string); TKO1275 a const source -- a variable, and a 'byref as const' parameter
+'' -- because a move resets what it moves from; TKO1276, a warning, a temporary, which is moved
+'' already; TKO0801 no argument or two. The last line, a plain variable, is accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/move-misuse.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: move-misuse.tiko(14,24): error TKO1275: 'move( )' cannot move from 'x': it is const, and a move resets what it moves from
+'' EXPECT-OUT: move-misuse.tiko(21,24): error TKO1274: 'move( )' moves an object of a TYPE, and 'long' is not one
+'' EXPECT-OUT: move-misuse.tiko(22,26): error TKO1274: 'move( )' moves an object of a TYPE, and 'string' is not one
+'' EXPECT-OUT: move-misuse.tiko(23,21): error TKO1275: 'move( )' cannot move from 'k': it is const, and a move resets what it moves from
+'' EXPECT-OUT: move-misuse.tiko(24,26): warning TKO1276: 'move( )' of a temporary does nothing: the value is moved already
+'' EXPECT-OUT: move-misuse.tiko(25,19): error TKO0801: 'move' does not take these arguments
+'' EXPECT-OUT: move-misuse.tiko(26,19): error TKO0801: 'move' does not take these arguments
+'' EXPECT-NOT: move-misuse.tiko(27,

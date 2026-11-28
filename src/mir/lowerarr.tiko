@@ -263,6 +263,8 @@ function LowerAddr _
 
     dim as MirValue v
     if id = Tko.NODE_NONE then return v
+    '' 'move( x )' IS A TEMPORARY holding x's object, x reset (RFC 0018 V3, lowermove.tiko).
+    if IsMoveCall_( c, id ) then return LowerMoveTemp_( c, id )
     '' A BARE TYPE NAME AS A VALUE -- 'cast( P, C )', 'f( foo )', '= foo' with C and foo TYPES -- is a
     '' default-constructed temporary (lowerparam.tiko BareTypeNameTemp_). Lowered as a name it became a
     '' fresh variable called C, never constructed (structs/inherit-type-child-1.bas).

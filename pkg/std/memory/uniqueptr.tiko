@@ -1,0 +1,109 @@
+#module "memory"
+'' std/memory: uniqueptr -- sole ownership of a heap object, moved and never copied
+''
+'' UniquePtr( of T ) owns one heap object and DELETEs it when it goes away -- at scope
+'' exit, on Reset( ), or when a container holding it is destroyed. There is exactly one
+'' owner at a time, so there is no count to keep and nothing to share: it is a pointer
+'' that cleans up after itself, and it costs what the pointer costs.
+''
+'' IT CANNOT BE COPIED, AND IT CAN BE MOVED (RFC 0018 V4). The copy constructor and 'let'
+'' are private and never defined, so 'dim b = a', 'b = a' and passing one by value are
+'' errors; a move relocates the object and calls neither, so all of these work:
+''
+''     function OpenLog( ) as UniquePtr( of LogFile )
+''         dim as UniquePtr( of LogFile ) f = MakeUnique( of LogFile )( )
+''         f.Ref( ).Open( "app.log" )
+''         return f                          '' moved to the caller
+''     end function
+''
+''     dim as UniquePtr( of LogFile ) lg = OpenLog( )
+''     dim as UniquePtr( of LogFile ) other = move( lg )    '' lg is null now
+''     logs.Push( move( other ) )            '' an Array( of UniquePtr( of LogFile ) )
+''
+'' A moved-from UniquePtr is NULL -- a move resets its source to the default state -- and
+'' destroying a null one deletes nothing.
+''
+'' What it does not do, and why: no custom deleter and no array form (one 'delete' of one
+'' T), no aliasing, no derived-to-base conversion (members cannot have type parameters of
+'' their own; use Release( ) and a cast). Destroying a Derived through UniquePtr( of Base )
+'' needs a virtual destructor on Base, as SharedPtr's SpCast does.
+
+#include once "fberror.bi"
+
+public type UniquePtr( of T )
+private:
+    as T ptr p
+
+    '' NON-COPYABLE: one owner. Declared and never defined -- a copy is a compile error, and a
+    '' move calls neither of these.
+    declare constructor( byref rhs as UniquePtr( of T ) )
+    declare operator let( byref rhs as UniquePtr( of T ) )
+
+public:
+    declare constructor( )
+    declare constructor( byval raw as T ptr )
+    declare destructor( )
+
+    declare function Get( ) as T ptr
+    declare function Ref( ) byref as T
+    declare function IsNull( ) as boolean
+    '' Gives up ownership: the pointer is returned and the UniquePtr is null. The caller
+    '' deletes it.
+    declare function Release( ) as T ptr
+    '' Deletes what is owned and owns 'raw' instead (null by default).
+    declare sub Reset( byval raw as T ptr = 0 )
+end type
+
+constructor UniquePtr( of T )( )
+    this.p = 0
+end constructor
+
+'' Adopts a raw pointer: the UniquePtr owns it from here and will DELETE it. Handing one raw
+'' pointer to two owners is a double free; MakeUnique( ) avoids the question.
+constructor UniquePtr( of T )( byval raw as T ptr )
+    this.p = raw
+end constructor
+
+destructor UniquePtr( of T )( )
+    if( this.p ) then delete this.p
+end destructor
+
+function UniquePtr( of T ).Get( ) as T ptr
+    return this.p
+end function
+
+'' Raises 'illegal function call' when null, as SharedPtr's Ref( ) does, and for its reason.
+function UniquePtr( of T ).Ref( ) byref as T
+    if( this.p = 0 ) then error( FB.FB_RTERROR_ILLEGALFUNCTIONCALL )
+    return *this.p
+end function
+
+function UniquePtr( of T ).IsNull( ) as boolean
+    return this.p = 0
+end function
+
+function UniquePtr( of T ).Release( ) as T ptr
+    dim as T ptr r = this.p
+    this.p = 0
+    return r
+end function
+
+sub UniquePtr( of T ).Reset( byval raw as T ptr = 0 )
+    if( raw = this.p ) then exit sub
+    dim as T ptr old = this.p
+    this.p = raw
+    if( old ) then delete old
+end sub
+
+'' Allocates a default-constructed T. A free procedure, so it is instantiated only for the T's
+'' it is called with, and only they need a default constructor.
+public function MakeUnique( of T )( ) as UniquePtr( of T )
+    dim as UniquePtr( of T ) r = UniquePtr( of T )( new T )
+    return r
+end function
+
+'' Allocates a copy of v ('new T( v )'), with MakeSharedFrom's limits.
+public function MakeUniqueFrom( of T )( byref v as T ) as UniquePtr( of T )
+    dim as UniquePtr( of T ) r = UniquePtr( of T )( new T( v ) )
+    return r
+end function

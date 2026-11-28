@@ -146,13 +146,13 @@ func ptr MAKEH(ptr $0) {
     %4 = field.addr @h, 0
     call void _ZN3FLDaSERKc(%4, @@$str0)
     %5 = load @$tmp0
-    call void _ZN6HOLDERC1ERKS_(%5, @h)
-    call void _ZN6HOLDERD1Ev(@h)
-    %6 = load @$tmp0
-    ret %6
+    %6 = load @h
+    store %5, %6
+    %7 = call.rtl ptr memset(@h, 0, 16)
+    %8 = load @$tmp0
+    ret %8
 }
 declare void _ZN6HOLDERC1Ev(ptr $0)
-declare void _ZN6HOLDERC1ERKS_(ptr $0, ptr $1)
 declare void _ZN6HOLDERD1Ev(ptr $0)
 func void PROBE() {
   local agg a size 16
@@ -270,6 +270,7 @@ declare void _ZN6HOLDERaSERKS_(ptr $0, ptr $1)
 declare ptr fb_StrAllocTempDescZEx(ptr $0, i64 $1)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAllocTempDescZ(ptr $0)
+declare void _ZN6HOLDERC1ERKS_(ptr $0, ptr $1)
 declare void _ZN4PAIRC1Ev(ptr $0)
 declare void _ZN4PAIRaSERKS_(ptr $0, ptr $1)
 declare void _ZN5OUTERC1Ev(ptr $0)
@@ -303,18 +304,6 @@ func void _ZN6HOLDERC1Ev(ptr $0) {
     store %2, %5
     ret
 }
-func void _ZN6HOLDERC1ERKS_(ptr $0, ptr $1) {
-  entry0:
-    %1 = field.addr $0, 0
-    call void _ZN3FLDC1Ev(%1)
-    %2 = field.addr $0, 8
-    %3 = const i64 1
-    %4 = neg %3
-    %5 = trunc %4
-    store %2, %5
-    call void _ZN6HOLDERaSERKS_($0, $1)
-    ret
-}
 func void _ZN6HOLDERD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -330,6 +319,18 @@ func void _ZN6HOLDERaSERKS_(ptr $0, ptr $1) {
     %4 = field.addr $0, 8
     %5 = load %3
     store %4, %5
+    ret
+}
+func void _ZN6HOLDERC1ERKS_(ptr $0, ptr $1) {
+  entry0:
+    %1 = field.addr $0, 0
+    call void _ZN3FLDC1Ev(%1)
+    %2 = field.addr $0, 8
+    %3 = const i64 1
+    %4 = neg %3
+    %5 = trunc %4
+    store %2, %5
+    call void _ZN6HOLDERaSERKS_($0, $1)
     ret
 }
 func void _ZN4PAIRC1Ev(ptr $0) {
@@ -383,4 +384,4 @@ func void _ZN4PAIRD1Ev(ptr $0) {
     ret
 }
 verify: ok
-lowered: 18 functions, 21 blocks, 258 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 18 functions, 21 blocks, 259 insts, 0 statements not lowered, 0 scope imbalance

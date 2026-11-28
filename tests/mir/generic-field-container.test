@@ -9,11 +9,12 @@
 '' A FIELD CALL BINDS TO THE INSTANTIATION'S MEMBER, named for its argument. The
 '' generic's own members are never lowered -- their parameters are void and their
 '' fields have no offsets -- so a call left bound to one is a call to nothing.
-'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayIhE4PUSHERh(
-'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayI8FBSTRINGE4PUSHERS2_(
+'' Push takes its value BY VALUE since RFC 0018 P4 (it moves it in), so the names say E, not ER.
+'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayIhE4PUSHEh(
+'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayI8FBSTRINGE4PUSHES2_(
 
 '' A CONTAINER OF A TYPE THAT ITSELF HOLDS CONTAINERS.
-'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayI3BUFE4PUSHERS2_(
+'' EXPECT-OUT: call void _ZN3STD10CONTAINERS5ArrayI3BUFE4PUSHES2_(
 
 '' 'for each' over a FIELD: GetIterator comes back typed, so the loop lowers. The
 '' CALL is not spelled the same on both targets -- a 16-byte return is an sret

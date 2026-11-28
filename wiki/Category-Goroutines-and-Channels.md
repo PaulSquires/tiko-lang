@@ -183,7 +183,7 @@ Closing does not discard buffered items, and it wakes every blocked waiter.
 
 **The nil channel.** A default-constructed Channel is nil, and Send and Receive on it block **forever**. That looks like a defect until you meet `select channel`, where assigning a nil channel is how a case is disabled. `IsNil( )` exists so a program can assert its own initialisation, because "my program hangs" is the symptom of forgetting it.
 
-T must be default-constructible, copy-constructible and destructible -- the same requirement `containers.Array` makes. Every send copies, and a buffered send copies twice; there is no move constructor in the language. For a large T, send a pointer.
+T must be default-constructible, copy-constructible and destructible -- the same requirement `containers.Array` makes. `Send` takes its value by value and [moves](Category-Move-Semantics) it into the buffer or to a waiting receiver, and `Receive` moves it out of the buffer -- a temporary or `move( x )` sent through a buffered channel is never copied. `TrySend` and `SendFor` still copy (a value moved into a send that fails would be lost), and so does a send that has to block.
 
 ## Select
 

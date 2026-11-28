@@ -1,0 +1,166 @@
+  ctor #1
+  ctor #2
+  ctor #3
+init (shared g, arr): ctor=3 copy=0 let=0 dtor=0 balance=ok
+
+M1 dim a = Make( )
+  ctor #4 (1)
+  COPY #5 <- #4
+  dtor #4
+  dtor #5
+M1: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+M2 b = Make( )
+  ctor #6
+  ctor #7 (2)
+  COPY #8 <- #7
+  dtor #7
+  LET  #6 <- #8
+  dtor #8
+  dtor #6
+M2: ctor=2 copy=1 let=1 dtor=3 balance=ok
+
+M3 Take( Make( ) )
+  ctor #9 (3)
+  COPY #10 <- #9
+  dtor #9
+  COPY #11 <- #10
+  (in Take #11)
+  dtor #11
+  dtor #10
+M3: ctor=1 copy=2 let=0 dtor=3 balance=ok
+
+M4 dim c = Chained( )  (return Make( ))
+  ctor #12 (4)
+  COPY #13 <- #12
+  dtor #12
+  COPY #14 <- #13
+  dtor #13
+  dtor #14
+M4: ctor=1 copy=2 let=0 dtor=3 balance=ok
+
+M5 return of a byval parameter
+  ctor #15 (5)
+  COPY #16 <- #15
+  COPY #17 <- #16
+  dtor #16
+  dtor #17
+  dtor #15
+M5: ctor=1 copy=2 let=0 dtor=3 balance=ok
+
+M6 Take( T( 6 ) )  (type-constructor temporary)
+  ctor #18 (6)
+  (in Take #18)
+  dtor #18
+M6: ctor=1 copy=0 let=0 dtor=1 balance=ok
+
+M7 b = T( 7 )  (type-constructor temporary)
+  ctor #19
+  ctor #20 (7)
+  LET  #19 <- #20
+  dtor #20
+  dtor #19
+M7: ctor=2 copy=0 let=1 dtor=2 balance=ok
+
+M8 c = a + b  (operator result)
+  ctor #21 (1)
+  ctor #22 (2)
+  ctor #23
+  ctor #24 (43)
+  LET  #23 <- #24
+  dtor #24
+  dtor #23
+  dtor #22
+  dtor #21
+M8: ctor=4 copy=0 let=1 dtor=4 balance=ok
+
+Q4 function = r : exit function
+  ctor #25
+  ctor #26 (9)
+  LET  #25 <- #26
+  dtor #26
+  dtor #25
+Q4: ctor=2 copy=0 let=1 dtor=2 balance=ok
+
+C1 return of a shared variable
+  COPY #27 <- #1
+  dtor #27
+C1: ctor=0 copy=1 let=0 dtor=1 balance=ok
+
+C2 return of a byref parameter
+  ctor #28 (2)
+  COPY #29 <- #28
+  dtor #29
+  dtor #28
+C2: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+C3 dim = byref-returning call
+  COPY #30 <- #1
+  dtor #30
+C3: ctor=0 copy=1 let=0 dtor=1 balance=ok
+
+C4 return this.field
+  ctor #31
+  COPY #32 <- #31
+  dtor #32
+  dtor #31
+C4: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+C5 return of an array element
+  COPY #33 <- #3
+  dtor #33
+C5: ctor=0 copy=1 let=0 dtor=1 balance=ok
+
+C6 return *ptr
+  ctor #34 (6)
+  COPY #35 <- #34
+  dtor #35
+  dtor #34
+C6: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+C7 function = r, r still used afterwards
+  ctor #36
+  ctor #37 (7)
+  LET  #36 <- #37
+  (r still alive: #37)
+  dtor #37
+  dtor #36
+C7: ctor=2 copy=0 let=1 dtor=2 balance=ok
+
+C8 base slice: dim as T = MakeD( )
+  ctor #38
+  ctor #39
+  LET  #39 <- #38
+  dtor #38
+  COPY #40 <- #39
+  dtor #39
+  dtor #40
+C8: ctor=2 copy=1 let=1 dtor=3 balance=ok
+
+C9 return of a static local
+  ctor #41
+  COPY #42 <- #41
+  dtor #42
+C9: ctor=1 copy=1 let=0 dtor=1 balance=ok
+
+C10 Take( a )  (an lvalue, still needed)
+  ctor #43 (10)
+  COPY #44 <- #43
+  (in Take #44)
+  dtor #44
+  dtor #43
+C10: ctor=1 copy=1 let=0 dtor=2 balance=ok
+
+C11 b = a  (an lvalue, still needed)
+  ctor #45 (11)
+  ctor #46
+  LET  #46 <- #45
+  dtor #46
+  dtor #45
+C11: ctor=2 copy=0 let=1 dtor=2 balance=ok
+
+-- end of main
+  dtor #41
+  dtor #3
+  dtor #2
+  dtor #1

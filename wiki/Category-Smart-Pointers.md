@@ -216,7 +216,7 @@ Unlike Optional.Value( ), there is nothing sane to return afterwards -- a null h
 
 ## Every Copy Is A Real Refcount Operation
 
-There is no move constructor in the language and no return-value optimisation, so returning a SharedPtr by value costs an increment and a decrement, and so does passing one by value. Pass it BYREF where it matters, as the containers do:
+A [move](Category-Move-Semantics) is none: returning a local SharedPtr, or passing a temporary or `move( sp )` by value, touches no count. Passing a variable by value still costs an increment and a decrement, so pass it BYREF when the callee only reads it:
 
 ```freebasic
 sub Handle( byref s as SharedPtr( of Session ) )     ' no refcount traffic
@@ -225,9 +225,27 @@ sub Handle( byval s as SharedPtr( of Session ) )     ' two atomic ops
 
 BYREF is correct for any parameter that only reads the handle. Take it BYVAL only when the callee genuinely stores the handle somewhere that outlives the call, which is the same rule C++ arrived at.
 
+## UniquePtr
+
+`UniquePtr( of T )` owns one heap object alone and deletes it when it goes away. It cannot be copied -- its copy constructor and `let` are private -- and it can be [moved](Category-Move-Semantics), so it can be returned from a function, handed on with `move( u )` and kept in a container:
+
+```freebasic
+function OpenSession( byval id as int32 ) as UniquePtr( of Session )
+    dim as UniquePtr( of Session ) s = MakeUnique( of Session )( )
+    s.Ref( ).id = id
+    return s                                    ' moved to the caller
+end function
+
+dim as UniquePtr( of Session ) a = OpenSession( 7 )
+dim as UniquePtr( of Session ) b = move( a )    ' a is null now
+dim as Array( of UniquePtr( of Session ) ) open_
+open_.Push( move( b ) )
+```
+
+`Get( )` and `Ref( )` read it (`Ref( )` raises on null, as SharedPtr's does), `Release( )` gives up ownership and returns the pointer, and `Reset( p )` deletes what it owns and owns `p` instead. `MakeUnique( of T )( )` and `MakeUniqueFrom( of T )( v )` build one. There is no custom deleter and no array form.
+
 ## What Is Not Provided
 
-- **No UniquePtr.** The language has no move constructor, so a non-copyable owning pointer could not be returned from a function -- Thread hits this exact wall, being "non-copyable and therefore non-returnable". DEFER covers the scope-local case.
 - **No enable_shared_from_this.** It needs CRTP -- `type W extends SharedFromThis( of W )` -- which instantiates a generic with a type that is still being defined.
 - **No aliasing constructor, no custom deleters, no array form.** All three need either a type-erased deleter or a second stored pointer.
 - **No comparison operators.** Compare `Get( )` if you need identity.

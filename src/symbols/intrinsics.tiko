@@ -1203,11 +1203,11 @@ private function IntrinsicTableType_ _
             return c.types->Pointer_( c.types->Builtin( Tko.TY_ANY ) )
         end select
     end if
-
+    dim as Tko.TypeId mvt = iif( (nm = "move") andalso (cp->count = 1) andalso (c.info->RefOf( cp->target ) = Tko.SYMBOL_NONE), c.types->Unqualify( TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) ), Tko.TYPE_NONE )   '' 'move( x )' IS AN x, unqualified, while the name binds nothing (RFC 0018 V3; checkmove.tiko judges x)
+    if mvt <> Tko.TYPE_NONE then return iif( c.types->Kind( mvt ) = Tko.TK_REFERENCE, c.types->Unqualify( c.types->Inner( mvt ) ), mvt )
     '' 's[lo to hi]' -- a STRING SLICE, typed by symbols/checkslice.tiko (docs/tiko-slices).
     if (nm = "__tko_slice") andalso (cp->count = 3) then TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) : return Tko.Slices.SliceCallType( *c.ast, *c.syms, *c.types, *c.names, *c.diags, *c.info, cp )   '' the source typed first: a FOR EACH asks early
     if (nm = "__tko_aslice") andalso (cp->count = 3) then TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) : return Tko.Slices.SpanCallType( *c.ast, *c.syms, *c.types, *c.names, *c.info, cp )   '' 'a(lo to hi)', checkspan.tiko
-
     '' '__FB_QUERY_SYMBOL__( query, symbol )' IS AN INTEGER, whatever it is asked --
     '' measured, '#print typeof' of one says INTEGER even for the text queries. Its
     '' SECOND argument is a symbol rather than a value, so nothing about it can be

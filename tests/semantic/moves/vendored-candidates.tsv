@@ -1,0 +1,86 @@
+# RFC 0018 P0 -- vendored files whose structor bodies print or count. A HEURISTIC:
+# see build/movecand.py. MOVE-SITE = also returns or takes such a type by value.
+# file	mode	structors observed	move site?	sites
+compound/with.bas	suite	constructor,copy,destructor	MOVE-SITE	param:udt ret:udt
+dim/udt-init.bas	suite	constructor	MOVE-SITE	ret:t
+expressions/iif.bas	suite	constructor	MOVE-SITE	param:ctorudt
+expressions/mult-assign.bas	suite	destructor	MOVE-SITE	ret:triplet
+functions/paraminit.bas	suite	constructor	MOVE-SITE	byval:udt param:classudt
+functions/return-byref.bas	suite	constructor,copy,destructor	MOVE-SITE	param:udt
+functions/udt-result.bas	suite	constructor	MOVE-SITE	ret:udt
+functions/udt_result_access3.bas	suite	destructor	MOVE-SITE	ret:tbar ret:tbaz ret:tfoo
+functions/udt_result_access4.bas	suite	destructor	MOVE-SITE	param:tbar ret:tbar
+functions/udt_result_access5.bas	suite	destructor	MOVE-SITE	param:tbar ret:tbar
+generics/for-each.bas	run	constructor,copy	MOVE-SITE	ret:owningiter
+generics/iterator-protocol.bas	run	constructor,copy	MOVE-SITE	ret:owningiterator ret:rng
+overload/arg-upcasting.bas	suite	constructor,copy	MOVE-SITE	param:a
+pointers/new-delete.bas	suite	constructor,destructor	MOVE-SITE	byval:classudt ret:t
+pp/typeof-no-dtors.bas	run	constructor,destructor	MOVE-SITE	ret:t
+structs/base-init-not-first-1.bas	other	constructor	MOVE-SITE	param:child
+structs/byval-copy.bas	suite	constructor,destructor,operator	MOVE-SITE	byval:udt ret:udt
+structs/ctor_byref.bas	suite	constructor,copy,operator	MOVE-SITE	param:udt ret:udt
+structs/ctor_byval.bas	suite	constructor,copy,operator	MOVE-SITE	byval:udt param:udt ret:udt
+structs/dynamic-array-fields.bas	suite	constructor,destructor,operator	MOVE-SITE	param:myclass
+structs/implicit-methods.bas	suite	constructor,copy,operator	MOVE-SITE	param:udt ret:udt
+structs/obj_temp2.bas	suite	constructor,copy	MOVE-SITE	byval:foo ret:foo
+structs/param-byref.bas	suite	constructor	MOVE-SITE	param:udt
+structs/param-byval.bas	suite	constructor	MOVE-SITE	byval:udt param:udt
+structs/temp-var-dtors.bas	suite	constructor,copy,destructor	MOVE-SITE	byval:classudt byval:dtorudt param:classudt ret:classudt ret:dtorudt ret:udt
+syntax/op-cast-private-1.bas	other	constructor,copy,operator	MOVE-SITE	byval:tu ret:tu
+syntax/op-cast-private-2.bas	other	constructor,copy,operator	MOVE-SITE	byval:tu param:tv ret:tu
+virtual/byval-copy.bas	suite	operator	MOVE-SITE	byval:a byval:b
+warnings/suffix-fb.bas	other	constructor	MOVE-SITE	ret:t
+compound/for-udt-init.bas	suite	constructor,copy,destructor	-	
+compound/for_UDT_counter3.bas	suite	destructor	-	
+compound/with-type.bas	suite	destructor	-	
+const/const-to-nonconst-ctordtor.bas	suite	constructor,destructor	-	
+dim/byref.bas	suite	constructor,destructor	-	
+dim/redim-1d-udt.bas	suite	constructor,destructor	-	
+dim/redim-2d-udt.bas	suite	constructor,destructor	-	
+dim/redim.bas	suite	constructor	-	
+expressions/dynamic-array-fields.bas	suite	constructor,destructor	-	
+functions/ignore-result.bas	suite	destructor	-	
+functions/return-non-trivial.bas	suite	destructor	-	
+generics/container-array.bas	run	constructor,copy	-	
+generics/container-linkedlist.bas	run	constructor,copy	-	
+generics/container-map.bas	run	constructor,copy	-	
+generics/container-optional.bas	run	constructor,copy	-	
+generics/container-orderedmap.bas	run	constructor,copy	-	
+generics/container-orderedset.bas	run	constructor,copy	-	
+generics/container-result.bas	run	constructor,copy	-	
+generics/container-set.bas	run	constructor,copy	-	
+generics/container-sharedptr.bas	run	constructor,copy	-	
+generics/container-sort.bas	run	constructor,copy,destructor,operator	-	
+generics/ctor-dtor.bas	run	constructor,destructor	-	
+generics/lambda-capture.bas	run	constructor,copy	-	
+generics/lambda-in-generic.bas	run	destructor	-	
+namespace/outside.bas	suite	destructor	-	
+scopes/delaydtor.bas	suite	copy	-	
+scopes/dtor_eol_eof1.bas	run	constructor,destructor	-	
+scopes/dtor_eol_eof2.bas	run	constructor,destructor	-	
+structs/anon-assign.bas	suite	constructor	-	
+structs/base-init.bas	suite	constructor	-	
+structs/ctor-chain-not-first-1.bas	other	constructor	-	
+structs/derived-param.bas	suite	constructor,destructor	-	
+structs/dtor-early-exit.bas	suite	destructor	-	
+structs/field-init.bas	suite	constructor	-	
+structs/obj-array-erase-arg.bas	suite	constructor,destructor	-	
+structs/obj-array-erase.bas	suite	constructor,destructor	-	
+structs/obj-array.bas	suite	constructor,destructor	-	
+structs/obj_global.bas	suite	constructor	-	
+structs/obj_global_dyn.bas	suite	constructor	-	
+structs/obj_global_with_temp3.bas	suite	constructor	-	
+structs/obj_redim.bas	suite	constructor	-	
+structs/obj_static.bas	suite	constructor	-	
+structs/obj_static_array.bas	suite	constructor	-	
+structs/obj_static_dyn.bas	suite	constructor	-	
+structs/str_redim.bas	suite	constructor	-	
+structs/udt-upcast-4.bas	suite	destructor	-	
+threads/sharedptr-mt.bas	suite	constructor	-	
+tui/tuiwidget_.bas	suite	constructor,destructor	-	
+tuple/dtor.bas	run	constructor	-	
+tuple/equality.bas	run	constructor	-	
+tuple/for-each.bas	run	constructor	-	
+tuple/literal.bas	run	constructor	-	
+virtual/rtti.bas	suite	destructor	-	
+virtual/virtual.bas	suite	destructor,operator	-	

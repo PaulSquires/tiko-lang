@@ -739,6 +739,27 @@ private sub LowerAssign _
             if LowerPropertySet_( c, target, value ) then return
         end if
     end if
+    '' 'b = move( a )' (RFC 0018 V3): b's old value destroyed, a's object stored, a reset --
+    '' over ANY type, a written 'let' included: the programmer asked. b's address first, as
+    '' every assignment takes it, so 'a = move( a )' ends with a holding what it held.
+    if (atl <> Tko.TYPE_NONE) andalso IsMoveCall_( c, value ) then
+        dim as Tko.TypeId matl = c.types->Unqualify( atl )
+        if (c.types->Kind( matl ) = Tko.TK_UDT) andalso (MoveType_( c, value ) = matl) then
+            dim as MirValue mda = LowerAddr( c, target )
+            if mda.kind <> cast( uint8, MV_NONE ) then
+                dim as MirValue mtmp = LowerMoveTemp_( c, value )
+                dim as int32 msz = SizeOfType( c, matl )
+                dim as MirValue mwhole
+                if (mtmp.kind <> cast( uint8, MV_NONE )) andalso (msz > 0) then mwhole = LowerExprLoad( c, mtmp, MT_AGG, msz )
+                if mwhole.kind <> cast( uint8, MV_NONE ) then
+                    if TypeNeedsDtor_( c, matl ) then DestroyUdtAt_( c, matl, mda )
+                    StoreThrough( c, mda, mwhole )
+                    ForgetUdtTemp_( c, mtmp.id )
+                    return
+                end if
+            end if
+        end if
+    end if
     dim as Tko.TypeId avt = c.info->TypeOf_( value )
     if avt = Tko.TYPE_NONE then avt = UntypedCallResult_( c, value )
     '' A CONST SOURCE IS THE SAME TYPE: 'x2 = x1' over 'dim x1 as const UDT' bit-copied (implicit-methods.bas).
@@ -787,11 +808,32 @@ private sub LowerAssign _
                 '' FUNCTION with every parameter defaulted, so a procedure-pointer
                 '' assignment still reaches LowerAddr below.
                 dim as MirValue sa
+                dim as int32 tmark = c.udtTemps.Count
                 if BareCallSourceAddr_( c, value, sa ) = false then
                     sa = LowerAddr( c, value )
                 end if
                 if (da.kind <> cast( uint8, MV_NONE )) andalso _
                    (sa.kind <> cast( uint8, MV_NONE )) then
+                    '' A TEMPORARY OF THE TARGET'S OWN TYPE IS MOVED IN (RFC 0018 V2): the old
+                    '' value is destroyed, the temporary's bytes take its place, and the
+                    '' temporary is not destroyed. 'b = f( )' ran 'let' -- a deep copy -- and
+                    '' then the temporary's destructor; the temporary was dead either way.
+                    '' The bytes are loaded FIRST, so a load that cannot be made declines
+                    '' before the old value is gone. ONLY WHEN NO 'let' ANYBODY WROTE WOULD
+                    '' RUN -- see TypeHasUserLet_: the synthesised one is skipped, a written one
+                    '' never is.
+                    if (atlUpcast = false) andalso UdtTempSince_( c, tmark, sa, atl ) andalso _
+                       (TypeHasUserLet_( c, atl ) = false) andalso MayRelocate_( c, atl ) then
+                        dim as int32 msz = SizeOfType( c, atl )
+                        dim as MirValue whole
+                        if msz > 0 then whole = LowerExprLoad( c, sa, MT_AGG, msz )
+                        if whole.kind <> cast( uint8, MV_NONE ) then
+                            DestroyUdtAt_( c, atl, da )
+                            StoreThrough( c, da, whole )
+                            ForgetUdtTemp_( c, sa.id )
+                            return
+                        end if
+                    end if
                     if ulet <> Tko.SYMBOL_NONE then
                         dim as containers.Array( of uint32 ) largs
                         largs.Push( cast( uint32, sa.kind ) )

@@ -1,0 +1,305 @@
+'' checkmove.tiko -- WHAT 'move( x )' MAY MOVE FROM (RFC 0018 V3, docs/architecture/decisions):
+'' TKO1274-1276. Asked of every N_CALL by latesweeps2.tiko; builtinarity.tiko already counts
+'' its one argument (TKO0801).
+''
+'' 'move( x )' relocates x's object into a temporary and resets x to its default state
+'' (mir/lowermove.tiko). So x must be an OBJECT OF A TYPE, it must have AN ADDRESS -- a
+'' variable, a parameter, a field, an array element, a dereference -- and it must be
+'' WRITABLE, because resetting it writes it. A temporary is accepted with a warning: it is
+'' moved already, and 'move' passes it through. A program's own procedure called 'move'
+'' binds the name and none of this applies.
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "types/udtlayout.ti"
+#include once "support/text.ti"
+#include once "symbols/nomove.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+'' The type 'n' designates, a reference seen through.
+private function DesignatedType_ ( byref c as Ctx, byval n as NodeId ) as TypeId
+    dim as TypeId t = c.info->TypeOf_( n )
+    if t = TYPE_NONE then return t
+    if c.types->Kind( c.types->Unqualify( t ) ) = TK_REFERENCE then t = c.types->Inner( c.types->Unqualify( t ) )
+    return t
+end function
+
+'' Does 'n' reach a CONST object through a chain of '.' -- 'c.f' over 'dim as const T c'?
+'' Check types a field as the field's own type, so the object's const has to be asked of each
+'' base in turn; a '->' stops there, its pointer's pointee answering for itself.
+private function MoveFromConst_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    for guard as int32 = 0 to 31
+        if n = NODE_NONE then return false
+        if c.types->IsConst( DesignatedType_( c, n ) ) then return true
+        if c.ast->Kind( n ) = N_IDENT then
+            dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( n ) )
+            if vs <> nullptr then
+                if cast( SymbolKind, vs->kind ) = SYM_CONSTANT then return true
+                if c.types->IsConst( vs->type_ ) then return true
+            end if
+        end if
+        select case c.ast->Kind( n )
+        case N_MEMBER
+            if (c.ast->Flags( n ) and NF_ARROW) <> 0 then return false
+            n = c.ast->BinaryOf( n )->lhs
+        case N_PAREN
+            dim as ListPayload ptr pl = c.ast->ListOf( n )
+            if pl->count <> 1 then return false
+            n = cast( NodeId, c.ast->ChildSlot( pl->first ) )
+        case N_CALL
+            '' 'a( i )' -- an element: its array is asked, an element of a const array being const.
+            dim as NodeId t = c.ast->ListOf( n )->target
+            if t = NODE_NONE then return false
+            if c.ast->Kind( t ) = N_IDENT then
+                dim as Symbol ptr asy = c.syms->SymbolAt( c.info->RefOf( t ) )
+                if asy = nullptr then return false
+                dim as TypeId art = c.types->Unqualify( asy->type_ )
+                if c.types->IsConst( asy->type_ ) then return true
+                if c.types->Kind( art ) = TK_ARRAY then return c.types->IsConst( c.types->Inner( art ) )
+                return false
+            end if
+            if c.ast->Kind( t ) <> N_MEMBER then return false
+            n = t
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
+'' Is 'n' AN OBJECT WITH AN ADDRESS -- something 'move' can reset -- rather than a value?
+'' 'a( i )' is spelled as a call, so a call counts when its head is a VARIABLE, a PARAMETER
+'' or a FIELD (an array) rather than a procedure.
+private function MoveSourceHasAddress_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    for guard as int32 = 0 to 31
+        if n = NODE_NONE then return false
+        select case c.ast->Kind( n )
+        case N_IDENT
+            dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+            if s = nullptr then return false
+            select case cast( SymbolKind, s->kind )
+            case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+                return true
+            end select
+            return false
+        case N_MEMBER
+            dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( n ) )
+            if fs = nullptr then return false
+            return (cast( SymbolKind, fs->kind ) = SYM_FIELD)
+        case N_DEREF, N_INDEX
+            return true
+        case N_PAREN
+            dim as ListPayload ptr pl = c.ast->ListOf( n )
+            if pl->count <> 1 then return false
+            n = cast( NodeId, c.ast->ChildSlot( pl->first ) )
+        case N_CALL
+            dim as NodeId t = c.ast->ListOf( n )->target
+            if t = NODE_NONE then return false
+            dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( t ) )
+            if ts = nullptr then return false
+            select case cast( SymbolKind, ts->kind )
+            case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+                return true
+            end select
+            return false
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
+'' ---------------------------------------------------------------- V4: moves need no copy
+''
+'' A non-copyable type -- its copy constructor declared private, the idiom std/tasks' WaitGroup
+'' and fb/comptr.bi use -- can still be MOVED, because a move is a relocation and calls no
+'' constructor (RFC 0018 V4). So a site that moves asks for no copy constructor, and the access
+'' checks below and in latechecks.tiko / semwalk.tiko stand aside for exactly those sites:
+'' 'move( x )' anywhere, a temporary passed or returned, a by-value call result initialising a
+'' variable, and 'return local'.
+
+'' Is 'n' the builtin 'move( x )', as Check sees it -- an unbound name spelled move, one argument?
+function IsMoveBuiltin_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_CALL) then return false
+    dim as ListPayload ptr lp = c.ast->ListOf( n )
+    if lp->count <> 1 then return false
+    if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return false
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
+    if c.info->RefOf( n ) <> SYMBOL_NONE then return false
+    return lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) = "move"
+end function
+
+'' The procedure a call names, or nullptr: the call's own binding, else its head's.
+private function CalleeOf_ ( byref c as Ctx, byval n as NodeId ) as Symbol ptr
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = nullptr then s = c.syms->SymbolAt( c.info->RefOf( c.ast->ListOf( n )->target ) )
+    return s
+end function
+
+'' Does procedure 's' return BY REFERENCE -- somebody else's object, which a copy is taken of?
+private function ReturnsByref_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
+    dim as NodeId decl = cast( NodeId, s->payload )
+    if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return false
+    return ((c.ast->Flags( decl ) and NF_BYREF) <> 0)
+end function
+
+'' Is 'n' a VALUE NOBODY ELSE HOLDS: a by-value call's result, 'move( x )', a type literal or
+'' constructor call, a user operator's result? Each is a temporary lowering adopts.
+'' 'ctorCalls' = false leaves out 'T( args )' and a type literal: those CONSTRUCT, and the constructor
+'' they pick is still the question for an initialiser (tests/diagnostics/ctor-access-chosen).
+function IsTemporaryValue_ ( byref c as Ctx, byval n as NodeId, byval ctorCalls as boolean = true ) as boolean
+    for guard as int32 = 0 to 31
+        if n = NODE_NONE then return false
+        select case c.ast->Kind( n )
+        case N_PAREN
+            dim as ListPayload ptr pl = c.ast->ListOf( n )
+            if pl->count <> 1 then return false
+            n = cast( NodeId, c.ast->ChildSlot( pl->first ) )
+        case N_CALL
+            if IsMoveBuiltin_( c, n ) then return true
+            dim as Symbol ptr s = CalleeOf_( c, n )
+            if s = nullptr then return false
+            select case cast( SymbolKind, s->kind )
+            case SYM_PROC
+                return (ReturnsByref_( c, s ) = false)
+            case SYM_UDT, SYM_TYPEDEF
+                return ctorCalls   '' 'T( args )'
+            end select
+            return false
+        case N_TUPLE
+            return ctorCalls andalso ((c.ast->Flags( n ) and NF_TYPE_LITERAL) <> 0)
+        case N_BINARY, N_UNARY
+            dim as Symbol ptr os = c.syms->SymbolAt( c.info->RefOf( n ) )
+            if os = nullptr then return false
+            return (os->kind = cast( uint8, SYM_PROC )) andalso (ReturnsByref_( c, os ) = false)
+        case else
+            return false
+        end select
+    next
+    return false
+end function
+
+'' Is 'n' a LOCAL VARIABLE of the procedure -- what 'return n' relocates (mir/lowerclean.tiko
+'' MoveLocalIntoResult_)? Not a static, a shared, a reference, an extern or a common.
+function IsMovableLocalName_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_IDENT) then return false
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, SYM_VARIABLE ) then return false
+    return ((s->flags and (SYMF_SHARED or SYMF_STATIC or SYMF_BYREF or SYMF_EXTERN or SYMF_COMMON)) = 0)
+end function
+
+'' 'return x' OUT OF A FUNCTION RETURNING A UDT COPIES x -- fbc's 205 when the copy constructor is
+'' private -- UNLESS IT MOVES: a local, or a temporary. tiko asked nothing here at all, so a
+'' non-copyable return compiled and failed at the LINK, on the declared-and-never-defined copy
+'' constructor (tests/semantic/moves/noncopyable.bas, P0). Asked from semwalk.tiko's N_RETURN.
+sub CheckMoveReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, _
+                       byval byrefResult as boolean, byval here as TypeId )
+    if byrefResult then return
+    if resultType = TYPE_NONE then return
+    dim as TypeId rt = c.types->Unqualify( resultType )
+    if c.types->Kind( rt ) <> TK_UDT then return
+    dim as NodeId v = c.ast->StmtOf( id )->a
+    if v = NODE_NONE then return
+    if ValueType_( c, c.info->TypeOf_( v ) ) <> rt then return
+    '' ...BUT A 'nomove' TYPE IS NOT RELOCATED, so its return copies, and needs the copy (V5).
+    if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, rt ) = false then
+        if IsMovableLocalName_( c, v ) orelse IsTemporaryValue_( c, v ) then return
+    end if
+    CheckCopyStructor_( c, rt, here, c.ast->Loc( v ), 0 )
+end sub
+
+'' 'swap a, b' RELOCATES BOTH OBJECTS -- it exchanges their bytes and tells neither -- so it is
+'' refused over a 'nomove' type (V5), exactly as 'move( )' is. Asked of every N_INTRINSIC.
+sub CheckNoMoveSwap_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+    if cast( TokenKind, sp->op ) <> KW_SWAP then return
+    for pass_ as int32 = 0 to 1
+        dim as NodeId v = iif( pass_ = 0, sp->a, sp->b )
+        if v = NODE_NONE then continue for
+        dim as TypeId t = c.info->TypeOf_( v )
+        if t = TYPE_NONE then continue for
+        if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, t ) then
+            c.diags->Report( TKO1278, PointRange( c.ast->Loc( id ) ), c.types->Name( c.types->Unqualify( t ) ) )
+            return
+        end if
+    next
+end sub
+
+'' 'redim preserve a( n )' MAY RELOCATE EVERY ELEMENT -- the runtime reallocs the block, and an
+'' element's bytes move with it -- so a dynamic array of a 'nomove' type cannot be preserved
+'' (V5). A plain 'redim' destroys the old elements and constructs new ones, and is fine. Asked
+'' of every N_VAR; a REDIM item names its array either as a name or, 'redim preserve
+'' r.items( n )', as an expression (the item's extra is KW_REDIM then).
+sub CheckNoMoveRedim_ ( byref c as Ctx, byval id as NodeId )
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+    if cast( TokenKind, sp->op ) <> KW_REDIM then return
+    if (c.ast->Flags( id ) and NF_PRESERVE) = 0 then return
+    for i as int32 = 0 to sp->count - 1
+        dim as NodeId item = c.ast->ChildAt( sp->first, i )
+        if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
+        dim as StmtPayload ptr ip = c.ast->StmtOf( item )
+        dim as TypeId at = TYPE_NONE
+        if (ip->extra = cast( uint16, KW_REDIM )) andalso (ip->b <> NODE_NONE) then
+            at = c.info->TypeOf_( ip->b )
+        else
+            dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( item ) )
+            if s = nullptr then s = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->name, false ) )
+            if s <> nullptr then at = s->type_
+        end if
+        if at = TYPE_NONE then continue for
+        at = c.types->Unqualify( at )
+        if c.types->IsDynArray( at ) = false then continue for
+        dim as TypeId et = c.types->Inner( at )
+        if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, et ) then
+            c.diags->Report( TKO1279, PointRange( c.ast->Loc( item ) ), c.types->Name( c.types->Unqualify( et ) ) )
+        end if
+    next
+end sub
+
+'' What the diagnostic calls x: its name, or a phrase.
+private function MoveSpelling_ ( byref c as Ctx, byval n as NodeId ) as string
+    dim as string r = SpellOf_( c, n )
+    if len( r ) = 0 then r = "this object"
+    return r
+end function
+
+sub CheckMoveCall_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if lp->count <> 1 then return   '' TKO0801's
+    if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
+    if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
+    if c.info->RefOf( id ) <> SYMBOL_NONE then return
+    if lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) <> "move" then return
+    dim as NodeId a = cast( NodeId, c.ast->ChildSlot( lp->first ) )
+    if a = NODE_NONE then return
+    dim as TypeId at = c.info->TypeOf_( a )
+    if at = TYPE_NONE then return   '' an untyped argument has been reported already
+    if c.types->Kind( c.types->Unqualify( at ) ) = TK_REFERENCE then at = c.types->Inner( c.types->Unqualify( at ) )
+    if c.types->Kind( c.types->Unqualify( at ) ) <> TK_UDT then
+        c.diags->Report( TKO1274, PointRange( c.ast->Loc( a ) ), c.types->Name( at ) )
+        return
+    end if
+    '' A 'nomove' TYPE IS NEVER RELOCATED (V5) -- its address is known somewhere else.
+    if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, at ) then
+        c.diags->Report( TKO1277, PointRange( c.ast->Loc( a ) ), c.types->Name( at ) )
+        return
+    end if
+    if MoveSourceHasAddress_( c, a ) = false then
+        '' A VALUE OF THE TYPE is a temporary -- a call's result, an operator's, a type
+        '' literal -- and moved already.
+        c.diags->Report( TKO1276, PointRange( c.ast->Loc( a ) ) )
+        return
+    end if
+    if MoveFromConst_( c, a ) then
+        c.diags->Report( TKO1275, PointRange( c.ast->Loc( a ) ), MoveSpelling_( c, a ) )
+    end if
+end sub
+
+end namespace

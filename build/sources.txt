@@ -51,6 +51,7 @@ src/symbols/formatcheck.tiko
 src/symbols/castpick.tiko
 src/symbols/derivetype.tiko
 src/symbols/checkslice.tiko
+src/symbols/nomove.tiko
 src/symbols/checkspan.tiko
 src/symbols/semwalk.tiko
 src/symbols/sem.tiko
@@ -62,6 +63,7 @@ src/symbols/methodassign.tiko
 src/symbols/semslice.tiko
 src/symbols/semoptcheck.tiko
 src/symbols/semmatch.tiko
+src/symbols/checkmove.tiko
 src/symbols/semint128.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko
@@ -121,6 +123,7 @@ src/mir/lowermember.tiko
 src/mir/lowermodinit.tiko
 src/mir/lowergfx.tiko
 src/mir/lowerclean.tiko
+src/mir/lowermove.tiko
 src/mir/lowerdata.tiko
 src/mir/lowerctor.tiko
 src/mir/lowercall.tiko

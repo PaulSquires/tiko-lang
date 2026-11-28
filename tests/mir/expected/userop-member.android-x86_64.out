@@ -46,12 +46,12 @@ func ptr _ZplR3BIGS0_(ptr $0, ptr $1, ptr $2) {
     %12 = load %11
     %13 = add %9, %12
     store %6, %13
-    %14 = load @r
-    %15 = load @$tmp0
-    store %15, %14
-    call void _ZN3BIGD1Ev(@r)
-    %16 = load @$tmp0
-    ret %16
+    %14 = load @$tmp0
+    %15 = load @r
+    store %14, %15
+    %16 = call.rtl ptr memset(@r, 0, 32)
+    %17 = load @$tmp0
+    ret %17
 }
 func i32 _ZplR5SMALLS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 4

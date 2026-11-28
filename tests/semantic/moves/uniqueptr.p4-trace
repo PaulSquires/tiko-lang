@@ -1,0 +1,9 @@
+U1 returned: 1  live 1
+U2 b = move( a ): b 1, a null true  live 1
+  (Use owns 1, live 1)
+U3 after Use( move( b ) ): b null true  live 0
+U4 Reset: 5  live 1
+U5 Release: c null true, raw 5  live 1
+U6 Array of 21 owners: last 7, d null true  live 21
+U7 after RemoveSwap and SetCount( 10 ): count 10  live 10
+U8 live after scope: 0

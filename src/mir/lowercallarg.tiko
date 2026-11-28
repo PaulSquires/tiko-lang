@@ -445,6 +445,17 @@ private function UdtConvTemp_ _
     if argNode = Tko.NODE_NONE then return false
     dim as int32 sz = SizeOfType( c, pt )
     if sz <= 0 then return false
+
+    '' 'Take( move( a ) )' (RFC 0018 V3): the move's temporary IS the argument, whatever the
+    '' type declares -- already registered, so no slot comes back. See lowermove.tiko.
+    if IsMoveCall_( c, argNode ) then
+        if MoveType_( c, argNode ) = c.types->Unqualify( pt ) then
+            dim as MirValue mvt = LowerMoveTemp_( c, argNode )
+            if mvt.kind = cast( uint8, MV_NONE ) then return false
+            outa = mvt
+            return true
+        end if
+    end if
     if SliceUnitBytes( c, pt ) > 0 then return LowerSliceArg( c, argNode, pt, outa )   '' a string for a slice parameter: lowerslice.tiko
 
     '' A WIDE STRING FOR A TYPE WITH A 'wstring ptr' CONSTRUCTOR takes that one, as fbc does --
@@ -1160,8 +1171,22 @@ function ByvalUdtCopyArg_ _   '' not private: an operator's operand takes it too
     '' its buffer -- so an argument with no address DECLINES rather than being copied
     '' some other way.
     '' ...and for 'this' the address is the pointer's VALUE -- see InitSourceAddr_.
+    dim as int32 tmark = c.udtTemps.Count
     dim as MirValue src = InitSourceAddr_( c, argNode )
     if src.kind = cast( uint8, MV_NONE ) then return false
+
+    '' A TEMPORARY OF THE PARAMETER'S OWN TYPE IS PASSED AS IT IS (RFC 0018 V2). 'Take( f( ) )'
+    '' copied f's result into a second temporary and destroyed both after the call; the
+    '' result is an rvalue nobody else holds, so it IS the argument. It is already on
+    '' c.udtTemps and dies with the statement there, so no slot is handed back.
+    dim as boolean freshArg = UdtTempSince_( c, tmark, src, upt )
+    if (freshArg = false) andalso (src.kind = cast( uint8, MV_LOCAL )) andalso (TypeNeedsDtor_( c, pt ) = false) then
+        freshArg = IsFreshResultNode_( c, argNode, upt )   '' unregistered: see IsFreshResultNode_
+    end if
+    if freshArg then
+        outa = src
+        return true
+    end if
 
     dim as int32 slot = NewTempLocal( c, MT_AGG, sz )
     if slot < 0 then return false

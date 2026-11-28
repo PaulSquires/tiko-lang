@@ -22,6 +22,7 @@ end sub
 '' MSVC's nor SysV's, so a record shared with C code has to say which one it follows; the
 '' string is the language an 'extern' block names, and only "c" has a layout of its own.
 private sub ParseCLayoutClause_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    if (Peek( p ) = Tko.TK_IDENT) andalso (Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) ) = "nomove") then Advance( p ) : sp.extra or= Tko.PF_NOMOVE   '' 'type T nomove' (RFC 0018 V5): the IDENTIFIER, not a keyword
     if Peek( p ) <> Tko.KW_EXTERN then return
     if HasTok( p, p.pos + 1 ) = false then return
     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_STRING_LIT then return
@@ -288,6 +289,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             wend
         end if
     end if
+    if (Peek( p ) = Tko.TK_IDENT) andalso (Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) ) = "nomove") then Advance( p ) : sp.extra or= Tko.PF_NOMOVE   '' ...and after the base
     '' 'type T extends B implements I' -- fbc's header spelling is not taken: 'implements'
     '' is a body line (docs/tiko-interfaces §4.5).
     if Peek( p ) = Tko.KW_IMPLEMENTS then

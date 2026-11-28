@@ -1,0 +1,18 @@
+'' RUN: a NON-COPYABLE type -- copy constructor and let private, declared and never defined -- is
+'' MOVABLE (RFC 0018 V4): returned as a local, as a call result and as move( a ), moved into a dim,
+'' an assignment and a byval argument, and the same for one with no destructor. A copy anywhere
+'' would fail to link. The probe is tests/semantic/moves/moveonly.bas.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/semantic/moves/moveonly.bas -o tests/codegen/movemoveonly.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/movemoveonly.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: V1 return local: 1
+'' EXPECT-RUN-OUT: V2 return f( ): 20
+'' EXPECT-RUN-OUT: V3 return move( a ): 3
+'' EXPECT-RUN-OUT: V4 dim d = move( a ): d=1 a=-1
+'' EXPECT-RUN-OUT: V5 b = move( c ): b=3 c=-1
+'' EXPECT-RUN-OUT: V6 Consume( move( d ) ): d=-1
+'' EXPECT-RUN-OUT: V8 Handle through two returns: 7
+'' EXPECT-RUN-OUT: V10 cells live after scope: 0

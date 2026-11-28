@@ -16,6 +16,25 @@ declare sub CallTempsInSourceOrder_ _
       byval recvMark as int32, byref segFrom as containers.Array( of uint32 ) )
 declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as int32 )
 declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as int32 )
+'' RFC 0018 V2 -- moves at the sites where the source expires (lowerclean.tiko).
+declare function UdtTempSince_ _
+    ( byref c as Ctx, byval mark as int32, byref addr as MirValue, byval t as Tko.TypeId ) as boolean
+'' 'move( x )' (lowermove.tiko).
+declare function IsMoveCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+declare function MoveType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+declare function LowerMoveTemp_( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+declare function MoveCallInto_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, byref dst as MirValue ) as boolean
+declare function MayRelocate_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+declare function IsFreshResultNode_( byref c as Ctx, byval n as Tko.NodeId, byval t as Tko.TypeId ) as boolean
+declare function IsVariableName_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+declare function TypeHasUserLet_( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 = 0 ) as boolean
+declare sub DestroyUdtAt_( byref c as Ctx, byval t as Tko.TypeId, byref addr as MirValue )
+declare function MoveLocalIntoResult_ _
+    ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId, _
+      byref src as MirValue, byref dst as MirValue ) as boolean
+declare function RelocateUdt_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue ) as boolean
     '' lowerctl.tiko -- control flow.
     declare sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     declare sub LowerExitLike _

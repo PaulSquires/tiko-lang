@@ -71,16 +71,16 @@
 '' There are no constraints on type parameters, so this cannot be enforced -- it
 '' is a contract, and breaking it is silent.
 ''
-'' NO UniquePtr.  The language has no move constructor, so a non-copyable owning
-'' pointer could not be returned from a function.  DEFER covers the scope-local
-'' case that would otherwise want one.
+'' UniquePtr( of T ) is in uniqueptr.tiko: a move-only owner, which moves made
+'' possible (RFC 0018 V4).
 ''
 '' NO ALIASING CONSTRUCTOR, NO CUSTOM DELETERS, NO ARRAY FORM.  All three need
 '' either type erasure of a deleter or a second stored pointer.
 ''
-'' EVERY COPY IS A REAL REFCOUNT OPERATION.  There is no move constructor and no
-'' return-value optimisation, so returning a SharedPtr by value costs an
-'' increment and a decrement. Pass BYREF where it matters, as the containers do.
+'' EVERY COPY IS A REAL REFCOUNT OPERATION -- and a MOVE is none (RFC 0018):
+'' returning a local SharedPtr, or passing a temporary or 'move( sp )' by value,
+'' touches no count.  Passing a variable by value still costs an increment and a
+'' decrement; pass BYREF when the callee only reads the handle.
 ''
 '' CYCLES STILL LEAK.  Two objects holding SharedPtrs to each other keep each
 '' other alive for ever.  WeakPtr is the tool; it is not automatic.

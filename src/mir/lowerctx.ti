@@ -258,6 +258,12 @@ type Ctx
     as int32 stmtStrMark
     as int32 stmtWstrMark
     as containers.Array( of uint32 ) udtTempTypes
+    '' A LOCAL MOVED OUT BY THE RETURN BEING LOWERED (RFC 0018 V2), as slot + 1; 0 is none.
+    '' 'return r' relocated r's bytes into the caller's storage, so on THIS exit edge r's
+    '' destructor must not run -- EmitCleanupEntry_ skips it. Set by MoveLocalIntoResult_
+    '' and cleared by the return once its cleanups are emitted; every other exit still
+    '' destroys r. Biased by one so a zeroed Ctx means "nothing moved", not "slot 0".
+    as int32 movedOutSlot1
     '' ONE BYTE PER AST NODE: has LowerUserBinaryOp_ already declined this one?
     '' A speculative attempt that DESCENDS before it can fail costs its whole
     '' subtree every time it is retried, and the retry happens at every level of a

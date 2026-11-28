@@ -155,3 +155,25 @@ tiko -O2 sieve.tiko -o sieve_tiko
 clang -O2 sieve.c -o sieve_c
 ./sieve_tiko && ./sieve_c
 ```
+
+## Moves (RFC 0018)
+
+`moves.tiko` measures what moving instead of copying is worth, in four workloads: returning a
+200,000-string array from a function (20 times), pushing 1,000,000 records built by a function,
+300,000 `Map.Put` of a function's result, and 1,000,000 records through a 64-slot buffered
+channel. Each line prints its time and a checksum, which both builds must agree on.
+
+Built at `-O2 -mt` on Windows 11 (windows-x86_64), best of three runs, 2026-11-28. *Before* is
+the compiler at master `61a0e6813` over master's std (byref container sinks, every copy made);
+*after* is RFC 0018 P1-P4:
+
+| Workload | before | after | |
+| --- | ---: | ---: | ---: |
+| `return-array` | 1.055 s | 0.568 s | 1.86x |
+| `push-records` | 0.271 s | 0.214 s | 1.27x |
+| `map-put` | 0.125 s | 0.114 s | 1.10x |
+| `channel` | 1.055 s | 1.026 s | 1.03x |
+
+The channel is bound by its lock: a copy of one record is small next to a mutex round trip per
+send and per receive.
+

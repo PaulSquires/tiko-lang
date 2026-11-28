@@ -1267,6 +1267,14 @@
     DIAG( TKO1271, SEV_ERROR,   "enumname( ) needs a value of a named enum, and this is '%0'" )
     DIAG( TKO1272, SEV_ERROR,   "%0( ) needs an enum type as its first argument" )
     DIAG( TKO1273, SEV_ERROR,   "enumvalue( %0, %1 ) is out of range: '%0' has %2 constants" )
+    '' 'move( x )' -- RFC 0018 V3, symbols/checkmove.tiko.
+    DIAG( TKO1274, SEV_ERROR,   "'move( )' moves an object of a TYPE, and '%0' is not one" )
+    DIAG( TKO1275, SEV_ERROR,   "'move( )' cannot move from '%0': it is const, and a move resets what it moves from" )
+    DIAG( TKO1276, SEV_WARNING, "'move( )' of a temporary does nothing: the value is moved already" )
+    '' 'type T nomove' -- RFC 0018 V5, symbols/checkmove.tiko.
+    DIAG( TKO1277, SEV_ERROR,   "'%0' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer" )
+    DIAG( TKO1278, SEV_ERROR,   "'swap' relocates both objects, and '%0' is nomove" )
+    DIAG( TKO1279, SEV_ERROR,   "'redim preserve' relocates every element, and '%0' is nomove" )
 
 #endmacro
 

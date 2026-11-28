@@ -1,0 +1,7 @@
+'' RFC 0018 V5: containers.Array( of T ) grows by 'redim preserve' and sorts by 'swap', so T = a
+'' nomove type is refused where the template does it, with a note at the instantiation.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/move-nomove-generic.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO1279: 'redim preserve' relocates every element, and 'pinned' is nomove
+'' EXPECT-OUT: move-nomove-generic.tiko(6,8): note: in instantiation of 'array( of pinned )'

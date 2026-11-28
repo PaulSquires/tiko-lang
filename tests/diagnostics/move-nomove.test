@@ -1,0 +1,14 @@
+'' 'type T nomove' (RFC 0018 V5, symbols/nomove.tiko + checkmove.tiko): every explicit relocation of
+'' one is refused -- TKO1277 'move( )', TKO1278 'swap', TKO1279 'redim preserve' -- and a type with
+'' a nomove FIELD is nomove too (Holder). A plain 'redim' (line 22) and a swap of an unmarked
+'' type (line 24) are accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/move-nomove.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: move-nomove.tiko(16,25): error TKO1277: 'pinned' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer
+'' EXPECT-OUT: move-nomove.tiko(17,26): error TKO1277: 'holder' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer
+'' EXPECT-OUT: move-nomove.tiko(18,1): error TKO1278: 'swap' relocates both objects, and 'pinned' is nomove
+'' EXPECT-OUT: move-nomove.tiko(19,1): error TKO1278: 'swap' relocates both objects, and 'holder' is nomove
+'' EXPECT-OUT: move-nomove.tiko(21,16): error TKO1279: 'redim preserve' relocates every element, and 'pinned' is nomove
+'' EXPECT-NOT: move-nomove.tiko(22,
+'' EXPECT-NOT: move-nomove.tiko(24,

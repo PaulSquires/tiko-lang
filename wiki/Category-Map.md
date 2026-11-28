@@ -197,7 +197,7 @@ Source: pkg/std/containers/map.tiko
 
 ## Ownership AND Copying
 
-The map owns its storage. COPY AND ASSIGNMENT ARE DEEP -- 'dim b = a' copies every key and value. That is expensive and there is no move constructor in the language to avoid it; pass maps BYREF where it matters.
+The map owns its storage. COPY AND ASSIGNMENT ARE DEEP -- 'dim b = a' copies every key and value. That is expensive; a [move](Category-Move-Semantics) is not -- a map returned from a function, or `move( m )`, copies nothing. `Put` and `Add` take the value by value and move it in. Pass a map BYREF when the callee only reads it.
 
 A Map( of K, V ptr ) frees the TABLE, not the pointees.
 

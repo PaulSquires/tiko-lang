@@ -1,0 +1,13 @@
+V1 return local: 1
+V2 return f( ): 20
+V3 return move( a ): 3
+V4 dim d = move( a ): d=1 a=-1
+V5 b = move( c ): b=3 c=-1
+  consumed 1
+V6 Consume( move( d ) ): d=-1
+  consumed 4
+V7 Consume( OpenLocal( ) ) done
+V8 Handle through two returns: 7
+  handle 8
+V9 cells live in scope: 1
+V10 cells live after scope: 0

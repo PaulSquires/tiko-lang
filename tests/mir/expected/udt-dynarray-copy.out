@@ -61,11 +61,13 @@ func ptr MAKE(ptr $0) {
     %16 = sitofp %15
     store %14, %16
     %17 = load @$tmp0
-    call void _ZN3BOXC1ERKS_(%17, @r)
-    call void _ZN3BOXD1Ev(@r)
-    %18 = load @$tmp0
-    ret %18
+    %18 = load @r
+    store %17, %18
+    %19 = call.rtl ptr memset(@r, 0, 72)
+    %20 = load @$tmp0
+    ret %20
 }
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void FROMCALL() {
   local agg c size 72
   entry0:
@@ -189,4 +191,4 @@ func void _ZN3BOXaSERKS_(ptr $0, ptr $1) {
 declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
 declare ptr memcpy(ptr $0, ptr $1, i64 $2)
 verify: ok
-lowered: 8 functions, 8 blocks, 141 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 8 functions, 8 blocks, 142 insts, 0 statements not lowered, 0 scope imbalance

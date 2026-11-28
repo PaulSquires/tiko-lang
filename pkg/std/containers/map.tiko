@@ -95,7 +95,7 @@ public type Map( of TK, TV )
     declare function Locate( byref k as TK, byval h as ulongint ) as long
     declare function NeedsRoom( ) as boolean
     declare function MakeRoom( byref k as TK, byval h as ulongint ) as long
-    declare function InsertNew( byref k as TK, byref v as TV, byval h as ulongint, byval at as long ) as boolean
+    declare function InsertNew( byref k as TK, byref v as TV, byval h as ulongint, byval at as long ) as boolean   '' consumes v
     declare function InsertBlank( byref k as TK, byval h as ulongint, byval at as long ) as long
 
     public:
@@ -107,8 +107,8 @@ public type Map( of TK, TV )
     declare sub Clear( )
 
     declare function FindSlot( byref k as TK ) as long
-    declare function Put( byref k as TK, byref v as TV ) as boolean
-    declare function Add( byref k as TK, byref v as TV ) as boolean
+    declare function Put( byref k as TK, byval v as TV ) as boolean
+    declare function Add( byref k as TK, byval v as TV ) as boolean
     declare function Contains( byref k as TK ) as boolean
     declare function TryGet( byref k as TK, byref outv as TV ) as boolean
     declare function Remove( byref k as TK ) as boolean
@@ -366,37 +366,35 @@ end sub
 '' then both are copied first and swapped into the new slot.  Otherwise they are
 '' assigned straight in: the slot is EMPTY, so it is neither of them.  Put copied
 '' both on every call, an allocation per string key or value even to overwrite.
+'' v IS CONSUMED: both callers own it -- Put's and Add's by-value v (RFC 0018) -- so it is
+'' swapped into the slot and never copied, and it cannot point into the map.
 function Map( of TK, TV ).InsertNew( byref k as TK, byref v as TV, byval h as ulongint, byval at as long ) as boolean
     if( this.NeedsRoom( ) ) then
         dim as TK kk = k
-        dim as TV vv = v
         at = this.MakeRoom( kk, h )
         if( at < 0 ) then
             return false
         end if
         swap this.keys_( at ), kk
-        swap this.vals_( at ), vv
     else
         at = not at
         this.keys_( at ) = k
-        this.vals_( at ) = v
     end if
+    swap this.vals_( at ), v
 
     this.ctrl( at ) = this.CtrlOf( h )
     this.num += 1
     return true
 end function
 
-'' Insert or overwrite.  Returns TRUE if the key was new.
-function Map( of TK, TV ).Put( byref k as TK, byref v as TV ) as boolean
+'' Insert or overwrite.  Returns TRUE if the key was new.  v is the map's own (see InsertNew):
+'' overwriting swaps it in, and the old value leaves with v.
+function Map( of TK, TV ).Put( byref k as TK, byval v as TV ) as boolean
     dim as ulongint h = this.Mix( k )
     dim as long i = this.Locate( k, h )
 
     if( i >= 0 ) then
-        '' 'm.Put( k, m[ k ] )' would assign the value to itself
-        if( @this.vals_( i ) <> @v ) then
-            this.vals_( i ) = v
-        end if
+        swap this.vals_( i ), v
         return false
     end if
 
@@ -404,8 +402,9 @@ function Map( of TK, TV ).Put( byref k as TK, byref v as TV ) as boolean
 end function
 
 '' Insert only if absent.  Returns FALSE if the key was already there, and does
-'' NOT overwrite -- that is the difference from Put.
-function Map( of TK, TV ).Add( byref k as TK, byref v as TV ) as boolean
+'' NOT overwrite -- that is the difference from Put.  v is by value, as Put's is: a
+'' temporary costs nothing, and an lvalue is copied once even when the key is present.
+function Map( of TK, TV ).Add( byref k as TK, byval v as TV ) as boolean
     dim as ulongint h = this.Mix( k )
     dim as long i = this.Locate( k, h )
 
