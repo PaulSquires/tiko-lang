@@ -8,7 +8,7 @@ Think of a phone book: you look up a name, the key, to find a number, the value.
 
 That makes a map the right tool whenever the question is *what goes with this?* -- an age by name, a count per word, a setting by its name. A `Map` keeps its entries in a hash table, so storing, finding and removing take about the same time however many entries it holds.
 
-Keys can be any built-in type -- numbers, strings -- or a type of your own that extends `containers.Hashable` (see [The Hash Contract](#the-hash-contract)). Values can be numbers, strings or your own types. The order a map hands its entries back in is not defined; if you need them sorted by key, use [OrderedMap](Category-OrderedMap).
+Keys can be any built-in type -- numbers, strings -- or a type of your own with a `derive equal, hash` line or that extends `containers.Hashable` (see [The Hash Contract](#the-hash-contract)). Values can be numbers, strings or your own types. The order a map hands its entries back in is not defined; if you need them sorted by key, use [OrderedMap](Category-OrderedMap).
 
 The example below stores ages by name:
 
@@ -93,16 +93,30 @@ m.Put( "ada", 99 )       ' false -- key existed, value now 99
 A key type K must satisfy:
 
 ```freebasic
-K extends containers.Hashable, or is a built-in type
+K is a built-in type, has 'derive equal, hash', or extends containers.Hashable
 k = k                must compare
 EQUAL KEYS MUST PRODUCE EQUAL HASH CODES
 ```
 
 The converse is not required -- two different keys may collide, and the map handles that. But equal keys that hash differently produce a map that LOSES DATA, which is why the invariant is stated in capitals.
 
-Overloads are supplied for every built-in type: all integer types, both float types, pointers, string, zstring, wstring and ustring. Strings hash by CONTENT, so a string built at run time finds the literal it equals. A ustring hashes its CODE UNITS, so a USTRING \* N and a var-len ustring holding the same text agree. +0.0 and -0.0 hash the same, because they compare equal.
+The map hashes a key with [`hashvalue( k )`](Hashvalue), which the compiler supplies for every built-in type: all integer types, both float types, pointers, string, zstring, wstring and ustring. Strings hash by CONTENT, so a string built at run time finds the literal it equals. A ustring hashes its CODE UNITS, so a USTRING \* N and a var-len ustring holding the same text agree. +0.0 and -0.0 hash the same, because they compare equal.
 
-A user type is made usable as a key by EXTENDING containers.Hashable and overriding its abstract HashOf( ) member:
+The simplest key type of your own has a [`derive`](Derive) line. The compiler writes '=' and the hash from the same fields, so the invariant holds by construction:
+
+```freebasic
+#import "std/containers"
+using containers
+
+type PairKey
+    derive equal, hash
+    as int32 a, b
+end type
+
+dim m as Map( of PairKey, ustring )
+```
+
+A user type can instead EXTEND containers.Hashable, override its abstract HashOf( ) member, and write '=' itself:
 
 ```freebasic
 #import "std/containers"
@@ -122,19 +136,18 @@ operator = ( byref x as PairKey, byref y as PairKey ) as boolean
 end operator
 ```
 
-Derive the hash only from the fields '=' compares, or equal keys will hash differently.
+Hash only the fields '=' compares, or equal keys will hash differently.
 
 Combine field hashes by passing all but one through containers.HashInt, a 64-bit mixer. The integer overloads return the value itself -- the map does its own spreading, with a multiplicative step when it picks a slot -- so a plain 'HashOf( a ) xor ( HashOf( b ) shl 1 )' gives ( 2, 0 ) and ( 0, 1 ) the same hash. That is still correct, since the map compares keys with '=', but every such pair shares a probe chain.
 
-A key type that is neither fails when Map is instantiated, naming HashOf inside the module:
+A key type that is none of these fails when Map is instantiated, inside the module, with a note naming the instantiation:
 
 ```freebasic
-...\pkg\std\containers\map.tiko(144,35): error TKO0632: no overload of 'hashof' matches these arguments
+...\pkg\std\containers\map.tiko(198,19): error TKO1266: hashvalue( ) cannot hash 'cell': it is not a built-in type, has no 'derive hash' and no HashOf( ) method
+sheet.tiko(5,8): note: in instantiation of 'map( of cell, ustring )'
 ```
 
-That is what a generic can say when its requirement is an overloaded procedure: a constraint names an interface, and `HashOf` is not one.
-
-Why an overloaded function rather than a HashCode( ) member: a member cannot be added to 'long' or 'string', and a generic body cannot branch on its type parameter -- 'typeof( T )' inside a generic sees the parameter, not what it is bound to. Ordinary overload resolution at the instantiation site is the mechanism that works. A USER type does carry a member, through Hashable, because a module's namespace cannot be re-opened and an overload declared in the importing program is invisible to Map's body, which belongs to the module.
+Why a compiler intrinsic rather than an overloaded HashOf: a member cannot be added to 'long' or 'string', and a generic body cannot branch on its type parameter -- 'typeof( T )' inside a generic sees the parameter, not what it is bound to. Nor can a program add a HashOf overload for its own type: a module's namespace cannot be re-opened, and an overload declared in the importing program is invisible to Map's body, which belongs to the module. `hashvalue( k )` is resolved by the compiler for the real key type at each instantiation, so it reaches a type's derived hash or its HashOf( ) member wherever the type was declared.
 
 Source: pkg/std/containers/hash.tiko
 
@@ -215,7 +228,7 @@ generics/container-map.bas is exhaustive: every member, empty / one / many state
 
 Complexity is ASSERTED, not assumed: 100k insertions must respect the 0.75 load factor, overwriting all 100k must not grow the table at all, and a 200-round add/remove churn must not let tombstones grow the capacity.
 
-generics/fail-container-nohash.bas pins the missing-HashOf diagnostic.
+generics/fail-container-nohash.bas pins the missing-hash diagnostic, TKO1266. tests/semantic/derive/hashkey-derived.tiko keys a Map with a `derive equal, hash` type and prints the same lookups and hashes as hashkey.tiko's hand-written HashOf( ).
 
 <!-- finder:start -->
 
@@ -254,6 +267,13 @@ Every entry, grouped by task. [Collections](Functions-Collections) lists them be
 | [Map.Keys](Modern-Map-Keys) | Returns a copy of all the keys as an Array, in no particular order. | `std/containers` |
 | [Map.Values](Modern-Map-Values) | Returns a copy of all the values as an Array, in no particular order. | `std/containers` |
 | [Map.Pairs](Modern-Map-Pairs) | Returns a view that lets for each (k, v) give each key and value as two variables. | `std/containers` |
+
+### Make a type of your own a key
+
+| Function | What it does | From |
+|---|---|---|
+| [derive](Derive) | Has the compiler write a type's comparisons, hash and `ToText( )` from its fields. | built-in |
+| [hashvalue](Hashvalue) | Returns the hash Map and Set use for a key: any built-in, derive hash or Hashable type. | built-in |
 
 ### Walk a container step by step
 

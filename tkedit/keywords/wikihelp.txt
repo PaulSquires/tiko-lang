@@ -534,6 +534,7 @@ defined	Defined
 degtorad	Modern-Math-DegToRad	Modern-Math-DegToRad
 deleteat	Modern-String-DeleteAt	Modern-String-DeleteAt
 depth	Modern-Fs-DirEntry-Depth	Modern-Fs-DirEntry-Depth
+derive	Derive	
 destructor	Destructor	
 destructor (module)	Destructor-Module	
 determinant	Modern-Math-Determinant	Modern-Math-Determinant
@@ -591,6 +592,9 @@ endofmonth	Modern-Chrono-DateTime-EndOfMonth	Modern-Chrono-DateTime-EndOfMonth
 endofyear	Modern-Chrono-DateTime-EndOfYear	Modern-Chrono-DateTime-EndOfYear
 endswith	Modern-String-EndsWith	Modern-String-EndsWith
 enum	Enum	
+enumcount	Enumcount	
+enumname	Enumname	
+enumvalue	Enumvalue	
 environ	Environ	
 eof	Eof	
 equals	Modern-String-Equals	Modern-String-Equals
@@ -757,6 +761,7 @@ graphics	Graphics-Keyword-List
 graphics keyword list	Graphics-Keyword-List	
 hasaccessed	Modern-Fs-FileInfo-HasAccessed	Modern-Fs-FileInfo-HasAccessed
 hascreated	Modern-Fs-FileInfo-HasCreated	Modern-Fs-FileInfo-HasCreated
+hashvalue	Hashvalue	
 hasoffset	Modern-Chrono-DateTime-HasOffset	Modern-Chrono-DateTime-HasOffset
 hasvalue	Modern-Optional-HasValue	Modern-Optional-HasValue
 hex	Hex	

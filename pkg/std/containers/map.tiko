@@ -24,8 +24,8 @@
 '' silently growing the map is the price.  Every language has this argument and
 '' none has won it; C# splits it the same way.  Use TryGet or Contains to READ.
 ''
-'' THE HASH CONTRACT is in hash.tiko: 'HashOf( k )' must resolve and 'k = k'
-'' must compare, and EQUAL KEYS MUST HASH EQUAL.
+'' THE HASH CONTRACT is in hash.tiko: 'hashvalue( k )' must resolve (a built-in type, a
+'' 'derive equal, hash' type or a Hashable), 'k = k' must compare, EQUAL KEYS MUST HASH EQUAL.
 ''
 '' IMPLEMENTATION.  Open addressing with linear probing, power-of-two capacity,
 '' Fibonacci hashing to pick the home slot (Mix), load factor 0.75, rehash

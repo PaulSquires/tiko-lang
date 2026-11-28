@@ -492,6 +492,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [defined](Defined) | Preprocessor function to test if a symbol has been defined. | [Preprocessor](Category-Preprocessor) |
 | [DegToRad](Modern-Math-DegToRad) | Converts an angle from degrees to radians. | [Math Library](Category-Math-Library) |
 | [DeleteAt](Modern-String-DeleteAt) | Deletes a number of characters at a position. | [String Library](Category-String-Library) |
+| [Derive](Derive) | Has the compiler write a type's comparisons, hash and `ToText( )` from its fields. | [User Defined Types](Category-User-Defined-Types) |
 | [Destructor](Destructor) | Called automatically when a class or user defined type goes out of scope or is destroyed. | [User Defined Types](Category-User-Defined-Types) |
 | [Destructor (Module)](Destructor-Module) | Specifies execution of a procedure at program termination. | [Procedures](Category-Procedures) |
 | [Determinant](Modern-Math-Determinant) | Returns the determinant of a matrix; zero means it has no inverse. | [Math Library](Category-Math-Library) |
@@ -548,6 +549,9 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [End If](End-If) | Control flow statement for conditional branching. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
 | [EndsWith](Modern-String-EndsWith) | Returns true if the string ends with the given text. | [String Library](Category-String-Library) |
 | [Enum](Enum) | Declares an enumerated type. | [User Defined Types](Category-User-Defined-Types) |
+| [EnumCount](Enumcount) | Returns the number of constants an enum declares, as a compile-time constant. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
+| [EnumName](Enumname) | Returns the name of the enum constant that has a value, as it is spelled in the declaration. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
+| [EnumValue](Enumvalue) | Returns an enum's i-th constant, counting from 0 in declaration order. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
 | [Environ](Environ) | Returns the value of an environment variable, or an empty string if it is not set. | [Operating System Functions](Category-Operating-System-Functions) |
 | [EOF](Eof) | Returns true when an open file has nothing left to read. | [File I/O Functions](Category-File-I-O-Functions) |
 | [Equals](Modern-String-Equals) | Returns true if two slices hold the same code units, optionally ignoring case. | [String Slices](Category-String-Slices) |
@@ -706,6 +710,7 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | Name | What it does | Category |
 |---|---|---|
 | [HasValue](Modern-Optional-HasValue) | Returns true if the Optional holds a value. | [Optional](Category-Optional) |
+| [HashValue](Hashvalue) | Returns the hash Map and Set use for a key: any built-in, derive hash or Hashable type. | [Miscellaneous Keywords](Category-Miscellaneous-Keywords) |
 | [Hex](Hex) | Returns a number as hexadecimal text. | [String Functions](Category-String-Functions) |
 | [HiByte](Hibyte) | Returns the second byte of a number, bits 8 to 15. | [Bit Manipulation](Category-Bit-Manipulation) |
 | [HiWord](Hiword) | Returns bits 16 to 31 of a number. | [Bit Manipulation](Category-Bit-Manipulation) |

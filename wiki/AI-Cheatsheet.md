@@ -452,6 +452,11 @@ end scope                                 '' destructors run here, in reverse or
 - A type with no constructor can be built from a positional list:
   `dim as Point p = ( 1, 2 )`, or `type( 1, 2 )` as an expression.
 - `enum Color … end enum`, `union … end union` and `type … extends Base` exist too.
+- A `derive equal, order, hash, text` line in a type has the compiler write `=`/`<>`,
+  `<` `>` `<=` `>=`, a hash for Map and Set keys, and `p.ToText( )` (`Point(x=1, y=2)`) from
+  the fields. `print p` still needs `p.ToText( )`.
+- `enumname( v )` is a value's constant name (`""` if none), `enumcount( E )` the number of
+  constants (a compile-time constant), `enumvalue( E, i )` the i-th in declaration order.
 
 **Inheritance and interfaces.**
 
@@ -733,8 +738,8 @@ print seen.Count( ); " "; seen.Contains( "y" )
 ```
 
 `Map` and `Set` iterate in no particular order. Use `OrderedMap` / `OrderedSet`, or sort
-`m.Keys( )` / `s.Items( )`. A `Map` key type of your own must extend `containers.Hashable`,
-override `HashOf( ) as ulongint`, and define `operator =`.
+`m.Keys( )` / `s.Items( )`. A `Map` key type of your own needs a `derive equal, hash` line, or must extend
+`containers.Hashable`, override `HashOf( ) as ulongint`, and define `operator =`.
 
 ## Concurrency
 

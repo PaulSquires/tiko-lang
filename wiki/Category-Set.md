@@ -8,7 +8,7 @@ Think of a guest list at a door: a name is either on the list or it is not, and 
 
 That makes a set the right tool for questions like *have I seen this before?* and *which distinct values are there?* A `Set` keeps its elements in a hash table, so adding, removing and checking take about the same time however many elements it holds.
 
-The elements can be any built-in type -- numbers, strings -- or a type of your own that extends `containers.Hashable` (see [The Hash Contract](#the-hash-contract)). The order a set hands its elements back in is not defined; if you need them sorted, use [OrderedSet](Category-OrderedSet).
+The elements can be any built-in type -- numbers, strings -- or a type of your own with a `derive equal, hash` line or that extends `containers.Hashable` (see [The Hash Contract](#the-hash-contract)). The order a set hands its elements back in is not defined; if you need them sorted, use [OrderedSet](Category-OrderedSet).
 
 The example below remembers which numbers it has already seen:
 
@@ -78,14 +78,28 @@ IntersectWith collects the doomed elements first and removes them afterwards. Re
 An element type T must satisfy:
 
 ```freebasic
-T extends containers.Hashable, or is a built-in type
+T is a built-in type, has 'derive equal, hash', or extends containers.Hashable
 v = v                must compare
 EQUAL ELEMENTS MUST PRODUCE EQUAL HASH CODES
 ```
 
-The converse is not required. Overloads are supplied for every built-in type; strings hash by CONTENT, and +0.0 / -0.0 hash the same because they compare equal.
+The converse is not required. The set hashes an element with [`hashvalue( v )`](Hashvalue), which the compiler supplies for every built-in type; strings hash by CONTENT, and +0.0 / -0.0 hash the same because they compare equal.
 
-A user type is made usable by EXTENDING containers.Hashable and overriding its abstract HashOf( ) member:
+The simplest element type of your own has a [`derive`](Derive) line, which writes '=' and the hash from the same fields:
+
+```freebasic
+#import "std/containers"
+using containers
+
+type Tag
+    derive equal, hash
+    as int32 id
+end type
+
+dim tags as Set( of Tag )
+```
+
+A user type can instead EXTEND containers.Hashable, override its abstract HashOf( ) member, and write '=' itself:
 
 ```freebasic
 #import "std/containers"
@@ -105,12 +119,13 @@ operator = ( byref x as Tag, byref y as Tag ) as boolean
 end operator
 ```
 
-Derive the hash only from the fields '=' compares.
+Hash only the fields '=' compares.
 
-An element type that is neither fails when Set is instantiated, naming HashOf inside the module:
+An element type that is none of these fails when Set is instantiated, inside the module, with a note naming the instantiation:
 
 ```freebasic
-...\pkg\std\containers\set.tiko(89,35): error TKO0632: no overload of 'hashof' matches these arguments
+...\pkg\std\containers\set.tiko(114,19): error TKO1266: hashvalue( ) cannot hash 'tag': it is not a built-in type, has no 'derive hash' and no HashOf( ) method
+tags.tiko(8,8): note: in instantiation of 'set( of tag )'
 ```
 
 Source: pkg/std/containers/hash.tiko
@@ -173,7 +188,7 @@ src/tests/generics/container-set.bas is exhaustive: every member, empty / one / 
 
 Complexity is ASSERTED, not assumed: 100k insertions must respect the 0.75 load factor, re-adding all 100k must not grow the table at all, and a 200-round add/remove churn must not let tombstones grow the capacity.
 
-src/tests/generics/fail-container-nohash-set.bas pins the missing-HashOf diagnostic.
+src/tests/generics/fail-container-nohash-set.bas pins the missing-hash diagnostic, TKO1266.
 
 <!-- finder:start -->
 
@@ -198,6 +213,13 @@ Every entry, grouped by task. [Collections](Functions-Collections) lists them be
 | [Set.IsEmpty](Modern-Set-IsEmpty) | Returns true if the set has no values. | `std/containers` |
 | [Set.Clear](Modern-Set-Clear) | Removes every value. | `std/containers` |
 | [Set.Items](Modern-Set-Items) | Returns a copy of all the values as an Array, in no particular order. | `std/containers` |
+
+### Make a type of your own a key
+
+| Function | What it does | From |
+|---|---|---|
+| [derive](Derive) | Has the compiler write a type's comparisons, hash and `ToText( )` from its fields. | built-in |
+| [hashvalue](Hashvalue) | Returns the hash Map and Set use for a key: any built-in, derive hash or Hashable type. | built-in |
 
 ### Combine sets
 

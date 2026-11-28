@@ -1,10 +1,21 @@
 #module "containers"
 '' std/containers: hash -- the hash contract for containers.Map and containers.Set
 ''
-'' A key type K is hashable if 'HashOf( k )' resolves and 'k = k'
-'' compares.  Overloads are supplied here for every built-in type; a user type is
-'' made hashable by extending Hashable and giving it a HashOf( ) member -- see
-'' Hashable at the end of this file:
+'' A key type K is hashable if 'hashvalue( k )' resolves and 'k = k' compares.
+'' hashvalue( k ) is the compiler's (RFC 0019 R5), and Map and Set hash every key
+'' through it (Mix, under __TIKO_HASHVALUE__; a seed that predates it calls HashOf( k )).
+'' It knows every built-in type, with the values the HashOf overloads below give; a
+'' type with a 'derive equal, hash' line, whose '=' and hash the compiler writes from
+'' the same fields:
+''
+''     type MyKey
+''         derive equal, hash
+''         as string name
+''         as long id
+''     end type
+''
+'' and a type with a 'HashOf( ) as ulongint' member, such as one that extends
+'' Hashable -- see Hashable at the end of this file -- and writes its own '=':
 ''
 ''     type MyKey extends containers.Hashable
 ''         as string name
@@ -22,21 +33,22 @@
 '' The converse is not required -- two different keys may collide, and the
 '' containers handle that.
 ''
-'' Why an overloaded function rather than a 'HashCode( )' member: a member cannot
-'' be added to 'long' or 'string', and a
-'' generic body cannot branch on its type parameter.  'typeof( T )' inside a
-'' generic sees the type parameter, not what it is bound to --
+'' Why the compiler's hashvalue( k ), and before it an overloaded function, rather than a
+'' 'HashCode( )' member: a member cannot be added to 'long' or 'string', and a generic
+'' body cannot branch on its type parameter.  'typeof( T )' inside a generic sees the
+'' type parameter, not what it is bound to --
 ''
 ''     type Alias1 as long
 ''     #if typeof( Alias1 ) = typeof( long )   '' matches
 ''     #if typeof( T ) = typeof( long )        '' does NOT match, T bound to long
 ''
-'' -- measured, not assumed.  So the dispatch has to be ordinary overload
-'' resolution, which happens at the instantiation site where every overload is
-'' in scope.
+'' -- measured, not assumed.  So the dispatch has to happen at the instantiation
+'' site, for the real key type: ordinary overload resolution, where every overload
+'' is in scope, and now hashvalue( k ), which the compiler resolves there.
 ''
-'' A key type with no matching overload fails at the instantiation site naming
-'' HashOf, which is the usual unconstrained-generics diagnostic.
+'' A key type that is none of these fails inside Map's or Set's body with TKO1266
+'' ('hashvalue( ) cannot hash ...'), and a note naming the instantiation.  The HashOf
+'' overloads below stay public, for code that hashes a value itself.
 ''
 '' EVERY OVERLOAD BELOW IS PUBLIC, defined once: std/containers is one module. As fb/hash.bi they
 '' were 'PRIVATE', as HashBytes and HashInt were: that was header-only code with no .bas behind
@@ -248,11 +260,13 @@ public function HashOf overload ( byref v as const ustring ) as ulongint
 end function
 
 
-'' A USER TYPE'S HASH: its own HashOf( ) member, through the abstract base Hashable. As
+'' A USER TYPE'S HASH, WRITTEN BY HAND: its own HashOf( ) member, through the abstract base
+'' Hashable. 'derive equal, hash' (above) is the shorter way, and cannot break the contract;
+'' this one is for a key whose '=' is not field by field (a case-blind name, say). As
 '' fb/hash.bi a user type was made hashable by re-opening namespace FB and adding a HashOf
 '' overload; a module's namespace cannot be re-opened, and an overload declared anywhere else
 '' is invisible to Map's and Set's bodies, which are the module's. So a key type carries its
-'' hash with it:
+'' hash with it, and hashvalue( k ) calls it:
 ''
 ''     type PairKey extends containers.Hashable
 ''         as long a, b

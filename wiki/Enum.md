@@ -48,6 +48,7 @@ End Enum
 ### See also
 
 - [`Const`](Const)
+- [`enumname`](Enumname) · [`enumcount`](Enumcount) · [`enumvalue`](Enumvalue) — an enum value's name, the number of constants, the i-th constant
 - [`Operator`](Operator)
 - [`Table with variable types overview, limits and suffixes`](Standard-Data-Type-Limits)
 
