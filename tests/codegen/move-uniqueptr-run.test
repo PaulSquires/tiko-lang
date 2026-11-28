@@ -1,0 +1,18 @@
+'' RUN: std/memory's UniquePtr( of T ) (RFC 0018 P4): returned from a function, moved into a dim
+'' and a byval argument, Reset and Release, and held in an Array( of UniquePtr ) through growth,
+'' RemoveSwap and SetCount. Res counts its live objects, so a leak or a double delete shows as a
+'' wrong count. The probe is tests/semantic/moves/uniqueptr.bas.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/semantic/moves/uniqueptr.bas -o tests/codegen/moveuniqueptr.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/moveuniqueptr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: U1 returned: 1  live 1
+'' EXPECT-RUN-OUT: U2 b = move( a ): b 1, a null true  live 1
+'' EXPECT-RUN-OUT: U3 after Use( move( b ) ): b null true  live 0
+'' EXPECT-RUN-OUT: U4 Reset: 5  live 1
+'' EXPECT-RUN-OUT: U5 Release: c null true, raw 5  live 1
+'' EXPECT-RUN-OUT: U6 Array of 21 owners: last 7, d null true  live 21
+'' EXPECT-RUN-OUT: U7 after RemoveSwap and SetCount( 10 ): count 10  live 10
+'' EXPECT-RUN-OUT: U8 live after scope: 0

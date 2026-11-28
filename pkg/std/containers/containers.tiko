@@ -41,8 +41,10 @@
 ''   - Array indices are ZERO-BASED, breaking with 'dim arr(1 to 10)' tradition.
 ''   - Map's indexer m[ k ] INSERTS on a miss.  Use TryGet or Contains to read.
 ''     OrderedMap's does the same.
-''   - Copy and assignment are DEEP for all six.  There is no move constructor
-''     in the language, so pass them BYREF where it matters.
+''   - Copy and assignment are DEEP for all six; a MOVE copies nothing -- a
+''     container returned from a function, or 'move( c )' (RFC 0018).  Pass one
+''     BYREF when the callee only reads it.  Push, Insert, Put, Add and the
+''     Deque / LinkedList pushes take their value BY VALUE and move it in.
 ''   - Map and Set need a HASH; OrderedMap and OrderedSet need only '<'.  Reach
 ''     for the ordered ones when you want the ORDER, not as a default: they are
 ''     O(log n) where the hash ones are O(1), and allocate per element.

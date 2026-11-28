@@ -1,0 +1,141 @@
+L1 Array.Push( Make( ) ), Push( T( n ) )
+  ctor #1
+  ctor #2
+  ctor #3
+  ctor #4
+  ctor #5
+  ctor #6
+  ctor #7
+  ctor #8
+  (reserve): ctor=8 copy=0 let=0 dtor=0 balance=-
+
+  ctor #9 (1)
+  dtor #1
+  ctor #10 (2)
+  dtor #2
+L1: ctor=2 copy=0 let=0 dtor=2 balance=-
+
+  dtor #8
+  dtor #7
+  dtor #6
+  dtor #5
+  dtor #4
+  dtor #3
+  dtor #10
+  dtor #9
+L1 end: ctor=0 copy=0 let=0 dtor=8 balance=-
+
+L2 Array.Push( lvalue ): one copy, and the caller keeps its own
+  ctor #11
+  ctor #12
+  ctor #13
+  ctor #14
+  ctor #15
+  ctor #16
+  ctor #17
+  ctor #18
+  ctor #19 (3)
+  (setup): ctor=9 copy=0 let=0 dtor=0 balance=-
+
+  COPY #20 <- #19
+  dtor #11
+  x still t19
+L2: ctor=0 copy=1 let=0 dtor=1 balance=-
+
+  dtor #19
+  dtor #18
+  dtor #17
+  dtor #16
+  dtor #15
+  dtor #14
+  dtor #13
+  dtor #12
+  dtor #20
+L2 end: ctor=0 copy=0 let=0 dtor=9 balance=-
+
+L3 Array.Insert( 0, Make( ) )
+  ctor #21
+  ctor #22
+  ctor #23
+  ctor #24
+  ctor #25
+  ctor #26
+  ctor #27
+  ctor #28
+  ctor #29 (4)
+  dtor #21
+  (setup): ctor=9 copy=0 let=0 dtor=1 balance=-
+
+  ctor #30 (5)
+  dtor #22
+L3: ctor=1 copy=0 let=0 dtor=1 balance=-
+
+  dtor #28
+  dtor #27
+  dtor #26
+  dtor #25
+  dtor #24
+  dtor #23
+  dtor #29
+  dtor #30
+L3 end: ctor=0 copy=0 let=0 dtor=8 balance=-
+
+L4 Map.Put( k, Make( ) ), Put over an existing key
+  ctor #31 (6)
+  ctor #32
+  ctor #33
+  ctor #34
+  ctor #35
+  ctor #36
+  ctor #37
+  ctor #38
+  ctor #39
+  dtor #36
+  ctor #40 (7)
+  dtor #31
+  m[1] = t40
+L4: ctor=10 copy=0 let=0 dtor=2 balance=-
+
+  dtor #39
+  dtor #38
+  dtor #37
+  dtor #40
+  dtor #35
+  dtor #34
+  dtor #33
+  dtor #32
+L4 end: ctor=0 copy=0 let=0 dtor=8 balance=-
+
+L5 Deque.PushBack / PushFront, LinkedList.PushBack( Make( ) )
+  ctor #41
+  ctor #42
+  ctor #43
+  ctor #44
+  ctor #45
+  ctor #46
+  ctor #47
+  ctor #48
+  (reserve): ctor=8 copy=0 let=0 dtor=0 balance=-
+
+  ctor #49 (8)
+  dtor #41
+  ctor #50 (9)
+  dtor #48
+  ctor #51 (10)
+  ctor #52
+  dtor #52
+L5: ctor=4 copy=0 let=0 dtor=3 balance=-
+
+  dtor #51
+  dtor #50
+  dtor #47
+  dtor #46
+  dtor #45
+  dtor #44
+  dtor #43
+  dtor #42
+  dtor #49
+L5 end: ctor=0 copy=0 let=0 dtor=9 balance=-
+
+all: made=52 destroyed=52 balance=ok
+-- end of main

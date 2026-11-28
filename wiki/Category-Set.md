@@ -154,7 +154,7 @@ Source: pkg/std/containers/set.tiko
 
 ## Ownership AND Copying
 
-The set owns its storage. COPY AND ASSIGNMENT ARE DEEP. That is expensive and there is no move constructor in the language to avoid it; pass sets BYREF where it matters. A Set( of T ptr ) frees the TABLE, not the pointees.
+The set owns its storage. COPY AND ASSIGNMENT ARE DEEP. That is expensive; a [move](Category-Move-Semantics) is not -- a set returned from a function, or `move( s )`, copies nothing. Pass a set BYREF when the callee only reads it. A Set( of T ptr ) frees the TABLE, not the pointees.
 
 ## Iterator Invalidation
 

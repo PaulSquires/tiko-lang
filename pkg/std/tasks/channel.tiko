@@ -151,7 +151,7 @@ public type Channel( of T )
     declare destructor( )
     declare operator let( byref rhs as Channel( of T ) )
 
-    declare function Send      ( byref v   as T ) as boolean
+    declare function Send      ( byval v   as T ) as boolean   '' v is the channel's own: see Send
     declare function Receive   ( byref out as T ) as boolean
     declare function TrySend   ( byref v   as T ) as boolean
     declare function TryReceive( byref out as T ) as boolean
@@ -459,7 +459,11 @@ end function
 
 '' --------------------------------------------------------------------- send
 
-function Channel( of T ).Send( byref v as T ) as boolean
+'' v IS THE CHANNEL'S OWN (RFC 0018): a copy of an lvalue, or a temporary or 'move( x )' handed
+'' over with none. A handoff or a buffered send SWAPS it in, so nothing is copied; only the
+'' blocking path below still lets the receiver copy out of it. TrySend and SendFor stay byref:
+'' they can fail, and a value moved into a failed send would be lost.
+function Channel( of T ).Send( byval v as T ) as boolean
     if( this.st = nullptr ) then
         hBlockForever( )
         return FALSE
@@ -481,7 +485,7 @@ function Channel( of T ).Send( byref v as T ) as boolean
     ''    output variable and never enters the buffer -- see the file header.
     dim as ChanWaiterCore ptr w = hPopRecv( @s->core )
     if( w ) then
-        *(cptr( ChanWaiter( of T ) ptr, w )->slot) = v
+        swap *(cptr( ChanWaiter( of T ) ptr, w )->slot), v
         w->closedwake = FALSE
         MutexUnlock( s->core.lok )
         Unpark( w->parker )
@@ -490,7 +494,7 @@ function Channel( of T ).Send( byref v as T ) as boolean
 
     '' 2. Buffer, if there is room.
     if( s->core.num < s->core.cap ) then
-        s->buf( s->core.tail ) = v
+        swap s->buf( s->core.tail ), v
         s->core.tail = ( s->core.tail + 1 ) mod s->core.cap
         s->core.num += 1
         MutexUnlock( s->core.lok )
@@ -619,7 +623,7 @@ function Channel( of T ).Receive( byref out as T ) as boolean
     '' 1. Buffered item first, so a close never discards what was sent before
     ''    it and order is preserved when senders are also queued.
     if( s->core.num > 0 ) then
-        out = s->buf( s->core.head )
+        scope : dim as T took : swap took, s->buf( s->core.head ) : swap out, took : end scope   '' moved out, RFC 0018
         s->core.head = ( s->core.head + 1 ) mod s->core.cap
         s->core.num -= 1
 
@@ -681,7 +685,7 @@ function Channel( of T ).TryReceive( byref out as T ) as boolean
     MutexLock( s->core.lok )
 
     if( s->core.num > 0 ) then
-        out = s->buf( s->core.head )
+        scope : dim as T took : swap took, s->buf( s->core.head ) : swap out, took : end scope   '' moved out, RFC 0018
         s->core.head = ( s->core.head + 1 ) mod s->core.cap
         s->core.num -= 1
         dim as ChanWaiterCore ptr w = hPopSend( @s->core )
@@ -722,7 +726,7 @@ function Channel( of T ).ReceiveFor( byref out as T, byval ms as ulong ) as bool
     MutexLock( s->core.lok )
 
     if( s->core.num > 0 ) then
-        out = s->buf( s->core.head )
+        scope : dim as T took : swap took, s->buf( s->core.head ) : swap out, took : end scope   '' moved out, RFC 0018
         s->core.head = ( s->core.head + 1 ) mod s->core.cap
         s->core.num -= 1
         dim as ChanWaiterCore ptr w = hPopSend( @s->core )
@@ -867,7 +871,7 @@ function ChanCommitRecvLocked( of T ) _
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, ch.Handle( ) )
 
     if( s->core.num > 0 ) then
-        *dst = s->buf( s->core.head )
+        scope : dim as T took : swap took, s->buf( s->core.head ) : swap *dst, took : end scope   '' moved out, RFC 0018
         s->core.head = ( s->core.head + 1 ) mod s->core.cap
         s->core.num -= 1
 

@@ -1,0 +1,74 @@
+'' moves.tiko -- RFC 0018: what moving instead of copying is worth, in four workloads.
+''
+'' Each prints its elapsed seconds and a checksum (so the work cannot be optimised away and
+'' both compilers can be seen to agree). Built at -O2 with -mt; compare the P0 compiler over
+'' master's std against this tree -- see bench/README.md, "Moves".
+#import "std/containers"
+#import "std/tasks"
+
+type Rec
+    as string name
+    as int32 id
+end type
+
+function BuildNames( byval n as int32 ) as containers.Array( of string )
+    dim as containers.Array( of string ) a
+    a.Reserve( n )
+    for i as int32 = 0 to n - 1
+        a.Push( "name-" & i )
+    next
+    return a
+end function
+
+function MakeRec( byval i as int32 ) as Rec
+    dim as Rec r
+    r.name = "record number " & i & " with a payload long enough to allocate"
+    r.id = i
+    return r
+end function
+
+dim as double t0
+dim as int64 sum
+
+'' 1. a 200,000-string array returned from a function, 20 times
+t0 = timer : sum = 0
+for k as int32 = 1 to 20
+    dim as containers.Array( of string ) names = BuildNames( 200000 )
+    sum += names.Count( ) + len( names[ 199999 ] )
+next
+print using "return-array   ##.### s  sum &"; timer - t0; sum
+
+'' 2. 1,000,000 records pushed from a function result
+t0 = timer : sum = 0
+scope
+    dim as containers.Array( of Rec ) recs
+    for i as int32 = 0 to 999999
+        recs.Push( MakeRec( i ) )
+    next
+    sum = recs.Count( ) + len( recs[ 999999 ].name )
+end scope
+print using "push-records   ##.### s  sum &"; timer - t0; sum
+
+'' 3. 300,000 Map.Put of a function result
+t0 = timer : sum = 0
+scope
+    dim as containers.Map( of int32, Rec ) m
+    for i as int32 = 0 to 299999
+        m.Put( i, MakeRec( i ) )
+    next
+    sum = m.Count( ) + m[ 299999 ].id
+end scope
+print using "map-put        ##.### s  sum &"; timer - t0; sum
+
+'' 4. 1,000,000 records through a buffered channel, sent and received on one thread
+t0 = timer : sum = 0
+scope
+    dim as tasks.Channel( of Rec ) ch = tasks.Channel( of Rec )( 64 )
+    dim as Rec got
+    for i as int32 = 0 to 999999
+        ch.Send( MakeRec( i ) )
+        ch.Receive( got )
+        sum += got.id
+    next
+end scope
+print using "channel        ##.### s  sum &"; timer - t0; sum

@@ -49,8 +49,8 @@ public type Deque( of T )
     as long cap_        '' slots allocated -- see Capacity( )
 
     public:
-    declare sub PushBack( byref v as T )
-    declare sub PushFront( byref v as T )
+    declare sub PushBack( byval v as T )
+    declare sub PushFront( byval v as T )
     declare function PopBack( ) as T
     declare function PopFront( ) as T
     declare function TryPopBack( byref outv as T ) as boolean
@@ -134,37 +134,32 @@ end sub
 '' v may refer INTO this deque -- 'd.PushBack( d[ 0 ] )' -- and a growing Reserve
 '' swaps every element out of the old ring and frees it, so on growth v is
 '' copied FIRST.  Only on growth: the common push pays no extra copy.
-sub Deque( of T ).PushBack( byref v as T )
+'' v IS THE CONTAINER'S OWN (RFC 0018): a copy of an lvalue, or a temporary or 'move( x )'
+'' handed over with no copy at all. It is SWAPPED into place, so nothing is copied here --
+'' and because v is not the caller's object, it cannot point INTO this container when a
+'' growth reallocates.
+sub Deque( of T ).PushBack( byval v as T )
     if( this.num >= this.Capacity( ) ) then
-        dim as T tmp = v
         this.Reserve( this.num + 1 )
         if( this.num >= this.Capacity( ) ) then
             exit sub
         end if
-        dim as long mask = this.Capacity( ) - 1
-        swap this.items( ( this.head_ + this.num ) and mask ), tmp
-    else
-        dim as long mask = this.Capacity( ) - 1
-        this.items( ( this.head_ + this.num ) and mask ) = v
     end if
+    dim as long mask = this.Capacity( ) - 1
+    swap this.items( ( this.head_ + this.num ) and mask ), v
     this.num += 1
 end sub
 
-sub Deque( of T ).PushFront( byref v as T )
+sub Deque( of T ).PushFront( byval v as T )
     if( this.num >= this.Capacity( ) ) then
-        dim as T tmp = v
         this.Reserve( this.num + 1 )
         if( this.num >= this.Capacity( ) ) then
             exit sub
         end if
-        dim as long mask = this.Capacity( ) - 1
-        this.head_ = ( this.head_ - 1 ) and mask
-        swap this.items( this.head_ ), tmp
-    else
-        dim as long mask = this.Capacity( ) - 1
-        this.head_ = ( this.head_ - 1 ) and mask
-        this.items( this.head_ ) = v
     end if
+    dim as long mask = this.Capacity( ) - 1
+    this.head_ = ( this.head_ - 1 ) and mask
+    swap this.items( this.head_ ), v
     this.num += 1
 end sub
 

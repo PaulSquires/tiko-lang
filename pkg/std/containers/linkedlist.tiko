@@ -57,8 +57,8 @@ public type LinkedList( of T )
     declare function LastNode( ) as LinkedNode( of T ) ptr
     declare sub Relink( byval first as LinkedNode( of T ) ptr, byval last as LinkedNode( of T ) ptr )
 
-    declare sub PushFront( byref v as T )
-    declare sub PushBack( byref v as T )
+    declare sub PushFront( byval v as T )
+    declare sub PushBack( byval v as T )
     declare function PopFront( ) as T
     declare function PopBack( ) as T
     declare function Front( ) byref as T
@@ -126,13 +126,13 @@ function LinkedList( of T ).IsEmpty( ) as boolean
     return this.num = 0
 end function
 
-sub LinkedList( of T ).PushFront( byref v as T )
-    '' Copy first: v may refer INTO this list -- 'q.PushFront( q.Back( ) )' is
-    '' legal -- and the node is linked in before the value is stored.
-    dim as T vv = v
-
+'' v IS THE CONTAINER'S OWN (RFC 0018): a copy of an lvalue, or a temporary or 'move( x )'
+'' handed over with no copy at all. It is SWAPPED into place, so nothing is copied here --
+'' and because v is not the caller's object, it cannot point INTO this container when a
+'' growth reallocates.
+sub LinkedList( of T ).PushFront( byval v as T )
     dim as LinkedNode( of T ) ptr n = new LinkedNode( of T )
-    n->value = vv
+    swap n->value, v
     n->prv = nullptr
     n->nxt = this.head
 
@@ -146,11 +146,9 @@ sub LinkedList( of T ).PushFront( byref v as T )
     this.num += 1
 end sub
 
-sub LinkedList( of T ).PushBack( byref v as T )
-    dim as T vv = v
-
+sub LinkedList( of T ).PushBack( byval v as T )
     dim as LinkedNode( of T ) ptr n = new LinkedNode( of T )
-    n->value = vv
+    swap n->value, v
     n->nxt = nullptr
     n->prv = this.tail
 

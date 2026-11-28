@@ -1,0 +1,27 @@
+'' RFC 0018 P4: what a BUFFERED channel copies. Send takes its value by value and swaps it into
+'' the buffer; Receive swaps it out. Three temporaries sent and received: no copy and no let
+'' (master copied each one in and out again). Needs -mt.
+#import "std/tasks"
+#include once "../../semantic/moves/count.bi"
+
+function Make( byval n as long ) as T
+    dim as T r = T( n )
+    return r
+end function
+
+scope
+    dim as tasks.Channel( of T ) ch = tasks.Channel( of T )( 4 )
+    dim as T got
+    Report "setup", -1
+    for i as long = 1 to 3
+        ch.Send( Make( i ) )
+    next
+    Report "send x3", -1
+    for i as long = 1 to 3
+        ch.Receive( got )
+        print "  got " & got.s
+    next
+    Report "receive x3", -1
+end scope
+Report "end", -1
+ReportAll( )

@@ -1,0 +1,15 @@
+'' RUN: a buffered tasks.Channel moves (RFC 0018 P4) -- Send takes its value by value and swaps it
+'' into the buffer, Receive swaps it out: three temporaries sent and received with no copy and no
+'' let. Master (P0) printed 'send x3: ctor=3 copy=3 let=3 dtor=6' and 'receive x3: ... let=3'.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/codegen/src/move-channel.tiko -o tests/codegen/movechannel.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/movechannel.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: send x3: ctor=3 copy=0 let=0 dtor=3 balance=-
+'' EXPECT-RUN-OUT:   got t6
+'' EXPECT-RUN-OUT:   got t7
+'' EXPECT-RUN-OUT:   got t8
+'' EXPECT-RUN-OUT: receive x3: ctor=3 copy=0 let=0 dtor=3 balance=-
+'' EXPECT-RUN-OUT: all: made=11 destroyed=11 balance=ok

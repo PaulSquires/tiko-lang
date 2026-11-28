@@ -1,0 +1,12 @@
+'' std/memory's UniquePtr( of T ) (RFC 0018 P4) refuses every copy -- 'dim b = a', 'b = a'
+'' (TKO0746), a byval argument and an Array Push of an lvalue (TKO0633) -- and takes
+'' 'xs.Push( move( a ) )' on the last line. TKO0746 still spells the instance by its internal
+'' key ('uniqueptr<6>'), so only its id and line are asserted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/move-uniqueptr.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: move-uniqueptr.tiko(10,1): error TKO0746
+'' EXPECT-OUT: move-uniqueptr.tiko(11,6): error TKO0633: 'uniqueptr( of long )' needs a constructor or destructor that is not accessible here
+'' EXPECT-OUT: move-uniqueptr.tiko(13,10): error TKO0633: 'uniqueptr( of long )' needs a constructor or destructor that is not accessible here
+'' EXPECT-OUT: move-uniqueptr.tiko(9,36): error TKO0633: 'b' needs a constructor or destructor that is not accessible here
+'' EXPECT-NOT: move-uniqueptr.tiko(14,

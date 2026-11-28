@@ -1742,9 +1742,9 @@ Print this. Almost every bug in a first concurrent program is on it.
 * [ ] **`Count( )` and `IsClosed( )` are snapshots.** Metrics only, never control
       flow. Use `TryReceive`.
 * [ ] **Capacity 0 is a rendezvous**, not a zero-length buffer.
-* [ ] **For a large `T`, send a pointer.** Every send copies, and a buffered send
-      copies twice; there is no move constructor in the language. `T` must be
-      default-constructible, copy-constructible and destructible.
+* [ ] **Send a temporary or `move( x )`.** `Send` moves its value in and `Receive`
+      moves it out of the buffer; a variable sent as it is is copied once. `T` must
+      be default-constructible, copy-constructible and destructible.
 
 **`spawn`**
 

@@ -45,10 +45,23 @@ end destructor
 '' One line per case: the four counts, and whether every object made was destroyed.
 '' 'live' is how many the case leaves alive ON PURPOSE (a shared or static object,
 '' destroyed at program end), so balance means made - destroyed = live.
+'' A NEGATIVE 'live' asks for no balance at all -- a case reported in pieces (library.bas)
+'' balances only across them, which ReportAll answers.
+dim shared as long allMade, allGone
 sub Report( byref tag as string, byval live as long = 0 )
     dim as string bal = "ok"
-    if nCtor + nCopy - nDtor <> live then bal = "UNBALANCED"
+    allMade += nCtor + nCopy : allGone += nDtor
+    if live < 0 then
+        bal = "-"
+    elseif nCtor + nCopy - nDtor <> live then
+        bal = "UNBALANCED"
+    end if
     print tag & ": ctor=" & nCtor & " copy=" & nCopy & " let=" & nLet & " dtor=" & nDtor & " balance=" & bal
     print
     nCtor = 0 : nCopy = 0 : nLet = 0 : nDtor = 0
+end sub
+
+'' Everything made and destroyed since the program began, across every Report.
+sub ReportAll( byval live as long = 0 )
+    print "all: made=" & allMade & " destroyed=" & allGone & " balance=" & iif( allMade - allGone = live, "ok", "UNBALANCED" )
 end sub
