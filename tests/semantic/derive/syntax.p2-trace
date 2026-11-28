@@ -1,0 +1,5 @@
+BUILD FAILED rc=1
+tests/semantic/derive/syntax.tiko(24,7): error TKO0743: 'enumname' is not declared
+     |
+  24 | print enumname( GREEN ); " "; enumcount( Colour ); " "; enumvalue( Colour, 0 )
+     |       ^

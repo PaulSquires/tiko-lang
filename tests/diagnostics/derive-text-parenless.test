@@ -1,0 +1,6 @@
+'' TKO0992: 'p.ToText' without parentheses is a P2 limit of RFC 0019; 'p.ToText( )' is the form.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-text-parenless.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-text-parenless.bas(7,8): error TKO0992: not implemented in this build: 'ToText' without parentheses
+'' EXPECT-MAX-DIAG: 1

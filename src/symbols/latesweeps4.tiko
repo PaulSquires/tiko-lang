@@ -751,6 +751,7 @@ private sub CheckUnprintable_ ( byref c as Ctx, byval id as NodeId )
         dim as TypeId bt = Unprintable_( c, it )
         if bt <> TYPE_NONE then
             c.diags->Report( TKO0871, PointRange( c.ast->Loc( it ) ), UnprintableName_( c, bt ), what )
+            DeriveTextNote_( c, bt )   '' derive.tiko (RFC 0019)
             return
         end if
     next
@@ -767,7 +768,7 @@ private sub CheckUnprintableStr_ ( byref c as Ctx, byval id as NodeId )
     if (nm <> "str") andalso (nm <> "wstr") then return
     dim as NodeId a = cast( NodeId, c.ast->ChildSlot( lp->first ) )
     dim as TypeId bt = Unprintable_( c, a )
-    if bt <> TYPE_NONE then c.diags->Report( TKO0871, PointRange( c.ast->Loc( a ) ), UnprintableName_( c, bt ), nm )
+    if bt <> TYPE_NONE then c.diags->Report( TKO0871, PointRange( c.ast->Loc( a ) ), UnprintableName_( c, bt ), nm ) : DeriveTextNote_( c, bt )
 end sub
 
 '' A TUPLE's MEMBERS ARE '_1' TO '_n' AND NOTHING ELSE. Measured on fbc-modern 1.20,

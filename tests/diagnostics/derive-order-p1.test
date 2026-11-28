@@ -1,6 +1,0 @@
-'' TKO0992: 'derive order' is P2 of RFC 0019; P1 refuses it as not implemented.
-'' TEST: cli
-'' ARGS: --dump-ir tests/diagnostics/src/derive-order-p1.bas
-'' EXPECT-EXIT: 1
-'' EXPECT-OUT: derive-order-p1.bas(3,19): error TKO0992: not implemented in this build: derive order
-'' EXPECT-MAX-DIAG: 1

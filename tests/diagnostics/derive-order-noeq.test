@@ -1,0 +1,6 @@
+'' TKO1268: 'derive order' without 'derive equal' (RFC 0019 R3).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-order-noeq.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-order-noeq.bas(3,5): error TKO1268
+'' EXPECT-MAX-DIAG: 1

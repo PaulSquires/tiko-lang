@@ -1,0 +1,6 @@
+'' TKO1269: 'derive text' on a type that writes its own ToText( ) (RFC 0019 R6).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-text-exists.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-text-exists.bas(3,5): error TKO1269
+'' EXPECT-MAX-DIAG: 1

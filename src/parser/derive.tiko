@@ -10,9 +10,8 @@
 '' identifier follows it. 'derive as int32' is still a field named derive, and 'as int32
 '' derive' never reaches here (tests/semantic/derive/contextual.bas pins both).
 ''
-'' THE WORDS are equal, order, hash and text. This build implements equal and hash (P1);
-'' order and text are TKO0992, "not implemented in this build", until P2. Several lines
-'' merge. The line is recorded on the N_TYPE in AstArena.deriveLists (ast/astimpl.tiko),
+'' THE WORDS are equal, order, hash and text (P1 equal and hash, P2 order and text). Several
+'' lines merge. The line is recorded on the N_TYPE in AstArena.deriveLists (ast/astimpl.tiko),
 '' read by Collect, Check, Sem and lowering through DeriveOf; it makes no member and no
 '' node in the tree, so no walk meets it.
 ''
@@ -62,8 +61,8 @@ function DeriveBodyLine _
         select case w
         case "equal" : mask or= Tko.DERIVE_EQUAL
         case "hash"  : mask or= Tko.DERIVE_HASH
-        case "order", "text"
-            Report_( p, Tko.TKO0992, wt.loc, "derive " & w )
+        case "order" : mask or= Tko.DERIVE_ORDER
+        case "text"  : mask or= Tko.DERIVE_TEXT
         case else
             Report_( p, Tko.TKO1258, wt.loc, p.names->Spelling( cast( Tko.InternId, wt.literal ) ) )
         end select

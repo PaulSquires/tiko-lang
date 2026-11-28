@@ -207,3 +207,4 @@ io/printerwin.tiko
 io/conreadstr.tiko
 io/devwidth2.tiko
 misc/hash.tiko
+misc/text.tiko

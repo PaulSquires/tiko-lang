@@ -935,6 +935,8 @@ namespace Tko.Mir
         RTL( RTL_HASH_INT,              "tko_HashInt",             "q",   "q"         )
         RTL( RTL_HASH_F32,              "tko_HashF32",             "q",   "f"         )
         RTL( RTL_HASH_F64,              "tko_HashF64",             "q",   "d"         )
+        '' 'derive text' (RFC 0019 R6): a ustring in double quotes, a quote doubled. lib/rt/src/misc/text.tiko.
+        RTL( RTL_USTR_QUOTE,            "tko_UStrQuote",           "p",   "pz"        )
         RTL( RTL_LPRINT_BOOL,          "fb_LPrintBool",           "v",   "lbl"       )
         RTL( RTL_LPRINT_BYTE,          "fb_LPrintByte",           "v",   "lbl"       )
         RTL( RTL_LPRINT_DOUBLE,        "fb_LPrintDouble",         "v",   "ldl"       )

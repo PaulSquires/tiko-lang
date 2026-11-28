@@ -1,0 +1,6 @@
+'' TKO1263 for 'derive order' beside a hand-written 'operator <' (RFC 0019 R3).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-written-order.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-written-order.bas(3,5): error TKO1263: 't' has 'derive order' and a hand-written 'operator <'
+'' EXPECT-MAX-DIAG: 2

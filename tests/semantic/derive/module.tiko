@@ -18,3 +18,9 @@ dim as containers.Map( of derivemod.Key, int32 ) m
 m[ a ] = 10
 m[ c ] = 20
 print "Map count "; m.Count( ); "  m[ b ] "; m[ b ]; "  contains c "; m.Contains( c )
+
+'' P2: a module type ordered and printed from the importer.
+dim as derivemod.Ranked r1, r2
+r1.rank = 1 : r1.name = "alpha"
+r2.rank = 1 : r2.name = "beta"
+print "Ranked < "; r1 < r2; "  "; r1.ToText( ); " "; r2.ToText( )

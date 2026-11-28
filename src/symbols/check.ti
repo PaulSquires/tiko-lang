@@ -271,6 +271,17 @@ namespace Tko.Check
         ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
           byref names as Tko.Interner, byval t as Tko.TypeId, _
           byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function DeriveOrderGap _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
+          byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function DeriveTextGap _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId, _
+          byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    declare function UdtToTextMethod _
+        ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+          byref names as Tko.Interner, byval t as Tko.TypeId ) as Tko.SymbolId
     declare sub DeriveFields _
         ( byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, byref names as Tko.Interner, _
           byval t as Tko.TypeId, byref fs as containers.Array( of uint32 ), byref ft as containers.Array( of uint32 ) )

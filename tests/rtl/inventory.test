@@ -58,4 +58,6 @@
 '' EXPECT-OUT: tko_HashBytes i64 (ptr, i64)
 '' EXPECT-OUT: tko_HashUStr i64 (ptr, i64)
 '' EXPECT-OUT: tko_HashF64 i64 (f64)
-'' EXPECT-OUT: rtl: 569 entries
+'' ONE MORE, 2026-11-27: tko_UStrQuote, a string field's text for 'derive text' (RFC 0019 R6).
+'' EXPECT-OUT: tko_UStrQuote ptr (ptr, i64)
+'' EXPECT-OUT: rtl: 570 entries

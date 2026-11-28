@@ -49,7 +49,12 @@ private function DerivedName_( byref c as Ctx, byval t as Tko.TypeId, byval kind
     dim as Tko.Mangle.Substitutions subs
     dim as string code = Tko.Mangle.TypeCode( c.types->Unqualify( t ), *c.types, *c.syms, *c.names, subs )
     if len( code ) = 0 then return ""
-    return iif( kind_ = DERIVED_EQ_KIND, "__tko_derive_eq$", "__tko_derive_hash$" ) & code
+    select case kind_
+    case DERIVED_EQ_KIND : return "__tko_derive_eq$" & code
+    case DERIVED_ORD_KIND : return "__tko_derive_ord$" & code
+    case DERIVED_TEXT_KIND : return "__tko_derive_text$" & code
+    end select
+    return "__tko_derive_hash$" & code
 end function
 
 private function LocalAddr_( byval slot as int32 ) as MirValue
@@ -77,14 +82,22 @@ private function PtrAdd_( byref c as Ctx, byref base_ as MirValue, byref bytes a
 end function
 
 '' A call to the derived function of kind_ for t, declared now and defined at the drain.
+private function KindRet_( byval kind_ as int32 ) as MirType
+    select case kind_
+    case DERIVED_HASH_KIND : return MT_I64
+    case DERIVED_TEXT_KIND : return MT_PTR
+    end select
+    return MT_I32
+end function
+
 private function CallDerived_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32, byref a as MirValue, _
-      byval b as MirValue ptr ) as MirValue
+      byval b as MirValue ptr, byval op as MirValue ptr = nullptr ) as MirValue
     t = c.types->Unqualify( t )
     dim as string nm = DerivedName_( c, t, kind_ )
     if len( nm ) = 0 then return NoVal( )
     WantImplicit_( c, t, kind_ )
-    dim as MirType rt = iif( kind_ = DERIVED_EQ_KIND, MT_I32, MT_I64 )
+    dim as MirType rt = KindRet_( kind_ )
     dim as Tko.InternId id = c.names->GetString( nm )
     dim as int32 fidx = c.m->OldestFunctionNamed( id )
     if fidx < 0 then
@@ -92,16 +105,21 @@ private function CallDerived_ _
         decl->isDefinition = false
         decl->AddParam( MT_PTR )
         if b <> nullptr then decl->AddParam( MT_PTR )
+        if op <> nullptr then decl->AddParam( MT_I32 )
         fidx = c.m->functions.Count - 1
     end if
     dim as int32 first = c.m->argPool.Count \ 2
     c.m->argPool.Push( cast( uint32, a.kind ) ) : c.m->argPool.Push( cast( uint32, a.id ) )
+    dim as int32 n = 1
     if b <> nullptr then
-        c.m->argPool.Push( cast( uint32, b->kind ) ) : c.m->argPool.Push( cast( uint32, b->id ) )
+        c.m->argPool.Push( cast( uint32, b->kind ) ) : c.m->argPool.Push( cast( uint32, b->id ) ) : n += 1
+    end if
+    if op <> nullptr then
+        c.m->argPool.Push( cast( uint32, op->kind ) ) : c.m->argPool.Push( cast( uint32, op->id ) ) : n += 1
     end if
     dim as MirInst ins
     ins.op = cast( uint16, M_CALL ) : ins.ty = cast( uint8, rt )
-    ins.first = first : ins.count = iif( b <> nullptr, 2, 1 ) : ins.callee = fidx
+    ins.first = first : ins.count = n : ins.callee = fidx
     return Emit( c, ins )
 end function
 
@@ -410,6 +428,466 @@ private sub EqJump_( byref c as Ctx, byref la as MirValue, byref ra as MirValue,
     c.curBlock = okB
 end sub
 
+'' ------------------------------------------------------------------- order
+'' The operator an ordering asks for, as the ord function's third argument (R3).
+const ORD_LT = 2, ORD_GT = 3, ORD_LE = 4, ORD_GE = 5
+
+private function ZextI32_( byref c as Ctx, byref v as MirValue ) as MirValue
+    dim as MirInst z
+    z.op = cast( uint16, M_ZEXT ) : z.ty = cast( uint8, MT_I32 ) : z.a = v
+    return Emit( c, z )
+end function
+
+'' 'a OP b' for the operator opv names, as an i32 1 / 0: the four comparisons, each masked by
+'' whether it is the one asked for. emt is the operands' MIR type; uns their signedness.
+private function ApplyOp_( byref c as Ctx, byref a as MirValue, byref b as MirValue, byval emt as MirType, _
+                           byval uns as boolean, byref opv as MirValue ) as MirValue
+    dim as MirValue acc = ConstInt( c, 0, MT_I32 )
+    for k as int32 = ORD_LT to ORD_GE
+        dim as Tko.TokenKind tk
+        select case k
+        case ORD_LT : tk = Tko.TK_LT
+        case ORD_GT : tk = Tko.TK_GT
+        case ORD_LE : tk = Tko.TK_LE
+        case else   : tk = Tko.TK_GE
+        end select
+        dim as MirInst cmp
+        cmp.op = cast( uint16, BinOpFor( tk, emt, uns ) ) : cmp.ty = cast( uint8, MT_I8 ) : cmp.a = a : cmp.b = b
+        if cmp.op = cast( uint16, M_NONE ) then return NoVal( )
+        dim as MirValue r = ZextI32_( c, Emit( c, cmp ) )
+        dim as MirValue isK = ZextI32_( c, Op2_( c, M_ICMP_EQ, MT_I8, opv, ConstInt( c, k, MT_I32 ) ) )
+        acc = Op2_( c, M_OR, MT_I32, acc, Op2_( c, M_AND, MT_I32, r, isK ) )
+    next
+    return acc
+end function
+
+'' A string comparison's result (<0, 0, >0) against 0, under the operator asked for.
+private function ApplyCmp_( byref c as Ctx, byref cmp as MirValue, byref opv as MirValue ) as MirValue
+    dim as MirValue z = ConstInt( c, 0, MT_I32 )
+    return ApplyOp_( c, cmp, z, MT_I32, false, opv )
+end function
+
+'' The DECIDING field at la / ra, of type t (bare, not a plain array): its order under opv,
+'' returned from the ord function. Ends the current block.
+private sub OrdDecide_( byref c as Ctx, byref la as MirValue, byref ra as MirValue, byval t as Tko.TypeId, _
+                        byref opv as MirValue )
+    dim as MirValue r
+    if c.types->Kind( t ) = Tko.TK_UDT then
+        dim as Tko.NodeId ln
+        if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, t, ln ) and Tko.DERIVE_ORDER) <> 0 then
+            r = CallDerived_( c, t, DERIVED_ORD_KIND, la, @ra, @opv )
+        else
+            '' WRITTEN OPERATORS: one block per operator, each calling only the one asked for.
+            dim as int32 blocks( ORD_LT to ORD_GE )
+            for k as int32 = ORD_LT to ORD_GE : blocks( k ) = NewBlock( c, "derive.op" ) : next
+            for k as int32 = ORD_LT to ORD_GE - 1
+                dim as int32 nextB = NewBlock( c, "derive.opnext" )
+                Terminate( c, MTERM_CONDBR, blocks( k ), nextB, Op2_( c, M_ICMP_EQ, MT_I8, opv, ConstInt( c, k, MT_I32 ) ) )
+                c.curBlock = nextB
+            next
+            Terminate( c, MTERM_BR, blocks( ORD_GE ), -1, NoVal( ) )
+            for k as int32 = ORD_LT to ORD_GE
+                c.curBlock = blocks( k )
+                dim as string nm
+                select case k
+                case ORD_LT : nm = "<"
+                case ORD_GT : nm = ">"
+                case ORD_LE : nm = "<="
+                case else   : nm = ">="
+                end select
+                dim as Tko.SymbolId op = Tko.Check.UdtWrittenCmpOp( *c.ast, *c.syms, *c.types, *c.names, *c.info, t, nm )
+                dim as MirValue res = ConstInt( c, 0, MT_I32 )
+                if op <> Tko.SYMBOL_NONE then
+                    dim as Tko.Symbol ptr os = c.syms->SymbolAt( op )
+                    dim as MirType urt = MT_I64
+                    if os->type_ <> Tko.TYPE_NONE then urt = LowerType( os->type_, *c.types )
+                    dim as containers.Array( of uint32 ) uargs
+                    uargs.Push( cast( uint32, la.kind ) ) : uargs.Push( cast( uint32, la.id ) )
+                    uargs.Push( cast( uint32, ra.kind ) ) : uargs.Push( cast( uint32, ra.id ) )
+                    dim as MirValue u = EmitDirectCall_( c, op, urt, uargs )
+                    res = ZextI32_( c, Op2_( c, M_ICMP_NE, MT_I8, u, ZeroOf( c, urt ) ) )
+                end if
+                Terminate( c, MTERM_RET, -1, -1, res )
+            next
+            return
+        end if
+    elseif (c.types->Kind( t ) = Tko.TK_BUILTIN) andalso ((c.types->BuiltinOf( t ) = Tko.TY_STRING) orelse (c.types->BuiltinOf( t ) = Tko.TY_USTRING)) then
+        dim as containers.Array( of uint32 ) args
+        PushStrArg( args, la ) : PushStrArg( args, ra )
+        dim as MirValue scmp = EmitRtl( c, iif( c.types->BuiltinOf( t ) = Tko.TY_STRING, RTL_STR_COMPARE, RTL_USTR_COMPARE ), args )
+        r = ApplyCmp_( c, scmp, opv )
+    elseif c.types->Kind( t ) = Tko.TK_ARRAY then
+        '' 'zstring * N', 'string * N', 'wstring * N': the strings they hold.
+        dim as Tko.TypeId et0 = Bare_( c, c.types->Inner( t ) )
+        dim as MirValue cmp
+        if c.types->BuiltinOf( et0 ) = Tko.TY_WSTRING then
+            dim as containers.Array( of uint32 ) wargs
+            wargs.Push( cast( uint32, la.kind ) ) : wargs.Push( cast( uint32, la.id ) )
+            wargs.Push( cast( uint32, ra.kind ) ) : wargs.Push( cast( uint32, ra.id ) )
+            cmp = EmitRtl( c, RTL_WSTR_COMPARE, wargs )
+        else
+            dim as containers.Array( of uint32 ) sargs
+            dim as int64 n = SizeOfType( c, t )
+            if c.types->BuiltinOf( et0 ) = Tko.TY_FIXSTR then n = n or &h8000000000000000ll
+            sargs.Push( cast( uint32, la.kind ) ) : sargs.Push( cast( uint32, la.id ) ) : PushStrLen_( c, sargs, n )
+            sargs.Push( cast( uint32, ra.kind ) ) : sargs.Push( cast( uint32, ra.id ) ) : PushStrLen_( c, sargs, n )
+            cmp = EmitRtl( c, RTL_STR_COMPARE, sargs )
+        end if
+        r = ApplyCmp_( c, cmp, opv )
+    else
+        dim as MirType emt = LowerType( t, *c.types )
+        dim as MirValue lv = LowerExprLoad( c, la, emt )
+        dim as MirValue rv = LowerExprLoad( c, ra, emt )
+        dim as boolean uns = IsUnsignedType( c, t )
+        if (c.types->Kind( t ) = Tko.TK_POINTER) orelse (c.types->Kind( t ) = Tko.TK_PROC) then uns = true
+        r = ApplyOp_( c, lv, rv, emt, uns, opv )
+    end if
+    if r.kind = cast( uint8, MV_NONE ) then r = ConstInt( c, 0, MT_I32 )
+    Terminate( c, MTERM_RET, -1, -1, r )
+end sub
+
+private function IsCharArray_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
+    if c.types->IsDynArray( t ) then return false
+    dim as Tko.TypeId et = Bare_( c, c.types->Inner( t ) )
+    if c.types->Kind( et ) <> Tko.TK_BUILTIN then return false
+    select case c.types->BuiltinOf( et )
+    case Tko.TY_ZSTRING, Tko.TY_WSTRING, Tko.TY_FIXSTR : return true
+    end select
+    return false
+end function
+
+'' One field of R3: equal -> on to the next; unequal -> this field decides, under opv.
+private sub OrdField_( byref c as Ctx, byref la as MirValue, byref ra as MirValue, byval t as Tko.TypeId, _
+                       byref opv as MirValue )
+    t = Bare_( c, t )
+    if (c.types->Kind( t ) = Tko.TK_ARRAY) andalso (IsCharArray_( c, t ) = false) then
+        dim as int32 bodyB, doneB, headB
+        if c.types->IsDynArray( t ) then
+            dim as Tko.TypeId et = Bare_( c, c.types->Inner( t ) )
+            dim as int32 esz = SizeOfType( c, et )
+            for k as int32 = 0 to c.types->DynRank( t ) - 1
+                for u as int32 = 0 to 1
+                    dim as MirValue lb = DynBoundInline_( c, la, k, u = 1 )
+                    dim as MirValue rb = DynBoundInline_( c, ra, k, u = 1 )
+                    dim as int32 okB = NewBlock( c, "derive.ordeq" )
+                    dim as int32 decB = NewBlock( c, "derive.decide" )
+                    Terminate( c, MTERM_CONDBR, okB, decB, Op2_( c, M_ICMP_EQ, MT_I8, lb, rb ) )
+                    c.curBlock = decB
+                    Terminate( c, MTERM_RET, -1, -1, ApplyOp_( c, lb, rb, cast( MirType, lb.ty ), false, opv ) )
+                    c.curBlock = okB
+                next
+            next
+            dim as MirValue n = DynCount_( c, la, esz )
+            dim as int32 lslot = NewTempLocal( c, MT_PTR, 8 )
+            dim as int32 rslot = NewTempLocal( c, MT_PTR, 8 )
+            StoreThrough( c, LocalAddr_( lslot ), DynBase_( c, la ) )
+            StoreThrough( c, LocalAddr_( rslot ), DynBase_( c, ra ) )
+            dim as int32 islot = LoopHead_( c, n, bodyB, doneB, headB )
+            dim as MirValue lbase = LowerExprLoad( c, LocalAddr_( lslot ), MT_PTR )
+            dim as MirValue rbase = LowerExprLoad( c, LocalAddr_( rslot ), MT_PTR )
+            dim as MirValue ea = ElemAddr_( c, lbase, islot, esz )
+            dim as MirValue eb = ElemAddr_( c, rbase, islot, esz )
+            OrdField_( c, ea, eb, et, opv )
+            LoopStep_( c, islot, headB, doneB )
+        else
+            dim as int32 cnt
+            dim as Tko.TypeId et = FixedElems_( c, t, cnt )
+            if (cnt <= 0) orelse (et = t) then return
+            dim as int32 esz = SizeOfType( c, et )
+            dim as int32 islot = LoopHead_( c, ConstInt( c, cnt, MT_I64 ), bodyB, doneB, headB )
+            dim as MirValue ea = ElemAddr_( c, la, islot, esz )
+            dim as MirValue eb = ElemAddr_( c, ra, islot, esz )
+            OrdField_( c, ea, eb, et, opv )
+            LoopStep_( c, islot, headB, doneB )
+        end if
+        return
+    end if
+    dim as int32 decideB = NewBlock( c, "derive.decide" )
+    EqJump_( c, la, ra, t, decideB )
+    dim as int32 contB = c.curBlock
+    c.curBlock = decideB
+    OrdDecide_( c, la, ra, t, opv )
+    c.curBlock = contB
+end sub
+
+'' -------------------------------------------------------------------- text
+'' 'derive text' (R6, section 5.3): Name(field=value, ...), built into a ustring descriptor
+'' piece by piece -- each piece a ustring temporary that RTL_USTR_CONCAT_ASSIGN consumes.
+
+private sub AppendU_( byref c as Ctx, byref dst as MirValue, byref u as MirValue )
+    if u.kind = cast( uint8, MV_NONE ) then return
+    dim as containers.Array( of uint32 ) args
+    PushStrArg( args, dst ) : PushStrArg( args, u )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_USTR_CONCAT_ASSIGN, args )
+end sub
+
+private sub AppendLit_( byref c as Ctx, byref dst as MirValue, byref text as string )
+    if len( text ) = 0 then return
+    dim as int32 gidx = c.m->AddWideStringLiteral( text, *c.names )
+    dim as containers.Array( of uint32 ) args
+    PushStrArg( args, dst )
+    PushUStrLiteralArg( c, args, gidx, len( text ) )
+    args.Push( cast( uint32, MV_CONST_INT ) ) : args.Push( 0 )
+    EmitRtl( c, RTL_USTR_CONCAT_ASSIGN, args )
+end sub
+
+'' A narrow string temporary (a str( ) result), made a ustring and appended.
+private sub AppendNarrow_( byref c as Ctx, byref dst as MirValue, byref n as MirValue )
+    if n.kind = cast( uint8, MV_NONE ) then return
+    dim as containers.Array( of uint32 ) a
+    PushStrArg( a, n )
+    dim as MirValue u = EmitRtl( c, RTL_STR_TO_USTR, a )
+    AppendU_( c, dst, u )
+end sub
+
+private sub AppendQuoted_( byref c as Ctx, byref dst as MirValue, byref u as MirValue )
+    if u.kind = cast( uint8, MV_NONE ) then return
+    dim as containers.Array( of uint32 ) a
+    PushStrArg( a, u )
+    dim as MirValue q = EmitRtl( c, RTL_USTR_QUOTE, a )
+    AppendU_( c, dst, q )
+end sub
+
+'' The str( ) renderer for a number, as NumberToStrDesc_ (lowersub.tiko) chooses it.
+private function NumRtl_( byref c as Ctx, byval t as Tko.TypeId, byref want as MirType, byref uns as boolean ) as RtlId
+    want = MT_I32 : uns = false
+    if c.types->Kind( t ) = Tko.TK_ENUM then return RTL_STR_INTTOSTR
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return RTL_NONE
+    dim as boolean p32 = (c.types->target.pointerBits = 32)
+    select case c.types->BuiltinOf( t )
+    case Tko.TY_BYTE, Tko.TY_SHORT, Tko.TY_LONG    : return RTL_STR_INTTOSTR
+    case Tko.TY_UBYTE, Tko.TY_USHORT, Tko.TY_ULONG : uns = true : return RTL_STR_UINTTOSTR
+    case Tko.TY_LONGINT  : want = MT_I64 : return RTL_STR_LONGTOSTR
+    case Tko.TY_ULONGINT : want = MT_I64 : uns = true : return RTL_STR_ULONGTOSTR
+    case Tko.TY_SINGLE   : want = MT_F32 : return RTL_STR_FLOATTOSTR
+    case Tko.TY_DOUBLE   : want = MT_F64 : return RTL_STR_DBLTOSTR
+    case Tko.TY_BOOLEAN  : want = MT_I8  : return RTL_STR_BOOLTOSTR
+    case Tko.TY_INTEGER
+        if p32 then return RTL_STR_INTTOSTR
+        want = MT_I64 : return RTL_STR_LONGTOSTR
+    case Tko.TY_UINTEGER
+        uns = true
+        if p32 then return RTL_STR_UINTTOSTR
+        want = MT_I64 : return RTL_STR_ULONGTOSTR
+    end select
+    return RTL_NONE
+end function
+
+'' A declared name, case as written: the identifier at the symbol's own location, when those
+'' bytes ARE that name (a macro-built one keeps the invocation's location), else the folded one.
+private function RawNameOf_( byref c as Ctx, byval sid as Tko.SymbolId ) as string
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return "?"
+    dim as string folded = c.names->Spelling( s->name )
+    if c.srcMgr = nullptr then return folded
+    dim as Tko.FileId fid
+    dim as int32 off = c.srcMgr->LocOffset( s->loc, fid )
+    dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( fid )
+    if (f = nullptr) orelse (off < 0) then return folded
+    dim as int32 n = len( folded )
+    if off + n > f->text.Count then return folded
+    dim as string raw = space( n )
+    for i as int32 = 0 to n - 1
+        raw[i] = f->text[off + i]
+    next
+    if lcase( raw ) <> lcase( folded ) then return folded
+    return raw
+end function
+
+'' A type's name for text: its declared case; a generic instance as Name(of Arg, ...), the
+'' arguments in this unit's spelling of them (int32 for LONG where the unit writes int32).
+private function TypeTextName_( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 = 0 ) as string
+    t = Bare_( c, t )
+    if depth > 8 then return c.types->Name( t )
+    if c.types->Kind( t ) <> Tko.TK_UDT then return c.types->Name( t )
+    dim as int32 ii = -1
+    if c.types->instAt.TryGet( cast( uint32, c.types->NameOf( t ) ), ii ) then
+        dim as string r = c.names->Spelling( cast( Tko.InternId, c.types->instSpell[ii] ) ) & "(of "
+        for k as int32 = 0 to c.types->instArgCount[ii] - 1
+            if k > 0 then r &= ", "
+            r &= TypeTextName_( c, cast( Tko.TypeId, c.types->instArgs[c.types->instArgFirst[ii] + k] ), depth + 1 )
+        next
+        return r & ")"
+    end if
+    dim as Tko.SymbolId ts = UdtSymOf_( c, t )
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( ts )
+    if s <> nullptr then
+        dim as Tko.NodeId tn = cast( Tko.NodeId, s->payload )
+        if tn <> Tko.NODE_NONE then
+            if c.ast->Kind( tn ) = Tko.N_TYPE then
+                dim as Tko.InternId rn = StmtOf( c, tn )->rawName
+                if rn <> 0 then return c.names->Spelling( rn )
+            end if
+        end if
+        return RawNameOf_( c, ts )
+    end if
+    return c.types->Name( t )
+end function
+
+'' An enum value: the first declared constant that has it, else the decimal value.
+private sub AppendEnum_( byref c as Ctx, byref dst as MirValue, byref v as MirValue, byval t as Tko.TypeId )
+    dim as MirType mt = cast( MirType, v.ty )
+    dim as Tko.ScopeId ds = cast( Tko.ScopeId, c.types->DeclScopeOf( t ) )
+    dim as Tko.SymbolId es = c.syms->LookupLocalTyped( ds, c.types->NameOf( t ), true )
+    if es = Tko.SYMBOL_NONE then es = c.syms->LookupTyped( ds, c.types->NameOf( t ), true )
+    dim as Tko.Symbol ptr e = c.syms->SymbolAt( es )
+    dim as int32 doneB = NewBlock( c, "derive.enumdone" )
+    if e <> nullptr then
+        if e->inner <> Tko.SCOPE_NONE then
+            dim as Tko.SymScope ptr sc = c.syms->ScopeAt( e->inner )
+            dim as Tko.SymbolId cur = iif( sc <> nullptr, sc->firstSym, Tko.SYMBOL_NONE )
+            for guard as int32 = 0 to 99999
+                if cur = Tko.SYMBOL_NONE then exit for
+                dim as Tko.Symbol ptr k = c.syms->SymbolAt( cur )
+                if k = nullptr then exit for
+                if k->kind = cast( uint8, Tko.SYM_ENUMCONST ) then
+                    dim as int32 hitB = NewBlock( c, "derive.enumhit" )
+                    dim as int32 nextB = NewBlock( c, "derive.enumnext" )
+                    Terminate( c, MTERM_CONDBR, hitB, nextB, Op2_( c, M_ICMP_EQ, MT_I8, v, ConstInt( c, k->payload, mt ) ) )
+                    c.curBlock = hitB
+                    AppendLit_( c, dst, RawNameOf_( c, cur ) )
+                    Terminate( c, MTERM_BR, doneB, -1, NoVal( ) )
+                    c.curBlock = nextB
+                end if
+                cur = k->nextInScope
+            next
+        end if
+    end if
+    dim as containers.Array( of uint32 ) a
+    dim as MirValue v32 = Coerce( c, v, MT_I32, false )
+    a.Push( cast( uint32, v32.kind ) ) : a.Push( cast( uint32, v32.id ) )
+    AppendNarrow_( c, dst, EmitRtl( c, RTL_STR_INTTOSTR, a ) )
+    Terminate( c, MTERM_BR, doneB, -1, NoVal( ) )
+    c.curBlock = doneB
+end sub
+
+'' ", " before every element but the first of the loop whose index is in islot.
+private sub AppendSep_( byref c as Ctx, byref dst as MirValue, byval islot as int32 )
+    dim as MirValue i = LowerExprLoad( c, LocalAddr_( islot ), MT_I64 )
+    dim as int32 sepB = NewBlock( c, "derive.sep" ), goB = NewBlock( c, "derive.elem" )
+    Terminate( c, MTERM_CONDBR, sepB, goB, Op2_( c, M_ICMP_NE, MT_I8, i, ConstInt( c, 0, MT_I64 ) ) )
+    c.curBlock = sepB
+    AppendLit_( c, dst, ", " )
+    Terminate( c, MTERM_BR, goB, -1, NoVal( ) )
+    c.curBlock = goB
+end sub
+
+declare sub TextAt_( byref c as Ctx, byref dst as MirValue, byref addr as MirValue, byval t as Tko.TypeId )
+
+'' Dimension k of the fixed array t at base: '[' its elements ']', each the next dimension.
+private sub TextDims_( byref c as Ctx, byref dst as MirValue, byref base_ as MirValue, byval t as Tko.TypeId, _
+                       byval et as Tko.TypeId, byval k as int32 )
+    dim as int32 rank = c.types->types[cast( int32, t )].dims
+    if rank < 1 then rank = 1
+    dim as int32 esz = SizeOfType( c, et )
+    if esz <= 0 then return
+    dim as boolean known
+    dim as int64 stride = esz
+    for j as int32 = k + 1 to rank - 1
+        stride *= c.types->ArrayBound( t, j, true, known ) - c.types->ArrayBound( t, j, false, known ) + 1
+    next
+    dim as int64 n = c.types->ArrayBound( t, k, true, known ) - c.types->ArrayBound( t, k, false, known ) + 1
+    if rank = 1 then n = SizeOfType( c, t ) \ esz
+    AppendLit_( c, dst, "[" )
+    if n > 0 then
+        dim as int32 bodyB, doneB, headB
+        dim as int32 islot = LoopHead_( c, ConstInt( c, n, MT_I64 ), bodyB, doneB, headB )
+        AppendSep_( c, dst, islot )
+        dim as MirValue sub_ = ElemAddr_( c, base_, islot, cast( int32, stride ) )
+        if k + 1 < rank then
+            TextDims_( c, dst, sub_, t, et, k + 1 )
+        else
+            TextAt_( c, dst, sub_, et )
+        end if
+        LoopStep_( c, islot, headB, doneB )
+    end if
+    AppendLit_( c, dst, "]" )
+end sub
+
+'' The text of the object at addr, of type t, appended to the descriptor at dst.
+sub TextAt_( byref c as Ctx, byref dst as MirValue, byref addr as MirValue, byval t as Tko.TypeId )
+    t = Bare_( c, t )
+    select case c.types->Kind( t )
+    case Tko.TK_BUILTIN
+        select case c.types->BuiltinOf( t )
+        case Tko.TY_STRING
+            dim as containers.Array( of uint32 ) a
+            PushStrArg( a, addr )
+            AppendQuoted_( c, dst, EmitRtl( c, RTL_STR_TO_USTR, a ) )
+        case Tko.TY_USTRING
+            AppendQuoted_( c, dst, addr )
+        case else
+            dim as MirType want : dim as boolean uns
+            dim as RtlId r = NumRtl_( c, t, want, uns )
+            if r = RTL_NONE then return
+            dim as MirValue v = LowerExprLoad( c, addr, LowerType( t, *c.types ) )
+            v = Coerce( c, v, want, uns )
+            dim as containers.Array( of uint32 ) a
+            a.Push( cast( uint32, v.kind ) ) : a.Push( cast( uint32, v.id ) )
+            AppendNarrow_( c, dst, EmitRtl( c, r, a ) )
+        end select
+    case Tko.TK_ENUM
+        dim as MirValue v = LowerExprLoad( c, addr, LowerType( t, *c.types ) )
+        AppendEnum_( c, dst, v, t )
+    case Tko.TK_POINTER, Tko.TK_PROC
+        AppendLit_( c, dst, "&h" )
+        dim as MirValue p = LowerExprLoad( c, addr, MT_PTR )
+        dim as containers.Array( of uint32 ) a
+        a.Push( cast( uint32, p.kind ) ) : a.Push( cast( uint32, p.id ) )
+        AppendNarrow_( c, dst, EmitRtl( c, RTL_HEX_P, a ) )
+    case Tko.TK_ARRAY
+        dim as Tko.TypeId et0 = Bare_( c, c.types->Inner( t ) )
+        if IsCharArray_( c, t ) then
+            if c.types->BuiltinOf( et0 ) = Tko.TY_WSTRING then
+                dim as containers.Array( of uint32 ) w
+                w.Push( cast( uint32, addr.kind ) ) : w.Push( cast( uint32, addr.id ) )
+                AppendQuoted_( c, dst, EmitRtl( c, RTL_WSTR_TO_USTR, w ) )
+            else
+                dim as int64 n = SizeOfType( c, t )
+                if c.types->BuiltinOf( et0 ) = Tko.TY_FIXSTR then n = n or &h8000000000000000ll
+                dim as containers.Array( of uint32 ) a
+                a.Push( cast( uint32, addr.kind ) ) : a.Push( cast( uint32, addr.id ) ) : PushStrLen_( c, a, n )
+                AppendQuoted_( c, dst, EmitRtl( c, RTL_STR_TO_USTR, a ) )
+            end if
+            return
+        end if
+        dim as int32 bodyB, doneB, headB
+        if c.types->IsDynArray( t ) then
+            AppendLit_( c, dst, "[" )
+            dim as int32 esz = SizeOfType( c, et0 )
+            dim as MirValue n = DynCount_( c, addr, esz )
+            dim as int32 bslot = NewTempLocal( c, MT_PTR, 8 )
+            StoreThrough( c, LocalAddr_( bslot ), DynBase_( c, addr ) )
+            dim as int32 islot = LoopHead_( c, n, bodyB, doneB, headB )
+            AppendSep_( c, dst, islot )
+            dim as MirValue b0 = LowerExprLoad( c, LocalAddr_( bslot ), MT_PTR )
+            TextAt_( c, dst, ElemAddr_( c, b0, islot, esz ), et0 )
+            LoopStep_( c, islot, headB, doneB )
+            AppendLit_( c, dst, "]" )
+        else
+            '' A FIXED ARRAY OF RANK r IS ONE TYPE, not r nested ones: it nests by its first
+            '' dimension, row-major, as the language lays it out -- [[1, 2], [3, 4]].
+            TextDims_( c, dst, addr, t, et0, 0 )
+        end if
+    case Tko.TK_UDT
+        dim as Tko.NodeId ln
+        if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, t, ln ) and Tko.DERIVE_TEXT) <> 0 then
+            AppendU_( c, dst, CallDerived_( c, t, DERIVED_TEXT_KIND, addr, nullptr ) )
+        else
+            dim as Tko.SymbolId m = Tko.Check.UdtToTextMethod( *c.ast, *c.syms, *c.types, *c.names, t )
+            if m = Tko.SYMBOL_NONE then return
+            dim as MirValue u = EmitMemberCall( c, m, addr, MT_PTR )
+            if IsUStringType( c, c.syms->SymbolAt( m )->type_ ) then
+                AppendU_( c, dst, u )
+            else
+                AppendNarrow_( c, dst, u )
+            end if
+        end if
+    end select
+end sub
+
 '' -------------------------------------------------------------- the functions
 '' Called from EmitImplicitStructors for a want-list entry of a derived kind.
 sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
@@ -422,12 +900,14 @@ sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
         if c.m->functions[at]->isDefinition then return
         at = c.m->functions[at]->nextSameName - 1
     wend
-    dim as boolean isEq = (kind_ = DERIVED_EQ_KIND)
-    dim as MirFunction ptr f = c.m->AddFunction( id, iif( isEq, MT_I32, MT_I64 ) )
+    dim as boolean isEq = (kind_ = DERIVED_EQ_KIND), isOrd = (kind_ = DERIVED_ORD_KIND)
+    dim as boolean isText = (kind_ = DERIVED_TEXT_KIND)
+    dim as MirFunction ptr f = c.m->AddFunction( id, KindRet_( kind_ ) )
     f->isDefinition = true
     f->isPrivate = true
     f->AddParam( MT_PTR )
-    if isEq then f->AddParam( MT_PTR )
+    if isEq orelse isOrd then f->AddParam( MT_PTR )
+    if isOrd then f->AddParam( MT_I32 )
 
     dim as MirFunction ptr savedF = c.f
     dim as int32 savedB = c.curBlock
@@ -440,7 +920,43 @@ sub EmitDerived_( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 )
 
     dim as containers.Array( of uint32 ) fs, ft
     Tko.Check.DeriveFields( *c.syms, *c.types, *c.names, t, fs, ft )
-    if isEq then
+    if isText then
+        '' THE RESULT IS A USTRING DESCRIPTOR of this function's own, returned as a temporary
+        '' (RTL_USTR_TEMP_RESULT), as a 'function ... as ustring' returns one (lowerproc.tiko).
+        dim as int32 rslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+        f->locals[rslot].frontendType = c.types->Builtin( Tko.TY_USTRING )
+        dim as MirValue dst = LocalAddr_( rslot )
+        ZeroStrDescriptor( c, dst )
+        AppendLit_( c, dst, TypeTextName_( c, t ) & "(" )
+        dim as int32 shown = 0
+        for i as int32 = 0 to fs.Count - 1
+            dim as Tko.Symbol ptr fsym = c.syms->SymbolAt( cast( Tko.SymbolId, fs[i] ) )
+            dim as boolean found = false
+            dim as int32 off = c.udts->FieldOffset( c.types->Unqualify( t ), fsym->name, found )
+            if found = false then continue for
+            AppendLit_( c, dst, iif( shown > 0, ", ", "" ) & RawNameOf_( c, cast( Tko.SymbolId, fs[i] ) ) & "=" )
+            TextAt_( c, dst, FieldAt_( c, pa, off ), cast( Tko.TypeId, ft[i] ) )
+            shown += 1
+        next
+        AppendLit_( c, dst, ")" )
+        dim as containers.Array( of uint32 ) rargs
+        rargs.Push( cast( uint32, dst.kind ) ) : rargs.Push( cast( uint32, dst.id ) )
+        Terminate( c, MTERM_RET, -1, -1, EmitRtl( c, RTL_USTR_TEMP_RESULT, rargs ) )
+    elseif isOrd then
+        dim as MirValue opv
+        opv.kind = cast( uint8, MV_PARAM ) : opv.ty = cast( uint8, MT_I32 ) : opv.id = 2
+        for i as int32 = 0 to fs.Count - 1
+            dim as Tko.Symbol ptr fsym = c.syms->SymbolAt( cast( Tko.SymbolId, fs[i] ) )
+            dim as boolean found = false
+            dim as int32 off = c.udts->FieldOffset( c.types->Unqualify( t ), fsym->name, found )
+            if found = false then continue for
+            OrdField_( c, FieldAt_( c, pa, off ), FieldAt_( c, pb, off ), cast( Tko.TypeId, ft[i] ), opv )
+        next
+        '' EVERY FIELD EQUAL: '<=' and '>=' hold, '<' and '>' do not.
+        dim as MirValue le = ZextI32_( c, Op2_( c, M_ICMP_EQ, MT_I8, opv, ConstInt( c, ORD_LE, MT_I32 ) ) )
+        dim as MirValue ge = ZextI32_( c, Op2_( c, M_ICMP_EQ, MT_I8, opv, ConstInt( c, ORD_GE, MT_I32 ) ) )
+        Terminate( c, MTERM_RET, -1, -1, Op2_( c, M_OR, MT_I32, le, ge ) )
+    elseif isEq then
         dim as int32 failB = NewBlock( c, "derive.ne" )
         for i as int32 = 0 to fs.Count - 1
             dim as Tko.Symbol ptr fsym = c.syms->SymbolAt( cast( Tko.SymbolId, fs[i] ) )
@@ -474,21 +990,36 @@ end sub
 function LowerDerivedCompare_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
       byval tk as Tko.TokenKind, byval mt as MirType, byref outv as MirValue ) as boolean
-    if (tk <> Tko.TK_EQ) andalso (tk <> Tko.TK_NE) then return false
+    dim as int32 ordOp = 0
+    select case tk
+    case Tko.TK_EQ, Tko.TK_NE
+    case Tko.TK_LT : ordOp = ORD_LT
+    case Tko.TK_GT : ordOp = ORD_GT
+    case Tko.TK_LE : ordOp = ORD_LE
+    case Tko.TK_GE : ordOp = ORD_GE
+    case else : return false
+    end select
     if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then return false
     dim as Tko.TypeId lt = Bare_( c, c.info->TypeOf_( bp->lhs ) )
     dim as Tko.TypeId rt = Bare_( c, c.info->TypeOf_( bp->rhs ) )
     if (lt = Tko.TYPE_NONE) orelse (lt <> rt) then return false
     if c.types->Kind( lt ) <> Tko.TK_UDT then return false
     dim as Tko.NodeId ln
-    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, lt, ln ) and Tko.DERIVE_EQUAL) = 0 then return false
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, lt, ln ) and iif( ordOp <> 0, Tko.DERIVE_ORDER, Tko.DERIVE_EQUAL )) = 0 then return false
     dim as MirValue la = LowerAddr( c, bp->lhs )
     if la.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue ra = LowerAddr( c, bp->rhs )
     if ra.kind = cast( uint8, MV_NONE ) then return false
-    dim as MirValue r = CallDerived_( c, lt, DERIVED_EQ_KIND, la, @ra )
+    dim as MirValue r
+    if ordOp <> 0 then
+        dim as MirValue opv = ConstInt( c, ordOp, MT_I32 )
+        r = CallDerived_( c, lt, DERIVED_ORD_KIND, la, @ra, @opv )
+    else
+        r = CallDerived_( c, lt, DERIVED_EQ_KIND, la, @ra )
+    end if
     if r.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue b = Op2_( c, iif( tk = Tko.TK_EQ, M_ICMP_NE, M_ICMP_EQ ), MT_I8, r, ConstInt( c, 0, MT_I32 ) )
+    if ordOp <> 0 then b = Op2_( c, M_ICMP_NE, MT_I8, r, ConstInt( c, 0, MT_I32 ) )
     if (mt = MT_I8) orelse (mt = MT_VOID) then
         outv = b
     else
@@ -534,6 +1065,35 @@ function LowerHashValue_( byref c as Ctx, byval id as Tko.NodeId, byref outv as 
     if v.kind = cast( uint8, MV_NONE ) then return false
     outv = v
     return true
+end function
+
+'' 'p.ToText( )' over a 'derive text' type (Check typed it ustring with no symbol,
+'' binresult.tiko DerivedToTextBase_). member is the N_MEMBER. The result is a ustring temporary, as any 'function ... as ustring' gives.
+function LowerDeriveText_ _
+    ( byref c as Ctx, byval member as Tko.NodeId, byval argCount as int32, byref outv as MirValue ) as boolean
+    if member = Tko.NODE_NONE then return false
+    if c.ast->Kind( member ) <> Tko.N_MEMBER then return false
+    if argCount > 0 then return false
+    if c.info->RefOf( member ) <> Tko.SYMBOL_NONE then return false
+    dim as Tko.BinaryPayload ptr mp = c.ast->BinaryOf( member )
+    if (mp->lhs = Tko.NODE_NONE) orelse (mp->rhs = Tko.NODE_NONE) then return false
+    if c.ast->Kind( mp->rhs ) <> Tko.N_IDENT then return false
+    if c.names->Spelling( c.names->Fold( c.ast->IdentOf( mp->rhs )->name ) ) <> "totext" then return false
+    dim as Tko.TypeId bt = c.types->Unqualify( c.info->TypeOf_( mp->lhs ) )
+    if c.types->Kind( bt ) = Tko.TK_REFERENCE then bt = c.types->Unqualify( c.types->Inner( bt ) )
+    dim as boolean viaPtr = false
+    if (c.types->Kind( bt ) = Tko.TK_POINTER) andalso (cast( Tko.TokenKind, mp->op ) = Tko.TK_ARROW) then
+        viaPtr = true
+        bt = c.types->Inner( bt )
+    end if
+    bt = Bare_( c, bt )
+    if c.types->Kind( bt ) <> Tko.TK_UDT then return false
+    dim as Tko.NodeId ln
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, bt, ln ) and Tko.DERIVE_TEXT) = 0 then return false
+    dim as MirValue a = iif( viaPtr, LowerExpr( c, mp->lhs ), LowerAddr( c, mp->lhs ) )
+    if a.kind = cast( uint8, MV_NONE ) then return false
+    outv = CallDerived_( c, bt, DERIVED_TEXT_KIND, a, nullptr )
+    return outv.kind <> cast( uint8, MV_NONE )
 end function
 
 end namespace

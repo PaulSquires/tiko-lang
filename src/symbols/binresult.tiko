@@ -267,14 +267,46 @@ end function
 private function DerivedCompareType_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, byval rt as Tko.TypeId, _
       byref t as Tko.TypeId ) as boolean
-    if (op <> Tko.TK_EQ) andalso (op <> Tko.TK_NE) then return false
+    dim as uint32 need = Tko.DERIVE_EQUAL
+    select case op
+    case Tko.TK_EQ, Tko.TK_NE
+    case Tko.TK_LT, Tko.TK_GT, Tko.TK_LE, Tko.TK_GE : need = Tko.DERIVE_ORDER   '' R3, 'derive order'
+    case else : return false
+    end select
     if (lt = Tko.TYPE_NONE) orelse (rt = Tko.TYPE_NONE) then return false
     lt = c.types->Unqualify( lt ) : rt = c.types->Unqualify( rt )
     if c.types->Kind( lt ) = Tko.TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
     if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Unqualify( c.types->Inner( rt ) )
     if (lt <> rt) orelse (c.types->Kind( lt ) <> Tko.TK_UDT) then return false
     dim as Tko.NodeId ln
-    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, lt, ln ) and Tko.DERIVE_EQUAL) = 0 then return false
+    if (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, lt, ln ) and need) = 0 then return false
     t = c.types->Builtin( Tko.TY_BOOLEAN )
     return true
+end function
+
+'' 'p.ToText( )' (RFC 0019 R6): a member named ToText that binds nothing, over a
+'' type that 'derive text' -- the compiler's own, lowered by mir/lowerderive.tiko. True for the
+'' N_MEMBER m when that is what it names.
+private function DerivedToTextBase_( byref c as Ctx, byval m as Tko.NodeId ) as boolean
+    if c.ast->Kind( m ) <> Tko.N_MEMBER then return false
+    if c.info->RefOf( m ) <> Tko.SYMBOL_NONE then return false
+    dim as Tko.BinaryPayload ptr mp = c.ast->BinaryOf( m )
+    if (mp->lhs = Tko.NODE_NONE) orelse (mp->rhs = Tko.NODE_NONE) then return false
+    if c.ast->Kind( mp->rhs ) <> Tko.N_IDENT then return false
+    if c.names->Spelling( c.names->Fold( c.ast->IdentOf( mp->rhs )->name ) ) <> "totext" then return false
+    dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
+    for guard as int32 = 0 to 7
+        if bt = Tko.TYPE_NONE then exit for
+        bt = c.types->Unqualify( bt )
+        select case c.types->Kind( bt )
+        case Tko.TK_REFERENCE, Tko.TK_TYPEDEF : bt = c.types->Inner( bt )
+        case Tko.TK_POINTER
+            if cast( Tko.TokenKind, mp->op ) <> Tko.TK_ARROW then return false
+            bt = c.types->Inner( bt )
+        case else : exit for
+        end select
+    next
+    if c.types->Kind( bt ) <> Tko.TK_UDT then return false
+    dim as Tko.NodeId ln
+    return (Tko.Check.DeriveMaskOf( *c.ast, *c.syms, *c.types, bt, ln ) and Tko.DERIVE_TEXT) <> 0
 end function

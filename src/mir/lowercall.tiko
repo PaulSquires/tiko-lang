@@ -275,7 +275,7 @@ private function LowerCallPartsBody_ _
         '' COLOR fills in DEFAULTS the arity guard below cannot express: its third
         '' argument is a mask of what was omitted, so a one-argument call is a
         '' three-argument entry point.
-        if LowerColorCall_( c, calleeNode, argFirst, argCount, rv2 ) then
+        if LowerColorCall_( c, calleeNode, argFirst, argCount, rv2 ) orelse LowerDeriveText_( c, calleeNode, argCount, rv2 ) then   '' 'p.ToText( )', RFC 0019
             c.stmt.lastCallOk = true
             return rv2
         end if

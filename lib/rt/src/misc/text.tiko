@@ -1,0 +1,74 @@
+'' text.tiko -- the runtime half of 'derive text' (RFC 0019 R6, section 5.3).
+''
+'' A STRING FIELD PRINTS QUOTED: in double quotes, a quote inside it doubled. The compiler
+'' turns a narrow or wide value into a ustring first (fb_StrToUStr, fb_WstrToUStr -- the
+'' conversions an assignment to a ustring makes), so this one function quotes every kind.
+''
+'' tko_UStrQuote takes a ustring the way fb_UStrCompare does -- (pointer, size), size -1 for a
+'' var-len descriptor -- CONSUMES a temporary one, and returns a new ustring temporary.
+'' No fbc counterpart, so 'tko_' (build/symbols.sh admits the prefix).
+
+#include once "inc/descriptors.ti"
+#include once "inc/ustr.ti"
+#include once "inc/ctx.ti"
+
+#ifdef ENABLE_MT
+	extern "rtlib"
+		declare sub fb_StrLock alias "fb_StrLock" ( )
+		declare sub fb_StrUnlock alias "fb_StrUnlock" ( )
+	end extern
+	#define STRLOCK()   fb_StrLock()
+	#define STRUNLOCK() fb_StrUnlock()
+#else
+	#define STRLOCK()
+	#define STRUNLOCK()
+#endif
+
+extern "rtlib"
+	declare function tkrt_UAllocTempNoLock alias "fb_hUStrAllocTemp_NoLock" _
+		( byval s as FBUSTRING ptr, byval units as integer ) as FBUSTRING ptr
+	declare function tkrt_UDelTempNoLock alias "fb_hUStrDelTemp_NoLock" _
+		( byval s as FBUSTRING ptr ) as int32
+end extern
+
+extern "rtlib"
+
+function tkort_UStrQuote alias "tko_UStrQuote" _
+	( byval s as any ptr, byval s_size as integer ) as FBUSTRING ptr
+
+	STRLOCK()
+
+	dim as FB_UCHAR ptr p = any
+	dim as integer l = any
+	FB_USTRSETUP( s, s_size, p, l )
+
+	dim as integer q = 0
+	for i as integer = 0 to l - 1
+		if( p[i] = 34 ) then q += 1
+	next
+
+	dim as FBUSTRING ptr dst = tkrt_UAllocTempNoLock( nullptr, l + q + 2 )
+	if( (dst <> nullptr) andalso (dst->data <> nullptr) ) then
+		dim as integer k = 0
+		dst->data[k] = 34 : k += 1
+		for i as integer = 0 to l - 1
+			dst->data[k] = p[i] : k += 1
+			if( p[i] = 34 ) then
+				dst->data[k] = 34 : k += 1
+			end if
+		next
+		dst->data[k] = 34
+	elseif( dst = nullptr ) then
+		dst = TKORT_UNULLSTR()
+	end if
+
+	if( s_size = FB_USTRSIZEVARLEN ) then
+		tkrt_UDelTempNoLock( cptr( FBUSTRING ptr, s ) )
+	end if
+
+	STRUNLOCK()
+	return dst
+
+end function
+
+end extern

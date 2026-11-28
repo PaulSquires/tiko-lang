@@ -15,7 +15,7 @@ end type
 
 '' A class extends object: its vptr is no field and takes no part.
 class Shape
-    derive equal, hash
+    derive equal, hash, text
     as int32 sides
     as string label
     declare virtual function Area( ) as float64
@@ -92,3 +92,39 @@ dim as containers.Map( of Box( of string ), int32 ) nm
 nm[ n1 ] = 1 : nm[ n2 ] = 2
 print "NUL strings: hash equal "; hashvalue( n1 ) = hashvalue( n2 ); "  equal "; n1 = n2; "  map count "; nm.Count( )
 print "hashes "; hex( hashvalue( i1 ), 16 ); " "; hex( hashvalue( probe ), 16 ); " "; hex( hashvalue( p1 ), 16 )
+
+'' ---------------------------------------------------------------- P2: order and text
+type Ver
+    derive equal, order, text
+    as int32 major, minor
+    as string tag
+end type
+
+dim as containers.OrderedMap( of Ver, int32 ) om2
+dim as Ver v
+v.major = 2 : v.minor = 0 : v.tag = "b" : om2[ v ] = 3
+v.major = 1 : v.minor = 9 : v.tag = "z" : om2[ v ] = 1
+v.major = 2 : v.minor = 0 : v.tag = "a" : om2[ v ] = 2
+v.major = 1 : v.minor = 10 : v.tag = "a" : om2[ v ] = 9
+dim as string order_ = ""
+for each k as Ver in om2.Keys( )
+    order_ &= " " & k.major & "." & k.minor & k.tag
+next
+print "OrderedMap( of Ver ) keys:"; order_
+
+type Tagged( of T )
+    derive equal, order, text
+    as T value
+    as int32 n
+end type
+dim as Tagged( of int32 ) t1, t2
+t1.value = 1 : t1.n = 5
+t2.value = 1 : t2.n = 7
+print "Tagged( of int32 ) < "; t1 < t2; "  >= "; t1 >= t2; "  "; t1.ToText( )
+print "class text "; s1.ToText( )
+dim as Ver ptr vp = @v
+print "through a pointer "; vp->ToText( )
+dim as ustring u = "ver: " & v.ToText( )
+print u
+dim as Box( of Opaque_ ) never2
+print "uncompared, unprinted Box( of Opaque_ ) still compiles "; never2.value.x

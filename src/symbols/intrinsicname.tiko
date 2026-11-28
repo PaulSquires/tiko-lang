@@ -183,6 +183,10 @@ private function IntrinsicCallType_ _
     ( byref c as Ctx, byval cp as Tko.ListPayload ptr ) as Tko.TypeId
 
     if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
+    '' 'p.ToText( )' over a 'derive text' type (RFC 0019 R6): a ustring, with no symbol behind it.
+    if (cp->count = 0) andalso (c.ast->Kind( cp->target ) = Tko.N_MEMBER) then
+        if DerivedToTextBase_( c, cp->target ) then return c.types->Builtin( Tko.TY_USTRING )
+    end if
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
         c.ast->IdentOf( cp->target )

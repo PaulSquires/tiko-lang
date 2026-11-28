@@ -1,0 +1,6 @@
+'' TKO0871 for 'print p' over a 'derive text' type, with the note that ToText( ) is the way (RFC 0019 R6).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-text-print.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-text-print.bas(7,7): error TKO0871
+'' EXPECT-MAX-DIAG: 2

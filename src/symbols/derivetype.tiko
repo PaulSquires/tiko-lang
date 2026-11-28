@@ -245,6 +245,118 @@ private function FieldComparable_ _
     return false
 end function
 
+private function FieldOrderable_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
+      byval depth as int32 ) as boolean
+    if depth > 32 then return false
+    t = Bare_( types, t )
+    select case types.Kind( t )
+    case Tko.TK_BUILTIN
+        '' A BOOLEAN HAS NO ORDER: fbc 1.20 refuses 'a < b' over two (error 20, measured).
+        select case types.BuiltinOf( t )
+        case Tko.TY_VOID, Tko.TY_ANY, Tko.TY_CVA_LIST, Tko.TY_BOOLEAN : return false
+        end select
+        return true
+    case Tko.TK_ENUM, Tko.TK_POINTER, Tko.TK_PROC
+        return true
+    case Tko.TK_ARRAY
+        return FieldOrderable_( ast, syms, types, names, info, types.Inner( t ), depth + 1 )
+    case Tko.TK_UDT
+        if types.IsInterface( t ) then return false
+        dim as Tko.NodeId ln
+        if (DeriveMaskOf( ast, syms, types, t, ln ) and Tko.DERIVE_ORDER) <> 0 then return true
+        '' WRITTEN, ALL FOUR: the deciding field takes whichever operator was asked for.
+        if UdtWrittenCmpOp( ast, syms, types, names, info, t, "<" ) = Tko.SYMBOL_NONE then return false
+        if UdtWrittenCmpOp( ast, syms, types, names, info, t, ">" ) = Tko.SYMBOL_NONE then return false
+        if UdtWrittenCmpOp( ast, syms, types, names, info, t, "<=" ) = Tko.SYMBOL_NONE then return false
+        return UdtWrittenCmpOp( ast, syms, types, names, info, t, ">=" ) <> Tko.SYMBOL_NONE
+    end select
+    return false
+end function
+
+'' A 'ToText( )' member taking nothing, the type's own or a base's -- written, so 'derive text'
+'' beside it is TKO1269, and a field of such a type prints through it.
+function UdtToTextMethod _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval t as Tko.TypeId ) as Tko.SymbolId
+    dim as Tko.InternId tn_ = names.Fold( names.GetString( "totext" ) )
+    t = Bare_( types, t )
+    for depth as int32 = 0 to 31
+        if (t = Tko.TYPE_NONE) orelse (types.Kind( t ) <> Tko.TK_UDT) then exit for
+        dim as Tko.Symbol ptr s = syms.SymbolAt( UdtSym_( syms, types, t ) )
+        if s = nullptr then exit for
+        if s->inner <> Tko.SCOPE_NONE then
+            dim as Tko.SymbolId cur = syms.LookupLocal( s->inner, tn_ )
+            for guard as int32 = 0 to 63
+                if cur = Tko.SYMBOL_NONE then exit for
+                dim as Tko.Symbol ptr m = syms.SymbolAt( cur )
+                if m = nullptr then exit for
+                if m->kind = cast( uint8, Tko.SYM_PROC ) then return cur
+                cur = m->nextOverload
+            next
+        end if
+        t = Bare_( types, types.BaseOf( t ) )
+    next
+    return Tko.SYMBOL_NONE
+end function
+
+private function FieldTextable_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval t as Tko.TypeId, byval depth as int32 ) as boolean
+    if depth > 32 then return false
+    t = Bare_( types, t )
+    select case types.Kind( t )
+    case Tko.TK_BUILTIN
+        select case types.BuiltinOf( t )
+        case Tko.TY_VOID, Tko.TY_ANY, Tko.TY_CVA_LIST : return false
+        end select
+        return true
+    case Tko.TK_ENUM, Tko.TK_POINTER, Tko.TK_PROC
+        return true
+    case Tko.TK_ARRAY
+        if types.IsDynArray( t ) andalso (types.DynRank( t ) > 1) then return false   '' a P2 limit
+        return FieldTextable_( ast, syms, types, names, types.Inner( t ), depth + 1 )
+    case Tko.TK_UDT
+        if types.IsInterface( t ) then return false
+        dim as Tko.NodeId ln
+        if (DeriveMaskOf( ast, syms, types, t, ln ) and Tko.DERIVE_TEXT) <> 0 then return true
+        '' A type with only 'operator cast( ) as string' is not text in this build (a P2 limit).
+        return UdtToTextMethod( ast, syms, types, names, t ) <> Tko.SYMBOL_NONE
+    end select
+    return false
+end function
+
+function DeriveOrderGap _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byref info as Tko.SemanticInfo, byval t as Tko.TypeId, _
+      byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    dim as containers.Array( of uint32 ) fs, ft
+    FieldsOf_( syms, types, names, Bare_( types, t ), fs, ft )
+    for i as int32 = 0 to fs.Count - 1
+        if FieldOrderable_( ast, syms, types, names, info, cast( Tko.TypeId, ft[i] ), 0 ) = false then
+            fld = cast( Tko.SymbolId, fs[i] ) : fieldType = cast( Tko.TypeId, ft[i] )
+            return true
+        end if
+    next
+    return false
+end function
+
+function DeriveTextGap _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
+      byref names as Tko.Interner, byval t as Tko.TypeId, _
+      byref fld as Tko.SymbolId, byref fieldType as Tko.TypeId ) as boolean
+    dim as containers.Array( of uint32 ) fs, ft
+    FieldsOf_( syms, types, names, Bare_( types, t ), fs, ft )
+    for i as int32 = 0 to fs.Count - 1
+        if FieldTextable_( ast, syms, types, names, cast( Tko.TypeId, ft[i] ), 0 ) = false then
+            fld = cast( Tko.SymbolId, fs[i] ) : fieldType = cast( Tko.TypeId, ft[i] )
+            return true
+        end if
+    next
+    return false
+end function
+
 private function FieldHashable_ _
     ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
       byref names as Tko.Interner, byval t as Tko.TypeId, byval depth as int32 ) as boolean

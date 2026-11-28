@@ -1,0 +1,6 @@
+'' TKO1267: a field with no order -- a boolean, which fbc refuses to order (error 20) (RFC 0019 R3).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/derive-order-field.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: derive-order-field.bas(3,5): error TKO1267
+'' EXPECT-MAX-DIAG: 1

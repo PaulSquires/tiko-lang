@@ -23,3 +23,10 @@ end function
 public function KeyHash( byref a as Key ) as ulongint
     return hashvalue( a )
 end function
+
+'' P2: order and text, used from the importer.
+public type Ranked
+    derive equal, order, text
+    as int32 rank
+    as string name
+end type

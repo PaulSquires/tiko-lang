@@ -1,0 +1,69 @@
+'' TIKO-ONLY
+'' TWIN-OF text
+'' text-derived.tiko -- text.tiko with 'derive text' in place of every hand-written ToText( )
+'' (RFC 0019 P2). Its output must be text.tiko's latest trace exactly.
+
+enum Colour
+    RED = 1
+    GREEN = 2
+    BLUE = 4
+end enum
+
+type Plain
+    derive text
+    as int32 a, b
+end type
+
+type Base0 extends object
+    derive text
+    as int32 id
+end type
+
+type Mixed extends Base0
+    derive text
+    as boolean flag
+    as int64 big
+    as float64 f
+    as string s
+    as ustring u
+    as int32 grid( 0 to 1, 0 to 1 )
+    as int32 dyn( any )
+    as Plain p
+    as Colour c
+    as any ptr q
+end type
+
+type Box( of T )
+    derive text
+    as T value
+end type
+
+'' ------------------------------------------------------------------------ output
+dim as Plain p
+p.a = 1 : p.b = -2
+print p.ToText( )
+
+dim as Mixed m
+m.id = 5
+m.flag = true
+m.big = -9000000000ll
+m.f = 1.5
+m.s = "say ""hi"""
+m.u = "héllo 日本"
+m.grid( 0, 0 ) = 1 : m.grid( 0, 1 ) = 2 : m.grid( 1, 0 ) = 3 : m.grid( 1, 1 ) = 4
+redim m.dyn( 0 to 2 ) : m.dyn( 0 ) = 7 : m.dyn( 1 ) = 8 : m.dyn( 2 ) = 9
+m.p = p
+m.c = GREEN
+m.q = cast( any ptr, &hDEADBEEF )
+print m.ToText( )
+
+'' The edges: an empty dynamic array, an enum value with no constant, a null pointer,
+'' false, an empty string, -0.0.
+dim as Mixed e
+e.c = cast( Colour, 3 )
+e.f = -0.0
+print e.ToText( )
+
+dim as Box( of int32 ) b
+b.value = 3
+print b.ToText( )

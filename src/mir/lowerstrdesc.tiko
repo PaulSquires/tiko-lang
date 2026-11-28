@@ -180,6 +180,8 @@ function StrDescriptorOf_ _
             dim as Tko.SymbolId scallee = c.info->RefOf( id )
             if scallee = Tko.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
             if c.info->UnboundOverload( id ) then return false   '' Check scored it and bound nothing: refuse rather than run the first overload (SemanticInfo.unbound).
+            '' 'p.ToText( )' over a 'derive text' type has no symbol (RFC 0019, lowerderive.tiko).
+            if scallee = Tko.SYMBOL_NONE then if LowerDeriveText_( c, scp->target, scp->count, outv ) then return true
             if scallee <> Tko.SYMBOL_NONE then
                 dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
                                                       scp->first, scp->count, MT_PTR )
