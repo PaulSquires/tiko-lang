@@ -118,7 +118,7 @@ declare sub CheckInt128Node_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckSliceConst_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
 declare sub CheckSliceLife_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
 declare sub CheckSliceLock_ ( byref c as Ctx, byval id as NodeId )
-'' checkmove.tiko: what 'move( x )' may move from (TKO1258-1260, RFC 0018 V3).
+'' checkmove.tiko: what 'move( x )' may move from (TKO1274-1276, RFC 0018 V3).
 declare sub CheckMoveCall_ ( byref c as Ctx, byval id as NodeId )
 declare function IsMoveBuiltin_ ( byref c as Ctx, byval n as NodeId ) as boolean
 declare function IsTemporaryValue_ ( byref c as Ctx, byval n as NodeId, byval ctorCalls as boolean = true ) as boolean

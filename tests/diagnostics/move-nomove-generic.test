@@ -3,5 +3,5 @@
 '' TEST: cli
 '' ARGS: --dump-ir tests/diagnostics/src/move-nomove-generic.tiko
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: error TKO1263: 'redim preserve' relocates every element, and 'pinned' is nomove
+'' EXPECT-OUT: error TKO1279: 'redim preserve' relocates every element, and 'pinned' is nomove
 '' EXPECT-OUT: move-nomove-generic.tiko(6,8): note: in instantiation of 'array( of pinned )'

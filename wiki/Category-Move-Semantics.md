@@ -54,10 +54,10 @@ keeps its meaning, and then `move( x )` is your procedure.
 
 | Diagnostic | When |
 | --- | --- |
-| TKO1258 | `x` is not an object of a type: a `long`, a `string` |
-| TKO1259 | `x` is const -- a move writes to its source |
-| TKO1260 (warning) | `x` is a temporary, which is moved already |
-| TKO1261 | `x`'s type is `nomove` |
+| TKO1274 | `x` is not an object of a type: a `long`, a `string` |
+| TKO1275 | `x` is const -- a move writes to its source |
+| TKO1276 (warning) | `x` is a temporary, which is moved already |
+| TKO1277 | `x`'s type is `nomove` |
 
 ## Move-Only Types
 
@@ -92,7 +92,7 @@ type Pinned nomove
 end type
 ```
 
-Then `move( x )` (TKO1261), `swap` (TKO1262) and `redim preserve` (TKO1263) are refused,
+Then `move( x )` (TKO1277), `swap` (TKO1278) and `redim preserve` (TKO1279) are refused,
 and the automatic moves above copy instead. A type with a `nomove` field is `nomove` too,
 and a container that grows by reallocating -- `containers.Array` -- cannot hold one.
 `tasks.WaitGroup` is `nomove`.

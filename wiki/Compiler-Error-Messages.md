@@ -758,12 +758,12 @@ Failures after code generation -- clang, the archiver, the linker, the resource 
 | `TKO1255` | error | 'starts' needs a string, and the subject is '‹arg1›' |
 | `TKO1256` | warning | the binding '‹arg1›' hides the constant of the same name; qualify it to compare against it |
 | `TKO1257` | error | a tuple pattern needs a tuple, and the subject is '‹arg1›' |
-| `TKO1258` | error | 'move( )' moves an object of a TYPE, and '‹arg1›' is not one |
-| `TKO1259` | error | 'move( )' cannot move from '‹arg1›': it is const, and a move resets what it moves from |
-| `TKO1260` | warning | 'move( )' of a temporary does nothing: the value is moved already |
-| `TKO1261` | error | '‹arg1›' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer |
-| `TKO1262` | error | 'swap' relocates both objects, and '‹arg1›' is nomove |
-| `TKO1263` | error | 'redim preserve' relocates every element, and '‹arg1›' is nomove |
+| `TKO1274` | error | 'move( )' moves an object of a TYPE, and '‹arg1›' is not one |
+| `TKO1275` | error | 'move( )' cannot move from '‹arg1›': it is const, and a move resets what it moves from |
+| `TKO1276` | warning | 'move( )' of a temporary does nothing: the value is moved already |
+| `TKO1277` | error | '‹arg1›' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer |
+| `TKO1278` | error | 'swap' relocates both objects, and '‹arg1›' is nomove |
+| `TKO1279` | error | 'redim preserve' relocates every element, and '‹arg1›' is nomove |
 
 ## See also
 

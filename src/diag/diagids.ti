@@ -1250,13 +1250,13 @@
     DIAG( TKO1256, SEV_WARNING, "the binding '%0' hides the constant of the same name; qualify it to compare against it" )
     DIAG( TKO1257, SEV_ERROR,   "a tuple pattern needs a tuple, and the subject is '%0'" )
     '' 'move( x )' -- RFC 0018 V3, symbols/checkmove.tiko.
-    DIAG( TKO1258, SEV_ERROR,   "'move( )' moves an object of a TYPE, and '%0' is not one" )
-    DIAG( TKO1259, SEV_ERROR,   "'move( )' cannot move from '%0': it is const, and a move resets what it moves from" )
-    DIAG( TKO1260, SEV_WARNING, "'move( )' of a temporary does nothing: the value is moved already" )
+    DIAG( TKO1274, SEV_ERROR,   "'move( )' moves an object of a TYPE, and '%0' is not one" )
+    DIAG( TKO1275, SEV_ERROR,   "'move( )' cannot move from '%0': it is const, and a move resets what it moves from" )
+    DIAG( TKO1276, SEV_WARNING, "'move( )' of a temporary does nothing: the value is moved already" )
     '' 'type T nomove' -- RFC 0018 V5, symbols/checkmove.tiko.
-    DIAG( TKO1261, SEV_ERROR,   "'%0' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer" )
-    DIAG( TKO1262, SEV_ERROR,   "'swap' relocates both objects, and '%0' is nomove" )
-    DIAG( TKO1263, SEV_ERROR,   "'redim preserve' relocates every element, and '%0' is nomove" )
+    DIAG( TKO1277, SEV_ERROR,   "'%0' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer" )
+    DIAG( TKO1278, SEV_ERROR,   "'swap' relocates both objects, and '%0' is nomove" )
+    DIAG( TKO1279, SEV_ERROR,   "'redim preserve' relocates every element, and '%0' is nomove" )
 
 #endmacro
 

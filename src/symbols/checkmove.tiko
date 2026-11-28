@@ -1,5 +1,5 @@
 '' checkmove.tiko -- WHAT 'move( x )' MAY MOVE FROM (RFC 0018 V3, docs/architecture/decisions):
-'' TKO1258-1260. Asked of every N_CALL by latesweeps2.tiko; builtinarity.tiko already counts
+'' TKO1274-1276. Asked of every N_CALL by latesweeps2.tiko; builtinarity.tiko already counts
 '' its one argument (TKO0801).
 ''
 '' 'move( x )' relocates x's object into a temporary and resets x to its default state
@@ -226,7 +226,7 @@ sub CheckNoMoveSwap_ ( byref c as Ctx, byval id as NodeId )
         dim as TypeId t = c.info->TypeOf_( v )
         if t = TYPE_NONE then continue for
         if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, t ) then
-            c.diags->Report( TKO1262, PointRange( c.ast->Loc( id ) ), c.types->Name( c.types->Unqualify( t ) ) )
+            c.diags->Report( TKO1278, PointRange( c.ast->Loc( id ) ), c.types->Name( c.types->Unqualify( t ) ) )
             return
         end if
     next
@@ -258,7 +258,7 @@ sub CheckNoMoveRedim_ ( byref c as Ctx, byval id as NodeId )
         if c.types->IsDynArray( at ) = false then continue for
         dim as TypeId et = c.types->Inner( at )
         if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, et ) then
-            c.diags->Report( TKO1263, PointRange( c.ast->Loc( item ) ), c.types->Name( c.types->Unqualify( et ) ) )
+            c.diags->Report( TKO1279, PointRange( c.ast->Loc( item ) ), c.types->Name( c.types->Unqualify( et ) ) )
         end if
     next
 end sub
@@ -283,22 +283,22 @@ sub CheckMoveCall_ ( byref c as Ctx, byval id as NodeId )
     if at = TYPE_NONE then return   '' an untyped argument has been reported already
     if c.types->Kind( c.types->Unqualify( at ) ) = TK_REFERENCE then at = c.types->Inner( c.types->Unqualify( at ) )
     if c.types->Kind( c.types->Unqualify( at ) ) <> TK_UDT then
-        c.diags->Report( TKO1258, PointRange( c.ast->Loc( a ) ), c.types->Name( at ) )
+        c.diags->Report( TKO1274, PointRange( c.ast->Loc( a ) ), c.types->Name( at ) )
         return
     end if
     '' A 'nomove' TYPE IS NEVER RELOCATED (V5) -- its address is known somewhere else.
     if Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, at ) then
-        c.diags->Report( TKO1261, PointRange( c.ast->Loc( a ) ), c.types->Name( at ) )
+        c.diags->Report( TKO1277, PointRange( c.ast->Loc( a ) ), c.types->Name( at ) )
         return
     end if
     if MoveSourceHasAddress_( c, a ) = false then
         '' A VALUE OF THE TYPE is a temporary -- a call's result, an operator's, a type
         '' literal -- and moved already.
-        c.diags->Report( TKO1260, PointRange( c.ast->Loc( a ) ) )
+        c.diags->Report( TKO1276, PointRange( c.ast->Loc( a ) ) )
         return
     end if
     if MoveFromConst_( c, a ) then
-        c.diags->Report( TKO1259, PointRange( c.ast->Loc( a ) ), MoveSpelling_( c, a ) )
+        c.diags->Report( TKO1275, PointRange( c.ast->Loc( a ) ), MoveSpelling_( c, a ) )
     end if
 end sub
 
