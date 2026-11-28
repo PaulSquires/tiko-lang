@@ -106,7 +106,7 @@ true
 ## Remarks
 
 - **A key type of your own** needs `derive equal, hash`, or extends `containers.Hashable` and overrides `HashOf( )` (with an `operator =` of its own). Either way, equal keys hash equal; with `derive` that holds by construction.
-- **Not a reserved word.** A procedure, variable or other symbol of your own named `hashvalue` wins, and the built-in is then out of reach in that scope. A Map or Set instantiated where your own `hashvalue` is visible picks yours up too, and fails to compile inside `map.tiko` or `set.tiko`, so a program that uses them should not declare a global `hashvalue`. One inside a namespace of your own (`Mine.hashvalue`) does not interfere.
+- **Not a reserved word.** A procedure, variable or other symbol of your own named `hashvalue` wins in your own code, and the built-in is then out of reach there. Map and Set are unaffected: their bodies belong to `std/containers`, and inside a module's code the name is the built-in unless the module declares its own.
 - `__TIKO_HASHVALUE__` is defined when the compiler has `hashvalue`; see [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
 - `hashvalue` is a tiko addition.
 
