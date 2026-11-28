@@ -241,16 +241,16 @@ func ptr MKSTR(ptr $0, i32 $1) {
     %11 = load @n
     store %10, %11
     %12 = load @$tmp0
-    call void _ZN1SC1ERKS_(%12, @r)
-    call void _ZN1SD1Ev(@r)
-    %13 = load @$tmp0
-    ret %13
+    %13 = load @r
+    store %12, %13
+    %14 = call.rtl ptr memset(@r, 0, 32)
+    %15 = load @$tmp0
+    ret %15
 }
 declare void _ZN1SC1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_IntToStr(i32 $0)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare void _ZN1SC1ERKS_(ptr $0, ptr $1)
 declare void _ZN1SD1Ev(ptr $0)
 func void _ZN1KC1Ei(ptr $0, i32 $1) {
   local ptr this
@@ -611,6 +611,7 @@ func void RUN1$c1$dtor() {
     call void _ZN1CD1Ev(@@RUN1$c1)
     ret
 }
+declare void _ZN1SC1ERKS_(ptr $0, ptr $1)
 func void RUN1$s1$dtor() {
   entry0:
     call void _ZN1SD1Ev(@@RUN1$s1)
@@ -656,6 +657,12 @@ func void _ZN1SC1Ev(ptr $0) {
     %6 = call.rtl ptr memset(%5, 0, 4)
     ret
 }
+func void _ZN1SD1Ev(ptr $0) {
+  entry0:
+    %1 = field.addr $0, 0
+    call.rtl void fb_StrDelete(%1)
+    ret
+}
 func void _ZN1SC1ERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $0, 0
@@ -671,12 +678,6 @@ func void _ZN1SC1ERKS_(ptr $0, ptr $1) {
     ret
 }
 declare void _ZN1SaSERKS_(ptr $0, ptr $1)
-func void _ZN1SD1Ev(ptr $0) {
-  entry0:
-    %1 = field.addr $0, 0
-    call.rtl void fb_StrDelete(%1)
-    ret
-}
 func void _ZN1SaSERKS_(ptr $0, ptr $1) {
   entry0:
     %1 = field.addr $1, 0
@@ -689,4 +690,4 @@ func void _ZN1SaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 26 functions, 42 blocks, 457 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 26 functions, 42 blocks, 458 insts, 0 statements not lowered, 0 scope imbalance

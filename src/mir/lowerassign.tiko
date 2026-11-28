@@ -787,11 +787,32 @@ private sub LowerAssign _
                 '' FUNCTION with every parameter defaulted, so a procedure-pointer
                 '' assignment still reaches LowerAddr below.
                 dim as MirValue sa
+                dim as int32 tmark = c.udtTemps.Count
                 if BareCallSourceAddr_( c, value, sa ) = false then
                     sa = LowerAddr( c, value )
                 end if
                 if (da.kind <> cast( uint8, MV_NONE )) andalso _
                    (sa.kind <> cast( uint8, MV_NONE )) then
+                    '' A TEMPORARY OF THE TARGET'S OWN TYPE IS MOVED IN (RFC 0018 V2): the old
+                    '' value is destroyed, the temporary's bytes take its place, and the
+                    '' temporary is not destroyed. 'b = f( )' ran 'let' -- a deep copy -- and
+                    '' then the temporary's destructor; the temporary was dead either way.
+                    '' The bytes are loaded FIRST, so a load that cannot be made declines
+                    '' before the old value is gone. ONLY WHEN NO 'let' ANYBODY WROTE WOULD
+                    '' RUN -- see TypeHasUserLet_: the synthesised one is skipped, a written one
+                    '' never is.
+                    if (atlUpcast = false) andalso UdtTempSince_( c, tmark, sa, atl ) andalso _
+                       (TypeHasUserLet_( c, atl ) = false) then
+                        dim as int32 msz = SizeOfType( c, atl )
+                        dim as MirValue whole
+                        if msz > 0 then whole = LowerExprLoad( c, sa, MT_AGG, msz )
+                        if whole.kind <> cast( uint8, MV_NONE ) then
+                            DestroyUdtAt_( c, atl, da )
+                            StoreThrough( c, da, whole )
+                            ForgetUdtTemp_( c, sa.id )
+                            return
+                        end if
+                    end if
                     if ulet <> Tko.SYMBOL_NONE then
                         dim as containers.Array( of uint32 ) largs
                         largs.Push( cast( uint32, sa.kind ) )

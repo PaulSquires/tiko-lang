@@ -54,4 +54,36 @@ scope
 end scope
 Report "I4"
 
+'' P: NOTHING WRITTEN BY HAND ANYWHERE -- no T inside -- so no count can see a copy. What a
+'' move shows instead is that the caller ends up with THE SAME BUFFERS the callee built:
+'' the string's data pointer and the array's first element, compared, not printed.
+type P
+    items( any ) as long
+    name as string
+end type
+
+dim shared as any ptr seenName, seenItems
+
+function BuildP( byval n as long ) as P
+    dim as P r
+    redim r.items( n - 1 )
+    for i as long = 0 to n - 1 : r.items( i ) = i * 2 : next
+    r.name = "plain" & n
+    seenName = strptr( r.name ) : seenItems = @r.items( 0 )
+    return r
+end function
+
+print "I5 dim a = BuildP( )  (no structors written anywhere)"
+scope
+    dim as P a = BuildP( 100 )
+    print "  same buffers: " & iif( strptr( a.name ) = seenName andalso @a.items( 0 ) = seenItems, "yes", "NO, copied" ) & "  " & a.name & " " & a.items( 99 )
+end scope
+
+print "I6 b = BuildP( )  (assignment, no structors written anywhere)"
+scope
+    dim as P b = BuildP( 3 )
+    b = BuildP( 50 )
+    print "  same buffers: " & iif( strptr( b.name ) = seenName andalso @b.items( 0 ) = seenItems, "yes", "NO, copied" ) & "  " & b.name & " " & b.items( 49 )
+end scope
+
 print "-- end of main"

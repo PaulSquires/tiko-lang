@@ -2,6 +2,8 @@
 '' D2( 7 ) )', 'var e = Wr( .. )', 'new Wr( .. )', 'Wr( 6, d )' and 'dim as Wx a = d' passed the
 '' loaded aggregate where the slot wants a pointer to a copy (clang, TKO0113). Output and the
 '' made/gone counts are fbc-modern's -- see CtorIndirectUdtArg_ in lowercallarg.tiko.
+'' RFC 0018 V2 (P1): tiko MOVES a returned local and a temporary passed or assigned, so this count
+'' is below fbc's '15 15' -- on purpose (RFC 0018 §13).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-byval-udt-written.tiko -o tests/codegen/ctorbyvaludtwritten.exe
 '' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
@@ -23,4 +25,4 @@
 '' EXPECT-RUN-OUT:  8
 '' EXPECT-RUN-OUT:  1 8
 '' EXPECT-RUN-OUT:  2 4
-'' EXPECT-RUN-OUT:  15 15
+'' EXPECT-RUN-OUT:  14 14

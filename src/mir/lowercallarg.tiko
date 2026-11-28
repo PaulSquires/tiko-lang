@@ -1160,8 +1160,18 @@ function ByvalUdtCopyArg_ _   '' not private: an operator's operand takes it too
     '' its buffer -- so an argument with no address DECLINES rather than being copied
     '' some other way.
     '' ...and for 'this' the address is the pointer's VALUE -- see InitSourceAddr_.
+    dim as int32 tmark = c.udtTemps.Count
     dim as MirValue src = InitSourceAddr_( c, argNode )
     if src.kind = cast( uint8, MV_NONE ) then return false
+
+    '' A TEMPORARY OF THE PARAMETER'S OWN TYPE IS PASSED AS IT IS (RFC 0018 V2). 'Take( f( ) )'
+    '' copied f's result into a second temporary and destroyed both after the call; the
+    '' result is an rvalue nobody else holds, so it IS the argument. It is already on
+    '' c.udtTemps and dies with the statement there, so no slot is handed back.
+    if UdtTempSince_( c, tmark, src, upt ) then
+        outa = src
+        return true
+    end if
 
     dim as int32 slot = NewTempLocal( c, MT_AGG, sz )
     if slot < 0 then return false

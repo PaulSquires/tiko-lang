@@ -43,4 +43,8 @@ I4 b = a  (an lvalue, still needed)
   dtor #10
 I4: ctor=3 copy=0 let=2 dtor=3 balance=ok
 
+I5 dim a = BuildP( )  (no structors written anywhere)
+  same buffers: NO, copied  plain100 198
+I6 b = BuildP( )  (assignment, no structors written anywhere)
+  same buffers: NO, copied  plain50 98
 -- end of main

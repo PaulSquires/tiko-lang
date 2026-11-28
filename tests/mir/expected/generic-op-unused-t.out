@@ -22,15 +22,16 @@ func ptr _Zv25+<15>R3BoxI8FBSTRINGES2_(ptr $0, ptr $1, ptr $2) {
     %11 = field.addr %10, 0
     %12 = call.rtl ptr fb_StrConcatAssign(%6, -1, %11, -1, 0)
     %13 = load @$tmp0
-    call void _ZN3BoxI8FBSTRINGEC1ERKS1_(%13, @r)
-    call void _ZN3BoxI8FBSTRINGED1Ev(@r)
-    %14 = load @$tmp0
-    ret %14
+    %14 = load @r
+    store %13, %14
+    %15 = call.rtl ptr memset(@r, 0, 24)
+    %16 = load @$tmp0
+    ret %16
 }
 declare void _ZN3BoxI8FBSTRINGEC1Ev(ptr $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
-declare void _ZN3BoxI8FBSTRINGEC1ERKS1_(ptr $0, ptr $1)
+declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void _ZN3BoxI8FBSTRINGED1Ev(ptr $0)
 func i64 _Zv24+<8>R3BoxIu7INTEGERES2_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
@@ -64,7 +65,6 @@ func i64 _Zv24+<8>R3BoxIu7INTEGERES2_(ptr $0, ptr $1) {
     %18 = load @$abi4
     ret %18
 }
-declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg s1 size 24
@@ -124,19 +124,6 @@ func void _ZN3BoxI8FBSTRINGEC1Ev(ptr $0) {
     store %4, 0
     ret
 }
-func void _ZN3BoxI8FBSTRINGEC1ERKS1_(ptr $0, ptr $1) {
-  entry0:
-    %1 = field.addr $0, 0
-    %2 = field.addr %1, 0
-    store %2, 0
-    %3 = field.addr %1, 8
-    store %3, 0
-    %4 = field.addr %1, 16
-    store %4, 0
-    call void _ZN3BoxI8FBSTRINGEaSERKS1_($0, $1)
-    ret
-}
-declare void _ZN3BoxI8FBSTRINGEaSERKS1_(ptr $0, ptr $1)
 func void _ZN3BoxI8FBSTRINGED1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -144,12 +131,5 @@ func void _ZN3BoxI8FBSTRINGED1Ev(ptr $0) {
     ret
 }
 declare void fb_StrDelete(ptr $0)
-func void _ZN3BoxI8FBSTRINGEaSERKS1_(ptr $0, ptr $1) {
-  entry0:
-    %1 = field.addr $1, 0
-    %2 = field.addr $0, 0
-    %3 = call.rtl ptr fb_StrAssign(%2, -1, %1, -1, 0)
-    ret
-}
 verify: ok
-lowered: 7 functions, 7 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 5 functions, 5 blocks, 81 insts, 0 statements not lowered, 0 scope imbalance

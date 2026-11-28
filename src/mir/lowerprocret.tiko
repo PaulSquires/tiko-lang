@@ -186,7 +186,14 @@ private function SretCopyResult_ _
     '' The whole overload chain -- see CopyCtorOf_.
     dim as Tko.SymbolId cc = CopyCtorOf_( c, rt )
     dim as boolean written = (cc <> Tko.SYMBOL_NONE)
-    if (written = false) andalso (NeedsLetBody_( c, rt ) = false) then return false
+    '' A TYPE THAT ONLY DESTROYS -- no copy constructor, no 'let' body -- has its result
+    '' memcpy'd and the local destroyed as well, which for an owning handle is two
+    '' destructors over one resource. 'return local' over one MOVES (RFC 0018 V2), so a
+    '' bare name of such a type comes through here; anything else still declines.
+    dim as boolean copies = written orelse NeedsLetBody_( c, rt )
+    if copies = false then
+        if (IsVariableName_( c, valueE ) = false) orelse (TypeNeedsDtor_( c, rt ) = false) then return false
+    end if
 
     '' 'return T( args )' CONSTRUCTS STRAIGHT INTO THE HIDDEN POINTER. Measured, fbc's C for
     '' 'return CC( n )', 'return type<CC>( n )' and 'return CC( o )' is one call each --
@@ -240,6 +247,7 @@ private function SretCopyResult_ _
     dim as boolean isThis = ThisObjectAddr_( c, valueE, vt, src, true )
     if isThis = false then vt = c.types->Unqualify( c.info->TypeOf_( valueE ) )
     if vt <> c.types->Unqualify( rt ) then return false
+    dim as int32 tmark = c.udtTemps.Count   '' what the value registers -- see below
     if isThis then
         if ThisObjectAddr_( c, valueE, vt, src ) = false then return false
     else
@@ -253,6 +261,24 @@ private function SretCopyResult_ _
     sa.id = c.sretParam
     dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
     if dst.kind = cast( uint8, MV_NONE ) then return false
+
+    '' 'return r' OVER A LOCAL IS A MOVE (RFC 0018 V2): r's bytes become the caller's
+    '' object and r is not destroyed on the way out -- no copy constructor, no copy, one
+    '' destructor fewer. Everything that is not an owned local copies as it did.
+    if MoveLocalIntoResult_( c, valueE, rt, src, dst ) then return true
+    '' ...AND 'return f( )' IS ONE TOO: the call's result is a temporary this expression
+    '' just registered, so it is adopted -- relocated and never destroyed -- rather than
+    '' copy-constructed into the caller's storage and then destroyed.
+    if (isThis = false) andalso UdtTempSince_( c, tmark, src, rt ) then
+        if RelocateUdt_( c, c.types->Unqualify( rt ), dst, src ) then
+            ForgetUdtTemp_( c, src.id )
+            return true
+        end if
+    end if
+    if copies = false then
+        '' The destroy-only type that was not a movable local: the memcpy fbc does.
+        return RelocateUdt_( c, c.types->Unqualify( rt ), dst, src )
+    end if
 
     if written then
         dim as containers.Array( of uint32 ) cargs

@@ -1,6 +1,8 @@
 '' RUN: a field read off a hidden-result UDT returned by a call written without parentheses --
 '' 'Mk.v', a method, a virtual method, a property and a virtual property through an override.
 '' It was invalid IR (the field offset applied to a loaded aggregate). Expected: fbc's output.
+'' RFC 0018 V2 (P1): tiko MOVES a returned local and a temporary passed or assigned, so this count
+'' is below fbc's 'balanced 20' -- on purpose (RFC 0018 §13).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/sret-field-base.tiko -o tests/codegen/sretfieldbase.exe
 '' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
@@ -10,4 +12,4 @@
 '' EXPECT-RUN-OUT: 9 mk
 '' EXPECT-RUN-OUT: 11 12 13 14
 '' EXPECT-RUN-OUT: 11 22 13 24
-'' EXPECT-RUN-OUT: balanced 20
+'' EXPECT-RUN-OUT: balanced 10

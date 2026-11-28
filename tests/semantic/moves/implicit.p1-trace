@@ -1,0 +1,35 @@
+I1 dim a = Build( )
+  ctor #1
+  a: ubound=999 last=999 name=list1000
+  dtor #1
+I1: ctor=1 copy=0 let=0 dtor=1 balance=ok
+
+I2 b = Build( )
+  ctor #2
+  ctor #3
+  LET  #2 <- #3
+  dtor #3
+  b: ubound=999 name=list1000
+  dtor #2
+I2: ctor=2 copy=0 let=1 dtor=2 balance=ok
+
+I3 TakeL( Build( ) )
+  ctor #4
+  (in TakeL: ubound=9 name=list10)
+  dtor #4
+I3: ctor=1 copy=0 let=0 dtor=1 balance=ok
+
+I4 b = a  (an lvalue, still needed)
+  ctor #5
+  ctor #6
+  LET  #6 <- #5
+  a: ubound=4  b: ubound=4
+  dtor #6
+  dtor #5
+I4: ctor=2 copy=0 let=1 dtor=2 balance=ok
+
+I5 dim a = BuildP( )  (no structors written anywhere)
+  same buffers: yes  plain100 198
+I6 b = BuildP( )  (assignment, no structors written anywhere)
+  same buffers: yes  plain50 98
+-- end of main

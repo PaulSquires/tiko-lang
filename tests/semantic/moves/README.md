@@ -12,6 +12,7 @@ not**.
 | `implicit.bas` | A UDT with **no structors written by hand** (dynamic array + string + one `T`), returned, assigned and passed by value. It prints the data after each case to show it arrived intact. |
 | `relocate.bas` | The relocations FreeBASIC already performs: `swap` and `redim preserve`, with no copy and no `let`. V1 rests on these; V5's `nomove` must close both. |
 | `noncopyable.bas` | Returning a type whose copy constructor is private. It is rejected today; under V4 it compiles. The baseline is the diagnostic. |
+| `hazards.bas` | Added at P1: the shapes a relocation could get wrong. Two locals and two returns, a return from inside a loop, a pending `defer` (no move), a guard whose destructor reads the moved-out local, a method result, an assignment whose target is also an argument, element and field targets, nested by-value calls, a temporary read in an expression. Its `.p0-trace` comes from the P0 compiler (master `61a0e6813` built unmodified); fbc has no `defer`, so it has no `.fbc-trace`. |
 
 ## The baseline is today's tiko, not fbc
 
@@ -20,12 +21,17 @@ not**.
 for every run probe. `noncopyable` differs because tiko rejects it at a different line; see
 below.
 
-The RFC changes structor counts **on purpose** (V7). After P1 a diff in an `M*` case is
-the expected result, and a diff in a `C*` or `R*` case is a bug. Read the diff case by case.
+The RFC changes structor counts **on purpose** (V7), so **each phase keeps its own baseline**.
+`<name>.p1-trace` is what tiko printed once P1 (automatic moves at returns and temporaries) was
+in, and `diff <name>.p0-trace <name>.p1-trace` is exactly what P1 moved. See RFC 0018 §13 for the
+case-by-case reading. In short: M1, M3 and M4 fall to zero copies; M2, I2, H6 and H7 keep their
+`let` because T's is written by hand; M5, M7, M8 and Q4 are unchanged; C8 changes only
+because `MakeD`'s own `return r` moves. I5 and I6 show the caller holding the very buffers the
+callee built.
 
 ```
-bash build/movetrace.sh            # build + run each probe with bin/tiko.exe, diff against .p0-trace
-bash build/movetrace.sh --record   # rewrite both baselines -- only when a phase is accepted
+bash build/movetrace.sh               # build + run each probe with bin/tiko.exe, diff against its latest .pN-trace
+bash build/movetrace.sh --record p2   # write a new phase's baselines -- only when that phase is accepted
 ```
 
 ## The vendored tests that can see a move

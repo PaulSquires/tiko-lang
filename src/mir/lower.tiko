@@ -777,6 +777,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' AFTER the result has been copied out, because the result is often one of them.
             ReleaseUdtTemps_( c, c.stmtUdtMark ) : ReleaseStrTemps_( c, c.stmtStrMark ) : ReleaseWstrTemps_( c, c.stmtWstrMark )
             EmitCleanupsTo( c, 0 )
+            '' A local this return MOVED OUT skipped its destructor on this edge only.
+            c.movedOutSlot1 = 0
             dim as MirValue spa
             spa.kind = cast( uint8, MV_LOCAL )
             spa.ty = cast( uint8, MT_PTR )

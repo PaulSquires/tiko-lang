@@ -1,0 +1,5 @@
+BUILD FAILED rc=1
+tests/semantic/moves/noncopyable.bas(34,14): error TKO0633: 'a' needs a constructor or destructor that is not accessible here
+     |
+  34 | dim as Owner a = OpenOwner( 42 )
+     |              ^

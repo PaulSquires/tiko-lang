@@ -895,9 +895,9 @@ func i32 main(i32 $0, ptr $1) {
     %283 = alloca ptr $tmp14
     %319 = alloca ptr $tmp15
     %365 = alloca ptr $tmp16
-    %369 = alloca ptr $tmp17
-    %374 = alloca ptr $tmp18
-    %404 = alloca ptr $tmp19
+    %370 = alloca ptr $tmp17
+    %376 = alloca ptr $tmp18
+    %406 = alloca ptr $tmp19
     condbr %30, bound.dim1, bound.miss3
   bound.dim1:
     %31 = field.addr %28, 32
@@ -1348,90 +1348,92 @@ func i32 main(i32 $0, ptr $1) {
     %366 = const i64 1
     %367 = trunc %366
     %368 = call ptr BUILDM3E(@$tmp16, %367)
-    call void _ZN3M3EaSERKS_(@b, @$tmp16)
-    call void _ZN3M3ED1Ev(@$tmp16)
-    %370 = const i64 2
-    %371 = trunc %370
-    %372 = call ptr BUILDM2P(@$tmp17, %371)
-    call void _ZN3M2PaSERKS_(@p, @$tmp17)
-    call void _ZN3M2PD1Ev(@$tmp17)
-    %373 = field.addr @b, 0
-    %375 = load %373
-    condbr %375, bound.dim37, bound.miss39
+    %369 = load @$tmp16
+    call void _ZN3M3ED1Ev(@b)
+    store @b, %369
+    %371 = const i64 2
+    %372 = trunc %371
+    %373 = call ptr BUILDM2P(@$tmp17, %372)
+    %374 = load @$tmp17
+    call void _ZN3M2PD1Ev(@p)
+    store @p, %374
+    %375 = field.addr @b, 0
+    %377 = load %375
+    condbr %377, bound.dim37, bound.miss39
   bound.dim37:
-    %376 = field.addr %373, 32
-    %377 = load %376
-    %378 = const i64 1
-    %379 = icmp.ult %378, %377
-    condbr %379, bound.hit38, bound.miss39
+    %378 = field.addr %375, 32
+    %379 = load %378
+    %380 = const i64 1
+    %381 = icmp.ult %380, %379
+    condbr %381, bound.hit38, bound.miss39
   bound.hit38:
-    %380 = field.addr %373, 88
-    %381 = load %380
-    store @$tmp18, %381
+    %382 = field.addr %375, 88
+    %383 = load %382
+    store @$tmp18, %383
     br bound.join40
   bound.miss39:
-    %382 = const i64 -1
-    store @$tmp18, %382
+    %384 = const i64 -1
+    store @$tmp18, %384
     br bound.join40
   bound.join40:
-    %383 = load @$tmp18
-    call.rtl void fb_PrintLongint(0, %383, 0)
-    %384 = field.addr @b, 0
-    %385 = const i64 1
-    %386 = const i64 0
-    %387 = field.addr %384, 72
-    %388 = load %387
-    %389 = mul %385, %388
-    %390 = add %389, %386
-    %391 = const i64 2
-    %392 = field.addr %384, 96
-    %393 = load %392
-    %394 = mul %390, %393
-    %395 = add %394, %391
-    %396 = const i64 4
-    %397 = mul %395, %396
-    %398 = load %384
-    %399 = ptr.add %398, %397
-    %400 = field.addr %399, 0
-    %401 = load %400
-    call.rtl void fb_PrintInt(0, %401, 0)
-    %402 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
-    call.rtl void fb_PrintString(0, %402, 0)
-    %403 = field.addr @p, 0
-    %405 = load %403
-    condbr %405, bound.dim41, bound.miss43
+    %385 = load @$tmp18
+    call.rtl void fb_PrintLongint(0, %385, 0)
+    %386 = field.addr @b, 0
+    %387 = const i64 1
+    %388 = const i64 0
+    %389 = field.addr %386, 72
+    %390 = load %389
+    %391 = mul %387, %390
+    %392 = add %391, %388
+    %393 = const i64 2
+    %394 = field.addr %386, 96
+    %395 = load %394
+    %396 = mul %392, %395
+    %397 = add %396, %393
+    %398 = const i64 4
+    %399 = mul %397, %398
+    %400 = load %386
+    %401 = ptr.add %400, %399
+    %402 = field.addr %401, 0
+    %403 = load %402
+    call.rtl void fb_PrintInt(0, %403, 0)
+    %404 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str10, 2)
+    call.rtl void fb_PrintString(0, %404, 0)
+    %405 = field.addr @p, 0
+    %407 = load %405
+    condbr %407, bound.dim41, bound.miss43
   bound.dim41:
-    %406 = field.addr %403, 32
-    %407 = load %406
-    %408 = const i64 0
-    %409 = icmp.ult %408, %407
-    condbr %409, bound.hit42, bound.miss43
+    %408 = field.addr %405, 32
+    %409 = load %408
+    %410 = const i64 0
+    %411 = icmp.ult %410, %409
+    condbr %411, bound.hit42, bound.miss43
   bound.hit42:
-    %410 = field.addr %403, 64
-    %411 = load %410
-    store @$tmp19, %411
+    %412 = field.addr %405, 64
+    %413 = load %412
+    store @$tmp19, %413
     br bound.join44
   bound.miss43:
-    %412 = const i64 -1
-    store @$tmp19, %412
+    %414 = const i64 -1
+    store @$tmp19, %414
     br bound.join44
   bound.join44:
-    %413 = load @$tmp19
-    call.rtl void fb_PrintLongint(0, %413, 0)
-    %414 = field.addr @p, 0
-    %415 = const i64 1
-    %416 = const i64 2
-    %417 = field.addr %414, 72
-    %418 = load %417
-    %419 = mul %415, %418
-    %420 = add %419, %416
-    %421 = const i64 4
-    %422 = mul %420, %421
-    %423 = load %414
-    %424 = ptr.add %423, %422
-    %425 = field.addr %424, 0
-    %426 = load %425
-    call.rtl void fb_PrintInt(0, %426, 1)
+    %415 = load @$tmp19
+    call.rtl void fb_PrintLongint(0, %415, 0)
+    %416 = field.addr @p, 0
+    %417 = const i64 1
+    %418 = const i64 2
+    %419 = field.addr %416, 72
+    %420 = load %419
+    %421 = mul %417, %420
+    %422 = add %421, %418
+    %423 = const i64 4
+    %424 = mul %422, %423
+    %425 = load %416
+    %426 = ptr.add %425, %424
+    %427 = field.addr %426, 0
+    %428 = load %427
+    call.rtl void fb_PrintInt(0, %428, 1)
     call void COUNTS()
     call void _ZN3M2PD1Ev(@p)
     call void _ZN3F2ED1Ev(@f)
@@ -1440,58 +1442,18 @@ func i32 main(i32 $0, ptr $1) {
     call void _ZN3M3ED1Ev(@b)
     call void _ZN2M2D1Ev(@a)
     call void COUNTS()
-    %427 = const i32 0
-    call.rtl void fb_End(%427)
-    %428 = load @$tmp0
-    ret %428
+    %429 = const i32 0
+    call.rtl void fb_End(%429)
+    %430 = load @$tmp0
+    ret %430
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare i32 fb_ArrayRedimPresvEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
-declare void _ZN3M3EaSERKS_(ptr $0, ptr $1)
-declare void _ZN3M2PaSERKS_(ptr $0, ptr $1)
 declare void _ZN3M2PD1Ev(ptr $0)
 declare void _ZN3F2ED1Ev(ptr $0)
 declare void _ZN2M2D1Ev(ptr $0)
 declare void fb_End(i32 $0)
-func void _ZN3M3EaSERKS_(ptr $0, ptr $1) {
-  entry0:
-    %1 = field.addr $1, 0
-    %2 = field.addr $0, 0
-    %3 = const ptr 0
-    %4 = const i32 0
-    %5 = func.addr ptr _ZN2ELC1Ev
-    %6 = func.addr ptr _ZN2ELD1Ev
-    %7 = call.rtl i32 fb_ArrayRedimTo(%2, %1, %4, %5, %6)
-    %8 = field.addr %2, 8
-    %9 = load %8
-    %10 = field.addr %1, 8
-    %11 = load %10
-    %12 = field.addr %1, 16
-    %13 = load %12
-    %14 = call.rtl ptr memcpy(%9, %11, %13)
-    ret
-}
-declare i32 fb_ArrayRedimTo(ptr $0, ptr $1, i32 $2, ptr $3, ptr $4)
-declare ptr memcpy(ptr $0, ptr $1, i64 $2)
-func void _ZN3M2PaSERKS_(ptr $0, ptr $1) {
-  entry0:
-    %1 = field.addr $1, 0
-    %2 = field.addr $0, 0
-    %3 = const ptr 0
-    %4 = const i32 0
-    %5 = func.addr ptr _ZN2ELC1Ev
-    %6 = func.addr ptr _ZN2ELD1Ev
-    %7 = call.rtl i32 fb_ArrayRedimTo(%2, %1, %4, %5, %6)
-    %8 = field.addr %2, 8
-    %9 = load %8
-    %10 = field.addr %1, 8
-    %11 = load %10
-    %12 = field.addr %1, 16
-    %13 = load %12
-    %14 = call.rtl ptr memcpy(%9, %11, %13)
-    ret
-}
 func void _ZN3M2PD1Ev(ptr $0) {
   entry0:
     %1 = field.addr $0, 0
@@ -1525,4 +1487,4 @@ func void _ZN2M2D1Ev(ptr $0) {
 }
 declare i32 fb_ArrayErase(ptr $0)
 verify: ok
-lowered: 22 functions, 106 blocks, 1178 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 20 functions, 104 blocks, 1152 insts, 0 statements not lowered, 0 scope imbalance
