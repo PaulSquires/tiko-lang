@@ -1,0 +1,7 @@
+N1 return local: 1
+N2 return f( ): 3
+N3 assignment from a temporary: 4
+  (in TakeP 5)
+N4 a temporary as a byval argument (in place, not relocated)
+N5 a type holding one: 6 12
+N6 registered after scope: 0, relocated: 0

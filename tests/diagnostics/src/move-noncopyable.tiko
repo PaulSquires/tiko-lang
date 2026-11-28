@@ -1,0 +1,33 @@
+'' RFC 0018 V4: a non-copyable type MOVES, but a COPY of one is still refused. Lines asserted.
+type Owner
+private:
+    as long ptr p
+    declare constructor( byref rhs as Owner )
+    declare operator let( byref rhs as Owner )
+public:
+    declare constructor( )
+    declare destructor( )
+end type
+constructor Owner( ) : end constructor
+destructor Owner( ) : end destructor
+
+dim shared as Owner g
+
+function FromShared( ) as Owner
+    return g
+end function
+
+function FromParam( byref o as Owner ) as Owner
+    return o
+end function
+
+sub Take( byval o as Owner )
+end sub
+
+dim as Owner a
+dim as Owner b = a
+b = a
+Take( a )
+dim as Owner c = move( a )
+b = move( c )
+Take( move( b ) )

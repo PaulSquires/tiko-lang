@@ -1,0 +1,8 @@
+'' RFC 0018 V5: a container that grows by redim preserve cannot hold a nomove type.
+#import "std/containers"
+type Pinned nomove
+    as long v
+end type
+dim as containers.Array( of Pinned ) xs
+dim as Pinned p
+xs.Push( p )

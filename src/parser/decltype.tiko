@@ -17,6 +17,10 @@ private sub TypedefKeywordTarget_( byref p as Tko.ParserState, byval n as Tko.No
     p.diags->Report( Tko.TKO0893, Tko.PointRange( p.ast->Loc( n ) ), lcase( mid( Tko.TokenKindName( k ), 4 ) ) )  '' 'KW_DIM' -> 'dim'
 end sub
 
+'' 'type T nomove' (RFC 0018 V5): the IDENTIFIER nomove -- not a keyword -- after the name or the base.
+private sub ParseNoMoveClause_( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
+    if (Peek( p ) = Tko.TK_IDENT) andalso (Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, Cur( p ).literal ) ) ) = "nomove") then Advance( p ) : sp.extra or= Tko.PF_NOMOVE
+end sub
 '' 'type T extern "c"' -- A TIKO EXTENSION: lay T out by the target's C rule (PF_C_LAYOUT).
 '' Read on either side of a 'field = N' clause. fbc's rule for bit-fields matches neither
 '' MSVC's nor SysV's, so a record shared with C code has to say which one it follows; the
@@ -256,7 +260,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
     dim as int32 own1 = iif( sp.b <> Tko.NODE_NONE, p.pos, own0 + 1 )
-    ParseCLayoutClause_( p, sp )
+    ParseNoMoveClause_( p, sp ) : ParseCLayoutClause_( p, sp )
     ParseFieldClause( p, sp )
     ParseCLayoutClause_( p, sp )
 
@@ -288,6 +292,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             wend
         end if
     end if
+    ParseNoMoveClause_( p, sp )   '' ...and after the base: 'type W extends B nomove'
     '' 'type T extends B implements I' -- fbc's header spelling is not taken: 'implements'
     '' is a body line (docs/tiko-interfaces §4.5).
     if Peek( p ) = Tko.KW_IMPLEMENTS then

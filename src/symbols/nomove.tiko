@@ -1,0 +1,67 @@
+'' nomove.tiko -- 'type T nomove' (RFC 0018 V5, docs/architecture/decisions/0018).
+''
+'' A move is a relocation: the object's bytes go to a new address and nothing is told. That is
+'' wrong for an object whose ADDRESS is known elsewhere -- a WaitGroup a blocked goroutine is
+'' waiting on, a node registered in a list by '@this'. 'nomove' marks such a type. Check refuses
+'' every explicit relocation of one ('move( x )', 'swap', 'redim preserve', checkmove.tiko), and
+'' lowering never relocates one automatically: a return or an assignment copies it, as fbc does.
+
+#import "std/containers"
+#include once "symbols/nomove.ti"
+
+namespace Tko.Moves
+
+private function NoMoveWalk_ _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref types as Tko.TypeContext, byval t as Tko.TypeId, byval depth as int32 ) as boolean
+
+    if (t = Tko.TYPE_NONE) orelse (depth > 32) then return false
+    t = types.Unqualify( t )
+    select case types.Kind( t )
+    case Tko.TK_TYPEDEF
+        return NoMoveWalk_( ast, syms, types, types.Inner( t ), depth + 1 )
+    case Tko.TK_ARRAY
+        '' A FIXED array holds its elements inline; a dynamic one holds a descriptor.
+        if types.IsDynArray( t ) then return false
+        return NoMoveWalk_( ast, syms, types, types.Inner( t ), depth + 1 )
+    case Tko.TK_UDT
+    case else
+        return false
+    end select
+    dim as Tko.SymbolId sid = syms.LookupLocalTyped( cast( Tko.ScopeId, types.DeclScopeOf( t ) ), types.NameOf( t ), true )
+    dim as Tko.Symbol ptr s = syms.SymbolAt( sid )
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, Tko.SYM_UDT ) then return false
+    dim as Tko.NodeId dn = cast( Tko.NodeId, s->payload )
+    if (dn <> Tko.NODE_NONE) andalso (cast( int32, dn ) <= ast.Count( )) then
+        if ast.Kind( dn ) = Tko.N_TYPE then
+            if (ast.StmtOf( dn )->extra and Tko.PF_NOMOVE) <> 0 then return true
+        end if
+    end if
+    '' ...or a base or a field that is: the 'extends' base is a field too.
+    if s->inner = Tko.SCOPE_NONE then return false
+    dim as Tko.SymScope ptr sc = syms.ScopeAt( s->inner )
+    if sc = nullptr then return false
+    dim as Tko.SymbolId cur = sc->firstSym
+    dim as int32 guard = 0
+    while (cur <> Tko.SYMBOL_NONE) andalso (guard < 100000)
+        guard += 1
+        dim as Tko.Symbol ptr f = syms.SymbolAt( cur )
+        if f = nullptr then exit while
+        if (f->kind = cast( uint8, Tko.SYM_FIELD )) andalso (types.Unqualify( f->type_ ) <> t) then
+            if (f->flags and Tko.SYMF_STATIC) = 0 then
+                if NoMoveWalk_( ast, syms, types, f->type_, depth + 1 ) then return true
+            end if
+        end if
+        cur = f->nextInScope
+    wend
+    return false
+end function
+
+function IsNoMoveType _
+    ( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
+      byref types as Tko.TypeContext, byval t as Tko.TypeId ) as boolean
+    return NoMoveWalk_( ast, syms, types, t, 0 )
+end function
+
+end namespace

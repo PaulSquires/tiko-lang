@@ -13,6 +13,8 @@ not**.
 | `relocate.bas` | The relocations FreeBASIC already performs: `swap` and `redim preserve`, with no copy and no `let`. V1 rests on these; V5's `nomove` must close both. |
 | `noncopyable.bas` | Returning a type whose copy constructor is private. It is rejected today; under V4 it compiles. The baseline is the diagnostic. |
 | `explicit.bas` | Added at P2: `move( x )` at every sink (dim, assignment over a written `let`, byval argument, `return move( p )` of a byval parameter, a move on one return path, a self-move, an element, `*p` through a byref parameter) and a type with no structors written anywhere, whose buffers are compared by address. Each source is printed after the move to show it was reset. TIKO-ONLY. Its first baseline is `.p2-trace`. |
+| `moveonly.bas` | Added at P3 (V4): a non-copyable type (private copy constructor and `let`, never defined) returned, moved into a dim, an assignment and an argument, and one with no destructor. A copy anywhere would fail to link. TIKO-ONLY. |
+| `nomove.bas` | Added at P3 (V5): a `nomove` type that registers `@this` and checks it on destruction, through every site P1 moves. It must report 0 relocations; without `nomove` it reports 5. TIKO-ONLY. |
 | `hazards.bas` | Added at P1: the shapes a relocation could get wrong. Two locals and two returns, a return from inside a loop, a pending `defer` (no move), a guard whose destructor reads the moved-out local, a method result, an assignment whose target is also an argument, element and field targets, nested by-value calls, a temporary read in an expression. Its `.p0-trace` comes from the P0 compiler (master `61a0e6813` built unmodified); fbc has no `defer`, so it has no `.fbc-trace`. |
 
 ## The baseline is today's tiko, not fbc

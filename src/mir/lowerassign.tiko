@@ -823,7 +823,7 @@ private sub LowerAssign _
                     '' RUN -- see TypeHasUserLet_: the synthesised one is skipped, a written one
                     '' never is.
                     if (atlUpcast = false) andalso UdtTempSince_( c, tmark, sa, atl ) andalso _
-                       (TypeHasUserLet_( c, atl ) = false) then
+                       (TypeHasUserLet_( c, atl ) = false) andalso MayRelocate_( c, atl ) then
                         dim as int32 msz = SizeOfType( c, atl )
                         dim as MirValue whole
                         if msz > 0 then whole = LowerExprLoad( c, sa, MT_AGG, msz )

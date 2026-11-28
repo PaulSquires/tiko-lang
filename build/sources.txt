@@ -49,6 +49,7 @@ src/symbols/structpick.tiko
 src/symbols/formatcheck.tiko
 src/symbols/castpick.tiko
 src/symbols/checkslice.tiko
+src/symbols/nomove.tiko
 src/symbols/checkspan.tiko
 src/symbols/semwalk.tiko
 src/symbols/sem.tiko

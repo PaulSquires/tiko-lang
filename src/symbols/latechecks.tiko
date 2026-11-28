@@ -1416,6 +1416,7 @@ sub CheckImplicitStructors_( byref c as Ctx )
         '' the point of declaring one. So which structor to look at depends on whether
         '' the declaration was INITIALISED FROM ANOTHER OF ITS OWN TYPE.
         dim as boolean copies = false
+        dim as boolean noCtorAsked = false
         if s->payload <> 0 then
             dim as NodeId it2 = cast( NodeId, s->payload )
             if c.ast->Kind( it2 ) = N_VAR_ITEM then
@@ -1426,6 +1427,13 @@ sub CheckImplicitStructors_( byref c as Ctx )
                 '' and calls no copy constructor -- fbc accepts it, and treating it as
                 '' a copy refused com/comptr-companions.bas.
                 dim as boolean fromName = false
+                '' A MOVE AND A BY-VALUE RESULT CONSTRUCT NOTHING (RFC 0018 V4): 'move( x )' is
+                '' relocated into the variable and a call's result is built in it or adopted, so
+                '' no constructor of T is the question -- a private copy constructor included.
+                '' fbc-modern agrees for the result: 'dim as Owner a = MakeIt( 42 )' compiles.
+                if (ip2->b <> NODE_NONE) andalso IsTemporaryValue_( c, ip2->b, false ) then
+                    if ValueType_( c, c.info->TypeOf_( ip2->b ) ) = u then noCtorAsked = true
+                end if
                 if ip2->b <> NODE_NONE then
                     select case c.ast->Kind( ip2->b )
                     case N_IDENT, N_MEMBER, N_DEREF
@@ -1461,7 +1469,9 @@ sub CheckImplicitStructors_( byref c as Ctx )
             end if
         end if
 
-        if chosenCtor <> SYMBOL_NONE then
+        if noCtorAsked then
+            '' nothing constructs the variable -- see above
+        elseif chosenCtor <> SYMBOL_NONE then
             dim as Symbol ptr ccs = c.syms->SymbolAt( chosenCtor )
             if ccs <> nullptr then
                 if StructorReachable_( c, ccs, u, here ) = false then

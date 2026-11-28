@@ -1,0 +1,16 @@
+'' RUN: a 'nomove' type is never relocated (RFC 0018 V5): the sites P1 moves -- a returned local,
+'' a returned call result, an assignment from a temporary -- copy it instead, a byval temporary is
+'' still passed in place, and a type with a nomove field is nomove too. Pinned registers its own
+'' address and checks it on destruction; without 'nomove' the same program reports 5 relocations.
+'' The probe is tests/semantic/moves/nomove.bas.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/semantic/moves/nomove.bas -o tests/codegen/movenomove.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/movenomove.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: N1 return local: 1
+'' EXPECT-RUN-OUT: N2 return f( ): 3
+'' EXPECT-RUN-OUT: N3 assignment from a temporary: 4
+'' EXPECT-RUN-OUT: N5 a type holding one: 6 12
+'' EXPECT-RUN-OUT: N6 registered after scope: 0, relocated: 0

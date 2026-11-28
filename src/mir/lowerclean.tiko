@@ -5,6 +5,7 @@
 
 #import "std/containers"
 #include once "mir/lowerall.ti"
+#include once "symbols/nomove.ti"
 
 namespace Tko.Mir
 
@@ -318,6 +319,13 @@ end sub
 '' must be one nobody else can reach afterwards: a statement temporary this expression
 '' registered, or a local the RETURN being lowered is leaving.
 
+'' May an object of type t be RELOCATED at all? Not a 'nomove' one (RFC 0018 V5) -- its address
+'' is known elsewhere. Every AUTOMATIC relocation asks this and copies instead; adopting a
+'' temporary IN PLACE (a by-value argument) is not a relocation and does not ask.
+function MayRelocate_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    return (Tko.Moves.IsNoMoveType( *c.ast, *c.syms, *c.types, t ) = false)
+end function
+
 '' Is 'addr' a UDT TEMPORARY OF TYPE t that this expression registered -- on c.udtTemps
 '' at or after 'mark'? Only that is an rvalue nobody else holds: a byref-returning call
 '' registers nothing, and a temporary of ANOTHER type (an upcast, a field read off a
@@ -403,7 +411,36 @@ function IsVariableName_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
     if s = nullptr then return false
-    return (s->kind = cast( uint8, Tko.SYM_VARIABLE ))
+    if s->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return false
+    '' ...AND ONE THIS PROCEDURE OWNS: not a static, a shared, a reference, an extern, a common.
+    return ((s->flags and (Tko.SYMF_SHARED or Tko.SYMF_STATIC or Tko.SYMF_BYREF or Tko.SYMF_EXTERN or Tko.SYMF_COMMON)) = 0)
+end function
+
+'' Is 'n' A FRESH RESULT OF TYPE t -- a by-value call or user operator returning a t -- whose
+'' temporary nobody else holds? UdtTempSince_ answers that from c.udtTemps, but a type with NO
+'' DESTRUCTOR registers nothing there, so for one of those the node itself is asked. A
+'' non-copyable type with no destructor (RFC 0018 V4) is the case that needs it: copying its
+'' temporary would call a copy constructor that is declared and never defined.
+function IsFreshResultNode_( byref c as Ctx, byval n as Tko.NodeId, byval t as Tko.TypeId ) as boolean
+    if n = Tko.NODE_NONE then return false
+    dim as Tko.NodeKind k = c.ast->Kind( n )
+    dim as Tko.Symbol ptr s
+    select case k
+    case Tko.N_CALL
+        s = c.syms->SymbolAt( c.info->RefOf( n ) )
+        if s = nullptr then s = c.syms->SymbolAt( c.info->RefOf( c.ast->ListOf( n )->target ) )
+    case Tko.N_BINARY, Tko.N_UNARY
+        s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    case else
+        return false
+    end select
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
+    dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
+    if (decl <> Tko.NODE_NONE) andalso (c.ast->Kind( decl ) = Tko.N_PROC) then
+        if (c.ast->Flags( decl ) and Tko.NF_BYREF) <> 0 then return false
+    end if
+    return (c.types->Unqualify( c.info->TypeOf_( n ) ) = c.types->Unqualify( t ))
 end function
 
 function MoveLocalIntoResult_ _
@@ -412,6 +449,7 @@ function MoveLocalIntoResult_ _
     if IsVariableName_( c, valueE ) = false then return false
     if src.kind <> cast( uint8, MV_LOCAL ) then return false
     dim as Tko.TypeId ut = c.types->Unqualify( rt )
+    if MayRelocate_( c, ut ) = false then return false   '' 'nomove': copied, as fbc does
     dim as Tko.SymbolId dt = StructorWithArity( c, StructorOf( c, ut, "__dtor" ), 0 )
     dim as boolean found = false
     for i as int32 = 0 to c.cleanupNode.Count - 1
@@ -428,7 +466,11 @@ function MoveLocalIntoResult_ _
         end if
         found = true
     next
-    if found = false then return false
+    '' A TYPE WITH NO DESTRUCTOR registers no cleanup entry, so there is none to find -- the
+    '' variable's flags (IsVariableName_) and its own MV_LOCAL slot are the proof then, and
+    '' there is no destructor to skip. A copy constructor is all such a type can have, and
+    '' skipping it is the point (RFC 0018 V4: a private one is declared and never defined).
+    if (found = false) andalso TypeNeedsDtor_( c, ut ) then return false
     if RelocateUdt_( c, ut, dst, src ) = false then return false
     '' ...AND r IS ZEROED, so nothing left on the way out shares the caller's buffers. Its
     '' own destructor is skipped, but OTHER cleanups still run after this -- a guard declared

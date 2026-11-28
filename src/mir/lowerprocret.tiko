@@ -277,7 +277,11 @@ private function SretCopyResult_ _
     '' ...AND 'return f( )' IS ONE TOO: the call's result is a temporary this expression
     '' just registered, so it is adopted -- relocated and never destroyed -- rather than
     '' copy-constructed into the caller's storage and then destroyed.
-    if (isThis = false) andalso UdtTempSince_( c, tmark, src, rt ) then
+    dim as boolean freshTmp = UdtTempSince_( c, tmark, src, rt )
+    if (freshTmp = false) andalso (src.kind = cast( uint8, MV_LOCAL )) andalso (TypeNeedsDtor_( c, rt ) = false) then
+        freshTmp = IsFreshResultNode_( c, valueE, rt )   '' unregistered: see IsFreshResultNode_
+    end if
+    if (isThis = false) andalso freshTmp andalso MayRelocate_( c, rt ) then
         if RelocateUdt_( c, c.types->Unqualify( rt ), dst, src ) then
             ForgetUdtTemp_( c, src.id )
             return true

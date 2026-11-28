@@ -387,6 +387,9 @@ namespace Tko
     '' N_TYPE: 'type T as view' (docs/tiko-slices RFC-0002 §3) -- a type that may hold string
     '' slices, and lives only where a slice may: a local, a parameter or a result.
     const PF_VIEW_TYPE      as uint32 = &h20000000
+    '' N_TYPE: 'type T nomove' (RFC 0018 V5) -- A TIKO EXTENSION: its objects are never relocated,
+    '' because their address is known elsewhere. symbols/nomove.tiko reads it.
+    const PF_NOMOVE         as uint32 = &h40000000
     '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
     '' a DLL exports, reached through its import pointer (T85). See llvmglobal.tiko.
     const VF_DLLIMPORT      as uint32 = &h00000001

@@ -1253,6 +1253,10 @@
     DIAG( TKO1258, SEV_ERROR,   "'move( )' moves an object of a TYPE, and '%0' is not one" )
     DIAG( TKO1259, SEV_ERROR,   "'move( )' cannot move from '%0': it is const, and a move resets what it moves from" )
     DIAG( TKO1260, SEV_WARNING, "'move( )' of a temporary does nothing: the value is moved already" )
+    '' 'type T nomove' -- RFC 0018 V5, symbols/checkmove.tiko.
+    DIAG( TKO1261, SEV_ERROR,   "'%0' is nomove, so 'move( )' cannot relocate it; pass it byref or by pointer" )
+    DIAG( TKO1262, SEV_ERROR,   "'swap' relocates both objects, and '%0' is nomove" )
+    DIAG( TKO1263, SEV_ERROR,   "'redim preserve' relocates every element, and '%0' is nomove" )
 
 #endmacro
 

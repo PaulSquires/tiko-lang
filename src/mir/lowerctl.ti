@@ -25,6 +25,8 @@ declare function MoveType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.Type
 declare function LowerMoveTemp_( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
 declare function MoveCallInto_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval t as Tko.TypeId, byref dst as MirValue ) as boolean
+declare function MayRelocate_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+declare function IsFreshResultNode_( byref c as Ctx, byval n as Tko.NodeId, byval t as Tko.TypeId ) as boolean
 declare function IsVariableName_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 declare function TypeHasUserLet_( byref c as Ctx, byval t as Tko.TypeId, byval depth as int32 = 0 ) as boolean
 declare sub DestroyUdtAt_( byref c as Ctx, byval t as Tko.TypeId, byref addr as MirValue )

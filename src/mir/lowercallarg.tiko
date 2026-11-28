@@ -1179,7 +1179,11 @@ function ByvalUdtCopyArg_ _   '' not private: an operator's operand takes it too
     '' copied f's result into a second temporary and destroyed both after the call; the
     '' result is an rvalue nobody else holds, so it IS the argument. It is already on
     '' c.udtTemps and dies with the statement there, so no slot is handed back.
-    if UdtTempSince_( c, tmark, src, upt ) then
+    dim as boolean freshArg = UdtTempSince_( c, tmark, src, upt )
+    if (freshArg = false) andalso (src.kind = cast( uint8, MV_LOCAL )) andalso (TypeNeedsDtor_( c, pt ) = false) then
+        freshArg = IsFreshResultNode_( c, argNode, upt )   '' unregistered: see IsFreshResultNode_
+    end if
+    if freshArg then
         outa = src
         return true
     end if

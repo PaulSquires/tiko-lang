@@ -1,0 +1,16 @@
+'' RFC 0018 V4 (symbols/checkmove.tiko, latechecks.tiko, semwalk.tiko, latesweeps2.tiko): a type
+'' whose copy constructor and 'let' are private still refuses every COPY -- 'return g' of a
+'' shared and 'return o' of a byref parameter (fbc's 205, which tiko did not ask at all and
+'' left to fail at the link), 'dim b = a', 'b = a' (TKO0746) and 'Take( a )' -- while the three
+'' MOVES at the end, 'move( a )' into a dim, an assignment and an argument, are accepted.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/move-noncopyable.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: move-noncopyable.tiko(17,12): error TKO0633: 'owner' needs a constructor or destructor that is not accessible here
+'' EXPECT-OUT: move-noncopyable.tiko(21,12): error TKO0633: 'owner' needs a constructor or destructor that is not accessible here
+'' EXPECT-OUT: move-noncopyable.tiko(29,1): error TKO0746: the operator let of 'owner' is private or protected and cannot be reached from here
+'' EXPECT-OUT: move-noncopyable.tiko(30,7): error TKO0633: 'owner' needs a constructor or destructor that is not accessible here
+'' EXPECT-OUT: move-noncopyable.tiko(28,14): error TKO0633: 'b' needs a constructor or destructor that is not accessible here
+'' EXPECT-NOT: move-noncopyable.tiko(31,
+'' EXPECT-NOT: move-noncopyable.tiko(32,
+'' EXPECT-NOT: move-noncopyable.tiko(33,
