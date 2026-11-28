@@ -1,0 +1,17 @@
+'' --emit-doc over a type with a 'derive' line (RFC 0019): the line is in the type's header, not a
+'' field named derive; what it gives the type is listed as members the compiler wrote ('=' '<>',
+'' '<' '>' '<=' '>=', ToText); and 'derive as int32' stays a field.
+'' TEST: cli
+'' ENV: TIKO_MODCACHE=build/.edocd/cache
+'' CLEAN: build/.edocd
+'' ARGS: -target windows-x86_64 --emit-doc build/.edocd/out tests/modules/src/docmod/derivedoc
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: ### Cell\n
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: A point on a grid.
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: derive equal, order, hash, text
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: declare function ToText( ) as ustring
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: operator <= ( byref a as Cell, byref b as Cell ) as boolean
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: Written by the compiler: 'derive order'.
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: | `as int32 row` | the row, from 0 |
+'' EXPECT-FILE-HAS: build/.edocd/out/main.derivedoc.md :: `derive as int32`
+'' EXPECT-FILE-NOT-HAS: build/.edocd/out/main.derivedoc.md :: | `derive equal

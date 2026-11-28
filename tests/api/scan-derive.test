@@ -1,0 +1,9 @@
+'' The editor scan over a 'derive text' type (RFC 0019 R6): the compiler-written ToText( ) has no
+'' symbol, so the scan gives it a record of its own under the type, at the 'derive' line -- what
+'' tkEdit's member list reads. A type that derives only 'equal' gets none.
+'' TEST: cli
+'' ARGS: --dump-scan tests/api/src/scanderive.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: [1] function ToText as ustring  @0:3:5  parent=0
+'' EXPECT-OUT: [2] type Plain  @0:6:6  parent=-1
+'' EXPECT-OUT: symbols: 6

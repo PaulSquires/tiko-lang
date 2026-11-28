@@ -371,6 +371,19 @@ private function AnonEnumMember_( byref h as Harvest_, byval s as Tko.Symbol ptr
     return lcase( left( Spell_( h, h.ctx->types.NameOf( s->type_ ) ), 4 ) ) = "tmp$"
 end function
 
+'' 'derive text' (RFC 0019 R6): the type has a ToText( ) the compiler writes, with no symbol behind
+'' it, so it gets a record of its own -- at the 'derive' line -- for the editor's member list.
+private sub DerivedTextRec_( byref h as Harvest_, byval s as Tko.Symbol ptr, byval ri as int32 )
+    dim as Tko.NodeId tn = cast( Tko.NodeId, s->payload )
+    if tn = Tko.NODE_NONE then return
+    if h.ast->Kind( tn ) <> Tko.N_TYPE then return
+    dim as Tko.NodeId ln
+    if (Tko.DeriveOf( *h.ast, tn, ln ) and Tko.DERIVE_TEXT) = 0 then return
+    if ln = Tko.NODE_NONE then return
+    dim as int32 r = AddRec_( h, SK_FUNCTION, "ToText", ri, h.ast->Loc( ln ), "totext" )
+    h.r->syms[r].typeText = "ustring"
+end sub
+
 private sub HarvestSymbol_ _
     ( byref h as Harvest_, byval sid as Tko.SymbolId, byval sc as int32 )
 
@@ -485,6 +498,7 @@ private sub HarvestSymbol_ _
     '' public procedure the program calls look dead.
     if h.r->importing then fl and= not SF_REFTRACKED
     h.r->syms[ri].flags = fl
+    if sk = Tko.SYM_UDT then DerivedTextRec_( h, s, ri )   '' RFC 0019
 
     if dn <> Tko.NODE_NONE then
         h.r->syms[ri].bodyLine = h.r->syms[ri].line

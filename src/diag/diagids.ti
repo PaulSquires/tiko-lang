@@ -27,7 +27,8 @@
 ''     1100-1149   semantic, continued: int128 / uint128
 ''     1150-1199   flow analysis: what holds on every path to a use (std/outcome's checks)
 ''     1200-1239   'tiko test' and 'tiko doc' (docs/tiko-test-doc)
-''     1240-1279   'match' (docs/tiko-comparison RFC-0001-match)
+''     1240-1257   'match' (docs/tiko-comparison RFC-0001-match)
+''     1258-1279   'derive', 'hashvalue' and the enum intrinsics (RFC 0019)
 ''
 '' FORMAT STRINGS use %0, %1, %2 for the arguments passed to Report( ). A '%' that is
 '' not followed by a digit is literal.
