@@ -1,0 +1,82 @@
+X1 dim b = move( a )
+  ctor #1 (1)
+  ctor #2
+  b=#1 t1  a=#2 t2
+  dtor #1
+  dtor #2
+X1: ctor=2 copy=0 let=0 dtor=2 balance=ok
+
+X2 b = move( a )  (T has a written let; move skips it)
+  ctor #3 (2)
+  ctor #4 (3)
+  ctor #5
+  dtor #4
+  b=#3 t3  a=#5 t5
+  dtor #3
+  dtor #5
+X2: ctor=3 copy=0 let=0 dtor=3 balance=ok
+
+X3 TakeT( move( a ) )
+  ctor #6 (4)
+  ctor #7
+  (in TakeT #6 t6)
+  dtor #6
+  a=#7 t7
+  dtor #7
+X3: ctor=2 copy=0 let=0 dtor=2 balance=ok
+
+X4 return move( p ), p a byval parameter (RFC M5)
+  ctor #8 (5)
+  COPY #9 <- #8
+  ctor #10
+  dtor #10
+  b=t8  a=t8
+  dtor #9
+  dtor #8
+X4: ctor=2 copy=1 let=0 dtor=3 balance=ok
+
+X5 return move( r ) on one path, return keep on the other
+  ctor #11 (50)
+  ctor #12 (51)
+  ctor #13
+  dtor #12
+  dtor #13
+  b=t11
+  dtor #11
+X5: ctor=3 copy=0 let=0 dtor=3 balance=ok
+
+X6 a = move( a )  (moved onto itself)
+  ctor #14 (6)
+  ctor #15
+  dtor #15
+  a=t14
+  dtor #14
+X6: ctor=2 copy=0 let=0 dtor=2 balance=ok
+
+X7 element and field sources
+  ctor #16
+  ctor #17
+  ctor #18
+  e=element  arr(1)=#18 t18
+  dtor #17
+  dtor #18
+  dtor #16
+X7: ctor=3 copy=0 let=0 dtor=3 balance=ok
+
+X8 P: no structors written anywhere
+  dim:    same buffers: yes  list100 100  a: ubound=-1 name=""
+  assign: same buffers: yes  b: ubound=-1 name=""
+  (in TakeP: same buffers: yes, list100)
+  arg:    c: ubound=-1 name=""
+  a is usable again: reused ubound=2
+X9 *p and a byref parameter as sources
+  ctor #19 (9)
+  ctor #20
+  ctor #21
+  dtor #20
+  b=t19  a=#21 t21
+  dtor #19
+  dtor #21
+X9: ctor=3 copy=0 let=0 dtor=3 balance=ok
+
+-- end of main

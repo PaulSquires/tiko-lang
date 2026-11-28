@@ -445,6 +445,17 @@ private function UdtConvTemp_ _
     if argNode = Tko.NODE_NONE then return false
     dim as int32 sz = SizeOfType( c, pt )
     if sz <= 0 then return false
+
+    '' 'Take( move( a ) )' (RFC 0018 V3): the move's temporary IS the argument, whatever the
+    '' type declares -- already registered, so no slot comes back. See lowermove.tiko.
+    if IsMoveCall_( c, argNode ) then
+        if MoveType_( c, argNode ) = c.types->Unqualify( pt ) then
+            dim as MirValue mvt = LowerMoveTemp_( c, argNode )
+            if mvt.kind = cast( uint8, MV_NONE ) then return false
+            outa = mvt
+            return true
+        end if
+    end if
     if SliceUnitBytes( c, pt ) > 0 then return LowerSliceArg( c, argNode, pt, outa )   '' a string for a slice parameter: lowerslice.tiko
 
     '' A WIDE STRING FOR A TYPE WITH A 'wstring ptr' CONSTRUCTOR takes that one, as fbc does --

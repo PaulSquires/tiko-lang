@@ -12,6 +12,7 @@ not**.
 | `implicit.bas` | A UDT with **no structors written by hand** (dynamic array + string + one `T`), returned, assigned and passed by value. It prints the data after each case to show it arrived intact. |
 | `relocate.bas` | The relocations FreeBASIC already performs: `swap` and `redim preserve`, with no copy and no `let`. V1 rests on these; V5's `nomove` must close both. |
 | `noncopyable.bas` | Returning a type whose copy constructor is private. It is rejected today; under V4 it compiles. The baseline is the diagnostic. |
+| `explicit.bas` | Added at P2: `move( x )` at every sink (dim, assignment over a written `let`, byval argument, `return move( p )` of a byval parameter, a move on one return path, a self-move, an element, `*p` through a byref parameter) and a type with no structors written anywhere, whose buffers are compared by address. Each source is printed after the move to show it was reset. TIKO-ONLY. Its first baseline is `.p2-trace`. |
 | `hazards.bas` | Added at P1: the shapes a relocation could get wrong. Two locals and two returns, a return from inside a loop, a pending `defer` (no move), a guard whose destructor reads the moved-out local, a method result, an assignment whose target is also an argument, element and field targets, nested by-value calls, a temporary read in an expression. Its `.p0-trace` comes from the P0 compiler (master `61a0e6813` built unmodified); fbc has no `defer`, so it has no `.fbc-trace`. |
 
 ## The baseline is today's tiko, not fbc

@@ -1,0 +1,33 @@
+'' RUN: 'move( x )' (RFC 0018 V3) at every sink -- dim, assignment over a type with a written let,
+'' a byval argument, 'return move( p )' of a byval parameter, a move on one return path only,
+'' a self-move, an element, *p, a byref parameter -- and a type with no structors written
+'' anywhere, whose string and array buffers must arrive by ADDRESS. Every case must balance and
+'' each source must read back reset. The probe is tests/semantic/moves/explicit.bas; its full
+'' trace is the .p2-trace there (build/movetrace.sh).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/semantic/moves/explicit.bas -o tests/codegen/moveexplicit.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/moveexplicit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:   b=#1 t1  a=#2 t2
+'' EXPECT-RUN-OUT: X1: ctor=2 copy=0 let=0 dtor=2 balance=ok
+'' EXPECT-RUN-OUT:   b=#3 t3  a=#5 t5
+'' EXPECT-RUN-OUT: X2: ctor=3 copy=0 let=0 dtor=3 balance=ok
+'' EXPECT-RUN-OUT:   (in TakeT #6 t6)
+'' EXPECT-RUN-OUT: X3: ctor=2 copy=0 let=0 dtor=2 balance=ok
+'' EXPECT-RUN-OUT:   b=t8  a=t8
+'' EXPECT-RUN-OUT: X4: ctor=2 copy=1 let=0 dtor=3 balance=ok
+'' EXPECT-RUN-OUT:   b=t11
+'' EXPECT-RUN-OUT: X5: ctor=3 copy=0 let=0 dtor=3 balance=ok
+'' EXPECT-RUN-OUT:   a=t14
+'' EXPECT-RUN-OUT: X6: ctor=2 copy=0 let=0 dtor=2 balance=ok
+'' EXPECT-RUN-OUT:   e=element  arr(1)=#18 t18
+'' EXPECT-RUN-OUT: X7: ctor=3 copy=0 let=0 dtor=3 balance=ok
+'' EXPECT-RUN-OUT:   dim:    same buffers: yes  list100 100  a: ubound=-1 name=""
+'' EXPECT-RUN-OUT:   assign: same buffers: yes  b: ubound=-1 name=""
+'' EXPECT-RUN-OUT:   (in TakeP: same buffers: yes, list100)
+'' EXPECT-RUN-OUT:   arg:    c: ubound=-1 name=""
+'' EXPECT-RUN-OUT:   a is usable again: reused ubound=2
+'' EXPECT-RUN-OUT:   b=t19  a=#21 t21
+'' EXPECT-RUN-OUT: X9: ctor=3 copy=0 let=0 dtor=3 balance=ok

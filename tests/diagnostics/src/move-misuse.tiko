@@ -1,0 +1,27 @@
+'' RFC 0018 V3: what 'move( x )' refuses (symbols/checkmove.tiko). Line numbers are asserted.
+type T
+    as string s
+    declare destructor( )
+end type
+destructor T( ) : end destructor
+
+function MakeT( ) as T
+    dim as T r
+    return r
+end function
+
+sub Use( byref x as const T )
+    dim as T y = move( x )
+end sub
+
+dim as T a
+dim as const T k = a
+dim as long n = 5
+dim as string s = "text"
+dim as long b1 = move( n )
+dim as string b2 = move( s )
+dim as T b3 = move( k )
+dim as T b4 = move( MakeT( ) )
+dim as T b5 = move( )
+dim as T b6 = move( a, a )
+dim as T b7 = move( a )

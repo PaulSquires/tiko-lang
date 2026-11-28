@@ -739,6 +739,27 @@ private sub LowerAssign _
             if LowerPropertySet_( c, target, value ) then return
         end if
     end if
+    '' 'b = move( a )' (RFC 0018 V3): b's old value destroyed, a's object stored, a reset --
+    '' over ANY type, a written 'let' included: the programmer asked. b's address first, as
+    '' every assignment takes it, so 'a = move( a )' ends with a holding what it held.
+    if (atl <> Tko.TYPE_NONE) andalso IsMoveCall_( c, value ) then
+        dim as Tko.TypeId matl = c.types->Unqualify( atl )
+        if (c.types->Kind( matl ) = Tko.TK_UDT) andalso (MoveType_( c, value ) = matl) then
+            dim as MirValue mda = LowerAddr( c, target )
+            if mda.kind <> cast( uint8, MV_NONE ) then
+                dim as MirValue mtmp = LowerMoveTemp_( c, value )
+                dim as int32 msz = SizeOfType( c, matl )
+                dim as MirValue mwhole
+                if (mtmp.kind <> cast( uint8, MV_NONE )) andalso (msz > 0) then mwhole = LowerExprLoad( c, mtmp, MT_AGG, msz )
+                if mwhole.kind <> cast( uint8, MV_NONE ) then
+                    if TypeNeedsDtor_( c, matl ) then DestroyUdtAt_( c, matl, mda )
+                    StoreThrough( c, mda, mwhole )
+                    ForgetUdtTemp_( c, mtmp.id )
+                    return
+                end if
+            end if
+        end if
+    end if
     dim as Tko.TypeId avt = c.info->TypeOf_( value )
     if avt = Tko.TYPE_NONE then avt = UntypedCallResult_( c, value )
     '' A CONST SOURCE IS THE SAME TYPE: 'x2 = x1' over 'dim x1 as const UDT' bit-copied (implicit-methods.bas).

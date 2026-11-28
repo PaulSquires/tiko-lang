@@ -1,0 +1,9 @@
+'' RUN: a program's own 'move' is not the RFC 0018 builtin -- a procedure called move, a method
+'' called Move and a field called move all keep their meaning. Expected: what fbc prints.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/move-user-proc.tiko -o tests/codegen/moveuserproc.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/moveuserproc.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  42 7 9

@@ -122,6 +122,14 @@ private function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
 
     if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    '' 'return move( x )' (RFC 0018 V3): x's object goes straight into the caller's storage.
+    if IsMoveCall_( c, valueE ) then
+        dim as MirValue msa
+        msa.kind = cast( uint8, MV_LOCAL ) : msa.ty = cast( uint8, MT_PTR ) : msa.id = c.sretParam
+        dim as MirValue mdst = LowerExprLoad( c, msa, MT_PTR )
+        if mdst.kind = cast( uint8, MV_NONE ) then return false
+        if MoveCallInto_( c, valueE, rt, mdst ) then return true
+    end if
     '' ANOTHER TYPE IS CONSTRUCTED INTO THE RESULT through its converting constructor, and
     '' needs no copy constructor at all. 'return "Janvier"' out of a function returning a
     '' type with 'constructor( byref z as const zstring )' is, measured, three constructors

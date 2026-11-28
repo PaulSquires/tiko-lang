@@ -297,6 +297,13 @@ sub LowerVarItem_ _
             end if
         end if
         if (ip->b <> Tko.NODE_NONE) andalso (initIsLiteral = false) then
+            '' 'dim b as T = move( a )' (RFC 0018 V3): a's object is relocated into b and a is
+            '' reset -- no copy constructor, whatever T declares. See lowermove.tiko.
+            if (constructed = false) andalso IsMoveCall_( c, ip->b ) then
+                dim as MirValue msa
+                msa.kind = cast( uint8, MV_LOCAL ) : msa.ty = cast( uint8, MT_PTR ) : msa.id = slot
+                if MoveCallInto_( c, ip->b, vs->type_, msa ) then constructed = true
+            end if
             dim as Tko.TypeId ivt = InitSourceType_( c, ip->b )   '' 'this' is its pointee
             '' ...AND A CALL CHECK LEFT UNTYPED is its binding's result:
             '' 'mk( a + " 2027" )' over a DWSTRING. See UntypedCallResult_.
@@ -322,7 +329,7 @@ sub LowerVarItem_ _
             if (ivt <> Tko.TYPE_NONE) andalso (vs->type_ <> Tko.TYPE_NONE) then
                 ivtUpcast = IsBaseOf_( c, vs->type_, ivt )
             end if
-            if (ivt <> Tko.TYPE_NONE) andalso _
+            if (constructed = false) andalso (ivt <> Tko.TYPE_NONE) andalso _
                ((ivt = vst) orelse ivtUpcast) andalso _
                (c.types->Kind( ivt ) = Tko.TK_UDT) then
                 '' THE DESTINATION'S TYPE, not the source's: an upcast copies

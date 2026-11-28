@@ -60,6 +60,7 @@ src/symbols/methodassign.tiko
 src/symbols/semslice.tiko
 src/symbols/semoptcheck.tiko
 src/symbols/semmatch.tiko
+src/symbols/checkmove.tiko
 src/symbols/semint128.tiko
 src/symbols/semassign.tiko
 src/symbols/propaccess.tiko
@@ -117,6 +118,7 @@ src/mir/lowermember.tiko
 src/mir/lowermodinit.tiko
 src/mir/lowergfx.tiko
 src/mir/lowerclean.tiko
+src/mir/lowermove.tiko
 src/mir/lowerdata.tiko
 src/mir/lowerctor.tiko
 src/mir/lowercall.tiko
